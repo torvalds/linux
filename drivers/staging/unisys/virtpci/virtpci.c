@@ -333,7 +333,7 @@ static int add_vhba(struct add_virt_guestpart *addparams)
 
 	GET_SCSIADAPINFO_FROM_CHANPTR(addparams->chanptr);
 
-	GET_BUS_DEV(addparams->busNo);
+	GET_BUS_DEV(addparams->bus_no);
 
 	LOGINF("Adding vhba wwnn:%x:%x config:%d-%d-%d-%d chanptr:%p\n",
 	       scsi.wwnn.wwnn1, scsi.wwnn.wwnn2,
@@ -390,7 +390,7 @@ add_vnic(struct add_virt_guestpart *addparams)
 
 	GET_NETADAPINFO_FROM_CHANPTR(addparams->chanptr);
 
-	GET_BUS_DEV(addparams->busNo);
+	GET_BUS_DEV(addparams->bus_no);
 
 	LOGINF("Adding vnic macaddr:%02x:%02x:%02x:%02x:%02x:%02x rcvbufs:%d mtu:%d chanptr:%p%pUL\n",
 	     net.mac_addr[0], net.mac_addr[1], net.mac_addr[2], net.mac_addr[3],
@@ -939,8 +939,8 @@ static int virtpci_device_add(struct device *parentbus, int devtype,
 		virtpcidev->net = *net;
 	}
 	virtpcidev->vendor = PCI_VENDOR_ID_UNISYS;
-	virtpcidev->busNo = addparams->busNo;
-	virtpcidev->deviceNo = addparams->deviceNo;
+	virtpcidev->busNo = addparams->bus_no;
+	virtpcidev->deviceNo = addparams->device_no;
 
 	virtpcidev->queueinfo.chan = addparams->chanptr;
 	virtpcidev->queueinfo.send_int_if_needed = NULL;
@@ -957,7 +957,7 @@ static int virtpci_device_add(struct device *parentbus, int devtype,
 	virtpcidev->generic_dev.release = virtpci_device_release;
 
 	dev_set_name(&virtpcidev->generic_dev, "%x:%x",
-		     addparams->busNo, addparams->deviceNo);
+		     addparams->bus_no, addparams->device_no);
 
 	/* add the vhba/vnic to virtpci device list - but check for
 	 * duplicate wwnn/macaddr first
@@ -1055,7 +1055,8 @@ static int virtpci_device_add(struct device *parentbus, int devtype,
 
 	LOGINF("Added %s:%d:%d &virtpcidev->generic_dev:%p\n",
 	       (devtype == VIRTHBA_TYPE) ? "virthba" : "virtnic",
-	       addparams->busNo, addparams->deviceNo, &virtpcidev->generic_dev);
+	       addparams->bus_no, addparams->device_no,
+	       &virtpcidev->generic_dev);
 	POSTCODE_LINUX_2(VPCI_CREATE_EXIT_PC, POSTCODE_SEVERITY_INFO);
 	return 1;
 }

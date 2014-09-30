@@ -461,9 +461,9 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 					}
 					cmd.msgtype = GUEST_ADD_VHBA;
 					cmd.add_vhba.chanptr = dev->chanptr;
-					cmd.add_vhba.busNo = busNo;
-					cmd.add_vhba.deviceNo = devNo;
-					cmd.add_vhba.devInstGuid =
+					cmd.add_vhba.bus_no = busNo;
+					cmd.add_vhba.device_no = devNo;
+					cmd.add_vhba.instance_uuid =
 					    dev->instance_uuid;
 					cmd.add_vhba.intr = dev->intr;
 				} else
@@ -486,9 +486,9 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 					}
 					cmd.msgtype = GUEST_ADD_VNIC;
 					cmd.add_vnic.chanptr = dev->chanptr;
-					cmd.add_vnic.busNo = busNo;
-					cmd.add_vnic.deviceNo = devNo;
-					cmd.add_vnic.devInstGuid =
+					cmd.add_vnic.bus_no = busNo;
+					cmd.add_vnic.device_no = devNo;
+					cmd.add_vnic.instance_uuid =
 					    dev->instance_uuid;
 					cmd.add_vhba.intr = dev->intr;
 				} else {

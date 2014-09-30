@@ -364,9 +364,9 @@ struct del_vbus_guestpart {
 
 struct add_virt_guestpart {
 	void __iomem *chanptr;		/* pointer to data channel */
-	u32 busNo;		/* bus number for the operation */
-	u32 deviceNo;		/* number of device on the bus */
-	uuid_le devInstGuid;	/* instance guid for device */
+	u32 bus_no;		/* bus number for the operation */
+	u32 device_no;		/* number of device on the bus */
+	uuid_le instance_uuid;	/* instance guid for device */
 	struct InterruptInfo intr;	/* recv/send interrupt info */
 	/* recvInterruptHandle contains info needed in order to
 	 * register to receive interrupts on the data channel.
