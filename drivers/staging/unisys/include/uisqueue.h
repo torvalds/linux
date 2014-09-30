@@ -272,8 +272,8 @@ struct del_vdisk_iopart {
 
 struct del_virt_iopart {
 	void *chanptr;		     /* pointer to data channel */
-	u32 busNo;
-	u32 devNo;
+	u32 bus_no;
+	u32 dev_no;
 };
 
 struct det_virt_iopart {	     /* detach internal port */
