@@ -177,7 +177,7 @@ config NETFILTER_ADVANCED
 
 config BRIDGE_NETFILTER
 	tristate "Bridged IP/ARP packets filtering"
-	depends on (BRIDGE || BRIDGE=n)
+	depends on BRIDGE
 	depends on NETFILTER && INET
 	depends on NETFILTER_ADVANCED
 	default m
