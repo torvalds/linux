@@ -308,3 +308,20 @@ bool intel_set_pch_fifo_underrun_reporting(struct drm_i915_private *dev_priv,
 	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
 	return old;
 }
+
+void intel_cpu_fifo_underrun_irq_handler(struct drm_i915_private *dev_priv,
+					 enum pipe pipe)
+{
+	if (intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false))
+		DRM_ERROR("CPU pipe %c FIFO underrun\n",
+			  pipe_name(pipe));
+}
+
+void intel_pch_fifo_underrun_irq_handler(struct drm_i915_private *dev_priv,
+					 enum transcoder pch_transcoder)
+{
+	if (intel_set_pch_fifo_underrun_reporting(dev_priv, pch_transcoder,
+						  false))
+		DRM_ERROR("PCH transcoder %c FIFO underrun\n",
+			  transcoder_name(pch_transcoder));
+}
