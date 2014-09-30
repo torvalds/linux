@@ -514,11 +514,11 @@ int ioda_eeh_phb_reset(struct pci_controller *hose, int option)
 	if (option == EEH_RESET_FUNDAMENTAL ||
 	    option == EEH_RESET_HOT)
 		rc = opal_pci_reset(phb->opal_id,
-				OPAL_PHB_COMPLETE,
+				OPAL_RESET_PHB_COMPLETE,
 				OPAL_ASSERT_RESET);
 	else if (option == EEH_RESET_DEACTIVATE)
 		rc = opal_pci_reset(phb->opal_id,
-				OPAL_PHB_COMPLETE,
+				OPAL_RESET_PHB_COMPLETE,
 				OPAL_DEASSERT_RESET);
 	if (rc < 0)
 		goto out;
@@ -558,15 +558,15 @@ static int ioda_eeh_root_reset(struct pci_controller *hose, int option)
 	 */
 	if (option == EEH_RESET_FUNDAMENTAL)
 		rc = opal_pci_reset(phb->opal_id,
-				OPAL_PCI_FUNDAMENTAL_RESET,
+				OPAL_RESET_PCI_FUNDAMENTAL,
 				OPAL_ASSERT_RESET);
 	else if (option == EEH_RESET_HOT)
 		rc = opal_pci_reset(phb->opal_id,
-				OPAL_PCI_HOT_RESET,
+				OPAL_RESET_PCI_HOT,
 				OPAL_ASSERT_RESET);
 	else if (option == EEH_RESET_DEACTIVATE)
 		rc = opal_pci_reset(phb->opal_id,
-				OPAL_PCI_HOT_RESET,
+				OPAL_RESET_PCI_HOT,
 				OPAL_DEASSERT_RESET);
 	if (rc < 0)
 		goto out;
@@ -697,7 +697,7 @@ static int ioda_eeh_reset(struct eeh_pe *pe, int option)
 		    (option == EEH_RESET_HOT ||
 		    option == EEH_RESET_FUNDAMENTAL)) {
 			rc = opal_pci_reset(phb->opal_id,
-					    OPAL_PHB_ERROR,
+					    OPAL_RESET_PHB_ERROR,
 					    OPAL_ASSERT_RESET);
 			if (rc != OPAL_SUCCESS) {
 				pr_warn("%s: Failure %lld clearing "
