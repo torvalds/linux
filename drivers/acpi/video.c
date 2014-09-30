@@ -1146,6 +1146,23 @@ acpi_video_device_bind(struct acpi_video_bus *video,
 	}
 }
 
+static bool acpi_video_device_in_dod(struct acpi_video_device *device)
+{
+	struct acpi_video_bus *video = device->video;
+	int i;
+
+	/* If we have a broken _DOD, no need to test */
+	if (!video->attached_count)
+		return true;
+
+	for (i = 0; i < video->attached_count; i++) {
+		if (video->attached_array[i].bind_info == device)
+			return true;
+	}
+
+	return false;
+}
+
 /*
  *  Arg:
  *	video	: video bus device
@@ -1584,6 +1601,15 @@ static void acpi_video_dev_register_backlight(struct acpi_video_device *device)
 	int result;
 	static int count;
 	char *name;
+
+	/*
+	 * Do not create backlight device for video output
+	 * device that is not in the enumerated list.
+	 */
+	if (!acpi_video_device_in_dod(device)) {
+		dev_dbg(&device->dev->dev, "not in _DOD list, ignore\n");
+		return;
+	}
 
 	result = acpi_video_init_brightness(device);
 	if (result)
