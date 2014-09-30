@@ -505,6 +505,22 @@ config REGULATOR_RC5T583
 	  through regulator interface. The device supports multiple DCDC/LDO
 	  outputs which can be controlled by i2c communication.
 
+config REGULATOR_RK808
+	tristate "Rockchip RK808 Power regulators"
+	depends on MFD_RK808
+	help
+	  Select this option to enable the power regulator of ROCKCHIP
+	  PMIC RK808.
+	  This driver supports the control of different power rails of device
+	  through regulator interface. The device supports multiple DCDC/LDO
+	  outputs which can be controlled by i2c communication.
+
+config REGULATOR_RN5T618
+	tristate "Ricoh RN5T618 voltage regulators"
+	depends on MFD_RN5T618
+	help
+	  Say y here to support the regulators found on Ricoh RN5T618 PMIC.
+
 config REGULATOR_S2MPA01
 	tristate "Samsung S2MPA01 voltage regulator"
 	depends on MFD_SEC_CORE
