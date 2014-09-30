@@ -1164,6 +1164,31 @@ void eeh_remove_device(struct pci_dev *dev)
 	edev->mode &= ~EEH_DEV_SYSFS;
 }
 
+int eeh_unfreeze_pe(struct eeh_pe *pe, bool sw_state)
+{
+	int ret;
+
+	ret = eeh_pci_enable(pe, EEH_OPT_THAW_MMIO);
+	if (ret) {
+		pr_warn("%s: Failure %d enabling IO on PHB#%x-PE#%x\n",
+			__func__, ret, pe->phb->global_number, pe->addr);
+		return ret;
+	}
+
+	ret = eeh_pci_enable(pe, EEH_OPT_THAW_DMA);
+	if (ret) {
+		pr_warn("%s: Failure %d enabling DMA on PHB#%x-PE#%x\n",
+			__func__, ret, pe->phb->global_number, pe->addr);
+		return ret;
+	}
+
+	/* Clear software isolated state */
+	if (sw_state && (pe->state & EEH_PE_ISOLATED))
+		eeh_pe_state_clear(pe, EEH_PE_ISOLATED);
+
+	return ret;
+}
+
 /**
  * eeh_dev_open - Increase count of pass through devices for PE
  * @pdev: PCI device
@@ -1176,7 +1201,6 @@ void eeh_remove_device(struct pci_dev *dev)
 int eeh_dev_open(struct pci_dev *pdev)
 {
 	struct eeh_dev *edev;
-	int flag = (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
 	int ret = -ENODEV;
 
 	mutex_lock(&eeh_dev_mutex);
@@ -1196,31 +1220,9 @@ int eeh_dev_open(struct pci_dev *pdev)
 	 * in frozen PE won't work properly. Clear the frozen state
 	 * in advance.
 	 */
-	ret = eeh_ops->get_state(edev->pe, NULL);
-	if (ret > 0 && ret != EEH_STATE_NOT_SUPPORT &&
-	    (ret & flag) != flag) {
-		ret = eeh_ops->set_option(edev->pe, EEH_OPT_THAW_MMIO);
-		if (ret) {
-			pr_warn("%s: Failure %d enabling MMIO "
-				"for PHB#%x-PE#%x\n",
-				__func__, ret, edev->phb->global_number,
-				edev->pe->addr);
-			goto out;
-		}
-
-		ret = eeh_ops->set_option(edev->pe, EEH_OPT_THAW_DMA);
-		if (ret) {
-			pr_warn("%s: Failure %d enabling DMA "
-				"for PHB#%x-PE#%x\n",
-				__func__, ret, edev->phb->global_number,
-				edev->pe->addr);
-			goto out;
-		}
-	}
-
-	/* Clear software isolated state */
-	if (edev->pe->state & EEH_PE_ISOLATED)
-		eeh_pe_state_clear(edev->pe, EEH_PE_ISOLATED);
+	ret = eeh_unfreeze_pe(edev->pe, true);
+	if (ret)
+		goto out;
 
 	/* Increase PE's pass through count */
 	atomic_inc(&edev->pe->pass_dev_cnt);
@@ -1338,8 +1340,10 @@ int eeh_pe_set_option(struct eeh_pe *pe, int option)
 	 */
 	switch (option) {
 	case EEH_OPT_ENABLE:
-		if (eeh_enabled())
+		if (eeh_enabled()) {
+			ret = eeh_unfreeze_pe(pe, true);
 			break;
+		}
 		ret = -EIO;
 		break;
 	case EEH_OPT_DISABLE:
@@ -1351,7 +1355,7 @@ int eeh_pe_set_option(struct eeh_pe *pe, int option)
 			break;
 		}
 
-		ret = eeh_ops->set_option(pe, option);
+		ret = eeh_pci_enable(pe, option);
 		break;
 	default:
 		pr_debug("%s: Option %d out of range (%d, %d)\n",
