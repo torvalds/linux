@@ -66,7 +66,6 @@ static int xgene_reboot_probe(struct platform_device *pdev)
 
 	ctx->csr = of_iomap(pdev->dev.of_node, 0);
 	if (!ctx->csr) {
-		devm_kfree(&pdev->dev, ctx);
 		dev_err(&pdev->dev, "can not map resource\n");
 		return -ENODEV;
 	}
