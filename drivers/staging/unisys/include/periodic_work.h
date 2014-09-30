@@ -20,8 +20,6 @@
 
 #include "timskmod.h"
 
-
-
 /* PERIODIC_WORK an opaque structure to users.
  * Fields are declared only in the implementation .c files.
  */
