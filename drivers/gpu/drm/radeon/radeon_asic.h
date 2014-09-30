@@ -449,6 +449,8 @@ void rs780_dpm_debugfs_print_current_performance_level(struct radeon_device *rde
 						       struct seq_file *m);
 int rs780_dpm_force_performance_level(struct radeon_device *rdev,
 				      enum radeon_dpm_forced_level level);
+u32 rs780_dpm_get_current_sclk(struct radeon_device *rdev);
+u32 rs780_dpm_get_current_mclk(struct radeon_device *rdev);
 
 /*
  * rv770,rv730,rv710,rv740
