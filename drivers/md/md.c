@@ -66,8 +66,6 @@ static void autostart_arrays(int part);
 static LIST_HEAD(pers_list);
 static DEFINE_SPINLOCK(pers_lock);
 
-static void md_print_devices(void);
-
 static DECLARE_WAIT_QUEUE_HEAD(resync_wait);
 static struct workqueue_struct *md_wq;
 static struct workqueue_struct *md_misc_wq;
@@ -2169,136 +2167,6 @@ static void export_array(struct mddev *mddev)
 	}
 	mddev->raid_disks = 0;
 	mddev->major_version = 0;
-}
-
-static void print_desc(mdp_disk_t *desc)
-{
-	printk(" DISK<N:%d,(%d,%d),R:%d,S:%d>\n", desc->number,
-		desc->major,desc->minor,desc->raid_disk,desc->state);
-}
-
-static void print_sb_90(mdp_super_t *sb)
-{
-	int i;
-
-	printk(KERN_INFO
-		"md:  SB: (V:%d.%d.%d) ID:<%08x.%08x.%08x.%08x> CT:%08x\n",
-		sb->major_version, sb->minor_version, sb->patch_version,
-		sb->set_uuid0, sb->set_uuid1, sb->set_uuid2, sb->set_uuid3,
-		sb->ctime);
-	printk(KERN_INFO "md:     L%d S%08d ND:%d RD:%d md%d LO:%d CS:%d\n",
-		sb->level, sb->size, sb->nr_disks, sb->raid_disks,
-		sb->md_minor, sb->layout, sb->chunk_size);
-	printk(KERN_INFO "md:     UT:%08x ST:%d AD:%d WD:%d"
-		" FD:%d SD:%d CSUM:%08x E:%08lx\n",
-		sb->utime, sb->state, sb->active_disks, sb->working_disks,
-		sb->failed_disks, sb->spare_disks,
-		sb->sb_csum, (unsigned long)sb->events_lo);
-
-	printk(KERN_INFO);
-	for (i = 0; i < MD_SB_DISKS; i++) {
-		mdp_disk_t *desc;
-
-		desc = sb->disks + i;
-		if (desc->number || desc->major || desc->minor ||
-		    desc->raid_disk || (desc->state && (desc->state != 4))) {
-			printk("     D %2d: ", i);
-			print_desc(desc);
-		}
-	}
-	printk(KERN_INFO "md:     THIS: ");
-	print_desc(&sb->this_disk);
-}
-
-static void print_sb_1(struct mdp_superblock_1 *sb)
-{
-	__u8 *uuid;
-
-	uuid = sb->set_uuid;
-	printk(KERN_INFO
-	       "md:  SB: (V:%u) (F:0x%08x) Array-ID:<%pU>\n"
-	       "md:    Name: \"%s\" CT:%llu\n",
-		le32_to_cpu(sb->major_version),
-		le32_to_cpu(sb->feature_map),
-		uuid,
-		sb->set_name,
-		(unsigned long long)le64_to_cpu(sb->ctime)
-		       & MD_SUPERBLOCK_1_TIME_SEC_MASK);
-
-	uuid = sb->device_uuid;
-	printk(KERN_INFO
-	       "md:       L%u SZ%llu RD:%u LO:%u CS:%u DO:%llu DS:%llu SO:%llu"
-			" RO:%llu\n"
-	       "md:     Dev:%08x UUID: %pU\n"
-	       "md:       (F:0x%08x) UT:%llu Events:%llu ResyncOffset:%llu CSUM:0x%08x\n"
-	       "md:         (MaxDev:%u) \n",
-		le32_to_cpu(sb->level),
-		(unsigned long long)le64_to_cpu(sb->size),
-		le32_to_cpu(sb->raid_disks),
-		le32_to_cpu(sb->layout),
-		le32_to_cpu(sb->chunksize),
-		(unsigned long long)le64_to_cpu(sb->data_offset),
-		(unsigned long long)le64_to_cpu(sb->data_size),
-		(unsigned long long)le64_to_cpu(sb->super_offset),
-		(unsigned long long)le64_to_cpu(sb->recovery_offset),
-		le32_to_cpu(sb->dev_number),
-		uuid,
-		sb->devflags,
-		(unsigned long long)le64_to_cpu(sb->utime) & MD_SUPERBLOCK_1_TIME_SEC_MASK,
-		(unsigned long long)le64_to_cpu(sb->events),
-		(unsigned long long)le64_to_cpu(sb->resync_offset),
-		le32_to_cpu(sb->sb_csum),
-		le32_to_cpu(sb->max_dev)
-		);
-}
-
-static void print_rdev(struct md_rdev *rdev, int major_version)
-{
-	char b[BDEVNAME_SIZE];
-	printk(KERN_INFO "md: rdev %s, Sect:%08llu F:%d S:%d DN:%u\n",
-	       bdevname(rdev->bdev, b), (unsigned long long)rdev->sectors,
-	       test_bit(Faulty, &rdev->flags), test_bit(In_sync, &rdev->flags),
-	       rdev->desc_nr);
-	if (rdev->sb_loaded) {
-		printk(KERN_INFO "md: rdev superblock (MJ:%d):\n", major_version);
-		switch (major_version) {
-		case 0:
-			print_sb_90(page_address(rdev->sb_page));
-			break;
-		case 1:
-			print_sb_1(page_address(rdev->sb_page));
-			break;
-		}
-	} else
-		printk(KERN_INFO "md: no rdev superblock!\n");
-}
-
-static void md_print_devices(void)
-{
-	struct list_head *tmp;
-	struct md_rdev *rdev;
-	struct mddev *mddev;
-	char b[BDEVNAME_SIZE];
-
-	printk("\n");
-	printk("md:	**********************************\n");
-	printk("md:	* <COMPLETE RAID STATE PRINTOUT> *\n");
-	printk("md:	**********************************\n");
-	for_each_mddev(mddev, tmp) {
-
-		if (mddev->bitmap)
-			bitmap_print_sb(mddev->bitmap);
-		else
-			printk("%s: ", mdname(mddev));
-		rdev_for_each(rdev, mddev)
-			printk("<%s>", bdevname(rdev->bdev,b));
-		printk("\n");
-
-		rdev_for_each(rdev, mddev)
-			print_rdev(rdev, mddev->major_version);
-	}
-	printk("md:	**********************************\n");
-	printk("\n");
 }
 
 static void sync_sbs(struct mddev *mddev, int nospares)
@@ -6285,7 +6153,6 @@ static inline bool md_ioctl_valid(unsigned int cmd)
 	case GET_DISK_INFO:
 	case HOT_ADD_DISK:
 	case HOT_REMOVE_DISK:
-	case PRINT_RAID_DEBUG:
 	case RAID_AUTORUN:
 	case RAID_VERSION:
 	case RESTART_ARRAY_RW:
@@ -6329,11 +6196,6 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 	switch (cmd) {
 	case RAID_VERSION:
 		err = get_version(argp);
-		goto out;
-
-	case PRINT_RAID_DEBUG:
-		err = 0;
-		md_print_devices();
 		goto out;
 
 #ifndef MODULE
