@@ -216,6 +216,7 @@ static void r8712_usb_read_port_complete(struct urb *purb)
 						0, (unsigned char *)precvbuf);
 			} else {
 				_pkt *pskb = precvbuf->pskb;
+
 				skb_put(pskb, purb->actual_length);
 				skb_queue_tail(&precvpriv->rx_skb_queue, pskb);
 				tasklet_hi_schedule(&precvpriv->recv_tasklet);
