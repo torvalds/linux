@@ -482,6 +482,8 @@ struct fec_enet_private {
 	unsigned int tx_pkts_itr;
 	unsigned int tx_time_itr;
 	unsigned int itr_clk_rate;
+
+	u32 rx_copybreak;
 };
 
 void fec_ptp_init(struct platform_device *pdev);
