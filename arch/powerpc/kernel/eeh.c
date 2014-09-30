@@ -117,7 +117,7 @@ static DEFINE_MUTEX(eeh_dev_mutex);
  * not dynamically alloced, so that it ends up in RMO where RTAS
  * can access it.
  */
-#define EEH_PCI_REGS_LOG_LEN 4096
+#define EEH_PCI_REGS_LOG_LEN 8192
 static unsigned char pci_regs_buf[EEH_PCI_REGS_LOG_LEN];
 
 /*
@@ -148,16 +148,12 @@ static int __init eeh_setup(char *str)
 }
 __setup("eeh=", eeh_setup);
 
-/**
- * eeh_gather_pci_data - Copy assorted PCI config space registers to buff
- * @edev: device to report data for
- * @buf: point to buffer in which to log
- * @len: amount of room in buffer
- *
- * This routine captures assorted PCI configuration space data,
- * and puts them into a buffer for RTAS error logging.
+/*
+ * This routine captures assorted PCI configuration space data
+ * for the indicated PCI device, and puts them into a buffer
+ * for RTAS error logging.
  */
-static size_t eeh_gather_pci_data(struct eeh_dev *edev, char *buf, size_t len)
+static size_t eeh_dump_dev_log(struct eeh_dev *edev, char *buf, size_t len)
 {
 	struct device_node *dn = eeh_dev_to_of_node(edev);
 	u32 cfg;
@@ -255,6 +251,19 @@ static size_t eeh_gather_pci_data(struct eeh_dev *edev, char *buf, size_t len)
 	return n;
 }
 
+static void *eeh_dump_pe_log(void *data, void *flag)
+{
+	struct eeh_pe *pe = data;
+	struct eeh_dev *edev, *tmp;
+	size_t *plen = flag;
+
+	eeh_pe_for_each_dev(pe, edev, tmp)
+		*plen += eeh_dump_dev_log(edev, pci_regs_buf + *plen,
+					  EEH_PCI_REGS_LOG_LEN - *plen);
+
+	return NULL;
+}
+
 /**
  * eeh_slot_error_detail - Generate combined log including driver log and error log
  * @pe: EEH PE
@@ -268,7 +277,6 @@ static size_t eeh_gather_pci_data(struct eeh_dev *edev, char *buf, size_t len)
 void eeh_slot_error_detail(struct eeh_pe *pe, int severity)
 {
 	size_t loglen = 0;
-	struct eeh_dev *edev, *tmp;
 
 	/*
 	 * When the PHB is fenced or dead, it's pointless to collect
@@ -286,10 +294,7 @@ void eeh_slot_error_detail(struct eeh_pe *pe, int severity)
 		eeh_pe_restore_bars(pe);
 
 		pci_regs_buf[0] = 0;
-		eeh_pe_for_each_dev(pe, edev, tmp) {
-			loglen += eeh_gather_pci_data(edev, pci_regs_buf + loglen,
-						      EEH_PCI_REGS_LOG_LEN - loglen);
-		}
+		eeh_pe_traverse(pe, eeh_dump_pe_log, &loglen);
 	}
 
 	eeh_ops->get_log(pe, severity, pci_regs_buf, loglen);
