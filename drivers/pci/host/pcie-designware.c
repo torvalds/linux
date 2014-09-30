@@ -313,53 +313,16 @@ no_valid_irq:
 	return -ENOSPC;
 }
 
-static void clear_irq(unsigned int irq)
-{
-	unsigned int pos, nvec;
-	struct msi_desc *msi;
-	struct pcie_port *pp;
-	struct irq_data *data = irq_get_irq_data(irq);
-
-	/* get the port structure */
-	msi = irq_data_get_msi(data);
-	pp = sys_to_pcie(msi->dev->bus->sysdata);
-
-	/* undo what was done in assign_irq */
-	pos = data->hwirq;
-	nvec = 1 << msi->msi_attrib.multiple;
-
-	clear_irq_range(pp, irq, nvec, pos);
-
-	/* all irqs cleared; reset attributes */
-	msi->irq = 0;
-	msi->msi_attrib.multiple = 0;
-}
-
 static int dw_msi_setup_irq(struct msi_chip *chip, struct pci_dev *pdev,
 			struct msi_desc *desc)
 {
-	int irq, pos, msgvec;
-	u16 msg_ctr;
+	int irq, pos;
 	struct msi_msg msg;
 	struct pcie_port *pp = sys_to_pcie(pdev->bus->sysdata);
 
-	pci_read_config_word(pdev, desc->msi_attrib.pos+PCI_MSI_FLAGS,
-				&msg_ctr);
-	msgvec = (msg_ctr&PCI_MSI_FLAGS_QSIZE) >> 4;
-	if (msgvec == 0)
-		msgvec = (msg_ctr & PCI_MSI_FLAGS_QMASK) >> 1;
-	if (msgvec > 5)
-		msgvec = 0;
-
-	irq = assign_irq((1 << msgvec), desc, &pos);
+	irq = assign_irq(1, desc, &pos);
 	if (irq < 0)
 		return irq;
-
-	/*
-	 * write_msi_msg() will update PCI_MSI_FLAGS so there is
-	 * no need to explicitly call pci_write_config_word().
-	 */
-	desc->msi_attrib.multiple = msgvec;
 
 	if (pp->ops->get_msi_addr)
 		msg.address_lo = pp->ops->get_msi_addr(pp);
@@ -379,7 +342,11 @@ static int dw_msi_setup_irq(struct msi_chip *chip, struct pci_dev *pdev,
 
 static void dw_msi_teardown_irq(struct msi_chip *chip, unsigned int irq)
 {
-	clear_irq(irq);
+	struct irq_data *data = irq_get_irq_data(irq);
+	struct msi_desc *msi = irq_data_get_msi(data);
+	struct pcie_port *pp = sys_to_pcie(msi->dev->bus->sysdata);
+
+	clear_irq_range(pp, irq, 1, data->hwirq);
 }
 
 static struct msi_chip dw_pcie_msi_chip = {
