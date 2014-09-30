@@ -1414,7 +1414,10 @@ int rc_register_device(struct rc_dev *dev)
 			ir_raw_init();
 			raw_init = true;
 		}
+		/* calls ir_register_device so unlock mutex here*/
+		mutex_unlock(&dev->lock);
 		rc = ir_raw_event_register(dev);
+		mutex_lock(&dev->lock);
 		if (rc < 0)
 			goto out_input;
 	}
