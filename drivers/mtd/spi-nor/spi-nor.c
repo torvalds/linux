@@ -904,8 +904,6 @@ static int spi_nor_check(struct spi_nor *nor)
 		return -EINVAL;
 	}
 
-	if (!nor->read_id)
-		nor->read_id = spi_nor_read_id;
 	if (!nor->wait_till_ready)
 		nor->wait_till_ready = spi_nor_wait_till_ready;
 
@@ -935,7 +933,7 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 	if (info->jedec_id) {
 		const struct spi_device_id *jid;
 
-		jid = nor->read_id(nor);
+		jid = spi_nor_read_id(nor);
 		if (IS_ERR(jid)) {
 			return PTR_ERR(jid);
 		} else if (jid != id) {
