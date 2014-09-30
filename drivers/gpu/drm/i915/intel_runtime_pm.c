@@ -995,8 +995,26 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
+static void intel_runtime_pm_disable(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+	struct device *device = &dev->pdev->dev;
+
+	if (!HAS_RUNTIME_PM(dev))
+		return;
+
+	if (!intel_enable_rc6(dev))
+		return;
+
+	/* Make sure we're not suspended first. */
+	pm_runtime_get_sync(device);
+	pm_runtime_disable(device);
+}
+
 void intel_power_domains_fini(struct drm_i915_private *dev_priv)
 {
+	intel_runtime_pm_disable(dev_priv);
+
 	/* The i915.ko module is still not prepared to be loaded when
 	 * the power well is not enabled, so just enable it in case
 	 * we're going to unload/reload. */
@@ -1140,22 +1158,6 @@ void intel_runtime_pm_enable(struct drm_i915_private *dev_priv)
 	pm_runtime_use_autosuspend(device);
 
 	pm_runtime_put_autosuspend(device);
-}
-
-void intel_runtime_pm_disable(struct drm_i915_private *dev_priv)
-{
-	struct drm_device *dev = dev_priv->dev;
-	struct device *device = &dev->pdev->dev;
-
-	if (!HAS_RUNTIME_PM(dev))
-		return;
-
-	if (!intel_enable_rc6(dev))
-		return;
-
-	/* Make sure we're not suspended first. */
-	pm_runtime_get_sync(device);
-	pm_runtime_disable(device);
 }
 
 /* Display audio driver power well request */

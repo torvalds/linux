@@ -1846,11 +1846,9 @@ int i915_driver_unload(struct drm_device *dev)
 		return ret;
 	}
 
-	intel_runtime_pm_disable(dev_priv);
+	intel_power_domains_fini(dev_priv);
 
 	intel_gpu_ips_teardown();
-
-	intel_power_domains_fini(dev_priv);
 
 	i915_teardown_sysfs(dev);
 

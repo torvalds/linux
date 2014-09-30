@@ -1085,7 +1085,6 @@ int intel_power_domains_init(struct drm_i915_private *);
 void intel_power_domains_fini(struct drm_i915_private *);
 void intel_power_domains_init_hw(struct drm_i915_private *dev_priv);
 void intel_runtime_pm_enable(struct drm_i915_private *dev_priv);
-void intel_runtime_pm_disable(struct drm_i915_private *dev_priv);
 
 bool intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 				    enum intel_display_power_domain domain);
