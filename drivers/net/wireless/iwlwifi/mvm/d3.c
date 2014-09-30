@@ -1116,6 +1116,7 @@ int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 
+	iwl_trans_suspend(mvm->trans);
 	if (iwl_mvm_is_d0i3_supported(mvm)) {
 		mutex_lock(&mvm->d0i3_suspend_mutex);
 		__set_bit(D0I3_DEFER_WAKEUP, &mvm->d0i3_suspend_flags);
@@ -1738,6 +1739,8 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 int iwl_mvm_resume(struct ieee80211_hw *hw)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	iwl_trans_resume(mvm->trans);
 
 	if (iwl_mvm_is_d0i3_supported(mvm))
 		return 0;
