@@ -566,10 +566,9 @@ static int ft1000_copy_down_pkt(struct net_device *netdev, u8 *packet, u16 len)
 	if (ret) {
 		DEBUG("ft1000 failed tx_urb %d\n", ret);
 		return ret;
-	} else {
-		pInfo->stats.tx_packets++;
-		pInfo->stats.tx_bytes += (len + 14);
 	}
+	pInfo->stats.tx_packets++;
+	pInfo->stats.tx_bytes += (len + 14);
 
 	return 0;
 }
@@ -998,53 +997,52 @@ static bool ft1000_receive_cmd(struct ft1000_usb *dev, u16 *pbuffer,
 		DEBUG("FT1000:ft1000_receive_cmd:Invalid command length = %d\n",
 		      size);
 		return FALSE;
-	} else {
-		ppseudohdr = (u16 *) pbuffer;
-		ft1000_write_register(dev, FT1000_DPRAM_MAG_RX_BASE,
-				      FT1000_REG_DPRAM_ADDR);
-		ret =
-		    ft1000_read_register(dev, pbuffer, FT1000_REG_MAG_DPDATAH);
-		pbuffer++;
-		ft1000_write_register(dev, FT1000_DPRAM_MAG_RX_BASE + 1,
-				      FT1000_REG_DPRAM_ADDR);
-		for (i = 0; i <= (size >> 2); i++) {
-			ret =
-			    ft1000_read_register(dev, pbuffer,
-						 FT1000_REG_MAG_DPDATAL);
-			pbuffer++;
-			ret =
-			    ft1000_read_register(dev, pbuffer,
-						 FT1000_REG_MAG_DPDATAH);
-			pbuffer++;
-		}
-		/* copy odd aligned word */
-		ret =
-		    ft1000_read_register(dev, pbuffer, FT1000_REG_MAG_DPDATAL);
-
-		pbuffer++;
-		ret =
-		    ft1000_read_register(dev, pbuffer, FT1000_REG_MAG_DPDATAH);
-
-		pbuffer++;
-		if (size & 0x0001) {
-			/* copy odd byte from fifo */
-			ret =
-			    ft1000_read_register(dev, &tempword,
-						 FT1000_REG_DPRAM_DATA);
-			*pbuffer = ntohs(tempword);
-		}
-		/* Check if pseudo header checksum is good
-		 * Calculate pseudo header checksum
-		 */
-		tempword = *ppseudohdr++;
-		for (i = 1; i < 7; i++)
-			tempword ^= *ppseudohdr++;
-
-		if (tempword != *ppseudohdr)
-			return FALSE;
-
-		return TRUE;
 	}
+	ppseudohdr = (u16 *) pbuffer;
+	ft1000_write_register(dev, FT1000_DPRAM_MAG_RX_BASE,
+			      FT1000_REG_DPRAM_ADDR);
+	ret =
+	    ft1000_read_register(dev, pbuffer, FT1000_REG_MAG_DPDATAH);
+	pbuffer++;
+	ft1000_write_register(dev, FT1000_DPRAM_MAG_RX_BASE + 1,
+			      FT1000_REG_DPRAM_ADDR);
+	for (i = 0; i <= (size >> 2); i++) {
+		ret =
+		    ft1000_read_register(dev, pbuffer,
+					 FT1000_REG_MAG_DPDATAL);
+		pbuffer++;
+		ret =
+		    ft1000_read_register(dev, pbuffer,
+					 FT1000_REG_MAG_DPDATAH);
+		pbuffer++;
+	}
+	/* copy odd aligned word */
+	ret =
+	    ft1000_read_register(dev, pbuffer, FT1000_REG_MAG_DPDATAL);
+
+	pbuffer++;
+	ret =
+	    ft1000_read_register(dev, pbuffer, FT1000_REG_MAG_DPDATAH);
+
+	pbuffer++;
+	if (size & 0x0001) {
+		/* copy odd byte from fifo */
+		ret =
+		    ft1000_read_register(dev, &tempword,
+					 FT1000_REG_DPRAM_DATA);
+		*pbuffer = ntohs(tempword);
+	}
+	/* Check if pseudo header checksum is good
+	 * Calculate pseudo header checksum
+	 */
+	tempword = *ppseudohdr++;
+	for (i = 1; i < 7; i++)
+		tempword ^= *ppseudohdr++;
+
+	if (tempword != *ppseudohdr)
+		return FALSE;
+
+	return TRUE;
 }
 
 static int ft1000_dsp_prov(void *arg)
