@@ -254,9 +254,11 @@ static inline int bq27x00_battery_read_nac(struct bq27x00_device_info *di)
 {
 	int flags;
 	bool is_bq27500 = di->chip == BQ27500;
+	bool is_bq27742 = di->chip == BQ27742;
 	bool is_higher = bq27xxx_is_chip_version_higher(di);
+	bool flags_1b = !(is_bq27500 || is_bq27742);
 
-	flags = bq27x00_read(di, BQ27x00_REG_FLAGS, !is_bq27500);
+	flags = bq27x00_read(di, BQ27x00_REG_FLAGS, flags_1b);
 	if (flags >= 0 && !is_higher && (flags & BQ27000_FLAG_CI))
 		return -ENODATA;
 
@@ -436,13 +438,14 @@ static void bq27x00_update(struct bq27x00_device_info *di)
 	bool is_bq27500 = di->chip == BQ27500;
 	bool is_bq27425 = di->chip == BQ27425;
 	bool is_bq27742 = di->chip == BQ27742;
+	bool flags_1b = !(is_bq27500 || is_bq27742);
 
-	cache.flags = bq27x00_read(di, BQ27x00_REG_FLAGS, !is_bq27500);
+	cache.flags = bq27x00_read(di, BQ27x00_REG_FLAGS, flags_1b);
 	if ((cache.flags & 0xff) == 0xff)
 		/* read error */
 		cache.flags = -1;
 	if (cache.flags >= 0) {
-		if (!is_bq27500 && !is_bq27425
+		if (!is_bq27500 && !is_bq27425 && !is_bq27742
 				&& (cache.flags & BQ27000_FLAG_CI)) {
 			dev_info(di->dev, "battery is not calibrated! ignoring capacity values\n");
 			cache.capacity = -ENODATA;
@@ -470,9 +473,7 @@ static void bq27x00_update(struct bq27x00_device_info *di)
 					bq27x00_battery_read_time(di,
 							BQ27x00_REG_TTF);
 			}
-			if (!is_bq27742)
-				cache.charge_full =
-					bq27x00_battery_read_lmd(di);
+			cache.charge_full = bq27x00_battery_read_lmd(di);
 			cache.health = bq27x00_battery_read_health(di);
 		}
 		cache.temperature = bq27x00_battery_read_temperature(di);
