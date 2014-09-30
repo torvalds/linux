@@ -173,8 +173,7 @@ static inline void *__container_of(void *ptr, unsigned long shift)
 {
 	if (unlikely(IS_ERR(ptr) || ptr == NULL))
 		return ptr;
-	else
-		return (char *)ptr - shift;
+	return (char *)ptr - shift;
 }
 
 #define container_of0(ptr, type, member) \
