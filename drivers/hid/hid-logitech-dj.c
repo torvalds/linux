@@ -630,7 +630,9 @@ static int logi_dj_recv_query_paired_devices(struct dj_receiver_dev *djrcv_dev)
 static int logi_dj_recv_switch_to_dj_mode(struct dj_receiver_dev *djrcv_dev,
 					  unsigned timeout)
 {
+	struct hid_device *hdev = djrcv_dev->hdev;
 	struct dj_report *dj_report;
+	u8 *buf;
 	int retval;
 
 	dj_report = kzalloc(sizeof(struct dj_report), GFP_KERNEL);
@@ -642,7 +644,6 @@ static int logi_dj_recv_switch_to_dj_mode(struct dj_receiver_dev *djrcv_dev,
 	dj_report->report_params[CMD_SWITCH_PARAM_DEVBITFIELD] = 0x3F;
 	dj_report->report_params[CMD_SWITCH_PARAM_TIMEOUT_SECONDS] = (u8)timeout;
 	retval = logi_dj_recv_send_report(djrcv_dev, dj_report);
-	kfree(dj_report);
 
 	/*
 	 * Ugly sleep to work around a USB 3.0 bug when the receiver is still
@@ -651,6 +652,30 @@ static int logi_dj_recv_switch_to_dj_mode(struct dj_receiver_dev *djrcv_dev,
 	 */
 	msleep(50);
 
+	/*
+	 * Magical bits to set up hidpp notifications when the dj devices
+	 * are connected/disconnected.
+	 *
+	 * We can reuse dj_report because HIDPP_REPORT_SHORT_LENGTH is smaller
+	 * than DJREPORT_SHORT_LENGTH.
+	 */
+	buf = (u8 *)dj_report;
+
+	memset(buf, 0, HIDPP_REPORT_SHORT_LENGTH);
+
+	buf[0] = REPORT_ID_HIDPP_SHORT;
+	buf[1] = 0xFF;
+	buf[2] = 0x80;
+	buf[3] = 0x00;
+	buf[4] = 0x00;
+	buf[5] = 0x09;
+	buf[6] = 0x00;
+
+	hid_hw_raw_request(hdev, REPORT_ID_HIDPP_SHORT, buf,
+			HIDPP_REPORT_SHORT_LENGTH, HID_OUTPUT_REPORT,
+			HID_REQ_SET_REPORT);
+
+	kfree(dj_report);
 	return retval;
 }
 
