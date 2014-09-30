@@ -28,7 +28,7 @@
  * DOC: frontbuffer tracking
  *
  * Many features require us to track changes to the currently active
- * frontbuffer, especially rendering targetted at the frontbuffer.
+ * frontbuffer, especially rendering targeted at the frontbuffer.
  *
  * To be able to do so GEM tracks frontbuffers using a bitmask for all possible
  * frontbuffer slots through i915_gem_track_fb(). The function in this file are
@@ -55,7 +55,7 @@
  * cancelled as soon as busyness is detected.
  *
  * Note that there's also an older frontbuffer activity tracking scheme which
- * just trackings general activity. This is done by the various mark_busy and
+ * just tracks general activity. This is done by the various mark_busy and
  * mark_idle functions. For display power management features using these
  * functions is deprecated and should be avoided.
  */
@@ -166,7 +166,7 @@ void intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
  *
  * This function gets called every time rendering on the given planes has
  * completed and frontbuffer caching can be started again. Flushes will get
- * delayed if they're blocked by some oustanding asynchronous rendering.
+ * delayed if they're blocked by some outstanding asynchronous rendering.
  *
  * Can be called without any locks held.
  */
@@ -231,7 +231,7 @@ void intel_fb_obj_flush(struct drm_i915_gem_object *obj,
 }
 
 /**
- * intel_frontbuffer_flip_prepare - prepare asnychronous frontbuffer flip
+ * intel_frontbuffer_flip_prepare - prepare asynchronous frontbuffer flip
  * @dev: DRM device
  * @frontbuffer_bits: frontbuffer plane tracking bits
  *
@@ -255,12 +255,12 @@ void intel_frontbuffer_flip_prepare(struct drm_device *dev,
 }
 
 /**
- * intel_frontbuffer_flip_complete - complete asynchronous frontbuffer flush
+ * intel_frontbuffer_flip_complete - complete asynchronous frontbuffer flip
  * @dev: DRM device
  * @frontbuffer_bits: frontbuffer plane tracking bits
  *
  * This function gets called after the flip has been latched and will complete
- * on the next vblank. It will execute the fush if it hasn't been cancalled yet.
+ * on the next vblank. It will execute the flush if it hasn't been cancelled yet.
  *
  * Can be called without any locks held.
  */
@@ -277,4 +277,3 @@ void intel_frontbuffer_flip_complete(struct drm_device *dev,
 
 	intel_frontbuffer_flush(dev, frontbuffer_bits);
 }
-

@@ -819,7 +819,7 @@ void intel_frontbuffer_flip_complete(struct drm_device *dev,
 void intel_frontbuffer_flush(struct drm_device *dev,
 			     unsigned frontbuffer_bits);
 /**
- * intel_frontbuffer_flip - prepare frontbuffer flip
+ * intel_frontbuffer_flip - synchronous frontbuffer flip
  * @dev: DRM device
  * @frontbuffer_bits: frontbuffer plane tracking bits
  *
