@@ -91,14 +91,17 @@ struct dso_cache {
 };
 
 /*
- * DSOs are put into a list for fast iteration.
+ * DSOs are put into both a list for fast iteration and rbtree for fast
+ * long name lookup.
  */
 struct dsos {
 	struct list_head head;
+	struct rb_root	 root;	/* rbtree root sorted by long name */
 };
 
 struct dso {
 	struct list_head node;
+	struct rb_node	 rb_node;	/* rbtree node sorted by long name */
 	struct rb_root	 symbols[MAP__NR_TYPES];
 	struct rb_root	 symbol_names[MAP__NR_TYPES];
 	void		 *a2l;

@@ -77,6 +77,7 @@ static void dsos__delete(struct dsos *dsos)
 	struct dso *pos, *n;
 
 	list_for_each_entry_safe(pos, n, &dsos->head, node) {
+		RB_CLEAR_NODE(&pos->rb_node);
 		list_del(&pos->node);
 		dso__delete(pos);
 	}
