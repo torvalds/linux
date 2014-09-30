@@ -32,6 +32,8 @@ static inline void setup_cputime_one_jiffy(void) { }
 typedef u64 __nocast cputime_t;
 typedef u64 __nocast cputime64_t;
 
+#define cmpxchg_cputime(ptr, old, new) cmpxchg(ptr, old, new)
+
 #ifdef __KERNEL__
 
 /*

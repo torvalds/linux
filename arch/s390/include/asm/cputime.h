@@ -18,6 +18,8 @@
 typedef unsigned long long __nocast cputime_t;
 typedef unsigned long long __nocast cputime64_t;
 
+#define cmpxchg_cputime(ptr, old, new) cmpxchg64(ptr, old, new)
+
 static inline unsigned long __div(unsigned long long n, unsigned long base)
 {
 #ifndef CONFIG_64BIT
