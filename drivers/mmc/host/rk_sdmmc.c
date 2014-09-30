@@ -396,7 +396,9 @@ static void send_stop_cmd(struct dw_mci *host, struct mmc_data *data)
 static void dw_mci_stop_dma(struct dw_mci *host)
 {
 	if (host->using_dma) {
-		host->dma_ops->stop(host);
+	        /* Fixme: No need to terminate edma, may cause flush op */
+	        if(!(cpu_is_rk3036() || cpu_is_rk312x()))
+		        host->dma_ops->stop(host);
 		host->dma_ops->cleanup(host);
 	}
 
@@ -883,7 +885,9 @@ static int dw_mci_submit_data_dma(struct dw_mci *host, struct mmc_data *data)
 
 	sg_len = dw_mci_pre_dma_transfer(host, data, 0);
 	if (sg_len < 0) {
-		host->dma_ops->stop(host);
+	        /* Fixme: No need terminate edma, may cause flush op */
+	        if(!(cpu_is_rk3036() || cpu_is_rk312x()))
+		        host->dma_ops->stop(host);
 		return sg_len;
 	}
 
@@ -2954,6 +2958,12 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 
 		present = dw_mci_get_cd(mmc);
 		dw_mci_ctrl_all_reset(host);
+
+                /* Stop edma when rountine card triggered */
+                if(cpu_is_rk3036() || cpu_is_rk312x())
+		        if(host->dma_ops->stop)
+		                host->dma_ops->stop(host);
+
 		while (present != slot->last_detect_state) {
 			dev_dbg(&slot->mmc->class_dev, "card %s\n",
 				present ? "inserted" : "removed");
