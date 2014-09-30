@@ -1363,7 +1363,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 		goto cleanup_gem;
 
 	/* Only enable hotplug handling once the fbdev is fully set up. */
-	intel_hpd_init(dev);
+	intel_hpd_init(dev_priv);
 
 	/*
 	 * Some ports require correctly set-up hpd registers for detection to
@@ -1733,7 +1733,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto out_freewq;
 	}
 
-	intel_irq_init(dev);
+	intel_irq_init(dev_priv);
 	intel_uncore_sanitize(dev);
 
 	/* Try to make sure MCHBAR is enabled before poking at it */

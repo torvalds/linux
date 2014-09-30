@@ -599,7 +599,7 @@ static int i915_drm_freeze(struct drm_device *dev)
 
 		flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
-		intel_runtime_pm_disable_interrupts(dev);
+		intel_runtime_pm_disable_interrupts(dev_priv);
 		intel_hpd_cancel_work(dev_priv);
 
 		intel_suspend_encoders(dev_priv);
@@ -705,7 +705,7 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 		mutex_unlock(&dev->struct_mutex);
 
 		/* We need working interrupts for modeset enabling ... */
-		intel_runtime_pm_restore_interrupts(dev);
+		intel_runtime_pm_enable_interrupts(dev_priv);
 
 		intel_modeset_init_hw(dev);
 
@@ -727,7 +727,7 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 		 * bother with the tiny race here where we might loose hotplug
 		 * notifications.
 		 * */
-		intel_hpd_init(dev);
+		intel_hpd_init(dev_priv);
 		/* Config may have changed between suspend and resume */
 		drm_helper_hpd_irq_event(dev);
 	}
@@ -1473,12 +1473,12 @@ static int intel_runtime_suspend(struct device *device)
 	 * intel_mark_idle().
 	 */
 	cancel_work_sync(&dev_priv->rps.work);
-	intel_runtime_pm_disable_interrupts(dev);
+	intel_runtime_pm_disable_interrupts(dev_priv);
 
 	ret = intel_suspend_complete(dev_priv);
 	if (ret) {
 		DRM_ERROR("Runtime suspend failed, disabling it (%d)\n", ret);
-		intel_runtime_pm_restore_interrupts(dev);
+		intel_runtime_pm_enable_interrupts(dev_priv);
 
 		return ret;
 	}
@@ -1538,7 +1538,7 @@ static int intel_runtime_resume(struct device *device)
 	i915_gem_init_swizzling(dev);
 	gen6_update_ring_freq(dev);
 
-	intel_runtime_pm_restore_interrupts(dev);
+	intel_runtime_pm_enable_interrupts(dev_priv);
 	intel_reset_gt_powersave(dev);
 
 	if (ret)

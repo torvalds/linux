@@ -4650,9 +4650,9 @@ static void intel_hpd_irq_reenable_work(struct work_struct *work)
 	intel_runtime_pm_put(dev_priv);
 }
 
-void intel_irq_init(struct drm_device *dev)
+void intel_irq_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_device *dev = dev_priv->dev;
 
 	INIT_WORK(&dev_priv->hotplug_work, i915_hotplug_work_func);
 	INIT_WORK(&dev_priv->dig_port_work, i915_digport_work_func);
@@ -4661,7 +4661,7 @@ void intel_irq_init(struct drm_device *dev)
 	INIT_WORK(&dev_priv->l3_parity.error_work, ivybridge_parity_work);
 
 	/* Let's track the enabled rps events */
-	if (IS_VALLEYVIEW(dev) && !IS_CHERRYVIEW(dev))
+	if (IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv))
 		/* WaGsvRC0ResidencyMethod:vlv */
 		dev_priv->pm_rps_events = GEN6_PM_RP_UP_EI_EXPIRED;
 	else
@@ -4675,10 +4675,10 @@ void intel_irq_init(struct drm_device *dev)
 
 	pm_qos_add_request(&dev_priv->pm_qos, PM_QOS_CPU_DMA_LATENCY, PM_QOS_DEFAULT_VALUE);
 
-	if (IS_GEN2(dev)) {
+	if (IS_GEN2(dev_priv)) {
 		dev->max_vblank_count = 0;
 		dev->driver->get_vblank_counter = i8xx_get_vblank_counter;
-	} else if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5) {
+	} else if (IS_G4X(dev_priv) || INTEL_INFO(dev_priv)->gen >= 5) {
 		dev->max_vblank_count = 0xffffffff; /* full 32 bit counter */
 		dev->driver->get_vblank_counter = gm45_get_vblank_counter;
 	} else {
@@ -4691,7 +4691,7 @@ void intel_irq_init(struct drm_device *dev)
 	 * Gen2 doesn't have a hardware frame counter and so depends on
 	 * vblank interrupts to produce sane vblank seuquence numbers.
 	 */
-	if (!IS_GEN2(dev))
+	if (!IS_GEN2(dev_priv))
 		dev->vblank_disable_immediate = true;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
@@ -4699,7 +4699,7 @@ void intel_irq_init(struct drm_device *dev)
 		dev->driver->get_scanout_position = i915_get_crtc_scanoutpos;
 	}
 
-	if (IS_CHERRYVIEW(dev)) {
+	if (IS_CHERRYVIEW(dev_priv)) {
 		dev->driver->irq_handler = cherryview_irq_handler;
 		dev->driver->irq_preinstall = cherryview_irq_preinstall;
 		dev->driver->irq_postinstall = cherryview_irq_postinstall;
@@ -4707,7 +4707,7 @@ void intel_irq_init(struct drm_device *dev)
 		dev->driver->enable_vblank = valleyview_enable_vblank;
 		dev->driver->disable_vblank = valleyview_disable_vblank;
 		dev_priv->display.hpd_irq_setup = i915_hpd_irq_setup;
-	} else if (IS_VALLEYVIEW(dev)) {
+	} else if (IS_VALLEYVIEW(dev_priv)) {
 		dev->driver->irq_handler = valleyview_irq_handler;
 		dev->driver->irq_preinstall = valleyview_irq_preinstall;
 		dev->driver->irq_postinstall = valleyview_irq_postinstall;
@@ -4715,7 +4715,7 @@ void intel_irq_init(struct drm_device *dev)
 		dev->driver->enable_vblank = valleyview_enable_vblank;
 		dev->driver->disable_vblank = valleyview_disable_vblank;
 		dev_priv->display.hpd_irq_setup = i915_hpd_irq_setup;
-	} else if (INTEL_INFO(dev)->gen >= 8) {
+	} else if (INTEL_INFO(dev_priv)->gen >= 8) {
 		dev->driver->irq_handler = gen8_irq_handler;
 		dev->driver->irq_preinstall = gen8_irq_reset;
 		dev->driver->irq_postinstall = gen8_irq_postinstall;
@@ -4732,12 +4732,12 @@ void intel_irq_init(struct drm_device *dev)
 		dev->driver->disable_vblank = ironlake_disable_vblank;
 		dev_priv->display.hpd_irq_setup = ibx_hpd_irq_setup;
 	} else {
-		if (INTEL_INFO(dev)->gen == 2) {
+		if (INTEL_INFO(dev_priv)->gen == 2) {
 			dev->driver->irq_preinstall = i8xx_irq_preinstall;
 			dev->driver->irq_postinstall = i8xx_irq_postinstall;
 			dev->driver->irq_handler = i8xx_irq_handler;
 			dev->driver->irq_uninstall = i8xx_irq_uninstall;
-		} else if (INTEL_INFO(dev)->gen == 3) {
+		} else if (INTEL_INFO(dev_priv)->gen == 3) {
 			dev->driver->irq_preinstall = i915_irq_preinstall;
 			dev->driver->irq_postinstall = i915_irq_postinstall;
 			dev->driver->irq_uninstall = i915_irq_uninstall;
@@ -4755,9 +4755,9 @@ void intel_irq_init(struct drm_device *dev)
 	}
 }
 
-void intel_hpd_init(struct drm_device *dev)
+void intel_hpd_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_device *dev = dev_priv->dev;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_connector *connector;
 	int i;
@@ -4803,20 +4803,16 @@ void intel_irq_uninstall(struct drm_i915_private *dev_priv)
 }
 
 /* Disable interrupts so we can allow runtime PM. */
-void intel_runtime_pm_disable_interrupts(struct drm_device *dev)
+void intel_runtime_pm_disable_interrupts(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	dev->driver->irq_uninstall(dev);
+	dev_priv->dev->driver->irq_uninstall(dev_priv->dev);
 	dev_priv->pm.irqs_enabled = false;
 }
 
 /* Restore interrupts so we can recover from runtime PM. */
-void intel_runtime_pm_restore_interrupts(struct drm_device *dev)
+void intel_runtime_pm_enable_interrupts(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
 	dev_priv->pm.irqs_enabled = true;
-	dev->driver->irq_preinstall(dev);
-	dev->driver->irq_postinstall(dev);
+	dev_priv->dev->driver->irq_preinstall(dev_priv->dev);
+	dev_priv->dev->driver->irq_postinstall(dev_priv->dev);
 }
