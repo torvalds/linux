@@ -76,10 +76,10 @@ struct uisqueue_info {
 		".previous\n"                   \
 		"661:\n\tlock; "
 
-unsigned long long uisqueue_InterlockedOr(unsigned long long __iomem *Target,
-					  unsigned long long Set);
-unsigned long long uisqueue_InterlockedAnd(unsigned long long __iomem *Target,
-					   unsigned long long Set);
+unsigned long long uisqueue_interlocked_or(unsigned long long __iomem *tgt,
+					   unsigned long long set);
+unsigned long long uisqueue_interlocked_and(unsigned long long __iomem *tgt,
+					    unsigned long long set);
 
 unsigned int uisqueue_send_int_if_needed(struct uisqueue_info *pqueueinfo,
 					 unsigned int whichqueue,

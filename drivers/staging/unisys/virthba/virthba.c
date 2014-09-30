@@ -436,7 +436,7 @@ virthba_ISR(int irq, void *dev_id)
 		0)) {
 		virthbainfo->interrupts_disabled++;
 		mask = ~ULTRA_CHANNEL_ENABLE_INTS;
-		rc1 = uisqueue_InterlockedAnd(virthbainfo->flags_addr, mask);
+		rc1 = uisqueue_interlocked_and(virthbainfo->flags_addr, mask);
 	}
 	if (visor_signalqueue_empty(pChannelHeader, IOCHAN_FROM_IOPART)) {
 		virthbainfo->interrupts_notme++;
@@ -627,9 +627,9 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 		       virthbainfo->interrupt_vector);
 		mask = ~(ULTRA_IO_CHANNEL_IS_POLLING |
 			 ULTRA_IO_DRIVER_DISABLES_INTS);
-		uisqueue_InterlockedAnd(Features_addr, mask);
+		uisqueue_interlocked_and(Features_addr, mask);
 		mask = ULTRA_IO_DRIVER_ENABLES_INTS;
-		uisqueue_InterlockedOr(Features_addr, mask);
+		uisqueue_interlocked_or(Features_addr, mask);
 		rsltq_wait_usecs = 4000000;
 	}
 
@@ -1353,7 +1353,7 @@ process_incoming_rsps(void *v)
 		atomic_set(&virthbainfo->interrupt_rcvd, 0);
 		/* drain queue */
 		drain_queue(virthbainfo, dc, cmdrsp);
-		rc1 = uisqueue_InterlockedOr(virthbainfo->flags_addr, mask);
+		rc1 = uisqueue_interlocked_or(virthbainfo->flags_addr, mask);
 		if (dc->threadinfo.should_stop)
 			break;
 	}
@@ -1457,16 +1457,16 @@ static ssize_t enable_ints_write(struct file *file,
 			if (new_value == 1) {
 				mask = ~(ULTRA_IO_CHANNEL_IS_POLLING |
 					 ULTRA_IO_DRIVER_DISABLES_INTS);
-				uisqueue_InterlockedAnd(Features_addr, mask);
+				uisqueue_interlocked_and(Features_addr, mask);
 				mask = ULTRA_IO_DRIVER_ENABLES_INTS;
-				uisqueue_InterlockedOr(Features_addr, mask);
+				uisqueue_interlocked_or(Features_addr, mask);
 				rsltq_wait_usecs = 4000000;
 			} else {
 				mask = ~(ULTRA_IO_DRIVER_ENABLES_INTS |
 					 ULTRA_IO_DRIVER_DISABLES_INTS);
-				uisqueue_InterlockedAnd(Features_addr, mask);
+				uisqueue_interlocked_and(Features_addr, mask);
 				mask = ULTRA_IO_CHANNEL_IS_POLLING;
-				uisqueue_InterlockedOr(Features_addr, mask);
+				uisqueue_interlocked_or(Features_addr, mask);
 				rsltq_wait_usecs = 4000;
 			}
 		}

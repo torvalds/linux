@@ -34,40 +34,40 @@
 /* Exported functions                                */
 /*****************************************************/
 unsigned long long
-uisqueue_InterlockedOr(unsigned long long __iomem *Target,
-		       unsigned long long Set)
+uisqueue_interlocked_or(unsigned long long __iomem *tgt,
+		       unsigned long long set)
 {
 	unsigned long long i;
 	unsigned long long j;
 
-	j = readq(Target);
+	j = readq(tgt);
 	do {
 		i = j;
-		j = cmpxchg((__force unsigned long long *)Target, i, i | Set);
+		j = cmpxchg((__force unsigned long long *)tgt, i, i | set);
 
 	} while (i != j);
 
 	return j;
 }
-EXPORT_SYMBOL_GPL(uisqueue_InterlockedOr);
+EXPORT_SYMBOL_GPL(uisqueue_interlocked_or);
 
 unsigned long long
-uisqueue_InterlockedAnd(unsigned long long __iomem *Target,
-			unsigned long long Set)
+uisqueue_interlocked_and(unsigned long long __iomem *tgt,
+			unsigned long long set)
 {
 	unsigned long long i;
 	unsigned long long j;
 
-	j = readq(Target);
+	j = readq(tgt);
 	do {
 		i = j;
-		j = cmpxchg((__force unsigned long long *)Target, i, i & Set);
+		j = cmpxchg((__force unsigned long long *)tgt, i, i & set);
 
 	} while (i != j);
 
 	return j;
 }
-EXPORT_SYMBOL_GPL(uisqueue_InterlockedAnd);
+EXPORT_SYMBOL_GPL(uisqueue_interlocked_and);
 
 static u8
 do_locked_client_insert(struct uisqueue_info *queueinfo,
