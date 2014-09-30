@@ -24,6 +24,7 @@
  * For system shutdown, this is board specify. If a board designer
  * implements GPIO shutdown, use the gpio-poweroff.c driver.
  */
+#include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/of_device.h>
 #include <linux/of_address.h>
@@ -43,15 +44,12 @@ static struct xgene_reboot_context *xgene_restart_ctx;
 static void xgene_restart(enum reboot_mode mode, const char *cmd)
 {
 	struct xgene_reboot_context *ctx = xgene_restart_ctx;
-	unsigned long timeout;
 
 	/* Issue the reboot */
 	if (ctx)
 		writel(ctx->mask, ctx->csr);
 
-	timeout = jiffies + HZ;
-	while (time_before(jiffies, timeout))
-		cpu_relax();
+	mdelay(1000);
 
 	dev_emerg(ctx->dev, "Unable to restart system\n");
 }
