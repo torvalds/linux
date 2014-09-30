@@ -777,15 +777,17 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	hid_device_io_start(hdev);
 
 	connected = hidpp_is_connected(hidpp);
-	if (!connected) {
-		hid_err(hdev, "Device not connected");
-		goto hid_parse_fail;
-	}
+	if (id->group != HID_GROUP_LOGITECH_DJ_DEVICE) {
+		if (!connected) {
+			hid_err(hdev, "Device not connected");
+			goto hid_parse_fail;
+		}
 
-	/* the device is connected, we can ask for its name */
-	hid_info(hdev, "HID++ %u.%u device connected.\n",
-		 hidpp->protocol_major, hidpp->protocol_minor);
-	hidpp_overwrite_name(hdev);
+		/* the device is connected, we can ask for its name */
+		hid_info(hdev, "HID++ %u.%u device connected.\n",
+			 hidpp->protocol_major, hidpp->protocol_minor);
+		hidpp_overwrite_name(hdev);
+	}
 
 	if (hidpp->quirks & HIDPP_QUIRK_CLASS_WTP) {
 		ret = wtp_get_config(hidpp);
@@ -824,6 +826,9 @@ static const struct hid_device_id hidpp_devices[] = {
 	  HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_LOGITECH,
 		USB_DEVICE_ID_LOGITECH_T651),
 	  .driver_data = HIDPP_QUIRK_CLASS_WTP },
+
+	{ HID_DEVICE(BUS_USB, HID_GROUP_LOGITECH_DJ_DEVICE,
+		USB_VENDOR_ID_LOGITECH, HID_ANY_ID)},
 	{}
 };
 

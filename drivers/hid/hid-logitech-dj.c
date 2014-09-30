@@ -977,48 +977,8 @@ static struct hid_driver logi_djreceiver_driver = {
 #endif
 };
 
+module_hid_driver(logi_djreceiver_driver);
 
-static const struct hid_device_id logi_dj_devices[] = {
-	{ HID_DEVICE(BUS_USB, HID_GROUP_LOGITECH_DJ_DEVICE,
-		USB_VENDOR_ID_LOGITECH, HID_ANY_ID)},
-	{}
-};
-
-static struct hid_driver logi_djdevice_driver = {
-	.name = "logitech-djdevice",
-	.id_table = logi_dj_devices,
-};
-
-
-static int __init logi_dj_init(void)
-{
-	int retval;
-
-	dbg_hid("Logitech-DJ:%s\n", __func__);
-
-	retval = hid_register_driver(&logi_djreceiver_driver);
-	if (retval)
-		return retval;
-
-	retval = hid_register_driver(&logi_djdevice_driver);
-	if (retval)
-		hid_unregister_driver(&logi_djreceiver_driver);
-
-	return retval;
-
-}
-
-static void __exit logi_dj_exit(void)
-{
-	dbg_hid("Logitech-DJ:%s\n", __func__);
-
-	hid_unregister_driver(&logi_djdevice_driver);
-	hid_unregister_driver(&logi_djreceiver_driver);
-
-}
-
-module_init(logi_dj_init);
-module_exit(logi_dj_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Logitech");
 MODULE_AUTHOR("Nestor Lopez Casado");
