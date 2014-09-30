@@ -330,7 +330,7 @@ static inline unsigned int issue_vmcall_channel_mismatch(const char *chname,
 	return result;
 }
 
-static inline unsigned int Issue_VMCALL_FATAL_BYE_BYE(void)
+static inline unsigned int issue_vmcall_fatal(void)
 {
 	int result = VMCALL_SUCCESS;
 	u64 physaddr = 0;
