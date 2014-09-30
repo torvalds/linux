@@ -14,6 +14,7 @@
 #include <linux/irq.h>
 #include <linux/dmi.h>
 #include <linux/device.h>
+#include <linux/interrupt.h>
 #include <linux/suspend.h>
 #include <linux/reboot.h>
 #include <linux/acpi.h>
@@ -626,6 +627,19 @@ static int acpi_freeze_begin(void)
 	return 0;
 }
 
+static int acpi_freeze_prepare(void)
+{
+	acpi_enable_all_wakeup_gpes();
+	enable_irq_wake(acpi_gbl_FADT.sci_interrupt);
+	return 0;
+}
+
+static void acpi_freeze_restore(void)
+{
+	disable_irq_wake(acpi_gbl_FADT.sci_interrupt);
+	acpi_enable_all_runtime_gpes();
+}
+
 static void acpi_freeze_end(void)
 {
 	acpi_scan_lock_release();
@@ -633,6 +647,8 @@ static void acpi_freeze_end(void)
 
 static const struct platform_freeze_ops acpi_freeze_ops = {
 	.begin = acpi_freeze_begin,
+	.prepare = acpi_freeze_prepare,
+	.restore = acpi_freeze_restore,
 	.end = acpi_freeze_end,
 };
 

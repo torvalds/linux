@@ -144,6 +144,12 @@ static int platform_suspend_prepare(suspend_state_t state)
 		suspend_ops->prepare() : 0;
 }
 
+static int platform_suspend_prepare_late(suspend_state_t state)
+{
+	return state == PM_SUSPEND_FREEZE && freeze_ops->prepare ?
+		freeze_ops->prepare() : 0;
+}
+
 static int platform_suspend_prepare_noirq(suspend_state_t state)
 {
 	return state != PM_SUSPEND_FREEZE && suspend_ops->prepare_late ?
@@ -154,6 +160,12 @@ static void platform_resume_noirq(suspend_state_t state)
 {
 	if (state != PM_SUSPEND_FREEZE && suspend_ops->wake)
 		suspend_ops->wake();
+}
+
+static void platform_resume_early(suspend_state_t state)
+{
+	if (state == PM_SUSPEND_FREEZE && freeze_ops->restore)
+		freeze_ops->restore();
 }
 
 static void platform_resume_finish(suspend_state_t state)
@@ -270,10 +282,14 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 		printk(KERN_ERR "PM: late suspend of devices failed\n");
 		goto Platform_finish;
 	}
+	error = platform_suspend_prepare_late(state);
+	if (error)
+		goto Devices_early_resume;
+
 	error = dpm_suspend_noirq(PMSG_SUSPEND);
 	if (error) {
 		printk(KERN_ERR "PM: noirq suspend of devices failed\n");
-		goto Devices_early_resume;
+		goto Platform_early_resume;
 	}
 	error = platform_suspend_prepare_noirq(state);
 	if (error)
@@ -325,6 +341,9 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
  Platform_wake:
 	platform_resume_noirq(state);
 	dpm_resume_noirq(PMSG_RESUME);
+
+ Platform_early_resume:
+	platform_resume_early(state);
 
  Devices_early_resume:
 	dpm_resume_early(PMSG_RESUME);
