@@ -1444,11 +1444,15 @@ static int rk_fb_copy_from_loader(struct fb_info *info)
 	void *dst = info->screen_base;
 	u32 dsp_addr[4];
 	u32 src;
-	u32 i;
-	struct rk_lcdc_win *win = dev_drv->win[0];
-	u32 size = (win->area[0].xact) * (win->area[0].yact) << 2;
+	u32 i,size;
+	int win_id;
+	struct rk_lcdc_win *win;
+	
+	win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
+	win = dev_drv->win[win_id];
+	size = (win->area[0].xact) * (win->area[0].yact) << 2;
 	dev_drv->ops->get_dsp_addr(dev_drv, dsp_addr);
-	src = dsp_addr[0];
+	src = dsp_addr[win_id];
 	dev_info(info->dev, "copy fb data %d x %d  from  dst_addr:%08x\n",
 		 win->area[0].xact, win->area[0].yact, src);
 	for (i = 0; i < size; i += PAGE_SIZE) {
@@ -1457,6 +1461,8 @@ static int rk_fb_copy_from_loader(struct fb_info *info)
 		void *to_virt = dst + i;
 		memcpy(to_virt, from_virt, PAGE_SIZE);
 	}
+	dev_drv->ops->direct_set_addr(dev_drv, win_id,
+				      info->fix.smem_start);
 	return 0;
 }
 
@@ -3901,11 +3907,8 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 
 		rk_fb_alloc_buffer(main_fbi, 0);	/* only alloc memory for main fb */
 		if (support_uboot_display()) {
-			if (dev_drv->iommu_enabled) {
+			if (dev_drv->iommu_enabled) 
 				rk_fb_copy_from_loader(main_fbi);
-				dev_drv->ops->direct_set_addr(dev_drv, 0,
-					main_fbi->fix.smem_start);
-			}
 			return 0;
 		}
 		main_fbi->fbops->fb_set_par(main_fbi);
