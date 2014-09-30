@@ -207,47 +207,39 @@ static int rk312x_lcdc_disable_irq(struct lcdc_device *lcdc_dev)
 }
 
 
-#define WIN_EN(id)		\
-static int win##id##_enable(struct lcdc_device *lcdc_dev, int en)	\
-{ \
-	u32 msk, val;							\
-	spin_lock(&lcdc_dev->reg_lock);					\
-	msk =  m_WIN##id##_EN;						\
-	val  =  v_WIN##id##_EN(en);					\
-	lcdc_msk_reg(lcdc_dev, SYS_CTRL, msk, val);		\
-	lcdc_cfg_done(lcdc_dev);					\
-	val = lcdc_read_bit(lcdc_dev, SYS_CTRL, msk);		\
-	while (val !=  (!!en))	{					\
-		val = lcdc_read_bit(lcdc_dev, SYS_CTRL, msk);	\
-	}								\
-	spin_unlock(&lcdc_dev->reg_lock);				\
-	return 0;							\
+static int win1_set_addr(struct lcdc_device *lcdc_dev, u32 addr)
+{
+	spin_lock(&lcdc_dev->reg_lock);
+	lcdc_writel(lcdc_dev, WIN0_YRGB_MST, addr);
+	lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_WIN0_EN, v_WIN0_EN(1));
+	lcdc_cfg_done(lcdc_dev);
+	spin_unlock(&lcdc_dev->reg_lock);
+
+	return 0;
 }
 
-WIN_EN(0);
-
-#define SET_WIN_ADDR(id) \
-static int set_win##id##_addr(struct lcdc_device *lcdc_dev, u32 addr) \
-{							\
-	u32 msk, val;					\
-	spin_lock(&lcdc_dev->reg_lock);			\
-	lcdc_writel(lcdc_dev,WIN##id##_YRGB_MST,addr);	\
-	msk =  m_WIN##id##_EN;				\
-	val  =  v_WIN##id##_EN(1);				\
-	lcdc_msk_reg(lcdc_dev, SYS_CTRL, msk,val);	\
-	lcdc_cfg_done(lcdc_dev);			\
-	spin_unlock(&lcdc_dev->reg_lock);		\
-	return 0;					\
+static int win0_set_addr(struct lcdc_device *lcdc_dev, u32 addr)
+{
+	spin_lock(&lcdc_dev->reg_lock);
+	if (lcdc_dev->soc_type == VOP_RK3036)
+		lcdc_writel(lcdc_dev, WIN1_MST, addr);
+	else
+		lcdc_writel(lcdc_dev, WIN1_MST_RK312X, addr);
+	lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_WIN1_EN, v_WIN1_EN(1));
+	lcdc_cfg_done(lcdc_dev);
+	spin_unlock(&lcdc_dev->reg_lock);
+	return 0;
 }
 
-SET_WIN_ADDR(0);
 int rk312x_lcdc_direct_set_win_addr
 		(struct rk_lcdc_driver *dev_drv, int win_id, u32 addr)
 {
 	struct lcdc_device *lcdc_dev = container_of(dev_drv,
 				struct lcdc_device, driver);
 	if (win_id == 0)
-		set_win0_addr(lcdc_dev, addr);
+		win0_set_addr(lcdc_dev, addr);
+	else
+		win1_set_addr(lcdc_dev, addr);
 	
 	return 0;
 }
@@ -257,12 +249,25 @@ static void rk_lcdc_read_reg_defalut_cfg(struct lcdc_device *lcdc_dev)
 	int reg = 0;
 	u32 val = 0;
 	struct rk_lcdc_win *win0 = lcdc_dev->driver.win[0];
+	struct rk_lcdc_win *win1 = lcdc_dev->driver.win[1];
 	spin_lock(&lcdc_dev->reg_lock);
 	for (reg = 0; reg < 0xe0; reg += 4) {
 		val = lcdc_readl(lcdc_dev, reg);
 		if (reg == WIN0_ACT_INFO) {
 			win0->area[0].xact = (val & m_ACT_WIDTH)+1;
 			win0->area[0].yact = ((val & m_ACT_HEIGHT)>>16)+1;
+		}
+
+		if (lcdc_dev->soc_type == VOP_RK312X) {
+			if (reg == WIN1_DSP_INFO_RK312X) {
+				win1->area[0].xact = (val & m_DSP_WIDTH) + 1;
+				win1->area[0].yact = ((val & m_DSP_HEIGHT) >> 16) + 1;
+			}
+		} else {
+			if (reg == WIN1_ACT_INFO) {
+				win1->area[0].xact = (val & m_ACT_WIDTH) + 1;
+				win1->area[0].yact = ((val & m_ACT_HEIGHT) >> 16) + 1;
+			}
 		}
 			
 	}
@@ -685,8 +690,12 @@ static int rk312x_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 
 	lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_AUTO_GATING_EN, v_AUTO_GATING_EN(0));
 	lcdc_cfg_done(lcdc_dev);
-	if (dev_drv->iommu_enabled)	/* disable win0 to workaround iommu pagefault */
-		win0_enable(lcdc_dev, 0);
+	if (dev_drv->iommu_enabled) {/* disable all wins to workaround iommu pagefault */
+		lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_WIN0_EN | m_WIN1_EN,
+			     v_WIN0_EN(0) | v_WIN1_EN(0));
+		lcdc_cfg_done(lcdc_dev); 
+		while(lcdc_readl(lcdc_dev, SYS_CTRL) & (m_WIN0_EN | m_WIN1_EN));
+	}
 	if ((dev_drv->ops->open_bcsh)&&(dev_drv->output_color == COLOR_YCBCR))
 		dev_drv->ops->open_bcsh(dev_drv,1);
 	lcdc_dev->pre_init = true;
@@ -1455,7 +1464,7 @@ static int rk312x_lcdc_pan_display(struct rk_lcdc_driver *dev_drv, int win_id)
 		dev_err(dev_drv->dev, "invalid win number:%d!\n", win_id);
 		return -EINVAL;
 	}
-
+	
 	spin_lock(&lcdc_dev->reg_lock);
 	if (likely(lcdc_dev->clk_on)) {
 		win->area[0].y_addr =
@@ -2351,8 +2360,8 @@ static int rk312x_lcdc_probe(struct platform_device *pdev)
 
 	dev_info(dev, "lcdc%d probe ok, iommu %s\n",
 		 lcdc_dev->id, dev_drv->iommu_enabled ? "enabled" : "disabled");
-        return 0;
 
+        return 0;
 err_register_fb:
 err_request_irq:
         devm_kfree(lcdc_dev->dev, lcdc_dev->regsbak);
