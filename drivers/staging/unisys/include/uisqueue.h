@@ -170,8 +170,8 @@ struct bus_info {
 				 * by IOVM; 0 otherwise... */
 };
 
-#define DEDICATED_SWITCH(pSwitch) ((pSwitch->extPortCount == 1) &&	\
-				   (pSwitch->intPortCount == 1))
+#define DEDICATED_SWITCH(s) ((s->extPortCount == 1) &&	\
+			     (s->intPortCount == 1))
 
 struct sn_list_entry {
 	struct uisscsi_dest pdest;	/* scsi bus, target, lun for
