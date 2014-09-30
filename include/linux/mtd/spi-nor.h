@@ -199,6 +199,5 @@ struct spi_nor {
  * Return: 0 for success, others for failure.
  */
 int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode);
-extern const struct spi_device_id spi_nor_ids[];
 
 #endif
