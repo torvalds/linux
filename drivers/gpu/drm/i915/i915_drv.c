@@ -844,6 +844,9 @@ int i915_reset(struct drm_device *dev)
 		}
 	}
 
+	if (i915_stop_ring_allow_warn(dev_priv))
+		pr_notice("drm/i915: Resetting chip after gpu hang\n");
+
 	if (ret) {
 		DRM_ERROR("Failed to reset chip: %i\n", ret);
 		mutex_unlock(&dev->struct_mutex);
