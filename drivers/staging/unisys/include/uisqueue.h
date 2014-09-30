@@ -266,8 +266,8 @@ struct add_vdisk_iopart {
 struct del_vdisk_iopart {
 	void *chanptr;		     /* pointer to data channel */
 	struct uisscsi_dest vdest;   /* scsi bus, target, lun for virt disk */
-	u32 busNo;
-	u32 devNo;
+	u32 bus_no;
+	u32 dev_no;
 };
 
 struct del_virt_iopart {
