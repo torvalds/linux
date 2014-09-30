@@ -121,8 +121,7 @@ static void cvm_oct_rgmii_poll(struct net_device *dev)
 				cvmx_write_csr(CVMX_GMXX_RXX_INT_REG
 					       (index, interface),
 					       gmxx_rxx_int_reg.u64);
-				printk_ratelimited("%s: Using 10Mbps with software "
-						   "preamble removal\n",
+				printk_ratelimited("%s: Using 10Mbps with software preamble removal\n",
 						   dev->name);
 			}
 		}
@@ -178,15 +177,13 @@ static void cvm_oct_rgmii_poll(struct net_device *dev)
 			if (!netif_carrier_ok(dev))
 				netif_carrier_on(dev);
 			if (priv->queue != -1)
-				printk_ratelimited("%s: %u Mbps %s duplex, "
-						   "port %2d, queue %2d\n",
+				printk_ratelimited("%s: %u Mbps %s duplex, port %2d, queue %2d\n",
 						   dev->name, link_info.s.speed,
 						   (link_info.s.full_duplex) ?
 						   "Full" : "Half",
 						   priv->port, priv->queue);
 			else
-				printk_ratelimited("%s: %u Mbps %s duplex, "
-						   "port %2d, POW\n",
+				printk_ratelimited("%s: %u Mbps %s duplex, port %2d, POW\n",
 						   dev->name, link_info.s.speed,
 						   (link_info.s.full_duplex) ?
 						   "Full" : "Half",
