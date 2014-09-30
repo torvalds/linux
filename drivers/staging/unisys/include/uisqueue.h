@@ -389,8 +389,8 @@ struct del_virt_guestpart {
 };
 
 struct init_chipset_guestpart {
-	u32 busCount;		/* indicates the max number of busses */
-	u32 switchCount;	/* indicates the max number of switches */
+	u32 bus_count;		/* indicates the max number of busses */
+	u32 switch_count;	/* indicates the max number of switches */
 };
 
 struct guest_msgs {
