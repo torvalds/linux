@@ -346,10 +346,13 @@ static int max3109_detect(struct device *dev)
 	unsigned int val = 0;
 	int ret;
 
-	ret = regmap_read(s->regmap, MAX310X_REVID_REG, &val);
+	ret = regmap_write(s->regmap, MAX310X_GLOBALCMD_REG,
+			   MAX310X_EXTREG_ENBL);
 	if (ret)
 		return ret;
 
+	regmap_read(s->regmap, MAX310X_REVID_EXTREG, &val);
+	regmap_write(s->regmap, MAX310X_GLOBALCMD_REG, MAX310X_EXTREG_DSBL);
 	if (((val & MAX310x_REV_MASK) != MAX3109_REV_ID)) {
 		dev_err(dev,
 			"%s ID 0x%02x does not match\n", s->devtype->name, val);
