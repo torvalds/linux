@@ -9,12 +9,13 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
+#include <linux/sizes.h>
 #include <linux/usb.h>
 #include "greybus.h"
 #include "svc_msg.h"
 
 /* Memory sizes for the buffers sent to/from the ES1 controller */
-#define ES1_SVC_MSG_SIZE	2048
+#define ES1_SVC_MSG_SIZE	(sizeof(struct svc_msg) + SZ_64K)
 #define ES1_GBUF_MSG_SIZE	PAGE_SIZE
 
 
