@@ -33,6 +33,23 @@
 #include "intel_drv.h"
 #include <drm/i915_powerwell.h>
 
+/**
+ * DOC: runtime pm
+ *
+ * The i915 driver supports dynamic enabling and disabling of entire hardware
+ * blocks at runtime. This is especially important on the display side where
+ * software is supposed to control many power gates manually on recent hardware,
+ * since on the GT side a lot of the power management is done by the hardware.
+ * But even there some manual control at the device level is required.
+ *
+ * Since i915 supports a diverse set of platforms with a unified codebase and
+ * hardware engineers just love to shuffle functionality around between power
+ * domains there's a sizeable amount of indirection required. This file provides
+ * generic functions to the driver for grabbing and releasing references for
+ * abstract power domains. It then maps those to the actual power wells
+ * present for a given platform.
+ */
+
 static struct i915_power_domains *hsw_pwr;
 
 #define for_each_power_well(i, power_well, domain_mask, power_domains)	\
@@ -48,7 +65,7 @@ static struct i915_power_domains *hsw_pwr;
 	     i--)							 \
 		if ((power_well)->domains & (domain_mask))
 
-/**
+/*
  * We should only use the power well if we explicitly asked the hardware to
  * enable it, so check if it's enabled and also check if we've requested it to
  * be enabled.
@@ -60,6 +77,18 @@ static bool hsw_power_well_enabled(struct drm_i915_private *dev_priv,
 		     (HSW_PWR_WELL_ENABLE_REQUEST | HSW_PWR_WELL_STATE_ENABLED);
 }
 
+/**
+ * __intel_display_power_is_enabled - unlocked check for a power domain
+ * @dev_priv: i915 device instance
+ * @domain: power domain to check
+ *
+ * This is the unlocked version of intel_display_power_is_enabled() and should
+ * only be used from error capture and recovery code where deadlocks are
+ * possible.
+ *
+ * Returns:
+ * True when the power domain is enabled, false otherwise.
+ */
 bool __intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 				      enum intel_display_power_domain domain)
 {
@@ -88,6 +117,23 @@ bool __intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 	return is_enabled;
 }
 
+/**
+ * intel_display_power_is_enabled - unlocked check for a power domain
+ * @dev_priv: i915 device instance
+ * @domain: power domain to check
+ *
+ * This function can be used to check the hw power domain state. It is mostly
+ * used in hardware state readout functions. Everywhere else code should rely
+ * upon explicit power domain reference counting to ensure that the hardware
+ * block is powered up before accessing it.
+ *
+ * Callers must hold the relevant modesetting locks to ensure that concurrent
+ * threads can't disable the power well while the caller tries to read a few
+ * registers.
+ *
+ * Returns:
+ * True when the power domain is enabled, false otherwise.
+ */
 bool intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 				    enum intel_display_power_domain domain)
 {
@@ -103,6 +149,16 @@ bool intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 	return ret;
 }
 
+/**
+ * intel_display_set_init_power - set the initial power domain state
+ * @dev_priv: i915 device instance
+ * @enable: whether to enable or disable the initial power domain state
+ *
+ * For simplicity our driver load/unload and system suspend/resume code assumes
+ * that all power domains are always enabled. This functions controls the state
+ * of this little hack. While the initial power domain state is enabled runtime
+ * pm is effectively disabled.
+ */
 void intel_display_set_init_power(struct drm_i915_private *dev_priv,
 				  bool enable)
 {
@@ -556,6 +612,18 @@ mismatch:
 		  power_well->count, i915.disable_power_well);
 }
 
+/**
+ * intel_display_power_get - grab a power domain reference
+ * @dev_priv: i915 device instance
+ * @domain: power domain to reference
+ *
+ * This function grabs a power domain reference for @domain and ensures that the
+ * power domain and all its parents are powered up. Therefore users should only
+ * grab a reference to the innermost power domain they need.
+ *
+ * Any power domain reference obtained by this function must have a symmetric
+ * call to intel_display_power_put() to release the reference again.
+ */
 void intel_display_power_get(struct drm_i915_private *dev_priv,
 			     enum intel_display_power_domain domain)
 {
@@ -584,6 +652,15 @@ void intel_display_power_get(struct drm_i915_private *dev_priv,
 	mutex_unlock(&power_domains->lock);
 }
 
+/**
+ * intel_display_power_put - release a power domain reference
+ * @dev_priv: i915 device instance
+ * @domain: power domain to reference
+ *
+ * This function drops the power domain reference obtained by
+ * intel_display_power_get() and might power down the corresponding hardware
+ * block right away if this is the last reference.
+ */
 void intel_display_power_put(struct drm_i915_private *dev_priv,
 			     enum intel_display_power_domain domain)
 {
@@ -968,6 +1045,13 @@ static struct i915_power_well *lookup_power_well(struct drm_i915_private *dev_pr
 	(power_domains)->power_well_count = ARRAY_SIZE(__power_wells);	\
 })
 
+/**
+ * intel_power_domains_init - initializes the power domain structures
+ * @dev_priv: i915 device instance
+ *
+ * Initializes the power domain structures for @dev_priv depending upon the
+ * supported platform.
+ */
 int intel_power_domains_init(struct drm_i915_private *dev_priv)
 {
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
@@ -1011,6 +1095,14 @@ static void intel_runtime_pm_disable(struct drm_i915_private *dev_priv)
 	pm_runtime_disable(device);
 }
 
+/**
+ * intel_power_domains_fini - finalizes the power domain structures
+ * @dev_priv: i915 device instance
+ *
+ * Finalizes the power domain structures for @dev_priv depending upon the
+ * supported platform. This function also disables runtime pm and ensures that
+ * the device stays powered up so that the driver can be reloaded.
+ */
 void intel_power_domains_fini(struct drm_i915_private *dev_priv)
 {
 	intel_runtime_pm_disable(dev_priv);
@@ -1069,6 +1161,13 @@ static void vlv_cmnlane_wa(struct drm_i915_private *dev_priv)
 	cmn->ops->disable(dev_priv, cmn);
 }
 
+/**
+ * intel_power_domains_init_hw - initialize hardware power domain state
+ * @dev_priv: i915 device instance
+ *
+ * This function initializes the hardware power domain state and enables all
+ * power domains using intel_display_set_init_power().
+ */
 void intel_power_domains_init_hw(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
@@ -1088,16 +1187,46 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv)
 	power_domains->initializing = false;
 }
 
+/**
+ * intel_aux_display_runtime_get - grab an auxilliary power domain reference
+ * @dev_priv: i915 device instance
+ *
+ * This function grabs a power domain reference for the auxiliary power domain
+ * (for access to the GMBUS and DP AUX blocks) and ensures that it and all its
+ * parents are powered up. Therefore users should only grab a reference to the
+ * innermost power domain they need.
+ *
+ * Any power domain reference obtained by this function must have a symmetric
+ * call to intel_aux_display_runtime_put() to release the reference again.
+ */
 void intel_aux_display_runtime_get(struct drm_i915_private *dev_priv)
 {
 	intel_runtime_pm_get(dev_priv);
 }
 
+/**
+ * intel_aux_display_runtime_put - release an auxilliary power domain reference
+ * @dev_priv: i915 device instance
+ *
+ * This function drops the auxilliary power domain reference obtained by
+ * intel_aux_display_runtime_get() and might power down the corresponding
+ * hardware block right away if this is the last reference.
+ */
 void intel_aux_display_runtime_put(struct drm_i915_private *dev_priv)
 {
 	intel_runtime_pm_put(dev_priv);
 }
 
+/**
+ * intel_runtime_pm_get - grab a runtime pm reference
+ * @dev_priv: i915 device instance
+ *
+ * This function grabs a device-level runtime pm reference (mostly used for GEM
+ * code to ensure the GTT or GT is on) and ensures that it is powered up.
+ *
+ * Any runtime pm reference obtained by this function must have a symmetric
+ * call to intel_runtime_pm_put() to release the reference again.
+ */
 void intel_runtime_pm_get(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
@@ -1110,6 +1239,23 @@ void intel_runtime_pm_get(struct drm_i915_private *dev_priv)
 	WARN(dev_priv->pm.suspended, "Device still suspended.\n");
 }
 
+/**
+ * intel_runtime_pm_get_noresume - grab a runtime pm reference
+ * @dev_priv: i915 device instance
+ *
+ * This function grabs a device-level runtime pm reference (mostly used for GEM
+ * code to ensure the GTT or GT is on).
+ *
+ * It will _not_ power up the device but instead only check that it's powered
+ * on.  Therefore it is only valid to call this functions from contexts where
+ * the device is known to be powered up and where trying to power it up would
+ * result in hilarity and deadlocks. That pretty much means only the system
+ * suspend/resume code where this is used to grab runtime pm references for
+ * delayed setup down in work items.
+ *
+ * Any runtime pm reference obtained by this function must have a symmetric
+ * call to intel_runtime_pm_put() to release the reference again.
+ */
 void intel_runtime_pm_get_noresume(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
@@ -1122,6 +1268,14 @@ void intel_runtime_pm_get_noresume(struct drm_i915_private *dev_priv)
 	pm_runtime_get_noresume(device);
 }
 
+/**
+ * intel_runtime_pm_put - release a runtime pm reference
+ * @dev_priv: i915 device instance
+ *
+ * This function drops the device-level runtime pm reference obtained by
+ * intel_runtime_pm_get() and might power down the corresponding
+ * hardware block right away if this is the last reference.
+ */
 void intel_runtime_pm_put(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
@@ -1134,6 +1288,16 @@ void intel_runtime_pm_put(struct drm_i915_private *dev_priv)
 	pm_runtime_put_autosuspend(device);
 }
 
+/**
+ * intel_runtime_pm_enable - enable runtime pm
+ * @dev_priv: i915 device instance
+ *
+ * This function enables runtime pm at the end of the driver load sequence.
+ *
+ * Note that this function does currently not enable runtime pm for the
+ * subordinate display power domains. That is only done on the first modeset
+ * using intel_display_set_init_power().
+ */
 void intel_runtime_pm_enable(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
