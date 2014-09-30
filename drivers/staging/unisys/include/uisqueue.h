@@ -259,8 +259,8 @@ struct add_vdisk_iopart {
 	struct uisscsi_dest pdest;    /* scsi bus, target, lun for phys disk */
 	u8 sernum[MAX_SERIAL_NUM];    /* serial num of physical disk */
 	u32 serlen;		      /* length of serial num */
-	u32 busNo;
-	u32 devNo;
+	u32 bus_no;
+	u32 dev_no;
 };
 
 struct del_vdisk_iopart {
