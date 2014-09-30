@@ -60,6 +60,8 @@
 #define PORT_COMMAND		0x0410
 #define PORT_STATUS		0x0418
 #define HTPR			0x0428
+#define MAC_ADDR_LOW		0x0430
+#define MAC_ADDR_HIGH		0x0438
 #define SDMA_CONFIG		0x0440
 #define SDMA_CMD		0x0448
 #define INT_CAUSE		0x0450
@@ -609,11 +611,22 @@ static int pxa168_eth_set_mac_address(struct net_device *dev, void *addr)
 	struct sockaddr *sa = addr;
 	struct pxa168_eth_private *pep = netdev_priv(dev);
 	unsigned char oldMac[ETH_ALEN];
+	u32 mac_h, mac_l;
 
 	if (!is_valid_ether_addr(sa->sa_data))
 		return -EADDRNOTAVAIL;
 	memcpy(oldMac, dev->dev_addr, ETH_ALEN);
 	memcpy(dev->dev_addr, sa->sa_data, ETH_ALEN);
+
+	mac_h = sa->sa_data[0] << 24;
+	mac_h |= sa->sa_data[1] << 16;
+	mac_h |= sa->sa_data[2] << 8;
+	mac_h |= sa->sa_data[3];
+	mac_l = sa->sa_data[4] << 8;
+	mac_l |= sa->sa_data[5];
+	wrl(pep, MAC_ADDR_HIGH, mac_h);
+	wrl(pep, MAC_ADDR_LOW, mac_l);
+
 	netif_addr_lock_bh(dev);
 	update_hash_table_mac_address(pep, oldMac, dev->dev_addr);
 	netif_addr_unlock_bh(dev);
