@@ -606,7 +606,7 @@ static int i915_drm_freeze(struct drm_device *dev)
 
 		intel_suspend_gt_powersave(dev);
 
-		intel_modeset_suspend_hw(dev);
+		intel_suspend_hw(dev);
 	}
 
 	i915_gem_suspend_gtt_mappings(dev);

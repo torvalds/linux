@@ -12830,11 +12830,6 @@ void intel_modeset_init_hw(struct drm_device *dev)
 	intel_enable_gt_powersave(dev);
 }
 
-void intel_modeset_suspend_hw(struct drm_device *dev)
-{
-	intel_suspend_hw(dev);
-}
-
 void intel_modeset_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
