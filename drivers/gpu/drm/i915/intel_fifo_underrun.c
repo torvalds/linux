@@ -252,8 +252,9 @@ bool intel_set_cpu_fifo_underrun_reporting(struct drm_i915_private *dev_priv,
 	return ret;
 }
 
-bool __cpu_fifo_underrun_reporting_enabled(struct drm_i915_private *dev_priv,
-					   enum pipe pipe)
+static bool
+__cpu_fifo_underrun_reporting_enabled(struct drm_i915_private *dev_priv,
+				      enum pipe pipe)
 {
 	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -312,6 +313,11 @@ bool intel_set_pch_fifo_underrun_reporting(struct drm_i915_private *dev_priv,
 void intel_cpu_fifo_underrun_irq_handler(struct drm_i915_private *dev_priv,
 					 enum pipe pipe)
 {
+	/* GMCH can't disable fifo underruns, filter them. */
+	if (HAS_GMCH_DISPLAY(dev_priv->dev) &&
+	    !__cpu_fifo_underrun_reporting_enabled(dev_priv, pipe))
+		return;
+
 	if (intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false))
 		DRM_ERROR("CPU pipe %c FIFO underrun\n",
 			  pipe_name(pipe));

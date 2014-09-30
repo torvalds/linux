@@ -1749,9 +1749,9 @@ static void valleyview_pipestat_irq_handler(struct drm_device *dev, u32 iir)
 		 * we need to be careful that we only handle what we want to
 		 * handle.
 		 */
-		mask = 0;
-		if (__cpu_fifo_underrun_reporting_enabled(dev_priv, pipe))
-			mask |= PIPE_FIFO_UNDERRUN_STATUS;
+
+		/* fifo underruns are filterered in the underrun handler. */
+		mask = PIPE_FIFO_UNDERRUN_STATUS;
 
 		switch (pipe) {
 		case PIPE_A:
