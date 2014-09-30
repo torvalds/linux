@@ -1911,7 +1911,7 @@ static HOSTADDRESS controlvm_get_channel_address(void)
 	u64 addr = 0;
 	u32 size = 0;
 
-	if (!VMCALL_SUCCESSFUL(Issue_VMCALL_IO_CONTROLVM_ADDR(&addr, &size))) {
+	if (!VMCALL_SUCCESSFUL(issue_vmcall_io_controlvm_addr(&addr, &size))) {
 		ERRDRV("%s - vmcall to determine controlvm channel addr failed",
 		       __func__);
 		return 0;

@@ -222,7 +222,7 @@ unsigned int uisutil_copy_fragsinfo_from_skb(unsigned char *calling_ctx,
 					     struct phys_info frags[]);
 
 static inline unsigned int
-Issue_VMCALL_IO_CONTROLVM_ADDR(u64 *ControlAddress, u32 *ControlBytes)
+issue_vmcall_io_controlvm_addr(u64 *control_addr, u32 *control_bytes)
 {
 	VMCALL_IO_CONTROLVM_ADDR_PARAMS params;
 	int result = VMCALL_SUCCESS;
@@ -231,8 +231,8 @@ Issue_VMCALL_IO_CONTROLVM_ADDR(u64 *ControlAddress, u32 *ControlBytes)
 	physaddr = virt_to_phys(&params);
 	ISSUE_IO_VMCALL(VMCALL_IO_CONTROLVM_ADDR, physaddr, result);
 	if (VMCALL_SUCCESSFUL(result)) {
-		*ControlAddress = params.ChannelAddress;
-		*ControlBytes = params.ChannelBytes;
+		*control_addr = params.ChannelAddress;
+		*control_bytes = params.ChannelBytes;
 	}
 	return result;
 }
