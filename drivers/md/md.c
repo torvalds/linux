@@ -6351,18 +6351,18 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 	switch (cmd) {
 	case RAID_VERSION:
 		err = get_version(argp);
-		goto done;
+		goto out;
 
 	case PRINT_RAID_DEBUG:
 		err = 0;
 		md_print_devices();
-		goto done;
+		goto out;
 
 #ifndef MODULE
 	case RAID_AUTORUN:
 		err = 0;
 		autostart_arrays(arg);
-		goto done;
+		goto out;
 #endif
 	default:;
 	}
@@ -6375,7 +6375,7 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 
 	if (!mddev) {
 		BUG();
-		goto abort;
+		goto out;
 	}
 
 	/* Some actions do not requires the mutex */
@@ -6385,18 +6385,18 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 			err = -ENODEV;
 		else
 			err = get_array_info(mddev, argp);
-		goto abort;
+		goto out;
 
 	case GET_DISK_INFO:
 		if (!mddev->raid_disks && !mddev->external)
 			err = -ENODEV;
 		else
 			err = get_disk_info(mddev, argp);
-		goto abort;
+		goto out;
 
 	case SET_DISK_FAULTY:
 		err = set_disk_faulty(mddev, new_decode_dev(arg));
-		goto abort;
+		goto out;
 	}
 
 	if (cmd == ADD_NEW_DISK)
@@ -6417,7 +6417,7 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 		if (mddev->pers && atomic_read(&mddev->openers) > 1) {
 			mutex_unlock(&mddev->open_mutex);
 			err = -EBUSY;
-			goto abort;
+			goto out;
 		}
 		set_bit(MD_STILL_CLOSED, &mddev->flags);
 		mutex_unlock(&mddev->open_mutex);
@@ -6428,7 +6428,7 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 		printk(KERN_INFO
 			"md: ioctl lock interrupted, reason %d, cmd %d\n",
 			err, cmd);
-		goto abort;
+		goto out;
 	}
 
 	if (cmd == SET_ARRAY_INFO) {
@@ -6437,38 +6437,38 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 			memset(&info, 0, sizeof(info));
 		else if (copy_from_user(&info, argp, sizeof(info))) {
 			err = -EFAULT;
-			goto abort_unlock;
+			goto unlock;
 		}
 		if (mddev->pers) {
 			err = update_array_info(mddev, &info);
 			if (err) {
 				printk(KERN_WARNING "md: couldn't update"
 				       " array info. %d\n", err);
-				goto abort_unlock;
+				goto unlock;
 			}
-			goto done_unlock;
+			goto unlock;
 		}
 		if (!list_empty(&mddev->disks)) {
 			printk(KERN_WARNING
 			       "md: array %s already has disks!\n",
 			       mdname(mddev));
 			err = -EBUSY;
-			goto abort_unlock;
+			goto unlock;
 		}
 		if (mddev->raid_disks) {
 			printk(KERN_WARNING
 			       "md: array %s already initialised!\n",
 			       mdname(mddev));
 			err = -EBUSY;
-			goto abort_unlock;
+			goto unlock;
 		}
 		err = set_array_info(mddev, &info);
 		if (err) {
 			printk(KERN_WARNING "md: couldn't set"
 			       " array info. %d\n", err);
-			goto abort_unlock;
+			goto unlock;
 		}
-		goto done_unlock;
+		goto unlock;
 	}
 
 	/*
@@ -6481,7 +6481,7 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 	    && cmd != RUN_ARRAY && cmd != SET_BITMAP_FILE
 	    && cmd != GET_BITMAP_FILE) {
 		err = -ENODEV;
-		goto abort_unlock;
+		goto unlock;
 	}
 
 	/*
@@ -6490,23 +6490,23 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 	switch (cmd) {
 	case GET_BITMAP_FILE:
 		err = get_bitmap_file(mddev, argp);
-		goto done_unlock;
+		goto unlock;
 
 	case RESTART_ARRAY_RW:
 		err = restart_array(mddev);
-		goto done_unlock;
+		goto unlock;
 
 	case STOP_ARRAY:
 		err = do_md_stop(mddev, 0, bdev);
-		goto done_unlock;
+		goto unlock;
 
 	case STOP_ARRAY_RO:
 		err = md_set_readonly(mddev, bdev);
-		goto done_unlock;
+		goto unlock;
 
 	case HOT_REMOVE_DISK:
 		err = hot_remove_disk(mddev, new_decode_dev(arg));
-		goto done_unlock;
+		goto unlock;
 
 	case ADD_NEW_DISK:
 		/* We can support ADD_NEW_DISK on read-only arrays
@@ -6522,14 +6522,14 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 				break;
 			else
 				err = add_new_disk(mddev, &info);
-			goto done_unlock;
+			goto unlock;
 		}
 		break;
 
 	case BLKROSET:
 		if (get_user(ro, (int __user *)(arg))) {
 			err = -EFAULT;
-			goto done_unlock;
+			goto unlock;
 		}
 		err = -EINVAL;
 
@@ -6537,11 +6537,11 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 		 * does not matter, no writes are coming
 		 */
 		if (ro)
-			goto done_unlock;
+			goto unlock;
 
 		/* are we are already prepared for writes? */
 		if (mddev->ro != 1)
-			goto done_unlock;
+			goto unlock;
 
 		/* transitioning to readauto need only happen for
 		 * arrays that call md_write_start
@@ -6553,7 +6553,7 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 				set_disk_ro(mddev->gendisk, 0);
 			}
 		}
-		goto done_unlock;
+		goto unlock;
 	}
 
 	/*
@@ -6578,7 +6578,7 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 			}
 		} else {
 			err = -EROFS;
-			goto abort_unlock;
+			goto unlock;
 		}
 	}
 
@@ -6590,38 +6590,32 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 			err = -EFAULT;
 		else
 			err = add_new_disk(mddev, &info);
-		goto done_unlock;
+		goto unlock;
 	}
 
 	case HOT_ADD_DISK:
 		err = hot_add_disk(mddev, new_decode_dev(arg));
-		goto done_unlock;
+		goto unlock;
 
 	case RUN_ARRAY:
 		err = do_md_run(mddev);
-		goto done_unlock;
+		goto unlock;
 
 	case SET_BITMAP_FILE:
 		err = set_bitmap_file(mddev, (int)arg);
-		goto done_unlock;
+		goto unlock;
 
 	default:
 		err = -EINVAL;
-		goto abort_unlock;
+		goto unlock;
 	}
 
-done_unlock:
-abort_unlock:
+unlock:
 	if (mddev->hold_active == UNTIL_IOCTL &&
 	    err != -EINVAL)
 		mddev->hold_active = 0;
 	mddev_unlock(mddev);
-
-	return err;
-done:
-	if (err)
-		MD_BUG();
-abort:
+out:
 	return err;
 }
 #ifdef CONFIG_COMPAT
