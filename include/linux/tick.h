@@ -108,7 +108,7 @@ extern struct tick_sched *tick_get_tick_sched(int cpu);
 extern void tick_irq_enter(void);
 extern int tick_oneshot_mode_active(void);
 #  ifndef arch_needs_cpu
-#   define arch_needs_cpu(cpu) (0)
+#   define arch_needs_cpu() (0)
 #  endif
 # else
 static inline void tick_clock_notify(void) { }

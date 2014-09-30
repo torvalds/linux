@@ -163,7 +163,7 @@ void __kprobes vtime_stop_cpu(void)
 	/* Wait for external, I/O or machine check interrupt. */
 	psw_mask = PSW_KERNEL_BITS | PSW_MASK_WAIT | PSW_MASK_DAT |
 		PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
-	idle->nohz_delay = 0;
+	clear_cpu_flag(CIF_NOHZ_DELAY);
 
 	/* Call the assembler magic in entry.S */
 	psw_idle(idle, psw_mask);
@@ -378,25 +378,8 @@ void init_cpu_vtimer(void)
 	set_vtimer(VTIMER_MAX_SLICE);
 }
 
-static int s390_nohz_notify(struct notifier_block *self, unsigned long action,
-			    void *hcpu)
-{
-	struct s390_idle_data *idle;
-	long cpu = (long) hcpu;
-
-	idle = &per_cpu(s390_idle, cpu);
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_DYING:
-		idle->nohz_delay = 0;
-	default:
-		break;
-	}
-	return NOTIFY_OK;
-}
-
 void __init vtime_init(void)
 {
 	/* Enable cpu timer interrupts on the boot cpu. */
 	init_cpu_vtimer();
-	cpu_notifier(s390_nohz_notify, 0);
 }

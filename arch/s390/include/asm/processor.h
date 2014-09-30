@@ -13,9 +13,11 @@
 
 #define CIF_MCCK_PENDING	0	/* machine check handling is pending */
 #define CIF_ASCE		1	/* user asce needs fixup / uaccess */
+#define CIF_NOHZ_DELAY		2	/* delay HZ disable for a tick */
 
 #define _CIF_MCCK_PENDING	(1<<CIF_MCCK_PENDING)
 #define _CIF_ASCE		(1<<CIF_ASCE)
+#define _CIF_NOHZ_DELAY		(1<<CIF_NOHZ_DELAY)
 
 
 #ifndef __ASSEMBLY__
@@ -42,6 +44,8 @@ static inline int test_cpu_flag(int flag)
 {
 	return !!(S390_lowcore.cpu_flags & (1U << flag));
 }
+
+#define arch_needs_cpu() test_cpu_flag(CIF_NOHZ_DELAY)
 
 /*
  * Default implementation of macro that returns current

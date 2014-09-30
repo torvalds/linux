@@ -720,6 +720,7 @@ int __cpu_disable(void)
 	cregs[6]  &= ~0xff000000UL;	/* disable all I/O interrupts */
 	cregs[14] &= ~0x1f000000UL;	/* disable most machine checks */
 	__ctl_load(cregs, 0, 15);
+	clear_cpu_flag(CIF_NOHZ_DELAY);
 	return 0;
 }
 

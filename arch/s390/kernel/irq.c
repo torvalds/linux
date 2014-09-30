@@ -259,7 +259,7 @@ static irqreturn_t do_ext_interrupt(int irq, void *dummy)
 
 	ext_code = *(struct ext_code *) &regs->int_code;
 	if (ext_code.code != EXT_IRQ_CLK_COMP)
-		__get_cpu_var(s390_idle).nohz_delay = 1;
+		set_cpu_flag(CIF_NOHZ_DELAY);
 
 	index = ext_hash(ext_code.code);
 	rcu_read_lock();
