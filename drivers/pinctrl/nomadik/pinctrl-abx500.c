@@ -1104,6 +1104,7 @@ out:
 static const struct pinconf_ops abx500_pinconf_ops = {
 	.pin_config_get = abx500_pin_config_get,
 	.pin_config_set = abx500_pin_config_set,
+	.is_generic = true,
 };
 
 static struct pinctrl_desc abx500_pinctrl_desc = {
