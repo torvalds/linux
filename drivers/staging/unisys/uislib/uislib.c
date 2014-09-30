@@ -1523,7 +1523,7 @@ static DECLARE_WORK(Work_wakeup_polling_device_channels,
  *  your device might have more requests.
  */
 void
-uislib_force_channel_interrupt(u32 busNo, u32 devNo)
+uislib_force_channel_interrupt(u32 bus_no, u32 dev_no)
 {
 	if (en_smart_wakeup == 0)
 		return;
