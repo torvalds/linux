@@ -3865,8 +3865,7 @@ static int device_notifier(struct notifier_block *nb,
 	if (iommu_dummy(dev))
 		return 0;
 
-	if (action != BUS_NOTIFY_UNBOUND_DRIVER &&
-	    action != BUS_NOTIFY_DEL_DEVICE)
+	if (action != BUS_NOTIFY_REMOVED_DEVICE)
 		return 0;
 
 	domain = find_domain(dev);
