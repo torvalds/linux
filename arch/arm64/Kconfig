@@ -124,6 +124,12 @@ source "kernel/Kconfig.freezer"
 
 menu "Platform selection"
 
+config ARCH_ROCKCHIP
+	bool "Rockchip SoCs"
+	select PINCTRL
+	select PINCTRL_ROCKCHIP
+	select ARCH_REQUIRE_GPIOLIB
+
 config ARCH_VEXPRESS
 	bool "ARMv8 software model (Versatile Express)"
 	select ARCH_REQUIRE_GPIOLIB
