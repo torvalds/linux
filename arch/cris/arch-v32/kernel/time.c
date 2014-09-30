@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/threads.h>
 #include <linux/cpufreq.h>
+#include <linux/mm.h>
 #include <asm/types.h>
 #include <asm/signal.h>
 #include <asm/io.h>
