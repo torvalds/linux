@@ -86,9 +86,6 @@ static DEFINE_SPINLOCK(efi_runtime_lock);
  * for QueryVariableInfo() and SetVariable(), as these can be reached in NMI
  * context through efi_pstore_write().
  */
-#ifndef efi_in_nmi
-#define efi_in_nmi()	(0)
-#endif
 
 /*
  * As per commit ef68c8f87ed1 ("x86: Serialize EFI time accesses on rtc_lock"),
@@ -189,14 +186,11 @@ static efi_status_t virt_efi_set_variable(efi_char16_t *name,
 {
 	unsigned long flags;
 	efi_status_t status;
-	bool __in_nmi = efi_in_nmi();
 
-	if (!__in_nmi)
-		spin_lock_irqsave(&efi_runtime_lock, flags);
+	spin_lock_irqsave(&efi_runtime_lock, flags);
 	status = efi_call_virt(set_variable, name, vendor, attr, data_size,
 			       data);
-	if (!__in_nmi)
-		spin_unlock_irqrestore(&efi_runtime_lock, flags);
+	spin_unlock_irqrestore(&efi_runtime_lock, flags);
 	return status;
 }
 
@@ -225,17 +219,14 @@ static efi_status_t virt_efi_query_variable_info(u32 attr,
 {
 	unsigned long flags;
 	efi_status_t status;
-	bool __in_nmi = efi_in_nmi();
 
 	if (efi.runtime_version < EFI_2_00_SYSTEM_TABLE_REVISION)
 		return EFI_UNSUPPORTED;
 
-	if (!__in_nmi)
-		spin_lock_irqsave(&efi_runtime_lock, flags);
+	spin_lock_irqsave(&efi_runtime_lock, flags);
 	status = efi_call_virt(query_variable_info, attr, storage_space,
 			       remaining_space, max_variable_size);
-	if (!__in_nmi)
-		spin_unlock_irqrestore(&efi_runtime_lock, flags);
+	spin_unlock_irqrestore(&efi_runtime_lock, flags);
 	return status;
 }
 
