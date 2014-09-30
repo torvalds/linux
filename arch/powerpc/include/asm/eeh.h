@@ -172,6 +172,7 @@ enum {
 #define EEH_OPT_ENABLE		1	/* EEH enable	*/
 #define EEH_OPT_THAW_MMIO	2	/* MMIO enable	*/
 #define EEH_OPT_THAW_DMA	3	/* DMA enable	*/
+#define EEH_OPT_FREEZE_PE	4	/* Freeze PE	*/
 #define EEH_STATE_UNAVAILABLE	(1 << 0)	/* State unavailable	*/
 #define EEH_STATE_NOT_SUPPORT	(1 << 1)	/* EEH not supported	*/
 #define EEH_STATE_RESET_ACTIVE	(1 << 2)	/* Active reset		*/

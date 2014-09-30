@@ -1382,6 +1382,13 @@ int eeh_pe_reset(struct eeh_pe *pe, int option)
 		break;
 	case EEH_RESET_HOT:
 	case EEH_RESET_FUNDAMENTAL:
+		/*
+		 * Proactively freeze the PE to drop all MMIO access
+		 * during reset, which should be banned as it's always
+		 * cause recursive EEH error.
+		 */
+		eeh_ops->set_option(pe, EEH_OPT_FREEZE_PE);
+
 		ret = eeh_ops->reset(pe, option);
 		break;
 	default:

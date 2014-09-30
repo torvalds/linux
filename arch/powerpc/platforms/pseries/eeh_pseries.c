@@ -349,7 +349,9 @@ static int pseries_eeh_set_option(struct eeh_pe *pe, int option)
 		if (pe->addr)
 			config_addr = pe->addr;
 		break;
-
+	case EEH_OPT_FREEZE_PE:
+		/* Not support */
+		return 0;
 	default:
 		pr_err("%s: Invalid option %d\n",
 			__func__, option);
