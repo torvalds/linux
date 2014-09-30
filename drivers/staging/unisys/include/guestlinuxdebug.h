@@ -21,7 +21,6 @@
 * regarding adding additional structure and functionality to linux
 * ISSUE_IO_VMCALL_POSTCODE_SEVERITY */
 
-
 /******* INFO ON ISSUE_POSTCODE_LINUX() BELOW *******/
 #include "vmcallinterface.h"
 typedef enum {		/* POSTCODE driver identifier tuples */
@@ -172,7 +171,6 @@ do {									\
 
 #define POSTCODE_LINUX_3(EVENT_PC, pc32bit, severity)			\
 	POSTCODE_LINUX_A(CURRENT_FILE_PC, EVENT_PC, pc32bit, severity)
-
 
 #define POSTCODE_LINUX_4(EVENT_PC, pc16bit1, pc16bit2, severity)	\
 	POSTCODE_LINUX_B(CURRENT_FILE_PC, EVENT_PC, pc16bit1,		\
