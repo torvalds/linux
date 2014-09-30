@@ -84,7 +84,7 @@ static const struct btmrvl_sdio_card_reg btmrvl_reg_87xx = {
 	.int_read_to_clear = false,
 };
 
-static const struct btmrvl_sdio_card_reg btmrvl_reg_88xx = {
+static const struct btmrvl_sdio_card_reg btmrvl_reg_8897 = {
 	.cfg = 0x00,
 	.host_int_mask = 0x02,
 	.host_intstatus = 0x03,
@@ -131,7 +131,7 @@ static const struct btmrvl_sdio_device btmrvl_sdio_sd8797 = {
 static const struct btmrvl_sdio_device btmrvl_sdio_sd8897 = {
 	.helper		= NULL,
 	.firmware	= "mrvl/sd8897_uapsta.bin",
-	.reg		= &btmrvl_reg_88xx,
+	.reg		= &btmrvl_reg_8897,
 	.support_pscan_win_report = true,
 	.sd_blksz_fw_dl	= 256,
 };
