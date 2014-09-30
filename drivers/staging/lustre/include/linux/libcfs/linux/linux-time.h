@@ -106,8 +106,7 @@ static inline void cfs_duration_usec(long d, struct timeval *s)
 	s->tv_usec = t;
 #else
 	s->tv_sec = d / HZ;
-	s->tv_usec = ((d - (long)s->tv_sec * HZ) * \
-		ONE_MILLION) / HZ;
+	s->tv_usec = ((d - (long)s->tv_sec * HZ) * ONE_MILLION) / HZ;
 #endif
 }
 
