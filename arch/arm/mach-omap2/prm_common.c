@@ -525,8 +525,6 @@ int __init of_prcm_init(void)
 		memmap_index++;
 	}
 
-	ti_dt_clockdomains_setup();
-
 	return 0;
 }
 
