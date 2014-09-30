@@ -214,7 +214,7 @@ visorchipset_ioctl(struct inode *inode, struct file *file,
 		}
 		DBGINF("insde visorchipset_ioctl, cmd=%d, adjustment=%lld", cmd,
 		       adjustment);
-		rc = Issue_VMCALL_UPDATE_PHYSICAL_TIME(adjustment);
+		rc = issue_vmcall_update_physical_time(adjustment);
 		break;
 	default:
 		LOGERR("visorchipset_ioctl received invalid command");

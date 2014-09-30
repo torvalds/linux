@@ -290,7 +290,7 @@ struct log_info_t {
 	unsigned long long min_delta[64];
 };
 
-static inline int Issue_VMCALL_UPDATE_PHYSICAL_TIME(u64 adjustment)
+static inline int issue_vmcall_update_physical_time(u64 adjustment)
 {
 	int result = VMCALL_SUCCESS;
 
