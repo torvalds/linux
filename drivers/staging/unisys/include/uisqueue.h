@@ -316,7 +316,7 @@ struct io_msgs {
 		struct det_virt_iopart det_intport;
 		struct add_switch_iopart add_switch;
 		struct del_switch_iopart del_switch;
-		struct extport_info *extPort;	/* for attach or detach
+		struct extport_info *ext_port;	/* for attach or detach
 						 * pnic/generic delete all
 						 * vhbas/allvnics need no
 						 * parameters */
