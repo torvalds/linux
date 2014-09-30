@@ -81,12 +81,6 @@ unsigned long long uisqueue_interlocked_or(unsigned long long __iomem *tgt,
 unsigned long long uisqueue_interlocked_and(unsigned long long __iomem *tgt,
 					    unsigned long long set);
 
-unsigned int uisqueue_send_int_if_needed(struct uisqueue_info *pqueueinfo,
-					 unsigned int whichqueue,
-					 unsigned char issueInterruptIfEmpty,
-					 u64 interruptHandle,
-					 unsigned char io_termination);
-
 int uisqueue_put_cmdrsp_with_lock_client(struct uisqueue_info *queueinfo,
 					 struct uiscmdrsp *cmdrsp,
 					 unsigned int queue,
