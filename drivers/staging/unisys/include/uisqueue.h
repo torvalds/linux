@@ -129,17 +129,17 @@ struct extport_info {
 
 struct device_info {
 	void __iomem *chanptr;
-	u64 channelAddr;
-	u64 channelBytes;
-	uuid_le channelTypeGuid;
-	uuid_le devInstGuid;
+	u64 channel_addr;
+	u64 channel_bytes;
+	uuid_le channel_uuid;
+	uuid_le instance_uuid;
 	struct InterruptInfo intr;
 	struct switch_info *swtch;
 	char devid[30];		/* "vbus<busno>:dev<devno>" */
 	u16 polling;
 	struct semaphore interrupt_callback_lock;
-	u32 busNo;
-	u32 devNo;
+	u32 bus_no;
+	u32 dev_no;
 	int (*interrupt)(void *);
 	void *interrupt_context;
 	void *private_data;

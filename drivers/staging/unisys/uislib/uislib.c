@@ -368,18 +368,18 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 		return CONTROLVM_RESP_ERROR_KMALLOC_FAILED;
 	}
 
-	dev->channelTypeGuid = msg->cmd.createDevice.dataTypeGuid;
+	dev->channel_uuid = msg->cmd.createDevice.dataTypeGuid;
 	dev->intr = msg->cmd.createDevice.intr;
-	dev->channelAddr = msg->cmd.createDevice.channelAddr;
-	dev->busNo = busNo;
-	dev->devNo = devNo;
+	dev->channel_addr = msg->cmd.createDevice.channelAddr;
+	dev->bus_no = busNo;
+	dev->dev_no = devNo;
 	sema_init(&dev->interrupt_callback_lock, 1);	/* unlocked */
 	sprintf(dev->devid, "vbus%u:dev%u", (unsigned) busNo, (unsigned) devNo);
 	/* map the channel memory for the device. */
 	if (msg->hdr.Flags.testMessage)
-		dev->chanptr = (void __iomem *)__va(dev->channelAddr);
+		dev->chanptr = (void __iomem *)__va(dev->channel_addr);
 	else {
-		pReqHandler = ReqHandlerFind(dev->channelTypeGuid);
+		pReqHandler = ReqHandlerFind(dev->channel_uuid);
 		if (pReqHandler)
 			/* generic service handler registered for this
 			 * channel
@@ -395,11 +395,11 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 			goto Away;
 		}
 		dev->chanptr =
-		    uislib_ioremap_cache(dev->channelAddr,
+		    uislib_ioremap_cache(dev->channel_addr,
 					 msg->cmd.createDevice.channelBytes);
 		if (!dev->chanptr) {
 			LOGERR("CONTROLVM_DEVICE_CREATE Failed: ioremap_cache of channelAddr:%Lx for channelBytes:%llu failed",
-			     dev->channelAddr,
+			     dev->channel_addr,
 			     msg->cmd.createDevice.channelBytes);
 			result = CONTROLVM_RESP_ERROR_IOREMAP_FAILED;
 			POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, devNo, busNo,
@@ -407,8 +407,8 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 			goto Away;
 		}
 	}
-	dev->devInstGuid = msg->cmd.createDevice.devInstGuid;
-	dev->channelBytes = msg->cmd.createDevice.channelBytes;
+	dev->instance_uuid = msg->cmd.createDevice.devInstGuid;
+	dev->channel_bytes = msg->cmd.createDevice.channelBytes;
 
 	read_lock(&BusListLock);
 	for (bus = BusListHead; bus; bus = bus->next) {
@@ -442,7 +442,7 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 			if (!msg->hdr.Flags.server) {
 				struct guest_msgs cmd;
 
-				if (!uuid_le_cmp(dev->channelTypeGuid,
+				if (!uuid_le_cmp(dev->channel_uuid,
 				     UltraVhbaChannelProtocolGuid)) {
 					wait_for_valid_guid(&((CHANNEL_HEADER
 							      __iomem *) (dev->
@@ -464,10 +464,10 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 					cmd.add_vhba.busNo = busNo;
 					cmd.add_vhba.deviceNo = devNo;
 					cmd.add_vhba.devInstGuid =
-					    dev->devInstGuid;
+					    dev->instance_uuid;
 					cmd.add_vhba.intr = dev->intr;
 				} else
-				    if (!uuid_le_cmp(dev->channelTypeGuid,
+				    if (!uuid_le_cmp(dev->channel_uuid,
 					 UltraVnicChannelProtocolGuid)) {
 					wait_for_valid_guid(&((CHANNEL_HEADER
 							      __iomem *) (dev->
@@ -489,7 +489,7 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 					cmd.add_vnic.busNo = busNo;
 					cmd.add_vnic.deviceNo = devNo;
 					cmd.add_vnic.devInstGuid =
-					    dev->devInstGuid;
+					    dev->instance_uuid;
 					cmd.add_vhba.intr = dev->intr;
 				} else {
 					LOGERR("CONTROLVM_DEVICE_CREATE Failed: unknown channelTypeGuid.\n");
@@ -584,11 +584,11 @@ pause_device(CONTROLVM_MESSAGE *msg)
 		/* the msg is bound for virtpci; send
 		 * guest_msgs struct to callback
 		 */
-		if (!uuid_le_cmp(dev->channelTypeGuid,
+		if (!uuid_le_cmp(dev->channel_uuid,
 				UltraVhbaChannelProtocolGuid)) {
 			cmd.msgtype = GUEST_PAUSE_VHBA;
 			cmd.pause_vhba.chanptr = dev->chanptr;
-		} else if (!uuid_le_cmp(dev->channelTypeGuid,
+		} else if (!uuid_le_cmp(dev->channel_uuid,
 					UltraVnicChannelProtocolGuid)) {
 			cmd.msgtype = GUEST_PAUSE_VNIC;
 			cmd.pause_vnic.chanptr = dev->chanptr;
@@ -653,11 +653,11 @@ resume_device(CONTROLVM_MESSAGE *msg)
 	 * guest_msgs struct to callback
 	 */
 	if (retval == CONTROLVM_RESP_SUCCESS) {
-		if (!uuid_le_cmp(dev->channelTypeGuid,
+		if (!uuid_le_cmp(dev->channel_uuid,
 				 UltraVhbaChannelProtocolGuid)) {
 			cmd.msgtype = GUEST_RESUME_VHBA;
 			cmd.resume_vhba.chanptr = dev->chanptr;
-		} else if (!uuid_le_cmp(dev->channelTypeGuid,
+		} else if (!uuid_le_cmp(dev->channel_uuid,
 					UltraVnicChannelProtocolGuid)) {
 			cmd.msgtype = GUEST_RESUME_VNIC;
 			cmd.resume_vnic.chanptr = dev->chanptr;
@@ -723,11 +723,11 @@ destroy_device(CONTROLVM_MESSAGE *msg, char *buf)
 		/* the msg is bound for virtpci; send
 		 * guest_msgs struct to callback
 		 */
-		if (!uuid_le_cmp(dev->channelTypeGuid,
+		if (!uuid_le_cmp(dev->channel_uuid,
 				 UltraVhbaChannelProtocolGuid)) {
 			cmd.msgtype = GUEST_DEL_VHBA;
 			cmd.del_vhba.chanptr = dev->chanptr;
-		} else if (!uuid_le_cmp(dev->channelTypeGuid,
+		} else if (!uuid_le_cmp(dev->channel_uuid,
 					UltraVnicChannelProtocolGuid)) {
 			cmd.msgtype = GUEST_DEL_VNIC;
 			cmd.del_vnic.chanptr = dev->chanptr;
