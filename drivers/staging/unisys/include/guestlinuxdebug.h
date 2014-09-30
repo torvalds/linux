@@ -60,7 +60,7 @@ enum driver_pc {		/* POSTCODE driver identifier tuples */
 	UISLIB_PC_uisutils_c = 0xD4,
 };
 
-typedef enum {			/* POSTCODE event identifier tuples */
+enum event_pc {			/* POSTCODE event identifier tuples */
 	ATTACH_PORT_ENTRY_PC = 0x001,
 	ATTACH_PORT_FAILURE_PC = 0x002,
 	ATTACH_PORT_SUCCESS_PC = 0x003,
@@ -128,7 +128,7 @@ typedef enum {			/* POSTCODE event identifier tuples */
 	SAVE_MSG_BUS_FAILURE_PC = 0x0D9,
 	SAVE_MSG_DEV_FAILURE_PC = 0x0DA,
 	CALLHOME_INIT_FAILURE_PC = 0x0DB
-} EVENT_PC;
+};
 
 #ifdef __GNUC__
 
