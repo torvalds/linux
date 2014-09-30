@@ -756,6 +756,8 @@ int si_fan_ctrl_set_fan_speed_percent(struct radeon_device *rdev,
 						 u32 speed);
 u32 si_fan_ctrl_get_mode(struct radeon_device *rdev);
 void si_fan_ctrl_set_mode(struct radeon_device *rdev, u32 mode);
+u32 si_dpm_get_current_sclk(struct radeon_device *rdev);
+u32 si_dpm_get_current_mclk(struct radeon_device *rdev);
 
 /* DCE8 - CIK */
 void dce8_bandwidth_update(struct radeon_device *rdev);
