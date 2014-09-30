@@ -97,6 +97,7 @@ config RTL8821AE
 	depends on PCI
 	select RTLWIFI
 	select RTLWIFI_PCI
+	select RTLBTCOEXIST
 	---help---
 	This is the driver for Realtek RTL8i821AE/RTL8812AE 802.11av PCIe
 	wireless network adapters.
@@ -146,7 +147,7 @@ config RTL8723_COMMON
 
 config RTLBTCOEXIST
 	tristate
-	depends on RTL8723AE || RTL8723BE
+	depends on RTL8723AE || RTL8723BE || RTL8821AE
 	default y
 
 endif
