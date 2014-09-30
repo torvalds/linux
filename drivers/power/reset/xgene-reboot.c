@@ -33,7 +33,7 @@
 #include <asm/system_misc.h>
 
 struct xgene_reboot_context {
-	struct platform_device *pdev;
+	struct device *dev;
 	void *csr;
 	u32 mask;
 };
@@ -53,27 +53,28 @@ static void xgene_restart(enum reboot_mode mode, const char *cmd)
 	while (time_before(jiffies, timeout))
 		cpu_relax();
 
-	dev_emerg(&ctx->pdev->dev, "Unable to restart system\n");
+	dev_emerg(ctx->dev, "Unable to restart system\n");
 }
 
 static int xgene_reboot_probe(struct platform_device *pdev)
 {
 	struct xgene_reboot_context *ctx;
+	struct device *dev = &pdev->dev;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
-	ctx->csr = of_iomap(pdev->dev.of_node, 0);
+	ctx->csr = of_iomap(dev->of_node, 0);
 	if (!ctx->csr) {
-		dev_err(&pdev->dev, "can not map resource\n");
+		dev_err(dev, "can not map resource\n");
 		return -ENODEV;
 	}
 
-	if (of_property_read_u32(pdev->dev.of_node, "mask", &ctx->mask))
+	if (of_property_read_u32(dev->of_node, "mask", &ctx->mask))
 		ctx->mask = 0xFFFFFFFF;
 
-	ctx->pdev = pdev;
+	ctx->dev = dev;
 	arm_pm_restart = xgene_restart;
 	xgene_restart_ctx = ctx;
 
