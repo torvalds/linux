@@ -471,6 +471,13 @@ config DVB_SI2168
 	help
 	  Say Y when you want to support this frontend.
 
+config DVB_MN88473
+	tristate "Panasonic MN88473"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Say Y when you want to support this frontend.
+
 config DVB_AS102_FE
 	tristate
 	depends on DVB_CORE
