@@ -120,7 +120,7 @@ static void default_restore_msi_irq(struct pci_dev *dev, int irq)
 	}
 
 	if (entry)
-		write_msi_msg(irq, &entry->msg);
+		__write_msi_msg(entry, &entry->msg);
 }
 
 void __weak arch_restore_msi_irqs(struct pci_dev *dev)
