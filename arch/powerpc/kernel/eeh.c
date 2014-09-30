@@ -668,14 +668,18 @@ int pcibios_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state stat
 	switch (state) {
 	case pcie_deassert_reset:
 		eeh_ops->reset(pe, EEH_RESET_DEACTIVATE);
+		eeh_pe_state_clear(pe, EEH_PE_RESET);
 		break;
 	case pcie_hot_reset:
+		eeh_pe_state_mark(pe, EEH_PE_RESET);
 		eeh_ops->reset(pe, EEH_RESET_HOT);
 		break;
 	case pcie_warm_reset:
+		eeh_pe_state_mark(pe, EEH_PE_RESET);
 		eeh_ops->reset(pe, EEH_RESET_FUNDAMENTAL);
 		break;
 	default:
+		eeh_pe_state_clear(pe, EEH_PE_RESET);
 		return -EINVAL;
 	};
 
