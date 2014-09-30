@@ -2751,13 +2751,8 @@ void btc_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 		else /* current_index == 2 */
 			pl = &ps->high;
 		seq_printf(m, "uvd    vclk: %d dclk: %d\n", rps->vclk, rps->dclk);
-		if (rdev->family >= CHIP_CEDAR) {
-			seq_printf(m, "power level %d    sclk: %u mclk: %u vddc: %u vddci: %u\n",
-				   current_index, pl->sclk, pl->mclk, pl->vddc, pl->vddci);
-		} else {
-			seq_printf(m, "power level %d    sclk: %u mclk: %u vddc: %u\n",
-				   current_index, pl->sclk, pl->mclk, pl->vddc);
-		}
+		seq_printf(m, "power level %d    sclk: %u mclk: %u vddc: %u vddci: %u\n",
+			   current_index, pl->sclk, pl->mclk, pl->vddc, pl->vddci);
 	}
 }
 
