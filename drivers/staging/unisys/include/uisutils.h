@@ -298,21 +298,20 @@ static inline int issue_vmcall_update_physical_time(u64 adjustment)
 	return result;
 }
 
-static inline unsigned int
-Issue_VMCALL_CHANNEL_MISMATCH(const char *ChannelName,
-			      const char *ItemName,
-			      u32 SourceLineNumber, const char *path_n_fn)
+static inline unsigned int issue_vmcall_channel_mismatch(const char *chname,
+			      const char *item_name, u32 line_no,
+			      const char *path_n_fn)
 {
 	VMCALL_CHANNEL_VERSION_MISMATCH_PARAMS params;
 	int result = VMCALL_SUCCESS;
 	u64 physaddr;
 	char *last_slash = NULL;
 
-	strlcpy(params.ChannelName, ChannelName,
+	strlcpy(params.ChannelName, chname,
 		lengthof(VMCALL_CHANNEL_VERSION_MISMATCH_PARAMS, ChannelName));
-	strlcpy(params.ItemName, ItemName,
+	strlcpy(params.ItemName, item_name,
 		lengthof(VMCALL_CHANNEL_VERSION_MISMATCH_PARAMS, ItemName));
-	params.SourceLineNumber = SourceLineNumber;
+	params.SourceLineNumber = line_no;
 
 	last_slash = strrchr(path_n_fn, '/');
 	if (last_slash != NULL) {
