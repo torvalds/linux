@@ -1150,6 +1150,8 @@ void eeh_remove_device(struct pci_dev *dev)
 int eeh_dev_open(struct pci_dev *pdev)
 {
 	struct eeh_dev *edev;
+	int flag = (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
+	int ret = -ENODEV;
 
 	mutex_lock(&eeh_dev_mutex);
 
@@ -1162,6 +1164,38 @@ int eeh_dev_open(struct pci_dev *pdev)
 	if (!edev || !edev->pe)
 		goto out;
 
+	/*
+	 * The PE might have been put into frozen state, but we
+	 * didn't detect that yet. The passed through PCI devices
+	 * in frozen PE won't work properly. Clear the frozen state
+	 * in advance.
+	 */
+	ret = eeh_ops->get_state(edev->pe, NULL);
+	if (ret > 0 && ret != EEH_STATE_NOT_SUPPORT &&
+	    (ret & flag) != flag) {
+		ret = eeh_ops->set_option(edev->pe, EEH_OPT_THAW_MMIO);
+		if (ret) {
+			pr_warn("%s: Failure %d enabling MMIO "
+				"for PHB#%x-PE#%x\n",
+				__func__, ret, edev->phb->global_number,
+				edev->pe->addr);
+			goto out;
+		}
+
+		ret = eeh_ops->set_option(edev->pe, EEH_OPT_THAW_DMA);
+		if (ret) {
+			pr_warn("%s: Failure %d enabling DMA "
+				"for PHB#%x-PE#%x\n",
+				__func__, ret, edev->phb->global_number,
+				edev->pe->addr);
+			goto out;
+		}
+	}
+
+	/* Clear software isolated state */
+	if (edev->pe->state & EEH_PE_ISOLATED)
+		eeh_pe_state_clear(edev->pe, EEH_PE_ISOLATED);
+
 	/* Increase PE's pass through count */
 	atomic_inc(&edev->pe->pass_dev_cnt);
 	mutex_unlock(&eeh_dev_mutex);
@@ -1169,7 +1203,7 @@ int eeh_dev_open(struct pci_dev *pdev)
 	return 0;
 out:
 	mutex_unlock(&eeh_dev_mutex);
-	return -ENODEV;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(eeh_dev_open);
 
