@@ -35,6 +35,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_net.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
 #include <linux/pxa168_eth.h>
@@ -604,6 +605,21 @@ static void pxa168_eth_set_rx_mode(struct net_device *dev)
 
 	netdev_for_each_mc_addr(ha, dev)
 		update_hash_table_mac_address(pep, NULL, ha->addr);
+}
+
+static void pxa168_eth_get_mac_address(struct net_device *dev,
+				       unsigned char *addr)
+{
+	struct pxa168_eth_private *pep = netdev_priv(dev);
+	unsigned int mac_h = rdl(pep, MAC_ADDR_HIGH);
+	unsigned int mac_l = rdl(pep, MAC_ADDR_LOW);
+
+	addr[0] = (mac_h >> 24) & 0xff;
+	addr[1] = (mac_h >> 16) & 0xff;
+	addr[2] = (mac_h >> 8) & 0xff;
+	addr[3] = mac_h & 0xff;
+	addr[4] = (mac_l >> 8) & 0xff;
+	addr[5] = mac_l & 0xff;
 }
 
 static int pxa168_eth_set_mac_address(struct net_device *dev, void *addr)
@@ -1467,6 +1483,7 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct clk *clk;
 	struct device_node *np;
+	const unsigned char *mac_addr = NULL;
 	int err;
 
 	printk(KERN_NOTICE "PXA168 10/100 Ethernet Driver\n");
@@ -1508,8 +1525,19 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 
 	INIT_WORK(&pep->tx_timeout_task, pxa168_eth_tx_timeout_task);
 
-	dev_info(&pdev->dev, "Using random mac address\n");
-	eth_hw_addr_random(dev);
+	if (pdev->dev.of_node)
+		mac_addr = of_get_mac_address(pdev->dev.of_node);
+
+	if (mac_addr && is_valid_ether_addr(mac_addr)) {
+		ether_addr_copy(dev->dev_addr, mac_addr);
+	} else {
+		/* try reading the mac address, if set by the bootloader */
+		pxa168_eth_get_mac_address(dev, dev->dev_addr);
+		if (!is_valid_ether_addr(dev->dev_addr)) {
+			dev_info(&pdev->dev, "Using random mac address\n");
+			eth_hw_addr_random(dev);
+		}
+	}
 
 	pep->rx_ring_size = NUM_RX_DESCS;
 	pep->tx_ring_size = NUM_TX_DESCS;
