@@ -207,11 +207,8 @@ static ssize_t show_cpus_attr(struct device *dev,
 			      char *buf)
 {
 	struct cpu_attr *ca = container_of(attr, struct cpu_attr, attr);
-	int n = cpulist_scnprintf(buf, PAGE_SIZE-2, *(ca->map));
 
-	buf[n++] = '\n';
-	buf[n] = '\0';
-	return n;
+	return cpumap_print_to_pagebuf(true, buf, *ca->map);
 }
 
 #define _CPU_ATTR(name, map) \

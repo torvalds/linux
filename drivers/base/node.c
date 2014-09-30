@@ -25,32 +25,26 @@ static struct bus_type node_subsys = {
 };
 
 
-static ssize_t node_read_cpumap(struct device *dev, int type, char *buf)
+static ssize_t node_read_cpumap(struct device *dev, bool list, char *buf)
 {
 	struct node *node_dev = to_node(dev);
 	const struct cpumask *mask = cpumask_of_node(node_dev->dev.id);
-	int len;
 
 	/* 2008/04/07: buf currently PAGE_SIZE, need 9 chars per 32 bits. */
 	BUILD_BUG_ON((NR_CPUS/32 * 9) > (PAGE_SIZE-1));
 
-	len = type?
-		cpulist_scnprintf(buf, PAGE_SIZE-2, mask) :
-		cpumask_scnprintf(buf, PAGE_SIZE-2, mask);
- 	buf[len++] = '\n';
- 	buf[len] = '\0';
-	return len;
+	return cpumap_print_to_pagebuf(list, buf, mask);
 }
 
 static inline ssize_t node_read_cpumask(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	return node_read_cpumap(dev, 0, buf);
+	return node_read_cpumap(dev, false, buf);
 }
 static inline ssize_t node_read_cpulist(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	return node_read_cpumap(dev, 1, buf);
+	return node_read_cpumap(dev, true, buf);
 }
 
 static DEVICE_ATTR(cpumap,  S_IRUGO, node_read_cpumask, NULL);

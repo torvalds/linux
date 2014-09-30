@@ -77,11 +77,10 @@ static ssize_t broken_parity_status_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(broken_parity_status);
 
-static ssize_t pci_dev_show_local_cpu(struct device *dev, int type,
+static ssize_t pci_dev_show_local_cpu(struct device *dev, bool list,
 				      struct device_attribute *attr, char *buf)
 {
 	const struct cpumask *mask;
-	int len;
 
 #ifdef CONFIG_NUMA
 	mask = (dev_to_node(dev) == -1) ? cpu_online_mask :
@@ -89,59 +88,41 @@ static ssize_t pci_dev_show_local_cpu(struct device *dev, int type,
 #else
 	mask = cpumask_of_pcibus(to_pci_dev(dev)->bus);
 #endif
-	len = type ?
-		cpumask_scnprintf(buf, PAGE_SIZE-2, mask) :
-		cpulist_scnprintf(buf, PAGE_SIZE-2, mask);
-
-	buf[len++] = '\n';
-	buf[len] = '\0';
-	return len;
+	return cpumap_print_to_pagebuf(list, buf, mask);
 }
 
 static ssize_t local_cpus_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
-	return pci_dev_show_local_cpu(dev, 1, attr, buf);
+	return pci_dev_show_local_cpu(dev, false, attr, buf);
 }
 static DEVICE_ATTR_RO(local_cpus);
 
 static ssize_t local_cpulist_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
-	return pci_dev_show_local_cpu(dev, 0, attr, buf);
+	return pci_dev_show_local_cpu(dev, true, attr, buf);
 }
 static DEVICE_ATTR_RO(local_cpulist);
 
 /*
  * PCI Bus Class Devices
  */
-static ssize_t pci_bus_show_cpuaffinity(struct device *dev, int type,
-					struct device_attribute *attr,
-					char *buf)
-{
-	int ret;
-	const struct cpumask *cpumask;
-
-	cpumask = cpumask_of_pcibus(to_pci_bus(dev));
-	ret = type ?
-		cpulist_scnprintf(buf, PAGE_SIZE-2, cpumask) :
-		cpumask_scnprintf(buf, PAGE_SIZE-2, cpumask);
-	buf[ret++] = '\n';
-	buf[ret] = '\0';
-	return ret;
-}
-
 static ssize_t cpuaffinity_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	return pci_bus_show_cpuaffinity(dev, 0, attr, buf);
+	const struct cpumask *cpumask = cpumask_of_pcibus(to_pci_bus(dev));
+
+	return cpumap_print_to_pagebuf(false, buf, cpumask);
 }
 static DEVICE_ATTR_RO(cpuaffinity);
 
 static ssize_t cpulistaffinity_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
-	return pci_bus_show_cpuaffinity(dev, 1, attr, buf);
+	const struct cpumask *cpumask = cpumask_of_pcibus(to_pci_bus(dev));
+
+	return cpumap_print_to_pagebuf(true, buf, cpumask);
 }
 static DEVICE_ATTR_RO(cpulistaffinity);
 
