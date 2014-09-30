@@ -78,10 +78,10 @@
 #include <linux/unistd.h>
 #include <linux/vmalloc.h>
 #include <net/sock.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/div64.h>
-#include <asm/timex.h>
-#include <asm/uaccess.h>
+#include <linux/timex.h>
+#include <linux/uaccess.h>
 #include <stdarg.h>
 #include "linux-cpu.h"
 #include "linux-time.h"
