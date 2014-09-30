@@ -828,12 +828,19 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 
 		dwc3_ep0_stall_and_restart(dwc);
 	} else {
-		/*
-		 * handle the case where we have to send a zero packet. This
-		 * seems to be case when req.length > maxpacket. Could it be?
-		 */
-		if (r)
-			dwc3_gadget_giveback(ep0, r, 0);
+		dwc3_gadget_giveback(ep0, r, 0);
+
+		if (IS_ALIGNED(ur->length, ep0->endpoint.maxpacket) &&
+				ur->length && ur->zero) {
+			int ret;
+
+			dwc->ep0_next_event = DWC3_EP0_COMPLETE;
+
+			ret = dwc3_ep0_start_trans(dwc, epnum,
+					dwc->ctrl_req_addr, 0,
+					DWC3_TRBCTL_CONTROL_DATA);
+			WARN_ON(ret < 0);
+		}
 	}
 }
 
