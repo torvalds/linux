@@ -25,7 +25,7 @@
 
 #include "channel.h"
 #include "chanstub.h"
-#include "timskmodutils.h"
+#include "timskmod.h"
 #include "version.h"
 
 static __init int

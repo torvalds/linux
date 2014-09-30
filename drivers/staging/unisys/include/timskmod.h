@@ -178,6 +178,6 @@ static inline struct cdev *cdev_alloc_init(struct module *owner,
 	return cdev;
 }
 
-#include "timskmodutils.h"
+extern int unisys_spar_platform;
 
 #endif

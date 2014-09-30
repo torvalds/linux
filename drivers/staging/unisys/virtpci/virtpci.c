@@ -41,7 +41,7 @@
 #include <linux/debugfs.h>
 #include "version.h"
 #include "guestlinuxdebug.h"
-#include "timskmodutils.h"
+#include "timskmod.h"
 
 struct driver_private {
 	struct kobject kobj;
