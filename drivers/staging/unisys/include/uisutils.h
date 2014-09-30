@@ -237,7 +237,7 @@ issue_vmcall_io_controlvm_addr(u64 *control_addr, u32 *control_bytes)
 	return result;
 }
 
-static inline unsigned int Issue_VMCALL_IO_DIAG_ADDR(u64 *DiagChannelAddress)
+static inline unsigned int issue_vmcall_io_diag_addr(u64 *diag_channel_addr)
 {
 	VMCALL_IO_DIAG_ADDR_PARAMS params;
 	int result = VMCALL_SUCCESS;
@@ -246,7 +246,7 @@ static inline unsigned int Issue_VMCALL_IO_DIAG_ADDR(u64 *DiagChannelAddress)
 	physaddr = virt_to_phys(&params);
 	ISSUE_IO_VMCALL(VMCALL_IO_DIAG_ADDR, physaddr, result);
 	if (VMCALL_SUCCESSFUL(result))
-		*DiagChannelAddress = params.ChannelAddress;
+		*diag_channel_addr = params.ChannelAddress;
 	return result;
 }
 
