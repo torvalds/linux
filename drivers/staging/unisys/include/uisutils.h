@@ -273,7 +273,7 @@ static inline s64 issue_vmcall_query_guest_virtual_time_offset(void)
 	return result;
 }
 
-static inline s64 Issue_VMCALL_MEASUREMENT_DO_NOTHING(void)
+static inline s64 issue_vmcall_measurement_do_nothing(void)
 {
 	u64 result = VMCALL_SUCCESS;
 	u64 physaddr = 0;
