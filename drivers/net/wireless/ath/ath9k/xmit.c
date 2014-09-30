@@ -1839,15 +1839,17 @@ void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
 	if (txq->mac80211_qnum < 0)
 		return;
 
-	spin_lock_bh(&sc->chan_lock);
-	ac_list = &sc->cur_chan->acq[txq->mac80211_qnum];
-	spin_unlock_bh(&sc->chan_lock);
-
-	if (test_bit(ATH_OP_HW_RESET, &common->op_flags) ||
-	    list_empty(ac_list))
+	if (test_bit(ATH_OP_HW_RESET, &common->op_flags))
 		return;
 
 	spin_lock_bh(&sc->chan_lock);
+	ac_list = &sc->cur_chan->acq[txq->mac80211_qnum];
+
+	if (list_empty(ac_list)) {
+		spin_unlock_bh(&sc->chan_lock);
+		return;
+	}
+
 	rcu_read_lock();
 
 	last_ac = list_entry(ac_list->prev, struct ath_atx_ac, list);
