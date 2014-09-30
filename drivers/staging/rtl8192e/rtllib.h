@@ -1456,7 +1456,7 @@ enum eap_type {
 	EAPOL_ENCAP_ASF_ALERT
 };
 
-static const char *eap_types[] = {
+static const char * const eap_types[] = {
 	[EAP_PACKET]		= "EAP-Packet",
 	[EAPOL_START]		= "EAPOL-Start",
 	[EAPOL_LOGOFF]		= "EAPOL-Logoff",
