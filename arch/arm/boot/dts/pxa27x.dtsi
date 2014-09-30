@@ -1,5 +1,6 @@
 /* The pxa3xx skeleton simply augments the 2xx version */
-/include/ "pxa2xx.dtsi"
+#include "pxa2xx.dtsi"
+#include "dt-bindings/clock/pxa2xx-clock.h"
 
 / {
 	model = "Marvell PXA27x familiy SoC";
@@ -35,4 +36,21 @@
 			#pwm-cells = <1>;
 		};
 	};
+
+	clocks {
+	       /*
+		* The muxing of external clocks/internal dividers for osc* clock
+		* sources has been hidden under the carpet by now.
+		*/
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		pxa2xx_clks: pxa2xx_clks@41300004 {
+			compatible = "marvell,pxa-clocks";
+			#clock-cells = <1>;
+			status = "okay";
+		};
+	};
+
 };
