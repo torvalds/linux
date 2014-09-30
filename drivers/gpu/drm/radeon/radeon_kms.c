@@ -547,6 +547,13 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		else
 			*value = 1;
 		break;
+	case RADEON_INFO_CURRENT_GPU_TEMP:
+		/* get temperature in millidegrees C */
+		if (rdev->asic->pm.get_temperature)
+			*value = radeon_get_temperature(rdev);
+		else
+			*value = 0;
+		break;
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->request);
 		return -EINVAL;
