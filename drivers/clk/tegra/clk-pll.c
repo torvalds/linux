@@ -1565,7 +1565,7 @@ struct clk *tegra_clk_register_pllxc(const char *name, const char *parent_name,
 	parent = __clk_lookup(parent_name);
 	if (!parent) {
 		WARN(1, "parent clk %s of %s must be registered first\n",
-			name, parent_name);
+			parent_name, name);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -1665,7 +1665,7 @@ struct clk *tegra_clk_register_pllm(const char *name, const char *parent_name,
 	parent = __clk_lookup(parent_name);
 	if (!parent) {
 		WARN(1, "parent clk %s of %s must be registered first\n",
-			name, parent_name);
+			parent_name, name);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -1706,7 +1706,7 @@ struct clk *tegra_clk_register_pllc(const char *name, const char *parent_name,
 	parent = __clk_lookup(parent_name);
 	if (!parent) {
 		WARN(1, "parent clk %s of %s must be registered first\n",
-			name, parent_name);
+			parent_name, name);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -1830,7 +1830,7 @@ struct clk *tegra_clk_register_pllss(const char *name, const char *parent_name,
 	parent = __clk_lookup(parent_name);
 	if (!parent) {
 		WARN(1, "parent clk %s of %s must be registered first\n",
-			name, parent_name);
+			parent_name, name);
 		return ERR_PTR(-EINVAL);
 	}
 
