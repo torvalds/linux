@@ -1125,7 +1125,7 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 	struct ocfs2_super *osb = OCFS2_SB(sb);
 	struct buffer_head *bh = NULL;
 	handle_t *handle = NULL;
-	struct dquot *transfer_to[OCFS2_MAXQUOTAS] = { };
+	struct dquot *transfer_to[MAXQUOTAS] = { };
 	int qtype;
 
 	trace_ocfs2_setattr(inode, dentry,
