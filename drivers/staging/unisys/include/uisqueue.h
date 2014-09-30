@@ -223,10 +223,10 @@ typedef enum {
 
 struct add_virt_iopart {
 	void *chanptr;		/* pointer to data channel */
-	u64 guestHandle;	/* used to convert guest physical
+	u64 guest_handle;	/* used to convert guest physical
 				 * address to real physical address
 				 * for DMA, for ex. */
-	u64 recvBusInterruptHandle;	/* used to register to receive
+	u64 recv_bus_irq_handle;	/* used to register to receive
 					 * bus level interrupts. */
 	struct InterruptInfo intr;	/* contains recv & send
 					 * interrupt info */
@@ -241,12 +241,12 @@ struct add_virt_iopart {
 					 * switch to which the vnic is
 					 * connected */
 
-	u8 useG2GCopy;		/* Used to determine if a virtual HBA
+	u8 use_g2g_copy;	/* Used to determine if a virtual HBA
 				 * needs to use G2G copy. */
-	u8 Filler[7];
+	u8 filler[7];
 
-	u32 busNo;
-	u32 devNo;
+	u32 bus_no;
+	u32 dev_no;
 	char *params;
 	ulong params_bytes;
 
