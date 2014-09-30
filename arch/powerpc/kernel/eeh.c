@@ -1433,24 +1433,7 @@ static int eeh_pe_reenable_devices(struct eeh_pe *pe)
 	}
 
 	/* The PE is still in frozen state */
-	ret = eeh_ops->set_option(pe, EEH_OPT_THAW_MMIO);
-	if (ret) {
-		pr_warn("%s: Failure %d enabling MMIO for PHB#%x-PE#%x\n",
-			__func__, ret, pe->phb->global_number, pe->addr);
-		return ret;
-	}
-
-	ret = eeh_ops->set_option(pe, EEH_OPT_THAW_DMA);
-	if (ret) {
-		pr_warn("%s: Failure %d enabling DMA for PHB#%x-PE#%x\n",
-			__func__, ret, pe->phb->global_number, pe->addr);
-		return ret;
-	}
-
-	/* Clear software isolated state */
-	eeh_pe_state_clear(pe, EEH_PE_ISOLATED);
-
-	return ret;
+	return eeh_unfreeze_pe(pe, true);
 }
 
 /**

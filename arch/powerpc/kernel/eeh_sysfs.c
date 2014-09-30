@@ -75,7 +75,6 @@ static ssize_t eeh_pe_state_store(struct device *dev,
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct eeh_dev *edev = pci_dev_to_eeh_dev(pdev);
-	int ret;
 
 	if (!edev || !edev->pe)
 		return -ENODEV;
@@ -84,26 +83,8 @@ static ssize_t eeh_pe_state_store(struct device *dev,
 	if (!(edev->pe->state & EEH_PE_ISOLATED))
 		return count;
 
-	/* Enable MMIO */
-	ret = eeh_pci_enable(edev->pe, EEH_OPT_THAW_MMIO);
-	if (ret) {
-		pr_warn("%s: Failure %d enabling MMIO for PHB#%d-PE#%d\n",
-			__func__, ret, edev->pe->phb->global_number,
-			edev->pe->addr);
+	if (eeh_unfreeze_pe(edev->pe, true))
 		return -EIO;
-	}
-
-	/* Enable DMA */
-	ret = eeh_pci_enable(edev->pe, EEH_OPT_THAW_DMA);
-	if (ret) {
-		pr_warn("%s: Failure %d enabling DMA for PHB#%d-PE#%d\n",
-			__func__, ret, edev->pe->phb->global_number,
-			edev->pe->addr);
-		return -EIO;
-	}
-
-	/* Clear software state */
-	eeh_pe_state_clear(edev->pe, EEH_PE_ISOLATED);
 
 	return count;
 }

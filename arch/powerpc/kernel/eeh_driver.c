@@ -450,21 +450,15 @@ static void *eeh_pe_detach_dev(void *data, void *userdata)
 static void *__eeh_clear_pe_frozen_state(void *data, void *flag)
 {
 	struct eeh_pe *pe = (struct eeh_pe *)data;
-	int i, rc;
+	int i, rc = 1;
 
-	for (i = 0; i < 3; i++) {
-		rc = eeh_pci_enable(pe, EEH_OPT_THAW_MMIO);
-		if (rc)
-			continue;
-		rc = eeh_pci_enable(pe, EEH_OPT_THAW_DMA);
-		if (!rc)
-			break;
-	}
+	for (i = 0; rc && i < 3; i++)
+		rc = eeh_unfreeze_pe(pe, false);
 
-	/* The PE has been isolated, clear it */
+	/* Stop immediately on any errors */
 	if (rc) {
-		pr_warn("%s: Can't clear frozen PHB#%x-PE#%x (%d)\n",
-			__func__, pe->phb->global_number, pe->addr, rc);
+		pr_warn("%s: Failure %d unfreezing PHB#%x-PE#%x\n",
+			__func__, rc, pe->phb->global_number, pe->addr);
 		return (void *)pe;
 	}
 
