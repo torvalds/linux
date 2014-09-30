@@ -1823,8 +1823,6 @@ void rtsx_enable_aspm(struct rtsx_chip *chip)
 			}
 		}
 	}
-
-	return;
 }
 
 void rtsx_disable_aspm(struct rtsx_chip *chip)
@@ -1848,8 +1846,6 @@ void rtsx_disable_aspm(struct rtsx_chip *chip)
 			wait_timeout(1);
 		}
 	}
-
-	return;
 }
 
 int rtsx_read_ppbuf(struct rtsx_chip *chip, u8 *buf, int buf_len)
