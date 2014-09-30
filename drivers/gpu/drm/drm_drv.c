@@ -595,7 +595,7 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 		goto err_ht;
 	}
 
-	if (driver->driver_features & DRIVER_GEM) {
+	if (drm_core_check_feature(dev, DRIVER_GEM)) {
 		ret = drm_gem_init(dev);
 		if (ret) {
 			DRM_ERROR("Cannot initialize graphics execution manager (GEM)\n");
@@ -625,7 +625,7 @@ static void drm_dev_release(struct kref *ref)
 {
 	struct drm_device *dev = container_of(ref, struct drm_device, ref);
 
-	if (dev->driver->driver_features & DRIVER_GEM)
+	if (drm_core_check_feature(dev, DRIVER_GEM))
 		drm_gem_destroy(dev);
 
 	drm_legacy_ctxbitmap_cleanup(dev);
