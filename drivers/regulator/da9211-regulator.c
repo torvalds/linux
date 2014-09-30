@@ -282,7 +282,7 @@ static int da9211_regulator_init(struct da9211 *chip)
 
 		if (chip->chip_irq != 0) {
 			ret = regmap_update_bits(chip->regmap,
-				DA9211_REG_MASK_B, DA9211_M_OV_CURR_A << i, 1);
+				DA9211_REG_MASK_B, DA9211_M_OV_CURR_A << i, 0);
 			if (ret < 0) {
 				dev_err(chip->dev,
 					"Failed to update mask reg: %d\n", ret);
