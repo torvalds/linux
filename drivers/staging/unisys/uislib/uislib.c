@@ -1489,14 +1489,14 @@ EXPORT_SYMBOL_GPL(uislib_enable_channel_interrupts);
  *  Process_Incoming().
  */
 void
-uislib_disable_channel_interrupts(u32 busNo, u32 devNo)
+uislib_disable_channel_interrupts(u32 bus_no, u32 dev_no)
 {
 	struct device_info *dev;
 
-	dev = find_dev(busNo, devNo);
+	dev = find_dev(bus_no, dev_no);
 	if (!dev) {
-		LOGERR("%s busNo=%d, devNo=%d", __func__, (int) (busNo),
-		       (int) (devNo));
+		LOGERR("%s busNo=%d, devNo=%d", __func__, (int) (bus_no),
+		       (int) (dev_no));
 		return;
 	}
 	down(&Lock_Polling_Device_Channels);
