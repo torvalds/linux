@@ -2249,6 +2249,8 @@ static struct radeon_asic kv_asic = {
 		.force_performance_level = &kv_dpm_force_performance_level,
 		.powergate_uvd = &kv_dpm_powergate_uvd,
 		.enable_bapm = &kv_dpm_enable_bapm,
+		.get_current_sclk = &kv_dpm_get_current_sclk,
+		.get_current_mclk = &kv_dpm_get_current_mclk,
 	},
 	.pflip = {
 		.page_flip = &evergreen_page_flip,
