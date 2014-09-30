@@ -1794,9 +1794,9 @@ int netxen_process_cmd_ring(struct netxen_adapter *adapter)
 			break;
 	}
 
-	if (count && netif_running(netdev)) {
-		tx_ring->sw_consumer = sw_consumer;
+	tx_ring->sw_consumer = sw_consumer;
 
+	if (count && netif_running(netdev)) {
 		smp_mb();
 
 		if (netif_queue_stopped(netdev) && netif_carrier_ok(netdev))
