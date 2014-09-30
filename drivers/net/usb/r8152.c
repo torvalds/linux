@@ -3576,7 +3576,11 @@ static void rtl8152_disconnect(struct usb_interface *intf)
 
 	usb_set_intfdata(intf, NULL);
 	if (tp) {
-		set_bit(RTL8152_UNPLUG, &tp->flags);
+		struct usb_device *udev = tp->udev;
+
+		if (udev->state == USB_STATE_NOTATTACHED)
+			set_bit(RTL8152_UNPLUG, &tp->flags);
+
 		tasklet_kill(&tp->tl);
 		unregister_netdev(tp->netdev);
 		tp->rtl_ops.unload(tp);
