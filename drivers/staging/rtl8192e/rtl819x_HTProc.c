@@ -211,7 +211,6 @@ void HTDebugHTInfo(u8 *InfoIE, u8 *TitleString)
 		     "[%x]\n", pHTInfoEle->BasicMSC[0], pHTInfoEle->BasicMSC[1],
 		     pHTInfoEle->BasicMSC[2], pHTInfoEle->BasicMSC[3],
 		     pHTInfoEle->BasicMSC[4]);
-	return;
 }
 
 static bool IsHTHalfNmode40Bandwidth(struct rtllib_device *ieee)
@@ -524,7 +523,6 @@ void HTConstructCapabilityElement(struct rtllib_device *ieee, u8 *posHTCap,
 			pCapELE->MCS[1] = 0;
 		}
 	}
-	return;
 }
 
 void HTConstructInfoElement(struct rtllib_device *ieee, u8 *posHTInfo,
@@ -568,7 +566,6 @@ void HTConstructInfoElement(struct rtllib_device *ieee, u8 *posHTInfo,
 	} else {
 		*len = 0;
 	}
-	return;
 }
 
 void HTConstructRT2RTAggElement(struct rtllib_device *ieee, u8 *posRT2RTAgg,
@@ -592,8 +589,6 @@ void HTConstructRT2RTAggElement(struct rtllib_device *ieee, u8 *posRT2RTAgg,
 		*posRT2RTAgg |= RT_HT_CAP_USE_WOW;
 
 	*len = 6 + 2;
-
-	return;
 }
 
 static u8 HT_PickMCSRate(struct rtllib_device *ieee, u8 *pOperateMCS)
@@ -998,7 +993,6 @@ void HTUseDefaultSetting(struct rtllib_device *ieee)
 	} else {
 		pHTInfo->bCurrentHTSupport = false;
 	}
-	return;
 }
 
 u8 HTCCheck(struct rtllib_device *ieee, u8 *pFrame)
