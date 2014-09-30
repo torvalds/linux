@@ -2514,7 +2514,7 @@ struct rtllib_device {
 	void (*AllowAllDestAddrHandler)(struct net_device *dev,
 					bool bAllowAllDA, bool WriteIntoReg);
 
-	void (*rtllib_ips_leave_wq) (struct net_device *dev);
+	void (*rtllib_ips_leave_wq)(struct net_device *dev);
 	void (*rtllib_ips_leave)(struct net_device *dev);
 	void (*LeisurePSLeave)(struct net_device *dev);
 	void (*rtllib_rfkill_poll)(struct net_device *dev);
