@@ -289,9 +289,6 @@ config SND_SOC_FSL_ASOC_CARD
 	select SND_SOC_FSL_ESAI
 	select SND_SOC_FSL_SAI
 	select SND_SOC_FSL_SSI
-	select SND_SOC_CS42XX8_I2C
-	select SND_SOC_SGTL5000
-	select SND_SOC_WM8962
 	help
 	 ALSA SoC Audio support with ASRC feature for Freescale SoCs that have
 	 ESAI/SAI/SSI and connect with external CODECs such as WM8962, CS42888
