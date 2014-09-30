@@ -180,6 +180,22 @@ static bool eeh_dev_removed(struct eeh_dev *edev)
 	return false;
 }
 
+static void *eeh_dev_save_state(void *data, void *userdata)
+{
+	struct eeh_dev *edev = data;
+	struct pci_dev *pdev;
+
+	if (!edev)
+		return NULL;
+
+	pdev = eeh_dev_to_pci_dev(edev);
+	if (!pdev)
+		return NULL;
+
+	pci_save_state(pdev);
+	return NULL;
+}
+
 /**
  * eeh_report_error - Report pci error to each device driver
  * @data: eeh device
@@ -300,6 +316,22 @@ static void *eeh_report_reset(void *data, void *userdata)
 	     rc == PCI_ERS_RESULT_NEED_RESET) *res = rc;
 
 	eeh_pcid_put(dev);
+	return NULL;
+}
+
+static void *eeh_dev_restore_state(void *data, void *userdata)
+{
+	struct eeh_dev *edev = data;
+	struct pci_dev *pdev;
+
+	if (!edev)
+		return NULL;
+
+	pdev = eeh_dev_to_pci_dev(edev);
+	if (!pdev)
+		return NULL;
+
+	pci_restore_state(pdev);
 	return NULL;
 }
 
@@ -450,10 +482,11 @@ static void *eeh_pe_detach_dev(void *data, void *userdata)
 static void *__eeh_clear_pe_frozen_state(void *data, void *flag)
 {
 	struct eeh_pe *pe = (struct eeh_pe *)data;
+	bool *clear_sw_state = flag;
 	int i, rc = 1;
 
 	for (i = 0; rc && i < 3; i++)
-		rc = eeh_unfreeze_pe(pe, false);
+		rc = eeh_unfreeze_pe(pe, clear_sw_state);
 
 	/* Stop immediately on any errors */
 	if (rc) {
@@ -465,15 +498,64 @@ static void *__eeh_clear_pe_frozen_state(void *data, void *flag)
 	return NULL;
 }
 
-static int eeh_clear_pe_frozen_state(struct eeh_pe *pe)
+static int eeh_clear_pe_frozen_state(struct eeh_pe *pe,
+				     bool clear_sw_state)
 {
 	void *rc;
 
-	rc = eeh_pe_traverse(pe, __eeh_clear_pe_frozen_state, NULL);
+	rc = eeh_pe_traverse(pe, __eeh_clear_pe_frozen_state, &clear_sw_state);
 	if (!rc)
 		eeh_pe_state_clear(pe, EEH_PE_ISOLATED);
 
 	return rc ? -EIO : 0;
+}
+
+int eeh_pe_reset_and_recover(struct eeh_pe *pe)
+{
+	int result, ret;
+
+	/* Bail if the PE is being recovered */
+	if (pe->state & EEH_PE_RECOVERING)
+		return 0;
+
+	/* Put the PE into recovery mode */
+	eeh_pe_state_mark(pe, EEH_PE_RECOVERING);
+
+	/* Save states */
+	eeh_pe_dev_traverse(pe, eeh_dev_save_state, NULL);
+
+	/* Report error */
+	eeh_pe_dev_traverse(pe, eeh_report_error, &result);
+
+	/* Issue reset */
+	eeh_pe_state_mark(pe, EEH_PE_RESET);
+	ret = eeh_reset_pe(pe);
+	if (ret) {
+		eeh_pe_state_clear(pe, EEH_PE_RECOVERING | EEH_PE_RESET);
+		return ret;
+	}
+	eeh_pe_state_clear(pe, EEH_PE_RESET);
+
+	/* Unfreeze the PE */
+	ret = eeh_clear_pe_frozen_state(pe, true);
+	if (ret) {
+		eeh_pe_state_clear(pe, EEH_PE_RECOVERING);
+		return ret;
+	}
+
+	/* Notify completion of reset */
+	eeh_pe_dev_traverse(pe, eeh_report_reset, &result);
+
+	/* Restore device state */
+	eeh_pe_dev_traverse(pe, eeh_dev_restore_state, NULL);
+
+	/* Resume */
+	eeh_pe_dev_traverse(pe, eeh_report_resume, NULL);
+
+	/* Clear recovery mode */
+	eeh_pe_state_clear(pe, EEH_PE_RECOVERING);
+
+	return 0;
 }
 
 /**
@@ -534,7 +616,7 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus)
 	eeh_pe_state_clear(pe, EEH_PE_RESET);
 
 	/* Clear frozen state */
-	rc = eeh_clear_pe_frozen_state(pe);
+	rc = eeh_clear_pe_frozen_state(pe, false);
 	if (rc)
 		return rc;
 

@@ -1193,6 +1193,60 @@ int eeh_unfreeze_pe(struct eeh_pe *pe, bool sw_state)
 	return ret;
 }
 
+
+static struct pci_device_id eeh_reset_ids[] = {
+	{ PCI_DEVICE(0x19a2, 0x0710) },	/* Emulex, BE     */
+	{ PCI_DEVICE(0x10df, 0xe220) },	/* Emulex, Lancer */
+	{ 0 }
+};
+
+static int eeh_pe_change_owner(struct eeh_pe *pe)
+{
+	struct eeh_dev *edev, *tmp;
+	struct pci_dev *pdev;
+	struct pci_device_id *id;
+	int flags, ret;
+
+	/* Check PE state */
+	flags = (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
+	ret = eeh_ops->get_state(pe, NULL);
+	if (ret < 0 || ret == EEH_STATE_NOT_SUPPORT)
+		return 0;
+
+	/* Unfrozen PE, nothing to do */
+	if ((ret & flags) == flags)
+		return 0;
+
+	/* Frozen PE, check if it needs PE level reset */
+	eeh_pe_for_each_dev(pe, edev, tmp) {
+		pdev = eeh_dev_to_pci_dev(edev);
+		if (!pdev)
+			continue;
+
+		for (id = &eeh_reset_ids[0]; id->vendor != 0; id++) {
+			if (id->vendor != PCI_ANY_ID &&
+			    id->vendor != pdev->vendor)
+				continue;
+			if (id->device != PCI_ANY_ID &&
+			    id->device != pdev->device)
+				continue;
+			if (id->subvendor != PCI_ANY_ID &&
+			    id->subvendor != pdev->subsystem_vendor)
+				continue;
+			if (id->subdevice != PCI_ANY_ID &&
+			    id->subdevice != pdev->subsystem_device)
+				continue;
+
+			goto reset;
+		}
+	}
+
+	return eeh_unfreeze_pe(pe, true);
+
+reset:
+	return eeh_pe_reset_and_recover(pe);
+}
+
 /**
  * eeh_dev_open - Increase count of pass through devices for PE
  * @pdev: PCI device
@@ -1224,7 +1278,7 @@ int eeh_dev_open(struct pci_dev *pdev)
 	 * in frozen PE won't work properly. Clear the frozen state
 	 * in advance.
 	 */
-	ret = eeh_unfreeze_pe(edev->pe, true);
+	ret = eeh_pe_change_owner(edev->pe);
 	if (ret)
 		goto out;
 
@@ -1265,6 +1319,7 @@ void eeh_dev_release(struct pci_dev *pdev)
 	/* Decrease PE's pass through count */
 	atomic_dec(&edev->pe->pass_dev_cnt);
 	WARN_ON(atomic_read(&edev->pe->pass_dev_cnt) < 0);
+	eeh_pe_change_owner(edev->pe);
 out:
 	mutex_unlock(&eeh_dev_mutex);
 }
@@ -1345,7 +1400,7 @@ int eeh_pe_set_option(struct eeh_pe *pe, int option)
 	switch (option) {
 	case EEH_OPT_ENABLE:
 		if (eeh_enabled()) {
-			ret = eeh_unfreeze_pe(pe, true);
+			ret = eeh_pe_change_owner(pe);
 			break;
 		}
 		ret = -EIO;
