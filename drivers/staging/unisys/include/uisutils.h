@@ -347,7 +347,7 @@ void uislib_cache_free(struct kmem_cache *cur_pool, void *p, char *fn, int ln);
 #define UISCACHEFREE(cur_pool, p) \
 	uislib_cache_free(cur_pool, p, __FILE__, __LINE__)
 
-void uislib_enable_channel_interrupts(u32 busNo, u32 devNo,
+void uislib_enable_channel_interrupts(u32 bus_no, u32 dev_no,
 				      int (*interrupt)(void *),
 				      void *interrupt_context);
 void uislib_disable_channel_interrupts(u32 busNo, u32 devNo);
