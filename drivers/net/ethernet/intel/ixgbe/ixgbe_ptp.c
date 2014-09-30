@@ -98,9 +98,11 @@
 #define IXGBE_OVERFLOW_PERIOD    (HZ * 30)
 #define IXGBE_PTP_TX_TIMEOUT     (HZ * 15)
 
-#ifndef NSECS_PER_SEC
-#define NSECS_PER_SEC 1000000000ULL
-#endif
+/* half of a one second clock period, for use with PPS signal. We have to use
+ * this instead of something pre-defined like IXGBE_PTP_PPS_HALF_SECOND, in
+ * order to force at least 64bits of precision for shifting
+ */
+#define IXGBE_PTP_PPS_HALF_SECOND 500000000ULL
 
 /**
  * ixgbe_ptp_setup_sdp
@@ -146,8 +148,8 @@ static void ixgbe_ptp_setup_sdp(struct ixgbe_adapter *adapter)
 			  IXGBE_TSAUXC_SDP0_INT);
 
 		/* clock period (or pulse length) */
-		clktiml = (u32)(NSECS_PER_SEC << shift);
-		clktimh = (u32)((NSECS_PER_SEC << shift) >> 32);
+		clktiml = (u32)(IXGBE_PTP_PPS_HALF_SECOND << shift);
+		clktimh = (u32)((IXGBE_PTP_PPS_HALF_SECOND << shift) >> 32);
 
 		/*
 		 * Account for the cyclecounter wrap-around value by
@@ -158,8 +160,8 @@ static void ixgbe_ptp_setup_sdp(struct ixgbe_adapter *adapter)
 		clock_edge |= (u64)IXGBE_READ_REG(hw, IXGBE_SYSTIMH) << 32;
 		ns = timecounter_cyc2time(&adapter->tc, clock_edge);
 
-		div_u64_rem(ns, NSECS_PER_SEC, &rem);
-		clock_edge += ((NSECS_PER_SEC - (u64)rem) << shift);
+		div_u64_rem(ns, IXGBE_PTP_PPS_HALF_SECOND, &rem);
+		clock_edge += ((IXGBE_PTP_PPS_HALF_SECOND - (u64)rem) << shift);
 
 		/* specify the initial clock start time */
 		trgttiml = (u32)clock_edge;

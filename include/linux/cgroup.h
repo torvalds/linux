@@ -203,7 +203,15 @@ struct cgroup {
 	struct kernfs_node *kn;		/* cgroup kernfs entry */
 	struct kernfs_node *populated_kn; /* kn for "cgroup.subtree_populated" */
 
-	/* the bitmask of subsystems enabled on the child cgroups */
+	/*
+	 * The bitmask of subsystems enabled on the child cgroups.
+	 * ->subtree_control is the one configured through
+	 * "cgroup.subtree_control" while ->child_subsys_mask is the
+	 * effective one which may have more subsystems enabled.
+	 * Controller knobs are made available iff it's enabled in
+	 * ->subtree_control.
+	 */
+	unsigned int subtree_control;
 	unsigned int child_subsys_mask;
 
 	/* Private pointers for each registered subsystem */
@@ -248,73 +256,9 @@ struct cgroup {
 
 /* cgroup_root->flags */
 enum {
-	/*
-	 * Unfortunately, cgroup core and various controllers are riddled
-	 * with idiosyncrasies and pointless options.  The following flag,
-	 * when set, will force sane behavior - some options are forced on,
-	 * others are disallowed, and some controllers will change their
-	 * hierarchical or other behaviors.
-	 *
-	 * The set of behaviors affected by this flag are still being
-	 * determined and developed and the mount option for this flag is
-	 * prefixed with __DEVEL__.  The prefix will be dropped once we
-	 * reach the point where all behaviors are compatible with the
-	 * planned unified hierarchy, which will automatically turn on this
-	 * flag.
-	 *
-	 * The followings are the behaviors currently affected this flag.
-	 *
-	 * - Mount options "noprefix", "xattr", "clone_children",
-	 *   "release_agent" and "name" are disallowed.
-	 *
-	 * - When mounting an existing superblock, mount options should
-	 *   match.
-	 *
-	 * - Remount is disallowed.
-	 *
-	 * - rename(2) is disallowed.
-	 *
-	 * - "tasks" is removed.  Everything should be at process
-	 *   granularity.  Use "cgroup.procs" instead.
-	 *
-	 * - "cgroup.procs" is not sorted.  pids will be unique unless they
-	 *   got recycled inbetween reads.
-	 *
-	 * - "release_agent" and "notify_on_release" are removed.
-	 *   Replacement notification mechanism will be implemented.
-	 *
-	 * - "cgroup.clone_children" is removed.
-	 *
-	 * - "cgroup.subtree_populated" is available.  Its value is 0 if
-	 *   the cgroup and its descendants contain no task; otherwise, 1.
-	 *   The file also generates kernfs notification which can be
-	 *   monitored through poll and [di]notify when the value of the
-	 *   file changes.
-	 *
-	 * - If mount is requested with sane_behavior but without any
-	 *   subsystem, the default unified hierarchy is mounted.
-	 *
-	 * - cpuset: tasks will be kept in empty cpusets when hotplug happens
-	 *   and take masks of ancestors with non-empty cpus/mems, instead of
-	 *   being moved to an ancestor.
-	 *
-	 * - cpuset: a task can be moved into an empty cpuset, and again it
-	 *   takes masks of ancestors.
-	 *
-	 * - memcg: use_hierarchy is on by default and the cgroup file for
-	 *   the flag is not created.
-	 *
-	 * - blkcg: blk-throttle becomes properly hierarchical.
-	 *
-	 * - debug: disallowed on the default hierarchy.
-	 */
-	CGRP_ROOT_SANE_BEHAVIOR	= (1 << 0),
-
+	CGRP_ROOT_SANE_BEHAVIOR	= (1 << 0), /* __DEVEL__sane_behavior specified */
 	CGRP_ROOT_NOPREFIX	= (1 << 1), /* mounted subsystems have no named prefix */
 	CGRP_ROOT_XATTR		= (1 << 2), /* supports extended attributes */
-
-	/* mount options live below bit 16 */
-	CGRP_ROOT_OPTION_MASK	= (1 << 16) - 1,
 };
 
 /*
@@ -440,9 +384,11 @@ struct css_set {
 enum {
 	CFTYPE_ONLY_ON_ROOT	= (1 << 0),	/* only create on root cgrp */
 	CFTYPE_NOT_ON_ROOT	= (1 << 1),	/* don't create on root cgrp */
-	CFTYPE_INSANE		= (1 << 2),	/* don't create if sane_behavior */
 	CFTYPE_NO_PREFIX	= (1 << 3),	/* (DON'T USE FOR NEW FILES) no subsys prefix */
-	CFTYPE_ONLY_ON_DFL	= (1 << 4),	/* only on default hierarchy */
+
+	/* internal flags, do not use outside cgroup core proper */
+	__CFTYPE_ONLY_ON_DFL	= (1 << 16),	/* only on default hierarchy */
+	__CFTYPE_NOT_ON_DFL	= (1 << 17),	/* not on default hierarchy */
 };
 
 #define MAX_CFTYPE_NAME		64
@@ -526,18 +472,62 @@ struct cftype {
 extern struct cgroup_root cgrp_dfl_root;
 extern struct css_set init_css_set;
 
+/**
+ * cgroup_on_dfl - test whether a cgroup is on the default hierarchy
+ * @cgrp: the cgroup of interest
+ *
+ * The default hierarchy is the v2 interface of cgroup and this function
+ * can be used to test whether a cgroup is on the default hierarchy for
+ * cases where a subsystem should behave differnetly depending on the
+ * interface version.
+ *
+ * The set of behaviors which change on the default hierarchy are still
+ * being determined and the mount option is prefixed with __DEVEL__.
+ *
+ * List of changed behaviors:
+ *
+ * - Mount options "noprefix", "xattr", "clone_children", "release_agent"
+ *   and "name" are disallowed.
+ *
+ * - When mounting an existing superblock, mount options should match.
+ *
+ * - Remount is disallowed.
+ *
+ * - rename(2) is disallowed.
+ *
+ * - "tasks" is removed.  Everything should be at process granularity.  Use
+ *   "cgroup.procs" instead.
+ *
+ * - "cgroup.procs" is not sorted.  pids will be unique unless they got
+ *   recycled inbetween reads.
+ *
+ * - "release_agent" and "notify_on_release" are removed.  Replacement
+ *   notification mechanism will be implemented.
+ *
+ * - "cgroup.clone_children" is removed.
+ *
+ * - "cgroup.subtree_populated" is available.  Its value is 0 if the cgroup
+ *   and its descendants contain no task; otherwise, 1.  The file also
+ *   generates kernfs notification which can be monitored through poll and
+ *   [di]notify when the value of the file changes.
+ *
+ * - cpuset: tasks will be kept in empty cpusets when hotplug happens and
+ *   take masks of ancestors with non-empty cpus/mems, instead of being
+ *   moved to an ancestor.
+ *
+ * - cpuset: a task can be moved into an empty cpuset, and again it takes
+ *   masks of ancestors.
+ *
+ * - memcg: use_hierarchy is on by default and the cgroup file for the flag
+ *   is not created.
+ *
+ * - blkcg: blk-throttle becomes properly hierarchical.
+ *
+ * - debug: disallowed on the default hierarchy.
+ */
 static inline bool cgroup_on_dfl(const struct cgroup *cgrp)
 {
 	return cgrp->root == &cgrp_dfl_root;
-}
-
-/*
- * See the comment above CGRP_ROOT_SANE_BEHAVIOR for details.  This
- * function can be called as long as @cgrp is accessible.
- */
-static inline bool cgroup_sane_behavior(const struct cgroup *cgrp)
-{
-	return cgrp->root->flags & CGRP_ROOT_SANE_BEHAVIOR;
 }
 
 /* no synchronization, the result can only be used as a hint */
@@ -602,7 +592,8 @@ static inline void pr_cont_cgroup_path(struct cgroup *cgrp)
 
 char *task_cgroup_path(struct task_struct *task, char *buf, size_t buflen);
 
-int cgroup_add_cftypes(struct cgroup_subsys *ss, struct cftype *cfts);
+int cgroup_add_dfl_cftypes(struct cgroup_subsys *ss, struct cftype *cfts);
+int cgroup_add_legacy_cftypes(struct cgroup_subsys *ss, struct cftype *cfts);
 int cgroup_rm_cftypes(struct cftype *cfts);
 
 bool cgroup_is_descendant(struct cgroup *cgrp, struct cgroup *ancestor);
@@ -634,6 +625,7 @@ struct cgroup_subsys {
 	int (*css_online)(struct cgroup_subsys_state *css);
 	void (*css_offline)(struct cgroup_subsys_state *css);
 	void (*css_free)(struct cgroup_subsys_state *css);
+	void (*css_reset)(struct cgroup_subsys_state *css);
 
 	int (*can_attach)(struct cgroup_subsys_state *css,
 			  struct cgroup_taskset *tset);
@@ -682,8 +674,21 @@ struct cgroup_subsys {
 	 */
 	struct list_head cfts;
 
-	/* base cftypes, automatically registered with subsys itself */
-	struct cftype *base_cftypes;
+	/*
+	 * Base cftypes which are automatically registered.  The two can
+	 * point to the same array.
+	 */
+	struct cftype *dfl_cftypes;	/* for the default hierarchy */
+	struct cftype *legacy_cftypes;	/* for the legacy hierarchies */
+
+	/*
+	 * A subsystem may depend on other subsystems.  When such subsystem
+	 * is enabled on a cgroup, the depended-upon subsystems are enabled
+	 * together if available.  Subsystems enabled due to dependency are
+	 * not visible to userland until explicitly enabled.  The following
+	 * specifies the mask of subsystems that this one depends on.
+	 */
+	unsigned int depends_on;
 };
 
 #define SUBSYS(_x) extern struct cgroup_subsys _x ## _cgrp_subsys;

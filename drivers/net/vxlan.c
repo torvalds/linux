@@ -33,6 +33,7 @@
 #include <net/ip_tunnels.h>
 #include <net/icmp.h>
 #include <net/udp.h>
+#include <net/udp_tunnel.h>
 #include <net/rtnetlink.h>
 #include <net/route.h>
 #include <net/dsfield.h>
@@ -339,7 +340,7 @@ static int vxlan_fdb_info(struct sk_buff *skb, struct vxlan_dev *vxlan,
 	ndm->ndm_state = fdb->state;
 	ndm->ndm_ifindex = vxlan->dev->ifindex;
 	ndm->ndm_flags = fdb->flags;
-	ndm->ndm_type = NDA_DST;
+	ndm->ndm_type = RTN_UNICAST;
 
 	if (send_eth && nla_put(skb, NDA_LLADDR, ETH_ALEN, &fdb->eth_addr))
 		goto nla_put_failure;
@@ -933,7 +934,8 @@ out:
 
 /* Dump forwarding table */
 static int vxlan_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
-			  struct net_device *dev, int idx)
+			  struct net_device *dev,
+			  struct net_device *filter_dev, int idx)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	unsigned int h;
@@ -1325,7 +1327,7 @@ static int arp_reduce(struct net_device *dev, struct sk_buff *skb)
 	} else if (vxlan->flags & VXLAN_F_L3MISS) {
 		union vxlan_addr ipa = {
 			.sin.sin_addr.s_addr = tip,
-			.sa.sa_family = AF_INET,
+			.sin.sin_family = AF_INET,
 		};
 
 		vxlan_ip_miss(dev, &ipa);
@@ -1486,7 +1488,7 @@ static int neigh_reduce(struct net_device *dev, struct sk_buff *skb)
 	} else if (vxlan->flags & VXLAN_F_L3MISS) {
 		union vxlan_addr ipa = {
 			.sin6.sin6_addr = msg->target,
-			.sa.sa_family = AF_INET6,
+			.sin6.sin6_family = AF_INET6,
 		};
 
 		vxlan_ip_miss(dev, &ipa);
@@ -1519,7 +1521,7 @@ static bool route_shortcircuit(struct net_device *dev, struct sk_buff *skb)
 		if (!n && (vxlan->flags & VXLAN_F_L3MISS)) {
 			union vxlan_addr ipa = {
 				.sin.sin_addr.s_addr = pip->daddr,
-				.sa.sa_family = AF_INET,
+				.sin.sin_family = AF_INET,
 			};
 
 			vxlan_ip_miss(dev, &ipa);
@@ -1540,7 +1542,7 @@ static bool route_shortcircuit(struct net_device *dev, struct sk_buff *skb)
 		if (!n && (vxlan->flags & VXLAN_F_L3MISS)) {
 			union vxlan_addr ipa = {
 				.sin6.sin6_addr = pip6->daddr,
-				.sa.sa_family = AF_INET6,
+				.sin6.sin6_family = AF_INET6,
 			};
 
 			vxlan_ip_miss(dev, &ipa);
@@ -1569,25 +1571,6 @@ static bool route_shortcircuit(struct net_device *dev, struct sk_buff *skb)
 
 	return false;
 }
-
-/* Compute source port for outgoing packet
- *   first choice to use L4 flow hash since it will spread
- *     better and maybe available from hardware
- *   secondary choice is to use jhash on the Ethernet header
- */
-__be16 vxlan_src_port(__u16 port_min, __u16 port_max, struct sk_buff *skb)
-{
-	unsigned int range = (port_max - port_min) + 1;
-	u32 hash;
-
-	hash = skb_get_hash(skb);
-	if (!hash)
-		hash = jhash(skb->data, 2 * ETH_ALEN,
-			     (__force u32) skb->protocol);
-
-	return htons((((u64) hash * range) >> 32) + port_min);
-}
-EXPORT_SYMBOL_GPL(vxlan_src_port);
 
 static inline struct sk_buff *vxlan_handle_offloads(struct sk_buff *skb,
 						    bool udp_csum)
@@ -1807,7 +1790,8 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 	if (tos == 1)
 		tos = ip_tunnel_get_dsfield(old_iph, skb);
 
-	src_port = vxlan_src_port(vxlan->port_min, vxlan->port_max, skb);
+	src_port = udp_flow_src_port(dev_net(dev), skb, vxlan->port_min,
+				     vxlan->port_max, true);
 
 	if (dst->sa.sa_family == AF_INET) {
 		memset(&fl4, 0, sizeof(fl4));
@@ -2235,7 +2219,6 @@ static void vxlan_setup(struct net_device *dev)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	unsigned int h;
-	int low, high;
 
 	eth_hw_addr_random(dev);
 	ether_setup(dev);
@@ -2272,9 +2255,6 @@ static void vxlan_setup(struct net_device *dev)
 	vxlan->age_timer.function = vxlan_cleanup;
 	vxlan->age_timer.data = (unsigned long) vxlan;
 
-	inet_get_local_port_range(dev_net(dev), &low, &high);
-	vxlan->port_min = low;
-	vxlan->port_max = high;
 	vxlan->dst_port = htons(vxlan_port);
 
 	vxlan->dev = dev;
@@ -2360,102 +2340,37 @@ static void vxlan_del_work(struct work_struct *work)
 	kfree_rcu(vs, rcu);
 }
 
-#if IS_ENABLED(CONFIG_IPV6)
-/* Create UDP socket for encapsulation receive. AF_INET6 socket
- * could be used for both IPv4 and IPv6 communications, but
- * users may set bindv6only=1.
- */
-static struct socket *create_v6_sock(struct net *net, __be16 port, u32 flags)
+static struct socket *vxlan_create_sock(struct net *net, bool ipv6,
+					__be16 port, u32 flags)
 {
-	struct sock *sk;
 	struct socket *sock;
-	struct sockaddr_in6 vxlan_addr = {
-		.sin6_family = AF_INET6,
-		.sin6_port = port,
-	};
-	int rc, val = 1;
+	struct udp_port_cfg udp_conf;
+	int err;
 
-	rc = sock_create_kern(AF_INET6, SOCK_DGRAM, IPPROTO_UDP, &sock);
-	if (rc < 0) {
-		pr_debug("UDPv6 socket create failed\n");
-		return ERR_PTR(rc);
+	memset(&udp_conf, 0, sizeof(udp_conf));
+
+	if (ipv6) {
+		udp_conf.family = AF_INET6;
+		udp_conf.use_udp6_tx_checksums =
+		    !!(flags & VXLAN_F_UDP_ZERO_CSUM6_TX);
+		udp_conf.use_udp6_rx_checksums =
+		    !!(flags & VXLAN_F_UDP_ZERO_CSUM6_RX);
+	} else {
+		udp_conf.family = AF_INET;
+		udp_conf.local_ip.s_addr = INADDR_ANY;
+		udp_conf.use_udp_checksums =
+		    !!(flags & VXLAN_F_UDP_CSUM);
 	}
 
-	/* Put in proper namespace */
-	sk = sock->sk;
-	sk_change_net(sk, net);
+	udp_conf.local_udp_port = port;
 
-	kernel_setsockopt(sock, SOL_IPV6, IPV6_V6ONLY,
-			  (char *)&val, sizeof(val));
-	rc = kernel_bind(sock, (struct sockaddr *)&vxlan_addr,
-			 sizeof(struct sockaddr_in6));
-	if (rc < 0) {
-		pr_debug("bind for UDPv6 socket %pI6:%u (%d)\n",
-			 &vxlan_addr.sin6_addr, ntohs(vxlan_addr.sin6_port), rc);
-		sk_release_kernel(sk);
-		return ERR_PTR(rc);
-	}
-	/* At this point, IPv6 module should have been loaded in
-	 * sock_create_kern().
-	 */
-	BUG_ON(!ipv6_stub);
+	/* Open UDP socket */
+	err = udp_sock_create(net, &udp_conf, &sock);
+	if (err < 0)
+		return ERR_PTR(err);
 
 	/* Disable multicast loopback */
-	inet_sk(sk)->mc_loop = 0;
-
-	if (flags & VXLAN_F_UDP_ZERO_CSUM6_TX)
-		udp_set_no_check6_tx(sk, true);
-
-	if (flags & VXLAN_F_UDP_ZERO_CSUM6_RX)
-		udp_set_no_check6_rx(sk, true);
-
-	return sock;
-}
-
-#else
-
-static struct socket *create_v6_sock(struct net *net, __be16 port, u32 flags)
-{
-		return ERR_PTR(-EPFNOSUPPORT);
-}
-#endif
-
-static struct socket *create_v4_sock(struct net *net, __be16 port, u32 flags)
-{
-	struct sock *sk;
-	struct socket *sock;
-	struct sockaddr_in vxlan_addr = {
-		.sin_family = AF_INET,
-		.sin_addr.s_addr = htonl(INADDR_ANY),
-		.sin_port = port,
-	};
-	int rc;
-
-	/* Create UDP socket for encapsulation receive. */
-	rc = sock_create_kern(AF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock);
-	if (rc < 0) {
-		pr_debug("UDP socket create failed\n");
-		return ERR_PTR(rc);
-	}
-
-	/* Put in proper namespace */
-	sk = sock->sk;
-	sk_change_net(sk, net);
-
-	rc = kernel_bind(sock, (struct sockaddr *) &vxlan_addr,
-			 sizeof(vxlan_addr));
-	if (rc < 0) {
-		pr_debug("bind for UDP socket %pI4:%u (%d)\n",
-			 &vxlan_addr.sin_addr, ntohs(vxlan_addr.sin_port), rc);
-		sk_release_kernel(sk);
-		return ERR_PTR(rc);
-	}
-
-	/* Disable multicast loopback */
-	inet_sk(sk)->mc_loop = 0;
-
-	if (!(flags & VXLAN_F_UDP_CSUM))
-		sock->sk->sk_no_check_tx = 1;
+	inet_sk(sock->sk)->mc_loop = 0;
 
 	return sock;
 }
@@ -2481,10 +2396,7 @@ static struct vxlan_sock *vxlan_socket_create(struct net *net, __be16 port,
 
 	INIT_WORK(&vs->del_work, vxlan_del_work);
 
-	if (ipv6)
-		sock = create_v6_sock(net, port, flags);
-	else
-		sock = create_v4_sock(net, port, flags);
+	sock = vxlan_create_sock(net, ipv6, port, flags);
 	if (IS_ERR(sock)) {
 		kfree(vs);
 		return ERR_CAST(sock);

@@ -100,7 +100,7 @@ static int seqiv_givencrypt(struct skcipher_givcrypt_request *req)
 	struct crypto_ablkcipher *geniv = skcipher_givcrypt_reqtfm(req);
 	struct seqiv_ctx *ctx = crypto_ablkcipher_ctx(geniv);
 	struct ablkcipher_request *subreq = skcipher_givcrypt_reqctx(req);
-	crypto_completion_t complete;
+	crypto_completion_t compl;
 	void *data;
 	u8 *info;
 	unsigned int ivsize;
@@ -108,7 +108,7 @@ static int seqiv_givencrypt(struct skcipher_givcrypt_request *req)
 
 	ablkcipher_request_set_tfm(subreq, skcipher_geniv_cipher(geniv));
 
-	complete = req->creq.base.complete;
+	compl = req->creq.base.complete;
 	data = req->creq.base.data;
 	info = req->creq.info;
 
@@ -122,11 +122,11 @@ static int seqiv_givencrypt(struct skcipher_givcrypt_request *req)
 		if (!info)
 			return -ENOMEM;
 
-		complete = seqiv_complete;
+		compl = seqiv_complete;
 		data = req;
 	}
 
-	ablkcipher_request_set_callback(subreq, req->creq.base.flags, complete,
+	ablkcipher_request_set_callback(subreq, req->creq.base.flags, compl,
 					data);
 	ablkcipher_request_set_crypt(subreq, req->creq.src, req->creq.dst,
 				     req->creq.nbytes, info);
@@ -146,7 +146,7 @@ static int seqiv_aead_givencrypt(struct aead_givcrypt_request *req)
 	struct seqiv_ctx *ctx = crypto_aead_ctx(geniv);
 	struct aead_request *areq = &req->areq;
 	struct aead_request *subreq = aead_givcrypt_reqctx(req);
-	crypto_completion_t complete;
+	crypto_completion_t compl;
 	void *data;
 	u8 *info;
 	unsigned int ivsize;
@@ -154,7 +154,7 @@ static int seqiv_aead_givencrypt(struct aead_givcrypt_request *req)
 
 	aead_request_set_tfm(subreq, aead_geniv_base(geniv));
 
-	complete = areq->base.complete;
+	compl = areq->base.complete;
 	data = areq->base.data;
 	info = areq->iv;
 
@@ -168,11 +168,11 @@ static int seqiv_aead_givencrypt(struct aead_givcrypt_request *req)
 		if (!info)
 			return -ENOMEM;
 
-		complete = seqiv_aead_complete;
+		compl = seqiv_aead_complete;
 		data = req;
 	}
 
-	aead_request_set_callback(subreq, areq->base.flags, complete, data);
+	aead_request_set_callback(subreq, areq->base.flags, compl, data);
 	aead_request_set_crypt(subreq, areq->src, areq->dst, areq->cryptlen,
 			       info);
 	aead_request_set_assoc(subreq, areq->assoc, areq->assoclen);

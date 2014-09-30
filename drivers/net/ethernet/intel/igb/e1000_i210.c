@@ -834,3 +834,69 @@ s32 igb_init_nvm_params_i210(struct e1000_hw *hw)
 	}
 	return ret_val;
 }
+
+/**
+ * igb_pll_workaround_i210
+ * @hw: pointer to the HW structure
+ *
+ * Works around an errata in the PLL circuit where it occasionally
+ * provides the wrong clock frequency after power up.
+ **/
+s32 igb_pll_workaround_i210(struct e1000_hw *hw)
+{
+	s32 ret_val;
+	u32 wuc, mdicnfg, ctrl, ctrl_ext, reg_val;
+	u16 nvm_word, phy_word, pci_word, tmp_nvm;
+	int i;
+
+	/* Get and set needed register values */
+	wuc = rd32(E1000_WUC);
+	mdicnfg = rd32(E1000_MDICNFG);
+	reg_val = mdicnfg & ~E1000_MDICNFG_EXT_MDIO;
+	wr32(E1000_MDICNFG, reg_val);
+
+	/* Get data from NVM, or set default */
+	ret_val = igb_read_invm_word_i210(hw, E1000_INVM_AUTOLOAD,
+					  &nvm_word);
+	if (ret_val)
+		nvm_word = E1000_INVM_DEFAULT_AL;
+	tmp_nvm = nvm_word | E1000_INVM_PLL_WO_VAL;
+	for (i = 0; i < E1000_MAX_PLL_TRIES; i++) {
+		/* check current state directly from internal PHY */
+		igb_read_phy_reg_gs40g(hw, (E1000_PHY_PLL_FREQ_PAGE |
+					 E1000_PHY_PLL_FREQ_REG), &phy_word);
+		if ((phy_word & E1000_PHY_PLL_UNCONF)
+		    != E1000_PHY_PLL_UNCONF) {
+			ret_val = 0;
+			break;
+		} else {
+			ret_val = -E1000_ERR_PHY;
+		}
+		/* directly reset the internal PHY */
+		ctrl = rd32(E1000_CTRL);
+		wr32(E1000_CTRL, ctrl|E1000_CTRL_PHY_RST);
+
+		ctrl_ext = rd32(E1000_CTRL_EXT);
+		ctrl_ext |= (E1000_CTRL_EXT_PHYPDEN | E1000_CTRL_EXT_SDLPE);
+		wr32(E1000_CTRL_EXT, ctrl_ext);
+
+		wr32(E1000_WUC, 0);
+		reg_val = (E1000_INVM_AUTOLOAD << 4) | (tmp_nvm << 16);
+		wr32(E1000_EEARBC_I210, reg_val);
+
+		igb_read_pci_cfg(hw, E1000_PCI_PMCSR, &pci_word);
+		pci_word |= E1000_PCI_PMCSR_D3;
+		igb_write_pci_cfg(hw, E1000_PCI_PMCSR, &pci_word);
+		usleep_range(1000, 2000);
+		pci_word &= ~E1000_PCI_PMCSR_D3;
+		igb_write_pci_cfg(hw, E1000_PCI_PMCSR, &pci_word);
+		reg_val = (E1000_INVM_AUTOLOAD << 4) | (nvm_word << 16);
+		wr32(E1000_EEARBC_I210, reg_val);
+
+		/* restore WUC register */
+		wr32(E1000_WUC, wuc);
+	}
+	/* restore MDICNFG setting */
+	wr32(E1000_MDICNFG, mdicnfg);
+	return ret_val;
+}

@@ -41,7 +41,6 @@
 #ifdef CONFIG_8xx
 #include <asm/8xx_immap.h>
 #include <asm/pgtable.h>
-#include <asm/mpc8xx.h>
 #include <asm/cpm1.h>
 #endif
 

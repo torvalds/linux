@@ -1496,7 +1496,6 @@ e100_set_config(struct net_device *dev, struct ifmap *map)
 		case IF_PORT_AUI:
 			spin_unlock(&np->lock);
 			return -EOPNOTSUPP;
-			break;
 		default:
 			printk(KERN_ERR "%s: Invalid media selected", dev->name);
 			spin_unlock(&np->lock);

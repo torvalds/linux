@@ -25,6 +25,9 @@
 #include "iss_video.h"
 #include "iss.h"
 
+static unsigned debug;
+module_param(debug, uint, 0644);
+MODULE_PARM_DESC(debug, "activates debug info");
 
 /* -----------------------------------------------------------------------------
  * Helper functions
@@ -328,15 +331,6 @@ static int iss_video_buf_prepare(struct vb2_buffer *vb)
 	if (vb2_plane_size(vb, 0) < size)
 		return -ENOBUFS;
 
-	/* Refuse to prepare the buffer is the video node has registered an
-	 * error. We don't need to take any lock here as the operation is
-	 * inherently racy. The authoritative check will be performed in the
-	 * queue handler, which can't return an error, this check is just a best
-	 * effort to notify userspace as early as possible.
-	 */
-	if (unlikely(video->error))
-		return -EIO;
-
 	addr = vb2_dma_contig_plane_dma_addr(vb, 0);
 	if (!IS_ALIGNED(addr, 32)) {
 		dev_dbg(video->iss->dev,
@@ -360,6 +354,11 @@ static void iss_video_buf_queue(struct vb2_buffer *vb)
 
 	spin_lock_irqsave(&video->qlock, flags);
 
+	/* Mark the buffer is faulty and give it back to the queue immediately
+	 * if the video node has registered an error. vb2 will perform the same
+	 * check when preparing the buffer, but that is inherently racy, so we
+	 * need to handle the race condition with an authoritative check here.
+	 */
 	if (unlikely(video->error)) {
 		vb2_buffer_done(vb, VB2_BUF_STATE_ERROR);
 		spin_unlock_irqrestore(&video->qlock, flags);
@@ -510,6 +509,7 @@ void omap4iss_video_cancel_stream(struct iss_video *video)
 		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
 	}
 
+	vb2_queue_error(video->queue);
 	video->error = true;
 
 	spin_unlock_irqrestore(&video->qlock, flags);
@@ -895,7 +895,6 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 
 	video->queue = &vfh->queue;
 	INIT_LIST_HEAD(&video->dmaqueue);
-	spin_lock_init(&video->qlock);
 	video->error = false;
 	atomic_set(&pipe->frame_number, -1);
 
@@ -1044,6 +1043,8 @@ static int iss_video_open(struct file *file)
 	if (handle == NULL)
 		return -ENOMEM;
 
+	video->video.debug = debug;
+
 	v4l2_fh_init(&handle->vfh, &video->video);
 	v4l2_fh_add(&handle->vfh);
 
@@ -1175,6 +1176,7 @@ int omap4iss_video_init(struct iss_video *video, const char *name)
 	if (ret < 0)
 		return ret;
 
+	spin_lock_init(&video->qlock);
 	mutex_init(&video->mutex);
 	atomic_set(&video->active, 0);
 

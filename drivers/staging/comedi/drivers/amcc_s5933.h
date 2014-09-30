@@ -41,7 +41,7 @@
 #define  AMCC_OP_REG_MCSR_NVCMD  (AMCC_OP_REG_MCSR + 3)	/* Command in byte 3 */
 
 #define AMCC_FIFO_DEPTH_DWORD	8
-#define AMCC_FIFO_DEPTH_BYTES	(8 * sizeof (u32))
+#define AMCC_FIFO_DEPTH_BYTES	(8 * sizeof(u32))
 
 /****************************************************************************/
 /* AMCC - PCI Interrupt Control/Status Register                            */
@@ -52,8 +52,10 @@
 #define INTCSR_INBOX_BYTE(x)	(((x) & 0x3) << 8)
 #define INTCSR_INBOX_SELECT(x)	(((x) & 0x3) << 10)
 #define INTCSR_INBOX_FULL_INT	0x1000	/*  enable inbox full interrupt */
-#define INTCSR_INBOX_INTR_STATUS	0x20000	/*  read, or write clear inbox full interrupt */
-#define INTCSR_INTR_ASSERTED	0x800000	/*  read only, interrupt asserted */
+/* read, or write clear inbox full interrupt */
+#define INTCSR_INBOX_INTR_STATUS	0x20000
+/* read only, interrupt asserted */
+#define INTCSR_INTR_ASSERTED	0x800000
 
 /****************************************************************************/
 /* AMCC - PCI non-volatile ram command register (byte 3 of master control/status register) */

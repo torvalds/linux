@@ -28,8 +28,7 @@
 static inline void
 BusDeviceInfo_Init(ULTRA_VBUS_DEVICEINFO *pBusDeviceInfo,
 		   const char *deviceType, const char *driverName,
-		   const char *ver, const char *verTag,
-		   const char *buildDate, const char *buildTime)
+		   const char *ver, const char *verTag)
 {
 	memset(pBusDeviceInfo, 0, sizeof(ULTRA_VBUS_DEVICEINFO));
 	snprintf(pBusDeviceInfo->devType, sizeof(pBusDeviceInfo->devType),
@@ -37,11 +36,10 @@ BusDeviceInfo_Init(ULTRA_VBUS_DEVICEINFO *pBusDeviceInfo,
 	snprintf(pBusDeviceInfo->drvName, sizeof(pBusDeviceInfo->drvName),
 		 "%s", (driverName) ? driverName : "unknownDriver");
 	snprintf(pBusDeviceInfo->infoStrings,
-		 sizeof(pBusDeviceInfo->infoStrings), "%s\t%s\t%s %s\t%s",
+		 sizeof(pBusDeviceInfo->infoStrings), "%s\t%s\t%s",
 		 (ver) ? ver : "unknownVer",
 		 (verTag) ? verTag : "unknownVerTag",
-		 (buildDate) ? buildDate : "noBuildDate",
-		 (buildTime) ? buildTime : "nobuildTime", TARGET_HOSTNAME);
+		 TARGET_HOSTNAME);
 }
 
 #endif

@@ -31,15 +31,17 @@
 #include <linux/sh_dma.h>
 #include <linux/sh_timer.h>
 #include <linux/platform_data/sh_ipmmu.h>
-#include <mach/dma-register.h>
-#include <mach/r8a7740.h>
-#include <mach/pm-rmobile.h>
-#include <mach/common.h>
-#include <mach/irqs.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
+
+#include "common.h"
+#include "dma-register.h"
+#include "irqs.h"
+#include "pm-rmobile.h"
+#include "r8a7740.h"
 
 static struct map_desc r8a7740_io_desc[] __initdata = {
 	 /*
@@ -310,6 +312,10 @@ static struct platform_device ipmmu_device = {
 };
 
 static struct platform_device *r8a7740_devices_dt[] __initdata = {
+	&cmt1_device,
+};
+
+static struct platform_device *r8a7740_early_devices[] __initdata = {
 	&scif0_device,
 	&scif1_device,
 	&scif2_device,
@@ -319,10 +325,6 @@ static struct platform_device *r8a7740_devices_dt[] __initdata = {
 	&scif6_device,
 	&scif7_device,
 	&scif8_device,
-	&cmt1_device,
-};
-
-static struct platform_device *r8a7740_early_devices[] __initdata = {
 	&irqpin0_device,
 	&irqpin1_device,
 	&irqpin2_device,

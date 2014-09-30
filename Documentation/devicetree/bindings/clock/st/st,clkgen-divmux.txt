@@ -24,26 +24,26 @@ Required properties:
 
 Example:
 
-	clockgenA@fd345000 {
+	clockgen-a@fd345000 {
 		reg = <0xfd345000 0xb50>;
 
-		CLK_M_A1_DIV1: CLK_M_A1_DIV1 {
+		clk_m_a1_div1: clk-m-a1-div1 {
 			#clock-cells = <1>;
 			compatible = "st,clkgena-divmux-c32-odf1",
 				     "st,clkgena-divmux";
 
-			clocks = <&CLK_M_A1_OSC_PREDIV>,
-				 <&CLK_M_A1_PLL0 1>, /* PLL0 PHI1 */
-				 <&CLK_M_A1_PLL1 1>; /* PLL1 PHI1 */
+			clocks = <&clk_m_a1_osc_prediv>,
+				 <&clk_m_a1_pll0 1>, /* PLL0 PHI1 */
+				 <&clk_m_a1_pll1 1>; /* PLL1 PHI1 */
 
-			clock-output-names = "CLK_M_RX_ICN_TS",
-					     "CLK_M_RX_ICN_VDP_0",
-					     "", /* Unused */
-					     "CLK_M_PRV_T1_BUS",
-					     "CLK_M_ICN_REG_12",
-					     "CLK_M_ICN_REG_10",
-					     "", /* Unused */
-					     "CLK_M_ICN_ST231";
+			clock-output-names = "clk-m-rx-icn-ts",
+					     "clk-m-rx-icn-vdp-0",
+					     "", /* unused */
+					     "clk-m-prv-t1-bus",
+					     "clk-m-icn-reg-12",
+					     "clk-m-icn-reg-10",
+					     "", /* unused */
+					     "clk-m-icn-st231";
 		};
 	};
 

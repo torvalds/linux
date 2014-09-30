@@ -757,10 +757,14 @@ SMP BARRIER PAIRING
 When dealing with CPU-CPU interactions, certain types of memory barrier should
 always be paired.  A lack of appropriate pairing is almost certainly an error.
 
-A write barrier should always be paired with a data dependency barrier or read
-barrier, though a general barrier would also be viable.  Similarly a read
-barrier or a data dependency barrier should always be paired with at least an
-write barrier, though, again, a general barrier is viable:
+General barriers pair with each other, though they also pair with
+most other types of barriers, albeit without transitivity.  An acquire
+barrier pairs with a release barrier, but both may also pair with other
+barriers, including of course general barriers.  A write barrier pairs
+with a data dependency barrier, an acquire barrier, a release barrier,
+a read barrier, or a general barrier.  Similarly a read barrier or a
+data dependency barrier pairs with a write barrier, an acquire barrier,
+a release barrier, or a general barrier:
 
 	CPU 1		      CPU 2
 	===============	      ===============
@@ -1892,6 +1896,21 @@ between the STORE to indicate the event and the STORE to set TASK_RUNNING:
 	    STORE current->state	  <write barrier>
 	    <general barrier>		  STORE current->state
 	LOAD event_indicated
+
+To repeat, this write memory barrier is present if and only if something
+is actually awakened.  To see this, consider the following sequence of
+events, where X and Y are both initially zero:
+
+	CPU 1				CPU 2
+	===============================	===============================
+	X = 1;				STORE event_indicated
+	smp_mb();			wake_up();
+	Y = 1;				wait_event(wq, Y == 1);
+	wake_up();			  load from Y sees 1, no memory barrier
+					load from X might see 0
+
+In contrast, if a wakeup does occur, CPU 2's load from X would be guaranteed
+to see 1.
 
 The available waker functions include:
 

@@ -840,8 +840,7 @@ static int bq2415x_notifier_call(struct notifier_block *nb,
 	if (bq->automode < 1)
 		return NOTIFY_OK;
 
-	sysfs_notify(&bq->charger.dev->kobj, NULL, "reported_mode");
-	bq2415x_set_mode(bq, bq->reported_mode);
+	schedule_delayed_work(&bq->work, 0);
 
 	return NOTIFY_OK;
 }
@@ -891,6 +890,11 @@ static void bq2415x_timer_work(struct work_struct *work)
 	int ret;
 	int error;
 	int boost;
+
+	if (bq->automode > 0 && (bq->reported_mode != bq->mode)) {
+		sysfs_notify(&bq->charger.dev->kobj, NULL, "reported_mode");
+		bq2415x_set_mode(bq, bq->reported_mode);
+	}
 
 	if (!bq->autotimer)
 		return;

@@ -704,15 +704,41 @@ static int af9035_read_config(struct dvb_usb_device *d)
 		if (ret < 0)
 			goto err;
 
-		if (tmp == 0x00)
-			dev_dbg(&d->udev->dev,
-					"%s: [%d]tuner not set, using default\n",
-					__func__, i);
-		else
-			state->af9033_config[i].tuner = tmp;
-
 		dev_dbg(&d->udev->dev, "%s: [%d]tuner=%02x\n",
-				__func__, i, state->af9033_config[i].tuner);
+				__func__, i, tmp);
+
+		/* tuner sanity check */
+		if (state->chip_type == 0x9135) {
+			if (state->chip_version == 0x02) {
+				/* IT9135 BX (v2) */
+				switch (tmp) {
+				case AF9033_TUNER_IT9135_60:
+				case AF9033_TUNER_IT9135_61:
+				case AF9033_TUNER_IT9135_62:
+					state->af9033_config[i].tuner = tmp;
+					break;
+				}
+			} else {
+				/* IT9135 AX (v1) */
+				switch (tmp) {
+				case AF9033_TUNER_IT9135_38:
+				case AF9033_TUNER_IT9135_51:
+				case AF9033_TUNER_IT9135_52:
+					state->af9033_config[i].tuner = tmp;
+					break;
+				}
+			}
+		} else {
+			/* AF9035 */
+			state->af9033_config[i].tuner = tmp;
+		}
+
+		if (state->af9033_config[i].tuner != tmp) {
+			dev_info(&d->udev->dev,
+					"%s: [%d] overriding tuner from %02x to %02x\n",
+					KBUILD_MODNAME, i, tmp,
+					state->af9033_config[i].tuner);
+		}
 
 		switch (state->af9033_config[i].tuner) {
 		case AF9033_TUNER_TUA9001:
@@ -771,6 +797,25 @@ static int af9035_read_config(struct dvb_usb_device *d)
 		dev_dbg(&d->udev->dev, "%s: [%d]IF=%d\n", __func__, i, tmp16);
 
 		addr += 0x10; /* shift for the 2nd tuner params */
+	}
+
+	/*
+	 * These AVerMedia devices has a bad EEPROM content :-(
+	 * Override some wrong values here.
+	 */
+	if (le16_to_cpu(d->udev->descriptor.idVendor) == USB_VID_AVERMEDIA) {
+		switch (le16_to_cpu(d->udev->descriptor.idProduct)) {
+		case USB_PID_AVERMEDIA_A835B_1835:
+		case USB_PID_AVERMEDIA_A835B_2835:
+		case USB_PID_AVERMEDIA_A835B_3835:
+			dev_info(&d->udev->dev,
+				 "%s: overriding tuner from %02x to %02x\n",
+				 KBUILD_MODNAME, state->af9033_config[0].tuner,
+				 AF9033_TUNER_IT9135_60);
+
+			state->af9033_config[0].tuner = AF9033_TUNER_IT9135_60;
+			break;
+		}
 	}
 
 skip_eeprom:
@@ -1287,19 +1332,20 @@ static int af9035_rc_query(struct dvb_usb_device *d)
 	if ((buf[2] + buf[3]) == 0xff) {
 		if ((buf[0] + buf[1]) == 0xff) {
 			/* NEC standard 16bit */
-			key = buf[0] << 8 | buf[2];
+			key = RC_SCANCODE_NEC(buf[0], buf[2]);
 		} else {
 			/* NEC extended 24bit */
-			key = buf[0] << 16 | buf[1] << 8 | buf[2];
+			key = RC_SCANCODE_NECX(buf[0] << 8 | buf[1], buf[2]);
 		}
 	} else {
 		/* NEC full code 32bit */
-		key = buf[0] << 24 | buf[1] << 16 | buf[2] << 8 | buf[3];
+		key = RC_SCANCODE_NEC32(buf[0] << 24 | buf[1] << 16 |
+					buf[2] << 8  | buf[3]);
 	}
 
 	dev_dbg(&d->udev->dev, "%s: %*ph\n", __func__, 4, buf);
 
-	rc_keydown(d->rc_dev, key, 0);
+	rc_keydown(d->rc_dev, RC_TYPE_NEC, key, 0);
 
 	return 0;
 
@@ -1529,6 +1575,10 @@ static const struct usb_device_id af9035_id_table[] = {
 		&af9035_props, "Leadtek WinFast DTV Dongle Dual", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_HAUPPAUGE, 0xf900,
 		&af9035_props, "Hauppauge WinTV-MiniStick 2", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_PCTV, USB_PID_PCTV_78E,
+		&af9035_props, "PCTV 78e", RC_MAP_IT913X_V1) },
+	{ DVB_USB_DEVICE(USB_VID_PCTV, USB_PID_PCTV_79E,
+		&af9035_props, "PCTV 79e", RC_MAP_IT913X_V2) },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, af9035_id_table);

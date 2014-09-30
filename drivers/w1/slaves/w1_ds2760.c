@@ -181,8 +181,7 @@ static struct w1_family w1_ds2760_family = {
 
 static int __init w1_ds2760_init(void)
 {
-	printk(KERN_INFO "1-Wire driver for the DS2760 battery monitor "
-	       " chip  - (c) 2004-2005, Szabolcs Gyurko\n");
+	pr_info("1-Wire driver for the DS2760 battery monitor chip - (c) 2004-2005, Szabolcs Gyurko\n");
 	ida_init(&bat_ida);
 	return w1_register_family(&w1_ds2760_family);
 }

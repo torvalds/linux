@@ -1853,7 +1853,7 @@ struct rtl_hal_ops {
 			     u32 cmd_len, u8 *p_cmdbuffer);
 	bool (*get_btc_status)(void);
 	u32 (*rx_command_packet_handler)(struct ieee80211_hw *hw,
-					 struct rtl_stats status,
+					 const struct rtl_stats *status,
 					 struct sk_buff *skb);
 };
 

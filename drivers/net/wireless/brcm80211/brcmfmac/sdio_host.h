@@ -18,6 +18,8 @@
 #define	_BRCM_SDH_H_
 
 #include <linux/skbuff.h>
+#include <linux/firmware.h>
+#include "firmware.h"
 
 #define SDIO_FUNC_0		0
 #define SDIO_FUNC_1		1
@@ -72,12 +74,12 @@
 #define SBSDIO_SPROM_DATA_HIGH		0x10003
 /* sprom indirect access addr byte 0 */
 #define SBSDIO_SPROM_ADDR_LOW		0x10004
-/* sprom indirect access addr byte 0 */
-#define SBSDIO_SPROM_ADDR_HIGH		0x10005
-/* xtal_pu (gpio) output */
-#define SBSDIO_CHIP_CTRL_DATA		0x10006
-/* xtal_pu (gpio) enable */
-#define SBSDIO_CHIP_CTRL_EN		0x10007
+/* gpio select */
+#define SBSDIO_GPIO_SELECT		0x10005
+/* gpio output */
+#define SBSDIO_GPIO_OUT			0x10006
+/* gpio enable */
+#define SBSDIO_GPIO_EN			0x10007
 /* rev < 7, watermark for sdio device */
 #define SBSDIO_WATERMARK		0x10008
 /* control busy signal generation */
@@ -182,6 +184,8 @@ struct brcmf_sdio_dev {
 	uint max_segment_size;
 	uint txglomsz;
 	struct sg_table sgtable;
+	char fw_name[BRCMF_FW_PATH_LEN + BRCMF_FW_NAME_LEN];
+	char nvram_name[BRCMF_FW_PATH_LEN + BRCMF_FW_NAME_LEN];
 };
 
 /* sdio core registers */

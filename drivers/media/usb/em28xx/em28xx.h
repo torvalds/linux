@@ -576,13 +576,6 @@ struct em28xx_audio {
 
 struct em28xx;
 
-struct em28xx_fh {
-	struct v4l2_fh fh;
-	struct em28xx *dev;
-
-	enum v4l2_buf_type           type;
-};
-
 enum em28xx_i2c_algo_type {
 	EM28XX_I2C_ALGO_EM28XX = 0,
 	EM28XX_I2C_ALGO_EM2800,

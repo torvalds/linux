@@ -48,8 +48,8 @@
 #define DEBUG_SUBSYSTEM S_LOG
 
 
-#include <obd_class.h>
-#include <lustre_log.h>
+#include "../include/obd_class.h"
+#include "../include/lustre_log.h"
 #include "llog_internal.h"
 
 /*
@@ -188,7 +188,7 @@ static int llog_read_header(const struct lu_env *env,
 		llh->llh_hdr.lrh_type = LLOG_HDR_MAGIC;
 		llh->llh_hdr.lrh_len = llh->llh_tail.lrt_len = LLOG_CHUNK_SIZE;
 		llh->llh_hdr.lrh_index = llh->llh_tail.lrt_index = 0;
-		llh->llh_timestamp = cfs_time_current_sec();
+		llh->llh_timestamp = get_seconds();
 		if (uuid)
 			memcpy(&llh->llh_tgtuuid, uuid,
 			       sizeof(llh->llh_tgtuuid));

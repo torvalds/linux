@@ -1572,10 +1572,6 @@ sisfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	/* Adapt RGB settings */
 	sisfb_bpp_to_var(ivideo, var);
 
-	/* Sanity check for offsets */
-	if(var->xoffset < 0) var->xoffset = 0;
-	if(var->yoffset < 0) var->yoffset = 0;
-
 	if(var->xres > var->xres_virtual)
 		var->xres_virtual = var->xres;
 

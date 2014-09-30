@@ -26,6 +26,8 @@
 #include "prm2xxx_3xxx.h"
 #include "cm2xxx_3xxx.h"
 #include "prm-regbits-34xx.h"
+#include "cm3xxx.h"
+#include "cm-regbits-34xx.h"
 
 static const struct omap_prcm_irq omap3_prcm_irqs[] = {
 	OMAP_PRCM_IRQ("wkup",	0,	0),
@@ -43,7 +45,7 @@ static struct omap_prcm_irq_setup omap3_prcm_irq_setup = {
 	.ocp_barrier		= &omap3xxx_prm_ocp_barrier,
 	.save_and_clear_irqen	= &omap3xxx_prm_save_and_clear_irqen,
 	.restore_irqen		= &omap3xxx_prm_restore_irqen,
-	.reconfigure_io_chain	= &omap3xxx_prm_reconfigure_io_chain,
+	.reconfigure_io_chain	= NULL,
 };
 
 /*
@@ -206,15 +208,191 @@ void omap3xxx_prm_restore_irqen(u32 *saved_mask)
 }
 
 /**
- * omap3xxx_prm_reconfigure_io_chain - clear latches and reconfigure I/O chain
+ * omap3xxx_prm_clear_mod_irqs - clear wake-up events from PRCM interrupt
+ * @module: PRM module to clear wakeups from
+ * @regs: register set to clear, 1 or 3
+ * @ignore_bits: wakeup status bits to ignore
+ *
+ * The purpose of this function is to clear any wake-up events latched
+ * in the PRCM PM_WKST_x registers. It is possible that a wake-up event
+ * may occur whilst attempting to clear a PM_WKST_x register and thus
+ * set another bit in this register. A while loop is used to ensure
+ * that any peripheral wake-up events occurring while attempting to
+ * clear the PM_WKST_x are detected and cleared.
+ */
+int omap3xxx_prm_clear_mod_irqs(s16 module, u8 regs, u32 ignore_bits)
+{
+	u32 wkst, fclk, iclk, clken;
+	u16 wkst_off = (regs == 3) ? OMAP3430ES2_PM_WKST3 : PM_WKST1;
+	u16 fclk_off = (regs == 3) ? OMAP3430ES2_CM_FCLKEN3 : CM_FCLKEN1;
+	u16 iclk_off = (regs == 3) ? CM_ICLKEN3 : CM_ICLKEN1;
+	u16 grpsel_off = (regs == 3) ?
+		OMAP3430ES2_PM_MPUGRPSEL3 : OMAP3430_PM_MPUGRPSEL;
+	int c = 0;
+
+	wkst = omap2_prm_read_mod_reg(module, wkst_off);
+	wkst &= omap2_prm_read_mod_reg(module, grpsel_off);
+	wkst &= ~ignore_bits;
+	if (wkst) {
+		iclk = omap2_cm_read_mod_reg(module, iclk_off);
+		fclk = omap2_cm_read_mod_reg(module, fclk_off);
+		while (wkst) {
+			clken = wkst;
+			omap2_cm_set_mod_reg_bits(clken, module, iclk_off);
+			/*
+			 * For USBHOST, we don't know whether HOST1 or
+			 * HOST2 woke us up, so enable both f-clocks
+			 */
+			if (module == OMAP3430ES2_USBHOST_MOD)
+				clken |= 1 << OMAP3430ES2_EN_USBHOST2_SHIFT;
+			omap2_cm_set_mod_reg_bits(clken, module, fclk_off);
+			omap2_prm_write_mod_reg(wkst, module, wkst_off);
+			wkst = omap2_prm_read_mod_reg(module, wkst_off);
+			wkst &= ~ignore_bits;
+			c++;
+		}
+		omap2_cm_write_mod_reg(iclk, module, iclk_off);
+		omap2_cm_write_mod_reg(fclk, module, fclk_off);
+	}
+
+	return c;
+}
+
+/**
+ * omap3_prm_reset_modem - toggle reset signal for modem
+ *
+ * Toggles the reset signal to modem IP block. Required to allow
+ * OMAP3430 without stacked modem to idle properly.
+ */
+void __init omap3_prm_reset_modem(void)
+{
+	omap2_prm_write_mod_reg(
+		OMAP3430_RM_RSTCTRL_CORE_MODEM_SW_RSTPWRON_MASK |
+		OMAP3430_RM_RSTCTRL_CORE_MODEM_SW_RST_MASK,
+				CORE_MOD, OMAP2_RM_RSTCTRL);
+	omap2_prm_write_mod_reg(0, CORE_MOD, OMAP2_RM_RSTCTRL);
+}
+
+/**
+ * omap3_prm_init_pm - initialize PM related registers for PRM
+ * @has_uart4: SoC has UART4
+ * @has_iva: SoC has IVA
+ *
+ * Initializes PRM registers for PM use. Called from PM init.
+ */
+void __init omap3_prm_init_pm(bool has_uart4, bool has_iva)
+{
+	u32 en_uart4_mask;
+	u32 grpsel_uart4_mask;
+
+	/*
+	 * Enable control of expternal oscillator through
+	 * sys_clkreq. In the long run clock framework should
+	 * take care of this.
+	 */
+	omap2_prm_rmw_mod_reg_bits(OMAP_AUTOEXTCLKMODE_MASK,
+				   1 << OMAP_AUTOEXTCLKMODE_SHIFT,
+				   OMAP3430_GR_MOD,
+				   OMAP3_PRM_CLKSRC_CTRL_OFFSET);
+
+	/* setup wakup source */
+	omap2_prm_write_mod_reg(OMAP3430_EN_IO_MASK | OMAP3430_EN_GPIO1_MASK |
+				OMAP3430_EN_GPT1_MASK | OMAP3430_EN_GPT12_MASK,
+				WKUP_MOD, PM_WKEN);
+	/* No need to write EN_IO, that is always enabled */
+	omap2_prm_write_mod_reg(OMAP3430_GRPSEL_GPIO1_MASK |
+				OMAP3430_GRPSEL_GPT1_MASK |
+				OMAP3430_GRPSEL_GPT12_MASK,
+				WKUP_MOD, OMAP3430_PM_MPUGRPSEL);
+
+	/* Enable PM_WKEN to support DSS LPR */
+	omap2_prm_write_mod_reg(OMAP3430_PM_WKEN_DSS_EN_DSS_MASK,
+				OMAP3430_DSS_MOD, PM_WKEN);
+
+	if (has_uart4) {
+		en_uart4_mask = OMAP3630_EN_UART4_MASK;
+		grpsel_uart4_mask = OMAP3630_GRPSEL_UART4_MASK;
+	}
+
+	/* Enable wakeups in PER */
+	omap2_prm_write_mod_reg(en_uart4_mask |
+				OMAP3430_EN_GPIO2_MASK |
+				OMAP3430_EN_GPIO3_MASK |
+				OMAP3430_EN_GPIO4_MASK |
+				OMAP3430_EN_GPIO5_MASK |
+				OMAP3430_EN_GPIO6_MASK |
+				OMAP3430_EN_UART3_MASK |
+				OMAP3430_EN_MCBSP2_MASK |
+				OMAP3430_EN_MCBSP3_MASK |
+				OMAP3430_EN_MCBSP4_MASK,
+				OMAP3430_PER_MOD, PM_WKEN);
+
+	/* and allow them to wake up MPU */
+	omap2_prm_write_mod_reg(grpsel_uart4_mask |
+				OMAP3430_GRPSEL_GPIO2_MASK |
+				OMAP3430_GRPSEL_GPIO3_MASK |
+				OMAP3430_GRPSEL_GPIO4_MASK |
+				OMAP3430_GRPSEL_GPIO5_MASK |
+				OMAP3430_GRPSEL_GPIO6_MASK |
+				OMAP3430_GRPSEL_UART3_MASK |
+				OMAP3430_GRPSEL_MCBSP2_MASK |
+				OMAP3430_GRPSEL_MCBSP3_MASK |
+				OMAP3430_GRPSEL_MCBSP4_MASK,
+				OMAP3430_PER_MOD, OMAP3430_PM_MPUGRPSEL);
+
+	/* Don't attach IVA interrupts */
+	if (has_iva) {
+		omap2_prm_write_mod_reg(0, WKUP_MOD, OMAP3430_PM_IVAGRPSEL);
+		omap2_prm_write_mod_reg(0, CORE_MOD, OMAP3430_PM_IVAGRPSEL1);
+		omap2_prm_write_mod_reg(0, CORE_MOD, OMAP3430ES2_PM_IVAGRPSEL3);
+		omap2_prm_write_mod_reg(0, OMAP3430_PER_MOD,
+					OMAP3430_PM_IVAGRPSEL);
+	}
+
+	/* Clear any pending 'reset' flags */
+	omap2_prm_write_mod_reg(0xffffffff, MPU_MOD, OMAP2_RM_RSTST);
+	omap2_prm_write_mod_reg(0xffffffff, CORE_MOD, OMAP2_RM_RSTST);
+	omap2_prm_write_mod_reg(0xffffffff, OMAP3430_PER_MOD, OMAP2_RM_RSTST);
+	omap2_prm_write_mod_reg(0xffffffff, OMAP3430_EMU_MOD, OMAP2_RM_RSTST);
+	omap2_prm_write_mod_reg(0xffffffff, OMAP3430_NEON_MOD, OMAP2_RM_RSTST);
+	omap2_prm_write_mod_reg(0xffffffff, OMAP3430_DSS_MOD, OMAP2_RM_RSTST);
+	omap2_prm_write_mod_reg(0xffffffff, OMAP3430ES2_USBHOST_MOD,
+				OMAP2_RM_RSTST);
+
+	/* Clear any pending PRCM interrupts */
+	omap2_prm_write_mod_reg(0, OCP_MOD, OMAP3_PRM_IRQSTATUS_MPU_OFFSET);
+
+	/* We need to idle iva2_pwrdm even on am3703 with no iva2. */
+	omap3xxx_prm_iva_idle();
+
+	omap3_prm_reset_modem();
+}
+
+/**
+ * omap3430_pre_es3_1_reconfigure_io_chain - restart wake-up daisy chain
+ *
+ * The ST_IO_CHAIN bit does not exist in 3430 before es3.1. The only
+ * thing we can do is toggle EN_IO bit for earlier omaps.
+ */
+void omap3430_pre_es3_1_reconfigure_io_chain(void)
+{
+	omap2_prm_clear_mod_reg_bits(OMAP3430_EN_IO_MASK, WKUP_MOD,
+				     PM_WKEN);
+	omap2_prm_set_mod_reg_bits(OMAP3430_EN_IO_MASK, WKUP_MOD,
+				   PM_WKEN);
+	omap2_prm_read_mod_reg(WKUP_MOD, PM_WKEN);
+}
+
+/**
+ * omap3_prm_reconfigure_io_chain - clear latches and reconfigure I/O chain
  *
  * Clear any previously-latched I/O wakeup events and ensure that the
  * I/O wakeup gates are aligned with the current mux settings.  Works
  * by asserting WUCLKIN, waiting for WUCLKOUT to be asserted, and then
  * deasserting WUCLKIN and clearing the ST_IO_CHAIN WKST bit.  No
- * return value.
+ * return value. These registers are only available in 3430 es3.1 and later.
  */
-void omap3xxx_prm_reconfigure_io_chain(void)
+void omap3_prm_reconfigure_io_chain(void)
 {
 	int i = 0;
 
@@ -234,6 +412,15 @@ void omap3xxx_prm_reconfigure_io_chain(void)
 				   PM_WKST);
 
 	omap2_prm_read_mod_reg(WKUP_MOD, PM_WKST);
+}
+
+/**
+ * omap3xxx_prm_reconfigure_io_chain - reconfigure I/O chain
+ */
+void omap3xxx_prm_reconfigure_io_chain(void)
+{
+	if (omap3_prcm_irq_setup.reconfigure_io_chain)
+		omap3_prcm_irq_setup.reconfigure_io_chain();
 }
 
 /**
@@ -274,6 +461,76 @@ static u32 omap3xxx_prm_read_reset_sources(void)
 	}
 
 	return r;
+}
+
+/**
+ * omap3xxx_prm_iva_idle - ensure IVA is in idle so it can be put into retention
+ *
+ * In cases where IVA2 is activated by bootcode, it may prevent
+ * full-chip retention or off-mode because it is not idle.  This
+ * function forces the IVA2 into idle state so it can go
+ * into retention/off and thus allow full-chip retention/off.
+ */
+void omap3xxx_prm_iva_idle(void)
+{
+	/* ensure IVA2 clock is disabled */
+	omap2_cm_write_mod_reg(0, OMAP3430_IVA2_MOD, CM_FCLKEN);
+
+	/* if no clock activity, nothing else to do */
+	if (!(omap2_cm_read_mod_reg(OMAP3430_IVA2_MOD, OMAP3430_CM_CLKSTST) &
+	      OMAP3430_CLKACTIVITY_IVA2_MASK))
+		return;
+
+	/* Reset IVA2 */
+	omap2_prm_write_mod_reg(OMAP3430_RST1_IVA2_MASK |
+				OMAP3430_RST2_IVA2_MASK |
+				OMAP3430_RST3_IVA2_MASK,
+				OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
+
+	/* Enable IVA2 clock */
+	omap2_cm_write_mod_reg(OMAP3430_CM_FCLKEN_IVA2_EN_IVA2_MASK,
+			       OMAP3430_IVA2_MOD, CM_FCLKEN);
+
+	/* Un-reset IVA2 */
+	omap2_prm_write_mod_reg(0, OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
+
+	/* Disable IVA2 clock */
+	omap2_cm_write_mod_reg(0, OMAP3430_IVA2_MOD, CM_FCLKEN);
+
+	/* Reset IVA2 */
+	omap2_prm_write_mod_reg(OMAP3430_RST1_IVA2_MASK |
+				OMAP3430_RST2_IVA2_MASK |
+				OMAP3430_RST3_IVA2_MASK,
+				OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
+}
+
+/**
+ * omap3xxx_prm_clear_global_cold_reset - checks the global cold reset status
+ *					  and clears it if asserted
+ *
+ * Checks if cold-reset has occurred and clears the status bit if yes. Returns
+ * 1 if cold-reset has occurred, 0 otherwise.
+ */
+int omap3xxx_prm_clear_global_cold_reset(void)
+{
+	if (omap2_prm_read_mod_reg(OMAP3430_GR_MOD, OMAP3_PRM_RSTST_OFFSET) &
+	    OMAP3430_GLOBAL_COLD_RST_MASK) {
+		omap2_prm_set_mod_reg_bits(OMAP3430_GLOBAL_COLD_RST_MASK,
+					   OMAP3430_GR_MOD,
+					   OMAP3_PRM_RSTST_OFFSET);
+		return 1;
+	}
+
+	return 0;
+}
+
+void omap3_prm_save_scratchpad_contents(u32 *ptr)
+{
+	*ptr++ = omap2_prm_read_mod_reg(OMAP3430_GR_MOD,
+					OMAP3_PRM_CLKSRC_CTRL_OFFSET);
+
+	*ptr++ = omap2_prm_read_mod_reg(OMAP3430_GR_MOD,
+					OMAP3_PRM_CLKSEL_OFFSET);
 }
 
 /* Powerdomain low-level functions */
@@ -422,6 +679,13 @@ static int omap3xxx_prm_late_init(void)
 
 	if (!(prm_features & PRM_HAS_IO_WAKEUP))
 		return 0;
+
+	if (omap3_has_io_chain_ctrl())
+		omap3_prcm_irq_setup.reconfigure_io_chain =
+			omap3_prm_reconfigure_io_chain;
+	else
+		omap3_prcm_irq_setup.reconfigure_io_chain =
+			omap3430_pre_es3_1_reconfigure_io_chain;
 
 	omap3xxx_prm_enable_io_wakeup();
 	ret = omap_prcm_register_chain_handler(&omap3_prcm_irq_setup);

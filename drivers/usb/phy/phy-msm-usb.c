@@ -279,11 +279,11 @@ static int msm_otg_link_clk_reset(struct msm_otg *motg, bool assert)
 
 static int msm_otg_phy_clk_reset(struct msm_otg *motg)
 {
-	int ret;
+	int ret = 0;
 
-	if (motg->pdata->phy_clk_reset)
+	if (motg->pdata->phy_clk_reset && motg->phy_reset_clk)
 		ret = motg->pdata->phy_clk_reset(motg->phy_reset_clk);
-	else
+	else if (motg->phy_rst)
 		ret = reset_control_reset(motg->phy_rst);
 
 	if (ret)
@@ -1229,7 +1229,9 @@ static void msm_otg_sm_work(struct work_struct *w)
 			motg->chg_state = USB_CHG_STATE_UNDEFINED;
 			motg->chg_type = USB_INVALID_CHARGER;
 		}
-		pm_runtime_put_sync(otg->phy->dev);
+
+		if (otg->phy->state == OTG_STATE_B_IDLE)
+			pm_runtime_put_sync(otg->phy->dev);
 		break;
 	case OTG_STATE_B_PERIPHERAL:
 		dev_dbg(otg->phy->dev, "OTG_STATE_B_PERIPHERAL state\n");
@@ -1427,7 +1429,7 @@ static void msm_otg_debugfs_cleanup(void)
 	debugfs_remove(msm_otg_dbg_root);
 }
 
-static struct of_device_id msm_otg_dt_match[] = {
+static const struct of_device_id msm_otg_dt_match[] = {
 	{
 		.compatible = "qcom,usb-otg-ci",
 		.data = (void *) CI_45NM_INTEGRATED_PHY
@@ -1464,7 +1466,7 @@ static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
 
 	motg->phy_rst = devm_reset_control_get(&pdev->dev, "phy");
 	if (IS_ERR(motg->phy_rst))
-		return PTR_ERR(motg->phy_rst);
+		motg->phy_rst = NULL;
 
 	pdata->mode = of_usb_get_dr_mode(node);
 	if (pdata->mode == USB_DR_MODE_UNKNOWN)
@@ -1556,7 +1558,7 @@ static int msm_otg_probe(struct platform_device *pdev)
 					   np ? "phy" : "usb_phy_clk");
 	if (IS_ERR(motg->phy_reset_clk)) {
 		dev_err(&pdev->dev, "failed to get usb_phy_clk\n");
-		return PTR_ERR(motg->phy_reset_clk);
+		motg->phy_reset_clk = NULL;
 	}
 
 	motg->clk = devm_clk_get(&pdev->dev, np ? "core" : "usb_hs_clk");
@@ -1599,8 +1601,8 @@ static int msm_otg_probe(struct platform_device *pdev)
 	 */
 	if (motg->phy_number) {
 		phy_select = devm_ioremap_nocache(&pdev->dev, USB2_PHY_SEL, 4);
-		if (IS_ERR(phy_select))
-			return PTR_ERR(phy_select);
+		if (!phy_select)
+			return -ENOMEM;
 		/* Enable second PHY with the OTG port */
 		writel(0x1, phy_select);
 	}

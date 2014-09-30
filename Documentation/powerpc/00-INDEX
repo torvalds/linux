@@ -17,8 +17,6 @@ firmware-assisted-dump.txt
 	- Documentation on the firmware assisted dump mechanism "fadump".
 hvcs.txt
 	- IBM "Hypervisor Virtual Console Server" Installation Guide
-kvm_440.txt
-	- Various notes on the implementation of KVM for PowerPC 440.
 mpc52xx.txt
 	- Linux 2.6.x on MPC52xx family
 pmu-ebb.txt

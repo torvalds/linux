@@ -84,45 +84,37 @@ filelayout_get_dserver_offset(struct pnfs_layout_segment *lseg, loff_t offset)
 	BUG();
 }
 
-static void filelayout_reset_write(struct nfs_pgio_data *data)
+static void filelayout_reset_write(struct nfs_pgio_header *hdr)
 {
-	struct nfs_pgio_header *hdr = data->header;
-	struct rpc_task *task = &data->task;
+	struct rpc_task *task = &hdr->task;
 
 	if (!test_and_set_bit(NFS_IOHDR_REDO, &hdr->flags)) {
 		dprintk("%s Reset task %5u for i/o through MDS "
 			"(req %s/%llu, %u bytes @ offset %llu)\n", __func__,
-			data->task.tk_pid,
+			hdr->task.tk_pid,
 			hdr->inode->i_sb->s_id,
 			(unsigned long long)NFS_FILEID(hdr->inode),
-			data->args.count,
-			(unsigned long long)data->args.offset);
+			hdr->args.count,
+			(unsigned long long)hdr->args.offset);
 
-		task->tk_status = pnfs_write_done_resend_to_mds(hdr->inode,
-							&hdr->pages,
-							hdr->completion_ops,
-							hdr->dreq);
+		task->tk_status = pnfs_write_done_resend_to_mds(hdr);
 	}
 }
 
-static void filelayout_reset_read(struct nfs_pgio_data *data)
+static void filelayout_reset_read(struct nfs_pgio_header *hdr)
 {
-	struct nfs_pgio_header *hdr = data->header;
-	struct rpc_task *task = &data->task;
+	struct rpc_task *task = &hdr->task;
 
 	if (!test_and_set_bit(NFS_IOHDR_REDO, &hdr->flags)) {
 		dprintk("%s Reset task %5u for i/o through MDS "
 			"(req %s/%llu, %u bytes @ offset %llu)\n", __func__,
-			data->task.tk_pid,
+			hdr->task.tk_pid,
 			hdr->inode->i_sb->s_id,
 			(unsigned long long)NFS_FILEID(hdr->inode),
-			data->args.count,
-			(unsigned long long)data->args.offset);
+			hdr->args.count,
+			(unsigned long long)hdr->args.offset);
 
-		task->tk_status = pnfs_read_done_resend_to_mds(hdr->inode,
-							&hdr->pages,
-							hdr->completion_ops,
-							hdr->dreq);
+		task->tk_status = pnfs_read_done_resend_to_mds(hdr);
 	}
 }
 
@@ -243,18 +235,17 @@ wait_on_recovery:
 /* NFS_PROTO call done callback routines */
 
 static int filelayout_read_done_cb(struct rpc_task *task,
-				struct nfs_pgio_data *data)
+				struct nfs_pgio_header *hdr)
 {
-	struct nfs_pgio_header *hdr = data->header;
 	int err;
 
-	trace_nfs4_pnfs_read(data, task->tk_status);
-	err = filelayout_async_handle_error(task, data->args.context->state,
-					    data->ds_clp, hdr->lseg);
+	trace_nfs4_pnfs_read(hdr, task->tk_status);
+	err = filelayout_async_handle_error(task, hdr->args.context->state,
+					    hdr->ds_clp, hdr->lseg);
 
 	switch (err) {
 	case -NFS4ERR_RESET_TO_MDS:
-		filelayout_reset_read(data);
+		filelayout_reset_read(hdr);
 		return task->tk_status;
 	case -EAGAIN:
 		rpc_restart_call_prepare(task);
@@ -270,15 +261,14 @@ static int filelayout_read_done_cb(struct rpc_task *task,
  * rfc5661 is not clear about which credential should be used.
  */
 static void
-filelayout_set_layoutcommit(struct nfs_pgio_data *wdata)
+filelayout_set_layoutcommit(struct nfs_pgio_header *hdr)
 {
-	struct nfs_pgio_header *hdr = wdata->header;
 
 	if (FILELAYOUT_LSEG(hdr->lseg)->commit_through_mds ||
-	    wdata->res.verf->committed == NFS_FILE_SYNC)
+	    hdr->res.verf->committed == NFS_FILE_SYNC)
 		return;
 
-	pnfs_set_layoutcommit(wdata);
+	pnfs_set_layoutcommit(hdr);
 	dprintk("%s inode %lu pls_end_pos %lu\n", __func__, hdr->inode->i_ino,
 		(unsigned long) NFS_I(hdr->inode)->layout->plh_lwb);
 }
@@ -305,83 +295,82 @@ filelayout_reset_to_mds(struct pnfs_layout_segment *lseg)
  */
 static void filelayout_read_prepare(struct rpc_task *task, void *data)
 {
-	struct nfs_pgio_data *rdata = data;
+	struct nfs_pgio_header *hdr = data;
 
-	if (unlikely(test_bit(NFS_CONTEXT_BAD, &rdata->args.context->flags))) {
+	if (unlikely(test_bit(NFS_CONTEXT_BAD, &hdr->args.context->flags))) {
 		rpc_exit(task, -EIO);
 		return;
 	}
-	if (filelayout_reset_to_mds(rdata->header->lseg)) {
+	if (filelayout_reset_to_mds(hdr->lseg)) {
 		dprintk("%s task %u reset io to MDS\n", __func__, task->tk_pid);
-		filelayout_reset_read(rdata);
+		filelayout_reset_read(hdr);
 		rpc_exit(task, 0);
 		return;
 	}
-	rdata->pgio_done_cb = filelayout_read_done_cb;
+	hdr->pgio_done_cb = filelayout_read_done_cb;
 
-	if (nfs41_setup_sequence(rdata->ds_clp->cl_session,
-			&rdata->args.seq_args,
-			&rdata->res.seq_res,
+	if (nfs41_setup_sequence(hdr->ds_clp->cl_session,
+			&hdr->args.seq_args,
+			&hdr->res.seq_res,
 			task))
 		return;
-	if (nfs4_set_rw_stateid(&rdata->args.stateid, rdata->args.context,
-			rdata->args.lock_context, FMODE_READ) == -EIO)
+	if (nfs4_set_rw_stateid(&hdr->args.stateid, hdr->args.context,
+			hdr->args.lock_context, FMODE_READ) == -EIO)
 		rpc_exit(task, -EIO); /* lost lock, terminate I/O */
 }
 
 static void filelayout_read_call_done(struct rpc_task *task, void *data)
 {
-	struct nfs_pgio_data *rdata = data;
+	struct nfs_pgio_header *hdr = data;
 
 	dprintk("--> %s task->tk_status %d\n", __func__, task->tk_status);
 
-	if (test_bit(NFS_IOHDR_REDO, &rdata->header->flags) &&
+	if (test_bit(NFS_IOHDR_REDO, &hdr->flags) &&
 	    task->tk_status == 0) {
-		nfs41_sequence_done(task, &rdata->res.seq_res);
+		nfs41_sequence_done(task, &hdr->res.seq_res);
 		return;
 	}
 
 	/* Note this may cause RPC to be resent */
-	rdata->header->mds_ops->rpc_call_done(task, data);
+	hdr->mds_ops->rpc_call_done(task, data);
 }
 
 static void filelayout_read_count_stats(struct rpc_task *task, void *data)
 {
-	struct nfs_pgio_data *rdata = data;
+	struct nfs_pgio_header *hdr = data;
 
-	rpc_count_iostats(task, NFS_SERVER(rdata->header->inode)->client->cl_metrics);
+	rpc_count_iostats(task, NFS_SERVER(hdr->inode)->client->cl_metrics);
 }
 
 static void filelayout_read_release(void *data)
 {
-	struct nfs_pgio_data *rdata = data;
-	struct pnfs_layout_hdr *lo = rdata->header->lseg->pls_layout;
+	struct nfs_pgio_header *hdr = data;
+	struct pnfs_layout_hdr *lo = hdr->lseg->pls_layout;
 
 	filelayout_fenceme(lo->plh_inode, lo);
-	nfs_put_client(rdata->ds_clp);
-	rdata->header->mds_ops->rpc_release(data);
+	nfs_put_client(hdr->ds_clp);
+	hdr->mds_ops->rpc_release(data);
 }
 
 static int filelayout_write_done_cb(struct rpc_task *task,
-				struct nfs_pgio_data *data)
+				struct nfs_pgio_header *hdr)
 {
-	struct nfs_pgio_header *hdr = data->header;
 	int err;
 
-	trace_nfs4_pnfs_write(data, task->tk_status);
-	err = filelayout_async_handle_error(task, data->args.context->state,
-					    data->ds_clp, hdr->lseg);
+	trace_nfs4_pnfs_write(hdr, task->tk_status);
+	err = filelayout_async_handle_error(task, hdr->args.context->state,
+					    hdr->ds_clp, hdr->lseg);
 
 	switch (err) {
 	case -NFS4ERR_RESET_TO_MDS:
-		filelayout_reset_write(data);
+		filelayout_reset_write(hdr);
 		return task->tk_status;
 	case -EAGAIN:
 		rpc_restart_call_prepare(task);
 		return -EAGAIN;
 	}
 
-	filelayout_set_layoutcommit(data);
+	filelayout_set_layoutcommit(hdr);
 	return 0;
 }
 
@@ -419,57 +408,57 @@ static int filelayout_commit_done_cb(struct rpc_task *task,
 
 static void filelayout_write_prepare(struct rpc_task *task, void *data)
 {
-	struct nfs_pgio_data *wdata = data;
+	struct nfs_pgio_header *hdr = data;
 
-	if (unlikely(test_bit(NFS_CONTEXT_BAD, &wdata->args.context->flags))) {
+	if (unlikely(test_bit(NFS_CONTEXT_BAD, &hdr->args.context->flags))) {
 		rpc_exit(task, -EIO);
 		return;
 	}
-	if (filelayout_reset_to_mds(wdata->header->lseg)) {
+	if (filelayout_reset_to_mds(hdr->lseg)) {
 		dprintk("%s task %u reset io to MDS\n", __func__, task->tk_pid);
-		filelayout_reset_write(wdata);
+		filelayout_reset_write(hdr);
 		rpc_exit(task, 0);
 		return;
 	}
-	if (nfs41_setup_sequence(wdata->ds_clp->cl_session,
-			&wdata->args.seq_args,
-			&wdata->res.seq_res,
+	if (nfs41_setup_sequence(hdr->ds_clp->cl_session,
+			&hdr->args.seq_args,
+			&hdr->res.seq_res,
 			task))
 		return;
-	if (nfs4_set_rw_stateid(&wdata->args.stateid, wdata->args.context,
-			wdata->args.lock_context, FMODE_WRITE) == -EIO)
+	if (nfs4_set_rw_stateid(&hdr->args.stateid, hdr->args.context,
+			hdr->args.lock_context, FMODE_WRITE) == -EIO)
 		rpc_exit(task, -EIO); /* lost lock, terminate I/O */
 }
 
 static void filelayout_write_call_done(struct rpc_task *task, void *data)
 {
-	struct nfs_pgio_data *wdata = data;
+	struct nfs_pgio_header *hdr = data;
 
-	if (test_bit(NFS_IOHDR_REDO, &wdata->header->flags) &&
+	if (test_bit(NFS_IOHDR_REDO, &hdr->flags) &&
 	    task->tk_status == 0) {
-		nfs41_sequence_done(task, &wdata->res.seq_res);
+		nfs41_sequence_done(task, &hdr->res.seq_res);
 		return;
 	}
 
 	/* Note this may cause RPC to be resent */
-	wdata->header->mds_ops->rpc_call_done(task, data);
+	hdr->mds_ops->rpc_call_done(task, data);
 }
 
 static void filelayout_write_count_stats(struct rpc_task *task, void *data)
 {
-	struct nfs_pgio_data *wdata = data;
+	struct nfs_pgio_header *hdr = data;
 
-	rpc_count_iostats(task, NFS_SERVER(wdata->header->inode)->client->cl_metrics);
+	rpc_count_iostats(task, NFS_SERVER(hdr->inode)->client->cl_metrics);
 }
 
 static void filelayout_write_release(void *data)
 {
-	struct nfs_pgio_data *wdata = data;
-	struct pnfs_layout_hdr *lo = wdata->header->lseg->pls_layout;
+	struct nfs_pgio_header *hdr = data;
+	struct pnfs_layout_hdr *lo = hdr->lseg->pls_layout;
 
 	filelayout_fenceme(lo->plh_inode, lo);
-	nfs_put_client(wdata->ds_clp);
-	wdata->header->mds_ops->rpc_release(data);
+	nfs_put_client(hdr->ds_clp);
+	hdr->mds_ops->rpc_release(data);
 }
 
 static void filelayout_commit_prepare(struct rpc_task *task, void *data)
@@ -529,19 +518,18 @@ static const struct rpc_call_ops filelayout_commit_call_ops = {
 };
 
 static enum pnfs_try_status
-filelayout_read_pagelist(struct nfs_pgio_data *data)
+filelayout_read_pagelist(struct nfs_pgio_header *hdr)
 {
-	struct nfs_pgio_header *hdr = data->header;
 	struct pnfs_layout_segment *lseg = hdr->lseg;
 	struct nfs4_pnfs_ds *ds;
 	struct rpc_clnt *ds_clnt;
-	loff_t offset = data->args.offset;
+	loff_t offset = hdr->args.offset;
 	u32 j, idx;
 	struct nfs_fh *fh;
 
 	dprintk("--> %s ino %lu pgbase %u req %Zu@%llu\n",
 		__func__, hdr->inode->i_ino,
-		data->args.pgbase, (size_t)data->args.count, offset);
+		hdr->args.pgbase, (size_t)hdr->args.count, offset);
 
 	/* Retrieve the correct rpc_client for the byte range */
 	j = nfs4_fl_calc_j_index(lseg, offset);
@@ -559,30 +547,29 @@ filelayout_read_pagelist(struct nfs_pgio_data *data)
 
 	/* No multipath support. Use first DS */
 	atomic_inc(&ds->ds_clp->cl_count);
-	data->ds_clp = ds->ds_clp;
-	data->ds_idx = idx;
+	hdr->ds_clp = ds->ds_clp;
+	hdr->ds_idx = idx;
 	fh = nfs4_fl_select_ds_fh(lseg, j);
 	if (fh)
-		data->args.fh = fh;
+		hdr->args.fh = fh;
 
-	data->args.offset = filelayout_get_dserver_offset(lseg, offset);
-	data->mds_offset = offset;
+	hdr->args.offset = filelayout_get_dserver_offset(lseg, offset);
+	hdr->mds_offset = offset;
 
 	/* Perform an asynchronous read to ds */
-	nfs_initiate_pgio(ds_clnt, data,
+	nfs_initiate_pgio(ds_clnt, hdr,
 			    &filelayout_read_call_ops, 0, RPC_TASK_SOFTCONN);
 	return PNFS_ATTEMPTED;
 }
 
 /* Perform async writes. */
 static enum pnfs_try_status
-filelayout_write_pagelist(struct nfs_pgio_data *data, int sync)
+filelayout_write_pagelist(struct nfs_pgio_header *hdr, int sync)
 {
-	struct nfs_pgio_header *hdr = data->header;
 	struct pnfs_layout_segment *lseg = hdr->lseg;
 	struct nfs4_pnfs_ds *ds;
 	struct rpc_clnt *ds_clnt;
-	loff_t offset = data->args.offset;
+	loff_t offset = hdr->args.offset;
 	u32 j, idx;
 	struct nfs_fh *fh;
 
@@ -598,21 +585,20 @@ filelayout_write_pagelist(struct nfs_pgio_data *data, int sync)
 		return PNFS_NOT_ATTEMPTED;
 
 	dprintk("%s ino %lu sync %d req %Zu@%llu DS: %s cl_count %d\n",
-		__func__, hdr->inode->i_ino, sync, (size_t) data->args.count,
+		__func__, hdr->inode->i_ino, sync, (size_t) hdr->args.count,
 		offset, ds->ds_remotestr, atomic_read(&ds->ds_clp->cl_count));
 
-	data->pgio_done_cb = filelayout_write_done_cb;
+	hdr->pgio_done_cb = filelayout_write_done_cb;
 	atomic_inc(&ds->ds_clp->cl_count);
-	data->ds_clp = ds->ds_clp;
-	data->ds_idx = idx;
+	hdr->ds_clp = ds->ds_clp;
+	hdr->ds_idx = idx;
 	fh = nfs4_fl_select_ds_fh(lseg, j);
 	if (fh)
-		data->args.fh = fh;
-
-	data->args.offset = filelayout_get_dserver_offset(lseg, offset);
+		hdr->args.fh = fh;
+	hdr->args.offset = filelayout_get_dserver_offset(lseg, offset);
 
 	/* Perform an asynchronous write */
-	nfs_initiate_pgio(ds_clnt, data,
+	nfs_initiate_pgio(ds_clnt, hdr,
 				    &filelayout_write_call_ops, sync,
 				    RPC_TASK_SOFTCONN);
 	return PNFS_ATTEMPTED;
@@ -1023,6 +1009,7 @@ static u32 select_bucket_index(struct nfs4_filelayout_segment *fl, u32 j)
 
 /* The generic layer is about to remove the req from the commit list.
  * If this will make the bucket empty, it will need to put the lseg reference.
+ * Note this is must be called holding the inode (/cinfo) lock
  */
 static void
 filelayout_clear_request_commit(struct nfs_page *req,
@@ -1030,7 +1017,6 @@ filelayout_clear_request_commit(struct nfs_page *req,
 {
 	struct pnfs_layout_segment *freeme = NULL;
 
-	spin_lock(cinfo->lock);
 	if (!test_and_clear_bit(PG_COMMIT_TO_DS, &req->wb_flags))
 		goto out;
 	cinfo->ds->nwritten--;
@@ -1045,22 +1031,25 @@ filelayout_clear_request_commit(struct nfs_page *req,
 	}
 out:
 	nfs_request_remove_commit_list(req, cinfo);
-	spin_unlock(cinfo->lock);
-	pnfs_put_lseg(freeme);
+	pnfs_put_lseg_async(freeme);
 }
 
-static struct list_head *
-filelayout_choose_commit_list(struct nfs_page *req,
-			      struct pnfs_layout_segment *lseg,
-			      struct nfs_commit_info *cinfo)
+static void
+filelayout_mark_request_commit(struct nfs_page *req,
+			       struct pnfs_layout_segment *lseg,
+			       struct nfs_commit_info *cinfo)
+
 {
 	struct nfs4_filelayout_segment *fl = FILELAYOUT_LSEG(lseg);
 	u32 i, j;
 	struct list_head *list;
 	struct pnfs_commit_bucket *buckets;
 
-	if (fl->commit_through_mds)
-		return &cinfo->mds->list;
+	if (fl->commit_through_mds) {
+		list = &cinfo->mds->list;
+		spin_lock(cinfo->lock);
+		goto mds_commit;
+	}
 
 	/* Note that we are calling nfs4_fl_calc_j_index on each page
 	 * that ends up being committed to a data server.  An attractive
@@ -1084,19 +1073,22 @@ filelayout_choose_commit_list(struct nfs_page *req,
 	}
 	set_bit(PG_COMMIT_TO_DS, &req->wb_flags);
 	cinfo->ds->nwritten++;
+
+mds_commit:
+	/* nfs_request_add_commit_list(). We need to add req to list without
+	 * dropping cinfo lock.
+	 */
+	set_bit(PG_CLEAN, &(req)->wb_flags);
+	nfs_list_add_request(req, list);
+	cinfo->mds->ncommit++;
 	spin_unlock(cinfo->lock);
-	return list;
-}
-
-static void
-filelayout_mark_request_commit(struct nfs_page *req,
-			       struct pnfs_layout_segment *lseg,
-			       struct nfs_commit_info *cinfo)
-{
-	struct list_head *list;
-
-	list = filelayout_choose_commit_list(req, lseg, cinfo);
-	nfs_request_add_commit_list(req, list, cinfo);
+	if (!cinfo->dreq) {
+		inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
+		inc_bdi_stat(page_file_mapping(req->wb_page)->backing_dev_info,
+			     BDI_RECLAIMABLE);
+		__mark_inode_dirty(req->wb_context->dentry->d_inode,
+				   I_DIRTY_DATASYNC);
+	}
 }
 
 static u32 calc_ds_index_from_commit(struct pnfs_layout_segment *lseg, u32 i)
@@ -1244,15 +1236,64 @@ restart:
 	spin_unlock(cinfo->lock);
 }
 
+/* filelayout_search_commit_reqs - Search lists in @cinfo for the head reqest
+ *				   for @page
+ * @cinfo - commit info for current inode
+ * @page - page to search for matching head request
+ *
+ * Returns a the head request if one is found, otherwise returns NULL.
+ */
+static struct nfs_page *
+filelayout_search_commit_reqs(struct nfs_commit_info *cinfo, struct page *page)
+{
+	struct nfs_page *freq, *t;
+	struct pnfs_commit_bucket *b;
+	int i;
+
+	/* Linearly search the commit lists for each bucket until a matching
+	 * request is found */
+	for (i = 0, b = cinfo->ds->buckets; i < cinfo->ds->nbuckets; i++, b++) {
+		list_for_each_entry_safe(freq, t, &b->written, wb_list) {
+			if (freq->wb_page == page)
+				return freq->wb_head;
+		}
+		list_for_each_entry_safe(freq, t, &b->committing, wb_list) {
+			if (freq->wb_page == page)
+				return freq->wb_head;
+		}
+	}
+
+	return NULL;
+}
+
+static void filelayout_retry_commit(struct nfs_commit_info *cinfo, int idx)
+{
+	struct pnfs_ds_commit_info *fl_cinfo = cinfo->ds;
+	struct pnfs_commit_bucket *bucket;
+	struct pnfs_layout_segment *freeme;
+	int i;
+
+	for (i = idx; i < fl_cinfo->nbuckets; i++) {
+		bucket = &fl_cinfo->buckets[i];
+		if (list_empty(&bucket->committing))
+			continue;
+		nfs_retry_commit(&bucket->committing, bucket->clseg, cinfo);
+		spin_lock(cinfo->lock);
+		freeme = bucket->clseg;
+		bucket->clseg = NULL;
+		spin_unlock(cinfo->lock);
+		pnfs_put_lseg(freeme);
+	}
+}
+
 static unsigned int
 alloc_ds_commits(struct nfs_commit_info *cinfo, struct list_head *list)
 {
 	struct pnfs_ds_commit_info *fl_cinfo;
 	struct pnfs_commit_bucket *bucket;
 	struct nfs_commit_data *data;
-	int i, j;
+	int i;
 	unsigned int nreq = 0;
-	struct pnfs_layout_segment *freeme;
 
 	fl_cinfo = cinfo->ds;
 	bucket = fl_cinfo->buckets;
@@ -1272,16 +1313,7 @@ alloc_ds_commits(struct nfs_commit_info *cinfo, struct list_head *list)
 	}
 
 	/* Clean up on error */
-	for (j = i; j < fl_cinfo->nbuckets; j++, bucket++) {
-		if (list_empty(&bucket->committing))
-			continue;
-		nfs_retry_commit(&bucket->committing, bucket->clseg, cinfo);
-		spin_lock(cinfo->lock);
-		freeme = bucket->clseg;
-		bucket->clseg = NULL;
-		spin_unlock(cinfo->lock);
-		pnfs_put_lseg(freeme);
-	}
+	filelayout_retry_commit(cinfo, i);
 	/* Caller will clean up entries put on list */
 	return nreq;
 }
@@ -1301,8 +1333,12 @@ filelayout_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
 			data->lseg = NULL;
 			list_add(&data->pages, &list);
 			nreq++;
-		} else
+		} else {
 			nfs_retry_commit(mds_pages, NULL, cinfo);
+			filelayout_retry_commit(cinfo, 0);
+			cinfo->completion_ops->error_cleanup(NFS_I(inode));
+			return -ENOMEM;
+		}
 	}
 
 	nreq += alloc_ds_commits(cinfo, &list);
@@ -1380,6 +1416,7 @@ static struct pnfs_layoutdriver_type filelayout_type = {
 	.clear_request_commit	= filelayout_clear_request_commit,
 	.scan_commit_lists	= filelayout_scan_commit_lists,
 	.recover_commit_reqs	= filelayout_recover_commit_reqs,
+	.search_commit_reqs	= filelayout_search_commit_reqs,
 	.commit_pagelist	= filelayout_commit_pagelist,
 	.read_pagelist		= filelayout_read_pagelist,
 	.write_pagelist		= filelayout_write_pagelist,

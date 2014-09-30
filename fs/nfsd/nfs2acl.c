@@ -54,13 +54,13 @@ static __be32 nfsacld_proc_getacl(struct svc_rqst * rqstp,
 
 	if (resp->mask & (NFS_ACL|NFS_ACLCNT)) {
 		acl = get_acl(inode, ACL_TYPE_ACCESS);
-		if (IS_ERR(acl)) {
-			nfserr = nfserrno(PTR_ERR(acl));
-			goto fail;
-		}
 		if (acl == NULL) {
 			/* Solaris returns the inode's minimum ACL. */
 			acl = posix_acl_from_mode(inode->i_mode, GFP_KERNEL);
+		}
+		if (IS_ERR(acl)) {
+			nfserr = nfserrno(PTR_ERR(acl));
+			goto fail;
 		}
 		resp->acl_access = acl;
 	}

@@ -25,6 +25,7 @@
  * http://www.ti.com/product/bq27425-g1
  */
 
+#include <linux/device.h>
 #include <linux/module.h>
 #include <linux/param.h>
 #include <linux/jiffies.h>
@@ -415,6 +416,9 @@ static void bq27x00_update(struct bq27x00_device_info *di)
 	bool is_bq27425 = di->chip == BQ27425;
 
 	cache.flags = bq27x00_read(di, BQ27x00_REG_FLAGS, !is_bq27500);
+	if ((cache.flags & 0xff) == 0xff)
+		/* read error */
+		cache.flags = -1;
 	if (cache.flags >= 0) {
 		if (!is_bq27500 && !is_bq27425
 				&& (cache.flags & BQ27000_FLAG_CI)) {
@@ -804,7 +808,7 @@ static int bq27x00_battery_probe(struct i2c_client *client,
 		goto batt_failed_1;
 	}
 
-	di = kzalloc(sizeof(*di), GFP_KERNEL);
+	di = devm_kzalloc(&client->dev, sizeof(*di), GFP_KERNEL);
 	if (!di) {
 		dev_err(&client->dev, "failed to allocate device info data\n");
 		retval = -ENOMEM;
@@ -819,14 +823,12 @@ static int bq27x00_battery_probe(struct i2c_client *client,
 
 	retval = bq27x00_powersupply_init(di);
 	if (retval)
-		goto batt_failed_3;
+		goto batt_failed_2;
 
 	i2c_set_clientdata(client, di);
 
 	return 0;
 
-batt_failed_3:
-	kfree(di);
 batt_failed_2:
 	kfree(name);
 batt_failed_1:
@@ -848,8 +850,6 @@ static int bq27x00_battery_remove(struct i2c_client *client)
 	mutex_lock(&battery_mutex);
 	idr_remove(&battery_id, di->id);
 	mutex_unlock(&battery_mutex);
-
-	kfree(di);
 
 	return 0;
 }
@@ -933,7 +933,6 @@ static int bq27000_battery_probe(struct platform_device *pdev)
 {
 	struct bq27x00_device_info *di;
 	struct bq27000_platform_data *pdata = pdev->dev.platform_data;
-	int ret;
 
 	if (!pdata) {
 		dev_err(&pdev->dev, "no platform_data supplied\n");
@@ -945,7 +944,7 @@ static int bq27000_battery_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	di = kzalloc(sizeof(*di), GFP_KERNEL);
+	di = devm_kzalloc(&pdev->dev, sizeof(*di), GFP_KERNEL);
 	if (!di) {
 		dev_err(&pdev->dev, "failed to allocate device info data\n");
 		return -ENOMEM;
@@ -959,16 +958,7 @@ static int bq27000_battery_probe(struct platform_device *pdev)
 	di->bat.name = pdata->name ?: dev_name(&pdev->dev);
 	di->bus.read = &bq27000_read_platform;
 
-	ret = bq27x00_powersupply_init(di);
-	if (ret)
-		goto err_free;
-
-	return 0;
-
-err_free:
-	kfree(di);
-
-	return ret;
+	return bq27x00_powersupply_init(di);
 }
 
 static int bq27000_battery_remove(struct platform_device *pdev)
@@ -976,8 +966,6 @@ static int bq27000_battery_remove(struct platform_device *pdev)
 	struct bq27x00_device_info *di = platform_get_drvdata(pdev);
 
 	bq27x00_powersupply_unregister(di);
-
-	kfree(di);
 
 	return 0;
 }

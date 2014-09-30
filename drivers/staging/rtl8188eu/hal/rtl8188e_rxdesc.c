@@ -86,7 +86,7 @@ void update_recvframe_attrib_88e(struct recv_frame *precvframe,
 	report.rxdw5 = prxstat->rxdw5;
 
 	pattrib = &precvframe->attrib;
-	_rtw_memset(pattrib, 0, sizeof(struct rx_pkt_attrib));
+	memset(pattrib, 0, sizeof(struct rx_pkt_attrib));
 
 	pattrib->crc_err = (u8)((le32_to_cpu(report.rxdw0) >> 14) & 0x1);/* u8)prxreport->crc32; */
 

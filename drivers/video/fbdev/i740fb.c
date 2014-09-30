@@ -1260,7 +1260,7 @@ fail:
 #define I740_ID_PCI 0x00d1
 #define I740_ID_AGP 0x7800
 
-static DEFINE_PCI_DEVICE_TABLE(i740fb_id_table) = {
+static const struct pci_device_id i740fb_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, I740_ID_PCI) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, I740_ID_AGP) },
 	{ 0 }

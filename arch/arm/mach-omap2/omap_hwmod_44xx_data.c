@@ -2084,8 +2084,6 @@ static struct omap_hwmod_class omap44xx_mmu_hwmod_class = {
 /* mmu ipu */
 
 static struct omap_mmu_dev_attr mmu_ipu_dev_attr = {
-	.da_start	= 0x0,
-	.da_end		= 0xfffff000,
 	.nr_tlb_entries = 32,
 };
 
@@ -2133,8 +2131,6 @@ static struct omap_hwmod omap44xx_mmu_ipu_hwmod = {
 /* mmu dsp */
 
 static struct omap_mmu_dev_attr mmu_dsp_dev_attr = {
-	.da_start	= 0x0,
-	.da_end		= 0xfffff000,
 	.nr_tlb_entries = 32,
 };
 
@@ -4142,21 +4138,11 @@ static struct omap_hwmod_ocp_if omap44xx_l4_wkup__kbd = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-static struct omap_hwmod_addr_space omap44xx_mailbox_addrs[] = {
-	{
-		.pa_start	= 0x4a0f4000,
-		.pa_end		= 0x4a0f41ff,
-		.flags		= ADDR_TYPE_RT
-	},
-	{ }
-};
-
 /* l4_cfg -> mailbox */
 static struct omap_hwmod_ocp_if omap44xx_l4_cfg__mailbox = {
 	.master		= &omap44xx_l4_cfg_hwmod,
 	.slave		= &omap44xx_mailbox_hwmod,
 	.clk		= "l4_div_ck",
-	.addr		= omap44xx_mailbox_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 

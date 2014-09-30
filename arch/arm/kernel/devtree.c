@@ -212,7 +212,7 @@ const struct machine_desc * __init setup_machine_fdt(unsigned int dt_phys)
 	mdesc_best = &__mach_desc_GENERIC_DT;
 #endif
 
-	if (!dt_phys || !early_init_dt_scan(phys_to_virt(dt_phys)))
+	if (!dt_phys || !early_init_dt_verify(phys_to_virt(dt_phys)))
 		return NULL;
 
 	mdesc = of_flat_dt_match_machine(mdesc_best, arch_get_next_mach);
@@ -236,6 +236,12 @@ const struct machine_desc * __init setup_machine_fdt(unsigned int dt_phys)
 
 		dump_machine_table(); /* does not return */
 	}
+
+	/* We really don't want to do this, but sometimes firmware provides buggy data */
+	if (mdesc->dt_fixup)
+		mdesc->dt_fixup();
+
+	early_init_dt_scan_nodes();
 
 	/* Change machine number to match the mdesc we're using */
 	__machine_arch_type = mdesc->nr;

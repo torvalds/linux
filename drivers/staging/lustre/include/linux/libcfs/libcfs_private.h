@@ -43,12 +43,11 @@
 #define __LIBCFS_PRIVATE_H__
 
 /* XXX this layering violation is for nidstrings */
-#include <linux/lnet/types.h>
+#include "../lnet/types.h"
 
 #ifndef DEBUG_SUBSYSTEM
 # define DEBUG_SUBSYSTEM S_UNDEFINED
 #endif
-
 
 
 /*
@@ -57,7 +56,6 @@
  * time to make test-builds. This shouldn't be on for production release.
  */
 #define LASSERT_CHECKED (0)
-
 
 #define LASSERTF(cond, fmt, ...)					\
 do {									\
@@ -80,18 +78,18 @@ do {									\
  */
 # define LINVRNT(exp) LASSERT(exp)
 #else
-# define LINVRNT(exp) ((void)sizeof!!(exp))
+# define LINVRNT(exp) ((void)sizeof !!(exp))
 #endif
 
 #define KLASSERT(e) LASSERT(e)
 
-void lbug_with_loc(struct libcfs_debug_msg_data *) __attribute__((noreturn));
+void lbug_with_loc(struct libcfs_debug_msg_data *)__attribute__((noreturn));
 
 #define LBUG()							  \
 do {								    \
 	LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, D_EMERG, NULL);	     \
 	lbug_with_loc(&msgdata);					\
-} while(0)
+} while (0)
 
 extern atomic_t libcfs_kmemory;
 /*
@@ -110,7 +108,6 @@ do {						\
 
 # define libcfs_kmem_read()			\
 	atomic_read(&libcfs_kmemory)
-
 
 #ifndef LIBCFS_VMALLOC_SIZE
 #define LIBCFS_VMALLOC_SIZE	(2 << PAGE_CACHE_SHIFT) /* 2 pages */
@@ -219,7 +216,6 @@ int libcfs_debug_clear_buffer(void);
 int libcfs_debug_mark_buffer(const char *text);
 
 void libcfs_debug_set_level(unsigned int debug_level);
-
 
 /*
  * allocate per-cpu-partition data, returned value is an array of pointers,
@@ -339,8 +335,8 @@ do {							    \
 #define LASSERT_ATOMIC_ZERO(a)		  LASSERT_ATOMIC_EQ(a, 0)
 #define LASSERT_ATOMIC_POS(a)		   LASSERT_ATOMIC_GT(a, 0)
 
-#define CFS_ALLOC_PTR(ptr)      LIBCFS_ALLOC(ptr, sizeof (*(ptr)));
-#define CFS_FREE_PTR(ptr)       LIBCFS_FREE(ptr, sizeof (*(ptr)));
+#define CFS_ALLOC_PTR(ptr)      LIBCFS_ALLOC(ptr, sizeof(*(ptr)));
+#define CFS_FREE_PTR(ptr)       LIBCFS_FREE(ptr, sizeof(*(ptr)));
 
 /*
  * percpu partition lock
@@ -363,7 +359,6 @@ enum {
 	CFS_PERCPT_LOCK_EX	= -1, /* negative */
 };
 
-
 struct cfs_percpt_lock {
 	/* cpu-partition-table for this lock */
 	struct cfs_cpt_table	*pcl_cptab;
@@ -379,7 +374,6 @@ cfs_percpt_lock_num(struct cfs_percpt_lock *pcl)
 {
 	return cfs_cpt_number(pcl->pcl_cptab);
 }
-
 
 /*
  * create a cpu-partition lock based on CPU partition table \a cptab,
@@ -400,7 +394,6 @@ void cfs_percpt_atomic_free(atomic_t **refs);
 /* return sum of all percpu refs */
 int cfs_percpt_atomic_summary(atomic_t **refs);
 
-
 /** Compile-time assertion.
 
  * Check an invariant described by a constant expression at compile time by
@@ -415,7 +408,7 @@ int cfs_percpt_atomic_summary(atomic_t **refs);
  *       value  after  conversion...
  *
  */
-#define CLASSERT(cond) do {switch(42) {case (cond): case 0: break;}} while (0)
+#define CLASSERT(cond) do {switch (42) {case (cond): case 0: break; } } while (0)
 
 /* support decl needed both by kernel and liblustre */
 int	 libcfs_isknown_lnd(int type);
@@ -440,11 +433,11 @@ int	 cfs_match_nid(lnet_nid_t nid, struct list_head *list);
 /** extract the network part of an lnet_nid_t */
 #define LNET_NIDNET(nid)       ((__u32)(((nid) >> 32)) & 0xffffffff)
 /** make an lnet_nid_t from a network part and an address part */
-#define LNET_MKNID(net,addr)   ((((__u64)(net))<<32)|((__u64)(addr)))
+#define LNET_MKNID(net, addr)   ((((__u64)(net))<<32)|((__u64)(addr)))
 /* how net encodes type:number */
 #define LNET_NETNUM(net)       ((net) & 0xffff)
 #define LNET_NETTYP(net)       (((net) >> 16) & 0xffff)
-#define LNET_MKNET(typ,num)    ((((__u32)(typ))<<16)|((__u32)(num)))
+#define LNET_MKNET(typ, num)    ((((__u32)(typ))<<16)|((__u32)(num)))
 /** @} lnet_addr */
 
 /* max value for numeric network address */
@@ -458,7 +451,6 @@ int	 cfs_match_nid(lnet_nid_t nid, struct list_head *list);
 /* --------------------------------------------------------------------
  * Light-weight trace
  * Support for temporary event tracing with minimal Heisenberg effect.
- * All stuff about lwt are put in arch/kp30.h
  * -------------------------------------------------------------------- */
 
 struct libcfs_device_userstate
@@ -469,24 +461,25 @@ struct libcfs_device_userstate
 
 /* what used to be in portals_lib.h */
 #ifndef MIN
-# define MIN(a,b) (((a)<(b)) ? (a): (b))
+# define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif
 #ifndef MAX
-# define MAX(a,b) (((a)>(b)) ? (a): (b))
+# define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #endif
 
-#define MKSTR(ptr) ((ptr))? (ptr) : ""
+#define MKSTR(ptr) ((ptr)) ? (ptr) : ""
 
-static inline int cfs_size_round4 (int val)
+static inline int cfs_size_round4(int val)
 {
 	return (val + 3) & (~0x3);
 }
 
 #ifndef HAVE_CFS_SIZE_ROUND
-static inline int cfs_size_round (int val)
+static inline int cfs_size_round(int val)
 {
 	return (val + 7) & (~0x7);
 }
+
 #define HAVE_CFS_SIZE_ROUND
 #endif
 
@@ -525,21 +518,21 @@ static inline unsigned int cfs_power2_roundup(unsigned int val)
 	return val;
 }
 
-#define LOGL(var,len,ptr)				       \
+#define LOGL(var, len, ptr)				       \
 do {							    \
 	if (var)						\
 		memcpy((char *)ptr, (const char *)var, len);    \
 	ptr += cfs_size_round(len);			     \
 } while (0)
 
-#define LOGU(var,len,ptr)				       \
+#define LOGU(var, len, ptr)				       \
 do {							    \
 	if (var)						\
 		memcpy((char *)var, (const char *)ptr, len);    \
 	ptr += cfs_size_round(len);			     \
 } while (0)
 
-#define LOGL0(var,len,ptr)			      \
+#define LOGL0(var, len, ptr)			      \
 do {						    \
 	if (!len)				       \
 		break;				  \

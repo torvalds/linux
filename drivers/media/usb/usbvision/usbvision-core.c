@@ -1463,8 +1463,6 @@ static int usbvision_write_reg_irq(struct usb_usbvision *usbvision, int address,
 
 static int usbvision_init_compression(struct usb_usbvision *usbvision)
 {
-	int err_code = 0;
-
 	usbvision->last_isoc_frame_num = -1;
 	usbvision->isoc_data_count = 0;
 	usbvision->isoc_packet_count = 0;
@@ -1475,7 +1473,7 @@ static int usbvision_init_compression(struct usb_usbvision *usbvision)
 	usbvision->request_intra = 1;
 	usbvision->isoc_measure_bandwidth_count = 0;
 
-	return err_code;
+	return 0;
 }
 
 /* this function measures the used bandwidth since last call
@@ -1484,11 +1482,9 @@ static int usbvision_init_compression(struct usb_usbvision *usbvision)
  */
 static int usbvision_measure_bandwidth(struct usb_usbvision *usbvision)
 {
-	int err_code = 0;
-
 	if (usbvision->isoc_measure_bandwidth_count < 2) { /* this gives an average bandwidth of 3 frames */
 		usbvision->isoc_measure_bandwidth_count++;
-		return err_code;
+		return 0;
 	}
 	if ((usbvision->isoc_packet_size > 0) && (usbvision->isoc_packet_count > 0)) {
 		usbvision->used_bandwidth = usbvision->isoc_data_count /
@@ -1499,7 +1495,7 @@ static int usbvision_measure_bandwidth(struct usb_usbvision *usbvision)
 	usbvision->isoc_data_count = 0;
 	usbvision->isoc_packet_count = 0;
 	usbvision->isoc_skip_count = 0;
-	return err_code;
+	return 0;
 }
 
 static int usbvision_adjust_compression(struct usb_usbvision *usbvision)
@@ -1546,26 +1542,24 @@ static int usbvision_adjust_compression(struct usb_usbvision *usbvision)
 
 static int usbvision_request_intra(struct usb_usbvision *usbvision)
 {
-	int err_code = 0;
 	unsigned char buffer[1];
 
 	PDEBUG(DBG_IRQ, "");
 	usbvision->request_intra = 1;
 	buffer[0] = 1;
 	usbvision_write_reg_irq(usbvision, USBVISION_FORCE_INTRA, buffer, 1);
-	return err_code;
+	return 0;
 }
 
 static int usbvision_unrequest_intra(struct usb_usbvision *usbvision)
 {
-	int err_code = 0;
 	unsigned char buffer[1];
 
 	PDEBUG(DBG_IRQ, "");
 	usbvision->request_intra = 0;
 	buffer[0] = 0;
 	usbvision_write_reg_irq(usbvision, USBVISION_FORCE_INTRA, buffer, 1);
-	return err_code;
+	return 0;
 }
 
 /*******************************

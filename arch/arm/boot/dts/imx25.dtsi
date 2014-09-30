@@ -312,7 +312,7 @@
 			gpt4: timer@53f84000 {
 				compatible = "fsl,imx25-gpt", "fsl,imx31-gpt";
 				reg = <0x53f84000 0x4000>;
-				clocks = <&clks 9>, <&clks 45>;
+				clocks = <&clks 95>, <&clks 47>;
 				clock-names = "ipg", "per";
 				interrupts = <1>;
 			};
@@ -320,7 +320,7 @@
 			gpt3: timer@53f88000 {
 				compatible = "fsl,imx25-gpt", "fsl,imx31-gpt";
 				reg = <0x53f88000 0x4000>;
-				clocks = <&clks 9>, <&clks 47>;
+				clocks = <&clks 94>, <&clks 47>;
 				clock-names = "ipg", "per";
 				interrupts = <29>;
 			};
@@ -328,7 +328,7 @@
 			gpt2: timer@53f8c000 {
 				compatible = "fsl,imx25-gpt", "fsl,imx31-gpt";
 				reg = <0x53f8c000 0x4000>;
-				clocks = <&clks 9>, <&clks 47>;
+				clocks = <&clks 93>, <&clks 47>;
 				clock-names = "ipg", "per";
 				interrupts = <53>;
 			};
@@ -336,7 +336,7 @@
 			gpt1: timer@53f90000 {
 				compatible = "fsl,imx25-gpt", "fsl,imx31-gpt";
 				reg = <0x53f90000 0x4000>;
-				clocks = <&clks 9>, <&clks 47>;
+				clocks = <&clks 92>, <&clks 47>;
 				clock-names = "ipg", "per";
 				interrupts = <54>;
 			};

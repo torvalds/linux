@@ -18,25 +18,6 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 
-#define LOWORD(W)	(unsigned short)((W) & 0xFFFF)
-#define HIWORD(W)	(unsigned short)(((W) >> 16) & 0xFFFF)
-
-#define ADDI_ENABLE		1
-#define ADDI_DISABLE		0
-#define APCI1710_SAVE_INTERRUPT	1
-
-#define ADDIDATA_EEPROM		1
-#define ADDIDATA_NO_EEPROM	0
-#define ADDIDATA_93C76		"93C76"
-#define ADDIDATA_S5920		"S5920"
-
-/* ADDIDATA Enable Disable */
-#define ADDIDATA_ENABLE		1
-#define ADDIDATA_DISABLE	0
-
-/* Structures */
-
-/* structure for the boardtype */
 struct addi_board {
 	const char *pc_DriverName;	/*  driver name */
 	int i_IorangeBase1;
@@ -141,7 +122,6 @@ struct addi_private {
 	unsigned char b_InterruptMode;	/*  eoc eos or dma */
 	unsigned char b_EocEosInterrupt;	/*  Enable disable eoc eos interrupt */
 	unsigned int ui_EocEosConversionTime;
-	unsigned char b_SingelDiff;
 	unsigned char b_ExttrigEnable;	/* To enable or disable external trigger */
 
 	/* Pointer to the current process */

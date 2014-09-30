@@ -288,6 +288,7 @@ extern void complete_master_bio(struct drbd_device *device,
 extern void request_timer_fn(unsigned long data);
 extern void tl_restart(struct drbd_connection *connection, enum drbd_req_event what);
 extern void _tl_restart(struct drbd_connection *connection, enum drbd_req_event what);
+extern void tl_abort_disk_io(struct drbd_device *device);
 
 /* this is in drbd_main.c */
 extern void drbd_restart_request(struct drbd_request *req);

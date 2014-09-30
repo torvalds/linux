@@ -10,48 +10,16 @@
  *
  */
 #include <linux/efi.h>
-#include <linux/libfdt.h>
+#include <asm/efi.h>
 #include <asm/sections.h>
-#include <generated/compile.h>
-#include <generated/utsrelease.h>
 
-/*
- * AArch64 requires the DTB to be 8-byte aligned in the first 512MiB from
- * start of kernel and may not cross a 2MiB boundary. We set alignment to
- * 2MiB so we know it won't cross a 2MiB boundary.
- */
-#define EFI_FDT_ALIGN	SZ_2M   /* used by allocate_new_fdt_and_exit_boot() */
-#define MAX_FDT_OFFSET	SZ_512M
-
-#define efi_call_early(f, ...) sys_table_arg->boottime->f(__VA_ARGS__)
-
-static void efi_char16_printk(efi_system_table_t *sys_table_arg,
-			      efi_char16_t *str);
-
-static efi_status_t efi_open_volume(efi_system_table_t *sys_table,
-				    void *__image, void **__fh);
-static efi_status_t efi_file_close(void *handle);
-
-static efi_status_t
-efi_file_read(void *handle, unsigned long *size, void *addr);
-
-static efi_status_t
-efi_file_size(efi_system_table_t *sys_table, void *__fh,
-	      efi_char16_t *filename_16, void **handle, u64 *file_sz);
-
-/* Include shared EFI stub code */
-#include "../../../drivers/firmware/efi/efi-stub-helper.c"
-#include "../../../drivers/firmware/efi/fdt.c"
-#include "../../../drivers/firmware/efi/arm-stub.c"
-
-
-static efi_status_t handle_kernel_image(efi_system_table_t *sys_table,
-					unsigned long *image_addr,
-					unsigned long *image_size,
-					unsigned long *reserve_addr,
-					unsigned long *reserve_size,
-					unsigned long dram_base,
-					efi_loaded_image_t *image)
+efi_status_t handle_kernel_image(efi_system_table_t *sys_table,
+				 unsigned long *image_addr,
+				 unsigned long *image_size,
+				 unsigned long *reserve_addr,
+				 unsigned long *reserve_size,
+				 unsigned long dram_base,
+				 efi_loaded_image_t *image)
 {
 	efi_status_t status;
 	unsigned long kernel_size, kernel_memsize = 0;
@@ -71,7 +39,7 @@ static efi_status_t handle_kernel_image(efi_system_table_t *sys_table,
 		if (*image_addr != (dram_base + TEXT_OFFSET)) {
 			pr_efi_err(sys_table, "Failed to alloc kernel memory\n");
 			efi_free(sys_table, kernel_memsize, *image_addr);
-			return EFI_ERROR;
+			return EFI_LOAD_ERROR;
 		}
 		*image_size = kernel_memsize;
 	}

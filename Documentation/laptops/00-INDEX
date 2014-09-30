@@ -8,8 +8,8 @@ disk-shock-protection.txt
 	- information on hard disk shock protection.
 dslm.c
 	- Simple Disk Sleep Monitor program
-hpfall.c
-	- (HP) laptop accelerometer program for disk protection.
+freefall.c
+	- (HP/DELL) laptop accelerometer program for disk protection.
 laptop-mode.txt
 	- how to conserve battery power using laptop-mode.
 sony-laptop.txt
@@ -18,3 +18,5 @@ sonypi.txt
 	- info on Linux Sony Programmable I/O Device support.
 thinkpad-acpi.txt
 	- information on the (IBM and Lenovo) ThinkPad ACPI Extras driver.
+toshiba_haps.txt
+	- information on the Toshiba HDD Active Protection Sensor driver.

@@ -54,7 +54,7 @@ struct ir_raw_event_ctrl {
 		int state;
 		u32 bits;
 		unsigned count;
-		unsigned wanted_bits;
+		bool is_rc5x;
 	} rc5;
 	struct rc6_dec {
 		int state;
@@ -77,12 +77,6 @@ struct ir_raw_event_ctrl {
 		bool first;
 		bool toggle;
 	} jvc;
-	struct rc5_sz_dec {
-		int state;
-		u32 bits;
-		unsigned count;
-		unsigned wanted_bits;
-	} rc5_sz;
 	struct sanyo_dec {
 		int state;
 		unsigned count;
@@ -116,6 +110,11 @@ struct ir_raw_event_ctrl {
 		bool send_timeout_reports;
 
 	} lirc;
+	struct xmp_dec {
+		int state;
+		unsigned count;
+		u32 durations[16];
+	} xmp;
 };
 
 /* macros for IR decoders */
@@ -229,6 +228,13 @@ static inline void load_mce_kbd_decode(void) { }
 #define load_lirc_codec()	request_module_nowait("ir-lirc-codec")
 #else
 static inline void load_lirc_codec(void) { }
+#endif
+
+/* from ir-xmp-decoder.c */
+#ifdef CONFIG_IR_XMP_DECODER_MODULE
+#define load_xmp_decode()      request_module_nowait("ir-xmp-decoder")
+#else
+static inline void load_xmp_decode(void) { }
 #endif
 
 

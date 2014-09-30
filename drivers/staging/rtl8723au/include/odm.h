@@ -125,7 +125,6 @@ struct  dig_t {
 	bool		bMediaConnect_0;
 	bool		bMediaConnect_1;
 
-	u32		AntDiv_RSSI_max;
 	u32		RSSI_max;
 };
 
@@ -300,7 +299,6 @@ enum odm_cmninfo {
 	/*  */
 
 	ODM_CMNINFO_PLATFORM = 0,
-	ODM_CMNINFO_ABILITY,					/*  enum odm_ability */
 	ODM_CMNINFO_INTERFACE,				/*  enum odm_interface_def */
 	ODM_CMNINFO_MP_TEST_CHIP,
 	ODM_CMNINFO_IC_TYPE,					/*  enum odm_ic_type_def */
@@ -320,27 +318,6 @@ enum odm_cmninfo {
 	/*  */
 	/*  Dynamic value: */
 	/*  */
-	ODM_CMNINFO_MAC_PHY_MODE,			/*  enum odm_mac_phy_mode */
-	ODM_CMNINFO_TX_UNI,
-	ODM_CMNINFO_RX_UNI,
-	ODM_CMNINFO_WM_MODE,				/*  enum odm_wireless_mode */
-	ODM_CMNINFO_BAND,					/*  enum odm_band_type */
-	ODM_CMNINFO_SEC_CHNL_OFFSET,		/*  enum odm_sec_chnl_offset */
-	ODM_CMNINFO_SEC_MODE,				/*  enum odm_security */
-	ODM_CMNINFO_BW,						/*  enum odm_band_width */
-	ODM_CMNINFO_CHNL,
-
-	ODM_CMNINFO_DMSP_GET_VALUE,
-	ODM_CMNINFO_BUDDY_ADAPTOR,
-	ODM_CMNINFO_DMSP_IS_MASTER,
-	ODM_CMNINFO_SCAN,
-	ODM_CMNINFO_POWER_SAVING,
-	ODM_CMNINFO_ONE_PATH_CCA,			/*  enum odm_cca_path */
-	ODM_CMNINFO_DRV_STOP,
-	ODM_CMNINFO_PNP_IN,
-	ODM_CMNINFO_INIT_ON,
-	ODM_CMNINFO_ANT_TEST,
-	ODM_CMNINFO_NET_CLOSED,
 	ODM_CMNINFO_MP_MODE,
 
 	ODM_CMNINFO_WIFI_DIRECT,
@@ -414,10 +391,6 @@ enum odm_ic_type_def {
 	ODM_RTL8812	=	BIT(5),
 	ODM_RTL8821	=	BIT(6),
 };
-
-#define ODM_IC_11N_SERIES			\
-	(ODM_RTL8192S|ODM_RTL8192C|ODM_RTL8192D|ODM_RTL8723A|ODM_RTL8188E)
-#define ODM_IC_11AC_SERIES		(ODM_RTL8812)
 
 /* ODM_CMNINFO_CUT_VER */
 enum odm_cut_version {
@@ -514,15 +487,6 @@ enum odm_sec_chnl_offset {
 	ODM_DONT_CARE		= 0,
 	ODM_BELOW		= 1,
 	ODM_ABOVE		= 2
-};
-
-/*  ODM_CMNINFO_BW */
-enum odm_band_width {
-	ODM_BW20M		= 0,
-	ODM_BW40M		= 1,
-	ODM_BW80M		= 2,
-	ODM_BW160M		= 3,
-	ODM_BW10M		= 4,
 };
 
 /*  ODM_CMNINFO_CHNL */
@@ -705,7 +669,6 @@ struct dm_odm_t {
 
 	bool			bDualMacSmartConcurrent;
 	u32			BK_SupportAbility;
-	u8			AntDivType;
 /* HOOK BEFORE REG INIT----------- */
 
 	/*  */
@@ -717,37 +680,6 @@ struct dm_odm_t {
 	bool			bool_temp;
 	struct rtw_adapter	*PADAPTER_temp;
 
-	/*  MAC PHY Mode SMSP/DMSP/DMDP = 0/1/2 */
-	u8			*pMacPhyMode;
-	/* TX Unicast byte count */
-	u64			*pNumTxBytesUnicast;
-	/* RX Unicast byte count */
-	u64			*pNumRxBytesUnicast;
-	/*  Wireless mode B/G/A/N = BIT0/BIT1/BIT2/BIT3 */
-	u8			*pWirelessMode; /* enum odm_wireless_mode */
-	/*  Frequence band 2.4G/5G = 0/1 */
-	u8			*pBandType;
-	/*  Secondary channel offset don't_care/below/above = 0/1/2 */
-	u8			*pSecChOffset;
-	/*  Security mode Open/WEP/AES/TKIP = 0/1/2/3 */
-	u8			*pSecurity;
-	/*  BW info 20M/40M/80M = 0/1/2 */
-	u8			*pBandWidth;
-	/*  Central channel location Ch1/Ch2/.... */
-	u8			*pChannel;	/* central channel number */
-	/*  Common info for 92D DMSP */
-
-	bool			*pbGetValueFromOtherMac;
-	struct rtw_adapter	**pBuddyAdapter;
-	bool			*pbMasterOfDMSP; /* MAC0: master, MAC1: slave */
-	/*  Common info for Status */
-	bool			*pbScanInProcess;
-	bool			*pbPowerSaving;
-	/*  CCA Path 2-path/path-A/path-B = 0/1/2; using enum odm_cca_path. */
-	u8			*pOnePathCCA;
-	/* pMgntInfo->AntennaTest */
-	u8			*pAntennaTest;
-	bool			*pbNet_closed;
 /*  POINTER REFERENCE----------- */
 	/*  */
 /* CALL BY VALUE------------- */
@@ -804,7 +736,6 @@ struct dm_odm_t {
 	struct false_alarm_stats	FalseAlmCnt;
 	struct false_alarm_stats	FlaseAlmCntBuddyAdapter;
 	struct sw_ant_sw		DM_SWAT_Table;
-	bool		RSSI_test;
 
 	struct edca_turbo		DM_EDCA_Table;
 	u32		WMMEDCA_BE;
@@ -813,16 +744,10 @@ struct dm_odm_t {
 	/*  ================================================== */
 	/*  */
 
-	/* common */
-	bool			*pbDriverStopped;
-	bool			*pbDriverIsGoingToPnpSetPowerSleep;
-	bool			*pinit_adpt_in_progress;
-
 	/* PSD */
 	bool			bUserAssignLevel;
 	u8			RSSI_BT;			/* come from BT */
 	bool			bPSDinProcess;
-	bool			bDMInitialGainEnable;
 
 	/* for rate adaptive, in fact,  88c/92c fw will handle this */
 	u8			bUseRAMask;
@@ -853,14 +778,6 @@ enum odm_rf_content {
 	odm_radiob_txt = 0x1001,
 	odm_radioc_txt = 0x1002,
 	odm_radiod_txt = 0x1003
-};
-
-enum odm_bb_config_type {
-    CONFIG_BB_PHY_REG,
-    CONFIG_BB_AGC_TAB,
-    CONFIG_BB_AGC_TAB_2G,
-    CONFIG_BB_AGC_TAB_5G,
-    CONFIG_BB_PHY_REG_PG,
 };
 
 /*  Status code */
@@ -1013,10 +930,6 @@ extern	u8 CCKSwingTable_Ch1423A [CCK_TABLE_SIZE][8];
 
 
 
-/*  */
-/*  check Sta pointer valid or not */
-/*  */
-#define IS_STA_VALID(pSta)		(pSta)
 /*  20100514 Joseph: Add definition for antenna switching test after link. */
 /*  This indicates two different the steps. */
 /*  In SWAW_STEP_PEAK, driver needs to switch antenna and listen to the signal on the air. */
@@ -1024,6 +937,8 @@ extern	u8 CCKSwingTable_Ch1423A [CCK_TABLE_SIZE][8];
 /*  with original RSSI to determine if it is necessary to switch antenna. */
 #define SWAW_STEP_PEAK		0
 #define SWAW_STEP_DETERMINE	1
+
+struct hal_data_8723a;
 
 void ODM_Write_DIG23a(struct dm_odm_t *pDM_Odm,	u8	CurrentIGI);
 void ODM_Write_CCK_CCA_Thres23a(struct dm_odm_t *pDM_Odm, u8	CurCCK_CCAThres);
@@ -1034,9 +949,6 @@ void ODM_SetAntenna(struct dm_odm_t *pDM_Odm, u8 Antenna);
 #define dm_RF_Saving	ODM_RF_Saving23a
 void ODM_RF_Saving23a(struct dm_odm_t *pDM_Odm, u8 bForceInNormal);
 
-#define SwAntDivRestAfterLink	ODM_SwAntDivRestAfterLink
-void ODM_SwAntDivRestAfterLink(struct dm_odm_t *pDM_Odm);
-
 #define dm_CheckTXPowerTracking		ODM_TXPowerTrackingCheck23a
 void ODM_TXPowerTrackingCheck23a(struct dm_odm_t *pDM_Odm);
 
@@ -1044,26 +956,20 @@ bool ODM_RAStateCheck23a(struct dm_odm_t *pDM_Odm, s32 RSSI, bool bForceUpdate,
 		      u8 *pRATRState);
 
 
-#define dm_SWAW_RSSI_Check	ODM_SwAntDivChkPerPktRssi
-void ODM_SwAntDivChkPerPktRssi(struct dm_odm_t *pDM_Odm, u8 StationID,
-			       struct phy_info *pPhyInfo);
-
 u32 ConvertTo_dB23a(u32 Value);
 
 u32 GetPSDData(struct dm_odm_t *pDM_Odm, unsigned int point, u8 initial_gain_psd);
 
 void odm_DIG23abyRSSI_LPS(struct dm_odm_t *pDM_Odm);
 
-u32 ODM_Get_Rate_Bitmap23a(struct dm_odm_t *pDM_Odm, u32 macid, u32 ra_mask, u8 rssi_level);
+u32 ODM_Get_Rate_Bitmap23a(struct hal_data_8723a *pHalData, u32 macid, u32 ra_mask, u8 rssi_level);
 
 
 void ODM23a_DMInit(struct dm_odm_t *pDM_Odm);
 
-void ODM_DMWatchdog23a(struct dm_odm_t *pDM_Odm); /*  For common use in the future */
+void ODM_DMWatchdog23a(struct rtw_adapter *adapter);
 
 void ODM_CmnInfoInit23a(struct dm_odm_t *pDM_Odm, enum odm_cmninfo	CmnInfo, u32 Value);
-
-void ODM23a_CmnInfoHook(struct dm_odm_t *pDM_Odm, enum odm_cmninfo	CmnInfo, void *pValue);
 
 void ODM_CmnInfoPtrArrayHook23a(struct dm_odm_t *pDM_Odm, enum odm_cmninfo	CmnInfo, u16 Index, void *pValue);
 

@@ -31,6 +31,11 @@
 
 #define PCPU_COUNT_BIAS		(1U << 31)
 
+static unsigned __percpu *pcpu_count_ptr(struct percpu_ref *ref)
+{
+	return (unsigned __percpu *)(ref->pcpu_count_ptr & ~PCPU_REF_DEAD);
+}
+
 /**
  * percpu_ref_init - initialize a percpu refcount
  * @ref: percpu_ref to initialize
@@ -46,8 +51,8 @@ int percpu_ref_init(struct percpu_ref *ref, percpu_ref_func_t *release)
 {
 	atomic_set(&ref->count, 1 + PCPU_COUNT_BIAS);
 
-	ref->pcpu_count = alloc_percpu(unsigned);
-	if (!ref->pcpu_count)
+	ref->pcpu_count_ptr = (unsigned long)alloc_percpu(unsigned);
+	if (!ref->pcpu_count_ptr)
 		return -ENOMEM;
 
 	ref->release = release;
@@ -56,52 +61,70 @@ int percpu_ref_init(struct percpu_ref *ref, percpu_ref_func_t *release)
 EXPORT_SYMBOL_GPL(percpu_ref_init);
 
 /**
- * percpu_ref_cancel_init - cancel percpu_ref_init()
- * @ref: percpu_ref to cancel init for
+ * percpu_ref_reinit - re-initialize a percpu refcount
+ * @ref: perpcu_ref to re-initialize
  *
- * Once a percpu_ref is initialized, its destruction is initiated by
- * percpu_ref_kill() and completes asynchronously, which can be painful to
- * do when destroying a half-constructed object in init failure path.
+ * Re-initialize @ref so that it's in the same state as when it finished
+ * percpu_ref_init().  @ref must have been initialized successfully, killed
+ * and reached 0 but not exited.
  *
- * This function destroys @ref without invoking @ref->release and the
- * memory area containing it can be freed immediately on return.  To
- * prevent accidental misuse, it's required that @ref has finished
- * percpu_ref_init(), whether successful or not, but never used.
- *
- * The weird name and usage restriction are to prevent people from using
- * this function by mistake for normal shutdown instead of
- * percpu_ref_kill().
+ * Note that percpu_ref_tryget[_live]() are safe to perform on @ref while
+ * this function is in progress.
  */
-void percpu_ref_cancel_init(struct percpu_ref *ref)
+void percpu_ref_reinit(struct percpu_ref *ref)
 {
-	unsigned __percpu *pcpu_count = ref->pcpu_count;
+	unsigned __percpu *pcpu_count = pcpu_count_ptr(ref);
 	int cpu;
 
-	WARN_ON_ONCE(atomic_read(&ref->count) != 1 + PCPU_COUNT_BIAS);
+	BUG_ON(!pcpu_count);
+	WARN_ON(!percpu_ref_is_zero(ref));
+
+	atomic_set(&ref->count, 1 + PCPU_COUNT_BIAS);
+
+	/*
+	 * Restore per-cpu operation.  smp_store_release() is paired with
+	 * smp_read_barrier_depends() in __pcpu_ref_alive() and guarantees
+	 * that the zeroing is visible to all percpu accesses which can see
+	 * the following PCPU_REF_DEAD clearing.
+	 */
+	for_each_possible_cpu(cpu)
+		*per_cpu_ptr(pcpu_count, cpu) = 0;
+
+	smp_store_release(&ref->pcpu_count_ptr,
+			  ref->pcpu_count_ptr & ~PCPU_REF_DEAD);
+}
+EXPORT_SYMBOL_GPL(percpu_ref_reinit);
+
+/**
+ * percpu_ref_exit - undo percpu_ref_init()
+ * @ref: percpu_ref to exit
+ *
+ * This function exits @ref.  The caller is responsible for ensuring that
+ * @ref is no longer in active use.  The usual places to invoke this
+ * function from are the @ref->release() callback or in init failure path
+ * where percpu_ref_init() succeeded but other parts of the initialization
+ * of the embedding object failed.
+ */
+void percpu_ref_exit(struct percpu_ref *ref)
+{
+	unsigned __percpu *pcpu_count = pcpu_count_ptr(ref);
 
 	if (pcpu_count) {
-		for_each_possible_cpu(cpu)
-			WARN_ON_ONCE(*per_cpu_ptr(pcpu_count, cpu));
-		free_percpu(ref->pcpu_count);
+		free_percpu(pcpu_count);
+		ref->pcpu_count_ptr = PCPU_REF_DEAD;
 	}
 }
-EXPORT_SYMBOL_GPL(percpu_ref_cancel_init);
+EXPORT_SYMBOL_GPL(percpu_ref_exit);
 
 static void percpu_ref_kill_rcu(struct rcu_head *rcu)
 {
 	struct percpu_ref *ref = container_of(rcu, struct percpu_ref, rcu);
-	unsigned __percpu *pcpu_count = ref->pcpu_count;
+	unsigned __percpu *pcpu_count = pcpu_count_ptr(ref);
 	unsigned count = 0;
 	int cpu;
 
-	/* Mask out PCPU_REF_DEAD */
-	pcpu_count = (unsigned __percpu *)
-		(((unsigned long) pcpu_count) & ~PCPU_STATUS_MASK);
-
 	for_each_possible_cpu(cpu)
 		count += *per_cpu_ptr(pcpu_count, cpu);
-
-	free_percpu(pcpu_count);
 
 	pr_debug("global %i pcpu %i", atomic_read(&ref->count), (int) count);
 
@@ -152,13 +175,28 @@ static void percpu_ref_kill_rcu(struct rcu_head *rcu)
 void percpu_ref_kill_and_confirm(struct percpu_ref *ref,
 				 percpu_ref_func_t *confirm_kill)
 {
-	WARN_ONCE(REF_STATUS(ref->pcpu_count) == PCPU_REF_DEAD,
+	WARN_ONCE(ref->pcpu_count_ptr & PCPU_REF_DEAD,
 		  "percpu_ref_kill() called more than once!\n");
 
-	ref->pcpu_count = (unsigned __percpu *)
-		(((unsigned long) ref->pcpu_count)|PCPU_REF_DEAD);
+	ref->pcpu_count_ptr |= PCPU_REF_DEAD;
 	ref->confirm_kill = confirm_kill;
 
 	call_rcu_sched(&ref->rcu, percpu_ref_kill_rcu);
 }
 EXPORT_SYMBOL_GPL(percpu_ref_kill_and_confirm);
+
+/*
+ * XXX: Temporary kludge to work around SCSI blk-mq stall.  Used only by
+ * block/blk-mq.c::blk_mq_freeze_queue().  Will be removed during v3.18
+ * devel cycle.  Do not use anywhere else.
+ */
+void __percpu_ref_kill_expedited(struct percpu_ref *ref)
+{
+	WARN_ONCE(ref->pcpu_count_ptr & PCPU_REF_DEAD,
+		  "percpu_ref_kill() called more than once on %pf!",
+		  ref->release);
+
+	ref->pcpu_count_ptr |= PCPU_REF_DEAD;
+	synchronize_sched_expedited();
+	percpu_ref_kill_rcu(&ref->rcu);
+}

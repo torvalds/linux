@@ -550,6 +550,7 @@ error_ret:
 static __init int iio_dummy_init(void)
 {
 	int i, ret;
+
 	if (instances > 10) {
 		instances = 1;
 		return -EINVAL;
@@ -577,6 +578,7 @@ module_init(iio_dummy_init);
 static __exit void iio_dummy_exit(void)
 {
 	int i;
+
 	for (i = 0; i < instances; i++)
 		iio_dummy_remove(i);
 	kfree(iio_dummy_devs);

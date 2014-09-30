@@ -19,10 +19,13 @@ Required properties:
 	"st,stih415-plls-c32-ddr",	"st,clkgen-plls-c32"
 	"st,stih416-plls-c32-a9",	"st,clkgen-plls-c32"
 	"st,stih416-plls-c32-ddr",	"st,clkgen-plls-c32"
+	"st,stih407-plls-c32-a0",	"st,clkgen-plls-c32"
+	"st,stih407-plls-c32-a9",	"st,clkgen-plls-c32"
+	"st,stih407-plls-c32-c0_0",	"st,clkgen-plls-c32"
+	"st,stih407-plls-c32-c0_1",	"st,clkgen-plls-c32"
 
 	"st,stih415-gpu-pll-c32",	"st,clkgengpu-pll-c32"
 	"st,stih416-gpu-pll-c32",	"st,clkgengpu-pll-c32"
-
 
 - #clock-cells : From common clock binding; shall be set to 1.
 
@@ -32,17 +35,17 @@ Required properties:
 
 Example:
 
-	clockgenA@fee62000 {
+	clockgen-a@fee62000 {
 		reg = <0xfee62000 0xb48>;
 
-		CLK_S_A0_PLL: CLK_S_A0_PLL {
+		clk_s_a0_pll: clk-s-a0-pll {
 			#clock-cells = <1>;
 			compatible = "st,clkgena-plls-c65";
 
-			clocks = <&CLK_SYSIN>;
+			clocks = <&clk_sysin>;
 
-			clock-output-names = "CLK_S_A0_PLL0_HS",
-					     "CLK_S_A0_PLL0_LS",
-					     "CLK_S_A0_PLL1";
+			clock-output-names = "clk-s-a0-pll0-hs",
+					     "clk-s-a0-pll0-ls",
+					     "clk-s-a0-pll1";
 		};
 	};

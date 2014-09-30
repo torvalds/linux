@@ -1091,7 +1091,6 @@ static int pms_probe(struct device *pdev, unsigned int card)
 	dev->vdev.release = video_device_release_empty;
 	dev->vdev.lock = &dev->lock;
 	dev->vdev.tvnorms = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM;
-	set_bit(V4L2_FL_USE_FH_PRIO, &dev->vdev.flags);
 	video_set_drvdata(&dev->vdev, dev);
 	dev->std = V4L2_STD_NTSC_M;
 	dev->height = 240;

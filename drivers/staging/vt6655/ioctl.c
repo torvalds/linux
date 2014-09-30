@@ -123,13 +123,13 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 			/* write zonetype */
 			if (sZoneTypeCmd.ZoneType == ZoneType_USA) {
 				/* set to USA */
-				printk("set_ZoneType:USA\n");
+				pr_debug("set_ZoneType:USA\n");
 			} else if (sZoneTypeCmd.ZoneType == ZoneType_Japan) {
 				/* set to Japan */
-				printk("set_ZoneType:Japan\n");
+				pr_debug("set_ZoneType:Japan\n");
 			} else if (sZoneTypeCmd.ZoneType == ZoneType_Europe) {
 				/* set to Europe */
-				printk("set_ZoneType:Europe\n");
+				pr_debug("set_ZoneType:Europe\n");
 			}
 		} else {
 			/* read zonetype */
@@ -142,7 +142,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 			} else if (zonetype == 0x02) {	/* Europe */
 				sZoneTypeCmd.ZoneType = ZoneType_Europe;
 			} else {			/* Unknown ZoneType */
-				printk("Error:ZoneType[%x] Unknown ???\n", zonetype);
+				pr_err("Error:ZoneType[%x] Unknown ???\n", zonetype);
 				result = -EFAULT;
 				break;
 			}

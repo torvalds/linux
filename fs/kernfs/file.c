@@ -39,6 +39,19 @@ struct kernfs_open_node {
 	struct list_head	files; /* goes through kernfs_open_file.list */
 };
 
+/*
+ * kernfs_notify() may be called from any context and bounces notifications
+ * through a work item.  To minimize space overhead in kernfs_node, the
+ * pending queue is implemented as a singly linked list of kernfs_nodes.
+ * The list is terminated with the self pointer so that whether a
+ * kernfs_node is on the list or not can be determined by testing the next
+ * pointer for NULL.
+ */
+#define KERNFS_NOTIFY_EOL			((void *)&kernfs_notify_list)
+
+static DEFINE_SPINLOCK(kernfs_notify_lock);
+static struct kernfs_node *kernfs_notify_list = KERNFS_NOTIFY_EOL;
+
 static struct kernfs_open_file *kernfs_of(struct file *file)
 {
 	return ((struct seq_file *)file->private_data)->private;
@@ -783,24 +796,25 @@ static unsigned int kernfs_fop_poll(struct file *filp, poll_table *wait)
 	return DEFAULT_POLLMASK|POLLERR|POLLPRI;
 }
 
-/**
- * kernfs_notify - notify a kernfs file
- * @kn: file to notify
- *
- * Notify @kn such that poll(2) on @kn wakes up.
- */
-void kernfs_notify(struct kernfs_node *kn)
+static void kernfs_notify_workfn(struct work_struct *work)
 {
-	struct kernfs_root *root = kernfs_root(kn);
+	struct kernfs_node *kn;
 	struct kernfs_open_node *on;
 	struct kernfs_super_info *info;
-	unsigned long flags;
-
-	if (WARN_ON(kernfs_type(kn) != KERNFS_FILE))
+repeat:
+	/* pop one off the notify_list */
+	spin_lock_irq(&kernfs_notify_lock);
+	kn = kernfs_notify_list;
+	if (kn == KERNFS_NOTIFY_EOL) {
+		spin_unlock_irq(&kernfs_notify_lock);
 		return;
+	}
+	kernfs_notify_list = kn->attr.notify_next;
+	kn->attr.notify_next = NULL;
+	spin_unlock_irq(&kernfs_notify_lock);
 
 	/* kick poll */
-	spin_lock_irqsave(&kernfs_open_node_lock, flags);
+	spin_lock_irq(&kernfs_open_node_lock);
 
 	on = kn->attr.open;
 	if (on) {
@@ -808,12 +822,12 @@ void kernfs_notify(struct kernfs_node *kn)
 		wake_up_interruptible(&on->poll);
 	}
 
-	spin_unlock_irqrestore(&kernfs_open_node_lock, flags);
+	spin_unlock_irq(&kernfs_open_node_lock);
 
 	/* kick fsnotify */
 	mutex_lock(&kernfs_mutex);
 
-	list_for_each_entry(info, &root->supers, node) {
+	list_for_each_entry(info, &kernfs_root(kn)->supers, node) {
 		struct inode *inode;
 		struct dentry *dentry;
 
@@ -833,6 +847,33 @@ void kernfs_notify(struct kernfs_node *kn)
 	}
 
 	mutex_unlock(&kernfs_mutex);
+	kernfs_put(kn);
+	goto repeat;
+}
+
+/**
+ * kernfs_notify - notify a kernfs file
+ * @kn: file to notify
+ *
+ * Notify @kn such that poll(2) on @kn wakes up.  Maybe be called from any
+ * context.
+ */
+void kernfs_notify(struct kernfs_node *kn)
+{
+	static DECLARE_WORK(kernfs_notify_work, kernfs_notify_workfn);
+	unsigned long flags;
+
+	if (WARN_ON(kernfs_type(kn) != KERNFS_FILE))
+		return;
+
+	spin_lock_irqsave(&kernfs_notify_lock, flags);
+	if (!kn->attr.notify_next) {
+		kernfs_get(kn);
+		kn->attr.notify_next = kernfs_notify_list;
+		kernfs_notify_list = kn;
+		schedule_work(&kernfs_notify_work);
+	}
+	spin_unlock_irqrestore(&kernfs_notify_lock, flags);
 }
 EXPORT_SYMBOL_GPL(kernfs_notify);
 
@@ -855,7 +896,7 @@ const struct file_operations kernfs_file_fops = {
  * @ops: kernfs operations for the file
  * @priv: private data for the file
  * @ns: optional namespace tag of the file
- * @static_name: don't copy file name
+ * @name_is_static: don't copy file name
  * @key: lockdep key for the file's active_ref, %NULL to disable lockdep
  *
  * Returns the created node on success, ERR_PTR() value on error.

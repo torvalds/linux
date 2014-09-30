@@ -248,8 +248,7 @@ static int mcs5000_ts_probe(struct i2c_client *client,
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int mcs5000_ts_suspend(struct device *dev)
+static int __maybe_unused mcs5000_ts_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
@@ -259,7 +258,7 @@ static int mcs5000_ts_suspend(struct device *dev)
 	return 0;
 }
 
-static int mcs5000_ts_resume(struct device *dev)
+static int __maybe_unused mcs5000_ts_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct mcs5000_ts_data *data = i2c_get_clientdata(client);
@@ -269,7 +268,6 @@ static int mcs5000_ts_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(mcs5000_ts_pm, mcs5000_ts_suspend, mcs5000_ts_resume);
 

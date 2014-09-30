@@ -67,6 +67,9 @@
 #define PORTAXICFG			0x000000bc
 #define PORTAXICFG_OUTTRANS_SET(dst, src) \
 		(((dst) & ~0x00f00000) | (((u32)(src) << 0x14) & 0x00f00000))
+#define PORTRANSCFG			0x000000c8
+#define PORTRANSCFG_RXWM_SET(dst, src)		\
+		(((dst) & ~0x0000007f) | (((u32)(src)) & 0x0000007f))
 
 /* SATA host controller AXI CSR */
 #define INT_SLV_TMOMASK			0x00000010
@@ -75,9 +78,13 @@
 #define CFG_MEM_RAM_SHUTDOWN		0x00000070
 #define BLOCK_MEM_RDY			0x00000074
 
+/* Max retry for link down */
+#define MAX_LINK_DOWN_RETRY 3
+
 struct xgene_ahci_context {
 	struct ahci_host_priv *hpriv;
 	struct device *dev;
+	u8 last_cmd[MAX_AHCI_CHN_PERCTR]; /* tracking the last command issued*/
 	void __iomem *csr_core;		/* Core CSR address of IP */
 	void __iomem *csr_diag;		/* Diag CSR address of IP */
 	void __iomem *csr_axi;		/* AXI CSR address of IP */
@@ -98,20 +105,70 @@ static int xgene_ahci_init_memram(struct xgene_ahci_context *ctx)
 }
 
 /**
+ * xgene_ahci_restart_engine - Restart the dma engine.
+ * @ap : ATA port of interest
+ *
+ * Restarts the dma engine inside the controller.
+ */
+static int xgene_ahci_restart_engine(struct ata_port *ap)
+{
+	struct ahci_host_priv *hpriv = ap->host->private_data;
+
+	ahci_stop_engine(ap);
+	ahci_start_fis_rx(ap);
+	hpriv->start_engine(ap);
+
+	return 0;
+}
+
+/**
+ * xgene_ahci_qc_issue - Issue commands to the device
+ * @qc: Command to issue
+ *
+ * Due to Hardware errata for IDENTIFY DEVICE command, the controller cannot
+ * clear the BSY bit after receiving the PIO setup FIS. This results in the dma
+ * state machine goes into the CMFatalErrorUpdate state and locks up. By
+ * restarting the dma engine, it removes the controller out of lock up state.
+ */
+static unsigned int xgene_ahci_qc_issue(struct ata_queued_cmd *qc)
+{
+	struct ata_port *ap = qc->ap;
+	struct ahci_host_priv *hpriv = ap->host->private_data;
+	struct xgene_ahci_context *ctx = hpriv->plat_data;
+	int rc = 0;
+
+	if (unlikely(ctx->last_cmd[ap->port_no] == ATA_CMD_ID_ATA))
+		xgene_ahci_restart_engine(ap);
+
+	rc = ahci_qc_issue(qc);
+
+	/* Save the last command issued */
+	ctx->last_cmd[ap->port_no] = qc->tf.command;
+
+	return rc;
+}
+
+static bool xgene_ahci_is_memram_inited(struct xgene_ahci_context *ctx)
+{
+	void __iomem *diagcsr = ctx->csr_diag;
+
+	return (readl(diagcsr + CFG_MEM_RAM_SHUTDOWN) == 0 &&
+	        readl(diagcsr + BLOCK_MEM_RDY) == 0xFFFFFFFF);
+}
+
+/**
  * xgene_ahci_read_id - Read ID data from the specified device
  * @dev: device
  * @tf: proposed taskfile
  * @id: data buffer
  *
  * This custom read ID function is required due to the fact that the HW
- * does not support DEVSLP and the controller state machine may get stuck
- * after processing the ID query command.
+ * does not support DEVSLP.
  */
 static unsigned int xgene_ahci_read_id(struct ata_device *dev,
 				       struct ata_taskfile *tf, u16 *id)
 {
 	u32 err_mask;
-	void __iomem *port_mmio = ahci_port_base(dev->link->ap);
 
 	err_mask = ata_do_dev_read_id(dev, tf, id);
 	if (err_mask)
@@ -133,16 +190,6 @@ static unsigned int xgene_ahci_read_id(struct ata_device *dev,
 	 */
 	id[ATA_ID_FEATURE_SUPP] &= ~(1 << 8);
 
-	/*
-	 * Due to HW errata, restart the port if no other command active.
-	 * Otherwise the controller may get stuck.
-	 */
-	if (!readl(port_mmio + PORT_CMD_ISSUE)) {
-		writel(PORT_CMD_FIS_RX, port_mmio + PORT_CMD);
-		readl(port_mmio + PORT_CMD);	/* Force a barrier */
-		writel(PORT_CMD_FIS_RX | PORT_CMD_START, port_mmio + PORT_CMD);
-		readl(port_mmio + PORT_CMD);	/* Force a barrier */
-	}
 	return 0;
 }
 
@@ -160,11 +207,11 @@ static void xgene_ahci_set_phy_cfg(struct xgene_ahci_context *ctx, int channel)
 	/* Disable fix rate */
 	writel(0x0001fffe, mmio + PORTPHY1CFG);
 	readl(mmio + PORTPHY1CFG); /* Force a barrier */
-	writel(0x5018461c, mmio + PORTPHY2CFG);
+	writel(0x28183219, mmio + PORTPHY2CFG);
 	readl(mmio + PORTPHY2CFG); /* Force a barrier */
-	writel(0x1c081907, mmio + PORTPHY3CFG);
+	writel(0x13081008, mmio + PORTPHY3CFG);
 	readl(mmio + PORTPHY3CFG); /* Force a barrier */
-	writel(0x1c080815, mmio + PORTPHY4CFG);
+	writel(0x00480815, mmio + PORTPHY4CFG);
 	readl(mmio + PORTPHY4CFG); /* Force a barrier */
 	/* Set window negotiation */
 	val = readl(mmio + PORTPHY5CFG);
@@ -176,6 +223,10 @@ static void xgene_ahci_set_phy_cfg(struct xgene_ahci_context *ctx, int channel)
 	val = PORTAXICFG_OUTTRANS_SET(val, 0xe); /* Set outstanding */
 	writel(val, mmio + PORTAXICFG);
 	readl(mmio + PORTAXICFG); /* Force a barrier */
+	/* Set the watermark threshold of the receive FIFO */
+	val = readl(mmio + PORTRANSCFG);
+	val = PORTRANSCFG_RXWM_SET(val, 0x30);
+	writel(val, mmio + PORTRANSCFG);
 }
 
 /**
@@ -189,8 +240,11 @@ static void xgene_ahci_set_phy_cfg(struct xgene_ahci_context *ctx, int channel)
  * and Gen1 (1.5Gbps). Otherwise during long IO stress test, the PHY will
  * report disparity error and etc. In addition, during COMRESET, there can
  * be error reported in the register PORT_SCR_ERR. For SERR_DISPARITY and
- * SERR_10B_8B_ERR, the PHY receiver line must be reseted. The following
- * algorithm is followed to proper configure the hardware PHY during COMRESET:
+ * SERR_10B_8B_ERR, the PHY receiver line must be reseted. Also during long
+ * reboot cycle regression, sometimes the PHY reports link down even if the
+ * device is present because of speed negotiation failure. so need to retry
+ * the COMRESET to get the link up. The following algorithm is followed to
+ * proper configure the hardware PHY during COMRESET:
  *
  * Alg Part 1:
  * 1. Start the PHY at Gen3 speed (default setting)
@@ -206,9 +260,15 @@ static void xgene_ahci_set_phy_cfg(struct xgene_ahci_context *ctx, int channel)
  * Alg Part 2:
  * 1. On link up, if there are any SERR_DISPARITY and SERR_10B_8B_ERR error
  *    reported in the register PORT_SCR_ERR, then reset the PHY receiver line
- * 2. Go to Alg Part 3
+ * 2. Go to Alg Part 4
  *
  * Alg Part 3:
+ * 1. Check the PORT_SCR_STAT to see whether device presence detected but PHY
+ *    communication establishment failed and maximum link down attempts are
+ *    less than Max attempts 3 then goto Alg Part 1.
+ * 2. Go to Alg Part 4.
+ *
+ * Alg Part 4:
  * 1. Clear any pending from register PORT_SCR_ERR.
  *
  * NOTE: For the initial version, we will NOT support Gen1/Gen2. In addition
@@ -227,19 +287,27 @@ static int xgene_ahci_do_hardreset(struct ata_link *link,
 	u8 *d2h_fis = pp->rx_fis + RX_FIS_D2H_REG;
 	void __iomem *port_mmio = ahci_port_base(ap);
 	struct ata_taskfile tf;
+	int link_down_retry = 0;
 	int rc;
-	u32 val;
+	u32 val, sstatus;
 
-	/* clear D2H reception area to properly wait for D2H FIS */
-	ata_tf_init(link->device, &tf);
-	tf.command = ATA_BUSY;
-	ata_tf_to_fis(&tf, 0, 0, d2h_fis);
-	rc = sata_link_hardreset(link, timing, deadline, online,
+	do {
+		/* clear D2H reception area to properly wait for D2H FIS */
+		ata_tf_init(link->device, &tf);
+		tf.command = ATA_BUSY;
+		ata_tf_to_fis(&tf, 0, 0, d2h_fis);
+		rc = sata_link_hardreset(link, timing, deadline, online,
 				 ahci_check_ready);
+		if (*online) {
+			val = readl(port_mmio + PORT_SCR_ERR);
+			if (val & (SERR_DISPARITY | SERR_10B_8B_ERR))
+				dev_warn(ctx->dev, "link has error\n");
+			break;
+		}
 
-	val = readl(port_mmio + PORT_SCR_ERR);
-	if (val & (SERR_DISPARITY | SERR_10B_8B_ERR))
-		dev_warn(ctx->dev, "link has error\n");
+		sata_scr_read(link, SCR_STATUS, &sstatus);
+	} while (link_down_retry++ < MAX_LINK_DOWN_RETRY &&
+		 (sstatus & 0xff) == 0x1);
 
 	/* clear all errors if any pending */
 	val = readl(port_mmio + PORT_SCR_ERR);
@@ -300,10 +368,11 @@ static struct ata_port_operations xgene_ahci_ops = {
 	.host_stop = xgene_ahci_host_stop,
 	.hardreset = xgene_ahci_hardreset,
 	.read_id = xgene_ahci_read_id,
+	.qc_issue = xgene_ahci_qc_issue,
 };
 
 static const struct ata_port_info xgene_ahci_port_info = {
-	.flags = AHCI_FLAG_COMMON | ATA_FLAG_NCQ,
+	.flags = AHCI_FLAG_COMMON,
 	.pio_mask = ATA_PIO4,
 	.udma_mask = ATA_UDMA6,
 	.port_ops = &xgene_ahci_ops,
@@ -381,7 +450,6 @@ static int xgene_ahci_probe(struct platform_device *pdev)
 	struct ahci_host_priv *hpriv;
 	struct xgene_ahci_context *ctx;
 	struct resource *res;
-	unsigned long hflags;
 	int rc;
 
 	hpriv = ahci_platform_get_resources(pdev);
@@ -427,6 +495,11 @@ static int xgene_ahci_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	if (xgene_ahci_is_memram_inited(ctx)) {
+		dev_info(dev, "skip clock and PHY initialization\n");
+		goto skip_clk_phy;
+	}
+
 	/* Due to errata, HW requires full toggle transition */
 	rc = ahci_platform_enable_clks(hpriv);
 	if (rc)
@@ -439,21 +512,10 @@ static int xgene_ahci_probe(struct platform_device *pdev)
 
 	/* Configure the host controller */
 	xgene_ahci_hw_init(hpriv);
+skip_clk_phy:
+	hpriv->flags = AHCI_HFLAG_NO_PMP | AHCI_HFLAG_NO_NCQ;
 
-	/*
-	 * Setup DMA mask. This is preliminary until the DMA range is sorted
-	 * out.
-	 */
-	rc = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
-	if (rc) {
-		dev_err(dev, "Unable to set dma mask\n");
-		goto disable_resources;
-	}
-
-	hflags = AHCI_HFLAG_NO_PMP | AHCI_HFLAG_YES_NCQ;
-
-	rc = ahci_platform_init_host(pdev, hpriv, &xgene_ahci_port_info,
-				     hflags, 0, 0);
+	rc = ahci_platform_init_host(pdev, hpriv, &xgene_ahci_port_info);
 	if (rc)
 		goto disable_resources;
 

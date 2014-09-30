@@ -15,8 +15,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 
-
-#include <mach/map.h>
+#include <plat/map-base.h>
 #include <plat/cpu.h>
 
 unsigned long samsung_cpu_id;

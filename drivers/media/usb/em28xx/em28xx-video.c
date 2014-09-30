@@ -1227,8 +1227,7 @@ static void scale_to_size(struct em28xx *dev,
 static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
-	struct em28xx_fh      *fh  = priv;
-	struct em28xx         *dev = fh->dev;
+	struct em28xx         *dev = video_drvdata(file);
 	struct em28xx_v4l2    *v4l2 = dev->v4l2;
 
 	f->fmt.pix.width = v4l2->width;
@@ -1261,8 +1260,7 @@ static struct em28xx_fmt *format_by_fourcc(unsigned int fourcc)
 static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 			struct v4l2_format *f)
 {
-	struct em28xx_fh      *fh    = priv;
-	struct em28xx         *dev   = fh->dev;
+	struct em28xx         *dev   = video_drvdata(file);
 	struct em28xx_v4l2    *v4l2  = dev->v4l2;
 	unsigned int          width  = f->fmt.pix.width;
 	unsigned int          height = f->fmt.pix.height;
@@ -1344,7 +1342,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	struct em28xx *dev = video_drvdata(file);
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 
-	if (v4l2->streaming_users > 0)
+	if (vb2_is_busy(&v4l2->vb_vidq))
 		return -EBUSY;
 
 	vidioc_try_fmt_vid_cap(file, priv, f);
@@ -1355,8 +1353,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 
 static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *norm)
 {
-	struct em28xx_fh   *fh  = priv;
-	struct em28xx      *dev = fh->dev;
+	struct em28xx *dev = video_drvdata(file);
 
 	*norm = dev->v4l2->norm;
 
@@ -1365,8 +1362,7 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *norm)
 
 static int vidioc_querystd(struct file *file, void *priv, v4l2_std_id *norm)
 {
-	struct em28xx_fh   *fh  = priv;
-	struct em28xx      *dev = fh->dev;
+	struct em28xx *dev = video_drvdata(file);
 
 	v4l2_device_call_all(&dev->v4l2->v4l2_dev, 0, video, querystd, norm);
 
@@ -1375,8 +1371,7 @@ static int vidioc_querystd(struct file *file, void *priv, v4l2_std_id *norm)
 
 static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 {
-	struct em28xx_fh   *fh   = priv;
-	struct em28xx      *dev  = fh->dev;
+	struct em28xx      *dev  = video_drvdata(file);
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 	struct v4l2_format f;
 
@@ -1408,8 +1403,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 static int vidioc_g_parm(struct file *file, void *priv,
 			 struct v4l2_streamparm *p)
 {
-	struct em28xx_fh   *fh   = priv;
-	struct em28xx      *dev  = fh->dev;
+	struct em28xx      *dev  = video_drvdata(file);
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 	int rc = 0;
 
@@ -1427,8 +1421,7 @@ static int vidioc_g_parm(struct file *file, void *priv,
 static int vidioc_s_parm(struct file *file, void *priv,
 			 struct v4l2_streamparm *p)
 {
-	struct em28xx_fh   *fh  = priv;
-	struct em28xx      *dev = fh->dev;
+	struct em28xx *dev = video_drvdata(file);
 
 	p->parm.capture.readbuffers = EM28XX_MIN_BUF;
 	return v4l2_device_call_until_err(&dev->v4l2->v4l2_dev,
@@ -1450,8 +1443,7 @@ static const char *iname[] = {
 static int vidioc_enum_input(struct file *file, void *priv,
 				struct v4l2_input *i)
 {
-	struct em28xx_fh   *fh  = priv;
-	struct em28xx      *dev = fh->dev;
+	struct em28xx *dev = video_drvdata(file);
 	unsigned int       n;
 
 	n = i->index;
@@ -1479,8 +1471,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 
 static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 {
-	struct em28xx_fh   *fh  = priv;
-	struct em28xx      *dev = fh->dev;
+	struct em28xx *dev = video_drvdata(file);
 
 	*i = dev->ctl_input;
 
@@ -1489,8 +1480,7 @@ static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 
 static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 {
-	struct em28xx_fh   *fh  = priv;
-	struct em28xx      *dev = fh->dev;
+	struct em28xx *dev = video_drvdata(file);
 
 	if (i >= MAX_EM28XX_INPUT)
 		return -EINVAL;
@@ -1503,8 +1493,7 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 
 static int vidioc_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
 {
-	struct em28xx_fh   *fh    = priv;
-	struct em28xx      *dev   = fh->dev;
+	struct em28xx *dev = video_drvdata(file);
 
 	switch (a->index) {
 	case EM28XX_AMUX_VIDEO:
@@ -1543,8 +1532,7 @@ static int vidioc_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
 
 static int vidioc_s_audio(struct file *file, void *priv, const struct v4l2_audio *a)
 {
-	struct em28xx_fh   *fh  = priv;
-	struct em28xx      *dev = fh->dev;
+	struct em28xx *dev = video_drvdata(file);
 
 	if (a->index >= MAX_EM28XX_INPUT)
 		return -EINVAL;
@@ -1563,8 +1551,7 @@ static int vidioc_s_audio(struct file *file, void *priv, const struct v4l2_audio
 static int vidioc_g_tuner(struct file *file, void *priv,
 				struct v4l2_tuner *t)
 {
-	struct em28xx_fh      *fh  = priv;
-	struct em28xx         *dev = fh->dev;
+	struct em28xx *dev = video_drvdata(file);
 
 	if (0 != t->index)
 		return -EINVAL;
@@ -1578,8 +1565,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 static int vidioc_s_tuner(struct file *file, void *priv,
 				const struct v4l2_tuner *t)
 {
-	struct em28xx_fh      *fh  = priv;
-	struct em28xx         *dev = fh->dev;
+	struct em28xx *dev = video_drvdata(file);
 
 	if (0 != t->index)
 		return -EINVAL;
@@ -1591,8 +1577,7 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 static int vidioc_g_frequency(struct file *file, void *priv,
 				struct v4l2_frequency *f)
 {
-	struct em28xx_fh      *fh  = priv;
-	struct em28xx         *dev = fh->dev;
+	struct em28xx         *dev = video_drvdata(file);
 	struct em28xx_v4l2    *v4l2 = dev->v4l2;
 
 	if (0 != f->tuner)
@@ -1606,8 +1591,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 				const struct v4l2_frequency *f)
 {
 	struct v4l2_frequency  new_freq = *f;
-	struct em28xx_fh          *fh   = priv;
-	struct em28xx             *dev  = fh->dev;
+	struct em28xx             *dev  = video_drvdata(file);
 	struct em28xx_v4l2        *v4l2 = dev->v4l2;
 
 	if (0 != f->tuner)
@@ -1624,8 +1608,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 static int vidioc_g_chip_info(struct file *file, void *priv,
 	       struct v4l2_dbg_chip_info *chip)
 {
-	struct em28xx_fh      *fh  = priv;
-	struct em28xx         *dev = fh->dev;
+	struct em28xx *dev = video_drvdata(file);
 
 	if (chip->match.addr > 1)
 		return -EINVAL;
@@ -1652,8 +1635,7 @@ static int em28xx_reg_len(int reg)
 static int vidioc_g_register(struct file *file, void *priv,
 			     struct v4l2_dbg_register *reg)
 {
-	struct em28xx_fh      *fh  = priv;
-	struct em28xx         *dev = fh->dev;
+	struct em28xx *dev = video_drvdata(file);
 	int ret;
 
 	if (reg->match.addr > 1)
@@ -1693,8 +1675,7 @@ static int vidioc_g_register(struct file *file, void *priv,
 static int vidioc_s_register(struct file *file, void *priv,
 			     const struct v4l2_dbg_register *reg)
 {
-	struct em28xx_fh      *fh  = priv;
-	struct em28xx         *dev = fh->dev;
+	struct em28xx *dev = video_drvdata(file);
 	__le16 buf;
 
 	if (reg->match.addr > 1)
@@ -1715,8 +1696,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 					struct v4l2_capability *cap)
 {
 	struct video_device   *vdev = video_devdata(file);
-	struct em28xx_fh      *fh   = priv;
-	struct em28xx         *dev  = fh->dev;
+	struct em28xx         *dev  = video_drvdata(file);
 	struct em28xx_v4l2    *v4l2 = dev->v4l2;
 
 	strlcpy(cap->driver, "em28xx", sizeof(cap->driver));
@@ -1761,8 +1741,7 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 static int vidioc_enum_framesizes(struct file *file, void *priv,
 				  struct v4l2_frmsizeenum *fsize)
 {
-	struct em28xx_fh      *fh  = priv;
-	struct em28xx         *dev = fh->dev;
+	struct em28xx         *dev = video_drvdata(file);
 	struct em28xx_fmt     *fmt;
 	unsigned int	      maxw = norm_maxw(dev);
 	unsigned int	      maxh = norm_maxh(dev);
@@ -1806,8 +1785,7 @@ static int vidioc_enum_framesizes(struct file *file, void *priv,
 static int vidioc_g_fmt_vbi_cap(struct file *file, void *priv,
 				struct v4l2_format *format)
 {
-	struct em28xx_fh      *fh   = priv;
-	struct em28xx         *dev  = fh->dev;
+	struct em28xx         *dev  = video_drvdata(file);
 	struct em28xx_v4l2    *v4l2 = dev->v4l2;
 
 	format->fmt.vbi.samples_per_line = v4l2->vbi_width;
@@ -1840,7 +1818,7 @@ static int vidioc_g_fmt_vbi_cap(struct file *file, void *priv,
 static int radio_g_tuner(struct file *file, void *priv,
 			 struct v4l2_tuner *t)
 {
-	struct em28xx *dev = ((struct em28xx_fh *)priv)->dev;
+	struct em28xx *dev = video_drvdata(file);
 
 	if (unlikely(t->index > 0))
 		return -EINVAL;
@@ -1855,7 +1833,7 @@ static int radio_g_tuner(struct file *file, void *priv,
 static int radio_s_tuner(struct file *file, void *priv,
 			 const struct v4l2_tuner *t)
 {
-	struct em28xx *dev = ((struct em28xx_fh *)priv)->dev;
+	struct em28xx *dev = video_drvdata(file);
 
 	if (0 != t->index)
 		return -EINVAL;
@@ -1890,7 +1868,7 @@ static int em28xx_v4l2_open(struct file *filp)
 	struct em28xx *dev = video_drvdata(filp);
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 	enum v4l2_buf_type fh_type = 0;
-	struct em28xx_fh *fh;
+	int ret;
 
 	switch (vdev->vfl_type) {
 	case VFL_TYPE_GRABBER:
@@ -1911,16 +1889,14 @@ static int em28xx_v4l2_open(struct file *filp)
 
 	if (mutex_lock_interruptible(&dev->lock))
 		return -ERESTARTSYS;
-	fh = kzalloc(sizeof(struct em28xx_fh), GFP_KERNEL);
-	if (!fh) {
-		em28xx_errdev("em28xx-video.c: Out of memory?!\n");
+
+	ret = v4l2_fh_open(filp);
+	if (ret) {
+		em28xx_errdev("%s: v4l2_fh_open() returned error %d\n",
+			      __func__, ret);
 		mutex_unlock(&dev->lock);
-		return -ENOMEM;
+		return ret;
 	}
-	v4l2_fh_init(&fh->fh, vdev);
-	fh->dev = dev;
-	fh->type = fh_type;
-	filp->private_data = fh;
 
 	if (v4l2->users == 0) {
 		em28xx_set_mode(dev, EM28XX_ANALOG_MODE);
@@ -1945,7 +1921,6 @@ static int em28xx_v4l2_open(struct file *filp)
 	v4l2->users++;
 
 	mutex_unlock(&dev->lock);
-	v4l2_fh_add(&fh->fh);
 
 	return 0;
 }
@@ -2046,8 +2021,7 @@ static int em28xx_v4l2_resume(struct em28xx *dev)
  */
 static int em28xx_v4l2_close(struct file *filp)
 {
-	struct em28xx_fh      *fh   = filp->private_data;
-	struct em28xx         *dev  = fh->dev;
+	struct em28xx         *dev  = video_drvdata(filp);
 	struct em28xx_v4l2    *v4l2 = dev->v4l2;
 	int              errCode;
 
@@ -2208,7 +2182,6 @@ static struct video_device *em28xx_vdev_init(struct em28xx *dev,
 	vfd->v4l2_dev	= &dev->v4l2->v4l2_dev;
 	vfd->debug	= video_debug;
 	vfd->lock	= &dev->lock;
-	set_bit(V4L2_FL_USE_FH_PRIO, &vfd->flags);
 	if (dev->board.is_webcam)
 		vfd->tvnorms = 0;
 
@@ -2552,7 +2525,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 		v4l2->vbi_dev->queue->lock = &v4l2->vb_vbi_queue_lock;
 
 		/* disable inapplicable ioctls */
-		v4l2_disable_ioctl(v4l2->vdev, VIDIOC_S_PARM);
+		v4l2_disable_ioctl(v4l2->vbi_dev, VIDIOC_S_PARM);
 		if (dev->tuner_type == TUNER_ABSENT) {
 			v4l2_disable_ioctl(v4l2->vbi_dev, VIDIOC_G_TUNER);
 			v4l2_disable_ioctl(v4l2->vbi_dev, VIDIOC_S_TUNER);

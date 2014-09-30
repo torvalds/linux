@@ -36,8 +36,8 @@
 #define FW_FS			"ramdisk.jffs2"
 
 struct dn_header {
-	u32	magic_num;
-	u32	file_size;
+	__be32	magic_num;
+	__be32	file_size;
 };
 
 struct img_header {
@@ -69,7 +69,7 @@ static void array_le32_to_cpu(u32 *arr, int num)
 	int i;
 
 	for (i = 0; i < num; i++, arr++)
-		*arr = __le32_to_cpu(*arr);
+		le32_to_cpus(arr);
 }
 
 static u8 *tx_buf;
@@ -115,8 +115,8 @@ static int download_image(struct usb_device *usbdev,
 	u32 size;
 
 	size = ALIGN(img_len, DOWNLOAD_SIZE);
-	h.magic_num = __cpu_to_be32(magic_num);
-	h.file_size = __cpu_to_be32(size);
+	h.magic_num = cpu_to_be32(magic_num);
+	h.file_size = cpu_to_be32(size);
 
 	ret = gdm_wibro_send(usbdev, &h, sizeof(h));
 	if (ret < 0)

@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2013 Intel Corporation.
+  Copyright(c) 1999 - 2014 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -245,10 +245,10 @@ static int ixgbe_pci_sriov_enable(struct pci_dev *dev, int num_vfs)
 	if (pre_existing_vfs && pre_existing_vfs != num_vfs)
 		err = ixgbe_disable_sriov(adapter);
 	else if (pre_existing_vfs && pre_existing_vfs == num_vfs)
-		goto out;
+		return num_vfs;
 
 	if (err)
-		goto err_out;
+		return err;
 
 	/* While the SR-IOV capability structure reports total VFs to be
 	 * 64 we limit the actual number that can be allocated to 63 so
@@ -256,16 +256,14 @@ static int ixgbe_pci_sriov_enable(struct pci_dev *dev, int num_vfs)
 	 * PF.  The PCI bus driver already checks for other values out of
 	 * range.
 	 */
-	if (num_vfs > IXGBE_MAX_VFS_DRV_LIMIT) {
-		err = -EPERM;
-		goto err_out;
-	}
+	if (num_vfs > IXGBE_MAX_VFS_DRV_LIMIT)
+		return -EPERM;
 
 	adapter->num_vfs = num_vfs;
 
 	err = __ixgbe_enable_sriov(adapter);
 	if (err)
-		goto err_out;
+		return  err;
 
 	for (i = 0; i < adapter->num_vfs; i++)
 		ixgbe_vf_configuration(dev, (i | 0x10000000));
@@ -273,17 +271,14 @@ static int ixgbe_pci_sriov_enable(struct pci_dev *dev, int num_vfs)
 	err = pci_enable_sriov(dev, num_vfs);
 	if (err) {
 		e_dev_warn("Failed to enable PCI sriov: %d\n", err);
-		goto err_out;
+		return err;
 	}
 	ixgbe_sriov_reinit(adapter);
 
-out:
 	return num_vfs;
-
-err_out:
-	return err;
-#endif
+#else
 	return 0;
+#endif
 }
 
 static int ixgbe_pci_sriov_disable(struct pci_dev *dev)
@@ -807,7 +802,7 @@ static int ixgbe_set_vf_vlan_msg(struct ixgbe_adapter *adapter,
 	if (!add && adapter->netdev->flags & IFF_PROMISC) {
 		reg_ndx = ixgbe_find_vlvf_entry(hw, vid);
 		if (reg_ndx < 0)
-			goto out;
+			return err;
 		vlvf = IXGBE_READ_REG(hw, IXGBE_VLVF(reg_ndx));
 		/* See if any other pools are set for this VLAN filter
 		 * entry other than the PF.
@@ -832,8 +827,6 @@ static int ixgbe_set_vf_vlan_msg(struct ixgbe_adapter *adapter,
 		    !test_bit(vid, adapter->active_vlans) && !bits)
 			ixgbe_set_vf_vlan(adapter, add, vid, VMDQ_P(0));
 	}
-
-out:
 
 	return err;
 }
@@ -951,7 +944,7 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 
 	/* this is a message we already processed, do nothing */
 	if (msgbuf[0] & (IXGBE_VT_MSGTYPE_ACK | IXGBE_VT_MSGTYPE_NACK))
-		return retval;
+		return 0;
 
 	/* flush the ack before we write any messages back */
 	IXGBE_WRITE_FLUSH(hw);
@@ -966,7 +959,7 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 	if (!adapter->vfinfo[vf].clear_to_send) {
 		msgbuf[0] |= IXGBE_VT_MSGTYPE_NACK;
 		ixgbe_write_mbx(hw, msgbuf, 1, vf);
-		return retval;
+		return 0;
 	}
 
 	switch ((msgbuf[0] & 0xFFFF)) {

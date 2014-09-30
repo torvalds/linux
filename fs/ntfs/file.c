@@ -74,8 +74,6 @@ static int ntfs_file_open(struct inode *vi, struct file *filp)
  * ntfs_attr_extend_initialized - extend the initialized size of an attribute
  * @ni:			ntfs inode of the attribute to extend
  * @new_init_size:	requested new initialized size in bytes
- * @cached_page:	store any allocated but unused page here
- * @lru_pvec:		lru-buffering pagevec of the caller
  *
  * Extend the initialized size of an attribute described by the ntfs inode @ni
  * to @new_init_size bytes.  This involves zeroing any non-sparse space between
@@ -395,7 +393,6 @@ static inline void ntfs_fault_in_pages_readable_iovec(const struct iovec *iov,
  * @nr_pages:	number of page cache pages to obtain
  * @pages:	array of pages in which to return the obtained page cache pages
  * @cached_page: allocated but as yet unused page
- * @lru_pvec:	lru-buffering pagevec of caller
  *
  * Obtain @nr_pages locked page cache pages from the mapping @mapping and
  * starting at index @index.

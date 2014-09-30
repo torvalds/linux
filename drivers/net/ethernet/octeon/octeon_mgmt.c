@@ -247,28 +247,6 @@ static void octeon_mgmt_rx_fill_ring(struct net_device *netdev)
 	}
 }
 
-static ktime_t ptp_to_ktime(u64 ptptime)
-{
-	ktime_t ktimebase;
-	u64 ptpbase;
-	unsigned long flags;
-
-	local_irq_save(flags);
-	/* Fill the icache with the code */
-	ktime_get_real();
-	/* Flush all pending operations */
-	mb();
-	/* Read the time and PTP clock as close together as
-	 * possible. It is important that this sequence take the same
-	 * amount of time to reduce jitter
-	 */
-	ktimebase = ktime_get_real();
-	ptpbase = cvmx_read_csr(CVMX_MIO_PTP_CLOCK_HI);
-	local_irq_restore(flags);
-
-	return ktime_sub_ns(ktimebase, ptpbase - ptptime);
-}
-
 static void octeon_mgmt_clean_tx_buffers(struct octeon_mgmt *p)
 {
 	union cvmx_mixx_orcnt mix_orcnt;
@@ -312,12 +290,14 @@ static void octeon_mgmt_clean_tx_buffers(struct octeon_mgmt *p)
 		/* Read the hardware TX timestamp if one was recorded */
 		if (unlikely(re.s.tstamp)) {
 			struct skb_shared_hwtstamps ts;
+			u64 ns;
+
+			memset(&ts, 0, sizeof(ts));
 			/* Read the timestamp */
-			u64 ns = cvmx_read_csr(CVMX_MIXX_TSTAMP(p->port));
+			ns = cvmx_read_csr(CVMX_MIXX_TSTAMP(p->port));
 			/* Remove the timestamp from the FIFO */
 			cvmx_write_csr(CVMX_MIXX_TSCTL(p->port), 0);
 			/* Tell the kernel about the timestamp */
-			ts.syststamp = ptp_to_ktime(ns);
 			ts.hwtstamp = ns_to_ktime(ns);
 			skb_tstamp_tx(skb, &ts);
 		}
@@ -429,7 +409,6 @@ good:
 			struct skb_shared_hwtstamps *ts;
 			ts = skb_hwtstamps(skb);
 			ts->hwtstamp = ns_to_ktime(ns);
-			ts->syststamp = ptp_to_ktime(ns);
 			__skb_pull(skb, 8);
 		}
 		skb->protocol = eth_type_trans(skb, netdev);

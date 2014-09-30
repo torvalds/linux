@@ -56,6 +56,11 @@ bcm47xx_buttons_asus_wl330ge[] __initconst = {
 };
 
 static const struct gpio_keys_button
+bcm47xx_buttons_asus_wl500g[] __initconst = {
+	BCM47XX_GPIO_KEY(6, KEY_RESTART),
+};
+
+static const struct gpio_keys_button
 bcm47xx_buttons_asus_wl500gd[] __initconst = {
 	BCM47XX_GPIO_KEY(6, KEY_RESTART),
 };
@@ -265,7 +270,7 @@ bcm47xx_buttons_linksys_wrt54g3gv2[] __initconst = {
 };
 
 static const struct gpio_keys_button
-bcm47xx_buttons_linksys_wrt54gsv1[] __initconst = {
+bcm47xx_buttons_linksys_wrt54g_generic[] __initconst = {
 	BCM47XX_GPIO_KEY(4, KEY_WPS_BUTTON),
 	BCM47XX_GPIO_KEY(6, KEY_RESTART),
 };
@@ -286,6 +291,13 @@ static const struct gpio_keys_button
 bcm47xx_buttons_linksys_wrtsl54gs[] __initconst = {
 	BCM47XX_GPIO_KEY(4, KEY_WPS_BUTTON),
 	BCM47XX_GPIO_KEY(6, KEY_RESTART),
+};
+
+/* Microsoft */
+
+static const struct gpio_keys_button
+bcm47xx_buttons_microsoft_nm700[] __initconst = {
+	BCM47XX_GPIO_KEY(7, KEY_RESTART),
 };
 
 /* Motorola */
@@ -326,6 +338,12 @@ bcm47xx_buttons_netgear_wndr4500v1[] __initconst = {
 	BCM47XX_GPIO_KEY(4, KEY_WPS_BUTTON),
 	BCM47XX_GPIO_KEY(5, KEY_RFKILL),
 	BCM47XX_GPIO_KEY(6, KEY_RESTART),
+};
+
+static const struct gpio_keys_button
+bcm47xx_buttons_netgear_wnr3500lv1[] __initconst = {
+	BCM47XX_GPIO_KEY(4, KEY_RESTART),
+	BCM47XX_GPIO_KEY(6, KEY_WPS_BUTTON),
 };
 
 static const struct gpio_keys_button
@@ -394,6 +412,9 @@ int __init bcm47xx_buttons_register(void)
 		break;
 	case BCM47XX_BOARD_ASUS_WL330GE:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_asus_wl330ge);
+		break;
+	case BCM47XX_BOARD_ASUS_WL500G:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_asus_wl500g);
 		break;
 	case BCM47XX_BOARD_ASUS_WL500GD:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_asus_wl500gd);
@@ -501,11 +522,13 @@ int __init bcm47xx_buttons_register(void)
 	case BCM47XX_BOARD_LINKSYS_WRT310NV1:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_wrt310nv1);
 		break;
-	case BCM47XX_BOARD_LINKSYS_WRT54G:
-		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_wrt54gsv1);
-		break;
 	case BCM47XX_BOARD_LINKSYS_WRT54G3GV2:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_wrt54g3gv2);
+		break;
+	case BCM47XX_BOARD_LINKSYS_WRT54G_TYPE_0101:
+	case BCM47XX_BOARD_LINKSYS_WRT54G_TYPE_0467:
+	case BCM47XX_BOARD_LINKSYS_WRT54G_TYPE_0708:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_wrt54g_generic);
 		break;
 	case BCM47XX_BOARD_LINKSYS_WRT610NV1:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_wrt610nv1);
@@ -515,6 +538,10 @@ int __init bcm47xx_buttons_register(void)
 		break;
 	case BCM47XX_BOARD_LINKSYS_WRTSL54GS:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_linksys_wrtsl54gs);
+		break;
+
+	case BCM47XX_BOARD_MICROSOFT_MN700:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_microsoft_nm700);
 		break;
 
 	case BCM47XX_BOARD_MOTOROLA_WE800G:
@@ -535,6 +562,9 @@ int __init bcm47xx_buttons_register(void)
 		break;
 	case BCM47XX_BOARD_NETGEAR_WNDR4500V1:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_netgear_wndr4500v1);
+		break;
+	case BCM47XX_BOARD_NETGEAR_WNR3500L:
+		err = bcm47xx_copy_bdata(bcm47xx_buttons_netgear_wnr3500lv1);
 		break;
 	case BCM47XX_BOARD_NETGEAR_WNR834BV2:
 		err = bcm47xx_copy_bdata(bcm47xx_buttons_netgear_wnr834bv2);

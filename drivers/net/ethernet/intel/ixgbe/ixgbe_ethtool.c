@@ -1408,7 +1408,6 @@ static int ixgbe_reg_test(struct ixgbe_adapter *adapter, u64 *data)
 	default:
 		*data = 1;
 		return 1;
-		break;
 	}
 
 	/*
@@ -2518,7 +2517,7 @@ static int ixgbe_update_ethtool_fdir_entry(struct ixgbe_adapter *adapter,
 
 	/* add filter to the list */
 	if (parent)
-		hlist_add_after(&parent->fdir_node, &input->fdir_node);
+		hlist_add_behind(&input->fdir_node, &parent->fdir_node);
 	else
 		hlist_add_head(&input->fdir_node,
 			       &adapter->fdir_filter_list);
@@ -2866,7 +2865,6 @@ static int ixgbe_get_ts_info(struct net_device *dev,
 		break;
 	default:
 		return ethtool_op_get_ts_info(dev, info);
-		break;
 	}
 	return 0;
 }

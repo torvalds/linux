@@ -1,8 +1,7 @@
-#ifndef _BNX2FC_H_
-#define _BNX2FC_H_
-/* bnx2fc.h: Broadcom NetXtreme II Linux FCoE offload driver.
+/* bnx2fc.h: QLogic NetXtreme II Linux FCoE offload driver.
  *
  * Copyright (c) 2008 - 2013 Broadcom Corporation
+ * Copyright (c) 2014, QLogic Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -11,6 +10,8 @@
  * Written by: Bhanu Prakash Gollapudi (bprakash@broadcom.com)
  */
 
+#ifndef _BNX2FC_H_
+#define _BNX2FC_H_
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>

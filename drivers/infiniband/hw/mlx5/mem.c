@@ -148,7 +148,7 @@ int mlx5_ib_get_buf_offset(u64 addr, int page_shift, u32 *offset)
 	u64 off_mask;
 	u64 buf_off;
 
-	page_size = 1 << page_shift;
+	page_size = (u64)1 << page_shift;
 	page_mask = page_size - 1;
 	buf_off = addr & page_mask;
 	off_size = page_size >> 6;

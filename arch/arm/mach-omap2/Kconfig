@@ -1,9 +1,6 @@
 menu "TI OMAP/AM/DM/DRA Family"
 	depends on ARCH_MULTI_V6 || ARCH_MULTI_V7
 
-config ARCH_OMAP
-	bool
-
 config ARCH_OMAP2
 	bool "TI OMAP2"
 	depends on ARCH_MULTI_V6
@@ -15,7 +12,6 @@ config ARCH_OMAP3
 	bool "TI OMAP3"
 	depends on ARCH_MULTI_V7
 	select ARCH_OMAP2PLUS
-	select ARCH_HAS_OPP
 	select ARM_CPU_SUSPEND if PM
 	select OMAP_INTERCONNECT
 	select PM_OPP if PM

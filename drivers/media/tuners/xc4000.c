@@ -93,7 +93,7 @@ struct xc4000_priv {
 	struct firmware_description *firm;
 	int	firm_size;
 	u32	if_khz;
-	u32	freq_hz;
+	u32	freq_hz, freq_offset;
 	u32	bandwidth;
 	u8	video_standard;
 	u8	rf_mode;
@@ -116,6 +116,7 @@ struct xc4000_priv {
 #define XC4000_AUDIO_STD_MONO		32
 
 #define XC4000_DEFAULT_FIRMWARE "dvb-fe-xc4000-1.4.fw"
+#define XC4000_DEFAULT_FIRMWARE_NEW "dvb-fe-xc4000-1.4.1.fw"
 
 /* Misc Defines */
 #define MAX_TV_STANDARD			24
@@ -730,13 +731,25 @@ static int xc4000_fwupload(struct dvb_frontend *fe)
 	char		      name[33];
 	const char	      *fname;
 
-	if (firmware_name[0] != '\0')
+	if (firmware_name[0] != '\0') {
 		fname = firmware_name;
-	else
-		fname = XC4000_DEFAULT_FIRMWARE;
 
-	dprintk(1, "Reading firmware %s\n", fname);
-	rc = request_firmware(&fw, fname, priv->i2c_props.adap->dev.parent);
+		dprintk(1, "Reading custom firmware %s\n", fname);
+		rc = request_firmware(&fw, fname,
+				      priv->i2c_props.adap->dev.parent);
+	} else {
+		fname = XC4000_DEFAULT_FIRMWARE_NEW;
+		dprintk(1, "Trying to read firmware %s\n", fname);
+		rc = request_firmware(&fw, fname,
+				      priv->i2c_props.adap->dev.parent);
+		if (rc == -ENOENT) {
+			fname = XC4000_DEFAULT_FIRMWARE;
+			dprintk(1, "Trying to read firmware %s\n", fname);
+			rc = request_firmware(&fw, fname,
+					      priv->i2c_props.adap->dev.parent);
+		}
+	}
+
 	if (rc < 0) {
 		if (rc == -ENOENT)
 			printk(KERN_ERR "Error: firmware %s not found.\n", fname);
@@ -746,6 +759,8 @@ static int xc4000_fwupload(struct dvb_frontend *fe)
 
 		return rc;
 	}
+	dprintk(1, "Loading Firmware: %s\n", fname);
+
 	p = fw->data;
 	endp = p + fw->size;
 
@@ -1157,14 +1172,14 @@ static int xc4000_set_params(struct dvb_frontend *fe)
 	case SYS_ATSC:
 		dprintk(1, "%s() VSB modulation\n", __func__);
 		priv->rf_mode = XC_RF_MODE_AIR;
-		priv->freq_hz = c->frequency - 1750000;
+		priv->freq_offset = 1750000;
 		priv->video_standard = XC4000_DTV6;
 		type = DTV6;
 		break;
 	case SYS_DVBC_ANNEX_B:
 		dprintk(1, "%s() QAM modulation\n", __func__);
 		priv->rf_mode = XC_RF_MODE_CABLE;
-		priv->freq_hz = c->frequency - 1750000;
+		priv->freq_offset = 1750000;
 		priv->video_standard = XC4000_DTV6;
 		type = DTV6;
 		break;
@@ -1173,23 +1188,23 @@ static int xc4000_set_params(struct dvb_frontend *fe)
 		dprintk(1, "%s() OFDM\n", __func__);
 		if (bw == 0) {
 			if (c->frequency < 400000000) {
-				priv->freq_hz = c->frequency - 2250000;
+				priv->freq_offset = 2250000;
 			} else {
-				priv->freq_hz = c->frequency - 2750000;
+				priv->freq_offset = 2750000;
 			}
 			priv->video_standard = XC4000_DTV7_8;
 			type = DTV78;
 		} else if (bw <= 6000000) {
 			priv->video_standard = XC4000_DTV6;
-			priv->freq_hz = c->frequency - 1750000;
+			priv->freq_offset = 1750000;
 			type = DTV6;
 		} else if (bw <= 7000000) {
 			priv->video_standard = XC4000_DTV7;
-			priv->freq_hz = c->frequency - 2250000;
+			priv->freq_offset = 2250000;
 			type = DTV7;
 		} else {
 			priv->video_standard = XC4000_DTV8;
-			priv->freq_hz = c->frequency - 2750000;
+			priv->freq_offset = 2750000;
 			type = DTV8;
 		}
 		priv->rf_mode = XC_RF_MODE_AIR;
@@ -1199,6 +1214,8 @@ static int xc4000_set_params(struct dvb_frontend *fe)
 		ret = -EINVAL;
 		goto fail;
 	}
+
+	priv->freq_hz = c->frequency - priv->freq_offset;
 
 	dprintk(1, "%s() frequency=%d (compensated)\n",
 		__func__, priv->freq_hz);
@@ -1520,7 +1537,7 @@ static int xc4000_get_frequency(struct dvb_frontend *fe, u32 *freq)
 {
 	struct xc4000_priv *priv = fe->tuner_priv;
 
-	*freq = priv->freq_hz;
+	*freq = priv->freq_hz + priv->freq_offset;
 
 	if (debug) {
 		mutex_lock(&priv->lock);
@@ -1668,7 +1685,6 @@ struct dvb_frontend *xc4000_attach(struct dvb_frontend *fe,
 	switch (instance) {
 	case 0:
 		goto fail;
-		break;
 	case 1:
 		/* new tuner instance */
 		priv->bandwidth = 6000000;
@@ -1755,3 +1771,5 @@ EXPORT_SYMBOL(xc4000_attach);
 MODULE_AUTHOR("Steven Toth, Davide Ferri");
 MODULE_DESCRIPTION("Xceive xc4000 silicon tuner driver");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(XC4000_DEFAULT_FIRMWARE_NEW);
+MODULE_FIRMWARE(XC4000_DEFAULT_FIRMWARE);

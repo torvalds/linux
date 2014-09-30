@@ -40,7 +40,7 @@
 #ifndef _INTERVAL_H__
 #define _INTERVAL_H__
 
-#include <linux/libcfs/libcfs.h>   /* LASSERT. */
+#include "../../include/linux/libcfs/libcfs.h"	/* LASSERT. */
 
 struct interval_node {
 	struct interval_node   *in_left;

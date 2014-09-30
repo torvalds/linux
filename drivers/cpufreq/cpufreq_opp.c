@@ -60,7 +60,7 @@ int dev_pm_opp_init_cpufreq_table(struct device *dev,
 		goto out;
 	}
 
-	freq_table = kzalloc(sizeof(*freq_table) * (max_opps + 1), GFP_KERNEL);
+	freq_table = kcalloc((max_opps + 1), sizeof(*freq_table), GFP_ATOMIC);
 	if (!freq_table) {
 		ret = -ENOMEM;
 		goto out;

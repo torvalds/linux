@@ -664,8 +664,8 @@ static int l2c310_cpu_enable_flz(struct notifier_block *nb, unsigned long act, v
 
 static void __init l2c310_enable(void __iomem *base, u32 aux, unsigned num_lock)
 {
-	unsigned rev = readl_relaxed(base + L2X0_CACHE_ID) & L2X0_CACHE_ID_PART_MASK;
-	bool cortex_a9 = read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A9;
+	unsigned rev = readl_relaxed(base + L2X0_CACHE_ID) & L2X0_CACHE_ID_RTL_MASK;
+	bool cortex_a9 = read_cpuid_part() == ARM_CPU_PART_CORTEX_A9;
 
 	if (rev >= L310_CACHE_ID_RTL_R2P0) {
 		if (cortex_a9) {

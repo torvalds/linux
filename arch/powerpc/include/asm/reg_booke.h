@@ -15,16 +15,28 @@
 #ifndef __ASM_POWERPC_REG_BOOKE_H__
 #define __ASM_POWERPC_REG_BOOKE_H__
 
+#include <asm/ppc-opcode.h>
+
 /* Machine State Register (MSR) Fields */
-#define MSR_GS		(1<<28) /* Guest state */
-#define MSR_UCLE	(1<<26)	/* User-mode cache lock enable */
-#define MSR_SPE		(1<<25)	/* Enable SPE */
-#define MSR_DWE		(1<<10)	/* Debug Wait Enable */
-#define MSR_UBLE	(1<<10)	/* BTB lock enable (e500) */
-#define MSR_IS		MSR_IR	/* Instruction Space */
-#define MSR_DS		MSR_DR	/* Data Space */
-#define MSR_PMM		(1<<2)	/* Performance monitor mark bit */
-#define MSR_CM		(1<<31) /* Computation Mode (0=32-bit, 1=64-bit) */
+#define MSR_GS_LG	28	/* Guest state */
+#define MSR_UCLE_LG	26	/* User-mode cache lock enable */
+#define MSR_SPE_LG	25	/* Enable SPE */
+#define MSR_DWE_LG	10	/* Debug Wait Enable */
+#define MSR_UBLE_LG	10	/* BTB lock enable (e500) */
+#define MSR_IS_LG	MSR_IR_LG /* Instruction Space */
+#define MSR_DS_LG	MSR_DR_LG /* Data Space */
+#define MSR_PMM_LG	2	/* Performance monitor mark bit */
+#define MSR_CM_LG	31	/* Computation Mode (0=32-bit, 1=64-bit) */
+
+#define MSR_GS		__MASK(MSR_GS_LG)
+#define MSR_UCLE	__MASK(MSR_UCLE_LG)
+#define MSR_SPE		__MASK(MSR_SPE_LG)
+#define MSR_DWE		__MASK(MSR_DWE_LG)
+#define MSR_UBLE	__MASK(MSR_UBLE_LG)
+#define MSR_IS		__MASK(MSR_IS_LG)
+#define MSR_DS		__MASK(MSR_DS_LG)
+#define MSR_PMM		__MASK(MSR_PMM_LG)
+#define MSR_CM		__MASK(MSR_CM_LG)
 
 #if defined(CONFIG_PPC_BOOK3E_64)
 #define MSR_64BIT	MSR_CM
@@ -260,7 +272,7 @@
 
 /* e500mc */
 #define MCSR_DCPERR_MC	0x20000000UL /* D-Cache Parity Error */
-#define MCSR_L2MMU_MHIT	0x04000000UL /* Hit on multiple TLB entries */
+#define MCSR_L2MMU_MHIT	0x08000000UL /* Hit on multiple TLB entries */
 #define MCSR_NMI	0x00100000UL /* Non-Maskable Interrupt */
 #define MCSR_MAV	0x00080000UL /* MCAR address valid */
 #define MCSR_MEA	0x00040000UL /* MCAR is effective address */
@@ -598,6 +610,13 @@
 /* Bit definitions for L1CSR2. */
 #define L1CSR2_DCWS	0x40000000	/* Data Cache write shadow */
 
+/* Bit definitions for BUCSR. */
+#define BUCSR_STAC_EN	0x01000000	/* Segment Target Address Cache */
+#define BUCSR_LS_EN	0x00400000	/* Link Stack */
+#define BUCSR_BBFI	0x00000200	/* Branch Buffer flash invalidate */
+#define BUCSR_BPEN	0x00000001	/* Branch prediction enable */
+#define BUCSR_INIT	(BUCSR_STAC_EN | BUCSR_LS_EN | BUCSR_BBFI | BUCSR_BPEN)
+
 /* Bit definitions for L2CSR0. */
 #define L2CSR0_L2E	0x80000000	/* L2 Cache Enable */
 #define L2CSR0_L2PE	0x40000000	/* L2 Cache Parity/ECC Enable */
@@ -720,6 +739,24 @@
 #define MMUBE1_VBE3		0x00000004
 #define MMUBE1_VBE4		0x00000002
 #define MMUBE1_VBE5		0x00000001
+
+#define TMRN_IMSR0	0x120	/* Initial MSR Register 0 (e6500) */
+#define TMRN_IMSR1	0x121	/* Initial MSR Register 1 (e6500) */
+#define TMRN_INIA0	0x140	/* Next Instruction Address Register 0 */
+#define TMRN_INIA1	0x141	/* Next Instruction Address Register 1 */
+#define SPRN_TENSR	0x1b5	/* Thread Enable Status Register */
+#define SPRN_TENS	0x1b6	/* Thread Enable Set Register */
+#define SPRN_TENC	0x1b7	/* Thread Enable Clear Register */
+
+#define TEN_THREAD(x)	(1 << (x))
+
+#ifndef __ASSEMBLY__
+#define mftmr(rn)	({unsigned long rval; \
+			asm volatile(MFTMR(rn, %0) : "=r" (rval)); rval;})
+#define mttmr(rn, v)	asm volatile(MTTMR(rn, %0) : \
+				     : "r" ((unsigned long)(v)) \
+				     : "memory")
+#endif /* !__ASSEMBLY__ */
 
 #endif /* __ASM_POWERPC_REG_BOOKE_H__ */
 #endif /* __KERNEL__ */

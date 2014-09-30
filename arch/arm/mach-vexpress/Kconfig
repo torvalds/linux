@@ -13,7 +13,6 @@ menuconfig ARCH_VEXPRESS
 	select ICST
 	select NO_IOPORT_MAP
 	select PLAT_VERSATILE
-	select PLAT_VERSATILE_CLCD
 	select POWER_RESET
 	select POWER_RESET_VEXPRESS
 	select POWER_SUPPLY
@@ -64,7 +63,6 @@ config ARCH_VEXPRESS_DCSCB
 
 config ARCH_VEXPRESS_SPC
 	bool "Versatile Express Serial Power Controller (SPC)"
-	select ARCH_HAS_OPP
 	select PM_OPP
 	help
 	  The TC2 (A15x2 A7x3) versatile express core tile integrates a logic

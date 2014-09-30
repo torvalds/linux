@@ -22,55 +22,82 @@
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 
+#include <core/client.h>
 #include <core/object.h>
-#include <core/class.h>
+#include <nvif/unpack.h>
+#include <nvif/class.h>
+#include <nvif/ioctl.h>
 
 #include <subdev/clock.h>
 
 #include "priv.h"
 
 static int
-nouveau_control_mthd_pstate_info(struct nouveau_object *object, u32 mthd,
-				void *data, u32 size)
+nouveau_control_mthd_pstate_info(struct nouveau_object *object,
+				 void *data, u32 size)
 {
+	union {
+		struct nvif_control_pstate_info_v0 v0;
+	} *args = data;
 	struct nouveau_clock *clk = nouveau_clock(object);
-	struct nv_control_pstate_info *args = data;
+	int ret;
 
-	if (size < sizeof(*args))
-		return -EINVAL;
+	nv_ioctl(object, "control pstate info size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nv_ioctl(object, "control pstate info vers %d\n",
+			 args->v0.version);
+	} else
+		return ret;
 
 	if (clk) {
-		args->count  = clk->state_nr;
-		args->ustate = clk->ustate;
-		args->pstate = clk->pstate;
+		args->v0.count = clk->state_nr;
+		args->v0.ustate_ac = clk->ustate_ac;
+		args->v0.ustate_dc = clk->ustate_dc;
+		args->v0.pwrsrc = clk->pwrsrc;
+		args->v0.pstate = clk->pstate;
 	} else {
-		args->count  = 0;
-		args->ustate = NV_CONTROL_PSTATE_INFO_USTATE_DISABLE;
-		args->pstate = NV_CONTROL_PSTATE_INFO_PSTATE_UNKNOWN;
+		args->v0.count = 0;
+		args->v0.ustate_ac = NVIF_CONTROL_PSTATE_INFO_V0_USTATE_DISABLE;
+		args->v0.ustate_dc = NVIF_CONTROL_PSTATE_INFO_V0_USTATE_DISABLE;
+		args->v0.pwrsrc = -ENOSYS;
+		args->v0.pstate = NVIF_CONTROL_PSTATE_INFO_V0_PSTATE_UNKNOWN;
 	}
 
 	return 0;
 }
 
 static int
-nouveau_control_mthd_pstate_attr(struct nouveau_object *object, u32 mthd,
-				void *data, u32 size)
+nouveau_control_mthd_pstate_attr(struct nouveau_object *object,
+				 void *data, u32 size)
 {
+	union {
+		struct nvif_control_pstate_attr_v0 v0;
+	} *args = data;
 	struct nouveau_clock *clk = nouveau_clock(object);
-	struct nv_control_pstate_attr *args = data;
 	struct nouveau_clocks *domain;
 	struct nouveau_pstate *pstate;
 	struct nouveau_cstate *cstate;
 	int i = 0, j = -1;
 	u32 lo, hi;
+	int ret;
 
-	if ((size < sizeof(*args)) || !clk ||
-	    (args->state >= 0 && args->state >= clk->state_nr))
-		return -EINVAL;
+	nv_ioctl(object, "control pstate attr size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nv_ioctl(object, "control pstate attr vers %d state %d "
+				 "index %d\n",
+			 args->v0.version, args->v0.state, args->v0.index);
+		if (!clk)
+			return -ENODEV;
+		if (args->v0.state < NVIF_CONTROL_PSTATE_ATTR_V0_STATE_CURRENT)
+			return -EINVAL;
+		if (args->v0.state >= clk->state_nr)
+			return -EINVAL;
+	} else
+		return ret;
 	domain = clk->domains;
 
 	while (domain->name != nv_clk_src_max) {
-		if (domain->mname && ++j == args->index)
+		if (domain->mname && ++j == args->v0.index)
 			break;
 		domain++;
 	}
@@ -78,9 +105,9 @@ nouveau_control_mthd_pstate_attr(struct nouveau_object *object, u32 mthd,
 	if (domain->name == nv_clk_src_max)
 		return -EINVAL;
 
-	if (args->state != NV_CONTROL_PSTATE_ATTR_STATE_CURRENT) {
+	if (args->v0.state != NVIF_CONTROL_PSTATE_ATTR_V0_STATE_CURRENT) {
 		list_for_each_entry(pstate, &clk->states, head) {
-			if (i++ == args->state)
+			if (i++ == args->v0.state)
 				break;
 		}
 
@@ -91,21 +118,21 @@ nouveau_control_mthd_pstate_attr(struct nouveau_object *object, u32 mthd,
 			hi = max(hi, cstate->domain[domain->name]);
 		}
 
-		args->state = pstate->pstate;
+		args->v0.state = pstate->pstate;
 	} else {
 		lo = max(clk->read(clk, domain->name), 0);
 		hi = lo;
 	}
 
-	snprintf(args->name, sizeof(args->name), "%s", domain->mname);
-	snprintf(args->unit, sizeof(args->unit), "MHz");
-	args->min = lo / domain->mdiv;
-	args->max = hi / domain->mdiv;
+	snprintf(args->v0.name, sizeof(args->v0.name), "%s", domain->mname);
+	snprintf(args->v0.unit, sizeof(args->v0.unit), "MHz");
+	args->v0.min = lo / domain->mdiv;
+	args->v0.max = hi / domain->mdiv;
 
-	args->index = 0;
+	args->v0.index = 0;
 	while ((++domain)->name != nv_clk_src_max) {
 		if (domain->mname) {
-			args->index = ++j;
+			args->v0.index = ++j;
 			break;
 		}
 	}
@@ -114,31 +141,65 @@ nouveau_control_mthd_pstate_attr(struct nouveau_object *object, u32 mthd,
 }
 
 static int
-nouveau_control_mthd_pstate_user(struct nouveau_object *object, u32 mthd,
-				void *data, u32 size)
+nouveau_control_mthd_pstate_user(struct nouveau_object *object,
+				 void *data, u32 size)
 {
+	union {
+		struct nvif_control_pstate_user_v0 v0;
+	} *args = data;
 	struct nouveau_clock *clk = nouveau_clock(object);
-	struct nv_control_pstate_user *args = data;
+	int ret;
 
-	if (size < sizeof(*args) || !clk)
-		return -EINVAL;
+	nv_ioctl(object, "control pstate user size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nv_ioctl(object, "control pstate user vers %d ustate %d "
+				 "pwrsrc %d\n", args->v0.version,
+			 args->v0.ustate, args->v0.pwrsrc);
+		if (!clk)
+			return -ENODEV;
+	} else
+		return ret;
 
-	return nouveau_clock_ustate(clk, args->state);
+	if (args->v0.pwrsrc >= 0) {
+		ret |= nouveau_clock_ustate(clk, args->v0.ustate, args->v0.pwrsrc);
+	} else {
+		ret |= nouveau_clock_ustate(clk, args->v0.ustate, 0);
+		ret |= nouveau_clock_ustate(clk, args->v0.ustate, 1);
+	}
+
+	return ret;
 }
+
+static int
+nouveau_control_mthd(struct nouveau_object *object, u32 mthd,
+		     void *data, u32 size)
+{
+	switch (mthd) {
+	case NVIF_CONTROL_PSTATE_INFO:
+		return nouveau_control_mthd_pstate_info(object, data, size);
+	case NVIF_CONTROL_PSTATE_ATTR:
+		return nouveau_control_mthd_pstate_attr(object, data, size);
+	case NVIF_CONTROL_PSTATE_USER:
+		return nouveau_control_mthd_pstate_user(object, data, size);
+	default:
+		break;
+	}
+	return -EINVAL;
+}
+
+static struct nouveau_ofuncs
+nouveau_control_ofuncs = {
+	.ctor = _nouveau_object_ctor,
+	.dtor = nouveau_object_destroy,
+	.init = nouveau_object_init,
+	.fini = nouveau_object_fini,
+	.mthd = nouveau_control_mthd,
+};
 
 struct nouveau_oclass
 nouveau_control_oclass[] = {
-	{ .handle = NV_CONTROL_CLASS,
-	  .ofuncs = &nouveau_object_ofuncs,
-	  .omthds = (struct nouveau_omthds[]) {
-		  { NV_CONTROL_PSTATE_INFO,
-		    NV_CONTROL_PSTATE_INFO, nouveau_control_mthd_pstate_info },
-		  { NV_CONTROL_PSTATE_ATTR,
-		    NV_CONTROL_PSTATE_ATTR, nouveau_control_mthd_pstate_attr },
-		  { NV_CONTROL_PSTATE_USER,
-		    NV_CONTROL_PSTATE_USER, nouveau_control_mthd_pstate_user },
-		  {},
-	  },
+	{ .handle = NVIF_IOCTL_NEW_V0_CONTROL,
+	  .ofuncs = &nouveau_control_ofuncs
 	},
 	{}
 };

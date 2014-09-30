@@ -45,14 +45,31 @@
  */
 static int powernv_eeh_init(void)
 {
+	struct pci_controller *hose;
+	struct pnv_phb *phb;
+
 	/* We require OPALv3 */
 	if (!firmware_has_feature(FW_FEATURE_OPALv3)) {
-		pr_warning("%s: OPALv3 is required !\n", __func__);
+		pr_warn("%s: OPALv3 is required !\n",
+			__func__);
 		return -EINVAL;
 	}
 
-	/* Set EEH probe mode */
-	eeh_probe_mode_set(EEH_PROBE_MODE_DEV);
+	/* Set probe mode */
+	eeh_add_flag(EEH_PROBE_MODE_DEV);
+
+	/*
+	 * P7IOC blocks PCI config access to frozen PE, but PHB3
+	 * doesn't do that. So we have to selectively enable I/O
+	 * prior to collecting error log.
+	 */
+	list_for_each_entry(hose, &hose_list, list_node) {
+		phb = hose->private_data;
+
+		if (phb->model == PNV_PHB_MODEL_P7IOC)
+			eeh_add_flag(EEH_ENABLE_IO_FOR_LOG);
+		break;
+	}
 
 	return 0;
 }
@@ -107,6 +124,7 @@ static int powernv_eeh_dev_probe(struct pci_dev *dev, void *flag)
 	struct pnv_phb *phb = hose->private_data;
 	struct device_node *dn = pci_device_to_OF_node(dev);
 	struct eeh_dev *edev = of_node_to_eeh_dev(dn);
+	int ret;
 
 	/*
 	 * When probing the root bridge, which doesn't have any
@@ -143,13 +161,27 @@ static int powernv_eeh_dev_probe(struct pci_dev *dev, void *flag)
 	edev->pe_config_addr	= phb->bdfn_to_pe(phb, dev->bus, dev->devfn & 0xff);
 
 	/* Create PE */
-	eeh_add_to_parent_pe(edev);
+	ret = eeh_add_to_parent_pe(edev);
+	if (ret) {
+		pr_warn("%s: Can't add PCI dev %s to parent PE (%d)\n",
+			__func__, pci_name(dev), ret);
+		return ret;
+	}
+
+	/*
+	 * Cache the PE primary bus, which can't be fetched when
+	 * full hotplug is in progress. In that case, all child
+	 * PCI devices of the PE are expected to be removed prior
+	 * to PE reset.
+	 */
+	if (!edev->pe->bus)
+		edev->pe->bus = dev->bus;
 
 	/*
 	 * Enable EEH explicitly so that we will do EEH check
 	 * while accessing I/O stuff
 	 */
-	eeh_set_enable(true);
+	eeh_add_flag(EEH_ENABLED);
 
 	/* Save memory bars */
 	eeh_save_bars(edev);
@@ -273,8 +305,8 @@ static int powernv_eeh_wait_state(struct eeh_pe *pe, int max_wait)
 
 		max_wait -= mwait;
 		if (max_wait <= 0) {
-			pr_warning("%s: Timeout getting PE#%x's state (%d)\n",
-				   __func__, pe->addr, max_wait);
+			pr_warn("%s: Timeout getting PE#%x's state (%d)\n",
+				__func__, pe->addr, max_wait);
 			return EEH_STATE_NOT_SUPPORT;
 		}
 
@@ -294,7 +326,7 @@ static int powernv_eeh_wait_state(struct eeh_pe *pe, int max_wait)
  * Retrieve the temporary or permanent error from the PE.
  */
 static int powernv_eeh_get_log(struct eeh_pe *pe, int severity,
-			char *drv_log, unsigned long len)
+			       char *drv_log, unsigned long len)
 {
 	struct pci_controller *hose = pe->phb;
 	struct pnv_phb *phb = hose->private_data;
@@ -398,9 +430,7 @@ static int __init eeh_powernv_init(void)
 {
 	int ret = -EINVAL;
 
-	if (!machine_is(powernv))
-		return ret;
-
+	eeh_set_pe_aux_size(PNV_PCI_DIAG_BUF_SIZE);
 	ret = eeh_ops_register(&powernv_eeh_ops);
 	if (!ret)
 		pr_info("EEH: PowerNV platform initialized\n");
@@ -409,5 +439,4 @@ static int __init eeh_powernv_init(void)
 
 	return ret;
 }
-
-early_initcall(eeh_powernv_init);
+machine_early_initcall(powernv, eeh_powernv_init);

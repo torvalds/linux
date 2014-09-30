@@ -11,6 +11,7 @@ struct nouveau_disp_impl {
 	struct nouveau_oclass base;
 	struct nouveau_oclass **outp;
 	struct nouveau_oclass **conn;
+	const struct nvkm_event_func *vblank;
 };
 
 #define nouveau_disp_create(p,e,c,h,i,x,d)                                     \
@@ -38,5 +39,9 @@ int  _nouveau_disp_fini(struct nouveau_object *, bool);
 
 extern struct nouveau_oclass *nvkm_output_oclass;
 extern struct nouveau_oclass *nvkm_connector_oclass;
+
+int  nouveau_disp_vblank_ctor(void *data, u32 size, struct nvkm_notify *);
+void nouveau_disp_vblank(struct nouveau_disp *, int head);
+int  nouveau_disp_ntfy(struct nouveau_object *, u32, struct nvkm_event **);
 
 #endif

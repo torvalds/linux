@@ -27,9 +27,13 @@ static void __vlan_add_flags(struct net_port_vlans *v, u16 vid, u16 flags)
 {
 	if (flags & BRIDGE_VLAN_INFO_PVID)
 		__vlan_add_pvid(v, vid);
+	else
+		__vlan_delete_pvid(v, vid);
 
 	if (flags & BRIDGE_VLAN_INFO_UNTAGGED)
 		set_bit(vid, v->untagged_bitmap);
+	else
+		clear_bit(vid, v->untagged_bitmap);
 }
 
 static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
@@ -55,10 +59,8 @@ static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
 
 	if (p) {
 		/* Add VLAN to the device filter if it is supported.
-		 * Stricly speaking, this is not necessary now, since
-		 * devices are made promiscuous by the bridge, but if
-		 * that ever changes this code will allow tagged
-		 * traffic to enter the bridge.
+		 * This ensures tagged traffic enters the bridge when
+		 * promiscuous mode is disabled by br_manage_promisc().
 		 */
 		err = vlan_vid_add(dev, br->vlan_proto, vid);
 		if (err)
@@ -127,7 +129,8 @@ struct sk_buff *br_handle_vlan(struct net_bridge *br,
 {
 	u16 vid;
 
-	if (!br->vlan_enabled)
+	/* If this packet was not filtered at input, let it pass */
+	if (!BR_INPUT_SKB_CB(skb)->vlan_filtered)
 		goto out;
 
 	/* Vlan filter table must be configured at this point.  The
@@ -166,8 +169,10 @@ bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
 	/* If VLAN filtering is disabled on the bridge, all packets are
 	 * permitted.
 	 */
-	if (!br->vlan_enabled)
+	if (!br->vlan_enabled) {
+		BR_INPUT_SKB_CB(skb)->vlan_filtered = false;
 		return true;
+	}
 
 	/* If there are no vlan in the permitted list, all packets are
 	 * rejected.
@@ -175,6 +180,7 @@ bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
 	if (!v)
 		goto drop;
 
+	BR_INPUT_SKB_CB(skb)->vlan_filtered = true;
 	proto = br->vlan_proto;
 
 	/* If vlan tx offload is disabled on bridge device and frame was
@@ -183,7 +189,7 @@ bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
 	 */
 	if (unlikely(!vlan_tx_tag_present(skb) &&
 		     skb->protocol == proto)) {
-		skb = vlan_untag(skb);
+		skb = skb_vlan_untag(skb);
 		if (unlikely(!skb))
 			return false;
 	}
@@ -253,7 +259,8 @@ bool br_allowed_egress(struct net_bridge *br,
 {
 	u16 vid;
 
-	if (!br->vlan_enabled)
+	/* If this packet was not filtered at input, let it pass */
+	if (!BR_INPUT_SKB_CB(skb)->vlan_filtered)
 		return true;
 
 	if (!v)
@@ -272,6 +279,7 @@ bool br_should_learn(struct net_bridge_port *p, struct sk_buff *skb, u16 *vid)
 	struct net_bridge *br = p->br;
 	struct net_port_vlans *v;
 
+	/* If filtering was disabled at input, let it pass. */
 	if (!br->vlan_enabled)
 		return true;
 

@@ -296,17 +296,17 @@ TRACE_EVENT(snd_soc_cache_sync,
 	TP_ARGS(codec, type, status),
 
 	TP_STRUCT__entry(
-		__string(	name,		codec->name	)
+		__string(	name,		codec->component.name)
 		__string(	status,		status		)
 		__string(	type,		type		)
 		__field(	int,		id		)
 	),
 
 	TP_fast_assign(
-		__assign_str(name, codec->name);
+		__assign_str(name, codec->component.name);
 		__assign_str(status, status);
 		__assign_str(type, type);
-		__entry->id = codec->id;
+		__entry->id = codec->component.id;
 	),
 
 	TP_printk("codec=%s.%d type=%s status=%s", __get_str(name),

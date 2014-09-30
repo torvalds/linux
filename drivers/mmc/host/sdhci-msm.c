@@ -16,7 +16,6 @@
 
 #include <linux/module.h>
 #include <linux/of_device.h>
-#include <linux/regulator/consumer.h>
 #include <linux/delay.h>
 #include <linux/mmc/mmc.h>
 #include <linux/slab.h>

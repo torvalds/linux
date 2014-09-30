@@ -474,7 +474,7 @@ static int mt9t031_s_ctrl(struct v4l2_ctrl *ctrl)
 		if (ctrl->val <= ctrl->default_value) {
 			/* Pack it into 0..1 step 0.125, register values 0..8 */
 			unsigned long range = ctrl->default_value - ctrl->minimum;
-			data = ((ctrl->val - ctrl->minimum) * 8 + range / 2) / range;
+			data = ((ctrl->val - (s32)ctrl->minimum) * 8 + range / 2) / range;
 
 			dev_dbg(&client->dev, "Setting gain %d\n", data);
 			data = reg_write(client, MT9T031_GLOBAL_GAIN, data);
@@ -485,7 +485,7 @@ static int mt9t031_s_ctrl(struct v4l2_ctrl *ctrl)
 			/* We assume qctrl->maximum - qctrl->default_value - 1 > 0 */
 			unsigned long range = ctrl->maximum - ctrl->default_value - 1;
 			/* calculated gain: map 65..127 to 9..1024 step 0.125 */
-			unsigned long gain = ((ctrl->val - ctrl->default_value - 1) *
+			unsigned long gain = ((ctrl->val - (s32)ctrl->default_value - 1) *
 					       1015 + range / 2) / range + 9;
 
 			if (gain <= 32)		/* calculated gain 9..32 -> 9..32 */
@@ -507,7 +507,7 @@ static int mt9t031_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_EXPOSURE_AUTO:
 		if (ctrl->val == V4L2_EXPOSURE_MANUAL) {
 			unsigned int range = exp->maximum - exp->minimum;
-			unsigned int shutter = ((exp->val - exp->minimum) * 1048 +
+			unsigned int shutter = ((exp->val - (s32)exp->minimum) * 1048 +
 						 range / 2) / range + 1;
 			u32 old;
 

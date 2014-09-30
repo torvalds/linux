@@ -9,6 +9,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/err.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -135,7 +136,7 @@ static int exynos_mipi_video_phy_probe(struct platform_device *pdev)
 	spin_lock_init(&state->slock);
 
 	for (i = 0; i < EXYNOS_MIPI_PHYS_NUM; i++) {
-		struct phy *phy = devm_phy_create(dev,
+		struct phy *phy = devm_phy_create(dev, NULL,
 					&exynos_mipi_video_phy_ops, NULL);
 		if (IS_ERR(phy)) {
 			dev_err(dev, "failed to create PHY %d\n", i);
@@ -149,10 +150,8 @@ static int exynos_mipi_video_phy_probe(struct platform_device *pdev)
 
 	phy_provider = devm_of_phy_provider_register(dev,
 					exynos_mipi_video_phy_xlate);
-	if (IS_ERR(phy_provider))
-		return PTR_ERR(phy_provider);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(phy_provider);
 }
 
 static const struct of_device_id exynos_mipi_video_phy_of_match[] = {

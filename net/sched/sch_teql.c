@@ -485,8 +485,8 @@ static int __init teql_init(void)
 		struct net_device *dev;
 		struct teql_master *master;
 
-		dev = alloc_netdev(sizeof(struct teql_master),
-				  "teql%d", teql_master_setup);
+		dev = alloc_netdev(sizeof(struct teql_master), "teql%d",
+				   NET_NAME_UNKNOWN, teql_master_setup);
 		if (!dev) {
 			err = -ENOMEM;
 			break;

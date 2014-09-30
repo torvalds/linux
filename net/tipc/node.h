@@ -41,6 +41,7 @@
 #include "addr.h"
 #include "net.h"
 #include "bearer.h"
+#include "msg.h"
 
 /*
  * Out-of-range value for node signature
@@ -105,6 +106,7 @@ struct tipc_node {
 	spinlock_t lock;
 	struct hlist_node hash;
 	struct tipc_link *active_links[2];
+	u32 act_mtus[2];
 	struct tipc_link *links[MAX_BEARERS];
 	unsigned int action_flags;
 	struct tipc_node_bclink bclink;
@@ -141,6 +143,21 @@ static inline bool tipc_node_blocked(struct tipc_node *node)
 {
 	return (node->action_flags & (TIPC_WAIT_PEER_LINKS_DOWN |
 		TIPC_NOTIFY_NODE_DOWN | TIPC_WAIT_OWN_LINKS_DOWN));
+}
+
+static inline uint tipc_node_get_mtu(u32 addr, u32 selector)
+{
+	struct tipc_node *node;
+	u32 mtu;
+
+	node = tipc_node_find(addr);
+
+	if (likely(node))
+		mtu = node->act_mtus[selector & 1];
+	else
+		mtu = MAX_MSG_SIZE;
+
+	return mtu;
 }
 
 #endif

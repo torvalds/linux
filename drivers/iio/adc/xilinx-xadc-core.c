@@ -486,7 +486,7 @@ static irqreturn_t xadc_axi_interrupt_handler(int irq, void *devid)
 		return IRQ_NONE;
 
 	if ((status & XADC_AXI_INT_EOS) && xadc->trigger)
-		iio_trigger_poll(xadc->trigger, 0);
+		iio_trigger_poll(xadc->trigger);
 
 	if (status & XADC_AXI_INT_ALARM_MASK) {
 		/*
@@ -1126,7 +1126,7 @@ static int xadc_parse_dt(struct iio_dev *indio_dev, struct device_node *np,
 				chan->address = XADC_REG_VPVN;
 			} else {
 				chan->scan_index = 15 + reg;
-				chan->scan_index = XADC_REG_VAUX(reg - 1);
+				chan->address = XADC_REG_VAUX(reg - 1);
 			}
 			num_channels++;
 			chan++;

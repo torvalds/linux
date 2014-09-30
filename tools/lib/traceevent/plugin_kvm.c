@@ -240,25 +240,38 @@ static const char *find_exit_reason(unsigned isa, int val)
 	for (i = 0; strings[i].val >= 0; i++)
 		if (strings[i].val == val)
 			break;
-	if (strings[i].str)
-		return strings[i].str;
-	return "UNKNOWN";
+
+	return strings[i].str;
 }
 
-static int kvm_exit_handler(struct trace_seq *s, struct pevent_record *record,
-			    struct event_format *event, void *context)
+static int print_exit_reason(struct trace_seq *s, struct pevent_record *record,
+			     struct event_format *event, const char *field)
 {
 	unsigned long long isa;
 	unsigned long long val;
-	unsigned long long info1 = 0, info2 = 0;
+	const char *reason;
 
-	if (pevent_get_field_val(s, event, "exit_reason", record, &val, 1) < 0)
+	if (pevent_get_field_val(s, event, field, record, &val, 1) < 0)
 		return -1;
 
 	if (pevent_get_field_val(s, event, "isa", record, &isa, 0) < 0)
 		isa = 1;
 
-	trace_seq_printf(s, "reason %s", find_exit_reason(isa, val));
+	reason = find_exit_reason(isa, val);
+	if (reason)
+		trace_seq_printf(s, "reason %s", reason);
+	else
+		trace_seq_printf(s, "reason UNKNOWN (%llu)", val);
+	return 0;
+}
+
+static int kvm_exit_handler(struct trace_seq *s, struct pevent_record *record,
+			    struct event_format *event, void *context)
+{
+	unsigned long long info1 = 0, info2 = 0;
+
+	if (print_exit_reason(s, record, event, "exit_reason") < 0)
+		return -1;
 
 	pevent_print_num_field(s, " rip 0x%lx", event, "guest_rip", record, 1);
 
@@ -311,6 +324,29 @@ static int kvm_emulate_insn_handler(struct trace_seq *s,
 	trace_seq_printf(s, "%llx:%llx: %s%s", csbase, rip, disasm,
 			 failed ? " FAIL" : "");
 	return 0;
+}
+
+
+static int kvm_nested_vmexit_inject_handler(struct trace_seq *s, struct pevent_record *record,
+					    struct event_format *event, void *context)
+{
+	if (print_exit_reason(s, record, event, "exit_code") < 0)
+		return -1;
+
+	pevent_print_num_field(s, " info1 %llx", event, "exit_info1", record, 1);
+	pevent_print_num_field(s, " info2 %llx", event, "exit_info2", record, 1);
+	pevent_print_num_field(s, " int_info %llx", event, "exit_int_info", record, 1);
+	pevent_print_num_field(s, " int_info_err %llx", event, "exit_int_info_err", record, 1);
+
+	return 0;
+}
+
+static int kvm_nested_vmexit_handler(struct trace_seq *s, struct pevent_record *record,
+				     struct event_format *event, void *context)
+{
+	pevent_print_num_field(s, "rip %llx ", event, "rip", record, 1);
+
+	return kvm_nested_vmexit_inject_handler(s, record, event, context);
 }
 
 union kvm_mmu_page_role {
@@ -409,6 +445,12 @@ int PEVENT_PLUGIN_LOADER(struct pevent *pevent)
 	pevent_register_event_handler(pevent, -1, "kvm", "kvm_emulate_insn",
 				      kvm_emulate_insn_handler, NULL);
 
+	pevent_register_event_handler(pevent, -1, "kvm", "kvm_nested_vmexit",
+				      kvm_nested_vmexit_handler, NULL);
+
+	pevent_register_event_handler(pevent, -1, "kvm", "kvm_nested_vmexit_inject",
+				      kvm_nested_vmexit_inject_handler, NULL);
+
 	pevent_register_event_handler(pevent, -1, "kvmmmu", "kvm_mmu_get_page",
 				      kvm_mmu_get_page_handler, NULL);
 
@@ -442,6 +484,12 @@ void PEVENT_PLUGIN_UNLOADER(struct pevent *pevent)
 
 	pevent_unregister_event_handler(pevent, -1, "kvm", "kvm_emulate_insn",
 					kvm_emulate_insn_handler, NULL);
+
+	pevent_unregister_event_handler(pevent, -1, "kvm", "kvm_nested_vmexit",
+					kvm_nested_vmexit_handler, NULL);
+
+	pevent_unregister_event_handler(pevent, -1, "kvm", "kvm_nested_vmexit_inject",
+					kvm_nested_vmexit_inject_handler, NULL);
 
 	pevent_unregister_event_handler(pevent, -1, "kvmmmu", "kvm_mmu_get_page",
 					kvm_mmu_get_page_handler, NULL);

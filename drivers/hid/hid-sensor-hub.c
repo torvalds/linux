@@ -159,17 +159,18 @@ int sensor_hub_register_callback(struct hid_sensor_hub_device *hsdev,
 {
 	struct hid_sensor_hub_callbacks_list *callback;
 	struct sensor_hub_data *pdata = hid_get_drvdata(hsdev->hdev);
+	unsigned long flags;
 
-	spin_lock(&pdata->dyn_callback_lock);
+	spin_lock_irqsave(&pdata->dyn_callback_lock, flags);
 	list_for_each_entry(callback, &pdata->dyn_callback_list, list)
 		if (callback->usage_id == usage_id &&
 						callback->hsdev == hsdev) {
-			spin_unlock(&pdata->dyn_callback_lock);
+			spin_unlock_irqrestore(&pdata->dyn_callback_lock, flags);
 			return -EINVAL;
 		}
 	callback = kzalloc(sizeof(*callback), GFP_ATOMIC);
 	if (!callback) {
-		spin_unlock(&pdata->dyn_callback_lock);
+		spin_unlock_irqrestore(&pdata->dyn_callback_lock, flags);
 		return -ENOMEM;
 	}
 	callback->hsdev = hsdev;
@@ -177,7 +178,7 @@ int sensor_hub_register_callback(struct hid_sensor_hub_device *hsdev,
 	callback->usage_id = usage_id;
 	callback->priv = NULL;
 	list_add_tail(&callback->list, &pdata->dyn_callback_list);
-	spin_unlock(&pdata->dyn_callback_lock);
+	spin_unlock_irqrestore(&pdata->dyn_callback_lock, flags);
 
 	return 0;
 }
@@ -188,8 +189,9 @@ int sensor_hub_remove_callback(struct hid_sensor_hub_device *hsdev,
 {
 	struct hid_sensor_hub_callbacks_list *callback;
 	struct sensor_hub_data *pdata = hid_get_drvdata(hsdev->hdev);
+	unsigned long flags;
 
-	spin_lock(&pdata->dyn_callback_lock);
+	spin_lock_irqsave(&pdata->dyn_callback_lock, flags);
 	list_for_each_entry(callback, &pdata->dyn_callback_list, list)
 		if (callback->usage_id == usage_id &&
 						callback->hsdev == hsdev) {
@@ -197,7 +199,7 @@ int sensor_hub_remove_callback(struct hid_sensor_hub_device *hsdev,
 			kfree(callback);
 			break;
 		}
-	spin_unlock(&pdata->dyn_callback_lock);
+	spin_unlock_irqrestore(&pdata->dyn_callback_lock, flags);
 
 	return 0;
 }
@@ -378,15 +380,16 @@ static int sensor_hub_suspend(struct hid_device *hdev, pm_message_t message)
 {
 	struct sensor_hub_data *pdata = hid_get_drvdata(hdev);
 	struct hid_sensor_hub_callbacks_list *callback;
+	unsigned long flags;
 
 	hid_dbg(hdev, " sensor_hub_suspend\n");
-	spin_lock(&pdata->dyn_callback_lock);
+	spin_lock_irqsave(&pdata->dyn_callback_lock, flags);
 	list_for_each_entry(callback, &pdata->dyn_callback_list, list) {
 		if (callback->usage_callback->suspend)
 			callback->usage_callback->suspend(
 					callback->hsdev, callback->priv);
 	}
-	spin_unlock(&pdata->dyn_callback_lock);
+	spin_unlock_irqrestore(&pdata->dyn_callback_lock, flags);
 
 	return 0;
 }
@@ -395,15 +398,16 @@ static int sensor_hub_resume(struct hid_device *hdev)
 {
 	struct sensor_hub_data *pdata = hid_get_drvdata(hdev);
 	struct hid_sensor_hub_callbacks_list *callback;
+	unsigned long flags;
 
 	hid_dbg(hdev, " sensor_hub_resume\n");
-	spin_lock(&pdata->dyn_callback_lock);
+	spin_lock_irqsave(&pdata->dyn_callback_lock, flags);
 	list_for_each_entry(callback, &pdata->dyn_callback_list, list) {
 		if (callback->usage_callback->resume)
 			callback->usage_callback->resume(
 					callback->hsdev, callback->priv);
 	}
-	spin_unlock(&pdata->dyn_callback_lock);
+	spin_unlock_irqrestore(&pdata->dyn_callback_lock, flags);
 
 	return 0;
 }
@@ -600,9 +604,9 @@ static int sensor_hub_probe(struct hid_device *hdev,
 		ret = -EINVAL;
 		goto err_stop_hw;
 	}
-	sd->hid_sensor_hub_client_devs = kzalloc(dev_cnt *
-						sizeof(struct mfd_cell),
-						GFP_KERNEL);
+	sd->hid_sensor_hub_client_devs = devm_kzalloc(&hdev->dev, dev_cnt *
+						      sizeof(struct mfd_cell),
+						      GFP_KERNEL);
 	if (sd->hid_sensor_hub_client_devs == NULL) {
 		hid_err(hdev, "Failed to allocate memory for mfd cells\n");
 			ret = -ENOMEM;
@@ -614,11 +618,12 @@ static int sensor_hub_probe(struct hid_device *hdev,
 
 		if (collection->type == HID_COLLECTION_PHYSICAL) {
 
-			hsdev = kzalloc(sizeof(*hsdev), GFP_KERNEL);
+			hsdev = devm_kzalloc(&hdev->dev, sizeof(*hsdev),
+					     GFP_KERNEL);
 			if (!hsdev) {
 				hid_err(hdev, "cannot allocate hid_sensor_hub_device\n");
 				ret = -ENOMEM;
-				goto err_no_mem;
+				goto err_stop_hw;
 			}
 			hsdev->hdev = hdev;
 			hsdev->vendor_id = hdev->vendor;
@@ -627,12 +632,13 @@ static int sensor_hub_probe(struct hid_device *hdev,
 			if (last_hsdev)
 				last_hsdev->end_collection_index = i;
 			last_hsdev = hsdev;
-			name = kasprintf(GFP_KERNEL, "HID-SENSOR-%x",
-					collection->usage);
+			name = devm_kasprintf(&hdev->dev, GFP_KERNEL,
+					      "HID-SENSOR-%x",
+					      collection->usage);
 			if (name == NULL) {
 				hid_err(hdev, "Failed MFD device name\n");
 					ret = -ENOMEM;
-					goto err_no_mem;
+					goto err_stop_hw;
 			}
 			sd->hid_sensor_hub_client_devs[
 				sd->hid_sensor_client_cnt].id =
@@ -656,16 +662,10 @@ static int sensor_hub_probe(struct hid_device *hdev,
 	ret = mfd_add_devices(&hdev->dev, 0, sd->hid_sensor_hub_client_devs,
 		sd->hid_sensor_client_cnt, NULL, 0, NULL);
 	if (ret < 0)
-		goto err_no_mem;
+		goto err_stop_hw;
 
 	return ret;
 
-err_no_mem:
-	for (i = 0; i < sd->hid_sensor_client_cnt; ++i) {
-		kfree(sd->hid_sensor_hub_client_devs[i].name);
-		kfree(sd->hid_sensor_hub_client_devs[i].platform_data);
-	}
-	kfree(sd->hid_sensor_hub_client_devs);
 err_stop_hw:
 	hid_hw_stop(hdev);
 
@@ -676,7 +676,6 @@ static void sensor_hub_remove(struct hid_device *hdev)
 {
 	struct sensor_hub_data *data = hid_get_drvdata(hdev);
 	unsigned long flags;
-	int i;
 
 	hid_dbg(hdev, " hardware removed\n");
 	hid_hw_close(hdev);
@@ -686,11 +685,6 @@ static void sensor_hub_remove(struct hid_device *hdev)
 		complete(&data->pending.ready);
 	spin_unlock_irqrestore(&data->lock, flags);
 	mfd_remove_devices(&hdev->dev);
-	for (i = 0; i < data->hid_sensor_client_cnt; ++i) {
-		kfree(data->hid_sensor_hub_client_devs[i].name);
-		kfree(data->hid_sensor_hub_client_devs[i].platform_data);
-	}
-	kfree(data->hid_sensor_hub_client_devs);
 	hid_set_drvdata(hdev, NULL);
 	mutex_destroy(&data->mutex);
 }

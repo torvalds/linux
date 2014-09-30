@@ -69,15 +69,3 @@ config DRM_I915_PRELIMINARY_HW_SUPPORT
 	  option changes the default for that module option.
 
 	  If in doubt, say "N".
-
-config DRM_I915_UMS
-	bool "Enable userspace modesetting on Intel hardware (DEPRECATED)"
-	depends on DRM_I915 && BROKEN
-	default n
-	help
-	  Choose this option if you still need userspace modesetting.
-
-	  Userspace modesetting is deprecated for quite some time now, so
-	  enable this only if you have ancient versions of the DDX drivers.
-
-	  If in doubt, say "N".

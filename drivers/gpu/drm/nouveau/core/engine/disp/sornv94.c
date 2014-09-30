@@ -23,7 +23,6 @@
  */
 
 #include <core/os.h>
-#include <core/class.h>
 
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>

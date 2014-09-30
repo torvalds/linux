@@ -41,10 +41,10 @@
  */
 
 #define DEBUG_SUBSYSTEM S_SEC
-#include <lu_object.h>
-#include <lustre_acl.h>
-#include <lustre_eacl.h>
-#include <obd_support.h>
+#include "../include/lu_object.h"
+#include "../include/lustre_acl.h"
+#include "../include/lustre_eacl.h"
+#include "../include/obd_support.h"
 
 #ifdef CONFIG_FS_POSIX_ACL
 

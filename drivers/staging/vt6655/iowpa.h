@@ -29,8 +29,6 @@
 #ifndef __IOWPA_H__
 #define __IOWPA_H__
 
-/*---------------------  Export Definitions -------------------------*/
-
 #define WPA_IE_LEN 64
 
 //WPA related
@@ -127,14 +125,6 @@ struct viawget_scan_result {
 	int maxrate;
 };
 
-//2006-1116-01,<Add> by NomadZhao
 #pragma pack()
-/*---------------------  Export Classes  ----------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Types  ------------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
 
 #endif //__IOWPA_H__

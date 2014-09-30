@@ -242,7 +242,7 @@
 */	push reg /*
 */	pop $r13 /*
 */	pop $r14 /*
-*/	call(wr32) /*
+*/	call(wr32)
 #else
 #define nv_wr32(addr,reg) /*
 */ 	sethi $r0 0x14000000 /*

@@ -33,7 +33,6 @@ Configuration Options:
 #include <linux/module.h>
 #include "../comedidev.h"
 
-#define AIO_IIRO_16_SIZE	0x08
 #define AIO_IIRO_16_RELAY_0_7	0x00
 #define AIO_IIRO_16_INPUT_0_7	0x01
 #define AIO_IIRO_16_IRQ		0x02
@@ -74,7 +73,7 @@ static int aio_iiro_16_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	ret = comedi_request_region(dev, it->options[0], AIO_IIRO_16_SIZE);
+	ret = comedi_request_region(dev, it->options[0], 0x8);
 	if (ret)
 		return ret;
 

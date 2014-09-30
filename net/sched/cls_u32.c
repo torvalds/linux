@@ -38,6 +38,7 @@
 #include <linux/errno.h>
 #include <linux/rtnetlink.h>
 #include <linux/skbuff.h>
+#include <linux/bitmap.h>
 #include <net/netlink.h>
 #include <net/act_api.h>
 #include <net/pkt_cls.h>
@@ -460,17 +461,25 @@ static int u32_delete(struct tcf_proto *tp, unsigned long arg)
 	return 0;
 }
 
+#define NR_U32_NODE (1<<12)
 static u32 gen_new_kid(struct tc_u_hnode *ht, u32 handle)
 {
 	struct tc_u_knode *n;
-	unsigned int i = 0x7FF;
+	unsigned long i;
+	unsigned long *bitmap = kzalloc(BITS_TO_LONGS(NR_U32_NODE) * sizeof(unsigned long),
+					GFP_KERNEL);
+	if (!bitmap)
+		return handle | 0xFFF;
 
 	for (n = ht->ht[TC_U32_HASH(handle)]; n; n = n->next)
-		if (i < TC_U32_NODE(n->handle))
-			i = TC_U32_NODE(n->handle);
-	i++;
+		set_bit(TC_U32_NODE(n->handle), bitmap);
 
-	return handle | (i > 0xFFF ? 0xFFF : i);
+	i = find_next_zero_bit(bitmap, NR_U32_NODE, 0x800);
+	if (i >= NR_U32_NODE)
+		i = find_next_zero_bit(bitmap, NR_U32_NODE, 1);
+
+	kfree(bitmap);
+	return handle | (i >= NR_U32_NODE ? 0xFFF : i);
 }
 
 static const struct nla_policy u32_policy[TCA_U32_MAX + 1] = {

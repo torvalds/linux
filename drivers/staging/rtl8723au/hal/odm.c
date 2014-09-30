@@ -166,11 +166,9 @@ u8 CCKSwingTable_Ch1423A[CCK_TABLE_SIZE][8] = {
 /* START------------COMMON INFO RELATED--------------- */
 void odm_CommonInfoSelfInit23a(struct dm_odm_t *pDM_Odm);
 
-void odm_CommonInfoSelfUpdate23a(struct dm_odm_t *pDM_Odm);
+static void odm_CommonInfoSelfUpdate(struct hal_data_8723a *pHalData);
 
 void odm_CmnInfoInit_Debug23a(struct dm_odm_t *pDM_Odm);
-
-void odm_CmnInfoHook_Debug23a(struct dm_odm_t *pDM_Odm);
 
 void odm_CmnInfoUpdate_Debug23a(struct dm_odm_t *pDM_Odm);
 
@@ -179,7 +177,7 @@ void odm_FalseAlarmCounterStatistics23a(struct dm_odm_t *pDM_Odm);
 
 void odm_DIG23aInit(struct dm_odm_t *pDM_Odm);
 
-void odm_DIG23a(struct dm_odm_t *pDM_Odm);
+void odm_DIG23a(struct rtw_adapter *adapter);
 
 void odm_CCKPacketDetectionThresh23a(struct dm_odm_t *pDM_Odm);
 /* END---------------DIG--------------------------- */
@@ -210,18 +208,6 @@ void odm_RSSIMonitorCheck23aAP(struct dm_odm_t *pDM_Odm);
 void odm_RSSIMonitorCheck23a(struct dm_odm_t *pDM_Odm);
 void odm_DynamicTxPower23a(struct dm_odm_t *pDM_Odm);
 
-void odm_SwAntDivInit(struct dm_odm_t *pDM_Odm);
-
-void odm_SwAntDivInit_NIC(struct dm_odm_t *pDM_Odm);
-
-void odm_SwAntDivChkAntSwitch(struct dm_odm_t *pDM_Odm, u8 Step);
-
-void odm_SwAntDivChkAntSwitchNIC(struct dm_odm_t *pDM_Odm,
-		u8 Step
-	);
-
-void odm_SwAntDivChkAntSwitchCallback23a(unsigned long data);
-
 void odm_RefreshRateAdaptiveMask23a(struct dm_odm_t *pDM_Odm);
 
 void ODM_TXPowerTrackingCheck23a(struct dm_odm_t *pDM_Odm);
@@ -238,15 +224,11 @@ void odm_TXPowerTrackingCheckMP(struct dm_odm_t *pDM_Odm);
 
 void odm_TXPowerTrackingCheckCE23a(struct dm_odm_t *pDM_Odm);
 
-void odm_EdcaTurboCheck23a(struct dm_odm_t *pDM_Odm);
-void ODM_EdcaTurboInit23a(struct dm_odm_t *pDM_Odm);
-
-void odm_EdcaTurboCheck23aCE23a(struct dm_odm_t *pDM_Odm);
+static void odm_EdcaTurboCheck23a(struct dm_odm_t *pDM_Odm);
+static void ODM_EdcaTurboInit23a(struct dm_odm_t *pDM_Odm);
 
 #define		RxDefaultAnt1		0x65a9
 #define	RxDefaultAnt2		0x569a
-
-void odm_InitHybridAntDiv23a(struct dm_odm_t *pDM_Odm);
 
 bool odm_StaDefAntSel(struct dm_odm_t *pDM_Odm,
  u32 OFDM_Ant1_Cnt,
@@ -261,8 +243,6 @@ void odm_SetRxIdleAnt(struct dm_odm_t *pDM_Odm,
    bool   bDualPath
 );
 
-void odm_HwAntDiv23a(struct dm_odm_t *pDM_Odm);
-
 /* 3 Export Interface */
 
 /*  2011/09/21 MH Add to describe different team necessary resource allocate?? */
@@ -274,29 +254,24 @@ void ODM23a_DMInit(struct dm_odm_t *pDM_Odm)
 	odm_DIG23aInit(pDM_Odm);
 	odm_RateAdaptiveMaskInit23a(pDM_Odm);
 
-	if (pDM_Odm->SupportICType & ODM_IC_11N_SERIES) {
-		odm23a_DynBBPSInit(pDM_Odm);
-		odm_DynamicTxPower23aInit(pDM_Odm);
-		odm_TXPowerTrackingInit23a(pDM_Odm);
-		ODM_EdcaTurboInit23a(pDM_Odm);
-		if ((pDM_Odm->AntDivType == CG_TRX_HW_ANTDIV)	||
-		    (pDM_Odm->AntDivType == CGCS_RX_HW_ANTDIV)	||
-		    (pDM_Odm->AntDivType == CG_TRX_SMART_ANTDIV))
-			odm_InitHybridAntDiv23a(pDM_Odm);
-		else if (pDM_Odm->AntDivType == CGCS_RX_SW_ANTDIV)
-			odm_SwAntDivInit(pDM_Odm);
-	}
+	odm23a_DynBBPSInit(pDM_Odm);
+	odm_DynamicTxPower23aInit(pDM_Odm);
+	odm_TXPowerTrackingInit23a(pDM_Odm);
+	ODM_EdcaTurboInit23a(pDM_Odm);
 }
 
 /*  2011/09/20 MH This is the entry pointer for all team to execute HW out source DM. */
 /*  You can not add any dummy function here, be care, you can only use DM structure */
 /*  to perform any new ODM_DM. */
-void ODM_DMWatchdog23a(struct dm_odm_t *pDM_Odm)
+void ODM_DMWatchdog23a(struct rtw_adapter *adapter)
 {
+	struct hal_data_8723a *pHalData = GET_HAL_DATA(adapter);
+	struct dm_odm_t *pDM_Odm = &pHalData->odmpriv;
+	struct pwrctrl_priv *pwrctrlpriv = &adapter->pwrctrlpriv;
+
 	/* 2012.05.03 Luke: For all IC series */
-	odm_CmnInfoHook_Debug23a(pDM_Odm);
 	odm_CmnInfoUpdate_Debug23a(pDM_Odm);
-	odm_CommonInfoSelfUpdate23a(pDM_Odm);
+	odm_CommonInfoSelfUpdate(pHalData);
 	odm_FalseAlarmCounterStatistics23a(pDM_Odm);
 	odm_RSSIMonitorCheck23a(pDM_Odm);
 
@@ -304,33 +279,25 @@ void ODM_DMWatchdog23a(struct dm_odm_t *pDM_Odm)
 	/* NeilChen--2012--08--24-- */
 	/* Fix Leave LPS issue */
 	if ((pDM_Odm->Adapter->pwrctrlpriv.pwr_mode != PS_MODE_ACTIVE) &&/*  in LPS mode */
-	    (pDM_Odm->SupportICType & (ODM_RTL8723A))) {
+	    (pDM_Odm->SupportICType & ODM_RTL8723A)) {
 			ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("----Step1: odm_DIG23a is in LPS mode\n"));
 			ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("---Step2: 8723AS is in LPS mode\n"));
 			odm_DIG23abyRSSI_LPS(pDM_Odm);
 	} else {
-		odm_DIG23a(pDM_Odm);
+		odm_DIG23a(adapter);
 	}
 
 	odm_CCKPacketDetectionThresh23a(pDM_Odm);
 
-	if (*(pDM_Odm->pbPowerSaving))
+	if (pwrctrlpriv->bpower_saving)
 		return;
 
 	odm_RefreshRateAdaptiveMask23a(pDM_Odm);
 
 	odm_DynamicBBPowerSaving23a(pDM_Odm);
-	if ((pDM_Odm->AntDivType ==  CG_TRX_HW_ANTDIV)	||
-	    (pDM_Odm->AntDivType == CGCS_RX_HW_ANTDIV)	||
-	    (pDM_Odm->AntDivType == CG_TRX_SMART_ANTDIV))
-		odm_HwAntDiv23a(pDM_Odm);
-	else if (pDM_Odm->AntDivType == CGCS_RX_SW_ANTDIV)
-		odm_SwAntDivChkAntSwitch(pDM_Odm, SWAW_STEP_PEAK);
 
-	if (pDM_Odm->SupportICType & ODM_IC_11N_SERIES) {
-		ODM_TXPowerTrackingCheck23a(pDM_Odm);
-	      odm_EdcaTurboCheck23a(pDM_Odm);
-	}
+	ODM_TXPowerTrackingCheck23a(pDM_Odm);
+	odm_EdcaTurboCheck23a(pDM_Odm);
 
 	odm_dtc(pDM_Odm);
 }
@@ -350,9 +317,6 @@ void ODM_CmnInfoInit23a(struct dm_odm_t *pDM_Odm,
 	/*  */
 	switch	(CmnInfo) {
 	/*  Fixed ODM value. */
-	case	ODM_CMNINFO_ABILITY:
-		pDM_Odm->SupportAbility = (u32)Value;
-		break;
 	case	ODM_CMNINFO_PLATFORM:
 		break;
 	case	ODM_CMNINFO_INTERFACE:
@@ -372,9 +336,6 @@ void ODM_CmnInfoInit23a(struct dm_odm_t *pDM_Odm,
 		break;
 	case	ODM_CMNINFO_RF_TYPE:
 		pDM_Odm->RFType = (u8)Value;
-		break;
-	case    ODM_CMNINFO_RF_ANTENNA_TYPE:
-		pDM_Odm->AntDivType = (u8)Value;
 		break;
 	case	ODM_CMNINFO_BOARD_TYPE:
 		pDM_Odm->BoardType = (u8)Value;
@@ -416,81 +377,6 @@ void ODM_CmnInfoInit23a(struct dm_odm_t *pDM_Odm,
 
 }
 
-void ODM23a_CmnInfoHook(struct dm_odm_t *pDM_Odm,
-		enum odm_cmninfo CmnInfo,
-		void *pValue
-	)
-{
-	/*  Hook call by reference pointer. */
-	switch	(CmnInfo) {
-	/*  Dynamic call by reference pointer. */
-	case	ODM_CMNINFO_MAC_PHY_MODE:
-		pDM_Odm->pMacPhyMode = (u8 *)pValue;
-		break;
-	case	ODM_CMNINFO_TX_UNI:
-		pDM_Odm->pNumTxBytesUnicast = (u64 *)pValue;
-		break;
-	case	ODM_CMNINFO_RX_UNI:
-		pDM_Odm->pNumRxBytesUnicast = (u64 *)pValue;
-		break;
-	case	ODM_CMNINFO_WM_MODE:
-		pDM_Odm->pWirelessMode = (u8 *)pValue;
-		break;
-	case	ODM_CMNINFO_BAND:
-		pDM_Odm->pBandType = (u8 *)pValue;
-		break;
-	case	ODM_CMNINFO_SEC_CHNL_OFFSET:
-		pDM_Odm->pSecChOffset = (u8 *)pValue;
-		break;
-	case	ODM_CMNINFO_SEC_MODE:
-		pDM_Odm->pSecurity = (u8 *)pValue;
-		break;
-	case	ODM_CMNINFO_BW:
-		pDM_Odm->pBandWidth = (u8 *)pValue;
-		break;
-	case	ODM_CMNINFO_CHNL:
-		pDM_Odm->pChannel = (u8 *)pValue;
-		break;
-	case	ODM_CMNINFO_DMSP_GET_VALUE:
-		pDM_Odm->pbGetValueFromOtherMac = (bool *)pValue;
-		break;
-	case	ODM_CMNINFO_BUDDY_ADAPTOR:
-		pDM_Odm->pBuddyAdapter = (struct rtw_adapter **)pValue;
-		break;
-	case	ODM_CMNINFO_DMSP_IS_MASTER:
-		pDM_Odm->pbMasterOfDMSP = (bool *)pValue;
-		break;
-	case	ODM_CMNINFO_SCAN:
-		pDM_Odm->pbScanInProcess = (bool *)pValue;
-		break;
-	case	ODM_CMNINFO_POWER_SAVING:
-		pDM_Odm->pbPowerSaving = (bool *)pValue;
-		break;
-	case	ODM_CMNINFO_ONE_PATH_CCA:
-		pDM_Odm->pOnePathCCA = (u8 *)pValue;
-		break;
-	case	ODM_CMNINFO_DRV_STOP:
-		pDM_Odm->pbDriverStopped =  (bool *)pValue;
-		break;
-	case	ODM_CMNINFO_PNP_IN:
-		pDM_Odm->pbDriverIsGoingToPnpSetPowerSleep =  (bool *)pValue;
-		break;
-	case	ODM_CMNINFO_INIT_ON:
-		pDM_Odm->pinit_adpt_in_progress =  (bool *)pValue;
-		break;
-	case	ODM_CMNINFO_ANT_TEST:
-		pDM_Odm->pAntennaTest =  (u8 *)pValue;
-		break;
-	case	ODM_CMNINFO_NET_CLOSED:
-		pDM_Odm->pbNet_closed = (bool *)pValue;
-		break;
-	/* To remove the compiler warning, must add an empty default statement to handle the other values. */
-	default:
-		/* do nothing */
-		break;
-	}
-}
-
 void ODM_CmnInfoPtrArrayHook23a(struct dm_odm_t *pDM_Odm, enum odm_cmninfo CmnInfo,
 				u16 Index, void *pValue)
 {
@@ -512,9 +398,6 @@ void ODM_CmnInfoUpdate23a(struct dm_odm_t *pDM_Odm, u32 CmnInfo, u64 Value)
 {
 	/*  This init variable may be changed in run time. */
 	switch	(CmnInfo) {
-	case	ODM_CMNINFO_ABILITY:
-		pDM_Odm->SupportAbility = (u32)Value;
-		break;
 	case	ODM_CMNINFO_RF_TYPE:
 		pDM_Odm->RFType = (u8)Value;
 		break;
@@ -549,32 +432,33 @@ void ODM_CmnInfoUpdate23a(struct dm_odm_t *pDM_Odm, u32 CmnInfo, u64 Value)
 void odm_CommonInfoSelfInit23a(struct dm_odm_t *pDM_Odm
 	)
 {
-	pDM_Odm->bCckHighPower = (bool) ODM_GetBBReg(pDM_Odm, 0x824, BIT(9));
-	pDM_Odm->RFPathRxEnable = (u8) ODM_GetBBReg(pDM_Odm, 0xc04, 0x0F);
-	if (pDM_Odm->SupportICType & (ODM_RTL8723A))
-		pDM_Odm->AntDivType = CGCS_RX_SW_ANTDIV;
+	pDM_Odm->bCckHighPower =
+		(bool) ODM_GetBBReg(pDM_Odm, rFPGA0_XA_HSSIParameter2, BIT(9));
+	pDM_Odm->RFPathRxEnable =
+		(u8) ODM_GetBBReg(pDM_Odm, rOFDM0_TRxPathEnable, 0x0F);
 
 	ODM_InitDebugSetting23a(pDM_Odm);
 }
 
-void odm_CommonInfoSelfUpdate23a(struct dm_odm_t *pDM_Odm)
+static void odm_CommonInfoSelfUpdate(struct hal_data_8723a *pHalData)
 {
+	struct dm_odm_t *pDM_Odm = &pHalData->odmpriv;
+	struct sta_info *pEntry;
 	u8 EntryCnt = 0;
 	u8 i;
-	struct sta_info *pEntry;
 
-	if (*(pDM_Odm->pBandWidth) == ODM_BW40M) {
-		if (*(pDM_Odm->pSecChOffset) == 1)
-			pDM_Odm->ControlChannel = *(pDM_Odm->pChannel) - 2;
-		else if (*(pDM_Odm->pSecChOffset) == 2)
-			pDM_Odm->ControlChannel = *(pDM_Odm->pChannel) + 2;
+	if (pHalData->CurrentChannelBW == HT_CHANNEL_WIDTH_40) {
+		if (pHalData->nCur40MhzPrimeSC == 1)
+			pDM_Odm->ControlChannel = pHalData->CurrentChannel - 2;
+		else if (pHalData->nCur40MhzPrimeSC == 2)
+			pDM_Odm->ControlChannel = pHalData->CurrentChannel + 2;
 	} else {
-		pDM_Odm->ControlChannel = *(pDM_Odm->pChannel);
+		pDM_Odm->ControlChannel = pHalData->CurrentChannel;
 	}
 
 	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
 		pEntry = pDM_Odm->pODM_StaInfo[i];
-		if (IS_STA_VALID(pEntry))
+		if (pEntry)
 			EntryCnt++;
 	}
 	if (EntryCnt == 1)
@@ -601,21 +485,6 @@ void odm_CmnInfoInit_Debug23a(struct dm_odm_t *pDM_Odm)
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("bWIFITest =%d\n", pDM_Odm->bWIFITest));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("bDualMacSmartConcurrent =%d\n", pDM_Odm->bDualMacSmartConcurrent));
 
-}
-
-void odm_CmnInfoHook_Debug23a(struct dm_odm_t *pDM_Odm)
-{
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("odm_CmnInfoHook_Debug23a ==>\n"));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pNumTxBytesUnicast =%llu\n", *(pDM_Odm->pNumTxBytesUnicast)));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pNumRxBytesUnicast =%llu\n", *(pDM_Odm->pNumRxBytesUnicast)));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pWirelessMode = 0x%x\n", *(pDM_Odm->pWirelessMode)));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pSecChOffset =%d\n", *(pDM_Odm->pSecChOffset)));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pSecurity =%d\n", *(pDM_Odm->pSecurity)));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pBandWidth =%d\n", *(pDM_Odm->pBandWidth)));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pChannel =%d\n", *(pDM_Odm->pChannel)));
-
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pbScanInProcess =%d\n", *(pDM_Odm->pbScanInProcess)));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pbPowerSaving =%d\n", *(pDM_Odm->pbPowerSaving)));
 }
 
 void odm_CmnInfoUpdate_Debug23a(struct dm_odm_t *pDM_Odm)
@@ -655,7 +524,7 @@ void odm_DIG23abyRSSI_LPS(struct dm_odm_t *pDM_Odm)
 	u8 bFwCurrentInPSMode = false;
 	u8 CurrentIGI = pDM_Odm->RSSI_Min;
 
-	if (!(pDM_Odm->SupportICType & (ODM_RTL8723A)))
+	if (!(pDM_Odm->SupportICType & ODM_RTL8723A))
 		return;
 
 	CurrentIGI = CurrentIGI+RSSI_OFFSET_DIG;
@@ -723,15 +592,12 @@ void odm_DIG23aInit(struct dm_odm_t *pDM_Odm)
 	pDM_DigTable->DIG_Dynamic_MIN_1 = DM_DIG_MIN_NIC;
 	pDM_DigTable->bMediaConnect_0 = false;
 	pDM_DigTable->bMediaConnect_1 = false;
-
-	/* To Initialize pDM_Odm->bDMInitialGainEnable == false to avoid DIG error */
-	pDM_Odm->bDMInitialGainEnable = true;
-
 }
 
-void odm_DIG23a(struct dm_odm_t *pDM_Odm)
+void odm_DIG23a(struct rtw_adapter *adapter)
 {
-
+	struct hal_data_8723a *pHalData = GET_HAL_DATA(adapter);
+	struct dm_odm_t *pDM_Odm = &pHalData->odmpriv;
 	struct dig_t *pDM_DigTable = &pDM_Odm->DM_DigTable;
 	struct false_alarm_stats *pFalseAlmCnt = &pDM_Odm->FalseAlmCnt;
 	u8 DIG_Dynamic_MIN;
@@ -748,14 +614,8 @@ void odm_DIG23a(struct dm_odm_t *pDM_Odm)
 		return;
 	}
 
-	if (*(pDM_Odm->pbScanInProcess)) {
+	if (adapter->mlmepriv.bScanInProcess) {
 		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG23a() Return: In Scan Progress \n"));
-		return;
-	}
-
-	/* add by Neil Chen to avoid PSD is processing */
-	if (!pDM_Odm->bDMInitialGainEnable) {
-		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG23a() Return: PSD is Processing \n"));
 		return;
 	}
 
@@ -764,7 +624,7 @@ void odm_DIG23a(struct dm_odm_t *pDM_Odm)
 	FirstDisConnect = (!pDM_Odm->bLinked) && (pDM_DigTable->bMediaConnect_0);
 
 	/* 1 Boundary Decision */
-	if ((pDM_Odm->SupportICType & (ODM_RTL8723A)) &&
+	if ((pDM_Odm->SupportICType & ODM_RTL8723A) &&
 	    ((pDM_Odm->BoardType == ODM_BOARD_HIGHPWR) || pDM_Odm->ExtLNA)) {
 		dm_dig_max = DM_DIG_MAX_NIC_HP;
 		dm_dig_min = DM_DIG_MIN_NIC_HP;
@@ -777,7 +637,7 @@ void odm_DIG23a(struct dm_odm_t *pDM_Odm)
 
 	if (pDM_Odm->bLinked) {
 	      /* 2 8723A Series, offset need to be 10 */
-		if (pDM_Odm->SupportICType == (ODM_RTL8723A)) {
+		if (pDM_Odm->SupportICType == ODM_RTL8723A) {
 			/* 2 Upper Bound */
 			if ((pDM_Odm->RSSI_Min + 10) > DM_DIG_MAX_NIC)
 				pDM_DigTable->rx_gain_range_max = DM_DIG_MAX_NIC;
@@ -925,32 +785,36 @@ void odm_FalseAlarmCounterStatistics23a(struct dm_odm_t *pDM_Odm)
 	if (!(pDM_Odm->SupportAbility & ODM_BB_FA_CNT))
 		return;
 
-	if (pDM_Odm->SupportICType & ODM_IC_11N_SERIES) {
-		/* hold ofdm counter */
-		ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_HOLDC_11N, BIT(31), 1); /* hold page C counter */
-		ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_RSTD_11N, BIT(31), 1); /* hold page D counter */
+	/* hold ofdm counter */
+	 /* hold page C counter */
+	ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_HOLDC_11N, BIT(31), 1);
+	/* hold page D counter */
+	ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_RSTD_11N, BIT(31), 1);
+	ret_value =
+		ODM_GetBBReg(pDM_Odm, ODM_REG_OFDM_FA_TYPE1_11N, bMaskDWord);
+	FalseAlmCnt->Cnt_Fast_Fsync = (ret_value&0xffff);
+	FalseAlmCnt->Cnt_SB_Search_fail = ((ret_value&0xffff0000)>>16);
+	ret_value =
+		ODM_GetBBReg(pDM_Odm, ODM_REG_OFDM_FA_TYPE2_11N, bMaskDWord);
+	FalseAlmCnt->Cnt_OFDM_CCA = (ret_value&0xffff);
+	FalseAlmCnt->Cnt_Parity_Fail = ((ret_value&0xffff0000)>>16);
+	ret_value =
+		ODM_GetBBReg(pDM_Odm, ODM_REG_OFDM_FA_TYPE3_11N, bMaskDWord);
+	FalseAlmCnt->Cnt_Rate_Illegal = (ret_value&0xffff);
+	FalseAlmCnt->Cnt_Crc8_fail = ((ret_value&0xffff0000)>>16);
+	ret_value =
+		ODM_GetBBReg(pDM_Odm, ODM_REG_OFDM_FA_TYPE4_11N, bMaskDWord);
+	FalseAlmCnt->Cnt_Mcs_fail = (ret_value&0xffff);
 
-		ret_value = ODM_GetBBReg(pDM_Odm, ODM_REG_OFDM_FA_TYPE1_11N, bMaskDWord);
-		FalseAlmCnt->Cnt_Fast_Fsync = (ret_value&0xffff);
-		FalseAlmCnt->Cnt_SB_Search_fail = ((ret_value&0xffff0000)>>16);
-		ret_value = ODM_GetBBReg(pDM_Odm, ODM_REG_OFDM_FA_TYPE2_11N, bMaskDWord);
-		FalseAlmCnt->Cnt_OFDM_CCA = (ret_value&0xffff);
-		FalseAlmCnt->Cnt_Parity_Fail = ((ret_value&0xffff0000)>>16);
-		ret_value = ODM_GetBBReg(pDM_Odm, ODM_REG_OFDM_FA_TYPE3_11N, bMaskDWord);
-		FalseAlmCnt->Cnt_Rate_Illegal = (ret_value&0xffff);
-		FalseAlmCnt->Cnt_Crc8_fail = ((ret_value&0xffff0000)>>16);
-		ret_value = ODM_GetBBReg(pDM_Odm, ODM_REG_OFDM_FA_TYPE4_11N, bMaskDWord);
-		FalseAlmCnt->Cnt_Mcs_fail = (ret_value&0xffff);
-
-		FalseAlmCnt->Cnt_Ofdm_fail = FalseAlmCnt->Cnt_Parity_Fail +
-					     FalseAlmCnt->Cnt_Rate_Illegal +
-					     FalseAlmCnt->Cnt_Crc8_fail +
-					     FalseAlmCnt->Cnt_Mcs_fail +
-					     FalseAlmCnt->Cnt_Fast_Fsync +
-					     FalseAlmCnt->Cnt_SB_Search_fail;
-		/* hold cck counter */
-		ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11N, BIT(12), 1);
-		ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11N, BIT(14), 1);
+	FalseAlmCnt->Cnt_Ofdm_fail = FalseAlmCnt->Cnt_Parity_Fail +
+		FalseAlmCnt->Cnt_Rate_Illegal +
+		FalseAlmCnt->Cnt_Crc8_fail +
+		FalseAlmCnt->Cnt_Mcs_fail +
+		FalseAlmCnt->Cnt_Fast_Fsync +
+		FalseAlmCnt->Cnt_SB_Search_fail;
+	/* hold cck counter */
+	ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11N, BIT(12), 1);
+	ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11N, BIT(14), 1);
 
 	ret_value = ODM_GetBBReg(pDM_Odm, ODM_REG_CCK_FA_LSB_11N, bMaskByte0);
 	FalseAlmCnt->Cnt_Cck_fail = ret_value;
@@ -958,7 +822,8 @@ void odm_FalseAlarmCounterStatistics23a(struct dm_odm_t *pDM_Odm)
 	FalseAlmCnt->Cnt_Cck_fail +=  (ret_value & 0xff) << 8;
 
 	ret_value = ODM_GetBBReg(pDM_Odm, ODM_REG_CCK_CCA_CNT_11N, bMaskDWord);
-	FalseAlmCnt->Cnt_CCK_CCA = ((ret_value&0xFF)<<8) | ((ret_value&0xFF00)>>8);
+	FalseAlmCnt->Cnt_CCK_CCA =
+		((ret_value&0xFF)<<8) | ((ret_value&0xFF00)>>8);
 
 	FalseAlmCnt->Cnt_all = (FalseAlmCnt->Cnt_Fast_Fsync +
 				FalseAlmCnt->Cnt_SB_Search_fail +
@@ -968,7 +833,8 @@ void odm_FalseAlarmCounterStatistics23a(struct dm_odm_t *pDM_Odm)
 				FalseAlmCnt->Cnt_Mcs_fail +
 				FalseAlmCnt->Cnt_Cck_fail);
 
-	FalseAlmCnt->Cnt_CCA_all = FalseAlmCnt->Cnt_OFDM_CCA + FalseAlmCnt->Cnt_CCK_CCA;
+	FalseAlmCnt->Cnt_CCA_all =
+		FalseAlmCnt->Cnt_OFDM_CCA + FalseAlmCnt->Cnt_CCK_CCA;
 
 	if (pDM_Odm->SupportICType >= ODM_RTL8723A) {
 		/* reset false alarm counter registers */
@@ -977,8 +843,10 @@ void odm_FalseAlarmCounterStatistics23a(struct dm_odm_t *pDM_Odm)
 		ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_RSTD_11N, BIT(27), 1);
 		ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_RSTD_11N, BIT(27), 0);
 		/* update ofdm counter */
-		ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_HOLDC_11N, BIT(31), 0); /* update page C counter */
-		ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_RSTD_11N, BIT(31), 0); /* update page D counter */
+		 /* update page C counter */
+		ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_HOLDC_11N, BIT(31), 0);
+		 /* update page D counter */
+		ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_RSTD_11N, BIT(31), 0);
 
 		/* reset CCK CCA counter */
 		ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11N,
@@ -992,26 +860,20 @@ void odm_FalseAlarmCounterStatistics23a(struct dm_odm_t *pDM_Odm)
 			     BIT(15) | BIT(14), 2);
 	}
 
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_FA_CNT, ODM_DBG_LOUD, ("Enter odm_FalseAlarmCounterStatistics23a\n"));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_FA_CNT, ODM_DBG_LOUD, ("Cnt_Fast_Fsync =%d, Cnt_SB_Search_fail =%d\n",
-		FalseAlmCnt->Cnt_Fast_Fsync, FalseAlmCnt->Cnt_SB_Search_fail));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_FA_CNT, ODM_DBG_LOUD, ("Cnt_Parity_Fail =%d, Cnt_Rate_Illegal =%d\n",
-		FalseAlmCnt->Cnt_Parity_Fail, FalseAlmCnt->Cnt_Rate_Illegal));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_FA_CNT, ODM_DBG_LOUD, ("Cnt_Crc8_fail =%d, Cnt_Mcs_fail =%d\n",
-		FalseAlmCnt->Cnt_Crc8_fail, FalseAlmCnt->Cnt_Mcs_fail));
-	} else { /* FOR ODM_IC_11AC_SERIES */
-		/* read OFDM FA counter */
-		FalseAlmCnt->Cnt_Ofdm_fail = ODM_GetBBReg(pDM_Odm, ODM_REG_OFDM_FA_11AC, bMaskLWord);
-		FalseAlmCnt->Cnt_Cck_fail = ODM_GetBBReg(pDM_Odm, ODM_REG_CCK_FA_11AC, bMaskLWord);
-		FalseAlmCnt->Cnt_all = FalseAlmCnt->Cnt_Ofdm_fail + FalseAlmCnt->Cnt_Cck_fail;
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_FA_CNT, ODM_DBG_LOUD,
+		     ("Enter odm_FalseAlarmCounterStatistics23a\n"));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_FA_CNT, ODM_DBG_LOUD,
+		     ("Cnt_Fast_Fsync =%d, Cnt_SB_Search_fail =%d\n",
+		      FalseAlmCnt->Cnt_Fast_Fsync,
+		      FalseAlmCnt->Cnt_SB_Search_fail));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_FA_CNT, ODM_DBG_LOUD,
+		     ("Cnt_Parity_Fail =%d, Cnt_Rate_Illegal =%d\n",
+		      FalseAlmCnt->Cnt_Parity_Fail,
+		      FalseAlmCnt->Cnt_Rate_Illegal));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_FA_CNT, ODM_DBG_LOUD,
+		     ("Cnt_Crc8_fail =%d, Cnt_Mcs_fail =%d\n",
+		      FalseAlmCnt->Cnt_Crc8_fail, FalseAlmCnt->Cnt_Mcs_fail));
 
-		/*  reset OFDM FA coutner */
-		ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_RST_11AC, BIT(17), 1);
-		ODM_SetBBReg(pDM_Odm, ODM_REG_OFDM_FA_RST_11AC, BIT(17), 0);
-		/*  reset CCK FA counter */
-		ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11AC, BIT(15), 0);
-		ODM_SetBBReg(pDM_Odm, ODM_REG_CCK_FA_RST_11AC, BIT(15), 1);
-	}
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_FA_CNT, ODM_DBG_LOUD, ("Cnt_Cck_fail =%d\n", FalseAlmCnt->Cnt_Cck_fail));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_FA_CNT, ODM_DBG_LOUD, ("Cnt_Ofdm_fail =%d\n", FalseAlmCnt->Cnt_Ofdm_fail));
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_FA_CNT, ODM_DBG_LOUD, ("Total False Alarm =%d\n", FalseAlmCnt->Cnt_all));
@@ -1207,18 +1069,16 @@ void odm_RateAdaptiveMaskInit23a(struct dm_odm_t *pDM_Odm)
 	pOdmRA->LowRSSIThresh = 20;
 }
 
-u32 ODM_Get_Rate_Bitmap23a(struct dm_odm_t *pDM_Odm,
-	u32 macid,
-	u32 ra_mask,
-	u8 rssi_level)
+u32 ODM_Get_Rate_Bitmap23a(struct hal_data_8723a *pHalData, u32 macid,
+			   u32 ra_mask, u8 rssi_level)
 {
+	struct dm_odm_t *pDM_Odm = &pHalData->odmpriv;
 	struct sta_info *pEntry;
 	u32 rate_bitmap = 0x0fffffff;
 	u8 WirelessMode;
-	/* u8 WirelessMode =*(pDM_Odm->pWirelessMode); */
 
 	pEntry = pDM_Odm->pODM_StaInfo[macid];
-	if (!IS_STA_VALID(pEntry))
+	if (!pEntry)
 		return ra_mask;
 
 	WirelessMode = pEntry->wireless_mode;
@@ -1252,7 +1112,8 @@ u32 ODM_Get_Rate_Bitmap23a(struct dm_odm_t *pDM_Odm,
 			} else if (rssi_level == DM_RATR_STA_MIDDLE) {
 				rate_bitmap = 0x000ff000;
 			} else {
-				if (*(pDM_Odm->pBandWidth) == ODM_BW40M)
+				if (pHalData->CurrentChannelBW ==
+				    HT_CHANNEL_WIDTH_40)
 					rate_bitmap = 0x000ff015;
 				else
 					rate_bitmap = 0x000ff005;
@@ -1263,7 +1124,8 @@ u32 ODM_Get_Rate_Bitmap23a(struct dm_odm_t *pDM_Odm,
 			} else if (rssi_level == DM_RATR_STA_MIDDLE) {
 				rate_bitmap = 0x0f8ff000;
 			} else {
-				if (*(pDM_Odm->pBandWidth) == ODM_BW40M)
+				if (pHalData->CurrentChannelBW ==
+				    HT_CHANNEL_WIDTH_40)
 					rate_bitmap = 0x0f8ff015;
 				else
 					rate_bitmap = 0x0f8ff005;
@@ -1340,7 +1202,7 @@ void odm_RefreshRateAdaptiveMask23aCE23a(struct dm_odm_t *pDM_Odm)
 
 	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
 		struct sta_info *pstat = pDM_Odm->pODM_StaInfo[i];
-		if (IS_STA_VALID(pstat)) {
+		if (pstat) {
 			if (ODM_RAStateCheck23a(pDM_Odm, pstat->rssi_stat.UndecoratedSmoothedPWDB, false, &pstat->rssi_level)) {
 				ODM_RT_TRACE(pDM_Odm, ODM_COMP_RA_MASK, ODM_DBG_LOUD,
 					     ("RSSI:%d, RSSI_LEVEL:%d\n",
@@ -1482,7 +1344,7 @@ void odm_RSSIMonitorCheck23aCE(struct dm_odm_t *pDM_Odm)
 
 	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
 		psta = pDM_Odm->pODM_StaInfo[i];
-		if (IS_STA_VALID(psta)) {
+		if (psta) {
 			if (psta->rssi_stat.UndecoratedSmoothedPWDB < tmpEntryMinPWDB)
 				tmpEntryMinPWDB = psta->rssi_stat.UndecoratedSmoothedPWDB;
 
@@ -1568,52 +1430,8 @@ void odm_TXPowerTrackingCheckAP(struct dm_odm_t *pDM_Odm)
 {
 }
 
-/* antenna mapping info */
-/*  1: right-side antenna */
-/*  2/0: left-side antenna */
-/* PpDM_SWAT_Table->CCK_Ant1_Cnt /OFDM_Ant1_Cnt:  for right-side antenna:   Ant:1    RxDefaultAnt1 */
-/* PpDM_SWAT_Table->CCK_Ant2_Cnt /OFDM_Ant2_Cnt:  for left-side antenna:     Ant:0    RxDefaultAnt2 */
-/*  We select left antenna as default antenna in initial process, modify it as needed */
-/*  */
-
-/* 3 ============================================================ */
-/* 3 SW Antenna Diversity */
-/* 3 ============================================================ */
-void odm_SwAntDivInit(struct dm_odm_t *pDM_Odm)
-{
-}
-
-void ODM_SwAntDivChkPerPktRssi(struct dm_odm_t *pDM_Odm, u8 StationID,
-			       struct phy_info *pPhyInfo)
-{
-}
-
-void odm_SwAntDivChkAntSwitch(struct dm_odm_t *pDM_Odm, u8 Step)
-{
-}
-
-void ODM_SwAntDivRestAfterLink(struct dm_odm_t *pDM_Odm)
-{
-}
-
-void odm_SwAntDivChkAntSwitchCallback23a(unsigned long data)
-{
-}
-
-/* 3 ============================================================ */
-/* 3 SW Antenna Diversity */
-/* 3 ============================================================ */
-
-void odm_InitHybridAntDiv23a(struct dm_odm_t *pDM_Odm)
-{
-}
-
-void odm_HwAntDiv23a(struct dm_odm_t *pDM_Odm)
-{
-}
-
 /* EDCA Turbo */
-void ODM_EdcaTurboInit23a(struct dm_odm_t *pDM_Odm)
+static void ODM_EdcaTurboInit23a(struct dm_odm_t *pDM_Odm)
 {
 
 	struct rtw_adapter *Adapter = pDM_Odm->Adapter;
@@ -1628,39 +1446,30 @@ void ODM_EdcaTurboInit23a(struct dm_odm_t *pDM_Odm)
 
 }	/*  ODM_InitEdcaTurbo */
 
-void odm_EdcaTurboCheck23a(struct dm_odm_t *pDM_Odm)
-{
-	/*  For AP/ADSL use struct rtl8723a_priv * */
-	/*  For CE/NIC use struct rtw_adapter * */
-
-	/*  2011/09/29 MH In HW integration first stage, we provide 4 different handle to operate */
-	/*  at the same time. In the stage2/3, we need to prive universal interface and merge all */
-	/*  HW dynamic mechanism. */
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD, ("odm_EdcaTurboCheck23a ========================>\n"));
-
-	if (!(pDM_Odm->SupportAbility & ODM_MAC_EDCA_TURBO))
-		return;
-
-	odm_EdcaTurboCheck23aCE23a(pDM_Odm);
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_EDCA_TURBO, ODM_DBG_LOUD, ("<======================== odm_EdcaTurboCheck23a\n"));
-
-}	/*  odm_CheckEdcaTurbo */
-
-void odm_EdcaTurboCheck23aCE23a(struct dm_odm_t *pDM_Odm)
+static void odm_EdcaTurboCheck23a(struct dm_odm_t *pDM_Odm)
 {
 	struct rtw_adapter *Adapter = pDM_Odm->Adapter;
-
-	u32 trafficIndex;
-	u32 edca_param;
-	u64 cur_tx_bytes = 0;
-	u64 cur_rx_bytes = 0;
-	u8 bbtchange = false;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 	struct xmit_priv *pxmitpriv = &Adapter->xmitpriv;
 	struct recv_priv *precvpriv = &Adapter->recvpriv;
 	struct registry_priv *pregpriv = &Adapter->registrypriv;
 	struct mlme_ext_priv *pmlmeext = &Adapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
+	u32 trafficIndex;
+	u32 edca_param;
+	u64 cur_tx_bytes = 0;
+	u64 cur_rx_bytes = 0;
+	u8 bbtchange = false;
+
+	/*  For AP/ADSL use struct rtl8723a_priv * */
+	/*  For CE/NIC use struct rtw_adapter * */
+
+	/*  2011/09/29 MH In HW integration first stage, we provide 4 different handle to operate */
+	/*  at the same time. In the stage2/3, we need to prive universal interface and merge all */
+	/*  HW dynamic mechanism. */
+
+	if (!(pDM_Odm->SupportAbility & ODM_MAC_EDCA_TURBO))
+		return;
 
 	if ((pregpriv->wifi_spec == 1))/*  (pmlmeinfo->HT_enable == 0)) */
 		goto dm_CheckEdcaTurbo_EXIT;
@@ -1836,7 +1645,7 @@ bool ODM_SingleDualAntennaDetection(struct dm_odm_t *pDM_Odm, u8 mode)
 		rSleep, rPMPD_ANAEN,
 		rFPGA0_XCD_SwitchControl, rBlue_Tooth};
 
-	if (!(pDM_Odm->SupportICType & (ODM_RTL8723A)))
+	if (!(pDM_Odm->SupportICType & ODM_RTL8723A))
 		return bResult;
 
 	if (!(pDM_Odm->SupportAbility&ODM_BB_ANT_DIV))

@@ -11,6 +11,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/assembler.h>
 
 #ifdef __ARMEB__
 #define xh r0
@@ -31,7 +32,7 @@ ENTRY(__ucmpdi2)
 	movlo	r0, #0
 	moveq	r0, #1
 	movhi	r0, #2
-	mov	pc, lr
+	ret	lr
 
 ENDPROC(__ucmpdi2)
 
@@ -44,7 +45,7 @@ ENTRY(__aeabi_ulcmp)
 	movlo	r0, #-1
 	moveq	r0, #0
 	movhi	r0, #1
-	mov	pc, lr
+	ret	lr
 
 ENDPROC(__aeabi_ulcmp)
 

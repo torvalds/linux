@@ -132,13 +132,13 @@ u8 rtl92e_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb,
 void rtl92e_beacon_statistic(struct ieee80211_hw *hw, struct sk_buff *skb);
 void rtl92e_watch_dog_timer_callback(unsigned long data);
 int rtl92e_tx_agg_start(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		        struct ieee80211_sta *sta, u16 tid, u16 *ssn);
+			struct ieee80211_sta *sta, u16 tid, u16 *ssn);
 int rtl92e_tx_agg_stop(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta, u16 tid);
 int rtl92e_tx_agg_oper(struct ieee80211_hw *hw,
 		       struct ieee80211_sta *sta, u16 tid);
 int rtl92e_rx_agg_start(struct ieee80211_hw *hw,
-		        struct ieee80211_sta *sta, u16 tid);
+			struct ieee80211_sta *sta, u16 tid);
 int rtl92e_rx_agg_stop(struct ieee80211_hw *hw,
 		       struct ieee80211_sta *sta, u16 tid);
 void rtl92e_watchdog_wq_callback(void *data);

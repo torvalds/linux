@@ -196,7 +196,7 @@ int of_mpc8xxx_spi_probe(struct platform_device *ofdev)
 
 	pinfo = devm_kzalloc(&ofdev->dev, sizeof(*pinfo), GFP_KERNEL);
 	if (!pinfo)
-		return -ENOMEM;
+		return ret;
 
 	pdata = &pinfo->pdata;
 	dev->platform_data = pdata;

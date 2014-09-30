@@ -1,6 +1,7 @@
 #ifndef _AF_NETLINK_H
 #define _AF_NETLINK_H
 
+#include <linux/rhashtable.h>
 #include <net/sock.h>
 
 #define NLGRPSZ(x)	(ALIGN(x, sizeof(unsigned long) * 8) / 8)
@@ -47,6 +48,8 @@ struct netlink_sock {
 	struct netlink_ring	tx_ring;
 	atomic_t		mapped;
 #endif /* CONFIG_NETLINK_MMAP */
+
+	struct rhash_head	node;
 };
 
 static inline struct netlink_sock *nlk_sk(struct sock *sk)
@@ -54,21 +57,8 @@ static inline struct netlink_sock *nlk_sk(struct sock *sk)
 	return container_of(sk, struct netlink_sock, sk);
 }
 
-struct nl_portid_hash {
-	struct hlist_head	*table;
-	unsigned long		rehash_time;
-
-	unsigned int		mask;
-	unsigned int		shift;
-
-	unsigned int		entries;
-	unsigned int		max_shift;
-
-	u32			rnd;
-};
-
 struct netlink_table {
-	struct nl_portid_hash	hash;
+	struct rhashtable	hash;
 	struct hlist_head	mc_list;
 	struct listeners __rcu	*listeners;
 	unsigned int		flags;
@@ -83,5 +73,6 @@ struct netlink_table {
 
 extern struct netlink_table *nl_table;
 extern rwlock_t nl_table_lock;
+extern struct mutex nl_sk_hash_lock;
 
 #endif

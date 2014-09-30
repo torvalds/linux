@@ -1207,8 +1207,7 @@ int gpmc_cs_program_settings(int cs, struct gpmc_settings *p)
 		}
 	}
 
-	if ((p->wait_on_read || p->wait_on_write) &&
-	    (p->wait_pin > gpmc_nr_waitpins)) {
+	if (p->wait_pin > gpmc_nr_waitpins) {
 		pr_err("%s: invalid wait-pin (%d)\n", __func__, p->wait_pin);
 		return -EINVAL;
 	}
@@ -1288,8 +1287,8 @@ void gpmc_read_settings_dt(struct device_node *np, struct gpmc_settings *p)
 		p->wait_on_write = of_property_read_bool(np,
 							 "gpmc,wait-on-write");
 		if (!p->wait_on_read && !p->wait_on_write)
-			pr_warn("%s: read/write wait monitoring not enabled!\n",
-				__func__);
+			pr_debug("%s: rd/wr wait monitoring not enabled!\n",
+				 __func__);
 	}
 }
 
@@ -1403,8 +1402,11 @@ static int gpmc_probe_nand_child(struct platform_device *pdev,
 		pr_err("%s: ti,nand-ecc-opt not found\n", __func__);
 		return -ENODEV;
 	}
-	if (!strcmp(s, "ham1") || !strcmp(s, "sw") ||
-		!strcmp(s, "hw") || !strcmp(s, "hw-romcode"))
+
+	if (!strcmp(s, "sw"))
+		gpmc_nand_data->ecc_opt = OMAP_ECC_HAM1_CODE_SW;
+	else if (!strcmp(s, "ham1") ||
+		 !strcmp(s, "hw") || !strcmp(s, "hw-romcode"))
 		gpmc_nand_data->ecc_opt =
 				OMAP_ECC_HAM1_CODE_HW;
 	else if (!strcmp(s, "bch4"))
@@ -1615,7 +1617,7 @@ static int gpmc_probe_dt(struct platform_device *pdev)
 		return ret;
 	}
 
-	for_each_child_of_node(pdev->dev.of_node, child) {
+	for_each_available_child_of_node(pdev->dev.of_node, child) {
 
 		if (!child->name)
 			continue;

@@ -126,8 +126,13 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 		ring->bf.uar = &mdev->priv_uar;
 		ring->bf.uar->map = mdev->uar_map;
 		ring->bf_enabled = false;
-	} else
-		ring->bf_enabled = true;
+		ring->bf_alloced = false;
+		priv->pflags &= ~MLX4_EN_PRIV_FLAGS_BLUEFLAME;
+	} else {
+		ring->bf_alloced = true;
+		ring->bf_enabled = !!(priv->pflags &
+				      MLX4_EN_PRIV_FLAGS_BLUEFLAME);
+	}
 
 	ring->hwtstamp_tx_type = priv->hwtstamp_config.tx_type;
 	ring->queue_index = queue_index;
@@ -161,7 +166,7 @@ void mlx4_en_destroy_tx_ring(struct mlx4_en_priv *priv,
 	struct mlx4_en_tx_ring *ring = *pring;
 	en_dbg(DRV, priv, "Destroying tx ring, qpn: %d\n", ring->qpn);
 
-	if (ring->bf_enabled)
+	if (ring->bf_alloced)
 		mlx4_bf_free(mdev->dev, &ring->bf);
 	mlx4_qp_remove(mdev->dev, &ring->qp);
 	mlx4_qp_free(mdev->dev, &ring->qp);
@@ -195,7 +200,7 @@ int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,
 
 	mlx4_en_fill_qp_context(priv, ring->size, ring->stride, 1, 0, ring->qpn,
 				ring->cqn, user_prio, &ring->context);
-	if (ring->bf_enabled)
+	if (ring->bf_alloced)
 		ring->context.usr_page = cpu_to_be32(ring->bf.uar->index);
 
 	err = mlx4_qp_to_ready(mdev->dev, &ring->wqres.mtt, &ring->context,
@@ -351,9 +356,8 @@ int mlx4_en_free_tx_buf(struct net_device *dev, struct mlx4_en_tx_ring *ring)
 	return cnt;
 }
 
-static int mlx4_en_process_tx_cq(struct net_device *dev,
-				 struct mlx4_en_cq *cq,
-				 int budget)
+static bool mlx4_en_process_tx_cq(struct net_device *dev,
+				 struct mlx4_en_cq *cq)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_cq *mcq = &cq->mcq;
@@ -372,9 +376,10 @@ static int mlx4_en_process_tx_cq(struct net_device *dev,
 	int factor = priv->cqe_factor;
 	u64 timestamp = 0;
 	int done = 0;
+	int budget = priv->tx_work_limit;
 
 	if (!priv->port_up)
-		return 0;
+		return true;
 
 	index = cons_index & size_mask;
 	cqe = &buf[(index << factor) + factor];
@@ -447,7 +452,7 @@ static int mlx4_en_process_tx_cq(struct net_device *dev,
 		netif_tx_wake_queue(ring->tx_queue);
 		ring->wake_queue++;
 	}
-	return done;
+	return done < budget;
 }
 
 void mlx4_en_tx_irq(struct mlx4_cq *mcq)
@@ -467,24 +472,16 @@ int mlx4_en_poll_tx_cq(struct napi_struct *napi, int budget)
 	struct mlx4_en_cq *cq = container_of(napi, struct mlx4_en_cq, napi);
 	struct net_device *dev = cq->dev;
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	int done;
+	int clean_complete;
 
-	done = mlx4_en_process_tx_cq(dev, cq, budget);
+	clean_complete = mlx4_en_process_tx_cq(dev, cq);
+	if (!clean_complete)
+		return budget;
 
-	/* If we used up all the quota - we're probably not done yet... */
-	if (done < budget) {
-		/* Done for now */
-		cq->mcq.irq_affinity_change = false;
-		napi_complete(napi);
-		mlx4_en_arm_cq(priv, cq);
-		return done;
-	} else if (unlikely(cq->mcq.irq_affinity_change)) {
-		cq->mcq.irq_affinity_change = false;
-		napi_complete(napi);
-		mlx4_en_arm_cq(priv, cq);
-		return 0;
-	}
-	return budget;
+	napi_complete(napi);
+	mlx4_en_arm_cq(priv, cq);
+
+	return 0;
 }
 
 static struct mlx4_en_tx_desc *mlx4_en_bounce_to_desc(struct mlx4_en_priv *priv,

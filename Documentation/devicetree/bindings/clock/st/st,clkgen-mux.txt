@@ -17,7 +17,7 @@ Required properties:
 	"st,stih416-clkgenf-vcc-sd",	"st,clkgen-mux"
 	"st,stih415-clkgen-a9-mux",	"st,clkgen-mux"
 	"st,stih416-clkgen-a9-mux",	"st,clkgen-mux"
-
+	"st,stih407-clkgen-a9-mux",	"st,clkgen-mux"
 
 - #clock-cells : from common clock binding; shall be set to 0.
 
@@ -27,10 +27,10 @@ Required properties:
 
 Example:
 
-	CLK_M_HVA: CLK_M_HVA {
+	clk_m_hva: clk-m-hva@fd690868 {
 		#clock-cells = <0>;
 		compatible = "st,stih416-clkgenf-vcc-hva", "st,clkgen-mux";
 		reg = <0xfd690868 4>;
 
-		clocks = <&CLOCKGEN_F 1>, <&CLK_M_A1_DIV0 3>;
+		clocks = <&clockgen_f 1>, <&clk_m_a1_div0 3>;
 	};

@@ -35,8 +35,8 @@
  */
 
 #define DEBUG_SUBSYSTEM S_MDC
-#include <lustre_net.h>
-#include <lustre/lustre_idl.h>
+#include "../include/lustre_net.h"
+#include "../include/lustre/lustre_idl.h"
 #include "mdc_internal.h"
 
 

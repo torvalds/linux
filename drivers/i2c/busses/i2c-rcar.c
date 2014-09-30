@@ -34,6 +34,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
+#include <linux/spinlock.h>
 
 /* register offsets */
 #define ICSCR	0x00	/* slave ctrl */
@@ -75,8 +76,8 @@
 #define RCAR_IRQ_RECV	(MNR | MAL | MST | MAT | MDR)
 #define RCAR_IRQ_STOP	(MST)
 
-#define RCAR_IRQ_ACK_SEND	(~(MAT | MDE))
-#define RCAR_IRQ_ACK_RECV	(~(MAT | MDR))
+#define RCAR_IRQ_ACK_SEND	(~(MAT | MDE) & 0xFF)
+#define RCAR_IRQ_ACK_RECV	(~(MAT | MDR) & 0xFF)
 
 #define ID_LAST_MSG	(1 << 0)
 #define ID_IOERROR	(1 << 1)
@@ -95,6 +96,7 @@ struct rcar_i2c_priv {
 	struct i2c_msg	*msg;
 	struct clk *clk;
 
+	spinlock_t lock;
 	wait_queue_head_t wait;
 
 	int pos;
@@ -365,17 +367,17 @@ static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 	struct rcar_i2c_priv *priv = ptr;
 	u32 msr;
 
+	/*-------------- spin lock -----------------*/
+	spin_lock(&priv->lock);
+
 	msr = rcar_i2c_read(priv, ICMSR);
+
+	/* Only handle interrupts that are currently enabled */
+	msr &= rcar_i2c_read(priv, ICMIER);
 
 	/* Arbitration lost */
 	if (msr & MAL) {
 		rcar_i2c_flags_set(priv, (ID_DONE | ID_ARBLOST));
-		goto out;
-	}
-
-	/* Stop */
-	if (msr & MST) {
-		rcar_i2c_flags_set(priv, ID_DONE);
 		goto out;
 	}
 
@@ -385,6 +387,12 @@ static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 		rcar_i2c_write(priv, ICMCR, RCAR_BUS_PHASE_STOP);
 		rcar_i2c_write(priv, ICMIER, RCAR_IRQ_STOP);
 		rcar_i2c_flags_set(priv, ID_NACK);
+		goto out;
+	}
+
+	/* Stop */
+	if (msr & MST) {
+		rcar_i2c_flags_set(priv, ID_DONE);
 		goto out;
 	}
 
@@ -400,6 +408,9 @@ out:
 		wake_up(&priv->wait);
 	}
 
+	spin_unlock(&priv->lock);
+	/*-------------- spin unlock -----------------*/
+
 	return IRQ_HANDLED;
 }
 
@@ -409,13 +420,20 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 {
 	struct rcar_i2c_priv *priv = i2c_get_adapdata(adap);
 	struct device *dev = rcar_i2c_priv_to_dev(priv);
+	unsigned long flags;
 	int i, ret, timeout;
 
 	pm_runtime_get_sync(dev);
 
+	/*-------------- spin lock -----------------*/
+	spin_lock_irqsave(&priv->lock, flags);
+
 	rcar_i2c_init(priv);
 	/* start clock */
 	rcar_i2c_write(priv, ICCCR, priv->icccr);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+	/*-------------- spin unlock -----------------*/
 
 	ret = rcar_i2c_bus_barrier(priv);
 	if (ret < 0)
@@ -428,6 +446,9 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 			break;
 		}
 
+		/*-------------- spin lock -----------------*/
+		spin_lock_irqsave(&priv->lock, flags);
+
 		/* init each data */
 		priv->msg	= &msgs[i];
 		priv->pos	= 0;
@@ -436,6 +457,9 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 			rcar_i2c_flags_set(priv, ID_LAST_MSG);
 
 		ret = rcar_i2c_prepare_msg(priv);
+
+		spin_unlock_irqrestore(&priv->lock, flags);
+		/*-------------- spin unlock -----------------*/
 
 		if (ret < 0)
 			break;
@@ -540,14 +564,15 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	init_waitqueue_head(&priv->wait);
+	spin_lock_init(&priv->lock);
 
-	adap			= &priv->adap;
-	adap->nr		= pdev->id;
-	adap->algo		= &rcar_i2c_algo;
-	adap->class		= I2C_CLASS_HWMON | I2C_CLASS_SPD | I2C_CLASS_DEPRECATED;
-	adap->retries		= 3;
-	adap->dev.parent	= dev;
-	adap->dev.of_node	= dev->of_node;
+	adap = &priv->adap;
+	adap->nr = pdev->id;
+	adap->algo = &rcar_i2c_algo;
+	adap->class = I2C_CLASS_DEPRECATED;
+	adap->retries = 3;
+	adap->dev.parent = dev;
+	adap->dev.of_node = dev->of_node;
 	i2c_set_adapdata(adap, priv);
 	strlcpy(adap->name, pdev->name, sizeof(adap->name));
 

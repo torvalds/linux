@@ -57,11 +57,9 @@ struct percpu_ref {
 	atomic_t		count;
 	/*
 	 * The low bit of the pointer indicates whether the ref is in percpu
-	 * mode; if set, then get/put will manipulate the atomic_t (this is a
-	 * hack because we need to keep the pointer around for
-	 * percpu_ref_kill_rcu())
+	 * mode; if set, then get/put will manipulate the atomic_t.
 	 */
-	unsigned __percpu	*pcpu_count;
+	unsigned long		pcpu_count_ptr;
 	percpu_ref_func_t	*release;
 	percpu_ref_func_t	*confirm_kill;
 	struct rcu_head		rcu;
@@ -69,9 +67,11 @@ struct percpu_ref {
 
 int __must_check percpu_ref_init(struct percpu_ref *ref,
 				 percpu_ref_func_t *release);
-void percpu_ref_cancel_init(struct percpu_ref *ref);
+void percpu_ref_reinit(struct percpu_ref *ref);
+void percpu_ref_exit(struct percpu_ref *ref);
 void percpu_ref_kill_and_confirm(struct percpu_ref *ref,
 				 percpu_ref_func_t *confirm_kill);
+void __percpu_ref_kill_expedited(struct percpu_ref *ref);
 
 /**
  * percpu_ref_kill - drop the initial ref
@@ -88,12 +88,28 @@ static inline void percpu_ref_kill(struct percpu_ref *ref)
 	return percpu_ref_kill_and_confirm(ref, NULL);
 }
 
-#define PCPU_STATUS_BITS	2
-#define PCPU_STATUS_MASK	((1 << PCPU_STATUS_BITS) - 1)
-#define PCPU_REF_PTR		0
 #define PCPU_REF_DEAD		1
 
-#define REF_STATUS(count)	(((unsigned long) count) & PCPU_STATUS_MASK)
+/*
+ * Internal helper.  Don't use outside percpu-refcount proper.  The
+ * function doesn't return the pointer and let the caller test it for NULL
+ * because doing so forces the compiler to generate two conditional
+ * branches as it can't assume that @ref->pcpu_count is not NULL.
+ */
+static inline bool __pcpu_ref_alive(struct percpu_ref *ref,
+				    unsigned __percpu **pcpu_countp)
+{
+	unsigned long pcpu_ptr = ACCESS_ONCE(ref->pcpu_count_ptr);
+
+	/* paired with smp_store_release() in percpu_ref_reinit() */
+	smp_read_barrier_depends();
+
+	if (unlikely(pcpu_ptr & PCPU_REF_DEAD))
+		return false;
+
+	*pcpu_countp = (unsigned __percpu *)pcpu_ptr;
+	return true;
+}
 
 /**
  * percpu_ref_get - increment a percpu refcount
@@ -107,9 +123,7 @@ static inline void percpu_ref_get(struct percpu_ref *ref)
 
 	rcu_read_lock_sched();
 
-	pcpu_count = ACCESS_ONCE(ref->pcpu_count);
-
-	if (likely(REF_STATUS(pcpu_count) == PCPU_REF_PTR))
+	if (__pcpu_ref_alive(ref, &pcpu_count))
 		this_cpu_inc(*pcpu_count);
 	else
 		atomic_inc(&ref->count);
@@ -133,9 +147,7 @@ static inline bool percpu_ref_tryget(struct percpu_ref *ref)
 
 	rcu_read_lock_sched();
 
-	pcpu_count = ACCESS_ONCE(ref->pcpu_count);
-
-	if (likely(REF_STATUS(pcpu_count) == PCPU_REF_PTR)) {
+	if (__pcpu_ref_alive(ref, &pcpu_count)) {
 		this_cpu_inc(*pcpu_count);
 		ret = true;
 	} else {
@@ -168,9 +180,7 @@ static inline bool percpu_ref_tryget_live(struct percpu_ref *ref)
 
 	rcu_read_lock_sched();
 
-	pcpu_count = ACCESS_ONCE(ref->pcpu_count);
-
-	if (likely(REF_STATUS(pcpu_count) == PCPU_REF_PTR)) {
+	if (__pcpu_ref_alive(ref, &pcpu_count)) {
 		this_cpu_inc(*pcpu_count);
 		ret = true;
 	}
@@ -193,14 +203,27 @@ static inline void percpu_ref_put(struct percpu_ref *ref)
 
 	rcu_read_lock_sched();
 
-	pcpu_count = ACCESS_ONCE(ref->pcpu_count);
-
-	if (likely(REF_STATUS(pcpu_count) == PCPU_REF_PTR))
+	if (__pcpu_ref_alive(ref, &pcpu_count))
 		this_cpu_dec(*pcpu_count);
 	else if (unlikely(atomic_dec_and_test(&ref->count)))
 		ref->release(ref);
 
 	rcu_read_unlock_sched();
+}
+
+/**
+ * percpu_ref_is_zero - test whether a percpu refcount reached zero
+ * @ref: percpu_ref to test
+ *
+ * Returns %true if @ref reached zero.
+ */
+static inline bool percpu_ref_is_zero(struct percpu_ref *ref)
+{
+	unsigned __percpu *pcpu_count;
+
+	if (__pcpu_ref_alive(ref, &pcpu_count))
+		return false;
+	return !atomic_read(&ref->count);
 }
 
 #endif

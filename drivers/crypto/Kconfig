@@ -391,7 +391,7 @@ config CRYPTO_DEV_ATMEL_SHA
 
 config CRYPTO_DEV_CCP
 	bool "Support for AMD Cryptographic Coprocessor"
-	depends on X86 && PCI
+	depends on (X86 && PCI) || ARM64
 	default n
 	help
 	  The AMD Cryptographic Coprocessor provides hardware support
@@ -417,5 +417,23 @@ config CRYPTO_DEV_MXS_DCP
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called mxs-dcp.
+
+source "drivers/crypto/qat/Kconfig"
+
+config CRYPTO_DEV_QCE
+	tristate "Qualcomm crypto engine accelerator"
+	depends on (ARCH_QCOM || COMPILE_TEST) && HAS_DMA && HAS_IOMEM
+	select CRYPTO_AES
+	select CRYPTO_DES
+	select CRYPTO_ECB
+	select CRYPTO_CBC
+	select CRYPTO_XTS
+	select CRYPTO_CTR
+	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
+	help
+	  This driver supports Qualcomm crypto engine accelerator
+	  hardware. To compile this driver as a module, choose M here. The
+	  module will be called qcrypto.
 
 endif # CRYPTO_HW

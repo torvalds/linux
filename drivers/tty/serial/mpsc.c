@@ -1336,10 +1336,6 @@ static void mpsc_stop_rx(struct uart_port *port)
 	mpsc_sdma_cmd(pi, SDMA_SDCM_AR);
 }
 
-static void mpsc_enable_ms(struct uart_port *port)
-{
-}
-
 static void mpsc_break_ctl(struct uart_port *port, int ctl)
 {
 	struct mpsc_port_info *pi = (struct mpsc_port_info *)port;
@@ -1674,7 +1670,6 @@ static struct uart_ops mpsc_pops = {
 	.stop_tx	= mpsc_stop_tx,
 	.start_tx	= mpsc_start_tx,
 	.stop_rx	= mpsc_stop_rx,
-	.enable_ms	= mpsc_enable_ms,
 	.break_ctl	= mpsc_break_ctl,
 	.startup	= mpsc_startup,
 	.shutdown	= mpsc_shutdown,

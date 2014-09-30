@@ -291,14 +291,12 @@ static int sch311x_gpio_remove(struct platform_device *pdev)
 {
 	struct sch311x_pdev_data *pdata = pdev->dev.platform_data;
 	struct sch311x_gpio_priv *priv = platform_get_drvdata(pdev);
-	int err, i;
+	int i;
 
 	release_region(pdata->runtime_reg + GP1, 6);
 
 	for (i = 0; i < ARRAY_SIZE(priv->blocks); i++) {
-		err = gpiochip_remove(&priv->blocks[i].chip);
-		if (err)
-			return err;
+		gpiochip_remove(&priv->blocks[i].chip);
 		dev_info(&pdev->dev,
 			 "SMSC SCH311x GPIO block %d unregistered.\n", i);
 	}

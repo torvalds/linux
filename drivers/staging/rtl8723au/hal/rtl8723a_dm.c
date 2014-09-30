@@ -34,10 +34,6 @@
 /*  Global var */
 /*  */
 
-static void dm_CheckStatistics(struct rtw_adapter *Adapter)
-{
-}
-
 static void dm_CheckPbcGPIO(struct rtw_adapter *padapter)
 {
 	u8	tmp1byte;
@@ -86,16 +82,15 @@ static void dm_CheckPbcGPIO(struct rtw_adapter *padapter)
 
 /*  Initialize GPIO setting registers */
 /*  functions */
-static void Init_ODM_ComInfo_8723a(struct rtw_adapter *Adapter)
+
+void rtl8723a_init_dm_priv(struct rtw_adapter *Adapter)
 {
-
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
+	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	struct dm_odm_t *pDM_Odm = &pHalData->odmpriv;
-	u8	cut_ver, fab_ver;
+	u8 cut_ver, fab_ver;
 
-	/*  */
-	/*  Init Value */
-	/*  */
+	memset(pdmpriv, 0, sizeof(struct dm_priv));
 	memset(pDM_Odm, 0, sizeof(*pDM_Odm));
 
 	pDM_Odm->Adapter = Adapter;
@@ -137,9 +132,6 @@ static void Init_ODM_ComInfo_8723a(struct rtw_adapter *Adapter)
 
 static void Update_ODM_ComInfo_8723a(struct rtw_adapter *Adapter)
 {
-	struct mlme_ext_priv	*pmlmeext = &Adapter->mlmeextpriv;
-	struct mlme_priv		*pmlmepriv = &Adapter->mlmepriv;
-	struct pwrctrl_priv *pwrctrlpriv = &Adapter->pwrctrlpriv;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 	struct dm_odm_t *pDM_Odm = &pHalData->odmpriv;
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
@@ -155,28 +147,7 @@ static void Update_ODM_ComInfo_8723a(struct rtw_adapter *Adapter)
 				ODM_RF_TX_PWR_TRACK	|
 				ODM_RF_CALIBRATION;
 	/*  Pointer reference */
-
-	ODM_CmnInfoUpdate23a(pDM_Odm, ODM_CMNINFO_ABILITY, pdmpriv->InitODMFlag);
-
-	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_TX_UNI,
-			   &Adapter->xmitpriv.tx_bytes);
-	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_RX_UNI,
-			   &Adapter->recvpriv.rx_bytes);
-	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_WM_MODE,
-			   &pmlmeext->cur_wireless_mode);
-	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_SEC_CHNL_OFFSET,
-			   &pHalData->nCur40MhzPrimeSC);
-	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_SEC_MODE,
-			   &Adapter->securitypriv.dot11PrivacyAlgrthm);
-	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_BW,
-			   &pHalData->CurrentChannelBW);
-	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_CHNL,
-			   &pHalData->CurrentChannel);
-	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_NET_CLOSED, &Adapter->net_closed);
-
-	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_SCAN, &pmlmepriv->bScanInProcess);
-	ODM23a_CmnInfoHook(pDM_Odm, ODM_CMNINFO_POWER_SAVING,
-			   &pwrctrlpriv->bpower_saving);
+	rtl8723a_odm_support_ability_set(Adapter, DYNAMIC_ALL_FUNC_ENABLE);
 
 	for (i = 0; i < NUM_STA; i++)
 		ODM_CmnInfoPtrArrayHook23a(pDM_Odm, ODM_CMNINFO_STA_STATUS, i, NULL);
@@ -188,14 +159,6 @@ void rtl8723a_InitHalDm(struct rtw_adapter *Adapter)
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	struct dm_odm_t *pDM_Odm = &pHalData->odmpriv;
 	u8	i;
-
-	pdmpriv->DM_Type = DM_Type_ByDriver;
-	pdmpriv->DMFlag = DYNAMIC_FUNC_DISABLE;
-
-#ifdef CONFIG_8723AU_BT_COEXIST
-	pdmpriv->DMFlag |= DYNAMIC_FUNC_BT;
-#endif
-	pdmpriv->InitDMFlag = pdmpriv->DMFlag;
 
 	Update_ODM_ComInfo_8723a(Adapter);
 	ODM23a_DMInit(pDM_Odm);
@@ -211,6 +174,7 @@ rtl8723a_HalDmWatchDog(
 {
 	bool		bFwCurrentInPSMode = false;
 	bool		bFwPSAwake = true;
+	u8 bLinked = false;
 	u8 hw_init_completed = false;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
@@ -223,10 +187,7 @@ rtl8723a_HalDmWatchDog(
 	bFwCurrentInPSMode = Adapter->pwrctrlpriv.bFwCurrentInPSMode;
 	bFwPSAwake = rtl8723a_get_fwlps_rf_on(Adapter);
 
-	if ((hw_init_completed) && ((!bFwCurrentInPSMode) && bFwPSAwake)) {
-		/*  Calculate Tx/Rx statistics. */
-		dm_CheckStatistics(Adapter);
-
+	if (!bFwCurrentInPSMode && bFwPSAwake) {
 		/*  Read REG_INIDATA_RATE_SEL value for TXDESC. */
 		if (check_fwstate(&Adapter->mlmepriv, WIFI_STATION_STATE)) {
 			pdmpriv->INIDATA_RATE[0] = rtl8723au_read8(Adapter, REG_INIDATA_RATE_SEL) & 0x3f;
@@ -238,33 +199,15 @@ rtl8723a_HalDmWatchDog(
 	}
 
 	/* ODM */
-	if (hw_init_completed == true) {
-		u8	bLinked = false;
+	if (rtw_linked_check(Adapter))
+		bLinked = true;
 
-		if (rtw_linked_check(Adapter))
-			bLinked = true;
-
-		ODM_CmnInfoUpdate23a(&pHalData->odmpriv, ODM_CMNINFO_LINK,
-				     bLinked);
-		ODM_DMWatchdog23a(&pHalData->odmpriv);
-	}
+	ODM_CmnInfoUpdate23a(&pHalData->odmpriv, ODM_CMNINFO_LINK, bLinked);
+	ODM_DMWatchdog23a(Adapter);
 
 skip_dm:
 
 	/*  Check GPIO to determine current RF on/off and Pbc status. */
 	/*  Check Hardware Radio ON/OFF or not */
 	dm_CheckPbcGPIO(Adapter);
-}
-
-void rtl8723a_init_dm_priv(struct rtw_adapter *Adapter)
-{
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
-	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
-
-	memset(pdmpriv, 0, sizeof(struct dm_priv));
-	Init_ODM_ComInfo_8723a(Adapter);
-}
-
-void rtl8723a_deinit_dm_priv(struct rtw_adapter *Adapter)
-{
 }

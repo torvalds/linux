@@ -506,18 +506,18 @@ static void das16_ai_disable(struct comedi_device *dev)
 static int disable_dma_on_even(struct comedi_device *dev)
 {
 	struct das16_private_struct *devpriv = dev->private;
-	int residue;
-	int i;
 	static const int disable_limit = 100;
 	static const int enable_timeout = 100;
+	int residue;
+	int new_residue;
+	int i;
+	int j;
 
 	disable_dma(devpriv->dma_chan);
 	residue = get_dma_residue(devpriv->dma_chan);
 	for (i = 0; i < disable_limit && (residue % 2); ++i) {
-		int j;
 		enable_dma(devpriv->dma_chan);
 		for (j = 0; j < enable_timeout; ++j) {
-			int new_residue;
 			udelay(2);
 			new_residue = get_dma_residue(devpriv->dma_chan);
 			if (new_residue != residue)
@@ -729,14 +729,14 @@ static int das16_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 }
 
 static unsigned int das16_set_pacer(struct comedi_device *dev, unsigned int ns,
-				    int rounding_flags)
+				    unsigned int flags)
 {
 	struct das16_private_struct *devpriv = dev->private;
 	unsigned long timer_base = dev->iobase + DAS16_TIMER_BASE_REG;
 
 	i8253_cascade_ns_to_timer(devpriv->clockbase,
 				  &devpriv->divisor1, &devpriv->divisor2,
-				  &ns, rounding_flags);
+				  &ns, flags);
 
 	i8254_set_mode(timer_base, 0, 1, I8254_MODE2 | I8254_BINARY);
 	i8254_set_mode(timer_base, 0, 2, I8254_MODE2 | I8254_BINARY);
@@ -782,9 +782,7 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	/* set counter mode and counts */
-	cmd->convert_arg =
-	    das16_set_pacer(dev, cmd->convert_arg,
-			    cmd->flags & TRIG_ROUND_MASK);
+	cmd->convert_arg = das16_set_pacer(dev, cmd->convert_arg, cmd->flags);
 
 	/* enable counters */
 	byte = 0;

@@ -3,6 +3,9 @@
 
 #include <linux/kernel.h>
 
+/* prom.c */
+void __init bcm47xx_prom_highmem_init(void);
+
 /* buttons.c */
 int __init bcm47xx_buttons_register(void);
 

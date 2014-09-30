@@ -422,8 +422,6 @@ struct cvmx_usb_state {
 struct octeon_hcd {
 	spinlock_t lock;
 	struct cvmx_usb_state usb;
-	struct tasklet_struct dequeue_tasklet;
-	struct list_head dequeue_list;
 };
 
 /* This macro spins on a field waiting for it to reach a value */
@@ -2164,17 +2162,12 @@ static void octeon_usb_urb_complete_callback(struct cvmx_usb_state *usb,
 	struct usb_hcd *hcd = octeon_to_hcd(priv);
 	struct device *dev = hcd->self.controller;
 
-	urb->actual_length = bytes_transferred;
-	urb->hcpriv = NULL;
+	if (likely(status == CVMX_USB_COMPLETE_SUCCESS))
+		urb->actual_length = bytes_transferred;
+	else
+		urb->actual_length = 0;
 
-	if (!list_empty(&urb->urb_list))
-		/*
-		 * It is on the dequeue_list, but we are going to call
-		 * usb_hcd_giveback_urb(), so we must clear it from
-		 * the list.  We got to it before the
-		 * octeon_usb_urb_dequeue_work() tasklet did.
-		 */
-		list_del_init(&urb->urb_list);
+	urb->hcpriv = NULL;
 
 	/* For Isochronous transactions we need to update the URB packet status
 	   list from data in our private copy */
@@ -2241,6 +2234,7 @@ static void octeon_usb_urb_complete_callback(struct cvmx_usb_state *usb,
 		urb->status = -EPROTO;
 		break;
 	}
+	usb_hcd_unlink_urb_from_ep(octeon_to_hcd(priv), urb);
 	spin_unlock(&priv->lock);
 	usb_hcd_giveback_urb(octeon_to_hcd(priv), urb, urb->status);
 	spin_lock(&priv->lock);
@@ -2850,8 +2844,9 @@ static int __cvmx_usb_poll_channel(struct cvmx_usb_state *usb, int channel)
 		__cvmx_usb_perform_complete(usb, pipe, transaction,
 					    CVMX_USB_COMPLETE_BABBLEERR);
 	} else if (usbc_hcint.s.datatglerr) {
-		/* We'll retry the exact same transaction again */
-		transaction->retries++;
+		/* Data toggle error */
+		__cvmx_usb_perform_complete(usb, pipe, transaction,
+					    CVMX_USB_COMPLETE_DATATGLERR);
 	} else if (usbc_hcint.s.nyet) {
 		/*
 		 * NYET as a response is only allowed in three cases: as a
@@ -3302,10 +3297,16 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 	unsigned long flags;
 	struct cvmx_usb_iso_packet *iso_packet;
 	struct usb_host_endpoint *ep = urb->ep;
+	int rc;
 
 	urb->status = 0;
-	INIT_LIST_HEAD(&urb->urb_list);	/* not enqueued on dequeue_list */
 	spin_lock_irqsave(&priv->lock, flags);
+
+	rc = usb_hcd_link_urb_to_ep(hcd, urb);
+	if (rc) {
+		spin_unlock_irqrestore(&priv->lock, flags);
+		return rc;
+	}
 
 	if (!ep->hcpriv) {
 		enum cvmx_usb_transfer transfer_type;
@@ -3382,6 +3383,7 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 					   >> 11) & 0x3,
 					  split_device, split_port);
 		if (!pipe) {
+			usb_hcd_unlink_urb_from_ep(hcd, urb);
 			spin_unlock_irqrestore(&priv->lock, flags);
 			dev_dbg(dev, "Failed to create pipe\n");
 			return -ENOMEM;
@@ -3452,6 +3454,7 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 		break;
 	}
 	if (!transaction) {
+		usb_hcd_unlink_urb_from_ep(hcd, urb);
 		spin_unlock_irqrestore(&priv->lock, flags);
 		dev_dbg(dev, "Failed to submit\n");
 		return -ENOMEM;
@@ -3461,43 +3464,30 @@ static int octeon_usb_urb_enqueue(struct usb_hcd *hcd,
 	return 0;
 }
 
-static void octeon_usb_urb_dequeue_work(unsigned long arg)
-{
-	struct urb *urb;
-	struct urb *next;
-	unsigned long flags;
-	struct octeon_hcd *priv = (struct octeon_hcd *)arg;
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	list_for_each_entry_safe(urb, next, &priv->dequeue_list, urb_list) {
-		list_del_init(&urb->urb_list);
-		cvmx_usb_cancel(&priv->usb, urb->ep->hcpriv, urb->hcpriv);
-	}
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-}
-
 static int octeon_usb_urb_dequeue(struct usb_hcd *hcd,
 				  struct urb *urb,
 				  int status)
 {
 	struct octeon_hcd *priv = hcd_to_octeon(hcd);
 	unsigned long flags;
+	int rc;
 
 	if (!urb->dev)
 		return -EINVAL;
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	urb->status = status;
-	list_add_tail(&urb->urb_list, &priv->dequeue_list);
+	rc = usb_hcd_check_unlink_urb(hcd, urb, status);
+	if (rc)
+		goto out;
 
+	urb->status = status;
+	cvmx_usb_cancel(&priv->usb, urb->ep->hcpriv, urb->hcpriv);
+
+out:
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	tasklet_schedule(&priv->dequeue_tasklet);
-
-	return 0;
+	return rc;
 }
 
 static void octeon_usb_endpoint_disable(struct usb_hcd *hcd,
@@ -3638,7 +3628,7 @@ static int octeon_usb_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		desc->bDescLength = 9;
 		desc->bDescriptorType = 0x29;
 		desc->bNbrPorts = 1;
-		desc->wHubCharacteristics = 0x08;
+		desc->wHubCharacteristics = cpu_to_le16(0x08);
 		desc->bPwrOn2PwrGood = 1;
 		desc->bHubContrCurrent = 0;
 		desc->u.hs.DeviceRemovable[0] = 0;
@@ -3868,10 +3858,6 @@ static int octeon_usb_probe(struct platform_device *pdev)
 
 	spin_lock_init(&priv->lock);
 
-	tasklet_init(&priv->dequeue_tasklet, octeon_usb_urb_dequeue_work,
-		     (unsigned long)priv);
-	INIT_LIST_HEAD(&priv->dequeue_list);
-
 	status = cvmx_usb_initialize(&priv->usb, usb_num, initialize_flags);
 	if (status) {
 		dev_dbg(dev, "USB initialization failed with %d\n", status);
@@ -3908,7 +3894,6 @@ static int octeon_usb_remove(struct platform_device *pdev)
 	unsigned long flags;
 
 	usb_remove_hcd(hcd);
-	tasklet_kill(&priv->dequeue_tasklet);
 	spin_lock_irqsave(&priv->lock, flags);
 	status = cvmx_usb_shutdown(&priv->usb);
 	spin_unlock_irqrestore(&priv->lock, flags);

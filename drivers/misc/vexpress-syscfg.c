@@ -130,7 +130,7 @@ static int vexpress_syscfg_write(void *context, unsigned int index,
 	return vexpress_syscfg_exec(func, index, true, &val);
 }
 
-struct regmap_config vexpress_syscfg_regmap_config = {
+static struct regmap_config vexpress_syscfg_regmap_config = {
 	.lock = vexpress_config_lock,
 	.unlock = vexpress_config_unlock,
 	.reg_bits = 32,
@@ -276,7 +276,7 @@ int vexpress_syscfg_device_register(struct platform_device *pdev)
 }
 
 
-int vexpress_syscfg_probe(struct platform_device *pdev)
+static int vexpress_syscfg_probe(struct platform_device *pdev)
 {
 	struct vexpress_syscfg *syscfg;
 	struct resource *res;

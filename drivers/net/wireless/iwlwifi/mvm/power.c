@@ -246,30 +246,10 @@ static void iwl_mvm_power_configure_uapsd(struct iwl_mvm *mvm,
 		IWL_MVM_PS_HEAVY_RX_THLD_PERCENT;
 }
 
-static void iwl_mvm_binding_iterator(void *_data, u8 *mac,
-				      struct ieee80211_vif *vif)
-{
-	unsigned long *data = _data;
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-
-	if (!mvmvif->phy_ctxt)
-		return;
-
-	if (vif->type == NL80211_IFTYPE_STATION ||
-	    vif->type == NL80211_IFTYPE_AP)
-		__set_bit(mvmvif->phy_ctxt->id, data);
-}
-
 static bool iwl_mvm_power_allow_uapsd(struct iwl_mvm *mvm,
 				       struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	unsigned long phy_ctxt_counter = 0;
-
-	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
-						   IEEE80211_IFACE_ITER_NORMAL,
-						   iwl_mvm_binding_iterator,
-						   &phy_ctxt_counter);
 
 	if (!memcmp(mvmvif->uapsd_misbehaving_bssid, vif->bss_conf.bssid,
 		    ETH_ALEN))
@@ -291,7 +271,7 @@ static bool iwl_mvm_power_allow_uapsd(struct iwl_mvm *mvm,
 	 * Avoid using uAPSD if client is in DCM -
 	 * low latency issue in Miracast
 	 */
-	if (hweight8(phy_ctxt_counter) >= 2)
+	if (iwl_mvm_phy_ctx_count(mvm) >= 2)
 		return false;
 
 	return true;
@@ -301,7 +281,6 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif,
 				    struct iwl_mac_power_cmd *cmd)
 {
-	struct ieee80211_hw *hw = mvm->hw;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct ieee80211_channel *chan;
 	int dtimper, dtimper_msec;
@@ -312,7 +291,7 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 
 	cmd->id_and_color = cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id,
 							    mvmvif->color));
-	dtimper = hw->conf.ps_dtim_period ?: 1;
+	dtimper = vif->bss_conf.dtim_period;
 
 	/*
 	 * Regardless of power management state the driver must set
@@ -503,6 +482,7 @@ int iwl_mvm_power_uapsd_misbehaving_ap_notif(struct iwl_mvm *mvm,
 }
 
 struct iwl_power_vifs {
+	struct iwl_mvm *mvm;
 	struct ieee80211_vif *bf_vif;
 	struct ieee80211_vif *bss_vif;
 	struct ieee80211_vif *p2p_vif;
@@ -512,6 +492,8 @@ struct iwl_power_vifs {
 	bool bss_active;
 	bool ap_active;
 	bool monitor_active;
+	bool bss_tdls;
+	bool p2p_tdls;
 };
 
 static void iwl_mvm_power_iterator(void *_data, u8 *mac,
@@ -548,6 +530,8 @@ static void iwl_mvm_power_iterator(void *_data, u8 *mac,
 		/* only a single MAC of the same type */
 		WARN_ON(power_iterator->p2p_vif);
 		power_iterator->p2p_vif = vif;
+		power_iterator->p2p_tdls =
+			!!iwl_mvm_tdls_sta_count(power_iterator->mvm, vif);
 		if (mvmvif->phy_ctxt)
 			if (mvmvif->phy_ctxt->id < MAX_PHYS)
 				power_iterator->p2p_active = true;
@@ -557,6 +541,8 @@ static void iwl_mvm_power_iterator(void *_data, u8 *mac,
 		/* only a single MAC of the same type */
 		WARN_ON(power_iterator->bss_vif);
 		power_iterator->bss_vif = vif;
+		power_iterator->bss_tdls =
+			!!iwl_mvm_tdls_sta_count(power_iterator->mvm, vif);
 		if (mvmvif->phy_ctxt)
 			if (mvmvif->phy_ctxt->id < MAX_PHYS)
 				power_iterator->bss_active = true;
@@ -599,13 +585,15 @@ iwl_mvm_power_set_pm(struct iwl_mvm *mvm,
 		ap_mvmvif = iwl_mvm_vif_from_mac80211(vifs->ap_vif);
 
 	/* enable PM on bss if bss stand alone */
-	if (vifs->bss_active && !vifs->p2p_active && !vifs->ap_active) {
+	if (vifs->bss_active && !vifs->p2p_active && !vifs->ap_active &&
+	    !vifs->bss_tdls) {
 		bss_mvmvif->pm_enabled = true;
 		return;
 	}
 
 	/* enable PM on p2p if p2p stand alone */
-	if (vifs->p2p_active && !vifs->bss_active && !vifs->ap_active) {
+	if (vifs->p2p_active && !vifs->bss_active && !vifs->ap_active &&
+	    !vifs->p2p_tdls) {
 		if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_P2P_PM)
 			p2p_mvmvif->pm_enabled = true;
 		return;
@@ -831,7 +819,9 @@ int iwl_mvm_disable_beacon_filter(struct iwl_mvm *mvm,
 int iwl_mvm_power_update_mac(struct iwl_mvm *mvm)
 {
 	struct iwl_mvm_vif *mvmvif;
-	struct iwl_power_vifs vifs = {};
+	struct iwl_power_vifs vifs = {
+		.mvm = mvm,
+	};
 	bool ba_enable;
 	int ret;
 
@@ -894,7 +884,7 @@ int iwl_mvm_update_d0i3_power_mode(struct iwl_mvm *mvm,
 	iwl_mvm_power_build_cmd(mvm, vif, &cmd);
 	if (enable) {
 		/* configure skip over dtim up to 300 msec */
-		int dtimper = mvm->hw->conf.ps_dtim_period ?: 1;
+		int dtimper = vif->bss_conf.dtim_period ?: 1;
 		int dtimper_msec = dtimper * vif->bss_conf.beacon_int;
 
 		if (WARN_ON(!dtimper_msec))

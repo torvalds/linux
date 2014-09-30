@@ -42,7 +42,6 @@ DEFINE_MUTEX(lguest_lock);
 static __init int map_switcher(void)
 {
 	int i, err;
-	struct page **pagep;
 
 	/*
 	 * Map the Switcher in to high memory.
@@ -110,11 +109,9 @@ static __init int map_switcher(void)
 	 * This code actually sets up the pages we've allocated to appear at
 	 * switcher_addr.  map_vm_area() takes the vma we allocated above, the
 	 * kind of pages we're mapping (kernel pages), and a pointer to our
-	 * array of struct pages.  It increments that pointer, but we don't
-	 * care.
+	 * array of struct pages.
 	 */
-	pagep = lg_switcher_pages;
-	err = map_vm_area(switcher_vma, PAGE_KERNEL_EXEC, &pagep);
+	err = map_vm_area(switcher_vma, PAGE_KERNEL_EXEC, lg_switcher_pages);
 	if (err) {
 		printk("lguest: map_vm_area failed: %i\n", err);
 		goto free_vma;

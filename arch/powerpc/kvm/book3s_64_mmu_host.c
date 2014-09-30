@@ -104,9 +104,10 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte,
 	smp_rmb();
 
 	/* Get host physical address for gpa */
-	pfn = kvmppc_gfn_to_pfn(vcpu, gfn, iswrite, &writable);
+	pfn = kvmppc_gpa_to_pfn(vcpu, orig_pte->raddr, iswrite, &writable);
 	if (is_error_noslot_pfn(pfn)) {
-		printk(KERN_INFO "Couldn't get guest page for gfn %lx!\n", gfn);
+		printk(KERN_INFO "Couldn't get guest page for gpa %lx!\n",
+		       orig_pte->raddr);
 		r = -EINVAL;
 		goto out;
 	}

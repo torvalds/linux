@@ -174,7 +174,9 @@ static int nfs_map_numeric_to_string(__u32 id, char *buf, size_t buflen)
 
 static struct key_type key_type_id_resolver = {
 	.name		= "id_resolver",
-	.instantiate	= user_instantiate,
+	.preparse	= user_preparse,
+	.free_preparse	= user_free_preparse,
+	.instantiate	= generic_key_instantiate,
 	.match		= user_match,
 	.revoke		= user_revoke,
 	.destroy	= user_destroy,
@@ -282,6 +284,8 @@ static struct key *nfs_idmap_request_key(const char *name, size_t namelen,
 						desc, "", 0, idmap);
 		mutex_unlock(&idmap->idmap_mutex);
 	}
+	if (!IS_ERR(rkey))
+		set_bit(KEY_FLAG_ROOT_CAN_INVAL, &rkey->flags);
 
 	kfree(desc);
 	return rkey;
@@ -394,7 +398,9 @@ static const struct rpc_pipe_ops idmap_upcall_ops = {
 
 static struct key_type key_type_id_resolver_legacy = {
 	.name		= "id_legacy",
-	.instantiate	= user_instantiate,
+	.preparse	= user_preparse,
+	.free_preparse	= user_free_preparse,
+	.instantiate	= generic_key_instantiate,
 	.match		= user_match,
 	.revoke		= user_revoke,
 	.destroy	= user_destroy,

@@ -245,7 +245,7 @@ static void __init mx27ads_regulator_init(void)
 	vchip->set		= vgpio_set;
 	gpiochip_add(vchip);
 
-	platform_device_register_data(&platform_bus, "reg-fixed-voltage",
+	platform_device_register_data(NULL, "reg-fixed-voltage",
 				      PLATFORM_DEVID_AUTO,
 				      &mx27ads_lcd_regulator_pdata,
 				      sizeof(mx27ads_lcd_regulator_pdata));

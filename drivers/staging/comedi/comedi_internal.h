@@ -48,6 +48,7 @@ void comedi_proc_cleanup(void);
 static inline void comedi_proc_init(void)
 {
 }
+
 static inline void comedi_proc_cleanup(void)
 {
 }

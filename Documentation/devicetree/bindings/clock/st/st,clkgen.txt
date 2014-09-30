@@ -24,60 +24,77 @@ address is common of all subnode.
 		quadfs_node {
 			...
 		};
+
+		mux_node {
+			...
+		};
+
+		vcc_node {
+			...
+		};
+
+		flexgen_node {
+			...
+		};
 		...
 	};
 
 This binding uses the common clock binding[1].
-Each subnode should use the binding discribe in [2]..[4]
+Each subnode should use the binding discribe in [2]..[7]
 
 [1] Documentation/devicetree/bindings/clock/clock-bindings.txt
-[2] Documentation/devicetree/bindings/clock/st,quadfs.txt
-[3] Documentation/devicetree/bindings/clock/st,quadfs.txt
-[4] Documentation/devicetree/bindings/clock/st,quadfs.txt
+[2] Documentation/devicetree/bindings/clock/st,clkgen-divmux.txt
+[3] Documentation/devicetree/bindings/clock/st,clkgen-mux.txt
+[4] Documentation/devicetree/bindings/clock/st,clkgen-pll.txt
+[5] Documentation/devicetree/bindings/clock/st,clkgen-prediv.txt
+[6] Documentation/devicetree/bindings/clock/st,vcc.txt
+[7] Documentation/devicetree/bindings/clock/st,quadfs.txt
+[8] Documentation/devicetree/bindings/clock/st,flexgen.txt
+
 
 Required properties:
 - reg : A Base address and length of the register set.
 
 Example:
 
-	clockgenA@fee62000 {
+	clockgen-a@fee62000 {
 
 		reg = <0xfee62000 0xb48>;
 
-		CLK_S_A0_PLL: CLK_S_A0_PLL {
+		clk_s_a0_pll: clk-s-a0-pll {
 			#clock-cells = <1>;
 			compatible = "st,clkgena-plls-c65";
 
-			clocks = <&CLK_SYSIN>;
+			clocks = <&clk-sysin>;
 
-			clock-output-names = "CLK_S_A0_PLL0_HS",
-					     "CLK_S_A0_PLL0_LS",
-					     "CLK_S_A0_PLL1";
+			clock-output-names = "clk-s-a0-pll0-hs",
+					     "clk-s-a0-pll0-ls",
+					     "clk-s-a0-pll1";
 		};
 
-		CLK_S_A0_OSC_PREDIV: CLK_S_A0_OSC_PREDIV {
+		clk_s_a0_osc_prediv: clk-s-a0-osc-prediv {
 			#clock-cells = <0>;
 			compatible = "st,clkgena-prediv-c65",
 				     "st,clkgena-prediv";
 
-			clocks = <&CLK_SYSIN>;
+			clocks = <&clk_sysin>;
 
-			clock-output-names = "CLK_S_A0_OSC_PREDIV";
+			clock-output-names = "clk-s-a0-osc-prediv";
 		};
 
-		CLK_S_A0_HS: CLK_S_A0_HS {
+		clk_s_a0_hs: clk-s-a0-hs {
 			#clock-cells = <1>;
 			compatible = "st,clkgena-divmux-c65-hs",
 				     "st,clkgena-divmux";
 
-			clocks = <&CLK_S_A0_OSC_PREDIV>,
-				 <&CLK_S_A0_PLL 0>, /* PLL0 HS */
-				 <&CLK_S_A0_PLL 2>; /* PLL1 */
+			clocks = <&clk-s_a0_osc_prediv>,
+				 <&clk-s_a0_pll 0>, /* pll0 hs */
+				 <&clk-s_a0_pll 2>; /* pll1 */
 
-			clock-output-names = "CLK_S_FDMA_0",
-					     "CLK_S_FDMA_1",
-					     ""; /* CLK_S_JIT_SENSE */
-					     /* Fourth output unused */
+			clock-output-names = "clk-s-fdma-0",
+					     "clk-s-fdma-1",
+					     ""; /* clk-s-jit-sense */
+					     /* fourth output unused */
 		};
 	};
 

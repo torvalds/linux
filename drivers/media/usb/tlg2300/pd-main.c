@@ -476,6 +476,8 @@ err_audio:
 err_video:
 	v4l2_device_unregister(&pd->v4l2_dev);
 err_v4l2:
+	usb_put_intf(pd->interface);
+	usb_put_dev(pd->udev);
 	kfree(pd);
 	return ret;
 }

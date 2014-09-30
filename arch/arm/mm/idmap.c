@@ -9,6 +9,11 @@
 #include <asm/sections.h>
 #include <asm/system_info.h>
 
+/*
+ * Note: accesses outside of the kernel image and the identity map area
+ * are not supported on any CPU using the idmap tables as its current
+ * page tables.
+ */
 pgd_t *idmap_pgd;
 phys_addr_t (*arch_virt_to_idmap) (unsigned long x);
 
@@ -25,6 +30,13 @@ static void idmap_add_pmd(pud_t *pud, unsigned long addr, unsigned long end,
 			pr_warning("Failed to allocate identity pmd.\n");
 			return;
 		}
+		/*
+		 * Copy the original PMD to ensure that the PMD entries for
+		 * the kernel image are preserved.
+		 */
+		if (!pud_none(*pud))
+			memcpy(pmd, pmd_offset(pud, 0),
+			       PTRS_PER_PMD * sizeof(pmd_t));
 		pud_populate(&init_mm, pud, pmd);
 		pmd += pmd_index(addr);
 	} else

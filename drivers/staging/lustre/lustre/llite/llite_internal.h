@@ -36,16 +36,16 @@
 
 #ifndef LLITE_INTERNAL_H
 #define LLITE_INTERNAL_H
-#include <lustre_debug.h>
-#include <lustre_ver.h>
-#include <lustre_disk.h>  /* for s2sbi */
-#include <lustre_eacl.h>
+#include "../include/lustre_debug.h"
+#include "../include/lustre_ver.h"
+#include "../include/lustre_disk.h"	/* for s2sbi */
+#include "../include/lustre_eacl.h"
 
 /* for struct cl_lock_descr and struct cl_io */
-#include <cl_object.h>
-#include <lclient.h>
-#include <lustre_mdc.h>
-#include <linux/lustre_intent.h>
+#include "../include/cl_object.h"
+#include "../include/lclient.h"
+#include "../include/lustre_mdc.h"
+#include "../include/linux/lustre_intent.h"
 #include <linux/compat.h>
 #include <linux/posix_acl_xattr.h>
 
@@ -145,7 +145,7 @@ struct ll_inode_info {
 	 * capability needs renewal */
 	atomic_t		    lli_open_count;
 	struct obd_capa		*lli_mds_capa;
-	cfs_time_t		      lli_rmtperm_time;
+	unsigned long		      lli_rmtperm_time;
 
 	/* handle is to be sent to MDS later on done_writing and setattr.
 	 * Open handle data are needed for the recovery to reconstruct
@@ -213,7 +213,7 @@ struct ll_inode_info {
 			struct mutex			f_write_mutex;
 
 			struct rw_semaphore		f_glimpse_sem;
-			cfs_time_t			f_glimpse_time;
+			unsigned long			f_glimpse_time;
 			struct list_head			f_agl_list;
 			__u64				f_agl_index;
 
@@ -670,7 +670,7 @@ void ll_ra_read_ex(struct file *f, struct ll_ra_read *rar);
 struct ll_ra_read *ll_ra_read_get(struct file *f);
 
 /* llite/lproc_llite.c */
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 int lprocfs_register_mountpoint(struct proc_dir_entry *parent,
 				struct super_block *sb, char *osc, char *mdc);
 void lprocfs_unregister_mountpoint(struct ll_sb_info *sbi);
@@ -1432,7 +1432,7 @@ static inline void ll_set_lock_data(struct obd_export *exp, struct inode *inode,
 		if (it->d.lustre.it_remote_lock_mode) {
 			handle.cookie = it->d.lustre.it_remote_lock_handle;
 			CDEBUG(D_DLMTRACE, "setting l_data to inode %p"
-			       "(%lu/%u) for remote lock "LPX64"\n", inode,
+			       "(%lu/%u) for remote lock %#llx\n", inode,
 			       inode->i_ino, inode->i_generation,
 			       handle.cookie);
 			md_set_lock_data(exp, &handle.cookie, inode, NULL);
@@ -1441,7 +1441,7 @@ static inline void ll_set_lock_data(struct obd_export *exp, struct inode *inode,
 		handle.cookie = it->d.lustre.it_lock_handle;
 
 		CDEBUG(D_DLMTRACE, "setting l_data to inode %p (%lu/%u)"
-		       " for lock "LPX64"\n", inode, inode->i_ino,
+		       " for lock %#llx\n", inode, inode->i_ino,
 		       inode->i_generation, handle.cookie);
 
 		md_set_lock_data(exp, &handle.cookie, inode,

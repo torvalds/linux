@@ -23,6 +23,7 @@
 #include <linux/mbus.h>
 #include <linux/signal.h>
 #include <linux/slab.h>
+#include <linux/irqchip.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -33,14 +34,14 @@
 #include "coherency.h"
 #include "mvebu-soc-id.h"
 
+static void __iomem *scu_base;
+
 /*
  * Enables the SCU when available. Obviously, this is only useful on
  * Cortex-A based SOCs, not on PJ4B based ones.
  */
 static void __init mvebu_scu_enable(void)
 {
-	void __iomem *scu_base;
-
 	struct device_node *np =
 		of_find_compatible_node(NULL, NULL, "arm,cortex-a9-scu");
 	if (np) {
@@ -48,6 +49,11 @@ static void __init mvebu_scu_enable(void)
 		scu_enable(scu_base);
 		of_node_put(np);
 	}
+}
+
+void __iomem *mvebu_get_scu_base(void)
+{
+	return scu_base;
 }
 
 /*
@@ -71,17 +77,23 @@ static int armada_375_external_abort_wa(unsigned long addr, unsigned int fsr,
 	return 1;
 }
 
-static void __init mvebu_timer_and_clk_init(void)
+static void __init mvebu_init_irq(void)
 {
-	of_clk_init(NULL);
-	clocksource_of_init();
+	irqchip_init();
 	mvebu_scu_enable();
 	coherency_init();
 	BUG_ON(mvebu_mbus_dt_init(coherency_available()));
+}
 
-	if (of_machine_is_compatible("marvell,armada375"))
-		hook_fault_code(16 + 6, armada_375_external_abort_wa, SIGBUS, 0,
-				"imprecise external abort");
+static void __init external_abort_quirk(void)
+{
+	u32 dev, rev;
+
+	if (mvebu_get_soc_id(&dev, &rev) == 0 && rev > ARMADA_375_Z1_REV)
+		return;
+
+	hook_fault_code(16 + 6, armada_375_external_abort_wa, SIGBUS, 0,
+			"imprecise external abort");
 }
 
 static void __init i2c_quirk(void)
@@ -118,8 +130,16 @@ static void __init thermal_quirk(void)
 {
 	struct device_node *np;
 	u32 dev, rev;
+	int res;
 
-	if (mvebu_get_soc_id(&dev, &rev) == 0 && rev > ARMADA_375_Z1_REV)
+	/*
+	 * The early SoC Z1 revision needs a quirk to be applied in order
+	 * for the thermal controller to work properly. This quirk breaks
+	 * the thermal support if applied on a SoC that doesn't need it,
+	 * so we enforce the SoC revision to be known.
+	 */
+	res = mvebu_get_soc_id(&dev, &rev);
+	if (res < 0 || (res == 0 && rev > ARMADA_375_Z1_REV))
 		return;
 
 	for_each_compatible_node(np, NULL, "marvell,armada375-thermal") {
@@ -153,7 +173,8 @@ static void __init thermal_quirk(void)
 
 		/*
 		 * The thermal controller needs some quirk too, so let's change
-		 * the compatible string to reflect this.
+		 * the compatible string to reflect this and allow the driver
+		 * the take the necessary action.
 		 */
 		prop = kzalloc(sizeof(*prop), GFP_KERNEL);
 		prop->name = kstrdup("compatible", GFP_KERNEL);
@@ -169,8 +190,10 @@ static void __init mvebu_dt_init(void)
 {
 	if (of_machine_is_compatible("plathome,openblocks-ax3-4"))
 		i2c_quirk();
-	if (of_machine_is_compatible("marvell,a375-db"))
+	if (of_machine_is_compatible("marvell,a375-db")) {
+		external_abort_quirk();
 		thermal_quirk();
+	}
 
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
@@ -185,7 +208,7 @@ DT_MACHINE_START(ARMADA_370_XP_DT, "Marvell Armada 370/XP (Device Tree)")
 	.l2c_aux_mask	= ~0,
 	.smp		= smp_ops(armada_xp_smp_ops),
 	.init_machine	= mvebu_dt_init,
-	.init_time	= mvebu_timer_and_clk_init,
+	.init_irq       = mvebu_init_irq,
 	.restart	= mvebu_restart,
 	.dt_compat	= armada_370_xp_dt_compat,
 MACHINE_END
@@ -198,7 +221,7 @@ static const char * const armada_375_dt_compat[] = {
 DT_MACHINE_START(ARMADA_375_DT, "Marvell Armada 375 (Device Tree)")
 	.l2c_aux_val	= 0,
 	.l2c_aux_mask	= ~0,
-	.init_time	= mvebu_timer_and_clk_init,
+	.init_irq       = mvebu_init_irq,
 	.init_machine	= mvebu_dt_init,
 	.restart	= mvebu_restart,
 	.dt_compat	= armada_375_dt_compat,
@@ -213,7 +236,7 @@ static const char * const armada_38x_dt_compat[] = {
 DT_MACHINE_START(ARMADA_38X_DT, "Marvell Armada 380/385 (Device Tree)")
 	.l2c_aux_val	= 0,
 	.l2c_aux_mask	= ~0,
-	.init_time	= mvebu_timer_and_clk_init,
+	.init_irq       = mvebu_init_irq,
 	.restart	= mvebu_restart,
 	.dt_compat	= armada_38x_dt_compat,
 MACHINE_END

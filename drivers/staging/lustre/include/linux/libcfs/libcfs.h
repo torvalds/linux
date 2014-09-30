@@ -41,21 +41,21 @@
 #define __attribute__(x)
 #endif
 
-#include <linux/libcfs/linux/libcfs.h>
+#include "linux/libcfs.h"
 #include <linux/gfp.h>
 
 #include "curproc.h"
 
 #ifndef offsetof
-# define offsetof(typ,memb) ((long)(long_ptr_t)((char *)&(((typ *)0)->memb)))
+# define offsetof(typ, memb) ((long)(long_ptr_t)((char *)&(((typ *)0)->memb)))
 #endif
 
 #ifndef ARRAY_SIZE
-#define ARRAY_SIZE(a) ((sizeof (a)) / (sizeof ((a)[0])))
+#define ARRAY_SIZE(a) ((sizeof(a)) / (sizeof((a)[0])))
 #endif
 
 #if !defined(swap)
-#define swap(x,y) do { typeof(x) z = x; x = y; y = z; } while (0)
+#define swap(x, y) do { typeof(x) z = x; x = y; y = z; } while (0)
 #endif
 
 #if !defined(container_of)
@@ -89,18 +89,18 @@ static inline int __is_po2(unsigned long long val)
 int libcfs_ipif_query(char *name, int *up, __u32 *ip, __u32 *mask);
 int libcfs_ipif_enumerate(char ***names);
 void libcfs_ipif_free_enumeration(char **names, int n);
-int libcfs_sock_listen(socket_t **sockp, __u32 ip, int port, int backlog);
-int libcfs_sock_accept(socket_t **newsockp, socket_t *sock);
-void libcfs_sock_abort_accept(socket_t *sock);
-int libcfs_sock_connect(socket_t **sockp, int *fatal,
+int libcfs_sock_listen(struct socket **sockp, __u32 ip, int port, int backlog);
+int libcfs_sock_accept(struct socket **newsockp, struct socket *sock);
+void libcfs_sock_abort_accept(struct socket *sock);
+int libcfs_sock_connect(struct socket **sockp, int *fatal,
 			__u32 local_ip, int local_port,
 			__u32 peer_ip, int peer_port);
-int libcfs_sock_setbuf(socket_t *socket, int txbufsize, int rxbufsize);
-int libcfs_sock_getbuf(socket_t *socket, int *txbufsize, int *rxbufsize);
-int libcfs_sock_getaddr(socket_t *socket, int remote, __u32 *ip, int *port);
-int libcfs_sock_write(socket_t *sock, void *buffer, int nob, int timeout);
-int libcfs_sock_read(socket_t *sock, void *buffer, int nob, int timeout);
-void libcfs_sock_release(socket_t *sock);
+int libcfs_sock_setbuf(struct socket *socket, int txbufsize, int rxbufsize);
+int libcfs_sock_getbuf(struct socket *socket, int *txbufsize, int *rxbufsize);
+int libcfs_sock_getaddr(struct socket *socket, int remote, __u32 *ip, int *port);
+int libcfs_sock_write(struct socket *sock, void *buffer, int nob, int timeout);
+int libcfs_sock_read(struct socket *sock, void *buffer, int nob, int timeout);
+void libcfs_sock_release(struct socket *sock);
 
 /* need both kernel and user-land acceptor */
 #define LNET_ACCEPTOR_MIN_RESERVED_PORT    512
@@ -155,20 +155,19 @@ unsigned int cfs_rand(void);
 void cfs_srand(unsigned int, unsigned int);
 void cfs_get_random_bytes(void *buf, int size);
 
-#include <linux/libcfs/libcfs_debug.h>
-#include <linux/libcfs/libcfs_cpu.h>
-#include <linux/libcfs/libcfs_private.h>
-#include <linux/libcfs/libcfs_ioctl.h>
-#include <linux/libcfs/libcfs_prim.h>
-#include <linux/libcfs/libcfs_time.h>
-#include <linux/libcfs/libcfs_string.h>
-#include <linux/libcfs/libcfs_kernelcomm.h>
-#include <linux/libcfs/libcfs_workitem.h>
-#include <linux/libcfs/libcfs_hash.h>
-#include <linux/libcfs/libcfs_heap.h>
-#include <linux/libcfs/libcfs_fail.h>
-#include <linux/libcfs/params_tree.h>
-#include <linux/libcfs/libcfs_crypto.h>
+#include "libcfs_debug.h"
+#include "libcfs_cpu.h"
+#include "libcfs_private.h"
+#include "libcfs_ioctl.h"
+#include "libcfs_prim.h"
+#include "libcfs_time.h"
+#include "libcfs_string.h"
+#include "libcfs_kernelcomm.h"
+#include "libcfs_workitem.h"
+#include "libcfs_hash.h"
+#include "libcfs_heap.h"
+#include "libcfs_fail.h"
+#include "libcfs_crypto.h"
 
 /* container_of depends on "likely" which is defined in libcfs_private.h */
 static inline void *__container_of(void *ptr, unsigned long shift)

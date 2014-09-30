@@ -184,7 +184,7 @@ struct adpt_device {
 	u32	block_size;
 	u8	scsi_channel;
 	u8	scsi_id;
-	u8 	scsi_lun;
+	u64	scsi_lun;
 	u8	state;
 	u16	tid;
 	struct i2o_device* pI2o_dev;
@@ -231,7 +231,7 @@ typedef struct _adpt_hba {
 	u32  sg_tablesize;	// Scatter/Gather List Size.       
 	u8  top_scsi_channel;
 	u8  top_scsi_id;
-	u8  top_scsi_lun;
+	u64  top_scsi_lun;
 	u8  dma64;
 
 	i2o_status_block* status_block;
@@ -300,7 +300,7 @@ static s32 adpt_send_nop(adpt_hba*pHba,u32 m);
 static void adpt_i2o_delete_hba(adpt_hba* pHba);
 static void adpt_inquiry(adpt_hba* pHba);
 static void adpt_fail_posted_scbs(adpt_hba* pHba);
-static struct adpt_device* adpt_find_device(adpt_hba* pHba, u32 chan, u32 id, u32 lun);
+static struct adpt_device* adpt_find_device(adpt_hba* pHba, u32 chan, u32 id, u64 lun);
 static int adpt_install_hba(struct scsi_host_template* sht, struct pci_dev* pDev) ;
 static int adpt_i2o_online_hba(adpt_hba* pHba);
 static void adpt_i2o_post_wait_complete(u32, int);

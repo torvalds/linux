@@ -76,15 +76,15 @@ xfs_readlink_bmap(
 		bp = xfs_buf_read(mp->m_ddev_targp, d, BTOBB(byte_cnt), 0,
 				  &xfs_symlink_buf_ops);
 		if (!bp)
-			return XFS_ERROR(ENOMEM);
+			return -ENOMEM;
 		error = bp->b_error;
 		if (error) {
 			xfs_buf_ioerror_alert(bp, __func__);
 			xfs_buf_relse(bp);
 
 			/* bad CRC means corrupted metadata */
-			if (error == EFSBADCRC)
-				error = EFSCORRUPTED;
+			if (error == -EFSBADCRC)
+				error = -EFSCORRUPTED;
 			goto out;
 		}
 		byte_cnt = XFS_SYMLINK_BUF_SPACE(mp, byte_cnt);
@@ -95,7 +95,7 @@ xfs_readlink_bmap(
 		if (xfs_sb_version_hascrc(&mp->m_sb)) {
 			if (!xfs_symlink_hdr_ok(ip->i_ino, offset,
 							byte_cnt, bp)) {
-				error = EFSCORRUPTED;
+				error = -EFSCORRUPTED;
 				xfs_alert(mp,
 "symlink header does not match required off/len/owner (0x%x/Ox%x,0x%llx)",
 					offset, byte_cnt, ip->i_ino);
@@ -135,7 +135,7 @@ xfs_readlink(
 	trace_xfs_readlink(ip);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
-		return XFS_ERROR(EIO);
+		return -EIO;
 
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
 
@@ -148,7 +148,7 @@ xfs_readlink(
 			 __func__, (unsigned long long) ip->i_ino,
 			 (long long) pathlen);
 		ASSERT(0);
-		error = XFS_ERROR(EFSCORRUPTED);
+		error = -EFSCORRUPTED;
 		goto out;
 	}
 
@@ -203,14 +203,14 @@ xfs_symlink(
 	trace_xfs_symlink(dp, link_name);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
-		return XFS_ERROR(EIO);
+		return -EIO;
 
 	/*
 	 * Check component lengths of the target path name.
 	 */
 	pathlen = strlen(target_path);
 	if (pathlen >= MAXPATHLEN)      /* total string too long */
-		return XFS_ERROR(ENAMETOOLONG);
+		return -ENAMETOOLONG;
 
 	udqp = gdqp = NULL;
 	prid = xfs_get_initial_prid(dp);
@@ -238,7 +238,7 @@ xfs_symlink(
 		fs_blocks = xfs_symlink_blocks(mp, pathlen);
 	resblks = XFS_SYMLINK_SPACE_RES(mp, link_name->len, fs_blocks);
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_symlink, resblks, 0);
-	if (error == ENOSPC && fs_blocks == 0) {
+	if (error == -ENOSPC && fs_blocks == 0) {
 		resblks = 0;
 		error = xfs_trans_reserve(tp, &M_RES(mp)->tr_symlink, 0, 0);
 	}
@@ -254,7 +254,7 @@ xfs_symlink(
 	 * Check whether the directory allows new symlinks or not.
 	 */
 	if (dp->i_d.di_flags & XFS_DIFLAG_NOSYMLINKS) {
-		error = XFS_ERROR(EPERM);
+		error = -EPERM;
 		goto error_return;
 	}
 
@@ -284,7 +284,7 @@ xfs_symlink(
 	error = xfs_dir_ialloc(&tp, dp, S_IFLNK | (mode & ~S_IFMT), 1, 0,
 			       prid, resblks > 0, &ip, NULL);
 	if (error) {
-		if (error == ENOSPC)
+		if (error == -ENOSPC)
 			goto error_return;
 		goto error1;
 	}
@@ -348,7 +348,7 @@ xfs_symlink(
 			bp = xfs_trans_get_buf(tp, mp->m_ddev_targp, d,
 					       BTOBB(byte_cnt), 0);
 			if (!bp) {
-				error = ENOMEM;
+				error = -ENOMEM;
 				goto error2;
 			}
 			bp->b_ops = &xfs_symlink_buf_ops;
@@ -489,7 +489,7 @@ xfs_inactive_symlink_rmt(
 			XFS_FSB_TO_DADDR(mp, mval[i].br_startblock),
 			XFS_FSB_TO_BB(mp, mval[i].br_blockcount), 0);
 		if (!bp) {
-			error = ENOMEM;
+			error = -ENOMEM;
 			goto error_bmap_cancel;
 		}
 		xfs_trans_binval(tp, bp);
@@ -562,7 +562,7 @@ xfs_inactive_symlink(
 	trace_xfs_inactive_symlink(ip);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
-		return XFS_ERROR(EIO);
+		return -EIO;
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 
@@ -580,7 +580,7 @@ xfs_inactive_symlink(
 			 __func__, (unsigned long long)ip->i_ino, pathlen);
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		ASSERT(0);
-		return XFS_ERROR(EFSCORRUPTED);
+		return -EFSCORRUPTED;
 	}
 
 	if (ip->i_df.if_flags & XFS_IFINLINE) {

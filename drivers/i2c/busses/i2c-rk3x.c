@@ -323,6 +323,10 @@ static void rk3x_i2c_handle_read(struct rk3x_i2c *i2c, unsigned int ipd)
 	/* ack interrupt */
 	i2c_writel(i2c, REG_INT_MBRF, REG_IPD);
 
+	/* Can only handle a maximum of 32 bytes at a time */
+	if (len > 32)
+		len = 32;
+
 	/* read the data from receive buffer */
 	for (i = 0; i < len; ++i) {
 		if (i % 4 == 0)
@@ -399,7 +403,7 @@ static irqreturn_t rk3x_i2c_irq(int irqno, void *dev_id)
 	}
 
 	/* is there anything left to handle? */
-	if (unlikely(ipd == 0))
+	if (unlikely((ipd & REG_INT_ALL) == 0))
 		goto out;
 
 	switch (i2c->state) {
@@ -429,12 +433,11 @@ static void rk3x_i2c_set_scl_rate(struct rk3x_i2c *i2c, unsigned long scl_rate)
 	unsigned long i2c_rate = clk_get_rate(i2c->clk);
 	unsigned int div;
 
-	/* SCL rate = (clk rate) / (8 * DIV) */
-	div = DIV_ROUND_UP(i2c_rate, scl_rate * 8);
-
-	/* The lower and upper half of the CLKDIV reg describe the length of
-	 * SCL low & high periods. */
-	div = DIV_ROUND_UP(div, 2);
+	/* set DIV = DIVH = DIVL
+	 * SCL rate = (clk rate) / (8 * (DIVH + 1 + DIVL + 1))
+	 *          = (clk rate) / (16 * (DIV + 1))
+	 */
+	div = DIV_ROUND_UP(i2c_rate, scl_rate * 16) - 1;
 
 	i2c_writel(i2c, (div << 16) | (div & 0xffff), REG_CLKDIV);
 }

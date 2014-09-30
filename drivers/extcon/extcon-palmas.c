@@ -194,7 +194,6 @@ static int palmas_usb_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	palmas_usb->edev->name = kstrdup(node->name, GFP_KERNEL);
-	palmas_usb->edev->dev.parent = palmas_usb->dev;
 	palmas_usb->edev->mutually_exclusive = mutually_exclusive;
 
 	status = devm_extcon_dev_register(&pdev->dev, palmas_usb->edev);
@@ -278,7 +277,7 @@ static int palmas_usb_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(palmas_pm_ops, palmas_usb_suspend, palmas_usb_resume);
 
-static struct of_device_id of_palmas_match_tbl[] = {
+static const struct of_device_id of_palmas_match_tbl[] = {
 	{ .compatible = "ti,palmas-usb", },
 	{ .compatible = "ti,palmas-usb-vid", },
 	{ .compatible = "ti,twl6035-usb", },

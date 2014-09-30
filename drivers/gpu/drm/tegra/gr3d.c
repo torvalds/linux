@@ -12,7 +12,8 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
-#include <linux/tegra-powergate.h>
+
+#include <soc/tegra/pmc.h>
 
 #include "drm.h"
 #include "gem.h"
@@ -130,6 +131,7 @@ static const struct of_device_id tegra_gr3d_match[] = {
 	{ .compatible = "nvidia,tegra20-gr3d" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, tegra_gr3d_match);
 
 static const u32 gr3d_addr_regs[] = {
 	GR3D_IDX_ATTRIBUTE( 0),

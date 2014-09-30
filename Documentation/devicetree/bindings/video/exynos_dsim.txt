@@ -1,7 +1,9 @@
 Exynos MIPI DSI Master
 
 Required properties:
-  - compatible: "samsung,exynos4210-mipi-dsi"
+  - compatible: value should be one of the following
+		"samsung,exynos4210-mipi-dsi" /* for Exynos4 SoCs */
+		"samsung,exynos5410-mipi-dsi" /* for Exynos5410/5420/5440 SoCs */
   - reg: physical base address and length of the registers set for the device
   - interrupts: should contain DSI interrupt
   - clocks: list of clock specifiers, must contain an entry for each required

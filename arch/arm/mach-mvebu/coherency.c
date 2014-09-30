@@ -292,6 +292,10 @@ static struct notifier_block mvebu_hwcc_nb = {
 	.notifier_call = mvebu_hwcc_notifier,
 };
 
+static struct notifier_block mvebu_hwcc_pci_nb = {
+	.notifier_call = mvebu_hwcc_notifier,
+};
+
 static void __init armada_370_coherency_init(struct device_node *np)
 {
 	struct resource res;
@@ -427,7 +431,7 @@ static int __init coherency_pci_init(void)
 {
 	if (coherency_available())
 		bus_register_notifier(&pci_bus_type,
-				       &mvebu_hwcc_nb);
+				       &mvebu_hwcc_pci_nb);
 	return 0;
 }
 

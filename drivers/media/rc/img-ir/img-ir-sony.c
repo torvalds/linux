@@ -2,40 +2,49 @@
  * ImgTec IR Decoder setup for Sony (SIRC) protocol.
  *
  * Copyright 2012-2014 Imagination Technologies Ltd.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2 of the License, or (at your
+ * option) any later version.
  */
 
 #include "img-ir-hw.h"
 
 /* Convert Sony data to a scancode */
-static int img_ir_sony_scancode(int len, u64 raw, int *scancode, u64 protocols)
+static int img_ir_sony_scancode(int len, u64 raw, enum rc_type *protocol,
+				u32 *scancode, u64 enabled_protocols)
 {
 	unsigned int dev, subdev, func;
 
 	switch (len) {
 	case 12:
-		if (!(protocols & RC_BIT_SONY12))
+		if (!(enabled_protocols & RC_BIT_SONY12))
 			return -EINVAL;
 		func   = raw & 0x7f;	/* first 7 bits */
 		raw    >>= 7;
 		dev    = raw & 0x1f;	/* next 5 bits */
 		subdev = 0;
+		*protocol = RC_TYPE_SONY12;
 		break;
 	case 15:
-		if (!(protocols & RC_BIT_SONY15))
+		if (!(enabled_protocols & RC_BIT_SONY15))
 			return -EINVAL;
 		func   = raw & 0x7f;	/* first 7 bits */
 		raw    >>= 7;
 		dev    = raw & 0xff;	/* next 8 bits */
 		subdev = 0;
+		*protocol = RC_TYPE_SONY15;
 		break;
 	case 20:
-		if (!(protocols & RC_BIT_SONY20))
+		if (!(enabled_protocols & RC_BIT_SONY20))
 			return -EINVAL;
 		func   = raw & 0x7f;	/* first 7 bits */
 		raw    >>= 7;
 		dev    = raw & 0x1f;	/* next 5 bits */
 		raw    >>= 5;
 		subdev = raw & 0xff;	/* next 8 bits */
+		*protocol = RC_TYPE_SONY20;
 		break;
 	default:
 		return -EINVAL;

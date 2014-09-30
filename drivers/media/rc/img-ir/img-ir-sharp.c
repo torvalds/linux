@@ -2,12 +2,18 @@
  * ImgTec IR Decoder setup for Sharp protocol.
  *
  * Copyright 2012-2014 Imagination Technologies Ltd.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2 of the License, or (at your
+ * option) any later version.
  */
 
 #include "img-ir-hw.h"
 
 /* Convert Sharp data to a scancode */
-static int img_ir_sharp_scancode(int len, u64 raw, int *scancode, u64 protocols)
+static int img_ir_sharp_scancode(int len, u64 raw, enum rc_type *protocol,
+				 u32 *scancode, u64 enabled_protocols)
 {
 	unsigned int addr, cmd, exp, chk;
 
@@ -26,6 +32,7 @@ static int img_ir_sharp_scancode(int len, u64 raw, int *scancode, u64 protocols)
 		/* probably the second half of the message */
 		return -EINVAL;
 
+	*protocol = RC_TYPE_SHARP;
 	*scancode = addr << 8 | cmd;
 	return IMG_IR_SCANCODE;
 }

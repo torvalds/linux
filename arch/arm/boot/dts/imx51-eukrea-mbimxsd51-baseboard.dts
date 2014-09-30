@@ -255,7 +255,6 @@
 
 &ssi2 {
 	codec-handle = <&tlv320aic23>;
-	fsl,mode = "i2s-slave";
 	status = "okay";
 };
 

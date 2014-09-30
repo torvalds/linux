@@ -102,26 +102,6 @@ void __init omap_barriers_init(void)
 {}
 #endif
 
-void __init gic_init_irq(void)
-{
-	void __iomem *omap_irq_base;
-
-	/* Static mapping, never released */
-	gic_dist_base_addr = ioremap(OMAP44XX_GIC_DIST_BASE, SZ_4K);
-	BUG_ON(!gic_dist_base_addr);
-
-	twd_base = ioremap(OMAP44XX_LOCAL_TWD_BASE, SZ_4K);
-	BUG_ON(!twd_base);
-
-	/* Static mapping, never released */
-	omap_irq_base = ioremap(OMAP44XX_GIC_CPU_BASE, SZ_512);
-	BUG_ON(!omap_irq_base);
-
-	omap_wakeupgen_init();
-
-	gic_init(0, 29, gic_dist_base_addr, omap_irq_base);
-}
-
 void gic_dist_disable(void)
 {
 	if (gic_dist_base_addr)
@@ -187,6 +167,10 @@ static void omap4_l2c310_write_sec(unsigned long val, unsigned reg)
 	case L310_PREFETCH_CTRL:
 		smc_op = OMAP4_MON_L2X0_PREFETCH_INDEX;
 		break;
+
+	case L310_POWER_CTRL:
+		pr_info_once("OMAP L2C310: ROM does not support power control setting\n");
+		return;
 
 	default:
 		WARN_ONCE(1, "OMAP L2C310: ignoring write to reg 0x%x\n", reg);

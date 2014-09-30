@@ -599,7 +599,7 @@ static void eeh_handle_normal_event(struct eeh_pe *pe)
 	pe->freeze_count++;
 	if (pe->freeze_count > EEH_MAX_ALLOWED_FREEZES)
 		goto excess_failures;
-	pr_warning("EEH: This PCI device has failed %d times in the last hour\n",
+	pr_warn("EEH: This PCI device has failed %d times in the last hour\n",
 		pe->freeze_count);
 
 	/* Walk the various device drivers attached to this slot through
@@ -616,7 +616,7 @@ static void eeh_handle_normal_event(struct eeh_pe *pe)
 	 */
 	rc = eeh_ops->wait_state(pe, MAX_WAIT_FOR_RECOVERY*1000);
 	if (rc < 0 || rc == EEH_STATE_NOT_SUPPORT) {
-		pr_warning("EEH: Permanent failure\n");
+		pr_warn("EEH: Permanent failure\n");
 		goto hard_fail;
 	}
 
@@ -635,8 +635,8 @@ static void eeh_handle_normal_event(struct eeh_pe *pe)
 		pr_info("EEH: Reset with hotplug activity\n");
 		rc = eeh_reset_device(pe, frozen_bus);
 		if (rc) {
-			pr_warning("%s: Unable to reset, err=%d\n",
-				   __func__, rc);
+			pr_warn("%s: Unable to reset, err=%d\n",
+				__func__, rc);
 			goto hard_fail;
 		}
 	}
@@ -678,7 +678,7 @@ static void eeh_handle_normal_event(struct eeh_pe *pe)
 
 	/* If any device has a hard failure, then shut off everything. */
 	if (result == PCI_ERS_RESULT_DISCONNECT) {
-		pr_warning("EEH: Device driver gave up\n");
+		pr_warn("EEH: Device driver gave up\n");
 		goto hard_fail;
 	}
 
@@ -687,8 +687,8 @@ static void eeh_handle_normal_event(struct eeh_pe *pe)
 		pr_info("EEH: Reset without hotplug activity\n");
 		rc = eeh_reset_device(pe, NULL);
 		if (rc) {
-			pr_warning("%s: Cannot reset, err=%d\n",
-				   __func__, rc);
+			pr_warn("%s: Cannot reset, err=%d\n",
+				__func__, rc);
 			goto hard_fail;
 		}
 
@@ -701,7 +701,7 @@ static void eeh_handle_normal_event(struct eeh_pe *pe)
 	/* All devices should claim they have recovered by now. */
 	if ((result != PCI_ERS_RESULT_RECOVERED) &&
 	    (result != PCI_ERS_RESULT_NONE)) {
-		pr_warning("EEH: Not recovered\n");
+		pr_warn("EEH: Not recovered\n");
 		goto hard_fail;
 	}
 

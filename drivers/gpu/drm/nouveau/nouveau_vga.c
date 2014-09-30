@@ -12,14 +12,16 @@
 static unsigned int
 nouveau_vga_set_decode(void *priv, bool state)
 {
-	struct nouveau_device *device = nouveau_dev(priv);
+	struct nvif_device *device = &nouveau_drm(priv)->device;
 
-	if (device->card_type == NV_40 && device->chipset >= 0x4c)
-		nv_wr32(device, 0x088060, state);
-	else if (device->chipset >= 0x40)
-		nv_wr32(device, 0x088054, state);
+	if (device->info.family == NV_DEVICE_INFO_V0_CURIE &&
+	    device->info.chipset >= 0x4c)
+		nvif_wr32(device, 0x088060, state);
 	else
-		nv_wr32(device, 0x001854, state);
+	if (device->info.chipset >= 0x40)
+		nvif_wr32(device, 0x088054, state);
+	else
+		nvif_wr32(device, 0x001854, state);
 
 	if (state)
 		return VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM |
@@ -106,7 +108,16 @@ void
 nouveau_vga_fini(struct nouveau_drm *drm)
 {
 	struct drm_device *dev = drm->dev;
+	bool runtime = false;
+
+	if (nouveau_runtime_pm == 1)
+		runtime = true;
+	if ((nouveau_runtime_pm == -1) && (nouveau_is_optimus() || nouveau_is_v1_dsm()))
+		runtime = true;
+
 	vga_switcheroo_unregister_client(dev->pdev);
+	if (runtime && nouveau_is_v1_dsm() && !nouveau_is_optimus())
+		vga_switcheroo_fini_domain_pm_ops(drm->dev->dev);
 	vga_client_register(dev->pdev, NULL, NULL, NULL);
 }
 

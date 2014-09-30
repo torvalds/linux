@@ -25,7 +25,6 @@
 #include "sysfs.h"
 #include "debugfs.h"
 #include "wext-compat.h"
-#include "ethtool.h"
 #include "rdev-ops.h"
 
 /* name for sysfs, %d is appended */
@@ -926,8 +925,6 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 			wdev->ps = false;
 		/* allow mac80211 to determine the timeout */
 		wdev->ps_timeout = -1;
-
-		netdev_set_default_ethtool_ops(dev, &cfg80211_ethtool_ops);
 
 		if ((wdev->iftype == NL80211_IFTYPE_STATION ||
 		     wdev->iftype == NL80211_IFTYPE_P2P_CLIENT ||

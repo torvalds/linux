@@ -44,11 +44,11 @@
 
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include <obd_support.h>
-#include <lustre_fid.h>
-#include <lustre_lite.h>
-#include <lustre_dlm.h>
-#include <lustre_ver.h>
+#include "../include/obd_support.h"
+#include "../include/lustre_fid.h"
+#include "../include/lustre_lite.h"
+#include "../include/lustre_dlm.h"
+#include "../include/lustre_ver.h"
 #include "llite_internal.h"
 
 static int ll_create_it(struct inode *, struct dentry *,
@@ -105,7 +105,7 @@ static int ll_set_inode(struct inode *inode, void *opaque)
 	lli->lli_fid = body->fid1;
 	if (unlikely(!(body->valid & OBD_MD_FLTYPE))) {
 		CERROR("Can not initialize inode "DFID" without object type: "
-		       "valid = "LPX64"\n", PFID(&lli->lli_fid), body->valid);
+		       "valid = %#llx\n", PFID(&lli->lli_fid), body->valid);
 		return -EINVAL;
 	}
 
@@ -758,7 +758,7 @@ static void ll_update_times(struct ptlrpc_request *request,
 	LASSERT(body);
 	if (body->valid & OBD_MD_FLMTIME &&
 	    body->mtime > LTIME_S(inode->i_mtime)) {
-		CDEBUG(D_INODE, "setting ino %lu mtime from %lu to "LPU64"\n",
+		CDEBUG(D_INODE, "setting ino %lu mtime from %lu to %llu\n",
 		       inode->i_ino, LTIME_S(inode->i_mtime), body->mtime);
 		LTIME_S(inode->i_mtime) = body->mtime;
 	}

@@ -202,7 +202,7 @@ static int iosf_mbi_probe(struct pci_dev *pdev,
 	return 0;
 }
 
-static DEFINE_PCI_DEVICE_TABLE(iosf_mbi_pci_ids) = {
+static const struct pci_device_id iosf_mbi_pci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_BAYTRAIL) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_QUARK_X1000) },
 	{ 0, },

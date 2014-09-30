@@ -67,8 +67,12 @@ static void clk_gate2_disable(struct clk_hw *hw)
 
 	spin_lock_irqsave(gate->lock, flags);
 
-	if (gate->share_count && --(*gate->share_count) > 0)
-		goto out;
+	if (gate->share_count) {
+		if (WARN_ON(*gate->share_count == 0))
+			goto out;
+		else if (--(*gate->share_count) > 0)
+			goto out;
+	}
 
 	reg = readl(gate->reg);
 	reg &= ~(3 << gate->bit_idx);
@@ -78,17 +82,24 @@ out:
 	spin_unlock_irqrestore(gate->lock, flags);
 }
 
-static int clk_gate2_is_enabled(struct clk_hw *hw)
+static int clk_gate2_reg_is_enabled(void __iomem *reg, u8 bit_idx)
 {
-	u32 reg;
-	struct clk_gate2 *gate = to_clk_gate2(hw);
+	u32 val = readl(reg);
 
-	reg = readl(gate->reg);
-
-	if (((reg >> gate->bit_idx) & 1) == 1)
+	if (((val >> bit_idx) & 1) == 1)
 		return 1;
 
 	return 0;
+}
+
+static int clk_gate2_is_enabled(struct clk_hw *hw)
+{
+	struct clk_gate2 *gate = to_clk_gate2(hw);
+
+	if (gate->share_count)
+		return !!__clk_get_enable_count(hw->clk);
+	else
+		return clk_gate2_reg_is_enabled(gate->reg, gate->bit_idx);
 }
 
 static struct clk_ops clk_gate2_ops = {

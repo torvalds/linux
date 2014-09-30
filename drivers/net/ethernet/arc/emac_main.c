@@ -30,6 +30,17 @@
 #define DRV_VERSION	"1.0"
 
 /**
+ * arc_emac_tx_avail - Return the number of available slots in the tx ring.
+ * @priv: Pointer to ARC EMAC private data structure.
+ *
+ * returns: the number of slots available for transmission in tx the ring.
+ */
+static inline int arc_emac_tx_avail(struct arc_emac_priv *priv)
+{
+	return (priv->txbd_dirty + TX_BD_NUM - priv->txbd_curr - 1) % TX_BD_NUM;
+}
+
+/**
  * arc_emac_adjust_link - Adjust the PHY link duplex.
  * @ndev:	Pointer to the net_device structure.
  *
@@ -140,7 +151,7 @@ static const struct ethtool_ops arc_emac_ethtool_ops = {
 static void arc_emac_tx_clean(struct net_device *ndev)
 {
 	struct arc_emac_priv *priv = netdev_priv(ndev);
-	struct net_device_stats *stats = &priv->stats;
+	struct net_device_stats *stats = &ndev->stats;
 	unsigned int i;
 
 	for (i = 0; i < TX_BD_NUM; i++) {
@@ -180,10 +191,15 @@ static void arc_emac_tx_clean(struct net_device *ndev)
 		txbd->info = 0;
 
 		*txbd_dirty = (*txbd_dirty + 1) % TX_BD_NUM;
-
-		if (netif_queue_stopped(ndev))
-			netif_wake_queue(ndev);
 	}
+
+	/* Ensure that txbd_dirty is visible to tx() before checking
+	 * for queue stopped.
+	 */
+	smp_mb();
+
+	if (netif_queue_stopped(ndev) && arc_emac_tx_avail(priv))
+		netif_wake_queue(ndev);
 }
 
 /**
@@ -202,7 +218,7 @@ static int arc_emac_rx(struct net_device *ndev, int budget)
 
 	for (work_done = 0; work_done < budget; work_done++) {
 		unsigned int *last_rx_bd = &priv->last_rx_bd;
-		struct net_device_stats *stats = &priv->stats;
+		struct net_device_stats *stats = &ndev->stats;
 		struct buffer_state *rx_buff = &priv->rx_buff[*last_rx_bd];
 		struct arc_emac_bd *rxbd = &priv->rxbd[*last_rx_bd];
 		unsigned int pktlen, info = le32_to_cpu(rxbd->info);
@@ -298,7 +314,7 @@ static int arc_emac_poll(struct napi_struct *napi, int budget)
 	work_done = arc_emac_rx(ndev, budget);
 	if (work_done < budget) {
 		napi_complete(napi);
-		arc_reg_or(priv, R_ENABLE, RXINT_MASK);
+		arc_reg_or(priv, R_ENABLE, RXINT_MASK | TXINT_MASK);
 	}
 
 	return work_done;
@@ -318,7 +334,7 @@ static irqreturn_t arc_emac_intr(int irq, void *dev_instance)
 {
 	struct net_device *ndev = dev_instance;
 	struct arc_emac_priv *priv = netdev_priv(ndev);
-	struct net_device_stats *stats = &priv->stats;
+	struct net_device_stats *stats = &ndev->stats;
 	unsigned int status;
 
 	status = arc_reg_get(priv, R_STATUS);
@@ -327,9 +343,9 @@ static irqreturn_t arc_emac_intr(int irq, void *dev_instance)
 	/* Reset all flags except "MDIO complete" */
 	arc_reg_set(priv, R_STATUS, status);
 
-	if (status & RXINT_MASK) {
+	if (status & (RXINT_MASK | TXINT_MASK)) {
 		if (likely(napi_schedule_prep(&priv->napi))) {
-			arc_reg_clr(priv, R_ENABLE, RXINT_MASK);
+			arc_reg_clr(priv, R_ENABLE, RXINT_MASK | TXINT_MASK);
 			__napi_schedule(&priv->napi);
 		}
 	}
@@ -440,7 +456,7 @@ static int arc_emac_open(struct net_device *ndev)
 	arc_reg_set(priv, R_TX_RING, (unsigned int)priv->txbd_dma);
 
 	/* Enable interrupts */
-	arc_reg_set(priv, R_ENABLE, RXINT_MASK | ERR_MASK);
+	arc_reg_set(priv, R_ENABLE, RXINT_MASK | TXINT_MASK | ERR_MASK);
 
 	/* Set CONTROL */
 	arc_reg_set(priv, R_CTRL,
@@ -511,7 +527,7 @@ static int arc_emac_stop(struct net_device *ndev)
 	netif_stop_queue(ndev);
 
 	/* Disable interrupts */
-	arc_reg_clr(priv, R_ENABLE, RXINT_MASK | ERR_MASK);
+	arc_reg_clr(priv, R_ENABLE, RXINT_MASK | TXINT_MASK | ERR_MASK);
 
 	/* Disable EMAC */
 	arc_reg_clr(priv, R_CTRL, EN_MASK);
@@ -529,7 +545,7 @@ static int arc_emac_stop(struct net_device *ndev)
 static struct net_device_stats *arc_emac_stats(struct net_device *ndev)
 {
 	struct arc_emac_priv *priv = netdev_priv(ndev);
-	struct net_device_stats *stats = &priv->stats;
+	struct net_device_stats *stats = &ndev->stats;
 	unsigned long miss, rxerr;
 	u8 rxcrc, rxfram, rxoflow;
 
@@ -565,7 +581,7 @@ static int arc_emac_tx(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct arc_emac_priv *priv = netdev_priv(ndev);
 	unsigned int len, *txbd_curr = &priv->txbd_curr;
-	struct net_device_stats *stats = &priv->stats;
+	struct net_device_stats *stats = &ndev->stats;
 	__le32 *info = &priv->txbd[*txbd_curr].info;
 	dma_addr_t addr;
 
@@ -574,11 +590,9 @@ static int arc_emac_tx(struct sk_buff *skb, struct net_device *ndev)
 
 	len = max_t(unsigned int, ETH_ZLEN, skb->len);
 
-	/* EMAC still holds this buffer in its possession.
-	 * CPU must not modify this buffer descriptor
-	 */
-	if (unlikely((le32_to_cpu(*info) & OWN_MASK) == FOR_EMAC)) {
+	if (unlikely(!arc_emac_tx_avail(priv))) {
 		netif_stop_queue(ndev);
+		netdev_err(ndev, "BUG! Tx Ring full when queue awake!\n");
 		return NETDEV_TX_BUSY;
 	}
 
@@ -607,12 +621,19 @@ static int arc_emac_tx(struct sk_buff *skb, struct net_device *ndev)
 	/* Increment index to point to the next BD */
 	*txbd_curr = (*txbd_curr + 1) % TX_BD_NUM;
 
-	/* Get "info" of the next BD */
-	info = &priv->txbd[*txbd_curr].info;
+	/* Ensure that tx_clean() sees the new txbd_curr before
+	 * checking the queue status. This prevents an unneeded wake
+	 * of the queue in tx_clean().
+	 */
+	smp_mb();
 
-	/* Check if if Tx BD ring is full - next BD is still owned by EMAC */
-	if (unlikely((le32_to_cpu(*info) & OWN_MASK) == FOR_EMAC))
+	if (!arc_emac_tx_avail(priv)) {
 		netif_stop_queue(ndev);
+		/* Refresh tx_dirty */
+		smp_mb();
+		if (arc_emac_tx_avail(priv))
+			netif_start_queue(ndev);
+	}
 
 	arc_reg_set(priv, R_STATUS, TXPL_MASK);
 
@@ -720,7 +741,6 @@ static int arc_emac_probe(struct platform_device *pdev)
 
 	priv = netdev_priv(ndev);
 	priv->dev = &pdev->dev;
-	priv->ndev = ndev;
 
 	priv->regs = devm_ioremap_resource(&pdev->dev, &res_regs);
 	if (IS_ERR(priv->regs)) {

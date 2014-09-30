@@ -592,12 +592,12 @@ start:
 		xattr_version = ci->i_xattrs.version;
 		spin_unlock(&ci->i_ceph_lock);
 
-		xattrs = kcalloc(numattr, sizeof(struct ceph_xattr *),
+		xattrs = kcalloc(numattr, sizeof(struct ceph_inode_xattr *),
 				 GFP_NOFS);
 		err = -ENOMEM;
 		if (!xattrs)
 			goto bad_lock;
-		memset(xattrs, 0, numattr*sizeof(struct ceph_xattr *));
+
 		for (i = 0; i < numattr; i++) {
 			xattrs[i] = kmalloc(sizeof(struct ceph_inode_xattr),
 					    GFP_NOFS);

@@ -9,32 +9,15 @@ static int uas_is_interface(struct usb_host_interface *intf)
 		intf->desc.bInterfaceProtocol == USB_PR_UAS);
 }
 
-static int uas_isnt_supported(struct usb_device *udev)
-{
-	struct usb_hcd *hcd = bus_to_hcd(udev->bus);
-
-	dev_warn(&udev->dev, "The driver for the USB controller %s does not "
-			"support scatter-gather which is\n",
-			hcd->driver->description);
-	dev_warn(&udev->dev, "required by the UAS driver. Please try an"
-			"alternative USB controller if you wish to use UAS.\n");
-	return -ENODEV;
-}
-
 static int uas_find_uas_alt_setting(struct usb_interface *intf)
 {
 	int i;
-	struct usb_device *udev = interface_to_usbdev(intf);
-	int sg_supported = udev->bus->sg_tablesize != 0;
 
 	for (i = 0; i < intf->num_altsetting; i++) {
 		struct usb_host_interface *alt = &intf->altsetting[i];
 
-		if (uas_is_interface(alt)) {
-			if (!sg_supported)
-				return uas_isnt_supported(udev);
+		if (uas_is_interface(alt))
 			return alt->desc.bAlternateSetting;
-		}
 	}
 
 	return -ENODEV;
@@ -76,13 +59,6 @@ static int uas_use_uas_driver(struct usb_interface *intf,
 	unsigned long flags = id->driver_info;
 	int r, alt;
 
-	usb_stor_adjust_quirks(udev, &flags);
-
-	if (flags & US_FL_IGNORE_UAS)
-		return 0;
-
-	if (udev->speed >= USB_SPEED_SUPER && !hcd->can_do_streams)
-		return 0;
 
 	alt = uas_find_uas_alt_setting(intf);
 	if (alt < 0)
@@ -91,6 +67,47 @@ static int uas_use_uas_driver(struct usb_interface *intf,
 	r = uas_find_endpoints(&intf->altsetting[alt], eps);
 	if (r < 0)
 		return 0;
+
+	/*
+	 * ASM1051 and older ASM1053 devices have the same usb-id, and UAS is
+	 * broken on the ASM1051, use the number of streams to differentiate.
+	 * New ASM1053-s also support 32 streams, but have a different prod-id.
+	 */
+	if (le16_to_cpu(udev->descriptor.idVendor) == 0x174c &&
+			le16_to_cpu(udev->descriptor.idProduct) == 0x55aa) {
+		if (udev->speed < USB_SPEED_SUPER) {
+			/* No streams info, assume ASM1051 */
+			flags |= US_FL_IGNORE_UAS;
+		} else if (usb_ss_max_streams(&eps[1]->ss_ep_comp) == 32) {
+			flags |= US_FL_IGNORE_UAS;
+		}
+	}
+
+	usb_stor_adjust_quirks(udev, &flags);
+
+	if (flags & US_FL_IGNORE_UAS) {
+		dev_warn(&udev->dev,
+			"UAS is blacklisted for this device, using usb-storage instead\n");
+		return 0;
+	}
+
+	if (udev->bus->sg_tablesize == 0) {
+		dev_warn(&udev->dev,
+			"The driver for the USB controller %s does not support scatter-gather which is\n",
+			hcd->driver->description);
+		dev_warn(&udev->dev,
+			"required by the UAS driver. Please try an other USB controller if you wish to use UAS.\n");
+		return 0;
+	}
+
+	if (udev->speed >= USB_SPEED_SUPER && !hcd->can_do_streams) {
+		dev_warn(&udev->dev,
+			"USB controller %s does not support streams, which are required by the UAS driver.\n",
+			hcd_to_bus(hcd)->bus_name);
+		dev_warn(&udev->dev,
+			"Please try an other USB controller if you wish to use UAS.\n");
+		return 0;
+	}
 
 	return 1;
 }

@@ -119,13 +119,11 @@ static int rt2x00mmio_alloc_queue_dma(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Allocate DMA memory for descriptor and buffer.
 	 */
-	addr = dma_alloc_coherent(rt2x00dev->dev,
-				  queue->limit * queue->desc_size,
-				  &dma, GFP_KERNEL);
+	addr = dma_zalloc_coherent(rt2x00dev->dev,
+				   queue->limit * queue->desc_size, &dma,
+				   GFP_KERNEL);
 	if (!addr)
 		return -ENOMEM;
-
-	memset(addr, 0, queue->limit * queue->desc_size);
 
 	/*
 	 * Initialize all queue entries to contain valid addresses.

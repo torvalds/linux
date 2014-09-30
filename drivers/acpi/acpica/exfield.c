@@ -56,7 +56,7 @@ acpi_ex_get_serial_access_length(u32 accessor_type, u32 access_length);
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_get_serial_access_bytes
+ * FUNCTION:    acpi_ex_get_serial_access_length
  *
  * PARAMETERS:  accessor_type   - The type of the protocol indicated by region
  *                                field access attributes
@@ -103,7 +103,7 @@ acpi_ex_get_serial_access_length(u32 accessor_type, u32 access_length)
 	case AML_FIELD_ATTRIB_BLOCK_CALL:
 	default:
 
-		length = ACPI_GSBUS_BUFFER_SIZE;
+		length = ACPI_GSBUS_BUFFER_SIZE - 2;
 		break;
 	}
 
@@ -186,12 +186,11 @@ acpi_ex_read_data_from_field(struct acpi_walk_state * walk_state,
 								  access_length);
 
 			/*
-			 * Add additional 2 bytes for modeled generic_serial_bus data buffer:
-			 * typedef struct {
-			 *     BYTEStatus; // Byte 0 of the data buffer
-			 *     BYTELength; // Byte 1 of the data buffer
-			 *     BYTE[x-1]Data; // Bytes 2-x of the arbitrary length data buffer,
-			 * }
+			 * Add additional 2 bytes for the generic_serial_bus data buffer:
+			 *
+			 *     Status;      (Byte 0 of the data buffer)
+			 *     Length;      (Byte 1 of the data buffer)
+			 *     Data[x-1];   (Bytes 2-x of the arbitrary length data buffer)
 			 */
 			length += 2;
 			function = ACPI_READ | (accessor_type << 16);
@@ -252,6 +251,37 @@ acpi_ex_read_data_from_field(struct acpi_walk_state * walk_state,
 
 		length = acpi_gbl_integer_byte_width;
 		buffer = &buffer_desc->integer.value;
+	}
+
+	if ((obj_desc->common.type == ACPI_TYPE_LOCAL_REGION_FIELD) &&
+	    (obj_desc->field.region_obj->region.space_id ==
+	     ACPI_ADR_SPACE_GPIO)) {
+		/*
+		 * For GPIO (general_purpose_io), the Address will be the bit offset
+		 * from the previous Connection() operator, making it effectively a
+		 * pin number index. The bit_length is the length of the field, which
+		 * is thus the number of pins.
+		 */
+		ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+				  "GPIO FieldRead [FROM]:  Pin %u Bits %u\n",
+				  obj_desc->field.pin_number_index,
+				  obj_desc->field.bit_length));
+
+		/* Lock entire transaction if requested */
+
+		acpi_ex_acquire_global_lock(obj_desc->common_field.field_flags);
+
+		/* Perform the write */
+
+		status = acpi_ex_access_region(obj_desc, 0,
+					       (u64 *)buffer, ACPI_READ);
+		acpi_ex_release_global_lock(obj_desc->common_field.field_flags);
+		if (ACPI_FAILURE(status)) {
+			acpi_ut_remove_reference(buffer_desc);
+		} else {
+			*ret_buffer_desc = buffer_desc;
+		}
+		return_ACPI_STATUS(status);
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
@@ -368,12 +398,11 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 								  access_length);
 
 			/*
-			 * Add additional 2 bytes for modeled generic_serial_bus data buffer:
-			 * typedef struct {
-			 *     BYTEStatus; // Byte 0 of the data buffer
-			 *     BYTELength; // Byte 1 of the data buffer
-			 *     BYTE[x-1]Data; // Bytes 2-x of the arbitrary length data buffer,
-			 * }
+			 * Add additional 2 bytes for the generic_serial_bus data buffer:
+			 *
+			 *     Status;      (Byte 0 of the data buffer)
+			 *     Length;      (Byte 1 of the data buffer)
+			 *     Data[x-1];   (Bytes 2-x of the arbitrary length data buffer)
 			 */
 			length += 2;
 			function = ACPI_WRITE | (accessor_type << 16);
@@ -414,6 +443,42 @@ acpi_ex_write_data_to_field(union acpi_operand_object *source_desc,
 		acpi_ex_release_global_lock(obj_desc->common_field.field_flags);
 
 		*result_desc = buffer_desc;
+		return_ACPI_STATUS(status);
+	} else if ((obj_desc->common.type == ACPI_TYPE_LOCAL_REGION_FIELD) &&
+		   (obj_desc->field.region_obj->region.space_id ==
+		    ACPI_ADR_SPACE_GPIO)) {
+		/*
+		 * For GPIO (general_purpose_io), we will bypass the entire field
+		 * mechanism and handoff the bit address and bit width directly to
+		 * the handler. The Address will be the bit offset
+		 * from the previous Connection() operator, making it effectively a
+		 * pin number index. The bit_length is the length of the field, which
+		 * is thus the number of pins.
+		 */
+		if (source_desc->common.type != ACPI_TYPE_INTEGER) {
+			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
+		}
+
+		ACPI_DEBUG_PRINT((ACPI_DB_BFIELD,
+				  "GPIO FieldWrite [FROM]: (%s:%X), Val %.8X  [TO]:  Pin %u Bits %u\n",
+				  acpi_ut_get_type_name(source_desc->common.
+							type),
+				  source_desc->common.type,
+				  (u32)source_desc->integer.value,
+				  obj_desc->field.pin_number_index,
+				  obj_desc->field.bit_length));
+
+		buffer = &source_desc->integer.value;
+
+		/* Lock entire transaction if requested */
+
+		acpi_ex_acquire_global_lock(obj_desc->common_field.field_flags);
+
+		/* Perform the write */
+
+		status = acpi_ex_access_region(obj_desc, 0,
+					       (u64 *)buffer, ACPI_WRITE);
+		acpi_ex_release_global_lock(obj_desc->common_field.field_flags);
 		return_ACPI_STATUS(status);
 	}
 

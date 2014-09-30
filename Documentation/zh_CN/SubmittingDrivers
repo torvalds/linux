@@ -150,10 +150,6 @@ LWN.net:
 	将旧版内核的驱动程序移植到 2.6 版：
 		http://lwn.net/Articles/driver-porting/
 
-KernelTrap：
-	Linux 内核的最新动态以及开发者访谈
-	http://kerneltrap.org/
-
 内核新手(KernelNewbies):
 	为新的内核开发者提供文档和帮助
 	http://kernelnewbies.org/

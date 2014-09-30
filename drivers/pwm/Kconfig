@@ -43,7 +43,7 @@ config PWM_AB8500
 
 config PWM_ATMEL
 	tristate "Atmel PWM support"
-	depends on ARCH_AT91
+	depends on ARCH_AT91 || AVR32
 	help
 	  Generic PWM framework driver for Atmel SoC.
 
@@ -206,6 +206,13 @@ config PWM_RENESAS_TPU
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-renesas-tpu.
 
+config PWM_ROCKCHIP
+	tristate "Rockchip PWM support"
+	depends on ARCH_ROCKCHIP
+	help
+	  Generic PWM framework driver for the PWM controller found on
+	  Rockchip SoCs.
+
 config PWM_SAMSUNG
 	tristate "Samsung PWM support"
 	depends on PLAT_SAMSUNG
@@ -225,6 +232,16 @@ config PWM_SPEAR
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-spear.
+
+config PWM_STI
+	tristate "STiH4xx PWM support"
+	depends on ARCH_STI
+	depends on OF
+	help
+	  Generic PWM framework driver for STiH4xx SoCs.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-sti.
 
 config PWM_TEGRA
 	tristate "NVIDIA Tegra PWM support"

@@ -342,6 +342,7 @@
 #define E1000_TIPG_IPGR2_SHIFT  20
 
 #define MAX_JUMBO_FRAME_SIZE    0x3F00
+#define E1000_TX_PTR_GAP		0x1F
 
 /* Extended Configuration Control and Size */
 #define E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP      0x00000020

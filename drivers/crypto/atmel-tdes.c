@@ -1337,7 +1337,6 @@ static struct crypto_platform_data *atmel_tdes_of_init(struct platform_device *p
 					GFP_KERNEL);
 	if (!pdata->dma_slave) {
 		dev_err(&pdev->dev, "could not allocate memory for dma_slave\n");
-		devm_kfree(&pdev->dev, pdata);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -1359,7 +1358,7 @@ static int atmel_tdes_probe(struct platform_device *pdev)
 	unsigned long tdes_phys_size;
 	int err;
 
-	tdes_dd = kzalloc(sizeof(struct atmel_tdes_dev), GFP_KERNEL);
+	tdes_dd = devm_kmalloc(&pdev->dev, sizeof(*tdes_dd), GFP_KERNEL);
 	if (tdes_dd == NULL) {
 		dev_err(dev, "unable to alloc data struct.\n");
 		err = -ENOMEM;
@@ -1483,8 +1482,6 @@ tdes_irq_err:
 res_err:
 	tasklet_kill(&tdes_dd->done_task);
 	tasklet_kill(&tdes_dd->queue_task);
-	kfree(tdes_dd);
-	tdes_dd = NULL;
 tdes_dd_err:
 	dev_err(dev, "initialization failed.\n");
 
@@ -1518,9 +1515,6 @@ static int atmel_tdes_remove(struct platform_device *pdev)
 
 	if (tdes_dd->irq >= 0)
 		free_irq(tdes_dd->irq, tdes_dd);
-
-	kfree(tdes_dd);
-	tdes_dd = NULL;
 
 	return 0;
 }

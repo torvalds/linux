@@ -149,8 +149,7 @@ static int dgram_ioctl(struct sock *sk, int cmd, unsigned long arg)
 		spin_lock_bh(&sk->sk_receive_queue.lock);
 		skb = skb_peek(&sk->sk_receive_queue);
 		if (skb != NULL) {
-			/*
-			 * We will only return the amount
+			/* We will only return the amount
 			 * of this packet since that is all
 			 * that will be read.
 			 */
@@ -161,12 +160,13 @@ static int dgram_ioctl(struct sock *sk, int cmd, unsigned long arg)
 	}
 
 	}
+
 	return -ENOIOCTLCMD;
 }
 
 /* FIXME: autobind */
 static int dgram_connect(struct sock *sk, struct sockaddr *uaddr,
-			int len)
+			 int len)
 {
 	struct sockaddr_ieee802154 *addr = (struct sockaddr_ieee802154 *)uaddr;
 	struct dgram_sock *ro = dgram_sk(sk);
@@ -205,7 +205,7 @@ static int dgram_disconnect(struct sock *sk, int flags)
 }
 
 static int dgram_sendmsg(struct kiocb *iocb, struct sock *sk,
-		struct msghdr *msg, size_t size)
+			 struct msghdr *msg, size_t size)
 {
 	struct net_device *dev;
 	unsigned int mtu;
@@ -248,8 +248,8 @@ static int dgram_sendmsg(struct kiocb *iocb, struct sock *sk,
 	hlen = LL_RESERVED_SPACE(dev);
 	tlen = dev->needed_tailroom;
 	skb = sock_alloc_send_skb(sk, hlen + tlen + size,
-			msg->msg_flags & MSG_DONTWAIT,
-			&err);
+				  msg->msg_flags & MSG_DONTWAIT,
+				  &err);
 	if (!skb)
 		goto out_dev;
 
@@ -262,7 +262,8 @@ static int dgram_sendmsg(struct kiocb *iocb, struct sock *sk,
 	cb->ackreq = ro->want_ack;
 
 	if (msg->msg_name) {
-		DECLARE_SOCKADDR(struct sockaddr_ieee802154*, daddr, msg->msg_name);
+		DECLARE_SOCKADDR(struct sockaddr_ieee802154*,
+				 daddr, msg->msg_name);
 
 		ieee802154_addr_from_sa(&dst_addr, &daddr->addr);
 	} else {
@@ -304,8 +305,8 @@ out:
 }
 
 static int dgram_recvmsg(struct kiocb *iocb, struct sock *sk,
-		struct msghdr *msg, size_t len, int noblock, int flags,
-		int *addr_len)
+			 struct msghdr *msg, size_t len, int noblock,
+			 int flags, int *addr_len)
 {
 	size_t copied = 0;
 	int err = -EOPNOTSUPP;
@@ -398,6 +399,7 @@ int ieee802154_dgram_deliver(struct net_device *dev, struct sk_buff *skb)
 					  dgram_sk(sk))) {
 			if (prev) {
 				struct sk_buff *clone;
+
 				clone = skb_clone(skb, GFP_ATOMIC);
 				if (clone)
 					dgram_rcv_skb(prev, clone);
@@ -407,9 +409,9 @@ int ieee802154_dgram_deliver(struct net_device *dev, struct sk_buff *skb)
 		}
 	}
 
-	if (prev)
+	if (prev) {
 		dgram_rcv_skb(prev, skb);
-	else {
+	} else {
 		kfree_skb(skb);
 		ret = NET_RX_DROP;
 	}
@@ -419,7 +421,7 @@ int ieee802154_dgram_deliver(struct net_device *dev, struct sk_buff *skb)
 }
 
 static int dgram_getsockopt(struct sock *sk, int level, int optname,
-		    char __user *optval, int __user *optlen)
+			    char __user *optval, int __user *optlen)
 {
 	struct dgram_sock *ro = dgram_sk(sk);
 
@@ -463,7 +465,7 @@ static int dgram_getsockopt(struct sock *sk, int level, int optname,
 }
 
 static int dgram_setsockopt(struct sock *sk, int level, int optname,
-		    char __user *optval, unsigned int optlen)
+			    char __user *optval, unsigned int optlen)
 {
 	struct dgram_sock *ro = dgram_sk(sk);
 	struct net *net = sock_net(sk);

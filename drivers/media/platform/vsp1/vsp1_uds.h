@@ -25,9 +25,7 @@ struct vsp1_device;
 
 struct vsp1_uds {
 	struct vsp1_entity entity;
-
-	unsigned int hscale;
-	unsigned int vscale;
+	bool scale_alpha;
 };
 
 static inline struct vsp1_uds *to_uds(struct v4l2_subdev *subdev)
@@ -36,5 +34,7 @@ static inline struct vsp1_uds *to_uds(struct v4l2_subdev *subdev)
 }
 
 struct vsp1_uds *vsp1_uds_create(struct vsp1_device *vsp1, unsigned int index);
+
+void vsp1_uds_set_alpha(struct vsp1_uds *uds, unsigned int alpha);
 
 #endif /* __VSP1_UDS_H__ */

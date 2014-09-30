@@ -618,7 +618,7 @@ static void tpci200_pci_remove(struct pci_dev *dev)
 	__tpci200_pci_remove(tpci200);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(tpci200_idtable) = {
+static const struct pci_device_id tpci200_idtable[] = {
 	{ TPCI200_VENDOR_ID, TPCI200_DEVICE_ID, TPCI200_SUBVENDOR_ID,
 	  TPCI200_SUBDEVICE_ID },
 	{ 0, },

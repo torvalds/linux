@@ -79,10 +79,13 @@
 /* Macros for usage messages */
 
 #define ACPI_USAGE_HEADER(usage) \
-	printf ("Usage: %s\nOptions:\n", usage);
+	acpi_os_printf ("Usage: %s\nOptions:\n", usage);
+
+#define ACPI_USAGE_TEXT(description) \
+	acpi_os_printf (description);
 
 #define ACPI_OPTION(name, description) \
-	printf ("  %-18s%s\n", name, description);
+	acpi_os_printf (" %-18s%s\n", name, description);
 
 #define FILE_SUFFIX_DISASSEMBLY     "dsl"
 #define ACPI_TABLE_FILE_SUFFIX      ".dat"
@@ -102,7 +105,7 @@ extern char *acpi_gbl_optarg;
 /*
  * cmfsize - Common get file size function
  */
-u32 cm_get_file_size(FILE * file);
+u32 cm_get_file_size(ACPI_FILE file);
 
 #ifndef ACPI_DUMP_APP
 /*

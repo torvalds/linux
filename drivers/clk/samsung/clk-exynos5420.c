@@ -28,6 +28,7 @@
 #define GATE_BUS_CPU		0x700
 #define GATE_SCLK_CPU		0x800
 #define CLKOUT_CMU_CPU		0xa00
+#define SRC_MASK_CPERI		0x4300
 #define GATE_IP_G2D		0x8800
 #define CPLL_LOCK		0x10020
 #define DPLL_LOCK		0x10030
@@ -70,6 +71,8 @@
 #define SRC_TOP11		0x10284
 #define SRC_TOP12		0x10288
 #define SRC_TOP13		0x1028c /* 5800 specific */
+#define SRC_MASK_TOP0		0x10300
+#define SRC_MASK_TOP1		0x10304
 #define SRC_MASK_TOP2		0x10308
 #define SRC_MASK_TOP7		0x1031c
 #define SRC_MASK_DISP10		0x1032c
@@ -77,6 +80,7 @@
 #define SRC_MASK_FSYS		0x10340
 #define SRC_MASK_PERIC0		0x10350
 #define SRC_MASK_PERIC1		0x10354
+#define SRC_MASK_ISP		0x10370
 #define DIV_TOP0		0x10500
 #define DIV_TOP1		0x10504
 #define DIV_TOP2		0x10508
@@ -98,6 +102,7 @@
 #define DIV2_RATIO0		0x10590
 #define DIV4_RATIO		0x105a0
 #define GATE_BUS_TOP		0x10700
+#define GATE_BUS_DISP1		0x10728
 #define GATE_BUS_GEN		0x1073c
 #define GATE_BUS_FSYS0		0x10740
 #define GATE_BUS_FSYS2		0x10748
@@ -190,6 +195,10 @@ static unsigned long exynos5x_clk_regs[] __initdata = {
 	SRC_MASK_FSYS,
 	SRC_MASK_PERIC0,
 	SRC_MASK_PERIC1,
+	SRC_MASK_TOP0,
+	SRC_MASK_TOP1,
+	SRC_MASK_MAU,
+	SRC_MASK_ISP,
 	SRC_ISP,
 	DIV_TOP0,
 	DIV_TOP1,
@@ -208,6 +217,7 @@ static unsigned long exynos5x_clk_regs[] __initdata = {
 	SCLK_DIV_ISP1,
 	DIV2_RATIO0,
 	DIV4_RATIO,
+	GATE_BUS_DISP1,
 	GATE_BUS_TOP,
 	GATE_BUS_GEN,
 	GATE_BUS_FSYS0,
@@ -249,6 +259,22 @@ static unsigned long exynos5800_clk_regs[] __initdata = {
 	GATE_IP_CAM,
 };
 
+static const struct samsung_clk_reg_dump exynos5420_set_clksrc[] = {
+	{ .offset = SRC_MASK_CPERI,		.value = 0xffffffff, },
+	{ .offset = SRC_MASK_TOP0,		.value = 0x11111111, },
+	{ .offset = SRC_MASK_TOP1,		.value = 0x11101111, },
+	{ .offset = SRC_MASK_TOP2,		.value = 0x11111110, },
+	{ .offset = SRC_MASK_TOP7,		.value = 0x00111100, },
+	{ .offset = SRC_MASK_DISP10,		.value = 0x11111110, },
+	{ .offset = SRC_MASK_MAU,		.value = 0x10000000, },
+	{ .offset = SRC_MASK_FSYS,		.value = 0x11111110, },
+	{ .offset = SRC_MASK_PERIC0,		.value = 0x11111110, },
+	{ .offset = SRC_MASK_PERIC1,		.value = 0x11111100, },
+	{ .offset = SRC_MASK_ISP,		.value = 0x11111000, },
+	{ .offset = GATE_BUS_DISP1,		.value = 0xffffffff, },
+	{ .offset = GATE_IP_PERIC,		.value = 0xffffffff, },
+};
+
 static int exynos5420_clk_suspend(void)
 {
 	samsung_clk_save(reg_base, exynos5x_save,
@@ -257,6 +283,9 @@ static int exynos5420_clk_suspend(void)
 	if (exynos5x_soc == EXYNOS5800)
 		samsung_clk_save(reg_base, exynos5800_save,
 				ARRAY_SIZE(exynos5800_clk_regs));
+
+	samsung_clk_restore(reg_base, exynos5420_set_clksrc,
+				ARRAY_SIZE(exynos5420_set_clksrc));
 
 	return 0;
 }
@@ -631,7 +660,8 @@ static struct samsung_mux_clock exynos5x_mux_clks[] __initdata = {
 			SRC_TOP4, 16, 1),
 	MUX(0, "mout_user_aclk266", mout_user_aclk266_p, SRC_TOP4, 20, 1),
 	MUX(0, "mout_user_aclk166", mout_user_aclk166_p, SRC_TOP4, 24, 1),
-	MUX(0, "mout_user_aclk333", mout_user_aclk333_p, SRC_TOP4, 28, 1),
+	MUX(CLK_MOUT_USER_ACLK333, "mout_user_aclk333", mout_user_aclk333_p,
+			SRC_TOP4, 28, 1),
 
 	MUX(0, "mout_user_aclk400_disp1", mout_user_aclk400_disp1_p,
 			SRC_TOP5, 0, 1),
@@ -684,7 +714,8 @@ static struct samsung_mux_clock exynos5x_mux_clks[] __initdata = {
 			SRC_TOP11, 12, 1),
 	MUX(0, "mout_sw_aclk266", mout_sw_aclk266_p, SRC_TOP11, 20, 1),
 	MUX(0, "mout_sw_aclk166", mout_sw_aclk166_p, SRC_TOP11, 24, 1),
-	MUX(0, "mout_sw_aclk333", mout_sw_aclk333_p, SRC_TOP11, 28, 1),
+	MUX(CLK_MOUT_SW_ACLK333, "mout_sw_aclk333", mout_sw_aclk333_p,
+			SRC_TOP11, 28, 1),
 
 	MUX(0, "mout_sw_aclk400_disp1", mout_sw_aclk400_disp1_p,
 			SRC_TOP12, 4, 1),
@@ -890,8 +921,6 @@ static struct samsung_gate_clock exynos5x_gate_clks[] __initdata = {
 			GATE_BUS_TOP, 9, CLK_IGNORE_UNUSED, 0),
 	GATE(0, "aclk66_psgen", "mout_user_aclk66_psgen",
 			GATE_BUS_TOP, 10, CLK_IGNORE_UNUSED, 0),
-	GATE(CLK_ACLK66_PERIC, "aclk66_peric", "mout_user_aclk66_peric",
-			GATE_BUS_TOP, 11, CLK_IGNORE_UNUSED, 0),
 	GATE(0, "aclk266_isp", "mout_user_aclk266_isp",
 			GATE_BUS_TOP, 13, 0, 0),
 	GATE(0, "aclk166", "mout_user_aclk166",
@@ -994,34 +1023,61 @@ static struct samsung_gate_clock exynos5x_gate_clks[] __initdata = {
 			SRC_MASK_FSYS, 24, CLK_SET_RATE_PARENT, 0),
 
 	/* PERIC Block */
-	GATE(CLK_UART0, "uart0", "aclk66_peric", GATE_IP_PERIC, 0, 0, 0),
-	GATE(CLK_UART1, "uart1", "aclk66_peric", GATE_IP_PERIC, 1, 0, 0),
-	GATE(CLK_UART2, "uart2", "aclk66_peric", GATE_IP_PERIC, 2, 0, 0),
-	GATE(CLK_UART3, "uart3", "aclk66_peric", GATE_IP_PERIC, 3, 0, 0),
-	GATE(CLK_I2C0, "i2c0", "aclk66_peric", GATE_IP_PERIC, 6, 0, 0),
-	GATE(CLK_I2C1, "i2c1", "aclk66_peric", GATE_IP_PERIC, 7, 0, 0),
-	GATE(CLK_I2C2, "i2c2", "aclk66_peric", GATE_IP_PERIC, 8, 0, 0),
-	GATE(CLK_I2C3, "i2c3", "aclk66_peric", GATE_IP_PERIC, 9, 0, 0),
-	GATE(CLK_USI0, "usi0", "aclk66_peric", GATE_IP_PERIC, 10, 0, 0),
-	GATE(CLK_USI1, "usi1", "aclk66_peric", GATE_IP_PERIC, 11, 0, 0),
-	GATE(CLK_USI2, "usi2", "aclk66_peric", GATE_IP_PERIC, 12, 0, 0),
-	GATE(CLK_USI3, "usi3", "aclk66_peric", GATE_IP_PERIC, 13, 0, 0),
-	GATE(CLK_I2C_HDMI, "i2c_hdmi", "aclk66_peric", GATE_IP_PERIC, 14, 0, 0),
-	GATE(CLK_TSADC, "tsadc", "aclk66_peric", GATE_IP_PERIC, 15, 0, 0),
-	GATE(CLK_SPI0, "spi0", "aclk66_peric", GATE_IP_PERIC, 16, 0, 0),
-	GATE(CLK_SPI1, "spi1", "aclk66_peric", GATE_IP_PERIC, 17, 0, 0),
-	GATE(CLK_SPI2, "spi2", "aclk66_peric", GATE_IP_PERIC, 18, 0, 0),
-	GATE(CLK_I2S1, "i2s1", "aclk66_peric", GATE_IP_PERIC, 20, 0, 0),
-	GATE(CLK_I2S2, "i2s2", "aclk66_peric", GATE_IP_PERIC, 21, 0, 0),
-	GATE(CLK_PCM1, "pcm1", "aclk66_peric", GATE_IP_PERIC, 22, 0, 0),
-	GATE(CLK_PCM2, "pcm2", "aclk66_peric", GATE_IP_PERIC, 23, 0, 0),
-	GATE(CLK_PWM, "pwm", "aclk66_peric", GATE_IP_PERIC, 24, 0, 0),
-	GATE(CLK_SPDIF, "spdif", "aclk66_peric", GATE_IP_PERIC, 26, 0, 0),
-	GATE(CLK_USI4, "usi4", "aclk66_peric", GATE_IP_PERIC, 28, 0, 0),
-	GATE(CLK_USI5, "usi5", "aclk66_peric", GATE_IP_PERIC, 30, 0, 0),
-	GATE(CLK_USI6, "usi6", "aclk66_peric", GATE_IP_PERIC, 31, 0, 0),
+	GATE(CLK_UART0, "uart0", "mout_user_aclk66_peric",
+			GATE_IP_PERIC, 0, 0, 0),
+	GATE(CLK_UART1, "uart1", "mout_user_aclk66_peric",
+			GATE_IP_PERIC, 1, 0, 0),
+	GATE(CLK_UART2, "uart2", "mout_user_aclk66_peric",
+			GATE_IP_PERIC, 2, 0, 0),
+	GATE(CLK_UART3, "uart3", "mout_user_aclk66_peric",
+			GATE_IP_PERIC, 3, 0, 0),
+	GATE(CLK_I2C0, "i2c0", "mout_user_aclk66_peric",
+			GATE_IP_PERIC, 6, 0, 0),
+	GATE(CLK_I2C1, "i2c1", "mout_user_aclk66_peric",
+			GATE_IP_PERIC, 7, 0, 0),
+	GATE(CLK_I2C2, "i2c2", "mout_user_aclk66_peric",
+			GATE_IP_PERIC, 8, 0, 0),
+	GATE(CLK_I2C3, "i2c3", "mout_user_aclk66_peric",
+			GATE_IP_PERIC, 9, 0, 0),
+	GATE(CLK_USI0, "usi0", "mout_user_aclk66_peric",
+			GATE_IP_PERIC, 10, 0, 0),
+	GATE(CLK_USI1, "usi1", "mout_user_aclk66_peric",
+			GATE_IP_PERIC, 11, 0, 0),
+	GATE(CLK_USI2, "usi2", "mout_user_aclk66_peric",
+			GATE_IP_PERIC, 12, 0, 0),
+	GATE(CLK_USI3, "usi3", "mout_user_aclk66_peric",
+			GATE_IP_PERIC, 13, 0, 0),
+	GATE(CLK_I2C_HDMI, "i2c_hdmi", "mout_user_aclk66_peric",
+			GATE_IP_PERIC, 14, 0, 0),
+	GATE(CLK_TSADC, "tsadc", "mout_user_aclk66_peric",
+			GATE_IP_PERIC, 15, 0, 0),
+	GATE(CLK_SPI0, "spi0", "mout_user_aclk66_peric",
+			GATE_IP_PERIC, 16, 0, 0),
+	GATE(CLK_SPI1, "spi1", "mout_user_aclk66_peric",
+			GATE_IP_PERIC, 17, 0, 0),
+	GATE(CLK_SPI2, "spi2", "mout_user_aclk66_peric",
+			GATE_IP_PERIC, 18, 0, 0),
+	GATE(CLK_I2S1, "i2s1", "mout_user_aclk66_peric",
+			GATE_IP_PERIC, 20, 0, 0),
+	GATE(CLK_I2S2, "i2s2", "mout_user_aclk66_peric",
+			GATE_IP_PERIC, 21, 0, 0),
+	GATE(CLK_PCM1, "pcm1", "mout_user_aclk66_peric",
+			GATE_IP_PERIC, 22, 0, 0),
+	GATE(CLK_PCM2, "pcm2", "mout_user_aclk66_peric",
+			GATE_IP_PERIC, 23, 0, 0),
+	GATE(CLK_PWM, "pwm", "mout_user_aclk66_peric",
+			GATE_IP_PERIC, 24, 0, 0),
+	GATE(CLK_SPDIF, "spdif", "mout_user_aclk66_peric",
+			GATE_IP_PERIC, 26, 0, 0),
+	GATE(CLK_USI4, "usi4", "mout_user_aclk66_peric",
+			GATE_IP_PERIC, 28, 0, 0),
+	GATE(CLK_USI5, "usi5", "mout_user_aclk66_peric",
+			GATE_IP_PERIC, 30, 0, 0),
+	GATE(CLK_USI6, "usi6", "mout_user_aclk66_peric",
+			GATE_IP_PERIC, 31, 0, 0),
 
-	GATE(CLK_KEYIF, "keyif", "aclk66_peric", GATE_BUS_PERIC, 22, 0, 0),
+	GATE(CLK_KEYIF, "keyif", "mout_user_aclk66_peric",
+			GATE_BUS_PERIC, 22, 0, 0),
 
 	/* PERIS Block */
 	GATE(CLK_CHIPID, "chipid", "aclk66_psgen",
@@ -1142,6 +1198,28 @@ static struct samsung_gate_clock exynos5x_gate_clks[] __initdata = {
 	GATE(CLK_G3D, "g3d", "mout_user_aclk_g3d", GATE_IP_G3D, 9, 0, 0),
 };
 
+static const struct samsung_pll_rate_table exynos5420_pll2550x_24mhz_tbl[] = {
+	PLL_35XX_RATE(2000000000, 250, 3, 0),
+	PLL_35XX_RATE(1900000000, 475, 6, 0),
+	PLL_35XX_RATE(1800000000, 225, 3, 0),
+	PLL_35XX_RATE(1700000000, 425, 6, 0),
+	PLL_35XX_RATE(1600000000, 200, 3, 0),
+	PLL_35XX_RATE(1500000000, 250, 4, 0),
+	PLL_35XX_RATE(1400000000, 175, 3, 0),
+	PLL_35XX_RATE(1300000000, 325, 6, 0),
+	PLL_35XX_RATE(1200000000, 200, 2, 1),
+	PLL_35XX_RATE(1100000000, 275, 3, 1),
+	PLL_35XX_RATE(1000000000, 250, 3, 1),
+	PLL_35XX_RATE(900000000,  150, 2, 1),
+	PLL_35XX_RATE(800000000,  200, 3, 1),
+	PLL_35XX_RATE(700000000,  175, 3, 1),
+	PLL_35XX_RATE(600000000,  200, 2, 2),
+	PLL_35XX_RATE(500000000,  250, 3, 2),
+	PLL_35XX_RATE(400000000,  200, 3, 2),
+	PLL_35XX_RATE(300000000,  200, 2, 3),
+	PLL_35XX_RATE(200000000,  200, 3, 3),
+};
+
 static struct samsung_pll_clock exynos5x_plls[nr_plls] __initdata = {
 	[apll] = PLL(pll_2550, CLK_FOUT_APLL, "fout_apll", "fin_pll", APLL_LOCK,
 		APLL_CON0, NULL),
@@ -1167,7 +1245,7 @@ static struct samsung_pll_clock exynos5x_plls[nr_plls] __initdata = {
 		KPLL_CON0, NULL),
 };
 
-static struct of_device_id ext_clk_match[] __initdata = {
+static const struct of_device_id ext_clk_match[] __initconst = {
 	{ .compatible = "samsung,exynos5420-oscclk", .data = (void *)0, },
 	{ },
 };
@@ -1195,6 +1273,12 @@ static void __init exynos5x_clk_init(struct device_node *np,
 	samsung_clk_of_register_fixed_ext(ctx, exynos5x_fixed_rate_ext_clks,
 			ARRAY_SIZE(exynos5x_fixed_rate_ext_clks),
 			ext_clk_match);
+
+	if (_get_rate("fin_pll") == 24 * MHZ) {
+		exynos5x_plls[apll].rate_table = exynos5420_pll2550x_24mhz_tbl;
+		exynos5x_plls[kpll].rate_table = exynos5420_pll2550x_24mhz_tbl;
+	}
+
 	samsung_clk_register_pll(ctx, exynos5x_plls, ARRAY_SIZE(exynos5x_plls),
 					reg_base);
 	samsung_clk_register_fixed_rate(ctx, exynos5x_fixed_rate_clks,
@@ -1226,6 +1310,8 @@ static void __init exynos5x_clk_init(struct device_node *np,
 	}
 
 	exynos5420_clk_sleep_init();
+
+	samsung_clk_of_add_provider(np, ctx);
 }
 
 static void __init exynos5420_clk_init(struct device_node *np)

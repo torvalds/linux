@@ -22,23 +22,93 @@
  * Authors: Ben Skeggs
  */
 
+#include <core/os.h>
+#include <nvif/unpack.h>
+#include <nvif/class.h>
+#include <nvif/event.h>
+
 #include "priv.h"
 #include "outp.h"
 #include "conn.h"
 
-static int
-nouveau_disp_hpd_check(struct nouveau_event *event, u32 types, int index)
+int
+nouveau_disp_vblank_ctor(void *data, u32 size, struct nvkm_notify *notify)
 {
-	struct nouveau_disp *disp = event->priv;
-	struct nvkm_output *outp;
-	list_for_each_entry(outp, &disp->outp, head) {
-		if (outp->conn->index == index) {
-			if (outp->conn->hpd.event)
-				return 0;
-			break;
+	struct nouveau_disp *disp =
+		container_of(notify->event, typeof(*disp), vblank);
+	union {
+		struct nvif_notify_head_req_v0 v0;
+	} *req = data;
+	int ret;
+
+	if (nvif_unpack(req->v0, 0, 0, false)) {
+		notify->size = sizeof(struct nvif_notify_head_rep_v0);
+		if (ret = -ENXIO, req->v0.head <= disp->vblank.index_nr) {
+			notify->types = 1;
+			notify->index = req->v0.head;
+			return 0;
 		}
 	}
-	return -ENOSYS;
+
+	return ret;
+}
+
+void
+nouveau_disp_vblank(struct nouveau_disp *disp, int head)
+{
+	struct nvif_notify_head_rep_v0 rep = {};
+	nvkm_event_send(&disp->vblank, 1, head, &rep, sizeof(rep));
+}
+
+static int
+nouveau_disp_hpd_ctor(void *data, u32 size, struct nvkm_notify *notify)
+{
+	struct nouveau_disp *disp =
+		container_of(notify->event, typeof(*disp), hpd);
+	union {
+		struct nvif_notify_conn_req_v0 v0;
+	} *req = data;
+	struct nvkm_output *outp;
+	int ret;
+
+	if (nvif_unpack(req->v0, 0, 0, false)) {
+		notify->size = sizeof(struct nvif_notify_conn_rep_v0);
+		list_for_each_entry(outp, &disp->outp, head) {
+			if (ret = -ENXIO, outp->conn->index == req->v0.conn) {
+				if (ret = -ENODEV, outp->conn->hpd.event) {
+					notify->types = req->v0.mask;
+					notify->index = req->v0.conn;
+					ret = 0;
+				}
+				break;
+			}
+		}
+	}
+
+	return ret;
+}
+
+static const struct nvkm_event_func
+nouveau_disp_hpd_func = {
+	.ctor = nouveau_disp_hpd_ctor
+};
+
+int
+nouveau_disp_ntfy(struct nouveau_object *object, u32 type,
+		  struct nvkm_event **event)
+{
+	struct nouveau_disp *disp = (void *)object->engine;
+	switch (type) {
+	case NV04_DISP_NTFY_VBLANK:
+		*event = &disp->vblank;
+		return 0;
+	case NV04_DISP_NTFY_CONN:
+		*event = &disp->hpd;
+		return 0;
+	default:
+		break;
+	}
+	return -EINVAL;
 }
 
 int
@@ -97,7 +167,8 @@ _nouveau_disp_dtor(struct nouveau_object *object)
 	struct nouveau_disp *disp = (void *)object;
 	struct nvkm_output *outp, *outt;
 
-	nouveau_event_destroy(&disp->vblank);
+	nvkm_event_fini(&disp->vblank);
+	nvkm_event_fini(&disp->hpd);
 
 	if (disp->outp.next) {
 		list_for_each_entry_safe(outp, outt, &disp->outp, head) {
@@ -157,14 +228,11 @@ nouveau_disp_create_(struct nouveau_object *parent,
 		hpd = max(hpd, (u8)(dcbE.connector + 1));
 	}
 
-	ret = nouveau_event_create(3, hpd, &disp->hpd);
+	ret = nvkm_event_init(&nouveau_disp_hpd_func, 3, hpd, &disp->hpd);
 	if (ret)
 		return ret;
 
-	disp->hpd->priv = disp;
-	disp->hpd->check = nouveau_disp_hpd_check;
-
-	ret = nouveau_event_create(1, heads, &disp->vblank);
+	ret = nvkm_event_init(impl->vblank, 1, heads, &disp->vblank);
 	if (ret)
 		return ret;
 

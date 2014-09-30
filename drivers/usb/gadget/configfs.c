@@ -1021,11 +1021,9 @@ static ssize_t ext_prop_data_store(struct usb_os_desc_ext_prop *ext_prop,
 
 	if (page[len - 1] == '\n' || page[len - 1] == '\0')
 		--len;
-	new_data = kzalloc(len, GFP_KERNEL);
+	new_data = kmemdup(page, len, GFP_KERNEL);
 	if (!new_data)
 		return -ENOMEM;
-
-	memcpy(new_data, page, len);
 
 	if (desc->opts_mutex)
 		mutex_lock(desc->opts_mutex);
@@ -1145,15 +1143,15 @@ static struct configfs_item_operations interf_item_ops = {
 	.store_attribute	= usb_os_desc_attr_store,
 };
 
-static ssize_t rndis_grp_compatible_id_show(struct usb_os_desc *desc,
-					    char *page)
+static ssize_t interf_grp_compatible_id_show(struct usb_os_desc *desc,
+					     char *page)
 {
 	memcpy(page, desc->ext_compat_id, 8);
 	return 8;
 }
 
-static ssize_t rndis_grp_compatible_id_store(struct usb_os_desc *desc,
-					     const char *page, size_t len)
+static ssize_t interf_grp_compatible_id_store(struct usb_os_desc *desc,
+					      const char *page, size_t len)
 {
 	int l;
 
@@ -1171,20 +1169,20 @@ static ssize_t rndis_grp_compatible_id_store(struct usb_os_desc *desc,
 	return len;
 }
 
-static struct usb_os_desc_attribute rndis_grp_attr_compatible_id =
+static struct usb_os_desc_attribute interf_grp_attr_compatible_id =
 	__CONFIGFS_ATTR(compatible_id, S_IRUGO | S_IWUSR,
-			rndis_grp_compatible_id_show,
-			rndis_grp_compatible_id_store);
+			interf_grp_compatible_id_show,
+			interf_grp_compatible_id_store);
 
-static ssize_t rndis_grp_sub_compatible_id_show(struct usb_os_desc *desc,
-						char *page)
+static ssize_t interf_grp_sub_compatible_id_show(struct usb_os_desc *desc,
+						 char *page)
 {
 	memcpy(page, desc->ext_compat_id + 8, 8);
 	return 8;
 }
 
-static ssize_t rndis_grp_sub_compatible_id_store(struct usb_os_desc *desc,
-						 const char *page, size_t len)
+static ssize_t interf_grp_sub_compatible_id_store(struct usb_os_desc *desc,
+						  const char *page, size_t len)
 {
 	int l;
 
@@ -1202,20 +1200,21 @@ static ssize_t rndis_grp_sub_compatible_id_store(struct usb_os_desc *desc,
 	return len;
 }
 
-static struct usb_os_desc_attribute rndis_grp_attr_sub_compatible_id =
+static struct usb_os_desc_attribute interf_grp_attr_sub_compatible_id =
 	__CONFIGFS_ATTR(sub_compatible_id, S_IRUGO | S_IWUSR,
-			rndis_grp_sub_compatible_id_show,
-			rndis_grp_sub_compatible_id_store);
+			interf_grp_sub_compatible_id_show,
+			interf_grp_sub_compatible_id_store);
 
 static struct configfs_attribute *interf_grp_attrs[] = {
-	&rndis_grp_attr_compatible_id.attr,
-	&rndis_grp_attr_sub_compatible_id.attr,
+	&interf_grp_attr_compatible_id.attr,
+	&interf_grp_attr_sub_compatible_id.attr,
 	NULL
 };
 
 int usb_os_desc_prepare_interf_dir(struct config_group *parent,
 				   int n_interf,
 				   struct usb_os_desc **desc,
+				   char **names,
 				   struct module *owner)
 {
 	struct config_group **f_default_groups, *os_desc_group,
@@ -1257,8 +1256,8 @@ int usb_os_desc_prepare_interf_dir(struct config_group *parent,
 		d = desc[n_interf];
 		d->owner = owner;
 		config_group_init_type_name(&d->group, "", interface_type);
-		config_item_set_name(&d->group.cg_item, "interface.%d",
-				     n_interf);
+		config_item_set_name(&d->group.cg_item, "interface.%s",
+				     names[n_interf]);
 		interface_groups[n_interf] = &d->group;
 	}
 

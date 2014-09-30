@@ -241,9 +241,6 @@ static void bt8xxgpio_remove(struct pci_dev *pdev)
 	bgwrite(~0x0, BT848_INT_STAT);
 	bgwrite(0x0, BT848_GPIO_OUT_EN);
 
-	iounmap(bg->mmio);
-	release_mem_region(pci_resource_start(pdev, 0),
-			   pci_resource_len(pdev, 0));
 	pci_disable_device(pdev);
 }
 

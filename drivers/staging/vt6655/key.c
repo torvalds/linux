@@ -58,7 +58,7 @@ static int msglevel = MSG_LEVEL_INFO;
 
 /*---------------------  Static Functions  --------------------------*/
 static void
-s_vCheckKeyTableValid(PSKeyManagement pTable, unsigned long dwIoBase)
+s_vCheckKeyTableValid(PSKeyManagement pTable, void __iomem *dwIoBase)
 {
 	int i;
 
@@ -91,7 +91,7 @@ s_vCheckKeyTableValid(PSKeyManagement pTable, unsigned long dwIoBase)
  * Return Value: none
  *
  */
-void KeyvInitTable(PSKeyManagement pTable, unsigned long dwIoBase)
+void KeyvInitTable(PSKeyManagement pTable, void __iomem *dwIoBase)
 {
 	int i;
 	int jj;
@@ -134,7 +134,7 @@ bool KeybGetKey(
 {
 	int i;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "KeybGetKey() \n");
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "KeybGetKey()\n");
 
 	*pKey = NULL;
 	for (i = 0; i < MAX_KEY_TABLE; i++) {
@@ -187,7 +187,7 @@ bool KeybSetKey(
 	PQWORD          pKeyRSC,
 	unsigned char *pbyKey,
 	unsigned char byKeyDecMode,
-	unsigned long dwIoBase,
+	void __iomem *dwIoBase,
 	unsigned char byLocalID
 )
 {
@@ -252,7 +252,7 @@ bool KeybSetKey(
 			pKey->dwTSC47_16 = 0;
 			pKey->wTSC15_0 = 0;
 
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "KeybSetKey(R): \n");
+			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "KeybSetKey(R):\n");
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->bKeyValid: %d\n ", pKey->bKeyValid);
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->abyKey: ");
 			for (ii = 0; ii < pKey->uKeyLength; ii++)
@@ -315,7 +315,7 @@ bool KeybSetKey(
 		pKey->dwTSC47_16 = 0;
 		pKey->wTSC15_0 = 0;
 
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "KeybSetKey(N): \n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "KeybSetKey(N):\n");
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->bKeyValid: %d\n ", pKey->bKeyValid);
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->uKeyLength: %d\n ", (int)pKey->uKeyLength);
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->abyKey: ");
@@ -351,7 +351,7 @@ bool KeybRemoveKey(
 	PSKeyManagement pTable,
 	unsigned char *pbyBSSID,
 	unsigned long dwKeyIndex,
-	unsigned long dwIoBase
+	void __iomem *dwIoBase
 )
 {
 	int  i;
@@ -418,7 +418,7 @@ bool KeybRemoveKey(
 bool KeybRemoveAllKey(
 	PSKeyManagement pTable,
 	unsigned char *pbyBSSID,
-	unsigned long dwIoBase
+	void __iomem *dwIoBase
 )
 {
 	int i, u;
@@ -453,7 +453,7 @@ bool KeybRemoveAllKey(
 void KeyvRemoveWEPKey(
 	PSKeyManagement pTable,
 	unsigned long dwKeyIndex,
-	unsigned long dwIoBase
+	void __iomem *dwIoBase
 )
 {
 	if ((dwKeyIndex & 0x000000FF) < MAX_GROUP_KEY) {
@@ -468,12 +468,11 @@ void KeyvRemoveWEPKey(
 		}
 		s_vCheckKeyTableValid(pTable, dwIoBase);
 	}
-	return;
 }
 
 void KeyvRemoveAllWEPKey(
 	PSKeyManagement pTable,
-	unsigned long dwIoBase
+	void __iomem *dwIoBase
 )
 {
 	int i;
@@ -610,7 +609,7 @@ bool KeybSetDefaultKey(
 	PQWORD          pKeyRSC,
 	unsigned char *pbyKey,
 	unsigned char byKeyDecMode,
-	unsigned long dwIoBase,
+	void __iomem *dwIoBase,
 	unsigned char byLocalID
 )
 {
@@ -618,7 +617,7 @@ bool KeybSetDefaultKey(
 	PSKeyItem   pKey;
 	unsigned int uKeyIdx;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Enter KeybSetDefaultKey: %1x, %d \n", (int)dwKeyIndex, (int)uKeyLength);
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Enter KeybSetDefaultKey: %1x, %d\n", (int)dwKeyIndex, (int)uKeyLength);
 
 	if ((dwKeyIndex & PAIRWISE_KEY) != 0) // Pairwise key
 		return false;
@@ -677,10 +676,10 @@ bool KeybSetDefaultKey(
 	pKey->dwTSC47_16 = 0;
 	pKey->wTSC15_0 = 0;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "KeybSetKey(R): \n");
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "KeybSetKey(R):\n");
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->bKeyValid: %d\n", pKey->bKeyValid);
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->uKeyLength: %d\n", (int)pKey->uKeyLength);
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->abyKey: \n");
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->abyKey:\n");
 	for (ii = 0; ii < pKey->uKeyLength; ii++)
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%x", pKey->abyKey[ii]);
 
@@ -716,7 +715,7 @@ bool KeybSetAllGroupKey(
 	PQWORD          pKeyRSC,
 	unsigned char *pbyKey,
 	unsigned char byKeyDecMode,
-	unsigned long dwIoBase,
+	void __iomem *dwIoBase,
 	unsigned char byLocalID
 )
 {
@@ -772,7 +771,7 @@ bool KeybSetAllGroupKey(
 			pKey->dwTSC47_16 = 0;
 			pKey->wTSC15_0 = 0;
 
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "KeybSetKey(R): \n");
+			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "KeybSetKey(R):\n");
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->bKeyValid: %d\n ", pKey->bKeyValid);
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->uKeyLength: %d\n ", (int)pKey->uKeyLength);
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "pKey->abyKey: ");
