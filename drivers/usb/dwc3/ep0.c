@@ -789,9 +789,6 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 
 	dwc->ep0_next_event = DWC3_EP0_NRDY_STATUS;
 
-	r = next_request(&ep0->request_list);
-	ur = &r->request;
-
 	trb = dwc->ep0_trb;
 
 	status = DWC3_TRB_SIZE_TRBSTS(trb->size);
@@ -803,6 +800,12 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 
 		return;
 	}
+
+	r = next_request(&ep0->request_list);
+	if (!r)
+		return;
+
+	ur = &r->request;
 
 	length = trb->size & DWC3_TRB_SIZE_MASK;
 
