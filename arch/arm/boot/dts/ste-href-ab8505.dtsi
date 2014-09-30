@@ -39,7 +39,7 @@
 								groups = "gpio2_a_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO2_R5";
+								pins = "GPIO2_R5";
 								input-enable;
 								bias-pull-down;
 							};
@@ -52,7 +52,7 @@
 								groups = "gpio10_d_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO10_B16";
+								pins = "GPIO10_B16";
 								input-enable;
 								bias-pull-down;
 							};
@@ -65,7 +65,7 @@
 								groups = "gpio11_d_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO11_B17";
+								pins = "GPIO11_B17";
 								input-enable;
 								bias-pull-down;
 							};
@@ -78,7 +78,7 @@
 								groups = "gpio13_d_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO13_D17";
+								pins = "GPIO13_D17";
 								input-enable;
 								bias-disable;
 							};
@@ -91,7 +91,7 @@
 								groups = "gpio34_a_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO34_H14";
+								pins = "GPIO34_H14";
 								input-enable;
 								bias-pull-down;
 							};
@@ -104,7 +104,7 @@
 								groups = "gpio50_d_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO50_L4";
+								pins = "GPIO50_L4";
 								input-enable;
 								bias-disable;
 							};
@@ -118,7 +118,7 @@
 								groups = "pwmout1_d_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO14_C16";
+								pins = "GPIO14_C16";
 								input-enable;
 								bias-pull-down;
 							};
@@ -132,7 +132,7 @@
 								groups = "adi2_d_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO17_P2",
+								pins = "GPIO17_P2",
 									 "GPIO18_N3",
 									 "GPIO19_T1",
 									 "GPIO20_P3";
@@ -149,7 +149,7 @@
 								groups = "modsclsda_d_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO40_J15",
+								pins = "GPIO40_J15",
 									"GPIO41_J14";
 								input-enable;
 								bias-pull-down;
@@ -163,7 +163,7 @@
 								groups = "resethw_d_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO52_D16";
+								pins = "GPIO52_D16";
 								input-enable;
 								bias-pull-down;
 							};
@@ -176,7 +176,7 @@
 								groups = "service_d_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO53_D15";
+								pins = "GPIO53_D15";
 								input-enable;
 								bias-pull-down;
 							};
@@ -192,7 +192,7 @@
 								groups = "sysclkreq2_d_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO1_N4";
+								pins = "GPIO1_N4";
 								input-enable;
 								bias-disable;
 							};
@@ -203,7 +203,7 @@
 								groups = "gpio1_a_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO1_N4";
+								pins = "GPIO1_N4";
 								input-enable;
 								bias-pull-down;
 							};
@@ -216,7 +216,7 @@
 								groups = "sysclkreq4_d_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO3_P5";
+								pins = "GPIO3_P5";
 								input-enable;
 								bias-disable;
 							};
@@ -227,7 +227,7 @@
 								groups = "gpio3_a_1";
 							};
 							default_cfg {
-								ste,pins = "GPIO3_P5";
+								pins = "GPIO3_P5";
 								input-enable;
 								bias-pull-down;
 							};

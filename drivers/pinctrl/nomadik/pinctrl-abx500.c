@@ -931,7 +931,7 @@ static int abx500_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		const char *gpio_name;
 		const char *pin;
 
-		ret = of_property_count_strings(np, "ste,pins");
+		ret = of_property_count_strings(np, "pins");
 		if (ret < 0)
 			goto exit;
 
@@ -941,7 +941,7 @@ static int abx500_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		if (ret < 0)
 			goto exit;
 
-		of_property_for_each_string(np, "ste,pins", prop, pin) {
+		of_property_for_each_string(np, "pins", prop, pin) {
 			gpio_name = abx500_find_pin_name(pctldev, pin);
 
 			ret = abx500_dt_add_map_configs(map, reserved_maps,
