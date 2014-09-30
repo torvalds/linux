@@ -655,7 +655,8 @@ static __always_inline int __linearize(struct x86_emulate_ctxt *ctxt,
 	u16 sel;
 	unsigned cpl;
 
-	la = seg_base(ctxt, addr.seg) + addr.ea;
+	la = seg_base(ctxt, addr.seg) +
+	    (fetch || ctxt->ad_bytes == 8 ? addr.ea : (u32)addr.ea);
 	*max_size = 0;
 	switch (ctxt->mode) {
 	case X86EMUL_MODE_PROT64:
@@ -717,7 +718,7 @@ static __always_inline int __linearize(struct x86_emulate_ctxt *ctxt,
 		}
 		break;
 	}
-	if (fetch ? ctxt->mode != X86EMUL_MODE_PROT64 : ctxt->ad_bytes != 8)
+	if (ctxt->mode != X86EMUL_MODE_PROT64)
 		la &= (u32)-1;
 	if (insn_aligned(ctxt, size) && ((la & (size - 1)) != 0))
 		return emulate_gp(ctxt, 0);
