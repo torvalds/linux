@@ -263,7 +263,7 @@ static inline unsigned int issue_vmcall_io_visorserial_addr(u64 *channel_addr)
 	return result;
 }
 
-static inline s64 Issue_VMCALL_QUERY_GUEST_VIRTUAL_TIME_OFFSET(void)
+static inline s64 issue_vmcall_query_guest_virtual_time_offset(void)
 {
 	u64 result = VMCALL_SUCCESS;
 	u64 physaddr = 0;

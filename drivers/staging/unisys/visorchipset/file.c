@@ -197,7 +197,7 @@ visorchipset_ioctl(struct inode *inode, struct file *file,
 	switch (cmd) {
 	case VMCALL_QUERY_GUEST_VIRTUAL_TIME_OFFSET:
 		/* get the physical rtc offset */
-		vrtc_offset = Issue_VMCALL_QUERY_GUEST_VIRTUAL_TIME_OFFSET();
+		vrtc_offset = issue_vmcall_query_guest_virtual_time_offset();
 		if (copy_to_user
 		    ((void __user *)arg, &vrtc_offset, sizeof(vrtc_offset))) {
 			rc = -EFAULT;
