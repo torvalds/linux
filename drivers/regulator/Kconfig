@@ -241,6 +241,23 @@ config REGULATOR_GPIO
 	  and the platform has to provide a mapping of GPIO-states
 	  to target volts/amps.
 
+config REGULATOR_HI6421
+	tristate "HiSilicon Hi6421 PMIC voltage regulator support"
+	depends on MFD_HI6421_PMIC && OF
+	help
+	  This driver provides support for the voltage regulators on the
+	  HiSilicon Hi6421 PMU / Codec IC.
+	  Hi6421 is a multi-function device which, on regulator part, provides
+	  21 general purpose LDOs, 3 dedicated LDOs, and 5 BUCKs. All
+	  of them come with support to either ECO (idle) or sleep mode.
+
+config REGULATOR_ISL9305
+	tristate "Intersil ISL9305 regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver supports ISL9305 voltage regulator chip.
+
 config REGULATOR_ISL6271A
 	tristate "Intersil ISL6271A Power regulator"
 	depends on I2C
@@ -450,6 +467,25 @@ config REGULATOR_PFUZE100
 	  Say y here to support the regulators found on the Freescale
 	  PFUZE100/PFUZE200 PMIC.
 
+config REGULATOR_PWM
+	tristate "PWM voltage regulator"
+	depends on PWM
+	help
+	  This driver supports PWM controlled voltage regulators. PWM
+	  duty cycle can increase or decrease the voltage.
+
+config REGULATOR_QCOM_RPM
+	tristate "Qualcomm RPM regulator driver"
+	depends on MFD_QCOM_RPM
+	help
+	  If you say yes to this option, support will be included for the
+	  regulators exposed by the Resource Power Manager found in Qualcomm
+	  8660, 8960 and 8064 based devices.
+
+	  Say M here if you want to include support for the regulators on the
+	  Qualcomm RPM as a module. The module will be named
+	  "qcom_rpm-regulator".
+
 config REGULATOR_RC5T583
 	tristate "RICOH RC5T583 Power regulators"
 	depends on MFD_RC5T583
@@ -484,11 +520,16 @@ config REGULATOR_S5M8767
 	 via I2C bus. S5M8767A have 9 Bucks and 28 LDOs output and
 	 supports DVS mode with 8bits of output voltage control.
 
-config REGULATOR_ST_PWM
-	tristate "STMicroelectronics PWM voltage regulator"
-	depends on ARCH_STI
+config REGULATOR_SKY81452
+	tristate "Skyworks Solutions SKY81452 voltage regulator"
+	depends on SKY81452
 	help
-	 This driver supports ST's PWM controlled voltage regulators.
+	  This driver supports Skyworks SKY81452 voltage output regulator
+	  via I2C bus. SKY81452 has one voltage linear regulator can be
+	  programmed from 4.5V to 20V.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called sky81452-regulator.
 
 config REGULATOR_TI_ABB
 	tristate "TI Adaptive Body Bias on-chip LDO"
