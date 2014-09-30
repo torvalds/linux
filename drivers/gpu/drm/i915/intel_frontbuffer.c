@@ -248,8 +248,9 @@ void intel_frontbuffer_flip_prepare(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	mutex_lock(&dev_priv->fb_tracking.lock);
-	dev_priv->fb_tracking.flip_bits
-		|= frontbuffer_bits;
+	dev_priv->fb_tracking.flip_bits |= frontbuffer_bits;
+	/* Remove stale busy bits due to the old buffer. */
+	dev_priv->fb_tracking.busy_bits &= ~frontbuffer_bits;
 	mutex_unlock(&dev_priv->fb_tracking.lock);
 }
 
