@@ -36,99 +36,133 @@
 
 #include <linux/sched.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
 #include <linux/vmalloc.h>
 
 #include <xen/interface/xen.h>
 #include <xen/page.h>
 #include <xen/grant_table.h>
+#include <xen/xen.h>
 
 #include <asm/pgtable.h>
 
-static int map_pte_fn(pte_t *pte, struct page *pmd_page,
-		      unsigned long addr, void *data)
-{
-	unsigned long **frames = (unsigned long **)data;
-
-	set_pte_at(&init_mm, addr, pte, mfn_pte((*frames)[0], PAGE_KERNEL));
-	(*frames)++;
-	return 0;
-}
-
-/*
- * This function is used to map shared frames to store grant status. It is
- * different from map_pte_fn above, the frames type here is uint64_t.
- */
-static int map_pte_fn_status(pte_t *pte, struct page *pmd_page,
-			     unsigned long addr, void *data)
-{
-	uint64_t **frames = (uint64_t **)data;
-
-	set_pte_at(&init_mm, addr, pte, mfn_pte((*frames)[0], PAGE_KERNEL));
-	(*frames)++;
-	return 0;
-}
-
-static int unmap_pte_fn(pte_t *pte, struct page *pmd_page,
-			unsigned long addr, void *data)
-{
-
-	set_pte_at(&init_mm, addr, pte, __pte(0));
-	return 0;
-}
+static struct gnttab_vm_area {
+	struct vm_struct *area;
+	pte_t **ptes;
+} gnttab_shared_vm_area, gnttab_status_vm_area;
 
 int arch_gnttab_map_shared(unsigned long *frames, unsigned long nr_gframes,
 			   unsigned long max_nr_gframes,
 			   void **__shared)
 {
-	int rc;
 	void *shared = *__shared;
+	unsigned long addr;
+	unsigned long i;
 
-	if (shared == NULL) {
-		struct vm_struct *area =
-			alloc_vm_area(PAGE_SIZE * max_nr_gframes, NULL);
-		BUG_ON(area == NULL);
-		shared = area->addr;
-		*__shared = shared;
+	if (shared == NULL)
+		*__shared = shared = gnttab_shared_vm_area.area->addr;
+
+	addr = (unsigned long)shared;
+
+	for (i = 0; i < nr_gframes; i++) {
+		set_pte_at(&init_mm, addr, gnttab_shared_vm_area.ptes[i],
+			   mfn_pte(frames[i], PAGE_KERNEL));
+		addr += PAGE_SIZE;
 	}
 
-	rc = apply_to_page_range(&init_mm, (unsigned long)shared,
-				 PAGE_SIZE * nr_gframes,
-				 map_pte_fn, &frames);
-	return rc;
+	return 0;
 }
 
 int arch_gnttab_map_status(uint64_t *frames, unsigned long nr_gframes,
 			   unsigned long max_nr_gframes,
 			   grant_status_t **__shared)
 {
-	int rc;
 	grant_status_t *shared = *__shared;
+	unsigned long addr;
+	unsigned long i;
 
-	if (shared == NULL) {
-		/* No need to pass in PTE as we are going to do it
-		 * in apply_to_page_range anyhow. */
-		struct vm_struct *area =
-			alloc_vm_area(PAGE_SIZE * max_nr_gframes, NULL);
-		BUG_ON(area == NULL);
-		shared = area->addr;
-		*__shared = shared;
+	if (shared == NULL)
+		*__shared = shared = gnttab_status_vm_area.area->addr;
+
+	addr = (unsigned long)shared;
+
+	for (i = 0; i < nr_gframes; i++) {
+		set_pte_at(&init_mm, addr, gnttab_status_vm_area.ptes[i],
+			   mfn_pte(frames[i], PAGE_KERNEL));
+		addr += PAGE_SIZE;
 	}
 
-	rc = apply_to_page_range(&init_mm, (unsigned long)shared,
-				 PAGE_SIZE * nr_gframes,
-				 map_pte_fn_status, &frames);
-	return rc;
+	return 0;
 }
 
 void arch_gnttab_unmap(void *shared, unsigned long nr_gframes)
 {
-	apply_to_page_range(&init_mm, (unsigned long)shared,
-			    PAGE_SIZE * nr_gframes, unmap_pte_fn, NULL);
+	pte_t **ptes;
+	unsigned long addr;
+	unsigned long i;
+
+	if (shared == gnttab_status_vm_area.area->addr)
+		ptes = gnttab_status_vm_area.ptes;
+	else
+		ptes = gnttab_shared_vm_area.ptes;
+
+	addr = (unsigned long)shared;
+
+	for (i = 0; i < nr_gframes; i++) {
+		set_pte_at(&init_mm, addr, ptes[i], __pte(0));
+		addr += PAGE_SIZE;
+	}
 }
+
+static int arch_gnttab_valloc(struct gnttab_vm_area *area, unsigned nr_frames)
+{
+	area->ptes = kmalloc(sizeof(pte_t *) * nr_frames, GFP_KERNEL);
+	if (area->ptes == NULL)
+		return -ENOMEM;
+
+	area->area = alloc_vm_area(PAGE_SIZE * nr_frames, area->ptes);
+	if (area->area == NULL) {
+		kfree(area->ptes);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static void arch_gnttab_vfree(struct gnttab_vm_area *area)
+{
+	free_vm_area(area->area);
+	kfree(area->ptes);
+}
+
+int arch_gnttab_init(unsigned long nr_shared, unsigned long nr_status)
+{
+	int ret;
+
+	if (!xen_pv_domain())
+		return 0;
+
+	ret = arch_gnttab_valloc(&gnttab_shared_vm_area, nr_shared);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Always allocate the space for the status frames in case
+	 * we're migrated to a host with V2 support.
+	 */
+	ret = arch_gnttab_valloc(&gnttab_status_vm_area, nr_status);
+	if (ret < 0)
+		goto err;
+
+	return 0;
+  err:
+	arch_gnttab_vfree(&gnttab_shared_vm_area);
+	return -ENOMEM;
+}
+
 #ifdef CONFIG_XEN_PVH
 #include <xen/balloon.h>
 #include <xen/events.h>
-#include <xen/xen.h>
 #include <linux/slab.h>
 static int __init xlated_setup_gnttab_pages(void)
 {

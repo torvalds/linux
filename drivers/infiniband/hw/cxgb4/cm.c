@@ -432,8 +432,17 @@ static void arp_failure_discard(void *handle, struct sk_buff *skb)
  */
 static void act_open_req_arp_failure(void *handle, struct sk_buff *skb)
 {
+	struct c4iw_ep *ep = handle;
+
 	printk(KERN_ERR MOD "ARP failure duing connect\n");
 	kfree_skb(skb);
+	connect_reply_upcall(ep, -EHOSTUNREACH);
+	state_set(&ep->com, DEAD);
+	remove_handle(ep->com.dev, &ep->com.dev->atid_idr, ep->atid);
+	cxgb4_free_atid(ep->com.dev->rdev.lldi.tids, ep->atid);
+	dst_release(ep->dst);
+	cxgb4_l2t_release(ep->l2t);
+	c4iw_put_ep(&ep->com);
 }
 
 /*
@@ -658,7 +667,7 @@ static int send_connect(struct c4iw_ep *ep)
 		opt2 |= T5_OPT_2_VALID;
 		opt2 |= V_CONG_CNTRL(CONG_ALG_TAHOE);
 	}
-	t4_set_arp_err_handler(skb, NULL, act_open_req_arp_failure);
+	t4_set_arp_err_handler(skb, ep, act_open_req_arp_failure);
 
 	if (is_t4(ep->com.dev->rdev.lldi.adapter_type)) {
 		if (ep->com.remote_addr.ss_family == AF_INET) {
@@ -2180,7 +2189,6 @@ static void reject_cr(struct c4iw_dev *dev, u32 hwtid, struct sk_buff *skb)
 	PDBG("%s c4iw_dev %p tid %u\n", __func__, dev, hwtid);
 	BUG_ON(skb_cloned(skb));
 	skb_trim(skb, sizeof(struct cpl_tid_release));
-	skb_get(skb);
 	release_tid(&dev->rdev, hwtid, skb);
 	return;
 }
@@ -3917,7 +3925,7 @@ int __init c4iw_cm_init(void)
 	return 0;
 }
 
-void __exit c4iw_cm_term(void)
+void c4iw_cm_term(void)
 {
 	WARN_ON(!list_empty(&timeout_list));
 	flush_workqueue(workq);

@@ -1169,8 +1169,8 @@ static int ep_enable(struct usb_ep *ep,
 
 	if (hwep->type == USB_ENDPOINT_XFER_CONTROL)
 		cap |= QH_IOS;
-	if (hwep->num)
-		cap |= QH_ZLT;
+
+	cap |= QH_ZLT;
 	cap |= (hwep->ep.maxpacket << __ffs(QH_MAX_PKT)) & QH_MAX_PKT;
 	/*
 	 * For ISO-TX, we set mult at QH as the largest value, and use

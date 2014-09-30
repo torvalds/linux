@@ -69,6 +69,7 @@ static int pSeries_reconfig_add_node(const char *path, struct property *proplist
 
 	np->properties = proplist;
 	of_node_set_flag(np, OF_DYNAMIC);
+	of_node_init(np);
 
 	np->parent = derive_parent(path);
 	if (IS_ERR(np->parent)) {

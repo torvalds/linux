@@ -249,7 +249,7 @@ static void elog_work_fn(struct work_struct *work)
 
 	rc = opal_get_elog_size(&id, &size, &type);
 	if (rc != OPAL_SUCCESS) {
-		pr_err("ELOG: Opal log read failed\n");
+		pr_err("ELOG: OPAL log info read failed\n");
 		return;
 	}
 
@@ -257,7 +257,7 @@ static void elog_work_fn(struct work_struct *work)
 	log_id = be64_to_cpu(id);
 	elog_type = be64_to_cpu(type);
 
-	BUG_ON(elog_size > OPAL_MAX_ERRLOG_SIZE);
+	WARN_ON(elog_size > OPAL_MAX_ERRLOG_SIZE);
 
 	if (elog_size >= OPAL_MAX_ERRLOG_SIZE)
 		elog_size  =  OPAL_MAX_ERRLOG_SIZE;

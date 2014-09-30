@@ -484,8 +484,19 @@ void btrfs_wait_logged_extents(struct btrfs_root *log, u64 transid)
 					   log_list);
 		list_del_init(&ordered->log_list);
 		spin_unlock_irq(&log->log_extents_lock[index]);
+
+		if (!test_bit(BTRFS_ORDERED_IO_DONE, &ordered->flags) &&
+		    !test_bit(BTRFS_ORDERED_DIRECT, &ordered->flags)) {
+			struct inode *inode = ordered->inode;
+			u64 start = ordered->file_offset;
+			u64 end = ordered->file_offset + ordered->len - 1;
+
+			WARN_ON(!inode);
+			filemap_fdatawrite_range(inode->i_mapping, start, end);
+		}
 		wait_event(ordered->wait, test_bit(BTRFS_ORDERED_IO_DONE,
 						   &ordered->flags));
+
 		btrfs_put_ordered_extent(ordered);
 		spin_lock_irq(&log->log_extents_lock[index]);
 	}

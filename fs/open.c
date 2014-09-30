@@ -263,11 +263,10 @@ int do_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 		return -EPERM;
 
 	/*
-	 * We can not allow to do any fallocate operation on an active
-	 * swapfile
+	 * We cannot allow any fallocate operation on an active swapfile
 	 */
 	if (IS_SWAPFILE(inode))
-		ret = -ETXTBSY;
+		return -ETXTBSY;
 
 	/*
 	 * Revalidate the write permissions, in case security policy has

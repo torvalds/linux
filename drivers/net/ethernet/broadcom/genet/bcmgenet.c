@@ -1149,6 +1149,11 @@ static netdev_tx_t bcmgenet_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto out;
 	}
 
+	if (skb_padto(skb, ETH_ZLEN)) {
+		ret = NETDEV_TX_OK;
+		goto out;
+	}
+
 	/* set the SKB transmit checksum */
 	if (priv->desc_64b_en) {
 		ret = bcmgenet_put_tx_csum(dev, skb);
@@ -1407,13 +1412,6 @@ static int bcmgenet_alloc_rx_buffers(struct bcmgenet_priv *priv)
 		cb = &priv->rx_cbs[priv->rx_bd_assign_index];
 		if (cb->skb)
 			continue;
-
-		/* set the DMA descriptor length once and for all
-		 * it will only change if we support dynamically sizing
-		 * priv->rx_buf_len, but we do not
-		 */
-		dmadesc_set_length_status(priv, priv->rx_bd_assign_ptr,
-				priv->rx_buf_len << DMA_BUFLENGTH_SHIFT);
 
 		ret = bcmgenet_rx_refill(priv, cb);
 		if (ret)
@@ -2535,13 +2533,16 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	netif_set_real_num_tx_queues(priv->dev, priv->hw_params->tx_queues + 1);
 	netif_set_real_num_rx_queues(priv->dev, priv->hw_params->rx_queues + 1);
 
-	err = register_netdev(dev);
-	if (err)
-		goto err_clk_disable;
+	/* libphy will determine the link state */
+	netif_carrier_off(dev);
 
 	/* Turn off the main clock, WOL clock is handled separately */
 	if (!IS_ERR(priv->clk))
 		clk_disable_unprepare(priv->clk);
+
+	err = register_netdev(dev);
+	if (err)
+		goto err;
 
 	return err;
 

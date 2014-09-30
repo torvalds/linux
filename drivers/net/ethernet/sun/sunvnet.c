@@ -610,6 +610,13 @@ static int __vnet_tx_trigger(struct vnet_port *port)
 	return err;
 }
 
+static inline bool port_is_up(struct vnet_port *vnet)
+{
+	struct vio_driver_state *vio = &vnet->vio;
+
+	return !!(vio->hs_state & VIO_HS_COMPLETE);
+}
+
 struct vnet_port *__tx_port_find(struct vnet *vp, struct sk_buff *skb)
 {
 	unsigned int hash = vnet_hashfn(skb->data);
@@ -617,14 +624,19 @@ struct vnet_port *__tx_port_find(struct vnet *vp, struct sk_buff *skb)
 	struct vnet_port *port;
 
 	hlist_for_each_entry(port, hp, hash) {
+		if (!port_is_up(port))
+			continue;
 		if (ether_addr_equal(port->raddr, skb->data))
 			return port;
 	}
-	port = NULL;
-	if (!list_empty(&vp->port_list))
-		port = list_entry(vp->port_list.next, struct vnet_port, list);
-
-	return port;
+	list_for_each_entry(port, &vp->port_list, list) {
+		if (!port->switch_port)
+			continue;
+		if (!port_is_up(port))
+			continue;
+		return port;
+	}
+	return NULL;
 }
 
 struct vnet_port *tx_port_find(struct vnet *vp, struct sk_buff *skb)
@@ -1083,6 +1095,24 @@ static struct vnet *vnet_find_or_create(const u64 *local_mac)
 	return vp;
 }
 
+static void vnet_cleanup(void)
+{
+	struct vnet *vp;
+	struct net_device *dev;
+
+	mutex_lock(&vnet_list_mutex);
+	while (!list_empty(&vnet_list)) {
+		vp = list_first_entry(&vnet_list, struct vnet, list);
+		list_del(&vp->list);
+		dev = vp->dev;
+		/* vio_unregister_driver() should have cleaned up port_list */
+		BUG_ON(!list_empty(&vp->port_list));
+		unregister_netdev(dev);
+		free_netdev(dev);
+	}
+	mutex_unlock(&vnet_list_mutex);
+}
+
 static const char *local_mac_prop = "local-mac-address";
 
 static struct vnet *vnet_find_parent(struct mdesc_handle *hp,
@@ -1240,7 +1270,6 @@ static int vnet_port_remove(struct vio_dev *vdev)
 
 		kfree(port);
 
-		unregister_netdev(vp->dev);
 	}
 	return 0;
 }
@@ -1268,6 +1297,7 @@ static int __init vnet_init(void)
 static void __exit vnet_exit(void)
 {
 	vio_unregister_driver(&vnet_port_driver);
+	vnet_cleanup();
 }
 
 module_init(vnet_init);

@@ -319,8 +319,7 @@ static int __init acpi_pnp_match(struct device *dev, void *_pnp)
 	struct pnp_dev *pnp = _pnp;
 
 	/* true means it matched */
-	return !acpi->physical_node_count
-	    && compare_pnp_id(pnp->id, acpi_device_hid(acpi));
+	return pnp->data == acpi;
 }
 
 static struct acpi_device * __init acpi_pnp_find_companion(struct device *dev)

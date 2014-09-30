@@ -51,3 +51,8 @@ int arch_gnttab_map_status(uint64_t *frames, unsigned long nr_gframes,
 {
 	return -ENOSYS;
 }
+
+int arch_gnttab_init(unsigned long nr_shared, unsigned long nr_status)
+{
+	return 0;
+}

@@ -2037,19 +2037,23 @@ static int __init populate_kprobe_blacklist(unsigned long *start,
 {
 	unsigned long *iter;
 	struct kprobe_blacklist_entry *ent;
-	unsigned long offset = 0, size = 0;
+	unsigned long entry, offset = 0, size = 0;
 
 	for (iter = start; iter < end; iter++) {
-		if (!kallsyms_lookup_size_offset(*iter, &size, &offset)) {
-			pr_err("Failed to find blacklist %p\n", (void *)*iter);
+		entry = arch_deref_entry_point((void *)*iter);
+
+		if (!kernel_text_address(entry) ||
+		    !kallsyms_lookup_size_offset(entry, &size, &offset)) {
+			pr_err("Failed to find blacklist at %p\n",
+				(void *)entry);
 			continue;
 		}
 
 		ent = kmalloc(sizeof(*ent), GFP_KERNEL);
 		if (!ent)
 			return -ENOMEM;
-		ent->start_addr = *iter;
-		ent->end_addr = *iter + size;
+		ent->start_addr = entry;
+		ent->end_addr = entry + size;
 		INIT_LIST_HEAD(&ent->list);
 		list_add_tail(&ent->list, &kprobe_blacklist);
 	}

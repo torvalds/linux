@@ -378,8 +378,10 @@ static int netvsc_init_buf(struct hv_device *device)
 
 	net_device->send_section_map =
 		kzalloc(net_device->map_words * sizeof(ulong), GFP_KERNEL);
-	if (net_device->send_section_map == NULL)
+	if (net_device->send_section_map == NULL) {
+		ret = -ENOMEM;
 		goto cleanup;
+	}
 
 	goto exit;
 

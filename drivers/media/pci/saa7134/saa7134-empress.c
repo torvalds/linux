@@ -179,7 +179,7 @@ static const struct v4l2_file_operations ts_fops =
 	.read	  = vb2_fop_read,
 	.poll	  = vb2_fop_poll,
 	.mmap	  = vb2_fop_mmap,
-	.ioctl	  = video_ioctl2,
+	.unlocked_ioctl = video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops ts_ioctl_ops = {

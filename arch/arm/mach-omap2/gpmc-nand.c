@@ -50,19 +50,21 @@ static bool gpmc_hwecc_bch_capable(enum omap_ecc ecc_opt)
 		 soc_is_omap54xx() || soc_is_dra7xx())
 		return 1;
 
+	if (ecc_opt == OMAP_ECC_BCH4_CODE_HW_DETECTION_SW ||
+		 ecc_opt == OMAP_ECC_BCH8_CODE_HW_DETECTION_SW) {
+		if (cpu_is_omap24xx())
+			return 0;
+		else if (cpu_is_omap3630() && (GET_OMAP_REVISION() == 0))
+			return 0;
+		else
+			return 1;
+	}
+
 	/* OMAP3xxx do not have ELM engine, so cannot support ECC schemes
 	 * which require H/W based ECC error detection */
 	if ((cpu_is_omap34xx() || cpu_is_omap3630()) &&
 	    ((ecc_opt == OMAP_ECC_BCH4_CODE_HW) ||
 		 (ecc_opt == OMAP_ECC_BCH8_CODE_HW)))
-		return 0;
-
-	/*
-	 * For now, assume 4-bit mode is only supported on OMAP3630 ES1.x, x>=1
-	 * and AM33xx derivates. Other chips may be added if confirmed to work.
-	 */
-	if ((ecc_opt == OMAP_ECC_BCH4_CODE_HW_DETECTION_SW) &&
-	    (!cpu_is_omap3630() || (GET_OMAP_REVISION() == 0)))
 		return 0;
 
 	/* legacy platforms support only HAM1 (1-bit Hamming) ECC scheme */

@@ -448,10 +448,15 @@ out:
  *  possibly free it
  * @softif_vlan: the vlan object to release
  */
-void batadv_softif_vlan_free_ref(struct batadv_softif_vlan *softif_vlan)
+void batadv_softif_vlan_free_ref(struct batadv_softif_vlan *vlan)
 {
-	if (atomic_dec_and_test(&softif_vlan->refcount))
-		kfree_rcu(softif_vlan, rcu);
+	if (atomic_dec_and_test(&vlan->refcount)) {
+		spin_lock_bh(&vlan->bat_priv->softif_vlan_list_lock);
+		hlist_del_rcu(&vlan->list);
+		spin_unlock_bh(&vlan->bat_priv->softif_vlan_list_lock);
+
+		kfree_rcu(vlan, rcu);
+	}
 }
 
 /**
@@ -505,6 +510,7 @@ int batadv_softif_create_vlan(struct batadv_priv *bat_priv, unsigned short vid)
 	if (!vlan)
 		return -ENOMEM;
 
+	vlan->bat_priv = bat_priv;
 	vlan->vid = vid;
 	atomic_set(&vlan->refcount, 1);
 
@@ -516,16 +522,16 @@ int batadv_softif_create_vlan(struct batadv_priv *bat_priv, unsigned short vid)
 		return err;
 	}
 
+	spin_lock_bh(&bat_priv->softif_vlan_list_lock);
+	hlist_add_head_rcu(&vlan->list, &bat_priv->softif_vlan_list);
+	spin_unlock_bh(&bat_priv->softif_vlan_list_lock);
+
 	/* add a new TT local entry. This one will be marked with the NOPURGE
 	 * flag
 	 */
 	batadv_tt_local_add(bat_priv->soft_iface,
 			    bat_priv->soft_iface->dev_addr, vid,
 			    BATADV_NULL_IFINDEX, BATADV_NO_MARK);
-
-	spin_lock_bh(&bat_priv->softif_vlan_list_lock);
-	hlist_add_head_rcu(&vlan->list, &bat_priv->softif_vlan_list);
-	spin_unlock_bh(&bat_priv->softif_vlan_list_lock);
 
 	return 0;
 }
@@ -538,18 +544,13 @@ int batadv_softif_create_vlan(struct batadv_priv *bat_priv, unsigned short vid)
 static void batadv_softif_destroy_vlan(struct batadv_priv *bat_priv,
 				       struct batadv_softif_vlan *vlan)
 {
-	spin_lock_bh(&bat_priv->softif_vlan_list_lock);
-	hlist_del_rcu(&vlan->list);
-	spin_unlock_bh(&bat_priv->softif_vlan_list_lock);
-
-	batadv_sysfs_del_vlan(bat_priv, vlan);
-
 	/* explicitly remove the associated TT local entry because it is marked
 	 * with the NOPURGE flag
 	 */
 	batadv_tt_local_remove(bat_priv, bat_priv->soft_iface->dev_addr,
 			       vlan->vid, "vlan interface destroyed", false);
 
+	batadv_sysfs_del_vlan(bat_priv, vlan);
 	batadv_softif_vlan_free_ref(vlan);
 }
 
@@ -567,6 +568,8 @@ static int batadv_interface_add_vid(struct net_device *dev, __be16 proto,
 				    unsigned short vid)
 {
 	struct batadv_priv *bat_priv = netdev_priv(dev);
+	struct batadv_softif_vlan *vlan;
+	int ret;
 
 	/* only 802.1Q vlans are supported.
 	 * batman-adv does not know how to handle other types
@@ -576,7 +579,36 @@ static int batadv_interface_add_vid(struct net_device *dev, __be16 proto,
 
 	vid |= BATADV_VLAN_HAS_TAG;
 
-	return batadv_softif_create_vlan(bat_priv, vid);
+	/* if a new vlan is getting created and it already exists, it means that
+	 * it was not deleted yet. batadv_softif_vlan_get() increases the
+	 * refcount in order to revive the object.
+	 *
+	 * if it does not exist then create it.
+	 */
+	vlan = batadv_softif_vlan_get(bat_priv, vid);
+	if (!vlan)
+		return batadv_softif_create_vlan(bat_priv, vid);
+
+	/* recreate the sysfs object if it was already destroyed (and it should
+	 * be since we received a kill_vid() for this vlan
+	 */
+	if (!vlan->kobj) {
+		ret = batadv_sysfs_add_vlan(bat_priv->soft_iface, vlan);
+		if (ret) {
+			batadv_softif_vlan_free_ref(vlan);
+			return ret;
+		}
+	}
+
+	/* add a new TT local entry. This one will be marked with the NOPURGE
+	 * flag. This must be added again, even if the vlan object already
+	 * exists, because the entry was deleted by kill_vid()
+	 */
+	batadv_tt_local_add(bat_priv->soft_iface,
+			    bat_priv->soft_iface->dev_addr, vid,
+			    BATADV_NULL_IFINDEX, BATADV_NO_MARK);
+
+	return 0;
 }
 
 /**

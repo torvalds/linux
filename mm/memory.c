@@ -2758,22 +2758,17 @@ void do_set_pte(struct vm_area_struct *vma, unsigned long address,
 	update_mmu_cache(vma, address, pte);
 }
 
-static unsigned long fault_around_bytes = 65536;
+static unsigned long fault_around_bytes = rounddown_pow_of_two(65536);
 
-/*
- * fault_around_pages() and fault_around_mask() round down fault_around_bytes
- * to nearest page order. It's what do_fault_around() expects to see.
- */
 static inline unsigned long fault_around_pages(void)
 {
-	return rounddown_pow_of_two(fault_around_bytes) / PAGE_SIZE;
+	return fault_around_bytes >> PAGE_SHIFT;
 }
 
 static inline unsigned long fault_around_mask(void)
 {
-	return ~(rounddown_pow_of_two(fault_around_bytes) - 1) & PAGE_MASK;
+	return ~(fault_around_bytes - 1) & PAGE_MASK;
 }
-
 
 #ifdef CONFIG_DEBUG_FS
 static int fault_around_bytes_get(void *data, u64 *val)
@@ -2782,11 +2777,19 @@ static int fault_around_bytes_get(void *data, u64 *val)
 	return 0;
 }
 
+/*
+ * fault_around_pages() and fault_around_mask() expects fault_around_bytes
+ * rounded down to nearest page order. It's what do_fault_around() expects to
+ * see.
+ */
 static int fault_around_bytes_set(void *data, u64 val)
 {
 	if (val / PAGE_SIZE > PTRS_PER_PTE)
 		return -EINVAL;
-	fault_around_bytes = val;
+	if (val > PAGE_SIZE)
+		fault_around_bytes = rounddown_pow_of_two(val);
+	else
+		fault_around_bytes = PAGE_SIZE; /* rounddown_pow_of_two(0) is undefined */
 	return 0;
 }
 DEFINE_SIMPLE_ATTRIBUTE(fault_around_bytes_fops,
@@ -2882,7 +2885,8 @@ static int do_read_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	 * if page by the offset is not ready to be mapped (cold cache or
 	 * something).
 	 */
-	if (vma->vm_ops->map_pages && fault_around_pages() > 1) {
+	if (vma->vm_ops->map_pages && !(flags & FAULT_FLAG_NONLINEAR) &&
+	    fault_around_pages() > 1) {
 		pte = pte_offset_map_lock(mm, pmd, address, &ptl);
 		do_fault_around(vma, address, pte, pgoff, flags);
 		if (!pte_same(*pte, orig_pte))

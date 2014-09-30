@@ -77,7 +77,7 @@ _GLOBAL(memset)
 	stb	r4,0(r6)
 	blr
 
-_GLOBAL(memmove)
+_GLOBAL_TOC(memmove)
 	cmplw	0,r3,r4
 	bgt	backwards_memcpy
 	b	memcpy

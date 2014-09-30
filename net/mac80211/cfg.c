@@ -472,11 +472,14 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	struct ieee80211_local *local = sdata->local;
-	struct rate_control_ref *ref = local->rate_ctrl;
+	struct rate_control_ref *ref = NULL;
 	struct timespec uptime;
 	u64 packets = 0;
 	u32 thr = 0;
 	int i, ac;
+
+	if (test_sta_flag(sta, WLAN_STA_RATE_CONTROL))
+		ref = local->rate_ctrl;
 
 	sinfo->generation = sdata->local->sta_generation;
 

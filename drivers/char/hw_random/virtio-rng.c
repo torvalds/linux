@@ -38,6 +38,8 @@ struct virtrng_info {
 	int index;
 };
 
+static bool probe_done;
+
 static void random_recv_done(struct virtqueue *vq)
 {
 	struct virtrng_info *vi = vq->vdev->priv;
@@ -66,6 +68,13 @@ static int virtio_read(struct hwrng *rng, void *buf, size_t size, bool wait)
 {
 	int ret;
 	struct virtrng_info *vi = (struct virtrng_info *)rng->priv;
+
+	/*
+	 * Don't ask host for data till we're setup.  This call can
+	 * happen during hwrng_register(), after commit d9e7972619.
+	 */
+	if (unlikely(!probe_done))
+		return 0;
 
 	if (!vi->busy) {
 		vi->busy = true;
@@ -137,6 +146,7 @@ static int probe_common(struct virtio_device *vdev)
 		return err;
 	}
 
+	probe_done = true;
 	return 0;
 }
 

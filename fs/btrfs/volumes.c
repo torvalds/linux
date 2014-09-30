@@ -1680,11 +1680,11 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	if (device->bdev == root->fs_info->fs_devices->latest_bdev)
 		root->fs_info->fs_devices->latest_bdev = next_device->bdev;
 
-	if (device->bdev)
+	if (device->bdev) {
 		device->fs_devices->open_devices--;
-
-	/* remove sysfs entry */
-	btrfs_kobj_rm_device(root->fs_info, device);
+		/* remove sysfs entry */
+		btrfs_kobj_rm_device(root->fs_info, device);
+	}
 
 	call_rcu(&device->rcu, free_device);
 
