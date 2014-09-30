@@ -579,25 +579,51 @@ EXPORT_SYMBOL(eeh_check_failure);
  */
 int eeh_pci_enable(struct eeh_pe *pe, int function)
 {
-	int rc, flags = (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
+	int active_flag, rc;
 
 	/*
 	 * pHyp doesn't allow to enable IO or DMA on unfrozen PE.
 	 * Also, it's pointless to enable them on unfrozen PE. So
-	 * we have the check here.
+	 * we have to check before enabling IO or DMA.
 	 */
-	if (function == EEH_OPT_THAW_MMIO ||
-	    function == EEH_OPT_THAW_DMA) {
+	switch (function) {
+	case EEH_OPT_THAW_MMIO:
+		active_flag = EEH_STATE_MMIO_ACTIVE;
+		break;
+	case EEH_OPT_THAW_DMA:
+		active_flag = EEH_STATE_DMA_ACTIVE;
+		break;
+	case EEH_OPT_DISABLE:
+	case EEH_OPT_ENABLE:
+	case EEH_OPT_FREEZE_PE:
+		active_flag = 0;
+		break;
+	default:
+		pr_warn("%s: Invalid function %d\n",
+			__func__, function);
+		return -EINVAL;
+	}
+
+	/*
+	 * Check if IO or DMA has been enabled before
+	 * enabling them.
+	 */
+	if (active_flag) {
 		rc = eeh_ops->get_state(pe, NULL);
 		if (rc < 0)
 			return rc;
 
-		/* Needn't to enable or already enabled */
-		if ((rc == EEH_STATE_NOT_SUPPORT) ||
-		    ((rc & flags) == flags))
+		/* Needn't enable it at all */
+		if (rc == EEH_STATE_NOT_SUPPORT)
+			return 0;
+
+		/* It's already enabled */
+		if (rc & active_flag)
 			return 0;
 	}
 
+
+	/* Issue the request */
 	rc = eeh_ops->set_option(pe, function);
 	if (rc)
 		pr_warn("%s: Unexpected state change %d on "
@@ -605,17 +631,17 @@ int eeh_pci_enable(struct eeh_pe *pe, int function)
 			__func__, function, pe->phb->global_number,
 			pe->addr, rc);
 
-	rc = eeh_ops->wait_state(pe, PCI_BUS_RESET_WAIT_MSEC);
-	if (rc <= 0)
-		return rc;
+	/* Check if the request is finished successfully */
+	if (active_flag) {
+		rc = eeh_ops->wait_state(pe, PCI_BUS_RESET_WAIT_MSEC);
+		if (rc <= 0)
+			return rc;
 
-	if ((function == EEH_OPT_THAW_MMIO) &&
-	    (rc & EEH_STATE_MMIO_ENABLED))
-		return 0;
+		if (rc & active_flag)
+			return 0;
 
-	if ((function == EEH_OPT_THAW_DMA) &&
-	    (rc & EEH_STATE_DMA_ENABLED))
-		return 0;
+		return -EIO;
+	}
 
 	return rc;
 }
