@@ -25,6 +25,7 @@
 #include "rtl2830.h"
 #include "rtl2832.h"
 #include "mn88472.h"
+#include "mn88473.h"
 
 #include "qt1010.h"
 #include "mt2060.h"
@@ -422,6 +423,7 @@ static int rtl2832u_read_config(struct dvb_usb_device *d)
 	struct rtl28xxu_req req_r820t = {0x0034, CMD_I2C_RD, 1, buf};
 	struct rtl28xxu_req req_r828d = {0x0074, CMD_I2C_RD, 1, buf};
 	struct rtl28xxu_req req_mn88472 = {0xff38, CMD_I2C_RD, 1, buf};
+	struct rtl28xxu_req req_mn88473 = {0xff38, CMD_I2C_RD, 1, buf};
 
 	dev_dbg(&d->udev->dev, "%s:\n", __func__);
 
@@ -565,6 +567,13 @@ tuner_found:
 		if (ret == 0 && buf[0] == 0x02) {
 			dev_dbg(&d->udev->dev, "%s: MN88472 found\n", __func__);
 			priv->slave_demod = SLAVE_DEMOD_MN88472;
+			goto demod_found;
+		}
+
+		ret = rtl28xxu_ctrl_msg(d, &req_mn88473);
+		if (ret == 0 && buf[0] == 0x03) {
+			dev_dbg(&d->udev->dev, "%s: MN88473 found\n", __func__);
+			priv->slave_demod = SLAVE_DEMOD_MN88473;
 			goto demod_found;
 		}
 	}
@@ -863,6 +872,28 @@ static int rtl2832u_frontend_attach(struct dvb_usb_adapter *adap)
 			strlcpy(info.type, "mn88472", I2C_NAME_SIZE);
 			info.addr = 0x18;
 			info.platform_data = &mn88472_config;
+			request_module(info.type);
+			client = i2c_new_device(priv->demod_i2c_adapter, &info);
+			if (client == NULL || client->dev.driver == NULL) {
+				priv->slave_demod = SLAVE_DEMOD_NONE;
+				goto err_slave_demod_failed;
+			}
+
+			if (!try_module_get(client->dev.driver->owner)) {
+				i2c_unregister_device(client);
+				priv->slave_demod = SLAVE_DEMOD_NONE;
+				goto err_slave_demod_failed;
+			}
+
+			priv->i2c_client_slave_demod = client;
+		} else {
+			struct mn88473_config mn88473_config = {};
+
+			mn88473_config.fe = &adap->fe[1];
+			mn88473_config.i2c_wr_max = 22,
+			strlcpy(info.type, "mn88473", I2C_NAME_SIZE);
+			info.addr = 0x18;
+			info.platform_data = &mn88473_config;
 			request_module(info.type);
 			client = i2c_new_device(priv->demod_i2c_adapter, &info);
 			if (client == NULL || client->dev.driver == NULL) {

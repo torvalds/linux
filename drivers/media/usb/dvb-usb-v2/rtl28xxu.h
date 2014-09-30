@@ -61,7 +61,8 @@ struct rtl28xxu_priv {
 	struct i2c_client *i2c_client_slave_demod;
 	#define SLAVE_DEMOD_NONE           0
 	#define SLAVE_DEMOD_MN88472        1
-	unsigned int slave_demod:1;
+	#define SLAVE_DEMOD_MN88473        2
+	unsigned int slave_demod:2;
 };
 
 enum rtl28xxu_chip_id {
