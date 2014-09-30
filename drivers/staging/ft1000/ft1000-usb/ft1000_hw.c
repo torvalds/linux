@@ -1153,6 +1153,7 @@ static int ft1000_proc_drvmsg(struct ft1000_usb *dev, u16 size)
 	} convert;
 
 	char *cmdbuffer = kmalloc(1600, GFP_KERNEL);
+
 	if (!cmdbuffer)
 		return -ENOMEM;
 
