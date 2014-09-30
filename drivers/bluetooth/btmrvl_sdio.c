@@ -84,6 +84,26 @@ static const struct btmrvl_sdio_card_reg btmrvl_reg_87xx = {
 	.int_read_to_clear = false,
 };
 
+static const struct btmrvl_sdio_card_reg btmrvl_reg_8887 = {
+	.cfg = 0x00,
+	.host_int_mask = 0x08,
+	.host_intstatus = 0x0C,
+	.card_status = 0x5C,
+	.sq_read_base_addr_a0 = 0x6C,
+	.sq_read_base_addr_a1 = 0x6D,
+	.card_revision = 0xC8,
+	.card_fw_status0 = 0x88,
+	.card_fw_status1 = 0x89,
+	.card_rx_len = 0x8A,
+	.card_rx_unit = 0x8B,
+	.io_port_0 = 0xE4,
+	.io_port_1 = 0xE5,
+	.io_port_2 = 0xE6,
+	.int_read_to_clear = true,
+	.host_int_rsr = 0x04,
+	.card_misc_cfg = 0xD8,
+};
+
 static const struct btmrvl_sdio_card_reg btmrvl_reg_8897 = {
 	.cfg = 0x00,
 	.host_int_mask = 0x02,
@@ -128,6 +148,14 @@ static const struct btmrvl_sdio_device btmrvl_sdio_sd8797 = {
 	.sd_blksz_fw_dl	= 256,
 };
 
+static const struct btmrvl_sdio_device btmrvl_sdio_sd8887 = {
+	.helper		= NULL,
+	.firmware	= "mrvl/sd8887_uapsta.bin",
+	.reg		= &btmrvl_reg_8887,
+	.support_pscan_win_report = true,
+	.sd_blksz_fw_dl	= 256,
+};
+
 static const struct btmrvl_sdio_device btmrvl_sdio_sd8897 = {
 	.helper		= NULL,
 	.firmware	= "mrvl/sd8897_uapsta.bin",
@@ -149,6 +177,9 @@ static const struct sdio_device_id btmrvl_sdio_ids[] = {
 	/* Marvell SD8797 Bluetooth device */
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, 0x912A),
 			.driver_data = (unsigned long) &btmrvl_sdio_sd8797 },
+	/* Marvell SD8887 Bluetooth device */
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, 0x9136),
+			.driver_data = (unsigned long)&btmrvl_sdio_sd8887 },
 	/* Marvell SD8897 Bluetooth device */
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, 0x912E),
 			.driver_data = (unsigned long) &btmrvl_sdio_sd8897 },
@@ -1280,4 +1311,5 @@ MODULE_FIRMWARE("mrvl/sd8688_helper.bin");
 MODULE_FIRMWARE("mrvl/sd8688.bin");
 MODULE_FIRMWARE("mrvl/sd8787_uapsta.bin");
 MODULE_FIRMWARE("mrvl/sd8797_uapsta.bin");
+MODULE_FIRMWARE("mrvl/sd8887_uapsta.bin");
 MODULE_FIRMWARE("mrvl/sd8897_uapsta.bin");
