@@ -756,13 +756,13 @@ static inline unsigned int intel_num_planes(struct intel_crtc *crtc)
 }
 
 /* intel_fifo_underrun.c */
-bool intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
+bool intel_set_cpu_fifo_underrun_reporting(struct drm_i915_private *dev_priv,
 					   enum pipe pipe, bool enable);
-bool intel_set_pch_fifo_underrun_reporting(struct drm_device *dev,
+bool intel_set_pch_fifo_underrun_reporting(struct drm_i915_private *dev_priv,
 					   enum transcoder pch_transcoder,
 					   bool enable);
-void i9xx_check_fifo_underruns(struct drm_device *dev);
-bool __cpu_fifo_underrun_reporting_enabled(struct drm_device *dev,
+void i9xx_check_fifo_underruns(struct drm_i915_private *dev_priv);
+bool __cpu_fifo_underrun_reporting_enabled(struct drm_i915_private *dev_priv,
 					   enum pipe pipe);
 
 /* i915_irq.c */

@@ -4163,8 +4163,8 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 
 	intel_crtc->active = true;
 
-	intel_set_cpu_fifo_underrun_reporting(dev, pipe, true);
-	intel_set_pch_fifo_underrun_reporting(dev, pipe, true);
+	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
+	intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, true);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_enable)
@@ -4278,13 +4278,14 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 
 	intel_crtc->active = true;
 
-	intel_set_cpu_fifo_underrun_reporting(dev, pipe, true);
+	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_enable)
 			encoder->pre_enable(encoder);
 
 	if (intel_crtc->config.has_pch_encoder) {
-		intel_set_pch_fifo_underrun_reporting(dev, TRANSCODER_A, true);
+		intel_set_pch_fifo_underrun_reporting(dev_priv, TRANSCODER_A,
+						      true);
 		dev_priv->display.fdi_link_train(crtc);
 	}
 
@@ -4360,7 +4361,7 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 		encoder->disable(encoder);
 
 	if (intel_crtc->config.has_pch_encoder)
-		intel_set_pch_fifo_underrun_reporting(dev, pipe, false);
+		intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, false);
 
 	intel_disable_pipe(intel_crtc);
 
@@ -4374,7 +4375,7 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 		ironlake_fdi_disable(crtc);
 
 		ironlake_disable_pch_transcoder(dev_priv, pipe);
-		intel_set_pch_fifo_underrun_reporting(dev, pipe, true);
+		intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, true);
 
 		if (HAS_PCH_CPT(dev)) {
 			/* disable TRANS_DP_CTL */
@@ -4427,7 +4428,8 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 	}
 
 	if (intel_crtc->config.has_pch_encoder)
-		intel_set_pch_fifo_underrun_reporting(dev, TRANSCODER_A, false);
+		intel_set_pch_fifo_underrun_reporting(dev_priv, TRANSCODER_A,
+						      false);
 	intel_disable_pipe(intel_crtc);
 
 	if (intel_crtc->config.dp_encoder_is_mst)
@@ -4441,7 +4443,8 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 
 	if (intel_crtc->config.has_pch_encoder) {
 		lpt_disable_pch_transcoder(dev_priv);
-		intel_set_pch_fifo_underrun_reporting(dev, TRANSCODER_A, true);
+		intel_set_pch_fifo_underrun_reporting(dev_priv, TRANSCODER_A,
+						      true);
 		intel_ddi_fdi_disable(crtc);
 	}
 
@@ -4818,6 +4821,7 @@ static void valleyview_modeset_global_resources(struct drm_device *dev)
 static void valleyview_crtc_enable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
@@ -4846,7 +4850,7 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 
 	intel_crtc->active = true;
 
-	intel_set_cpu_fifo_underrun_reporting(dev, pipe, true);
+	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_pll_enable)
@@ -4879,7 +4883,7 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 	intel_crtc_enable_planes(crtc);
 
 	/* Underruns don't raise interrupts, so check manually. */
-	i9xx_check_fifo_underruns(dev);
+	i9xx_check_fifo_underruns(dev_priv);
 }
 
 static void i9xx_set_pll_dividers(struct intel_crtc *crtc)
@@ -4894,6 +4898,7 @@ static void i9xx_set_pll_dividers(struct intel_crtc *crtc)
 static void i9xx_crtc_enable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
@@ -4915,7 +4920,7 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 	intel_crtc->active = true;
 
 	if (!IS_GEN2(dev))
-		intel_set_cpu_fifo_underrun_reporting(dev, pipe, true);
+		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_enable)
@@ -4946,10 +4951,10 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 	 * but leave the pipe running.
 	 */
 	if (IS_GEN2(dev))
-		intel_set_cpu_fifo_underrun_reporting(dev, pipe, true);
+		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 
 	/* Underruns don't raise interrupts, so check manually. */
-	i9xx_check_fifo_underruns(dev);
+	i9xx_check_fifo_underruns(dev_priv);
 }
 
 static void i9xx_pfit_disable(struct intel_crtc *crtc)
@@ -4985,7 +4990,7 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	 * but leave the pipe running.
 	 */
 	if (IS_GEN2(dev))
-		intel_set_cpu_fifo_underrun_reporting(dev, pipe, false);
+		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
 
 	/*
 	 * Vblank time updates from the shadow to live plane control register
@@ -5031,7 +5036,7 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	}
 
 	if (!IS_GEN2(dev))
-		intel_set_cpu_fifo_underrun_reporting(dev, pipe, false);
+		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
 
 	intel_crtc->active = false;
 	intel_update_watermarks(crtc);
