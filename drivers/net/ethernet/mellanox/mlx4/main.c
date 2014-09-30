@@ -2272,6 +2272,7 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data)
 	unsigned total_vfs = 0;
 	int sriov_initialized = 0;
 	unsigned int i;
+	int existing_vfs = 0;
 
 	pr_info(DRV_NAME ": Initializing %s\n", pci_name(pdev));
 
@@ -2431,7 +2432,15 @@ static int __mlx4_init_one(struct pci_dev *pdev, int pci_dev_data)
 				err = 0;
 			} else {
 				atomic_inc(&pf_loading);
-				err = pci_enable_sriov(pdev, total_vfs);
+				existing_vfs = pci_num_vf(pdev);
+				if (existing_vfs) {
+					err = 0;
+					if (existing_vfs != total_vfs)
+						mlx4_err(dev, "SR-IOV was already enabled, but with num_vfs (%d) different than requested (%d)\n",
+							 existing_vfs, total_vfs);
+				} else {
+					err = pci_enable_sriov(pdev, total_vfs);
+				}
 				if (err) {
 					mlx4_err(dev, "Failed to enable SR-IOV, continuing without SR-IOV (err = %d)\n",
 						 err);
@@ -2645,7 +2654,7 @@ err_cmd:
 	mlx4_cmd_cleanup(dev);
 
 err_sriov:
-	if (dev->flags & MLX4_FLAG_SRIOV)
+	if (dev->flags & MLX4_FLAG_SRIOV && !existing_vfs)
 		pci_disable_sriov(pdev);
 
 err_rel_own:
@@ -2693,16 +2702,21 @@ static void __mlx4_remove_one(struct pci_dev *pdev)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	int               pci_dev_data;
 	int p;
+	int active_vfs = 0;
 
 	if (priv->removed)
 		return;
 
 	pci_dev_data = priv->pci_dev_data;
 
-	/* in SRIOV it is not allowed to unload the pf's
-	 * driver while there are alive vf's */
-	if (mlx4_is_master(dev) && mlx4_how_many_lives_vf(dev))
-		pr_warn("Removing PF when there are assigned VF's !!!\n");
+	/* Disabling SR-IOV is not allowed while there are active vf's */
+	if (mlx4_is_master(dev)) {
+		active_vfs = mlx4_how_many_lives_vf(dev);
+		if (active_vfs) {
+			pr_warn("Removing PF when there are active VF's !!\n");
+			pr_warn("Will not disable SR-IOV.\n");
+		}
+	}
 	mlx4_stop_sense(dev);
 	mlx4_unregister_device(dev);
 
@@ -2745,7 +2759,7 @@ static void __mlx4_remove_one(struct pci_dev *pdev)
 
 	if (dev->flags & MLX4_FLAG_MSI_X)
 		pci_disable_msix(pdev);
-	if (dev->flags & MLX4_FLAG_SRIOV) {
+	if (dev->flags & MLX4_FLAG_SRIOV && !active_vfs) {
 		mlx4_warn(dev, "Disabling SR-IOV\n");
 		pci_disable_sriov(pdev);
 		dev->num_vfs = 0;
