@@ -112,14 +112,4 @@ struct dj_device {
 	u8 device_index;
 };
 
-/**
- * is_dj_device - know if the given dj_device is not the receiver.
- * @dj_dev: the dj device to test
- *
- * This macro tests if a struct dj_device pointer is a device created
- * by the bus enumarator.
- */
-#define is_dj_device(dj_dev) \
-	(&(dj_dev)->dj_receiver_dev->hdev->dev == (dj_dev)->hdev->dev.parent)
-
 #endif

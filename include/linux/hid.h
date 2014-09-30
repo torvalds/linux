@@ -313,6 +313,7 @@ struct hid_item {
  */
 #define HID_GROUP_RMI				0x0100
 #define HID_GROUP_WACOM				0x0101
+#define HID_GROUP_LOGITECH_DJ_DEVICE		0x0102
 
 /*
  * This is the global environment of the parser. This information is

@@ -256,11 +256,15 @@ static void logi_dj_recv_add_djhid_device(struct dj_receiver_dev *djrcv_dev,
 	dj_hiddev->dev.parent = &djrcv_hdev->dev;
 	dj_hiddev->bus = BUS_USB;
 	dj_hiddev->vendor = le16_to_cpu(usbdev->descriptor.idVendor);
-	dj_hiddev->product = le16_to_cpu(usbdev->descriptor.idProduct);
+	dj_hiddev->product =
+		(dj_report->report_params[DEVICE_PAIRED_PARAM_EQUAD_ID_MSB]
+									<< 8) |
+		dj_report->report_params[DEVICE_PAIRED_PARAM_EQUAD_ID_LSB];
 	snprintf(dj_hiddev->name, sizeof(dj_hiddev->name),
-		"Logitech Unifying Device. Wireless PID:%02x%02x",
-		dj_report->report_params[DEVICE_PAIRED_PARAM_EQUAD_ID_MSB],
-		dj_report->report_params[DEVICE_PAIRED_PARAM_EQUAD_ID_LSB]);
+		"Logitech Unifying Device. Wireless PID:%04x",
+		dj_hiddev->product);
+
+	dj_hiddev->group = HID_GROUP_LOGITECH_DJ_DEVICE;
 
 	usb_make_path(usbdev, dj_hiddev->phys, sizeof(dj_hiddev->phys));
 	snprintf(tmpstr, sizeof(tmpstr), ":%d", dj_report->device_index);
@@ -714,9 +718,6 @@ static int logi_dj_probe(struct hid_device *hdev,
 	struct dj_receiver_dev *djrcv_dev;
 	int retval;
 
-	if (is_dj_device((struct dj_device *)hdev->driver_data))
-		return -ENODEV;
-
 	dbg_hid("%s called for ifnum %d\n", __func__,
 		intf->cur_altsetting->desc.bInterfaceNumber);
 
@@ -869,22 +870,6 @@ static void logi_dj_remove(struct hid_device *hdev)
 	hid_set_drvdata(hdev, NULL);
 }
 
-static int logi_djdevice_probe(struct hid_device *hdev,
-			 const struct hid_device_id *id)
-{
-	int ret;
-	struct dj_device *dj_dev = hdev->driver_data;
-
-	if (!is_dj_device(dj_dev))
-		return -ENODEV;
-
-	ret = hid_parse(hdev);
-	if (!ret)
-		ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
-
-	return ret;
-}
-
 static const struct hid_device_id logi_dj_receivers[] = {
 	{HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 		USB_DEVICE_ID_LOGITECH_UNIFYING_RECEIVER)},
@@ -908,17 +893,14 @@ static struct hid_driver logi_djreceiver_driver = {
 
 
 static const struct hid_device_id logi_dj_devices[] = {
-	{HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
-		USB_DEVICE_ID_LOGITECH_UNIFYING_RECEIVER)},
-	{HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
-		USB_DEVICE_ID_LOGITECH_UNIFYING_RECEIVER_2)},
+	{ HID_DEVICE(BUS_USB, HID_GROUP_LOGITECH_DJ_DEVICE,
+		USB_VENDOR_ID_LOGITECH, HID_ANY_ID)},
 	{}
 };
 
 static struct hid_driver logi_djdevice_driver = {
 	.name = "logitech-djdevice",
 	.id_table = logi_dj_devices,
-	.probe = logi_djdevice_probe,
 };
 
 
