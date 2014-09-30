@@ -48,8 +48,8 @@ struct uisqueue_info {
 	u64 non_empty_wakeup_cnt;
 
 	struct {
-		SIGNAL_QUEUE_HEADER Reserved1;	/*  */
-		SIGNAL_QUEUE_HEADER Reserved2;	/*  */
+		SIGNAL_QUEUE_HEADER reserved1;	/*  */
+		SIGNAL_QUEUE_HEADER reserved2;	/*  */
 	} safe_uis_queue;
 	unsigned int (*send_int_if_needed)(struct uisqueue_info *info,
 					   unsigned int whichcqueue,
