@@ -132,8 +132,8 @@ static const struct iwl_ht_params iwl7000_ht_params = {
 	.base_params = &iwl7000_base_params,			\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.nvm_hw_section_num = NVM_HW_SECTION_NUM_FAMILY_7000,	\
-	.non_shared_ant = ANT_A
-
+	.non_shared_ant = ANT_A,				\
+	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K
 
 const struct iwl_cfg iwl7260_2ac_cfg = {
 	.name = "Intel(R) Dual Band Wireless AC 7260",

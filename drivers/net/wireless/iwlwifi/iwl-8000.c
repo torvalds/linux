@@ -91,6 +91,10 @@
 /* Max SDIO RX aggregation size of the ADDBA request/response */
 #define MAX_RX_AGG_SIZE_8260_SDIO	28
 
+/* Max A-MPDU exponent for HT and VHT */
+#define MAX_HT_AMPDU_EXPONENT_8260_SDIO	IEEE80211_HT_MAX_AMPDU_32K
+#define MAX_VHT_AMPDU_EXPONENT_8260_SDIO	IEEE80211_VHT_MAX_AMPDU_32K
+
 static const struct iwl_base_params iwl8000_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_FAMILY_8000,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
@@ -137,6 +141,7 @@ const struct iwl_cfg iwl8260_2ac_cfg = {
 	.ht_params = &iwl8000_ht_params,
 	.nvm_ver = IWL8000_NVM_VERSION,
 	.nvm_calib_ver = IWL8000_TX_POWER_VERSION,
+	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
 };
 
 const struct iwl_cfg iwl8260_2ac_sdio_cfg = {
@@ -149,6 +154,8 @@ const struct iwl_cfg iwl8260_2ac_sdio_cfg = {
 	.default_nvm_file = DEFAULT_NVM_FILE_FAMILY_8000,
 	.max_rx_agg_size = MAX_RX_AGG_SIZE_8260_SDIO,
 	.disable_dummy_notification = true,
+	.max_ht_ampdu_exponent  = MAX_HT_AMPDU_EXPONENT_8260_SDIO,
+	.max_vht_ampdu_exponent = MAX_VHT_AMPDU_EXPONENT_8260_SDIO,
 };
 
 MODULE_FIRMWARE(IWL8000_MODULE_FIRMWARE(IWL8000_UCODE_API_OK));

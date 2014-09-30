@@ -257,6 +257,10 @@ struct iwl_pwr_tx_backoff {
  * @pwr_tx_backoffs: translation table between power limits and backoffs
  * @max_rx_agg_size: max RX aggregation size of the ADDBA request/response
  * @max_tx_agg_size: max TX aggregation size of the ADDBA request/response
+ * @max_ht_ampdu_factor: the exponent of the max length of A-MPDU that the
+ *	station can receive in HT
+ * @max_vht_ampdu_exponent: the exponent of the max length of A-MPDU that the
+ *	station can receive in VHT
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -297,6 +301,8 @@ struct iwl_cfg {
 	unsigned int max_rx_agg_size;
 	bool disable_dummy_notification;
 	unsigned int max_tx_agg_size;
+	unsigned int max_ht_ampdu_exponent;
+	unsigned int max_vht_ampdu_exponent;
 };
 
 /*
