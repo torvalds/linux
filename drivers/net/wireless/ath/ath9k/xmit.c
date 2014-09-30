@@ -683,6 +683,8 @@ static void ath_tx_process_buffer(struct ath_softc *sc, struct ath_txq *txq,
 	if (bf_is_ampdu_not_probing(bf))
 		txq->axq_ampdu_depth--;
 
+	ts->duration = ath9k_hw_get_duration(sc->sc_ah, bf->bf_desc,
+					     ts->ts_rateindex);
 	if (!bf_isampdu(bf)) {
 		if (!flush) {
 			info = IEEE80211_SKB_CB(bf->bf_mpdu);

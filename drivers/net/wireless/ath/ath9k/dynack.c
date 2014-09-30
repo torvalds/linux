@@ -202,7 +202,7 @@ void ath_dynack_sample_tx_ts(struct ath_hw *ah, struct sk_buff *skb,
 	ridx = ts->ts_rateindex;
 
 	da->st_rbf.ts[da->st_rbf.t_rb].tstamp = ts->ts_tstamp;
-	da->st_rbf.ts[da->st_rbf.t_rb].dur = ts->duration[ts->ts_rateindex];
+	da->st_rbf.ts[da->st_rbf.t_rb].dur = ts->duration;
 	ether_addr_copy(da->st_rbf.addr[da->st_rbf.t_rb].h_dest, hdr->addr1);
 	ether_addr_copy(da->st_rbf.addr[da->st_rbf.t_rb].h_src, hdr->addr2);
 
