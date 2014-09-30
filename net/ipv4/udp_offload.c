@@ -25,8 +25,11 @@ struct udp_offload_priv {
 	struct udp_offload_priv __rcu *next;
 };
 
-struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb,
-				       netdev_features_t features)
+static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
+	netdev_features_t features,
+	struct sk_buff *(*gso_inner_segment)(struct sk_buff *skb,
+					     netdev_features_t features),
+	__be16 new_protocol)
 {
 	struct sk_buff *segs = ERR_PTR(-EINVAL);
 	u16 mac_offset = skb->mac_header;
@@ -48,7 +51,7 @@ struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb,
 	skb_reset_mac_header(skb);
 	skb_set_network_header(skb, skb_inner_network_offset(skb));
 	skb->mac_len = skb_inner_network_offset(skb);
-	skb->protocol = htons(ETH_P_TEB);
+	skb->protocol = new_protocol;
 
 	need_csum = !!(skb_shinfo(skb)->gso_type & SKB_GSO_UDP_TUNNEL_CSUM);
 	if (need_csum)
@@ -56,7 +59,7 @@ struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb,
 
 	/* segment inner packet. */
 	enc_features = skb->dev->hw_enc_features & netif_skb_features(skb);
-	segs = skb_mac_gso_segment(skb, enc_features);
+	segs = gso_inner_segment(skb, enc_features);
 	if (IS_ERR_OR_NULL(segs)) {
 		skb_gso_error_unwind(skb, protocol, tnl_hlen, mac_offset,
 				     mac_len);
@@ -101,6 +104,44 @@ out:
 	return segs;
 }
 
+struct sk_buff *skb_udp_tunnel_segment(struct sk_buff *skb,
+				       netdev_features_t features,
+				       bool is_ipv6)
+{
+	__be16 protocol = skb->protocol;
+	const struct net_offload **offloads;
+	const struct net_offload *ops;
+	struct sk_buff *segs = ERR_PTR(-EINVAL);
+	struct sk_buff *(*gso_inner_segment)(struct sk_buff *skb,
+					     netdev_features_t features);
+
+	rcu_read_lock();
+
+	switch (skb->inner_protocol_type) {
+	case ENCAP_TYPE_ETHER:
+		protocol = skb->inner_protocol;
+		gso_inner_segment = skb_mac_gso_segment;
+		break;
+	case ENCAP_TYPE_IPPROTO:
+		offloads = is_ipv6 ? inet6_offloads : inet_offloads;
+		ops = rcu_dereference(offloads[skb->inner_ipproto]);
+		if (!ops || !ops->callbacks.gso_segment)
+			goto out_unlock;
+		gso_inner_segment = ops->callbacks.gso_segment;
+		break;
+	default:
+		goto out_unlock;
+	}
+
+	segs = __skb_udp_tunnel_segment(skb, features, gso_inner_segment,
+					protocol);
+
+out_unlock:
+	rcu_read_unlock();
+
+	return segs;
+}
+
 static struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
 					 netdev_features_t features)
 {
@@ -113,7 +154,7 @@ static struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb,
 	if (skb->encapsulation &&
 	    (skb_shinfo(skb)->gso_type &
 	     (SKB_GSO_UDP_TUNNEL|SKB_GSO_UDP_TUNNEL_CSUM))) {
-		segs = skb_udp_tunnel_segment(skb, features);
+		segs = skb_udp_tunnel_segment(skb, features, false);
 		goto out;
 	}
 
