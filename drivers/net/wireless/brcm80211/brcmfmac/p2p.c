@@ -440,8 +440,11 @@ static int brcmf_p2p_set_firmware(struct brcmf_if *ifp, u8 *p2p_mac)
 
 	/* In case of COB type, firmware has default mac address
 	 * After Initializing firmware, we have to set current mac address to
-	 * firmware for P2P device address
+	 * firmware for P2P device address. This must be done with discovery
+	 * disabled.
 	 */
+	brcmf_fil_iovar_int_set(ifp, "p2p_disc", 0);
+
 	ret = brcmf_fil_iovar_data_set(ifp, "p2p_da_override", p2p_mac,
 				       ETH_ALEN);
 	if (ret)
