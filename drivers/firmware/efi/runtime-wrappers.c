@@ -200,6 +200,24 @@ static efi_status_t virt_efi_set_variable(efi_char16_t *name,
 	return status;
 }
 
+static efi_status_t
+virt_efi_set_variable_nonblocking(efi_char16_t *name, efi_guid_t *vendor,
+				  u32 attr, unsigned long data_size,
+				  void *data)
+{
+	unsigned long flags;
+	efi_status_t status;
+
+	if (!spin_trylock_irqsave(&efi_runtime_lock, flags))
+		return EFI_NOT_READY;
+
+	status = efi_call_virt(set_variable, name, vendor, attr, data_size,
+			       data);
+	spin_unlock_irqrestore(&efi_runtime_lock, flags);
+	return status;
+}
+
+
 static efi_status_t virt_efi_query_variable_info(u32 attr,
 						 u64 *storage_space,
 						 u64 *remaining_space,
@@ -287,6 +305,7 @@ void efi_native_runtime_setup(void)
 	efi.get_variable = virt_efi_get_variable;
 	efi.get_next_variable = virt_efi_get_next_variable;
 	efi.set_variable = virt_efi_set_variable;
+	efi.set_variable_nonblocking = virt_efi_set_variable_nonblocking;
 	efi.get_next_high_mono_count = virt_efi_get_next_high_mono_count;
 	efi.reset_system = virt_efi_reset_system;
 	efi.query_variable_info = virt_efi_query_variable_info;

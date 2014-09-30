@@ -595,6 +595,39 @@ int efivar_entry_set(struct efivar_entry *entry, u32 attributes,
 }
 EXPORT_SYMBOL_GPL(efivar_entry_set);
 
+/*
+ * efivar_entry_set_nonblocking - call set_variable_nonblocking()
+ *
+ * This function is guaranteed to not block and is suitable for calling
+ * from crash/panic handlers.
+ *
+ * Crucially, this function will not block if it cannot acquire
+ * __efivars->lock. Instead, it returns -EBUSY.
+ */
+static int
+efivar_entry_set_nonblocking(efi_char16_t *name, efi_guid_t vendor,
+			     u32 attributes, unsigned long size, void *data)
+{
+	const struct efivar_operations *ops = __efivars->ops;
+	unsigned long flags;
+	efi_status_t status;
+
+	if (!spin_trylock_irqsave(&__efivars->lock, flags))
+		return -EBUSY;
+
+	status = check_var_size(attributes, size + ucs2_strsize(name, 1024));
+	if (status != EFI_SUCCESS) {
+		spin_unlock_irqrestore(&__efivars->lock, flags);
+		return -ENOSPC;
+	}
+
+	status = ops->set_variable_nonblocking(name, &vendor, attributes,
+					       size, data);
+
+	spin_unlock_irqrestore(&__efivars->lock, flags);
+	return efi_status_to_err(status);
+}
+
 /**
  * efivar_entry_set_safe - call set_variable() if enough space in firmware
  * @name: buffer containing the variable name
@@ -621,6 +654,20 @@ int efivar_entry_set_safe(efi_char16_t *name, efi_guid_t vendor, u32 attributes,
 
 	if (!ops->query_variable_store)
 		return -ENOSYS;
+
+	/*
+	 * If the EFI variable backend provides a non-blocking
+	 * ->set_variable() operation and we're in a context where we
+	 * cannot block, then we need to use it to avoid live-locks,
+	 * since the implication is that the regular ->set_variable()
+	 * will block.
+	 *
+	 * If no ->set_variable_nonblocking() is provided then
+	 * ->set_variable() is assumed to be non-blocking.
+	 */
+	if (!block && ops->set_variable_nonblocking)
+		return efivar_entry_set_nonblocking(name, vendor, attributes,
+						    size, data);
 
 	if (!block) {
 		if (!spin_trylock_irqsave(&__efivars->lock, flags))
