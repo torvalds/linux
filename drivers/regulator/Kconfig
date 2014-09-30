@@ -405,6 +405,15 @@ config REGULATOR_MAX77693
 	  and one current regulator 'CHARGER'. This is suitable for
 	  Exynos-4x12 chips.
 
+config REGULATOR_MAX77802
+	tristate "Maxim 77802 regulator"
+	depends on MFD_MAX77686
+	help
+	  This driver controls a Maxim 77802 regulator
+	  via I2C bus. The provided regulator is suitable for
+	  Exynos5420/Exynos5800 SoCs to control various voltages.
+	  It includes support for control of voltage and ramp speed.
+
 config REGULATOR_MC13XXX_CORE
 	tristate
 
