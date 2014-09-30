@@ -2137,6 +2137,8 @@ static struct radeon_asic ci_asic = {
 		.fan_ctrl_get_mode = &ci_fan_ctrl_get_mode,
 		.get_fan_speed_percent = &ci_fan_ctrl_get_fan_speed_percent,
 		.set_fan_speed_percent = &ci_fan_ctrl_set_fan_speed_percent,
+		.get_current_sclk = &ci_dpm_get_current_sclk,
+		.get_current_mclk = &ci_dpm_get_current_mclk,
 	},
 	.pflip = {
 		.page_flip = &evergreen_page_flip,

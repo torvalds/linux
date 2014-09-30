@@ -874,6 +874,8 @@ int ci_dpm_force_performance_level(struct radeon_device *rdev,
 				   enum radeon_dpm_forced_level level);
 bool ci_dpm_vblank_too_short(struct radeon_device *rdev);
 void ci_dpm_powergate_uvd(struct radeon_device *rdev, bool gate);
+u32 ci_dpm_get_current_sclk(struct radeon_device *rdev);
+u32 ci_dpm_get_current_mclk(struct radeon_device *rdev);
 
 int ci_fan_ctrl_get_fan_speed_percent(struct radeon_device *rdev,
 						 u32 *speed);
