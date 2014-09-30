@@ -91,10 +91,10 @@ int uisqueue_put_cmdrsp_with_lock_client(struct uisqueue_info *queueinfo,
 					 struct uiscmdrsp *cmdrsp,
 					 unsigned int queue,
 					 void *insertlock,
-					 unsigned char issueInterruptIfEmpty,
-					 u64 interruptHandle,
+					 unsigned char issue_irq_if_empty,
+					 u64 irq_handle,
 					 char oktowait,
-					 u8 *channelId);
+					 u8 *channel_id);
 
 /* uisqueue_get_cmdrsp gets the cmdrsp entry at the head of the queue
  * and copies it to the area pointed by cmdrsp param.

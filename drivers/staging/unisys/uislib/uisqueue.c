@@ -98,14 +98,14 @@ uisqueue_put_cmdrsp_with_lock_client(struct uisqueue_info *queueinfo,
 				     struct uiscmdrsp *cmdrsp,
 				     unsigned int whichqueue,
 				     void *insertlock,
-				     unsigned char issueInterruptIfEmpty,
-				     u64 interruptHandle,
-				     char oktowait, u8 *channelId)
+				     unsigned char issue_irq_if_empty,
+				     u64 irq_handle,
+				     char oktowait, u8 *channel_id)
 {
 	while (!do_locked_client_insert(queueinfo, whichqueue, cmdrsp,
 					(spinlock_t *) insertlock,
-					issueInterruptIfEmpty,
-					interruptHandle, channelId)) {
+					issue_irq_if_empty,
+					irq_handle, channel_id)) {
 		if (oktowait != OK_TO_WAIT) {
 			LOGERR("****FAILED visor_signal_insert failed; cannot wait; insert aborted\n");
 			return 0;	/* failed to queue */
