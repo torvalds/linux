@@ -686,6 +686,8 @@ void trinity_dpm_debugfs_print_current_performance_level(struct radeon_device *r
 int trinity_dpm_force_performance_level(struct radeon_device *rdev,
 					enum radeon_dpm_forced_level level);
 void trinity_dpm_enable_bapm(struct radeon_device *rdev, bool enable);
+u32 trinity_dpm_get_current_sclk(struct radeon_device *rdev);
+u32 trinity_dpm_get_current_mclk(struct radeon_device *rdev);
 
 /* DCE6 - SI */
 void dce6_bandwidth_update(struct radeon_device *rdev);
