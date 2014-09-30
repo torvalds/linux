@@ -74,6 +74,8 @@
 #include <ttm/ttm_module.h>
 #include <ttm/ttm_execbuf_util.h>
 
+#include <drm/drm_gem.h>
+
 #include "radeon_family.h"
 #include "radeon_mode.h"
 #include "radeon_reg.h"

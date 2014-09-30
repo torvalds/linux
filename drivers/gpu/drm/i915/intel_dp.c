@@ -661,6 +661,16 @@ static uint32_t vlv_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 	return index ? 0 : 100;
 }
 
+static uint32_t skl_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
+{
+	/*
+	 * SKL doesn't need us to program the AUX clock divider (Hardware will
+	 * derive the clock from CDCLK automatically). We still implement the
+	 * get_aux_clock_divider vfunc to plug-in into the existing code.
+	 */
+	return index ? 0 : 1;
+}
+
 static uint32_t i9xx_get_aux_send_ctl(struct intel_dp *intel_dp,
 				      bool has_aux_irq,
 				      int send_bytes,
@@ -689,6 +699,21 @@ static uint32_t i9xx_get_aux_send_ctl(struct intel_dp *intel_dp,
 	       (send_bytes << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
 	       (precharge << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT) |
 	       (aux_clock_divider << DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT);
+}
+
+static uint32_t skl_get_aux_send_ctl(struct intel_dp *intel_dp,
+				      bool has_aux_irq,
+				      int send_bytes,
+				      uint32_t unused)
+{
+	return DP_AUX_CH_CTL_SEND_BUSY |
+	       DP_AUX_CH_CTL_DONE |
+	       (has_aux_irq ? DP_AUX_CH_CTL_INTERRUPT : 0) |
+	       DP_AUX_CH_CTL_TIME_OUT_ERROR |
+	       DP_AUX_CH_CTL_TIME_OUT_1600us |
+	       DP_AUX_CH_CTL_RECEIVE_ERROR |
+	       (send_bytes << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
+	       DP_AUX_CH_CTL_SYNC_PULSE_SKL(32);
 }
 
 static int
@@ -925,7 +950,16 @@ intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
 		BUG();
 	}
 
-	if (!HAS_DDI(dev))
+	/*
+	 * The AUX_CTL register is usually DP_CTL + 0x10.
+	 *
+	 * On Haswell and Broadwell though:
+	 *   - Both port A DDI_BUF_CTL and DDI_AUX_CTL are on the CPU
+	 *   - Port B/C/D AUX channels are on the PCH, DDI_BUF_CTL on the CPU
+	 *
+	 * Skylake moves AUX_CTL back next to DDI_BUF_CTL, on the CPU.
+	 */
+	if (!IS_HASWELL(dev) && !IS_BROADWELL(dev))
 		intel_dp->aux_ch_ctl_reg = intel_dp->output_reg + 0x10;
 
 	intel_dp->aux.name = name;
@@ -2842,7 +2876,9 @@ intel_dp_voltage_max(struct intel_dp *intel_dp)
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	enum port port = dp_to_dig_port(intel_dp)->port;
 
-	if (IS_VALLEYVIEW(dev))
+	if (INTEL_INFO(dev)->gen >= 9)
+		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
+	else if (IS_VALLEYVIEW(dev))
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
 	else if (IS_GEN7(dev) && port == PORT_A)
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
@@ -2858,7 +2894,18 @@ intel_dp_pre_emphasis_max(struct intel_dp *intel_dp, uint8_t voltage_swing)
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	enum port port = dp_to_dig_port(intel_dp)->port;
 
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
+	if (INTEL_INFO(dev)->gen >= 9) {
+		switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
+			return DP_TRAIN_PRE_EMPH_LEVEL_3;
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_1:
+			return DP_TRAIN_PRE_EMPH_LEVEL_2;
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_2:
+			return DP_TRAIN_PRE_EMPH_LEVEL_1;
+		default:
+			return DP_TRAIN_PRE_EMPH_LEVEL_0;
+		}
+	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
 		case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
 			return DP_TRAIN_PRE_EMPH_LEVEL_3;
@@ -3340,7 +3387,7 @@ intel_dp_set_signal_levels(struct intel_dp *intel_dp, uint32_t *DP)
 	uint32_t signal_levels, mask;
 	uint8_t train_set = intel_dp->train_set[0];
 
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev) || INTEL_INFO(dev)->gen >= 9) {
 		signal_levels = intel_hsw_signal_levels(train_set);
 		mask = DDI_BUF_EMP_MASK;
 	} else if (IS_CHERRYVIEW(dev)) {
@@ -5078,7 +5125,9 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	intel_dp->pps_pipe = INVALID_PIPE;
 
 	/* intel_dp vfuncs */
-	if (IS_VALLEYVIEW(dev))
+	if (INTEL_INFO(dev)->gen >= 9)
+		intel_dp->get_aux_clock_divider = skl_get_aux_clock_divider;
+	else if (IS_VALLEYVIEW(dev))
 		intel_dp->get_aux_clock_divider = vlv_get_aux_clock_divider;
 	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		intel_dp->get_aux_clock_divider = hsw_get_aux_clock_divider;
@@ -5087,7 +5136,10 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	else
 		intel_dp->get_aux_clock_divider = i9xx_get_aux_clock_divider;
 
-	intel_dp->get_aux_send_ctl = i9xx_get_aux_send_ctl;
+	if (INTEL_INFO(dev)->gen >= 9)
+		intel_dp->get_aux_send_ctl = skl_get_aux_send_ctl;
+	else
+		intel_dp->get_aux_send_ctl = i9xx_get_aux_send_ctl;
 
 	/* Preserve the current hw state. */
 	intel_dp->DP = I915_READ(intel_dp->output_reg);

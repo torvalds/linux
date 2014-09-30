@@ -37,7 +37,7 @@ int drm_irq_by_busid(struct drm_device *dev, void *data,
 
 /* drm_vm.c */
 int drm_vma_info(struct seq_file *m, void *data);
-int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma);
+void drm_vm_open_locked(struct drm_device *dev, struct vm_area_struct *vma);
 void drm_vm_close_locked(struct drm_device *dev, struct vm_area_struct *vma);
 
 /* drm_prime.c */
@@ -62,6 +62,8 @@ int drm_gem_name_info(struct seq_file *m, void *data);
 /* drm_irq.c */
 int drm_control(struct drm_device *dev, void *data,
 		struct drm_file *file_priv);
+int drm_modeset_ctl(struct drm_device *dev, void *data,
+		    struct drm_file *file_priv);
 
 /* drm_auth.c */
 int drm_getmagic(struct drm_device *dev, void *data,
@@ -93,3 +95,38 @@ int drm_gem_open_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);
 void drm_gem_open(struct drm_device *dev, struct drm_file *file_private);
 void drm_gem_release(struct drm_device *dev, struct drm_file *file_private);
+
+/* drm_drv.c */
+int drm_setmaster_ioctl(struct drm_device *dev, void *data,
+			struct drm_file *file_priv);
+int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv);
+struct drm_master *drm_master_create(struct drm_minor *minor);
+
+/* drm_debugfs.c */
+#if defined(CONFIG_DEBUG_FS)
+int drm_debugfs_init(struct drm_minor *minor, int minor_id,
+		     struct dentry *root);
+int drm_debugfs_cleanup(struct drm_minor *minor);
+int drm_debugfs_connector_add(struct drm_connector *connector);
+void drm_debugfs_connector_remove(struct drm_connector *connector);
+#else
+static inline int drm_debugfs_init(struct drm_minor *minor, int minor_id,
+				   struct dentry *root)
+{
+	return 0;
+}
+
+static inline int drm_debugfs_cleanup(struct drm_minor *minor)
+{
+	return 0;
+}
+
+static inline int drm_debugfs_connector_add(struct drm_connector *connector)
+{
+	return 0;
+}
+static inline void drm_debugfs_connector_remove(struct drm_connector *connector)
+{
+}
+#endif

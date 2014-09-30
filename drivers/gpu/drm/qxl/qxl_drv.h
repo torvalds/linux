@@ -43,6 +43,8 @@
 #include <ttm/ttm_placement.h>
 #include <ttm/ttm_module.h>
 
+#include <drm/drm_gem.h>
+
 /* just for ttm_validate_buffer */
 #include <ttm/ttm_execbuf_util.h>
 

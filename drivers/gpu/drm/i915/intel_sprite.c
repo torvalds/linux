@@ -139,6 +139,184 @@ static void intel_update_primary_plane(struct intel_crtc *crtc)
 }
 
 static void
+skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
+		 struct drm_framebuffer *fb,
+		 struct drm_i915_gem_object *obj, int crtc_x, int crtc_y,
+		 unsigned int crtc_w, unsigned int crtc_h,
+		 uint32_t x, uint32_t y,
+		 uint32_t src_w, uint32_t src_h)
+{
+	struct drm_device *dev = drm_plane->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_plane *intel_plane = to_intel_plane(drm_plane);
+	const int pipe = intel_plane->pipe;
+	const int plane = intel_plane->plane + 1;
+	u32 plane_ctl, stride;
+	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
+
+	plane_ctl = I915_READ(PLANE_CTL(pipe, plane));
+
+	/* Mask out pixel format bits in case we change it */
+	plane_ctl &= ~PLANE_CTL_FORMAT_MASK;
+	plane_ctl &= ~PLANE_CTL_ORDER_RGBX;
+	plane_ctl &= ~PLANE_CTL_YUV422_ORDER_MASK;
+	plane_ctl &= ~PLANE_CTL_TILED_MASK;
+	plane_ctl &= ~PLANE_CTL_ALPHA_MASK;
+
+	/* Trickle feed has to be enabled */
+	plane_ctl &= ~PLANE_CTL_TRICKLE_FEED_DISABLE;
+
+	switch (fb->pixel_format) {
+	case DRM_FORMAT_RGB565:
+		plane_ctl |= PLANE_CTL_FORMAT_RGB_565;
+		break;
+	case DRM_FORMAT_XBGR8888:
+		plane_ctl |= PLANE_CTL_FORMAT_XRGB_8888 | PLANE_CTL_ORDER_RGBX;
+		break;
+	case DRM_FORMAT_XRGB8888:
+		plane_ctl |= PLANE_CTL_FORMAT_XRGB_8888;
+		break;
+	/*
+	 * XXX: For ARBG/ABGR formats we default to expecting scanout buffers
+	 * to be already pre-multiplied. We need to add a knob (or a different
+	 * DRM_FORMAT) for user-space to configure that.
+	 */
+	case DRM_FORMAT_ABGR8888:
+		plane_ctl |= PLANE_CTL_FORMAT_XRGB_8888 |
+			     PLANE_CTL_ORDER_RGBX |
+			     PLANE_CTL_ALPHA_SW_PREMULTIPLY;
+		break;
+	case DRM_FORMAT_ARGB8888:
+		plane_ctl |= PLANE_CTL_FORMAT_XRGB_8888 |
+			     PLANE_CTL_ALPHA_SW_PREMULTIPLY;
+		break;
+	case DRM_FORMAT_YUYV:
+		plane_ctl |= PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_YUYV;
+		break;
+	case DRM_FORMAT_YVYU:
+		plane_ctl |= PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_YVYU;
+		break;
+	case DRM_FORMAT_UYVY:
+		plane_ctl |= PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_UYVY;
+		break;
+	case DRM_FORMAT_VYUY:
+		plane_ctl |= PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_VYUY;
+		break;
+	default:
+		BUG();
+	}
+
+	switch (obj->tiling_mode) {
+	case I915_TILING_NONE:
+		stride = fb->pitches[0] >> 6;
+		break;
+	case I915_TILING_X:
+		plane_ctl |= PLANE_CTL_TILED_X;
+		stride = fb->pitches[0] >> 9;
+		break;
+	default:
+		BUG();
+	}
+
+	plane_ctl |= PLANE_CTL_ENABLE;
+	plane_ctl |= PLANE_CTL_PIPE_CSC_ENABLE;
+
+	intel_update_sprite_watermarks(drm_plane, crtc, src_w, src_h,
+				       pixel_size, true,
+				       src_w != crtc_w || src_h != crtc_h);
+
+	/* Sizes are 0 based */
+	src_w--;
+	src_h--;
+	crtc_w--;
+	crtc_h--;
+
+	I915_WRITE(PLANE_OFFSET(pipe, plane), (y << 16) | x);
+	I915_WRITE(PLANE_STRIDE(pipe, plane), stride);
+	I915_WRITE(PLANE_POS(pipe, plane), (crtc_y << 16) | crtc_x);
+	I915_WRITE(PLANE_SIZE(pipe, plane), (crtc_h << 16) | crtc_w);
+	I915_WRITE(PLANE_CTL(pipe, plane), plane_ctl);
+	I915_WRITE(PLANE_SURF(pipe, plane), i915_gem_obj_ggtt_offset(obj));
+	POSTING_READ(PLANE_SURF(pipe, plane));
+}
+
+static void
+skl_disable_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc)
+{
+	struct drm_device *dev = drm_plane->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_plane *intel_plane = to_intel_plane(drm_plane);
+	const int pipe = intel_plane->pipe;
+	const int plane = intel_plane->plane + 1;
+
+	I915_WRITE(PLANE_CTL(pipe, plane),
+		   I915_READ(PLANE_CTL(pipe, plane)) & ~PLANE_CTL_ENABLE);
+
+	/* Activate double buffered register update */
+	I915_WRITE(PLANE_CTL(pipe, plane), 0);
+	POSTING_READ(PLANE_CTL(pipe, plane));
+
+	intel_update_sprite_watermarks(drm_plane, crtc, 0, 0, 0, false, false);
+}
+
+static int
+skl_update_colorkey(struct drm_plane *drm_plane,
+		    struct drm_intel_sprite_colorkey *key)
+{
+	struct drm_device *dev = drm_plane->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_plane *intel_plane = to_intel_plane(drm_plane);
+	const int pipe = intel_plane->pipe;
+	const int plane = intel_plane->plane;
+	u32 plane_ctl;
+
+	I915_WRITE(PLANE_KEYVAL(pipe, plane), key->min_value);
+	I915_WRITE(PLANE_KEYMAX(pipe, plane), key->max_value);
+	I915_WRITE(PLANE_KEYMSK(pipe, plane), key->channel_mask);
+
+	plane_ctl = I915_READ(PLANE_CTL(pipe, plane));
+	plane_ctl &= ~PLANE_CTL_KEY_ENABLE_MASK;
+	if (key->flags & I915_SET_COLORKEY_DESTINATION)
+		plane_ctl |= PLANE_CTL_KEY_ENABLE_DESTINATION;
+	else if (key->flags & I915_SET_COLORKEY_SOURCE)
+		plane_ctl |= PLANE_CTL_KEY_ENABLE_SOURCE;
+	I915_WRITE(PLANE_CTL(pipe, plane), plane_ctl);
+
+	POSTING_READ(PLANE_CTL(pipe, plane));
+
+	return 0;
+}
+
+static void
+skl_get_colorkey(struct drm_plane *drm_plane,
+		 struct drm_intel_sprite_colorkey *key)
+{
+	struct drm_device *dev = drm_plane->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_plane *intel_plane = to_intel_plane(drm_plane);
+	const int pipe = intel_plane->pipe;
+	const int plane = intel_plane->plane;
+	u32 plane_ctl;
+
+	key->min_value = I915_READ(PLANE_KEYVAL(pipe, plane));
+	key->max_value = I915_READ(PLANE_KEYMAX(pipe, plane));
+	key->channel_mask = I915_READ(PLANE_KEYMSK(pipe, plane));
+
+	plane_ctl = I915_READ(PLANE_CTL(pipe, plane));
+
+	switch (plane_ctl & PLANE_CTL_KEY_ENABLE_MASK) {
+	case PLANE_CTL_KEY_ENABLE_DESTINATION:
+		key->flags = I915_SET_COLORKEY_DESTINATION;
+		break;
+	case PLANE_CTL_KEY_ENABLE_SOURCE:
+		key->flags = I915_SET_COLORKEY_SOURCE;
+		break;
+	default:
+		key->flags = I915_SET_COLORKEY_NONE;
+	}
+}
+
+static void
 vlv_update_plane(struct drm_plane *dplane, struct drm_crtc *crtc,
 		 struct drm_framebuffer *fb,
 		 struct drm_i915_gem_object *obj, int crtc_x, int crtc_y,
@@ -1358,6 +1536,18 @@ static uint32_t vlv_plane_formats[] = {
 	DRM_FORMAT_VYUY,
 };
 
+static uint32_t skl_plane_formats[] = {
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_YUYV,
+	DRM_FORMAT_YVYU,
+	DRM_FORMAT_UYVY,
+	DRM_FORMAT_VYUY,
+};
+
 int
 intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 {
@@ -1421,7 +1611,21 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 			num_plane_formats = ARRAY_SIZE(snb_plane_formats);
 		}
 		break;
+	case 9:
+		/*
+		 * FIXME: Skylake planes can be scaled (with some restrictions),
+		 * but this is for another time.
+		 */
+		intel_plane->can_scale = false;
+		intel_plane->max_downscale = 1;
+		intel_plane->update_plane = skl_update_plane;
+		intel_plane->disable_plane = skl_disable_plane;
+		intel_plane->update_colorkey = skl_update_colorkey;
+		intel_plane->get_colorkey = skl_get_colorkey;
 
+		plane_formats = skl_plane_formats;
+		num_plane_formats = ARRAY_SIZE(skl_plane_formats);
+		break;
 	default:
 		kfree(intel_plane);
 		return -ENODEV;

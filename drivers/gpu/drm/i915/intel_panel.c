@@ -1311,7 +1311,7 @@ void intel_panel_init_backlight_funcs(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (IS_BROADWELL(dev)) {
+	if (IS_BROADWELL(dev) || (INTEL_INFO(dev)->gen >= 9)) {
 		dev_priv->display.setup_backlight = bdw_setup_backlight;
 		dev_priv->display.enable_backlight = bdw_enable_backlight;
 		dev_priv->display.disable_backlight = pch_disable_backlight;

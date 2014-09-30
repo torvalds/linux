@@ -35,6 +35,8 @@
 
 #include <linux/seq_file.h>
 #include <drm/drmP.h>
+#include <drm/drm_gem.h>
+
 #include "drm_legacy.h"
 
 /**

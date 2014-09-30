@@ -675,10 +675,17 @@ static struct ttm_tt *radeon_ttm_tt_create(struct ttm_bo_device *bdev,
 	return &gtt->ttm.ttm;
 }
 
+static struct radeon_ttm_tt *radeon_ttm_tt_to_gtt(struct ttm_tt *ttm)
+{
+	if (!ttm || ttm->func != &radeon_backend_func)
+		return NULL;
+	return (struct radeon_ttm_tt *)ttm;
+}
+
 static int radeon_ttm_tt_populate(struct ttm_tt *ttm)
 {
+	struct radeon_ttm_tt *gtt = radeon_ttm_tt_to_gtt(ttm);
 	struct radeon_device *rdev;
-	struct radeon_ttm_tt *gtt = (void *)ttm;
 	unsigned i;
 	int r;
 	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);
@@ -686,7 +693,7 @@ static int radeon_ttm_tt_populate(struct ttm_tt *ttm)
 	if (ttm->state != tt_unpopulated)
 		return 0;
 
-	if (gtt->userptr) {
+	if (gtt && gtt->userptr) {
 		ttm->sg = kcalloc(1, sizeof(struct sg_table), GFP_KERNEL);
 		if (!ttm->sg)
 			return -ENOMEM;
@@ -741,11 +748,11 @@ static int radeon_ttm_tt_populate(struct ttm_tt *ttm)
 static void radeon_ttm_tt_unpopulate(struct ttm_tt *ttm)
 {
 	struct radeon_device *rdev;
-	struct radeon_ttm_tt *gtt = (void *)ttm;
+	struct radeon_ttm_tt *gtt = radeon_ttm_tt_to_gtt(ttm);
 	unsigned i;
 	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);
 
-	if (gtt->userptr) {
+	if (gtt && gtt->userptr) {
 		kfree(ttm->sg);
 		ttm->page_flags &= ~TTM_PAGE_FLAG_SG;
 		return;
@@ -782,7 +789,7 @@ static void radeon_ttm_tt_unpopulate(struct ttm_tt *ttm)
 int radeon_ttm_tt_set_userptr(struct ttm_tt *ttm, uint64_t addr,
 			      uint32_t flags)
 {
-	struct radeon_ttm_tt *gtt = (void *)ttm;
+	struct radeon_ttm_tt *gtt = radeon_ttm_tt_to_gtt(ttm);
 
 	if (gtt == NULL)
 		return -EINVAL;
@@ -795,7 +802,7 @@ int radeon_ttm_tt_set_userptr(struct ttm_tt *ttm, uint64_t addr,
 
 bool radeon_ttm_tt_has_userptr(struct ttm_tt *ttm)
 {
-	struct radeon_ttm_tt *gtt = (void *)ttm;
+	struct radeon_ttm_tt *gtt = radeon_ttm_tt_to_gtt(ttm);
 
 	if (gtt == NULL)
 		return false;
@@ -805,7 +812,7 @@ bool radeon_ttm_tt_has_userptr(struct ttm_tt *ttm)
 
 bool radeon_ttm_tt_is_readonly(struct ttm_tt *ttm)
 {
-	struct radeon_ttm_tt *gtt = (void *)ttm;
+	struct radeon_ttm_tt *gtt = radeon_ttm_tt_to_gtt(ttm);
 
 	if (gtt == NULL)
 		return false;
@@ -956,7 +963,7 @@ int radeon_mmap(struct file *filp, struct vm_area_struct *vma)
 	int r;
 
 	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET)) {
-		return drm_mmap(filp, vma);
+		return -EINVAL;
 	}
 
 	file_priv = filp->private_data;

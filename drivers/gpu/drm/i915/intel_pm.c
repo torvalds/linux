@@ -66,6 +66,30 @@
  * i915.i915_enable_fbc parameter
  */
 
+static void gen9_init_clock_gating(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/*
+	 * WaDisableSDEUnitClockGating:skl
+	 * This seems to be a pre-production w/a.
+	 */
+	I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
+		   GEN8_SDEUNIT_CLOCK_GATE_DISABLE);
+
+	/*
+	 * WaDisableDgMirrorFixInHalfSliceChicken5:skl
+	 * This is a pre-production w/a.
+	 */
+	I915_WRITE(GEN9_HALF_SLICE_CHICKEN5,
+		   I915_READ(GEN9_HALF_SLICE_CHICKEN5) &
+		   ~GEN9_DG_MIRROR_FIX_ENABLE);
+
+	/* Wa4x4STCOptimizationDisable:skl */
+	I915_WRITE(CACHE_MODE_1,
+		   _MASKED_BIT_ENABLE(GEN8_4x4_STC_OPTIMIZATION_DISABLE));
+}
+
 static void i8xx_disable_fbc(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -6298,7 +6322,7 @@ static void hsw_power_well_post_enable(struct drm_i915_private *dev_priv)
 	outb(inb(VGA_MSR_READ), VGA_MSR_WRITE);
 	vga_put(dev->pdev, VGA_RSRC_LEGACY_IO);
 
-	if (IS_BROADWELL(dev))
+	if (IS_BROADWELL(dev) || (INTEL_INFO(dev)->gen >= 9))
 		gen8_irq_power_well_post_enable(dev_priv);
 }
 
@@ -7408,7 +7432,9 @@ void intel_init_pm(struct drm_device *dev)
 		i915_ironlake_get_mem_freq(dev);
 
 	/* For FIFO watermark updates */
-	if (HAS_PCH_SPLIT(dev)) {
+	if (IS_GEN9(dev)) {
+		dev_priv->display.init_clock_gating = gen9_init_clock_gating;
+	} else if (HAS_PCH_SPLIT(dev)) {
 		ilk_setup_wm_latency(dev);
 
 		if ((IS_GEN5(dev) && dev_priv->wm.pri_latency[1] &&

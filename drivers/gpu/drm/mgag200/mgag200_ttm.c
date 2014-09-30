@@ -428,7 +428,7 @@ int mgag200_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct mga_device *mdev;
 
 	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET))
-		return drm_mmap(filp, vma);
+		return -EINVAL;
 
 	file_priv = filp->private_data;
 	mdev = file_priv->minor->dev->dev_private;

@@ -1,6 +1,8 @@
 #ifndef __NOUVEAU_BO_H__
 #define __NOUVEAU_BO_H__
 
+#include <drm/drm_gem.h>
+
 struct nouveau_channel;
 struct nouveau_fence;
 struct nouveau_vma;

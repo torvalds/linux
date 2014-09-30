@@ -765,6 +765,7 @@ static void i915_gem_record_fences(struct drm_device *dev,
 
 	/* Fences */
 	switch (INTEL_INFO(dev)->gen) {
+	case 9:
 	case 8:
 	case 7:
 	case 6:
@@ -923,6 +924,7 @@ static void i915_record_ring_state(struct drm_device *dev,
 		ering->vm_info.gfx_mode = I915_READ(RING_MODE_GEN7(ring));
 
 		switch (INTEL_INFO(dev)->gen) {
+		case 9:
 		case 8:
 			for (i = 0; i < 4; i++) {
 				ering->vm_info.pdp[i] =
@@ -1387,6 +1389,7 @@ void i915_get_extra_instdone(struct drm_device *dev, uint32_t *instdone)
 		WARN_ONCE(1, "Unsupported platform\n");
 	case 7:
 	case 8:
+	case 9:
 		instdone[0] = I915_READ(GEN7_INSTDONE_1);
 		instdone[1] = I915_READ(GEN7_SC_INSTDONE);
 		instdone[2] = I915_READ(GEN7_SAMPLER_INSTDONE);

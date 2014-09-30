@@ -127,6 +127,32 @@ static const struct ddi_buf_trans bdw_ddi_translations_hdmi[] = {
 	{ 0x80FFFFFF, 0x001B0002 },	/* 9:	1000	1000	0	*/
 };
 
+static const struct ddi_buf_trans skl_ddi_translations_dp[] = {
+	{ 0x00000018, 0x000000a0 },
+	{ 0x00004014, 0x00000098 },
+	{ 0x00006012, 0x00000088 },
+	{ 0x00008010, 0x00000080 },
+	{ 0x00000018, 0x00000098 },
+	{ 0x00004014, 0x00000088 },
+	{ 0x00006012, 0x00000080 },
+	{ 0x00000018, 0x00000088 },
+	{ 0x00004014, 0x00000080 },
+};
+
+static const struct ddi_buf_trans skl_ddi_translations_hdmi[] = {
+					/* Idx	NT mV   T mV    db  */
+	{ 0x00000018, 0x000000a0 },	/* 0:	400	400	0   */
+	{ 0x00004014, 0x00000098 },	/* 1:	400	600	3.5 */
+	{ 0x00006012, 0x00000088 },	/* 2:	400	800	6   */
+	{ 0x00000018, 0x0000003c },	/* 3:	450	450	0   */
+	{ 0x00000018, 0x00000098 },	/* 4:	600	600	0   */
+	{ 0x00003015, 0x00000088 },	/* 5:	600	800	2.5 */
+	{ 0x00005013, 0x00000080 },	/* 6:	600	1000	4.5 */
+	{ 0x00000018, 0x00000088 },	/* 7:	800	800	0   */
+	{ 0x00000096, 0x00000080 },	/* 8:	800	1000	2   */
+	{ 0x00000018, 0x00000080 },	/* 9:	1200	1200	0   */
+};
+
 enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
@@ -169,7 +195,14 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 	const struct ddi_buf_trans *ddi_translations_hdmi;
 	const struct ddi_buf_trans *ddi_translations;
 
-	if (IS_BROADWELL(dev)) {
+	if (IS_SKYLAKE(dev)) {
+		ddi_translations_fdi = NULL;
+		ddi_translations_dp = skl_ddi_translations_dp;
+		ddi_translations_edp = skl_ddi_translations_dp;
+		ddi_translations_hdmi = skl_ddi_translations_hdmi;
+		n_hdmi_entries = ARRAY_SIZE(skl_ddi_translations_hdmi);
+		hdmi_800mV_0dB = 7;
+	} else if (IS_BROADWELL(dev)) {
 		ddi_translations_fdi = bdw_ddi_translations_fdi;
 		ddi_translations_dp = bdw_ddi_translations_dp;
 		ddi_translations_edp = bdw_ddi_translations_edp;
@@ -208,7 +241,10 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 			ddi_translations = ddi_translations_dp;
 		break;
 	case PORT_E:
-		ddi_translations = ddi_translations_fdi;
+		if (ddi_translations_fdi)
+			ddi_translations = ddi_translations_fdi;
+		else
+			ddi_translations = ddi_translations_dp;
 		break;
 	default:
 		BUG();

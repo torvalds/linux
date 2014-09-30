@@ -743,6 +743,14 @@ hdmi_to_dig_port(struct intel_hdmi *intel_hdmi)
 	return container_of(intel_hdmi, struct intel_digital_port, hdmi);
 }
 
+/*
+ * Returns the number of planes for this pipe, ie the number of sprites + 1
+ * (primary plane). This doesn't count the cursor plane then.
+ */
+static inline unsigned int intel_num_planes(struct intel_crtc *crtc)
+{
+	return INTEL_INFO(crtc->base.dev)->num_sprites[crtc->pipe] + 1;
+}
 
 /* i915_irq.c */
 bool intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,

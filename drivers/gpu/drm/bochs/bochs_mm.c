@@ -339,7 +339,7 @@ int bochs_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct bochs_device *bochs;
 
 	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET))
-		return drm_mmap(filp, vma);
+		return -EINVAL;
 
 	file_priv = filp->private_data;
 	bochs = file_priv->minor->dev->dev_private;

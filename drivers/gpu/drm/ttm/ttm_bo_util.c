@@ -480,28 +480,24 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 
 pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp)
 {
+	/* Cached mappings need no adjustment */
+	if (caching_flags & TTM_PL_FLAG_CACHED)
+		return tmp;
+
 #if defined(__i386__) || defined(__x86_64__)
 	if (caching_flags & TTM_PL_FLAG_WC)
 		tmp = pgprot_writecombine(tmp);
 	else if (boot_cpu_data.x86 > 3)
 		tmp = pgprot_noncached(tmp);
-
-#elif defined(__powerpc__)
-	if (!(caching_flags & TTM_PL_FLAG_CACHED)) {
-		pgprot_val(tmp) |= _PAGE_NO_CACHE;
-		if (caching_flags & TTM_PL_FLAG_UNCACHED)
-			pgprot_val(tmp) |= _PAGE_GUARDED;
-	}
 #endif
-#if defined(__ia64__) || defined(__arm__)
+#if defined(__ia64__) || defined(__arm__) || defined(__powerpc__)
 	if (caching_flags & TTM_PL_FLAG_WC)
 		tmp = pgprot_writecombine(tmp);
 	else
 		tmp = pgprot_noncached(tmp);
 #endif
 #if defined(__sparc__) || defined(__mips__)
-	if (!(caching_flags & TTM_PL_FLAG_CACHED))
-		tmp = pgprot_noncached(tmp);
+	tmp = pgprot_noncached(tmp);
 #endif
 	return tmp;
 }
@@ -560,9 +556,7 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 		 * We need to use vmap to get the desired page protection
 		 * or to make the buffer object look contiguous.
 		 */
-		prot = (mem->placement & TTM_PL_FLAG_CACHED) ?
-			PAGE_KERNEL :
-			ttm_io_prot(mem->placement, PAGE_KERNEL);
+		prot = ttm_io_prot(mem->placement, PAGE_KERNEL);
 		map->bo_kmap_type = ttm_bo_map_vmap;
 		map->virtual = vmap(ttm->pages + start_page, num_pages,
 				    0, prot);
