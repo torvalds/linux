@@ -400,9 +400,9 @@ struct ovs_key_arp {
 };
 
 struct ovs_key_nd {
-	__u32 nd_target[4];
-	__u8  nd_sll[ETH_ALEN];
-	__u8  nd_tll[ETH_ALEN];
+	__be32	nd_target[4];
+	__u8	nd_sll[ETH_ALEN];
+	__u8	nd_tll[ETH_ALEN];
 };
 
 /**
