@@ -225,6 +225,7 @@ int spk_set_num_var(int input, struct st_var_header *var, int how)
 		return ret;
 	if (synth->synth_adjust != NULL) {
 		int status = synth->synth_adjust(var);
+
 		return (status != 0) ? status : ret;
 	}
 	if (!var_data->u.n.synth_fmt)
