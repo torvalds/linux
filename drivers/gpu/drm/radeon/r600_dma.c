@@ -124,15 +124,6 @@ int r600_dma_resume(struct radeon_device *rdev)
 	u32 rb_bufsz;
 	int r;
 
-	/* Reset dma */
-	if (rdev->family >= CHIP_RV770)
-		WREG32(SRBM_SOFT_RESET, RV770_SOFT_RESET_DMA);
-	else
-		WREG32(SRBM_SOFT_RESET, SOFT_RESET_DMA);
-	RREG32(SRBM_SOFT_RESET);
-	udelay(50);
-	WREG32(SRBM_SOFT_RESET, 0);
-
 	WREG32(DMA_SEM_INCOMPLETE_TIMER_CNTL, 0);
 	WREG32(DMA_SEM_WAIT_FAIL_TIMER_CNTL, 0);
 

@@ -1400,7 +1400,7 @@ i830_dispatch_execbuffer(struct intel_engine_cs *ring,
 		 */
 		intel_ring_emit(ring, SRC_COPY_BLT_CMD | BLT_WRITE_RGBA);
 		intel_ring_emit(ring, BLT_DEPTH_32 | BLT_ROP_SRC_COPY | 4096);
-		intel_ring_emit(ring, DIV_ROUND_UP(len, 4096) << 16 | 1024);
+		intel_ring_emit(ring, DIV_ROUND_UP(len, 4096) << 16 | 4096);
 		intel_ring_emit(ring, cs_offset);
 		intel_ring_emit(ring, 4096);
 		intel_ring_emit(ring, offset);

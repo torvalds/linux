@@ -837,6 +837,7 @@ cifs_demultiplex_thread(void *p)
 	struct TCP_Server_Info *server = p;
 	unsigned int pdu_length;
 	char *buf = NULL;
+	struct task_struct *task_to_wake = NULL;
 	struct mid_q_entry *mid_entry;
 
 	current->flags |= PF_MEMALLOC;
@@ -927,7 +928,19 @@ cifs_demultiplex_thread(void *p)
 	if (server->smallbuf) /* no sense logging a debug message if NULL */
 		cifs_small_buf_release(server->smallbuf);
 
+	task_to_wake = xchg(&server->tsk, NULL);
 	clean_demultiplex_info(server);
+
+	/* if server->tsk was NULL then wait for a signal before exiting */
+	if (!task_to_wake) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		while (!signal_pending(current)) {
+			schedule();
+			set_current_state(TASK_INTERRUPTIBLE);
+		}
+		set_current_state(TASK_RUNNING);
+	}
+
 	module_put_and_exit(0);
 }
 
@@ -2050,6 +2063,8 @@ cifs_find_tcp_session(struct smb_vol *vol)
 static void
 cifs_put_tcp_session(struct TCP_Server_Info *server)
 {
+	struct task_struct *task;
+
 	spin_lock(&cifs_tcp_ses_lock);
 	if (--server->srv_count > 0) {
 		spin_unlock(&cifs_tcp_ses_lock);
@@ -2073,6 +2088,10 @@ cifs_put_tcp_session(struct TCP_Server_Info *server)
 	kfree(server->session_key.response);
 	server->session_key.response = NULL;
 	server->session_key.len = 0;
+
+	task = xchg(&server->tsk, NULL);
+	if (task)
+		force_sig(SIGKILL, task);
 }
 
 static struct TCP_Server_Info *

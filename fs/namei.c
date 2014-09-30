@@ -1674,14 +1674,13 @@ EXPORT_SYMBOL(full_name_hash);
 
 /*
  * Calculate the length and hash of the path component, and
- * fill in the qstr. return the "len" as the result.
+ * return the "hash_len" as the result.
  */
-static inline unsigned long hash_name(const char *name, struct qstr *res)
+static inline u64 hash_name(const char *name)
 {
 	unsigned long a, b, adata, bdata, mask, hash, len;
 	const struct word_at_a_time constants = WORD_AT_A_TIME_CONSTANTS;
 
-	res->name = name;
 	hash = a = 0;
 	len = -sizeof(unsigned long);
 	do {
@@ -1698,9 +1697,7 @@ static inline unsigned long hash_name(const char *name, struct qstr *res)
 
 	hash += a & zero_bytemask(mask);
 	len += find_zero(mask);
-	res->hash_len = hashlen_create(fold_hash(hash), len);
-
-	return len;
+	return hashlen_create(fold_hash(hash), len);
 }
 
 #else
@@ -1718,20 +1715,18 @@ EXPORT_SYMBOL(full_name_hash);
  * We know there's a real path component here of at least
  * one character.
  */
-static inline long hash_name(const char *name, struct qstr *res)
+static inline u64 hash_name(const char *name)
 {
 	unsigned long hash = init_name_hash();
 	unsigned long len = 0, c;
 
-	res->name = name;
 	c = (unsigned char)*name;
 	do {
 		len++;
 		hash = partial_name_hash(c, hash);
 		c = (unsigned char)name[len];
 	} while (c && c != '/');
-	res->hash_len = hashlen_create(end_name_hash(hash), len);
-	return len;
+	return hashlen_create(end_name_hash(hash), len);
 }
 
 #endif
@@ -1756,18 +1751,17 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 
 	/* At this point we know we have a real path component. */
 	for(;;) {
-		struct qstr this;
-		long len;
+		u64 hash_len;
 		int type;
 
 		err = may_lookup(nd);
  		if (err)
 			break;
 
-		len = hash_name(name, &this);
+		hash_len = hash_name(name);
 
 		type = LAST_NORM;
-		if (name[0] == '.') switch (len) {
+		if (name[0] == '.') switch (hashlen_len(hash_len)) {
 			case 2:
 				if (name[1] == '.') {
 					type = LAST_DOTDOT;
@@ -1781,28 +1775,31 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 			struct dentry *parent = nd->path.dentry;
 			nd->flags &= ~LOOKUP_JUMPED;
 			if (unlikely(parent->d_flags & DCACHE_OP_HASH)) {
+				struct qstr this = { { .hash_len = hash_len }, .name = name };
 				err = parent->d_op->d_hash(parent, &this);
 				if (err < 0)
 					break;
+				hash_len = this.hash_len;
+				name = this.name;
 			}
 		}
 
-		nd->last = this;
+		nd->last.hash_len = hash_len;
+		nd->last.name = name;
 		nd->last_type = type;
 
-		if (!name[len])
+		name += hashlen_len(hash_len);
+		if (!*name)
 			return 0;
 		/*
 		 * If it wasn't NUL, we know it was '/'. Skip that
 		 * slash, and continue until no more slashes.
 		 */
 		do {
-			len++;
-		} while (unlikely(name[len] == '/'));
-		if (!name[len])
+			name++;
+		} while (unlikely(*name == '/'));
+		if (!*name)
 			return 0;
-
-		name += len;
 
 		err = walk_component(nd, &next, LOOKUP_FOLLOW);
 		if (err < 0)

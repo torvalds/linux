@@ -560,19 +560,15 @@ static void disable_slot(struct acpiphp_slot *slot)
 	slot->flags &= (~SLOT_ENABLED);
 }
 
-static bool acpiphp_no_hotplug(struct acpi_device *adev)
-{
-	return adev && adev->flags.no_hotplug;
-}
-
 static bool slot_no_hotplug(struct acpiphp_slot *slot)
 {
-	struct acpiphp_func *func;
+	struct pci_bus *bus = slot->bus;
+	struct pci_dev *dev;
 
-	list_for_each_entry(func, &slot->funcs, sibling)
-		if (acpiphp_no_hotplug(func_to_acpi_device(func)))
+	list_for_each_entry(dev, &bus->devices, bus_list) {
+		if (PCI_SLOT(dev->devfn) == slot->device && dev->ignore_hotplug)
 			return true;
-
+	}
 	return false;
 }
 
@@ -645,7 +641,7 @@ static void trim_stale_devices(struct pci_dev *dev)
 
 		status = acpi_evaluate_integer(adev->handle, "_STA", NULL, &sta);
 		alive = (ACPI_SUCCESS(status) && device_status_valid(sta))
-			|| acpiphp_no_hotplug(adev);
+			|| dev->ignore_hotplug;
 	}
 	if (!alive)
 		alive = pci_device_is_present(dev);
