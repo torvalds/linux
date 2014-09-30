@@ -66,6 +66,54 @@ static struct notifier_block ioda_eeh_nb = {
 };
 
 #ifdef CONFIG_DEBUG_FS
+static ssize_t ioda_eeh_ei_write(struct file *filp,
+				 const char __user *user_buf,
+				 size_t count, loff_t *ppos)
+{
+	struct pci_controller *hose = filp->private_data;
+	struct pnv_phb *phb = hose->private_data;
+	struct eeh_dev *edev;
+	struct eeh_pe *pe;
+	int pe_no, type, func;
+	unsigned long addr, mask;
+	char buf[50];
+	int ret;
+
+	if (!phb->eeh_ops || !phb->eeh_ops->err_inject)
+		return -ENXIO;
+
+	ret = simple_write_to_buffer(buf, sizeof(buf), ppos, user_buf, count);
+	if (!ret)
+		return -EFAULT;
+
+	/* Retrieve parameters */
+	ret = sscanf(buf, "%x:%x:%x:%lx:%lx",
+		     &pe_no, &type, &func, &addr, &mask);
+	if (ret != 5)
+		return -EINVAL;
+
+	/* Retrieve PE */
+	edev = kzalloc(sizeof(*edev), GFP_KERNEL);
+	if (!edev)
+		return -ENOMEM;
+	edev->phb = hose;
+	edev->pe_config_addr = pe_no;
+	pe = eeh_pe_get(edev);
+	kfree(edev);
+	if (!pe)
+		return -ENODEV;
+
+	/* Do error injection */
+	ret = phb->eeh_ops->err_inject(pe, type, func, addr, mask);
+	return ret < 0 ? ret : count;
+}
+
+static const struct file_operations ioda_eeh_ei_fops = {
+	.open   = simple_open,
+	.llseek = no_llseek,
+	.write  = ioda_eeh_ei_write,
+};
+
 static int ioda_eeh_dbgfs_set(void *data, int offset, u64 val)
 {
 	struct pci_controller *hose = data;
@@ -151,6 +199,10 @@ static int ioda_eeh_post_init(struct pci_controller *hose)
 #ifdef CONFIG_DEBUG_FS
 	if (!phb->has_dbgfs && phb->dbgfs) {
 		phb->has_dbgfs = 1;
+
+		debugfs_create_file("err_injct", 0200,
+				    phb->dbgfs, hose,
+				    &ioda_eeh_ei_fops);
 
 		debugfs_create_file("err_injct_outbound", 0600,
 				    phb->dbgfs, hose,
