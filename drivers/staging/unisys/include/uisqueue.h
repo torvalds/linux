@@ -53,8 +53,8 @@ struct uisqueue_info {
 	} safe_uis_queue;
 	unsigned int (*send_int_if_needed)(struct uisqueue_info *info,
 					   unsigned int whichcqueue,
-					   unsigned char issueInterruptIfEmpty,
-					   u64 interruptHandle,
+					   unsigned char issue_irq_if_empty,
+					   u64 irq_handle,
 					   unsigned char io_termination);
 };
 
