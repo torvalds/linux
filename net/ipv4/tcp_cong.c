@@ -291,15 +291,13 @@ int tcp_set_congestion_control(struct sock *sk, const char *name)
  * ABC caps N to 2. Slow start exits when cwnd grows over ssthresh and
  * returns the leftover acks to adjust cwnd in congestion avoidance mode.
  */
-int tcp_slow_start(struct tcp_sock *tp, u32 acked)
+void tcp_slow_start(struct tcp_sock *tp, u32 acked)
 {
 	u32 cwnd = tp->snd_cwnd + acked;
 
 	if (cwnd > tp->snd_ssthresh)
 		cwnd = tp->snd_ssthresh + 1;
-	acked -= cwnd - tp->snd_cwnd;
 	tp->snd_cwnd = min(cwnd, tp->snd_cwnd_clamp);
-	return acked;
 }
 EXPORT_SYMBOL_GPL(tcp_slow_start);
 
