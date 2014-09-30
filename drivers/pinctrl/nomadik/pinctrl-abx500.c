@@ -891,9 +891,7 @@ static int abx500_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	const char *function = NULL;
 	unsigned long *configs;
 	unsigned int nconfigs = 0;
-	bool has_config = 0;
 	struct property *prop;
-	struct device_node *np_config;
 
 	ret = of_property_read_string(np, "function", &function);
 	if (ret >= 0) {
@@ -917,17 +915,7 @@ static int abx500_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	}
 
 	ret = pinconf_generic_parse_dt_config(np, &configs, &nconfigs);
-	if (nconfigs)
-		has_config = 1;
-	np_config = of_parse_phandle(np, "ste,config", 0);
-	if (np_config) {
-		ret = pinconf_generic_parse_dt_config(np_config, &configs,
-				&nconfigs);
-		if (ret)
-			goto exit;
-		has_config |= nconfigs;
-	}
-	if (has_config) {
+	if (nconfigs) {
 		const char *gpio_name;
 		const char *pin;
 
