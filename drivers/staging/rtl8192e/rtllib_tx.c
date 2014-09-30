@@ -354,7 +354,6 @@ FORCED_AGG_SETTING:
 		tcb_desc->ampdu_factor = 0;
 		break;
 	}
-	return;
 }
 
 static void rtllib_qurey_ShortPreambleMode(struct rtllib_device *ieee,
@@ -366,7 +365,6 @@ static void rtllib_qurey_ShortPreambleMode(struct rtllib_device *ieee,
 	else if (ieee->current_network.capability &
 		 WLAN_CAPABILITY_SHORT_PREAMBLE)
 		tcb_desc->bUseShortPreamble = true;
-	return;
 }
 
 static void rtllib_query_HTCapShortGI(struct rtllib_device *ieee,
@@ -408,7 +406,6 @@ static void rtllib_query_BandwidthMode(struct rtllib_device *ieee,
 	if (pHTInfo->bCurBW40MHz && pHTInfo->bCurTxBW40MHz &&
 	    !ieee->bandwidth_auto_switch.bforced_tx20Mhz)
 		tcb_desc->bPacketBW = true;
-	return;
 }
 
 static void rtllib_query_protectionmode(struct rtllib_device *ieee,
