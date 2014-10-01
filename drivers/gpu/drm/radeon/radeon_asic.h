@@ -384,6 +384,8 @@ u32 r600_gfx_get_wptr(struct radeon_device *rdev,
 		      struct radeon_ring *ring);
 void r600_gfx_set_wptr(struct radeon_device *rdev,
 		       struct radeon_ring *ring);
+int r600_get_allowed_info_register(struct radeon_device *rdev,
+				   u32 reg, u32 *val);
 /* r600 irq */
 int r600_irq_process(struct radeon_device *rdev);
 int r600_irq_init(struct radeon_device *rdev);
