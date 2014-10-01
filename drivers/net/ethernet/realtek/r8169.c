@@ -969,59 +969,6 @@ DECLARE_RTL_COND(rtl_eriar_cond)
 	return RTL_R32(ERIAR) & ERIAR_FLAG;
 }
 
-static void rtl8168_oob_notify(struct rtl8169_private *tp, u8 cmd)
-{
-	void __iomem *ioaddr = tp->mmio_addr;
-
-	RTL_W8(ERIDR, cmd);
-	RTL_W32(ERIAR, 0x800010e8);
-	msleep(2);
-
-	if (!rtl_udelay_loop_wait_low(tp, &rtl_eriar_cond, 100, 5))
-		return;
-
-	ocp_write(tp, 0x1, 0x30, 0x00000001);
-}
-
-#define OOB_CMD_RESET		0x00
-#define OOB_CMD_DRIVER_START	0x05
-#define OOB_CMD_DRIVER_STOP	0x06
-
-static u16 rtl8168_get_ocp_reg(struct rtl8169_private *tp)
-{
-	return (tp->mac_version == RTL_GIGA_MAC_VER_31) ? 0xb8 : 0x10;
-}
-
-DECLARE_RTL_COND(rtl_ocp_read_cond)
-{
-	u16 reg;
-
-	reg = rtl8168_get_ocp_reg(tp);
-
-	return ocp_read(tp, 0x0f, reg) & 0x00000800;
-}
-
-static void rtl8168_driver_start(struct rtl8169_private *tp)
-{
-	rtl8168_oob_notify(tp, OOB_CMD_DRIVER_START);
-
-	rtl_msleep_loop_wait_high(tp, &rtl_ocp_read_cond, 10, 10);
-}
-
-static void rtl8168_driver_stop(struct rtl8169_private *tp)
-{
-	rtl8168_oob_notify(tp, OOB_CMD_DRIVER_STOP);
-
-	rtl_msleep_loop_wait_low(tp, &rtl_ocp_read_cond, 10, 10);
-}
-
-static int r8168_check_dash(struct rtl8169_private *tp)
-{
-	u16 reg = rtl8168_get_ocp_reg(tp);
-
-	return (ocp_read(tp, 0x0f, reg) & 0x00008000) ? 1 : 0;
-}
-
 static bool rtl_ocp_reg_failure(struct rtl8169_private *tp, u32 reg)
 {
 	if (reg & 0xffff0001) {
@@ -1327,6 +1274,52 @@ static void rtl_w0w1_eri(struct rtl8169_private *tp, int addr, u32 mask, u32 p,
 
 	val = rtl_eri_read(tp, addr, type);
 	rtl_eri_write(tp, addr, mask, (val & ~m) | p, type);
+}
+
+static void rtl8168_oob_notify(struct rtl8169_private *tp, u8 cmd)
+{
+	rtl_eri_write(tp, 0xe8, ERIAR_MASK_0001, cmd, ERIAR_EXGMAC);
+
+	ocp_write(tp, 0x1, 0x30, 0x00000001);
+}
+
+#define OOB_CMD_RESET		0x00
+#define OOB_CMD_DRIVER_START	0x05
+#define OOB_CMD_DRIVER_STOP	0x06
+
+static u16 rtl8168_get_ocp_reg(struct rtl8169_private *tp)
+{
+	return (tp->mac_version == RTL_GIGA_MAC_VER_31) ? 0xb8 : 0x10;
+}
+
+DECLARE_RTL_COND(rtl_ocp_read_cond)
+{
+	u16 reg;
+
+	reg = rtl8168_get_ocp_reg(tp);
+
+	return ocp_read(tp, 0x0f, reg) & 0x00000800;
+}
+
+static void rtl8168_driver_start(struct rtl8169_private *tp)
+{
+	rtl8168_oob_notify(tp, OOB_CMD_DRIVER_START);
+
+	rtl_msleep_loop_wait_high(tp, &rtl_ocp_read_cond, 10, 10);
+}
+
+static void rtl8168_driver_stop(struct rtl8169_private *tp)
+{
+	rtl8168_oob_notify(tp, OOB_CMD_DRIVER_STOP);
+
+	rtl_msleep_loop_wait_low(tp, &rtl_ocp_read_cond, 10, 10);
+}
+
+static int r8168_check_dash(struct rtl8169_private *tp)
+{
+	u16 reg = rtl8168_get_ocp_reg(tp);
+
+	return (ocp_read(tp, 0x0f, reg) & 0x00008000) ? 1 : 0;
 }
 
 struct exgmac_reg {
