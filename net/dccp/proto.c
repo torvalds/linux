@@ -1082,7 +1082,7 @@ void dccp_shutdown(struct sock *sk, int how)
 
 EXPORT_SYMBOL_GPL(dccp_shutdown);
 
-static inline int dccp_mib_init(void)
+static inline int __init dccp_mib_init(void)
 {
 	dccp_statistics = alloc_percpu(struct dccp_mib);
 	if (!dccp_statistics)
