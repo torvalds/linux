@@ -42,6 +42,8 @@
 #define ISER_MAX_RX_CQ_LEN	(ISER_QP_MAX_RECV_DTOS * ISCSI_ISER_MAX_CONN)
 #define ISER_MAX_TX_CQ_LEN	(ISER_QP_MAX_REQ_DTOS  * ISCSI_ISER_MAX_CONN)
 
+static int iser_cq_poll_limit = 512;
+
 static void iser_cq_tasklet_fn(unsigned long data);
 static void iser_cq_callback(struct ib_cq *cq, void *cq_context);
 static int iser_drain_tx_cq(struct iser_comp *comp);
@@ -1248,6 +1250,8 @@ static void iser_cq_tasklet_fn(unsigned long data)
 		completed_rx++;
 		if (!(completed_rx & 63))
 			completed_tx += iser_drain_tx_cq(comp);
+		if (completed_rx >= iser_cq_poll_limit)
+			break;
 	}
 	/* #warning "it is assumed here that arming CQ only once its empty" *
 	 * " would not cause interrupts to be missed"                       */
