@@ -269,9 +269,9 @@ int xfs_buf_associate_memory(struct xfs_buf *bp, void *mem, size_t length);
 
 struct xfs_buf *xfs_buf_get_uncached(struct xfs_buftarg *target, size_t numblks,
 				int flags);
-struct xfs_buf *xfs_buf_read_uncached(struct xfs_buftarg *target,
-				xfs_daddr_t daddr, size_t numblks, int flags,
-				const struct xfs_buf_ops *ops);
+int xfs_buf_read_uncached(struct xfs_buftarg *target, xfs_daddr_t daddr,
+			  size_t numblks, int flags, struct xfs_buf **bpp,
+			  const struct xfs_buf_ops *ops);
 void xfs_buf_hold(struct xfs_buf *bp);
 
 /* Releasing Buffers */
