@@ -1019,6 +1019,9 @@ xfs_buf_iodone_work(
 	else {
 		ASSERT(read && bp->b_ops);
 		complete(&bp->b_iowait);
+
+		/* release the !XBF_ASYNC ref now we are done. */
+		xfs_buf_rele(bp);
 	}
 }
 
@@ -1044,6 +1047,7 @@ xfs_buf_ioend(
 	} else {
 		bp->b_flags &= ~(XBF_READ | XBF_WRITE | XBF_READ_AHEAD);
 		complete(&bp->b_iowait);
+		xfs_buf_rele(bp);
 	}
 }
 
@@ -1086,8 +1090,11 @@ xfs_bioerror(
 	xfs_buf_ioerror(bp, -EIO);
 
 	/*
-	 * We're calling xfs_buf_ioend, so delete XBF_DONE flag.
+	 * We're calling xfs_buf_ioend, so delete XBF_DONE flag. For
+	 * sync IO, xfs_buf_ioend is going to remove a ref here.
 	 */
+	if (!(bp->b_flags & XBF_ASYNC))
+		xfs_buf_hold(bp);
 	XFS_BUF_UNREAD(bp);
 	XFS_BUF_UNDONE(bp);
 	xfs_buf_stale(bp);
@@ -1383,22 +1390,48 @@ xfs_buf_iorequest(
 
 	if (bp->b_flags & XBF_WRITE)
 		xfs_buf_wait_unpin(bp);
-	xfs_buf_hold(bp);
 
 	/*
-	 * Set the count to 1 initially, this will stop an I/O
-	 * completion callout which happens before we have started
-	 * all the I/O from calling xfs_buf_ioend too early.
+	 * Take references to the buffer. For XBF_ASYNC buffers, holding a
+	 * reference for as long as submission takes is all that is necessary
+	 * here. The IO inherits the lock and hold count from the submitter,
+	 * and these are release during IO completion processing. Taking a hold
+	 * over submission ensures that the buffer is not freed until we have
+	 * completed all processing, regardless of when IO errors occur or are
+	 * reported.
+	 *
+	 * However, for synchronous IO, the IO does not inherit the submitters
+	 * reference count, nor the buffer lock. Hence we need to take an extra
+	 * reference to the buffer for the for the IO context so that we can
+	 * guarantee the buffer is not freed until all IO completion processing
+	 * is done. Otherwise the caller can drop their reference while the IO
+	 * is still in progress and hence trigger a use-after-free situation.
+	 */
+	xfs_buf_hold(bp);
+	if (!(bp->b_flags & XBF_ASYNC))
+		xfs_buf_hold(bp);
+
+
+	/*
+	 * Set the count to 1 initially, this will stop an I/O completion
+	 * callout which happens before we have started all the I/O from calling
+	 * xfs_buf_ioend too early.
 	 */
 	atomic_set(&bp->b_io_remaining, 1);
 	_xfs_buf_ioapply(bp);
+
 	/*
-	 * If _xfs_buf_ioapply failed, we'll get back here with
-	 * only the reference we took above.  _xfs_buf_ioend will
-	 * drop it to zero, so we'd better not queue it for later,
-	 * or we'll free it before it's done.
+	 * If _xfs_buf_ioapply failed or we are doing synchronous IO that
+	 * completes extremely quickly, we can get back here with only the IO
+	 * reference we took above. _xfs_buf_ioend will drop it to zero. Run
+	 * completion processing synchronously so that we don't return to the
+	 * caller with completion still pending. This avoids unnecessary context
+	 * switches associated with the end_io workqueue.
 	 */
-	_xfs_buf_ioend(bp, bp->b_error ? 0 : 1);
+	if (bp->b_error || !(bp->b_flags & XBF_ASYNC))
+		_xfs_buf_ioend(bp, 0);
+	else
+		_xfs_buf_ioend(bp, 1);
 
 	xfs_buf_rele(bp);
 }
