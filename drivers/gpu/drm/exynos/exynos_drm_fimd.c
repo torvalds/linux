@@ -814,7 +814,6 @@ static void fimd_window_suspend(struct exynos_drm_manager *mgr)
 		if (win_data->enabled)
 			fimd_win_disable(mgr, i);
 	}
-	fimd_wait_for_vblank(mgr);
 }
 
 static void fimd_window_resume(struct exynos_drm_manager *mgr)
