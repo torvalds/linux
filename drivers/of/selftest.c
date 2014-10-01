@@ -637,6 +637,8 @@ static int attach_node_and_children(struct device_node *np)
 	dup = np;
 
 	while (dup) {
+		if (WARN_ON(last_node_index >= NO_OF_NODES))
+			return -EINVAL;
 		nodes[last_node_index++] = dup;
 		dup = dup->sibling;
 	}
@@ -717,10 +719,6 @@ static void detach_node_and_children(struct device_node *np)
 {
 	while (np->child)
 		detach_node_and_children(np->child);
-
-	while (np->sibling)
-		detach_node_and_children(np->sibling);
-
 	of_detach_node(np);
 }
 
@@ -749,8 +747,7 @@ static void selftest_data_remove(void)
 		if (nodes[last_node_index]) {
 			np = of_find_node_by_path(nodes[last_node_index]->full_name);
 			if (strcmp(np->full_name, "/aliases") != 0) {
-				detach_node_and_children(np->child);
-				of_detach_node(np);
+				detach_node_and_children(np);
 			} else {
 				for_each_property_of_node(np, prop) {
 					if (strcmp(prop->name, "testcase-alias") == 0)
