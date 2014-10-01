@@ -116,7 +116,13 @@ static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size, gfp_t gfp_mask)
 	 * we will encode the cport number in the first byte of the buffer, so
 	 * set the second byte to be the "transfer buffer"
 	 */
-	BUG_ON(gbuf->cport_id > (u16)U8_MAX);
+	if (gbuf->cport_id > (u16)U8_MAX) {
+		pr_err("gbuf->cport_id is '%d' and is out of range!\n",
+			gbuf->cport_id);
+		kfree(buffer);
+		return -EINVAL;
+	}
+
 	buffer[0] = gbuf->cport_id;
 	gbuf->transfer_buffer = &buffer[1];
 	gbuf->transfer_buffer_length = size;
