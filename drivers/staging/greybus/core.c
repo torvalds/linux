@@ -303,7 +303,7 @@ static int create_cport(struct greybus_module *gmod,
 
 	if (desc_size != sizeof(*cport)) {
 		dev_err(gmod->dev.parent,
-			"invalid serial number header size %zu\n", desc_size);
+			"invalid cport descriptor size %zu\n", desc_size);
 		return -EINVAL;
 	}
 
