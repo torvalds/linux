@@ -625,6 +625,8 @@ static netdev_tx_t bt_xmit(struct sk_buff *skb, struct net_device *netdev)
 		send_mcast_pkt(skb, netdev);
 	}
 
+	dev_kfree_skb(skb);
+
 	if (err)
 		BT_DBG("ERROR: xmit failed (%d)", err);
 
