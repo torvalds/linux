@@ -509,21 +509,16 @@ static int header_create(struct sk_buff *skb, struct net_device *netdev,
 
 /* Packet to BT LE device */
 static int send_pkt(struct l2cap_chan *chan, struct sk_buff *skb,
-		    struct net_device *netdev, bool is_mcast)
+		    struct net_device *netdev)
 {
 	struct msghdr msg;
 	struct kvec iv;
 	int err;
 
 	/* Remember the skb so that we can send EAGAIN to the caller if
-	 * we run out of credits. This is not done for multicast packets
-	 * because we generate mcast packet in this module and are not
-	 * really able to remember the skb after this packet is sent.
+	 * we run out of credits.
 	 */
-	if (is_mcast)
-		chan->data = NULL;
-	else
-		chan->data = skb;
+	chan->data = skb;
 
 	memset(&msg, 0, sizeof(msg));
 	msg.msg_iov = (struct iovec *) &iv;
@@ -575,7 +570,7 @@ static void send_mcast_pkt(struct sk_buff *skb, struct net_device *netdev)
 			       netdev->name,
 			       &pentry->chan->dst, pentry->chan->dst_type,
 			       &pentry->peer_addr, pentry->chan);
-			send_pkt(pentry->chan, local_skb, netdev, true);
+			send_pkt(pentry->chan, local_skb, netdev);
 
 			kfree_skb(local_skb);
 		}
@@ -617,8 +612,7 @@ static netdev_tx_t bt_xmit(struct sk_buff *skb, struct net_device *netdev)
 			BT_DBG("xmit %s to %pMR type %d IP %pI6c chan %p",
 			       netdev->name, &addr, addr_type,
 			       &lowpan_cb(skb)->addr, lowpan_cb(skb)->chan);
-			err = send_pkt(lowpan_cb(skb)->chan, skb, netdev,
-				       false);
+			err = send_pkt(lowpan_cb(skb)->chan, skb, netdev);
 		} else {
 			err = -ENOENT;
 		}
