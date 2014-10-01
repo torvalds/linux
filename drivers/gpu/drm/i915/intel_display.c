@@ -12162,7 +12162,7 @@ static bool intel_crt_present(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen >= 9)
 		return false;
 
-	if (IS_ULT(dev))
+	if (IS_HSW_ULT(dev) || IS_BDW_ULT(dev))
 		return false;
 
 	if (IS_CHERRYVIEW(dev))
