@@ -10,10 +10,13 @@
  */
 #include <linux/clk.h>
 #include <linux/device.h>
+#include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/string.h>
+#include <sound/jack.h>
 #include <sound/simple_card.h>
 #include <sound/soc-dai.h>
 #include <sound/soc.h>
@@ -25,6 +28,8 @@ struct simple_card_data {
 		struct asoc_simple_dai codec_dai;
 	} *dai_props;
 	unsigned int mclk_fs;
+	int gpio_hp_det;
+	int gpio_mic_det;
 	struct snd_soc_dai_link dai_link[];	/* dynamically allocated */
 };
 
@@ -52,6 +57,32 @@ static int asoc_simple_card_hw_params(struct snd_pcm_substream *substream,
 
 static struct snd_soc_ops asoc_simple_card_ops = {
 	.hw_params = asoc_simple_card_hw_params,
+};
+
+static struct snd_soc_jack simple_card_hp_jack;
+static struct snd_soc_jack_pin simple_card_hp_jack_pins[] = {
+	{
+		.pin = "Headphones",
+		.mask = SND_JACK_HEADPHONE,
+	},
+};
+static struct snd_soc_jack_gpio simple_card_hp_jack_gpio = {
+	.name = "Headphone detection",
+	.report = SND_JACK_HEADPHONE,
+	.debounce_time = 150,
+};
+
+static struct snd_soc_jack simple_card_mic_jack;
+static struct snd_soc_jack_pin simple_card_mic_jack_pins[] = {
+	{
+		.pin = "Mic Jack",
+		.mask = SND_JACK_MICROPHONE,
+	},
+};
+static struct snd_soc_jack_gpio simple_card_mic_jack_gpio = {
+	.name = "Mic detection",
+	.report = SND_JACK_MICROPHONE,
+	.debounce_time = 150,
 };
 
 static int __asoc_simple_card_dai_init(struct snd_soc_dai *dai,
@@ -109,6 +140,28 @@ static int asoc_simple_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 	if (ret < 0)
 		return ret;
 
+	if (gpio_is_valid(priv->gpio_hp_det)) {
+		snd_soc_jack_new(codec->codec, "Headphones", SND_JACK_HEADPHONE,
+				 &simple_card_hp_jack);
+		snd_soc_jack_add_pins(&simple_card_hp_jack,
+				      ARRAY_SIZE(simple_card_hp_jack_pins),
+				      simple_card_hp_jack_pins);
+
+		simple_card_hp_jack_gpio.gpio = priv->gpio_hp_det;
+		snd_soc_jack_add_gpios(&simple_card_hp_jack, 1,
+				       &simple_card_hp_jack_gpio);
+	}
+
+	if (gpio_is_valid(priv->gpio_mic_det)) {
+		snd_soc_jack_new(codec->codec, "Mic Jack", SND_JACK_MICROPHONE,
+				 &simple_card_mic_jack);
+		snd_soc_jack_add_pins(&simple_card_mic_jack,
+				      ARRAY_SIZE(simple_card_mic_jack_pins),
+				      simple_card_mic_jack_pins);
+		simple_card_mic_jack_gpio.gpio = priv->gpio_mic_det;
+		snd_soc_jack_add_gpios(&simple_card_mic_jack, 1,
+				       &simple_card_mic_jack_gpio);
+	}
 	return 0;
 }
 
@@ -383,6 +436,16 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 			return ret;
 	}
 
+	priv->gpio_hp_det = of_get_named_gpio(node,
+				"simple-audio-card,hp-det-gpio", 0);
+	if (priv->gpio_hp_det == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+
+	priv->gpio_mic_det = of_get_named_gpio(node,
+				"simple-audio-card,mic-det-gpio", 0);
+	if (priv->gpio_mic_det == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+
 	if (!priv->snd_card.name)
 		priv->snd_card.name = priv->snd_card.dai_link->name;
 
@@ -502,6 +565,16 @@ err:
 
 static int asoc_simple_card_remove(struct platform_device *pdev)
 {
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+	struct simple_card_data *priv = snd_soc_card_get_drvdata(card);
+
+	if (gpio_is_valid(priv->gpio_hp_det))
+		snd_soc_jack_free_gpios(&simple_card_hp_jack, 1,
+					&simple_card_hp_jack_gpio);
+	if (gpio_is_valid(priv->gpio_mic_det))
+		snd_soc_jack_free_gpios(&simple_card_mic_jack, 1,
+					&simple_card_mic_jack_gpio);
+
 	return asoc_simple_card_unref(pdev);
 }
 

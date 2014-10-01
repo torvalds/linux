@@ -17,6 +17,10 @@ Optional properties:
 					  source.
 - simple-audio-card,mclk-fs             : Multiplication factor between stream rate and codec
   					  mclk.
+- simple-audio-card,hp_det_gpio		: Reference to GPIO that signals when
+					  headphones are attached.
+- simple-audio-card,mic_det_gpio	: Reference to GPIO that signals when
+					  a microphone is attached.
 
 Optional subnodes:
 
