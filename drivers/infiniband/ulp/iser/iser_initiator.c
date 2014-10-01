@@ -272,7 +272,8 @@ int iser_alloc_rx_descriptors(struct iser_conn *iser_conn,
 	if (iser_alloc_login_buf(iser_conn))
 		goto alloc_login_buf_fail;
 
-	iser_conn->rx_descs = kmalloc(session->cmds_max *
+	iser_conn->num_rx_descs = session->cmds_max;
+	iser_conn->rx_descs = kmalloc(iser_conn->num_rx_descs *
 				sizeof(struct iser_rx_desc), GFP_KERNEL);
 	if (!iser_conn->rx_descs)
 		goto rx_desc_alloc_fail;

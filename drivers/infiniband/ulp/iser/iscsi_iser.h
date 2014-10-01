@@ -271,16 +271,14 @@ struct iscsi_iser_task;
  * struct iser_comp - iSER completion context
  *
  * @device:     pointer to device handle
- * @rx_cq:      RX completion queue
- * @tx_cq:      TX completion queue
+ * @cq:         completion queue
  * @tasklet:    Tasklet handle
  * @active_qps: Number of active QPs attached
  *              to completion context
  */
 struct iser_comp {
 	struct iser_device      *device;
-	struct ib_cq		*rx_cq;
-	struct ib_cq		*tx_cq;
+	struct ib_cq		*cq;
 	struct tasklet_struct	 tasklet;
 	int                      active_qps;
 };
@@ -342,6 +340,7 @@ struct fast_reg_descriptor {
  * @device:              reference to iser device
  * @comp:                iser completion context
  * @pi_support:          Indicate device T10-PI support
+ * @flush_comp:          completes when all connection completions consumed
  * @lock:                protects fmr/fastreg pool
  * @union.fmr:
  *     @pool:            FMR pool for fast registrations
@@ -361,6 +360,7 @@ struct ib_conn {
 	struct iser_device          *device;
 	struct iser_comp	    *comp;
 	bool			     pi_support;
+	struct completion	     flush_comp;
 	spinlock_t		     lock;
 	union {
 		struct {
@@ -395,6 +395,7 @@ struct iser_conn {
 	u64			     login_req_dma, login_resp_dma;
 	unsigned int 		     rx_desc_head;
 	struct iser_rx_desc	     *rx_descs;
+	u32                          num_rx_descs;
 };
 
 struct iscsi_iser_task {
