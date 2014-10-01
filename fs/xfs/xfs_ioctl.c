@@ -968,8 +968,6 @@ xfs_set_diflags(
 		di_flags |= XFS_DIFLAG_NOATIME;
 	if (xflags & XFS_XFLAG_NODUMP)
 		di_flags |= XFS_DIFLAG_NODUMP;
-	if (xflags & XFS_XFLAG_PROJINHERIT)
-		di_flags |= XFS_DIFLAG_PROJINHERIT;
 	if (xflags & XFS_XFLAG_NODEFRAG)
 		di_flags |= XFS_DIFLAG_NODEFRAG;
 	if (xflags & XFS_XFLAG_FILESTREAM)
@@ -981,6 +979,8 @@ xfs_set_diflags(
 			di_flags |= XFS_DIFLAG_NOSYMLINKS;
 		if (xflags & XFS_XFLAG_EXTSZINHERIT)
 			di_flags |= XFS_DIFLAG_EXTSZINHERIT;
+		if (xflags & XFS_XFLAG_PROJINHERIT)
+			di_flags |= XFS_DIFLAG_PROJINHERIT;
 	} else if (S_ISREG(ip->i_d.di_mode)) {
 		if (xflags & XFS_XFLAG_REALTIME)
 			di_flags |= XFS_DIFLAG_REALTIME;
