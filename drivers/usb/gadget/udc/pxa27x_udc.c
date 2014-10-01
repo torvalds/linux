@@ -1510,11 +1510,11 @@ static void dplus_pullup(struct pxa_udc *udc, int on)
 {
 	if (udc->gpiod) {
 		gpiod_set_value(udc->gpiod, on);
-	} else if (udc->mach && udc->mach->udc_command) {
+	} else if (udc->udc_command) {
 		if (on)
-			udc->mach->udc_command(PXA2XX_UDC_CMD_CONNECT);
+			udc->udc_command(PXA2XX_UDC_CMD_CONNECT);
 		else
-			udc->mach->udc_command(PXA2XX_UDC_CMD_DISCONNECT);
+			udc->udc_command(PXA2XX_UDC_CMD_DISCONNECT);
 	}
 	udc->pullup_on = on;
 }
@@ -1605,7 +1605,7 @@ static int pxa_udc_pullup(struct usb_gadget *_gadget, int is_active)
 {
 	struct pxa_udc *udc = to_gadget_udc(_gadget);
 
-	if (!udc->gpiod && !udc->mach->udc_command)
+	if (!udc->gpiod && !udc->udc_command)
 		return -EOPNOTSUPP;
 
 	dplus_pullup(udc, is_active);
@@ -2426,7 +2426,7 @@ static int pxa_udc_probe(struct platform_device *pdev)
 				return retval;
 			udc->gpiod = gpio_to_desc(mach->gpio_pullup);
 		}
-		udc->mach = mach;
+		udc->udc_command = mach->udc_command;
 	}
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
