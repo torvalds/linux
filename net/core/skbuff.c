@@ -541,13 +541,20 @@ static void kfree_skbmem(struct sk_buff *skb)
 	case SKB_FCLONE_CLONE:
 		fclones = container_of(skb, struct sk_buff_fclones, skb2);
 
-		/* The clone portion is available for
-		 * fast-cloning again.
+		/* Warning : We must perform the atomic_dec_and_test() before
+		 * setting skb->fclone back to SKB_FCLONE_UNAVAILABLE, otherwise
+		 * skb_clone() could set clone_ref to 2 before our decrement.
+		 * Anyway, if we are going to free the structure, no need to
+		 * rewrite skb->fclone.
 		 */
-		skb->fclone = SKB_FCLONE_UNAVAILABLE;
-
-		if (atomic_dec_and_test(&fclones->fclone_ref))
+		if (atomic_dec_and_test(&fclones->fclone_ref)) {
 			kmem_cache_free(skbuff_fclone_cache, fclones);
+		} else {
+			/* The clone portion is available for
+			 * fast-cloning again.
+			 */
+			skb->fclone = SKB_FCLONE_UNAVAILABLE;
+		}
 		break;
 	}
 }
@@ -869,7 +876,11 @@ struct sk_buff *skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 	if (skb->fclone == SKB_FCLONE_ORIG &&
 	    n->fclone == SKB_FCLONE_UNAVAILABLE) {
 		n->fclone = SKB_FCLONE_CLONE;
-		atomic_inc(&fclones->fclone_ref);
+		/* As our fastclone was free, clone_ref must be 1 at this point.
+		 * We could use atomic_inc() here, but it is faster
+		 * to set the final value.
+		 */
+		atomic_set(&fclones->fclone_ref, 2);
 	} else {
 		if (skb_pfmemalloc(skb))
 			gfp_mask |= __GFP_MEMALLOC;
