@@ -24,7 +24,7 @@
 #include <net/ip6_checksum.h>
 
 /* Version Information */
-#define DRIVER_VERSION "v1.06.0 (2014/03/03)"
+#define DRIVER_VERSION "v1.06.1 (2014/10/01)"
 #define DRIVER_AUTHOR "Realtek linux nic maintainers <nic_swsd@realtek.com>"
 #define DRIVER_DESC "Realtek RTL8152/RTL8153 Based USB Ethernet Adapters"
 #define MODULENAME "r8152"
@@ -2201,28 +2201,6 @@ static void rtl_phy_reset(struct r8152 *tp)
 	}
 }
 
-static void rtl_clear_bp(struct r8152 *tp)
-{
-	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_BP_0, 0);
-	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_BP_2, 0);
-	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_BP_4, 0);
-	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_BP_6, 0);
-	ocp_write_dword(tp, MCU_TYPE_USB, USB_BP_0, 0);
-	ocp_write_dword(tp, MCU_TYPE_USB, USB_BP_2, 0);
-	ocp_write_dword(tp, MCU_TYPE_USB, USB_BP_4, 0);
-	ocp_write_dword(tp, MCU_TYPE_USB, USB_BP_6, 0);
-	mdelay(3);
-	ocp_write_word(tp, MCU_TYPE_PLA, PLA_BP_BA, 0);
-	ocp_write_word(tp, MCU_TYPE_USB, USB_BP_BA, 0);
-}
-
-static void r8153_clear_bp(struct r8152 *tp)
-{
-	ocp_write_byte(tp, MCU_TYPE_PLA, PLA_BP_EN, 0);
-	ocp_write_byte(tp, MCU_TYPE_USB, USB_BP_EN, 0);
-	rtl_clear_bp(tp);
-}
-
 static void r8153_teredo_off(struct r8152 *tp)
 {
 	u32 ocp_data;
@@ -2264,8 +2242,6 @@ static void r8152b_hw_phy_cfg(struct r8152 *tp)
 		data &= ~BMCR_PDOWN;
 		r8152_mdio_write(tp, MII_BMCR, data);
 	}
-
-	rtl_clear_bp(tp);
 
 	set_bit(PHY_RESET, &tp->flags);
 }
@@ -2416,8 +2392,6 @@ static void r8153_hw_phy_cfg(struct r8152 *tp)
 		data &= ~BMCR_PDOWN;
 		r8152_mdio_write(tp, MII_BMCR, data);
 	}
-
-	r8153_clear_bp(tp);
 
 	if (tp->version == RTL_VER_03) {
 		data = ocp_reg_read(tp, OCP_EEE_CFG);
@@ -3423,7 +3397,7 @@ static void rtl8153_unload(struct r8152 *tp)
 	if (test_bit(RTL8152_UNPLUG, &tp->flags))
 		return;
 
-	r8153_power_cut_en(tp, true);
+	r8153_power_cut_en(tp, false);
 }
 
 static int rtl_ops_init(struct r8152 *tp, const struct usb_device_id *id)
