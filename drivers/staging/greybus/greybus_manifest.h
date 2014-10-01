@@ -73,9 +73,6 @@ struct greybus_descriptor_string {
 
 struct greybus_descriptor_cport {
 	__le16	id;
-	__le16	size;
-	__u8	speed;	// FIXME
-	__u8	reserved;
 };
 
 struct greybus_descriptor {
