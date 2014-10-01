@@ -49,7 +49,7 @@ static int iser_start_rdma_unaligned_sg(struct iscsi_iser_task *iser_task,
 					struct iser_data_buf *data_copy,
 					enum iser_data_dir cmd_dir)
 {
-	struct ib_device *dev = iser_task->ib_conn->device->ib_device;
+	struct ib_device *dev = iser_task->iser_conn->device->ib_device;
 	struct scatterlist *sgl = (struct scatterlist *)data->buf;
 	struct scatterlist *sg;
 	char *mem = NULL;
@@ -116,7 +116,7 @@ void iser_finalize_rdma_unaligned_sg(struct iscsi_iser_task *iser_task,
 	struct ib_device *dev;
 	unsigned long  cmd_data_len;
 
-	dev = iser_task->ib_conn->device->ib_device;
+	dev = iser_task->iser_conn->device->ib_device;
 
 	ib_dma_unmap_sg(dev, &data_copy->sg_single, 1,
 			(cmd_dir == ISER_DIR_OUT) ?
@@ -322,7 +322,7 @@ int iser_dma_map_task_data(struct iscsi_iser_task *iser_task,
 	struct ib_device *dev;
 
 	iser_task->dir[iser_dir] = 1;
-	dev = iser_task->ib_conn->device->ib_device;
+	dev = iser_task->iser_conn->device->ib_device;
 
 	data->dma_nents = ib_dma_map_sg(dev, data->buf, data->size, dma_dir);
 	if (data->dma_nents == 0) {
@@ -337,7 +337,7 @@ void iser_dma_unmap_task_data(struct iscsi_iser_task *iser_task,
 {
 	struct ib_device *dev;
 
-	dev = iser_task->ib_conn->device->ib_device;
+	dev = iser_task->iser_conn->device->ib_device;
 	ib_dma_unmap_sg(dev, data->buf, data->size, DMA_FROM_DEVICE);
 }
 
@@ -348,7 +348,7 @@ static int fall_to_bounce_buf(struct iscsi_iser_task *iser_task,
 			      enum iser_data_dir cmd_dir,
 			      int aligned_len)
 {
-	struct iscsi_conn    *iscsi_conn = iser_task->ib_conn->iscsi_conn;
+	struct iscsi_conn    *iscsi_conn = iser_task->iser_conn->iscsi_conn;
 
 	iscsi_conn->fmr_unalign_cnt++;
 	iser_warn("rdma alignment violation (%d/%d aligned) or FMR not supported\n",
@@ -377,8 +377,8 @@ static int fall_to_bounce_buf(struct iscsi_iser_task *iser_task,
 int iser_reg_rdma_mem_fmr(struct iscsi_iser_task *iser_task,
 			  enum iser_data_dir cmd_dir)
 {
-	struct iser_conn     *ib_conn = iser_task->ib_conn;
-	struct iser_device   *device = ib_conn->device;
+	struct iser_conn     *iser_conn = iser_task->iser_conn;
+	struct iser_device   *device = iser_conn->device;
 	struct ib_device     *ibdev = device->ib_device;
 	struct iser_data_buf *mem = &iser_task->data[cmd_dir];
 	struct iser_regd_buf *regd_buf;
@@ -418,8 +418,8 @@ int iser_reg_rdma_mem_fmr(struct iscsi_iser_task *iser_task,
 			 (unsigned long)regd_buf->reg.va,
 			 (unsigned long)regd_buf->reg.len);
 	} else { /* use FMR for multiple dma entries */
-		iser_page_vec_build(mem, ib_conn->fmr.page_vec, ibdev);
-		err = iser_reg_page_vec(ib_conn, ib_conn->fmr.page_vec,
+		iser_page_vec_build(mem, iser_conn->fmr.page_vec, ibdev);
+		err = iser_reg_page_vec(iser_conn, iser_conn->fmr.page_vec,
 					&regd_buf->reg);
 		if (err && err != -EAGAIN) {
 			iser_data_buf_dump(mem, ibdev);
@@ -427,12 +427,12 @@ int iser_reg_rdma_mem_fmr(struct iscsi_iser_task *iser_task,
 				 mem->dma_nents,
 				 ntoh24(iser_task->desc.iscsi_header.dlength));
 			iser_err("page_vec: data_size = 0x%x, length = %d, offset = 0x%x\n",
-				 ib_conn->fmr.page_vec->data_size,
-				 ib_conn->fmr.page_vec->length,
-				 ib_conn->fmr.page_vec->offset);
-			for (i = 0; i < ib_conn->fmr.page_vec->length; i++)
+				 iser_conn->fmr.page_vec->data_size,
+				 iser_conn->fmr.page_vec->length,
+				 iser_conn->fmr.page_vec->offset);
+			for (i = 0; i < iser_conn->fmr.page_vec->length; i++)
 				iser_err("page_vec[%d] = 0x%llx\n", i,
-					 (unsigned long long) ib_conn->fmr.page_vec->pages[i]);
+					 (unsigned long long)iser_conn->fmr.page_vec->pages[i]);
 		}
 		if (err)
 			return err;
@@ -533,7 +533,7 @@ iser_reg_sig_mr(struct iscsi_iser_task *iser_task,
 		struct fast_reg_descriptor *desc, struct ib_sge *data_sge,
 		struct ib_sge *prot_sge, struct ib_sge *sig_sge)
 {
-	struct iser_conn *ib_conn = iser_task->ib_conn;
+	struct iser_conn *iser_conn = iser_task->iser_conn;
 	struct iser_pi_context *pi_ctx = desc->pi_ctx;
 	struct ib_send_wr sig_wr, inv_wr;
 	struct ib_send_wr *bad_wr, *wr = NULL;
@@ -579,7 +579,7 @@ iser_reg_sig_mr(struct iscsi_iser_task *iser_task,
 	else
 		wr->next = &sig_wr;
 
-	ret = ib_post_send(ib_conn->qp, wr, &bad_wr);
+	ret = ib_post_send(iser_conn->qp, wr, &bad_wr);
 	if (ret) {
 		iser_err("reg_sig_mr failed, ret:%d\n", ret);
 		goto err;
@@ -609,8 +609,8 @@ static int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
 			    struct ib_sge *sge)
 {
 	struct fast_reg_descriptor *desc = regd_buf->reg.mem_h;
-	struct iser_conn *ib_conn = iser_task->ib_conn;
-	struct iser_device *device = ib_conn->device;
+	struct iser_conn *iser_conn = iser_task->iser_conn;
+	struct iser_device *device = iser_conn->device;
 	struct ib_device *ibdev = device->ib_device;
 	struct ib_mr *mr;
 	struct ib_fast_reg_page_list *frpl;
@@ -677,7 +677,7 @@ static int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
 	else
 		wr->next = &fastreg_wr;
 
-	ret = ib_post_send(ib_conn->qp, wr, &bad_wr);
+	ret = ib_post_send(iser_conn->qp, wr, &bad_wr);
 	if (ret) {
 		iser_err("fast registration failed, ret:%d\n", ret);
 		return ret;
@@ -700,8 +700,8 @@ static int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
 int iser_reg_rdma_mem_fastreg(struct iscsi_iser_task *iser_task,
 			      enum iser_data_dir cmd_dir)
 {
-	struct iser_conn *ib_conn = iser_task->ib_conn;
-	struct iser_device *device = ib_conn->device;
+	struct iser_conn *iser_conn = iser_task->iser_conn;
+	struct iser_device *device = iser_conn->device;
 	struct ib_device *ibdev = device->ib_device;
 	struct iser_data_buf *mem = &iser_task->data[cmd_dir];
 	struct iser_regd_buf *regd_buf = &iser_task->rdma_regd[cmd_dir];
@@ -724,11 +724,11 @@ int iser_reg_rdma_mem_fastreg(struct iscsi_iser_task *iser_task,
 
 	if (mem->dma_nents != 1 ||
 	    scsi_get_prot_op(iser_task->sc) != SCSI_PROT_NORMAL) {
-		spin_lock_irqsave(&ib_conn->lock, flags);
-		desc = list_first_entry(&ib_conn->fastreg.pool,
+		spin_lock_irqsave(&iser_conn->lock, flags);
+		desc = list_first_entry(&iser_conn->fastreg.pool,
 					struct fast_reg_descriptor, list);
 		list_del(&desc->list);
-		spin_unlock_irqrestore(&ib_conn->lock, flags);
+		spin_unlock_irqrestore(&iser_conn->lock, flags);
 		regd_buf->reg.mem_h = desc;
 	}
 
@@ -791,9 +791,9 @@ int iser_reg_rdma_mem_fastreg(struct iscsi_iser_task *iser_task,
 	return 0;
 err_reg:
 	if (desc) {
-		spin_lock_irqsave(&ib_conn->lock, flags);
-		list_add_tail(&desc->list, &ib_conn->fastreg.pool);
-		spin_unlock_irqrestore(&ib_conn->lock, flags);
+		spin_lock_irqsave(&iser_conn->lock, flags);
+		list_add_tail(&desc->list, &iser_conn->fastreg.pool);
+		spin_unlock_irqrestore(&iser_conn->lock, flags);
 	}
 
 	return err;
