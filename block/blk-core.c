@@ -2400,10 +2400,10 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 {
 	int total_bytes;
 
+	trace_block_rq_complete(req->q, req, nr_bytes);
+
 	if (!req->bio)
 		return false;
-
-	trace_block_rq_complete(req->q, req, nr_bytes);
 
 	/*
 	 * For fs requests, rq is just carrier of independent bio's
