@@ -862,16 +862,43 @@ static int af9033_read_snr(struct dvb_frontend *fe, u16 *snr)
 static int af9033_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 {
 	struct af9033_dev *dev = fe->demodulator_priv;
-	int ret;
-	u8 strength2;
+	struct dtv_frontend_properties *c = &dev->fe.dtv_property_cache;
+	int ret, tmp, power_real;
+	u8 u8tmp, gain_offset, buf[7];
 
-	/* read signal strength of 0-100 scale */
-	ret = af9033_rd_reg(dev, 0x800048, &strength2);
-	if (ret < 0)
+	if (dev->is_af9035) {
+		ret = af9033_rd_reg(dev, 0x80004a, &u8tmp);
+		/* scale value to 0x0000-0xffff */
+		*strength = u8tmp * 0xffff / 100;
+	} else {
+		ret = af9033_rd_reg(dev, 0x8000f7, &u8tmp);
+		ret |= af9033_rd_regs(dev, 0x80f900, buf, 7);
+
+		if (c->frequency <= 300000000)
+			gain_offset = 7; /* VHF */
+		else
+			gain_offset = 4; /* UHF */
+
+		power_real = (u8tmp - 100 - gain_offset) -
+			power_reference[((buf[3] >> 0) & 3)][((buf[6] >> 0) & 7)];
+
+		if (power_real < -15)
+			tmp = 0;
+		else if ((power_real >= -15) && (power_real < 0))
+			tmp = (2 * (power_real + 15)) / 3;
+		else if ((power_real >= 0) && (power_real < 20))
+			tmp = 4 * power_real + 10;
+		else if ((power_real >= 20) && (power_real < 35))
+			tmp = (2 * (power_real - 20)) / 3 + 90;
+		else
+			tmp = 100;
+
+		/* scale value to 0x0000-0xffff */
+		*strength = tmp * 0xffff / 100;
+	}
+
+	if (ret)
 		goto err;
-
-	/* scale value to 0x0000-0xffff */
-	*strength = strength2 * 0xffff / 100;
 
 	return 0;
 
