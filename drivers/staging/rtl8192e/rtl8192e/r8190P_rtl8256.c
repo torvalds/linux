@@ -228,11 +228,11 @@ bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 
 	}
 
-	RT_TRACE(COMP_PHY, "PHY Initialization Success\n") ;
+	RT_TRACE(COMP_PHY, "PHY Initialization Success\n");
 	return true;
 
 phy_RF8256_Config_ParaFile_Fail:
-	RT_TRACE(COMP_ERR, "PHY Initialization failed\n") ;
+	RT_TRACE(COMP_ERR, "PHY Initialization failed\n");
 	return false;
 }
 
