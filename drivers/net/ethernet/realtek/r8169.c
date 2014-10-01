@@ -7704,7 +7704,16 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	u64_stats_init(&tp->tx_stats.syncp);
 
 	/* Get MAC address */
-	if (tp->mac_version == RTL_GIGA_MAC_VER_45 ||
+	if (tp->mac_version == RTL_GIGA_MAC_VER_35 ||
+	    tp->mac_version == RTL_GIGA_MAC_VER_36 ||
+	    tp->mac_version == RTL_GIGA_MAC_VER_37 ||
+	    tp->mac_version == RTL_GIGA_MAC_VER_38 ||
+	    tp->mac_version == RTL_GIGA_MAC_VER_40 ||
+	    tp->mac_version == RTL_GIGA_MAC_VER_41 ||
+	    tp->mac_version == RTL_GIGA_MAC_VER_42 ||
+	    tp->mac_version == RTL_GIGA_MAC_VER_43 ||
+	    tp->mac_version == RTL_GIGA_MAC_VER_44 ||
+	    tp->mac_version == RTL_GIGA_MAC_VER_45 ||
 	    tp->mac_version == RTL_GIGA_MAC_VER_46 ||
 	    tp->mac_version == RTL_GIGA_MAC_VER_47 ||
 	    tp->mac_version == RTL_GIGA_MAC_VER_48) {
