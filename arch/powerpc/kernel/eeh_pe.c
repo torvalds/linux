@@ -534,6 +534,10 @@ static void *__eeh_pe_state_mark(void *data, void *flag)
 			pdev->error_state = pci_channel_io_frozen;
 	}
 
+	/* Block PCI config access if required */
+	if (pe->state & EEH_PE_CFG_RESTRICTED)
+		pe->state |= EEH_PE_CFG_BLOCKED;
+
 	return NULL;
 }
 
@@ -610,6 +614,10 @@ static void *__eeh_pe_state_clear(void *data, void *flag)
 
 		pdev->error_state = pci_channel_io_normal;
 	}
+
+	/* Unblock PCI config access if required */
+	if (pe->state & EEH_PE_CFG_RESTRICTED)
+		pe->state &= ~EEH_PE_CFG_BLOCKED;
 
 	return NULL;
 }

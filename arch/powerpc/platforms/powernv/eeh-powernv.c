@@ -169,6 +169,25 @@ static int powernv_eeh_dev_probe(struct pci_dev *dev, void *flag)
 	}
 
 	/*
+	 * If the PE contains any one of following adapters, the
+	 * PCI config space can't be accessed when dumping EEH log.
+	 * Otherwise, we will run into fenced PHB caused by shortage
+	 * of outbound credits in the adapter. The PCI config access
+	 * should be blocked until PE reset. MMIO access is dropped
+	 * by hardware certainly. In order to drop PCI config requests,
+	 * one more flag (EEH_PE_CFG_RESTRICTED) is introduced, which
+	 * will be checked in the backend for PE state retrival. If
+	 * the PE becomes frozen for the first time and the flag has
+	 * been set for the PE, we will set EEH_PE_CFG_BLOCKED for
+	 * that PE to block its config space.
+	 *
+	 * Broadcom Austin 4-ports NICs (14e4:1657)
+	 */
+	if (dev->vendor == PCI_VENDOR_ID_BROADCOM &&
+	    dev->device == 0x1657)
+		edev->pe->state |= EEH_PE_CFG_RESTRICTED;
+
+	/*
 	 * Cache the PE primary bus, which can't be fetched when
 	 * full hotplug is in progress. In that case, all child
 	 * PCI devices of the PE are expected to be removed prior
