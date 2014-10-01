@@ -647,7 +647,7 @@ int ssm2602_probe(struct device *dev, enum ssm2602_type type,
 		return -ENOMEM;
 
 	dev_set_drvdata(dev, ssm2602);
-	ssm2602->type = SSM2602;
+	ssm2602->type = type;
 	ssm2602->regmap = regmap;
 
 	return snd_soc_register_codec(dev, &soc_codec_dev_ssm2602,
