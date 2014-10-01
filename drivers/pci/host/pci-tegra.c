@@ -658,6 +658,7 @@ static int tegra_pcie_setup(int nr, struct pci_sys_data *sys)
 {
 	struct tegra_pcie *pcie = sys_to_pcie(sys);
 	int err;
+	phys_addr_t io_start;
 
 	err = devm_request_resource(pcie->dev, &pcie->all, &pcie->mem);
 	if (err < 0)
@@ -667,12 +668,14 @@ static int tegra_pcie_setup(int nr, struct pci_sys_data *sys)
 	if (err)
 		return err;
 
+	io_start = pci_pio_to_address(pcie->io.start);
+
 	pci_add_resource_offset(&sys->resources, &pcie->mem, sys->mem_offset);
 	pci_add_resource_offset(&sys->resources, &pcie->prefetch,
 				sys->mem_offset);
 	pci_add_resource(&sys->resources, &pcie->busn);
 
-	pci_ioremap_io(nr * SZ_64K, pcie->io.start);
+	pci_ioremap_io(nr * SZ_64K, io_start);
 
 	return 1;
 }
@@ -783,6 +786,7 @@ static irqreturn_t tegra_pcie_isr(int irq, void *arg)
 static void tegra_pcie_setup_translations(struct tegra_pcie *pcie)
 {
 	u32 fpci_bar, size, axi_address;
+	phys_addr_t io_start = pci_pio_to_address(pcie->io.start);
 
 	/* Bar 0: type 1 extended configuration space */
 	fpci_bar = 0xfe100000;
@@ -795,7 +799,7 @@ static void tegra_pcie_setup_translations(struct tegra_pcie *pcie)
 	/* Bar 1: downstream IO bar */
 	fpci_bar = 0xfdfc0000;
 	size = resource_size(&pcie->io);
-	axi_address = pcie->io.start;
+	axi_address = io_start;
 	afi_writel(pcie, axi_address, AFI_AXI_BAR1_START);
 	afi_writel(pcie, size >> 12, AFI_AXI_BAR1_SZ);
 	afi_writel(pcie, fpci_bar, AFI_FPCI_BAR1);
@@ -1680,7 +1684,9 @@ static int tegra_pcie_parse_dt(struct tegra_pcie *pcie)
 	}
 
 	for_each_of_pci_range(&parser, &range) {
-		of_pci_range_to_resource(&range, np, &res);
+		err = of_pci_range_to_resource(&range, np, &res);
+		if (err < 0)
+			return err;
 
 		switch (res.flags & IORESOURCE_TYPE_BITS) {
 		case IORESOURCE_IO:
