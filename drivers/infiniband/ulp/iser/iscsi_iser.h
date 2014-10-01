@@ -365,7 +365,6 @@ struct iser_conn {
 	struct iscsi_conn	     *iscsi_conn;
 	struct iscsi_endpoint	     *ep;
 	enum iser_conn_state	     state;	    /* rdma connection state   */
-	atomic_t		     refcount;
 	unsigned		     qp_max_recv_dtos; /* num of rx buffers */
 	unsigned		     qp_max_recv_dtos_mask; /* above minus 1 */
 	unsigned		     min_posted_rx; /* qp_max_recv_dtos >> 2 */
@@ -423,9 +422,6 @@ extern struct iser_global ig;
 extern int iser_debug_level;
 extern bool iser_pi_enable;
 extern int iser_pi_guard;
-
-/* allocate connection resources needed for rdma functionality */
-int iser_conn_set_full_featured_mode(struct iscsi_conn *conn);
 
 int iser_send_control(struct iscsi_conn *conn,
 		      struct iscsi_task *task);
