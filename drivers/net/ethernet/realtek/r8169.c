@@ -3692,8 +3692,8 @@ static void rtl8168h_2_hw_phy_config(struct rtl8169_private *tp)
 	ioffset_p0 |= (data & (0x07));
 	data = (ioffset_p3<<12)|(ioffset_p2<<8)|(ioffset_p1<<4)|(ioffset_p0);
 
-	if ((ioffset_p3 != 0x0F) || (ioffset_p2 != 0x0F) ||
-	    (ioffset_p1 != 0x0F) || (ioffset_p0 == 0x0F)) {
+	if ((ioffset_p3 != 0x0f) || (ioffset_p2 != 0x0f) ||
+	    (ioffset_p1 != 0x0f) || (ioffset_p0 == 0x0f)) {
 		rtl_writephy(tp, 0x1f, 0x0bcf);
 		rtl_writephy(tp, 0x16, data);
 		rtl_writephy(tp, 0x1f, 0x0000);
@@ -4265,7 +4265,7 @@ static void r810x_pll_power_up(struct rtl8169_private *tp)
 		break;
 	case RTL_GIGA_MAC_VER_47:
 	case RTL_GIGA_MAC_VER_48:
-		RTL_W8(PMCH, RTL_R8(PMCH) | 0xC0);
+		RTL_W8(PMCH, RTL_R8(PMCH) | 0xc0);
 		break;
 	default:
 		RTL_W8(PMCH, RTL_R8(PMCH) | 0x80);
@@ -4395,7 +4395,7 @@ static void r8168_pll_power_up(struct rtl8169_private *tp)
 		break;
 	case RTL_GIGA_MAC_VER_45:
 	case RTL_GIGA_MAC_VER_46:
-		RTL_W8(PMCH, RTL_R8(PMCH) | 0xC0);
+		RTL_W8(PMCH, RTL_R8(PMCH) | 0xc0);
 		break;
 	case RTL_GIGA_MAC_VER_40:
 	case RTL_GIGA_MAC_VER_41:
@@ -4975,7 +4975,7 @@ static void rtl_hw_start_8169(struct net_device *dev)
 
 	if (tp->mac_version == RTL_GIGA_MAC_VER_02 ||
 	    tp->mac_version == RTL_GIGA_MAC_VER_03) {
-		dprintk("Set MAC Reg C+CR Offset 0xE0. "
+		dprintk("Set MAC Reg C+CR Offset 0xe0. "
 			"Bit-3 and bit-14 MUST be 1\n");
 		tp->cp_cmd |= (1 << 14);
 	}
@@ -5010,7 +5010,7 @@ static void rtl_hw_start_8169(struct net_device *dev)
 	rtl_set_rx_mode(dev);
 
 	/* no early-rx interrupts */
-	RTL_W16(MultiIntr, RTL_R16(MultiIntr) & 0xF000);
+	RTL_W16(MultiIntr, RTL_R16(MultiIntr) & 0xf000);
 }
 
 static void rtl_csi_write(struct rtl8169_private *tp, int addr, int value)
@@ -5858,7 +5858,7 @@ static void rtl_hw_start_8168(struct net_device *dev)
 
 	rtl_set_rx_mode(dev);
 
-	RTL_W16(MultiIntr, RTL_R16(MultiIntr) & 0xF000);
+	RTL_W16(MultiIntr, RTL_R16(MultiIntr) & 0xf000);
 }
 
 #define R810X_CPCMD_QUIRK_MASK (\
@@ -7706,8 +7706,8 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	    tp->mac_version == RTL_GIGA_MAC_VER_48) {
 		u16 mac_addr[3];
 
-		*(u32 *)&mac_addr[0] = rtl_eri_read(tp, 0xE0, ERIAR_EXGMAC);
-		*(u16 *)&mac_addr[2] = rtl_eri_read(tp, 0xE4, ERIAR_EXGMAC);
+		*(u32 *)&mac_addr[0] = rtl_eri_read(tp, 0xe0, ERIAR_EXGMAC);
+		*(u16 *)&mac_addr[2] = rtl_eri_read(tp, 0xe4, ERIAR_EXGMAC);
 
 		if (is_valid_ether_addr((u8 *)mac_addr))
 			rtl_rar_set(tp, (u8 *)mac_addr);
