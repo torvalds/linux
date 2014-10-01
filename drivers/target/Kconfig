@@ -31,6 +31,13 @@ config TCM_PSCSI
 	Say Y here to enable the TCM/pSCSI subsystem plugin for non-buffered
 	passthrough access to Linux/SCSI device
 
+config TCM_USER
+	tristate "TCM/USER Subsystem Plugin for Linux"
+	depends on UIO && NET
+	help
+	Say Y here to enable the TCM/USER subsystem plugin for a userspace
+	process to handle requests
+
 source "drivers/target/loopback/Kconfig"
 source "drivers/target/tcm_fc/Kconfig"
 source "drivers/target/iscsi/Kconfig"
