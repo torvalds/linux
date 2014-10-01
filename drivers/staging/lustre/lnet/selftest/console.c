@@ -1977,7 +1977,7 @@ out:
 }
 
 srpc_service_t lstcon_acceptor_service;
-void lstcon_init_acceptor_service(void)
+static void lstcon_init_acceptor_service(void)
 {
 	/* initialize selftest console acceptor service table */
 	lstcon_acceptor_service.sv_name    = "join session";
