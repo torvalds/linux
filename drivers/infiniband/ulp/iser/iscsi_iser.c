@@ -293,6 +293,10 @@ static void iscsi_iser_cleanup_task(struct iscsi_task *task)
 	struct iser_conn       *iser_conn	  = task->conn->dd_data;
 	struct iser_device *device = iser_conn->ib_conn.device;
 
+	/* DEVICE_REMOVAL event might have already released the device */
+	if (!device)
+		return;
+
 	ib_dma_unmap_single(device->ib_device,
 		tx_desc->dma_addr, ISER_HEADERS_LEN, DMA_TO_DEVICE);
 
@@ -407,7 +411,6 @@ iscsi_iser_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 	struct iser_conn *iser_conn = conn->dd_data;
 
 	iser_dbg("stopping iscsi_conn: %p, iser_conn: %p\n", conn, iser_conn);
-	iscsi_conn_stop(cls_conn, flag);
 
 	/*
 	 * Userspace may have goofed up and not bound the connection or
@@ -415,6 +418,7 @@ iscsi_iser_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 	 */
 	if (iser_conn) {
 		mutex_lock(&iser_conn->state_mutex);
+		iscsi_conn_stop(cls_conn, flag);
 		iser_conn_terminate(iser_conn);
 
 		/* unbind */
@@ -423,6 +427,8 @@ iscsi_iser_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 
 		complete(&iser_conn->stop_completion);
 		mutex_unlock(&iser_conn->state_mutex);
+	} else {
+		iscsi_conn_stop(cls_conn, flag);
 	}
 }
 
