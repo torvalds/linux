@@ -154,7 +154,7 @@ static int __uhid_report_queue_and_wait(struct uhid_device *uhid,
 
 	spin_lock_irqsave(&uhid->qlock, flags);
 	*report_id = ++uhid->report_id;
-	uhid->report_type = ev->type;
+	uhid->report_type = ev->type + 1;
 	uhid->report_running = true;
 	uhid_queue(uhid, ev);
 	spin_unlock_irqrestore(&uhid->qlock, flags);
