@@ -132,6 +132,9 @@ struct nfs4_delegation {
 	struct nfsd4_callback	dl_recall;
 };
 
+#define cb_to_delegation(cb) \
+	container_of(cb, struct nfs4_delegation, dl_recall)
+
 /* client delegation callback info */
 struct nfs4_cb_conn {
 	/* SETCLIENTID info */

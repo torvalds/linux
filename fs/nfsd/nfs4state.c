@@ -3360,9 +3360,6 @@ nfs4_share_conflict(struct svc_fh *current_fh, unsigned int deny_type)
 	return ret;
 }
 
-#define cb_to_delegation(cb) \
-	container_of(cb, struct nfs4_delegation, dl_recall)
-
 static void nfsd4_cb_recall_prepare(struct nfsd4_callback *cb)
 {
 	struct nfs4_delegation *dp = cb_to_delegation(cb);
