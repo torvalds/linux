@@ -627,7 +627,9 @@ void iser_conn_release(struct iser_conn *iser_conn)
 	mutex_unlock(&ig.connlist_mutex);
 
 	mutex_lock(&iser_conn->state_mutex);
-	BUG_ON(iser_conn->state != ISER_CONN_DOWN);
+	if (iser_conn->state != ISER_CONN_DOWN)
+		iser_warn("iser conn %p state %d, expected state down.\n",
+			  iser_conn, iser_conn->state);
 	/*
 	 * In case we never got to bind stage, we still need to
 	 * release IB resources (which is safe to call more than once).
