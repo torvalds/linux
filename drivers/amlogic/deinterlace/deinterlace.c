@@ -4549,6 +4549,7 @@ static void process_vscale_skip(di_buf_t* di_buf, vframe_t* disp_vf)
             disp_vf->height = di_buf_i->vframe->height;
             disp_vf->duration = di_buf_i->vframe->duration;
             disp_vf->pts = di_buf_i->vframe->pts;
+            disp_vf->flag = di_buf_i->vframe->flag;
             disp_vf->canvas0Addr = di_post_buf0_canvas_idx[di_post_stru.canvas_id];
             disp_vf->canvas1Addr = di_post_buf0_canvas_idx[di_post_stru.canvas_id];
             canvas_config(di_post_buf0_canvas_idx[di_post_stru.canvas_id], di_buf_i->nr_adr, width*2, canvas_height, 0, 0);

@@ -194,7 +194,6 @@ static u32 h264_ar;
 #ifdef DROP_B_FRAME_FOR_1080P_50_60FPS
 static u32 last_interlaced;
 #endif
-static u8 neg_poc_counter;
 static unsigned char h264_first_pts_ready;
 static unsigned char h264_first_valid_pts_ready;
 static u32 h264pts1, h264pts2;
@@ -211,9 +210,12 @@ static u32 vh264_running;
 static s32 vh264_stream_switching_state;
 static s32 vh264_eos;
 static struct vframe_s *p_last_vf;
+static u32 last_pts;
+static bool check_pts_discontinue;
 static u32 wait_buffer_counter;
 static uint error_recovery_mode = 0;
 static uint error_recovery_mode_in = 3;
+static uint error_recovery_mode_use = 3;
 
 static uint mb_total = 0, mb_width = 0,  mb_height=0;
 #define UCODE_IP_ONLY 2
@@ -475,6 +477,7 @@ static void set_frame_info(vframe_t *vf)
     vf->duration = frame_dur;
     vf->ratio_control = (min(h264_ar, (u32)DISP_RATIO_ASPECT_RATIO_MAX)) << DISP_RATIO_ASPECT_RATIO_BIT;
     vf->orientation = vh264_rotation;
+    vf->flag = 0;
 
 #ifdef CONFIG_POST_PROCESS_MANAGER_3D_PROCESS
     vf->trans_fmt = convert_3d_format(frame_packing_type);
@@ -923,7 +926,7 @@ static void vh264_isr(void)
         vh264_set_params();
 
     } else if ((cpu_cmd & 0xff) == 2) {
-        int frame_mb_only, pic_struct_present, pic_struct, prog_frame, poc_sel, idr_flag, neg_poc, eos;
+        int frame_mb_only, pic_struct_present, pic_struct, prog_frame, poc_sel, idr_flag, eos, error;
         int i, status, num_frame, b_offset;
         int current_error_count;
 
@@ -942,6 +945,11 @@ static void vh264_isr(void)
         for (i = 0 ; (i < num_frame) && (!vh264_eos) ; i++) {
             status = READ_VREG(AV_SCRATCH_1 + i);
             buffer_index = status & 0x1f;
+            error = status & 0x200;
+
+            if ((error_recovery_mode_use & 2) && error) {
+                check_pts_discontinue = true;
+            }
 
             if ((p_last_vf != NULL) && (p_last_vf->index == buffer_index)) {
                 continue;
@@ -955,7 +963,6 @@ static void vh264_isr(void)
             prog_frame = status & 0x100;
             poc_sel = status & 0x200;
             idr_flag = status & 0x400;
-            neg_poc = status & 0x800;
             frame_packing_type = (status >> 12) & 0x7;
             eos = (status >> 15) & 1;
 
@@ -1009,6 +1016,7 @@ static void vh264_isr(void)
                 pts_missed++;
 #endif
             }
+
             if (sync_outside == 0) {
                 if (h264_first_pts_ready == 0) {
                     if (pts_valid == 0) {
@@ -1071,16 +1079,8 @@ static void vh264_isr(void)
 
                 h264_pts_count++;
             } else {
-                if (idr_flag && pts_valid) {
-                    pts += neg_poc_counter * (frame_dur - (frame_dur >> 4));
-                } else {
+                if (!(idr_flag && pts_valid)) {
                     pts = 0;
-                }
-
-                if (neg_poc) {
-                    neg_poc_counter++;
-                } else {
-                    neg_poc_counter = 0;
                 }
             }
 
@@ -1103,6 +1103,22 @@ static void vh264_isr(void)
                 (frame_height == 576) &&
                 (vf->duration == 3840)) {
                 force_interlaced_frame = true;
+            }
+
+            /* for frames with PTS, check if there is PTS discontinue based on previous frames (including error frames),
+             * force no VPTS discontinue reporting if we saw errors earlier but only once.
+             */
+            if ((pts_valid) && (check_pts_discontinue) && (!error)) {
+                if ((pts - last_pts) < 90000) {
+                    vf->flag = VFRAME_FLAG_NO_DISCONTINUE;
+                    check_pts_discontinue = false;
+                }
+            }
+
+            if (pts_valid) {
+                last_pts = pts;
+            } else {
+                last_pts += DUR2PTS(vf->duration);
             }
 
             if (pic_struct_present) {
@@ -1135,11 +1151,15 @@ static void vh264_isr(void)
                 vf->canvas0Addr = vf->canvas1Addr = spec2canvas(&buffer_spec[buffer_index]);
                 vfbuf_use[buffer_index]++;
 
-                p_last_vf = vf;
+                if ((error_recovery_mode_use & 2) && error) {
+                    kfifo_put(&recycle_q, (const vframe_t **)&vf);
+                } else {
+                    p_last_vf = vf;
 
-                kfifo_put(&display_q, (const vframe_t **)&vf);
+                    kfifo_put(&display_q, (const vframe_t **)&vf);
 
-                vf_notify_receiver(PROVIDER_NAME,VFRAME_EVENT_PROVIDER_VFRAME_READY,NULL);
+                    vf_notify_receiver(PROVIDER_NAME,VFRAME_EVENT_PROVIDER_VFRAME_READY,NULL);
+                }
 
             } else {
                 if (pic_struct_present && pic_struct == PIC_TOP_BOT) {
@@ -1163,7 +1183,13 @@ static void vh264_isr(void)
                 vfbuf_use[buffer_index]++;
                 vf->ready_jiffies64=jiffies_64;
 
-                kfifo_put(&display_q, (const vframe_t **)&vf);
+                if ((error_recovery_mode_use & 2) && error) {
+                    kfifo_put(&recycle_q, (const vframe_t **)&vf);
+                    WRITE_VREG(AV_SCRATCH_0, 0);
+                    return IRQ_HANDLED;
+                } else {
+                    kfifo_put(&display_q, (const vframe_t **)&vf);
+                }
 
                 if (READ_VREG(AV_SCRATCH_F) & 2) {
                     vf_notify_receiver(PROVIDER_NAME,VFRAME_EVENT_PROVIDER_VFRAME_READY,NULL);
@@ -1439,10 +1465,9 @@ static void vh264_prot_init(void)
     WRITE_VREG(AV_SCRATCH_7, 0);
     WRITE_VREG(AV_SCRATCH_8, 0);
     WRITE_VREG(AV_SCRATCH_9, 0);
-	if(error_recovery_mode)/*if sysfs have set recovery mode,over write player intenel para settings.*/
-    	WRITE_VREG(AV_SCRATCH_F, (READ_VREG(AV_SCRATCH_F) & 0xffffffc3) | ((error_recovery_mode & 0x3) << 4));
-	else
-    	WRITE_VREG(AV_SCRATCH_F, (READ_VREG(AV_SCRATCH_F) & 0xffffffc3) | ((error_recovery_mode_in & 0x3) << 4));
+
+    error_recovery_mode_use = (error_recovery_mode != 0) ? error_recovery_mode : error_recovery_mode_in;
+    WRITE_VREG(AV_SCRATCH_F, (READ_VREG(AV_SCRATCH_F) & 0xffffffc3) | ((error_recovery_mode_use & 0x1) << 4));
 
     /* clear mailbox interrupt */
     WRITE_VREG(ASSIST_MBOX1_CLR_REG, 1);
@@ -1523,7 +1548,6 @@ static void vh264_local_init(void)
 #ifdef DROP_B_FRAME_FOR_1080P_50_60FPS
     last_interlaced = 1;
 #endif
-    neg_poc_counter = 0;
     h264_first_pts_ready = 0;
     h264_first_valid_pts_ready=0;
     h264pts1 = 0;
@@ -1533,6 +1557,8 @@ static void vh264_local_init(void)
     vh264_error_count = READ_VREG(AV_SCRATCH_D);
 
     p_last_vf = NULL;
+    check_pts_discontinue = false;
+    last_pts = 0;
     wait_buffer_counter = 0;
     vh264_no_disp_count = 0;
     fatal_error_flag = 0;

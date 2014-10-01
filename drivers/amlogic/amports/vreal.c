@@ -319,6 +319,7 @@ static irqreturn_t vreal_isr(int irq, void *dev_id)
         vf->width = info >> 16;
         vf->height = (info >> 4) & 0xfff;
         vf->bufWidth = 1920;
+        vf->flag = 0;
         vf->ratio_control = 0;
         set_aspect_ratio(vf, info & 0x0f);
         vf->duration_pulldown = 0;

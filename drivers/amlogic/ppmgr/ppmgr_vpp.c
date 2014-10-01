@@ -1325,7 +1325,7 @@ static void process_vf_rotate(vframe_t *vf, ge2d_context_t *context, config_para
     new_vf->type = VIDTYPE_VIU_444 | VIDTYPE_VIU_SINGLE_PLANE | VIDTYPE_VIU_FIELD;
     new_vf->canvas0Addr = new_vf->canvas1Addr = index2canvas(pp_vf->index);
     new_vf->orientation = vf->orientation;
-
+    new_vf->flag = vf->flag;
 
     if(vf->type&VIDTYPE_VIU_422){
         if(interlace_mode == VIDTYPE_INTERLACE_TOP)
@@ -1774,6 +1774,7 @@ static void process_vf_change(vframe_t *vf, ge2d_context_t *context, config_para
     temp_vf.duration_pulldown = vf->duration_pulldown;
     temp_vf.pts = vf->pts;
     temp_vf.pts_us64 = vf->pts_us64;
+    temp_vf.flag = vf->flag;
     temp_vf.type = VIDTYPE_VIU_444 | VIDTYPE_VIU_SINGLE_PLANE | VIDTYPE_VIU_FIELD;
     temp_vf.canvas0Addr = temp_vf.canvas1Addr = ass_index;
     cur_angle = (ppmgr_device.videoangle + vf->orientation)%4;

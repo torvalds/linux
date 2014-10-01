@@ -231,6 +231,7 @@ static void set_frame_info(vframe_t *vf, unsigned* duration)
         vf->ratio_control = (ar<<DISP_RATIO_ASPECT_RATIO_BIT);
         //vf->ratio_control |= DISP_RATIO_FORCECONFIG | DISP_RATIO_KEEPRATIO;
 
+    vf->flag = 0;
 }
 
 #ifdef HANDLE_AVS_IRQ

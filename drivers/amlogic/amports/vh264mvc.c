@@ -380,6 +380,7 @@ static vframe_t *vh264mvc_vf_get(void* op_arg)
 
         vf->width = frame_width;
         vf->height = frame_height;
+        vf->flag = 0;
     }
     return vf;
 

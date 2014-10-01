@@ -154,6 +154,7 @@ static void set_frame_info(vframe_t *vf)
     vf->duration = frame_dur;
     vf->ratio_control = 0;
     vf->duration_pulldown = 0;
+    vf->flag = 0;
 }
 
 static irqreturn_t vmjpeg_isr(int irq, void *dev_id)

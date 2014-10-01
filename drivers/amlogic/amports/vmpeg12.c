@@ -189,6 +189,7 @@ static void set_frame_info(vframe_t *vf)
 
     vf->width  = frame_width = READ_VREG(MREG_PIC_WIDTH);
     vf->height = frame_height = READ_VREG(MREG_PIC_HEIGHT);
+    vf->flag = 0;
 
     if (frame_dur > 0) {
         vf->duration = frame_dur;

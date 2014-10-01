@@ -58,6 +58,8 @@
 #define DISP_RATIO_ASPECT_RATIO_BIT     8
 #define DISP_RATIO_ASPECT_RATIO_MAX     0x3ff
 
+#define VFRAME_FLAG_NO_DISCONTINUE      1
+
 typedef enum pixel_aspect_ratio_e {
         PIXEL_ASPECT_RATIO_1_1,
         PIXEL_ASPECT_RATIO_8_9,

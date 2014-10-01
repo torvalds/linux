@@ -2897,6 +2897,7 @@ static void set_frame_info(vframe_t *vf)
     vf->height = frame_height;
     vf->duration = frame_dur;
     vf->duration_pulldown = 0;
+    vf->flag = 0;
 
     ar = min(frame_ar, (u32)DISP_RATIO_ASPECT_RATIO_MAX);
     vf->ratio_control = (ar << DISP_RATIO_ASPECT_RATIO_BIT);

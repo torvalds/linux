@@ -1969,7 +1969,8 @@ static inline bool vpts_expire(vframe_t *cur_vf, vframe_t *next_vf)
     }
     /* check video PTS discontinuity */
     else if ((enable_video_discontinue_report) &&
-             (abs(systime - pts) > tsync_vpts_discontinuity_margin())) {
+             (abs(systime - pts) > tsync_vpts_discontinuity_margin()) &&
+             ((next_vf->flag & VFRAME_FLAG_NO_DISCONTINUE) == 0)) {
         pts = timestamp_vpts_get() + (cur_vf ? DUR2PTS(cur_vf->duration) : 0);
 			//printk("system=0x%x vpts=0x%x\n", systime, timestamp_vpts_get());
         if ((int)(systime - pts) >= 0){
