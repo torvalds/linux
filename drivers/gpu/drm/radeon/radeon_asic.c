@@ -136,6 +136,11 @@ static void radeon_register_accessor_init(struct radeon_device *rdev)
 	}
 }
 
+static int radeon_invalid_get_allowed_info_register(struct radeon_device *rdev,
+						    u32 reg, u32 *val)
+{
+	return -EINVAL;
+}
 
 /* helper to disable agp */
 /**
@@ -199,6 +204,7 @@ static struct radeon_asic r100_asic = {
 	.mmio_hdp_flush = NULL,
 	.gui_idle = &r100_gui_idle,
 	.mc_wait_for_idle = &r100_mc_wait_for_idle,
+	.get_allowed_info_register = radeon_invalid_get_allowed_info_register,
 	.gart = {
 		.tlb_flush = &r100_pci_gart_tlb_flush,
 		.get_page_entry = &r100_pci_gart_get_page_entry,
@@ -266,6 +272,7 @@ static struct radeon_asic r200_asic = {
 	.mmio_hdp_flush = NULL,
 	.gui_idle = &r100_gui_idle,
 	.mc_wait_for_idle = &r100_mc_wait_for_idle,
+	.get_allowed_info_register = radeon_invalid_get_allowed_info_register,
 	.gart = {
 		.tlb_flush = &r100_pci_gart_tlb_flush,
 		.get_page_entry = &r100_pci_gart_get_page_entry,
@@ -361,6 +368,7 @@ static struct radeon_asic r300_asic = {
 	.mmio_hdp_flush = NULL,
 	.gui_idle = &r100_gui_idle,
 	.mc_wait_for_idle = &r300_mc_wait_for_idle,
+	.get_allowed_info_register = radeon_invalid_get_allowed_info_register,
 	.gart = {
 		.tlb_flush = &r100_pci_gart_tlb_flush,
 		.get_page_entry = &r100_pci_gart_get_page_entry,
@@ -428,6 +436,7 @@ static struct radeon_asic r300_asic_pcie = {
 	.mmio_hdp_flush = NULL,
 	.gui_idle = &r100_gui_idle,
 	.mc_wait_for_idle = &r300_mc_wait_for_idle,
+	.get_allowed_info_register = radeon_invalid_get_allowed_info_register,
 	.gart = {
 		.tlb_flush = &rv370_pcie_gart_tlb_flush,
 		.get_page_entry = &rv370_pcie_gart_get_page_entry,
@@ -495,6 +504,7 @@ static struct radeon_asic r420_asic = {
 	.mmio_hdp_flush = NULL,
 	.gui_idle = &r100_gui_idle,
 	.mc_wait_for_idle = &r300_mc_wait_for_idle,
+	.get_allowed_info_register = radeon_invalid_get_allowed_info_register,
 	.gart = {
 		.tlb_flush = &rv370_pcie_gart_tlb_flush,
 		.get_page_entry = &rv370_pcie_gart_get_page_entry,
@@ -562,6 +572,7 @@ static struct radeon_asic rs400_asic = {
 	.mmio_hdp_flush = NULL,
 	.gui_idle = &r100_gui_idle,
 	.mc_wait_for_idle = &rs400_mc_wait_for_idle,
+	.get_allowed_info_register = radeon_invalid_get_allowed_info_register,
 	.gart = {
 		.tlb_flush = &rs400_gart_tlb_flush,
 		.get_page_entry = &rs400_gart_get_page_entry,
@@ -629,6 +640,7 @@ static struct radeon_asic rs600_asic = {
 	.mmio_hdp_flush = NULL,
 	.gui_idle = &r100_gui_idle,
 	.mc_wait_for_idle = &rs600_mc_wait_for_idle,
+	.get_allowed_info_register = radeon_invalid_get_allowed_info_register,
 	.gart = {
 		.tlb_flush = &rs600_gart_tlb_flush,
 		.get_page_entry = &rs600_gart_get_page_entry,
@@ -696,6 +708,7 @@ static struct radeon_asic rs690_asic = {
 	.mmio_hdp_flush = NULL,
 	.gui_idle = &r100_gui_idle,
 	.mc_wait_for_idle = &rs690_mc_wait_for_idle,
+	.get_allowed_info_register = radeon_invalid_get_allowed_info_register,
 	.gart = {
 		.tlb_flush = &rs400_gart_tlb_flush,
 		.get_page_entry = &rs400_gart_get_page_entry,
@@ -763,6 +776,7 @@ static struct radeon_asic rv515_asic = {
 	.mmio_hdp_flush = NULL,
 	.gui_idle = &r100_gui_idle,
 	.mc_wait_for_idle = &rv515_mc_wait_for_idle,
+	.get_allowed_info_register = radeon_invalid_get_allowed_info_register,
 	.gart = {
 		.tlb_flush = &rv370_pcie_gart_tlb_flush,
 		.get_page_entry = &rv370_pcie_gart_get_page_entry,
@@ -830,6 +844,7 @@ static struct radeon_asic r520_asic = {
 	.mmio_hdp_flush = NULL,
 	.gui_idle = &r100_gui_idle,
 	.mc_wait_for_idle = &r520_mc_wait_for_idle,
+	.get_allowed_info_register = radeon_invalid_get_allowed_info_register,
 	.gart = {
 		.tlb_flush = &rv370_pcie_gart_tlb_flush,
 		.get_page_entry = &rv370_pcie_gart_get_page_entry,
