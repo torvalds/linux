@@ -1086,6 +1086,7 @@
 #define UVD_UDEC_DBW_ADDR_CONFIG			0xEF54
 #define UVD_RBC_RB_RPTR					0xF690
 #define UVD_RBC_RB_WPTR					0xF694
+#define UVD_STATUS					0xf6bc
 
 /*
  * PM4

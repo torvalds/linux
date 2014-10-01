@@ -651,6 +651,8 @@ uint32_t cayman_dma_get_wptr(struct radeon_device *rdev,
 			     struct radeon_ring *ring);
 void cayman_dma_set_wptr(struct radeon_device *rdev,
 			 struct radeon_ring *ring);
+int cayman_get_allowed_info_register(struct radeon_device *rdev,
+				     u32 reg, u32 *val);
 
 int ni_dpm_init(struct radeon_device *rdev);
 void ni_dpm_setup_asic(struct radeon_device *rdev);
