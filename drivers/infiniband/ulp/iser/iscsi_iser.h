@@ -213,7 +213,6 @@ struct iser_data_buf {
 
 /* fwd declarations */
 struct iser_device;
-struct iser_cq_desc;
 struct iscsi_iser_task;
 struct iscsi_endpoint;
 
@@ -268,20 +267,34 @@ struct iser_conn;
 struct ib_conn;
 struct iscsi_iser_task;
 
+/**
+ * struct iser_comp - iSER completion context
+ *
+ * @device:     pointer to device handle
+ * @rx_cq:      RX completion queue
+ * @tx_cq:      TX completion queue
+ * @tasklet:    Tasklet handle
+ * @active_qps: Number of active QPs attached
+ *              to completion context
+ */
+struct iser_comp {
+	struct iser_device      *device;
+	struct ib_cq		*rx_cq;
+	struct ib_cq		*tx_cq;
+	struct tasklet_struct	 tasklet;
+	int                      active_qps;
+};
+
 struct iser_device {
 	struct ib_device             *ib_device;
 	struct ib_pd	             *pd;
 	struct ib_device_attr	     dev_attr;
-	struct ib_cq	             *rx_cq[ISER_MAX_CQ];
-	struct ib_cq	             *tx_cq[ISER_MAX_CQ];
 	struct ib_mr	             *mr;
-	struct tasklet_struct	     cq_tasklet[ISER_MAX_CQ];
 	struct ib_event_handler      event_handler;
 	struct list_head             ig_list; /* entry in ig devices list */
 	int                          refcount;
-	int                          cq_active_qps[ISER_MAX_CQ];
-	int			     cqs_used;
-	struct iser_cq_desc	     *cq_desc;
+	int			     comps_used;
+	struct iser_comp	     comps[ISER_MAX_CQ];
 	int                          (*iser_alloc_rdma_reg_res)(struct ib_conn *ib_conn,
 								unsigned cmds_max);
 	void                         (*iser_free_rdma_reg_res)(struct ib_conn *ib_conn);
@@ -327,6 +340,7 @@ struct fast_reg_descriptor {
  * @post_send_buf_count: post send counter
  * @rx_wr:               receive work request for batch posts
  * @device:              reference to iser device
+ * @comp:                iser completion context
  * @pi_support:          Indicate device T10-PI support
  * @lock:                protects fmr/fastreg pool
  * @union.fmr:
@@ -345,7 +359,7 @@ struct ib_conn {
 	atomic_t                     post_send_buf_count;
 	struct ib_recv_wr	     rx_wr[ISER_MIN_POSTED_RX];
 	struct iser_device          *device;
-	int			     cq_index;
+	struct iser_comp	    *comp;
 	bool			     pi_support;
 	spinlock_t		     lock;
 	union {
@@ -402,11 +416,6 @@ struct iser_page_vec {
 	int length;
 	int offset;
 	int data_size;
-};
-
-struct iser_cq_desc {
-	struct iser_device           *device;
-	int                          cq_index;
 };
 
 struct iser_global {
