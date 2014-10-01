@@ -376,7 +376,7 @@ functions and binds them. This way the whole gadget is bound.
 configured, so config_groups for particular functions are defined
 in the functions implementation files drivers/usb/gadget/f_*.c.
 
-5. Funciton's code is written in such a way that it uses
+5. Function's code is written in such a way that it uses
 
 usb_get_function_instance(), which, in turn, calls request_module.
 So, provided that modprobe works, modules for particular functions
