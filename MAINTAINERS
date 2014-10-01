@@ -5020,6 +5020,7 @@ F:	include/scsi/*iscsi*
 
 ISCSI EXTENSIONS FOR RDMA (ISER) INITIATOR
 M:	Or Gerlitz <ogerlitz@mellanox.com>
+M:	Sagi Grimberg <sagig@mellanox.com>
 M:	Roi Dayan <roid@mellanox.com>
 L:	linux-rdma@vger.kernel.org
 S:	Supported
