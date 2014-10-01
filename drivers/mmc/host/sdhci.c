@@ -2144,9 +2144,10 @@ static void sdhci_tasklet_finish(unsigned long param)
 	 */
 	if (!(host->flags & SDHCI_DEVICE_DEAD) &&
 	    ((mrq->cmd && mrq->cmd->error) ||
-		 (mrq->data && (mrq->data->error ||
-		  (mrq->data->stop && mrq->data->stop->error))) ||
-		   (host->quirks & SDHCI_QUIRK_RESET_AFTER_REQUEST))) {
+	     (mrq->sbc && mrq->sbc->error) ||
+	     (mrq->data && ((mrq->data->error && !mrq->data->stop) ||
+			    (mrq->data->stop && mrq->data->stop->error))) ||
+	     (host->quirks & SDHCI_QUIRK_RESET_AFTER_REQUEST))) {
 
 		/* Some controllers need this kick or reset won't work here */
 		if (host->quirks & SDHCI_QUIRK_CLOCK_BEFORE_RESET)
