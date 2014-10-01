@@ -1146,27 +1146,6 @@ xfs_bioerror_relse(
 	return -EIO;
 }
 
-STATIC int
-xfs_bdstrat_cb(
-	struct xfs_buf	*bp)
-{
-	if (XFS_FORCED_SHUTDOWN(bp->b_target->bt_mount)) {
-		trace_xfs_bdstrat_shut(bp, _RET_IP_);
-		/*
-		 * Metadata write that didn't get logged but
-		 * written delayed anyway. These aren't associated
-		 * with a transaction, and can be ignored.
-		 */
-		if (!bp->b_iodone && !XFS_BUF_ISREAD(bp))
-			return xfs_bioerror_relse(bp);
-		else
-			return xfs_bioerror(bp);
-	}
-
-	xfs_buf_iorequest(bp);
-	return 0;
-}
-
 int
 xfs_bwrite(
 	struct xfs_buf		*bp)
@@ -1178,7 +1157,20 @@ xfs_bwrite(
 	bp->b_flags |= XBF_WRITE;
 	bp->b_flags &= ~(XBF_ASYNC | XBF_READ | _XBF_DELWRI_Q | XBF_WRITE_FAIL);
 
-	xfs_bdstrat_cb(bp);
+	if (XFS_FORCED_SHUTDOWN(bp->b_target->bt_mount)) {
+		trace_xfs_bdstrat_shut(bp, _RET_IP_);
+
+		/*
+		 * Metadata write that didn't get logged but written anyway.
+		 * These aren't associated with a transaction, and can be
+		 * ignored.
+		 */
+		if (!bp->b_iodone)
+			return xfs_bioerror_relse(bp);
+		return xfs_bioerror(bp);
+	}
+
+	xfs_buf_iorequest(bp);
 
 	error = xfs_buf_iowait(bp);
 	if (error) {
@@ -1861,7 +1853,17 @@ __xfs_buf_delwri_submit(
 			xfs_buf_hold(bp);
 		else
 			list_del_init(&bp->b_list);
-		xfs_bdstrat_cb(bp);
+
+		if (XFS_FORCED_SHUTDOWN(bp->b_target->bt_mount)) {
+			trace_xfs_bdstrat_shut(bp, _RET_IP_);
+
+			if (!bp->b_iodone)
+				xfs_bioerror_relse(bp);
+			else
+				xfs_bioerror(bp);
+			continue;
+		}
+		xfs_buf_iorequest(bp);
 	}
 	blk_finish_plug(&plug);
 
