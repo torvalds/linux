@@ -1232,13 +1232,15 @@ static void iser_cq_tasklet_fn(unsigned long data)
 {
 	struct iser_comp *comp = (struct iser_comp *)data;
 	struct ib_cq *cq = comp->cq;
-	struct ib_wc wc;
-	int completed = 0;
+	struct ib_wc *const wcs = comp->wcs;
+	int i, n, completed = 0;
 
-	while (ib_poll_cq(cq, 1, &wc) == 1) {
-		iser_handle_wc(&wc);
+	while ((n = ib_poll_cq(cq, ARRAY_SIZE(comp->wcs), wcs)) > 0) {
+		for (i = 0; i < n; i++)
+			iser_handle_wc(&wcs[i]);
 
-		if (++completed >= iser_cq_poll_limit)
+		completed += n;
+		if (completed >= iser_cq_poll_limit)
 			break;
 	}
 

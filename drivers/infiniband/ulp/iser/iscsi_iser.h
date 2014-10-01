@@ -145,6 +145,8 @@
 					ISER_MAX_TX_MISC_PDUS         + \
 					ISER_MAX_RX_MISC_PDUS)
 
+#define ISER_WC_BATCH_COUNT   16
+
 #define ISER_VER			0x10
 #define ISER_WSV			0x08
 #define ISER_RSV			0x04
@@ -273,6 +275,7 @@ struct iscsi_iser_task;
  *
  * @device:     pointer to device handle
  * @cq:         completion queue
+ * @wcs:        work completion array
  * @tasklet:    Tasklet handle
  * @active_qps: Number of active QPs attached
  *              to completion context
@@ -280,6 +283,7 @@ struct iscsi_iser_task;
 struct iser_comp {
 	struct iser_device      *device;
 	struct ib_cq		*cq;
+	struct ib_wc		 wcs[ISER_WC_BATCH_COUNT];
 	struct tasklet_struct	 tasklet;
 	int                      active_qps;
 };
