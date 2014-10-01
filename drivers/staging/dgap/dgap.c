@@ -2629,7 +2629,6 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf,
 	char __iomem *vaddr;
 	u16 head, tail, tmask, remain;
 	int bufcount, n;
-	int orig_count;
 	ulong lock_flags;
 
 	if (!tty)
@@ -2649,13 +2648,6 @@ static int dgap_tty_write(struct tty_struct *tty, const unsigned char *buf,
 
 	if (!count)
 		return 0;
-
-	/*
-	 * Store original amount of characters passed in.
-	 * This helps to figure out if we should ask the FEP
-	 * to send us an event when it has more space available.
-	 */
-	orig_count = count;
 
 	spin_lock_irqsave(&ch->ch_lock, lock_flags);
 
