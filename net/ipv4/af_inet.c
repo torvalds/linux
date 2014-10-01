@@ -1369,6 +1369,9 @@ static struct sk_buff **inet_gro_receive(struct sk_buff **head,
 	 * immediately following this IP hdr.
 	 */
 
+	/* Note : No need to call skb_gro_postpull_rcsum() here,
+	 * as we already checked checksum over ipv4 header was 0
+	 */
 	skb_gro_pull(skb, sizeof(*iph));
 	skb_set_transport_header(skb, skb_gro_offset(skb));
 
