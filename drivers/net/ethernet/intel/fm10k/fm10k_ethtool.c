@@ -18,6 +18,8 @@
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  */
 
+#include <linux/vmalloc.h>
+
 #include "fm10k.h"
 
 struct fm10k_stats {
