@@ -173,8 +173,6 @@ static int ssm4567_hw_params(struct snd_pcm_substream *substream,
 		dacfs = SSM4567_DAC_FS_32000_48000;
 	else if (rate >= 64000 && rate <= 96000)
 		dacfs = SSM4567_DAC_FS_64000_96000;
-	else if (rate >= 64000 && rate <= 96000)
-		dacfs = SSM4567_DAC_FS_64000_96000;
 	else if (rate >= 128000 && rate <= 192000)
 		dacfs = SSM4567_DAC_FS_128000_192000;
 	else
