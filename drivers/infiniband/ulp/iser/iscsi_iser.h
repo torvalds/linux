@@ -370,9 +370,9 @@ struct iser_conn {
 	unsigned		     min_posted_rx; /* qp_max_recv_dtos >> 2 */
 	char 			     name[ISER_OBJECT_NAME_SIZE];
 	struct work_struct	     release_work;
-	struct completion	     stop_completion;
 	struct mutex		     state_mutex;
-	struct completion	     flush_completion;
+	struct completion	     stop_completion;
+	struct completion	     ib_completion;
 	struct completion	     up_completion;
 	struct list_head	     conn_list;       /* entry in ig conn list */
 
@@ -442,7 +442,7 @@ void iser_conn_init(struct iser_conn *iser_conn);
 
 void iser_conn_release(struct iser_conn *iser_conn);
 
-void iser_conn_terminate(struct iser_conn *iser_conn);
+int iser_conn_terminate(struct iser_conn *iser_conn);
 
 void iser_release_work(struct work_struct *work);
 
