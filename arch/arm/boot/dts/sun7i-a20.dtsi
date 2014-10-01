@@ -784,6 +784,13 @@
 				allwinner,pull = <0>;
 			};
 
+			spi0_pins_a: spi0@0 {
+				allwinner,pins = "PI10", "PI11", "PI12", "PI13", "PI14";
+				allwinner,function = "spi0";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
 			spi1_pins_a: spi1@0 {
 				allwinner,pins = "PI16", "PI17", "PI18", "PI19";
 				allwinner,function = "spi1";
