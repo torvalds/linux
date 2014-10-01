@@ -50,7 +50,7 @@ static inline void cls_set_ixon_flow_control(struct channel_t *ch);
 static inline void cls_set_ixoff_flow_control(struct channel_t *ch);
 static inline void cls_set_no_output_flow_control(struct channel_t *ch);
 static inline void cls_set_no_input_flow_control(struct channel_t *ch);
-static void cls_parse_modem(struct channel_t *ch, uchar signals);
+static void cls_parse_modem(struct channel_t *ch, unsigned char signals);
 static void cls_tasklet(unsigned long data);
 static void cls_vpd(struct dgnc_board *brd);
 static void cls_uart_init(struct channel_t *ch);
@@ -95,9 +95,9 @@ struct board_ops dgnc_cls_ops = {
 
 static inline void cls_set_cts_flow_control(struct channel_t *ch)
 {
-	uchar lcrb = readb(&ch->ch_cls_uart->lcr);
-	uchar ier = readb(&ch->ch_cls_uart->ier);
-	uchar isr_fcr = 0;
+	unsigned char lcrb = readb(&ch->ch_cls_uart->lcr);
+	unsigned char ier = readb(&ch->ch_cls_uart->ier);
+	unsigned char isr_fcr = 0;
 
 
 	/*
@@ -139,9 +139,9 @@ static inline void cls_set_cts_flow_control(struct channel_t *ch)
 
 static inline void cls_set_ixon_flow_control(struct channel_t *ch)
 {
-	uchar lcrb = readb(&ch->ch_cls_uart->lcr);
-	uchar ier = readb(&ch->ch_cls_uart->ier);
-	uchar isr_fcr = 0;
+	unsigned char lcrb = readb(&ch->ch_cls_uart->lcr);
+	unsigned char ier = readb(&ch->ch_cls_uart->ier);
+	unsigned char isr_fcr = 0;
 
 
 	/*
@@ -187,9 +187,9 @@ static inline void cls_set_ixon_flow_control(struct channel_t *ch)
 
 static inline void cls_set_no_output_flow_control(struct channel_t *ch)
 {
-	uchar lcrb = readb(&ch->ch_cls_uart->lcr);
-	uchar ier = readb(&ch->ch_cls_uart->ier);
-	uchar isr_fcr = 0;
+	unsigned char lcrb = readb(&ch->ch_cls_uart->lcr);
+	unsigned char ier = readb(&ch->ch_cls_uart->ier);
+	unsigned char isr_fcr = 0;
 
 
 	/*
@@ -233,9 +233,9 @@ static inline void cls_set_no_output_flow_control(struct channel_t *ch)
 
 static inline void cls_set_rts_flow_control(struct channel_t *ch)
 {
-	uchar lcrb = readb(&ch->ch_cls_uart->lcr);
-	uchar ier = readb(&ch->ch_cls_uart->ier);
-	uchar isr_fcr = 0;
+	unsigned char lcrb = readb(&ch->ch_cls_uart->lcr);
+	unsigned char ier = readb(&ch->ch_cls_uart->ier);
+	unsigned char isr_fcr = 0;
 
 
 	/*
@@ -275,9 +275,9 @@ static inline void cls_set_rts_flow_control(struct channel_t *ch)
 
 static inline void cls_set_ixoff_flow_control(struct channel_t *ch)
 {
-	uchar lcrb = readb(&ch->ch_cls_uart->lcr);
-	uchar ier = readb(&ch->ch_cls_uart->ier);
-	uchar isr_fcr = 0;
+	unsigned char lcrb = readb(&ch->ch_cls_uart->lcr);
+	unsigned char ier = readb(&ch->ch_cls_uart->ier);
+	unsigned char isr_fcr = 0;
 
 
 	/*
@@ -319,9 +319,9 @@ static inline void cls_set_ixoff_flow_control(struct channel_t *ch)
 
 static inline void cls_set_no_input_flow_control(struct channel_t *ch)
 {
-	uchar lcrb = readb(&ch->ch_cls_uart->lcr);
-	uchar ier = readb(&ch->ch_cls_uart->ier);
-	uchar isr_fcr = 0;
+	unsigned char lcrb = readb(&ch->ch_cls_uart->lcr);
+	unsigned char ier = readb(&ch->ch_cls_uart->ier);
+	unsigned char isr_fcr = 0;
 
 
 	/*
@@ -383,7 +383,7 @@ static inline void cls_clear_break(struct channel_t *ch, int force)
 	/* Turn break off, and unset some variables */
 	if (ch->ch_flags & CH_BREAK_SENDING) {
 		if (time_after(jiffies, ch->ch_stop_sending_break) || force) {
-			uchar temp = readb(&ch->ch_cls_uart->lcr);
+			unsigned char temp = readb(&ch->ch_cls_uart->lcr);
 
 			writeb((temp & ~UART_LCR_SBC), &ch->ch_cls_uart->lcr);
 			ch->ch_flags &= ~(CH_BREAK_SENDING);
@@ -398,7 +398,7 @@ static inline void cls_clear_break(struct channel_t *ch, int force)
 static inline void cls_parse_isr(struct dgnc_board *brd, uint port)
 {
 	struct channel_t *ch;
-	uchar isr = 0;
+	unsigned char isr = 0;
 	unsigned long flags;
 
 	/*
@@ -464,10 +464,10 @@ static inline void cls_parse_isr(struct dgnc_board *brd, uint port)
  */
 static void cls_param(struct tty_struct *tty)
 {
-	uchar lcr = 0;
-	uchar uart_lcr = 0;
-	uchar ier = 0;
-	uchar uart_ier = 0;
+	unsigned char lcr = 0;
+	unsigned char uart_lcr = 0;
+	unsigned char ier = 0;
+	unsigned char uart_ier = 0;
 	uint baud = 9600;
 	int quot = 0;
 	struct dgnc_board *bd;
@@ -796,7 +796,7 @@ static irqreturn_t cls_intr(int irq, void *voidbrd)
 {
 	struct dgnc_board *brd = (struct dgnc_board *) voidbrd;
 	uint i = 0;
-	uchar poll_reg;
+	unsigned char poll_reg;
 	unsigned long flags;
 
 	if (!brd) {
@@ -847,7 +847,7 @@ static irqreturn_t cls_intr(int irq, void *voidbrd)
 
 static void cls_disable_receiver(struct channel_t *ch)
 {
-	uchar tmp = readb(&ch->ch_cls_uart->ier);
+	unsigned char tmp = readb(&ch->ch_cls_uart->ier);
 
 	tmp &= ~(UART_IER_RDI);
 	writeb(tmp, &ch->ch_cls_uart->ier);
@@ -856,7 +856,7 @@ static void cls_disable_receiver(struct channel_t *ch)
 
 static void cls_enable_receiver(struct channel_t *ch)
 {
-	uchar tmp = readb(&ch->ch_cls_uart->ier);
+	unsigned char tmp = readb(&ch->ch_cls_uart->ier);
 
 	tmp |= (UART_IER_RDI);
 	writeb(tmp, &ch->ch_cls_uart->ier);
@@ -866,8 +866,8 @@ static void cls_enable_receiver(struct channel_t *ch)
 static void cls_copy_data_from_uart_to_queue(struct channel_t *ch)
 {
 	int qleft = 0;
-	uchar linestatus = 0;
-	uchar error_mask = 0;
+	unsigned char linestatus = 0;
+	unsigned char error_mask = 0;
 	ushort head;
 	ushort tail;
 	unsigned long flags;
@@ -903,7 +903,7 @@ static void cls_copy_data_from_uart_to_queue(struct channel_t *ch)
 		 * Discard character if we are ignoring the error mask.
 		*/
 		if (linestatus & error_mask)  {
-			uchar discard;
+			unsigned char discard;
 
 			linestatus = 0;
 			discard = readb(&ch->ch_cls_uart->txrx);
@@ -1114,9 +1114,9 @@ static void cls_copy_data_from_queue_to_uart(struct channel_t *ch)
 }
 
 
-static void cls_parse_modem(struct channel_t *ch, uchar signals)
+static void cls_parse_modem(struct channel_t *ch, unsigned char signals)
 {
-	uchar msignals = signals;
+	unsigned char msignals = signals;
 	unsigned long flags;
 
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
@@ -1128,7 +1128,7 @@ static void cls_parse_modem(struct channel_t *ch, uchar signals)
 	 */
 	spin_lock_irqsave(&ch->ch_lock, flags);
 	if (ch->ch_digi.digi_flags & DIGI_ALTPIN) {
-		uchar mswap = signals;
+		unsigned char mswap = signals;
 
 		if (mswap & UART_MSR_DDCD) {
 			msignals &= ~UART_MSR_DDCD;
@@ -1182,7 +1182,7 @@ static void cls_parse_modem(struct channel_t *ch, uchar signals)
 /* Make the UART raise any of the output signals we want up */
 static void cls_assert_modem_signals(struct channel_t *ch)
 {
-	uchar out;
+	unsigned char out;
 
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
 		return;
@@ -1226,8 +1226,8 @@ static void cls_send_stop_character(struct channel_t *ch)
 /* Inits UART */
 static void cls_uart_init(struct channel_t *ch)
 {
-	uchar lcrb = readb(&ch->ch_cls_uart->lcr);
-	uchar isr_fcr = 0;
+	unsigned char lcrb = readb(&ch->ch_cls_uart->lcr);
+	unsigned char isr_fcr = 0;
 
 	writeb(0, &ch->ch_cls_uart->ier);
 
@@ -1278,8 +1278,8 @@ static void cls_uart_off(struct channel_t *ch)
  */
 static uint cls_get_uart_bytes_left(struct channel_t *ch)
 {
-	uchar left = 0;
-	uchar lsr = 0;
+	unsigned char left = 0;
+	unsigned char lsr = 0;
 
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
 		return 0;
@@ -1317,7 +1317,7 @@ static void cls_send_break(struct channel_t *ch, int msecs)
 	if (msecs == 0) {
 		/* Turn break off, and unset some variables */
 		if (ch->ch_flags & CH_BREAK_SENDING) {
-			uchar temp = readb(&ch->ch_cls_uart->lcr);
+			unsigned char temp = readb(&ch->ch_cls_uart->lcr);
 
 			writeb((temp & ~UART_LCR_SBC), &ch->ch_cls_uart->lcr);
 			ch->ch_flags &= ~(CH_BREAK_SENDING);
@@ -1335,7 +1335,7 @@ static void cls_send_break(struct channel_t *ch, int msecs)
 
 	/* Tell the UART to start sending the break */
 	if (!(ch->ch_flags & CH_BREAK_SENDING)) {
-		uchar temp = readb(&ch->ch_cls_uart->lcr);
+		unsigned char temp = readb(&ch->ch_cls_uart->lcr);
 
 		writeb((temp | UART_LCR_SBC), &ch->ch_cls_uart->lcr);
 		ch->ch_flags |= (CH_BREAK_SENDING);

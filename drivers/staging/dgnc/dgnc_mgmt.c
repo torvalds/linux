@@ -185,7 +185,7 @@ long dgnc_mgmt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	{
 		struct channel_t *ch;
 		struct ni_info ni;
-		uchar mstat = 0;
+		unsigned char mstat = 0;
 		uint board = 0;
 		uint channel = 0;
 

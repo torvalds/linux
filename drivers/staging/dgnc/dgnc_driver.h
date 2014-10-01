@@ -209,13 +209,13 @@ struct dgnc_board {
 	u16		device;		/* PCI device ID */
 	u16		subvendor;	/* PCI subsystem vendor ID */
 	u16		subdevice;	/* PCI subsystem device ID */
-	uchar		rev;		/* PCI revision ID */
+	unsigned char	rev;		/* PCI revision ID */
 	uint		pci_bus;	/* PCI bus value */
 	uint		pci_slot;	/* PCI slot value */
 	uint		maxports;	/* MAX ports this board can handle */
-	uchar		dvid;		/* Board specific device id */
-	uchar		vpd[128];	/* VPD of board, if found */
-	uchar		serial_num[20];	/* Serial number of board, if found in VPD */
+	unsigned char	dvid;		/* Board specific device id */
+	unsigned char	vpd[128];	/* VPD of board, if found */
+	unsigned char	serial_num[20];	/* Serial number of board, if found in VPD */
 
 	spinlock_t	bd_lock;	/* Used to protect board */
 
@@ -384,41 +384,41 @@ struct channel_t {
 	tcflag_t	ch_c_cflag;	/* channel cflags	       */
 	tcflag_t	ch_c_oflag;	/* channel oflags	       */
 	tcflag_t	ch_c_lflag;	/* channel lflags	       */
-	uchar		ch_stopc;	/* Stop character	       */
-	uchar		ch_startc;	/* Start character	      */
+	unsigned char	ch_stopc;	/* Stop character	       */
+	unsigned char	ch_startc;	/* Start character	      */
 
 	uint		ch_old_baud;	/* Cache of the current baud */
 	uint		ch_custom_speed;/* Custom baud, if set */
 
 	uint		ch_wopen;	/* Waiting for open process cnt */
 
-	uchar		ch_mostat;	/* FEP output modem status      */
-	uchar		ch_mistat;	/* FEP input modem status       */
+	unsigned char		ch_mostat;	/* FEP output modem status      */
+	unsigned char		ch_mistat;	/* FEP input modem status       */
 
 	struct neo_uart_struct __iomem *ch_neo_uart;	/* Pointer to the "mapped" UART struct */
 	struct cls_uart_struct __iomem *ch_cls_uart;	/* Pointer to the "mapped" UART struct */
 
-	uchar		ch_cached_lsr;	/* Cached value of the LSR register */
+	unsigned char	ch_cached_lsr;	/* Cached value of the LSR register */
 
-	uchar		*ch_rqueue;	/* Our read queue buffer - malloc'ed */
+	unsigned char	*ch_rqueue;	/* Our read queue buffer - malloc'ed */
 	ushort		ch_r_head;	/* Head location of the read queue */
 	ushort		ch_r_tail;	/* Tail location of the read queue */
 
-	uchar		*ch_equeue;	/* Our error queue buffer - malloc'ed */
+	unsigned char	*ch_equeue;	/* Our error queue buffer - malloc'ed */
 	ushort		ch_e_head;	/* Head location of the error queue */
 	ushort		ch_e_tail;	/* Tail location of the error queue */
 
-	uchar		*ch_wqueue;	/* Our write queue buffer - malloc'ed */
+	unsigned char	*ch_wqueue;	/* Our write queue buffer - malloc'ed */
 	ushort		ch_w_head;	/* Head location of the write queue */
 	ushort		ch_w_tail;	/* Tail location of the write queue */
 
 	ulong		ch_rxcount;	/* total of data received so far */
 	ulong		ch_txcount;	/* total of data transmitted so far */
 
-	uchar		ch_r_tlevel;	/* Receive Trigger level */
-	uchar		ch_t_tlevel;	/* Transmit Trigger level */
+	unsigned char		ch_r_tlevel;	/* Receive Trigger level */
+	unsigned char		ch_t_tlevel;	/* Transmit Trigger level */
 
-	uchar		ch_r_watermark;	/* Receive Watermark */
+	unsigned char		ch_r_watermark;	/* Receive Watermark */
 
 	ulong		ch_stop_sending_break;	/* Time we should STOP sending a break */
 

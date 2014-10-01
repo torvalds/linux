@@ -53,7 +53,7 @@ static inline void neo_set_ixoff_flow_control(struct channel_t *ch);
 static inline void neo_set_no_output_flow_control(struct channel_t *ch);
 static inline void neo_set_no_input_flow_control(struct channel_t *ch);
 static inline void neo_set_new_start_stop_chars(struct channel_t *ch);
-static void neo_parse_modem(struct channel_t *ch, uchar signals);
+static void neo_parse_modem(struct channel_t *ch, unsigned char signals);
 static void neo_tasklet(unsigned long data);
 static void neo_vpd(struct dgnc_board *brd);
 static void neo_uart_init(struct channel_t *ch);
@@ -113,8 +113,8 @@ static inline void neo_pci_posting_flush(struct dgnc_board *bd)
 
 static inline void neo_set_cts_flow_control(struct channel_t *ch)
 {
-	uchar ier = readb(&ch->ch_neo_uart->ier);
-	uchar efr = readb(&ch->ch_neo_uart->efr);
+	unsigned char ier = readb(&ch->ch_neo_uart->ier);
+	unsigned char efr = readb(&ch->ch_neo_uart->efr);
 
 
 	/* Turn on auto CTS flow control */
@@ -150,8 +150,8 @@ static inline void neo_set_cts_flow_control(struct channel_t *ch)
 
 static inline void neo_set_rts_flow_control(struct channel_t *ch)
 {
-	uchar ier = readb(&ch->ch_neo_uart->ier);
-	uchar efr = readb(&ch->ch_neo_uart->efr);
+	unsigned char ier = readb(&ch->ch_neo_uart->ier);
+	unsigned char efr = readb(&ch->ch_neo_uart->efr);
 
 	/* Turn on auto RTS flow control */
 #if 1
@@ -193,8 +193,8 @@ static inline void neo_set_rts_flow_control(struct channel_t *ch)
 
 static inline void neo_set_ixon_flow_control(struct channel_t *ch)
 {
-	uchar ier = readb(&ch->ch_neo_uart->ier);
-	uchar efr = readb(&ch->ch_neo_uart->efr);
+	unsigned char ier = readb(&ch->ch_neo_uart->ier);
+	unsigned char efr = readb(&ch->ch_neo_uart->efr);
 
 	/* Turn off auto CTS flow control */
 	ier &= ~(UART_17158_IER_CTSDSR);
@@ -230,8 +230,8 @@ static inline void neo_set_ixon_flow_control(struct channel_t *ch)
 
 static inline void neo_set_ixoff_flow_control(struct channel_t *ch)
 {
-	uchar ier = readb(&ch->ch_neo_uart->ier);
-	uchar efr = readb(&ch->ch_neo_uart->efr);
+	unsigned char ier = readb(&ch->ch_neo_uart->ier);
+	unsigned char efr = readb(&ch->ch_neo_uart->efr);
 
 	/* Turn off auto RTS flow control */
 	ier &= ~(UART_17158_IER_RTSDTR);
@@ -268,8 +268,8 @@ static inline void neo_set_ixoff_flow_control(struct channel_t *ch)
 
 static inline void neo_set_no_input_flow_control(struct channel_t *ch)
 {
-	uchar ier = readb(&ch->ch_neo_uart->ier);
-	uchar efr = readb(&ch->ch_neo_uart->efr);
+	unsigned char ier = readb(&ch->ch_neo_uart->ier);
+	unsigned char efr = readb(&ch->ch_neo_uart->efr);
 
 	/* Turn off auto RTS flow control */
 	ier &= ~(UART_17158_IER_RTSDTR);
@@ -308,8 +308,8 @@ static inline void neo_set_no_input_flow_control(struct channel_t *ch)
 
 static inline void neo_set_no_output_flow_control(struct channel_t *ch)
 {
-	uchar ier = readb(&ch->ch_neo_uart->ier);
-	uchar efr = readb(&ch->ch_neo_uart->efr);
+	unsigned char ier = readb(&ch->ch_neo_uart->ier);
+	unsigned char efr = readb(&ch->ch_neo_uart->efr);
 
 	/* Turn off auto CTS flow control */
 	ier &= ~(UART_17158_IER_CTSDSR);
@@ -382,7 +382,7 @@ static inline void neo_clear_break(struct channel_t *ch, int force)
 	if (ch->ch_flags & CH_BREAK_SENDING) {
 		if (time_after_eq(jiffies, ch->ch_stop_sending_break)
 		    || force) {
-			uchar temp = readb(&ch->ch_neo_uart->lcr);
+			unsigned char temp = readb(&ch->ch_neo_uart->lcr);
 
 			writeb((temp & ~UART_LCR_SBC), &ch->ch_neo_uart->lcr);
 			neo_pci_posting_flush(ch->ch_bd);
@@ -400,8 +400,8 @@ static inline void neo_clear_break(struct channel_t *ch, int force)
 static inline void neo_parse_isr(struct dgnc_board *brd, uint port)
 {
 	struct channel_t *ch;
-	uchar isr;
-	uchar cause;
+	unsigned char isr;
+	unsigned char cause;
 	unsigned long flags;
 
 	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
@@ -609,10 +609,10 @@ static inline void neo_parse_lsr(struct dgnc_board *brd, uint port)
  */
 static void neo_param(struct tty_struct *tty)
 {
-	uchar lcr = 0;
-	uchar uart_lcr = 0;
-	uchar ier = 0;
-	uchar uart_ier = 0;
+	unsigned char lcr = 0;
+	unsigned char uart_lcr = 0;
+	unsigned char ier = 0;
+	unsigned char uart_ier = 0;
 	uint baud = 9600;
 	int quot = 0;
 	struct dgnc_board *bd;
@@ -1098,7 +1098,7 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
  */
 static void neo_disable_receiver(struct channel_t *ch)
 {
-	uchar tmp = readb(&ch->ch_neo_uart->ier);
+	unsigned char tmp = readb(&ch->ch_neo_uart->ier);
 
 	tmp &= ~(UART_IER_RDI);
 	writeb(tmp, &ch->ch_neo_uart->ier);
@@ -1113,7 +1113,7 @@ static void neo_disable_receiver(struct channel_t *ch)
  */
 static void neo_enable_receiver(struct channel_t *ch)
 {
-	uchar tmp = readb(&ch->ch_neo_uart->ier);
+	unsigned char tmp = readb(&ch->ch_neo_uart->ier);
 
 	tmp |= (UART_IER_RDI);
 	writeb(tmp, &ch->ch_neo_uart->ier);
@@ -1124,8 +1124,8 @@ static void neo_enable_receiver(struct channel_t *ch)
 static void neo_copy_data_from_uart_to_queue(struct channel_t *ch)
 {
 	int qleft = 0;
-	uchar linestatus = 0;
-	uchar error_mask = 0;
+	unsigned char linestatus = 0;
+	unsigned char error_mask = 0;
 	int n = 0;
 	int total = 0;
 	ushort head;
@@ -1286,7 +1286,7 @@ static void neo_copy_data_from_uart_to_queue(struct channel_t *ch)
 		 * Discard character if we are ignoring the error mask.
 		 */
 		if (linestatus & error_mask)  {
-			uchar discard;
+			unsigned char discard;
 
 			linestatus = 0;
 			memcpy_fromio(&discard, &ch->ch_neo_uart->txrxburst, 1);
@@ -1309,7 +1309,7 @@ static void neo_copy_data_from_uart_to_queue(struct channel_t *ch)
 		}
 
 		memcpy_fromio(ch->ch_rqueue + head, &ch->ch_neo_uart->txrxburst, 1);
-		ch->ch_equeue[head] = (uchar) linestatus;
+		ch->ch_equeue[head] = (unsigned char) linestatus;
 		dgnc_sniff_nowait_nolock(ch, "UART READ", ch->ch_rqueue + head, 1);
 
 		/* Ditch any remaining linestatus value. */
@@ -1378,7 +1378,7 @@ static int neo_drain(struct tty_struct *tty, uint seconds)
  */
 static void neo_flush_uart_write(struct channel_t *ch)
 {
-	uchar tmp = 0;
+	unsigned char tmp = 0;
 	int i = 0;
 
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
@@ -1408,7 +1408,7 @@ static void neo_flush_uart_write(struct channel_t *ch)
  */
 static void neo_flush_uart_read(struct channel_t *ch)
 {
-	uchar tmp = 0;
+	unsigned char tmp = 0;
 	int i = 0;
 
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
@@ -1460,7 +1460,7 @@ static void neo_copy_data_from_queue_to_uart(struct channel_t *ch)
 	 * If FIFOs are disabled. Send data directly to txrx register
 	 */
 	if (!(ch->ch_flags & CH_FIFO_ENABLED)) {
-		uchar lsrbits = readb(&ch->ch_neo_uart->lsr);
+		unsigned char lsrbits = readb(&ch->ch_neo_uart->lsr);
 
 		/* Cache the LSR bits for later parsing */
 		ch->ch_cached_lsr |= lsrbits;
@@ -1584,9 +1584,9 @@ static void neo_copy_data_from_queue_to_uart(struct channel_t *ch)
 }
 
 
-static void neo_parse_modem(struct channel_t *ch, uchar signals)
+static void neo_parse_modem(struct channel_t *ch, unsigned char signals)
 {
-	uchar msignals = signals;
+	unsigned char msignals = signals;
 
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
 		return;
@@ -1596,7 +1596,7 @@ static void neo_parse_modem(struct channel_t *ch, uchar signals)
 	 * This prolly breaks DSRPACE, so we should be more clever here.
 	 */
 	if (ch->ch_digi.digi_flags & DIGI_ALTPIN) {
-		uchar mswap = msignals;
+		unsigned char mswap = msignals;
 
 		if (mswap & UART_MSR_DDCD) {
 			msignals &= ~UART_MSR_DDCD;
@@ -1644,7 +1644,7 @@ static void neo_parse_modem(struct channel_t *ch, uchar signals)
 /* Make the UART raise any of the output signals we want up */
 static void neo_assert_modem_signals(struct channel_t *ch)
 {
-	uchar out;
+	unsigned char out;
 
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
 		return;
@@ -1731,8 +1731,8 @@ static void neo_uart_off(struct channel_t *ch)
 
 static uint neo_get_uart_bytes_left(struct channel_t *ch)
 {
-	uchar left = 0;
-	uchar lsr = readb(&ch->ch_neo_uart->lsr);
+	unsigned char left = 0;
+	unsigned char lsr = readb(&ch->ch_neo_uart->lsr);
 
 	/* We must cache the LSR as some of the bits get reset once read... */
 	ch->ch_cached_lsr |= lsr;
@@ -1759,7 +1759,7 @@ static void neo_send_break(struct channel_t *ch, int msecs)
 	 */
 	if (msecs == 0) {
 		if (ch->ch_flags & CH_BREAK_SENDING) {
-			uchar temp = readb(&ch->ch_neo_uart->lcr);
+			unsigned char temp = readb(&ch->ch_neo_uart->lcr);
 
 			writeb((temp & ~UART_LCR_SBC), &ch->ch_neo_uart->lcr);
 			neo_pci_posting_flush(ch->ch_bd);
@@ -1778,7 +1778,7 @@ static void neo_send_break(struct channel_t *ch, int msecs)
 
 	/* Tell the UART to start sending the break */
 	if (!(ch->ch_flags & CH_BREAK_SENDING)) {
-		uchar temp = readb(&ch->ch_neo_uart->lcr);
+		unsigned char temp = readb(&ch->ch_neo_uart->lcr);
 
 		writeb((temp | UART_LCR_SBC), &ch->ch_neo_uart->lcr);
 		neo_pci_posting_flush(ch->ch_bd);

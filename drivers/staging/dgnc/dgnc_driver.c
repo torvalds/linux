@@ -130,7 +130,7 @@ static struct pci_device_id dgnc_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, dgnc_pci_tbl);
 
 struct board_id {
-	uchar *name;
+	unsigned char *name;
 	uint maxports;
 	unsigned int is_pci_express;
 };

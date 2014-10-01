@@ -67,7 +67,7 @@
  * internal variables
  */
 static struct dgnc_board	*dgnc_BoardsByMajor[256];
-static uchar		*dgnc_TmpWriteBuf;
+static unsigned char		*dgnc_TmpWriteBuf;
 static DECLARE_MUTEX(dgnc_TmpWriteSem);
 
 /*
@@ -450,7 +450,7 @@ void dgnc_tty_uninit(struct dgnc_board *brd)
  * dgnc_sniff - Dump data out to the "sniff" buffer if the
  * proc sniff file is opened...
  */
-void dgnc_sniff_nowait_nolock(struct channel_t *ch, uchar *text, uchar *buf, int len)
+void dgnc_sniff_nowait_nolock(struct channel_t *ch, unsigned char *text, unsigned char *buf, int len)
 {
 	struct timeval tv;
 	int n;
@@ -1949,7 +1949,7 @@ static int dgnc_tty_write(struct tty_struct *tty,
 		 * copy_from_user() returns the number
 		 * of bytes that could *NOT* be copied.
 		 */
-		count -= copy_from_user(dgnc_TmpWriteBuf, (const uchar __user *) buf, count);
+		count -= copy_from_user(dgnc_TmpWriteBuf, (const unsigned char __user *) buf, count);
 
 		if (!count) {
 			up(&dgnc_TmpWriteSem);
@@ -2028,7 +2028,7 @@ static int dgnc_tty_tiocmget(struct tty_struct *tty)
 	struct channel_t *ch;
 	struct un_t *un;
 	int result = -EIO;
-	uchar mstat = 0;
+	unsigned char mstat = 0;
 	unsigned long flags;
 
 	if (!tty || tty->magic != TTY_MAGIC)
