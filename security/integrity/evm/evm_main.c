@@ -162,9 +162,14 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 					(const char *)xattr_data, xattr_len,
 					calc.digest, sizeof(calc.digest));
 		if (!rc) {
-			/* we probably want to replace rsa with hmac here */
-			evm_update_evmxattr(dentry, xattr_name, xattr_value,
-				   xattr_value_len);
+			/* Replace RSA with HMAC if not mounted readonly and
+			 * not immutable
+			 */
+			if (!IS_RDONLY(dentry->d_inode) &&
+			    !IS_IMMUTABLE(dentry->d_inode))
+				evm_update_evmxattr(dentry, xattr_name,
+						    xattr_value,
+						    xattr_value_len);
 		}
 		break;
 	default:
