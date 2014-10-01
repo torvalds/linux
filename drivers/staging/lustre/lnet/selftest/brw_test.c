@@ -178,7 +178,7 @@ brw_fill_page(struct page *pg, int pattern, __u64 magic)
 	return;
 }
 
-int
+static int
 brw_check_page(struct page *pg, int pattern, __u64 magic)
 {
 	char  *addr = page_address(pg);
