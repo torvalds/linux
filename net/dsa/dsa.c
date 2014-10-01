@@ -238,6 +238,7 @@ static void dsa_switch_destroy(struct dsa_switch *ds)
 {
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int dsa_switch_suspend(struct dsa_switch *ds)
 {
 	int i, ret = 0;
@@ -280,6 +281,7 @@ static int dsa_switch_resume(struct dsa_switch *ds)
 
 	return 0;
 }
+#endif
 
 
 /* link polling *************************************************************/
