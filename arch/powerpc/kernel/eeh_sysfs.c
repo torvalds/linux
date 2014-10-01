@@ -65,7 +65,7 @@ static ssize_t eeh_pe_state_show(struct device *dev,
 		return -ENODEV;
 
 	state = eeh_ops->get_state(edev->pe, NULL);
-	return sprintf(buf, "%08x %08x\n",
+	return sprintf(buf, "%0x08x %0x08x\n",
 		       state, edev->pe->state);
 }
 
