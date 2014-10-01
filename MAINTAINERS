@@ -2098,7 +2098,7 @@ S:	Supported
 F:	drivers/scsi/bfa/
 
 BROCADE BNA 10 GIGABIT ETHERNET DRIVER
-M:	Rasesh Mody <rmody@brocade.com>
+M:	Rasesh Mody <rasesh.mody@qlogic.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/brocade/bna/
