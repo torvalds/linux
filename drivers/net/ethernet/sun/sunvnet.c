@@ -1073,7 +1073,7 @@ out_dropped:
 	if (pending)
 		(void)mod_timer(&port->clean_timer,
 				jiffies + VNET_CLEAN_TIMEOUT);
-	else
+	else if (port)
 		del_timer(&port->clean_timer);
 	dev->stats.tx_dropped++;
 	return NETDEV_TX_OK;
