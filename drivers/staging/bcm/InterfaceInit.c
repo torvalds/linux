@@ -15,7 +15,7 @@ static struct usb_device_id InterfaceUsbtable[] = {
 MODULE_DEVICE_TABLE(usb, InterfaceUsbtable);
 
 static int debug = -1;
-module_param(debug, uint, 0600);
+module_param(debug, int, 0600);
 MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 
 static const u32 default_msg =
