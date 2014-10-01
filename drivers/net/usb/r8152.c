@@ -3397,7 +3397,7 @@ static void rtl8153_unload(struct r8152 *tp)
 	if (test_bit(RTL8152_UNPLUG, &tp->flags))
 		return;
 
-	r8153_power_cut_en(tp, true);
+	r8153_power_cut_en(tp, false);
 }
 
 static int rtl_ops_init(struct r8152 *tp, const struct usb_device_id *id)
