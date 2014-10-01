@@ -463,7 +463,7 @@ void intel_detect_pch(struct drm_device *dev)
 				dev_priv->pch_type = PCH_LPT;
 				DRM_DEBUG_KMS("Found LynxPoint PCH\n");
 				WARN_ON(!IS_HASWELL(dev));
-				WARN_ON(IS_ULT(dev));
+				WARN_ON(IS_HSW_ULT(dev));
 			} else if (IS_BROADWELL(dev)) {
 				dev_priv->pch_type = PCH_LPT;
 				dev_priv->pch_id =
@@ -474,7 +474,7 @@ void intel_detect_pch(struct drm_device *dev)
 				dev_priv->pch_type = PCH_LPT;
 				DRM_DEBUG_KMS("Found LynxPoint LP PCH\n");
 				WARN_ON(!IS_HASWELL(dev));
-				WARN_ON(!IS_ULT(dev));
+				WARN_ON(!IS_HSW_ULT(dev));
 			} else if (id == INTEL_PCH_SPT_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_SPT;
 				DRM_DEBUG_KMS("Found SunrisePoint PCH\n");
