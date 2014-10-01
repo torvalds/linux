@@ -1099,7 +1099,8 @@ int iser_post_recvm(struct iser_conn *iser_conn, int count)
  *
  * returns 0 on success, -1 on failure
  */
-int iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc)
+int iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc,
+		   bool signal)
 {
 	int		  ib_ret;
 	struct ib_send_wr send_wr, *send_wr_failed;
@@ -1113,7 +1114,7 @@ int iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc)
 	send_wr.sg_list	   = tx_desc->tx_sg;
 	send_wr.num_sge	   = tx_desc->num_sge;
 	send_wr.opcode	   = IB_WR_SEND;
-	send_wr.send_flags = IB_SEND_SIGNALED;
+	send_wr.send_flags = signal ? IB_SEND_SIGNALED : 0;
 
 	ib_ret = ib_post_send(ib_conn->qp, &send_wr, &send_wr_failed);
 	if (ib_ret)

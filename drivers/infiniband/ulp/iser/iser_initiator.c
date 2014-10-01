@@ -369,6 +369,11 @@ static int iser_post_rx_bufs(struct iscsi_conn *conn, struct iscsi_hdr *req)
 	return 0;
 }
 
+static inline bool iser_signal_comp(int sig_count)
+{
+	return ((sig_count % ISER_SIGNAL_CMD_COUNT) == 0);
+}
+
 /**
  * iser_send_command - send command PDU
  */
@@ -383,6 +388,7 @@ int iser_send_command(struct iscsi_conn *conn,
 	struct iscsi_scsi_req *hdr = (struct iscsi_scsi_req *)task->hdr;
 	struct scsi_cmnd *sc  =  task->sc;
 	struct iser_tx_desc *tx_desc = &iser_task->desc;
+	static unsigned sig_count;
 
 	edtl = ntohl(hdr->data_length);
 
@@ -428,7 +434,8 @@ int iser_send_command(struct iscsi_conn *conn,
 
 	iser_task->status = ISER_TASK_STATUS_STARTED;
 
-	err = iser_post_send(&iser_conn->ib_conn, tx_desc);
+	err = iser_post_send(&iser_conn->ib_conn, tx_desc,
+			     iser_signal_comp(++sig_count));
 	if (!err)
 		return 0;
 
@@ -493,7 +500,7 @@ int iser_send_data_out(struct iscsi_conn *conn,
 		 itt, buf_offset, data_seg_len);
 
 
-	err = iser_post_send(&iser_conn->ib_conn, tx_desc);
+	err = iser_post_send(&iser_conn->ib_conn, tx_desc, true);
 	if (!err)
 		return 0;
 
@@ -555,7 +562,7 @@ int iser_send_control(struct iscsi_conn *conn,
 			goto send_control_error;
 	}
 
-	err = iser_post_send(&iser_conn->ib_conn, mdesc);
+	err = iser_post_send(&iser_conn->ib_conn, mdesc, true);
 	if (!err)
 		return 0;
 

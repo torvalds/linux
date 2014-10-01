@@ -101,7 +101,6 @@
 #define SHIFT_4K	12
 #define SIZE_4K	(1ULL << SHIFT_4K)
 #define MASK_4K	(~(SIZE_4K-1))
-
 					/* support up to 512KB in one RDMA */
 #define ISCSI_ISER_SG_TABLESIZE         (0x80000 >> SHIFT_4K)
 #define ISER_DEF_XMIT_CMDS_DEFAULT		512
@@ -146,6 +145,7 @@
 					ISER_MAX_RX_MISC_PDUS)
 
 #define ISER_WC_BATCH_COUNT   16
+#define ISER_SIGNAL_CMD_COUNT 32
 
 #define ISER_VER			0x10
 #define ISER_WSV			0x08
@@ -500,7 +500,8 @@ void iser_unreg_mem_fastreg(struct iscsi_iser_task *iser_task,
 
 int  iser_post_recvl(struct iser_conn *iser_conn);
 int  iser_post_recvm(struct iser_conn *iser_conn, int count);
-int  iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc);
+int  iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc,
+		    bool signal);
 
 int iser_dma_map_task_data(struct iscsi_iser_task *iser_task,
 			    struct iser_data_buf       *data,
