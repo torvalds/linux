@@ -174,7 +174,7 @@ static int nokia_modem_probe(struct device *dev)
 	tasklet_init(&modem->nokia_modem_rst_ind_tasklet,
 			do_nokia_modem_rst_ind_tasklet, (unsigned long)modem);
 	err = devm_request_irq(dev, irq, nokia_modem_rst_ind_isr,
-				IRQF_DISABLED | pflags, "modem_rst_ind", modem);
+				pflags, "modem_rst_ind", modem);
 	if (err < 0) {
 		dev_err(dev, "Request rst_ind irq(%d) failed (flags %d)\n",
 								irq, pflags);
