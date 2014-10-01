@@ -63,10 +63,6 @@ static struct sk_buff *try_bulk_dequeue_skb(struct Qdisc *q,
 	struct sk_buff *skb, *tail_skb = head_skb;
 
 	while (bytelimit > 0) {
-		/* For now, don't bulk dequeue GSO (or GSO segmented) pkts */
-		if (tail_skb->next || skb_is_gso(tail_skb))
-			break;
-
 		skb = q->dequeue(q);
 		if (!skb)
 			break;
@@ -76,11 +72,9 @@ static struct sk_buff *try_bulk_dequeue_skb(struct Qdisc *q,
 		if (!skb)
 			break;
 
-		/* "skb" can be a skb list after validate call above
-		 * (GSO segmented), but it is okay to append it to
-		 * current tail_skb->next, because next round will exit
-		 * in-case "tail_skb->next" is a skb list.
-		 */
+		while (tail_skb->next) /* GSO list goto tail */
+			tail_skb = tail_skb->next;
+
 		tail_skb->next = skb;
 		tail_skb = skb;
 	}
