@@ -234,6 +234,7 @@ static inline void __indirect_readsl(const volatile void __iomem *bus_addr,
  * I/O functions.
  */
 
+#define outb outb
 static inline void outb(u8 value, u32 addr)
 {
 	u32 n, byte_enables, data;
@@ -243,12 +244,14 @@ static inline void outb(u8 value, u32 addr)
 	ixp4xx_pci_write(addr, byte_enables | NP_CMD_IOWRITE, data);
 }
 
+#define outsb outsb
 static inline void outsb(u32 io_addr, const u8 *vaddr, u32 count)
 {
 	while (count--)
 		outb(*vaddr++, io_addr);
 }
 
+#define outw outw
 static inline void outw(u16 value, u32 addr)
 {
 	u32 n, byte_enables, data;
@@ -258,23 +261,27 @@ static inline void outw(u16 value, u32 addr)
 	ixp4xx_pci_write(addr, byte_enables | NP_CMD_IOWRITE, data);
 }
 
+#define outsw outsw
 static inline void outsw(u32 io_addr, const u16 *vaddr, u32 count)
 {
 	while (count--)
 		outw(cpu_to_le16(*vaddr++), io_addr);
 }
 
+#define outl outl
 static inline void outl(u32 value, u32 addr)
 {
 	ixp4xx_pci_write(addr, NP_CMD_IOWRITE, value);
 }
 
+#define outsl outsl
 static inline void outsl(u32 io_addr, const u32 *vaddr, u32 count)
 {
 	while (count--)
 		outl(cpu_to_le32(*vaddr++), io_addr);
 }
 
+#define inb inb
 static inline u8 inb(u32 addr)
 {
 	u32 n, byte_enables, data;
@@ -286,12 +293,14 @@ static inline u8 inb(u32 addr)
 	return data >> (8*n);
 }
 
+#define insb insb
 static inline void insb(u32 io_addr, u8 *vaddr, u32 count)
 {
 	while (count--)
 		*vaddr++ = inb(io_addr);
 }
 
+#define inw inw
 static inline u16 inw(u32 addr)
 {
 	u32 n, byte_enables, data;
@@ -303,12 +312,14 @@ static inline u16 inw(u32 addr)
 	return data>>(8*n);
 }
 
+#define insw insw
 static inline void insw(u32 io_addr, u16 *vaddr, u32 count)
 {
 	while (count--)
 		*vaddr++ = le16_to_cpu(inw(io_addr));
 }
 
+#define inl inl
 static inline u32 inl(u32 addr)
 {
 	u32 data;
@@ -318,6 +329,7 @@ static inline u32 inl(u32 addr)
 	return data;
 }
 
+#define insl insl
 static inline void insl(u32 io_addr, u32 *vaddr, u32 count)
 {
 	while (count--)
