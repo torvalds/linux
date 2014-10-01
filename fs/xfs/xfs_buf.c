@@ -1813,12 +1813,17 @@ __xfs_buf_delwri_submit(
 	blk_start_plug(&plug);
 	list_for_each_entry_safe(bp, n, io_list, b_list) {
 		bp->b_flags &= ~(_XBF_DELWRI_Q | XBF_ASYNC | XBF_WRITE_FAIL);
-		bp->b_flags |= XBF_WRITE;
+		bp->b_flags |= XBF_WRITE | XBF_ASYNC;
 
-		if (!wait) {
-			bp->b_flags |= XBF_ASYNC;
+		/*
+		 * we do all Io submission async. This means if we need to wait
+		 * for IO completion we need to take an extra reference so the
+		 * buffer is still valid on the other side.
+		 */
+		if (wait)
+			xfs_buf_hold(bp);
+		else
 			list_del_init(&bp->b_list);
-		}
 		xfs_bdstrat_cb(bp);
 	}
 	blk_finish_plug(&plug);
@@ -1866,7 +1871,10 @@ xfs_buf_delwri_submit(
 		bp = list_first_entry(&io_list, struct xfs_buf, b_list);
 
 		list_del_init(&bp->b_list);
-		error2 = xfs_buf_iowait(bp);
+
+		/* locking the buffer will wait for async IO completion. */
+		xfs_buf_lock(bp);
+		error2 = bp->b_error;
 		xfs_buf_relse(bp);
 		if (!error)
 			error = error2;
