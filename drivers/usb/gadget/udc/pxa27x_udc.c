@@ -22,6 +22,7 @@
 #include <linux/clk.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/slab.h>
 #include <linux/prefetch.h>
 #include <linux/byteorder/generic.h>
@@ -1507,17 +1508,12 @@ static struct usb_ep_ops pxa_ep_ops = {
  */
 static void dplus_pullup(struct pxa_udc *udc, int on)
 {
-	if (on) {
-		if (gpio_is_valid(udc->mach->gpio_pullup))
-			gpio_set_value(udc->mach->gpio_pullup,
-				       !udc->mach->gpio_pullup_inverted);
-		if (udc->mach->udc_command)
+	if (udc->gpiod) {
+		gpiod_set_value(udc->gpiod, on);
+	} else if (udc->mach && udc->mach->udc_command) {
+		if (on)
 			udc->mach->udc_command(PXA2XX_UDC_CMD_CONNECT);
-	} else {
-		if (gpio_is_valid(udc->mach->gpio_pullup))
-			gpio_set_value(udc->mach->gpio_pullup,
-				       udc->mach->gpio_pullup_inverted);
-		if (udc->mach->udc_command)
+		else
 			udc->mach->udc_command(PXA2XX_UDC_CMD_DISCONNECT);
 	}
 	udc->pullup_on = on;
@@ -1609,7 +1605,7 @@ static int pxa_udc_pullup(struct usb_gadget *_gadget, int is_active)
 {
 	struct pxa_udc *udc = to_gadget_udc(_gadget);
 
-	if (!gpio_is_valid(udc->mach->gpio_pullup) && !udc->mach->udc_command)
+	if (!udc->gpiod && !udc->mach->udc_command)
 		return -EOPNOTSUPP;
 
 	dplus_pullup(udc, is_active);
@@ -2416,6 +2412,22 @@ static int pxa_udc_probe(struct platform_device *pdev)
 	struct resource *regs;
 	struct pxa_udc *udc = &memory;
 	int retval = 0, gpio;
+	struct pxa2xx_udc_mach_info *mach = dev_get_platdata(&pdev->dev);
+	unsigned long gpio_flags;
+
+	if (mach) {
+		gpio_flags = mach->gpio_pullup_inverted ? GPIOF_ACTIVE_LOW : 0;
+		gpio = mach->gpio_pullup;
+		if (gpio_is_valid(gpio)) {
+			retval = devm_gpio_request_one(&pdev->dev, gpio,
+						       gpio_flags,
+						       "USB D+ pullup");
+			if (retval)
+				return retval;
+			udc->gpiod = gpio_to_desc(mach->gpio_pullup);
+		}
+		udc->mach = mach;
+	}
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs)
@@ -2425,21 +2437,15 @@ static int pxa_udc_probe(struct platform_device *pdev)
 		return udc->irq;
 
 	udc->dev = &pdev->dev;
-	udc->mach = dev_get_platdata(&pdev->dev);
 	udc->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
 
-	gpio = udc->mach->gpio_pullup;
-	if (gpio_is_valid(gpio)) {
-		retval = gpio_request(gpio, "USB D+ pullup");
-		if (retval == 0)
-			gpio_direction_output(gpio,
-				       udc->mach->gpio_pullup_inverted);
+	if (IS_ERR(udc->gpiod)) {
+		dev_err(&pdev->dev, "Couldn't find or request D+ gpio : %ld\n",
+			PTR_ERR(udc->gpiod));
+		return PTR_ERR(udc->gpiod);
 	}
-	if (retval) {
-		dev_err(&pdev->dev, "Couldn't request gpio %d : %d\n",
-			gpio, retval);
-		return retval;
-	}
+	if (udc->gpiod)
+		gpiod_direction_output(udc->gpiod, 0);
 
 	udc->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(udc->clk)) {
@@ -2501,14 +2507,11 @@ err_clk:
 static int pxa_udc_remove(struct platform_device *_dev)
 {
 	struct pxa_udc *udc = platform_get_drvdata(_dev);
-	int gpio = udc->mach->gpio_pullup;
 
 	usb_del_gadget_udc(&udc->gadget);
 	usb_gadget_unregister_driver(udc->driver);
 	free_irq(udc->irq, udc);
 	pxa_cleanup_debugfs(udc);
-	if (gpio_is_valid(gpio))
-		gpio_free(gpio);
 
 	usb_put_phy(udc->transceiver);
 
