@@ -86,6 +86,8 @@ static int dwc3_ep0_start_trans(struct dwc3 *dwc, u8 epnum, dma_addr_t buf_dma,
 	params.param0 = upper_32_bits(dwc->ep0_trb_addr);
 	params.param1 = lower_32_bits(dwc->ep0_trb_addr);
 
+	trace_dwc3_prepare_trb(dep, trb);
+
 	ret = dwc3_send_gadget_ep_cmd(dwc, dep->number,
 			DWC3_DEPCMD_STARTTRANSFER, &params);
 	if (ret < 0) {
@@ -791,6 +793,8 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 
 	trb = dwc->ep0_trb;
 
+	trace_dwc3_complete_trb(ep0, trb);
+
 	status = DWC3_TRB_SIZE_TRBSTS(trb->size);
 	if (status == DWC3_TRBSTS_SETUP_PENDING) {
 		dwc3_trace(trace_dwc3_ep0, "Setup Pending received");
@@ -854,6 +858,8 @@ static void dwc3_ep0_complete_status(struct dwc3 *dwc,
 
 	dep = dwc->eps[0];
 	trb = dwc->ep0_trb;
+
+	trace_dwc3_complete_trb(dep, trb);
 
 	if (!list_empty(&dep->request_list)) {
 		r = next_request(&dep->request_list);
