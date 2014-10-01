@@ -71,30 +71,30 @@
 #define PFX		DRV_NAME ": "
 #define DRV_VER		"1.4.1"
 
-#define iser_dbg(fmt, arg...)				\
-	do {						\
-		if (iser_debug_level > 2)		\
-			printk(KERN_DEBUG PFX "%s:" fmt,\
-				__func__ , ## arg);	\
+#define iser_dbg(fmt, arg...)				 \
+	do {						 \
+		if (iser_debug_level > 2)		 \
+			printk(KERN_DEBUG PFX "%s: " fmt,\
+				__func__ , ## arg);	 \
 	} while (0)
 
 #define iser_warn(fmt, arg...)				\
 	do {						\
 		if (iser_debug_level > 0)		\
-			pr_warn(PFX "%s:" fmt,          \
+			pr_warn(PFX "%s: " fmt,		\
 				__func__ , ## arg);	\
 	} while (0)
 
 #define iser_info(fmt, arg...)				\
 	do {						\
 		if (iser_debug_level > 1)		\
-			pr_info(PFX "%s:" fmt,          \
+			pr_info(PFX "%s: " fmt,		\
 				__func__ , ## arg);	\
 	} while (0)
 
 #define iser_err(fmt, arg...)				\
 	do {						\
-		printk(KERN_ERR PFX "%s:" fmt,          \
+		printk(KERN_ERR PFX "%s: " fmt,		\
 		       __func__ , ## arg);		\
 	} while (0)
 
