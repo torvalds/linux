@@ -297,8 +297,6 @@ extern void xfs_buf_iomove(xfs_buf_t *, size_t, size_t, void *,
 #define xfs_buf_zero(bp, off, len) \
 	    xfs_buf_iomove((bp), (off), (len), NULL, XBRW_ZERO)
 
-extern int xfs_bioerror_relse(struct xfs_buf *);
-
 /* Buffer Utility Routines */
 extern xfs_caddr_t xfs_buf_offset(xfs_buf_t *, size_t);
 

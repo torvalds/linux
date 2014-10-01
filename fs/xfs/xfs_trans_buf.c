@@ -324,11 +324,14 @@ xfs_trans_read_buf_map(
 			 */
 			if (XFS_FORCED_SHUTDOWN(mp)) {
 				trace_xfs_bdstrat_shut(bp, _RET_IP_);
-				xfs_bioerror_relse(bp);
-			} else {
-				xfs_buf_iorequest(bp);
+				bp->b_flags &= ~(XBF_READ | XBF_DONE);
+				xfs_buf_ioerror(bp, -EIO);
+				xfs_buf_stale(bp);
+				xfs_buf_relse(bp);
+				return -EIO;
 			}
 
+			xfs_buf_iorequest(bp);
 			error = xfs_buf_iowait(bp);
 			if (error) {
 				xfs_buf_ioerror_alert(bp, __func__);
