@@ -1122,14 +1122,6 @@ xfs_zero_remaining_bytes(
 	if (endoff > XFS_ISIZE(ip))
 		endoff = XFS_ISIZE(ip);
 
-	bp = xfs_buf_get_uncached(XFS_IS_REALTIME_INODE(ip) ?
-					mp->m_rtdev_targp : mp->m_ddev_targp,
-				  BTOBB(mp->m_sb.sb_blocksize), 0);
-	if (!bp)
-		return -ENOMEM;
-
-	xfs_buf_unlock(bp);
-
 	for (offset = startoff; offset <= endoff; offset = lastoffset + 1) {
 		uint lock_mode;
 
@@ -1152,32 +1144,24 @@ xfs_zero_remaining_bytes(
 		ASSERT(imap.br_startblock != DELAYSTARTBLOCK);
 		if (imap.br_state == XFS_EXT_UNWRITTEN)
 			continue;
-		XFS_BUF_UNDONE(bp);
-		XFS_BUF_UNWRITE(bp);
-		XFS_BUF_READ(bp);
-		XFS_BUF_SET_ADDR(bp, xfs_fsb_to_db(ip, imap.br_startblock));
 
-		error = xfs_buf_submit_wait(bp);
-		if (error) {
-			xfs_buf_ioerror_alert(bp,
-					"xfs_zero_remaining_bytes(read)");
-			break;
-		}
+		error = xfs_buf_read_uncached(XFS_IS_REALTIME_INODE(ip) ?
+				mp->m_rtdev_targp : mp->m_ddev_targp,
+				xfs_fsb_to_db(ip, imap.br_startblock),
+				BTOBB(mp->m_sb.sb_blocksize),
+				0, &bp, NULL);
+		if (error)
+			return error;
+
 		memset(bp->b_addr +
-			(offset - XFS_FSB_TO_B(mp, imap.br_startoff)),
-		      0, lastoffset - offset + 1);
-		XFS_BUF_UNDONE(bp);
-		XFS_BUF_UNREAD(bp);
-		XFS_BUF_WRITE(bp);
+				(offset - XFS_FSB_TO_B(mp, imap.br_startoff)),
+		       0, lastoffset - offset + 1);
 
-		error = xfs_buf_submit_wait(bp);
-		if (error) {
-			xfs_buf_ioerror_alert(bp,
-					"xfs_zero_remaining_bytes(write)");
-			break;
-		}
+		error = xfs_bwrite(bp);
+		xfs_buf_relse(bp);
+		if (error)
+			return error;
 	}
-	xfs_buf_free(bp);
 	return error;
 }
 
