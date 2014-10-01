@@ -120,6 +120,11 @@ config COMMON_CLK_PALMAS
 	  This driver supports TI Palmas devices 32KHz output KG and KG_AUDIO
 	  using common clock framework.
 
+config COMMON_CLK_PXA
+	def_bool COMMON_CLK && ARCH_PXA
+	---help---
+	  Sypport for the Marvell PXA SoC.
+
 source "drivers/clk/qcom/Kconfig"
 
 endmenu
