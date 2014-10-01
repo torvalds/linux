@@ -546,11 +546,12 @@ static int send_pkt(struct l2cap_chan *chan, struct sk_buff *skb,
 	return err;
 }
 
-static void send_mcast_pkt(struct sk_buff *skb, struct net_device *netdev)
+static int send_mcast_pkt(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct sk_buff *local_skb;
 	struct lowpan_dev *entry, *tmp;
 	unsigned long flags;
+	int err = 0;
 
 	read_lock_irqsave(&devices_lock, flags);
 
@@ -564,19 +565,25 @@ static void send_mcast_pkt(struct sk_buff *skb, struct net_device *netdev)
 		dev = lowpan_dev(entry->netdev);
 
 		list_for_each_entry_safe(pentry, ptmp, &dev->peers, list) {
+			int ret;
+
 			local_skb = skb_clone(skb, GFP_ATOMIC);
 
 			BT_DBG("xmit %s to %pMR type %d IP %pI6c chan %p",
 			       netdev->name,
 			       &pentry->chan->dst, pentry->chan->dst_type,
 			       &pentry->peer_addr, pentry->chan);
-			send_pkt(pentry->chan, local_skb, netdev);
+			ret = send_pkt(pentry->chan, local_skb, netdev);
+			if (ret < 0)
+				err = ret;
 
 			kfree_skb(local_skb);
 		}
 	}
 
 	read_unlock_irqrestore(&devices_lock, flags);
+
+	return err;
 }
 
 static netdev_tx_t bt_xmit(struct sk_buff *skb, struct net_device *netdev)
@@ -620,7 +627,7 @@ static netdev_tx_t bt_xmit(struct sk_buff *skb, struct net_device *netdev)
 		/* We need to send the packet to every device behind this
 		 * interface.
 		 */
-		send_mcast_pkt(skb, netdev);
+		err = send_mcast_pkt(skb, netdev);
 	}
 
 	dev_kfree_skb(skb);
