@@ -56,6 +56,41 @@ static inline int dev_requeue_skb(struct sk_buff *skb, struct Qdisc *q)
 	return 0;
 }
 
+static struct sk_buff *try_bulk_dequeue_skb(struct Qdisc *q,
+					    struct sk_buff *head_skb,
+					    int bytelimit)
+{
+	struct sk_buff *skb, *tail_skb = head_skb;
+
+	while (bytelimit > 0) {
+		/* For now, don't bulk dequeue GSO (or GSO segmented) pkts */
+		if (tail_skb->next || skb_is_gso(tail_skb))
+			break;
+
+		skb = q->dequeue(q);
+		if (!skb)
+			break;
+
+		bytelimit -= skb->len; /* covers GSO len */
+		skb = validate_xmit_skb(skb, qdisc_dev(q));
+		if (!skb)
+			break;
+
+		/* "skb" can be a skb list after validate call above
+		 * (GSO segmented), but it is okay to append it to
+		 * current tail_skb->next, because next round will exit
+		 * in-case "tail_skb->next" is a skb list.
+		 */
+		tail_skb->next = skb;
+		tail_skb = skb;
+	}
+
+	return head_skb;
+}
+
+/* Note that dequeue_skb can possibly return a SKB list (via skb->next).
+ * A requeued skb (via q->gso_skb) can also be a SKB list.
+ */
 static inline struct sk_buff *dequeue_skb(struct Qdisc *q)
 {
 	struct sk_buff *skb = q->gso_skb;
@@ -70,10 +105,17 @@ static inline struct sk_buff *dequeue_skb(struct Qdisc *q)
 		} else
 			skb = NULL;
 	} else {
-		if (!(q->flags & TCQ_F_ONETXQUEUE) || !netif_xmit_frozen_or_stopped(txq)) {
+		if (!(q->flags & TCQ_F_ONETXQUEUE) ||
+		    !netif_xmit_frozen_or_stopped(txq)) {
+			int bytelimit = qdisc_avail_bulklimit(txq);
+
 			skb = q->dequeue(q);
-			if (skb)
+			if (skb) {
+				bytelimit -= skb->len;
 				skb = validate_xmit_skb(skb, qdisc_dev(q));
+			}
+			if (skb && qdisc_may_bulk(q))
+				skb = try_bulk_dequeue_skb(q, skb, bytelimit);
 		}
 	}
 
