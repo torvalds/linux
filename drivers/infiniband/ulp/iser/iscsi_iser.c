@@ -410,7 +410,7 @@ iscsi_iser_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 	struct iscsi_conn *conn = cls_conn->dd_data;
 	struct iser_conn *iser_conn = conn->dd_data;
 
-	iser_dbg("stopping iscsi_conn: %p, iser_conn: %p\n", conn, iser_conn);
+	iser_info("stopping iscsi_conn: %p, iser_conn: %p\n", conn, iser_conn);
 
 	/*
 	 * Userspace may have goofed up and not bound the connection or
