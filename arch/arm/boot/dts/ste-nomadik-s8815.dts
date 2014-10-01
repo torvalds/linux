@@ -4,6 +4,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/interrupt-controller/irq.h>
 #include "ste-nomadik-stn8815.dtsi"
 
 / {
@@ -12,14 +13,6 @@
 
 	chosen {
 		bootargs = "root=/dev/ram0 console=ttyAMA1,115200n8 earlyprintk";
-	};
-
-	/* This is where the interrupt is routed on the S8815 board */
-	external-bus@34000000 {
-		ethernet@300 {
-			interrupt-parent = <&gpio3>;
-			interrupts = <8 0x1>;
-		};
 	};
 
 	src@101e0000 {
@@ -70,6 +63,21 @@
 					ste,input = <0>;
 				};
 			};
+		};
+	};
+
+	/* Ethernet */
+	external-bus@34000000 {
+		compatible = "simple-bus";
+		reg = <0x34000000 0x1000000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x34000000 0x1000000>;
+		ethernet@300 {
+			compatible = "smsc,lan91c111";
+			reg = <0x300 0x0fd00>;
+			interrupt-parent = <&gpio3>;
+			interrupts = <8 IRQ_TYPE_EDGE_RISING>;
 		};
 	};
 

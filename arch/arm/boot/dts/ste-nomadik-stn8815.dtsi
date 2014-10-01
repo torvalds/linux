@@ -673,18 +673,6 @@
 		};
 	};
 
-	external-bus@34000000 {
-		compatible = "simple-bus";
-		reg = <0x34000000 0x1000000>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges = <0 0x34000000 0x1000000>;
-		ethernet@300 {
-			compatible = "smsc,lan91c111";
-			reg = <0x300 0x0fd00>;
-		};
-	};
-
 	/* I2C0 connected to the STw4811 power management chip */
 	i2c0 {
 		compatible = "st,nomadik-i2c", "arm,primecell";
