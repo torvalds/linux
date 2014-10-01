@@ -1688,7 +1688,7 @@ xlog_bdstrat(
 		return 0;
 	}
 
-	xfs_buf_iorequest(bp);
+	xfs_buf_submit(bp);
 	return 0;
 }
 
