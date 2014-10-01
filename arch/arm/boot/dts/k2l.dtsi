@@ -95,3 +95,7 @@
        /* Pin muxed. Enabled and configured by Bootloader */
        status = "disabled";
 };
+
+&mdio {
+	reg = <0x26200f00 0x100>;
+};
