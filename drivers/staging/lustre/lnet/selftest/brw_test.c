@@ -147,7 +147,7 @@ brw_inject_one_error(void)
 	return brw_inject_errors--;
 }
 
-void
+static void
 brw_fill_page(struct page *pg, int pattern, __u64 magic)
 {
 	char *addr = page_address(pg);
