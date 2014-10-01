@@ -998,26 +998,30 @@ xfs_buf_wait_unpin(
  *	Buffer Utility Routines
  */
 
-STATIC void
-xfs_buf_iodone_work(
-	struct work_struct	*work)
+void
+xfs_buf_ioend(
+	struct xfs_buf	*bp)
 {
-	struct xfs_buf		*bp =
-		container_of(work, xfs_buf_t, b_iodone_work);
-	bool			read = !!(bp->b_flags & XBF_READ);
+	bool		read = bp->b_flags & XBF_READ;
+
+	trace_xfs_buf_iodone(bp, _RET_IP_);
 
 	bp->b_flags &= ~(XBF_READ | XBF_WRITE | XBF_READ_AHEAD);
 
-	/* only validate buffers that were read without errors */
-	if (read && bp->b_ops && !bp->b_error && (bp->b_flags & XBF_DONE))
+	/* Only validate buffers that were read without errors */
+	if (read && !bp->b_error && bp->b_ops) {
+		ASSERT(!bp->b_iodone);
 		bp->b_ops->verify_read(bp);
+	}
+
+	if (!bp->b_error)
+		bp->b_flags |= XBF_DONE;
 
 	if (bp->b_iodone)
 		(*(bp->b_iodone))(bp);
 	else if (bp->b_flags & XBF_ASYNC)
 		xfs_buf_relse(bp);
 	else {
-		ASSERT(read && bp->b_ops);
 		complete(&bp->b_iowait);
 
 		/* release the !XBF_ASYNC ref now we are done. */
@@ -1025,30 +1029,22 @@ xfs_buf_iodone_work(
 	}
 }
 
-void
-xfs_buf_ioend(
-	struct xfs_buf	*bp,
-	int		schedule)
+static void
+xfs_buf_ioend_work(
+	struct work_struct	*work)
 {
-	bool		read = !!(bp->b_flags & XBF_READ);
+	struct xfs_buf		*bp =
+		container_of(work, xfs_buf_t, b_iodone_work);
 
-	trace_xfs_buf_iodone(bp, _RET_IP_);
+	xfs_buf_ioend(bp);
+}
 
-	if (bp->b_error == 0)
-		bp->b_flags |= XBF_DONE;
-
-	if (bp->b_iodone || (read && bp->b_ops) || (bp->b_flags & XBF_ASYNC)) {
-		if (schedule) {
-			INIT_WORK(&bp->b_iodone_work, xfs_buf_iodone_work);
-			queue_work(xfslogd_workqueue, &bp->b_iodone_work);
-		} else {
-			xfs_buf_iodone_work(&bp->b_iodone_work);
-		}
-	} else {
-		bp->b_flags &= ~(XBF_READ | XBF_WRITE | XBF_READ_AHEAD);
-		complete(&bp->b_iowait);
-		xfs_buf_rele(bp);
-	}
+void
+xfs_buf_ioend_async(
+	struct xfs_buf	*bp)
+{
+	INIT_WORK(&bp->b_iodone_work, xfs_buf_ioend_work);
+	queue_work(xfslogd_workqueue, &bp->b_iodone_work);
 }
 
 void
@@ -1099,7 +1095,7 @@ xfs_bioerror(
 	XFS_BUF_UNDONE(bp);
 	xfs_buf_stale(bp);
 
-	xfs_buf_ioend(bp, 0);
+	xfs_buf_ioend(bp);
 
 	return -EIO;
 }
@@ -1186,15 +1182,6 @@ xfs_bwrite(
 }
 
 STATIC void
-_xfs_buf_ioend(
-	xfs_buf_t		*bp,
-	int			schedule)
-{
-	if (atomic_dec_and_test(&bp->b_io_remaining) == 1)
-		xfs_buf_ioend(bp, schedule);
-}
-
-STATIC void
 xfs_buf_bio_end_io(
 	struct bio		*bio,
 	int			error)
@@ -1211,7 +1198,8 @@ xfs_buf_bio_end_io(
 	if (!bp->b_error && xfs_buf_is_vmapped(bp) && (bp->b_flags & XBF_READ))
 		invalidate_kernel_vmap_range(bp->b_addr, xfs_buf_vmap_len(bp));
 
-	_xfs_buf_ioend(bp, 1);
+	if (atomic_dec_and_test(&bp->b_io_remaining) == 1)
+		xfs_buf_ioend_async(bp);
 	bio_put(bio);
 }
 
@@ -1423,15 +1411,17 @@ xfs_buf_iorequest(
 	/*
 	 * If _xfs_buf_ioapply failed or we are doing synchronous IO that
 	 * completes extremely quickly, we can get back here with only the IO
-	 * reference we took above. _xfs_buf_ioend will drop it to zero. Run
-	 * completion processing synchronously so that we don't return to the
-	 * caller with completion still pending. This avoids unnecessary context
-	 * switches associated with the end_io workqueue.
+	 * reference we took above. If we drop it to zero, run completion
+	 * processing synchronously so that we don't return to the caller with
+	 * completion still pending. This avoids unnecessary context switches
+	 * associated with the end_io workqueue.
 	 */
-	if (bp->b_error || !(bp->b_flags & XBF_ASYNC))
-		_xfs_buf_ioend(bp, 0);
-	else
-		_xfs_buf_ioend(bp, 1);
+	if (atomic_dec_and_test(&bp->b_io_remaining) == 1) {
+		if (bp->b_error || !(bp->b_flags & XBF_ASYNC))
+			xfs_buf_ioend(bp);
+		else
+			xfs_buf_ioend_async(bp);
+	}
 
 	xfs_buf_rele(bp);
 }

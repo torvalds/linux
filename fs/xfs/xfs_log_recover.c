@@ -383,7 +383,7 @@ xlog_recover_iodone(
 					SHUTDOWN_META_IO_ERROR);
 	}
 	bp->b_iodone = NULL;
-	xfs_buf_ioend(bp, 0);
+	xfs_buf_ioend(bp);
 }
 
 /*
