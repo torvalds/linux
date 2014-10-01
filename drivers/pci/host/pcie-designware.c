@@ -343,9 +343,8 @@ static int dw_msi_setup_irq(struct msi_chip *chip, struct pci_dev *pdev,
 	struct msi_msg msg;
 	struct pcie_port *pp = sys_to_pcie(pdev->bus->sysdata);
 
-	pci_read_config_word(pdev, desc->msi_attrib.pos+PCI_MSI_FLAGS,
-				&msg_ctr);
-	msgvec = (msg_ctr&PCI_MSI_FLAGS_QSIZE) >> 4;
+	pci_read_config_word(pdev, pdev->msi_cap + PCI_MSI_FLAGS, &msg_ctr);
+	msgvec = (msg_ctr & PCI_MSI_FLAGS_QSIZE) >> 4;
 	if (msgvec == 0)
 		msgvec = (msg_ctr & PCI_MSI_FLAGS_QMASK) >> 1;
 	if (msgvec > 5)
