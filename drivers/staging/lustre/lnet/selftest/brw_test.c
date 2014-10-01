@@ -221,7 +221,7 @@ bad_data:
 	return 1;
 }
 
-void
+static void
 brw_fill_bulk(srpc_bulk_t *bk, int pattern, __u64 magic)
 {
 	int	 i;
