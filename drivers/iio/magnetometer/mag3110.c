@@ -106,7 +106,7 @@ static ssize_t mag3110_show_int_plus_micros(char *buf,
 
 	while (n-- > 0)
 		len += scnprintf(buf + len, PAGE_SIZE - len,
-			"%d.%d ", vals[n][0], vals[n][1]);
+			"%d.%06d ", vals[n][0], vals[n][1]);
 
 	/* replace trailing space by newline */
 	buf[len - 1] = '\n';
