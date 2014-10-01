@@ -1007,6 +1007,31 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 				    sizeof(scan_req), &scan_req);
 }
 
+int iwl_mvm_scan_offload_start(struct iwl_mvm *mvm,
+			       struct ieee80211_vif *vif,
+			       struct cfg80211_sched_scan_request *req,
+			       struct ieee80211_scan_ies *ies)
+{
+	int ret;
+
+	if ((mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN)) {
+		ret = iwl_mvm_config_sched_scan_profiles(mvm, req);
+		if (ret)
+			return ret;
+		ret = iwl_mvm_unified_sched_scan_lmac(mvm, vif, req, ies);
+	} else {
+		ret = iwl_mvm_config_sched_scan(mvm, vif, req, ies);
+		if (ret)
+			return ret;
+		ret = iwl_mvm_config_sched_scan_profiles(mvm, req);
+		if (ret)
+			return ret;
+		ret = iwl_mvm_sched_scan_start(mvm, req);
+	}
+
+	return ret;
+}
+
 static int iwl_mvm_send_scan_offload_abort(struct iwl_mvm *mvm)
 {
 	int ret;

@@ -2170,25 +2170,9 @@ static int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,
 
 	mvm->scan_status = IWL_MVM_SCAN_SCHED;
 
-	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN)) {
-		ret = iwl_mvm_config_sched_scan(mvm, vif, req, ies);
-		if (ret)
-			goto err;
-	}
-
-	ret = iwl_mvm_config_sched_scan_profiles(mvm, req);
+	ret = iwl_mvm_scan_offload_start(mvm, vif, req, ies);
 	if (ret)
-		goto err;
-
-	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN)
-		ret = iwl_mvm_unified_sched_scan_lmac(mvm, vif, req, ies);
-	else
-		ret = iwl_mvm_sched_scan_start(mvm, req);
-
-	if (!ret)
-		goto out;
-err:
-	mvm->scan_status = IWL_MVM_SCAN_NONE;
+		mvm->scan_status = IWL_MVM_SCAN_NONE;
 out:
 	mutex_unlock(&mvm->mutex);
 	return ret;

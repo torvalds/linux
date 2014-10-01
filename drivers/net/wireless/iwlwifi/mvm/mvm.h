@@ -949,6 +949,10 @@ int iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
 				       struct cfg80211_sched_scan_request *req);
 int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 			     struct cfg80211_sched_scan_request *req);
+int iwl_mvm_scan_offload_start(struct iwl_mvm *mvm,
+			       struct ieee80211_vif *vif,
+			       struct cfg80211_sched_scan_request *req,
+			       struct ieee80211_scan_ies *ies);
 int iwl_mvm_scan_offload_stop(struct iwl_mvm *mvm, bool notify);
 int iwl_mvm_rx_scan_offload_results(struct iwl_mvm *mvm,
 				    struct iwl_rx_cmd_buffer *rxb,
