@@ -1661,6 +1661,21 @@ static void hdmi_v14_mode_apply(struct hdmi_context *hdata)
 
 static void hdmi_mode_apply(struct hdmi_context *hdata)
 {
+	struct drm_display_mode *m = &hdata->current_mode;
+
+	/* At 1080p at 60Hz, there is not enough memory bandwidth available
+	 * for the display controller when the GPU is busy. So we apply a
+	 * "QoS" scheme.
+	 * According to Samsung, this should result in image, G3D, and MFC
+	 * having the same priority, and when bus competition occurs, the
+	 * TV(HDMI) has the highest priority.
+	 * GPU performance drops by about 10%.
+	 */
+	if (m->clock == 148500 && drm_mode_vrefresh(m) > 50)
+		exynos4412_qos(7, 2);
+	else
+		exynos4412_qos(0, 0);
+
 	if (hdata->type == HDMI_TYPE13)
 		hdmi_v13_mode_apply(hdata);
 	else

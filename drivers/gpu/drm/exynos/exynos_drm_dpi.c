@@ -166,7 +166,24 @@ static void exynos_dpi_dpms(struct exynos_drm_display *display, int mode)
 	ctx->dpms_mode = mode;
 }
 
+static void exynos_dpi_mode_set(struct exynos_drm_display *display,
+				struct drm_display_mode *mode)
+{
+	/* At 1280x1024@60Hz and higher there is not enough memory bandwidth
+	 * available for the display controller when the GPU is busy. So we
+	 * apply a "QoS" scheme.
+	 * I found these numbers through guesswork. The GPU performance is
+	 * degraded by about 30%, but there are no flickers.
+	 */
+	if (mode->clock >= 135000)
+		exynos4412_qos(3, 3);
+	else
+		exynos4412_qos(0, 0);
+}
+
+
 static struct exynos_drm_display_ops exynos_dpi_display_ops = {
+	.mode_set = exynos_dpi_mode_set,
 	.create_connector = exynos_dpi_create_connector,
 	.dpms = exynos_dpi_dpms
 };

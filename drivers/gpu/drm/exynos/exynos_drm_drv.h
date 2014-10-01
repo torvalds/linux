@@ -41,6 +41,8 @@ enum exynos_drm_output_type {
 	EXYNOS_DISPLAY_TYPE_VIDI,
 };
 
+extern void exynos4412_qos(u8 tm, u8 ac);
+
 /*
  * Exynos drm common overlay structure.
  *
