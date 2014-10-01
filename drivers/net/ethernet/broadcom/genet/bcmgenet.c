@@ -1054,7 +1054,8 @@ static int bcmgenet_xmit_frag(struct net_device *dev,
 /* Reallocate the SKB to put enough headroom in front of it and insert
  * the transmit checksum offsets in the descriptors
  */
-static int bcmgenet_put_tx_csum(struct net_device *dev, struct sk_buff *skb)
+static struct sk_buff *bcmgenet_put_tx_csum(struct net_device *dev,
+					    struct sk_buff *skb)
 {
 	struct status_64 *status = NULL;
 	struct sk_buff *new_skb;
@@ -1072,7 +1073,7 @@ static int bcmgenet_put_tx_csum(struct net_device *dev, struct sk_buff *skb)
 		if (!new_skb) {
 			dev->stats.tx_errors++;
 			dev->stats.tx_dropped++;
-			return -ENOMEM;
+			return NULL;
 		}
 		skb = new_skb;
 	}
@@ -1090,7 +1091,7 @@ static int bcmgenet_put_tx_csum(struct net_device *dev, struct sk_buff *skb)
 			ip_proto = ipv6_hdr(skb)->nexthdr;
 			break;
 		default:
-			return 0;
+			return skb;
 		}
 
 		offset = skb_checksum_start_offset(skb) - sizeof(*status);
@@ -1111,7 +1112,7 @@ static int bcmgenet_put_tx_csum(struct net_device *dev, struct sk_buff *skb)
 		status->tx_csum_info = tx_csum_info;
 	}
 
-	return 0;
+	return skb;
 }
 
 static netdev_tx_t bcmgenet_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -1158,8 +1159,8 @@ static netdev_tx_t bcmgenet_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* set the SKB transmit checksum */
 	if (priv->desc_64b_en) {
-		ret = bcmgenet_put_tx_csum(dev, skb);
-		if (ret) {
+		skb = bcmgenet_put_tx_csum(dev, skb);
+		if (!skb) {
 			ret = NETDEV_TX_OK;
 			goto out;
 		}
