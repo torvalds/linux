@@ -48,14 +48,14 @@ struct svc_function_handshake {
 };
 
 struct svc_function_unipro_set_route {
-	__u8	source_module_id;
+	__u8	source_device_id;
 	__u8	source_cport_id;	/* bottom 8 bits */
-	__u8	destination_module_id;
+	__u8	destination_device_id;
 	__u8	destination_cport_id;	/* bottom 8 bits */
 };
 
 struct svc_function_unipro_link_up {
-	__u8	module_id;
+	__u8	device_id;
 };
 
 enum svc_function_management_event {
@@ -76,6 +76,11 @@ enum svc_function_hotplug_event {
 	SVC_HOTUNPLUG_EVENT	= 0x01,
 };
 
+/* XXX
+ * Does a hotplug come from module insertion, or from detection
+ * of each interface block (UniPro device) in a module?  Assume
+ * the former for now.
+ */
 struct svc_function_hotplug {
 	__u8	hotplug_event;	/* enum svc_function_hotplug_event */
 	__u8	module_id;
@@ -87,6 +92,12 @@ enum svc_function_ddb_type {
 	SVC_DDB_RESPONSE	= 0x01,
 };
 
+/* XXX
+ * Will only the first interface block in a module be responsible
+ * for this?  If a module has two interface blocks, will both supply
+ * the same information, or will it be partitioned?  For now assume
+ * it's a per-module thing.
+ */
 struct svc_function_ddb_get {
 	__u8	module_id;
 	__u8	message_id;
@@ -129,6 +140,11 @@ struct svc_function_power_battery_status {
 struct svc_function_power_battery_status_request {
 };
 
+/* XXX
+ * Each interface block carries power, so it's possible these things
+ * are associated with each UniPro device and not just the module.
+ * For now it's safe to assume it's per-module.
+ */
 struct svc_function_power {
 	__u8	power_type;	/* enum svc_function_power_type */
 	__u8	module_id;
@@ -143,6 +159,7 @@ enum svc_function_epm_command_type {
 	SVC_EPM_DISABLE	= 0x01,
 };
 
+/* EPM's are associated with the module */
 struct svc_function_epm {
 	__u8	epm_command_type;	/* enum svc_function_epm_command_type */
 	__u8	module_id;
@@ -153,9 +170,10 @@ enum svc_function_suspend_command_type {
 	SVC_SUSPEND_FIXME_2	= 0x01,
 };
 
+/* We'll want independent control for multi-interface block modules */
 struct svc_function_suspend {
 	__u8	suspend_command_type;	/* enum function_suspend_command_type */
-	__u8	module_id;
+	__u8	device_id;
 };
 
 struct svc_msg {
