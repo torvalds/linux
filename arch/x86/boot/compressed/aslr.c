@@ -195,7 +195,7 @@ static bool mem_avoid_overlap(struct mem_vector *img)
 	while (ptr) {
 		struct mem_vector avoid;
 
-		avoid.start = (u64)ptr;
+		avoid.start = (unsigned long)ptr;
 		avoid.size = sizeof(*ptr) + ptr->len;
 
 		if (mem_overlaps(img, &avoid))
