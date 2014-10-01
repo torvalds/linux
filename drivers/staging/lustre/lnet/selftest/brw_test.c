@@ -131,7 +131,7 @@ brw_client_init(sfw_test_instance_t *tsi)
 #define BRW_MAGIC       0xeeb0eeb1eeb2eeb3ULL
 #define BRW_MSIZE       sizeof(__u64)
 
-int
+static int
 brw_inject_one_error(void)
 {
 	struct timeval tv;
