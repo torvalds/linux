@@ -498,7 +498,7 @@ static void lowpan_frags_sysctl_unregister(void)
 	unregister_net_sysctl_table(lowpan_ctl_header);
 }
 #else
-static inline int __init lowpan_frags_ns_sysctl_register(struct net *net)
+static inline int lowpan_frags_ns_sysctl_register(struct net *net)
 {
 	return 0;
 }
@@ -507,7 +507,7 @@ static inline void lowpan_frags_ns_sysctl_unregister(struct net *net)
 {
 }
 
-static inline int lowpan_frags_sysctl_register(void)
+static inline int __init lowpan_frags_sysctl_register(void)
 {
 	return 0;
 }
