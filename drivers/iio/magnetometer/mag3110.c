@@ -154,6 +154,9 @@ static int mag3110_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
+		if (iio_buffer_enabled(indio_dev))
+			return -EBUSY;
+
 		switch (chan->type) {
 		case IIO_MAGN: /* in 0.1 uT / LSB */
 			ret = mag3110_read(data, buffer);
@@ -198,6 +201,9 @@ static int mag3110_write_raw(struct iio_dev *indio_dev,
 {
 	struct mag3110_data *data = iio_priv(indio_dev);
 	int rate;
+
+	if (iio_buffer_enabled(indio_dev))
+		return -EBUSY;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
