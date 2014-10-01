@@ -2261,8 +2261,8 @@ static inline int _wait_for_wakeup_queue(struct list_head *ccw_queue)
 static int _dasd_sleep_on_queue(struct list_head *ccw_queue, int interruptible)
 {
 	struct dasd_device *device;
-	int rc;
 	struct dasd_ccw_req *cqr, *n;
+	int rc;
 
 retry:
 	list_for_each_entry_safe(cqr, n, ccw_queue, blocklist) {
@@ -2310,21 +2310,26 @@ retry:
 		/*
 		 * for alias devices simplify error recovery and
 		 * return to upper layer
+		 * do not skip ERP requests
 		 */
-		if (cqr->startdev != cqr->basedev &&
+		if (cqr->startdev != cqr->basedev && !cqr->refers &&
 		    (cqr->status == DASD_CQR_TERMINATED ||
 		     cqr->status == DASD_CQR_NEED_ERP))
 			return -EAGAIN;
-		else {
-			/* normal recovery for basedev IO */
-			if (__dasd_sleep_on_erp(cqr)) {
-				if (!cqr->status == DASD_CQR_TERMINATED &&
-				    !cqr->status == DASD_CQR_NEED_ERP)
-					break;
-				rc = 1;
-			}
+
+		/* normal recovery for basedev IO */
+		if (__dasd_sleep_on_erp(cqr)) {
+			goto retry;
+			/* remember that ERP was needed */
+			rc = 1;
+			/* skip processing for active cqr */
+			if (cqr->status != DASD_CQR_TERMINATED &&
+			    cqr->status != DASD_CQR_NEED_ERP)
+				break;
 		}
 	}
+
+	/* start ERP requests in upper loop */
 	if (rc)
 		goto retry;
 
