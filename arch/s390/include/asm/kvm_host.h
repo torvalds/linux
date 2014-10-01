@@ -434,6 +434,8 @@ struct kvm_arch{
 	int user_cpu_state_ctrl;
 	struct s390_io_adapter *adapters[MAX_S390_IO_ADAPTERS];
 	wait_queue_head_t ipte_wq;
+	int ipte_lock_count;
+	struct mutex ipte_mutex;
 	spinlock_t start_stop_lock;
 	struct kvm_s390_crypto crypto;
 };
