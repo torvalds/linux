@@ -448,28 +448,31 @@ static int mwifiex_pm_wakeup_card_complete(struct mwifiex_adapter *adapter)
 static int mwifiex_init_sdio_new_mode(struct mwifiex_adapter *adapter)
 {
 	u8 reg;
+	struct sdio_mmc_card *card = adapter->card;
 
 	adapter->ioport = MEM_PORT;
 
 	/* enable sdio new mode */
-	if (mwifiex_read_reg(adapter, CARD_CONFIG_2_1_REG, &reg))
+	if (mwifiex_read_reg(adapter, card->reg->card_cfg_2_1_reg, &reg))
 		return -1;
-	if (mwifiex_write_reg(adapter, CARD_CONFIG_2_1_REG,
+	if (mwifiex_write_reg(adapter, card->reg->card_cfg_2_1_reg,
 			      reg | CMD53_NEW_MODE))
 		return -1;
 
 	/* Configure cmd port and enable reading rx length from the register */
-	if (mwifiex_read_reg(adapter, CMD_CONFIG_0, &reg))
+	if (mwifiex_read_reg(adapter, card->reg->cmd_cfg_0, &reg))
 		return -1;
-	if (mwifiex_write_reg(adapter, CMD_CONFIG_0, reg | CMD_PORT_RD_LEN_EN))
+	if (mwifiex_write_reg(adapter, card->reg->cmd_cfg_0,
+			      reg | CMD_PORT_RD_LEN_EN))
 		return -1;
 
 	/* Enable Dnld/Upld ready auto reset for cmd port after cmd53 is
 	 * completed
 	 */
-	if (mwifiex_read_reg(adapter, CMD_CONFIG_1, &reg))
+	if (mwifiex_read_reg(adapter, card->reg->cmd_cfg_1, &reg))
 		return -1;
-	if (mwifiex_write_reg(adapter, CMD_CONFIG_1, reg | CMD_PORT_AUTO_EN))
+	if (mwifiex_write_reg(adapter, card->reg->cmd_cfg_1,
+			      reg | CMD_PORT_AUTO_EN))
 		return -1;
 
 	return 0;
@@ -496,17 +499,17 @@ static int mwifiex_init_sdio_ioport(struct mwifiex_adapter *adapter)
 	}
 
 	/* Read the IO port */
-	if (!mwifiex_read_reg(adapter, IO_PORT_0_REG, &reg))
+	if (!mwifiex_read_reg(adapter, card->reg->io_port_0_reg, &reg))
 		adapter->ioport |= (reg & 0xff);
 	else
 		return -1;
 
-	if (!mwifiex_read_reg(adapter, IO_PORT_1_REG, &reg))
+	if (!mwifiex_read_reg(adapter, card->reg->io_port_1_reg, &reg))
 		adapter->ioport |= ((reg & 0xff) << 8);
 	else
 		return -1;
 
-	if (!mwifiex_read_reg(adapter, IO_PORT_2_REG, &reg))
+	if (!mwifiex_read_reg(adapter, card->reg->io_port_2_reg, &reg))
 		adapter->ioport |= ((reg & 0xff) << 16);
 	else
 		return -1;
@@ -514,8 +517,8 @@ cont:
 	pr_debug("info: SDIO FUNC1 IO port: %#x\n", adapter->ioport);
 
 	/* Set Host interrupt reset to read to clear */
-	if (!mwifiex_read_reg(adapter, HOST_INT_RSR_REG, &reg))
-		mwifiex_write_reg(adapter, HOST_INT_RSR_REG,
+	if (!mwifiex_read_reg(adapter, card->reg->host_int_rsr_reg, &reg))
+		mwifiex_write_reg(adapter, card->reg->host_int_rsr_reg,
 				  reg | card->reg->sdio_int_mask);
 	else
 		return -1;
@@ -708,7 +711,7 @@ static void mwifiex_sdio_disable_host_int(struct mwifiex_adapter *adapter)
 	struct sdio_func *func = card->func;
 
 	sdio_claim_host(func);
-	mwifiex_write_reg_locked(func, HOST_INT_MASK_REG, 0);
+	mwifiex_write_reg_locked(func, card->reg->host_int_mask_reg, 0);
 	sdio_release_irq(func);
 	sdio_release_host(func);
 }
@@ -729,7 +732,7 @@ static void mwifiex_interrupt_status(struct mwifiex_adapter *adapter)
 		return;
 	}
 
-	sdio_ireg = card->mp_regs[HOST_INTSTATUS_REG];
+	sdio_ireg = card->mp_regs[card->reg->host_int_status_reg];
 	if (sdio_ireg) {
 		/*
 		 * DN_LD_HOST_INT_STATUS and/or UP_LD_HOST_INT_STATUS
@@ -794,7 +797,7 @@ static int mwifiex_sdio_enable_host_int(struct mwifiex_adapter *adapter)
 	}
 
 	/* Simply write the mask to the register */
-	ret = mwifiex_write_reg_locked(func, HOST_INT_MASK_REG,
+	ret = mwifiex_write_reg_locked(func, card->reg->host_int_mask_reg,
 				       card->reg->host_int_enable);
 	if (ret) {
 		dev_err(adapter->dev, "enable host interrupt failed\n");
@@ -1334,8 +1337,8 @@ static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 		u32 pkt_type;
 
 		/* read the len of control packet */
-		rx_len = card->mp_regs[CMD_RD_LEN_1] << 8;
-		rx_len |= (u16) card->mp_regs[CMD_RD_LEN_0];
+		rx_len = card->mp_regs[reg->cmd_rd_len_1] << 8;
+		rx_len |= (u16)card->mp_regs[reg->cmd_rd_len_0];
 		rx_blocks = DIV_ROUND_UP(rx_len, MWIFIEX_SDIO_BLOCK_SIZE);
 		if (rx_len <= INTF_HEADER_LEN ||
 		    (rx_blocks * MWIFIEX_SDIO_BLOCK_SIZE) >
@@ -1823,11 +1826,11 @@ static int mwifiex_init_sdio(struct mwifiex_adapter *adapter)
 	sdio_set_drvdata(card->func, card);
 
 	/*
-	 * Read the HOST_INT_STATUS_REG for ACK the first interrupt got
+	 * Read the host_int_status_reg for ACK the first interrupt got
 	 * from the bootloader. If we don't do this we get a interrupt
 	 * as soon as we register the irq.
 	 */
-	mwifiex_read_reg(adapter, HOST_INTSTATUS_REG, &sdio_ireg);
+	mwifiex_read_reg(adapter, card->reg->host_int_status_reg, &sdio_ireg);
 
 	/* Get SDIO ioport */
 	mwifiex_init_sdio_ioport(adapter);
