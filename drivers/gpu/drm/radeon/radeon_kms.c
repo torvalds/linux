@@ -568,6 +568,14 @@ static int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		else
 			*value = rdev->pm.current_mclk / 100;
 		break;
+	case RADEON_INFO_READ_REG:
+		if (copy_from_user(value, value_ptr, sizeof(uint32_t))) {
+			DRM_ERROR("copy_from_user %s:%u\n", __func__, __LINE__);
+			return -EFAULT;
+		}
+		if (radeon_get_allowed_info_register(rdev, *value, value))
+			return -EINVAL;
+		break;
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->request);
 		return -EINVAL;
