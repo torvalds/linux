@@ -350,12 +350,10 @@ static int iser_post_rx_bufs(struct iscsi_conn *conn, struct iscsi_hdr *req)
 		return 0;
 
 	/*
-	 * Check that there is one posted recv buffer (for the last login
-	 * response) and no posted send buffers left - they must have been
-	 * consumed during previous login phases.
+	 * Check that there is one posted recv buffer
+	 * (for the last login response).
 	 */
 	WARN_ON(ib_conn->post_recv_buf_count != 1);
-	WARN_ON(atomic_read(&ib_conn->post_send_buf_count) != 0);
 
 	if (session->discovery_sess) {
 		iser_info("Discovery session, re-using login RX buffer\n");
@@ -633,8 +631,6 @@ void iser_snd_completion(struct iser_tx_desc *tx_desc,
 		kmem_cache_free(ig.desc_cache, tx_desc);
 		tx_desc = NULL;
 	}
-
-	atomic_dec(&ib_conn->post_send_buf_count);
 
 	if (tx_desc && tx_desc->type == ISCSI_TX_CONTROL) {
 		/* this arithmetic is legal by libiscsi dd_data allocation */

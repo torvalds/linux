@@ -150,6 +150,7 @@
 #define ISER_RSV			0x04
 
 #define ISER_FASTREG_LI_WRID		0xffffffffffffffffULL
+#define ISER_BEACON_WRID		0xfffffffffffffffeULL
 
 struct iser_hdr {
 	u8      flags;
@@ -335,11 +336,11 @@ struct fast_reg_descriptor {
  * @cma_id:              rdma_cm connection maneger handle
  * @qp:                  Connection Queue-pair
  * @post_recv_buf_count: post receive counter
- * @post_send_buf_count: post send counter
  * @rx_wr:               receive work request for batch posts
  * @device:              reference to iser device
  * @comp:                iser completion context
  * @pi_support:          Indicate device T10-PI support
+ * @beacon:              beacon send wr to signal all flush errors were drained
  * @flush_comp:          completes when all connection completions consumed
  * @lock:                protects fmr/fastreg pool
  * @union.fmr:
@@ -355,11 +356,11 @@ struct ib_conn {
 	struct rdma_cm_id           *cma_id;
 	struct ib_qp	            *qp;
 	int                          post_recv_buf_count;
-	atomic_t                     post_send_buf_count;
 	struct ib_recv_wr	     rx_wr[ISER_MIN_POSTED_RX];
 	struct iser_device          *device;
 	struct iser_comp	    *comp;
 	bool			     pi_support;
+	struct ib_send_wr	     beacon;
 	struct completion	     flush_comp;
 	spinlock_t		     lock;
 	union {

@@ -41,7 +41,8 @@
 #define ISCSI_ISER_MAX_CONN	8
 #define ISER_MAX_RX_LEN		(ISER_QP_MAX_RECV_DTOS * ISCSI_ISER_MAX_CONN)
 #define ISER_MAX_TX_LEN		(ISER_QP_MAX_REQ_DTOS  * ISCSI_ISER_MAX_CONN)
-#define ISER_MAX_CQ_LEN		(ISER_MAX_RX_LEN + ISER_MAX_TX_LEN)
+#define ISER_MAX_CQ_LEN		(ISER_MAX_RX_LEN + ISER_MAX_TX_LEN + \
+				 ISCSI_ISER_MAX_CONN)
 
 static int iser_cq_poll_limit = 512;
 
@@ -457,10 +458,10 @@ static int iser_create_ib_conn_res(struct ib_conn *ib_conn)
 	init_attr.sq_sig_type	= IB_SIGNAL_REQ_WR;
 	init_attr.qp_type	= IB_QPT_RC;
 	if (ib_conn->pi_support) {
-		init_attr.cap.max_send_wr = ISER_QP_SIG_MAX_REQ_DTOS;
+		init_attr.cap.max_send_wr = ISER_QP_SIG_MAX_REQ_DTOS + 1;
 		init_attr.create_flags |= IB_QP_CREATE_SIGNATURE_EN;
 	} else {
-		init_attr.cap.max_send_wr  = ISER_QP_MAX_REQ_DTOS;
+		init_attr.cap.max_send_wr  = ISER_QP_MAX_REQ_DTOS + 1;
 	}
 
 	ret = rdma_create_qp(ib_conn->cma_id, device->pd, &init_attr);
@@ -634,6 +635,7 @@ void iser_conn_release(struct iser_conn *iser_conn)
 int iser_conn_terminate(struct iser_conn *iser_conn)
 {
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
+	struct ib_send_wr *bad_wr;
 	int err = 0;
 
 	/* terminate the iser conn only if the conn state is UP */
@@ -657,6 +659,11 @@ int iser_conn_terminate(struct iser_conn *iser_conn)
 		if (err)
 			iser_err("Failed to disconnect, conn: 0x%p err %d\n",
 				 iser_conn, err);
+
+		/* post an indication that all flush errors were consumed */
+		err = ib_post_send(ib_conn->qp, &ib_conn->beacon, &bad_wr);
+		if (err)
+			iser_err("conn %p failed to post beacon", ib_conn);
 
 		wait_for_completion(&ib_conn->flush_comp);
 	}
@@ -867,7 +874,6 @@ void iser_conn_init(struct iser_conn *iser_conn)
 {
 	iser_conn->state = ISER_CONN_INIT;
 	iser_conn->ib_conn.post_recv_buf_count = 0;
-	atomic_set(&iser_conn->ib_conn.post_send_buf_count, 0);
 	init_completion(&iser_conn->ib_conn.flush_comp);
 	init_completion(&iser_conn->stop_completion);
 	init_completion(&iser_conn->ib_completion);
@@ -899,6 +905,9 @@ int iser_connect(struct iser_conn   *iser_conn,
 	ib_conn->device = NULL;
 
 	iser_conn->state = ISER_CONN_PENDING;
+
+	ib_conn->beacon.wr_id = ISER_BEACON_WRID;
+	ib_conn->beacon.opcode = IB_WR_SEND;
 
 	ib_conn->cma_id = rdma_create_id(iser_cma_handler,
 					 (void *)iser_conn,
@@ -1106,13 +1115,10 @@ int iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc)
 	send_wr.opcode	   = IB_WR_SEND;
 	send_wr.send_flags = IB_SEND_SIGNALED;
 
-	atomic_inc(&ib_conn->post_send_buf_count);
-
 	ib_ret = ib_post_send(ib_conn->qp, &send_wr, &send_wr_failed);
-	if (ib_ret) {
+	if (ib_ret)
 		iser_err("ib_post_send failed, ret:%d\n", ib_ret);
-		atomic_dec(&ib_conn->post_send_buf_count);
-	}
+
 	return ib_ret;
 }
 
@@ -1164,7 +1170,6 @@ iser_handle_comp_error(struct ib_conn *ib_conn,
 	if (is_iser_tx_desc(iser_conn, (void *)wc->wr_id)) {
 		struct iser_tx_desc *desc = (struct iser_tx_desc *)wc->wr_id;
 
-		atomic_dec(&ib_conn->post_send_buf_count);
 		if (desc->type == ISCSI_TX_DATAOUT)
 			kmem_cache_free(ig.desc_cache, desc);
 	} else {
@@ -1196,7 +1201,6 @@ static void iser_handle_wc(struct ib_wc *wc)
 		if (wc->opcode == IB_WC_SEND) {
 			tx_desc = (struct iser_tx_desc *)wc->wr_id;
 			iser_snd_completion(tx_desc, ib_conn);
-			atomic_dec(&ib_conn->post_send_buf_count);
 		} else {
 			iser_err("Unknown wc opcode %d\n", wc->opcode);
 		}
@@ -1207,12 +1211,12 @@ static void iser_handle_wc(struct ib_wc *wc)
 		else
 			iser_dbg("flush error: wr id %llx\n", wc->wr_id);
 
-		if (wc->wr_id != ISER_FASTREG_LI_WRID)
+		if (wc->wr_id != ISER_FASTREG_LI_WRID &&
+		    wc->wr_id != ISER_BEACON_WRID)
 			iser_handle_comp_error(ib_conn, wc);
 
 		/* complete in case all flush errors were consumed */
-		if (ib_conn->post_recv_buf_count == 0 &&
-		    atomic_read(&ib_conn->post_send_buf_count) == 0)
+		if (wc->wr_id == ISER_BEACON_WRID)
 			complete(&ib_conn->flush_comp);
 	}
 }
