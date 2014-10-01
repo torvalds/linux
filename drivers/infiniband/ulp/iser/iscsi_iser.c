@@ -414,8 +414,15 @@ iscsi_iser_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 	 * might have only partially setup the connection.
 	 */
 	if (iser_conn) {
+		mutex_lock(&iser_conn->state_mutex);
+		iser_conn_terminate(iser_conn);
+
+		/* unbind */
+		iser_conn->iscsi_conn = NULL;
 		conn->dd_data = NULL;
+
 		complete(&iser_conn->stop_completion);
+		mutex_unlock(&iser_conn->state_mutex);
 	}
 }
 
