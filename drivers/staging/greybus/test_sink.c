@@ -16,9 +16,9 @@ struct test_device {
 };
 
 int gb_register_cport_complete(struct greybus_module *gmod,
-			       gbuf_complete_t handler, int cport_id,
+			       gbuf_complete_t handler, u16 cport_id,
 			       void *context);
-void gb_deregister_cport_complete(int cport_id);
+void gb_deregister_cport_complete(u16 cport_id);
 
 
 

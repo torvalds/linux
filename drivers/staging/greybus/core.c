@@ -160,8 +160,6 @@ static void greybus_module_release(struct device *dev)
 
 	for (i = 0; i < gmod->num_strings; ++i)
 		kfree(gmod->string[i]);
-	for (i = 0; i < gmod->num_cports; ++i)
-		kfree(gmod->cport[i]);
 	kfree(gmod);
 }
 
@@ -298,8 +296,6 @@ static int create_cport(struct greybus_module *gmod,
 			struct greybus_descriptor_cport *cport,
 			size_t desc_size)
 {
-	struct gmod_cport *gmod_cport;
-
 	if (gmod->num_cports == MAX_CPORTS_PER_MODULE) {
 		dev_err(gmod->dev.parent, "too many cports for this module!\n");
 		return -EINVAL;
@@ -311,15 +307,7 @@ static int create_cport(struct greybus_module *gmod,
 		return -EINVAL;
 	}
 
-	gmod_cport = kzalloc(sizeof(*gmod_cport), GFP_KERNEL);
-	if (!gmod_cport)
-		return -ENOMEM;
-
-	gmod_cport->id = le16_to_cpu(cport->id);
-	gmod_cport->size = le16_to_cpu(cport->size);
-	gmod_cport->speed = cport->speed;
-
-	gmod->cport[gmod->num_cports] = gmod_cport;
+	gmod->cport_ids[gmod->num_cports] = le16_to_cpu(cport->id);
 	gmod->num_cports++;
 
 	return 0;

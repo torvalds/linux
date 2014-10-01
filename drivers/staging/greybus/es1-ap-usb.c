@@ -11,8 +11,10 @@
 #include <linux/errno.h>
 #include <linux/sizes.h>
 #include <linux/usb.h>
+
 #include "greybus.h"
 #include "svc_msg.h"
+#include "kernel_ver.h"
 
 /* Memory sizes for the buffers sent to/from the ES1 controller */
 #define ES1_SVC_MSG_SIZE	(sizeof(struct svc_msg) + SZ_64K)
@@ -114,7 +116,8 @@ static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size, gfp_t gfp_mask)
 	 * we will encode the cport number in the first byte of the buffer, so
 	 * set the second byte to be the "transfer buffer"
 	 */
-	buffer[0] = gbuf->cport->id;
+	BUG_ON(gbuf->cport_id > (u16)U8_MAX);
+	buffer[0] = gbuf->cport_id;
 	gbuf->transfer_buffer = &buffer[1];
 	gbuf->transfer_buffer_length = size;
 	gbuf->actual_length = size;

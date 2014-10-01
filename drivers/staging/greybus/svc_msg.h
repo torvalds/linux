@@ -49,9 +49,9 @@ struct svc_function_handshake {
 
 struct svc_function_unipro_set_route {
 	__u8	source_module_id;
-	__u8	source_cport_id;
+	__u8	source_cport_id;	/* bottom 8 bits */
 	__u8	destination_module_id;
-	__u8	destination_cport_id;
+	__u8	destination_cport_id;	/* bottom 8 bits */
 };
 
 struct svc_function_unipro_link_up {

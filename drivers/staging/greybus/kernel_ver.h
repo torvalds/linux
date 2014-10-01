@@ -18,5 +18,8 @@
 	struct device_attribute dev_attr_##_name = __ATTR_RO(_name)
 #endif
 
+#ifndef U8_MAX
+#define U8_MAX	((u8)~0U)
+#endif /* ! U8_MAX */
 
 #endif	/* __GREYBUS_KERNEL_VER_H */

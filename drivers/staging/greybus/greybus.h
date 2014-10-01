@@ -101,13 +101,6 @@
 
 struct gbuf;
 
-struct gmod_cport {
-	u16	id;
-	u16	size;
-	u8	speed;	// valid???
-	// FIXME, what else?
-};
-
 struct gmod_string {
 	u16	length;
 	u8	id;
@@ -121,7 +114,7 @@ struct gbuf {
 	void *hdpriv;
 
 	struct greybus_module *gmod;
-	struct gmod_cport *cport;
+	u16 cport_id;
 	int status;
 	void *transfer_buffer;
 	u32 transfer_flags;		/* flags for the transfer buffer */
@@ -187,8 +180,8 @@ struct greybus_host_device {
 struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *host_driver,
 					      struct device *parent);
 void greybus_remove_hd(struct greybus_host_device *hd);
-void greybus_cport_in(struct greybus_host_device *hd, int cport_id, u8 *data,
-			   size_t length);
+void greybus_cport_in(struct greybus_host_device *hd, u16 cport_id,
+			u8 *data, size_t length);
 void greybus_gbuf_finished(struct gbuf *gbuf);
 
 
@@ -203,7 +196,7 @@ struct greybus_module {
 	struct greybus_descriptor_module module;
 	int num_cports;
 	int num_strings;
-	struct gmod_cport *cport[MAX_CPORTS_PER_MODULE];
+	u16 cport_ids[MAX_CPORTS_PER_MODULE];
 	struct gmod_string *string[MAX_STRINGS_PER_MODULE];
 
 	struct greybus_host_device *hd;
@@ -218,7 +211,7 @@ struct greybus_module {
 #define to_greybus_module(d) container_of(d, struct greybus_module, dev)
 
 struct gbuf *greybus_alloc_gbuf(struct greybus_module *gmod,
-				struct gmod_cport *cport,
+				u16 cport_id,
 				gbuf_complete_t complete,
 				unsigned int size,
 				gfp_t gfp_mask,
@@ -298,9 +291,9 @@ int gb_gbuf_init(void);
 void gb_gbuf_exit(void);
 
 int gb_register_cport_complete(struct greybus_module *gmod,
-			       gbuf_complete_t handler, int cport_id,
+			       gbuf_complete_t handler, u16 cport_id,
 			       void *context);
-void gb_deregister_cport_complete(int cport_id);
+void gb_deregister_cport_complete(u16 cport_id);
 
 extern const struct attribute_group *greybus_module_groups[];
 

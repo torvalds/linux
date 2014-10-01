@@ -27,7 +27,7 @@ static struct kmem_cache *gbuf_head_cache;
 static struct workqueue_struct *gbuf_workqueue;
 
 static struct gbuf *__alloc_gbuf(struct greybus_module *gmod,
-				struct gmod_cport *cport,
+				u16 cport_id,
 				gbuf_complete_t complete,
 				gfp_t gfp_mask,
 				void *context)
@@ -40,7 +40,7 @@ static struct gbuf *__alloc_gbuf(struct greybus_module *gmod,
 
 	kref_init(&gbuf->kref);
 	gbuf->gmod = gmod;
-	gbuf->cport = cport;
+	gbuf->cport_id = cport_id;
 	INIT_WORK(&gbuf->event, cport_process_event);
 	gbuf->complete = complete;
 	gbuf->context = context;
@@ -64,7 +64,7 @@ static struct gbuf *__alloc_gbuf(struct greybus_module *gmod,
  * hardware designers for this issue...
  */
 struct gbuf *greybus_alloc_gbuf(struct greybus_module *gmod,
-				struct gmod_cport *cport,
+				u16 cport_id,
 				gbuf_complete_t complete,
 				unsigned int size,
 				gfp_t gfp_mask,
@@ -73,7 +73,7 @@ struct gbuf *greybus_alloc_gbuf(struct greybus_module *gmod,
 	struct gbuf *gbuf;
 	int retval;
 
-	gbuf = __alloc_gbuf(gmod, cport, complete, gfp_mask, context);
+	gbuf = __alloc_gbuf(gmod, cport_id, complete, gfp_mask, context);
 	if (!gbuf)
 		return NULL;
 
@@ -146,7 +146,7 @@ static void cport_process_event(struct work_struct *work)
 #define MAX_CPORTS	1024
 struct gb_cport_handler {
 	gbuf_complete_t handler;
-	struct gmod_cport cport;
+	u16 cport_id;
 	struct greybus_module *gmod;
 	void *context;
 };
@@ -156,25 +156,25 @@ static struct gb_cport_handler cport_handler[MAX_CPORTS];
 // need it, we don't have a dynamic system...
 
 int gb_register_cport_complete(struct greybus_module *gmod,
-			       gbuf_complete_t handler, int cport_id,
+			       gbuf_complete_t handler, u16 cport_id,
 			       void *context)
 {
 	if (cport_handler[cport_id].handler)
 		return -EINVAL;
 	cport_handler[cport_id].context = context;
 	cport_handler[cport_id].gmod = gmod;
-	cport_handler[cport_id].cport.id = cport_id;
+	cport_handler[cport_id].cport_id = cport_id;
 	cport_handler[cport_id].handler = handler;
 	return 0;
 }
 
-void gb_deregister_cport_complete(int cport_id)
+void gb_deregister_cport_complete(u16 cport_id)
 {
 	cport_handler[cport_id].handler = NULL;
 }
 
-void greybus_cport_in(struct greybus_host_device *hd, int cport_id, u8 *data,
-			   size_t length)
+void greybus_cport_in(struct greybus_host_device *hd, u16 cport_id,
+			u8 *data, size_t length)
 {
 	struct gb_cport_handler *ch;
 	struct gbuf *gbuf;
@@ -189,7 +189,7 @@ void greybus_cport_in(struct greybus_host_device *hd, int cport_id, u8 *data,
 		return;
 	}
 
-	gbuf = __alloc_gbuf(ch->gmod, &ch->cport, ch->handler, GFP_ATOMIC,
+	gbuf = __alloc_gbuf(ch->gmod, ch->cport_id, ch->handler, GFP_ATOMIC,
 			ch->context);
 	if (!gbuf) {
 		/* Again, something bad went wrong, log it... */
