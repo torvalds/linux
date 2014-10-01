@@ -525,7 +525,7 @@ static void *__eeh_pe_state_mark(void *data, void *flag)
 	pe->state |= state;
 
 	/* Offline PCI devices if applicable */
-	if (state != EEH_PE_ISOLATED)
+	if (!(state & EEH_PE_ISOLATED))
 		return NULL;
 
 	eeh_pe_for_each_dev(pe, edev, tmp) {
