@@ -2263,21 +2263,19 @@ out:
  *
  * src_{x,y,w,h} are provided in 16.16 fixed point format
  */
-static int setplane_internal(struct drm_plane *plane,
-			     struct drm_crtc *crtc,
-			     struct drm_framebuffer *fb,
-			     int32_t crtc_x, int32_t crtc_y,
-			     uint32_t crtc_w, uint32_t crtc_h,
-			     /* src_{x,y,w,h} values are 16.16 fixed point */
-			     uint32_t src_x, uint32_t src_y,
-			     uint32_t src_w, uint32_t src_h)
+static int __setplane_internal(struct drm_plane *plane,
+			       struct drm_crtc *crtc,
+			       struct drm_framebuffer *fb,
+			       int32_t crtc_x, int32_t crtc_y,
+			       uint32_t crtc_w, uint32_t crtc_h,
+			       /* src_{x,y,w,h} values are 16.16 fixed point */
+			       uint32_t src_x, uint32_t src_y,
+			       uint32_t src_w, uint32_t src_h)
 {
-	struct drm_device *dev = plane->dev;
 	int ret = 0;
 	unsigned int fb_width, fb_height;
 	int i;
 
-	drm_modeset_lock_all(dev);
 	/* No fb means shut it down */
 	if (!fb) {
 		plane->old_fb = plane->fb;
@@ -2345,10 +2343,28 @@ out:
 	if (plane->old_fb)
 		drm_framebuffer_unreference(plane->old_fb);
 	plane->old_fb = NULL;
-	drm_modeset_unlock_all(dev);
 
 	return ret;
+}
 
+static int setplane_internal(struct drm_plane *plane,
+			     struct drm_crtc *crtc,
+			     struct drm_framebuffer *fb,
+			     int32_t crtc_x, int32_t crtc_y,
+			     uint32_t crtc_w, uint32_t crtc_h,
+			     /* src_{x,y,w,h} values are 16.16 fixed point */
+			     uint32_t src_x, uint32_t src_y,
+			     uint32_t src_w, uint32_t src_h)
+{
+	int ret;
+
+	drm_modeset_lock_all(plane->dev);
+	ret = __setplane_internal(plane, crtc, fb,
+				  crtc_x, crtc_y, crtc_w, crtc_h,
+				  src_x, src_y, src_w, src_h);
+	drm_modeset_unlock_all(plane->dev);
+
+	return ret;
 }
 
 /**
@@ -2714,6 +2730,7 @@ static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 	int ret = 0;
 
 	BUG_ON(!crtc->cursor);
+	WARN_ON(crtc->cursor->crtc != crtc && crtc->cursor->crtc != NULL);
 
 	/*
 	 * Obtain fb we'll be using (either new or existing) and take an extra
@@ -2733,11 +2750,9 @@ static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 			fb = NULL;
 		}
 	} else {
-		mutex_lock(&dev->mode_config.mutex);
 		fb = crtc->cursor->fb;
 		if (fb)
 			drm_framebuffer_reference(fb);
-		mutex_unlock(&dev->mode_config.mutex);
 	}
 
 	if (req->flags & DRM_MODE_CURSOR_MOVE) {
@@ -2759,7 +2774,7 @@ static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 	 * setplane_internal will take care of deref'ing either the old or new
 	 * framebuffer depending on success.
 	 */
-	ret = setplane_internal(crtc->cursor, crtc, fb,
+	ret = __setplane_internal(crtc->cursor, crtc, fb,
 				crtc_x, crtc_y, crtc_w, crtc_h,
 				0, 0, src_w, src_h);
 
@@ -2795,10 +2810,12 @@ static int drm_mode_cursor_common(struct drm_device *dev,
 	 * If this crtc has a universal cursor plane, call that plane's update
 	 * handler rather than using legacy cursor handlers.
 	 */
-	if (crtc->cursor)
-		return drm_mode_cursor_universal(crtc, req, file_priv);
-
 	drm_modeset_lock_crtc(crtc);
+	if (crtc->cursor) {
+		ret = drm_mode_cursor_universal(crtc, req, file_priv);
+		goto out;
+	}
+
 	if (req->flags & DRM_MODE_CURSOR_BO) {
 		if (!crtc->funcs->cursor_set && !crtc->funcs->cursor_set2) {
 			ret = -ENXIO;
@@ -3383,7 +3400,16 @@ void drm_fb_release(struct drm_file *priv)
 	struct drm_device *dev = priv->minor->dev;
 	struct drm_framebuffer *fb, *tfb;
 
-	mutex_lock(&priv->fbs_lock);
+	/*
+	 * When the file gets released that means no one else can access the fb
+	 * list any more, so no need to grab fpriv->fbs_lock. And we need to to
+	 * avoid upsetting lockdep since the universal cursor code adds a
+	 * framebuffer while holding mutex locks.
+	 *
+	 * Note that a real deadlock between fpriv->fbs_lock and the modeset
+	 * locks is impossible here since no one else but this function can get
+	 * at it any more.
+	 */
 	list_for_each_entry_safe(fb, tfb, &priv->fbs, filp_head) {
 
 		mutex_lock(&dev->mode_config.fb_lock);
@@ -3396,7 +3422,6 @@ void drm_fb_release(struct drm_file *priv)
 		/* This will also drop the fpriv->fbs reference. */
 		drm_framebuffer_remove(fb);
 	}
-	mutex_unlock(&priv->fbs_lock);
 }
 
 /**

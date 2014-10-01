@@ -126,6 +126,9 @@ static void drm_update_vblank_count(struct drm_device *dev, int crtc)
 	DRM_DEBUG("updating vblank count on crtc %d, missed %d\n",
 		  crtc, diff);
 
+	if (diff == 0)
+		return;
+
 	/* Reinitialize corresponding vblank timestamp if high-precision query
 	 * available. Skip this step if query unsupported or failed. Will
 	 * reinitialize delayed at next vblank interrupt in that case.
@@ -1074,7 +1077,7 @@ void drm_wait_one_vblank(struct drm_device *dev, int crtc)
 	u32 last;
 
 	ret = drm_vblank_get(dev, crtc);
-	if (WARN_ON(ret))
+	if (WARN(ret, "vblank not available on crtc %i, ret=%i\n", crtc, ret))
 		return;
 
 	last = drm_vblank_count(dev, crtc);
@@ -1083,7 +1086,7 @@ void drm_wait_one_vblank(struct drm_device *dev, int crtc)
 				 last != drm_vblank_count(dev, crtc),
 				 msecs_to_jiffies(100));
 
-	WARN_ON(ret == 0);
+	WARN(ret == 0, "vblank wait timed out on crtc %i\n", crtc);
 
 	drm_vblank_put(dev, crtc);
 }
