@@ -865,6 +865,8 @@ void cik_sdma_set_wptr(struct radeon_device *rdev,
 		       struct radeon_ring *ring);
 int ci_get_temp(struct radeon_device *rdev);
 int kv_get_temp(struct radeon_device *rdev);
+int cik_get_allowed_info_register(struct radeon_device *rdev,
+				  u32 reg, u32 *val);
 
 int ci_dpm_init(struct radeon_device *rdev);
 int ci_dpm_enable(struct radeon_device *rdev);

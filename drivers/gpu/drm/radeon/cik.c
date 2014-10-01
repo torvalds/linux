@@ -141,6 +141,39 @@ static void cik_fini_cg(struct radeon_device *rdev);
 static void cik_enable_gui_idle_interrupt(struct radeon_device *rdev,
 					  bool enable);
 
+/**
+ * cik_get_allowed_info_register - fetch the register for the info ioctl
+ *
+ * @rdev: radeon_device pointer
+ * @reg: register offset in bytes
+ * @val: register value
+ *
+ * Returns 0 for success or -EINVAL for an invalid register
+ *
+ */
+int cik_get_allowed_info_register(struct radeon_device *rdev,
+				  u32 reg, u32 *val)
+{
+	switch (reg) {
+	case GRBM_STATUS:
+	case GRBM_STATUS2:
+	case GRBM_STATUS_SE0:
+	case GRBM_STATUS_SE1:
+	case GRBM_STATUS_SE2:
+	case GRBM_STATUS_SE3:
+	case SRBM_STATUS:
+	case SRBM_STATUS2:
+	case (SDMA0_STATUS_REG + SDMA0_REGISTER_OFFSET):
+	case (SDMA0_STATUS_REG + SDMA1_REGISTER_OFFSET):
+	case UVD_STATUS:
+	/* TODO VCE */
+		*val = RREG32(reg);
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 /* get temperature in millidegrees */
 int ci_get_temp(struct radeon_device *rdev)
 {
