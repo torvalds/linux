@@ -59,7 +59,11 @@ enum {
 	BYT_RT5640_IN1_MAP,
 };
 
-static unsigned long byt_rt5640_custom_map = BYT_RT5640_DMIC1_MAP;
+#define BYT_RT5640_MAP(quirk)	((quirk) & 0xff)
+#define BYT_RT5640_DMIC_EN	BIT(16)
+
+static unsigned long byt_rt5640_quirk = BYT_RT5640_DMIC1_MAP |
+					BYT_RT5640_DMIC_EN;
 
 static const struct snd_kcontrol_new byt_rt5640_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headphone"),
@@ -94,7 +98,7 @@ static int byt_rt5640_hw_params(struct snd_pcm_substream *substream,
 
 static int byt_rt5640_quirk_cb(const struct dmi_system_id *id)
 {
-	byt_rt5640_custom_map = (unsigned long)id->driver_data;
+	byt_rt5640_quirk = (unsigned long)id->driver_data;
 	return 1;
 }
 
@@ -129,7 +133,7 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 	}
 
 	dmi_check_system(byt_rt5640_quirk_table);
-	switch (byt_rt5640_custom_map) {
+	switch (BYT_RT5640_MAP(byt_rt5640_quirk)) {
 	case BYT_RT5640_IN1_MAP:
 		custom_map = byt_rt5640_intmic_in1_map;
 		num_routes = ARRAY_SIZE(byt_rt5640_intmic_in1_map);
@@ -142,6 +146,12 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 	ret = snd_soc_dapm_add_routes(dapm, custom_map, num_routes);
 	if (ret)
 		return ret;
+
+	if (byt_rt5640_quirk & BYT_RT5640_DMIC_EN) {
+		ret = rt5640_dmic_enable(codec, 0, 0);
+		if (ret)
+			return ret;
+	}
 
 	snd_soc_dapm_ignore_suspend(dapm, "HPOL");
 	snd_soc_dapm_ignore_suspend(dapm, "HPOR");
