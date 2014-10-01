@@ -1381,15 +1381,16 @@ static int exynos_dsi_enable(struct exynos_dsi *dsi)
 	exynos_dsi_set_display_mode(dsi);
 	exynos_dsi_set_display_enable(dsi, true);
 
+	dsi->state |= DSIM_STATE_ENABLED;
+
 	ret = drm_panel_enable(dsi->panel);
 	if (ret < 0) {
+		dsi->state &= ~DSIM_STATE_ENABLED;
 		exynos_dsi_set_display_enable(dsi, false);
 		drm_panel_unprepare(dsi->panel);
 		exynos_dsi_poweroff(dsi);
 		return ret;
 	}
-
-	dsi->state |= DSIM_STATE_ENABLED;
 
 	return 0;
 }
