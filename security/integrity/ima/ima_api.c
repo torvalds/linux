@@ -325,11 +325,11 @@ const char *ima_d_path(struct path *path, char **pathbuf)
 {
 	char *pathname = NULL;
 
-	*pathbuf = kmalloc(PATH_MAX, GFP_KERNEL);
+	*pathbuf = __getname();
 	if (*pathbuf) {
 		pathname = d_absolute_path(path, *pathbuf, PATH_MAX);
 		if (IS_ERR(pathname)) {
-			kfree(*pathbuf);
+			__putname(*pathbuf);
 			*pathbuf = NULL;
 			pathname = NULL;
 		}

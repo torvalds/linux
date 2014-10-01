@@ -246,7 +246,8 @@ out_digsig:
 		rc = -EACCES;
 	kfree(xattr_value);
 out_free:
-	kfree(pathbuf);
+	if (pathbuf)
+		__putname(pathbuf);
 out:
 	mutex_unlock(&inode->i_mutex);
 	if ((rc && must_appraise) && (ima_appraise & IMA_APPRAISE_ENFORCE))
