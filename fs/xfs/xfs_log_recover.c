@@ -193,12 +193,8 @@ xlog_bread_noalign(
 	bp->b_io_length = nbblks;
 	bp->b_error = 0;
 
-	if (XFS_FORCED_SHUTDOWN(log->l_mp))
-		return -EIO;
-
-	xfs_buf_iorequest(bp);
-	error = xfs_buf_iowait(bp);
-	if (error)
+	error = xfs_buf_submit_wait(bp);
+	if (error && !XFS_FORCED_SHUTDOWN(log->l_mp))
 		xfs_buf_ioerror_alert(bp, __func__);
 	return error;
 }
@@ -378,12 +374,14 @@ xlog_recover_iodone(
 		 * We're not going to bother about retrying
 		 * this during recovery. One strike!
 		 */
-		xfs_buf_ioerror_alert(bp, __func__);
-		xfs_force_shutdown(bp->b_target->bt_mount,
-					SHUTDOWN_META_IO_ERROR);
+		if (!XFS_FORCED_SHUTDOWN(bp->b_target->bt_mount)) {
+			xfs_buf_ioerror_alert(bp, __func__);
+			xfs_force_shutdown(bp->b_target->bt_mount,
+						SHUTDOWN_META_IO_ERROR);
+		}
 	}
 	bp->b_iodone = NULL;
-	xfs_buf_ioend(bp, 0);
+	xfs_buf_ioend(bp);
 }
 
 /*
@@ -4452,16 +4450,12 @@ xlog_do_recover(
 	XFS_BUF_UNASYNC(bp);
 	bp->b_ops = &xfs_sb_buf_ops;
 
-	if (XFS_FORCED_SHUTDOWN(log->l_mp)) {
-		xfs_buf_relse(bp);
-		return -EIO;
-	}
-
-	xfs_buf_iorequest(bp);
-	error = xfs_buf_iowait(bp);
+	error = xfs_buf_submit_wait(bp);
 	if (error) {
-		xfs_buf_ioerror_alert(bp, __func__);
-		ASSERT(0);
+		if (!XFS_FORCED_SHUTDOWN(log->l_mp)) {
+			xfs_buf_ioerror_alert(bp, __func__);
+			ASSERT(0);
+		}
 		xfs_buf_relse(bp);
 		return error;
 	}

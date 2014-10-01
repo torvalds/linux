@@ -921,16 +921,11 @@ xfs_growfs_rt(
 	/*
 	 * Read in the last block of the device, make sure it exists.
 	 */
-	bp = xfs_buf_read_uncached(mp->m_rtdev_targp,
+	error = xfs_buf_read_uncached(mp->m_rtdev_targp,
 				XFS_FSB_TO_BB(mp, nrblocks - 1),
-				XFS_FSB_TO_BB(mp, 1), 0, NULL);
-	if (!bp)
-		return -EIO;
-	if (bp->b_error) {
-		error = bp->b_error;
-		xfs_buf_relse(bp);
+				XFS_FSB_TO_BB(mp, 1), 0, &bp, NULL);
+	if (error)
 		return error;
-	}
 	xfs_buf_relse(bp);
 
 	/*
@@ -1184,11 +1179,12 @@ xfs_rtallocate_extent(
  */
 int				/* error */
 xfs_rtmount_init(
-	xfs_mount_t	*mp)	/* file system mount structure */
+	struct xfs_mount	*mp)	/* file system mount structure */
 {
-	xfs_buf_t	*bp;	/* buffer for last block of subvolume */
-	xfs_daddr_t	d;	/* address of last block of subvolume */
-	xfs_sb_t	*sbp;	/* filesystem superblock copy in mount */
+	struct xfs_buf		*bp;	/* buffer for last block of subvolume */
+	struct xfs_sb		*sbp;	/* filesystem superblock copy in mount */
+	xfs_daddr_t		d;	/* address of last block of subvolume */
+	int			error;
 
 	sbp = &mp->m_sb;
 	if (sbp->sb_rblocks == 0)
@@ -1214,14 +1210,12 @@ xfs_rtmount_init(
 			(unsigned long long) mp->m_sb.sb_rblocks);
 		return -EFBIG;
 	}
-	bp = xfs_buf_read_uncached(mp->m_rtdev_targp,
+	error = xfs_buf_read_uncached(mp->m_rtdev_targp,
 					d - XFS_FSB_TO_BB(mp, 1),
-					XFS_FSB_TO_BB(mp, 1), 0, NULL);
-	if (!bp || bp->b_error) {
+					XFS_FSB_TO_BB(mp, 1), 0, &bp, NULL);
+	if (error) {
 		xfs_warn(mp, "realtime device size check failed");
-		if (bp)
-			xfs_buf_relse(bp);
-		return -EIO;
+		return error;
 	}
 	xfs_buf_relse(bp);
 	return 0;
