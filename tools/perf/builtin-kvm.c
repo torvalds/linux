@@ -928,12 +928,12 @@ static int kvm_events_live_report(struct perf_kvm_stat *kvm)
 		goto out;
 	}
 
-	if (perf_evlist__add_pollfd(kvm->evlist, kvm->timerfd))
+	if (perf_evlist__add_pollfd(kvm->evlist, kvm->timerfd) < 0)
 		goto out;
 
 	nr_fds++;
 
-	if (perf_evlist__add_pollfd(kvm->evlist, fileno(stdin)))
+	if (perf_evlist__add_pollfd(kvm->evlist, fileno(stdin)) < 0)
 		goto out;
 
 	nr_stdin = nr_fds;
