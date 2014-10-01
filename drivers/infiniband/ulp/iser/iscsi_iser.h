@@ -265,6 +265,7 @@ struct iser_rx_desc {
 #define ISER_MAX_CQ 4
 
 struct iser_conn;
+struct ib_conn;
 struct iscsi_iser_task;
 
 struct iser_device {
@@ -281,9 +282,9 @@ struct iser_device {
 	int                          cq_active_qps[ISER_MAX_CQ];
 	int			     cqs_used;
 	struct iser_cq_desc	     *cq_desc;
-	int                          (*iser_alloc_rdma_reg_res)(struct iser_conn *iser_conn,
+	int                          (*iser_alloc_rdma_reg_res)(struct ib_conn *ib_conn,
 								unsigned cmds_max);
-	void                         (*iser_free_rdma_reg_res)(struct iser_conn *iser_conn);
+	void                         (*iser_free_rdma_reg_res)(struct ib_conn *ib_conn);
 	int                          (*iser_reg_rdma_mem)(struct iscsi_iser_task *iser_task,
 							  enum iser_data_dir cmd_dir);
 	void                         (*iser_unreg_rdma_mem)(struct iscsi_iser_task *iser_task,
@@ -317,20 +318,57 @@ struct fast_reg_descriptor {
 	u8				  reg_indicators;
 };
 
+/**
+ * struct ib_conn - Infiniband related objects
+ *
+ * @cma_id:              rdma_cm connection maneger handle
+ * @qp:                  Connection Queue-pair
+ * @post_recv_buf_count: post receive counter
+ * @post_send_buf_count: post send counter
+ * @rx_wr:               receive work request for batch posts
+ * @device:              reference to iser device
+ * @pi_support:          Indicate device T10-PI support
+ * @lock:                protects fmr/fastreg pool
+ * @union.fmr:
+ *     @pool:            FMR pool for fast registrations
+ *     @page_vec:        page vector to hold mapped commands pages
+ *                       used for registration
+ * @union.fastreg:
+ *     @pool:            Fast registration descriptors pool for fast
+ *                       registrations
+ *     @pool_size:       Size of pool
+ */
+struct ib_conn {
+	struct rdma_cm_id           *cma_id;
+	struct ib_qp	            *qp;
+	int                          post_recv_buf_count;
+	atomic_t                     post_send_buf_count;
+	struct ib_recv_wr	     rx_wr[ISER_MIN_POSTED_RX];
+	struct iser_device          *device;
+	int			     cq_index;
+	bool			     pi_support;
+	spinlock_t		     lock;
+	union {
+		struct {
+			struct ib_fmr_pool      *pool;
+			struct iser_page_vec	*page_vec;
+		} fmr;
+		struct {
+			struct list_head	 pool;
+			int			 pool_size;
+		} fastreg;
+	};
+};
+
 struct iser_conn {
+	struct ib_conn		     ib_conn;
 	struct iscsi_conn	     *iscsi_conn;
 	struct iscsi_endpoint	     *ep;
 	enum iser_conn_state	     state;	    /* rdma connection state   */
 	atomic_t		     refcount;
-	spinlock_t		     lock;	    /* used for state changes  */
-	struct iser_device           *device;       /* device context          */
-	struct rdma_cm_id            *cma_id;       /* CMA ID		       */
-	struct ib_qp	             *qp;           /* QP 		       */
 	unsigned		     qp_max_recv_dtos; /* num of rx buffers */
 	unsigned		     qp_max_recv_dtos_mask; /* above minus 1 */
 	unsigned		     min_posted_rx; /* qp_max_recv_dtos >> 2 */
-	int                          post_recv_buf_count; /* posted rx count  */
-	atomic_t                     post_send_buf_count; /* posted tx count   */
 	char 			     name[ISER_OBJECT_NAME_SIZE];
 	struct work_struct	     release_work;
 	struct completion	     stop_completion;
@@ -344,21 +382,6 @@ struct iser_conn {
 	u64			     login_req_dma, login_resp_dma;
 	unsigned int 		     rx_desc_head;
 	struct iser_rx_desc	     *rx_descs;
-	struct ib_recv_wr	     rx_wr[ISER_MIN_POSTED_RX];
-	bool			     pi_support;
-
-	/* Connection memory registration pool */
-	union {
-		struct {
-			struct ib_fmr_pool      *pool;	   /* pool of IB FMRs         */
-			struct iser_page_vec	*page_vec; /* represents SG to fmr maps*
-							    * maps serialized as tx is*/
-		} fmr;
-		struct {
-			struct list_head	pool;
-			int			pool_size;
-		} fastreg;
-	};
 };
 
 struct iscsi_iser_task {
@@ -429,10 +452,10 @@ void iser_release_work(struct work_struct *work);
 
 void iser_rcv_completion(struct iser_rx_desc *desc,
 			 unsigned long    dto_xfer_len,
-			struct iser_conn *iser_conn);
+			 struct ib_conn *ib_conn);
 
 void iser_snd_completion(struct iser_tx_desc *desc,
-			 struct iser_conn *iser_conn);
+			 struct ib_conn *ib_conn);
 
 void iser_task_rdma_init(struct iscsi_iser_task *task);
 
@@ -455,7 +478,7 @@ int  iser_connect(struct iser_conn   *iser_conn,
 		  struct sockaddr    *dst_addr,
 		  int                non_blocking);
 
-int  iser_reg_page_vec(struct iser_conn     *iser_conn,
+int  iser_reg_page_vec(struct ib_conn *ib_conn,
 		       struct iser_page_vec *page_vec,
 		       struct iser_mem_reg  *mem_reg);
 
@@ -466,7 +489,7 @@ void iser_unreg_mem_fastreg(struct iscsi_iser_task *iser_task,
 
 int  iser_post_recvl(struct iser_conn *iser_conn);
 int  iser_post_recvm(struct iser_conn *iser_conn, int count);
-int  iser_post_send(struct iser_conn *iser_conn, struct iser_tx_desc *tx_desc);
+int  iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc);
 
 int iser_dma_map_task_data(struct iscsi_iser_task *iser_task,
 			    struct iser_data_buf       *data,
@@ -479,10 +502,10 @@ int  iser_initialize_task_headers(struct iscsi_task *task,
 			struct iser_tx_desc *tx_desc);
 int iser_alloc_rx_descriptors(struct iser_conn *iser_conn,
 			      struct iscsi_session *session);
-int iser_create_fmr_pool(struct iser_conn *iser_conn, unsigned cmds_max);
-void iser_free_fmr_pool(struct iser_conn *iser_conn);
-int iser_create_fastreg_pool(struct iser_conn *iser_conn, unsigned cmds_max);
-void iser_free_fastreg_pool(struct iser_conn *iser_conn);
+int iser_create_fmr_pool(struct ib_conn *ib_conn, unsigned cmds_max);
+void iser_free_fmr_pool(struct ib_conn *ib_conn);
+int iser_create_fastreg_pool(struct ib_conn *ib_conn, unsigned cmds_max);
+void iser_free_fastreg_pool(struct ib_conn *ib_conn);
 u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
 			     enum iser_data_dir cmd_dir, sector_t *sector);
 #endif

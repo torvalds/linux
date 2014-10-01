@@ -148,7 +148,7 @@ int iser_initialize_task_headers(struct iscsi_task *task,
 						struct iser_tx_desc *tx_desc)
 {
 	struct iser_conn       *iser_conn   = task->conn->dd_data;
-	struct iser_device     *device    = iser_conn->device;
+	struct iser_device *device = iser_conn->ib_conn.device;
 	struct iscsi_iser_task *iser_task = task->dd_data;
 	u64 dma_addr;
 
@@ -291,7 +291,7 @@ static void iscsi_iser_cleanup_task(struct iscsi_task *task)
 	struct iscsi_iser_task *iser_task = task->dd_data;
 	struct iser_tx_desc    *tx_desc   = &iser_task->desc;
 	struct iser_conn       *iser_conn	  = task->conn->dd_data;
-	struct iser_device     *device	  = iser_conn->device;
+	struct iser_device *device = iser_conn->ib_conn.device;
 
 	ib_dma_unmap_single(device->ib_device,
 		tx_desc->dma_addr, ISER_HEADERS_LEN, DMA_TO_DEVICE);
@@ -448,6 +448,7 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 	struct iscsi_session *session;
 	struct Scsi_Host *shost;
 	struct iser_conn *iser_conn = NULL;
+	struct ib_conn *ib_conn;
 
 	shost = iscsi_host_alloc(&iscsi_iser_sht, 0, 0);
 	if (!shost)
@@ -465,8 +466,9 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 	 */
 	if (ep) {
 		iser_conn = ep->dd_data;
-		if (iser_conn->pi_support) {
-			u32 sig_caps = iser_conn->device->dev_attr.sig_prot_cap;
+		ib_conn = &iser_conn->ib_conn;
+		if (ib_conn->pi_support) {
+			u32 sig_caps = ib_conn->device->dev_attr.sig_prot_cap;
 
 			scsi_host_set_prot(shost, iser_dif_prot_caps(sig_caps));
 			if (iser_pi_guard)
@@ -477,7 +479,7 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 	}
 
 	if (iscsi_host_add(shost, ep ?
-			   iser_conn->device->ib_device->dma_device : NULL))
+			   ib_conn->device->ib_device->dma_device : NULL))
 		goto free_host;
 
 	if (cmds_max > ISER_DEF_XMIT_CMDS_MAX) {
@@ -583,12 +585,12 @@ static int iscsi_iser_get_ep_param(struct iscsi_endpoint *ep,
 	switch (param) {
 	case ISCSI_PARAM_CONN_PORT:
 	case ISCSI_PARAM_CONN_ADDRESS:
-		if (!iser_conn || !iser_conn->cma_id)
+		if (!iser_conn || !iser_conn->ib_conn.cma_id)
 			return -ENOTCONN;
 
 		return iscsi_conn_get_addr_param((struct sockaddr_storage *)
-					&iser_conn->cma_id->route.addr.dst_addr,
-					param, buf);
+				&iser_conn->ib_conn.cma_id->route.addr.dst_addr,
+				param, buf);
 		break;
 	default:
 		return -ENOSYS;
