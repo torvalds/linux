@@ -9,7 +9,7 @@
 #include <linux/kbuild.h>
 #include <linux/kvm_host.h>
 #include <linux/sched.h>
-#include <asm/cputime.h>
+#include <asm/idle.h>
 #include <asm/vdso.h>
 #include <asm/pgtable.h>
 

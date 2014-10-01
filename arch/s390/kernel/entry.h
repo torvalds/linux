@@ -4,7 +4,7 @@
 #include <linux/types.h>
 #include <linux/signal.h>
 #include <asm/ptrace.h>
-#include <asm/cputime.h>
+#include <asm/idle.h>
 
 extern void *restart_stack;
 extern unsigned long suspend_zero_pages;

@@ -45,6 +45,7 @@
 #include <asm/debug.h>
 #include <asm/os_info.h>
 #include <asm/sigp.h>
+#include <asm/idle.h>
 #include "entry.h"
 
 enum {
@@ -661,7 +662,7 @@ static void smp_start_secondary(void *cpuvoid)
 	cpu_init();
 	preempt_disable();
 	init_cpu_timer();
-	init_cpu_vtimer();
+	vtime_init();
 	pfault_init();
 	notify_cpu_starting(smp_processor_id());
 	set_cpu_online(smp_processor_id(), true);
@@ -892,42 +893,6 @@ static struct attribute *cpu_common_attrs[] = {
 static struct attribute_group cpu_common_attr_group = {
 	.attrs = cpu_common_attrs,
 };
-
-static ssize_t show_idle_count(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct s390_idle_data *idle = &per_cpu(s390_idle, dev->id);
-	unsigned long long idle_count;
-	unsigned int sequence;
-
-	do {
-		sequence = ACCESS_ONCE(idle->sequence);
-		idle_count = ACCESS_ONCE(idle->idle_count);
-		if (ACCESS_ONCE(idle->clock_idle_enter))
-			idle_count++;
-	} while ((sequence & 1) || (ACCESS_ONCE(idle->sequence) != sequence));
-	return sprintf(buf, "%llu\n", idle_count);
-}
-static DEVICE_ATTR(idle_count, 0444, show_idle_count, NULL);
-
-static ssize_t show_idle_time(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct s390_idle_data *idle = &per_cpu(s390_idle, dev->id);
-	unsigned long long now, idle_time, idle_enter, idle_exit;
-	unsigned int sequence;
-
-	do {
-		now = get_tod_clock();
-		sequence = ACCESS_ONCE(idle->sequence);
-		idle_time = ACCESS_ONCE(idle->idle_time);
-		idle_enter = ACCESS_ONCE(idle->clock_idle_enter);
-		idle_exit = ACCESS_ONCE(idle->clock_idle_exit);
-	} while ((sequence & 1) || (ACCESS_ONCE(idle->sequence) != sequence));
-	idle_time += idle_enter ? ((idle_exit ? : now) - idle_enter) : 0;
-	return sprintf(buf, "%llu\n", idle_time >> 12);
-}
-static DEVICE_ATTR(idle_time_us, 0444, show_idle_time, NULL);
 
 static struct attribute *cpu_online_attrs[] = {
 	&dev_attr_idle_count.attr,
