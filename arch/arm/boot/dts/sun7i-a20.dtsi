@@ -833,6 +833,13 @@
 				allwinner,pull = <1>;
 			};
 
+			mmc2_pins_a: mmc2@0 {
+				allwinner,pins = "PC6","PC7","PC8","PC9","PC10","PC11";
+				allwinner,function = "mmc2";
+				allwinner,drive = <2>;
+				allwinner,pull = <1>;
+			};
+
 			mmc3_pins_a: mmc3@0 {
 				allwinner,pins = "PI4","PI5","PI6","PI7","PI8","PI9";
 				allwinner,function = "mmc3";
