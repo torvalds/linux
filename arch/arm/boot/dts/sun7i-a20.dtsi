@@ -677,6 +677,13 @@
 				allwinner,pull = <0>;
 			};
 
+			uart3_pins_b: uart3@1 {
+				allwinner,pins = "PH0", "PH1";
+				allwinner,function = "uart3";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
 			uart4_pins_a: uart4@0 {
 				allwinner,pins = "PG10", "PG11";
 				allwinner,function = "uart4";
