@@ -496,27 +496,6 @@ out_err:
 }
 
 /**
- * releases the QP object
- */
-static void iser_free_ib_conn_res(struct iser_conn *iser_conn)
-{
-	struct ib_conn *ib_conn = &iser_conn->ib_conn;
-
-	iser_info("freeing conn %p cma_id %p qp %p\n",
-		  ib_conn, ib_conn->cma_id,
-		  ib_conn->qp);
-
-	/* qp is created only once both addr & route are resolved */
-
-	if (ib_conn->qp != NULL) {
-		ib_conn->device->cq_active_qps[ib_conn->cq_index]--;
-		rdma_destroy_qp(ib_conn->cma_id);
-	}
-
-	ib_conn->qp	  = NULL;
-}
-
-/**
  * based on the resolved device node GUID see if there already allocated
  * device for this device. If there's no such, create one.
  */
@@ -608,12 +587,41 @@ void iser_release_work(struct work_struct *work)
 }
 
 /**
+ * iser_free_ib_conn_res - release IB related resources
+ * @iser_conn: iser connection struct
+ *
+ * This routine is called with the iser state mutex held
+ * so the cm_id removal is out of here. It is Safe to
+ * be invoked multiple times.
+ */
+static void iser_free_ib_conn_res(struct iser_conn *iser_conn)
+{
+	struct ib_conn *ib_conn = &iser_conn->ib_conn;
+	struct iser_device *device = ib_conn->device;
+
+	iser_info("freeing conn %p cma_id %p qp %p\n",
+		  iser_conn, ib_conn->cma_id, ib_conn->qp);
+
+	iser_free_rx_descriptors(iser_conn);
+
+	if (ib_conn->qp != NULL) {
+		ib_conn->device->cq_active_qps[ib_conn->cq_index]--;
+		rdma_destroy_qp(ib_conn->cma_id);
+		ib_conn->qp = NULL;
+	}
+
+	if (device != NULL) {
+		iser_device_try_release(device);
+		ib_conn->device = NULL;
+	}
+}
+
+/**
  * Frees all conn objects and deallocs conn descriptor
  */
 void iser_conn_release(struct iser_conn *iser_conn)
 {
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
-	struct iser_device  *device = ib_conn->device;
 
 	mutex_lock(&ig.connlist_mutex);
 	list_del(&iser_conn->conn_list);
@@ -621,13 +629,7 @@ void iser_conn_release(struct iser_conn *iser_conn)
 
 	mutex_lock(&iser_conn->state_mutex);
 	BUG_ON(iser_conn->state != ISER_CONN_DOWN);
-
-	iser_free_rx_descriptors(iser_conn);
 	iser_free_ib_conn_res(iser_conn);
-	ib_conn->device = NULL;
-	/* on EVENT_ADDR_ERROR there's no device yet for this conn */
-	if (device != NULL)
-		iser_device_try_release(device);
 	mutex_unlock(&iser_conn->state_mutex);
 
 	if (ib_conn->cma_id != NULL) {
