@@ -746,6 +746,8 @@ u32 si_get_xclk(struct radeon_device *rdev);
 uint64_t si_get_gpu_clock_counter(struct radeon_device *rdev);
 int si_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk);
 int si_get_temp(struct radeon_device *rdev);
+int si_get_allowed_info_register(struct radeon_device *rdev,
+				 u32 reg, u32 *val);
 int si_dpm_init(struct radeon_device *rdev);
 void si_dpm_setup_asic(struct radeon_device *rdev);
 int si_dpm_enable(struct radeon_device *rdev);

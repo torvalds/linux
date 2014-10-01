@@ -1908,6 +1908,7 @@ static struct radeon_asic si_asic = {
 	.mc_wait_for_idle = &evergreen_mc_wait_for_idle,
 	.get_xclk = &si_get_xclk,
 	.get_gpu_clock_counter = &si_get_gpu_clock_counter,
+	.get_allowed_info_register = si_get_allowed_info_register,
 	.gart = {
 		.tlb_flush = &si_pcie_gart_tlb_flush,
 		.get_page_entry = &rs600_gart_get_page_entry,
