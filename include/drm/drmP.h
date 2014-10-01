@@ -87,6 +87,7 @@ struct drm_gem_object;
 struct device_node;
 struct videomode;
 struct reservation_object;
+struct dma_buf_attachment;
 
 /*
  * 4 debug categories are defined:
@@ -570,7 +571,8 @@ struct drm_driver {
 				struct drm_gem_object *obj);
 	struct sg_table *(*gem_prime_get_sg_table)(struct drm_gem_object *obj);
 	struct drm_gem_object *(*gem_prime_import_sg_table)(
-				struct drm_device *dev, size_t size,
+				struct drm_device *dev,
+				struct dma_buf_attachment *attach,
 				struct sg_table *sgt);
 	void *(*gem_prime_vmap)(struct drm_gem_object *obj);
 	void (*gem_prime_vunmap)(struct drm_gem_object *obj, void *vaddr);

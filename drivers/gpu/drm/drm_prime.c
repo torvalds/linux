@@ -525,7 +525,7 @@ struct drm_gem_object *drm_gem_prime_import(struct drm_device *dev,
 		goto fail_detach;
 	}
 
-	obj = dev->driver->gem_prime_import_sg_table(dev, dma_buf->size, sgt);
+	obj = dev->driver->gem_prime_import_sg_table(dev, attach, sgt);
 	if (IS_ERR(obj)) {
 		ret = PTR_ERR(obj);
 		goto fail_unmap;

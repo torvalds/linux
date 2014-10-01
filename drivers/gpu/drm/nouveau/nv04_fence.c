@@ -67,7 +67,7 @@ nv04_fence_context_del(struct nouveau_channel *chan)
 	struct nv04_fence_chan *fctx = chan->fence;
 	nouveau_fence_context_del(&fctx->base);
 	chan->fence = NULL;
-	kfree(fctx);
+	nouveau_fence_context_free(&fctx->base);
 }
 
 static int

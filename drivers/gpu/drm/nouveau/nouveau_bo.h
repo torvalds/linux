@@ -70,6 +70,7 @@ extern struct ttm_bo_driver nouveau_bo_driver;
 void nouveau_bo_move_init(struct nouveau_drm *);
 int  nouveau_bo_new(struct drm_device *, int size, int align, u32 flags,
 		    u32 tile_mode, u32 tile_flags, struct sg_table *sg,
+		    struct reservation_object *robj,
 		    struct nouveau_bo **);
 int  nouveau_bo_pin(struct nouveau_bo *, u32 flags);
 int  nouveau_bo_unpin(struct nouveau_bo *);

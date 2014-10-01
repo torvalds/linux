@@ -1068,6 +1068,7 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 		struct file *persistent_swap_storage,
 		size_t acc_size,
 		struct sg_table *sg,
+		struct reservation_object *resv,
 		void (*destroy) (struct ttm_buffer_object *))
 {
 	int ret = 0;
@@ -1121,8 +1122,13 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 	bo->persistent_swap_storage = persistent_swap_storage;
 	bo->acc_size = acc_size;
 	bo->sg = sg;
-	bo->resv = &bo->ttm_resv;
-	reservation_object_init(bo->resv);
+	if (resv) {
+		bo->resv = resv;
+		lockdep_assert_held(&bo->resv->lock.base);
+	} else {
+		bo->resv = &bo->ttm_resv;
+		reservation_object_init(&bo->ttm_resv);
+	}
 	atomic_inc(&bo->glob->bo_count);
 	drm_vma_node_reset(&bo->vma_node);
 
@@ -1135,13 +1141,19 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 		ret = drm_vma_offset_add(&bdev->vma_manager, &bo->vma_node,
 					 bo->mem.num_pages);
 
-	locked = ww_mutex_trylock(&bo->resv->lock);
-	WARN_ON(!locked);
+	/* passed reservation objects should already be locked,
+	 * since otherwise lockdep will be angered in radeon.
+	 */
+	if (!resv) {
+		locked = ww_mutex_trylock(&bo->resv->lock);
+		WARN_ON(!locked);
+	}
 
 	if (likely(!ret))
 		ret = ttm_bo_validate(bo, placement, interruptible, false);
 
-	ttm_bo_unreserve(bo);
+	if (!resv)
+		ttm_bo_unreserve(bo);
 
 	if (unlikely(ret))
 		ttm_bo_unref(&bo);
@@ -1199,7 +1211,7 @@ int ttm_bo_create(struct ttm_bo_device *bdev,
 	acc_size = ttm_bo_acc_size(bdev, size, sizeof(struct ttm_buffer_object));
 	ret = ttm_bo_init(bdev, bo, size, type, placement, page_alignment,
 			  interruptible, persistent_swap_storage, acc_size,
-			  NULL, NULL);
+			  NULL, NULL, NULL);
 	if (likely(ret == 0))
 		*p_bo = bo;
 

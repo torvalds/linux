@@ -165,7 +165,7 @@ nouveau_gem_new(struct drm_device *dev, int size, int align, uint32_t domain,
 		flags |= TTM_PL_FLAG_SYSTEM;
 
 	ret = nouveau_bo_new(dev, size, align, flags, tile_mode,
-			     tile_flags, NULL, pnvbo);
+			     tile_flags, NULL, NULL, pnvbo);
 	if (ret)
 		return ret;
 	nvbo = *pnvbo;
@@ -459,7 +459,7 @@ validate_list(struct nouveau_channel *chan, struct nouveau_cli *cli,
 			return ret;
 		}
 
-		ret = nouveau_fence_sync(nvbo, chan, !!b->write_domains);
+		ret = nouveau_fence_sync(nvbo, chan, !!b->write_domains, true);
 		if (unlikely(ret)) {
 			if (ret != -ERESTARTSYS)
 				NV_PRINTK(error, cli, "fail post-validate sync\n");
