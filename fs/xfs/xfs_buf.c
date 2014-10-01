@@ -1075,39 +1075,6 @@ xfs_buf_ioerror_alert(
 }
 
 /*
- * Called when we want to stop a buffer from getting written or read.
- * We attach the EIO error, muck with its flags, and call xfs_buf_ioend
- * so that the proper iodone callbacks get called.
- */
-STATIC int
-xfs_bioerror(
-	xfs_buf_t *bp)
-{
-#ifdef XFSERRORDEBUG
-	ASSERT(XFS_BUF_ISREAD(bp) || bp->b_iodone);
-#endif
-
-	/*
-	 * No need to wait until the buffer is unpinned, we aren't flushing it.
-	 */
-	xfs_buf_ioerror(bp, -EIO);
-
-	/*
-	 * We're calling xfs_buf_ioend, so delete XBF_DONE flag. For
-	 * sync IO, xfs_buf_ioend is going to remove a ref here.
-	 */
-	if (!(bp->b_flags & XBF_ASYNC))
-		xfs_buf_hold(bp);
-	XFS_BUF_UNREAD(bp);
-	XFS_BUF_UNDONE(bp);
-	xfs_buf_stale(bp);
-
-	xfs_buf_ioend(bp);
-
-	return -EIO;
-}
-
-/*
  * Same as xfs_bioerror, except that we are releasing the buffer
  * here ourselves, and avoiding the xfs_buf_ioend call.
  * This is meant for userdata errors; metadata bufs come with
@@ -1155,19 +1122,19 @@ xfs_bwrite(
 	ASSERT(xfs_buf_islocked(bp));
 
 	bp->b_flags |= XBF_WRITE;
-	bp->b_flags &= ~(XBF_ASYNC | XBF_READ | _XBF_DELWRI_Q | XBF_WRITE_FAIL);
+	bp->b_flags &= ~(XBF_ASYNC | XBF_READ | _XBF_DELWRI_Q |
+			 XBF_WRITE_FAIL | XBF_DONE);
 
 	if (XFS_FORCED_SHUTDOWN(bp->b_target->bt_mount)) {
 		trace_xfs_bdstrat_shut(bp, _RET_IP_);
 
-		/*
-		 * Metadata write that didn't get logged but written anyway.
-		 * These aren't associated with a transaction, and can be
-		 * ignored.
-		 */
-		if (!bp->b_iodone)
-			return xfs_bioerror_relse(bp);
-		return xfs_bioerror(bp);
+		xfs_buf_ioerror(bp, -EIO);
+		xfs_buf_stale(bp);
+
+		/* sync IO, xfs_buf_ioend is going to remove a ref here */
+		xfs_buf_hold(bp);
+		xfs_buf_ioend(bp);
+		return -EIO;
 	}
 
 	xfs_buf_iorequest(bp);
@@ -1857,10 +1824,9 @@ __xfs_buf_delwri_submit(
 		if (XFS_FORCED_SHUTDOWN(bp->b_target->bt_mount)) {
 			trace_xfs_bdstrat_shut(bp, _RET_IP_);
 
-			if (!bp->b_iodone)
-				xfs_bioerror_relse(bp);
-			else
-				xfs_bioerror(bp);
+			xfs_buf_ioerror(bp, -EIO);
+			xfs_buf_stale(bp);
+			xfs_buf_ioend(bp);
 			continue;
 		}
 		xfs_buf_iorequest(bp);
