@@ -2503,9 +2503,7 @@ enum punit_power_well {
 
 #define EDP_PSR_AUX_CTL(dev)			(EDP_PSR_BASE(dev) + 0x10)
 #define EDP_PSR_AUX_DATA1(dev)			(EDP_PSR_BASE(dev) + 0x14)
-#define   EDP_PSR_DPCD_COMMAND		0x80060000
 #define EDP_PSR_AUX_DATA2(dev)			(EDP_PSR_BASE(dev) + 0x18)
-#define   EDP_PSR_DPCD_NORMAL_OPERATION	(1<<24)
 #define EDP_PSR_AUX_DATA3(dev)			(EDP_PSR_BASE(dev) + 0x1c)
 #define EDP_PSR_AUX_DATA4(dev)			(EDP_PSR_BASE(dev) + 0x20)
 #define EDP_PSR_AUX_DATA5(dev)			(EDP_PSR_BASE(dev) + 0x24)

@@ -225,7 +225,7 @@ intel_dp_mode_valid(struct drm_connector *connector,
 }
 
 static uint32_t
-pack_aux(uint8_t *src, int src_bytes)
+pack_aux(const uint8_t *src, int src_bytes)
 {
 	int	i;
 	uint32_t v = 0;
@@ -2045,8 +2045,17 @@ static void intel_edp_psr_enable_sink(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t aux_clock_divider;
 	int precharge = 0x3;
-	int msg_size = 5;       /* Header(4) + Message(1) */
 	bool only_standby = false;
+	static const uint8_t aux_msg[] = {
+		[0] = DP_AUX_NATIVE_WRITE << 4,
+		[1] = DP_SET_POWER >> 8,
+		[2] = DP_SET_POWER & 0xff,
+		[3] = 1 - 1,
+		[4] = DP_SET_POWER_D0,
+	};
+	int i;
+
+	BUILD_BUG_ON(sizeof(aux_msg) > 20);
 
 	aux_clock_divider = intel_dp->get_aux_clock_divider(intel_dp, 0);
 
@@ -2062,11 +2071,13 @@ static void intel_edp_psr_enable_sink(struct intel_dp *intel_dp)
 				   DP_PSR_ENABLE | DP_PSR_MAIN_LINK_ACTIVE);
 
 	/* Setup AUX registers */
-	I915_WRITE(EDP_PSR_AUX_DATA1(dev), EDP_PSR_DPCD_COMMAND);
-	I915_WRITE(EDP_PSR_AUX_DATA2(dev), EDP_PSR_DPCD_NORMAL_OPERATION);
+	for (i = 0; i < sizeof(aux_msg); i += 4)
+		I915_WRITE(EDP_PSR_AUX_DATA1(dev) + i,
+			   pack_aux(&aux_msg[i], sizeof(aux_msg) - i));
+
 	I915_WRITE(EDP_PSR_AUX_CTL(dev),
 		   DP_AUX_CH_CTL_TIME_OUT_400us |
-		   (msg_size << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
+		   (sizeof(aux_msg) << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
 		   (precharge << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT) |
 		   (aux_clock_divider << DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT));
 }
