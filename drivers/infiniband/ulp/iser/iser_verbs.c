@@ -566,18 +566,13 @@ static int iser_conn_state_comp_exch(struct iser_conn *iser_conn,
 void iser_release_work(struct work_struct *work)
 {
 	struct iser_conn *iser_conn;
-	int rc;
 
 	iser_conn = container_of(work, struct iser_conn, release_work);
 
-	/* wait for .conn_stop callback */
-	rc = wait_for_completion_timeout(&iser_conn->stop_completion, 30 * HZ);
-	WARN_ON(rc == 0);
-
-	rc = wait_for_completion_timeout(&iser_conn->ib_completion, 30 * HZ);
-	if (rc == 0)
-		iser_warn("conn %p, IB cleanup didn't complete in 30 "
-			  "seconds, continue with release\n", iser_conn);
+	/* Wait for conn_stop to complete */
+	wait_for_completion(&iser_conn->stop_completion);
+	/* Wait for IB resouces cleanup to complete */
+	wait_for_completion(&iser_conn->ib_completion);
 
 	mutex_lock(&iser_conn->state_mutex);
 	iser_conn->state = ISER_CONN_DOWN;
