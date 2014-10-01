@@ -383,6 +383,39 @@ static int powernv_eeh_err_inject(struct eeh_pe *pe, int type, int func,
 	return ret;
 }
 
+static inline bool powernv_eeh_cfg_blocked(struct device_node *dn)
+{
+	struct eeh_dev *edev = of_node_to_eeh_dev(dn);
+
+	if (!edev || !edev->pe)
+		return false;
+
+	if (edev->pe->state & EEH_PE_CFG_BLOCKED)
+		return true;
+
+	return false;
+}
+
+static int powernv_eeh_read_config(struct device_node *dn,
+				   int where, int size, u32 *val)
+{
+	if (powernv_eeh_cfg_blocked(dn)) {
+		*val = 0xFFFFFFFF;
+		return PCIBIOS_SET_FAILED;
+	}
+
+	return pnv_pci_cfg_read(dn, where, size, val);
+}
+
+static int powernv_eeh_write_config(struct device_node *dn,
+				    int where, int size, u32 val)
+{
+	if (powernv_eeh_cfg_blocked(dn))
+		return PCIBIOS_SET_FAILED;
+
+	return pnv_pci_cfg_write(dn, where, size, val);
+}
+
 /**
  * powernv_eeh_next_error - Retrieve next EEH error to handle
  * @pe: Affected PE
@@ -440,8 +473,8 @@ static struct eeh_ops powernv_eeh_ops = {
 	.get_log                = powernv_eeh_get_log,
 	.configure_bridge       = powernv_eeh_configure_bridge,
 	.err_inject		= powernv_eeh_err_inject,
-	.read_config            = pnv_pci_cfg_read,
-	.write_config           = pnv_pci_cfg_write,
+	.read_config            = powernv_eeh_read_config,
+	.write_config           = powernv_eeh_write_config,
 	.next_error		= powernv_eeh_next_error,
 	.restore_config		= powernv_eeh_restore_config
 };
