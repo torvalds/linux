@@ -1159,9 +1159,30 @@ int iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc)
 	return ib_ret;
 }
 
-static void iser_handle_comp_error(struct iser_tx_desc *desc,
-				   struct ib_conn *ib_conn)
+/**
+ * iser_handle_comp_error() - Handle error completion
+ * @desc:      iser TX descriptor
+ * @ib_conn:   connection RDMA resources
+ * @wc:        work completion
+ *
+ * Notes: We may handle a FLUSH error completion and in this case
+ *        we only cleanup in case TX type was DATAOUT. For non-FLUSH
+ *        error completion we should also notify iscsi layer that
+ *        connection is failed (in case we passed bind stage).
+ */
+static void
+iser_handle_comp_error(struct iser_tx_desc *desc,
+		       struct ib_conn *ib_conn,
+		       struct ib_wc *wc)
 {
+	struct iser_conn *iser_conn = container_of(ib_conn, struct iser_conn,
+						   ib_conn);
+
+	if (wc->status != IB_WC_WR_FLUSH_ERR)
+		if (iser_conn->iscsi_conn)
+			iscsi_conn_failure(iser_conn->iscsi_conn,
+					   ISCSI_ERR_CONN_FAILED);
+
 	if (desc && desc->type == ISCSI_TX_DATAOUT)
 		kmem_cache_free(ig.desc_cache, desc);
 }
@@ -1188,7 +1209,7 @@ static int iser_drain_tx_cq(struct iser_device  *device, int cq_index)
 				 wc.wr_id, wc.status, wc.vendor_err);
 			if (wc.wr_id != ISER_FASTREG_LI_WRID) {
 				atomic_dec(&ib_conn->post_send_buf_count);
-				iser_handle_comp_error(tx_desc, ib_conn);
+				iser_handle_comp_error(tx_desc, ib_conn, &wc);
 			}
 		}
 		completed_tx++;
@@ -1230,7 +1251,7 @@ static void iser_cq_tasklet_fn(unsigned long data)
 				iser_err("rx id %llx status %d vend_err %x\n",
 					wc.wr_id, wc.status, wc.vendor_err);
 			ib_conn->post_recv_buf_count--;
-			iser_handle_comp_error(NULL, ib_conn);
+			iser_handle_comp_error(NULL, ib_conn, &wc);
 		}
 		completed_rx++;
 		if (!(completed_rx & 63))
