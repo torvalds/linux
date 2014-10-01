@@ -63,7 +63,7 @@ int integrity_digsig_verify(const unsigned int id, const char *sig, int siglen,
 	return -EOPNOTSUPP;
 }
 
-int integrity_init_keyring(const unsigned int id)
+int __init integrity_init_keyring(const unsigned int id)
 {
 	const struct cred *cred = current_cred();
 	int err = 0;
