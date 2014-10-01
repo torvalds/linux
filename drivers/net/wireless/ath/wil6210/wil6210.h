@@ -23,6 +23,7 @@
 #include <linux/timex.h>
 #include "wil_platform.h"
 
+extern bool no_fw_recovery;
 
 #define WIL_NAME "wil6210"
 #define WIL_FW_NAME "wil6210.fw"
@@ -379,6 +380,12 @@ struct wil_sta_info {
 	unsigned long tid_rx_stop_requested[BITS_TO_LONGS(WIL_STA_TID_NUM)];
 };
 
+enum {
+	fw_recovery_idle = 0,
+	fw_recovery_pending = 1,
+	fw_recovery_running = 2,
+};
+
 struct wil6210_priv {
 	struct pci_dev *pdev;
 	int n_msi;
@@ -389,8 +396,10 @@ struct wil6210_priv {
 	u32 hw_version;
 	struct wil_board *board;
 	u8 n_mids; /* number of additional MIDs as reported by FW */
-	int recovery_count; /* num of FW recovery attempts in a short time */
+	u32 recovery_count; /* num of FW recovery attempts in a short time */
+	u32 recovery_state; /* FW recovery state machine */
 	unsigned long last_fw_recovery; /* jiffies of last fw recovery */
+	wait_queue_head_t wq; /* for all wait_event() use */
 	/* profile */
 	u32 monitor_flags;
 	u32 secure_pcp; /* create secure PCP? */
@@ -507,6 +516,7 @@ void wil_priv_deinit(struct wil6210_priv *wil);
 int wil_reset(struct wil6210_priv *wil);
 void wil_set_itr_trsh(struct wil6210_priv *wil);
 void wil_fw_error_recovery(struct wil6210_priv *wil);
+void wil_set_recovery_state(struct wil6210_priv *wil, int state);
 void wil_link_on(struct wil6210_priv *wil);
 void wil_link_off(struct wil6210_priv *wil);
 int wil_up(struct wil6210_priv *wil);

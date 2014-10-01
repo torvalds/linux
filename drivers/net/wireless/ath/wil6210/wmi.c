@@ -299,6 +299,7 @@ static void wmi_evt_fw_ready(struct wil6210_priv *wil, int id, void *d,
 {
 	wil_dbg_wmi(wil, "WMI: got FW ready event\n");
 
+	wil_set_recovery_state(wil, fw_recovery_idle);
 	set_bit(wil_status_fwready, &wil->status);
 	/* let the reset sequence continue */
 	complete(&wil->wmi_ready);
