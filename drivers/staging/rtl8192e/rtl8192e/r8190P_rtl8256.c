@@ -79,7 +79,6 @@ void PHY_SetRF8256Bandwidth(struct net_device *dev,
 
 		}
 	}
-	return;
 }
 
 bool PHY_RF8256_Config(struct net_device *dev)
@@ -300,5 +299,4 @@ void PHY_SetRF8256OFDMTxPower(struct net_device *dev, u8 powerlevel)
 		rtl8192_setBBreg(dev, RegOffset[index], 0x7f7f7f7f, writeVal);
 	}
 
-	return;
 }
