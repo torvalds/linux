@@ -42,14 +42,18 @@
 
 #define MCASP_MAX_AFIFO_DEPTH	64
 
+static u32 context_regs[] = {
+	DAVINCI_MCASP_TXFMCTL_REG,
+	DAVINCI_MCASP_RXFMCTL_REG,
+	DAVINCI_MCASP_TXFMT_REG,
+	DAVINCI_MCASP_RXFMT_REG,
+	DAVINCI_MCASP_ACLKXCTL_REG,
+	DAVINCI_MCASP_ACLKRCTL_REG,
+	DAVINCI_MCASP_PDIR_REG,
+};
+
 struct davinci_mcasp_context {
-	u32	txfmtctl;
-	u32	rxfmtctl;
-	u32	txfmt;
-	u32	rxfmt;
-	u32	aclkxctl;
-	u32	aclkrctl;
-	u32	pdir;
+	u32	config_regs[ARRAY_SIZE(context_regs)];
 };
 
 struct davinci_mcasp {
@@ -857,14 +861,10 @@ static int davinci_mcasp_suspend(struct snd_soc_dai *dai)
 {
 	struct davinci_mcasp *mcasp = snd_soc_dai_get_drvdata(dai);
 	struct davinci_mcasp_context *context = &mcasp->context;
+	int i;
 
-	context->txfmtctl = mcasp_get_reg(mcasp, DAVINCI_MCASP_TXFMCTL_REG);
-	context->rxfmtctl = mcasp_get_reg(mcasp, DAVINCI_MCASP_RXFMCTL_REG);
-	context->txfmt = mcasp_get_reg(mcasp, DAVINCI_MCASP_TXFMT_REG);
-	context->rxfmt = mcasp_get_reg(mcasp, DAVINCI_MCASP_RXFMT_REG);
-	context->aclkxctl = mcasp_get_reg(mcasp, DAVINCI_MCASP_ACLKXCTL_REG);
-	context->aclkrctl = mcasp_get_reg(mcasp, DAVINCI_MCASP_ACLKRCTL_REG);
-	context->pdir = mcasp_get_reg(mcasp, DAVINCI_MCASP_PDIR_REG);
+	for (i = 0; i < ARRAY_SIZE(context_regs); i++)
+		context->config_regs[i] = mcasp_get_reg(mcasp, context_regs[i]);
 
 	return 0;
 }
@@ -873,14 +873,10 @@ static int davinci_mcasp_resume(struct snd_soc_dai *dai)
 {
 	struct davinci_mcasp *mcasp = snd_soc_dai_get_drvdata(dai);
 	struct davinci_mcasp_context *context = &mcasp->context;
+	int i;
 
-	mcasp_set_reg(mcasp, DAVINCI_MCASP_TXFMCTL_REG, context->txfmtctl);
-	mcasp_set_reg(mcasp, DAVINCI_MCASP_RXFMCTL_REG, context->rxfmtctl);
-	mcasp_set_reg(mcasp, DAVINCI_MCASP_TXFMT_REG, context->txfmt);
-	mcasp_set_reg(mcasp, DAVINCI_MCASP_RXFMT_REG, context->rxfmt);
-	mcasp_set_reg(mcasp, DAVINCI_MCASP_ACLKXCTL_REG, context->aclkxctl);
-	mcasp_set_reg(mcasp, DAVINCI_MCASP_ACLKRCTL_REG, context->aclkrctl);
-	mcasp_set_reg(mcasp, DAVINCI_MCASP_PDIR_REG, context->pdir);
+	for (i = 0; i < ARRAY_SIZE(context_regs); i++)
+		mcasp_set_reg(mcasp, context_regs[i], context->config_regs[i]);
 
 	return 0;
 }
