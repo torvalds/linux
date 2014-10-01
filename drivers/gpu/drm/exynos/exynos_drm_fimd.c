@@ -982,10 +982,10 @@ static void fimd_te_handler(struct exynos_drm_manager *mgr)
 	if (atomic_read(&ctx->wait_vsync_event)) {
 		atomic_set(&ctx->wait_vsync_event, 0);
 		wake_up(&ctx->wait_vsync_queue);
-
-		if (!atomic_read(&ctx->triggering))
-			drm_handle_vblank(ctx->drm_dev, ctx->pipe);
 	}
+
+	if (!atomic_read(&ctx->triggering))
+		drm_handle_vblank(ctx->drm_dev, ctx->pipe);
 }
 
 static struct exynos_drm_manager_ops fimd_manager_ops = {
