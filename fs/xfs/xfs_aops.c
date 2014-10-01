@@ -548,6 +548,13 @@ xfs_cancel_ioend(
 		do {
 			next_bh = bh->b_private;
 			clear_buffer_async_write(bh);
+			/*
+			 * The unwritten flag is cleared when added to the
+			 * ioend. We're not submitting for I/O so mark the
+			 * buffer unwritten again for next time around.
+			 */
+			if (ioend->io_type == XFS_IO_UNWRITTEN)
+				set_buffer_unwritten(bh);
 			unlock_buffer(bh);
 		} while ((bh = next_bh) != NULL);
 
