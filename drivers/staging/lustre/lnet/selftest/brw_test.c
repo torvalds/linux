@@ -66,7 +66,7 @@ brw_client_fini(sfw_test_instance_t *tsi)
 	}
 }
 
-int
+static int
 brw_client_init(sfw_test_instance_t *tsi)
 {
 	sfw_session_t	 *sn = tsi->tsi_batch->bat_session;
