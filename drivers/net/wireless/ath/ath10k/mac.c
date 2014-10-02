@@ -992,14 +992,6 @@ static void ath10k_control_ibss(struct ath10k_vif *arvif,
 		if (is_zero_ether_addr(arvif->bssid))
 			return;
 
-		ret = ath10k_peer_delete(arvif->ar, arvif->vdev_id,
-					 arvif->bssid);
-		if (ret) {
-			ath10k_warn(ar, "failed to delete IBSS BSSID peer %pM for vdev %d: %d\n",
-				    arvif->bssid, arvif->vdev_id, ret);
-			return;
-		}
-
 		memset(arvif->bssid, 0, ETH_ALEN);
 
 		return;
@@ -3127,17 +3119,17 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_BSSID &&
 	    vif->type != NL80211_IFTYPE_AP) {
 		if (!is_zero_ether_addr(info->bssid)) {
-			ath10k_dbg(ar, ATH10K_DBG_MAC,
-				   "mac vdev %d create peer %pM\n",
-				   arvif->vdev_id, info->bssid);
-
-			ret = ath10k_peer_create(ar, arvif->vdev_id,
-						 info->bssid);
-			if (ret)
-				ath10k_warn(ar, "failed to add peer %pM for vdev %d when changing bssid: %i\n",
-					    info->bssid, arvif->vdev_id, ret);
-
 			if (vif->type == NL80211_IFTYPE_STATION) {
+				ath10k_dbg(ar, ATH10K_DBG_MAC,
+					   "mac vdev %d create peer %pM\n",
+					   arvif->vdev_id, info->bssid);
+
+				ret = ath10k_peer_create(ar, arvif->vdev_id,
+							 info->bssid);
+				if (ret)
+					ath10k_warn(ar, "failed to add peer %pM for vdev %d when changing bssid: %i\n",
+						    info->bssid, arvif->vdev_id,
+						    ret);
 				/*
 				 * this is never erased as we it for crypto key
 				 * clearing; this is FW requirement
