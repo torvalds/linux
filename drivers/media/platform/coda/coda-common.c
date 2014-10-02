@@ -1334,14 +1334,8 @@ static const struct v4l2_ctrl_ops coda_ctrl_ops = {
 	.s_ctrl = coda_s_ctrl,
 };
 
-static int coda_ctrls_setup(struct coda_ctx *ctx)
+static void coda_encode_ctrls(struct coda_ctx *ctx)
 {
-	v4l2_ctrl_handler_init(&ctx->ctrls, 9);
-
-	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
-		V4L2_CID_HFLIP, 0, 1, 1, 0);
-	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
-		V4L2_CID_VFLIP, 0, 1, 1, 0);
 	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
 		V4L2_CID_MPEG_VIDEO_BITRATE, 0, 32767000, 1, 0);
 	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
@@ -1385,6 +1379,18 @@ static int coda_ctrls_setup(struct coda_ctx *ctx)
 	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
 		V4L2_CID_MPEG_VIDEO_CYCLIC_INTRA_REFRESH_MB, 0,
 		1920 * 1088 / 256, 1, 0);
+}
+
+static int coda_ctrls_setup(struct coda_ctx *ctx)
+{
+	v4l2_ctrl_handler_init(&ctx->ctrls, 2);
+
+	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
+		V4L2_CID_HFLIP, 0, 1, 1, 0);
+	v4l2_ctrl_new_std(&ctx->ctrls, &coda_ctrl_ops,
+		V4L2_CID_VFLIP, 0, 1, 1, 0);
+	if (ctx->inst_type == CODA_INST_ENCODER)
+		coda_encode_ctrls(ctx);
 
 	if (ctx->ctrls.error) {
 		v4l2_err(&ctx->dev->v4l2_dev,
