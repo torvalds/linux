@@ -22,4 +22,8 @@
 #define U8_MAX	((u8)~0U)
 #endif /* ! U8_MAX */
 
+#ifndef U16_MAX
+#define U16_MAX	((u16)(~0U))
+#endif /* !U16_MAX */
+
 #endif	/* __GREYBUS_KERNEL_VER_H */

@@ -20,10 +20,15 @@ struct gb_connection {
 	u16				cport_id;	/* Host side */
 
 	struct list_head		host_links;
+
+	struct list_head		operations;
+	atomic_t			op_cycle;
 };
 
 bool gb_connection_setup(struct greybus_host_device *hd, u16 cport_id,
 				struct gb_function *function);
 void gb_connection_teardown(struct gb_connection *connection);
+
+u16 gb_connection_op_id(struct gb_connection *connection);
 
 #endif /* __CONNECTION_H */

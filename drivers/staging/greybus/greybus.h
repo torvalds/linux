@@ -24,6 +24,7 @@
 #include "interface.h"
 #include "function.h"
 #include "connection.h"
+#include "operation.h"
 
 
 /* Matches up with the Greybus Protocol specification document */

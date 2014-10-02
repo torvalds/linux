@@ -6,12 +6,18 @@
  * Released under the GPLv2 only.
  */
 
+#include <linux/atomic.h>
+
+#include "kernel_ver.h"
 #include "greybus.h"
 
 /*
  * Set up a Greybus connection, representing the bidirectional link
  * between a CPort on a (local) Greybus host device and a CPort on
  * another Greybus module.
+ *
+ * A connection also maintains the state of operations sent over the
+ * connection.
  *
  * Returns a pointer to the new connection if successful, or a null
  * pointer otherwise.
@@ -28,6 +34,8 @@ struct gb_connection *gb_connection_create(struct greybus_host_device *hd,
 	connection->hd = hd;			/* XXX refcount? */
 	connection->cport_id = cport_id;
 	connection->function = function;	/* XXX refcount? */
+	INIT_LIST_HEAD(&connection->operations);
+	atomic_set(&connection->op_cycle, 0);
 
 	return connection;
 }
@@ -41,8 +49,14 @@ void gb_connection_destroy(struct gb_connection *connection)
 		return;
 
 	/* XXX Need to wait for any outstanding requests to complete */
+	WARN_ON(!list_empty(&connection->operations));
 
 	/* kref_put(function); */
 	/* kref_put(hd); */
 	kfree(connection);
+}
+
+u16 gb_connection_op_id(struct gb_connection *connection)
+{
+	return (u16)(atomic_inc_return(&connection->op_cycle) % U16_MAX);
 }
