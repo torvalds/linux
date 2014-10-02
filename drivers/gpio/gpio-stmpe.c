@@ -13,6 +13,7 @@
 #include <linux/interrupt.h>
 #include <linux/of.h>
 #include <linux/mfd/stmpe.h>
+#include <linux/seq_file.h>
 
 /*
  * These registers are modified under the irq bus lock and cached to avoid
@@ -211,6 +212,77 @@ static void stmpe_gpio_irq_unmask(struct irq_data *d)
 	stmpe_gpio->regs[REG_IE][regoffset] |= mask;
 }
 
+static void stmpe_dbg_show_one(struct seq_file *s,
+			       struct gpio_chip *gc,
+			       unsigned offset, unsigned gpio)
+{
+	struct stmpe_gpio *stmpe_gpio = to_stmpe_gpio(gc);
+	struct stmpe *stmpe = stmpe_gpio->stmpe;
+	const char *label = gpiochip_is_requested(gc, offset);
+	int num_banks = DIV_ROUND_UP(stmpe->num_gpios, 8);
+	bool val = !!stmpe_gpio_get(gc, offset);
+	u8 dir_reg = stmpe->regs[STMPE_IDX_GPDR_LSB] - (offset / 8);
+	u8 mask = 1 << (offset % 8);
+	int ret;
+	u8 dir;
+
+	ret = stmpe_reg_read(stmpe, dir_reg);
+	if (ret < 0)
+		return;
+	dir = !!(ret & mask);
+
+	if (dir) {
+		seq_printf(s, " gpio-%-3d (%-20.20s) out %s",
+			   gpio, label ?: "(none)",
+			   val ? "hi" : "lo");
+	} else {
+		u8 edge_det_reg = stmpe->regs[STMPE_IDX_GPEDR_MSB] + num_banks - 1 - (offset / 8);
+		u8 rise_reg = stmpe->regs[STMPE_IDX_GPRER_LSB] - (offset / 8);
+		u8 fall_reg = stmpe->regs[STMPE_IDX_GPFER_LSB] - (offset / 8);
+		u8 irqen_reg = stmpe->regs[STMPE_IDX_IEGPIOR_LSB] - (offset / 8);
+		bool edge_det;
+		bool rise;
+		bool fall;
+		bool irqen;
+
+		ret = stmpe_reg_read(stmpe, edge_det_reg);
+		if (ret < 0)
+			return;
+		edge_det = !!(ret & mask);
+		ret = stmpe_reg_read(stmpe, rise_reg);
+		if (ret < 0)
+			return;
+		rise = !!(ret & mask);
+		ret = stmpe_reg_read(stmpe, fall_reg);
+		if (ret < 0)
+			return;
+		fall = !!(ret & mask);
+		ret = stmpe_reg_read(stmpe, irqen_reg);
+		if (ret < 0)
+			return;
+		irqen = !!(ret & mask);
+
+		seq_printf(s, " gpio-%-3d (%-20.20s) in  %s %s %s%s%s",
+			   gpio, label ?: "(none)",
+			   val ? "hi" : "lo",
+			   edge_det ? "edge-asserted" : "edge-inactive",
+			   irqen ? "IRQ-enabled" : "",
+			   rise ? " rising-edge-detection" : "",
+			   fall ? " falling-edge-detection" : "");
+	}
+}
+
+static void stmpe_dbg_show(struct seq_file *s, struct gpio_chip *gc)
+{
+	unsigned i;
+	unsigned gpio = gc->base;
+
+	for (i = 0; i < gc->ngpio; i++, gpio++) {
+		stmpe_dbg_show_one(s, gc, i, gpio);
+		seq_printf(s, "\n");
+	}
+}
+
 static struct irq_chip stmpe_gpio_irq_chip = {
 	.name			= "stmpe-gpio",
 	.irq_bus_lock		= stmpe_gpio_irq_lock,
@@ -292,6 +364,9 @@ static int stmpe_gpio_probe(struct platform_device *pdev)
 	stmpe_gpio->chip.of_node = np;
 #endif
 	stmpe_gpio->chip.base = -1;
+
+	if (IS_ENABLED(CONFIG_DEBUG_FS))
+                stmpe_gpio->chip.dbg_show = stmpe_dbg_show;
 
 	if (pdata)
 		stmpe_gpio->norequest_mask = pdata->norequest_mask;
