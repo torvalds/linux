@@ -3327,7 +3327,7 @@ static int wait_for_parent_move(struct send_ctx *sctx,
 		if (ret < 0 && ret != -ENOENT) {
 			goto out;
 		} else if (ret == -ENOENT) {
-			ret = 1;
+			ret = 0;
 			break;
 		}
 
