@@ -262,6 +262,7 @@ out:
 static int mei_amthif_send_cmd(struct mei_device *dev, struct mei_cl_cb *cb)
 {
 	struct mei_msg_hdr mei_hdr;
+	struct mei_cl *cl;
 	int ret;
 
 	if (!dev || !cb)
@@ -277,8 +278,9 @@ static int mei_amthif_send_cmd(struct mei_device *dev, struct mei_cl_cb *cb)
 	dev->iamthif_msg_buf_size = cb->request_buffer.size;
 	memcpy(dev->iamthif_msg_buf, cb->request_buffer.data,
 	       cb->request_buffer.size);
+	cl = &dev->iamthif_cl;
 
-	ret = mei_cl_flow_ctrl_creds(&dev->iamthif_cl);
+	ret = mei_cl_flow_ctrl_creds(cl);
 	if (ret < 0)
 		return ret;
 
@@ -292,8 +294,8 @@ static int mei_amthif_send_cmd(struct mei_device *dev, struct mei_cl_cb *cb)
 			mei_hdr.msg_complete = 1;
 		}
 
-		mei_hdr.host_addr = dev->iamthif_cl.host_client_id;
-		mei_hdr.me_addr = dev->iamthif_cl.me_client_id;
+		mei_hdr.host_addr = cl->host_client_id;
+		mei_hdr.me_addr = cl->me_client_id;
 		mei_hdr.reserved = 0;
 		mei_hdr.internal = 0;
 		dev->iamthif_msg_buf_index += mei_hdr.length;
@@ -302,7 +304,7 @@ static int mei_amthif_send_cmd(struct mei_device *dev, struct mei_cl_cb *cb)
 			return ret;
 
 		if (mei_hdr.msg_complete) {
-			if (mei_cl_flow_ctrl_reduce(&dev->iamthif_cl))
+			if (mei_cl_flow_ctrl_reduce(cl))
 				return -EIO;
 			dev->iamthif_flow_control_pending = true;
 			dev->iamthif_state = MEI_IAMTHIF_FLOW_CONTROL;
