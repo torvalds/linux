@@ -971,7 +971,7 @@ static int _nbu2ss_epn_out_data(
 		&& (iBufSize  >= sizeof(u32))) {
 		nret = _nbu2ss_out_dma(udc, req, num, iBufSize);
 	} else {
-		iBufSize = min(iBufSize, (u32)ep->ep.maxpacket);
+		iBufSize = min_t(u32, iBufSize, ep->ep.maxpacket);
 		nret = _nbu2ss_epn_out_pio(udc, ep, req, iBufSize);
 	}
 
@@ -1185,7 +1185,7 @@ static int _nbu2ss_epn_in_data(
 		&& (data_size >= sizeof(u32))) {
 		nret = _nbu2ss_in_dma(udc, ep, req, num, data_size);
 	} else {
-		data_size = min(data_size, (u32)ep->ep.maxpacket);
+		data_size = min_t(u32, data_size, ep->ep.maxpacket);
 		nret = _nbu2ss_epn_in_pio(udc, ep, req, data_size);
 	}
 
@@ -1603,7 +1603,7 @@ static int std_req_get_status(struct nbu2ss_udc *udc)
 		return result;
 	}
 
-	length = min(udc->ctrl.wLength, (u16)sizeof(status_data));
+	length = min_t(u16, udc->ctrl.wLength, sizeof(status_data));
 
 	switch (recipient) {
 	case USB_RECIP_DEVICE:
