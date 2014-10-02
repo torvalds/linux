@@ -25,7 +25,7 @@ static struct selftest_results {
 	int failed;
 } selftest_results;
 
-#define NO_OF_NODES 2
+#define NO_OF_NODES 3
 static struct device_node *nodes[NO_OF_NODES];
 static int last_node_index;
 static bool selftest_live_tree;
@@ -765,6 +765,7 @@ static int __init selftest_data_add(void)
 	extern uint8_t __dtb_testcases_begin[];
 	extern uint8_t __dtb_testcases_end[];
 	const int size = __dtb_testcases_end - __dtb_testcases_begin;
+	int rc;
 
 	if (!size) {
 		pr_warn("%s: No testcase data to attach; not running tests\n",
@@ -784,6 +785,12 @@ static int __init selftest_data_add(void)
 	if (!selftest_data_node) {
 		pr_warn("%s: No tree to attach; not running tests\n", __func__);
 		return -ENODATA;
+	}
+	of_node_set_flag(selftest_data_node, OF_DETACHED);
+	rc = of_resolve_phandles(selftest_data_node);
+	if (rc) {
+		pr_err("%s: Failed to resolve phandles (rc=%i)\n", __func__, rc);
+		return -EINVAL;
 	}
 
 	if (!of_allnodes) {
