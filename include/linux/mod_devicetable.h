@@ -69,7 +69,7 @@ struct ieee1394_device_id {
  * @bDeviceClass: Class of device; numbers are assigned
  *	by the USB forum.  Products may choose to implement classes,
  *	or be vendor-specific.  Device classes specify behavior of all
- *	the interfaces on a devices.
+ *	the interfaces on a device.
  * @bDeviceSubClass: Subclass of device; associated with bDeviceClass.
  * @bDeviceProtocol: Protocol of device; associated with bDeviceClass.
  * @bInterfaceClass: Class of interface; numbers are assigned
