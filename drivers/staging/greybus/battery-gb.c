@@ -18,7 +18,7 @@ struct gb_battery {
 	// we will want to keep the battery stats in here as we will be getting
 	// updates from the SVC "on the fly" so we don't have to always go ask
 	// the battery for some information.  Hopefully...
-	struct greybus_module *gmod;
+	struct gb_module *gmod;
 };
 #define to_gb_battery(x) container_of(x, struct gb_battery, bat)
 
@@ -100,7 +100,7 @@ static enum power_supply_property battery_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 };
 
-int gb_battery_probe(struct greybus_module *gmod,
+int gb_battery_probe(struct gb_module *gmod,
 		     const struct greybus_module_id *id)
 {
 	struct gb_battery *gb;
@@ -130,7 +130,7 @@ int gb_battery_probe(struct greybus_module *gmod,
 	return 0;
 }
 
-void gb_battery_disconnect(struct greybus_module *gmod)
+void gb_battery_disconnect(struct gb_module *gmod)
 {
 	struct gb_battery *gb;
 

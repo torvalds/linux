@@ -14,7 +14,7 @@
 
 struct gb_gpio_device {
 	struct gpio_chip chip;
-	struct greybus_module *gmod;
+	struct gb_module *gmod;
 	struct gpio_chip *gpio;
 	// FIXME - some lock?
 };
@@ -49,7 +49,7 @@ static void gpio_set(struct gpio_chip *gpio, unsigned nr, int val)
 	// FIXME - do something there
 }
 
-int gb_gpio_probe(struct greybus_module *gmod,
+int gb_gpio_probe(struct gb_module *gmod,
 		  const struct greybus_module_id *id)
 {
 	struct gb_gpio_device *gb_gpio;
@@ -86,7 +86,7 @@ int gb_gpio_probe(struct greybus_module *gmod,
 	return 0;
 }
 
-void gb_gpio_disconnect(struct greybus_module *gmod)
+void gb_gpio_disconnect(struct gb_module *gmod)
 {
 	struct gb_gpio_device *gb_gpio_dev;
 	int retval;

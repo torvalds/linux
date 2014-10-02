@@ -3,6 +3,7 @@ greybus-y :=	core.o		\
 		sysfs.o		\
 		debugfs.o	\
 		ap.o		\
+		module.o	\
 		i2c-gb.o	\
 		gpio-gb.o	\
 		sdio-gb.o	\

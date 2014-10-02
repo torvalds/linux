@@ -17,29 +17,28 @@
 #include <linux/device.h>
 
 #include "greybus.h"
-
 #include "kernel_ver.h"
 
 /* Module fields */
-#define greybus_module_attr(field)					\
+#define gb_module_attr(field)						\
 static ssize_t module_##field##_show(struct device *dev,		\
 				     struct device_attribute *attr,	\
 				     char *buf)				\
 {									\
-	struct greybus_module *gmod = to_greybus_module(dev);		\
+	struct gb_module *gmod = to_gb_module(dev);			\
 	return sprintf(buf, "%x\n", gmod->module.field);		\
 }									\
 static DEVICE_ATTR_RO(module_##field)
 
-greybus_module_attr(vendor);
-greybus_module_attr(product);
-greybus_module_attr(version);
+gb_module_attr(vendor);
+gb_module_attr(product);
+gb_module_attr(version);
 
 static ssize_t module_serial_number_show(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	struct greybus_module *gmod = to_greybus_module(dev);
+	struct gb_module *gmod = to_gb_module(dev);
 
 	return sprintf(buf, "%llX\n",
 		      (unsigned long long)le64_to_cpu(gmod->module.serial_number));
@@ -50,7 +49,7 @@ static ssize_t module_vendor_string_show(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	struct greybus_module *gmod = to_greybus_module(dev);
+	struct gb_module *gmod = to_gb_module(dev);
 
 	return sprintf(buf, "%s",
 		       greybus_string(gmod, gmod->module.vendor_stringid));
@@ -61,7 +60,7 @@ static ssize_t module_product_string_show(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	struct greybus_module *gmod = to_greybus_module(dev);
+	struct gb_module *gmod = to_gb_module(dev);
 
 	return sprintf(buf, "%s",
 		       greybus_string(gmod, gmod->module.product_stringid));
@@ -81,7 +80,7 @@ static struct attribute *module_attrs[] = {
 static umode_t module_attrs_are_visible(struct kobject *kobj,
 					struct attribute *a, int n)
 {
-	struct greybus_module *gmod = to_greybus_module(kobj_to_dev(kobj));
+	struct gb_module *gmod = to_gb_module(kobj_to_dev(kobj));
 
 	if ((a == &dev_attr_module_vendor_string.attr) &&
 	    (gmod->module.vendor_stringid))

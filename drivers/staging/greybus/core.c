@@ -30,51 +30,13 @@ int greybus_disabled(void)
 }
 EXPORT_SYMBOL_GPL(greybus_disabled);
 
-static int greybus_match_one_id(struct greybus_module *gmod,
-				const struct greybus_module_id *id)
-{
-	struct greybus_descriptor_module *module;
-
-	module = &gmod->module;
-
-	if ((id->match_flags & GREYBUS_DEVICE_ID_MATCH_VENDOR) &&
-	    (id->vendor != le16_to_cpu(module->vendor)))
-		return 0;
-
-	if ((id->match_flags & GREYBUS_DEVICE_ID_MATCH_PRODUCT) &&
-	    (id->product != le16_to_cpu(module->product)))
-		return 0;
-
-	if ((id->match_flags & GREYBUS_DEVICE_ID_MATCH_SERIAL) &&
-	    (id->serial_number != le64_to_cpu(module->serial_number)))
-		return 0;
-
-	return 1;
-}
-
-static const struct greybus_module_id *greybus_match_id(
-		struct greybus_module *gmod,
-		const struct greybus_module_id *id)
-{
-	if (id == NULL)
-		return NULL;
-
-	for (; id->vendor || id->product || id->serial_number ||
-	       id->driver_info ; id++) {
-		if (greybus_match_one_id(gmod, id))
-			return id;
-	}
-
-	return NULL;
-}
-
 static int greybus_module_match(struct device *dev, struct device_driver *drv)
 {
 	struct greybus_driver *driver = to_greybus_driver(dev->driver);
-	struct greybus_module *gmod = to_greybus_module(dev);
+	struct gb_module *gmod = to_gb_module(dev);
 	const struct greybus_module_id *id;
 
-	id = greybus_match_id(gmod, driver->id_table);
+	id = gb_module_match_id(gmod, driver->id_table);
 	if (id)
 		return 1;
 	/* FIXME - Dyanmic ids? */
@@ -83,7 +45,7 @@ static int greybus_module_match(struct device *dev, struct device_driver *drv)
 
 static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
-	/* struct greybus_module *gmod = to_greybus_module(dev); */
+	/* struct gb_module *gmod = to_gb_module(dev); */
 
 	/* FIXME - add some uevents here... */
 	return 0;
@@ -98,12 +60,12 @@ static struct bus_type greybus_bus_type = {
 static int greybus_probe(struct device *dev)
 {
 	struct greybus_driver *driver = to_greybus_driver(dev->driver);
-	struct greybus_module *gmod = to_greybus_module(dev);
+	struct gb_module *gmod = to_gb_module(dev);
 	const struct greybus_module_id *id;
 	int retval;
 
 	/* match id */
-	id = greybus_match_id(gmod, driver->id_table);
+	id = gb_module_match_id(gmod, driver->id_table);
 	if (!id)
 		return -ENODEV;
 
@@ -117,7 +79,7 @@ static int greybus_probe(struct device *dev)
 static int greybus_remove(struct device *dev)
 {
 	struct greybus_driver *driver = to_greybus_driver(dev->driver);
-	struct greybus_module *gmod = to_greybus_module(dev);
+	struct gb_module *gmod = to_gb_module(dev);
 
 	driver->disconnect(gmod);
 	return 0;
@@ -155,7 +117,7 @@ EXPORT_SYMBOL_GPL(greybus_deregister);
 
 static void greybus_module_release(struct device *dev)
 {
-	struct greybus_module *gmod = to_greybus_module(dev);
+	struct gb_module *gmod = to_gb_module(dev);
 	int i;
 
 	for (i = 0; i < gmod->num_strings; ++i)
@@ -164,7 +126,7 @@ static void greybus_module_release(struct device *dev)
 }
 
 
-const u8 *greybus_string(struct greybus_module *gmod, int id)
+const u8 *greybus_string(struct gb_module *gmod, int id)
 {
 	int i;
 	struct gmod_string *string;
@@ -185,7 +147,7 @@ static struct device_type greybus_module_type = {
 	.release =	greybus_module_release,
 };
 
-static int gb_init_subdevs(struct greybus_module *gmod,
+static int gb_init_subdevs(struct gb_module *gmod,
 			   const struct greybus_module_id *id)
 {
 	int retval;
@@ -228,11 +190,11 @@ error_i2c:
 	return retval;
 }
 
-static const struct greybus_module_id fake_gb_id = {
+static const struct greybus_module_id fake_greybus_module_id = {
 	GREYBUS_DEVICE(0x42, 0x42)
 };
 
-static int create_module(struct greybus_module *gmod,
+static int create_module(struct gb_module *gmod,
 			    struct greybus_descriptor_module *module,
 			    size_t desc_size)
 {
@@ -245,7 +207,7 @@ static int create_module(struct greybus_module *gmod,
 	return 0;
 }
 
-static int create_string(struct greybus_module *gmod,
+static int create_string(struct gb_module *gmod,
 			 struct greybus_descriptor_string *string,
 			 size_t desc_size)
 {
@@ -279,7 +241,7 @@ static int create_string(struct greybus_module *gmod,
 	return 0;
 }
 
-static int create_cport(struct greybus_module *gmod,
+static int create_cport(struct gb_module *gmod,
 			struct greybus_descriptor_cport *cport,
 			size_t desc_size)
 {
@@ -309,7 +271,7 @@ static int create_cport(struct greybus_module *gmod,
 void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 		   u8 *data, int size)
 {
-	struct greybus_module *gmod;
+	struct gb_module *gmod;
 	struct greybus_manifest *manifest;
 	int retval;
 	int overall_size;
@@ -318,11 +280,10 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 	if (size <= sizeof(manifest->header))
 		return;
 
-	gmod = kzalloc(sizeof(*gmod), GFP_KERNEL);
+	gmod = gb_module_create(hd, module_id);
 	if (!gmod)
 		return;
 
-	gmod->module_number = module_id;
 	gmod->dev.parent = hd->parent;
 	gmod->dev.driver = NULL;
 	gmod->dev.bus = &greybus_bus_type;
@@ -400,7 +361,7 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 		data += desc_size;
 	}
 
-	retval = gb_init_subdevs(gmod, &fake_gb_id);
+	retval = gb_init_subdevs(gmod, &fake_greybus_module_id);
 	if (retval)
 		goto error;
 
@@ -418,7 +379,7 @@ void gb_remove_module(struct greybus_host_device *hd, u8 module_id)
 	// FIXME should be the remove_device call...
 }
 
-void greybus_remove_device(struct greybus_module *gmod)
+void greybus_remove_device(struct gb_module *gmod)
 {
 	/* tear down all of the "sub device types" for this device */
 	gb_i2c_disconnect(gmod);
@@ -453,6 +414,7 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 	kref_init(&hd->kref);
 	hd->parent = parent;
 	hd->driver = driver;
+	INIT_LIST_HEAD(&hd->modules);
 
 	return hd;
 }

@@ -26,7 +26,7 @@ static struct kmem_cache *gbuf_head_cache;
 /* Workqueue to handle Greybus buffer completions. */
 static struct workqueue_struct *gbuf_workqueue;
 
-static struct gbuf *__alloc_gbuf(struct greybus_module *gmod,
+static struct gbuf *__alloc_gbuf(struct gb_module *gmod,
 				u16 cport_id,
 				gbuf_complete_t complete,
 				gfp_t gfp_mask,
@@ -63,7 +63,7 @@ static struct gbuf *__alloc_gbuf(struct greybus_module *gmod,
  * that the driver can then fill up with the data to be sent out.  Curse
  * hardware designers for this issue...
  */
-struct gbuf *greybus_alloc_gbuf(struct greybus_module *gmod,
+struct gbuf *greybus_alloc_gbuf(struct gb_module *gmod,
 				u16 cport_id,
 				gbuf_complete_t complete,
 				unsigned int size,
@@ -80,7 +80,7 @@ struct gbuf *greybus_alloc_gbuf(struct greybus_module *gmod,
 	gbuf->direction = GBUF_DIRECTION_OUT;
 
 	/* Host controller specific allocation for the actual buffer */
-	retval = gbuf->gmod->hd->driver->alloc_gbuf_data(gbuf, size, gfp_mask);
+	retval = gmod->hd->driver->alloc_gbuf_data(gbuf, size, gfp_mask);
 	if (retval) {
 		greybus_free_gbuf(gbuf);
 		return NULL;
@@ -147,7 +147,7 @@ static void cport_process_event(struct work_struct *work)
 struct gb_cport_handler {
 	gbuf_complete_t handler;
 	u16 cport_id;
-	struct greybus_module *gmod;
+	struct gb_module *gmod;
 	void *context;
 };
 
@@ -155,8 +155,9 @@ static struct gb_cport_handler cport_handler[MAX_CPORTS];
 // FIXME - use a lock for this list of handlers, but really, for now we don't
 // need it, we don't have a dynamic system...
 
-int gb_register_cport_complete(struct greybus_module *gmod,
-			       gbuf_complete_t handler, u16 cport_id,
+int gb_register_cport_complete(struct gb_module *gmod,
+			       gbuf_complete_t handler,
+			       u16 cport_id,
 			       void *context)
 {
 	if (cport_handler[cport_id].handler)

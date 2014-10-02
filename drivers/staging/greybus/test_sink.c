@@ -12,10 +12,10 @@
 #include "greybus.h"
 
 struct test_device {
-	struct greybus_module *gmod;
+	struct gb_module *gmod;
 };
 
-int gb_register_cport_complete(struct greybus_module *gmod,
+int gb_register_cport_complete(struct gb_module *gmod,
 			       gbuf_complete_t handler, u16 cport_id,
 			       void *context);
 void gb_deregister_cport_complete(u16 cport_id);

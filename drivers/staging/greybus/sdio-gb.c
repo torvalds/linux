@@ -7,9 +7,9 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/mmc/host.h>
+
 #include "greybus.h"
 
 struct gb_sdio_host {
@@ -45,7 +45,7 @@ static const struct mmc_host_ops gb_sd_ops = {
 	.get_ro		= gb_sd_get_ro,
 };
 
-int gb_sdio_probe(struct greybus_module *gmod,
+int gb_sdio_probe(struct gb_module *gmod,
 		  const struct greybus_module_id *id)
 {
 	struct mmc_host *mmc;
@@ -65,7 +65,7 @@ int gb_sdio_probe(struct greybus_module *gmod,
 	return 0;
 }
 
-void gb_sdio_disconnect(struct greybus_module *gmod)
+void gb_sdio_disconnect(struct gb_module *gmod)
 {
 	struct mmc_host *mmc;
 	struct gb_sdio_host *host;

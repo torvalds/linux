@@ -10,11 +10,12 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
+
 #include "greybus.h"
 
 struct gb_i2c_device {
 	struct i2c_adapter *adapter;
-	struct greybus_module *gmod;
+	struct gb_module *gmod;
 };
 
 static const struct greybus_module_id id_table[] = {
@@ -33,7 +34,7 @@ static s32 i2c_gb_access(struct i2c_adapter *adap, u16 addr,
 			 int size, union i2c_smbus_data *data)
 {
 	struct gb_i2c_device *gb_i2c_dev;
-	struct greybus_module *gmod;
+	struct gb_module *gmod;
 
 	gb_i2c_dev = i2c_get_adapdata(adap);
 	gmod = gb_i2c_dev->gmod;
@@ -75,7 +76,7 @@ static const struct i2c_algorithm smbus_algorithm = {
 	.functionality	= i2c_gb_func,
 };
 
-int gb_i2c_probe(struct greybus_module *gmod,
+int gb_i2c_probe(struct gb_module *gmod,
 		 const struct greybus_module_id *id)
 {
 	struct gb_i2c_device *gb_i2c_dev;
@@ -115,7 +116,7 @@ error:
 	return retval;
 }
 
-void gb_i2c_disconnect(struct greybus_module *gmod)
+void gb_i2c_disconnect(struct gb_module *gmod)
 {
 	struct gb_i2c_device *gb_i2c_dev;
 

@@ -26,14 +26,16 @@
 #include <linux/idr.h>
 #include <linux/fs.h>
 #include <linux/kdev_t.h>
+
 #include "greybus.h"
+#include "module.h"
 
 #define GB_NUM_MINORS	255	/* 255 is enough for anyone... */
 #define GB_NAME		"ttyGB"
 
 struct gb_tty {
 	struct tty_port port;
-	struct greybus_module *gmod;
+	struct gb_module *gmod;
 	u16 cport_id;
 	unsigned int minor;
 	unsigned char clocal;
@@ -384,7 +386,7 @@ static const struct tty_operations gb_ops = {
 };
 
 
-int gb_tty_probe(struct greybus_module *gmod,
+int gb_tty_probe(struct gb_module *gmod,
 		 const struct greybus_module_id *id)
 {
 	struct gb_tty *gb_tty;
@@ -430,7 +432,7 @@ error:
 	return retval;
 }
 
-void gb_tty_disconnect(struct greybus_module *gmod)
+void gb_tty_disconnect(struct gb_module *gmod)
 {
 	struct gb_tty *gb_tty = gmod->gb_tty;
 	struct tty_struct *tty;

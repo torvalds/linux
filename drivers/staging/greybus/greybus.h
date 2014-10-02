@@ -11,12 +11,16 @@
 
 #ifdef __KERNEL__
 
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/module.h>
+
 #include "greybus_id.h"
 #include "greybus_manifest.h"
+#include "module.h"
 
 
 /* Matches up with the Greybus Protocol specification document */
@@ -113,7 +117,7 @@ struct gbuf {
 	struct kref kref;
 	void *hdpriv;
 
-	struct greybus_module *gmod;
+	struct gb_module *gmod;
 	u16 cport_id;
 	int status;
 	void *transfer_buffer;
@@ -142,7 +146,7 @@ struct gbuf {
  * same module as the gpio pins, etc.)
  *
  * So, put the "private" data structures here in greybus.h and link to them off
- * of the "main" greybus_module structure.
+ * of the "main" gb_module structure.
  */
 
 struct gb_i2c_device;
@@ -173,6 +177,8 @@ struct greybus_host_device {
 	struct device *parent;
 	const struct greybus_host_driver *driver;
 
+	struct list_head modules;
+
 	/* Private data for the host driver */
 	unsigned long hd_priv[0] __attribute__ ((aligned(sizeof(s64))));
 };
@@ -184,32 +190,7 @@ void greybus_cport_in(struct greybus_host_device *hd, u16 cport_id,
 			u8 *data, size_t length);
 void greybus_gbuf_finished(struct gbuf *gbuf);
 
-
-/* Increase these values if needed */
-#define MAX_CPORTS_PER_MODULE	10
-#define MAX_STRINGS_PER_MODULE	10
-
-struct greybus_module {
-	struct device dev;
-	u16 module_number;
-	struct greybus_descriptor_module module;
-	int num_cports;
-	int num_strings;
-	u16 cport_ids[MAX_CPORTS_PER_MODULE];
-	struct gmod_string *string[MAX_STRINGS_PER_MODULE];
-
-	struct greybus_host_device *hd;
-
-	struct gb_i2c_device *gb_i2c_dev;
-	struct gb_gpio_device *gb_gpio_dev;
-	struct gb_sdio_host *gb_sdio_host;
-	struct gb_tty *gb_tty;
-	struct gb_usb_device *gb_usb_dev;
-	struct gb_battery *gb_battery;
-};
-#define to_greybus_module(d) container_of(d, struct greybus_module, dev)
-
-struct gbuf *greybus_alloc_gbuf(struct greybus_module *gmod, u16 cport_id,
+struct gbuf *greybus_alloc_gbuf(struct gb_module *gmod, u16 cport_id,
 				gbuf_complete_t complete, unsigned int size,
 				gfp_t gfp_mask, void *context);
 void greybus_free_gbuf(struct gbuf *gbuf);
@@ -223,28 +204,18 @@ int greybus_kill_gbuf(struct gbuf *gbuf);
 struct greybus_driver {
 	const char *name;
 
-	int (*probe)(struct greybus_module *gmod,
+	int (*probe)(struct gb_module *gmod,
 		     const struct greybus_module_id *id);
-	void (*disconnect)(struct greybus_module *gmod);
+	void (*disconnect)(struct gb_module *gmod);
 
-	int (*suspend)(struct greybus_module *gmod, pm_message_t message);
-	int (*resume)(struct greybus_module *gmod);
+	int (*suspend)(struct gb_module *gmod, pm_message_t message);
+	int (*resume)(struct gb_module *gmod);
 
 	const struct greybus_module_id *id_table;
 
 	struct device_driver driver;
 };
 #define to_greybus_driver(d) container_of(d, struct greybus_driver, driver)
-
-static inline void greybus_set_drvdata(struct greybus_module *gmod, void *data)
-{
-	dev_set_drvdata(&gmod->dev, data);
-}
-
-static inline void *greybus_get_drvdata(struct greybus_module *gmod)
-{
-	return dev_get_drvdata(&gmod->dev);
-}
 
 /* Don't call these directly, use the module_greybus_driver() macro instead */
 int greybus_register_driver(struct greybus_driver *driver,
@@ -268,9 +239,9 @@ void greybus_deregister(struct greybus_driver *driver);
 
 int greybus_disabled(void);
 
-void greybus_remove_device(struct greybus_module *gmod);
+void greybus_remove_device(struct gb_module *gmod);
 
-const u8 *greybus_string(struct greybus_module *gmod, int id);
+const u8 *greybus_string(struct gb_module *gmod, int id);
 
 /* Internal functions to gb module, move to internal .h file eventually. */
 
@@ -286,7 +257,7 @@ void gb_debugfs_cleanup(void);
 int gb_gbuf_init(void);
 void gb_gbuf_exit(void);
 
-int gb_register_cport_complete(struct greybus_module *gmod,
+int gb_register_cport_complete(struct gb_module *gmod,
 			       gbuf_complete_t handler, u16 cport_id,
 			       void *context);
 void gb_deregister_cport_complete(u16 cport_id);
@@ -298,16 +269,17 @@ extern const struct attribute_group *greybus_module_groups[];
  * we have static functions for this, not "dynamic" drivers like we really
  * should in the end.
  */
-int gb_i2c_probe(struct greybus_module *gmod, const struct greybus_module_id *id);
-void gb_i2c_disconnect(struct greybus_module *gmod);
-int gb_gpio_probe(struct greybus_module *gmod, const struct greybus_module_id *id);
-void gb_gpio_disconnect(struct greybus_module *gmod);
-int gb_sdio_probe(struct greybus_module *gmod, const struct greybus_module_id *id);
-void gb_sdio_disconnect(struct greybus_module *gmod);
-int gb_tty_probe(struct greybus_module *gmod, const struct greybus_module_id *id);
-void gb_tty_disconnect(struct greybus_module *gmod);
-int gb_battery_probe(struct greybus_module *gmod, const struct greybus_module_id *id);
-void gb_battery_disconnect(struct greybus_module *gmod);
+int gb_i2c_probe(struct gb_module *gmod, const struct greybus_module_id *id);
+void gb_i2c_disconnect(struct gb_module *gmod);
+int gb_gpio_probe(struct gb_module *gmod, const struct greybus_module_id *id);
+void gb_gpio_disconnect(struct gb_module *gmod);
+int gb_sdio_probe(struct gb_module *gmod, const struct greybus_module_id *id);
+void gb_sdio_disconnect(struct gb_module *gmod);
+int gb_tty_probe(struct gb_module *gmod, const struct greybus_module_id *id);
+void gb_tty_disconnect(struct gb_module *gmod);
+int gb_battery_probe(struct gb_module *gmod,
+			const struct greybus_module_id *id);
+void gb_battery_disconnect(struct gb_module *gmod);
 
 int gb_tty_init(void);
 void gb_tty_exit(void);
