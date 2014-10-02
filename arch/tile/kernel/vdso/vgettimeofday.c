@@ -53,50 +53,33 @@ inline unsigned long get_datapage(void)
 int __vdso_gettimeofday(struct timeval *tv, struct timezone *tz)
 {
 	cycles_t cycles;
-	unsigned long count, sec, ns;
-	volatile struct vdso_data *vdso_data;
+	unsigned count;
+	unsigned long sec, ns;
+	struct vdso_data *vdso = (struct vdso_data *)get_datapage();
 
-	vdso_data = (struct vdso_data *)get_datapage();
 	/* The use of the timezone is obsolete, normally tz is NULL. */
 	if (unlikely(tz != NULL)) {
-		while (1) {
-			/* Spin until the update finish. */
-			count = vdso_data->tz_update_count;
-			if (count & 1)
-				continue;
-
-			tz->tz_minuteswest = vdso_data->tz_minuteswest;
-			tz->tz_dsttime = vdso_data->tz_dsttime;
-
-			/* Check whether updated, read again if so. */
-			if (count == vdso_data->tz_update_count)
-				break;
-		}
+		do {
+			count = read_seqcount_begin(&vdso->tz_seq);
+			tz->tz_minuteswest = vdso->tz_minuteswest;
+			tz->tz_dsttime = vdso->tz_dsttime;
+		} while (unlikely(read_seqcount_retry(&vdso->tz_seq, count)));
 	}
 
 	if (unlikely(tv == NULL))
 		return 0;
 
-	while (1) {
-		/* Spin until the update finish. */
-		count = vdso_data->tb_update_count;
-		if (count & 1)
-			continue;
-
-		sec = vdso_data->xtime_clock_sec;
-		cycles = get_cycles() - vdso_data->xtime_tod_stamp;
-		ns = (cycles * vdso_data->mult) + vdso_data->xtime_clock_nsec;
-		ns >>= vdso_data->shift;
-
+	do {
+		count = read_seqcount_begin(&vdso->tb_seq);
+		sec = vdso->xtime_clock_sec;
+		cycles = get_cycles() - vdso->xtime_tod_stamp;
+		ns = (cycles * vdso->mult) + vdso->xtime_clock_nsec;
+		ns >>= vdso->shift;
 		if (ns >= NSEC_PER_SEC) {
 			ns -= NSEC_PER_SEC;
 			sec += 1;
 		}
-
-		/* Check whether updated, read again if so. */
-		if (count == vdso_data->tb_update_count)
-			break;
-	}
+	} while (unlikely(read_seqcount_retry(&vdso->tb_seq, count)));
 
 	tv->tv_sec = sec;
 	tv->tv_usec = ns / 1000;

@@ -249,13 +249,10 @@ cycles_t ns2cycles(unsigned long nsecs)
 
 void update_vsyscall_tz(void)
 {
-	/* Userspace gettimeofday will spin while this value is odd. */
-	++vdso_data->tz_update_count;
-	smp_wmb();
+	write_seqcount_begin(&vdso_data->tz_seq);
 	vdso_data->tz_minuteswest = sys_tz.tz_minuteswest;
 	vdso_data->tz_dsttime = sys_tz.tz_dsttime;
-	smp_wmb();
-	++vdso_data->tz_update_count;
+	write_seqcount_end(&vdso_data->tz_seq);
 }
 
 void update_vsyscall(struct timekeeper *tk)
@@ -266,9 +263,8 @@ void update_vsyscall(struct timekeeper *tk)
 	if (clock != &cycle_counter_cs)
 		return;
 
-	/* Userspace gettimeofday will spin while this value is odd. */
-	++vdso_data->tb_update_count;
-	smp_wmb();
+	write_seqcount_begin(&vdso_data->tb_seq);
+
 	vdso_data->xtime_tod_stamp = tk->tkr.cycle_last;
 	vdso_data->xtime_clock_sec = tk->xtime_sec;
 	vdso_data->xtime_clock_nsec = tk->tkr.xtime_nsec;
@@ -276,6 +272,6 @@ void update_vsyscall(struct timekeeper *tk)
 	vdso_data->wtom_clock_nsec = wtm->tv_nsec;
 	vdso_data->mult = tk->tkr.mult;
 	vdso_data->shift = tk->tkr.shift;
-	smp_wmb();
-	++vdso_data->tb_update_count;
+
+	write_seqcount_end(&vdso_data->tb_seq);
 }

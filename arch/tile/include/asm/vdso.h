@@ -15,6 +15,7 @@
 #ifndef __TILE_VDSO_H__
 #define __TILE_VDSO_H__
 
+#include <linux/seqlock.h>
 #include <linux/types.h>
 
 /*
@@ -26,8 +27,8 @@
  */
 
 struct vdso_data {
-	__u64 tz_update_count;  /* Timezone atomicity ctr             */
-	__u64 tb_update_count;  /* Timebase atomicity ctr             */
+	seqcount_t tz_seq;	/* Timezone seqlock                   */
+	seqcount_t tb_seq;	/* Timebase seqlock                   */
 	__u64 xtime_tod_stamp;  /* TOD clock for xtime                */
 	__u64 xtime_clock_sec;  /* Kernel time second                 */
 	__u64 xtime_clock_nsec; /* Kernel time nanosecond             */
