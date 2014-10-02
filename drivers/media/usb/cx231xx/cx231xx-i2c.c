@@ -492,6 +492,9 @@ void cx231xx_do_i2c_scan(struct cx231xx *dev, int i2c_port)
 	int i, rc;
 	struct i2c_client client;
 
+	if (!i2c_scan)
+		return;
+
 	memset(&client, 0, sizeof(client));
 	client.adapter = cx231xx_get_i2c_adap(dev, i2c_port);
 
@@ -528,10 +531,7 @@ int cx231xx_i2c_register(struct cx231xx_i2c *bus)
 	i2c_set_adapdata(&bus->i2c_adap, &dev->v4l2_dev);
 	i2c_add_adapter(&bus->i2c_adap);
 
-	if (0 == bus->i2c_rc) {
-		if (i2c_scan)
-			cx231xx_do_i2c_scan(dev, bus->nr);
-	} else
+	if (0 != bus->i2c_rc)
 		cx231xx_warn("%s: i2c bus %d register FAILED\n",
 			     dev->name, bus->nr);
 
