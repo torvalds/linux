@@ -20,7 +20,7 @@ Description:
 		amended over time.
 
 What:		/sys/class/power_supply/max14577-charger/device/fast_charge_timer
-Date:		July 2014
+Date:		October 2014
 KernelVersion:	3.18.0
 Contact:	Krzysztof Kozlowski <k.kozlowski@samsung.com>
 Description:
