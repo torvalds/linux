@@ -1044,9 +1044,11 @@ static void ath_offchannel_channel_change(struct ath_softc *sc)
 void ath_chanctx_set_next(struct ath_softc *sc, bool force)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_chanctx *old_ctx;
 	struct timespec ts;
 	bool measure_time = false;
 	bool send_ps = false;
+	bool queues_stopped = false;
 
 	spin_lock_bh(&sc->chan_lock);
 	if (!sc->next_chan) {
@@ -1076,6 +1078,10 @@ void ath_chanctx_set_next(struct ath_softc *sc, bool force)
 			getrawmonotonic(&ts);
 			measure_time = true;
 		}
+
+		ath9k_chanctx_stop_queues(sc, sc->cur_chan);
+		queues_stopped = true;
+
 		__ath9k_flush(sc->hw, ~0, true);
 
 		if (ath_chanctx_send_ps_frame(sc, true))
@@ -1089,6 +1095,7 @@ void ath_chanctx_set_next(struct ath_softc *sc, bool force)
 			sc->cur_chan->tsf_val = ath9k_hw_gettsf64(sc->sc_ah);
 		}
 	}
+	old_ctx = sc->cur_chan;
 	sc->cur_chan = sc->next_chan;
 	sc->cur_chan->stopped = false;
 	sc->next_chan = NULL;
@@ -1111,7 +1118,16 @@ void ath_chanctx_set_next(struct ath_softc *sc, bool force)
 		if (measure_time)
 			sc->sched.channel_switch_time =
 				ath9k_hw_get_tsf_offset(&ts, NULL);
+		/*
+		 * A reset will ensure that all queues are woken up,
+		 * so there is no need to awaken them again.
+		 */
+		goto out;
 	}
+
+	if (queues_stopped)
+		ath9k_chanctx_wake_queues(sc, old_ctx);
+out:
 	if (send_ps)
 		ath_chanctx_send_ps_frame(sc, false);
 
