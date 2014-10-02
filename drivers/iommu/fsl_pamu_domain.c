@@ -411,8 +411,7 @@ static phys_addr_t fsl_pamu_iova_to_phys(struct iommu_domain *domain,
 	return get_phys_addr(dma_domain, iova);
 }
 
-static int fsl_pamu_domain_has_cap(struct iommu_domain *domain,
-				      unsigned long cap)
+static bool fsl_pamu_capable(enum iommu_cap cap)
 {
 	return cap == IOMMU_CAP_CACHE_COHERENCY;
 }
@@ -1080,6 +1079,7 @@ static u32 fsl_pamu_get_windows(struct iommu_domain *domain)
 }
 
 static const struct iommu_ops fsl_pamu_ops = {
+	.capable	= fsl_pamu_capable,
 	.domain_init	= fsl_pamu_domain_init,
 	.domain_destroy = fsl_pamu_domain_destroy,
 	.attach_dev	= fsl_pamu_attach_device,
@@ -1089,7 +1089,6 @@ static const struct iommu_ops fsl_pamu_ops = {
 	.domain_get_windows = fsl_pamu_get_windows,
 	.domain_set_windows = fsl_pamu_set_windows,
 	.iova_to_phys	= fsl_pamu_iova_to_phys,
-	.domain_has_cap = fsl_pamu_domain_has_cap,
 	.domain_set_attr = fsl_pamu_set_domain_attr,
 	.domain_get_attr = fsl_pamu_get_domain_attr,
 	.add_device	= fsl_pamu_add_device,

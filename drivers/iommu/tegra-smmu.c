@@ -780,10 +780,9 @@ static phys_addr_t smmu_iommu_iova_to_phys(struct iommu_domain *domain,
 	return PFN_PHYS(pfn);
 }
 
-static int smmu_iommu_domain_has_cap(struct iommu_domain *domain,
-				     unsigned long cap)
+static bool smmu_iommu_capable(enum iommu_cap cap)
 {
-	return 0;
+	return false;
 }
 
 static int smmu_iommu_attach_dev(struct iommu_domain *domain,
@@ -949,6 +948,7 @@ static void smmu_iommu_domain_destroy(struct iommu_domain *domain)
 }
 
 static const struct iommu_ops smmu_iommu_ops = {
+	.capable	= smmu_iommu_capable,
 	.domain_init	= smmu_iommu_domain_init,
 	.domain_destroy	= smmu_iommu_domain_destroy,
 	.attach_dev	= smmu_iommu_attach_dev,
@@ -956,7 +956,6 @@ static const struct iommu_ops smmu_iommu_ops = {
 	.map		= smmu_iommu_map,
 	.unmap		= smmu_iommu_unmap,
 	.iova_to_phys	= smmu_iommu_iova_to_phys,
-	.domain_has_cap	= smmu_iommu_domain_has_cap,
 	.pgsize_bitmap	= SMMU_IOMMU_PGSIZES,
 };
 
@@ -1260,7 +1259,7 @@ static const struct dev_pm_ops tegra_smmu_pm_ops = {
 	.resume		= tegra_smmu_resume,
 };
 
-static struct of_device_id tegra_smmu_of_match[] = {
+static const struct of_device_id tegra_smmu_of_match[] = {
 	{ .compatible = "nvidia,tegra30-smmu", },
 	{ },
 };
