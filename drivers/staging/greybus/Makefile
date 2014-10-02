@@ -4,6 +4,7 @@ greybus-y :=	core.o		\
 		debugfs.o	\
 		ap.o		\
 		module.o	\
+		interface.o	\
 		i2c-gb.o	\
 		gpio-gb.o	\
 		sdio-gb.o	\

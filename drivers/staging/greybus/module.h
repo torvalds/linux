@@ -16,6 +16,7 @@
 struct gb_module {
 	struct device dev;
 
+	struct list_head interfaces;
 	struct list_head links;	/* greybus_host_device->modules */
 	u8 module_id;		/* Physical location within the Endo */
 

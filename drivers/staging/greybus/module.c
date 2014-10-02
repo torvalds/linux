@@ -67,6 +67,7 @@ struct gb_module *gb_module_create(struct greybus_host_device *hd, u8 module_id)
 
 	module->hd = hd;		/* XXX refcount? */
 	module->module_id = module_id;
+	INIT_LIST_HEAD(&module->interfaces);
 
 	spin_lock_irq(&gb_modules_lock);
 	list_add_tail(&module->links, &hd->modules);
