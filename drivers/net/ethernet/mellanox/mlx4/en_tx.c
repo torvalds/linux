@@ -840,7 +840,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * note that we already verified that it is linear */
 		memcpy(tx_desc->lso.header, skb->data, lso_header_size);
 
-		priv->port_stats.tso_packets++;
+		ring->tso_packets++;
 		i = ((skb->len - lso_header_size) / skb_shinfo(skb)->gso_size) +
 			!!((skb->len - lso_header_size) % skb_shinfo(skb)->gso_size);
 		tx_info->nr_bytes = skb->len + (i - 1) * lso_header_size;
@@ -910,6 +910,8 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 			wmb();
 			iowrite32be(ring->doorbell_qpn,
 				    ring->bf.uar->map + MLX4_SEND_DOORBELL);
+		} else {
+			ring->xmit_more++;
 		}
 	}
 

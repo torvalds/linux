@@ -279,6 +279,8 @@ struct mlx4_en_tx_ring {
 	unsigned long tx_csum;
 	unsigned long queue_stopped;
 	unsigned long wake_queue;
+	unsigned long tso_packets;
+	unsigned long xmit_more;
 	struct mlx4_bf bf;
 	bool bf_enabled;
 	bool bf_alloced;
@@ -426,6 +428,7 @@ struct mlx4_en_pkt_stats {
 
 struct mlx4_en_port_stats {
 	unsigned long tso_packets;
+	unsigned long xmit_more;
 	unsigned long queue_stopped;
 	unsigned long wake_queue;
 	unsigned long tx_timeout;
@@ -433,7 +436,7 @@ struct mlx4_en_port_stats {
 	unsigned long rx_chksum_good;
 	unsigned long rx_chksum_none;
 	unsigned long tx_chksum_offload;
-#define NUM_PORT_STATS		8
+#define NUM_PORT_STATS		9
 };
 
 struct mlx4_en_perf_stats {
