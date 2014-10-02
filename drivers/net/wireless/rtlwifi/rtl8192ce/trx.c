@@ -389,10 +389,6 @@ bool rtl92ce_rx_query_desc(struct ieee80211_hw *hw,
 	 * to decrypt it
 	 */
 	if (stats->decrypted) {
-		if (!hdr) {
-			/* In testing, hdr was NULL here */
-			return false;
-		}
 		if ((_ieee80211_is_robust_mgmt_frame(hdr)) &&
 		    (ieee80211_has_protected(hdr->frame_control)))
 			rx_status->flag &= ~RX_FLAG_DECRYPTED;

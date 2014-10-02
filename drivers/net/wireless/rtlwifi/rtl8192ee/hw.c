@@ -530,18 +530,18 @@ void rtl92ee_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			fac = (1 << (fac + 2));
 			if (fac > 0xf)
 				fac = 0xf;
-				for (i = 0; i < 4; i++) {
-					if ((reg[i] & 0xf0) > (fac << 4))
-						reg[i] = (reg[i] & 0x0f) |
-							(fac << 4);
-					if ((reg[i] & 0x0f) > fac)
-						reg[i] = (reg[i] & 0xf0) | fac;
-						rtl_write_byte(rtlpriv,
-						       (REG_AGGLEN_LMT + i),
-						       reg[i]);
-				}
-				RT_TRACE(rtlpriv, COMP_MLME, DBG_LOUD,
-					 "Set HW_VAR_AMPDU_FACTOR:%#x\n", fac);
+			for (i = 0; i < 4; i++) {
+				if ((reg[i] & 0xf0) > (fac << 4))
+					reg[i] = (reg[i] & 0x0f) |
+						(fac << 4);
+				if ((reg[i] & 0x0f) > fac)
+					reg[i] = (reg[i] & 0xf0) | fac;
+				rtl_write_byte(rtlpriv,
+					       (REG_AGGLEN_LMT + i),
+					       reg[i]);
+			}
+			RT_TRACE(rtlpriv, COMP_MLME, DBG_LOUD,
+				 "Set HW_VAR_AMPDU_FACTOR:%#x\n", fac);
 		}
 		}
 		break;
