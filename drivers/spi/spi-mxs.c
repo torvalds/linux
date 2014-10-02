@@ -85,7 +85,7 @@ static int mxs_spi_setup_transfer(struct spi_device *dev,
 		mxs_ssp_set_clk_rate(ssp, hz);
 		/*
 		 * Save requested rate, hz, rather than the actual rate,
-		 * ssp->clk_rate.  Otherwise we would set the rate every trasfer
+		 * ssp->clk_rate.  Otherwise we would set the rate every transfer
 		 * when the actual rate is not quite the same as requested rate.
 		 */
 		spi->sck = hz;
