@@ -897,6 +897,7 @@ static void remove_one(struct pci_dev *pdev)
 
 static const struct pci_device_id mlx5_core_pci_table[] = {
 	{ PCI_VDEVICE(MELLANOX, 4113) }, /* MT4113 Connect-IB */
+	{ PCI_VDEVICE(MELLANOX, 4115) }, /* ConnectX-4 */
 	{ 0, }
 };
 
