@@ -1420,6 +1420,7 @@ static int mxs_lradc_hw_init(struct mxs_lradc *lradc)
 		(LRADC_DELAY_TIMER_PER << LRADC_DELAY_DELAY_OFFSET);
 
 	int ret = stmp_reset_block(lradc->base);
+
 	if (ret)
 		return ret;
 
