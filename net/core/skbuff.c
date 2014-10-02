@@ -3244,7 +3244,6 @@ done:
 	NAPI_GRO_CB(skb)->same_flow = 1;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(skb_gro_receive);
 
 void __init skb_init(void)
 {
