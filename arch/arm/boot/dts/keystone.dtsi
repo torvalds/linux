@@ -172,7 +172,7 @@
 			compatible = "ti,keystone-usbphy";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			reg = <0x2620738 32>;
+			reg = <0x2620738 24>;
 			status = "disabled";
 		};
 

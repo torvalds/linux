@@ -67,6 +67,8 @@
 			clock-names = "usb";
 			interrupts = <GIC_SPI 414 IRQ_TYPE_EDGE_RISING>;
 			ranges;
+			dma-coherent;
+			dma-ranges;
 			status = "disabled";
 
 			dwc3@25010000 {
@@ -84,4 +86,8 @@
 			gpio,syscon-dev = <&devctrl 0x240>;
 		};
 	};
+};
+
+&mdio {
+	reg = <0x24200f00 0x100>;
 };
