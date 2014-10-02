@@ -2,6 +2,7 @@
  *    Optimized memory copy routines.
  *
  *    Copyright (C) 2004 Randolph Chung <tausq@debian.org>
+ *    Copyright (C) 2013 Helge Deller <deller@gmx.de>
  *
  *    This program is free software; you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -153,17 +154,21 @@ static inline void prefetch_dst(const void *addr)
 #define prefetch_dst(addr) do { } while(0)
 #endif
 
+#define PA_MEMCPY_OK		0
+#define PA_MEMCPY_LOAD_ERROR	1
+#define PA_MEMCPY_STORE_ERROR	2
+
 /* Copy from a not-aligned src to an aligned dst, using shifts. Handles 4 words
  * per loop.  This code is derived from glibc. 
  */
-static inline unsigned long copy_dstaligned(unsigned long dst, unsigned long src, unsigned long len, unsigned long o_dst, unsigned long o_src, unsigned long o_len)
+static inline unsigned long copy_dstaligned(unsigned long dst,
+					unsigned long src, unsigned long len)
 {
 	/* gcc complains that a2 and a3 may be uninitialized, but actually
 	 * they cannot be.  Initialize a2/a3 to shut gcc up.
 	 */
 	register unsigned int a0, a1, a2 = 0, a3 = 0;
 	int sh_1, sh_2;
-	struct exception_data *d;
 
 	/* prefetch_src((const void *)src); */
 
@@ -197,7 +202,7 @@ static inline unsigned long copy_dstaligned(unsigned long dst, unsigned long src
 			goto do2;
 		case 0:
 			if (len == 0)
-				return 0;
+				return PA_MEMCPY_OK;
 			/* a3 = ((unsigned int *) src)[0];
 			   a0 = ((unsigned int *) src)[1]; */
 			ldw(s_space, 0, src, a3, cda_ldw_exc);
@@ -256,41 +261,34 @@ do0:
 	preserve_branch(handle_load_error);
 	preserve_branch(handle_store_error);
 
-	return 0;
+	return PA_MEMCPY_OK;
 
 handle_load_error:
 	__asm__ __volatile__ ("cda_ldw_exc:\n");
-	d = &__get_cpu_var(exception_data);
-	DPRINTF("cda_ldw_exc: o_len=%lu fault_addr=%lu o_src=%lu ret=%lu\n",
-		o_len, d->fault_addr, o_src, o_len - d->fault_addr + o_src);
-	return o_len * 4 - d->fault_addr + o_src;
+	return PA_MEMCPY_LOAD_ERROR;
 
 handle_store_error:
 	__asm__ __volatile__ ("cda_stw_exc:\n");
-	d = &__get_cpu_var(exception_data);
-	DPRINTF("cda_stw_exc: o_len=%lu fault_addr=%lu o_dst=%lu ret=%lu\n",
-		o_len, d->fault_addr, o_dst, o_len - d->fault_addr + o_dst);
-	return o_len * 4 - d->fault_addr + o_dst;
+	return PA_MEMCPY_STORE_ERROR;
 }
 
 
-/* Returns 0 for success, otherwise, returns number of bytes not transferred. */
-static unsigned long pa_memcpy(void *dstp, const void *srcp, unsigned long len)
+/* Returns PA_MEMCPY_OK, PA_MEMCPY_LOAD_ERROR or PA_MEMCPY_STORE_ERROR.
+ * In case of an access fault the faulty address can be read from the per_cpu
+ * exception data struct. */
+static unsigned long pa_memcpy_internal(void *dstp, const void *srcp,
+					unsigned long len)
 {
 	register unsigned long src, dst, t1, t2, t3;
 	register unsigned char *pcs, *pcd;
 	register unsigned int *pws, *pwd;
 	register double *pds, *pdd;
-	unsigned long ret = 0;
-	unsigned long o_dst, o_src, o_len;
-	struct exception_data *d;
+	unsigned long ret;
 
 	src = (unsigned long)srcp;
 	dst = (unsigned long)dstp;
 	pcs = (unsigned char *)srcp;
 	pcd = (unsigned char *)dstp;
-
-	o_dst = dst; o_src = src; o_len = len;
 
 	/* prefetch_src((const void *)srcp); */
 
@@ -401,7 +399,7 @@ byte_copy:
 		len--;
 	}
 
-	return 0;
+	return PA_MEMCPY_OK;
 
 unaligned_copy:
 	/* possibly we are aligned on a word, but not on a double... */
@@ -438,8 +436,7 @@ unaligned_copy:
 		src = (unsigned long)pcs;
 	}
 
-	ret = copy_dstaligned(dst, src, len / sizeof(unsigned int), 
-		o_dst, o_src, o_len);
+	ret = copy_dstaligned(dst, src, len / sizeof(unsigned int));
 	if (ret)
 		return ret;
 
@@ -454,17 +451,41 @@ unaligned_copy:
 
 handle_load_error:
 	__asm__ __volatile__ ("pmc_load_exc:\n");
-	d = &__get_cpu_var(exception_data);
-	DPRINTF("pmc_load_exc: o_len=%lu fault_addr=%lu o_src=%lu ret=%lu\n",
-		o_len, d->fault_addr, o_src, o_len - d->fault_addr + o_src);
-	return o_len - d->fault_addr + o_src;
+	return PA_MEMCPY_LOAD_ERROR;
 
 handle_store_error:
 	__asm__ __volatile__ ("pmc_store_exc:\n");
+	return PA_MEMCPY_STORE_ERROR;
+}
+
+
+/* Returns 0 for success, otherwise, returns number of bytes not transferred. */
+static unsigned long pa_memcpy(void *dstp, const void *srcp, unsigned long len)
+{
+	unsigned long ret, fault_addr, reference;
+	struct exception_data *d;
+
+	ret = pa_memcpy_internal(dstp, srcp, len);
+	if (likely(ret == PA_MEMCPY_OK))
+		return 0;
+
+	/* if a load or store fault occured we can get the faulty addr */
 	d = &__get_cpu_var(exception_data);
-	DPRINTF("pmc_store_exc: o_len=%lu fault_addr=%lu o_dst=%lu ret=%lu\n",
-		o_len, d->fault_addr, o_dst, o_len - d->fault_addr + o_dst);
-	return o_len - d->fault_addr + o_dst;
+	fault_addr = d->fault_addr;
+
+	/* error in load or store? */
+	if (ret == PA_MEMCPY_LOAD_ERROR)
+		reference = (unsigned long) srcp;
+	else
+		reference = (unsigned long) dstp;
+
+	DPRINTF("pa_memcpy: fault type = %lu, len=%lu fault_addr=%lu ref=%lu\n",
+		ret, len, fault_addr, reference);
+
+	if (fault_addr >= reference)
+		return len - (fault_addr - reference);
+	else
+		return len;
 }
 
 #ifdef __KERNEL__

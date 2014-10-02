@@ -237,10 +237,12 @@ static void acpi_scan_bus_device_check(acpi_handle handle, u32 ost_source)
 
 	mutex_lock(&acpi_scan_lock);
 
-	acpi_bus_get_device(handle, &device);
-	if (device) {
-		dev_warn(&device->dev, "Attempt to re-insert\n");
-		goto out;
+	if (ost_source != ACPI_NOTIFY_BUS_CHECK) {
+		acpi_bus_get_device(handle, &device);
+		if (device) {
+			dev_warn(&device->dev, "Attempt to re-insert\n");
+			goto out;
+		}
 	}
 	acpi_evaluate_hotplug_ost(handle, ost_source,
 				  ACPI_OST_SC_INSERT_IN_PROGRESS, NULL);
@@ -1890,6 +1892,9 @@ static acpi_status acpi_bus_device_attach(acpi_handle handle, u32 lvl_not_used,
 	if (acpi_bus_get_device(handle, &device))
 		return AE_CTRL_DEPTH;
 
+	if (device->handler)
+		return AE_OK;
+
 	ret = acpi_scan_attach_handler(device);
 	if (ret)
 		return ret > 0 ? AE_OK : AE_CTRL_DEPTH;
@@ -2040,6 +2045,7 @@ int __init acpi_scan_init(void)
 	acpi_pci_link_init();
 	acpi_platform_init();
 	acpi_lpss_init();
+	acpi_cmos_rtc_init();
 	acpi_container_init();
 	acpi_memory_hotplug_init();
 	acpi_dock_init();

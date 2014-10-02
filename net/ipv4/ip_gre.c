@@ -503,10 +503,11 @@ static int ipgre_tunnel_ioctl(struct net_device *dev,
 
 	if (copy_from_user(&p, ifr->ifr_ifru.ifru_data, sizeof(p)))
 		return -EFAULT;
-	if (p.iph.version != 4 || p.iph.protocol != IPPROTO_GRE ||
-	    p.iph.ihl != 5 || (p.iph.frag_off&htons(~IP_DF)) ||
-	    ((p.i_flags|p.o_flags)&(GRE_VERSION|GRE_ROUTING))) {
-		return -EINVAL;
+	if (cmd == SIOCADDTUNNEL || cmd == SIOCCHGTUNNEL) {
+		if (p.iph.version != 4 || p.iph.protocol != IPPROTO_GRE ||
+		    p.iph.ihl != 5 || (p.iph.frag_off&htons(~IP_DF)) ||
+		    ((p.i_flags|p.o_flags)&(GRE_VERSION|GRE_ROUTING)))
+			return -EINVAL;
 	}
 	p.i_flags = gre_flags_to_tnl_flags(p.i_flags);
 	p.o_flags = gre_flags_to_tnl_flags(p.o_flags);
@@ -571,7 +572,7 @@ static int ipgre_header(struct sk_buff *skb, struct net_device *dev,
 	if (daddr)
 		memcpy(&iph->daddr, daddr, 4);
 	if (iph->daddr)
-		return t->hlen;
+		return t->hlen + sizeof(*iph);
 
 	return -(t->hlen + sizeof(*iph));
 }

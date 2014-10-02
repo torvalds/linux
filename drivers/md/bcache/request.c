@@ -489,6 +489,12 @@ static void bch_insert_data_loop(struct closure *cl)
 		bch_queue_gc(op->c);
 	}
 
+	/*
+	 * Journal writes are marked REQ_FLUSH; if the original write was a
+	 * flush, it'll wait on the journal write.
+	 */
+	bio->bi_rw &= ~(REQ_FLUSH|REQ_FUA);
+
 	do {
 		unsigned i;
 		struct bkey *k;
@@ -716,7 +722,7 @@ static struct search *search_alloc(struct bio *bio, struct bcache_device *d)
 	s->task			= current;
 	s->orig_bio		= bio;
 	s->write		= (bio->bi_rw & REQ_WRITE) != 0;
-	s->op.flush_journal	= (bio->bi_rw & REQ_FLUSH) != 0;
+	s->op.flush_journal	= (bio->bi_rw & (REQ_FLUSH|REQ_FUA)) != 0;
 	s->op.skip		= (bio->bi_rw & REQ_DISCARD) != 0;
 	s->recoverable		= 1;
 	s->start_time		= jiffies;
@@ -1047,9 +1053,20 @@ static void request_write(struct cached_dev *dc, struct search *s)
 		trace_bcache_writethrough(s->orig_bio);
 		closure_bio_submit(bio, cl, s->d);
 	} else {
-		s->op.cache_bio = bio;
 		trace_bcache_writeback(s->orig_bio);
 		bch_writeback_add(dc, bio_sectors(bio));
+
+		if (s->op.flush_journal) {
+			/* Also need to send a flush to the backing device */
+			s->op.cache_bio = bio_clone_bioset(bio, GFP_NOIO,
+							   dc->disk.bio_split);
+
+			bio->bi_size = 0;
+			bio->bi_vcnt = 0;
+			closure_bio_submit(bio, cl, s->d);
+		} else {
+			s->op.cache_bio = bio;
+		}
 	}
 out:
 	closure_call(&s->op.cl, bch_insert_data, NULL, cl);

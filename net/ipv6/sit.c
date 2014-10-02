@@ -589,7 +589,7 @@ static int ipip6_rcv(struct sk_buff *skb)
 				tunnel->dev->stats.rx_errors++;
 				goto out;
 			}
-		} else {
+		} else if (!(tunnel->dev->flags&IFF_POINTOPOINT)) {
 			if (is_spoofed_6rd(tunnel, iph->saddr,
 					   &ipv6_hdr(skb)->saddr) ||
 			    is_spoofed_6rd(tunnel, iph->daddr,
