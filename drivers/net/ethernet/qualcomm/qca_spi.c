@@ -810,8 +810,6 @@ qcaspi_netdev_setup(struct net_device *dev)
 {
 	struct qcaspi *qca = NULL;
 
-	ether_setup(dev);
-
 	dev->netdev_ops = &qcaspi_netdev_ops;
 	qcaspi_set_ethtool_ops(dev);
 	dev->watchdog_timeo = QCASPI_TX_TIMEOUT;

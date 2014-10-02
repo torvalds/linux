@@ -878,8 +878,6 @@ static int emac_probe(struct platform_device *pdev)
 	emac_powerup(ndev);
 	emac_reset(db);
 
-	ether_setup(ndev);
-
 	ndev->netdev_ops = &emac_netdev_ops;
 	ndev->watchdog_timeo = msecs_to_jiffies(watchdog);
 	ndev->ethtool_ops = &emac_ethtool_ops;
