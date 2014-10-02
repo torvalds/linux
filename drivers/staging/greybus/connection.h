@@ -12,7 +12,6 @@
 #include <linux/list.h>
 
 #include "greybus.h"
-#include "function.h"
 
 struct gb_connection {
 	struct gb_function		*function;
@@ -25,9 +24,9 @@ struct gb_connection {
 	atomic_t			op_cycle;
 };
 
-bool gb_connection_setup(struct greybus_host_device *hd, u16 cport_id,
-				struct gb_function *function);
-void gb_connection_teardown(struct gb_connection *connection);
+struct gb_connection *gb_connection_create(struct greybus_host_device *hd,
+				u16 cport_id, struct gb_function *function);
+void gb_connection_destroy(struct gb_connection *connection);
 
 u16 gb_connection_op_id(struct gb_connection *connection);
 
