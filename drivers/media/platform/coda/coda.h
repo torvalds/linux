@@ -45,11 +45,15 @@ enum coda_product {
 	CODA_960 = 0xf020,
 };
 
+struct coda_video_device;
+
 struct coda_devtype {
 	char			*firmware;
 	enum coda_product	product;
 	const struct coda_codec	*codecs;
 	unsigned int		num_codecs;
+	const struct coda_video_device **vdevs;
+	unsigned int		num_vdevs;
 	size_t			workbuf_size;
 	size_t			tempbuf_size;
 	size_t			iram_size;
@@ -65,7 +69,7 @@ struct coda_aux_buf {
 
 struct coda_dev {
 	struct v4l2_device	v4l2_dev;
-	struct video_device	vfd[2];
+	struct video_device	vfd[3];
 	struct platform_device	*plat_dev;
 	const struct coda_devtype *devtype;
 
@@ -183,6 +187,7 @@ struct coda_ctx {
 	struct work_struct		pic_run_work;
 	struct work_struct		seq_end_work;
 	struct completion		completion;
+	const struct coda_video_device	*cvd;
 	const struct coda_context_ops	*ops;
 	int				aborting;
 	int				initialized;
