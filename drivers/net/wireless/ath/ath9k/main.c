@@ -264,12 +264,7 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 
 	ath9k_hw_set_interrupts(ah);
 	ath9k_hw_enable_interrupts(ah);
-
-	if (!ath9k_is_chanctx_enabled())
-		ieee80211_wake_queues(sc->hw);
-	else
-		ath9k_chanctx_wake_queues(sc, sc->cur_chan);
-
+	ieee80211_wake_queues(sc->hw);
 	ath9k_p2p_ps_timer(sc);
 
 	return true;
