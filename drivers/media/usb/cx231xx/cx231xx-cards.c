@@ -980,23 +980,20 @@ static void cx231xx_config_tuner(struct cx231xx *dev)
 
 }
 
-static int read_eeprom(struct cx231xx *dev, u8 *eedata, int len)
+static int read_eeprom(struct cx231xx *dev, struct i2c_client *client,
+		       u8 *eedata, int len)
 {
 	int ret = 0;
-	u8 addr = 0xa0 >> 1;
 	u8 start_offset = 0;
 	int len_todo = len;
 	u8 *eedata_cur = eedata;
 	int i;
-	struct i2c_msg msg_write = { .addr = addr, .flags = 0,
+	struct i2c_msg msg_write = { .addr = client->addr, .flags = 0,
 		.buf = &start_offset, .len = 1 };
-	struct i2c_msg msg_read = { .addr = addr, .flags = I2C_M_RD };
-
-	/* mutex_lock(&dev->i2c_lock); */
-	cx231xx_enable_i2c_port_3(dev, false);
+	struct i2c_msg msg_read = { .addr = client->addr, .flags = I2C_M_RD };
 
 	/* start reading at offset 0 */
-	ret = i2c_transfer(&dev->i2c_bus[1].i2c_adap, &msg_write, 1);
+	ret = i2c_transfer(client->adapter, &msg_write, 1);
 	if (ret < 0) {
 		cx231xx_err("Can't read eeprom\n");
 		return ret;
@@ -1006,7 +1003,7 @@ static int read_eeprom(struct cx231xx *dev, u8 *eedata, int len)
 		msg_read.len = (len_todo > 64) ? 64 : len_todo;
 		msg_read.buf = eedata_cur;
 
-		ret = i2c_transfer(&dev->i2c_bus[1].i2c_adap, &msg_read, 1);
+		ret = i2c_transfer(client->adapter, &msg_read, 1);
 		if (ret < 0) {
 			cx231xx_err("Can't read eeprom\n");
 			return ret;
@@ -1062,9 +1059,14 @@ void cx231xx_card_setup(struct cx231xx *dev)
 		{
 			struct tveeprom tvee;
 			static u8 eeprom[256];
+			struct i2c_client client;
 
-			read_eeprom(dev, eeprom, sizeof(eeprom));
-			tveeprom_hauppauge_analog(&dev->i2c_bus[1].i2c_client,
+			memset(&client, 0, sizeof(client));
+			client.adapter = &dev->i2c_bus[1].i2c_adap;
+			client.addr = 0xa0 >> 1;
+
+			read_eeprom(dev, &client, eeprom, sizeof(eeprom));
+			tveeprom_hauppauge_analog(&client,
 						&tvee, eeprom + 0xc0);
 			break;
 		}
