@@ -434,6 +434,7 @@ PathName_Last_N_Nodes(u8 *s, unsigned int n)
 {
 	u8 *p = s;
 	unsigned int node_count = 0;
+
 	while (*p != '\0') {
 		if ((*p == '/') || (*p == '\\'))
 			node_count++;
@@ -577,6 +578,7 @@ ULTRA_channel_client_release_os(void __iomem *pChannel, u8 *chanId,
 				void *logCtx, char *file, int line, char *func)
 {
 	CHANNEL_HEADER __iomem *pChan = pChannel;
+
 	if (readb(&pChan->CliErrorOS) != 0) {
 		/* we are in an error msg throttling state; come out of it */
 		UltraLogEvent(logCtx, CHANNELSTATE_DIAG_EVENTID_TRANSITOK,
