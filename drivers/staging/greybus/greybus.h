@@ -22,6 +22,7 @@
 #include "greybus_manifest.h"
 #include "module.h"
 #include "interface.h"
+#include "function.h"
 
 
 /* Matches up with the Greybus Protocol specification document */

@@ -33,6 +33,7 @@ gb_interface_create(struct gb_module *gmod, u8 interface_id)
 
 	interface->gmod = gmod;		/* XXX refcount? */
 	interface->interface_id = interface_id;
+	INIT_LIST_HEAD(&interface->functions);
 
 	spin_lock_irq(&gb_interfaces_lock);
 	list_add_tail(&interface->links, &gmod->interfaces);
