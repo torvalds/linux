@@ -115,6 +115,7 @@ static const struct snd_soc_dapm_route tas2552_audio_map[] = {
 	{"ClassD", NULL, "PLL"},
 };
 
+#ifdef CONFIG_PM_RUNTIME
 static void tas2552_sw_shutdown(struct tas2552_data *tas_data, int sw_shutdown)
 {
 	u8 cfg1_reg;
@@ -127,6 +128,7 @@ static void tas2552_sw_shutdown(struct tas2552_data *tas_data, int sw_shutdown)
 	snd_soc_update_bits(tas_data->codec, TAS2552_CFG_1,
 						 TAS2552_SWS_MASK, cfg1_reg);
 }
+#endif
 
 static int tas2552_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params,
