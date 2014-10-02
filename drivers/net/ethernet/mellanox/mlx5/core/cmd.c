@@ -357,20 +357,11 @@ const char *mlx5_command_str(int command)
 	case MLX5_CMD_OP_2ERR_QP:
 		return "2ERR_QP";
 
-	case MLX5_CMD_OP_RTS2SQD_QP:
-		return "RTS2SQD_QP";
-
-	case MLX5_CMD_OP_SQD2RTS_QP:
-		return "SQD2RTS_QP";
-
 	case MLX5_CMD_OP_2RST_QP:
 		return "2RST_QP";
 
 	case MLX5_CMD_OP_QUERY_QP:
 		return "QUERY_QP";
-
-	case MLX5_CMD_OP_CONF_SQP:
-		return "CONF_SQP";
 
 	case MLX5_CMD_OP_MAD_IFC:
 		return "MAD_IFC";
@@ -378,38 +369,11 @@ const char *mlx5_command_str(int command)
 	case MLX5_CMD_OP_INIT2INIT_QP:
 		return "INIT2INIT_QP";
 
-	case MLX5_CMD_OP_SUSPEND_QP:
-		return "SUSPEND_QP";
-
-	case MLX5_CMD_OP_UNSUSPEND_QP:
-		return "UNSUSPEND_QP";
-
-	case MLX5_CMD_OP_SQD2SQD_QP:
-		return "SQD2SQD_QP";
-
-	case MLX5_CMD_OP_ALLOC_QP_COUNTER_SET:
-		return "ALLOC_QP_COUNTER_SET";
-
-	case MLX5_CMD_OP_DEALLOC_QP_COUNTER_SET:
-		return "DEALLOC_QP_COUNTER_SET";
-
-	case MLX5_CMD_OP_QUERY_QP_COUNTER_SET:
-		return "QUERY_QP_COUNTER_SET";
-
 	case MLX5_CMD_OP_CREATE_PSV:
 		return "CREATE_PSV";
 
 	case MLX5_CMD_OP_DESTROY_PSV:
 		return "DESTROY_PSV";
-
-	case MLX5_CMD_OP_QUERY_PSV:
-		return "QUERY_PSV";
-
-	case MLX5_CMD_OP_QUERY_SIG_RULE_TABLE:
-		return "QUERY_SIG_RULE_TABLE";
-
-	case MLX5_CMD_OP_QUERY_BLOCK_SIZE_TABLE:
-		return "QUERY_BLOCK_SIZE_TABLE";
 
 	case MLX5_CMD_OP_CREATE_SRQ:
 		return "CREATE_SRQ";
