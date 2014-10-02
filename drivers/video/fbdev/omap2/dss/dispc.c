@@ -2915,7 +2915,7 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
 
 {
 	u32 timing_h, timing_v, l;
-	bool onoff, rf, ipc;
+	bool onoff, rf, ipc, vs, hs, de;
 
 	timing_h = FLD_VAL(hsw-1, dispc.feat->sw_start, 0) |
 			FLD_VAL(hfp-1, dispc.feat->fp_start, 8) |
@@ -2926,6 +2926,39 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
 
 	dispc_write_reg(DISPC_TIMING_H(channel), timing_h);
 	dispc_write_reg(DISPC_TIMING_V(channel), timing_v);
+
+	switch (vsync_level) {
+	case OMAPDSS_SIG_ACTIVE_LOW:
+		vs = true;
+		break;
+	case OMAPDSS_SIG_ACTIVE_HIGH:
+		vs = false;
+		break;
+	default:
+		BUG();
+	}
+
+	switch (hsync_level) {
+	case OMAPDSS_SIG_ACTIVE_LOW:
+		hs = true;
+		break;
+	case OMAPDSS_SIG_ACTIVE_HIGH:
+		hs = false;
+		break;
+	default:
+		BUG();
+	}
+
+	switch (de_level) {
+	case OMAPDSS_SIG_ACTIVE_LOW:
+		de = true;
+		break;
+	case OMAPDSS_SIG_ACTIVE_HIGH:
+		de = false;
+		break;
+	default:
+		BUG();
+	}
 
 	switch (data_pclk_edge) {
 	case OMAPDSS_DRIVE_SIG_RISING_EDGE:
@@ -2954,10 +2987,10 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
 
 	l = FLD_VAL(onoff, 17, 17) |
 		FLD_VAL(rf, 16, 16) |
-		FLD_VAL(de_level, 15, 15) |
+		FLD_VAL(de, 15, 15) |
 		FLD_VAL(ipc, 14, 14) |
-		FLD_VAL(hsync_level, 13, 13) |
-		FLD_VAL(vsync_level, 12, 12);
+		FLD_VAL(hs, 13, 13) |
+		FLD_VAL(vs, 12, 12);
 
 	dispc_write_reg(DISPC_POL_FREQ(channel), l);
 
