@@ -23,7 +23,7 @@
  * pointer otherwise.
  */
 struct gb_connection *gb_connection_create(struct gb_interface *interface,
-						u16 cport_id)
+				u16 cport_id, enum greybus_protocol protocol)
 {
 	struct gb_connection *connection;
 	struct greybus_host_device *hd;
@@ -41,6 +41,8 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 	connection->hd = hd;			/* XXX refcount? */
 	connection->interface = interface;	/* XXX refcount? */
 	connection->interface_cport_id = cport_id;
+	connection->protocol = protocol;
+
 	INIT_LIST_HEAD(&connection->operations);
 	atomic_set(&connection->op_cycle, 0);
 
