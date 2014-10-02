@@ -550,14 +550,12 @@ nouveau_display_destroy(struct drm_device *dev)
 }
 
 int
-nouveau_display_suspend(struct drm_device *dev)
+nouveau_display_suspend(struct drm_device *dev, bool runtime)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_crtc *crtc;
 
 	nouveau_display_fini(dev);
 
-	NV_INFO(drm, "unpinning framebuffer(s)...\n");
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_framebuffer *nouveau_fb;
 
@@ -579,12 +577,13 @@ nouveau_display_suspend(struct drm_device *dev)
 }
 
 void
-nouveau_display_repin(struct drm_device *dev)
+nouveau_display_resume(struct drm_device *dev, bool runtime)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_crtc *crtc;
-	int ret;
+	int ret, head;
 
+	/* re-pin fb/cursors */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_framebuffer *nouveau_fb;
 
@@ -606,13 +605,6 @@ nouveau_display_repin(struct drm_device *dev)
 		if (ret)
 			NV_ERROR(drm, "Could not pin/map cursor.\n");
 	}
-}
-
-void
-nouveau_display_resume(struct drm_device *dev)
-{
-	struct drm_crtc *crtc;
-	int head;
 
 	nouveau_display_init(dev);
 
@@ -626,6 +618,13 @@ nouveau_display_resume(struct drm_device *dev)
 	/* Make sure that drm and hw vblank irqs get resumed if needed. */
 	for (head = 0; head < dev->mode_config.num_crtc; head++)
 		drm_vblank_on(dev, head);
+
+	/* This should ensure we don't hit a locking problem when someone
+	 * wakes us up via a connector.  We should never go into suspend
+	 * while the display is on anyways.
+	 */
+	if (runtime)
+		return;
 
 	drm_helper_resume_force_mode(dev);
 
