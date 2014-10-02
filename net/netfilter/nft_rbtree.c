@@ -234,13 +234,11 @@ static void nft_rbtree_destroy(const struct nft_set *set)
 	struct nft_rbtree_elem *rbe;
 	struct rb_node *node;
 
-	spin_lock_bh(&nft_rbtree_lock);
 	while ((node = priv->root.rb_node) != NULL) {
 		rb_erase(node, &priv->root);
 		rbe = rb_entry(node, struct nft_rbtree_elem, node);
 		nft_rbtree_elem_destroy(set, rbe);
 	}
-	spin_unlock_bh(&nft_rbtree_lock);
 }
 
 static bool nft_rbtree_estimate(const struct nft_set_desc *desc, u32 features,

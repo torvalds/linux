@@ -1605,6 +1605,24 @@ static void fib6_prune_clones(struct net *net, struct fib6_node *fn)
 	fib6_clean_tree(net, fn, fib6_prune_clone, 1, NULL);
 }
 
+static int fib6_update_sernum(struct rt6_info *rt, void *arg)
+{
+	__u32 sernum = *(__u32 *)arg;
+
+	if (rt->rt6i_node &&
+	    rt->rt6i_node->fn_sernum != sernum)
+		rt->rt6i_node->fn_sernum = sernum;
+
+	return 0;
+}
+
+static void fib6_flush_trees(struct net *net)
+{
+	__u32 new_sernum = fib6_new_sernum();
+
+	fib6_clean_all(net, fib6_update_sernum, &new_sernum);
+}
+
 /*
  *	Garbage collection
  */
@@ -1788,6 +1806,8 @@ int __init fib6_init(void)
 			      NULL);
 	if (ret)
 		goto out_unregister_subsys;
+
+	__fib6_flush_trees = fib6_flush_trees;
 out:
 	return ret;
 
