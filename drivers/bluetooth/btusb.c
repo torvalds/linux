@@ -268,8 +268,6 @@ struct btusb_data {
 	struct usb_interface *intf;
 	struct usb_interface *isoc;
 
-	spinlock_t lock;
-
 	unsigned long flags;
 
 	struct work_struct work;
@@ -2001,8 +1999,6 @@ static int btusb_probe(struct usb_interface *intf,
 
 	data->udev = interface_to_usbdev(intf);
 	data->intf = intf;
-
-	spin_lock_init(&data->lock);
 
 	INIT_WORK(&data->work, btusb_work);
 	INIT_WORK(&data->waker, btusb_waker);
