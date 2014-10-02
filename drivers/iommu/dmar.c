@@ -155,6 +155,7 @@ dmar_alloc_pci_notify_info(struct pci_dev *dev, unsigned long event)
 	if (event == BUS_NOTIFY_ADD_DEVICE) {
 		for (tmp = dev; tmp; tmp = tmp->bus->self) {
 			level--;
+			info->path[level].bus = tmp->bus->number;
 			info->path[level].device = PCI_SLOT(tmp->devfn);
 			info->path[level].function = PCI_FUNC(tmp->devfn);
 			if (pci_is_root_bus(tmp->bus))
