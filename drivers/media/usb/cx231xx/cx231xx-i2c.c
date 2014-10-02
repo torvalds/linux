@@ -512,7 +512,7 @@ int cx231xx_i2c_register(struct cx231xx_i2c *bus)
 	bus->i2c_adap = cx231xx_adap_template;
 	bus->i2c_adap.dev.parent = &dev->udev->dev;
 
-	strlcpy(bus->i2c_adap.name, bus->dev->name, sizeof(bus->i2c_adap.name));
+	snprintf(bus->i2c_adap.name, sizeof(bus->i2c_adap.name), "%s-%d", bus->dev->name, bus->nr);
 
 	bus->i2c_adap.algo_data = bus;
 	i2c_set_adapdata(&bus->i2c_adap, &dev->v4l2_dev);
