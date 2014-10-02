@@ -1,0 +1,86 @@
+Broadcom BCM7120-style Level 2 interrupt controller
+
+This interrupt controller hardware is a second level interrupt controller that
+is hooked to a parent interrupt controller: e.g: ARM GIC for ARM-based
+platforms. It can be found on BCM7xxx products starting with BCM7120.
+
+Such an interrupt controller has the following hardware design:
+
+- outputs multiple interrupts signals towards its interrupt controller parent
+
+- controls how some of the interrupts will be flowing, whether they will
+  directly output an interrupt signal towards the interrupt controller parent,
+  or if they will output an interrupt signal at this 2nd level interrupt
+  controller, in particular for UARTs
+
+- not all 32-bits within the interrupt controller actually map to an interrupt
+
+The typical hardware layout for this controller is represented below:
+
+2nd level interrupt line		Outputs for the parent controller (e.g: ARM GIC)
+
+0 -----[ MUX ] ------------|==========> GIC interrupt 75
+          \-----------\
+                       |
+1 -----[ MUX ] --------)---|==========> GIC interrupt 76
+          \------------|
+                       |
+2 -----[ MUX ] --------)---|==========> GIC interrupt 77
+          \------------|
+                       |
+3 ---------------------|
+4 ---------------------|
+5 ---------------------|
+7 ---------------------|---|===========> GIC interrupt 66
+9 ---------------------|
+10 --------------------|
+11 --------------------/
+
+6 ------------------------\
+                           |===========> GIC interrupt 64
+8 ------------------------/
+
+12 ........................ X
+13 ........................ X 		(not connected)
+..
+31 ........................ X
+
+Required properties:
+
+- compatible: should be "brcm,bcm7120-l2-intc"
+- reg: specifies the base physical address and size of the registers
+- interrupt-controller: identifies the node as an interrupt controller
+- #interrupt-cells: specifies the number of cells needed to encode an interrupt
+  source, should be 1.
+- interrupt-parent: specifies the phandle to the parent interrupt controller
+  this one is cascaded from
+- interrupts: specifies the interrupt line(s) in the interrupt-parent controller
+  node, valid values depend on the type of parent interrupt controller
+- brcm,int-map-mask: 32-bits bit mask describing how many and which interrupts
+  are wired to this 2nd level interrupt controller, and how they match their
+  respective interrupt parents. Should match exactly the number of interrupts
+  specified in the 'interrupts' property.
+
+Optional properties:
+
+- brcm,irq-can-wake: if present, this means the L2 controller can be used as a
+  wakeup source for system suspend/resume.
+
+- brcm,int-fwd-mask: if present, a 32-bits bit mask to configure for the
+  interrupts which have a mux gate, typically UARTs. Setting these bits will
+  make their respective interrupts outputs bypass this 2nd level interrupt
+  controller completely, it completely transparent for the interrupt controller
+  parent
+
+Example:
+
+irq0_intc: interrupt-controller@f0406800 {
+	compatible = "brcm,bcm7120-l2-intc";
+	interrupt-parent = <&intc>;
+	#interrupt-cells = <1>;
+	reg = <0xf0406800 0x8>;
+	interrupt-controller;
+	interrupts = <0x0 0x42 0x0>, <0x0 0x40 0x0>;
+	brcm,int-map-mask = <0xeb8>, <0x140>;
+	brcm,int-fwd-mask = <0x7>;
+};
