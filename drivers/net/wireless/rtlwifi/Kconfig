@@ -86,6 +86,7 @@ config RTL8192EE
 	depends on PCI
 	select RTLWIFI
 	select RTLWIFI_PCI
+	select RTLBTCOEXIST
 	---help---
 	This is the driver for Realtek RTL8192EE 802.11n PCIe
 	wireless network adapters.
@@ -147,7 +148,7 @@ config RTL8723_COMMON
 
 config RTLBTCOEXIST
 	tristate
-	depends on RTL8723AE || RTL8723BE || RTL8821AE
+	depends on RTL8723AE || RTL8723BE || RTL8821AE || RTL8192EE
 	default y
 
 endif
