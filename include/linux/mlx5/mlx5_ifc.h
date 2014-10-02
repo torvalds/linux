@@ -140,4 +140,210 @@ enum {
 	MLX5_CMD_OP_MAX				  = 0x911
 };
 
+struct mlx5_ifc_cmd_hca_cap_bits {
+	u8         reserved_0[0x80];
+
+	u8         log_max_srq_sz[0x8];
+	u8         log_max_qp_sz[0x8];
+	u8         reserved_1[0xb];
+	u8         log_max_qp[0x5];
+
+	u8         log_max_strq_sz[0x8];
+	u8         reserved_2[0x3];
+	u8         log_max_srqs[0x5];
+	u8         reserved_3[0x10];
+
+	u8         reserved_4[0x8];
+	u8         log_max_cq_sz[0x8];
+	u8         reserved_5[0xb];
+	u8         log_max_cq[0x5];
+
+	u8         log_max_eq_sz[0x8];
+	u8         reserved_6[0x2];
+	u8         log_max_mkey[0x6];
+	u8         reserved_7[0xc];
+	u8         log_max_eq[0x4];
+
+	u8         max_indirection[0x8];
+	u8         reserved_8[0x1];
+	u8         log_max_mrw_sz[0x7];
+	u8         reserved_9[0x2];
+	u8         log_max_bsf_list_size[0x6];
+	u8         reserved_10[0x2];
+	u8         log_max_klm_list_size[0x6];
+
+	u8         reserved_11[0xa];
+	u8         log_max_ra_req_dc[0x6];
+	u8         reserved_12[0xa];
+	u8         log_max_ra_res_dc[0x6];
+
+	u8         reserved_13[0xa];
+	u8         log_max_ra_req_qp[0x6];
+	u8         reserved_14[0xa];
+	u8         log_max_ra_res_qp[0x6];
+
+	u8         pad_cap[0x1];
+	u8         cc_query_allowed[0x1];
+	u8         cc_modify_allowed[0x1];
+	u8         reserved_15[0x1d];
+
+	u8         reserved_16[0x6];
+	u8         max_qp_cnt[0xa];
+	u8         pkey_table_size[0x10];
+
+	u8         eswitch_owner[0x1];
+	u8         reserved_17[0xa];
+	u8         local_ca_ack_delay[0x5];
+	u8         reserved_18[0x8];
+	u8         num_ports[0x8];
+
+	u8         reserved_19[0x3];
+	u8         log_max_msg[0x5];
+	u8         reserved_20[0x18];
+
+	u8         stat_rate_support[0x10];
+	u8         reserved_21[0x10];
+
+	u8         reserved_22[0x10];
+	u8         cmdif_checksum[0x2];
+	u8         sigerr_cqe[0x1];
+	u8         reserved_23[0x1];
+	u8         wq_signature[0x1];
+	u8         sctr_data_cqe[0x1];
+	u8         reserved_24[0x1];
+	u8         sho[0x1];
+	u8         tph[0x1];
+	u8         rf[0x1];
+	u8         dc[0x1];
+	u8         reserved_25[0x2];
+	u8         roce[0x1];
+	u8         atomic[0x1];
+	u8         rsz_srq[0x1];
+
+	u8         cq_oi[0x1];
+	u8         cq_resize[0x1];
+	u8         cq_moderation[0x1];
+	u8         sniffer_rule_flow[0x1];
+	u8         sniffer_rule_vport[0x1];
+	u8         sniffer_rule_phy[0x1];
+	u8         reserved_26[0x1];
+	u8         pg[0x1];
+	u8         block_lb_mc[0x1];
+	u8         reserved_27[0x3];
+	u8         cd[0x1];
+	u8         reserved_28[0x1];
+	u8         apm[0x1];
+	u8         reserved_29[0x7];
+	u8         qkv[0x1];
+	u8         pkv[0x1];
+	u8         reserved_30[0x4];
+	u8         xrc[0x1];
+	u8         ud[0x1];
+	u8         uc[0x1];
+	u8         rc[0x1];
+
+	u8         reserved_31[0xa];
+	u8         uar_sz[0x6];
+	u8         reserved_32[0x8];
+	u8         log_pg_sz[0x8];
+
+	u8         bf[0x1];
+	u8         reserved_33[0xa];
+	u8         log_bf_reg_size[0x5];
+	u8         reserved_34[0x10];
+
+	u8         reserved_35[0x10];
+	u8         max_wqe_sz_sq[0x10];
+
+	u8         reserved_36[0x10];
+	u8         max_wqe_sz_rq[0x10];
+
+	u8         reserved_37[0x10];
+	u8         max_wqe_sz_sq_dc[0x10];
+
+	u8         reserved_38[0x7];
+	u8         max_qp_mcg[0x19];
+
+	u8         reserved_39[0x18];
+	u8         log_max_mcg[0x8];
+
+	u8         reserved_40[0xb];
+	u8         log_max_pd[0x5];
+	u8         reserved_41[0xb];
+	u8         log_max_xrcd[0x5];
+
+	u8         reserved_42[0x20];
+
+	u8         reserved_43[0x3];
+	u8         log_max_rq[0x5];
+	u8         reserved_44[0x3];
+	u8         log_max_sq[0x5];
+	u8         reserved_45[0x3];
+	u8         log_max_tir[0x5];
+	u8         reserved_46[0x3];
+	u8         log_max_tis[0x5];
+
+	u8         reserved_47[0x13];
+	u8         log_max_rq_per_tir[0x5];
+	u8         reserved_48[0x3];
+	u8         log_max_tis_per_sq[0x5];
+
+	u8         reserved_49[0xe0];
+
+	u8         reserved_50[0x10];
+	u8         log_uar_page_sz[0x10];
+
+	u8         reserved_51[0x100];
+
+	u8         reserved_52[0x1f];
+	u8         cqe_zip[0x1];
+
+	u8         cqe_zip_timeout[0x10];
+	u8         cqe_zip_max_num[0x10];
+
+	u8         reserved_53[0x220];
+};
+
+struct mlx5_ifc_set_hca_cap_in_bits {
+	u8         opcode[0x10];
+	u8         reserved_0[0x10];
+
+	u8         reserved_1[0x10];
+	u8         op_mod[0x10];
+
+	u8         reserved_2[0x40];
+
+	struct mlx5_ifc_cmd_hca_cap_bits hca_capability_struct;
+};
+
+struct mlx5_ifc_query_hca_cap_in_bits {
+	u8         opcode[0x10];
+	u8         reserved_0[0x10];
+
+	u8         reserved_1[0x10];
+	u8         op_mod[0x10];
+
+	u8         reserved_2[0x40];
+};
+
+struct mlx5_ifc_query_hca_cap_out_bits {
+	u8         status[0x8];
+	u8         reserved_0[0x18];
+
+	u8         syndrome[0x20];
+
+	u8         reserved_1[0x40];
+
+	u8         capability_struct[256][0x8];
+};
+
+struct mlx5_ifc_set_hca_cap_out_bits {
+	u8         status[0x8];
+	u8         reserved_0[0x18];
+
+	u8         syndrome[0x20];
+
+	u8         reserved_1[0x40];
+};
+
 #endif /* MLX5_IFC_H */

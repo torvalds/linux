@@ -1537,3 +1537,20 @@ int mlx5_cmd_status_to_err(struct mlx5_outbox_hdr *hdr)
 
 	return cmd_status_to_err(hdr->status);
 }
+
+int mlx5_cmd_status_to_err_v2(void *ptr)
+{
+	u32	syndrome;
+	u8	status;
+
+	status = be32_to_cpu(*(__be32 *)ptr) >> 24;
+	if (!status)
+		return 0;
+
+	syndrome = be32_to_cpu(*(__be32 *)(ptr + 4));
+
+	pr_warn("command failed, status %s(0x%x), syndrome 0x%x\n",
+		cmd_status_str(status), status, syndrome);
+
+	return cmd_status_to_err(status);
+}
