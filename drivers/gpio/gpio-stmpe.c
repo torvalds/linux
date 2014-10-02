@@ -127,19 +127,19 @@ static int stmpe_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	int regoffset = offset / 8;
 	int mask = 1 << (offset % 8);
 
-	if (type == IRQ_TYPE_LEVEL_LOW || type == IRQ_TYPE_LEVEL_HIGH)
+	if (type & IRQ_TYPE_LEVEL_LOW || type & IRQ_TYPE_LEVEL_HIGH)
 		return -EINVAL;
 
 	/* STMPE801 doesn't have RE and FE registers */
 	if (stmpe_gpio->stmpe->partnum == STMPE801)
 		return 0;
 
-	if (type == IRQ_TYPE_EDGE_RISING)
+	if (type & IRQ_TYPE_EDGE_RISING)
 		stmpe_gpio->regs[REG_RE][regoffset] |= mask;
 	else
 		stmpe_gpio->regs[REG_RE][regoffset] &= ~mask;
 
-	if (type == IRQ_TYPE_EDGE_FALLING)
+	if (type & IRQ_TYPE_EDGE_FALLING)
 		stmpe_gpio->regs[REG_FE][regoffset] |= mask;
 	else
 		stmpe_gpio->regs[REG_FE][regoffset] &= ~mask;
