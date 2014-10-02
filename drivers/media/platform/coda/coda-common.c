@@ -1279,14 +1279,14 @@ static void coda_stop_streaming(struct vb2_queue *q)
 	}
 
 	if (!ctx->streamon_out && !ctx->streamon_cap) {
-		struct coda_timestamp *ts;
+		struct coda_buffer_meta *meta;
 
 		mutex_lock(&ctx->bitstream_mutex);
-		while (!list_empty(&ctx->timestamp_list)) {
-			ts = list_first_entry(&ctx->timestamp_list,
-					      struct coda_timestamp, list);
-			list_del(&ts->list);
-			kfree(ts);
+		while (!list_empty(&ctx->buffer_meta_list)) {
+			meta = list_first_entry(&ctx->buffer_meta_list,
+						struct coda_buffer_meta, list);
+			list_del(&meta->list);
+			kfree(meta);
 		}
 		mutex_unlock(&ctx->bitstream_mutex);
 		kfifo_init(&ctx->bitstream_fifo,
@@ -1642,7 +1642,7 @@ static int coda_open(struct file *file)
 		ctx->bitstream.vaddr, ctx->bitstream.size);
 	mutex_init(&ctx->bitstream_mutex);
 	mutex_init(&ctx->buffer_mutex);
-	INIT_LIST_HEAD(&ctx->timestamp_list);
+	INIT_LIST_HEAD(&ctx->buffer_meta_list);
 
 	coda_lock(ctx);
 	list_add(&ctx->list, &dev->instances);

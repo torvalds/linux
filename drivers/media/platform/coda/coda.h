@@ -130,11 +130,13 @@ struct coda_params {
 	u32			slice_max_mb;
 };
 
-struct coda_timestamp {
+struct coda_buffer_meta {
 	struct list_head	list;
 	u32			sequence;
 	struct v4l2_timecode	timecode;
 	struct timeval		timestamp;
+	u32			start;
+	u32			end;
 };
 
 /* Per-queue, driver-specific private data */
@@ -220,9 +222,9 @@ struct coda_ctx {
 	struct coda_aux_buf		slicebuf;
 	struct coda_aux_buf		internal_frames[CODA_MAX_FRAMEBUFFERS];
 	u32				frame_types[CODA_MAX_FRAMEBUFFERS];
-	struct coda_timestamp		frame_timestamps[CODA_MAX_FRAMEBUFFERS];
+	struct coda_buffer_meta		frame_metas[CODA_MAX_FRAMEBUFFERS];
 	u32				frame_errors[CODA_MAX_FRAMEBUFFERS];
-	struct list_head		timestamp_list;
+	struct list_head		buffer_meta_list;
 	struct coda_aux_buf		workbuf;
 	int				num_internal_frames;
 	int				idx;

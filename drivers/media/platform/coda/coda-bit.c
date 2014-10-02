@@ -217,10 +217,15 @@ static bool coda_bitstream_try_queue(struct coda_ctx *ctx,
 void coda_fill_bitstream(struct coda_ctx *ctx)
 {
 	struct vb2_buffer *src_buf;
-	struct coda_timestamp *ts;
+	struct coda_buffer_meta *meta;
+	u32 start;
 
 	while (v4l2_m2m_num_src_bufs_ready(ctx->fh.m2m_ctx) > 0) {
 		src_buf = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
+
+		/* Buffer start position */
+		start = ctx->bitstream_fifo.kfifo.in &
+			ctx->bitstream_fifo.kfifo.mask;
 
 		if (coda_bitstream_try_queue(ctx, src_buf)) {
 			/*
@@ -229,12 +234,16 @@ void coda_fill_bitstream(struct coda_ctx *ctx)
 			 */
 			src_buf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
 
-			ts = kmalloc(sizeof(*ts), GFP_KERNEL);
-			if (ts) {
-				ts->sequence = src_buf->v4l2_buf.sequence;
-				ts->timecode = src_buf->v4l2_buf.timecode;
-				ts->timestamp = src_buf->v4l2_buf.timestamp;
-				list_add_tail(&ts->list, &ctx->timestamp_list);
+			meta = kmalloc(sizeof(*meta), GFP_KERNEL);
+			if (meta) {
+				meta->sequence = src_buf->v4l2_buf.sequence;
+				meta->timecode = src_buf->v4l2_buf.timecode;
+				meta->timestamp = src_buf->v4l2_buf.timestamp;
+				meta->start = start;
+				meta->end = ctx->bitstream_fifo.kfifo.in &
+					    ctx->bitstream_fifo.kfifo.mask;
+				list_add_tail(&meta->list,
+					      &ctx->buffer_meta_list);
 			}
 
 			v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
@@ -1629,7 +1638,7 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 	struct coda_q_data *q_data_src;
 	struct coda_q_data *q_data_dst;
 	struct vb2_buffer *dst_buf;
-	struct coda_timestamp *ts;
+	struct coda_buffer_meta *meta;
 	unsigned long payload;
 	int width, height;
 	int decoded_idx;
@@ -1757,23 +1766,23 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 		val = coda_read(dev, CODA_RET_DEC_PIC_FRAME_NUM) - 1;
 		val -= ctx->sequence_offset;
 		mutex_lock(&ctx->bitstream_mutex);
-		if (!list_empty(&ctx->timestamp_list)) {
-			ts = list_first_entry(&ctx->timestamp_list,
-					      struct coda_timestamp, list);
-			list_del(&ts->list);
-			if (val != (ts->sequence & 0xffff)) {
+		if (!list_empty(&ctx->buffer_meta_list)) {
+			meta = list_first_entry(&ctx->buffer_meta_list,
+					      struct coda_buffer_meta, list);
+			list_del(&meta->list);
+			if (val != (meta->sequence & 0xffff)) {
 				v4l2_err(&dev->v4l2_dev,
 					 "sequence number mismatch (%d(%d) != %d)\n",
 					 val, ctx->sequence_offset,
-					 ts->sequence);
+					 meta->sequence);
 			}
-			ctx->frame_timestamps[decoded_idx] = *ts;
-			kfree(ts);
+			ctx->frame_metas[decoded_idx] = *meta;
+			kfree(meta);
 		} else {
 			v4l2_err(&dev->v4l2_dev, "empty timestamp list!\n");
-			memset(&ctx->frame_timestamps[decoded_idx], 0,
-			       sizeof(struct coda_timestamp));
-			ctx->frame_timestamps[decoded_idx].sequence = val;
+			memset(&ctx->frame_metas[decoded_idx], 0,
+			       sizeof(struct coda_buffer_meta));
+			ctx->frame_metas[decoded_idx].sequence = val;
 		}
 		mutex_unlock(&ctx->bitstream_mutex);
 
@@ -1812,9 +1821,9 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 					     V4L2_BUF_FLAG_PFRAME |
 					     V4L2_BUF_FLAG_BFRAME);
 		dst_buf->v4l2_buf.flags |= ctx->frame_types[ctx->display_idx];
-		ts = &ctx->frame_timestamps[ctx->display_idx];
-		dst_buf->v4l2_buf.timecode = ts->timecode;
-		dst_buf->v4l2_buf.timestamp = ts->timestamp;
+		meta = &ctx->frame_metas[ctx->display_idx];
+		dst_buf->v4l2_buf.timecode = meta->timecode;
+		dst_buf->v4l2_buf.timestamp = meta->timestamp;
 
 		switch (q_data_dst->fourcc) {
 		case V4L2_PIX_FMT_YUV420:
