@@ -718,7 +718,7 @@ static uint32_t skl_get_aux_send_ctl(struct intel_dp *intel_dp,
 
 static int
 intel_dp_aux_ch(struct intel_dp *intel_dp,
-		uint8_t *send, int send_bytes,
+		const uint8_t *send, int send_bytes,
 		uint8_t *recv, int recv_size)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
