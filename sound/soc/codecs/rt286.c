@@ -270,6 +270,7 @@ static int rt286_hw_read(void *context, unsigned int reg, unsigned int *value)
 	return 0;
 }
 
+#ifdef CONFIG_PM
 static void rt286_index_sync(struct snd_soc_codec *codec)
 {
 	struct rt286_priv *rt286 = snd_soc_codec_get_drvdata(codec);
@@ -280,6 +281,7 @@ static void rt286_index_sync(struct snd_soc_codec *codec)
 				  rt286->index_cache[i].def);
 	}
 }
+#endif
 
 static int rt286_support_power_controls[] = {
 	RT286_DAC_OUT1,
