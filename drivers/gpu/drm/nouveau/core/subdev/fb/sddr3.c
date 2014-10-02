@@ -80,7 +80,7 @@ nouveau_sddr3_calc(struct nouveau_ram *ram)
 		CWL = ram->next->bios.timing_10_CWL;
 		CL  = ram->next->bios.timing_10_CL;
 		WR  = ram->next->bios.timing_10_WR;
-		DLL = !ram->next->bios.ramcfg_10_02_40;
+		DLL = !ram->next->bios.ramcfg_10_DLLoff;
 		ODT = ram->next->bios.timing_10_ODT;
 		break;
 	case 0x20:
