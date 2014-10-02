@@ -157,7 +157,12 @@ structure of the DT nodes that contain these properties.
 Supported generic properties are:
 
 pins			- the list of pins that properties in the node
-			  apply to
+			  apply to (either this or "group" has to be
+			  specified)
+group			- the group to apply the properties to, if the driver
+			  supports configuration of whole groups rather than
+			  individual pins (either this or "pins" has to be
+			  specified)
 bias-disable		- disable any pin bias
 bias-high-impedance	- high impedance mode ("third-state", "floating")
 bias-bus-hold		- latch weakly
@@ -189,6 +194,10 @@ state_0_node_a {
 state_1_node_a {
 	pins = "GPIO1_AJ3", "GPIO3_AH3"; /* RTS+TXD */
 	output-high;
+};
+state_2_node_a {
+	group = "foo-group";
+	bias-pull-up;
 };
 
 Some of the generic properties take arguments. For those that do, the
