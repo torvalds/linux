@@ -2039,16 +2039,8 @@ void __ath9k_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 static bool ath9k_tx_frames_pending(struct ieee80211_hw *hw)
 {
 	struct ath_softc *sc = hw->priv;
-	int i;
 
-	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
-		if (!ATH_TXQ_SETUP(sc, i))
-			continue;
-
-		if (ath9k_has_pending_frames(sc, &sc->tx.txq[i]))
-			return true;
-	}
-	return false;
+	return ath9k_has_tx_pending(sc);
 }
 
 static int ath9k_tx_last_beacon(struct ieee80211_hw *hw)
