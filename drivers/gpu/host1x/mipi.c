@@ -90,16 +90,16 @@ struct tegra_mipi_device {
 	unsigned long pads;
 };
 
-static inline unsigned long tegra_mipi_readl(struct tegra_mipi *mipi,
-					     unsigned long reg)
+static inline u32 tegra_mipi_readl(struct tegra_mipi *mipi,
+				   unsigned long offset)
 {
-	return readl(mipi->regs + (reg << 2));
+	return readl(mipi->regs + (offset << 2));
 }
 
-static inline void tegra_mipi_writel(struct tegra_mipi *mipi,
-				     unsigned long value, unsigned long reg)
+static inline void tegra_mipi_writel(struct tegra_mipi *mipi, u32 value,
+				     unsigned long offset)
 {
-	writel(value, mipi->regs + (reg << 2));
+	writel(value, mipi->regs + (offset << 2));
 }
 
 struct tegra_mipi_device *tegra_mipi_request(struct device *device)
@@ -161,7 +161,7 @@ EXPORT_SYMBOL(tegra_mipi_free);
 static int tegra_mipi_wait(struct tegra_mipi *mipi)
 {
 	unsigned long timeout = jiffies + msecs_to_jiffies(250);
-	unsigned long value;
+	u32 value;
 
 	while (time_before(jiffies, timeout)) {
 		value = tegra_mipi_readl(mipi, MIPI_CAL_STATUS);
@@ -177,8 +177,8 @@ static int tegra_mipi_wait(struct tegra_mipi *mipi)
 
 int tegra_mipi_calibrate(struct tegra_mipi_device *device)
 {
-	unsigned long value;
 	unsigned int i;
+	u32 value;
 	int err;
 
 	err = clk_enable(device->mipi->clk);
