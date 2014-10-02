@@ -188,60 +188,6 @@ static const struct greybus_module_id fake_greybus_module_id = {
 	GREYBUS_DEVICE(0x42, 0x42)
 };
 
-static int create_string(struct gb_module *gmod,
-			 struct greybus_descriptor_string *string,
-			 size_t desc_size)
-{
-	int string_size;
-	struct gmod_string *gmod_string;
-
-	if (gmod->num_strings == MAX_STRINGS_PER_MODULE) {
-		dev_err(gmod->dev.parent,
-			"too many strings for this module!\n");
-		return -EINVAL;
-	}
-
-	if (desc_size < sizeof(*string)) {
-		dev_err(gmod->dev.parent, "invalid string header size %zu\n",
-			desc_size);
-		return -EINVAL;
-	}
-
-	string_size = string->length;
-	gmod_string = kzalloc(sizeof(*gmod_string) + string_size + 1, GFP_KERNEL);
-	if (!gmod_string)
-		return -ENOMEM;
-
-	gmod_string->length = string_size;
-	gmod_string->id = string->id;
-	memcpy(&gmod_string->string, &string->string, string_size);
-
-	gmod->string[gmod->num_strings] = gmod_string;
-	gmod->num_strings++;
-
-	return 0;
-}
-
-static int create_cport(struct gb_module *gmod,
-			struct greybus_descriptor_cport *cport,
-			size_t desc_size)
-{
-	if (gmod->num_cports == MAX_CPORTS_PER_MODULE) {
-		dev_err(gmod->dev.parent, "too many cports for this module!\n");
-		return -EINVAL;
-	}
-
-	if (desc_size != sizeof(*cport)) {
-		dev_err(gmod->dev.parent,
-			"invalid cport descriptor size %zu\n", desc_size);
-		return -EINVAL;
-	}
-
-	gmod->cport_ids[gmod->num_cports] = le16_to_cpu(cport->id);
-	gmod->num_cports++;
-
-	return 0;
-}
 
 /**
  * gb_add_module
@@ -253,7 +199,6 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 		   u8 *data, int size)
 {
 	struct gb_module *gmod;
-	struct greybus_manifest *manifest;
 	int retval;
 
 	/*
@@ -266,6 +211,15 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 		return;
 	}
 
+	/*
+	 * XXX
+	 * We've successfully parsed the manifest.  Now we need to
+	 * allocate CPort Id's for connecting to the CPorts found on
+	 * other modules.  For each of these, establish a connection
+	 * between the local and remote CPorts (including
+	 * configuring the switch to allow them to communicate).
+	 */
+
 	gmod->dev.parent = hd->parent;
 	gmod->dev.driver = NULL;
 	gmod->dev.bus = &greybus_bus_type;
@@ -274,54 +228,6 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 	gmod->dev.dma_mask = hd->parent->dma_mask;
 	device_initialize(&gmod->dev);
 	dev_set_name(&gmod->dev, "%d", module_id);
-
-	size -= sizeof(manifest->header);
-	data += sizeof(manifest->header);
-	while (size > 0) {
-		struct greybus_descriptor *desc;
-		u16 desc_size;
-		size_t data_size;
-
-		if (size < sizeof(desc->header)) {
-			dev_err(hd->parent, "remaining size %d too small\n",
-				size);
-			goto error;
-		}
-		desc = (struct greybus_descriptor *)data;
-		desc_size = le16_to_cpu(desc->header.size);
-		if (size < desc_size) {
-			dev_err(hd->parent, "descriptor size %d too big\n",
-				desc_size);
-			goto error;
-		}
-		data_size = (size_t)desc_size - sizeof(desc->header);
-
-		switch (le16_to_cpu(desc->header.type)) {
-		case GREYBUS_TYPE_DEVICE:
-			break;
-
-		case GREYBUS_TYPE_MODULE:
-			break;
-
-		case GREYBUS_TYPE_STRING:
-			retval = create_string(gmod, &desc->string, data_size);
-			break;
-
-		case GREYBUS_TYPE_CPORT:
-			retval = create_cport(gmod, &desc->cport, data_size);
-			break;
-
-		case GREYBUS_TYPE_INVALID:
-		default:
-			dev_err(hd->parent, "invalid descriptor type %d\n",
-				desc->header.type);
-			goto error;
-		}
-		if (retval)
-			goto error;
-		size -= desc_size;
-		data += desc_size;
-	}
 
 	retval = gb_init_subdevs(gmod, &fake_greybus_module_id);
 	if (retval)
