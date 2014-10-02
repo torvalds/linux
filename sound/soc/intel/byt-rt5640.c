@@ -209,6 +209,7 @@ static struct snd_soc_card byt_rt5640_card = {
 	.num_dapm_widgets = ARRAY_SIZE(byt_rt5640_widgets),
 	.dapm_routes = byt_rt5640_audio_map,
 	.num_dapm_routes = ARRAY_SIZE(byt_rt5640_audio_map),
+	.fully_routed = true,
 };
 
 static int byt_rt5640_probe(struct platform_device *pdev)
