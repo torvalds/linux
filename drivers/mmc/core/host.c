@@ -311,6 +311,7 @@ int mmc_of_parse(struct mmc_host *host)
 	struct device_node *np;
 	u32 bus_width;
 	int len, ret;
+	bool cap_invert, gpio_invert;
 
 	if (!host->parent || !host->parent->of_node)
 		return 0;
@@ -359,12 +360,15 @@ int mmc_of_parse(struct mmc_host *host)
 		host->caps |= MMC_CAP_NONREMOVABLE;
 	} else {
 		if (of_property_read_bool(np, "cd-inverted"))
-			host->caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
+			cap_invert = true;
+		else
+			cap_invert = false;
 
 		if (of_find_property(np, "broken-cd", &len))
 			host->caps |= MMC_CAP_NEEDS_POLL;
 
-		ret = mmc_gpiod_request_cd(host, "cd", 0, false, 0);
+		ret = mmc_gpiod_request_cd(host, "cd", 0, true,
+					   0, &gpio_invert);
 		if (ret) {
 			if (ret == -EPROBE_DEFER)
 				return ret;
@@ -375,13 +379,29 @@ int mmc_of_parse(struct mmc_host *host)
 			}
 		} else
 			dev_info(host->parent, "Got CD GPIO\n");
+
+		/*
+		 * There are two ways to flag that the CD line is inverted:
+		 * through the cd-inverted flag and by the GPIO line itself
+		 * being inverted from the GPIO subsystem. This is a leftover
+		 * from the times when the GPIO subsystem did not make it
+		 * possible to flag a line as inverted.
+		 *
+		 * If the capability on the host AND the GPIO line are
+		 * both inverted, the end result is that the CD line is
+		 * not inverted.
+		 */
+		if (cap_invert ^ gpio_invert)
+			host->caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
 	}
 
 	/* Parse Write Protection */
 	if (of_property_read_bool(np, "wp-inverted"))
-		host->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
+		cap_invert = true;
+	else
+		cap_invert = false;
 
-	ret = mmc_gpiod_request_ro(host, "wp", 0, false, 0);
+	ret = mmc_gpiod_request_ro(host, "wp", 0, false, 0, &gpio_invert);
 	if (ret) {
 		if (ret == -EPROBE_DEFER)
 			goto out;
@@ -392,6 +412,10 @@ int mmc_of_parse(struct mmc_host *host)
 		}
 	} else
 		dev_info(host->parent, "Got WP GPIO\n");
+
+	/* See the comment on CD inversion above */
+	if (cap_invert ^ gpio_invert)
+		host->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
 
 	if (of_find_property(np, "cap-sd-highspeed", &len))
 		host->caps |= MMC_CAP_SD_HIGHSPEED;

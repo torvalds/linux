@@ -281,6 +281,8 @@ EXPORT_SYMBOL(mmc_gpio_free_cd);
  * @idx: index of the GPIO to obtain in the consumer
  * @override_active_level: ignore %GPIO_ACTIVE_LOW flag
  * @debounce: debounce time in microseconds
+ * @gpio_invert: will return whether the GPIO line is inverted or not, set
+ * to NULL to ignore
  *
  * Use this function in place of mmc_gpio_request_cd() to use the GPIO
  * descriptor API.  Note that it is paired with mmc_gpiod_free_cd() not
@@ -291,7 +293,7 @@ EXPORT_SYMBOL(mmc_gpio_free_cd);
  */
 int mmc_gpiod_request_cd(struct mmc_host *host, const char *con_id,
 			 unsigned int idx, bool override_active_level,
-			 unsigned int debounce)
+			 unsigned int debounce, bool *gpio_invert)
 {
 	struct mmc_gpio *ctx;
 	struct gpio_desc *desc;
@@ -316,6 +318,9 @@ int mmc_gpiod_request_cd(struct mmc_host *host, const char *con_id,
 			return ret;
 	}
 
+	if (gpio_invert)
+		*gpio_invert = !gpiod_is_active_low(desc);
+
 	ctx->override_cd_active_level = override_active_level;
 	ctx->cd_gpio = desc;
 
@@ -330,6 +335,8 @@ EXPORT_SYMBOL(mmc_gpiod_request_cd);
  * @idx: index of the GPIO to obtain in the consumer
  * @override_active_level: ignore %GPIO_ACTIVE_LOW flag
  * @debounce: debounce time in microseconds
+ * @gpio_invert: will return whether the GPIO line is inverted or not,
+ * set to NULL to ignore
  *
  * Use this function in place of mmc_gpio_request_ro() to use the GPIO
  * descriptor API.  Note that it is paired with mmc_gpiod_free_ro() not
@@ -339,7 +346,7 @@ EXPORT_SYMBOL(mmc_gpiod_request_cd);
  */
 int mmc_gpiod_request_ro(struct mmc_host *host, const char *con_id,
 			 unsigned int idx, bool override_active_level,
-			 unsigned int debounce)
+			 unsigned int debounce, bool *gpio_invert)
 {
 	struct mmc_gpio *ctx;
 	struct gpio_desc *desc;
@@ -363,6 +370,9 @@ int mmc_gpiod_request_ro(struct mmc_host *host, const char *con_id,
 		if (ret < 0)
 			return ret;
 	}
+
+	if (gpio_invert)
+		*gpio_invert = !gpiod_is_active_low(desc);
 
 	ctx->override_ro_active_level = override_active_level;
 	ctx->ro_gpio = desc;

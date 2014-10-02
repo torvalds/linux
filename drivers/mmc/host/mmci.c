@@ -1682,7 +1682,7 @@ static int mmci_probe(struct amba_device *dev,
 	 * silently of these do not exist and proceed to try platform data
 	 */
 	if (!np) {
-		ret = mmc_gpiod_request_cd(mmc, "cd", 0, false, 0);
+		ret = mmc_gpiod_request_cd(mmc, "cd", 0, false, 0, NULL);
 		if (ret < 0) {
 			if (ret == -EPROBE_DEFER)
 				goto clk_disable;
@@ -1693,7 +1693,7 @@ static int mmci_probe(struct amba_device *dev,
 			}
 		}
 
-		ret = mmc_gpiod_request_ro(mmc, "wp", 0, false, 0);
+		ret = mmc_gpiod_request_ro(mmc, "wp", 0, false, 0, NULL);
 		if (ret < 0) {
 			if (ret == -EPROBE_DEFER)
 				goto clk_disable;
