@@ -18,6 +18,7 @@
 #include <linux/device.h>
 #include <linux/module.h>
 
+#include "kernel_ver.h"
 #include "greybus_id.h"
 #include "greybus_manifest.h"
 #include "manifest.h"
@@ -44,6 +45,15 @@
 	.match_flags	= GREYBUS_DEVICE_ID_MATCH_SERIAL,	\
 	.serial_number	= (s),
 
+/* XXX I couldn't get my Kconfig file to be noticed for out-of-tree build */
+#ifndef CONFIG_HOST_DEV_CPORT_ID_MAX
+#define CONFIG_HOST_DEV_CPORT_ID_MAX 128
+#endif /* !CONFIG_HOST_DEV_CPORT_ID_MAX */
+
+/* Maximum number of CPorts usable by a host device */
+/* XXX This should really be determined by the AP module manifest */
+#define HOST_DEV_CPORT_ID_MAX	CONFIG_HOST_DEV_CPORT_ID_MAX
+#define CPORT_ID_BAD		U16_MAX		/* UniPro max id is 4095 */
 
 /*
   gbuf
@@ -185,9 +195,17 @@ struct greybus_host_device {
 	struct list_head modules;
 	struct list_head connections;
 
+	spinlock_t cport_id_map_lock;
+	DECLARE_BITMAP(cport_id_map, HOST_DEV_CPORT_ID_MAX);
+	u16 cport_id_count;	/* How many have been allocated */
+	u16 cport_id_next_free;	/* Where to start checking anyway */
+
 	/* Private data for the host driver */
 	unsigned long hd_priv[0] __attribute__ ((aligned(sizeof(s64))));
 };
+
+u16 greybus_hd_cport_id_alloc(struct greybus_host_device *hd);
+void greybus_hd_cport_id_free(struct greybus_host_device *hd, u16 cport_id);
 
 struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *host_driver,
 					      struct device *parent);
