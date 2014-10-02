@@ -222,6 +222,51 @@ replay:
 	}
 }
 
+struct nfnl_err {
+	struct list_head	head;
+	struct nlmsghdr		*nlh;
+	int			err;
+};
+
+static int nfnl_err_add(struct list_head *list, struct nlmsghdr *nlh, int err)
+{
+	struct nfnl_err *nfnl_err;
+
+	nfnl_err = kmalloc(sizeof(struct nfnl_err), GFP_KERNEL);
+	if (nfnl_err == NULL)
+		return -ENOMEM;
+
+	nfnl_err->nlh = nlh;
+	nfnl_err->err = err;
+	list_add_tail(&nfnl_err->head, list);
+
+	return 0;
+}
+
+static void nfnl_err_del(struct nfnl_err *nfnl_err)
+{
+	list_del(&nfnl_err->head);
+	kfree(nfnl_err);
+}
+
+static void nfnl_err_reset(struct list_head *err_list)
+{
+	struct nfnl_err *nfnl_err, *next;
+
+	list_for_each_entry_safe(nfnl_err, next, err_list, head)
+		nfnl_err_del(nfnl_err);
+}
+
+static void nfnl_err_deliver(struct list_head *err_list, struct sk_buff *skb)
+{
+	struct nfnl_err *nfnl_err, *next;
+
+	list_for_each_entry_safe(nfnl_err, next, err_list, head) {
+		netlink_ack(skb, nfnl_err->nlh, nfnl_err->err);
+		nfnl_err_del(nfnl_err);
+	}
+}
+
 static void nfnetlink_rcv_batch(struct sk_buff *skb, struct nlmsghdr *nlh,
 				u_int16_t subsys_id)
 {
@@ -230,6 +275,7 @@ static void nfnetlink_rcv_batch(struct sk_buff *skb, struct nlmsghdr *nlh,
 	const struct nfnetlink_subsystem *ss;
 	const struct nfnl_callback *nc;
 	bool success = true, done = false;
+	static LIST_HEAD(err_list);
 	int err;
 
 	if (subsys_id >= NFNL_SUBSYS_COUNT)
@@ -287,6 +333,7 @@ replay:
 		type = nlh->nlmsg_type;
 		if (type == NFNL_MSG_BATCH_BEGIN) {
 			/* Malformed: Batch begin twice */
+			nfnl_err_reset(&err_list);
 			success = false;
 			goto done;
 		} else if (type == NFNL_MSG_BATCH_END) {
@@ -333,6 +380,7 @@ replay:
 			 * original skb.
 			 */
 			if (err == -EAGAIN) {
+				nfnl_err_reset(&err_list);
 				ss->abort(oskb);
 				nfnl_unlock(subsys_id);
 				kfree_skb(nskb);
@@ -341,11 +389,24 @@ replay:
 		}
 ack:
 		if (nlh->nlmsg_flags & NLM_F_ACK || err) {
+			/* Errors are delivered once the full batch has been
+			 * processed, this avoids that the same error is
+			 * reported several times when replaying the batch.
+			 */
+			if (nfnl_err_add(&err_list, nlh, err) < 0) {
+				/* We failed to enqueue an error, reset the
+				 * list of errors and send OOM to userspace
+				 * pointing to the batch header.
+				 */
+				nfnl_err_reset(&err_list);
+				netlink_ack(skb, nlmsg_hdr(oskb), -ENOMEM);
+				success = false;
+				goto done;
+			}
 			/* We don't stop processing the batch on errors, thus,
 			 * userspace gets all the errors that the batch
 			 * triggers.
 			 */
-			netlink_ack(skb, nlh, err);
 			if (err)
 				success = false;
 		}
@@ -361,6 +422,7 @@ done:
 	else
 		ss->abort(oskb);
 
+	nfnl_err_deliver(&err_list, oskb);
 	nfnl_unlock(subsys_id);
 	kfree_skb(nskb);
 }

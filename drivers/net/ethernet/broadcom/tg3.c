@@ -6918,7 +6918,8 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 		skb->protocol = eth_type_trans(skb, tp->dev);
 
 		if (len > (tp->dev->mtu + ETH_HLEN) &&
-		    skb->protocol != htons(ETH_P_8021Q)) {
+		    skb->protocol != htons(ETH_P_8021Q) &&
+		    skb->protocol != htons(ETH_P_8021AD)) {
 			dev_kfree_skb_any(skb);
 			goto drop_it_no_recycle;
 		}

@@ -2098,7 +2098,7 @@ S:	Supported
 F:	drivers/scsi/bfa/
 
 BROCADE BNA 10 GIGABIT ETHERNET DRIVER
-M:	Rasesh Mody <rmody@brocade.com>
+M:	Rasesh Mody <rasesh.mody@qlogic.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/brocade/bna/
@@ -3012,9 +3012,8 @@ S:	Supported
 F:	drivers/acpi/dock.c
 
 DOCUMENTATION
-M:	Randy Dunlap <rdunlap@infradead.org>
+M:	Jiri Kosina <jkosina@suse.cz>
 L:	linux-doc@vger.kernel.org
-T:	quilt http://www.infradead.org/~rdunlap/Doc/patches/
 S:	Maintained
 F:	Documentation/
 X:	Documentation/ABI/
@@ -4477,7 +4476,6 @@ M:	Mika Westerberg <mika.westerberg@linux.intel.com>
 L:	linux-i2c@vger.kernel.org
 L:	linux-acpi@vger.kernel.org
 S:	Maintained
-F:	drivers/i2c/i2c-acpi.c
 
 I2C-TAOS-EVM DRIVER
 M:	Jean Delvare <jdelvare@suse.de>

@@ -1177,9 +1177,8 @@ static void qlcnic_83xx_setup_idc_parameters(struct qlcnic_adapter *adapter)
 {
 	u32 idc_params, val;
 
-	if (qlcnic_83xx_lockless_flash_read32(adapter,
-					      QLC_83XX_IDC_FLASH_PARAM_ADDR,
-					      (u8 *)&idc_params, 1)) {
+	if (qlcnic_83xx_flash_read32(adapter, QLC_83XX_IDC_FLASH_PARAM_ADDR,
+				     (u8 *)&idc_params, 1)) {
 		dev_info(&adapter->pdev->dev,
 			 "%s:failed to get IDC params from flash\n", __func__);
 		adapter->dev_init_timeo = QLC_83XX_IDC_INIT_TIMEOUT_SECS;

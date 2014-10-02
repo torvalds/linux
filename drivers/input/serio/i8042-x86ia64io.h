@@ -466,6 +466,13 @@ static const struct dmi_system_id __initconst i8042_dmi_nomux_table[] = {
 		},
 	},
 	{
+		/* Asus X450LCP */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "X450LCP"),
+		},
+	},
+	{
 		/* Avatar AVIU-145A6 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Intel"),

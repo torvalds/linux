@@ -364,8 +364,12 @@ static struct ip6_tnl *ip6_tnl_locate(struct net *net,
 	     (t = rtnl_dereference(*tp)) != NULL;
 	     tp = &t->next) {
 		if (ipv6_addr_equal(local, &t->parms.laddr) &&
-		    ipv6_addr_equal(remote, &t->parms.raddr))
+		    ipv6_addr_equal(remote, &t->parms.raddr)) {
+			if (create)
+				return NULL;
+
 			return t;
+		}
 	}
 	if (!create)
 		return NULL;

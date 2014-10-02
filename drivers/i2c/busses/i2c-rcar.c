@@ -76,8 +76,8 @@
 #define RCAR_IRQ_RECV	(MNR | MAL | MST | MAT | MDR)
 #define RCAR_IRQ_STOP	(MST)
 
-#define RCAR_IRQ_ACK_SEND	(~(MAT | MDE))
-#define RCAR_IRQ_ACK_RECV	(~(MAT | MDR))
+#define RCAR_IRQ_ACK_SEND	(~(MAT | MDE) & 0xFF)
+#define RCAR_IRQ_ACK_RECV	(~(MAT | MDR) & 0xFF)
 
 #define ID_LAST_MSG	(1 << 0)
 #define ID_IOERROR	(1 << 1)

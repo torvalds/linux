@@ -56,6 +56,9 @@ Required properties:
  - fsl,data-width : should be <18> or <24>
  - port: A port node with endpoint definitions as defined in
    Documentation/devicetree/bindings/media/video-interfaces.txt.
+   On i.MX5, the internal two-input-multiplexer is used.
+   Due to hardware limitations, only one port (port@[0,1])
+   can be used for each channel (lvds-channel@[0,1], respectively)
    On i.MX6, there should be four ports (port@[0-3]) that correspond
    to the four LVDS multiplexer inputs.
 
@@ -78,6 +81,8 @@ ldb: ldb@53fa8008 {
 		      "di0", "di1";
 
 	lvds-channel@0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
 		reg = <0>;
 		fsl,data-mapping = "spwg";
 		fsl,data-width = <24>;
@@ -86,7 +91,9 @@ ldb: ldb@53fa8008 {
 			/* ... */
 		};
 
-		port {
+		port@0 {
+			reg = <0>;
+
 			lvds0_in: endpoint {
 				remote-endpoint = <&ipu_di0_lvds0>;
 			};
@@ -94,6 +101,8 @@ ldb: ldb@53fa8008 {
 	};
 
 	lvds-channel@1 {
+		#address-cells = <1>;
+		#size-cells = <0>;
 		reg = <1>;
 		fsl,data-mapping = "spwg";
 		fsl,data-width = <24>;
@@ -102,7 +111,9 @@ ldb: ldb@53fa8008 {
 			/* ... */
 		};
 
-		port {
+		port@1 {
+			reg = <1>;
+
 			lvds1_in: endpoint {
 				remote-endpoint = <&ipu_di1_lvds1>;
 			};

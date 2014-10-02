@@ -746,7 +746,7 @@ static void __ip_do_redirect(struct rtable *rt, struct sk_buff *skb, struct flow
 	}
 
 	n = ipv4_neigh_lookup(&rt->dst, NULL, &new_gw);
-	if (n) {
+	if (!IS_ERR(n)) {
 		if (!(n->nud_state & NUD_VALID)) {
 			neigh_event_send(n, NULL);
 		} else {
