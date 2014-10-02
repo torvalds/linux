@@ -4204,7 +4204,8 @@ static int ext4_do_update_inode(handle_t *handle,
 	EXT4_INODE_SET_XTIME(i_atime, inode, raw_inode);
 	EXT4_EINODE_SET_XTIME(i_crtime, ei, raw_inode);
 
-	if (ext4_inode_blocks_set(handle, raw_inode, ei)) {
+	err = ext4_inode_blocks_set(handle, raw_inode, ei);
+	if (err) {
 		spin_unlock(&ei->i_raw_lock);
 		goto out_brelse;
 	}
