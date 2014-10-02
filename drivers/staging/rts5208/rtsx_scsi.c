@@ -586,10 +586,9 @@ static int start_stop_unit(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 	case LOAD_MEDIUM:
 		if (check_card_ready(chip, lun)) {
 			return TRANSPORT_GOOD;
-		} else {
-			set_sense_type(chip, lun, SENSE_TYPE_MEDIA_NOT_PRESENT);
-			TRACE_RET(chip, TRANSPORT_FAILED);
 		}
+		set_sense_type(chip, lun, SENSE_TYPE_MEDIA_NOT_PRESENT);
+		TRACE_RET(chip, TRANSPORT_FAILED);
 
 		break;
 	}
