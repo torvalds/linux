@@ -23,7 +23,7 @@
  * pointer otherwise.
  */
 struct gb_connection *gb_connection_create(struct greybus_host_device *hd,
-				u16 cport_id, struct gb_function *function)
+				struct gb_function *function)
 {
 	struct gb_connection *connection;
 
@@ -31,8 +31,13 @@ struct gb_connection *gb_connection_create(struct greybus_host_device *hd,
 	if (!connection)
 		return NULL;
 
+	connection->cport_id = greybus_hd_cport_id_alloc(hd);
+	if (connection->cport_id == CPORT_ID_BAD) {
+		kfree(connection);
+		return NULL;
+	}
+
 	connection->hd = hd;			/* XXX refcount? */
-	connection->cport_id = cport_id;
 	connection->function = function;	/* XXX refcount? */
 	INIT_LIST_HEAD(&connection->operations);
 	atomic_set(&connection->op_cycle, 0);
@@ -51,6 +56,7 @@ void gb_connection_destroy(struct gb_connection *connection)
 	/* XXX Need to wait for any outstanding requests to complete */
 	WARN_ON(!list_empty(&connection->operations));
 
+	greybus_hd_cport_id_free(connection->hd, connection->cport_id);
 	/* kref_put(function); */
 	/* kref_put(hd); */
 	kfree(connection);
