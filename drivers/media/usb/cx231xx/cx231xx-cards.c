@@ -1033,7 +1033,7 @@ void cx231xx_card_setup(struct cx231xx *dev)
 	/* request some modules */
 	if (dev->board.decoder == CX231XX_AVDECODER) {
 		dev->sd_cx25840 = v4l2_i2c_new_subdev(&dev->v4l2_dev,
-					&dev->i2c_bus[I2C_0].i2c_adap,
+					cx231xx_get_i2c_adap(dev, I2C_0),
 					"cx25840", 0x88 >> 1, NULL);
 		if (dev->sd_cx25840 == NULL)
 			cx231xx_info("cx25840 subdev registration failure\n");
@@ -1043,8 +1043,10 @@ void cx231xx_card_setup(struct cx231xx *dev)
 
 	/* Initialize the tuner */
 	if (dev->board.tuner_type != TUNER_ABSENT) {
+		struct i2c_adapter *tuner_i2c = cx231xx_get_i2c_adap(dev,
+						dev->board.tuner_i2c_master);
 		dev->sd_tuner = v4l2_i2c_new_subdev(&dev->v4l2_dev,
-						    &dev->i2c_bus[dev->board.tuner_i2c_master].i2c_adap,
+						    tuner_i2c,
 						    "tuner",
 						    dev->tuner_addr, NULL);
 		if (dev->sd_tuner == NULL)
@@ -1062,7 +1064,7 @@ void cx231xx_card_setup(struct cx231xx *dev)
 			struct i2c_client client;
 
 			memset(&client, 0, sizeof(client));
-			client.adapter = &dev->i2c_bus[I2C_1].i2c_adap;
+			client.adapter = cx231xx_get_i2c_adap(dev, I2C_1);
 			client.addr = 0xa0 >> 1;
 
 			read_eeprom(dev, &client, eeprom, sizeof(eeprom));

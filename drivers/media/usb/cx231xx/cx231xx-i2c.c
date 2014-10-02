@@ -483,7 +483,7 @@ void cx231xx_do_i2c_scan(struct cx231xx *dev, int i2c_port)
 	struct i2c_client client;
 
 	memset(&client, 0, sizeof(client));
-	client.adapter = &dev->i2c_bus[i2c_port].i2c_adap;
+	client.adapter = cx231xx_get_i2c_adap(dev, i2c_port);
 
 	cx231xx_info(": Checking for I2C devices on port=%d ..\n", i2c_port);
 	for (i = 0; i < 128; i++) {
@@ -537,3 +537,21 @@ int cx231xx_i2c_unregister(struct cx231xx_i2c *bus)
 	i2c_del_adapter(&bus->i2c_adap);
 	return 0;
 }
+
+struct i2c_adapter *cx231xx_get_i2c_adap(struct cx231xx *dev, int i2c_port)
+{
+	switch (i2c_port) {
+	case I2C_0:
+		return &dev->i2c_bus[0].i2c_adap;
+	case I2C_1:
+		return &dev->i2c_bus[1].i2c_adap;
+	case I2C_2:
+		return &dev->i2c_bus[2].i2c_adap;
+	case I2C_1_MUX_1:
+	case I2C_1_MUX_3:
+		return &dev->i2c_bus[1].i2c_adap;
+	default:
+		return NULL;
+	}
+}
+EXPORT_SYMBOL_GPL(cx231xx_get_i2c_adap);
