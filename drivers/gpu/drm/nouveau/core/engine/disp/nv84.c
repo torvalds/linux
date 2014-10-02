@@ -34,7 +34,7 @@
  ******************************************************************************/
 
 const struct nv50_disp_mthd_list
-nv84_disp_mast_mthd_dac = {
+nv84_disp_core_mthd_dac = {
 	.mthd = 0x0080,
 	.addr = 0x000008,
 	.data = {
@@ -46,7 +46,7 @@ nv84_disp_mast_mthd_dac = {
 };
 
 const struct nv50_disp_mthd_list
-nv84_disp_mast_mthd_head = {
+nv84_disp_core_mthd_head = {
 	.mthd = 0x0400,
 	.addr = 0x000540,
 	.data = {
@@ -98,15 +98,15 @@ nv84_disp_mast_mthd_head = {
 };
 
 const struct nv50_disp_mthd_chan
-nv84_disp_mast_mthd_chan = {
+nv84_disp_core_mthd_chan = {
 	.name = "Core",
 	.addr = 0x000000,
 	.data = {
-		{ "Global", 1, &nv50_disp_mast_mthd_base },
-		{    "DAC", 3, &nv84_disp_mast_mthd_dac  },
-		{    "SOR", 2, &nv50_disp_mast_mthd_sor  },
-		{   "PIOR", 3, &nv50_disp_mast_mthd_pior },
-		{   "HEAD", 2, &nv84_disp_mast_mthd_head },
+		{ "Global", 1, &nv50_disp_core_mthd_base },
+		{    "DAC", 3, &nv84_disp_core_mthd_dac  },
+		{    "SOR", 2, &nv50_disp_core_mthd_sor  },
+		{   "PIOR", 3, &nv50_disp_core_mthd_pior },
+		{   "HEAD", 2, &nv84_disp_core_mthd_head },
 		{}
 	}
 };
@@ -116,7 +116,7 @@ nv84_disp_mast_mthd_chan = {
  ******************************************************************************/
 
 static const struct nv50_disp_mthd_list
-nv84_disp_sync_mthd_base = {
+nv84_disp_base_mthd_base = {
 	.mthd = 0x0000,
 	.addr = 0x000000,
 	.data = {
@@ -146,12 +146,12 @@ nv84_disp_sync_mthd_base = {
 };
 
 const struct nv50_disp_mthd_chan
-nv84_disp_sync_mthd_chan = {
+nv84_disp_base_mthd_chan = {
 	.name = "Base",
 	.addr = 0x000540,
 	.data = {
-		{ "Global", 1, &nv84_disp_sync_mthd_base },
-		{  "Image", 2, &nv50_disp_sync_mthd_image },
+		{ "Global", 1, &nv84_disp_base_mthd_base },
+		{  "Image", 2, &nv50_disp_base_mthd_image },
 		{}
 	}
 };
@@ -204,8 +204,8 @@ nv84_disp_ovly_mthd_chan = {
 
 static struct nouveau_oclass
 nv84_disp_sclass[] = {
-	{ G82_DISP_CORE_CHANNEL_DMA, &nv50_disp_mast_ofuncs.base },
-	{ G82_DISP_BASE_CHANNEL_DMA, &nv50_disp_sync_ofuncs.base },
+	{ G82_DISP_CORE_CHANNEL_DMA, &nv50_disp_core_ofuncs.base },
+	{ G82_DISP_BASE_CHANNEL_DMA, &nv50_disp_base_ofuncs.base },
 	{ G82_DISP_OVERLAY_CHANNEL_DMA, &nv50_disp_ovly_ofuncs.base },
 	{ G82_DISP_OVERLAY, &nv50_disp_oimm_ofuncs.base },
 	{ G82_DISP_CURSOR, &nv50_disp_curs_ofuncs.base },
@@ -213,8 +213,8 @@ nv84_disp_sclass[] = {
 };
 
 static struct nouveau_oclass
-nv84_disp_base_oclass[] = {
-	{ G82_DISP, &nv50_disp_base_ofuncs },
+nv84_disp_main_oclass[] = {
+	{ G82_DISP, &nv50_disp_main_ofuncs },
 	{}
 };
 
@@ -240,7 +240,7 @@ nv84_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	nv_engine(priv)->sclass = nv84_disp_base_oclass;
+	nv_engine(priv)->sclass = nv84_disp_main_oclass;
 	nv_engine(priv)->cclass = &nv50_disp_cclass;
 	nv_subdev(priv)->intr = nv50_disp_intr;
 	INIT_WORK(&priv->supervisor, nv50_disp_intr_supervisor);
@@ -268,9 +268,9 @@ nv84_disp_oclass = &(struct nv50_disp_impl) {
 	},
 	.base.vblank = &nv50_disp_vblank_func,
 	.base.outp =  nv50_disp_outp_sclass,
-	.mthd.core = &nv84_disp_mast_mthd_chan,
-	.mthd.base = &nv84_disp_sync_mthd_chan,
+	.mthd.core = &nv84_disp_core_mthd_chan,
+	.mthd.base = &nv84_disp_base_mthd_chan,
 	.mthd.ovly = &nv84_disp_ovly_mthd_chan,
 	.mthd.prev = 0x000004,
-	.head.scanoutpos = nv50_disp_base_scanoutpos,
+	.head.scanoutpos = nv50_disp_main_scanoutpos,
 }.base.base;
