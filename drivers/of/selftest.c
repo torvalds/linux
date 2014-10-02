@@ -7,6 +7,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/errno.h>
+#include <linux/hashtable.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
@@ -190,6 +191,51 @@ static void __init of_selftest_check_tree_linkage(void)
 	selftest(child_count == allnode_count, "allnodes list size (%i) doesn't match"
 		 "sibling lists size (%i)\n", allnode_count, child_count);
 	pr_debug("allnodes list size (%i); sibling lists size (%i)\n", allnode_count, child_count);
+}
+
+struct node_hash {
+	struct hlist_node node;
+	struct device_node *np;
+};
+
+static void __init of_selftest_check_phandles(void)
+{
+	struct device_node *np;
+	struct node_hash *nh;
+	struct hlist_node *tmp;
+	int i, dup_count = 0, phandle_count = 0;
+	DECLARE_HASHTABLE(ht, 8);
+
+	hash_init(ht);
+	for_each_of_allnodes(np) {
+		if (!np->phandle)
+			continue;
+
+		hash_for_each_possible(ht, nh, node, np->phandle) {
+			if (nh->np->phandle == np->phandle) {
+				pr_info("Duplicate phandle! %i used by %s and %s\n",
+					np->phandle, nh->np->full_name, np->full_name);
+				dup_count++;
+				break;
+			}
+		}
+
+		nh = kzalloc(sizeof(*nh), GFP_KERNEL);
+		if (WARN_ON(!nh))
+			return;
+
+		nh->np = np;
+		hash_add(ht, &nh->node, np->phandle);
+		phandle_count++;
+	}
+	selftest(dup_count == 0, "Found %i duplicates in %i phandles\n",
+		 dup_count, phandle_count);
+
+	/* Clean up */
+	hash_for_each_safe(ht, i, tmp, nh, node) {
+		hash_del(&nh->node);
+		kfree(nh);
+	}
 }
 
 static void __init of_selftest_parse_phandle_with_args(void)
@@ -825,6 +871,7 @@ static int __init of_selftest(void)
 
 	pr_info("start of selftest - you will see error messages\n");
 	of_selftest_check_tree_linkage();
+	of_selftest_check_phandles();
 	of_selftest_find_node_by_name();
 	of_selftest_dynamic();
 	of_selftest_parse_phandle_with_args();
