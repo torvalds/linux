@@ -120,6 +120,7 @@ config POWER_RESET_KEYSTONE
 
 config POWER_RESET_SYSCON
 	bool "Generic SYSCON regmap reset driver"
-	depends on POWER_RESET && MFD_SYSCON && OF
+	depends on POWER_RESET && OF
+	select MFD_SYSCON
 	help
 	  Reboot support for generic SYSCON mapped register reset.

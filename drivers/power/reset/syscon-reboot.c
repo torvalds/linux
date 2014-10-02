@@ -14,14 +14,15 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+#include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/of_device.h>
-#include <linux/of_address.h>
-#include <linux/platform_device.h>
 #include <linux/notifier.h>
 #include <linux/mfd/syscon.h>
-#include <linux/regmap.h>
+#include <linux/of_address.h>
+#include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/reboot.h>
+#include <linux/regmap.h>
 
 struct syscon_reboot_context {
 	struct regmap *map;
@@ -30,21 +31,17 @@ struct syscon_reboot_context {
 	struct notifier_block restart_handler;
 };
 
-static struct syscon_reboot_context *syscon_reboot_ctx;
-
 static int syscon_restart_handle(struct notifier_block *this,
 					unsigned long mode, void *cmd)
 {
-	struct syscon_reboot_context *ctx = syscon_reboot_ctx;
-	unsigned long timeout;
+	struct syscon_reboot_context *ctx =
+			container_of(this, struct syscon_reboot_context,
+					restart_handler);
 
 	/* Issue the reboot */
-	if (ctx->map)
-		regmap_write(ctx->map, ctx->offset, ctx->mask);
+	regmap_write(ctx->map, ctx->offset, ctx->mask);
 
-	timeout = jiffies + HZ;
-	while (time_before(jiffies, timeout))
-		cpu_relax();
+	mdelay(1000);
 
 	pr_emerg("Unable to restart system\n");
 	return NOTIFY_DONE;
@@ -76,9 +73,7 @@ static int syscon_reboot_probe(struct platform_device *pdev)
 	if (err)
 		dev_err(dev, "can't register restart notifier (err=%d)\n", err);
 
-	syscon_reboot_ctx = ctx;
-
-	return 0;
+	return err;
 }
 
 static struct of_device_id syscon_reboot_of_match[] = {
