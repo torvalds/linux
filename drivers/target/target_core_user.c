@@ -236,15 +236,25 @@ static inline size_t head_to_end(size_t head, size_t size)
  *
  * Called with ring lock held.
  */
-static bool is_ring_space_avail(struct tcmu_dev *udev, size_t cmd_needed, size_t data_needed)
+static bool is_ring_space_avail(struct tcmu_dev *udev, size_t cmd_size, size_t data_needed)
 {
 	struct tcmu_mailbox *mb = udev->mb_addr;
 	size_t space;
 	u32 cmd_head;
+	size_t cmd_needed;
 
 	tcmu_flush_dcache_range(mb, sizeof(*mb));
 
 	cmd_head = mb->cmd_head % udev->cmdr_size; /* UAM */
+
+	/*
+	 * If cmd end-of-ring space is too small then we need space for a NOP plus
+	 * original cmd - cmds are internally contiguous.
+	 */
+	if (head_to_end(cmd_head, udev->cmdr_size) >= cmd_size)
+		cmd_needed = cmd_size;
+	else
+		cmd_needed = cmd_size + head_to_end(cmd_head, udev->cmdr_size);
 
 	space = spc_free(cmd_head, udev->cmdr_last_cleaned, udev->cmdr_size);
 	if (space < cmd_needed) {
@@ -268,9 +278,7 @@ static int tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 	struct tcmu_dev *udev = tcmu_cmd->tcmu_dev;
 	struct se_cmd *se_cmd = tcmu_cmd->se_cmd;
 	size_t base_command_size, command_size;
-	size_t cmdr_space_needed;
 	struct tcmu_mailbox *mb;
-	size_t pad_size;
 	struct tcmu_cmd_entry *entry;
 	int i;
 	struct scatterlist *sg;
@@ -307,17 +315,7 @@ static int tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 			"cmd/data ring buffers\n", command_size, tcmu_cmd->data_length,
 			udev->cmdr_size, udev->data_size);
 
-	/*
-	 * Cmd end-of-ring space is too small so we need space for a NOP plus
-	 * original cmd - cmds are internally contiguous.
-	 */
-	if (head_to_end(cmd_head, udev->cmdr_size) >= command_size)
-		pad_size = 0;
-	else
-		pad_size = head_to_end(cmd_head, udev->cmdr_size);
-	cmdr_space_needed = command_size + pad_size;
-
-	while (!is_ring_space_avail(udev, cmdr_space_needed, tcmu_cmd->data_length)) {
+	while (!is_ring_space_avail(udev, command_size, tcmu_cmd->data_length)) {
 		int ret;
 		DEFINE_WAIT(__wait);
 
@@ -338,7 +336,10 @@ static int tcmu_queue_cmd_ring(struct tcmu_cmd *tcmu_cmd)
 		cmd_head = mb->cmd_head % udev->cmdr_size; /* UAM */
 	}
 
-	if (pad_size) {
+	/* Insert a PAD if end-of-ring space is too small */
+	if (head_to_end(cmd_head, udev->cmdr_size) < command_size) {
+		size_t pad_size = head_to_end(cmd_head, udev->cmdr_size);
+
 		entry = (void *) mb + CMDR_OFF + cmd_head;
 		tcmu_flush_dcache_range(entry, sizeof(*entry));
 		tcmu_hdr_set_op(&entry->hdr, TCMU_OP_PAD);
