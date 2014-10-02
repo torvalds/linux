@@ -121,23 +121,23 @@ static void _nbu2ss_dump_register(struct nbu2ss_udc *udc)
 
 	spin_unlock(&udc->lock);
 
-	printk(KERN_DEBUG "\n-USB REG-\n");
+	dev_dbg(&udc->dev, "\n-USB REG-\n");
 	for (i = 0x0 ; i < USB_BASE_SIZE ; i += 16) {
 		reg_data =   _nbu2ss_readl(
 			(u32 *)IO_ADDRESS(USB_BASE_ADDRESS + i));
-		printk(KERN_DEBUG "USB%04x =%08x", i, (int)reg_data);
+		dev_dbg(&udc->dev, "USB%04x =%08x", i, (int)reg_data);
 
 		reg_data =  _nbu2ss_readl(
 			(u32 *)IO_ADDRESS(USB_BASE_ADDRESS + i + 4));
-		printk(KERN_DEBUG " %08x", (int)reg_data);
+		dev_dbg(&udc->dev, " %08x", (int)reg_data);
 
 		reg_data =  _nbu2ss_readl(
 			(u32 *)IO_ADDRESS(USB_BASE_ADDRESS + i + 8));
-		printk(KERN_DEBUG " %08x", (int)reg_data);
+		dev_dbg(&udc->dev, " %08x", (int)reg_data);
 
 		reg_data =  _nbu2ss_readl(
 			(u32 *)IO_ADDRESS(USB_BASE_ADDRESS + i + 12));
-		printk(KERN_DEBUG " %08x\n", (int)reg_data);
+		dev_dbg(&udc->dev, " %08x\n", (int)reg_data);
 
 	}
 
