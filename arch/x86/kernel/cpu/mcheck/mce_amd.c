@@ -270,14 +270,13 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 static void amd_threshold_interrupt(void)
 {
 	u32 low = 0, high = 0, address = 0;
+	int cpu = smp_processor_id();
 	unsigned int bank, block;
 	struct mce m;
 
-	mce_setup(&m);
-
 	/* assume first bank caused it */
 	for (bank = 0; bank < mca_cfg.banks; ++bank) {
-		if (!(per_cpu(bank_map, m.cpu) & (1 << bank)))
+		if (!(per_cpu(bank_map, cpu) & (1 << bank)))
 			continue;
 		for (block = 0; block < NR_BLOCKS; ++block) {
 			if (block == 0) {
@@ -309,20 +308,21 @@ static void amd_threshold_interrupt(void)
 			 * Log the machine check that caused the threshold
 			 * event.
 			 */
-			machine_check_poll(MCP_TIMESTAMP,
-					this_cpu_ptr(&mce_poll_banks));
-
-			if (high & MASK_OVERFLOW_HI) {
-				rdmsrl(address, m.misc);
-				rdmsrl(MSR_IA32_MCx_STATUS(bank), m.status);
-				m.bank = K8_MCE_THRESHOLD_BASE
-				       + bank * NR_BLOCKS
-				       + block;
-				mce_log(&m);
-				return;
-			}
+			if (high & MASK_OVERFLOW_HI)
+				goto log;
 		}
 	}
+	return;
+
+log:
+	mce_setup(&m);
+	rdmsrl(MSR_IA32_MCG_STATUS, m.mcgstatus);
+	rdmsrl(address, m.misc);
+	rdmsrl(MSR_IA32_MCx_STATUS(bank), m.status);
+	m.bank = K8_MCE_THRESHOLD_BASE + bank * NR_BLOCKS + block;
+	mce_log(&m);
+
+	wrmsrl(MSR_IA32_MCx_STATUS(bank), 0);
 }
 
 /*
