@@ -172,6 +172,49 @@ static char *gb_string_get(u8 string_id)
 }
 
 /*
+ * Find cport descriptors in the manifest and set up data structures
+ * for the functions that use them.  Returns the number of interfaces
+ * set up for the given module, or 0 if there is an error.
+ */
+u32 gb_manifest_parse_cports(struct gb_interface *interface)
+{
+	u32 count = 0;
+
+	while (true) {
+		struct manifest_desc *descriptor;
+		struct greybus_descriptor_cport *desc_cport;
+		enum greybus_function_type function_type;
+		u16 cport_id;
+		bool found;
+
+		/* Find a cport descriptor */
+		found = false;
+		list_for_each_entry(descriptor, &manifest_descs, links) {
+			if (descriptor->type == GREYBUS_TYPE_CPORT) {
+				found = true;
+				break;
+			}
+		}
+		if (!found)
+			break;
+
+		/* Found one.  Set up its function structure */
+		desc_cport = descriptor->data;
+		function_type =
+			(enum greybus_function_type)desc_cport->function_type;
+		cport_id = le16_to_cpu(desc_cport->id);
+		if (!gb_function_create(interface, cport_id, function_type))
+			return 0;	/* Error */
+
+		count++;
+		/* Release the cport descriptor */
+		release_manifest_descriptor(descriptor);
+	}
+
+	return count;
+}
+
+/*
  * Find interface descriptors in the manifest and set up their data
  * structures.  Returns the number of interfaces set up for the
  * given module.
@@ -201,6 +244,11 @@ static u32 gb_manifest_parse_interfaces(struct gb_module *gmod)
 		interface = gb_interface_create(gmod, desc_interface->id);
 		if (!interface)
 			return 0;	/* Error */
+
+		/* Now go set up this interface's functions and cports */
+		if (!gb_manifest_parse_cports(interface))
+			return 0;	/* Error parsing cports */
+
 		count++;
 
 		/* Done with this interface descriptor */
