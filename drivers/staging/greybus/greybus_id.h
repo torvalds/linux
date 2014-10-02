@@ -13,7 +13,7 @@ struct greybus_module_id {
 	__u16	match_flags;
 	__u16	vendor;
 	__u16	product;
-	__u64	serial_number;
+	__u64	unique_id;
 
 	kernel_ulong_t	driver_info
 		__attribute__((aligned(sizeof(kernel_ulong_t))));

@@ -22,7 +22,7 @@ static DEFINE_SPINLOCK(gb_functions_lock);
  * pointer if a failure occurs due to memory exhaustion.
  */
 struct gb_function *gb_function_create(struct gb_interface *interface,
-			u16 cport_id, enum greybus_function_type type)
+					u16 cport_id)
 {
 	struct gb_function *function;
 
@@ -32,7 +32,6 @@ struct gb_function *gb_function_create(struct gb_interface *interface,
 
 	function->interface = interface;	/* XXX refcount? */
 	function->cport_id = cport_id;
-	function->type = type;
 
 	spin_lock_irq(&gb_functions_lock);
 	list_add_tail(&function->links, &interface->functions);

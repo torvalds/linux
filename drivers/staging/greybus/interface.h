@@ -13,7 +13,7 @@
 
 struct gb_interface {
 	struct gb_module	*gmod;
-	u8			interface_id;
+	u8			id;
 	struct list_head	functions;
 
 	struct list_head	links;	/* module->interfaces */

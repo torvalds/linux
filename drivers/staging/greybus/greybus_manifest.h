@@ -17,13 +17,24 @@
 enum greybus_descriptor_type {
 	GREYBUS_TYPE_INVALID		= 0x00,
 	GREYBUS_TYPE_MODULE		= 0x01,
-	GREYBUS_TYPE_DEVICE		= 0x02,
-	GREYBUS_TYPE_CLASS		= 0x03,
-	GREYBUS_TYPE_STRING		= 0x04,
-	GREYBUS_TYPE_CPORT		= 0x05,
+	GREYBUS_TYPE_STRING		= 0x02,
+	GREYBUS_TYPE_INTERFACE		= 0x03,
+	GREYBUS_TYPE_CPORT		= 0x04,
+	GREYBUS_TYPE_CLASS		= 0x05,
 };
 
-enum greybus_function_type {
+enum greybus_protocol {
+	GREYBUS_PROTOCOL_CONTROL	= 0x00,
+	GREYBUS_PROTOCOL_AP		= 0x01,
+	GREYBUS_PROTOCOL_GPIO		= 0x02,
+	GREYBUS_PROTOCOL_I2C		= 0x03,
+	GREYBUS_PROTOCOL_UART		= 0x04,
+	GREYBUS_PROTOCOL_HID		= 0x05,
+		/* ... */
+	GREYBUS_PROTOCOL_VENDOR		= 0xff,
+};
+
+enum greybus_class_type {
 	GREYBUS_FUNCTION_CONTROL	= 0x00,
 	GREYBUS_FUNCTION_USB		= 0x01,
 	GREYBUS_FUNCTION_GPIO		= 0x02,
@@ -48,57 +59,71 @@ struct greybus_descriptor_module {
 	__le16	vendor;
 	__le16	product;
 	__le16	version;
-	__le64	serial_number;
 	__u8	vendor_stringid;
 	__u8	product_stringid;
+	__le64	unique_id;
 };
 
 /*
- * A UniPro device normally supports a range of 32 CPorts (0..31).
- * It is possible to support more than this by having a UniPro
- * switch treat one device as if it were more than one.  E.g.,
- * allocate 3 device ids (rather than the normal--1) to physical
- * device 5, and configure the switch to route all packets destined
- * for "encoded" device ids 5, 6, and 7 to physical device 5.
- * Device 5 uses the encoded device id in incoming UniPro packets to
- * determine which bank of 32 CPorts should receive the UniPro
- * segment.
- *
- * The "scale" field in this structure is used to define the number
- * of encoded device ids should be allocated for this physical
- * device.  Scale is normally 1, to represent 32 available CPorts.
- * A scale value 2 represents up to 64 CPorts; scale value 3
- * represents up to 96 CPorts, and so on.
+ * The string in a string descriptor is not NUL-terminated.  The
+ * size of the descriptor will be rounded up to a multiple of 4
+ * bytes, by padding the string with 0x00 bytes if necessary.
  */
-struct greybus_descriptor_interface {
-	__u8	id;	/* module-relative id (0..) */
-	__u8	scale;	/* indicates range of of CPorts supported */
-	/* UniPro gear, number of in/out lanes */
-};
-
-struct greybus_descriptor_cport {
-	__le16	id;
-	__u8	function_type;	/* enum greybus_function_type */
-};
-
 struct greybus_descriptor_string {
 	__u8	length;
 	__u8	id;
 	__u8	string[0];
 };
 
+/*
+ * An interface descriptor simply defines a module-unique id for
+ * each interface present on a module.  Its sole purpose is to allow
+ * CPort descriptors to specify which interface they are associated
+ * with.  Normally there's only one interface, with id 0.  The
+ * second one must have id 1, and so on consecutively.
+ *
+ * The largest CPort id associated with an interface (defined by a
+ * CPort descriptor in the manifest) is used to determine how to
+ * encode the device id and module number in UniPro packets
+ * that use the interface.
+ */
+struct greybus_descriptor_interface {
+	__u8	id;	/* module-relative id (0..) */
+};
+
+/*
+ * A CPort descriptor indicates the id of the interface within the
+ * module it's associated with, along with the CPort id used to
+ * address the CPort.  The protocol defines the format of messages
+ * exchanged using the CPort.
+ */
+struct greybus_descriptor_cport {
+	__u8	interface;
+	__le16	id;
+	__u8	protocol;	/* enum greybus_protocol */
+};
+
+/*
+ * A class descriptor defines functionality supplied by a module.
+ * Beyond that, not much else is defined yet...
+ */
+struct greybus_descriptor_class {
+	__u8	class;		/* enum greybus_class_type */
+};
+
 struct greybus_descriptor_header {
 	__le16	size;
-	__u8	type;	/* enum greybus_descriptor_type */
+	__u8	type;		/* enum greybus_descriptor_type */
 };
 
 struct greybus_descriptor {
-	struct greybus_descriptor_header	header;
+	struct greybus_descriptor_header		header;
 	union {
 		struct greybus_descriptor_module	module;
 		struct greybus_descriptor_string	string;
 		struct greybus_descriptor_interface	interface;
 		struct greybus_descriptor_cport		cport;
+		struct greybus_descriptor_class		class;
 	};
 };
 

@@ -23,7 +23,7 @@ static int gb_module_match_one_id(struct gb_module *gmod,
 		return 0;
 
 	if ((id->match_flags & GREYBUS_DEVICE_ID_MATCH_SERIAL) &&
-	    (id->serial_number != gmod->serial_number))
+	    (id->unique_id != gmod->unique_id))
 		return 0;
 
 	return 1;
@@ -35,7 +35,7 @@ const struct greybus_module_id *gb_module_match_id(struct gb_module *gmod,
 	if (id == NULL)
 		return NULL;
 
-	for (; id->vendor || id->product || id->serial_number ||
+	for (; id->vendor || id->product || id->unique_id ||
 			id->driver_info; id++) {
 		if (gb_module_match_one_id(gmod, id))
 			return id;

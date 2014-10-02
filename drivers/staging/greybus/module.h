@@ -24,9 +24,9 @@ struct gb_module {
 	u16 vendor;
 	u16 product;
 	u16 version;
-	u64 serial_number;
 	char *vendor_string;
 	char *product_string;
+	u64 unique_id;
 
 	int num_cports;
 	int num_strings;

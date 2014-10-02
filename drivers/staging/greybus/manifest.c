@@ -80,11 +80,6 @@ static int identify_descriptor(struct greybus_descriptor *desc, size_t size)
 			return -EINVAL;
 		}
 		break;
-	case GREYBUS_TYPE_DEVICE:
-		break;
-	case GREYBUS_TYPE_CLASS:
-		pr_err("class descriptor found (ignoring)\n");
-		break;
 	case GREYBUS_TYPE_STRING:
 		expected_size = sizeof(struct greybus_descriptor_header);
 		expected_size += sizeof(struct greybus_descriptor_string);
@@ -95,12 +90,17 @@ static int identify_descriptor(struct greybus_descriptor *desc, size_t size)
 			return -EINVAL;
 		}
 		break;
+	case GREYBUS_TYPE_INTERFACE:
+		break;
 	case GREYBUS_TYPE_CPORT:
 		if (desc_size < sizeof(struct greybus_descriptor_cport)) {
 			pr_err("cport descriptor too small (%u)\n",
 				desc_size);
 			return -EINVAL;
 		}
+		break;
+	case GREYBUS_TYPE_CLASS:
+		pr_warn("class descriptor found (ignoring)\n");
 		break;
 	case GREYBUS_TYPE_INVALID:
 	default:
@@ -183,7 +183,7 @@ u32 gb_manifest_parse_cports(struct gb_interface *interface)
 	while (true) {
 		struct manifest_desc *descriptor;
 		struct greybus_descriptor_cport *desc_cport;
-		enum greybus_function_type function_type;
+		enum greybus_protocol protocol;
 		u16 cport_id;
 		bool found;
 
@@ -191,19 +191,20 @@ u32 gb_manifest_parse_cports(struct gb_interface *interface)
 		found = false;
 		list_for_each_entry(descriptor, &manifest_descs, links) {
 			if (descriptor->type == GREYBUS_TYPE_CPORT) {
-				found = true;
-				break;
+				desc_cport = descriptor->data;
+				if (desc_cport->interface == interface->id) {
+					found = true;
+					break;
+				}
 			}
 		}
 		if (!found)
 			break;
 
 		/* Found one.  Set up its function structure */
-		desc_cport = descriptor->data;
-		function_type =
-			(enum greybus_function_type)desc_cport->function_type;
+		protocol = (enum greybus_protocol)desc_cport->protocol;
 		cport_id = le16_to_cpu(desc_cport->id);
-		if (!gb_function_create(interface, cport_id, function_type))
+		if (!gb_function_create(interface, cport_id))
 			return 0;	/* Error */
 
 		count++;
@@ -231,7 +232,7 @@ static u32 gb_manifest_parse_interfaces(struct gb_module *gmod)
 
 		/* Find an interface descriptor */
 		list_for_each_entry(descriptor, &manifest_descs, links) {
-			if (descriptor->type == GREYBUS_TYPE_DEVICE) {
+			if (descriptor->type == GREYBUS_TYPE_INTERFACE) {
 				found = true;
 				break;
 			}
@@ -284,7 +285,7 @@ struct gb_module *gb_manifest_parse_module(struct manifest_desc *module_desc)
 	gmod->vendor = le16_to_cpu(desc_module->vendor);
 	gmod->product = le16_to_cpu(desc_module->product);
 	gmod->version = le16_to_cpu(desc_module->version);
-	gmod->serial_number = le64_to_cpu(desc_module->serial_number);
+	gmod->unique_id = le64_to_cpu(desc_module->unique_id);
 
 	/* Release the module descriptor, now that we're done with it */
 	release_manifest_descriptor(module_desc);

@@ -40,7 +40,7 @@ static ssize_t module_serial_number_show(struct device *dev,
 {
 	struct gb_module *gmod = to_gb_module(dev);
 
-	return sprintf(buf, "%llX\n", (unsigned long long)gmod->serial_number);
+	return sprintf(buf, "%llX\n", (unsigned long long)gmod->unique_id);
 }
 static DEVICE_ATTR_RO(module_serial_number);
 
@@ -86,7 +86,7 @@ static umode_t module_attrs_are_visible(struct kobject *kobj,
 		return mode;
 	if (gmod->vendor || gmod->product || gmod->version)
 		return mode;
-	if (gmod->serial_number)
+	if (gmod->unique_id)
 		return mode;
 
 	return 0;
