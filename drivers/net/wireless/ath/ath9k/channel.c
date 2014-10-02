@@ -1177,6 +1177,25 @@ bool ath9k_is_chanctx_enabled(void)
 /* Queue management */
 /********************/
 
+void ath9k_chanctx_stop_queues(struct ath_softc *sc, struct ath_chanctx *ctx)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	int i;
+
+	if (ctx == &sc->offchannel.chan) {
+		ieee80211_stop_queue(sc->hw,
+				     sc->hw->offchannel_tx_hw_queue);
+	} else {
+		for (i = 0; i < IEEE80211_NUM_ACS; i++)
+			ieee80211_stop_queue(sc->hw,
+					     ctx->hw_queue_base + i);
+	}
+
+	if (ah->opmode == NL80211_IFTYPE_AP)
+		ieee80211_stop_queue(sc->hw, sc->hw->queues - 2);
+}
+
+
 void ath9k_chanctx_wake_queues(struct ath_softc *sc, struct ath_chanctx *ctx)
 {
 	struct ath_hw *ah = sc->sc_ah;

@@ -456,6 +456,7 @@ void ath9k_beacon_add_noa(struct ath_softc *sc, struct ath_vif *avp,
 			  struct sk_buff *skb);
 void ath9k_p2p_ps_timer(void *priv);
 void ath9k_chanctx_wake_queues(struct ath_softc *sc, struct ath_chanctx *ctx);
+void ath9k_chanctx_stop_queues(struct ath_softc *sc, struct ath_chanctx *ctx);
 void ath_chanctx_check_active(struct ath_softc *sc, struct ath_chanctx *ctx);
 
 void ath_chanctx_beacon_recv_ev(struct ath_softc *sc,
@@ -526,6 +527,10 @@ static inline void ath9k_p2p_ps_timer(struct ath_softc *sc)
 {
 }
 static inline void ath9k_chanctx_wake_queues(struct ath_softc *sc,
+					     struct ath_chanctx *ctx)
+{
+}
+static inline void ath9k_chanctx_stop_queues(struct ath_softc *sc,
 					     struct ath_chanctx *ctx)
 {
 }
