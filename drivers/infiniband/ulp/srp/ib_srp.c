@@ -821,8 +821,6 @@ static int srp_alloc_req_data(struct srp_rdma_ch *ch)
 	dma_addr_t dma_addr;
 	int i, ret = -ENOMEM;
 
-	INIT_LIST_HEAD(&ch->free_reqs);
-
 	ch->req_ring = kcalloc(target->req_ring_size, sizeof(*ch->req_ring),
 			       GFP_KERNEL);
 	if (!ch->req_ring)
@@ -853,8 +851,6 @@ static int srp_alloc_req_data(struct srp_rdma_ch *ch)
 			goto out;
 
 		req->indirect_dma_addr = dma_addr;
-		req->index = i;
-		list_add_tail(&req->list, &ch->free_reqs);
 	}
 	ret = 0;
 
@@ -1076,7 +1072,6 @@ static void srp_free_req(struct srp_rdma_ch *ch, struct srp_request *req,
 
 	spin_lock_irqsave(&ch->lock, flags);
 	ch->req_lim += req_lim_delta;
-	list_add_tail(&req->list, &ch->free_reqs);
 	spin_unlock_irqrestore(&ch->lock, flags);
 }
 
@@ -1648,8 +1643,11 @@ static void srp_process_rsp(struct srp_rdma_ch *ch, struct srp_rsp *rsp)
 			ch->tsk_mgmt_status = rsp->data[3];
 		complete(&ch->tsk_mgmt_done);
 	} else {
-		req = &ch->req_ring[rsp->tag];
-		scmnd = srp_claim_req(ch, req, NULL, NULL);
+		scmnd = scsi_host_find_tag(target->scsi_host, rsp->tag);
+		if (scmnd) {
+			req = (void *)scmnd->host_scribble;
+			scmnd = srp_claim_req(ch, req, NULL, scmnd);
+		}
 		if (!scmnd) {
 			shost_printk(KERN_ERR, target->scsi_host,
 				     "Null scmnd for RSP w/tag %016llx\n",
@@ -1889,6 +1887,8 @@ static int srp_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmnd)
 	struct srp_cmd *cmd;
 	struct ib_device *dev;
 	unsigned long flags;
+	u32 tag;
+	u16 idx;
 	int len, ret;
 	const bool in_scsi_eh = !in_interrupt() && current == shost->ehandler;
 
@@ -1905,17 +1905,22 @@ static int srp_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmnd)
 	if (unlikely(scmnd->result))
 		goto err;
 
+	WARN_ON_ONCE(scmnd->request->tag < 0);
+	tag = blk_mq_unique_tag(scmnd->request);
 	ch = &target->ch;
+	idx = blk_mq_unique_tag_to_tag(tag);
+	WARN_ONCE(idx >= target->req_ring_size, "%s: tag %#x: idx %d >= %d\n",
+		  dev_name(&shost->shost_gendev), tag, idx,
+		  target->req_ring_size);
 
 	spin_lock_irqsave(&ch->lock, flags);
 	iu = __srp_get_tx_iu(ch, SRP_IU_CMD);
-	if (!iu)
-		goto err_unlock;
-
-	req = list_first_entry(&ch->free_reqs, struct srp_request, list);
-	list_del(&req->list);
 	spin_unlock_irqrestore(&ch->lock, flags);
 
+	if (!iu)
+		goto err;
+
+	req = &ch->req_ring[idx];
 	dev = target->srp_host->srp_dev->dev;
 	ib_dma_sync_single_for_cpu(dev, iu->dma, target->max_iu_len,
 				   DMA_TO_DEVICE);
@@ -1927,7 +1932,7 @@ static int srp_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmnd)
 
 	cmd->opcode = SRP_CMD;
 	cmd->lun    = cpu_to_be64((u64) scmnd->device->lun << 48);
-	cmd->tag    = req->index;
+	cmd->tag    = tag;
 	memcpy(cmd->cdb, scmnd->cmnd, scmnd->cmd_len);
 
 	req->scmnd    = scmnd;
@@ -1975,12 +1980,6 @@ err_iu:
 	 * encounter a dangling SCSI command pointer.
 	 */
 	req->scmnd = NULL;
-
-	spin_lock_irqsave(&ch->lock, flags);
-	list_add(&req->list, &ch->free_reqs);
-
-err_unlock:
-	spin_unlock_irqrestore(&ch->lock, flags);
 
 err:
 	if (scmnd->result) {
@@ -2387,6 +2386,7 @@ static int srp_abort(struct scsi_cmnd *scmnd)
 {
 	struct srp_target_port *target = host_to_target(scmnd->device->host);
 	struct srp_request *req = (struct srp_request *) scmnd->host_scribble;
+	u32 tag;
 	struct srp_rdma_ch *ch;
 	int ret;
 
@@ -2395,7 +2395,8 @@ static int srp_abort(struct scsi_cmnd *scmnd)
 	ch = &target->ch;
 	if (!req || !srp_claim_req(ch, req, NULL, scmnd))
 		return SUCCESS;
-	if (srp_send_tsk_mgmt(ch, req->index, scmnd->device->lun,
+	tag = blk_mq_unique_tag(scmnd->request);
+	if (srp_send_tsk_mgmt(ch, tag, scmnd->device->lun,
 			      SRP_TSK_ABORT_TASK) == 0)
 		ret = SUCCESS;
 	else if (target->rport->state == SRP_RPORT_LOST)
@@ -2633,7 +2634,8 @@ static struct scsi_host_template srp_template = {
 	.this_id			= -1,
 	.cmd_per_lun			= SRP_DEFAULT_CMD_SQ_SIZE,
 	.use_clustering			= ENABLE_CLUSTERING,
-	.shost_attrs			= srp_host_attrs
+	.shost_attrs			= srp_host_attrs,
+	.use_blk_tags			= 1,
 };
 
 static int srp_sdev_count(struct Scsi_Host *host)
@@ -3051,6 +3053,10 @@ static ssize_t srp_create_target(struct device *dev,
 	mutex_lock(&host->add_target_mutex);
 
 	ret = srp_parse_options(buf, target);
+	if (ret)
+		goto err;
+
+	ret = scsi_init_shared_tag_map(target_host, target_host->can_queue);
 	if (ret)
 		goto err;
 
