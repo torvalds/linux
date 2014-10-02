@@ -68,6 +68,9 @@
 #define MAX_APIC_VECTOR			256
 #define APIC_VECTORS_PER_REG		32
 
+#define APIC_BROADCAST			0xFF
+#define X2APIC_BROADCAST		0xFFFFFFFFul
+
 #define VEC_POS(v) ((v) & (32 - 1))
 #define REG_POS(v) (((v) >> 5) << 4)
 
@@ -149,6 +152,7 @@ static void recalculate_apic_map(struct kvm *kvm)
 	new->cid_shift = 8;
 	new->cid_mask = 0;
 	new->lid_mask = 0xff;
+	new->broadcast = APIC_BROADCAST;
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		struct kvm_lapic *apic = vcpu->arch.apic;
@@ -170,6 +174,7 @@ static void recalculate_apic_map(struct kvm *kvm)
 			new->cid_shift = 16;
 			new->cid_mask = (1 << KVM_X2APIC_CID_BITS) - 1;
 			new->lid_mask = 0xffff;
+			new->broadcast = X2APIC_BROADCAST;
 		} else if (kvm_apic_sw_enabled(apic) &&
 				!new->cid_mask /* flat mode */ &&
 				kvm_apic_get_reg(apic, APIC_DFR) == APIC_DFR_CLUSTER) {
@@ -558,15 +563,24 @@ static void apic_set_tpr(struct kvm_lapic *apic, u32 tpr)
 	apic_update_ppr(apic);
 }
 
-int kvm_apic_match_physical_addr(struct kvm_lapic *apic, u16 dest)
+static int kvm_apic_broadcast(struct kvm_lapic *apic, u32 dest)
 {
-	return dest == 0xff || kvm_apic_id(apic) == dest;
+	return dest == (apic_x2apic_mode(apic) ?
+			X2APIC_BROADCAST : APIC_BROADCAST);
 }
 
-int kvm_apic_match_logical_addr(struct kvm_lapic *apic, u8 mda)
+int kvm_apic_match_physical_addr(struct kvm_lapic *apic, u32 dest)
+{
+	return kvm_apic_id(apic) == dest || kvm_apic_broadcast(apic, dest);
+}
+
+int kvm_apic_match_logical_addr(struct kvm_lapic *apic, u32 mda)
 {
 	int result = 0;
 	u32 logical_id;
+
+	if (kvm_apic_broadcast(apic, mda))
+		return 1;
 
 	if (apic_x2apic_mode(apic)) {
 		logical_id = kvm_apic_get_reg(apic, APIC_LDR);
@@ -595,7 +609,7 @@ int kvm_apic_match_logical_addr(struct kvm_lapic *apic, u8 mda)
 }
 
 int kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
-			   int short_hand, int dest, int dest_mode)
+			   int short_hand, unsigned int dest, int dest_mode)
 {
 	int result = 0;
 	struct kvm_lapic *target = vcpu->arch.apic;
@@ -657,9 +671,11 @@ bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
 	if (!map)
 		goto out;
 
+	if (irq->dest_id == map->broadcast)
+		goto out;
+
 	if (irq->dest_mode == 0) { /* physical mode */
-		if (irq->delivery_mode == APIC_DM_LOWEST ||
-				irq->dest_id == 0xff)
+		if (irq->delivery_mode == APIC_DM_LOWEST)
 			goto out;
 		dst = &map->phys_map[irq->dest_id & 0xff];
 	} else {
