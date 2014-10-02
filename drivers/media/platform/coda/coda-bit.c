@@ -1591,6 +1591,7 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 	struct coda_q_data *q_data_dst;
 	struct vb2_buffer *dst_buf;
 	struct coda_timestamp *ts;
+	unsigned long payload;
 	int width, height;
 	int decoded_idx;
 	int display_idx;
@@ -1776,7 +1777,18 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 		dst_buf->v4l2_buf.timecode = ts->timecode;
 		dst_buf->v4l2_buf.timestamp = ts->timestamp;
 
-		vb2_set_plane_payload(dst_buf, 0, width * height * 3 / 2);
+		switch (q_data_dst->fourcc) {
+		case V4L2_PIX_FMT_YUV420:
+		case V4L2_PIX_FMT_YVU420:
+		case V4L2_PIX_FMT_NV12:
+		default:
+			payload = width * height * 3 / 2;
+			break;
+		case V4L2_PIX_FMT_YUV422P:
+			payload = width * height * 2;
+			break;
+		}
+		vb2_set_plane_payload(dst_buf, 0, payload);
 
 		v4l2_m2m_buf_done(dst_buf, ctx->frame_errors[display_idx] ?
 				  VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
