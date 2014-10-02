@@ -192,7 +192,6 @@ void greybus_gbuf_finished(struct gbuf *gbuf);
 struct greybus_module {
 	struct device dev;
 	u16 module_number;
-	struct greybus_descriptor_function function;
 	struct greybus_descriptor_module module;
 	int num_cports;
 	int num_strings;
@@ -210,12 +209,9 @@ struct greybus_module {
 };
 #define to_greybus_module(d) container_of(d, struct greybus_module, dev)
 
-struct gbuf *greybus_alloc_gbuf(struct greybus_module *gmod,
-				u16 cport_id,
-				gbuf_complete_t complete,
-				unsigned int size,
-				gfp_t gfp_mask,
-				void *context);
+struct gbuf *greybus_alloc_gbuf(struct greybus_module *gmod, u16 cport_id,
+				gbuf_complete_t complete, unsigned int size,
+				gfp_t gfp_mask, void *context);
 void greybus_free_gbuf(struct gbuf *gbuf);
 struct gbuf *greybus_get_gbuf(struct gbuf *gbuf);
 #define greybus_put_gbuf	greybus_free_gbuf

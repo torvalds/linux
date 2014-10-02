@@ -232,19 +232,6 @@ static const struct greybus_module_id fake_gb_id = {
 	GREYBUS_DEVICE(0x42, 0x42)
 };
 
-static int create_function(struct greybus_module *gmod,
-			   struct greybus_descriptor_function *function,
-			   size_t desc_size)
-{
-	if (desc_size != sizeof(*function)) {
-		dev_err(gmod->dev.parent, "invalid function header size %zu\n",
-			desc_size);
-		return -EINVAL;
-	}
-	memcpy(&gmod->function, function, desc_size);
-	return 0;
-}
-
 static int create_module(struct greybus_module *gmod,
 			    struct greybus_descriptor_module *module,
 			    size_t desc_size)
@@ -385,9 +372,7 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 		data_size = (size_t)desc_size - sizeof(desc->header);
 
 		switch (le16_to_cpu(desc->header.type)) {
-		case GREYBUS_TYPE_FUNCTION:
-			retval = create_function(gmod, &desc->function,
-						 data_size);
+		case GREYBUS_TYPE_DEVICE:
 			break;
 
 		case GREYBUS_TYPE_MODULE:

@@ -20,44 +20,6 @@
 
 #include "kernel_ver.h"
 
-/* Function fields */
-#define greybus_function_attr(field)					\
-static ssize_t function_##field##_show(struct device *dev,		\
-				       struct device_attribute *attr,	\
-				       char *buf)			\
-{									\
-	struct greybus_module *gmod = to_greybus_module(dev);		\
-	return sprintf(buf, "%d\n", gmod->function.field);		\
-}									\
-static DEVICE_ATTR_RO(function_##field)
-
-greybus_function_attr(cport);
-greybus_function_attr(function_type);
-
-static struct attribute *function_attrs[] = {
-	&dev_attr_function_cport.attr,
-	&dev_attr_function_function_type.attr,
-	NULL,
-};
-
-static umode_t function_attrs_are_visible(struct kobject *kobj,
-					  struct attribute *a, int n)
-{
-	struct greybus_module *gmod = to_greybus_module(kobj_to_dev(kobj));
-
-	// FIXME - make this a dynamic structure to "know" if it really is here
-	// or not easier?
-	if (gmod->function.cport ||
-	    gmod->function.function_type)
-		return a->mode;
-	return 0;
-}
-
-static struct attribute_group function_attr_grp = {
-	.attrs =	function_attrs,
-	.is_visible =	function_attrs_are_visible,
-};
-
 /* Module fields */
 #define greybus_module_attr(field)					\
 static ssize_t module_##field##_show(struct device *dev,		\
@@ -147,7 +109,6 @@ static struct attribute_group module_attr_grp = {
 
 
 const struct attribute_group *greybus_module_groups[] = {
-	&function_attr_grp,
 	&module_attr_grp,
 	NULL,
 };
