@@ -1896,6 +1896,15 @@ static int coda_probe(struct platform_device *pdev)
 	if (!dev)
 		return -ENOMEM;
 
+	pdev_id = of_id ? of_id->data : platform_get_device_id(pdev);
+
+	if (of_id)
+		dev->devtype = of_id->data;
+	else if (pdev_id)
+		dev->devtype = &coda_devdata[pdev_id->driver_data];
+	else
+		return -EINVAL;
+
 	spin_lock_init(&dev->irqlock);
 	INIT_LIST_HEAD(&dev->instances);
 
@@ -1962,17 +1971,6 @@ static int coda_probe(struct platform_device *pdev)
 
 	mutex_init(&dev->dev_mutex);
 	mutex_init(&dev->coda_mutex);
-
-	pdev_id = of_id ? of_id->data : platform_get_device_id(pdev);
-
-	if (of_id) {
-		dev->devtype = of_id->data;
-	} else if (pdev_id) {
-		dev->devtype = &coda_devdata[pdev_id->driver_data];
-	} else {
-		v4l2_device_unregister(&dev->v4l2_dev);
-		return -EINVAL;
-	}
 
 	dev->debugfs_root = debugfs_create_dir("coda", NULL);
 	if (!dev->debugfs_root)
