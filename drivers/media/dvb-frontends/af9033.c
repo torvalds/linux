@@ -849,14 +849,42 @@ static int af9033_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct af9033_dev *dev = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &dev->fe.dtv_property_cache;
+	int ret;
+	u8 u8tmp;
 
 	/* use DVBv5 CNR */
-	if (c->cnr.stat[0].scale == FE_SCALE_DECIBEL)
-		*snr = div_s64(c->cnr.stat[0].svalue, 100); /* 1000x => 10x */
-	else
+	if (c->cnr.stat[0].scale == FE_SCALE_DECIBEL) {
+		*snr = div_s64(c->cnr.stat[0].svalue, 1000);
+
+		/* read current modulation */
+		ret = af9033_rd_reg(dev, 0x80f903, &u8tmp);
+		if (ret)
+			goto err;
+
+		/* scale value to 0x0000-0xffff */
+		switch ((u8tmp >> 0) & 3) {
+		case 0:
+			*snr = *snr * 0xFFFF / 23;
+			break;
+		case 1:
+			*snr = *snr * 0xFFFF / 26;
+			break;
+		case 2:
+			*snr = *snr * 0xFFFF / 32;
+			break;
+		default:
+			goto err;
+		}
+	} else {
 		*snr = 0;
+	}
 
 	return 0;
+
+err:
+	dev_dbg(&dev->client->dev, "failed=%d\n", ret);
+
+	return ret;
 }
 
 static int af9033_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
@@ -1043,6 +1071,33 @@ static void af9033_stat_work(struct work_struct *work)
 			goto err;
 
 		snr_val = (buf[2] << 16) | (buf[1] << 8) | (buf[0] << 0);
+
+		/* read superframe number */
+		ret = af9033_rd_reg(dev, 0x80f78b, &u8tmp);
+		if (ret)
+			goto err;
+
+		if (u8tmp)
+			snr_val /= u8tmp;
+
+		/* read current transmission mode */
+		ret = af9033_rd_reg(dev, 0x80f900, &u8tmp);
+		if (ret)
+			goto err;
+
+		switch ((u8tmp >> 0) & 3) {
+		case 0:
+			snr_val *= 4;
+			break;
+		case 1:
+			snr_val *= 1;
+			break;
+		case 2:
+			snr_val *= 2;
+			break;
+		default:
+			goto err;
+		}
 
 		/* read current modulation */
 		ret = af9033_rd_reg(dev, 0x80f903, &u8tmp);
