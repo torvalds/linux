@@ -691,6 +691,7 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 	struct vb2_buffer *buf;
 	int gamma, ret, value;
 	u32 dst_fourcc;
+	u32 stride;
 
 	q_data_src = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
 	q_data_dst = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
@@ -708,6 +709,14 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 	if (!coda_is_initialized(dev)) {
 		v4l2_err(v4l2_dev, "coda is not initialized.\n");
 		return -EFAULT;
+	}
+
+	if (dst_fourcc == V4L2_PIX_FMT_JPEG) {
+		if (!ctx->params.jpeg_qmat_tab[0])
+			ctx->params.jpeg_qmat_tab[0] = kmalloc(64, GFP_KERNEL);
+		if (!ctx->params.jpeg_qmat_tab[1])
+			ctx->params.jpeg_qmat_tab[1] = kmalloc(64, GFP_KERNEL);
+		coda_set_jpeg_compression_quality(ctx, ctx->params.jpeg_quality);
 	}
 
 	mutex_lock(&dev->coda_mutex);
@@ -765,6 +774,8 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 			 << CODA_PICHEIGHT_OFFSET;
 	}
 	coda_write(dev, value, CODA_CMD_ENC_SEQ_SRC_SIZE);
+	if (dst_fourcc == V4L2_PIX_FMT_JPEG)
+		ctx->params.framerate = 0;
 	coda_write(dev, ctx->params.framerate,
 		   CODA_CMD_ENC_SEQ_SRC_F_RATE);
 
@@ -798,6 +809,16 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 		}
 		coda_write(dev, value, CODA_CMD_ENC_SEQ_264_PARA);
 		break;
+	case V4L2_PIX_FMT_JPEG:
+		coda_write(dev, 0, CODA_CMD_ENC_SEQ_JPG_PARA);
+		coda_write(dev, ctx->params.jpeg_restart_interval,
+				CODA_CMD_ENC_SEQ_JPG_RST_INTERVAL);
+		coda_write(dev, 0, CODA_CMD_ENC_SEQ_JPG_THUMB_EN);
+		coda_write(dev, 0, CODA_CMD_ENC_SEQ_JPG_THUMB_SIZE);
+		coda_write(dev, 0, CODA_CMD_ENC_SEQ_JPG_THUMB_OFFSET);
+
+		coda_jpeg_write_tables(ctx);
+		break;
 	default:
 		v4l2_err(v4l2_dev,
 			 "dst format (0x%08x) invalid.\n", dst_fourcc);
@@ -805,28 +826,36 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 		goto out;
 	}
 
-	switch (ctx->params.slice_mode) {
-	case V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_SINGLE:
-		value = 0;
-		break;
-	case V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_MB:
-		value  = (ctx->params.slice_max_mb & CODA_SLICING_SIZE_MASK)
-			 << CODA_SLICING_SIZE_OFFSET;
-		value |= (1 & CODA_SLICING_UNIT_MASK)
-			 << CODA_SLICING_UNIT_OFFSET;
-		value |=  1 & CODA_SLICING_MODE_MASK;
-		break;
-	case V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_BYTES:
-		value  = (ctx->params.slice_max_bits & CODA_SLICING_SIZE_MASK)
-			 << CODA_SLICING_SIZE_OFFSET;
-		value |= (0 & CODA_SLICING_UNIT_MASK)
-			 << CODA_SLICING_UNIT_OFFSET;
-		value |=  1 & CODA_SLICING_MODE_MASK;
-		break;
+	/*
+	 * slice mode and GOP size registers are used for thumb size/offset
+	 * in JPEG mode
+	 */
+	if (dst_fourcc != V4L2_PIX_FMT_JPEG) {
+		switch (ctx->params.slice_mode) {
+		case V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_SINGLE:
+			value = 0;
+			break;
+		case V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_MB:
+			value  = (ctx->params.slice_max_mb &
+				  CODA_SLICING_SIZE_MASK)
+				 << CODA_SLICING_SIZE_OFFSET;
+			value |= (1 & CODA_SLICING_UNIT_MASK)
+				 << CODA_SLICING_UNIT_OFFSET;
+			value |=  1 & CODA_SLICING_MODE_MASK;
+			break;
+		case V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_BYTES:
+			value  = (ctx->params.slice_max_bits &
+				  CODA_SLICING_SIZE_MASK)
+				 << CODA_SLICING_SIZE_OFFSET;
+			value |= (0 & CODA_SLICING_UNIT_MASK)
+				 << CODA_SLICING_UNIT_OFFSET;
+			value |=  1 & CODA_SLICING_MODE_MASK;
+			break;
+		}
+		coda_write(dev, value, CODA_CMD_ENC_SEQ_SLICE_MODE);
+		value = ctx->params.gop_size & CODA_GOP_SIZE_MASK;
+		coda_write(dev, value, CODA_CMD_ENC_SEQ_GOP_SIZE);
 	}
-	coda_write(dev, value, CODA_CMD_ENC_SEQ_SLICE_MODE);
-	value = ctx->params.gop_size & CODA_GOP_SIZE_MASK;
-	coda_write(dev, value, CODA_CMD_ENC_SEQ_GOP_SIZE);
 
 	if (ctx->params.bitrate) {
 		/* Rate control enabled */
@@ -917,19 +946,24 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 		goto out;
 	}
 
-	if (dev->devtype->product == CODA_960)
-		ctx->num_internal_frames = 4;
-	else
-		ctx->num_internal_frames = 2;
-	ret = coda_alloc_framebuffers(ctx, q_data_src, dst_fourcc);
-	if (ret < 0) {
-		v4l2_err(v4l2_dev, "failed to allocate framebuffers\n");
-		goto out;
+	if (dst_fourcc != V4L2_PIX_FMT_JPEG) {
+		if (dev->devtype->product == CODA_960)
+			ctx->num_internal_frames = 4;
+		else
+			ctx->num_internal_frames = 2;
+		ret = coda_alloc_framebuffers(ctx, q_data_src, dst_fourcc);
+		if (ret < 0) {
+			v4l2_err(v4l2_dev, "failed to allocate framebuffers\n");
+			goto out;
+		}
+		stride = q_data_src->bytesperline;
+	} else {
+		ctx->num_internal_frames = 0;
+		stride = 0;
 	}
-
 	coda_write(dev, ctx->num_internal_frames, CODA_CMD_SET_FRAME_BUF_NUM);
-	coda_write(dev, q_data_src->bytesperline,
-			CODA_CMD_SET_FRAME_BUF_STRIDE);
+	coda_write(dev, stride, CODA_CMD_SET_FRAME_BUF_STRIDE);
+
 	if (dev->devtype->product == CODA_7541) {
 		coda_write(dev, q_data_src->bytesperline,
 				CODA7_CMD_SET_FRAME_SOURCE_BUF_STRIDE);
@@ -1103,6 +1137,9 @@ static int coda_prepare_encode(struct coda_ctx *ctx)
 			break;
 		case V4L2_PIX_FMT_MPEG4:
 			quant_param = ctx->params.mpeg4_intra_qp;
+			break;
+		case V4L2_PIX_FMT_JPEG:
+			quant_param = 30;
 			break;
 		default:
 			v4l2_warn(&ctx->dev->v4l2_dev,
@@ -1315,6 +1352,8 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 	if ((dev->devtype->product == CODA_7541) ||
 	    (dev->devtype->product == CODA_960))
 		val |= CODA_REORDER_ENABLE;
+	if (ctx->codec->src_fourcc == V4L2_PIX_FMT_JPEG)
+		val |= CODA_NO_INT_ENABLE;
 	coda_write(dev, val, CODA_CMD_DEC_SEQ_OPTION);
 
 	ctx->params.codec_mode = ctx->codec->mode;
