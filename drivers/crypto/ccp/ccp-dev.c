@@ -55,6 +55,20 @@ static inline void ccp_del_device(struct ccp_device *ccp)
 }
 
 /**
+ * ccp_present - check if a CCP device is present
+ *
+ * Returns zero if a CCP device is present, -ENODEV otherwise.
+ */
+int ccp_present(void)
+{
+	if (ccp_get_device())
+		return 0;
+
+	return -ENODEV;
+}
+EXPORT_SYMBOL_GPL(ccp_present);
+
+/**
  * ccp_enqueue_cmd - queue an operation for processing by the CCP
  *
  * @cmd: ccp_cmd struct to be processed
