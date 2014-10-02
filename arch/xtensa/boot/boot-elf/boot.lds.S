@@ -41,6 +41,7 @@ SECTIONS
 		__bss_end = .;
 	}
 
+#ifdef CONFIG_MMU
 	/*
 	 * This is a remapped copy of the Reset Vector Code.
 	 * It keeps gdb in sync with the PC after switching
@@ -51,4 +52,5 @@ SECTIONS
 	{
 		*(.ResetVector.remapped_text)
 	}
+#endif
 }
