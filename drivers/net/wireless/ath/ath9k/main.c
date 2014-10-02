@@ -60,8 +60,10 @@ static bool ath9k_has_pending_frames(struct ath_softc *sc, struct ath_txq *txq)
 
 	spin_lock_bh(&txq->axq_lock);
 
-	if (txq->axq_depth)
+	if (txq->axq_depth) {
 		pending = true;
+		goto out;
+	}
 
 	if (txq->mac80211_qnum >= 0) {
 		struct list_head *list;
@@ -70,6 +72,7 @@ static bool ath9k_has_pending_frames(struct ath_softc *sc, struct ath_txq *txq)
 		if (!list_empty(list))
 			pending = true;
 	}
+out:
 	spin_unlock_bh(&txq->axq_lock);
 	return pending;
 }
