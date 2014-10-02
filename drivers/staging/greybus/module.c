@@ -14,20 +14,16 @@ static DEFINE_SPINLOCK(gb_modules_lock);
 static int gb_module_match_one_id(struct gb_module *gmod,
 				const struct greybus_module_id *id)
 {
-	struct greybus_descriptor_module *module;
-
-	module = &gmod->module;
-
 	if ((id->match_flags & GREYBUS_DEVICE_ID_MATCH_VENDOR) &&
-	    (id->vendor != le16_to_cpu(module->vendor)))
+	    (id->vendor != gmod->vendor))
 		return 0;
 
 	if ((id->match_flags & GREYBUS_DEVICE_ID_MATCH_PRODUCT) &&
-	    (id->product != le16_to_cpu(module->product)))
+	    (id->product != gmod->product))
 		return 0;
 
 	if ((id->match_flags & GREYBUS_DEVICE_ID_MATCH_SERIAL) &&
-	    (id->serial_number != le64_to_cpu(module->serial_number)))
+	    (id->serial_number != gmod->serial_number))
 		return 0;
 
 	return 1;
@@ -83,6 +79,9 @@ void gb_module_destroy(struct gb_module *module)
 {
 	if (WARN_ON(!module))
 		return;
+
+	kfree(module->product_string);
+	kfree(module->vendor_string);
 
 	spin_lock_irq(&gb_modules_lock);
 	list_del(&module->links);

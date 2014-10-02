@@ -20,6 +20,7 @@
 
 #include "greybus_id.h"
 #include "greybus_manifest.h"
+#include "manifest.h"
 #include "module.h"
 #include "interface.h"
 #include "function.h"
@@ -245,8 +246,6 @@ void greybus_deregister(struct greybus_driver *driver);
 int greybus_disabled(void);
 
 void greybus_remove_device(struct gb_module *gmod);
-
-const u8 *greybus_string(struct gb_module *gmod, int id);
 
 /* Internal functions to gb module, move to internal .h file eventually. */
 

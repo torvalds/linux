@@ -20,7 +20,14 @@ struct gb_module {
 	struct list_head links;	/* greybus_host_device->modules */
 	u8 module_id;		/* Physical location within the Endo */
 
-	struct greybus_descriptor_module module;
+	/* Information taken from the manifest module descriptor */
+	u16 vendor;
+	u16 product;
+	u16 version;
+	u64 serial_number;
+	char *vendor_string;
+	char *product_string;
+
 	int num_cports;
 	int num_strings;
 	u16 cport_ids[MAX_CPORTS_PER_MODULE];

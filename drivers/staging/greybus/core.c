@@ -126,22 +126,6 @@ static void greybus_module_release(struct device *dev)
 }
 
 
-const u8 *greybus_string(struct gb_module *gmod, int id)
-{
-	int i;
-	struct gmod_string *string;
-
-	if (!gmod)
-		return NULL;
-
-	for (i = 0; i < gmod->num_strings; ++i) {
-		string = gmod->string[i];
-		if (string->id == id)
-			return &string->string[0];
-	}
-	return NULL;
-}
-
 static struct device_type greybus_module_type = {
 	.name =		"greybus_module",
 	.release =	greybus_module_release,
@@ -203,19 +187,6 @@ error_i2c:
 static const struct greybus_module_id fake_greybus_module_id = {
 	GREYBUS_DEVICE(0x42, 0x42)
 };
-
-static int create_module(struct gb_module *gmod,
-			    struct greybus_descriptor_module *module,
-			    size_t desc_size)
-{
-	if (desc_size != sizeof(*module)) {
-		dev_err(gmod->dev.parent, "invalid module header size %zu\n",
-			desc_size);
-		return -EINVAL;
-	}
-	memcpy(&gmod->module, module, desc_size);
-	return 0;
-}
 
 static int create_string(struct gb_module *gmod,
 			 struct greybus_descriptor_string *string,
@@ -284,15 +255,16 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 	struct gb_module *gmod;
 	struct greybus_manifest *manifest;
 	int retval;
-	int overall_size;
 
-	/* we have to have at _least_ the manifest header */
-	if (size <= sizeof(manifest->header))
+	/*
+	 * Parse the manifest and build up our data structures
+	 * representing what's in it.
+	 */
+	gmod = gb_manifest_parse(data, size);
+	if (!gmod) {
+		dev_err(hd->parent, "manifest error\n");
 		return;
-
-	gmod = gb_module_create(hd, module_id);
-	if (!gmod)
-		return;
+	}
 
 	gmod->dev.parent = hd->parent;
 	gmod->dev.driver = NULL;
@@ -302,24 +274,6 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 	gmod->dev.dma_mask = hd->parent->dma_mask;
 	device_initialize(&gmod->dev);
 	dev_set_name(&gmod->dev, "%d", module_id);
-
-	manifest = (struct greybus_manifest *)data;
-	overall_size = le16_to_cpu(manifest->header.size);
-	if (overall_size != size) {
-		dev_err(hd->parent, "size != manifest header size, %d != %d\n",
-			size, overall_size);
-		goto error;
-	}
-
-	/* Validate major/minor number */
-	if (manifest->header.version_major > GREYBUS_VERSION_MAJOR) {
-		dev_err(hd->parent,
-			"Manifest version too new (%hhu.%hhu > %hhu.%hhu)\n",
-			manifest->header.version_major,
-			manifest->header.version_minor,
-			GREYBUS_VERSION_MAJOR, GREYBUS_VERSION_MINOR);
-		goto error;
-	}
 
 	size -= sizeof(manifest->header);
 	data += sizeof(manifest->header);
@@ -347,8 +301,6 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 			break;
 
 		case GREYBUS_TYPE_MODULE:
-			retval = create_module(gmod, &desc->module,
-						  data_size);
 			break;
 
 		case GREYBUS_TYPE_STRING:

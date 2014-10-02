@@ -26,7 +26,7 @@ static ssize_t module_##field##_show(struct device *dev,		\
 				     char *buf)				\
 {									\
 	struct gb_module *gmod = to_gb_module(dev);			\
-	return sprintf(buf, "%x\n", gmod->module.field);		\
+	return sprintf(buf, "%x\n", gmod->field);			\
 }									\
 static DEVICE_ATTR_RO(module_##field)
 
@@ -40,8 +40,7 @@ static ssize_t module_serial_number_show(struct device *dev,
 {
 	struct gb_module *gmod = to_gb_module(dev);
 
-	return sprintf(buf, "%llX\n",
-		      (unsigned long long)le64_to_cpu(gmod->module.serial_number));
+	return sprintf(buf, "%llX\n", (unsigned long long)gmod->serial_number);
 }
 static DEVICE_ATTR_RO(module_serial_number);
 
@@ -51,8 +50,7 @@ static ssize_t module_vendor_string_show(struct device *dev,
 {
 	struct gb_module *gmod = to_gb_module(dev);
 
-	return sprintf(buf, "%s",
-		       greybus_string(gmod, gmod->module.vendor_stringid));
+	return sprintf(buf, "%s", gmod->vendor_string);
 }
 static DEVICE_ATTR_RO(module_vendor_string);
 
@@ -62,8 +60,7 @@ static ssize_t module_product_string_show(struct device *dev,
 {
 	struct gb_module *gmod = to_gb_module(dev);
 
-	return sprintf(buf, "%s",
-		       greybus_string(gmod, gmod->module.product_stringid));
+	return sprintf(buf, "%s", gmod->product_string);
 }
 static DEVICE_ATTR_RO(module_product_string);
 
@@ -81,21 +78,17 @@ static umode_t module_attrs_are_visible(struct kobject *kobj,
 					struct attribute *a, int n)
 {
 	struct gb_module *gmod = to_gb_module(kobj_to_dev(kobj));
+	umode_t mode = a->mode;
 
-	if ((a == &dev_attr_module_vendor_string.attr) &&
-	    (gmod->module.vendor_stringid))
-		return a->mode;
-	if ((a == &dev_attr_module_product_string.attr) &&
-	    (gmod->module.product_stringid))
-		return a->mode;
+	if (a == &dev_attr_module_vendor_string.attr && gmod->vendor_string)
+		return mode;
+	if (a == &dev_attr_module_product_string.attr && gmod->product_string)
+		return mode;
+	if (gmod->vendor || gmod->product || gmod->version)
+		return mode;
+	if (gmod->serial_number)
+		return mode;
 
-	// FIXME - make this a dynamic structure to "know" if it really is here
-	// or not easier?
-	if (gmod->module.vendor ||
-	    gmod->module.product ||
-	    gmod->module.version ||
-	    gmod->module.serial_number)
-		return a->mode;
 	return 0;
 }
 
@@ -103,9 +96,6 @@ static struct attribute_group module_attr_grp = {
 	.attrs =	module_attrs,
 	.is_visible =	module_attrs_are_visible,
 };
-
-
-
 
 const struct attribute_group *greybus_module_groups[] = {
 	&module_attr_grp,
