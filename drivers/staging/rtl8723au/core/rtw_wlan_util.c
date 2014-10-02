@@ -1080,7 +1080,7 @@ bool is_ap_in_tkip23a(struct rtw_adapter *padapter)
 		return false;
 }
 
-bool should_forbid_n_rate23a(struct rtw_adapter * padapter)
+bool should_forbid_n_rate23a(struct rtw_adapter *padapter)
 {
 	u32 i;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;

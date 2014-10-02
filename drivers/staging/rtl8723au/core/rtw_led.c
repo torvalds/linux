@@ -51,7 +51,8 @@ void BlinkWorkItemCallback23a(struct work_struct *work)
 /*	Description: */
 /*		Reset status of led_8723a object. */
 /*  */
-void ResetLedStatus23a(struct led_8723a * pLed) {
+void ResetLedStatus23a(struct led_8723a *pLed)
+{
 
 	pLed->CurrLedState = RTW_LED_OFF; /*  Current LED state. */
 	pLed->bLedOn = false; /*  true if LED is ON, false if LED is OFF. */

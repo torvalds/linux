@@ -1766,7 +1766,7 @@ exit:
 	return ret;
 }
 
-int rtw_set_auth23a(struct rtw_adapter * adapter,
+int rtw_set_auth23a(struct rtw_adapter *adapter,
 		    struct security_priv *psecuritypriv)
 {
 	struct cmd_obj *pcmd;

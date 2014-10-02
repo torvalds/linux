@@ -30,12 +30,12 @@ struct arc4context
 	u8 state[256];
 };
 
-static void arcfour_init(struct arc4context	*parc4ctx, u8 * key, u32	key_len)
+static void arcfour_init(struct arc4context *parc4ctx, u8 *key, u32 key_len)
 {
 	u32	t, u;
 	u32	keyindex;
 	u32	stateindex;
-	u8 * state;
+	u8 *state;
 	u32	counter;
 
 	state = parc4ctx->state;
@@ -62,7 +62,7 @@ static u32 arcfour_byte(	struct arc4context	*parc4ctx)
 	u32 x;
 	u32 y;
 	u32 sx, sy;
-	u8 * state;
+	u8 *state;
 
 	state = parc4ctx->state;
 	x = (parc4ctx->x + 1) & 0xff;
@@ -78,8 +78,8 @@ static u32 arcfour_byte(	struct arc4context	*parc4ctx)
 }
 
 static void arcfour_encrypt(	struct arc4context	*parc4ctx,
-	u8 * dest,
-	u8 * src,
+	u8 *dest,
+	u8 *src,
 	u32 len)
 {
 	u32	i;
@@ -221,7 +221,7 @@ void rtw_wep_decrypt23a(struct rtw_adapter *padapter,
 	u8 keyindex;
 	struct rx_pkt_attrib *prxattrib = &precvframe->attrib;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
-	struct sk_buff * skb = precvframe->pkt;
+	struct sk_buff *skb = precvframe->pkt;
 
 	pframe = skb->data;
 
@@ -266,7 +266,7 @@ void rtw_wep_decrypt23a(struct rtw_adapter *padapter,
 
 /* 3		===== TKIP related ===== */
 
-static u32 secmicgetuint32(u8 * p)
+static u32 secmicgetuint32(u8 *p)
 /*  Convert from Byte[] to u32 in a portable way */
 {
 	s32 i;
@@ -280,7 +280,7 @@ static u32 secmicgetuint32(u8 * p)
 	return res;
 }
 
-static void secmicputuint32(u8 * p, u32 val)
+static void secmicputuint32(u8 *p, u32 val)
 /*  Convert from long to Byte[] in a portable way */
 {
 	long i;
@@ -304,7 +304,7 @@ static void secmicclear(struct mic_data *pmicdata)
 
 }
 
-void rtw_secmicsetkey23a(struct mic_data *pmicdata, u8 * key)
+void rtw_secmicsetkey23a(struct mic_data *pmicdata, u8 *key)
 {
 	/*  Set the key */
 
@@ -340,7 +340,7 @@ void rtw_secmicappend23abyte23a(struct mic_data *pmicdata, u8 b)
 
 }
 
-void rtw_secmicappend23a(struct mic_data *pmicdata, u8 * src, u32 nbytes)
+void rtw_secmicappend23a(struct mic_data *pmicdata, u8 *src, u32 nbytes)
 {
 
 	/*  This is simple */
@@ -352,7 +352,7 @@ void rtw_secmicappend23a(struct mic_data *pmicdata, u8 * src, u32 nbytes)
 
 }
 
-void rtw_secgetmic23a(struct mic_data *pmicdata, u8 * dst)
+void rtw_secgetmic23a(struct mic_data *pmicdata, u8 *dst)
 {
 
 	/*  Append the minimum padding */
@@ -374,7 +374,8 @@ void rtw_secgetmic23a(struct mic_data *pmicdata, u8 * dst)
 
 }
 
-void rtw_seccalctkipmic23a(u8 * key, u8 *header, u8 *data, u32 data_len, u8 *mic_code, u8 pri)
+void rtw_seccalctkipmic23a(u8 *key, u8 *header, u8 *data, u32 data_len,
+			   u8 *mic_code, u8 pri)
 {
 
 	struct mic_data	micdata;
@@ -728,7 +729,7 @@ int rtw_tkip_decrypt23a(struct rtw_adapter *padapter,
 	struct	sta_info		*stainfo;
 	struct	rx_pkt_attrib *prxattrib = &precvframe->attrib;
 	struct	security_priv *psecuritypriv = &padapter->securitypriv;
-	struct sk_buff * skb = precvframe->pkt;
+	struct sk_buff *skb = precvframe->pkt;
 	int res = _SUCCESS;
 
 	pframe = skb->data;
