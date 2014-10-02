@@ -1129,7 +1129,7 @@ static int coda_prepare_encode(struct coda_ctx *ctx)
 			ctx->vpu_header_size[0] +
 			ctx->vpu_header_size[1] +
 			ctx->vpu_header_size[2];
-		pic_stream_buffer_size = CODA_MAX_FRAME_SIZE -
+		pic_stream_buffer_size = q_data_dst->sizeimage -
 			ctx->vpu_header_size[0] -
 			ctx->vpu_header_size[1] -
 			ctx->vpu_header_size[2];
@@ -1143,7 +1143,7 @@ static int coda_prepare_encode(struct coda_ctx *ctx)
 	} else {
 		pic_stream_buffer_addr =
 			vb2_dma_contig_plane_dma_addr(dst_buf, 0);
-		pic_stream_buffer_size = CODA_MAX_FRAME_SIZE;
+		pic_stream_buffer_size = q_data_dst->sizeimage;
 	}
 
 	if (src_buf->v4l2_buf.flags & V4L2_BUF_FLAG_KEYFRAME) {
