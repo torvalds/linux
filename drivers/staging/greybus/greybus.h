@@ -24,7 +24,6 @@
 #include "manifest.h"
 #include "module.h"
 #include "interface.h"
-#include "function.h"
 #include "connection.h"
 #include "operation.h"
 

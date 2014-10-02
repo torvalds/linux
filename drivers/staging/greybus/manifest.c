@@ -204,7 +204,7 @@ u32 gb_manifest_parse_cports(struct gb_interface *interface)
 		/* Found one.  Set up its function structure */
 		protocol = (enum greybus_protocol)desc_cport->protocol;
 		cport_id = le16_to_cpu(desc_cport->id);
-		if (!gb_function_create(interface, cport_id))
+		if (!gb_connection_create(interface, cport_id))
 			return 0;	/* Error */
 
 		count++;

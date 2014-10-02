@@ -124,8 +124,8 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 
 	/* Our buffer holds a header in addition to the requested payload */
 	size += sizeof(*header);
-	gbuf = greybus_alloc_gbuf(connection->function->interface->gmod,
-				connection->cport_id,
+	gbuf = greybus_alloc_gbuf(connection->interface->gmod,
+				connection->hd_cport_id,
 				gbuf_out_callback, size,
 				GFP_KERNEL, operation);
 	if (gbuf) {

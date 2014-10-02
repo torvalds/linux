@@ -14,18 +14,21 @@
 #include "greybus.h"
 
 struct gb_connection {
-	struct gb_function		*function;
 	struct greybus_host_device	*hd;
-	u16				cport_id;	/* Host side */
+	struct gb_interface		*interface;
+	u16				hd_cport_id;
+	u16				interface_cport_id;
 
-	struct list_head		host_links;
+	struct list_head		hd_links;
+	struct list_head		interface_links;
+	/* protocol */
 
 	struct list_head		operations;
 	atomic_t			op_cycle;
 };
 
-struct gb_connection *gb_connection_create(struct greybus_host_device *hd,
-					struct gb_function *function);
+struct gb_connection *gb_connection_create(struct gb_interface *interface,
+						u16 cport_id);
 void gb_connection_destroy(struct gb_connection *connection);
 
 u16 gb_connection_op_id(struct gb_connection *connection);

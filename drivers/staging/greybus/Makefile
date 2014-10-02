@@ -6,7 +6,6 @@ greybus-y :=	core.o		\
 		manifest.o	\
 		module.o	\
 		interface.o	\
-		function.o	\
 		connection.o	\
 		operation.o	\
 		i2c-gb.o	\

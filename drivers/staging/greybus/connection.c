@@ -22,23 +22,25 @@
  * Returns a pointer to the new connection if successful, or a null
  * pointer otherwise.
  */
-struct gb_connection *gb_connection_create(struct greybus_host_device *hd,
-				struct gb_function *function)
+struct gb_connection *gb_connection_create(struct gb_interface *interface,
+						u16 cport_id)
 {
 	struct gb_connection *connection;
+	struct greybus_host_device *hd;
 
 	connection = kzalloc(sizeof(*connection), GFP_KERNEL);
 	if (!connection)
 		return NULL;
 
-	connection->cport_id = greybus_hd_cport_id_alloc(hd);
-	if (connection->cport_id == CPORT_ID_BAD) {
+	hd = interface->gmod->hd;
+	connection->hd_cport_id = greybus_hd_cport_id_alloc(hd);
+	if (connection->hd_cport_id == CPORT_ID_BAD) {
 		kfree(connection);
 		return NULL;
 	}
-
 	connection->hd = hd;			/* XXX refcount? */
-	connection->function = function;	/* XXX refcount? */
+	connection->interface = interface;	/* XXX refcount? */
+	connection->interface_cport_id = cport_id;
 	INIT_LIST_HEAD(&connection->operations);
 	atomic_set(&connection->op_cycle, 0);
 
@@ -56,9 +58,9 @@ void gb_connection_destroy(struct gb_connection *connection)
 	/* XXX Need to wait for any outstanding requests to complete */
 	WARN_ON(!list_empty(&connection->operations));
 
-	greybus_hd_cport_id_free(connection->hd, connection->cport_id);
-	/* kref_put(function); */
-	/* kref_put(hd); */
+	greybus_hd_cport_id_free(connection->hd, connection->hd_cport_id);
+	/* kref_put(connection->interface); */
+	/* kref_put(connection->hd); */
 	kfree(connection);
 }
 
