@@ -1625,6 +1625,26 @@ static int coda_prepare_decode(struct coda_ctx *ctx)
 		coda_write(dev, ctx->iram_info.axi_sram_use,
 				CODA7_REG_BIT_AXI_SRAM_USE);
 
+	if (ctx->codec->src_fourcc == V4L2_PIX_FMT_JPEG) {
+		struct coda_buffer_meta *meta;
+
+		/* If this is the last buffer in the bitstream, add padding */
+		meta = list_first_entry(&ctx->buffer_meta_list,
+				      struct coda_buffer_meta, list);
+		if (meta->end == (ctx->bitstream_fifo.kfifo.in &
+				  ctx->bitstream_fifo.kfifo.mask)) {
+			static unsigned char buf[512];
+			unsigned int pad;
+
+			/* Pad to multiple of 256 and then add 256 more */
+			pad = ((0 - meta->end) & 0xff) + 256;
+
+			memset(buf, 0xff, sizeof(buf));
+
+			kfifo_in(&ctx->bitstream_fifo, buf, pad);
+		}
+	}
+
 	coda_kfifo_sync_to_device_full(ctx);
 
 	coda_command_async(ctx, CODA_COMMAND_PIC_RUN);
