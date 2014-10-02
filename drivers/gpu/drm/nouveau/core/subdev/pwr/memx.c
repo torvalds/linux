@@ -107,7 +107,7 @@ nouveau_memx_wait(struct nouveau_memx *memx,
 {
 	nv_debug(memx->ppwr, "R[%06x] & 0x%08x == 0x%08x, %d us\n",
 				addr, mask, data, nsec);
-	memx_cmd(memx, MEMX_WAIT, 4, (u32[]){ addr, ~mask, data, nsec });
+	memx_cmd(memx, MEMX_WAIT, 4, (u32[]){ addr, mask, data, nsec });
 	memx_out(memx); /* fuc can't handle multiple */
 }
 
