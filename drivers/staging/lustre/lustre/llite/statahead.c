@@ -915,7 +915,7 @@ static int do_sa_revalidate(struct inode *dir, struct ll_sa_entry *entry,
 	return rc;
 }
 
-static void ll_statahead_one(struct dentry *parent, const char* entry_name,
+static void ll_statahead_one(struct dentry *parent, const char *entry_name,
 			     int entry_name_len)
 {
 	struct inode	     *dir    = parent->d_inode;

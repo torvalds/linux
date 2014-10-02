@@ -428,7 +428,7 @@ EXPORT_SYMBOL(ptlrpc_pinger_del_import);
  * Register a timeout callback to the pinger list, and the callback will
  * be called when timeout happens.
  */
-struct timeout_item* ptlrpc_new_timeout(int time, enum timeout_event event,
+struct timeout_item *ptlrpc_new_timeout(int time, enum timeout_event event,
 					timeout_cb_t cb, void *data)
 {
 	struct timeout_item *ti;

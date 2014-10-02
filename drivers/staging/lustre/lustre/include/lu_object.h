@@ -1120,7 +1120,7 @@ struct lu_context_key {
 };
 
 #define LU_KEY_INIT(mod, type)				    \
-	static void* mod##_key_init(const struct lu_context *ctx, \
+	static void *mod##_key_init(const struct lu_context *ctx, \
 				    struct lu_context_key *key)   \
 	{							 \
 		type *value;				      \
@@ -1137,7 +1137,7 @@ struct lu_context_key {
 
 #define LU_KEY_FINI(mod, type)					      \
 	static void mod##_key_fini(const struct lu_context *ctx,	    \
-				    struct lu_context_key *key, void* data) \
+				    struct lu_context_key *key, void *data) \
 	{								   \
 		type *info = data;					  \
 									    \
