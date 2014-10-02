@@ -1711,7 +1711,7 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 #define HPD_STORM_DETECT_PERIOD 1000
 #define HPD_STORM_THRESHOLD 5
 
-static int ilk_port_to_hotplug_shift(enum port port)
+static int pch_port_to_hotplug_shift(enum port port)
 {
 	switch (port) {
 	case PORT_A:
@@ -1727,7 +1727,7 @@ static int ilk_port_to_hotplug_shift(enum port port)
 	}
 }
 
-static int g4x_port_to_hotplug_shift(enum port port)
+static int i915_port_to_hotplug_shift(enum port port)
 {
 	switch (port) {
 	case PORT_A:
@@ -1785,12 +1785,12 @@ static inline void intel_hpd_irq_handler(struct drm_device *dev,
 		if (port && dev_priv->hpd_irq_port[port]) {
 			bool long_hpd;
 
-			if (IS_G4X(dev)) {
-				dig_shift = g4x_port_to_hotplug_shift(port);
-				long_hpd = (hotplug_trigger >> dig_shift) & PORTB_HOTPLUG_LONG_DETECT;
-			} else {
-				dig_shift = ilk_port_to_hotplug_shift(port);
+			if (HAS_PCH_SPLIT(dev)) {
+				dig_shift = pch_port_to_hotplug_shift(port);
 				long_hpd = (dig_hotplug_reg >> dig_shift) & PORTB_HOTPLUG_LONG_DETECT;
+			} else {
+				dig_shift = i915_port_to_hotplug_shift(port);
+				long_hpd = (hotplug_trigger >> dig_shift) & PORTB_HOTPLUG_LONG_DETECT;
 			}
 
 			DRM_DEBUG_DRIVER("digital hpd port %c - %s\n",
