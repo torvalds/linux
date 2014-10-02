@@ -596,7 +596,8 @@ struct sk_buff {
 	__u8			ndisc_nodetype:2;
 #endif
 	__u8			ipvs_property:1;
-	/* 5 or 7 bit hole */
+	__u8			inner_protocol_type:1;
+	/* 4 or 6 bit hole */
 
 #ifdef CONFIG_NET_SCHED
 	__u16			tc_index;	/* traffic control index */
@@ -632,7 +633,11 @@ struct sk_buff {
 		__u32		reserved_tailroom;
 	};
 
-	__be16			inner_protocol;
+	union {
+		__be16		inner_protocol;
+		__u8		inner_ipproto;
+	};
+
 	__u16			inner_transport_header;
 	__u16			inner_network_header;
 	__u16			inner_mac_header;
@@ -1760,6 +1765,23 @@ static inline void skb_reserve(struct sk_buff *skb, int len)
 {
 	skb->data += len;
 	skb->tail += len;
+}
+
+#define ENCAP_TYPE_ETHER	0
+#define ENCAP_TYPE_IPPROTO	1
+
+static inline void skb_set_inner_protocol(struct sk_buff *skb,
+					  __be16 protocol)
+{
+	skb->inner_protocol = protocol;
+	skb->inner_protocol_type = ENCAP_TYPE_ETHER;
+}
+
+static inline void skb_set_inner_ipproto(struct sk_buff *skb,
+					 __u8 ipproto)
+{
+	skb->inner_ipproto = ipproto;
+	skb->inner_protocol_type = ENCAP_TYPE_IPPROTO;
 }
 
 static inline void skb_reset_inner_headers(struct sk_buff *skb)
