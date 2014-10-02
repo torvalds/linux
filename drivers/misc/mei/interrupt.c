@@ -44,8 +44,6 @@ void mei_irq_compl_handler(struct mei_device *dev, struct mei_cl_cb *compl_list)
 	list_for_each_entry_safe(cb, next, &compl_list->list, list) {
 		cl = cb->cl;
 		list_del(&cb->list);
-		if (!cl)
-			continue;
 
 		dev_dbg(dev->dev, "completing call back.\n");
 		if (cl == &dev->iamthif_cl)
@@ -105,7 +103,7 @@ static int mei_cl_irq_read_msg(struct mei_device *dev,
 
 	list_for_each_entry_safe(cb, next, &dev->read_list.list, list) {
 		cl = cb->cl;
-		if (!cl || !mei_cl_is_reading(cl, mei_hdr))
+		if (!mei_cl_is_reading(cl, mei_hdr))
 			continue;
 
 		cl->reading_state = MEI_READING;
@@ -449,8 +447,6 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 	list = &dev->write_waiting_list;
 	list_for_each_entry_safe(cb, next, &list->list, list) {
 		cl = cb->cl;
-		if (cl == NULL)
-			continue;
 
 		cl->status = 0;
 		list_del(&cb->list);
@@ -489,10 +485,6 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 	dev_dbg(dev->dev, "complete control write list cb.\n");
 	list_for_each_entry_safe(cb, next, &dev->ctrl_wr_list.list, list) {
 		cl = cb->cl;
-		if (!cl) {
-			list_del(&cb->list);
-			return -ENODEV;
-		}
 		switch (cb->fop_type) {
 		case MEI_FOP_DISCONNECT:
 			/* send disconnect message */
@@ -530,8 +522,6 @@ int mei_irq_write_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list)
 	dev_dbg(dev->dev, "complete write list cb.\n");
 	list_for_each_entry_safe(cb, next, &dev->write_list.list, list) {
 		cl = cb->cl;
-		if (cl == NULL)
-			continue;
 		if (cl == &dev->iamthif_cl)
 			ret = mei_amthif_irq_write(cl, cb, cmpl_list);
 		else

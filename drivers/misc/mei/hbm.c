@@ -637,11 +637,6 @@ static void mei_hbm_cl_res(struct mei_device *dev,
 	list_for_each_entry_safe(cb, next, &dev->ctrl_rd_list.list, list) {
 
 		cl = cb->cl;
-		/* this should not happen */
-		if (WARN_ON(!cl)) {
-			list_del_init(&cb->list);
-			continue;
-		}
 
 		if (cb->fop_type != fop_type)
 			continue;

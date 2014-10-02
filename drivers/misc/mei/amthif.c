@@ -360,8 +360,7 @@ int mei_amthif_write(struct mei_device *dev, struct mei_cl_cb *cb)
 void mei_amthif_run_next_cmd(struct mei_device *dev)
 {
 	struct mei_cl_cb *cb;
-	struct mei_cl_cb *next;
-	int status;
+	int ret;
 
 	if (!dev)
 		return;
@@ -376,16 +375,14 @@ void mei_amthif_run_next_cmd(struct mei_device *dev)
 
 	dev_dbg(dev->dev, "complete amthif cmd_list cb.\n");
 
-	list_for_each_entry_safe(cb, next, &dev->amthif_cmd_list.list, list) {
-		list_del(&cb->list);
-		if (!cb->cl)
-			continue;
-		status = mei_amthif_send_cmd(dev, cb);
-		if (status)
-			dev_warn(dev->dev, "amthif write failed status = %d\n",
-						status);
-		break;
-	}
+	cb = list_first_entry_or_null(&dev->amthif_cmd_list.list,
+					typeof(*cb), list);
+	if (!cb)
+		return;
+	list_del(&cb->list);
+	ret =  mei_amthif_send_cmd(dev, cb);
+	if (ret)
+		dev_warn(dev->dev, "amthif write failed status = %d\n", ret);
 }
 
 
@@ -535,9 +532,6 @@ int mei_amthif_irq_read_msg(struct mei_device *dev,
 
 	cb = dev->iamthif_current_cb;
 	dev->iamthif_current_cb = NULL;
-
-	if (!cb->cl)
-		return -ENODEV;
 
 	dev->iamthif_stall_timer = 0;
 	cb->buf_idx = dev->iamthif_msg_buf_index;
