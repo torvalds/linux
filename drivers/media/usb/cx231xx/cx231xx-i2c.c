@@ -24,6 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/usb.h>
 #include <linux/i2c.h>
+#include <linux/i2c-mux.h>
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
 
@@ -547,6 +548,46 @@ int cx231xx_i2c_unregister(struct cx231xx_i2c *bus)
 	return 0;
 }
 
+/*
+ * cx231xx_i2c_mux_select()
+ * switch i2c master number 1 between port1 and port3
+ */
+static int cx231xx_i2c_mux_select(struct i2c_adapter *adap,
+			void *mux_priv, u32 chan_id)
+{
+	struct cx231xx *dev = mux_priv;
+
+	return cx231xx_enable_i2c_port_3(dev, chan_id);
+}
+
+int cx231xx_i2c_mux_register(struct cx231xx *dev, int mux_no)
+{
+	struct i2c_adapter *i2c_parent = &dev->i2c_bus[1].i2c_adap;
+	/* what is the correct mux_dev? */
+	struct device *mux_dev = &dev->udev->dev;
+
+	dev->i2c_mux_adap[mux_no] = i2c_add_mux_adapter(i2c_parent,
+				mux_dev,
+				dev /* mux_priv */,
+				0,
+				mux_no /* chan_id */,
+				0 /* class */,
+				&cx231xx_i2c_mux_select,
+				NULL);
+
+	if (!dev->i2c_mux_adap[mux_no])
+		cx231xx_warn("%s: i2c mux %d register FAILED\n",
+			     dev->name, mux_no);
+
+	return 0;
+}
+
+void cx231xx_i2c_mux_unregister(struct cx231xx *dev, int mux_no)
+{
+	i2c_del_mux_adapter(dev->i2c_mux_adap[mux_no]);
+	dev->i2c_mux_adap[mux_no] = NULL;
+}
+
 struct i2c_adapter *cx231xx_get_i2c_adap(struct cx231xx *dev, int i2c_port)
 {
 	switch (i2c_port) {
@@ -557,8 +598,9 @@ struct i2c_adapter *cx231xx_get_i2c_adap(struct cx231xx *dev, int i2c_port)
 	case I2C_2:
 		return &dev->i2c_bus[2].i2c_adap;
 	case I2C_1_MUX_1:
+		return dev->i2c_mux_adap[0];
 	case I2C_1_MUX_3:
-		return &dev->i2c_bus[1].i2c_adap;
+		return dev->i2c_mux_adap[1];
 	default:
 		return NULL;
 	}

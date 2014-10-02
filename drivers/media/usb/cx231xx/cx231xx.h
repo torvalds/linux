@@ -628,6 +628,8 @@ struct cx231xx {
 
 	/* I2C adapters: Master 1 & 2 (External) & Master 3 (Internal only) */
 	struct cx231xx_i2c i2c_bus[3];
+	struct i2c_adapter *i2c_mux_adap[2];
+
 	unsigned int xc_fw_load_done:1;
 	unsigned int port_3_switch_enabled:1;
 	/* locks */
@@ -755,6 +757,8 @@ int cx231xx_reset_analog_tuner(struct cx231xx *dev);
 void cx231xx_do_i2c_scan(struct cx231xx *dev, int i2c_port);
 int cx231xx_i2c_register(struct cx231xx_i2c *bus);
 int cx231xx_i2c_unregister(struct cx231xx_i2c *bus);
+int cx231xx_i2c_mux_register(struct cx231xx *dev, int mux_no);
+void cx231xx_i2c_mux_unregister(struct cx231xx *dev, int mux_no);
 struct i2c_adapter *cx231xx_get_i2c_adap(struct cx231xx *dev, int i2c_port);
 
 /* Internal block control functions */
