@@ -124,9 +124,9 @@ static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
 		dw_writew(dws, DW_SPI_DMARDLR, 0xf);
 		dw_writew(dws, DW_SPI_DMATDLR, 0x10);
 		if (dws->tx_dma)
-			dma_ctrl |= 0x2;
+			dma_ctrl |= SPI_DMA_TDMAE;
 		if (dws->rx_dma)
-			dma_ctrl |= 0x1;
+			dma_ctrl |= SPI_DMA_RDMAE;
 		dw_writew(dws, DW_SPI_DMACR, dma_ctrl);
 		spi_enable_chip(dws, 1);
 	}
