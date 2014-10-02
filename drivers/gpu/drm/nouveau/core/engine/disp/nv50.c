@@ -1763,9 +1763,10 @@ nv50_disp_intr_unk40_0_tmds(struct nv50_disp_priv *priv, struct dcb_output *outp
 	const int   or = ffs(outp->or) - 1;
 	const u32 loff = (or * 0x800) + (link * 0x80);
 	const u16 mask = (outp->sorconf.link << 6) | outp->or;
+	struct dcb_output match;
 	u8  ver, hdr;
 
-	if (dcb_outp_match(bios, DCB_OUTPUT_DP, mask, &ver, &hdr, outp))
+	if (dcb_outp_match(bios, DCB_OUTPUT_DP, mask, &ver, &hdr, &match))
 		nv_mask(priv, 0x61c10c + loff, 0x00000001, 0x00000000);
 }
 
