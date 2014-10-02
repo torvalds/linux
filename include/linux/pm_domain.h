@@ -38,7 +38,7 @@ struct gpd_dev_ops {
 	bool (*active_wakeup)(struct device *dev);
 };
 
-struct gpd_cpu_data {
+struct gpd_cpuidle_data {
 	unsigned int saved_exit_latency;
 	struct cpuidle_state *idle_state;
 };
@@ -71,7 +71,7 @@ struct generic_pm_domain {
 	s64 max_off_time_ns;	/* Maximum allowed "suspended" time. */
 	bool max_off_time_changed;
 	bool cached_power_down_ok;
-	struct gpd_cpu_data *cpu_data;
+	struct gpd_cpuidle_data *cpuidle_data;
 	void (*attach_dev)(struct device *dev);
 	void (*detach_dev)(struct device *dev);
 };

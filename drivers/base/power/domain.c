@@ -142,13 +142,13 @@ static void genpd_recalc_cpu_exit_latency(struct generic_pm_domain *genpd)
 {
 	s64 usecs64;
 
-	if (!genpd->cpu_data)
+	if (!genpd->cpuidle_data)
 		return;
 
 	usecs64 = genpd->power_on_latency_ns;
 	do_div(usecs64, NSEC_PER_USEC);
-	usecs64 += genpd->cpu_data->saved_exit_latency;
-	genpd->cpu_data->idle_state->exit_latency = usecs64;
+	usecs64 += genpd->cpuidle_data->saved_exit_latency;
+	genpd->cpuidle_data->idle_state->exit_latency = usecs64;
 }
 
 /**
@@ -188,9 +188,9 @@ static int __pm_genpd_poweron(struct generic_pm_domain *genpd)
 		return 0;
 	}
 
-	if (genpd->cpu_data) {
+	if (genpd->cpuidle_data) {
 		cpuidle_pause_and_lock();
-		genpd->cpu_data->idle_state->disabled = true;
+		genpd->cpuidle_data->idle_state->disabled = true;
 		cpuidle_resume_and_unlock();
 		goto out;
 	}
@@ -513,17 +513,17 @@ static int pm_genpd_poweroff(struct generic_pm_domain *genpd)
 		}
 	}
 
-	if (genpd->cpu_data) {
+	if (genpd->cpuidle_data) {
 		/*
-		 * If cpu_data is set, cpuidle should turn the domain off when
-		 * the CPU in it is idle.  In that case we don't decrement the
-		 * subdomain counts of the master domains, so that power is not
-		 * removed from the current domain prematurely as a result of
-		 * cutting off the masters' power.
+		 * If cpuidle_data is set, cpuidle should turn the domain off
+		 * when the CPU in it is idle.  In that case we don't decrement
+		 * the subdomain counts of the master domains, so that power is
+		 * not removed from the current domain prematurely as a result
+		 * of cutting off the masters' power.
 		 */
 		genpd->status = GPD_STATE_POWER_OFF;
 		cpuidle_pause_and_lock();
-		genpd->cpu_data->idle_state->disabled = false;
+		genpd->cpuidle_data->idle_state->disabled = false;
 		cpuidle_resume_and_unlock();
 		goto out;
 	}
@@ -1698,7 +1698,7 @@ int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
 int pm_genpd_attach_cpuidle(struct generic_pm_domain *genpd, int state)
 {
 	struct cpuidle_driver *cpuidle_drv;
-	struct gpd_cpu_data *cpu_data;
+	struct gpd_cpuidle_data *cpuidle_data;
 	struct cpuidle_state *idle_state;
 	int ret = 0;
 
@@ -1707,12 +1707,12 @@ int pm_genpd_attach_cpuidle(struct generic_pm_domain *genpd, int state)
 
 	genpd_acquire_lock(genpd);
 
-	if (genpd->cpu_data) {
+	if (genpd->cpuidle_data) {
 		ret = -EEXIST;
 		goto out;
 	}
-	cpu_data = kzalloc(sizeof(*cpu_data), GFP_KERNEL);
-	if (!cpu_data) {
+	cpuidle_data = kzalloc(sizeof(*cpuidle_data), GFP_KERNEL);
+	if (!cpuidle_data) {
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -1730,9 +1730,9 @@ int pm_genpd_attach_cpuidle(struct generic_pm_domain *genpd, int state)
 		ret = -EAGAIN;
 		goto err;
 	}
-	cpu_data->idle_state = idle_state;
-	cpu_data->saved_exit_latency = idle_state->exit_latency;
-	genpd->cpu_data = cpu_data;
+	cpuidle_data->idle_state = idle_state;
+	cpuidle_data->saved_exit_latency = idle_state->exit_latency;
+	genpd->cpuidle_data = cpuidle_data;
 	genpd_recalc_cpu_exit_latency(genpd);
 
  out:
@@ -1743,7 +1743,7 @@ int pm_genpd_attach_cpuidle(struct generic_pm_domain *genpd, int state)
 	cpuidle_driver_unref();
 
  err_drv:
-	kfree(cpu_data);
+	kfree(cpuidle_data);
 	goto out;
 }
 
@@ -1766,7 +1766,7 @@ int pm_genpd_name_attach_cpuidle(const char *name, int state)
  */
 int pm_genpd_detach_cpuidle(struct generic_pm_domain *genpd)
 {
-	struct gpd_cpu_data *cpu_data;
+	struct gpd_cpuidle_data *cpuidle_data;
 	struct cpuidle_state *idle_state;
 	int ret = 0;
 
@@ -1775,20 +1775,20 @@ int pm_genpd_detach_cpuidle(struct generic_pm_domain *genpd)
 
 	genpd_acquire_lock(genpd);
 
-	cpu_data = genpd->cpu_data;
-	if (!cpu_data) {
+	cpuidle_data = genpd->cpuidle_data;
+	if (!cpuidle_data) {
 		ret = -ENODEV;
 		goto out;
 	}
-	idle_state = cpu_data->idle_state;
+	idle_state = cpuidle_data->idle_state;
 	if (!idle_state->disabled) {
 		ret = -EAGAIN;
 		goto out;
 	}
-	idle_state->exit_latency = cpu_data->saved_exit_latency;
+	idle_state->exit_latency = cpuidle_data->saved_exit_latency;
 	cpuidle_driver_unref();
-	genpd->cpu_data = NULL;
-	kfree(cpu_data);
+	genpd->cpuidle_data = NULL;
+	kfree(cpuidle_data);
 
  out:
 	genpd_release_lock(genpd);
