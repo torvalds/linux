@@ -15,8 +15,12 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 
-/* 10 parts were found on sflash on Netgear WNDR4500 */
-#define BCM47XXPART_MAX_PARTS		12
+/*
+ * NAND flash on Netgear R6250 was verified to contain 15 partitions.
+ * This will result in allocating too big array for some old devices, but the
+ * memory will be freed soon anyway (see mtd_device_parse_register).
+ */
+#define BCM47XXPART_MAX_PARTS		20
 
 /*
  * Amount of bytes we read when analyzing each block of flash memory.
