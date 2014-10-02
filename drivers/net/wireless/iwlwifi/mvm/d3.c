@@ -601,29 +601,6 @@ static int iwl_mvm_send_remote_wake_cfg(struct iwl_mvm *mvm,
 	return ret;
 }
 
-struct iwl_d3_iter_data {
-	struct iwl_mvm *mvm;
-	struct ieee80211_vif *vif;
-	bool error;
-};
-
-static void iwl_mvm_d3_iface_iterator(void *_data, u8 *mac,
-				      struct ieee80211_vif *vif)
-{
-	struct iwl_d3_iter_data *data = _data;
-
-	if (vif->type != NL80211_IFTYPE_STATION || vif->p2p)
-		return;
-
-	if (data->vif) {
-		IWL_ERR(data->mvm, "More than one managed interface active!\n");
-		data->error = true;
-		return;
-	}
-
-	data->vif = vif;
-}
-
 static int iwl_mvm_d3_reprogram(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				struct ieee80211_sta *ap_sta)
 {
@@ -990,9 +967,6 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 			     bool test)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	struct iwl_d3_iter_data suspend_iter_data = {
-		.mvm = mvm,
-	};
 	struct ieee80211_vif *vif = NULL;
 	struct iwl_mvm_vif *mvmvif = NULL;
 	struct ieee80211_sta *ap_sta = NULL;
@@ -1025,17 +999,12 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
-	/* see if there's only a single BSS vif */
-	ieee80211_iterate_active_interfaces_atomic(
-		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
-		iwl_mvm_d3_iface_iterator, &suspend_iter_data);
-
-	if (suspend_iter_data.error || !suspend_iter_data.vif) {
+	vif = iwl_mvm_get_bss_vif(mvm);
+	if (IS_ERR_OR_NULL(vif)) {
 		ret = 1;
 		goto out_noreset;
 	}
 
-	vif = suspend_iter_data.vif;
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	/* if we're associated, this is wowlan */
@@ -1639,9 +1608,6 @@ static void iwl_mvm_d3_disconnect_iter(void *data, u8 *mac,
 
 static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 {
-	struct iwl_d3_iter_data resume_iter_data = {
-		.mvm = mvm,
-	};
 	struct ieee80211_vif *vif = NULL;
 	int ret;
 	enum iwl_d3_status d3_status;
@@ -1650,14 +1616,9 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 	mutex_lock(&mvm->mutex);
 
 	/* get the BSS vif pointer again */
-	ieee80211_iterate_active_interfaces_atomic(
-		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
-		iwl_mvm_d3_iface_iterator, &resume_iter_data);
-
-	if (WARN_ON(resume_iter_data.error || !resume_iter_data.vif))
+	vif = iwl_mvm_get_bss_vif(mvm);
+	if (IS_ERR_OR_NULL(vif))
 		goto out_unlock;
-
-	vif = resume_iter_data.vif;
 
 	ret = iwl_trans_d3_resume(mvm->trans, &d3_status, test);
 	if (ret)
