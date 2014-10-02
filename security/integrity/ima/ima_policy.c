@@ -35,6 +35,8 @@
 #define DONT_APPRAISE	0x0008
 #define AUDIT		0x0040
 
+int ima_policy_flag;
+
 #define MAX_LSM_RULES 6
 enum lsm_rule_types { LSM_OBJ_USER, LSM_OBJ_ROLE, LSM_OBJ_TYPE,
 	LSM_SUBJ_USER, LSM_SUBJ_ROLE, LSM_SUBJ_TYPE
@@ -295,6 +297,26 @@ int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
 	return action;
 }
 
+/*
+ * Initialize the ima_policy_flag variable based on the currently
+ * loaded policy.  Based on this flag, the decision to short circuit
+ * out of a function or not call the function in the first place
+ * can be made earlier.
+ */
+void ima_update_policy_flag(void)
+{
+	struct ima_rule_entry *entry;
+
+	ima_policy_flag = 0;
+	list_for_each_entry(entry, ima_rules, list) {
+		if (entry->action & IMA_DO_MASK)
+			ima_policy_flag |= entry->action;
+	}
+
+	if (!ima_appraise)
+		ima_policy_flag &= ~IMA_APPRAISE;
+}
+
 /**
  * ima_init_policy - initialize the default measure rules.
  *
@@ -341,6 +363,7 @@ void ima_update_policy(void)
 
 	if (ima_rules == &ima_default_rules) {
 		ima_rules = &ima_policy_rules;
+		ima_update_policy_flag();
 		cause = "complete";
 		result = 0;
 	}
