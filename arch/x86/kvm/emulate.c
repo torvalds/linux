@@ -703,8 +703,8 @@ static __always_inline int __linearize(struct x86_emulate_ctxt *ctxt,
 		if (size > *max_size)
 			goto bad;
 		cpl = ctxt->ops->cpl(ctxt);
-		if (!(desc.type & 8)) {
-			/* data segment */
+		if (!fetch) {
+			/* data segment or readable code segment */
 			if (cpl > desc.dpl)
 				goto bad;
 		} else if ((desc.type & 8) && !(desc.type & 4)) {
