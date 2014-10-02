@@ -3104,7 +3104,8 @@ static __be32 nfsd4_encode_splice_read(
 
 	buf->page_len = maxcount;
 	buf->len += maxcount;
-	xdr->page_ptr += (maxcount + PAGE_SIZE - 1) / PAGE_SIZE;
+	xdr->page_ptr += (buf->page_base + maxcount + PAGE_SIZE - 1)
+							/ PAGE_SIZE;
 
 	/* Use rest of head for padding and remaining ops: */
 	buf->tail[0].iov_base = xdr->p;
