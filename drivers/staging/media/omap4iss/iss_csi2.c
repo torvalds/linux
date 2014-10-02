@@ -808,8 +808,8 @@ __csi2_get_format(struct iss_csi2_device *csi2, struct v4l2_subdev_fh *fh,
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
 		return v4l2_subdev_get_try_format(fh, pad);
-	else
-		return &csi2->formats[pad];
+
+	return &csi2->formats[pad];
 }
 
 static void
