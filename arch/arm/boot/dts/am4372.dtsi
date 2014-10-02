@@ -804,7 +804,7 @@
 
 			usb1: usb@48390000 {
 				compatible = "synopsys,dwc3";
-				reg = <0x48390000 0x17000>;
+				reg = <0x48390000 0x10000>;
 				interrupts = <GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>;
 				phys = <&usb2_phy1>;
 				phy-names = "usb2-phy";
@@ -826,7 +826,7 @@
 
 			usb2: usb@483d0000 {
 				compatible = "synopsys,dwc3";
-				reg = <0x483d0000 0x17000>;
+				reg = <0x483d0000 0x10000>;
 				interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
 				phys = <&usb2_phy2>;
 				phy-names = "usb2-phy";

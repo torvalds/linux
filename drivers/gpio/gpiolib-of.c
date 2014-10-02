@@ -307,7 +307,5 @@ void of_gpiochip_add(struct gpio_chip *chip)
 void of_gpiochip_remove(struct gpio_chip *chip)
 {
 	gpiochip_remove_pin_ranges(chip);
-
-	if (chip->of_node)
-		of_node_put(chip->of_node);
+	of_node_put(chip->of_node);
 }

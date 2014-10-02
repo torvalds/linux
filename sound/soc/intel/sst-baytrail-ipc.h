@@ -66,7 +66,6 @@ int sst_byt_get_dsp_position(struct sst_byt *byt,
 int sst_byt_dsp_init(struct device *dev, struct sst_pdata *pdata);
 void sst_byt_dsp_free(struct device *dev, struct sst_pdata *pdata);
 struct sst_dsp *sst_byt_get_dsp(struct sst_byt *byt);
-int sst_byt_dsp_suspend_noirq(struct device *dev, struct sst_pdata *pdata);
 int sst_byt_dsp_suspend_late(struct device *dev, struct sst_pdata *pdata);
 int sst_byt_dsp_boot(struct device *dev, struct sst_pdata *pdata);
 int sst_byt_dsp_wait_for_ready(struct device *dev, struct sst_pdata *pdata);

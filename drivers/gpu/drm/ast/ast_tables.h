@@ -99,6 +99,7 @@ static struct ast_vbios_dclk_info dclk_table[] = {
 	{0x25, 0x65, 0x80},					/* 16: VCLK88.75    */
 	{0x77, 0x58, 0x80},					/* 17: VCLK119      */
 	{0x32, 0x67, 0x80},				    /* 18: VCLK85_5     */
+	{0x6a, 0x6d, 0x80},					/* 19: VCLK97_75	*/
 };
 
 static struct ast_vbios_stdtable vbios_stdtable[] = {

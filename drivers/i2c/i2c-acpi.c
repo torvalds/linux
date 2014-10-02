@@ -126,6 +126,7 @@ void acpi_i2c_register_devices(struct i2c_adapter *adap)
 		dev_warn(&adap->dev, "failed to enumerate I2C slaves\n");
 }
 
+#ifdef CONFIG_ACPI_I2C_OPREGION
 static int acpi_gsb_i2c_read_bytes(struct i2c_client *client,
 		u8 cmd, u8 *data, u8 data_len)
 {
@@ -360,3 +361,4 @@ void acpi_i2c_remove_space_handler(struct i2c_adapter *adapter)
 
 	acpi_bus_detach_private_data(handle);
 }
+#endif

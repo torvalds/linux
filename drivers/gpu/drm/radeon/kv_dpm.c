@@ -1438,14 +1438,14 @@ static int kv_update_uvd_dpm(struct radeon_device *rdev, bool gate)
 	return kv_enable_uvd_dpm(rdev, !gate);
 }
 
-static u8 kv_get_vce_boot_level(struct radeon_device *rdev)
+static u8 kv_get_vce_boot_level(struct radeon_device *rdev, u32 evclk)
 {
 	u8 i;
 	struct radeon_vce_clock_voltage_dependency_table *table =
 		&rdev->pm.dpm.dyn_state.vce_clock_voltage_dependency_table;
 
 	for (i = 0; i < table->count; i++) {
-		if (table->entries[i].evclk >= 0) /* XXX */
+		if (table->entries[i].evclk >= evclk)
 			break;
 	}
 
@@ -1468,7 +1468,7 @@ static int kv_update_vce_dpm(struct radeon_device *rdev,
 		if (pi->caps_stable_p_state)
 			pi->vce_boot_level = table->count - 1;
 		else
-			pi->vce_boot_level = kv_get_vce_boot_level(rdev);
+			pi->vce_boot_level = kv_get_vce_boot_level(rdev, radeon_new_state->evclk);
 
 		ret = kv_copy_bytes_to_smc(rdev,
 					   pi->dpm_table_start +
@@ -2726,7 +2726,10 @@ int kv_dpm_init(struct radeon_device *rdev)
 	pi->caps_sclk_ds = true;
 	pi->enable_auto_thermal_throttling = true;
 	pi->disable_nb_ps3_in_battery = false;
-	pi->bapm_enable = true;
+	if (radeon_bapm == 0)
+		pi->bapm_enable = false;
+	else
+		pi->bapm_enable = true;
 	pi->voltage_drop_t = 0;
 	pi->caps_sclk_throttle_low_notification = false;
 	pi->caps_fps = false; /* true? */

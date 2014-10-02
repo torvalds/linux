@@ -4,24 +4,23 @@ config ZONE_DMA
 config XTENSA
 	def_bool y
 	select ARCH_WANT_FRAME_POINTERS
-	select HAVE_IDE
-	select GENERIC_ATOMIC64
-	select GENERIC_CLOCKEVENTS
-	select VIRT_TO_BUS
-	select GENERIC_IRQ_SHOW
-	select GENERIC_SCHED_CLOCK
-	select MODULES_USE_ELF_RELA
-	select GENERIC_PCI_IOMAP
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select BUILDTIME_EXTABLE_SORT
 	select CLONE_BACKWARDS
-	select IRQ_DOMAIN
-	select HAVE_OPROFILE
+	select COMMON_CLK
+	select GENERIC_ATOMIC64
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_IRQ_SHOW
+	select GENERIC_PCI_IOMAP
+	select GENERIC_SCHED_CLOCK
 	select HAVE_FUNCTION_TRACER
 	select HAVE_IRQ_TIME_ACCOUNTING
+	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS
-	select COMMON_CLK
+	select IRQ_DOMAIN
+	select MODULES_USE_ELF_RELA
+	select VIRT_TO_BUS
 	help
 	  Xtensa processors are 32-bit RISC machines designed by Tensilica
 	  primarily for embedded systems.  These processors are both
@@ -62,7 +61,9 @@ config TRACE_IRQFLAGS_SUPPORT
 	def_bool y
 
 config MMU
-	def_bool n
+	bool
+	default n if !XTENSA_VARIANT_CUSTOM
+	default XTENSA_VARIANT_MMU if XTENSA_VARIANT_CUSTOM
 
 config VARIANT_IRQ_SWITCH
 	def_bool n
@@ -102,7 +103,39 @@ config XTENSA_VARIANT_S6000
 	select VARIANT_IRQ_SWITCH
 	select ARCH_REQUIRE_GPIOLIB
 	select XTENSA_CALIBRATE_CCOUNT
+
+config XTENSA_VARIANT_CUSTOM
+	bool "Custom Xtensa processor configuration"
+	select MAY_HAVE_SMP
+	select HAVE_XTENSA_GPIO32
+	help
+	  Select this variant to use a custom Xtensa processor configuration.
+	  You will be prompted for a processor variant CORENAME.
 endchoice
+
+config XTENSA_VARIANT_CUSTOM_NAME
+	string "Xtensa Processor Custom Core Variant Name"
+	depends on XTENSA_VARIANT_CUSTOM
+	help
+	  Provide the name of a custom Xtensa processor variant.
+	  This CORENAME selects arch/xtensa/variant/CORENAME.
+	  Dont forget you have to select MMU if you have one.
+
+config XTENSA_VARIANT_NAME
+	string
+	default "dc232b"			if XTENSA_VARIANT_DC232B
+	default "dc233c"			if XTENSA_VARIANT_DC233C
+	default "fsf"				if XTENSA_VARIANT_FSF
+	default "s6000"				if XTENSA_VARIANT_S6000
+	default XTENSA_VARIANT_CUSTOM_NAME	if XTENSA_VARIANT_CUSTOM
+
+config XTENSA_VARIANT_MMU
+	bool "Core variant has a Full MMU (TLB, Pages, Protection, etc)"
+	depends on XTENSA_VARIANT_CUSTOM
+	default y
+	help
+	  Build a Conventional Kernel with full MMU support,
+	  ie: it supports a TLB with auto-loading, page protection.
 
 config XTENSA_UNALIGNED_USER
 	bool "Unaligned memory access in use space"
@@ -156,13 +189,9 @@ config HOTPLUG_CPU
 
 	  Say N if you want to disable CPU hotplug.
 
-config MATH_EMULATION
-	bool "Math emulation"
-	help
-	Can we use information of configuration file?
-
 config INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
 	bool "Initialize Xtensa MMU inside the Linux kernel code"
+	depends on MMU
 	default y
 	help
 	  Earlier version initialized the MMU in the exception vector
@@ -192,6 +221,7 @@ config INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
 
 config HIGHMEM
 	bool "High Memory Support"
+	depends on MMU
 	help
 	  Linux can use the full amount of RAM in the system by
 	  default. However, the default MMUv2 setup only maps the
@@ -207,6 +237,32 @@ config HIGHMEM
 	  N here.
 
 	  If unsure, say Y.
+
+config FAST_SYSCALL_XTENSA
+	bool "Enable fast atomic syscalls"
+	default n
+	help
+	  fast_syscall_xtensa is a syscall that can make atomic operations
+	  on UP kernel when processor has no s32c1i support.
+
+	  This syscall is deprecated. It may have issues when called with
+	  invalid arguments. It is provided only for backwards compatibility.
+	  Only enable it if your userspace software requires it.
+
+	  If unsure, say N.
+
+config FAST_SYSCALL_SPILL_REGISTERS
+	bool "Enable spill registers syscall"
+	default n
+	help
+	  fast_syscall_spill_registers is a syscall that spills all active
+	  register windows of a calling userspace task onto its stack.
+
+	  This syscall is deprecated. It may have issues when called with
+	  invalid arguments. It is provided only for backwards compatibility.
+	  Only enable it if your userspace software requires it.
+
+	  If unsure, say N.
 
 endmenu
 
@@ -250,12 +306,14 @@ config XTENSA_PLATFORM_ISS
 
 config XTENSA_PLATFORM_XT2000
 	bool "XT2000"
+	select HAVE_IDE
 	help
 	  XT2000 is the name of Tensilica's feature-rich emulation platform.
 	  This hardware is capable of running a full Linux distribution.
 
 config XTENSA_PLATFORM_S6105
 	bool "S6105"
+	select HAVE_IDE
 	select SERIAL_CONSOLE
 	select NO_IOPORT_MAP
 
