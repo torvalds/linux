@@ -188,7 +188,7 @@ drm_gem_remove_prime_handles(struct drm_gem_object *obj, struct drm_file *filp)
 }
 
 /**
- * drm_gem_object_free - release resources bound to userspace handles
+ * drm_gem_object_handle_free - release resources bound to userspace handles
  * @obj: GEM object to clean up.
  *
  * Called after the last handle to the object has been closed
