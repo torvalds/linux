@@ -761,6 +761,13 @@ void ath_offchannel_next(struct ath_softc *sc)
 
 void ath_roc_complete(struct ath_softc *sc, bool abort)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+
+	if (abort)
+		ath_dbg(common, CHAN_CTX, "RoC aborted\n");
+	else
+		ath_dbg(common, CHAN_CTX, "RoC expired\n");
+
 	sc->offchannel.roc_vif = NULL;
 	sc->offchannel.roc_chan = NULL;
 	if (!abort)
