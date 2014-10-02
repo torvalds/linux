@@ -1999,7 +1999,6 @@ void __ath9k_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 	struct ath_common *common = ath9k_hw_common(ah);
 	int timeout = HZ / 5; /* 200 ms */
 	bool drain_txq;
-	int i;
 
 	cancel_delayed_work_sync(&sc->tx_complete_work);
 
@@ -2027,10 +2026,6 @@ void __ath9k_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 			ath_reset(sc);
 
 		ath9k_ps_restore(sc);
-		for (i = 0; i < IEEE80211_NUM_ACS; i++) {
-			ieee80211_wake_queue(sc->hw,
-					     sc->cur_chan->hw_queue_base + i);
-		}
 	}
 
 	ieee80211_queue_delayed_work(hw, &sc->tx_complete_work, 0);
