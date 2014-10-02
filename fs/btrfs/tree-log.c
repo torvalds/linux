@@ -4093,18 +4093,8 @@ log_extents:
 		}
 	}
 
-	write_lock(&em_tree->lock);
-	/*
-	 * If we're doing a ranged fsync and there are still modified extents
-	 * in the list, we must run on the next fsync call as it might cover
-	 * those extents (a full fsync or an fsync for other range).
-	 */
-	if (list_empty(&em_tree->modified_extents)) {
-		BTRFS_I(inode)->logged_trans = trans->transid;
-		BTRFS_I(inode)->last_log_commit =
-			BTRFS_I(inode)->last_sub_trans;
-	}
-	write_unlock(&em_tree->lock);
+	BTRFS_I(inode)->logged_trans = trans->transid;
+	BTRFS_I(inode)->last_log_commit = BTRFS_I(inode)->last_sub_trans;
 out_unlock:
 	if (unlikely(err))
 		btrfs_put_logged_extents(&logged_list);

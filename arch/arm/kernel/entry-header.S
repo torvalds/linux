@@ -37,11 +37,19 @@
 #endif
 	.endm
 
-	.macro	alignment_trap, rtemp, label
 #ifdef CONFIG_ALIGNMENT_TRAP
-	ldr	\rtemp, \label
-	ldr	\rtemp, [\rtemp]
-	mcr	p15, 0, \rtemp, c1, c0
+#define ATRAP(x...) x
+#else
+#define ATRAP(x...)
+#endif
+
+	.macro	alignment_trap, rtmp1, rtmp2, label
+#ifdef CONFIG_ALIGNMENT_TRAP
+	mrc	p15, 0, \rtmp2, c1, c0, 0
+	ldr	\rtmp1, \label
+	ldr	\rtmp1, [\rtmp1]
+	teq	\rtmp1, \rtmp2
+	mcrne	p15, 0, \rtmp1, c1, c0, 0
 #endif
 	.endm
 

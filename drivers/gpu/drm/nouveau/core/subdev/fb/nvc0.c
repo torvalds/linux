@@ -60,6 +60,7 @@ nvc0_fb_init(struct nouveau_object *object)
 
 	if (priv->r100c10_page)
 		nv_wr32(priv, 0x100c10, priv->r100c10 >> 8);
+	nv_mask(priv, 0x100c80, 0x00000001, 0x00000000); /* 128KiB lpg */
 	return 0;
 }
 

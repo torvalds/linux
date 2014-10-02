@@ -2933,6 +2933,9 @@ void efx_farch_filter_sync_rx_mode(struct efx_nic *efx)
 	u32 crc;
 	int bit;
 
+	if (!efx_dev_registered(efx))
+		return;
+
 	netif_addr_lock_bh(net_dev);
 
 	efx->unicast_filter = !(net_dev->flags & IFF_PROMISC);

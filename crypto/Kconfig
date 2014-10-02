@@ -543,7 +543,7 @@ config CRYPTO_SHA1_ARM
 
 config CRYPTO_SHA1_ARM_NEON
 	tristate "SHA1 digest algorithm (ARM NEON)"
-	depends on ARM && KERNEL_MODE_NEON && !CPU_BIG_ENDIAN
+	depends on ARM && KERNEL_MODE_NEON
 	select CRYPTO_SHA1_ARM
 	select CRYPTO_SHA1
 	select CRYPTO_HASH
@@ -603,7 +603,7 @@ config CRYPTO_SHA512_SPARC64
 
 config CRYPTO_SHA512_ARM_NEON
 	tristate "SHA384 and SHA512 digest algorithm (ARM NEON)"
-	depends on ARM && KERNEL_MODE_NEON && !CPU_BIG_ENDIAN
+	depends on ARM && KERNEL_MODE_NEON
 	select CRYPTO_SHA512
 	select CRYPTO_HASH
 	help

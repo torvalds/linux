@@ -110,7 +110,7 @@ static bool largepages_enabled = true;
 bool kvm_is_mmio_pfn(pfn_t pfn)
 {
 	if (pfn_valid(pfn))
-		return PageReserved(pfn_to_page(pfn));
+		return !is_zero_pfn(pfn) && PageReserved(pfn_to_page(pfn));
 
 	return true;
 }
@@ -1725,7 +1725,7 @@ int kvm_vcpu_yield_to(struct kvm_vcpu *target)
 	rcu_read_lock();
 	pid = rcu_dereference(target->pid);
 	if (pid)
-		task = get_pid_task(target->pid, PIDTYPE_PID);
+		task = get_pid_task(pid, PIDTYPE_PID);
 	rcu_read_unlock();
 	if (!task)
 		return ret;

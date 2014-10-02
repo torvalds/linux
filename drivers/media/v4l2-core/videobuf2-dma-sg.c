@@ -113,7 +113,7 @@ static void *vb2_dma_sg_alloc(void *alloc_ctx, unsigned long size, gfp_t gfp_fla
 		goto fail_pages_alloc;
 
 	ret = sg_alloc_table_from_pages(&buf->sg_table, buf->pages,
-			buf->num_pages, 0, size, gfp_flags);
+			buf->num_pages, 0, size, GFP_KERNEL);
 	if (ret)
 		goto fail_table_alloc;
 

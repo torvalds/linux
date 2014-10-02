@@ -462,9 +462,9 @@ JIT compiler
 ------------
 
 The Linux kernel has a built-in BPF JIT compiler for x86_64, SPARC, PowerPC,
-ARM and s390 and can be enabled through CONFIG_BPF_JIT. The JIT compiler is
-transparently invoked for each attached filter from user space or for internal
-kernel users if it has been previously enabled by root:
+ARM, MIPS and s390 and can be enabled through CONFIG_BPF_JIT. The JIT compiler
+is transparently invoked for each attached filter from user space or for
+internal kernel users if it has been previously enabled by root:
 
   echo 1 > /proc/sys/net/core/bpf_jit_enable
 
