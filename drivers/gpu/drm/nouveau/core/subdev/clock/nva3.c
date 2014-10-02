@@ -510,7 +510,7 @@ nva3_clock_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	int ret;
 
 	ret = nouveau_clock_create(parent, engine, oclass, nva3_domain, NULL, 0,
-				   false, &priv);
+				   true, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
