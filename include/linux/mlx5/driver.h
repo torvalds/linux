@@ -335,23 +335,30 @@ struct mlx5_port_caps {
 	int	pkey_table_len;
 };
 
-struct mlx5_caps {
+struct mlx5_general_caps {
 	u8	log_max_eq;
 	u8	log_max_cq;
 	u8	log_max_qp;
 	u8	log_max_mkey;
 	u8	log_max_pd;
 	u8	log_max_srq;
+	u8	log_max_strq;
+	u8	log_max_mrw_sz;
+	u8	log_max_bsf_list_size;
+	u8	log_max_klm_list_size;
 	u32	max_cqes;
 	int	max_wqes;
+	u32	max_eqes;
+	u32	max_indirection;
 	int	max_sq_desc_sz;
 	int	max_rq_desc_sz;
+	int	max_dc_sq_desc_sz;
 	u64	flags;
 	u16	stat_rate_support;
 	int	log_max_msg;
 	int	num_ports;
-	int	max_ra_res_qp;
-	int	max_ra_req_qp;
+	u8	log_max_ra_res_qp;
+	u8	log_max_ra_req_qp;
 	int	max_srq_wqes;
 	int	bf_reg_size;
 	int	bf_regs_per_page;
@@ -363,6 +370,19 @@ struct mlx5_caps {
 	u8	log_max_mcg;
 	u32	max_qp_mcg;
 	int	min_page_sz;
+	int	pd_cap;
+	u32	max_qp_counters;
+	u32	pkey_table_size;
+	u8	log_max_ra_req_dc;
+	u8	log_max_ra_res_dc;
+	u32	uar_sz;
+	u8	min_log_pg_sz;
+	u8	log_max_xrcd;
+	u16	log_uar_page_sz;
+};
+
+struct mlx5_caps {
+	struct mlx5_general_caps gen;
 };
 
 struct mlx5_cmd_mailbox {
@@ -695,6 +715,8 @@ void mlx5_cmd_cleanup(struct mlx5_core_dev *dev);
 void mlx5_cmd_use_events(struct mlx5_core_dev *dev);
 void mlx5_cmd_use_polling(struct mlx5_core_dev *dev);
 int mlx5_cmd_status_to_err(struct mlx5_outbox_hdr *hdr);
+int mlx5_core_get_caps(struct mlx5_core_dev *dev, struct mlx5_caps *caps,
+		       u16 opmod);
 int mlx5_cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 		  int out_size);
 int mlx5_cmd_exec_cb(struct mlx5_core_dev *dev, void *in, int in_size,

@@ -207,11 +207,11 @@ static void release_bar(struct pci_dev *pdev)
 static int mlx5_enable_msix(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = &dev->priv.eq_table;
-	int num_eqs = 1 << dev->caps.log_max_eq;
+	int num_eqs = 1 << dev->caps.gen.log_max_eq;
 	int nvec;
 	int i;
 
-	nvec = dev->caps.num_ports * num_online_cpus() + MLX5_EQ_VEC_COMP_BASE;
+	nvec = dev->caps.gen.num_ports * num_online_cpus() + MLX5_EQ_VEC_COMP_BASE;
 	nvec = min_t(int, nvec, num_eqs);
 	if (nvec <= MLX5_EQ_VEC_COMP_BASE)
 		return -ENOMEM;
@@ -250,13 +250,34 @@ struct mlx5_reg_host_endianess {
 #define CAP_MASK(pos, size) ((u64)((1 << (size)) - 1) << (pos))
 
 enum {
-	MLX5_CAP_BITS_RW_MASK	= CAP_MASK(MLX5_CAP_OFF_CMDIF_CSUM, 2) |
-				  CAP_MASK(MLX5_CAP_OFF_DCT, 1),
+	MLX5_CAP_BITS_RW_MASK = CAP_MASK(MLX5_CAP_OFF_CMDIF_CSUM, 2) |
+				MLX5_DEV_CAP_FLAG_DCT,
 };
+
+static u16 to_fw_pkey_sz(u32 size)
+{
+	switch (size) {
+	case 128:
+		return 0;
+	case 256:
+		return 1;
+	case 512:
+		return 2;
+	case 1024:
+		return 3;
+	case 2048:
+		return 4;
+	case 4096:
+		return 5;
+	default:
+		pr_warn("invalid pkey table size %d\n", size);
+		return 0;
+	}
+}
 
 /* selectively copy writable fields clearing any reserved area
  */
-static void copy_rw_fields(struct mlx5_hca_cap *to, struct mlx5_hca_cap *from)
+static void copy_rw_fields(struct mlx5_hca_cap *to, struct mlx5_general_caps *from)
 {
 	u64 v64;
 
@@ -265,76 +286,172 @@ static void copy_rw_fields(struct mlx5_hca_cap *to, struct mlx5_hca_cap *from)
 	to->log_max_ra_res_dc = from->log_max_ra_res_dc & 0x3f;
 	to->log_max_ra_req_qp = from->log_max_ra_req_qp & 0x3f;
 	to->log_max_ra_res_qp = from->log_max_ra_res_qp & 0x3f;
-	to->log_max_atomic_size_qp = from->log_max_atomic_size_qp;
-	to->log_max_atomic_size_dc = from->log_max_atomic_size_dc;
-	v64 = be64_to_cpu(from->flags) & MLX5_CAP_BITS_RW_MASK;
+	to->pkey_table_size = cpu_to_be16(to_fw_pkey_sz(from->pkey_table_size));
+	v64 = from->flags & MLX5_CAP_BITS_RW_MASK;
 	to->flags = cpu_to_be64(v64);
 }
 
-enum {
-	HCA_CAP_OPMOD_GET_MAX	= 0,
-	HCA_CAP_OPMOD_GET_CUR	= 1,
-};
+static u16 get_pkey_table_size(int pkey)
+{
+	if (pkey > MLX5_MAX_LOG_PKEY_TABLE)
+		return 0;
+
+	return MLX5_MIN_PKEY_TABLE_SIZE << pkey;
+}
+
+static void fw2drv_caps(struct mlx5_caps *caps,
+			struct mlx5_cmd_query_hca_cap_mbox_out *out)
+{
+	struct mlx5_general_caps *gen = &caps->gen;
+	u16 t16;
+
+	gen->max_srq_wqes = 1 << out->hca_cap.log_max_srq_sz;
+	gen->max_wqes = 1 << out->hca_cap.log_max_qp_sz;
+	gen->log_max_qp = out->hca_cap.log_max_qp & 0x1f;
+	gen->log_max_strq = out->hca_cap.log_max_strq_sz;
+	gen->log_max_srq = out->hca_cap.log_max_srqs & 0x1f;
+	gen->max_cqes = 1 << out->hca_cap.log_max_cq_sz;
+	gen->log_max_cq = out->hca_cap.log_max_cq & 0x1f;
+	gen->max_eqes = out->hca_cap.log_max_eq_sz;
+	gen->log_max_mkey = out->hca_cap.log_max_mkey & 0x3f;
+	gen->log_max_eq = out->hca_cap.log_max_eq & 0xf;
+	gen->max_indirection = out->hca_cap.max_indirection;
+	gen->log_max_mrw_sz = out->hca_cap.log_max_mrw_sz;
+	gen->log_max_bsf_list_size = 0;
+	gen->log_max_klm_list_size = 0;
+	gen->log_max_ra_req_dc = out->hca_cap.log_max_ra_req_dc;
+	gen->log_max_ra_res_dc = out->hca_cap.log_max_ra_res_dc;
+	gen->log_max_ra_req_qp = out->hca_cap.log_max_ra_req_qp;
+	gen->log_max_ra_res_qp = out->hca_cap.log_max_ra_res_qp;
+	gen->max_qp_counters = be16_to_cpu(out->hca_cap.max_qp_count);
+	gen->pkey_table_size = get_pkey_table_size(be16_to_cpu(out->hca_cap.pkey_table_size));
+	gen->local_ca_ack_delay = out->hca_cap.local_ca_ack_delay & 0x1f;
+	gen->num_ports = out->hca_cap.num_ports & 0xf;
+	gen->log_max_msg = out->hca_cap.log_max_msg & 0x1f;
+	gen->stat_rate_support = be16_to_cpu(out->hca_cap.stat_rate_support);
+	gen->flags = be64_to_cpu(out->hca_cap.flags);
+	pr_debug("flags = 0x%llx\n", gen->flags);
+	gen->uar_sz = out->hca_cap.uar_sz;
+	gen->min_log_pg_sz = out->hca_cap.log_pg_sz;
+
+	t16 = be16_to_cpu(out->hca_cap.bf_log_bf_reg_size);
+	if (t16 & 0x8000) {
+		gen->bf_reg_size = 1 << (t16 & 0x1f);
+		gen->bf_regs_per_page = MLX5_BF_REGS_PER_PAGE;
+	} else {
+		gen->bf_reg_size = 0;
+		gen->bf_regs_per_page = 0;
+	}
+	gen->max_sq_desc_sz = be16_to_cpu(out->hca_cap.max_desc_sz_sq);
+	gen->max_rq_desc_sz = be16_to_cpu(out->hca_cap.max_desc_sz_rq);
+	gen->max_qp_mcg = be32_to_cpu(out->hca_cap.max_qp_mcg) & 0xffffff;
+	gen->log_max_pd = out->hca_cap.log_max_pd & 0x1f;
+	gen->log_max_xrcd = out->hca_cap.log_max_xrcd;
+	gen->log_uar_page_sz = be16_to_cpu(out->hca_cap.log_uar_page_sz);
+}
+
+static const char *caps_opmod_str(u16 opmod)
+{
+	switch (opmod) {
+	case HCA_CAP_OPMOD_GET_MAX:
+		return "GET_MAX";
+	case HCA_CAP_OPMOD_GET_CUR:
+		return "GET_CUR";
+	default:
+		return "Invalid";
+	}
+}
+
+int mlx5_core_get_caps(struct mlx5_core_dev *dev, struct mlx5_caps *caps,
+		       u16 opmod)
+{
+	struct mlx5_cmd_query_hca_cap_mbox_out *out;
+	struct mlx5_cmd_query_hca_cap_mbox_in in;
+	int err;
+
+	memset(&in, 0, sizeof(in));
+	out = kzalloc(sizeof(*out), GFP_KERNEL);
+	if (!out)
+		return -ENOMEM;
+
+	in.hdr.opcode = cpu_to_be16(MLX5_CMD_OP_QUERY_HCA_CAP);
+	in.hdr.opmod  = cpu_to_be16(opmod);
+	err = mlx5_cmd_exec(dev, &in, sizeof(in), out, sizeof(*out));
+
+	err = mlx5_cmd_status_to_err(&out->hdr);
+	if (err) {
+		mlx5_core_warn(dev, "query max hca cap failed, %d\n", err);
+		goto query_ex;
+	}
+	mlx5_core_dbg(dev, "%s\n", caps_opmod_str(opmod));
+	fw2drv_caps(caps, out);
+
+query_ex:
+	kfree(out);
+	return err;
+}
+
+static int set_caps(struct mlx5_core_dev *dev,
+		    struct mlx5_cmd_set_hca_cap_mbox_in *in)
+{
+	struct mlx5_cmd_set_hca_cap_mbox_out out;
+	int err;
+
+	memset(&out, 0, sizeof(out));
+
+	in->hdr.opcode = cpu_to_be16(MLX5_CMD_OP_SET_HCA_CAP);
+	err = mlx5_cmd_exec(dev, in, sizeof(*in), &out, sizeof(out));
+	if (err)
+		return err;
+
+	err = mlx5_cmd_status_to_err(&out.hdr);
+
+	return err;
+}
 
 static int handle_hca_cap(struct mlx5_core_dev *dev)
 {
-	struct mlx5_cmd_query_hca_cap_mbox_out *query_out = NULL;
 	struct mlx5_cmd_set_hca_cap_mbox_in *set_ctx = NULL;
-	struct mlx5_cmd_query_hca_cap_mbox_in query_ctx;
-	struct mlx5_cmd_set_hca_cap_mbox_out set_out;
-	u64 flags;
-	int err;
-
-	memset(&query_ctx, 0, sizeof(query_ctx));
-	query_out = kzalloc(sizeof(*query_out), GFP_KERNEL);
-	if (!query_out)
-		return -ENOMEM;
+	struct mlx5_profile *prof = dev->profile;
+	struct mlx5_caps *cur_caps = NULL;
+	struct mlx5_caps *max_caps = NULL;
+	int err = -ENOMEM;
 
 	set_ctx = kzalloc(sizeof(*set_ctx), GFP_KERNEL);
-	if (!set_ctx) {
-		err = -ENOMEM;
+	if (!set_ctx)
 		goto query_ex;
-	}
 
-	query_ctx.hdr.opcode = cpu_to_be16(MLX5_CMD_OP_QUERY_HCA_CAP);
-	query_ctx.hdr.opmod  = cpu_to_be16(HCA_CAP_OPMOD_GET_CUR);
-	err = mlx5_cmd_exec(dev, &query_ctx, sizeof(query_ctx),
-				 query_out, sizeof(*query_out));
+	max_caps = kzalloc(sizeof(*max_caps), GFP_KERNEL);
+	if (!max_caps)
+		goto query_ex;
+
+	cur_caps = kzalloc(sizeof(*cur_caps), GFP_KERNEL);
+	if (!cur_caps)
+		goto query_ex;
+
+	err = mlx5_core_get_caps(dev, max_caps, HCA_CAP_OPMOD_GET_MAX);
 	if (err)
 		goto query_ex;
 
-	err = mlx5_cmd_status_to_err(&query_out->hdr);
-	if (err) {
-		mlx5_core_warn(dev, "query hca cap failed, %d\n", err);
+	err = mlx5_core_get_caps(dev, cur_caps, HCA_CAP_OPMOD_GET_CUR);
+	if (err)
 		goto query_ex;
-	}
 
-	copy_rw_fields(&set_ctx->hca_cap, &query_out->hca_cap);
+	/* we limit the size of the pkey table to 128 entries for now */
+	cur_caps->gen.pkey_table_size = 128;
 
-	if (dev->profile && dev->profile->mask & MLX5_PROF_MASK_QP_SIZE)
-		set_ctx->hca_cap.log_max_qp = dev->profile->log_max_qp;
+	if (prof->mask & MLX5_PROF_MASK_QP_SIZE)
+		cur_caps->gen.log_max_qp = prof->log_max_qp;
 
-	flags = be64_to_cpu(query_out->hca_cap.flags);
 	/* disable checksum */
-	flags &= ~MLX5_DEV_CAP_FLAG_CMDIF_CSUM;
+	cur_caps->gen.flags &= ~MLX5_DEV_CAP_FLAG_CMDIF_CSUM;
 
-	set_ctx->hca_cap.flags = cpu_to_be64(flags);
-	memset(&set_out, 0, sizeof(set_out));
-	set_ctx->hca_cap.log_uar_page_sz = cpu_to_be16(PAGE_SHIFT - 12);
-	set_ctx->hdr.opcode = cpu_to_be16(MLX5_CMD_OP_SET_HCA_CAP);
-	err = mlx5_cmd_exec(dev, set_ctx, sizeof(*set_ctx),
-				 &set_out, sizeof(set_out));
-	if (err) {
-		mlx5_core_warn(dev, "set hca cap failed, %d\n", err);
-		goto query_ex;
-	}
-
-	err = mlx5_cmd_status_to_err(&set_out.hdr);
-	if (err)
-		goto query_ex;
+	copy_rw_fields(&set_ctx->hca_cap, &cur_caps->gen);
+	err = set_caps(dev, set_ctx);
 
 query_ex:
-	kfree(query_out);
+	kfree(cur_caps);
+	kfree(max_caps);
 	kfree(set_ctx);
 
 	return err;

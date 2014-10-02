@@ -158,11 +158,13 @@ static void mlx5_ib_qp_event(struct mlx5_core_qp *qp, int type)
 static int set_rq_size(struct mlx5_ib_dev *dev, struct ib_qp_cap *cap,
 		       int has_rq, struct mlx5_ib_qp *qp, struct mlx5_ib_create_qp *ucmd)
 {
+	struct mlx5_general_caps *gen;
 	int wqe_size;
 	int wq_size;
 
+	gen = &dev->mdev->caps.gen;
 	/* Sanity check RQ size before proceeding */
-	if (cap->max_recv_wr  > dev->mdev->caps.max_wqes)
+	if (cap->max_recv_wr  > gen->max_wqes)
 		return -EINVAL;
 
 	if (!has_rq) {
@@ -182,10 +184,10 @@ static int set_rq_size(struct mlx5_ib_dev *dev, struct ib_qp_cap *cap,
 			wq_size = roundup_pow_of_two(cap->max_recv_wr) * wqe_size;
 			wq_size = max_t(int, wq_size, MLX5_SEND_WQE_BB);
 			qp->rq.wqe_cnt = wq_size / wqe_size;
-			if (wqe_size > dev->mdev->caps.max_rq_desc_sz) {
+			if (wqe_size > gen->max_rq_desc_sz) {
 				mlx5_ib_dbg(dev, "wqe_size %d, max %d\n",
 					    wqe_size,
-					    dev->mdev->caps.max_rq_desc_sz);
+					    gen->max_rq_desc_sz);
 				return -EINVAL;
 			}
 			qp->rq.wqe_shift = ilog2(wqe_size);
@@ -266,9 +268,11 @@ static int calc_send_wqe(struct ib_qp_init_attr *attr)
 static int calc_sq_size(struct mlx5_ib_dev *dev, struct ib_qp_init_attr *attr,
 			struct mlx5_ib_qp *qp)
 {
+	struct mlx5_general_caps *gen;
 	int wqe_size;
 	int wq_size;
 
+	gen = &dev->mdev->caps.gen;
 	if (!attr->cap.max_send_wr)
 		return 0;
 
@@ -277,9 +281,9 @@ static int calc_sq_size(struct mlx5_ib_dev *dev, struct ib_qp_init_attr *attr,
 	if (wqe_size < 0)
 		return wqe_size;
 
-	if (wqe_size > dev->mdev->caps.max_sq_desc_sz) {
+	if (wqe_size > gen->max_sq_desc_sz) {
 		mlx5_ib_dbg(dev, "wqe_size(%d) > max_sq_desc_sz(%d)\n",
-			    wqe_size, dev->mdev->caps.max_sq_desc_sz);
+			    wqe_size, gen->max_sq_desc_sz);
 		return -EINVAL;
 	}
 
@@ -292,9 +296,9 @@ static int calc_sq_size(struct mlx5_ib_dev *dev, struct ib_qp_init_attr *attr,
 
 	wq_size = roundup_pow_of_two(attr->cap.max_send_wr * wqe_size);
 	qp->sq.wqe_cnt = wq_size / MLX5_SEND_WQE_BB;
-	if (qp->sq.wqe_cnt > dev->mdev->caps.max_wqes) {
+	if (qp->sq.wqe_cnt > gen->max_wqes) {
 		mlx5_ib_dbg(dev, "wqe count(%d) exceeds limits(%d)\n",
-			    qp->sq.wqe_cnt, dev->mdev->caps.max_wqes);
+			    qp->sq.wqe_cnt, gen->max_wqes);
 		return -ENOMEM;
 	}
 	qp->sq.wqe_shift = ilog2(MLX5_SEND_WQE_BB);
@@ -309,11 +313,13 @@ static int set_user_buf_size(struct mlx5_ib_dev *dev,
 			    struct mlx5_ib_qp *qp,
 			    struct mlx5_ib_create_qp *ucmd)
 {
+	struct mlx5_general_caps *gen;
 	int desc_sz = 1 << qp->sq.wqe_shift;
 
-	if (desc_sz > dev->mdev->caps.max_sq_desc_sz) {
+	gen = &dev->mdev->caps.gen;
+	if (desc_sz > gen->max_sq_desc_sz) {
 		mlx5_ib_warn(dev, "desc_sz %d, max_sq_desc_sz %d\n",
-			     desc_sz, dev->mdev->caps.max_sq_desc_sz);
+			     desc_sz, gen->max_sq_desc_sz);
 		return -EINVAL;
 	}
 
@@ -325,9 +331,9 @@ static int set_user_buf_size(struct mlx5_ib_dev *dev,
 
 	qp->sq.wqe_cnt = ucmd->sq_wqe_count;
 
-	if (qp->sq.wqe_cnt > dev->mdev->caps.max_wqes) {
+	if (qp->sq.wqe_cnt > gen->max_wqes) {
 		mlx5_ib_warn(dev, "wqe_cnt %d, max_wqes %d\n",
-			     qp->sq.wqe_cnt, dev->mdev->caps.max_wqes);
+			     qp->sq.wqe_cnt, gen->max_wqes);
 		return -EINVAL;
 	}
 
@@ -803,16 +809,18 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	struct mlx5_ib_resources *devr = &dev->devr;
 	struct mlx5_ib_create_qp_resp resp;
 	struct mlx5_create_qp_mbox_in *in;
+	struct mlx5_general_caps *gen;
 	struct mlx5_ib_create_qp ucmd;
 	int inlen = sizeof(*in);
 	int err;
 
+	gen = &dev->mdev->caps.gen;
 	mutex_init(&qp->mutex);
 	spin_lock_init(&qp->sq.lock);
 	spin_lock_init(&qp->rq.lock);
 
 	if (init_attr->create_flags & IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK) {
-		if (!(dev->mdev->caps.flags & MLX5_DEV_CAP_FLAG_BLOCK_MCAST)) {
+		if (!(gen->flags & MLX5_DEV_CAP_FLAG_BLOCK_MCAST)) {
 			mlx5_ib_dbg(dev, "block multicast loopback isn't supported\n");
 			return -EINVAL;
 		} else {
@@ -851,9 +859,9 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 				mlx5_ib_dbg(dev, "invalid rq params\n");
 				return -EINVAL;
 			}
-			if (ucmd.sq_wqe_count > dev->mdev->caps.max_wqes) {
+			if (ucmd.sq_wqe_count > gen->max_wqes) {
 				mlx5_ib_dbg(dev, "requested sq_wqe_count (%d) > max allowed (%d)\n",
-					    ucmd.sq_wqe_count, dev->mdev->caps.max_wqes);
+					    ucmd.sq_wqe_count, gen->max_wqes);
 				return -EINVAL;
 			}
 			err = create_user_qp(dev, pd, qp, udata, &in, &resp, &inlen);
@@ -1144,6 +1152,7 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 				struct ib_qp_init_attr *init_attr,
 				struct ib_udata *udata)
 {
+	struct mlx5_general_caps *gen;
 	struct mlx5_ib_dev *dev;
 	struct mlx5_ib_qp *qp;
 	u16 xrcdn = 0;
@@ -1161,11 +1170,12 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 		}
 		dev = to_mdev(to_mxrcd(init_attr->xrcd)->ibxrcd.device);
 	}
+	gen = &dev->mdev->caps.gen;
 
 	switch (init_attr->qp_type) {
 	case IB_QPT_XRC_TGT:
 	case IB_QPT_XRC_INI:
-		if (!(dev->mdev->caps.flags & MLX5_DEV_CAP_FLAG_XRC)) {
+		if (!(gen->flags & MLX5_DEV_CAP_FLAG_XRC)) {
 			mlx5_ib_dbg(dev, "XRC not supported\n");
 			return ERR_PTR(-ENOSYS);
 		}
@@ -1272,6 +1282,9 @@ enum {
 
 static int ib_rate_to_mlx5(struct mlx5_ib_dev *dev, u8 rate)
 {
+	struct mlx5_general_caps *gen;
+
+	gen = &dev->mdev->caps.gen;
 	if (rate == IB_RATE_PORT_CURRENT) {
 		return 0;
 	} else if (rate < IB_RATE_2_5_GBPS || rate > IB_RATE_300_GBPS) {
@@ -1279,7 +1292,7 @@ static int ib_rate_to_mlx5(struct mlx5_ib_dev *dev, u8 rate)
 	} else {
 		while (rate != IB_RATE_2_5_GBPS &&
 		       !(1 << (rate + MLX5_STAT_RATE_OFFSET) &
-			 dev->mdev->caps.stat_rate_support))
+			 gen->stat_rate_support))
 			--rate;
 	}
 
@@ -1290,8 +1303,10 @@ static int mlx5_set_path(struct mlx5_ib_dev *dev, const struct ib_ah_attr *ah,
 			 struct mlx5_qp_path *path, u8 port, int attr_mask,
 			 u32 path_flags, const struct ib_qp_attr *attr)
 {
+	struct mlx5_general_caps *gen;
 	int err;
 
+	gen = &dev->mdev->caps.gen;
 	path->fl = (path_flags & MLX5_PATH_FLAG_FL) ? 0x80 : 0;
 	path->free_ar = (path_flags & MLX5_PATH_FLAG_FREE_AR) ? 0x80 : 0;
 
@@ -1318,9 +1333,9 @@ static int mlx5_set_path(struct mlx5_ib_dev *dev, const struct ib_ah_attr *ah,
 	path->port = port;
 
 	if (ah->ah_flags & IB_AH_GRH) {
-		if (ah->grh.sgid_index >= dev->mdev->caps.port[port - 1].gid_table_len) {
+		if (ah->grh.sgid_index >= gen->port[port - 1].gid_table_len) {
 			pr_err(KERN_ERR "sgid_index (%u) too large. max is %d\n",
-			       ah->grh.sgid_index, dev->mdev->caps.port[port - 1].gid_table_len);
+			       ah->grh.sgid_index, gen->port[port - 1].gid_table_len);
 			return -EINVAL;
 		}
 
@@ -1492,6 +1507,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 	struct mlx5_ib_qp *qp = to_mqp(ibqp);
 	struct mlx5_ib_cq *send_cq, *recv_cq;
 	struct mlx5_qp_context *context;
+	struct mlx5_general_caps *gen;
 	struct mlx5_modify_qp_mbox_in *in;
 	struct mlx5_ib_pd *pd;
 	enum mlx5_qp_state mlx5_cur, mlx5_new;
@@ -1500,6 +1516,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 	int mlx5_st;
 	int err;
 
+	gen = &dev->mdev->caps.gen;
 	in = kzalloc(sizeof(*in), GFP_KERNEL);
 	if (!in)
 		return -ENOMEM;
@@ -1539,7 +1556,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 			err = -EINVAL;
 			goto out;
 		}
-		context->mtu_msgmax = (attr->path_mtu << 5) | dev->mdev->caps.log_max_msg;
+		context->mtu_msgmax = (attr->path_mtu << 5) | gen->log_max_msg;
 	}
 
 	if (attr_mask & IB_QP_DEST_QPN)
@@ -1685,9 +1702,11 @@ int mlx5_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	struct mlx5_ib_dev *dev = to_mdev(ibqp->device);
 	struct mlx5_ib_qp *qp = to_mqp(ibqp);
 	enum ib_qp_state cur_state, new_state;
+	struct mlx5_general_caps *gen;
 	int err = -EINVAL;
 	int port;
 
+	gen = &dev->mdev->caps.gen;
 	mutex_lock(&qp->mutex);
 
 	cur_state = attr_mask & IB_QP_CUR_STATE ? attr->cur_qp_state : qp->state;
@@ -1699,21 +1718,21 @@ int mlx5_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		goto out;
 
 	if ((attr_mask & IB_QP_PORT) &&
-	    (attr->port_num == 0 || attr->port_num > dev->mdev->caps.num_ports))
+	    (attr->port_num == 0 || attr->port_num > gen->num_ports))
 		goto out;
 
 	if (attr_mask & IB_QP_PKEY_INDEX) {
 		port = attr_mask & IB_QP_PORT ? attr->port_num : qp->port;
-		if (attr->pkey_index >= dev->mdev->caps.port[port - 1].pkey_table_len)
+		if (attr->pkey_index >= gen->port[port - 1].pkey_table_len)
 			goto out;
 	}
 
 	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC &&
-	    attr->max_rd_atomic > dev->mdev->caps.max_ra_res_qp)
+	    attr->max_rd_atomic > (1 << gen->log_max_ra_res_qp))
 		goto out;
 
 	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC &&
-	    attr->max_dest_rd_atomic > dev->mdev->caps.max_ra_req_qp)
+	    attr->max_dest_rd_atomic > (1 << gen->log_max_ra_req_qp))
 		goto out;
 
 	if (cur_state == new_state && cur_state == IB_QPS_RESET) {
@@ -2893,7 +2912,8 @@ static void to_ib_ah_attr(struct mlx5_ib_dev *ibdev, struct ib_ah_attr *ib_ah_at
 	memset(ib_ah_attr, 0, sizeof(*ib_ah_attr));
 	ib_ah_attr->port_num	  = path->port;
 
-	if (ib_ah_attr->port_num == 0 || ib_ah_attr->port_num > dev->caps.num_ports)
+	if (ib_ah_attr->port_num == 0 ||
+	    ib_ah_attr->port_num > dev->caps.gen.num_ports)
 		return;
 
 	ib_ah_attr->sl = path->sl & 0xf;
@@ -3011,10 +3031,12 @@ struct ib_xrcd *mlx5_ib_alloc_xrcd(struct ib_device *ibdev,
 					  struct ib_udata *udata)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
+	struct mlx5_general_caps *gen;
 	struct mlx5_ib_xrcd *xrcd;
 	int err;
 
-	if (!(dev->mdev->caps.flags & MLX5_DEV_CAP_FLAG_XRC))
+	gen = &dev->mdev->caps.gen;
+	if (!(gen->flags & MLX5_DEV_CAP_FLAG_XRC))
 		return ERR_PTR(-ENOSYS);
 
 	xrcd = kmalloc(sizeof(*xrcd), GFP_KERNEL);

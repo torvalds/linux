@@ -1538,16 +1538,9 @@ static const char *cmd_status_str(u8 status)
 	}
 }
 
-int mlx5_cmd_status_to_err(struct mlx5_outbox_hdr *hdr)
+static int cmd_status_to_err(u8 status)
 {
-	if (!hdr->status)
-		return 0;
-
-	pr_warn("command failed, status %s(0x%x), syndrome 0x%x\n",
-		cmd_status_str(hdr->status), hdr->status,
-		be32_to_cpu(hdr->syndrome));
-
-	switch (hdr->status) {
+	switch (status) {
 	case MLX5_CMD_STAT_OK:				return 0;
 	case MLX5_CMD_STAT_INT_ERR:			return -EIO;
 	case MLX5_CMD_STAT_BAD_OP_ERR:			return -EINVAL;
@@ -1566,4 +1559,17 @@ int mlx5_cmd_status_to_err(struct mlx5_outbox_hdr *hdr)
 	case MLX5_CMD_STAT_BAD_SIZE_OUTS_CQES_ERR:	return -EINVAL;
 	default:					return -EIO;
 	}
+}
+
+/* this will be available till all the commands use set/get macros */
+int mlx5_cmd_status_to_err(struct mlx5_outbox_hdr *hdr)
+{
+	if (!hdr->status)
+		return 0;
+
+	pr_warn("command failed, status %s(0x%x), syndrome 0x%x\n",
+		cmd_status_str(hdr->status), hdr->status,
+		be32_to_cpu(hdr->syndrome));
+
+	return cmd_status_to_err(hdr->status);
 }

@@ -157,11 +157,13 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
 	struct ib_smp *in_mad  = NULL;
 	struct ib_smp *out_mad = NULL;
+	struct mlx5_general_caps *gen;
 	int err = -ENOMEM;
 	int max_rq_sg;
 	int max_sq_sg;
 	u64 flags;
 
+	gen = &dev->mdev->caps.gen;
 	in_mad  = kzalloc(sizeof(*in_mad), GFP_KERNEL);
 	out_mad = kmalloc(sizeof(*out_mad), GFP_KERNEL);
 	if (!in_mad || !out_mad)
@@ -183,7 +185,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 		IB_DEVICE_PORT_ACTIVE_EVENT		|
 		IB_DEVICE_SYS_IMAGE_GUID		|
 		IB_DEVICE_RC_RNR_NAK_GEN;
-	flags = dev->mdev->caps.flags;
+	flags = gen->flags;
 	if (flags & MLX5_DEV_CAP_FLAG_BAD_PKEY_CNTR)
 		props->device_cap_flags |= IB_DEVICE_BAD_PKEY_CNTR;
 	if (flags & MLX5_DEV_CAP_FLAG_BAD_QKEY_CNTR)
@@ -213,30 +215,31 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	memcpy(&props->sys_image_guid, out_mad->data +	4, 8);
 
 	props->max_mr_size	   = ~0ull;
-	props->page_size_cap	   = dev->mdev->caps.min_page_sz;
-	props->max_qp		   = 1 << dev->mdev->caps.log_max_qp;
-	props->max_qp_wr	   = dev->mdev->caps.max_wqes;
-	max_rq_sg = dev->mdev->caps.max_rq_desc_sz / sizeof(struct mlx5_wqe_data_seg);
-	max_sq_sg = (dev->mdev->caps.max_sq_desc_sz - sizeof(struct mlx5_wqe_ctrl_seg)) /
+	props->page_size_cap	   = gen->min_page_sz;
+	props->max_qp		   = 1 << gen->log_max_qp;
+	props->max_qp_wr	   = gen->max_wqes;
+	max_rq_sg = gen->max_rq_desc_sz / sizeof(struct mlx5_wqe_data_seg);
+	max_sq_sg = (gen->max_sq_desc_sz - sizeof(struct mlx5_wqe_ctrl_seg)) /
 		sizeof(struct mlx5_wqe_data_seg);
 	props->max_sge = min(max_rq_sg, max_sq_sg);
-	props->max_cq		   = 1 << dev->mdev->caps.log_max_cq;
-	props->max_cqe		   = dev->mdev->caps.max_cqes - 1;
-	props->max_mr		   = 1 << dev->mdev->caps.log_max_mkey;
-	props->max_pd		   = 1 << dev->mdev->caps.log_max_pd;
-	props->max_qp_rd_atom	   = dev->mdev->caps.max_ra_req_qp;
-	props->max_qp_init_rd_atom = dev->mdev->caps.max_ra_res_qp;
+	props->max_cq		   = 1 << gen->log_max_cq;
+	props->max_cqe		   = gen->max_cqes - 1;
+	props->max_mr		   = 1 << gen->log_max_mkey;
+	props->max_pd		   = 1 << gen->log_max_pd;
+	props->max_qp_rd_atom	   = 1 << gen->log_max_ra_req_qp;
+	props->max_qp_init_rd_atom = 1 << gen->log_max_ra_res_qp;
+	props->max_srq		   = 1 << gen->log_max_srq;
+	props->max_srq_wr	   = gen->max_srq_wqes - 1;
+	props->local_ca_ack_delay  = gen->local_ca_ack_delay;
 	props->max_res_rd_atom	   = props->max_qp_rd_atom * props->max_qp;
-	props->max_srq		   = 1 << dev->mdev->caps.log_max_srq;
-	props->max_srq_wr	   = dev->mdev->caps.max_srq_wqes - 1;
 	props->max_srq_sge	   = max_rq_sg - 1;
 	props->max_fast_reg_page_list_len = (unsigned int)-1;
-	props->local_ca_ack_delay  = dev->mdev->caps.local_ca_ack_delay;
+	props->local_ca_ack_delay  = gen->local_ca_ack_delay;
 	props->atomic_cap	   = IB_ATOMIC_NONE;
 	props->masked_atomic_cap   = IB_ATOMIC_NONE;
 	props->max_pkeys	   = be16_to_cpup((__be16 *)(out_mad->data + 28));
-	props->max_mcast_grp	   = 1 << dev->mdev->caps.log_max_mcg;
-	props->max_mcast_qp_attach = dev->mdev->caps.max_qp_mcg;
+	props->max_mcast_grp	   = 1 << gen->log_max_mcg;
+	props->max_mcast_qp_attach = gen->max_qp_mcg;
 	props->max_total_mcast_qp_attach = props->max_mcast_qp_attach *
 					   props->max_mcast_grp;
 	props->max_map_per_fmr = INT_MAX; /* no limit in ConnectIB */
@@ -254,10 +257,12 @@ int mlx5_ib_query_port(struct ib_device *ibdev, u8 port,
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
 	struct ib_smp *in_mad  = NULL;
 	struct ib_smp *out_mad = NULL;
+	struct mlx5_general_caps *gen;
 	int ext_active_speed;
 	int err = -ENOMEM;
 
-	if (port < 1 || port > dev->mdev->caps.num_ports) {
+	gen = &dev->mdev->caps.gen;
+	if (port < 1 || port > gen->num_ports) {
 		mlx5_ib_warn(dev, "invalid port number %d\n", port);
 		return -EINVAL;
 	}
@@ -288,8 +293,8 @@ int mlx5_ib_query_port(struct ib_device *ibdev, u8 port,
 	props->phys_state	= out_mad->data[33] >> 4;
 	props->port_cap_flags	= be32_to_cpup((__be32 *)(out_mad->data + 20));
 	props->gid_tbl_len	= out_mad->data[50];
-	props->max_msg_sz	= 1 << to_mdev(ibdev)->mdev->caps.log_max_msg;
-	props->pkey_tbl_len	= to_mdev(ibdev)->mdev->caps.port[port - 1].pkey_table_len;
+	props->max_msg_sz	= 1 << gen->log_max_msg;
+	props->pkey_tbl_len	= gen->port[port - 1].pkey_table_len;
 	props->bad_pkey_cntr	= be16_to_cpup((__be16 *)(out_mad->data + 46));
 	props->qkey_viol_cntr	= be16_to_cpup((__be16 *)(out_mad->data + 48));
 	props->active_width	= out_mad->data[31] & 0xf;
@@ -316,7 +321,7 @@ int mlx5_ib_query_port(struct ib_device *ibdev, u8 port,
 
 	/* If reported active speed is QDR, check if is FDR-10 */
 	if (props->active_speed == 4) {
-		if (dev->mdev->caps.ext_port_cap[port - 1] &
+		if (gen->ext_port_cap[port - 1] &
 		    MLX_EXT_PORT_CAP_FLAG_EXTENDED_PORT_INFO) {
 			init_query_mad(in_mad);
 			in_mad->attr_id = MLX5_ATTR_EXTENDED_PORT_INFO;
@@ -470,6 +475,7 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	struct mlx5_ib_alloc_ucontext_req_v2 req;
 	struct mlx5_ib_alloc_ucontext_resp resp;
 	struct mlx5_ib_ucontext *context;
+	struct mlx5_general_caps *gen;
 	struct mlx5_uuar_info *uuari;
 	struct mlx5_uar *uars;
 	int gross_uuars;
@@ -480,6 +486,7 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	int i;
 	size_t reqlen;
 
+	gen = &dev->mdev->caps.gen;
 	if (!dev->ib_active)
 		return ERR_PTR(-EAGAIN);
 
@@ -512,14 +519,14 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 
 	num_uars = req.total_num_uuars / MLX5_NON_FP_BF_REGS_PER_PAGE;
 	gross_uuars = num_uars * MLX5_BF_REGS_PER_PAGE;
-	resp.qp_tab_size      = 1 << dev->mdev->caps.log_max_qp;
-	resp.bf_reg_size      = dev->mdev->caps.bf_reg_size;
+	resp.qp_tab_size      = 1 << gen->log_max_qp;
+	resp.bf_reg_size      = gen->bf_reg_size;
 	resp.cache_line_size  = L1_CACHE_BYTES;
-	resp.max_sq_desc_sz = dev->mdev->caps.max_sq_desc_sz;
-	resp.max_rq_desc_sz = dev->mdev->caps.max_rq_desc_sz;
-	resp.max_send_wqebb = dev->mdev->caps.max_wqes;
-	resp.max_recv_wr = dev->mdev->caps.max_wqes;
-	resp.max_srq_recv_wr = dev->mdev->caps.max_srq_wqes;
+	resp.max_sq_desc_sz = gen->max_sq_desc_sz;
+	resp.max_rq_desc_sz = gen->max_rq_desc_sz;
+	resp.max_send_wqebb = gen->max_wqes;
+	resp.max_recv_wr = gen->max_wqes;
+	resp.max_srq_recv_wr = gen->max_srq_wqes;
 
 	context = kzalloc(sizeof(*context), GFP_KERNEL);
 	if (!context)
@@ -565,7 +572,7 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	mutex_init(&context->db_page_mutex);
 
 	resp.tot_uuars = req.total_num_uuars;
-	resp.num_ports = dev->mdev->caps.num_ports;
+	resp.num_ports = gen->num_ports;
 	err = ib_copy_to_udata(udata, &resp,
 			       sizeof(resp) - sizeof(resp.reserved));
 	if (err)
@@ -967,9 +974,11 @@ static void mlx5_ib_event(struct mlx5_core_dev *dev, void *context,
 
 static void get_ext_port_caps(struct mlx5_ib_dev *dev)
 {
+	struct mlx5_general_caps *gen;
 	int port;
 
-	for (port = 1; port <= dev->mdev->caps.num_ports; port++)
+	gen = &dev->mdev->caps.gen;
+	for (port = 1; port <= gen->num_ports; port++)
 		mlx5_query_ext_port_caps(dev, port);
 }
 
@@ -977,9 +986,11 @@ static int get_port_caps(struct mlx5_ib_dev *dev)
 {
 	struct ib_device_attr *dprops = NULL;
 	struct ib_port_attr *pprops = NULL;
+	struct mlx5_general_caps *gen;
 	int err = 0;
 	int port;
 
+	gen = &dev->mdev->caps.gen;
 	pprops = kmalloc(sizeof(*pprops), GFP_KERNEL);
 	if (!pprops)
 		goto out;
@@ -994,14 +1005,14 @@ static int get_port_caps(struct mlx5_ib_dev *dev)
 		goto out;
 	}
 
-	for (port = 1; port <= dev->mdev->caps.num_ports; port++) {
+	for (port = 1; port <= gen->num_ports; port++) {
 		err = mlx5_ib_query_port(&dev->ib_dev, port, pprops);
 		if (err) {
 			mlx5_ib_warn(dev, "query_port %d failed %d\n", port, err);
 			break;
 		}
-		dev->mdev->caps.port[port - 1].pkey_table_len = dprops->max_pkeys;
-		dev->mdev->caps.port[port - 1].gid_table_len = pprops->gid_tbl_len;
+		gen->port[port - 1].pkey_table_len = dprops->max_pkeys;
+		gen->port[port - 1].gid_table_len = pprops->gid_tbl_len;
 		mlx5_ib_dbg(dev, "pkey_table_len %d, gid_table_len %d\n",
 			    dprops->max_pkeys, pprops->gid_tbl_len);
 	}
@@ -1279,8 +1290,8 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 	strlcpy(dev->ib_dev.name, "mlx5_%d", IB_DEVICE_NAME_MAX);
 	dev->ib_dev.owner		= THIS_MODULE;
 	dev->ib_dev.node_type		= RDMA_NODE_IB_CA;
-	dev->ib_dev.local_dma_lkey	= mdev->caps.reserved_lkey;
-	dev->num_ports		= mdev->caps.num_ports;
+	dev->ib_dev.local_dma_lkey	= mdev->caps.gen.reserved_lkey;
+	dev->num_ports		= mdev->caps.gen.num_ports;
 	dev->ib_dev.phys_port_cnt     = dev->num_ports;
 	dev->ib_dev.num_comp_vectors	= dev->num_comp_vectors;
 	dev->ib_dev.dma_device	= &mdev->pdev->dev;
@@ -1355,7 +1366,7 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 	dev->ib_dev.free_fast_reg_page_list  = mlx5_ib_free_fast_reg_page_list;
 	dev->ib_dev.check_mr_status	= mlx5_ib_check_mr_status;
 
-	if (mdev->caps.flags & MLX5_DEV_CAP_FLAG_XRC) {
+	if (mdev->caps.gen.flags & MLX5_DEV_CAP_FLAG_XRC) {
 		dev->ib_dev.alloc_xrcd = mlx5_ib_alloc_xrcd;
 		dev->ib_dev.dealloc_xrcd = mlx5_ib_dealloc_xrcd;
 		dev->ib_dev.uverbs_cmd_mask |=

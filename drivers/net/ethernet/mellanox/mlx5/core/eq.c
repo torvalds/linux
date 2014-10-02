@@ -468,7 +468,7 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 
 	err = mlx5_create_map_eq(dev, &table->pages_eq,
 				 MLX5_EQ_VEC_PAGES,
-				 dev->caps.max_vf + 1,
+				 dev->caps.gen.max_vf + 1,
 				 1 << MLX5_EVENT_TYPE_PAGE_REQUEST, "mlx5_pages_eq",
 				 &dev->priv.uuari.uars[0]);
 	if (err) {

@@ -71,6 +71,11 @@ enum {
 };
 
 enum {
+	MLX5_MIN_PKEY_TABLE_SIZE = 128,
+	MLX5_MAX_LOG_PKEY_TABLE  = 5,
+};
+
+enum {
 	MLX5_PERM_LOCAL_READ	= 1 << 2,
 	MLX5_PERM_LOCAL_WRITE	= 1 << 3,
 	MLX5_PERM_REMOTE_READ	= 1 << 4,
@@ -184,10 +189,10 @@ enum {
 	MLX5_DEV_CAP_FLAG_CQ_MODER	= 1LL << 29,
 	MLX5_DEV_CAP_FLAG_RESIZE_CQ	= 1LL << 30,
 	MLX5_DEV_CAP_FLAG_RESIZE_SRQ	= 1LL << 32,
+	MLX5_DEV_CAP_FLAG_DCT		= 1LL << 37,
 	MLX5_DEV_CAP_FLAG_REMOTE_FENCE	= 1LL << 38,
 	MLX5_DEV_CAP_FLAG_TLP_HINTS	= 1LL << 39,
 	MLX5_DEV_CAP_FLAG_SIG_HAND_OVER	= 1LL << 40,
-	MLX5_DEV_CAP_FLAG_DCT		= 1LL << 41,
 	MLX5_DEV_CAP_FLAG_CMDIF_CSUM	= 3LL << 46,
 };
 
@@ -243,8 +248,12 @@ enum {
 };
 
 enum {
-	MLX5_CAP_OFF_DCT		= 41,
 	MLX5_CAP_OFF_CMDIF_CSUM		= 46,
+};
+
+enum {
+	HCA_CAP_OPMOD_GET_MAX	= 0,
+	HCA_CAP_OPMOD_GET_CUR	= 1,
 };
 
 struct mlx5_inbox_hdr {
@@ -303,9 +312,10 @@ struct mlx5_hca_cap {
 	u8	log_max_ra_req_qp;
 	u8	rsvd10;
 	u8	log_max_ra_res_qp;
-	u8	rsvd11[4];
+	u8	pad_cap;
+	u8	rsvd11[3];
 	__be16	max_qp_count;
-	__be16	rsvd12;
+	__be16	pkey_table_size;
 	u8	rsvd13;
 	u8	local_ca_ack_delay;
 	u8	rsvd14;
@@ -335,11 +345,7 @@ struct mlx5_hca_cap {
 	u8	log_max_xrcd;
 	u8	rsvd25[42];
 	__be16  log_uar_page_sz;
-	u8	rsvd26[28];
-	u8	log_max_atomic_size_qp;
-	u8	rsvd27[2];
-	u8	log_max_atomic_size_dc;
-	u8	rsvd28[76];
+	u8	rsvd26[108];
 };
 
 
