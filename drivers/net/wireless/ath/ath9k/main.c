@@ -268,7 +268,7 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 	if (!ath9k_is_chanctx_enabled())
 		ieee80211_wake_queues(sc->hw);
 	else
-		ath9k_chanctx_wake_queues(sc);
+		ath9k_chanctx_wake_queues(sc, sc->cur_chan);
 
 	ath9k_p2p_ps_timer(sc);
 
