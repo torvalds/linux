@@ -5267,9 +5267,13 @@ int ci_dpm_init(struct radeon_device *rdev)
 void ci_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 						    struct seq_file *m)
 {
+	struct ci_power_info *pi = ci_get_pi(rdev);
+	struct radeon_ps *rps = &pi->current_rps;
 	u32 sclk = ci_get_average_sclk_freq(rdev);
 	u32 mclk = ci_get_average_mclk_freq(rdev);
 
+	seq_printf(m, "uvd    %sabled\n", pi->uvd_enabled ? "en" : "dis");
+	seq_printf(m, "vce    %sabled\n", rps->vce_active ? "en" : "dis");
 	seq_printf(m, "power level avg    sclk: %u mclk: %u\n",
 		   sclk, mclk);
 }
