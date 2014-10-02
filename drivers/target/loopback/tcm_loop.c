@@ -135,21 +135,6 @@ static int tcm_loop_change_queue_depth(
 	return sdev->queue_depth;
 }
 
-static int tcm_loop_change_queue_type(struct scsi_device *sdev, int tag)
-{
-	if (sdev->tagged_supported) {
-		scsi_set_tag_type(sdev, tag);
-
-		if (tag)
-			scsi_activate_tcq(sdev, sdev->queue_depth);
-		else
-			scsi_deactivate_tcq(sdev, sdev->queue_depth);
-	} else
-		tag = 0;
-
-	return tag;
-}
-
 /*
  * Locate the SAM Task Attr from struct scsi_cmnd *
  */
@@ -451,7 +436,7 @@ static struct scsi_host_template tcm_loop_driver_template = {
 	.name			= "TCM_Loopback",
 	.queuecommand		= tcm_loop_queuecommand,
 	.change_queue_depth	= tcm_loop_change_queue_depth,
-	.change_queue_type	= tcm_loop_change_queue_type,
+	.change_queue_type	= scsi_change_queue_type,
 	.eh_abort_handler = tcm_loop_abort_task,
 	.eh_device_reset_handler = tcm_loop_device_reset,
 	.eh_target_reset_handler = tcm_loop_target_reset,

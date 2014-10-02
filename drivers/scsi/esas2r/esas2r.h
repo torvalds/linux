@@ -976,7 +976,6 @@ int esas2r_slave_alloc(struct scsi_device *dev);
 int esas2r_slave_configure(struct scsi_device *dev);
 void esas2r_slave_destroy(struct scsi_device *dev);
 int esas2r_change_queue_depth(struct scsi_device *dev, int depth, int reason);
-int esas2r_change_queue_type(struct scsi_device *dev, int type);
 long esas2r_proc_ioctl(struct file *fp, unsigned int cmd, unsigned long arg);
 
 /* SCSI error handler (eh) functions */

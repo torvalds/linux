@@ -867,6 +867,26 @@ int scsi_track_queue_full(struct scsi_device *sdev, int depth)
 EXPORT_SYMBOL(scsi_track_queue_full);
 
 /**
+ * scsi_change_queue_type() - Change a device's queue type
+ * @sdev:     The SCSI device whose queue depth is to change
+ * @tag_type: Identifier for queue type
+ */
+int scsi_change_queue_type(struct scsi_device *sdev, int tag_type)
+{
+	if (sdev->tagged_supported) {
+		scsi_set_tag_type(sdev, tag_type);
+		if (tag_type)
+			scsi_activate_tcq(sdev, sdev->queue_depth);
+		else
+			scsi_deactivate_tcq(sdev, sdev->queue_depth);
+	} else
+		tag_type = 0;
+
+	return tag_type;
+}
+EXPORT_SYMBOL(scsi_change_queue_type);
+
+/**
  * scsi_vpd_inquiry - Request a device provide us with a VPD page
  * @sdev: The device to ask
  * @buffer: Where to put the result

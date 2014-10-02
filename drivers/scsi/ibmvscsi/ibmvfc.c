@@ -2929,29 +2929,6 @@ static int ibmvfc_change_queue_depth(struct scsi_device *sdev, int qdepth,
 	return sdev->queue_depth;
 }
 
-/**
- * ibmvfc_change_queue_type - Change the device's queue type
- * @sdev:		scsi device struct
- * @tag_type:	type of tags to use
- *
- * Return value:
- * 	actual queue type set
- **/
-static int ibmvfc_change_queue_type(struct scsi_device *sdev, int tag_type)
-{
-	if (sdev->tagged_supported) {
-		scsi_set_tag_type(sdev, tag_type);
-
-		if (tag_type)
-			scsi_activate_tcq(sdev, sdev->queue_depth);
-		else
-			scsi_deactivate_tcq(sdev, sdev->queue_depth);
-	} else
-		tag_type = 0;
-
-	return tag_type;
-}
-
 static ssize_t ibmvfc_show_host_partition_name(struct device *dev,
 						 struct device_attribute *attr, char *buf)
 {
@@ -3133,7 +3110,7 @@ static struct scsi_host_template driver_template = {
 	.target_alloc = ibmvfc_target_alloc,
 	.scan_finished = ibmvfc_scan_finished,
 	.change_queue_depth = ibmvfc_change_queue_depth,
-	.change_queue_type = ibmvfc_change_queue_type,
+	.change_queue_type = scsi_change_queue_type,
 	.cmd_per_lun = 16,
 	.can_queue = IBMVFC_MAX_REQUESTS_DEFAULT,
 	.this_id = -1,

@@ -1123,29 +1123,6 @@ _scsih_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
 }
 
 /**
- * _scsih_change_queue_type - changing device queue tag type
- * @sdev: scsi device struct
- * @tag_type: requested tag type
- *
- * Returns queue tag type.
- */
-static int
-_scsih_change_queue_type(struct scsi_device *sdev, int tag_type)
-{
-	if (sdev->tagged_supported) {
-		scsi_set_tag_type(sdev, tag_type);
-		if (tag_type)
-			scsi_activate_tcq(sdev, sdev->queue_depth);
-		else
-			scsi_deactivate_tcq(sdev, sdev->queue_depth);
-	} else
-		tag_type = 0;
-
-	return tag_type;
-}
-
-
-/**
  * _scsih_target_alloc - target add routine
  * @starget: scsi target struct
  *
@@ -7284,7 +7261,7 @@ static struct scsi_host_template scsih_driver_template = {
 	.scan_finished			= _scsih_scan_finished,
 	.scan_start			= _scsih_scan_start,
 	.change_queue_depth		= _scsih_change_queue_depth,
-	.change_queue_type		= _scsih_change_queue_type,
+	.change_queue_type		= scsi_change_queue_type,
 	.eh_abort_handler		= _scsih_abort,
 	.eh_device_reset_handler	= _scsih_dev_reset,
 	.eh_target_reset_handler	= _scsih_target_reset,

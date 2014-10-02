@@ -2196,26 +2196,6 @@ int fc_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
 EXPORT_SYMBOL(fc_change_queue_depth);
 
 /**
- * fc_change_queue_type() - Change a device's queue type
- * @sdev:     The SCSI device whose queue depth is to change
- * @tag_type: Identifier for queue type
- */
-int fc_change_queue_type(struct scsi_device *sdev, int tag_type)
-{
-	if (sdev->tagged_supported) {
-		scsi_set_tag_type(sdev, tag_type);
-		if (tag_type)
-			scsi_activate_tcq(sdev, sdev->queue_depth);
-		else
-			scsi_deactivate_tcq(sdev, sdev->queue_depth);
-	} else
-		tag_type = 0;
-
-	return tag_type;
-}
-EXPORT_SYMBOL(fc_change_queue_type);
-
-/**
  * fc_fcp_destory() - Tear down the FCP layer for a given local port
  * @lport: The local port that no longer needs the FCP layer
  */
