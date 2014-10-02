@@ -2934,22 +2934,18 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
 	case OMAPDSS_DRIVE_SIG_FALLING_EDGE:
 		ipc = true;
 		break;
-	case OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES:
 	default:
 		BUG();
 	}
 
+	/* always use the 'rf' setting */
+	onoff = true;
+
 	switch (sync_pclk_edge) {
-	case OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES:
-		onoff = false;
-		rf = false;
-		break;
 	case OMAPDSS_DRIVE_SIG_FALLING_EDGE:
-		onoff = true;
 		rf = false;
 		break;
 	case OMAPDSS_DRIVE_SIG_RISING_EDGE:
-		onoff = true;
 		rf = true;
 		break;
 	default:

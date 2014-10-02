@@ -134,7 +134,6 @@ enum omap_dss_signal_level {
 };
 
 enum omap_dss_signal_edge {
-	OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 	OMAPDSS_DRIVE_SIG_RISING_EDGE,
 	OMAPDSS_DRIVE_SIG_FALLING_EDGE,
 };
