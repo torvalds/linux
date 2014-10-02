@@ -140,6 +140,7 @@ nouveau-y += core/subdev/fb/ramgk20a.o
 nouveau-y += core/subdev/fb/ramgm107.o
 nouveau-y += core/subdev/fb/sddr2.o
 nouveau-y += core/subdev/fb/sddr3.o
+nouveau-y += core/subdev/fb/gddr3.o
 nouveau-y += core/subdev/fb/gddr5.o
 nouveau-y += core/subdev/fuse/base.o
 nouveau-y += core/subdev/fuse/g80.o
