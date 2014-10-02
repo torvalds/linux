@@ -54,10 +54,19 @@ do {							\
       } 						\
 } while (0)
 
+static inline int get_real_i2c_port(struct cx231xx *dev, int bus_nr)
+{
+	if (bus_nr == 1)
+		return dev->port_3_switch_enabled ? I2C_1_MUX_3 : I2C_1_MUX_1;
+	return bus_nr;
+}
+
 static inline bool is_tuner(struct cx231xx *dev, struct cx231xx_i2c *bus,
 			const struct i2c_msg *msg, int tuner_type)
 {
-	if (bus->nr != dev->board.tuner_i2c_master)
+	int i2c_port = get_real_i2c_port(dev, bus->nr);
+
+	if (i2c_port != dev->board.tuner_i2c_master)
 		return false;
 
 	if (msg->addr != dev->board.tuner_addr)
