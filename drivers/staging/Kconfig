@@ -108,4 +108,6 @@ source "drivers/staging/skein/Kconfig"
 
 source "drivers/staging/unisys/Kconfig"
 
+source "drivers/staging/clocking-wizard/Kconfig"
+
 endif # STAGING
