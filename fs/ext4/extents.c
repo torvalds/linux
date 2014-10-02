@@ -1263,16 +1263,24 @@ cleanup:
  *   just created block
  */
 static int ext4_ext_grow_indepth(handle_t *handle, struct inode *inode,
-				 unsigned int flags,
-				 struct ext4_extent *newext)
+				 unsigned int flags)
 {
 	struct ext4_extent_header *neh;
 	struct buffer_head *bh;
-	ext4_fsblk_t newblock;
+	ext4_fsblk_t newblock, goal = 0;
+	struct ext4_super_block *es = EXT4_SB(inode->i_sb)->s_es;
 	int err = 0;
 
-	newblock = ext4_ext_new_meta_block(handle, inode, NULL,
-		newext, &err, flags);
+	/* Try to prepend new index to old one */
+	if (ext_depth(inode))
+		goal = ext4_idx_pblock(EXT_FIRST_INDEX(ext_inode_hdr(inode)));
+	if (goal > le32_to_cpu(es->s_first_data_block)) {
+		flags |= EXT4_MB_HINT_TRY_GOAL;
+		goal--;
+	} else
+		goal = ext4_inode_to_goal_block(inode);
+	newblock = ext4_new_meta_blocks(handle, inode, goal, flags,
+					NULL, &err);
 	if (newblock == 0)
 		return err;
 
@@ -1373,7 +1381,7 @@ repeat:
 			err = PTR_ERR(path);
 	} else {
 		/* tree is full, time to grow in depth */
-		err = ext4_ext_grow_indepth(handle, inode, mb_flags, newext);
+		err = ext4_ext_grow_indepth(handle, inode, mb_flags);
 		if (err)
 			goto out;
 
