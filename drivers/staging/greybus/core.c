@@ -147,12 +147,22 @@ static struct device_type greybus_module_type = {
 	.release =	greybus_module_release,
 };
 
+/* XXX
+ * This needs to be driven by the list of functions that the
+ * manifest says are present.
+ */
 static int gb_init_subdevs(struct gb_module *gmod,
 			   const struct greybus_module_id *id)
 {
 	int retval;
 
 	/* Allocate all of the different "sub device types" for this device */
+
+	/* XXX
+	 * Decide what exactly we should get supplied for the i2c
+	 * probe, and then work that back to what should be present
+	 * in the manifest.
+	 */
 	retval = gb_i2c_probe(gmod, id);
 	if (retval)
 		goto error_i2c;

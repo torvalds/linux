@@ -23,6 +23,7 @@
 #include "module.h"
 #include "interface.h"
 #include "function.h"
+#include "connection.h"
 
 
 /* Matches up with the Greybus Protocol specification document */
@@ -180,6 +181,7 @@ struct greybus_host_device {
 	const struct greybus_host_driver *driver;
 
 	struct list_head modules;
+	struct list_head connections;
 
 	/* Private data for the host driver */
 	unsigned long hd_priv[0] __attribute__ ((aligned(sizeof(s64))));
