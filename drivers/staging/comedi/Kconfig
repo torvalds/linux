@@ -426,6 +426,7 @@ config COMEDI_AIO_IIRO_16
 
 config COMEDI_II_PCI20KC
 	tristate "Intelligent Instruments PCI-20001C carrier support"
+	depends on HAS_IOMEM
 	---help---
 	  Enable support for Intelligent Instruments PCI-20001C carrier
 	  PCI-20001, PCI-20006 and PCI-20341
