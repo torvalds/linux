@@ -171,6 +171,45 @@ static char *gb_string_get(u8 string_id)
 	return string;
 }
 
+/*
+ * Find interface descriptors in the manifest and set up their data
+ * structures.  Returns the number of interfaces set up for the
+ * given module.
+ */
+static u32 gb_manifest_parse_interfaces(struct gb_module *gmod)
+{
+	u32 count = 0;
+
+	while (true) {
+		struct manifest_desc *descriptor;
+		struct greybus_descriptor_interface *desc_interface;
+		struct gb_interface *interface;
+		bool found = false;
+
+		/* Find an interface descriptor */
+		list_for_each_entry(descriptor, &manifest_descs, links) {
+			if (descriptor->type == GREYBUS_TYPE_DEVICE) {
+				found = true;
+				break;
+			}
+		}
+		if (!found)
+			break;
+
+		/* Found one.  Set up its interface structure*/
+		desc_interface = descriptor->data;
+		interface = gb_interface_create(gmod, desc_interface->id);
+		if (!interface)
+			return 0;	/* Error */
+		count++;
+
+		/* Done with this interface descriptor */
+		release_manifest_descriptor(descriptor);
+	}
+
+	return count;
+}
+
 struct gb_module *gb_manifest_parse_module(struct manifest_desc *module_desc)
 {
 	struct greybus_descriptor *desc = module_desc->data;
@@ -201,6 +240,13 @@ struct gb_module *gb_manifest_parse_module(struct manifest_desc *module_desc)
 
 	/* Release the module descriptor, now that we're done with it */
 	release_manifest_descriptor(module_desc);
+
+	/* A module must have at least one interface descriptor */
+	if (!gb_manifest_parse_interfaces(gmod)) {
+		pr_err("manifest interface descriptors not valid\n");
+		gb_module_destroy(gmod);
+		return NULL;
+	}
 
 	return gmod;
 }
