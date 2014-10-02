@@ -626,6 +626,7 @@ void kvm_s390_vcpu_wakeup(struct kvm_vcpu *vcpu)
 		 */
 		vcpu->preempted = true;
 		wake_up_interruptible(&vcpu->wq);
+		vcpu->stat.halt_wakeup++;
 	}
 }
 
