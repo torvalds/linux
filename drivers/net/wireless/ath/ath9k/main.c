@@ -1974,9 +1974,6 @@ static bool ath9k_has_tx_pending(struct ath_softc *sc)
 		if (!ATH_TXQ_SETUP(sc, i))
 			continue;
 
-		if (!sc->tx.txq[i].axq_depth)
-			continue;
-
 		npend = ath9k_has_pending_frames(sc, &sc->tx.txq[i]);
 		if (npend)
 			break;
