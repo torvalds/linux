@@ -1272,6 +1272,14 @@ int cx231xx_enable_i2c_port_3(struct cx231xx *dev, bool is_port_3)
 
 	if (dev->board.dont_use_port_3)
 		is_port_3 = false;
+
+	/*
+	 * Should this code check dev->port_3_switch_enabled first
+	 * to skip unnecessary reading of the register?
+	 * If yes, the flag dev->port_3_switch_enabled must be initialized
+	 * correctly.
+	 */
+
 	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER,
 				       PWR_CTL_EN, value, 4);
 	if (status < 0)
@@ -1293,6 +1301,10 @@ int cx231xx_enable_i2c_port_3(struct cx231xx *dev, bool is_port_3)
 
 	status = cx231xx_write_ctrl_reg(dev, VRT_SET_REGISTER,
 					PWR_CTL_EN, value, 4);
+
+	/* remember status of the switch for usage in is_tuner */
+	if (status >= 0)
+		dev->port_3_switch_enabled = is_port_3;
 
 	return status;
 
