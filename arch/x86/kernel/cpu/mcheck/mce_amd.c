@@ -253,7 +253,9 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 			}
 
 			mce_threshold_block_init(&b, offset);
-			mce_threshold_vector = amd_threshold_interrupt;
+
+			if (mce_threshold_vector != amd_threshold_interrupt)
+				mce_threshold_vector = amd_threshold_interrupt;
 		}
 	}
 }
