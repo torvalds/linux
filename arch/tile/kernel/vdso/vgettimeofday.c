@@ -15,6 +15,7 @@
 #define VDSO_BUILD  /* avoid some shift warnings for -m32 in <asm/page.h> */
 #include <linux/time.h>
 #include <asm/timex.h>
+#include <asm/unistd.h>
 #include <asm/vdso.h>
 
 #if CHIP_HAS_SPLIT_CYCLE()
@@ -35,6 +36,11 @@ static inline cycles_t get_cycles_inline(void)
 #define get_cycles get_cycles_inline
 #endif
 
+struct syscall_return_value {
+	long value;
+	long error;
+};
+
 /*
  * Find out the vDSO data page address in the process address space.
  */
@@ -50,11 +56,82 @@ inline unsigned long get_datapage(void)
 	return ret;
 }
 
-int __vdso_gettimeofday(struct timeval *tv, struct timezone *tz)
+static inline u64 vgetsns(struct vdso_data *vdso)
 {
-	cycles_t cycles;
+	return ((get_cycles() - vdso->cycle_last) & vdso->mask) * vdso->mult;
+}
+
+static inline int do_realtime(struct vdso_data *vdso, struct timespec *ts)
+{
 	unsigned count;
-	unsigned long sec, ns;
+	u64 ns;
+
+	do {
+		count = read_seqcount_begin(&vdso->tb_seq);
+		ts->tv_sec = vdso->wall_time_sec;
+		ns = vdso->wall_time_snsec;
+		ns += vgetsns(vdso);
+		ns >>= vdso->shift;
+	} while (unlikely(read_seqcount_retry(&vdso->tb_seq, count)));
+
+	ts->tv_sec += __iter_div_u64_rem(ns, NSEC_PER_SEC, &ns);
+	ts->tv_nsec = ns;
+
+	return 0;
+}
+
+static inline int do_monotonic(struct vdso_data *vdso, struct timespec *ts)
+{
+	unsigned count;
+	u64 ns;
+
+	do {
+		count = read_seqcount_begin(&vdso->tb_seq);
+		ts->tv_sec = vdso->monotonic_time_sec;
+		ns = vdso->monotonic_time_snsec;
+		ns += vgetsns(vdso);
+		ns >>= vdso->shift;
+	} while (unlikely(read_seqcount_retry(&vdso->tb_seq, count)));
+
+	ts->tv_sec += __iter_div_u64_rem(ns, NSEC_PER_SEC, &ns);
+	ts->tv_nsec = ns;
+
+	return 0;
+}
+
+static inline int do_realtime_coarse(struct vdso_data *vdso,
+				     struct timespec *ts)
+{
+	unsigned count;
+
+	do {
+		count = read_seqcount_begin(&vdso->tb_seq);
+		ts->tv_sec = vdso->wall_time_coarse_sec;
+		ts->tv_nsec = vdso->wall_time_coarse_nsec;
+	} while (unlikely(read_seqcount_retry(&vdso->tb_seq, count)));
+
+	return 0;
+}
+
+static inline int do_monotonic_coarse(struct vdso_data *vdso,
+				      struct timespec *ts)
+{
+	unsigned count;
+
+	do {
+		count = read_seqcount_begin(&vdso->tb_seq);
+		ts->tv_sec = vdso->monotonic_time_coarse_sec;
+		ts->tv_nsec = vdso->monotonic_time_coarse_nsec;
+	} while (unlikely(read_seqcount_retry(&vdso->tb_seq, count)));
+
+	return 0;
+}
+
+struct syscall_return_value __vdso_gettimeofday(struct timeval *tv,
+						struct timezone *tz)
+{
+	struct syscall_return_value ret = { 0, 0 };
+	unsigned count;
 	struct vdso_data *vdso = (struct vdso_data *)get_datapage();
 
 	/* The use of the timezone is obsolete, normally tz is NULL. */
@@ -67,25 +144,55 @@ int __vdso_gettimeofday(struct timeval *tv, struct timezone *tz)
 	}
 
 	if (unlikely(tv == NULL))
-		return 0;
+		return ret;
 
-	do {
-		count = read_seqcount_begin(&vdso->tb_seq);
-		sec = vdso->xtime_clock_sec;
-		cycles = get_cycles() - vdso->xtime_tod_stamp;
-		ns = (cycles * vdso->mult) + vdso->xtime_clock_nsec;
-		ns >>= vdso->shift;
-		if (ns >= NSEC_PER_SEC) {
-			ns -= NSEC_PER_SEC;
-			sec += 1;
-		}
-	} while (unlikely(read_seqcount_retry(&vdso->tb_seq, count)));
+	do_realtime(vdso, (struct timespec *)tv);
+	tv->tv_usec /= 1000;
 
-	tv->tv_sec = sec;
-	tv->tv_usec = ns / 1000;
-
-	return 0;
+	return ret;
 }
 
 int gettimeofday(struct timeval *tv, struct timezone *tz)
 	__attribute__((weak, alias("__vdso_gettimeofday")));
+
+static struct syscall_return_value vdso_fallback_gettime(long clock,
+							 struct timespec *ts)
+{
+	struct syscall_return_value ret;
+	__asm__ __volatile__ (
+		"swint1"
+		: "=R00" (ret.value), "=R01" (ret.error)
+		: "R10" (__NR_clock_gettime), "R00" (clock), "R01" (ts)
+		: "r2", "r3", "r4", "r5", "r6", "r7",
+		"r8",  "r9", "r11", "r12", "r13", "r14", "r15",
+		"r16", "r17", "r18", "r19", "r20", "r21", "r22", "r23",
+		"r24", "r25", "r26", "r27", "r28", "r29", "memory");
+	return ret;
+}
+
+struct syscall_return_value __vdso_clock_gettime(clockid_t clock,
+						 struct timespec *ts)
+{
+	struct vdso_data *vdso = (struct vdso_data *)get_datapage();
+	struct syscall_return_value ret = { 0, 0 };
+
+	switch (clock) {
+	case CLOCK_REALTIME:
+		do_realtime(vdso, ts);
+		return ret;
+	case CLOCK_MONOTONIC:
+		do_monotonic(vdso, ts);
+		return ret;
+	case CLOCK_REALTIME_COARSE:
+		do_realtime_coarse(vdso, ts);
+		return ret;
+	case CLOCK_MONOTONIC_COARSE:
+		do_monotonic_coarse(vdso, ts);
+		return ret;
+	default:
+		return vdso_fallback_gettime(clock, ts);
+	}
+}
+
+int clock_gettime(clockid_t clock, struct timespec *ts)
+	__attribute__((weak, alias("__vdso_clock_gettime")));
