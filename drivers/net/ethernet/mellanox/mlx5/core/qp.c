@@ -39,28 +39,53 @@
 
 #include "mlx5_core.h"
 
-void mlx5_qp_event(struct mlx5_core_dev *dev, u32 qpn, int event_type)
+static struct mlx5_core_rsc_common *mlx5_get_rsc(struct mlx5_core_dev *dev,
+						 u32 rsn)
 {
 	struct mlx5_qp_table *table = &dev->priv.qp_table;
-	struct mlx5_core_qp *qp;
+	struct mlx5_core_rsc_common *common;
 
 	spin_lock(&table->lock);
 
-	qp = radix_tree_lookup(&table->tree, qpn);
-	if (qp)
-		atomic_inc(&qp->refcount);
+	common = radix_tree_lookup(&table->tree, rsn);
+	if (common)
+		atomic_inc(&common->refcount);
 
 	spin_unlock(&table->lock);
 
-	if (!qp) {
-		mlx5_core_warn(dev, "Async event for bogus QP 0x%x\n", qpn);
+	if (!common) {
+		mlx5_core_warn(dev, "Async event for bogus resource 0x%x\n",
+			       rsn);
+		return NULL;
+	}
+	return common;
+}
+
+void mlx5_core_put_rsc(struct mlx5_core_rsc_common *common)
+{
+	if (atomic_dec_and_test(&common->refcount))
+		complete(&common->free);
+}
+
+void mlx5_rsc_event(struct mlx5_core_dev *dev, u32 rsn, int event_type)
+{
+	struct mlx5_core_rsc_common *common = mlx5_get_rsc(dev, rsn);
+	struct mlx5_core_qp *qp;
+
+	if (!common)
 		return;
+
+	switch (common->res) {
+	case MLX5_RES_QP:
+		qp = (struct mlx5_core_qp *)common;
+		qp->event(qp, event_type);
+		break;
+
+	default:
+		mlx5_core_warn(dev, "invalid resource type for 0x%x\n", rsn);
 	}
 
-	qp->event(qp, event_type);
-
-	if (atomic_dec_and_test(&qp->refcount))
-		complete(&qp->free);
+	mlx5_core_put_rsc(common);
 }
 
 int mlx5_core_create_qp(struct mlx5_core_dev *dev,
@@ -92,6 +117,7 @@ int mlx5_core_create_qp(struct mlx5_core_dev *dev,
 	qp->qpn = be32_to_cpu(out.qpn) & 0xffffff;
 	mlx5_core_dbg(dev, "qpn = 0x%x\n", qp->qpn);
 
+	qp->common.res = MLX5_RES_QP;
 	spin_lock_irq(&table->lock);
 	err = radix_tree_insert(&table->tree, qp->qpn, qp);
 	spin_unlock_irq(&table->lock);
@@ -106,9 +132,9 @@ int mlx5_core_create_qp(struct mlx5_core_dev *dev,
 			      qp->qpn);
 
 	qp->pid = current->pid;
-	atomic_set(&qp->refcount, 1);
+	atomic_set(&qp->common.refcount, 1);
 	atomic_inc(&dev->num_qps);
-	init_completion(&qp->free);
+	init_completion(&qp->common.free);
 
 	return 0;
 
@@ -138,9 +164,8 @@ int mlx5_core_destroy_qp(struct mlx5_core_dev *dev,
 	radix_tree_delete(&table->tree, qp->qpn);
 	spin_unlock_irqrestore(&table->lock, flags);
 
-	if (atomic_dec_and_test(&qp->refcount))
-		complete(&qp->free);
-	wait_for_completion(&qp->free);
+	mlx5_core_put_rsc((struct mlx5_core_rsc_common *)qp);
+	wait_for_completion(&qp->common.free);
 
 	memset(&in, 0, sizeof(in));
 	memset(&out, 0, sizeof(out));

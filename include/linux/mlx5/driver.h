@@ -375,6 +375,16 @@ struct mlx5_core_mr {
 	u32			pd;
 };
 
+enum mlx5_res_type {
+	MLX5_RES_QP,
+};
+
+struct mlx5_core_rsc_common {
+	enum mlx5_res_type	res;
+	atomic_t		refcount;
+	struct completion	free;
+};
+
 struct mlx5_core_srq {
 	u32		srqn;
 	int		max;
@@ -700,7 +710,7 @@ int mlx5_eq_init(struct mlx5_core_dev *dev);
 void mlx5_eq_cleanup(struct mlx5_core_dev *dev);
 void mlx5_fill_page_array(struct mlx5_buf *buf, __be64 *pas);
 void mlx5_cq_completion(struct mlx5_core_dev *dev, u32 cqn);
-void mlx5_qp_event(struct mlx5_core_dev *dev, u32 qpn, int event_type);
+void mlx5_rsc_event(struct mlx5_core_dev *dev, u32 rsn, int event_type);
 void mlx5_srq_event(struct mlx5_core_dev *dev, u32 srqn, int event_type);
 struct mlx5_core_srq *mlx5_core_get_srq(struct mlx5_core_dev *dev, u32 srqn);
 void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, unsigned long vector);
@@ -737,6 +747,7 @@ void mlx5_cmdif_debugfs_cleanup(struct mlx5_core_dev *dev);
 int mlx5_core_create_psv(struct mlx5_core_dev *dev, u32 pdn,
 			 int npsvs, u32 *sig_index);
 int mlx5_core_destroy_psv(struct mlx5_core_dev *dev, int psv_num);
+void mlx5_core_put_rsc(struct mlx5_core_rsc_common *common);
 
 static inline u32 mlx5_mkey_to_idx(u32 mkey)
 {

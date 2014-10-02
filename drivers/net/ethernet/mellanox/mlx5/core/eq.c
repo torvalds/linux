@@ -198,7 +198,7 @@ static int mlx5_eq_int(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 	int eqes_found = 0;
 	int set_ci = 0;
 	u32 cqn;
-	u32 srqn;
+	u32 rsn;
 	u8 port;
 
 	while ((eqe = next_eqe_sw(eq))) {
@@ -224,18 +224,18 @@ static int mlx5_eq_int(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 		case MLX5_EVENT_TYPE_PATH_MIG_FAILED:
 		case MLX5_EVENT_TYPE_WQ_INVAL_REQ_ERROR:
 		case MLX5_EVENT_TYPE_WQ_ACCESS_ERROR:
+			rsn = be32_to_cpu(eqe->data.qp_srq.qp_srq_n) & 0xffffff;
 			mlx5_core_dbg(dev, "event %s(%d) arrived\n",
 				      eqe_type_str(eqe->type), eqe->type);
-			mlx5_qp_event(dev, be32_to_cpu(eqe->data.qp_srq.qp_srq_n) & 0xffffff,
-				      eqe->type);
+			mlx5_rsc_event(dev, rsn, eqe->type);
 			break;
 
 		case MLX5_EVENT_TYPE_SRQ_RQ_LIMIT:
 		case MLX5_EVENT_TYPE_SRQ_CATAS_ERROR:
-			srqn = be32_to_cpu(eqe->data.qp_srq.qp_srq_n) & 0xffffff;
+			rsn = be32_to_cpu(eqe->data.qp_srq.qp_srq_n) & 0xffffff;
 			mlx5_core_dbg(dev, "SRQ event %s(%d): srqn 0x%x\n",
-				      eqe_type_str(eqe->type), eqe->type, srqn);
-			mlx5_srq_event(dev, srqn, eqe->type);
+				      eqe_type_str(eqe->type), eqe->type, rsn);
+			mlx5_srq_event(dev, rsn, eqe->type);
 			break;
 
 		case MLX5_EVENT_TYPE_CMD:
