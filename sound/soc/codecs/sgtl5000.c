@@ -626,6 +626,9 @@ static int sgtl5000_set_clock(struct snd_soc_codec *codec, int frame_rate)
 		} else {
 			dev_err(codec->dev,
 				"PLL not supported in slave mode\n");
+			dev_err(codec->dev, "%d ratio is not supported. "
+				"SYS_MCLK needs to be 256, 384 or 512 * fs\n",
+				sgtl5000->sysclk / sys_fs);
 			return -EINVAL;
 		}
 	}
