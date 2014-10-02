@@ -1270,9 +1270,6 @@ int cx231xx_enable_i2c_port_3(struct cx231xx *dev, bool is_port_3)
 	int status = 0;
 	bool current_is_port_3;
 
-	if (dev->board.dont_use_port_3)
-		is_port_3 = false;
-
 	/*
 	 * Should this code check dev->port_3_switch_enabled first
 	 * to skip unnecessary reading of the register?
@@ -1295,9 +1292,6 @@ int cx231xx_enable_i2c_port_3(struct cx231xx *dev, bool is_port_3)
 		value[0] |= I2C_DEMOD_EN;
 	else
 		value[0] &= ~I2C_DEMOD_EN;
-
-	cx231xx_info("Changing the i2c master port to %d\n",
-		     is_port_3 ?  3 : 1);
 
 	status = cx231xx_write_ctrl_reg(dev, VRT_SET_REGISTER,
 					PWR_CTL_EN, value, 4);
@@ -2329,9 +2323,6 @@ int cx231xx_set_power_mode(struct cx231xx *dev, enum AV_MODE mode)
 		}
 
 		if (dev->board.tuner_type != TUNER_ABSENT) {
-			/* Enable tuner */
-			cx231xx_enable_i2c_port_3(dev, true);
-
 			/* reset the Tuner */
 			if (dev->board.tuner_gpio)
 				cx231xx_gpio_set(dev, dev->board.tuner_gpio);
@@ -2396,15 +2387,6 @@ int cx231xx_set_power_mode(struct cx231xx *dev, enum AV_MODE mode)
 		}
 
 		if (dev->board.tuner_type != TUNER_ABSENT) {
-			/*
-			 * Enable tuner
-			 *	Hauppauge Exeter seems to need to do something different!
-			 */
-			if (dev->model == CX231XX_BOARD_HAUPPAUGE_EXETER)
-				cx231xx_enable_i2c_port_3(dev, false);
-			else
-				cx231xx_enable_i2c_port_3(dev, true);
-
 			/* reset the Tuner */
 			if (dev->board.tuner_gpio)
 				cx231xx_gpio_set(dev, dev->board.tuner_gpio);

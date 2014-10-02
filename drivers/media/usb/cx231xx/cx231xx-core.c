@@ -1407,9 +1407,7 @@ int cx231xx_dev_init(struct cx231xx *dev)
 	if (dev->board.has_dvb)
 		cx231xx_set_alt_setting(dev, INDEX_TS1, 0);
 
-	/* set the I2C master port to 3 on channel 1 */
-	errCode = cx231xx_enable_i2c_port_3(dev, true);
-
+	errCode = 0;
 	return errCode;
 }
 EXPORT_SYMBOL_GPL(cx231xx_dev_init);

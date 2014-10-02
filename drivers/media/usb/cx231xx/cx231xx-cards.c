@@ -262,7 +262,6 @@ struct cx231xx_board cx231xx_boards[] = {
 		.norm = V4L2_STD_PAL,
 		.no_alt_vanc = 1,
 		.external_av = 1,
-		.dont_use_port_3 = 1,
 		/* Actually, it has a 417, but it isn't working correctly.
 		 * So set to 0 for now until someone can manage to get this
 		 * to work reliably. */
@@ -390,7 +389,6 @@ struct cx231xx_board cx231xx_boards[] = {
 		.norm = V4L2_STD_NTSC,
 		.no_alt_vanc = 1,
 		.external_av = 1,
-		.dont_use_port_3 = 1,
 		.input = {{
 			.type = CX231XX_VMUX_COMPOSITE1,
 			.vmux = CX231XX_VIN_2_1,
@@ -532,7 +530,6 @@ struct cx231xx_board cx231xx_boards[] = {
 		.norm = V4L2_STD_NTSC,
 		.no_alt_vanc = 1,
 		.external_av = 1,
-		.dont_use_port_3 = 1,
 
 		.input = {{
 				.type = CX231XX_VMUX_COMPOSITE1,
@@ -656,7 +653,6 @@ struct cx231xx_board cx231xx_boards[] = {
 		.norm = V4L2_STD_NTSC,
 		.no_alt_vanc = 1,
 		.external_av = 1,
-		.dont_use_port_3 = 1,
 		.input = {{
 			.type = CX231XX_VMUX_COMPOSITE1,
 			.vmux = CX231XX_VIN_2_1,
@@ -683,7 +679,6 @@ struct cx231xx_board cx231xx_boards[] = {
 		.norm = V4L2_STD_NTSC,
 		.no_alt_vanc = 1,
 		.external_av = 1,
-		.dont_use_port_3 = 1,
 		/*.has_417 = 1, */
 		/* This board is believed to have a hardware encoding chip
 		 * supporting mpeg1/2/4, but as the 417 is apparently not
@@ -1011,9 +1006,6 @@ static int read_eeprom(struct cx231xx *dev, struct i2c_client *client,
 		eedata_cur += msg_read.len;
 		len_todo -= msg_read.len;
 	}
-
-	cx231xx_enable_i2c_port_3(dev, true);
-	/* mutex_unlock(&dev->i2c_lock); */
 
 	for (i = 0; i + 15 < len; i += 16)
 		cx231xx_info("i2c eeprom %02x: %*ph\n", i, 16, &eedata[i]);
