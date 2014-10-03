@@ -203,14 +203,19 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 	struct gb_module *gmod;
 	int retval;
 
+	gmod = gb_module_create(hd, module_id);
+	if (!gmod) {
+		dev_err(hd->parent, "failed to create module\n");
+		return;
+	}
+
 	/*
 	 * Parse the manifest and build up our data structures
 	 * representing what's in it.
 	 */
-	gmod = gb_manifest_parse(data, size);
-	if (!gmod) {
+	if (!gb_manifest_parse(gmod, data, size)) {
 		dev_err(hd->parent, "manifest error\n");
-		return;
+		goto error;
 	}
 
 	/*
@@ -246,6 +251,8 @@ error_subdevs:
 	device_del(&gmod->dev);
 
 error:
+	gb_module_destroy(gmod);
+
 	put_device(&gmod->dev);
 	greybus_module_release(&gmod->dev);
 }

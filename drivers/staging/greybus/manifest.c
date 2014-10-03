@@ -259,27 +259,20 @@ static u32 gb_manifest_parse_interfaces(struct gb_module *gmod)
 	return count;
 }
 
-static struct gb_module *gb_manifest_parse_module(struct manifest_desc *module_desc)
+static bool gb_manifest_parse_module(struct gb_module *gmod,
+					struct manifest_desc *module_desc)
 {
 	struct greybus_descriptor *desc = module_desc->data;
 	struct greybus_descriptor_module *desc_module = &desc->module;
-	struct gb_module *gmod;
-
-	gmod = kzalloc(sizeof(*gmod), GFP_KERNEL);
-	if (!gmod)
-		return NULL;
 
 	/* Handle the strings first--they can fail */
 	gmod->vendor_string = gb_string_get(desc_module->vendor_stringid);
-	if (IS_ERR(gmod->vendor_string)) {
-		kfree(gmod);
-		return NULL;
-	}
+	if (IS_ERR(gmod->vendor_string))
+		return false;
+
 	gmod->product_string = gb_string_get(desc_module->product_stringid);
 	if (IS_ERR(gmod->product_string)) {
-		kfree(gmod->vendor_string);
-		kfree(gmod);
-		return NULL;
+		goto out_err;
 	}
 
 	gmod->vendor = le16_to_cpu(desc_module->vendor);
@@ -293,11 +286,17 @@ static struct gb_module *gb_manifest_parse_module(struct manifest_desc *module_d
 	/* A module must have at least one interface descriptor */
 	if (!gb_manifest_parse_interfaces(gmod)) {
 		pr_err("manifest interface descriptors not valid\n");
-		gb_module_destroy(gmod);
-		return NULL;
+		goto out_err;
 	}
 
-	return gmod;
+	return true;
+out_err:
+	kfree(gmod->product_string);
+	gmod->product_string = NULL;
+	kfree(gmod->vendor_string);
+	gmod->vendor_string = NULL;
+
+	return false;
 }
 
 /*
@@ -321,25 +320,23 @@ static struct gb_module *gb_manifest_parse_module(struct manifest_desc *module_d
  * After that we look for the module's interfaces--there must be at
  * least one of those.
  *
- * Return a pointer to an initialized gb_module structure
- * representing the content of the module manifest, or a null
- * pointer if an error occurs.
+ * Returns true if parsing was successful, false otherwise.
  */
-struct gb_module *gb_manifest_parse(void *data, size_t size)
+bool gb_manifest_parse(struct gb_module *gmod, void *data, size_t size)
 {
 	struct greybus_manifest *manifest;
 	struct greybus_manifest_header *header;
 	struct greybus_descriptor *desc;
 	struct manifest_desc *descriptor;
-	struct manifest_desc *module_desc = NULL;
-	struct gb_module *gmod;
+	struct manifest_desc *module_desc = false;
 	u16 manifest_size;
 	u32 found = 0;
+	bool result = false;
 
 	/* we have to have at _least_ the manifest header */
 	if (size <= sizeof(manifest->header)) {
 		pr_err("short manifest (%zu)\n", size);
-		return NULL;
+		return false;
 	}
 
 	/* Make sure the size is right */
@@ -349,7 +346,7 @@ struct gb_module *gb_manifest_parse(void *data, size_t size)
 	if (manifest_size != size) {
 		pr_err("manifest size mismatch %zu != %hu\n",
 			size, manifest_size);
-		return NULL;
+		return false;
 	}
 
 	/* Validate major/minor number */
@@ -357,7 +354,7 @@ struct gb_module *gb_manifest_parse(void *data, size_t size)
 		pr_err("manifest version too new (%hhu.%hhu > %hhu.%hhu)\n",
 			header->version_major, header->version_minor,
 			GREYBUS_VERSION_MAJOR, GREYBUS_VERSION_MINOR);
-		return NULL;
+		return false;
 	}
 
 	/* OK, find all the descriptors */
@@ -370,7 +367,7 @@ struct gb_module *gb_manifest_parse(void *data, size_t size)
 		if (desc_size <= 0) {
 			if (!desc_size)
 				pr_err("zero-sized manifest descriptor\n");
-			goto out_err;
+			goto out;
 		}
 		desc = (struct greybus_descriptor *)((char *)desc + desc_size);
 		size -= desc_size;
@@ -385,24 +382,20 @@ struct gb_module *gb_manifest_parse(void *data, size_t size)
 	if (found != 1) {
 		pr_err("manifest must have 1 module descriptor (%u found)\n",
 			found);
-		goto out_err;
+		goto out;
 	}
 
 	/* Parse the module manifest, starting with the module descriptor */
-	gmod = gb_manifest_parse_module(module_desc);
+	result = gb_manifest_parse_module(gmod, module_desc);
 
 	/*
 	 * We really should have no remaining descriptors, but we
 	 * don't know what newer format manifests might leave.
 	 */
-	if (!list_empty(&manifest_descs)) {
+	if (!list_empty(&manifest_descs))
 		pr_info("excess descriptors in module manifest\n");
-		release_manifest_descriptors();
-	}
-
-	return gmod;
-out_err:
+out:
 	release_manifest_descriptors();
 
-	return NULL;
+	return false;
 }
