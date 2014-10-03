@@ -316,6 +316,7 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 	int msdu_len, msdu_chaining = 0;
 	struct sk_buff *msdu, *next;
 	struct htt_rx_desc *rx_desc;
+	u32 tsf;
 
 	lockdep_assert_held(&htt->rx_ring.lock);
 
@@ -447,6 +448,9 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 		last_msdu = __le32_to_cpu(rx_desc->msdu_end.info0) &
 				RX_MSDU_END_INFO0_LAST_MSDU;
 
+		tsf = __le32_to_cpu(rx_desc->ppdu_end.tsf_timestamp);
+		trace_ath10k_htt_rx_desc(ar, tsf, &rx_desc->attention,
+					 sizeof(*rx_desc) - sizeof(u32));
 		if (last_msdu) {
 			msdu->next = NULL;
 			break;
