@@ -231,14 +231,20 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 	device_initialize(&gmod->dev);
 	dev_set_name(&gmod->dev, "%d", module_id);
 
-	retval = gb_init_subdevs(gmod, &fake_greybus_module_id);
+	retval = device_add(&gmod->dev);
 	if (retval)
 		goto error;
 
-	// FIXME device_add(&gmod->dev);
+	retval = gb_init_subdevs(gmod, &fake_greybus_module_id);
+	if (retval)
+		goto error_subdevs;
 
 	//return gmod;
 	return;
+
+error_subdevs:
+	device_del(&gmod->dev);
+
 error:
 	put_device(&gmod->dev);
 	greybus_module_release(&gmod->dev);
