@@ -194,7 +194,6 @@ struct greybus_host_device {
 	struct list_head modules;
 	struct list_head connections;
 
-	spinlock_t cport_id_map_lock;
 	DECLARE_BITMAP(cport_id_map, HOST_DEV_CPORT_ID_MAX);
 	u16 cport_id_count;	/* How many have been allocated */
 	u16 cport_id_next_free;	/* Where to start checking anyway */

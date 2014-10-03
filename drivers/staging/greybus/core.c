@@ -298,9 +298,9 @@ u16 greybus_hd_cport_id_alloc(struct greybus_host_device *hd)
 		return CPORT_ID_BAD;
 
 	spin_lock_irq(&cport_id_map_lock);
-	cport_id = find_next_zero_bit(hd->cport_id_map, hd->cport_id_count,
+	cport_id = find_next_zero_bit(hd->cport_id_map, HOST_DEV_CPORT_ID_MAX,
 						hd->cport_id_next_free);
-	if (cport_id < hd->cport_id_count) {
+	if (cport_id < HOST_DEV_CPORT_ID_MAX) {
 		hd->cport_id_next_free = cport_id + 1;	/* Success */
 		hd->cport_id_count++;
 	} else {
@@ -367,6 +367,7 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 	hd->parent = parent;
 	hd->driver = driver;
 	INIT_LIST_HEAD(&hd->modules);
+	INIT_LIST_HEAD(&hd->connections);
 
 	/* Pre-allocate CPort 0 for control stuff. XXX */
 	if (greybus_hd_cport_id_alloc(hd) != 0) {

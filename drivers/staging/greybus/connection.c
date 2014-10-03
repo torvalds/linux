@@ -11,6 +11,8 @@
 #include "kernel_ver.h"
 #include "greybus.h"
 
+static DEFINE_SPINLOCK(gb_connections_lock);
+
 /*
  * Set up a Greybus connection, representing the bidirectional link
  * between a CPort on a (local) Greybus host device and a CPort on
@@ -43,6 +45,11 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 	connection->interface_cport_id = cport_id;
 	connection->protocol = protocol;
 
+	spin_lock_irq(&gb_connections_lock);
+	list_add_tail(&connection->hd_links, &hd->connections);
+	list_add_tail(&connection->interface_links, &interface->connections);
+	spin_unlock_irq(&gb_connections_lock);
+
 	INIT_LIST_HEAD(&connection->operations);
 	atomic_set(&connection->op_cycle, 0);
 
@@ -59,6 +66,11 @@ void gb_connection_destroy(struct gb_connection *connection)
 
 	/* XXX Need to wait for any outstanding requests to complete */
 	WARN_ON(!list_empty(&connection->operations));
+
+	spin_lock_irq(&gb_connections_lock);
+	list_del(&connection->hd_links);
+	list_del(&connection->interface_links);
+	spin_unlock_irq(&gb_connections_lock);
 
 	greybus_hd_cport_id_free(connection->hd, connection->hd_cport_id);
 	/* kref_put(connection->interface); */

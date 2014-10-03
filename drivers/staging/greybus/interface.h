@@ -14,7 +14,7 @@
 struct gb_interface {
 	struct gb_module	*gmod;
 	u8			id;
-	struct list_head	functions;
+	struct list_head	connections;
 
 	struct list_head	links;	/* module->interfaces */
 };
