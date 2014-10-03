@@ -1887,7 +1887,4 @@ struct xhci_input_control_ctx *xhci_get_input_control_ctx(struct xhci_hcd *xhci,
 struct xhci_slot_ctx *xhci_get_slot_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx);
 struct xhci_ep_ctx *xhci_get_ep_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx, unsigned int ep_index);
 
-/* xHCI quirks */
-bool xhci_compliance_mode_recovery_timer_quirk_check(void);
-
 #endif /* __LINUX_XHCI_HCD_H */
