@@ -343,18 +343,24 @@ void __init mem_init(void)
 		"    pkmap   : 0x%08lx - 0x%08lx  (%5lu kB)\n"
 		"    fixmap  : 0x%08lx - 0x%08lx  (%5lu kB)\n"
 #endif
+#ifdef CONFIG_MMU
 		"    vmalloc : 0x%08x - 0x%08x  (%5u MB)\n"
-		"    lowmem  : 0x%08x - 0x%08lx  (%5lu MB)\n",
+#endif
+		"    lowmem  : 0x%08lx - 0x%08lx  (%5lu MB)\n",
 #ifdef CONFIG_HIGHMEM
 		PKMAP_BASE, PKMAP_BASE + LAST_PKMAP * PAGE_SIZE,
 		(LAST_PKMAP*PAGE_SIZE) >> 10,
 		FIXADDR_START, FIXADDR_TOP,
 		(FIXADDR_TOP - FIXADDR_START) >> 10,
 #endif
+#ifdef CONFIG_MMU
 		VMALLOC_START, VMALLOC_END,
 		(VMALLOC_END - VMALLOC_START) >> 20,
 		PAGE_OFFSET, PAGE_OFFSET +
 		(max_low_pfn - min_low_pfn) * PAGE_SIZE,
+#else
+		min_low_pfn * PAGE_SIZE, max_low_pfn * PAGE_SIZE,
+#endif
 		((max_low_pfn - min_low_pfn) * PAGE_SIZE) >> 20);
 }
 
