@@ -279,7 +279,7 @@ static inline s64 issue_vmcall_measurement_do_nothing(void)
 }
 
 struct log_info_t {
-	volatile unsigned long long last_cycles;
+	unsigned long long last_cycles;
 	unsigned long long delta_sum[64];
 	unsigned long long delta_cnt[64];
 	unsigned long long max_delta[64];
