@@ -294,7 +294,7 @@ enum ovs_key_attr {
 	OVS_KEY_ATTR_RECIRC_ID, /* u32 recirc id */
 
 #ifdef __KERNEL__
-	OVS_KEY_ATTR_IPV4_TUNNEL,  /* struct ovs_key_ipv4_tunnel */
+	OVS_KEY_ATTR_TUNNEL_INFO,  /* struct ovs_tunnel_info */
 #endif
 	__OVS_KEY_ATTR_MAX
 };

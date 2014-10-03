@@ -63,8 +63,10 @@ static __be16 filter_tnl_flags(__be16 flags)
 static struct sk_buff *__build_header(struct sk_buff *skb,
 				      int tunnel_hlen)
 {
-	const struct ovs_key_ipv4_tunnel *tun_key = OVS_CB(skb)->egress_tun_key;
 	struct tnl_ptk_info tpi;
+	const struct ovs_key_ipv4_tunnel *tun_key;
+
+	tun_key = &OVS_CB(skb)->egress_tun_info->tunnel;
 
 	skb = gre_handle_offloads(skb, !!(tun_key->tun_flags & TUNNEL_CSUM));
 	if (IS_ERR(skb))
@@ -92,7 +94,7 @@ static __be64 key_to_tunnel_id(__be32 key, __be32 seq)
 static int gre_rcv(struct sk_buff *skb,
 		   const struct tnl_ptk_info *tpi)
 {
-	struct ovs_key_ipv4_tunnel tun_key;
+	struct ovs_tunnel_info tun_info;
 	struct ovs_net *ovs_net;
 	struct vport *vport;
 	__be64 key;
@@ -103,10 +105,10 @@ static int gre_rcv(struct sk_buff *skb,
 		return PACKET_REJECT;
 
 	key = key_to_tunnel_id(tpi->key, tpi->seq);
-	ovs_flow_tun_key_init(&tun_key, ip_hdr(skb), key,
-			      filter_tnl_flags(tpi->flags));
+	ovs_flow_tun_info_init(&tun_info, ip_hdr(skb), key,
+			       filter_tnl_flags(tpi->flags));
 
-	ovs_vport_receive(vport, skb, &tun_key);
+	ovs_vport_receive(vport, skb, &tun_info);
 	return PACKET_RCVD;
 }
 
@@ -137,12 +139,12 @@ static int gre_tnl_send(struct vport *vport, struct sk_buff *skb)
 	__be16 df;
 	int err;
 
-	if (unlikely(!OVS_CB(skb)->egress_tun_key)) {
+	if (unlikely(!OVS_CB(skb)->egress_tun_info)) {
 		err = -EINVAL;
 		goto error;
 	}
 
-	tun_key = OVS_CB(skb)->egress_tun_key;
+	tun_key = &OVS_CB(skb)->egress_tun_info->tunnel;
 	/* Route lookup */
 	memset(&fl, 0, sizeof(fl));
 	fl.daddr = tun_key->ipv4_dst;

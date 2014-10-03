@@ -102,8 +102,8 @@ struct datapath {
  */
 struct ovs_skb_cb {
 	struct sw_flow		*flow;
+	struct ovs_tunnel_info  *egress_tun_info;
 	struct vport		*input_vport;
-	struct ovs_key_ipv4_tunnel  *egress_tun_key;
 };
 #define OVS_CB(skb) ((struct ovs_skb_cb *)(skb)->cb)
 

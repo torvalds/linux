@@ -1148,13 +1148,14 @@ out:
 	return  (struct nlattr *) ((unsigned char *)(*sfa) + next_offset);
 }
 
-static int add_action(struct sw_flow_actions **sfa, int attrtype, void *data, int len)
+static struct nlattr *__add_action(struct sw_flow_actions **sfa,
+				   int attrtype, void *data, int len)
 {
 	struct nlattr *a;
 
 	a = reserve_sfa_size(sfa, nla_attr_size(len));
 	if (IS_ERR(a))
-		return PTR_ERR(a);
+		return a;
 
 	a->nla_type = attrtype;
 	a->nla_len = nla_attr_size(len);
@@ -1162,6 +1163,18 @@ static int add_action(struct sw_flow_actions **sfa, int attrtype, void *data, in
 	if (data)
 		memcpy(nla_data(a), data, len);
 	memset((unsigned char *) a + a->nla_len, 0, nla_padlen(len));
+
+	return a;
+}
+
+static int add_action(struct sw_flow_actions **sfa, int attrtype,
+		      void *data, int len)
+{
+	struct nlattr *a;
+
+	a = __add_action(sfa, attrtype, data, len);
+	if (IS_ERR(a))
+		return PTR_ERR(a);
 
 	return 0;
 }
@@ -1268,6 +1281,8 @@ static int validate_and_copy_set_tun(const struct nlattr *attr,
 {
 	struct sw_flow_match match;
 	struct sw_flow_key key;
+	struct ovs_tunnel_info *tun_info;
+	struct nlattr *a;
 	int err, start;
 
 	ovs_match_init(&match, &key, NULL);
@@ -1279,8 +1294,14 @@ static int validate_and_copy_set_tun(const struct nlattr *attr,
 	if (start < 0)
 		return start;
 
-	err = add_action(sfa, OVS_KEY_ATTR_IPV4_TUNNEL, &match.key->tun_key,
-			sizeof(match.key->tun_key));
+	a = __add_action(sfa, OVS_KEY_ATTR_TUNNEL_INFO, NULL,
+			 sizeof(*tun_info));
+	if (IS_ERR(a))
+		return PTR_ERR(a);
+
+	tun_info = nla_data(a);
+	tun_info->tunnel = key.tun_key;
+
 	add_nested_action_end(*sfa, start);
 
 	return err;
@@ -1563,17 +1584,20 @@ static int set_action_to_attr(const struct nlattr *a, struct sk_buff *skb)
 	int err;
 
 	switch (key_type) {
-	case OVS_KEY_ATTR_IPV4_TUNNEL:
+	case OVS_KEY_ATTR_TUNNEL_INFO: {
+		struct ovs_tunnel_info *tun_info = nla_data(ovs_key);
+
 		start = nla_nest_start(skb, OVS_ACTION_ATTR_SET);
 		if (!start)
 			return -EMSGSIZE;
 
-		err = ipv4_tun_to_nlattr(skb, nla_data(ovs_key),
-					     nla_data(ovs_key));
+		err = ipv4_tun_to_nlattr(skb, &tun_info->tunnel,
+					 nla_data(ovs_key));
 		if (err)
 			return err;
 		nla_nest_end(skb, start);
 		break;
+	}
 	default:
 		if (nla_put(skb, OVS_ACTION_ATTR_SET, nla_len(a), ovs_key))
 			return -EMSGSIZE;

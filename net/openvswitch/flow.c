@@ -642,12 +642,12 @@ int ovs_flow_key_update(struct sk_buff *skb, struct sw_flow_key *key)
 	return key_extract(skb, key);
 }
 
-int ovs_flow_key_extract(struct ovs_key_ipv4_tunnel *tun_key,
+int ovs_flow_key_extract(struct ovs_tunnel_info *tun_info,
 			 struct sk_buff *skb, struct sw_flow_key *key)
 {
 	/* Extract metadata from packet. */
-	if (tun_key)
-		memcpy(&key->tun_key, tun_key, sizeof(key->tun_key));
+	if (tun_info)
+		memcpy(&key->tun_key, &tun_info->tunnel, sizeof(key->tun_key));
 	else
 		memset(&key->tun_key, 0, sizeof(key->tun_key));
 
