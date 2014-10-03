@@ -75,7 +75,7 @@ struct req_handler_info *req_handler_add(uuid_le switch_uuid,
 						unsigned char *client_str,
 						u32 client_str_len, u64 bytes));
 struct req_handler_info *req_handler_find(uuid_le switch_uuid);
-int ReqHandlerDel(uuid_le switchTypeGuid);
+int req_handler_del(uuid_le switch_uuid);
 
 #define uislib_ioremap_cache(addr, size) \
 	dbg_ioremap_cache(addr, size, __FILE__, __LINE__)

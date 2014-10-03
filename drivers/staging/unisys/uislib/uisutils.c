@@ -165,7 +165,7 @@ uisctrl_unregister_req_handler_ex(uuid_le switchTypeGuid)
 	int rc = 0;		/* assume failure */
 
 	LOGINF("type=%pUL.\n", &switchTypeGuid);
-	if (ReqHandlerDel(switchTypeGuid) < 0) {
+	if (req_handler_del(switchTypeGuid) < 0) {
 		LOGERR("failed to remove %pUL from server list\n",
 				&switchTypeGuid);
 		goto Away;
@@ -326,7 +326,7 @@ req_handler_find(uuid_le switch_uuid)
 }
 
 int
-ReqHandlerDel(uuid_le switchTypeGuid)
+req_handler_del(uuid_le switch_uuid)
 {
 	struct list_head *lelt, *tmp;
 	struct req_handler_info *entry = NULL;
@@ -335,7 +335,7 @@ ReqHandlerDel(uuid_le switchTypeGuid)
 	spin_lock(&ReqHandlerInfo_list_lock);
 	list_for_each_safe(lelt, tmp, &ReqHandlerInfo_list) {
 		entry = list_entry(lelt, struct req_handler_info, list_link);
-		if (uuid_le_cmp(entry->switch_uuid, switchTypeGuid) == 0) {
+		if (uuid_le_cmp(entry->switch_uuid, switch_uuid) == 0) {
 			list_del(lelt);
 			kfree(entry);
 			rc++;
