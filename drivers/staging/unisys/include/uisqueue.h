@@ -154,18 +154,18 @@ enum switch_type {
 };
 
 struct bus_info {
-	u32 busNo, deviceCount;
+	u32 bus_no, device_count;
 	struct device_info **device;
-	u64 guestHandle, recvBusInterruptHandle;
-	uuid_le busInstGuid;
-	ULTRA_VBUS_CHANNEL_PROTOCOL __iomem *pBusChannel;
-	int busChannelBytes;
+	u64 guest_handle, recv_bus_irq_handle;
+	uuid_le bus_inst_uuid;
+	ULTRA_VBUS_CHANNEL_PROTOCOL __iomem *bus_channel;
+	int bus_channel_bytes;
 	struct proc_dir_entry *proc_dir;	/* proc/uislib/vbus/<x> */
 	struct proc_dir_entry *proc_info;	/* proc/uislib/vbus/<x>/info */
 	char name[25];
-	char partitionName[99];
+	char partition_name[99];
 	struct bus_info *next;
-	u8 localVnic;		/* 1 if local vnic created internally
+	u8 local_vnic;		/* 1 if local vnic created internally
 				 * by IOVM; 0 otherwise... */
 };
 

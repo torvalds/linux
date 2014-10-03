@@ -190,23 +190,23 @@ create_bus(CONTROLVM_MESSAGE *msg, char *buf)
 	 */
 	if (msg->hdr.Flags.testMessage) {
 		/* This implies we're the IOVM so set guest handle to 0... */
-		bus->guestHandle = 0;
-		bus->busNo = busNo;
-		bus->localVnic = 1;
+		bus->guest_handle = 0;
+		bus->bus_no = busNo;
+		bus->local_vnic = 1;
 	} else
-		bus->busNo = bus->guestHandle = busNo;
-	sprintf(bus->name, "%d", (int) bus->busNo);
-	bus->deviceCount = deviceCount;
+		bus->bus_no = bus->guest_handle = busNo;
+	sprintf(bus->name, "%d", (int) bus->bus_no);
+	bus->device_count = deviceCount;
 	bus->device =
 	    (struct device_info **) ((char *) bus + sizeof(struct bus_info));
-	bus->busInstGuid = msg->cmd.createBus.busInstGuid;
-	bus->busChannelBytes = 0;
-	bus->pBusChannel = NULL;
+	bus->bus_inst_uuid = msg->cmd.createBus.busInstGuid;
+	bus->bus_channel_bytes = 0;
+	bus->bus_channel = NULL;
 
 	/* add bus to our bus list - but check for duplicates first */
 	read_lock(&BusListLock);
 	for (tmp = BusListHead; tmp; tmp = tmp->next) {
-		if (tmp->busNo == bus->busNo)
+		if (tmp->bus_no == bus->bus_no)
 			break;
 	}
 	read_unlock(&BusListLock);
@@ -215,16 +215,16 @@ create_bus(CONTROLVM_MESSAGE *msg, char *buf)
 		 * reject add
 		 */
 		LOGERR("CONTROLVM_BUS_CREATE Failed: bus %d already exists.\n",
-		       bus->busNo);
-		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, bus->busNo,
+		       bus->bus_no);
+		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, bus->bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		kfree(bus);
 		return CONTROLVM_RESP_ERROR_ALREADY_DONE;
 	}
 	if ((msg->cmd.createBus.channelAddr != 0)
 	    && (msg->cmd.createBus.channelBytes != 0)) {
-		bus->busChannelBytes = msg->cmd.createBus.channelBytes;
-		bus->pBusChannel =
+		bus->bus_channel_bytes = msg->cmd.createBus.channelBytes;
+		bus->bus_channel =
 		    init_vbus_channel(msg->cmd.createBus.channelAddr,
 				      msg->cmd.createBus.channelBytes);
 	}
@@ -234,20 +234,20 @@ create_bus(CONTROLVM_MESSAGE *msg, char *buf)
 
 		cmd.msgtype = GUEST_ADD_VBUS;
 		cmd.add_vbus.busNo = busNo;
-		cmd.add_vbus.chanptr = bus->pBusChannel;
+		cmd.add_vbus.chanptr = bus->bus_channel;
 		cmd.add_vbus.deviceCount = deviceCount;
 		cmd.add_vbus.busTypeGuid = msg->cmd.createBus.busDataTypeGuid;
 		cmd.add_vbus.busInstGuid = msg->cmd.createBus.busInstGuid;
 		if (!VirtControlChanFunc) {
 			LOGERR("CONTROLVM_BUS_CREATE Failed: virtpci callback not registered.");
-			POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, bus->busNo,
+			POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, bus->bus_no,
 					 POSTCODE_SEVERITY_ERR);
 			kfree(bus);
 			return CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_FAILURE;
 		}
 		if (!VirtControlChanFunc(&cmd)) {
 			LOGERR("CONTROLVM_BUS_CREATE Failed: virtpci GUEST_ADD_VBUS returned error.");
-			POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, bus->busNo,
+			POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, bus->bus_no,
 					 POSTCODE_SEVERITY_ERR);
 			kfree(bus);
 			return
@@ -266,7 +266,7 @@ create_bus(CONTROLVM_MESSAGE *msg, char *buf)
 	BusListCount++;
 	write_unlock(&BusListLock);
 
-	POSTCODE_LINUX_3(BUS_CREATE_EXIT_PC, bus->busNo,
+	POSTCODE_LINUX_3(BUS_CREATE_EXIT_PC, bus->bus_no,
 			 POSTCODE_SEVERITY_INFO);
 	return CONTROLVM_RESP_SUCCESS;
 }
@@ -285,7 +285,7 @@ destroy_bus(CONTROLVM_MESSAGE *msg, char *buf)
 
 	bus = BusListHead;
 	while (bus) {
-		if (bus->busNo == busNo)
+		if (bus->bus_no == busNo)
 			break;
 		prev = bus;
 		bus = bus->next;
@@ -299,7 +299,7 @@ destroy_bus(CONTROLVM_MESSAGE *msg, char *buf)
 	}
 
 	/* verify that this bus has no devices. */
-	for (i = 0; i < bus->deviceCount; i++) {
+	for (i = 0; i < bus->device_count; i++) {
 		if (bus->device[i] != NULL) {
 			LOGERR("CONTROLVM_BUS_DESTROY Failed: device %i attached to bus %d.",
 			     i, busNo);
@@ -335,9 +335,9 @@ remove:
 	BusListCount--;
 	write_unlock(&BusListLock);
 
-	if (bus->pBusChannel) {
-		uislib_iounmap(bus->pBusChannel);
-		bus->pBusChannel = NULL;
+	if (bus->bus_channel) {
+		uislib_iounmap(bus->bus_channel);
+		bus->bus_channel = NULL;
 	}
 
 	kfree(bus);
@@ -412,11 +412,11 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 
 	read_lock(&BusListLock);
 	for (bus = BusListHead; bus; bus = bus->next) {
-		if (bus->busNo == busNo) {
+		if (bus->bus_no == busNo) {
 			/* make sure the device number is valid */
-			if (devNo >= bus->deviceCount) {
+			if (devNo >= bus->device_count) {
 				LOGERR("CONTROLVM_DEVICE_CREATE Failed: device (%d) >= deviceCount (%d).",
-				     devNo, bus->deviceCount);
+				     devNo, bus->device_count);
 				result = CONTROLVM_RESP_ERROR_MAX_DEVICES;
 				POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC,
 						 devNo, busNo,
@@ -555,11 +555,11 @@ pause_device(CONTROLVM_MESSAGE *msg)
 
 	read_lock(&BusListLock);
 	for (bus = BusListHead; bus; bus = bus->next) {
-		if (bus->busNo == busNo) {
+		if (bus->bus_no == busNo) {
 			/* make sure the device number is valid */
-			if (devNo >= bus->deviceCount) {
+			if (devNo >= bus->device_count) {
 				LOGERR("CONTROLVM_DEVICE_CHANGESTATE:pause Failed: device(%d) >= deviceCount(%d).",
-				     devNo, bus->deviceCount);
+				     devNo, bus->device_count);
 				retval = CONTROLVM_RESP_ERROR_DEVICE_INVALID;
 			} else {
 				/* make sure this device exists */
@@ -623,11 +623,11 @@ resume_device(CONTROLVM_MESSAGE *msg)
 
 	read_lock(&BusListLock);
 	for (bus = BusListHead; bus; bus = bus->next) {
-		if (bus->busNo == busNo) {
+		if (bus->bus_no == busNo) {
 			/* make sure the device number is valid */
-			if (devNo >= bus->deviceCount) {
+			if (devNo >= bus->device_count) {
 				LOGERR("CONTROLVM_DEVICE_CHANGESTATE:resume Failed: device(%d) >= deviceCount(%d).",
-				     devNo, bus->deviceCount);
+				     devNo, bus->device_count);
 				retval = CONTROLVM_RESP_ERROR_DEVICE_INVALID;
 			} else {
 				/* make sure this device exists */
@@ -693,11 +693,11 @@ destroy_device(CONTROLVM_MESSAGE *msg, char *buf)
 	read_lock(&BusListLock);
 	LOGINF("destroy_device called for busNo=%u, devNo=%u", busNo, devNo);
 	for (bus = BusListHead; bus; bus = bus->next) {
-		if (bus->busNo == busNo) {
+		if (bus->bus_no == busNo) {
 			/* make sure the device number is valid */
-			if (devNo >= bus->deviceCount) {
+			if (devNo >= bus->device_count) {
 				LOGERR("CONTROLVM_DEVICE_DESTORY Failed: device(%d) >= deviceCount(%d).",
-				       devNo, bus->deviceCount);
+				       devNo, bus->device_count);
 				retval = CONTROLVM_RESP_ERROR_DEVICE_INVALID;
 			} else {
 				/* make sure this device exists */
@@ -1206,17 +1206,17 @@ info_debugfs_read_helper(char **buff, int *buff_len)
 	for (bus = BusListHead; bus; bus = bus->next) {
 
 		if (PLINE("    bus=0x%p, busNo=%d, deviceCount=%d\n",
-			  bus, bus->busNo, bus->deviceCount) < 0)
+			  bus, bus->bus_no, bus->device_count) < 0)
 			goto err_done_unlock;
 
 
 		if (PLINE("        Devices:\n") < 0)
 			goto err_done_unlock;
 
-		for (i = 0; i < bus->deviceCount; i++) {
+		for (i = 0; i < bus->device_count; i++) {
 			if (bus->device[i]) {
 				if (PLINE("            busNo %d, device[%i]: 0x%p, chanptr=0x%p, swtch=0x%p\n",
-					  bus->busNo, i, bus->device[i],
+					  bus->bus_no, i, bus->device[i],
 					  bus->device[i]->chanptr,
 					  bus->device[i]->swtch) < 0)
 					goto err_done_unlock;
@@ -1294,9 +1294,9 @@ find_dev(u32 busNo, u32 devNo)
 
 	read_lock(&BusListLock);
 	for (bus = BusListHead; bus; bus = bus->next) {
-		if (bus->busNo == busNo) {
+		if (bus->bus_no == busNo) {
 			/* make sure the device number is valid */
-			if (devNo >= bus->deviceCount) {
+			if (devNo >= bus->device_count) {
 				LOGERR("%s bad busNo, devNo=%d,%d",
 				       __func__,
 				       (int) (busNo), (int) (devNo));
