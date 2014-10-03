@@ -34,7 +34,6 @@
 #include "controlvmcompletionstatus.h"
 
 struct uisqueue_info {
-
 	CHANNEL_HEADER __iomem *chan;
 	/* channel containing queues in which scsi commands &
 	 * responses are queued
@@ -149,10 +148,10 @@ struct device_info {
 	unsigned long long last_on_list_cnt;
 };
 
-typedef enum {
+enum switch_type {
 	RECOVERY_LAN = 1,
 	IB_LAN = 2
-} SWITCH_TYPE;
+};
 
 struct bus_info {
 	u32 busNo, deviceCount;
@@ -199,7 +198,7 @@ struct network_policy {
  */
 
 
-typedef enum {
+enum iopart_msg_type {
 	IOPART_ADD_VNIC,
 	IOPART_DEL_VNIC,
 	IOPART_DEL_ALL_VNICS,
@@ -219,7 +218,7 @@ typedef enum {
 	IOPART_RESUME_VDISK,
 	IOPART_ADD_DEVICE,	/* add generic device */
 	IOPART_DEL_DEVICE,	/* del generic device */
-} IOPART_MSG_TYPE;
+};
 
 struct add_virt_iopart {
 	void *chanptr;		/* pointer to data channel */
@@ -297,8 +296,7 @@ struct del_switch_iopart {	     /* destroy switch */
 };
 
 struct io_msgs {
-
-	IOPART_MSG_TYPE msgtype;
+	enum iopart_msg_type msgtype;
 
 	/* additional params needed by some messages */
 	union {
@@ -394,7 +392,6 @@ struct init_chipset_guestpart {
 };
 
 struct guest_msgs {
-
 	GUESTPART_MSG_TYPE msgtype;
 
 	/* additional params needed by messages */
