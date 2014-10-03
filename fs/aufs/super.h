@@ -423,8 +423,8 @@ AuStubVoid(au_sbilist_unlock, void)
 #endif /* CONFIG_AUFS_MAGIC_SYSRQ */
 #else
 AuStubVoid(au_sbilist_init, void)
-AuStubVoid(au_sbilist_add, struct super_block*)
-AuStubVoid(au_sbilist_del, struct super_block*)
+AuStubVoid(au_sbilist_add, struct super_block* sb)
+AuStubVoid(au_sbilist_del, struct super_block* sb)
 AuStubVoid(au_sbilist_lock, void)
 AuStubVoid(au_sbilist_unlock, void)
 #define AuGFP_SBILIST	GFP_NOFS
