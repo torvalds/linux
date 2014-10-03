@@ -409,8 +409,7 @@ static const struct iio_trigger_ops st_press_trigger_ops = {
 #define ST_PRESS_TRIGGER_OPS NULL
 #endif
 
-int st_press_common_probe(struct iio_dev *indio_dev,
-				struct st_sensors_platform_data *plat_data)
+int st_press_common_probe(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *pdata = iio_priv(indio_dev);
 	int irq = pdata->get_irq_data_ready(indio_dev);
@@ -439,11 +438,11 @@ int st_press_common_probe(struct iio_dev *indio_dev,
 	pdata->odr = pdata->sensor_settings->odr.odr_avl[0].hz;
 
 	/* Some devices don't support a data ready pin. */
-	if (!plat_data && pdata->sensor_settings->drdy_irq.addr)
-		plat_data =
+	if (!pdata->dev->platform_data && pdata->sensor_settings->drdy_irq.addr)
+		pdata->dev->platform_data =
 			(struct st_sensors_platform_data *)&default_press_pdata;
 
-	err = st_sensors_init_sensor(indio_dev, plat_data);
+	err = st_sensors_init_sensor(indio_dev, pdata->dev->platform_data);
 	if (err < 0)
 		return err;
 

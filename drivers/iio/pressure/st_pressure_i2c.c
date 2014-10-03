@@ -56,7 +56,7 @@ static int st_press_i2c_probe(struct i2c_client *client,
 
 	st_sensors_i2c_configure(indio_dev, client, pdata);
 
-	err = st_press_common_probe(indio_dev, client->dev.platform_data);
+	err = st_press_common_probe(indio_dev);
 	if (err < 0)
 		return err;
 
