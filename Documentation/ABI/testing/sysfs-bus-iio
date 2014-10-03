@@ -210,6 +210,14 @@ Contact:	linux-iio@vger.kernel.org
 Description:
 		Scaled humidity measurement in milli percent.
 
+What:		/sys/bus/iio/devices/iio:deviceX/in_X_mean_raw
+KernelVersion:	3.5
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Averaged raw measurement from channel X. The number of values
+		used for averaging is device specific. The converting rules for
+		normal raw values also applies to the averaged raw values.
+
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_x_offset
 What:		/sys/bus/iio/devices/iio:deviceX/in_accel_y_offset
