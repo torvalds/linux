@@ -75,7 +75,7 @@ EXPORT_SYMBOL_GPL(uisutil_add_proc_line_ex);
 
 int
 uisctrl_register_req_handler(int type, void *fptr,
-			     ULTRA_VBUS_DEVICEINFO *chipset_driver_info)
+			     struct ultra_vbus_deviceinfo *chipset_driver_info)
 {
 	LOGINF("type = %d, fptr = 0x%p.\n", type, fptr);
 
@@ -106,15 +106,14 @@ EXPORT_SYMBOL_GPL(uisctrl_register_req_handler);
 
 int
 uisctrl_register_req_handler_ex(uuid_le switch_uuid,
-				const char *switch_type_name,
-				int (*controlfunc)(struct io_msgs *),
-				unsigned long min_channel_bytes,
-				int (*server_channel_ok)(unsigned long
-							  channel_bytes),
-				int (*server_channel_init)(void *x,
+			const char *switch_type_name,
+			int (*controlfunc)(struct io_msgs *),
+			unsigned long min_channel_bytes,
+			int (*server_channel_ok)(unsigned long channel_bytes),
+			int (*server_channel_init)(void *x,
 						unsigned char *client_str,
 						u32 client_str_len, u64 bytes),
-				ULTRA_VBUS_DEVICEINFO *chipset_driver_info)
+			struct ultra_vbus_deviceinfo *chipset_driver_info)
 {
 	struct req_handler_info *pReqHandlerInfo;
 	int rc = 0;		/* assume failure */

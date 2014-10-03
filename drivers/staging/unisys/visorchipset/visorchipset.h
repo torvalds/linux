@@ -254,7 +254,7 @@ typedef struct {
 void
 visorchipset_register_busdev_client(VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers,
 				    VISORCHIPSET_BUSDEV_RESPONDERS *responders,
-				    ULTRA_VBUS_DEVICEINFO *driverInfo);
+				    struct ultra_vbus_deviceinfo *driverInfo);
 
 /** Register functions (in the bus driver) to get called by visorchipset
  *  whenever a bus or device appears for which this service partition is
@@ -265,7 +265,7 @@ visorchipset_register_busdev_client(VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers,
 void
 visorchipset_register_busdev_server(VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers,
 				    VISORCHIPSET_BUSDEV_RESPONDERS *responders,
-				    ULTRA_VBUS_DEVICEINFO *driverInfo);
+				    struct ultra_vbus_deviceinfo *driverInfo);
 
 typedef void (*SPARREPORTEVENT_COMPLETE_FUNC) (CONTROLVM_MESSAGE *msg,
 					       int status);

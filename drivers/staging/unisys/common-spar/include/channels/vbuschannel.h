@@ -79,13 +79,12 @@ struct ultra_vbus_channel_protocol {
 	ULTRA_CHANNEL_PROTOCOL ChannelHeader;	/* initialized by server */
 	ULTRA_VBUS_HEADERINFO HdrInfo;	/* initialized by server */
 	/* the remainder of this channel is filled in by the client */
-	ULTRA_VBUS_DEVICEINFO ChpInfo;	/* describes client chipset device and
-					 * driver */
-	ULTRA_VBUS_DEVICEINFO BusInfo;	/* describes client bus device and
-					 * driver */
-	ULTRA_VBUS_DEVICEINFO DevInfo[0];	/* describes client device and
-						 * driver for */
-	/* each device on the bus */
+	struct ultra_vbus_deviceinfo ChpInfo;
+	/* describes client chipset device and driver */
+	struct ultra_vbus_deviceinfo BusInfo;
+	/* describes client bus device and driver */
+	struct ultra_vbus_deviceinfo DevInfo[0];
+	/* describes client device and driver for each device on the bus */
 };
 
 #define VBUS_CH_SIZE_EXACT(MAXDEVICES) \

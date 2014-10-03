@@ -587,7 +587,7 @@ clear_chipset_events(void)
 void
 visorchipset_register_busdev_server(VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers,
 				    VISORCHIPSET_BUSDEV_RESPONDERS *responders,
-				    ULTRA_VBUS_DEVICEINFO *driverInfo)
+				    struct ultra_vbus_deviceinfo *driverInfo)
 {
 	down(&NotifierLock);
 	if (notifiers == NULL) {
@@ -611,7 +611,7 @@ EXPORT_SYMBOL_GPL(visorchipset_register_busdev_server);
 void
 visorchipset_register_busdev_client(VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers,
 				    VISORCHIPSET_BUSDEV_RESPONDERS *responders,
-				    ULTRA_VBUS_DEVICEINFO *driverInfo)
+				    struct ultra_vbus_deviceinfo *driverInfo)
 {
 	down(&NotifierLock);
 	if (notifiers == NULL) {
