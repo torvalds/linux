@@ -247,14 +247,19 @@ static struct platform_driver usb_xhci_driver = {
 };
 MODULE_ALIAS("platform:xhci-hcd");
 
-int xhci_register_plat(void)
+static int __init xhci_plat_init(void)
 {
 	xhci_init_driver(&xhci_plat_hc_driver, xhci_plat_setup);
 	xhci_plat_hc_driver.start = xhci_plat_start;
 	return platform_driver_register(&usb_xhci_driver);
 }
+module_init(xhci_plat_init);
 
-void xhci_unregister_plat(void)
+static void __exit xhci_plat_exit(void)
 {
 	platform_driver_unregister(&usb_xhci_driver);
 }
+module_exit(xhci_plat_exit);
+
+MODULE_DESCRIPTION("xHCI Platform Host Controller Driver");
+MODULE_LICENSE("GPL");

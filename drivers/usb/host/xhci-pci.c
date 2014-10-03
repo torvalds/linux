@@ -355,7 +355,7 @@ static struct pci_driver xhci_pci_driver = {
 #endif
 };
 
-int __init xhci_register_pci(void)
+static int __init xhci_pci_init(void)
 {
 	xhci_init_driver(&xhci_pci_hc_driver, xhci_pci_setup);
 #ifdef CONFIG_PM
@@ -364,8 +364,13 @@ int __init xhci_register_pci(void)
 #endif
 	return pci_register_driver(&xhci_pci_driver);
 }
+module_init(xhci_pci_init);
 
-void xhci_unregister_pci(void)
+static void __exit xhci_pci_exit(void)
 {
 	pci_unregister_driver(&xhci_pci_driver);
 }
+module_exit(xhci_pci_exit);
+
+MODULE_DESCRIPTION("xHCI PCI Host Controller Driver");
+MODULE_LICENSE("GPL");

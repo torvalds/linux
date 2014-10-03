@@ -1731,25 +1731,6 @@ void xhci_urb_free_priv(struct xhci_hcd *xhci, struct urb_priv *urb_priv);
 void xhci_free_command(struct xhci_hcd *xhci,
 		struct xhci_command *command);
 
-#ifdef CONFIG_PCI
-/* xHCI PCI glue */
-int xhci_register_pci(void);
-void xhci_unregister_pci(void);
-#else
-static inline int xhci_register_pci(void) { return 0; }
-static inline void xhci_unregister_pci(void) {}
-#endif
-
-#if IS_ENABLED(CONFIG_USB_XHCI_PLATFORM)
-int xhci_register_plat(void);
-void xhci_unregister_plat(void);
-#else
-static inline int xhci_register_plat(void)
-{ return 0; }
-static inline void xhci_unregister_plat(void)
-{  }
-#endif
-
 /* xHCI host controller glue */
 typedef void (*xhci_get_quirks_t)(struct device *, struct xhci_hcd *);
 int xhci_handshake(struct xhci_hcd *xhci, void __iomem *ptr,

@@ -26,6 +26,11 @@ config USB_XHCI_HCD
 
 if USB_XHCI_HCD
 
+config USB_XHCI_PCI
+       tristate
+       depends on PCI
+       default y
+
 config USB_XHCI_PLATFORM
 	tristate
 
