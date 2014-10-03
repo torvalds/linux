@@ -215,6 +215,36 @@ config MOUSE_CYAPA
 	  To compile this driver as a module, choose M here: the module will be
 	  called cyapa.
 
+config MOUSE_ELAN_I2C
+	tristate "ELAN I2C Touchpad support"
+	depends on I2C
+	help
+	  This driver adds support for Elan I2C/SMbus Trackpads.
+
+	  Say Y here if you have a ELAN I2C/SMbus Touchpad.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called elan_i2c.
+
+config MOUSE_ELAN_I2C_I2C
+	bool "Enable I2C support"
+	depends on MOUSE_ELAN_I2C
+	default y
+	help
+	   Say Y here if Elan Touchpad in your system is connected to
+	   a standard I2C controller.
+
+	   If unsure, say Y.
+
+config MOUSE_ELAN_I2C_SMBUS
+	bool "Enable SMbus support"
+	depends on MOUSE_ELAN_I2C
+	help
+	   Say Y here if Elan Touchpad in your system is connected to
+	   a SMbus adapter.
+
+	   If unsure, say Y.
+
 config MOUSE_INPORT
 	tristate "InPort/MS/ATIXL busmouse"
 	depends on ISA
