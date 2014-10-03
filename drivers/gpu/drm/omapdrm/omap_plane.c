@@ -149,6 +149,8 @@ static void omap_plane_pre_apply(struct omap_drm_apply *apply)
 	DBG("%d,%d %pad %pad", info->pos_x, info->pos_y,
 			&info->paddr, &info->p_uv_addr);
 
+	dispc_ovl_set_channel_out(omap_plane->id, channel);
+
 	/* and finally, update omapdss: */
 	ret = dispc_ovl_setup(omap_plane->id, info, false,
 			      omap_crtc_timings(crtc), false);
@@ -158,7 +160,6 @@ static void omap_plane_pre_apply(struct omap_drm_apply *apply)
 	}
 
 	dispc_ovl_enable(omap_plane->id, true);
-	dispc_ovl_set_channel_out(omap_plane->id, channel);
 }
 
 static void omap_plane_post_apply(struct omap_drm_apply *apply)
