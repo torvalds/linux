@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <linux/rbtree.h>
 #include "map.h"
+#include "dso.h"
 #include "event.h"
 
 struct addr_location;
@@ -32,8 +33,8 @@ struct machine {
 	struct list_head  dead_threads;
 	struct thread	  *last_match;
 	struct vdso_info  *vdso_info;
-	struct list_head  user_dsos;
-	struct list_head  kernel_dsos;
+	struct dsos	  user_dsos;
+	struct dsos	  kernel_dsos;
 	struct map_groups kmaps;
 	struct map	  *vmlinux_maps[MAP__NR_TYPES];
 	u64		  kernel_start;
