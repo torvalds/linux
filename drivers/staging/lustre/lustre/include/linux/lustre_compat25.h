@@ -137,8 +137,7 @@ ll_quota_on(struct super_block *sb, int off, int ver, char *name, int remount)
 					   );
 		path_put(&path);
 		return rc;
-	}
-	else
+	} else
 		return -ENOSYS;
 }
 
@@ -147,8 +146,7 @@ static inline int ll_quota_off(struct super_block *sb, int off, int remount)
 	if (sb->s_qcop->quota_off) {
 		return sb->s_qcop->quota_off(sb, off
 					    );
-	}
-	else
+	} else
 		return -ENOSYS;
 }
 

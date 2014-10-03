@@ -1509,8 +1509,7 @@ out_rmdir:
 					       cmd == LL_IOC_MDC_GETINFO)) {
 				rc = 0;
 				goto skip_lmm;
-			}
-			else
+			} else
 				goto out_req;
 		}
 
