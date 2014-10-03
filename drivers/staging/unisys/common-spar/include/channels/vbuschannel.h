@@ -47,7 +47,7 @@ static const uuid_le UltraVbusChannelProtocolGuid =
 	(ULTRA_check_channel_client(pChannel,				\
 				    UltraVbusChannelProtocolGuid,	\
 				    "vbus",				\
-				    sizeof(ULTRA_VBUS_CHANNEL_PROTOCOL), \
+				    sizeof(struct ultra_vbus_channel_protocol),\
 				    ULTRA_VBUS_CHANNEL_PROTOCOL_VERSIONID, \
 				    ULTRA_VBUS_CHANNEL_PROTOCOL_SIGNATURE, \
 				    __FILE__, __LINE__, logCtx))
@@ -55,7 +55,7 @@ static const uuid_le UltraVbusChannelProtocolGuid =
 #define ULTRA_VBUS_CHANNEL_OK_SERVER(actualBytes, logCtx)    \
 	(ULTRA_check_channel_server(UltraVbusChannelProtocolGuid,	\
 				    "vbus",				\
-				    sizeof(ULTRA_VBUS_CHANNEL_PROTOCOL), \
+				    sizeof(struct ultra_vbus_channel_protocol),\
 				    actualBytes,			\
 				    __FILE__, __LINE__, logCtx))
 
@@ -75,7 +75,7 @@ typedef struct _ULTRA_VBUS_HEADERINFO {
 	u8 reserved[104];
 } ULTRA_VBUS_HEADERINFO;
 
-typedef struct _ULTRA_VBUS_CHANNEL_PROTOCOL {
+struct ultra_vbus_channel_protocol {
 	ULTRA_CHANNEL_PROTOCOL ChannelHeader;	/* initialized by server */
 	ULTRA_VBUS_HEADERINFO HdrInfo;	/* initialized by server */
 	/* the remainder of this channel is filled in by the client */
@@ -86,7 +86,7 @@ typedef struct _ULTRA_VBUS_CHANNEL_PROTOCOL {
 	ULTRA_VBUS_DEVICEINFO DevInfo[0];	/* describes client device and
 						 * driver for */
 	/* each device on the bus */
-} ULTRA_VBUS_CHANNEL_PROTOCOL;
+};
 
 #define VBUS_CH_SIZE_EXACT(MAXDEVICES) \
 	(sizeof(ULTRA_VBUS_CHANNEL_PROTOCOL) + ((MAXDEVICES) * \
