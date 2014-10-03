@@ -15,6 +15,7 @@
 #include <asm/vio.h>
 #include <asm/bug.h>
 #include <asm/machdep.h>
+#include <asm/swiotlb.h>
 
 /*
  * Generic direct DMA implementation
@@ -25,6 +26,18 @@
  * default the offset is PCI_DRAM_OFFSET.
  */
 
+static u64 __maybe_unused get_pfn_limit(struct device *dev)
+{
+	u64 pfn = (dev->coherent_dma_mask >> PAGE_SHIFT) + 1;
+	struct dev_archdata __maybe_unused *sd = &dev->archdata;
+
+#ifdef CONFIG_SWIOTLB
+	if (sd->max_direct_dma_addr && sd->dma_ops == &swiotlb_dma_ops)
+		pfn = min_t(u64, pfn, sd->max_direct_dma_addr >> PAGE_SHIFT);
+#endif
+
+	return pfn;
+}
 
 void *dma_direct_alloc_coherent(struct device *dev, size_t size,
 				dma_addr_t *dma_handle, gfp_t flag,
@@ -40,6 +53,26 @@ void *dma_direct_alloc_coherent(struct device *dev, size_t size,
 #else
 	struct page *page;
 	int node = dev_to_node(dev);
+	u64 pfn = get_pfn_limit(dev);
+	int zone;
+
+	zone = dma_pfn_limit_to_zone(pfn);
+	if (zone < 0) {
+		dev_err(dev, "%s: No suitable zone for pfn %#llx\n",
+			__func__, pfn);
+		return NULL;
+	}
+
+	switch (zone) {
+	case ZONE_DMA:
+		flag |= GFP_DMA;
+		break;
+#ifdef CONFIG_ZONE_DMA32
+	case ZONE_DMA32:
+		flag |= GFP_DMA32;
+		break;
+#endif
+	};
 
 	/* ignore region specifiers */
 	flag  &= ~(__GFP_HIGHMEM);

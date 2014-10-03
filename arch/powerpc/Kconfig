@@ -288,6 +288,10 @@ config PPC_EMULATE_SSTEP
 	bool
 	default y if KPROBES || UPROBES || XMON || HAVE_HW_BREAKPOINT
 
+config ZONE_DMA32
+	bool
+	default y if PPC64
+
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"

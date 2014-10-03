@@ -1134,14 +1134,6 @@ void __init do_init_bootmem(void)
 	}
 }
 
-void __init paging_init(void)
-{
-	unsigned long max_zone_pfns[MAX_NR_ZONES];
-	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
-	max_zone_pfns[ZONE_DMA] = memblock_end_of_DRAM() >> PAGE_SHIFT;
-	free_area_init_nodes(max_zone_pfns);
-}
-
 static int __init early_numa(char *p)
 {
 	if (!p)

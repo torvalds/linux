@@ -106,10 +106,14 @@ int __init swiotlb_setup_bus_notifier(void)
 	return 0;
 }
 
-void swiotlb_detect_4g(void)
+void __init swiotlb_detect_4g(void)
 {
-	if ((memblock_end_of_DRAM() - 1) > 0xffffffff)
+	if ((memblock_end_of_DRAM() - 1) > 0xffffffff) {
 		ppc_swiotlb_enable = 1;
+#ifdef CONFIG_ZONE_DMA32
+		limit_zone_pfn(ZONE_DMA32, (1ULL << 32) >> PAGE_SHIFT);
+#endif
+	}
 }
 
 static int __init swiotlb_late_init(void)
