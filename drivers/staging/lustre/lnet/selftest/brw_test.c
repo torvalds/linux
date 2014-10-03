@@ -358,7 +358,7 @@ out:
 	return;
 }
 
-void
+static void
 brw_server_rpc_done(srpc_server_rpc_t *rpc)
 {
 	srpc_bulk_t *blk = rpc->srpc_bulk;
