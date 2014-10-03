@@ -182,8 +182,7 @@ int vt6655_hostap_set_hostapd(struct vnt_private *pDevice,
 
 	if (val)
 		return hostap_enable_hostapd(pDevice, rtnl_locked);
-	else
-		return hostap_disable_hostapd(pDevice, rtnl_locked);
+	return hostap_disable_hostapd(pDevice, rtnl_locked);
 }
 
 /*
