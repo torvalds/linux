@@ -34,9 +34,11 @@ struct ordered_events {
 	int			buffer_idx;
 	unsigned int		nr_events;
 	enum oe_flush		last_flush_type;
+	bool                    copy_on_queue;
 };
 
-struct ordered_event *ordered_events__new(struct ordered_events *oe, u64 timestamp);
+struct ordered_event *ordered_events__new(struct ordered_events *oe, u64 timestamp,
+					  union perf_event *event);
 void ordered_events__delete(struct ordered_events *oe, struct ordered_event *event);
 int ordered_events__flush(struct perf_session *s, struct perf_tool *tool,
 			  enum oe_flush how);
@@ -47,5 +49,11 @@ static inline
 void ordered_events__set_alloc_size(struct ordered_events *oe, u64 size)
 {
 	oe->max_alloc_size = size;
+}
+
+static inline
+void ordered_events__set_copy_on_queue(struct ordered_events *oe, bool copy)
+{
+	oe->copy_on_queue = copy;
 }
 #endif /* __ORDERED_EVENTS_H */
