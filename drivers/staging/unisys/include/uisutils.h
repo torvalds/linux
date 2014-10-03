@@ -149,7 +149,7 @@ int uislib_client_inject_add_vnic(u32 bus_no, u32 dev_no,
 				  struct InterruptInfo *intr);
 int uislib_client_inject_pause_vnic(u32 bus_no, u32 dev_no);
 int uislib_client_inject_resume_vnic(u32 bus_no, u32 dev_no);
-int uislib_client_inject_del_vnic(u32 busNo, u32 devNo);
+int uislib_client_inject_del_vnic(u32 bus_no, u32 dev_no);
 #ifdef STORAGE_CHANNEL
 u64 uislib_storage_channel(int client_id);
 #endif
