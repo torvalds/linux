@@ -26,6 +26,7 @@
 #include <linux/sched.h>
 #include <linux/gfp.h>
 #include <linux/uuid.h>
+#include <linux/if_ether.h>
 
 #include "vmcallinterface.h"
 #include "channel.h"
@@ -53,7 +54,6 @@ extern int (*virt_control_chan_func)(struct guest_msgs *);
 #define CCF_PENDING      2	/* operation still pending */
 extern atomic_t uisutils_registered_services;
 
-typedef unsigned int MACARRAY[MAX_MACADDR_LEN];
 typedef struct ReqHandlerInfo_struct {
 	uuid_le switchTypeGuid;
 	int (*controlfunc)(struct io_msgs *);
@@ -132,7 +132,7 @@ void util_unmap_virt(struct phys_info *sg);
 unsigned char *util_map_virt_atomic(struct phys_info *sg);
 void util_unmap_virt_atomic(void *buf);
 int uislib_server_inject_add_vnic(u32 switchNo, u32 BusNo, u32 numIntPorts,
-				  u32 numExtPorts, MACARRAY pmac[],
+				  u32 numExtPorts, u8 *pmac[ETH_ALEN],
 				  pCHANNEL_HEADER **chan);
 void uislib_server_inject_del_vnic(u32 switchNo, u32 busNo, u32 numIntPorts,
 				   u32 numExtPorts);
