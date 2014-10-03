@@ -1325,9 +1325,9 @@ spider_net_set_mac(struct net_device *netdev, void *p)
 	spider_net_write_reg(card, SPIDER_NET_GMACOPEMD, regvalue);
 
 	/* write mac */
-	macu = (addr->sa_data[0]<<24) + (addr->sa_data[1]<<16) +
-		(addr->sa_data[2]<<8) + (addr->sa_data[3]);
-	macl = (addr->sa_data[4]<<8) + (addr->sa_data[5]);
+	macu = (netdev->dev_addr[0]<<24) + (netdev->dev_addr[1]<<16) +
+		(netdev->dev_addr[2]<<8) + (netdev->dev_addr[3]);
+	macl = (netdev->dev_addr[4]<<8) + (netdev->dev_addr[5]);
 	spider_net_write_reg(card, SPIDER_NET_GMACUNIMACU, macu);
 	spider_net_write_reg(card, SPIDER_NET_GMACUNIMACL, macl);
 
