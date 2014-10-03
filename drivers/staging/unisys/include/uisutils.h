@@ -136,9 +136,9 @@ int uislib_client_inject_add_bus(u32 bus_no, uuid_le inst_uuid,
 				 u64 channel_addr, ulong n_channel_bytes);
 int  uislib_client_inject_del_bus(u32 bus_no);
 
-int uislib_client_inject_add_vhba(u32 busNo, u32 devNo,
+int uislib_client_inject_add_vhba(u32 bus_no, u32 dev_no,
 				  u64 phys_chan_addr, u32 chan_bytes,
-				  int is_test_addr, uuid_le instGuid,
+				  int is_test_addr, uuid_le inst_uuid,
 				  struct InterruptInfo *intr);
 int  uislib_client_inject_pause_vhba(u32 busNo, u32 devNo);
 int  uislib_client_inject_resume_vhba(u32 busNo, u32 devNo);

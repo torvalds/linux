@@ -922,19 +922,19 @@ uislib_client_inject_resume_vhba(u32 busNo, u32 devNo)
 EXPORT_SYMBOL_GPL(uislib_client_inject_resume_vhba);
 
 int
-uislib_client_inject_add_vhba(u32 busNo, u32 devNo,
+uislib_client_inject_add_vhba(u32 bus_no, u32 dev_no,
 			      u64 phys_chan_addr, u32 chan_bytes,
-			      int is_test_addr, uuid_le instGuid,
+			      int is_test_addr, uuid_le inst_uuid,
 			      struct InterruptInfo *intr)
 {
 	CONTROLVM_MESSAGE msg;
 
-	LOGINF(" enter busNo=0x%x devNo=0x%x\n", busNo, devNo);
+	LOGINF(" enter busNo=0x%x devNo=0x%x\n", bus_no, dev_no);
 	/* chipset init'ed with bus bus has been previously created -
 	* Verify it still exists step 2: create the VHBA device on the
 	* bus
 	*/
-	POSTCODE_LINUX_4(VHBA_CREATE_ENTRY_PC, devNo, busNo,
+	POSTCODE_LINUX_4(VHBA_CREATE_ENTRY_PC, dev_no, bus_no,
 			 POSTCODE_SEVERITY_INFO);
 
 	init_msg_header(&msg, CONTROLVM_DEVICE_CREATE, 0, 0);
@@ -943,9 +943,9 @@ uislib_client_inject_add_vhba(u32 busNo, u32 devNo,
 		 * need to be ioremap()ed
 		 */
 		msg.hdr.Flags.testMessage = 1;
-	msg.cmd.createDevice.busNo = busNo;
-	msg.cmd.createDevice.devNo = devNo;
-	msg.cmd.createDevice.devInstGuid = instGuid;
+	msg.cmd.createDevice.busNo = bus_no;
+	msg.cmd.createDevice.devNo = dev_no;
+	msg.cmd.createDevice.devInstGuid = inst_uuid;
 	if (intr)
 		msg.cmd.createDevice.intr = *intr;
 	else
@@ -963,11 +963,11 @@ uislib_client_inject_add_vhba(u32 busNo, u32 devNo,
 	msg.cmd.createDevice.dataTypeGuid = UltraVhbaChannelProtocolGuid;
 	if (create_device(&msg, NULL) != CONTROLVM_RESP_SUCCESS) {
 		LOGERR("VHBA create_device failed.\n");
-		POSTCODE_LINUX_4(VHBA_CREATE_FAILURE_PC, devNo, busNo,
+		POSTCODE_LINUX_4(VHBA_CREATE_FAILURE_PC, dev_no, bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		return 0;
 	}
-	POSTCODE_LINUX_4(VHBA_CREATE_SUCCESS_PC, devNo, busNo,
+	POSTCODE_LINUX_4(VHBA_CREATE_SUCCESS_PC, dev_no, bus_no,
 			 POSTCODE_SEVERITY_INFO);
 	return 1;
 }
