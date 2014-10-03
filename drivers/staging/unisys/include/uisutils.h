@@ -74,7 +74,7 @@ struct req_handler_info *req_handler_add(uuid_le switch_uuid,
 				int (*svr_channel_init)(void *x,
 						unsigned char *client_str,
 						u32 client_str_len, u64 bytes));
-struct req_handler_info *ReqHandlerFind(uuid_le switchTypeGuid);
+struct req_handler_info *req_handler_find(uuid_le switch_uuid);
 int ReqHandlerDel(uuid_le switchTypeGuid);
 
 #define uislib_ioremap_cache(addr, size) \

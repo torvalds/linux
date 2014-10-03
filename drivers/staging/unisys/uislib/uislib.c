@@ -379,7 +379,7 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 	if (msg->hdr.Flags.testMessage)
 		dev->chanptr = (void __iomem *)__va(dev->channel_addr);
 	else {
-		pReqHandler = ReqHandlerFind(dev->channel_uuid);
+		pReqHandler = req_handler_find(dev->channel_uuid);
 		if (pReqHandler)
 			/* generic service handler registered for this
 			 * channel

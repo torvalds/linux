@@ -308,7 +308,7 @@ req_handler_add(uuid_le switch_uuid,
 }
 
 struct req_handler_info *
-ReqHandlerFind(uuid_le switchTypeGuid)
+req_handler_find(uuid_le switch_uuid)
 {
 	struct list_head *lelt, *tmp;
 	struct req_handler_info *entry = NULL;
@@ -316,7 +316,7 @@ ReqHandlerFind(uuid_le switchTypeGuid)
 	spin_lock(&ReqHandlerInfo_list_lock);
 	list_for_each_safe(lelt, tmp, &ReqHandlerInfo_list) {
 		entry = list_entry(lelt, struct req_handler_info, list_link);
-		if (uuid_le_cmp(entry->switch_uuid, switchTypeGuid) == 0) {
+		if (uuid_le_cmp(entry->switch_uuid, switch_uuid) == 0) {
 			spin_unlock(&ReqHandlerInfo_list_lock);
 			return entry;
 		}
