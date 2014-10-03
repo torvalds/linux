@@ -346,10 +346,10 @@ enum guestpart_msg_type {
 struct add_vbus_guestpart {
 	void __iomem *chanptr;		/* pointer to data channel for bus -
 					 * NOT YET USED */
-	u32 busNo;		/* bus number to be created/deleted */
-	u32 deviceCount;	/* max num of devices on bus */
-	uuid_le busTypeGuid;	/* indicates type of bus */
-	uuid_le busInstGuid;	/* instance guid for device */
+	u32 bus_no;		/* bus number to be created/deleted */
+	u32 dev_count;	/* max num of devices on bus */
+	uuid_le bus_uuid;	/* indicates type of bus */
+	uuid_le instance_uuid;	/* instance guid for device */
 };
 
 struct del_vbus_guestpart {

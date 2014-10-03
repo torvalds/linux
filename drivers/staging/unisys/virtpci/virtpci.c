@@ -262,7 +262,7 @@ static int add_vbus(struct add_vbus_guestpart *addparams)
 	if (!vbus)
 		return 0;
 
-	dev_set_name(vbus, "vbus%d", addparams->busNo);
+	dev_set_name(vbus, "vbus%d", addparams->bus_no);
 	vbus->release = virtpci_bus_release;
 	vbus->parent = &virtpci_rootbus_device;	/* root bus is parent */
 	vbus->bus = &virtpci_bus_type;	/* bus type */
@@ -283,7 +283,7 @@ static int add_vbus(struct add_vbus_guestpart *addparams)
 			   &Chipset_DriverInfo);
 	write_vbus_busInfo(vbus->platform_data /* chanptr */ , &Bus_DriverInfo);
 	LOGINF("Added vbus %d; device %s created successfully\n",
-	       addparams->busNo, BUS_ID(vbus));
+	       addparams->bus_no, BUS_ID(vbus));
 	POSTCODE_LINUX_2(VPCI_CREATE_EXIT_PC, POSTCODE_SEVERITY_INFO);
 	return 1;
 }

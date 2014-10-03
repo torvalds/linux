@@ -233,11 +233,11 @@ create_bus(CONTROLVM_MESSAGE *msg, char *buf)
 		struct guest_msgs cmd;
 
 		cmd.msgtype = GUEST_ADD_VBUS;
-		cmd.add_vbus.busNo = busNo;
+		cmd.add_vbus.bus_no = busNo;
 		cmd.add_vbus.chanptr = bus->bus_channel;
-		cmd.add_vbus.deviceCount = deviceCount;
-		cmd.add_vbus.busTypeGuid = msg->cmd.createBus.busDataTypeGuid;
-		cmd.add_vbus.busInstGuid = msg->cmd.createBus.busInstGuid;
+		cmd.add_vbus.dev_count = deviceCount;
+		cmd.add_vbus.bus_uuid = msg->cmd.createBus.busDataTypeGuid;
+		cmd.add_vbus.instance_uuid = msg->cmd.createBus.busInstGuid;
 		if (!VirtControlChanFunc) {
 			LOGERR("CONTROLVM_BUS_CREATE Failed: virtpci callback not registered.");
 			POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, bus->bus_no,
