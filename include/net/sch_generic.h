@@ -7,6 +7,7 @@
 #include <linux/pkt_sched.h>
 #include <linux/pkt_cls.h>
 #include <linux/percpu.h>
+#include <linux/dynamic_queue_limits.h>
 #include <net/gen_stats.h>
 #include <net/rtnetlink.h>
 
@@ -117,6 +118,21 @@ static inline bool qdisc_run_begin(struct Qdisc *qdisc)
 static inline void qdisc_run_end(struct Qdisc *qdisc)
 {
 	qdisc->__state &= ~__QDISC___STATE_RUNNING;
+}
+
+static inline bool qdisc_may_bulk(const struct Qdisc *qdisc)
+{
+	return qdisc->flags & TCQ_F_ONETXQUEUE;
+}
+
+static inline int qdisc_avail_bulklimit(const struct netdev_queue *txq)
+{
+#ifdef CONFIG_BQL
+	/* Non-BQL migrated drivers will return 0, too. */
+	return dql_avail(&txq->dql);
+#else
+	return 0;
+#endif
 }
 
 static inline bool qdisc_is_throttled(const struct Qdisc *qdisc)
