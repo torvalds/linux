@@ -493,9 +493,6 @@ static int dspi_probe(struct platform_device *pdev)
 	}
 
 	dspi_regmap_config.lock_arg = dspi;
-	dspi_regmap_config.val_format_endian =
-		of_property_read_bool(np, "big-endian")
-			? REGMAP_ENDIAN_BIG : REGMAP_ENDIAN_DEFAULT;
 	dspi->regmap = devm_regmap_init_mmio_clk(&pdev->dev, "dspi", base,
 						&dspi_regmap_config);
 	if (IS_ERR(dspi->regmap)) {
@@ -535,7 +532,6 @@ static int dspi_probe(struct platform_device *pdev)
 		goto out_clk_put;
 	}
 
-	pr_info(KERN_INFO "Freescale DSPI master initialized\n");
 	return ret;
 
 out_clk_put:
