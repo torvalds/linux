@@ -602,7 +602,7 @@ config SPI_DW_PCI
 	depends on SPI_DESIGNWARE && PCI
 
 config SPI_DW_MID_DMA
-	bool "DMA support for DW SPI controller on Intel Moorestown platform"
+	bool "DMA support for DW SPI controller on Intel MID platform"
 	depends on SPI_DW_PCI && INTEL_MID_DMAC
 
 config SPI_DW_MMIO
