@@ -1249,13 +1249,13 @@ static void clone_bio(struct dm_target_io *tio, struct bio *bio,
 }
 
 static struct dm_target_io *alloc_tio(struct clone_info *ci,
-				      struct dm_target *ti, int nr_iovecs,
+				      struct dm_target *ti,
 				      unsigned target_bio_nr)
 {
 	struct dm_target_io *tio;
 	struct bio *clone;
 
-	clone = bio_alloc_bioset(GFP_NOIO, nr_iovecs, ci->md->bs);
+	clone = bio_alloc_bioset(GFP_NOIO, 0, ci->md->bs);
 	tio = container_of(clone, struct dm_target_io, clone);
 
 	tio->io = ci->io;
@@ -1269,17 +1269,12 @@ static void __clone_and_map_simple_bio(struct clone_info *ci,
 				       struct dm_target *ti,
 				       unsigned target_bio_nr, unsigned *len)
 {
-	struct dm_target_io *tio = alloc_tio(ci, ti, ci->bio->bi_max_vecs, target_bio_nr);
+	struct dm_target_io *tio = alloc_tio(ci, ti, target_bio_nr);
 	struct bio *clone = &tio->clone;
 
 	tio->len_ptr = len;
 
-	/*
-	 * Discard requests require the bio's inline iovecs be initialized.
-	 * ci->bio->bi_max_vecs is BIO_INLINE_VECS anyway, for both flush
-	 * and discard, so no need for concern about wasted bvec allocations.
-	 */
-	 __bio_clone_fast(clone, ci->bio);
+	__bio_clone_fast(clone, ci->bio);
 	if (len)
 		bio_setup_sector(clone, ci->sector, *len);
 
@@ -1322,7 +1317,7 @@ static void __clone_and_map_data_bio(struct clone_info *ci, struct dm_target *ti
 		num_target_bios = ti->num_write_bios(ti, bio);
 
 	for (target_bio_nr = 0; target_bio_nr < num_target_bios; target_bio_nr++) {
-		tio = alloc_tio(ci, ti, 0, target_bio_nr);
+		tio = alloc_tio(ci, ti, target_bio_nr);
 		tio->len_ptr = len;
 		clone_bio(tio, bio, sector, *len);
 		__map_bio(tio);
