@@ -435,6 +435,8 @@ int x509_process_extension(void *context, size_t hdrlen,
 		v += 2;
 		vlen -= 2;
 
+		ctx->cert->raw_skid_size = vlen;
+		ctx->cert->raw_skid = v;
 		kid = asymmetric_key_generate_id(v, vlen,
 						 ctx->cert->raw_subject,
 						 ctx->cert->raw_subject_size);

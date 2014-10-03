@@ -279,8 +279,13 @@ static int x509_key_preparse(struct key_preparsed_payload *prep)
 
 	/* Propose a description */
 	sulen = strlen(cert->subject);
-	srlen = cert->raw_serial_size;
-	q = cert->raw_serial;
+	if (cert->raw_skid) {
+		srlen = cert->raw_skid_size;
+		q = cert->raw_skid;
+	} else {
+		srlen = cert->raw_serial_size;
+		q = cert->raw_serial;
+	}
 	if (srlen > 1 && *q == 0) {
 		srlen--;
 		q++;

@@ -34,6 +34,8 @@ struct x509_certificate {
 	const void	*raw_issuer;		/* Raw issuer name in ASN.1 */
 	const void	*raw_subject;		/* Raw subject name in ASN.1 */
 	unsigned	raw_subject_size;
+	unsigned	raw_skid_size;
+	const void	*raw_skid;		/* Raw subjectKeyId in ASN.1 */
 	unsigned	index;
 	bool		seen;			/* Infinite recursion prevention */
 	bool		verified;
