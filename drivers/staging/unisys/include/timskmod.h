@@ -71,7 +71,6 @@
 
 /** Try to evaulate the provided expression, and do a RETINT(x) iff
  *  the expression evaluates to < 0.
- *  @param x the expression to try
  */
 #define ASSERT(cond)                                           \
 	do { if (!(cond))                                      \
@@ -88,11 +87,6 @@
 		(void *)(p1) = (void *)(p2);            \
 		(void *)(p2) = SWAPPOINTERS_TEMP;	\
 	} while (0)
-
-/**
- *  @addtogroup driverlogging
- *  @{
- */
 
 #define PRINTKDRV(fmt, args...) LOGINF(fmt, ## args)
 #define TBDDRV(fmt, args...)    LOGERR(fmt, ## args)
@@ -113,8 +107,6 @@
 #define INFODEV(devname, fmt, args...)    LOGINFDEV(devname, fmt, ## args)
 #define INFODEVX(devno, fmt, args...)     LOGINFDEVX(devno, fmt, ## args)
 #define DEBUGDEV(devname, fmt, args...)   DBGINFDEV(devname, fmt, ## args)
-
-/* @} */
 
 /** Verifies the consistency of your PRIVATEDEVICEDATA structure using
  *  conventional "signature" fields:
@@ -139,7 +131,7 @@
 	 ((fd)->sig2 == fd))
 
 /** Sleep for an indicated number of seconds (for use in kernel mode).
- *  @param x the number of seconds to sleep.
+ *  x - the number of seconds to sleep.
  */
 #define SLEEP(x)					     \
 	do { current->state = TASK_INTERRUPTIBLE;	     \
@@ -147,7 +139,7 @@
 	} while (0)
 
 /** Sleep for an indicated number of jiffies (for use in kernel mode).
- *  @param x the number of jiffies to sleep.
+ *  x - the number of jiffies to sleep.
  */
 #define SLEEPJIFFIES(x)						    \
 	do { current->state = TASK_INTERRUPTIBLE;		    \
