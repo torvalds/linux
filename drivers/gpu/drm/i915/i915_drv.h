@@ -55,7 +55,7 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20140919"
+#define DRIVER_DATE		"20141003"
 
 enum pipe {
 	INVALID_PIPE = -1,
