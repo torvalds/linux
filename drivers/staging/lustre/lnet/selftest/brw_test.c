@@ -233,7 +233,7 @@ brw_fill_bulk(srpc_bulk_t *bk, int pattern, __u64 magic)
 	}
 }
 
-int
+static int
 brw_check_bulk(srpc_bulk_t *bk, int pattern, __u64 magic)
 {
 	int	 i;
