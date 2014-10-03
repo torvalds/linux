@@ -197,7 +197,6 @@ struct network_policy {
  * code that processes the ControlVm channel messages.
  */
 
-
 enum iopart_msg_type {
 	IOPART_ADD_VNIC,
 	IOPART_DEL_VNIC,
@@ -327,7 +326,7 @@ struct io_msgs {
 * the ControlVm channel messages.
 */
 
-typedef enum {
+enum guestpart_msg_type {
 	GUEST_ADD_VBUS,
 	GUEST_ADD_VHBA,
 	GUEST_ADD_VNIC,
@@ -342,7 +341,7 @@ typedef enum {
 	GUEST_PAUSE_VNIC,
 	GUEST_RESUME_VHBA,
 	GUEST_RESUME_VNIC
-} GUESTPART_MSG_TYPE;
+};
 
 struct add_vbus_guestpart {
 	void __iomem *chanptr;		/* pointer to data channel for bus -
@@ -392,7 +391,7 @@ struct init_chipset_guestpart {
 };
 
 struct guest_msgs {
-	GUESTPART_MSG_TYPE msgtype;
+	enum guestpart_msg_type msgtype;
 
 	/* additional params needed by messages */
 	union {
