@@ -269,15 +269,6 @@ static inline s64 issue_vmcall_query_guest_virtual_time_offset(void)
 	return result;
 }
 
-static inline s64 issue_vmcall_measurement_do_nothing(void)
-{
-	u64 result = VMCALL_SUCCESS;
-	u64 physaddr = 0;
-
-	ISSUE_IO_VMCALL(VMCALL_MEASUREMENT_DO_NOTHING, physaddr, result);
-	return result;
-}
-
 struct log_info_t {
 	unsigned long long last_cycles;
 	unsigned long long delta_sum[64];
@@ -318,16 +309,6 @@ static inline unsigned int issue_vmcall_channel_mismatch(const char *chname,
 
 	physaddr = virt_to_phys(&params);
 	ISSUE_IO_VMCALL(VMCALL_CHANNEL_VERSION_MISMATCH, physaddr, result);
-	return result;
-}
-
-static inline unsigned int issue_vmcall_fatal(void)
-{
-	int result = VMCALL_SUCCESS;
-	u64 physaddr = 0;
-
-	ISSUE_IO_VMCALL(VMCALL_GENERIC_SURRENDER_QUANTUM_FOREVER, physaddr,
-			result);
 	return result;
 }
 
