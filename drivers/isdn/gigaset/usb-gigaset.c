@@ -142,7 +142,6 @@ struct usb_cardstate {
 	unsigned char		*rcvbuf;
 	int			rcvbuf_size;
 	struct urb		*read_urb;
-	__u8			int_in_endpointAddr;
 
 	char			bchars[6];		/* for request 0x19 */
 };
@@ -741,7 +740,6 @@ static int gigaset_probe(struct usb_interface *interface,
 	}
 	buffer_size = le16_to_cpu(endpoint->wMaxPacketSize);
 	ucs->rcvbuf_size = buffer_size;
-	ucs->int_in_endpointAddr = endpoint->bEndpointAddress;
 	ucs->rcvbuf = kmalloc(buffer_size, GFP_KERNEL);
 	if (!ucs->rcvbuf) {
 		dev_err(cs->dev, "Couldn't allocate rcvbuf\n");
