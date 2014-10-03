@@ -135,7 +135,7 @@ uisctrl_register_req_handler_ex(uuid_le switchTypeGuid,
 				&switchTypeGuid);
 		goto Away;
 	}
-	pReqHandlerInfo = ReqHandlerAdd(switchTypeGuid,
+	pReqHandlerInfo = req_handler_add(switchTypeGuid,
 					switch_type_name,
 					controlfunc,
 					min_channel_bytes,
@@ -279,7 +279,7 @@ static LIST_HEAD(ReqHandlerInfo_list);	/* list of struct req_handler_info */
 static DEFINE_SPINLOCK(ReqHandlerInfo_list_lock);
 
 struct req_handler_info *
-ReqHandlerAdd(uuid_le switchTypeGuid,
+req_handler_add(uuid_le switch_uuid,
 	      const char *switch_type_name,
 	      int (*controlfunc)(struct io_msgs *),
 	      unsigned long min_channel_bytes,
@@ -292,7 +292,7 @@ ReqHandlerAdd(uuid_le switchTypeGuid,
 	rc = kzalloc(sizeof(*rc), GFP_ATOMIC);
 	if (!rc)
 		return NULL;
-	rc->switch_uuid = switchTypeGuid;
+	rc->switch_uuid = switch_uuid;
 	rc->controlfunc = controlfunc;
 	rc->min_channel_bytes = min_channel_bytes;
 	rc->server_channel_ok = Server_Channel_Ok;

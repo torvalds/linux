@@ -65,15 +65,15 @@ struct req_handler_info {
 	struct list_head list_link;	/* links into ReqHandlerInfo_list */
 };
 
-struct req_handler_info *ReqHandlerAdd(uuid_le switchTypeGuid,
+struct req_handler_info *req_handler_add(uuid_le switch_uuid,
 				const char *switch_type_name,
 				int (*controlfunc)(struct io_msgs *),
 				unsigned long min_channel_bytes,
-				int (*Server_Channel_Ok)(unsigned long
-							 channelBytes),
-				int (*Server_Channel_Init)(void *x,
-						unsigned char *clientStr,
-						u32 clientStrLen, u64 bytes));
+				int (*svr_channel_ok)(unsigned long
+							 channel_bytes),
+				int (*svr_channel_init)(void *x,
+						unsigned char *client_str,
+						u32 client_str_len, u64 bytes));
 struct req_handler_info *ReqHandlerFind(uuid_le switchTypeGuid);
 int ReqHandlerDel(uuid_le switchTypeGuid);
 
@@ -119,9 +119,9 @@ int uisctrl_register_req_handler_ex(uuid_le switchTypeGuid,
 				    const char *switch_type_name,
 				    int (*fptr)(struct io_msgs *),
 				    unsigned long min_channel_bytes,
-				    int (*Server_Channel_Ok)(unsigned long
+				    int (*svr_channel_ok)(unsigned long
 							     channelBytes),
-				    int (*Server_Channel_Init)
+				    int (*svr_channel_init)
 				    (void *x, unsigned char *clientStr,
 				     u32 clientStrLen, u64 bytes),
 				    ULTRA_VBUS_DEVICEINFO *chipset_DriverInfo);
