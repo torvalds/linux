@@ -63,7 +63,6 @@ struct device_node {
     struct  device_node *parent;
     struct  device_node *child;
     struct  device_node *sibling;
-    struct  device_node *allnext;   /* next in list of all nodes */
     ...
  };
 
@@ -99,12 +98,6 @@ child11 -> sibling12 -> sibling13 -> sibling14 -> null
 Figure 1: Generic structure of un-flattened device tree
 
 
-*allnext: it is used to link all the nodes of DT into a list. So, for the
- above tree the list would be as follows:
-
-root->child1->child11->sibling12->sibling13->child131->sibling14->sibling2->
-child21->sibling22->sibling23->sibling3->child31->sibling32->sibling4->null
-
 Before executing OF selftest, it is required to attach the test data to
 machine's device tree (if present). So, when selftest_data_add() is called,
 at first it reads the flattened device tree data linked into the kernel image
@@ -130,11 +123,6 @@ root ('/')
     |               |                |                |
  test-child01      null             null             null
 
-
-allnext list:
-
-root->testcase-data->test-child0->test-child01->test-sibling1->test-sibling2
-->test-sibling3->null
 
 Figure 2: Example test data tree to be attached to live tree.
 
@@ -204,8 +192,6 @@ detached and then moving up the parent nodes are removed, and eventually the
 whole tree). selftest_data_remove() calls detach_node_and_children() that uses
 of_detach_node() to detach the nodes from the live device tree.
 
-To detach a node, of_detach_node() first updates all_next linked list, by
-attaching the previous node's allnext to current node's allnext pointer. And
-then, it either updates the child pointer of given node's parent to its
-sibling or attaches the previous sibling to the given node's sibling, as
-appropriate. That is it :)
+To detach a node, of_detach_node() either updates the child pointer of given
+node's parent to its sibling or attaches the previous sibling to the given
+node's sibling, as appropriate. That is it :)

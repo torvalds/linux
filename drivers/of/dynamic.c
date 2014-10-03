@@ -117,8 +117,6 @@ void __of_attach_node(struct device_node *np)
 
 	np->child = NULL;
 	np->sibling = np->parent->child;
-	np->allnext = np->parent->allnext;
-	np->parent->allnext = np;
 	np->parent->child = np;
 	of_node_clear_flag(np, OF_DETACHED);
 }
@@ -153,17 +151,6 @@ void __of_detach_node(struct device_node *np)
 	parent = np->parent;
 	if (WARN_ON(!parent))
 		return;
-
-	if (of_allnodes == np)
-		of_allnodes = np->allnext;
-	else {
-		struct device_node *prev;
-		for (prev = of_allnodes;
-		     prev->allnext != np;
-		     prev = prev->allnext)
-			;
-		prev->allnext = np->allnext;
-	}
 
 	if (parent->child == np)
 		parent->child = np->sibling;

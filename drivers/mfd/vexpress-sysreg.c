@@ -223,7 +223,7 @@ static int vexpress_sysreg_probe(struct platform_device *pdev)
 	vexpress_config_set_master(vexpress_sysreg_get_master());
 
 	/* Confirm board type against DT property, if available */
-	if (of_property_read_u32(of_allnodes, "arm,hbi", &dt_hbi) == 0) {
+	if (of_property_read_u32(of_root, "arm,hbi", &dt_hbi) == 0) {
 		u32 id = vexpress_get_procid(VEXPRESS_SITE_MASTER);
 		u32 hbi = (id >> SYS_PROCIDx_HBI_SHIFT) & SYS_HBI_MASK;
 
