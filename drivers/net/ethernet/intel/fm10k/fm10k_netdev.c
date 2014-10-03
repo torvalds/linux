@@ -785,14 +785,14 @@ static int fm10k_update_vid(struct net_device *netdev, u16 vid, bool set)
 	if (!(netdev->flags & IFF_PROMISC)) {
 		err = hw->mac.ops.update_vlan(hw, vid, 0, set);
 		if (err)
-			return err;
+			goto err_out;
 	}
 
 	/* update our base MAC address */
 	err = hw->mac.ops.update_uc_addr(hw, interface->glort, hw->mac.addr,
 					 vid, set, 0);
 	if (err)
-		return err;
+		goto err_out;
 
 	/* set vid prior to syncing/unsyncing the VLAN */
 	interface->vid = vid + (set ? VLAN_N_VID : 0);
@@ -801,9 +801,10 @@ static int fm10k_update_vid(struct net_device *netdev, u16 vid, bool set)
 	__dev_uc_unsync(netdev, fm10k_uc_vlan_unsync);
 	__dev_mc_unsync(netdev, fm10k_mc_vlan_unsync);
 
+err_out:
 	fm10k_mbx_unlock(interface);
 
-	return 0;
+	return err;
 }
 
 static int fm10k_vlan_rx_add_vid(struct net_device *netdev,
