@@ -888,7 +888,7 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 
 	pbss_network->Rssi = 0;
 
-	memcpy(pbss_network->MacAddress, myid(&(padapter->eeprompriv)), ETH_ALEN);
+	ether_addr_copy(pbss_network->MacAddress, myid(&(padapter->eeprompriv)));
 
 	/* beacon interval */
 	p = rtw_get_beacon_interval_from_ie(ie);/* 8: TimeStamp, 2: Beacon Interval 2:Capability */
@@ -1164,7 +1164,7 @@ int rtw_acl_add_sta(struct adapter *padapter, u8 *addr)
 		if (!paclnode->valid) {
 			INIT_LIST_HEAD(&paclnode->list);
 
-			memcpy(paclnode->addr, addr, ETH_ALEN);
+			ether_addr_copy(paclnode->addr, addr);
 
 			paclnode->valid = true;
 
