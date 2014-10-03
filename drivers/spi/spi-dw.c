@@ -135,8 +135,7 @@ static int mrst_spi_debugfs_init(struct dw_spi *dws)
 
 static void mrst_spi_debugfs_remove(struct dw_spi *dws)
 {
-	if (dws->debugfs)
-		debugfs_remove_recursive(dws->debugfs);
+	debugfs_remove_recursive(dws->debugfs);
 }
 
 #else
@@ -177,7 +176,7 @@ static inline u32 rx_max(struct dw_spi *dws)
 {
 	u32 rx_left = (dws->rx_end - dws->rx) / dws->n_bytes;
 
-	return min(rx_left, (u32)dw_readw(dws, DW_SPI_RXFLR));
+	return min_t(u32, rx_left, dw_readw(dws, DW_SPI_RXFLR));
 }
 
 static void dw_writer(struct dw_spi *dws)
@@ -228,8 +227,9 @@ static void *next_transfer(struct dw_spi *dws)
 					struct spi_transfer,
 					transfer_list);
 		return RUNNING_STATE;
-	} else
-		return DONE_STATE;
+	}
+
+	return DONE_STATE;
 }
 
 /*
@@ -471,10 +471,12 @@ static void pump_transfers(unsigned long data)
 	 */
 	if (!dws->dma_mapped && !chip->poll_mode) {
 		int templen = dws->len / dws->n_bytes;
+
 		txint_level = dws->fifo_len / 2;
 		txint_level = (templen > txint_level) ? txint_level : templen;
 
-		imask |= SPI_INT_TXEI | SPI_INT_TXOI | SPI_INT_RXUI | SPI_INT_RXOI;
+		imask |= SPI_INT_TXEI | SPI_INT_TXOI |
+			 SPI_INT_RXUI | SPI_INT_RXOI;
 		dws->transfer_handler = interrupt_transfer;
 	}
 
@@ -515,7 +517,6 @@ static void pump_transfers(unsigned long data)
 
 early_exit:
 	giveback(dws);
-	return;
 }
 
 static int dw_spi_transfer_one_message(struct spi_master *master,
@@ -626,6 +627,7 @@ static void spi_hw_init(struct dw_spi *dws)
 	 */
 	if (!dws->fifo_len) {
 		u32 fifo;
+
 		for (fifo = 2; fifo <= 257; fifo++) {
 			dw_writew(dws, DW_SPI_TXFLTR, fifo);
 			if (fifo != dw_readw(dws, DW_SPI_TXFLTR))

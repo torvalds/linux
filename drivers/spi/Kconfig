@@ -113,6 +113,14 @@ config SPI_AU1550
 	  If you say yes to this option, support will be included for the
 	  PSC SPI controller found on Au1550, Au1200 and Au1300 series.
 
+config SPI_BCM53XX
+	tristate "Broadcom BCM53xx SPI controller"
+	depends on ARCH_BCM_5301X
+	depends on BCMA_POSSIBLE
+	select BCMA
+	help
+          Enable support for the SPI controller on Broadcom BCM53xx ARM SoCs.
+
 config SPI_BCM63XX
 	tristate "Broadcom BCM63xx SPI controller"
 	depends on BCM63XX

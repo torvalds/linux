@@ -167,8 +167,10 @@ static void davinci_spi_rx_buf_u16(u32 data, struct davinci_spi *dspi)
 static u32 davinci_spi_tx_buf_u8(struct davinci_spi *dspi)
 {
 	u32 data = 0;
+
 	if (dspi->tx) {
 		const u8 *tx = dspi->tx;
+
 		data = *tx++;
 		dspi->tx = tx;
 	}
@@ -178,8 +180,10 @@ static u32 davinci_spi_tx_buf_u8(struct davinci_spi *dspi)
 static u32 davinci_spi_tx_buf_u16(struct davinci_spi *dspi)
 {
 	u32 data = 0;
+
 	if (dspi->tx) {
 		const u16 *tx = dspi->tx;
+
 		data = *tx++;
 		dspi->tx = tx;
 	}
@@ -996,8 +1000,8 @@ static int davinci_spi_probe(struct platform_device *pdev)
 			goto free_clk;
 
 		dev_info(&pdev->dev, "DMA: supported\n");
-		dev_info(&pdev->dev, "DMA: RX channel: %pa, TX channel: %pa, "
-				"event queue: %d\n", &dma_rx_chan, &dma_tx_chan,
+		dev_info(&pdev->dev, "DMA: RX channel: %pa, TX channel: %pa, event queue: %d\n",
+				&dma_rx_chan, &dma_tx_chan,
 				pdata->dma_event_q);
 	}
 
