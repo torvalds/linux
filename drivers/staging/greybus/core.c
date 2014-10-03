@@ -252,7 +252,19 @@ error:
 
 void gb_remove_module(struct greybus_host_device *hd, u8 module_id)
 {
-	// FIXME should be the remove_device call...
+	struct gb_module *gmod;
+	bool found = false;
+
+	list_for_each_entry(gmod, &hd->modules, links)
+		if (gmod->module_id == module_id) {
+			found = true;
+			break;
+		}
+
+	if (found)
+		greybus_remove_device(gmod);
+	else
+		dev_err(hd->parent, "module id %d remove error\n", module_id);
 }
 
 void greybus_remove_device(struct gb_module *gmod)
@@ -264,7 +276,8 @@ void greybus_remove_device(struct gb_module *gmod)
 	gb_tty_disconnect(gmod);
 	gb_battery_disconnect(gmod);
 
-	// FIXME - device_remove(&gmod->dev);
+	device_del(&gmod->dev);
+	put_device(&gmod->dev);
 }
 
 static DEFINE_MUTEX(hd_mutex);
