@@ -146,10 +146,6 @@
 		schedule_timeout(x);				    \
 	} while (0)
 
-#ifndef max
-#define max(a, b) (((a) > (b)) ? (a) : (b))
-#endif
-
 static inline struct cdev *cdev_alloc_init(struct module *owner,
 					   const struct file_operations *fops)
 {
