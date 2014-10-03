@@ -337,6 +337,17 @@ config I2C_AU1550
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-au1550.
 
+config I2C_AXXIA
+	tristate "Axxia I2C controller"
+	depends on ARCH_AXXIA || COMPILE_TEST
+	default ARCH_AXXIA
+	help
+	  Say yes if you want to support the I2C bus on Axxia platforms.
+
+	  Please note that this controller is limited to transfers of maximum
+	  255 bytes in length. Any attempt to to a larger transfer will return
+	  an error.
+
 config I2C_BCM2835
 	tristate "Broadcom BCM2835 I2C controller"
 	depends on ARCH_BCM2835
