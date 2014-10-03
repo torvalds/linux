@@ -238,6 +238,7 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 				  struct ib_udata *udata)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
+	struct mlx5_general_caps *gen;
 	struct mlx5_ib_srq *srq;
 	int desc_size;
 	int buf_size;
@@ -247,11 +248,12 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 	int is_xrc;
 	u32 flgs, xrcdn;
 
+	gen = &dev->mdev->caps.gen;
 	/* Sanity check SRQ size before proceeding */
-	if (init_attr->attr.max_wr >= dev->mdev->caps.max_srq_wqes) {
+	if (init_attr->attr.max_wr >= gen->max_srq_wqes) {
 		mlx5_ib_dbg(dev, "max_wr %d, cap %d\n",
 			    init_attr->attr.max_wr,
-			    dev->mdev->caps.max_srq_wqes);
+			    gen->max_srq_wqes);
 		return ERR_PTR(-EINVAL);
 	}
 
