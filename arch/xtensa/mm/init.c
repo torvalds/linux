@@ -239,6 +239,17 @@ void __init bootmem_init(void)
 	unsigned long bootmap_start, bootmap_size;
 	int i;
 
+	/* Reserve all memory below PLATFORM_DEFAULT_MEM_START, as memory
+	 * accounting doesn't work for pages below that address.
+	 *
+	 * If PLATFORM_DEFAULT_MEM_START is zero reserve page at address 0:
+	 * successfull allocations should never return NULL.
+	 */
+	if (PLATFORM_DEFAULT_MEM_START)
+		mem_reserve(0, PLATFORM_DEFAULT_MEM_START, 0);
+	else
+		mem_reserve(0, 1, 0);
+
 	sysmem_dump();
 	max_low_pfn = max_pfn = 0;
 	min_low_pfn = ~0;
