@@ -2697,7 +2697,6 @@ static int smiapp_init(struct smiapp_sensor *sensor)
 	pll->bus_type = SMIAPP_PLL_BUS_TYPE_CSI2;
 	pll->csi2.lanes = sensor->platform_data->lanes;
 	pll->ext_clk_freq_hz = sensor->platform_data->ext_clk;
-	pll->flags = smiapp_call_quirk(sensor, pll_flags);
 	pll->scale_n = sensor->limits[SMIAPP_LIMIT_SCALER_N_MIN];
 	/* Profile 0 sensors have no separate OP clock branch. */
 	if (sensor->minfo.smiapp_profile == SMIAPP_PROFILE_0)
@@ -2770,6 +2769,10 @@ static int smiapp_init(struct smiapp_sensor *sensor)
 	smiapp_read_frame_fmt(sensor);
 	rval = smiapp_init_controls(sensor);
 	if (rval < 0)
+		goto out_cleanup;
+
+	rval = smiapp_call_quirk(sensor, init);
+	if (rval)
 		goto out_cleanup;
 
 	rval = smiapp_get_mbus_formats(sensor);

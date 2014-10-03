@@ -29,6 +29,9 @@ struct smiapp_sensor;
  * @post_poweron: Called always after the sensor has been fully powered on.
  * @pre_streamon: Called just before streaming is enabled.
  * @post_streamon: Called right after stopping streaming.
+ * @pll_flags: Return flags for the PLL calculator.
+ * @init: Quirk initialisation, called the last in probe(). This is
+ *	  also appropriate for adding sensor specific controls, for instance.
  * @reg_access: Register access quirk. The quirk may divert the access
  *		to another register, or no register at all.
  *
@@ -47,6 +50,7 @@ struct smiapp_quirk {
 	int (*pre_streamon)(struct smiapp_sensor *sensor);
 	int (*post_streamoff)(struct smiapp_sensor *sensor);
 	unsigned long (*pll_flags)(struct smiapp_sensor *sensor);
+	int (*init)(struct smiapp_sensor *sensor);
 	int (*reg_access)(struct smiapp_sensor *sensor, bool write, u32 *reg,
 			  u32 *val);
 	unsigned long flags;
