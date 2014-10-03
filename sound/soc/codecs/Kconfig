@@ -464,6 +464,7 @@ config SND_SOC_RL6231
 
 config SND_SOC_RT286
 	tristate
+	depends on I2C
 
 config SND_SOC_RT5631
 	tristate
