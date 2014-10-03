@@ -60,7 +60,7 @@ struct virtpci_dev {
 	unsigned short device;	/* device id for device */
 	u32 busNo;		/* number of bus on which device exists */
 	u32 deviceNo;		/* device's number on the bus */
-	struct InterruptInfo intr;	/* interrupt info */
+	struct irq_info intr;	/* interrupt info */
 	struct device generic_dev;	/* generic device */
 	union {
 		struct scsi_adap_info scsi;

@@ -139,14 +139,14 @@ int  uislib_client_inject_del_bus(u32 bus_no);
 int uislib_client_inject_add_vhba(u32 bus_no, u32 dev_no,
 				  u64 phys_chan_addr, u32 chan_bytes,
 				  int is_test_addr, uuid_le inst_uuid,
-				  struct InterruptInfo *intr);
+				  struct irq_info *intr);
 int  uislib_client_inject_pause_vhba(u32 bus_no, u32 dev_no);
 int  uislib_client_inject_resume_vhba(u32 bus_no, u32 dev_no);
 int uislib_client_inject_del_vhba(u32 bus_no, u32 dev_no);
 int uislib_client_inject_add_vnic(u32 bus_no, u32 dev_no,
 				  u64 phys_chan_addr, u32 chan_bytes,
 				  int is_test_addr, uuid_le inst_uuid,
-				  struct InterruptInfo *intr);
+				  struct irq_info *intr);
 int uislib_client_inject_pause_vnic(u32 bus_no, u32 dev_no);
 int uislib_client_inject_resume_vnic(u32 bus_no, u32 dev_no);
 int uislib_client_inject_del_vnic(u32 bus_no, u32 dev_no);

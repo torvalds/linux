@@ -63,7 +63,7 @@ typedef enum {
 typedef struct {
 	VISORCHIPSET_ADDRESSTYPE addrType;
 	HOSTADDRESS channelAddr;
-	struct InterruptInfo intr;
+	struct irq_info intr;
 	u64 nChannelBytes;
 	uuid_le channelTypeGuid;
 	uuid_le channelInstGuid;

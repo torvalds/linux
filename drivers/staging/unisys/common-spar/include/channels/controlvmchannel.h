@@ -119,7 +119,7 @@ typedef enum  {
 
 } CONTROLVM_ID;
 
-struct InterruptInfo {
+struct irq_info {
 	 /**< specifies interrupt info. It is used to send interrupts
 	  *   for this channel. The peer at the end of this channel
 	  *   who has registered an interrupt (using recv fields
@@ -298,7 +298,7 @@ typedef struct _CONTROLVM_PACKET_DEVICE_CREATE  {
 	u64 channelBytes; /**< specifies size of the channel in bytes */
 	uuid_le dataTypeGuid;/**< specifies format of data in channel */
 	uuid_le devInstGuid; /**< instance guid for the device */
-	struct InterruptInfo intr; /**< specifies interrupt information */
+	struct irq_info intr; /**< specifies interrupt information */
 } CONTROLVM_PACKET_DEVICE_CREATE;	/* for CONTROLVM_DEVICE_CREATE */
 
 typedef struct _CONTROLVM_PACKET_DEVICE_CONFIGURE  {

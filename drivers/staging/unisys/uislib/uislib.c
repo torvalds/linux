@@ -925,7 +925,7 @@ int
 uislib_client_inject_add_vhba(u32 bus_no, u32 dev_no,
 			      u64 phys_chan_addr, u32 chan_bytes,
 			      int is_test_addr, uuid_le inst_uuid,
-			      struct InterruptInfo *intr)
+			      struct irq_info *intr)
 {
 	CONTROLVM_MESSAGE msg;
 
@@ -950,7 +950,7 @@ uislib_client_inject_add_vhba(u32 bus_no, u32 dev_no,
 		msg.cmd.createDevice.intr = *intr;
 	else
 		memset(&msg.cmd.createDevice.intr, 0,
-		       sizeof(struct InterruptInfo));
+		       sizeof(struct irq_info));
 	msg.cmd.createDevice.channelAddr = phys_chan_addr;
 	if (chan_bytes < MIN_IO_CHANNEL_SIZE) {
 		LOGERR("wrong channel size.chan_bytes = 0x%x IO_CHANNEL_SIZE= 0x%x\n",
@@ -984,7 +984,7 @@ int
 uislib_client_inject_add_vnic(u32 bus_no, u32 dev_no,
 			      u64 phys_chan_addr, u32 chan_bytes,
 			      int is_test_addr, uuid_le inst_uuid,
-			      struct InterruptInfo *intr)
+			      struct irq_info *intr)
 {
 	CONTROLVM_MESSAGE msg;
 
@@ -1009,7 +1009,7 @@ uislib_client_inject_add_vnic(u32 bus_no, u32 dev_no,
 		msg.cmd.createDevice.intr = *intr;
 	else
 		memset(&msg.cmd.createDevice.intr, 0,
-		       sizeof(struct InterruptInfo));
+		       sizeof(struct irq_info));
 	msg.cmd.createDevice.channelAddr = phys_chan_addr;
 	if (chan_bytes < MIN_IO_CHANNEL_SIZE) {
 		LOGERR("wrong channel size.chan_bytes = 0x%x IO_CHANNEL_SIZE= 0x%x\n",
@@ -1106,7 +1106,7 @@ uislib_client_add_vnic(u32 busNo)
 	msg.cmd.createDevice.busNo = busNo;
 	msg.cmd.createDevice.devNo = devNo;
 	msg.cmd.createDevice.devInstGuid = NULL_UUID_LE;
-	memset(&msg.cmd.createDevice.intr, 0, sizeof(struct InterruptInfo));
+	memset(&msg.cmd.createDevice.intr, 0, sizeof(struct irq_info));
 	msg.cmd.createDevice.channelAddr = PhysicalDataChan;
 	msg.cmd.createDevice.channelBytes = MIN_IO_CHANNEL_SIZE;
 	msg.cmd.createDevice.dataTypeGuid = UltraVnicChannelProtocolGuid;

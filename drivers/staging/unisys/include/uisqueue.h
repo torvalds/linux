@@ -132,7 +132,7 @@ struct device_info {
 	u64 channel_bytes;
 	uuid_le channel_uuid;
 	uuid_le instance_uuid;
-	struct InterruptInfo intr;
+	struct irq_info intr;
 	struct switch_info *swtch;
 	char devid[30];		/* "vbus<busno>:dev<devno>" */
 	u16 polling;
@@ -226,7 +226,7 @@ struct add_virt_iopart {
 				 * for DMA, for ex. */
 	u64 recv_bus_irq_handle;	/* used to register to receive
 					 * bus level interrupts. */
-	struct InterruptInfo intr;	/* contains recv & send
+	struct irq_info intr;	/* contains recv & send
 					 * interrupt info */
 	/* recvInterruptHandle is used to register to receive
 	* interrupts on the data channel. Used by GuestLinux/Windows
@@ -364,7 +364,7 @@ struct add_virt_guestpart {
 	u32 bus_no;		/* bus number for the operation */
 	u32 device_no;		/* number of device on the bus */
 	uuid_le instance_uuid;	/* instance guid for device */
-	struct InterruptInfo intr;	/* recv/send interrupt info */
+	struct irq_info intr;	/* recv/send interrupt info */
 	/* recvInterruptHandle contains info needed in order to
 	 * register to receive interrupts on the data channel.
 	 * sendInterruptHandle contains handle which is provided to

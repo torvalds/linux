@@ -172,7 +172,7 @@ struct virthba_info {
 	struct virtpci_dev *virtpcidev;
 	struct list_head dev_info_list;
 	struct chaninfo chinfo;
-	struct InterruptInfo intr;	/* use recvInterrupt info to receive
+	struct irq_info intr;		/* use recvInterrupt info to receive
 					   interrupts when IOs complete */
 	int interrupt_vector;
 	struct scsipending pending[MAX_PENDING_REQUESTS]; /* Tracks the requests
