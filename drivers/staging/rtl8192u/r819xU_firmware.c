@@ -88,7 +88,7 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 		skb_put(skb, i);
 
 		if (!priv->ieee80211->check_nic_enough_desc(dev,tcb_desc->queue_index) ||
-			(!skb_queue_empty(&priv->ieee80211->skb_waitQ[tcb_desc->queue_index])) ||\
+			(!skb_queue_empty(&priv->ieee80211->skb_waitQ[tcb_desc->queue_index])) ||
 			(priv->ieee80211->queue_stop)) {
 			RT_TRACE(COMP_FIRMWARE,"=====================================================> tx full!\n");
 			skb_queue_tail(&priv->ieee80211->skb_waitQ[tcb_desc->queue_index], skb);
