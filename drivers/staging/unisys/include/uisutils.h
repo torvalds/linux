@@ -132,11 +132,6 @@ unsigned char *util_map_virt(struct phys_info *sg);
 void util_unmap_virt(struct phys_info *sg);
 unsigned char *util_map_virt_atomic(struct phys_info *sg);
 void util_unmap_virt_atomic(void *buf);
-int uislib_server_inject_add_vnic(u32 switchNo, u32 BusNo, u32 numIntPorts,
-				  u32 numExtPorts, u8 *pmac[ETH_ALEN],
-				  pCHANNEL_HEADER **chan);
-void uislib_server_inject_del_vnic(u32 switchNo, u32 busNo, u32 numIntPorts,
-				   u32 numExtPorts);
 int uislib_client_inject_add_bus(u32 busNo, uuid_le instGuid,
 				 u64 channelAddr, ulong nChannelBytes);
 int  uislib_client_inject_del_bus(u32 busNo);
