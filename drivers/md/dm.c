@@ -2895,7 +2895,7 @@ struct dm_md_mempools *dm_alloc_md_mempools(unsigned type, unsigned integrity, u
 	if (!pools->io_pool)
 		goto out;
 
-	pools->bs = bioset_create(pool_size, front_pad);
+	pools->bs = bioset_create_nobvec(pool_size, front_pad);
 	if (!pools->bs)
 		goto out;
 
