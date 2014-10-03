@@ -143,12 +143,12 @@ struct vmcall_io_diag_addr_params {
 /* ///////////// ONLY STRUCT TYPE SHOULD BE BELOW */
 #pragma pack(push, 1)
 /* Parameters to VMCALL_IO_VISORSERIAL_ADDR interface */
-typedef struct _VMCALL_IO_VISORSERIAL_ADDR_PARAMS {
+struct vmcall_io_visorserial_addr_params {
 	    /* The Guest-relative physical address of the serial console
 	    * channel.  This VMCall fills this in with the appropriate
 	    * address. */
-	u64 ChannelAddress;	/* contents provided by this VMCALL (OUT) */
-} VMCALL_IO_VISORSERIAL_ADDR_PARAMS;
+	u64 address;	/* contents provided by this VMCALL (OUT) */
+};
 
 #pragma pack(pop)
 /* ///////////// END PRAGMA PACK PUSH 1 /////////////////////////// */
