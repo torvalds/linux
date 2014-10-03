@@ -4345,6 +4345,39 @@ int ath10k_wmi_dbglog_cfg(struct ath10k *ar, u32 module_enable)
 	return ath10k_wmi_cmd_send(ar, skb, ar->wmi.cmd->dbglog_cfg_cmdid);
 }
 
+int ath10k_wmi_pdev_pktlog_enable(struct ath10k *ar, u32 ev_bitmap)
+{
+	struct wmi_pdev_pktlog_enable_cmd *cmd;
+	struct sk_buff *skb;
+
+	skb = ath10k_wmi_alloc_skb(ar, sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	ev_bitmap &= ATH10K_PKTLOG_ANY;
+	ath10k_dbg(ar, ATH10K_DBG_WMI,
+		   "wmi enable pktlog filter:%x\n", ev_bitmap);
+
+	cmd = (struct wmi_pdev_pktlog_enable_cmd *)skb->data;
+	cmd->ev_bitmap = __cpu_to_le32(ev_bitmap);
+	return ath10k_wmi_cmd_send(ar, skb,
+				   ar->wmi.cmd->pdev_pktlog_enable_cmdid);
+}
+
+int ath10k_wmi_pdev_pktlog_disable(struct ath10k *ar)
+{
+	struct sk_buff *skb;
+
+	skb = ath10k_wmi_alloc_skb(ar, 0);
+	if (!skb)
+		return -ENOMEM;
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi disable pktlog\n");
+
+	return ath10k_wmi_cmd_send(ar, skb,
+				   ar->wmi.cmd->pdev_pktlog_disable_cmdid);
+}
+
 int ath10k_wmi_attach(struct ath10k *ar)
 {
 	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features)) {

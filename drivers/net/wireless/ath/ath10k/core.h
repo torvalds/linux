@@ -302,7 +302,9 @@ struct ath10k_debug {
 	struct ath10k_dfs_stats dfs_stats;
 	struct ath_dfs_pool_stats dfs_pool_stats;
 
+	/* protected by conf_mutex */
 	u32 fw_dbglog_mask;
+	u32 pktlog_filter;
 
 	u8 htt_max_amsdu;
 	u8 htt_max_ampdu;

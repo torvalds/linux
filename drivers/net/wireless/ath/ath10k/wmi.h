@@ -2787,6 +2787,10 @@ struct wmi_pdev_set_channel_cmd {
 	struct wmi_channel chan;
 } __packed;
 
+struct wmi_pdev_pktlog_enable_cmd {
+	__le32 ev_bitmap;
+} __packed;
+
 /* Customize the DSCP (bit) to TID (0-7) mapping for QOS */
 #define WMI_DSCP_MAP_MAX    (64)
 struct wmi_pdev_set_dscp_tid_map_cmd {
@@ -4647,5 +4651,7 @@ int ath10k_wmi_mgmt_tx(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_wmi_dbglog_cfg(struct ath10k *ar, u32 module_enable);
 int ath10k_wmi_pull_fw_stats(struct ath10k *ar, struct sk_buff *skb,
 			     struct ath10k_fw_stats *stats);
+int ath10k_wmi_pdev_pktlog_enable(struct ath10k *ar, u32 ev_list);
+int ath10k_wmi_pdev_pktlog_disable(struct ath10k *ar);
 
 #endif /* _WMI_H_ */

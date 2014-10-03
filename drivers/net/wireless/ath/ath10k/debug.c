@@ -1396,7 +1396,22 @@ int ath10k_debug_start(struct ath10k *ar)
 				    ret);
 	}
 
-	return 0;
+	if (ar->debug.pktlog_filter) {
+		ret = ath10k_wmi_pdev_pktlog_enable(ar,
+						    ar->debug.pktlog_filter);
+		if (ret)
+			/* not serious */
+			ath10k_warn(ar,
+				    "failed to enable pktlog filter %x: %d\n",
+				    ar->debug.pktlog_filter, ret);
+	} else {
+		ret = ath10k_wmi_pdev_pktlog_disable(ar);
+		if (ret)
+			/* not serious */
+			ath10k_warn(ar, "failed to disable pktlog: %d\n", ret);
+	}
+
+	return ret;
 }
 
 void ath10k_debug_stop(struct ath10k *ar)
@@ -1411,6 +1426,8 @@ void ath10k_debug_stop(struct ath10k *ar)
 
 	ar->debug.htt_max_amsdu = 0;
 	ar->debug.htt_max_ampdu = 0;
+
+	ath10k_wmi_pdev_pktlog_disable(ar);
 }
 
 static ssize_t ath10k_write_simulate_radar(struct file *file,
@@ -1493,6 +1510,69 @@ static const struct file_operations fops_dfs_stats = {
 	.llseek = default_llseek,
 };
 
+static ssize_t ath10k_write_pktlog_filter(struct file *file,
+					  const char __user *ubuf,
+					  size_t count, loff_t *ppos)
+{
+	struct ath10k *ar = file->private_data;
+	u32 filter;
+	int ret;
+
+	if (kstrtouint_from_user(ubuf, count, 0, &filter))
+		return -EINVAL;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (ar->state != ATH10K_STATE_ON) {
+		ar->debug.pktlog_filter = filter;
+		ret = count;
+		goto out;
+	}
+
+	if (filter && (filter != ar->debug.pktlog_filter)) {
+		ret = ath10k_wmi_pdev_pktlog_enable(ar, filter);
+		if (ret) {
+			ath10k_warn(ar, "failed to enable pktlog filter %x: %d\n",
+				    ar->debug.pktlog_filter, ret);
+			goto out;
+		}
+	} else {
+		ret = ath10k_wmi_pdev_pktlog_disable(ar);
+		if (ret) {
+			ath10k_warn(ar, "failed to disable pktlog: %d\n", ret);
+			goto out;
+		}
+	}
+
+	ar->debug.pktlog_filter = filter;
+	ret = count;
+
+out:
+	mutex_unlock(&ar->conf_mutex);
+	return ret;
+}
+
+static ssize_t ath10k_read_pktlog_filter(struct file *file, char __user *ubuf,
+					 size_t count, loff_t *ppos)
+{
+	char buf[32];
+	struct ath10k *ar = file->private_data;
+	int len = 0;
+
+	mutex_lock(&ar->conf_mutex);
+	len = scnprintf(buf, sizeof(buf) - len, "%08x\n",
+			ar->debug.pktlog_filter);
+	mutex_unlock(&ar->conf_mutex);
+
+	return simple_read_from_buffer(ubuf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_pktlog_filter = {
+	.read = ath10k_read_pktlog_filter,
+	.write = ath10k_write_pktlog_filter,
+	.open = simple_open
+};
+
 int ath10k_debug_create(struct ath10k *ar)
 {
 	ar->debug.fw_crash_data = vzalloc(sizeof(*ar->debug.fw_crash_data));
@@ -1573,6 +1653,9 @@ int ath10k_debug_register(struct ath10k *ar)
 				    ar->debug.debugfs_phy, ar,
 				    &fops_dfs_stats);
 	}
+
+	debugfs_create_file("pktlog_filter", S_IRUGO | S_IWUSR,
+			    ar->debug.debugfs_phy, ar, &fops_pktlog_filter);
 
 	return 0;
 }
