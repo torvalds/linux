@@ -47,155 +47,84 @@ See the notes in the ni_atmio.o driver.
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
-#define ATMIO 1
-#undef PCIMIO
-
 /*
  *  AT specific setup
  */
 
-#define NI_SIZE 0x20
-
-#define MAX_N_CALDACS 32
-
 static const struct ni_board_struct ni_boards[] = {
 	{
-		.device_id	= 0x010d,
 		.name		= "DAQCard-ai-16xe-50",
+		.device_id	= 0x010d,
 		.n_adchan	= 16,
-		.adbits		= 16,
+		.ai_maxdata	= 0xffff,
 		.ai_fifo_depth	= 1024,
 		.gainlkup	= ai_gain_8,
 		.ai_speed	= 5000,
-		.num_p0_dio_channels = 8,
 		.caldac		= { dac8800, dac8043 },
 	}, {
-		.device_id	= 0x010c,
 		.name		= "DAQCard-ai-16e-4",
+		.device_id	= 0x010c,
 		.n_adchan	= 16,
-		.adbits		= 12,
+		.ai_maxdata	= 0x0fff,
 		.ai_fifo_depth	= 1024,
 		.gainlkup	= ai_gain_16,
 		.ai_speed	= 4000,
-		.num_p0_dio_channels = 8,
 		.caldac		= { mb88341 },		/* verified */
 	}, {
-		.device_id	= 0x02c4,
 		.name		= "DAQCard-6062E",
+		.device_id	= 0x02c4,
 		.n_adchan	= 16,
-		.adbits		= 12,
+		.ai_maxdata	= 0x0fff,
 		.ai_fifo_depth	= 8192,
 		.gainlkup	= ai_gain_16,
 		.ai_speed	= 2000,
 		.n_aochan	= 2,
-		.aobits		= 12,
+		.ao_maxdata	= 0x0fff,
 		.ao_fifo_depth	= 2048,
 		.ao_range_table	= &range_bipolar10,
 		.ao_speed	= 1176,
-		.num_p0_dio_channels = 8,
 		.caldac		= { ad8804_debug },	/* verified */
 	 }, {
 		/* specs incorrect! */
-		.device_id	= 0x075e,
 		.name		= "DAQCard-6024E",
+		.device_id	= 0x075e,
 		.n_adchan	= 16,
-		.adbits		= 12,
+		.ai_maxdata	= 0x0fff,
 		.ai_fifo_depth	= 1024,
 		.gainlkup	= ai_gain_4,
 		.ai_speed	= 5000,
 		.n_aochan	= 2,
-		.aobits		= 12,
+		.ao_maxdata	= 0x0fff,
 		.ao_range_table	= &range_bipolar10,
 		.ao_speed	= 1000000,
-		.num_p0_dio_channels = 8,
 		.caldac		= { ad8804_debug },
 	}, {
 		/* specs incorrect! */
-		.device_id	= 0x0245,
 		.name		= "DAQCard-6036E",
+		.device_id	= 0x0245,
 		.n_adchan	= 16,
-		.adbits		= 16,
+		.ai_maxdata	= 0xffff,
 		.ai_fifo_depth	= 1024,
 		.alwaysdither	= 1,
 		.gainlkup	= ai_gain_4,
 		.ai_speed	= 5000,
 		.n_aochan	= 2,
-		.aobits		= 16,
+		.ao_maxdata	= 0xffff,
 		.ao_range_table	= &range_bipolar10,
 		.ao_speed	= 1000000,
-		.num_p0_dio_channels = 8,
 		.caldac		= { ad8804_debug },
 	 },
 #if 0
 	{
-		.device_id	= 0x0000,	/* unknown */
 		.name		= "DAQCard-6715",
+		.device_id	= 0x0000,	/* unknown */
 		.n_aochan	= 8,
-		.aobits		= 12,
+		.ao_maxdata	= 0x0fff,
 		.ao_671x	= 8192,
-		.num_p0_dio_channels = 8,
 		.caldac		= { mb88341, mb88341 },
 	},
 #endif
 };
-
-#define interrupt_pin(a)	0
-
-#define IRQ_POLARITY 1
-
-struct ni_private {
-
-	struct pcmcia_device *link;
-
-NI_PRIVATE_COMMON};
-
-/* How we access registers */
-
-#define ni_writel(a, b)		(outl((a), (b)+dev->iobase))
-#define ni_readl(a)		(inl((a)+dev->iobase))
-#define ni_writew(a, b)		(outw((a), (b)+dev->iobase))
-#define ni_readw(a)		(inw((a)+dev->iobase))
-#define ni_writeb(a, b)		(outb((a), (b)+dev->iobase))
-#define ni_readb(a)		(inb((a)+dev->iobase))
-
-/* How we access windowed registers */
-
-/* We automatically take advantage of STC registers that can be
- * read/written directly in the I/O space of the board.  The
- * DAQCard devices map the low 8 STC registers to iobase+addr*2. */
-
-static void mio_cs_win_out(struct comedi_device *dev, uint16_t data, int addr)
-{
-	struct ni_private *devpriv = dev->private;
-	unsigned long flags;
-
-	spin_lock_irqsave(&devpriv->window_lock, flags);
-	if (addr < 8) {
-		ni_writew(data, addr * 2);
-	} else {
-		ni_writew(addr, Window_Address);
-		ni_writew(data, Window_Data);
-	}
-	spin_unlock_irqrestore(&devpriv->window_lock, flags);
-}
-
-static uint16_t mio_cs_win_in(struct comedi_device *dev, int addr)
-{
-	struct ni_private *devpriv = dev->private;
-	unsigned long flags;
-	uint16_t ret;
-
-	spin_lock_irqsave(&devpriv->window_lock, flags);
-	if (addr < 8) {
-		ret = ni_readw(addr * 2);
-	} else {
-		ni_writew(addr, Window_Address);
-		ret = ni_readw(Window_Data);
-	}
-	spin_unlock_irqrestore(&devpriv->window_lock, flags);
-
-	return ret;
-}
 
 #include "ni_mio_common.c"
 
@@ -260,12 +189,8 @@ static int mio_cs_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	devpriv = dev->private;
-	devpriv->stc_writew	= mio_cs_win_out;
-	devpriv->stc_readw	= mio_cs_win_in;
-	devpriv->stc_writel	= win_out2;
-	devpriv->stc_readl	= win_in2;
 
-	return ni_E_init(dev);
+	return ni_E_init(dev, 0, 1);
 }
 
 static void mio_cs_detach(struct comedi_device *dev)

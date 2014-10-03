@@ -71,8 +71,15 @@ struct nouveau_clock {
 	struct list_head states;
 	int state_nr;
 
+	struct work_struct work;
+	wait_queue_head_t wait;
+	atomic_t waiting;
+
+	struct nvkm_notify pwrsrc_ntfy;
+	int pwrsrc;
 	int pstate; /* current */
-	int ustate; /* user-requested (-1 disabled, -2 perfmon) */
+	int ustate_ac; /* user-requested (-1 disabled, -2 perfmon) */
+	int ustate_dc; /* user-requested (-1 disabled, -2 perfmon) */
 	int astate; /* perfmon adjustment (base) */
 	int tstate; /* thermal adjustment (max-) */
 	int dstate; /* display adjustment (min+) */
@@ -108,8 +115,9 @@ struct nouveau_clocks {
 	int mdiv;
 };
 
-#define nouveau_clock_create(p,e,o,i,r,d)                                      \
-	nouveau_clock_create_((p), (e), (o), (i), (r), sizeof(**d), (void **)d)
+#define nouveau_clock_create(p,e,o,i,r,s,n,d)                                  \
+	nouveau_clock_create_((p), (e), (o), (i), (r), (s), (n), sizeof(**d),  \
+			      (void **)d)
 #define nouveau_clock_destroy(p) ({                                            \
 	struct nouveau_clock *clk = (p);                                       \
 	_nouveau_clock_dtor(nv_object(clk));                                   \
@@ -118,15 +126,18 @@ struct nouveau_clocks {
 	struct nouveau_clock *clk = (p);                                       \
 	_nouveau_clock_init(nv_object(clk));                                   \
 })
-#define nouveau_clock_fini(p,s)                                                \
-	nouveau_subdev_fini(&(p)->base, (s))
+#define nouveau_clock_fini(p,s) ({                                             \
+	struct nouveau_clock *clk = (p);                                       \
+	_nouveau_clock_fini(nv_object(clk), (s));                              \
+})
 
 int  nouveau_clock_create_(struct nouveau_object *, struct nouveau_object *,
 			   struct nouveau_oclass *,
-			   struct nouveau_clocks *, bool, int, void **);
+			   struct nouveau_clocks *, struct nouveau_pstate *,
+			   int, bool, int, void **);
 void _nouveau_clock_dtor(struct nouveau_object *);
-int _nouveau_clock_init(struct nouveau_object *);
-#define _nouveau_clock_fini _nouveau_subdev_fini
+int  _nouveau_clock_init(struct nouveau_object *);
+int  _nouveau_clock_fini(struct nouveau_object *, bool);
 
 extern struct nouveau_oclass nv04_clock_oclass;
 extern struct nouveau_oclass nv40_clock_oclass;
@@ -136,6 +147,7 @@ extern struct nouveau_oclass *nvaa_clock_oclass;
 extern struct nouveau_oclass nva3_clock_oclass;
 extern struct nouveau_oclass nvc0_clock_oclass;
 extern struct nouveau_oclass nve0_clock_oclass;
+extern struct nouveau_oclass gk20a_clock_oclass;
 
 int nv04_clock_pll_set(struct nouveau_clock *, u32 type, u32 freq);
 int nv04_clock_pll_calc(struct nouveau_clock *, struct nvbios_pll *,
@@ -145,7 +157,7 @@ int nv04_clock_pll_prog(struct nouveau_clock *, u32 reg1,
 int nva3_clock_pll_calc(struct nouveau_clock *, struct nvbios_pll *,
 			int clk, struct nouveau_pll_vals *);
 
-int nouveau_clock_ustate(struct nouveau_clock *, int req);
+int nouveau_clock_ustate(struct nouveau_clock *, int req, int pwr);
 int nouveau_clock_astate(struct nouveau_clock *, int req, int rel);
 int nouveau_clock_dstate(struct nouveau_clock *, int req, int rel);
 int nouveau_clock_tstate(struct nouveau_clock *, int req, int rel);

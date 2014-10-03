@@ -494,7 +494,7 @@ acpi_ex_dump_object(union acpi_operand_object *obj_desc,
 				}
 			}
 
-			acpi_os_printf("\n", next);
+			acpi_os_printf("\n");
 			break;
 
 		case ACPI_EXD_HDLR_LIST:
@@ -528,7 +528,7 @@ acpi_ex_dump_object(union acpi_operand_object *obj_desc,
 				}
 			}
 
-			acpi_os_printf("\n", next);
+			acpi_os_printf("\n");
 			break;
 
 		case ACPI_EXD_RGN_LIST:
@@ -562,7 +562,7 @@ acpi_ex_dump_object(union acpi_operand_object *obj_desc,
 				}
 			}
 
-			acpi_os_printf("\n", next);
+			acpi_os_printf("\n");
 			break;
 
 		case ACPI_EXD_NODE:

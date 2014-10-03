@@ -6,7 +6,7 @@ Required properties:
 - interrupts : Should contain uart interrupt
 
 Optional properties:
-- efm32,location : Decides the location of the USART I/O pins.
+- energymicro,location : Decides the location of the USART I/O pins.
   Allowed range : [0 .. 5]
   Default: 0
 
@@ -16,5 +16,5 @@ uart@0x4000c400 {
 	compatible = "energymicro,efm32-uart";
 	reg = <0x4000c400 0x400>;
 	interrupts = <15>;
-	efm32,location = <0>;
+	energymicro,location = <0>;
 };

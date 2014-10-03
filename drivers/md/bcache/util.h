@@ -416,8 +416,8 @@ do {									\
 			  average_frequency,	frequency_units);	\
 	__print_time_stat(stats, name,					\
 			  average_duration,	duration_units);	\
-	__print_time_stat(stats, name,					\
-			  max_duration,		duration_units);	\
+	sysfs_print(name ## _ ##max_duration ## _ ## duration_units,	\
+			div_u64((stats)->max_duration, NSEC_PER_ ## duration_units));\
 									\
 	sysfs_print(name ## _last_ ## frequency_units, (stats)->last	\
 		    ? div_s64(local_clock() - (stats)->last,		\

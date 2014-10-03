@@ -22,8 +22,16 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/mc.h>
+#include "priv.h"
 #include <core/option.h>
+
+static inline void
+nouveau_mc_unk260(struct nouveau_mc *pmc, u32 data)
+{
+	const struct nouveau_mc_oclass *impl = (void *)nv_oclass(pmc);
+	if (impl->unk260)
+		impl->unk260(pmc, data);
+}
 
 static inline u32
 nouveau_mc_intr_mask(struct nouveau_mc *pmc)
@@ -113,6 +121,8 @@ nouveau_mc_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 	pmc = *pobject;
 	if (ret)
 		return ret;
+
+	pmc->unk260 = nouveau_mc_unk260;
 
 	if (nv_device_is_pci(device))
 		switch (device->pdev->device & 0x0ff0) {

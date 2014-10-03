@@ -33,13 +33,13 @@
  */
 
 #define DEBUG_SUBSYSTEM S_CLASS
-#include <obd_class.h>
+#include "../include/obd_class.h"
 #include <linux/kmod.h>   /* for request_module() */
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/pagemap.h>
-#include <lprocfs_status.h>
-#include <lustre/lustre_idl.h>
+#include "../include/lprocfs_status.h"
+#include "../include/lustre/lustre_idl.h"
 
 static int mea_last_char_hash(int count, char *name, int namelen)
 {

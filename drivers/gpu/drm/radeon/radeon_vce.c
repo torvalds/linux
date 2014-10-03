@@ -126,7 +126,7 @@ int radeon_vce_init(struct radeon_device *rdev)
 	size = RADEON_GPU_PAGE_ALIGN(rdev->vce_fw->size) +
 	       RADEON_VCE_STACK_SIZE + RADEON_VCE_HEAP_SIZE;
 	r = radeon_bo_create(rdev, size, PAGE_SIZE, true,
-			     RADEON_GEM_DOMAIN_VRAM, NULL, &rdev->vce.vcpu_bo);
+			     RADEON_GEM_DOMAIN_VRAM, 0, NULL, &rdev->vce.vcpu_bo);
 	if (r) {
 		dev_err(rdev->dev, "(%d) failed to allocate VCE bo\n", r);
 		return r;
@@ -368,7 +368,7 @@ int radeon_vce_get_create_msg(struct radeon_device *rdev, int ring,
 	for (i = ib.length_dw; i < ib_size_dw; ++i)
 		ib.ptr[i] = 0x0;
 
-	r = radeon_ib_schedule(rdev, &ib, NULL);
+	r = radeon_ib_schedule(rdev, &ib, NULL, false);
 	if (r) {
 	        DRM_ERROR("radeon: failed to schedule ib (%d).\n", r);
 	}
@@ -425,7 +425,7 @@ int radeon_vce_get_destroy_msg(struct radeon_device *rdev, int ring,
 	for (i = ib.length_dw; i < ib_size_dw; ++i)
 		ib.ptr[i] = 0x0;
 
-	r = radeon_ib_schedule(rdev, &ib, NULL);
+	r = radeon_ib_schedule(rdev, &ib, NULL, false);
 	if (r) {
 	        DRM_ERROR("radeon: failed to schedule ib (%d).\n", r);
 	}
@@ -715,7 +715,7 @@ int radeon_vce_ring_test(struct radeon_device *rdev, struct radeon_ring *ring)
 		return r;
 	}
 	radeon_ring_write(ring, VCE_CMD_END);
-	radeon_ring_unlock_commit(rdev, ring);
+	radeon_ring_unlock_commit(rdev, ring, false);
 
 	for (i = 0; i < rdev->usec_timeout; i++) {
 	        if (vce_v1_0_get_rptr(rdev, ring) != rptr)

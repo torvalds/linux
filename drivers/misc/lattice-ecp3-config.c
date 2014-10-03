@@ -15,6 +15,7 @@
 #include <linux/spi/spi.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
+#include <asm/unaligned.h>
 
 #define FIRMWARE_NAME	"lattice-ecp3.bit"
 
@@ -91,8 +92,8 @@ static void firmware_load(const struct firmware *fw, void *context)
 	/* Trying to speak with the FPGA via SPI... */
 	txbuf[0] = FPGA_CMD_READ_ID;
 	ret = spi_write_then_read(spi, txbuf, 8, rxbuf, rx_len);
-	dev_dbg(&spi->dev, "FPGA JTAG ID=%08x\n", *(u32 *)&rxbuf[4]);
-	jedec_id = *(u32 *)&rxbuf[4];
+	jedec_id = get_unaligned_be32(&rxbuf[4]);
+	dev_dbg(&spi->dev, "FPGA JTAG ID=%08x\n", jedec_id);
 
 	for (i = 0; i < ARRAY_SIZE(ecp3_dev); i++) {
 		if (jedec_id == ecp3_dev[i].jedec_id)
@@ -109,7 +110,8 @@ static void firmware_load(const struct firmware *fw, void *context)
 
 	txbuf[0] = FPGA_CMD_READ_STATUS;
 	ret = spi_write_then_read(spi, txbuf, 8, rxbuf, rx_len);
-	dev_dbg(&spi->dev, "FPGA Status=%08x\n", *(u32 *)&rxbuf[4]);
+	status = get_unaligned_be32(&rxbuf[4]);
+	dev_dbg(&spi->dev, "FPGA Status=%08x\n", status);
 
 	buffer = kzalloc(fw->size + 8, GFP_KERNEL);
 	if (!buffer) {
@@ -141,7 +143,7 @@ static void firmware_load(const struct firmware *fw, void *context)
 	for (i = 0; i < FPGA_CLEAR_LOOP_COUNT; i++) {
 		txbuf[0] = FPGA_CMD_READ_STATUS;
 		ret = spi_write_then_read(spi, txbuf, 8, rxbuf, rx_len);
-		status = *(u32 *)&rxbuf[4];
+		status = get_unaligned_be32(&rxbuf[4]);
 		if (status == FPGA_STATUS_CLEARED)
 			break;
 
@@ -164,8 +166,8 @@ static void firmware_load(const struct firmware *fw, void *context)
 
 	txbuf[0] = FPGA_CMD_READ_STATUS;
 	ret = spi_write_then_read(spi, txbuf, 8, rxbuf, rx_len);
-	dev_dbg(&spi->dev, "FPGA Status=%08x\n", *(u32 *)&rxbuf[4]);
-	status = *(u32 *)&rxbuf[4];
+	status = get_unaligned_be32(&rxbuf[4]);
+	dev_dbg(&spi->dev, "FPGA Status=%08x\n", status);
 
 	/* Check result */
 	if (status & FPGA_STATUS_DONE)
@@ -196,7 +198,7 @@ static int lattice_ecp3_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, data);
 
 	init_completion(&data->fw_loaded);
-	err = request_firmware_nowait(THIS_MODULE, FW_ACTION_NOHOTPLUG,
+	err = request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
 				      FIRMWARE_NAME, &spi->dev,
 				      GFP_KERNEL, spi, firmware_load);
 	if (err) {

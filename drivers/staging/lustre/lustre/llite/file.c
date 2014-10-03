@@ -41,14 +41,14 @@
  */
 
 #define DEBUG_SUBSYSTEM S_LLITE
-#include <lustre_dlm.h>
-#include <lustre_lite.h>
+#include "../include/lustre_dlm.h"
+#include "../include/lustre_lite.h"
 #include <linux/pagemap.h>
 #include <linux/file.h>
 #include "llite_internal.h"
-#include <lustre/ll_fiemap.h>
+#include "../include/lustre/ll_fiemap.h"
 
-#include "cl_object.h"
+#include "../include/cl_object.h"
 
 static int
 ll_put_grouplock(struct inode *inode, struct file *file, unsigned long arg);
@@ -140,7 +140,7 @@ static int ll_close_inode_openhandle(struct obd_export *md_exp,
 		 * XXX: in case of LMV, is this correct to access
 		 * ->exp_handle?
 		 */
-		CERROR("Invalid MDC connection handle "LPX64"\n",
+		CERROR("Invalid MDC connection handle %#llx\n",
 		       ll_i2mdexp(inode)->exp_handle.h_cookie);
 		GOTO(out, rc = 0);
 	}
@@ -290,7 +290,7 @@ static int ll_md_close(struct obd_export *md_exp, struct inode *inode,
 	   we can skip talking to MDS */
 	if (file->f_dentry->d_inode) { /* Can this ever be false? */
 		int lockmode;
-		int flags = LDLM_FL_BLOCK_GRANTED | LDLM_FL_TEST_LOCK;
+		__u64 flags = LDLM_FL_BLOCK_GRANTED | LDLM_FL_TEST_LOCK;
 		struct lustre_handle lockh;
 		struct inode *inode = file->f_dentry->d_inode;
 		ldlm_policy_data_t policy = {.l_inodebits={MDS_INODELOCK_OPEN}};
@@ -471,7 +471,7 @@ void ll_ioepoch_open(struct ll_inode_info *lli, __u64 ioepoch)
 {
 	if (ioepoch && lli->lli_ioepoch != ioepoch) {
 		lli->lli_ioepoch = ioepoch;
-		CDEBUG(D_INODE, "Epoch "LPU64" opened on "DFID"\n",
+		CDEBUG(D_INODE, "Epoch %llu opened on "DFID"\n",
 		       ioepoch, PFID(&lli->lli_fid));
 	}
 }
@@ -1008,7 +1008,7 @@ int ll_merge_lvb(const struct lu_env *env, struct inode *inode)
 		if (lvb.lvb_mtime < attr->cat_mtime)
 			lvb.lvb_mtime = attr->cat_mtime;
 
-		CDEBUG(D_VFSTRACE, DFID" updating i_size "LPU64"\n",
+		CDEBUG(D_VFSTRACE, DFID" updating i_size %llu\n",
 				PFID(&lli->lli_fid), attr->cat_size);
 		cl_isize_write_nolock(inode, attr->cat_size);
 
@@ -2623,7 +2623,7 @@ ll_file_flock(struct file *file, int cmd, struct file_lock *file_lock)
 	struct md_op_data *op_data;
 	struct lustre_handle lockh = {0};
 	ldlm_policy_data_t flock = {{0}};
-	int flags = 0;
+	__u64 flags = 0;
 	int rc;
 	int rc2 = 0;
 
@@ -2708,9 +2708,9 @@ ll_file_flock(struct file *file, int cmd, struct file_lock *file_lock)
 	if (IS_ERR(op_data))
 		return PTR_ERR(op_data);
 
-	CDEBUG(D_DLMTRACE, "inode=%lu, pid=%u, flags=%#x, mode=%u, "
-	       "start="LPU64", end="LPU64"\n", inode->i_ino, flock.l_flock.pid,
-	       flags, einfo.ei_mode, flock.l_flock.start, flock.l_flock.end);
+	CDEBUG(D_DLMTRACE, "inode=%lu, pid=%u, flags=%#llx, mode=%u, start=%llu, end=%llu\n",
+	       inode->i_ino, flock.l_flock.pid, flags, einfo.ei_mode,
+	       flock.l_flock.start, flock.l_flock.end);
 
 	rc = md_enqueue(sbi->ll_md_exp, &einfo, NULL,
 			op_data, &lockh, &flock, 0, NULL /* req */, flags);

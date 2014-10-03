@@ -29,6 +29,7 @@
 #include <asm/lppaca.h>
 #include <asm/debug.h>
 #include <asm/plpar_wrappers.h>
+#include <asm/machdep.h>
 
 struct dtl {
 	struct dtl_entry	*buf;
@@ -391,4 +392,4 @@ err_remove_dir:
 err:
 	return rc;
 }
-arch_initcall(dtl_init);
+machine_arch_initcall(pseries, dtl_init);

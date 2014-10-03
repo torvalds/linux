@@ -9,6 +9,7 @@ struct nvkm_output {
 
 	struct dcb_output info;
 	int index;
+	int or;
 
 	struct nouveau_i2c_port *port;
 	struct nouveau_i2c_port *edid;

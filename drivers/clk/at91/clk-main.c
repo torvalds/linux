@@ -388,6 +388,7 @@ static unsigned long clk_main_recalc_rate(struct at91_pmc *pmc,
 	if (parent_rate)
 		return parent_rate;
 
+	pr_warn("Main crystal frequency not set, using approximate value\n");
 	tmp = pmc_read(pmc, AT91_CKGR_MCFR);
 	if (!(tmp & AT91_PMC_MAINRDY))
 		return 0;

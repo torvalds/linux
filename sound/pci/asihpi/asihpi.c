@@ -2955,7 +2955,7 @@ static void snd_asihpi_remove(struct pci_dev *pci_dev)
 	asihpi_adapter_remove(pci_dev);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(asihpi_pci_tbl) = {
+static const struct pci_device_id asihpi_pci_tbl[] = {
 	{HPI_PCI_VENDOR_ID_TI, HPI_PCI_DEV_ID_DSP6205,
 		HPI_PCI_VENDOR_ID_AUDIOSCIENCE, PCI_ANY_ID, 0, 0,
 		(kernel_ulong_t)HPI_6205},

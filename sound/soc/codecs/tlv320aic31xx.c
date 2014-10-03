@@ -249,17 +249,16 @@ static const char * const mic_select_text[] = {
 	"Off", "FFR 10 Ohm", "FFR 20 Ohm", "FFR 40 Ohm"
 };
 
-static const
-SOC_ENUM_SINGLE_DECL(mic1lp_p_enum, AIC31XX_MICPGAPI, 6, mic_select_text);
-static const
-SOC_ENUM_SINGLE_DECL(mic1rp_p_enum, AIC31XX_MICPGAPI, 4, mic_select_text);
-static const
-SOC_ENUM_SINGLE_DECL(mic1lm_p_enum, AIC31XX_MICPGAPI, 2, mic_select_text);
+static SOC_ENUM_SINGLE_DECL(mic1lp_p_enum, AIC31XX_MICPGAPI, 6,
+	mic_select_text);
+static SOC_ENUM_SINGLE_DECL(mic1rp_p_enum, AIC31XX_MICPGAPI, 4,
+	mic_select_text);
+static SOC_ENUM_SINGLE_DECL(mic1lm_p_enum, AIC31XX_MICPGAPI, 2,
+	mic_select_text);
 
-static const
-SOC_ENUM_SINGLE_DECL(cm_m_enum, AIC31XX_MICPGAMI, 6, mic_select_text);
-static const
-SOC_ENUM_SINGLE_DECL(mic1lm_m_enum, AIC31XX_MICPGAMI, 4, mic_select_text);
+static SOC_ENUM_SINGLE_DECL(cm_m_enum, AIC31XX_MICPGAMI, 6, mic_select_text);
+static SOC_ENUM_SINGLE_DECL(mic1lm_m_enum, AIC31XX_MICPGAMI, 4,
+	mic_select_text);
 
 static const DECLARE_TLV_DB_SCALE(dac_vol_tlv, -6350, 50, 0);
 static const DECLARE_TLV_DB_SCALE(adc_fgain_tlv, 0, 10, 0);
@@ -329,6 +328,7 @@ static int aic31xx_wait_bits(struct aic31xx_priv *aic31xx, unsigned int reg,
 	unsigned int bits;
 	int counter = count;
 	int ret = regmap_read(aic31xx->regmap, reg, &bits);
+
 	while ((bits & mask) != wbits && counter && !ret) {
 		usleep_range(sleep, sleep * 2);
 		ret = regmap_read(aic31xx->regmap, reg, &bits);
@@ -435,6 +435,7 @@ static int mic_bias_event(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = w->codec;
 	struct aic31xx_priv *aic31xx = snd_soc_codec_get_drvdata(codec);
+
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		/* change mic bias voltage to user defined */
@@ -759,8 +760,8 @@ static int aic31xx_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = dai->codec;
 	u8 data = 0;
 
-	dev_dbg(codec->dev, "## %s: format %d width %d rate %d\n",
-		__func__, params_format(params), params_width(params),
+	dev_dbg(codec->dev, "## %s: width %d rate %d\n",
+		__func__, params_width(params),
 		params_rate(params));
 
 	switch (params_width(params)) {
@@ -779,8 +780,8 @@ static int aic31xx_hw_params(struct snd_pcm_substream *substream,
 			AIC31XX_IFACE1_DATALEN_SHIFT);
 		break;
 	default:
-		dev_err(codec->dev, "%s: Unsupported format %d\n",
-			__func__, params_format(params));
+		dev_err(codec->dev, "%s: Unsupported width %d\n",
+			__func__, params_width(params));
 		return -EINVAL;
 	}
 
@@ -1178,7 +1179,7 @@ static void aic31xx_pdata_from_of(struct aic31xx_priv *aic31xx)
 }
 #endif /* CONFIG_OF */
 
-static void aic31xx_device_init(struct aic31xx_priv *aic31xx)
+static int aic31xx_device_init(struct aic31xx_priv *aic31xx)
 {
 	int ret, i;
 
@@ -1197,7 +1198,7 @@ static void aic31xx_device_init(struct aic31xx_priv *aic31xx)
 					    "aic31xx-reset-pin");
 		if (ret < 0) {
 			dev_err(aic31xx->dev, "not able to acquire gpio\n");
-			return;
+			return ret;
 		}
 	}
 
@@ -1210,6 +1211,7 @@ static void aic31xx_device_init(struct aic31xx_priv *aic31xx)
 	if (ret != 0)
 		dev_err(aic31xx->dev, "Failed to request supplies: %d\n", ret);
 
+	return ret;
 }
 
 static int aic31xx_i2c_probe(struct i2c_client *i2c,
@@ -1239,7 +1241,9 @@ static int aic31xx_i2c_probe(struct i2c_client *i2c,
 
 	aic31xx->pdata.codec_type = id->driver_data;
 
-	aic31xx_device_init(aic31xx);
+	ret = aic31xx_device_init(aic31xx);
+	if (ret)
+		return ret;
 
 	return snd_soc_register_codec(&i2c->dev, &soc_codec_driver_aic31xx,
 				     aic31xx_dai_driver,

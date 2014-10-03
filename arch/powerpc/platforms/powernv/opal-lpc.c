@@ -324,7 +324,7 @@ static int opal_lpc_init_debugfs(void)
 	rc |= opal_lpc_debugfs_create_type(root, "fw", OPAL_LPC_FW);
 	return rc;
 }
-device_initcall(opal_lpc_init_debugfs);
+machine_device_initcall(powernv, opal_lpc_init_debugfs);
 #endif  /* CONFIG_DEBUG_FS */
 
 void opal_lpc_init(void)

@@ -138,19 +138,10 @@ static inline void __flush_icache_all(void)
 #define flush_icache_page(vma,page)	do { } while (0)
 
 /*
- * flush_cache_vmap() is used when creating mappings (eg, via vmap,
- * vmalloc, ioremap etc) in kernel space for pages.  On non-VIPT
- * caches, since the direct-mappings of these pages may contain cached
- * data, we need to do a full cache flush to ensure that writebacks
- * don't corrupt data placed into these pages via the new mappings.
+ * Not required on AArch64 (PIPT or VIPT non-aliasing D-cache).
  */
 static inline void flush_cache_vmap(unsigned long start, unsigned long end)
 {
-	/*
-	 * set_pte_at() called from vmap_pte_range() does not
-	 * have a DSB after cleaning the cache line.
-	 */
-	dsb(ish);
 }
 
 static inline void flush_cache_vunmap(unsigned long start, unsigned long end)

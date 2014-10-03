@@ -313,7 +313,7 @@ static ssize_t write_file_spectral_short_repeat(struct file *file,
 	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
-	if (val < 0 || val > 1)
+	if (val > 1)
 		return -EINVAL;
 
 	sc->spec_config.short_repeat = val;
@@ -361,7 +361,7 @@ static ssize_t write_file_spectral_count(struct file *file,
 	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
-	if (val < 0 || val > 255)
+	if (val > 255)
 		return -EINVAL;
 
 	sc->spec_config.count = val;
@@ -409,7 +409,7 @@ static ssize_t write_file_spectral_period(struct file *file,
 	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
-	if (val < 0 || val > 255)
+	if (val > 255)
 		return -EINVAL;
 
 	sc->spec_config.period = val;
@@ -457,7 +457,7 @@ static ssize_t write_file_spectral_fft_period(struct file *file,
 	if (kstrtoul(buf, 0, &val))
 		return -EINVAL;
 
-	if (val < 0 || val > 15)
+	if (val > 15)
 		return -EINVAL;
 
 	sc->spec_config.fft_period = val;

@@ -185,18 +185,6 @@ static const char * const topbuttonpad_pnp_ids[] = {
 	NULL
 };
 
-static bool matches_pnp_id(struct psmouse *psmouse, const char * const ids[])
-{
-	int i;
-
-	if (!strncmp(psmouse->ps2dev.serio->firmware_id, "PNP:", 4))
-		for (i = 0; ids[i]; i++)
-			if (strstr(psmouse->ps2dev.serio->firmware_id, ids[i]))
-				return true;
-
-	return false;
-}
-
 /*****************************************************************************
  *	Synaptics communications functions
  ****************************************************************************/
@@ -362,7 +350,8 @@ static int synaptics_resolution(struct psmouse *psmouse)
 	}
 
 	for (i = 0; min_max_pnpid_table[i].pnp_ids; i++) {
-		if (matches_pnp_id(psmouse, min_max_pnpid_table[i].pnp_ids)) {
+		if (psmouse_matches_pnp_id(psmouse,
+					   min_max_pnpid_table[i].pnp_ids)) {
 			priv->x_min = min_max_pnpid_table[i].x_min;
 			priv->x_max = min_max_pnpid_table[i].x_max;
 			priv->y_min = min_max_pnpid_table[i].y_min;
@@ -1492,7 +1481,7 @@ static void set_input_params(struct psmouse *psmouse,
 
 	if (SYN_CAP_CLICKPAD(priv->ext_cap_0c)) {
 		__set_bit(INPUT_PROP_BUTTONPAD, dev->propbit);
-		if (matches_pnp_id(psmouse, topbuttonpad_pnp_ids))
+		if (psmouse_matches_pnp_id(psmouse, topbuttonpad_pnp_ids))
 			__set_bit(INPUT_PROP_TOPBUTTONPAD, dev->propbit);
 		/* Clickpads report only left button */
 		__clear_bit(BTN_RIGHT, dev->keybit);

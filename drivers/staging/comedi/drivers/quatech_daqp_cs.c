@@ -351,7 +351,7 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
  * time that the device will use.
  */
 
-static int daqp_ns_to_timer(unsigned int *ns, int round)
+static int daqp_ns_to_timer(unsigned int *ns, unsigned int flags)
 {
 	int timer;
 
@@ -436,13 +436,13 @@ static int daqp_ai_cmdtest(struct comedi_device *dev,
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		arg = cmd->scan_begin_arg;
-		daqp_ns_to_timer(&arg, cmd->flags & TRIG_ROUND_MASK);
+		daqp_ns_to_timer(&arg, cmd->flags);
 		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, arg);
 	}
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		arg = cmd->convert_arg;
-		daqp_ns_to_timer(&arg, cmd->flags & TRIG_ROUND_MASK);
+		daqp_ns_to_timer(&arg, cmd->flags);
 		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, arg);
 	}
 
@@ -488,15 +488,13 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	 */
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		counter = daqp_ns_to_timer(&cmd->convert_arg,
-					       cmd->flags & TRIG_ROUND_MASK);
+		counter = daqp_ns_to_timer(&cmd->convert_arg, cmd->flags);
 		outb(counter & 0xff, dev->iobase + DAQP_PACER_LOW);
 		outb((counter >> 8) & 0xff, dev->iobase + DAQP_PACER_MID);
 		outb((counter >> 16) & 0xff, dev->iobase + DAQP_PACER_HIGH);
 		scanlist_start_on_every_entry = 1;
 	} else {
-		counter = daqp_ns_to_timer(&cmd->scan_begin_arg,
-					       cmd->flags & TRIG_ROUND_MASK);
+		counter = daqp_ns_to_timer(&cmd->scan_begin_arg, cmd->flags);
 		outb(counter & 0xff, dev->iobase + DAQP_PACER_LOW);
 		outb((counter >> 8) & 0xff, dev->iobase + DAQP_PACER_MID);
 		outb((counter >> 16) & 0xff, dev->iobase + DAQP_PACER_HIGH);

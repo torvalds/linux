@@ -32,22 +32,30 @@ Required properties:
 
 Example:
 
-	CLOCKGEN_C_VCC: CLOCKGEN_C_VCC {
+	clockgen_c_vcc: clockgen-c-vcc@0xfe8308ac {
 		#clock-cells = <1>;
 		compatible = "st,stih416-clkgenc", "st,clkgen-vcc";
 		reg = <0xfe8308ac 12>;
 
-		clocks = <&CLK_S_VCC_HD>, <&CLOCKGEN_C 1>,
-			<&CLK_S_TMDS_FROMPHY>, <&CLOCKGEN_C 2>;
+		clocks = <&clk_s_vcc_hd>,
+			 <&clockgen_c 1>,
+			 <&clk_s_tmds_fromphy>,
+			 <&clockgen_c 2>;
 
-		clock-output-names  =
-			"CLK_S_PIX_HDMI",  "CLK_S_PIX_DVO",
-			"CLK_S_OUT_DVO",   "CLK_S_PIX_HD",
-			"CLK_S_HDDAC",     "CLK_S_DENC",
-			"CLK_S_SDDAC",     "CLK_S_PIX_MAIN",
-			"CLK_S_PIX_AUX",   "CLK_S_STFE_FRC_0",
-			"CLK_S_REF_MCRU",  "CLK_S_SLAVE_MCRU",
-			"CLK_S_TMDS_HDMI", "CLK_S_HDMI_REJECT_PLL",
-			"CLK_S_THSENS";
+		clock-output-names  = "clk-s-pix-hdmi",
+				      "clk-s-pix-dvo",
+				      "clk-s-out-dvo",
+				      "clk-s-pix-hd",
+				      "clk-s-hddac",
+				      "clk-s-denc",
+				      "clk-s-sddac",
+				      "clk-s-pix-main",
+				      "clk-s-pix-aux",
+				      "clk-s-stfe-frc-0",
+				      "clk-s-ref-mcru",
+				      "clk-s-slave-mcru",
+				      "clk-s-tmds-hdmi",
+				      "clk-s-hdmi-reject-pll",
+				      "clk-s-thsens";
 	};
 

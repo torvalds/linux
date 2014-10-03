@@ -1214,19 +1214,19 @@ static int wm8993_hw_params(struct snd_pcm_substream *substream,
 			wm8993->tdm_slots, wm8993->tdm_width);
 		wm8993->bclk *= wm8993->tdm_width * wm8993->tdm_slots;
 	} else {
-		switch (params_format(params)) {
-		case SNDRV_PCM_FORMAT_S16_LE:
+		switch (params_width(params)) {
+		case 16:
 			wm8993->bclk *= 16;
 			break;
-		case SNDRV_PCM_FORMAT_S20_3LE:
+		case 20:
 			wm8993->bclk *= 20;
 			aif1 |= 0x8;
 			break;
-		case SNDRV_PCM_FORMAT_S24_LE:
+		case 24:
 			wm8993->bclk *= 24;
 			aif1 |= 0x10;
 			break;
-		case SNDRV_PCM_FORMAT_S32_LE:
+		case 32:
 			wm8993->bclk *= 32;
 			aif1 |= 0x18;
 			break;

@@ -1515,7 +1515,7 @@ static int scc_net_alloc(const char *name, struct scc_channel *scc)
 	int err;
 	struct net_device *dev;
 
-	dev = alloc_netdev(0, name, scc_net_setup);
+	dev = alloc_netdev(0, name, NET_NAME_UNKNOWN, scc_net_setup);
 	if (!dev) 
 		return -ENOMEM;
 

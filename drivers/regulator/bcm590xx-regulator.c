@@ -331,10 +331,8 @@ static struct bcm590xx_board *bcm590xx_parse_dt_reg_data(
 	}
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
-	if (!data) {
-		dev_err(&pdev->dev, "failed to allocate regulator board data\n");
+	if (!data)
 		return NULL;
-	}
 
 	np = of_node_get(np);
 	regulators = of_get_child_by_name(np, "regulators");
@@ -379,10 +377,8 @@ static int bcm590xx_probe(struct platform_device *pdev)
 					      &bcm590xx_reg_matches);
 
 	pmu = devm_kzalloc(&pdev->dev, sizeof(*pmu), GFP_KERNEL);
-	if (!pmu) {
-		dev_err(&pdev->dev, "Memory allocation failed for pmu\n");
+	if (!pmu)
 		return -ENOMEM;
-	}
 
 	pmu->mfd = bcm590xx;
 
@@ -390,17 +386,13 @@ static int bcm590xx_probe(struct platform_device *pdev)
 
 	pmu->desc = devm_kzalloc(&pdev->dev, BCM590XX_NUM_REGS *
 			sizeof(struct regulator_desc), GFP_KERNEL);
-	if (!pmu->desc) {
-		dev_err(&pdev->dev, "Memory alloc fails for desc\n");
+	if (!pmu->desc)
 		return -ENOMEM;
-	}
 
 	pmu->info = devm_kzalloc(&pdev->dev, BCM590XX_NUM_REGS *
 			sizeof(struct bcm590xx_info *), GFP_KERNEL);
-	if (!pmu->info) {
-		dev_err(&pdev->dev, "Memory alloc fails for info\n");
+	if (!pmu->info)
 		return -ENOMEM;
-	}
 
 	info = bcm590xx_regs;
 

@@ -288,6 +288,7 @@ struct plat_smp_ops vsmp_smp_ops = {
 	.prepare_cpus		= vsmp_prepare_cpus,
 };
 
+#ifdef CONFIG_PROC_FS
 static int proc_cpuinfo_chain_call(struct notifier_block *nfb,
 	unsigned long action_unused, void *data)
 {
@@ -309,3 +310,4 @@ static int __init proc_cpuinfo_notifier_init(void)
 }
 
 subsys_initcall(proc_cpuinfo_notifier_init);
+#endif

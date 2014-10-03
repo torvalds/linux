@@ -128,6 +128,7 @@ VNTWIFIpGetCurrentSSID(
 )
 {
 	PSMgmtObject        pMgmt = (PSMgmtObject)pMgmtHandle;
+
 	return (PWLAN_IE_SSID) pMgmt->abyCurrSSID;
 }
 
@@ -151,6 +152,7 @@ VNTWIFIpGetCurrentChannel(
 )
 {
 	PSMgmtObject        pMgmt = (PSMgmtObject)pMgmtHandle;
+
 	if (pMgmtHandle != NULL)
 		return pMgmt->uCurrChannel;
 
@@ -177,6 +179,7 @@ VNTWIFIwGetAssocID(
 )
 {
 	PSMgmtObject        pMgmt = (PSMgmtObject)pMgmtHandle;
+
 	return pMgmt->wCurrAID;
 }
 
@@ -255,7 +258,7 @@ VNTWIFIbyGetACKTxRate(
 	if (byRxDataRate <= RATE_11M) {
 		byMaxAckRate = RATE_1M;
 	} else  {
-		// 24M is mandatory for 802.11a and 802.11g
+		/* 24M is mandatory for 802.11a and 802.11g */
 		byMaxAckRate = RATE_24M;
 	}
 	if (pSupportRateIEs) {
@@ -491,7 +494,7 @@ VNTWIFIvUpdateNodeTxCounter(
 
 	pMgmt->sNodeDBTable[uNodeIndex].uTxAttempts++;
 	if (bTxOk) {
-		// transmit success, TxAttempts at least plus one
+		/* transmit success, TxAttempts at least plus one */
 		pMgmt->sNodeDBTable[uNodeIndex].uTxOk[MAX_RATE]++;
 		pMgmt->sNodeDBTable[uNodeIndex].uTxOk[wRate]++;
 	} else {
@@ -500,8 +503,6 @@ VNTWIFIvUpdateNodeTxCounter(
 	pMgmt->sNodeDBTable[uNodeIndex].uTxRetry += pbyTxFailCount[MAX_RATE];
 	for (ii = 0; ii < MAX_RATE; ii++)
 		pMgmt->sNodeDBTable[uNodeIndex].uTxFail[ii] += pbyTxFailCount[ii];
-
-	return;
 }
 
 void
@@ -525,7 +526,7 @@ VNTWIFIvGetTxRate(
 
 	if ((pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) ||
 	    (pMgmt->eCurrMode == WMAC_MODE_ESS_AP)) {
-		// Adhoc Tx rate decided from node DB
+		/* Adhoc Tx rate decided from node DB */
 		if (BSSDBbIsSTAInNodeDB(pMgmt, pbyDestAddress, &uNodeIndex)) {
 			wTxDataRate = (pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate);
 			pSupportRateIEs = (PWLAN_IE_SUPP_RATES) (pMgmt->sNodeDBTable[uNodeIndex].abyCurrSuppRates);
@@ -539,11 +540,11 @@ VNTWIFIvGetTxRate(
 			pSupportRateIEs = (PWLAN_IE_SUPP_RATES) pMgmt->abyCurrSuppRates;
 			pExtSupportRateIEs = (PWLAN_IE_SUPP_RATES) pMgmt->abyCurrExtSuppRates;
 		}
-	} else { // Infrastructure: rate decided from AP Node, index = 0
+	} else { /* Infrastructure: rate decided from AP Node, index = 0 */
 
 		wTxDataRate = (pMgmt->sNodeDBTable[0].wTxDataRate);
 #ifdef	PLICE_DEBUG
-		printk(KERN_DEBUG "GetTxRate:AP MAC is %pM,TxRate is %d\n",
+		pr_debug("GetTxRate:AP MAC is %pM,TxRate is %d\n",
 		       pMgmt->sNodeDBTable[0].abyMACAddr, wTxDataRate);
 #endif
 
@@ -569,7 +570,6 @@ VNTWIFIvGetTxRate(
 	*pbyACKRate = byACKRate;
 	*pbyCCKBasicRate = byCCKBasicRate;
 	*pbyOFDMBasicRate = byOFDMBasicRate;
-	return;
 }
 
 unsigned char
@@ -684,9 +684,8 @@ VNTWIFIbMeasureReport(
 		pMgmt->uLengthOfRepEIDs += (2 + pMgmt->pCurrMeasureEIDRep->len);
 		pMgmt->pCurrMeasureEIDRep = (PWLAN_IE_MEASURE_REP) pbyCurrentEID;
 	}
-	if (bEndOfReport) {
+	if (bEndOfReport)
 		IEEE11hbMSRRepTx(pMgmt);
-	}
 
 	return true;
 }

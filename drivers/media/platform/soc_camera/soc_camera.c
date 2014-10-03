@@ -36,6 +36,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-dev.h>
+#include <media/v4l2-of.h>
 #include <media/videobuf-core.h>
 #include <media/videobuf2-core.h>
 
@@ -1524,14 +1525,14 @@ static int scan_async_group(struct soc_camera_host *ici,
 
 	ret = soc_camera_dyn_pdev(&sdesc, sasc);
 	if (ret < 0)
-		return ret;
+		goto eallocpdev;
 
 	sasc->sensor = &sasd->asd;
 
 	icd = soc_camera_add_pdev(sasc);
 	if (!icd) {
-		platform_device_put(sasc->pdev);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto eaddpdev;
 	}
 
 	sasc->notifier.subdevs = asd;
@@ -1559,7 +1560,11 @@ static int scan_async_group(struct soc_camera_host *ici,
 	v4l2_clk_unregister(icd->clk);
 eclkreg:
 	icd->clk = NULL;
-	platform_device_unregister(sasc->pdev);
+	platform_device_del(sasc->pdev);
+eaddpdev:
+	platform_device_put(sasc->pdev);
+eallocpdev:
+	devm_kfree(ici->v4l2_dev.dev, sasc);
 	dev_err(ici->v4l2_dev.dev, "group probe failed: %d\n", ret);
 
 	return ret;
@@ -1579,6 +1584,130 @@ static void scan_async_host(struct soc_camera_host *ici)
 #define soc_camera_i2c_init(icd, sdesc)	(-ENODEV)
 #define soc_camera_i2c_free(icd)	do {} while (0)
 #define scan_async_host(ici)		do {} while (0)
+#endif
+
+#ifdef CONFIG_OF
+
+struct soc_of_info {
+	struct soc_camera_async_subdev	sasd;
+	struct soc_camera_async_client	sasc;
+	struct v4l2_async_subdev	*subdev;
+};
+
+static int soc_of_bind(struct soc_camera_host *ici,
+		       struct device_node *ep,
+		       struct device_node *remote)
+{
+	struct soc_camera_device *icd;
+	struct soc_camera_desc sdesc = {.host_desc.bus_id = ici->nr,};
+	struct soc_camera_async_client *sasc;
+	struct soc_of_info *info;
+	struct i2c_client *client;
+	char clk_name[V4L2_SUBDEV_NAME_SIZE];
+	int ret;
+
+	/* allocate a new subdev and add match info to it */
+	info = devm_kzalloc(ici->v4l2_dev.dev, sizeof(struct soc_of_info),
+			    GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+
+	info->sasd.asd.match.of.node = remote;
+	info->sasd.asd.match_type = V4L2_ASYNC_MATCH_OF;
+	info->subdev = &info->sasd.asd;
+
+	/* Or shall this be managed by the soc-camera device? */
+	sasc = &info->sasc;
+
+	/* HACK: just need a != NULL */
+	sdesc.host_desc.board_info = ERR_PTR(-ENODATA);
+
+	ret = soc_camera_dyn_pdev(&sdesc, sasc);
+	if (ret < 0)
+		goto eallocpdev;
+
+	sasc->sensor = &info->sasd.asd;
+
+	icd = soc_camera_add_pdev(sasc);
+	if (!icd) {
+		ret = -ENOMEM;
+		goto eaddpdev;
+	}
+
+	sasc->notifier.subdevs = &info->subdev;
+	sasc->notifier.num_subdevs = 1;
+	sasc->notifier.bound = soc_camera_async_bound;
+	sasc->notifier.unbind = soc_camera_async_unbind;
+	sasc->notifier.complete = soc_camera_async_complete;
+
+	icd->sasc = sasc;
+	icd->parent = ici->v4l2_dev.dev;
+
+	client = of_find_i2c_device_by_node(remote);
+
+	if (client)
+		snprintf(clk_name, sizeof(clk_name), "%d-%04x",
+			 client->adapter->nr, client->addr);
+	else
+		snprintf(clk_name, sizeof(clk_name), "of-%s",
+			 of_node_full_name(remote));
+
+	icd->clk = v4l2_clk_register(&soc_camera_clk_ops, clk_name, "mclk", icd);
+	if (IS_ERR(icd->clk)) {
+		ret = PTR_ERR(icd->clk);
+		goto eclkreg;
+	}
+
+	ret = v4l2_async_notifier_register(&ici->v4l2_dev, &sasc->notifier);
+	if (!ret)
+		return 0;
+eclkreg:
+	icd->clk = NULL;
+	platform_device_del(sasc->pdev);
+eaddpdev:
+	platform_device_put(sasc->pdev);
+eallocpdev:
+	devm_kfree(ici->v4l2_dev.dev, sasc);
+	dev_err(ici->v4l2_dev.dev, "group probe failed: %d\n", ret);
+
+	return ret;
+}
+
+static void scan_of_host(struct soc_camera_host *ici)
+{
+	struct device *dev = ici->v4l2_dev.dev;
+	struct device_node *np = dev->of_node;
+	struct device_node *epn = NULL, *ren;
+	unsigned int i;
+
+	for (i = 0; ; i++) {
+		epn = of_graph_get_next_endpoint(np, epn);
+		if (!epn)
+			break;
+
+		ren = of_graph_get_remote_port(epn);
+		if (!ren) {
+			dev_notice(dev, "no remote for %s\n",
+				   of_node_full_name(epn));
+			continue;
+		}
+
+		/* so we now have a remote node to connect */
+		if (!i)
+			soc_of_bind(ici, epn, ren->parent);
+
+		of_node_put(epn);
+		of_node_put(ren);
+
+		if (i) {
+			dev_err(dev, "multiple subdevices aren't supported yet!\n");
+			break;
+		}
+	}
+}
+
+#else
+static inline void scan_of_host(struct soc_camera_host *ici) { }
 #endif
 
 /* Called during host-driver probe */
@@ -1832,7 +1961,9 @@ int soc_camera_host_register(struct soc_camera_host *ici)
 	mutex_init(&ici->host_lock);
 	mutex_init(&ici->clk_lock);
 
-	if (ici->asd_sizes)
+	if (ici->v4l2_dev.dev->of_node)
+		scan_of_host(ici);
+	else if (ici->asd_sizes)
 		/*
 		 * No OF, host with a list of subdevices. Don't try to mix
 		 * modes by initialising some groups statically and some

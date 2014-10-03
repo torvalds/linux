@@ -65,8 +65,8 @@ static int init_mp_priv(struct mp_priv *pmp_priv)
 			 ((addr_t)(pmp_priv->pallocated_mp_xmitframe_buf) & 3);
 	pmp_xmitframe = (struct mp_xmit_frame *)pmp_priv->pmp_xmtframe_buf;
 	for (i = 0; i < NR_MP_XMITFRAME; i++) {
-		_init_listhead(&(pmp_xmitframe->list));
-		list_insert_tail(&(pmp_xmitframe->list),
+		INIT_LIST_HEAD(&(pmp_xmitframe->list));
+		list_add_tail(&(pmp_xmitframe->list),
 				 &(pmp_priv->free_mp_xmitqueue.queue));
 		pmp_xmitframe->pkt = NULL;
 		pmp_xmitframe->frame_tag = MP_FRAMETAG;
@@ -281,10 +281,10 @@ void r8712_SetChannel(struct _adapter *pAdapter)
 	struct SetChannel_parm *pparm = NULL;
 	u16 code = GEN_CMD_CODE(_SetChannel);
 
-	pcmd = kmalloc(sizeof(struct cmd_obj), GFP_ATOMIC);
+	pcmd = kmalloc(sizeof(*pcmd), GFP_ATOMIC);
 	if (pcmd == NULL)
 		return;
-	pparm = kmalloc(sizeof(struct SetChannel_parm), GFP_ATOMIC);
+	pparm = kmalloc(sizeof(*pparm), GFP_ATOMIC);
 	if (pparm == NULL) {
 		kfree(pcmd);
 		return;

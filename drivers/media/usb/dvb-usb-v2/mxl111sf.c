@@ -129,7 +129,7 @@ int mxl111sf_write_reg_mask(struct mxl111sf_state *state,
 				   u8 addr, u8 mask, u8 data)
 {
 	int ret;
-	u8 val;
+	u8 val = 0;
 
 	if (mask != 0xff) {
 		ret = mxl111sf_read_reg(state, addr, &val);

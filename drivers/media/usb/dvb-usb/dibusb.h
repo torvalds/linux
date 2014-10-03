@@ -36,7 +36,7 @@
 
 /*
  * i2c read
- * bulk write: 0x02 ((7bit i2c_addr << 1) & 0x01) register_bytes length_word
+ * bulk write: 0x02 ((7bit i2c_addr << 1) | 0x01) register_bytes length_word
  * bulk read:  byte_buffer (length_word bytes)
  */
 #define DIBUSB_REQ_I2C_READ			0x02

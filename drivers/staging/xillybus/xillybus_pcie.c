@@ -72,52 +72,62 @@ static void xilly_dma_sync_single_for_device_pci(struct xilly_endpoint *ep,
 				       xilly_pci_direction(direction));
 }
 
+static void xilly_pci_unmap(void *ptr)
+{
+	struct xilly_mapping *data = ptr;
+
+	pci_unmap_single(data->device, data->dma_addr,
+			 data->size, data->direction);
+
+	kfree(ptr);
+}
+
 /*
  * Map either through the PCI DMA mapper or the non_PCI one. Behind the
  * scenes exactly the same functions are called with the same parameters,
  * but that can change.
  */
 
-static dma_addr_t xilly_map_single_pci(struct xilly_cleanup *mem,
-				       struct xilly_endpoint *ep,
-				       void *ptr,
-				       size_t size,
-				       int direction
+static int xilly_map_single_pci(struct xilly_endpoint *ep,
+				void *ptr,
+				size_t size,
+				int direction,
+				dma_addr_t *ret_dma_handle
 	)
 {
-
-	dma_addr_t addr = 0;
-	struct xilly_dma *this;
 	int pci_direction;
+	dma_addr_t addr;
+	struct xilly_mapping *this;
+	int rc = 0;
 
-	this = kmalloc(sizeof(struct xilly_dma), GFP_KERNEL);
+	this = kzalloc(sizeof(*this), GFP_KERNEL);
 	if (!this)
-		return 0;
+		return -ENOMEM;
 
 	pci_direction = xilly_pci_direction(direction);
+
 	addr = pci_map_single(ep->pdev, ptr, size, pci_direction);
-	this->direction = pci_direction;
 
 	if (pci_dma_mapping_error(ep->pdev, addr)) {
 		kfree(this);
-		return 0;
+		return -ENODEV;
 	}
 
+	this->device = ep->pdev;
 	this->dma_addr = addr;
-	this->pdev = ep->pdev;
 	this->size = size;
+	this->direction = pci_direction;
 
-	list_add_tail(&this->node, &mem->to_unmap);
+	*ret_dma_handle = addr;
 
-	return addr;
-}
+	rc = devm_add_action(ep->dev, xilly_pci_unmap, this);
 
-static void xilly_unmap_single_pci(struct xilly_dma *entry)
-{
-	pci_unmap_single(entry->pdev,
-			 entry->dma_addr,
-			 entry->size,
-			 entry->direction);
+	if (rc) {
+		pci_unmap_single(ep->pdev, addr, size, pci_direction);
+		kfree(this);
+	}
+
+	return rc;
 }
 
 static struct xilly_endpoint_hardware pci_hw = {
@@ -125,7 +135,6 @@ static struct xilly_endpoint_hardware pci_hw = {
 	.hw_sync_sgl_for_cpu = xilly_dma_sync_single_for_cpu_pci,
 	.hw_sync_sgl_for_device = xilly_dma_sync_single_for_device_pci,
 	.map_single = xilly_map_single_pci,
-	.unmap_single = xilly_unmap_single_pci
 };
 
 static int xilly_probe(struct pci_dev *pdev,
@@ -199,14 +208,7 @@ static int xilly_probe(struct pci_dev *pdev,
 		return -ENODEV;
 	}
 
-	rc = xillybus_endpoint_discovery(endpoint);
-
-	if (!rc)
-		return 0;
-
-	xillybus_do_cleanup(&endpoint->cleanup, endpoint);
-
-	return rc;
+	return xillybus_endpoint_discovery(endpoint);
 }
 
 static void xilly_remove(struct pci_dev *pdev)
@@ -214,8 +216,6 @@ static void xilly_remove(struct pci_dev *pdev)
 	struct xilly_endpoint *endpoint = pci_get_drvdata(pdev);
 
 	xillybus_endpoint_remove(endpoint);
-
-	xillybus_do_cleanup(&endpoint->cleanup, endpoint);
 }
 
 MODULE_DEVICE_TABLE(pci, xillyids);

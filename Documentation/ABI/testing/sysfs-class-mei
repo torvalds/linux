@@ -1,0 +1,16 @@
+What:		/sys/class/mei/
+Date:		May 2014
+KernelVersion:	3.17
+Contact:	Tomas Winkler <tomas.winkler@intel.com>
+Description:
+		The mei/ class sub-directory belongs to mei device class
+
+
+What:		/sys/class/mei/meiN/
+Date:		May 2014
+KernelVersion:	3.17
+Contact:	Tomas Winkler <tomas.winkler@intel.com>
+Description:
+		The /sys/class/mei/meiN directory is created for
+		each probed mei device
+

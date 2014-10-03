@@ -167,7 +167,8 @@ struct scsi_cmnd *queue_remove_exclude(Queue_t *queue, unsigned long *exclude)
 	spin_lock_irqsave(&queue->queue_lock, flags);
 	list_for_each(l, &queue->head) {
 		QE_t *q = list_entry(l, QE_t, list);
-		if (!test_bit(q->SCpnt->device->id * 8 + q->SCpnt->device->lun, exclude)) {
+		if (!test_bit(q->SCpnt->device->id * 8 +
+			      (u8)(q->SCpnt->device->lun & 0x7), exclude)) {
 			SCpnt = __queue_remove(queue, l);
 			break;
 		}

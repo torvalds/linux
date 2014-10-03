@@ -12,7 +12,7 @@
 
 ENTRY(__raw_writesl)
 		teq	r2, #0		@ do we have to check for the zero len?
-		moveq	pc, lr
+		reteq	lr
 		ands	ip, r1, #3
 		bne	3f
 
@@ -33,7 +33,7 @@ ENTRY(__raw_writesl)
 		ldrne	r3, [r1, #0]
 		strcs	ip, [r0, #0]
 		strne	r3, [r0, #0]
-		mov	pc, lr
+		ret	lr
 
 3:		bic	r1, r1, #3
 		ldr	r3, [r1], #4
@@ -47,7 +47,7 @@ ENTRY(__raw_writesl)
 		orr	ip, ip, r3, lspush #16
 		str	ip, [r0]
 		bne	4b
-		mov	pc, lr
+		ret	lr
 
 5:		mov	ip, r3, lspull #8
 		ldr	r3, [r1], #4
@@ -55,7 +55,7 @@ ENTRY(__raw_writesl)
 		orr	ip, ip, r3, lspush #24
 		str	ip, [r0]
 		bne	5b
-		mov	pc, lr
+		ret	lr
 
 6:		mov	ip, r3, lspull #24
 		ldr	r3, [r1], #4
@@ -63,5 +63,5 @@ ENTRY(__raw_writesl)
 		orr	ip, ip, r3, lspush #8
 		str	ip, [r0]
 		bne	6b
-		mov	pc, lr
+		ret	lr
 ENDPROC(__raw_writesl)

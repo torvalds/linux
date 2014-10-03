@@ -554,8 +554,8 @@ int blk_register_queue(struct gendisk *disk)
 	 * Initialization must be complete by now.  Finish the initial
 	 * bypass from queue allocation.
 	 */
-	blk_queue_bypass_end(q);
 	queue_flag_set_unlocked(QUEUE_FLAG_INIT_DONE, q);
+	blk_queue_bypass_end(q);
 
 	ret = blk_trace_init_sysfs(dev);
 	if (ret)

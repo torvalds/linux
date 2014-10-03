@@ -41,14 +41,14 @@
 #include <asm/div64.h>
 #include <linux/seq_file.h>
 
-#include <obd_support.h>
-#include <lustre/lustre_idl.h>
-#include <lustre_fid.h>
-#include <lustre_lib.h>
-#include <lustre_net.h>
-#include <lustre_dlm.h>
-#include <obd_class.h>
-#include <lprocfs_status.h>
+#include "../include/obd_support.h"
+#include "../include/lustre/lustre_idl.h"
+#include "../include/lustre_fid.h"
+#include "../include/lustre_lib.h"
+#include "../include/lustre_net.h"
+#include "../include/lustre_dlm.h"
+#include "../include/obd_class.h"
+#include "../include/lprocfs_status.h"
 #include "lmv_internal.h"
 
 int lmv_fld_lookup(struct lmv_obd *lmv,
@@ -66,8 +66,8 @@ int lmv_fld_lookup(struct lmv_obd *lmv,
 	rc = fld_client_lookup(&lmv->lmv_fld, fid_seq(fid), mds,
 			       LU_SEQ_RANGE_MDT, NULL);
 	if (rc) {
-		CERROR("Error while looking for mds number. Seq "LPX64
-		       ", err = %d\n", fid_seq(fid), rc);
+		CERROR("Error while looking for mds number. Seq %#llx, err = %d\n",
+		       fid_seq(fid), rc);
 		return rc;
 	}
 

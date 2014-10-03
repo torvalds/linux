@@ -54,7 +54,6 @@
  * enough to avoid RDMA for anything sent while control is not in liblustre */
 #define PTLLND_MAX_ULND_MSG_SIZE 512
 
-
 /************************************************************************
  * Portals LND Wire message format.
  * These are sent in sender's byte order (i.e. receiver flips).
@@ -103,7 +102,7 @@ typedef struct {
 } kptl_msg_t;
 
 /* kptl_msg_t::ptlm_credits is only a __u8 */
-#define PTLLND_MSG_MAX_CREDITS ((typeof(((kptl_msg_t*) 0)->ptlm_credits)) - 1)
+#define PTLLND_MSG_MAX_CREDITS ((typeof(((kptl_msg_t *)0)->ptlm_credits)) - 1)
 
 #define PTLLND_MSG_MAGIC		LNET_PROTO_PTL_MAGIC
 #define PTLLND_MSG_VERSION	      0x04

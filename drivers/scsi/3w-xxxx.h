@@ -392,6 +392,8 @@ typedef struct TAG_TW_Passthru
 	unsigned char padding[12];
 } TW_Passthru;
 
+#pragma pack()
+
 typedef struct TAG_TW_Device_Extension {
 	u32			base_addr;
 	unsigned long		*alignment_virtual_address[TW_Q_LENGTH];
@@ -429,7 +431,5 @@ typedef struct TAG_TW_Device_Extension {
 	volatile int		chrdev_request_id;
 	wait_queue_head_t	ioctl_wqueue;
 } TW_Device_Extension;
-
-#pragma pack()
 
 #endif /* _3W_XXXX_H */

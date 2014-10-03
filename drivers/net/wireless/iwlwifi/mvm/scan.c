@@ -97,10 +97,9 @@ static inline __le16 iwl_mvm_scan_rx_chain(struct iwl_mvm *mvm)
 	return cpu_to_le16(rx_chain);
 }
 
-static inline __le32
-iwl_mvm_scan_rxon_flags(struct cfg80211_scan_request *req)
+static __le32 iwl_mvm_scan_rxon_flags(enum ieee80211_band band)
 {
-	if (req->channels[0]->band == IEEE80211_BAND_2GHZ)
+	if (band == IEEE80211_BAND_2GHZ)
 		return cpu_to_le32(PHY_BAND_24);
 	else
 		return cpu_to_le32(PHY_BAND_5);
@@ -130,19 +129,19 @@ iwl_mvm_scan_rate_n_flags(struct iwl_mvm *mvm, enum ieee80211_band band,
  * request list, is not copied here, but inserted directly to the probe
  * request.
  */
-static void iwl_mvm_scan_fill_ssids(struct iwl_scan_cmd *cmd,
-				    struct cfg80211_scan_request *req,
-				    int first)
+static void iwl_mvm_scan_fill_ssids(struct iwl_ssid_ie *cmd_ssid,
+				    struct cfg80211_ssid *ssids,
+				    int n_ssids, int first)
 {
 	int fw_idx, req_idx;
 
-	for (req_idx = req->n_ssids - 1, fw_idx = 0; req_idx >= first;
+	for (req_idx = n_ssids - 1, fw_idx = 0; req_idx >= first;
 	     req_idx--, fw_idx++) {
-		cmd->direct_scan[fw_idx].id = WLAN_EID_SSID;
-		cmd->direct_scan[fw_idx].len = req->ssids[req_idx].ssid_len;
-		memcpy(cmd->direct_scan[fw_idx].ssid,
-		       req->ssids[req_idx].ssid,
-		       req->ssids[req_idx].ssid_len);
+		cmd_ssid[fw_idx].id = WLAN_EID_SSID;
+		cmd_ssid[fw_idx].len = ssids[req_idx].ssid_len;
+		memcpy(cmd_ssid[fw_idx].ssid,
+		       ssids[req_idx].ssid,
+		       ssids[req_idx].ssid_len);
 	}
 }
 
@@ -204,7 +203,8 @@ static void iwl_mvm_scan_fill_channels(struct iwl_scan_cmd *cmd,
  */
 static u16 iwl_mvm_fill_probe_req(struct ieee80211_mgmt *frame, const u8 *ta,
 				  int n_ssids, const u8 *ssid, int ssid_len,
-				  const u8 *ie, int ie_len,
+				  const u8 *band_ie, int band_ie_len,
+				  const u8 *common_ie, int common_ie_len,
 				  int left)
 {
 	int len = 0;
@@ -244,12 +244,19 @@ static u16 iwl_mvm_fill_probe_req(struct ieee80211_mgmt *frame, const u8 *ta,
 
 	len += ssid_len + 2;
 
-	if (WARN_ON(left < ie_len))
+	if (WARN_ON(left < band_ie_len + common_ie_len))
 		return len;
 
-	if (ie && ie_len) {
-		memcpy(pos, ie, ie_len);
-		len += ie_len;
+	if (band_ie && band_ie_len) {
+		memcpy(pos, band_ie, band_ie_len);
+		pos += band_ie_len;
+		len += band_ie_len;
+	}
+
+	if (common_ie && common_ie_len) {
+		memcpy(pos, common_ie, common_ie_len);
+		pos += common_ie_len;
+		len += common_ie_len;
 	}
 
 	return (u16)len;
@@ -267,7 +274,7 @@ static void iwl_mvm_scan_condition_iterator(void *data, u8 *mac,
 
 static void iwl_mvm_scan_calc_params(struct iwl_mvm *mvm,
 				     struct ieee80211_vif *vif,
-				     int n_ssids,
+				     int n_ssids, u32 flags,
 				     struct iwl_mvm_scan_params *params)
 {
 	bool global_bound = false;
@@ -288,6 +295,9 @@ static void iwl_mvm_scan_calc_params(struct iwl_mvm *mvm,
 		params->suspend_time = 250;
 		params->max_out_time = 250;
 	}
+
+	if (flags & NL80211_SCAN_FLAG_LOW_PRIORITY)
+		params->max_out_time = 200;
 
 not_bound:
 
@@ -325,22 +335,20 @@ int iwl_mvm_scan_request(struct iwl_mvm *mvm,
 
 	IWL_DEBUG_SCAN(mvm, "Handling mac80211 scan request\n");
 	mvm->scan_status = IWL_MVM_SCAN_OS;
-	memset(cmd, 0, sizeof(struct iwl_scan_cmd) +
-	       mvm->fw->ucode_capa.max_probe_length +
-	       (MAX_NUM_SCAN_CHANNELS * sizeof(struct iwl_scan_channel)));
+	memset(cmd, 0, ksize(cmd));
 
 	cmd->channel_count = (u8)req->n_channels;
 	cmd->quiet_time = cpu_to_le16(IWL_ACTIVE_QUIET_TIME);
 	cmd->quiet_plcp_th = cpu_to_le16(IWL_PLCP_QUIET_THRESH);
 	cmd->rxchain_sel_flags = iwl_mvm_scan_rx_chain(mvm);
 
-	iwl_mvm_scan_calc_params(mvm, vif, req->n_ssids, &params);
+	iwl_mvm_scan_calc_params(mvm, vif, req->n_ssids, req->flags, &params);
 	cmd->max_out_time = cpu_to_le32(params.max_out_time);
 	cmd->suspend_time = cpu_to_le32(params.suspend_time);
 	if (params.passive_fragmented)
 		cmd->scan_flags |= SCAN_FLAGS_FRAGMENTED_SCAN;
 
-	cmd->rxon_flags = iwl_mvm_scan_rxon_flags(req);
+	cmd->rxon_flags = iwl_mvm_scan_rxon_flags(req->channels[0]->band);
 	cmd->filter_flags = cpu_to_le32(MAC_FILTER_ACCEPT_GRP |
 					MAC_FILTER_IN_BEACON);
 
@@ -367,7 +375,8 @@ int iwl_mvm_scan_request(struct iwl_mvm *mvm,
 		cmd->scan_flags &= ~SCAN_FLAGS_PASSIVE2ACTIVE;
 	}
 
-	iwl_mvm_scan_fill_ssids(cmd, req, basic_ssid ? 1 : 0);
+	iwl_mvm_scan_fill_ssids(cmd->direct_scan, req->ssids, req->n_ssids,
+				basic_ssid ? 1 : 0);
 
 	cmd->tx_cmd.tx_flags = cpu_to_le32(TX_CMD_FLG_SEQ_CTL |
 					   TX_CMD_FLG_BT_DIS);
@@ -382,7 +391,7 @@ int iwl_mvm_scan_request(struct iwl_mvm *mvm,
 			    (struct ieee80211_mgmt *)cmd->data,
 			    vif->addr,
 			    req->n_ssids, ssid, ssid_len,
-			    req->ie, req->ie_len,
+			    req->ie, req->ie_len, NULL, 0,
 			    mvm->fw->ucode_capa.max_probe_length));
 
 	iwl_mvm_scan_fill_channels(cmd, req, basic_ssid, &params);
@@ -441,16 +450,27 @@ int iwl_mvm_rx_scan_complete(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 	return 0;
 }
 
-int iwl_mvm_rx_sched_scan_results(struct iwl_mvm *mvm,
-				  struct iwl_rx_cmd_buffer *rxb,
-				  struct iwl_device_cmd *cmd)
+int iwl_mvm_rx_scan_offload_results(struct iwl_mvm *mvm,
+				    struct iwl_rx_cmd_buffer *rxb,
+				    struct iwl_device_cmd *cmd)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_sched_scan_results *notif = (void *)pkt->data;
+	u8 client_bitmap = 0;
 
-	if (notif->client_bitmap & SCAN_CLIENT_SCHED_SCAN) {
-		IWL_DEBUG_SCAN(mvm, "Scheduled scan results\n");
-		ieee80211_sched_scan_results(mvm->hw);
+	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN)) {
+		struct iwl_sched_scan_results *notif = (void *)pkt->data;
+
+		client_bitmap = notif->client_bitmap;
+	}
+
+	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN ||
+	    client_bitmap & SCAN_CLIENT_SCHED_SCAN) {
+		if (mvm->scan_status == IWL_MVM_SCAN_SCHED) {
+			IWL_DEBUG_SCAN(mvm, "Scheduled scan results\n");
+			ieee80211_sched_scan_results(mvm->hw);
+		} else {
+			IWL_DEBUG_SCAN(mvm, "Scan results\n");
+		}
 	}
 
 	return 0;
@@ -494,7 +514,7 @@ static bool iwl_mvm_scan_abort_notif(struct iwl_notif_wait_data *notif_wait,
 	};
 }
 
-int iwl_mvm_cancel_scan(struct iwl_mvm *mvm)
+static int iwl_mvm_cancel_regular_scan(struct iwl_mvm *mvm)
 {
 	struct iwl_notification_wait wait_scan_abort;
 	static const u8 scan_abort_notif[] = { SCAN_ABORT_CMD,
@@ -535,33 +555,52 @@ int iwl_mvm_rx_scan_offload_complete_notif(struct iwl_mvm *mvm,
 					   struct iwl_device_cmd *cmd)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_scan_offload_complete *scan_notif = (void *)pkt->data;
+	u8 status, ebs_status;
 
+	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN) {
+		struct iwl_periodic_scan_complete *scan_notif;
+
+		scan_notif = (void *)pkt->data;
+		status = scan_notif->status;
+		ebs_status = scan_notif->ebs_status;
+	} else  {
+		struct iwl_scan_offload_complete *scan_notif;
+
+		scan_notif = (void *)pkt->data;
+		status = scan_notif->status;
+		ebs_status = scan_notif->ebs_status;
+	}
 	/* scan status must be locked for proper checking */
 	lockdep_assert_held(&mvm->mutex);
 
 	IWL_DEBUG_SCAN(mvm,
-		       "Scheduled scan completed, status %s EBS status %s:%d\n",
-		       scan_notif->status == IWL_SCAN_OFFLOAD_COMPLETED ?
-		       "completed" : "aborted", scan_notif->ebs_status ==
-		       IWL_SCAN_EBS_SUCCESS ? "success" : "failed",
-		       scan_notif->ebs_status);
+		       "%s completed, status %s, EBS status %s\n",
+		       mvm->scan_status == IWL_MVM_SCAN_SCHED ?
+				"Scheduled scan" : "Scan",
+		       status == IWL_SCAN_OFFLOAD_COMPLETED ?
+				"completed" : "aborted",
+		       ebs_status == IWL_SCAN_EBS_SUCCESS ?
+				"success" : "failed");
 
 
 	/* only call mac80211 completion if the stop was initiated by FW */
 	if (mvm->scan_status == IWL_MVM_SCAN_SCHED) {
 		mvm->scan_status = IWL_MVM_SCAN_NONE;
 		ieee80211_sched_scan_stopped(mvm->hw);
+	} else if (mvm->scan_status == IWL_MVM_SCAN_OS) {
+		mvm->scan_status = IWL_MVM_SCAN_NONE;
+		ieee80211_scan_completed(mvm->hw,
+					 status == IWL_SCAN_OFFLOAD_ABORTED);
 	}
 
-	mvm->last_ebs_successful = !scan_notif->ebs_status;
+	mvm->last_ebs_successful = !ebs_status;
 
 	return 0;
 }
 
 static void iwl_scan_offload_build_tx_cmd(struct iwl_mvm *mvm,
 					  struct ieee80211_vif *vif,
-					  struct ieee80211_sched_scan_ies *ies,
+					  struct ieee80211_scan_ies *ies,
 					  enum ieee80211_band band,
 					  struct iwl_tx_cmd *cmd,
 					  u8 *data)
@@ -577,7 +616,8 @@ static void iwl_scan_offload_build_tx_cmd(struct iwl_mvm *mvm,
 	cmd_len = iwl_mvm_fill_probe_req((struct ieee80211_mgmt *)data,
 					 vif->addr,
 					 1, NULL, 0,
-					 ies->ie[band], ies->len[band],
+					 ies->ies[band], ies->len[band],
+					 ies->common_ies, ies->common_ie_len,
 					 SCAN_OFFLOAD_PROBE_REQ_SIZE);
 	cmd->len = cpu_to_le16(cmd_len);
 }
@@ -621,8 +661,8 @@ static int iwl_ssid_exist(u8 *ssid, u8 ssid_len, struct iwl_ssid_ie *ssid_list)
 }
 
 static void iwl_scan_offload_build_ssid(struct cfg80211_sched_scan_request *req,
-					struct iwl_scan_offload_cmd *scan,
-					u32 *ssid_bitmap)
+					struct iwl_ssid_ie *direct_scan,
+					u32 *ssid_bitmap, bool basic_ssid)
 {
 	int i, j;
 	int index;
@@ -636,10 +676,10 @@ static void iwl_scan_offload_build_ssid(struct cfg80211_sched_scan_request *req,
 		/* skip empty SSID matchsets */
 		if (!req->match_sets[i].ssid.ssid_len)
 			continue;
-		scan->direct_scan[i].id = WLAN_EID_SSID;
-		scan->direct_scan[i].len = req->match_sets[i].ssid.ssid_len;
-		memcpy(scan->direct_scan[i].ssid, req->match_sets[i].ssid.ssid,
-		       scan->direct_scan[i].len);
+		direct_scan[i].id = WLAN_EID_SSID;
+		direct_scan[i].len = req->match_sets[i].ssid.ssid_len;
+		memcpy(direct_scan[i].ssid, req->match_sets[i].ssid.ssid,
+		       direct_scan[i].len);
 	}
 
 	/* add SSIDs from scan SSID list */
@@ -647,14 +687,14 @@ static void iwl_scan_offload_build_ssid(struct cfg80211_sched_scan_request *req,
 	for (j = 0; j < req->n_ssids && i < PROBE_OPTION_MAX; j++) {
 		index = iwl_ssid_exist(req->ssids[j].ssid,
 				       req->ssids[j].ssid_len,
-				       scan->direct_scan);
+				       direct_scan);
 		if (index < 0) {
-			if (!req->ssids[j].ssid_len)
+			if (!req->ssids[j].ssid_len && basic_ssid)
 				continue;
-			scan->direct_scan[i].id = WLAN_EID_SSID;
-			scan->direct_scan[i].len = req->ssids[j].ssid_len;
-			memcpy(scan->direct_scan[i].ssid, req->ssids[j].ssid,
-			       scan->direct_scan[i].len);
+			direct_scan[i].id = WLAN_EID_SSID;
+			direct_scan[i].len = req->ssids[j].ssid_len;
+			memcpy(direct_scan[i].ssid, req->ssids[j].ssid,
+			       direct_scan[i].len);
 			*ssid_bitmap |= BIT(i + 1);
 			i++;
 		} else {
@@ -665,12 +705,19 @@ static void iwl_scan_offload_build_ssid(struct cfg80211_sched_scan_request *req,
 
 static void iwl_build_channel_cfg(struct iwl_mvm *mvm,
 				  struct cfg80211_sched_scan_request *req,
-				  struct iwl_scan_channel_cfg *channels,
+				  u8 *channels_buffer,
 				  enum ieee80211_band band,
 				  int *head,
 				  u32 ssid_bitmap,
 				  struct iwl_mvm_scan_params *params)
 {
+	u32 n_channels = mvm->fw->ucode_capa.n_scan_channels;
+	__le32 *type = (__le32 *)channels_buffer;
+	__le16 *channel_number = (__le16 *)(type + n_channels);
+	__le16 *iter_count = channel_number + n_channels;
+	__le32 *iter_interval = (__le32 *)(iter_count + n_channels);
+	u8 *active_dwell = (u8 *)(iter_interval + n_channels);
+	u8 *passive_dwell = active_dwell + n_channels;
 	int i, index = 0;
 
 	for (i = 0; i < req->n_channels; i++) {
@@ -682,34 +729,33 @@ static void iwl_build_channel_cfg(struct iwl_mvm *mvm,
 		index = *head;
 		(*head)++;
 
-		channels->channel_number[index] = cpu_to_le16(chan->hw_value);
-		channels->dwell_time[index][0] = params->dwell[band].active;
-		channels->dwell_time[index][1] = params->dwell[band].passive;
+		channel_number[index] = cpu_to_le16(chan->hw_value);
+		active_dwell[index] = params->dwell[band].active;
+		passive_dwell[index] = params->dwell[band].passive;
 
-		channels->iter_count[index] = cpu_to_le16(1);
-		channels->iter_interval[index] = 0;
+		iter_count[index] = cpu_to_le16(1);
+		iter_interval[index] = 0;
 
 		if (!(chan->flags & IEEE80211_CHAN_NO_IR))
-			channels->type[index] |=
+			type[index] |=
 				cpu_to_le32(IWL_SCAN_OFFLOAD_CHANNEL_ACTIVE);
 
-		channels->type[index] |=
-				cpu_to_le32(IWL_SCAN_OFFLOAD_CHANNEL_FULL |
-					    IWL_SCAN_OFFLOAD_CHANNEL_PARTIAL);
+		type[index] |= cpu_to_le32(IWL_SCAN_OFFLOAD_CHANNEL_FULL |
+					   IWL_SCAN_OFFLOAD_CHANNEL_PARTIAL);
 
 		if (chan->flags & IEEE80211_CHAN_NO_HT40)
-			channels->type[index] |=
+			type[index] |=
 				cpu_to_le32(IWL_SCAN_OFFLOAD_CHANNEL_NARROW);
 
 		/* scan for all SSIDs from req->ssids */
-		channels->type[index] |= cpu_to_le32(ssid_bitmap);
+		type[index] |= cpu_to_le32(ssid_bitmap);
 	}
 }
 
 int iwl_mvm_config_sched_scan(struct iwl_mvm *mvm,
 			      struct ieee80211_vif *vif,
 			      struct cfg80211_sched_scan_request *req,
-			      struct ieee80211_sched_scan_ies *ies)
+			      struct ieee80211_scan_ies *ies)
 {
 	int band_2ghz = mvm->nvm_data->bands[IEEE80211_BAND_2GHZ].n_channels;
 	int band_5ghz = mvm->nvm_data->bands[IEEE80211_BAND_5GHZ].n_channels;
@@ -717,6 +763,9 @@ int iwl_mvm_config_sched_scan(struct iwl_mvm *mvm,
 	u32 ssid_bitmap;
 	int cmd_len;
 	int ret;
+	u8 *probes;
+	bool basic_ssid = !(mvm->fw->ucode_capa.flags &
+			    IWL_UCODE_TLV_FLAGS_NO_BASIC_SSID);
 
 	struct iwl_scan_offload_cfg *scan_cfg;
 	struct iwl_host_cmd cmd = {
@@ -727,24 +776,29 @@ int iwl_mvm_config_sched_scan(struct iwl_mvm *mvm,
 	lockdep_assert_held(&mvm->mutex);
 
 	cmd_len = sizeof(struct iwl_scan_offload_cfg) +
+		  mvm->fw->ucode_capa.n_scan_channels * IWL_SCAN_CHAN_SIZE +
 		  2 * SCAN_OFFLOAD_PROBE_REQ_SIZE;
 
 	scan_cfg = kzalloc(cmd_len, GFP_KERNEL);
 	if (!scan_cfg)
 		return -ENOMEM;
 
-	iwl_mvm_scan_calc_params(mvm, vif, req->n_ssids, &params);
+	probes = scan_cfg->data +
+		mvm->fw->ucode_capa.n_scan_channels * IWL_SCAN_CHAN_SIZE;
+
+	iwl_mvm_scan_calc_params(mvm, vif, req->n_ssids, 0, &params);
 	iwl_build_scan_cmd(mvm, vif, req, &scan_cfg->scan_cmd, &params);
 	scan_cfg->scan_cmd.len = cpu_to_le16(cmd_len);
 
-	iwl_scan_offload_build_ssid(req, &scan_cfg->scan_cmd, &ssid_bitmap);
+	iwl_scan_offload_build_ssid(req, scan_cfg->scan_cmd.direct_scan,
+				    &ssid_bitmap, basic_ssid);
 	/* build tx frames for supported bands */
 	if (band_2ghz) {
 		iwl_scan_offload_build_tx_cmd(mvm, vif, ies,
 					      IEEE80211_BAND_2GHZ,
 					      &scan_cfg->scan_cmd.tx_cmd[0],
-					      scan_cfg->data);
-		iwl_build_channel_cfg(mvm, req, &scan_cfg->channel_cfg,
+					      probes);
+		iwl_build_channel_cfg(mvm, req, scan_cfg->data,
 				      IEEE80211_BAND_2GHZ, &head,
 				      ssid_bitmap, &params);
 	}
@@ -752,9 +806,9 @@ int iwl_mvm_config_sched_scan(struct iwl_mvm *mvm,
 		iwl_scan_offload_build_tx_cmd(mvm, vif, ies,
 					      IEEE80211_BAND_5GHZ,
 					      &scan_cfg->scan_cmd.tx_cmd[1],
-					      scan_cfg->data +
+					      probes +
 						SCAN_OFFLOAD_PROBE_REQ_SIZE);
-		iwl_build_channel_cfg(mvm, req, &scan_cfg->channel_cfg,
+		iwl_build_channel_cfg(mvm, req, scan_cfg->data,
 				      IEEE80211_BAND_5GHZ, &head,
 				      ssid_bitmap, &params);
 	}
@@ -845,11 +899,11 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 		.watchdog = IWL_SCHED_SCAN_WATCHDOG,
 
 		.schedule_line[0].iterations = IWL_FAST_SCHED_SCAN_ITERATIONS,
-		.schedule_line[0].delay = req->interval / 1000,
+		.schedule_line[0].delay = cpu_to_le16(req->interval / 1000),
 		.schedule_line[0].full_scan_mul = 1,
 
 		.schedule_line[1].iterations = 0xff,
-		.schedule_line[1].delay = req->interval / 1000,
+		.schedule_line[1].delay = cpu_to_le16(req->interval / 1000),
 		.schedule_line[1].full_scan_mul = IWL_FULL_SCAN_MULTIPLIER,
 	};
 
@@ -872,7 +926,7 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 				    sizeof(scan_req), &scan_req);
 }
 
-static int iwl_mvm_send_sched_scan_abort(struct iwl_mvm *mvm)
+static int iwl_mvm_send_scan_offload_abort(struct iwl_mvm *mvm)
 {
 	int ret;
 	struct iwl_host_cmd cmd = {
@@ -883,7 +937,9 @@ static int iwl_mvm_send_sched_scan_abort(struct iwl_mvm *mvm)
 	/* Exit instantly with error when device is not ready
 	 * to receive scan abort command or it does not perform
 	 * scheduled scan currently */
-	if (mvm->scan_status != IWL_MVM_SCAN_SCHED)
+	if (mvm->scan_status != IWL_MVM_SCAN_SCHED &&
+	    (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN) ||
+	     mvm->scan_status != IWL_MVM_SCAN_OS))
 		return -EIO;
 
 	ret = iwl_mvm_send_cmd_status(mvm, &cmd, &status);
@@ -905,16 +961,19 @@ static int iwl_mvm_send_sched_scan_abort(struct iwl_mvm *mvm)
 	return ret;
 }
 
-int iwl_mvm_sched_scan_stop(struct iwl_mvm *mvm, bool notify)
+int iwl_mvm_scan_offload_stop(struct iwl_mvm *mvm, bool notify)
 {
 	int ret;
 	struct iwl_notification_wait wait_scan_done;
 	static const u8 scan_done_notif[] = { SCAN_OFFLOAD_COMPLETE, };
+	bool sched = mvm->scan_status == IWL_MVM_SCAN_SCHED;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (mvm->scan_status != IWL_MVM_SCAN_SCHED) {
-		IWL_DEBUG_SCAN(mvm, "No offloaded scan to stop\n");
+	if (mvm->scan_status != IWL_MVM_SCAN_SCHED &&
+	    (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN) ||
+	     mvm->scan_status != IWL_MVM_SCAN_OS)) {
+		IWL_DEBUG_SCAN(mvm, "No scan to stop\n");
 		return 0;
 	}
 
@@ -923,14 +982,16 @@ int iwl_mvm_sched_scan_stop(struct iwl_mvm *mvm, bool notify)
 				   ARRAY_SIZE(scan_done_notif),
 				   NULL, NULL);
 
-	ret = iwl_mvm_send_sched_scan_abort(mvm);
+	ret = iwl_mvm_send_scan_offload_abort(mvm);
 	if (ret) {
-		IWL_DEBUG_SCAN(mvm, "Send stop offload scan failed %d\n", ret);
+		IWL_DEBUG_SCAN(mvm, "Send stop %sscan failed %d\n",
+			       sched ? "offloaded " : "", ret);
 		iwl_remove_notification(&mvm->notif_wait, &wait_scan_done);
 		return ret;
 	}
 
-	IWL_DEBUG_SCAN(mvm, "Successfully sent stop offload scan\n");
+	IWL_DEBUG_SCAN(mvm, "Successfully sent stop %sscan\n",
+		       sched ? "offloaded " : "");
 
 	ret = iwl_wait_notification(&mvm->notif_wait, &wait_scan_done, 1 * HZ);
 	if (ret)
@@ -943,8 +1004,317 @@ int iwl_mvm_sched_scan_stop(struct iwl_mvm *mvm, bool notify)
 	 */
 	mvm->scan_status = IWL_MVM_SCAN_NONE;
 
-	if (notify)
-		ieee80211_sched_scan_stopped(mvm->hw);
+	if (notify) {
+		if (sched)
+			ieee80211_sched_scan_stopped(mvm->hw);
+		else
+			ieee80211_scan_completed(mvm->hw, true);
+	}
 
 	return 0;
+}
+
+static void iwl_mvm_unified_scan_fill_tx_cmd(struct iwl_mvm *mvm,
+					     struct iwl_scan_req_tx_cmd *tx_cmd,
+					     bool no_cck)
+{
+	tx_cmd[0].tx_flags = cpu_to_le32(TX_CMD_FLG_SEQ_CTL |
+					 TX_CMD_FLG_BT_DIS);
+	tx_cmd[0].rate_n_flags = iwl_mvm_scan_rate_n_flags(mvm,
+							   IEEE80211_BAND_2GHZ,
+							   no_cck);
+	tx_cmd[0].sta_id = mvm->aux_sta.sta_id;
+
+	tx_cmd[1].tx_flags = cpu_to_le32(TX_CMD_FLG_SEQ_CTL |
+					 TX_CMD_FLG_BT_DIS);
+	tx_cmd[1].rate_n_flags = iwl_mvm_scan_rate_n_flags(mvm,
+							   IEEE80211_BAND_5GHZ,
+							   no_cck);
+	tx_cmd[1].sta_id = mvm->aux_sta.sta_id;
+}
+
+static void
+iwl_mvm_lmac_scan_cfg_channels(struct iwl_mvm *mvm,
+			       struct ieee80211_channel **channels,
+			       int n_channels, u32 ssid_bitmap,
+			       struct iwl_scan_req_unified_lmac *cmd)
+{
+	struct iwl_scan_channel_cfg_lmac *channel_cfg = (void *)&cmd->data;
+	int i;
+
+	for (i = 0; i < n_channels; i++) {
+		channel_cfg[i].channel_num =
+			cpu_to_le16(channels[i]->hw_value);
+		channel_cfg[i].iter_count = cpu_to_le16(1);
+		channel_cfg[i].iter_interval = 0;
+		channel_cfg[i].flags =
+			cpu_to_le32(IWL_UNIFIED_SCAN_CHANNEL_PARTIAL |
+				    ssid_bitmap);
+	}
+}
+
+static void
+iwl_mvm_build_unified_scan_probe(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+				 struct ieee80211_scan_ies *ies,
+				 struct iwl_scan_req_unified_lmac *cmd)
+{
+	struct iwl_scan_probe_req *preq = (void *)(cmd->data +
+		sizeof(struct iwl_scan_channel_cfg_lmac) *
+			mvm->fw->ucode_capa.n_scan_channels);
+	struct ieee80211_mgmt *frame = (struct ieee80211_mgmt *)preq->buf;
+	u8 *pos;
+
+	frame->frame_control = cpu_to_le16(IEEE80211_STYPE_PROBE_REQ);
+	eth_broadcast_addr(frame->da);
+	memcpy(frame->sa, vif->addr, ETH_ALEN);
+	eth_broadcast_addr(frame->bssid);
+	frame->seq_ctrl = 0;
+
+	pos = frame->u.probe_req.variable;
+	*pos++ = WLAN_EID_SSID;
+	*pos++ = 0;
+
+	preq->mac_header.offset = 0;
+	preq->mac_header.len = cpu_to_le16(24 + 2);
+
+	memcpy(pos, ies->ies[IEEE80211_BAND_2GHZ],
+	       ies->len[IEEE80211_BAND_2GHZ]);
+	preq->band_data[0].offset = cpu_to_le16(pos - preq->buf);
+	preq->band_data[0].len = cpu_to_le16(ies->len[IEEE80211_BAND_2GHZ]);
+	pos += ies->len[IEEE80211_BAND_2GHZ];
+
+	memcpy(pos, ies->ies[IEEE80211_BAND_5GHZ],
+	       ies->len[IEEE80211_BAND_5GHZ]);
+	preq->band_data[1].offset = cpu_to_le16(pos - preq->buf);
+	preq->band_data[1].len = cpu_to_le16(ies->len[IEEE80211_BAND_5GHZ]);
+	pos += ies->len[IEEE80211_BAND_5GHZ];
+
+	memcpy(pos, ies->common_ies, ies->common_ie_len);
+	preq->common_data.offset = cpu_to_le16(pos - preq->buf);
+	preq->common_data.len = cpu_to_le16(ies->common_ie_len);
+}
+
+static void
+iwl_mvm_build_generic_unified_scan_cmd(struct iwl_mvm *mvm,
+				       struct iwl_scan_req_unified_lmac *cmd,
+				       struct iwl_mvm_scan_params *params)
+{
+	memset(cmd, 0, ksize(cmd));
+	cmd->active_dwell = (u8)params->dwell[IEEE80211_BAND_2GHZ].active;
+	cmd->passive_dwell = (u8)params->dwell[IEEE80211_BAND_2GHZ].passive;
+	/* TODO: Use params; now fragmented isn't used. */
+	cmd->fragmented_dwell = 0;
+	cmd->rx_chain_select = iwl_mvm_scan_rx_chain(mvm);
+	cmd->max_out_time = cpu_to_le32(params->max_out_time);
+	cmd->suspend_time = cpu_to_le32(params->suspend_time);
+	cmd->scan_prio = cpu_to_le32(IWL_SCAN_PRIORITY_HIGH);
+	cmd->iter_num = cpu_to_le32(1);
+
+	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_EBS_SUPPORT &&
+	    mvm->last_ebs_successful) {
+		cmd->channel_opt[0].flags =
+			cpu_to_le16(IWL_SCAN_CHANNEL_FLAG_EBS |
+				    IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE |
+				    IWL_SCAN_CHANNEL_FLAG_CACHE_ADD);
+		cmd->channel_opt[1].flags =
+			cpu_to_le16(IWL_SCAN_CHANNEL_FLAG_EBS |
+				    IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE |
+				    IWL_SCAN_CHANNEL_FLAG_CACHE_ADD);
+	}
+}
+
+int iwl_mvm_unified_scan_lmac(struct iwl_mvm *mvm,
+			      struct ieee80211_vif *vif,
+			      struct ieee80211_scan_request *req)
+{
+	struct iwl_host_cmd hcmd = {
+		.id = SCAN_OFFLOAD_REQUEST_CMD,
+		.len = { sizeof(struct iwl_scan_req_unified_lmac) +
+			 sizeof(struct iwl_scan_channel_cfg_lmac) *
+				mvm->fw->ucode_capa.n_scan_channels +
+			 sizeof(struct iwl_scan_probe_req), },
+		.data = { mvm->scan_cmd, },
+		.dataflags = { IWL_HCMD_DFL_NOCOPY, },
+	};
+	struct iwl_scan_req_unified_lmac *cmd = mvm->scan_cmd;
+	struct iwl_mvm_scan_params params = {};
+	u32 flags;
+	int ssid_bitmap = 0;
+	int ret, i;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	/* we should have failed registration if scan_cmd was NULL */
+	if (WARN_ON(mvm->scan_cmd == NULL))
+		return -ENOMEM;
+
+	if (WARN_ON_ONCE(req->req.n_ssids > PROBE_OPTION_MAX ||
+			 req->ies.common_ie_len + req->ies.len[0] +
+				req->ies.len[1] + 24 + 2 >
+					SCAN_OFFLOAD_PROBE_REQ_SIZE ||
+			 req->req.n_channels >
+				mvm->fw->ucode_capa.n_scan_channels))
+		return -1;
+
+	mvm->scan_status = IWL_MVM_SCAN_OS;
+
+	iwl_mvm_scan_calc_params(mvm, vif, req->req.n_ssids, req->req.flags,
+				 &params);
+
+	iwl_mvm_build_generic_unified_scan_cmd(mvm, cmd, &params);
+
+	cmd->n_channels = (u8)req->req.n_channels;
+
+	flags = IWL_MVM_LMAC_SCAN_FLAG_PASS_ALL;
+
+	if (req->req.n_ssids == 1 && req->req.ssids[0].ssid_len != 0)
+		flags |= IWL_MVM_LMAC_SCAN_FLAG_PRE_CONNECTION;
+
+	if (params.passive_fragmented)
+		flags |= IWL_MVM_LMAC_SCAN_FLAG_FRAGMENTED;
+
+	if (req->req.n_ssids == 0)
+		flags |= IWL_MVM_LMAC_SCAN_FLAG_PASSIVE;
+
+	cmd->scan_flags = cpu_to_le32(flags);
+
+	cmd->flags = iwl_mvm_scan_rxon_flags(req->req.channels[0]->band);
+	cmd->filter_flags = cpu_to_le32(MAC_FILTER_ACCEPT_GRP |
+					MAC_FILTER_IN_BEACON);
+	iwl_mvm_unified_scan_fill_tx_cmd(mvm, cmd->tx_cmd, req->req.no_cck);
+	iwl_mvm_scan_fill_ssids(cmd->direct_scan, req->req.ssids,
+				req->req.n_ssids, 0);
+
+	cmd->schedule[0].delay = 0;
+	cmd->schedule[0].iterations = 1;
+	cmd->schedule[0].full_scan_mul = 0;
+	cmd->schedule[1].delay = 0;
+	cmd->schedule[1].iterations = 0;
+	cmd->schedule[1].full_scan_mul = 0;
+
+	for (i = 1; i <= req->req.n_ssids; i++)
+		ssid_bitmap |= BIT(i);
+
+	iwl_mvm_lmac_scan_cfg_channels(mvm, req->req.channels,
+				       req->req.n_channels, ssid_bitmap,
+				       cmd);
+
+	iwl_mvm_build_unified_scan_probe(mvm, vif, &req->ies, cmd);
+
+	ret = iwl_mvm_send_cmd(mvm, &hcmd);
+	if (!ret) {
+		IWL_DEBUG_SCAN(mvm, "Scan request was sent successfully\n");
+	} else {
+		/*
+		 * If the scan failed, it usually means that the FW was unable
+		 * to allocate the time events. Warn on it, but maybe we
+		 * should try to send the command again with different params.
+		 */
+		IWL_ERR(mvm, "Scan failed! ret %d\n", ret);
+		mvm->scan_status = IWL_MVM_SCAN_NONE;
+		ret = -EIO;
+	}
+	return ret;
+}
+
+int iwl_mvm_unified_sched_scan_lmac(struct iwl_mvm *mvm,
+				    struct ieee80211_vif *vif,
+				    struct cfg80211_sched_scan_request *req,
+				    struct ieee80211_scan_ies *ies)
+{
+	struct iwl_host_cmd hcmd = {
+		.id = SCAN_OFFLOAD_REQUEST_CMD,
+		.len = { sizeof(struct iwl_scan_req_unified_lmac) +
+			 sizeof(struct iwl_scan_channel_cfg_lmac) *
+				mvm->fw->ucode_capa.n_scan_channels +
+			 sizeof(struct iwl_scan_probe_req), },
+		.data = { mvm->scan_cmd, },
+		.dataflags = { IWL_HCMD_DFL_NOCOPY, },
+	};
+	struct iwl_scan_req_unified_lmac *cmd = mvm->scan_cmd;
+	struct iwl_mvm_scan_params params = {};
+	int ret;
+	u32 flags = 0, ssid_bitmap = 0;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	/* we should have failed registration if scan_cmd was NULL */
+	if (WARN_ON(mvm->scan_cmd == NULL))
+		return -ENOMEM;
+
+	if (WARN_ON_ONCE(req->n_ssids > PROBE_OPTION_MAX ||
+			 ies->common_ie_len + ies->len[0] + ies->len[1] + 24 + 2
+				> SCAN_OFFLOAD_PROBE_REQ_SIZE ||
+			 req->n_channels > mvm->fw->ucode_capa.n_scan_channels))
+		return -ENOBUFS;
+
+	iwl_mvm_scan_calc_params(mvm, vif, req->n_ssids, 0, &params);
+
+	iwl_mvm_build_generic_unified_scan_cmd(mvm, cmd, &params);
+
+	cmd->n_channels = (u8)req->n_channels;
+
+	if (req->n_match_sets && req->match_sets[0].ssid.ssid_len) {
+		IWL_DEBUG_SCAN(mvm,
+			       "Sending scheduled scan with filtering, n_match_sets %d\n",
+			       req->n_match_sets);
+	} else {
+		IWL_DEBUG_SCAN(mvm,
+			       "Sending Scheduled scan without filtering\n");
+		flags |= IWL_MVM_LMAC_SCAN_FLAG_PASS_ALL;
+	}
+
+	if (req->n_ssids == 1 && req->ssids[0].ssid_len != 0)
+		flags |= IWL_MVM_LMAC_SCAN_FLAG_PRE_CONNECTION;
+
+	if (params.passive_fragmented)
+		flags |= IWL_MVM_LMAC_SCAN_FLAG_FRAGMENTED;
+
+	if (req->n_ssids == 0)
+		flags |= IWL_MVM_LMAC_SCAN_FLAG_PASSIVE;
+
+	cmd->scan_flags = cpu_to_le32(flags);
+
+	cmd->flags = iwl_mvm_scan_rxon_flags(req->channels[0]->band);
+	cmd->filter_flags = cpu_to_le32(MAC_FILTER_ACCEPT_GRP |
+					MAC_FILTER_IN_BEACON);
+	iwl_mvm_unified_scan_fill_tx_cmd(mvm, cmd->tx_cmd, false);
+	iwl_scan_offload_build_ssid(req, cmd->direct_scan, &ssid_bitmap, false);
+
+	cmd->schedule[0].delay = cpu_to_le16(req->interval / MSEC_PER_SEC);
+	cmd->schedule[0].iterations = IWL_FAST_SCHED_SCAN_ITERATIONS;
+	cmd->schedule[0].full_scan_mul = 1;
+
+	cmd->schedule[1].delay = cpu_to_le16(req->interval / MSEC_PER_SEC);
+	cmd->schedule[1].iterations = 0xff;
+	cmd->schedule[1].full_scan_mul = IWL_FULL_SCAN_MULTIPLIER;
+
+	iwl_mvm_lmac_scan_cfg_channels(mvm, req->channels, req->n_channels,
+				       ssid_bitmap, cmd);
+
+	iwl_mvm_build_unified_scan_probe(mvm, vif, ies, cmd);
+
+	ret = iwl_mvm_send_cmd(mvm, &hcmd);
+	if (!ret) {
+		IWL_DEBUG_SCAN(mvm,
+			       "Sched scan request was sent successfully\n");
+	} else {
+		/*
+		 * If the scan failed, it usually means that the FW was unable
+		 * to allocate the time events. Warn on it, but maybe we
+		 * should try to send the command again with different params.
+		 */
+		IWL_ERR(mvm, "Sched scan failed! ret %d\n", ret);
+		mvm->scan_status = IWL_MVM_SCAN_NONE;
+		ret = -EIO;
+	}
+	return ret;
+}
+
+
+int iwl_mvm_cancel_scan(struct iwl_mvm *mvm)
+{
+	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN)
+		return iwl_mvm_scan_offload_stop(mvm, true);
+	return iwl_mvm_cancel_regular_scan(mvm);
 }

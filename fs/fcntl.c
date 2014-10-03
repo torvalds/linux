@@ -21,6 +21,7 @@
 #include <linux/rcupdate.h>
 #include <linux/pid_namespace.h>
 #include <linux/user_namespace.h>
+#include <linux/shmem_fs.h>
 
 #include <asm/poll.h>
 #include <asm/siginfo.h>
@@ -335,6 +336,10 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 	case F_SETPIPE_SZ:
 	case F_GETPIPE_SZ:
 		err = pipe_fcntl(filp, cmd, arg);
+		break;
+	case F_ADD_SEALS:
+	case F_GET_SEALS:
+		err = shmem_fcntl(filp, cmd, arg);
 		break;
 	default:
 		break;

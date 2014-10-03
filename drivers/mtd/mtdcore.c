@@ -298,6 +298,47 @@ static ssize_t mtd_ecc_step_size_show(struct device *dev,
 }
 static DEVICE_ATTR(ecc_step_size, S_IRUGO, mtd_ecc_step_size_show, NULL);
 
+static ssize_t mtd_ecc_stats_corrected_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mtd_info *mtd = dev_get_drvdata(dev);
+	struct mtd_ecc_stats *ecc_stats = &mtd->ecc_stats;
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", ecc_stats->corrected);
+}
+static DEVICE_ATTR(corrected_bits, S_IRUGO,
+		   mtd_ecc_stats_corrected_show, NULL);
+
+static ssize_t mtd_ecc_stats_errors_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mtd_info *mtd = dev_get_drvdata(dev);
+	struct mtd_ecc_stats *ecc_stats = &mtd->ecc_stats;
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", ecc_stats->failed);
+}
+static DEVICE_ATTR(ecc_failures, S_IRUGO, mtd_ecc_stats_errors_show, NULL);
+
+static ssize_t mtd_badblocks_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mtd_info *mtd = dev_get_drvdata(dev);
+	struct mtd_ecc_stats *ecc_stats = &mtd->ecc_stats;
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", ecc_stats->badblocks);
+}
+static DEVICE_ATTR(bad_blocks, S_IRUGO, mtd_badblocks_show, NULL);
+
+static ssize_t mtd_bbtblocks_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mtd_info *mtd = dev_get_drvdata(dev);
+	struct mtd_ecc_stats *ecc_stats = &mtd->ecc_stats;
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", ecc_stats->bbtblocks);
+}
+static DEVICE_ATTR(bbt_blocks, S_IRUGO, mtd_bbtblocks_show, NULL);
+
 static struct attribute *mtd_attrs[] = {
 	&dev_attr_type.attr,
 	&dev_attr_flags.attr,
@@ -310,6 +351,10 @@ static struct attribute *mtd_attrs[] = {
 	&dev_attr_name.attr,
 	&dev_attr_ecc_strength.attr,
 	&dev_attr_ecc_step_size.attr,
+	&dev_attr_corrected_bits.attr,
+	&dev_attr_ecc_failures.attr,
+	&dev_attr_bad_blocks.attr,
+	&dev_attr_bbt_blocks.attr,
 	&dev_attr_bitflip_threshold.attr,
 	NULL,
 };
@@ -998,12 +1043,22 @@ int mtd_is_locked(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 }
 EXPORT_SYMBOL_GPL(mtd_is_locked);
 
-int mtd_block_isbad(struct mtd_info *mtd, loff_t ofs)
+int mtd_block_isreserved(struct mtd_info *mtd, loff_t ofs)
 {
-	if (!mtd->_block_isbad)
-		return 0;
 	if (ofs < 0 || ofs > mtd->size)
 		return -EINVAL;
+	if (!mtd->_block_isreserved)
+		return 0;
+	return mtd->_block_isreserved(mtd, ofs);
+}
+EXPORT_SYMBOL_GPL(mtd_block_isreserved);
+
+int mtd_block_isbad(struct mtd_info *mtd, loff_t ofs)
+{
+	if (ofs < 0 || ofs > mtd->size)
+		return -EINVAL;
+	if (!mtd->_block_isbad)
+		return 0;
 	return mtd->_block_isbad(mtd, ofs);
 }
 EXPORT_SYMBOL_GPL(mtd_block_isbad);

@@ -237,6 +237,12 @@ extern int iomem_is_exclusive(u64 addr);
 extern int
 walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
 		void *arg, int (*func)(unsigned long, unsigned long, void *));
+extern int
+walk_system_ram_res(u64 start, u64 end, void *arg,
+		    int (*func)(u64, u64, void *));
+extern int
+walk_iomem_res(char *name, unsigned long flags, u64 start, u64 end, void *arg,
+	       int (*func)(u64, u64, void *));
 
 /* True if any part of r1 overlaps r2 */
 static inline bool resource_overlaps(struct resource *r1, struct resource *r2)

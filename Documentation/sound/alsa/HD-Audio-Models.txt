@@ -284,6 +284,11 @@ STAC92HD83*
   hp-zephyr	HP Zephyr
   hp-led	HP with broken BIOS for mute LED
   hp-inv-led	HP with broken BIOS for inverted mute LED
+  hp-mic-led	HP with mic-mute LED
+  headset-jack	Dell Latitude with a 4-pin headset jack
+  hp-envy-bass	Pin fixup for HP Envy bass speaker (NID 0x0f)
+  hp-envy-ts-bass Pin fixup for HP Envy TS bass speaker (NID 0x10)
+  hp-bnb13-eq	Hardware equalizer setup for HP laptops
   auto		BIOS setup (default)
 
 STAC92HD95

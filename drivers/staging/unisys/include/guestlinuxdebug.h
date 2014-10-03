@@ -150,33 +150,33 @@ typedef enum {			/* POSTCODE event identifier tuples */
 #define POSTCODE_LINUX_A(DRIVER_PC, EVENT_PC, pc32bit, severity)	\
 do {									\
 	unsigned long long post_code_temp;				\
-	post_code_temp = (((U64)DRIVER_PC) << 56) | (((U64)EVENT_PC) << 44) | \
-		((((U64)__LINE__) & 0xFFF) << 32) |			\
-		(((U64)pc32bit) & 0xFFFFFFFF);				\
+	post_code_temp = (((u64)DRIVER_PC) << 56) | (((u64)EVENT_PC) << 44) | \
+		((((u64)__LINE__) & 0xFFF) << 32) |			\
+		(((u64)pc32bit) & 0xFFFFFFFF);				\
 	ISSUE_IO_VMCALL_POSTCODE_SEVERITY(post_code_temp, severity);	\
 } while (0)
 
 #define POSTCODE_LINUX_B(DRIVER_PC, EVENT_PC, pc16bit1, pc16bit2, severity) \
 do {									\
 	unsigned long long post_code_temp;				\
-	post_code_temp = (((U64)DRIVER_PC) << 56) | (((U64)EVENT_PC) << 44) | \
-		((((U64)__LINE__) & 0xFFF) << 32) |			\
-		((((U64)pc16bit1) & 0xFFFF) << 16) |			\
-		(((U64)pc16bit2) & 0xFFFF);				\
+	post_code_temp = (((u64)DRIVER_PC) << 56) | (((u64)EVENT_PC) << 44) | \
+		((((u64)__LINE__) & 0xFFF) << 32) |			\
+		((((u64)pc16bit1) & 0xFFFF) << 16) |			\
+		(((u64)pc16bit2) & 0xFFFF);				\
 	ISSUE_IO_VMCALL_POSTCODE_SEVERITY(post_code_temp, severity);	\
 } while (0)
 
 /* MOST COMMON */
 #define POSTCODE_LINUX_2(EVENT_PC, severity)				\
-	POSTCODE_LINUX_A(CURRENT_FILE_PC, EVENT_PC, 0x0000, severity);
+	POSTCODE_LINUX_A(CURRENT_FILE_PC, EVENT_PC, 0x0000, severity)
 
 #define POSTCODE_LINUX_3(EVENT_PC, pc32bit, severity)			\
-	POSTCODE_LINUX_A(CURRENT_FILE_PC, EVENT_PC, pc32bit, severity);
+	POSTCODE_LINUX_A(CURRENT_FILE_PC, EVENT_PC, pc32bit, severity)
 
 
 #define POSTCODE_LINUX_4(EVENT_PC, pc16bit1, pc16bit2, severity)	\
 	POSTCODE_LINUX_B(CURRENT_FILE_PC, EVENT_PC, pc16bit1,		\
-			 pc16bit2, severity);
+			 pc16bit2, severity)
 
 #endif
 #endif

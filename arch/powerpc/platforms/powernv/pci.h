@@ -21,6 +21,8 @@ enum pnv_phb_model {
 #define PNV_IODA_PE_DEV		(1 << 0)	/* PE has single PCI device	*/
 #define PNV_IODA_PE_BUS		(1 << 1)	/* PE has primary PCI bus	*/
 #define PNV_IODA_PE_BUS_ALL	(1 << 2)	/* PE has subordinate buses	*/
+#define PNV_IODA_PE_MASTER	(1 << 3)	/* Master PE in compound case	*/
+#define PNV_IODA_PE_SLAVE	(1 << 4)	/* Slave PE in compound case	*/
 
 /* Data associated with a PE, including IOMMU tracking etc.. */
 struct pnv_phb;
@@ -63,6 +65,10 @@ struct pnv_ioda_pe {
 	 * PE number)
 	 */
 	int			mve_number;
+
+	/* PEs in compound case */
+	struct pnv_ioda_pe	*master;
+	struct list_head	slaves;
 
 	/* Link in list of PE#s */
 	struct list_head	dma_link;
@@ -119,6 +125,12 @@ struct pnv_phb {
 	void (*fixup_phb)(struct pci_controller *hose);
 	u32 (*bdfn_to_pe)(struct pnv_phb *phb, struct pci_bus *bus, u32 devfn);
 	void (*shutdown)(struct pnv_phb *phb);
+	int (*init_m64)(struct pnv_phb *phb);
+	void (*alloc_m64_pe)(struct pnv_phb *phb);
+	int (*pick_m64_pe)(struct pnv_phb *phb, struct pci_bus *bus, int all);
+	int (*get_pe_state)(struct pnv_phb *phb, int pe_no);
+	void (*freeze_pe)(struct pnv_phb *phb, int pe_no);
+	int (*unfreeze_pe)(struct pnv_phb *phb, int pe_no, int opt);
 
 	union {
 		struct {
@@ -129,9 +141,20 @@ struct pnv_phb {
 			/* Global bridge info */
 			unsigned int		total_pe;
 			unsigned int		reserved_pe;
+
+			/* 32-bit MMIO window */
 			unsigned int		m32_size;
 			unsigned int		m32_segsize;
 			unsigned int		m32_pci_base;
+
+			/* 64-bit MMIO window */
+			unsigned int		m64_bar_idx;
+			unsigned long		m64_size;
+			unsigned long		m64_segsize;
+			unsigned long		m64_base;
+			unsigned long		m64_bar_alloc;
+
+			/* IO ports */
 			unsigned int		io_size;
 			unsigned int		io_segsize;
 			unsigned int		io_pci_base;
@@ -198,7 +221,7 @@ int pnv_pci_cfg_write(struct device_node *dn,
 		      int where, int size, u32 val);
 extern void pnv_pci_setup_iommu_table(struct iommu_table *tbl,
 				      void *tce_mem, u64 tce_size,
-				      u64 dma_offset);
+				      u64 dma_offset, unsigned page_shift);
 extern void pnv_pci_init_p5ioc2_hub(struct device_node *np);
 extern void pnv_pci_init_ioda_hub(struct device_node *np);
 extern void pnv_pci_init_ioda2_phb(struct device_node *np);

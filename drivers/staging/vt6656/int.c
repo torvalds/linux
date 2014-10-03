@@ -33,155 +33,134 @@
  */
 
 #include "int.h"
-#include "tmacro.h"
 #include "mac.h"
 #include "power.h"
-#include "bssdb.h"
 #include "usbpipe.h"
 
-static int msglevel = MSG_LEVEL_INFO; /* MSG_LEVEL_DEBUG */
+static const u8 fallback_rate0[5][5] = {
+	{RATE_18M, RATE_18M, RATE_12M, RATE_12M, RATE_12M},
+	{RATE_24M, RATE_24M, RATE_18M, RATE_12M, RATE_12M},
+	{RATE_36M, RATE_36M, RATE_24M, RATE_18M, RATE_18M},
+	{RATE_48M, RATE_48M, RATE_36M, RATE_24M, RATE_24M},
+	{RATE_54M, RATE_54M, RATE_48M, RATE_36M, RATE_36M}
+};
 
-/*+
- *
- *  Function:   InterruptPollingThread
- *
- *  Synopsis:   Thread running at IRQL PASSIVE_LEVEL.
- *
- *  Arguments: Device Extension
- *
- *  Returns:
- *
- *  Algorithm:  Call USBD for input data;
- *
- *  History:    dd-mm-yyyy   Author    Comment
- *
- *
- *  Notes:
- *
- *  USB reads are by nature 'Blocking', and when in a read, the device looks
- *  like it's in a 'stall' condition, so we deliberately time out every second
- *  if we've gotten no data
- *
--*/
-void INTvWorkItem(struct vnt_private *pDevice)
+static const u8 fallback_rate1[5][5] = {
+	{RATE_18M, RATE_18M, RATE_12M, RATE_6M, RATE_6M},
+	{RATE_24M, RATE_24M, RATE_18M, RATE_6M, RATE_6M},
+	{RATE_36M, RATE_36M, RATE_24M, RATE_12M, RATE_12M},
+	{RATE_48M, RATE_48M, RATE_24M, RATE_12M, RATE_12M},
+	{RATE_54M, RATE_54M, RATE_36M, RATE_18M, RATE_18M}
+};
+
+void vnt_int_start_interrupt(struct vnt_private *priv)
 {
 	unsigned long flags;
-	int ntStatus;
+	int status;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Interrupt Polling Thread\n");
+	dev_dbg(&priv->usb->dev, "---->Interrupt Polling Thread\n");
 
-	spin_lock_irqsave(&pDevice->lock, flags);
+	spin_lock_irqsave(&priv->lock, flags);
 
-	ntStatus = PIPEnsInterruptRead(pDevice);
+	status = vnt_start_interrupt_urb(priv);
 
-	spin_unlock_irqrestore(&pDevice->lock, flags);
+	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-void INTnsProcessData(struct vnt_private *priv)
+static int vnt_int_report_rate(struct vnt_private *priv, u8 pkt_no, u8 tsr)
+{
+	struct vnt_usb_send_context *context;
+	struct ieee80211_tx_info *info;
+	struct ieee80211_rate *rate;
+	u8 tx_retry = (tsr & 0xf0) >> 4;
+	s8 idx;
+
+	if (pkt_no >= priv->num_tx_context)
+		return -EINVAL;
+
+	context = priv->tx_context[pkt_no];
+
+	if (!context->skb)
+		return -EINVAL;
+
+	info = IEEE80211_SKB_CB(context->skb);
+	idx = info->control.rates[0].idx;
+
+	if (context->fb_option && !(tsr & (TSR_TMO | TSR_RETRYTMO))) {
+		u8 tx_rate;
+		u8 retry = tx_retry;
+
+		rate = ieee80211_get_tx_rate(priv->hw, info);
+		tx_rate = rate->hw_value - RATE_18M;
+
+		if (retry > 4)
+			retry = 4;
+
+		if (context->fb_option == AUTO_FB_0)
+			tx_rate = fallback_rate0[tx_rate][retry];
+		else if (context->fb_option == AUTO_FB_1)
+			tx_rate = fallback_rate1[tx_rate][retry];
+
+		if (info->band == IEEE80211_BAND_5GHZ)
+			idx = tx_rate - RATE_6M;
+		else
+			idx = tx_rate;
+	}
+
+	ieee80211_tx_info_clear_status(info);
+
+	info->status.rates[0].count = tx_retry;
+
+	if (!(tsr & (TSR_TMO | TSR_RETRYTMO))) {
+		info->status.rates[0].idx = idx;
+		info->flags |= IEEE80211_TX_STAT_ACK;
+	}
+
+	ieee80211_tx_status_irqsafe(priv->hw, context->skb);
+
+	context->in_use = false;
+
+	return 0;
+}
+
+void vnt_int_process_data(struct vnt_private *priv)
 {
 	struct vnt_interrupt_data *int_data;
-	struct vnt_manager *mgmt = &priv->vnt_mgmt;
-	struct net_device_stats *stats = &priv->stats;
+	struct ieee80211_low_level_stats *low_stats = &priv->low_stats;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsInterruptProcessData\n");
+	dev_dbg(&priv->usb->dev, "---->s_nsInterruptProcessData\n");
 
 	int_data = (struct vnt_interrupt_data *)priv->int_buf.data_buf;
 
-	if (int_data->tsr0 & TSR_VALID) {
-		if (int_data->tsr0 & (TSR_TMO | TSR_RETRYTMO))
-			priv->wstats.discard.retries++;
-		else
-			stats->tx_packets++;
+	if (int_data->tsr0 & TSR_VALID)
+		vnt_int_report_rate(priv, int_data->pkt0, int_data->tsr0);
 
-		BSSvUpdateNodeTxCounter(priv,
-					int_data->tsr0,
-					int_data->pkt0);
-	}
+	if (int_data->tsr1 & TSR_VALID)
+		vnt_int_report_rate(priv, int_data->pkt1, int_data->tsr1);
 
-	if (int_data->tsr1 & TSR_VALID) {
-		if (int_data->tsr1 & (TSR_TMO | TSR_RETRYTMO))
-			priv->wstats.discard.retries++;
-		else
-			stats->tx_packets++;
+	if (int_data->tsr2 & TSR_VALID)
+		vnt_int_report_rate(priv, int_data->pkt2, int_data->tsr2);
 
-
-		BSSvUpdateNodeTxCounter(priv,
-					int_data->tsr1,
-					int_data->pkt1);
-	}
-
-	if (int_data->tsr2 & TSR_VALID) {
-		if (int_data->tsr2 & (TSR_TMO | TSR_RETRYTMO))
-			priv->wstats.discard.retries++;
-		else
-			stats->tx_packets++;
-
-		BSSvUpdateNodeTxCounter(priv,
-					int_data->tsr2,
-					int_data->pkt2);
-	}
-
-	if (int_data->tsr3 & TSR_VALID) {
-		if (int_data->tsr3 & (TSR_TMO | TSR_RETRYTMO))
-			priv->wstats.discard.retries++;
-		else
-			stats->tx_packets++;
-
-		BSSvUpdateNodeTxCounter(priv,
-					int_data->tsr3,
-					int_data->pkt3);
-	}
+	if (int_data->tsr3 & TSR_VALID)
+		vnt_int_report_rate(priv, int_data->pkt3, int_data->tsr3);
 
 	if (int_data->isr0 != 0) {
-		if (int_data->isr0 & ISR_BNTX) {
-			if (priv->op_mode == NL80211_IFTYPE_AP) {
-				if (mgmt->byDTIMCount > 0) {
-					mgmt->byDTIMCount--;
-					mgmt->sNodeDBTable[0].bRxPSPoll =
-						false;
-				} else if (mgmt->byDTIMCount == 0) {
-					/* check if multicast tx buffering */
-					mgmt->byDTIMCount =
-						mgmt->byDTIMPeriod-1;
-					mgmt->sNodeDBTable[0].bRxPSPoll = true;
-					if (mgmt->sNodeDBTable[0].bPSEnable)
-						bScheduleCommand((void *) priv,
-								 WLAN_CMD_RX_PSPOLL,
-								 NULL);
-				}
-				bScheduleCommand((void *) priv,
-						WLAN_CMD_BECON_SEND,
-						NULL);
-			}
-			priv->bBeaconSent = true;
-		} else {
-			priv->bBeaconSent = false;
-		}
+		if (int_data->isr0 & ISR_BNTX &&
+				priv->op_mode == NL80211_IFTYPE_AP)
+			vnt_schedule_command(priv, WLAN_CMD_BECON_SEND);
 
 		if (int_data->isr0 & ISR_TBTT) {
-			if (priv->bEnablePSMode)
-				bScheduleCommand((void *) priv,
-						WLAN_CMD_TBTT_WAKEUP,
-						NULL);
-			if (priv->bChannelSwitch) {
-				priv->byChannelSwitchCount--;
-				if (priv->byChannelSwitchCount == 0)
-					bScheduleCommand((void *) priv,
-							WLAN_CMD_11H_CHSW,
-							NULL);
-			}
+			if (priv->hw->conf.flags & IEEE80211_CONF_PS)
+				vnt_schedule_command(priv,
+							WLAN_CMD_TBTT_WAKEUP);
 		}
-		priv->qwCurrTSF = le64_to_cpu(int_data->tsf);
+		priv->current_tsf = le64_to_cpu(int_data->tsf);
+
+		low_stats->dot11RTSSuccessCount += int_data->rts_success;
+		low_stats->dot11RTSFailureCount += int_data->rts_fail;
+		low_stats->dot11ACKFailureCount += int_data->ack_fail;
+		low_stats->dot11FCSErrorCount += int_data->fcs_err;
 	}
 
-	if (int_data->isr1 != 0)
-		if (int_data->isr1 & ISR_GPIO3)
-			bScheduleCommand((void *) priv,
-					WLAN_CMD_RADIO,
-					NULL);
-
 	priv->int_buf.in_use = false;
-
-	stats->tx_errors = priv->wstats.discard.retries;
-	stats->tx_dropped = priv->wstats.discard.retries;
 }

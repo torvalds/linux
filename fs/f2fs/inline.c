@@ -172,6 +172,7 @@ int f2fs_write_inline_data(struct inode *inode,
 		stat_inc_inline_inode(inode);
 	}
 
+	set_inode_flag(F2FS_I(inode), FI_APPEND_WRITE);
 	sync_inode_page(&dn);
 	f2fs_put_dnode(&dn);
 

@@ -181,8 +181,7 @@ static void xen_restart(enum reboot_mode reboot_mode, const char *cmd)
 	struct sched_shutdown r = { .reason = SHUTDOWN_reboot };
 	int rc;
 	rc = HYPERVISOR_sched_op(SCHEDOP_shutdown, &r);
-	if (rc)
-		BUG();
+	BUG_ON(rc);
 }
 
 static void xen_power_off(void)
@@ -190,8 +189,7 @@ static void xen_power_off(void)
 	struct sched_shutdown r = { .reason = SHUTDOWN_poweroff };
 	int rc;
 	rc = HYPERVISOR_sched_op(SCHEDOP_shutdown, &r);
-	if (rc)
-		BUG();
+	BUG_ON(rc);
 }
 
 static int xen_cpu_notification(struct notifier_block *self,

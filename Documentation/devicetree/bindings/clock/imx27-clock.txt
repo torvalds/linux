@@ -7,117 +7,22 @@ Required properties:
 - #clock-cells: Should be <1>
 
 The clock consumer should specify the desired clock by having the clock
-ID in its "clocks" phandle cell.  The following is a full list of i.MX27
-clocks and IDs.
-
-	Clock		    ID
-	-----------------------
-	dummy                0
-	ckih                 1
-	ckil                 2
-	mpll                 3
-	spll                 4
-	mpll_main2           5
-	ahb                  6
-	ipg                  7
-	nfc_div              8
-	per1_div             9
-	per2_div             10
-	per3_div             11
-	per4_div             12
-	vpu_sel              13
-	vpu_div              14
-	usb_div              15
-	cpu_sel              16
-	clko_sel             17
-	cpu_div              18
-	clko_div             19
-	ssi1_sel             20
-	ssi2_sel             21
-	ssi1_div             22
-	ssi2_div             23
-	clko_en              24
-	ssi2_ipg_gate        25
-	ssi1_ipg_gate        26
-	slcdc_ipg_gate       27
-	sdhc3_ipg_gate       28
-	sdhc2_ipg_gate       29
-	sdhc1_ipg_gate       30
-	scc_ipg_gate         31
-	sahara_ipg_gate      32
-	rtc_ipg_gate         33
-	pwm_ipg_gate         34
-	owire_ipg_gate       35
-	lcdc_ipg_gate        36
-	kpp_ipg_gate         37
-	iim_ipg_gate         38
-	i2c2_ipg_gate        39
-	i2c1_ipg_gate        40
-	gpt6_ipg_gate        41
-	gpt5_ipg_gate        42
-	gpt4_ipg_gate        43
-	gpt3_ipg_gate        44
-	gpt2_ipg_gate        45
-	gpt1_ipg_gate        46
-	gpio_ipg_gate        47
-	fec_ipg_gate         48
-	emma_ipg_gate        49
-	dma_ipg_gate         50
-	cspi3_ipg_gate       51
-	cspi2_ipg_gate       52
-	cspi1_ipg_gate       53
-	nfc_baud_gate        54
-	ssi2_baud_gate       55
-	ssi1_baud_gate       56
-	vpu_baud_gate        57
-	per4_gate            58
-	per3_gate            59
-	per2_gate            60
-	per1_gate            61
-	usb_ahb_gate         62
-	slcdc_ahb_gate       63
-	sahara_ahb_gate      64
-	lcdc_ahb_gate        65
-	vpu_ahb_gate         66
-	fec_ahb_gate         67
-	emma_ahb_gate        68
-	emi_ahb_gate         69
-	dma_ahb_gate         70
-	csi_ahb_gate         71
-	brom_ahb_gate        72
-	ata_ahb_gate         73
-	wdog_ipg_gate        74
-	usb_ipg_gate         75
-	uart6_ipg_gate       76
-	uart5_ipg_gate       77
-	uart4_ipg_gate       78
-	uart3_ipg_gate       79
-	uart2_ipg_gate       80
-	uart1_ipg_gate       81
-	ckih_div1p5          82
-	fpm                  83
-	mpll_osc_sel         84
-	mpll_sel             85
-	spll_gate            86
-	mshc_div             87
-	rtic_ipg_gate        88
-	mshc_ipg_gate        89
-	rtic_ahb_gate        90
-	mshc_baud_gate       91
+ID in its "clocks" phandle cell. See include/dt-bindings/clock/imx27-clock.h
+for the full list of i.MX27 clock IDs.
 
 Examples:
+	clks: ccm@10027000{
+		compatible = "fsl,imx27-ccm";
+		reg = <0x10027000 0x1000>;
+		#clock-cells = <1>;
+	};
 
-clks: ccm@10027000{
-	compatible = "fsl,imx27-ccm";
-	reg = <0x10027000 0x1000>;
-	#clock-cells = <1>;
-};
-
-uart1: serial@1000a000 {
-	compatible = "fsl,imx27-uart", "fsl,imx21-uart";
-	reg = <0x1000a000 0x1000>;
-	interrupts = <20>;
-	clocks = <&clks 81>, <&clks 61>;
-	clock-names = "ipg", "per";
-	status = "disabled";
-};
+	uart1: serial@1000a000 {
+		compatible = "fsl,imx27-uart", "fsl,imx21-uart";
+		reg = <0x1000a000 0x1000>;
+		interrupts = <20>;
+		clocks = <&clks IMX27_CLK_UART1_IPG_GATE>,
+			 <&clks IMX27_CLK_PER1_GATE>;
+		clock-names = "ipg", "per";
+		status = "disabled";
+	};

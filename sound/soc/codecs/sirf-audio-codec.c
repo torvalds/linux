@@ -471,8 +471,8 @@ static int sirf_audio_codec_driver_probe(struct platform_device *pdev)
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, mem_res);
-	if (base == NULL)
-		return -ENOMEM;
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	sirf_audio_codec->regmap = devm_regmap_init_mmio(&pdev->dev, base,
 					    &sirf_audio_codec_regmap_config);

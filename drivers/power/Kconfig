@@ -137,6 +137,13 @@ config BATTERY_COLLIE
 	  Say Y to enable support for the battery on the Sharp Zaurus
 	  SL-5500 (collie) models.
 
+config BATTERY_IPAQ_MICRO
+	tristate "iPAQ Atmel Micro ASIC battery driver"
+	depends on MFD_IPAQ_MICRO
+	help
+	  Choose this option if you want to monitor battery status on
+	  Compaq/HP iPAQ h3100 and h3600.
+
 config BATTERY_WM97XX
 	bool "WM97xx generic battery driver"
 	depends on TOUCHSCREEN_WM97XX=y

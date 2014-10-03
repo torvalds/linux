@@ -660,7 +660,7 @@ static int qxl_fbdev_destroy(struct drm_device *dev, struct qxl_fbdev *qfbdev)
 	return 0;
 }
 
-static struct drm_fb_helper_funcs qxl_fb_helper_funcs = {
+static const struct drm_fb_helper_funcs qxl_fb_helper_funcs = {
 	.fb_probe = qxl_fb_find_or_create_single,
 };
 
@@ -676,9 +676,12 @@ int qxl_fbdev_init(struct qxl_device *qdev)
 
 	qfbdev->qdev = qdev;
 	qdev->mode_info.qfbdev = qfbdev;
-	qfbdev->helper.funcs = &qxl_fb_helper_funcs;
 	spin_lock_init(&qfbdev->delayed_ops_lock);
 	INIT_LIST_HEAD(&qfbdev->delayed_ops);
+
+	drm_fb_helper_prepare(qdev->ddev, &qfbdev->helper,
+			      &qxl_fb_helper_funcs);
+
 	ret = drm_fb_helper_init(qdev->ddev, &qfbdev->helper,
 				 qxl_num_crtc /* num_crtc - QXL supports just 1 */,
 				 QXLFB_CONN_LIMIT);

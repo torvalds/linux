@@ -335,7 +335,7 @@ static int kvmppc_mmu_book3s_32_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 	if (r < 0)
 		r = kvmppc_mmu_book3s_32_xlate_pte(vcpu, eaddr, pte,
 						   data, iswrite, true);
-	if (r < 0)
+	if (r == -ENOENT)
 		r = kvmppc_mmu_book3s_32_xlate_pte(vcpu, eaddr, pte,
 						   data, iswrite, false);
 

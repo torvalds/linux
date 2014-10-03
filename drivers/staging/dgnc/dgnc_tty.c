@@ -53,7 +53,6 @@
 #include "dgnc_driver.h"
 #include "dgnc_tty.h"
 #include "dgnc_types.h"
-#include "dgnc_trace.h"
 #include "dgnc_neo.h"
 #include "dgnc_cls.h"
 #include "dpacompat.h"
@@ -199,9 +198,6 @@ int dgnc_tty_register(struct dgnc_board *brd)
 	int rc = 0;
 
 	DPR_INIT(("tty_register start\n"));
-
-	memset(&brd->SerialDriver, 0, sizeof(brd->SerialDriver));
-	memset(&brd->PrintDriver, 0, sizeof(brd->PrintDriver));
 
 	brd->SerialDriver.magic = TTY_DRIVER_MAGIC;
 
@@ -417,10 +413,8 @@ int dgnc_tty_init(struct dgnc_board *brd)
  */
 void dgnc_tty_post_uninit(void)
 {
-	if (dgnc_TmpWriteBuf) {
-		kfree(dgnc_TmpWriteBuf);
-		dgnc_TmpWriteBuf = NULL;
-	}
+	kfree(dgnc_TmpWriteBuf);
+	dgnc_TmpWriteBuf = NULL;
 }
 
 
@@ -456,14 +450,10 @@ void dgnc_tty_uninit(struct dgnc_board *brd)
 		brd->dgnc_Major_TransparentPrint_Registered = FALSE;
 	}
 
-	if (brd->SerialDriver.ttys) {
-		kfree(brd->SerialDriver.ttys);
-		brd->SerialDriver.ttys = NULL;
-	}
-	if (brd->PrintDriver.ttys) {
-		kfree(brd->PrintDriver.ttys);
-		brd->PrintDriver.ttys = NULL;
-	}
+	kfree(brd->SerialDriver.ttys);
+	brd->SerialDriver.ttys = NULL;
+	kfree(brd->PrintDriver.ttys);
+	brd->PrintDriver.ttys = NULL;
 }
 
 
@@ -1642,10 +1632,10 @@ static void dgnc_tty_close(struct tty_struct *tty, struct file *file)
 		un->un_open_count = 1;
 	}
 
-	if (--un->un_open_count < 0) {
+	if (un->un_open_count)
+		un->un_open_count--;
+	else
 		APR(("bad serial port open count of %d\n", un->un_open_count));
-		un->un_open_count = 0;
-	}
 
 	ch->ch_open_count--;
 
@@ -2115,24 +2105,6 @@ static int dgnc_tty_write(struct tty_struct *tty,
 		head &= tmask;
 		ch->ch_w_head = head;
 	}
-
-#if 0
-	/*
-	 * If this is the print device, and the
-	 * printer is still on, we need to turn it
-	 * off before going idle.
-	 */
-	if (count == orig_count) {
-		if ((un->un_type == DGNC_PRINT) && (ch->ch_flags & CH_PRON)) {
-			head &= tmask;
-			ch->ch_w_head = head;
-			dgnc_wmove(ch, ch->ch_digi.digi_offstr,
-				(int) ch->ch_digi.digi_offlen);
-			head = (ch->ch_w_head) & tmask;
-			ch->ch_flags &= ~CH_PRON;
-		}
-	}
-#endif
 
 	/* Update printer buffer empty time. */
 	if ((un->un_type == DGNC_PRINT) && (ch->ch_digi.digi_maxcps > 0)
@@ -3436,11 +3408,4 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 
 		return -ENOIOCTLCMD;
 	}
-
-	DGNC_UNLOCK(ch->ch_lock, lock_flags);
-
-	DPR_IOCTL(("dgnc_tty_ioctl end - cmd %s (%x), arg %lx\n",
-		dgnc_ioctl_name(cmd), cmd, arg));
-
-	return 0;
 }

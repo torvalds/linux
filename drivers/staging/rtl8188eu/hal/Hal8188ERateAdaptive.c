@@ -358,19 +358,19 @@ static int odm_ARFBRefresh_8188E(struct odm_dm_struct *dm_odm, struct odm_ra_inf
 		pRaInfo->RAUseRate = (pRaInfo->RateMask)&0x0000000d;
 		break;
 	case 12:
-		MaskFromReg = rtw_read32(adapt, REG_ARFR0);
+		MaskFromReg = usb_read32(adapt, REG_ARFR0);
 		pRaInfo->RAUseRate = (pRaInfo->RateMask)&MaskFromReg;
 		break;
 	case 13:
-		MaskFromReg = rtw_read32(adapt, REG_ARFR1);
+		MaskFromReg = usb_read32(adapt, REG_ARFR1);
 		pRaInfo->RAUseRate = (pRaInfo->RateMask)&MaskFromReg;
 		break;
 	case 14:
-		MaskFromReg = rtw_read32(adapt, REG_ARFR2);
+		MaskFromReg = usb_read32(adapt, REG_ARFR2);
 		pRaInfo->RAUseRate = (pRaInfo->RateMask)&MaskFromReg;
 		break;
 	case 15:
-		MaskFromReg = rtw_read32(adapt, REG_ARFR3);
+		MaskFromReg = usb_read32(adapt, REG_ARFR3);
 		pRaInfo->RAUseRate = (pRaInfo->RateMask)&MaskFromReg;
 		break;
 	default:
@@ -670,7 +670,7 @@ void ODM_RA_Set_TxRPT_Time(struct odm_dm_struct *dm_odm, u16 minRptTime)
 {
 	struct adapter *adapt = dm_odm->Adapter;
 
-	rtw_write16(adapt, REG_TX_RPT_TIME, minRptTime);
+	usb_write16(adapt, REG_TX_RPT_TIME, minRptTime);
 }
 
 void ODM_RA_TxRPT2Handle_8188E(struct odm_dm_struct *dm_odm, u8 *TxRPT_Buf, u16 TxRPT_Len, u32 macid_entry0, u32 macid_entry1)

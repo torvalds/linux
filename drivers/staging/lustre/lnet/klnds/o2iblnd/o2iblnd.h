@@ -62,10 +62,10 @@
 
 #define DEBUG_SUBSYSTEM S_LND
 
-#include <linux/libcfs/libcfs.h>
-#include <linux/lnet/lnet.h>
-#include <linux/lnet/lib-lnet.h>
-#include <linux/lnet/lnet-sysctl.h>
+#include "../../../include/linux/libcfs/libcfs.h"
+#include "../../../include/linux/lnet/lnet.h"
+#include "../../../include/linux/lnet/lib-lnet.h"
+#include "../../../include/linux/lnet/lnet-sysctl.h"
 
 #include <rdma/rdma_cm.h>
 #include <rdma/ib_cm.h>
@@ -195,7 +195,7 @@ typedef struct
 	char		 ibd_ifname[KIB_IFNAME_SIZE];
 	int		  ibd_nnets;	 /* # nets extant */
 
-	cfs_time_t	   ibd_next_failover;
+	unsigned long	   ibd_next_failover;
 	int		  ibd_failed_failover; /* # failover failures */
 	unsigned int	 ibd_failover;      /* failover in progress */
 	unsigned int	 ibd_can_failover;  /* IPoIB interface is a bonding master */
@@ -261,7 +261,7 @@ typedef struct kib_poolset
 	char		    ps_name[IBLND_POOL_NAME_LEN]; /* pool set name */
 	struct list_head	      ps_pool_list;	   /* list of pools */
 	struct list_head	      ps_failed_pool_list;    /* failed pool list */
-	cfs_time_t	      ps_next_retry;	  /* time stamp for retry if failed to allocate */
+	unsigned long	      ps_next_retry;	  /* time stamp for retry if failed to allocate */
 	int		     ps_increasing;	  /* is allocating new pool */
 	int		     ps_pool_size;	   /* new pool size */
 	int			ps_cpt;			/* CPT id */
@@ -277,7 +277,7 @@ typedef struct kib_pool
 	struct list_head	      po_list;		/* chain on pool list */
 	struct list_head	      po_free_list;	   /* pre-allocated node */
 	kib_poolset_t	  *po_owner;	       /* pool_set of this pool */
-	cfs_time_t	      po_deadline;	    /* deadline of this pool */
+	unsigned long	      po_deadline;	    /* deadline of this pool */
 	int		     po_allocated;	   /* # of elements in use */
 	int		     po_failed;	      /* pool is created on failed HCA */
 	int		     po_size;		/* # of pre-allocated elements */
@@ -317,7 +317,7 @@ typedef struct
 	/* is allocating new pool */
 	int			fps_increasing;
 	/* time stamp for retry if failed to allocate */
-	cfs_time_t		fps_next_retry;
+	unsigned long		fps_next_retry;
 } kib_fmr_poolset_t;
 
 typedef struct
@@ -326,7 +326,7 @@ typedef struct
 	struct kib_hca_dev     *fpo_hdev;	       /* device for this pool */
 	kib_fmr_poolset_t      *fpo_owner;	      /* owner of this pool */
 	struct ib_fmr_pool     *fpo_fmr_pool;	   /* IB FMR pool */
-	cfs_time_t	      fpo_deadline;	   /* deadline of this pool */
+	unsigned long	      fpo_deadline;	   /* deadline of this pool */
 	int		     fpo_failed;	     /* fmr pool is failed */
 	int		     fpo_map_count;	  /* # of mapped FMR */
 } kib_fmr_pool_t;
@@ -642,7 +642,7 @@ typedef struct kib_peer
 	int		  ibp_connecting;     /* current active connection attempts */
 	int		  ibp_accepting;      /* current passive connection attempts */
 	int		  ibp_error;	  /* errno on closing this peer */
-	cfs_time_t	   ibp_last_alive;     /* when (in jiffies) I was last alive */
+	unsigned long	   ibp_last_alive;     /* when (in jiffies) I was last alive */
 } kib_peer_t;
 
 extern kib_data_t      kiblnd_data;
@@ -990,7 +990,7 @@ void kiblnd_pmr_pool_unmap(kib_phys_mr_t *pmr);
 int  kiblnd_startup (lnet_ni_t *ni);
 void kiblnd_shutdown (lnet_ni_t *ni);
 int  kiblnd_ctl (lnet_ni_t *ni, unsigned int cmd, void *arg);
-void kiblnd_query (struct lnet_ni *ni, lnet_nid_t nid, cfs_time_t *when);
+void kiblnd_query (struct lnet_ni *ni, lnet_nid_t nid, unsigned long *when);
 
 int  kiblnd_tunables_init(void);
 void kiblnd_tunables_fini(void);

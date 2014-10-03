@@ -19,8 +19,8 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <mach/common.h>
 #include <asm/mach/map.h>
+#include "common.h"
 
 void __init shmobile_setup_console(void)
 {

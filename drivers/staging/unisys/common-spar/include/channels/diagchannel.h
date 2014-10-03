@@ -106,17 +106,17 @@ static const uuid_le UltraDiagChannelProtocolGuid =
 * in some of the Supervisor areas, such as Monitor, so it has been "ported" here
 * for use in diagnostic event timestamps... */
 typedef struct _DIAG_EFI_TIME  {
-	U16 Year;		/* 1998 - 20XX */
-	U8 Month;		/* 1 - 12 */
-	U8 Day;			/* 1 - 31 */
-	U8 Hour;		/* 0 - 23 */
-	U8 Minute;		/* 0 - 59 */
-	U8 Second;		/* 0 - 59 */
-	U8 Pad1;
-	U32 Nanosecond;	/* 0 - 999, 999, 999 */
-	S16 TimeZone;		/* -1440 to 1440 or 2047 */
-	U8 Daylight;
-	U8 Pad2;
+	u16 Year;		/* 1998 - 20XX */
+	u8 Month;		/* 1 - 12 */
+	u8 Day;			/* 1 - 31 */
+	u8 Hour;		/* 0 - 23 */
+	u8 Minute;		/* 0 - 59 */
+	u8 Second;		/* 0 - 59 */
+	u8 Pad1;
+	u32 Nanosecond;	/* 0 - 999, 999, 999 */
+	s16 TimeZone;		/* -1440 to 1440 or 2047 */
+	u8 Daylight;
+	u8 Pad2;
 } DIAG_EFI_TIME;
 
 typedef enum  {
@@ -156,31 +156,31 @@ typedef enum  {
  * AdditionalInfo: Array of characters for additional event info (may be
  * empty).  */
 typedef struct _DIAG_CHANNEL_EVENT  {
-	U32 EventId;
-	U32 Severity;
-	U8 ModuleName[MAX_MODULE_NAME_SIZE];
-	U32 LineNumber;
+	u32 EventId;
+	u32 Severity;
+	u8 ModuleName[MAX_MODULE_NAME_SIZE];
+	u32 LineNumber;
 	DIAG_EFI_TIME Timestamp;	/* Size = 16 bytes */
-	U32 PartitionNumber;	/* Filled in by Diag Switch as pool blocks are
+	u32 PartitionNumber;	/* Filled in by Diag Switch as pool blocks are
 				 * filled */
-	U16 VirtualProcessorNumber;
-	U16 LogicalProcessorNumber;
-	U8 ComponentType;	/* ULTRA_COMPONENT_TYPES */
-	U8 Subsystem;
-	U16 Reserved0;		/* pad to U64 alignment */
-	U32 BlockNumber;	/* filled in by DiagSwitch as pool blocks are
+	u16 VirtualProcessorNumber;
+	u16 LogicalProcessorNumber;
+	u8 ComponentType;	/* ULTRA_COMPONENT_TYPES */
+	u8 Subsystem;
+	u16 Reserved0;		/* pad to u64 alignment */
+	u32 BlockNumber;	/* filled in by DiagSwitch as pool blocks are
 				 * filled */
-	U32 BlockNumberHigh;
-	U32 EventNumber;	/* filled in by DiagSwitch as pool blocks are
+	u32 BlockNumberHigh;
+	u32 EventNumber;	/* filled in by DiagSwitch as pool blocks are
 				 * filled */
-	U32 EventNumberHigh;
+	u32 EventNumberHigh;
 
 	/* The BlockNumber and EventNumber fields are set only by DiagSwitch
 	 * and referenced only by WinDiagDisplay formatting tool as
 	 * additional diagnostic information.  Other tools including
 	 * WinDiagDisplay currently ignore these 'Reserved' bytes. */
-	U8 Reserved[8];
-	U8 AdditionalInfo[MAX_ADDITIONAL_INFO_SIZE];
+	u8 Reserved[8];
+	u8 AdditionalInfo[MAX_ADDITIONAL_INFO_SIZE];
 
 	/* NOTE: Changesto DIAG_CHANNEL_EVENT generally need to be reflected in
 	 * existing copies *
@@ -363,10 +363,10 @@ typedef enum  {
  *			particular subsystem below this level will be discarded.
  */
 typedef struct _DIAG_CHANNEL_PROTOCOL_HEADER  {
-	volatile U32 DiagLock;
-	U8 IsChannelInitialized;
-	U8 Reserved[3];
-	U8 SubsystemSeverityFilter[64];
+	volatile u32 DiagLock;
+	u8 IsChannelInitialized;
+	u8 Reserved[3];
+	u8 SubsystemSeverityFilter[64];
 } DIAG_CHANNEL_PROTOCOL_HEADER;
 
 /* The Diagram for the Diagnostic Channel: */

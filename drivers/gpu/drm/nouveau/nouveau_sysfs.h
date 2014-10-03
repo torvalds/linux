@@ -4,7 +4,7 @@
 #include "nouveau_drm.h"
 
 struct nouveau_sysfs {
-	struct nouveau_object *ctrl;
+	struct nvif_object ctrl;
 };
 
 static inline struct nouveau_sysfs *

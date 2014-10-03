@@ -22,7 +22,7 @@ clocks {
 		#clock-cells = <0>;
 		compatible = "ti,keystone,pll-clock";
 		clocks = <&refclkpass>;
-		clock-output-names = "pa-pll-clk";
+		clock-output-names = "papllclk";
 		reg = <0x02620358 4>;
 		reg-names = "control";
 	};

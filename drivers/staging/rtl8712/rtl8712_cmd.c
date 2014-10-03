@@ -326,7 +326,7 @@ int r8712_cmd_thread(void *context)
 	struct _adapter *padapter = (struct _adapter *)context;
 	struct	cmd_priv	*pcmdpriv = &(padapter->cmdpriv);
 
-	thread_enter(padapter);
+	allow_signal(SIGTERM);
 	while (1) {
 		if ((_down_sema(&(pcmdpriv->cmd_queue_sema))) == _FAIL)
 			break;
@@ -351,7 +351,7 @@ _next:
 						    &padapter->dvobjpriv;
 			u8 blnPending = 0;
 			pcmdpriv->cmd_issued_cnt++;
-			cmdsz = _RND8((pcmd->cmdsz)); /* _RND8	*/
+			cmdsz = round_up(pcmd->cmdsz, 8);
 			wr_sz = TXDESC_SIZE + 8 + cmdsz;
 			pdesc->txdw0 |= cpu_to_le32((wr_sz-TXDESC_SIZE) &
 						     0x0000ffff);
@@ -410,7 +410,7 @@ _next:
 				}
 			}
 			r8712_free_cmd_obj(pcmd);
-			if (_queue_empty(&(pcmdpriv->cmd_queue))) {
+			if (list_empty(&pcmdpriv->cmd_queue.queue)) {
 				r8712_unregister_cmd_alive(padapter);
 				continue;
 			} else

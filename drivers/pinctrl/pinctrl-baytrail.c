@@ -25,9 +25,7 @@
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/interrupt.h>
-#include <linux/irq.h>
 #include <linux/gpio.h>
-#include <linux/irqdomain.h>
 #include <linux/acpi.h>
 #include <linux/platform_device.h>
 #include <linux/seq_file.h>
@@ -44,6 +42,7 @@
 
 /* BYT_CONF0_REG register bits */
 #define BYT_IODEN		BIT(31)
+#define BYT_DIRECT_IRQ_EN	BIT(27)
 #define BYT_TRIG_NEG		BIT(26)
 #define BYT_TRIG_POS		BIT(25)
 #define BYT_TRIG_LVL		BIT(24)
@@ -137,7 +136,6 @@ static struct pinctrl_gpio_range byt_ranges[] = {
 
 struct byt_gpio {
 	struct gpio_chip		chip;
-	struct irq_domain		*domain;
 	struct platform_device		*pdev;
 	spinlock_t			lock;
 	void __iomem			*reg_base;
@@ -217,7 +215,7 @@ static void byt_gpio_free(struct gpio_chip *chip, unsigned offset)
 
 static int byt_irq_type(struct irq_data *d, unsigned type)
 {
-	struct byt_gpio *vg = irq_data_get_irq_chip_data(d);
+	struct byt_gpio *vg = to_byt_gpio(irq_data_get_irq_chip_data(d));
 	u32 offset = irqd_to_hwirq(d);
 	u32 value;
 	unsigned long flags;
@@ -303,11 +301,21 @@ static int byt_gpio_direction_output(struct gpio_chip *chip,
 				     unsigned gpio, int value)
 {
 	struct byt_gpio *vg = to_byt_gpio(chip);
+	void __iomem *conf_reg = byt_gpio_reg(chip, gpio, BYT_CONF0_REG);
 	void __iomem *reg = byt_gpio_reg(chip, gpio, BYT_VAL_REG);
 	unsigned long flags;
 	u32 reg_val;
 
 	spin_lock_irqsave(&vg->lock, flags);
+
+	/*
+	 * Before making any direction modifications, do a check if gpio
+	 * is set for direct IRQ.  On baytrail, setting GPIO to output does
+	 * not make sense, so let's at least warn the caller before they shoot
+	 * themselves in the foot.
+	 */
+	WARN(readl(conf_reg) & BYT_DIRECT_IRQ_EN,
+		"Potential Error: Setting GPIO with direct_irq_en to output");
 
 	reg_val = readl(reg) | BYT_DIR_MASK;
 	reg_val &= ~BYT_OUTPUT_EN;
@@ -393,16 +401,10 @@ static void byt_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 	spin_unlock_irqrestore(&vg->lock, flags);
 }
 
-static int byt_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
-{
-	struct byt_gpio *vg = to_byt_gpio(chip);
-	return irq_create_mapping(vg->domain, offset);
-}
-
 static void byt_gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 {
 	struct irq_data *data = irq_desc_get_irq_data(desc);
-	struct byt_gpio *vg = irq_data_get_irq_handler_data(data);
+	struct byt_gpio *vg = to_byt_gpio(irq_desc_get_handler_data(desc));
 	struct irq_chip *chip = irq_data_get_irq_chip(data);
 	u32 base, pin, mask;
 	void __iomem *reg;
@@ -421,7 +423,7 @@ static void byt_gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 			/* Clear before handling so we can't lose an edge */
 			writel(mask, reg);
 
-			virq = irq_find_mapping(vg->domain, base + pin);
+			virq = irq_find_mapping(vg->chip.irqdomain, base + pin);
 			generic_handle_irq(virq);
 
 			/* In case bios or user sets triggering incorretly a pin
@@ -454,33 +456,11 @@ static void byt_irq_mask(struct irq_data *d)
 {
 }
 
-static int byt_irq_reqres(struct irq_data *d)
-{
-	struct byt_gpio *vg = irq_data_get_irq_chip_data(d);
-
-	if (gpio_lock_as_irq(&vg->chip, irqd_to_hwirq(d))) {
-		dev_err(vg->chip.dev,
-			"unable to lock HW IRQ %lu for IRQ\n",
-			irqd_to_hwirq(d));
-		return -EINVAL;
-	}
-	return 0;
-}
-
-static void byt_irq_relres(struct irq_data *d)
-{
-	struct byt_gpio *vg = irq_data_get_irq_chip_data(d);
-
-	gpio_unlock_as_irq(&vg->chip, irqd_to_hwirq(d));
-}
-
 static struct irq_chip byt_irqchip = {
 	.name = "BYT-GPIO",
 	.irq_mask = byt_irq_mask,
 	.irq_unmask = byt_irq_unmask,
 	.irq_set_type = byt_irq_type,
-	.irq_request_resources = byt_irq_reqres,
-	.irq_release_resources = byt_irq_relres,
 };
 
 static void byt_gpio_irq_init_hw(struct byt_gpio *vg)
@@ -501,23 +481,6 @@ static void byt_gpio_irq_init_hw(struct byt_gpio *vg)
 	}
 }
 
-static int byt_gpio_irq_map(struct irq_domain *d, unsigned int virq,
-			    irq_hw_number_t hw)
-{
-	struct byt_gpio *vg = d->host_data;
-
-	irq_set_chip_and_handler_name(virq, &byt_irqchip, handle_simple_irq,
-				      "demux");
-	irq_set_chip_data(virq, vg);
-	irq_set_irq_type(virq, IRQ_TYPE_NONE);
-
-	return 0;
-}
-
-static const struct irq_domain_ops byt_gpio_irq_ops = {
-	.map = byt_gpio_irq_map,
-};
-
 static int byt_gpio_probe(struct platform_device *pdev)
 {
 	struct byt_gpio *vg;
@@ -527,7 +490,6 @@ static int byt_gpio_probe(struct platform_device *pdev)
 	struct acpi_device *acpi_dev;
 	struct pinctrl_gpio_range *range;
 	acpi_handle handle = ACPI_HANDLE(dev);
-	unsigned hwirq;
 	int ret;
 
 	if (acpi_bus_get_device(handle, &acpi_dev))
@@ -574,27 +536,27 @@ static int byt_gpio_probe(struct platform_device *pdev)
 	gc->can_sleep = false;
 	gc->dev = dev;
 
-	/* set up interrupts  */
-	irq_rc = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (irq_rc && irq_rc->start) {
-		hwirq = irq_rc->start;
-		gc->to_irq = byt_gpio_to_irq;
-
-		vg->domain = irq_domain_add_linear(NULL, gc->ngpio,
-						   &byt_gpio_irq_ops, vg);
-		if (!vg->domain)
-			return -ENXIO;
-
-		byt_gpio_irq_init_hw(vg);
-
-		irq_set_handler_data(hwirq, vg);
-		irq_set_chained_handler(hwirq, byt_gpio_irq_handler);
-	}
-
 	ret = gpiochip_add(gc);
 	if (ret) {
 		dev_err(&pdev->dev, "failed adding byt-gpio chip\n");
 		return ret;
+	}
+
+	/* set up interrupts  */
+	irq_rc = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (irq_rc && irq_rc->start) {
+		byt_gpio_irq_init_hw(vg);
+		ret = gpiochip_irqchip_add(gc, &byt_irqchip, 0,
+					   handle_simple_irq, IRQ_TYPE_NONE);
+		if (ret) {
+			dev_err(dev, "failed to add irqchip\n");
+			gpiochip_remove(gc);
+			return ret;
+		}
+
+		gpiochip_set_chained_irqchip(gc, &byt_irqchip,
+					     (unsigned)irq_rc->start,
+					     byt_gpio_irq_handler);
 	}
 
 	pm_runtime_enable(dev);
@@ -627,12 +589,9 @@ MODULE_DEVICE_TABLE(acpi, byt_gpio_acpi_match);
 static int byt_gpio_remove(struct platform_device *pdev)
 {
 	struct byt_gpio *vg = platform_get_drvdata(pdev);
-	int err;
 
 	pm_runtime_disable(&pdev->dev);
-	err = gpiochip_remove(&vg->chip);
-	if (err)
-		dev_warn(&pdev->dev, "failed to remove gpio_chip.\n");
+	gpiochip_remove(&vg->chip);
 
 	return 0;
 }

@@ -346,6 +346,7 @@ struct sw_tx_bd {
 	u8		flags;
 /* Set on the first BD descriptor when there is a split BD */
 #define BNX2X_TSO_SPLIT_BD		(1<<0)
+#define BNX2X_HAS_SECOND_PBD		(1<<1)
 };
 
 struct sw_rx_page {
@@ -1482,6 +1483,7 @@ struct bnx2x {
 	union pf_vf_bulletin   *pf2vf_bulletin;
 	dma_addr_t		pf2vf_bulletin_mapping;
 
+	union pf_vf_bulletin		shadow_bulletin;
 	struct pf_vf_bulletin_content	old_bulletin;
 
 	u16 requested_nr_virtfn;
@@ -1507,8 +1509,10 @@ struct bnx2x {
 /* TCP with Timestamp Option (32) + IPv6 (40) */
 #define ETH_MAX_TPA_HEADER_SIZE		72
 
-	/* Max supported alignment is 256 (8 shift) */
-#define BNX2X_RX_ALIGN_SHIFT		min(8, L1_CACHE_SHIFT)
+	/* Max supported alignment is 256 (8 shift)
+	 * minimal alignment shift 6 is optimal for 57xxx HW performance
+	 */
+#define BNX2X_RX_ALIGN_SHIFT		max(6, min(8, L1_CACHE_SHIFT))
 
 	/* FW uses 2 Cache lines Alignment for start packet and size
 	 *
@@ -1928,6 +1932,8 @@ struct bnx2x {
 	struct semaphore			stats_sema;
 
 	u8					phys_port_id[ETH_ALEN];
+
+	struct bnx2x_link_report_data		vf_link_vars;
 };
 
 /* Tx queues may be less or equal to Rx queues */

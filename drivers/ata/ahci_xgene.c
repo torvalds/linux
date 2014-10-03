@@ -67,6 +67,9 @@
 #define PORTAXICFG			0x000000bc
 #define PORTAXICFG_OUTTRANS_SET(dst, src) \
 		(((dst) & ~0x00f00000) | (((u32)(src) << 0x14) & 0x00f00000))
+#define PORTRANSCFG			0x000000c8
+#define PORTRANSCFG_RXWM_SET(dst, src)		\
+		(((dst) & ~0x0000007f) | (((u32)(src)) & 0x0000007f))
 
 /* SATA host controller AXI CSR */
 #define INT_SLV_TMOMASK			0x00000010
@@ -193,11 +196,11 @@ static void xgene_ahci_set_phy_cfg(struct xgene_ahci_context *ctx, int channel)
 	/* Disable fix rate */
 	writel(0x0001fffe, mmio + PORTPHY1CFG);
 	readl(mmio + PORTPHY1CFG); /* Force a barrier */
-	writel(0x5018461c, mmio + PORTPHY2CFG);
+	writel(0x28183219, mmio + PORTPHY2CFG);
 	readl(mmio + PORTPHY2CFG); /* Force a barrier */
-	writel(0x1c081907, mmio + PORTPHY3CFG);
+	writel(0x13081008, mmio + PORTPHY3CFG);
 	readl(mmio + PORTPHY3CFG); /* Force a barrier */
-	writel(0x1c080815, mmio + PORTPHY4CFG);
+	writel(0x00480815, mmio + PORTPHY4CFG);
 	readl(mmio + PORTPHY4CFG); /* Force a barrier */
 	/* Set window negotiation */
 	val = readl(mmio + PORTPHY5CFG);
@@ -209,6 +212,10 @@ static void xgene_ahci_set_phy_cfg(struct xgene_ahci_context *ctx, int channel)
 	val = PORTAXICFG_OUTTRANS_SET(val, 0xe); /* Set outstanding */
 	writel(val, mmio + PORTAXICFG);
 	readl(mmio + PORTAXICFG); /* Force a barrier */
+	/* Set the watermark threshold of the receive FIFO */
+	val = readl(mmio + PORTRANSCFG);
+	val = PORTRANSCFG_RXWM_SET(val, 0x30);
+	writel(val, mmio + PORTRANSCFG);
 }
 
 /**
@@ -337,7 +344,7 @@ static struct ata_port_operations xgene_ahci_ops = {
 };
 
 static const struct ata_port_info xgene_ahci_port_info = {
-	.flags = AHCI_FLAG_COMMON | ATA_FLAG_NCQ,
+	.flags = AHCI_FLAG_COMMON,
 	.pio_mask = ATA_PIO4,
 	.udma_mask = ATA_UDMA6,
 	.port_ops = &xgene_ahci_ops,
@@ -415,7 +422,6 @@ static int xgene_ahci_probe(struct platform_device *pdev)
 	struct ahci_host_priv *hpriv;
 	struct xgene_ahci_context *ctx;
 	struct resource *res;
-	unsigned long hflags;
 	int rc;
 
 	hpriv = ahci_platform_get_resources(pdev);
@@ -474,20 +480,9 @@ static int xgene_ahci_probe(struct platform_device *pdev)
 	/* Configure the host controller */
 	xgene_ahci_hw_init(hpriv);
 
-	/*
-	 * Setup DMA mask. This is preliminary until the DMA range is sorted
-	 * out.
-	 */
-	rc = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
-	if (rc) {
-		dev_err(dev, "Unable to set dma mask\n");
-		goto disable_resources;
-	}
+	hpriv->flags = AHCI_HFLAG_NO_PMP | AHCI_HFLAG_NO_NCQ;
 
-	hflags = AHCI_HFLAG_NO_PMP | AHCI_HFLAG_YES_NCQ;
-
-	rc = ahci_platform_init_host(pdev, hpriv, &xgene_ahci_port_info,
-				     hflags, 0, 0);
+	rc = ahci_platform_init_host(pdev, hpriv, &xgene_ahci_port_info);
 	if (rc)
 		goto disable_resources;
 

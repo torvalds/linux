@@ -7,27 +7,32 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/cpu_pm.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/of_address.h>
 #include <linux/smp.h>
+#include <linux/suspend.h>
+#include <linux/threads.h>
 #include <asm/cacheflush.h>
 #include <asm/cp15.h>
+#include <asm/proc-fns.h>
 #include <asm/smp_plat.h>
-#include <mach/common.h>
+#include <asm/suspend.h>
+#include "common.h"
 
 static struct {
 	void __iomem *iomem;
 	int bit;
-} apmu_cpus[CONFIG_NR_CPUS];
+} apmu_cpus[NR_CPUS];
 
 #define WUPCR_OFFS 0x10
 #define PSTR_OFFS 0x40
 #define CPUNCR_OFFS(n) (0x100 + (0x10 * (n)))
 
-static int apmu_power_on(void __iomem *p, int bit)
+static int __maybe_unused apmu_power_on(void __iomem *p, int bit)
 {
 	/* request power on */
 	writel_relaxed(BIT(bit), p + WUPCR_OFFS);
@@ -46,7 +51,7 @@ static int apmu_power_off(void __iomem *p, int bit)
 	return 0;
 }
 
-static int apmu_power_off_poll(void __iomem *p, int bit)
+static int __maybe_unused apmu_power_off_poll(void __iomem *p, int bit)
 {
 	int k;
 
@@ -69,7 +74,7 @@ static int apmu_wrap(int cpu, int (*fn)(void __iomem *p, int cpu))
 
 static void apmu_init_cpu(struct resource *res, int cpu, int bit)
 {
-	if (apmu_cpus[cpu].iomem)
+	if ((cpu >= ARRAY_SIZE(apmu_cpus)) || apmu_cpus[cpu].iomem)
 		return;
 
 	apmu_cpus[cpu].iomem = ioremap_nocache(res->start, resource_size(res));
@@ -133,6 +138,7 @@ void __init shmobile_smp_apmu_prepare_cpus(unsigned int max_cpus)
 	apmu_parse_cfg(apmu_init_cpu);
 }
 
+#ifdef CONFIG_SMP
 int shmobile_smp_apmu_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	/* For this particular CPU register boot vector */
@@ -140,8 +146,9 @@ int shmobile_smp_apmu_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 	return apmu_wrap(cpu, apmu_power_on);
 }
+#endif
 
-#ifdef CONFIG_HOTPLUG_CPU
+#if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_SUSPEND)
 /* nicked from arch/arm/mach-exynos/hotplug.c */
 static inline void cpu_enter_lowpower_a15(void)
 {
@@ -172,16 +179,40 @@ static inline void cpu_enter_lowpower_a15(void)
 	dsb();
 }
 
-void shmobile_smp_apmu_cpu_die(unsigned int cpu)
+void shmobile_smp_apmu_cpu_shutdown(unsigned int cpu)
 {
-	/* For this particular CPU deregister boot vector */
-	shmobile_smp_hook(cpu, 0, 0);
 
 	/* Select next sleep mode using the APMU */
 	apmu_wrap(cpu, apmu_power_off);
 
 	/* Do ARM specific CPU shutdown */
 	cpu_enter_lowpower_a15();
+}
+
+static inline void cpu_leave_lowpower(void)
+{
+	unsigned int v;
+
+	asm volatile("mrc    p15, 0, %0, c1, c0, 0\n"
+		     "       orr     %0, %0, %1\n"
+		     "       mcr     p15, 0, %0, c1, c0, 0\n"
+		     "       mrc     p15, 0, %0, c1, c0, 1\n"
+		     "       orr     %0, %0, %2\n"
+		     "       mcr     p15, 0, %0, c1, c0, 1\n"
+		     : "=&r" (v)
+		     : "Ir" (CR_C), "Ir" (0x40)
+		     : "cc");
+}
+#endif
+
+#if defined(CONFIG_HOTPLUG_CPU)
+void shmobile_smp_apmu_cpu_die(unsigned int cpu)
+{
+	/* For this particular CPU deregister boot vector */
+	shmobile_smp_hook(cpu, 0, 0);
+
+	/* Shutdown CPU core */
+	shmobile_smp_apmu_cpu_shutdown(cpu);
 
 	/* jump to shared mach-shmobile sleep / reset code */
 	shmobile_smp_sleep();
@@ -190,5 +221,27 @@ void shmobile_smp_apmu_cpu_die(unsigned int cpu)
 int shmobile_smp_apmu_cpu_kill(unsigned int cpu)
 {
 	return apmu_wrap(cpu, apmu_power_off_poll);
+}
+#endif
+
+#if defined(CONFIG_SUSPEND)
+static int shmobile_smp_apmu_do_suspend(unsigned long cpu)
+{
+	shmobile_smp_hook(cpu, virt_to_phys(cpu_resume), 0);
+	shmobile_smp_apmu_cpu_shutdown(cpu);
+	cpu_do_idle(); /* WFI selects Core Standby */
+	return 1;
+}
+
+static int shmobile_smp_apmu_enter_suspend(suspend_state_t state)
+{
+	cpu_suspend(smp_processor_id(), shmobile_smp_apmu_do_suspend);
+	cpu_leave_lowpower();
+	return 0;
+}
+
+void __init shmobile_smp_apmu_suspend_init(void)
+{
+	shmobile_suspend_ops.enter = shmobile_smp_apmu_enter_suspend;
 }
 #endif

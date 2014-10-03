@@ -490,7 +490,7 @@ out:
 
 /* Start of PCI section */
 
-static DEFINE_PCI_DEVICE_TABLE(usnic_ib_pci_ids) = {
+static const struct pci_device_id usnic_ib_pci_ids[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_CISCO, PCI_DEVICE_ID_CISCO_VIC_USPACE_NIC)},
 	{0,}
 };

@@ -410,8 +410,12 @@
 #define __NR_finit_module	342
 #define __NR_sched_setattr	343
 #define __NR_sched_getattr	344
+#define __NR_renameat2		345
+#define __NR_seccomp		346
+#define __NR_getrandom		347
+#define __NR_memfd_create	348
 
-#define NR_syscalls		345
+#define NR_syscalls		349
 
 /* Bitmask values returned from kern_features system call.  */
 #define KERN_FEATURE_MIXED_MODE_STACK	0x00000001

@@ -32,10 +32,12 @@
  * 2 = USB handling
  * 4 = I2C related
  * 8 = Bridge related
+ * 16 = IR related
  */
 int au0828_debug;
 module_param_named(debug, au0828_debug, int, 0644);
-MODULE_PARM_DESC(debug, "enable debug messages");
+MODULE_PARM_DESC(debug,
+		 "set debug bitmask: 1=general, 2=USB, 4=I2C, 8=bridge, 16=IR");
 
 static unsigned int disable_usb_speed_check;
 module_param(disable_usb_speed_check, int, 0444);
@@ -151,6 +153,9 @@ static void au0828_usb_disconnect(struct usb_interface *interface)
 
 	dprintk(1, "%s()\n", __func__);
 
+#ifdef CONFIG_VIDEO_AU0828_RC
+	au0828_rc_unregister(dev);
+#endif
 	/* Digital TV */
 	au0828_dvb_unregister(dev);
 
@@ -261,9 +266,15 @@ static int au0828_usb_probe(struct usb_interface *interface,
 		pr_err("%s() au0282_dev_register failed\n",
 		       __func__);
 
+#ifdef CONFIG_VIDEO_AU0828_RC
+	/* Remote controller */
+	au0828_rc_register(dev);
+#endif
 
-	/* Store the pointer to the au0828_dev so it can be accessed in
-	   au0828_usb_disconnect */
+	/*
+	 * Store the pointer to the au0828_dev so it can be accessed in
+	 * au0828_usb_disconnect
+	 */
 	usb_set_intfdata(interface, dev);
 
 	printk(KERN_INFO "Registered device AU0828 [%s]\n",
@@ -279,6 +290,8 @@ static struct usb_driver au0828_usb_driver = {
 	.probe		= au0828_usb_probe,
 	.disconnect	= au0828_usb_disconnect,
 	.id_table	= au0828_usb_id_table,
+
+	/* FIXME: Add suspend and resume functions */
 };
 
 static int __init au0828_init(void)
@@ -296,6 +309,10 @@ static int __init au0828_init(void)
 
 	if (au0828_debug & 8)
 		printk(KERN_INFO "%s() Bridge Debugging is enabled\n",
+		       __func__);
+
+	if (au0828_debug & 16)
+		printk(KERN_INFO "%s() IR Debugging is enabled\n",
 		       __func__);
 
 	printk(KERN_INFO "au0828 driver loaded\n");
@@ -318,4 +335,4 @@ module_exit(au0828_exit);
 MODULE_DESCRIPTION("Driver for Auvitek AU0828 based products");
 MODULE_AUTHOR("Steven Toth <stoth@linuxtv.org>");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("0.0.2");
+MODULE_VERSION("0.0.3");

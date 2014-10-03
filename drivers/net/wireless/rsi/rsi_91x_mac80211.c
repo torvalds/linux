@@ -177,7 +177,7 @@ static void rsi_register_rates_channels(struct rsi_hw *adapter, int band)
 	sbands->ht_cap.cap = (IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
 			      IEEE80211_HT_CAP_SGI_20 |
 			      IEEE80211_HT_CAP_SGI_40);
-	sbands->ht_cap.ampdu_factor = IEEE80211_HT_MAX_AMPDU_8K;
+	sbands->ht_cap.ampdu_factor = IEEE80211_HT_MAX_AMPDU_16K;
 	sbands->ht_cap.ampdu_density = IEEE80211_HT_MPDU_DENSITY_NONE;
 	sbands->ht_cap.mcs.rx_mask[0] = 0xff;
 	sbands->ht_cap.mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
@@ -185,7 +185,7 @@ static void rsi_register_rates_channels(struct rsi_hw *adapter, int band)
 }
 
 /**
- * rsi_mac80211_attach() - This function is used to de-initialize the
+ * rsi_mac80211_detach() - This function is used to de-initialize the
  *			   Mac80211 stack.
  * @adapter: Pointer to the adapter structure.
  *
@@ -341,6 +341,59 @@ static void rsi_mac80211_remove_interface(struct ieee80211_hw *hw,
 }
 
 /**
+ * rsi_channel_change() - This function is a performs the checks
+ *			  required for changing a channel and sets
+ *			  the channel accordingly.
+ * @hw: Pointer to the ieee80211_hw structure.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+static int rsi_channel_change(struct ieee80211_hw *hw)
+{
+	struct rsi_hw *adapter = hw->priv;
+	struct rsi_common *common = adapter->priv;
+	int status = -EOPNOTSUPP;
+	struct ieee80211_channel *curchan = hw->conf.chandef.chan;
+	u16 channel = curchan->hw_value;
+	struct ieee80211_bss_conf *bss = &adapter->vifs[0]->bss_conf;
+
+	rsi_dbg(INFO_ZONE,
+		"%s: Set channel: %d MHz type: %d channel_no %d\n",
+		__func__, curchan->center_freq,
+		curchan->flags, channel);
+
+	if (bss->assoc) {
+		if (!common->hw_data_qs_blocked &&
+		    (rsi_get_connected_channel(adapter) != channel)) {
+			rsi_dbg(INFO_ZONE, "blk data q %d\n", channel);
+			if (!rsi_send_block_unblock_frame(common, true))
+				common->hw_data_qs_blocked = true;
+		}
+	}
+
+	status = rsi_band_check(common);
+	if (!status)
+		status = rsi_set_channel(adapter->priv, channel);
+
+	if (bss->assoc) {
+		if (common->hw_data_qs_blocked &&
+		    (rsi_get_connected_channel(adapter) == channel)) {
+			rsi_dbg(INFO_ZONE, "unblk data q %d\n", channel);
+			if (!rsi_send_block_unblock_frame(common, false))
+				common->hw_data_qs_blocked = false;
+		}
+	} else {
+		if (common->hw_data_qs_blocked) {
+			rsi_dbg(INFO_ZONE, "unblk data q %d\n", channel);
+			if (!rsi_send_block_unblock_frame(common, false))
+				common->hw_data_qs_blocked = false;
+		}
+	}
+
+	return status;
+}
+
+/**
  * rsi_mac80211_config() - This function is a handler for configuration
  *			   requests. The stack calls this function to
  *			   change hardware configuration, e.g., channel.
@@ -357,17 +410,10 @@ static int rsi_mac80211_config(struct ieee80211_hw *hw,
 	int status = -EOPNOTSUPP;
 
 	mutex_lock(&common->mutex);
-	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
-		struct ieee80211_channel *curchan = hw->conf.chandef.chan;
-		u16 channel = curchan->hw_value;
 
-		rsi_dbg(INFO_ZONE,
-			"%s: Set channel: %d MHz type: %d channel_no %d\n",
-			__func__, curchan->center_freq,
-			curchan->flags, channel);
-		common->band = curchan->band;
-		status = rsi_set_channel(adapter->priv, channel);
-	}
+	if (changed & IEEE80211_CONF_CHANGE_CHANNEL)
+		status = rsi_channel_change(hw);
+
 	mutex_unlock(&common->mutex);
 
 	return status;
@@ -420,6 +466,15 @@ static void rsi_mac80211_bss_info_changed(struct ieee80211_hw *hw,
 				      bss_conf->bssid,
 				      bss_conf->qos,
 				      bss_conf->aid);
+	}
+
+	if (changed & BSS_CHANGED_CQM) {
+		common->cqm_info.last_cqm_event_rssi = 0;
+		common->cqm_info.rssi_thold = bss_conf->cqm_rssi_thold;
+		common->cqm_info.rssi_hyst = bss_conf->cqm_rssi_hyst;
+		rsi_dbg(INFO_ZONE, "RSSI throld & hysteresis are: %d %d\n",
+			common->cqm_info.rssi_thold,
+			common->cqm_info.rssi_hyst);
 	}
 	mutex_unlock(&common->mutex);
 }
@@ -723,21 +778,52 @@ static int rsi_mac80211_set_rate_mask(struct ieee80211_hw *hw,
 {
 	struct rsi_hw *adapter = hw->priv;
 	struct rsi_common *common = adapter->priv;
+	enum ieee80211_band band = hw->conf.chandef.chan->band;
 
 	mutex_lock(&common->mutex);
+	common->fixedrate_mask[band] = 0;
 
-	common->fixedrate_mask[IEEE80211_BAND_2GHZ] = 0;
-
-	if (mask->control[IEEE80211_BAND_2GHZ].legacy == 0xfff) {
-		common->fixedrate_mask[IEEE80211_BAND_2GHZ] =
-			(mask->control[IEEE80211_BAND_2GHZ].ht_mcs[0] << 12);
+	if (mask->control[band].legacy == 0xfff) {
+		common->fixedrate_mask[band] =
+			(mask->control[band].ht_mcs[0] << 12);
 	} else {
-		common->fixedrate_mask[IEEE80211_BAND_2GHZ] =
-			mask->control[IEEE80211_BAND_2GHZ].legacy;
+		common->fixedrate_mask[band] =
+			mask->control[band].legacy;
 	}
 	mutex_unlock(&common->mutex);
 
 	return 0;
+}
+
+/**
+ * rsi_perform_cqm() - This function performs cqm.
+ * @common: Pointer to the driver private structure.
+ * @bssid: pointer to the bssid.
+ * @rssi: RSSI value.
+ */
+static void rsi_perform_cqm(struct rsi_common *common,
+			    u8 *bssid,
+			    s8 rssi)
+{
+	struct rsi_hw *adapter = common->priv;
+	s8 last_event = common->cqm_info.last_cqm_event_rssi;
+	int thold = common->cqm_info.rssi_thold;
+	u32 hyst = common->cqm_info.rssi_hyst;
+	enum nl80211_cqm_rssi_threshold_event event;
+
+	if (rssi < thold && (last_event == 0 || rssi < (last_event - hyst)))
+		event = NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW;
+	else if (rssi > thold &&
+		 (last_event == 0 || rssi > (last_event + hyst)))
+		event = NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH;
+	else
+		return;
+
+	common->cqm_info.last_cqm_event_rssi = rssi;
+	rsi_dbg(INFO_ZONE, "CQM: Notifying event: %d\n", event);
+	ieee80211_cqm_rssi_notify(adapter->vifs[0], event, GFP_KERNEL);
+
+	return;
 }
 
 /**
@@ -755,6 +841,7 @@ static void rsi_fill_rx_status(struct ieee80211_hw *hw,
 			       struct rsi_common *common,
 			       struct ieee80211_rx_status *rxs)
 {
+	struct ieee80211_bss_conf *bss = &common->priv->vifs[0]->bss_conf;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct skb_info *rx_params = (struct skb_info *)info->driver_data;
 	struct ieee80211_hdr *hdr;
@@ -770,10 +857,7 @@ static void rsi_fill_rx_status(struct ieee80211_hw *hw,
 
 	rxs->signal = -(rssi);
 
-	if (channel <= 14)
-		rxs->band = IEEE80211_BAND_2GHZ;
-	else
-		rxs->band = IEEE80211_BAND_5GHZ;
+	rxs->band = common->band;
 
 	freq = ieee80211_channel_to_frequency(channel, rxs->band);
 
@@ -792,6 +876,14 @@ static void rsi_fill_rx_status(struct ieee80211_hw *hw,
 		rxs->flag |= RX_FLAG_DECRYPTED;
 		rxs->flag |= RX_FLAG_IV_STRIPPED;
 	}
+
+	/* CQM only for connected AP beacons, the RSSI is a weighted avg */
+	if (bss->assoc && !(memcmp(bss->bssid, hdr->addr2, ETH_ALEN))) {
+		if (ieee80211_is_beacon(hdr->frame_control))
+			rsi_perform_cqm(common, hdr->addr2, rxs->signal);
+	}
+
+	return;
 }
 
 /**
@@ -983,6 +1075,7 @@ int rsi_mac80211_attach(struct rsi_common *common)
 
 	hw->max_tx_aggregation_subframes = 6;
 	rsi_register_rates_channels(adapter, IEEE80211_BAND_2GHZ);
+	rsi_register_rates_channels(adapter, IEEE80211_BAND_5GHZ);
 	hw->rate_control_algorithm = "AARF";
 
 	SET_IEEE80211_PERM_ADDR(hw, common->mac_addr);
@@ -1000,6 +1093,8 @@ int rsi_mac80211_attach(struct rsi_common *common)
 	wiphy->available_antennas_tx = 1;
 	wiphy->bands[IEEE80211_BAND_2GHZ] =
 		&adapter->sbands[IEEE80211_BAND_2GHZ];
+	wiphy->bands[IEEE80211_BAND_5GHZ] =
+		&adapter->sbands[IEEE80211_BAND_5GHZ];
 
 	status = ieee80211_register_hw(hw);
 	if (status)

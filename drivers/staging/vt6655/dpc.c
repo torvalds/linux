@@ -54,6 +54,7 @@
 #include "rf.h"
 #include "iowpa.h"
 #include "aes_ccmp.h"
+#include "dpc.h"
 
 /*---------------------  Static Definitions -------------------------*/
 
@@ -62,7 +63,7 @@
 /*---------------------  Static Variables  --------------------------*/
 static int msglevel = MSG_LEVEL_INFO;
 
-const unsigned char acbyRxRate[MAX_RATE] =
+static const unsigned char acbyRxRate[MAX_RATE] =
 {2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108};
 
 /*---------------------  Static Functions  --------------------------*/
@@ -267,23 +268,6 @@ s_vGetDASA(unsigned char *pbyRxBufferAddr, unsigned int *pcbHeaderSize,
 	*pcbHeaderSize = cbHeaderSize;
 }
 
-//PLICE_DEBUG ->
-
-void	MngWorkItem(void *Context)
-{
-	PSRxMgmtPacket			pRxMgmtPacket;
-	PSDevice	pDevice =  (PSDevice) Context;
-
-	spin_lock_irq(&pDevice->lock);
-	while (pDevice->rxManeQueue.packet_num != 0) {
-		pRxMgmtPacket =  DeQueue(pDevice);
-		vMgrRxManagePacket(pDevice, pDevice->pMgmt, pRxMgmtPacket);
-	}
-	spin_unlock_irq(&pDevice->lock);
-}
-
-//PLICE_DEBUG<-
-
 bool
 device_receive_frame(
 	PSDevice pDevice,
@@ -340,7 +324,7 @@ device_receive_frame(
 	// Min (ACK): 10HD +4CRC + 2Padding + 4Len + 8TSF + 4RSR
 	if ((FrameSize > 2364) || (FrameSize <= 32)) {
 		// Frame Size error drop this packet.
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "---------- WRONG Length 1 \n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "---------- WRONG Length 1\n");
 		return false;
 	}
 
@@ -358,7 +342,7 @@ device_receive_frame(
 
 	if ((FrameSize > 2346)|(FrameSize < 14)) { // Max: 2312Payload + 30HD +4CRC
 		// Min: 14 bytes ACK
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "---------- WRONG Length 2 \n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "---------- WRONG Length 2\n");
 		return false;
 	}
 //PLICE_DEBUG->
@@ -545,21 +529,9 @@ device_receive_frame(
 			}
 			pRxPacket->byRxRate = s_byGetRateIdx(*pbyRxRate);
 			pRxPacket->byRxChannel = (*pbyRxSts) >> 2;
-//PLICE_DEBUG->
 
-#ifdef	THREAD
-			EnQueue(pDevice, pRxPacket);
-#else
-
-#ifdef	TASK_LET
-			EnQueue(pDevice, pRxPacket);
-			tasklet_schedule(&pDevice->RxMngWorkItem);
-#else
 			vMgrRxManagePacket((void *)pDevice, pDevice->pMgmt, pRxPacket);
-#endif
 
-#endif
-//PLICE_DEBUG<-
 			// hostap Deamon handle 802.11 management
 			if (pDevice->bEnableHostapd) {
 				skb->dev = pDevice->apdev;
@@ -603,6 +575,7 @@ device_receive_frame(
 			{
 				unsigned char Protocol_Version;    //802.1x Authentication
 				unsigned char Packet_Type;           //802.1x Authentication
+
 				if (bIsWEP)
 					cbIVOffset = 8;
 				else
@@ -669,7 +642,7 @@ device_receive_frame(
 		wEtherType = (skb->data[cbIVOffset + 4 + 24 + 6] << 8) |
 			skb->data[cbIVOffset + 4 + 24 + 6 + 1];
 
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wEtherType = %04x \n", wEtherType);
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wEtherType = %04x\n", wEtherType);
 		if (wEtherType == ETH_P_PAE) {
 			skb->dev = pDevice->apdev;
 
@@ -760,6 +733,7 @@ device_receive_frame(
 					union iwreq_data wrqu;
 					struct iw_michaelmicfailure ev;
 					int keyidx = pbyFrame[cbHeaderSize+3] >> 6; //top two-bits
+
 					memset(&ev, 0, sizeof(ev));
 					ev.flags = keyidx & IW_MICFAILURE_KEY_ID;
 					if ((pMgmt->eCurrMode == WMAC_MODE_ESS_STA) &&
@@ -1113,6 +1087,7 @@ static bool s_bHandleRxEncryption(
 			// Software TKIP
 			// 1. 3253 A
 			PS802_11Header  pMACHeader = (PS802_11Header)(pbyFrame);
+
 			TKIPvMixKey(pKey->abyKey, pMACHeader->abyAddr2, *pwRxTSC15_0, *pdwRxTSC47_16, pDevice->abyPRNG);
 			rc4_init(&pDevice->SBox, pDevice->abyPRNG, TKIP_KEY_LEN);
 			rc4_encrypt(&pDevice->SBox, pbyIV+8, pbyIV+8, PayloadLen);
@@ -1175,7 +1150,8 @@ static bool s_bHostWepRxEncryption(
 
 	if (byDecMode == KEY_CTL_WEP) {
 		// handle WEP
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "byDecMode == KEY_CTL_WEP \n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "byDecMode == KEY_CTL_WEP\n");
+
 		if ((pDevice->byLocalID <= REV_ID_VT3253_A1) ||
 		    (((PSKeyTable)(pKey->pvKeyTable))->bSoftWEP == true) ||
 		    !bOnFly) {
@@ -1214,7 +1190,7 @@ static bool s_bHostWepRxEncryption(
 				// Software TKIP
 				// 1. 3253 A
 				// 2. NotOnFly
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "soft KEY_CTL_TKIP \n");
+				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "soft KEY_CTL_TKIP\n");
 				pMACHeader = (PS802_11Header)(pbyFrame);
 				TKIPvMixKey(pKey->abyKey, pMACHeader->abyAddr2, *pwRxTSC15_0, *pdwRxTSC47_16, pDevice->abyPRNG);
 				rc4_init(&pDevice->SBox, pDevice->abyPRNG, TKIP_KEY_LEN);
@@ -1276,7 +1252,7 @@ static bool s_bAPModeRxData(
 
 			// if any node in PS mode, buffer packet until DTIM.
 			if (skbcpy == NULL) {
-				DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "relay multicast no skb available \n");
+				DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "relay multicast no skb available\n");
 			} else {
 				skbcpy->dev = pDevice->dev;
 				skbcpy->len = FrameSize;

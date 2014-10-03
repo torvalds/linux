@@ -26,6 +26,7 @@ Description:
 			option:	[[appraise_type=]] [permit_directio]
 
 		base: 	func:= [BPRM_CHECK][MMAP_CHECK][FILE_CHECK][MODULE_CHECK]
+				[FIRMWARE_CHECK]
 			mask:= [MAY_READ] [MAY_WRITE] [MAY_APPEND] [MAY_EXEC]
 			fsmagic:= hex value
 			fsuuid:= file system UUID (e.g 8bcbe394-4f13-4144-be8e-5aa9ea2ce2f6)
@@ -57,7 +58,8 @@ Description:
 			measure func=BPRM_CHECK
 			measure func=FILE_MMAP mask=MAY_EXEC
 			measure func=FILE_CHECK mask=MAY_READ uid=0
-			measure func=MODULE_CHECK uid=0
+			measure func=MODULE_CHECK
+			measure func=FIRMWARE_CHECK
 			appraise fowner=0
 
 		The default policy measures all executables in bprm_check,

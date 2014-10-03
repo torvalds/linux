@@ -314,10 +314,17 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 			       qca953x_1p0_mac_core);
 		INIT_INI_ARRAY(&ah->iniMac[ATH_INI_POST],
 			       qca953x_1p0_mac_postamble);
-		INIT_INI_ARRAY(&ah->iniBB[ATH_INI_CORE],
-			       qca953x_1p0_baseband_core);
-		INIT_INI_ARRAY(&ah->iniBB[ATH_INI_POST],
-			       qca953x_1p0_baseband_postamble);
+		if (AR_SREV_9531_20(ah)) {
+			INIT_INI_ARRAY(&ah->iniBB[ATH_INI_CORE],
+				       qca953x_2p0_baseband_core);
+			INIT_INI_ARRAY(&ah->iniBB[ATH_INI_POST],
+				       qca953x_2p0_baseband_postamble);
+		} else {
+			INIT_INI_ARRAY(&ah->iniBB[ATH_INI_CORE],
+				       qca953x_1p0_baseband_core);
+			INIT_INI_ARRAY(&ah->iniBB[ATH_INI_POST],
+				       qca953x_1p0_baseband_postamble);
+		}
 		INIT_INI_ARRAY(&ah->iniRadio[ATH_INI_CORE],
 			       qca953x_1p0_radio_core);
 		INIT_INI_ARRAY(&ah->iniRadio[ATH_INI_POST],

@@ -20,6 +20,8 @@
 #include "internal.h"
 #include <keys/user-type.h>
 
+static int request_key_auth_preparse(struct key_preparsed_payload *);
+static void request_key_auth_free_preparse(struct key_preparsed_payload *);
 static int request_key_auth_instantiate(struct key *,
 					struct key_preparsed_payload *);
 static void request_key_auth_describe(const struct key *, struct seq_file *);
@@ -33,12 +35,23 @@ static long request_key_auth_read(const struct key *, char __user *, size_t);
 struct key_type key_type_request_key_auth = {
 	.name		= ".request_key_auth",
 	.def_datalen	= sizeof(struct request_key_auth),
+	.preparse	= request_key_auth_preparse,
+	.free_preparse	= request_key_auth_free_preparse,
 	.instantiate	= request_key_auth_instantiate,
 	.describe	= request_key_auth_describe,
 	.revoke		= request_key_auth_revoke,
 	.destroy	= request_key_auth_destroy,
 	.read		= request_key_auth_read,
 };
+
+int request_key_auth_preparse(struct key_preparsed_payload *prep)
+{
+	return 0;
+}
+
+void request_key_auth_free_preparse(struct key_preparsed_payload *prep)
+{
+}
 
 /*
  * Instantiate a request-key authorisation key.

@@ -30,7 +30,7 @@
 
 enum sdio_interrupt_type {
 	BUFFER_FULL         = 0x0,
-	BUFFER_AVAILABLE    = 0x1,
+	BUFFER_AVAILABLE    = 0x2,
 	FIRMWARE_ASSERT_IND = 0x3,
 	MSDU_PACKET_PENDING = 0x4,
 	UNKNOWN_INT         = 0XE
@@ -42,7 +42,7 @@ enum sdio_interrupt_type {
 #define PKT_MGMT_BUFF_FULL                      2
 #define MSDU_PKT_PENDING                        3
 /* Interrupt Bit Related Macros */
-#define PKT_BUFF_AVAILABLE                      0
+#define PKT_BUFF_AVAILABLE                      1
 #define FW_ASSERT_IND                           2
 
 #define RSI_DEVICE_BUFFER_STATUS_REGISTER       0xf3
@@ -84,7 +84,7 @@ enum sdio_interrupt_type {
 #define TA_HOLD_THREAD_VALUE         cpu_to_le32(0xF)
 #define TA_RELEASE_THREAD_VALUE      cpu_to_le32(0xF)
 #define TA_BASE_ADDR                 0x2200
-#define MISC_CFG_BASE_ADDR           0x4150
+#define MISC_CFG_BASE_ADDR           0x4105
 
 struct receive_info {
 	bool buffer_full;
@@ -98,7 +98,7 @@ struct receive_info {
 	u32 total_sdio_msdu_pending_intr;
 	u32 total_sdio_unknown_intr;
 	u32 buf_full_counter;
-	u32 buf_avilable_counter;
+	u32 buf_available_counter;
 };
 
 struct rsi_91x_sdiodev {

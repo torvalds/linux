@@ -37,7 +37,7 @@ config SND_SOC_SH4_SIU
 config SND_SOC_RCAR
 	tristate "R-Car series SRU/SCU/SSIU/SSI support"
 	select SND_SIMPLE_CARD
-	select REGMAP
+	select REGMAP_MMIO
 	help
 	  This option enables R-Car SUR/SCU/SSIU/SSI sound support
 

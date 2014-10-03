@@ -1,5 +1,5 @@
 config SCSI_BNX2X_FCOE
-	tristate "Broadcom NetXtreme II FCoE support"
+	tristate "QLogic NetXtreme II FCoE support"
 	depends on PCI
 	select NETDEVICES
 	select ETHERNET
@@ -8,5 +8,5 @@ config SCSI_BNX2X_FCOE
 	select LIBFCOE
 	select CNIC
 	---help---
-	This driver supports FCoE offload for the Broadcom NetXtreme II
+	This driver supports FCoE offload for the QLogic NetXtreme II
 	devices.

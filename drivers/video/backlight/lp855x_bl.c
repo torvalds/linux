@@ -274,15 +274,9 @@ static int lp855x_bl_update_status(struct backlight_device *bl)
 	return 0;
 }
 
-static int lp855x_bl_get_brightness(struct backlight_device *bl)
-{
-	return bl->props.brightness;
-}
-
 static const struct backlight_ops lp855x_bl_ops = {
 	.options = BL_CORE_SUSPENDRESUME,
 	.update_status = lp855x_bl_update_status,
-	.get_brightness = lp855x_bl_get_brightness,
 };
 
 static int lp855x_backlight_register(struct lp855x *lp)

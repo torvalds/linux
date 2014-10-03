@@ -46,14 +46,12 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20140424
+#define ACPI_CA_VERSION                 0x20140724
 
 #include <acpi/acconfig.h>
 #include <acpi/actypes.h>
 #include <acpi/actbl.h>
 #include <acpi/acbuffer.h>
-
-extern u8 acpi_gbl_permanent_mmap;
 
 /*****************************************************************************
  *
@@ -334,6 +332,23 @@ ACPI_GLOBAL(u8, acpi_gbl_system_awake_and_running);
 	static ACPI_INLINE prototype {return;}
 
 #endif				/* ACPI_DEBUG_OUTPUT */
+
+/*
+ * Application prototypes
+ *
+ * All interfaces used by application will be configured
+ * out of the ACPICA build unless the ACPI_APPLICATION
+ * flag is defined.
+ */
+#ifdef ACPI_APPLICATION
+#define ACPI_APP_DEPENDENT_RETURN_VOID(prototype) \
+	prototype;
+
+#else
+#define ACPI_APP_DEPENDENT_RETURN_VOID(prototype) \
+	static ACPI_INLINE prototype {return;}
+
+#endif				/* ACPI_APPLICATION */
 
 /*****************************************************************************
  *
@@ -658,6 +673,10 @@ ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 						u32 gpe_number))
 
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
+				acpi_mark_gpe_for_wake(acpi_handle gpe_device,
+						       u32 gpe_number))
+
+ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 				acpi_setup_gpe_for_wake(acpi_handle
 							parent_device,
 							acpi_handle gpe_device,
@@ -861,21 +880,32 @@ ACPI_DBG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(6)
 						     const char *module_name,
 						     u32 component_id,
 						     const char *format, ...))
+ACPI_APP_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(1)
+				void ACPI_INTERNAL_VAR_XFACE
+				acpi_log_error(const char *format, ...))
 
 /*
  * Divergences
  */
-acpi_status acpi_get_id(acpi_handle object, acpi_owner_id * out_type);
+ACPI_GLOBAL(u8, acpi_gbl_permanent_mmap);
 
-acpi_status acpi_unload_table_id(acpi_owner_id id);
+ACPI_EXTERNAL_RETURN_STATUS(acpi_status
+			    acpi_get_id(acpi_handle object,
+					acpi_owner_id * out_type))
 
-acpi_status
-acpi_get_table_with_size(acpi_string signature,
-	       u32 instance, struct acpi_table_header **out_table,
-	       acpi_size *tbl_size);
+ACPI_EXTERNAL_RETURN_STATUS(acpi_status acpi_unload_table_id(acpi_owner_id id))
 
-acpi_status
-acpi_get_data_full(acpi_handle object, acpi_object_handler handler, void **data,
-		   void (*callback)(void *));
+ACPI_EXTERNAL_RETURN_STATUS(acpi_status
+			    acpi_get_table_with_size(acpi_string signature,
+						     u32 instance,
+						     struct acpi_table_header
+						     **out_table,
+						     acpi_size *tbl_size))
+
+ACPI_EXTERNAL_RETURN_STATUS(acpi_status
+			    acpi_get_data_full(acpi_handle object,
+					       acpi_object_handler handler,
+					       void **data,
+					       void (*callback)(void *)))
 
 #endif				/* __ACXFACE_H__ */

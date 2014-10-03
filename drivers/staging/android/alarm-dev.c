@@ -443,4 +443,4 @@ static void  __exit alarm_dev_exit(void)
 
 module_init(alarm_dev_init);
 module_exit(alarm_dev_exit);
-
+MODULE_LICENSE("GPL");

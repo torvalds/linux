@@ -42,8 +42,8 @@
 #define DEBUG_SUBSYSTEM S_LLITE
 
 
-#include <obd.h>
-#include <lustre_lite.h>
+#include "../include/obd.h"
+#include "../include/lustre_lite.h"
 
 #include "vvp_internal.h"
 
@@ -269,8 +269,10 @@ static int vvp_mmap_locks(const struct lu_env *env,
 			       descr->cld_mode, descr->cld_start,
 			       descr->cld_end);
 
-			if (result < 0)
+			if (result < 0) {
+				up_read(&mm->mmap_sem);
 				return result;
+			}
 
 			if (vma->vm_end - addr >= count)
 				break;
@@ -622,7 +624,7 @@ static int vvp_io_kernel_fault(struct vvp_fault_io *cfio)
 		       page_private(vmf->page), vmf->virtual_address);
 		if (unlikely(!(cfio->fault.ft_flags & VM_FAULT_LOCKED))) {
 			lock_page(vmf->page);
-			cfio->fault.ft_flags &= VM_FAULT_LOCKED;
+			cfio->fault.ft_flags |= VM_FAULT_LOCKED;
 		}
 
 		cfio->ft_vmpage = vmf->page;

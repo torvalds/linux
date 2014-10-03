@@ -1029,19 +1029,19 @@ static int wm9081_hw_params(struct snd_pcm_substream *substream,
 		/* Otherwise work out a BCLK from the sample size */
 		wm9081->bclk = 2 * wm9081->fs;
 
-		switch (params_format(params)) {
-		case SNDRV_PCM_FORMAT_S16_LE:
+		switch (params_width(params)) {
+		case 16:
 			wm9081->bclk *= 16;
 			break;
-		case SNDRV_PCM_FORMAT_S20_3LE:
+		case 20:
 			wm9081->bclk *= 20;
 			aif2 |= 0x4;
 			break;
-		case SNDRV_PCM_FORMAT_S24_LE:
+		case 24:
 			wm9081->bclk *= 24;
 			aif2 |= 0x8;
 			break;
-		case SNDRV_PCM_FORMAT_S32_LE:
+		case 32:
 			wm9081->bclk *= 32;
 			aif2 |= 0xc;
 			break;

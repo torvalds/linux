@@ -1120,7 +1120,7 @@ static void ipmmu_remove_device(struct device *dev)
 	dev->archdata.iommu = NULL;
 }
 
-static struct iommu_ops ipmmu_ops = {
+static const struct iommu_ops ipmmu_ops = {
 	.domain_init = ipmmu_domain_init,
 	.domain_destroy = ipmmu_domain_destroy,
 	.attach_dev = ipmmu_attach_device,

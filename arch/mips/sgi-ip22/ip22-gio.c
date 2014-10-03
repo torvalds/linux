@@ -27,8 +27,14 @@ static struct {
 	{ .name = "SGI GR2/GR3", .id = 0x7f },
 };
 
+static void gio_bus_release(struct device *dev)
+{
+	kfree(dev);
+}
+
 static struct device gio_bus = {
 	.init_name = "gio",
+	.release = &gio_bus_release,
 };
 
 /**
@@ -413,8 +419,10 @@ int __init ip22_gio_init(void)
 	int ret;
 
 	ret = device_register(&gio_bus);
-	if (ret)
+	if (ret) {
+		put_device(&gio_bus);
 		return ret;
+	}
 
 	ret = bus_register(&gio_bus_type);
 	if (!ret) {

@@ -21,6 +21,11 @@
 #define BRCMF_FW_REQ_FLAGS		0x00F0
 #define  BRCMF_FW_REQ_NV_OPTIONAL	0x0010
 
+#define	BRCMF_FW_PATH_LEN	256
+#define	BRCMF_FW_NAME_LEN	32
+
+extern char brcmf_firmware_path[];
+
 void brcmf_fw_nvram_free(void *nvram);
 /*
  * Request firmware(s) asynchronously. When the asynchronous request

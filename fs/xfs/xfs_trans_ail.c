@@ -762,7 +762,7 @@ xfs_trans_ail_init(
 
 	ailp = kmem_zalloc(sizeof(struct xfs_ail), KM_MAYFAIL);
 	if (!ailp)
-		return ENOMEM;
+		return -ENOMEM;
 
 	ailp->xa_mount = mp;
 	INIT_LIST_HEAD(&ailp->xa_ail);
@@ -781,7 +781,7 @@ xfs_trans_ail_init(
 
 out_free_ailp:
 	kmem_free(ailp);
-	return ENOMEM;
+	return -ENOMEM;
 }
 
 void

@@ -6,20 +6,13 @@
 #include <core/device.h>
 #include <core/event.h>
 
-enum nvkm_hpd_event {
-	NVKM_HPD_PLUG = 1,
-	NVKM_HPD_UNPLUG = 2,
-	NVKM_HPD_IRQ = 4,
-	NVKM_HPD = (NVKM_HPD_PLUG | NVKM_HPD_UNPLUG | NVKM_HPD_IRQ)
-};
-
 struct nouveau_disp {
 	struct nouveau_engine base;
 
 	struct list_head outp;
-	struct nouveau_event *hpd;
 
-	struct nouveau_event *vblank;
+	struct nvkm_event hpd;
+	struct nvkm_event vblank;
 };
 
 static inline struct nouveau_disp *

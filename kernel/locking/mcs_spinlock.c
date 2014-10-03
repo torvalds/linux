@@ -1,6 +1,4 @@
-
 #include <linux/percpu.h>
-#include <linux/mutex.h>
 #include <linux/sched.h>
 #include "mcs_spinlock.h"
 
@@ -79,7 +77,7 @@ osq_wait_next(struct optimistic_spin_queue *lock,
 				break;
 		}
 
-		arch_mutex_cpu_relax();
+		cpu_relax_lowlatency();
 	}
 
 	return next;
@@ -120,7 +118,7 @@ bool osq_lock(struct optimistic_spin_queue *lock)
 		if (need_resched())
 			goto unqueue;
 
-		arch_mutex_cpu_relax();
+		cpu_relax_lowlatency();
 	}
 	return true;
 
@@ -146,7 +144,7 @@ unqueue:
 		if (smp_load_acquire(&node->locked))
 			return true;
 
-		arch_mutex_cpu_relax();
+		cpu_relax_lowlatency();
 
 		/*
 		 * Or we race against a concurrent unqueue()'s step-B, in which

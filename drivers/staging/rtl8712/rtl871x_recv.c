@@ -86,8 +86,8 @@ sint _r8712_init_recv_priv(struct recv_priv *precvpriv,
 				    (RXFRAME_ALIGN_SZ-1));
 	precvframe = (union recv_frame *)precvpriv->precv_frame_buf;
 	for (i = 0; i < NR_RECVFRAME; i++) {
-		_init_listhead(&(precvframe->u.list));
-		list_insert_tail(&(precvframe->u.list),
+		INIT_LIST_HEAD(&(precvframe->u.list));
+		list_add_tail(&(precvframe->u.list),
 				 &(precvpriv->free_recv_queue.queue));
 		r8712_os_recv_resource_alloc(padapter, precvframe);
 		precvframe->u.hdr.adapter = padapter;
@@ -112,13 +112,13 @@ union recv_frame *r8712_alloc_recvframe(struct  __queue *pfree_recv_queue)
 	struct recv_priv *precvpriv;
 
 	spin_lock_irqsave(&pfree_recv_queue->lock, irqL);
-	if (_queue_empty(pfree_recv_queue) == true)
+	if (list_empty(&pfree_recv_queue->queue))
 		precvframe = NULL;
 	else {
-		phead = get_list_head(pfree_recv_queue);
-		plist = get_next(phead);
+		phead = &pfree_recv_queue->queue;
+		plist = phead->next;
 		precvframe = LIST_CONTAINOR(plist, union recv_frame, u);
-		list_delete(&precvframe->u.hdr.list);
+		list_del_init(&precvframe->u.hdr.list);
 		padapter = precvframe->u.hdr.adapter;
 		if (padapter != NULL) {
 			precvpriv = &padapter->recvpriv;
@@ -145,11 +145,11 @@ void r8712_free_recvframe_queue(struct  __queue *pframequeue,
 	struct list_head *plist, *phead;
 
 	spin_lock(&pframequeue->lock);
-	phead = get_list_head(pframequeue);
-	plist = get_next(phead);
+	phead = &pframequeue->queue;
+	plist = phead->next;
 	while (end_of_queue_search(phead, plist) == false) {
 		precvframe = LIST_CONTAINOR(plist, union recv_frame, u);
-		plist = get_next(plist);
+		plist = plist->next;
 		r8712_free_recvframe(precvframe, pfree_recv_queue);
 	}
 	spin_unlock(&pframequeue->lock);

@@ -186,7 +186,7 @@ static struct attribute *ltc4222_attrs[] = {
 };
 ATTRIBUTE_GROUPS(ltc4222);
 
-static struct regmap_config ltc4222_regmap_config = {
+static const struct regmap_config ltc4222_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = LTC4222_ADC_CONTROL,

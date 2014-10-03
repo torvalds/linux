@@ -1,6 +1,4 @@
 /**
- * linux/drivers/usb/gadget/s3c-hsotg.c
- *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
@@ -1022,7 +1020,8 @@ static void s3c_hsotg_disconnect(struct s3c_hsotg *hsotg);
  *
  * Set stall for ep0 as response for setup request.
  */
-static void s3c_hsotg_stall_ep0(struct s3c_hsotg *hsotg) {
+static void s3c_hsotg_stall_ep0(struct s3c_hsotg *hsotg)
+{
 	struct s3c_hsotg_ep *ep0 = &hsotg->eps[0];
 	u32 reg;
 	u32 ctrl;
@@ -1902,7 +1901,7 @@ static void s3c_hsotg_epint(struct s3c_hsotg *hsotg, unsigned int idx,
 static void s3c_hsotg_irq_enumdone(struct s3c_hsotg *hsotg)
 {
 	u32 dsts = readl(hsotg->regs + DSTS);
-	int ep0_mps = 0, ep_mps;
+	int ep0_mps = 0, ep_mps = 8;
 
 	/*
 	 * This should signal the finish of the enumeration phase
@@ -1994,7 +1993,7 @@ static void kill_all_requests(struct s3c_hsotg *hsotg,
 		s3c_hsotg_complete_request(hsotg, ep, req,
 					   result);
 	}
-	if(hsotg->dedicated_fifos)
+	if (hsotg->dedicated_fifos)
 		if ((readl(hsotg->regs + DTXFSTS(ep->index)) & 0xffff) * 4 < 3072)
 			s3c_hsotg_txfifo_flush(hsotg, ep->index);
 }
@@ -3390,10 +3389,8 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 	int i;
 
 	hsotg = devm_kzalloc(&pdev->dev, sizeof(struct s3c_hsotg), GFP_KERNEL);
-	if (!hsotg) {
-		dev_err(dev, "cannot get memory\n");
+	if (!hsotg)
 		return -ENOMEM;
-	}
 
 	/*
 	 * Attempt to find a generic PHY, then look for an old style
@@ -3512,7 +3509,6 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 	eps = kcalloc(hsotg->num_of_eps + 1, sizeof(struct s3c_hsotg_ep),
 		      GFP_KERNEL);
 	if (!eps) {
-		dev_err(dev, "cannot get memory\n");
 		ret = -ENOMEM;
 		goto err_supplies;
 	}

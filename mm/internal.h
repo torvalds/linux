@@ -247,7 +247,7 @@ static inline void mlock_migrate_page(struct page *new, struct page *old) { }
 static inline struct page *mem_map_offset(struct page *base, int offset)
 {
 	if (unlikely(offset >= MAX_ORDER_NR_PAGES))
-		return pfn_to_page(page_to_pfn(base) + offset);
+		return nth_page(base, offset);
 	return base + offset;
 }
 

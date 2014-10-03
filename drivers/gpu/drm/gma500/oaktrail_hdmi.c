@@ -665,7 +665,7 @@ void oaktrail_hdmi_init(struct drm_device *dev,
 	connector->display_info.subpixel_order = SubPixelHorizontalRGB;
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 	dev_info(dev->dev, "HDMI initialised.\n");
 
 	return;
@@ -674,7 +674,7 @@ failed_connector:
 	kfree(gma_encoder);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(hdmi_ids) = {
+static const struct pci_device_id hdmi_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x080d) },
 	{ 0 }
 };

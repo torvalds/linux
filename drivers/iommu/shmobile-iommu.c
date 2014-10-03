@@ -354,7 +354,7 @@ static int shmobile_iommu_add_device(struct device *dev)
 	return 0;
 }
 
-static struct iommu_ops shmobile_iommu_ops = {
+static const struct iommu_ops shmobile_iommu_ops = {
 	.domain_init = shmobile_iommu_domain_init,
 	.domain_destroy = shmobile_iommu_domain_destroy,
 	.attach_dev = shmobile_iommu_attach_device,

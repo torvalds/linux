@@ -288,7 +288,7 @@ static int cirrus_fbdev_destroy(struct drm_device *dev,
 	return 0;
 }
 
-static struct drm_fb_helper_funcs cirrus_fb_helper_funcs = {
+static const struct drm_fb_helper_funcs cirrus_fb_helper_funcs = {
 	.gamma_set = cirrus_crtc_fb_gamma_set,
 	.gamma_get = cirrus_crtc_fb_gamma_get,
 	.fb_probe = cirrusfb_create,
@@ -306,8 +306,10 @@ int cirrus_fbdev_init(struct cirrus_device *cdev)
 		return -ENOMEM;
 
 	cdev->mode_info.gfbdev = gfbdev;
-	gfbdev->helper.funcs = &cirrus_fb_helper_funcs;
 	spin_lock_init(&gfbdev->dirty_lock);
+
+	drm_fb_helper_prepare(cdev->dev, &gfbdev->helper,
+			      &cirrus_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(cdev->dev, &gfbdev->helper,
 				 cdev->num_crtc, CIRRUSFB_CONN_LIMIT);

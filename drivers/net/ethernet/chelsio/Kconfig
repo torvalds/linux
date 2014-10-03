@@ -86,6 +86,17 @@ config CHELSIO_T4
 	  To compile this driver as a module choose M here; the module
 	  will be called cxgb4.
 
+config CHELSIO_T4_DCB
+	bool "Data Center Bridging (DCB) Support for Chelsio T4/T5 cards"
+	default n
+	depends on CHELSIO_T4 && DCB
+	---help---
+	  Enable DCB support through rtNetlink interface.
+	  Say Y here if you want to enable Data Center Bridging (DCB) support
+	  in the driver.
+
+	  If unsure, say N.
+
 config CHELSIO_T4VF
 	tristate "Chelsio Communications T4/T5 Virtual Function Ethernet support"
 	depends on PCI

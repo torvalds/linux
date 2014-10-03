@@ -401,7 +401,7 @@ static int adi_gpio_irq_type(struct irq_data *d, unsigned int type)
 
 	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING |
 		    IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW)) {
-		snprintf(buf, 16, "gpio-irq%d", irq);
+		snprintf(buf, 16, "gpio-irq%u", irq);
 		port_setup(port, d->hwirq, true);
 	} else
 		goto out;
@@ -652,35 +652,6 @@ static int adi_pinmux_enable(struct pinctrl_dev *pctldev, unsigned func_id,
 	return 0;
 }
 
-static void adi_pinmux_disable(struct pinctrl_dev *pctldev, unsigned func_id,
-	unsigned group_id)
-{
-	struct adi_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctldev);
-	struct gpio_port *port;
-	struct pinctrl_gpio_range *range;
-	unsigned long flags;
-	unsigned short *mux, pin;
-
-	mux = (unsigned short *)pinctrl->soc->groups[group_id].mux;
-
-	while (*mux) {
-		pin = P_IDENT(*mux);
-
-		range = pinctrl_find_gpio_range_from_pin(pctldev, pin);
-		if (range == NULL) /* should not happen */
-			return;
-
-		port = container_of(range->gc, struct gpio_port, chip);
-
-		spin_lock_irqsave(&port->lock, flags);
-
-		port_setup(port, pin_to_offset(range, pin), true);
-		mux++;
-
-		spin_unlock_irqrestore(&port->lock, flags);
-	}
-}
-
 static int adi_pinmux_get_funcs_count(struct pinctrl_dev *pctldev)
 {
 	struct adi_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctldev);
@@ -728,7 +699,6 @@ static int adi_pinmux_request_gpio(struct pinctrl_dev *pctldev,
 
 static struct pinmux_ops adi_pinmux_ops = {
 	.enable = adi_pinmux_enable,
-	.disable = adi_pinmux_disable,
 	.get_functions_count = adi_pinmux_get_funcs_count,
 	.get_function_name = adi_pinmux_get_func_name,
 	.get_function_groups = adi_pinmux_get_groups,
@@ -979,7 +949,7 @@ static int adi_gpio_probe(struct platform_device *pdev)
 	struct gpio_port *port;
 	char pinctrl_devname[DEVNAME_SIZE];
 	static int gpio;
-	int ret = 0, ret1;
+	int ret = 0;
 
 	pdata = dev->platform_data;
 	if (!pdata)
@@ -1057,7 +1027,7 @@ static int adi_gpio_probe(struct platform_device *pdev)
 	return 0;
 
 out_remove_gpiochip:
-	ret1 = gpiochip_remove(&port->chip);
+	gpiochip_remove(&port->chip);
 out_remove_domain:
 	if (port->pint)
 		irq_domain_remove(port->domain);
@@ -1068,12 +1038,11 @@ out_remove_domain:
 static int adi_gpio_remove(struct platform_device *pdev)
 {
 	struct gpio_port *port = platform_get_drvdata(pdev);
-	int ret;
 	u8 offset;
 
 	list_del(&port->node);
 	gpiochip_remove_pin_ranges(&port->chip);
-	ret = gpiochip_remove(&port->chip);
+	gpiochip_remove(&port->chip);
 	if (port->pint) {
 		for (offset = 0; offset < port->width; offset++)
 			irq_dispose_mapping(irq_find_mapping(port->domain,
@@ -1081,7 +1050,7 @@ static int adi_gpio_remove(struct platform_device *pdev)
 		irq_domain_remove(port->domain);
 	}
 
-	return ret;
+	return 0;
 }
 
 static int adi_pinctrl_probe(struct platform_device *pdev)

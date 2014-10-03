@@ -112,55 +112,9 @@ enum bcm63xx_regs_enetdmac {
 
 static inline unsigned long bcm63xx_enetdmacreg(enum bcm63xx_regs_enetdmac reg)
 {
-#ifdef BCMCPU_RUNTIME_DETECT
 	extern const unsigned long *bcm63xx_regs_enetdmac;
 
 	return bcm63xx_regs_enetdmac[reg];
-#else
-#ifdef CONFIG_BCM63XX_CPU_6345
-	switch (reg) {
-	case ENETDMAC_CHANCFG:
-		return ENETDMA_6345_CHANCFG_REG;
-	case ENETDMAC_IR:
-		return ENETDMA_6345_IR_REG;
-	case ENETDMAC_IRMASK:
-		return ENETDMA_6345_IRMASK_REG;
-	case ENETDMAC_MAXBURST:
-		return ENETDMA_6345_MAXBURST_REG;
-	case ENETDMAC_BUFALLOC:
-		return ENETDMA_6345_BUFALLOC_REG;
-	case ENETDMAC_RSTART:
-		return ENETDMA_6345_RSTART_REG;
-	case ENETDMAC_FC:
-		return ENETDMA_6345_FC_REG;
-	case ENETDMAC_LEN:
-		return ENETDMA_6345_LEN_REG;
-	}
-#endif
-#if defined(CONFIG_BCM63XX_CPU_6328) || \
-	defined(CONFIG_BCM63XX_CPU_6338) || \
-	defined(CONFIG_BCM63XX_CPU_6348) || \
-	defined(CONFIG_BCM63XX_CPU_6358) || \
-	defined(CONFIG_BCM63XX_CPU_6362) || \
-	defined(CONFIG_BCM63XX_CPU_6368)
-	switch (reg) {
-	case ENETDMAC_CHANCFG:
-		return ENETDMAC_CHANCFG_REG;
-	case ENETDMAC_IR:
-		return ENETDMAC_IR_REG;
-	case ENETDMAC_IRMASK:
-		return ENETDMAC_IRMASK_REG;
-	case ENETDMAC_MAXBURST:
-		return ENETDMAC_MAXBURST_REG;
-	case ENETDMAC_BUFALLOC:
-	case ENETDMAC_RSTART:
-	case ENETDMAC_FC:
-	case ENETDMAC_LEN:
-		return 0;
-	}
-#endif
-#endif
-	return 0;
 }
 
 

@@ -52,7 +52,7 @@ struct sk_buff *ieee802154_nl_create(int flags, u8 req)
 
 	spin_lock_irqsave(&ieee802154_seq_lock, f);
 	hdr = genlmsg_put(msg, 0, ieee802154_seq_num++,
-			&nl802154_family, flags, req);
+			  &nl802154_family, flags, req);
 	spin_unlock_irqrestore(&ieee802154_seq_lock, f);
 	if (!hdr) {
 		nlmsg_free(msg);
@@ -86,7 +86,7 @@ struct sk_buff *ieee802154_nl_new_reply(struct genl_info *info,
 		return NULL;
 
 	hdr = genlmsg_put_reply(msg, info,
-			&nl802154_family, flags, req);
+				&nl802154_family, flags, req);
 	if (!hdr) {
 		nlmsg_free(msg);
 		return NULL;

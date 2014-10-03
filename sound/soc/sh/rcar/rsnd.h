@@ -90,6 +90,7 @@ enum rsnd_reg {
 	RSND_REG_SHARE19,
 	RSND_REG_SHARE20,
 	RSND_REG_SHARE21,
+	RSND_REG_SHARE22,
 
 	RSND_REG_MAX,
 };
@@ -127,6 +128,7 @@ enum rsnd_reg {
 #define RSND_REG_AUDIO_CLK_SEL2		RSND_REG_SHARE19
 #define RSND_REG_CMD_CTRL		RSND_REG_SHARE20
 #define RSND_REG_CMDOUT_TIMSEL		RSND_REG_SHARE21
+#define RSND_REG_BUSIF_DALIGN		RSND_REG_SHARE22
 
 struct rsnd_of_data;
 struct rsnd_priv;
@@ -156,12 +158,9 @@ u32 rsnd_get_adinr(struct rsnd_mod *mod);
  */
 struct rsnd_dma {
 	struct sh_dmae_slave	slave;
-	struct work_struct	work;
 	struct dma_chan		*chan;
-	enum dma_data_direction dir;
-
-	int submit_loop;
-	int offset; /* it cares A/B plane */
+	enum dma_transfer_direction dir;
+	dma_addr_t		addr;
 };
 
 void rsnd_dma_start(struct rsnd_dma *dma);
@@ -185,6 +184,7 @@ enum rsnd_mod_type {
 
 struct rsnd_mod_ops {
 	char *name;
+	char* (*dma_name)(struct rsnd_mod *mod);
 	int (*probe)(struct rsnd_mod *mod,
 		     struct rsnd_dai *rdai);
 	int (*remove)(struct rsnd_mod *mod,
@@ -224,6 +224,7 @@ void rsnd_mod_init(struct rsnd_priv *priv,
 		   enum rsnd_mod_type type,
 		   int id);
 char *rsnd_mod_name(struct rsnd_mod *mod);
+char *rsnd_mod_dma_name(struct rsnd_mod *mod);
 
 /*
  *	R-Car sound DAI
@@ -281,10 +282,9 @@ int rsnd_gen_probe(struct platform_device *pdev,
 void __iomem *rsnd_gen_reg_get(struct rsnd_priv *priv,
 			       struct rsnd_mod *mod,
 			       enum rsnd_reg reg);
-void rsnd_gen_dma_addr(struct rsnd_priv *priv,
-		       struct rsnd_dma *dma,
-		       struct dma_slave_config *cfg,
-		       int is_play,  int slave_id);
+dma_addr_t rsnd_gen_dma_addr(struct rsnd_priv *priv,
+		       struct rsnd_mod *mod,
+		       int is_play,  int is_from);
 
 #define rsnd_is_gen1(s)		(((s)->info->flags & RSND_GEN_MASK) == RSND_GEN1)
 #define rsnd_is_gen2(s)		(((s)->info->flags & RSND_GEN_MASK) == RSND_GEN2)
@@ -391,8 +391,12 @@ struct rsnd_mod *rsnd_src_mod_get(struct rsnd_priv *priv, int id);
 unsigned int rsnd_src_get_ssi_rate(struct rsnd_priv *priv,
 				   struct rsnd_dai_stream *io,
 				   struct snd_pcm_runtime *runtime);
-int rsnd_src_ssi_mode_init(struct rsnd_mod *ssi_mod,
-			   struct rsnd_dai *rdai);
+int rsnd_src_ssiu_start(struct rsnd_mod *ssi_mod,
+			struct rsnd_dai *rdai,
+			int use_busif);
+int rsnd_src_ssiu_stop(struct rsnd_mod *ssi_mod,
+		       struct rsnd_dai *rdai,
+		       int use_busif);
 int rsnd_src_enable_ssi_irq(struct rsnd_mod *ssi_mod,
 			    struct rsnd_dai *rdai);
 

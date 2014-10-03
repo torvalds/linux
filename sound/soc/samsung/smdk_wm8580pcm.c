@@ -25,7 +25,7 @@
  *  o '0' means 'OFF'
  *  o 'X' means 'Don't care'
  *
- * SMDK6410, SMDK6440, SMDK6450 Base B/D: CFG1-0000, CFG2-1111
+ * SMDK6410 Base B/D: CFG1-0000, CFG2-1111
  * SMDKC110, SMDKV210: CFGB11-100100, CFGB12-0000
  */
 

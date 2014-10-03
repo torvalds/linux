@@ -1,11 +1,15 @@
 #
 # USB Network devices configuration
 #
-comment "Networking support is needed for USB Network Adapter support"
-	depends on USB && !NET
+comment "Host-side USB support is needed for USB Network Adapter support"
+	depends on !USB && NET
 
-menu "USB Network Adapters"
+menuconfig USB_NET_DRIVERS
+	tristate "USB Network Adapters"
+	default USB if USB
 	depends on USB && NET
+
+if USB_NET_DRIVERS
 
 config USB_CATC
 	tristate "USB CATC NetMate-based Ethernet device support"
@@ -568,5 +572,4 @@ config USB_VL600
 
 	  http://ubuntuforums.org/showpost.php?p=10589647&postcount=17
 
-
-endmenu
+endif # USB_NET_DRIVERS

@@ -43,13 +43,13 @@
 
 #define DEBUG_SUBSYSTEM S_CLASS
 
-#include <obd.h>
-#include <dt_object.h>
+#include "../include/obd.h"
+#include "../include/dt_object.h"
 #include <linux/list.h>
 /* fid_be_to_cpu() */
-#include <lustre_fid.h>
+#include "../include/lustre_fid.h"
 
-#include <lustre_quota.h>
+#include "../include/lustre_quota.h"
 
 /* context key constructor/destructor: dt_global_key_init, dt_global_key_fini */
 LU_KEY_INIT(dt_global, struct dt_thread_info);
@@ -929,7 +929,7 @@ out:
 }
 EXPORT_SYMBOL(dt_index_read);
 
-#ifdef LPROCFS
+#if defined (CONFIG_PROC_FS)
 
 int lprocfs_dt_rd_blksize(char *page, char **start, off_t off,
 			  int count, int *eof, void *data)
@@ -963,7 +963,7 @@ int lprocfs_dt_rd_kbytestotal(char *page, char **start, off_t off,
 			result <<= 1;
 
 		*eof = 1;
-		rc = snprintf(page, count, LPU64"\n", result);
+		rc = snprintf(page, count, "%llu\n", result);
 	}
 
 	return rc;
@@ -985,7 +985,7 @@ int lprocfs_dt_rd_kbytesfree(char *page, char **start, off_t off,
 			result <<= 1;
 
 		*eof = 1;
-		rc = snprintf(page, count, LPU64"\n", result);
+		rc = snprintf(page, count, "%llu\n", result);
 	}
 
 	return rc;
@@ -1007,7 +1007,7 @@ int lprocfs_dt_rd_kbytesavail(char *page, char **start, off_t off,
 			result <<= 1;
 
 		*eof = 1;
-		rc = snprintf(page, count, LPU64"\n", result);
+		rc = snprintf(page, count, "%llu\n", result);
 	}
 
 	return rc;
@@ -1023,7 +1023,7 @@ int lprocfs_dt_rd_filestotal(char *page, char **start, off_t off,
 	int rc = dt_statfs(NULL, dt, &osfs);
 	if (rc == 0) {
 		*eof = 1;
-		rc = snprintf(page, count, LPU64"\n", osfs.os_files);
+		rc = snprintf(page, count, "%llu\n", osfs.os_files);
 	}
 
 	return rc;
@@ -1039,11 +1039,11 @@ int lprocfs_dt_rd_filesfree(char *page, char **start, off_t off,
 	int rc = dt_statfs(NULL, dt, &osfs);
 	if (rc == 0) {
 		*eof = 1;
-		rc = snprintf(page, count, LPU64"\n", osfs.os_ffree);
+		rc = snprintf(page, count, "%llu\n", osfs.os_ffree);
 	}
 
 	return rc;
 }
 EXPORT_SYMBOL(lprocfs_dt_rd_filesfree);
 
-#endif /* LPROCFS */
+#endif /* CONFIG_PROC_FS */

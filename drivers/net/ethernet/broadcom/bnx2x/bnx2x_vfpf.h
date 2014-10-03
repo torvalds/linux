@@ -65,6 +65,7 @@ struct hw_sb_info {
 #define VFPF_RX_MASK_ACCEPT_ALL_MULTICAST	0x00000008
 #define VFPF_RX_MASK_ACCEPT_BROADCAST		0x00000010
 #define BULLETIN_CONTENT_SIZE		(sizeof(struct pf_vf_bulletin_content))
+#define BULLETIN_CONTENT_LEGACY_SIZE	(32)
 #define BULLETIN_ATTEMPTS	5 /* crc failures before throwing towel */
 #define BULLETIN_CRC_SEED	0
 
@@ -117,7 +118,15 @@ struct vfpf_acquire_tlv {
 		/* the following fields are for debug purposes */
 		u8  vf_id;		/* ME register value */
 		u8  vf_os;		/* e.g. Linux, W2K8 */
-		u8 padding[2];
+#define VF_OS_SUBVERSION_MASK	(0x1f)
+#define VF_OS_MASK		(0xe0)
+#define VF_OS_SHIFT		(5)
+#define VF_OS_UNDEFINED		(0 << VF_OS_SHIFT)
+#define VF_OS_WINDOWS		(1 << VF_OS_SHIFT)
+
+		u8 padding;
+		u8 caps;
+#define VF_CAP_SUPPORT_EXT_BULLETIN	(1 << 0)
 	} vfdev_info;
 
 	struct vf_pf_resc_request resc_request;
@@ -393,11 +402,23 @@ struct pf_vf_bulletin_content {
 					 * to attempt to send messages on the
 					 * channel after this bit is set
 					 */
+#define LINK_VALID		3	/* alert the VF thet a new link status
+					 * update is available for it
+					 */
 	u8 mac[ETH_ALEN];
 	u8 mac_padding[2];
 
 	u16 vlan;
 	u8 vlan_padding[6];
+
+	u16 link_speed;			 /* Effective line speed */
+	u8 link_speed_padding[6];
+	u32 link_flags;			 /* VFPF_LINK_REPORT_XXX flags */
+#define VFPF_LINK_REPORT_LINK_DOWN	 (1 << 0)
+#define VFPF_LINK_REPORT_FULL_DUPLEX	 (1 << 1)
+#define VFPF_LINK_REPORT_RX_FC_ON	 (1 << 2)
+#define VFPF_LINK_REPORT_TX_FC_ON	 (1 << 3)
+	u8 link_flags_padding[4];
 };
 
 union pf_vf_bulletin {

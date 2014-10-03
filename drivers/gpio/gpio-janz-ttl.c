@@ -194,14 +194,8 @@ static int ttl_probe(struct platform_device *pdev)
 static int ttl_remove(struct platform_device *pdev)
 {
 	struct ttl_module *mod = platform_get_drvdata(pdev);
-	struct device *dev = &pdev->dev;
-	int ret;
 
-	ret = gpiochip_remove(&mod->gpio);
-	if (ret) {
-		dev_err(dev, "unable to remove GPIO chip\n");
-		return ret;
-	}
+	gpiochip_remove(&mod->gpio);
 
 	return 0;
 }

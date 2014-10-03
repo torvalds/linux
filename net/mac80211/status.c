@@ -473,8 +473,6 @@ static void ieee80211_tx_latency_end_msrmnt(struct ieee80211_local *local,
 					    struct sta_info *sta,
 					    struct ieee80211_hdr *hdr)
 {
-	ktime_t skb_dprt;
-	struct timespec dprt_time;
 	u32 msrmnt;
 	u16 tid;
 	u8 *qc;
@@ -506,9 +504,8 @@ static void ieee80211_tx_latency_end_msrmnt(struct ieee80211_local *local,
 
 	tx_lat = &sta->tx_lat[tid];
 
-	ktime_get_ts(&dprt_time); /* time stamp completion time */
-	skb_dprt = ktime_set(dprt_time.tv_sec, dprt_time.tv_nsec);
-	msrmnt = ktime_to_ms(ktime_sub(skb_dprt, skb_arv));
+	/* Calculate the latency */
+	msrmnt = ktime_to_ms(ktime_sub(ktime_get(), skb_arv));
 
 	if (tx_lat->max < msrmnt) /* update stats */
 		tx_lat->max = msrmnt;

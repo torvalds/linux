@@ -196,6 +196,7 @@ static int ipipeif_hw_setup(struct v4l2_subdev *sd)
 	int data_shift;
 	int pack_mode;
 	int source1;
+	int tmp;
 
 	ipipeif_base_addr = ipipeif->ipipeif_base_addr;
 
@@ -206,8 +207,8 @@ static int ipipeif_hw_setup(struct v4l2_subdev *sd)
 	outformat = &ipipeif->formats[IPIPEIF_PAD_SOURCE];
 
 	/* Combine all the fields to make CFG1 register of IPIPEIF */
-	val = get_oneshot_mode(ipipeif->input);
-	if (val < 0) {
+	tmp = val = get_oneshot_mode(ipipeif->input);
+	if (tmp < 0) {
 		pr_err("ipipeif: links setup required");
 		return -EINVAL;
 	}

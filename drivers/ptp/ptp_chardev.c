@@ -86,14 +86,9 @@ int ptp_set_pinfunc(struct ptp_clock *ptp, unsigned int pin,
 			return -EINVAL;
 		break;
 	case PTP_PF_PHYSYNC:
-		pr_err("sorry, cannot reassign the calibration pin\n");
-		return -EINVAL;
+		if (chan != 0)
+			return -EINVAL;
 	default:
-		return -EINVAL;
-	}
-
-	if (pin2->func == PTP_PF_PHYSYNC) {
-		pr_err("sorry, cannot reprogram the calibration pin\n");
 		return -EINVAL;
 	}
 

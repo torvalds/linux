@@ -36,6 +36,7 @@ extern const struct regmap_irq_chip wm5102_irq;
 
 extern const struct regmap_irq_chip wm5110_aod;
 extern const struct regmap_irq_chip wm5110_irq;
+extern const struct regmap_irq_chip wm5110_revd_irq;
 
 extern const struct regmap_irq_chip wm8997_aod;
 extern const struct regmap_irq_chip wm8997_irq;
@@ -46,9 +47,9 @@ int arizona_irq_init(struct arizona *arizona);
 int arizona_irq_exit(struct arizona *arizona);
 
 #ifdef CONFIG_OF
-int arizona_of_get_type(struct device *dev);
+unsigned long arizona_of_get_type(struct device *dev);
 #else
-static inline int arizona_of_get_type(struct device *dev)
+static inline unsigned long arizona_of_get_type(struct device *dev)
 {
 	return 0;
 }

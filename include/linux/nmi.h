@@ -63,4 +63,8 @@ extern int proc_dowatchdog(struct ctl_table *, int ,
 			   void __user *, size_t *, loff_t *);
 #endif
 
+#ifdef CONFIG_HAVE_ACPI_APEI_NMI
+#include <asm/nmi.h>
+#endif
+
 #endif

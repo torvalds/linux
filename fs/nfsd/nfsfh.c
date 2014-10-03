@@ -162,7 +162,14 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 			/* deprecated, convert to type 3 */
 			len = key_len(FSID_ENCODE_DEV)/4;
 			fh->fh_fsid_type = FSID_ENCODE_DEV;
-			fh->fh_fsid[0] = new_encode_dev(MKDEV(ntohl(fh->fh_fsid[0]), ntohl(fh->fh_fsid[1])));
+			/*
+			 * struct knfsd_fh uses host-endian fields, which are
+			 * sometimes used to hold net-endian values. This
+			 * confuses sparse, so we must use __force here to
+			 * keep it from complaining.
+			 */
+			fh->fh_fsid[0] = new_encode_dev(MKDEV(ntohl((__force __be32)fh->fh_fsid[0]),
+							ntohl((__force __be32)fh->fh_fsid[1])));
 			fh->fh_fsid[1] = fh->fh_fsid[2];
 		}
 		data_left -= len;
@@ -539,8 +546,7 @@ fh_compose(struct svc_fh *fhp, struct svc_export *exp, struct dentry *dentry,
 		       dentry);
 
 	fhp->fh_dentry = dget(dentry); /* our internal copy */
-	fhp->fh_export = exp;
-	cache_get(&exp->h);
+	fhp->fh_export = exp_get(exp);
 
 	if (fhp->fh_handle.fh_version == 0xca) {
 		/* old style filehandle please */

@@ -83,10 +83,11 @@ int __vdso_gettimeofday(struct timeval *tv, struct timezone *tz)
 		if (count & 1)
 			continue;
 
-		cycles = (get_cycles() - vdso_data->xtime_tod_stamp);
-		ns = (cycles * vdso_data->mult) >> vdso_data->shift;
 		sec = vdso_data->xtime_clock_sec;
-		ns += vdso_data->xtime_clock_nsec;
+		cycles = get_cycles() - vdso_data->xtime_tod_stamp;
+		ns = (cycles * vdso_data->mult) + vdso_data->xtime_clock_nsec;
+		ns >>= vdso_data->shift;
+
 		if (ns >= NSEC_PER_SEC) {
 			ns -= NSEC_PER_SEC;
 			sec += 1;

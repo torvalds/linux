@@ -96,7 +96,7 @@ static void irlan_eth_setup(struct net_device *dev)
  */
 struct net_device *alloc_irlandev(const char *name)
 {
-	return alloc_netdev(sizeof(struct irlan_cb), name,
+	return alloc_netdev(sizeof(struct irlan_cb), name, NET_NAME_UNKNOWN,
 			    irlan_eth_setup);
 }
 

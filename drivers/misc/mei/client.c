@@ -459,7 +459,7 @@ int mei_cl_disconnect(struct mei_cl *cl)
 {
 	struct mei_device *dev;
 	struct mei_cl_cb *cb;
-	int rets, err;
+	int rets;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -ENODEV;
@@ -491,6 +491,7 @@ int mei_cl_disconnect(struct mei_cl *cl)
 			cl_err(dev, cl, "failed to disconnect.\n");
 			goto free;
 		}
+		cl->timer_count = MEI_CONNECT_TIMEOUT;
 		mdelay(10); /* Wait for hardware disconnection ready */
 		list_add_tail(&cb->list, &dev->ctrl_rd_list.list);
 	} else {
@@ -500,23 +501,18 @@ int mei_cl_disconnect(struct mei_cl *cl)
 	}
 	mutex_unlock(&dev->device_lock);
 
-	err = wait_event_timeout(dev->wait_recvd_msg,
+	wait_event_timeout(dev->wait_recvd_msg,
 			MEI_FILE_DISCONNECTED == cl->state,
 			mei_secs_to_jiffies(MEI_CL_CONNECT_TIMEOUT));
 
 	mutex_lock(&dev->device_lock);
+
 	if (MEI_FILE_DISCONNECTED == cl->state) {
 		rets = 0;
 		cl_dbg(dev, cl, "successfully disconnected from FW client.\n");
 	} else {
-		rets = -ENODEV;
-		if (MEI_FILE_DISCONNECTED != cl->state)
-			cl_err(dev, cl, "wrong status client disconnect.\n");
-
-		if (err)
-			cl_dbg(dev, cl, "wait failed disconnect err=%d\n", err);
-
-		cl_err(dev, cl, "failed to disconnect from FW client.\n");
+		cl_dbg(dev, cl, "timeout on disconnect from FW client.\n");
+		rets = -ETIME;
 	}
 
 	mei_io_list_flush(&dev->ctrl_rd_list, cl);
@@ -605,6 +601,7 @@ int mei_cl_connect(struct mei_cl *cl, struct file *file)
 		cl->timer_count = MEI_CONNECT_TIMEOUT;
 		list_add_tail(&cb->list, &dev->ctrl_rd_list.list);
 	} else {
+		cl->state = MEI_FILE_INITIALIZING;
 		list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
 	}
 
@@ -616,6 +613,7 @@ int mei_cl_connect(struct mei_cl *cl, struct file *file)
 	mutex_lock(&dev->device_lock);
 
 	if (cl->state != MEI_FILE_CONNECTED) {
+		cl->state = MEI_FILE_DISCONNECTED;
 		/* something went really wrong */
 		if (!cl->status)
 			cl->status = -EFAULT;

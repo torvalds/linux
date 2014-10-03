@@ -160,7 +160,7 @@ static int ar100_set_rate(struct clk_hw *hw, unsigned long rate,
 	return 0;
 }
 
-struct clk_ops ar100_ops = {
+static struct clk_ops ar100_ops = {
 	.recalc_rate = ar100_recalc_rate,
 	.determine_rate = ar100_determine_rate,
 	.set_parent = ar100_set_parent,
@@ -213,7 +213,7 @@ static int sun6i_a31_ar100_clk_probe(struct platform_device *pdev)
 	return of_clk_add_provider(np, of_clk_src_simple_get, clk);
 }
 
-const struct of_device_id sun6i_a31_ar100_clk_dt_ids[] = {
+static const struct of_device_id sun6i_a31_ar100_clk_dt_ids[] = {
 	{ .compatible = "allwinner,sun6i-a31-ar100-clk" },
 	{ /* sentinel */ }
 };

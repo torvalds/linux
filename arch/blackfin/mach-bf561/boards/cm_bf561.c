@@ -18,6 +18,7 @@
 #endif
 #include <linux/ata_platform.h>
 #include <linux/irq.h>
+#include <linux/gpio.h>
 #include <asm/dma.h>
 #include <asm/bfin5xx_spi.h>
 #include <asm/portmux.h>

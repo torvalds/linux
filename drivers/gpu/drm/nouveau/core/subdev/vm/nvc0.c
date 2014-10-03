@@ -28,7 +28,7 @@
 #include <subdev/timer.h>
 #include <subdev/fb.h>
 #include <subdev/vm.h>
-#include <subdev/ltcg.h>
+#include <subdev/ltc.h>
 #include <subdev/bar.h>
 
 struct nvc0_vmmgr_priv {
@@ -116,12 +116,12 @@ nvc0_vm_map(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 	pte <<= 3;
 
 	if (mem->tag) {
-		struct nouveau_ltcg *ltcg =
-			nouveau_ltcg(vma->vm->vmm->base.base.parent);
+		struct nouveau_ltc *ltc =
+			nouveau_ltc(vma->vm->vmm->base.base.parent);
 		u32 tag = mem->tag->offset + (delta >> 17);
 		phys |= (u64)tag << (32 + 12);
 		next |= (u64)1   << (32 + 12);
-		ltcg->tags_clear(ltcg, tag, cnt);
+		ltc->tags_clear(ltc, tag, cnt);
 	}
 
 	while (cnt--) {

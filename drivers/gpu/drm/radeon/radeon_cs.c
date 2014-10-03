@@ -132,7 +132,8 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		 * the buffers used for read only, which doubles the range
 		 * to 0 to 31. 32 is reserved for the kernel driver.
 		 */
-		priority = (r->flags & 0xf) * 2 + !!r->write_domain;
+		priority = (r->flags & RADEON_RELOC_PRIO_MASK) * 2
+			   + !!r->write_domain;
 
 		/* the first reloc of an UVD job is the msg and that must be in
 		   VRAM, also but everything into VRAM on AGP cards to avoid
@@ -450,7 +451,7 @@ static int radeon_cs_ib_chunk(struct radeon_device *rdev,
 		radeon_vce_note_usage(rdev);
 
 	radeon_cs_sync_rings(parser);
-	r = radeon_ib_schedule(rdev, &parser->ib, NULL);
+	r = radeon_ib_schedule(rdev, &parser->ib, NULL, true);
 	if (r) {
 		DRM_ERROR("Failed to schedule IB !\n");
 	}
@@ -461,13 +462,23 @@ static int radeon_bo_vm_update_pte(struct radeon_cs_parser *p,
 				   struct radeon_vm *vm)
 {
 	struct radeon_device *rdev = p->rdev;
+	struct radeon_bo_va *bo_va;
 	int i, r;
 
 	r = radeon_vm_update_page_directory(rdev, vm);
 	if (r)
 		return r;
 
-	r = radeon_vm_bo_update(rdev, vm, rdev->ring_tmp_bo.bo,
+	r = radeon_vm_clear_freed(rdev, vm);
+	if (r)
+		return r;
+
+	if (vm->ib_bo_va == NULL) {
+		DRM_ERROR("Tmp BO not in VM!\n");
+		return -EINVAL;
+	}
+
+	r = radeon_vm_bo_update(rdev, vm->ib_bo_va,
 				&rdev->ring_tmp_bo.bo->tbo.mem);
 	if (r)
 		return r;
@@ -480,11 +491,18 @@ static int radeon_bo_vm_update_pte(struct radeon_cs_parser *p,
 			continue;
 
 		bo = p->relocs[i].robj;
-		r = radeon_vm_bo_update(rdev, vm, bo, &bo->tbo.mem);
+		bo_va = radeon_vm_bo_find(vm, bo);
+		if (bo_va == NULL) {
+			dev_err(rdev->dev, "bo %p not in vm %p\n", bo, vm);
+			return -EINVAL;
+		}
+
+		r = radeon_vm_bo_update(rdev, bo_va, &bo->tbo.mem);
 		if (r)
 			return r;
 	}
-	return 0;
+
+	return radeon_vm_clear_invalids(rdev, vm);
 }
 
 static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
@@ -524,9 +542,9 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 
 	if ((rdev->family >= CHIP_TAHITI) &&
 	    (parser->chunk_const_ib_idx != -1)) {
-		r = radeon_ib_schedule(rdev, &parser->ib, &parser->const_ib);
+		r = radeon_ib_schedule(rdev, &parser->ib, &parser->const_ib, true);
 	} else {
-		r = radeon_ib_schedule(rdev, &parser->ib, NULL);
+		r = radeon_ib_schedule(rdev, &parser->ib, NULL, true);
 	}
 
 out:

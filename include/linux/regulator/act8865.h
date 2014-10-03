@@ -1,5 +1,5 @@
 /*
- * act8865.h  --  Voltage regulation for the active-semi act8865
+ * act8865.h  --  Voltage regulation for active-semi act88xx PMUs
  *
  * Copyright (C) 2013 Atmel Corporation.
  *
@@ -27,6 +27,27 @@ enum {
 	ACT8865_ID_LDO3,
 	ACT8865_ID_LDO4,
 	ACT8865_REG_NUM,
+};
+
+enum {
+	ACT8846_ID_REG1,
+	ACT8846_ID_REG2,
+	ACT8846_ID_REG3,
+	ACT8846_ID_REG4,
+	ACT8846_ID_REG5,
+	ACT8846_ID_REG6,
+	ACT8846_ID_REG7,
+	ACT8846_ID_REG8,
+	ACT8846_ID_REG9,
+	ACT8846_ID_REG10,
+	ACT8846_ID_REG11,
+	ACT8846_ID_REG12,
+	ACT8846_REG_NUM,
+};
+
+enum {
+	ACT8865,
+	ACT8846,
 };
 
 /**

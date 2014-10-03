@@ -526,7 +526,7 @@ static int imx1_pinctrl_parse_functions(struct device_node *np,
 	/* Initialise function */
 	func->name = np->name;
 	func->num_groups = of_get_child_count(np);
-	if (func->num_groups <= 0)
+	if (func->num_groups == 0)
 		return -EINVAL;
 
 	func->groups = devm_kzalloc(info->dev,

@@ -69,12 +69,14 @@ static void str2hashbuf(const char *msg, size_t len, unsigned int *buf, int num)
 		*buf++ = pad;
 }
 
-f2fs_hash_t f2fs_dentry_hash(const char *name, size_t len)
+f2fs_hash_t f2fs_dentry_hash(const struct qstr *name_info)
 {
 	__u32 hash;
 	f2fs_hash_t f2fs_hash;
 	const char *p;
 	__u32 in[8], buf[4];
+	const char *name = name_info->name;
+	size_t len = name_info->len;
 
 	if ((len <= 2) && (name[0] == '.') &&
 		(name[1] == '.' || name[1] == '\0'))

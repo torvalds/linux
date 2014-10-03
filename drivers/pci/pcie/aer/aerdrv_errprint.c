@@ -22,9 +22,7 @@
 #include <linux/cper.h>
 
 #include "aerdrv.h"
-
-#define CREATE_TRACE_POINTS
-#include <trace/events/ras.h>
+#include <ras/ras_event.h>
 
 #define AER_AGENT_RECEIVER		0
 #define AER_AGENT_REQUESTER		1

@@ -1008,7 +1008,6 @@ static const struct uart_ops max310x_ops = {
 	.stop_tx	= max310x_null_void,
 	.start_tx	= max310x_start_tx,
 	.stop_rx	= max310x_null_void,
-	.enable_ms	= max310x_null_void,
 	.break_ctl	= max310x_break_ctl,
 	.startup	= max310x_startup,
 	.shutdown	= max310x_shutdown,

@@ -1532,11 +1532,17 @@ static int idmac_alloc_chan_resources(struct dma_chan *chan)
 #ifdef DEBUG
 	if (chan->chan_id == IDMAC_IC_7) {
 		ic_sof = ipu_irq_map(69);
-		if (ic_sof > 0)
-			request_irq(ic_sof, ic_sof_irq, 0, "IC SOF", ichan);
+		if (ic_sof > 0) {
+			ret = request_irq(ic_sof, ic_sof_irq, 0, "IC SOF", ichan);
+			if (ret)
+				dev_err(&chan->dev->device, "request irq failed for IC SOF");
+		}
 		ic_eof = ipu_irq_map(70);
-		if (ic_eof > 0)
-			request_irq(ic_eof, ic_eof_irq, 0, "IC EOF", ichan);
+		if (ic_eof > 0) {
+			ret = request_irq(ic_eof, ic_eof_irq, 0, "IC EOF", ichan);
+			if (ret)
+				dev_err(&chan->dev->device, "request irq failed for IC EOF");
+		}
 	}
 #endif
 

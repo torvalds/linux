@@ -425,8 +425,7 @@ int PHY_MACConfig8723A(struct rtw_adapter *Adapter)
 	/*  */
 	/*  Config MAC */
 	/*  */
-	if (ODM_ConfigMACWithHeaderFile23a(&pHalData->odmpriv) == _FAIL)
-		rtStatus = _FAIL;
+	ODM_ReadAndConfig_MAC_REG_8723A(&pHalData->odmpriv);
 
 	/*  2010.07.13 AMPDU aggregation number 9 */
 	/* rtw_write16(Adapter, REG_MAX_AGGR_NUM, MAX_AGGR_NUM); */
@@ -753,11 +752,7 @@ phy_BB8723a_Config_ParaFile(struct rtw_adapter *Adapter)
 	/*  1. Read PHY_REG.TXT BB INIT!! */
 	/*  We will seperate as 88C / 92C according to chip version */
 	/*  */
-	if (ODM_ConfigBBWithHeaderFile23a(&pHalData->odmpriv,
-					  CONFIG_BB_PHY_REG) == _FAIL)
-		rtStatus = _FAIL;
-	if (rtStatus != _SUCCESS)
-		goto phy_BB8190_Config_ParaFile_Fail;
+	ODM_ReadAndConfig_PHY_REG_1T_8723A(&pHalData->odmpriv);
 
 	/*  */
 	/*  20100318 Joseph: Config 2T2R to 1T2R if necessary. */
@@ -784,9 +779,7 @@ phy_BB8723a_Config_ParaFile(struct rtw_adapter *Adapter)
 	/*  */
 	/*  3. BB AGC table Initialization */
 	/*  */
-	if (ODM_ConfigBBWithHeaderFile23a(&pHalData->odmpriv,
-					  CONFIG_BB_AGC_TAB) == _FAIL)
-		rtStatus = _FAIL;
+	ODM_ReadAndConfig_AGC_TAB_1T_8723A(&pHalData->odmpriv);
 
 phy_BB8190_Config_ParaFile_Fail:
 
@@ -843,18 +836,6 @@ PHY_BBConfig8723A(struct rtw_adapter *Adapter)
 	}
 
 	PHY_SetBBReg(Adapter, REG_LDOA15_CTRL, bMaskDWord, 0x01572505);
-	return rtStatus;
-}
-
-int
-PHY_RFConfig8723A(struct rtw_adapter *Adapter)
-{
-	int rtStatus = _SUCCESS;
-
-	/*  */
-	/*  RF config */
-	/*  */
-	rtStatus = PHY_RF6052_Config8723A(Adapter);
 	return rtStatus;
 }
 
@@ -1097,9 +1078,6 @@ static void _PHY_SwChnl8723A(struct rtw_adapter *Adapter, u8 channel)
 	u8 eRFPath;
 	u32 param1, param2;
 	struct hal_data_8723a *pHalData = GET_HAL_DATA(Adapter);
-
-	if (Adapter->bNotifyChannelChange)
-		DBG_8723A("[%s] ch = %d\n", __func__, channel);
 
 	/* s1. pre common command - CmdID_SetTxPowerLevel */
 	PHY_SetTxPowerLevel8723A(Adapter, channel);

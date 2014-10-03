@@ -44,35 +44,39 @@ enum {
 #define OCRDMA_SUBSYS_ROCE 10
 enum {
 	OCRDMA_CMD_QUERY_CONFIG = 1,
-	OCRDMA_CMD_ALLOC_PD,
-	OCRDMA_CMD_DEALLOC_PD,
+	OCRDMA_CMD_ALLOC_PD = 2,
+	OCRDMA_CMD_DEALLOC_PD = 3,
 
-	OCRDMA_CMD_CREATE_AH_TBL,
-	OCRDMA_CMD_DELETE_AH_TBL,
+	OCRDMA_CMD_CREATE_AH_TBL = 4,
+	OCRDMA_CMD_DELETE_AH_TBL = 5,
 
-	OCRDMA_CMD_CREATE_QP,
-	OCRDMA_CMD_QUERY_QP,
-	OCRDMA_CMD_MODIFY_QP,
-	OCRDMA_CMD_DELETE_QP,
+	OCRDMA_CMD_CREATE_QP = 6,
+	OCRDMA_CMD_QUERY_QP = 7,
+	OCRDMA_CMD_MODIFY_QP = 8 ,
+	OCRDMA_CMD_DELETE_QP = 9,
 
-	OCRDMA_CMD_RSVD1,
-	OCRDMA_CMD_ALLOC_LKEY,
-	OCRDMA_CMD_DEALLOC_LKEY,
-	OCRDMA_CMD_REGISTER_NSMR,
-	OCRDMA_CMD_REREGISTER_NSMR,
-	OCRDMA_CMD_REGISTER_NSMR_CONT,
-	OCRDMA_CMD_QUERY_NSMR,
-	OCRDMA_CMD_ALLOC_MW,
-	OCRDMA_CMD_QUERY_MW,
+	OCRDMA_CMD_RSVD1 = 10,
+	OCRDMA_CMD_ALLOC_LKEY = 11,
+	OCRDMA_CMD_DEALLOC_LKEY = 12,
+	OCRDMA_CMD_REGISTER_NSMR = 13,
+	OCRDMA_CMD_REREGISTER_NSMR = 14,
+	OCRDMA_CMD_REGISTER_NSMR_CONT = 15,
+	OCRDMA_CMD_QUERY_NSMR = 16,
+	OCRDMA_CMD_ALLOC_MW = 17,
+	OCRDMA_CMD_QUERY_MW = 18,
 
-	OCRDMA_CMD_CREATE_SRQ,
-	OCRDMA_CMD_QUERY_SRQ,
-	OCRDMA_CMD_MODIFY_SRQ,
-	OCRDMA_CMD_DELETE_SRQ,
+	OCRDMA_CMD_CREATE_SRQ = 19,
+	OCRDMA_CMD_QUERY_SRQ = 20,
+	OCRDMA_CMD_MODIFY_SRQ = 21,
+	OCRDMA_CMD_DELETE_SRQ = 22,
 
-	OCRDMA_CMD_ATTACH_MCAST,
-	OCRDMA_CMD_DETACH_MCAST,
-	OCRDMA_CMD_GET_RDMA_STATS,
+	OCRDMA_CMD_ATTACH_MCAST = 23,
+	OCRDMA_CMD_DETACH_MCAST = 24,
+
+	OCRDMA_CMD_CREATE_RBQ = 25,
+	OCRDMA_CMD_DESTROY_RBQ = 26,
+
+	OCRDMA_CMD_GET_RDMA_STATS = 27,
 
 	OCRDMA_CMD_MAX
 };
@@ -103,7 +107,7 @@ enum {
 
 #define OCRDMA_MAX_QP    2048
 #define OCRDMA_MAX_CQ    2048
-#define OCRDMA_MAX_STAG  8192
+#define OCRDMA_MAX_STAG 16384
 
 enum {
 	OCRDMA_DB_RQ_OFFSET		= 0xE0,
@@ -422,7 +426,12 @@ struct ocrdma_ae_qp_mcqe {
 
 #define OCRDMA_ASYNC_RDMA_EVE_CODE 0x14
 #define OCRDMA_ASYNC_GRP5_EVE_CODE 0x5
-#define OCRDMA_ASYNC_EVENT_PVID_STATE 0x3
+
+enum ocrdma_async_grp5_events {
+	OCRDMA_ASYNC_EVENT_QOS_VALUE	= 0x01,
+	OCRDMA_ASYNC_EVENT_COS_VALUE	= 0x02,
+	OCRDMA_ASYNC_EVENT_PVID_STATE	= 0x03
+};
 
 enum OCRDMA_ASYNC_EVENT_TYPE {
 	OCRDMA_CQ_ERROR			= 0x00,
@@ -525,8 +534,8 @@ struct ocrdma_mbx_query_config {
 	u32 max_ird_ord_per_qp;
 	u32 max_shared_ird_ord;
 	u32 max_mr;
-	u32 max_mr_size_lo;
 	u32 max_mr_size_hi;
+	u32 max_mr_size_lo;
 	u32 max_num_mr_pbl;
 	u32 max_mw;
 	u32 max_fmr;
@@ -580,17 +589,26 @@ enum {
 	OCRDMA_FN_MODE_RDMA	= 0x4
 };
 
+enum {
+	OCRDMA_IF_TYPE_MASK		= 0xFFFF0000,
+	OCRDMA_IF_TYPE_SHIFT		= 0x10,
+	OCRDMA_PHY_TYPE_MASK		= 0x0000FFFF,
+	OCRDMA_FUTURE_DETAILS_MASK	= 0xFFFF0000,
+	OCRDMA_FUTURE_DETAILS_SHIFT	= 0x10,
+	OCRDMA_EX_PHY_DETAILS_MASK	= 0x0000FFFF,
+	OCRDMA_FSPEED_SUPP_MASK		= 0xFFFF0000,
+	OCRDMA_FSPEED_SUPP_SHIFT	= 0x10,
+	OCRDMA_ASPEED_SUPP_MASK		= 0x0000FFFF
+};
+
 struct ocrdma_get_phy_info_rsp {
 	struct ocrdma_mqe_hdr hdr;
 	struct ocrdma_mbx_rsp rsp;
 
-	u16 phy_type;
-	u16 interface_type;
+	u32 ityp_ptyp;
 	u32 misc_params;
-	u16 ext_phy_details;
-	u16 rsvd;
-	u16 auto_speeds_supported;
-	u16 fixed_speeds_supported;
+	u32 ftrdtl_exphydtl;
+	u32 fspeed_aspeed;
 	u32 future_use[2];
 };
 
@@ -603,19 +621,34 @@ enum {
 	OCRDMA_PHY_SPEED_40GBPS = 0x20
 };
 
+enum {
+	OCRDMA_PORT_NUM_MASK	= 0x3F,
+	OCRDMA_PT_MASK		= 0xC0,
+	OCRDMA_PT_SHIFT		= 0x6,
+	OCRDMA_LINK_DUP_MASK	= 0x0000FF00,
+	OCRDMA_LINK_DUP_SHIFT	= 0x8,
+	OCRDMA_PHY_PS_MASK	= 0x00FF0000,
+	OCRDMA_PHY_PS_SHIFT	= 0x10,
+	OCRDMA_PHY_PFLT_MASK	= 0xFF000000,
+	OCRDMA_PHY_PFLT_SHIFT	= 0x18,
+	OCRDMA_QOS_LNKSP_MASK	= 0xFFFF0000,
+	OCRDMA_QOS_LNKSP_SHIFT	= 0x10,
+	OCRDMA_LLST_MASK	= 0xFF,
+	OCRDMA_PLFC_MASK	= 0x00000400,
+	OCRDMA_PLFC_SHIFT	= 0x8,
+	OCRDMA_PLRFC_MASK	= 0x00000200,
+	OCRDMA_PLRFC_SHIFT	= 0x8,
+	OCRDMA_PLTFC_MASK	= 0x00000100,
+	OCRDMA_PLTFC_SHIFT	= 0x8
+};
 
 struct ocrdma_get_link_speed_rsp {
 	struct ocrdma_mqe_hdr hdr;
 	struct ocrdma_mbx_rsp rsp;
 
-	u8 pt_port_num;
-	u8 link_duplex;
-	u8 phys_port_speed;
-	u8 phys_port_fault;
-	u16 rsvd1;
-	u16 qos_lnk_speed;
-	u8 logical_lnk_status;
-	u8 rsvd2[3];
+	u32 pflt_pps_ld_pnum;
+	u32 qos_lsp;
+	u32 res_lls;
 };
 
 enum {
@@ -666,8 +699,7 @@ struct ocrdma_create_cq_cmd {
 	u32 pgsz_pgcnt;
 	u32 ev_cnt_flags;
 	u32 eqn;
-	u16 cqe_count;
-	u16 pd_id;
+	u32 pdid_cqecnt;
 	u32 rsvd6;
 	struct ocrdma_pa pa[OCRDMA_CREATE_CQ_MAX_PAGES];
 };
@@ -675,6 +707,10 @@ struct ocrdma_create_cq_cmd {
 struct ocrdma_create_cq {
 	struct ocrdma_mqe_hdr hdr;
 	struct ocrdma_create_cq_cmd cmd;
+};
+
+enum {
+	OCRDMA_CREATE_CQ_CMD_PDID_SHIFT	= 0x10
 };
 
 enum {
@@ -1231,7 +1267,6 @@ struct ocrdma_destroy_srq {
 
 enum {
 	OCRDMA_ALLOC_PD_ENABLE_DPP	= BIT(16),
-	OCRDMA_PD_MAX_DPP_ENABLED_QP	= 8,
 	OCRDMA_DPP_PAGE_SIZE		= 4096
 };
 
@@ -1896,12 +1931,62 @@ struct ocrdma_rdma_stats_resp {
 	struct ocrdma_rx_dbg_stats	rx_dbg_stats;
 } __packed;
 
+enum {
+	OCRDMA_HBA_ATTRB_EPROM_VER_LO_MASK	= 0xFF,
+	OCRDMA_HBA_ATTRB_EPROM_VER_HI_MASK	= 0xFF00,
+	OCRDMA_HBA_ATTRB_EPROM_VER_HI_SHIFT	= 0x08,
+	OCRDMA_HBA_ATTRB_CDBLEN_MASK		= 0xFFFF,
+	OCRDMA_HBA_ATTRB_ASIC_REV_MASK		= 0xFF0000,
+	OCRDMA_HBA_ATTRB_ASIC_REV_SHIFT		= 0x10,
+	OCRDMA_HBA_ATTRB_GUID0_MASK		= 0xFF000000,
+	OCRDMA_HBA_ATTRB_GUID0_SHIFT		= 0x18,
+	OCRDMA_HBA_ATTRB_GUID13_MASK		= 0xFF,
+	OCRDMA_HBA_ATTRB_GUID14_MASK		= 0xFF00,
+	OCRDMA_HBA_ATTRB_GUID14_SHIFT		= 0x08,
+	OCRDMA_HBA_ATTRB_GUID15_MASK		= 0xFF0000,
+	OCRDMA_HBA_ATTRB_GUID15_SHIFT		= 0x10,
+	OCRDMA_HBA_ATTRB_PCNT_MASK		= 0xFF000000,
+	OCRDMA_HBA_ATTRB_PCNT_SHIFT		= 0x18,
+	OCRDMA_HBA_ATTRB_LDTOUT_MASK		= 0xFFFF,
+	OCRDMA_HBA_ATTRB_ISCSI_VER_MASK		= 0xFF0000,
+	OCRDMA_HBA_ATTRB_ISCSI_VER_SHIFT	= 0x10,
+	OCRDMA_HBA_ATTRB_MFUNC_DEV_MASK		= 0xFF000000,
+	OCRDMA_HBA_ATTRB_MFUNC_DEV_SHIFT	= 0x18,
+	OCRDMA_HBA_ATTRB_CV_MASK		= 0xFF,
+	OCRDMA_HBA_ATTRB_HBA_ST_MASK		= 0xFF00,
+	OCRDMA_HBA_ATTRB_HBA_ST_SHIFT		= 0x08,
+	OCRDMA_HBA_ATTRB_MAX_DOMS_MASK		= 0xFF0000,
+	OCRDMA_HBA_ATTRB_MAX_DOMS_SHIFT		= 0x10,
+	OCRDMA_HBA_ATTRB_PTNUM_MASK		= 0x3F000000,
+	OCRDMA_HBA_ATTRB_PTNUM_SHIFT		= 0x18,
+	OCRDMA_HBA_ATTRB_PT_MASK		= 0xC0000000,
+	OCRDMA_HBA_ATTRB_PT_SHIFT		= 0x1E,
+	OCRDMA_HBA_ATTRB_ISCSI_FET_MASK		= 0xFF,
+	OCRDMA_HBA_ATTRB_ASIC_GEN_MASK		= 0xFF00,
+	OCRDMA_HBA_ATTRB_ASIC_GEN_SHIFT		= 0x08,
+	OCRDMA_HBA_ATTRB_PCI_VID_MASK		= 0xFFFF,
+	OCRDMA_HBA_ATTRB_PCI_DID_MASK		= 0xFFFF0000,
+	OCRDMA_HBA_ATTRB_PCI_DID_SHIFT		= 0x10,
+	OCRDMA_HBA_ATTRB_PCI_SVID_MASK		= 0xFFFF,
+	OCRDMA_HBA_ATTRB_PCI_SSID_MASK		= 0xFFFF0000,
+	OCRDMA_HBA_ATTRB_PCI_SSID_SHIFT		= 0x10,
+	OCRDMA_HBA_ATTRB_PCI_BUSNUM_MASK	= 0xFF,
+	OCRDMA_HBA_ATTRB_PCI_DEVNUM_MASK	= 0xFF00,
+	OCRDMA_HBA_ATTRB_PCI_DEVNUM_SHIFT	= 0x08,
+	OCRDMA_HBA_ATTRB_PCI_FUNCNUM_MASK	= 0xFF0000,
+	OCRDMA_HBA_ATTRB_PCI_FUNCNUM_SHIFT	= 0x10,
+	OCRDMA_HBA_ATTRB_IF_TYPE_MASK		= 0xFF000000,
+	OCRDMA_HBA_ATTRB_IF_TYPE_SHIFT		= 0x18,
+	OCRDMA_HBA_ATTRB_NETFIL_MASK		=0xFF
+};
 
 struct mgmt_hba_attribs {
 	u8 flashrom_version_string[32];
 	u8 manufacturer_name[32];
 	u32 supported_modes;
-	u32 rsvd0[3];
+	u32 rsvd_eprom_verhi_verlo;
+	u32 mbx_ds_ver;
+	u32 epfw_ds_ver;
 	u8 ncsi_ver_string[12];
 	u32 default_extended_timeout;
 	u8 controller_model_number[32];
@@ -1914,34 +1999,26 @@ struct mgmt_hba_attribs {
 	u8 driver_version_string[32];
 	u8 fw_on_flash_version_string[32];
 	u32 functionalities_supported;
-	u16 max_cdblength;
-	u8 asic_revision;
-	u8 generational_guid[16];
-	u8 hba_port_count;
-	u16 default_link_down_timeout;
-	u8 iscsi_ver_min_max;
-	u8 multifunction_device;
-	u8 cache_valid;
-	u8 hba_status;
-	u8 max_domains_supported;
-	u8 phy_port;
+	u32 guid0_asicrev_cdblen;
+	u8 generational_guid[12];
+	u32 portcnt_guid15;
+	u32 mfuncdev_iscsi_ldtout;
+	u32 ptpnum_maxdoms_hbast_cv;
 	u32 firmware_post_status;
 	u32 hba_mtu[8];
-	u32 rsvd1[4];
+	u32 res_asicgen_iscsi_feaures;
+	u32 rsvd1[3];
 };
 
 struct mgmt_controller_attrib {
 	struct mgmt_hba_attribs hba_attribs;
-	u16 pci_vendor_id;
-	u16 pci_device_id;
-	u16 pci_sub_vendor_id;
-	u16 pci_sub_system_id;
-	u8 pci_bus_number;
-	u8 pci_device_number;
-	u8 pci_function_number;
-	u8 interface_type;
-	u64 unique_identifier;
-	u32 rsvd0[5];
+	u32 pci_did_vid;
+	u32 pci_ssid_svid;
+	u32 ityp_fnum_devnum_bnum;
+	u32 uid_hi;
+	u32 uid_lo;
+	u32 res_nnetfil;
+	u32 rsvd0[4];
 };
 
 struct ocrdma_get_ctrl_attribs_rsp {
@@ -1949,5 +2026,79 @@ struct ocrdma_get_ctrl_attribs_rsp {
 	struct mgmt_controller_attrib ctrl_attribs;
 };
 
+#define OCRDMA_SUBSYS_DCBX 0x10
+
+enum OCRDMA_DCBX_OPCODE {
+	OCRDMA_CMD_GET_DCBX_CONFIG = 0x01
+};
+
+enum OCRDMA_DCBX_PARAM_TYPE {
+	OCRDMA_PARAMETER_TYPE_ADMIN	= 0x00,
+	OCRDMA_PARAMETER_TYPE_OPER	= 0x01,
+	OCRDMA_PARAMETER_TYPE_PEER	= 0x02
+};
+
+enum OCRDMA_DCBX_APP_PROTO {
+	OCRDMA_APP_PROTO_ROCE	= 0x8915
+};
+
+enum OCRDMA_DCBX_PROTO {
+	OCRDMA_PROTO_SELECT_L2	= 0x00,
+	OCRDMA_PROTO_SELECT_L4	= 0x01
+};
+
+enum OCRDMA_DCBX_APP_PARAM {
+	OCRDMA_APP_PARAM_APP_PROTO_MASK = 0xFFFF,
+	OCRDMA_APP_PARAM_PROTO_SEL_MASK = 0xFF,
+	OCRDMA_APP_PARAM_PROTO_SEL_SHIFT = 0x10,
+	OCRDMA_APP_PARAM_VALID_MASK	= 0xFF,
+	OCRDMA_APP_PARAM_VALID_SHIFT	= 0x18
+};
+
+enum OCRDMA_DCBX_STATE_FLAGS {
+	OCRDMA_STATE_FLAG_ENABLED	= 0x01,
+	OCRDMA_STATE_FLAG_ADDVERTISED	= 0x02,
+	OCRDMA_STATE_FLAG_WILLING	= 0x04,
+	OCRDMA_STATE_FLAG_SYNC		= 0x08,
+	OCRDMA_STATE_FLAG_UNSUPPORTED	= 0x40000000,
+	OCRDMA_STATE_FLAG_NEG_FAILD	= 0x80000000
+};
+
+enum OCRDMA_TCV_AEV_OPV_ST {
+	OCRDMA_DCBX_TC_SUPPORT_MASK	= 0xFF,
+	OCRDMA_DCBX_TC_SUPPORT_SHIFT	= 0x18,
+	OCRDMA_DCBX_APP_ENTRY_SHIFT	= 0x10,
+	OCRDMA_DCBX_OP_PARAM_SHIFT	= 0x08,
+	OCRDMA_DCBX_STATE_MASK		= 0xFF
+};
+
+struct ocrdma_app_parameter {
+	u32 valid_proto_app;
+	u32 oui;
+	u32 app_prio[2];
+};
+
+struct ocrdma_dcbx_cfg {
+	u32 tcv_aev_opv_st;
+	u32 tc_state;
+	u32 pfc_state;
+	u32 qcn_state;
+	u32 appl_state;
+	u32 ll_state;
+	u32 tc_bw[2];
+	u32 tc_prio[8];
+	u32 pfc_prio[2];
+	struct ocrdma_app_parameter app_param[15];
+};
+
+struct ocrdma_get_dcbx_cfg_req {
+	struct ocrdma_mbx_hdr hdr;
+	u32 param_type;
+} __packed;
+
+struct ocrdma_get_dcbx_cfg_rsp {
+	struct ocrdma_mbx_rsp hdr;
+	struct ocrdma_dcbx_cfg cfg;
+} __packed;
 
 #endif				/* __OCRDMA_SLI_H__ */

@@ -7,193 +7,28 @@
 
 # Configuration options for the S5PV210/S5PC110
 
+config ARCH_S5PV210
+	bool "Samsung S5PV210/S5PC110" if ARCH_MULTI_V7
+	select ARCH_HAS_HOLES_MEMORYMODEL
+	select ARCH_REQUIRE_GPIOLIB
+	select ARM_VIC
+	select CLKSRC_SAMSUNG_PWM
+	select COMMON_CLK_SAMSUNG
+	select HAVE_S3C2410_I2C if I2C
+	select HAVE_S3C2410_WATCHDOG if WATCHDOG
+	select HAVE_S3C_RTC if RTC_CLASS
+	select PINCTRL
+	select PINCTRL_EXYNOS
+	help
+	  Samsung S5PV210/S5PC110 series based systems
+
 if ARCH_S5PV210
 
 config CPU_S5PV210
-	bool
+	def_bool y
 	select ARM_AMBA
 	select PL330_DMA if DMADEVICES
-	select S5P_EXT_INT
-	select S5P_PM if PM
-	select S5P_SLEEP if PM
 	help
 	  Enable S5PV210 CPU support
-
-config S5PV210_SETUP_I2C1
-	bool
-	help
-	  Common setup code for i2c bus 1.
-
-config S5PV210_SETUP_I2C2
-	bool
-	help
-	  Common setup code for i2c bus 2.
-
-config S5PV210_SETUP_IDE
-	bool
-	help
-	  Common setup code for S5PV210 IDE GPIO configurations
-
-config S5PV210_SETUP_FB_24BPP
-	bool
-	help
-          Common setup code for S5PV210 with an 24bpp RGB display helper.
-
-config S5PV210_SETUP_KEYPAD
-	bool
-	help
-	  Common setup code for keypad.
-
-config S5PV210_SETUP_SDHCI
-        bool
-        select S5PV210_SETUP_SDHCI_GPIO
-        help
-          Internal helper functions for S5PV210 based SDHCI systems
-
-config S5PV210_SETUP_SDHCI_GPIO
-	bool
-	help
-	  Common setup code for SDHCI gpio.
-
-config S5PV210_SETUP_FIMC
-	bool
-	help
-	  Common setup code for the camera interfaces.
-
-config S5PV210_SETUP_SPI
-	bool
-	help
-	  Common setup code for SPI GPIO configurations.
-
-config S5PV210_SETUP_USB_PHY
-	bool
-	help
-	  Common setup code for USB PHY controller
-
-menu "S5PC110 Machines"
-
-config MACH_AQUILA
-	bool "Aquila"
-	select CPU_S5PV210
-	select S3C_DEV_FB
-	select S3C_DEV_HSMMC
-	select S3C_DEV_HSMMC1
-	select S3C_DEV_HSMMC2
-	select S5PV210_SETUP_FB_24BPP
-	select S5PV210_SETUP_SDHCI
-	select S5PV210_SETUP_USB_PHY
-	select S5P_DEV_FIMC0
-	select S5P_DEV_FIMC1
-	select S5P_DEV_FIMC2
-	select S5P_DEV_ONENAND
-	help
-	  Machine support for the Samsung Aquila target based on S5PC110 SoC
-
-config MACH_GONI
-	bool "GONI"
-	select CPU_S5PV210
-	select S3C_DEV_FB
-	select S3C_DEV_HSMMC
-	select S3C_DEV_HSMMC1
-	select S3C_DEV_HSMMC2
-	select S3C_DEV_I2C1
-	select S3C_DEV_I2C2
-	select S3C_DEV_USB_HSOTG
-	select S5PV210_SETUP_FB_24BPP
-	select S5PV210_SETUP_FIMC
-	select S5PV210_SETUP_I2C1
-	select S5PV210_SETUP_I2C2
-	select S5PV210_SETUP_KEYPAD
-	select S5PV210_SETUP_SDHCI
-	select S5PV210_SETUP_USB_PHY
-	select S5P_DEV_FIMC0
-	select S5P_DEV_FIMC1
-	select S5P_DEV_FIMC2
-	select S5P_DEV_MFC
-	select S5P_DEV_ONENAND
-	select S5P_DEV_TV
-	select S5P_GPIO_INT
-	select SAMSUNG_DEV_KEYPAD
-	help
-	  Machine support for Samsung GONI board
-	  S5PC110(MCP) is one of package option of S5PV210
-
-config MACH_SMDKC110
-	bool "SMDKC110"
-	select CPU_S5PV210
-	select S3C_DEV_I2C1
-	select S3C_DEV_I2C2
-	select S3C_DEV_RTC
-	select S3C_DEV_WDT
-	select S5PV210_SETUP_I2C1
-	select S5PV210_SETUP_I2C2
-	select S5PV210_SETUP_IDE
-	select S5P_DEV_FIMC0
-	select S5P_DEV_FIMC1
-	select S5P_DEV_FIMC2
-	select S5P_DEV_MFC
-	select SAMSUNG_DEV_IDE
-	help
-	  Machine support for Samsung SMDKC110
-	  S5PC110(MCP) is one of package option of S5PV210
-
-endmenu
-
-menu "S5PV210 Machines"
-
-config MACH_SMDKV210
-	bool "SMDKV210"
-	select CPU_S5PV210
-	select S3C_DEV_FB
-	select S3C_DEV_HSMMC
-	select S3C_DEV_HSMMC1
-	select S3C_DEV_HSMMC2
-	select S3C_DEV_HSMMC3
-	select S3C_DEV_I2C1
-	select S3C_DEV_I2C2
-	select S3C_DEV_RTC
-	select S3C_DEV_USB_HSOTG
-	select S3C_DEV_WDT
-	select S5PV210_SETUP_FB_24BPP
-	select S5PV210_SETUP_I2C1
-	select S5PV210_SETUP_I2C2
-	select S5PV210_SETUP_IDE
-	select S5PV210_SETUP_KEYPAD
-	select S5PV210_SETUP_SDHCI
-	select S5PV210_SETUP_USB_PHY
-	select S5P_DEV_FIMC0
-	select S5P_DEV_FIMC1
-	select S5P_DEV_FIMC2
-	select S5P_DEV_JPEG
-	select S5P_DEV_MFC
-	select SAMSUNG_DEV_ADC
-	select SAMSUNG_DEV_BACKLIGHT
-	select SAMSUNG_DEV_IDE
-	select SAMSUNG_DEV_KEYPAD
-	select SAMSUNG_DEV_PWM
-	select SAMSUNG_DEV_TS
-	help
-	  Machine support for Samsung SMDKV210
-
-config MACH_TORBRECK
-	bool "Torbreck"
-	select ARCH_SPARSEMEM_ENABLE
-	select CPU_S5PV210
-	select S3C_DEV_HSMMC
-	select S3C_DEV_HSMMC1
-	select S3C_DEV_HSMMC2
-	select S3C_DEV_HSMMC3
-	select S3C_DEV_I2C1
-	select S3C_DEV_I2C2
-	select S3C_DEV_RTC
-	select S3C_DEV_WDT
-	select S5PV210_SETUP_I2C1
-	select S5PV210_SETUP_I2C2
-	select S5PV210_SETUP_SDHCI
-	select SAMSUNG_DEV_IDE
-	help
-	  Machine support for aESOP Torbreck
-
-endmenu
 
 endif

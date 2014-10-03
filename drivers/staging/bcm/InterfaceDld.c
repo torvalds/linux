@@ -244,6 +244,7 @@ static INT buffDnld(struct bcm_mini_adapter *Adapter,
 {
 	unsigned int len = 0;
 	int retval = STATUS_SUCCESS;
+
 	len = u32FirmwareLength;
 
 	while (u32FirmwareLength) {

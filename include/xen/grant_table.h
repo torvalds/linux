@@ -64,24 +64,6 @@ int gnttab_resume(void);
 
 int gnttab_grant_foreign_access(domid_t domid, unsigned long frame,
 				int readonly);
-int gnttab_grant_foreign_access_subpage(domid_t domid, unsigned long frame,
-					int flags, unsigned page_off,
-					unsigned length);
-int gnttab_grant_foreign_access_trans(domid_t domid, int flags,
-				      domid_t trans_domid,
-				      grant_ref_t trans_gref);
-
-/*
- * Are sub-page grants available on this version of Xen?  Returns true if they
- * are, and false if they're not.
- */
-bool gnttab_subpage_grants_available(void);
-
-/*
- * Are transitive grants available on this version of Xen?  Returns true if they
- * are, and false if they're not.
- */
-bool gnttab_trans_grants_available(void);
 
 /*
  * End access through the given grant reference, iff the grant entry is no
@@ -128,13 +110,6 @@ void gnttab_cancel_free_callback(struct gnttab_free_callback *callback);
 
 void gnttab_grant_foreign_access_ref(grant_ref_t ref, domid_t domid,
 				     unsigned long frame, int readonly);
-int gnttab_grant_foreign_access_subpage_ref(grant_ref_t ref, domid_t domid,
-					    unsigned long frame, int flags,
-					    unsigned page_off,
-					    unsigned length);
-int gnttab_grant_foreign_access_trans_ref(grant_ref_t ref, domid_t domid,
-					  int flags, domid_t trans_domid,
-					  grant_ref_t trans_gref);
 
 void gnttab_grant_foreign_transfer_ref(grant_ref_t, domid_t domid,
 				       unsigned long pfn);
@@ -170,12 +145,10 @@ gnttab_set_unmap_op(struct gnttab_unmap_grant_ref *unmap, phys_addr_t addr,
 	unmap->dev_bus_addr = 0;
 }
 
+int arch_gnttab_init(unsigned long nr_shared);
 int arch_gnttab_map_shared(xen_pfn_t *frames, unsigned long nr_gframes,
 			   unsigned long max_nr_gframes,
 			   void **__shared);
-int arch_gnttab_map_status(uint64_t *frames, unsigned long nr_gframes,
-			   unsigned long max_nr_gframes,
-			   grant_status_t **__shared);
 void arch_gnttab_unmap(void *shared, unsigned long nr_gframes);
 
 struct grant_frames {

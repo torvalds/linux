@@ -20,10 +20,20 @@
 #include <asm/tlbflush.h>
 #include <asm-generic/mm_hooks.h>
 
+#define htw_set_pwbase(pgd)						\
+do {									\
+	if (cpu_has_htw) {						\
+		write_c0_pwbase(pgd);					\
+		back_to_back_c0_hazard();				\
+		htw_reset();						\
+	}								\
+} while (0)
+
 #define TLBMISS_HANDLER_SETUP_PGD(pgd)					\
 do {									\
 	extern void tlbmiss_handler_setup_pgd(unsigned long);		\
 	tlbmiss_handler_setup_pgd((unsigned long)(pgd));		\
+	htw_set_pwbase((unsigned long)pgd);				\
 } while (0)
 
 #ifdef CONFIG_MIPS_PGD_C0_CONTEXT

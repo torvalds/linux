@@ -135,12 +135,12 @@ enum ibmvfc_mad_types {
 };
 
 struct ibmvfc_mad_common {
-	u32 version;
-	u32 reserved;
-	u32 opcode;
-	u16 status;
-	u16 length;
-	u64 tag;
+	__be32 version;
+	__be32 reserved;
+	__be32 opcode;
+	__be16 status;
+	__be16 length;
+	__be64 tag;
 }__attribute__((packed, aligned (8)));
 
 struct ibmvfc_npiv_login_mad {
@@ -155,76 +155,76 @@ struct ibmvfc_npiv_logout_mad {
 #define IBMVFC_MAX_NAME 256
 
 struct ibmvfc_npiv_login {
-	u32 ostype;
+	__be32 ostype;
 #define IBMVFC_OS_LINUX	0x02
-	u32 pad;
-	u64 max_dma_len;
-	u32 max_payload;
-	u32 max_response;
-	u32 partition_num;
-	u32 vfc_frame_version;
-	u16 fcp_version;
-	u16 flags;
+	__be32 pad;
+	__be64 max_dma_len;
+	__be32 max_payload;
+	__be32 max_response;
+	__be32 partition_num;
+	__be32 vfc_frame_version;
+	__be16 fcp_version;
+	__be16 flags;
 #define IBMVFC_CLIENT_MIGRATED	0x01
 #define IBMVFC_FLUSH_ON_HALT		0x02
-	u32 max_cmds;
-	u64 capabilities;
+	__be32 max_cmds;
+	__be64 capabilities;
 #define IBMVFC_CAN_MIGRATE		0x01
-	u64 node_name;
+	__be64 node_name;
 	struct srp_direct_buf async;
 	u8 partition_name[IBMVFC_MAX_NAME];
 	u8 device_name[IBMVFC_MAX_NAME];
 	u8 drc_name[IBMVFC_MAX_NAME];
-	u64 reserved2[2];
+	__be64 reserved2[2];
 }__attribute__((packed, aligned (8)));
 
 struct ibmvfc_common_svc_parms {
-	u16 fcph_version;
-	u16 b2b_credit;
-	u16 features;
-	u16 bb_rcv_sz; /* upper nibble is BB_SC_N */
-	u32 ratov;
-	u32 edtov;
+	__be16 fcph_version;
+	__be16 b2b_credit;
+	__be16 features;
+	__be16 bb_rcv_sz; /* upper nibble is BB_SC_N */
+	__be32 ratov;
+	__be32 edtov;
 }__attribute__((packed, aligned (4)));
 
 struct ibmvfc_service_parms {
 	struct ibmvfc_common_svc_parms common;
 	u8 port_name[8];
 	u8 node_name[8];
-	u32 class1_parms[4];
-	u32 class2_parms[4];
-	u32 class3_parms[4];
-	u32 obsolete[4];
-	u32 vendor_version[4];
-	u32 services_avail[2];
-	u32 ext_len;
-	u32 reserved[30];
-	u32 clk_sync_qos[2];
+	__be32 class1_parms[4];
+	__be32 class2_parms[4];
+	__be32 class3_parms[4];
+	__be32 obsolete[4];
+	__be32 vendor_version[4];
+	__be32 services_avail[2];
+	__be32 ext_len;
+	__be32 reserved[30];
+	__be32 clk_sync_qos[2];
 }__attribute__((packed, aligned (4)));
 
 struct ibmvfc_npiv_login_resp {
-	u32 version;
-	u16 status;
-	u16 error;
-	u32 flags;
+	__be32 version;
+	__be16 status;
+	__be16 error;
+	__be32 flags;
 #define IBMVFC_NATIVE_FC		0x01
-	u32 reserved;
-	u64 capabilities;
+	__be32 reserved;
+	__be64 capabilities;
 #define IBMVFC_CAN_FLUSH_ON_HALT	0x08
 #define IBMVFC_CAN_SUPPRESS_ABTS	0x10
-	u32 max_cmds;
-	u32 scsi_id_sz;
-	u64 max_dma_len;
-	u64 scsi_id;
-	u64 port_name;
-	u64 node_name;
-	u64 link_speed;
+	__be32 max_cmds;
+	__be32 scsi_id_sz;
+	__be64 max_dma_len;
+	__be64 scsi_id;
+	__be64 port_name;
+	__be64 node_name;
+	__be64 link_speed;
 	u8 partition_name[IBMVFC_MAX_NAME];
 	u8 device_name[IBMVFC_MAX_NAME];
 	u8 port_loc_code[IBMVFC_MAX_NAME];
 	u8 drc_name[IBMVFC_MAX_NAME];
 	struct ibmvfc_service_parms service_parms;
-	u64 reserved2;
+	__be64 reserved2;
 }__attribute__((packed, aligned (8)));
 
 union ibmvfc_npiv_login_data {
@@ -233,20 +233,20 @@ union ibmvfc_npiv_login_data {
 }__attribute__((packed, aligned (8)));
 
 struct ibmvfc_discover_targets_buf {
-	u32 scsi_id[1];
+	__be32 scsi_id[1];
 #define IBMVFC_DISC_TGT_SCSI_ID_MASK	0x00ffffff
 };
 
 struct ibmvfc_discover_targets {
 	struct ibmvfc_mad_common common;
 	struct srp_direct_buf buffer;
-	u32 flags;
-	u16 status;
-	u16 error;
-	u32 bufflen;
-	u32 num_avail;
-	u32 num_written;
-	u64 reserved[2];
+	__be32 flags;
+	__be16 status;
+	__be16 error;
+	__be32 bufflen;
+	__be32 num_avail;
+	__be32 num_written;
+	__be64 reserved[2];
 }__attribute__((packed, aligned (8)));
 
 enum ibmvfc_fc_reason {
@@ -278,32 +278,32 @@ enum ibmvfc_gs_explain {
 
 struct ibmvfc_port_login {
 	struct ibmvfc_mad_common common;
-	u64 scsi_id;
-	u16 reserved;
-	u16 fc_service_class;
-	u32 blksz;
-	u32 hdr_per_blk;
-	u16 status;
-	u16 error;		/* also fc_reason */
-	u16 fc_explain;
-	u16 fc_type;
-	u32 reserved2;
+	__be64 scsi_id;
+	__be16 reserved;
+	__be16 fc_service_class;
+	__be32 blksz;
+	__be32 hdr_per_blk;
+	__be16 status;
+	__be16 error;		/* also fc_reason */
+	__be16 fc_explain;
+	__be16 fc_type;
+	__be32 reserved2;
 	struct ibmvfc_service_parms service_parms;
 	struct ibmvfc_service_parms service_parms_change;
-	u64 reserved3[2];
+	__be64 reserved3[2];
 }__attribute__((packed, aligned (8)));
 
 struct ibmvfc_prli_svc_parms {
 	u8 type;
 #define IBMVFC_SCSI_FCP_TYPE		0x08
 	u8 type_ext;
-	u16 flags;
+	__be16 flags;
 #define IBMVFC_PRLI_ORIG_PA_VALID			0x8000
 #define IBMVFC_PRLI_RESP_PA_VALID			0x4000
 #define IBMVFC_PRLI_EST_IMG_PAIR			0x2000
-	u32 orig_pa;
-	u32 resp_pa;
-	u32 service_parms;
+	__be32 orig_pa;
+	__be32 resp_pa;
+	__be32 service_parms;
 #define IBMVFC_PRLI_TASK_RETRY			0x00000200
 #define IBMVFC_PRLI_RETRY				0x00000100
 #define IBMVFC_PRLI_DATA_OVERLAY			0x00000040
@@ -315,47 +315,47 @@ struct ibmvfc_prli_svc_parms {
 
 struct ibmvfc_process_login {
 	struct ibmvfc_mad_common common;
-	u64 scsi_id;
+	__be64 scsi_id;
 	struct ibmvfc_prli_svc_parms parms;
 	u8 reserved[48];
-	u16 status;
-	u16 error;			/* also fc_reason */
-	u32 reserved2;
-	u64 reserved3[2];
+	__be16 status;
+	__be16 error;			/* also fc_reason */
+	__be32 reserved2;
+	__be64 reserved3[2];
 }__attribute__((packed, aligned (8)));
 
 struct ibmvfc_query_tgt {
 	struct ibmvfc_mad_common common;
-	u64 wwpn;
-	u64 scsi_id;
-	u16 status;
-	u16 error;
-	u16 fc_explain;
-	u16 fc_type;
-	u64 reserved[2];
+	__be64 wwpn;
+	__be64 scsi_id;
+	__be16 status;
+	__be16 error;
+	__be16 fc_explain;
+	__be16 fc_type;
+	__be64 reserved[2];
 }__attribute__((packed, aligned (8)));
 
 struct ibmvfc_implicit_logout {
 	struct ibmvfc_mad_common common;
-	u64 old_scsi_id;
-	u64 reserved[2];
+	__be64 old_scsi_id;
+	__be64 reserved[2];
 }__attribute__((packed, aligned (8)));
 
 struct ibmvfc_tmf {
 	struct ibmvfc_mad_common common;
-	u64 scsi_id;
+	__be64 scsi_id;
 	struct scsi_lun lun;
-	u32 flags;
+	__be32 flags;
 #define IBMVFC_TMF_ABORT_TASK		0x02
 #define IBMVFC_TMF_ABORT_TASK_SET	0x04
 #define IBMVFC_TMF_LUN_RESET		0x10
 #define IBMVFC_TMF_TGT_RESET		0x20
 #define IBMVFC_TMF_LUA_VALID		0x40
 #define IBMVFC_TMF_SUPPRESS_ABTS	0x80
-	u32 cancel_key;
-	u32 my_cancel_key;
-	u32 pad;
-	u64 reserved[2];
+	__be32 cancel_key;
+	__be32 my_cancel_key;
+	__be32 pad;
+	__be64 reserved[2];
 }__attribute__((packed, aligned (8)));
 
 enum ibmvfc_fcp_rsp_info_codes {
@@ -366,7 +366,7 @@ enum ibmvfc_fcp_rsp_info_codes {
 };
 
 struct ibmvfc_fcp_rsp_info {
-	u16 reserved;
+	__be16 reserved;
 	u8 rsp_code;
 	u8 reserved2[4];
 }__attribute__((packed, aligned (2)));
@@ -388,13 +388,13 @@ union ibmvfc_fcp_rsp_data {
 }__attribute__((packed, aligned (8)));
 
 struct ibmvfc_fcp_rsp {
-	u64 reserved;
-	u16 retry_delay_timer;
+	__be64 reserved;
+	__be16 retry_delay_timer;
 	u8 flags;
 	u8 scsi_status;
-	u32 fcp_resid;
-	u32 fcp_sense_len;
-	u32 fcp_rsp_len;
+	__be32 fcp_resid;
+	__be32 fcp_sense_len;
+	__be32 fcp_rsp_len;
 	union ibmvfc_fcp_rsp_data data;
 }__attribute__((packed, aligned (8)));
 
@@ -429,58 +429,58 @@ struct ibmvfc_fcp_cmd_iu {
 #define IBMVFC_RDDATA		0x02
 #define IBMVFC_WRDATA		0x01
 	u8 cdb[IBMVFC_MAX_CDB_LEN];
-	u32 xfer_len;
+	__be32 xfer_len;
 }__attribute__((packed, aligned (4)));
 
 struct ibmvfc_cmd {
-	u64 task_tag;
-	u32 frame_type;
-	u32 payload_len;
-	u32 resp_len;
-	u32 adapter_resid;
-	u16 status;
-	u16 error;
-	u16 flags;
-	u16 response_flags;
+	__be64 task_tag;
+	__be32 frame_type;
+	__be32 payload_len;
+	__be32 resp_len;
+	__be32 adapter_resid;
+	__be16 status;
+	__be16 error;
+	__be16 flags;
+	__be16 response_flags;
 #define IBMVFC_ADAPTER_RESID_VALID	0x01
-	u32 cancel_key;
-	u32 exchange_id;
+	__be32 cancel_key;
+	__be32 exchange_id;
 	struct srp_direct_buf ext_func;
 	struct srp_direct_buf ioba;
 	struct srp_direct_buf resp;
-	u64 correlation;
-	u64 tgt_scsi_id;
-	u64 tag;
-	u64 reserved3[2];
+	__be64 correlation;
+	__be64 tgt_scsi_id;
+	__be64 tag;
+	__be64 reserved3[2];
 	struct ibmvfc_fcp_cmd_iu iu;
 	struct ibmvfc_fcp_rsp rsp;
 }__attribute__((packed, aligned (8)));
 
 struct ibmvfc_passthru_fc_iu {
-	u32 payload[7];
+	__be32 payload[7];
 #define IBMVFC_ADISC	0x52000000
-	u32 response[7];
+	__be32 response[7];
 };
 
 struct ibmvfc_passthru_iu {
-	u64 task_tag;
-	u32 cmd_len;
-	u32 rsp_len;
-	u16 status;
-	u16 error;
-	u32 flags;
+	__be64 task_tag;
+	__be32 cmd_len;
+	__be32 rsp_len;
+	__be16 status;
+	__be16 error;
+	__be32 flags;
 #define IBMVFC_FC_ELS		0x01
 #define IBMVFC_FC_CT_IU		0x02
-	u32 cancel_key;
+	__be32 cancel_key;
 #define IBMVFC_PASSTHRU_CANCEL_KEY	0x80000000
 #define IBMVFC_INTERNAL_CANCEL_KEY	0x80000001
-	u32 reserved;
+	__be32 reserved;
 	struct srp_direct_buf cmd;
 	struct srp_direct_buf rsp;
-	u64 correlation;
-	u64 scsi_id;
-	u64 tag;
-	u64 reserved2[2];
+	__be64 correlation;
+	__be64 scsi_id;
+	__be64 tag;
+	__be64 reserved2[2];
 }__attribute__((packed, aligned (8)));
 
 struct ibmvfc_passthru_mad {
@@ -552,7 +552,7 @@ struct ibmvfc_crq {
 	volatile u8 valid;
 	volatile u8 format;
 	u8 reserved[6];
-	volatile u64 ioba;
+	volatile __be64 ioba;
 }__attribute__((packed, aligned (8)));
 
 struct ibmvfc_crq_queue {
@@ -572,12 +572,12 @@ struct ibmvfc_async_crq {
 	volatile u8 valid;
 	u8 link_state;
 	u8 pad[2];
-	u32 pad2;
-	volatile u64 event;
-	volatile u64 scsi_id;
-	volatile u64 wwpn;
-	volatile u64 node_name;
-	u64 reserved;
+	__be32 pad2;
+	volatile __be64 event;
+	volatile __be64 scsi_id;
+	volatile __be64 wwpn;
+	volatile __be64 node_name;
+	__be64 reserved;
 }__attribute__((packed, aligned (8)));
 
 struct ibmvfc_async_crq_queue {

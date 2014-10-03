@@ -190,18 +190,18 @@ static inline void __user *compat_get_sigframe(struct k_sigaction *ka,
 	return (void __user *) sp;
 }
 
-int compat_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
-			  sigset_t *set, struct pt_regs *regs)
+int compat_setup_rt_frame(struct ksignal *ksig, sigset_t *set,
+			  struct pt_regs *regs)
 {
 	unsigned long restorer;
 	struct compat_rt_sigframe __user *frame;
-	int err = 0;
+	int err = 0, sig = ksig->sig;
 	int usig;
 
-	frame = compat_get_sigframe(ka, regs, sizeof(*frame));
+	frame = compat_get_sigframe(&ksig->ka, regs, sizeof(*frame));
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
-		goto give_sigsegv;
+		goto err;
 
 	usig = current_thread_info()->exec_domain
 		&& current_thread_info()->exec_domain->signal_invmap
@@ -210,12 +210,12 @@ int compat_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		: sig;
 
 	/* Always write at least the signal number for the stack backtracer. */
-	if (ka->sa.sa_flags & SA_SIGINFO) {
+	if (ksig->ka.sa.sa_flags & SA_SIGINFO) {
 		/* At sigreturn time, restore the callee-save registers too. */
-		err |= copy_siginfo_to_user32(&frame->info, info);
+		err |= copy_siginfo_to_user32(&frame->info, &ksig->info);
 		regs->flags |= PT_FLAGS_RESTORE_REGS;
 	} else {
-		err |= __put_user(info->si_signo, &frame->info.si_signo);
+		err |= __put_user(ksig->info.si_signo, &frame->info.si_signo);
 	}
 
 	/* Create the ucontext.  */
@@ -226,11 +226,11 @@ int compat_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	err |= setup_sigcontext(&frame->uc.uc_mcontext, regs);
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 	if (err)
-		goto give_sigsegv;
+		goto err;
 
 	restorer = VDSO_SYM(&__vdso_rt_sigreturn);
-	if (ka->sa.sa_flags & SA_RESTORER)
-		restorer = ptr_to_compat_reg(ka->sa.sa_restorer);
+	if (ksig->ka.sa.sa_flags & SA_RESTORER)
+		restorer = ptr_to_compat_reg(ksig->ka.sa.sa_restorer);
 
 	/*
 	 * Set up registers for signal handler.
@@ -239,7 +239,7 @@ int compat_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	 * We always pass siginfo and mcontext, regardless of SA_SIGINFO,
 	 * since some things rely on this (e.g. glibc's debug/segfault.c).
 	 */
-	regs->pc = ptr_to_compat_reg(ka->sa.sa_handler);
+	regs->pc = ptr_to_compat_reg(ksig->ka.sa.sa_handler);
 	regs->ex1 = PL_ICS_EX1(USER_PL, 1); /* set crit sec in handler */
 	regs->sp = ptr_to_compat_reg(frame);
 	regs->lr = restorer;
@@ -249,7 +249,8 @@ int compat_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->flags |= PT_FLAGS_CALLER_SAVES;
 	return 0;
 
-give_sigsegv:
-	signal_fault("bad setup frame", regs, frame, sig);
+err:
+	trace_unhandled_signal("bad sigreturn frame", regs,
+			      (unsigned long)frame, SIGSEGV);
 	return -EFAULT;
 }

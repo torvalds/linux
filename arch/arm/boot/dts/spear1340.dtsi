@@ -31,10 +31,38 @@
 			status = "disabled";
 		};
 
-		ahci@b1000000 {
+		miphy0: miphy@eb800000 {
+			compatible = "st,spear1340-miphy";
+			reg = <0xeb800000 0x4000>;
+			misc = <&misc>;
+			#phy-cells = <1>;
+			status = "disabled";
+		};
+
+		ahci0: ahci@b1000000 {
 			compatible = "snps,spear-ahci";
 			reg = <0xb1000000 0x10000>;
 			interrupts = <0 72 0x4>;
+			phys = <&miphy0 0>;
+			phy-names = "sata-phy";
+			status = "disabled";
+		};
+
+		pcie0: pcie@b1000000 {
+			compatible = "st,spear1340-pcie", "snps,dw-pcie";
+			reg = <0xb1000000 0x4000>;
+			interrupts = <0 68 0x4>;
+			interrupt-map-mask = <0 0 0 0>;
+			interrupt-map = <0x0 0 &gic 0 68 0x4>;
+			num-lanes = <1>;
+			phys = <&miphy0 1>;
+			phy-names = "pcie-phy";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			ranges = <0x00000800 0 0x80000000 0x80000000 0 0x00020000   /* configuration space */
+				0x81000000 0 0	 0x80020000 0 0x00010000   /* downstream I/O */
+				0x82000000 0 0x80030000 0xc0030000 0 0x0ffd0000>; /* non-prefetchable memory */
 			status = "disabled";
 		};
 

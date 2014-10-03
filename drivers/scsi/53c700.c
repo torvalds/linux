@@ -1005,7 +1005,7 @@ process_script_interrupt(__u32 dsps, __u32 dsp, struct scsi_cmnd *SCp,
 						 DMA_TO_DEVICE);
 
 				cmnd[0] = REQUEST_SENSE;
-				cmnd[1] = (SCp->device->lun & 0x7) << 5;
+				cmnd[1] = (lun & 0x7) << 5;
 				cmnd[2] = 0;
 				cmnd[3] = 0;
 				cmnd[4] = SCSI_SENSE_BUFFERSIZE;
@@ -1396,7 +1396,8 @@ NCR_700_start_command(struct scsi_cmnd *SCp)
 	struct NCR_700_Host_Parameters *hostdata =
 		(struct NCR_700_Host_Parameters *)SCp->device->host->hostdata[0];
 	__u16 count = 1;	/* for IDENTIFY message */
-	
+	u8 lun = SCp->device->lun;
+
 	if(hostdata->state != NCR_700_HOST_FREE) {
 		/* keep this inside the lock to close the race window where
 		 * the running command finishes on another CPU while we don't
@@ -1415,7 +1416,7 @@ NCR_700_start_command(struct scsi_cmnd *SCp)
 
 	hostdata->msgout[0] = NCR_700_identify((SCp->cmnd[0] != REQUEST_SENSE &&
 						slot->flags != NCR_700_FLAG_AUTOSENSE),
-					       SCp->device->lun);
+					       lun);
 	/* for INQUIRY or REQUEST_SENSE commands, we cannot be sure
 	 * if the negotiated transfer parameters still hold, so
 	 * always renegotiate them */

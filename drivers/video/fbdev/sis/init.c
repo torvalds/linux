@@ -1511,7 +1511,7 @@ SiS_Get310DRAMType(struct SiS_Private *SiS_Pr)
       } else if(SiS_Pr->ChipType >= SIS_340) {
 	 /* TODO */
 	 data = 0;
-      } if(SiS_Pr->ChipType >= SIS_661) {
+      } else if(SiS_Pr->ChipType >= SIS_661) {
 	 if(SiS_Pr->SiS_ROMNew) {
 	    data = ((SiS_GetReg(SiS_Pr->SiS_P3d4,0x78) & 0xc0) >> 6);
 	 } else {

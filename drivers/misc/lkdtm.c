@@ -870,3 +870,4 @@ module_init(lkdtm_module_init);
 module_exit(lkdtm_module_exit);
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Kprobe module for testing crash dumps");

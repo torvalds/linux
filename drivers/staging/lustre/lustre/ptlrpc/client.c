@@ -38,12 +38,12 @@
 
 #define DEBUG_SUBSYSTEM S_RPC
 
-#include <obd_support.h>
-#include <obd_class.h>
-#include <lustre_lib.h>
-#include <lustre_ha.h>
-#include <lustre_import.h>
-#include <lustre_req_layout.h>
+#include "../include/obd_support.h"
+#include "../include/obd_class.h"
+#include "../include/lustre_lib.h"
+#include "../include/lustre_ha.h"
+#include "../include/lustre_import.h"
+#include "../include/lustre_req_layout.h"
 
 #include "ptlrpc_internal.h"
 
@@ -283,7 +283,7 @@ static void ptlrpc_at_adj_net_latency(struct ptlrpc_request *req,
 {
 	unsigned int nl, oldnl;
 	struct imp_at *at;
-	time_t now = cfs_time_current_sec();
+	time_t now = get_seconds();
 
 	LASSERT(req->rq_import);
 	at = &req->rq_import->imp_at;
@@ -367,13 +367,13 @@ static int ptlrpc_at_recv_early_reply(struct ptlrpc_request *req)
 	olddl = req->rq_deadline;
 	/* server assumes it now has rq_timeout from when it sent the
 	 * early reply, so client should give it at least that long. */
-	req->rq_deadline = cfs_time_current_sec() + req->rq_timeout +
+	req->rq_deadline = get_seconds() + req->rq_timeout +
 			   ptlrpc_at_get_net_latency(req);
 
 	DEBUG_REQ(D_ADAPTTO, req,
 		  "Early reply #%d, new deadline in "CFS_DURATION_T"s "
 		  "("CFS_DURATION_T"s)", req->rq_early_count,
-		  cfs_time_sub(req->rq_deadline, cfs_time_current_sec()),
+		  cfs_time_sub(req->rq_deadline, get_seconds()),
 		  cfs_time_sub(req->rq_deadline, olddl));
 
 	return rc;
@@ -1181,7 +1181,7 @@ static void ptlrpc_save_versions(struct ptlrpc_request *req)
 
 	LASSERT(versions);
 	lustre_msg_set_versions(reqmsg, versions);
-	CDEBUG(D_INFO, "Client save versions ["LPX64"/"LPX64"]\n",
+	CDEBUG(D_INFO, "Client save versions [%#llx/%#llx]\n",
 	       versions[0], versions[1]);
 }
 
@@ -1202,7 +1202,7 @@ static int after_reply(struct ptlrpc_request *req)
 
 	LASSERT(obd != NULL);
 	/* repbuf must be unlinked */
-	LASSERT(!req->rq_receiving_reply && !req->rq_must_unlink);
+	LASSERT(!req->rq_receiving_reply && !req->rq_reply_unlink);
 
 	if (req->rq_reply_truncate) {
 		if (ptlrpc_no_resend(req)) {
@@ -1248,7 +1248,7 @@ static int after_reply(struct ptlrpc_request *req)
 	/* retry indefinitely on EINPROGRESS */
 	if (lustre_msg_get_status(req->rq_repmsg) == -EINPROGRESS &&
 	    ptlrpc_no_resend(req) == 0 && !req->rq_no_retry_einprogress) {
-		time_t	now = cfs_time_current_sec();
+		time_t	now = get_seconds();
 
 		DEBUG_REQ(D_RPCTRACE, req, "Resending request on EINPROGRESS");
 		req->rq_resend = 1;
@@ -1395,7 +1395,7 @@ static int ptlrpc_send_new_req(struct ptlrpc_request *req)
 	int rc;
 
 	LASSERT(req->rq_phase == RQ_PHASE_NEW);
-	if (req->rq_sent && (req->rq_sent > cfs_time_current_sec()) &&
+	if (req->rq_sent && (req->rq_sent > get_seconds()) &&
 	    (!req->rq_generation_set ||
 	     req->rq_import_generation == imp->imp_generation))
 		return 0;
@@ -1451,7 +1451,7 @@ static int ptlrpc_send_new_req(struct ptlrpc_request *req)
 	}
 
 	CDEBUG(D_RPCTRACE, "Sending RPC pname:cluuid:pid:xid:nid:opc"
-	       " %s:%s:%d:"LPU64":%s:%d\n", current_comm(),
+	       " %s:%s:%d:%llu:%s:%d\n", current_comm(),
 	       imp->imp_obd->obd_uuid.uuid,
 	       lustre_msg_get_status(req->rq_reqmsg), req->rq_xid,
 	       libcfs_nid2str(imp->imp_connection->c_peer.nid),
@@ -1496,6 +1496,8 @@ static inline int ptlrpc_set_producer(struct ptlrpc_request_set *set)
  * and no more replies are expected.
  * (it is possible to get less replies than requests sent e.g. due to timed out
  * requests or requests that we had trouble to send out)
+ *
+ * NOTE: This function contains a potential schedule point (cond_resched()).
  */
 int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 {
@@ -1513,6 +1515,14 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 		int unregistered = 0;
 		int rc = 0;
 
+		/* This schedule point is mainly for the ptlrpcd caller of this
+		 * function.  Most ptlrpc sets are not long-lived and unbounded
+		 * in length, but at the least the set used by the ptlrpcd is.
+		 * Since the processing time is unbounded, we need to insert an
+		 * explicit schedule point to make the thread well-behaved.
+		 */
+		cond_resched();
+
 		if (req->rq_phase == RQ_PHASE_NEW &&
 		    ptlrpc_send_new_req(req)) {
 			force_timer_recalc = 1;
@@ -1524,7 +1534,7 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 
 		/* delayed resend - skip */
 		if (req->rq_phase == RQ_PHASE_RPC && req->rq_resend &&
-		    req->rq_sent > cfs_time_current_sec())
+		    req->rq_sent > get_seconds())
 			continue;
 
 		if (!(req->rq_phase == RQ_PHASE_RPC ||
@@ -1688,9 +1698,7 @@ int ptlrpc_check_set(const struct lu_env *env, struct ptlrpc_request_set *set)
 						/* ensure previous bulk fails */
 						old_xid = req->rq_xid;
 						req->rq_xid = ptlrpc_next_xid();
-						CDEBUG(D_HA, "resend bulk "
-						       "old x"LPU64
-						       " new x"LPU64"\n",
+						CDEBUG(D_HA, "resend bulk old x%llu new x%llu\n",
 						       old_xid, req->rq_xid);
 					}
 				}
@@ -1821,7 +1829,7 @@ interpret:
 
 		CDEBUG(req->rq_reqmsg != NULL ? D_RPCTRACE : 0,
 			"Completed RPC pname:cluuid:pid:xid:nid:"
-			"opc %s:%s:%d:"LPU64":%s:%d\n",
+			"opc %s:%s:%d:%llu:%s:%d\n",
 			current_comm(), imp->imp_obd->obd_uuid.uuid,
 			lustre_msg_get_status(req->rq_reqmsg), req->rq_xid,
 			libcfs_nid2str(imp->imp_connection->c_peer.nid),
@@ -1884,7 +1892,7 @@ int ptlrpc_expire_one_request(struct ptlrpc_request *req, int async_unlink)
 		  "/real "CFS_DURATION_T"]",
 		  req->rq_net_err ? "failed due to network error" :
 		     ((req->rq_real_sent == 0 ||
-		       cfs_time_before(req->rq_real_sent, req->rq_sent) ||
+		       time_before((unsigned long)req->rq_real_sent, (unsigned long)req->rq_sent) ||
 		       cfs_time_aftereq(req->rq_real_sent, req->rq_deadline)) ?
 		      "timed out for sent delay" : "timed out for slow reply"),
 		  req->rq_sent, req->rq_real_sent);
@@ -1945,7 +1953,7 @@ int ptlrpc_expired_set(void *data)
 {
 	struct ptlrpc_request_set *set = data;
 	struct list_head		*tmp;
-	time_t		     now = cfs_time_current_sec();
+	time_t		     now = get_seconds();
 
 	LASSERT(set != NULL);
 
@@ -2028,7 +2036,7 @@ EXPORT_SYMBOL(ptlrpc_interrupted_set);
 int ptlrpc_set_next_timeout(struct ptlrpc_request_set *set)
 {
 	struct list_head	    *tmp;
-	time_t		 now = cfs_time_current_sec();
+	time_t		 now = get_seconds();
 	int		    timeout = 0;
 	struct ptlrpc_request *req;
 	int		    deadline;
@@ -2346,7 +2354,7 @@ int ptlrpc_unregister_reply(struct ptlrpc_request *request, int async)
 	 */
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_REPL_UNLINK) &&
 	    async && request->rq_reply_deadline == 0)
-		request->rq_reply_deadline = cfs_time_current_sec()+LONG_UNLINK;
+		request->rq_reply_deadline = get_seconds()+LONG_UNLINK;
 
 	/*
 	 * Nothing left to do.
@@ -2396,9 +2404,10 @@ int ptlrpc_unregister_reply(struct ptlrpc_request *request, int async)
 		}
 
 		LASSERT(rc == -ETIMEDOUT);
-		DEBUG_REQ(D_WARNING, request, "Unexpectedly long timeout "
-			  "rvcng=%d unlnk=%d", request->rq_receiving_reply,
-			  request->rq_must_unlink);
+		DEBUG_REQ(D_WARNING, request,
+			  "Unexpectedly long timeout rvcng=%d unlnk=%d/%d",
+			  request->rq_receiving_reply,
+			  request->rq_req_unlink, request->rq_reply_unlink);
 	}
 	return 0;
 }
@@ -2456,11 +2465,11 @@ void ptlrpc_free_committed(struct obd_import *imp)
 
 	if (imp->imp_peer_committed_transno == imp->imp_last_transno_checked &&
 	    imp->imp_generation == imp->imp_last_generation_checked) {
-		CDEBUG(D_INFO, "%s: skip recheck: last_committed "LPU64"\n",
+		CDEBUG(D_INFO, "%s: skip recheck: last_committed %llu\n",
 		       imp->imp_obd->obd_name, imp->imp_peer_committed_transno);
 		return;
 	}
-	CDEBUG(D_RPCTRACE, "%s: committing for last_committed "LPU64" gen %d\n",
+	CDEBUG(D_RPCTRACE, "%s: committing for last_committed %llu gen %d\n",
 	       imp->imp_obd->obd_name, imp->imp_peer_committed_transno,
 	       imp->imp_generation);
 
@@ -2498,7 +2507,7 @@ void ptlrpc_free_committed(struct obd_import *imp)
 			continue;
 		}
 
-		DEBUG_REQ(D_INFO, req, "commit (last_committed "LPU64")",
+		DEBUG_REQ(D_INFO, req, "commit (last_committed %llu)",
 			  imp->imp_peer_committed_transno);
 free_req:
 		ptlrpc_free_request(req);
@@ -2530,10 +2539,19 @@ EXPORT_SYMBOL(ptlrpc_cleanup_client);
 void ptlrpc_resend_req(struct ptlrpc_request *req)
 {
 	DEBUG_REQ(D_HA, req, "going to resend");
+	spin_lock(&req->rq_lock);
+
+	/* Request got reply but linked to the import list still.
+	   Let ptlrpc_check_set() to process it. */
+	if (ptlrpc_client_replied(req)) {
+		spin_unlock(&req->rq_lock);
+		DEBUG_REQ(D_HA, req, "it has reply, so skip it");
+		return;
+	}
+
 	lustre_msg_set_handle(req->rq_reqmsg, &(struct lustre_handle){ 0 });
 	req->rq_status = -EAGAIN;
 
-	spin_lock(&req->rq_lock);
 	req->rq_resend = 1;
 	req->rq_net_err = 0;
 	req->rq_timedout = 0;
@@ -2542,7 +2560,7 @@ void ptlrpc_resend_req(struct ptlrpc_request *req)
 
 		/* ensure previous bulk fails */
 		req->rq_xid = ptlrpc_next_xid();
-		CDEBUG(D_HA, "resend bulk old x"LPU64" new x"LPU64"\n",
+		CDEBUG(D_HA, "resend bulk old x%llu new x%llu\n",
 		       old_xid, req->rq_xid);
 	}
 	ptlrpc_client_wake_req(req);
@@ -2705,7 +2723,7 @@ static int ptlrpc_replay_interpret(const struct lu_env *env,
 		LASSERTF(lustre_msg_get_transno(req->rq_reqmsg) ==
 			 lustre_msg_get_transno(req->rq_repmsg) ||
 			 lustre_msg_get_transno(req->rq_repmsg) == 0,
-			 LPX64"/"LPX64"\n",
+			 "%#llx/%#llx\n",
 			 lustre_msg_get_transno(req->rq_reqmsg),
 			 lustre_msg_get_transno(req->rq_repmsg));
 	}
@@ -2721,8 +2739,8 @@ static int ptlrpc_replay_interpret(const struct lu_env *env,
 	/* transaction number shouldn't be bigger than the latest replayed */
 	if (req->rq_transno > lustre_msg_get_transno(req->rq_reqmsg)) {
 		DEBUG_REQ(D_ERROR, req,
-			  "Reported transno "LPU64" is bigger than the "
-			  "replayed one: "LPU64, req->rq_transno,
+			  "Reported transno %llu is bigger than the replayed one: %llu",
+			  req->rq_transno,
 			  lustre_msg_get_transno(req->rq_reqmsg));
 		GOTO(out, rc = -EINVAL);
 	}
@@ -2907,7 +2925,7 @@ static spinlock_t ptlrpc_last_xid_lock;
 #define YEAR_2004 (1ULL << 30)
 void ptlrpc_init_xid(void)
 {
-	time_t now = cfs_time_current_sec();
+	time_t now = get_seconds();
 
 	spin_lock_init(&ptlrpc_last_xid_lock);
 	if (now < YEAR_2004) {
@@ -2996,7 +3014,7 @@ static void ptlrpcd_add_work_req(struct ptlrpc_request *req)
 {
 	/* re-initialize the req */
 	req->rq_timeout		= obd_timeout;
-	req->rq_sent		= cfs_time_current_sec();
+	req->rq_sent		= get_seconds();
 	req->rq_deadline	= req->rq_sent + req->rq_timeout;
 	req->rq_reply_deadline	= req->rq_deadline;
 	req->rq_phase		= RQ_PHASE_INTERPRET;
@@ -3062,7 +3080,7 @@ void *ptlrpcd_alloc_work(struct obd_import *imp,
 	req->rq_interpret_reply = work_interpreter;
 	/* don't want reply */
 	req->rq_receiving_reply = 0;
-	req->rq_must_unlink = 0;
+	req->rq_req_unlink = req->rq_reply_unlink = 0;
 	req->rq_no_delay = req->rq_no_resend = 1;
 	req->rq_pill.rc_fmt = (void *)&worker_format;
 

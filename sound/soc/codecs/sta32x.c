@@ -678,15 +678,11 @@ static int sta32x_hw_params(struct snd_pcm_substream *substream,
 
 	confb = snd_soc_read(codec, STA32X_CONFB);
 	confb &= ~(STA32X_CONFB_SAI_MASK | STA32X_CONFB_SAIFB);
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S24_LE:
-	case SNDRV_PCM_FORMAT_S24_BE:
-	case SNDRV_PCM_FORMAT_S24_3LE:
-	case SNDRV_PCM_FORMAT_S24_3BE:
+	switch (params_width(params)) {
+	case 24:
 		pr_debug("24bit\n");
 		/* fall through */
-	case SNDRV_PCM_FORMAT_S32_LE:
-	case SNDRV_PCM_FORMAT_S32_BE:
+	case 32:
 		pr_debug("24bit or 32bit\n");
 		switch (sta32x->format) {
 		case SND_SOC_DAIFMT_I2S:
@@ -701,8 +697,7 @@ static int sta32x_hw_params(struct snd_pcm_substream *substream,
 		}
 
 		break;
-	case SNDRV_PCM_FORMAT_S20_3LE:
-	case SNDRV_PCM_FORMAT_S20_3BE:
+	case 20:
 		pr_debug("20bit\n");
 		switch (sta32x->format) {
 		case SND_SOC_DAIFMT_I2S:
@@ -717,8 +712,7 @@ static int sta32x_hw_params(struct snd_pcm_substream *substream,
 		}
 
 		break;
-	case SNDRV_PCM_FORMAT_S18_3LE:
-	case SNDRV_PCM_FORMAT_S18_3BE:
+	case 18:
 		pr_debug("18bit\n");
 		switch (sta32x->format) {
 		case SND_SOC_DAIFMT_I2S:
@@ -733,8 +727,7 @@ static int sta32x_hw_params(struct snd_pcm_substream *substream,
 		}
 
 		break;
-	case SNDRV_PCM_FORMAT_S16_LE:
-	case SNDRV_PCM_FORMAT_S16_BE:
+	case 16:
 		pr_debug("16bit\n");
 		switch (sta32x->format) {
 		case SND_SOC_DAIFMT_I2S:

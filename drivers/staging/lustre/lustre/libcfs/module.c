@@ -36,10 +36,10 @@
 
 #define DEBUG_SUBSYSTEM S_LNET
 
-#include <linux/libcfs/libcfs.h>
-#include <linux/libcfs/libcfs_crypto.h>
-#include <linux/lnet/lib-lnet.h>
-#include <linux/lnet/lnet.h>
+#include "../../include/linux/libcfs/libcfs.h"
+#include "../../include/linux/libcfs/libcfs_crypto.h"
+#include "../../include/linux/lnet/lib-lnet.h"
+#include "../../include/linux/lnet/lnet.h"
 #include "tracefile.h"
 
 void
@@ -438,9 +438,6 @@ static void exit_libcfs_module(void)
 	if (rc)
 		printk(KERN_ERR "LustreError: libcfs_debug_cleanup: %d\n",
 		       rc);
-
-	fini_rwsem(&ioctl_list_sem);
-	fini_rwsem(&cfs_tracefile_sem);
 
 	libcfs_arch_cleanup();
 }

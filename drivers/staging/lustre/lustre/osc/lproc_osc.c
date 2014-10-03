@@ -36,9 +36,9 @@
 #define DEBUG_SUBSYSTEM S_CLASS
 
 #include <asm/statfs.h>
-#include <obd_cksum.h>
-#include <obd_class.h>
-#include <lprocfs_status.h>
+#include "../include/obd_cksum.h"
+#include "../include/obd_class.h"
+#include "../include/lprocfs_status.h"
 #include <linux/seq_file.h>
 #include "osc_internal.h"
 
@@ -693,11 +693,11 @@ static int osc_stats_seq_show(struct seq_file *seq, void *v)
 
 	seq_printf(seq, "snapshot_time:	 %lu.%lu (secs.usecs)\n",
 		   now.tv_sec, (unsigned long)now.tv_usec);
-	seq_printf(seq, "lockless_write_bytes\t\t"LPU64"\n",
+	seq_printf(seq, "lockless_write_bytes\t\t%llu\n",
 		   stats->os_lockless_writes);
-	seq_printf(seq, "lockless_read_bytes\t\t"LPU64"\n",
+	seq_printf(seq, "lockless_read_bytes\t\t%llu\n",
 		   stats->os_lockless_reads);
-	seq_printf(seq, "lockless_truncate\t\t"LPU64"\n",
+	seq_printf(seq, "lockless_truncate\t\t%llu\n",
 		   stats->os_lockless_truncates);
 	return 0;
 }

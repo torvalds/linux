@@ -181,28 +181,43 @@ static int zero_clientid(clientid_t *clid)
 }
 
 /**
- * defer_free - mark an allocation as deferred freed
- * @argp: NFSv4 compound argument structure to be freed with
- * @release: release callback to free @p, typically kfree()
- * @p: pointer to be freed
+ * svcxdr_tmpalloc - allocate memory to be freed after compound processing
+ * @argp: NFSv4 compound argument structure
+ * @p: pointer to be freed (with kfree())
  *
  * Marks @p to be freed when processing the compound operation
  * described in @argp finishes.
  */
-static int
-defer_free(struct nfsd4_compoundargs *argp,
-		void (*release)(const void *), void *p)
+static void *
+svcxdr_tmpalloc(struct nfsd4_compoundargs *argp, u32 len)
 {
-	struct tmpbuf *tb;
+	struct svcxdr_tmpbuf *tb;
 
-	tb = kmalloc(sizeof(*tb), GFP_KERNEL);
+	tb = kmalloc(sizeof(*tb) + len, GFP_KERNEL);
 	if (!tb)
-		return -ENOMEM;
-	tb->buf = p;
-	tb->release = release;
+		return NULL;
 	tb->next = argp->to_free;
 	argp->to_free = tb;
-	return 0;
+	return tb->buf;
+}
+
+/*
+ * For xdr strings that need to be passed to other kernel api's
+ * as null-terminated strings.
+ *
+ * Note null-terminating in place usually isn't safe since the
+ * buffer might end on a page boundary.
+ */
+static char *
+svcxdr_dupstr(struct nfsd4_compoundargs *argp, void *buf, u32 len)
+{
+	char *p = svcxdr_tmpalloc(argp, len + 1);
+
+	if (!p)
+		return NULL;
+	memcpy(p, buf, len);
+	p[len] = '\0';
+	return p;
 }
 
 /**
@@ -217,19 +232,13 @@ defer_free(struct nfsd4_compoundargs *argp,
  */
 static char *savemem(struct nfsd4_compoundargs *argp, __be32 *p, int nbytes)
 {
-	if (p == argp->tmp) {
-		p = kmemdup(argp->tmp, nbytes, GFP_KERNEL);
-		if (!p)
-			return NULL;
-	} else {
-		BUG_ON(p != argp->tmpp);
-		argp->tmpp = NULL;
-	}
-	if (defer_free(argp, kfree, p)) {
-		kfree(p);
+	void *ret;
+
+	ret = svcxdr_tmpalloc(argp, nbytes);
+	if (!ret)
 		return NULL;
-	} else
-		return (char *)p;
+	memcpy(ret, p, nbytes);
+	return ret;
 }
 
 static __be32
@@ -292,11 +301,9 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 		if (nace > NFS4_ACL_MAX)
 			return nfserr_fbig;
 
-		*acl = nfs4_acl_new(nace);
+		*acl = svcxdr_tmpalloc(argp, nfs4_acl_bytes(nace));
 		if (*acl == NULL)
 			return nfserr_jukebox;
-
-		defer_free(argp, kfree, *acl);
 
 		(*acl)->naces = nace;
 		for (ace = (*acl)->aces; ace < (*acl)->aces + nace; ace++) {
@@ -418,12 +425,10 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 			return nfserr_badlabel;
 		len += (XDR_QUADLEN(dummy32) << 2);
 		READMEM(buf, dummy32);
-		label->data = kzalloc(dummy32 + 1, GFP_KERNEL);
+		label->len = dummy32;
+		label->data = svcxdr_dupstr(argp, buf, dummy32);
 		if (!label->data)
 			return nfserr_jukebox;
-		label->len = dummy32;
-		defer_free(argp, kfree, label->data);
-		memcpy(label->data, buf, dummy32);
 	}
 #endif
 
@@ -598,20 +603,11 @@ nfsd4_decode_create(struct nfsd4_compoundargs *argp, struct nfsd4_create *create
 	switch (create->cr_type) {
 	case NF4LNK:
 		READ_BUF(4);
-		create->cr_linklen = be32_to_cpup(p++);
-		READ_BUF(create->cr_linklen);
-		/*
-		 * The VFS will want a null-terminated string, and
-		 * null-terminating in place isn't safe since this might
-		 * end on a page boundary:
-		 */
-		create->cr_linkname =
-				kmalloc(create->cr_linklen + 1, GFP_KERNEL);
-		if (!create->cr_linkname)
+		create->cr_datalen = be32_to_cpup(p++);
+		READ_BUF(create->cr_datalen);
+		create->cr_data = svcxdr_dupstr(argp, p, create->cr_datalen);
+		if (!create->cr_data)
 			return nfserr_jukebox;
-		memcpy(create->cr_linkname, p, create->cr_linklen);
-		create->cr_linkname[create->cr_linklen] = '\0';
-		defer_free(argp, kfree, create->cr_linkname);
 		break;
 	case NF4BLK:
 	case NF4CHR:
@@ -1481,13 +1477,12 @@ nfsd4_decode_test_stateid(struct nfsd4_compoundargs *argp, struct nfsd4_test_sta
 	INIT_LIST_HEAD(&test_stateid->ts_stateid_list);
 
 	for (i = 0; i < test_stateid->ts_num_ids; i++) {
-		stateid = kmalloc(sizeof(struct nfsd4_test_stateid_id), GFP_KERNEL);
+		stateid = svcxdr_tmpalloc(argp, sizeof(*stateid));
 		if (!stateid) {
 			status = nfserrno(-ENOMEM);
 			goto out;
 		}
 
-		defer_free(argp, kfree, stateid);
 		INIT_LIST_HEAD(&stateid->ts_id_list);
 		list_add_tail(&stateid->ts_id_list, &test_stateid->ts_stateid_list);
 
@@ -1640,7 +1635,7 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 		goto xdr_error;
 
 	if (argp->opcnt > ARRAY_SIZE(argp->iops)) {
-		argp->ops = kmalloc(argp->opcnt * sizeof(*argp->ops), GFP_KERNEL);
+		argp->ops = kzalloc(argp->opcnt * sizeof(*argp->ops), GFP_KERNEL);
 		if (!argp->ops) {
 			argp->ops = argp->iops;
 			dprintk("nfsd: couldn't allocate room for COMPOUND\n");
@@ -2879,6 +2874,7 @@ again:
 		 * return the conflicting open:
 		 */
 		if (conf->len) {
+			kfree(conf->data);
 			conf->len = 0;
 			conf->data = NULL;
 			goto again;
@@ -2891,6 +2887,7 @@ again:
 	if (conf->len) {
 		p = xdr_encode_opaque_fixed(p, &ld->ld_clientid, 8);
 		p = xdr_encode_opaque(p, conf->data, conf->len);
+		kfree(conf->data);
 	}  else {  /* non - nfsv4 lock in conflict, no clientid nor owner */
 		p = xdr_encode_hyper(p, (u64)0); /* clientid */
 		*p++ = cpu_to_be32(0); /* length of owner name */
@@ -2907,7 +2904,7 @@ nfsd4_encode_lock(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_lo
 		nfserr = nfsd4_encode_stateid(xdr, &lock->lk_resp_stateid);
 	else if (nfserr == nfserr_denied)
 		nfserr = nfsd4_encode_lock_denied(xdr, &lock->lk_denied);
-	kfree(lock->lk_denied.ld_owner.data);
+
 	return nfserr;
 }
 
@@ -3075,11 +3072,8 @@ static __be32 nfsd4_encode_splice_read(
 	__be32 nfserr;
 	__be32 *p = xdr->p - 2;
 
-	/*
-	 * Don't inline pages unless we know there's room for eof,
-	 * count, and possible padding:
-	 */
-	if (xdr->end - xdr->p < 3)
+	/* Make sure there will be room for padding if needed */
+	if (xdr->end - xdr->p < 1)
 		return nfserr_resource;
 
 	nfserr = nfsd_splice_read(read->rd_rqstp, file,
@@ -3145,9 +3139,7 @@ static __be32 nfsd4_encode_readv(struct nfsd4_compoundres *resp,
 	len = maxcount;
 	v = 0;
 
-	thislen = (void *)xdr->end - (void *)xdr->p;
-	if (len < thislen)
-		thislen = len;
+	thislen = min_t(long, len, ((void *)xdr->end - (void *)xdr->p));
 	p = xdr_reserve_space(xdr, (thislen+3)&~3);
 	WARN_ON_ONCE(!p);
 	resp->rqstp->rq_vec[v].iov_base = p;
@@ -3214,10 +3206,8 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 	xdr_commit_encode(xdr);
 
 	maxcount = svc_max_payload(resp->rqstp);
-	if (maxcount > xdr->buf->buflen - xdr->buf->len)
-		maxcount = xdr->buf->buflen - xdr->buf->len;
-	if (maxcount > read->rd_length)
-		maxcount = read->rd_length;
+	maxcount = min_t(unsigned long, maxcount, (xdr->buf->buflen - xdr->buf->len));
+	maxcount = min_t(unsigned long, maxcount, read->rd_length);
 
 	if (!read->rd_filp) {
 		err = nfsd_get_tmp_read_open(resp->rqstp, read->rd_fhp,
@@ -3935,8 +3925,6 @@ status:
  * 
  * XDR note: do not encode rp->rp_buflen: the buffer contains the
  * previously sent already encoded operation.
- *
- * called with nfs4_lock_state() held
  */
 void
 nfsd4_encode_replay(struct xdr_stream *xdr, struct nfsd4_op *op)
@@ -3975,9 +3963,8 @@ int nfsd4_release_compoundargs(void *rq, __be32 *p, void *resp)
 	kfree(args->tmpp);
 	args->tmpp = NULL;
 	while (args->to_free) {
-		struct tmpbuf *tb = args->to_free;
+		struct svcxdr_tmpbuf *tb = args->to_free;
 		args->to_free = tb->next;
-		tb->release(tb->buf);
 		kfree(tb);
 	}
 	return 1;
@@ -4010,7 +3997,6 @@ nfs4svc_encode_compoundres(struct svc_rqst *rqstp, __be32 *p, struct nfsd4_compo
 	/*
 	 * All that remains is to write the tag and operation count...
 	 */
-	struct nfsd4_compound_state *cs = &resp->cstate;
 	struct xdr_buf *buf = resp->xdr.buf;
 
 	WARN_ON_ONCE(buf->len != buf->head[0].iov_len + buf->page_len +
@@ -4024,19 +4010,7 @@ nfs4svc_encode_compoundres(struct svc_rqst *rqstp, __be32 *p, struct nfsd4_compo
 	p += XDR_QUADLEN(resp->taglen);
 	*p++ = htonl(resp->opcnt);
 
-	if (nfsd4_has_session(cs)) {
-		struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
-		struct nfs4_client *clp = cs->session->se_client;
-		if (cs->status != nfserr_replay_cache) {
-			nfsd4_store_cache_entry(resp);
-			cs->slot->sl_flags &= ~NFSD4_SLOT_INUSE;
-		}
-		/* Renew the clientid on success and on replay */
-		spin_lock(&nn->client_lock);
-		nfsd4_put_session(cs->session);
-		spin_unlock(&nn->client_lock);
-		put_client_renew(clp);
-	}
+	nfsd4_sequence_done(resp);
 	return 1;
 }
 

@@ -20,6 +20,42 @@
 
 #include "vsp1.h"
 #include "vsp1_entity.h"
+#include "vsp1_video.h"
+
+bool vsp1_entity_is_streaming(struct vsp1_entity *entity)
+{
+	bool streaming;
+
+	mutex_lock(&entity->lock);
+	streaming = entity->streaming;
+	mutex_unlock(&entity->lock);
+
+	return streaming;
+}
+
+int vsp1_entity_set_streaming(struct vsp1_entity *entity, bool streaming)
+{
+	int ret;
+
+	mutex_lock(&entity->lock);
+	entity->streaming = streaming;
+	mutex_unlock(&entity->lock);
+
+	if (!streaming)
+		return 0;
+
+	if (!entity->subdev.ctrl_handler)
+		return 0;
+
+	ret = v4l2_ctrl_handler_setup(entity->subdev.ctrl_handler);
+	if (ret < 0) {
+		mutex_lock(&entity->lock);
+		entity->streaming = false;
+		mutex_unlock(&entity->lock);
+	}
+
+	return ret;
+}
 
 /* -----------------------------------------------------------------------------
  * V4L2 Subdevice Operations
@@ -157,6 +193,8 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 	if (i == ARRAY_SIZE(vsp1_routes))
 		return -EINVAL;
 
+	mutex_init(&entity->lock);
+
 	entity->vsp1 = vsp1;
 	entity->source_pad = num_pads - 1;
 
@@ -185,7 +223,11 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 
 void vsp1_entity_destroy(struct vsp1_entity *entity)
 {
+	if (entity->video)
+		vsp1_video_cleanup(entity->video);
 	if (entity->subdev.ctrl_handler)
 		v4l2_ctrl_handler_free(entity->subdev.ctrl_handler);
 	media_entity_cleanup(&entity->subdev.entity);
+
+	mutex_destroy(&entity->lock);
 }

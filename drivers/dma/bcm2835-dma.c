@@ -335,7 +335,7 @@ static void bcm2835_dma_issue_pending(struct dma_chan *chan)
 static struct dma_async_tx_descriptor *bcm2835_dma_prep_dma_cyclic(
 	struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,
 	size_t period_len, enum dma_transfer_direction direction,
-	unsigned long flags, void *context)
+	unsigned long flags)
 {
 	struct bcm2835_chan *c = to_bcm2835_dma_chan(chan);
 	enum dma_slave_buswidth dev_width;

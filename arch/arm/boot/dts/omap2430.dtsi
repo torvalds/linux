@@ -247,6 +247,8 @@
 			reg = <0x48094000 0x200>;
 			interrupts = <26>;
 			ti,hwmods = "mailbox";
+			ti,mbox-num-users = <4>;
+			ti,mbox-num-fifos = <6>;
 		};
 
 		timer1: timer@49018000 {
@@ -288,3 +290,6 @@
 &i2c2 {
 	compatible = "ti,omap2430-i2c";
 };
+
+/include/ "omap24xx-clocks.dtsi"
+/include/ "omap2430-clocks.dtsi"

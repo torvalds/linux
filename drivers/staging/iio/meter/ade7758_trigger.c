@@ -21,7 +21,7 @@
 static irqreturn_t ade7758_data_rdy_trig_poll(int irq, void *private)
 {
 	disable_irq_nosync(irq);
-	iio_trigger_poll(private, iio_get_time_ns());
+	iio_trigger_poll(private);
 
 	return IRQ_HANDLED;
 }

@@ -1041,10 +1041,7 @@ static int dib7000m_tune(struct dvb_frontend *demod)
 	u16 value;
 
 	// we are already tuned - just resuming from suspend
-	if (ch != NULL)
-		dib7000m_set_channel(state, ch, 0);
-	else
-		return -EINVAL;
+	dib7000m_set_channel(state, ch, 0);
 
 	// restart demod
 	ret |= dib7000m_write_word(state, 898, 0x4000);

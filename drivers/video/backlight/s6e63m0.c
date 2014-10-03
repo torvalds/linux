@@ -597,11 +597,6 @@ static int s6e63m0_get_power(struct lcd_device *ld)
 	return lcd->power;
 }
 
-static int s6e63m0_get_brightness(struct backlight_device *bd)
-{
-	return bd->props.brightness;
-}
-
 static int s6e63m0_set_brightness(struct backlight_device *bd)
 {
 	int ret = 0, brightness = bd->props.brightness;
@@ -629,7 +624,6 @@ static struct lcd_ops s6e63m0_lcd_ops = {
 };
 
 static const struct backlight_ops s6e63m0_backlight_ops  = {
-	.get_brightness = s6e63m0_get_brightness,
 	.update_status = s6e63m0_set_brightness,
 };
 

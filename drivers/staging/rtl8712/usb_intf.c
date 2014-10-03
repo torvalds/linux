@@ -607,31 +607,29 @@ error:
 static void r871xu_dev_remove(struct usb_interface *pusb_intf)
 {
 	struct net_device *pnetdev = usb_get_intfdata(pusb_intf);
-	struct _adapter *padapter = netdev_priv(pnetdev);
 	struct usb_device *udev = interface_to_usbdev(pusb_intf);
 
-	usb_set_intfdata(pusb_intf, NULL);
-	if (padapter->fw_found)
+	if (pnetdev) {
+		struct _adapter *padapter = netdev_priv(pnetdev);
+
+		usb_set_intfdata(pusb_intf, NULL);
 		release_firmware(padapter->fw);
-	/* never exit with a firmware callback pending */
-	wait_for_completion(&padapter->rtl8712_fw_ready);
-	if (drvpriv.drv_registered == true)
-		padapter->bSurpriseRemoved = true;
-	if (pnetdev != NULL) {
-		/* will call netdev_close() */
-		unregister_netdev(pnetdev);
-	}
-	flush_scheduled_work();
-	udelay(1);
-	/*Stop driver mlme relation timer */
-	if (padapter->fw_found)
+		/* never exit with a firmware callback pending */
+		wait_for_completion(&padapter->rtl8712_fw_ready);
+		if (drvpriv.drv_registered == true)
+			padapter->bSurpriseRemoved = true;
+		unregister_netdev(pnetdev); /* will call netdev_close() */
+		flush_scheduled_work();
+		udelay(1);
+		/* Stop driver mlme relation timer */
 		r8712_stop_drv_timers(padapter);
-	r871x_dev_unload(padapter);
-	r8712_free_drv_sw(padapter);
-	usb_set_intfdata(pusb_intf, NULL);
-	/* decrease the reference count of the usb device structure
-	 * when disconnect */
-	usb_put_dev(udev);
+		r871x_dev_unload(padapter);
+		r8712_free_drv_sw(padapter);
+
+		/* decrease the reference count of the usb device structure
+		 * when disconnect */
+		usb_put_dev(udev);
+	}
 	/* If we didn't unplug usb dongle and remove/insert module, driver
 	 * fails on sitesurvey for the first time when device is up.
 	 * Reset usb port for sitesurvey fail issue. */

@@ -199,8 +199,6 @@ static struct {
 
 char *tx4927_pcibios_setup(char *str)
 {
-	unsigned long val;
-
 	if (!strncmp(str, "trdyto=", 7)) {
 		u8 val = 0;
 		if (kstrtou8(str + 7, 0, &val) == 0)

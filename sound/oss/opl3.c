@@ -52,7 +52,7 @@ struct voice_info
 	int             panning;	/* 0xffff means not set */
 };
 
-typedef struct opl_devinfo
+struct opl_devinfo
 {
 	int             base;
 	int             left_io, right_io;
@@ -73,7 +73,7 @@ typedef struct opl_devinfo
 	unsigned char   cmask;
 
 	int             is_opl4;
-} opl_devinfo;
+};
 
 static struct opl_devinfo *devc = NULL;
 

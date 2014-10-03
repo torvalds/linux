@@ -56,6 +56,8 @@ struct i40e_adminq_ring {
 	u32 head;
 	u32 tail;
 	u32 len;
+	u32 bah;
+	u32 bal;
 };
 
 /* ASQ transaction details */
@@ -82,6 +84,7 @@ struct i40e_arq_event_info {
 struct i40e_adminq_info {
 	struct i40e_adminq_ring arq;    /* receive queue */
 	struct i40e_adminq_ring asq;    /* send queue */
+	u32 asq_cmd_timeout;            /* send queue cmd write back timeout*/
 	u16 num_arq_entries;            /* receive queue depth */
 	u16 num_asq_entries;            /* send queue depth */
 	u16 arq_buf_size;               /* receive queue buffer size */
@@ -91,6 +94,7 @@ struct i40e_adminq_info {
 	u16 api_maj_ver;                /* api major version */
 	u16 api_min_ver;                /* api minor version */
 	bool nvm_busy;
+	bool nvm_release_on_done;
 
 	struct mutex asq_mutex; /* Send queue lock */
 	struct mutex arq_mutex; /* Receive queue lock */
@@ -99,6 +103,41 @@ struct i40e_adminq_info {
 	enum i40e_admin_queue_err asq_last_status;
 	enum i40e_admin_queue_err arq_last_status;
 };
+
+/**
+ * i40e_aq_rc_to_posix - convert errors to user-land codes
+ * aq_rc: AdminQ error code to convert
+ **/
+static inline int i40e_aq_rc_to_posix(u16 aq_rc)
+{
+	int aq_to_posix[] = {
+		0,           /* I40E_AQ_RC_OK */
+		-EPERM,      /* I40E_AQ_RC_EPERM */
+		-ENOENT,     /* I40E_AQ_RC_ENOENT */
+		-ESRCH,      /* I40E_AQ_RC_ESRCH */
+		-EINTR,      /* I40E_AQ_RC_EINTR */
+		-EIO,        /* I40E_AQ_RC_EIO */
+		-ENXIO,      /* I40E_AQ_RC_ENXIO */
+		-E2BIG,      /* I40E_AQ_RC_E2BIG */
+		-EAGAIN,     /* I40E_AQ_RC_EAGAIN */
+		-ENOMEM,     /* I40E_AQ_RC_ENOMEM */
+		-EACCES,     /* I40E_AQ_RC_EACCES */
+		-EFAULT,     /* I40E_AQ_RC_EFAULT */
+		-EBUSY,      /* I40E_AQ_RC_EBUSY */
+		-EEXIST,     /* I40E_AQ_RC_EEXIST */
+		-EINVAL,     /* I40E_AQ_RC_EINVAL */
+		-ENOTTY,     /* I40E_AQ_RC_ENOTTY */
+		-ENOSPC,     /* I40E_AQ_RC_ENOSPC */
+		-ENOSYS,     /* I40E_AQ_RC_ENOSYS */
+		-ERANGE,     /* I40E_AQ_RC_ERANGE */
+		-EPIPE,      /* I40E_AQ_RC_EFLUSHED */
+		-ESPIPE,     /* I40E_AQ_RC_BAD_ADDR */
+		-EROFS,      /* I40E_AQ_RC_EMODE */
+		-EFBIG,      /* I40E_AQ_RC_EFBIG */
+	};
+
+	return aq_to_posix[aq_rc];
+}
 
 /* general information */
 #define I40E_AQ_LARGE_BUF	512

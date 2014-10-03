@@ -109,6 +109,7 @@ config I2C_I801
 	    Avoton (SOC)
 	    Wellsburg (PCH)
 	    Coleto Creek (PCH)
+	    Wildcat Point (PCH)
 	    Wildcat Point-LP (PCH)
 	    BayTrail (SOC)
 
@@ -465,9 +466,9 @@ config I2C_EG20T
 config I2C_EXYNOS5
 	tristate "Exynos5 high-speed I2C driver"
 	depends on ARCH_EXYNOS5 && OF
+	default y
 	help
-	  Say Y here to include support for high-speed I2C controller in the
-	  Exynos5 based Samsung SoCs.
+	  High-speed I2C controller on Exynos5 based Samsung SoCs.
 
 config I2C_GPIO
 	tristate "GPIO-based bitbanging I2C"
@@ -699,16 +700,6 @@ config I2C_S3C2410
 	help
 	  Say Y here to include support for I2C controller in the
 	  Samsung SoCs.
-
-config I2C_S6000
-	tristate "S6000 I2C support"
-	depends on XTENSA_VARIANT_S6000
-	help
-	  This driver supports the on chip I2C device on the
-	  S6000 xtensa processor family.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called i2c-s6000.
 
 config I2C_SH7760
 	tristate "Renesas SH7760 I2C Controller"
@@ -1017,37 +1008,6 @@ config I2C_CROS_EC_TUNNEL
 	  through to the other side of the ChromeOS EC to the i2c bus
 	  connected there. This will work whatever the interface used to
 	  talk to the EC (SPI, I2C or LPC).
-
-config SCx200_I2C
-	tristate "NatSemi SCx200 I2C using GPIO pins (DEPRECATED)"
-	depends on SCx200_GPIO
-	select I2C_ALGOBIT
-	help
-	  Enable the use of two GPIO pins of a SCx200 processor as an I2C bus.
-
-	  If you don't know what to do here, say N.
-
-	  This support is also available as a module.  If so, the module
-	  will be called scx200_i2c.
-
-	  This driver is deprecated and will be dropped soon. Use i2c-gpio
-	  (or scx200_acb) instead.
-
-config SCx200_I2C_SCL
-	int "GPIO pin used for SCL"
-	depends on SCx200_I2C
-	default "12"
-	help
-	  Enter the GPIO pin number used for the SCL signal.  This value can
-	  also be specified with a module parameter.
-
-config SCx200_I2C_SDA
-	int "GPIO pin used for SDA"
-	depends on SCx200_I2C
-	default "13"
-	help
-	  Enter the GPIO pin number used for the SSA signal.  This value can
-	  also be specified with a module parameter.
 
 config SCx200_ACB
 	tristate "Geode ACCESS.bus support"

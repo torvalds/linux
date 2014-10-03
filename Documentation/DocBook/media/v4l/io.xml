@@ -870,7 +870,8 @@ should set this to 0.</entry>
 	      If the application sets this to 0 for an output stream, then
 	      <structfield>bytesused</structfield> will be set to the size of the
 	      plane (see the <structfield>length</structfield> field of this struct)
-	      by the driver.</entry>
+	      by the driver. Note that the actual image data starts at
+	      <structfield>data_offset</structfield> which may not be 0.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
@@ -919,6 +920,10 @@ should set this to 0.</entry>
 	    <entry>Offset in bytes to video data in the plane.
 	      Drivers must set this field when <structfield>type</structfield>
 	      refers to an input stream, applications when it refers to an output stream.
+	      Note that data_offset is included in <structfield>bytesused</structfield>.
+	      So the size of the image in the plane is
+	      <structfield>bytesused</structfield>-<structfield>data_offset</structfield> at
+	      offset <structfield>data_offset</structfield> from the start of the plane.
 	    </entry>
 	  </row>
 	  <row>
@@ -1066,7 +1071,7 @@ state, in the application domain so to say.</entry>
 	  <entry>Drivers set or clear this flag when calling the
 <constant>VIDIOC_DQBUF</constant> ioctl. It may be set by video
 capture devices when the buffer contains a compressed image which is a
-key frame (or field), &ie; can be decompressed on its own. Also know as
+key frame (or field), &ie; can be decompressed on its own. Also known as
 an I-frame.  Applications can set this bit when <structfield>type</structfield>
 refers to an output stream.</entry>
 	  </row>

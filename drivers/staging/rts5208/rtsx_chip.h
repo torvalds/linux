@@ -920,6 +920,11 @@ struct rtsx_chip {
 	u32 sd_ctl;
 };
 
+static inline struct device *rtsx_dev(const struct rtsx_chip *chip)
+{
+	return &chip->rtsx->pci->dev;
+}
+
 #define rtsx_set_stat(chip, stat)				\
 do {								\
 	if ((stat) != RTSX_STAT_IDLE) {				\

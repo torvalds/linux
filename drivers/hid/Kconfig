@@ -261,6 +261,20 @@ config HOLTEK_FF
 	  Say Y here if you have a Holtek On Line Grip based game controller
 	  and want to have force feedback support for it.
 
+config HID_GT683R
+	tristate "MSI GT68xR LED support"
+	depends on LEDS_CLASS && USB_HID
+	---help---
+	Say Y here if you want to enable support for the three MSI GT68xR LEDs
+
+	This driver support following modes:
+	  - Normal: LEDs are fully on when enabled
+	  - Audio:  LEDs brightness depends on sound level
+	  - Breathing: LEDs brightness varies at human breathing rate
+
+	Currently the following devices are know to be supported:
+	  - MSI GT683R
+
 config HID_HUION
 	tristate "Huion tablets"
 	depends on USB_HID
@@ -331,18 +345,20 @@ config HID_LCPOWER
 	---help---
 	Support for LC-Power RC1000MCE RF remote control.
 
-config HID_LENOVO_TPKBD
-	tristate "Lenovo ThinkPad USB Keyboard with TrackPoint"
+config HID_LENOVO
+	tristate "Lenovo / Thinkpad devices"
 	depends on HID
 	select NEW_LEDS
 	select LEDS_CLASS
 	---help---
-	Support for the Lenovo ThinkPad USB Keyboard with TrackPoint.
+	Support for Lenovo devices that are not fully compliant with HID standard.
 
-	Say Y here if you have a Lenovo ThinkPad USB Keyboard with TrackPoint
-	and would like to use device-specific features like changing the
-	sensitivity of the trackpoint, using the microphone mute button or
-	controlling the mute and microphone mute LEDs.
+	Say Y if you want support for the non-compliant features of the Lenovo
+	Thinkpad standalone keyboards, e.g:
+	- ThinkPad USB Keyboard with TrackPoint (supports extra LEDs and trackpoint
+	  configuration)
+	- ThinkPad Compact Bluetooth Keyboard with TrackPoint (supports Fn keys)
+	- ThinkPad Compact USB Keyboard with TrackPoint (supports Fn keys)
 
 config HID_LOGITECH
 	tristate "Logitech devices" if EXPERT
@@ -790,7 +806,7 @@ config HID_XINMO
 	depends on HID
 	---help---
 	Support for Xin-Mo devices that are not fully compliant with the HID
-	standard. Currently only supports the Xin-Mo Dual Arcade. Say Y here
+	standard. Currently only supports the Xin-Mo Dual Arcade. Say Y here
 	if you have a Xin-Mo Dual Arcade controller.
 
 config HID_ZEROPLUS

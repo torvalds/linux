@@ -17,7 +17,6 @@ config ARCH_INTEGRATOR_CP
 	bool "Support Integrator/CP platform"
 	select ARCH_CINTEGRATOR
 	select ARM_TIMER_SP804
-	select PLAT_VERSATILE_CLCD
 	select SERIAL_AMBA_PL011 if TTY
 	select SERIAL_AMBA_PL011_CONSOLE if TTY
 	select SOC_BUS

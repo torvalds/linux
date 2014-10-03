@@ -756,8 +756,7 @@ static int __init u300_gpio_probe(struct platform_device *pdev)
 
 err_no_range:
 err_no_irqchip:
-	if (gpiochip_remove(&gpio->chip))
-		dev_err(&pdev->dev, "failed to remove gpio chip\n");
+	gpiochip_remove(&gpio->chip);
 err_no_chip:
 	clk_disable_unprepare(gpio->clk);
 	dev_err(&pdev->dev, "module ERROR:%d\n", err);
@@ -767,16 +766,11 @@ err_no_chip:
 static int __exit u300_gpio_remove(struct platform_device *pdev)
 {
 	struct u300_gpio *gpio = platform_get_drvdata(pdev);
-	int err;
 
 	/* Turn off the GPIO block */
 	writel(0x00000000U, gpio->base + U300_GPIO_CR);
 
-	err = gpiochip_remove(&gpio->chip);
-	if (err < 0) {
-		dev_err(gpio->dev, "unable to remove gpiochip: %d\n", err);
-		return err;
-	}
+	gpiochip_remove(&gpio->chip);
 	clk_disable_unprepare(gpio->clk);
 	return 0;
 }

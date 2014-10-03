@@ -93,10 +93,6 @@ struct samsung_spdif_info {
 	struct s3c_dma_params	*dma_playback;
 };
 
-static struct s3c_dma_client spdif_dma_client_out = {
-	.name		= "S/PDIF Stereo out",
-};
-
 static struct s3c_dma_params spdif_stereo_out;
 static struct samsung_spdif_info spdif_info;
 
@@ -435,7 +431,6 @@ static int spdif_probe(struct platform_device *pdev)
 	}
 
 	spdif_stereo_out.dma_size = 2;
-	spdif_stereo_out.client = &spdif_dma_client_out;
 	spdif_stereo_out.dma_addr = mem_res->start + DATA_OUTBUF;
 	spdif_stereo_out.channel = dma_res->start;
 

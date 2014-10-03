@@ -157,14 +157,10 @@ static int addi_auto_attach(struct comedi_device *dev,
 		s->subdev_flags =
 			SDF_READABLE | SDF_COMMON | SDF_GROUND
 			| SDF_DIFF;
-		if (devpriv->s_EeParameters.i_NbrAiChannel) {
-			s->n_chan =
-				devpriv->s_EeParameters.i_NbrAiChannel;
-			devpriv->b_SingelDiff = 0;
-		} else {
+		if (devpriv->s_EeParameters.i_NbrAiChannel)
+			s->n_chan = devpriv->s_EeParameters.i_NbrAiChannel;
+		else
 			s->n_chan = this_board->i_NbrAiChannelDiff;
-			devpriv->b_SingelDiff = 1;
-		}
 		s->maxdata = devpriv->s_EeParameters.i_AiMaxdata;
 		s->len_chanlist = this_board->i_AiChannelList;
 		s->range_table = this_board->pr_AiRangelist;

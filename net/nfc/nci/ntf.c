@@ -166,7 +166,9 @@ static int nci_add_new_protocol(struct nci_dev *ndev,
 	struct rf_tech_specific_params_nfcf_poll *nfcf_poll;
 	__u32 protocol;
 
-	if (rf_protocol == NCI_RF_PROTOCOL_T2T)
+	if (rf_protocol == NCI_RF_PROTOCOL_T1T)
+		protocol = NFC_PROTO_JEWEL_MASK;
+	else if (rf_protocol == NCI_RF_PROTOCOL_T2T)
 		protocol = NFC_PROTO_MIFARE_MASK;
 	else if (rf_protocol == NCI_RF_PROTOCOL_ISO_DEP)
 		if (rf_tech_and_mode == NCI_NFC_A_PASSIVE_POLL_MODE)
