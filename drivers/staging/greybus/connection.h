@@ -25,6 +25,8 @@ struct gb_connection {
 
 	struct list_head		operations;
 	atomic_t			op_cycle;
+
+	void				*private;
 };
 
 struct gb_connection *gb_connection_create(struct gb_interface *interface,
