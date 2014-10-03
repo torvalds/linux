@@ -65,14 +65,15 @@ static int fou_udp_recv(struct sock *sk, struct sk_buff *skb)
 }
 
 static struct sk_buff **fou_gro_receive(struct sk_buff **head,
-					struct sk_buff *skb,
-					const struct net_offload **offloads)
+					struct sk_buff *skb)
 {
 	const struct net_offload *ops;
 	struct sk_buff **pp = NULL;
 	u8 proto = NAPI_GRO_CB(skb)->proto;
+	const struct net_offload **offloads;
 
 	rcu_read_lock();
+	offloads = NAPI_GRO_CB(skb)->is_ipv6 ? inet6_offloads : inet_offloads;
 	ops = rcu_dereference(offloads[proto]);
 	if (!ops || !ops->callbacks.gro_receive)
 		goto out_unlock;
@@ -85,14 +86,15 @@ out_unlock:
 	return pp;
 }
 
-static int fou_gro_complete(struct sk_buff *skb, int nhoff,
-			    const struct net_offload **offloads)
+static int fou_gro_complete(struct sk_buff *skb, int nhoff)
 {
 	const struct net_offload *ops;
 	u8 proto = NAPI_GRO_CB(skb)->proto;
 	int err = -ENOSYS;
+	const struct net_offload **offloads;
 
 	rcu_read_lock();
+	offloads = NAPI_GRO_CB(skb)->is_ipv6 ? inet6_offloads : inet_offloads;
 	ops = rcu_dereference(offloads[proto]);
 	if (WARN_ON(!ops || !ops->callbacks.gro_complete))
 		goto out_unlock;
@@ -103,28 +105,6 @@ out_unlock:
 	rcu_read_unlock();
 
 	return err;
-}
-
-static struct sk_buff **fou4_gro_receive(struct sk_buff **head,
-					 struct sk_buff *skb)
-{
-	return fou_gro_receive(head, skb, inet_offloads);
-}
-
-static int fou4_gro_complete(struct sk_buff *skb, int nhoff)
-{
-	return fou_gro_complete(skb, nhoff, inet_offloads);
-}
-
-static struct sk_buff **fou6_gro_receive(struct sk_buff **head,
-					 struct sk_buff *skb)
-{
-	return fou_gro_receive(head, skb, inet6_offloads);
-}
-
-static int fou6_gro_complete(struct sk_buff *skb, int nhoff)
-{
-	return fou_gro_complete(skb, nhoff, inet6_offloads);
 }
 
 static int fou_add_to_port_list(struct fou *fou)
@@ -199,20 +179,8 @@ static int fou_create(struct net *net, struct fou_cfg *cfg,
 
 	sk->sk_allocation = GFP_ATOMIC;
 
-	switch (cfg->udp_config.family) {
-	case AF_INET:
-		fou->udp_offloads.callbacks.gro_receive = fou4_gro_receive;
-		fou->udp_offloads.callbacks.gro_complete = fou4_gro_complete;
-		break;
-	case AF_INET6:
-		fou->udp_offloads.callbacks.gro_receive = fou6_gro_receive;
-		fou->udp_offloads.callbacks.gro_complete = fou6_gro_complete;
-		break;
-	default:
-		err = -EPFNOSUPPORT;
-		goto error;
-	}
-
+	fou->udp_offloads.callbacks.gro_receive = fou_gro_receive;
+	fou->udp_offloads.callbacks.gro_complete = fou_gro_complete;
 	fou->udp_offloads.port = cfg->udp_config.local_udp_port;
 	fou->udp_offloads.ipproto = cfg->protocol;
 

@@ -140,6 +140,7 @@ static struct sk_buff **udp6_gro_receive(struct sk_buff **head,
 					     ip6_gro_compute_pseudo);
 
 skip:
+	NAPI_GRO_CB(skb)->is_ipv6 = 1;
 	return udp_gro_receive(head, skb, uh);
 
 flush:
