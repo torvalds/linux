@@ -716,9 +716,7 @@ disable_reg:
 }
 #endif
 
-static SIMPLE_DEV_PM_OPS(vf610_adc_pm_ops,
-			vf610_adc_suspend,
-			vf610_adc_resume);
+static SIMPLE_DEV_PM_OPS(vf610_adc_pm_ops, vf610_adc_suspend, vf610_adc_resume);
 
 static struct platform_driver vf610_adc_driver = {
 	.probe          = vf610_adc_probe,
