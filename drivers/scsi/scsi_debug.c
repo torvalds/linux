@@ -4592,7 +4592,7 @@ static int sdebug_driver_probe(struct device * dev)
 		sdebug_driver_template.use_clustering = ENABLE_CLUSTERING;
 	hpnt = scsi_host_alloc(&sdebug_driver_template, sizeof(sdbg_host));
 	if (NULL == hpnt) {
-		printk(KERN_ERR "%s: scsi_register failed\n", __func__);
+		pr_err("%s: scsi_host_alloc failed\n", __func__);
 		error = -ENODEV;
 		return error;
 	}
