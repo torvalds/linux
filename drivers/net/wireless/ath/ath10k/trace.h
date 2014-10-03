@@ -310,6 +310,66 @@ TRACE_EVENT(ath10k_htt_rx_desc,
 		__entry->len
 	 )
 );
+
+TRACE_EVENT(ath10k_htt_tx,
+	    TP_PROTO(struct ath10k *ar, u16 msdu_id, u16 msdu_len,
+		     u8 vdev_id, u8 tid),
+
+	TP_ARGS(ar, msdu_id, msdu_len, vdev_id, tid),
+
+	TP_STRUCT__entry(
+		__string(device, dev_name(ar->dev))
+		__string(driver, dev_driver_string(ar->dev))
+		__field(u16, msdu_id)
+		__field(u16, msdu_len)
+		__field(u8, vdev_id)
+		__field(u8, tid)
+	),
+
+	TP_fast_assign(
+		__assign_str(device, dev_name(ar->dev));
+		__assign_str(driver, dev_driver_string(ar->dev));
+		__entry->msdu_id = msdu_id;
+		__entry->msdu_len = msdu_len;
+		__entry->vdev_id = vdev_id;
+		__entry->tid = tid;
+	),
+
+	TP_printk(
+		"%s %s msdu_id %d msdu_len %d vdev_id %d tid %d",
+		__get_str(driver),
+		__get_str(device),
+		__entry->msdu_id,
+		__entry->msdu_len,
+		__entry->vdev_id,
+		__entry->tid
+	 )
+);
+
+TRACE_EVENT(ath10k_txrx_tx_unref,
+	    TP_PROTO(struct ath10k *ar, u16 msdu_id),
+
+	TP_ARGS(ar, msdu_id),
+
+	TP_STRUCT__entry(
+		__string(device, dev_name(ar->dev))
+		__string(driver, dev_driver_string(ar->dev))
+		__field(u16, msdu_id)
+	),
+
+	TP_fast_assign(
+		__assign_str(device, dev_name(ar->dev));
+		__assign_str(driver, dev_driver_string(ar->dev));
+		__entry->msdu_id = msdu_id;
+	),
+
+	TP_printk(
+		"%s %s msdu_id %d",
+		__get_str(driver),
+		__get_str(device),
+		__entry->msdu_id
+	 )
+);
 #endif /* _TRACE_H_ || TRACE_HEADER_MULTI_READ*/
 
 /* we don't want to use include/trace/events */
