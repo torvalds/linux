@@ -127,7 +127,7 @@ int uisctrl_register_req_handler_ex(uuid_le switch_guid,
 						    u64 bytes),
 				    ULTRA_VBUS_DEVICEINFO *chipset_driver_info);
 
-int uisctrl_unregister_req_handler_ex(uuid_le switchTypeGuid);
+int uisctrl_unregister_req_handler_ex(uuid_le switch_uuid);
 unsigned char *util_map_virt(struct phys_info *sg);
 void util_unmap_virt(struct phys_info *sg);
 unsigned char *util_map_virt_atomic(struct phys_info *sg);

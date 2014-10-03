@@ -160,21 +160,21 @@ Away:
 EXPORT_SYMBOL_GPL(uisctrl_register_req_handler_ex);
 
 int
-uisctrl_unregister_req_handler_ex(uuid_le switchTypeGuid)
+uisctrl_unregister_req_handler_ex(uuid_le switch_uuid)
 {
 	int rc = 0;		/* assume failure */
 
-	LOGINF("type=%pUL.\n", &switchTypeGuid);
-	if (req_handler_del(switchTypeGuid) < 0) {
+	LOGINF("type=%pUL.\n", &switch_uuid);
+	if (req_handler_del(switch_uuid) < 0) {
 		LOGERR("failed to remove %pUL from server list\n",
-				&switchTypeGuid);
+				&switch_uuid);
 		goto Away;
 	}
 	atomic_dec(&uisutils_registered_services);
 	rc = 1;			/* success */
 Away:
 	if (!rc)
-		LOGERR("failed to unregister type %pUL.\n", &switchTypeGuid);
+		LOGERR("failed to unregister type %pUL.\n", &switch_uuid);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(uisctrl_unregister_req_handler_ex);
