@@ -60,7 +60,7 @@ struct gb_operation {
 };
 
 struct gb_operation *gb_operation_create(struct gb_connection *connection,
-					size_t size);
+					size_t size, u8 type);
 void gb_operation_destroy(struct gb_operation *operation);
 
 int gb_operation_wait(struct gb_operation *operation);

@@ -111,7 +111,7 @@ static void gbuf_out_callback(struct gbuf *gbuf)
  * failure occurs due to memory exhaustion.
  */
 struct gb_operation *gb_operation_create(struct gb_connection *connection,
-					size_t size)
+					size_t size, u8 type)
 {
 	struct gb_operation *operation;
 	struct gb_operation_msg_hdr *header;
@@ -139,8 +139,9 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 	/* Fill in the header structure and payload pointer */
 	operation->gbuf = gbuf;
 	header = (struct gb_operation_msg_hdr *)&gbuf->transfer_buffer;
-	header->id = 0;
 	header->size = cpu_to_le16(size);
+	header->id = 0;		/* Filled in when submitted */
+	header->type = type;
 	operation->payload = (char *)header + sizeof(*header);
 
 	operation->callback = NULL;	/* set at submit time */
