@@ -378,10 +378,7 @@ AuStubVoid(au_xigen_inc, struct inode *inode)
 AuStubInt0(au_xigen_new, struct inode *inode)
 AuStubInt0(au_xigen_set, struct super_block *sb, struct file *base)
 AuStubVoid(au_xigen_clr, struct super_block *sb)
-static inline int au_busy_or_stale(void)
-{
-	return -EBUSY;
-}
+AuStub(int, au_busy_or_stale, return -EBUSY, void)
 #endif /* CONFIG_AUFS_EXPORT */
 
 /* ---------------------------------------------------------------------- */
@@ -423,8 +420,8 @@ AuStubVoid(au_sbilist_unlock, void)
 #endif /* CONFIG_AUFS_MAGIC_SYSRQ */
 #else
 AuStubVoid(au_sbilist_init, void)
-AuStubVoid(au_sbilist_add, struct super_block* sb)
-AuStubVoid(au_sbilist_del, struct super_block* sb)
+AuStubVoid(au_sbilist_add, struct super_block *sb)
+AuStubVoid(au_sbilist_del, struct super_block *sb)
 AuStubVoid(au_sbilist_lock, void)
 AuStubVoid(au_sbilist_unlock, void)
 #define AuGFP_SBILIST	GFP_NOFS
