@@ -126,7 +126,6 @@ static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size, gfp_t gfp_mask)
 	buffer[0] = gbuf->cport_id;
 	gbuf->transfer_buffer = &buffer[1];
 	gbuf->transfer_buffer_length = size;
-	gbuf->actual_length = size;
 
 	/* When we send the gbuf, we need this pointer to be here */
 	gbuf->hdpriv = es1;

@@ -132,6 +132,7 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 		kfree(operation);
 		return NULL;
 	}
+	gbuf->actual_length = size;	/* Record what we'll use */
 
 	operation->connection = connection;		/* XXX refcount? */
 
