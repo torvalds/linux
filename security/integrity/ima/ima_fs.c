@@ -311,6 +311,8 @@ static int ima_open_policy(struct inode *inode, struct file *filp)
  */
 static int ima_release_policy(struct inode *inode, struct file *file)
 {
+	pr_info("IMA: policy update %s\n",
+		valid_policy ? "completed" : "failed");
 	if (!valid_policy) {
 		ima_delete_rules();
 		valid_policy = 1;
