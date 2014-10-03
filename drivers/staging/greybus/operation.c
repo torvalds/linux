@@ -139,7 +139,7 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 	operation->gbuf = gbuf;
 	header = (struct gb_operation_msg_hdr *)&gbuf->transfer_buffer;
 	header->id = 0;
-	header->size = size;
+	header->size = cpu_to_le16(size);
 	operation->payload = (char *)header + sizeof(*header);
 
 	operation->callback = NULL;	/* set at submit time */
