@@ -1945,7 +1945,14 @@ unsigned long
 i915_gem_shrink(struct drm_i915_private *dev_priv,
 		long target, unsigned flags)
 {
-	const bool purgeable_only = flags & I915_SHRINK_PURGEABLE;
+	const struct {
+		struct list_head *list;
+		unsigned int bit;
+	} phases[] = {
+		{ &dev_priv->mm.unbound_list, I915_SHRINK_UNBOUND },
+		{ &dev_priv->mm.bound_list, I915_SHRINK_BOUND },
+		{ NULL, 0 },
+	}, *phase;
 	unsigned long count = 0;
 
 	/*
@@ -1967,48 +1974,30 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 	 * dev->struct_mutex and so we won't ever be able to observe an
 	 * object on the bound_list with a reference count equals 0.
 	 */
-	if (flags & I915_SHRINK_UNBOUND) {
+	for (phase = phases; phase->list; phase++) {
 		struct list_head still_in_list;
 
-		INIT_LIST_HEAD(&still_in_list);
-		while (count < target && !list_empty(&dev_priv->mm.unbound_list)) {
-			struct drm_i915_gem_object *obj;
-
-			obj = list_first_entry(&dev_priv->mm.unbound_list,
-					       typeof(*obj), global_list);
-			list_move_tail(&obj->global_list, &still_in_list);
-
-			if (!i915_gem_object_is_purgeable(obj) && purgeable_only)
-				continue;
-
-			drm_gem_object_reference(&obj->base);
-
-			if (i915_gem_object_put_pages(obj) == 0)
-				count += obj->base.size >> PAGE_SHIFT;
-
-			drm_gem_object_unreference(&obj->base);
-		}
-		list_splice(&still_in_list, &dev_priv->mm.unbound_list);
-	}
-
-	if (flags & I915_SHRINK_BOUND) {
-		struct list_head still_in_list;
+		if ((flags & phase->bit) == 0)
+			continue;
 
 		INIT_LIST_HEAD(&still_in_list);
-		while (count < target && !list_empty(&dev_priv->mm.bound_list)) {
+		while (count < target && !list_empty(phase->list)) {
 			struct drm_i915_gem_object *obj;
 			struct i915_vma *vma, *v;
 
-			obj = list_first_entry(&dev_priv->mm.bound_list,
+			obj = list_first_entry(phase->list,
 					       typeof(*obj), global_list);
 			list_move_tail(&obj->global_list, &still_in_list);
 
-			if (!i915_gem_object_is_purgeable(obj) && purgeable_only)
+			if (flags & I915_SHRINK_PURGEABLE &&
+			    !i915_gem_object_is_purgeable(obj))
 				continue;
 
 			drm_gem_object_reference(&obj->base);
 
-			list_for_each_entry_safe(vma, v, &obj->vma_list, vma_link)
+			/* For the unbound phase, this should be a no-op! */
+			list_for_each_entry_safe(vma, v,
+						 &obj->vma_list, vma_link)
 				if (i915_vma_unbind(vma))
 					break;
 
@@ -2017,7 +2006,7 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 
 			drm_gem_object_unreference(&obj->base);
 		}
-		list_splice(&still_in_list, &dev_priv->mm.bound_list);
+		list_splice(&still_in_list, phase->list);
 	}
 
 	return count;
