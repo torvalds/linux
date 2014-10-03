@@ -775,7 +775,7 @@ void __init sh73a0_add_early_devices(void)
 
 void __init sh73a0_add_standard_devices_dt(void)
 {
-	struct platform_device_info devinfo = { .name = "cpufreq-cpu0", .id = -1, };
+	struct platform_device_info devinfo = { .name = "cpufreq-dt", .id = -1, };
 
 	/* clocks are setup late during boot in the case of DT */
 	sh73a0_clock_init();
@@ -784,7 +784,7 @@ void __init sh73a0_add_standard_devices_dt(void)
 			     ARRAY_SIZE(sh73a0_devices_dt));
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 
-	/* Instantiate cpufreq-cpu0 */
+	/* Instantiate cpufreq-dt */
 	platform_device_register_full(&devinfo);
 }
 
