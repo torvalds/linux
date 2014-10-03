@@ -352,7 +352,7 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 	u32 busNo, devNo;
 	int result = CONTROLVM_RESP_SUCCESS;
 	u64 minSize = MIN_IO_CHANNEL_SIZE;
-	ReqHandlerInfo_t *pReqHandler;
+	struct req_handler_info *pReqHandler;
 
 	busNo = msg->cmd.createDevice.busNo;
 	devNo = msg->cmd.createDevice.devNo;

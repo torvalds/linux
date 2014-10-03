@@ -54,7 +54,7 @@ extern int (*virt_control_chan_func)(struct guest_msgs *);
 #define CCF_PENDING      2	/* operation still pending */
 extern atomic_t uisutils_registered_services;
 
-typedef struct ReqHandlerInfo_struct {
+struct req_handler_info {
 	uuid_le switchTypeGuid;
 	int (*controlfunc)(struct io_msgs *);
 	unsigned long min_channel_bytes;
@@ -63,18 +63,18 @@ typedef struct ReqHandlerInfo_struct {
 	 (void *x, unsigned char *clientStr, u32 clientStrLen, u64 bytes);
 	char switch_type_name[99];
 	struct list_head list_link;	/* links into ReqHandlerInfo_list */
-} ReqHandlerInfo_t;
+};
 
-ReqHandlerInfo_t *ReqHandlerAdd(uuid_le switchTypeGuid,
+struct req_handler_info *ReqHandlerAdd(uuid_le switchTypeGuid,
 				const char *switch_type_name,
 				int (*controlfunc)(struct io_msgs *),
 				unsigned long min_channel_bytes,
 				int (*Server_Channel_Ok)(unsigned long
 							 channelBytes),
-				int (*Server_Channel_Init)
-				 (void *x, unsigned char *clientStr,
-				  u32 clientStrLen, u64 bytes));
-ReqHandlerInfo_t *ReqHandlerFind(uuid_le switchTypeGuid);
+				int (*Server_Channel_Init)(void *x,
+						unsigned char *clientStr,
+						u32 clientStrLen, u64 bytes));
+struct req_handler_info *ReqHandlerFind(uuid_le switchTypeGuid);
 int ReqHandlerDel(uuid_le switchTypeGuid);
 
 #define uislib_ioremap_cache(addr, size) \

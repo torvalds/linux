@@ -116,7 +116,7 @@ uisctrl_register_req_handler_ex(uuid_le switchTypeGuid,
 				  u32 clientStrLen, u64 bytes),
 				ULTRA_VBUS_DEVICEINFO *chipset_DriverInfo)
 {
-	ReqHandlerInfo_t *pReqHandlerInfo;
+	struct req_handler_info *pReqHandlerInfo;
 	int rc = 0;		/* assume failure */
 
 	LOGINF("type=%pUL, controlfunc=0x%p.\n",
@@ -275,10 +275,10 @@ dolist: if (skb_shinfo(skb)->frag_list) {
 }
 EXPORT_SYMBOL_GPL(uisutil_copy_fragsinfo_from_skb);
 
-static LIST_HEAD(ReqHandlerInfo_list);	/* list of ReqHandlerInfo_t */
+static LIST_HEAD(ReqHandlerInfo_list);	/* list of struct req_handler_info */
 static DEFINE_SPINLOCK(ReqHandlerInfo_list_lock);
 
-ReqHandlerInfo_t *
+struct req_handler_info *
 ReqHandlerAdd(uuid_le switchTypeGuid,
 	      const char *switch_type_name,
 	      int (*controlfunc)(struct io_msgs *),
@@ -287,7 +287,7 @@ ReqHandlerAdd(uuid_le switchTypeGuid,
 	      int (*Server_Channel_Init)
 	       (void *x, unsigned char *clientStr, u32 clientStrLen, u64 bytes))
 {
-	ReqHandlerInfo_t *rc = NULL;
+	struct req_handler_info *rc = NULL;
 
 	rc = kzalloc(sizeof(*rc), GFP_ATOMIC);
 	if (!rc)
@@ -307,15 +307,15 @@ ReqHandlerAdd(uuid_le switchTypeGuid,
 	return rc;
 }
 
-ReqHandlerInfo_t *
+struct req_handler_info *
 ReqHandlerFind(uuid_le switchTypeGuid)
 {
 	struct list_head *lelt, *tmp;
-	ReqHandlerInfo_t *entry = NULL;
+	struct req_handler_info *entry = NULL;
 
 	spin_lock(&ReqHandlerInfo_list_lock);
 	list_for_each_safe(lelt, tmp, &ReqHandlerInfo_list) {
-		entry = list_entry(lelt, ReqHandlerInfo_t, list_link);
+		entry = list_entry(lelt, struct req_handler_info, list_link);
 		if (uuid_le_cmp(entry->switchTypeGuid, switchTypeGuid) == 0) {
 			spin_unlock(&ReqHandlerInfo_list_lock);
 			return entry;
@@ -329,12 +329,12 @@ int
 ReqHandlerDel(uuid_le switchTypeGuid)
 {
 	struct list_head *lelt, *tmp;
-	ReqHandlerInfo_t *entry = NULL;
+	struct req_handler_info *entry = NULL;
 	int rc = -1;
 
 	spin_lock(&ReqHandlerInfo_list_lock);
 	list_for_each_safe(lelt, tmp, &ReqHandlerInfo_list) {
-		entry = list_entry(lelt, ReqHandlerInfo_t, list_link);
+		entry = list_entry(lelt, struct req_handler_info, list_link);
 		if (uuid_le_cmp(entry->switchTypeGuid, switchTypeGuid) == 0) {
 			list_del(lelt);
 			kfree(entry);
