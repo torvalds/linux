@@ -809,9 +809,9 @@ static ssize_t message_store_helper(const char *buf, size_t count,
 			if (msg_stored == -ENOMEM)
 				reset = 1;
 			break;
-		} else {
-			used++;
 		}
+
+		used++;
 
 		cp = linefeed + 1;
 	}
