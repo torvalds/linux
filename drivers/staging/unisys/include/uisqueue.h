@@ -179,16 +179,6 @@ struct sn_list_entry {
 	struct sn_list_entry *next;
 };
 
-struct network_policy {
-	u32 promiscuous:1;
-	u32 macassign:1;
-	u32 peerforwarding:1;
-	u32 nonotify:1;
-	u32 standby:1;
-	u32 callhome:2;
-	char ip_addr[30];
-};
-
 /*
  * IO messages sent to UisnicControlChanFunc & UissdControlChanFunc by
  * code that processes the ControlVm channel messages.
