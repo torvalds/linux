@@ -82,13 +82,13 @@ uisctrl_register_req_handler(int type, void *fptr,
 	switch (type) {
 	case 2:
 		if (fptr) {
-			if (!VirtControlChanFunc)
+			if (!virt_control_chan_func)
 				atomic_inc(&UisUtils_Registered_Services);
-			VirtControlChanFunc = fptr;
+			virt_control_chan_func = fptr;
 		} else {
-			if (VirtControlChanFunc)
+			if (virt_control_chan_func)
 				atomic_dec(&UisUtils_Registered_Services);
-			VirtControlChanFunc = NULL;
+			virt_control_chan_func = NULL;
 		}
 		break;
 

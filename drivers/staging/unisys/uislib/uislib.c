@@ -57,7 +57,7 @@
 #define __MYFILE__ "uislib.c"
 
 /* global function pointers that act as callback functions into virtpcimod */
-int (*VirtControlChanFunc)(struct guest_msgs *);
+int (*virt_control_chan_func)(struct guest_msgs *);
 
 static int ProcReadBufferValid;
 static char *ProcReadBuffer;	/* Note this MUST be global,
@@ -238,14 +238,14 @@ create_bus(CONTROLVM_MESSAGE *msg, char *buf)
 		cmd.add_vbus.dev_count = deviceCount;
 		cmd.add_vbus.bus_uuid = msg->cmd.createBus.busDataTypeGuid;
 		cmd.add_vbus.instance_uuid = msg->cmd.createBus.busInstGuid;
-		if (!VirtControlChanFunc) {
+		if (!virt_control_chan_func) {
 			LOGERR("CONTROLVM_BUS_CREATE Failed: virtpci callback not registered.");
 			POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, bus->bus_no,
 					 POSTCODE_SEVERITY_ERR);
 			kfree(bus);
 			return CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_FAILURE;
 		}
-		if (!VirtControlChanFunc(&cmd)) {
+		if (!virt_control_chan_func(&cmd)) {
 			LOGERR("CONTROLVM_BUS_CREATE Failed: virtpci GUEST_ADD_VBUS returned error.");
 			POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, bus->bus_no,
 					 POSTCODE_SEVERITY_ERR);
@@ -316,11 +316,11 @@ destroy_bus(CONTROLVM_MESSAGE *msg, char *buf)
 	   with this bus. */
 	cmd.msgtype = GUEST_DEL_VBUS;
 	cmd.del_vbus.bus_no = busNo;
-	if (!VirtControlChanFunc) {
+	if (!virt_control_chan_func) {
 		LOGERR("CONTROLVM_BUS_DESTROY Failed: virtpci callback not registered.");
 		return CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_FAILURE;
 	}
-	if (!VirtControlChanFunc(&cmd)) {
+	if (!virt_control_chan_func(&cmd)) {
 		LOGERR("CONTROLVM_BUS_DESTROY Failed: virtpci GUEST_DEL_VBUS returned error.");
 		return CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_CALLBACK_ERROR;
 	}
@@ -500,7 +500,7 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 					goto Away;
 				}
 
-				if (!VirtControlChanFunc) {
+				if (!virt_control_chan_func) {
 					LOGERR("CONTROLVM_DEVICE_CREATE Failed: virtpci callback not registered.");
 					POSTCODE_LINUX_4
 					    (DEVICE_CREATE_FAILURE_PC, devNo,
@@ -509,7 +509,7 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 					goto Away;
 				}
 
-				if (!VirtControlChanFunc(&cmd)) {
+				if (!virt_control_chan_func(&cmd)) {
 					LOGERR("CONTROLVM_DEVICE_CREATE Failed: virtpci GUEST_ADD_[VHBA||VNIC] returned error.");
 					POSTCODE_LINUX_4
 					    (DEVICE_CREATE_FAILURE_PC, devNo,
@@ -596,11 +596,11 @@ pause_device(CONTROLVM_MESSAGE *msg)
 			LOGERR("CONTROLVM_DEVICE_CHANGESTATE:pause Failed: unknown channelTypeGuid.\n");
 			return CONTROLVM_RESP_ERROR_CHANNEL_TYPE_UNKNOWN;
 		}
-		if (!VirtControlChanFunc) {
+		if (!virt_control_chan_func) {
 			LOGERR("CONTROLVM_DEVICE_CHANGESTATE Failed: virtpci callback not registered.");
 			return CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_FAILURE;
 		}
-		if (!VirtControlChanFunc(&cmd)) {
+		if (!virt_control_chan_func(&cmd)) {
 			LOGERR("CONTROLVM_DEVICE_CHANGESTATE:pause Failed: virtpci GUEST_PAUSE_[VHBA||VNIC] returned error.");
 			return
 			  CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_CALLBACK_ERROR;
@@ -665,11 +665,11 @@ resume_device(CONTROLVM_MESSAGE *msg)
 			LOGERR("CONTROLVM_DEVICE_CHANGESTATE:resume Failed: unknown channelTypeGuid.\n");
 			return CONTROLVM_RESP_ERROR_CHANNEL_TYPE_UNKNOWN;
 		}
-		if (!VirtControlChanFunc) {
+		if (!virt_control_chan_func) {
 			LOGERR("CONTROLVM_DEVICE_CHANGESTATE Failed: virtpci callback not registered.");
 			return CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_FAILURE;
 		}
-		if (!VirtControlChanFunc(&cmd)) {
+		if (!virt_control_chan_func(&cmd)) {
 			LOGERR("CONTROLVM_DEVICE_CHANGESTATE:resume Failed: virtpci GUEST_RESUME_[VHBA||VNIC] returned error.");
 			return
 			  CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_CALLBACK_ERROR;
@@ -736,12 +736,12 @@ destroy_device(CONTROLVM_MESSAGE *msg, char *buf)
 			return
 			    CONTROLVM_RESP_ERROR_CHANNEL_TYPE_UNKNOWN;
 		}
-		if (!VirtControlChanFunc) {
+		if (!virt_control_chan_func) {
 			LOGERR("CONTROLVM_DEVICE_DESTORY Failed: virtpci callback not registered.");
 			return
 			    CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_FAILURE;
 		}
-		if (!VirtControlChanFunc(&cmd)) {
+		if (!virt_control_chan_func(&cmd)) {
 			LOGERR("CONTROLVM_DEVICE_DESTROY Failed: virtpci GUEST_DEL_[VHBA||VNIC] returned error.");
 			return
 			    CONTROLVM_RESP_ERROR_VIRTPCI_DRIVER_CALLBACK_ERROR;
@@ -783,7 +783,7 @@ init_chipset(CONTROLVM_MESSAGE *msg, char *buf)
 	* functions.
 	*/
 	if (!msg->hdr.Flags.testMessage)
-		WAIT_ON_CALLBACK(VirtControlChanFunc);
+		WAIT_ON_CALLBACK(virt_control_chan_func);
 
 	chipset_inited = 1;
 	POSTCODE_LINUX_2(CHIPSET_INIT_EXIT_PC, POSTCODE_SEVERITY_INFO);
@@ -1574,7 +1574,7 @@ uislib_mod_init(void)
 	BusListHead = NULL;
 	BusListCount = MaxBusCount = 0;
 	rwlock_init(&BusListLock);
-	VirtControlChanFunc = NULL;
+	virt_control_chan_func = NULL;
 
 	/* Issue VMCALL_GET_CONTROLVM_ADDR to get CtrlChanPhysAddr and
 	 * then map this physical address to a virtual address. */

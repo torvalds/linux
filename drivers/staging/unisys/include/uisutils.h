@@ -43,9 +43,9 @@
 /* global function pointers that act as callback functions into
  * uisnicmod, uissdmod, and virtpcimod
  */
-extern int (*UisnicControlChanFunc)(struct io_msgs *);
-extern int (*UissdControlChanFunc)(struct io_msgs *);
-extern int (*VirtControlChanFunc)(struct guest_msgs *);
+extern int (*uisnic_control_chan_func)(struct io_msgs *);
+extern int (*uissd_control_chan_func)(struct io_msgs *);
+extern int (*virt_control_chan_func)(struct guest_msgs *);
 
 /* Return values of above callback functions: */
 #define CCF_ERROR        0	/* completed and failed */
