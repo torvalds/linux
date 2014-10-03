@@ -578,8 +578,10 @@ static enum hrtimer_restart qdisc_watchdog(struct hrtimer *timer)
 	struct qdisc_watchdog *wd = container_of(timer, struct qdisc_watchdog,
 						 timer);
 
+	rcu_read_lock();
 	qdisc_unthrottled(wd->qdisc);
 	__netif_schedule(qdisc_root(wd->qdisc));
+	rcu_read_unlock();
 
 	return HRTIMER_NORESTART;
 }
