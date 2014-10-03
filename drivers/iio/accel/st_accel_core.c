@@ -457,8 +457,7 @@ static const struct iio_trigger_ops st_accel_trigger_ops = {
 #define ST_ACCEL_TRIGGER_OPS NULL
 #endif
 
-int st_accel_common_probe(struct iio_dev *indio_dev,
-				struct st_sensors_platform_data *plat_data)
+int st_accel_common_probe(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *adata = iio_priv(indio_dev);
 	int irq = adata->get_irq_data_ready(indio_dev);
@@ -484,11 +483,11 @@ int st_accel_common_probe(struct iio_dev *indio_dev,
 					&adata->sensor_settings->fs.fs_avl[0];
 	adata->odr = adata->sensor_settings->odr.odr_avl[0].hz;
 
-	if (!plat_data)
-		plat_data =
+	if (!adata->dev->platform_data)
+		adata->dev->platform_data =
 			(struct st_sensors_platform_data *)&default_accel_pdata;
 
-	err = st_sensors_init_sensor(indio_dev, plat_data);
+	err = st_sensors_init_sensor(indio_dev, adata->dev->platform_data);
 	if (err < 0)
 		return err;
 
