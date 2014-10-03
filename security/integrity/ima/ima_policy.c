@@ -696,8 +696,9 @@ ssize_t ima_parse_add_rule(char *rule)
 
 	p = strsep(&rule, "\n");
 	len = strlen(p) + 1;
+	p += strspn(p, " \t");
 
-	if (*p == '#')
+	if (*p == '#' || *p == '\0')
 		return len;
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
