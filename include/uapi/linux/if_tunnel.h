@@ -64,6 +64,7 @@ enum {
 enum tunnel_encap_types {
 	TUNNEL_ENCAP_NONE,
 	TUNNEL_ENCAP_FOU,
+	TUNNEL_ENCAP_GUE,
 };
 
 #define TUNNEL_ENCAP_FLAG_CSUM		(1<<0)
