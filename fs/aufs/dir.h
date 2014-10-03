@@ -118,17 +118,11 @@ long au_rdu_compat_ioctl(struct file *file, unsigned int cmd,
 			 unsigned long arg);
 #endif
 #else
-static inline long au_rdu_ioctl(struct file *file, unsigned int cmd,
-				unsigned long arg)
-{
-	return -EINVAL;
-}
+AuStub(long, au_rdu_ioctl, return -EINVAL, struct file *file,
+       unsigned int cmd, unsigned long arg)
 #ifdef CONFIG_COMPAT
-static inline long au_rdu_compat_ioctl(struct file *file, unsigned int cmd,
-				       unsigned long arg)
-{
-	return -EINVAL;
-}
+AuStub(long, au_rdu_compat_ioctl, return -EINVAL, struct file *file,
+       unsigned int cmd, unsigned long arg)
 #endif
 #endif
 
