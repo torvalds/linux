@@ -29,7 +29,6 @@ static int st_press_spi_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	press_data = iio_priv(indio_dev);
-	press_data->dev = &spi->dev;
 
 	st_sensors_spi_configure(indio_dev, spi, press_data);
 

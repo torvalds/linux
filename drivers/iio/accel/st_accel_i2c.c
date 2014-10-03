@@ -79,7 +79,6 @@ static int st_accel_i2c_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	adata = iio_priv(indio_dev);
-	adata->dev = &client->dev;
 	st_sensors_of_i2c_probe(client, st_accel_of_match);
 
 	st_sensors_i2c_configure(indio_dev, client, adata);

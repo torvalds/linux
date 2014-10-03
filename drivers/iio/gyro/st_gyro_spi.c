@@ -29,7 +29,6 @@ static int st_gyro_spi_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	gdata = iio_priv(indio_dev);
-	gdata->dev = &spi->dev;
 
 	st_sensors_spi_configure(indio_dev, spi, gdata);
 

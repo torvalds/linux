@@ -29,7 +29,6 @@ static int st_accel_spi_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	adata = iio_priv(indio_dev);
-	adata->dev = &spi->dev;
 
 	st_sensors_spi_configure(indio_dev, spi, adata);
 
