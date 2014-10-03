@@ -13,6 +13,7 @@ enum {
 	FOU_ATTR_PORT,				/* u16 */
 	FOU_ATTR_AF,				/* u8 */
 	FOU_ATTR_IPPROTO,			/* u8 */
+	FOU_ATTR_TYPE,				/* u8 */
 
 	__FOU_ATTR_MAX,
 };
@@ -25,6 +26,12 @@ enum {
 	FOU_CMD_DEL,
 
 	__FOU_CMD_MAX,
+};
+
+enum {
+	FOU_ENCAP_UNSPEC,
+	FOU_ENCAP_DIRECT,
+	FOU_ENCAP_GUE,
 };
 
 #define FOU_CMD_MAX	(__FOU_CMD_MAX - 1)
