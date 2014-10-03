@@ -874,9 +874,9 @@ EXPORT_SYMBOL_GPL(uislib_client_inject_add_bus);
 
 
 int
-uislib_client_inject_del_bus(u32 busNo)
+uislib_client_inject_del_bus(u32 bus_no)
 {
-	return delete_bus_glue(busNo);
+	return delete_bus_glue(bus_no);
 }
 EXPORT_SYMBOL_GPL(uislib_client_inject_del_bus);
 
