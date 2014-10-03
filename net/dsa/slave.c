@@ -608,7 +608,6 @@ dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 		p->phy->speed = 0;
 		p->phy->duplex = 0;
 		p->phy->advertising = p->phy->supported | ADVERTISED_Autoneg;
-		phy_start_aneg(p->phy);
 	}
 
 	return slave_dev;
