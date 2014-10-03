@@ -113,15 +113,15 @@ typedef struct phys_info IO_DATA_STRUCTURE;
 /* ///////////// ONLY STRUCT TYPE SHOULD BE BELOW */
 #pragma pack(push, 1)
 /* Parameters to VMCALL_IO_CONTROLVM_ADDR interface */
-typedef struct _VMCALL_IO_CONTROLVM_ADDR_PARAMS {
+struct vmcall_io_controlvm_addr_params {
 	    /* The Guest-relative physical address of the ControlVm channel.
 	    * This VMCall fills this in with the appropriate address. */
-	u64 ChannelAddress;	/* contents provided by this VMCALL (OUT) */
+	u64 address;	/* contents provided by this VMCALL (OUT) */
 	    /* the size of the ControlVm channel in bytes This VMCall fills this
 	    * in with the appropriate address. */
-	u32 ChannelBytes;	/* contents provided by this VMCALL (OUT) */
-	u8 Unused[4];		/* Unused Bytes in the 64-Bit Aligned Struct */
-} VMCALL_IO_CONTROLVM_ADDR_PARAMS;
+	u32 channel_bytes;	/* contents provided by this VMCALL (OUT) */
+	u8 unused[4];		/* Unused Bytes in the 64-Bit Aligned Struct */
+};
 
 #pragma pack(pop)
 /* ///////////// END PRAGMA PACK PUSH 1 /////////////////////////// */
