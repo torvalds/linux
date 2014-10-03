@@ -3568,15 +3568,9 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 				lru_cache_add_file(page);
 				unlock_page(page);
 				page_cache_release(page);
-				if (rc == -EAGAIN)
-					list_add_tail(&page->lru, &tmplist);
 			}
+			/* Fallback to the readpage in error/reconnect cases */
 			kref_put(&rdata->refcount, cifs_readdata_release);
-			if (rc == -EAGAIN) {
-				/* Re-add pages to the page_list and retry */
-				list_splice(&tmplist, page_list);
-				continue;
-			}
 			break;
 		}
 

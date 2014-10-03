@@ -586,7 +586,7 @@ cifs_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 		tmprc = CIFS_open(xid, &oparms, &oplock, NULL);
 		if (tmprc == -EOPNOTSUPP)
 			*symlink = true;
-		else
+		else if (tmprc == 0)
 			CIFSSMBClose(xid, tcon, fid.netfid);
 	}
 
