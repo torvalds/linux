@@ -298,28 +298,23 @@ static inline unsigned int issue_vmcall_channel_mismatch(const char *chname,
 			      const char *item_name, u32 line_no,
 			      const char *path_n_fn)
 {
-	VMCALL_CHANNEL_VERSION_MISMATCH_PARAMS params;
+	struct vmcall_channel_version_mismatch_params params;
 	int result = VMCALL_SUCCESS;
 	u64 physaddr;
 	char *last_slash = NULL;
 
-	strlcpy(params.ChannelName, chname,
-		lengthof(VMCALL_CHANNEL_VERSION_MISMATCH_PARAMS, ChannelName));
-	strlcpy(params.ItemName, item_name,
-		lengthof(VMCALL_CHANNEL_VERSION_MISMATCH_PARAMS, ItemName));
-	params.SourceLineNumber = line_no;
+	strlcpy(params.chname, chname, sizeof(params.chname));
+	strlcpy(params.item_name, item_name, sizeof(params.item_name));
+	params.line_no = line_no;
 
 	last_slash = strrchr(path_n_fn, '/');
 	if (last_slash != NULL) {
 		last_slash++;
-		strlcpy(params.SourceFileName, last_slash,
-			lengthof(VMCALL_CHANNEL_VERSION_MISMATCH_PARAMS,
-				 SourceFileName));
+		strlcpy(params.file_name, last_slash, sizeof(params.file_name));
 	} else
-		strlcpy(params.SourceFileName,
+		strlcpy(params.file_name,
 			"Cannot determine source filename",
-			lengthof(VMCALL_CHANNEL_VERSION_MISMATCH_PARAMS,
-				 SourceFileName));
+			sizeof(params.file_name));
 
 	physaddr = virt_to_phys(&params);
 	ISSUE_IO_VMCALL(VMCALL_CHANNEL_VERSION_MISMATCH, physaddr, result);

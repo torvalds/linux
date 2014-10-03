@@ -154,14 +154,14 @@ struct vmcall_io_visorserial_addr_params {
 /* ///////////// END PRAGMA PACK PUSH 1 /////////////////////////// */
 
 /* Parameters to VMCALL_CHANNEL_MISMATCH interface */
-typedef struct _VMCALL_CHANNEL_VERSION_MISMATCH_PARAMS {
-	u8 ChannelName[32];	/* Null terminated string giving name of channel
+struct vmcall_channel_version_mismatch_params {
+	u8 chname[32];	/* Null terminated string giving name of channel
 				 * (IN) */
-	u8 ItemName[32];	/* Null terminated string giving name of
+	u8 item_name[32];	/* Null terminated string giving name of
 				 * mismatched item (IN) */
-	u32 SourceLineNumber;	/* line# where invoked. (IN) */
-	u8 SourceFileName[36];	/* source code where invoked - Null terminated
+	u32 line_no;		/* line# where invoked. (IN) */
+	u8 file_name[36];	/* source code where invoked - Null terminated
 				 * string (IN) */
-} VMCALL_CHANNEL_VERSION_MISMATCH_PARAMS;
+};
 
 #endif /* __IOMONINTF_H__ */
