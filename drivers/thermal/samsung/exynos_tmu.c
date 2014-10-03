@@ -122,6 +122,23 @@ static int code_to_temp(struct exynos_tmu_data *data, u8 temp_code)
 	return temp;
 }
 
+static void exynos_tmu_clear_irqs(struct exynos_tmu_data *data)
+{
+	const struct exynos_tmu_registers *reg = data->pdata->registers;
+	unsigned int val_irq;
+
+	val_irq = readl(data->base + reg->tmu_intstat);
+	/*
+	 * Clear the interrupts.  Please note that the documentation for
+	 * Exynos3250, Exynos4412, Exynos5250 and Exynos5260 incorrectly
+	 * states that INTCLEAR register has a different placing of bits
+	 * responsible for FALL IRQs than INTSTAT register.  Exynos5420
+	 * and Exynos5440 documentation is correct (Exynos4210 doesn't
+	 * support FALL IRQs at all).
+	 */
+	writel(val_irq, data->base + reg->tmu_intclear);
+}
+
 static int exynos_tmu_initialize(struct platform_device *pdev)
 {
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
@@ -207,7 +224,7 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 			writeb(pdata->trigger_levels[i], data->base +
 			reg->threshold_th0 + i * sizeof(reg->threshold_th0));
 
-		writel(reg->intclr_rise_mask, data->base + reg->tmu_intclear);
+		exynos_tmu_clear_irqs(data);
 	} else {
 		/* Write temperature code for rising and falling threshold */
 		for (i = 0; i < pdata->non_hw_trigger_levels; i++) {
@@ -228,9 +245,7 @@ static int exynos_tmu_initialize(struct platform_device *pdev)
 		writel(falling_threshold,
 				data->base + reg->threshold_th1);
 
-		writel((reg->intclr_rise_mask << reg->intclr_rise_shift) |
-			(reg->intclr_fall_mask << reg->intclr_fall_shift),
-				data->base + reg->tmu_intclear);
+		exynos_tmu_clear_irqs(data);
 
 		/* if last threshold limit is also present */
 		i = pdata->max_trigger_level - 1;
@@ -396,7 +411,7 @@ static void exynos_tmu_work(struct work_struct *work)
 			struct exynos_tmu_data, irq_work);
 	struct exynos_tmu_platform_data *pdata = data->pdata;
 	const struct exynos_tmu_registers *reg = pdata->registers;
-	unsigned int val_irq, val_type;
+	unsigned int val_type;
 
 	if (!IS_ERR(data->clk_sec))
 		clk_enable(data->clk_sec);
@@ -414,9 +429,7 @@ static void exynos_tmu_work(struct work_struct *work)
 	clk_enable(data->clk);
 
 	/* TODO: take action based on particular interrupt */
-	val_irq = readl(data->base + reg->tmu_intstat);
-	/* clear the interrupts */
-	writel(val_irq, data->base + reg->tmu_intclear);
+	exynos_tmu_clear_irqs(data);
 
 	clk_disable(data->clk);
 	mutex_unlock(&data->lock);
