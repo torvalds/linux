@@ -414,7 +414,7 @@ brw_bulk_ready(srpc_server_rpc_t *rpc, int status)
 	return 0;
 }
 
-int
+static int
 brw_server_handle(struct srpc_server_rpc *rpc)
 {
 	struct srpc_service	*sv = rpc->srpc_scd->scd_svc;
