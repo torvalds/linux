@@ -378,7 +378,7 @@ brw_server_rpc_done(srpc_server_rpc_t *rpc)
 	sfw_free_pages(rpc);
 }
 
-int
+static int
 brw_bulk_ready(srpc_server_rpc_t *rpc, int status)
 {
 	__u64	     magic = BRW_MAGIC;
