@@ -1232,7 +1232,7 @@ info_debugfs_read_helper(char **buff, int *buff_len)
 	read_unlock(&BusListLock);
 
 	if (PLINE("UisUtils_Registered_Services: %d\n",
-		  atomic_read(&UisUtils_Registered_Services)) < 0)
+		  atomic_read(&uisutils_registered_services)) < 0)
 		goto err_done;
 	if (PLINE("cycles_before_wait %llu wait_cycles:%llu\n",
 		  cycles_before_wait, wait_cycles) < 0)

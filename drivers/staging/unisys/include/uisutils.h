@@ -51,7 +51,7 @@ extern int (*virt_control_chan_func)(struct guest_msgs *);
 #define CCF_ERROR        0	/* completed and failed */
 #define CCF_OK           1	/* completed successfully */
 #define CCF_PENDING      2	/* operation still pending */
-extern atomic_t UisUtils_Registered_Services;
+extern atomic_t uisutils_registered_services;
 
 typedef unsigned int MACARRAY[MAX_MACADDR_LEN];
 typedef struct ReqHandlerInfo_struct {

@@ -39,7 +39,7 @@
 #define __MYFILE__ "uisutils.c"
 
 /* exports */
-atomic_t UisUtils_Registered_Services = ATOMIC_INIT(0);
+atomic_t uisutils_registered_services = ATOMIC_INIT(0);
 					/* num registrations via
 					 * uisctrl_register_req_handler() or
 					 * uisctrl_register_req_handler_ex() */
@@ -83,11 +83,11 @@ uisctrl_register_req_handler(int type, void *fptr,
 	case 2:
 		if (fptr) {
 			if (!virt_control_chan_func)
-				atomic_inc(&UisUtils_Registered_Services);
+				atomic_inc(&uisutils_registered_services);
 			virt_control_chan_func = fptr;
 		} else {
 			if (virt_control_chan_func)
-				atomic_dec(&UisUtils_Registered_Services);
+				atomic_dec(&uisutils_registered_services);
 			virt_control_chan_func = NULL;
 		}
 		break;
@@ -145,7 +145,7 @@ uisctrl_register_req_handler_ex(uuid_le switchTypeGuid,
 		goto Away;
 	}
 
-	atomic_inc(&UisUtils_Registered_Services);
+	atomic_inc(&uisutils_registered_services);
 	rc = 1;			/* success */
 Away:
 	if (rc) {
@@ -170,7 +170,7 @@ uisctrl_unregister_req_handler_ex(uuid_le switchTypeGuid)
 				&switchTypeGuid);
 		goto Away;
 	}
-	atomic_dec(&UisUtils_Registered_Services);
+	atomic_dec(&uisutils_registered_services);
 	rc = 1;			/* success */
 Away:
 	if (!rc)
