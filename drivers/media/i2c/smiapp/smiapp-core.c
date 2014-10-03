@@ -2522,6 +2522,8 @@ static void smiapp_cleanup(struct smiapp_sensor *sensor)
 
 	device_remove_file(&client->dev, &dev_attr_nvm);
 	device_remove_file(&client->dev, &dev_attr_ident);
+
+	smiapp_free_controls(sensor);
 }
 
 static int smiapp_init(struct smiapp_sensor *sensor)
@@ -3124,15 +3126,11 @@ static int smiapp_remove(struct i2c_client *client)
 		sensor->power_count = 0;
 	}
 
-	device_remove_file(&client->dev, &dev_attr_ident);
-	if (sensor->nvm)
-		device_remove_file(&client->dev, &dev_attr_nvm);
-
 	for (i = 0; i < sensor->ssds_used; i++) {
 		v4l2_device_unregister_subdev(&sensor->ssds[i].sd);
 		media_entity_cleanup(&sensor->ssds[i].sd.entity);
 	}
-	smiapp_free_controls(sensor);
+	smiapp_cleanup(sensor);
 
 	return 0;
 }
