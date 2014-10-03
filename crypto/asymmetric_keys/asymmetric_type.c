@@ -153,8 +153,8 @@ static int asymmetric_key_match_preparse(struct key_match_data *match_data)
 	}
 
 	match_id = asymmetric_key_hex_to_key_id(id);
-	if (!match_id)
-		return -ENOMEM;
+	if (IS_ERR(match_id))
+		return PTR_ERR(match_id);
 
 	match_data->preparsed = match_id;
 	match_data->cmp = asymmetric_key_cmp;
