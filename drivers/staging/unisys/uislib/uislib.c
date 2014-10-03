@@ -974,9 +974,9 @@ uislib_client_inject_add_vhba(u32 bus_no, u32 dev_no,
 EXPORT_SYMBOL_GPL(uislib_client_inject_add_vhba);
 
 int
-uislib_client_inject_del_vhba(u32 busNo, u32 devNo)
+uislib_client_inject_del_vhba(u32 bus_no, u32 dev_no)
 {
-	return delete_device_glue(busNo, devNo);
+	return delete_device_glue(bus_no, dev_no);
 }
 EXPORT_SYMBOL_GPL(uislib_client_inject_del_vhba);
 
