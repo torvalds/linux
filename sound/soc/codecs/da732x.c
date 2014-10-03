@@ -217,7 +217,7 @@ static void da732x_set_charge_pump(struct snd_soc_codec *codec, int state)
 		snd_soc_write(codec, DA732X_REG_CP_CTRL1, DA723X_CP_DIS);
 		break;
 	default:
-		pr_err(KERN_ERR "Wrong charge pump state\n");
+		pr_err("Wrong charge pump state\n");
 		break;
 	}
 }
