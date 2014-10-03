@@ -2162,9 +2162,10 @@ static void bcmgenet_netif_stop(struct net_device *dev)
 	 */
 	cancel_work_sync(&priv->bcmgenet_irq_work);
 
-	priv->old_pause = -1;
 	priv->old_link = -1;
+	priv->old_speed = -1;
 	priv->old_duplex = -1;
+	priv->old_pause = -1;
 }
 
 static int bcmgenet_close(struct net_device *dev)

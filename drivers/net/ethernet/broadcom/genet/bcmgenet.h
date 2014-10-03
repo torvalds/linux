@@ -548,8 +548,9 @@ struct bcmgenet_priv {
 	u16 gphy_rev;
 
 	/* PHY device variables */
-	int old_duplex;
 	int old_link;
+	int old_speed;
+	int old_duplex;
 	int old_pause;
 	phy_interface_t phy_interface;
 	int phy_addr;
