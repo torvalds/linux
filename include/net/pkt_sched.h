@@ -99,7 +99,7 @@ void qdisc_put_stab(struct qdisc_size_table *tab);
 void qdisc_warn_nonwc(const char *txt, struct Qdisc *qdisc);
 int sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
 		    struct net_device *dev, struct netdev_queue *txq,
-		    spinlock_t *root_lock);
+		    spinlock_t *root_lock, bool validate);
 
 void __qdisc_run(struct Qdisc *q);
 
