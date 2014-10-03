@@ -161,7 +161,7 @@ static const struct iio_chan_spec st_accel_16bit_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(3)
 };
 
-static const struct st_sensors st_accel_sensors[] = {
+static const struct st_sensor_settings st_accel_sensors_settings[] = {
 	{
 		.wai = ST_ACCEL_1_WAI_EXP,
 		.sensors_supported = {
@@ -470,18 +470,19 @@ int st_accel_common_probe(struct iio_dev *indio_dev,
 	st_sensors_power_enable(indio_dev);
 
 	err = st_sensors_check_device_support(indio_dev,
-				ARRAY_SIZE(st_accel_sensors), st_accel_sensors);
+					ARRAY_SIZE(st_accel_sensors_settings),
+					st_accel_sensors_settings);
 	if (err < 0)
 		return err;
 
 	adata->num_data_channels = ST_ACCEL_NUMBER_DATA_CHANNELS;
-	adata->multiread_bit = adata->sensor->multi_read_bit;
-	indio_dev->channels = adata->sensor->ch;
+	adata->multiread_bit = adata->sensor_settings->multi_read_bit;
+	indio_dev->channels = adata->sensor_settings->ch;
 	indio_dev->num_channels = ST_SENSORS_NUMBER_ALL_CHANNELS;
 
 	adata->current_fullscale = (struct st_sensor_fullscale_avl *)
-						&adata->sensor->fs.fs_avl[0];
-	adata->odr = adata->sensor->odr.odr_avl[0].hz;
+					&adata->sensor_settings->fs.fs_avl[0];
+	adata->odr = adata->sensor_settings->odr.odr_avl[0].hz;
 
 	if (!plat_data)
 		plat_data =

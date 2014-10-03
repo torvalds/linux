@@ -103,7 +103,7 @@ static const struct iio_chan_spec st_gyro_16bit_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(3)
 };
 
-static const struct st_sensors st_gyro_sensors[] = {
+static const struct st_sensor_settings st_gyro_sensors_settings[] = {
 	{
 		.wai = ST_GYRO_1_WAI_EXP,
 		.sensors_supported = {
@@ -322,18 +322,19 @@ int st_gyro_common_probe(struct iio_dev *indio_dev,
 	st_sensors_power_enable(indio_dev);
 
 	err = st_sensors_check_device_support(indio_dev,
-				ARRAY_SIZE(st_gyro_sensors), st_gyro_sensors);
+					ARRAY_SIZE(st_gyro_sensors_settings),
+					st_gyro_sensors_settings);
 	if (err < 0)
 		return err;
 
 	gdata->num_data_channels = ST_GYRO_NUMBER_DATA_CHANNELS;
-	gdata->multiread_bit = gdata->sensor->multi_read_bit;
-	indio_dev->channels = gdata->sensor->ch;
+	gdata->multiread_bit = gdata->sensor_settings->multi_read_bit;
+	indio_dev->channels = gdata->sensor_settings->ch;
 	indio_dev->num_channels = ST_SENSORS_NUMBER_ALL_CHANNELS;
 
 	gdata->current_fullscale = (struct st_sensor_fullscale_avl *)
-						&gdata->sensor->fs.fs_avl[0];
-	gdata->odr = gdata->sensor->odr.odr_avl[0].hz;
+					&gdata->sensor_settings->fs.fs_avl[0];
+	gdata->odr = gdata->sensor_settings->odr.odr_avl[0].hz;
 
 	err = st_sensors_init_sensor(indio_dev, pdata);
 	if (err < 0)

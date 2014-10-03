@@ -175,7 +175,7 @@ static const struct iio_chan_spec st_press_lps001wp_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(1)
 };
 
-static const struct st_sensors st_press_sensors[] = {
+static const struct st_sensor_settings st_press_sensors_settings[] = {
 	{
 		.wai = ST_PRESS_LPS331AP_WAI_EXP,
 		.sensors_supported = {
@@ -422,24 +422,24 @@ int st_press_common_probe(struct iio_dev *indio_dev,
 	st_sensors_power_enable(indio_dev);
 
 	err = st_sensors_check_device_support(indio_dev,
-					      ARRAY_SIZE(st_press_sensors),
-					      st_press_sensors);
+					ARRAY_SIZE(st_press_sensors_settings),
+					st_press_sensors_settings);
 	if (err < 0)
 		return err;
 
 	pdata->num_data_channels = ST_PRESS_NUMBER_DATA_CHANNELS;
-	pdata->multiread_bit     = pdata->sensor->multi_read_bit;
-	indio_dev->channels      = pdata->sensor->ch;
-	indio_dev->num_channels  = pdata->sensor->num_ch;
+	pdata->multiread_bit = pdata->sensor_settings->multi_read_bit;
+	indio_dev->channels = pdata->sensor_settings->ch;
+	indio_dev->num_channels = pdata->sensor_settings->num_ch;
 
-	if (pdata->sensor->fs.addr != 0)
+	if (pdata->sensor_settings->fs.addr != 0)
 		pdata->current_fullscale = (struct st_sensor_fullscale_avl *)
-			&pdata->sensor->fs.fs_avl[0];
+			&pdata->sensor_settings->fs.fs_avl[0];
 
-	pdata->odr = pdata->sensor->odr.odr_avl[0].hz;
+	pdata->odr = pdata->sensor_settings->odr.odr_avl[0].hz;
 
 	/* Some devices don't support a data ready pin. */
-	if (!plat_data && pdata->sensor->drdy_irq.addr)
+	if (!plat_data && pdata->sensor_settings->drdy_irq.addr)
 		plat_data =
 			(struct st_sensors_platform_data *)&default_press_pdata;
 
