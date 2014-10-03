@@ -736,6 +736,10 @@ static int altera_tse_phy_get_addr_mdio_create(struct net_device *dev)
 
 	priv->phy_iface = of_get_phy_mode(np);
 
+	/* Avoid get phy addr and create mdio if no phy is present */
+	if (!priv->phy_iface)
+		return 0;
+
 	/* try to get PHY address from device tree, use PHY autodetection if
 	 * no valid address is given
 	 */
@@ -769,6 +773,10 @@ static int init_phy(struct net_device *dev)
 	struct altera_tse_private *priv = netdev_priv(dev);
 	struct phy_device *phydev;
 	struct device_node *phynode;
+
+	/* Avoid init phy in case of no phy present */
+	if (!priv->phy_iface)
+		return 0;
 
 	priv->oldlink = 0;
 	priv->oldspeed = 0;
