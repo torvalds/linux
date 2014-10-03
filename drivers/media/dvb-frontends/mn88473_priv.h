@@ -20,11 +20,13 @@
 #include "dvb_frontend.h"
 #include "mn88473.h"
 #include <linux/firmware.h>
+#include <linux/regmap.h>
 
 #define MN88473_FIRMWARE "dvb-demod-mn88473-01.fw"
 
 struct mn88473_dev {
 	struct i2c_client *client[3];
+	struct regmap *regmap[3];
 	struct dvb_frontend fe;
 	u16 i2c_wr_max;
 	fe_delivery_system_t delivery_system;
