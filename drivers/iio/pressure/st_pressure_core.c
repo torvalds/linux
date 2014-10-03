@@ -333,7 +333,7 @@ static int st_press_read_raw(struct iio_dev *indio_dev,
 							int *val2, long mask)
 {
 	int err;
-	struct st_sensor_data *pdata = iio_priv(indio_dev);
+	struct st_sensor_data *press_data = iio_priv(indio_dev);
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
@@ -347,10 +347,10 @@ static int st_press_read_raw(struct iio_dev *indio_dev,
 
 		switch (ch->type) {
 		case IIO_PRESSURE:
-			*val2 = pdata->current_fullscale->gain;
+			*val2 = press_data->current_fullscale->gain;
 			break;
 		case IIO_TEMP:
-			*val2 = pdata->current_fullscale->gain2;
+			*val2 = press_data->current_fullscale->gain2;
 			break;
 		default:
 			err = -EINVAL;
@@ -371,7 +371,7 @@ static int st_press_read_raw(struct iio_dev *indio_dev,
 
 		return IIO_VAL_FRACTIONAL;
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		*val = pdata->odr;
+		*val = press_data->odr;
 		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
@@ -411,8 +411,8 @@ static const struct iio_trigger_ops st_press_trigger_ops = {
 
 int st_press_common_probe(struct iio_dev *indio_dev)
 {
-	struct st_sensor_data *pdata = iio_priv(indio_dev);
-	int irq = pdata->get_irq_data_ready(indio_dev);
+	struct st_sensor_data *press_data = iio_priv(indio_dev);
+	int irq = press_data->get_irq_data_ready(indio_dev);
 	int err;
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -426,23 +426,25 @@ int st_press_common_probe(struct iio_dev *indio_dev)
 	if (err < 0)
 		return err;
 
-	pdata->num_data_channels = ST_PRESS_NUMBER_DATA_CHANNELS;
-	pdata->multiread_bit = pdata->sensor_settings->multi_read_bit;
-	indio_dev->channels = pdata->sensor_settings->ch;
-	indio_dev->num_channels = pdata->sensor_settings->num_ch;
+	press_data->num_data_channels = ST_PRESS_NUMBER_DATA_CHANNELS;
+	press_data->multiread_bit = press_data->sensor_settings->multi_read_bit;
+	indio_dev->channels = press_data->sensor_settings->ch;
+	indio_dev->num_channels = press_data->sensor_settings->num_ch;
 
-	if (pdata->sensor_settings->fs.addr != 0)
-		pdata->current_fullscale = (struct st_sensor_fullscale_avl *)
-			&pdata->sensor_settings->fs.fs_avl[0];
+	if (press_data->sensor_settings->fs.addr != 0)
+		press_data->current_fullscale =
+			(struct st_sensor_fullscale_avl *)
+				&press_data->sensor_settings->fs.fs_avl[0];
 
-	pdata->odr = pdata->sensor_settings->odr.odr_avl[0].hz;
+	press_data->odr = press_data->sensor_settings->odr.odr_avl[0].hz;
 
 	/* Some devices don't support a data ready pin. */
-	if (!pdata->dev->platform_data && pdata->sensor_settings->drdy_irq.addr)
-		pdata->dev->platform_data =
+	if (!press_data->dev->platform_data &&
+				press_data->sensor_settings->drdy_irq.addr)
+		press_data->dev->platform_data =
 			(struct st_sensors_platform_data *)&default_press_pdata;
 
-	err = st_sensors_init_sensor(indio_dev, pdata->dev->platform_data);
+	err = st_sensors_init_sensor(indio_dev, press_data->dev->platform_data);
 	if (err < 0)
 		return err;
 
@@ -478,12 +480,12 @@ EXPORT_SYMBOL(st_press_common_probe);
 
 void st_press_common_remove(struct iio_dev *indio_dev)
 {
-	struct st_sensor_data *pdata = iio_priv(indio_dev);
+	struct st_sensor_data *press_data = iio_priv(indio_dev);
 
 	st_sensors_power_disable(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	if (pdata->get_irq_data_ready(indio_dev) > 0)
+	if (press_data->get_irq_data_ready(indio_dev) > 0)
 		st_sensors_deallocate_trigger(indio_dev);
 
 	st_press_deallocate_ring(indio_dev);
