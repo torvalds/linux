@@ -21,7 +21,6 @@
 #include <linux/err.h>
 
 #include <linux/clk.h>
-#include <linux/clk-private.h>
 #include <linux/clk/sunxi.h>
 
 #include <linux/gpio.h>
