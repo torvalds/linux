@@ -132,8 +132,8 @@ unsigned char *util_map_virt(struct phys_info *sg);
 void util_unmap_virt(struct phys_info *sg);
 unsigned char *util_map_virt_atomic(struct phys_info *sg);
 void util_unmap_virt_atomic(void *buf);
-int uislib_client_inject_add_bus(u32 busNo, uuid_le instGuid,
-				 u64 channelAddr, ulong nChannelBytes);
+int uislib_client_inject_add_bus(u32 bus_no, uuid_le inst_uuid,
+				 u64 channel_addr, ulong n_channel_bytes);
 int  uislib_client_inject_del_bus(u32 busNo);
 
 int uislib_client_inject_add_vhba(u32 busNo, u32 devNo,

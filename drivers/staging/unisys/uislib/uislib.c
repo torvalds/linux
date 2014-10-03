@@ -822,14 +822,14 @@ delete_device_glue(u32 busNo, u32 devNo)
 }
 
 int
-uislib_client_inject_add_bus(u32 busNo, uuid_le instGuid,
-			     u64 channelAddr, ulong nChannelBytes)
+uislib_client_inject_add_bus(u32 bus_no, uuid_le inst_uuid,
+			     u64 channel_addr, ulong n_channel_bytes)
 {
 	CONTROLVM_MESSAGE msg;
 
-	LOGINF("enter busNo=0x%x\n", busNo);
+	LOGINF("enter busNo=0x%x\n", bus_no);
 	/* step 0: init the chipset */
-	POSTCODE_LINUX_3(CHIPSET_INIT_ENTRY_PC, busNo, POSTCODE_SEVERITY_INFO);
+	POSTCODE_LINUX_3(CHIPSET_INIT_ENTRY_PC, bus_no, POSTCODE_SEVERITY_INFO);
 
 	if (!chipset_inited) {
 		/* step: initialize the chipset */
@@ -848,24 +848,25 @@ uislib_client_inject_add_bus(u32 busNo, uuid_le instGuid,
 			return 0;
 		}
 		LOGINF("chipset initialized\n");
-		POSTCODE_LINUX_3(CHIPSET_INIT_EXIT_PC, busNo,
+		POSTCODE_LINUX_3(CHIPSET_INIT_EXIT_PC, bus_no,
 				 POSTCODE_SEVERITY_INFO);
 	}
 
 	/* step 1: create a bus */
-	POSTCODE_LINUX_3(BUS_CREATE_ENTRY_PC, busNo, POSTCODE_SEVERITY_WARNING);
+	POSTCODE_LINUX_3(BUS_CREATE_ENTRY_PC, bus_no,
+			 POSTCODE_SEVERITY_WARNING);
 	init_msg_header(&msg, CONTROLVM_BUS_CREATE, 0, 0);
-	msg.cmd.createBus.busNo = busNo;
+	msg.cmd.createBus.busNo = bus_no;
 	msg.cmd.createBus.deviceCount = 23;	/* devNo+1; */
-	msg.cmd.createBus.channelAddr = channelAddr;
-	msg.cmd.createBus.channelBytes = nChannelBytes;
+	msg.cmd.createBus.channelAddr = channel_addr;
+	msg.cmd.createBus.channelBytes = n_channel_bytes;
 	if (create_bus(&msg, NULL) != CONTROLVM_RESP_SUCCESS) {
 		LOGERR("create_bus failed.\n");
-		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, busNo,
+		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, bus_no,
 				 POSTCODE_SEVERITY_ERR);
 		return 0;
 	}
-	POSTCODE_LINUX_3(BUS_CREATE_EXIT_PC, busNo, POSTCODE_SEVERITY_INFO);
+	POSTCODE_LINUX_3(BUS_CREATE_EXIT_PC, bus_no, POSTCODE_SEVERITY_INFO);
 
 	return 1;
 }
