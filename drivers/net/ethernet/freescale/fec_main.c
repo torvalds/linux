@@ -57,6 +57,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/if_vlan.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/prefetch.h>
 
 #include <asm/cacheflush.h>
 
