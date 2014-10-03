@@ -2606,9 +2606,6 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 	if (uport->cons && uport->dev)
 		of_console_check(uport->dev->of_node, uport->cons->name, uport->line);
 
-	if (uart_console(uport))
-		state->pm_state = UART_PM_STATE_ON;
-
 	uart_configure_port(drv, state, uport);
 
 	num_groups = 2;
