@@ -2154,14 +2154,14 @@ struct net_device *init_ft1000_card(struct pcmcia_device *link,
 	if (flarion_ft1000_cnt > 1) {
 		flarion_ft1000_cnt--;
 
-		printk(KERN_INFO
-			   "ft1000: This driver can not support more than one instance\n");
+		dev_info(&link->dev,
+			   "This driver can not support more than one instance\n");
 		return NULL;
 	}
 
 	dev = alloc_etherdev(sizeof(struct ft1000_info));
 	if (!dev) {
-		printk(KERN_ERR "ft1000: failed to allocate etherdev\n");
+		dev_err(&link->dev, "Failed to allocate etherdev\n");
 		return NULL;
 	}
 
@@ -2209,17 +2209,17 @@ struct net_device *init_ft1000_card(struct pcmcia_device *link,
 	dev->irq = link->irq;
 	dev->base_addr = link->resource[0]->start;
 	if (pcmcia_get_mac_from_cis(link, dev)) {
-		printk(KERN_ERR "ft1000: Could not read mac address\n");
+		netdev_err(dev, "Could not read mac address\n");
 		goto err_dev;
 	}
 
 	if (request_irq(dev->irq, ft1000_interrupt, IRQF_SHARED, dev->name, dev)) {
-		printk(KERN_ERR "ft1000: Could not request_irq\n");
+		netdev_err(dev, "Could not request_irq\n");
 		goto err_dev;
 	}
 
 	if (request_region(dev->base_addr, 256, dev->name) == NULL) {
-		printk(KERN_ERR "ft1000: Could not request_region\n");
+		netdev_err(dev, "Could not request_region\n");
 		goto err_irq;
 	}
 
