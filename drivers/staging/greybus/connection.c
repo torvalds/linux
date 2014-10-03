@@ -14,6 +14,39 @@
 static DEFINE_SPINLOCK(gb_connections_lock);
 
 /*
+ * Allocate an available CPort Id for use for the host side of the
+ * given connection.  The lowest-available id is returned, so the
+ * first call is guaranteed to allocate CPort Id 0.
+ *
+ * Assigns the connection's hd_cport_id and returns true if successful.
+ * Returns false otherwise.
+ */
+static bool hd_connection_hd_cport_id_alloc(struct gb_connection *connection)
+{
+	struct ida *ida = &connection->hd->cport_id_map;
+	int id;
+
+	id = ida_simple_get(ida, 0, HOST_DEV_CPORT_ID_MAX, GFP_KERNEL);
+	if (id < 0)
+		return false;
+
+	connection->hd_cport_id = (u16)id;
+
+	return true;
+}
+
+/*
+ * Free a previously-allocated CPort Id on the given host device.
+ */
+static void hd_connection_hd_cport_id_free(struct gb_connection *connection)
+{
+	struct ida *ida = &connection->hd->cport_id_map;
+
+	ida_simple_remove(ida, connection->hd_cport_id);
+	connection->hd_cport_id = CPORT_ID_BAD;
+}
+
+/*
  * Set up a Greybus connection, representing the bidirectional link
  * between a CPort on a (local) Greybus host device and a CPort on
  * another Greybus module.
@@ -35,8 +68,9 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 		return NULL;
 
 	hd = interface->gmod->hd;
-	connection->hd_cport_id = greybus_hd_cport_id_alloc(hd);
-	if (connection->hd_cport_id == CPORT_ID_BAD) {
+	connection->hd = hd;			/* XXX refcount? */
+	if (!hd_connection_hd_cport_id_alloc(connection)) {
+		/* kref_put(connection->hd); */
 		kfree(connection);
 		return NULL;
 	}
@@ -72,7 +106,7 @@ void gb_connection_destroy(struct gb_connection *connection)
 	list_del(&connection->interface_links);
 	spin_unlock_irq(&gb_connections_lock);
 
-	greybus_hd_cport_id_free(connection->hd, connection->hd_cport_id);
+	hd_connection_hd_cport_id_free(connection);
 	/* kref_put(connection->interface); */
 	/* kref_put(connection->hd); */
 	kfree(connection);

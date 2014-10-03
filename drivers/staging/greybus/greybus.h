@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/module.h>
+#include <linux/idr.h>
 
 #include "kernel_ver.h"
 #include "greybus_id.h"
@@ -194,16 +195,13 @@ struct greybus_host_device {
 	struct list_head modules;
 	struct list_head connections;
 
-	DECLARE_BITMAP(cport_id_map, HOST_DEV_CPORT_ID_MAX);
+	struct ida cport_id_map;
 	u16 cport_id_count;	/* How many have been allocated */
 	u16 cport_id_next_free;	/* Where to start checking anyway */
 
 	/* Private data for the host driver */
 	unsigned long hd_priv[0] __attribute__ ((aligned(sizeof(s64))));
 };
-
-u16 greybus_hd_cport_id_alloc(struct greybus_host_device *hd);
-void greybus_hd_cport_id_free(struct greybus_host_device *hd, u16 cport_id);
 
 struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *host_driver,
 					      struct device *parent);

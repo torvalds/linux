@@ -282,69 +282,6 @@ void greybus_remove_device(struct gb_module *gmod)
 
 static DEFINE_MUTEX(hd_mutex);
 
-/*
- * Allocate an available CPort Id for use on the given host device.
- * Returns the CPort Id, or CPORT_ID_BAD of none remain.
- *
- * The lowest-available id is returned, so the first call is
- * guaranteed to allocate CPort Id 0.
- */
-u16 greybus_hd_cport_id_alloc(struct greybus_host_device *hd)
-{
-	unsigned long cport_id;
-
-	/* If none left, return BAD */
-	if (hd->cport_id_count == HOST_DEV_CPORT_ID_MAX)
-		return CPORT_ID_BAD;
-
-	spin_lock_irq(&cport_id_map_lock);
-	cport_id = find_next_zero_bit(hd->cport_id_map, HOST_DEV_CPORT_ID_MAX,
-						hd->cport_id_next_free);
-	if (cport_id < HOST_DEV_CPORT_ID_MAX) {
-		hd->cport_id_next_free = cport_id + 1;	/* Success */
-		hd->cport_id_count++;
-	} else {
-		/* Lost a race for the last one */
-		if (hd->cport_id_count != HOST_DEV_CPORT_ID_MAX) {
-			pr_err("bad cport_id_count in alloc");
-			hd->cport_id_count = HOST_DEV_CPORT_ID_MAX;
-		}
-		cport_id = CPORT_ID_BAD;
-	}
-	spin_unlock_irq(&cport_id_map_lock);
-
-	return cport_id;
-}
-
-/*
- * Free a previously-allocated CPort Id on the given host device.
- */
-void greybus_hd_cport_id_free(struct greybus_host_device *hd, u16 cport_id)
-{
-	if (cport_id >= HOST_DEV_CPORT_ID_MAX) {
-		pr_err("bad cport_id %hu\n", cport_id);
-		return;
-	}
-	if (!hd->cport_id_count) {
-		pr_err("too many cport_id frees\n");
-		return;
-	}
-
-	spin_lock_irq(&cport_id_map_lock);
-	if (test_and_clear_bit(cport_id, hd->cport_id_map)) {
-		if (hd->cport_id_count) {
-			hd->cport_id_count--;
-			if (cport_id < hd->cport_id_next_free)
-				hd->cport_id_next_free = cport_id;
-		} else {
-			pr_err("bad cport_id_count in free");
-		}
-	} else {
-		pr_err("duplicate cport_id %hu free\n", cport_id);
-	}
-	spin_unlock_irq(&cport_id_map_lock);
-}
-
 static void free_hd(struct kref *kref)
 {
 	struct greybus_host_device *hd;
@@ -368,13 +305,7 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 	hd->driver = driver;
 	INIT_LIST_HEAD(&hd->modules);
 	INIT_LIST_HEAD(&hd->connections);
-
-	/* Pre-allocate CPort 0 for control stuff. XXX */
-	if (greybus_hd_cport_id_alloc(hd) != 0) {
-		pr_err("couldn't allocate cport 0\n");
-		kfree(hd);
-		return NULL;
-	}
+	ida_init(&hd->cport_id_map);
 
 	return hd;
 }
