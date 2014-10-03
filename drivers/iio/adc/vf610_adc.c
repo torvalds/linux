@@ -704,11 +704,15 @@ static int vf610_adc_resume(struct device *dev)
 
 	ret = clk_prepare_enable(info->clk);
 	if (ret)
-		return ret;
+		goto disable_reg;
 
 	vf610_adc_hw_init(info);
 
 	return 0;
+
+disable_reg:
+	regulator_disable(info->vref);
+	return ret;
 }
 #endif
 
