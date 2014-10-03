@@ -460,93 +460,6 @@ void omap3_noncore_dpll_disable(struct clk_hw *hw)
 /* Non-CORE DPLL rate set code */
 
 /**
- * omap3_noncore_dpll_set_rate - set non-core DPLL rate
- * @clk: struct clk * of DPLL to set
- * @rate: rounded target rate
- *
- * Set the DPLL CLKOUT to the target rate.  If the DPLL can enter
- * low-power bypass, and the target rate is the bypass source clock
- * rate, then configure the DPLL for bypass.  Otherwise, round the
- * target rate if it hasn't been done already, then program and lock
- * the DPLL.  Returns -EINVAL upon error, or 0 upon success.
- */
-int omap3_noncore_dpll_set_rate(struct clk_hw *hw, unsigned long rate,
-					unsigned long parent_rate)
-{
-	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
-	struct clk *new_parent = NULL;
-	unsigned long rrate;
-	u16 freqsel = 0;
-	struct dpll_data *dd;
-	int ret;
-
-	if (!hw || !rate)
-		return -EINVAL;
-
-	dd = clk->dpll_data;
-	if (!dd)
-		return -EINVAL;
-
-	if (__clk_get_rate(dd->clk_bypass) == rate &&
-	    (dd->modes & (1 << DPLL_LOW_POWER_BYPASS))) {
-		pr_debug("%s: %s: set rate: entering bypass.\n",
-			 __func__, __clk_get_name(hw->clk));
-
-		__clk_prepare(dd->clk_bypass);
-		clk_enable(dd->clk_bypass);
-		ret = _omap3_noncore_dpll_bypass(clk);
-		if (!ret)
-			new_parent = dd->clk_bypass;
-		clk_disable(dd->clk_bypass);
-		__clk_unprepare(dd->clk_bypass);
-	} else {
-		__clk_prepare(dd->clk_ref);
-		clk_enable(dd->clk_ref);
-
-		/* XXX this check is probably pointless in the CCF context */
-		if (dd->last_rounded_rate != rate) {
-			rrate = __clk_round_rate(hw->clk, rate);
-			if (rrate != rate) {
-				pr_warn("%s: %s: final rate %lu does not match desired rate %lu\n",
-					__func__, __clk_get_name(hw->clk),
-					rrate, rate);
-				rate = rrate;
-			}
-		}
-
-		if (dd->last_rounded_rate == 0)
-			return -EINVAL;
-
-		/* Freqsel is available only on OMAP343X devices */
-		if (ti_clk_features.flags & TI_CLK_DPLL_HAS_FREQSEL) {
-			freqsel = _omap3_dpll_compute_freqsel(clk,
-						dd->last_rounded_n);
-			WARN_ON(!freqsel);
-		}
-
-		pr_debug("%s: %s: set rate: locking rate to %lu.\n",
-			 __func__, __clk_get_name(hw->clk), rate);
-
-		ret = omap3_noncore_dpll_program(clk, freqsel);
-		if (!ret)
-			new_parent = dd->clk_ref;
-		clk_disable(dd->clk_ref);
-		__clk_unprepare(dd->clk_ref);
-	}
-	/*
-	* FIXME - this is all wrong.  common code handles reparenting and
-	* migrating prepare/enable counts.  dplls should be a multiplexer
-	* clock and this should be a set_parent operation so that all of that
-	* stuff is inherited for free
-	*/
-
-	if (!ret && clk_get_parent(hw->clk) != new_parent)
-		__clk_reparent(hw->clk, new_parent);
-
-	return 0;
-}
-
-/**
  * omap3_noncore_dpll_determine_rate - determine rate for a DPLL
  * @hw: pointer to the clock to determine rate for
  * @rate: target rate for the DPLL
@@ -611,7 +524,7 @@ int omap3_noncore_dpll_set_parent(struct clk_hw *hw, u8 index)
 }
 
 /**
- * omap3_noncore_dpll_set_rate_new - set rate for a DPLL clock
+ * omap3_noncore_dpll_set_rate - set rate for a DPLL clock
  * @hw: pointer to the clock to set parent for
  * @rate: target rate for the clock
  * @parent_rate: rate of the parent clock
@@ -621,9 +534,8 @@ int omap3_noncore_dpll_set_parent(struct clk_hw *hw, u8 index)
  * changed) and proceeds with the rate change operation. Returns 0
  * with success, negative error value otherwise.
  */
-static int omap3_noncore_dpll_set_rate_new(struct clk_hw *hw,
-					   unsigned long rate,
-					   unsigned long parent_rate)
+int omap3_noncore_dpll_set_rate(struct clk_hw *hw, unsigned long rate,
+				unsigned long parent_rate)
 {
 	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
 	struct dpll_data *dd;
@@ -688,7 +600,7 @@ int omap3_noncore_dpll_set_rate_and_parent(struct clk_hw *hw,
 	if (index)
 		ret = omap3_noncore_dpll_set_parent(hw, index);
 	else
-		ret = omap3_noncore_dpll_set_rate_new(hw, rate, parent_rate);
+		ret = omap3_noncore_dpll_set_rate(hw, rate, parent_rate);
 
 	return ret;
 }
