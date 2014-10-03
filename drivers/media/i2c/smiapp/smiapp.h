@@ -216,7 +216,6 @@ struct smiapp_sensor {
 	u8 scaling_mode;
 
 	u8 hvflip_inv_mask; /* H/VFLIP inversion due to sensor orientation */
-	u8 flash_capability;
 	u8 frame_skip;
 
 	int power_count;

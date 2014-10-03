@@ -1483,7 +1483,7 @@ static int smiapp_start_streaming(struct smiapp_sensor *sensor)
 	if (rval < 0)
 		goto out;
 
-	if ((sensor->flash_capability &
+	if ((sensor->limits[SMIAPP_LIMIT_FLASH_MODE_CAPABILITY] &
 	     (SMIAPP_FLASH_MODE_CAPABILITY_SINGLE_STROBE |
 	      SMIAPP_FLASH_MODE_CAPABILITY_MULTIPLE_STROBE)) &&
 	    sensor->platform_data->strobe_setup != NULL &&
@@ -2529,7 +2529,6 @@ static int smiapp_init(struct smiapp_sensor *sensor)
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 	struct smiapp_pll *pll = &sensor->pll;
 	struct smiapp_subdev *last = NULL;
-	u32 tmp;
 	unsigned int i;
 	int rval;
 
@@ -2784,12 +2783,6 @@ static int smiapp_init(struct smiapp_sensor *sensor)
 
 	sensor->streaming = false;
 	sensor->dev_init_done = true;
-
-	/* check flash capability */
-	rval = smiapp_read(sensor, SMIAPP_REG_U8_FLASH_MODE_CAPABILITY, &tmp);
-	sensor->flash_capability = tmp;
-	if (rval)
-		goto out_cleanup;
 
 	smiapp_power_off(sensor);
 
