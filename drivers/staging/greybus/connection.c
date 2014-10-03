@@ -116,3 +116,21 @@ u16 gb_connection_op_id(struct gb_connection *connection)
 {
 	return (u16)(atomic_inc_return(&connection->op_cycle) % U16_MAX);
 }
+
+void gb_connection_err(struct gb_connection *connection, const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	pr_err("greybus: [%hhu:%hhu:%hu]: %pV\n",
+		connection->interface->gmod->module_id,
+		connection->interface->id,
+		connection->interface_cport_id, &vaf);
+
+	va_end(args);
+}

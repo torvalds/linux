@@ -35,4 +35,7 @@ void gb_connection_destroy(struct gb_connection *connection);
 
 u16 gb_connection_op_id(struct gb_connection *connection);
 
+__printf(2, 3)
+void gb_connection_err(struct gb_connection *connection, const char *fmt, ...);
+
 #endif /* __CONNECTION_H */
