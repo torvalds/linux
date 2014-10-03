@@ -44,7 +44,7 @@
 
 #define LST_PING_TEST_MAGIC     0xbabeface
 
-int ping_srv_workitems = SFW_TEST_WI_MAX;
+static int ping_srv_workitems = SFW_TEST_WI_MAX;
 module_param(ping_srv_workitems, int, 0644);
 MODULE_PARM_DESC(ping_srv_workitems, "# PING server workitems");
 
