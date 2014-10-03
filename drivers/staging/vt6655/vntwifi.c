@@ -578,8 +578,7 @@ VNTWIFIbyGetKeyCypher(
 
 	if (bGroupKey)
 		return pMgmt->byCSSGK;
-	else
-		return pMgmt->byCSSPK;
+	return pMgmt->byCSSPK;
 }
 
 bool
@@ -614,8 +613,7 @@ VNTWIFIwGetMaxSupportRate(
 
 	if (pMgmt->eCurrentPHYMode == PHY_TYPE_11A)
 		return RATE_6M;
-	else
-		return RATE_1M;
+	return RATE_1M;
 }
 
 void
