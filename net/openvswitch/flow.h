@@ -51,11 +51,24 @@ struct ovs_key_ipv4_tunnel {
 
 struct ovs_tunnel_info {
 	struct ovs_key_ipv4_tunnel tunnel;
+	struct geneve_opt *options;
+	u8 options_len;
 };
+
+/* Store options at the end of the array if they are less than the
+ * maximum size. This allows us to get the benefits of variable length
+ * matching for small options.
+ */
+#define GENEVE_OPTS(flow_key, opt_len)	\
+	((struct geneve_opt *)((flow_key)->tun_opts + \
+			       FIELD_SIZEOF(struct sw_flow_key, tun_opts) - \
+			       opt_len))
 
 static inline void ovs_flow_tun_info_init(struct ovs_tunnel_info *tun_info,
 					  const struct iphdr *iph,
-					  __be64 tun_id, __be16 tun_flags)
+					  __be64 tun_id, __be16 tun_flags,
+					  struct geneve_opt *opts,
+					  u8 opts_len)
 {
 	tun_info->tunnel.tun_id = tun_id;
 	tun_info->tunnel.ipv4_src = iph->saddr;
@@ -67,9 +80,14 @@ static inline void ovs_flow_tun_info_init(struct ovs_tunnel_info *tun_info,
 	/* clear struct padding. */
 	memset((unsigned char *)&tun_info->tunnel + OVS_TUNNEL_KEY_SIZE, 0,
 	       sizeof(tun_info->tunnel) - OVS_TUNNEL_KEY_SIZE);
+
+	tun_info->options = opts;
+	tun_info->options_len = opts_len;
 }
 
 struct sw_flow_key {
+	u8 tun_opts[255];
+	u8 tun_opts_len;
 	struct ovs_key_ipv4_tunnel tun_key;  /* Encapsulating tunnel key. */
 	struct {
 		u32	priority;	/* Packet QoS priority. */

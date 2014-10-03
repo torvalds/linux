@@ -448,6 +448,9 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 	int error;
 	struct ethhdr *eth;
 
+	/* Flags are always used as part of stats */
+	key->tp.flags = 0;
+
 	skb_reset_mac_header(skb);
 
 	/* Link layer.  We are guaranteed to have at least the 14 byte Ethernet
@@ -646,10 +649,23 @@ int ovs_flow_key_extract(struct ovs_tunnel_info *tun_info,
 			 struct sk_buff *skb, struct sw_flow_key *key)
 {
 	/* Extract metadata from packet. */
-	if (tun_info)
+	if (tun_info) {
 		memcpy(&key->tun_key, &tun_info->tunnel, sizeof(key->tun_key));
-	else
+
+		if (tun_info->options) {
+			BUILD_BUG_ON((1 << (sizeof(tun_info->options_len) *
+						   8)) - 1
+					> sizeof(key->tun_opts));
+			memcpy(GENEVE_OPTS(key, tun_info->options_len),
+			       tun_info->options, tun_info->options_len);
+			key->tun_opts_len = tun_info->options_len;
+		} else {
+			key->tun_opts_len = 0;
+		}
+	} else  {
+		key->tun_opts_len = 0;
 		memset(&key->tun_key, 0, sizeof(key->tun_key));
+	}
 
 	key->phy.priority = skb->priority;
 	key->phy.in_port = OVS_CB(skb)->input_vport->port_no;

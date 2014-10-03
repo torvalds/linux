@@ -370,6 +370,7 @@ static size_t key_attr_size(void)
 		  + nla_total_size(0)   /* OVS_TUNNEL_KEY_ATTR_DONT_FRAGMENT */
 		  + nla_total_size(0)   /* OVS_TUNNEL_KEY_ATTR_CSUM */
 		  + nla_total_size(0)   /* OVS_TUNNEL_KEY_ATTR_OAM */
+		  + nla_total_size(256)   /* OVS_TUNNEL_KEY_ATTR_GENEVE_OPTS */
 		+ nla_total_size(4)   /* OVS_KEY_ATTR_IN_PORT */
 		+ nla_total_size(4)   /* OVS_KEY_ATTR_SKB_MARK */
 		+ nla_total_size(12)  /* OVS_KEY_ATTR_ETHERNET */
@@ -556,10 +557,12 @@ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
 
 	err = ovs_nla_copy_actions(a[OVS_PACKET_ATTR_ACTIONS],
 				   &flow->key, 0, &acts);
-	rcu_assign_pointer(flow->sf_acts, acts);
 	if (err)
 		goto err_flow_free;
 
+	rcu_assign_pointer(flow->sf_acts, acts);
+
+	OVS_CB(packet)->egress_tun_info = NULL;
 	OVS_CB(packet)->flow = flow;
 	packet->priority = flow->key.phy.priority;
 	packet->mark = flow->key.phy.skb_mark;
