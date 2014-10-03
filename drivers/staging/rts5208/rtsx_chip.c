@@ -291,7 +291,8 @@ int rtsx_reset_chip(struct rtsx_chip *chip)
 	if (chip->aspm_l0s_l1_en) {
 		if (chip->dynamic_aspm) {
 			if (CHK_SDIO_EXIST(chip) && CHECK_PID(chip, 0x5288)) {
-				retval = rtsx_write_cfg_dw(chip, 2, 0xC0, 0xFF, chip->aspm_l0s_l1_en);
+				retval = rtsx_write_cfg_dw(chip, 2, 0xC0, 0xFF,
+						chip->aspm_l0s_l1_en);
 				if (retval != STATUS_SUCCESS)
 					TRACE_RET(chip, STATUS_FAIL);
 			}
@@ -309,9 +310,13 @@ int rtsx_reset_chip(struct rtsx_chip *chip)
 			if (CHK_SDIO_EXIST(chip)) {
 				chip->aspm_level[1] = chip->aspm_l0s_l1_en;
 				if (CHECK_PID(chip, 0x5288))
-					retval = rtsx_write_cfg_dw(chip, 2, 0xC0, 0xFF, chip->aspm_l0s_l1_en);
+					retval = rtsx_write_cfg_dw(chip, 2,
+							0xC0, 0xFF,
+							chip->aspm_l0s_l1_en);
 				else
-					retval = rtsx_write_cfg_dw(chip, 1, 0xC0, 0xFF, chip->aspm_l0s_l1_en);
+					retval = rtsx_write_cfg_dw(chip, 1,
+							0xC0, 0xFF,
+							chip->aspm_l0s_l1_en);
 
 				if (retval != STATUS_SUCCESS)
 					TRACE_RET(chip, STATUS_FAIL);
@@ -954,7 +959,8 @@ void rtsx_polling_func(struct rtsx_chip *chip)
 					dev_dbg(rtsx_dev(chip), "SDIO enter ASPM!\n");
 					rtsx_write_register(chip,
 						ASPM_FORCE_CTL, 0xFC,
-						0x30 | (chip->aspm_level[1] << 2));
+						0x30 |
+						(chip->aspm_level[1] << 2));
 					chip->sdio_aspm = 1;
 				}
 			}
@@ -976,8 +982,10 @@ void rtsx_polling_func(struct rtsx_chip *chip)
 
 			turn_off_led(chip, LED_GPIO);
 
-			if (chip->auto_power_down && !chip->card_ready && !chip->sd_io)
-				rtsx_force_power_down(chip, SSC_PDCTL | OC_PDCTL);
+			if (chip->auto_power_down && !chip->card_ready &&
+			    !chip->sd_io)
+				rtsx_force_power_down(chip,
+						      SSC_PDCTL | OC_PDCTL);
 		}
 	}
 
@@ -1067,7 +1075,9 @@ delink_stage:
 					dev_dbg(rtsx_dev(chip), "False card inserted, do force delink\n");
 
 					if (enter_L1)
-						rtsx_write_register(chip, HOST_SLEEP_STATE, 0x03, 1);
+						rtsx_write_register(chip,
+							      HOST_SLEEP_STATE,
+							      0x03, 1);
 
 					rtsx_write_register(chip,
 							    CHANGE_LINK_STATE,
@@ -1076,12 +1086,15 @@ delink_stage:
 					if (enter_L1)
 						rtsx_enter_L1(chip);
 
-					chip->auto_delink_cnt = delink_stage3_cnt + 1;
+					chip->auto_delink_cnt =
+						delink_stage3_cnt + 1;
 				} else {
 					dev_dbg(rtsx_dev(chip), "No card inserted, do delink\n");
 
 					if (enter_L1)
-						rtsx_write_register(chip, HOST_SLEEP_STATE, 0x03, 1);
+						rtsx_write_register(chip,
+							      HOST_SLEEP_STATE,
+							      0x03, 1);
 
 					rtsx_write_register(chip,
 							    CHANGE_LINK_STATE,
