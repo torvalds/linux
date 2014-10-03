@@ -148,7 +148,7 @@ struct InterruptInfo {
 	u8 reserved[3];	/* Natural alignment purposes */
 };
 
-struct PciId {
+struct pci_id {
 	u16 Domain;
 	u8 Bus;
 	u8 Slot;

@@ -118,7 +118,7 @@ struct extport_info {
 	*/
 
 	struct switch_info *swtch;
-	struct PciId pci_id;
+	struct pci_id pci_id;
 	char name[MAX_NAME_SIZE_UISQUEUE];
 	union {
 		struct vhba_wwnn wwnn;
