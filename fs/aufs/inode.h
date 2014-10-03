@@ -526,18 +526,10 @@ static inline struct au_hnotify *au_hn(struct au_hinode *hinode)
 }
 
 #else
-static inline
-int au_hn_alloc(struct au_hinode *hinode __maybe_unused,
-		struct inode *inode __maybe_unused)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline struct au_hnotify *au_hn(struct au_hinode *hinode)
-{
-	return NULL;
-}
-
+AuStub(int, au_hn_alloc, return -EOPNOTSUPP,
+       struct au_hinode *hinode __maybe_unused,
+       struct inode *inode __maybe_unused)
+AuStub(struct au_hnotify *, au_hn, return NULL, struct au_hinode *hinode)
 AuStubVoid(au_hn_free, struct au_hinode *hinode __maybe_unused)
 AuStubVoid(au_hn_ctl, struct au_hinode *hinode __maybe_unused,
 	   int do_set __maybe_unused)
