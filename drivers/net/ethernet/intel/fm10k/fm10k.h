@@ -47,13 +47,9 @@
 #define FM10K_DEFAULT_TX_WORK	 256
 
 #define FM10K_RXBUFFER_256	  256
-#define FM10K_RXBUFFER_16384	16384
 #define FM10K_RX_HDR_LEN	FM10K_RXBUFFER_256
-#if PAGE_SIZE <= FM10K_RXBUFFER_16384
-#define FM10K_RX_BUFSZ		(PAGE_SIZE / 2)
-#else
-#define FM10K_RX_BUFSZ		FM10K_RXBUFFER_16384
-#endif
+#define FM10K_RXBUFFER_2048	 2048
+#define FM10K_RX_BUFSZ		FM10K_RXBUFFER_2048
 
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
 #define FM10K_RX_BUFFER_WRITE	16	/* Must be power of 2 */

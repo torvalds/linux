@@ -2267,7 +2267,6 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 	if (adapter->q_vector[0]->tx.count && adapter->q_vector[0]->rx.count)
 		adapter->tx_itr_setting = adapter->rx_itr_setting;
 
-#if IS_ENABLED(CONFIG_BQL)
 	/* detect ITR changes that require update of TXDCTL.WTHRESH */
 	if ((adapter->tx_itr_setting != 1) &&
 	    (adapter->tx_itr_setting < IXGBE_100K_ITR)) {
@@ -2279,7 +2278,7 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		    (tx_itr_prev < IXGBE_100K_ITR))
 			need_reset = true;
 	}
-#endif
+
 	/* check the old value and enable RSC if necessary */
 	need_reset |= ixgbe_update_rsc(adapter);
 

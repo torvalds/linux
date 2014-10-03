@@ -58,7 +58,7 @@
 
 #define MAJ 5
 #define MIN 2
-#define BUILD 13
+#define BUILD 15
 #define DRV_VERSION __stringify(MAJ) "." __stringify(MIN) "." \
 __stringify(BUILD) "-k"
 char igb_driver_name[] = "igb";
@@ -5206,13 +5206,10 @@ void igb_update_stats(struct igb_adapter *adapter,
 	struct e1000_hw *hw = &adapter->hw;
 	struct pci_dev *pdev = adapter->pdev;
 	u32 reg, mpc;
-	u16 phy_tmp;
 	int i;
 	u64 bytes, packets;
 	unsigned int start;
 	u64 _bytes, _packets;
-
-#define PHY_IDLE_ERROR_COUNT_MASK 0x00FF
 
 	/* Prevent stats update while adapter is being reset, or if the pci
 	 * connection is down.
@@ -5373,15 +5370,6 @@ void igb_update_stats(struct igb_adapter *adapter,
 	net_stats->tx_carrier_errors = adapter->stats.tncrs;
 
 	/* Tx Dropped needs to be maintained elsewhere */
-
-	/* Phy Stats */
-	if (hw->phy.media_type == e1000_media_type_copper) {
-		if ((adapter->link_speed == SPEED_1000) &&
-		   (!igb_read_phy_reg(hw, PHY_1000T_STATUS, &phy_tmp))) {
-			phy_tmp &= PHY_IDLE_ERROR_COUNT_MASK;
-			adapter->phy_stats.idle_errors += phy_tmp;
-		}
-	}
 
 	/* Management Stats */
 	adapter->stats.mgptc += rd32(E1000_MGTPTC);
@@ -6386,7 +6374,7 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 		total_packets += tx_buffer->gso_segs;
 
 		/* free the skb */
-		dev_kfree_skb_any(tx_buffer->skb);
+		dev_consume_skb_any(tx_buffer->skb);
 
 		/* unmap skb header data */
 		dma_unmap_single(tx_ring->dev,
