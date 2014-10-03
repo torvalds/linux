@@ -309,6 +309,7 @@ enum ovs_tunnel_key_attr {
 	OVS_TUNNEL_KEY_ATTR_TTL,                /* u8 Tunnel IP TTL. */
 	OVS_TUNNEL_KEY_ATTR_DONT_FRAGMENT,      /* No argument, set DF. */
 	OVS_TUNNEL_KEY_ATTR_CSUM,               /* No argument. CSUM packet. */
+	OVS_TUNNEL_KEY_ATTR_OAM,                /* No argument. OAM frame.  */
 	__OVS_TUNNEL_KEY_ATTR_MAX
 };
 

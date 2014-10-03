@@ -346,6 +346,7 @@ static int ipv4_tun_from_nlattr(const struct nlattr *attr,
 			[OVS_TUNNEL_KEY_ATTR_TTL] = 1,
 			[OVS_TUNNEL_KEY_ATTR_DONT_FRAGMENT] = 0,
 			[OVS_TUNNEL_KEY_ATTR_CSUM] = 0,
+			[OVS_TUNNEL_KEY_ATTR_OAM] = 0,
 		};
 
 		if (type > OVS_TUNNEL_KEY_ATTR_MAX) {
@@ -390,6 +391,9 @@ static int ipv4_tun_from_nlattr(const struct nlattr *attr,
 		case OVS_TUNNEL_KEY_ATTR_CSUM:
 			tun_flags |= TUNNEL_CSUM;
 			break;
+		case OVS_TUNNEL_KEY_ATTR_OAM:
+			tun_flags |= TUNNEL_OAM;
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -431,21 +435,24 @@ static int ipv4_tun_to_nlattr(struct sk_buff *skb,
 	    nla_put_be64(skb, OVS_TUNNEL_KEY_ATTR_ID, output->tun_id))
 		return -EMSGSIZE;
 	if (output->ipv4_src &&
-		nla_put_be32(skb, OVS_TUNNEL_KEY_ATTR_IPV4_SRC, output->ipv4_src))
+	    nla_put_be32(skb, OVS_TUNNEL_KEY_ATTR_IPV4_SRC, output->ipv4_src))
 		return -EMSGSIZE;
 	if (output->ipv4_dst &&
-		nla_put_be32(skb, OVS_TUNNEL_KEY_ATTR_IPV4_DST, output->ipv4_dst))
+	    nla_put_be32(skb, OVS_TUNNEL_KEY_ATTR_IPV4_DST, output->ipv4_dst))
 		return -EMSGSIZE;
 	if (output->ipv4_tos &&
-		nla_put_u8(skb, OVS_TUNNEL_KEY_ATTR_TOS, output->ipv4_tos))
+	    nla_put_u8(skb, OVS_TUNNEL_KEY_ATTR_TOS, output->ipv4_tos))
 		return -EMSGSIZE;
 	if (nla_put_u8(skb, OVS_TUNNEL_KEY_ATTR_TTL, output->ipv4_ttl))
 		return -EMSGSIZE;
 	if ((output->tun_flags & TUNNEL_DONT_FRAGMENT) &&
-		nla_put_flag(skb, OVS_TUNNEL_KEY_ATTR_DONT_FRAGMENT))
+	    nla_put_flag(skb, OVS_TUNNEL_KEY_ATTR_DONT_FRAGMENT))
 		return -EMSGSIZE;
 	if ((output->tun_flags & TUNNEL_CSUM) &&
-		nla_put_flag(skb, OVS_TUNNEL_KEY_ATTR_CSUM))
+	    nla_put_flag(skb, OVS_TUNNEL_KEY_ATTR_CSUM))
+		return -EMSGSIZE;
+	if ((output->tun_flags & TUNNEL_OAM) &&
+	    nla_put_flag(skb, OVS_TUNNEL_KEY_ATTR_OAM))
 		return -EMSGSIZE;
 
 	nla_nest_end(skb, nla);
