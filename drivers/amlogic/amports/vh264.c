@@ -1017,6 +1017,19 @@ static void vh264_isr(void)
 #endif
             }
 
+            if (READ_VREG(AV_SCRATCH_F) & 2) {
+                // for I only mode, ignore the PTS information and only uses frame duration for each I frame decoded
+                if (p_last_vf) {
+                    pts_valid = 0;
+                }
+                // also skip frame duration calculation based on PTS
+                duration_from_pts_done = 1;
+                // and add a default duration for 1/30 second if there is no valid frame duration available
+                if (frame_dur == 0) {
+                    frame_dur = 96000/30;
+                }
+            }
+
             if (sync_outside == 0) {
                 if (h264_first_pts_ready == 0) {
                     if (pts_valid == 0) {
@@ -1038,41 +1051,41 @@ static void vh264_isr(void)
 
                             pts_duration = ((h264pts2 - h264pts1) / h264_pts_count) * 16 / 15;
 
-				if ((pts_duration != frame_dur) && (!pts_outside)) {
-					if(use_idr_framerate)
-					{
-						if ((close_to(pts_duration, RATE_24_FPS, RATE_CORRECTION_THRESHOLD) &&
-							close_to(frame_dur, RATE_25_FPS, RATE_CORRECTION_THRESHOLD))
-							|| (close_to(pts_duration, RATE_25_FPS, RATE_CORRECTION_THRESHOLD) &&
-							close_to(frame_dur, RATE_24_FPS, RATE_CORRECTION_THRESHOLD))) {
-							frame_dur = pts_duration;
-							duration_from_pts_done = 1;
-							//printk("used calculate frame rate,on frame_dur problem=%d\n",frame_dur);
-						}else if(((frame_dur<96000/240) && (pts_duration>96000/240)) || !duration_on_correcting){//>if frameRate>240fps,I think have error,use calculate rate.
-							frame_dur = pts_duration;
-							//printk("used calculate frame rate,on frame_dur error=%d\n",frame_dur);
-							duration_on_correcting=1;
-						}
-					} else {
-						if(close_to(pts_duration, frame_dur, 2000)){
-							frame_dur = pts_duration;
-							printk("used calculate frame rate,on duration =%d\n",frame_dur);
-						}else
-							printk("dont use calculate frame rate pts_duration =%d\n",pts_duration);
-					}
+                            if ((pts_duration != frame_dur) && (!pts_outside)) {
+                                if (use_idr_framerate) {
+                                    if ((close_to(pts_duration, RATE_24_FPS, RATE_CORRECTION_THRESHOLD) &&
+                                         close_to(frame_dur, RATE_25_FPS, RATE_CORRECTION_THRESHOLD))
+                                         || (close_to(pts_duration, RATE_25_FPS, RATE_CORRECTION_THRESHOLD) &&
+                                             close_to(frame_dur, RATE_24_FPS, RATE_CORRECTION_THRESHOLD))) {
+                                        frame_dur = pts_duration;
+                                        duration_from_pts_done = 1;
+                                        //printk("used calculate frame rate,on frame_dur problem=%d\n",frame_dur);
+                                    } else if (((frame_dur<96000/240) && (pts_duration>96000/240)) || !duration_on_correcting){//>if frameRate>240fps,I think have error,use calculate rate.
+                                        frame_dur = pts_duration;
+                                        //printk("used calculate frame rate,on frame_dur error=%d\n",frame_dur);
+                                        duration_on_correcting=1;
+                                    }
+                                } else {
+                                    if (close_to(pts_duration, frame_dur, 2000)) {
+                                        frame_dur = pts_duration;
+                                        printk("used calculate frame rate,on duration =%d\n", frame_dur);
+                                    } else {
+                                        printk("don't use calculate frame rate pts_duration =%d\n", pts_duration);
+                                    }
+                                }
                             }
 
-				if(duration_from_pts_done == 0){
-					if(close_to(pts_duration, old_duration, RATE_CORRECTION_THRESHOLD)){
-						//printk("finished correct frame duration new=%d,old_duration=%d,cnt=%d\n",pts_duration,old_duration,h264_pts_count);
-						duration_from_pts_done = 1;
-					}else{/*not the same,redo it.*/
-					       //printk("restart correct frame duration new=%d,old_duration=%d,cnt=%d\n",pts_duration,old_duration,h264_pts_count);
-						h264pts1 = h264pts2;
-						h264_pts_count = 0;
-						duration_from_pts_done = 0;
-					}
-				}
+                            if (duration_from_pts_done == 0) {
+			        if (close_to(pts_duration, old_duration, RATE_CORRECTION_THRESHOLD)) {
+                                    //printk("finished correct frame duration new=%d,old_duration=%d,cnt=%d\n",pts_duration,old_duration,h264_pts_count);
+                                    duration_from_pts_done = 1;
+                                }else{/*not the same,redo it.*/
+                                    //printk("restart correct frame duration new=%d,old_duration=%d,cnt=%d\n",pts_duration,old_duration,h264_pts_count);
+                                    h264pts1 = h264pts2;
+                                    h264_pts_count = 0;
+                                    duration_from_pts_done = 0;
+                                }
+                            }
                         }
                     }
                 }
@@ -1185,16 +1198,14 @@ static void vh264_isr(void)
 
                 if ((error_recovery_mode_use & 2) && error) {
                     kfifo_put(&recycle_q, (const vframe_t **)&vf);
-                    WRITE_VREG(AV_SCRATCH_0, 0);
-                    return IRQ_HANDLED;
+                    continue;
                 } else {
                     kfifo_put(&display_q, (const vframe_t **)&vf);
                 }
 
                 if (READ_VREG(AV_SCRATCH_F) & 2) {
                     vf_notify_receiver(PROVIDER_NAME,VFRAME_EVENT_PROVIDER_VFRAME_READY,NULL);
-                    WRITE_VREG(AV_SCRATCH_0, 0);
-                    return IRQ_HANDLED;
+                    continue;
                 }
 
                 if (kfifo_get(&newframe_q, &vf) == 0) {
@@ -1338,6 +1349,7 @@ static void vh264_put_timer_func(unsigned long arg)
             amvdec_start();
         }
     }
+
 #if 0
     if (!wait_buffer_status) {
         if (vh264_no_disp_count++ > NO_DISP_WD_COUNT) {
