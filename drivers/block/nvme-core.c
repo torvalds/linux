@@ -1832,11 +1832,18 @@ static int nvme_compat_ioctl(struct block_device *bdev, fmode_t mode,
 
 static int nvme_open(struct block_device *bdev, fmode_t mode)
 {
-	struct nvme_ns *ns = bdev->bd_disk->private_data;
-	struct nvme_dev *dev = ns->dev;
+	int ret = 0;
+	struct nvme_ns *ns;
 
-	kref_get(&dev->kref);
-	return 0;
+	spin_lock(&dev_list_lock);
+	ns = bdev->bd_disk->private_data;
+	if (!ns)
+		ret = -ENXIO;
+	else if (!kref_get_unless_zero(&ns->dev->kref))
+		ret = -ENXIO;
+	spin_unlock(&dev_list_lock);
+
+	return ret;
 }
 
 static void nvme_free_dev(struct kref *kref);
@@ -2711,6 +2718,11 @@ static void nvme_free_namespaces(struct nvme_dev *dev)
 
 	list_for_each_entry_safe(ns, next, &dev->namespaces, list) {
 		list_del(&ns->list);
+
+		spin_lock(&dev_list_lock);
+		ns->disk->private_data = NULL;
+		spin_unlock(&dev_list_lock);
+
 		put_disk(ns->disk);
 		kfree(ns);
 	}
