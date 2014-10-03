@@ -238,7 +238,7 @@ static void rk3x_i2c_fill_transmit_buf(struct rk3x_i2c *i2c)
 	for (i = 0; i < 8; ++i) {
 		val = 0;
 		for (j = 0; j < 4; ++j) {
-			if (i2c->processed == i2c->msg->len)
+			if ((i2c->processed == i2c->msg->len) && (cnt != 0))
 				break;
 
 			if (i2c->processed == 0 && cnt == 0)
