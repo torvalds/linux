@@ -47,6 +47,7 @@ int size_from_channelarray(struct iio_channel_info *channels, int num_channels)
 {
 	int bytes = 0;
 	int i = 0;
+
 	while (i < num_channels) {
 		if (bytes % channels[i].bytes == 0)
 			channels[i].location = bytes;
@@ -74,12 +75,14 @@ void print2byte(int input, struct iio_channel_info *info)
 	input = input >> info->shift;
 	if (info->is_signed) {
 		int16_t val = input;
+
 		val &= (1 << info->bits_used) - 1;
 		val = (int16_t)(val << (16 - info->bits_used)) >>
 			(16 - info->bits_used);
 		printf("%05f ", ((float)val + info->offset)*info->scale);
 	} else {
 		uint16_t val = input;
+
 		val &= (1 << info->bits_used) - 1;
 		printf("%05f ", ((float)val + info->offset)*info->scale);
 	}
@@ -97,6 +100,7 @@ void process_scan(char *data,
 		  int num_channels)
 {
 	int k;
+
 	for (k = 0; k < num_channels; k++)
 		switch (channels[k].bytes) {
 			/* only a few cases implemented so far */
