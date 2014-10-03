@@ -95,6 +95,8 @@ struct ip_tunnel {
 #define TUNNEL_VERSION	__cpu_to_be16(0x40)
 #define TUNNEL_NO_KEY	__cpu_to_be16(0x80)
 #define TUNNEL_DONT_FRAGMENT    __cpu_to_be16(0x0100)
+#define TUNNEL_OAM	__cpu_to_be16(0x0200)
+#define TUNNEL_CRIT_OPT	__cpu_to_be16(0x0400)
 
 struct tnl_ptk_info {
 	__be16 flags;
