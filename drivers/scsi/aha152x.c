@@ -345,7 +345,7 @@ CMD_INC_RESID(struct scsi_cmnd *cmd, int inc)
 
 enum {
 	not_issued	= 0x0001,	/* command not yet issued */
-	selecting	= 0x0002, 	/* target is beeing selected */
+	selecting	= 0x0002,	/* target is being selected */
 	identified	= 0x0004,	/* IDENTIFY was sent */
 	disconnected	= 0x0008,	/* target disconnected */
 	completed	= 0x0010,	/* target sent COMMAND COMPLETE */ 
