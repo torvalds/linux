@@ -176,7 +176,7 @@ static char *gb_string_get(u8 string_id)
  * for the functions that use them.  Returns the number of interfaces
  * set up for the given module, or 0 if there is an error.
  */
-u32 gb_manifest_parse_cports(struct gb_interface *interface)
+static u32 gb_manifest_parse_cports(struct gb_interface *interface)
 {
 	u32 count = 0;
 
@@ -259,7 +259,7 @@ static u32 gb_manifest_parse_interfaces(struct gb_module *gmod)
 	return count;
 }
 
-struct gb_module *gb_manifest_parse_module(struct manifest_desc *module_desc)
+static struct gb_module *gb_manifest_parse_module(struct manifest_desc *module_desc)
 {
 	struct greybus_descriptor *desc = module_desc->data;
 	struct greybus_descriptor_module *desc_module = &desc->module;
