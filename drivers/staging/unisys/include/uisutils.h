@@ -59,8 +59,8 @@ struct req_handler_info {
 	int (*controlfunc)(struct io_msgs *);
 	unsigned long min_channel_bytes;
 	int (*server_channel_ok)(unsigned long channel_bytes);
-	int (*server_channel_init)
-	 (void *x, unsigned char *client_str, u32 client_str_len, u64 bytes);
+	int (*server_channel_init)(void *x, unsigned char *client_str,
+				   u32 client_str_len, u64 bytes);
 	char switch_type_name[99];
 	struct list_head list_link;	/* links into ReqHandlerInfo_list */
 };
