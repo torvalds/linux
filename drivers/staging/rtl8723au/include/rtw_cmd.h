@@ -450,8 +450,7 @@ struct getrfintfs_parm {
 	u8	rfintfs;
 };
 
-struct Tx_Beacon_param
-{
+struct Tx_Beacon_param {
 	struct wlan_bssid_ex network;
 };
 
