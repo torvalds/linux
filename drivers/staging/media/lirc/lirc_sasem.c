@@ -573,7 +573,6 @@ static void incoming_packet(struct sasem_context *context,
 	unsigned char *buf = urb->transfer_buffer;
 	long ms;
 	struct timeval tv;
-	int i;
 
 	if (len != 8) {
 		dev_warn(&context->dev->dev,
@@ -582,13 +581,8 @@ static void incoming_packet(struct sasem_context *context,
 		return;
 	}
 
-	if (debug) {
-		printk(KERN_INFO "Incoming data: ");
-		for (i = 0; i < 8; ++i)
-			printk(KERN_CONT "%02x ", buf[i]);
-		printk(KERN_CONT "\n");
-	}
-
+	if (debug)
+		dev_info(&context->dev->dev, "Incoming data: %*ph\n", len, buf);
 	/*
 	 * Lirc could deal with the repeat code, but we really need to block it
 	 * if it arrives too late.  Otherwise we could repeat the wrong code.
