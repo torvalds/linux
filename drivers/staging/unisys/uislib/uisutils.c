@@ -105,43 +105,43 @@ uisctrl_register_req_handler(int type, void *fptr,
 EXPORT_SYMBOL_GPL(uisctrl_register_req_handler);
 
 int
-uisctrl_register_req_handler_ex(uuid_le switchTypeGuid,
+uisctrl_register_req_handler_ex(uuid_le switch_uuid,
 				const char *switch_type_name,
 				int (*controlfunc)(struct io_msgs *),
 				unsigned long min_channel_bytes,
-				int (*Server_Channel_Ok)(unsigned long
-							  channelBytes),
-				int (*Server_Channel_Init)
-				 (void *x, unsigned char *clientStr,
-				  u32 clientStrLen, u64 bytes),
-				ULTRA_VBUS_DEVICEINFO *chipset_DriverInfo)
+				int (*server_channel_ok)(unsigned long
+							  channel_bytes),
+				int (*server_channel_init)(void *x,
+						unsigned char *client_str,
+						u32 client_str_len, u64 bytes),
+				ULTRA_VBUS_DEVICEINFO *chipset_driver_info)
 {
 	struct req_handler_info *pReqHandlerInfo;
 	int rc = 0;		/* assume failure */
 
 	LOGINF("type=%pUL, controlfunc=0x%p.\n",
-	       &switchTypeGuid, controlfunc);
+	       &switch_uuid, controlfunc);
 	if (!controlfunc) {
-		LOGERR("%pUL: controlfunc must be supplied\n", &switchTypeGuid);
+		LOGERR("%pUL: controlfunc must be supplied\n", &switch_uuid);
 		goto Away;
 	}
-	if (!Server_Channel_Ok) {
+	if (!server_channel_ok) {
 		LOGERR("%pUL: Server_Channel_Ok must be supplied\n",
-				&switchTypeGuid);
+				&switch_uuid);
 		goto Away;
 	}
-	if (!Server_Channel_Init) {
+	if (!server_channel_init) {
 		LOGERR("%pUL: Server_Channel_Init must be supplied\n",
-				&switchTypeGuid);
+				&switch_uuid);
 		goto Away;
 	}
-	pReqHandlerInfo = req_handler_add(switchTypeGuid,
+	pReqHandlerInfo = req_handler_add(switch_uuid,
 					switch_type_name,
 					controlfunc,
 					min_channel_bytes,
-					Server_Channel_Ok, Server_Channel_Init);
+					server_channel_ok, server_channel_init);
 	if (!pReqHandlerInfo) {
-		LOGERR("failed to add %pUL to server list\n", &switchTypeGuid);
+		LOGERR("failed to add %pUL to server list\n", &switch_uuid);
 		goto Away;
 	}
 
@@ -149,11 +149,11 @@ uisctrl_register_req_handler_ex(uuid_le switchTypeGuid,
 	rc = 1;			/* success */
 Away:
 	if (rc) {
-		if (chipset_DriverInfo)
-			bus_device_info_init(chipset_DriverInfo, "chipset",
+		if (chipset_driver_info)
+			bus_device_info_init(chipset_driver_info, "chipset",
 					   "uislib", VERSION, NULL);
 	} else
-		LOGERR("failed to register type %pUL.\n", &switchTypeGuid);
+		LOGERR("failed to register type %pUL.\n", &switch_uuid);
 
 	return rc;
 }

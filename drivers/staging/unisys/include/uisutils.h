@@ -115,16 +115,17 @@ int uisutil_add_proc_line_ex(int *total, char **buffer, int *buffer_remaining,
 
 int uisctrl_register_req_handler(int type, void *fptr,
 				 ULTRA_VBUS_DEVICEINFO *chipset_driver_info);
-int uisctrl_register_req_handler_ex(uuid_le switchTypeGuid,
+int uisctrl_register_req_handler_ex(uuid_le switch_guid,
 				    const char *switch_type_name,
 				    int (*fptr)(struct io_msgs *),
 				    unsigned long min_channel_bytes,
 				    int (*svr_channel_ok)(unsigned long
-							     channelBytes),
-				    int (*svr_channel_init)
-				    (void *x, unsigned char *clientStr,
-				     u32 clientStrLen, u64 bytes),
-				    ULTRA_VBUS_DEVICEINFO *chipset_DriverInfo);
+						    channel_bytes),
+				    int (*svr_channel_init)(void *x,
+						    unsigned char *client_str,
+						    u32 client_str_len,
+						    u64 bytes),
+				    ULTRA_VBUS_DEVICEINFO *chipset_driver_info);
 
 int uisctrl_unregister_req_handler_ex(uuid_le switchTypeGuid);
 unsigned char *util_map_virt(struct phys_info *sg);
