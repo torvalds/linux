@@ -13,6 +13,7 @@
 #define __RT5677_H__
 
 #include <sound/rt5677.h>
+#include <linux/gpio/driver.h>
 
 /* Info */
 #define RT5677_RESET				0x00
