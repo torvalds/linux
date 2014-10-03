@@ -55,12 +55,12 @@ extern int (*virt_control_chan_func)(struct guest_msgs *);
 extern atomic_t uisutils_registered_services;
 
 struct req_handler_info {
-	uuid_le switchTypeGuid;
+	uuid_le switch_uuid;
 	int (*controlfunc)(struct io_msgs *);
 	unsigned long min_channel_bytes;
-	int (*Server_Channel_Ok)(unsigned long channelBytes);
-	int (*Server_Channel_Init)
-	 (void *x, unsigned char *clientStr, u32 clientStrLen, u64 bytes);
+	int (*server_channel_ok)(unsigned long channel_bytes);
+	int (*server_channel_init)
+	 (void *x, unsigned char *client_str, u32 client_str_len, u64 bytes);
 	char switch_type_name[99];
 	struct list_head list_link;	/* links into ReqHandlerInfo_list */
 };

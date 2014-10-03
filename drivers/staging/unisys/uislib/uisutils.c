@@ -292,11 +292,11 @@ ReqHandlerAdd(uuid_le switchTypeGuid,
 	rc = kzalloc(sizeof(*rc), GFP_ATOMIC);
 	if (!rc)
 		return NULL;
-	rc->switchTypeGuid = switchTypeGuid;
+	rc->switch_uuid = switchTypeGuid;
 	rc->controlfunc = controlfunc;
 	rc->min_channel_bytes = min_channel_bytes;
-	rc->Server_Channel_Ok = Server_Channel_Ok;
-	rc->Server_Channel_Init = Server_Channel_Init;
+	rc->server_channel_ok = Server_Channel_Ok;
+	rc->server_channel_init = Server_Channel_Init;
 	if (switch_type_name)
 		strncpy(rc->switch_type_name, switch_type_name,
 			sizeof(rc->switch_type_name) - 1);
@@ -316,7 +316,7 @@ ReqHandlerFind(uuid_le switchTypeGuid)
 	spin_lock(&ReqHandlerInfo_list_lock);
 	list_for_each_safe(lelt, tmp, &ReqHandlerInfo_list) {
 		entry = list_entry(lelt, struct req_handler_info, list_link);
-		if (uuid_le_cmp(entry->switchTypeGuid, switchTypeGuid) == 0) {
+		if (uuid_le_cmp(entry->switch_uuid, switchTypeGuid) == 0) {
 			spin_unlock(&ReqHandlerInfo_list_lock);
 			return entry;
 		}
@@ -335,7 +335,7 @@ ReqHandlerDel(uuid_le switchTypeGuid)
 	spin_lock(&ReqHandlerInfo_list_lock);
 	list_for_each_safe(lelt, tmp, &ReqHandlerInfo_list) {
 		entry = list_entry(lelt, struct req_handler_info, list_link);
-		if (uuid_le_cmp(entry->switchTypeGuid, switchTypeGuid) == 0) {
+		if (uuid_le_cmp(entry->switch_uuid, switchTypeGuid) == 0) {
 			list_del(lelt);
 			kfree(entry);
 			rc++;
