@@ -391,7 +391,7 @@ config SPI_PXA2XX
 	  additional documentation can be found a Documentation/spi/pxa2xx.
 
 config SPI_PXA2XX_PCI
-	def_tristate SPI_PXA2XX && PCI
+	def_tristate SPI_PXA2XX && PCI && COMMON_CLK
 
 config SPI_ROCKCHIP
 	tristate "Rockchip SPI controller driver"
