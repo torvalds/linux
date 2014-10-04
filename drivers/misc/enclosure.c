@@ -187,6 +187,7 @@ void enclosure_unregister(struct enclosure_device *edev)
 EXPORT_SYMBOL_GPL(enclosure_unregister);
 
 #define ENCLOSURE_NAME_SIZE	64
+#define COMPONENT_NAME_SIZE	64
 
 static void enclosure_link_name(struct enclosure_component *cdev, char *name)
 {
@@ -246,6 +247,29 @@ static void enclosure_component_release(struct device *dev)
 	put_device(dev->parent);
 }
 
+static struct enclosure_component *
+enclosure_component_find_by_name(struct enclosure_device *edev,
+				const char *name)
+{
+	int i;
+	const char *cname;
+	struct enclosure_component *ecomp;
+
+	if (!edev || !name || !name[0])
+		return NULL;
+
+	for (i = 0; i < edev->components; i++) {
+		ecomp = &edev->component[i];
+		cname = dev_name(&ecomp->cdev);
+		if (ecomp->number != -1 &&
+		    cname && cname[0] &&
+		    !strcmp(cname, name))
+			return ecomp;
+	}
+
+	return NULL;
+}
+
 static const struct attribute_group *enclosure_component_groups[];
 
 /**
@@ -269,7 +293,8 @@ enclosure_component_register(struct enclosure_device *edev,
 {
 	struct enclosure_component *ecomp;
 	struct device *cdev;
-	int err;
+	int err, i;
+	char newname[COMPONENT_NAME_SIZE];
 
 	if (number >= edev->components)
 		return ERR_PTR(-EINVAL);
@@ -283,9 +308,20 @@ enclosure_component_register(struct enclosure_device *edev,
 	ecomp->number = number;
 	cdev = &ecomp->cdev;
 	cdev->parent = get_device(&edev->edev);
-	if (name && name[0])
-		dev_set_name(cdev, "%s", name);
-	else
+
+	if (name && name[0]) {
+		/* Some hardware (e.g. enclosure in RX300 S6) has components
+		 * with non unique names. Registering duplicates in sysfs
+		 * will lead to warnings during bootup. So make the names
+		 * unique by appending consecutive numbers -1, -2, ... */
+		i = 1;
+		snprintf(newname, COMPONENT_NAME_SIZE,
+			 "%s", name);
+		while (enclosure_component_find_by_name(edev, newname))
+			snprintf(newname, COMPONENT_NAME_SIZE,
+				 "%s-%i", name, i++);
+		dev_set_name(cdev, "%s", newname);
+	} else
 		dev_set_name(cdev, "%u", number);
 
 	cdev->release = enclosure_component_release;
