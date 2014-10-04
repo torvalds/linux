@@ -710,7 +710,7 @@ static int i2c_imx_probe(struct platform_device *pdev)
 				pdev->name, i2c_imx);
 	if (ret) {
 		dev_err(&pdev->dev, "can't claim irq %d\n", irq);
-		return ret;
+		goto clk_disable;
 	}
 
 	/* Init queue */
@@ -735,7 +735,7 @@ static int i2c_imx_probe(struct platform_device *pdev)
 	ret = i2c_add_numbered_adapter(&i2c_imx->adapter);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "registration failed\n");
-		return ret;
+		goto clk_disable;
 	}
 
 	/* Set up platform driver data */
@@ -749,6 +749,10 @@ static int i2c_imx_probe(struct platform_device *pdev)
 	dev_info(&i2c_imx->adapter.dev, "IMX I2C adapter registered\n");
 
 	return 0;   /* Return OK */
+
+clk_disable:
+	clk_disable_unprepare(i2c_imx->clk);
+	return ret;
 }
 
 static int i2c_imx_remove(struct platform_device *pdev)
