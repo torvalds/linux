@@ -319,8 +319,8 @@ config XTENSA_PLATFORM_S6105
 
 config XTENSA_PLATFORM_XTFPGA
 	bool "XTFPGA"
+	select ETHOC if ETHERNET
 	select SERIAL_CONSOLE
-	select ETHOC
 	select XTENSA_CALIBRATE_CCOUNT
 	help
 	  XTFPGA is the name of Tensilica board family (LX60, LX110, LX200, ML605).
