@@ -141,9 +141,6 @@
 	jx	a4
 
 1:
-	movi    a2, VECBASE_RESET_VADDR
-	wsr	a2, vecbase
-
 	/* Step 5: remove temporary mapping. */
 	idtlb	a7
 	iitlb	a7
