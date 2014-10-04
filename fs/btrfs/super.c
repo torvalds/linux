@@ -395,7 +395,6 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 	int ret = 0;
 	char *compress_type;
 	bool compress_force = false;
-	bool compress = false;
 
 	cache_gen = btrfs_super_cache_generation(root->fs_info->super_copy);
 	if (cache_gen)
@@ -473,7 +472,6 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			/* Fallthrough */
 		case Opt_compress:
 		case Opt_compress_type:
-			compress = true;
 			if (token == Opt_compress ||
 			    token == Opt_compress_force ||
 			    strcmp(args[0].from, "zlib") == 0) {
@@ -503,7 +501,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 				btrfs_set_and_info(root, FORCE_COMPRESS,
 						   "force %s compression",
 						   compress_type);
-			} else if (compress) {
+			} else {
 				if (!btrfs_test_opt(root, COMPRESS))
 					btrfs_info(root->fs_info,
 						   "btrfs: use %s compression",
@@ -1016,7 +1014,7 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 		seq_puts(seq, ",nodatacow");
 	if (btrfs_test_opt(root, NOBARRIER))
 		seq_puts(seq, ",nobarrier");
-	if (info->max_inline != 8192 * 1024)
+	if (info->max_inline != BTRFS_DEFAULT_MAX_INLINE)
 		seq_printf(seq, ",max_inline=%llu", info->max_inline);
 	if (info->alloc_start != 0)
 		seq_printf(seq, ",alloc_start=%llu", info->alloc_start);
@@ -2001,11 +1999,15 @@ static int __init init_btrfs_fs(void)
 
 	err = btrfs_prelim_ref_init();
 	if (err)
+		goto free_delayed_ref;
+
+	err = btrfs_end_io_wq_init();
+	if (err)
 		goto free_prelim_ref;
 
 	err = btrfs_interface_init();
 	if (err)
-		goto free_delayed_ref;
+		goto free_end_io_wq;
 
 	btrfs_init_lockdep();
 
@@ -2023,6 +2025,8 @@ static int __init init_btrfs_fs(void)
 
 unregister_ioctl:
 	btrfs_interface_exit();
+free_end_io_wq:
+	btrfs_end_io_wq_exit();
 free_prelim_ref:
 	btrfs_prelim_ref_exit();
 free_delayed_ref:

@@ -72,20 +72,40 @@ static int btrfs_cleanup_transaction(struct btrfs_root *root);
 static void btrfs_error_commit_super(struct btrfs_root *root);
 
 /*
- * end_io_wq structs are used to do processing in task context when an IO is
- * complete.  This is used during reads to verify checksums, and it is used
+ * btrfs_end_io_wq structs are used to do processing in task context when an IO
+ * is complete.  This is used during reads to verify checksums, and it is used
  * by writes to insert metadata for new file extents after IO is complete.
  */
-struct end_io_wq {
+struct btrfs_end_io_wq {
 	struct bio *bio;
 	bio_end_io_t *end_io;
 	void *private;
 	struct btrfs_fs_info *info;
 	int error;
-	int metadata;
+	enum btrfs_wq_endio_type metadata;
 	struct list_head list;
 	struct btrfs_work work;
 };
+
+static struct kmem_cache *btrfs_end_io_wq_cache;
+
+int __init btrfs_end_io_wq_init(void)
+{
+	btrfs_end_io_wq_cache = kmem_cache_create("btrfs_end_io_wq",
+					sizeof(struct btrfs_end_io_wq),
+					0,
+					SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD,
+					NULL);
+	if (!btrfs_end_io_wq_cache)
+		return -ENOMEM;
+	return 0;
+}
+
+void btrfs_end_io_wq_exit(void)
+{
+	if (btrfs_end_io_wq_cache)
+		kmem_cache_destroy(btrfs_end_io_wq_cache);
+}
 
 /*
  * async submit bios are used to offload expensive checksumming
@@ -327,8 +347,7 @@ static int verify_parent_transid(struct extent_io_tree *io_tree,
 {
 	struct extent_state *cached_state = NULL;
 	int ret;
-	bool need_lock = (current->journal_info ==
-			  (void *)BTRFS_SEND_TRANS_STUB);
+	bool need_lock = (current->journal_info == BTRFS_SEND_TRANS_STUB);
 
 	if (!parent_transid || btrfs_header_generation(eb) == parent_transid)
 		return 0;
@@ -690,7 +709,7 @@ static int btree_io_failed_hook(struct page *page, int failed_mirror)
 
 static void end_workqueue_bio(struct bio *bio, int err)
 {
-	struct end_io_wq *end_io_wq = bio->bi_private;
+	struct btrfs_end_io_wq *end_io_wq = bio->bi_private;
 	struct btrfs_fs_info *fs_info;
 	struct btrfs_workqueue *wq;
 	btrfs_work_func_t func;
@@ -733,20 +752,12 @@ static void end_workqueue_bio(struct bio *bio, int err)
 	btrfs_queue_work(wq, &end_io_wq->work);
 }
 
-/*
- * For the metadata arg you want
- *
- * 0 - if data
- * 1 - if normal metadta
- * 2 - if writing to the free space cache area
- * 3 - raid parity work
- */
 int btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
-			int metadata)
+			enum btrfs_wq_endio_type metadata)
 {
-	struct end_io_wq *end_io_wq;
+	struct btrfs_end_io_wq *end_io_wq;
 
-	end_io_wq = kmalloc(sizeof(*end_io_wq), GFP_NOFS);
+	end_io_wq = kmem_cache_alloc(btrfs_end_io_wq_cache, GFP_NOFS);
 	if (!end_io_wq)
 		return -ENOMEM;
 
@@ -930,7 +941,7 @@ static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 		 * can happen in the async kernel threads
 		 */
 		ret = btrfs_bio_wq_end_io(BTRFS_I(inode)->root->fs_info,
-					  bio, 1);
+					  bio, BTRFS_WQ_ENDIO_METADATA);
 		if (ret)
 			goto out_w_error;
 		ret = btrfs_map_bio(BTRFS_I(inode)->root, rw, bio,
@@ -1119,11 +1130,9 @@ struct extent_buffer *btrfs_find_tree_block(struct btrfs_root *root,
 struct extent_buffer *btrfs_find_create_tree_block(struct btrfs_root *root,
 						 u64 bytenr, u32 blocksize)
 {
-#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
-	if (unlikely(test_bit(BTRFS_ROOT_DUMMY_ROOT, &root->state)))
+	if (btrfs_test_is_dummy_root(root))
 		return alloc_test_extent_buffer(root->fs_info, bytenr,
 						blocksize);
-#endif
 	return alloc_extent_buffer(root->fs_info, bytenr, blocksize);
 }
 
@@ -1731,16 +1740,16 @@ static int setup_bdi(struct btrfs_fs_info *info, struct backing_dev_info *bdi)
 static void end_workqueue_fn(struct btrfs_work *work)
 {
 	struct bio *bio;
-	struct end_io_wq *end_io_wq;
+	struct btrfs_end_io_wq *end_io_wq;
 	int error;
 
-	end_io_wq = container_of(work, struct end_io_wq, work);
+	end_io_wq = container_of(work, struct btrfs_end_io_wq, work);
 	bio = end_io_wq->bio;
 
 	error = end_io_wq->error;
 	bio->bi_private = end_io_wq->private;
 	bio->bi_end_io = end_io_wq->end_io;
-	kfree(end_io_wq);
+	kmem_cache_free(btrfs_end_io_wq_cache, end_io_wq);
 	bio_endio_nodec(bio, error);
 }
 
@@ -2260,7 +2269,7 @@ int open_ctree(struct super_block *sb,
 	atomic_set(&fs_info->qgroup_op_seq, 0);
 	atomic64_set(&fs_info->tree_mod_seq, 0);
 	fs_info->sb = sb;
-	fs_info->max_inline = 8192 * 1024;
+	fs_info->max_inline = BTRFS_DEFAULT_MAX_INLINE;
 	fs_info->metadata_ratio = 0;
 	fs_info->defrag_inodes = RB_ROOT;
 	fs_info->free_chunk_space = 0;

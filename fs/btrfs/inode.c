@@ -7721,7 +7721,8 @@ static inline int __btrfs_submit_dio_bio(struct bio *bio, struct inode *inode,
 	bio_get(bio);
 
 	if (!write) {
-		ret = btrfs_bio_wq_end_io(root->fs_info, bio, 0);
+		ret = btrfs_bio_wq_end_io(root->fs_info, bio,
+				BTRFS_WQ_ENDIO_DATA);
 		if (ret)
 			goto err;
 	}

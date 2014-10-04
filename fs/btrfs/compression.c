@@ -388,7 +388,8 @@ int btrfs_submit_compressed_write(struct inode *inode, u64 start,
 			 * freed before we're done setting it up
 			 */
 			atomic_inc(&cb->pending_bios);
-			ret = btrfs_bio_wq_end_io(root->fs_info, bio, 0);
+			ret = btrfs_bio_wq_end_io(root->fs_info, bio,
+					BTRFS_WQ_ENDIO_DATA);
 			BUG_ON(ret); /* -ENOMEM */
 
 			if (!skip_sum) {
@@ -419,7 +420,7 @@ int btrfs_submit_compressed_write(struct inode *inode, u64 start,
 	}
 	bio_get(bio);
 
-	ret = btrfs_bio_wq_end_io(root->fs_info, bio, 0);
+	ret = btrfs_bio_wq_end_io(root->fs_info, bio, BTRFS_WQ_ENDIO_DATA);
 	BUG_ON(ret); /* -ENOMEM */
 
 	if (!skip_sum) {
@@ -668,7 +669,8 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 		    PAGE_CACHE_SIZE) {
 			bio_get(comp_bio);
 
-			ret = btrfs_bio_wq_end_io(root->fs_info, comp_bio, 0);
+			ret = btrfs_bio_wq_end_io(root->fs_info, comp_bio,
+					BTRFS_WQ_ENDIO_DATA);
 			BUG_ON(ret); /* -ENOMEM */
 
 			/*
@@ -706,7 +708,8 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	}
 	bio_get(comp_bio);
 
-	ret = btrfs_bio_wq_end_io(root->fs_info, comp_bio, 0);
+	ret = btrfs_bio_wq_end_io(root->fs_info, comp_bio,
+			BTRFS_WQ_ENDIO_DATA);
 	BUG_ON(ret); /* -ENOMEM */
 
 	if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)) {
