@@ -319,6 +319,7 @@ config XTENSA_PLATFORM_S6105
 config XTENSA_PLATFORM_XTFPGA
 	bool "XTFPGA"
 	select ETHOC if ETHERNET
+	select PLATFORM_WANT_DEFAULT_MEM
 	select SERIAL_CONSOLE
 	select XTENSA_CALIBRATE_CCOUNT
 	help
@@ -404,6 +405,41 @@ source "mm/Kconfig"
 source "drivers/pcmcia/Kconfig"
 
 source "drivers/pci/hotplug/Kconfig"
+
+config PLATFORM_WANT_DEFAULT_MEM
+	def_bool n
+
+config DEFAULT_MEM_START
+	hex "Physical address of the default memory area start"
+	depends on PLATFORM_WANT_DEFAULT_MEM
+	default 0x00000000 if MMU
+	default 0x40000000 if !MMU
+	help
+	  This is a fallback start address of the default memory area, it is
+	  used when no physical memory size is passed through DTB or through
+	  boot parameter from bootloader.
+
+	  In noMMU configuration the following parameters are derived from it:
+	  - kernel load address;
+	  - kernel entry point address;
+	  - relocatable vectors base address;
+	  - uBoot load address;
+	  - TASK_SIZE.
+
+	  If unsure, leave the default value here.
+
+config DEFAULT_MEM_SIZE
+	hex "Maximal size of the default memory area"
+	depends on PLATFORM_WANT_DEFAULT_MEM
+	default 0x04000000
+	help
+	  This is a fallback size of the default memory area, it is used when
+	  no physical memory size is passed through DTB or through boot
+	  parameter from bootloader.
+
+	  It's also used for TASK_SIZE calculation in noMMU configuration.
+
+	  If unsure, leave the default value here.
 
 endmenu
 
