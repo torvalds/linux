@@ -72,7 +72,8 @@ static ssize_t iio_trig_periodic_write_freq(struct device *dev,
 	if (val > 0) {
 		ret = rtc_irq_set_freq(trig_info->rtc, &trig_info->task, val);
 		if (ret == 0 && trig_info->state && trig_info->frequency == 0)
-			ret = rtc_irq_set_state(trig_info->rtc, &trig_info->task, 1);
+			ret = rtc_irq_set_state(trig_info->rtc,
+						&trig_info->task, 1);
 	} else if (val == 0) {
 		ret = rtc_irq_set_state(trig_info->rtc, &trig_info->task, 0);
 	} else
