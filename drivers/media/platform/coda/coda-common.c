@@ -2152,7 +2152,8 @@ static int coda_probe(struct platform_device *pdev)
 	dev->workqueue = alloc_workqueue("coda", WQ_UNBOUND | WQ_MEM_RECLAIM, 1);
 	if (!dev->workqueue) {
 		dev_err(&pdev->dev, "unable to alloc workqueue\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err_v4l2_register;
 	}
 
 	platform_set_drvdata(pdev, dev);
