@@ -3083,6 +3083,11 @@ perform_csum_check:
 		}
 	} while ((offset += len) < head_skb->len);
 
+	/* Some callers want to get the end of the list.
+	 * Put it in segs->prev to avoid walking the list.
+	 * (see validate_xmit_skb_list() for example)
+	 */
+	segs->prev = tail;
 	return segs;
 
 err:
