@@ -108,6 +108,8 @@
 #define DA_EMULATE_ALUA				0
 /* Enforce SCSI Initiator Port TransportID with 'ISID' for PR */
 #define DA_ENFORCE_PR_ISIDS			1
+/* Force SPC-3 PR Activate Persistence across Target Power Loss */
+#define DA_FORCE_PR_APTPL			0
 #define DA_STATUS_MAX_SECTORS_MIN		16
 #define DA_STATUS_MAX_SECTORS_MAX		8192
 /* By default don't report non-rotating (solid state) medium */
@@ -680,6 +682,7 @@ struct se_dev_attrib {
 	enum target_prot_type pi_prot_type;
 	enum target_prot_type hw_pi_prot_type;
 	int		enforce_pr_isids;
+	int		force_pr_aptpl;
 	int		is_nonrot;
 	int		emulate_rest_reord;
 	u32		hw_block_size;

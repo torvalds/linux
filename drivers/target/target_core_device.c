@@ -1018,6 +1018,23 @@ int se_dev_set_enforce_pr_isids(struct se_device *dev, int flag)
 	return 0;
 }
 
+int se_dev_set_force_pr_aptpl(struct se_device *dev, int flag)
+{
+	if ((flag != 0) && (flag != 1)) {
+		printk(KERN_ERR "Illegal value %d\n", flag);
+		return -EINVAL;
+	}
+	if (dev->export_count) {
+		pr_err("dev[%p]: Unable to set force_pr_aptpl while"
+		       " export_count is %d\n", dev, dev->export_count);
+		return -EINVAL;
+	}
+
+	dev->dev_attrib.force_pr_aptpl = flag;
+	pr_debug("dev[%p]: SE Device force_pr_aptpl: %d\n", dev, flag);
+	return 0;
+}
+
 int se_dev_set_is_nonrot(struct se_device *dev, int flag)
 {
 	if ((flag != 0) && (flag != 1)) {
@@ -1544,6 +1561,7 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	dev->dev_attrib.emulate_3pc = DA_EMULATE_3PC;
 	dev->dev_attrib.pi_prot_type = TARGET_DIF_TYPE0_PROT;
 	dev->dev_attrib.enforce_pr_isids = DA_ENFORCE_PR_ISIDS;
+	dev->dev_attrib.force_pr_aptpl = DA_FORCE_PR_APTPL;
 	dev->dev_attrib.is_nonrot = DA_IS_NONROT;
 	dev->dev_attrib.emulate_rest_reord = DA_EMULATE_REST_REORD;
 	dev->dev_attrib.max_unmap_lba_count = DA_MAX_UNMAP_LBA_COUNT;

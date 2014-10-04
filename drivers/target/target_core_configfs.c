@@ -665,6 +665,9 @@ SE_DEV_ATTR(is_nonrot, S_IRUGO | S_IWUSR);
 DEF_DEV_ATTRIB(emulate_rest_reord);
 SE_DEV_ATTR(emulate_rest_reord, S_IRUGO | S_IWUSR);
 
+DEF_DEV_ATTRIB(force_pr_aptpl);
+SE_DEV_ATTR(force_pr_aptpl, S_IRUGO | S_IWUSR);
+
 DEF_DEV_ATTRIB_RO(hw_block_size);
 SE_DEV_ATTR_RO(hw_block_size);
 
@@ -719,6 +722,7 @@ static struct configfs_attribute *target_core_dev_attrib_attrs[] = {
 	&target_core_dev_attrib_hw_pi_prot_type.attr,
 	&target_core_dev_attrib_pi_prot_format.attr,
 	&target_core_dev_attrib_enforce_pr_isids.attr,
+	&target_core_dev_attrib_force_pr_aptpl.attr,
 	&target_core_dev_attrib_is_nonrot.attr,
 	&target_core_dev_attrib_emulate_rest_reord.attr,
 	&target_core_dev_attrib_hw_block_size.attr,

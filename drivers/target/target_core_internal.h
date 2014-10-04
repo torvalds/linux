@@ -38,6 +38,7 @@ int	se_dev_set_emulate_3pc(struct se_device *, int);
 int	se_dev_set_pi_prot_type(struct se_device *, int);
 int	se_dev_set_pi_prot_format(struct se_device *, int);
 int	se_dev_set_enforce_pr_isids(struct se_device *, int);
+int	se_dev_set_force_pr_aptpl(struct se_device *, int);
 int	se_dev_set_is_nonrot(struct se_device *, int);
 int	se_dev_set_emulate_rest_reord(struct se_device *dev, int);
 int	se_dev_set_queue_depth(struct se_device *, u32);

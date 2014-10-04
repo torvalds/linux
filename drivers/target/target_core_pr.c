@@ -895,6 +895,7 @@ static int __core_scsi3_check_aptpl_registration(
 	spin_lock(&pr_tmpl->aptpl_reg_lock);
 	list_for_each_entry_safe(pr_reg, pr_reg_tmp, &pr_tmpl->aptpl_reg_list,
 				pr_reg_aptpl_list) {
+
 		if (!strcmp(pr_reg->pr_iport, i_port) &&
 		     (pr_reg->pr_res_mapped_lun == deve->mapped_lun) &&
 		    !(strcmp(pr_reg->pr_tport, t_port)) &&
@@ -3470,6 +3471,7 @@ static unsigned long long core_scsi3_extract_reservation_key(unsigned char *cdb)
 sense_reason_t
 target_scsi3_emulate_pr_out(struct se_cmd *cmd)
 {
+	struct se_device *dev = cmd->se_dev;
 	unsigned char *cdb = &cmd->t_task_cdb[0];
 	unsigned char *buf;
 	u64 res_key, sa_res_key;
@@ -3534,6 +3536,13 @@ target_scsi3_emulate_pr_out(struct se_cmd *cmd)
 		aptpl = (buf[17] & 0x01);
 		unreg = (buf[17] & 0x02);
 	}
+	/*
+	 * If the backend device has been configured to force APTPL metadata
+	 * write-out, go ahead and propigate aptpl=1 down now.
+	 */
+	if (dev->dev_attrib.force_pr_aptpl)
+		aptpl = 1;
+
 	transport_kunmap_data_sg(cmd);
 	buf = NULL;
 
