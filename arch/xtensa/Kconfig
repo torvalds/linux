@@ -191,7 +191,6 @@ config HOTPLUG_CPU
 
 config INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
 	bool "Initialize Xtensa MMU inside the Linux kernel code"
-	depends on MMU
 	default y
 	help
 	  Earlier version initialized the MMU in the exception vector
