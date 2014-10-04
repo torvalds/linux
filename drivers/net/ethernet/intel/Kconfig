@@ -320,4 +320,15 @@ config FM10K
 	  To compile this driver as a module, choose M here. The module
 	  will be called fm10k.  MSI-X interrupt support is required
 
+config FM10K_VXLAN
+	bool "Virtual eXtensible Local Area Network Support"
+	default n
+	depends on FM10K && VXLAN && !(FM10K=y && VXLAN=m)
+	---help---
+	  This allows one to create VXLAN virtual interfaces that provide
+	  Layer 2 Networks over Layer 3 Networks. VXLAN is often used
+	  to tunnel virtual network infrastructure in virtualized environments.
+	  Say Y here if you want to use Virtual eXtensible Local Area Network
+	  (VXLAN) in the driver.
+
 endif # NET_VENDOR_INTEL
