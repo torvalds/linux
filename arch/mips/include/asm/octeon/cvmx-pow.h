@@ -1066,7 +1066,7 @@ static inline void __cvmx_pow_warn_if_pending_switch(const char *function)
 	uint64_t switch_complete;
 	CVMX_MF_CHORD(switch_complete);
 	if (!switch_complete)
-		pr_warning("%s called with tag switch in progress\n", function);
+		pr_warn("%s called with tag switch in progress\n", function);
 }
 
 /**
@@ -1084,8 +1084,7 @@ static inline void cvmx_pow_tag_sw_wait(void)
 		if (unlikely(switch_complete))
 			break;
 		if (unlikely(cvmx_get_cycle() > start_cycle + MAX_CYCLES)) {
-			pr_warning("Tag switch is taking a long time, "
-				   "possible deadlock\n");
+			pr_warn("Tag switch is taking a long time, possible deadlock\n");
 			start_cycle = -MAX_CYCLES - 1;
 		}
 	}
@@ -1296,19 +1295,16 @@ static inline void cvmx_pow_tag_sw_nocheck(uint32_t tag,
 		__cvmx_pow_warn_if_pending_switch(__func__);
 		current_tag = cvmx_pow_get_current_tag();
 		if (current_tag.s.type == CVMX_POW_TAG_TYPE_NULL_NULL)
-			pr_warning("%s called with NULL_NULL tag\n",
-				   __func__);
+			pr_warn("%s called with NULL_NULL tag\n", __func__);
 		if (current_tag.s.type == CVMX_POW_TAG_TYPE_NULL)
-			pr_warning("%s called with NULL tag\n", __func__);
+			pr_warn("%s called with NULL tag\n", __func__);
 		if ((current_tag.s.type == tag_type)
 		   && (current_tag.s.tag == tag))
-			pr_warning("%s called to perform a tag switch to the "
-				   "same tag\n",
-			     __func__);
+			pr_warn("%s called to perform a tag switch to the same tag\n",
+				__func__);
 		if (tag_type == CVMX_POW_TAG_TYPE_NULL)
-			pr_warning("%s called to perform a tag switch to "
-				   "NULL. Use cvmx_pow_tag_sw_null() instead\n",
-			     __func__);
+			pr_warn("%s called to perform a tag switch to NULL. Use cvmx_pow_tag_sw_null() instead\n",
+				__func__);
 	}
 
 	/*
@@ -1407,23 +1403,19 @@ static inline void cvmx_pow_tag_sw_full_nocheck(cvmx_wqe_t *wqp, uint32_t tag,
 		__cvmx_pow_warn_if_pending_switch(__func__);
 		current_tag = cvmx_pow_get_current_tag();
 		if (current_tag.s.type == CVMX_POW_TAG_TYPE_NULL_NULL)
-			pr_warning("%s called with NULL_NULL tag\n",
-				   __func__);
+			pr_warn("%s called with NULL_NULL tag\n", __func__);
 		if ((current_tag.s.type == tag_type)
 		   && (current_tag.s.tag == tag))
-			pr_warning("%s called to perform a tag switch to "
-				   "the same tag\n",
-			     __func__);
+			pr_warn("%s called to perform a tag switch to the same tag\n",
+				__func__);
 		if (tag_type == CVMX_POW_TAG_TYPE_NULL)
-			pr_warning("%s called to perform a tag switch to "
-				   "NULL. Use cvmx_pow_tag_sw_null() instead\n",
-			     __func__);
+			pr_warn("%s called to perform a tag switch to NULL. Use cvmx_pow_tag_sw_null() instead\n",
+				__func__);
 		if (wqp != cvmx_phys_to_ptr(0x80))
 			if (wqp != cvmx_pow_get_current_wqp())
-				pr_warning("%s passed WQE(%p) doesn't match "
-					   "the address in the POW(%p)\n",
-				     __func__, wqp,
-				     cvmx_pow_get_current_wqp());
+				pr_warn("%s passed WQE(%p) doesn't match the address in the POW(%p)\n",
+					__func__, wqp,
+					cvmx_pow_get_current_wqp());
 	}
 
 	/*
@@ -1507,12 +1499,10 @@ static inline void cvmx_pow_tag_sw_null_nocheck(void)
 		__cvmx_pow_warn_if_pending_switch(__func__);
 		current_tag = cvmx_pow_get_current_tag();
 		if (current_tag.s.type == CVMX_POW_TAG_TYPE_NULL_NULL)
-			pr_warning("%s called with NULL_NULL tag\n",
-				   __func__);
+			pr_warn("%s called with NULL_NULL tag\n", __func__);
 		if (current_tag.s.type == CVMX_POW_TAG_TYPE_NULL)
-			pr_warning("%s called when we already have a "
-				   "NULL tag\n",
-			     __func__);
+			pr_warn("%s called when we already have a NULL tag\n",
+				__func__);
 	}
 
 	tag_req.u64 = 0;
@@ -1725,17 +1715,14 @@ static inline void cvmx_pow_tag_sw_desched_nocheck(
 		__cvmx_pow_warn_if_pending_switch(__func__);
 		current_tag = cvmx_pow_get_current_tag();
 		if (current_tag.s.type == CVMX_POW_TAG_TYPE_NULL_NULL)
-			pr_warning("%s called with NULL_NULL tag\n",
-				   __func__);
+			pr_warn("%s called with NULL_NULL tag\n", __func__);
 		if (current_tag.s.type == CVMX_POW_TAG_TYPE_NULL)
-			pr_warning("%s called with NULL tag. Deschedule not "
-				   "allowed from NULL state\n",
-			     __func__);
+			pr_warn("%s called with NULL tag. Deschedule not allowed from NULL state\n",
+				__func__);
 		if ((current_tag.s.type != CVMX_POW_TAG_TYPE_ATOMIC)
 			&& (tag_type != CVMX_POW_TAG_TYPE_ATOMIC))
-			pr_warning("%s called where neither the before or "
-				   "after tag is ATOMIC\n",
-			     __func__);
+			pr_warn("%s called where neither the before or after tag is ATOMIC\n",
+				__func__);
 	}
 
 	tag_req.u64 = 0;
@@ -1832,12 +1819,10 @@ static inline void cvmx_pow_desched(uint64_t no_sched)
 		__cvmx_pow_warn_if_pending_switch(__func__);
 		current_tag = cvmx_pow_get_current_tag();
 		if (current_tag.s.type == CVMX_POW_TAG_TYPE_NULL_NULL)
-			pr_warning("%s called with NULL_NULL tag\n",
-				   __func__);
+			pr_warn("%s called with NULL_NULL tag\n", __func__);
 		if (current_tag.s.type == CVMX_POW_TAG_TYPE_NULL)
-			pr_warning("%s called with NULL tag. Deschedule not "
-				   "expected from NULL state\n",
-			     __func__);
+			pr_warn("%s called with NULL tag. Deschedule not expected from NULL state\n",
+				__func__);
 	}
 
 	/* Need to make sure any writes to the work queue entry are complete */

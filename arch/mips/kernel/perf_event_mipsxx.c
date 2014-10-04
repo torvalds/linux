@@ -561,8 +561,8 @@ static int mipspmu_get_irq(void)
 			IRQF_PERCPU | IRQF_NOBALANCING | IRQF_NO_THREAD,
 			"mips_perf_pmu", NULL);
 		if (err) {
-			pr_warning("Unable to request IRQ%d for MIPS "
-			   "performance counters!\n", mipspmu.irq);
+			pr_warn("Unable to request IRQ%d for MIPS performance counters!\n",
+				mipspmu.irq);
 		}
 	} else if (cp0_perfcount_irq < 0) {
 		/*
@@ -572,8 +572,7 @@ static int mipspmu_get_irq(void)
 		perf_irq = mipsxx_pmu_handle_shared_irq;
 		err = 0;
 	} else {
-		pr_warning("The platform hasn't properly defined its "
-			"interrupt controller.\n");
+		pr_warn("The platform hasn't properly defined its interrupt controller\n");
 		err = -ENOENT;
 	}
 

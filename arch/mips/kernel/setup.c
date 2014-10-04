@@ -89,7 +89,7 @@ void __init add_memory_region(phys_t start, phys_t size, long type)
 
 	/* Sanity check */
 	if (start + size < start) {
-		pr_warning("Trying to add an invalid memory region, skipped\n");
+		pr_warn("Trying to add an invalid memory region, skipped\n");
 		return;
 	}
 
