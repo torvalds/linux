@@ -7323,8 +7323,8 @@ static void unuse_block_rsv(struct btrfs_fs_info *fs_info,
  *
  * returns the tree buffer or NULL.
  */
-struct extent_buffer *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
-					struct btrfs_root *root, u32 blocksize,
+struct extent_buffer *btrfs_alloc_tree_block(struct btrfs_trans_handle *trans,
+					struct btrfs_root *root,
 					u64 parent, u64 root_objectid,
 					struct btrfs_disk_key *key, int level,
 					u64 hint, u64 empty_size)
@@ -7334,6 +7334,7 @@ struct extent_buffer *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 	struct extent_buffer *buf;
 	u64 flags = 0;
 	int ret;
+	u32 blocksize = root->nodesize;
 	bool skinny_metadata = btrfs_fs_incompat(root->fs_info,
 						 SKINNY_METADATA);
 
@@ -7486,10 +7487,7 @@ static noinline void reada_walk_down(struct btrfs_trans_handle *trans,
 				continue;
 		}
 reada:
-		ret = readahead_tree_block(root, bytenr, blocksize,
-					   generation);
-		if (ret)
-			break;
+		readahead_tree_block(root, bytenr, blocksize);
 		nread++;
 	}
 	wc->reada_slot = slot;
@@ -7648,7 +7646,6 @@ walk_down:
 	level = root_level;
 	while (level >= 0) {
 		if (path->nodes[level] == NULL) {
-			int child_bsize = root->nodesize;
 			int parent_slot;
 			u64 child_gen;
 			u64 child_bytenr;
@@ -7660,8 +7657,7 @@ walk_down:
 			child_bytenr = btrfs_node_blockptr(eb, parent_slot);
 			child_gen = btrfs_node_ptr_generation(eb, parent_slot);
 
-			eb = read_tree_block(root, child_bytenr, child_bsize,
-					     child_gen);
+			eb = read_tree_block(root, child_bytenr, child_gen);
 			if (!eb || !extent_buffer_uptodate(eb)) {
 				ret = -EIO;
 				goto out;
@@ -7677,7 +7673,7 @@ walk_down:
 			ret = btrfs_qgroup_record_ref(trans, root->fs_info,
 						root->objectid,
 						child_bytenr,
-						child_bsize,
+						root->nodesize,
 						BTRFS_QGROUP_OPER_SUB_SUBTREE,
 						0);
 			if (ret)
@@ -7830,7 +7826,7 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 	bytenr = btrfs_node_blockptr(path->nodes[level], path->slots[level]);
 	blocksize = root->nodesize;
 
-	next = btrfs_find_tree_block(root, bytenr, blocksize);
+	next = btrfs_find_tree_block(root, bytenr);
 	if (!next) {
 		next = btrfs_find_create_tree_block(root, bytenr, blocksize);
 		if (!next)
@@ -7892,7 +7888,7 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 	if (!next) {
 		if (reada && level == 1)
 			reada_walk_down(trans, root, wc, path);
-		next = read_tree_block(root, bytenr, blocksize, generation);
+		next = read_tree_block(root, bytenr, generation);
 		if (!next || !extent_buffer_uptodate(next)) {
 			free_extent_buffer(next);
 			return -EIO;
