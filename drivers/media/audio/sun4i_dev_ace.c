@@ -91,10 +91,14 @@ static irqreturn_t ace_interrupt(int irq, void *dev)
     return IRQ_HANDLED;
 }
 
+/* 200MHz is the limit for ACE_CLK_REG (see the A10 User Manual) */
+#define ACE_CLOCK_SPEED_LIMIT 200000000
+
 static long ace_dev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	int 				ret_val = 0;
 	unsigned long       test_arg;
+	int pll5_div;
 	__ace_req_e 		mpara;
 	unsigned long rate;
 	switch (cmd){
@@ -137,7 +141,8 @@ static long ace_dev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg
 				printk("try to set parent of ace_moduleclk to ace_pll5clk failed!\n");
 			}
 			rate = clk_get_rate(ace_pll5_pclk);
-			if(clk_set_rate(ace_moduleclk, rate/2)) {
+			pll5_div = DIV_ROUND_UP(rate, ACE_CLOCK_SPEED_LIMIT);
+			if(clk_set_rate(ace_moduleclk, rate / pll5_div)) {
 				printk("try to set ace_moduleclk rate failed!!!\n");
 				 goto out;
 			}
