@@ -1453,18 +1453,38 @@ static ssize_t toshiba_kbd_bl_timeout_store(struct device *dev,
 					    const char *buf, size_t count)
 {
 	struct toshiba_acpi_dev *toshiba = dev_get_drvdata(dev);
-	int time = -1;
+	int time;
+	int ret;
 
-	if (sscanf(buf, "%i", &time) != 1 && (time < 0 || time > 60))
-		return -EINVAL;
+	ret = kstrtoint(buf, 0, &time);
+	if (ret)
+		return ret;
 
-	/* Set the Keyboard Backlight Timeout: 0-60 seconds */
-	if (time != -1 && toshiba->kbd_time != time) {
+	/* Check for supported values depending on kbd_type */
+	if (toshiba->kbd_type == 1) {
+		if (time < 0 || time > 60)
+			return -EINVAL;
+	} else if (toshiba->kbd_type == 2) {
+		if (time < 1 || time > 60)
+			return -EINVAL;
+	}
+
+	/* Set the Keyboard Backlight Timeout */
+
+	/* Only make a change if the actual timeout has changed */
+	if (toshiba->kbd_time != time) {
+		/* Shift the time to "base time" (0x3c0000 == 60 seconds) */
 		time = time << HCI_MISC_SHIFT;
-		time = (toshiba->kbd_mode == SCI_KBD_MODE_AUTO) ?
-							time + 1 : time + 2;
-		if (toshiba_kbd_illum_status_set(toshiba, time) < 0)
-			return -EIO;
+		/* OR the "base time" to the actual method format */
+		if (toshiba->kbd_type == 1)
+			time |= SCI_KBD_MODE_FNZ;
+		else if (toshiba->kbd_type == 2)
+			time |= SCI_KBD_MODE_AUTO;
+
+		ret = toshiba_kbd_illum_status_set(toshiba, time);
+		if (ret)
+			return ret;
+
 		toshiba->kbd_time = time >> HCI_MISC_SHIFT;
 	}
 
