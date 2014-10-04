@@ -65,12 +65,12 @@ struct qdisc_watchdog {
 };
 
 void qdisc_watchdog_init(struct qdisc_watchdog *wd, struct Qdisc *qdisc);
-void qdisc_watchdog_schedule_ns(struct qdisc_watchdog *wd, u64 expires);
+void qdisc_watchdog_schedule_ns(struct qdisc_watchdog *wd, u64 expires, bool throttle);
 
 static inline void qdisc_watchdog_schedule(struct qdisc_watchdog *wd,
 					   psched_time_t expires)
 {
-	qdisc_watchdog_schedule_ns(wd, PSCHED_TICKS2NS(expires));
+	qdisc_watchdog_schedule_ns(wd, PSCHED_TICKS2NS(expires), true);
 }
 
 void qdisc_watchdog_cancel(struct qdisc_watchdog *wd);

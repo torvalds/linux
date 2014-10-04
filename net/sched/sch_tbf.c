@@ -268,7 +268,8 @@ static struct sk_buff *tbf_dequeue(struct Qdisc *sch)
 		}
 
 		qdisc_watchdog_schedule_ns(&q->watchdog,
-					   now + max_t(long, -toks, -ptoks));
+					   now + max_t(long, -toks, -ptoks),
+					   true);
 
 		/* Maybe we have a shorter packet in the queue,
 		   which can be sent now. It sounds cool,
