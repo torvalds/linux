@@ -159,7 +159,7 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 	default:
 		custom_map = byt_rt5640_intmic_dmic1_map;
 		num_routes = ARRAY_SIZE(byt_rt5640_intmic_dmic1_map);
-	};
+	}
 
 	ret = snd_soc_dapm_add_routes(dapm, custom_map, num_routes);
 	if (ret)
