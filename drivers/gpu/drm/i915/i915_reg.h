@@ -4579,6 +4579,9 @@ enum punit_power_well {
 #define   PLANE_CTL_ALPHA_DISABLE		(  0 << 4)
 #define   PLANE_CTL_ALPHA_SW_PREMULTIPLY	(  2 << 4)
 #define   PLANE_CTL_ALPHA_HW_PREMULTIPLY	(  3 << 4)
+#define   PLANE_CTL_ROTATE_MASK			0x3
+#define   PLANE_CTL_ROTATE_0			0x0
+#define   PLANE_CTL_ROTATE_180			0x2
 #define _PLANE_STRIDE_1_A			0x70188
 #define _PLANE_STRIDE_2_A			0x70288
 #define _PLANE_STRIDE_3_A			0x70388

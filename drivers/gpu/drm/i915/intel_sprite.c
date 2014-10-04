@@ -162,6 +162,7 @@ skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 	plane_ctl &= ~PLANE_CTL_YUV422_ORDER_MASK;
 	plane_ctl &= ~PLANE_CTL_TILED_MASK;
 	plane_ctl &= ~PLANE_CTL_ALPHA_MASK;
+	plane_ctl &= ~PLANE_CTL_ROTATE_MASK;
 
 	/* Trickle feed has to be enabled */
 	plane_ctl &= ~PLANE_CTL_TRICKLE_FEED_DISABLE;
@@ -217,6 +218,8 @@ skl_update_plane(struct drm_plane *drm_plane, struct drm_crtc *crtc,
 	default:
 		BUG();
 	}
+	if (intel_plane->rotation == BIT(DRM_ROTATE_180))
+		plane_ctl |= PLANE_CTL_ROTATE_180;
 
 	plane_ctl |= PLANE_CTL_ENABLE;
 	plane_ctl |= PLANE_CTL_PIPE_CSC_ENABLE;

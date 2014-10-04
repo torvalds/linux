@@ -2694,6 +2694,8 @@ static void skylake_update_primary_plane(struct drm_crtc *crtc,
 	}
 
 	plane_ctl |= PLANE_CTL_PLANE_GAMMA_DISABLE;
+	if (to_intel_plane(crtc->primary)->rotation == BIT(DRM_ROTATE_180))
+		plane_ctl |= PLANE_CTL_ROTATE_180;
 
 	I915_WRITE(PLANE_CTL(pipe, 0), plane_ctl);
 
