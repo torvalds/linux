@@ -411,7 +411,7 @@ static void ieee80211_send_probe(struct ieee80211_device *ieee)
 	}
 }
 
-void ieee80211_send_probe_requests(struct ieee80211_device *ieee)
+static void ieee80211_send_probe_requests(struct ieee80211_device *ieee)
 {
 	if (ieee->active_scan && (ieee->softmac_features & IEEE_SOFTMAC_PROBERQ)){
 		ieee80211_send_probe(ieee);
