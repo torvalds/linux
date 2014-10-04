@@ -348,8 +348,8 @@ extern struct srcu_struct tasks_rcu_exit_srcu;
  */
 #define cond_resched_rcu_qs() \
 do { \
-	rcu_note_voluntary_context_switch(current); \
-	cond_resched(); \
+	if (!cond_resched()) \
+		rcu_note_voluntary_context_switch(current); \
 } while (0)
 
 #if defined(CONFIG_DEBUG_LOCK_ALLOC) || defined(CONFIG_RCU_TRACE) || defined(CONFIG_SMP)
