@@ -9690,7 +9690,7 @@ void btrfs_end_nocow_write(struct btrfs_root *root)
 
 int btrfs_start_nocow_write(struct btrfs_root *root)
 {
-	if (unlikely(atomic_read(&root->will_be_snapshoted)))
+	if (atomic_read(&root->will_be_snapshoted))
 		return 0;
 
 	percpu_counter_inc(&root->subv_writers->counter);
@@ -9698,7 +9698,7 @@ int btrfs_start_nocow_write(struct btrfs_root *root)
 	 * Make sure counter is updated before we check for snapshot creation.
 	 */
 	smp_mb();
-	if (unlikely(atomic_read(&root->will_be_snapshoted))) {
+	if (atomic_read(&root->will_be_snapshoted)) {
 		btrfs_end_nocow_write(root);
 		return 0;
 	}
