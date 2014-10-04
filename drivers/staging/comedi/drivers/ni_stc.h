@@ -1464,7 +1464,7 @@ struct ni_private {
 
 	unsigned short ai_fifo_buffer[0x2000];
 	uint8_t eeprom_buffer[M_SERIES_EEPROM_SIZE];
-	uint32_t serial_number;
+	__be32 serial_number;
 
 	struct mite_struct *mite;
 	struct mite_channel *ai_mite_chan;
