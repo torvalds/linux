@@ -295,7 +295,6 @@ struct mlx4_en_tx_ring {
 	bool			bf_alloced;
 	struct netdev_queue	*tx_queue;
 	int			hwtstamp_tx_type;
-	int			inline_thold;
 } ____cacheline_aligned_in_smp;
 
 struct mlx4_en_rx_desc {
