@@ -1880,8 +1880,8 @@ void ll_delete_inode(struct inode *inode)
 
 	/* Workaround for LU-118 */
 	if (inode->i_data.nrpages) {
-		TREE_READ_LOCK_IRQ(&inode->i_data);
-		TREE_READ_UNLOCK_IRQ(&inode->i_data);
+		spin_lock_irq(&inode->i_data.tree_lock);
+		spin_unlock_irq(&inode->i_data.tree_lock);
 		LASSERTF(inode->i_data.nrpages == 0,
 			 "inode=%lu/%u(%p) nrpages=%lu, see "
 			 "http://jira.whamcloud.com/browse/LU-118\n",
