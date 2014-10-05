@@ -612,6 +612,7 @@ static void build_inline_wqe(struct mlx4_en_tx_desc *tx_desc,
 {
 	struct mlx4_wqe_inline_seg *inl = &tx_desc->inl;
 	int spc = MLX4_INLINE_ALIGN - CTRL_SIZE - sizeof *inl;
+	unsigned int hlen = skb_headlen(skb);
 
 	if (skb->len <= spc) {
 		if (likely(skb->len >= MIN_PKT_LEN)) {
@@ -621,19 +622,19 @@ static void build_inline_wqe(struct mlx4_en_tx_desc *tx_desc,
 			memset(((void *)(inl + 1)) + skb->len, 0,
 			       MIN_PKT_LEN - skb->len);
 		}
-		skb_copy_from_linear_data(skb, inl + 1, skb_headlen(skb));
+		skb_copy_from_linear_data(skb, inl + 1, hlen);
 		if (shinfo->nr_frags)
-			memcpy(((void *)(inl + 1)) + skb_headlen(skb), fragptr,
+			memcpy(((void *)(inl + 1)) + hlen, fragptr,
 			       skb_frag_size(&shinfo->frags[0]));
 
 	} else {
 		inl->byte_count = cpu_to_be32(1 << 31 | spc);
-		if (skb_headlen(skb) <= spc) {
-			skb_copy_from_linear_data(skb, inl + 1, skb_headlen(skb));
-			if (skb_headlen(skb) < spc) {
-				memcpy(((void *)(inl + 1)) + skb_headlen(skb),
-					fragptr, spc - skb_headlen(skb));
-				fragptr +=  spc - skb_headlen(skb);
+		if (hlen <= spc) {
+			skb_copy_from_linear_data(skb, inl + 1, hlen);
+			if (hlen < spc) {
+				memcpy(((void *)(inl + 1)) + hlen,
+				       fragptr, spc - hlen);
+				fragptr +=  spc - hlen;
 			}
 			inl = (void *) (inl + 1) + spc;
 			memcpy(((void *)(inl + 1)), fragptr, skb->len - spc);
@@ -641,9 +642,9 @@ static void build_inline_wqe(struct mlx4_en_tx_desc *tx_desc,
 			skb_copy_from_linear_data(skb, inl + 1, spc);
 			inl = (void *) (inl + 1) + spc;
 			skb_copy_from_linear_data_offset(skb, spc, inl + 1,
-					skb_headlen(skb) - spc);
+							 hlen - spc);
 			if (shinfo->nr_frags)
-				memcpy(((void *)(inl + 1)) + skb_headlen(skb) - spc,
+				memcpy(((void *)(inl + 1)) + hlen - spc,
 				       fragptr,
 				       skb_frag_size(&shinfo->frags[0]));
 		}
