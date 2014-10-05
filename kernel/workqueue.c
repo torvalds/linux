@@ -2046,8 +2046,7 @@ __acquires(&pool->lock)
 	 * stop_machine. At the same time, report a quiescent RCU state so
 	 * the same condition doesn't freeze RCU.
 	 */
-	rcu_note_voluntary_context_switch(current);
-	cond_resched();
+	cond_resched_rcu_qs();
 
 	spin_lock_irq(&pool->lock);
 
