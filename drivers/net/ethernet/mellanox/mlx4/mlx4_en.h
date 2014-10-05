@@ -216,12 +216,15 @@ enum cq_type {
 
 struct mlx4_en_tx_info {
 	struct sk_buff *skb;
+	dma_addr_t	map0_dma;
+	u32		map0_byte_count;
 	u32		nr_txbb;
 	u32		nr_bytes;
 	u8		linear;
 	u8		data_offset;
 	u8		inl;
 	u8		ts_requested;
+	u8		nr_maps;
 } ____cacheline_aligned_in_smp;
 
 
