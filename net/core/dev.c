@@ -2567,10 +2567,12 @@ static netdev_features_t harmonize_features(struct sk_buff *skb,
 
 netdev_features_t netif_skb_features(struct sk_buff *skb)
 {
+	const struct net_device *dev = skb->dev;
+	netdev_features_t features = dev->features;
+	u16 gso_segs = skb_shinfo(skb)->gso_segs;
 	__be16 protocol = skb->protocol;
-	netdev_features_t features = skb->dev->features;
 
-	if (skb_shinfo(skb)->gso_segs > skb->dev->gso_max_segs)
+	if (gso_segs > dev->gso_max_segs || gso_segs < dev->gso_min_segs)
 		features &= ~NETIF_F_GSO_MASK;
 
 	if (protocol == htons(ETH_P_8021Q) || protocol == htons(ETH_P_8021AD)) {
@@ -2581,7 +2583,7 @@ netdev_features_t netif_skb_features(struct sk_buff *skb)
 	}
 
 	features = netdev_intersect_features(features,
-					     skb->dev->vlan_features |
+					     dev->vlan_features |
 					     NETIF_F_HW_VLAN_CTAG_TX |
 					     NETIF_F_HW_VLAN_STAG_TX);
 
@@ -6661,6 +6663,7 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 
 	dev->gso_max_size = GSO_MAX_SIZE;
 	dev->gso_max_segs = GSO_MAX_SEGS;
+	dev->gso_min_segs = 0;
 
 	INIT_LIST_HEAD(&dev->napi_list);
 	INIT_LIST_HEAD(&dev->unreg_list);
