@@ -2837,8 +2837,8 @@ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 			do_flush_tlb_kernel_range(start, LOW_OBP_ADDRESS);
 		}
 		if (end > HI_OBP_ADDRESS) {
-			flush_tsb_kernel_range(end, HI_OBP_ADDRESS);
-			do_flush_tlb_kernel_range(end, HI_OBP_ADDRESS);
+			flush_tsb_kernel_range(HI_OBP_ADDRESS, end);
+			do_flush_tlb_kernel_range(HI_OBP_ADDRESS, end);
 		}
 	} else {
 		flush_tsb_kernel_range(start, end);
