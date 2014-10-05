@@ -68,7 +68,7 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 	ring->inline_thold = priv->prof->inline_thold;
 
 	tmp = size * sizeof(struct mlx4_en_tx_info);
-	ring->tx_info = vmalloc_node(tmp, node);
+	ring->tx_info = kmalloc_node(tmp, GFP_KERNEL | __GFP_NOWARN, node);
 	if (!ring->tx_info) {
 		ring->tx_info = vmalloc(tmp);
 		if (!ring->tx_info) {
@@ -151,7 +151,7 @@ err_bounce:
 	kfree(ring->bounce_buf);
 	ring->bounce_buf = NULL;
 err_info:
-	vfree(ring->tx_info);
+	kvfree(ring->tx_info);
 	ring->tx_info = NULL;
 err_ring:
 	kfree(ring);
@@ -174,7 +174,7 @@ void mlx4_en_destroy_tx_ring(struct mlx4_en_priv *priv,
 	mlx4_free_hwq_res(mdev->dev, &ring->wqres, ring->buf_size);
 	kfree(ring->bounce_buf);
 	ring->bounce_buf = NULL;
-	vfree(ring->tx_info);
+	kvfree(ring->tx_info);
 	ring->tx_info = NULL;
 	kfree(ring);
 	*pring = NULL;
