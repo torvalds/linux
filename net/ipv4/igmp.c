@@ -931,7 +931,7 @@ static bool igmp_heard_query(struct in_device *in_dev, struct sk_buff *skb,
 			in_dev->mr_qrv = ih3->qrv;
 		if (!group) { /* general query */
 			if (ih3->nsrcs)
-				return false;	/* no sources allowed */
+				return true;	/* no sources allowed */
 			igmp_gq_start_timer(in_dev);
 			return false;
 		}
