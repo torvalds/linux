@@ -195,7 +195,8 @@ int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,
 	memset(ring->buf, 0, ring->buf_size);
 
 	ring->qp_state = MLX4_QP_STATE_RST;
-	ring->doorbell_qpn = ring->qp.qpn << 8;
+	ring->doorbell_qpn = cpu_to_be32(ring->qp.qpn << 8);
+	ring->mr_key = cpu_to_be32(mdev->mr.key);
 
 	mlx4_en_fill_qp_context(priv, ring->size, ring->stride, 1, 0, ring->qpn,
 				ring->cqn, user_prio, &ring->context);
@@ -654,7 +655,6 @@ static void mlx4_bf_copy(void __iomem *dst, const void *src,
 netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	struct mlx4_en_dev *mdev = priv->mdev;
 	struct device *ddev = priv->ddev;
 	struct mlx4_en_tx_ring *ring;
 	struct mlx4_en_tx_desc *tx_desc;
@@ -769,7 +769,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 				goto tx_drop_unmap;
 
 			data->addr = cpu_to_be64(dma);
-			data->lkey = cpu_to_be32(mdev->mr.key);
+			data->lkey = ring->mr_key;
 			wmb();
 			data->byte_count = cpu_to_be32(skb_frag_size(frag));
 			--data;
@@ -787,7 +787,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 				goto tx_drop_unmap;
 
 			data->addr = cpu_to_be64(dma);
-			data->lkey = cpu_to_be32(mdev->mr.key);
+			data->lkey = ring->mr_key;
 			wmb();
 			data->byte_count = cpu_to_be32(byte_count);
 		}
@@ -879,9 +879,12 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	send_doorbell = !skb->xmit_more || netif_xmit_stopped(ring->tx_queue);
 
+	real_size = (real_size / 16) & 0x3f;
+
 	if (ring->bf_enabled && desc_size <= MAX_BF && !bounce &&
 	    !vlan_tx_tag_present(skb) && send_doorbell) {
-		tx_desc->ctrl.bf_qpn |= cpu_to_be32(ring->doorbell_qpn);
+		tx_desc->ctrl.bf_qpn = ring->doorbell_qpn |
+				       cpu_to_be32(real_size);
 
 		op_own |= htonl((bf_index & 0xffff) << 8);
 		/* Ensure new descriptor hits memory
@@ -911,8 +914,8 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		tx_desc->ctrl.owner_opcode = op_own;
 		if (send_doorbell) {
 			wmb();
-			iowrite32be(ring->doorbell_qpn,
-				    ring->bf.uar->map + MLX4_SEND_DOORBELL);
+			iowrite32(ring->doorbell_qpn,
+				  ring->bf.uar->map + MLX4_SEND_DOORBELL);
 		} else {
 			ring->xmit_more++;
 		}

@@ -279,7 +279,8 @@ struct mlx4_en_tx_ring {
 	u16			stride;
 	u16			cqn;	/* index of port CQ associated with this ring */
 	u32			buf_size;
-	u32			doorbell_qpn;
+	__be32			doorbell_qpn;
+	__be32			mr_key;
 	void			*buf;
 	struct mlx4_en_tx_info	*tx_info;
 	u8			*bounce_buf;
