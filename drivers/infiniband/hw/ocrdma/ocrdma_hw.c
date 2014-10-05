@@ -561,8 +561,8 @@ static int ocrdma_mbx_create_mq(struct ocrdma_dev *dev,
 	cmd->cqid_pages |= (cq->id << OCRDMA_CREATE_MQ_CQ_ID_SHIFT);
 	cmd->async_cqid_valid = OCRDMA_CREATE_MQ_ASYNC_CQ_VALID;
 
-	cmd->async_event_bitmap = Bit(OCRDMA_ASYNC_GRP5_EVE_CODE);
-	cmd->async_event_bitmap |= Bit(OCRDMA_ASYNC_RDMA_EVE_CODE);
+	cmd->async_event_bitmap = BIT(OCRDMA_ASYNC_GRP5_EVE_CODE);
+	cmd->async_event_bitmap |= BIT(OCRDMA_ASYNC_RDMA_EVE_CODE);
 
 	cmd->async_cqid_ringsize = cq->id;
 	cmd->async_cqid_ringsize |= (ocrdma_encoded_q_len(mq->len) <<
