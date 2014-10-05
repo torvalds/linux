@@ -2183,7 +2183,7 @@ isert_put_response(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
 		isert_cmd->tx_desc.num_sge = 2;
 	}
 
-	isert_init_send_wr(isert_conn, isert_cmd, send_wr, true);
+	isert_init_send_wr(isert_conn, isert_cmd, send_wr, false);
 
 	pr_debug("Posting SCSI Response IB_WR_SEND >>>>>>>>>>>>>>>>>>>>>>\n");
 
@@ -2882,7 +2882,7 @@ isert_put_datain(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
 				     &isert_cmd->tx_desc.iscsi_header);
 		isert_init_tx_hdrs(isert_conn, &isert_cmd->tx_desc);
 		isert_init_send_wr(isert_conn, isert_cmd,
-				   &isert_cmd->tx_desc.send_wr, true);
+				   &isert_cmd->tx_desc.send_wr, false);
 		isert_cmd->rdma_wr.s_send_wr.next = &isert_cmd->tx_desc.send_wr;
 		wr->send_wr_num += 1;
 	}
