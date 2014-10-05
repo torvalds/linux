@@ -348,11 +348,6 @@ static void *ocrdma_init_emb_mqe(u8 opcode, u32 cmd_len)
 	return mqe;
 }
 
-static void *ocrdma_alloc_mqe(void)
-{
-	return kzalloc(sizeof(struct ocrdma_mqe), GFP_KERNEL);
-}
-
 static void ocrdma_free_q(struct ocrdma_dev *dev, struct ocrdma_queue_info *q)
 {
 	dma_free_coherent(&dev->nic_info.pdev->dev, q->size, q->va, q->dma);
@@ -1189,10 +1184,10 @@ int ocrdma_mbx_rdma_stats(struct ocrdma_dev *dev, bool reset)
 {
 	struct ocrdma_rdma_stats_req *req = dev->stats_mem.va;
 	struct ocrdma_mqe *mqe = &dev->stats_mem.mqe;
-	struct ocrdma_rdma_stats_resp *old_stats = NULL;
+	struct ocrdma_rdma_stats_resp *old_stats;
 	int status;
 
-	old_stats = kzalloc(sizeof(*old_stats), GFP_KERNEL);
+	old_stats = kmalloc(sizeof(*old_stats), GFP_KERNEL);
 	if (old_stats == NULL)
 		return -ENOMEM;
 
@@ -1235,10 +1230,9 @@ static int ocrdma_mbx_get_ctrl_attribs(struct ocrdma_dev *dev)
 	struct ocrdma_get_ctrl_attribs_rsp *ctrl_attr_rsp;
 	struct mgmt_hba_attribs *hba_attribs;
 
-	mqe = ocrdma_alloc_mqe();
+	mqe = kzalloc(sizeof(struct ocrdma_mqe), GFP_KERNEL);
 	if (!mqe)
 		return status;
-	memset(mqe, 0, sizeof(*mqe));
 
 	dma.size = sizeof(struct ocrdma_get_ctrl_attribs_rsp);
 	dma.va	 = dma_alloc_coherent(&dev->nic_info.pdev->dev,
