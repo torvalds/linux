@@ -605,10 +605,8 @@ static void gdm_wimax_netif_rx(struct net_device *dev, char *buf, int len)
 	int ret;
 
 	skb = dev_alloc_skb(len + 2);
-	if (!skb) {
-		netdev_err(dev, "%s: dev_alloc_skb failed!\n", __func__);
+	if (!skb)
 		return;
-	}
 	skb_reserve(skb, 2);
 
 	dev->stats.rx_packets++;
