@@ -37,6 +37,7 @@
 #include <linux/mlx4/qp.h>
 #include <linux/skbuff.h>
 #include <linux/if_vlan.h>
+#include <linux/prefetch.h>
 #include <linux/vmalloc.h>
 #include <linux/tcp.h>
 #include <linux/ip.h>
@@ -267,6 +268,11 @@ static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 	int nr_maps = tx_info->nr_maps;
 	int i;
 
+	/* We do not touch skb here, so prefetch skb->users location
+	 * to speedup consume_skb()
+	 */
+	prefetchw(&skb->users);
+
 	if (unlikely(timestamp)) {
 		struct skb_shared_hwtstamps hwts;
 
@@ -385,6 +391,7 @@ static bool mlx4_en_process_tx_cq(struct net_device *dev,
 	if (!priv->port_up)
 		return true;
 
+	prefetchw(&ring->tx_queue->dql.limit);
 	index = cons_index & size_mask;
 	cqe = mlx4_en_get_cqe(buf, index, priv->cqe_size) + factor;
 	ring_index = ring->cons & size_mask;
@@ -721,6 +728,8 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 			return NETDEV_TX_BUSY;
 		}
 	}
+
+	prefetchw(&ring->tx_queue->dql);
 
 	/* Track current inflight packets for performance analysis */
 	AVG_PERF_COUNTER(priv->pstats.inflight_avg,
