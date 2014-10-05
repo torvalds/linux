@@ -328,7 +328,7 @@ bool gb_manifest_parse(struct gb_module *gmod, void *data, size_t size)
 	struct greybus_manifest_header *header;
 	struct greybus_descriptor *desc;
 	struct manifest_desc *descriptor;
-	struct manifest_desc *module_desc = false;
+	struct manifest_desc *module_desc = NULL;
 	u16 manifest_size;
 	u32 found = 0;
 	bool result = false;
