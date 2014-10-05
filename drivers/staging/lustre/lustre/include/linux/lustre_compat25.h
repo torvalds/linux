@@ -91,8 +91,6 @@ static inline void ll_set_fs_pwd(struct fs_struct *fs, struct vfsmount *mnt,
 # define inode_dio_read(i)		atomic_inc(&(i)->i_dio_count)
 /* inode_dio_done(i) use as-is for read unlock */
 
-#define TREE_READ_LOCK_IRQ(mapping)	spin_lock_irq(&(mapping)->tree_lock)
-#define TREE_READ_UNLOCK_IRQ(mapping)	spin_unlock_irq(&(mapping)->tree_lock)
 
 #ifndef FS_HAS_FIEMAP
 #define FS_HAS_FIEMAP			(0)
