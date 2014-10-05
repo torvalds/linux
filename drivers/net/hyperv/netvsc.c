@@ -705,6 +705,7 @@ int netvsc_send(struct hv_device *device,
 	unsigned int section_index = NETVSC_INVALID_INDEX;
 	u32 msg_size = 0;
 	struct sk_buff *skb;
+	u16 q_idx = packet->q_idx;
 
 
 	net_device = get_outbound_net_device(device);
@@ -769,24 +770,24 @@ int netvsc_send(struct hv_device *device,
 
 	if (ret == 0) {
 		atomic_inc(&net_device->num_outstanding_sends);
-		atomic_inc(&net_device->queue_sends[packet->q_idx]);
+		atomic_inc(&net_device->queue_sends[q_idx]);
 
 		if (hv_ringbuf_avail_percent(&out_channel->outbound) <
 			RING_AVAIL_PERCENT_LOWATER) {
 			netif_tx_stop_queue(netdev_get_tx_queue(
-					    ndev, packet->q_idx));
+					    ndev, q_idx));
 
 			if (atomic_read(&net_device->
-				queue_sends[packet->q_idx]) < 1)
+				queue_sends[q_idx]) < 1)
 				netif_tx_wake_queue(netdev_get_tx_queue(
-						    ndev, packet->q_idx));
+						    ndev, q_idx));
 		}
 	} else if (ret == -EAGAIN) {
 		netif_tx_stop_queue(netdev_get_tx_queue(
-				    ndev, packet->q_idx));
-		if (atomic_read(&net_device->queue_sends[packet->q_idx]) < 1) {
+				    ndev, q_idx));
+		if (atomic_read(&net_device->queue_sends[q_idx]) < 1) {
 			netif_tx_wake_queue(netdev_get_tx_queue(
-					    ndev, packet->q_idx));
+					    ndev, q_idx));
 			ret = -ENOSPC;
 		}
 	} else {
