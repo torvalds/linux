@@ -63,7 +63,6 @@ config PCIE_SPEAR13XX
 	help
 	  Say Y here if you want PCIe support on SPEAr13XX SoCs.
 
-
 config PCI_KEYSTONE
 	bool "TI Keystone PCIe controller"
 	depends on ARCH_KEYSTONE
@@ -81,5 +80,15 @@ config PCIE_XILINX
 	help
 	  Say 'Y' here if you want kernel to support the Xilinx AXI PCIe
 	  Host Bridge driver.
+
+config PCI_XGENE
+	bool "X-Gene PCIe controller"
+	depends on ARCH_XGENE
+	depends on OF
+	select PCIEPORTBUS
+	help
+	  Say Y here if you want internal PCI support on APM X-Gene SoC.
+	  There are 5 internal PCIe ports available. Each port is GEN3 capable
+	  and have varied lanes from x1 to x8.
 
 endmenu
