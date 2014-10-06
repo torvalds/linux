@@ -35,6 +35,12 @@
 					STACK_FRAME_OVERHEAD + 288)
 #define STACK_FRAME_MARKER	12
 
+#if defined(_CALL_ELF) && _CALL_ELF == 2
+#define STACK_FRAME_MIN_SIZE	32
+#else
+#define STACK_FRAME_MIN_SIZE	STACK_FRAME_OVERHEAD
+#endif
+
 /* Size of dummy stack frame allocated when calling signal handler. */
 #define __SIGNAL_FRAMESIZE	128
 #define __SIGNAL_FRAMESIZE32	64
@@ -46,6 +52,7 @@
 #define STACK_FRAME_REGS_MARKER	ASM_CONST(0x72656773)
 #define STACK_INT_FRAME_SIZE	(sizeof(struct pt_regs) + STACK_FRAME_OVERHEAD)
 #define STACK_FRAME_MARKER	2
+#define STACK_FRAME_MIN_SIZE	STACK_FRAME_OVERHEAD
 
 /* Size of stack frame allocated when calling signal handler. */
 #define __SIGNAL_FRAMESIZE	64
