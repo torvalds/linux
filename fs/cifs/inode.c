@@ -960,11 +960,18 @@ struct inode *cifs_root_iget(struct super_block *sb)
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
 
 	xid = get_xid();
-	if (tcon->unix_ext)
+	if (tcon->unix_ext) {
 		rc = cifs_get_inode_info_unix(&inode, "", sb, xid);
-	else
-		rc = cifs_get_inode_info(&inode, "", NULL, sb, xid, NULL);
+		/* some servers mistakenly claim POSIX support */
+		if (rc != -EOPNOTSUPP)
+			goto iget_no_retry;
+		cifs_dbg(VFS, "server does not support POSIX extensions");
+		tcon->unix_ext = false;
+	}
 
+	rc = cifs_get_inode_info(&inode, "", NULL, sb, xid, NULL);
+
+iget_no_retry:
 	if (!inode) {
 		inode = ERR_PTR(rc);
 		goto out;
