@@ -63,7 +63,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("Neterion's X3100 Series 10GbE PCIe I/O"
 	"Virtualized Server Adapter");
 
-static DEFINE_PCI_DEVICE_TABLE(vxge_id_table) = {
+static const struct pci_device_id vxge_id_table[] = {
 	{PCI_VENDOR_ID_S2IO, PCI_DEVICE_ID_TITAN_WIN, PCI_ANY_ID,
 	PCI_ANY_ID},
 	{PCI_VENDOR_ID_S2IO, PCI_DEVICE_ID_TITAN_UNI, PCI_ANY_ID,

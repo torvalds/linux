@@ -227,6 +227,7 @@ int c4iw_ev_handler(struct c4iw_dev *dev, u32 qid)
 
 	chp = get_chp(dev, qid);
 	if (chp) {
+		t4_clear_cq_armed(&chp->cq);
 		spin_lock_irqsave(&chp->comp_handler_lock, flag);
 		(*chp->ibcq.comp_handler)(&chp->ibcq, chp->ibcq.cq_context);
 		spin_unlock_irqrestore(&chp->comp_handler_lock, flag);

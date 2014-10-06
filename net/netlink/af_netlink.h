@@ -73,5 +73,6 @@ struct netlink_table {
 
 extern struct netlink_table *nl_table;
 extern rwlock_t nl_table_lock;
+extern struct mutex nl_sk_hash_lock;
 
 #endif

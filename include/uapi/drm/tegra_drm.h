@@ -129,6 +129,44 @@ struct drm_tegra_submit {
 	__u32 reserved[5];	/* future expansion */
 };
 
+#define DRM_TEGRA_GEM_TILING_MODE_PITCH 0
+#define DRM_TEGRA_GEM_TILING_MODE_TILED 1
+#define DRM_TEGRA_GEM_TILING_MODE_BLOCK 2
+
+struct drm_tegra_gem_set_tiling {
+	/* input */
+	__u32 handle;
+	__u32 mode;
+	__u32 value;
+	__u32 pad;
+};
+
+struct drm_tegra_gem_get_tiling {
+	/* input */
+	__u32 handle;
+	/* output */
+	__u32 mode;
+	__u32 value;
+	__u32 pad;
+};
+
+#define DRM_TEGRA_GEM_BOTTOM_UP		(1 << 0)
+#define DRM_TEGRA_GEM_FLAGS		(DRM_TEGRA_GEM_BOTTOM_UP)
+
+struct drm_tegra_gem_set_flags {
+	/* input */
+	__u32 handle;
+	/* output */
+	__u32 flags;
+};
+
+struct drm_tegra_gem_get_flags {
+	/* input */
+	__u32 handle;
+	/* output */
+	__u32 flags;
+};
+
 #define DRM_TEGRA_GEM_CREATE		0x00
 #define DRM_TEGRA_GEM_MMAP		0x01
 #define DRM_TEGRA_SYNCPT_READ		0x02
@@ -139,6 +177,10 @@ struct drm_tegra_submit {
 #define DRM_TEGRA_GET_SYNCPT		0x07
 #define DRM_TEGRA_SUBMIT		0x08
 #define DRM_TEGRA_GET_SYNCPT_BASE	0x09
+#define DRM_TEGRA_GEM_SET_TILING	0x0a
+#define DRM_TEGRA_GEM_GET_TILING	0x0b
+#define DRM_TEGRA_GEM_SET_FLAGS		0x0c
+#define DRM_TEGRA_GEM_GET_FLAGS		0x0d
 
 #define DRM_IOCTL_TEGRA_GEM_CREATE DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GEM_CREATE, struct drm_tegra_gem_create)
 #define DRM_IOCTL_TEGRA_GEM_MMAP DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GEM_MMAP, struct drm_tegra_gem_mmap)
@@ -150,5 +192,9 @@ struct drm_tegra_submit {
 #define DRM_IOCTL_TEGRA_GET_SYNCPT DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GET_SYNCPT, struct drm_tegra_get_syncpt)
 #define DRM_IOCTL_TEGRA_SUBMIT DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_SUBMIT, struct drm_tegra_submit)
 #define DRM_IOCTL_TEGRA_GET_SYNCPT_BASE DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GET_SYNCPT_BASE, struct drm_tegra_get_syncpt_base)
+#define DRM_IOCTL_TEGRA_GEM_SET_TILING DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GEM_SET_TILING, struct drm_tegra_gem_set_tiling)
+#define DRM_IOCTL_TEGRA_GEM_GET_TILING DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GEM_GET_TILING, struct drm_tegra_gem_get_tiling)
+#define DRM_IOCTL_TEGRA_GEM_SET_FLAGS DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GEM_SET_FLAGS, struct drm_tegra_gem_set_flags)
+#define DRM_IOCTL_TEGRA_GEM_GET_FLAGS DRM_IOWR(DRM_COMMAND_BASE + DRM_TEGRA_GEM_GET_FLAGS, struct drm_tegra_gem_get_flags)
 
 #endif

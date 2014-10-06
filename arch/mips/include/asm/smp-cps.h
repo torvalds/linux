@@ -31,10 +31,18 @@ extern void mips_cps_core_init(void);
 
 extern struct vpe_boot_config *mips_cps_boot_vpes(void);
 
-extern bool mips_cps_smp_in_use(void);
-
 extern void mips_cps_pm_save(void);
 extern void mips_cps_pm_restore(void);
+
+#ifdef CONFIG_MIPS_CPS
+
+extern bool mips_cps_smp_in_use(void);
+
+#else /* !CONFIG_MIPS_CPS */
+
+static inline bool mips_cps_smp_in_use(void) { return false; }
+
+#endif /* !CONFIG_MIPS_CPS */
 
 #else /* __ASSEMBLY__ */
 

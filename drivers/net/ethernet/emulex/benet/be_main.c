@@ -39,7 +39,7 @@ static ushort rx_frag_size = 2048;
 module_param(rx_frag_size, ushort, S_IRUGO);
 MODULE_PARM_DESC(rx_frag_size, "Size of a fragment that holds rcvd data.");
 
-static DEFINE_PCI_DEVICE_TABLE(be_dev_ids) = {
+static const struct pci_device_id be_dev_ids[] = {
 	{ PCI_DEVICE(BE_VENDOR_ID, BE_DEVICE_ID1) },
 	{ PCI_DEVICE(BE_VENDOR_ID, BE_DEVICE_ID2) },
 	{ PCI_DEVICE(BE_VENDOR_ID, OC_DEVICE_ID1) },
@@ -5014,6 +5014,7 @@ static void be_shutdown(struct pci_dev *pdev)
 	if (!adapter)
 		return;
 
+	be_roce_dev_shutdown(adapter);
 	cancel_delayed_work_sync(&adapter->work);
 	cancel_delayed_work_sync(&adapter->func_recovery_work);
 

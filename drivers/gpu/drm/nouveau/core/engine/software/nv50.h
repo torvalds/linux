@@ -19,14 +19,13 @@ int  nv50_software_ctor(struct nouveau_object *, struct nouveau_object *,
 
 struct nv50_software_cclass {
 	struct nouveau_oclass base;
-	int (*vblank)(void *, u32, int);
+	int (*vblank)(struct nvkm_notify *);
 };
 
 struct nv50_software_chan {
 	struct nouveau_software_chan base;
 	struct {
-		struct nouveau_eventh **event;
-		int nr_event;
+		struct nvkm_notify notify[4];
 		u32 channel;
 		u32 ctxdma;
 		u64 offset;

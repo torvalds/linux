@@ -24,10 +24,6 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <subdev/fb.h>
-#include <subdev/vm.h>
-#include <subdev/instmem.h>
-
 #include "nouveau_drm.h"
 #include "nouveau_ttm.h"
 #include "nouveau_gem.h"
@@ -36,7 +32,7 @@ static int
 nouveau_vram_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
 {
 	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
-	struct nouveau_fb *pfb = nouveau_fb(drm->device);
+	struct nouveau_fb *pfb = nvkm_fb(&drm->device);
 	man->priv = pfb;
 	return 0;
 }
@@ -67,7 +63,7 @@ nouveau_vram_manager_del(struct ttm_mem_type_manager *man,
 			 struct ttm_mem_reg *mem)
 {
 	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
-	struct nouveau_fb *pfb = nouveau_fb(drm->device);
+	struct nouveau_fb *pfb = nvkm_fb(&drm->device);
 	nouveau_mem_node_cleanup(mem->mm_node);
 	pfb->ram->put(pfb, (struct nouveau_mem **)&mem->mm_node);
 }
@@ -76,10 +72,11 @@ static int
 nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 			 struct ttm_buffer_object *bo,
 			 struct ttm_placement *placement,
+			 uint32_t flags,
 			 struct ttm_mem_reg *mem)
 {
 	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
-	struct nouveau_fb *pfb = nouveau_fb(drm->device);
+	struct nouveau_fb *pfb = nvkm_fb(&drm->device);
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nouveau_mem *node;
 	u32 size_nc = 0;
@@ -162,6 +159,7 @@ static int
 nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 			 struct ttm_buffer_object *bo,
 			 struct ttm_placement *placement,
+			 uint32_t flags,
 			 struct ttm_mem_reg *mem)
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
@@ -174,14 +172,13 @@ nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 
 	node->page_shift = 12;
 
-	switch (nv_device(drm->device)->card_type) {
-	case NV_50:
-		if (nv_device(drm->device)->chipset != 0x50)
+	switch (drm->device.info.family) {
+	case NV_DEVICE_INFO_V0_TESLA:
+		if (drm->device.info.chipset != 0x50)
 			node->memtype = (nvbo->tile_flags & 0x7f00) >> 8;
 		break;
-	case NV_C0:
-	case NV_D0:
-	case NV_E0:
+	case NV_DEVICE_INFO_V0_FERMI:
+	case NV_DEVICE_INFO_V0_KEPLER:
 		node->memtype = (nvbo->tile_flags & 0xff00) >> 8;
 		break;
 	default:
@@ -206,12 +203,13 @@ const struct ttm_mem_type_manager_func nouveau_gart_manager = {
 	nouveau_gart_manager_debug
 };
 
+/*XXX*/
 #include <core/subdev/vm/nv04.h>
 static int
 nv04_gart_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
 {
 	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
-	struct nouveau_vmmgr *vmm = nouveau_vmmgr(drm->device);
+	struct nouveau_vmmgr *vmm = nvkm_vmmgr(&drm->device);
 	struct nv04_vmmgr_priv *priv = (void *)vmm;
 	struct nouveau_vm *vm = NULL;
 	nouveau_vm_ref(priv->vm, &vm, NULL);
@@ -242,6 +240,7 @@ static int
 nv04_gart_manager_new(struct ttm_mem_type_manager *man,
 		      struct ttm_buffer_object *bo,
 		      struct ttm_placement *placement,
+		      uint32_t flags,
 		      struct ttm_mem_reg *mem)
 {
 	struct nouveau_mem *node;
@@ -354,12 +353,11 @@ int
 nouveau_ttm_init(struct nouveau_drm *drm)
 {
 	struct drm_device *dev = drm->dev;
-	struct nouveau_device *device = nv_device(drm->device);
 	u32 bits;
 	int ret;
 
-	bits = nouveau_vmmgr(drm->device)->dma_bits;
-	if (nv_device_is_pci(device)) {
+	bits = nvkm_vmmgr(&drm->device)->dma_bits;
+	if (nv_device_is_pci(nvkm_device(&drm->device))) {
 		if (drm->agp.stat == ENABLED ||
 		     !pci_dma_supported(dev->pdev, DMA_BIT_MASK(bits)))
 			bits = 32;
@@ -391,8 +389,7 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	}
 
 	/* VRAM init */
-	drm->gem.vram_available  = nouveau_fb(drm->device)->ram->size;
-	drm->gem.vram_available -= nouveau_instmem(drm->device)->reserved;
+	drm->gem.vram_available = drm->device.info.ram_user;
 
 	ret = ttm_bo_init_mm(&drm->ttm.bdev, TTM_PL_VRAM,
 			      drm->gem.vram_available >> PAGE_SHIFT);
@@ -401,12 +398,12 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 		return ret;
 	}
 
-	drm->ttm.mtrr = arch_phys_wc_add(nv_device_resource_start(device, 1),
-					 nv_device_resource_len(device, 1));
+	drm->ttm.mtrr = arch_phys_wc_add(nv_device_resource_start(nvkm_device(&drm->device), 1),
+					 nv_device_resource_len(nvkm_device(&drm->device), 1));
 
 	/* GART init */
 	if (drm->agp.stat != ENABLED) {
-		drm->gem.gart_available = nouveau_vmmgr(drm->device)->limit;
+		drm->gem.gart_available = nvkm_vmmgr(&drm->device)->limit;
 	} else {
 		drm->gem.gart_available = drm->agp.size;
 	}

@@ -5,6 +5,7 @@ static const u32 gen8_null_state_relocs[] = {
 	0x00000050,
 	0x00000060,
 	0x000003ec,
+	-1,
 };
 
 static const u32 gen8_null_state_batch[] = {

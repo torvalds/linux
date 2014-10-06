@@ -313,17 +313,11 @@ static int tc3589x_gpio_remove(struct platform_device *pdev)
 	struct tc3589x_gpio *tc3589x_gpio = platform_get_drvdata(pdev);
 	struct tc3589x *tc3589x = tc3589x_gpio->tc3589x;
 	struct tc3589x_gpio_platform_data *pdata = tc3589x->pdata->gpio;
-	int ret;
 
 	if (pdata && pdata->remove)
 		pdata->remove(tc3589x, tc3589x_gpio->chip.base);
 
-	ret = gpiochip_remove(&tc3589x_gpio->chip);
-	if (ret < 0) {
-		dev_err(tc3589x_gpio->dev,
-			"unable to remove gpiochip: %d\n", ret);
-		return ret;
-	}
+	gpiochip_remove(&tc3589x_gpio->chip);
 
 	return 0;
 }

@@ -514,14 +514,7 @@ add_err:
 
 static int ichx_gpio_remove(struct platform_device *pdev)
 {
-	int err;
-
-	err = gpiochip_remove(&ichx_priv.chip);
-	if (err) {
-		dev_err(&pdev->dev, "%s failed, %d\n",
-				"gpiochip_remove()", err);
-		return err;
-	}
+	gpiochip_remove(&ichx_priv.chip);
 
 	ichx_gpio_release_regions(ichx_priv.gpio_base, ichx_priv.use_gpio);
 	if (ichx_priv.pm_base)

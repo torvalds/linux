@@ -292,14 +292,43 @@ int qeth_realloc_buffer_pool(struct qeth_card *card, int bufcnt)
 }
 EXPORT_SYMBOL_GPL(qeth_realloc_buffer_pool);
 
+static void qeth_free_qdio_queue(struct qeth_qdio_q *q)
+{
+	if (!q)
+		return;
+
+	qdio_free_buffers(q->qdio_bufs, QDIO_MAX_BUFFERS_PER_Q);
+	kfree(q);
+}
+
+static struct qeth_qdio_q *qeth_alloc_qdio_queue(void)
+{
+	struct qeth_qdio_q *q = kzalloc(sizeof(*q), GFP_KERNEL);
+	int i;
+
+	if (!q)
+		return NULL;
+
+	if (qdio_alloc_buffers(q->qdio_bufs, QDIO_MAX_BUFFERS_PER_Q)) {
+		kfree(q);
+		return NULL;
+	}
+
+	for (i = 0; i < QDIO_MAX_BUFFERS_PER_Q; ++i)
+		q->bufs[i].buffer = q->qdio_bufs[i];
+
+	QETH_DBF_HEX(SETUP, 2, &q, sizeof(void *));
+	return q;
+}
+
 static inline int qeth_cq_init(struct qeth_card *card)
 {
 	int rc;
 
 	if (card->options.cq == QETH_CQ_ENABLED) {
 		QETH_DBF_TEXT(SETUP, 2, "cqinit");
-		memset(card->qdio.c_q->qdio_bufs, 0,
-		       QDIO_MAX_BUFFERS_PER_Q * sizeof(struct qdio_buffer));
+		qdio_reset_buffers(card->qdio.c_q->qdio_bufs,
+				   QDIO_MAX_BUFFERS_PER_Q);
 		card->qdio.c_q->next_buf_to_init = 127;
 		rc = do_QDIO(CARD_DDEV(card), QDIO_FLAG_SYNC_INPUT,
 			     card->qdio.no_in_queues - 1, 0,
@@ -323,21 +352,12 @@ static inline int qeth_alloc_cq(struct qeth_card *card)
 		struct qdio_outbuf_state *outbuf_states;
 
 		QETH_DBF_TEXT(SETUP, 2, "cqon");
-		card->qdio.c_q = kzalloc(sizeof(struct qeth_qdio_q),
-					 GFP_KERNEL);
+		card->qdio.c_q = qeth_alloc_qdio_queue();
 		if (!card->qdio.c_q) {
 			rc = -1;
 			goto kmsg_out;
 		}
-		QETH_DBF_HEX(SETUP, 2, &card->qdio.c_q, sizeof(void *));
-
-		for (i = 0; i < QDIO_MAX_BUFFERS_PER_Q; ++i) {
-			card->qdio.c_q->bufs[i].buffer =
-				&card->qdio.c_q->qdio_bufs[i];
-		}
-
 		card->qdio.no_in_queues = 2;
-
 		card->qdio.out_bufstates =
 			kzalloc(card->qdio.no_out_queues *
 				QDIO_MAX_BUFFERS_PER_Q *
@@ -361,7 +381,7 @@ static inline int qeth_alloc_cq(struct qeth_card *card)
 out:
 	return rc;
 free_cq_out:
-	kfree(card->qdio.c_q);
+	qeth_free_qdio_queue(card->qdio.c_q);
 	card->qdio.c_q = NULL;
 kmsg_out:
 	dev_err(&card->gdev->dev, "Failed to create completion queue\n");
@@ -372,7 +392,7 @@ static inline void qeth_free_cq(struct qeth_card *card)
 {
 	if (card->qdio.c_q) {
 		--card->qdio.no_in_queues;
-		kfree(card->qdio.c_q);
+		qeth_free_qdio_queue(card->qdio.c_q);
 		card->qdio.c_q = NULL;
 	}
 	kfree(card->qdio.out_bufstates);
@@ -1279,35 +1299,6 @@ static void qeth_free_buffer_pool(struct qeth_card *card)
 			free_page((unsigned long)pool_entry->elements[i]);
 		list_del(&pool_entry->init_list);
 		kfree(pool_entry);
-	}
-}
-
-static void qeth_free_qdio_buffers(struct qeth_card *card)
-{
-	int i, j;
-
-	if (atomic_xchg(&card->qdio.state, QETH_QDIO_UNINITIALIZED) ==
-		QETH_QDIO_UNINITIALIZED)
-		return;
-
-	qeth_free_cq(card);
-	cancel_delayed_work_sync(&card->buffer_reclaim_work);
-	for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; ++j) {
-		if (card->qdio.in_q->bufs[j].rx_skb)
-			dev_kfree_skb_any(card->qdio.in_q->bufs[j].rx_skb);
-	}
-	kfree(card->qdio.in_q);
-	card->qdio.in_q = NULL;
-	/* inbound buffer pool */
-	qeth_free_buffer_pool(card);
-	/* free outbound qdio_qs */
-	if (card->qdio.out_qs) {
-		for (i = 0; i < card->qdio.no_out_queues; ++i) {
-			qeth_clear_outq_buffers(card->qdio.out_qs[i], 1);
-			kfree(card->qdio.out_qs[i]);
-		}
-		kfree(card->qdio.out_qs);
-		card->qdio.out_qs = NULL;
 	}
 }
 
@@ -2392,7 +2383,7 @@ static int qeth_init_qdio_out_buf(struct qeth_qdio_out_q *q, int bidx)
 		rc = -ENOMEM;
 		goto out;
 	}
-	newbuf->buffer = &q->qdio_bufs[bidx];
+	newbuf->buffer = q->qdio_bufs[bidx];
 	skb_queue_head_init(&newbuf->skb_list);
 	lockdep_set_class(&newbuf->skb_list.lock, &qdio_out_skb_queue_key);
 	newbuf->q = q;
@@ -2411,6 +2402,28 @@ out:
 	return rc;
 }
 
+static void qeth_free_qdio_out_buf(struct qeth_qdio_out_q *q)
+{
+	if (!q)
+		return;
+
+	qdio_free_buffers(q->qdio_bufs, QDIO_MAX_BUFFERS_PER_Q);
+	kfree(q);
+}
+
+static struct qeth_qdio_out_q *qeth_alloc_qdio_out_buf(void)
+{
+	struct qeth_qdio_out_q *q = kzalloc(sizeof(*q), GFP_KERNEL);
+
+	if (!q)
+		return NULL;
+
+	if (qdio_alloc_buffers(q->qdio_bufs, QDIO_MAX_BUFFERS_PER_Q)) {
+		kfree(q);
+		return NULL;
+	}
+	return q;
+}
 
 static int qeth_alloc_qdio_buffers(struct qeth_card *card)
 {
@@ -2422,19 +2435,11 @@ static int qeth_alloc_qdio_buffers(struct qeth_card *card)
 		QETH_QDIO_ALLOCATED) != QETH_QDIO_UNINITIALIZED)
 		return 0;
 
-	card->qdio.in_q = kzalloc(sizeof(struct qeth_qdio_q),
-				   GFP_KERNEL);
+	QETH_DBF_TEXT(SETUP, 2, "inq");
+	card->qdio.in_q = qeth_alloc_qdio_queue();
 	if (!card->qdio.in_q)
 		goto out_nomem;
-	QETH_DBF_TEXT(SETUP, 2, "inq");
-	QETH_DBF_HEX(SETUP, 2, &card->qdio.in_q, sizeof(void *));
-	memset(card->qdio.in_q, 0, sizeof(struct qeth_qdio_q));
-	/* give inbound qeth_qdio_buffers their qdio_buffers */
-	for (i = 0; i < QDIO_MAX_BUFFERS_PER_Q; ++i) {
-		card->qdio.in_q->bufs[i].buffer =
-			&card->qdio.in_q->qdio_bufs[i];
-		card->qdio.in_q->bufs[i].rx_skb = NULL;
-	}
+
 	/* inbound buffer pool */
 	if (qeth_alloc_buffer_pool(card))
 		goto out_freeinq;
@@ -2446,8 +2451,7 @@ static int qeth_alloc_qdio_buffers(struct qeth_card *card)
 	if (!card->qdio.out_qs)
 		goto out_freepool;
 	for (i = 0; i < card->qdio.no_out_queues; ++i) {
-		card->qdio.out_qs[i] = kzalloc(sizeof(struct qeth_qdio_out_q),
-					       GFP_KERNEL);
+		card->qdio.out_qs[i] = qeth_alloc_qdio_out_buf();
 		if (!card->qdio.out_qs[i])
 			goto out_freeoutq;
 		QETH_DBF_TEXT_(SETUP, 2, "outq %i", i);
@@ -2476,7 +2480,7 @@ out_freeoutqbufs:
 	}
 out_freeoutq:
 	while (i > 0) {
-		kfree(card->qdio.out_qs[--i]);
+		qeth_free_qdio_out_buf(card->qdio.out_qs[--i]);
 		qeth_clear_outq_buffers(card->qdio.out_qs[i], 1);
 	}
 	kfree(card->qdio.out_qs);
@@ -2484,11 +2488,40 @@ out_freeoutq:
 out_freepool:
 	qeth_free_buffer_pool(card);
 out_freeinq:
-	kfree(card->qdio.in_q);
+	qeth_free_qdio_queue(card->qdio.in_q);
 	card->qdio.in_q = NULL;
 out_nomem:
 	atomic_set(&card->qdio.state, QETH_QDIO_UNINITIALIZED);
 	return -ENOMEM;
+}
+
+static void qeth_free_qdio_buffers(struct qeth_card *card)
+{
+	int i, j;
+
+	if (atomic_xchg(&card->qdio.state, QETH_QDIO_UNINITIALIZED) ==
+		QETH_QDIO_UNINITIALIZED)
+		return;
+
+	qeth_free_cq(card);
+	cancel_delayed_work_sync(&card->buffer_reclaim_work);
+	for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; ++j) {
+		if (card->qdio.in_q->bufs[j].rx_skb)
+			dev_kfree_skb_any(card->qdio.in_q->bufs[j].rx_skb);
+	}
+	qeth_free_qdio_queue(card->qdio.in_q);
+	card->qdio.in_q = NULL;
+	/* inbound buffer pool */
+	qeth_free_buffer_pool(card);
+	/* free outbound qdio_qs */
+	if (card->qdio.out_qs) {
+		for (i = 0; i < card->qdio.no_out_queues; ++i) {
+			qeth_clear_outq_buffers(card->qdio.out_qs[i], 1);
+			qeth_free_qdio_out_buf(card->qdio.out_qs[i]);
+		}
+		kfree(card->qdio.out_qs);
+		card->qdio.out_qs = NULL;
+	}
 }
 
 static void qeth_create_qib_param_field(struct qeth_card *card,
@@ -2788,8 +2821,8 @@ int qeth_init_qdio_queues(struct qeth_card *card)
 	QETH_DBF_TEXT(SETUP, 2, "initqdqs");
 
 	/* inbound queue */
-	memset(card->qdio.in_q->qdio_bufs, 0,
-	       QDIO_MAX_BUFFERS_PER_Q * sizeof(struct qdio_buffer));
+	qdio_reset_buffers(card->qdio.in_q->qdio_bufs,
+			   QDIO_MAX_BUFFERS_PER_Q);
 	qeth_initialize_working_pool_list(card);
 	/*give only as many buffers to hardware as we have buffer pool entries*/
 	for (i = 0; i < card->qdio.in_buf_pool.buf_count - 1; ++i)
@@ -2811,8 +2844,8 @@ int qeth_init_qdio_queues(struct qeth_card *card)
 
 	/* outbound queue */
 	for (i = 0; i < card->qdio.no_out_queues; ++i) {
-		memset(card->qdio.out_qs[i]->qdio_bufs, 0,
-		       QDIO_MAX_BUFFERS_PER_Q * sizeof(struct qdio_buffer));
+		qdio_reset_buffers(card->qdio.out_qs[i]->qdio_bufs,
+				   QDIO_MAX_BUFFERS_PER_Q);
 		for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; ++j) {
 			qeth_clear_output_buffer(card->qdio.out_qs[i],
 					card->qdio.out_qs[i]->bufs[j],
@@ -3569,7 +3602,7 @@ static void qeth_qdio_cq_handler(struct qeth_card *card,
 
 	for (i = first_element; i < first_element + count; ++i) {
 		int bidx = i % QDIO_MAX_BUFFERS_PER_Q;
-		struct qdio_buffer *buffer = &cq->qdio_bufs[bidx];
+		struct qdio_buffer *buffer = cq->qdio_bufs[bidx];
 		int e;
 
 		e = 0;

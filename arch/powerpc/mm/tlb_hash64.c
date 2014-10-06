@@ -30,6 +30,8 @@
 #include <asm/tlb.h>
 #include <asm/bug.h>
 
+#include <trace/events/thp.h>
+
 DEFINE_PER_CPU(struct ppc64_tlb_batch, ppc64_tlb_batch);
 
 /*
@@ -213,10 +215,12 @@ void __flush_hash_table_range(struct mm_struct *mm, unsigned long start,
 		if (ptep == NULL)
 			continue;
 		pte = pte_val(*ptep);
+		if (hugepage_shift)
+			trace_hugepage_invalidate(start, pte_val(pte));
 		if (!(pte & _PAGE_HASHPTE))
 			continue;
 		if (unlikely(hugepage_shift && pmd_trans_huge(*(pmd_t *)pte)))
-			hpte_do_hugepage_flush(mm, start, (pmd_t *)pte);
+			hpte_do_hugepage_flush(mm, start, (pmd_t *)ptep, pte);
 		else
 			hpte_need_flush(mm, start, ptep, pte, 0);
 	}

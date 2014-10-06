@@ -59,6 +59,7 @@
 #include <linux/async.h>
 #include <linux/log2.h>
 #include <linux/slab.h>
+#include <linux/glob.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_host.h>
@@ -4227,7 +4228,7 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "Micron_M500*",		NULL,	ATA_HORKAGE_NO_NCQ_TRIM, },
 	{ "Crucial_CT???M500SSD*",	NULL,	ATA_HORKAGE_NO_NCQ_TRIM, },
 	{ "Micron_M550*",		NULL,	ATA_HORKAGE_NO_NCQ_TRIM, },
-	{ "Crucial_CT???M550SSD*",	NULL,	ATA_HORKAGE_NO_NCQ_TRIM, },
+	{ "Crucial_CT*M550SSD*",	NULL,	ATA_HORKAGE_NO_NCQ_TRIM, },
 
 	/*
 	 * Some WD SATA-I drives spin up and down erratically when the link
@@ -4250,73 +4251,6 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ }
 };
 
-/**
- *	glob_match - match a text string against a glob-style pattern
- *	@text: the string to be examined
- *	@pattern: the glob-style pattern to be matched against
- *
- *	Either/both of text and pattern can be empty strings.
- *
- *	Match text against a glob-style pattern, with wildcards and simple sets:
- *
- *		?	matches any single character.
- *		*	matches any run of characters.
- *		[xyz]	matches a single character from the set: x, y, or z.
- *		[a-d]	matches a single character from the range: a, b, c, or d.
- *		[a-d0-9] matches a single character from either range.
- *
- *	The special characters ?, [, -, or *, can be matched using a set, eg. [*]
- *	Behaviour with malformed patterns is undefined, though generally reasonable.
- *
- *	Sample patterns:  "SD1?",  "SD1[0-5]",  "*R0",  "SD*1?[012]*xx"
- *
- *	This function uses one level of recursion per '*' in pattern.
- *	Since it calls _nothing_ else, and has _no_ explicit local variables,
- *	this will not cause stack problems for any reasonable use here.
- *
- *	RETURNS:
- *	0 on match, 1 otherwise.
- */
-static int glob_match (const char *text, const char *pattern)
-{
-	do {
-		/* Match single character or a '?' wildcard */
-		if (*text == *pattern || *pattern == '?') {
-			if (!*pattern++)
-				return 0;  /* End of both strings: match */
-		} else {
-			/* Match single char against a '[' bracketed ']' pattern set */
-			if (!*text || *pattern != '[')
-				break;  /* Not a pattern set */
-			while (*++pattern && *pattern != ']' && *text != *pattern) {
-				if (*pattern == '-' && *(pattern - 1) != '[')
-					if (*text > *(pattern - 1) && *text < *(pattern + 1)) {
-						++pattern;
-						break;
-					}
-			}
-			if (!*pattern || *pattern == ']')
-				return 1;  /* No match */
-			while (*pattern && *pattern++ != ']');
-		}
-	} while (*++text && *pattern);
-
-	/* Match any run of chars against a '*' wildcard */
-	if (*pattern == '*') {
-		if (!*++pattern)
-			return 0;  /* Match: avoid recursion at end of pattern */
-		/* Loop to handle additional pattern chars after the wildcard */
-		while (*text) {
-			if (glob_match(text, pattern) == 0)
-				return 0;  /* Remainder matched */
-			++text;  /* Absorb (match) this char and try again */
-		}
-	}
-	if (!*text && !*pattern)
-		return 0;  /* End of both strings: match */
-	return 1;  /* No match */
-}
-
 static unsigned long ata_dev_blacklisted(const struct ata_device *dev)
 {
 	unsigned char model_num[ATA_ID_PROD_LEN + 1];
@@ -4327,10 +4261,10 @@ static unsigned long ata_dev_blacklisted(const struct ata_device *dev)
 	ata_id_c_string(dev->id, model_rev, ATA_ID_FW_REV, sizeof(model_rev));
 
 	while (ad->model_num) {
-		if (!glob_match(model_num, ad->model_num)) {
+		if (glob_match(model_num, ad->model_num)) {
 			if (ad->model_rev == NULL)
 				return ad->horkage;
-			if (!glob_match(model_rev, ad->model_rev))
+			if (glob_match(model_rev, ad->model_rev))
 				return ad->horkage;
 		}
 		ad++;

@@ -6,6 +6,7 @@ using them to avoid name-space collisions.
 abilis	Abilis Systems
 active-semi	Active-Semi International Inc
 ad	Avionic Design GmbH
+adapteva	Adapteva, Inc.
 adi	Analog Devices, Inc.
 aeroflexgaisler	Aeroflex Gaisler AB
 ak	Asahi Kasei Corp.
@@ -72,6 +73,7 @@ karo	Ka-Ro electronics GmbH
 keymile	Keymile GmbH
 lacie	LaCie
 lantiq	Lantiq Semiconductor
+lenovo	Lenovo Group Ltd.
 lg	LG Corporation
 linux	Linux-specific binding
 lsi	LSI Corp. (LSI Logic)
@@ -101,6 +103,7 @@ panasonic	Panasonic Corporation
 phytec	PHYTEC Messtechnik GmbH
 picochip	Picochip Ltd
 plathome	Plat'Home Co., Ltd.
+pixcir  PIXCIR MICROELECTRONICS Co., Ltd
 powervr	PowerVR (deprecated, use img)
 qca	Qualcomm Atheros, Inc.
 qcom	Qualcomm Technologies, Inc
@@ -124,6 +127,7 @@ sii	Seiko Instruments, Inc.
 sirf	SiRF Technology, Inc.
 smsc	Standard Microsystems Corporation
 snps 	Synopsys, Inc.
+solidrun	SolidRun
 spansion	Spansion Inc.
 st	STMicroelectronics
 ste	ST-Ericsson

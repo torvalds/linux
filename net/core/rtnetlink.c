@@ -804,7 +804,8 @@ static inline int rtnl_vfinfo_size(const struct net_device *dev,
 			(nla_total_size(sizeof(struct ifla_vf_mac)) +
 			 nla_total_size(sizeof(struct ifla_vf_vlan)) +
 			 nla_total_size(sizeof(struct ifla_vf_spoofchk)) +
-			 nla_total_size(sizeof(struct ifla_vf_rate)));
+			 nla_total_size(sizeof(struct ifla_vf_rate)) +
+			 nla_total_size(sizeof(struct ifla_vf_link_state)));
 		return size;
 	} else
 		return 0;

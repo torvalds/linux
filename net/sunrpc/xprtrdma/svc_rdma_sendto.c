@@ -192,6 +192,8 @@ static int send_write(struct svcxprt_rdma *xprt, struct svc_rqst *rqstp,
 		xdr_sge_no++;
 		BUG_ON(xdr_sge_no > vec->count);
 		bc -= sge_bytes;
+		if (sge_no == xprt->sc_max_sge)
+			break;
 	}
 
 	/* Prepare WRITE WR */
@@ -209,7 +211,7 @@ static int send_write(struct svcxprt_rdma *xprt, struct svc_rqst *rqstp,
 	atomic_inc(&rdma_stat_write);
 	if (svc_rdma_send(xprt, &write_wr))
 		goto err;
-	return 0;
+	return write_len - bc;
  err:
 	svc_rdma_unmap_dma(ctxt);
 	svc_rdma_put_context(ctxt, 0);
@@ -225,7 +227,6 @@ static int send_write_chunks(struct svcxprt_rdma *xprt,
 {
 	u32 xfer_len = rqstp->rq_res.page_len + rqstp->rq_res.tail[0].iov_len;
 	int write_len;
-	int max_write;
 	u32 xdr_off;
 	int chunk_off;
 	int chunk_no;
@@ -238,8 +239,6 @@ static int send_write_chunks(struct svcxprt_rdma *xprt,
 		return 0;
 	res_ary = (struct rpcrdma_write_array *)
 		&rdma_resp->rm_body.rm_chunks[1];
-
-	max_write = xprt->sc_max_sge * PAGE_SIZE;
 
 	/* Write chunks start at the pagelist */
 	for (xdr_off = rqstp->rq_res.head[0].iov_len, chunk_no = 0;
@@ -260,23 +259,21 @@ static int send_write_chunks(struct svcxprt_rdma *xprt,
 						write_len);
 		chunk_off = 0;
 		while (write_len) {
-			int this_write;
-			this_write = min(write_len, max_write);
 			ret = send_write(xprt, rqstp,
 					 ntohl(arg_ch->rs_handle),
 					 rs_offset + chunk_off,
 					 xdr_off,
-					 this_write,
+					 write_len,
 					 vec);
-			if (ret) {
+			if (ret <= 0) {
 				dprintk("svcrdma: RDMA_WRITE failed, ret=%d\n",
 					ret);
 				return -EIO;
 			}
-			chunk_off += this_write;
-			xdr_off += this_write;
-			xfer_len -= this_write;
-			write_len -= this_write;
+			chunk_off += ret;
+			xdr_off += ret;
+			xfer_len -= ret;
+			write_len -= ret;
 		}
 	}
 	/* Update the req with the number of chunks actually used */
@@ -293,7 +290,6 @@ static int send_reply_chunks(struct svcxprt_rdma *xprt,
 {
 	u32 xfer_len = rqstp->rq_res.len;
 	int write_len;
-	int max_write;
 	u32 xdr_off;
 	int chunk_no;
 	int chunk_off;
@@ -310,8 +306,6 @@ static int send_reply_chunks(struct svcxprt_rdma *xprt,
 	 * write-list */
 	res_ary = (struct rpcrdma_write_array *)
 		&rdma_resp->rm_body.rm_chunks[2];
-
-	max_write = xprt->sc_max_sge * PAGE_SIZE;
 
 	/* xdr offset starts at RPC message */
 	nchunks = ntohl(arg_ary->wc_nchunks);
@@ -330,24 +324,21 @@ static int send_reply_chunks(struct svcxprt_rdma *xprt,
 						write_len);
 		chunk_off = 0;
 		while (write_len) {
-			int this_write;
-
-			this_write = min(write_len, max_write);
 			ret = send_write(xprt, rqstp,
 					 ntohl(ch->rs_handle),
 					 rs_offset + chunk_off,
 					 xdr_off,
-					 this_write,
+					 write_len,
 					 vec);
-			if (ret) {
+			if (ret <= 0) {
 				dprintk("svcrdma: RDMA_WRITE failed, ret=%d\n",
 					ret);
 				return -EIO;
 			}
-			chunk_off += this_write;
-			xdr_off += this_write;
-			xfer_len -= this_write;
-			write_len -= this_write;
+			chunk_off += ret;
+			xdr_off += ret;
+			xfer_len -= ret;
+			write_len -= ret;
 		}
 	}
 	/* Update the req with the number of chunks actually used */

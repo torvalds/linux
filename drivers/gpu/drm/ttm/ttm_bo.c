@@ -412,7 +412,7 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 	int ret;
 
 	spin_lock(&glob->lru_lock);
-	ret = __ttm_bo_reserve(bo, false, true, false, 0);
+	ret = __ttm_bo_reserve(bo, false, true, false, NULL);
 
 	spin_lock(&bdev->fence_lock);
 	(void) ttm_bo_wait(bo, false, false, true);
@@ -514,7 +514,7 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 			return ret;
 
 		spin_lock(&glob->lru_lock);
-		ret = __ttm_bo_reserve(bo, false, true, false, 0);
+		ret = __ttm_bo_reserve(bo, false, true, false, NULL);
 
 		/*
 		 * We raced, and lost, someone else holds the reservation now,
@@ -577,11 +577,11 @@ static int ttm_bo_delayed_delete(struct ttm_bo_device *bdev, bool remove_all)
 			kref_get(&nentry->list_kref);
 		}
 
-		ret = __ttm_bo_reserve(entry, false, true, false, 0);
+		ret = __ttm_bo_reserve(entry, false, true, false, NULL);
 		if (remove_all && ret) {
 			spin_unlock(&glob->lru_lock);
 			ret = __ttm_bo_reserve(entry, false, false,
-					       false, 0);
+					       false, NULL);
 			spin_lock(&glob->lru_lock);
 		}
 
@@ -726,7 +726,7 @@ static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
 
 	spin_lock(&glob->lru_lock);
 	list_for_each_entry(bo, &man->lru, lru) {
-		ret = __ttm_bo_reserve(bo, false, true, false, 0);
+		ret = __ttm_bo_reserve(bo, false, true, false, NULL);
 		if (!ret)
 			break;
 	}
@@ -784,7 +784,7 @@ static int ttm_bo_mem_force_space(struct ttm_buffer_object *bo,
 	int ret;
 
 	do {
-		ret = (*man->func->get_node)(man, bo, placement, mem);
+		ret = (*man->func->get_node)(man, bo, placement, 0, mem);
 		if (unlikely(ret != 0))
 			return ret;
 		if (mem->mm_node)
@@ -897,7 +897,8 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 
 		if (man->has_type && man->use_type) {
 			type_found = true;
-			ret = (*man->func->get_node)(man, bo, placement, mem);
+			ret = (*man->func->get_node)(man, bo, placement,
+						     cur_flags, mem);
 			if (unlikely(ret))
 				return ret;
 		}
@@ -936,7 +937,6 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		 */
 		ttm_flag_masked(&cur_flags, placement->busy_placement[i],
 				~TTM_PL_MASK_MEMTYPE);
-
 
 		if (mem_type == TTM_PL_SYSTEM) {
 			mem->mem_type = mem_type;
@@ -1595,7 +1595,7 @@ int ttm_bo_synccpu_write_grab(struct ttm_buffer_object *bo, bool no_wait)
 	 * Using ttm_bo_reserve makes sure the lru lists are updated.
 	 */
 
-	ret = ttm_bo_reserve(bo, true, no_wait, false, 0);
+	ret = ttm_bo_reserve(bo, true, no_wait, false, NULL);
 	if (unlikely(ret != 0))
 		return ret;
 	spin_lock(&bdev->fence_lock);
@@ -1630,7 +1630,7 @@ static int ttm_bo_swapout(struct ttm_mem_shrink *shrink)
 
 	spin_lock(&glob->lru_lock);
 	list_for_each_entry(bo, &glob->swap_lru, swap) {
-		ret = __ttm_bo_reserve(bo, false, true, false, 0);
+		ret = __ttm_bo_reserve(bo, false, true, false, NULL);
 		if (!ret)
 			break;
 	}

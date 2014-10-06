@@ -332,18 +332,13 @@ static int htcpld_setup_chip_irq(
 		int chip_index)
 {
 	struct htcpld_data *htcpld;
-	struct device *dev = &pdev->dev;
-	struct htcpld_core_platform_data *pdata;
 	struct htcpld_chip *chip;
-	struct htcpld_chip_platform_data *plat_chip_data;
 	unsigned int irq, irq_end;
 	int ret = 0;
 
 	/* Get the platform and driver data */
-	pdata = dev_get_platdata(dev);
 	htcpld = platform_get_drvdata(pdev);
 	chip = &htcpld->chip[chip_index];
-	plat_chip_data = &pdata->chip[chip_index];
 
 	/* Setup irq handlers */
 	irq_end = chip->irq_start + chip->nirqs;

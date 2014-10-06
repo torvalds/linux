@@ -970,19 +970,6 @@ static int u300_pmx_enable(struct pinctrl_dev *pctldev, unsigned selector,
 	return 0;
 }
 
-static void u300_pmx_disable(struct pinctrl_dev *pctldev, unsigned selector,
-			     unsigned group)
-{
-	struct u300_pmx *upmx;
-
-	/* There is nothing to do with the power pins */
-	if (selector == 0)
-		return;
-
-	upmx = pinctrl_dev_get_drvdata(pctldev);
-	u300_pmx_endisable(upmx, selector, false);
-}
-
 static int u300_pmx_get_funcs_count(struct pinctrl_dev *pctldev)
 {
 	return ARRAY_SIZE(u300_pmx_functions);
@@ -1008,7 +995,6 @@ static const struct pinmux_ops u300_pmx_ops = {
 	.get_function_name = u300_pmx_get_func_name,
 	.get_function_groups = u300_pmx_get_groups,
 	.enable = u300_pmx_enable,
-	.disable = u300_pmx_disable,
 };
 
 static int u300_pin_config_get(struct pinctrl_dev *pctldev, unsigned pin,

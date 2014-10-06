@@ -396,7 +396,8 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	else
 		hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
-	hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_SCHED_SCAN;
+	/* TODO: enable that only for firmwares that don't crash */
+	/* hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_SCHED_SCAN; */
 	hw->wiphy->max_sched_scan_ssids = PROBE_OPTION_MAX;
 	hw->wiphy->max_match_sets = IWL_SCAN_MAX_PROFILES;
 	/* we create the 802.11 header and zero length SSID IE. */

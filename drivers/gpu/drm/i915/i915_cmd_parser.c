@@ -426,6 +426,9 @@ static const u32 gen7_render_regs[] = {
 	GEN7_SO_WRITE_OFFSET(1),
 	GEN7_SO_WRITE_OFFSET(2),
 	GEN7_SO_WRITE_OFFSET(3),
+	GEN7_L3SQCREG1,
+	GEN7_L3CNTLREG2,
+	GEN7_L3CNTLREG3,
 };
 
 static const u32 gen7_blt_regs[] = {

@@ -1,5 +1,5 @@
 /*
- *  HID driver for Sony / PS2 / PS3 BD devices.
+ *  HID driver for Sony / PS2 / PS3 / PS4 BD devices.
  *
  *  Copyright (c) 1999 Andreas Gal
  *  Copyright (c) 2000-2005 Vojtech Pavlik <vojtech@suse.cz>
@@ -8,6 +8,7 @@
  *  Copyright (c) 2012 David Dillow <dave@thedillows.org>
  *  Copyright (c) 2006-2013 Jiri Kosina
  *  Copyright (c) 2013 Colin Leitner <colin.leitner@gmail.com>
+ *  Copyright (c) 2014 Frank Praznik <frank.praznik@gmail.com>
  */
 
 /*
@@ -176,7 +177,7 @@ static u8 dualshock4_usb_rdesc[] = {
 	0x75, 0x06,         /*      Report Size (6),                */
 	0x95, 0x01,         /*      Report Count (1),               */
 	0x15, 0x00,         /*      Logical Minimum (0),            */
-	0x25, 0x7F,         /*      Logical Maximum (127),          */
+	0x25, 0x3F,         /*      Logical Maximum (63),           */
 	0x81, 0x02,         /*      Input (Variable),               */
 	0x05, 0x01,         /*      Usage Page (Desktop),           */
 	0x09, 0x33,         /*      Usage (Rx),                     */
@@ -200,14 +201,14 @@ static u8 dualshock4_usb_rdesc[] = {
 	0x81, 0x02,         /*      Input (Variable),               */
 	0x19, 0x43,         /*      Usage Minimum (43h),            */
 	0x29, 0x45,         /*      Usage Maximum (45h),            */
-	0x16, 0xFF, 0xBF,   /*      Logical Minimum (-16385),       */
-	0x26, 0x00, 0x40,   /*      Logical Maximum (16384),        */
+	0x16, 0x00, 0xE0,   /*      Logical Minimum (-8192),        */
+	0x26, 0xFF, 0x1F,   /*      Logical Maximum (8191),         */
 	0x95, 0x03,         /*      Report Count (3),               */
 	0x81, 0x02,         /*      Input (Variable),               */
 	0x06, 0x00, 0xFF,   /*      Usage Page (FF00h),             */
 	0x09, 0x21,         /*      Usage (21h),                    */
 	0x15, 0x00,         /*      Logical Minimum (0),            */
-	0x25, 0xFF,         /*      Logical Maximum (255),          */
+	0x26, 0xFF, 0x00,   /*      Logical Maximum (255),          */
 	0x75, 0x08,         /*      Report Size (8),                */
 	0x95, 0x27,         /*      Report Count (39),              */
 	0x81, 0x02,         /*      Input (Variable),               */
@@ -395,11 +396,11 @@ static u8 dualshock4_usb_rdesc[] = {
 
 /*
  * The default behavior of the Dualshock 4 is to send reports using report
- * type 1 when running over Bluetooth. However, as soon as it receives a
- * report of type 17 to set the LEDs or rumble it starts returning it's state
- * in report 17 instead of 1.  Since report 17 is undefined in the default HID
+ * type 1 when running over Bluetooth. However, when feature report 2 is
+ * requested during the controller initialization it starts sending input
+ * reports in report 17.  Since report 17 is undefined in the default HID
  * descriptor the button and axis definitions must be moved to report 17 or
- * the HID layer won't process the received input once a report is sent.
+ * the HID layer won't process the received input.
  */
 static u8 dualshock4_bt_rdesc[] = {
 	0x05, 0x01,         /*  Usage Page (Desktop),               */
@@ -509,8 +510,8 @@ static u8 dualshock4_bt_rdesc[] = {
 	0x81, 0x02,         /*      Input (Variable),               */
 	0x19, 0x43,         /*      Usage Minimum (43h),            */
 	0x29, 0x45,         /*      Usage Maximum (45h),            */
-	0x16, 0xFF, 0xBF,   /*      Logical Minimum (-16385),       */
-	0x26, 0x00, 0x40,   /*      Logical Maximum (16384),        */
+	0x16, 0x00, 0xE0,   /*      Logical Minimum (-8192),        */
+	0x26, 0xFF, 0x1F,   /*      Logical Maximum (8191),         */
 	0x95, 0x03,         /*      Report Count (3),               */
 	0x81, 0x02,         /*      Input (Variable),               */
 	0x06, 0x00, 0xFF,   /*      Usage Page (FF00h),             */
@@ -935,12 +936,13 @@ static void sixaxis_parse_report(struct sony_sc *sc, __u8 *rd, int size)
 	if (rd[30] >= 0xee) {
 		battery_capacity = 100;
 		battery_charging = !(rd[30] & 0x01);
+		cable_state = 1;
 	} else {
 		__u8 index = rd[30] <= 5 ? rd[30] : 5;
 		battery_capacity = sixaxis_battery_capacity[index];
 		battery_charging = 0;
+		cable_state = 0;
 	}
-	cable_state = !(rd[31] & 0x04);
 
 	spin_lock_irqsave(&sc->lock, flags);
 	sc->cable_state = cable_state;
@@ -1080,6 +1082,38 @@ static int sony_mapping(struct hid_device *hdev, struct hid_input *hi,
 
 	/* Let hid-core decide for the others */
 	return 0;
+}
+
+static int sony_register_touchpad(struct hid_input *hi, int touch_count,
+					int w, int h)
+{
+	struct input_dev *input_dev = hi->input;
+	int ret;
+
+	ret = input_mt_init_slots(input_dev, touch_count, 0);
+	if (ret < 0)
+		return ret;
+
+	input_set_abs_params(input_dev, ABS_MT_POSITION_X, 0, w, 0, 0);
+	input_set_abs_params(input_dev, ABS_MT_POSITION_Y, 0, h, 0, 0);
+
+	return 0;
+}
+
+static void sony_input_configured(struct hid_device *hdev,
+					struct hid_input *hidinput)
+{
+	struct sony_sc *sc = hid_get_drvdata(hdev);
+
+	/*
+	 * The Dualshock 4 touchpad supports 2 touches and has a
+	 * resolution of 1920x942 (44.86 dots/mm).
+	 */
+	if (sc->quirks & DUALSHOCK4_CONTROLLER) {
+		if (sony_register_touchpad(hidinput, 2, 1920, 942) != 0)
+			hid_err(sc->hdev,
+				"Unable to initialize multi-touch slots\n");
+	}
 }
 
 /*
@@ -1654,26 +1688,6 @@ static void sony_battery_remove(struct sony_sc *sc)
 	sc->battery.name = NULL;
 }
 
-static int sony_register_touchpad(struct sony_sc *sc, int touch_count,
-					int w, int h)
-{
-	struct hid_input *hidinput = list_entry(sc->hdev->inputs.next,
-						struct hid_input, list);
-	struct input_dev *input_dev = hidinput->input;
-	int ret;
-
-	ret = input_mt_init_slots(input_dev, touch_count, 0);
-	if (ret < 0) {
-		hid_err(sc->hdev, "Unable to initialize multi-touch slots\n");
-		return ret;
-	}
-
-	input_set_abs_params(input_dev, ABS_MT_POSITION_X, 0, w, 0, 0);
-	input_set_abs_params(input_dev, ABS_MT_POSITION_Y, 0, h, 0, 0);
-
-	return 0;
-}
-
 /*
  * If a controller is plugged in via USB while already connected via Bluetooth
  * it will show up as two devices. A global list of connected controllers and
@@ -1923,13 +1937,6 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 				goto err_stop;
 			}
 		}
-		/*
-		 * The Dualshock 4 touchpad supports 2 touches and has a
-		 * resolution of 1920x940.
-		 */
-		ret = sony_register_touchpad(sc, 2, 1920, 940);
-		if (ret < 0)
-			goto err_stop;
 
 		sony_init_work(sc, dualshock4_state_worker);
 	} else {
@@ -2037,13 +2044,14 @@ static const struct hid_device_id sony_devices[] = {
 MODULE_DEVICE_TABLE(hid, sony_devices);
 
 static struct hid_driver sony_driver = {
-	.name          = "sony",
-	.id_table      = sony_devices,
-	.input_mapping = sony_mapping,
-	.probe         = sony_probe,
-	.remove        = sony_remove,
-	.report_fixup  = sony_report_fixup,
-	.raw_event     = sony_raw_event
+	.name             = "sony",
+	.id_table         = sony_devices,
+	.input_mapping    = sony_mapping,
+	.input_configured = sony_input_configured,
+	.probe            = sony_probe,
+	.remove           = sony_remove,
+	.report_fixup     = sony_report_fixup,
+	.raw_event        = sony_raw_event
 };
 
 static int __init sony_init(void)

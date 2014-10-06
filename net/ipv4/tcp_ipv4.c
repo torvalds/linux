@@ -271,7 +271,7 @@ EXPORT_SYMBOL(tcp_v4_connect);
  * It can be called through tcp_release_cb() if socket was owned by user
  * at the time tcp_v4_err() was called to handle ICMP message.
  */
-static void tcp_v4_mtu_reduced(struct sock *sk)
+void tcp_v4_mtu_reduced(struct sock *sk)
 {
 	struct dst_entry *dst;
 	struct inet_sock *inet = inet_sk(sk);
@@ -302,6 +302,7 @@ static void tcp_v4_mtu_reduced(struct sock *sk)
 		tcp_simple_retransmit(sk);
 	} /* else let the usual retransmit timer handle it */
 }
+EXPORT_SYMBOL(tcp_v4_mtu_reduced);
 
 static void do_redirect(struct sk_buff *skb, struct sock *sk)
 {
@@ -1167,7 +1168,8 @@ clear_hash_noput:
 }
 EXPORT_SYMBOL(tcp_v4_md5_hash_skb);
 
-static bool tcp_v4_inbound_md5_hash(struct sock *sk, const struct sk_buff *skb)
+static bool __tcp_v4_inbound_md5_hash(struct sock *sk,
+				      const struct sk_buff *skb)
 {
 	/*
 	 * This gets called for each TCP segment that arrives
@@ -1218,6 +1220,17 @@ static bool tcp_v4_inbound_md5_hash(struct sock *sk, const struct sk_buff *skb)
 		return true;
 	}
 	return false;
+}
+
+static bool tcp_v4_inbound_md5_hash(struct sock *sk, const struct sk_buff *skb)
+{
+	bool ret;
+
+	rcu_read_lock();
+	ret = __tcp_v4_inbound_md5_hash(sk, skb);
+	rcu_read_unlock();
+
+	return ret;
 }
 
 #endif
@@ -1432,16 +1445,6 @@ static struct sock *tcp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 int tcp_v4_do_rcv(struct sock *sk, struct sk_buff *skb)
 {
 	struct sock *rsk;
-#ifdef CONFIG_TCP_MD5SIG
-	/*
-	 * We really want to reject the packet as early as possible
-	 * if:
-	 *  o We're expecting an MD5'd packet and this is no MD5 tcp option
-	 *  o There is an MD5 option and we're not expecting one
-	 */
-	if (tcp_v4_inbound_md5_hash(sk, skb))
-		goto discard;
-#endif
 
 	if (sk->sk_state == TCP_ESTABLISHED) { /* Fast path */
 		struct dst_entry *dst = sk->sk_rx_dst;
@@ -1644,6 +1647,18 @@ process:
 
 	if (!xfrm4_policy_check(sk, XFRM_POLICY_IN, skb))
 		goto discard_and_relse;
+
+#ifdef CONFIG_TCP_MD5SIG
+	/*
+	 * We really want to reject the packet as early as possible
+	 * if:
+	 *  o We're expecting an MD5'd packet and this is no MD5 tcp option
+	 *  o There is an MD5 option and we're not expecting one
+	 */
+	if (tcp_v4_inbound_md5_hash(sk, skb))
+		goto discard_and_relse;
+#endif
+
 	nf_reset(skb);
 
 	if (sk_filter(sk, skb))
@@ -1773,6 +1788,7 @@ const struct inet_connection_sock_af_ops ipv4_specific = {
 	.compat_setsockopt = compat_ip_setsockopt,
 	.compat_getsockopt = compat_ip_getsockopt,
 #endif
+	.mtu_reduced	   = tcp_v4_mtu_reduced,
 };
 EXPORT_SYMBOL(ipv4_specific);
 
@@ -2392,7 +2408,6 @@ struct proto tcp_prot = {
 	.sendpage		= tcp_sendpage,
 	.backlog_rcv		= tcp_v4_do_rcv,
 	.release_cb		= tcp_release_cb,
-	.mtu_reduced		= tcp_v4_mtu_reduced,
 	.hash			= inet_hash,
 	.unhash			= inet_unhash,
 	.get_port		= inet_csk_get_port,

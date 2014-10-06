@@ -854,7 +854,7 @@ config OUTER_CACHE_SYNC
 
 config CACHE_FEROCEON_L2
 	bool "Enable the Feroceon L2 cache controller"
-	depends on ARCH_KIRKWOOD || ARCH_MV78XX0 || ARCH_MVEBU
+	depends on ARCH_MV78XX0 || ARCH_MVEBU
 	default y
 	select OUTER_CACHE
 	help

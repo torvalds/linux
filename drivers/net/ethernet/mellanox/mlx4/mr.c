@@ -298,6 +298,131 @@ static int mlx4_HW2SW_MPT(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox
 			    MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
 }
 
+int mlx4_mr_hw_get_mpt(struct mlx4_dev *dev, struct mlx4_mr *mmr,
+		       struct mlx4_mpt_entry ***mpt_entry)
+{
+	int err;
+	int key = key_to_hw_index(mmr->key) & (dev->caps.num_mpts - 1);
+	struct mlx4_cmd_mailbox *mailbox = NULL;
+
+	/* Make sure that at this point we have single-threaded access only */
+
+	if (mmr->enabled != MLX4_MPT_EN_HW)
+		return -EINVAL;
+
+	err = mlx4_HW2SW_MPT(dev, NULL, key);
+
+	if (err) {
+		mlx4_warn(dev, "HW2SW_MPT failed (%d).", err);
+		mlx4_warn(dev, "Most likely the MR has MWs bound to it.\n");
+		return err;
+	}
+
+	mmr->enabled = MLX4_MPT_EN_SW;
+
+	if (!mlx4_is_mfunc(dev)) {
+		**mpt_entry = mlx4_table_find(
+				&mlx4_priv(dev)->mr_table.dmpt_table,
+				key, NULL);
+	} else {
+		mailbox = mlx4_alloc_cmd_mailbox(dev);
+		if (IS_ERR_OR_NULL(mailbox))
+			return PTR_ERR(mailbox);
+
+		err = mlx4_cmd_box(dev, 0, mailbox->dma, key,
+				   0, MLX4_CMD_QUERY_MPT,
+				   MLX4_CMD_TIME_CLASS_B,
+				   MLX4_CMD_WRAPPED);
+
+		if (err)
+			goto free_mailbox;
+
+		*mpt_entry = (struct mlx4_mpt_entry **)&mailbox->buf;
+	}
+
+	if (!(*mpt_entry) || !(**mpt_entry)) {
+		err = -ENOMEM;
+		goto free_mailbox;
+	}
+
+	return 0;
+
+free_mailbox:
+	mlx4_free_cmd_mailbox(dev, mailbox);
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx4_mr_hw_get_mpt);
+
+int mlx4_mr_hw_write_mpt(struct mlx4_dev *dev, struct mlx4_mr *mmr,
+			 struct mlx4_mpt_entry **mpt_entry)
+{
+	int err;
+
+	if (!mlx4_is_mfunc(dev)) {
+		/* Make sure any changes to this entry are flushed */
+		wmb();
+
+		*(u8 *)(*mpt_entry) = MLX4_MPT_STATUS_HW;
+
+		/* Make sure the new status is written */
+		wmb();
+
+		err = mlx4_SYNC_TPT(dev);
+	} else {
+		int key = key_to_hw_index(mmr->key) & (dev->caps.num_mpts - 1);
+
+		struct mlx4_cmd_mailbox *mailbox =
+			container_of((void *)mpt_entry, struct mlx4_cmd_mailbox,
+				     buf);
+
+		err = mlx4_SW2HW_MPT(dev, mailbox, key);
+	}
+
+	mmr->pd = be32_to_cpu((*mpt_entry)->pd_flags) & MLX4_MPT_PD_MASK;
+	if (!err)
+		mmr->enabled = MLX4_MPT_EN_HW;
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx4_mr_hw_write_mpt);
+
+void mlx4_mr_hw_put_mpt(struct mlx4_dev *dev,
+			struct mlx4_mpt_entry **mpt_entry)
+{
+	if (mlx4_is_mfunc(dev)) {
+		struct mlx4_cmd_mailbox *mailbox =
+			container_of((void *)mpt_entry, struct mlx4_cmd_mailbox,
+				     buf);
+		mlx4_free_cmd_mailbox(dev, mailbox);
+	}
+}
+EXPORT_SYMBOL_GPL(mlx4_mr_hw_put_mpt);
+
+int mlx4_mr_hw_change_pd(struct mlx4_dev *dev, struct mlx4_mpt_entry *mpt_entry,
+			 u32 pdn)
+{
+	u32 pd_flags = be32_to_cpu(mpt_entry->pd_flags);
+	/* The wrapper function will put the slave's id here */
+	if (mlx4_is_mfunc(dev))
+		pd_flags &= ~MLX4_MPT_PD_VF_MASK;
+	mpt_entry->pd_flags = cpu_to_be32((pd_flags &  ~MLX4_MPT_PD_MASK) |
+					  (pdn & MLX4_MPT_PD_MASK)
+					  | MLX4_MPT_PD_FLAG_EN_INV);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mlx4_mr_hw_change_pd);
+
+int mlx4_mr_hw_change_access(struct mlx4_dev *dev,
+			     struct mlx4_mpt_entry *mpt_entry,
+			     u32 access)
+{
+	u32 flags = (be32_to_cpu(mpt_entry->flags) & ~MLX4_PERM_MASK) |
+		    (access & MLX4_PERM_MASK);
+
+	mpt_entry->flags = cpu_to_be32(flags);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mlx4_mr_hw_change_access);
+
 static int mlx4_mr_alloc_reserved(struct mlx4_dev *dev, u32 mridx, u32 pd,
 			   u64 iova, u64 size, u32 access, int npages,
 			   int page_shift, struct mlx4_mr *mr)
@@ -462,6 +587,41 @@ int mlx4_mr_free(struct mlx4_dev *dev, struct mlx4_mr *mr)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mlx4_mr_free);
+
+void mlx4_mr_rereg_mem_cleanup(struct mlx4_dev *dev, struct mlx4_mr *mr)
+{
+	mlx4_mtt_cleanup(dev, &mr->mtt);
+}
+EXPORT_SYMBOL_GPL(mlx4_mr_rereg_mem_cleanup);
+
+int mlx4_mr_rereg_mem_write(struct mlx4_dev *dev, struct mlx4_mr *mr,
+			    u64 iova, u64 size, int npages,
+			    int page_shift, struct mlx4_mpt_entry *mpt_entry)
+{
+	int err;
+
+	mpt_entry->start       = cpu_to_be64(mr->iova);
+	mpt_entry->length      = cpu_to_be64(mr->size);
+	mpt_entry->entity_size = cpu_to_be32(mr->mtt.page_shift);
+
+	err = mlx4_mtt_init(dev, npages, page_shift, &mr->mtt);
+	if (err)
+		return err;
+
+	if (mr->mtt.order < 0) {
+		mpt_entry->flags |= cpu_to_be32(MLX4_MPT_FLAG_PHYSICAL);
+		mpt_entry->mtt_addr = 0;
+	} else {
+		mpt_entry->mtt_addr = cpu_to_be64(mlx4_mtt_addr(dev,
+						  &mr->mtt));
+		if (mr->mtt.page_shift == 0)
+			mpt_entry->mtt_sz    = cpu_to_be32(1 << mr->mtt.order);
+	}
+	mr->enabled = MLX4_MPT_EN_SW;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mlx4_mr_rereg_mem_write);
 
 int mlx4_mr_enable(struct mlx4_dev *dev, struct mlx4_mr *mr)
 {

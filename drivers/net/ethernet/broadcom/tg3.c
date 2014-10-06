@@ -237,7 +237,7 @@ MODULE_PARM_DESC(tg3_debug, "Tigon3 bitmapped debugging message enable value");
 #define TG3_DRV_DATA_FLAG_10_100_ONLY	0x0001
 #define TG3_DRV_DATA_FLAG_5705_10_100	0x0002
 
-static DEFINE_PCI_DEVICE_TABLE(tg3_pci_tbl) = {
+static const struct pci_device_id tg3_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5700)},
 	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5701)},
 	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5702)},
@@ -14093,8 +14093,9 @@ static struct rtnl_link_stats64 *tg3_get_stats64(struct net_device *dev,
 
 	spin_lock_bh(&tp->lock);
 	if (!tp->hw_stats) {
+		*stats = tp->net_stats_prev;
 		spin_unlock_bh(&tp->lock);
-		return &tp->net_stats_prev;
+		return stats;
 	}
 
 	tg3_get_nstats(tp, stats);
@@ -15926,7 +15927,7 @@ static inline u32 tg3_rx_ret_ring_size(struct tg3 *tp)
 		return TG3_RX_RET_MAX_SIZE_5705;
 }
 
-static DEFINE_PCI_DEVICE_TABLE(tg3_write_reorder_chipsets) = {
+static const struct pci_device_id tg3_write_reorder_chipsets[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_FE_GATE_700C) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_8131_BRIDGE) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8385_0) },
@@ -17185,7 +17186,7 @@ static int tg3_do_test_dma(struct tg3 *tp, u32 *buf, dma_addr_t buf_dma,
 
 #define TEST_BUFFER_SIZE	0x2000
 
-static DEFINE_PCI_DEVICE_TABLE(tg3_dma_wait_state_chipsets) = {
+static const struct pci_device_id tg3_dma_wait_state_chipsets[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_UNI_N_PCI15) },
 	{ },
 };

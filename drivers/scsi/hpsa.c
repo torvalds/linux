@@ -4732,23 +4732,21 @@ static struct CommandList *cmd_special_alloc(struct ctlr_info *h)
 	union u64bit temp64;
 	dma_addr_t cmd_dma_handle, err_dma_handle;
 
-	c = pci_alloc_consistent(h->pdev, sizeof(*c), &cmd_dma_handle);
+	c = pci_zalloc_consistent(h->pdev, sizeof(*c), &cmd_dma_handle);
 	if (c == NULL)
 		return NULL;
-	memset(c, 0, sizeof(*c));
 
 	c->cmd_type = CMD_SCSI;
 	c->cmdindex = -1;
 
-	c->err_info = pci_alloc_consistent(h->pdev, sizeof(*c->err_info),
-		    &err_dma_handle);
+	c->err_info = pci_zalloc_consistent(h->pdev, sizeof(*c->err_info),
+					    &err_dma_handle);
 
 	if (c->err_info == NULL) {
 		pci_free_consistent(h->pdev,
 			sizeof(*c), c, cmd_dma_handle);
 		return NULL;
 	}
-	memset(c->err_info, 0, sizeof(*c->err_info));
 
 	INIT_LIST_HEAD(&c->list);
 	c->busaddr = (u32) cmd_dma_handle;

@@ -170,6 +170,7 @@ static int netlink_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 
 	req = nlmsg_data(cb->nlh);
 
+	mutex_lock(&nl_sk_hash_lock);
 	read_lock(&nl_table_lock);
 
 	if (req->sdiag_protocol == NDIAG_PROTO_ALL) {
@@ -183,6 +184,7 @@ static int netlink_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	} else {
 		if (req->sdiag_protocol >= MAX_LINKS) {
 			read_unlock(&nl_table_lock);
+			mutex_unlock(&nl_sk_hash_lock);
 			return -ENOENT;
 		}
 
@@ -190,6 +192,7 @@ static int netlink_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	}
 
 	read_unlock(&nl_table_lock);
+	mutex_unlock(&nl_sk_hash_lock);
 
 	return skb->len;
 }

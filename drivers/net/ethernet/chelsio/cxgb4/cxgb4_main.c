@@ -212,7 +212,7 @@ struct filter_entry {
 
 #define CH_DEVICE(devid, data) { PCI_VDEVICE(CHELSIO, devid), (data) }
 
-static DEFINE_PCI_DEVICE_TABLE(cxgb4_pci_tbl) = {
+static const struct pci_device_id cxgb4_pci_tbl[] = {
 	CH_DEVICE(0xa000, 0),  /* PE10K */
 	CH_DEVICE(0x4001, -1),
 	CH_DEVICE(0x4002, -1),
@@ -522,6 +522,8 @@ static void dcb_tx_queue_prio_enable(struct net_device *dev, int enable)
 			dev_err(adap->pdev_dev,
 				"Can't %s DCB Priority on port %d, TX Queue %d: err=%d\n",
 				enable ? "set" : "unset", pi->port_id, i, -err);
+		else
+			txq->dcb_prio = value;
 	}
 }
 #endif /* CONFIG_CHELSIO_T4_DCB */
@@ -640,8 +642,6 @@ static int set_rxmode(struct net_device *dev, int mtu, bool sleep_ok)
 				    sleep_ok);
 	return ret;
 }
-
-static struct workqueue_struct *workq;
 
 /**
  *	link_start - enable a port
@@ -3338,7 +3338,7 @@ static void cxgb4_queue_tid_release(struct tid_info *t, unsigned int chan,
 	adap->tid_release_head = (void **)((uintptr_t)p | chan);
 	if (!adap->tid_release_task_busy) {
 		adap->tid_release_task_busy = true;
-		queue_work(workq, &adap->tid_release_task);
+		queue_work(adap->workq, &adap->tid_release_task);
 	}
 	spin_unlock_bh(&adap->tid_release_lock);
 }
@@ -4138,7 +4138,7 @@ void t4_db_full(struct adapter *adap)
 		notify_rdma_uld(adap, CXGB4_CONTROL_DB_FULL);
 		t4_set_reg_field(adap, SGE_INT_ENABLE3,
 				 DBFIFO_HP_INT | DBFIFO_LP_INT, 0);
-		queue_work(workq, &adap->db_full_task);
+		queue_work(adap->workq, &adap->db_full_task);
 	}
 }
 
@@ -4148,7 +4148,7 @@ void t4_db_dropped(struct adapter *adap)
 		disable_dbs(adap);
 		notify_rdma_uld(adap, CXGB4_CONTROL_DB_FULL);
 	}
-	queue_work(workq, &adap->db_drop_task);
+	queue_work(adap->workq, &adap->db_drop_task);
 }
 
 static void uld_attach(struct adapter *adap, unsigned int uld)
@@ -6515,6 +6515,12 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_disable_device;
 	}
 
+	adapter->workq = create_singlethread_workqueue("cxgb4");
+	if (!adapter->workq) {
+		err = -ENOMEM;
+		goto out_free_adapter;
+	}
+
 	/* PCI device has been enabled */
 	adapter->flags |= DEV_ENABLED;
 
@@ -6527,11 +6533,9 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* We control everything through one PF */
 	func = SOURCEPF_GET(readl(adapter->regs + PL_WHOAMI));
-	if ((pdev->device == 0xa000 && func != 0) ||
-	    func != ent->driver_data) {
+	if (func != ent->driver_data) {
 		pci_save_state(pdev);        /* to restore SR-IOV later */
-		err = 0;
-		goto out_unmap_bar0;
+		goto sriov;
 	}
 
 	adapter->pdev = pdev;
@@ -6697,6 +6701,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (is_offload(adapter))
 		attach_ulds(adapter);
 
+sriov:
 #ifdef CONFIG_PCI_IOV
 	if (func < ARRAY_SIZE(num_vf) && num_vf[func] > 0)
 		if (pci_enable_sriov(pdev, num_vf[func]) == 0)
@@ -6714,6 +6719,9 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
  out_unmap_bar0:
 	iounmap(adapter->regs);
  out_free_adapter:
+	if (adapter->workq)
+		destroy_workqueue(adapter->workq);
+
 	kfree(adapter);
  out_disable_device:
 	pci_disable_pcie_error_reporting(pdev);
@@ -6734,6 +6742,11 @@ static void remove_one(struct pci_dev *pdev)
 
 	if (adapter) {
 		int i;
+
+		/* Tear down per-adapter Work Queue first since it can contain
+		 * references to our adapter data structure.
+		 */
+		destroy_workqueue(adapter->workq);
 
 		if (is_offload(adapter))
 			detach_ulds(adapter);
@@ -6787,20 +6800,14 @@ static int __init cxgb4_init_module(void)
 {
 	int ret;
 
-	workq = create_singlethread_workqueue("cxgb4");
-	if (!workq)
-		return -ENOMEM;
-
 	/* Debugfs support is optional, just warn if this fails */
 	cxgb4_debugfs_root = debugfs_create_dir(KBUILD_MODNAME, NULL);
 	if (!cxgb4_debugfs_root)
 		pr_warn("could not create debugfs entry, continuing\n");
 
 	ret = pci_register_driver(&cxgb4_driver);
-	if (ret < 0) {
+	if (ret < 0)
 		debugfs_remove(cxgb4_debugfs_root);
-		destroy_workqueue(workq);
-	}
 
 	register_inet6addr_notifier(&cxgb4_inet6addr_notifier);
 
@@ -6812,8 +6819,6 @@ static void __exit cxgb4_cleanup_module(void)
 	unregister_inet6addr_notifier(&cxgb4_inet6addr_notifier);
 	pci_unregister_driver(&cxgb4_driver);
 	debugfs_remove(cxgb4_debugfs_root);  /* NULL ok */
-	flush_workqueue(workq);
-	destroy_workqueue(workq);
 }
 
 module_init(cxgb4_init_module);

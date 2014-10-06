@@ -2879,19 +2879,24 @@ static bool _dispc_mgr_pclk_ok(enum omap_channel channel,
 bool dispc_mgr_timings_ok(enum omap_channel channel,
 		const struct omap_video_timings *timings)
 {
-	bool timings_ok;
+	if (!_dispc_mgr_size_ok(timings->x_res, timings->y_res))
+		return false;
 
-	timings_ok = _dispc_mgr_size_ok(timings->x_res, timings->y_res);
-
-	timings_ok &= _dispc_mgr_pclk_ok(channel, timings->pixelclock);
+	if (!_dispc_mgr_pclk_ok(channel, timings->pixelclock))
+		return false;
 
 	if (dss_mgr_is_lcd(channel)) {
-		timings_ok &= _dispc_lcd_timings_ok(timings->hsw, timings->hfp,
+		/* TODO: OMAP4+ supports interlace for LCD outputs */
+		if (timings->interlace)
+			return false;
+
+		if (!_dispc_lcd_timings_ok(timings->hsw, timings->hfp,
 				timings->hbp, timings->vsw, timings->vfp,
-				timings->vbp);
+				timings->vbp))
+			return false;
 	}
 
-	return timings_ok;
+	return true;
 }
 
 static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
@@ -3257,13 +3262,10 @@ static void dispc_dump_regs(struct seq_file *s)
 		if (i == OMAP_DSS_CHANNEL_DIGIT)
 			continue;
 
-		DUMPREG(i, DISPC_DEFAULT_COLOR);
-		DUMPREG(i, DISPC_TRANS_COLOR);
 		DUMPREG(i, DISPC_TIMING_H);
 		DUMPREG(i, DISPC_TIMING_V);
 		DUMPREG(i, DISPC_POL_FREQ);
 		DUMPREG(i, DISPC_DIVISORo);
-		DUMPREG(i, DISPC_SIZE_MGR);
 
 		DUMPREG(i, DISPC_DATA_CYCLE1);
 		DUMPREG(i, DISPC_DATA_CYCLE2);

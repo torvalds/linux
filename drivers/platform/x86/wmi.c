@@ -256,10 +256,6 @@ static acpi_status wmi_method_enable(struct wmi_block *wblock, int enable)
 	block = &wblock->gblock;
 	handle = wblock->handle;
 
-	if (!block)
-		return AE_NOT_EXIST;
-
-
 	snprintf(method, 5, "WE%02X", block->notify_id);
 	status = acpi_execute_simple_method(handle, method, enable);
 

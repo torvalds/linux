@@ -188,6 +188,8 @@ static __init void reserve_regions(void)
 		if (uefi_debug)
 			pr_cont("\n");
 	}
+
+	set_bit(EFI_MEMMAP, &efi.flags);
 }
 
 
@@ -462,6 +464,8 @@ static int __init arm64_enter_virtual_mode(void)
 	runtime = efi.systab->runtime;
 	efi_native_runtime_setup();
 	set_bit(EFI_RUNTIME_SERVICES, &efi.flags);
+
+	efi.runtime_version = efi.systab->hdr.revision;
 
 	return 0;
 

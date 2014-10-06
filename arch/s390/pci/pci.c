@@ -15,8 +15,8 @@
  *   Thomas Klein
  */
 
-#define COMPONENT "zPCI"
-#define pr_fmt(fmt) COMPONENT ": " fmt
+#define KMSG_COMPONENT "zpci"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/kernel.h>
 #include <linux/slab.h>

@@ -64,7 +64,7 @@ MODULE_AUTHOR("Andrea Merello <andrea.merello@gmail.com>");
 MODULE_DESCRIPTION("RTL8180 / RTL8185 / RTL8187SE PCI wireless driver");
 MODULE_LICENSE("GPL");
 
-static DEFINE_PCI_DEVICE_TABLE(rtl8180_table) = {
+static const struct pci_device_id rtl8180_table[] = {
 
 	/* rtl8187se */
 	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8199) },
@@ -972,16 +972,13 @@ static int rtl8180_init_rx_ring(struct ieee80211_hw *dev)
 	else
 		priv->rx_ring_sz = sizeof(struct rtl8180_rx_desc);
 
-	priv->rx_ring = pci_alloc_consistent(priv->pdev,
-					     priv->rx_ring_sz * 32,
-					     &priv->rx_ring_dma);
-
+	priv->rx_ring = pci_zalloc_consistent(priv->pdev, priv->rx_ring_sz * 32,
+					      &priv->rx_ring_dma);
 	if (!priv->rx_ring || (unsigned long)priv->rx_ring & 0xFF) {
 		wiphy_err(dev->wiphy, "Cannot allocate RX ring\n");
 		return -ENOMEM;
 	}
 
-	memset(priv->rx_ring, 0, priv->rx_ring_sz * 32);
 	priv->rx_idx = 0;
 
 	for (i = 0; i < 32; i++) {
@@ -1040,14 +1037,14 @@ static int rtl8180_init_tx_ring(struct ieee80211_hw *dev,
 	dma_addr_t dma;
 	int i;
 
-	ring = pci_alloc_consistent(priv->pdev, sizeof(*ring) * entries, &dma);
+	ring = pci_zalloc_consistent(priv->pdev, sizeof(*ring) * entries,
+				     &dma);
 	if (!ring || (unsigned long)ring & 0xFF) {
 		wiphy_err(dev->wiphy, "Cannot allocate TX ring (prio = %d)\n",
 			  prio);
 		return -ENOMEM;
 	}
 
-	memset(ring, 0, sizeof(*ring)*entries);
 	priv->tx_ring[prio].desc = ring;
 	priv->tx_ring[prio].dma = dma;
 	priv->tx_ring[prio].idx = 0;

@@ -2014,13 +2014,20 @@ static inline bool kernel_page_present(struct page *page) { return true; }
 #endif /* CONFIG_HIBERNATION */
 #endif
 
+#ifdef __HAVE_ARCH_GATE_AREA
 extern struct vm_area_struct *get_gate_vma(struct mm_struct *mm);
-#ifdef	__HAVE_ARCH_GATE_AREA
-int in_gate_area_no_mm(unsigned long addr);
-int in_gate_area(struct mm_struct *mm, unsigned long addr);
+extern int in_gate_area_no_mm(unsigned long addr);
+extern int in_gate_area(struct mm_struct *mm, unsigned long addr);
 #else
-int in_gate_area_no_mm(unsigned long addr);
-#define in_gate_area(mm, addr) ({(void)mm; in_gate_area_no_mm(addr);})
+static inline struct vm_area_struct *get_gate_vma(struct mm_struct *mm)
+{
+	return NULL;
+}
+static inline int in_gate_area_no_mm(unsigned long addr) { return 0; }
+static inline int in_gate_area(struct mm_struct *mm, unsigned long addr)
+{
+	return 0;
+}
 #endif	/* __HAVE_ARCH_GATE_AREA */
 
 #ifdef CONFIG_SYSCTL

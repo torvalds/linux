@@ -31,7 +31,8 @@
  * The default values do not overflow.
  */
 #define BUCKETS 12
-#define INTERVALS 8
+#define INTERVAL_SHIFT 3
+#define INTERVALS (1UL << INTERVAL_SHIFT)
 #define RESOLUTION 1024
 #define DECAY 8
 #define MAX_INTERESTING 50000
@@ -133,15 +134,12 @@ struct menu_device {
 #define LOAD_INT(x) ((x) >> FSHIFT)
 #define LOAD_FRAC(x) LOAD_INT(((x) & (FIXED_1-1)) * 100)
 
-static int get_loadavg(void)
+static inline int get_loadavg(unsigned long load)
 {
-	unsigned long this = this_cpu_load();
-
-
-	return LOAD_INT(this) * 10 + LOAD_FRAC(this) / 10;
+	return LOAD_INT(load) * 10 + LOAD_FRAC(load) / 10;
 }
 
-static inline int which_bucket(unsigned int duration)
+static inline int which_bucket(unsigned int duration, unsigned long nr_iowaiters)
 {
 	int bucket = 0;
 
@@ -151,7 +149,7 @@ static inline int which_bucket(unsigned int duration)
 	 * This allows us to calculate
 	 * E(duration)|iowait
 	 */
-	if (nr_iowait_cpu(smp_processor_id()))
+	if (nr_iowaiters)
 		bucket = BUCKETS/2;
 
 	if (duration < 10)
@@ -174,16 +172,16 @@ static inline int which_bucket(unsigned int duration)
  * to be, the higher this multiplier, and thus the higher
  * the barrier to go to an expensive C state.
  */
-static inline int performance_multiplier(void)
+static inline int performance_multiplier(unsigned long nr_iowaiters, unsigned long load)
 {
 	int mult = 1;
 
 	/* for higher loadavg, we are more reluctant */
 
-	mult += 2 * get_loadavg();
+	mult += 2 * get_loadavg(load);
 
 	/* for IO wait tasks (per cpu!) we add 5x each */
-	mult += 10 * nr_iowait_cpu(smp_processor_id());
+	mult += 10 * nr_iowaiters;
 
 	return mult;
 }
@@ -227,7 +225,10 @@ again:
 				max = value;
 		}
 	}
-	do_div(avg, divisor);
+	if (divisor == INTERVALS)
+		avg >>= INTERVAL_SHIFT;
+	else
+		do_div(avg, divisor);
 
 	/* Then try to determine standard deviation */
 	stddev = 0;
@@ -238,7 +239,11 @@ again:
 			stddev += diff * diff;
 		}
 	}
-	do_div(stddev, divisor);
+	if (divisor == INTERVALS)
+		stddev >>= INTERVAL_SHIFT;
+	else
+		do_div(stddev, divisor);
+
 	/*
 	 * The typical interval is obtained when standard deviation is small
 	 * or standard deviation is small compared to the average interval.
@@ -288,7 +293,7 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	int latency_req = pm_qos_request(PM_QOS_CPU_DMA_LATENCY);
 	int i;
 	unsigned int interactivity_req;
-	struct timespec t;
+	unsigned long nr_iowaiters, cpu_load;
 
 	if (data->needs_update) {
 		menu_update(drv, dev);
@@ -302,12 +307,10 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 		return 0;
 
 	/* determine the expected residency time, round up */
-	t = ktime_to_timespec(tick_nohz_get_sleep_length());
-	data->next_timer_us =
-		t.tv_sec * USEC_PER_SEC + t.tv_nsec / NSEC_PER_USEC;
+	data->next_timer_us = ktime_to_us(tick_nohz_get_sleep_length());
 
-
-	data->bucket = which_bucket(data->next_timer_us);
+	get_iowait_load(&nr_iowaiters, &cpu_load);
+	data->bucket = which_bucket(data->next_timer_us, nr_iowaiters);
 
 	/*
 	 * Force the result of multiplication to be 64 bits even if both
@@ -325,7 +328,7 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	 * duration / latency ratio. Adjust the latency limit if
 	 * necessary.
 	 */
-	interactivity_req = data->predicted_us / performance_multiplier();
+	interactivity_req = data->predicted_us / performance_multiplier(nr_iowaiters, cpu_load);
 	if (latency_req > interactivity_req)
 		latency_req = interactivity_req;
 
@@ -398,7 +401,7 @@ static void menu_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	 *
 	 * Any measured amount of time will include the exit latency.
 	 * Since we are interested in when the wakeup begun, not when it
-	 * was completed, we must substract the exit latency. However, if
+	 * was completed, we must subtract the exit latency. However, if
 	 * the measured amount of time is less than the exit latency,
 	 * assume the state was never reached and the exit latency is 0.
 	 */

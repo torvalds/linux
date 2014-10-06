@@ -80,6 +80,19 @@ _mcount:
 #endif
 
 	PTR_SUBU a0, ra, 8	/* arg1: self address */
+	PTR_LA   t1, _stext
+	sltu     t2, a0, t1	/* t2 = (a0 < _stext) */
+	PTR_LA   t1, _etext
+	sltu     t3, t1, a0	/* t3 = (a0 > _etext) */
+	or       t1, t2, t3
+	beqz     t1, ftrace_call
+	 nop
+#if defined(KBUILD_MCOUNT_RA_ADDRESS) && defined(CONFIG_32BIT)
+	PTR_SUBU a0, a0, 16	/* arg1: adjust to module's recorded callsite */
+#else
+	PTR_SUBU a0, a0, 12
+#endif
+
 	.globl ftrace_call
 ftrace_call:
 	nop	/* a placeholder for the call to a real tracing function */

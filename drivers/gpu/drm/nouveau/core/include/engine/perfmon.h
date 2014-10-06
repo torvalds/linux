@@ -4,7 +4,6 @@
 #include <core/device.h>
 #include <core/engine.h>
 #include <core/engctx.h>
-#include <core/class.h>
 
 struct nouveau_perfdom;
 struct nouveau_perfctr;

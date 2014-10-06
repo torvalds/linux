@@ -265,6 +265,7 @@ enum {
 	AZX_DRIVER_TERA,
 	AZX_DRIVER_CTX,
 	AZX_DRIVER_CTHDA,
+	AZX_DRIVER_CMEDIA,
 	AZX_DRIVER_GENERIC,
 	AZX_NUM_DRIVERS, /* keep this as last entry */
 };
@@ -330,6 +331,7 @@ static char *driver_short_names[] = {
 	[AZX_DRIVER_TERA] = "HDA Teradici", 
 	[AZX_DRIVER_CTX] = "HDA Creative", 
 	[AZX_DRIVER_CTHDA] = "HDA Creative",
+	[AZX_DRIVER_CMEDIA] = "HDA C-Media",
 	[AZX_DRIVER_GENERIC] = "HD-Audio Generic",
 };
 
@@ -1373,6 +1375,7 @@ static void azx_check_snoop_available(struct azx *chip)
 		snoop = false;
 		break;
 	case AZX_DRIVER_CTHDA:
+	case AZX_DRIVER_CMEDIA:
 		snoop = false;
 		break;
 	}
@@ -2154,6 +2157,10 @@ static const struct pci_device_id azx_ids[] = {
 	  .driver_data = AZX_DRIVER_CTX | AZX_DCAPS_CTX_WORKAROUND |
 	  AZX_DCAPS_RIRB_PRE_DELAY | AZX_DCAPS_POSFIX_LPIB },
 #endif
+	/* CM8888 */
+	{ PCI_DEVICE(0x13f6, 0x5011),
+	  .driver_data = AZX_DRIVER_CMEDIA |
+	  AZX_DCAPS_NO_MSI | AZX_DCAPS_POSFIX_LPIB },
 	/* Vortex86MX */
 	{ PCI_DEVICE(0x17f3, 0x3010), .driver_data = AZX_DRIVER_GENERIC },
 	/* VMware HDAudio */

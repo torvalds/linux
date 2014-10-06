@@ -18,6 +18,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
@@ -129,7 +130,6 @@ static int __init db1200_detect_board(void)
 
 int __init db1200_board_setup(void)
 {
-	unsigned long freq0, clksrc, div, pfc;
 	unsigned short whoami;
 
 	if (db1200_detect_board())
@@ -148,34 +148,6 @@ int __init db1200_board_setup(void)
 	printk(KERN_INFO "Alchemy/AMD/RMI %s Board, CPLD Rev %d"
 		"  Board-ID %d	Daughtercard ID %d\n", get_system_type(),
 		(whoami >> 4) & 0xf, (whoami >> 8) & 0xf, whoami & 0xf);
-
-	/* SMBus/SPI on PSC0, Audio on PSC1 */
-	pfc = __raw_readl((void __iomem *)SYS_PINFUNC);
-	pfc &= ~(SYS_PINFUNC_P0A | SYS_PINFUNC_P0B);
-	pfc &= ~(SYS_PINFUNC_P1A | SYS_PINFUNC_P1B | SYS_PINFUNC_FS3);
-	pfc |= SYS_PINFUNC_P1C; /* SPI is configured later */
-	__raw_writel(pfc, (void __iomem *)SYS_PINFUNC);
-	wmb();
-
-	/* Clock configurations: PSC0: ~50MHz via Clkgen0, derived from
-	 * CPU clock; all other clock generators off/unused.
-	 */
-	div = (get_au1x00_speed() + 25000000) / 50000000;
-	if (div & 1)
-		div++;
-	div = ((div >> 1) - 1) & 0xff;
-
-	freq0 = div << SYS_FC_FRDIV0_BIT;
-	__raw_writel(freq0, (void __iomem *)SYS_FREQCTRL0);
-	wmb();
-	freq0 |= SYS_FC_FE0;	/* enable F0 */
-	__raw_writel(freq0, (void __iomem *)SYS_FREQCTRL0);
-	wmb();
-
-	/* psc0_intclk comes 1:1 from F0 */
-	clksrc = SYS_CS_MUX_FQ0 << SYS_CS_ME0_BIT;
-	__raw_writel(clksrc, (void __iomem *)SYS_CLKSRC);
-	wmb();
 
 	return 0;
 }
@@ -250,7 +222,7 @@ static void au1200_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
 
 static int au1200_nand_device_ready(struct mtd_info *mtd)
 {
-	return __raw_readl((void __iomem *)MEM_STSTAT) & 1;
+	return alchemy_rdsmem(AU1000_MEM_STSTAT) & 1;
 }
 
 static struct mtd_partition db1200_nand_parts[] = {
@@ -847,6 +819,7 @@ int __init db1200_dev_setup(void)
 	unsigned long pfc;
 	unsigned short sw;
 	int swapped, bid;
+	struct clk *c;
 
 	bid = BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI));
 	if ((bid == BCSR_WHOAMI_PB1200_DDR1) ||
@@ -858,6 +831,25 @@ int __init db1200_dev_setup(void)
 	/* GPIO7 is low-level triggered CPLD cascade */
 	irq_set_irq_type(AU1200_GPIO7_INT, IRQ_TYPE_LEVEL_LOW);
 	bcsr_init_irq(DB1200_INT_BEGIN, DB1200_INT_END, AU1200_GPIO7_INT);
+
+	/* SMBus/SPI on PSC0, Audio on PSC1 */
+	pfc = alchemy_rdsys(AU1000_SYS_PINFUNC);
+	pfc &= ~(SYS_PINFUNC_P0A | SYS_PINFUNC_P0B);
+	pfc &= ~(SYS_PINFUNC_P1A | SYS_PINFUNC_P1B | SYS_PINFUNC_FS3);
+	pfc |= SYS_PINFUNC_P1C; /* SPI is configured later */
+	alchemy_wrsys(pfc, AU1000_SYS_PINFUNC);
+
+	/* get 50MHz for I2C driver on PSC0 */
+	c = clk_get(NULL, "psc0_intclk");
+	if (!IS_ERR(c)) {
+		pfc = clk_round_rate(c, 50000000);
+		if ((pfc < 1) || (abs(50000000 - pfc) > 2500000))
+			pr_warn("DB1200: cant get I2C close to 50MHz\n");
+		else
+			clk_set_rate(c, pfc);
+		clk_prepare_enable(c);
+		clk_put(c);
+	}
 
 	/* insert/eject pairs: one of both is always screaming.	 To avoid
 	 * issues they must not be automatically enabled when initially
@@ -886,7 +878,7 @@ int __init db1200_dev_setup(void)
 	 * As a result, in SPI mode, OTG simply won't work (PSC0 uses
 	 * it as an input pin which is pulled high on the boards).
 	 */
-	pfc = __raw_readl((void __iomem *)SYS_PINFUNC) & ~SYS_PINFUNC_P0A;
+	pfc = alchemy_rdsys(AU1000_SYS_PINFUNC) & ~SYS_PINFUNC_P0A;
 
 	/* switch off OTG VBUS supply */
 	gpio_request(215, "otg-vbus");
@@ -912,8 +904,7 @@ int __init db1200_dev_setup(void)
 		printk(KERN_INFO " S6.8 ON : PSC0 mode SPI\n");
 		printk(KERN_INFO "   OTG port VBUS supply disabled\n");
 	}
-	__raw_writel(pfc, (void __iomem *)SYS_PINFUNC);
-	wmb();
+	alchemy_wrsys(pfc, AU1000_SYS_PINFUNC);
 
 	/* Audio: DIP7 selects I2S(0)/AC97(1), but need I2C for I2S!
 	 * so: DIP7=1 || DIP8=0 => AC97, DIP7=0 && DIP8=1 => I2S

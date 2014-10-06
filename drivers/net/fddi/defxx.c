@@ -3664,7 +3664,7 @@ static int __maybe_unused dfx_dev_unregister(struct device *);
 static int dfx_pci_register(struct pci_dev *, const struct pci_device_id *);
 static void dfx_pci_unregister(struct pci_dev *);
 
-static DEFINE_PCI_DEVICE_TABLE(dfx_pci_table) = {
+static const struct pci_device_id dfx_pci_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_FDDI) },
 	{ }
 };

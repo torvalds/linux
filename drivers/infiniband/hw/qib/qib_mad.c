@@ -2476,7 +2476,7 @@ int qib_create_agents(struct qib_ibdev *dev)
 		ibp = &dd->pport[p].ibport_data;
 		agent = ib_register_mad_agent(&dev->ibdev, p + 1, IB_QPT_SMI,
 					      NULL, 0, send_handler,
-					      NULL, NULL);
+					      NULL, NULL, 0);
 		if (IS_ERR(agent)) {
 			ret = PTR_ERR(agent);
 			goto err;

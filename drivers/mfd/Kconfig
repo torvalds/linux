@@ -13,7 +13,7 @@ config MFD_CORE
 config MFD_CS5535
 	tristate "AMD CS5535 and CS5536 southbridge core functions"
 	select MFD_CORE
-	depends on PCI && X86
+	depends on PCI && (X86_32 || (X86 && COMPILE_TEST))
 	---help---
 	  This is the core driver for CS5535/CS5536 MFD functions.  This is
           necessary for using the board's GPIO and MFGPT functionality.
@@ -187,6 +187,7 @@ config MFD_MC13XXX
 	tristate
 	depends on (SPI_MASTER || I2C)
 	select MFD_CORE
+	select REGMAP_IRQ
 	help
 	  Enable support for the Freescale MC13783 and MC13892 PMICs.
 	  This driver provides common support for accessing the device,
@@ -252,6 +253,18 @@ config LPC_SCH
 	help
 	  LPC bridge function of the Intel SCH provides support for
 	  System Management Bus and General Purpose I/O.
+
+config INTEL_SOC_PMIC
+	bool "Support for Intel Atom SoC PMIC"
+	depends on I2C=y
+	select MFD_CORE
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	help
+	  Select this option to enable support for the PMIC device
+	  on some Intel SoC systems. The PMIC provides ADC, GPIO,
+	  thermal, charger and related power management functions
+	  on these systems.
 
 config MFD_INTEL_MSIC
 	bool "Intel MSIC"
@@ -367,14 +380,15 @@ config MFD_MAX14577
 	  of the device.
 
 config MFD_MAX77686
-	bool "Maxim Semiconductor MAX77686 PMIC Support"
+	bool "Maxim Semiconductor MAX77686/802 PMIC Support"
 	depends on I2C=y
 	select MFD_CORE
 	select REGMAP_I2C
+	select REGMAP_IRQ
 	select IRQ_DOMAIN
 	help
-	  Say yes here to add support for Maxim Semiconductor MAX77686.
-	  This is a Power Management IC with RTC on chip.
+	  Say yes here to add support for Maxim Semiconductor MAX77686 and
+	  MAX77802 which are Power Management IC with an RTC on chip.
 	  This driver provides common support for accessing the device;
 	  additional drivers must be enabled in order to use the functionality
 	  of the device.
@@ -574,6 +588,7 @@ config MFD_SEC_CORE
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
+	select REGULATOR
 	help
 	 Support for the Samsung Electronics MFD series.
 	 This driver provides common support for accessing the device,
@@ -1057,7 +1072,7 @@ config MFD_LM3533
 config MFD_TIMBERDALE
 	tristate "Timberdale FPGA"
 	select MFD_CORE
-	depends on PCI && GPIOLIB
+	depends on PCI && GPIOLIB && (X86_32 || COMPILE_TEST)
 	---help---
 	This is the core driver for the timberdale FPGA. This device is a
 	multifunction device which exposes numerous platform devices.

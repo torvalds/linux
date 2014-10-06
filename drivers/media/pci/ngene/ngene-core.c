@@ -1075,12 +1075,11 @@ static int AllocCommonBuffers(struct ngene *dev)
 	dev->ngenetohost = dev->FWInterfaceBuffer + 256;
 	dev->EventBuffer = dev->FWInterfaceBuffer + 512;
 
-	dev->OverflowBuffer = pci_alloc_consistent(dev->pci_dev,
-						   OVERFLOW_BUFFER_SIZE,
-						   &dev->PAOverflowBuffer);
+	dev->OverflowBuffer = pci_zalloc_consistent(dev->pci_dev,
+						    OVERFLOW_BUFFER_SIZE,
+						    &dev->PAOverflowBuffer);
 	if (!dev->OverflowBuffer)
 		return -ENOMEM;
-	memset(dev->OverflowBuffer, 0, OVERFLOW_BUFFER_SIZE);
 
 	for (i = STREAM_VIDEOIN1; i < MAX_STREAM; i++) {
 		int type = dev->card_info->io_type[i];

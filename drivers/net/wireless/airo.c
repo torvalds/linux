@@ -57,7 +57,7 @@
 #define DRV_NAME "airo"
 
 #ifdef CONFIG_PCI
-static DEFINE_PCI_DEVICE_TABLE(card_ids) = {
+static const struct pci_device_id card_ids[] = {
 	{ 0x14b9, 1, PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0x14b9, 0x4500, PCI_ANY_ID, PCI_ANY_ID },
 	{ 0x14b9, 0x4800, PCI_ANY_ID, PCI_ANY_ID, },

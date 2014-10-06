@@ -181,7 +181,7 @@ bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
 	 */
 	if (unlikely(!vlan_tx_tag_present(skb) &&
 		     skb->protocol == proto)) {
-		skb = vlan_untag(skb);
+		skb = skb_vlan_untag(skb);
 		if (unlikely(!skb))
 			return false;
 	}

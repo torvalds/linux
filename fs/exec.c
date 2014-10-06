@@ -368,10 +368,6 @@ static int bprm_mm_init(struct linux_binprm *bprm)
 	if (!mm)
 		goto err;
 
-	err = init_new_context(current, mm);
-	if (err)
-		goto err;
-
 	err = __bprm_mm_init(bprm);
 	if (err)
 		goto err;

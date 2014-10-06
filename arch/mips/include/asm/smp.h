@@ -22,6 +22,7 @@
 
 extern int smp_num_siblings;
 extern cpumask_t cpu_sibling_map[];
+extern cpumask_t cpu_core_map[];
 
 #define raw_smp_processor_id() (current_thread_info()->cpu)
 
@@ -35,6 +36,11 @@ extern int __cpu_logical_map[NR_CPUS];
 #define cpu_logical_map(cpu)  __cpu_logical_map[cpu]
 
 #define NO_PROC_ID	(-1)
+
+#define topology_physical_package_id(cpu)	(cpu_data[cpu].package)
+#define topology_core_id(cpu)			(cpu_data[cpu].core)
+#define topology_core_cpumask(cpu)		(&cpu_core_map[cpu])
+#define topology_thread_cpumask(cpu)		(&cpu_sibling_map[cpu])
 
 #define SMP_RESCHEDULE_YOURSELF 0x1	/* XXX braindead */
 #define SMP_CALL_FUNCTION	0x2

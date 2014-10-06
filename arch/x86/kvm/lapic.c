@@ -352,25 +352,46 @@ static inline int apic_find_highest_irr(struct kvm_lapic *apic)
 
 static inline void apic_clear_irr(int vec, struct kvm_lapic *apic)
 {
-	apic->irr_pending = false;
+	struct kvm_vcpu *vcpu;
+
+	vcpu = apic->vcpu;
+
 	apic_clear_vector(vec, apic->regs + APIC_IRR);
-	if (apic_search_irr(apic) != -1)
-		apic->irr_pending = true;
+	if (unlikely(kvm_apic_vid_enabled(vcpu->kvm)))
+		/* try to update RVI */
+		kvm_make_request(KVM_REQ_EVENT, vcpu);
+	else {
+		vec = apic_search_irr(apic);
+		apic->irr_pending = (vec != -1);
+	}
 }
 
 static inline void apic_set_isr(int vec, struct kvm_lapic *apic)
 {
-	/* Note that we never get here with APIC virtualization enabled.  */
+	struct kvm_vcpu *vcpu;
 
-	if (!__apic_test_and_set_vector(vec, apic->regs + APIC_ISR))
-		++apic->isr_count;
-	BUG_ON(apic->isr_count > MAX_APIC_VECTOR);
+	if (__apic_test_and_set_vector(vec, apic->regs + APIC_ISR))
+		return;
+
+	vcpu = apic->vcpu;
+
 	/*
-	 * ISR (in service register) bit is set when injecting an interrupt.
-	 * The highest vector is injected. Thus the latest bit set matches
-	 * the highest bit in ISR.
+	 * With APIC virtualization enabled, all caching is disabled
+	 * because the processor can modify ISR under the hood.  Instead
+	 * just set SVI.
 	 */
-	apic->highest_isr_cache = vec;
+	if (unlikely(kvm_apic_vid_enabled(vcpu->kvm)))
+		kvm_x86_ops->hwapic_isr_update(vcpu->kvm, vec);
+	else {
+		++apic->isr_count;
+		BUG_ON(apic->isr_count > MAX_APIC_VECTOR);
+		/*
+		 * ISR (in service register) bit is set when injecting an interrupt.
+		 * The highest vector is injected. Thus the latest bit set matches
+		 * the highest bit in ISR.
+		 */
+		apic->highest_isr_cache = vec;
+	}
 }
 
 static inline int apic_find_highest_isr(struct kvm_lapic *apic)
@@ -1627,10 +1648,15 @@ int kvm_get_apic_interrupt(struct kvm_vcpu *vcpu)
 	int vector = kvm_apic_has_interrupt(vcpu);
 	struct kvm_lapic *apic = vcpu->arch.apic;
 
-	/* Note that we never get here with APIC virtualization enabled.  */
-
 	if (vector == -1)
 		return -1;
+
+	/*
+	 * We get here even with APIC virtualization enabled, if doing
+	 * nested virtualization and L1 runs with the "acknowledge interrupt
+	 * on exit" mode.  Then we cannot inject the interrupt via RVI,
+	 * because the process would deliver it through the IDT.
+	 */
 
 	apic_set_isr(vector, apic);
 	apic_update_ppr(apic);

@@ -897,5 +897,6 @@ void be_roce_dev_remove(struct be_adapter *);
  */
 void be_roce_dev_open(struct be_adapter *);
 void be_roce_dev_close(struct be_adapter *);
+void be_roce_dev_shutdown(struct be_adapter *);
 
 #endif				/* BE_H */

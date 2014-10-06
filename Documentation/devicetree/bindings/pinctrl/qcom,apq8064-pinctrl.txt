@@ -46,7 +46,7 @@ Valid values for pins are:
   gpio0-gpio89
 
 Valid values for function are:
-  cam_mclk, codec_mic_i2s, codec_spkr_i2s, gsbi1, gsbi2, gsbi3, gsbi4,
+  cam_mclk, codec_mic_i2s, codec_spkr_i2s, gpio, gsbi1, gsbi2, gsbi3, gsbi4,
   gsbi4_cam_i2c, gsbi5, gsbi5_spi_cs1, gsbi5_spi_cs2, gsbi5_spi_cs3, gsbi6,
   gsbi6_spi_cs1, gsbi6_spi_cs2, gsbi6_spi_cs3, gsbi7, gsbi7_spi_cs1,
   gsbi7_spi_cs2, gsbi7_spi_cs3, gsbi_cam_i2c, hdmi, mi2s, riva_bt, riva_fm,

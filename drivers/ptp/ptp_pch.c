@@ -691,7 +691,7 @@ err_pci_en:
 	return ret;
 }
 
-static DEFINE_PCI_DEVICE_TABLE(pch_ieee1588_pcidev_id) = {
+static const struct pci_device_id pch_ieee1588_pcidev_id[] = {
 	{
 	  .vendor = PCI_VENDOR_ID_INTEL,
 	  .device = PCI_DEVICE_ID_PCH_1588

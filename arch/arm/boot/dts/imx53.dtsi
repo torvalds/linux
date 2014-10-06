@@ -108,7 +108,7 @@
 			clocks = <&clks IMX5_CLK_SATA_GATE>,
 				 <&clks IMX5_CLK_SATA_REF>,
 				 <&clks IMX5_CLK_AHB>;
-			clock-names = "sata_gate", "sata_ref", "ahb";
+			clock-names = "sata", "sata_ref", "ahb";
 			status = "disabled";
 		};
 
@@ -231,7 +231,6 @@
 					       <&sdma 25 1 0>;
 					dma-names = "rx", "tx";
 					fsl,fifo-depth = <15>;
-					fsl,ssi-dma-events = <25 24 23 22>; /* TX0 RX0 TX1 RX1 */
 					status = "disabled";
 				};
 
@@ -258,6 +257,11 @@
 					bus-width = <4>;
 					status = "disabled";
 				};
+			};
+
+			aipstz1: bridge@53f00000 {
+				compatible = "fsl,imx53-aipstz";
+				reg = <0x53f00000 0x60>;
 			};
 
 			usbphy0: usbphy@0 {
@@ -572,6 +576,11 @@
 			reg = <0x60000000 0x10000000>;
 			ranges;
 
+			aipstz2: bridge@63f00000 {
+				compatible = "fsl,imx53-aipstz";
+				reg = <0x63f00000 0x60>;
+			};
+
 			iim: iim@63f98000 {
 				compatible = "fsl,imx53-iim", "fsl,imx27-iim";
 				reg = <0x63f98000 0x4000>;
@@ -661,7 +670,6 @@
 				       <&sdma 29 0 0>;
 				dma-names = "rx", "tx";
 				fsl,fifo-depth = <15>;
-				fsl,ssi-dma-events = <29 28 27 26>; /* TX0 RX0 TX1 RX1 */
 				status = "disabled";
 			};
 
@@ -689,7 +697,6 @@
 				       <&sdma 47 0 0>;
 				dma-names = "rx", "tx";
 				fsl,fifo-depth = <15>;
-				fsl,ssi-dma-events = <47 46 45 44>; /* TX0 RX0 TX1 RX1 */
 				status = "disabled";
 			};
 
@@ -724,7 +731,7 @@
 				compatible = "fsl,imx53-vpu";
 				reg = <0x63ff4000 0x1000>;
 				interrupts = <9>;
-				clocks = <&clks IMX5_CLK_VPU_GATE>,
+				clocks = <&clks IMX5_CLK_VPU_REFERENCE_GATE>,
 				         <&clks IMX5_CLK_VPU_GATE>;
 				clock-names = "per", "ahb";
 				resets = <&src 1>;

@@ -721,13 +721,13 @@ static int __init disable_ddw_setup(char *str)
 
 early_param("disable_ddw", disable_ddw_setup);
 
-static void remove_ddw(struct device_node *np)
+static void remove_ddw(struct device_node *np, bool remove_prop)
 {
 	struct dynamic_dma_window_prop *dwp;
 	struct property *win64;
 	const u32 *ddw_avail;
 	u64 liobn;
-	int len, ret;
+	int len, ret = 0;
 
 	ddw_avail = of_get_property(np, "ibm,ddw-applicable", &len);
 	win64 = of_find_property(np, DIRECT64_PROPNAME, NULL);
@@ -761,7 +761,8 @@ static void remove_ddw(struct device_node *np)
 			np->full_name, ret, ddw_avail[2], liobn);
 
 delprop:
-	ret = of_remove_property(np, win64);
+	if (remove_prop)
+		ret = of_remove_property(np, win64);
 	if (ret)
 		pr_warning("%s: failed to remove direct window property: %d\n",
 			np->full_name, ret);
@@ -805,7 +806,7 @@ static int find_existing_ddw_windows(void)
 		window = kzalloc(sizeof(*window), GFP_KERNEL);
 		if (!window || len < sizeof(struct dynamic_dma_window_prop)) {
 			kfree(window);
-			remove_ddw(pdn);
+			remove_ddw(pdn, true);
 			continue;
 		}
 
@@ -1045,7 +1046,7 @@ out_free_window:
 	kfree(window);
 
 out_clear_window:
-	remove_ddw(pdn);
+	remove_ddw(pdn, true);
 
 out_free_prop:
 	kfree(win64->name);
@@ -1255,7 +1256,14 @@ static int iommu_reconfig_notifier(struct notifier_block *nb, unsigned long acti
 
 	switch (action) {
 	case OF_RECONFIG_DETACH_NODE:
-		remove_ddw(np);
+		/*
+		 * Removing the property will invoke the reconfig
+		 * notifier again, which causes dead-lock on the
+		 * read-write semaphore of the notifier chain. So
+		 * we have to remove the property when releasing
+		 * the device node.
+		 */
+		remove_ddw(np, false);
 		if (pci && pci->iommu_table)
 			iommu_free_table(pci->iommu_table, np->full_name);
 

@@ -667,17 +667,9 @@ static void ast_encoder_destroy(struct drm_encoder *encoder)
 static struct drm_encoder *ast_best_single_encoder(struct drm_connector *connector)
 {
 	int enc_id = connector->encoder_ids[0];
-	struct drm_mode_object *obj;
-	struct drm_encoder *encoder;
-
 	/* pick the encoder ids */
-	if (enc_id) {
-		obj = drm_mode_object_find(connector->dev, enc_id, DRM_MODE_OBJECT_ENCODER);
-		if (!obj)
-			return NULL;
-		encoder = obj_to_encoder(obj);
-		return encoder;
-	}
+	if (enc_id)
+		return drm_encoder_find(connector->dev, enc_id);
 	return NULL;
 }
 
@@ -829,7 +821,7 @@ static void ast_connector_destroy(struct drm_connector *connector)
 {
 	struct ast_connector *ast_connector = to_ast_connector(connector);
 	ast_i2c_destroy(ast_connector->i2c);
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);
 }
@@ -871,7 +863,7 @@ static int ast_connector_init(struct drm_device *dev)
 	connector->interlace_allowed = 0;
 	connector->doublescan_allowed = 0;
 
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 
 	connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 

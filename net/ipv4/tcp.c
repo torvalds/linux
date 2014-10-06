@@ -426,13 +426,15 @@ void tcp_init_sock(struct sock *sk)
 }
 EXPORT_SYMBOL(tcp_init_sock);
 
-void tcp_tx_timestamp(struct sock *sk, struct sk_buff *skb)
+static void tcp_tx_timestamp(struct sock *sk, struct sk_buff *skb)
 {
-	struct skb_shared_info *shinfo = skb_shinfo(skb);
+	if (sk->sk_tsflags) {
+		struct skb_shared_info *shinfo = skb_shinfo(skb);
 
-	sock_tx_timestamp(sk, &shinfo->tx_flags);
-	if (shinfo->tx_flags & SKBTX_ANY_SW_TSTAMP)
-		shinfo->tskey = TCP_SKB_CB(skb)->seq + skb->len - 1;
+		sock_tx_timestamp(sk, &shinfo->tx_flags);
+		if (shinfo->tx_flags & SKBTX_ANY_TSTAMP)
+			shinfo->tskey = TCP_SKB_CB(skb)->seq + skb->len - 1;
+	}
 }
 
 /*
@@ -1186,13 +1188,6 @@ new_segment:
 					goto wait_for_memory;
 
 				/*
-				 * All packets are restored as if they have
-				 * already been sent.
-				 */
-				if (tp->repair)
-					TCP_SKB_CB(skb)->when = tcp_time_stamp;
-
-				/*
 				 * Check whether we can use HW checksum.
 				 */
 				if (sk->sk_route_caps & NETIF_F_ALL_CSUM)
@@ -1201,6 +1196,13 @@ new_segment:
 				skb_entail(sk, skb);
 				copy = size_goal;
 				max = size_goal;
+
+				/* All packets are restored as if they have
+				 * already been sent. skb_mstamp isn't set to
+				 * avoid wrong rtt estimation.
+				 */
+				if (tp->repair)
+					TCP_SKB_CB(skb)->sacked |= TCPCB_REPAIRED;
 			}
 
 			/* Try to append data to the end of skb. */

@@ -193,15 +193,3 @@ void clps711x_restart(enum reboot_mode mode, const char *cmd)
 {
 	soft_restart(0);
 }
-
-static void clps711x_idle(void)
-{
-	clps_writel(1, HALT);
-	asm("mov r0, r0");
-	asm("mov r0, r0");
-}
-
-void __init clps711x_init_early(void)
-{
-	arm_pm_idle = clps711x_idle;
-}

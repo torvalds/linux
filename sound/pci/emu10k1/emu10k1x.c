@@ -1634,7 +1634,7 @@ static void snd_emu10k1x_remove(struct pci_dev *pci)
 }
 
 // PCI IDs
-static DEFINE_PCI_DEVICE_TABLE(snd_emu10k1x_ids) = {
+static const struct pci_device_id snd_emu10k1x_ids[] = {
 	{ PCI_VDEVICE(CREATIVE, 0x0006), 0 },	/* Dell OEM version (EMU10K1) */
 	{ 0, }
 };

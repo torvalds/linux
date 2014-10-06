@@ -800,7 +800,7 @@ struct snd_m3 {
 /*
  * pci ids
  */
-static DEFINE_PCI_DEVICE_TABLE(snd_m3_ids) = {
+static const struct pci_device_id snd_m3_ids[] = {
 	{PCI_VENDOR_ID_ESS, PCI_DEVICE_ID_ESS_ALLEGRO_1, PCI_ANY_ID, PCI_ANY_ID,
 	 PCI_CLASS_MULTIMEDIA_AUDIO << 8, 0xffff00, 0},
 	{PCI_VENDOR_ID_ESS, PCI_DEVICE_ID_ESS_ALLEGRO, PCI_ANY_ID, PCI_ANY_ID,

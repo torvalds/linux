@@ -53,8 +53,8 @@ Kirkwood family
                 Functional Spec: http://www.marvell.com/embedded-processors/kirkwood/assets/FS_88F6180_9x_6281_OpenSource.pdf
   Homepage: http://www.marvell.com/embedded-processors/kirkwood/
   Core: Feroceon ARMv5 compatible
-  Linux kernel mach directory: arch/arm/mach-kirkwood
-  Linux kernel plat directory: arch/arm/plat-orion
+  Linux kernel mach directory: arch/arm/mach-mvebu
+  Linux kernel plat directory: none
 
 Discovery family
 ----------------
@@ -83,7 +83,9 @@ EBU Armada family
         88F6710
         88F6707
         88F6W11
-    Product Brief: http://www.marvell.com/embedded-processors/armada-300/assets/Marvell_ARMADA_370_SoC.pdf
+    Product Brief:   http://www.marvell.com/embedded-processors/armada-300/assets/Marvell_ARMADA_370_SoC.pdf
+    Hardware Spec:   http://www.marvell.com/embedded-processors/armada-300/assets/ARMADA370-datasheet.pdf
+    Functional Spec: http://www.marvell.com/embedded-processors/armada-300/assets/ARMADA370-FunctionalSpec-datasheet.pdf
 
   Armada 375 Flavors:
 	88F6720
@@ -100,8 +102,7 @@ EBU Armada family
         MV78460
     NOTE: not to be confused with the non-SMP 78xx0 SoCs
     Product Brief: http://www.marvell.com/embedded-processors/armada-xp/assets/Marvell-ArmadaXP-SoC-product%20brief.pdf
-
-  No public datasheet available.
+    Functional Spec: http://www.marvell.com/embedded-processors/armada-xp/assets/ARMADA-XP-Functional-SpecDatasheet.pdf
 
   Core: Sheeva ARMv7 compatible
 
@@ -135,7 +136,9 @@ Dove family (application processor)
                 Functional Spec : http://www.marvell.com/application-processors/armada-500/assets/Armada-510-Functional-Spec.pdf
   Homepage: http://www.marvell.com/application-processors/armada-500/
   Core: ARMv7 compatible
-  Directory: arch/arm/mach-dove
+
+  Directory: arch/arm/mach-mvebu (DT enabled platforms)
+             arch/arm/mach-dove (non-DT enabled platforms)
 
 PXA 2xx/3xx/93x/95x family
 --------------------------
@@ -253,10 +256,10 @@ Berlin family (Digital Entertainment)
 Long-term plans
 ---------------
 
- * Unify the mach-dove/, mach-mv78xx0/, mach-orion5x/ and
-   mach-kirkwood/ into the mach-mvebu/ to support all SoCs from the
-   Marvell EBU (Engineering Business Unit) in a single mach-<foo>
-   directory. The plat-orion/ would therefore disappear.
+ * Unify the mach-dove/, mach-mv78xx0/, mach-orion5x/ into the
+   mach-mvebu/ to support all SoCs from the Marvell EBU (Engineering
+   Business Unit) in a single mach-<foo> directory. The plat-orion/
+   would therefore disappear.
 
  * Unify the mach-mmp/ and mach-pxa/ into the same mach-pxa
    directory. The plat-pxa/ would therefore disappear.

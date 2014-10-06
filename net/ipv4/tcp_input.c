@@ -2687,7 +2687,6 @@ static void tcp_enter_recovery(struct sock *sk, bool ece_ack)
  */
 static void tcp_process_loss(struct sock *sk, int flag, bool is_dupack)
 {
-	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	bool recovered = !before(tp->snd_una, tp->high_seq);
 
@@ -2713,12 +2712,9 @@ static void tcp_process_loss(struct sock *sk, int flag, bool is_dupack)
 
 	if (recovered) {
 		/* F-RTO RFC5682 sec 3.1 step 2.a and 1st part of step 3.a */
-		icsk->icsk_retransmits = 0;
 		tcp_try_undo_recovery(sk);
 		return;
 	}
-	if (flag & FLAG_DATA_ACKED)
-		icsk->icsk_retransmits = 0;
 	if (tcp_is_reno(tp)) {
 		/* A Reno DUPACK means new data in F-RTO step 2.b above are
 		 * delivered. Lower inflight to clock out (re)tranmissions.
@@ -3050,9 +3046,14 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 	first_ackt.v64 = 0;
 
 	while ((skb = tcp_write_queue_head(sk)) && skb != tcp_send_head(sk)) {
+		struct skb_shared_info *shinfo = skb_shinfo(skb);
 		struct tcp_skb_cb *scb = TCP_SKB_CB(skb);
 		u8 sacked = scb->sacked;
 		u32 acked_pcount;
+
+		if (unlikely(shinfo->tx_flags & SKBTX_ACK_TSTAMP) &&
+		    between(shinfo->tskey, prior_snd_una, tp->snd_una - 1))
+			__skb_tstamp_tx(skb, NULL, sk, SCM_TSTAMP_ACK);
 
 		/* Determine how many packets and what bytes were acked, tso and else */
 		if (after(scb->end_seq, tp->snd_una)) {
@@ -3106,11 +3107,6 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 			flag |= FLAG_SYN_ACKED;
 			tp->retrans_stamp = 0;
 		}
-
-		if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_ACK_TSTAMP) &&
-		    between(skb_shinfo(skb)->tskey, prior_snd_una,
-			    tp->snd_una + 1))
-			__skb_tstamp_tx(skb, NULL, sk, SCM_TSTAMP_ACK);
 
 		if (!fully_acked)
 			break;
@@ -3405,8 +3401,10 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 	    icsk->icsk_pending == ICSK_TIME_LOSS_PROBE)
 		tcp_rearm_rto(sk);
 
-	if (after(ack, prior_snd_una))
+	if (after(ack, prior_snd_una)) {
 		flag |= FLAG_SND_UNA_ADVANCED;
+		icsk->icsk_retransmits = 0;
+	}
 
 	prior_fackets = tp->fackets_out;
 
@@ -5979,12 +5977,14 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 		 * timewait bucket, so that all the necessary checks
 		 * are made in the function processing timewait state.
 		 */
-		if (tmp_opt.saw_tstamp && tcp_death_row.sysctl_tw_recycle) {
+		if (tcp_death_row.sysctl_tw_recycle) {
 			bool strict;
 
 			dst = af_ops->route_req(sk, &fl, req, &strict);
+
 			if (dst && strict &&
-			    !tcp_peer_is_proven(req, dst, true)) {
+			    !tcp_peer_is_proven(req, dst, true,
+						tmp_opt.saw_tstamp)) {
 				NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_PAWSPASSIVEREJECTED);
 				goto drop_and_release;
 			}
@@ -5993,7 +5993,8 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 		else if (!sysctl_tcp_syncookies &&
 			 (sysctl_max_syn_backlog - inet_csk_reqsk_queue_len(sk) <
 			  (sysctl_max_syn_backlog >> 2)) &&
-			 !tcp_peer_is_proven(req, dst, false)) {
+			 !tcp_peer_is_proven(req, dst, false,
+					     tmp_opt.saw_tstamp)) {
 			/* Without syncookies last quarter of
 			 * backlog is filled with destinations,
 			 * proven to be alive.

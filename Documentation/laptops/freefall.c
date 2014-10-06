@@ -29,15 +29,12 @@ static const char app_name[] = "FREE FALL";
 
 static int set_unload_heads_path(char *device)
 {
-	char devname[64];
-
 	if (strlen(device) <= 5 || strncmp(device, "/dev/", 5) != 0)
 		return -EINVAL;
-	strncpy(devname, device + 5, sizeof(devname) - 1);
 	strncpy(device_path, device, sizeof(device_path) - 1);
 
 	snprintf(unload_heads_path, sizeof(unload_heads_path) - 1,
-				"/sys/block/%s/device/unload_heads", devname);
+				"/sys/block/%s/device/unload_heads", device+5);
 	return 0;
 }
 

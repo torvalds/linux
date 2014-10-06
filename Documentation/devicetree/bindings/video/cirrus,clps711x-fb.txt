@@ -1,0 +1,47 @@
+* Currus Logic CLPS711X Framebuffer
+
+Required properties:
+- compatible: Shall contain "cirrus,clps711x-fb".
+- reg       : Physical base address and length of the controller's registers +
+              location and size of the framebuffer memory.
+- clocks    : phandle + clock specifier pair of the FB reference clock.
+- display   : phandle to a display node as described in
+              Documentation/devicetree/bindings/video/display-timing.txt.
+              Additionally, the display node has to define properties:
+  - bits-per-pixel: Bits per pixel.
+  - ac-prescale   : LCD AC bias frequency. This frequency is the required
+                    AC bias frequency for a given manufacturer's LCD plate.
+  - cmap-invert   : Invert the color levels (Optional).
+
+Optional properties:
+- lcd-supply: Regulator for LCD supply voltage.
+
+Example:
+	fb: fb@800002c0 {
+		compatible = "cirrus,ep7312-fb", "cirrus,clps711x-fb";
+		reg = <0x800002c0 0xd44>, <0x60000000 0xc000>;
+		clocks = <&clks 2>;
+		lcd-supply = <&reg5v0>;
+		display = <&display>;
+	};
+
+	display: display {
+		model = "320x240x4";
+		native-mode = <&timing0>;
+		bits-per-pixel = <4>;
+		ac-prescale = <17>;
+
+		display-timings {
+			timing0: 320x240 {
+				hactive = <320>;
+				hback-porch = <0>;
+				hfront-porch = <0>;
+				hsync-len = <0>;
+				vactive = <240>;
+				vback-porch = <0>;
+				vfront-porch = <0>;
+				vsync-len = <0>;
+				clock-frequency = <6500000>;
+			};
+		};
+	};

@@ -30,7 +30,7 @@
 
 #include <engine/disp.h>
 
-#include <core/class.h>
+#include <nvif/class.h>
 
 #include "dport.h"
 #include "outpdp.h"
@@ -335,7 +335,7 @@ nouveau_dp_train(struct work_struct *w)
 	int ret;
 
 	/* bring capabilities within encoder limits */
-	if (nv_mclass(disp) < NVD0_DISP_CLASS)
+	if (nv_mclass(disp) < GF110_DISP)
 		outp->dpcd[2] &= ~DPCD_RC02_TPS3_SUPPORTED;
 	if ((outp->dpcd[2] & 0x1f) > outp->base.info.dpconf.link_nr) {
 		outp->dpcd[2] &= ~DPCD_RC02_MAX_LANE_COUNT;
@@ -354,7 +354,7 @@ nouveau_dp_train(struct work_struct *w)
 	cfg--;
 
 	/* disable link interrupt handling during link training */
-	nouveau_event_put(outp->irq);
+	nvkm_notify_put(&outp->irq);
 
 	/* enable down-spreading and execute pre-train script from vbios */
 	dp_link_train_init(dp, outp->dpcd[3] & 0x01);
@@ -395,5 +395,5 @@ nouveau_dp_train(struct work_struct *w)
 	DBG("training complete\n");
 	atomic_set(&outp->lt.done, 1);
 	wake_up(&outp->lt.wait);
-	nouveau_event_get(outp->irq);
+	nvkm_notify_get(&outp->irq);
 }

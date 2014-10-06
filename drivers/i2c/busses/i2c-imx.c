@@ -735,10 +735,7 @@ static int i2c_imx_probe(struct platform_device *pdev)
 	clk_disable_unprepare(i2c_imx->clk);
 
 	dev_dbg(&i2c_imx->adapter.dev, "claimed irq %d\n", irq);
-	dev_dbg(&i2c_imx->adapter.dev, "device resources from 0x%x to 0x%x\n",
-		res->start, res->end);
-	dev_dbg(&i2c_imx->adapter.dev, "allocated %d bytes at 0x%x\n",
-		resource_size(res), res->start);
+	dev_dbg(&i2c_imx->adapter.dev, "device resources: %pR\n", res);
 	dev_dbg(&i2c_imx->adapter.dev, "adapter name: \"%s\"\n",
 		i2c_imx->adapter.name);
 	dev_info(&i2c_imx->adapter.dev, "IMX I2C adapter registered\n");

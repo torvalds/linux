@@ -892,12 +892,12 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 	/* In the case of a fixed PHY, the DT node associated
 	 * to the PHY is the Ethernet MAC DT node.
 	 */
-	if (of_phy_is_fixed_link(np)) {
+	if (!priv->phy_node && of_phy_is_fixed_link(np)) {
 		err = of_phy_register_fixed_link(np);
 		if (err)
 			goto err_grp_init;
 
-		priv->phy_node = np;
+		priv->phy_node = of_node_get(np);
 	}
 
 	/* Find the TBI PHY.  If it's not there, we don't support SGMII */
@@ -1435,10 +1435,8 @@ register_fail:
 	unmap_group_regs(priv);
 	gfar_free_rx_queues(priv);
 	gfar_free_tx_queues(priv);
-	if (priv->phy_node)
-		of_node_put(priv->phy_node);
-	if (priv->tbi_node)
-		of_node_put(priv->tbi_node);
+	of_node_put(priv->phy_node);
+	of_node_put(priv->tbi_node);
 	free_gfar_dev(priv);
 	return err;
 }
@@ -1447,10 +1445,8 @@ static int gfar_remove(struct platform_device *ofdev)
 {
 	struct gfar_private *priv = platform_get_drvdata(ofdev);
 
-	if (priv->phy_node)
-		of_node_put(priv->phy_node);
-	if (priv->tbi_node)
-		of_node_put(priv->tbi_node);
+	of_node_put(priv->phy_node);
+	of_node_put(priv->tbi_node);
 
 	unregister_netdev(priv->ndev);
 	unmap_group_regs(priv);

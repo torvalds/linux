@@ -15,6 +15,7 @@ generic-y += mcs_spinlock.h
 generic-y += module.h
 generic-y += mutex.h
 generic-y += preempt.h
+generic-y += scatterlist.h
 generic-y += serial.h
 generic-y += trace_clock.h
 generic-y += types.h

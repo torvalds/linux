@@ -33,6 +33,7 @@
 #include <scsi/fc/fc_fcoe.h>
 #include <scsi/libfc.h>
 #include <scsi/libfcoe.h>
+#include <uapi/linux/dcbnl.h>
 
 #include "i40e.h"
 #include "i40e_fcoe.h"

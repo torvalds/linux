@@ -610,20 +610,26 @@ void sock_release(struct socket *sock)
 }
 EXPORT_SYMBOL(sock_release);
 
-void sock_tx_timestamp(struct sock *sk, __u8 *tx_flags)
+void sock_tx_timestamp(const struct sock *sk, __u8 *tx_flags)
 {
-	*tx_flags = 0;
+	u8 flags = *tx_flags;
+
 	if (sk->sk_tsflags & SOF_TIMESTAMPING_TX_HARDWARE)
-		*tx_flags |= SKBTX_HW_TSTAMP;
+		flags |= SKBTX_HW_TSTAMP;
+
 	if (sk->sk_tsflags & SOF_TIMESTAMPING_TX_SOFTWARE)
-		*tx_flags |= SKBTX_SW_TSTAMP;
+		flags |= SKBTX_SW_TSTAMP;
+
 	if (sk->sk_tsflags & SOF_TIMESTAMPING_TX_SCHED)
-		*tx_flags |= SKBTX_SCHED_TSTAMP;
+		flags |= SKBTX_SCHED_TSTAMP;
+
 	if (sk->sk_tsflags & SOF_TIMESTAMPING_TX_ACK)
-		*tx_flags |= SKBTX_ACK_TSTAMP;
+		flags |= SKBTX_ACK_TSTAMP;
 
 	if (sock_flag(sk, SOCK_WIFI_STATUS))
-		*tx_flags |= SKBTX_WIFI_STATUS;
+		flags |= SKBTX_WIFI_STATUS;
+
+	*tx_flags = flags;
 }
 EXPORT_SYMBOL(sock_tx_timestamp);
 

@@ -107,7 +107,7 @@ static int arizona_spk_ev(struct snd_soc_dapm_widget *w,
 		break;
 	case SND_SOC_DAPM_POST_PMU:
 		val = snd_soc_read(codec, ARIZONA_INTERRUPT_RAW_STATUS_3);
-		if (val & ARIZONA_SPK_SHUTDOWN_STS) {
+		if (val & ARIZONA_SPK_OVERHEAT_STS) {
 			dev_crit(arizona->dev,
 				 "Speaker not enabled due to temperature\n");
 			return -EBUSY;
@@ -159,7 +159,7 @@ static irqreturn_t arizona_thermal_warn(int irq, void *data)
 	if (ret != 0) {
 		dev_err(arizona->dev, "Failed to read thermal status: %d\n",
 			ret);
-	} else if (val & ARIZONA_SPK_SHUTDOWN_WARN_STS) {
+	} else if (val & ARIZONA_SPK_OVERHEAT_WARN_STS) {
 		dev_crit(arizona->dev, "Thermal warning\n");
 	}
 
@@ -177,7 +177,7 @@ static irqreturn_t arizona_thermal_shutdown(int irq, void *data)
 	if (ret != 0) {
 		dev_err(arizona->dev, "Failed to read thermal status: %d\n",
 			ret);
-	} else if (val & ARIZONA_SPK_SHUTDOWN_STS) {
+	} else if (val & ARIZONA_SPK_OVERHEAT_STS) {
 		dev_crit(arizona->dev, "Thermal shutdown\n");
 		ret = regmap_update_bits(arizona->regmap,
 					 ARIZONA_OUTPUT_ENABLES_1,
@@ -223,7 +223,7 @@ int arizona_init_spk(struct snd_soc_codec *codec)
 		break;
 	}
 
-	ret = arizona_request_irq(arizona, ARIZONA_IRQ_SPK_SHUTDOWN_WARN,
+	ret = arizona_request_irq(arizona, ARIZONA_IRQ_SPK_OVERHEAT_WARN,
 				  "Thermal warning", arizona_thermal_warn,
 				  arizona);
 	if (ret != 0)
@@ -231,7 +231,7 @@ int arizona_init_spk(struct snd_soc_codec *codec)
 			"Failed to get thermal warning IRQ: %d\n",
 			ret);
 
-	ret = arizona_request_irq(arizona, ARIZONA_IRQ_SPK_SHUTDOWN,
+	ret = arizona_request_irq(arizona, ARIZONA_IRQ_SPK_OVERHEAT,
 				  "Thermal shutdown", arizona_thermal_shutdown,
 				  arizona);
 	if (ret != 0)
@@ -1278,6 +1278,8 @@ static int arizona_hw_params(struct snd_pcm_substream *substream,
 	else
 		rates = &arizona_48k_bclk_rates[0];
 
+	wl = snd_pcm_format_width(params_format(params));
+
 	if (tdm_slots) {
 		arizona_aif_dbg(dai, "Configuring for %d %d bit TDM slots\n",
 				tdm_slots, tdm_width);
@@ -1285,6 +1287,7 @@ static int arizona_hw_params(struct snd_pcm_substream *substream,
 		channels = tdm_slots;
 	} else {
 		bclk_target = snd_soc_params_to_bclk(params);
+		tdm_width = wl;
 	}
 
 	if (chan_limit && chan_limit < channels) {
@@ -1319,8 +1322,7 @@ static int arizona_hw_params(struct snd_pcm_substream *substream,
 	arizona_aif_dbg(dai, "BCLK %dHz LRCLK %dHz\n",
 			rates[bclk], rates[bclk] / lrclk);
 
-	wl = snd_pcm_format_width(params_format(params));
-	frame = wl << ARIZONA_AIF1TX_WL_SHIFT | wl;
+	frame = wl << ARIZONA_AIF1TX_WL_SHIFT | tdm_width;
 
 	reconfig = arizona_aif_cfg_changed(codec, base, bclk, lrclk, frame);
 

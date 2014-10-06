@@ -19,7 +19,8 @@
 #include <linux/of.h>
 #include <linux/clk/tegra.h>
 #include <linux/reset-controller.h>
-#include <linux/tegra-soc.h>
+
+#include <soc/tegra/fuse.h>
 
 #include "clk.h"
 

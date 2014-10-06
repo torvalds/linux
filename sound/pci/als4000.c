@@ -116,7 +116,7 @@ struct snd_card_als4000 {
 #endif
 };
 
-static DEFINE_PCI_DEVICE_TABLE(snd_als4000_ids) = {
+static const struct pci_device_id snd_als4000_ids[] = {
 	{ 0x4005, 0x4000, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, },   /* ALS4000 */
 	{ 0, }
 };

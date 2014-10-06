@@ -310,7 +310,7 @@ void iov_iter_init(struct iov_iter *i, int direction,
 EXPORT_SYMBOL(iov_iter_init);
 
 static ssize_t get_pages_iovec(struct iov_iter *i,
-		   struct page **pages, size_t maxsize,
+		   struct page **pages, unsigned maxpages,
 		   size_t *start)
 {
 	size_t offset = i->iov_offset;
@@ -323,10 +323,10 @@ static ssize_t get_pages_iovec(struct iov_iter *i,
 	len = iov->iov_len - offset;
 	if (len > i->count)
 		len = i->count;
-	if (len > maxsize)
-		len = maxsize;
 	addr = (unsigned long)iov->iov_base + offset;
 	len += *start = addr & (PAGE_SIZE - 1);
+	if (len > maxpages * PAGE_SIZE)
+		len = maxpages * PAGE_SIZE;
 	addr &= ~(PAGE_SIZE - 1);
 	n = (len + PAGE_SIZE - 1) / PAGE_SIZE;
 	res = get_user_pages_fast(addr, n, (i->type & WRITE) != WRITE, pages);
@@ -588,15 +588,14 @@ static unsigned long alignment_bvec(const struct iov_iter *i)
 }
 
 static ssize_t get_pages_bvec(struct iov_iter *i,
-		   struct page **pages, size_t maxsize,
+		   struct page **pages, unsigned maxpages,
 		   size_t *start)
 {
 	const struct bio_vec *bvec = i->bvec;
 	size_t len = bvec->bv_len - i->iov_offset;
 	if (len > i->count)
 		len = i->count;
-	if (len > maxsize)
-		len = maxsize;
+	/* can't be more than PAGE_SIZE */
 	*start = bvec->bv_offset + i->iov_offset;
 
 	get_page(*pages = bvec->bv_page);
@@ -712,13 +711,13 @@ unsigned long iov_iter_alignment(const struct iov_iter *i)
 EXPORT_SYMBOL(iov_iter_alignment);
 
 ssize_t iov_iter_get_pages(struct iov_iter *i,
-		   struct page **pages, size_t maxsize,
+		   struct page **pages, unsigned maxpages,
 		   size_t *start)
 {
 	if (i->type & ITER_BVEC)
-		return get_pages_bvec(i, pages, maxsize, start);
+		return get_pages_bvec(i, pages, maxpages, start);
 	else
-		return get_pages_iovec(i, pages, maxsize, start);
+		return get_pages_iovec(i, pages, maxpages, start);
 }
 EXPORT_SYMBOL(iov_iter_get_pages);
 

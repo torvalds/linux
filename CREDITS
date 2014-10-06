@@ -1381,6 +1381,9 @@ S: 17 rue Danton
 S: F - 94270 Le Kremlin-Bicêtre
 S: France
 
+N: Jack Hammer
+D: IBM ServeRAID RAID (ips) driver maintenance
+
 N: Greg Hankins
 E: gregh@cc.gatech.edu
 D: fixed keyboard driver to separate LED and locking status
@@ -1690,6 +1693,10 @@ S: Earley
 S: Reading
 S: RG6 2NU
 S: United Kingdom
+
+N: Dave Jeffery
+E: dhjeffery@gmail.com
+D: SCSI hacks and IBM ServeRAID RAID driver maintenance
 
 N: Jakub Jelinek
 E: jakub@redhat.com

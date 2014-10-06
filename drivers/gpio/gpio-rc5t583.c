@@ -148,7 +148,8 @@ static int rc5t583_gpio_remove(struct platform_device *pdev)
 {
 	struct rc5t583_gpio *rc5t583_gpio = platform_get_drvdata(pdev);
 
-	return gpiochip_remove(&rc5t583_gpio->gpio_chip);
+	gpiochip_remove(&rc5t583_gpio->gpio_chip);
+	return 0;
 }
 
 static struct platform_driver rc5t583_gpio_driver = {

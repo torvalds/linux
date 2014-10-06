@@ -820,6 +820,9 @@ store_vrm_reg(struct device *dev, struct device_attribute *attr, const char *buf
 	err = kstrtoul(buf, 10, &val);
 	if (err)
 		return err;
+
+	if (val > 255)
+		return -EINVAL;
 	data->vrm = val;
 
 	return count;

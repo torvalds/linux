@@ -488,7 +488,7 @@ xfs_buf_item_unpin(
 		xfs_buf_lock(bp);
 		xfs_buf_hold(bp);
 		bp->b_flags |= XBF_ASYNC;
-		xfs_buf_ioerror(bp, EIO);
+		xfs_buf_ioerror(bp, -EIO);
 		XFS_BUF_UNDONE(bp);
 		xfs_buf_stale(bp);
 		xfs_buf_ioend(bp, 0);
@@ -725,7 +725,7 @@ xfs_buf_item_get_format(
 	bip->bli_formats = kmem_zalloc(count * sizeof(struct xfs_buf_log_format),
 				KM_SLEEP);
 	if (!bip->bli_formats)
-		return ENOMEM;
+		return -ENOMEM;
 	return 0;
 }
 

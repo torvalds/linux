@@ -19,6 +19,11 @@
 
 #include "drm_crtc.h"
 #include "drm_fb_helper.h"
+#include "msm_gem.h"
+
+extern int msm_gem_mmap_obj(struct drm_gem_object *obj,
+					struct vm_area_struct *vma);
+static int msm_fbdev_mmap(struct fb_info *info, struct vm_area_struct *vma);
 
 /*
  * fbdev funcs, to implement legacy fbdev interface on top of drm driver
@@ -43,6 +48,7 @@ static struct fb_ops msm_fb_ops = {
 	.fb_fillrect = sys_fillrect,
 	.fb_copyarea = sys_copyarea,
 	.fb_imageblit = sys_imageblit,
+	.fb_mmap = msm_fbdev_mmap,
 
 	.fb_check_var = drm_fb_helper_check_var,
 	.fb_set_par = drm_fb_helper_set_par,
@@ -50,6 +56,31 @@ static struct fb_ops msm_fb_ops = {
 	.fb_blank = drm_fb_helper_blank,
 	.fb_setcmap = drm_fb_helper_setcmap,
 };
+
+static int msm_fbdev_mmap(struct fb_info *info, struct vm_area_struct *vma)
+{
+	struct drm_fb_helper *helper = (struct drm_fb_helper *)info->par;
+	struct msm_fbdev *fbdev = to_msm_fbdev(helper);
+	struct drm_gem_object *drm_obj = fbdev->bo;
+	struct drm_device *dev = helper->dev;
+	int ret = 0;
+
+	if (drm_device_is_unplugged(dev))
+		return -ENODEV;
+
+	mutex_lock(&dev->struct_mutex);
+
+	ret = drm_gem_mmap_obj(drm_obj, drm_obj->size, vma);
+
+	mutex_unlock(&dev->struct_mutex);
+
+	if (ret) {
+		pr_err("%s:drm_gem_mmap_obj fail\n", __func__);
+		return ret;
+	}
+
+	return msm_gem_mmap_obj(drm_obj, vma);
+}
 
 static int msm_fbdev_create(struct drm_fb_helper *helper,
 		struct drm_fb_helper_surface_size *sizes)
@@ -104,8 +135,16 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 
 	mutex_lock(&dev->struct_mutex);
 
-	/* TODO implement our own fb_mmap so we don't need this: */
-	msm_gem_get_iova_locked(fbdev->bo, 0, &paddr);
+	/*
+	 * NOTE: if we can be guaranteed to be able to map buffer
+	 * in panic (ie. lock-safe, etc) we could avoid pinning the
+	 * buffer now:
+	 */
+	ret = msm_gem_get_iova_locked(fbdev->bo, 0, &paddr);
+	if (ret) {
+		dev_err(dev->dev, "failed to get buffer obj iova: %d\n", ret);
+		goto fail;
+	}
 
 	fbi = framebuffer_alloc(0, dev->dev);
 	if (!fbi) {
@@ -177,7 +216,7 @@ static void msm_crtc_fb_gamma_get(struct drm_crtc *crtc,
 	DBG("fbdev: get gamma");
 }
 
-static struct drm_fb_helper_funcs msm_fb_helper_funcs = {
+static const struct drm_fb_helper_funcs msm_fb_helper_funcs = {
 	.gamma_set = msm_crtc_fb_gamma_set,
 	.gamma_get = msm_crtc_fb_gamma_get,
 	.fb_probe = msm_fbdev_create,
@@ -189,7 +228,7 @@ struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev)
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_fbdev *fbdev = NULL;
 	struct drm_fb_helper *helper;
-	int ret = 0;
+	int ret;
 
 	fbdev = kzalloc(sizeof(*fbdev), GFP_KERNEL);
 	if (!fbdev)
@@ -197,7 +236,7 @@ struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev)
 
 	helper = &fbdev->base;
 
-	helper->funcs = &msm_fb_helper_funcs;
+	drm_fb_helper_prepare(dev, helper, &msm_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(dev, helper,
 			priv->num_crtcs, priv->num_connectors);

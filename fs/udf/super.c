@@ -63,7 +63,7 @@
 #include "udf_i.h"
 
 #include <linux/init.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define VDS_POS_PRIMARY_VOL_DESC	0
 #define VDS_POS_UNALLOC_SPACE_DESC	1

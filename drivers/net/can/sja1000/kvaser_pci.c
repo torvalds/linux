@@ -107,7 +107,7 @@ struct kvaser_pci {
 #define KVASER_PCI_VENDOR_ID2     0x1a07    /* the PCI device and vendor IDs */
 #define KVASER_PCI_DEVICE_ID2     0x0008
 
-static DEFINE_PCI_DEVICE_TABLE(kvaser_pci_tbl) = {
+static const struct pci_device_id kvaser_pci_tbl[] = {
 	{KVASER_PCI_VENDOR_ID1, KVASER_PCI_DEVICE_ID1, PCI_ANY_ID, PCI_ANY_ID,},
 	{KVASER_PCI_VENDOR_ID2, KVASER_PCI_DEVICE_ID2, PCI_ANY_ID, PCI_ANY_ID,},
 	{ 0,}

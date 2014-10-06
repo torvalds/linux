@@ -252,12 +252,12 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *devattr,
 	if (err < 0)
 		return err;
 
-	val /= 1000;
+	val = DIV_ROUND_CLOSEST(val, 1000);
 	reg = (sf == min) ? EMC6W201_REG_TEMP_LOW(nr)
 			  : EMC6W201_REG_TEMP_HIGH(nr);
 
 	mutex_lock(&data->update_lock);
-	data->temp[sf][nr] = clamp_val(val, -127, 128);
+	data->temp[sf][nr] = clamp_val(val, -127, 127);
 	err = emc6w201_write8(client, reg, data->temp[sf][nr]);
 	mutex_unlock(&data->update_lock);
 

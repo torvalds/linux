@@ -50,13 +50,13 @@
 #include "cxgb4_uld.h"
 
 #define T4FW_VERSION_MAJOR 0x01
-#define T4FW_VERSION_MINOR 0x09
-#define T4FW_VERSION_MICRO 0x17
+#define T4FW_VERSION_MINOR 0x0B
+#define T4FW_VERSION_MICRO 0x1B
 #define T4FW_VERSION_BUILD 0x00
 
 #define T5FW_VERSION_MAJOR 0x01
-#define T5FW_VERSION_MINOR 0x09
-#define T5FW_VERSION_MICRO 0x17
+#define T5FW_VERSION_MINOR 0x0B
+#define T5FW_VERSION_MICRO 0x1B
 #define T5FW_VERSION_BUILD 0x00
 
 #define CH_WARN(adap, fmt, ...) dev_warn(adap->pdev_dev, fmt, ## __VA_ARGS__)
@@ -522,6 +522,9 @@ struct sge_txq {
 struct sge_eth_txq {                /* state for an SGE Ethernet Tx queue */
 	struct sge_txq q;
 	struct netdev_queue *txq;   /* associated netdev TX queue */
+#ifdef CONFIG_CHELSIO_T4_DCB
+	u8 dcb_prio;		    /* DCB Priority bound to queue */
+#endif
 	unsigned long tso;          /* # of TSO requests */
 	unsigned long tx_cso;       /* # of Tx checksum offloads */
 	unsigned long vlan_ins;     /* # of Tx VLAN insertions */
@@ -649,6 +652,7 @@ struct adapter {
 	struct tid_info tids;
 	void **tid_release_head;
 	spinlock_t tid_release_lock;
+	struct workqueue_struct *workq;
 	struct work_struct tid_release_task;
 	struct work_struct db_full_task;
 	struct work_struct db_drop_task;

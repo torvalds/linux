@@ -45,9 +45,8 @@ struct macvlan_port {
 	struct sk_buff_head	bc_queue;
 	struct work_struct	bc_work;
 	bool 			passthru;
+	int			count;
 };
-
-#define MACVLAN_PORT_IS_EMPTY(port)    list_empty(&port->vlans)
 
 struct macvlan_skb_cb {
 	const struct macvlan_dev *src;
@@ -667,7 +666,8 @@ static void macvlan_uninit(struct net_device *dev)
 
 	free_percpu(vlan->pcpu_stats);
 
-	if (MACVLAN_PORT_IS_EMPTY(port))
+	port->count -= 1;
+	if (!port->count)
 		macvlan_port_destroy(port->dev);
 }
 
@@ -739,7 +739,10 @@ static int macvlan_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	int err = -EINVAL;
 
-	if (!vlan->port->passthru)
+	/* Support unicast filter only on passthru devices.
+	 * Multicast filter should be allowed on all devices.
+	 */
+	if (!vlan->port->passthru && is_unicast_ether_addr(addr))
 		return -EOPNOTSUPP;
 
 	if (flags & NLM_F_REPLACE)
@@ -760,7 +763,10 @@ static int macvlan_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	int err = -EINVAL;
 
-	if (!vlan->port->passthru)
+	/* Support unicast filter only on passthru devices.
+	 * Multicast filter should be allowed on all devices.
+	 */
+	if (!vlan->port->passthru && is_unicast_ether_addr(addr))
 		return -EOPNOTSUPP;
 
 	if (is_unicast_ether_addr(addr))
@@ -1020,12 +1026,13 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 		vlan->flags = nla_get_u16(data[IFLA_MACVLAN_FLAGS]);
 
 	if (vlan->mode == MACVLAN_MODE_PASSTHRU) {
-		if (!MACVLAN_PORT_IS_EMPTY(port))
+		if (port->count)
 			return -EINVAL;
 		port->passthru = true;
 		eth_hw_addr_inherit(dev, lowerdev);
 	}
 
+	port->count += 1;
 	err = register_netdevice(dev);
 	if (err < 0)
 		goto destroy_port;
@@ -1043,7 +1050,8 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 unregister_netdev:
 	unregister_netdevice(dev);
 destroy_port:
-	if (MACVLAN_PORT_IS_EMPTY(port))
+	port->count -= 1;
+	if (!port->count)
 		macvlan_port_destroy(lowerdev);
 
 	return err;

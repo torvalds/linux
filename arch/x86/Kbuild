@@ -16,3 +16,7 @@ obj-$(CONFIG_IA32_EMULATION) += ia32/
 
 obj-y += platform/
 obj-y += net/
+
+ifeq ($(CONFIG_X86_64),y)
+obj-$(CONFIG_KEXEC) += purgatory/
+endif

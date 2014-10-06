@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/of.h>
 
 #include <linux/platform_data/edma.h>
 
@@ -256,8 +257,13 @@ static int edma_terminate_all(struct edma_chan *echan)
 	 * echan->edesc is NULL and exit.)
 	 */
 	if (echan->edesc) {
+		int cyclic = echan->edesc->cyclic;
 		echan->edesc = NULL;
 		edma_stop(echan->ch_num);
+		/* Move the cyclic channel back to default queue */
+		if (cyclic)
+			edma_assign_channel_eventq(echan->ch_num,
+						   EVENTQ_DEFAULT);
 	}
 
 	vchan_get_all_descriptors(&echan->vchan, &head);
@@ -592,7 +598,7 @@ struct dma_async_tx_descriptor *edma_prep_dma_memcpy(
 static struct dma_async_tx_descriptor *edma_prep_dma_cyclic(
 	struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,
 	size_t period_len, enum dma_transfer_direction direction,
-	unsigned long tx_flags, void *context)
+	unsigned long tx_flags)
 {
 	struct edma_chan *echan = to_edma_chan(chan);
 	struct device *dev = chan->device->dev;
@@ -718,11 +724,14 @@ static struct dma_async_tx_descriptor *edma_prep_dma_cyclic(
 		edesc->absync = ret;
 
 		/*
-		 * Enable interrupts for every period because callback
-		 * has to be called for every period.
+		 * Enable period interrupt only if it is requested
 		 */
-		edesc->pset[i].param.opt |= TCINTEN;
+		if (tx_flags & DMA_PREP_INTERRUPT)
+			edesc->pset[i].param.opt |= TCINTEN;
 	}
+
+	/* Place the cyclic channel to highest priority queue */
+	edma_assign_channel_eventq(echan->ch_num, EVENTQ_0);
 
 	return vchan_tx_prep(&echan->vchan, &edesc->vdesc, tx_flags);
 }
@@ -993,7 +1002,7 @@ static int edma_dma_device_slave_caps(struct dma_chan *dchan,
 	caps->directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
 	caps->cmd_pause = true;
 	caps->cmd_terminate = true;
-	caps->residue_granularity = DMA_RESIDUE_GRANULARITY_DESCRIPTOR;
+	caps->residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
 
 	return 0;
 }
@@ -1040,7 +1049,7 @@ static int edma_probe(struct platform_device *pdev)
 	ecc->dummy_slot = edma_alloc_slot(ecc->ctlr, EDMA_SLOT_ANY);
 	if (ecc->dummy_slot < 0) {
 		dev_err(&pdev->dev, "Can't allocate PaRAM dummy slot\n");
-		return -EIO;
+		return ecc->dummy_slot;
 	}
 
 	dma_cap_zero(ecc->dma_slave.cap_mask);
@@ -1125,7 +1134,7 @@ static int edma_init(void)
 		}
 	}
 
-	if (EDMA_CTLRS == 2) {
+	if (!of_have_populated_dt() && EDMA_CTLRS == 2) {
 		pdev1 = platform_device_register_full(&edma_dev_info1);
 		if (IS_ERR(pdev1)) {
 			platform_driver_unregister(&edma_driver);

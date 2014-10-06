@@ -262,6 +262,7 @@ static int imx_pwm_probe(struct platform_device *pdev)
 	imx->chip.dev = &pdev->dev;
 	imx->chip.base = -1;
 	imx->chip.npwm = 1;
+	imx->chip.can_sleep = true;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	imx->mmio_base = devm_ioremap_resource(&pdev->dev, r);

@@ -257,7 +257,7 @@ static void mwifiex_pcie_shutdown(struct pci_dev *pdev)
 	return;
 }
 
-static DEFINE_PCI_DEVICE_TABLE(mwifiex_ids) = {
+static const struct pci_device_id mwifiex_ids[] = {
 	{
 		PCIE_VENDOR_ID_MARVELL, PCIE_DEVICE_ID_MARVELL_88W8766P,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,

@@ -1229,7 +1229,6 @@ static int cayman_pcie_gart_enable(struct radeon_device *rdev)
 	r = radeon_gart_table_vram_pin(rdev);
 	if (r)
 		return r;
-	radeon_gart_restore(rdev);
 	/* Setup TLB control */
 	WREG32(MC_VM_MX_L1_TLB_CNTL,
 	       (0xA << 7) |
@@ -1506,7 +1505,7 @@ static int cayman_cp_start(struct radeon_device *rdev)
 	radeon_ring_write(ring, PACKET3_ME_INITIALIZE_DEVICE_ID(1));
 	radeon_ring_write(ring, 0);
 	radeon_ring_write(ring, 0);
-	radeon_ring_unlock_commit(rdev, ring);
+	radeon_ring_unlock_commit(rdev, ring, false);
 
 	cayman_cp_enable(rdev, true);
 
@@ -1548,7 +1547,7 @@ static int cayman_cp_start(struct radeon_device *rdev)
 	radeon_ring_write(ring, 0x0000000e); /* VGT_VERTEX_REUSE_BLOCK_CNTL */
 	radeon_ring_write(ring, 0x00000010); /*  */
 
-	radeon_ring_unlock_commit(rdev, ring);
+	radeon_ring_unlock_commit(rdev, ring, false);
 
 	/* XXX init other rings */
 

@@ -59,7 +59,7 @@ static void writeq(u64 val, void __iomem *reg)
 }
 #endif
 
-static DEFINE_PCI_DEVICE_TABLE(niu_pci_tbl) = {
+static const struct pci_device_id niu_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_SUN, 0xabcd)},
 	{}
 };

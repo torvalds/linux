@@ -106,7 +106,4 @@ config MSM_GPIOMUX
 	help
 	  Support for MSM V1 TLMM GPIOMUX architecture.
 
-config MSM_SCM
-	bool
-
 endif

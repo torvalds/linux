@@ -131,7 +131,7 @@ nv_two_heads(struct drm_device *dev)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	const int impl = dev->pdev->device & 0x0ff0;
 
-	if (nv_device(drm->device)->card_type >= NV_10 && impl != 0x0100 &&
+	if (drm->device.info.family >= NV_DEVICE_INFO_V0_CELSIUS && impl != 0x0100 &&
 	    impl != 0x0150 && impl != 0x01a0 && impl != 0x0200)
 		return true;
 
@@ -150,7 +150,7 @@ nv_two_reg_pll(struct drm_device *dev)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	const int impl = dev->pdev->device & 0x0ff0;
 
-	if (impl == 0x0310 || impl == 0x0340 || nv_device(drm->device)->card_type >= NV_40)
+	if (impl == 0x0310 || impl == 0x0340 || drm->device.info.family >= NV_DEVICE_INFO_V0_CURIE)
 		return true;
 	return false;
 }
@@ -171,8 +171,8 @@ static inline void
 nouveau_bios_run_init_table(struct drm_device *dev, u16 table,
 			    struct dcb_output *outp, int crtc)
 {
-	struct nouveau_device *device = nouveau_dev(dev);
-	struct nouveau_bios *bios = nouveau_bios(device);
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_bios *bios = nvkm_bios(&drm->device);
 	struct nvbios_init init = {
 		.subdev = nv_subdev(bios),
 		.bios = bios,

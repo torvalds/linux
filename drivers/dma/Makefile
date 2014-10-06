@@ -1,5 +1,5 @@
-ccflags-$(CONFIG_DMADEVICES_DEBUG)  := -DDEBUG
-ccflags-$(CONFIG_DMADEVICES_VDEBUG) += -DVERBOSE_DEBUG
+subdir-ccflags-$(CONFIG_DMADEVICES_DEBUG)  := -DDEBUG
+subdir-ccflags-$(CONFIG_DMADEVICES_VDEBUG) += -DVERBOSE_DEBUG
 
 obj-$(CONFIG_DMA_ENGINE) += dmaengine.o
 obj-$(CONFIG_DMA_VIRTUAL_CHANNELS) += virt-dma.o
@@ -48,3 +48,5 @@ obj-$(CONFIG_FSL_EDMA) += fsl-edma.o
 obj-$(CONFIG_QCOM_BAM_DMA) += qcom_bam_dma.o
 obj-y += xilinx/
 obj-$(CONFIG_INTEL_MIC_X100_DMA) += mic_x100_dma.o
+obj-$(CONFIG_NBPFAXI_DMA) += nbpfaxi.o
+obj-$(CONFIG_DMA_SUN6I) += sun6i-dma.o

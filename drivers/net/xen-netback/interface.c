@@ -43,6 +43,23 @@
 #define XENVIF_QUEUE_LENGTH 32
 #define XENVIF_NAPI_WEIGHT  64
 
+/* This function is used to set SKBTX_DEV_ZEROCOPY as well as
+ * increasing the inflight counter. We need to increase the inflight
+ * counter because core driver calls into xenvif_zerocopy_callback
+ * which calls xenvif_skb_zerocopy_complete.
+ */
+void xenvif_skb_zerocopy_prepare(struct xenvif_queue *queue,
+				 struct sk_buff *skb)
+{
+	skb_shinfo(skb)->tx_flags |= SKBTX_DEV_ZEROCOPY;
+	atomic_inc(&queue->inflight_packets);
+}
+
+void xenvif_skb_zerocopy_complete(struct xenvif_queue *queue)
+{
+	atomic_dec(&queue->inflight_packets);
+}
+
 static inline void xenvif_stop_queue(struct xenvif_queue *queue)
 {
 	struct net_device *dev = queue->vif->dev;
@@ -78,12 +95,8 @@ int xenvif_poll(struct napi_struct *napi, int budget)
 	/* This vif is rogue, we pretend we've there is nothing to do
 	 * for this vif to deschedule it from NAPI. But this interface
 	 * will be turned off in thread context later.
-	 * Also, if a guest doesn't post enough slots to receive data on one of
-	 * its queues, the carrier goes down and NAPI is descheduled here so
-	 * the guest can't send more packets until it's ready to receive.
 	 */
-	if (unlikely(queue->vif->disabled ||
-		     !netif_carrier_ok(queue->vif->dev))) {
+	if (unlikely(queue->vif->disabled)) {
 		napi_complete(napi);
 		return 0;
 	}
@@ -528,9 +541,6 @@ int xenvif_init_queue(struct xenvif_queue *queue)
 
 	init_timer(&queue->rx_stalled);
 
-	netif_napi_add(queue->vif->dev, &queue->napi, xenvif_poll,
-			XENVIF_NAPI_WEIGHT);
-
 	return 0;
 }
 
@@ -564,6 +574,7 @@ int xenvif_connect(struct xenvif_queue *queue, unsigned long tx_ring_ref,
 
 	init_waitqueue_head(&queue->wq);
 	init_waitqueue_head(&queue->dealloc_wq);
+	atomic_set(&queue->inflight_packets, 0);
 
 	if (tx_evtchn == rx_evtchn) {
 		/* feature-split-event-channels == 0 */
@@ -618,6 +629,9 @@ int xenvif_connect(struct xenvif_queue *queue, unsigned long tx_ring_ref,
 	wake_up_process(queue->task);
 	wake_up_process(queue->dealloc_task);
 
+	netif_napi_add(queue->vif->dev, &queue->napi, xenvif_poll,
+			XENVIF_NAPI_WEIGHT);
+
 	return 0;
 
 err_rx_unbind:
@@ -646,25 +660,6 @@ void xenvif_carrier_off(struct xenvif *vif)
 	rtnl_unlock();
 }
 
-static void xenvif_wait_unmap_timeout(struct xenvif_queue *queue,
-				      unsigned int worst_case_skb_lifetime)
-{
-	int i, unmap_timeout = 0;
-
-	for (i = 0; i < MAX_PENDING_REQS; ++i) {
-		if (queue->grant_tx_handle[i] != NETBACK_INVALID_HANDLE) {
-			unmap_timeout++;
-			schedule_timeout(msecs_to_jiffies(1000));
-			if (unmap_timeout > worst_case_skb_lifetime &&
-			    net_ratelimit())
-				netdev_err(queue->vif->dev,
-					   "Page still granted! Index: %x\n",
-					   i);
-			i = -1;
-		}
-	}
-}
-
 void xenvif_disconnect(struct xenvif *vif)
 {
 	struct xenvif_queue *queue = NULL;
@@ -675,6 +670,8 @@ void xenvif_disconnect(struct xenvif *vif)
 
 	for (queue_index = 0; queue_index < num_queues; ++queue_index) {
 		queue = &vif->queues[queue_index];
+
+		netif_napi_del(&queue->napi);
 
 		if (queue->task) {
 			del_timer_sync(&queue->rx_stalled);
@@ -708,7 +705,6 @@ void xenvif_disconnect(struct xenvif *vif)
 void xenvif_deinit_queue(struct xenvif_queue *queue)
 {
 	free_xenballooned_pages(MAX_PENDING_REQS, queue->mmap_pages);
-	netif_napi_del(&queue->napi);
 }
 
 void xenvif_free(struct xenvif *vif)
@@ -716,21 +712,11 @@ void xenvif_free(struct xenvif *vif)
 	struct xenvif_queue *queue = NULL;
 	unsigned int num_queues = vif->num_queues;
 	unsigned int queue_index;
-	/* Here we want to avoid timeout messages if an skb can be legitimately
-	 * stuck somewhere else. Realistically this could be an another vif's
-	 * internal or QDisc queue. That another vif also has this
-	 * rx_drain_timeout_msecs timeout, so give it time to drain out.
-	 * Although if that other guest wakes up just before its timeout happens
-	 * and takes only one skb from QDisc, it can hold onto other skbs for a
-	 * longer period.
-	 */
-	unsigned int worst_case_skb_lifetime = (rx_drain_timeout_msecs/1000);
 
 	unregister_netdev(vif->dev);
 
 	for (queue_index = 0; queue_index < num_queues; ++queue_index) {
 		queue = &vif->queues[queue_index];
-		xenvif_wait_unmap_timeout(queue, worst_case_skb_lifetime);
 		xenvif_deinit_queue(queue);
 	}
 

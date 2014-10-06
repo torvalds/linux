@@ -3174,7 +3174,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		KEY_UNKNOWN,
 
 		/* Extra keys in use since the X240 / T440 / T540 */
-		KEY_CONFIG, KEY_SEARCH, KEY_SCALE, KEY_COMPUTER,
+		KEY_CONFIG, KEY_SEARCH, KEY_SCALE, KEY_FILE,
 		},
 	};
 
@@ -6144,7 +6144,7 @@ static int brightness_set(unsigned int value)
 {
 	int res;
 
-	if (value > bright_maxlvl || value < 0)
+	if (value > bright_maxlvl)
 		return -EINVAL;
 
 	vdbg_printk(TPACPI_DBG_BRGHT,
@@ -6860,7 +6860,7 @@ static int volume_alsa_mute_put(struct snd_kcontrol *kcontrol,
 	return volume_alsa_set_mute(!ucontrol->value.integer.value[0]);
 }
 
-static struct snd_kcontrol_new volume_alsa_control_vol = {
+static struct snd_kcontrol_new volume_alsa_control_vol __initdata = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Console Playback Volume",
 	.index = 0,
@@ -6869,7 +6869,7 @@ static struct snd_kcontrol_new volume_alsa_control_vol = {
 	.get = volume_alsa_vol_get,
 };
 
-static struct snd_kcontrol_new volume_alsa_control_mute = {
+static struct snd_kcontrol_new volume_alsa_control_mute __initdata = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Console Playback Switch",
 	.index = 0,

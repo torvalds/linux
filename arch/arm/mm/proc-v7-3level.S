@@ -146,12 +146,11 @@ ENDPROC(cpu_v7_set_pte_ext)
 	mov	\tmp, \ttbr1, lsr #(32 - ARCH_PGD_SHIFT)	@ upper bits
 	mov	\ttbr1, \ttbr1, lsl #ARCH_PGD_SHIFT		@ lower bits
 	addls	\ttbr1, \ttbr1, #TTBR1_OFFSET
-	mcrr	p15, 1, \ttbr1, \zero, c2			@ load TTBR1
+	adcls	\tmp, \tmp, #0
+	mcrr	p15, 1, \ttbr1, \tmp, c2			@ load TTBR1
 	mov	\tmp, \ttbr0, lsr #(32 - ARCH_PGD_SHIFT)	@ upper bits
 	mov	\ttbr0, \ttbr0, lsl #ARCH_PGD_SHIFT		@ lower bits
-	mcrr	p15, 0, \ttbr0, \zero, c2			@ load TTBR0
-	mcrr	p15, 1, \ttbr1, \zero, c2			@ load TTBR1
-	mcrr	p15, 0, \ttbr0, \zero, c2			@ load TTBR0
+	mcrr	p15, 0, \ttbr0, \tmp, c2			@ load TTBR0
 	.endm
 
 	/*

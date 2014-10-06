@@ -235,7 +235,7 @@ static void atl1_check_options(struct atl1_adapter *adapter)
 /*
  * atl1_pci_tbl - PCI Device ID Table
  */
-static DEFINE_PCI_DEVICE_TABLE(atl1_pci_tbl) = {
+static const struct pci_device_id atl1_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, PCI_DEVICE_ID_ATTANSIC_L1)},
 	/* required last entry */
 	{0,}

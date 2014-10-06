@@ -175,6 +175,7 @@ struct dasd_ccw_req {
 	struct dasd_block *block;	/* the originating block device */
 	struct dasd_device *memdev;	/* the device used to allocate this */
 	struct dasd_device *startdev;	/* device the request is started on */
+	struct dasd_device *basedev;	/* base device if no block->base */
 	void *cpaddr;			/* address of ccw or tcw */
 	unsigned char cpmode;		/* 0 = cmd mode, 1 = itcw */
 	char status;			/* status of this request */
@@ -304,7 +305,7 @@ struct dasd_discipline {
 	 */
 	int (*basic_to_ready) (struct dasd_device *);
 	int (*online_to_ready) (struct dasd_device *);
-	int (*ready_to_basic)  (struct dasd_device *);
+	int (*basic_to_known)(struct dasd_device *);
 
 	/* (struct dasd_device *);
 	 * Device operation functions. build_cp creates a ccw chain for
@@ -321,7 +322,7 @@ struct dasd_discipline {
 	int (*term_IO) (struct dasd_ccw_req *);
 	void (*handle_terminated_request) (struct dasd_ccw_req *);
 	int (*format_device) (struct dasd_device *,
-			      struct format_data_t *);
+			      struct format_data_t *, int enable_pav);
 	int (*free_cp) (struct dasd_ccw_req *, struct request *);
 
 	/*

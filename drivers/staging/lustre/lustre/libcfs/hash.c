@@ -351,7 +351,7 @@ cfs_hash_dh_hnode_add(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 					    cfs_hash_dhead_t, dh_head);
 
 	if (dh->dh_tail != NULL) /* not empty */
-		hlist_add_after(dh->dh_tail, hnode);
+		hlist_add_behind(hnode, dh->dh_tail);
 	else /* empty list */
 		hlist_add_head(hnode, &dh->dh_head);
 	dh->dh_tail = hnode;
@@ -406,7 +406,7 @@ cfs_hash_dd_hnode_add(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 						cfs_hash_dhead_dep_t, dd_head);
 
 	if (dh->dd_tail != NULL) /* not empty */
-		hlist_add_after(dh->dd_tail, hnode);
+		hlist_add_behind(hnode, dh->dd_tail);
 	else /* empty list */
 		hlist_add_head(hnode, &dh->dd_head);
 	dh->dd_tail = hnode;

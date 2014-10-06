@@ -349,7 +349,11 @@ prototypes:
 locking rules:
 			inode->i_lock	may block
 fl_copy_lock:		yes		no
-fl_release_private:	maybe		no
+fl_release_private:	maybe		maybe[1]
+
+[1]:	->fl_release_private for flock or POSIX locks is currently allowed
+to block. Leases however can still be freed while the i_lock is held and
+so fl_release_private called on a lease should not block.
 
 ----------------------- lock_manager_operations ---------------------------
 prototypes:

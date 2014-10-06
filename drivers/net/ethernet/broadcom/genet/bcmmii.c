@@ -129,7 +129,10 @@ static void bcmgenet_mii_setup(struct net_device *dev)
 			cmd_bits |= CMD_RX_PAUSE_IGNORE | CMD_TX_PAUSE_IGNORE;
 	}
 
-	if (status_changed) {
+	if (!status_changed)
+		return;
+
+	if (phydev->link) {
 		reg = bcmgenet_umac_readl(priv, UMAC_CMD);
 		reg &= ~((CMD_SPEED_MASK << CMD_SPEED_SHIFT) |
 			       CMD_HD_EN |
@@ -137,8 +140,9 @@ static void bcmgenet_mii_setup(struct net_device *dev)
 		reg |= cmd_bits;
 		bcmgenet_umac_writel(priv, reg, UMAC_CMD);
 
-		phy_print_status(phydev);
 	}
+
+	phy_print_status(phydev);
 }
 
 void bcmgenet_mii_reset(struct net_device *dev)
@@ -303,12 +307,12 @@ static int bcmgenet_mii_probe(struct net_device *dev)
 	/* In the case of a fixed PHY, the DT node associated
 	 * to the PHY is the Ethernet MAC DT node.
 	 */
-	if (of_phy_is_fixed_link(dn)) {
+	if (!priv->phy_dn && of_phy_is_fixed_link(dn)) {
 		ret = of_phy_register_fixed_link(dn);
 		if (ret)
 			return ret;
 
-		priv->phy_dn = dn;
+		priv->phy_dn = of_node_get(dn);
 	}
 
 	phydev = of_phy_connect(dev, priv->phy_dn, bcmgenet_mii_setup, 0,
@@ -444,6 +448,7 @@ int bcmgenet_mii_init(struct net_device *dev)
 	return 0;
 
 out:
+	of_node_put(priv->phy_dn);
 	mdiobus_unregister(priv->mii_bus);
 out_free:
 	kfree(priv->mii_bus->irq);
@@ -455,6 +460,7 @@ void bcmgenet_mii_exit(struct net_device *dev)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 
+	of_node_put(priv->phy_dn);
 	mdiobus_unregister(priv->mii_bus);
 	kfree(priv->mii_bus->irq);
 	mdiobus_free(priv->mii_bus);

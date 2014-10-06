@@ -131,13 +131,6 @@ static int tmp103_probe(struct i2c_client *client,
 	struct regmap *regmap;
 	int ret;
 
-	if (!i2c_check_functionality(client->adapter,
-				     I2C_FUNC_SMBUS_BYTE_DATA)) {
-		dev_err(&client->dev,
-			"adapter doesn't support SMBus byte transactions\n");
-		return -ENODEV;
-	}
-
 	regmap = devm_regmap_init_i2c(client, &tmp103_regmap_config);
 	if (IS_ERR(regmap)) {
 		dev_err(dev, "failed to allocate register map\n");

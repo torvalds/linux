@@ -265,6 +265,7 @@ struct hid_item {
 #define HID_CONNECT_HIDDEV		0x08
 #define HID_CONNECT_HIDDEV_FORCE	0x10
 #define HID_CONNECT_FF			0x20
+#define HID_CONNECT_DRIVER		0x40
 #define HID_CONNECT_DEFAULT	(HID_CONNECT_HIDINPUT|HID_CONNECT_HIDRAW| \
 		HID_CONNECT_HIDDEV|HID_CONNECT_FF)
 
@@ -287,6 +288,7 @@ struct hid_item {
 #define HID_QUIRK_HIDINPUT_FORCE		0x00000080
 #define HID_QUIRK_NO_EMPTY_INPUT		0x00000100
 #define HID_QUIRK_NO_INIT_INPUT_REPORTS		0x00000200
+#define HID_QUIRK_ALWAYS_POLL			0x00000400
 #define HID_QUIRK_SKIP_OUTPUT_REPORTS		0x00010000
 #define HID_QUIRK_SKIP_OUTPUT_REPORT_ID		0x00020000
 #define HID_QUIRK_NO_OUTPUT_REPORTS_ON_INTR_EP	0x00040000
@@ -310,6 +312,11 @@ struct hid_item {
  * Vendor specific HID device groups
  */
 #define HID_GROUP_RMI				0x0100
+
+/*
+ * Vendor specific HID device groups
+ */
+#define HID_GROUP_WACOM				0x0101
 
 /*
  * This is the global environment of the parser. This information is
@@ -435,6 +442,7 @@ struct hid_output_fifo {
 #define HID_CLAIMED_INPUT	1
 #define HID_CLAIMED_HIDDEV	2
 #define HID_CLAIMED_HIDRAW	4
+#define HID_CLAIMED_DRIVER	8
 
 #define HID_STAT_ADDED		1
 #define HID_STAT_PARSED		2

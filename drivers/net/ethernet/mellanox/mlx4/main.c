@@ -1853,6 +1853,11 @@ static int mlx4_setup_hca(struct mlx4_dev *dev)
 			mlx4_err(dev, "Failed to initialize multicast group table, aborting\n");
 			goto err_mr_table_free;
 		}
+		err = mlx4_config_mad_demux(dev);
+		if (err) {
+			mlx4_err(dev, "Failed in config_mad_demux, aborting\n");
+			goto err_mcg_table_free;
+		}
 	}
 
 	err = mlx4_init_eq_table(dev);
@@ -2727,7 +2732,7 @@ int mlx4_restart_one(struct pci_dev *pdev)
 	return __mlx4_init_one(pdev, pci_dev_data);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(mlx4_pci_table) = {
+static const struct pci_device_id mlx4_pci_table[] = {
 	/* MT25408 "Hermon" SDR */
 	{ PCI_VDEVICE(MELLANOX, 0x6340), MLX4_PCI_DEV_FORCE_SENSE_PORT },
 	/* MT25408 "Hermon" DDR */

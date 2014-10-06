@@ -84,12 +84,6 @@ struct btrfs_inode {
 	 */
 	struct list_head delalloc_inodes;
 
-	/*
-	 * list for tracking inodes that must be sent to disk before a
-	 * rename or truncate commit
-	 */
-	struct list_head ordered_operations;
-
 	/* node for the red-black tree that links inodes in subvolume root */
 	struct rb_node rb_node;
 

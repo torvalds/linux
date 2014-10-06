@@ -182,20 +182,48 @@ void i915_gem_context_free(struct kref *ctx_ref)
 						   typeof(*ctx), ref);
 	struct i915_hw_ppgtt *ppgtt = NULL;
 
-	if (ctx->obj) {
+	if (ctx->legacy_hw_ctx.rcs_state) {
 		/* We refcount even the aliasing PPGTT to keep the code symmetric */
-		if (USES_PPGTT(ctx->obj->base.dev))
+		if (USES_PPGTT(ctx->legacy_hw_ctx.rcs_state->base.dev))
 			ppgtt = ctx_to_ppgtt(ctx);
-
-		/* XXX: Free up the object before tearing down the address space, in
-		 * case we're bound in the PPGTT */
-		drm_gem_object_unreference(&ctx->obj->base);
 	}
 
 	if (ppgtt)
 		kref_put(&ppgtt->ref, ppgtt_release);
+	if (ctx->legacy_hw_ctx.rcs_state)
+		drm_gem_object_unreference(&ctx->legacy_hw_ctx.rcs_state->base);
 	list_del(&ctx->link);
 	kfree(ctx);
+}
+
+static struct drm_i915_gem_object *
+i915_gem_alloc_context_obj(struct drm_device *dev, size_t size)
+{
+	struct drm_i915_gem_object *obj;
+	int ret;
+
+	obj = i915_gem_alloc_object(dev, size);
+	if (obj == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	/*
+	 * Try to make the context utilize L3 as well as LLC.
+	 *
+	 * On VLV we don't have L3 controls in the PTEs so we
+	 * shouldn't touch the cache level, especially as that
+	 * would make the object snooped which might have a
+	 * negative performance impact.
+	 */
+	if (INTEL_INFO(dev)->gen >= 7 && !IS_VALLEYVIEW(dev)) {
+		ret = i915_gem_object_set_cache_level(obj, I915_CACHE_L3_LLC);
+		/* Failure shouldn't ever happen this early */
+		if (WARN_ON(ret)) {
+			drm_gem_object_unreference(&obj->base);
+			return ERR_PTR(ret);
+		}
+	}
+
+	return obj;
 }
 
 static struct i915_hw_ppgtt *
@@ -234,40 +262,26 @@ __create_hw_context(struct drm_device *dev,
 	list_add_tail(&ctx->link, &dev_priv->context_list);
 
 	if (dev_priv->hw_context_size) {
-		ctx->obj = i915_gem_alloc_object(dev, dev_priv->hw_context_size);
-		if (ctx->obj == NULL) {
-			ret = -ENOMEM;
+		struct drm_i915_gem_object *obj =
+				i915_gem_alloc_context_obj(dev, dev_priv->hw_context_size);
+		if (IS_ERR(obj)) {
+			ret = PTR_ERR(obj);
 			goto err_out;
 		}
-
-		/*
-		 * Try to make the context utilize L3 as well as LLC.
-		 *
-		 * On VLV we don't have L3 controls in the PTEs so we
-		 * shouldn't touch the cache level, especially as that
-		 * would make the object snooped which might have a
-		 * negative performance impact.
-		 */
-		if (INTEL_INFO(dev)->gen >= 7 && !IS_VALLEYVIEW(dev)) {
-			ret = i915_gem_object_set_cache_level(ctx->obj,
-							      I915_CACHE_L3_LLC);
-			/* Failure shouldn't ever happen this early */
-			if (WARN_ON(ret))
-				goto err_out;
-		}
+		ctx->legacy_hw_ctx.rcs_state = obj;
 	}
 
 	/* Default context will never have a file_priv */
 	if (file_priv != NULL) {
 		ret = idr_alloc(&file_priv->context_idr, ctx,
-				DEFAULT_CONTEXT_ID, 0, GFP_KERNEL);
+				DEFAULT_CONTEXT_HANDLE, 0, GFP_KERNEL);
 		if (ret < 0)
 			goto err_out;
 	} else
-		ret = DEFAULT_CONTEXT_ID;
+		ret = DEFAULT_CONTEXT_HANDLE;
 
 	ctx->file_priv = file_priv;
-	ctx->id = ret;
+	ctx->user_handle = ret;
 	/* NB: Mark all slices as needing a remap so that when the context first
 	 * loads it will restore whatever remap state already exists. If there
 	 * is no remap info, it will be a NOP. */
@@ -301,7 +315,7 @@ i915_gem_create_context(struct drm_device *dev,
 	if (IS_ERR(ctx))
 		return ctx;
 
-	if (is_global_default_ctx && ctx->obj) {
+	if (is_global_default_ctx && ctx->legacy_hw_ctx.rcs_state) {
 		/* We may need to do things with the shrinker which
 		 * require us to immediately switch back to the default
 		 * context. This can cause a problem as pinning the
@@ -309,7 +323,7 @@ i915_gem_create_context(struct drm_device *dev,
 		 * be available. To avoid this we always pin the default
 		 * context.
 		 */
-		ret = i915_gem_obj_ggtt_pin(ctx->obj,
+		ret = i915_gem_obj_ggtt_pin(ctx->legacy_hw_ctx.rcs_state,
 					    get_context_alignment(dev), 0);
 		if (ret) {
 			DRM_DEBUG_DRIVER("Couldn't pin %d\n", ret);
@@ -349,8 +363,8 @@ i915_gem_create_context(struct drm_device *dev,
 	return ctx;
 
 err_unpin:
-	if (is_global_default_ctx && ctx->obj)
-		i915_gem_object_ggtt_unpin(ctx->obj);
+	if (is_global_default_ctx && ctx->legacy_hw_ctx.rcs_state)
+		i915_gem_object_ggtt_unpin(ctx->legacy_hw_ctx.rcs_state);
 err_destroy:
 	i915_gem_context_unreference(ctx);
 	return ERR_PTR(ret);
@@ -366,23 +380,27 @@ void i915_gem_context_reset(struct drm_device *dev)
 	for (i = 0; i < I915_NUM_RINGS; i++) {
 		struct intel_engine_cs *ring = &dev_priv->ring[i];
 		struct intel_context *dctx = ring->default_context;
+		struct intel_context *lctx = ring->last_context;
 
 		/* Do a fake switch to the default context */
-		if (ring->last_context == dctx)
+		if (lctx == dctx)
 			continue;
 
-		if (!ring->last_context)
+		if (!lctx)
 			continue;
 
-		if (dctx->obj && i == RCS) {
-			WARN_ON(i915_gem_obj_ggtt_pin(dctx->obj,
+		if (dctx->legacy_hw_ctx.rcs_state && i == RCS) {
+			WARN_ON(i915_gem_obj_ggtt_pin(dctx->legacy_hw_ctx.rcs_state,
 						      get_context_alignment(dev), 0));
 			/* Fake a finish/inactive */
-			dctx->obj->base.write_domain = 0;
-			dctx->obj->active = 0;
+			dctx->legacy_hw_ctx.rcs_state->base.write_domain = 0;
+			dctx->legacy_hw_ctx.rcs_state->active = 0;
 		}
 
-		i915_gem_context_unreference(ring->last_context);
+		if (lctx->legacy_hw_ctx.rcs_state && i == RCS)
+			i915_gem_object_ggtt_unpin(lctx->legacy_hw_ctx.rcs_state);
+
+		i915_gem_context_unreference(lctx);
 		i915_gem_context_reference(dctx);
 		ring->last_context = dctx;
 	}
@@ -429,7 +447,7 @@ void i915_gem_context_fini(struct drm_device *dev)
 	struct intel_context *dctx = dev_priv->ring[RCS].default_context;
 	int i;
 
-	if (dctx->obj) {
+	if (dctx->legacy_hw_ctx.rcs_state) {
 		/* The only known way to stop the gpu from accessing the hw context is
 		 * to reset it. Do this as the very last operation to avoid confusing
 		 * other code, leading to spurious errors. */
@@ -444,13 +462,13 @@ void i915_gem_context_fini(struct drm_device *dev)
 		WARN_ON(!dev_priv->ring[RCS].last_context);
 		if (dev_priv->ring[RCS].last_context == dctx) {
 			/* Fake switch to NULL context */
-			WARN_ON(dctx->obj->active);
-			i915_gem_object_ggtt_unpin(dctx->obj);
+			WARN_ON(dctx->legacy_hw_ctx.rcs_state->active);
+			i915_gem_object_ggtt_unpin(dctx->legacy_hw_ctx.rcs_state);
 			i915_gem_context_unreference(dctx);
 			dev_priv->ring[RCS].last_context = NULL;
 		}
 
-		i915_gem_object_ggtt_unpin(dctx->obj);
+		i915_gem_object_ggtt_unpin(dctx->legacy_hw_ctx.rcs_state);
 	}
 
 	for (i = 0; i < I915_NUM_RINGS; i++) {
@@ -570,7 +588,7 @@ mi_set_context(struct intel_engine_cs *ring,
 
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_emit(ring, MI_SET_CONTEXT);
-	intel_ring_emit(ring, i915_gem_obj_ggtt_offset(new_context->obj) |
+	intel_ring_emit(ring, i915_gem_obj_ggtt_offset(new_context->legacy_hw_ctx.rcs_state) |
 			MI_MM_SPACE_GTT |
 			MI_SAVE_EXT_STATE_EN |
 			MI_RESTORE_EXT_STATE_EN |
@@ -602,16 +620,16 @@ static int do_switch(struct intel_engine_cs *ring,
 	int ret, i;
 
 	if (from != NULL && ring == &dev_priv->ring[RCS]) {
-		BUG_ON(from->obj == NULL);
-		BUG_ON(!i915_gem_obj_is_pinned(from->obj));
+		BUG_ON(from->legacy_hw_ctx.rcs_state == NULL);
+		BUG_ON(!i915_gem_obj_is_pinned(from->legacy_hw_ctx.rcs_state));
 	}
 
-	if (from == to && from->last_ring == ring && !to->remap_slice)
+	if (from == to && !to->remap_slice)
 		return 0;
 
 	/* Trying to pin first makes error handling easier. */
 	if (ring == &dev_priv->ring[RCS]) {
-		ret = i915_gem_obj_ggtt_pin(to->obj,
+		ret = i915_gem_obj_ggtt_pin(to->legacy_hw_ctx.rcs_state,
 					    get_context_alignment(ring->dev), 0);
 		if (ret)
 			return ret;
@@ -644,17 +662,17 @@ static int do_switch(struct intel_engine_cs *ring,
 	 *
 	 * XXX: We need a real interface to do this instead of trickery.
 	 */
-	ret = i915_gem_object_set_to_gtt_domain(to->obj, false);
+	ret = i915_gem_object_set_to_gtt_domain(to->legacy_hw_ctx.rcs_state, false);
 	if (ret)
 		goto unpin_out;
 
-	if (!to->obj->has_global_gtt_mapping) {
-		struct i915_vma *vma = i915_gem_obj_to_vma(to->obj,
+	if (!to->legacy_hw_ctx.rcs_state->has_global_gtt_mapping) {
+		struct i915_vma *vma = i915_gem_obj_to_vma(to->legacy_hw_ctx.rcs_state,
 							   &dev_priv->gtt.base);
-		vma->bind_vma(vma, to->obj->cache_level, GLOBAL_BIND);
+		vma->bind_vma(vma, to->legacy_hw_ctx.rcs_state->cache_level, GLOBAL_BIND);
 	}
 
-	if (!to->is_initialized || i915_gem_context_is_default(to))
+	if (!to->legacy_hw_ctx.initialized || i915_gem_context_is_default(to))
 		hw_flags |= MI_RESTORE_INHIBIT;
 
 	ret = mi_set_context(ring, to, hw_flags);
@@ -680,8 +698,8 @@ static int do_switch(struct intel_engine_cs *ring,
 	 * MI_SET_CONTEXT instead of when the next seqno has completed.
 	 */
 	if (from != NULL) {
-		from->obj->base.read_domains = I915_GEM_DOMAIN_INSTRUCTION;
-		i915_vma_move_to_active(i915_gem_obj_to_ggtt(from->obj), ring);
+		from->legacy_hw_ctx.rcs_state->base.read_domains = I915_GEM_DOMAIN_INSTRUCTION;
+		i915_vma_move_to_active(i915_gem_obj_to_ggtt(from->legacy_hw_ctx.rcs_state), ring);
 		/* As long as MI_SET_CONTEXT is serializing, ie. it flushes the
 		 * whole damn pipeline, we don't need to explicitly mark the
 		 * object dirty. The only exception is that the context must be
@@ -689,21 +707,20 @@ static int do_switch(struct intel_engine_cs *ring,
 		 * able to defer doing this until we know the object would be
 		 * swapped, but there is no way to do that yet.
 		 */
-		from->obj->dirty = 1;
-		BUG_ON(from->obj->ring != ring);
+		from->legacy_hw_ctx.rcs_state->dirty = 1;
+		BUG_ON(from->legacy_hw_ctx.rcs_state->ring != ring);
 
 		/* obj is kept alive until the next request by its active ref */
-		i915_gem_object_ggtt_unpin(from->obj);
+		i915_gem_object_ggtt_unpin(from->legacy_hw_ctx.rcs_state);
 		i915_gem_context_unreference(from);
 	}
 
-	uninitialized = !to->is_initialized && from == NULL;
-	to->is_initialized = true;
+	uninitialized = !to->legacy_hw_ctx.initialized && from == NULL;
+	to->legacy_hw_ctx.initialized = true;
 
 done:
 	i915_gem_context_reference(to);
 	ring->last_context = to;
-	to->last_ring = ring;
 
 	if (uninitialized) {
 		ret = i915_gem_render_state_init(ring);
@@ -715,7 +732,7 @@ done:
 
 unpin_out:
 	if (ring->id == RCS)
-		i915_gem_object_ggtt_unpin(to->obj);
+		i915_gem_object_ggtt_unpin(to->legacy_hw_ctx.rcs_state);
 	return ret;
 }
 
@@ -736,7 +753,7 @@ int i915_switch_context(struct intel_engine_cs *ring,
 
 	WARN_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
 
-	if (to->obj == NULL) { /* We have the fake context */
+	if (to->legacy_hw_ctx.rcs_state == NULL) { /* We have the fake context */
 		if (to != ring->last_context) {
 			i915_gem_context_reference(to);
 			if (ring->last_context)
@@ -774,7 +791,7 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
-	args->ctx_id = ctx->id;
+	args->ctx_id = ctx->user_handle;
 	DRM_DEBUG_DRIVER("HW context %d created\n", args->ctx_id);
 
 	return 0;
@@ -788,7 +805,7 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 	struct intel_context *ctx;
 	int ret;
 
-	if (args->ctx_id == DEFAULT_CONTEXT_ID)
+	if (args->ctx_id == DEFAULT_CONTEXT_HANDLE)
 		return -ENOENT;
 
 	ret = i915_mutex_lock_interruptible(dev);
@@ -801,7 +818,7 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 		return PTR_ERR(ctx);
 	}
 
-	idr_remove(&ctx->file_priv->context_idr, ctx->id);
+	idr_remove(&ctx->file_priv->context_idr, ctx->user_handle);
 	i915_gem_context_unreference(ctx);
 	mutex_unlock(&dev->struct_mutex);
 

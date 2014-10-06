@@ -16,32 +16,81 @@ struct device;
  */
 struct gpio_desc;
 
+#define GPIOD_FLAGS_BIT_DIR_SET		BIT(0)
+#define GPIOD_FLAGS_BIT_DIR_OUT		BIT(1)
+#define GPIOD_FLAGS_BIT_DIR_VAL		BIT(2)
+
+/**
+ * Optional flags that can be passed to one of gpiod_* to configure direction
+ * and output value. These values cannot be OR'd.
+ */
+enum gpiod_flags {
+	GPIOD_ASIS	= 0,
+	GPIOD_IN	= GPIOD_FLAGS_BIT_DIR_SET,
+	GPIOD_OUT_LOW	= GPIOD_FLAGS_BIT_DIR_SET | GPIOD_FLAGS_BIT_DIR_OUT,
+	GPIOD_OUT_HIGH	= GPIOD_FLAGS_BIT_DIR_SET | GPIOD_FLAGS_BIT_DIR_OUT |
+			  GPIOD_FLAGS_BIT_DIR_VAL,
+};
+
 #ifdef CONFIG_GPIOLIB
 
 /* Acquire and dispose GPIOs */
-struct gpio_desc *__must_check gpiod_get(struct device *dev,
-					 const char *con_id);
-struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
+struct gpio_desc *__must_check __gpiod_get(struct device *dev,
+					 const char *con_id,
+					 enum gpiod_flags flags);
+#define __gpiod_get(dev, con_id, flags, ...) __gpiod_get(dev, con_id, flags)
+#define gpiod_get(varargs...) __gpiod_get(varargs, 0)
+struct gpio_desc *__must_check __gpiod_get_index(struct device *dev,
 					       const char *con_id,
-					       unsigned int idx);
-struct gpio_desc *__must_check gpiod_get_optional(struct device *dev,
-						  const char *con_id);
-struct gpio_desc *__must_check gpiod_get_index_optional(struct device *dev,
+					       unsigned int idx,
+					       enum gpiod_flags flags);
+#define __gpiod_get_index(dev, con_id, index, flags, ...)		\
+	__gpiod_get_index(dev, con_id, index, flags)
+#define gpiod_get_index(varargs...) __gpiod_get_index(varargs, 0)
+struct gpio_desc *__must_check __gpiod_get_optional(struct device *dev,
+						  const char *con_id,
+						  enum gpiod_flags flags);
+#define __gpiod_get_optional(dev, con_id, flags, ...)			\
+	__gpiod_get_optional(dev, con_id, flags)
+#define gpiod_get_optional(varargs...) __gpiod_get_optional(varargs, 0)
+struct gpio_desc *__must_check __gpiod_get_index_optional(struct device *dev,
 							const char *con_id,
-							unsigned int index);
+							unsigned int index,
+							enum gpiod_flags flags);
+#define __gpiod_get_index_optional(dev, con_id, index, flags, ...)	\
+	__gpiod_get_index_optional(dev, con_id, index, flags)
+#define gpiod_get_index_optional(varargs...)				\
+	__gpiod_get_index_optional(varargs, 0)
 
 void gpiod_put(struct gpio_desc *desc);
 
-struct gpio_desc *__must_check devm_gpiod_get(struct device *dev,
-					      const char *con_id);
-struct gpio_desc *__must_check devm_gpiod_get_index(struct device *dev,
+struct gpio_desc *__must_check __devm_gpiod_get(struct device *dev,
+					      const char *con_id,
+					      enum gpiod_flags flags);
+#define __devm_gpiod_get(dev, con_id, flags, ...)			\
+	__devm_gpiod_get(dev, con_id, flags)
+#define devm_gpiod_get(varargs...) __devm_gpiod_get(varargs, 0)
+struct gpio_desc *__must_check __devm_gpiod_get_index(struct device *dev,
 						    const char *con_id,
-						    unsigned int idx);
-struct gpio_desc *__must_check devm_gpiod_get_optional(struct device *dev,
-						       const char *con_id);
+						    unsigned int idx,
+						    enum gpiod_flags flags);
+#define __devm_gpiod_get_index(dev, con_id, index, flags, ...)		\
+	__devm_gpiod_get_index(dev, con_id, index, flags)
+#define devm_gpiod_get_index(varargs...) __devm_gpiod_get_index(varargs, 0)
+struct gpio_desc *__must_check __devm_gpiod_get_optional(struct device *dev,
+						       const char *con_id,
+						       enum gpiod_flags flags);
+#define __devm_gpiod_get_optional(dev, con_id, flags, ...)		\
+	__devm_gpiod_get_optional(dev, con_id, flags)
+#define devm_gpiod_get_optional(varargs...)				\
+	__devm_gpiod_get_optional(varargs, 0)
 struct gpio_desc *__must_check
-devm_gpiod_get_index_optional(struct device *dev, const char *con_id,
-			      unsigned int index);
+__devm_gpiod_get_index_optional(struct device *dev, const char *con_id,
+			      unsigned int index, enum gpiod_flags flags);
+#define __devm_gpiod_get_index_optional(dev, con_id, index, flags, ...)	\
+	__devm_gpiod_get_index_optional(dev, con_id, index, flags)
+#define devm_gpiod_get_index_optional(varargs...)			\
+	__devm_gpiod_get_index_optional(varargs, 0)
 
 void devm_gpiod_put(struct device *dev, struct gpio_desc *desc);
 

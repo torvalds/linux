@@ -148,6 +148,13 @@
 #define EXYNOS5440_TMU_TH_RISE4_SHIFT		24
 #define EXYNOS5440_EFUSE_SWAP_OFFSET		8
 
+#if defined(CONFIG_SOC_EXYNOS3250)
+extern struct exynos_tmu_init_data const exynos3250_default_tmu_data;
+#define EXYNOS3250_TMU_DRV_DATA (&exynos3250_default_tmu_data)
+#else
+#define EXYNOS3250_TMU_DRV_DATA (NULL)
+#endif
+
 #if defined(CONFIG_CPU_EXYNOS4210)
 extern struct exynos_tmu_init_data const exynos4210_default_tmu_data;
 #define EXYNOS4210_TMU_DRV_DATA (&exynos4210_default_tmu_data)

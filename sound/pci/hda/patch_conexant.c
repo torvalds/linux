@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include <sound/core.h>
 #include <sound/jack.h>
+#include <sound/tlv.h>
 
 #include "hda_codec.h"
 #include "hda_local.h"
@@ -858,6 +859,11 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	err = snd_hda_gen_parse_auto_config(codec, &spec->gen.autocfg);
 	if (err < 0)
 		goto error;
+
+	if (codec->vendor_id == 0x14f15051) {
+		/* minimum value is actually mute */
+		spec->gen.vmaster_tlv[3] |= TLV_DB_SCALE_MUTE;
+	}
 
 	codec->patch_ops = cx_auto_patch_ops;
 

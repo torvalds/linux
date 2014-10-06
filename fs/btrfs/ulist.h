@@ -57,6 +57,21 @@ void ulist_free(struct ulist *ulist);
 int ulist_add(struct ulist *ulist, u64 val, u64 aux, gfp_t gfp_mask);
 int ulist_add_merge(struct ulist *ulist, u64 val, u64 aux,
 		    u64 *old_aux, gfp_t gfp_mask);
+
+/* just like ulist_add_merge() but take a pointer for the aux data */
+static inline int ulist_add_merge_ptr(struct ulist *ulist, u64 val, void *aux,
+				      void **old_aux, gfp_t gfp_mask)
+{
+#if BITS_PER_LONG == 32
+	u64 old64 = (uintptr_t)*old_aux;
+	int ret = ulist_add_merge(ulist, val, (uintptr_t)aux, &old64, gfp_mask);
+	*old_aux = (void *)((uintptr_t)old64);
+	return ret;
+#else
+	return ulist_add_merge(ulist, val, (u64)aux, (u64 *)old_aux, gfp_mask);
+#endif
+}
+
 struct ulist_node *ulist_next(struct ulist *ulist,
 			      struct ulist_iterator *uiter);
 

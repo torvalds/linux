@@ -91,8 +91,16 @@ int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value)
 int adreno_hw_init(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	int ret;
 
 	DBG("%s", gpu->name);
+
+	ret = msm_gem_get_iova(gpu->rb->bo, gpu->id, &gpu->rb_iova);
+	if (ret) {
+		gpu->rb_iova = 0;
+		dev_err(gpu->dev->dev, "could not map ringbuffer: %d\n", ret);
+		return ret;
+	}
 
 	/* Setup REG_CP_RB_CNTL: */
 	gpu_write(gpu, REG_AXXX_CP_RB_CNTL,
@@ -362,8 +370,10 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 			return ret;
 	}
 
+	mutex_lock(&drm->struct_mutex);
 	gpu->memptrs_bo = msm_gem_new(drm, sizeof(*gpu->memptrs),
 			MSM_BO_UNCACHED);
+	mutex_unlock(&drm->struct_mutex);
 	if (IS_ERR(gpu->memptrs_bo)) {
 		ret = PTR_ERR(gpu->memptrs_bo);
 		gpu->memptrs_bo = NULL;
@@ -371,13 +381,13 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		return ret;
 	}
 
-	gpu->memptrs = msm_gem_vaddr_locked(gpu->memptrs_bo);
+	gpu->memptrs = msm_gem_vaddr(gpu->memptrs_bo);
 	if (!gpu->memptrs) {
 		dev_err(drm->dev, "could not vmap memptrs\n");
 		return -ENOMEM;
 	}
 
-	ret = msm_gem_get_iova_locked(gpu->memptrs_bo, gpu->base.id,
+	ret = msm_gem_get_iova(gpu->memptrs_bo, gpu->base.id,
 			&gpu->memptrs_iova);
 	if (ret) {
 		dev_err(drm->dev, "could not map memptrs: %d\n", ret);

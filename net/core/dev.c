@@ -3602,7 +3602,7 @@ another_round:
 
 	if (skb->protocol == cpu_to_be16(ETH_P_8021Q) ||
 	    skb->protocol == cpu_to_be16(ETH_P_8021AD)) {
-		skb = vlan_untag(skb);
+		skb = skb_vlan_untag(skb);
 		if (unlikely(!skb))
 			goto unlock;
 	}

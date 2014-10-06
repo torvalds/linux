@@ -146,7 +146,7 @@ long kvm_arch_dev_ioctl(struct file *filp,
 	return -EINVAL;
 }
 
-int kvm_dev_ioctl_check_extension(long ext)
+int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 {
 	int r;
 

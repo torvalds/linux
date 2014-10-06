@@ -441,18 +441,31 @@ EXPORT_SYMBOL(drm_gem_create_mmap_offset);
  * drm_gem_get_pages - helper to allocate backing pages for a GEM object
  * from shmem
  * @obj: obj in question
- * @gfpmask: gfp mask of requested pages
+ *
+ * This reads the page-array of the shmem-backing storage of the given gem
+ * object. An array of pages is returned. If a page is not allocated or
+ * swapped-out, this will allocate/swap-in the required pages. Note that the
+ * whole object is covered by the page-array and pinned in memory.
+ *
+ * Use drm_gem_put_pages() to release the array and unpin all pages.
+ *
+ * This uses the GFP-mask set on the shmem-mapping (see mapping_set_gfp_mask()).
+ * If you require other GFP-masks, you have to do those allocations yourself.
+ *
+ * Note that you are not allowed to change gfp-zones during runtime. That is,
+ * shmem_read_mapping_page_gfp() must be called with the same gfp_zone(gfp) as
+ * set during initialization. If you have special zone constraints, set them
+ * after drm_gem_init_object() via mapping_set_gfp_mask(). shmem-core takes care
+ * to keep pages in the required zone during swap-in.
  */
-struct page **drm_gem_get_pages(struct drm_gem_object *obj, gfp_t gfpmask)
+struct page **drm_gem_get_pages(struct drm_gem_object *obj)
 {
-	struct inode *inode;
 	struct address_space *mapping;
 	struct page *p, **pages;
 	int i, npages;
 
 	/* This is the shared memory object that backs the GEM resource */
-	inode = file_inode(obj->filp);
-	mapping = inode->i_mapping;
+	mapping = file_inode(obj->filp)->i_mapping;
 
 	/* We already BUG_ON() for non-page-aligned sizes in
 	 * drm_gem_object_init(), so we should never hit this unless
@@ -466,10 +479,8 @@ struct page **drm_gem_get_pages(struct drm_gem_object *obj, gfp_t gfpmask)
 	if (pages == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	gfpmask |= mapping_gfp_mask(mapping);
-
 	for (i = 0; i < npages; i++) {
-		p = shmem_read_mapping_page_gfp(mapping, i, gfpmask);
+		p = shmem_read_mapping_page(mapping, i);
 		if (IS_ERR(p))
 			goto fail;
 		pages[i] = p;
@@ -479,7 +490,7 @@ struct page **drm_gem_get_pages(struct drm_gem_object *obj, gfp_t gfpmask)
 		 * __GFP_DMA32 to be set in mapping_gfp_mask(inode->i_mapping)
 		 * so shmem can relocate pages during swapin if required.
 		 */
-		BUG_ON((gfpmask & __GFP_DMA32) &&
+		BUG_ON((mapping_gfp_mask(mapping) & __GFP_DMA32) &&
 				(page_to_pfn(p) >= 0x00100000UL));
 	}
 

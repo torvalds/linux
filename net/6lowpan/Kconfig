@@ -1,5 +1,5 @@
 config 6LOWPAN
-	bool "6LoWPAN Support"
+	tristate "6LoWPAN Support"
 	depends on IPV6
 	---help---
 	  This enables IPv6 over Low power Wireless Personal Area Network -

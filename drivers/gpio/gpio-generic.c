@@ -398,7 +398,8 @@ static int bgpio_request(struct gpio_chip *chip, unsigned gpio_pin)
 
 int bgpio_remove(struct bgpio_chip *bgc)
 {
-	return gpiochip_remove(&bgc->gc);
+	gpiochip_remove(&bgc->gc);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(bgpio_remove);
 

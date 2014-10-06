@@ -191,7 +191,7 @@ int fsnotify_add_vfsmount_mark(struct fsnotify_mark *mark,
 
 	BUG_ON(last == NULL);
 	/* mark should be the last entry.  last is the current last entry */
-	hlist_add_after_rcu(&last->m.m_list, &mark->m.m_list);
+	hlist_add_behind_rcu(&mark->m.m_list, &last->m.m_list);
 out:
 	fsnotify_recalc_vfsmount_mask_locked(mnt);
 	spin_unlock(&mnt->mnt_root->d_lock);

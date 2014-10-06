@@ -65,7 +65,7 @@ static int i40e_veb_get_bw_info(struct i40e_veb *veb);
  * { Vendor ID, Device ID, SubVendor ID, SubDevice ID,
  *   Class, Class Mask, private data (not used) }
  */
-static DEFINE_PCI_DEVICE_TABLE(i40e_pci_tbl) = {
+static const struct pci_device_id i40e_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_SFP_XL710), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QEMU), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_KX_A), 0},
@@ -4415,13 +4415,13 @@ static void i40e_print_link_message(struct i40e_vsi *vsi, bool isup)
 
 	switch (vsi->back->hw.phy.link_info.link_speed) {
 	case I40E_LINK_SPEED_40GB:
-		strncpy(speed, "40 Gbps", SPEED_SIZE);
+		strlcpy(speed, "40 Gbps", SPEED_SIZE);
 		break;
 	case I40E_LINK_SPEED_10GB:
-		strncpy(speed, "10 Gbps", SPEED_SIZE);
+		strlcpy(speed, "10 Gbps", SPEED_SIZE);
 		break;
 	case I40E_LINK_SPEED_1GB:
-		strncpy(speed, "1000 Mbps", SPEED_SIZE);
+		strlcpy(speed, "1000 Mbps", SPEED_SIZE);
 		break;
 	default:
 		break;
@@ -4429,16 +4429,16 @@ static void i40e_print_link_message(struct i40e_vsi *vsi, bool isup)
 
 	switch (vsi->back->hw.fc.current_mode) {
 	case I40E_FC_FULL:
-		strncpy(fc, "RX/TX", FC_SIZE);
+		strlcpy(fc, "RX/TX", FC_SIZE);
 		break;
 	case I40E_FC_TX_PAUSE:
-		strncpy(fc, "TX", FC_SIZE);
+		strlcpy(fc, "TX", FC_SIZE);
 		break;
 	case I40E_FC_RX_PAUSE:
-		strncpy(fc, "RX", FC_SIZE);
+		strlcpy(fc, "RX", FC_SIZE);
 		break;
 	default:
-		strncpy(fc, "None", FC_SIZE);
+		strlcpy(fc, "None", FC_SIZE);
 		break;
 	}
 
@@ -5839,7 +5839,7 @@ static void i40e_send_version(struct i40e_pf *pf)
 	dv.minor_version = DRV_VERSION_MINOR;
 	dv.build_version = DRV_VERSION_BUILD;
 	dv.subbuild_version = 0;
-	strncpy(dv.driver_string, DRV_VERSION, sizeof(dv.driver_string));
+	strlcpy(dv.driver_string, DRV_VERSION, sizeof(dv.driver_string));
 	i40e_aq_send_driver_version(&pf->hw, &dv, NULL);
 }
 
@@ -6293,7 +6293,7 @@ static int i40e_vsi_alloc_arrays(struct i40e_vsi *vsi, bool alloc_qvectors)
 
 	if (alloc_qvectors) {
 		/* allocate memory for q_vector pointers */
-		size = sizeof(struct i40e_q_vectors *) * vsi->num_q_vectors;
+		size = sizeof(struct i40e_q_vector *) * vsi->num_q_vectors;
 		vsi->q_vectors = kzalloc(size, GFP_KERNEL);
 		if (!vsi->q_vectors) {
 			ret = -ENOMEM;

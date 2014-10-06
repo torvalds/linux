@@ -509,7 +509,7 @@
 			clocks = <&apb0_gates 5>;
 			gpio-controller;
 			interrupt-controller;
-			#address-cells = <1>;
+			#interrupt-cells = <2>;
 			#size-cells = <0>;
 			#gpio-cells = <3>;
 
@@ -593,6 +593,20 @@
 				allwinner,drive = <0>;
 				allwinner,pull = <1>;
 			};
+
+			ir0_pins_a: ir0@0 {
+				allwinner,pins = "PB3","PB4";
+				allwinner,function = "ir0";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
+			ir1_pins_a: ir1@0 {
+				allwinner,pins = "PB22","PB23";
+				allwinner,function = "ir1";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
 		};
 
 		timer@01c20c00 {
@@ -618,6 +632,24 @@
 			reg = <0x01c20e00 0xc>;
 			clocks = <&osc24M>;
 			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		ir0: ir@01c21800 {
+			compatible = "allwinner,sun4i-a10-ir";
+			clocks = <&apb0_gates 6>, <&ir0_clk>;
+			clock-names = "apb", "ir";
+			interrupts = <5>;
+			reg = <0x01c21800 0x40>;
+			status = "disabled";
+		};
+
+		ir1: ir@01c21c00 {
+			compatible = "allwinner,sun4i-a10-ir";
+			clocks = <&apb0_gates 7>, <&ir1_clk>;
+			clock-names = "apb", "ir";
+			interrupts = <6>;
+			reg = <0x01c21c00 0x40>;
 			status = "disabled";
 		};
 

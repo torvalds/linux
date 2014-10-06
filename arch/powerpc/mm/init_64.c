@@ -175,9 +175,10 @@ static unsigned long __meminit vmemmap_section_start(unsigned long page)
 static int __meminit vmemmap_populated(unsigned long start, int page_size)
 {
 	unsigned long end = start + page_size;
+	start = (unsigned long)(pfn_to_page(vmemmap_section_start(start)));
 
 	for (; start < end; start += (PAGES_PER_SECTION * sizeof(struct page)))
-		if (pfn_valid(vmemmap_section_start(start)))
+		if (pfn_valid(page_to_pfn((struct page *)start)))
 			return 1;
 
 	return 0;
@@ -212,6 +213,13 @@ static void __meminit vmemmap_create_mapping(unsigned long start,
 	for (i = 0; i < page_size; i += PAGE_SIZE)
 		BUG_ON(map_kernel_page(start + i, phys, flags));
 }
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+static void vmemmap_remove_mapping(unsigned long start,
+				   unsigned long page_size)
+{
+}
+#endif
 #else /* CONFIG_PPC_BOOK3E */
 static void __meminit vmemmap_create_mapping(unsigned long start,
 					     unsigned long page_size,
@@ -223,17 +231,42 @@ static void __meminit vmemmap_create_mapping(unsigned long start,
 					mmu_kernel_ssize);
 	BUG_ON(mapped < 0);
 }
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+extern int htab_remove_mapping(unsigned long vstart, unsigned long vend,
+			int psize, int ssize);
+
+static void vmemmap_remove_mapping(unsigned long start,
+				   unsigned long page_size)
+{
+	int mapped = htab_remove_mapping(start, start + page_size,
+					 mmu_vmemmap_psize,
+					 mmu_kernel_ssize);
+	BUG_ON(mapped < 0);
+}
+#endif
+
 #endif /* CONFIG_PPC_BOOK3E */
 
 struct vmemmap_backing *vmemmap_list;
+static struct vmemmap_backing *next;
+static int num_left;
+static int num_freed;
 
 static __meminit struct vmemmap_backing * vmemmap_list_alloc(int node)
 {
-	static struct vmemmap_backing *next;
-	static int num_left;
+	struct vmemmap_backing *vmem_back;
+	/* get from freed entries first */
+	if (num_freed) {
+		num_freed--;
+		vmem_back = next;
+		next = next->list;
+
+		return vmem_back;
+	}
 
 	/* allocate a page when required and hand out chunks */
-	if (!next || !num_left) {
+	if (!num_left) {
 		next = vmemmap_alloc_block(PAGE_SIZE, node);
 		if (unlikely(!next)) {
 			WARN_ON(1);
@@ -296,10 +329,85 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 	return 0;
 }
 
-void vmemmap_free(unsigned long start, unsigned long end)
+#ifdef CONFIG_MEMORY_HOTPLUG
+static unsigned long vmemmap_list_free(unsigned long start)
 {
+	struct vmemmap_backing *vmem_back, *vmem_back_prev;
+
+	vmem_back_prev = vmem_back = vmemmap_list;
+
+	/* look for it with prev pointer recorded */
+	for (; vmem_back; vmem_back = vmem_back->list) {
+		if (vmem_back->virt_addr == start)
+			break;
+		vmem_back_prev = vmem_back;
+	}
+
+	if (unlikely(!vmem_back)) {
+		WARN_ON(1);
+		return 0;
+	}
+
+	/* remove it from vmemmap_list */
+	if (vmem_back == vmemmap_list) /* remove head */
+		vmemmap_list = vmem_back->list;
+	else
+		vmem_back_prev->list = vmem_back->list;
+
+	/* next point to this freed entry */
+	vmem_back->list = next;
+	next = vmem_back;
+	num_freed++;
+
+	return vmem_back->phys;
 }
 
+void __ref vmemmap_free(unsigned long start, unsigned long end)
+{
+	unsigned long page_size = 1 << mmu_psize_defs[mmu_vmemmap_psize].shift;
+
+	start = _ALIGN_DOWN(start, page_size);
+
+	pr_debug("vmemmap_free %lx...%lx\n", start, end);
+
+	for (; start < end; start += page_size) {
+		unsigned long addr;
+
+		/*
+		 * the section has already be marked as invalid, so
+		 * vmemmap_populated() true means some other sections still
+		 * in this page, so skip it.
+		 */
+		if (vmemmap_populated(start, page_size))
+			continue;
+
+		addr = vmemmap_list_free(start);
+		if (addr) {
+			struct page *page = pfn_to_page(addr >> PAGE_SHIFT);
+
+			if (PageReserved(page)) {
+				/* allocated from bootmem */
+				if (page_size < PAGE_SIZE) {
+					/*
+					 * this shouldn't happen, but if it is
+					 * the case, leave the memory there
+					 */
+					WARN_ON_ONCE(1);
+				} else {
+					unsigned int nr_pages =
+						1 << get_order(page_size);
+					while (nr_pages--)
+						free_reserved_page(page++);
+				}
+			} else
+				free_pages((unsigned long)(__va(addr)),
+							get_order(page_size));
+
+			vmemmap_remove_mapping(start, page_size);
+		}
+	}
+}
+#endif
 void register_page_bootmem_memmap(unsigned long section_nr,
 				  struct page *start_page, unsigned long size)
 {
@@ -331,16 +439,16 @@ struct page *realmode_pfn_to_page(unsigned long pfn)
 		if (pg_va < vmem_back->virt_addr)
 			continue;
 
-		/* Check that page struct is not split between real pages */
-		if ((pg_va + sizeof(struct page)) >
-				(vmem_back->virt_addr + page_size))
-			return NULL;
-
-		page = (struct page *) (vmem_back->phys + pg_va -
+		/* After vmemmap_list entry free is possible, need check all */
+		if ((pg_va + sizeof(struct page)) <=
+				(vmem_back->virt_addr + page_size)) {
+			page = (struct page *) (vmem_back->phys + pg_va -
 				vmem_back->virt_addr);
-		return page;
+			return page;
+		}
 	}
 
+	/* Probably that page struct is split between real pages */
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(realmode_pfn_to_page);

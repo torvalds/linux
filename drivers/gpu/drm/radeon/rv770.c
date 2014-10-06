@@ -900,7 +900,6 @@ static int rv770_pcie_gart_enable(struct radeon_device *rdev)
 	r = radeon_gart_table_vram_pin(rdev);
 	if (r)
 		return r;
-	radeon_gart_restore(rdev);
 	/* Setup L2 cache */
 	WREG32(VM_L2_CNTL, ENABLE_L2_CACHE | ENABLE_L2_FRAGMENT_PROCESSING |
 				ENABLE_L2_PTE_CACHE_LRU_UPDATE_BY_WRITE |

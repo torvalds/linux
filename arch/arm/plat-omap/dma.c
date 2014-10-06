@@ -2102,7 +2102,7 @@ static int omap_system_dma_probe(struct platform_device *pdev)
 		omap_dma_set_global_params(DMA_DEFAULT_ARB_RATE,
 				DMA_DEFAULT_FIFO_DEPTH, 0);
 
-	if (dma_omap2plus()) {
+	if (dma_omap2plus() && !(d->dev_caps & DMA_ENGINE_HANDLE_IRQ)) {
 		strcpy(irq_name, "0");
 		dma_irq = platform_get_irq_byname(pdev, irq_name);
 		if (dma_irq < 0) {
@@ -2147,7 +2147,8 @@ static int omap_system_dma_remove(struct platform_device *pdev)
 		char irq_name[4];
 		strcpy(irq_name, "0");
 		dma_irq = platform_get_irq_byname(pdev, irq_name);
-		remove_irq(dma_irq, &omap24xx_dma_irq);
+		if (dma_irq >= 0)
+			remove_irq(dma_irq, &omap24xx_dma_irq);
 	} else {
 		int irq_rel = 0;
 		for ( ; irq_rel < dma_chan_count; irq_rel++) {

@@ -208,10 +208,10 @@ static void s3c2410_nand_clk_set_state(struct s3c2410_nand_info *info,
 
 	if (info->clk_state == CLOCK_ENABLE) {
 		if (new_state != CLOCK_ENABLE)
-			clk_disable(info->clk);
+			clk_disable_unprepare(info->clk);
 	} else {
 		if (new_state == CLOCK_ENABLE)
-			clk_enable(info->clk);
+			clk_prepare_enable(info->clk);
 	}
 
 	info->clk_state = new_state;

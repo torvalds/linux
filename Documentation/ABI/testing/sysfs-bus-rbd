@@ -94,5 +94,5 @@ current_snap
 
 parent
 
-	Information identifying the pool, image, and snapshot id for
-	the parent image in a layered rbd image (format 2 only).
+	Information identifying the chain of parent images in a layered rbd
+	image.  Entries are separated by empty lines.

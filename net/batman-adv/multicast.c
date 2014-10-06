@@ -20,7 +20,6 @@
 #include "originator.h"
 #include "hard-interface.h"
 #include "translation-table.h"
-#include "multicast.h"
 
 /**
  * batadv_mcast_mla_softif_get - get softif multicast listeners
