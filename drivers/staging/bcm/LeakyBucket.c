@@ -82,13 +82,12 @@ static ULONG GetSFTokenCount(struct bcm_mini_adapter *Adapter, struct bcm_packet
 	if (false != psSF->bValid && psSF->ucDirection) {
 		if (0 != psSF->uiCurrentTokenCount) {
 			return psSF->uiCurrentTokenCount;
-		} else {
-			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TOKEN_COUNTS,
-					DBG_LVL_ALL,
-					"Not enough tokens in queue %zd Available %u\n",
-					psSF-Adapter->PackInfo, psSF->uiCurrentTokenCount);
-			psSF->uiPendedLast = 1;
 		}
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TOKEN_COUNTS,
+				DBG_LVL_ALL,
+				"Not enough tokens in queue %zd Available %u\n",
+				psSF-Adapter->PackInfo, psSF->uiCurrentTokenCount);
+		psSF->uiPendedLast = 1;
 	} else {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TOKEN_COUNTS, DBG_LVL_ALL,
 				"IPAFF: Queue %zd not valid\n",
