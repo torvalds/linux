@@ -137,6 +137,11 @@ static int sdhci_acpi_emmc_probe_slot(struct platform_device *pdev,
 
 	/* Platform specific code during emmc proble slot goes here */
 
+	if (hid && uid && !strcmp(hid, "80860F14") && !strcmp(uid, "1") &&
+	    sdhci_readl(host, SDHCI_CAPABILITIES) == 0x446cc8b2 &&
+	    sdhci_readl(host, SDHCI_CAPABILITIES_1) == 0x00000807)
+		host->timeout_clk = 1000; /* 1000 kHz i.e. 1 MHz */
+
 	return 0;
 }
 
