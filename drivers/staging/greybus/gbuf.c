@@ -179,6 +179,14 @@ void greybus_cport_in(struct greybus_host_device *hd, u16 cport_id,
 {
 	struct gb_cport_handler *ch;
 	struct gbuf *gbuf;
+	struct gb_connection *connection;
+
+	connection = gb_hd_connection_find(hd, cport_id);
+	if (!connection) {
+		dev_err(hd->parent,
+			"nonexistent connection (%zu bytes dropped)\n", length);
+		return;
+	}
 
 	/* first check to see if we have a cport handler for this cport */
 	ch = &cport_handler[cport_id];
