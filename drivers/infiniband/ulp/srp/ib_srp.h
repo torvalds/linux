@@ -179,8 +179,9 @@ struct srp_target_port {
 	/* read and written in the hot path */
 	spinlock_t		lock;
 
-	struct srp_rdma_ch	ch;
 	/* read only in the hot path */
+	struct srp_rdma_ch	*ch;
+	u32			ch_count;
 	u32			lkey;
 	u32			rkey;
 	enum srp_target_state	state;
