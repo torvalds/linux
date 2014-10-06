@@ -499,7 +499,7 @@ config NFT_LIMIT
 config NFT_NAT
 	depends on NF_TABLES
 	depends on NF_CONNTRACK
-	depends on NF_NAT
+	select NF_NAT
 	tristate "Netfilter nf_tables nat module"
 	help
 	  This option adds the "nat" expression that you can use to perform
@@ -747,7 +747,9 @@ config NETFILTER_XT_TARGET_LED
 
 config NETFILTER_XT_TARGET_LOG
 	tristate "LOG target support"
-	depends on NF_LOG_IPV4 && NF_LOG_IPV6
+	select NF_LOG_COMMON
+	select NF_LOG_IPV4
+	select NF_LOG_IPV6 if IPV6
 	default m if NETFILTER_ADVANCED=n
 	help
 	  This option adds a `LOG' target, which allows you to create rules in
@@ -763,6 +765,14 @@ config NETFILTER_XT_TARGET_MARK
 	This is a backwards-compat option for the user's convenience
 	(e.g. when running oldconfig). It selects
 	CONFIG_NETFILTER_XT_MARK (combined mark/MARK module).
+
+config NETFILTER_XT_NAT
+	tristate '"SNAT and DNAT" targets support'
+	depends on NF_NAT
+	---help---
+	This option enables the SNAT and DNAT targets.
+
+	To compile it as a module, choose M here. If unsure, say N.
 
 config NETFILTER_XT_TARGET_NETMAP
 	tristate '"NETMAP" target support'
@@ -837,6 +847,7 @@ config NETFILTER_XT_TARGET_TPROXY
 	tristate '"TPROXY" target transparent proxying support'
 	depends on NETFILTER_XTABLES
 	depends on NETFILTER_ADVANCED
+	depends on (IPV6 || IPV6=n)
 	depends on IP_NF_MANGLE
 	select NF_DEFRAG_IPV4
 	select NF_DEFRAG_IPV6 if IP6_NF_IPTABLES

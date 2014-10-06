@@ -1363,53 +1363,65 @@ i965_dispatch_execbuffer(struct intel_engine_cs *ring,
 
 /* Just userspace ABI convention to limit the wa batch bo to a resonable size */
 #define I830_BATCH_LIMIT (256*1024)
+#define I830_TLB_ENTRIES (2)
+#define I830_WA_SIZE max(I830_TLB_ENTRIES*4096, I830_BATCH_LIMIT)
 static int
 i830_dispatch_execbuffer(struct intel_engine_cs *ring,
 				u64 offset, u32 len,
 				unsigned flags)
 {
+	u32 cs_offset = ring->scratch.gtt_offset;
 	int ret;
 
-	if (flags & I915_DISPATCH_PINNED) {
-		ret = intel_ring_begin(ring, 4);
-		if (ret)
-			return ret;
+	ret = intel_ring_begin(ring, 6);
+	if (ret)
+		return ret;
 
-		intel_ring_emit(ring, MI_BATCH_BUFFER);
-		intel_ring_emit(ring, offset | (flags & I915_DISPATCH_SECURE ? 0 : MI_BATCH_NON_SECURE));
-		intel_ring_emit(ring, offset + len - 8);
-		intel_ring_emit(ring, MI_NOOP);
-		intel_ring_advance(ring);
-	} else {
-		u32 cs_offset = ring->scratch.gtt_offset;
+	/* Evict the invalid PTE TLBs */
+	intel_ring_emit(ring, COLOR_BLT_CMD | BLT_WRITE_RGBA);
+	intel_ring_emit(ring, BLT_DEPTH_32 | BLT_ROP_COLOR_COPY | 4096);
+	intel_ring_emit(ring, I830_TLB_ENTRIES << 16 | 4); /* load each page */
+	intel_ring_emit(ring, cs_offset);
+	intel_ring_emit(ring, 0xdeadbeef);
+	intel_ring_emit(ring, MI_NOOP);
+	intel_ring_advance(ring);
 
+	if ((flags & I915_DISPATCH_PINNED) == 0) {
 		if (len > I830_BATCH_LIMIT)
 			return -ENOSPC;
 
-		ret = intel_ring_begin(ring, 9+3);
+		ret = intel_ring_begin(ring, 6 + 2);
 		if (ret)
 			return ret;
-		/* Blit the batch (which has now all relocs applied) to the stable batch
-		 * scratch bo area (so that the CS never stumbles over its tlb
-		 * invalidation bug) ... */
-		intel_ring_emit(ring, XY_SRC_COPY_BLT_CMD |
-				XY_SRC_COPY_BLT_WRITE_ALPHA |
-				XY_SRC_COPY_BLT_WRITE_RGB);
-		intel_ring_emit(ring, BLT_DEPTH_32 | BLT_ROP_GXCOPY | 4096);
-		intel_ring_emit(ring, 0);
-		intel_ring_emit(ring, (DIV_ROUND_UP(len, 4096) << 16) | 1024);
+
+		/* Blit the batch (which has now all relocs applied) to the
+		 * stable batch scratch bo area (so that the CS never
+		 * stumbles over its tlb invalidation bug) ...
+		 */
+		intel_ring_emit(ring, SRC_COPY_BLT_CMD | BLT_WRITE_RGBA);
+		intel_ring_emit(ring, BLT_DEPTH_32 | BLT_ROP_SRC_COPY | 4096);
+		intel_ring_emit(ring, DIV_ROUND_UP(len, 4096) << 16 | 4096);
 		intel_ring_emit(ring, cs_offset);
-		intel_ring_emit(ring, 0);
 		intel_ring_emit(ring, 4096);
 		intel_ring_emit(ring, offset);
+
 		intel_ring_emit(ring, MI_FLUSH);
+		intel_ring_emit(ring, MI_NOOP);
+		intel_ring_advance(ring);
 
 		/* ... and execute it. */
-		intel_ring_emit(ring, MI_BATCH_BUFFER);
-		intel_ring_emit(ring, cs_offset | (flags & I915_DISPATCH_SECURE ? 0 : MI_BATCH_NON_SECURE));
-		intel_ring_emit(ring, cs_offset + len - 8);
-		intel_ring_advance(ring);
+		offset = cs_offset;
 	}
+
+	ret = intel_ring_begin(ring, 4);
+	if (ret)
+		return ret;
+
+	intel_ring_emit(ring, MI_BATCH_BUFFER);
+	intel_ring_emit(ring, offset | (flags & I915_DISPATCH_SECURE ? 0 : MI_BATCH_NON_SECURE));
+	intel_ring_emit(ring, offset + len - 8);
+	intel_ring_emit(ring, MI_NOOP);
+	intel_ring_advance(ring);
 
 	return 0;
 }
@@ -2200,7 +2212,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 
 	/* Workaround batchbuffer to combat CS tlb bug. */
 	if (HAS_BROKEN_CS_TLB(dev)) {
-		obj = i915_gem_alloc_object(dev, I830_BATCH_LIMIT);
+		obj = i915_gem_alloc_object(dev, I830_WA_SIZE);
 		if (obj == NULL) {
 			DRM_ERROR("Failed to allocate batch bo\n");
 			return -ENOMEM;

@@ -1253,7 +1253,9 @@ freeout:	t4_free_sge_resources(adap);
 			goto freeout;
 	}
 
-	t4_write_reg(adap, MPS_TRC_RSS_CONTROL,
+	t4_write_reg(adap, is_t4(adap->params.chip) ?
+				MPS_TRC_RSS_CONTROL :
+				MPS_T5_TRC_RSS_CONTROL,
 		     RSSCONTROL(netdev2pinfo(adap->port[0])->tx_chan) |
 		     QUEUENUMBER(s->ethrxq[0].rspq.abs_id));
 	return 0;
@@ -1761,7 +1763,8 @@ static void get_regs(struct net_device *dev, struct ethtool_regs *regs,
 		0xd004, 0xd03c,
 		0xdfc0, 0xdfe0,
 		0xe000, 0xea7c,
-		0xf000, 0x11190,
+		0xf000, 0x11110,
+		0x11118, 0x11190,
 		0x19040, 0x1906c,
 		0x19078, 0x19080,
 		0x1908c, 0x19124,
@@ -1968,7 +1971,8 @@ static void get_regs(struct net_device *dev, struct ethtool_regs *regs,
 		0xd004, 0xd03c,
 		0xdfc0, 0xdfe0,
 		0xe000, 0x11088,
-		0x1109c, 0x1117c,
+		0x1109c, 0x11110,
+		0x11118, 0x1117c,
 		0x11190, 0x11204,
 		0x19040, 0x1906c,
 		0x19078, 0x19080,
@@ -5955,7 +5959,8 @@ static int adap_init0(struct adapter *adap)
 		params[3] = FW_PARAM_PFVF(CQ_END);
 		params[4] = FW_PARAM_PFVF(OCQ_START);
 		params[5] = FW_PARAM_PFVF(OCQ_END);
-		ret = t4_query_params(adap, 0, 0, 0, 6, params, val);
+		ret = t4_query_params(adap, adap->mbox, adap->fn, 0, 6, params,
+				      val);
 		if (ret < 0)
 			goto bye;
 		adap->vres.qp.start = val[0];
@@ -5967,7 +5972,8 @@ static int adap_init0(struct adapter *adap)
 
 		params[0] = FW_PARAM_DEV(MAXORDIRD_QP);
 		params[1] = FW_PARAM_DEV(MAXIRD_ADAPTER);
-		ret = t4_query_params(adap, 0, 0, 0, 2, params, val);
+		ret = t4_query_params(adap, adap->mbox, adap->fn, 0, 2, params,
+				      val);
 		if (ret < 0) {
 			adap->params.max_ordird_qp = 8;
 			adap->params.max_ird_adapter = 32 * adap->tids.ntids;
@@ -6472,6 +6478,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct port_info *pi;
 	bool highdma = false;
 	struct adapter *adapter = NULL;
+	void __iomem *regs;
 
 	printk_once(KERN_INFO "%s - version %s\n", DRV_DESC, DRV_VERSION);
 
@@ -6488,19 +6495,35 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_release_regions;
 	}
 
+	regs = pci_ioremap_bar(pdev, 0);
+	if (!regs) {
+		dev_err(&pdev->dev, "cannot map device registers\n");
+		err = -ENOMEM;
+		goto out_disable_device;
+	}
+
+	/* We control everything through one PF */
+	func = SOURCEPF_GET(readl(regs + PL_WHOAMI));
+	if (func != ent->driver_data) {
+		iounmap(regs);
+		pci_disable_device(pdev);
+		pci_save_state(pdev);        /* to restore SR-IOV later */
+		goto sriov;
+	}
+
 	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
 		highdma = true;
 		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 		if (err) {
 			dev_err(&pdev->dev, "unable to obtain 64-bit DMA for "
 				"coherent allocations\n");
-			goto out_disable_device;
+			goto out_unmap_bar0;
 		}
 	} else {
 		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (err) {
 			dev_err(&pdev->dev, "no usable DMA configuration\n");
-			goto out_disable_device;
+			goto out_unmap_bar0;
 		}
 	}
 
@@ -6512,7 +6535,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
 	if (!adapter) {
 		err = -ENOMEM;
-		goto out_disable_device;
+		goto out_unmap_bar0;
 	}
 
 	adapter->workq = create_singlethread_workqueue("cxgb4");
@@ -6524,20 +6547,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* PCI device has been enabled */
 	adapter->flags |= DEV_ENABLED;
 
-	adapter->regs = pci_ioremap_bar(pdev, 0);
-	if (!adapter->regs) {
-		dev_err(&pdev->dev, "cannot map device registers\n");
-		err = -ENOMEM;
-		goto out_free_adapter;
-	}
-
-	/* We control everything through one PF */
-	func = SOURCEPF_GET(readl(adapter->regs + PL_WHOAMI));
-	if (func != ent->driver_data) {
-		pci_save_state(pdev);        /* to restore SR-IOV later */
-		goto sriov;
-	}
-
+	adapter->regs = regs;
 	adapter->pdev = pdev;
 	adapter->pdev_dev = &pdev->dev;
 	adapter->mbox = func;
@@ -6554,7 +6564,8 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = t4_prep_adapter(adapter);
 	if (err)
-		goto out_unmap_bar0;
+		goto out_free_adapter;
+
 
 	if (!is_t4(adapter->params.chip)) {
 		s_qpp = QUEUESPERPAGEPF1 * adapter->fn;
@@ -6571,14 +6582,14 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			dev_err(&pdev->dev,
 				"Incorrect number of egress queues per page\n");
 			err = -EINVAL;
-			goto out_unmap_bar0;
+			goto out_free_adapter;
 		}
 		adapter->bar2 = ioremap_wc(pci_resource_start(pdev, 2),
 		pci_resource_len(pdev, 2));
 		if (!adapter->bar2) {
 			dev_err(&pdev->dev, "cannot map device bar2 region\n");
 			err = -ENOMEM;
-			goto out_unmap_bar0;
+			goto out_free_adapter;
 		}
 	}
 
@@ -6716,13 +6727,13 @@ sriov:
  out_unmap_bar:
 	if (!is_t4(adapter->params.chip))
 		iounmap(adapter->bar2);
- out_unmap_bar0:
-	iounmap(adapter->regs);
  out_free_adapter:
 	if (adapter->workq)
 		destroy_workqueue(adapter->workq);
 
 	kfree(adapter);
+ out_unmap_bar0:
+	iounmap(regs);
  out_disable_device:
 	pci_disable_pcie_error_reporting(pdev);
 	pci_disable_device(pdev);

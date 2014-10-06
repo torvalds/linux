@@ -73,6 +73,13 @@ static int qeth_init_qdio_out_buf(struct qeth_qdio_out_q *, int);
 struct workqueue_struct *qeth_wq;
 EXPORT_SYMBOL_GPL(qeth_wq);
 
+int qeth_card_hw_is_reachable(struct qeth_card *card)
+{
+	return (card->state == CARD_STATE_SOFTSETUP) ||
+		(card->state == CARD_STATE_UP);
+}
+EXPORT_SYMBOL_GPL(qeth_card_hw_is_reachable);
+
 static void qeth_close_dev_handler(struct work_struct *work)
 {
 	struct qeth_card *card;
@@ -5790,6 +5797,7 @@ int qeth_core_ethtool_get_settings(struct net_device *netdev,
 	struct qeth_card *card = netdev->ml_priv;
 	enum qeth_link_types link_type;
 	struct carrier_info carrier_info;
+	int rc;
 	u32 speed;
 
 	if ((card->info.type == QETH_CARD_TYPE_IQD) || (card->info.guestlan))
@@ -5832,8 +5840,14 @@ int qeth_core_ethtool_get_settings(struct net_device *netdev,
 	/* Check if we can obtain more accurate information.	 */
 	/* If QUERY_CARD_INFO command is not supported or fails, */
 	/* just return the heuristics that was filled above.	 */
-	if (qeth_query_card_info(card, &carrier_info) != 0)
+	if (!qeth_card_hw_is_reachable(card))
+		return -ENODEV;
+	rc = qeth_query_card_info(card, &carrier_info);
+	if (rc == -EOPNOTSUPP) /* for old hardware, return heuristic */
 		return 0;
+	if (rc) /* report error from the hardware operation */
+		return rc;
+	/* on success, fill in the information got from the hardware */
 
 	netdev_dbg(netdev,
 	"card info: card_type=0x%02x, port_mode=0x%04x, port_speed=0x%08x\n",

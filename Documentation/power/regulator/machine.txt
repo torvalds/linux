@@ -11,7 +11,7 @@ Consider the following machine :-
                +-> [Consumer B @ 3.3V]
 
 The drivers for consumers A & B must be mapped to the correct regulator in
-order to control their power supply. This mapping can be achieved in machine
+order to control their power supplies. This mapping can be achieved in machine
 initialisation code by creating a struct regulator_consumer_supply for
 each regulator.
 
@@ -39,7 +39,7 @@ to the 'Vcc' supply for Consumer A.
 
 Constraints can now be registered by defining a struct regulator_init_data
 for each regulator power domain. This structure also maps the consumers
-to their supply regulator :-
+to their supply regulators :-
 
 static struct regulator_init_data regulator1_data = {
 	.constraints = {

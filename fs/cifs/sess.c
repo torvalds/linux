@@ -243,10 +243,11 @@ static void decode_ascii_ssetup(char **pbcc_area, __u16 bleft,
 	kfree(ses->serverOS);
 
 	ses->serverOS = kzalloc(len + 1, GFP_KERNEL);
-	if (ses->serverOS)
+	if (ses->serverOS) {
 		strncpy(ses->serverOS, bcc_ptr, len);
-	if (strncmp(ses->serverOS, "OS/2", 4) == 0)
-		cifs_dbg(FYI, "OS/2 server\n");
+		if (strncmp(ses->serverOS, "OS/2", 4) == 0)
+			cifs_dbg(FYI, "OS/2 server\n");
+	}
 
 	bcc_ptr += len + 1;
 	bleft -= len + 1;
@@ -744,14 +745,6 @@ out:
 	sess_free_buffer(sess_data);
 }
 
-#else
-
-static void
-sess_auth_lanman(struct sess_data *sess_data)
-{
-	sess_data->result = -EOPNOTSUPP;
-	sess_data->func = NULL;
-}
 #endif
 
 static void
@@ -1102,15 +1095,6 @@ out:
 	ses->auth_key.response = NULL;
 }
 
-#else
-
-static void
-sess_auth_kerberos(struct sess_data *sess_data)
-{
-	cifs_dbg(VFS, "Kerberos negotiated but upcall support disabled!\n");
-	sess_data->result = -ENOSYS;
-	sess_data->func = NULL;
-}
 #endif /* ! CONFIG_CIFS_UPCALL */
 
 /*

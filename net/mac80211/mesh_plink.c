@@ -959,7 +959,8 @@ mesh_plink_get_event(struct ieee80211_sub_if_data *sdata,
 		if (!matches_local)
 			event = CNF_RJCT;
 		if (!mesh_plink_free_count(sdata) ||
-		    (sta->llid != llid || sta->plid != plid))
+		    sta->llid != llid ||
+		    (sta->plid && sta->plid != plid))
 			event = CNF_IGNR;
 		else
 			event = CNF_ACPT;
@@ -1079,6 +1080,10 @@ mesh_process_plink_frame(struct ieee80211_sub_if_data *sdata,
 		/* something went wrong */
 		goto unlock_rcu;
 	}
+
+	/* 802.11-2012 13.3.7.2 - update plid on CNF if not set */
+	if (!sta->plid && event == CNF_ACPT)
+		sta->plid = plid;
 
 	changed |= mesh_plink_fsm(sdata, sta, event);
 

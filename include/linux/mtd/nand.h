@@ -949,7 +949,7 @@ static inline int jedec_feature(struct nand_chip *chip)
 		: 0;
 }
 
-/**
+/*
  * struct nand_sdr_timings - SDR NAND chip timings
  *
  * This struct defines the timing requirements of a SDR NAND chip.

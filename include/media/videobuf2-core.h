@@ -295,7 +295,7 @@ struct vb2_buffer {
  *			can return an error if hardware fails, in that case all
  *			buffers that have been already given by the @buf_queue
  *			callback are to be returned by the driver by calling
- *			@vb2_buffer_done(VB2_BUF_STATE_DEQUEUED).
+ *			@vb2_buffer_done(VB2_BUF_STATE_QUEUED).
  *			If you need a minimum number of buffers before you can
  *			start streaming, then set @min_buffers_needed in the
  *			vb2_queue structure. If that is non-zero then
@@ -380,6 +380,9 @@ struct v4l2_fh;
  * @start_streaming_called: start_streaming() was called successfully and we
  *		started streaming.
  * @error:	a fatal error occurred on the queue
+ * @waiting_for_buffers: used in poll() to check if vb2 is still waiting for
+ *		buffers. Only set for capture queues if qbuf has not yet been
+ *		called since poll() needs to return POLLERR in that situation.
  * @fileio:	file io emulator internal data, used only if emulator is active
  * @threadio:	thread io internal data, used only if thread is active
  */
@@ -417,6 +420,7 @@ struct vb2_queue {
 	unsigned int			streaming:1;
 	unsigned int			start_streaming_called:1;
 	unsigned int			error:1;
+	unsigned int			waiting_for_buffers:1;
 
 	struct vb2_fileio_data		*fileio;
 	struct vb2_threadio_data	*threadio;

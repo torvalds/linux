@@ -1030,6 +1030,10 @@ static struct dmi_system_id ec_dmi_table[] __initdata = {
 	DMI_MATCH(DMI_SYS_VENDOR, "Quanta"),
 	DMI_MATCH(DMI_PRODUCT_NAME, "TW9/SW9"),}, NULL},
 	{
+	ec_flag_msi, "Clevo W350etq", {
+	DMI_MATCH(DMI_SYS_VENDOR, "CLEVO CO."),
+	DMI_MATCH(DMI_PRODUCT_NAME, "W35_37ET"),}, NULL},
+	{
 	ec_validate_ecdt, "ASUS hardware", {
 	DMI_MATCH(DMI_BIOS_VENDOR, "ASUS") }, NULL},
 	{

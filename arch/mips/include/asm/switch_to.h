@@ -92,7 +92,7 @@ do {									\
 			KSTK_STATUS(prev) &= ~ST0_CU2;			\
 		__c0_stat = read_c0_status();				\
 		write_c0_status(__c0_stat | ST0_CU2);			\
-		cop2_save(&prev->thread.cp2);				\
+		cop2_save(prev);					\
 		write_c0_status(__c0_stat & ~ST0_CU2);			\
 	}								\
 	__clear_software_ll_bit();					\
@@ -111,7 +111,7 @@ do {									\
 			(KSTK_STATUS(current) & ST0_CU2)) {		\
 		__c0_stat = read_c0_status();				\
 		write_c0_status(__c0_stat | ST0_CU2);			\
-		cop2_restore(&current->thread.cp2);			\
+		cop2_restore(current);					\
 		write_c0_status(__c0_stat & ~ST0_CU2);			\
 	}								\
 	if (cpu_has_dsp)						\

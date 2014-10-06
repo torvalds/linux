@@ -79,10 +79,10 @@ static void __tunnel_dst_set(struct ip_tunnel_dst *idst,
 	idst->saddr = saddr;
 }
 
-static void tunnel_dst_set(struct ip_tunnel *t,
+static noinline void tunnel_dst_set(struct ip_tunnel *t,
 			   struct dst_entry *dst, __be32 saddr)
 {
-	__tunnel_dst_set(this_cpu_ptr(t->dst_cache), dst, saddr);
+	__tunnel_dst_set(raw_cpu_ptr(t->dst_cache), dst, saddr);
 }
 
 static void tunnel_dst_reset(struct ip_tunnel *t)
@@ -106,7 +106,7 @@ static struct rtable *tunnel_rtable_get(struct ip_tunnel *t,
 	struct dst_entry *dst;
 
 	rcu_read_lock();
-	idst = this_cpu_ptr(t->dst_cache);
+	idst = raw_cpu_ptr(t->dst_cache);
 	dst = rcu_dereference(idst->dst);
 	if (dst && !atomic_inc_not_zero(&dst->__refcnt))
 		dst = NULL;
@@ -764,9 +764,14 @@ int ip_tunnel_ioctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd)
 
 		t = ip_tunnel_find(itn, p, itn->fb_tunnel_dev->type);
 
-		if (!t && (cmd == SIOCADDTUNNEL)) {
-			t = ip_tunnel_create(net, itn, p);
-			err = PTR_ERR_OR_ZERO(t);
+		if (cmd == SIOCADDTUNNEL) {
+			if (!t) {
+				t = ip_tunnel_create(net, itn, p);
+				err = PTR_ERR_OR_ZERO(t);
+				break;
+			}
+
+			err = -EEXIST;
 			break;
 		}
 		if (dev != itn->fb_tunnel_dev && cmd == SIOCCHGTUNNEL) {

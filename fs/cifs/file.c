@@ -467,6 +467,14 @@ int cifs_open(struct inode *inode, struct file *file)
 	cifs_dbg(FYI, "inode = 0x%p file flags are 0x%x for %s\n",
 		 inode, file->f_flags, full_path);
 
+	if (file->f_flags & O_DIRECT &&
+	    cifs_sb->mnt_cifs_flags & CIFS_MOUNT_STRICT_IO) {
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
+			file->f_op = &cifs_file_direct_nobrl_ops;
+		else
+			file->f_op = &cifs_file_direct_ops;
+	}
+
 	if (server->oplocks)
 		oplock = REQ_OPLOCK;
 	else
@@ -3560,15 +3568,9 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 				lru_cache_add_file(page);
 				unlock_page(page);
 				page_cache_release(page);
-				if (rc == -EAGAIN)
-					list_add_tail(&page->lru, &tmplist);
 			}
+			/* Fallback to the readpage in error/reconnect cases */
 			kref_put(&rdata->refcount, cifs_readdata_release);
-			if (rc == -EAGAIN) {
-				/* Re-add pages to the page_list and retry */
-				list_splice(&tmplist, page_list);
-				continue;
-			}
 			break;
 		}
 

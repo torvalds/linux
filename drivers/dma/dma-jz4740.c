@@ -362,8 +362,9 @@ static void jz4740_dma_chan_irq(struct jz4740_dmaengine_chan *chan)
 			vchan_cyclic_callback(&chan->desc->vdesc);
 		} else {
 			if (chan->next_sg == chan->desc->num_sgs) {
-				chan->desc = NULL;
+				list_del(&chan->desc->vdesc.node);
 				vchan_cookie_complete(&chan->desc->vdesc);
+				chan->desc = NULL;
 			}
 		}
 	}

@@ -678,15 +678,17 @@ static struct iommu_group *iommu_group_get_for_pci_dev(struct pci_dev *pdev)
  */
 struct iommu_group *iommu_group_get_for_dev(struct device *dev)
 {
-	struct iommu_group *group = ERR_PTR(-EIO);
+	struct iommu_group *group;
 	int ret;
 
 	group = iommu_group_get(dev);
 	if (group)
 		return group;
 
-	if (dev_is_pci(dev))
-		group = iommu_group_get_for_pci_dev(to_pci_dev(dev));
+	if (!dev_is_pci(dev))
+		return ERR_PTR(-EINVAL);
+
+	group = iommu_group_get_for_pci_dev(to_pci_dev(dev));
 
 	if (IS_ERR(group))
 		return group;

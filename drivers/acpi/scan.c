@@ -130,7 +130,7 @@ static int create_modalias(struct acpi_device *acpi_dev, char *modalias,
 	list_for_each_entry(id, &acpi_dev->pnp.ids, list) {
 		count = snprintf(&modalias[len], size, "%s:", id->id);
 		if (count < 0)
-			return EINVAL;
+			return -EINVAL;
 		if (count >= size)
 			return -ENOMEM;
 		len += count;
@@ -667,8 +667,14 @@ static ssize_t
 acpi_device_sun_show(struct device *dev, struct device_attribute *attr,
 		     char *buf) {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
+	acpi_status status;
+	unsigned long long sun;
 
-	return sprintf(buf, "%lu\n", acpi_dev->pnp.sun);
+	status = acpi_evaluate_integer(acpi_dev->handle, "_SUN", NULL, &sun);
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
+
+	return sprintf(buf, "%llu\n", sun);
 }
 static DEVICE_ATTR(sun, 0444, acpi_device_sun_show, NULL);
 
@@ -690,7 +696,6 @@ static int acpi_device_setup_files(struct acpi_device *dev)
 {
 	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
 	acpi_status status;
-	unsigned long long sun;
 	int result = 0;
 
 	/*
@@ -731,14 +736,10 @@ static int acpi_device_setup_files(struct acpi_device *dev)
 	if (dev->pnp.unique_id)
 		result = device_create_file(&dev->dev, &dev_attr_uid);
 
-	status = acpi_evaluate_integer(dev->handle, "_SUN", NULL, &sun);
-	if (ACPI_SUCCESS(status)) {
-		dev->pnp.sun = (unsigned long)sun;
+	if (acpi_has_method(dev->handle, "_SUN")) {
 		result = device_create_file(&dev->dev, &dev_attr_sun);
 		if (result)
 			goto end;
-	} else {
-		dev->pnp.sun = (unsigned long)-1;
 	}
 
 	if (acpi_has_method(dev->handle, "_STA")) {
@@ -2188,6 +2189,9 @@ static void acpi_bus_attach(struct acpi_device *device)
  ok:
 	list_for_each_entry(child, &device->children, node)
 		acpi_bus_attach(child);
+
+	if (device->handler && device->handler->hotplug.notify_online)
+		device->handler->hotplug.notify_online(device);
 }
 
 /**

@@ -79,6 +79,11 @@ static void firmware_load(const struct firmware *fw, void *context)
 	u32 jedec_id;
 	u32 status;
 
+	if (fw == NULL) {
+		dev_err(&spi->dev, "Cannot load firmware, aborting\n");
+		return;
+	}
+
 	if (fw->size == 0) {
 		dev_err(&spi->dev, "Error: Firmware size is 0!\n");
 		return;
