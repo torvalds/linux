@@ -35,7 +35,7 @@
  * automatically.
  *
  * The PCI230+ and PCI260+ have the same PCI device IDs as the PCI230 and
- * PCI260, but can be distinguished by the the size of the PCI regions.  A
+ * PCI260, but can be distinguished by the size of the PCI regions.  A
  * card will be configured as a "+" model if detected as such.
  *
  * Subdevices:
