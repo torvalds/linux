@@ -202,15 +202,25 @@ static inline void ip6_rt_put(struct rt6_info *rt)
 	dst_release(&rt->dst);
 }
 
-struct fib6_walker_t {
+enum fib6_walk_state {
+#ifdef CONFIG_IPV6_SUBTREES
+	FWS_S,
+#endif
+	FWS_L,
+	FWS_R,
+	FWS_C,
+	FWS_U
+};
+
+struct fib6_walker {
 	struct list_head lh;
 	struct fib6_node *root, *node;
 	struct rt6_info *leaf;
-	unsigned char state;
-	unsigned char prune;
+	enum fib6_walk_state state;
+	bool prune;
 	unsigned int skip;
 	unsigned int count;
-	int (*func)(struct fib6_walker_t *);
+	int (*func)(struct fib6_walker *);
 	void *args;
 };
 
