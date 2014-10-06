@@ -233,14 +233,14 @@ static void asymmetric_key_describe(const struct key *key, struct seq_file *m)
 		seq_puts(m, ": ");
 		subtype->describe(key, m);
 
-		if (kids && kids->id[0]) {
-			kid = kids->id[0];
+		if (kids && kids->id[1]) {
+			kid = kids->id[1];
 			seq_putc(m, ' ');
 			n = kid->len;
 			p = kid->data;
-			if (n > 8) {
-				p += n - 8;
-				n = 8;
+			if (n > 4) {
+				p += n - 4;
+				n = 4;
 			}
 			seq_printf(m, "%*phN", n, p);
 		}
