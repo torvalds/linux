@@ -156,10 +156,8 @@ static void cls_cgroup_destroy(struct tcf_proto *tp)
 	struct cls_cgroup_head *head = rtnl_dereference(tp->root);
 
 	if (head) {
-		tcf_exts_destroy(&head->exts);
-		tcf_em_tree_destroy(&head->ematches);
 		RCU_INIT_POINTER(tp->root, NULL);
-		kfree_rcu(head, rcu);
+		call_rcu(&head->rcu, cls_cgroup_destroy_rcu);
 	}
 }
 
