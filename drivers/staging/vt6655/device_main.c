@@ -2915,9 +2915,8 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		if (!(pDevice->flags & DEVICE_FLAGS_OPENED)) {
 			rc = -EFAULT;
 			break;
-		} else {
-			rc = 0;
 		}
+		rc = 0;
 		pReq = (PSCmdRequest)rq;
 		pReq->wResult = MAGIC_CODE;
 		break;
@@ -2934,9 +2933,8 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 			{
 				rc = -EFAULT;
 				break;
-			} else {
-				rc = 0;
 			}
+			rc = 0;
 
 		if (test_and_set_bit(0, (void *)&(pMgmt->uCmdBusy)))
 			return -EBUSY;
