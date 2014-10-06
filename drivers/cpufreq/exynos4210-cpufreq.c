@@ -127,7 +127,7 @@ int exynos4210_cpufreq_init(struct exynos_dvfs_info *info)
 	 * dependencies on platform headers. It is necessary to enable
 	 * Exynos multi-platform support and will be removed together with
 	 * this whole driver as soon as Exynos gets migrated to use
-	 * cpufreq-cpu0 driver.
+	 * cpufreq-dt driver.
 	 */
 	np = of_find_compatible_node(NULL, NULL, "samsung,exynos4210-clock");
 	if (!np) {
