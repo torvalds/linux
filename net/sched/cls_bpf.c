@@ -92,7 +92,6 @@ static int cls_bpf_init(struct tcf_proto *tp)
 
 static void cls_bpf_delete_prog(struct tcf_proto *tp, struct cls_bpf_prog *prog)
 {
-	tcf_unbind_filter(tp, &prog->res);
 	tcf_exts_destroy(&prog->exts);
 
 	bpf_prog_destroy(prog->filter);
@@ -116,6 +115,7 @@ static int cls_bpf_delete(struct tcf_proto *tp, unsigned long arg)
 	list_for_each_entry(prog, &head->plist, link) {
 		if (prog == todel) {
 			list_del_rcu(&prog->link);
+			tcf_unbind_filter(tp, &prog->res);
 			call_rcu(&prog->rcu, __cls_bpf_delete_prog);
 			return 0;
 		}
@@ -131,6 +131,7 @@ static void cls_bpf_destroy(struct tcf_proto *tp)
 
 	list_for_each_entry_safe(prog, tmp, &head->plist, link) {
 		list_del_rcu(&prog->link);
+		tcf_unbind_filter(tp, &prog->res);
 		call_rcu(&prog->rcu, __cls_bpf_delete_prog);
 	}
 
@@ -282,6 +283,7 @@ static int cls_bpf_change(struct net *net, struct sk_buff *in_skb,
 
 	if (oldprog) {
 		list_replace_rcu(&prog->link, &oldprog->link);
+		tcf_unbind_filter(tp, &oldprog->res);
 		call_rcu(&oldprog->rcu, __cls_bpf_delete_prog);
 	} else {
 		list_add_rcu(&prog->link, &head->plist);
