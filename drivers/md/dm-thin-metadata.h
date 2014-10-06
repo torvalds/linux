@@ -213,6 +213,11 @@ int dm_pool_register_metadata_threshold(struct dm_pool_metadata *pmd,
 int dm_pool_metadata_set_needs_check(struct dm_pool_metadata *pmd);
 bool dm_pool_metadata_needs_check(struct dm_pool_metadata *pmd);
 
+/*
+ * Issue any prefetches that may be useful.
+ */
+void dm_pool_issue_prefetches(struct dm_pool_metadata *pmd);
+
 /*----------------------------------------------------------------*/
 
 #endif

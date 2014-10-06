@@ -1809,3 +1809,8 @@ bool dm_pool_metadata_needs_check(struct dm_pool_metadata *pmd)
 
 	return needs_check;
 }
+
+void dm_pool_issue_prefetches(struct dm_pool_metadata *pmd)
+{
+	dm_tm_issue_prefetches(pmd->tm);
+}
