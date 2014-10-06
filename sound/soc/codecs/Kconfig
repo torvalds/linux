@@ -741,7 +741,8 @@ config SND_SOC_WM8974
 	tristate
 
 config SND_SOC_WM8978
-	tristate
+	tristate "Wolfson Microelectronics WM8978 codec"
+	depends on I2C
 
 config SND_SOC_WM8983
 	tristate
