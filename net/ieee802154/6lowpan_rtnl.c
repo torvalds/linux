@@ -63,7 +63,7 @@ static LIST_HEAD(lowpan_devices);
 struct lowpan_dev_info {
 	struct net_device	*real_dev; /* real WPAN device ptr */
 	struct mutex		dev_list_mtx; /* mutex for list ops */
-	__be16			fragment_tag;
+	u16			fragment_tag;
 };
 
 struct lowpan_dev_record {
@@ -275,7 +275,8 @@ lowpan_xmit_fragmented(struct sk_buff *skb, struct net_device *dev,
 
 	dgram_size = lowpan_uncompress_size(skb, &dgram_offset) -
 		     skb->mac_len;
-	frag_tag = lowpan_dev_info(dev)->fragment_tag++;
+	frag_tag = htons(lowpan_dev_info(dev)->fragment_tag);
+	lowpan_dev_info(dev)->fragment_tag++;
 
 	frag_hdr[0] = LOWPAN_DISPATCH_FRAG1 | ((dgram_size >> 8) & 0x07);
 	frag_hdr[1] = dgram_size & 0xff;
@@ -294,7 +295,7 @@ lowpan_xmit_fragmented(struct sk_buff *skb, struct net_device *dev,
 				  frag_len + skb_network_header_len(skb));
 	if (rc) {
 		pr_debug("%s unable to send FRAG1 packet (tag: %d)",
-			 __func__, frag_tag);
+			 __func__, ntohs(frag_tag));
 		goto err;
 	}
 
@@ -315,7 +316,7 @@ lowpan_xmit_fragmented(struct sk_buff *skb, struct net_device *dev,
 					  frag_len);
 		if (rc) {
 			pr_debug("%s unable to send a FRAGN packet. (tag: %d, offset: %d)\n",
-				 __func__, frag_tag, skb_offset);
+				 __func__, ntohs(frag_tag), skb_offset);
 			goto err;
 		}
 	} while (skb_unprocessed > frag_cap);
