@@ -26,6 +26,8 @@
 #include "sdio_cis.h"
 #include "sdio_bus.h"
 
+#define to_sdio_driver(d)	container_of(d, struct sdio_driver, drv)
+
 /* show configuration fields */
 #define sdio_config_attr(field, format_string)				\
 static ssize_t								\
