@@ -32,33 +32,12 @@ static void nft_masq_ipv6_eval(const struct nft_expr *expr,
 	data[NFT_REG_VERDICT].verdict = verdict;
 }
 
-static int nft_masq_ipv6_init(const struct nft_ctx *ctx,
-			      const struct nft_expr *expr,
-			      const struct nlattr * const tb[])
-{
-	int err;
-
-	err = nft_masq_init(ctx, expr, tb);
-	if (err < 0)
-		return err;
-
-	nf_nat_masquerade_ipv6_register_notifier();
-	return 0;
-}
-
-static void nft_masq_ipv6_destroy(const struct nft_ctx *ctx,
-				  const struct nft_expr *expr)
-{
-	nf_nat_masquerade_ipv6_unregister_notifier();
-}
-
 static struct nft_expr_type nft_masq_ipv6_type;
 static const struct nft_expr_ops nft_masq_ipv6_ops = {
 	.type		= &nft_masq_ipv6_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_masq)),
 	.eval		= nft_masq_ipv6_eval,
-	.init		= nft_masq_ipv6_init,
-	.destroy	= nft_masq_ipv6_destroy,
+	.init		= nft_masq_init,
 	.dump		= nft_masq_dump,
 };
 
@@ -73,12 +52,21 @@ static struct nft_expr_type nft_masq_ipv6_type __read_mostly = {
 
 static int __init nft_masq_ipv6_module_init(void)
 {
-	return nft_register_expr(&nft_masq_ipv6_type);
+	int ret;
+
+	ret = nft_register_expr(&nft_masq_ipv6_type);
+	if (ret < 0)
+		return ret;
+
+	nf_nat_masquerade_ipv6_register_notifier();
+
+	return ret;
 }
 
 static void __exit nft_masq_ipv6_module_exit(void)
 {
 	nft_unregister_expr(&nft_masq_ipv6_type);
+	nf_nat_masquerade_ipv6_unregister_notifier();
 }
 
 module_init(nft_masq_ipv6_module_init);

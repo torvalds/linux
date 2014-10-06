@@ -237,7 +237,7 @@ hash_netiface4_kadt(struct ip_set *set, const struct sk_buff *skb,
 #define SRCDIR		(opt->flags & IPSET_DIM_TWO_SRC)
 
 	if (opt->cmdflags & IPSET_FLAG_PHYSDEV) {
-#ifdef CONFIG_BRIDGE_NETFILTER
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 		const struct nf_bridge_info *nf_bridge = skb->nf_bridge;
 
 		if (!nf_bridge)
@@ -474,7 +474,7 @@ hash_netiface6_kadt(struct ip_set *set, const struct sk_buff *skb,
 	ip6_netmask(&e.ip, e.cidr);
 
 	if (opt->cmdflags & IPSET_FLAG_PHYSDEV) {
-#ifdef CONFIG_BRIDGE_NETFILTER
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 		const struct nf_bridge_info *nf_bridge = skb->nf_bridge;
 
 		if (!nf_bridge)
