@@ -193,11 +193,6 @@ extern void irq_wake_thread(unsigned int irq, void *dev_id);
 /* The following three functions are for the core kernel use only. */
 extern void suspend_device_irqs(void);
 extern void resume_device_irqs(void);
-#ifdef CONFIG_PM_SLEEP
-extern int check_wakeup_irqs(void);
-#else
-static inline int check_wakeup_irqs(void) { return 0; }
-#endif
 
 /**
  * struct irq_affinity_notify - context for notification of IRQ affinity changes
