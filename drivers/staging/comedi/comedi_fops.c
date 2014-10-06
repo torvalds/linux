@@ -1718,7 +1718,6 @@ static int do_cancel_ioctl(struct comedi_device *dev, unsigned int arg,
 			   void *file)
 {
 	struct comedi_subdevice *s;
-	int ret;
 
 	if (arg >= dev->n_subdevices)
 		return -EINVAL;
@@ -1732,9 +1731,7 @@ static int do_cancel_ioctl(struct comedi_device *dev, unsigned int arg,
 	if (s->busy != file)
 		return -EBUSY;
 
-	ret = do_cancel(dev, s);
-
-	return ret;
+	return do_cancel(dev, s);
 }
 
 /*
