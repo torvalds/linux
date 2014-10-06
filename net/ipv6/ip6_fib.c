@@ -74,8 +74,6 @@ static int fib6_walk_continue(struct fib6_walker *w);
  *	result of redirects, path MTU changes, etc.
  */
 
-static atomic_t rt_sernum = ATOMIC_INIT(1);
-
 static void fib6_gc_timer_cb(unsigned long arg);
 
 static LIST_HEAD(fib6_walkers);
@@ -95,14 +93,15 @@ static void fib6_walker_unlink(struct fib6_walker *w)
 	write_unlock_bh(&fib6_walker_lock);
 }
 
-static int fib6_new_sernum(void)
+static int fib6_new_sernum(struct net *net)
 {
 	int new, old;
 
 	do {
-		old = atomic_read(&rt_sernum);
+		old = atomic_read(&net->ipv6.fib6_sernum);
 		new = old < INT_MAX ? old + 1 : 1;
-	} while (atomic_cmpxchg(&rt_sernum, old, new) != old);
+	} while (atomic_cmpxchg(&net->ipv6.fib6_sernum,
+				old, new) != old);
 	return new;
 }
 
@@ -841,7 +840,7 @@ int fib6_add(struct fib6_node *root, struct rt6_info *rt, struct nl_info *info,
 	int err = -ENOMEM;
 	int allow_create = 1;
 	int replace_required = 0;
-	int sernum = fib6_new_sernum();
+	int sernum = fib6_new_sernum(info->nl_net);
 
 	if (info->nlh) {
 		if (!(info->nlh->nlmsg_flags & NLM_F_CREATE))
@@ -1612,7 +1611,7 @@ static int fib6_update_sernum(struct rt6_info *rt, void *arg)
 
 static void fib6_flush_trees(struct net *net)
 {
-	int new_sernum = fib6_new_sernum();
+	int new_sernum = fib6_new_sernum(net);
 
 	fib6_clean_all(net, fib6_update_sernum, &new_sernum);
 }
