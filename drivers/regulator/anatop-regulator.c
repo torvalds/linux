@@ -283,6 +283,14 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 			sreg->sel = 0;
 			sreg->bypass = true;
 		}
+
+		/*
+		 * In case vddpu was disabled by the bootloader, we need to set
+		 * a sane default until imx6-cpufreq was probed and changes the
+		 * voltage to the correct value. In this case we set 1.25V.
+		 */
+		if (!sreg->sel && !strcmp(sreg->name, "vddpu"))
+			sreg->sel = 22;
 	} else {
 		rdesc->ops = &anatop_rops;
 	}
