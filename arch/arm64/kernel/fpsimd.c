@@ -158,6 +158,7 @@ void fpsimd_flush_thread(void)
 	preempt_disable();
 	memset(&current->thread.fpsimd_state, 0, sizeof(struct fpsimd_state));
 	set_thread_flag(TIF_FOREIGN_FPSTATE);
+	preempt_enable();
 }
 
 /*
