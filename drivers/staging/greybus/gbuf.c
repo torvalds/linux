@@ -26,28 +26,6 @@ static struct kmem_cache *gbuf_head_cache;
 /* Workqueue to handle Greybus buffer completions. */
 static struct workqueue_struct *gbuf_workqueue;
 
-static struct gbuf *__alloc_gbuf(struct gb_connection *connection,
-				bool outbound,
-				gbuf_complete_t complete,
-				gfp_t gfp_mask,
-				void *context)
-{
-	struct gbuf *gbuf;
-
-	gbuf = kmem_cache_zalloc(gbuf_head_cache, gfp_mask);
-	if (!gbuf)
-		return NULL;
-
-	kref_init(&gbuf->kref);
-	gbuf->connection = connection;
-	INIT_WORK(&gbuf->event, cport_process_event);
-	gbuf->outbound = outbound;
-	gbuf->complete = complete;
-	gbuf->context = context;
-
-	return gbuf;
-}
-
 /**
  * greybus_alloc_gbuf - allocate a greybus buffer
  *
@@ -73,14 +51,21 @@ struct gbuf *greybus_alloc_gbuf(struct gb_connection *connection,
 	struct gbuf *gbuf;
 	int retval;
 
-	gbuf = __alloc_gbuf(connection, outbound, complete, gfp_mask, context);
+	gbuf = kmem_cache_zalloc(gbuf_head_cache, gfp_mask);
 	if (!gbuf)
 		return NULL;
+
+	kref_init(&gbuf->kref);
+	gbuf->connection = connection;
+	INIT_WORK(&gbuf->event, cport_process_event);
+	gbuf->outbound = outbound;
+	gbuf->complete = complete;
+	gbuf->context = context;
 
 	/* Host controller specific allocation for the actual buffer */
 	retval = connection->hd->driver->alloc_gbuf_data(gbuf, size, gfp_mask);
 	if (retval) {
-		greybus_free_gbuf(gbuf);
+		kmem_cache_free(gbuf_head_cache, gbuf);
 		return NULL;
 	}
 
