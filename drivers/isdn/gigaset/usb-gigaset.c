@@ -135,14 +135,13 @@ struct usb_cardstate {
 	/* Output buffer */
 	unsigned char		*bulk_out_buffer;
 	int			bulk_out_size;
-	__u8			bulk_out_endpointAddr;
+	int			bulk_out_epnum;
 	struct urb		*bulk_out_urb;
 
 	/* Input buffer */
 	unsigned char		*rcvbuf;
 	int			rcvbuf_size;
 	struct urb		*read_urb;
-	__u8			int_in_endpointAddr;
 
 	char			bchars[6];		/* for request 0x19 */
 };
@@ -466,7 +465,7 @@ static int send_cb(struct cardstate *cs, struct cmdbuf_t *cb)
 
 			usb_fill_bulk_urb(ucs->bulk_out_urb, ucs->udev,
 					  usb_sndbulkpipe(ucs->udev,
-							  ucs->bulk_out_endpointAddr & 0x0f),
+							  ucs->bulk_out_epnum),
 					  cb->buf + cb->offset, count,
 					  gigaset_write_bulk_callback, cs);
 
@@ -628,8 +627,7 @@ static int write_modem(struct cardstate *cs)
 	if (cs->connected) {
 		usb_fill_bulk_urb(ucs->bulk_out_urb, ucs->udev,
 				  usb_sndbulkpipe(ucs->udev,
-						  ucs->bulk_out_endpointAddr &
-						  0x0f),
+						  ucs->bulk_out_epnum),
 				  ucs->bulk_out_buffer, count,
 				  gigaset_write_bulk_callback, cs);
 		ret = usb_submit_urb(ucs->bulk_out_urb, GFP_ATOMIC);
@@ -714,7 +712,7 @@ static int gigaset_probe(struct usb_interface *interface,
 
 	buffer_size = le16_to_cpu(endpoint->wMaxPacketSize);
 	ucs->bulk_out_size = buffer_size;
-	ucs->bulk_out_endpointAddr = endpoint->bEndpointAddress;
+	ucs->bulk_out_epnum = usb_endpoint_num(endpoint);
 	ucs->bulk_out_buffer = kmalloc(buffer_size, GFP_KERNEL);
 	if (!ucs->bulk_out_buffer) {
 		dev_err(cs->dev, "Couldn't allocate bulk_out_buffer\n");
@@ -741,7 +739,6 @@ static int gigaset_probe(struct usb_interface *interface,
 	}
 	buffer_size = le16_to_cpu(endpoint->wMaxPacketSize);
 	ucs->rcvbuf_size = buffer_size;
-	ucs->int_in_endpointAddr = endpoint->bEndpointAddress;
 	ucs->rcvbuf = kmalloc(buffer_size, GFP_KERNEL);
 	if (!ucs->rcvbuf) {
 		dev_err(cs->dev, "Couldn't allocate rcvbuf\n");
@@ -750,8 +747,7 @@ static int gigaset_probe(struct usb_interface *interface,
 	}
 	/* Fill the interrupt urb and send it to the core */
 	usb_fill_int_urb(ucs->read_urb, udev,
-			 usb_rcvintpipe(udev,
-					usb_endpoint_num(endpoint)),
+			 usb_rcvintpipe(udev, usb_endpoint_num(endpoint)),
 			 ucs->rcvbuf, buffer_size,
 			 gigaset_read_int_callback,
 			 cs, endpoint->bInterval);
