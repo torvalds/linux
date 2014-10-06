@@ -1507,6 +1507,9 @@
 #define RT5677_GPIO5_FUNC_GPIO			(0x0 << 9)
 #define RT5677_GPIO5_FUNC_DMIC			(0x1 << 9)
 
+#define RT5677_FIRMWARE1	"rt5677_dsp_fw1.bin"
+#define RT5677_FIRMWARE2	"rt5677_dsp_fw2.bin"
+
 /* System Clock Source */
 enum {
 	RT5677_SCLK_S_MCLK,
@@ -1546,6 +1549,8 @@ struct rt5677_priv {
 	struct snd_soc_codec *codec;
 	struct rt5677_platform_data pdata;
 	struct regmap *regmap;
+	const struct firmware *fw1, *fw2;
+	struct mutex dsp_cmd_lock;
 
 	int sysclk;
 	int sysclk_src;
@@ -1559,6 +1564,7 @@ struct rt5677_priv {
 #ifdef CONFIG_GPIOLIB
 	struct gpio_chip gpio_chip;
 #endif
+	bool dsp_vad_en;
 };
 
 #endif /* __RT5677_H__ */
