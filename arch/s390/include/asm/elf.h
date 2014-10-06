@@ -226,6 +226,6 @@ int arch_setup_additional_pages(struct linux_binprm *, int);
 extern unsigned long arch_randomize_brk(struct mm_struct *mm);
 #define arch_randomize_brk arch_randomize_brk
 
-void *fill_cpu_elf_notes(void *ptr, struct save_area *sa);
+void *fill_cpu_elf_notes(void *ptr, struct save_area *sa, __vector128 *vxrs);
 
 #endif

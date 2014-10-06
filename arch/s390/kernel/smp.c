@@ -83,7 +83,8 @@ DEFINE_MUTEX(smp_cpu_state_mutex);
 /*
  * Signal processor helper functions.
  */
-static inline int __pcpu_sigp_relax(u16 addr, u8 order, u32 parm, u32 *status)
+static inline int __pcpu_sigp_relax(u16 addr, u8 order, unsigned long parm,
+				    u32 *status)
 {
 	int cc;
 
@@ -515,35 +516,53 @@ EXPORT_SYMBOL(smp_ctl_clear_bit);
 static void __init smp_get_save_area(int cpu, u16 address)
 {
 	void *lc = pcpu_devices[0].lowcore;
-	struct save_area *save_area;
+	struct save_area_ext *sa_ext;
+	unsigned long vx_sa;
 
 	if (is_kdump_kernel())
 		return;
 	if (!OLDMEM_BASE && (address == boot_cpu_address ||
 			     ipl_info.type != IPL_TYPE_FCP_DUMP))
 		return;
-	save_area = dump_save_area_create(cpu);
-	if (!save_area)
+	sa_ext = dump_save_area_create(cpu);
+	if (!sa_ext)
 		panic("could not allocate memory for save area\n");
 	if (address == boot_cpu_address) {
 		/* Copy the registers of the boot cpu. */
-		copy_oldmem_page(1, (void *) save_area, sizeof(*save_area),
+		copy_oldmem_page(1, (void *) &sa_ext->sa, sizeof(sa_ext->sa),
 				 SAVE_AREA_BASE - PAGE_SIZE, 0);
+		if (MACHINE_HAS_VX)
+			save_vx_regs_safe(sa_ext->vx_regs);
 		return;
 	}
 	/* Get the registers of a non-boot cpu. */
 	__pcpu_sigp_relax(address, SIGP_STOP_AND_STORE_STATUS, 0, NULL);
-	memcpy_real(save_area, lc + SAVE_AREA_BASE, sizeof(*save_area));
+	memcpy_real(&sa_ext->sa, lc + SAVE_AREA_BASE, sizeof(sa_ext->sa));
+	if (!MACHINE_HAS_VX)
+		return;
+	/* Get the VX registers */
+	vx_sa = __get_free_page(GFP_KERNEL);
+	if (!vx_sa)
+		panic("could not allocate memory for VX save area\n");
+	__pcpu_sigp_relax(address, SIGP_STORE_ADDITIONAL_STATUS, vx_sa, NULL);
+	memcpy(sa_ext->vx_regs, (void *) vx_sa, sizeof(sa_ext->vx_regs));
+	free_page(vx_sa);
 }
 
 int smp_store_status(int cpu)
 {
+	unsigned long vx_sa;
 	struct pcpu *pcpu;
 
 	pcpu = pcpu_devices + cpu;
 	if (__pcpu_sigp_relax(pcpu->address, SIGP_STOP_AND_STORE_STATUS,
 			      0, NULL) != SIGP_CC_ORDER_CODE_ACCEPTED)
 		return -EIO;
+	if (!MACHINE_HAS_VX)
+		return 0;
+	vx_sa = __pa(pcpu->lowcore->vector_save_area_addr);
+	__pcpu_sigp_relax(pcpu->address, SIGP_STORE_ADDITIONAL_STATUS,
+			  vx_sa, NULL);
 	return 0;
 }
 

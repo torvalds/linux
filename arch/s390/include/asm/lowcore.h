@@ -11,6 +11,7 @@
 #include <linux/types.h>
 #include <asm/ptrace.h>
 #include <asm/cpu.h>
+#include <asm/types.h>
 
 #ifdef CONFIG_32BIT
 
@@ -30,6 +31,11 @@ struct save_area {
 	u32	gp_regs[16];
 	u32	ctrl_regs[16];
 } __packed;
+
+struct save_area_ext {
+	struct save_area	sa;
+	__vector128		vx_regs[32];
+};
 
 struct _lowcore {
 	psw_t	restart_psw;			/* 0x0000 */
@@ -182,6 +188,11 @@ struct save_area {
 	u32	acc_regs[16];
 	u64	ctrl_regs[16];
 } __packed;
+
+struct save_area_ext {
+	struct save_area	sa;
+	__vector128		vx_regs[32];
+};
 
 struct _lowcore {
 	__u8	pad_0x0000[0x0014-0x0000];	/* 0x0000 */

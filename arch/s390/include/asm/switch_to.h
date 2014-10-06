@@ -114,6 +114,19 @@ static inline void save_vx_regs(__vector128 *vxrs)
 		: "=Q" (*(addrtype *) vxrs) : : "1");
 }
 
+static inline void save_vx_regs_safe(__vector128 *vxrs)
+{
+	unsigned long cr0, flags;
+
+	flags = arch_local_irq_save();
+	__ctl_store(cr0, 0, 0);
+	__ctl_set_bit(0, 17);
+	__ctl_set_bit(0, 18);
+	save_vx_regs(vxrs);
+	__ctl_load(cr0, 0, 0);
+	arch_local_irq_restore(flags);
+}
+
 static inline void restore_vx_regs(__vector128 *vxrs)
 {
 	typedef struct { __vector128 _[__NUM_VXRS]; } addrtype;
