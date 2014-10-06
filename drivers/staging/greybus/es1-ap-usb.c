@@ -93,9 +93,11 @@ static void cport_out_callback(struct urb *urb);
  *	void *transfer_buffer;
  *	u32 transfer_buffer_length;
  */
-static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size, gfp_t gfp_mask)
+static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size,
+				gfp_t gfp_mask)
 {
 	struct es1_ap_dev *es1 = hd_to_es1(gbuf->connection->hd);
+	u32 cport_reserve = gbuf->outbound ? 1 : 0;
 	u8 *buffer;
 
 	if (size > ES1_GBUF_MSG_SIZE) {
@@ -107,8 +109,12 @@ static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size, gfp_t gfp_mask)
 	 * but for ES1, it's so dirt simple, we don't have a choice...
 	 *
 	 * Also, do a "slow" allocation now, if we need speed, use a cache
+	 *
+	 * For ES1 outbound buffers need to insert their target
+	 * CPort Id before the data; set aside an extra byte for
+	 * that purpose in that case.
 	 */
-	buffer = kmalloc(size + 1, gfp_mask);
+	buffer = kmalloc(cport_reserve + size, gfp_mask);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -123,8 +129,10 @@ static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size, gfp_t gfp_mask)
 		return -EINVAL;
 	}
 
-	buffer[0] = gbuf->connection->interface_cport_id;
-	gbuf->transfer_buffer = &buffer[1];
+	/* Insert the cport id for outbound buffers */
+	if (gbuf->outbound)
+		*buffer++ = gbuf->connection->interface_cport_id;
+	gbuf->transfer_buffer = buffer;
 	gbuf->transfer_buffer_length = size;
 
 	/* When we send the gbuf, we need this pointer to be here */
@@ -136,15 +144,15 @@ static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size, gfp_t gfp_mask)
 /* Free the memory we allocated with a gbuf */
 static void free_gbuf_data(struct gbuf *gbuf)
 {
-	u8 *transfer_buffer;
-	u8 *buffer;
+	u8 *transfer_buffer = gbuf->transfer_buffer;
 
-	transfer_buffer = gbuf->transfer_buffer;
 	/* Can be called with a NULL transfer_buffer on some error paths */
-	if (transfer_buffer) {
-		buffer = &transfer_buffer[-1];	/* yes, we mean -1 */
-		kfree(buffer);
-	}
+	if (!transfer_buffer)
+		return;
+
+	if (gbuf->outbound)
+		transfer_buffer--;	/* Back up to cport id */
+	kfree(transfer_buffer);
 }
 
 #define ES1_TIMEOUT	500	/* 500 ms for the SVC to do something */

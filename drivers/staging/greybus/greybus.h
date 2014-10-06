@@ -133,9 +133,7 @@ struct gbuf {
 	u32 transfer_buffer_length;
 	u32 actual_length;
 
-#define GBUF_DIRECTION_OUT	0
-#define GBUF_DIRECTION_IN	1
-	unsigned int	direction : 1;	/* 0 is out, 1 is in */
+	bool outbound;			/* AP-relative data direction */
 
 	void *context;
 	struct work_struct event;
@@ -172,7 +170,8 @@ struct svc_msg;
 struct greybus_host_driver {
 	size_t	hd_priv_size;
 
-	int (*alloc_gbuf_data)(struct gbuf *gbuf, unsigned int size, gfp_t gfp_mask);
+	int (*alloc_gbuf_data)(struct gbuf *gbuf, unsigned int size,
+					gfp_t gfp_mask);
 	void (*free_gbuf_data)(struct gbuf *gbuf);
 	int (*submit_svc)(struct svc_msg *svc_msg,
 			    struct greybus_host_device *hd);
@@ -202,7 +201,7 @@ void greybus_gbuf_finished(struct gbuf *gbuf);
 
 struct gbuf *greybus_alloc_gbuf(struct gb_connection *connection,
 				gbuf_complete_t complete, unsigned int size,
-				gfp_t gfp_mask, void *context);
+				bool outbound, gfp_t gfp_mask, void *context);
 void greybus_free_gbuf(struct gbuf *gbuf);
 struct gbuf *greybus_get_gbuf(struct gbuf *gbuf);
 #define greybus_put_gbuf	greybus_free_gbuf

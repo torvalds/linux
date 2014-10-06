@@ -27,6 +27,7 @@ static struct kmem_cache *gbuf_head_cache;
 static struct workqueue_struct *gbuf_workqueue;
 
 static struct gbuf *__alloc_gbuf(struct gb_connection *connection,
+				bool outbound,
 				gbuf_complete_t complete,
 				gfp_t gfp_mask,
 				void *context)
@@ -40,6 +41,7 @@ static struct gbuf *__alloc_gbuf(struct gb_connection *connection,
 	kref_init(&gbuf->kref);
 	gbuf->connection = connection;
 	INIT_WORK(&gbuf->event, cport_process_event);
+	gbuf->outbound = outbound;
 	gbuf->complete = complete;
 	gbuf->context = context;
 
@@ -64,17 +66,16 @@ static struct gbuf *__alloc_gbuf(struct gb_connection *connection,
 struct gbuf *greybus_alloc_gbuf(struct gb_connection *connection,
 				gbuf_complete_t complete,
 				unsigned int size,
+				bool outbound,
 				gfp_t gfp_mask,
 				void *context)
 {
 	struct gbuf *gbuf;
 	int retval;
 
-	gbuf = __alloc_gbuf(connection, complete, gfp_mask, context);
+	gbuf = __alloc_gbuf(connection, outbound, complete, gfp_mask, context);
 	if (!gbuf)
 		return NULL;
-
-	gbuf->direction = GBUF_DIRECTION_OUT;
 
 	/* Host controller specific allocation for the actual buffer */
 	retval = connection->hd->driver->alloc_gbuf_data(gbuf, size, gfp_mask);
@@ -93,13 +94,7 @@ static void free_gbuf(struct kref *kref)
 {
 	struct gbuf *gbuf = container_of(kref, struct gbuf, kref);
 
-	/* If the direction is "out" then the host controller frees the data */
-	if (gbuf->direction == GBUF_DIRECTION_OUT) {
-		gbuf->connection->hd->driver->free_gbuf_data(gbuf);
-	} else {
-		/* we "own" this in data, so free it ourselves */
-		kfree(gbuf->transfer_buffer);
-	}
+	gbuf->connection->hd->driver->free_gbuf_data(gbuf);
 
 	kmem_cache_free(gbuf_head_cache, gbuf);
 }
@@ -197,14 +192,14 @@ void greybus_cport_in(struct greybus_host_device *hd, u16 cport_id,
 		return;
 	}
 
-	gbuf = __alloc_gbuf(connection, ch->handler, GFP_ATOMIC, ch->context);
+	gbuf = greybus_alloc_gbuf(connection, ch->handler, length, false,
+					GFP_ATOMIC, ch->context);
+
 	if (!gbuf) {
 		/* Again, something bad went wrong, log it... */
 		pr_err("can't allocate gbuf???\n");
 		return;
 	}
-	gbuf->hdpriv = hd;
-	gbuf->direction = GBUF_DIRECTION_IN;
 
 	/*
 	 * FIXME:
@@ -212,13 +207,7 @@ void greybus_cport_in(struct greybus_host_device *hd, u16 cport_id,
 	 * be, we should move to a model where the hd "owns" all buffers, but we
 	 * want something up and working first for now.
 	 */
-	gbuf->transfer_buffer = kmalloc(length, GFP_ATOMIC);
-	if (!gbuf->transfer_buffer) {
-		kfree(gbuf);
-		return;
-	}
 	memcpy(gbuf->transfer_buffer, data, length);
-	gbuf->transfer_buffer_length = length;
 	gbuf->actual_length = length;
 
 	queue_work(gbuf_workqueue, &gbuf->event);
