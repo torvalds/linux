@@ -120,15 +120,16 @@ struct compress_sst_ops {
 };
 
 struct sst_ops {
-	int (*open) (struct device *dev, struct snd_sst_params *str_param);
-	int (*stream_init) (struct device *dev, struct pcm_stream_info *str_info);
-	int (*stream_start) (struct device *dev, int str_id);
-	int (*stream_drop) (struct device *dev, int str_id);
-	int (*stream_pause) (struct device *dev, int str_id);
-	int (*stream_pause_release) (struct device *dev, int str_id);
-	int (*stream_read_tstamp) (struct device *dev, struct pcm_stream_info *str_info);
+	int (*open)(struct device *dev, struct snd_sst_params *str_param);
+	int (*stream_init)(struct device *dev, struct pcm_stream_info *str_info);
+	int (*stream_start)(struct device *dev, int str_id);
+	int (*stream_drop)(struct device *dev, int str_id);
+	int (*stream_pause)(struct device *dev, int str_id);
+	int (*stream_pause_release)(struct device *dev, int str_id);
+	int (*stream_read_tstamp)(struct device *dev, struct pcm_stream_info *str_info);
 	int (*send_byte_stream)(struct device *dev, struct snd_sst_bytes_v2 *bytes);
-	int (*close) (struct device *dev, unsigned int str_id);
+	int (*close)(struct device *dev, unsigned int str_id);
+	int (*power)(struct device *dev, bool state);
 };
 
 struct sst_runtime_stream {
@@ -166,7 +167,7 @@ struct sst_algo_int_control_v2 {
 struct sst_data {
 	struct platform_device *pdev;
 	struct sst_platform_data *pdata;
-	char *byte_stream;
+	struct snd_sst_bytes_v2 *byte_stream;
 	struct mutex lock;
 };
 int sst_register_dsp(struct sst_device *sst);
