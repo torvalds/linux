@@ -364,6 +364,7 @@ bool gb_manifest_parse(struct gb_module *gmod, void *data, size_t size)
 		if (desc_size <= 0) {
 			if (!desc_size)
 				pr_err("zero-sized manifest descriptor\n");
+			result = false;
 			goto out;
 		}
 		desc = (struct greybus_descriptor *)((char *)desc + desc_size);
@@ -379,6 +380,7 @@ bool gb_manifest_parse(struct gb_module *gmod, void *data, size_t size)
 	if (found != 1) {
 		pr_err("manifest must have 1 module descriptor (%u found)\n",
 			found);
+		result = false;
 		goto out;
 	}
 
@@ -394,5 +396,5 @@ bool gb_manifest_parse(struct gb_module *gmod, void *data, size_t size)
 out:
 	release_manifest_descriptors();
 
-	return false;
+	return result;
 }
