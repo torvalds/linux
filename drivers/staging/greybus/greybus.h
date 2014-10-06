@@ -124,7 +124,6 @@ typedef void (*gbuf_complete_t)(struct gbuf *gbuf);
 
 struct gbuf {
 	struct kref kref;
-	void *hdpriv;
 
 	struct gb_connection *connection;
 	int status;

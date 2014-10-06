@@ -96,7 +96,6 @@ static void cport_out_callback(struct urb *urb);
 static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size,
 				gfp_t gfp_mask)
 {
-	struct es1_ap_dev *es1 = hd_to_es1(gbuf->connection->hd);
 	u32 cport_reserve = gbuf->outbound ? 1 : 0;
 	u8 *buffer;
 
@@ -134,9 +133,6 @@ static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size,
 		*buffer++ = gbuf->connection->interface_cport_id;
 	gbuf->transfer_buffer = buffer;
 	gbuf->transfer_buffer_length = size;
-
-	/* When we send the gbuf, we need this pointer to be here */
-	gbuf->hdpriv = es1;
 
 	return 0;
 }
@@ -337,7 +333,7 @@ exit:
 static void cport_out_callback(struct urb *urb)
 {
 	struct gbuf *gbuf = urb->context;
-	struct es1_ap_dev *es1 = gbuf->hdpriv;
+	struct es1_ap_dev *es1 = hd_to_es1(gbuf->connection->hd);
 	unsigned long flags;
 	int i;
 
