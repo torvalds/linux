@@ -35,7 +35,6 @@
 
 struct da732x_priv {
 	struct regmap *regmap;
-	struct snd_soc_codec *codec;
 
 	unsigned int sysclk;
 	bool pll_en;
@@ -1508,31 +1507,7 @@ static int da732x_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static int da732x_probe(struct snd_soc_codec *codec)
-{
-	struct da732x_priv *da732x = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	da732x->codec = codec;
-
-	dapm->idle_bias_off = false;
-
-	da732x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return 0;
-}
-
-static int da732x_remove(struct snd_soc_codec *codec)
-{
-
-	da732x_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_da732x = {
-	.probe			= da732x_probe,
-	.remove			= da732x_remove,
 	.set_bias_level		= da732x_set_bias_level,
 	.controls		= da732x_snd_controls,
 	.num_controls		= ARRAY_SIZE(da732x_snd_controls),
