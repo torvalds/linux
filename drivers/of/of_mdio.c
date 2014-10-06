@@ -286,6 +286,7 @@ int of_phy_register_fixed_link(struct device_node *np)
 	struct device_node *fixed_link_node;
 	const __be32 *fixed_link_prop;
 	int len;
+	struct phy_device *phy;
 
 	/* New binding */
 	fixed_link_node = of_get_child_by_name(np, "fixed-link");
@@ -299,7 +300,8 @@ int of_phy_register_fixed_link(struct device_node *np)
 		status.asym_pause = of_property_read_bool(fixed_link_node,
 							  "asym-pause");
 		of_node_put(fixed_link_node);
-		return fixed_phy_register(PHY_POLL, &status, np);
+		phy = fixed_phy_register(PHY_POLL, &status, np);
+		return IS_ERR(phy) ? PTR_ERR(phy) : 0;
 	}
 
 	/* Old binding */
@@ -310,7 +312,8 @@ int of_phy_register_fixed_link(struct device_node *np)
 		status.speed = be32_to_cpu(fixed_link_prop[2]);
 		status.pause = be32_to_cpu(fixed_link_prop[3]);
 		status.asym_pause = be32_to_cpu(fixed_link_prop[4]);
-		return fixed_phy_register(PHY_POLL, &status, np);
+		phy = fixed_phy_register(PHY_POLL, &status, np);
+		return IS_ERR(phy) ? PTR_ERR(phy) : 0;
 	}
 
 	return -ENODEV;

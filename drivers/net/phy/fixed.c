@@ -233,9 +233,9 @@ EXPORT_SYMBOL_GPL(fixed_phy_del);
 static int phy_fixed_addr;
 static DEFINE_SPINLOCK(phy_fixed_addr_lock);
 
-int fixed_phy_register(unsigned int irq,
-		       struct fixed_phy_status *status,
-		       struct device_node *np)
+struct phy_device *fixed_phy_register(unsigned int irq,
+				      struct fixed_phy_status *status,
+				      struct device_node *np)
 {
 	struct fixed_mdio_bus *fmb = &platform_fmb;
 	struct phy_device *phy;
@@ -246,19 +246,19 @@ int fixed_phy_register(unsigned int irq,
 	spin_lock(&phy_fixed_addr_lock);
 	if (phy_fixed_addr == PHY_MAX_ADDR) {
 		spin_unlock(&phy_fixed_addr_lock);
-		return -ENOSPC;
+		return ERR_PTR(-ENOSPC);
 	}
 	phy_addr = phy_fixed_addr++;
 	spin_unlock(&phy_fixed_addr_lock);
 
 	ret = fixed_phy_add(PHY_POLL, phy_addr, status);
 	if (ret < 0)
-		return ret;
+		return ERR_PTR(ret);
 
 	phy = get_phy_device(fmb->mii_bus, phy_addr, false);
 	if (!phy || IS_ERR(phy)) {
 		fixed_phy_del(phy_addr);
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	of_node_get(np);
@@ -269,10 +269,10 @@ int fixed_phy_register(unsigned int irq,
 		phy_device_free(phy);
 		of_node_put(np);
 		fixed_phy_del(phy_addr);
-		return ret;
+		return ERR_PTR(ret);
 	}
 
-	return 0;
+	return phy;
 }
 
 static int __init fixed_mdio_bus_init(void)
