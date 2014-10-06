@@ -104,10 +104,9 @@ static int geneve_get_options(const struct vport *vport,
 			      struct sk_buff *skb)
 {
 	struct geneve_port *geneve_port = geneve_vport(vport);
-	__be16 sport;
+	struct inet_sock *sk = inet_sk(geneve_port->gs->sock->sk);
 
-	sport = ntohs(inet_sk(geneve_port->gs->sock->sk)->inet_sport);
-	if (nla_put_u16(skb, OVS_TUNNEL_ATTR_DST_PORT, sport))
+	if (nla_put_u16(skb, OVS_TUNNEL_ATTR_DST_PORT, ntohs(sk->inet_sport)))
 		return -EMSGSIZE;
 	return 0;
 }
