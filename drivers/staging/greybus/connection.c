@@ -56,8 +56,10 @@ struct gb_connection *gb_hd_connection_find(struct greybus_host_device *hd,
 		else if (connection->hd_cport_id < cport_id)
 			node = node->rb_right;
 		else
-			break;
+			goto found;
 	}
+	connection = NULL;
+ found:
 	spin_unlock_irq(&gb_connections_lock);
 
 	return connection;
