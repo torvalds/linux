@@ -67,7 +67,7 @@ struct sdhci_acpi_slot {
 	unsigned int	caps2;
 	mmc_pm_flag_t	pm_caps;
 	unsigned int	flags;
-	int (*probe_slot)(struct platform_device *);
+	int (*probe_slot)(struct platform_device *, const char *, const char *);
 	int (*remove_slot)(struct platform_device *);
 };
 
@@ -124,7 +124,8 @@ static const struct sdhci_acpi_chip sdhci_acpi_chip_int = {
 	.ops = &sdhci_acpi_ops_int,
 };
 
-static int sdhci_acpi_emmc_probe_slot(struct platform_device *pdev)
+static int sdhci_acpi_emmc_probe_slot(struct platform_device *pdev,
+				      const char *hid, const char *uid)
 {
 	struct sdhci_acpi_host *c = platform_get_drvdata(pdev);
 	struct sdhci_host *host;
@@ -139,7 +140,8 @@ static int sdhci_acpi_emmc_probe_slot(struct platform_device *pdev)
 	return 0;
 }
 
-static int sdhci_acpi_sdio_probe_slot(struct platform_device *pdev)
+static int sdhci_acpi_sdio_probe_slot(struct platform_device *pdev,
+				      const char *hid, const char *uid)
 {
 	struct sdhci_acpi_host *c = platform_get_drvdata(pdev);
 	struct sdhci_host *host;
@@ -154,7 +156,8 @@ static int sdhci_acpi_sdio_probe_slot(struct platform_device *pdev)
 	return 0;
 }
 
-static int sdhci_acpi_sd_probe_slot(struct platform_device *pdev)
+static int sdhci_acpi_sd_probe_slot(struct platform_device *pdev,
+				    const char *hid, const char *uid)
 {
 	struct sdhci_acpi_host *c = platform_get_drvdata(pdev);
 	struct sdhci_host *host;
@@ -314,7 +317,7 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 
 	if (c->slot) {
 		if (c->slot->probe_slot) {
-			err = c->slot->probe_slot(pdev);
+			err = c->slot->probe_slot(pdev, hid, uid);
 			if (err)
 				goto err_free;
 		}
