@@ -1,22 +1,10 @@
 #ifndef __NET_GENEVE_H
 #define __NET_GENEVE_H  1
 
+#ifdef CONFIG_INET
 #include <net/udp_tunnel.h>
+#endif
 
-struct geneve_sock;
-
-typedef void (geneve_rcv_t)(struct geneve_sock *gs, struct sk_buff *skb);
-
-struct geneve_sock {
-	struct hlist_node	hlist;
-	geneve_rcv_t		*rcv;
-	void			*rcv_data;
-	struct work_struct	del_work;
-	struct socket		*sock;
-	struct rcu_head		rcu;
-	atomic_t		refcnt;
-	struct udp_offload	udp_offloads;
-};
 
 /* Geneve Header:
  *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -74,6 +62,22 @@ struct genevehdr {
 	struct geneve_opt options[];
 };
 
+#ifdef CONFIG_INET
+struct geneve_sock;
+
+typedef void (geneve_rcv_t)(struct geneve_sock *gs, struct sk_buff *skb);
+
+struct geneve_sock {
+	struct hlist_node	hlist;
+	geneve_rcv_t		*rcv;
+	void			*rcv_data;
+	struct work_struct	del_work;
+	struct socket		*sock;
+	struct rcu_head		rcu;
+	atomic_t		refcnt;
+	struct udp_offload	udp_offloads;
+};
+
 #define GENEVE_VER 0
 #define GENEVE_BASE_HLEN (sizeof(struct udphdr) + sizeof(struct genevehdr))
 
@@ -88,4 +92,6 @@ int geneve_xmit_skb(struct geneve_sock *gs, struct rtable *rt,
 		    __u8 ttl, __be16 df, __be16 src_port, __be16 dst_port,
 		    __be16 tun_flags, u8 vni[3], u8 opt_len, u8 *opt,
 		    bool xnet);
-#endif
+#endif /*ifdef CONFIG_INET */
+
+#endif /*ifdef__NET_GENEVE_H */

@@ -309,6 +309,7 @@ config NET_IPVTI
 
 config NET_UDP_TUNNEL
 	tristate
+	select NET_IP_TUNNEL
 	default n
 
 config NET_FOU
@@ -320,6 +321,20 @@ config NET_FOU
 	  over UDP include tunnels (IPIP, GRE, SIT). By encapsulating in UDP
 	  network mechanisms and optimizations for UDP (such as ECMP
 	  and RSS) can be leveraged to provide better service.
+
+config GENEVE
+	tristate "Generic Network Virtualization Encapsulation (Geneve)"
+	depends on INET
+	select NET_UDP_TUNNEL
+	---help---
+	This allows one to create Geneve virtual interfaces that provide
+	Layer 2 Networks over Layer 3 Networks. Geneve is often used
+	to tunnel virtual network infrastructure in virtualized environments.
+	For more information see:
+	  http://tools.ietf.org/html/draft-gross-geneve-01
+
+	  To compile this driver as a module, choose M here: the module
+
 
 config INET_AH
 	tristate "IP: AH transformation"
@@ -452,20 +467,6 @@ config TCP_CONG_BIC
 	scalability. Under small congestion windows, binary search
 	increase provides TCP friendliness.
 	See http://www.csc.ncsu.edu/faculty/rhee/export/bitcp/
-
-config GENEVE
-	tristate "Generic Network Virtualization Encapsulation (Geneve)"
-	depends on INET
-	select NET_IP_TUNNEL
-	select NET_UDP_TUNNEL
-	---help---
-	This allows one to create Geneve virtual interfaces that provide
-	Layer 2 Networks over Layer 3 Networks. Geneve is often used
-	to tunnel virtual network infrastructure in virtualized environments.
-	For more information see:
-	  http://tools.ietf.org/html/draft-gross-geneve-01
-
-	  To compile this driver as a module, choose M here: the module
 
 config TCP_CONG_CUBIC
 	tristate "CUBIC TCP"
