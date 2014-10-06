@@ -21,7 +21,7 @@ static DEFINE_SPINLOCK(gb_connections_lock);
  * Assigns the connection's hd_cport_id and returns true if successful.
  * Returns false otherwise.
  */
-static bool hd_connection_hd_cport_id_alloc(struct gb_connection *connection)
+static bool gb_connection_hd_cport_id_alloc(struct gb_connection *connection)
 {
 	struct ida *ida = &connection->hd->cport_id_map;
 	int id;
@@ -38,7 +38,7 @@ static bool hd_connection_hd_cport_id_alloc(struct gb_connection *connection)
 /*
  * Free a previously-allocated CPort Id on the given host device.
  */
-static void hd_connection_hd_cport_id_free(struct gb_connection *connection)
+static void gb_connection_hd_cport_id_free(struct gb_connection *connection)
 {
 	struct ida *ida = &connection->hd->cport_id_map;
 
@@ -69,7 +69,7 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 
 	hd = interface->gmod->hd;
 	connection->hd = hd;			/* XXX refcount? */
-	if (!hd_connection_hd_cport_id_alloc(connection)) {
+	if (!gb_connection_hd_cport_id_alloc(connection)) {
 		/* kref_put(connection->hd); */
 		kfree(connection);
 		return NULL;
@@ -106,7 +106,7 @@ void gb_connection_destroy(struct gb_connection *connection)
 	list_del(&connection->interface_links);
 	spin_unlock_irq(&gb_connections_lock);
 
-	hd_connection_hd_cport_id_free(connection);
+	gb_connection_hd_cport_id_free(connection);
 	/* kref_put(connection->interface); */
 	/* kref_put(connection->hd); */
 	kfree(connection);
