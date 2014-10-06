@@ -69,11 +69,8 @@ static int dump_one_device(const char *dev_dir_name)
 	read_sysfs_string("name", dev_dir_name, name);
 	printf("Device %03d: %s\n", dev_idx, name);
 
-	if (verblevel >= VERBLEVEL_SENSORS) {
-		int ret = dump_channels(dev_dir_name);
-		if (ret)
-			return ret;
-	}
+	if (verblevel >= VERBLEVEL_SENSORS)
+		return dump_channels(dev_dir_name);
 	return 0;
 }
 
