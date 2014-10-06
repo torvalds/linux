@@ -223,7 +223,8 @@ static int ad7192_setup(struct ad7192_state *st,
 	id &= AD7192_ID_MASK;
 
 	if (id != st->devid)
-		dev_warn(&st->sd.spi->dev, "device ID query failed (0x%X)\n", id);
+		dev_warn(&st->sd.spi->dev, "device ID query failed (0x%X)\n",
+			id);
 
 	switch (pdata->clock_source_sel) {
 	case AD7192_CLK_EXT_MCLK1_2:
