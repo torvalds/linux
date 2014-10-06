@@ -273,28 +273,16 @@ static void zte_ev_usb_serial_close(struct usb_serial_port *port)
 }
 
 static const struct usb_device_id id_table[] = {
-	/* AC8710, AC8710T */
-	{ USB_DEVICE_AND_INTERFACE_INFO(0x19d2, 0xffff, 0xff, 0xff, 0xff) },
-	 /* AC8700 */
-	{ USB_DEVICE_AND_INTERFACE_INFO(0x19d2, 0xfffe, 0xff, 0xff, 0xff) },
-	/* MG880 */
-	{ USB_DEVICE(0x19d2, 0xfffd) },
-	{ USB_DEVICE(0x19d2, 0xfffc) },
-	{ USB_DEVICE(0x19d2, 0xfffb) },
-	/* AC8710_V3 */
+	{ USB_DEVICE(0x19d2, 0xffec) },
+	{ USB_DEVICE(0x19d2, 0xffee) },
 	{ USB_DEVICE(0x19d2, 0xfff6) },
 	{ USB_DEVICE(0x19d2, 0xfff7) },
 	{ USB_DEVICE(0x19d2, 0xfff8) },
 	{ USB_DEVICE(0x19d2, 0xfff9) },
-	{ USB_DEVICE(0x19d2, 0xffee) },
-	/* AC2716, MC2716 */
-	{ USB_DEVICE_AND_INTERFACE_INFO(0x19d2, 0xffed, 0xff, 0xff, 0xff) },
-	/* AD3812 */
-	{ USB_DEVICE_AND_INTERFACE_INFO(0x19d2, 0xffeb, 0xff, 0xff, 0xff) },
-	{ USB_DEVICE(0x19d2, 0xffec) },
-	{ USB_DEVICE(0x05C6, 0x3197) },
-	{ USB_DEVICE(0x05C6, 0x6000) },
-	{ USB_DEVICE(0x05C6, 0x9008) },
+	{ USB_DEVICE(0x19d2, 0xfffb) },
+	{ USB_DEVICE(0x19d2, 0xfffc) },
+	/* MG880 */
+	{ USB_DEVICE(0x19d2, 0xfffd) },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, id_table);
