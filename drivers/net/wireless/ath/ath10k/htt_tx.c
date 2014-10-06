@@ -564,6 +564,7 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 		   (u32)skb_cb->paddr, vdev_id, tid);
 	ath10k_dbg_dump(ar, ATH10K_DBG_HTT_DUMP, NULL, "htt tx msdu: ",
 			msdu->data, msdu->len);
+	trace_ath10k_htt_tx_msdu(ar, msdu->data, msdu->len);
 
 	sg_items[0].transfer_id = 0;
 	sg_items[0].transfer_context = NULL;
