@@ -513,20 +513,8 @@ static inline int mmc_card_broken_irq_polling(const struct mmc_card *c)
 #define mmc_get_drvdata(c)	dev_get_drvdata(&(c)->dev)
 #define mmc_set_drvdata(c,d)	dev_set_drvdata(&(c)->dev, d)
 
-/*
- * MMC device driver (e.g., Flash card, I/O card...)
- */
-struct mmc_driver {
-	struct device_driver drv;
-	int (*probe)(struct mmc_card *);
-	void (*remove)(struct mmc_card *);
-	int (*suspend)(struct mmc_card *);
-	int (*resume)(struct mmc_card *);
-	void (*shutdown)(struct mmc_card *);
-};
-
-extern int mmc_register_driver(struct mmc_driver *);
-extern void mmc_unregister_driver(struct mmc_driver *);
+extern int mmc_register_driver(struct device_driver *);
+extern void mmc_unregister_driver(struct device_driver *);
 
 extern void mmc_fixup_device(struct mmc_card *card,
 			     const struct mmc_fixup *table);
