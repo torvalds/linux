@@ -227,7 +227,7 @@ static struct socket *geneve_create_sock(struct net *net, bool ipv6,
 		udp_conf.family = AF_INET6;
 	} else {
 		udp_conf.family = AF_INET;
-		udp_conf.local_ip.s_addr = INADDR_ANY;
+		udp_conf.local_ip.s_addr = htonl(INADDR_ANY);
 	}
 
 	udp_conf.local_udp_port = port;
