@@ -49,6 +49,7 @@
 #define PAGE_SET_WRITEBACK	(1 << 2)
 #define PAGE_END_WRITEBACK	(1 << 3)
 #define PAGE_SET_PRIVATE2	(1 << 4)
+#define PAGE_SET_ERROR		(1 << 5)
 
 /*
  * page->private values.  Every page that is controlled by the extent

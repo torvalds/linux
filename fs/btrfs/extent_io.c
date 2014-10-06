@@ -1746,6 +1746,9 @@ int extent_clear_unlock_delalloc(struct inode *inode, u64 start, u64 end,
 	if (page_ops == 0)
 		return 0;
 
+	if ((page_ops & PAGE_SET_ERROR) && nr_pages > 0)
+		mapping_set_error(inode->i_mapping, -EIO);
+
 	while (nr_pages > 0) {
 		ret = find_get_pages_contig(inode->i_mapping, index,
 				     min_t(unsigned long,
@@ -1763,6 +1766,8 @@ int extent_clear_unlock_delalloc(struct inode *inode, u64 start, u64 end,
 				clear_page_dirty_for_io(pages[i]);
 			if (page_ops & PAGE_SET_WRITEBACK)
 				set_page_writeback(pages[i]);
+			if (page_ops & PAGE_SET_ERROR)
+				SetPageError(pages[i]);
 			if (page_ops & PAGE_END_WRITEBACK)
 				end_page_writeback(pages[i]);
 			if (page_ops & PAGE_UNLOCK)
