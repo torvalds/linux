@@ -524,6 +524,7 @@ static int route4_change(struct net *net, struct sk_buff *in_skb,
 		if (f->handle < f1->handle)
 			break;
 
+	netif_keep_dst(qdisc_dev(tp->q));
 	rcu_assign_pointer(f->next, f1);
 	rcu_assign_pointer(*fp, f);
 

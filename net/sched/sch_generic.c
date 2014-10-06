@@ -47,7 +47,6 @@ EXPORT_SYMBOL(default_qdisc_ops);
 
 static inline int dev_requeue_skb(struct sk_buff *skb, struct Qdisc *q)
 {
-	skb_dst_force(skb);
 	q->gso_skb = skb;
 	q->qstats.requeues++;
 	q->q.qlen++;	/* it's still part of the queue */
@@ -217,8 +216,6 @@ static inline int qdisc_restart(struct Qdisc *q)
 	skb = dequeue_skb(q, &validate);
 	if (unlikely(!skb))
 		return 0;
-
-	WARN_ON_ONCE(skb_dst_is_noref(skb));
 
 	root_lock = qdisc_lock(q);
 	dev = qdisc_dev(q);

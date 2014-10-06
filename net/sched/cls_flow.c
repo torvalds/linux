@@ -493,6 +493,8 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 	tcf_exts_change(tp, &fnew->exts, &e);
 	tcf_em_tree_change(tp, &fnew->ematches, &t);
 
+	netif_keep_dst(qdisc_dev(tp->q));
+
 	if (tb[TCA_FLOW_KEYS]) {
 		fnew->keymask = keymask;
 		fnew->nkeys   = nkeys;
