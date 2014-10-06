@@ -43,6 +43,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_ALC5623 if I2C
 	select SND_SOC_ALC5632 if I2C
 	select SND_SOC_CQ0093VC if MFD_DAVINCI_VOICECODEC
+	select SND_SOC_CS35L32 if I2C
 	select SND_SOC_CS42L51_I2C if I2C
 	select SND_SOC_CS42L52 if I2C && INPUT
 	select SND_SOC_CS42L56 if I2C && INPUT
@@ -324,6 +325,10 @@ config SND_SOC_ALC5632
 
 config SND_SOC_CQ0093VC
 	tristate
+
+config SND_SOC_CS35L32
+	tristate "Cirrus Logic CS35L32 CODEC"
+	depends on I2C
 
 config SND_SOC_CS42L51
 	tristate
