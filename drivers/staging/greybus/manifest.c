@@ -113,7 +113,7 @@ static int identify_descriptor(struct greybus_descriptor *desc, size_t size)
 		return -ENOMEM;
 
 	descriptor->size = desc_size;
-	descriptor->data = desc;
+	descriptor->data = (u8 *)desc + sizeof(*desc_header);
 	descriptor->type = desc_header->type;
 	list_add_tail(&descriptor->links, &manifest_descs);
 
@@ -143,13 +143,11 @@ static char *gb_string_get(u8 string_id)
 		return NULL;
 
 	list_for_each_entry(descriptor, &manifest_descs, links) {
-		struct greybus_descriptor *desc;
 
 		if (descriptor->type != GREYBUS_TYPE_STRING)
 			continue;
 
-		desc = descriptor->data;
-		desc_string = &desc->string;
+		desc_string = descriptor->data;
 		if (desc_string->id == string_id) {
 			found = true;
 			break;
@@ -262,8 +260,7 @@ static u32 gb_manifest_parse_interfaces(struct gb_module *gmod)
 static bool gb_manifest_parse_module(struct gb_module *gmod,
 					struct manifest_desc *module_desc)
 {
-	struct greybus_descriptor *desc = module_desc->data;
-	struct greybus_descriptor_module *desc_module = &desc->module;
+	struct greybus_descriptor_module *desc_module = module_desc->data;
 
 	/* Handle the strings first--they can fail */
 	gmod->vendor_string = gb_string_get(desc_module->vendor_stringid);
