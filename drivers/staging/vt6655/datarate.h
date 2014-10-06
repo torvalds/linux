@@ -75,4 +75,4 @@ DATARATEbyGetRateIdx(
 	unsigned char byRate
 );
 
-#endif //__DATARATE_H__
+#endif /* __DATARATE_H__ */
