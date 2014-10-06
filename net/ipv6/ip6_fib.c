@@ -74,7 +74,7 @@ static int fib6_walk_continue(struct fib6_walker *w);
  *	result of redirects, path MTU changes, etc.
  */
 
-static __u32 rt_sernum;
+static atomic_t rt_sernum = ATOMIC_INIT(1);
 
 static void fib6_gc_timer_cb(unsigned long arg);
 
@@ -95,12 +95,15 @@ static void fib6_walker_unlink(struct fib6_walker *w)
 	write_unlock_bh(&fib6_walker_lock);
 }
 
-static u32 fib6_new_sernum(void)
+static int fib6_new_sernum(void)
 {
-	u32 n = ++rt_sernum;
-	if ((__s32)n <= 0)
-		rt_sernum = n = 1;
-	return n;
+	int new, old;
+
+	do {
+		old = atomic_read(&rt_sernum);
+		new = old < INT_MAX ? old + 1 : 1;
+	} while (atomic_cmpxchg(&rt_sernum, old, new) != old);
+	return new;
 }
 
 /*
@@ -421,7 +424,7 @@ static struct fib6_node *fib6_add_1(struct fib6_node *root,
 	struct rt6key *key;
 	int	bit;
 	__be32	dir = 0;
-	__u32	sernum = fib6_new_sernum();
+	int	sernum = fib6_new_sernum();
 
 	RT6_TRACE("fib6_add_1\n");
 
@@ -1598,7 +1601,7 @@ static void fib6_prune_clones(struct net *net, struct fib6_node *fn)
 
 static int fib6_update_sernum(struct rt6_info *rt, void *arg)
 {
-	__u32 sernum = *(__u32 *)arg;
+	int sernum = *(int *)arg;
 
 	if (rt->rt6i_node &&
 	    rt->rt6i_node->fn_sernum != sernum)
@@ -1609,7 +1612,7 @@ static int fib6_update_sernum(struct rt6_info *rt, void *arg)
 
 static void fib6_flush_trees(struct net *net)
 {
-	__u32 new_sernum = fib6_new_sernum();
+	int new_sernum = fib6_new_sernum();
 
 	fib6_clean_all(net, fib6_update_sernum, &new_sernum);
 }
@@ -1822,7 +1825,7 @@ struct ipv6_route_iter {
 	struct fib6_walker w;
 	loff_t skip;
 	struct fib6_table *tbl;
-	__u32 sernum;
+	int sernum;
 };
 
 static int ipv6_route_seq_show(struct seq_file *seq, void *v)
