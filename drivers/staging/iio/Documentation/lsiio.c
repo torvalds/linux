@@ -46,6 +46,7 @@ static int dump_channels(const char *dev_dir_name)
 {
 	DIR *dp;
 	const struct dirent *ent;
+
 	dp = opendir(dev_dir_name);
 	if (dp == NULL)
 		return -errno;
@@ -107,6 +108,7 @@ static void dump_devices(void)
 	while (ent = readdir(dp), ent != NULL) {
 		if (check_prefix(ent->d_name, type_device)) {
 			char *dev_dir_name;
+
 			asprintf(&dev_dir_name, "%s%s", iio_dir, ent->d_name);
 			dump_one_device(dev_dir_name);
 			free(dev_dir_name);
@@ -118,6 +120,7 @@ static void dump_devices(void)
 	while (ent = readdir(dp), ent != NULL) {
 		if (check_prefix(ent->d_name, type_trigger)) {
 			char *dev_dir_name;
+
 			asprintf(&dev_dir_name, "%s%s", iio_dir, ent->d_name);
 			dump_one_trigger(dev_dir_name);
 			free(dev_dir_name);
