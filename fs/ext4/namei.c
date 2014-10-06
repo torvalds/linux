@@ -2544,7 +2544,7 @@ int ext4_orphan_add(handle_t *handle, struct inode *inode)
 	int err = 0, rc;
 	bool dirty = false;
 
-	if (!sbi->s_journal)
+	if (!sbi->s_journal || is_bad_inode(inode))
 		return 0;
 
 	WARN_ON_ONCE(!(inode->i_state & (I_NEW | I_FREEING)) &&
