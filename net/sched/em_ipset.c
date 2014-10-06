@@ -19,12 +19,11 @@
 #include <net/ip.h>
 #include <net/pkt_cls.h>
 
-static int em_ipset_change(struct tcf_proto *tp, void *data, int data_len,
+static int em_ipset_change(struct net *net, void *data, int data_len,
 			   struct tcf_ematch *em)
 {
 	struct xt_set_info *set = data;
 	ip_set_id_t index;
-	struct net *net = dev_net(qdisc_dev(tp->q));
 
 	if (data_len != sizeof(*set))
 		return -EINVAL;
@@ -42,11 +41,11 @@ static int em_ipset_change(struct tcf_proto *tp, void *data, int data_len,
 	return -ENOMEM;
 }
 
-static void em_ipset_destroy(struct tcf_proto *p, struct tcf_ematch *em)
+static void em_ipset_destroy(struct tcf_ematch *em)
 {
 	const struct xt_set_info *set = (const void *) em->data;
 	if (set) {
-		ip_set_nfnl_put(dev_net(qdisc_dev(p->q)), set->index);
+		ip_set_nfnl_put(em->net, set->index);
 		kfree((void *) em->data);
 	}
 }
