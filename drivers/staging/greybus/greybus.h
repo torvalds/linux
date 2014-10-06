@@ -126,8 +126,7 @@ struct gbuf {
 	struct kref kref;
 	void *hdpriv;
 
-	struct gb_module *gmod;
-	u16 cport_id;
+	struct gb_connection *connection;
 	int status;
 	void *transfer_buffer;
 	u32 transfer_flags;		/* flags for the transfer buffer */
@@ -201,7 +200,7 @@ void greybus_cport_in(struct greybus_host_device *hd, u16 cport_id,
 			u8 *data, size_t length);
 void greybus_gbuf_finished(struct gbuf *gbuf);
 
-struct gbuf *greybus_alloc_gbuf(struct gb_module *gmod, u16 cport_id,
+struct gbuf *greybus_alloc_gbuf(struct gb_connection *connection,
 				gbuf_complete_t complete, unsigned int size,
 				gfp_t gfp_mask, void *context);
 void greybus_free_gbuf(struct gbuf *gbuf);

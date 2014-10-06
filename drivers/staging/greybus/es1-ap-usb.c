@@ -95,7 +95,7 @@ static void cport_out_callback(struct urb *urb);
  */
 static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size, gfp_t gfp_mask)
 {
-	struct es1_ap_dev *es1 = hd_to_es1(gbuf->gmod->hd);
+	struct es1_ap_dev *es1 = hd_to_es1(gbuf->connection->hd);
 	u8 *buffer;
 
 	if (size > ES1_GBUF_MSG_SIZE) {
@@ -116,14 +116,14 @@ static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size, gfp_t gfp_mask)
 	 * we will encode the cport number in the first byte of the buffer, so
 	 * set the second byte to be the "transfer buffer"
 	 */
-	if (gbuf->cport_id > (u16)U8_MAX) {
-		pr_err("gbuf->cport_id is '%d' and is out of range!\n",
-			gbuf->cport_id);
+	if (gbuf->connection->interface_cport_id > (u16)U8_MAX) {
+		pr_err("gbuf->interface_cport_id (%hd) is out of range!\n",
+			gbuf->connection->interface_cport_id);
 		kfree(buffer);
 		return -EINVAL;
 	}
 
-	buffer[0] = gbuf->cport_id;
+	buffer[0] = gbuf->connection->interface_cport_id;
 	gbuf->transfer_buffer = &buffer[1];
 	gbuf->transfer_buffer_length = size;
 

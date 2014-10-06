@@ -26,8 +26,7 @@ static struct kmem_cache *gbuf_head_cache;
 /* Workqueue to handle Greybus buffer completions. */
 static struct workqueue_struct *gbuf_workqueue;
 
-static struct gbuf *__alloc_gbuf(struct gb_module *gmod,
-				u16 cport_id,
+static struct gbuf *__alloc_gbuf(struct gb_connection *connection,
 				gbuf_complete_t complete,
 				gfp_t gfp_mask,
 				void *context)
@@ -39,8 +38,7 @@ static struct gbuf *__alloc_gbuf(struct gb_module *gmod,
 		return NULL;
 
 	kref_init(&gbuf->kref);
-	gbuf->gmod = gmod;
-	gbuf->cport_id = cport_id;
+	gbuf->connection = connection;
 	INIT_WORK(&gbuf->event, cport_process_event);
 	gbuf->complete = complete;
 	gbuf->context = context;
@@ -63,8 +61,7 @@ static struct gbuf *__alloc_gbuf(struct gb_module *gmod,
  * that the driver can then fill up with the data to be sent out.  Curse
  * hardware designers for this issue...
  */
-struct gbuf *greybus_alloc_gbuf(struct gb_module *gmod,
-				u16 cport_id,
+struct gbuf *greybus_alloc_gbuf(struct gb_connection *connection,
 				gbuf_complete_t complete,
 				unsigned int size,
 				gfp_t gfp_mask,
@@ -73,14 +70,14 @@ struct gbuf *greybus_alloc_gbuf(struct gb_module *gmod,
 	struct gbuf *gbuf;
 	int retval;
 
-	gbuf = __alloc_gbuf(gmod, cport_id, complete, gfp_mask, context);
+	gbuf = __alloc_gbuf(connection, complete, gfp_mask, context);
 	if (!gbuf)
 		return NULL;
 
 	gbuf->direction = GBUF_DIRECTION_OUT;
 
 	/* Host controller specific allocation for the actual buffer */
-	retval = gmod->hd->driver->alloc_gbuf_data(gbuf, size, gfp_mask);
+	retval = connection->hd->driver->alloc_gbuf_data(gbuf, size, gfp_mask);
 	if (retval) {
 		greybus_free_gbuf(gbuf);
 		return NULL;
@@ -98,7 +95,7 @@ static void free_gbuf(struct kref *kref)
 
 	/* If the direction is "out" then the host controller frees the data */
 	if (gbuf->direction == GBUF_DIRECTION_OUT) {
-		gbuf->gmod->hd->driver->free_gbuf_data(gbuf);
+		gbuf->connection->hd->driver->free_gbuf_data(gbuf);
 	} else {
 		/* we "own" this in data, so free it ourselves */
 		kfree(gbuf->transfer_buffer);
@@ -125,7 +122,9 @@ EXPORT_SYMBOL_GPL(greybus_get_gbuf);
 
 int greybus_submit_gbuf(struct gbuf *gbuf, gfp_t gfp_mask)
 {
-	return gbuf->gmod->hd->driver->submit_gbuf(gbuf, gbuf->gmod->hd, gfp_mask);
+	struct greybus_host_device *hd = gbuf->connection->hd;
+
+	return hd->driver->submit_gbuf(gbuf, hd, gfp_mask);
 }
 
 int greybus_kill_gbuf(struct gbuf *gbuf)
@@ -198,8 +197,7 @@ void greybus_cport_in(struct greybus_host_device *hd, u16 cport_id,
 		return;
 	}
 
-	gbuf = __alloc_gbuf(ch->gmod, ch->cport_id, ch->handler, GFP_ATOMIC,
-			ch->context);
+	gbuf = __alloc_gbuf(connection, ch->handler, GFP_ATOMIC, ch->context);
 	if (!gbuf) {
 		/* Again, something bad went wrong, log it... */
 		pr_err("can't allocate gbuf???\n");
