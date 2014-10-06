@@ -176,9 +176,9 @@ static bool cs42l52_volatile_register(struct device *dev, unsigned int reg)
 	case CS42L52_BATT_LEVEL:
 	case CS42L52_SPK_STATUS:
 	case CS42L52_CHARGE_PUMP:
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 
