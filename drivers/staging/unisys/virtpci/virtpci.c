@@ -752,7 +752,7 @@ static int virtpci_device_resume(struct device *dev)
 
 /* For a child device just created on a client bus, fill in
  * information about the driver that is controlling this device into
- * the the appropriate slot within the vbus channel of the bus
+ * the appropriate slot within the vbus channel of the bus
  * instance.
  */
 static void fix_vbus_devInfo(struct device *dev, int devNo, int devType,
