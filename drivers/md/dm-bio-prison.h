@@ -10,8 +10,8 @@
 #include "persistent-data/dm-block-manager.h" /* FIXME: for dm_block_t */
 #include "dm-thin-metadata.h" /* FIXME: for dm_thin_id */
 
-#include <linux/list.h>
 #include <linux/bio.h>
+#include <linux/rbtree.h>
 
 /*----------------------------------------------------------------*/
 
@@ -35,13 +35,14 @@ struct dm_cell_key {
  * themselves.
  */
 struct dm_bio_prison_cell {
-	struct hlist_node list;
+	struct rb_node node;
+
 	struct dm_cell_key key;
 	struct bio *holder;
 	struct bio_list bios;
 };
 
-struct dm_bio_prison *dm_bio_prison_create(unsigned nr_cells);
+struct dm_bio_prison *dm_bio_prison_create(void);
 void dm_bio_prison_destroy(struct dm_bio_prison *prison);
 
 /*

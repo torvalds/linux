@@ -95,7 +95,6 @@ static void dm_unhook_bio(struct dm_hook_info *h, struct bio *bio)
 
 /*----------------------------------------------------------------*/
 
-#define PRISON_CELLS 1024
 #define MIGRATION_POOL_SIZE 128
 #define COMMIT_PERIOD HZ
 #define MIGRATION_COUNT_WINDOW 10
@@ -2327,7 +2326,7 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 	INIT_DELAYED_WORK(&cache->waker, do_waker);
 	cache->last_commit_jiffies = jiffies;
 
-	cache->prison = dm_bio_prison_create(PRISON_CELLS);
+	cache->prison = dm_bio_prison_create();
 	if (!cache->prison) {
 		*error = "could not create bio prison";
 		goto bad;

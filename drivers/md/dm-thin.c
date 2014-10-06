@@ -25,7 +25,6 @@
  */
 #define ENDIO_HOOK_POOL_SIZE 1024
 #define MAPPING_POOL_SIZE 1024
-#define PRISON_CELLS 1024
 #define COMMIT_PERIOD HZ
 #define NO_SPACE_TIMEOUT_SECS 60
 
@@ -2193,7 +2192,7 @@ static struct pool *pool_create(struct mapped_device *pool_md,
 		pool->sectors_per_block_shift = __ffs(block_size);
 	pool->low_water_blocks = 0;
 	pool_features_init(&pool->pf);
-	pool->prison = dm_bio_prison_create(PRISON_CELLS);
+	pool->prison = dm_bio_prison_create();
 	if (!pool->prison) {
 		*error = "Error creating pool's bio prison";
 		err_p = ERR_PTR(-ENOMEM);
