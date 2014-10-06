@@ -58,7 +58,7 @@ static inline struct vxlan_port *vxlan_vport(const struct vport *vport)
 /* Called with rcu_read_lock and BH disabled. */
 static void vxlan_rcv(struct vxlan_sock *vs, struct sk_buff *skb, __be32 vx_vni)
 {
-	struct ovs_key_ipv4_tunnel tun_key;
+	struct ovs_tunnel_info tun_info;
 	struct vport *vport = vs->data;
 	struct iphdr *iph;
 	__be64 key;
@@ -66,9 +66,9 @@ static void vxlan_rcv(struct vxlan_sock *vs, struct sk_buff *skb, __be32 vx_vni)
 	/* Save outer tunnel values */
 	iph = ip_hdr(skb);
 	key = cpu_to_be64(ntohl(vx_vni) >> 8);
-	ovs_flow_tun_key_init(&tun_key, iph, key, TUNNEL_KEY);
+	ovs_flow_tun_info_init(&tun_info, iph, key, TUNNEL_KEY, NULL, 0);
 
-	ovs_vport_receive(vport, skb, &tun_key);
+	ovs_vport_receive(vport, skb, &tun_info);
 }
 
 static int vxlan_get_options(const struct vport *vport, struct sk_buff *skb)
@@ -147,12 +147,12 @@ static int vxlan_tnl_send(struct vport *vport, struct sk_buff *skb)
 	__be16 df;
 	int err;
 
-	if (unlikely(!OVS_CB(skb)->egress_tun_key)) {
+	if (unlikely(!OVS_CB(skb)->egress_tun_info)) {
 		err = -EINVAL;
 		goto error;
 	}
 
-	tun_key = OVS_CB(skb)->egress_tun_key;
+	tun_key = &OVS_CB(skb)->egress_tun_info->tunnel;
 	/* Route lookup */
 	memset(&fl, 0, sizeof(fl));
 	fl.daddr = tun_key->ipv4_dst;

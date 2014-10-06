@@ -453,6 +453,20 @@ config TCP_CONG_BIC
 	increase provides TCP friendliness.
 	See http://www.csc.ncsu.edu/faculty/rhee/export/bitcp/
 
+config GENEVE
+	tristate "Generic Network Virtualization Encapsulation (Geneve)"
+	depends on INET
+	select NET_IP_TUNNEL
+	select NET_UDP_TUNNEL
+	---help---
+	This allows one to create Geneve virtual interfaces that provide
+	Layer 2 Networks over Layer 3 Networks. Geneve is often used
+	to tunnel virtual network infrastructure in virtualized environments.
+	For more information see:
+	  http://tools.ietf.org/html/draft-gross-geneve-01
+
+	  To compile this driver as a module, choose M here: the module
+
 config TCP_CONG_CUBIC
 	tristate "CUBIC TCP"
 	default y

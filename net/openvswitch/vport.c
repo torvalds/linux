@@ -48,6 +48,9 @@ static const struct vport_ops *vport_ops_list[] = {
 #ifdef CONFIG_OPENVSWITCH_VXLAN
 	&ovs_vxlan_vport_ops,
 #endif
+#ifdef CONFIG_OPENVSWITCH_GENEVE
+	&ovs_geneve_vport_ops,
+#endif
 };
 
 /* Protected by RCU read lock for reading, ovs_mutex for writing. */
@@ -432,7 +435,7 @@ u32 ovs_vport_find_upcall_portid(const struct vport *p, struct sk_buff *skb)
  * skb->data should point to the Ethernet header.
  */
 void ovs_vport_receive(struct vport *vport, struct sk_buff *skb,
-		       struct ovs_key_ipv4_tunnel *tun_key)
+		       struct ovs_tunnel_info *tun_info)
 {
 	struct pcpu_sw_netstats *stats;
 	struct sw_flow_key key;
@@ -445,9 +448,9 @@ void ovs_vport_receive(struct vport *vport, struct sk_buff *skb,
 	u64_stats_update_end(&stats->syncp);
 
 	OVS_CB(skb)->input_vport = vport;
-	OVS_CB(skb)->egress_tun_key = NULL;
+	OVS_CB(skb)->egress_tun_info = NULL;
 	/* Extract flow from 'skb' into 'key'. */
-	error = ovs_flow_key_extract(tun_key, skb, &key);
+	error = ovs_flow_key_extract(tun_info, skb, &key);
 	if (unlikely(error)) {
 		kfree_skb(skb);
 		return;
