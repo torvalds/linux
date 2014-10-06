@@ -94,6 +94,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_SSM2518 if I2C
 	select SND_SOC_SSM2602_SPI if SPI_MASTER
 	select SND_SOC_SSM2602_I2C if I2C
+	select SND_SOC_SSM4567 if I2C
 	select SND_SOC_STA32X if I2C
 	select SND_SOC_STA350 if I2C
 	select SND_SOC_STA529 if I2C
@@ -540,12 +541,20 @@ config SND_SOC_SSM2602
 	tristate
 
 config SND_SOC_SSM2602_SPI
+	tristate "Analog Devices SSM2602 CODEC - SPI"
+	depends on SPI_MASTER
 	select SND_SOC_SSM2602
-	tristate
+	select REGMAP_SPI
 
 config SND_SOC_SSM2602_I2C
+	tristate "Analog Devices SSM2602 CODEC - I2C"
+	depends on I2C
 	select SND_SOC_SSM2602
-	tristate
+	select REGMAP_I2C
+
+config SND_SOC_SSM4567
+	tristate "Analog Devices ssm4567 amplifier driver support"
+	depends on I2C
 
 config SND_SOC_STA32X
 	tristate
