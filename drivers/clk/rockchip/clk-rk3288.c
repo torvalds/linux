@@ -279,7 +279,7 @@ static struct rockchip_clk_branch rk3288_clk_branches[] __initdata = {
 			RK3288_CLKGATE_CON(0), 11, GFLAGS),
 	COMPOSITE_NOGATE(0, "aclk_cpu_src", mux_aclk_cpu_src_p, 0,
 			RK3288_CLKSEL_CON(1), 15, 1, MFLAGS, 3, 5, DFLAGS),
-	DIV(0, "aclk_cpu_pre", "aclk_cpu_src", 0,
+	DIV(0, "aclk_cpu_pre", "aclk_cpu_src", CLK_SET_RATE_PARENT,
 			RK3288_CLKSEL_CON(1), 0, 3, DFLAGS),
 	GATE(ACLK_CPU, "aclk_cpu", "aclk_cpu_pre", 0,
 			RK3288_CLKGATE_CON(0), 3, GFLAGS),
