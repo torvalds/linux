@@ -3658,6 +3658,9 @@ static void cleanup_one_si(struct smi_info *to_clean)
 	if (!to_clean)
 		return;
 
+	if (to_clean->dev)
+		dev_set_drvdata(to_clean->dev, NULL);
+
 	list_del(&to_clean->link);
 
 	/* Tell the driver that we are shutting down. */
