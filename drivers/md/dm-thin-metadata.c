@@ -1384,42 +1384,38 @@ static bool __snapshotted_since(struct dm_thin_device *td, uint32_t time)
 }
 
 int dm_thin_find_block(struct dm_thin_device *td, dm_block_t block,
-		       int can_block, struct dm_thin_lookup_result *result)
+		       int can_issue_io, struct dm_thin_lookup_result *result)
 {
-	int r = -EINVAL;
-	uint64_t block_time = 0;
+	int r;
 	__le64 value;
 	struct dm_pool_metadata *pmd = td->pmd;
 	dm_block_t keys[2] = { td->id, block };
 	struct dm_btree_info *info;
 
-	if (can_block) {
-		down_read(&pmd->root_lock);
-		info = &pmd->info;
-	} else if (down_read_trylock(&pmd->root_lock))
-		info = &pmd->nb_info;
-	else
-		return -EWOULDBLOCK;
-
 	if (pmd->fail_io)
-		goto out;
+		return -EINVAL;
+
+	down_read(&pmd->root_lock);
+
+	if (can_issue_io) {
+		info = &pmd->info;
+	} else
+		info = &pmd->nb_info;
 
 	r = dm_btree_lookup(info, pmd->root, keys, &value);
-	if (!r)
-		block_time = le64_to_cpu(value);
-
-out:
-	up_read(&pmd->root_lock);
-
 	if (!r) {
+		uint64_t block_time = 0;
 		dm_block_t exception_block;
 		uint32_t exception_time;
+
+		block_time = le64_to_cpu(value);
 		unpack_block_time(block_time, &exception_block,
 				  &exception_time);
 		result->block = exception_block;
 		result->shared = __snapshotted_since(td, exception_time);
 	}
 
+	up_read(&pmd->root_lock);
 	return r;
 }
 
