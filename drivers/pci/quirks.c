@@ -3553,6 +3553,11 @@ DECLARE_PCI_FIXUP_HEADER(0x8086, 0x244e, quirk_use_pcie_bridge_dma_alias);
  * 1002:439d SB7x0/SB8x0/SB9x0 LPC host controller
  * 1002:4384 SBx00 PCI to PCI Bridge
  * 1002:4399 SB7x0/SB8x0/SB9x0 USB OHCI2 Controller
+ *
+ * https://bugzilla.kernel.org/show_bug.cgi?id=81841#c15
+ *
+ * 1022:780f [AMD] FCH PCI Bridge
+ * 1022:7809 [AMD] FCH USB OHCI Controller
  */
 static int pci_quirk_amd_sb_acs(struct pci_dev *dev, u16 acs_flags)
 {
@@ -3663,6 +3668,8 @@ static const struct pci_dev_acs_enabled {
 	{ PCI_VENDOR_ID_ATI, 0x439d, pci_quirk_amd_sb_acs },
 	{ PCI_VENDOR_ID_ATI, 0x4384, pci_quirk_amd_sb_acs },
 	{ PCI_VENDOR_ID_ATI, 0x4399, pci_quirk_amd_sb_acs },
+	{ PCI_VENDOR_ID_AMD, 0x780f, pci_quirk_amd_sb_acs },
+	{ PCI_VENDOR_ID_AMD, 0x7809, pci_quirk_amd_sb_acs },
 	{ PCI_VENDOR_ID_SOLARFLARE, 0x0903, pci_quirk_mf_endpoint_acs },
 	{ PCI_VENDOR_ID_SOLARFLARE, 0x0923, pci_quirk_mf_endpoint_acs },
 	{ PCI_VENDOR_ID_INTEL, 0x10C6, pci_quirk_mf_endpoint_acs },
