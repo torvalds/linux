@@ -233,7 +233,7 @@ lowpan_alloc_frag(struct sk_buff *skb, int size,
 				     &master_hdr->source, size);
 		if (rc < 0) {
 			kfree_skb(frag);
-			return ERR_PTR(-rc);
+			return ERR_PTR(rc);
 		}
 	} else {
 		frag = ERR_PTR(-ENOMEM);
