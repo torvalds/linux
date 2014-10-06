@@ -594,7 +594,7 @@ struct uiscmdrsp_scsitaskmgmt {
 	    * For windows guests, this is a pointer to a location that a waiting
 	    * thread is testing to see if the taskmgmt command has completed.
 	    * When the rsp is received by guest, the thread receiving the
-	    * response uses this to notify the the thread waiting for taskmgmt
+	    * response uses this to notify the thread waiting for taskmgmt
 	    * command completion.  Its value is preserved by iopart & returned
 	    * as is in the task mgmt rsp. */
 	void *notifyresult;
@@ -641,7 +641,7 @@ struct uiscmdrsp_vdiskmgmt {
 	    * For windows guests, this is a pointer to a location that a waiting
 	    * thread is testing to see if the taskmgmt command has completed.
 	    * When the rsp is received by guest, the thread receiving the
-	    * response uses this to notify the the thread waiting for taskmgmt
+	    * response uses this to notify the thread waiting for taskmgmt
 	    * command completion.  Its value is preserved by iopart & returned
 	    * as is in the task mgmt rsp. */
 	void *notifyresult;

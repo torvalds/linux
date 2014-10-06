@@ -67,11 +67,11 @@ typedef struct _ULTRA_VBUS_HEADERINFO {
 	u32 devInfoCount;	/* num of items in DevInfo member */
 	/* (this is the allocated size) */
 	u32 chpInfoByteOffset;	/* byte offset from beginning of this struct */
-	/* to the the ChpInfo struct (below) */
+	/* to the ChpInfo struct (below) */
 	u32 busInfoByteOffset;	/* byte offset from beginning of this struct */
-	/* to the the BusInfo struct (below) */
+	/* to the BusInfo struct (below) */
 	u32 devInfoByteOffset;	/* byte offset from beginning of this struct */
-	/* to the the DevInfo array (below) */
+	/* to the DevInfo array (below) */
 	u8 reserved[104];
 } ULTRA_VBUS_HEADERINFO;
 
