@@ -120,12 +120,6 @@
 
 struct gbuf;
 
-struct gmod_string {
-	u16	length;
-	u8	id;
-	u8	string[0];
-};
-
 typedef void (*gbuf_complete_t)(struct gbuf *gbuf);
 
 struct gbuf {
@@ -194,10 +188,7 @@ struct greybus_host_device {
 
 	struct list_head modules;
 	struct list_head connections;
-
 	struct ida cport_id_map;
-	u16 cport_id_count;	/* How many have been allocated */
-	u16 cport_id_next_free;	/* Where to start checking anyway */
 
 	/* Private data for the host driver */
 	unsigned long hd_priv[0] __attribute__ ((aligned(sizeof(s64))));
