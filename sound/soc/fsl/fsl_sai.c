@@ -539,7 +539,7 @@ static bool fsl_sai_writeable_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-static struct regmap_config fsl_sai_regmap_config = {
+static const struct regmap_config fsl_sai_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
@@ -567,10 +567,6 @@ static int fsl_sai_probe(struct platform_device *pdev)
 
 	if (of_device_is_compatible(pdev->dev.of_node, "fsl,imx6sx-sai"))
 		sai->sai_on_imx = true;
-
-	sai->big_endian_regs = of_property_read_bool(np, "big-endian-regs");
-	if (sai->big_endian_regs)
-		fsl_sai_regmap_config.val_format_endian = REGMAP_ENDIAN_BIG;
 
 	sai->big_endian_data = of_property_read_bool(np, "big-endian-data");
 

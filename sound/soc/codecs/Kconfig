@@ -57,6 +57,8 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_DA732X if I2C
 	select SND_SOC_DA9055 if I2C
 	select SND_SOC_BT_SCO
+	select SND_SOC_ES8328_SPI if SPI_MASTER
+	select SND_SOC_ES8328_I2C if I2C
 	select SND_SOC_ISABELLE if I2C
 	select SND_SOC_JZ4740_CODEC
 	select SND_SOC_LM4857 if I2C
@@ -404,6 +406,17 @@ config SND_SOC_DMIC
 
 config SND_SOC_HDMI_CODEC
        tristate "HDMI stub CODEC"
+
+config SND_SOC_ES8328
+	tristate "Everest Semi ES8328 CODEC"
+
+config SND_SOC_ES8328_I2C
+	tristate
+	select SND_SOC_ES8328
+
+config SND_SOC_ES8328_SPI
+	tristate
+	select SND_SOC_ES8328
 
 config SND_SOC_ISABELLE
         tristate
