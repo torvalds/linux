@@ -588,7 +588,8 @@ struct snd_soc_dapm_context {
 	enum snd_soc_bias_level suspend_bias_level;
 	struct delayed_work delayed_work;
 	unsigned int idle_bias_off:1; /* Use BIAS_OFF instead of STANDBY */
-
+	/* Go to BIAS_OFF in suspend if the DAPM context is idle */
+	unsigned int suspend_bias_off:1;
 	void (*seq_notifier)(struct snd_soc_dapm_context *,
 			     enum snd_soc_dapm_type, int);
 

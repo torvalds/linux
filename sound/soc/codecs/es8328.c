@@ -602,8 +602,6 @@ static int es8328_suspend(struct snd_soc_codec *codec)
 
 	es8328 = snd_soc_codec_get_drvdata(codec);
 
-	es8328_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
 	clk_disable_unprepare(es8328->clk);
 
 	ret = regulator_bulk_disable(ARRAY_SIZE(es8328->supplies),
@@ -643,7 +641,6 @@ static int es8328_resume(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	es8328_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	return 0;
 }
 
@@ -665,6 +662,7 @@ static int es8328_codec_probe(struct snd_soc_codec *codec)
 	es8328->clk = devm_clk_get(codec->dev, NULL);
 	if (IS_ERR(es8328->clk)) {
 		dev_err(codec->dev, "codec clock missing or invalid\n");
+		ret = PTR_ERR(es8328->clk);
 		goto clk_fail;
 	}
 
@@ -711,6 +709,8 @@ static struct snd_soc_codec_driver es8328_codec_driver = {
 	.resume		  = es8328_resume,
 	.remove		  = es8328_remove,
 	.set_bias_level	  = es8328_set_bias_level,
+	.suspend_bias_off = true,
+
 	.controls	  = es8328_snd_controls,
 	.num_controls	  = ARRAY_SIZE(es8328_snd_controls),
 	.dapm_widgets	  = es8328_dapm_widgets,

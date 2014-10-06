@@ -637,7 +637,7 @@ int snd_soc_suspend(struct device *dev)
 	list_for_each_entry(codec, &card->codec_dev_list, card_list) {
 		/* If there are paths active then the CODEC will be held with
 		 * bias _ON and should not be suspended. */
-		if (!codec->suspended && codec->driver->suspend) {
+		if (!codec->suspended) {
 			switch (codec->dapm.bias_level) {
 			case SND_SOC_BIAS_STANDBY:
 				/*
@@ -651,8 +651,10 @@ int snd_soc_suspend(struct device *dev)
 						"ASoC: idle_bias_off CODEC on over suspend\n");
 					break;
 				}
+
 			case SND_SOC_BIAS_OFF:
-				codec->driver->suspend(codec);
+				if (codec->driver->suspend)
+					codec->driver->suspend(codec);
 				codec->suspended = 1;
 				codec->cache_sync = 1;
 				if (codec->component.regmap)
@@ -726,11 +728,12 @@ static void soc_resume_deferred(struct work_struct *work)
 		 * left with bias OFF or STANDBY and suspended so we must now
 		 * resume.  Otherwise the suspend was suppressed.
 		 */
-		if (codec->driver->resume && codec->suspended) {
+		if (codec->suspended) {
 			switch (codec->dapm.bias_level) {
 			case SND_SOC_BIAS_STANDBY:
 			case SND_SOC_BIAS_OFF:
-				codec->driver->resume(codec);
+				if (codec->driver->resume)
+					codec->driver->resume(codec);
 				codec->suspended = 0;
 				break;
 			default:
@@ -3773,8 +3776,11 @@ EXPORT_SYMBOL_GPL(snd_soc_register_card);
  */
 int snd_soc_unregister_card(struct snd_soc_card *card)
 {
-	if (card->instantiated)
+	if (card->instantiated) {
+		card->instantiated = false;
+		snd_soc_dapm_shutdown(card);
 		soc_cleanup_card_resources(card);
+	}
 	dev_dbg(card->dev, "ASoC: Unregistered card '%s'\n", card->name);
 
 	return 0;
@@ -4348,6 +4354,7 @@ int snd_soc_register_codec(struct device *dev,
 		codec->component.read = snd_soc_codec_drv_read;
 	codec->component.ignore_pmdown_time = codec_drv->ignore_pmdown_time;
 	codec->dapm.idle_bias_off = codec_drv->idle_bias_off;
+	codec->dapm.suspend_bias_off = codec_drv->suspend_bias_off;
 	if (codec_drv->seq_notifier)
 		codec->dapm.seq_notifier = codec_drv->seq_notifier;
 	if (codec_drv->set_bias_level)

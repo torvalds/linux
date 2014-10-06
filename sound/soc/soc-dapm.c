@@ -1684,6 +1684,22 @@ static void dapm_power_one_widget(struct snd_soc_dapm_widget *w,
 	}
 }
 
+static bool dapm_idle_bias_off(struct snd_soc_dapm_context *dapm)
+{
+	if (dapm->idle_bias_off)
+		return true;
+
+	switch (snd_power_get_state(dapm->card->snd_card)) {
+	case SNDRV_CTL_POWER_D3hot:
+	case SNDRV_CTL_POWER_D3cold:
+		return dapm->suspend_bias_off;
+	default:
+		break;
+	}
+
+	return false;
+}
+
 /*
  * Scan each dapm widget for complete audio path.
  * A complete path is a route that has valid endpoints i.e.:-
@@ -1707,7 +1723,7 @@ static int dapm_power_widgets(struct snd_soc_card *card, int event)
 	trace_snd_soc_dapm_start(card);
 
 	list_for_each_entry(d, &card->dapm_list, list) {
-		if (d->idle_bias_off)
+		if (dapm_idle_bias_off(d))
 			d->target_bias_level = SND_SOC_BIAS_OFF;
 		else
 			d->target_bias_level = SND_SOC_BIAS_STANDBY;
@@ -1773,7 +1789,7 @@ static int dapm_power_widgets(struct snd_soc_card *card, int event)
 		if (d->target_bias_level > bias)
 			bias = d->target_bias_level;
 	list_for_each_entry(d, &card->dapm_list, list)
-		if (!d->idle_bias_off)
+		if (!dapm_idle_bias_off(d))
 			d->target_bias_level = bias;
 
 	trace_snd_soc_dapm_walk_done(card);

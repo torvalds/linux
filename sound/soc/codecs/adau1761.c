@@ -714,9 +714,9 @@ static int adau1761_codec_probe(struct snd_soc_codec *codec)
 
 static const struct snd_soc_codec_driver adau1761_codec_driver = {
 	.probe = adau1761_codec_probe,
-	.suspend = adau17x1_suspend,
 	.resume	= adau17x1_resume,
 	.set_bias_level	= adau1761_set_bias_level,
+	.suspend_bias_off = true,
 
 	.controls = adau1761_controls,
 	.num_controls = ARRAY_SIZE(adau1761_controls),
