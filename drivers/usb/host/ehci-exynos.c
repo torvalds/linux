@@ -74,7 +74,6 @@ static int exynos_ehci_get_phy(struct device *dev,
 
 		phy = devm_of_phy_get(dev, child, NULL);
 		exynos_ehci->phy[phy_number] = phy;
-		of_node_put(child);
 		if (IS_ERR(phy)) {
 			ret = PTR_ERR(phy);
 			if (ret == -EPROBE_DEFER) {
