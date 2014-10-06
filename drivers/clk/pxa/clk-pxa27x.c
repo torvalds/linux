@@ -111,7 +111,7 @@ PARENTS(pxa27x_membus) = { "lcd_base", "lcd_base" };
 	PXA_CKEN_1RATE(dev_id, con_id, bit, parents,			\
 		       &CKEN, CKEN_ ## bit, CLK_IGNORE_UNUSED)
 
-static struct pxa_clk_cken pxa27x_clocks[] = {
+static struct desc_clk_cken pxa27x_clocks[] __initdata = {
 	PXA27X_PBUS_CKEN("pxa2xx-uart.0", NULL, FFUART, 2, 42, 1),
 	PXA27X_PBUS_CKEN("pxa2xx-uart.1", NULL, BTUART, 2, 42, 1),
 	PXA27X_PBUS_CKEN("pxa2xx-uart.2", NULL, STUART, 2, 42, 1),
