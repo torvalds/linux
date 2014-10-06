@@ -3410,7 +3410,7 @@ bna_bfi_tx_enet_start(struct bna_tx *tx)
 
 	cfg_req->tx_cfg.vlan_mode = BFI_ENET_TX_VLAN_WI;
 	cfg_req->tx_cfg.vlan_id = htons((u16)tx->txf_vlan_id);
-	cfg_req->tx_cfg.admit_tagged_frame = BNA_STATUS_T_DISABLED;
+	cfg_req->tx_cfg.admit_tagged_frame = BNA_STATUS_T_ENABLED;
 	cfg_req->tx_cfg.apply_vlan_filter = BNA_STATUS_T_DISABLED;
 
 	bfa_msgq_cmd_set(&tx->msgq_cmd, NULL, NULL,
