@@ -59,6 +59,12 @@ config MFD_AAT2870_CORE
 	  additional drivers must be enabled in order to use the
 	  functionality of the device.
 
+config MFD_ATMEL_HLCDC
+	tristate
+	select MFD_CORE
+	select REGMAP_MMIO
+	depends on OF
+
 config MFD_BCM590XX
 	tristate "Broadcom BCM590xx PMUs"
 	select MFD_CORE
