@@ -117,6 +117,7 @@ struct thread_struct {
 	int ri_signum;
 #ifdef CONFIG_64BIT
 	unsigned char trap_tdb[256];	/* Transaction abort diagnose block */
+	__vector128 *vxrs;		/* Vector register save area */
 #endif
 };
 

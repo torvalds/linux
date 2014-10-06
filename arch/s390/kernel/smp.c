@@ -179,6 +179,9 @@ static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 			goto out;
 	}
 #else
+	if (MACHINE_HAS_VX)
+		lc->vector_save_area_addr =
+			(unsigned long) &lc->vector_save_area;
 	if (vdso_alloc_per_cpu(lc))
 		goto out;
 #endif

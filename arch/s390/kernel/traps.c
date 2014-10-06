@@ -18,6 +18,8 @@
 #include <linux/ptrace.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
+#include <asm/switch_to.h>
 #include "entry.h"
 
 int show_unhandled_signals = 1;
@@ -303,6 +305,74 @@ DO_ERROR_INFO(specification_exception, SIGILL, ILL_ILLOPN,
 	      "specification exception");
 #endif
 
+#ifdef CONFIG_64BIT
+int alloc_vector_registers(struct task_struct *tsk)
+{
+	__vector128 *vxrs;
+	int i;
+
+	/* Allocate vector register save area. */
+	vxrs = kzalloc(sizeof(__vector128) * __NUM_VXRS,
+		       GFP_KERNEL|__GFP_REPEAT);
+	if (!vxrs)
+		return -ENOMEM;
+	preempt_disable();
+	if (tsk == current)
+		save_fp_regs(tsk->thread.fp_regs.fprs);
+	/* Copy the 16 floating point registers */
+	for (i = 0; i < 16; i++)
+		*(freg_t *) &vxrs[i] = tsk->thread.fp_regs.fprs[i];
+	tsk->thread.vxrs = vxrs;
+	if (tsk == current) {
+		__ctl_set_bit(0, 17);
+		restore_vx_regs(vxrs);
+	}
+	preempt_enable();
+	return 0;
+}
+
+void vector_exception(struct pt_regs *regs)
+{
+	int si_code, vic;
+
+	if (!MACHINE_HAS_VX) {
+		do_trap(regs, SIGILL, ILL_ILLOPN, "illegal operation");
+		return;
+	}
+
+	/* get vector interrupt code from fpc */
+	asm volatile("stfpc %0" : "=m" (current->thread.fp_regs.fpc));
+	vic = (current->thread.fp_regs.fpc & 0xf00) >> 8;
+	switch (vic) {
+	case 1: /* invalid vector operation */
+		si_code = FPE_FLTINV;
+		break;
+	case 2: /* division by zero */
+		si_code = FPE_FLTDIV;
+		break;
+	case 3: /* overflow */
+		si_code = FPE_FLTOVF;
+		break;
+	case 4: /* underflow */
+		si_code = FPE_FLTUND;
+		break;
+	case 5:	/* inexact */
+		si_code = FPE_FLTRES;
+		break;
+	default: /* unknown cause */
+		si_code = 0;
+	}
+	do_trap(regs, SIGFPE, si_code, "vector exception");
+}
+
+static int __init disable_vector_extension(char *str)
+{
+	S390_lowcore.machine_flags &= ~MACHINE_FLAG_VX;
+	return 1;
+}
+__setup("novx", disable_vector_extension);
+#endif
+
 void data_exception(struct pt_regs *regs)
 {
 	__u16 __user *location;
@@ -368,6 +438,18 @@ void data_exception(struct pt_regs *regs)
                 }
         }
 #endif 
+#ifdef CONFIG_64BIT
+	/* Check for vector register enablement */
+	if (MACHINE_HAS_VX && !current->thread.vxrs &&
+	    (current->thread.fp_regs.fpc & FPC_DXC_MASK) == 0xfe00) {
+		alloc_vector_registers(current);
+		/* Vector data exception is suppressing, rewind psw. */
+		regs->psw.addr = __rewind_psw(regs->psw, regs->int_code >> 16);
+		clear_pt_regs_flag(regs, PIF_PER_TRAP);
+		return;
+	}
+#endif
+
 	if (current->thread.fp_regs.fpc & FPC_DXC_MASK)
 		signal = SIGFPE;
 	else

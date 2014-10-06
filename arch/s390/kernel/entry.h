@@ -21,6 +21,8 @@ void psw_idle(struct s390_idle_data *, unsigned long);
 asmlinkage long do_syscall_trace_enter(struct pt_regs *regs);
 asmlinkage void do_syscall_trace_exit(struct pt_regs *regs);
 
+int alloc_vector_registers(struct task_struct *tsk);
+
 void do_protection_exception(struct pt_regs *regs);
 void do_dat_exception(struct pt_regs *regs);
 
@@ -43,6 +45,7 @@ void special_op_exception(struct pt_regs *regs);
 void specification_exception(struct pt_regs *regs);
 void transaction_exception(struct pt_regs *regs);
 void translation_exception(struct pt_regs *regs);
+void vector_exception(struct pt_regs *regs);
 
 void do_per_trap(struct pt_regs *regs);
 void do_report_trap(struct pt_regs *regs, int si_signo, int si_code, char *str);

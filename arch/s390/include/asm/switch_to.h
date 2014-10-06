@@ -103,6 +103,48 @@ static inline void restore_fp_regs(freg_t *fprs)
 	asm volatile("ld 15,%0" : : "Q" (fprs[15]));
 }
 
+static inline void save_vx_regs(__vector128 *vxrs)
+{
+	typedef struct { __vector128 _[__NUM_VXRS]; } addrtype;
+
+	asm volatile(
+		"	la	1,%0\n"
+		"	.word	0xe70f,0x1000,0x003e\n"	/* vstm 0,15,0(1) */
+		"	.word	0xe70f,0x1100,0x0c3e\n"	/* vstm 16,31,256(1) */
+		: "=Q" (*(addrtype *) vxrs) : : "1");
+}
+
+static inline void restore_vx_regs(__vector128 *vxrs)
+{
+	typedef struct { __vector128 _[__NUM_VXRS]; } addrtype;
+
+	asm volatile(
+		"	la	1,%0\n"
+		"	.word	0xe70f,0x1000,0x0036\n"	/* vlm 0,15,0(1) */
+		"	.word	0xe70f,0x1100,0x0c36\n"	/* vlm 16,31,256(1) */
+		: : "Q" (*(addrtype *) vxrs) : "1");
+}
+
+static inline void save_fp_vx_regs(struct task_struct *task)
+{
+#ifdef CONFIG_64BIT
+	if (task->thread.vxrs)
+		save_vx_regs(task->thread.vxrs);
+	else
+#endif
+	save_fp_regs(task->thread.fp_regs.fprs);
+}
+
+static inline void restore_fp_vx_regs(struct task_struct *task)
+{
+#ifdef CONFIG_64BIT
+	if (task->thread.vxrs)
+		restore_vx_regs(task->thread.vxrs);
+	else
+#endif
+	restore_fp_regs(task->thread.fp_regs.fprs);
+}
+
 static inline void save_access_regs(unsigned int *acrs)
 {
 	typedef struct { int _[NUM_ACRS]; } acrstype;
@@ -120,16 +162,16 @@ static inline void restore_access_regs(unsigned int *acrs)
 #define switch_to(prev,next,last) do {					\
 	if (prev->mm) {							\
 		save_fp_ctl(&prev->thread.fp_regs.fpc);			\
-		save_fp_regs(prev->thread.fp_regs.fprs);		\
+		save_fp_vx_regs(prev);					\
 		save_access_regs(&prev->thread.acrs[0]);		\
 		save_ri_cb(prev->thread.ri_cb);				\
 	}								\
 	if (next->mm) {							\
+		update_cr_regs(next);					\
 		restore_fp_ctl(&next->thread.fp_regs.fpc);		\
-		restore_fp_regs(next->thread.fp_regs.fprs);		\
+		restore_fp_vx_regs(next);				\
 		restore_access_regs(&next->thread.acrs[0]);		\
 		restore_ri_cb(next->thread.ri_cb, prev->thread.ri_cb);	\
-		update_cr_regs(next);					\
 	}								\
 	prev = __switch_to(prev,next);					\
 } while (0)
