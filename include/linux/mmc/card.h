@@ -509,8 +509,6 @@ static inline int mmc_card_broken_irq_polling(const struct mmc_card *c)
 
 #define mmc_dev_to_card(d)	container_of(d, struct mmc_card, dev)
 
-#define mmc_list_to_card(l)	container_of(l, struct mmc_card, node)
-
 extern int mmc_register_driver(struct device_driver *);
 extern void mmc_unregister_driver(struct device_driver *);
 
