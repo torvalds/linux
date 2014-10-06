@@ -865,13 +865,10 @@ static void process_deferred_actions(struct datapath *dp)
 
 /* Execute a list of actions against 'skb'. */
 int ovs_execute_actions(struct datapath *dp, struct sk_buff *skb,
-			struct sw_flow_key *key)
+			struct sw_flow_actions *acts, struct sw_flow_key *key)
 {
 	int level = this_cpu_read(exec_actions_level);
-	struct sw_flow_actions *acts;
 	int err;
-
-	acts = rcu_dereference(OVS_CB(skb)->flow->sf_acts);
 
 	this_cpu_inc(exec_actions_level);
 	OVS_CB(skb)->egress_tun_info = NULL;

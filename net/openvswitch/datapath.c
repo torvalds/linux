@@ -257,6 +257,7 @@ void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key)
 	const struct vport *p = OVS_CB(skb)->input_vport;
 	struct datapath *dp = p->dp;
 	struct sw_flow *flow;
+	struct sw_flow_actions *sf_acts;
 	struct dp_stats_percpu *stats;
 	u64 *stats_counter;
 	u32 n_mask_hit;
@@ -282,10 +283,10 @@ void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key)
 		goto out;
 	}
 
-	OVS_CB(skb)->flow = flow;
+	ovs_flow_stats_update(flow, key->tp.flags, skb);
+	sf_acts = rcu_dereference(flow->sf_acts);
+	ovs_execute_actions(dp, skb, sf_acts, key);
 
-	ovs_flow_stats_update(OVS_CB(skb)->flow, key->tp.flags, skb);
-	ovs_execute_actions(dp, skb, key);
 	stats_counter = &stats->n_hit;
 
 out:
@@ -524,6 +525,7 @@ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
 	struct sw_flow_actions *acts;
 	struct sk_buff *packet;
 	struct sw_flow *flow;
+	struct sw_flow_actions *sf_acts;
 	struct datapath *dp;
 	struct ethhdr *eth;
 	struct vport *input_vport;
@@ -579,7 +581,6 @@ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
 	rcu_assign_pointer(flow->sf_acts, acts);
 
 	OVS_CB(packet)->egress_tun_info = NULL;
-	OVS_CB(packet)->flow = flow;
 	packet->priority = flow->key.phy.priority;
 	packet->mark = flow->key.phy.skb_mark;
 
@@ -597,9 +598,10 @@ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
 		goto err_unlock;
 
 	OVS_CB(packet)->input_vport = input_vport;
+	sf_acts = rcu_dereference(flow->sf_acts);
 
 	local_bh_disable();
-	err = ovs_execute_actions(dp, packet, &flow->key);
+	err = ovs_execute_actions(dp, packet, sf_acts, &flow->key);
 	local_bh_enable();
 	rcu_read_unlock();
 
