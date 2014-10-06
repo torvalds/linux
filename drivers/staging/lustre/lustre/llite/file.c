@@ -368,7 +368,7 @@ int ll_file_release(struct inode *inode, struct file *file)
 	fd = LUSTRE_FPRIVATE(file);
 	LASSERT(fd != NULL);
 
-	/* The last ref on @file, maybe not the the owner pid of statahead.
+	/* The last ref on @file, maybe not the owner pid of statahead.
 	 * Different processes can open the same dir, "ll_opendir_key" means:
 	 * it is me that should stop the statahead thread. */
 	if (S_ISDIR(inode->i_mode) && lli->lli_opendir_key == fd &&
