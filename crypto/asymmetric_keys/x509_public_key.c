@@ -35,7 +35,7 @@ static int __init ca_keys_setup(char *str)
 
 	if (strncmp(str, "id:", 3) == 0) {
 		struct asymmetric_key_id *p;
-		p = asymmetric_key_hex_to_key_id(str);
+		p = asymmetric_key_hex_to_key_id(str + 3);
 		if (p == ERR_PTR(-EINVAL))
 			pr_err("Unparsable hex string in ca_keys\n");
 		else if (!IS_ERR(p))
