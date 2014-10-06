@@ -2186,6 +2186,15 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
  out_unlock:
 	mutex_unlock(&mvm->mutex);
 
+	if (sta->tdls && ret == 0) {
+		if (old_state == IEEE80211_STA_NOTEXIST &&
+		    new_state == IEEE80211_STA_NONE)
+			ieee80211_reserve_tid(sta, IWL_MVM_TDLS_FW_TID);
+		else if (old_state == IEEE80211_STA_NONE &&
+			 new_state == IEEE80211_STA_NOTEXIST)
+			ieee80211_unreserve_tid(sta, IWL_MVM_TDLS_FW_TID);
+	}
+
 	return ret;
 }
 
