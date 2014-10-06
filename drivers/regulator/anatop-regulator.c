@@ -291,6 +291,11 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 		 */
 		if (!sreg->sel && !strcmp(sreg->name, "vddpu"))
 			sreg->sel = 22;
+
+		if (!sreg->sel) {
+			dev_err(&pdev->dev, "Failed to read a valid default voltage selector.\n");
+			return -EINVAL;
+		}
 	} else {
 		rdesc->ops = &anatop_rops;
 	}
