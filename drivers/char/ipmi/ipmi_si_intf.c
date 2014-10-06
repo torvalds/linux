@@ -965,9 +965,9 @@ static inline int ipmi_si_is_busy(struct timespec *ts)
 	return ts->tv_nsec != -1;
 }
 
-static int ipmi_thread_busy_wait(enum si_sm_result smi_result,
-				 const struct smi_info *smi_info,
-				 struct timespec *busy_until)
+static inline int ipmi_thread_busy_wait(enum si_sm_result smi_result,
+					const struct smi_info *smi_info,
+					struct timespec *busy_until)
 {
 	unsigned int max_busy_us = 0;
 
