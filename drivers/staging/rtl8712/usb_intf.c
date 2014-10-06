@@ -292,13 +292,13 @@ static void r8712_usb_dvobj_deinit(struct _adapter *padapter)
 void rtl871x_intf_stop(struct _adapter *padapter)
 {
 	/*disable_hw_interrupt*/
-	if (padapter->bSurpriseRemoved == false) {
+	if (!padapter->bSurpriseRemoved) {
 		/*device still exists, so driver can do i/o operation
 		 * TODO: */
 	}
 
 	/* cancel in irp */
-	if (padapter->dvobjpriv.inirp_deinit != NULL)
+	if (padapter->dvobjpriv.inirp_deinit)
 		padapter->dvobjpriv.inirp_deinit(padapter);
 	/* cancel out irp */
 	r8712_usb_write_port_cancel(padapter);
@@ -318,7 +318,7 @@ void r871x_dev_unload(struct _adapter *padapter)
 		r8712_stop_drv_threads(padapter);
 
 		/*s5.*/
-		if (padapter->bSurpriseRemoved == false) {
+		if (!padapter->bSurpriseRemoved) {
 			padapter->hw_init_completed = false;
 			rtl8712_hal_deinit(padapter);
 		}
@@ -402,7 +402,7 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 	/* step 3.
 	 * initialize the dvobj_priv
 	 */
-	if (padapter->dvobj_init == NULL)
+	if (!padapter->dvobj_init)
 			goto error;
 	else {
 		status = padapter->dvobj_init(padapter);
@@ -568,7 +568,7 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 		    ((mac[0] == 0x00) && (mac[1] == 0x00) &&
 		     (mac[2] == 0x00) && (mac[3] == 0x00) &&
 		     (mac[4] == 0x00) && (mac[5] == 0x00)) ||
-		     (AutoloadFail == false)) {
+		     (!AutoloadFail)) {
 			mac[0] = 0x00;
 			mac[1] = 0xe0;
 			mac[2] = 0x4c;

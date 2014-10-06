@@ -267,7 +267,7 @@ u32 r8712_usb_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem)
 	if (adapter->bDriverStopped || adapter->bSurpriseRemoved ||
 	    adapter->pwrctrlpriv.pnp_bstop_trx)
 		return _FAIL;
-	if ((precvbuf->reuse == false) || (precvbuf->pskb == NULL)) {
+	if (!precvbuf->reuse == false || !precvbuf->pskb) {
 		precvbuf->pskb = skb_dequeue(&precvpriv->free_recv_skb_queue);
 		if (NULL != precvbuf->pskb)
 			precvbuf->reuse = true;
@@ -275,10 +275,10 @@ u32 r8712_usb_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem)
 	if (precvbuf != NULL) {
 		r8712_init_recvbuf(adapter, precvbuf);
 		/* re-assign for linux based on skb */
-		if ((precvbuf->reuse == false) || (precvbuf->pskb == NULL)) {
+		if (!precvbuf->reuse || !precvbuf->pskb) {
 			precvbuf->pskb = netdev_alloc_skb(adapter->pnetdev,
 					 MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
-			if (precvbuf->pskb == NULL)
+			if (!precvbuf->pskb)
 				return _FAIL;
 			tmpaddr = (addr_t)precvbuf->pskb->data;
 			alignment = tmpaddr & (RECVBUFF_ALIGN_SZ-1);

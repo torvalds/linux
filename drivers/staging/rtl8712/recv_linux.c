@@ -146,7 +146,7 @@ void r8712_os_read_port(struct _adapter *padapter, struct recv_buf *precvbuf)
 	dev_kfree_skb_any(precvbuf->pskb);
 	precvbuf->pskb = NULL;
 	precvbuf->reuse = false;
-	if (precvbuf->irp_pending == false)
+	if (!precvbuf->irp_pending)
 		r8712_read_port(padapter, precvpriv->ff_hwaddr, 0,
 			 (unsigned char *)precvbuf);
 }

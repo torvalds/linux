@@ -93,7 +93,7 @@ static uint register_intf_hdl(u8 *dev, struct intf_hdl *pintfhdl)
 	pintfhdl->intf_option = 0;
 	pintfhdl->adapter = dev;
 	pintfhdl->intf_dev = (u8 *)&(adapter->dvobjpriv);
-	if (_init_intf_hdl(adapter, pintfhdl) == false)
+	if (!_init_intf_hdl(adapter, pintfhdl))
 		goto register_intf_hdl_fail;
 	return _SUCCESS;
 register_intf_hdl_fail:
