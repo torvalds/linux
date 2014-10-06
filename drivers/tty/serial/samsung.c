@@ -1226,24 +1226,6 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 	return 0;
 }
 
-#ifdef CONFIG_SAMSUNG_CLOCK
-static ssize_t s3c24xx_serial_show_clksrc(struct device *dev,
-					  struct device_attribute *attr,
-					  char *buf)
-{
-	struct uart_port *port = s3c24xx_dev_to_port(dev);
-	struct s3c24xx_uart_port *ourport = to_ourport(port);
-
-	if (IS_ERR(ourport->baudclk))
-		return -EINVAL;
-
-	return snprintf(buf, PAGE_SIZE, "* %s\n",
-			ourport->baudclk->name ?: "(null)");
-}
-
-static DEVICE_ATTR(clock_source, S_IRUGO, s3c24xx_serial_show_clksrc, NULL);
-#endif
-
 /* Device driver serial port probe */
 
 static const struct of_device_id s3c24xx_uart_dt_match[];
@@ -1329,12 +1311,6 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 	 */
 	clk_disable_unprepare(ourport->clk);
 
-#ifdef CONFIG_SAMSUNG_CLOCK
-	ret = device_create_file(&pdev->dev, &dev_attr_clock_source);
-	if (ret < 0)
-		dev_err(&pdev->dev, "failed to add clock source attr.\n");
-#endif
-
 	ret = s3c24xx_serial_cpufreq_register(ourport);
 	if (ret < 0)
 		dev_err(&pdev->dev, "failed to add cpufreq notifier\n");
@@ -1348,9 +1324,6 @@ static int s3c24xx_serial_remove(struct platform_device *dev)
 
 	if (port) {
 		s3c24xx_serial_cpufreq_deregister(to_ourport(port));
-#ifdef CONFIG_SAMSUNG_CLOCK
-		device_remove_file(&dev->dev, &dev_attr_clock_source);
-#endif
 		uart_remove_one_port(&s3c24xx_uart_drv, port);
 	}
 
