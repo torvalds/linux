@@ -368,3 +368,10 @@ static int __init pxa27x_clocks_init(void)
 	return clk_pxa_cken_init(pxa27x_clocks, ARRAY_SIZE(pxa27x_clocks));
 }
 postcore_initcall(pxa27x_clocks_init);
+
+static void __init pxa27x_dt_clocks_init(struct device_node *np)
+{
+	pxa27x_clocks_init();
+	clk_pxa_dt_common_init(np);
+}
+CLK_OF_DECLARE(pxa_clks, "marvell,pxa270-clocks", pxa27x_dt_clocks_init);

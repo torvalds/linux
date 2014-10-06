@@ -102,8 +102,7 @@ int __init clk_pxa_cken_init(const struct desc_clk_cken *clks, int nb_clks)
 	return 0;
 }
 
-static void __init pxa_dt_clocks_init(struct device_node *np)
+void __init clk_pxa_dt_common_init(struct device_node *np)
 {
 	of_clk_add_provider(np, of_clk_src_onecell_get, &onecell_data);
 }
-CLK_OF_DECLARE(pxa_clks, "marvell,pxa-clocks", pxa_dt_clocks_init);
