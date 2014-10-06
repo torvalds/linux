@@ -382,6 +382,10 @@
 #define RT5677_ST_SEL_SFT			9
 #define RT5677_ST_EN				(0x1 << 6)
 #define RT5677_ST_EN_SFT			6
+#define RT5677_ST_GAIN				(0x1 << 5)
+#define RT5677_ST_GAIN_SFT			5
+#define RT5677_ST_VOL_MASK			(0x1f << 0)
+#define RT5677_ST_VOL_SFT			0
 
 /* Analog DAC1/2/3 Source Control (0x15) */
 #define RT5677_ANA_DAC3_SRC_SEL_MASK		(0x3 << 4)
@@ -1550,6 +1554,7 @@ struct rt5677_priv {
 	int pll_src;
 	int pll_in;
 	int pll_out;
+	int pow_ldo2; /* POW_LDO2 pin */
 #ifdef CONFIG_GPIOLIB
 	struct gpio_chip gpio_chip;
 #endif
