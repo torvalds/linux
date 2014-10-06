@@ -212,6 +212,7 @@ struct ethtool_value {
 enum tunable_id {
 	ETHTOOL_ID_UNSPEC,
 	ETHTOOL_RX_COPYBREAK,
+	ETHTOOL_TX_COPYBREAK,
 };
 
 enum tunable_type_id {

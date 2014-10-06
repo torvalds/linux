@@ -583,7 +583,7 @@ struct mlx4_uar {
 };
 
 struct mlx4_bf {
-	unsigned long		offset;
+	unsigned int		offset;
 	int			buf_size;
 	struct mlx4_uar	       *uar;
 	void __iomem	       *reg;
