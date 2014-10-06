@@ -964,7 +964,6 @@ static int cls_drain(struct tty_struct *tty, uint seconds)
 	unsigned long flags;
 	struct channel_t *ch;
 	struct un_t *un;
-	int rc = 0;
 
 	if (!tty || tty->magic != TTY_MAGIC)
 		return -ENXIO;
@@ -984,12 +983,11 @@ static int cls_drain(struct tty_struct *tty, uint seconds)
 	/*
 	 * NOTE: Do something with time passed in.
 	 */
-	rc = wait_event_interruptible(un->un_flags_wait,
-					 ((un->un_flags & UN_EMPTY) == 0));
 
 	/* If ret is non-zero, user ctrl-c'ed us */
 
-	return rc;
+	return wait_event_interruptible(un->un_flags_wait,
+					 ((un->un_flags & UN_EMPTY) == 0));
 }
 
 
