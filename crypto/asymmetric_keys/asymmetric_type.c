@@ -66,22 +66,43 @@ bool asymmetric_key_id_same(const struct asymmetric_key_id *kid1,
 EXPORT_SYMBOL_GPL(asymmetric_key_id_same);
 
 /**
+ * asymmetric_key_id_partial - Return true if two asymmetric keys IDs
+ * partially match
+ * @kid_1, @kid_2: The key IDs to compare
+ */
+bool asymmetric_key_id_partial(const struct asymmetric_key_id *kid1,
+			       const struct asymmetric_key_id *kid2)
+{
+	if (!kid1 || !kid2)
+		return false;
+	if (kid1->len < kid2->len)
+		return false;
+	return memcmp(kid1->data + (kid1->len - kid2->len),
+		      kid2->data, kid2->len) == 0;
+}
+EXPORT_SYMBOL_GPL(asymmetric_key_id_partial);
+
+/**
  * asymmetric_match_key_ids - Search asymmetric key IDs
  * @kids: The list of key IDs to check
  * @match_id: The key ID we're looking for
+ * @match: The match function to use
  */
-bool asymmetric_match_key_ids(const struct asymmetric_key_ids *kids,
-			      const struct asymmetric_key_id *match_id)
+static bool asymmetric_match_key_ids(
+	const struct asymmetric_key_ids *kids,
+	const struct asymmetric_key_id *match_id,
+	bool (*match)(const struct asymmetric_key_id *kid1,
+		      const struct asymmetric_key_id *kid2))
 {
+	int i;
+
 	if (!kids || !match_id)
 		return false;
-	if (asymmetric_key_id_same(kids->id[0], match_id))
-		return true;
-	if (asymmetric_key_id_same(kids->id[1], match_id))
-		return true;
+	for (i = 0; i < ARRAY_SIZE(kids->id); i++)
+		if (match(kids->id[i], match_id))
+			return true;
 	return false;
 }
-EXPORT_SYMBOL_GPL(asymmetric_match_key_ids);
 
 /**
  * asymmetric_key_hex_to_key_id - Convert a hex string into a key ID.
@@ -113,7 +134,7 @@ struct asymmetric_key_id *asymmetric_key_hex_to_key_id(const char *id)
 }
 
 /*
- * Match asymmetric keys by ID.
+ * Match asymmetric keys by an exact match on an ID.
  */
 static bool asymmetric_key_cmp(const struct key *key,
 			       const struct key_match_data *match_data)
@@ -121,7 +142,21 @@ static bool asymmetric_key_cmp(const struct key *key,
 	const struct asymmetric_key_ids *kids = asymmetric_key_ids(key);
 	const struct asymmetric_key_id *match_id = match_data->preparsed;
 
-	return asymmetric_match_key_ids(kids, match_id);
+	return asymmetric_match_key_ids(kids, match_id,
+					asymmetric_key_id_same);
+}
+
+/*
+ * Match asymmetric keys by a partial match on an IDs.
+ */
+static bool asymmetric_key_cmp_partial(const struct key *key,
+				       const struct key_match_data *match_data)
+{
+	const struct asymmetric_key_ids *kids = asymmetric_key_ids(key);
+	const struct asymmetric_key_id *match_id = match_data->preparsed;
+
+	return asymmetric_match_key_ids(kids, match_id,
+					asymmetric_key_id_partial);
 }
 
 /*
@@ -131,7 +166,8 @@ static bool asymmetric_key_cmp(const struct key *key,
  * There are some specifiers for matching key IDs rather than by the key
  * description:
  *
- *	"id:<id>" - request a key by any available ID
+ *	"id:<id>" - find a key by partial match on any available ID
+ *	"ex:<id>" - find a key by exact match on any available ID
  *
  * These have to be searched by iteration rather than by direct lookup because
  * the key is hashed according to its description.
@@ -141,12 +177,19 @@ static int asymmetric_key_match_preparse(struct key_match_data *match_data)
 	struct asymmetric_key_id *match_id;
 	const char *spec = match_data->raw_data;
 	const char *id;
+	bool (*cmp)(const struct key *, const struct key_match_data *) =
+		asymmetric_key_cmp;
 
 	if (!spec || !*spec)
 		return -EINVAL;
 	if (spec[0] == 'i' &&
 	    spec[1] == 'd' &&
 	    spec[2] == ':') {
+		id = spec + 3;
+		cmp = asymmetric_key_cmp_partial;
+	} else if (spec[0] == 'e' &&
+		   spec[1] == 'x' &&
+		   spec[2] == ':') {
 		id = spec + 3;
 	} else {
 		goto default_match;
@@ -157,7 +200,7 @@ static int asymmetric_key_match_preparse(struct key_match_data *match_data)
 		return PTR_ERR(match_id);
 
 	match_data->preparsed = match_id;
-	match_data->cmp = asymmetric_key_cmp;
+	match_data->cmp = cmp;
 	match_data->lookup_type = KEYRING_SEARCH_LOOKUP_ITERATE;
 	return 0;
 
@@ -251,6 +294,7 @@ static void asymmetric_key_free_preparse(struct key_preparsed_payload *prep)
 {
 	struct asymmetric_key_subtype *subtype = prep->type_data[0];
 	struct asymmetric_key_ids *kids = prep->type_data[1];
+	int i;
 
 	pr_devel("==>%s()\n", __func__);
 
@@ -259,8 +303,8 @@ static void asymmetric_key_free_preparse(struct key_preparsed_payload *prep)
 		module_put(subtype->owner);
 	}
 	if (kids) {
-		kfree(kids->id[0]);
-		kfree(kids->id[1]);
+		for (i = 0; i < ARRAY_SIZE(kids->id); i++)
+			kfree(kids->id[i]);
 		kfree(kids);
 	}
 	kfree(prep->description);

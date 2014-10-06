@@ -53,13 +53,15 @@ __setup("ca_keys=", ca_keys_setup);
  * x509_request_asymmetric_key - Request a key by X.509 certificate params.
  * @keyring: The keys to search.
  * @kid: The key ID.
+ * @partial: Use partial match if true, exact if false.
  *
  * Find a key in the given keyring by subject name and key ID.  These might,
  * for instance, be the issuer name and the authority key ID of an X.509
  * certificate that needs to be verified.
  */
 struct key *x509_request_asymmetric_key(struct key *keyring,
-					const struct asymmetric_key_id *kid)
+					const struct asymmetric_key_id *kid,
+					bool partial)
 {
 	key_ref_t key;
 	char *id, *p;
@@ -69,8 +71,13 @@ struct key *x509_request_asymmetric_key(struct key *keyring,
 	if (!id)
 		return ERR_PTR(-ENOMEM);
 
-	*p++ = 'i';
-	*p++ = 'd';
+	if (partial) {
+		*p++ = 'i';
+		*p++ = 'd';
+	} else {
+		*p++ = 'e';
+		*p++ = 'x';
+	}
 	*p++ = ':';
 	p = bin2hex(p, kid->data, kid->len);
 	*p = 0;
@@ -207,10 +214,11 @@ static int x509_validate_trust(struct x509_certificate *cert,
 	if (!trust_keyring)
 		return -EOPNOTSUPP;
 
-	if (ca_keyid && !asymmetric_key_id_same(cert->authority, ca_keyid))
+	if (ca_keyid && !asymmetric_key_id_partial(cert->authority, ca_keyid))
 		return -EPERM;
 
-	key = x509_request_asymmetric_key(trust_keyring, cert->authority);
+	key = x509_request_asymmetric_key(trust_keyring, cert->authority,
+					  false);
 	if (!IS_ERR(key))  {
 		if (!use_builtin_keys
 		    || test_bit(KEY_FLAG_BUILTIN, &key->flags))

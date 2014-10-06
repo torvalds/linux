@@ -51,6 +51,9 @@ struct asymmetric_key_ids {
 extern bool asymmetric_key_id_same(const struct asymmetric_key_id *kid1,
 				   const struct asymmetric_key_id *kid2);
 
+extern bool asymmetric_key_id_partial(const struct asymmetric_key_id *kid1,
+				      const struct asymmetric_key_id *kid2);
+
 extern struct asymmetric_key_id *asymmetric_key_generate_id(const void *val_1,
 							    size_t len_1,
 							    const void *val_2,

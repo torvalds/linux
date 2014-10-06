@@ -101,6 +101,7 @@ extern int verify_signature(const struct key *key,
 
 struct asymmetric_key_id;
 extern struct key *x509_request_asymmetric_key(struct key *keyring,
-					       const struct asymmetric_key_id *kid);
+					       const struct asymmetric_key_id *kid,
+					       bool partial);
 
 #endif /* _LINUX_PUBLIC_KEY_H */
