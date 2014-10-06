@@ -885,6 +885,9 @@ static int f2fs_ioc_commit_atomic_write(struct file *filp)
 	if (!inode_owner_or_capable(inode))
 		return -EACCES;
 
+	if (f2fs_is_volatile_file(inode))
+		return 0;
+
 	ret = mnt_want_write_file(filp);
 	if (ret)
 		return ret;
@@ -895,6 +898,17 @@ static int f2fs_ioc_commit_atomic_write(struct file *filp)
 	ret = f2fs_sync_file(filp, 0, LONG_MAX, 0);
 	mnt_drop_write_file(filp);
 	return ret;
+}
+
+static int f2fs_ioc_start_volatile_write(struct file *filp)
+{
+	struct inode *inode = file_inode(filp);
+
+	if (!inode_owner_or_capable(inode))
+		return -EACCES;
+
+	set_inode_flag(F2FS_I(inode), FI_VOLATILE_FILE);
+	return 0;
 }
 
 static int f2fs_ioc_fitrim(struct file *filp, unsigned long arg)
@@ -938,6 +952,8 @@ long f2fs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return f2fs_ioc_start_atomic_write(filp);
 	case F2FS_IOC_COMMIT_ATOMIC_WRITE:
 		return f2fs_ioc_commit_atomic_write(filp);
+	case F2FS_IOC_START_VOLATILE_WRITE:
+		return f2fs_ioc_start_volatile_write(filp);
 	case FITRIM:
 		return f2fs_ioc_fitrim(filp, arg);
 	default:

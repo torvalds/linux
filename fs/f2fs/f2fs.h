@@ -198,6 +198,7 @@ static inline bool __has_cursum_space(struct f2fs_summary_block *sum, int size,
 #define F2FS_IOCTL_MAGIC		0xf5
 #define F2FS_IOC_START_ATOMIC_WRITE	_IO(F2FS_IOCTL_MAGIC, 1)
 #define F2FS_IOC_COMMIT_ATOMIC_WRITE	_IO(F2FS_IOCTL_MAGIC, 2)
+#define F2FS_IOC_START_VOLATILE_WRITE	_IO(F2FS_IOCTL_MAGIC, 3)
 
 #if defined(__KERNEL__) && defined(CONFIG_COMPAT)
 /*
@@ -1060,6 +1061,7 @@ enum {
 	FI_UPDATE_WRITE,	/* inode has in-place-update data */
 	FI_NEED_IPU,		/* used for ipu per file */
 	FI_ATOMIC_FILE,		/* indicate atomic file */
+	FI_VOLATILE_FILE,	/* indicate volatile file */
 };
 
 static inline void set_inode_flag(struct f2fs_inode_info *fi, int flag)
@@ -1149,6 +1151,11 @@ static inline int f2fs_has_inline_data(struct inode *inode)
 static inline bool f2fs_is_atomic_file(struct inode *inode)
 {
 	return is_inode_flag_set(F2FS_I(inode), FI_ATOMIC_FILE);
+}
+
+static inline bool f2fs_is_volatile_file(struct inode *inode)
+{
+	return is_inode_flag_set(F2FS_I(inode), FI_VOLATILE_FILE);
 }
 
 static inline void *inline_data_addr(struct page *page)

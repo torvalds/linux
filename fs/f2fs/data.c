@@ -1052,7 +1052,7 @@ static int f2fs_write_end(struct file *file,
 
 	trace_f2fs_write_end(inode, pos, len, copied);
 
-	if (f2fs_is_atomic_file(inode))
+	if (f2fs_is_atomic_file(inode) || f2fs_is_volatile_file(inode))
 		register_inmem_page(inode, page);
 	else
 		set_page_dirty(page);
