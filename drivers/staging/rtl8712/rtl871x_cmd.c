@@ -527,7 +527,7 @@ u8 r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 		memcpy(&psecuritypriv->authenticator_ie[1],
 			&psecnetwork->IEs[12], (256-1));
 	psecnetwork->IELength = 0;
-	/* If the the driver wants to use the bssid to create the connection.
+	/* If the driver wants to use the bssid to create the connection.
 	 * If not,  we copy the connecting AP's MAC address to it so that
 	 * the driver just has the bssid information for PMKIDList searching.
 	 */
