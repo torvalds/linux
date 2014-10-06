@@ -728,6 +728,8 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 		wil_print_bcon_data(bcon);
 	}
 
+	wil_set_recovery_state(wil, fw_recovery_idle);
+
 	mutex_lock(&wil->mutex);
 
 	__wil_down(wil);
@@ -774,6 +776,8 @@ static int wil_cfg80211_stop_ap(struct wiphy *wiphy,
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 
 	wil_dbg_misc(wil, "%s()\n", __func__);
+
+	wil_set_recovery_state(wil, fw_recovery_idle);
 
 	mutex_lock(&wil->mutex);
 

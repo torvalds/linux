@@ -45,10 +45,8 @@ static struct sk_buff *ath10k_htc_build_tx_ctrl_skb(void *ar)
 	struct ath10k_skb_cb *skb_cb;
 
 	skb = dev_alloc_skb(ATH10K_HTC_CONTROL_BUFFER_SIZE);
-	if (!skb) {
-		ath10k_warn(ar, "Unable to allocate ctrl skb\n");
+	if (!skb)
 		return NULL;
-	}
 
 	skb_reserve(skb, 20); /* FIXME: why 20 bytes? */
 	WARN_ONCE((unsigned long)skb->data & 3, "unaligned skb");
@@ -569,7 +567,7 @@ int ath10k_htc_wait_target(struct ath10k_htc *htc)
 			ath10k_hif_send_complete_check(htc->ar, i, 1);
 
 		status = wait_for_completion_timeout(&htc->ctl_resp,
-					ATH10K_HTC_WAIT_TIMEOUT_HZ);
+						     ATH10K_HTC_WAIT_TIMEOUT_HZ);
 
 		if (status == 0)
 			status = -ETIMEDOUT;
@@ -806,10 +804,8 @@ struct sk_buff *ath10k_htc_alloc_skb(struct ath10k *ar, int size)
 	struct sk_buff *skb;
 
 	skb = dev_alloc_skb(size + sizeof(struct ath10k_htc_hdr));
-	if (!skb) {
-		ath10k_warn(ar, "could not allocate HTC tx skb\n");
+	if (!skb)
 		return NULL;
-	}
 
 	skb_reserve(skb, sizeof(struct ath10k_htc_hdr));
 

@@ -293,7 +293,7 @@ struct ath10k_debug {
 	struct dentry *debugfs_phy;
 
 	struct ath10k_target_stats target_stats;
-	DECLARE_BITMAP(wmi_service_bitmap, WMI_SERVICE_BM_SIZE);
+	DECLARE_BITMAP(wmi_service_bitmap, WMI_SERVICE_MAX);
 
 	struct completion event_stats_compl;
 
@@ -330,6 +330,17 @@ enum ath10k_state {
 	 * prevents completion timeouts and makes the driver more responsive to
 	 * userspace commands. This is also prevents recursive recovery. */
 	ATH10K_STATE_WEDGED,
+
+	/* factory tests */
+	ATH10K_STATE_UTF,
+};
+
+enum ath10k_firmware_mode {
+	/* the default mode, standard 802.11 functionality */
+	ATH10K_FIRMWARE_MODE_NORMAL,
+
+	/* factory tests etc */
+	ATH10K_FIRMWARE_MODE_UTF,
 };
 
 enum ath10k_fw_features {
@@ -472,7 +483,6 @@ struct ath10k {
 	struct cfg80211_chan_def chandef;
 
 	int free_vdev_map;
-	bool promisc;
 	bool monitor;
 	int monitor_vdev_id;
 	bool monitor_started;
@@ -544,6 +554,15 @@ struct ath10k {
 		struct ath10k_spec_scan config;
 	} spectral;
 
+	struct {
+		/* protected by conf_mutex */
+		const struct firmware *utf;
+		DECLARE_BITMAP(orig_fw_features, ATH10K_FW_FEATURE_COUNT);
+
+		/* protected by data_lock */
+		bool utf_monitor;
+	} testmode;
+
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));
 };
@@ -552,7 +571,7 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 				  const struct ath10k_hif_ops *hif_ops);
 void ath10k_core_destroy(struct ath10k *ar);
 
-int ath10k_core_start(struct ath10k *ar);
+int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode);
 int ath10k_wait_for_suspend(struct ath10k *ar, u32 suspend_opt);
 void ath10k_core_stop(struct ath10k *ar);
 int ath10k_core_register(struct ath10k *ar, u32 chip_id);

@@ -36,19 +36,25 @@
 struct sco_param {
 	u16 pkt_type;
 	u16 max_latency;
+	u8  retrans_effort;
+};
+
+static const struct sco_param esco_param_cvsd[] = {
+	{ EDR_ESCO_MASK & ~ESCO_2EV3, 0x000a,	0x01 }, /* S3 */
+	{ EDR_ESCO_MASK & ~ESCO_2EV3, 0x0007,	0x01 }, /* S2 */
+	{ EDR_ESCO_MASK | ESCO_EV3,   0x0007,	0x01 }, /* S1 */
+	{ EDR_ESCO_MASK | ESCO_HV3,   0xffff,	0x01 }, /* D1 */
+	{ EDR_ESCO_MASK | ESCO_HV1,   0xffff,	0x01 }, /* D0 */
 };
 
 static const struct sco_param sco_param_cvsd[] = {
-	{ EDR_ESCO_MASK & ~ESCO_2EV3, 0x000a }, /* S3 */
-	{ EDR_ESCO_MASK & ~ESCO_2EV3, 0x0007 }, /* S2 */
-	{ EDR_ESCO_MASK | ESCO_EV3,   0x0007 }, /* S1 */
-	{ EDR_ESCO_MASK | ESCO_HV3,   0xffff }, /* D1 */
-	{ EDR_ESCO_MASK | ESCO_HV1,   0xffff }, /* D0 */
+	{ EDR_ESCO_MASK | ESCO_HV3,   0xffff,	0xff }, /* D1 */
+	{ EDR_ESCO_MASK | ESCO_HV1,   0xffff,	0xff }, /* D0 */
 };
 
-static const struct sco_param sco_param_wideband[] = {
-	{ EDR_ESCO_MASK & ~ESCO_2EV3, 0x000d }, /* T2 */
-	{ EDR_ESCO_MASK | ESCO_EV3,   0x0008 }, /* T1 */
+static const struct sco_param esco_param_msbc[] = {
+	{ EDR_ESCO_MASK & ~ESCO_2EV3, 0x000d,	0x02 }, /* T2 */
+	{ EDR_ESCO_MASK | ESCO_EV3,   0x0008,	0x02 }, /* T1 */
 };
 
 static void hci_le_create_connection_cancel(struct hci_conn *conn)
@@ -116,7 +122,7 @@ static void hci_reject_sco(struct hci_conn *conn)
 {
 	struct hci_cp_reject_sync_conn_req cp;
 
-	cp.reason = HCI_ERROR_REMOTE_USER_TERM;
+	cp.reason = HCI_ERROR_REJ_LIMITED_RESOURCES;
 	bacpy(&cp.bdaddr, &conn->dst);
 
 	hci_send_cmd(conn->hdev, HCI_OP_REJECT_SYNC_CONN_REQ, sizeof(cp), &cp);
@@ -201,21 +207,26 @@ bool hci_setup_sync(struct hci_conn *conn, __u16 handle)
 
 	switch (conn->setting & SCO_AIRMODE_MASK) {
 	case SCO_AIRMODE_TRANSP:
-		if (conn->attempt > ARRAY_SIZE(sco_param_wideband))
+		if (conn->attempt > ARRAY_SIZE(esco_param_msbc))
 			return false;
-		cp.retrans_effort = 0x02;
-		param = &sco_param_wideband[conn->attempt - 1];
+		param = &esco_param_msbc[conn->attempt - 1];
 		break;
 	case SCO_AIRMODE_CVSD:
-		if (conn->attempt > ARRAY_SIZE(sco_param_cvsd))
-			return false;
-		cp.retrans_effort = 0x01;
-		param = &sco_param_cvsd[conn->attempt - 1];
+		if (lmp_esco_capable(conn->link)) {
+			if (conn->attempt > ARRAY_SIZE(esco_param_cvsd))
+				return false;
+			param = &esco_param_cvsd[conn->attempt - 1];
+		} else {
+			if (conn->attempt > ARRAY_SIZE(sco_param_cvsd))
+				return false;
+			param = &sco_param_cvsd[conn->attempt - 1];
+		}
 		break;
 	default:
 		return false;
 	}
 
+	cp.retrans_effort = param->retrans_effort;
 	cp.pkt_type = __cpu_to_le16(param->pkt_type);
 	cp.max_latency = __cpu_to_le16(param->max_latency);
 

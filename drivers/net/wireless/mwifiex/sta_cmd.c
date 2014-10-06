@@ -938,7 +938,7 @@ mwifiex_cmd_802_11_key_material_v1(struct mwifiex_private *priv,
 		cmd->size = cpu_to_le16(sizeof(key_material->action) + S_DS_GEN
 					+ key_param_len);
 
-		if (priv->bss_type == MWIFIEX_BSS_TYPE_UAP) {
+		if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {
 			tlv_mac = (void *)((u8 *)&key_material->key_param_set +
 					   key_param_len);
 			tlv_mac->header.type =

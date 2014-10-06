@@ -64,9 +64,6 @@ static const struct pci_device_id ath10k_pci_id_table[] = {
 	{0}
 };
 
-static int ath10k_pci_diag_read_access(struct ath10k *ar, u32 address,
-				       u32 *data);
-
 static void ath10k_pci_buffer_cleanup(struct ath10k *ar);
 static int ath10k_pci_cold_reset(struct ath10k *ar);
 static int ath10k_pci_warm_reset(struct ath10k *ar);
@@ -343,8 +340,8 @@ static void ath10k_pci_disable_and_clear_legacy_irq(struct ath10k *ar)
 
 	/* IMPORTANT: this extra read transaction is required to
 	 * flush the posted write buffer. */
-	(void) ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
-				 PCIE_INTR_ENABLE_ADDRESS);
+	(void)ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
+				PCIE_INTR_ENABLE_ADDRESS);
 }
 
 static void ath10k_pci_enable_legacy_irq(struct ath10k *ar)
@@ -355,8 +352,8 @@ static void ath10k_pci_enable_legacy_irq(struct ath10k *ar)
 
 	/* IMPORTANT: this extra read transaction is required to
 	 * flush the posted write buffer. */
-	(void) ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
-				 PCIE_INTR_ENABLE_ADDRESS);
+	(void)ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS +
+				PCIE_INTR_ENABLE_ADDRESS);
 }
 
 static inline const char *ath10k_pci_get_irq_method(struct ath10k *ar)
@@ -365,10 +362,11 @@ static inline const char *ath10k_pci_get_irq_method(struct ath10k *ar)
 
 	if (ar_pci->num_msi_intrs > 1)
 		return "msi-x";
-	else if (ar_pci->num_msi_intrs == 1)
+
+	if (ar_pci->num_msi_intrs == 1)
 		return "msi";
-	else
-		return "legacy";
+
+	return "legacy";
 }
 
 static int __ath10k_pci_rx_post_buf(struct ath10k_pci_pipe *pipe)
@@ -487,25 +485,6 @@ static int ath10k_pci_diag_read_mem(struct ath10k *ar, u32 address, void *data,
 	void *data_buf = NULL;
 	int i;
 
-	/*
-	 * This code cannot handle reads to non-memory space. Redirect to the
-	 * register read fn but preserve the multi word read capability of
-	 * this fn
-	 */
-	if (address < DRAM_BASE_ADDRESS) {
-		if (!IS_ALIGNED(address, 4) ||
-		    !IS_ALIGNED((unsigned long)data, 4))
-			return -EIO;
-
-		while ((nbytes >= 4) &&  ((ret = ath10k_pci_diag_read_access(
-					   ar, address, (u32 *)data)) == 0)) {
-			nbytes -= sizeof(u32);
-			address += sizeof(u32);
-			data += sizeof(u32);
-		}
-		return ret;
-	}
-
 	ce_diag = ar_pci->ce_diag;
 
 	/*
@@ -549,7 +528,7 @@ static int ath10k_pci_diag_read_mem(struct ath10k *ar, u32 address, void *data,
 						     address);
 
 		ret = ath10k_ce_send(ce_diag, NULL, (u32)address, nbytes, 0,
-				 0);
+				     0);
 		if (ret)
 			goto done;
 
@@ -569,7 +548,7 @@ static int ath10k_pci_diag_read_mem(struct ath10k *ar, u32 address, void *data,
 			goto done;
 		}
 
-		if (buf != (u32) address) {
+		if (buf != (u32)address) {
 			ret = -EIO;
 			goto done;
 		}
@@ -652,19 +631,7 @@ static int __ath10k_pci_diag_read_hi(struct ath10k *ar, void *dest,
 }
 
 #define ath10k_pci_diag_read_hi(ar, dest, src, len)		\
-	__ath10k_pci_diag_read_hi(ar, dest, HI_ITEM(src), len);
-
-/* Read 4-byte aligned data from Target memory or register */
-static int ath10k_pci_diag_read_access(struct ath10k *ar, u32 address,
-				       u32 *data)
-{
-	/* Assume range doesn't cross this boundary */
-	if (address >= DRAM_BASE_ADDRESS)
-		return ath10k_pci_diag_read32(ar, address, data);
-
-	*data = ath10k_pci_read32(ar, address);
-	return 0;
-}
+	__ath10k_pci_diag_read_hi(ar, dest, HI_ITEM(src), len)
 
 static int ath10k_pci_diag_write_mem(struct ath10k *ar, u32 address,
 				     const void *data, int nbytes)
@@ -729,7 +696,7 @@ static int ath10k_pci_diag_write_mem(struct ath10k *ar, u32 address,
 		 * Request CE to send caller-supplied data that
 		 * was copied to bounce buffer to Target(!) address.
 		 */
-		ret = ath10k_ce_send(ce_diag, NULL, (u32) ce_data,
+		ret = ath10k_ce_send(ce_diag, NULL, (u32)ce_data,
 				     nbytes, 0, 0);
 		if (ret != 0)
 			goto done;
@@ -801,18 +768,6 @@ static int ath10k_pci_diag_write32(struct ath10k *ar, u32 address, u32 value)
 	__le32 val = __cpu_to_le32(value);
 
 	return ath10k_pci_diag_write_mem(ar, address, &val, sizeof(val));
-}
-
-/* Write 4B data to Target memory or register */
-static int ath10k_pci_diag_write_access(struct ath10k *ar, u32 address,
-					u32 data)
-{
-	/* Assume range doesn't cross this boundary */
-	if (address >= DRAM_BASE_ADDRESS)
-		return ath10k_pci_diag_write32(ar, address, data);
-
-	ath10k_pci_write32(ar, address, data);
-	return 0;
 }
 
 static bool ath10k_pci_is_awake(struct ath10k *ar)
@@ -1152,7 +1107,7 @@ static int ath10k_pci_hif_map_service_to_pipe(struct ath10k *ar,
 }
 
 static void ath10k_pci_hif_get_default_pipe(struct ath10k *ar,
-						u8 *ul_pipe, u8 *dl_pipe)
+					    u8 *ul_pipe, u8 *dl_pipe)
 {
 	int ul_is_polled, dl_is_polled;
 
@@ -1172,16 +1127,8 @@ static void ath10k_pci_irq_disable(struct ath10k *ar)
 	int i;
 
 	ath10k_ce_disable_interrupts(ar);
-
-	/* Regardless how many interrupts were assigned for MSI the first one
-	 * is always used for firmware indications (crashes). There's no way to
-	 * mask the irq in the device so call disable_irq(). Legacy (shared)
-	 * interrupts can be masked on the device though.
-	 */
-	if (ar_pci->num_msi_intrs > 0)
-		disable_irq(ar_pci->pdev->irq);
-	else
-		ath10k_pci_disable_and_clear_legacy_irq(ar);
+	ath10k_pci_disable_and_clear_legacy_irq(ar);
+	/* FIXME: How to mask all MSI interrupts? */
 
 	for (i = 0; i < max(1, ar_pci->num_msi_intrs); i++)
 		synchronize_irq(ar_pci->pdev->irq + i);
@@ -1189,15 +1136,9 @@ static void ath10k_pci_irq_disable(struct ath10k *ar)
 
 static void ath10k_pci_irq_enable(struct ath10k *ar)
 {
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-
 	ath10k_ce_enable_interrupts(ar);
-
-	/* See comment in ath10k_pci_irq_disable() */
-	if (ar_pci->num_msi_intrs > 0)
-		enable_irq(ar_pci->pdev->irq);
-	else
-		ath10k_pci_enable_legacy_irq(ar);
+	ath10k_pci_enable_legacy_irq(ar);
+	/* FIXME: How to unmask all MSI interrupts? */
 }
 
 static int ath10k_pci_hif_start(struct ath10k *ar)
@@ -1311,14 +1252,21 @@ static void ath10k_pci_hif_stop(struct ath10k *ar)
 {
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot hif stop\n");
 
-	ath10k_pci_irq_disable(ar);
-	ath10k_pci_flush(ar);
-
 	/* Most likely the device has HTT Rx ring configured. The only way to
 	 * prevent the device from accessing (and possible corrupting) host
 	 * memory is to reset the chip now.
+	 *
+	 * There's also no known way of masking MSI interrupts on the device.
+	 * For ranged MSI the CE-related interrupts can be masked. However
+	 * regardless how many MSI interrupts are assigned the first one
+	 * is always used for firmware indications (crashes) and cannot be
+	 * masked. To prevent the device from asserting the interrupt reset it
+	 * before proceeding with cleanup.
 	 */
 	ath10k_pci_warm_reset(ar);
+
+	ath10k_pci_irq_disable(ar);
+	ath10k_pci_flush(ar);
 }
 
 static int ath10k_pci_hif_exchange_bmi_msg(struct ath10k *ar,
@@ -1472,28 +1420,12 @@ static int ath10k_pci_bmi_wait(struct ath10k_ce_pipe *tx_pipe,
  */
 static int ath10k_pci_wake_target_cpu(struct ath10k *ar)
 {
-	int ret;
-	u32 core_ctrl;
+	u32 addr, val;
 
-	ret = ath10k_pci_diag_read_access(ar, SOC_CORE_BASE_ADDRESS |
-					      CORE_CTRL_ADDRESS,
-					  &core_ctrl);
-	if (ret) {
-		ath10k_warn(ar, "failed to read core_ctrl: %d\n", ret);
-		return ret;
-	}
-
-	/* A_INUM_FIRMWARE interrupt to Target CPU */
-	core_ctrl |= CORE_CTRL_CPU_INTR_MASK;
-
-	ret = ath10k_pci_diag_write_access(ar, SOC_CORE_BASE_ADDRESS |
-					       CORE_CTRL_ADDRESS,
-					   core_ctrl);
-	if (ret) {
-		ath10k_warn(ar, "failed to set target CPU interrupt mask: %d\n",
-			    ret);
-		return ret;
-	}
+	addr = SOC_CORE_BASE_ADDRESS | CORE_CTRL_ADDRESS;
+	val = ath10k_pci_read32(ar, addr);
+	val |= CORE_CTRL_CPU_INTR_MASK;
+	ath10k_pci_write32(ar, addr, val);
 
 	return 0;
 }
@@ -1516,8 +1448,8 @@ static int ath10k_pci_init_config(struct ath10k *ar)
 		host_interest_item_address(HI_ITEM(hi_interconnect_state));
 
 	/* Supply Target-side CE configuration */
-	ret = ath10k_pci_diag_read_access(ar, interconnect_targ_addr,
-					  &pcie_state_targ_addr);
+	ret = ath10k_pci_diag_read32(ar, interconnect_targ_addr,
+				     &pcie_state_targ_addr);
 	if (ret != 0) {
 		ath10k_err(ar, "Failed to get pcie state addr: %d\n", ret);
 		return ret;
@@ -1529,10 +1461,10 @@ static int ath10k_pci_init_config(struct ath10k *ar)
 		return ret;
 	}
 
-	ret = ath10k_pci_diag_read_access(ar, pcie_state_targ_addr +
+	ret = ath10k_pci_diag_read32(ar, (pcie_state_targ_addr +
 					  offsetof(struct pcie_state,
-						   pipe_cfg_addr),
-					  &pipe_cfg_targ_addr);
+						   pipe_cfg_addr)),
+				     &pipe_cfg_targ_addr);
 	if (ret != 0) {
 		ath10k_err(ar, "Failed to get pipe cfg addr: %d\n", ret);
 		return ret;
@@ -1545,18 +1477,18 @@ static int ath10k_pci_init_config(struct ath10k *ar)
 	}
 
 	ret = ath10k_pci_diag_write_mem(ar, pipe_cfg_targ_addr,
-				 target_ce_config_wlan,
-				 sizeof(target_ce_config_wlan));
+					target_ce_config_wlan,
+					sizeof(target_ce_config_wlan));
 
 	if (ret != 0) {
 		ath10k_err(ar, "Failed to write pipe cfg: %d\n", ret);
 		return ret;
 	}
 
-	ret = ath10k_pci_diag_read_access(ar, pcie_state_targ_addr +
+	ret = ath10k_pci_diag_read32(ar, (pcie_state_targ_addr +
 					  offsetof(struct pcie_state,
-						   svc_to_pipe_map),
-					  &svc_to_pipe_map);
+						   svc_to_pipe_map)),
+				     &svc_to_pipe_map);
 	if (ret != 0) {
 		ath10k_err(ar, "Failed to get svc/pipe map: %d\n", ret);
 		return ret;
@@ -1569,17 +1501,17 @@ static int ath10k_pci_init_config(struct ath10k *ar)
 	}
 
 	ret = ath10k_pci_diag_write_mem(ar, svc_to_pipe_map,
-				 target_service_to_ce_map_wlan,
-				 sizeof(target_service_to_ce_map_wlan));
+					target_service_to_ce_map_wlan,
+					sizeof(target_service_to_ce_map_wlan));
 	if (ret != 0) {
 		ath10k_err(ar, "Failed to write svc/pipe map: %d\n", ret);
 		return ret;
 	}
 
-	ret = ath10k_pci_diag_read_access(ar, pcie_state_targ_addr +
+	ret = ath10k_pci_diag_read32(ar, (pcie_state_targ_addr +
 					  offsetof(struct pcie_state,
-						   config_flags),
-					  &pcie_config_flags);
+						   config_flags)),
+				     &pcie_config_flags);
 	if (ret != 0) {
 		ath10k_err(ar, "Failed to get pcie config_flags: %d\n", ret);
 		return ret;
@@ -1587,9 +1519,10 @@ static int ath10k_pci_init_config(struct ath10k *ar)
 
 	pcie_config_flags &= ~PCIE_CONFIG_FLAG_ENABLE_L1;
 
-	ret = ath10k_pci_diag_write_access(ar, pcie_state_targ_addr +
-				 offsetof(struct pcie_state, config_flags),
-				 pcie_config_flags);
+	ret = ath10k_pci_diag_write32(ar, (pcie_state_targ_addr +
+					   offsetof(struct pcie_state,
+						    config_flags)),
+				      pcie_config_flags);
 	if (ret != 0) {
 		ath10k_err(ar, "Failed to write pcie config_flags: %d\n", ret);
 		return ret;
@@ -1598,7 +1531,7 @@ static int ath10k_pci_init_config(struct ath10k *ar)
 	/* configure early allocation */
 	ealloc_targ_addr = host_interest_item_address(HI_ITEM(hi_early_alloc));
 
-	ret = ath10k_pci_diag_read_access(ar, ealloc_targ_addr, &ealloc_value);
+	ret = ath10k_pci_diag_read32(ar, ealloc_targ_addr, &ealloc_value);
 	if (ret != 0) {
 		ath10k_err(ar, "Faile to get early alloc val: %d\n", ret);
 		return ret;
@@ -1610,7 +1543,7 @@ static int ath10k_pci_init_config(struct ath10k *ar)
 	ealloc_value |= ((1 << HI_EARLY_ALLOC_IRAM_BANKS_SHIFT) &
 			 HI_EARLY_ALLOC_IRAM_BANKS_MASK);
 
-	ret = ath10k_pci_diag_write_access(ar, ealloc_targ_addr, ealloc_value);
+	ret = ath10k_pci_diag_write32(ar, ealloc_targ_addr, ealloc_value);
 	if (ret != 0) {
 		ath10k_err(ar, "Failed to set early alloc val: %d\n", ret);
 		return ret;
@@ -1619,7 +1552,7 @@ static int ath10k_pci_init_config(struct ath10k *ar)
 	/* Tell Target to proceed with initialization */
 	flag2_targ_addr = host_interest_item_address(HI_ITEM(hi_option_flag2));
 
-	ret = ath10k_pci_diag_read_access(ar, flag2_targ_addr, &flag2_value);
+	ret = ath10k_pci_diag_read32(ar, flag2_targ_addr, &flag2_value);
 	if (ret != 0) {
 		ath10k_err(ar, "Failed to get option val: %d\n", ret);
 		return ret;
@@ -1627,7 +1560,7 @@ static int ath10k_pci_init_config(struct ath10k *ar)
 
 	flag2_value |= HI_OPTION_EARLY_CFG_DONE;
 
-	ret = ath10k_pci_diag_write_access(ar, flag2_targ_addr, flag2_value);
+	ret = ath10k_pci_diag_write32(ar, flag2_targ_addr, flag2_value);
 	if (ret != 0) {
 		ath10k_err(ar, "Failed to set option val: %d\n", ret);
 		return ret;
@@ -1692,7 +1625,7 @@ static int ath10k_pci_ce_init(struct ath10k *ar)
 			continue;
 		}
 
-		pipe_info->buf_sz = (size_t) (attr->src_sz_max);
+		pipe_info->buf_sz = (size_t)(attr->src_sz_max);
 	}
 
 	return 0;
@@ -2228,7 +2161,7 @@ static int ath10k_pci_init_irq(struct ath10k *ar)
 	if (ath10k_pci_irq_mode == ATH10K_PCI_IRQ_AUTO) {
 		ar_pci->num_msi_intrs = MSI_NUM_REQUEST;
 		ret = pci_enable_msi_range(ar_pci->pdev, ar_pci->num_msi_intrs,
-							 ar_pci->num_msi_intrs);
+					   ar_pci->num_msi_intrs);
 		if (ret > 0)
 			return 0;
 
@@ -2554,6 +2487,7 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 
 err_free_irq:
 	ath10k_pci_free_irq(ar);
+	ath10k_pci_kill_tasklet(ar);
 
 err_deinit_irq:
 	ath10k_pci_deinit_irq(ar);
@@ -2590,6 +2524,7 @@ static void ath10k_pci_remove(struct pci_dev *pdev)
 
 	ath10k_core_unregister(ar);
 	ath10k_pci_free_irq(ar);
+	ath10k_pci_kill_tasklet(ar);
 	ath10k_pci_deinit_irq(ar);
 	ath10k_pci_ce_deinit(ar);
 	ath10k_pci_free_ce(ar);

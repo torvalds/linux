@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -29,6 +25,10 @@
 
 #ifndef __RTL_REGD_H__
 #define __RTL_REGD_H__
+
+/* for kernel 3.14 , both value are changed to IEEE80211_CHAN_NO_IR*/
+#define IEEE80211_CHAN_NO_IBSS IEEE80211_CHAN_NO_IR
+#define IEEE80211_CHAN_PASSIVE_SCAN IEEE80211_CHAN_NO_IR
 
 struct country_code_to_enum_rd {
 	u16 countrycode;
@@ -56,6 +56,7 @@ enum country_code_type_t {
 
 int rtl_regd_init(struct ieee80211_hw *hw,
 		  void (*reg_notifier) (struct wiphy *wiphy,
-					struct regulatory_request *request));
+		  struct regulatory_request *request));
 void rtl_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request);
+
 #endif

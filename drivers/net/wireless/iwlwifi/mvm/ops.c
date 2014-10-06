@@ -342,6 +342,7 @@ static const char *const iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(BT_COEX_UPDATE_REDUCED_TXP),
 	CMD(PSM_UAPSD_AP_MISBEHAVING_NOTIFICATION),
 	CMD(ANTENNA_COUPLING_NOTIFICATION),
+	CMD(SCD_QUEUE_CFG),
 };
 #undef CMD
 
@@ -421,7 +422,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		mvm->first_agg_queue = 12;
 	}
 	mvm->sf_state = SF_UNINIT;
-	mvm->low_latency_agg_frame_limit = 1;
+	mvm->low_latency_agg_frame_limit = 6;
 
 	mutex_init(&mvm->mutex);
 	mutex_init(&mvm->d0i3_suspend_mutex);

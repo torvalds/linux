@@ -247,6 +247,7 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 		memset(&mvm_sta->tid_data[i], 0, sizeof(mvm_sta->tid_data[i]));
 		mvm_sta->tid_data[i].seq_number = seq;
 	}
+	mvm_sta->agg_tids = 0;
 
 	ret = iwl_mvm_sta_send_to_fw(mvm, sta, false);
 	if (ret)
@@ -535,8 +536,8 @@ int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm)
 	lockdep_assert_held(&mvm->mutex);
 
 	/* Map Aux queue to fifo - needs to happen before adding Aux station */
-	iwl_trans_ac_txq_enable(mvm->trans, mvm->aux_queue,
-				IWL_MVM_TX_FIFO_MCAST);
+	iwl_mvm_enable_ac_txq(mvm, mvm->aux_queue,
+			      IWL_MVM_TX_FIFO_MCAST);
 
 	/* Allocate aux station and assign to it the aux queue */
 	ret = iwl_mvm_allocate_int_sta(mvm, &mvm->aux_sta, BIT(mvm->aux_queue),
@@ -872,12 +873,16 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	int queue, fifo, ret;
 	u16 ssn;
 
+	BUILD_BUG_ON((sizeof(mvmsta->agg_tids) * BITS_PER_BYTE)
+		     != IWL_MAX_TID_COUNT);
+
 	buf_size = min_t(int, buf_size, LINK_QUAL_AGG_FRAME_LIMIT_DEF);
 
 	spin_lock_bh(&mvmsta->lock);
 	ssn = tid_data->ssn;
 	queue = tid_data->txq_id;
 	tid_data->state = IWL_AGG_ON;
+	mvmsta->agg_tids |= BIT(tid);
 	tid_data->ssn = 0xffff;
 	spin_unlock_bh(&mvmsta->lock);
 
@@ -887,8 +892,8 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (ret)
 		return -EIO;
 
-	iwl_trans_txq_enable(mvm->trans, queue, fifo, mvmsta->sta_id, tid,
-			     buf_size, ssn);
+	iwl_mvm_enable_agg_txq(mvm, queue, fifo, mvmsta->sta_id, tid,
+			       buf_size, ssn);
 
 	/*
 	 * Even though in theory the peer could have different
@@ -932,6 +937,8 @@ int iwl_mvm_sta_tx_agg_stop(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	IWL_DEBUG_TX_QUEUES(mvm, "Stop AGG: sta %d tid %d q %d state %d\n",
 			    mvmsta->sta_id, tid, txq_id, tid_data->state);
 
+	mvmsta->agg_tids &= ~BIT(tid);
+
 	switch (tid_data->state) {
 	case IWL_AGG_ON:
 		tid_data->ssn = IEEE80211_SEQ_TO_SN(tid_data->seq_number);
@@ -956,7 +963,7 @@ int iwl_mvm_sta_tx_agg_stop(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 		iwl_mvm_sta_tx_agg(mvm, sta, tid, txq_id, false);
 
-		iwl_trans_txq_disable(mvm->trans, txq_id, true);
+		iwl_mvm_disable_txq(mvm, txq_id);
 		return 0;
 	case IWL_AGG_STARTING:
 	case IWL_EMPTYING_HW_QUEUE_ADDBA:
@@ -1005,6 +1012,7 @@ int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			    mvmsta->sta_id, tid, txq_id, tid_data->state);
 	old_state = tid_data->state;
 	tid_data->state = IWL_AGG_OFF;
+	mvmsta->agg_tids &= ~BIT(tid);
 	spin_unlock_bh(&mvmsta->lock);
 
 	if (old_state >= IWL_AGG_ON) {
@@ -1013,7 +1021,7 @@ int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 		iwl_mvm_sta_tx_agg(mvm, sta, tid, txq_id, false);
 
-		iwl_trans_txq_disable(mvm->trans, tid_data->txq_id, true);
+		iwl_mvm_disable_txq(mvm, tid_data->txq_id);
 	}
 
 	mvm->queue_to_mac80211[tid_data->txq_id] =

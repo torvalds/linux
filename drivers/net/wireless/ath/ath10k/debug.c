@@ -117,7 +117,7 @@ int ath10k_info(struct ath10k *ar, const char *fmt, ...)
 	va_start(args, fmt);
 	vaf.va = &args;
 	ret = dev_info(ar->dev, "%pV", &vaf);
-	trace_ath10k_log_info(&vaf);
+	trace_ath10k_log_info(ar, &vaf);
 	va_end(args);
 
 	return ret;
@@ -134,11 +134,12 @@ void ath10k_print_driver_info(struct ath10k *ar)
 		    ar->fw_api,
 		    ar->htt.target_version_major,
 		    ar->htt.target_version_minor);
-	ath10k_info(ar, "debug %d debugfs %d tracing %d dfs %d\n",
+	ath10k_info(ar, "debug %d debugfs %d tracing %d dfs %d testmode %d\n",
 		    config_enabled(CONFIG_ATH10K_DEBUG),
 		    config_enabled(CONFIG_ATH10K_DEBUGFS),
 		    config_enabled(CONFIG_ATH10K_TRACING),
-		    config_enabled(CONFIG_ATH10K_DFS_CERTIFIED));
+		    config_enabled(CONFIG_ATH10K_DFS_CERTIFIED),
+		    config_enabled(CONFIG_NL80211_TESTMODE));
 }
 EXPORT_SYMBOL(ath10k_print_driver_info);
 
@@ -153,7 +154,7 @@ int ath10k_err(struct ath10k *ar, const char *fmt, ...)
 	va_start(args, fmt);
 	vaf.va = &args;
 	ret = dev_err(ar->dev, "%pV", &vaf);
-	trace_ath10k_log_err(&vaf);
+	trace_ath10k_log_err(ar, &vaf);
 	va_end(args);
 
 	return ret;
@@ -170,7 +171,7 @@ int ath10k_warn(struct ath10k *ar, const char *fmt, ...)
 	va_start(args, fmt);
 	vaf.va = &args;
 	dev_warn_ratelimited(ar->dev, "%pV", &vaf);
-	trace_ath10k_log_warn(&vaf);
+	trace_ath10k_log_warn(ar, &vaf);
 
 	va_end(args);
 
@@ -208,7 +209,7 @@ static ssize_t ath10k_read_wmi_services(struct file *file,
 	if (len > buf_len)
 		len = buf_len;
 
-	for (i = 0; i < WMI_MAX_SERVICE; i++) {
+	for (i = 0; i < WMI_SERVICE_MAX; i++) {
 		enabled = test_bit(i, ar->debug.wmi_service_bitmap);
 		name = wmi_service_name(i);
 
@@ -564,16 +565,35 @@ static const struct file_operations fops_fw_stats = {
 	.llseek = default_llseek,
 };
 
+/* This is a clean assert crash in firmware. */
+static int ath10k_debug_fw_assert(struct ath10k *ar)
+{
+	struct wmi_vdev_install_key_cmd *cmd;
+	struct sk_buff *skb;
+
+	skb = ath10k_wmi_alloc_skb(ar, sizeof(*cmd) + 16);
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_vdev_install_key_cmd *)skb->data;
+	memset(cmd, 0, sizeof(*cmd));
+
+	/* big enough number so that firmware asserts */
+	cmd->vdev_id = __cpu_to_le32(0x7ffe);
+
+	return ath10k_wmi_cmd_send(ar, skb,
+				   ar->wmi.cmd->vdev_install_key_cmdid);
+}
+
 static ssize_t ath10k_read_simulate_fw_crash(struct file *file,
 					     char __user *user_buf,
 					     size_t count, loff_t *ppos)
 {
-	const char buf[] = "To simulate firmware crash write one of the"
-			   " keywords to this file:\n `soft` - this will send"
-			   " WMI_FORCE_FW_HANG_ASSERT to firmware if FW"
-			   " supports that command.\n `hard` - this will send"
-			   " to firmware command with illegal parameters"
-			   " causing firmware crash.\n";
+	const char buf[] =
+		"To simulate firmware crash write one of the keywords to this file:\n"
+		"`soft` - this will send WMI_FORCE_FW_HANG_ASSERT to firmware if FW supports that command.\n"
+		"`hard` - this will send to firmware command with illegal parameters causing firmware crash.\n"
+		"`assert` - this will send special illegal parameter to firmware to cause assert failure and crash.\n";
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
 }
@@ -621,7 +641,11 @@ static ssize_t ath10k_write_simulate_fw_crash(struct file *file,
 		 * firmware variants in order to force a firmware crash.
 		 */
 		ret = ath10k_wmi_vdev_set_param(ar, 0x7fff,
-					ar->wmi.vdev_param->rts_threshold, 0);
+						ar->wmi.vdev_param->rts_threshold,
+						0);
+	} else if (!strcmp(buf, "assert")) {
+		ath10k_info(ar, "simulating firmware assert crash\n");
+		ret = ath10k_debug_fw_assert(ar);
 	} else {
 		ret = -EINVAL;
 		goto exit;
@@ -840,8 +864,8 @@ static void ath10k_debug_htt_stats_dwork(struct work_struct *work)
 }
 
 static ssize_t ath10k_read_htt_stats_mask(struct file *file,
-					    char __user *user_buf,
-					    size_t count, loff_t *ppos)
+					  char __user *user_buf,
+					  size_t count, loff_t *ppos)
 {
 	struct ath10k *ar = file->private_data;
 	char buf[32];
@@ -853,8 +877,8 @@ static ssize_t ath10k_read_htt_stats_mask(struct file *file,
 }
 
 static ssize_t ath10k_write_htt_stats_mask(struct file *file,
-					     const char __user *user_buf,
-					     size_t count, loff_t *ppos)
+					   const char __user *user_buf,
+					   size_t count, loff_t *ppos)
 {
 	struct ath10k *ar = file->private_data;
 	unsigned long mask;
@@ -959,8 +983,8 @@ static const struct file_operations fops_htt_max_amsdu_ampdu = {
 };
 
 static ssize_t ath10k_read_fw_dbglog(struct file *file,
-					    char __user *user_buf,
-					    size_t count, loff_t *ppos)
+				     char __user *user_buf,
+				     size_t count, loff_t *ppos)
 {
 	struct ath10k *ar = file->private_data;
 	unsigned int len;
@@ -1132,19 +1156,28 @@ static const struct file_operations fops_dfs_stats = {
 
 int ath10k_debug_create(struct ath10k *ar)
 {
-	int ret;
-
 	ar->debug.fw_crash_data = vzalloc(sizeof(*ar->debug.fw_crash_data));
-	if (!ar->debug.fw_crash_data) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	if (!ar->debug.fw_crash_data)
+		return -ENOMEM;
 
+	return 0;
+}
+
+void ath10k_debug_destroy(struct ath10k *ar)
+{
+	vfree(ar->debug.fw_crash_data);
+	ar->debug.fw_crash_data = NULL;
+}
+
+int ath10k_debug_register(struct ath10k *ar)
+{
 	ar->debug.debugfs_phy = debugfs_create_dir("ath10k",
 						   ar->hw->wiphy->debugfsdir);
-	if (!ar->debug.debugfs_phy) {
-		ret = -ENOMEM;
-		goto err_free_fw_crash_data;
+	if (IS_ERR_OR_NULL(ar->debug.debugfs_phy)) {
+		if (IS_ERR(ar->debug.debugfs_phy))
+			return PTR_ERR(ar->debug.debugfs_phy);
+
+		return -ENOMEM;
 	}
 
 	INIT_DELAYED_WORK(&ar->debug.htt_stats_dwork,
@@ -1192,17 +1225,10 @@ int ath10k_debug_create(struct ath10k *ar)
 	}
 
 	return 0;
-
-err_free_fw_crash_data:
-	vfree(ar->debug.fw_crash_data);
-
-err:
-	return ret;
 }
 
-void ath10k_debug_destroy(struct ath10k *ar)
+void ath10k_debug_unregister(struct ath10k *ar)
 {
-	vfree(ar->debug.fw_crash_data);
 	cancel_delayed_work_sync(&ar->debug.htt_stats_dwork);
 }
 
@@ -1223,7 +1249,7 @@ void ath10k_dbg(struct ath10k *ar, enum ath10k_debug_mask mask,
 	if (ath10k_debug_mask & mask)
 		dev_printk(KERN_DEBUG, ar->dev, "%pV", &vaf);
 
-	trace_ath10k_log_dbg(mask, &vaf);
+	trace_ath10k_log_dbg(ar, mask, &vaf);
 
 	va_end(args);
 }
@@ -1242,7 +1268,7 @@ void ath10k_dbg_dump(struct ath10k *ar,
 	}
 
 	/* tracing code doesn't like null strings :/ */
-	trace_ath10k_log_dbg_dump(msg ? msg : "", prefix ? prefix : "",
+	trace_ath10k_log_dbg_dump(ar, msg ? msg : "", prefix ? prefix : "",
 				  buf, len);
 }
 EXPORT_SYMBOL(ath10k_dbg_dump);

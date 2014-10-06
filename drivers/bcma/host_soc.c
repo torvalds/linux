@@ -7,6 +7,9 @@
 
 #include "bcma_private.h"
 #include "scan.h"
+#include <linux/slab.h>
+#include <linux/module.h>
+#include <linux/of_address.h>
 #include <linux/bcma/bcma.h>
 #include <linux/bcma/bcma_soc.h>
 
@@ -176,6 +179,7 @@ int __init bcma_host_soc_register(struct bcma_soc *soc)
 	/* Host specific */
 	bus->hosttype = BCMA_HOSTTYPE_SOC;
 	bus->ops = &bcma_host_soc_ops;
+	bus->host_pdev = NULL;
 
 	/* Initialize struct, detect chip */
 	bcma_init_bus(bus);
@@ -195,3 +199,80 @@ int __init bcma_host_soc_init(struct bcma_soc *soc)
 
 	return err;
 }
+
+#ifdef CONFIG_OF
+static int bcma_host_soc_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
+	struct bcma_bus *bus;
+	int err;
+
+	/* Alloc */
+	bus = devm_kzalloc(dev, sizeof(*bus), GFP_KERNEL);
+	if (!bus)
+		return -ENOMEM;
+
+	/* Map MMIO */
+	bus->mmio = of_iomap(np, 0);
+	if (!bus->mmio)
+		return -ENOMEM;
+
+	/* Host specific */
+	bus->hosttype = BCMA_HOSTTYPE_SOC;
+	bus->ops = &bcma_host_soc_ops;
+	bus->host_pdev = pdev;
+
+	/* Initialize struct, detect chip */
+	bcma_init_bus(bus);
+
+	/* Register */
+	err = bcma_bus_register(bus);
+	if (err)
+		goto err_unmap_mmio;
+
+	platform_set_drvdata(pdev, bus);
+
+	return err;
+
+err_unmap_mmio:
+	iounmap(bus->mmio);
+	return err;
+}
+
+static int bcma_host_soc_remove(struct platform_device *pdev)
+{
+	struct bcma_bus *bus = platform_get_drvdata(pdev);
+
+	bcma_bus_unregister(bus);
+	iounmap(bus->mmio);
+	platform_set_drvdata(pdev, NULL);
+
+	return 0;
+}
+
+static const struct of_device_id bcma_host_soc_of_match[] = {
+	{ .compatible = "brcm,bus-axi", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, bcma_host_soc_of_match);
+
+static struct platform_driver bcma_host_soc_driver = {
+	.driver = {
+		.name = "bcma-host-soc",
+		.of_match_table = bcma_host_soc_of_match,
+	},
+	.probe		= bcma_host_soc_probe,
+	.remove		= bcma_host_soc_remove,
+};
+
+int __init bcma_host_soc_register_driver(void)
+{
+	return platform_driver_register(&bcma_host_soc_driver);
+}
+
+void __exit bcma_host_soc_unregister_driver(void)
+{
+	platform_driver_unregister(&bcma_host_soc_driver);
+}
+#endif /* CONFIG_OF */

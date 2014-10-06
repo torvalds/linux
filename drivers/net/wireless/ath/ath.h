@@ -268,6 +268,7 @@ enum ATH_DEBUG {
 };
 
 #define ATH_DBG_DEFAULT (ATH_DBG_FATAL)
+#define ATH_DBG_MAX_LEN 512
 
 #ifdef CONFIG_ATH_DEBUG
 

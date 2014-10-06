@@ -20,7 +20,6 @@
 
 #include "hif.h"
 
-
 /* Maximum number of Copy Engine's supported */
 #define CE_COUNT_MAX 8
 #define CE_HTT_H2T_MSG_SRC_NENTRIES 4096
@@ -36,7 +35,6 @@
  */
 
 struct ath10k_ce_pipe;
-
 
 #define CE_DESC_FLAGS_GATHER         (1 << 0)
 #define CE_DESC_FLAGS_BYTE_SWAP      (1 << 1)
@@ -189,10 +187,10 @@ int ath10k_ce_completed_recv_next(struct ath10k_ce_pipe *ce_state,
  * Pops 1 completed send buffer from Source ring.
  */
 int ath10k_ce_completed_send_next(struct ath10k_ce_pipe *ce_state,
-			   void **per_transfer_contextp,
-			   u32 *bufferp,
-			   unsigned int *nbytesp,
-			   unsigned int *transfer_idp);
+				  void **per_transfer_contextp,
+				  u32 *bufferp,
+				  unsigned int *nbytesp,
+				  unsigned int *transfer_idp);
 
 /*==================CE Engine Initialization=======================*/
 
@@ -202,7 +200,7 @@ int ath10k_ce_init_pipe(struct ath10k *ar, unsigned int ce_id,
 			void (*recv_cb)(struct ath10k_ce_pipe *));
 void ath10k_ce_deinit_pipe(struct ath10k *ar, unsigned int ce_id);
 int ath10k_ce_alloc_pipe(struct ath10k *ar, int ce_id,
-			  const struct ce_attr *attr);
+			 const struct ce_attr *attr);
 void ath10k_ce_free_pipe(struct ath10k *ar, int ce_id);
 
 /*==================CE Engine Shutdown=======================*/
@@ -382,7 +380,6 @@ struct ce_attr {
 	(((0 | (x)) << DST_WATERMARK_HIGH_LSB) & DST_WATERMARK_HIGH_MASK)
 #define DST_WATERMARK_HIGH_RESET		0
 #define DST_WATERMARK_ADDRESS			0x0050
-
 
 static inline u32 ath10k_ce_base_address(unsigned int ce_id)
 {

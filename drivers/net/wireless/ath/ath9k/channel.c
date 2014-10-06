@@ -211,7 +211,7 @@ void ath_chanctx_check_active(struct ath_softc *sc, struct ath_chanctx *ctx)
 		switch (vif->type) {
 		case NL80211_IFTYPE_P2P_CLIENT:
 		case NL80211_IFTYPE_STATION:
-			if (vif->bss_conf.assoc)
+			if (avp->assoc)
 				active = true;
 			break;
 		default:
@@ -761,6 +761,13 @@ void ath_offchannel_next(struct ath_softc *sc)
 
 void ath_roc_complete(struct ath_softc *sc, bool abort)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+
+	if (abort)
+		ath_dbg(common, CHAN_CTX, "RoC aborted\n");
+	else
+		ath_dbg(common, CHAN_CTX, "RoC expired\n");
+
 	sc->offchannel.roc_vif = NULL;
 	sc->offchannel.roc_chan = NULL;
 	if (!abort)
@@ -917,7 +924,7 @@ ath_chanctx_send_vif_ps_frame(struct ath_softc *sc, struct ath_vif *avp,
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
-		if (!vif->bss_conf.assoc)
+		if (!avp->assoc)
 			return false;
 
 		skb = ieee80211_nullfunc_get(sc->hw, vif);
@@ -1037,9 +1044,11 @@ static void ath_offchannel_channel_change(struct ath_softc *sc)
 void ath_chanctx_set_next(struct ath_softc *sc, bool force)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_chanctx *old_ctx;
 	struct timespec ts;
 	bool measure_time = false;
 	bool send_ps = false;
+	bool queues_stopped = false;
 
 	spin_lock_bh(&sc->chan_lock);
 	if (!sc->next_chan) {
@@ -1069,6 +1078,10 @@ void ath_chanctx_set_next(struct ath_softc *sc, bool force)
 			getrawmonotonic(&ts);
 			measure_time = true;
 		}
+
+		ath9k_chanctx_stop_queues(sc, sc->cur_chan);
+		queues_stopped = true;
+
 		__ath9k_flush(sc->hw, ~0, true);
 
 		if (ath_chanctx_send_ps_frame(sc, true))
@@ -1082,6 +1095,7 @@ void ath_chanctx_set_next(struct ath_softc *sc, bool force)
 			sc->cur_chan->tsf_val = ath9k_hw_gettsf64(sc->sc_ah);
 		}
 	}
+	old_ctx = sc->cur_chan;
 	sc->cur_chan = sc->next_chan;
 	sc->cur_chan->stopped = false;
 	sc->next_chan = NULL;
@@ -1104,7 +1118,16 @@ void ath_chanctx_set_next(struct ath_softc *sc, bool force)
 		if (measure_time)
 			sc->sched.channel_switch_time =
 				ath9k_hw_get_tsf_offset(&ts, NULL);
+		/*
+		 * A reset will ensure that all queues are woken up,
+		 * so there is no need to awaken them again.
+		 */
+		goto out;
 	}
+
+	if (queues_stopped)
+		ath9k_chanctx_wake_queues(sc, old_ctx);
+out:
 	if (send_ps)
 		ath_chanctx_send_ps_frame(sc, false);
 
@@ -1170,18 +1193,37 @@ bool ath9k_is_chanctx_enabled(void)
 /* Queue management */
 /********************/
 
-void ath9k_chanctx_wake_queues(struct ath_softc *sc)
+void ath9k_chanctx_stop_queues(struct ath_softc *sc, struct ath_chanctx *ctx)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	int i;
 
-	if (sc->cur_chan == &sc->offchannel.chan) {
+	if (ctx == &sc->offchannel.chan) {
+		ieee80211_stop_queue(sc->hw,
+				     sc->hw->offchannel_tx_hw_queue);
+	} else {
+		for (i = 0; i < IEEE80211_NUM_ACS; i++)
+			ieee80211_stop_queue(sc->hw,
+					     ctx->hw_queue_base + i);
+	}
+
+	if (ah->opmode == NL80211_IFTYPE_AP)
+		ieee80211_stop_queue(sc->hw, sc->hw->queues - 2);
+}
+
+
+void ath9k_chanctx_wake_queues(struct ath_softc *sc, struct ath_chanctx *ctx)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	int i;
+
+	if (ctx == &sc->offchannel.chan) {
 		ieee80211_wake_queue(sc->hw,
 				     sc->hw->offchannel_tx_hw_queue);
 	} else {
 		for (i = 0; i < IEEE80211_NUM_ACS; i++)
 			ieee80211_wake_queue(sc->hw,
-					     sc->cur_chan->hw_queue_base + i);
+					     ctx->hw_queue_base + i);
 	}
 
 	if (ah->opmode == NL80211_IFTYPE_AP)
@@ -1339,7 +1381,7 @@ void ath9k_p2p_ps_timer(void *priv)
 	rcu_read_lock();
 
 	vif = avp->vif;
-	sta = ieee80211_find_sta(vif, vif->bss_conf.bssid);
+	sta = ieee80211_find_sta(vif, avp->bssid);
 	if (!sta)
 		goto out;
 

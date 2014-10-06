@@ -88,6 +88,20 @@ extern int __init bcma_host_pci_init(void);
 extern void __exit bcma_host_pci_exit(void);
 #endif /* CONFIG_BCMA_HOST_PCI */
 
+/* host_soc.c */
+#if defined(CONFIG_BCMA_HOST_SOC) && defined(CONFIG_OF)
+extern int __init bcma_host_soc_register_driver(void);
+extern void __exit bcma_host_soc_unregister_driver(void);
+#else
+static inline int __init bcma_host_soc_register_driver(void)
+{
+	return 0;
+}
+static inline void __exit bcma_host_soc_unregister_driver(void)
+{
+}
+#endif /* CONFIG_BCMA_HOST_SOC && CONFIG_OF */
+
 /* driver_pci.c */
 u32 bcma_pcie_read(struct bcma_drv_pci *pc, u32 address);
 

@@ -6980,8 +6980,6 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 
 	hci_dev_lock(hdev);
 
-	l2cap_chan_lock(chan);
-
 	if (!is_valid_psm(__le16_to_cpu(psm), dst_type) && !cid &&
 	    chan->chan_type != L2CAP_CHAN_RAW) {
 		err = -EINVAL;
@@ -7078,17 +7076,20 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 		goto done;
 	}
 
+	mutex_lock(&conn->chan_lock);
+	l2cap_chan_lock(chan);
+
 	if (cid && __l2cap_get_chan_by_dcid(conn, cid)) {
 		hci_conn_drop(hcon);
 		err = -EBUSY;
-		goto done;
+		goto chan_unlock;
 	}
 
 	/* Update source addr of the socket */
 	bacpy(&chan->src, &hcon->src);
 	chan->src_type = bdaddr_type(hcon, hcon->src_type);
 
-	l2cap_chan_add(conn, chan);
+	__l2cap_chan_add(conn, chan);
 
 	/* l2cap_chan_add takes its own ref so we can drop this one */
 	hci_conn_drop(hcon);
@@ -7114,8 +7115,10 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 
 	err = 0;
 
-done:
+chan_unlock:
 	l2cap_chan_unlock(chan);
+	mutex_unlock(&conn->chan_lock);
+done:
 	hci_dev_unlock(hdev);
 	hci_dev_put(hdev);
 	return err;

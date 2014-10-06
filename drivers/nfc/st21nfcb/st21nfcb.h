@@ -19,8 +19,6 @@
 #ifndef __LOCAL_ST21NFCB_H_
 #define __LOCAL_ST21NFCB_H_
 
-#include <net/nfc/nci_core.h>
-
 #include "ndlc.h"
 
 /* Define private flags: */

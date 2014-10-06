@@ -189,6 +189,9 @@ static const int rtl8187se_queues_map[RTL8187SE_NR_TX_QUEUES] = {5, 4, 3, 2, 7};
 
 static const int rtl8180_queues_map[RTL8180_NR_TX_QUEUES] = {4, 7};
 
+/* LNA gain table for rtl8187se */
+static const u8 rtl8187se_lna_gain[4] = {02, 17, 29, 39};
+
 void rtl8180_write_phy(struct ieee80211_hw *dev, u8 addr, u32 data)
 {
 	struct rtl8180_priv *priv = dev->priv;
@@ -210,13 +213,14 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 	struct rtl8180_priv *priv = dev->priv;
 	struct rtl818x_rx_cmd_desc *cmd_desc;
 	unsigned int count = 32;
-	u8 agc, sq, signal = 1;
+	u8 agc, sq;
+	s8 signal = 1;
 	dma_addr_t mapping;
 
 	while (count--) {
 		void *entry = priv->rx_ring + priv->rx_idx * priv->rx_ring_sz;
 		struct sk_buff *skb = priv->rx_buf[priv->rx_idx];
-		u32 flags, flags2;
+		u32 flags, flags2, flags3 = 0;
 		u64 tsft;
 
 		if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8187SE) {
@@ -229,6 +233,7 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 			 * the ownership flag
 			 */
 			rmb();
+			flags3 = le32_to_cpu(desc->flags3);
 			flags2 = le32_to_cpu(desc->flags2);
 			tsft = le64_to_cpu(desc->tsft);
 		} else {
@@ -287,8 +292,21 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 				signal = priv->rf->calc_rssi(agc, sq);
 				break;
 			case RTL818X_CHIP_FAMILY_RTL8187SE:
-				/* TODO: rtl8187se rssi */
-				signal = 10;
+				/* OFDM measure reported by HW is signed,
+				 * in 0.5dBm unit, with zero centered @ -41dBm
+				 * input signal.
+				 */
+				if (rx_status.rate_idx > 3) {
+					signal = (s8)((flags3 >> 16) & 0xff);
+					signal = signal / 2 - 41;
+				} else {
+					int idx, bb;
+
+					idx = (agc & 0x60) >> 5;
+					bb = (agc & 0x1F) * 2;
+					/* bias + BB gain + LNA gain */
+					signal = 4 - bb - rtl8187se_lna_gain[idx];
+				}
 				break;
 			}
 			rx_status.signal = signal;
@@ -1835,7 +1853,7 @@ static int rtl8180_probe(struct pci_dev *pdev,
 		pci_try_set_mwi(pdev);
 	}
 
-	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8185)
+	if (priv->chip_family != RTL818X_CHIP_FAMILY_RTL8180)
 		dev->flags |= IEEE80211_HW_SIGNAL_DBM;
 	else
 		dev->flags |= IEEE80211_HW_SIGNAL_UNSPEC;
