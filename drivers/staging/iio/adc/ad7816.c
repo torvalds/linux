@@ -152,7 +152,8 @@ static ssize_t ad7816_show_available_modes(struct device *dev,
 	return sprintf(buf, "full\npower-save\n");
 }
 
-static IIO_DEVICE_ATTR(available_modes, S_IRUGO, ad7816_show_available_modes, NULL, 0);
+static IIO_DEVICE_ATTR(available_modes, S_IRUGO, ad7816_show_available_modes,
+			NULL, 0);
 
 static ssize_t ad7816_show_channel(struct device *dev,
 		struct device_attribute *attr,
