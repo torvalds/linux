@@ -763,11 +763,13 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	struct nvme_iod *iod;
 	int psegs = bio_phys_segments(ns->queue, bio);
 	int result;
+	unsigned size = !(bio->bi_rw & REQ_DISCARD) ? bio->bi_iter.bi_size :
+						sizeof(struct nvme_dsm_range);
 
 	if ((bio->bi_rw & REQ_FLUSH) && psegs)
 		return nvme_split_flush_data(nvmeq, bio);
 
-	iod = nvme_alloc_iod(psegs, bio->bi_iter.bi_size, ns->dev, GFP_ATOMIC);
+	iod = nvme_alloc_iod(psegs, size, ns->dev, GFP_ATOMIC);
 	if (!iod)
 		return -ENOMEM;
 
