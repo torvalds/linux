@@ -28,10 +28,12 @@
 #include <linux/in6.h>
 #include <linux/if_arp.h>
 #include <linux/if_vlan.h>
+
 #include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/checksum.h>
 #include <net/dsfield.h>
+#include <net/mpls.h>
 #include <net/sctp/checksum.h>
 
 #include "datapath.h"
@@ -118,6 +120,92 @@ static int make_writable(struct sk_buff *skb, int write_len)
 	return pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
 }
 
+static int push_mpls(struct sk_buff *skb,
+		     const struct ovs_action_push_mpls *mpls)
+{
+	__be32 *new_mpls_lse;
+	struct ethhdr *hdr;
+
+	/* Networking stack do not allow simultaneous Tunnel and MPLS GSO. */
+	if (skb->encapsulation)
+		return -ENOTSUPP;
+
+	if (skb_cow_head(skb, MPLS_HLEN) < 0)
+		return -ENOMEM;
+
+	skb_push(skb, MPLS_HLEN);
+	memmove(skb_mac_header(skb) - MPLS_HLEN, skb_mac_header(skb),
+		skb->mac_len);
+	skb_reset_mac_header(skb);
+
+	new_mpls_lse = (__be32 *)skb_mpls_header(skb);
+	*new_mpls_lse = mpls->mpls_lse;
+
+	if (skb->ip_summed == CHECKSUM_COMPLETE)
+		skb->csum = csum_add(skb->csum, csum_partial(new_mpls_lse,
+							     MPLS_HLEN, 0));
+
+	hdr = eth_hdr(skb);
+	hdr->h_proto = mpls->mpls_ethertype;
+
+	skb_set_inner_protocol(skb, skb->protocol);
+	skb->protocol = mpls->mpls_ethertype;
+
+	return 0;
+}
+
+static int pop_mpls(struct sk_buff *skb, const __be16 ethertype)
+{
+	struct ethhdr *hdr;
+	int err;
+
+	err = make_writable(skb, skb->mac_len + MPLS_HLEN);
+	if (unlikely(err))
+		return err;
+
+	if (skb->ip_summed == CHECKSUM_COMPLETE)
+		skb->csum = csum_sub(skb->csum,
+				     csum_partial(skb_mpls_header(skb),
+						  MPLS_HLEN, 0));
+
+	memmove(skb_mac_header(skb) + MPLS_HLEN, skb_mac_header(skb),
+		skb->mac_len);
+
+	__skb_pull(skb, MPLS_HLEN);
+	skb_reset_mac_header(skb);
+
+	/* skb_mpls_header() is used to locate the ethertype
+	 * field correctly in the presence of VLAN tags.
+	 */
+	hdr = (struct ethhdr *)(skb_mpls_header(skb) - ETH_HLEN);
+	hdr->h_proto = ethertype;
+	if (eth_p_mpls(skb->protocol))
+		skb->protocol = ethertype;
+	return 0;
+}
+
+static int set_mpls(struct sk_buff *skb, const __be32 *mpls_lse)
+{
+	__be32 *stack;
+	int err;
+
+	err = make_writable(skb, skb->mac_len + MPLS_HLEN);
+	if (unlikely(err))
+		return err;
+
+	stack = (__be32 *)skb_mpls_header(skb);
+	if (skb->ip_summed == CHECKSUM_COMPLETE) {
+		__be32 diff[] = { ~(*stack), *mpls_lse };
+
+		skb->csum = ~csum_partial((char *)diff, sizeof(diff),
+					  ~skb->csum);
+	}
+
+	*stack = *mpls_lse;
+
+	return 0;
+}
+
 /* remove VLAN header from packet and update csum accordingly. */
 static int __pop_vlan_tci(struct sk_buff *skb, __be16 *current_tci)
 {
@@ -140,10 +228,12 @@ static int __pop_vlan_tci(struct sk_buff *skb, __be16 *current_tci)
 
 	vlan_set_encap_proto(skb, vhdr);
 	skb->mac_header += VLAN_HLEN;
+
 	if (skb_network_offset(skb) < ETH_HLEN)
 		skb_set_network_header(skb, ETH_HLEN);
-	skb_reset_mac_len(skb);
 
+	/* Update mac_len for subsequent MPLS actions */
+	skb_reset_mac_len(skb);
 	return 0;
 }
 
@@ -186,6 +276,8 @@ static int push_vlan(struct sk_buff *skb, const struct ovs_action_push_vlan *vla
 
 		if (!__vlan_put_tag(skb, skb->vlan_proto, current_tag))
 			return -ENOMEM;
+		/* Update mac_len for subsequent MPLS actions */
+		skb->mac_len += VLAN_HLEN;
 
 		if (skb->ip_summed == CHECKSUM_COMPLETE)
 			skb->csum = csum_add(skb->csum, csum_partial(skb->data
@@ -612,6 +704,10 @@ static int execute_set_action(struct sk_buff *skb,
 	case OVS_KEY_ATTR_SCTP:
 		err = set_sctp(skb, nla_data(nested_attr));
 		break;
+
+	case OVS_KEY_ATTR_MPLS:
+		err = set_mpls(skb, nla_data(nested_attr));
+		break;
 	}
 
 	return err;
@@ -688,6 +784,14 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 
 		case OVS_ACTION_ATTR_HASH:
 			execute_hash(skb, key, a);
+			break;
+
+		case OVS_ACTION_ATTR_PUSH_MPLS:
+			err = push_mpls(skb, nla_data(a));
+			break;
+
+		case OVS_ACTION_ATTR_POP_MPLS:
+			err = pop_mpls(skb, nla_get_be16(a));
 			break;
 
 		case OVS_ACTION_ATTR_PUSH_VLAN:

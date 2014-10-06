@@ -118,6 +118,7 @@
 #include <linux/if_vlan.h>
 #include <linux/ip.h>
 #include <net/ip.h>
+#include <net/mpls.h>
 #include <linux/ipv6.h>
 #include <linux/in.h>
 #include <linux/jhash.h>
@@ -2530,7 +2531,7 @@ static netdev_features_t net_mpls_features(struct sk_buff *skb,
 					   netdev_features_t features,
 					   __be16 type)
 {
-	if (type == htons(ETH_P_MPLS_UC) || type == htons(ETH_P_MPLS_MC))
+	if (eth_p_mpls(type))
 		features &= skb->dev->mpls_features;
 
 	return features;

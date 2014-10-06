@@ -49,7 +49,7 @@ int ovs_nla_get_match(struct sw_flow_match *match,
 		      const struct nlattr *);
 
 int ovs_nla_copy_actions(const struct nlattr *attr,
-			 const struct sw_flow_key *key, int depth,
+			 const struct sw_flow_key *key,
 			 struct sw_flow_actions **sfa);
 int ovs_nla_put_actions(const struct nlattr *attr,
 			int len, struct sk_buff *skb);
