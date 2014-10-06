@@ -817,10 +817,14 @@ static int ovs_flow_cmd_new(struct sk_buff *skb, struct genl_info *info)
 
 	/* Must have key and actions. */
 	error = -EINVAL;
-	if (!a[OVS_FLOW_ATTR_KEY])
+	if (!a[OVS_FLOW_ATTR_KEY]) {
+		OVS_NLERR("Flow key attribute not present in new flow.\n");
 		goto error;
-	if (!a[OVS_FLOW_ATTR_ACTIONS])
+	}
+	if (!a[OVS_FLOW_ATTR_ACTIONS]) {
+		OVS_NLERR("Flow actions attribute not present in new flow.\n");
 		goto error;
+	}
 
 	/* Most of the time we need to allocate a new flow, do it before
 	 * locking.
@@ -979,8 +983,10 @@ static int ovs_flow_cmd_set(struct sk_buff *skb, struct genl_info *info)
 
 	/* Extract key. */
 	error = -EINVAL;
-	if (!a[OVS_FLOW_ATTR_KEY])
+	if (!a[OVS_FLOW_ATTR_KEY]) {
+		OVS_NLERR("Flow key attribute not present in set flow.\n");
 		goto error;
+	}
 
 	ovs_match_init(&match, &key, &mask);
 	error = ovs_nla_get_match(&match,
