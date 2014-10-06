@@ -19,9 +19,9 @@ struct x509_certificate {
 	struct public_key_signature sig;	/* Signature parameters */
 	char		*issuer;		/* Name of certificate issuer */
 	char		*subject;		/* Name of certificate subject */
-	struct asymmetric_key_id *id;		/* Issuer + serial number */
-	struct asymmetric_key_id *skid;		/* Subject key identifier */
-	struct asymmetric_key_id *authority;	/* Authority key identifier */
+	struct asymmetric_key_id *id;		/* Serial number + issuer */
+	struct asymmetric_key_id *skid;		/* Subject + subjectKeyId (optional) */
+	struct asymmetric_key_id *authority;	/* Authority key identifier (optional) */
 	struct tm	valid_from;
 	struct tm	valid_to;
 	const void	*tbs;			/* Signed data */
