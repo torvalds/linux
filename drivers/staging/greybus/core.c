@@ -311,7 +311,7 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 	hd->parent = parent;
 	hd->driver = driver;
 	INIT_LIST_HEAD(&hd->modules);
-	INIT_LIST_HEAD(&hd->connections);
+	hd->connections = RB_ROOT;
 	ida_init(&hd->cport_id_map);
 
 	return hd;

@@ -187,7 +187,7 @@ struct greybus_host_device {
 	const struct greybus_host_driver *driver;
 
 	struct list_head modules;
-	struct list_head connections;
+	struct rb_root connections;
 	struct ida cport_id_map;
 
 	/* Private data for the host driver */

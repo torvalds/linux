@@ -19,7 +19,7 @@ struct gb_connection {
 	u16				hd_cport_id;
 	u16				interface_cport_id;
 
-	struct list_head		hd_links;
+	struct rb_node			hd_node;
 	struct list_head		interface_links;
 	enum greybus_protocol		protocol;
 
@@ -32,6 +32,9 @@ struct gb_connection {
 struct gb_connection *gb_connection_create(struct gb_interface *interface,
 				u16 cport_id, enum greybus_protocol protocol);
 void gb_connection_destroy(struct gb_connection *connection);
+
+struct gb_connection *gb_hd_connection_find(struct greybus_host_device *hd,
+				u16 cport_id);
 
 u16 gb_connection_op_id(struct gb_connection *connection);
 
