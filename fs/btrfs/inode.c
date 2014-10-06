@@ -814,6 +814,20 @@ retry:
 				    ins.objectid,
 				    ins.offset, async_extent->pages,
 				    async_extent->nr_pages);
+		if (ret) {
+			struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
+			struct page *p = async_extent->pages[0];
+			const u64 start = async_extent->start;
+			const u64 end = start + async_extent->ram_size - 1;
+
+			p->mapping = inode->i_mapping;
+			tree->ops->writepage_end_io_hook(p, start, end,
+							 NULL, 0);
+			p->mapping = NULL;
+			extent_clear_unlock_delalloc(inode, start, end, NULL, 0,
+						     PAGE_END_WRITEBACK |
+						     PAGE_SET_ERROR);
+		}
 		alloc_hint = ins.objectid + ins.offset;
 		kfree(async_extent);
 		if (ret)
