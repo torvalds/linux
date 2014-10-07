@@ -6,7 +6,7 @@
  *
  * Copyright 2014 Google Inc.
  *
- * Released under the GPLv2 only.
+ * Released under the GPLv2 and BSD licenses.
  */
 
 #ifndef __GREYBUS_MANIFEST_H
