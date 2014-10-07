@@ -207,7 +207,7 @@ static int rk312x_lcdc_disable_irq(struct lcdc_device *lcdc_dev)
 }
 
 
-static int win1_set_addr(struct lcdc_device *lcdc_dev, u32 addr)
+static int win0_set_addr(struct lcdc_device *lcdc_dev, u32 addr)
 {
 	spin_lock(&lcdc_dev->reg_lock);
 	lcdc_writel(lcdc_dev, WIN0_YRGB_MST, addr);
@@ -218,7 +218,7 @@ static int win1_set_addr(struct lcdc_device *lcdc_dev, u32 addr)
 	return 0;
 }
 
-static int win0_set_addr(struct lcdc_device *lcdc_dev, u32 addr)
+static int win1_set_addr(struct lcdc_device *lcdc_dev, u32 addr)
 {
 	spin_lock(&lcdc_dev->reg_lock);
 	if (lcdc_dev->soc_type == VOP_RK3036)
