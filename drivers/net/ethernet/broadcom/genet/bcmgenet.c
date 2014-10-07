@@ -191,8 +191,9 @@ enum dma_reg {
 	DMA_STATUS,
 	DMA_SCB_BURST_SIZE,
 	DMA_ARB_CTRL,
-	DMA_PRIORITY,
-	DMA_RING_PRIORITY,
+	DMA_PRIORITY_0,
+	DMA_PRIORITY_1,
+	DMA_PRIORITY_2,
 };
 
 static const u8 bcmgenet_dma_regs_v3plus[] = {
@@ -201,8 +202,9 @@ static const u8 bcmgenet_dma_regs_v3plus[] = {
 	[DMA_STATUS]		= 0x08,
 	[DMA_SCB_BURST_SIZE]	= 0x0C,
 	[DMA_ARB_CTRL]		= 0x2C,
-	[DMA_PRIORITY]		= 0x30,
-	[DMA_RING_PRIORITY]	= 0x38,
+	[DMA_PRIORITY_0]	= 0x30,
+	[DMA_PRIORITY_1]	= 0x34,
+	[DMA_PRIORITY_2]	= 0x38,
 };
 
 static const u8 bcmgenet_dma_regs_v2[] = {
@@ -211,8 +213,9 @@ static const u8 bcmgenet_dma_regs_v2[] = {
 	[DMA_STATUS]		= 0x08,
 	[DMA_SCB_BURST_SIZE]	= 0x0C,
 	[DMA_ARB_CTRL]		= 0x30,
-	[DMA_PRIORITY]		= 0x34,
-	[DMA_RING_PRIORITY]	= 0x3C,
+	[DMA_PRIORITY_0]	= 0x34,
+	[DMA_PRIORITY_1]	= 0x38,
+	[DMA_PRIORITY_2]	= 0x3C,
 };
 
 static const u8 bcmgenet_dma_regs_v1[] = {
@@ -220,8 +223,9 @@ static const u8 bcmgenet_dma_regs_v1[] = {
 	[DMA_STATUS]		= 0x04,
 	[DMA_SCB_BURST_SIZE]	= 0x0C,
 	[DMA_ARB_CTRL]		= 0x30,
-	[DMA_PRIORITY]		= 0x34,
-	[DMA_RING_PRIORITY]	= 0x3C,
+	[DMA_PRIORITY_0]	= 0x34,
+	[DMA_PRIORITY_1]	= 0x38,
+	[DMA_PRIORITY_2]	= 0x3C,
 };
 
 /* Set at runtime once bcmgenet version is known */
@@ -1696,7 +1700,8 @@ static void bcmgenet_init_multiq(struct net_device *dev)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	unsigned int i, dma_enable;
-	u32 reg, dma_ctrl, ring_cfg = 0, dma_priority = 0;
+	u32 reg, dma_ctrl, ring_cfg = 0;
+	u32 dma_priority[3] = {0, 0, 0};
 
 	if (!netif_is_multiqueue(dev)) {
 		netdev_warn(dev, "called with non multi queue aware HW\n");
@@ -1721,21 +1726,24 @@ static void bcmgenet_init_multiq(struct net_device *dev)
 
 		/* Configure ring as descriptor ring and setup priority */
 		ring_cfg |= 1 << i;
-		dma_priority |= ((GENET_Q0_PRIORITY + i) <<
-				(GENET_MAX_MQ_CNT + 1) * i);
 		dma_ctrl |= 1 << (i + DMA_RING_BUF_EN_SHIFT);
+
+		dma_priority[DMA_PRIO_REG_INDEX(i)] |=
+			((GENET_Q0_PRIORITY + i) << DMA_PRIO_REG_SHIFT(i));
 	}
+
+	/* Set ring 16 priority and program the hardware registers */
+	dma_priority[DMA_PRIO_REG_INDEX(DESC_INDEX)] |=
+		((GENET_Q0_PRIORITY + priv->hw_params->tx_queues) <<
+		 DMA_PRIO_REG_SHIFT(DESC_INDEX));
+	bcmgenet_tdma_writel(priv, dma_priority[0], DMA_PRIORITY_0);
+	bcmgenet_tdma_writel(priv, dma_priority[1], DMA_PRIORITY_1);
+	bcmgenet_tdma_writel(priv, dma_priority[2], DMA_PRIORITY_2);
 
 	/* Enable rings */
 	reg = bcmgenet_tdma_readl(priv, DMA_RING_CFG);
 	reg |= ring_cfg;
 	bcmgenet_tdma_writel(priv, reg, DMA_RING_CFG);
-
-	/* Use configured rings priority and set ring #16 priority */
-	reg = bcmgenet_tdma_readl(priv, DMA_RING_PRIORITY);
-	reg |= ((GENET_Q0_PRIORITY + priv->hw_params->tx_queues) << 20);
-	reg |= dma_priority;
-	bcmgenet_tdma_writel(priv, reg, DMA_PRIORITY);
 
 	/* Configure ring as descriptor ring and re-enable DMA if enabled */
 	reg = bcmgenet_tdma_readl(priv, DMA_CTRL);

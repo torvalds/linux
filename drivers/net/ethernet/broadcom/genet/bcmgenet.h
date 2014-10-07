@@ -401,6 +401,8 @@ struct bcmgenet_mib_counters {
 #define DMA_ARBITER_MODE_MASK		0x03
 #define DMA_RING_BUF_PRIORITY_MASK	0x1F
 #define DMA_RING_BUF_PRIORITY_SHIFT	5
+#define DMA_PRIO_REG_INDEX(q)		((q) / 6)
+#define DMA_PRIO_REG_SHIFT(q)		(((q) % 6) * DMA_RING_BUF_PRIORITY_SHIFT)
 #define DMA_RATE_ADJ_MASK		0xFF
 
 /* Tx/Rx Dma Descriptor common bits*/
