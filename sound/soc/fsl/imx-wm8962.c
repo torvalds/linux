@@ -281,10 +281,8 @@ static int imx_wm8962_probe(struct platform_device *pdev)
 clk_fail:
 	clk_disable_unprepare(data->codec_clk);
 fail:
-	if (ssi_np)
-		of_node_put(ssi_np);
-	if (codec_np)
-		of_node_put(codec_np);
+	of_node_put(ssi_np);
+	of_node_put(codec_np);
 
 	return ret;
 }
