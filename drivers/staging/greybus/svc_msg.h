@@ -6,7 +6,7 @@
  *
  * Copyright 2014 Google Inc.
  *
- * Released under the GPLv2 only.
+ * Released under the GPLv2 and BSD license.
  */
 
 #ifndef __SVC_MSG_H
