@@ -47,6 +47,7 @@ static inc_group_count(struct list_head *list,
 %token PE_NAME_CACHE_TYPE PE_NAME_CACHE_OP_RESULT
 %token PE_PREFIX_MEM PE_PREFIX_RAW PE_PREFIX_GROUP
 %token PE_ERROR
+%token PE_PMU_EVENT_PRE PE_PMU_EVENT_SUF PE_KERNEL_PMU_EVENT
 %type <num> PE_VALUE
 %type <num> PE_VALUE_SYM_HW
 %type <num> PE_VALUE_SYM_SW
@@ -58,6 +59,7 @@ static inc_group_count(struct list_head *list,
 %type <str> PE_MODIFIER_EVENT
 %type <str> PE_MODIFIER_BP
 %type <str> PE_EVENT_NAME
+%type <str> PE_PMU_EVENT_PRE PE_PMU_EVENT_SUF PE_KERNEL_PMU_EVENT
 %type <num> value_sym
 %type <head> event_config
 %type <term> event_term
@@ -218,6 +220,44 @@ PE_NAME '/' '/'
 
 	ALLOC_LIST(list);
 	ABORT_ON(parse_events_add_pmu(list, &data->idx, $1, NULL));
+	$$ = list;
+}
+|
+PE_KERNEL_PMU_EVENT sep_dc
+{
+	struct parse_events_evlist *data = _data;
+	struct list_head *head;
+	struct parse_events_term *term;
+	struct list_head *list;
+
+	ALLOC_LIST(head);
+	ABORT_ON(parse_events_term__num(&term, PARSE_EVENTS__TERM_TYPE_USER,
+					$1, 1));
+	list_add_tail(&term->list, head);
+
+	ALLOC_LIST(list);
+	ABORT_ON(parse_events_add_pmu(list, &data->idx, "cpu", head));
+	parse_events__free_terms(head);
+	$$ = list;
+}
+|
+PE_PMU_EVENT_PRE '-' PE_PMU_EVENT_SUF sep_dc
+{
+	struct parse_events_evlist *data = _data;
+	struct list_head *head;
+	struct parse_events_term *term;
+	struct list_head *list;
+	char pmu_name[128];
+	snprintf(&pmu_name, 128, "%s-%s", $1, $3);
+
+	ALLOC_LIST(head);
+	ABORT_ON(parse_events_term__num(&term, PARSE_EVENTS__TERM_TYPE_USER,
+					&pmu_name, 1));
+	list_add_tail(&term->list, head);
+
+	ALLOC_LIST(list);
+	ABORT_ON(parse_events_add_pmu(list, &data->idx, "cpu", head));
+	parse_events__free_terms(head);
 	$$ = list;
 }
 
