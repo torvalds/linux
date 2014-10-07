@@ -640,8 +640,7 @@ static inline int __cvmx_usb_get_data_pid(struct cvmx_usb_pipe *pipe)
 {
 	if (pipe->pid_toggle)
 		return 2; /* Data1 */
-	else
-		return 0; /* Data0 */
+	return 0; /* Data0 */
 }
 
 /**
