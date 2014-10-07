@@ -995,7 +995,7 @@ at86rf230_xmit(struct ieee802154_dev *dev, struct sk_buff *skb)
 	rc = wait_for_completion_interruptible_timeout(&lp->tx_complete,
 						       msecs_to_jiffies(lp->data->t_tx_timeout));
 	if (!rc) {
-		at86rf230_async_error(lp, ctx, rc);
+		at86rf230_async_error(lp, ctx, -ETIMEDOUT);
 		return -ETIMEDOUT;
 	}
 
