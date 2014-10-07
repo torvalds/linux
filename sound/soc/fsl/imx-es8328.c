@@ -104,6 +104,7 @@ static int imx_es8328_probe(struct platform_device *pdev)
 	if (ext_port > MUX_PORT_MAX || ext_port == 0) {
 		dev_err(dev, "mux-ext-port: hardware only has %d mux ports\n",
 			MUX_PORT_MAX);
+		ret = -EINVAL;
 		goto fail;
 	}
 
