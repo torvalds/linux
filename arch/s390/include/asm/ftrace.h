@@ -18,14 +18,8 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
 
 #endif /* __ASSEMBLY__ */
 
-#ifdef CONFIG_64BIT
 #define MCOUNT_INSN_SIZE  18
-#else
-#define MCOUNT_INSN_SIZE  22
-#endif
 
-#ifdef CONFIG_64BIT
 #define ARCH_SUPPORTS_FTRACE_OPS 1
-#endif
 
 #endif /* _ASM_S390_FTRACE_H */
