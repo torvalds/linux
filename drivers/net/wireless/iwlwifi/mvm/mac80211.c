@@ -423,7 +423,8 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 			       NL80211_FEATURE_LOW_PRIORITY_SCAN |
 			       NL80211_FEATURE_P2P_GO_OPPPS |
 			       NL80211_FEATURE_DYNAMIC_SMPS |
-			       NL80211_FEATURE_STATIC_SMPS;
+			       NL80211_FEATURE_STATIC_SMPS |
+			       NL80211_FEATURE_SUPPORTS_WMM_ADMISSION;
 
 	if (mvm->fw->ucode_capa.capa[0] &
 	    IWL_UCODE_TLV_CAPA_TXPOWER_INSERTION_SUPPORT)

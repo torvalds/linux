@@ -658,6 +658,12 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 			seq_ctl = le16_to_cpu(hdr->seq_ctrl);
 		}
 
+		/*
+		 * TODO: this is not accurate if we are freeing more than one
+		 * packet.
+		 */
+		info->status.tx_time =
+			le16_to_cpu(tx_resp->wireless_media_time);
 		BUILD_BUG_ON(ARRAY_SIZE(info->status.status_driver_data) < 1);
 		info->status.status_driver_data[0] =
 				(void *)(uintptr_t)tx_resp->reduced_tpc;
@@ -850,6 +856,8 @@ static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 		mvmsta->tid_data[tid].rate_n_flags =
 			le32_to_cpu(tx_resp->initial_rate);
 		mvmsta->tid_data[tid].reduced_tpc = tx_resp->reduced_tpc;
+		mvmsta->tid_data[tid].tx_time =
+			le16_to_cpu(tx_resp->wireless_media_time);
 	}
 
 	rcu_read_unlock();
@@ -878,6 +886,8 @@ static void iwl_mvm_tx_info_from_ba_notif(struct ieee80211_tx_info *info,
 	info->status.ampdu_len = ba_notif->txed;
 	iwl_mvm_hwrate_to_tx_status(tid_data->rate_n_flags,
 				    info);
+	/* TODO: not accounted if the whole A-MPDU failed */
+	info->status.tx_time = tid_data->tx_time;
 	info->status.status_driver_data[0] =
 		(void *)(uintptr_t)tid_data->reduced_tpc;
 }

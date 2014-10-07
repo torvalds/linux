@@ -264,6 +264,7 @@ enum iwl_mvm_agg_state {
  *	the first packet to be sent in legacy HW queue in Tx AGG stop flow.
  *	Basically when next_reclaimed reaches ssn, we can tell mac80211 that
  *	we are ready to finish the Tx AGG stop / start flow.
+ * @tx_time: medium time consumed by this A-MPDU
  */
 struct iwl_mvm_tid_data {
 	u16 seq_number;
@@ -274,6 +275,7 @@ struct iwl_mvm_tid_data {
 	enum iwl_mvm_agg_state state;
 	u16 txq_id;
 	u16 ssn;
+	u16 tx_time;
 };
 
 static inline u16 iwl_mvm_tid_queued(struct iwl_mvm_tid_data *tid_data)
