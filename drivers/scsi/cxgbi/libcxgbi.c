@@ -57,6 +57,9 @@ MODULE_PARM_DESC(dbg_level, "libiscsi debug level (default=0)");
 static LIST_HEAD(cdev_list);
 static DEFINE_MUTEX(cdev_mutex);
 
+static LIST_HEAD(cdev_rcu_list);
+static DEFINE_SPINLOCK(cdev_rcu_lock);
+
 int cxgbi_device_portmap_create(struct cxgbi_device *cdev, unsigned int base,
 				unsigned int max_conn)
 {
@@ -142,6 +145,10 @@ struct cxgbi_device *cxgbi_device_register(unsigned int extra,
 	list_add_tail(&cdev->list_head, &cdev_list);
 	mutex_unlock(&cdev_mutex);
 
+	spin_lock(&cdev_rcu_lock);
+	list_add_tail_rcu(&cdev->rcu_node, &cdev_rcu_list);
+	spin_unlock(&cdev_rcu_lock);
+
 	log_debug(1 << CXGBI_DBG_DEV,
 		"cdev 0x%p, p# %u.\n", cdev, nports);
 	return cdev;
@@ -153,9 +160,16 @@ void cxgbi_device_unregister(struct cxgbi_device *cdev)
 	log_debug(1 << CXGBI_DBG_DEV,
 		"cdev 0x%p, p# %u,%s.\n",
 		cdev, cdev->nports, cdev->nports ? cdev->ports[0]->name : "");
+
 	mutex_lock(&cdev_mutex);
 	list_del(&cdev->list_head);
 	mutex_unlock(&cdev_mutex);
+
+	spin_lock(&cdev_rcu_lock);
+	list_del_rcu(&cdev->rcu_node);
+	spin_unlock(&cdev_rcu_lock);
+	synchronize_rcu();
+
 	cxgbi_device_destroy(cdev);
 }
 EXPORT_SYMBOL_GPL(cxgbi_device_unregister);
@@ -167,12 +181,9 @@ void cxgbi_device_unregister_all(unsigned int flag)
 	mutex_lock(&cdev_mutex);
 	list_for_each_entry_safe(cdev, tmp, &cdev_list, list_head) {
 		if ((cdev->flags & flag) == flag) {
-			log_debug(1 << CXGBI_DBG_DEV,
-				"cdev 0x%p, p# %u,%s.\n",
-				cdev, cdev->nports, cdev->nports ?
-				 cdev->ports[0]->name : "");
-			list_del(&cdev->list_head);
-			cxgbi_device_destroy(cdev);
+			mutex_unlock(&cdev_mutex);
+			cxgbi_device_unregister(cdev);
+			mutex_lock(&cdev_mutex);
 		}
 	}
 	mutex_unlock(&cdev_mutex);
@@ -191,6 +202,7 @@ struct cxgbi_device *cxgbi_device_find_by_lldev(void *lldev)
 		}
 	}
 	mutex_unlock(&cdev_mutex);
+
 	log_debug(1 << CXGBI_DBG_DEV,
 		"lldev 0x%p, NO match found.\n", lldev);
 	return NULL;
@@ -229,6 +241,39 @@ struct cxgbi_device *cxgbi_device_find_by_netdev(struct net_device *ndev,
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(cxgbi_device_find_by_netdev);
+
+struct cxgbi_device *cxgbi_device_find_by_netdev_rcu(struct net_device *ndev,
+						     int *port)
+{
+	struct net_device *vdev = NULL;
+	struct cxgbi_device *cdev;
+	int i;
+
+	if (ndev->priv_flags & IFF_802_1Q_VLAN) {
+		vdev = ndev;
+		ndev = vlan_dev_real_dev(ndev);
+		pr_info("vlan dev %s -> %s.\n", vdev->name, ndev->name);
+	}
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(cdev, &cdev_rcu_list, rcu_node) {
+		for (i = 0; i < cdev->nports; i++) {
+			if (ndev == cdev->ports[i]) {
+				cdev->hbas[i]->vdev = vdev;
+				rcu_read_unlock();
+				if (port)
+					*port = i;
+				return cdev;
+			}
+		}
+	}
+	rcu_read_unlock();
+
+	log_debug(1 << CXGBI_DBG_DEV,
+		  "ndev 0x%p, %s, NO match found.\n", ndev, ndev->name);
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(cxgbi_device_find_by_netdev_rcu);
 
 static struct cxgbi_device *cxgbi_device_find_by_mac(struct net_device *ndev,
 						     int *port)
@@ -1807,7 +1852,7 @@ static void csk_return_rx_credits(struct cxgbi_sock *csk, int copied)
 	u32 credits;
 
 	log_debug(1 << CXGBI_DBG_PDU_RX,
-		"csk 0x%p,%u,0x%lu,%u, seq %u, wup %u, thre %u, %u.\n",
+		"csk 0x%p,%u,0x%lx,%u, seq %u, wup %u, thre %u, %u.\n",
 		csk, csk->state, csk->flags, csk->tid, csk->copied_seq,
 		csk->rcv_wup, cdev->rx_credit_thres,
 		cdev->rcv_win);

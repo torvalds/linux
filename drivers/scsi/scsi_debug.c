@@ -123,7 +123,7 @@ static const char *scsi_debug_version_date = "20140706";
 #define DEF_PHYSBLK_EXP 0
 #define DEF_PTYPE   0
 #define DEF_REMOVABLE false
-#define DEF_SCSI_LEVEL   5    /* INQUIRY, byte2 [5->SPC-3] */
+#define DEF_SCSI_LEVEL   6    /* INQUIRY, byte2 [6->SPC-4] */
 #define DEF_SECTOR_SIZE 512
 #define DEF_TAGGED_QUEUING 0 /* 0 | MSG_SIMPLE_TAG | MSG_ORDERED_TAG */
 #define DEF_UNMAP_ALIGNMENT 0
@@ -929,7 +929,7 @@ static int resp_inquiry(struct scsi_cmnd *scp, int target,
 {
 	unsigned char pq_pdt;
 	unsigned char * arr;
-	unsigned char *cmd = (unsigned char *)scp->cmnd;
+	unsigned char *cmd = scp->cmnd;
 	int alloc_len, n, ret;
 
 	alloc_len = (cmd[3] << 8) + cmd[4];
@@ -1056,15 +1056,15 @@ static int resp_inquiry(struct scsi_cmnd *scp, int target,
 	memcpy(&arr[16], inq_product_id, 16);
 	memcpy(&arr[32], inq_product_rev, 4);
 	/* version descriptors (2 bytes each) follow */
-	arr[58] = 0x0; arr[59] = 0x77; /* SAM-3 ANSI */
-	arr[60] = 0x3; arr[61] = 0x14;  /* SPC-3 ANSI */
+	arr[58] = 0x0; arr[59] = 0xa2;  /* SAM-5 rev 4 */
+	arr[60] = 0x4; arr[61] = 0x68;  /* SPC-4 rev 37 */
 	n = 62;
 	if (scsi_debug_ptype == 0) {
-		arr[n++] = 0x3; arr[n++] = 0x3d; /* SBC-2 ANSI */
+		arr[n++] = 0x4; arr[n++] = 0xc5; /* SBC-4 rev 36 */
 	} else if (scsi_debug_ptype == 1) {
-		arr[n++] = 0x3; arr[n++] = 0x60; /* SSC-2 no version */
+		arr[n++] = 0x5; arr[n++] = 0x25; /* SSC-4 rev 3 */
 	}
-	arr[n++] = 0xc; arr[n++] = 0xf;  /* SAS-1.1 rev 10 */
+	arr[n++] = 0x20; arr[n++] = 0xe6;  /* SPL-3 rev 7 */
 	ret = fill_from_dev_buffer(scp, arr,
 			    min(alloc_len, SDEBUG_LONG_INQ_SZ));
 	kfree(arr);
@@ -1075,7 +1075,7 @@ static int resp_requests(struct scsi_cmnd * scp,
 			 struct sdebug_dev_info * devip)
 {
 	unsigned char * sbuff;
-	unsigned char *cmd = (unsigned char *)scp->cmnd;
+	unsigned char *cmd = scp->cmnd;
 	unsigned char arr[SCSI_SENSE_BUFFERSIZE];
 	int want_dsense;
 	int len = 18;
@@ -1115,7 +1115,7 @@ static int resp_requests(struct scsi_cmnd * scp,
 static int resp_start_stop(struct scsi_cmnd * scp,
 			   struct sdebug_dev_info * devip)
 {
-	unsigned char *cmd = (unsigned char *)scp->cmnd;
+	unsigned char *cmd = scp->cmnd;
 	int power_cond, errsts, start;
 
 	errsts = check_readiness(scp, UAS_ONLY, devip);
@@ -1177,7 +1177,7 @@ static int resp_readcap(struct scsi_cmnd * scp,
 static int resp_readcap16(struct scsi_cmnd * scp,
 			  struct sdebug_dev_info * devip)
 {
-	unsigned char *cmd = (unsigned char *)scp->cmnd;
+	unsigned char *cmd = scp->cmnd;
 	unsigned char arr[SDEBUG_READCAP16_ARR_SZ];
 	unsigned long long capac;
 	int errsts, k, alloc_len;
@@ -1222,7 +1222,7 @@ static int resp_readcap16(struct scsi_cmnd * scp,
 static int resp_report_tgtpgs(struct scsi_cmnd * scp,
 			      struct sdebug_dev_info * devip)
 {
-	unsigned char *cmd = (unsigned char *)scp->cmnd;
+	unsigned char *cmd = scp->cmnd;
 	unsigned char * arr;
 	int host_no = devip->sdbg_host->shost->host_no;
 	int n, ret, alen, rlen;
@@ -1468,7 +1468,7 @@ static int resp_mode_sense(struct scsi_cmnd * scp, int target,
 	int k, alloc_len, msense_6, offset, len, errsts, target_dev_id;
 	unsigned char * ap;
 	unsigned char arr[SDEBUG_MAX_MSENSE_SZ];
-	unsigned char *cmd = (unsigned char *)scp->cmnd;
+	unsigned char *cmd = scp->cmnd;
 
 	errsts = check_readiness(scp, UAS_ONLY, devip);
 	if (errsts)
@@ -1630,7 +1630,7 @@ static int resp_mode_select(struct scsi_cmnd * scp, int mselect6,
 	int pf, sp, ps, md_len, bd_len, off, spf, pg_len;
 	int param_len, res, errsts, mpage;
 	unsigned char arr[SDEBUG_MAX_MSELECT_SZ];
-	unsigned char *cmd = (unsigned char *)scp->cmnd;
+	unsigned char *cmd = scp->cmnd;
 
 	errsts = check_readiness(scp, UAS_ONLY, devip);
 	if (errsts)
@@ -1739,7 +1739,7 @@ static int resp_log_sense(struct scsi_cmnd * scp,
 {
 	int ppc, sp, pcontrol, pcode, subpcode, alloc_len, errsts, len, n;
 	unsigned char arr[SDEBUG_MAX_LSENSE_SZ];
-	unsigned char *cmd = (unsigned char *)scp->cmnd;
+	unsigned char *cmd = scp->cmnd;
 
 	errsts = check_readiness(scp, UAS_ONLY, devip);
 	if (errsts)
@@ -2414,7 +2414,7 @@ static int resp_report_luns(struct scsi_cmnd * scp,
 	unsigned int alloc_len;
 	int lun_cnt, i, upper, num, n;
 	u64 wlun, lun;
-	unsigned char *cmd = (unsigned char *)scp->cmnd;
+	unsigned char *cmd = scp->cmnd;
 	int select_report = (int)cmd[2];
 	struct scsi_lun *one_lun;
 	unsigned char arr[SDEBUG_RLUN_ARR_SZ];
@@ -2743,6 +2743,13 @@ static int stop_queued_cmnd(struct scsi_cmnd *cmnd)
 		if (test_bit(k, queued_in_use_bm)) {
 			sqcp = &queued_arr[k];
 			if (cmnd == sqcp->a_cmnd) {
+				devip = (struct sdebug_dev_info *)
+					cmnd->device->hostdata;
+				if (devip)
+					atomic_dec(&devip->num_in_q);
+				sqcp->a_cmnd = NULL;
+				spin_unlock_irqrestore(&queued_arr_lock,
+						       iflags);
 				if (scsi_debug_ndelay > 0) {
 					if (sqcp->sd_hrtp)
 						hrtimer_cancel(
@@ -2755,18 +2762,13 @@ static int stop_queued_cmnd(struct scsi_cmnd *cmnd)
 					if (sqcp->tletp)
 						tasklet_kill(sqcp->tletp);
 				}
-				__clear_bit(k, queued_in_use_bm);
-				devip = (struct sdebug_dev_info *)
-					cmnd->device->hostdata;
-				if (devip)
-					atomic_dec(&devip->num_in_q);
-				sqcp->a_cmnd = NULL;
-				break;
+				clear_bit(k, queued_in_use_bm);
+				return 1;
 			}
 		}
 	}
 	spin_unlock_irqrestore(&queued_arr_lock, iflags);
-	return (k < qmax) ? 1 : 0;
+	return 0;
 }
 
 /* Deletes (stops) timers or tasklets of all queued commands */
@@ -2782,6 +2784,13 @@ static void stop_all_queued(void)
 		if (test_bit(k, queued_in_use_bm)) {
 			sqcp = &queued_arr[k];
 			if (sqcp->a_cmnd) {
+				devip = (struct sdebug_dev_info *)
+					sqcp->a_cmnd->device->hostdata;
+				if (devip)
+					atomic_dec(&devip->num_in_q);
+				sqcp->a_cmnd = NULL;
+				spin_unlock_irqrestore(&queued_arr_lock,
+						       iflags);
 				if (scsi_debug_ndelay > 0) {
 					if (sqcp->sd_hrtp)
 						hrtimer_cancel(
@@ -2794,12 +2803,8 @@ static void stop_all_queued(void)
 					if (sqcp->tletp)
 						tasklet_kill(sqcp->tletp);
 				}
-				__clear_bit(k, queued_in_use_bm);
-				devip = (struct sdebug_dev_info *)
-					sqcp->a_cmnd->device->hostdata;
-				if (devip)
-					atomic_dec(&devip->num_in_q);
-				sqcp->a_cmnd = NULL;
+				clear_bit(k, queued_in_use_bm);
+				spin_lock_irqsave(&queued_arr_lock, iflags);
 			}
 		}
 	}
@@ -3006,7 +3011,7 @@ schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 	      int scsi_result, int delta_jiff)
 {
 	unsigned long iflags;
-	int k, num_in_q, tsf, qdepth, inject;
+	int k, num_in_q, qdepth, inject;
 	struct sdebug_queued_cmd *sqcp = NULL;
 	struct scsi_device *sdp = cmnd->device;
 
@@ -3019,55 +3024,48 @@ schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 	if ((scsi_result) && (SCSI_DEBUG_OPT_NOISE & scsi_debug_opts))
 		sdev_printk(KERN_INFO, sdp, "%s: non-zero result=0x%x\n",
 			    __func__, scsi_result);
-	if (delta_jiff == 0) {
-		/* using same thread to call back mid-layer */
-		cmnd->result = scsi_result;
-		cmnd->scsi_done(cmnd);
-		return 0;
-	}
+	if (delta_jiff == 0)
+		goto respond_in_thread;
 
-	/* deferred response cases */
+	/* schedule the response at a later time if resources permit */
 	spin_lock_irqsave(&queued_arr_lock, iflags);
 	num_in_q = atomic_read(&devip->num_in_q);
 	qdepth = cmnd->device->queue_depth;
-	k = find_first_zero_bit(queued_in_use_bm, scsi_debug_max_queue);
-	tsf = 0;
 	inject = 0;
-	if ((qdepth > 0) && (num_in_q >= qdepth))
-		tsf = 1;
-	else if ((scsi_debug_every_nth != 0) &&
-		 (SCSI_DEBUG_OPT_RARE_TSF & scsi_debug_opts)) {
+	if ((qdepth > 0) && (num_in_q >= qdepth)) {
+		if (scsi_result) {
+			spin_unlock_irqrestore(&queued_arr_lock, iflags);
+			goto respond_in_thread;
+		} else
+			scsi_result = device_qfull_result;
+	} else if ((scsi_debug_every_nth != 0) &&
+		   (SCSI_DEBUG_OPT_RARE_TSF & scsi_debug_opts) &&
+		   (scsi_result == 0)) {
 		if ((num_in_q == (qdepth - 1)) &&
 		    (atomic_inc_return(&sdebug_a_tsf) >=
 		     abs(scsi_debug_every_nth))) {
 			atomic_set(&sdebug_a_tsf, 0);
 			inject = 1;
-			tsf = 1;
+			scsi_result = device_qfull_result;
 		}
 	}
 
-	/* if (tsf) simulate device reporting SCSI status of TASK SET FULL.
-	 * Might override existing CHECK CONDITION. */
-	if (tsf)
-		scsi_result = device_qfull_result;
+	k = find_first_zero_bit(queued_in_use_bm, scsi_debug_max_queue);
 	if (k >= scsi_debug_max_queue) {
-		if (SCSI_DEBUG_OPT_ALL_TSF & scsi_debug_opts)
-			tsf = 1;
 		spin_unlock_irqrestore(&queued_arr_lock, iflags);
+		if (scsi_result)
+			goto respond_in_thread;
+		else if (SCSI_DEBUG_OPT_ALL_TSF & scsi_debug_opts)
+			scsi_result = device_qfull_result;
 		if (SCSI_DEBUG_OPT_Q_NOISE & scsi_debug_opts)
 			sdev_printk(KERN_INFO, sdp,
-				    "%s: num_in_q=%d, bypass q, %s%s\n",
-				    __func__, num_in_q,
-				    (inject ? "<inject> " : ""),
-				    (tsf ?  "status: TASK SET FULL" :
-					    "report: host busy"));
-		if (tsf) {
-			/* queued_arr full so respond in same thread */
-			cmnd->result = scsi_result;
-			cmnd->scsi_done(cmnd);
-			/* As scsi_done() is called "inline" must return 0 */
-			return 0;
-		} else
+				    "%s: max_queue=%d exceeded, %s\n",
+				    __func__, scsi_debug_max_queue,
+				    (scsi_result ?  "status: TASK SET FULL" :
+						    "report: host busy"));
+		if (scsi_result)
+			goto respond_in_thread;
+		else
 			return SCSI_MLQUEUE_HOST_BUSY;
 	}
 	__set_bit(k, queued_in_use_bm);
@@ -3117,11 +3115,17 @@ schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 		else
 			tasklet_schedule(sqcp->tletp);
 	}
-	if (tsf && (SCSI_DEBUG_OPT_Q_NOISE & scsi_debug_opts))
+	if ((SCSI_DEBUG_OPT_Q_NOISE & scsi_debug_opts) &&
+	    (scsi_result == device_qfull_result))
 		sdev_printk(KERN_INFO, sdp,
 			    "%s: num_in_q=%d +1, %s%s\n", __func__,
 			    num_in_q, (inject ? "<inject> " : ""),
 			    "status: TASK SET FULL");
+	return 0;
+
+respond_in_thread:	/* call back to mid-layer using invocation thread */
+	cmnd->result = scsi_result;
+	cmnd->scsi_done(cmnd);
 	return 0;
 }
 
@@ -3206,7 +3210,7 @@ MODULE_PARM_DESC(opts, "1->noise, 2->medium_err, 4->timeout, 8->recovered_err...
 MODULE_PARM_DESC(physblk_exp, "physical block exponent (def=0)");
 MODULE_PARM_DESC(ptype, "SCSI peripheral type(def=0[disk])");
 MODULE_PARM_DESC(removable, "claim to have removable media (def=0)");
-MODULE_PARM_DESC(scsi_level, "SCSI level to simulate(def=5[SPC-3])");
+MODULE_PARM_DESC(scsi_level, "SCSI level to simulate(def=6[SPC-4])");
 MODULE_PARM_DESC(sector_size, "logical block size in bytes (def=512)");
 MODULE_PARM_DESC(unmap_alignment, "lowest aligned thin provisioning lba (def=0)");
 MODULE_PARM_DESC(unmap_granularity, "thin provisioning granularity in blocks (def=1)");
@@ -4085,7 +4089,7 @@ static void sdebug_remove_adapter(void)
 static int
 scsi_debug_queuecommand(struct scsi_cmnd *SCpnt)
 {
-	unsigned char *cmd = (unsigned char *) SCpnt->cmnd;
+	unsigned char *cmd = SCpnt->cmnd;
 	int len, k;
 	unsigned int num;
 	unsigned long long lba;
@@ -4103,7 +4107,7 @@ scsi_debug_queuecommand(struct scsi_cmnd *SCpnt)
 
 	scsi_set_resid(SCpnt, 0);
 	if ((SCSI_DEBUG_OPT_NOISE & scsi_debug_opts) &&
-	    !(SCSI_DEBUG_OPT_NO_CDB_NOISE & scsi_debug_opts) && cmd) {
+	    !(SCSI_DEBUG_OPT_NO_CDB_NOISE & scsi_debug_opts)) {
 		char b[120];
 		int n;
 

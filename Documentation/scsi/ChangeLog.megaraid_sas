@@ -1,3 +1,17 @@
+Release Date    : Thu. Jun 19, 2014 17:00:00 PST 2014 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Adam Radford
+			Kashyap Desai
+			Sumit Saxena
+			Uday Lingala
+Current Version : 06.803.02.00-rc1
+Old Version     : 06.803.01.00-rc1
+    1. Fix reset_mutex leak in megasas_reset_fusion().
+    2. Remove unused variables in megasas_instance.
+    3. Fix LD/VF affiliation parsing.
+    4. Add missing initial call to megasas_get_ld_vf_affiliation().
+    5. Version and Changelog update.
+-------------------------------------------------------------------------------
 Release Date    : Mon. Mar 10, 2014 17:00:00 PST 2014 -
 			(emaild-id:megaraidlinux@lsi.com)
 			Adam Radford

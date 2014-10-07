@@ -3,7 +3,7 @@
  * for access to MPT (Message Passing Technology) firmware.
  *
  * This code is based on drivers/scsi/mpt2sas/mpt2_base.h
- * Copyright (C) 2007-2013  LSI Corporation
+ * Copyright (C) 2007-2014  LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -69,8 +69,8 @@
 #define MPT2SAS_DRIVER_NAME		"mpt2sas"
 #define MPT2SAS_AUTHOR	"LSI Corporation <DL-MPTFusionLinux@lsi.com>"
 #define MPT2SAS_DESCRIPTION	"LSI MPT Fusion SAS 2.0 Device Driver"
-#define MPT2SAS_DRIVER_VERSION		"16.100.00.00"
-#define MPT2SAS_MAJOR_VERSION		16
+#define MPT2SAS_DRIVER_VERSION		"18.100.00.00"
+#define MPT2SAS_MAJOR_VERSION		18
 #define MPT2SAS_MINOR_VERSION		100
 #define MPT2SAS_BUILD_VERSION		00
 #define MPT2SAS_RELEASE_VERSION		00
@@ -355,6 +355,7 @@ struct _internal_cmd {
  * @slot: number number
  * @phy: phy identifier provided in sas device page 0
  * @responding: used in _scsih_sas_device_mark_responding
+ * @pfa_led_on: flag for PFA LED status
  */
 struct _sas_device {
 	struct list_head list;
@@ -373,6 +374,7 @@ struct _sas_device {
 	u16	slot;
 	u8	phy;
 	u8	responding;
+	u8	pfa_led_on;
 };
 
 /**
@@ -634,6 +636,11 @@ struct mpt2sas_port_facts {
 	u16			MaxPostedCmdBuffers;
 };
 
+struct reply_post_struct {
+	Mpi2ReplyDescriptorsUnion_t	*reply_post_free;
+	dma_addr_t			reply_post_free_dma;
+};
+
 /**
  * enum mutex_type - task management mutex type
  * @TM_MUTEX_OFF: mutex is not required becuase calling function is acquiring it
@@ -661,6 +668,7 @@ typedef void (*MPT2SAS_FLUSH_RUNNING_CMDS)(struct MPT2SAS_ADAPTER *ioc);
  * @ir_firmware: IR firmware present
  * @bars: bitmask of BAR's that must be configured
  * @mask_interrupts: ignore interrupt
+ * @dma_mask: used to set the consistent dma mask
  * @fault_reset_work_q_name: fw fault work queue
  * @fault_reset_work_q: ""
  * @fault_reset_work: ""
@@ -777,8 +785,11 @@ typedef void (*MPT2SAS_FLUSH_RUNNING_CMDS)(struct MPT2SAS_ADAPTER *ioc);
  * @reply_free_dma_pool:
  * @reply_free_host_index: tail index in pool to insert free replys
  * @reply_post_queue_depth: reply post queue depth
- * @reply_post_free: pool for reply post (64bit descriptor)
- * @reply_post_free_dma:
+ * @reply_post_struct: struct for reply_post_free physical & virt address
+ * @rdpq_array_capable: FW supports multiple reply queue addresses in ioc_init
+ * @rdpq_array_enable: rdpq_array support is enabled in the driver
+ * @rdpq_array_enable_assigned: this ensures that rdpq_array_enable flag
+ *				is assigned only ones
  * @reply_queue_count: number of reply queue's
  * @reply_queue_list: link list contaning the reply queue info
  * @reply_post_host_index: head index in the pool where FW completes IO
@@ -800,6 +811,7 @@ struct MPT2SAS_ADAPTER {
 	u8		ir_firmware;
 	int		bars;
 	u8		mask_interrupts;
+	int		dma_mask;
 
 	/* fw fault handler */
 	char		fault_reset_work_q_name[20];
@@ -970,8 +982,10 @@ struct MPT2SAS_ADAPTER {
 
 	/* reply post queue */
 	u16 		reply_post_queue_depth;
-	Mpi2ReplyDescriptorsUnion_t *reply_post_free;
-	dma_addr_t	reply_post_free_dma;
+	struct reply_post_struct *reply_post;
+	u8		rdpq_array_capable;
+	u8		rdpq_array_enable;
+	u8		rdpq_array_enable_assigned;
 	struct dma_pool *reply_post_free_dma_pool;
 	u8		reply_queue_count;
 	struct list_head reply_queue_list;
