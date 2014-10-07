@@ -104,7 +104,7 @@ static int fsl_pq_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 {
 	struct fsl_pq_mdio_priv *priv = bus->priv;
 	struct fsl_pq_mii __iomem *regs = priv->regs;
-	u32 status;
+	unsigned int timeout;
 
 	/* Set the PHY address and the register address we want to write */
 	iowrite32be((mii_id << 8) | regnum, &regs->miimadd);
@@ -113,10 +113,13 @@ static int fsl_pq_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 	iowrite32be(value, &regs->miimcon);
 
 	/* Wait for the transaction to finish */
-	status = spin_event_timeout(!(ioread32be(&regs->miimind) &
-				    MIIMIND_BUSY), MII_TIMEOUT, 0);
+	timeout = MII_TIMEOUT;
+	while ((ioread32be(&regs->miimind) & MIIMIND_BUSY) && timeout) {
+		cpu_relax();
+		timeout--;
+	}
 
-	return status ? 0 : -ETIMEDOUT;
+	return timeout ? 0 : -ETIMEDOUT;
 }
 
 /*
@@ -133,7 +136,7 @@ static int fsl_pq_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 {
 	struct fsl_pq_mdio_priv *priv = bus->priv;
 	struct fsl_pq_mii __iomem *regs = priv->regs;
-	u32 status;
+	unsigned int timeout;
 	u16 value;
 
 	/* Set the PHY address and the register address we want to read */
@@ -144,10 +147,14 @@ static int fsl_pq_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 	iowrite32be(MII_READ_COMMAND, &regs->miimcom);
 
 	/* Wait for the transaction to finish, normally less than 100us */
-	status = spin_event_timeout(!(ioread32be(&regs->miimind) &
-				    (MIIMIND_NOTVALID | MIIMIND_BUSY)),
-				    MII_TIMEOUT, 0);
-	if (!status)
+	timeout = MII_TIMEOUT;
+	while ((ioread32be(&regs->miimind) &
+	       (MIIMIND_NOTVALID | MIIMIND_BUSY)) && timeout) {
+		cpu_relax();
+		timeout--;
+	}
+
+	if (!timeout)
 		return -ETIMEDOUT;
 
 	/* Grab the value of the register from miimstat */
@@ -162,7 +169,7 @@ static int fsl_pq_mdio_reset(struct mii_bus *bus)
 {
 	struct fsl_pq_mdio_priv *priv = bus->priv;
 	struct fsl_pq_mii __iomem *regs = priv->regs;
-	u32 status;
+	unsigned int timeout;
 
 	mutex_lock(&bus->mdio_lock);
 
@@ -173,12 +180,15 @@ static int fsl_pq_mdio_reset(struct mii_bus *bus)
 	iowrite32be(MIIMCFG_INIT_VALUE, &regs->miimcfg);
 
 	/* Wait until the bus is free */
-	status = spin_event_timeout(!(ioread32be(&regs->miimind) &
-				    MIIMIND_BUSY), MII_TIMEOUT, 0);
+	timeout = MII_TIMEOUT;
+	while ((ioread32be(&regs->miimind) & MIIMIND_BUSY) && timeout) {
+		cpu_relax();
+		timeout--;
+	}
 
 	mutex_unlock(&bus->mdio_lock);
 
-	if (!status) {
+	if (!timeout) {
 		dev_err(&bus->dev, "timeout waiting for MII bus\n");
 		return -EBUSY;
 	}
