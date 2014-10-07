@@ -936,7 +936,7 @@ int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 
 	down_read(&mm->mmap_sem);
 retry:
-	ptep = get_locked_pte(current->mm, addr, &ptl);
+	ptep = get_locked_pte(mm, addr, &ptl);
 	if (unlikely(!ptep)) {
 		up_read(&mm->mmap_sem);
 		return -EFAULT;
