@@ -530,10 +530,11 @@ static inline void neo_parse_lsr(struct dgnc_board *brd, uint port)
 	int linestatus;
 	unsigned long flags;
 
-	if (!brd)
-		return;
-
-	if (brd->magic != DGNC_BOARD_MAGIC)
+	/*
+	 * Check to make sure it didn't receive interrupt with a null board
+	 * associated or a board pointer that wasn't ours.
+	 */
+	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
 		return;
 
 	if (port > brd->maxports)
@@ -869,10 +870,8 @@ static void neo_tasklet(unsigned long data)
 	int state = 0;
 	int ports = 0;
 
-	if (!bd || bd->magic != DGNC_BOARD_MAGIC) {
-		APR(("poll_tasklet() - NULL or bad bd.\n"));
+	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
 		return;
-	}
 
 	/* Cache a couple board values */
 	spin_lock_irqsave(&bd->bd_lock, flags);
@@ -955,18 +954,12 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 	unsigned long flags;
 	unsigned long flags2;
 
-	if (!brd) {
-		APR(("Received interrupt (%d) with null board associated\n", irq));
-		return IRQ_NONE;
-	}
-
 	/*
-	 * Check to make sure its for us.
+	 * Check to make sure it didn't receive interrupt with a null board
+	 * associated or a board pointer that wasn't ours.
 	 */
-	if (brd->magic != DGNC_BOARD_MAGIC) {
-		APR(("Received interrupt (%d) with a board pointer that wasn't ours!\n", irq));
+	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
 		return IRQ_NONE;
-	}
 
 	brd->intr_count++;
 

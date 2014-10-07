@@ -233,7 +233,8 @@ int dgnc_tty_register(struct dgnc_board *brd)
 		/* Register tty devices */
 		rc = tty_register_driver(&brd->SerialDriver);
 		if (rc < 0) {
-			APR(("Can't register tty device (%d)\n", rc));
+			dev_dbg(&brd->pdev->dev,
+				"Can't register tty device (%d)\n", rc);
 			return rc;
 		}
 		brd->dgnc_Major_Serial_Registered = TRUE;
@@ -281,7 +282,9 @@ int dgnc_tty_register(struct dgnc_board *brd)
 		/* Register Transparent Print devices */
 		rc = tty_register_driver(&brd->PrintDriver);
 		if (rc < 0) {
-			APR(("Can't register Transparent Print device (%d)\n", rc));
+			dev_dbg(&brd->pdev->dev,
+				"Can't register Transparent Print device(%d)\n",
+				rc);
 			return rc;
 		}
 		brd->dgnc_Major_TransparentPrint_Registered = TRUE;
@@ -1546,14 +1549,18 @@ static void dgnc_tty_close(struct tty_struct *tty, struct file *file)
 		 * one, we've got real problems, since it means the
 		 * serial port won't be shutdown.
 		 */
-		APR(("tty->count is 1, un open count is %d\n", un->un_open_count));
+		dev_dbg(tty->dev,
+			"tty->count is 1, un open count is %d\n",
+			un->un_open_count);
 		un->un_open_count = 1;
 	}
 
 	if (un->un_open_count)
 		un->un_open_count--;
 	else
-		APR(("bad serial port open count of %d\n", un->un_open_count));
+		dev_dbg(tty->dev,
+			"bad serial port open count of %d\n",
+			un->un_open_count);
 
 	ch->ch_open_count--;
 

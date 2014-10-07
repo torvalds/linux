@@ -724,10 +724,8 @@ static void cls_tasklet(unsigned long data)
 	int state = 0;
 	int ports = 0;
 
-	if (!bd || bd->magic != DGNC_BOARD_MAGIC) {
-		APR(("poll_tasklet() - NULL or bad bd.\n"));
+	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
 		return;
-	}
 
 	/* Cache a couple board values */
 	spin_lock_irqsave(&bd->bd_lock, flags);
@@ -799,20 +797,12 @@ static irqreturn_t cls_intr(int irq, void *voidbrd)
 	unsigned char poll_reg;
 	unsigned long flags;
 
-	if (!brd) {
-		APR(("Received interrupt (%d) with null board associated\n",
-									 irq));
-		return IRQ_NONE;
-	}
-
 	/*
-	 * Check to make sure its for us.
+	 * Check to make sure it didn't receive interrupt with a null board
+	 * associated or a board pointer that wasn't ours.
 	 */
-	if (brd->magic != DGNC_BOARD_MAGIC) {
-		APR(("Received interrupt (%d) with a board pointer that wasn't ours!\n",
-			  irq));
+	if (!brd || brd->magic != DGNC_BOARD_MAGIC)
 		return IRQ_NONE;
-	}
 
 	spin_lock_irqsave(&brd->bd_intr_lock, flags);
 

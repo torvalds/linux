@@ -42,21 +42,10 @@
  *
  *************************************************************************/
 
-/*
- * Driver identification, error and debugging statments
- *
- * In theory, you can change all occurrences of "digi" in the next
- * three lines, and the driver printk's will all automagically change.
- *
- * APR((fmt, args, ...));	Always prints message
- */
+/* Driver identification, error and debugging statments */
 #define	PROCSTR		"dgnc"			/* /proc entries	 */
 #define	DEVSTR		"/dev/dg/dgnc"		/* /dev entries		 */
-#define	DRVSTR		"dgnc"			/* Driver name string
-						 * displayed by APR	 */
-#define	APR(args)	do { printk(DRVSTR": "); printk args; \
-			   } while (0)
-#define	RAPR(args)	do { printk args; } while (0)
+#define	DRVSTR		"dgnc"			/* Driver name string	 */
 
 #define TRC_TO_CONSOLE 1
 
