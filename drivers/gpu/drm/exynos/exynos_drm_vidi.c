@@ -630,7 +630,6 @@ static int vidi_remove(struct platform_device *pdev)
 {
 	struct exynos_drm_manager *mgr = platform_get_drvdata(pdev);
 	struct vidi_context *ctx = mgr->ctx;
-	struct drm_encoder *encoder = ctx->encoder;
 
 	if (ctx->raw_edid != (struct edid *)fake_edid_info) {
 		kfree(ctx->raw_edid);
