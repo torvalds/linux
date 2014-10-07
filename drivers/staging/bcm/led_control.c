@@ -95,8 +95,7 @@ static INT ScaleRateofTransfer(ULONG rate)
 		return 9;
 	else if ((rate > 500) && (rate <= 600))
 		return 10;
-	else
-		return MAX_NUM_OF_BLINKS;
+	return MAX_NUM_OF_BLINKS;
 }
 
 static INT blink_in_normal_bandwidth(struct bcm_mini_adapter *ad,
