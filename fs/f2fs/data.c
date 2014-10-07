@@ -1052,7 +1052,10 @@ static int f2fs_write_end(struct file *file,
 
 	trace_f2fs_write_end(inode, pos, len, copied);
 
-	set_page_dirty(page);
+	if (f2fs_is_atomic_file(inode))
+		register_inmem_page(inode, page);
+	else
+		set_page_dirty(page);
 
 	if (pos + copied > i_size_read(inode)) {
 		i_size_write(inode, pos + copied);

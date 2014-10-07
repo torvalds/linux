@@ -21,6 +21,9 @@ bool f2fs_may_inline(struct inode *inode)
 	if (!test_opt(F2FS_I_SB(inode), INLINE_DATA))
 		return false;
 
+	if (f2fs_is_atomic_file(inode))
+		return false;
+
 	nr_blocks = F2FS_I(inode)->i_xattr_nid ? 3 : 2;
 	if (inode->i_blocks > nr_blocks)
 		return false;

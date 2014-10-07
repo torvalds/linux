@@ -26,6 +26,7 @@
 
 static struct kmem_cache *discard_entry_slab;
 static struct kmem_cache *sit_entry_set_slab;
+static struct kmem_cache *inmem_entry_slab;
 
 /*
  * __reverse_ffs is copied from include/asm-generic/bitops/__ffs.h since
@@ -171,6 +172,60 @@ found_first:
 		return result + size;   /* Nope. */
 found_middle:
 	return result + __reverse_ffz(tmp);
+}
+
+void register_inmem_page(struct inode *inode, struct page *page)
+{
+	struct f2fs_inode_info *fi = F2FS_I(inode);
+	struct inmem_pages *new;
+
+	new = f2fs_kmem_cache_alloc(inmem_entry_slab, GFP_NOFS);
+
+	/* add atomic page indices to the list */
+	new->page = page;
+	INIT_LIST_HEAD(&new->list);
+
+	/* increase reference count with clean state */
+	mutex_lock(&fi->inmem_lock);
+	get_page(page);
+	list_add_tail(&new->list, &fi->inmem_pages);
+	mutex_unlock(&fi->inmem_lock);
+}
+
+void commit_inmem_pages(struct inode *inode, bool abort)
+{
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	struct f2fs_inode_info *fi = F2FS_I(inode);
+	struct inmem_pages *cur, *tmp;
+	bool submit_bio = false;
+	struct f2fs_io_info fio = {
+		.type = DATA,
+		.rw = WRITE_SYNC,
+	};
+
+	f2fs_balance_fs(sbi);
+	f2fs_lock_op(sbi);
+
+	mutex_lock(&fi->inmem_lock);
+	list_for_each_entry_safe(cur, tmp, &fi->inmem_pages, list) {
+		lock_page(cur->page);
+		if (!abort && cur->page->mapping == inode->i_mapping) {
+			f2fs_wait_on_page_writeback(cur->page, DATA);
+			if (clear_page_dirty_for_io(cur->page))
+				inode_dec_dirty_pages(inode);
+			do_write_data_page(cur->page, &fio);
+			submit_bio = true;
+		}
+		f2fs_put_page(cur->page, 1);
+		list_del(&cur->list);
+		kmem_cache_free(inmem_entry_slab, cur);
+	}
+	if (submit_bio)
+		f2fs_submit_merged_bio(sbi, DATA, WRITE);
+	mutex_unlock(&fi->inmem_lock);
+
+	filemap_fdatawait_range(inode->i_mapping, 0, LLONG_MAX);
+	f2fs_unlock_op(sbi);
 }
 
 /*
@@ -2148,8 +2203,15 @@ int __init create_segment_manager_caches(void)
 			sizeof(struct nat_entry_set));
 	if (!sit_entry_set_slab)
 		goto destory_discard_entry;
+
+	inmem_entry_slab = f2fs_kmem_cache_create("inmem_page_entry",
+			sizeof(struct inmem_pages));
+	if (!inmem_entry_slab)
+		goto destroy_sit_entry_set;
 	return 0;
 
+destroy_sit_entry_set:
+	kmem_cache_destroy(sit_entry_set_slab);
 destory_discard_entry:
 	kmem_cache_destroy(discard_entry_slab);
 fail:
@@ -2160,4 +2222,5 @@ void destroy_segment_manager_caches(void)
 {
 	kmem_cache_destroy(sit_entry_set_slab);
 	kmem_cache_destroy(discard_entry_slab);
+	kmem_cache_destroy(inmem_entry_slab);
 }

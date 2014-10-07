@@ -192,8 +192,12 @@ static inline bool __has_cursum_space(struct f2fs_summary_block *sum, int size,
 /*
  * ioctl commands
  */
-#define F2FS_IOC_GETFLAGS               FS_IOC_GETFLAGS
-#define F2FS_IOC_SETFLAGS               FS_IOC_SETFLAGS
+#define F2FS_IOC_GETFLAGS		FS_IOC_GETFLAGS
+#define F2FS_IOC_SETFLAGS		FS_IOC_SETFLAGS
+
+#define F2FS_IOCTL_MAGIC		0xf5
+#define F2FS_IOC_START_ATOMIC_WRITE	_IO(F2FS_IOCTL_MAGIC, 1)
+#define F2FS_IOC_COMMIT_ATOMIC_WRITE	_IO(F2FS_IOCTL_MAGIC, 2)
 
 #if defined(__KERNEL__) && defined(CONFIG_COMPAT)
 /*
@@ -263,6 +267,9 @@ struct f2fs_inode_info {
 	unsigned long long xattr_ver;	/* cp version of xattr modification */
 	struct extent_info ext;		/* in-memory extent cache entry */
 	struct dir_inode_entry *dirty_dir;	/* the pointer of dirty dir */
+
+	struct list_head inmem_pages;	/* inmemory pages managed by f2fs */
+	struct mutex inmem_lock;	/* lock for inmemory pages */
 };
 
 static inline void get_extent_info(struct extent_info *ext,
@@ -1051,7 +1058,8 @@ enum {
 	FI_INLINE_DATA,		/* used for inline data*/
 	FI_APPEND_WRITE,	/* inode has appended data */
 	FI_UPDATE_WRITE,	/* inode has in-place-update data */
-	FI_NEED_IPU,		/* used fo ipu for fdatasync */
+	FI_NEED_IPU,		/* used for ipu per file */
+	FI_ATOMIC_FILE,		/* indicate atomic file */
 };
 
 static inline void set_inode_flag(struct f2fs_inode_info *fi, int flag)
@@ -1136,6 +1144,11 @@ static inline int inline_xattr_size(struct inode *inode)
 static inline int f2fs_has_inline_data(struct inode *inode)
 {
 	return is_inode_flag_set(F2FS_I(inode), FI_INLINE_DATA);
+}
+
+static inline bool f2fs_is_atomic_file(struct inode *inode)
+{
+	return is_inode_flag_set(F2FS_I(inode), FI_ATOMIC_FILE);
 }
 
 static inline void *inline_data_addr(struct page *page)
@@ -1275,6 +1288,8 @@ void destroy_node_manager_caches(void);
 /*
  * segment.c
  */
+void register_inmem_page(struct inode *, struct page *);
+void commit_inmem_pages(struct inode *, bool);
 void f2fs_balance_fs(struct f2fs_sb_info *);
 void f2fs_balance_fs_bg(struct f2fs_sb_info *);
 int f2fs_issue_flush(struct f2fs_sb_info *);

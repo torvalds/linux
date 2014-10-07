@@ -373,6 +373,8 @@ static struct inode *f2fs_alloc_inode(struct super_block *sb)
 	fi->i_advise = 0;
 	rwlock_init(&fi->ext.ext_lock);
 	init_rwsem(&fi->i_sem);
+	INIT_LIST_HEAD(&fi->inmem_pages);
+	mutex_init(&fi->inmem_lock);
 
 	set_inode_flag(fi, FI_NEW_INODE);
 

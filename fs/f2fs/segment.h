@@ -175,6 +175,11 @@ struct segment_allocation {
 	void (*allocate_segment)(struct f2fs_sb_info *, int, bool);
 };
 
+struct inmem_pages {
+	struct list_head list;
+	struct page *page;
+};
+
 struct sit_info {
 	const struct segment_allocation *s_ops;
 
@@ -504,7 +509,7 @@ static inline bool need_inplace_update(struct inode *inode)
 	unsigned int policy = SM_I(sbi)->ipu_policy;
 
 	/* IPU can be done only for the user data */
-	if (S_ISDIR(inode->i_mode))
+	if (S_ISDIR(inode->i_mode) || f2fs_is_atomic_file(inode))
 		return false;
 
 	if (policy & (0x1 << F2FS_IPU_FORCE))
