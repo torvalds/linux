@@ -2655,18 +2655,18 @@ static int i915_wa_registers(struct seq_file *m, void *unused)
 
 	intel_runtime_pm_get(dev_priv);
 
-	seq_printf(m, "Workarounds applied: %d\n", dev_priv->num_wa_regs);
-	for (i = 0; i < dev_priv->num_wa_regs; ++i) {
+	seq_printf(m, "Workarounds applied: %d\n", dev_priv->workarounds.count);
+	for (i = 0; i < dev_priv->workarounds.count; ++i) {
 		u32 addr, mask;
 
-		addr = dev_priv->intel_wa_regs[i].addr;
-		mask = dev_priv->intel_wa_regs[i].mask;
-		dev_priv->intel_wa_regs[i].value = I915_READ(addr) | mask;
-		if (dev_priv->intel_wa_regs[i].addr)
+		addr = dev_priv->workarounds.reg[i].addr;
+		mask = dev_priv->workarounds.reg[i].mask;
+		dev_priv->workarounds.reg[i].value = I915_READ(addr) | mask;
+		if (dev_priv->workarounds.reg[i].addr)
 			seq_printf(m, "0x%X: 0x%08X, mask: 0x%08X\n",
-				   dev_priv->intel_wa_regs[i].addr,
-				   dev_priv->intel_wa_regs[i].value,
-				   dev_priv->intel_wa_regs[i].mask);
+				   dev_priv->workarounds.reg[i].addr,
+				   dev_priv->workarounds.reg[i].value,
+				   dev_priv->workarounds.reg[i].mask);
 	}
 
 	intel_runtime_pm_put(dev_priv);
