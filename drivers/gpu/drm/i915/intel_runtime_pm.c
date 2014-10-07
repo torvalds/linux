@@ -221,9 +221,9 @@ static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 			if (wait_for((I915_READ(HSW_PWR_WELL_DRIVER) &
 				      HSW_PWR_WELL_STATE_ENABLED), 20))
 				DRM_ERROR("Timeout enabling power well\n");
+			hsw_power_well_post_enable(dev_priv);
 		}
 
-		hsw_power_well_post_enable(dev_priv);
 	} else {
 		if (enable_requested) {
 			I915_WRITE(HSW_PWR_WELL_DRIVER, 0);
