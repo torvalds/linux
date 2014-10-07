@@ -106,8 +106,8 @@ __gnet_stats_copy_basic_cpu(struct gnet_stats_basic_packed *bstats,
 	for_each_possible_cpu(i) {
 		struct gnet_stats_basic_cpu *bcpu = per_cpu_ptr(cpu, i);
 		unsigned int start;
-		__u64 bytes;
-		__u32 packets;
+		u64 bytes;
+		u32 packets;
 
 		do {
 			start = u64_stats_fetch_begin_irq(&bcpu->syncp);
@@ -115,8 +115,8 @@ __gnet_stats_copy_basic_cpu(struct gnet_stats_basic_packed *bstats,
 			packets = bcpu->bstats.packets;
 		} while (u64_stats_fetch_retry_irq(&bcpu->syncp, start));
 
-		bstats->bytes += bcpu->bstats.bytes;
-		bstats->packets += bcpu->bstats.packets;
+		bstats->bytes += bytes;
+		bstats->packets += packets;
 	}
 }
 
