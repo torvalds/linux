@@ -2168,6 +2168,7 @@ struct rt5645_priv {
 	struct regmap *regmap;
 	struct i2c_client *i2c;
 	struct snd_soc_jack *jack;
+	struct delayed_work jack_detect_work;
 
 	int sysclk;
 	int sysclk_src;

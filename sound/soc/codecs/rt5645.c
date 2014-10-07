@@ -2166,11 +2166,20 @@ int rt5645_set_jack_detect(struct snd_soc_codec *codec,
 }
 EXPORT_SYMBOL_GPL(rt5645_set_jack_detect);
 
+static void rt5645_jack_detect_work(struct work_struct *work)
+{
+	struct rt5645_priv *rt5645 =
+		container_of(work, struct rt5645_priv, jack_detect_work.work);
+
+	rt5645_jack_detect(rt5645->codec, rt5645->jack);
+}
+
 static irqreturn_t rt5645_irq(int irq, void *data)
 {
 	struct rt5645_priv *rt5645 = data;
 
-	rt5645_jack_detect(rt5645->codec, rt5645->jack);
+	queue_delayed_work(system_power_efficient_wq,
+			   &rt5645->jack_detect_work, msecs_to_jiffies(250));
 
 	return IRQ_HANDLED;
 }
@@ -2436,6 +2445,8 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 			dev_err(&i2c->dev, "Fail gpio_direction hp_det_gpio\n");
 	}
 
+	INIT_DELAYED_WORK(&rt5645->jack_detect_work, rt5645_jack_detect_work);
+
 	return snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt5645,
 				      rt5645_dai, ARRAY_SIZE(rt5645_dai));
 }
@@ -2446,6 +2457,8 @@ static int rt5645_i2c_remove(struct i2c_client *i2c)
 
 	if (i2c->irq)
 		free_irq(i2c->irq, rt5645);
+
+	cancel_delayed_work_sync(&rt5645->jack_detect_work);
 
 	if (gpio_is_valid(rt5645->pdata.hp_det_gpio))
 		gpio_free(rt5645->pdata.hp_det_gpio);
