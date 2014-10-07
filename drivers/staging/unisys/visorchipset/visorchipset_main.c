@@ -346,9 +346,9 @@ static void controlvm_respond(CONTROLVM_MESSAGE_HEADER *msgHdr, int response);
 static void controlvm_respond_chipset_init(CONTROLVM_MESSAGE_HEADER *msgHdr,
 					   int response,
 					   ULTRA_CHIPSET_FEATURE features);
-static void controlvm_respond_physdev_changestate(CONTROLVM_MESSAGE_HEADER *
-						  msgHdr, int response,
-						  ULTRA_SEGMENT_STATE state);
+static void controlvm_respond_physdev_changestate(
+			CONTROLVM_MESSAGE_HEADER *msgHdr, int response,
+			struct ultra_segment_state state);
 
 static ssize_t toolaction_show(struct device *dev,
 			       struct device_attribute *attr,
@@ -741,7 +741,8 @@ controlvm_respond_chipset_init(CONTROLVM_MESSAGE_HEADER *msgHdr, int response,
 
 static void
 controlvm_respond_physdev_changestate(CONTROLVM_MESSAGE_HEADER *msgHdr,
-				      int response, ULTRA_SEGMENT_STATE state)
+				      int response, struct ultra_segment_state
+				      state)
 {
 	CONTROLVM_MESSAGE outmsg;
 
@@ -857,7 +858,7 @@ bus_responder(CONTROLVM_ID cmdId, ulong busNo, int response)
 static void
 device_changestate_responder(CONTROLVM_ID cmdId,
 			     ulong busNo, ulong devNo, int response,
-			     ULTRA_SEGMENT_STATE responseState)
+			     struct ultra_segment_state responseState)
 {
 	VISORCHIPSET_DEVICE_INFO *p = NULL;
 	CONTROLVM_MESSAGE outmsg;
@@ -991,7 +992,7 @@ bus_epilog(u32 busNo,
 }
 
 static void
-device_epilog(u32 busNo, u32 devNo, ULTRA_SEGMENT_STATE state, u32 cmd,
+device_epilog(u32 busNo, u32 devNo, struct ultra_segment_state state, u32 cmd,
 	      CONTROLVM_MESSAGE_HEADER *msgHdr, int response,
 	      BOOL needResponse, BOOL for_visorbus)
 {
@@ -1303,7 +1304,7 @@ my_device_changestate(CONTROLVM_MESSAGE *inmsg)
 	CONTROLVM_MESSAGE_PACKET *cmd = &inmsg->cmd;
 	ulong busNo = cmd->deviceChangeState.busNo;
 	ulong devNo = cmd->deviceChangeState.devNo;
-	ULTRA_SEGMENT_STATE state = cmd->deviceChangeState.state;
+	struct ultra_segment_state state = cmd->deviceChangeState.state;
 	VISORCHIPSET_DEVICE_INFO *pDevInfo = NULL;
 	int rc = CONTROLVM_RESP_SUCCESS;
 

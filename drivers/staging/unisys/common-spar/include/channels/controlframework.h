@@ -36,7 +36,7 @@
 
 /* Define Ki scale page to be traditional 4KB page */
 #define ULTRA_MEMORY_PAGE_Ki (ULTRA_MEMORY_PAGE_WORD * ULTRA_MEMORY_COUNT_Ki)
-typedef struct _ULTRA_SEGMENT_STATE  {
+struct ultra_segment_state {
 	u16 Enabled:1;		/* Bit 0: May enter other states */
 	u16 Active:1;		/* Bit 1: Assigned to active partition */
 	u16 Alive:1;		/* Bit 2: Configure message sent to
@@ -53,14 +53,14 @@ typedef struct _ULTRA_SEGMENT_STATE  {
 				 * operating */
 	/* Note: don't use high bit unless we need to switch to ushort
 	 * which is non-compliant */
-} ULTRA_SEGMENT_STATE;
-static const ULTRA_SEGMENT_STATE SegmentStateRunning = {
+};
+static const struct ultra_segment_state SegmentStateRunning = {
 	1, 1, 1, 0, 1, 1, 1, 1
 };
-static const ULTRA_SEGMENT_STATE SegmentStatePaused = {
+static const struct ultra_segment_state SegmentStatePaused = {
 	1, 1, 1, 0, 1, 1, 1, 0
 };
-static const ULTRA_SEGMENT_STATE SegmentStateStandby = {
+static const struct ultra_segment_state SegmentStateStandby = {
 	1, 1, 0, 0, 1, 1, 1, 0
 };
 typedef union {

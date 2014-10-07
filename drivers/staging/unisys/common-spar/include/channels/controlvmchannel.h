@@ -390,13 +390,13 @@ typedef struct _CONTROLVM_MESSAGE_PACKET  {
 		} reconfigureDevice;	/* for CONTROLVM_DEVICE_RECONFIGURE */
 		struct  {
 			u32 busNo;
-			ULTRA_SEGMENT_STATE state;
+			struct ultra_segment_state state;
 			u8 reserved[2];	/* Natural alignment purposes */
 		} busChangeState;	/* for CONTROLVM_BUS_CHANGESTATE */
 		struct  {
 			u32 busNo;
 			u32 devNo;
-			ULTRA_SEGMENT_STATE state;
+			struct ultra_segment_state state;
 			struct  {
 				u32 physicalDevice:1;	/* =1 if message is for
 							 * a physical device */
@@ -407,7 +407,7 @@ typedef struct _CONTROLVM_MESSAGE_PACKET  {
 		struct  {
 			u32 busNo;
 			u32 devNo;
-			ULTRA_SEGMENT_STATE state;
+			struct ultra_segment_state state;
 			u8 reserved[6];	/* Natural alignment purposes */
 		} deviceChangeStateEvent; /* for CONTROLVM_DEVICE_CHANGESTATE_EVENT */
 		struct  {
