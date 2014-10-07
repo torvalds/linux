@@ -125,8 +125,6 @@
 	POP	r13
 .endm
 
-#define OFF_USER_R25_FROM_R24	(SZ_CALLEE_REGS + SZ_PT_REGS - 8)/4
-
 /*--------------------------------------------------------------
  * Collect User Mode callee regs as struct callee_regs - needed by
  * fork/do_signal/unaligned-access-emulation.
@@ -139,12 +137,13 @@
  *-------------------------------------------------------------*/
 .macro SAVE_CALLEE_SAVED_USER
 
+	mov	r12, sp		; save SP as ref to pt_regs
 	SAVE_R13_TO_R24
 
 #ifdef CONFIG_ARC_CURR_IN_REG
-	; Retrieve orig r25 and save it on stack
-	ld.as   r12, [sp, OFF_USER_R25_FROM_R24]
-	st.a    r12, [sp, -4]
+	; Retrieve orig r25 and save it with rest of callee_regs
+	ld.as   r12, [r12, PT_user_r25]
+	PUSH	r12
 #else
 	PUSH	r25
 #endif
@@ -191,12 +190,16 @@
 .macro RESTORE_CALLEE_SAVED_USER
 
 #ifdef CONFIG_ARC_CURR_IN_REG
-	ld.ab   r12, [sp, 4]
-	st.as   r12, [sp, OFF_USER_R25_FROM_R24]
+	POP	r12
 #else
 	POP	r25
 #endif
 	RESTORE_R24_TO_R13
+
+	; SP is back to start of pt_regs
+#ifdef CONFIG_ARC_CURR_IN_REG
+	st.as   r12, [sp, PT_user_r25]
+#endif
 .endm
 
 /*--------------------------------------------------------------
