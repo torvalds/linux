@@ -6183,13 +6183,25 @@ void mgmt_device_connected(struct hci_dev *hdev, struct hci_conn *conn,
 
 	ev->flags = __cpu_to_le32(flags);
 
-	if (name_len > 0)
-		eir_len = eir_append_data(ev->eir, 0, EIR_NAME_COMPLETE,
-					  name, name_len);
+	/* We must ensure that the EIR Data fields are ordered and
+	 * unique. Keep it simple for now and avoid the problem by not
+	 * adding any BR/EDR data to the LE adv.
+	 */
+	if (conn->le_adv_data_len > 0) {
+		memcpy(&ev->eir[eir_len],
+		       conn->le_adv_data, conn->le_adv_data_len);
+		eir_len = conn->le_adv_data_len;
+	} else {
+		if (name_len > 0)
+			eir_len = eir_append_data(ev->eir, 0, EIR_NAME_COMPLETE,
+						  name, name_len);
 
-	if (conn->dev_class && memcmp(conn->dev_class, "\0\0\0", 3) != 0)
-		eir_len = eir_append_data(ev->eir, eir_len,
-					  EIR_CLASS_OF_DEV, conn->dev_class, 3);
+		if (conn->dev_class &&
+		    memcmp(conn->dev_class, "\0\0\0", 3) != 0)
+			eir_len = eir_append_data(ev->eir, eir_len,
+						  EIR_CLASS_OF_DEV,
+						  conn->dev_class, 3);
+	}
 
 	ev->eir_len = cpu_to_le16(eir_len);
 

@@ -4263,25 +4263,26 @@ static void hci_le_conn_update_complete_evt(struct hci_dev *hdev,
 }
 
 /* This function requires the caller holds hdev->lock */
-static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
-				  u8 addr_type, u8 adv_type)
+static struct hci_conn *check_pending_le_conn(struct hci_dev *hdev,
+					      bdaddr_t *addr,
+					      u8 addr_type, u8 adv_type)
 {
 	struct hci_conn *conn;
 	struct hci_conn_params *params;
 
 	/* If the event is not connectable don't proceed further */
 	if (adv_type != LE_ADV_IND && adv_type != LE_ADV_DIRECT_IND)
-		return;
+		return NULL;
 
 	/* Ignore if the device is blocked */
 	if (hci_bdaddr_list_lookup(&hdev->blacklist, addr, addr_type))
-		return;
+		return NULL;
 
 	/* Most controller will fail if we try to create new connections
 	 * while we have an existing one in slave role.
 	 */
 	if (hdev->conn_hash.le_num_slave > 0)
-		return;
+		return NULL;
 
 	/* If we're not connectable only connect devices that we have in
 	 * our pend_le_conns list.
@@ -4289,7 +4290,7 @@ static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 	params = hci_pend_le_action_lookup(&hdev->pend_le_conns,
 					   addr, addr_type);
 	if (!params)
-		return;
+		return NULL;
 
 	switch (params->auto_connect) {
 	case HCI_AUTO_CONN_DIRECT:
@@ -4298,7 +4299,7 @@ static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 		 * incoming connections from slave devices.
 		 */
 		if (adv_type != LE_ADV_DIRECT_IND)
-			return;
+			return NULL;
 		break;
 	case HCI_AUTO_CONN_ALWAYS:
 		/* Devices advertising with ADV_IND or ADV_DIRECT_IND
@@ -4309,7 +4310,7 @@ static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 		 */
 		break;
 	default:
-		return;
+		return NULL;
 	}
 
 	conn = hci_connect_le(hdev, addr, addr_type, BT_SECURITY_LOW,
@@ -4322,7 +4323,7 @@ static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 		 * count consistent once the connection is established.
 		 */
 		params->conn = hci_conn_get(conn);
-		return;
+		return conn;
 	}
 
 	switch (PTR_ERR(conn)) {
@@ -4335,7 +4336,10 @@ static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 		break;
 	default:
 		BT_DBG("Failed to connect: err %ld", PTR_ERR(conn));
+		return NULL;
 	}
+
+	return NULL;
 }
 
 static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
@@ -4343,6 +4347,7 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 {
 	struct discovery_state *d = &hdev->discovery;
 	struct smp_irk *irk;
+	struct hci_conn *conn;
 	bool match;
 	u32 flags;
 
@@ -4354,7 +4359,14 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 	}
 
 	/* Check if we have been requested to connect to this device */
-	check_pending_le_conn(hdev, bdaddr, bdaddr_type, type);
+	conn = check_pending_le_conn(hdev, bdaddr, bdaddr_type, type);
+	if (conn && type == LE_ADV_IND) {
+		/* Store report for later inclusion by
+		 * mgmt_device_connected
+		 */
+		memcpy(conn->le_adv_data, data, len);
+		conn->le_adv_data_len = len;
+	}
 
 	/* Passive scanning shouldn't trigger any device found events,
 	 * except for devices marked as CONN_REPORT for which we do send
