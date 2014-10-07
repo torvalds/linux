@@ -1122,7 +1122,6 @@ int rtw_acl_remove_sta23a(struct rtw_adapter *padapter, u8 *addr)
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct wlan_acl_pool *pacl_list = &pstapriv->acl_list;
 	struct rtw_queue *pacl_node_q = &pacl_list->acl_node_q;
-	int ret = 0;
 
 	DBG_8723A("%s(acl_num =%d) = %pM\n", __func__, pacl_list->num, addr);
 
@@ -1148,7 +1147,7 @@ int rtw_acl_remove_sta23a(struct rtw_adapter *padapter, u8 *addr)
 
 	DBG_8723A("%s, acl_num =%d\n", __func__, pacl_list->num);
 
-	return ret;
+	return 0;
 }
 
 static void update_bcn_fixed_ie(struct rtw_adapter *padapter)
@@ -1698,7 +1697,6 @@ u8 ap_free_sta23a(struct rtw_adapter *padapter, struct sta_info *psta, bool acti
 int rtw_ap_inform_ch_switch23a (struct rtw_adapter *padapter, u8 new_ch, u8 ch_offset)
 {
 	struct list_head *phead, *plist;
-	int ret = 0;
 	struct sta_info *psta = NULL;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
@@ -1706,7 +1704,7 @@ int rtw_ap_inform_ch_switch23a (struct rtw_adapter *padapter, u8 new_ch, u8 ch_o
 	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 	if ((pmlmeinfo->state&0x03) != MSR_AP)
-		return ret;
+		return 0;
 
 	DBG_8723A("%s(%s): with ch:%u, offset:%u\n", __func__,
 		  padapter->pnetdev->name, new_ch, ch_offset);
@@ -1724,13 +1722,12 @@ int rtw_ap_inform_ch_switch23a (struct rtw_adapter *padapter, u8 new_ch, u8 ch_o
 
 	issue_action_spct_ch_switch23a (padapter, bc_addr, new_ch, ch_offset);
 
-	return ret;
+	return 0;
 }
 
 int rtw_sta_flush23a(struct rtw_adapter *padapter)
 {
 	struct list_head *phead, *plist, *ptmp;
-	int ret = 0;
 	struct sta_info *psta;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
@@ -1743,7 +1740,7 @@ int rtw_sta_flush23a(struct rtw_adapter *padapter)
 	DBG_8723A("%s(%s)\n", __func__, padapter->pnetdev->name);
 
 	if ((pmlmeinfo->state&0x03) != MSR_AP)
-		return ret;
+		return 0;
 
 	spin_lock_bh(&pstapriv->asoc_list_lock);
 	phead = &pstapriv->asoc_list;
@@ -1769,7 +1766,7 @@ int rtw_sta_flush23a(struct rtw_adapter *padapter)
 
 	associated_clients_update23a(padapter, true);
 
-	return ret;
+	return 0;
 }
 
 /* called > TSR LEVEL for USB or SDIO Interface*/
