@@ -904,7 +904,7 @@ static irqreturn_t at86rf230_isr(int irq, void *data)
 	u8 *buf = ctx->buf;
 	int rc;
 
-	disable_irq_nosync(lp->spi->irq);
+	disable_irq_nosync(irq);
 
 	buf[0] = (RG_IRQ_STATUS & CMD_REG_MASK) | CMD_REG;
 	ctx->trx.len = 2;
