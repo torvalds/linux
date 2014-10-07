@@ -3506,10 +3506,10 @@ int ath10k_wmi_start_scan(struct ath10k *ar,
 		return ret;
 
 	if (test_bit(ATH10K_FW_FEATURE_WMI_10X, ar->fw_features))
-		len = sizeof(struct wmi_start_scan_cmd) +
+		len = sizeof(struct wmi_10x_start_scan_cmd) +
 		      ath10k_wmi_start_scan_tlvs_len(arg);
 	else
-		len = sizeof(struct wmi_10x_start_scan_cmd) +
+		len = sizeof(struct wmi_start_scan_cmd) +
 		      ath10k_wmi_start_scan_tlvs_len(arg);
 
 	skb = ath10k_wmi_alloc_skb(ar, len);
