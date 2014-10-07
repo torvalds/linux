@@ -34,7 +34,7 @@
 #define GREYBUS_VERSION_MINOR	0x01
 
 #define GREYBUS_DEVICE_ID_MATCH_DEVICE \
-		(GREYBUS_DEVICE_ID_MATCH_VENDOR | GREYBUS_DEVICE_ID_MATCH_PRODUCT)
+	(GREYBUS_DEVICE_ID_MATCH_VENDOR | GREYBUS_DEVICE_ID_MATCH_PRODUCT)
 
 #define GREYBUS_DEVICE(v, p)					\
 	.match_flags	= GREYBUS_DEVICE_ID_MATCH_DEVICE,	\
@@ -128,7 +128,6 @@ struct gbuf {
 	struct gb_connection *connection;
 	int status;
 	void *transfer_buffer;
-	u32 transfer_flags;		/* flags for the transfer buffer */
 	u32 transfer_buffer_length;
 	u32 actual_length;
 
@@ -139,10 +138,6 @@ struct gbuf {
 	gbuf_complete_t complete;
 };
 
-/*
- * gbuf->transfer_flags
- */
-#define GBUF_FREE_BUFFER	BIT(0)	/* Free the transfer buffer with the gbuf */
 
 /* For SP1 hardware, we are going to "hardcode" each device to have all logical
  * blocks in order to be able to address them as one unified "unit".  Then
@@ -189,10 +184,10 @@ struct greybus_host_device {
 	spinlock_t cport_id_map_lock;
 
 	/* Private data for the host driver */
-	unsigned long hd_priv[0] __attribute__ ((aligned(sizeof(s64))));
+	unsigned long hd_priv[0] __aligned(sizeof(s64));
 };
 
-struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *host_driver,
+struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *hd,
 					      struct device *parent);
 void greybus_remove_hd(struct greybus_host_device *hd);
 void greybus_cport_in(struct greybus_host_device *hd, u16 cport_id,
