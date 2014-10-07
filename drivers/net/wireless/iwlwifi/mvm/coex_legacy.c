@@ -102,8 +102,6 @@ static const u8 iwl_bt_prio_tbl[BT_COEX_PRIO_TBL_EVT_MAX] = {
 
 #undef EVENT_PRIO_ANT
 
-#define BT_ANTENNA_COUPLING_THRESHOLD		(30)
-
 static int iwl_send_bt_prio_tbl(struct iwl_mvm *mvm)
 {
 	if (unlikely(mvm->bt_force_ant_mode != BT_FORCE_ANT_DIS))
@@ -593,7 +591,8 @@ int iwl_send_bt_init_conf_old(struct iwl_mvm *mvm)
 	}
 
 	bt_cmd->max_kill = 5;
-	bt_cmd->bt4_antenna_isolation_thr = BT_ANTENNA_COUPLING_THRESHOLD;
+	bt_cmd->bt4_antenna_isolation_thr =
+		IWL_MVM_BT_COEX_ANTENNA_COUPLING_THRS;
 	bt_cmd->bt4_antenna_isolation = iwlwifi_mod_params.ant_coupling;
 	bt_cmd->bt4_tx_tx_delta_freq_thr = 15;
 	bt_cmd->bt4_tx_rx_max_freq0 = 15;

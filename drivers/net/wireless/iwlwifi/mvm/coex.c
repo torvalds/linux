@@ -72,8 +72,6 @@
 #include "mvm.h"
 #include "iwl-debug.h"
 
-#define BT_ANTENNA_COUPLING_THRESHOLD		(30)
-
 const u32 iwl_bt_ctl_kill_msk[BT_KILL_MSK_MAX] = {
 	[BT_KILL_MSK_DEFAULT] = 0xfffffc00,
 	[BT_KILL_MSK_NEVER] = 0xffffffff,
@@ -605,7 +603,7 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 
 	bt_cmd->max_kill = cpu_to_le32(5);
 	bt_cmd->bt4_antenna_isolation_thr =
-				cpu_to_le32(BT_ANTENNA_COUPLING_THRESHOLD);
+		cpu_to_le32(IWL_MVM_BT_COEX_ANTENNA_COUPLING_THRS);
 	bt_cmd->bt4_tx_tx_delta_freq_thr = cpu_to_le32(15);
 	bt_cmd->bt4_tx_rx_max_freq0 = cpu_to_le32(15);
 	bt_cmd->override_primary_lut = cpu_to_le32(BT_COEX_INVALID_LUT);
