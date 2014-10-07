@@ -42,6 +42,9 @@
 #include "ion_priv.h"
 #include "compat_ion.h"
 
+#define CREATE_TRACE_POINTS
+#include "../trace/ion.h"
+
 /**
  * struct ion_device - the metadata of the ion device node
  * @dev:		the actual misc device
@@ -282,6 +285,8 @@ err2:
 
 void ion_buffer_destroy(struct ion_buffer *buffer)
 {
+	trace_ion_buffer_destroy("", (unsigned int)buffer, buffer->size);
+
 	if (WARN_ON(buffer->kmap_cnt > 0))
 		buffer->heap->ops->unmap_kernel(buffer->heap, buffer);
 	buffer->heap->ops->unmap_dma(buffer->heap, buffer);
@@ -546,6 +551,9 @@ struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
 		handle = ERR_PTR(ret);
 	}
 
+	trace_ion_buffer_alloc(client->display_name, (unsigned int)buffer,
+		buffer->size);
+
 	return handle;
 }
 EXPORT_SYMBOL(ion_alloc);
@@ -565,6 +573,8 @@ void ion_free(struct ion_client *client, struct ion_handle *handle)
 		return;
 	}
 	mutex_unlock(&client->lock);
+	trace_ion_buffer_free(client->display_name, (unsigned int)handle->buffer,
+			handle->buffer->size);
 	ion_handle_put(handle);
 }
 EXPORT_SYMBOL(ion_free);
@@ -674,6 +684,8 @@ void *ion_map_kernel(struct ion_client *client, struct ion_handle *handle)
 	vaddr = ion_handle_kmap_get(handle);
 	mutex_unlock(&buffer->lock);
 	mutex_unlock(&client->lock);
+	trace_ion_kernel_map(client->display_name, (unsigned int)buffer,
+			buffer->size, (unsigned int)vaddr);
 	return vaddr;
 }
 EXPORT_SYMBOL(ion_map_kernel);
@@ -685,6 +697,8 @@ void ion_unmap_kernel(struct ion_client *client, struct ion_handle *handle)
 	mutex_lock(&client->lock);
 	buffer = handle->buffer;
 	mutex_lock(&buffer->lock);
+	trace_ion_kernel_unmap(client->display_name, (unsigned int)buffer,
+			buffer->size);
 	ion_handle_kmap_put(handle);
 	mutex_unlock(&buffer->lock);
 	mutex_unlock(&client->lock);
@@ -834,6 +848,8 @@ int ion_map_iommu(struct device *iommu_dev, struct ion_client *client,
 	if (!ret)
 		buffer->iommu_map_cnt++;
 	*size = buffer->size;
+	trace_ion_iommu_map(client->display_name, (unsigned int)buffer, buffer->size,
+		dev_name(iommu_dev), *iova, *size, buffer->iommu_map_cnt);
 out:
 	mutex_unlock(&buffer->lock);
 	mutex_unlock(&client->lock);
@@ -846,6 +862,9 @@ static void ion_iommu_release(struct kref *kref)
 	struct ion_iommu_map *map = container_of(kref, struct ion_iommu_map,
 						ref);
 	struct ion_buffer *buffer = map->buffer;
+
+	trace_ion_iommu_release("", (unsigned int)buffer, buffer->size,
+		"", map->iova_addr, map->mapped_size, buffer->iommu_map_cnt);
 
 	rb_erase(&map->node, &buffer->iommu_maps);
 	buffer->heap->ops->unmap_iommu((struct device*)map->key, map);
@@ -899,6 +918,9 @@ void ion_unmap_iommu(struct device *iommu_dev, struct ion_client *client,
 
 	buffer->iommu_map_cnt--;
 
+	trace_ion_iommu_unmap(client->display_name, (unsigned int)buffer, buffer->size,
+		dev_name(iommu_dev), iommu_map->iova_addr,
+		iommu_map->mapped_size, buffer->iommu_map_cnt);
 out:
 	mutex_unlock(&buffer->lock);
 	mutex_unlock(&client->lock);
@@ -1109,6 +1131,8 @@ struct ion_client *ion_client_create(struct ion_device *dev,
 			path, client->display_name);
 	}
 
+	trace_ion_client_create(client->display_name);
+
 	up_write(&dev->lock);
 
 	return client;
@@ -1144,6 +1168,8 @@ void ion_client_destroy(struct ion_client *client)
 	rb_erase(&client->node, &dev->clients);
 	debugfs_remove_recursive(client->debug_root);
 	up_write(&dev->lock);
+
+	trace_ion_client_destroy(client->display_name);
 
 	kfree(client->display_name);
 	kfree(client->name);
@@ -1442,6 +1468,8 @@ int ion_share_dma_buf_fd(struct ion_client *client, struct ion_handle *handle)
 	if (fd < 0)
 		dma_buf_put(dmabuf);
 
+	trace_ion_buffer_share(client->display_name, (unsigned int)handle->buffer,
+				handle->buffer->size, fd);
 	return fd;
 }
 EXPORT_SYMBOL(ion_share_dma_buf_fd);
@@ -1488,6 +1516,8 @@ struct ion_handle *ion_import_dma_buf(struct ion_client *client, int fd)
 		handle = ERR_PTR(ret);
 	}
 
+	trace_ion_buffer_import(client->display_name, (unsigned int)buffer,
+				buffer->size);
 end:
 	dma_buf_put(dmabuf);
 	return handle;
