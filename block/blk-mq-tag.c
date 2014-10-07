@@ -351,15 +351,12 @@ static void bt_clear_tag(struct blk_mq_bitmap_tags *bt, unsigned int tag)
 		return;
 
 	wait_cnt = atomic_dec_return(&bs->wait_cnt);
+	if (unlikely(wait_cnt < 0))
+		wait_cnt = atomic_inc_return(&bs->wait_cnt);
 	if (wait_cnt == 0) {
-wake:
 		atomic_add(bt->wake_cnt, &bs->wait_cnt);
 		bt_index_atomic_inc(&bt->wake_index);
 		wake_up(&bs->wait);
-	} else if (wait_cnt < 0) {
-		wait_cnt = atomic_inc_return(&bs->wait_cnt);
-		if (!wait_cnt)
-			goto wake;
 	}
 }
 
