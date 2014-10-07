@@ -217,8 +217,7 @@ static int eukrea_tlv320_probe(struct platform_device *pdev)
 err:
 	if (ret)
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n", ret);
-	if (np)
-		of_node_put(ssi_np);
+	of_node_put(ssi_np);
 
 	return ret;
 }
