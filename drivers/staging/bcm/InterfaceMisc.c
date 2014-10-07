@@ -102,12 +102,11 @@ int InterfaceWRM(struct bcm_interface_adapter *psIntfAdapter,
 				DBG_LVL_ALL, "WRM failed status :%d", retval);
 		psIntfAdapter->psAdapter->DeviceAccess = false;
 		return retval;
-	} else {
-		psIntfAdapter->psAdapter->DeviceAccess = false;
-		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_OTHERS, WRM,
-				DBG_LVL_ALL, "WRM sent %d", retval);
-		return STATUS_SUCCESS;
 	}
+	psIntfAdapter->psAdapter->DeviceAccess = false;
+	BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_OTHERS, WRM,
+			DBG_LVL_ALL, "WRM sent %d", retval);
+	return STATUS_SUCCESS;
 }
 
 int BcmRDM(void *arg,
