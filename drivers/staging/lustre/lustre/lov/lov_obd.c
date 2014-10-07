@@ -847,7 +847,6 @@ out:
 
 static int lov_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 {
-	int rc = 0;
 	struct lov_obd *lov = &obd->u.lov;
 
 	switch (stage) {
@@ -865,7 +864,7 @@ static int lov_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 		break;
 	}
 
-	return rc;
+	return 0;
 }
 
 static int lov_cleanup(struct obd_device *obd)
