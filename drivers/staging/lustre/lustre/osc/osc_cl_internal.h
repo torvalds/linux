@@ -678,7 +678,7 @@ struct osc_extent {
 
 int osc_extent_finish(const struct lu_env *env, struct osc_extent *ext,
 		      int sent, int rc);
-int osc_extent_release(const struct lu_env *env, struct osc_extent *ext);
+void osc_extent_release(const struct lu_env *env, struct osc_extent *ext);
 
 /** @} osc */
 
