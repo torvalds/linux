@@ -690,8 +690,10 @@ at86rf230_sync_state_change(struct at86rf230_local *lp, unsigned int state)
 
 	rc = wait_for_completion_timeout(&lp->state_complete,
 					 msecs_to_jiffies(100));
-	if (!rc)
+	if (!rc) {
+		at86rf230_async_error(lp, &lp->state, -ETIMEDOUT);
 		return -ETIMEDOUT;
+	}
 
 	return 0;
 }
