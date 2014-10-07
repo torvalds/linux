@@ -167,12 +167,6 @@ static void tegra_encoder_mode_set(struct drm_encoder *encoder,
 				   struct drm_display_mode *mode,
 				   struct drm_display_mode *adjusted)
 {
-	struct tegra_output *output = encoder_to_output(encoder);
-	int err;
-
-	err = tegra_output_enable(output);
-	if (err < 0)
-		dev_err(encoder->dev->dev, "tegra_output_enable(): %d\n", err);
 }
 
 static const struct drm_encoder_helper_funcs encoder_helper_funcs = {
