@@ -1244,19 +1244,15 @@ static UINT CreateClassifierPHSRule(IN B_UINT16  uiClsId,
 
 		if (eClsContext == eActiveClassifierRuleContext)
 			return ERR_CLSASSIFIER_TABLE_FULL;
-		else {
-			/* Lets replace the oldest rule if we are looking in
-			 * old Rule table */
-			if (psaClassifiertable->uiOldestPhsRuleIndex >= MAX_PHSRULE_PER_SF)
-				psaClassifiertable->uiOldestPhsRuleIndex = 0;
+		/* Lets replace the oldest rule if we are looking in
+		* old Rule table */
+		if (psaClassifiertable->uiOldestPhsRuleIndex >= MAX_PHSRULE_PER_SF)
+			psaClassifiertable->uiOldestPhsRuleIndex = 0;
 
-			iClassifierIndex =
-				psaClassifiertable->uiOldestPhsRuleIndex;
-			psClassifierRules =
-				&psaClassifiertable->stOldPhsRulesList[iClassifierIndex];
+		iClassifierIndex = psaClassifiertable->uiOldestPhsRuleIndex;
+		psClassifierRules = &psaClassifiertable->stOldPhsRulesList[iClassifierIndex];
 
-			(psaClassifiertable->uiOldestPhsRuleIndex)++;
-		}
+		psaClassifiertable->uiOldestPhsRuleIndex++;
 	}
 
 	if (eClsContext == eOldClassifierRuleContext) {
