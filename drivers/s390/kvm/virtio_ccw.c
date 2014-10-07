@@ -68,11 +68,20 @@ struct virtio_ccw_device {
 	void *airq_info;
 };
 
-struct vq_info_block {
+struct vq_info_block_legacy {
 	__u64 queue;
 	__u32 align;
 	__u16 index;
 	__u16 num;
+} __packed;
+
+struct vq_info_block {
+	__u64 desc;
+	__u32 res0;
+	__u16 index;
+	__u16 num;
+	__u64 avail;
+	__u64 used;
 } __packed;
 
 struct virtio_feature_desc {
@@ -100,7 +109,10 @@ struct virtio_ccw_vq_info {
 	struct virtqueue *vq;
 	int num;
 	void *queue;
-	struct vq_info_block *info_block;
+	union {
+		struct vq_info_block s;
+		struct vq_info_block_legacy l;
+	} *info_block;
 	int bit_nr;
 	struct list_head node;
 	long cookie;
@@ -411,13 +423,22 @@ static void virtio_ccw_del_vq(struct virtqueue *vq, struct ccw1 *ccw)
 	spin_unlock_irqrestore(&vcdev->lock, flags);
 
 	/* Release from host. */
-	info->info_block->queue = 0;
-	info->info_block->align = 0;
-	info->info_block->index = index;
-	info->info_block->num = 0;
+	if (vcdev->revision == 0) {
+		info->info_block->l.queue = 0;
+		info->info_block->l.align = 0;
+		info->info_block->l.index = index;
+		info->info_block->l.num = 0;
+		ccw->count = sizeof(info->info_block->l);
+	} else {
+		info->info_block->s.desc = 0;
+		info->info_block->s.index = index;
+		info->info_block->s.num = 0;
+		info->info_block->s.avail = 0;
+		info->info_block->s.used = 0;
+		ccw->count = sizeof(info->info_block->s);
+	}
 	ccw->cmd_code = CCW_CMD_SET_VQ;
 	ccw->flags = 0;
-	ccw->count = sizeof(*info->info_block);
 	ccw->cda = (__u32)(unsigned long)(info->info_block);
 	ret = ccw_io_helper(vcdev, ccw,
 			    VIRTIO_CCW_DOING_SET_VQ | index);
@@ -500,13 +521,22 @@ static struct virtqueue *virtio_ccw_setup_vq(struct virtio_device *vdev,
 	}
 
 	/* Register it with the host. */
-	info->info_block->queue = (__u64)info->queue;
-	info->info_block->align = KVM_VIRTIO_CCW_RING_ALIGN;
-	info->info_block->index = i;
-	info->info_block->num = info->num;
+	if (vcdev->revision == 0) {
+		info->info_block->l.queue = (__u64)info->queue;
+		info->info_block->l.align = KVM_VIRTIO_CCW_RING_ALIGN;
+		info->info_block->l.index = i;
+		info->info_block->l.num = info->num;
+		ccw->count = sizeof(info->info_block->l);
+	} else {
+		info->info_block->s.desc = (__u64)info->queue;
+		info->info_block->s.index = i;
+		info->info_block->s.num = info->num;
+		info->info_block->s.avail = (__u64)virtqueue_get_avail(vq);
+		info->info_block->s.used = (__u64)virtqueue_get_used(vq);
+		ccw->count = sizeof(info->info_block->s);
+	}
 	ccw->cmd_code = CCW_CMD_SET_VQ;
 	ccw->flags = 0;
-	ccw->count = sizeof(*info->info_block);
 	ccw->cda = (__u32)(unsigned long)(info->info_block);
 	err = ccw_io_helper(vcdev, ccw, VIRTIO_CCW_DOING_SET_VQ | i);
 	if (err) {
