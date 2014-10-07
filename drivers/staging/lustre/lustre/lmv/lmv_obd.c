@@ -2310,7 +2310,6 @@ retry:
 static int lmv_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 {
 	struct lmv_obd *lmv = &obd->u.lmv;
-	int rc = 0;
 
 	switch (stage) {
 	case OBD_CLEANUP_EARLY:
@@ -2324,7 +2323,7 @@ static int lmv_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 	default:
 		break;
 	}
-	return rc;
+	return 0;
 }
 
 static int lmv_get_info(const struct lu_env *env, struct obd_export *exp,
