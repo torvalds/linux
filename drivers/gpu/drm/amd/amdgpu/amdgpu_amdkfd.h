@@ -50,6 +50,7 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *rdev);
 void amdgpu_amdkfd_device_fini(struct amdgpu_device *rdev);
 
 struct kfd2kgd_calls *amdgpu_amdkfd_gfx_7_get_functions(void);
+struct kfd2kgd_calls *amdgpu_amdkfd_gfx_8_0_get_functions(void);
 
 /* Shared API */
 int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
