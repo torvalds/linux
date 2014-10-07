@@ -389,6 +389,9 @@ static int tegra_dsi_set_phy_timing(struct tegra_dsi *dsi)
 		DSI_TIMING_FIELD(timing.tago, period, 1);
 	tegra_dsi_writel(dsi, value, DSI_BTA_TIMING);
 
+	if (dsi->slave)
+		return tegra_dsi_set_phy_timing(dsi->slave);
+
 	return 0;
 }
 
@@ -535,10 +538,6 @@ static int tegra_dsi_configure(struct tegra_dsi *dsi, unsigned int pipe,
 	value |= DSI_CONTROL_VIDEO_ENABLE;
 	value &= ~DSI_CONTROL_HOST_ENABLE;
 	tegra_dsi_writel(dsi, value, DSI_CONTROL);
-
-	err = tegra_dsi_set_phy_timing(dsi);
-	if (err < 0)
-		return err;
 
 	for (i = 0; i < NUM_PKT_SEQ; i++)
 		tegra_dsi_writel(dsi, pkt_seq[i], DSI_PKT_SEQ_0_LO + i);
@@ -859,6 +858,10 @@ static int tegra_output_dsi_setup_clock(struct tegra_output *output,
 	 * access to the vrefresh in this function?
 	 */
 	tegra_dsi_set_timeout(dsi, bclk, vrefresh);
+
+	err = tegra_dsi_set_phy_timing(dsi);
+	if (err < 0)
+		return err;
 
 	return 0;
 }
