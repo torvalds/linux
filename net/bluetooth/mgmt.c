@@ -6196,8 +6196,7 @@ void mgmt_device_connected(struct hci_dev *hdev, struct hci_conn *conn,
 			eir_len = eir_append_data(ev->eir, 0, EIR_NAME_COMPLETE,
 						  name, name_len);
 
-		if (conn->dev_class &&
-		    memcmp(conn->dev_class, "\0\0\0", 3) != 0)
+		if (memcmp(conn->dev_class, "\0\0\0", 3) != 0)
 			eir_len = eir_append_data(ev->eir, eir_len,
 						  EIR_CLASS_OF_DEV,
 						  conn->dev_class, 3);
