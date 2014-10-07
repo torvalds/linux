@@ -204,7 +204,7 @@
 
 &lcdc {
 	status = "okay";
-	rockchip,fb-win-map = <FB0_WIN1_FB1_WIN0_FB2_WIN2>;
+	rockchip,fb-win-map = <FB0_WIN0_FB1_WIN1_FB2_WIN2>;
 };
 
 &hdmi {
