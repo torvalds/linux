@@ -517,7 +517,7 @@ static void ieee80211_softmac_scan_wq(struct work_struct *work)
 		goto out;
 	ieee->set_chan(ieee->dev, ieee->current_network.channel);
 	if(channel_map[ieee->current_network.channel] == 1)
-	ieee80211_send_probe_requests(ieee);
+		ieee80211_send_probe_requests(ieee);
 
 
 	queue_delayed_work(ieee->wq, &ieee->softmac_scan_wq, IEEE80211_SOFTMAC_SCAN_TIME);
@@ -1103,7 +1103,7 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 	if(ieee->short_slot)
 		hdr->capability |= cpu_to_le16(WLAN_CAPABILITY_SHORT_SLOT);
 	if (wmm_info_len) //QOS
-	hdr->capability |= cpu_to_le16(WLAN_CAPABILITY_QOS);
+		hdr->capability |= cpu_to_le16(WLAN_CAPABILITY_QOS);
 
 	hdr->listen_interval = 0xa; //FIXME
 
@@ -1533,7 +1533,7 @@ void ieee80211_softmac_check_all_nets(struct ieee80211_device *ieee)
 			break;
 
 		if (ieee->scan_age == 0 || time_after(target->last_scanned + ieee->scan_age, jiffies))
-		ieee80211_softmac_new_net(ieee, target);
+			ieee80211_softmac_new_net(ieee, target);
 	}
 
 	spin_unlock_irqrestore(&ieee->lock, flags);
