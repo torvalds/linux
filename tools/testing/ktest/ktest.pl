@@ -2736,15 +2736,17 @@ sub bisect {
     run_command "git bisect start$start_files" or
 	dodie "could not start bisect";
 
-    run_command "git bisect good $good" or
-	dodie "could not set bisect good to $good";
-
-    run_git_bisect "git bisect bad $bad" or
-	dodie "could not set bisect bad to $bad";
-
     if (defined($replay)) {
 	run_command "git bisect replay $replay" or
 	    dodie "failed to run replay";
+    } else {
+
+	run_command "git bisect good $good" or
+	    dodie "could not set bisect good to $good";
+
+	run_git_bisect "git bisect bad $bad" or
+	    dodie "could not set bisect bad to $bad";
+
     }
 
     if (defined($start)) {
