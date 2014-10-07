@@ -94,10 +94,6 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	/* init kms poll for handling hpd */
 	drm_kms_helper_poll_init(dev);
 
-	ret = drm_vblank_init(dev, MAX_CRTC);
-	if (ret)
-		goto err_mode_config_cleanup;
-
 	/* setup possible_clones. */
 	exynos_drm_encoder_setup(dev);
 
@@ -106,12 +102,16 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	/* Try to bind all sub drivers. */
 	ret = component_bind_all(dev->dev, dev);
 	if (ret)
-		goto err_cleanup_vblank;
+		goto err_mode_config_cleanup;
+
+	ret = drm_vblank_init(dev, dev->mode_config.num_crtc);
+	if (ret)
+		goto err_unbind_all;
 
 	/* Probe non kms sub drivers and virtual display driver. */
 	ret = exynos_drm_device_subdrv_probe(dev);
 	if (ret)
-		goto err_unbind_all;
+		goto err_cleanup_vblank;
 
 	/* force connectors detection */
 	drm_helper_hpd_irq_event(dev);
@@ -135,10 +135,10 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 
 	return 0;
 
-err_unbind_all:
-	component_unbind_all(dev->dev, dev);
 err_cleanup_vblank:
 	drm_vblank_cleanup(dev);
+err_unbind_all:
+	component_unbind_all(dev->dev, dev);
 err_mode_config_cleanup:
 	drm_mode_config_cleanup(dev);
 	drm_release_iommu_mapping(dev);
@@ -155,8 +155,8 @@ static int exynos_drm_unload(struct drm_device *dev)
 	exynos_drm_fbdev_fini(dev);
 	drm_kms_helper_poll_fini(dev);
 
-	component_unbind_all(dev->dev, dev);
 	drm_vblank_cleanup(dev);
+	component_unbind_all(dev->dev, dev);
 	drm_mode_config_cleanup(dev);
 	drm_release_iommu_mapping(dev);
 
