@@ -15,8 +15,7 @@ struct greybus_module_id {
 	__u16	product;
 	__u64	unique_id;
 
-	kernel_ulong_t	driver_info
-		__attribute__((aligned(sizeof(kernel_ulong_t))));
+	kernel_ulong_t	driver_info __aligned(sizeof(kernel_ulong_t));
 };
 
 /* Used to match the greybus_module_id */
