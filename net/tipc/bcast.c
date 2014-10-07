@@ -226,6 +226,17 @@ static void bclink_retransmit_pkt(u32 after, u32 to)
 }
 
 /**
+ * tipc_bclink_wakeup_users - wake up pending users
+ *
+ * Called with no locks taken
+ */
+void tipc_bclink_wakeup_users(void)
+{
+	while (skb_queue_len(&bclink->link.waiting_sks))
+		tipc_sk_rcv(skb_dequeue(&bclink->link.waiting_sks));
+}
+
+/**
  * tipc_bclink_acknowledge - handle acknowledgement of broadcast packets
  * @n_ptr: node that sent acknowledgement info
  * @acked: broadcast sequence # that has been acknowledged
@@ -300,7 +311,8 @@ void tipc_bclink_acknowledge(struct tipc_node *n_ptr, u32 acked)
 		bclink_set_last_sent();
 	}
 	if (unlikely(released && !skb_queue_empty(&bcl->waiting_sks)))
-		bclink->node.action_flags |= TIPC_WAKEUP_USERS;
+		n_ptr->action_flags |= TIPC_WAKEUP_BCAST_USERS;
+
 exit:
 	tipc_bclink_unlock();
 }

@@ -59,7 +59,8 @@ enum {
 	TIPC_WAIT_OWN_LINKS_DOWN	= (1 << 2),
 	TIPC_NOTIFY_NODE_DOWN		= (1 << 3),
 	TIPC_NOTIFY_NODE_UP		= (1 << 4),
-	TIPC_WAKEUP_USERS		= (1 << 5)
+	TIPC_WAKEUP_USERS		= (1 << 5),
+	TIPC_WAKEUP_BCAST_USERS		= (1 << 6)
 };
 
 /**

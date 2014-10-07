@@ -552,6 +552,7 @@ void tipc_node_unlock(struct tipc_node *node)
 	LIST_HEAD(conn_sks);
 	struct sk_buff_head waiting_sks;
 	u32 addr = 0;
+	unsigned int flags = node->action_flags;
 
 	if (likely(!node->action_flags)) {
 		spin_unlock_bh(&node->lock);
@@ -572,6 +573,7 @@ void tipc_node_unlock(struct tipc_node *node)
 		node->action_flags &= ~TIPC_NOTIFY_NODE_UP;
 		addr = node->addr;
 	}
+	node->action_flags &= ~TIPC_WAKEUP_BCAST_USERS;
 	spin_unlock_bh(&node->lock);
 
 	while (!skb_queue_empty(&waiting_sks))
@@ -582,6 +584,9 @@ void tipc_node_unlock(struct tipc_node *node)
 
 	if (!list_empty(&nsub_list))
 		tipc_nodesub_notify(&nsub_list);
+
+	if (flags & TIPC_WAKEUP_BCAST_USERS)
+		tipc_bclink_wakeup_users();
 
 	if (addr)
 		tipc_named_node_up(addr);
