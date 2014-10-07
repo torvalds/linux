@@ -970,6 +970,7 @@ static struct power_supply psy_default = {
 	.properties = default_charger_props,
 	.num_properties = ARRAY_SIZE(default_charger_props),
 	.get_property = charger_get_property,
+	.no_thermal = true,
 };
 
 /**
