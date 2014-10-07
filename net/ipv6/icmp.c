@@ -777,11 +777,11 @@ static int icmpv6_rcv(struct sk_buff *skb)
 		break;
 
 	default:
-		LIMIT_NETDEBUG(KERN_DEBUG "icmpv6: msg of unknown type\n");
-
 		/* informational */
 		if (type & ICMPV6_INFOMSG_MASK)
 			break;
+
+		LIMIT_NETDEBUG(KERN_DEBUG "icmpv6: msg of unknown type\n");
 
 		/*
 		 * error of unknown type.
