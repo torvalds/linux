@@ -92,7 +92,7 @@ static inline bool __virtio_test_bit(const struct virtio_device *vdev,
 	else
 		BUG_ON(fbit >= 32);
 
-	return test_bit(fbit, vdev->features);
+	return vdev->features & BIT(fbit);
 }
 
 /**
@@ -109,7 +109,7 @@ static inline void __virtio_set_bit(struct virtio_device *vdev,
 	else
 		BUG_ON(fbit >= 32);
 
-	set_bit(fbit, vdev->features);
+	vdev->features |= BIT(fbit);
 }
 
 /**
@@ -126,7 +126,7 @@ static inline void __virtio_clear_bit(struct virtio_device *vdev,
 	else
 		BUG_ON(fbit >= 32);
 
-	clear_bit(fbit, vdev->features);
+	vdev->features &= ~BIT(fbit);
 }
 
 /**

@@ -49,9 +49,9 @@ static ssize_t features_show(struct device *_d,
 
 	/* We actually represent this as a bitstring, as it could be
 	 * arbitrary length in future. */
-	for (i = 0; i < ARRAY_SIZE(dev->features)*BITS_PER_LONG; i++)
+	for (i = 0; i < sizeof(dev->features)*8; i++)
 		len += sprintf(buf+len, "%c",
-			       test_bit(i, dev->features) ? '1' : '0');
+			       __virtio_test_bit(dev, i) ? '1' : '0');
 	len += sprintf(buf+len, "\n");
 	return len;
 }
@@ -168,18 +168,18 @@ static int virtio_dev_probe(struct device *_d)
 	device_features = dev->config->get_features(dev);
 
 	/* Features supported by both device and driver into dev->features. */
-	memset(dev->features, 0, sizeof(dev->features));
+	dev->features = 0;
 	for (i = 0; i < drv->feature_table_size; i++) {
 		unsigned int f = drv->feature_table[i];
 		BUG_ON(f >= 32);
 		if (device_features & (1 << f))
-			set_bit(f, dev->features);
+			__virtio_set_bit(dev, f);
 	}
 
 	/* Transport features always preserved to pass to finalize_features. */
 	for (i = VIRTIO_TRANSPORT_F_START; i < VIRTIO_TRANSPORT_F_END; i++)
 		if (device_features & (1 << i))
-			set_bit(i, dev->features);
+			__virtio_set_bit(dev, i);
 
 	dev->config->finalize_features(dev);
 

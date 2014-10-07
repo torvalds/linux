@@ -101,8 +101,7 @@ struct virtio_device {
 	const struct virtio_config_ops *config;
 	const struct vringh_config_ops *vringh_config;
 	struct list_head vqs;
-	/* Note that this is a Linux set_bit-style bitmap. */
-	unsigned long features[1];
+	u32 features;
 	void *priv;
 };
 

@@ -137,14 +137,14 @@ static void lg_finalize_features(struct virtio_device *vdev)
 	vring_transport_features(vdev);
 
 	/*
-	 * The vdev->feature array is a Linux bitmask: this isn't the same as a
-	 * the simple array of bits used by lguest devices for features.  So we
-	 * do this slow, manual conversion which is completely general.
+	 * Since lguest is currently x86-only, we're little-endian.  That
+	 * means we could just memcpy.  But it's not time critical, and in
+	 * case someone copies this code, we do it the slow, obvious way.
 	 */
 	memset(out_features, 0, desc->feature_len);
 	bits = min_t(unsigned, desc->feature_len, sizeof(vdev->features)) * 8;
 	for (i = 0; i < bits; i++) {
-		if (test_bit(i, vdev->features))
+		if (__virtio_test_bit(vdev, i))
 			out_features[i / 8] |= (1 << (i % 8));
 	}
 
