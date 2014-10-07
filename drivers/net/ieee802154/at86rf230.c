@@ -664,7 +664,6 @@ at86rf230_async_state_change_start(void *context)
 			enable_irq(lp->spi->irq);
 
 		at86rf230_async_error(lp, &lp->state, rc);
-		dev_err(&lp->spi->dev, "spi_async error %d\n", rc);
 	}
 }
 
