@@ -1060,8 +1060,10 @@ static int ipu_add_client_devices(struct ipu_soc *ipu, unsigned long ipu_base)
 				id++, &reg->pdata, sizeof(reg->pdata));
 		}
 
-		if (IS_ERR(pdev))
+		if (IS_ERR(pdev)) {
+			ret = PTR_ERR(pdev);
 			goto err_register;
+		}
 	}
 
 	return 0;
