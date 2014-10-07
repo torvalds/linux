@@ -215,16 +215,22 @@ static int fs_enet_rx_napi(struct napi_struct *napi, int budget)
 	return received;
 }
 
-static void fs_enet_tx(struct net_device *dev)
+static int fs_enet_tx_napi(struct napi_struct *napi, int budget)
 {
-	struct fs_enet_private *fep = netdev_priv(dev);
+	struct fs_enet_private *fep = container_of(napi, struct fs_enet_private,
+						   napi_tx);
+	struct net_device *dev = fep->ndev;
 	cbd_t __iomem *bdp;
 	struct sk_buff *skb;
 	int dirtyidx, do_wake, do_restart;
 	u16 sc;
+	int has_tx_work = 0;
 
 	spin_lock(&fep->tx_lock);
 	bdp = fep->dirty_tx;
+
+	/* clear TX status bits for napi*/
+	(*fep->ops->napi_clear_tx_event)(dev);
 
 	do_wake = do_restart = 0;
 	while (((sc = CBDR_SC(bdp)) & BD_ENET_TX_READY) == 0) {
@@ -278,7 +284,7 @@ static void fs_enet_tx(struct net_device *dev)
 		/*
 		 * Free the sk buffer associated with this last transmit.
 		 */
-		dev_kfree_skb_irq(skb);
+		dev_kfree_skb(skb);
 		fep->tx_skbuff[dirtyidx] = NULL;
 
 		/*
@@ -295,6 +301,7 @@ static void fs_enet_tx(struct net_device *dev)
 		 */
 		if (!fep->tx_free++)
 			do_wake = 1;
+		has_tx_work = 1;
 	}
 
 	fep->dirty_tx = bdp;
@@ -302,10 +309,19 @@ static void fs_enet_tx(struct net_device *dev)
 	if (do_restart)
 		(*fep->ops->tx_restart)(dev);
 
+	if (!has_tx_work) {
+		napi_complete(napi);
+		(*fep->ops->napi_enable_tx)(dev);
+	}
+
 	spin_unlock(&fep->tx_lock);
 
 	if (do_wake)
 		netif_wake_queue(dev);
+
+	if (has_tx_work)
+		return budget;
+	return 0;
 }
 
 /*
@@ -350,8 +366,17 @@ fs_enet_interrupt(int irq, void *dev_id)
 				__napi_schedule(&fep->napi);
 		}
 
-		if (int_events & fep->ev_tx)
-			fs_enet_tx(dev);
+		if (int_events & fep->ev_tx) {
+			napi_ok = napi_schedule_prep(&fep->napi_tx);
+
+			(*fep->ops->napi_disable_tx)(dev);
+			(*fep->ops->clear_int_events)(dev, fep->ev_napi_tx);
+
+			/* NOTE: it is possible for FCCs in NAPI mode    */
+			/* to submit a spurious interrupt while in poll  */
+			if (napi_ok)
+				__napi_schedule(&fep->napi_tx);
+		}
 	}
 
 	handled = nr > 0;
@@ -484,7 +509,6 @@ static int fs_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	cbd_t __iomem *bdp;
 	int curidx;
 	u16 sc;
-	unsigned long flags;
 
 #ifdef CONFIG_FS_ENET_MPC5121_FEC
 	if (((unsigned long)skb->data) & 0x3) {
@@ -499,7 +523,7 @@ static int fs_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 #endif
-	spin_lock_irqsave(&fep->tx_lock, flags);
+	spin_lock(&fep->tx_lock);
 
 	/*
 	 * Fill in a Tx ring entry
@@ -508,7 +532,7 @@ static int fs_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (!fep->tx_free || (CBDR_SC(bdp) & BD_ENET_TX_READY)) {
 		netif_stop_queue(dev);
-		spin_unlock_irqrestore(&fep->tx_lock, flags);
+		spin_unlock(&fep->tx_lock);
 
 		/*
 		 * Ooops.  All transmit buffers are full.  Bail out.
@@ -564,7 +588,7 @@ static int fs_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	(*fep->ops->tx_kickstart)(dev);
 
-	spin_unlock_irqrestore(&fep->tx_lock, flags);
+	spin_unlock(&fep->tx_lock);
 
 	return NETDEV_TX_OK;
 }
@@ -685,6 +709,7 @@ static int fs_enet_open(struct net_device *dev)
 	fs_init_bds(fep->ndev);
 
 	napi_enable(&fep->napi);
+	napi_enable(&fep->napi_tx);
 
 	/* Install our interrupt handler. */
 	r = request_irq(fep->interrupt, fs_enet_interrupt, IRQF_SHARED,
@@ -692,6 +717,7 @@ static int fs_enet_open(struct net_device *dev)
 	if (r != 0) {
 		dev_err(fep->dev, "Could not allocate FS_ENET IRQ!");
 		napi_disable(&fep->napi);
+		napi_disable(&fep->napi_tx);
 		return -EINVAL;
 	}
 
@@ -699,6 +725,7 @@ static int fs_enet_open(struct net_device *dev)
 	if (err) {
 		free_irq(fep->interrupt, dev);
 		napi_disable(&fep->napi);
+		napi_disable(&fep->napi_tx);
 		return err;
 	}
 	phy_start(fep->phydev);
@@ -716,6 +743,7 @@ static int fs_enet_close(struct net_device *dev)
 	netif_stop_queue(dev);
 	netif_carrier_off(dev);
 	napi_disable(&fep->napi);
+	napi_disable(&fep->napi_tx);
 	phy_stop(fep->phydev);
 
 	spin_lock_irqsave(&fep->lock, flags);
@@ -971,6 +999,7 @@ static int fs_enet_probe(struct platform_device *ofdev)
 	ndev->netdev_ops = &fs_enet_netdev_ops;
 	ndev->watchdog_timeo = 2 * HZ;
 	netif_napi_add(ndev, &fep->napi, fs_enet_rx_napi, fpi->napi_weight);
+	netif_napi_add(ndev, &fep->napi_tx, fs_enet_tx_napi, 2);
 
 	ndev->ethtool_ops = &fs_ethtool_ops;
 
