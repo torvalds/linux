@@ -60,7 +60,6 @@ static unsigned long i915_gem_shrinker_scan(struct shrinker *shrinker,
 static int i915_gem_shrinker_oom(struct notifier_block *nb,
 				 unsigned long event,
 				 void *ptr);
-static unsigned long i915_gem_purge(struct drm_i915_private *dev_priv, long target);
 static unsigned long i915_gem_shrink_all(struct drm_i915_private *dev_priv);
 
 static bool cpu_cache_is_coherent(struct drm_device *dev,
@@ -1741,7 +1740,11 @@ static int i915_gem_object_create_mmap_offset(struct drm_i915_gem_object *obj)
 	 * offsets on purgeable objects by truncating it and marking it purged,
 	 * which prevents userspace from ever using that object again.
 	 */
-	i915_gem_purge(dev_priv, obj->base.size >> PAGE_SHIFT);
+	i915_gem_shrink(dev_priv,
+			obj->base.size >> PAGE_SHIFT,
+			I915_SHRINK_BOUND |
+			I915_SHRINK_UNBOUND |
+			I915_SHRINK_PURGEABLE);
 	ret = drm_gem_create_mmap_offset(&obj->base);
 	if (ret != -ENOSPC)
 		goto out;
@@ -1938,12 +1941,11 @@ i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 	return 0;
 }
 
-static unsigned long
-__i915_gem_shrink(struct drm_i915_private *dev_priv, long target,
-		  bool purgeable_only)
+unsigned long
+i915_gem_shrink(struct drm_i915_private *dev_priv,
+		long target, unsigned flags)
 {
-	struct list_head still_in_list;
-	struct drm_i915_gem_object *obj;
+	const bool purgeable_only = flags & I915_SHRINK_PURGEABLE;
 	unsigned long count = 0;
 
 	/*
@@ -1965,62 +1967,68 @@ __i915_gem_shrink(struct drm_i915_private *dev_priv, long target,
 	 * dev->struct_mutex and so we won't ever be able to observe an
 	 * object on the bound_list with a reference count equals 0.
 	 */
-	INIT_LIST_HEAD(&still_in_list);
-	while (count < target && !list_empty(&dev_priv->mm.unbound_list)) {
-		obj = list_first_entry(&dev_priv->mm.unbound_list,
-				       typeof(*obj), global_list);
-		list_move_tail(&obj->global_list, &still_in_list);
+	if (flags & I915_SHRINK_UNBOUND) {
+		struct list_head still_in_list;
 
-		if (!i915_gem_object_is_purgeable(obj) && purgeable_only)
-			continue;
+		INIT_LIST_HEAD(&still_in_list);
+		while (count < target && !list_empty(&dev_priv->mm.unbound_list)) {
+			struct drm_i915_gem_object *obj;
 
-		drm_gem_object_reference(&obj->base);
+			obj = list_first_entry(&dev_priv->mm.unbound_list,
+					       typeof(*obj), global_list);
+			list_move_tail(&obj->global_list, &still_in_list);
 
-		if (i915_gem_object_put_pages(obj) == 0)
-			count += obj->base.size >> PAGE_SHIFT;
+			if (!i915_gem_object_is_purgeable(obj) && purgeable_only)
+				continue;
 
-		drm_gem_object_unreference(&obj->base);
+			drm_gem_object_reference(&obj->base);
+
+			if (i915_gem_object_put_pages(obj) == 0)
+				count += obj->base.size >> PAGE_SHIFT;
+
+			drm_gem_object_unreference(&obj->base);
+		}
+		list_splice(&still_in_list, &dev_priv->mm.unbound_list);
 	}
-	list_splice(&still_in_list, &dev_priv->mm.unbound_list);
 
-	INIT_LIST_HEAD(&still_in_list);
-	while (count < target && !list_empty(&dev_priv->mm.bound_list)) {
-		struct i915_vma *vma, *v;
+	if (flags & I915_SHRINK_BOUND) {
+		struct list_head still_in_list;
 
-		obj = list_first_entry(&dev_priv->mm.bound_list,
-				       typeof(*obj), global_list);
-		list_move_tail(&obj->global_list, &still_in_list);
+		INIT_LIST_HEAD(&still_in_list);
+		while (count < target && !list_empty(&dev_priv->mm.bound_list)) {
+			struct drm_i915_gem_object *obj;
+			struct i915_vma *vma, *v;
 
-		if (!i915_gem_object_is_purgeable(obj) && purgeable_only)
-			continue;
+			obj = list_first_entry(&dev_priv->mm.bound_list,
+					       typeof(*obj), global_list);
+			list_move_tail(&obj->global_list, &still_in_list);
 
-		drm_gem_object_reference(&obj->base);
+			if (!i915_gem_object_is_purgeable(obj) && purgeable_only)
+				continue;
 
-		list_for_each_entry_safe(vma, v, &obj->vma_list, vma_link)
-			if (i915_vma_unbind(vma))
-				break;
+			drm_gem_object_reference(&obj->base);
 
-		if (i915_gem_object_put_pages(obj) == 0)
-			count += obj->base.size >> PAGE_SHIFT;
+			list_for_each_entry_safe(vma, v, &obj->vma_list, vma_link)
+				if (i915_vma_unbind(vma))
+					break;
 
-		drm_gem_object_unreference(&obj->base);
+			if (i915_gem_object_put_pages(obj) == 0)
+				count += obj->base.size >> PAGE_SHIFT;
+
+			drm_gem_object_unreference(&obj->base);
+		}
+		list_splice(&still_in_list, &dev_priv->mm.bound_list);
 	}
-	list_splice(&still_in_list, &dev_priv->mm.bound_list);
 
 	return count;
-}
-
-static unsigned long
-i915_gem_purge(struct drm_i915_private *dev_priv, long target)
-{
-	return __i915_gem_shrink(dev_priv, target, true);
 }
 
 static unsigned long
 i915_gem_shrink_all(struct drm_i915_private *dev_priv)
 {
 	i915_gem_evict_everything(dev_priv->dev);
-	return __i915_gem_shrink(dev_priv, LONG_MAX, false);
+	return i915_gem_shrink(dev_priv, LONG_MAX,
+			       I915_SHRINK_BOUND | I915_SHRINK_UNBOUND);
 }
 
 static int
@@ -2067,7 +2075,11 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	for (i = 0; i < page_count; i++) {
 		page = shmem_read_mapping_page_gfp(mapping, i, gfp);
 		if (IS_ERR(page)) {
-			i915_gem_purge(dev_priv, page_count);
+			i915_gem_shrink(dev_priv,
+					page_count,
+					I915_SHRINK_BOUND |
+					I915_SHRINK_UNBOUND |
+					I915_SHRINK_PURGEABLE);
 			page = shmem_read_mapping_page_gfp(mapping, i, gfp);
 		}
 		if (IS_ERR(page)) {
@@ -2944,6 +2956,9 @@ int i915_vma_unbind(struct i915_vma *vma)
 	 * cause memory corruption through use-after-free.
 	 */
 
+	/* Throw away the active reference before moving to the unbound list */
+	i915_gem_object_retire(obj);
+
 	if (i915_is_ggtt(vma->vm)) {
 		i915_gem_object_finish_gtt(obj);
 
@@ -3336,17 +3351,20 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj)
 	return 0;
 }
 
-static bool i915_gem_valid_gtt_space(struct drm_device *dev,
-				     struct drm_mm_node *gtt_space,
+static bool i915_gem_valid_gtt_space(struct i915_vma *vma,
 				     unsigned long cache_level)
 {
+	struct drm_mm_node *gtt_space = &vma->node;
 	struct drm_mm_node *other;
 
-	/* On non-LLC machines we have to be careful when putting differing
-	 * types of snoopable memory together to avoid the prefetcher
-	 * crossing memory domains and dying.
+	/*
+	 * On some machines we have to be careful when putting differing types
+	 * of snoopable memory together to avoid the prefetcher crossing memory
+	 * domains and dying. During vm initialisation, we decide whether or not
+	 * these constraints apply and set the drm_mm.color_adjust
+	 * appropriately.
 	 */
-	if (HAS_LLC(dev))
+	if (vma->vm->mm.color_adjust == NULL)
 		return true;
 
 	if (!drm_mm_node_allocated(gtt_space))
@@ -3484,8 +3502,7 @@ search_free:
 
 		goto err_free_vma;
 	}
-	if (WARN_ON(!i915_gem_valid_gtt_space(dev, &vma->node,
-					      obj->cache_level))) {
+	if (WARN_ON(!i915_gem_valid_gtt_space(vma, obj->cache_level))) {
 		ret = -EINVAL;
 		goto err_remove_node;
 	}
@@ -3695,7 +3712,7 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 	}
 
 	list_for_each_entry_safe(vma, next, &obj->vma_list, vma_link) {
-		if (!i915_gem_valid_gtt_space(dev, &vma->node, cache_level)) {
+		if (!i915_gem_valid_gtt_space(vma, cache_level)) {
 			ret = i915_vma_unbind(vma);
 			if (ret)
 				return ret;
@@ -5261,11 +5278,16 @@ i915_gem_shrinker_scan(struct shrinker *shrinker, struct shrink_control *sc)
 	if (!i915_gem_shrinker_lock(dev, &unlock))
 		return SHRINK_STOP;
 
-	freed = i915_gem_purge(dev_priv, sc->nr_to_scan);
+	freed = i915_gem_shrink(dev_priv,
+				sc->nr_to_scan,
+				I915_SHRINK_BOUND |
+				I915_SHRINK_UNBOUND |
+				I915_SHRINK_PURGEABLE);
 	if (freed < sc->nr_to_scan)
-		freed += __i915_gem_shrink(dev_priv,
-					   sc->nr_to_scan - freed,
-					   false);
+		freed += i915_gem_shrink(dev_priv,
+					 sc->nr_to_scan - freed,
+					 I915_SHRINK_BOUND |
+					 I915_SHRINK_UNBOUND);
 	if (unlock)
 		mutex_unlock(&dev->struct_mutex);
 

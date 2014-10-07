@@ -1501,7 +1501,7 @@ static void chv_hdmi_pre_enable(struct intel_encoder *encoder)
 
 static void intel_hdmi_destroy(struct drm_connector *connector)
 {
-	intel_hdmi_unset_edid(connector);
+	kfree(to_intel_connector(connector)->detect_edid);
 	drm_connector_cleanup(connector);
 	kfree(connector);
 }

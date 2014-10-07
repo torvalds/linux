@@ -946,23 +946,6 @@ struct intel_rps_ei {
 	u32 media_c0;
 };
 
-struct intel_rps_bdw_cal {
-	u32 it_threshold_pct; /* interrupt, in percentage */
-	u32 eval_interval; /* evaluation interval, in us */
-	u32 last_ts;
-	u32 last_c0;
-	bool is_up;
-};
-
-struct intel_rps_bdw_turbo {
-	struct intel_rps_bdw_cal up;
-	struct intel_rps_bdw_cal down;
-	struct timer_list flip_timer;
-	u32 timeout;
-	atomic_t flip_received;
-	struct work_struct work_max_freq;
-};
-
 struct intel_gen6_power_mgmt {
 	/* work and pm_iir are protected by dev_priv->irq_lock */
 	struct work_struct work;
@@ -995,9 +978,6 @@ struct intel_gen6_power_mgmt {
 
 	bool enabled;
 	struct delayed_work delayed_resume_work;
-
-	bool is_bdw_sw_turbo;	/* Switch of BDW software turbo */
-	struct intel_rps_bdw_turbo sw_turbo; /* Calculate RP interrupt timing */
 
 	/* manual wa residency calculations */
 	struct intel_rps_ei up_ei, down_ei;
@@ -2369,6 +2349,12 @@ int i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 int i915_gem_wait_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 void i915_gem_load(struct drm_device *dev);
+unsigned long i915_gem_shrink(struct drm_i915_private *dev_priv,
+			      long target,
+			      unsigned flags);
+#define I915_SHRINK_PURGEABLE 0x1
+#define I915_SHRINK_UNBOUND 0x2
+#define I915_SHRINK_BOUND 0x4
 void *i915_gem_object_alloc(struct drm_device *dev);
 void i915_gem_object_free(struct drm_i915_gem_object *obj);
 void i915_gem_object_init(struct drm_i915_gem_object *obj,
@@ -2823,8 +2809,6 @@ extern void intel_disable_fbc(struct drm_device *dev);
 extern bool ironlake_set_drps(struct drm_device *dev, u8 val);
 extern void intel_init_pch_refclk(struct drm_device *dev);
 extern void gen6_set_rps(struct drm_device *dev, u8 val);
-extern void bdw_software_turbo(struct drm_device *dev);
-extern void gen8_flip_interrupt(struct drm_device *dev);
 extern void valleyview_set_rps(struct drm_device *dev, u8 val);
 extern void intel_set_memory_cxsr(struct drm_i915_private *dev_priv,
 				  bool enable);

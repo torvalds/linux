@@ -300,8 +300,18 @@ static void execlists_elsp_write(struct intel_engine_cs *ring,
 	 * Instead, we do the runtime_pm_get/put when creating/destroying requests.
 	 */
 	spin_lock_irqsave(&dev_priv->uncore.lock, flags);
-	if (dev_priv->uncore.forcewake_count++ == 0)
-		dev_priv->uncore.funcs.force_wake_get(dev_priv, FORCEWAKE_ALL);
+	if (IS_CHERRYVIEW(dev_priv->dev)) {
+		if (dev_priv->uncore.fw_rendercount++ == 0)
+			dev_priv->uncore.funcs.force_wake_get(dev_priv,
+							      FORCEWAKE_RENDER);
+		if (dev_priv->uncore.fw_mediacount++ == 0)
+			dev_priv->uncore.funcs.force_wake_get(dev_priv,
+							      FORCEWAKE_MEDIA);
+	} else {
+		if (dev_priv->uncore.forcewake_count++ == 0)
+			dev_priv->uncore.funcs.force_wake_get(dev_priv,
+							      FORCEWAKE_ALL);
+	}
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, flags);
 
 	I915_WRITE(RING_ELSP(ring), desc[1]);
@@ -315,8 +325,19 @@ static void execlists_elsp_write(struct intel_engine_cs *ring,
 
 	/* Release Force Wakeup (see the big comment above). */
 	spin_lock_irqsave(&dev_priv->uncore.lock, flags);
-	if (--dev_priv->uncore.forcewake_count == 0)
-		dev_priv->uncore.funcs.force_wake_put(dev_priv, FORCEWAKE_ALL);
+	if (IS_CHERRYVIEW(dev_priv->dev)) {
+		if (--dev_priv->uncore.fw_rendercount == 0)
+			dev_priv->uncore.funcs.force_wake_put(dev_priv,
+							      FORCEWAKE_RENDER);
+		if (--dev_priv->uncore.fw_mediacount == 0)
+			dev_priv->uncore.funcs.force_wake_put(dev_priv,
+							      FORCEWAKE_MEDIA);
+	} else {
+		if (--dev_priv->uncore.forcewake_count == 0)
+			dev_priv->uncore.funcs.force_wake_put(dev_priv,
+							      FORCEWAKE_ALL);
+	}
+
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, flags);
 }
 

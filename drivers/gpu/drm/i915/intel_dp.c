@@ -1068,23 +1068,15 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 			bpp = dev_priv->vbt.edp_bpp;
 		}
 
-		if (IS_BROADWELL(dev)) {
-			/* Yes, it's an ugly hack. */
-			min_lane_count = max_lane_count;
-			DRM_DEBUG_KMS("forcing lane count to max (%u) on BDW\n",
-				      min_lane_count);
-		} else if (dev_priv->vbt.edp_lanes) {
-			min_lane_count = min(dev_priv->vbt.edp_lanes,
-					     max_lane_count);
-			DRM_DEBUG_KMS("using min %u lanes per VBT\n",
-				      min_lane_count);
-		}
-
-		if (dev_priv->vbt.edp_rate) {
-			min_clock = min(dev_priv->vbt.edp_rate >> 3, max_clock);
-			DRM_DEBUG_KMS("using min %02x link bw per VBT\n",
-				      bws[min_clock]);
-		}
+		/*
+		 * Use the maximum clock and number of lanes the eDP panel
+		 * advertizes being capable of. The panels are generally
+		 * designed to support only a single clock and lane
+		 * configuration, and typically these values correspond to the
+		 * native resolution of the panel.
+		 */
+		min_lane_count = max_lane_count;
+		min_clock = max_clock;
 	}
 
 	for (; bpp >= 6*3; bpp -= 2*3) {
@@ -3732,7 +3724,7 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x12 &&
 	    intel_dp->dpcd[DP_MAX_LANE_COUNT] & DP_TPS3_SUPPORTED) {
 		intel_dp->use_tps3 = true;
-		DRM_DEBUG_KMS("Displayport TPS3 supported");
+		DRM_DEBUG_KMS("Displayport TPS3 supported\n");
 	} else
 		intel_dp->use_tps3 = false;
 
@@ -3808,21 +3800,21 @@ int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc)
 	u8 buf[1];
 
 	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK_MISC, buf) < 0)
-		return -EAGAIN;
+		return -EIO;
 
 	if (!(buf[0] & DP_TEST_CRC_SUPPORTED))
 		return -ENOTTY;
 
 	if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_SINK,
 			       DP_TEST_SINK_START) < 0)
-		return -EAGAIN;
+		return -EIO;
 
 	/* Wait 2 vblanks to be sure we will have the correct CRC value */
 	intel_wait_for_vblank(dev, intel_crtc->pipe);
 	intel_wait_for_vblank(dev, intel_crtc->pipe);
 
 	if (drm_dp_dpcd_read(&intel_dp->aux, DP_TEST_CRC_R_CR, crc, 6) < 0)
-		return -EAGAIN;
+		return -EIO;
 
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_SINK, 0);
 	return 0;
@@ -4395,7 +4387,7 @@ intel_dp_connector_destroy(struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 
-	intel_dp_unset_edid(intel_attached_dp(connector));
+	kfree(intel_connector->detect_edid);
 
 	if (!IS_ERR_OR_NULL(intel_connector->edid))
 		kfree(intel_connector->edid);

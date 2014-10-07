@@ -3826,7 +3826,6 @@ i915_drop_caches_set(void *data, u64 val)
 {
 	struct drm_device *dev = data;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj, *next;
 	int ret;
 
 	DRM_DEBUG("Dropping caches: 0x%08llx\n", val);
@@ -3846,36 +3845,11 @@ i915_drop_caches_set(void *data, u64 val)
 	if (val & (DROP_RETIRE | DROP_ACTIVE))
 		i915_gem_retire_requests(dev);
 
-	if (val & DROP_BOUND) {
-		list_for_each_entry_safe(obj, next, &dev_priv->mm.bound_list,
-					 global_list) {
-			struct i915_vma *vma, *v;
+	if (val & DROP_BOUND)
+		i915_gem_shrink(dev_priv, LONG_MAX, I915_SHRINK_BOUND);
 
-			ret = 0;
-			drm_gem_object_reference(&obj->base);
-			list_for_each_entry_safe(vma, v, &obj->vma_list, vma_link) {
-				if (vma->pin_count)
-					continue;
-
-				ret = i915_vma_unbind(vma);
-				if (ret)
-					break;
-			}
-			drm_gem_object_unreference(&obj->base);
-			if (ret)
-				goto unlock;
-		}
-	}
-
-	if (val & DROP_UNBOUND) {
-		list_for_each_entry_safe(obj, next, &dev_priv->mm.unbound_list,
-					 global_list)
-			if (obj->pages_pin_count == 0) {
-				ret = i915_gem_object_put_pages(obj);
-				if (ret)
-					goto unlock;
-			}
-	}
+	if (val & DROP_UNBOUND)
+		i915_gem_shrink(dev_priv, LONG_MAX, I915_SHRINK_UNBOUND);
 
 unlock:
 	mutex_unlock(&dev->struct_mutex);

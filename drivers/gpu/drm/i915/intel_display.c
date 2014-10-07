@@ -1612,6 +1612,18 @@ static void chv_enable_pll(struct intel_crtc *crtc)
 	mutex_unlock(&dev_priv->dpio_lock);
 }
 
+static int intel_num_dvo_pipes(struct drm_device *dev)
+{
+	struct intel_crtc *crtc;
+	int count = 0;
+
+	for_each_intel_crtc(dev, crtc)
+		count += crtc->active &&
+			intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_DVO);
+
+	return count;
+}
+
 static void i9xx_enable_pll(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
@@ -1628,7 +1640,18 @@ static void i9xx_enable_pll(struct intel_crtc *crtc)
 	if (IS_MOBILE(dev) && !IS_I830(dev))
 		assert_panel_unlocked(dev_priv, crtc->pipe);
 
-	I915_WRITE(reg, dpll);
+	/* Enable DVO 2x clock on both PLLs if necessary */
+	if (IS_I830(dev) && intel_num_dvo_pipes(dev) > 0) {
+		/*
+		 * It appears to be important that we don't enable this
+		 * for the current pipe before otherwise configuring the
+		 * PLL. No idea how this should be handled if multiple
+		 * DVO outputs are enabled simultaneosly.
+		 */
+		dpll |= DPLL_DVO_2X_MODE;
+		I915_WRITE(DPLL(!crtc->pipe),
+			   I915_READ(DPLL(!crtc->pipe)) | DPLL_DVO_2X_MODE);
+	}
 
 	/* Wait for the clocks to stabilize. */
 	POSTING_READ(reg);
@@ -1667,8 +1690,22 @@ static void i9xx_enable_pll(struct intel_crtc *crtc)
  *
  * Note!  This is for pre-ILK only.
  */
-static void i9xx_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
+static void i9xx_disable_pll(struct intel_crtc *crtc)
 {
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum pipe pipe = crtc->pipe;
+
+	/* Disable DVO 2x clock on both PLLs if necessary */
+	if (IS_I830(dev) &&
+	    intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_DVO) &&
+	    intel_num_dvo_pipes(dev) == 1) {
+		I915_WRITE(DPLL(PIPE_B),
+			   I915_READ(DPLL(PIPE_B)) & ~DPLL_DVO_2X_MODE);
+		I915_WRITE(DPLL(PIPE_A),
+			   I915_READ(DPLL(PIPE_A)) & ~DPLL_DVO_2X_MODE);
+	}
+
 	/* Don't disable pipe or pipe PLLs if needed */
 	if ((pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE) ||
 	    (pipe == PIPE_B && dev_priv->quirks & QUIRK_PIPEB_FORCE))
@@ -4185,6 +4222,11 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 
 	intel_set_pipe_timings(intel_crtc);
 
+	if (intel_crtc->config.cpu_transcoder != TRANSCODER_EDP) {
+		I915_WRITE(PIPE_MULT(intel_crtc->config.cpu_transcoder),
+			   intel_crtc->config.pixel_multiplier - 1);
+	}
+
 	if (intel_crtc->config.has_pch_encoder) {
 		intel_cpu_transcoder_set_m_n(intel_crtc,
 				     &intel_crtc->config.fdi_m_n, NULL);
@@ -4941,7 +4983,7 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 		else if (IS_VALLEYVIEW(dev))
 			vlv_disable_pll(dev_priv, pipe);
 		else
-			i9xx_disable_pll(dev_priv, pipe);
+			i9xx_disable_pll(intel_crtc);
 	}
 
 	if (!IS_GEN2(dev))
@@ -5945,7 +5987,7 @@ static void i8xx_update_pll(struct intel_crtc *crtc,
 			dpll |= PLL_P2_DIVIDE_BY_4;
 	}
 
-	if (intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_DVO))
+	if (!IS_I830(dev) && intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_DVO))
 		dpll |= DPLL_DVO_2X_MODE;
 
 	if (intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_LVDS) &&
@@ -6451,6 +6493,14 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 	}
 	pipe_config->dpll_hw_state.dpll = I915_READ(DPLL(crtc->pipe));
 	if (!IS_VALLEYVIEW(dev)) {
+		/*
+		 * DPLL_DVO_2X_MODE must be enabled for both DPLLs
+		 * on 830. Filter it out here so that we don't
+		 * report errors due to that.
+		 */
+		if (IS_I830(dev))
+			pipe_config->dpll_hw_state.dpll &= ~DPLL_DVO_2X_MODE;
+
 		pipe_config->dpll_hw_state.fp0 = I915_READ(FP0(crtc->pipe));
 		pipe_config->dpll_hw_state.fp1 = I915_READ(FP1(crtc->pipe));
 	} else {
@@ -7845,7 +7895,12 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 		pipe_config->ips_enabled = hsw_crtc_supports_ips(crtc) &&
 			(I915_READ(IPS_CTL) & IPS_ENABLE);
 
-	pipe_config->pixel_multiplier = 1;
+	if (pipe_config->cpu_transcoder != TRANSCODER_EDP) {
+		pipe_config->pixel_multiplier =
+			I915_READ(PIPE_MULT(pipe_config->cpu_transcoder)) + 1;
+	} else {
+		pipe_config->pixel_multiplier = 1;
+	}
 
 	return true;
 }
@@ -9881,9 +9936,6 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	unsigned long flags;
 	int ret;
 
-	//trigger software GT busyness calculation
-	gen8_flip_interrupt(dev);
-
 	/*
 	 * drm_mode_page_flip_ioctl() should already catch this, but double
 	 * check to be safe.  In the future we may enable pageflipping from
@@ -10039,8 +10091,11 @@ free_work:
 out_hang:
 		intel_crtc_wait_for_pending_flips(crtc);
 		ret = intel_pipe_set_base(crtc, crtc->x, crtc->y, fb);
-		if (ret == 0 && event)
+		if (ret == 0 && event) {
+			spin_lock_irqsave(&dev->event_lock, flags);
 			drm_send_vblank_event(dev, pipe, event);
+			spin_unlock_irqrestore(&dev->event_lock, flags);
+		}
 	}
 	return ret;
 }
