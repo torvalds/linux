@@ -268,6 +268,7 @@ struct exynos_dsi_driver_data {
 };
 
 struct exynos_dsi {
+	struct exynos_drm_display display;
 	struct mipi_dsi_host dsi_host;
 	struct drm_connector connector;
 	struct drm_encoder *encoder;
@@ -1531,10 +1532,6 @@ static struct exynos_drm_display_ops exynos_dsi_display_ops = {
 	.dpms = exynos_dsi_dpms
 };
 
-static struct exynos_drm_display exynos_dsi_display = {
-	.type = EXYNOS_DISPLAY_TYPE_LCD,
-	.ops = &exynos_dsi_display_ops,
-};
 MODULE_DEVICE_TABLE(of, exynos_dsi_of_match);
 
 /* of_* functions will be removed after merge of of_graph patches */
@@ -1640,18 +1637,17 @@ end:
 static int exynos_dsi_bind(struct device *dev, struct device *master,
 				void *data)
 {
+	struct exynos_drm_display *display = dev_get_drvdata(dev);
+	struct exynos_dsi *dsi = display->ctx;
 	struct drm_device *drm_dev = data;
-	struct exynos_dsi *dsi;
 	int ret;
 
-	ret = exynos_drm_create_enc_conn(drm_dev, &exynos_dsi_display);
+	ret = exynos_drm_create_enc_conn(drm_dev, display);
 	if (ret) {
 		DRM_ERROR("Encoder create [%d] failed with %d\n",
-				exynos_dsi_display.type, ret);
+			  display->type, ret);
 		return ret;
 	}
-
-	dsi = exynos_dsi_display.ctx;
 
 	return mipi_dsi_host_register(&dsi->dsi_host);
 }
@@ -1659,9 +1655,10 @@ static int exynos_dsi_bind(struct device *dev, struct device *master,
 static void exynos_dsi_unbind(struct device *dev, struct device *master,
 				void *data)
 {
-	struct exynos_dsi *dsi = exynos_dsi_display.ctx;
+	struct exynos_drm_display *display = dev_get_drvdata(dev);
+	struct exynos_dsi *dsi = display->ctx;
 
-	exynos_dsi_dpms(&exynos_dsi_display, DRM_MODE_DPMS_OFF);
+	exynos_dsi_dpms(display, DRM_MODE_DPMS_OFF);
 
 	mipi_dsi_host_unregister(&dsi->dsi_host);
 }
@@ -1673,21 +1670,22 @@ static const struct component_ops exynos_dsi_component_ops = {
 
 static int exynos_dsi_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct resource *res;
 	struct exynos_dsi *dsi;
 	int ret;
 
-	ret = exynos_drm_component_add(&pdev->dev, EXYNOS_DEVICE_TYPE_CONNECTOR,
-					exynos_dsi_display.type);
+	dsi = devm_kzalloc(dev, sizeof(*dsi), GFP_KERNEL);
+	if (!dsi)
+		return -ENOMEM;
+
+	dsi->display.type = EXYNOS_DISPLAY_TYPE_LCD;
+	dsi->display.ops = &exynos_dsi_display_ops;
+
+	ret = exynos_drm_component_add(dev, EXYNOS_DEVICE_TYPE_CONNECTOR,
+				       dsi->display.type);
 	if (ret)
 		return ret;
-
-	dsi = devm_kzalloc(&pdev->dev, sizeof(*dsi), GFP_KERNEL);
-	if (!dsi) {
-		dev_err(&pdev->dev, "failed to allocate dsi object.\n");
-		ret = -ENOMEM;
-		goto err_del_component;
-	}
 
 	/* To be checked as invalid one */
 	dsi->te_gpio = -ENOENT;
