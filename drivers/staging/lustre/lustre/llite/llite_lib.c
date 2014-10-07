@@ -712,6 +712,7 @@ void lustre_dump_dentry(struct dentry *dentry, int recur)
 
 	list_for_each(tmp, &dentry->d_subdirs) {
 		struct dentry *d = list_entry(tmp, struct dentry, d_u.d_child);
+
 		lustre_dump_dentry(d, recur - 1);
 	}
 }
@@ -1152,6 +1153,7 @@ struct inode *ll_inode_from_resource_lock(struct ldlm_lock *lock)
 	lock_res_and_lock(lock);
 	if (lock->l_resource->lr_lvb_inode) {
 		struct ll_inode_info *lli;
+
 		lli = ll_i2info(lock->l_resource->lr_lvb_inode);
 		if (lli->lli_inode_magic == LLI_INODE_MAGIC) {
 			inode = igrab(lock->l_resource->lr_lvb_inode);
@@ -1850,6 +1852,7 @@ void ll_read_inode2(struct inode *inode, void *opaque)
 
 	if (S_ISREG(inode->i_mode)) {
 		struct ll_sb_info *sbi = ll_i2sbi(inode);
+
 		inode->i_op = &ll_file_inode_operations;
 		inode->i_fop = sbi->ll_fop;
 		inode->i_mapping->a_ops = (struct address_space_operations *)&ll_aops;
