@@ -770,9 +770,9 @@ static int rk_fb_close(struct fb_info *info, int user)
 	int win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
 
 	if (win_id >= 0) {
-		dev_drv->win[win_id]->logicalstate--;
-		if (!dev_drv->win[win_id]->logicalstate) {
-			win = dev_drv->win[win_id];
+		win = dev_drv->win[win_id];
+		win->logicalstate--;
+		if (!win->logicalstate) {
 			info->fix.smem_start = win->reserved;
 			info->var.xres = dev_drv->screen0->mode.xres;
 			info->var.yres = dev_drv->screen0->mode.yres;
@@ -799,6 +799,7 @@ static int rk_fb_close(struct fb_info *info, int user)
 			info->var.vsync_len = dev_drv->screen0->mode.vsync_len;
 			info->var.hsync_len = dev_drv->screen0->mode.hsync_len;
 		}
+		info->var.reserved[0] = (__u32)win->area[0].ion_hdl;
 	}
 
 	return 0;
@@ -3155,7 +3156,7 @@ static int rk_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	struct ion_handle *handle = (struct ion_handle *)info->var.reserved[0];
 	struct dma_buf *dma_buf = NULL;
 
-	if (IS_ERR(handle)) {
+	if (handle == NULL || IS_ERR(handle)) {
 		dev_err(info->device, "failed to get ion handle:%ld\n",
 			PTR_ERR(handle));
 		return -ENOMEM;
