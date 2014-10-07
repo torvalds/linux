@@ -911,6 +911,7 @@ static irqreturn_t at86rf230_isr(int irq, void *data)
 	ctx->msg.complete = at86rf230_irq_status;
 	rc = spi_async(lp->spi, &ctx->msg);
 	if (rc) {
+		enable_irq(irq);
 		at86rf230_async_error(lp, ctx, rc);
 		return IRQ_NONE;
 	}
