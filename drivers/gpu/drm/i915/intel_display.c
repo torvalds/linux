@@ -4618,7 +4618,7 @@ static void vlv_update_cdclk(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	dev_priv->vlv_cdclk_freq = dev_priv->display.get_display_clock_speed(dev);
-	DRM_DEBUG_DRIVER("Current CD clock rate: %d kHz",
+	DRM_DEBUG_DRIVER("Current CD clock rate: %d kHz\n",
 			 dev_priv->vlv_cdclk_freq);
 
 	/*
