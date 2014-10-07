@@ -3217,8 +3217,6 @@ out_ptlrpcd:
 
 static int osc_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 {
-	int rc = 0;
-
 	switch (stage) {
 	case OBD_CLEANUP_EARLY: {
 		struct obd_import *imp;
@@ -3253,7 +3251,7 @@ static int osc_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 		break;
 		}
 	}
-	return rc;
+	return 0;
 }
 
 int osc_cleanup(struct obd_device *obd)
