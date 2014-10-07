@@ -4756,10 +4756,9 @@ static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	if (cdclk == 400000) {
-		u32 divider, vco;
+		u32 divider;
 
-		vco = valleyview_get_vco(dev_priv);
-		divider = DIV_ROUND_CLOSEST(vco << 1, cdclk) - 1;
+		divider = DIV_ROUND_CLOSEST(dev_priv->hpll_freq << 1, cdclk) - 1;
 
 		mutex_lock(&dev_priv->dpio_lock);
 		/* adjust cdclk divider */
@@ -4838,8 +4837,7 @@ static void cherryview_set_cdclk(struct drm_device *dev, int cdclk)
 static int valleyview_calc_cdclk(struct drm_i915_private *dev_priv,
 				 int max_pixclk)
 {
-	int vco = valleyview_get_vco(dev_priv);
-	int freq_320 = (vco <<  1) % 320000 != 0 ? 333333 : 320000;
+	int freq_320 = (dev_priv->hpll_freq <<  1) % 320000 != 0 ? 333333 : 320000;
 
 	/* FIXME: Punit isn't quite ready yet */
 	if (IS_CHERRYVIEW(dev_priv->dev))
@@ -5544,13 +5542,15 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 static int valleyview_get_display_clock_speed(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int vco = valleyview_get_vco(dev_priv);
 	u32 val;
 	int divider;
 
 	/* FIXME: Punit isn't quite ready yet */
 	if (IS_CHERRYVIEW(dev))
 		return 400000;
+
+	if (dev_priv->hpll_freq == 0)
+		dev_priv->hpll_freq = valleyview_get_vco(dev_priv);
 
 	mutex_lock(&dev_priv->dpio_lock);
 	val = vlv_cck_read(dev_priv, CCK_DISPLAY_CLOCK_CONTROL);
@@ -5562,7 +5562,7 @@ static int valleyview_get_display_clock_speed(struct drm_device *dev)
 	     (divider << DISPLAY_FREQUENCY_STATUS_SHIFT),
 	     "cdclk change in progress\n");
 
-	return DIV_ROUND_CLOSEST(vco << 1, divider + 1);
+	return DIV_ROUND_CLOSEST(dev_priv->hpll_freq << 1, divider + 1);
 }
 
 static int i945_get_display_clock_speed(struct drm_device *dev)

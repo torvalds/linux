@@ -1613,6 +1613,7 @@ struct drm_i915_private {
 
 	unsigned int fsb_freq, mem_freq, is_ddr3;
 	unsigned int vlv_cdclk_freq;
+	unsigned int hpll_freq;
 
 	/**
 	 * wq - Driver workqueue for GEM.
