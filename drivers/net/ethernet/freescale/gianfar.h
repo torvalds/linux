@@ -1226,6 +1226,21 @@ static inline void gfar_write_isrg(struct gfar_private *priv)
 	}
 }
 
+static inline int gfar_is_dma_stopped(struct gfar_private *priv)
+{
+	struct gfar __iomem *regs = priv->gfargrp[0].regs;
+
+	return ((gfar_read(&regs->ievent) & (IEVENT_GRSC | IEVENT_GTSC)) ==
+	       (IEVENT_GRSC | IEVENT_GTSC));
+}
+
+static inline int gfar_is_rx_dma_stopped(struct gfar_private *priv)
+{
+	struct gfar __iomem *regs = priv->gfargrp[0].regs;
+
+	return gfar_read(&regs->ievent) & IEVENT_GRSC;
+}
+
 irqreturn_t gfar_receive(int irq, void *dev_id);
 int startup_gfar(struct net_device *dev);
 void stop_gfar(struct net_device *dev);

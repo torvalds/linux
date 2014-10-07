@@ -1762,26 +1762,32 @@ static void gfar_halt_nodisable(struct gfar_private *priv)
 {
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	u32 tempval;
+	unsigned int timeout;
+	int stopped;
 
 	gfar_ints_disable(priv);
 
+	if (gfar_is_dma_stopped(priv))
+		return;
+
 	/* Stop the DMA, and wait for it to stop */
 	tempval = gfar_read(&regs->dmactrl);
-	if ((tempval & (DMACTRL_GRS | DMACTRL_GTS)) !=
-	    (DMACTRL_GRS | DMACTRL_GTS)) {
-		int ret;
+	tempval |= (DMACTRL_GRS | DMACTRL_GTS);
+	gfar_write(&regs->dmactrl, tempval);
 
-		tempval |= (DMACTRL_GRS | DMACTRL_GTS);
-		gfar_write(&regs->dmactrl, tempval);
-
-		do {
-			ret = spin_event_timeout(((gfar_read(&regs->ievent) &
-				 (IEVENT_GRSC | IEVENT_GTSC)) ==
-				 (IEVENT_GRSC | IEVENT_GTSC)), 1000000, 0);
-			if (!ret && !(gfar_read(&regs->ievent) & IEVENT_GRSC))
-				ret = __gfar_is_rx_idle(priv);
-		} while (!ret);
+retry:
+	timeout = 1000;
+	while (!(stopped = gfar_is_dma_stopped(priv)) && timeout) {
+		cpu_relax();
+		timeout--;
 	}
+
+	if (!timeout)
+		stopped = gfar_is_dma_stopped(priv);
+
+	if (!stopped && !gfar_is_rx_dma_stopped(priv) &&
+	    !__gfar_is_rx_idle(priv))
+		goto retry;
 }
 
 /* Halt the receive and transmit queues */
