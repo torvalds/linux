@@ -2744,26 +2744,13 @@ void dwc3_gadget_exit(struct dwc3 *dwc)
 			dwc->ctrl_req, dwc->ctrl_req_addr);
 }
 
-int dwc3_gadget_prepare(struct dwc3 *dwc)
+int dwc3_gadget_suspend(struct dwc3 *dwc)
 {
 	if (dwc->pullups_connected) {
 		dwc3_gadget_disable_irq(dwc);
 		dwc3_gadget_run_stop(dwc, true, true);
 	}
 
-	return 0;
-}
-
-void dwc3_gadget_complete(struct dwc3 *dwc)
-{
-	if (dwc->pullups_connected) {
-		dwc3_gadget_enable_irq(dwc);
-		dwc3_gadget_run_stop(dwc, true, false);
-	}
-}
-
-int dwc3_gadget_suspend(struct dwc3 *dwc)
-{
 	__dwc3_gadget_ep_disable(dwc->eps[0]);
 	__dwc3_gadget_ep_disable(dwc->eps[1]);
 
@@ -2797,6 +2784,11 @@ int dwc3_gadget_resume(struct dwc3 *dwc)
 	dwc3_ep0_out_start(dwc);
 
 	dwc3_writel(dwc->regs, DWC3_DCFG, dwc->dcfg);
+
+	if (dwc->pullups_connected) {
+		dwc3_gadget_enable_irq(dwc);
+		dwc3_gadget_run_stop(dwc, true, false);
+	}
 
 	return 0;
 
