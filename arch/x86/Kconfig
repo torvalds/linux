@@ -137,6 +137,7 @@ config X86
 	select HAVE_ACPI_APEI if ACPI
 	select HAVE_ACPI_APEI_NMI if ACPI
 	select ACPI_LEGACY_TABLES_LOOKUP if ACPI
+	select X86_FEATURE_NAMES if PROC_FS
 
 config INSTRUCTION_DECODER
 	def_bool y
@@ -313,6 +314,17 @@ config SMP
 	  <http://www.tldp.org/docs.html#howto>.
 
 	  If you don't know what to do here, say N.
+
+config X86_FEATURE_NAMES
+	bool "Processor feature human-readable names" if EMBEDDED
+	default y
+	---help---
+	  This option compiles in a table of x86 feature bits and corresponding
+	  names.  This is required to support /proc/cpuinfo and a few kernel
+	  messages.  You can disable this to save space, at the expense of
+	  making those few kernel messages show numeric feature bits instead.
+
+	  If in doubt, say Y.
 
 config X86_X2APIC
 	bool "Support x2apic"
