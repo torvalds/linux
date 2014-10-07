@@ -4315,10 +4315,10 @@ void snd_soc_remove_platform(struct snd_soc_platform *platform)
 	snd_soc_component_del_unlocked(&platform->component);
 	mutex_unlock(&client_mutex);
 
-	snd_soc_component_cleanup(&platform->component);
-
 	dev_dbg(platform->dev, "ASoC: Unregistered platform '%s'\n",
 		platform->component.name);
+
+	snd_soc_component_cleanup(&platform->component);
 }
 EXPORT_SYMBOL_GPL(snd_soc_remove_platform);
 
