@@ -198,20 +198,19 @@ struct node_hash {
 	struct device_node *np;
 };
 
+static DEFINE_HASHTABLE(phandle_ht, 8);
 static void __init of_selftest_check_phandles(void)
 {
 	struct device_node *np;
 	struct node_hash *nh;
 	struct hlist_node *tmp;
 	int i, dup_count = 0, phandle_count = 0;
-	DECLARE_HASHTABLE(ht, 8);
 
-	hash_init(ht);
 	for_each_of_allnodes(np) {
 		if (!np->phandle)
 			continue;
 
-		hash_for_each_possible(ht, nh, node, np->phandle) {
+		hash_for_each_possible(phandle_ht, nh, node, np->phandle) {
 			if (nh->np->phandle == np->phandle) {
 				pr_info("Duplicate phandle! %i used by %s and %s\n",
 					np->phandle, nh->np->full_name, np->full_name);
@@ -225,14 +224,14 @@ static void __init of_selftest_check_phandles(void)
 			return;
 
 		nh->np = np;
-		hash_add(ht, &nh->node, np->phandle);
+		hash_add(phandle_ht, &nh->node, np->phandle);
 		phandle_count++;
 	}
 	selftest(dup_count == 0, "Found %i duplicates in %i phandles\n",
 		 dup_count, phandle_count);
 
 	/* Clean up */
-	hash_for_each_safe(ht, i, tmp, nh, node) {
+	hash_for_each_safe(phandle_ht, i, tmp, nh, node) {
 		hash_del(&nh->node);
 		kfree(nh);
 	}
