@@ -510,8 +510,6 @@ static void do_requeue(struct config_llog_data *cld)
 
 static int mgc_requeue_thread(void *data)
 {
-	int rc = 0;
-
 	CDEBUG(D_MGC, "Starting requeue thread\n");
 
 	/* Keep trying failed locks periodically */
@@ -592,7 +590,7 @@ static int mgc_requeue_thread(void *data)
 	complete(&rq_exit);
 
 	CDEBUG(D_MGC, "Ending requeue thread\n");
-	return rc;
+	return 0;
 }
 
 /* Add a cld to the list to requeue.  Start the requeue thread if needed.
@@ -1055,8 +1053,6 @@ static int mgc_import_event(struct obd_device *obd,
 			    struct obd_import *imp,
 			    enum obd_import_event event)
 {
-	int rc = 0;
-
 	LASSERT(imp->imp_obd == obd);
 	CDEBUG(D_MGC, "import event %#x\n", event);
 
@@ -1090,7 +1086,7 @@ static int mgc_import_event(struct obd_device *obd,
 		CERROR("Unknown import event %#x\n", event);
 		LBUG();
 	}
-	return rc;
+	return 0;
 }
 
 enum {
