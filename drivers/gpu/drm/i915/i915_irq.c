@@ -3458,12 +3458,13 @@ static void gen8_irq_reset(struct drm_device *dev)
 void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv)
 {
 	unsigned long irqflags;
+	uint32_t extra_ier = GEN8_PIPE_VBLANK | GEN8_PIPE_FIFO_UNDERRUN;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	GEN8_IRQ_INIT_NDX(DE_PIPE, PIPE_B, dev_priv->de_irq_mask[PIPE_B],
-			  ~dev_priv->de_irq_mask[PIPE_B]);
+			  ~dev_priv->de_irq_mask[PIPE_B] | extra_ier);
 	GEN8_IRQ_INIT_NDX(DE_PIPE, PIPE_C, dev_priv->de_irq_mask[PIPE_C],
-			  ~dev_priv->de_irq_mask[PIPE_C]);
+			  ~dev_priv->de_irq_mask[PIPE_C] | extra_ier);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
