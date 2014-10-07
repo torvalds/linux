@@ -270,6 +270,7 @@ struct usbhs_priv {
 	struct usbhs_fifo_info fifo_info;
 
 	struct usb_phy *usb_phy;
+	struct phy *phy;
 };
 
 /*
