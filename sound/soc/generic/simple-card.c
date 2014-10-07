@@ -368,12 +368,9 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 		dai_link->cpu_dai_name = NULL;
 
 dai_link_of_err:
-	if (np)
-		of_node_put(np);
-	if (bitclkmaster)
-		of_node_put(bitclkmaster);
-	if (framemaster)
-		of_node_put(framemaster);
+	of_node_put(np);
+	of_node_put(bitclkmaster);
+	of_node_put(framemaster);
 	return ret;
 }
 
@@ -464,11 +461,9 @@ static int asoc_simple_card_unref(struct platform_device *pdev)
 	     num_links < card->num_links;
 	     num_links++, dai_link++) {
 		np = (struct device_node *) dai_link->cpu_of_node;
-		if (np)
-			of_node_put(np);
+		of_node_put(np);
 		np = (struct device_node *) dai_link->codec_of_node;
-		if (np)
-			of_node_put(np);
+		of_node_put(np);
 	}
 	return 0;
 }
