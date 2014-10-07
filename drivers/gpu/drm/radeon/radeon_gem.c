@@ -67,7 +67,7 @@ int radeon_gem_object_create(struct radeon_device *rdev, unsigned long size,
 
 retry:
 	r = radeon_bo_create(rdev, size, alignment, kernel, initial_domain,
-			     flags, NULL, &robj);
+			     flags, NULL, NULL, &robj);
 	if (r) {
 		if (r != -ERESTARTSYS) {
 			if (initial_domain == RADEON_GEM_DOMAIN_VRAM) {

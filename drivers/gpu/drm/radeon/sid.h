@@ -736,7 +736,7 @@
 #       define DESCRIPTION16(x)                          (((x) & 0xff) << 0)
 #       define DESCRIPTION17(x)                          (((x) & 0xff) << 8)
 
-#define AZ_F0_CODEC_PIN_CONTROL_HOTPLUG_CONTROL          0x54
+#define AZ_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL         0x54
 #       define AUDIO_ENABLED                             (1 << 31)
 
 #define AZ_F0_CODEC_PIN_CONTROL_RESPONSE_CONFIGURATION_DEFAULT  0x56

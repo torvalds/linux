@@ -1430,7 +1430,7 @@ int r600_vram_scratch_init(struct radeon_device *rdev)
 	if (rdev->vram_scratch.robj == NULL) {
 		r = radeon_bo_create(rdev, RADEON_GPU_PAGE_SIZE,
 				     PAGE_SIZE, true, RADEON_GEM_DOMAIN_VRAM,
-				     0, NULL, &rdev->vram_scratch.robj);
+				     0, NULL, NULL, &rdev->vram_scratch.robj);
 		if (r) {
 			return r;
 		}
@@ -2912,7 +2912,7 @@ struct radeon_fence *r600_copy_cpdma(struct radeon_device *rdev,
 		return ERR_PTR(r);
 	}
 
-	radeon_semaphore_sync_resv(sem, resv, false);
+	radeon_semaphore_sync_resv(rdev, sem, resv, false);
 	radeon_semaphore_sync_rings(rdev, sem, ring->idx);
 
 	radeon_ring_write(ring, PACKET3(PACKET3_SET_CONFIG_REG, 1));
@@ -3368,7 +3368,7 @@ int r600_ih_ring_alloc(struct radeon_device *rdev)
 		r = radeon_bo_create(rdev, rdev->ih.ring_size,
 				     PAGE_SIZE, true,
 				     RADEON_GEM_DOMAIN_GTT, 0,
-				     NULL, &rdev->ih.ring_obj);
+				     NULL, NULL, &rdev->ih.ring_obj);
 		if (r) {
 			DRM_ERROR("radeon: failed to create ih ring buffer (%d).\n", r);
 			return r;

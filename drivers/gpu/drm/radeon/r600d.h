@@ -934,6 +934,23 @@
 #       define TARGET_LINK_SPEED_MASK                     (0xf << 0)
 #       define SELECTABLE_DEEMPHASIS                      (1 << 6)
 
+/* Audio */
+#define AZ_HOT_PLUG_CONTROL               0x7300
+#       define AZ_FORCE_CODEC_WAKE        (1 << 0)
+#       define JACK_DETECTION_ENABLE      (1 << 4)
+#       define UNSOLICITED_RESPONSE_ENABLE (1 << 8)
+#       define CODEC_HOT_PLUG_ENABLE      (1 << 12)
+#       define AUDIO_ENABLED              (1 << 31)
+/* DCE3 adds */
+#       define PIN0_JACK_DETECTION_ENABLE (1 << 4)
+#       define PIN1_JACK_DETECTION_ENABLE (1 << 5)
+#       define PIN2_JACK_DETECTION_ENABLE (1 << 6)
+#       define PIN3_JACK_DETECTION_ENABLE (1 << 7)
+#       define PIN0_AUDIO_ENABLED         (1 << 24)
+#       define PIN1_AUDIO_ENABLED         (1 << 25)
+#       define PIN2_AUDIO_ENABLED         (1 << 26)
+#       define PIN3_AUDIO_ENABLED         (1 << 27)
+
 /* Audio clocks DCE 2.0/3.0 */
 #define AUDIO_DTO                         0x7340
 #       define AUDIO_DTO_PHASE(x)         (((x) & 0xffff) << 0)

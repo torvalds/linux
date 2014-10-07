@@ -3993,7 +3993,7 @@ struct radeon_fence *cik_copy_cpdma(struct radeon_device *rdev,
 		return ERR_PTR(r);
 	}
 
-	radeon_semaphore_sync_resv(sem, resv, false);
+	radeon_semaphore_sync_resv(rdev, sem, resv, false);
 	radeon_semaphore_sync_rings(rdev, sem, ring->idx);
 
 	for (i = 0; i < num_loops; i++) {
@@ -4235,7 +4235,7 @@ static int cik_cp_gfx_load_microcode(struct radeon_device *rdev)
 		WREG32(CP_PFP_UCODE_ADDR, 0);
 		for (i = 0; i < fw_size; i++)
 			WREG32(CP_PFP_UCODE_DATA, le32_to_cpup(fw_data++));
-		WREG32(CP_PFP_UCODE_ADDR, 0);
+		WREG32(CP_PFP_UCODE_ADDR, le32_to_cpu(pfp_hdr->header.ucode_version));
 
 		/* CE */
 		fw_data = (const __le32 *)
@@ -4244,7 +4244,7 @@ static int cik_cp_gfx_load_microcode(struct radeon_device *rdev)
 		WREG32(CP_CE_UCODE_ADDR, 0);
 		for (i = 0; i < fw_size; i++)
 			WREG32(CP_CE_UCODE_DATA, le32_to_cpup(fw_data++));
-		WREG32(CP_CE_UCODE_ADDR, 0);
+		WREG32(CP_CE_UCODE_ADDR, le32_to_cpu(ce_hdr->header.ucode_version));
 
 		/* ME */
 		fw_data = (const __be32 *)
@@ -4253,7 +4253,8 @@ static int cik_cp_gfx_load_microcode(struct radeon_device *rdev)
 		WREG32(CP_ME_RAM_WADDR, 0);
 		for (i = 0; i < fw_size; i++)
 			WREG32(CP_ME_RAM_DATA, le32_to_cpup(fw_data++));
-		WREG32(CP_ME_RAM_WADDR, 0);
+		WREG32(CP_ME_RAM_WADDR, le32_to_cpu(me_hdr->header.ucode_version));
+		WREG32(CP_ME_RAM_RADDR, le32_to_cpu(me_hdr->header.ucode_version));
 	} else {
 		const __be32 *fw_data;
 
@@ -4279,10 +4280,6 @@ static int cik_cp_gfx_load_microcode(struct radeon_device *rdev)
 		WREG32(CP_ME_RAM_WADDR, 0);
 	}
 
-	WREG32(CP_PFP_UCODE_ADDR, 0);
-	WREG32(CP_CE_UCODE_ADDR, 0);
-	WREG32(CP_ME_RAM_WADDR, 0);
-	WREG32(CP_ME_RAM_RADDR, 0);
 	return 0;
 }
 
@@ -4564,7 +4561,7 @@ static int cik_cp_compute_load_microcode(struct radeon_device *rdev)
 		WREG32(CP_MEC_ME1_UCODE_ADDR, 0);
 		for (i = 0; i < fw_size; i++)
 			WREG32(CP_MEC_ME1_UCODE_DATA, le32_to_cpup(fw_data++));
-		WREG32(CP_MEC_ME1_UCODE_ADDR, 0);
+		WREG32(CP_MEC_ME1_UCODE_ADDR, le32_to_cpu(mec_hdr->header.ucode_version));
 
 		/* MEC2 */
 		if (rdev->family == CHIP_KAVERI) {
@@ -4578,7 +4575,7 @@ static int cik_cp_compute_load_microcode(struct radeon_device *rdev)
 			WREG32(CP_MEC_ME2_UCODE_ADDR, 0);
 			for (i = 0; i < fw_size; i++)
 				WREG32(CP_MEC_ME2_UCODE_DATA, le32_to_cpup(fw_data++));
-			WREG32(CP_MEC_ME2_UCODE_ADDR, 0);
+			WREG32(CP_MEC_ME2_UCODE_ADDR, le32_to_cpu(mec2_hdr->header.ucode_version));
 		}
 	} else {
 		const __be32 *fw_data;
@@ -4690,7 +4687,7 @@ static int cik_mec_init(struct radeon_device *rdev)
 		r = radeon_bo_create(rdev,
 				     rdev->mec.num_mec *rdev->mec.num_pipe * MEC_HPD_SIZE * 2,
 				     PAGE_SIZE, true,
-				     RADEON_GEM_DOMAIN_GTT, 0, NULL,
+				     RADEON_GEM_DOMAIN_GTT, 0, NULL, NULL,
 				     &rdev->mec.hpd_eop_obj);
 		if (r) {
 			dev_warn(rdev->dev, "(%d) create HDP EOP bo failed\n", r);
@@ -4861,7 +4858,7 @@ static int cik_cp_compute_resume(struct radeon_device *rdev)
 					     sizeof(struct bonaire_mqd),
 					     PAGE_SIZE, true,
 					     RADEON_GEM_DOMAIN_GTT, 0, NULL,
-					     &rdev->ring[idx].mqd_obj);
+					     NULL, &rdev->ring[idx].mqd_obj);
 			if (r) {
 				dev_warn(rdev->dev, "(%d) create MQD bo failed\n", r);
 				return r;
@@ -6227,7 +6224,7 @@ static int cik_rlc_resume(struct radeon_device *rdev)
 		WREG32(RLC_GPM_UCODE_ADDR, 0);
 		for (i = 0; i < size; i++)
 			WREG32(RLC_GPM_UCODE_DATA, le32_to_cpup(fw_data++));
-		WREG32(RLC_GPM_UCODE_ADDR, 0);
+		WREG32(RLC_GPM_UCODE_ADDR, le32_to_cpu(hdr->header.ucode_version));
 	} else {
 		const __be32 *fw_data;
 

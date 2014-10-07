@@ -383,7 +383,7 @@ int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsig
 	/* Allocate ring buffer */
 	if (ring->ring_obj == NULL) {
 		r = radeon_bo_create(rdev, ring->ring_size, PAGE_SIZE, true,
-				     RADEON_GEM_DOMAIN_GTT, 0,
+				     RADEON_GEM_DOMAIN_GTT, 0, NULL,
 				     NULL, &ring->ring_obj);
 		if (r) {
 			dev_err(rdev->dev, "(%d) ring create failed\n", r);
