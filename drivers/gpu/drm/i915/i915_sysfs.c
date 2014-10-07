@@ -139,14 +139,23 @@ static DEVICE_ATTR(rc6pp_residency_ms, S_IRUGO, show_rc6pp_ms, NULL);
 static struct attribute *rc6_attrs[] = {
 	&dev_attr_rc6_enable.attr,
 	&dev_attr_rc6_residency_ms.attr,
-	&dev_attr_rc6p_residency_ms.attr,
-	&dev_attr_rc6pp_residency_ms.attr,
 	NULL
 };
 
 static struct attribute_group rc6_attr_group = {
 	.name = power_group_name,
 	.attrs =  rc6_attrs
+};
+
+static struct attribute *rc6p_attrs[] = {
+	&dev_attr_rc6p_residency_ms.attr,
+	&dev_attr_rc6pp_residency_ms.attr,
+	NULL
+};
+
+static struct attribute_group rc6p_attr_group = {
+	.name = power_group_name,
+	.attrs =  rc6p_attrs
 };
 #endif
 
@@ -595,11 +604,17 @@ void i915_setup_sysfs(struct drm_device *dev)
 	int ret;
 
 #ifdef CONFIG_PM
-	if (INTEL_INFO(dev)->gen >= 6) {
+	if (HAS_RC6(dev)) {
 		ret = sysfs_merge_group(&dev->primary->kdev->kobj,
 					&rc6_attr_group);
 		if (ret)
 			DRM_ERROR("RC6 residency sysfs setup failed\n");
+	}
+	if (HAS_RC6p(dev)) {
+		ret = sysfs_merge_group(&dev->primary->kdev->kobj,
+					&rc6p_attr_group);
+		if (ret)
+			DRM_ERROR("RC6p residency sysfs setup failed\n");
 	}
 #endif
 	if (HAS_L3_DPF(dev)) {
@@ -640,5 +655,6 @@ void i915_teardown_sysfs(struct drm_device *dev)
 	device_remove_bin_file(dev->primary->kdev,  &dpf_attrs);
 #ifdef CONFIG_PM
 	sysfs_unmerge_group(&dev->primary->kdev->kobj, &rc6_attr_group);
+	sysfs_unmerge_group(&dev->primary->kdev->kobj, &rc6p_attr_group);
 #endif
 }

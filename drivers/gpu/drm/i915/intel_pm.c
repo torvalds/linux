@@ -3629,10 +3629,15 @@ static void intel_print_rc6_info(struct drm_device *dev, u32 mode)
 		else
 			mode = 0;
 	}
-	DRM_DEBUG_KMS("Enabling RC6 states: RC6 %s, RC6p %s, RC6pp %s\n",
-		      (mode & GEN6_RC_CTL_RC6_ENABLE) ? "on" : "off",
-		      (mode & GEN6_RC_CTL_RC6p_ENABLE) ? "on" : "off",
-		      (mode & GEN6_RC_CTL_RC6pp_ENABLE) ? "on" : "off");
+	if (HAS_RC6p(dev))
+		DRM_DEBUG_KMS("Enabling RC6 states: RC6 %s RC6p %s RC6pp %s\n",
+			      (mode & GEN6_RC_CTL_RC6_ENABLE) ? "on" : "off",
+			      (mode & GEN6_RC_CTL_RC6p_ENABLE) ? "on" : "off",
+			      (mode & GEN6_RC_CTL_RC6pp_ENABLE) ? "on" : "off");
+
+	else
+		DRM_DEBUG_KMS("Enabling RC6 states: RC6 %s\n",
+			      (mode & GEN6_RC_CTL_RC6_ENABLE) ? "on" : "off");
 }
 
 static int sanitize_rc6_option(const struct drm_device *dev, int enable_rc6)
@@ -3649,7 +3654,7 @@ static int sanitize_rc6_option(const struct drm_device *dev, int enable_rc6)
 	if (enable_rc6 >= 0) {
 		int mask;
 
-		if (INTEL_INFO(dev)->gen == 6 || IS_IVYBRIDGE(dev))
+		if (HAS_RC6p(dev))
 			mask = INTEL_RC6_ENABLE | INTEL_RC6p_ENABLE |
 			       INTEL_RC6pp_ENABLE;
 		else
