@@ -186,6 +186,7 @@ struct greybus_host_device {
 	struct list_head modules;
 	struct rb_root connections;
 	struct ida cport_id_map;
+	spinlock_t cport_id_map_lock;
 
 	/* Private data for the host driver */
 	unsigned long hd_priv[0] __attribute__ ((aligned(sizeof(s64))));

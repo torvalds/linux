@@ -78,7 +78,9 @@ static bool gb_connection_hd_cport_id_alloc(struct gb_connection *connection)
 	struct ida *ida = &connection->hd->cport_id_map;
 	int id;
 
+	spin_lock(&connection->hd->cport_id_map_lock);
 	id = ida_simple_get(ida, 0, HOST_DEV_CPORT_ID_MAX, GFP_KERNEL);
+	spin_unlock(&connection->hd->cport_id_map_lock);
 	if (id < 0)
 		return false;
 
@@ -94,7 +96,9 @@ static void gb_connection_hd_cport_id_free(struct gb_connection *connection)
 {
 	struct ida *ida = &connection->hd->cport_id_map;
 
+	spin_lock(&connection->hd->cport_id_map_lock);
 	ida_simple_remove(ida, connection->hd_cport_id);
+	spin_unlock(&connection->hd->cport_id_map_lock);
 	connection->hd_cport_id = CPORT_ID_BAD;
 }
 
@@ -126,7 +130,7 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 		kfree(connection);
 		return NULL;
 	}
-	connection->hd = hd;			/* XXX refcount? */
+
 	connection->interface = interface;	/* XXX refcount? */
 	connection->interface_cport_id = cport_id;
 	connection->protocol = protocol;

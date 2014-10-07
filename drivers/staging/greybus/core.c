@@ -30,8 +30,6 @@ int greybus_disabled(void)
 }
 EXPORT_SYMBOL_GPL(greybus_disabled);
 
-static spinlock_t cport_id_map_lock;
-
 static int greybus_module_match(struct device *dev, struct device_driver *drv)
 {
 	struct greybus_driver *driver = to_greybus_driver(dev->driver);
@@ -313,6 +311,7 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 	INIT_LIST_HEAD(&hd->modules);
 	hd->connections = RB_ROOT;
 	ida_init(&hd->cport_id_map);
+	spin_lock_init(&hd->cport_id_map_lock);
 
 	return hd;
 }
@@ -330,7 +329,6 @@ static int __init gb_init(void)
 	int retval;
 
 	BUILD_BUG_ON(HOST_DEV_CPORT_ID_MAX >= (long)CPORT_ID_BAD);
-	spin_lock_init(&cport_id_map_lock);
 
 	retval = gb_debugfs_init();
 	if (retval) {
