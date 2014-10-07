@@ -271,7 +271,6 @@ struct exynos_dsi {
 	struct exynos_drm_display display;
 	struct mipi_dsi_host dsi_host;
 	struct drm_connector connector;
-	struct drm_encoder *encoder;
 	struct device_node *panel_node;
 	struct drm_panel *panel;
 	struct device *dev;
@@ -1105,7 +1104,7 @@ static irqreturn_t exynos_dsi_irq(int irq, void *dev_id)
 static irqreturn_t exynos_dsi_te_irq_handler(int irq, void *dev_id)
 {
 	struct exynos_dsi *dsi = (struct exynos_dsi *)dev_id;
-	struct drm_encoder *encoder = dsi->encoder;
+	struct drm_encoder *encoder = dsi->display.encoder;
 
 	if (dsi->state & DSIM_STATE_ENABLED)
 		exynos_drm_crtc_te_handler(encoder->crtc);
@@ -1475,7 +1474,7 @@ exynos_dsi_best_encoder(struct drm_connector *connector)
 {
 	struct exynos_dsi *dsi = connector_to_dsi(connector);
 
-	return dsi->encoder;
+	return dsi->display.encoder;
 }
 
 static struct drm_connector_helper_funcs exynos_dsi_connector_helper_funcs = {
@@ -1490,8 +1489,6 @@ static int exynos_dsi_create_connector(struct exynos_drm_display *display,
 	struct exynos_dsi *dsi = display->ctx;
 	struct drm_connector *connector = &dsi->connector;
 	int ret;
-
-	dsi->encoder = encoder;
 
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
 
