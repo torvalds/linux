@@ -68,7 +68,7 @@ static inline struct device *mic_dev(struct mic_vdev *mvdev)
 }
 
 /* This gets the device's feature bits. */
-static u32 mic_get_features(struct virtio_device *vdev)
+static u64 mic_get_features(struct virtio_device *vdev)
 {
 	unsigned int i, bits;
 	u32 features = 0;

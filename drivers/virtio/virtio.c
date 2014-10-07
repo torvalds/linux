@@ -159,7 +159,7 @@ static int virtio_dev_probe(struct device *_d)
 	int err, i;
 	struct virtio_device *dev = dev_to_virtio(_d);
 	struct virtio_driver *drv = drv_to_virtio(dev->dev.driver);
-	u32 device_features;
+	u64 device_features;
 
 	/* We have a driver! */
 	add_status(dev, VIRTIO_CONFIG_S_DRIVER);
@@ -171,14 +171,14 @@ static int virtio_dev_probe(struct device *_d)
 	dev->features = 0;
 	for (i = 0; i < drv->feature_table_size; i++) {
 		unsigned int f = drv->feature_table[i];
-		BUG_ON(f >= 32);
-		if (device_features & (1 << f))
+		BUG_ON(f >= 64);
+		if (device_features & (1ULL << f))
 			__virtio_set_bit(dev, f);
 	}
 
 	/* Transport features always preserved to pass to finalize_features. */
 	for (i = VIRTIO_TRANSPORT_F_START; i < VIRTIO_TRANSPORT_F_END; i++)
-		if (device_features & (1 << i))
+		if (device_features & (1ULL << i))
 			__virtio_set_bit(dev, i);
 
 	dev->config->finalize_features(dev);

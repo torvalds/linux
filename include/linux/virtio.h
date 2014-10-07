@@ -101,7 +101,7 @@ struct virtio_device {
 	const struct virtio_config_ops *config;
 	const struct vringh_config_ops *vringh_config;
 	struct list_head vqs;
-	u32 features;
+	u64 features;
 	void *priv;
 };
 

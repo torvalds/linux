@@ -10,7 +10,7 @@
 
 struct virtio_device {
 	void *dev;
-	u32 features;
+	u64 features;
 };
 
 struct virtqueue {
