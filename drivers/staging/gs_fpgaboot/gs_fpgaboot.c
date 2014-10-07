@@ -46,27 +46,6 @@ static char	*file = "xlinx_fpga_firmware.bit";
 module_param(file, charp, S_IRUGO);
 MODULE_PARM_DESC(file, "Xilinx FPGA firmware file.");
 
-#ifdef DEBUG_FPGA
-static void datadump(char *msg, void *m, int n)
-{
-	int i;
-	unsigned char *c;
-
-	pr_info("=== %s ===\n", msg);
-
-	c = m;
-
-	for (i = 0; i < n; i++) {
-		if ((i&0xf) == 0)
-			pr_info(KERN_INFO "\n  0x%4x: ", i);
-
-		pr_info("%02X ", c[i]);
-	}
-
-	pr_info("\n");
-}
-#endif /* DEBUG_FPGA */
-
 static void read_bitstream(char *bitdata, char *buf, int *offset, int rdsize)
 {
 	memcpy(buf, bitdata + *offset, rdsize);
@@ -220,9 +199,9 @@ static int gs_download_image(struct fpgaimage *fimage, enum wbus bus_bytes)
 	size = fimage->lendata;
 
 #ifdef DEBUG_FPGA
-	datadump("bitfile sample", bitdata, 0x100);
+	print_hex_dump_bytes("bitfile sample: ", DUMP_PREFIX_OFFSET,
+			     bitdata, 0x100);
 #endif /* DEBUG_FPGA */
-
 	if (!xl_supported_prog_bus_width(bus_bytes)) {
 		pr_err("unsupported program bus width %d\n",
 				bus_bytes);
