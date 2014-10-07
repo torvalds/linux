@@ -149,11 +149,6 @@ void ieee80211_assign_tid_tx(struct sta_info *sta, int tid,
 	rcu_assign_pointer(sta->ampdu_mlme.tid_tx[tid], tid_tx);
 }
 
-static inline int ieee80211_ac_from_tid(int tid)
-{
-	return ieee802_1d_to_ac[tid & 7];
-}
-
 /*
  * When multiple aggregation sessions on multiple stations
  * are being created/destroyed simultaneously, we need to

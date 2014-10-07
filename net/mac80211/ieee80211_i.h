@@ -399,6 +399,24 @@ struct ieee80211_mgd_assoc_data {
 	u8 ie[];
 };
 
+struct ieee80211_sta_tx_tspec {
+	/* timestamp of the first packet in the time slice */
+	unsigned long time_slice_start;
+
+	u32 admitted_time; /* in usecs, unlike over the air */
+	u8 tsid;
+	s8 up; /* signed to be able to invalidate with -1 during teardown */
+
+	/* consumed TX time in microseconds in the time slice */
+	u32 consumed_tx_time;
+	enum {
+		TX_TSPEC_ACTION_NONE = 0,
+		TX_TSPEC_ACTION_DOWNGRADE,
+		TX_TSPEC_ACTION_STOP_DOWNGRADE,
+	} action;
+	bool downgraded;
+};
+
 struct ieee80211_if_managed {
 	struct timer_list timer;
 	struct timer_list conn_mon_timer;
@@ -509,6 +527,16 @@ struct ieee80211_if_managed {
 
 	u8 tdls_peer[ETH_ALEN] __aligned(2);
 	struct delayed_work tdls_peer_del_work;
+
+	/* WMM-AC TSPEC support */
+	struct ieee80211_sta_tx_tspec tx_tspec[IEEE80211_NUM_ACS];
+	/* Use a separate work struct so that we can do something here
+	 * while the sdata->work is flushing the queues, for example.
+	 * otherwise, in scenarios where we hardly get any traffic out
+	 * on the BE queue, but there's a lot of VO traffic, we might
+	 * get stuck in a downgraded situation and flush takes forever.
+	 */
+	struct delayed_work tx_tspec_wk;
 };
 
 struct ieee80211_if_ibss {
@@ -1459,6 +1487,7 @@ void ieee80211_mgd_conn_tx_status(struct ieee80211_sub_if_data *sdata,
 				  __le16 fc, bool acked);
 void ieee80211_mgd_quiesce(struct ieee80211_sub_if_data *sdata);
 void ieee80211_sta_restart(struct ieee80211_sub_if_data *sdata);
+void ieee80211_sta_handle_tspec_ac_params(struct ieee80211_sub_if_data *sdata);
 
 /* IBSS code */
 void ieee80211_ibss_notify_scan_completed(struct ieee80211_local *local);
@@ -1763,6 +1792,13 @@ static inline bool ieee80211_rx_reorder_ready(struct sk_buff_head *frames)
 	return true;
 }
 
+extern const int ieee802_1d_to_ac[8];
+
+static inline int ieee80211_ac_from_tid(int tid)
+{
+	return ieee802_1d_to_ac[tid & 7];
+}
+
 void ieee80211_dynamic_ps_enable_work(struct work_struct *work);
 void ieee80211_dynamic_ps_disable_work(struct work_struct *work);
 void ieee80211_dynamic_ps_timer(unsigned long data);
@@ -1772,7 +1808,7 @@ void ieee80211_send_nullfunc(struct ieee80211_local *local,
 void ieee80211_sta_rx_notify(struct ieee80211_sub_if_data *sdata,
 			     struct ieee80211_hdr *hdr);
 void ieee80211_sta_tx_notify(struct ieee80211_sub_if_data *sdata,
-			     struct ieee80211_hdr *hdr, bool ack);
+			     struct ieee80211_hdr *hdr, bool ack, u16 tx_time);
 
 void ieee80211_wake_queues_by_reason(struct ieee80211_hw *hw,
 				     unsigned long queues,
