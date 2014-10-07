@@ -1450,6 +1450,12 @@ sub wait_for_monitor {
 	}
     }
     print "** Monitor flushed **\n";
+
+    # if stop is defined but wasn't hit, return error
+    # used by reboot (which wants to see a reboot)
+    if (defined($stop) && !$booted) {
+	$bug = 1;
+    }
     return $bug;
 }
 
