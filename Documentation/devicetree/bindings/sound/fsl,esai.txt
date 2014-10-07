@@ -7,37 +7,39 @@ other DSPs. It has up to six transmitters and four receivers.
 
 Required properties:
 
-  - compatible : Compatible list, must contain "fsl,imx35-esai" or
-		 "fsl,vf610-esai"
+  - compatible		: Compatible list, must contain "fsl,imx35-esai" or
+			  "fsl,vf610-esai"
 
-  - reg : Offset and length of the register set for the device.
+  - reg			: Offset and length of the register set for the device.
 
-  - interrupts : Contains the spdif interrupt.
+  - interrupts		: Contains the spdif interrupt.
 
-  - dmas : Generic dma devicetree binding as described in
-  Documentation/devicetree/bindings/dma/dma.txt.
+  - dmas		: Generic dma devicetree binding as described in
+			  Documentation/devicetree/bindings/dma/dma.txt.
 
-  - dma-names : Two dmas have to be defined, "tx" and "rx".
+  - dma-names		: Two dmas have to be defined, "tx" and "rx".
 
-  - clocks: Contains an entry for each entry in clock-names.
+  - clocks		: Contains an entry for each entry in clock-names.
 
-  - clock-names : Includes the following entries:
-	"core"		The core clock used to access registers
-	"extal"		The esai baud clock for esai controller used to derive
-			HCK, SCK and FS.
-	"fsys"		The system clock derived from ahb clock used to derive
-			HCK, SCK and FS.
+  - clock-names		: Includes the following entries:
+	"core"		  The core clock used to access registers
+	"extal"		  The esai baud clock for esai controller used to
+			  derive HCK, SCK and FS.
+	"fsys"		  The system clock derived from ahb clock used to
+			  derive HCK, SCK and FS.
 
-  - fsl,fifo-depth: The number of elements in the transmit and receive FIFOs.
-    This number is the maximum allowed value for TFCR[TFWM] or RFCR[RFWM].
+  - fsl,fifo-depth	: The number of elements in the transmit and receive
+			  FIFOs. This number is the maximum allowed value for
+			  TFCR[TFWM] or RFCR[RFWM].
 
   - fsl,esai-synchronous: This is a boolean property. If present, indicating
-    that ESAI would work in the synchronous mode, which means all the settings
-    for Receiving would be duplicated from Transmition related registers.
+			  that ESAI would work in the synchronous mode, which
+			  means all the settings for Receiving would be
+			  duplicated from Transmition related registers.
 
-  - big-endian : If this property is absent, the native endian mode will
-    be in use as default, or the big endian mode will be in use for all the
-    device registers.
+  - big-endian		: If this property is absent, the native endian mode
+			  will be in use as default, or the big endian mode
+			  will be in use for all the device registers.
 
 Example:
 
