@@ -304,6 +304,11 @@ struct exynos_dsi {
 #define host_to_dsi(host) container_of(host, struct exynos_dsi, dsi_host)
 #define connector_to_dsi(c) container_of(c, struct exynos_dsi, connector)
 
+static inline struct exynos_dsi *display_to_dsi(struct exynos_drm_display *d)
+{
+	return container_of(d, struct exynos_dsi, display);
+}
+
 static struct exynos_dsi_driver_data exynos3_dsi_driver_data = {
 	.plltmr_reg = 0x50,
 	.has_freqband = 1,
@@ -1397,7 +1402,7 @@ static void exynos_dsi_disable(struct exynos_dsi *dsi)
 
 static void exynos_dsi_dpms(struct exynos_drm_display *display, int mode)
 {
-	struct exynos_dsi *dsi = display->ctx;
+	struct exynos_dsi *dsi = display_to_dsi(display);
 
 	if (dsi->panel) {
 		switch (mode) {
@@ -1486,7 +1491,7 @@ static struct drm_connector_helper_funcs exynos_dsi_connector_helper_funcs = {
 static int exynos_dsi_create_connector(struct exynos_drm_display *display,
 				       struct drm_encoder *encoder)
 {
-	struct exynos_dsi *dsi = display->ctx;
+	struct exynos_dsi *dsi = display_to_dsi(display);
 	struct drm_connector *connector = &dsi->connector;
 	int ret;
 
@@ -1510,7 +1515,7 @@ static int exynos_dsi_create_connector(struct exynos_drm_display *display,
 static void exynos_dsi_mode_set(struct exynos_drm_display *display,
 			 struct drm_display_mode *mode)
 {
-	struct exynos_dsi *dsi = display->ctx;
+	struct exynos_dsi *dsi = display_to_dsi(display);
 	struct videomode *vm = &dsi->vm;
 
 	vm->hactive = mode->hdisplay;
@@ -1635,7 +1640,7 @@ static int exynos_dsi_bind(struct device *dev, struct device *master,
 				void *data)
 {
 	struct exynos_drm_display *display = dev_get_drvdata(dev);
-	struct exynos_dsi *dsi = display->ctx;
+	struct exynos_dsi *dsi = display_to_dsi(display);
 	struct drm_device *drm_dev = data;
 	int ret;
 
@@ -1653,7 +1658,7 @@ static void exynos_dsi_unbind(struct device *dev, struct device *master,
 				void *data)
 {
 	struct exynos_drm_display *display = dev_get_drvdata(dev);
-	struct exynos_dsi *dsi = display->ctx;
+	struct exynos_dsi *dsi = display_to_dsi(display);
 
 	exynos_dsi_dpms(display, DRM_MODE_DPMS_OFF);
 
@@ -1754,8 +1759,6 @@ static int exynos_dsi_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to request dsi irq\n");
 		goto err_del_component;
 	}
-
-	dsi->display.ctx = dsi;
 
 	platform_set_drvdata(pdev, &dsi->display);
 
