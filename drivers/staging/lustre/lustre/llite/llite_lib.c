@@ -1122,9 +1122,8 @@ void ll_put_super(struct super_block *sb)
 	}
 
 	next = 0;
-	while ((obd = class_devices_in_group(&sbi->ll_sb_uuid, &next)) !=NULL) {
+	while ((obd = class_devices_in_group(&sbi->ll_sb_uuid, &next)) !=NULL)
 		class_manual_cleanup(obd);
-	}
 
 	if (sbi->ll_flags & LL_SBI_VERBOSE)
 		LCONSOLE_WARN("Unmounted %s\n", profilenm ? profilenm : "");
@@ -1734,11 +1733,10 @@ void ll_update_inode(struct inode *inode, struct lustre_md *md)
 	if (body->valid & OBD_MD_FLTYPE)
 		inode->i_mode = (inode->i_mode & ~S_IFMT)|(body->mode & S_IFMT);
 	LASSERT(inode->i_mode != 0);
-	if (S_ISREG(inode->i_mode)) {
+	if (S_ISREG(inode->i_mode))
 		inode->i_blkbits = min(PTLRPC_MAX_BRW_BITS + 1, LL_MAX_BLKSIZE_BITS);
-	} else {
+	else
 		inode->i_blkbits = inode->i_sb->s_blocksize_bits;
-	}
 	if (body->valid & OBD_MD_FLUID)
 		inode->i_uid = make_kuid(&init_user_ns, body->uid);
 	if (body->valid & OBD_MD_FLGID)
