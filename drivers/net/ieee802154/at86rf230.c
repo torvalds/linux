@@ -89,6 +89,7 @@ struct at86rf230_local {
 	struct at86rf230_state_change irq;
 
 	bool tx_aret;
+	s8 max_frame_retries;
 	bool is_tx;
 	/* spinlock for is_tx protection */
 	spinlock_t lock;
@@ -1001,6 +1002,9 @@ at86rf230_xmit(struct ieee802154_dev *dev, struct sk_buff *skb)
 		return -ETIMEDOUT;
 	}
 
+	if (lp->max_frame_retries > 0)
+		return 0;
+
 	/* Interfame spacing time, which is phy depend.
 	 * TODO
 	 * Move this handling in MAC 802.15.4 layer.
@@ -1230,6 +1234,7 @@ at86rf230_set_frame_retries(struct ieee802154_dev *dev, s8 retries)
 		return -EINVAL;
 
 	lp->tx_aret = retries >= 0;
+	lp->max_frame_retries = retries;
 
 	if (retries >= 0)
 		rc = at86rf230_write_subreg(lp, SR_MAX_FRAME_RETRIES, retries);
