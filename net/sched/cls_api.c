@@ -549,6 +549,7 @@ void tcf_exts_change(struct tcf_proto *tp, struct tcf_exts *dst,
 	tcf_tree_lock(tp);
 	list_splice_init(&dst->actions, &tmp);
 	list_splice(&src->actions, &dst->actions);
+	dst->type = src->type;
 	tcf_tree_unlock(tp);
 	tcf_action_destroy(&tmp, TCA_ACT_UNBIND);
 #endif
