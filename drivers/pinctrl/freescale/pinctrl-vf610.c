@@ -299,7 +299,7 @@ static const struct pinctrl_pin_desc vf610_pinctrl_pads[] = {
 static struct imx_pinctrl_soc_info vf610_pinctrl_info = {
 	.pins = vf610_pinctrl_pads,
 	.npins = ARRAY_SIZE(vf610_pinctrl_pads),
-	.flags = ZERO_OFFSET_VALID | SHARE_MUX_CONF_REG,
+	.flags = SHARE_MUX_CONF_REG,
 };
 
 static struct of_device_id vf610_pinctrl_of_match[] = {

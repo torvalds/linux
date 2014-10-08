@@ -21,7 +21,7 @@
 #include <linux/pinctrl/pinmux.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include "core.h"
+#include "../core.h"
 #include "pinctrl-mxs.h"
 
 #define SUFFIX_LEN	4
@@ -195,8 +195,8 @@ static int mxs_pinctrl_get_func_groups(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int mxs_pinctrl_enable(struct pinctrl_dev *pctldev, unsigned selector,
-			      unsigned group)
+static int mxs_pinctrl_set_mux(struct pinctrl_dev *pctldev, unsigned selector,
+			       unsigned group)
 {
 	struct mxs_pinctrl_data *d = pinctrl_dev_get_drvdata(pctldev);
 	struct mxs_group *g = &d->soc->groups[group];
@@ -223,7 +223,7 @@ static const struct pinmux_ops mxs_pinmux_ops = {
 	.get_functions_count = mxs_pinctrl_get_funcs_count,
 	.get_function_name = mxs_pinctrl_get_func_name,
 	.get_function_groups = mxs_pinctrl_get_func_groups,
-	.enable = mxs_pinctrl_enable,
+	.set_mux = mxs_pinctrl_set_mux,
 };
 
 static int mxs_pinconf_get(struct pinctrl_dev *pctldev,

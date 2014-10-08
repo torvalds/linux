@@ -259,8 +259,8 @@ static int mvebu_pinmux_get_groups(struct pinctrl_dev *pctldev, unsigned fid,
 	return 0;
 }
 
-static int mvebu_pinmux_enable(struct pinctrl_dev *pctldev, unsigned fid,
-			unsigned gid)
+static int mvebu_pinmux_set(struct pinctrl_dev *pctldev, unsigned fid,
+			    unsigned gid)
 {
 	struct mvebu_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 	struct mvebu_pinctrl_function *func = &pctl->functions[fid];
@@ -344,7 +344,7 @@ static const struct pinmux_ops mvebu_pinmux_ops = {
 	.get_function_groups = mvebu_pinmux_get_groups,
 	.gpio_request_enable = mvebu_pinmux_gpio_request_enable,
 	.gpio_set_direction = mvebu_pinmux_gpio_set_direction,
-	.enable = mvebu_pinmux_enable,
+	.set_mux = mvebu_pinmux_set,
 };
 
 static int mvebu_pinctrl_get_groups_count(struct pinctrl_dev *pctldev)

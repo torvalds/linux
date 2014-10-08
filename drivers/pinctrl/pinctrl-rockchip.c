@@ -816,8 +816,8 @@ static int rockchip_pmx_get_groups(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int rockchip_pmx_enable(struct pinctrl_dev *pctldev, unsigned selector,
-							    unsigned group)
+static int rockchip_pmx_set(struct pinctrl_dev *pctldev, unsigned selector,
+			    unsigned group)
 {
 	struct rockchip_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
 	const unsigned int *pins = info->groups[group].pins;
@@ -892,7 +892,7 @@ static const struct pinmux_ops rockchip_pmx_ops = {
 	.get_functions_count	= rockchip_pmx_get_funcs_count,
 	.get_function_name	= rockchip_pmx_get_func_name,
 	.get_function_groups	= rockchip_pmx_get_groups,
-	.enable			= rockchip_pmx_enable,
+	.set_mux		= rockchip_pmx_set,
 	.gpio_set_direction	= rockchip_pmx_gpio_set_direction,
 };
 

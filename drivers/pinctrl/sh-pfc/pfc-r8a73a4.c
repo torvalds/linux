@@ -2717,14 +2717,14 @@ static void r8a73a4_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
 	iowrite8(value, addr);
 }
 
-static const struct sh_pfc_soc_operations r8a73a4_pinmux_ops = {
+static const struct sh_pfc_soc_operations r8a73a4_pfc_ops = {
 	.get_bias = r8a73a4_pinmux_get_bias,
 	.set_bias = r8a73a4_pinmux_set_bias,
 };
 
 const struct sh_pfc_soc_info r8a73a4_pinmux_info = {
 	.name		= "r8a73a4_pfc",
-	.ops		= &r8a73a4_pinmux_ops,
+	.ops		= &r8a73a4_pfc_ops,
 
 	.input = { PINMUX_INPUT_BEGIN, PINMUX_INPUT_END },
 	.output = { PINMUX_OUTPUT_BEGIN, PINMUX_OUTPUT_END },

@@ -32,6 +32,7 @@
 #include <linux/pinctrl/consumer.h>
 #include "pinctrl-nomadik.h"
 #include "../core.h"
+#include "../pinctrl-utils.h"
 
 /*
  * The GPIO module in the Nomadik family of Systems-on-Chip is an
@@ -985,6 +986,7 @@ static void nmk_gpio_dbg_show_one(struct seq_file *s,
 		container_of(chip, struct nmk_gpio_chip, chip);
 	int mode;
 	bool is_out;
+	bool data_out;
 	bool pull;
 	u32 bit = 1 << offset;
 	const char *modes[] = {
@@ -997,28 +999,41 @@ static void nmk_gpio_dbg_show_one(struct seq_file *s,
 		[NMK_GPIO_ALT_C+3]	= "altC3",
 		[NMK_GPIO_ALT_C+4]	= "altC4",
 	};
+	const char *pulls[] = {
+		"none     ",
+		"pull down",
+		"pull up  ",
+	};
 
 	clk_enable(nmk_chip->clk);
 	is_out = !!(readl(nmk_chip->addr + NMK_GPIO_DIR) & bit);
 	pull = !(readl(nmk_chip->addr + NMK_GPIO_PDIS) & bit);
+	data_out = !!(readl(nmk_chip->addr + NMK_GPIO_DAT) & bit);
 	mode = nmk_gpio_get_mode(gpio);
 	if ((mode == NMK_GPIO_ALT_C) && pctldev)
 		mode = nmk_prcm_gpiocr_get_mode(pctldev, gpio);
 
-	seq_printf(s, " gpio-%-3d (%-20.20s) %s %s %s %s",
-		   gpio, label ?: "(none)",
-		   is_out ? "out" : "in ",
-		   chip->get
-		   ? (chip->get(chip, offset) ? "hi" : "lo")
-		   : "?  ",
-		   (mode < 0) ? "unknown" : modes[mode],
-		   pull ? "pull" : "none");
-
-	if (!is_out) {
+	if (is_out) {
+		seq_printf(s, " gpio-%-3d (%-20.20s) out %s        %s",
+			   gpio,
+			   label ?: "(none)",
+			   data_out ? "hi" : "lo",
+			   (mode < 0) ? "unknown" : modes[mode]);
+	} else {
 		int irq = gpio_to_irq(gpio);
 		struct irq_desc	*desc = irq_to_desc(irq);
+		int pullidx = 0;
 
-		/* This races with request_irq(), set_irq_type(),
+		if (pull)
+			pullidx = data_out ? 1 : 2;
+
+		seq_printf(s, " gpio-%-3d (%-20.20s) in  %s %s",
+			   gpio,
+			   label ?: "(none)",
+			   pulls[pullidx],
+			   (mode < 0) ? "unknown" : modes[mode]);
+		/*
+		 * This races with request_irq(), set_irq_type(),
 		 * and set_irq_wake() ... but those are "rare".
 		 */
 		if (irq > 0 && desc && desc->action) {
@@ -1338,39 +1353,6 @@ static void nmk_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 	nmk_gpio_dbg_show_one(s, pctldev, chip, offset - chip->base, offset);
 }
 
-static void nmk_pinctrl_dt_free_map(struct pinctrl_dev *pctldev,
-		struct pinctrl_map *map, unsigned num_maps)
-{
-	int i;
-
-	for (i = 0; i < num_maps; i++)
-		if (map[i].type == PIN_MAP_TYPE_CONFIGS_PIN)
-			kfree(map[i].data.configs.configs);
-	kfree(map);
-}
-
-static int nmk_dt_reserve_map(struct pinctrl_map **map, unsigned *reserved_maps,
-		unsigned *num_maps, unsigned reserve)
-{
-	unsigned old_num = *reserved_maps;
-	unsigned new_num = *num_maps + reserve;
-	struct pinctrl_map *new_map;
-
-	if (old_num >= new_num)
-		return 0;
-
-	new_map = krealloc(*map, sizeof(*new_map) * new_num, GFP_KERNEL);
-	if (!new_map)
-		return -ENOMEM;
-
-	memset(new_map + old_num, 0, (new_num - old_num) * sizeof(*new_map));
-
-	*map = new_map;
-	*reserved_maps = new_num;
-
-	return 0;
-}
-
 static int nmk_dt_add_map_mux(struct pinctrl_map **map, unsigned *reserved_maps,
 		unsigned *num_maps, const char *group,
 		const char *function)
@@ -1537,51 +1519,55 @@ static int nmk_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	const char *function = NULL;
 	unsigned long configs = 0;
 	bool has_config = 0;
-	unsigned reserve = 0;
 	struct property *prop;
 	const char *group, *gpio_name;
 	struct device_node *np_config;
 
 	ret = of_property_read_string(np, "ste,function", &function);
-	if (ret >= 0)
-		reserve = 1;
+	if (ret >= 0) {
+		ret = of_property_count_strings(np, "ste,pins");
+		if (ret < 0)
+			goto exit;
 
-	has_config = nmk_pinctrl_dt_get_config(np, &configs);
+		ret = pinctrl_utils_reserve_map(pctldev, map,
+						reserved_maps,
+						num_maps, ret);
+		if (ret < 0)
+			goto exit;
 
-	np_config = of_parse_phandle(np, "ste,config", 0);
-	if (np_config)
-		has_config |= nmk_pinctrl_dt_get_config(np_config, &configs);
-
-	ret = of_property_count_strings(np, "ste,pins");
-	if (ret < 0)
-		goto exit;
-
-	if (has_config)
-		reserve++;
-
-	reserve *= ret;
-
-	ret = nmk_dt_reserve_map(map, reserved_maps, num_maps, reserve);
-	if (ret < 0)
-		goto exit;
-
-	of_property_for_each_string(np, "ste,pins", prop, group) {
-		if (function) {
+		of_property_for_each_string(np, "ste,pins", prop, group) {
 			ret = nmk_dt_add_map_mux(map, reserved_maps, num_maps,
 					  group, function);
 			if (ret < 0)
 				goto exit;
 		}
-		if (has_config) {
+	}
+
+	has_config = nmk_pinctrl_dt_get_config(np, &configs);
+	np_config = of_parse_phandle(np, "ste,config", 0);
+	if (np_config)
+		has_config |= nmk_pinctrl_dt_get_config(np_config, &configs);
+	if (has_config) {
+		ret = of_property_count_strings(np, "ste,pins");
+		if (ret < 0)
+			goto exit;
+		ret = pinctrl_utils_reserve_map(pctldev, map,
+						reserved_maps,
+						num_maps, ret);
+		if (ret < 0)
+			goto exit;
+
+		of_property_for_each_string(np, "ste,pins", prop, group) {
 			gpio_name = nmk_find_pin_name(pctldev, group);
 
-			ret = nmk_dt_add_map_configs(map, reserved_maps, num_maps,
-					      gpio_name, &configs, 1);
+			ret = nmk_dt_add_map_configs(map, reserved_maps,
+						     num_maps,
+						     gpio_name, &configs, 1);
 			if (ret < 0)
 				goto exit;
 		}
-
 	}
+
 exit:
 	return ret;
 }
@@ -1602,7 +1588,7 @@ static int nmk_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 		ret = nmk_pinctrl_dt_subnode_to_map(pctldev, np, map,
 				&reserved_maps, num_maps);
 		if (ret < 0) {
-			nmk_pinctrl_dt_free_map(pctldev, *map, *num_maps);
+			pinctrl_utils_dt_free_map(pctldev, *map, *num_maps);
 			return ret;
 		}
 	}
@@ -1616,7 +1602,7 @@ static const struct pinctrl_ops nmk_pinctrl_ops = {
 	.get_group_pins = nmk_get_group_pins,
 	.pin_dbg_show = nmk_pin_dbg_show,
 	.dt_node_to_map = nmk_pinctrl_dt_node_to_map,
-	.dt_free_map = nmk_pinctrl_dt_free_map,
+	.dt_free_map = pinctrl_utils_dt_free_map,
 };
 
 static int nmk_pmx_get_funcs_cnt(struct pinctrl_dev *pctldev)
@@ -1647,8 +1633,8 @@ static int nmk_pmx_get_func_groups(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int nmk_pmx_enable(struct pinctrl_dev *pctldev, unsigned function,
-			  unsigned group)
+static int nmk_pmx_set(struct pinctrl_dev *pctldev, unsigned function,
+		       unsigned group)
 {
 	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
 	const struct nmk_pingroup *g;
@@ -1810,7 +1796,7 @@ static const struct pinmux_ops nmk_pinmux_ops = {
 	.get_functions_count = nmk_pmx_get_funcs_cnt,
 	.get_function_name = nmk_pmx_get_func_name,
 	.get_function_groups = nmk_pmx_get_func_groups,
-	.enable = nmk_pmx_enable,
+	.set_mux = nmk_pmx_set,
 	.gpio_request_enable = nmk_gpio_request_enable,
 	.gpio_disable_free = nmk_gpio_disable_free,
 };

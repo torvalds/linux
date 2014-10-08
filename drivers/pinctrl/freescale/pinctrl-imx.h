@@ -67,8 +67,8 @@ struct imx_pmx_func {
  * @conf_reg: config register offset
  */
 struct imx_pin_reg {
-	u16 mux_reg;
-	u16 conf_reg;
+	s16 mux_reg;
+	s16 conf_reg;
 };
 
 struct imx_pinctrl_soc_info {
@@ -83,8 +83,7 @@ struct imx_pinctrl_soc_info {
 	unsigned int flags;
 };
 
-#define ZERO_OFFSET_VALID	0x1
-#define SHARE_MUX_CONF_REG	0x2
+#define SHARE_MUX_CONF_REG	0x1
 
 #define NO_MUX		0x0
 #define NO_PAD		0x0

@@ -366,10 +366,11 @@ static struct imx_pinctrl_soc_info imx6sl_pinctrl_info = {
 	.npins = ARRAY_SIZE(imx6sl_pinctrl_pads),
 };
 
-static struct of_device_id imx6sl_pinctrl_of_match[] = {
+static const struct of_device_id imx6sl_pinctrl_of_match[] = {
 	{ .compatible = "fsl,imx6sl-iomuxc", },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, imx6sl_pinctrl_of_match);
 
 static int imx6sl_pinctrl_probe(struct platform_device *pdev)
 {

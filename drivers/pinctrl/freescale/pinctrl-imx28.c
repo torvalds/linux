@@ -388,7 +388,7 @@ static int imx28_pinctrl_probe(struct platform_device *pdev)
 	return mxs_pinctrl_probe(pdev, &imx28_pinctrl_data);
 }
 
-static struct of_device_id imx28_pinctrl_of_match[] = {
+static const struct of_device_id imx28_pinctrl_of_match[] = {
 	{ .compatible = "fsl,imx28-pinctrl", },
 	{ /* sentinel */ }
 };

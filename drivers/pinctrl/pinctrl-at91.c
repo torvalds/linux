@@ -58,9 +58,26 @@ static int gpio_banks;
 #define DEGLITCH	(1 << 2)
 #define PULL_DOWN	(1 << 3)
 #define DIS_SCHMIT	(1 << 4)
+#define DRIVE_STRENGTH_SHIFT	5
+#define DRIVE_STRENGTH_MASK		0x3
+#define DRIVE_STRENGTH   (DRIVE_STRENGTH_MASK << DRIVE_STRENGTH_SHIFT)
 #define DEBOUNCE	(1 << 16)
 #define DEBOUNCE_VAL_SHIFT	17
 #define DEBOUNCE_VAL	(0x3fff << DEBOUNCE_VAL_SHIFT)
+
+/**
+ * These defines will translated the dt binding settings to our internal
+ * settings. They are not necessarily the same value as the register setting.
+ * The actual drive strength current of low, medium and high must be looked up
+ * from the corresponding device datasheet. This value is different for pins
+ * that are even in the same banks. It is also dependent on VCC.
+ * DRIVE_STRENGTH_DEFAULT is just a placeholder to avoid changing the drive
+ * strength when there is no dt config for it.
+ */
+#define DRIVE_STRENGTH_DEFAULT		(0 << DRIVE_STRENGTH_SHIFT)
+#define DRIVE_STRENGTH_LOW          (1 << DRIVE_STRENGTH_SHIFT)
+#define DRIVE_STRENGTH_MED          (2 << DRIVE_STRENGTH_SHIFT)
+#define DRIVE_STRENGTH_HI           (3 << DRIVE_STRENGTH_SHIFT)
 
 /**
  * struct at91_pmx_func - describes AT91 pinmux functions
@@ -148,6 +165,9 @@ struct at91_pinctrl_mux_ops {
 	void (*set_pulldown)(void __iomem *pio, unsigned mask, bool is_on);
 	bool (*get_schmitt_trig)(void __iomem *pio, unsigned pin);
 	void (*disable_schmitt_trig)(void __iomem *pio, unsigned mask);
+	unsigned (*get_drivestrength)(void __iomem *pio, unsigned pin);
+	void (*set_drivestrength)(void __iomem *pio, unsigned pin,
+					u32 strength);
 	/* irq */
 	int (*irq_type)(struct irq_data *d, unsigned type);
 };
@@ -315,6 +335,30 @@ static unsigned pin_to_mask(unsigned int pin)
 	return 1 << pin;
 }
 
+static unsigned two_bit_pin_value_shift_amount(unsigned int pin)
+{
+	/* return the shift value for a pin for "two bit" per pin registers,
+	 * i.e. drive strength */
+	return 2*((pin >= MAX_NB_GPIO_PER_BANK/2)
+			? pin - MAX_NB_GPIO_PER_BANK/2 : pin);
+}
+
+static unsigned sama5d3_get_drive_register(unsigned int pin)
+{
+	/* drive strength is split between two registers
+	 * with two bits per pin */
+	return (pin >= MAX_NB_GPIO_PER_BANK/2)
+			? SAMA5D3_PIO_DRIVER2 : SAMA5D3_PIO_DRIVER1;
+}
+
+static unsigned at91sam9x5_get_drive_register(unsigned int pin)
+{
+	/* drive strength is split between two registers
+	 * with two bits per pin */
+	return (pin >= MAX_NB_GPIO_PER_BANK/2)
+			? AT91SAM9X5_PIO_DRIVER2 : AT91SAM9X5_PIO_DRIVER1;
+}
+
 static void at91_mux_disable_interrupt(void __iomem *pio, unsigned mask)
 {
 	writel_relaxed(mask, pio + PIO_IDR);
@@ -327,6 +371,9 @@ static unsigned at91_mux_get_pullup(void __iomem *pio, unsigned pin)
 
 static void at91_mux_set_pullup(void __iomem *pio, unsigned mask, bool on)
 {
+	if (on)
+		writel_relaxed(mask, pio + PIO_PPDDR);
+
 	writel_relaxed(mask, pio + (on ? PIO_PUER : PIO_PUDR));
 }
 
@@ -455,6 +502,9 @@ static bool at91_mux_pio3_get_pulldown(void __iomem *pio, unsigned pin)
 
 static void at91_mux_pio3_set_pulldown(void __iomem *pio, unsigned mask, bool is_on)
 {
+	if (is_on)
+		__raw_writel(mask, pio + PIO_PUDR);
+
 	__raw_writel(mask, pio + (is_on ? PIO_PPDER : PIO_PPDDR));
 }
 
@@ -466,6 +516,79 @@ static void at91_mux_pio3_disable_schmitt_trig(void __iomem *pio, unsigned mask)
 static bool at91_mux_pio3_get_schmitt_trig(void __iomem *pio, unsigned pin)
 {
 	return (__raw_readl(pio + PIO_SCHMITT) >> pin) & 0x1;
+}
+
+static inline u32 read_drive_strength(void __iomem *reg, unsigned pin)
+{
+	unsigned tmp = __raw_readl(reg);
+
+	tmp = tmp >> two_bit_pin_value_shift_amount(pin);
+
+	return tmp & DRIVE_STRENGTH_MASK;
+}
+
+static unsigned at91_mux_sama5d3_get_drivestrength(void __iomem *pio,
+							unsigned pin)
+{
+	unsigned tmp = read_drive_strength(pio +
+					sama5d3_get_drive_register(pin), pin);
+
+	/* SAMA5 strength is 1:1 with our defines,
+	 * except 0 is equivalent to low per datasheet */
+	if (!tmp)
+		tmp = DRIVE_STRENGTH_LOW;
+
+	return tmp;
+}
+
+static unsigned at91_mux_sam9x5_get_drivestrength(void __iomem *pio,
+							unsigned pin)
+{
+	unsigned tmp = read_drive_strength(pio +
+				at91sam9x5_get_drive_register(pin), pin);
+
+	/* strength is inverse in SAM9x5s hardware with the pinctrl defines
+	 * hardware: 0 = hi, 1 = med, 2 = low, 3 = rsvd */
+	tmp = DRIVE_STRENGTH_HI - tmp;
+
+	return tmp;
+}
+
+static void set_drive_strength(void __iomem *reg, unsigned pin, u32 strength)
+{
+	unsigned tmp = __raw_readl(reg);
+	unsigned shift = two_bit_pin_value_shift_amount(pin);
+
+	tmp &= ~(DRIVE_STRENGTH_MASK  <<  shift);
+	tmp |= strength << shift;
+
+	__raw_writel(tmp, reg);
+}
+
+static void at91_mux_sama5d3_set_drivestrength(void __iomem *pio, unsigned pin,
+						u32 setting)
+{
+	/* do nothing if setting is zero */
+	if (!setting)
+		return;
+
+	/* strength is 1 to 1 with setting for SAMA5 */
+	set_drive_strength(pio + sama5d3_get_drive_register(pin), pin, setting);
+}
+
+static void at91_mux_sam9x5_set_drivestrength(void __iomem *pio, unsigned pin,
+						u32 setting)
+{
+	/* do nothing if setting is zero */
+	if (!setting)
+		return;
+
+	/* strength is inverse on SAM9x5s with our defines
+	 * 0 = hi, 1 = med, 2 = low, 3 = rsvd */
+	setting = DRIVE_STRENGTH_HI - setting;
+
+	set_drive_strength(pio + at91sam9x5_get_drive_register(pin), pin,
+				setting);
 }
 
 static struct at91_pinctrl_mux_ops at91rm9200_ops = {
@@ -491,6 +614,27 @@ static struct at91_pinctrl_mux_ops at91sam9x5_ops = {
 	.set_pulldown	= at91_mux_pio3_set_pulldown,
 	.get_schmitt_trig = at91_mux_pio3_get_schmitt_trig,
 	.disable_schmitt_trig = at91_mux_pio3_disable_schmitt_trig,
+	.get_drivestrength = at91_mux_sam9x5_get_drivestrength,
+	.set_drivestrength = at91_mux_sam9x5_set_drivestrength,
+	.irq_type	= alt_gpio_irq_type,
+};
+
+static struct at91_pinctrl_mux_ops sama5d3_ops = {
+	.get_periph	= at91_mux_pio3_get_periph,
+	.mux_A_periph	= at91_mux_pio3_set_A_periph,
+	.mux_B_periph	= at91_mux_pio3_set_B_periph,
+	.mux_C_periph	= at91_mux_pio3_set_C_periph,
+	.mux_D_periph	= at91_mux_pio3_set_D_periph,
+	.get_deglitch	= at91_mux_pio3_get_deglitch,
+	.set_deglitch	= at91_mux_pio3_set_deglitch,
+	.get_debounce	= at91_mux_pio3_get_debounce,
+	.set_debounce	= at91_mux_pio3_set_debounce,
+	.get_pulldown	= at91_mux_pio3_get_pulldown,
+	.set_pulldown	= at91_mux_pio3_set_pulldown,
+	.get_schmitt_trig = at91_mux_pio3_get_schmitt_trig,
+	.disable_schmitt_trig = at91_mux_pio3_disable_schmitt_trig,
+	.get_drivestrength = at91_mux_sama5d3_get_drivestrength,
+	.set_drivestrength = at91_mux_sama5d3_set_drivestrength,
 	.irq_type	= alt_gpio_irq_type,
 };
 
@@ -554,8 +698,8 @@ static void at91_mux_gpio_enable(void __iomem *pio, unsigned mask, bool input)
 	writel_relaxed(mask, pio + (input ? PIO_ODR : PIO_OER));
 }
 
-static int at91_pmx_enable(struct pinctrl_dev *pctldev, unsigned selector,
-			   unsigned group)
+static int at91_pmx_set(struct pinctrl_dev *pctldev, unsigned selector,
+			unsigned group)
 {
 	struct at91_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
 	const struct at91_pmx_pin *pins_conf = info->groups[group].pins_conf;
@@ -684,7 +828,7 @@ static const struct pinmux_ops at91_pmx_ops = {
 	.get_functions_count	= at91_pmx_get_funcs_count,
 	.get_function_name	= at91_pmx_get_func_name,
 	.get_function_groups	= at91_pmx_get_groups,
-	.enable			= at91_pmx_enable,
+	.set_mux		= at91_pmx_set,
 	.gpio_request_enable	= at91_gpio_request_enable,
 	.gpio_disable_free	= at91_gpio_disable_free,
 };
@@ -716,6 +860,9 @@ static int at91_pinconf_get(struct pinctrl_dev *pctldev,
 		*config |= PULL_DOWN;
 	if (info->ops->get_schmitt_trig && info->ops->get_schmitt_trig(pio, pin))
 		*config |= DIS_SCHMIT;
+	if (info->ops->get_drivestrength)
+		*config |= (info->ops->get_drivestrength(pio, pin)
+				<< DRIVE_STRENGTH_SHIFT);
 
 	return 0;
 }
@@ -729,6 +876,7 @@ static int at91_pinconf_set(struct pinctrl_dev *pctldev,
 	void __iomem *pio;
 	int i;
 	unsigned long config;
+	unsigned pin;
 
 	for (i = 0; i < num_configs; i++) {
 		config = configs[i];
@@ -737,7 +885,8 @@ static int at91_pinconf_set(struct pinctrl_dev *pctldev,
 			"%s:%d, pin_id=%d, config=0x%lx",
 			__func__, __LINE__, pin_id, config);
 		pio = pin_to_controller(info, pin_to_bank(pin_id));
-		mask = pin_to_mask(pin_id % MAX_NB_GPIO_PER_BANK);
+		pin = pin_id % MAX_NB_GPIO_PER_BANK;
+		mask = pin_to_mask(pin);
 
 		if (config & PULL_UP && config & PULL_DOWN)
 			return -EINVAL;
@@ -753,6 +902,10 @@ static int at91_pinconf_set(struct pinctrl_dev *pctldev,
 			info->ops->set_pulldown(pio, mask, config & PULL_DOWN);
 		if (info->ops->disable_schmitt_trig && config & DIS_SCHMIT)
 			info->ops->disable_schmitt_trig(pio, mask);
+		if (info->ops->set_drivestrength)
+			info->ops->set_drivestrength(pio, pin,
+				(config & DRIVE_STRENGTH)
+					>> DRIVE_STRENGTH_SHIFT);
 
 	} /* for each config */
 
@@ -761,6 +914,15 @@ static int at91_pinconf_set(struct pinctrl_dev *pctldev,
 
 #define DBG_SHOW_FLAG(flag) do {		\
 	if (config & flag) {			\
+		if (num_conf)			\
+			seq_puts(s, "|");	\
+		seq_puts(s, #flag);		\
+		num_conf++;			\
+	}					\
+} while (0)
+
+#define DBG_SHOW_FLAG_MASKED(mask,flag) do {	\
+	if ((config & mask) == flag) {		\
 		if (num_conf)			\
 			seq_puts(s, "|");	\
 		seq_puts(s, #flag);		\
@@ -781,6 +943,9 @@ static void at91_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 	DBG_SHOW_FLAG(PULL_DOWN);
 	DBG_SHOW_FLAG(DIS_SCHMIT);
 	DBG_SHOW_FLAG(DEGLITCH);
+	DBG_SHOW_FLAG_MASKED(DRIVE_STRENGTH, DRIVE_STRENGTH_LOW);
+	DBG_SHOW_FLAG_MASKED(DRIVE_STRENGTH, DRIVE_STRENGTH_MED);
+	DBG_SHOW_FLAG_MASKED(DRIVE_STRENGTH, DRIVE_STRENGTH_HI);
 	DBG_SHOW_FLAG(DEBOUNCE);
 	if (config & DEBOUNCE) {
 		val = config >> DEBOUNCE_VAL_SHIFT;
@@ -945,6 +1110,7 @@ static int at91_pinctrl_parse_functions(struct device_node *np,
 }
 
 static struct of_device_id at91_pinctrl_of_match[] = {
+	{ .compatible = "atmel,sama5d3-pinctrl", .data = &sama5d3_ops },
 	{ .compatible = "atmel,at91sam9x5-pinctrl", .data = &at91sam9x5_ops },
 	{ .compatible = "atmel,at91rm9200-pinctrl", .data = &at91rm9200_ops },
 	{ /* sentinel */ }
@@ -1445,7 +1611,7 @@ static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 	/* now it may re-trigger */
 }
 
-static int at91_gpio_of_irq_setup(struct device_node *node,
+static int at91_gpio_of_irq_setup(struct platform_device *pdev,
 				  struct at91_gpio_chip *at91_gpio)
 {
 	struct at91_gpio_chip   *prev = NULL;
@@ -1470,9 +1636,11 @@ static int at91_gpio_of_irq_setup(struct device_node *node,
 				   0,
 				   handle_edge_irq,
 				   IRQ_TYPE_EDGE_BOTH);
-	if (ret)
-		panic("at91_gpio.%d: couldn't allocate irq domain (DT).\n",
+	if (ret) {
+		dev_err(&pdev->dev, "at91_gpio.%d: Couldn't add irqchip to gpiochip.\n",
 			at91_gpio->pioc_idx);
+		return ret;
+	}
 
 	/* Setup chained handler */
 	if (at91_gpio->pioc_idx)
@@ -1575,19 +1743,22 @@ static int at91_gpio_probe(struct platform_device *pdev)
 	at91_chip->pioc_virq = irq;
 	at91_chip->pioc_idx = alias_idx;
 
-	at91_chip->clock = clk_get(&pdev->dev, NULL);
+	at91_chip->clock = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(at91_chip->clock)) {
 		dev_err(&pdev->dev, "failed to get clock, ignoring.\n");
+		ret = PTR_ERR(at91_chip->clock);
 		goto err;
 	}
 
-	if (clk_prepare(at91_chip->clock))
-		goto clk_prep_err;
+	ret = clk_prepare(at91_chip->clock);
+	if (ret)
+		goto clk_prepare_err;
 
 	/* enable PIO controller's clock */
-	if (clk_enable(at91_chip->clock)) {
+	ret = clk_enable(at91_chip->clock);
+	if (ret) {
 		dev_err(&pdev->dev, "failed to enable clock, ignoring.\n");
-		goto clk_err;
+		goto clk_enable_err;
 	}
 
 	at91_chip->chip = at91_gpio_template;
@@ -1612,7 +1783,7 @@ static int at91_gpio_probe(struct platform_device *pdev)
 
 	if (!names) {
 		ret = -ENOMEM;
-		goto clk_err;
+		goto clk_enable_err;
 	}
 
 	for (i = 0; i < chip->ngpio; i++)
@@ -1630,23 +1801,28 @@ static int at91_gpio_probe(struct platform_device *pdev)
 
 	ret = gpiochip_add(chip);
 	if (ret)
-		goto clk_err;
+		goto gpiochip_add_err;
 
 	gpio_chips[alias_idx] = at91_chip;
 	gpio_banks = max(gpio_banks, alias_idx + 1);
 
 	at91_gpio_probe_fixup();
 
-	at91_gpio_of_irq_setup(np, at91_chip);
+	ret = at91_gpio_of_irq_setup(pdev, at91_chip);
+	if (ret)
+		goto irq_setup_err;
 
 	dev_info(&pdev->dev, "at address %p\n", at91_chip->regbase);
 
 	return 0;
 
-clk_err:
+irq_setup_err:
+	gpiochip_remove(chip);
+gpiochip_add_err:
+	clk_disable(at91_chip->clock);
+clk_enable_err:
 	clk_unprepare(at91_chip->clock);
-clk_prep_err:
-	clk_put(at91_chip->clock);
+clk_prepare_err:
 err:
 	dev_err(&pdev->dev, "Failure %i for GPIO %i\n", ret, alias_idx);
 

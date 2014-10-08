@@ -28,7 +28,7 @@
 #include <linux/pinctrl/pinmux.h>
 #include <linux/slab.h>
 
-#include "core.h"
+#include "../core.h"
 #include "pinctrl-imx1.h"
 
 struct imx1_pinctrl {
@@ -298,8 +298,8 @@ static const struct pinctrl_ops imx1_pctrl_ops = {
 
 };
 
-static int imx1_pmx_enable(struct pinctrl_dev *pctldev, unsigned selector,
-			   unsigned group)
+static int imx1_pmx_set(struct pinctrl_dev *pctldev, unsigned selector,
+			unsigned group)
 {
 	struct imx1_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
 	const struct imx1_pinctrl_soc_info *info = ipctl->info;
@@ -385,7 +385,7 @@ static const struct pinmux_ops imx1_pmx_ops = {
 	.get_functions_count = imx1_pmx_get_funcs_count,
 	.get_function_name = imx1_pmx_get_func_name,
 	.get_function_groups = imx1_pmx_get_groups,
-	.enable = imx1_pmx_enable,
+	.set_mux = imx1_pmx_set,
 };
 
 static int imx1_pinconf_get(struct pinctrl_dev *pctldev,
