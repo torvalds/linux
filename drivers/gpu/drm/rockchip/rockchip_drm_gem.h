@@ -52,4 +52,18 @@ int rockchip_gem_dumb_create(struct drm_file *file_priv,
 int rockchip_gem_dumb_map_offset(struct drm_file *file_priv,
 				 struct drm_device *dev, uint32_t handle,
 				 uint64_t *offset);
+int rockchip_gem_map_offset_ioctl(struct drm_device *drm, void *data,
+				  struct drm_file *file_priv);
+/*
+ * request gem object creation and buffer allocation as the size
+ * that it is calculated with framebuffer information such as width,
+ * height and bpp.
+ */
+int rockchip_gem_create_ioctl(struct drm_device *dev, void *data,
+			      struct drm_file *file_priv);
+
+/* get buffer offset to map to user space. */
+int rockchip_gem_map_offset_ioctl(struct drm_device *dev, void *data,
+				  struct drm_file *file_priv);
+
 #endif /* _ROCKCHIP_DRM_GEM_H */
