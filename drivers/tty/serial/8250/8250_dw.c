@@ -290,6 +290,14 @@ static int dw8250_probe_of(struct uart_port *p,
 	if (has_ucv)
 		dw8250_setup_port(up);
 
+	/* if we have a valid fifosize, try hooking up DMA here */
+	if (p->fifosize) {
+		up->dma = &data->dma;
+
+		up->dma->rxconf.src_maxburst = p->fifosize / 4;
+		up->dma->txconf.dst_maxburst = p->fifosize / 4;
+	}
+
 	if (!of_property_read_u32(np, "reg-shift", &val))
 		p->regshift = val;
 
