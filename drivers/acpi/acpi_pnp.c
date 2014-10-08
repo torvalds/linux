@@ -15,8 +15,6 @@
 #include <linux/ctype.h>
 
 static const struct acpi_device_id acpi_pnp_device_ids[] = {
-	/* soc_button_array */
-	{"PNP0C40"},
 	/* pata_isapnp */
 	{"PNP0600"},		/* Generic ESDI/IDE/ATA compatible hard disk controller */
 	/* floppy */
