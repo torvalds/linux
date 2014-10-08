@@ -1792,18 +1792,17 @@ BBuGetFrameTime(
 			uFrameTime++;
 
 		return uPreamble + uFrameTime;
-	} else {
-		uFrameTime = (cbFrameLength * 8 + 22) / uRate; /* ???????? */
-		uTmp = ((uFrameTime * uRate) - 22) / 8;
-		if (cbFrameLength != uTmp)
-			uFrameTime++;
-
-		uFrameTime = uFrameTime * 4;    /* ??????? */
-		if (byPktType != PK_TYPE_11A)
-			uFrameTime += 6;     /* ?????? */
-
-		return 20 + uFrameTime; /* ?????? */
 	}
+	uFrameTime = (cbFrameLength * 8 + 22) / uRate; /* ???????? */
+	uTmp = ((uFrameTime * uRate) - 22) / 8;
+	if (cbFrameLength != uTmp)
+		uFrameTime++;
+
+	uFrameTime = uFrameTime * 4;    /* ??????? */
+	if (byPktType != PK_TYPE_11A)
+		uFrameTime += 6;     /* ?????? */
+
+	return 20 + uFrameTime; /* ?????? */
 }
 
 /*
