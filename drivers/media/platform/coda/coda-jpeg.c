@@ -14,6 +14,9 @@
 
 #include "coda.h"
 
+#define SOI_MARKER	0xffd8
+#define EOI_MARKER	0xffd9
+
 /*
  * Typical Huffman tables for 8-bit precision luminance and
  * chrominance from JPEG ITU-T.81 (ISO/IEC 10918-1) Annex K.3
@@ -172,6 +175,16 @@ int coda_jpeg_write_tables(struct coda_ctx *ctx)
 		coda_memcpy_parabuf(ctx->parabuf.vaddr, qmat + i);
 
 	return 0;
+}
+
+bool coda_jpeg_check_buffer(struct coda_ctx *ctx, struct vb2_buffer *vb)
+{
+	void *vaddr = vb2_plane_vaddr(vb, 0);
+	u16 soi = be16_to_cpup((__be16 *)vaddr);
+	u16 eoi = be16_to_cpup((__be16 *)(vaddr +
+					  vb2_get_plane_payload(vb, 0) - 2));
+
+	return soi == SOI_MARKER && eoi == EOI_MARKER;
 }
 
 /*

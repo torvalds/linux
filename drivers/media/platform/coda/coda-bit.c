@@ -231,6 +231,16 @@ void coda_fill_bitstream(struct coda_ctx *ctx)
 
 		src_buf = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
 
+		/* Drop frames that do not start/end with a SOI/EOI markers */
+		if (ctx->codec->src_fourcc == V4L2_PIX_FMT_JPEG &&
+		    !coda_jpeg_check_buffer(ctx, src_buf)) {
+			v4l2_err(&ctx->dev->v4l2_dev,
+				 "dropping invalid JPEG frame\n");
+			src_buf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
+			v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_ERROR);
+			continue;
+		}
+
 		/* Buffer start position */
 		start = ctx->bitstream_fifo.kfifo.in &
 			ctx->bitstream_fifo.kfifo.mask;

@@ -293,6 +293,7 @@ void coda_bit_stream_end_flag(struct coda_ctx *ctx);
 
 int coda_h264_padding(int size, char *p);
 
+bool coda_jpeg_check_buffer(struct coda_ctx *ctx, struct vb2_buffer *vb);
 int coda_jpeg_write_tables(struct coda_ctx *ctx);
 void coda_set_jpeg_compression_quality(struct coda_ctx *ctx, int quality);
 
