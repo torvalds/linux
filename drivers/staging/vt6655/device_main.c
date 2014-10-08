@@ -362,9 +362,9 @@ device_set_options(struct vnt_private *pDevice)
 	unsigned char abySNAP_RFC1042[ETH_ALEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0x00};
 	unsigned char abySNAP_Bridgetunnel[ETH_ALEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0xF8};
 
-	memcpy(pDevice->abyBroadcastAddr, abyBroadcastAddr, ETH_ALEN);
-	memcpy(pDevice->abySNAP_RFC1042, abySNAP_RFC1042, ETH_ALEN);
-	memcpy(pDevice->abySNAP_Bridgetunnel, abySNAP_Bridgetunnel, ETH_ALEN);
+	ether_addr_copy(pDevice->abyBroadcastAddr, abyBroadcastAddr);
+	ether_addr_copy(pDevice->abySNAP_RFC1042, abySNAP_RFC1042);
+	ether_addr_copy(pDevice->abySNAP_Bridgetunnel, abySNAP_Bridgetunnel);
 
 	pDevice->uChannel = pDevice->sOpts.channel_num;
 	pDevice->wRTSThreshold = pDevice->sOpts.rts_thresh;
