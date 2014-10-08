@@ -1153,6 +1153,7 @@ bool is_ap_in_wep23a(struct rtw_adapter *padapter)
 static int wifirate2_ratetbl_inx23a(unsigned char rate)
 {
 	int inx = 0;
+
 	rate = rate & 0x7f;
 
 	switch (rate) {
@@ -1311,6 +1312,7 @@ unsigned char check_assoc_AP23a(u8 *pframe, uint len)
 	u8 epigram_vendor_flag;
 	u8 ralink_vendor_flag;
 	const u8 *p;
+
 	epigram_vendor_flag = 0;
 	ralink_vendor_flag = 0;
 
