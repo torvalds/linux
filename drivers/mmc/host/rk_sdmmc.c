@@ -1198,7 +1198,7 @@ static void dw_mci_wait_unbusy(struct dw_mci *host)
                                 if((host->cmd->arg & (0x1 << 31)) == 1) /* secure erase */
                                         se_flag = 0x1;
 
-                                if (((this_card->ext_csd.erase_group_def) & 0x1) == 1) ;
+                                if (((this_card->ext_csd.erase_group_def) & 0x1) == 1)
                                         se_flag ? (timeout = (this_card->ext_csd.hc_erase_timeout) *
                                                         300000 * (this_card->ext_csd.sec_erase_mult)) :
                                                         (timeout = (this_card->ext_csd.hc_erase_timeout) * 300000);
@@ -2961,7 +2961,7 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 
                 /* Stop edma when rountine card triggered */
                 if(cpu_is_rk3036() || cpu_is_rk312x())
-		        if(host->dma_ops->stop)
+		        if(host->dma_ops && host->dma_ops->stop)
 		                host->dma_ops->stop(host);
 
 		while (present != slot->last_detect_state) {
@@ -4097,17 +4097,9 @@ int dw_mci_suspend(struct dw_mci *host)
         /*only for sdmmc controller*/
         if (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD) {
                 host->mmc->rescan_disable = 1;
-                if (!(cpu_is_rk312x() || cpu_is_rk3036())) {
-                        if (cancel_delayed_work_sync(&host->mmc->detect))
-			        wake_unlock(&host->mmc->detect_wake_lock);
-                } else {
-                        /* we find dpm suspend timeout for mmc cancel this work sync way,
-                           actually just workaround this for low end platform with
-                           gpio-debounce detect method.
-                        */
-                        if (cancel_delayed_work(&host->mmc->detect))
-                                wake_unlock(&host->mmc->detect_wake_lock);
-                }
+
+                if(cancel_delayed_work(&host->mmc->detect))
+                        wake_unlock(&host->mmc->detect_wake_lock);
 
                 disable_irq(host->irq);
                 if (pinctrl_select_state(host->pinctrl, host->pins_idle) < 0)

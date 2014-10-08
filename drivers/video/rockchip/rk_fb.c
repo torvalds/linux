@@ -770,9 +770,9 @@ static int rk_fb_close(struct fb_info *info, int user)
 	int win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
 
 	if (win_id >= 0) {
-		dev_drv->win[win_id]->logicalstate--;
-		if (!dev_drv->win[win_id]->logicalstate) {
-			win = dev_drv->win[win_id];
+		win = dev_drv->win[win_id];
+		win->logicalstate--;
+		if (!win->logicalstate) {
 			info->fix.smem_start = win->reserved;
 			info->var.xres = dev_drv->screen0->mode.xres;
 			info->var.yres = dev_drv->screen0->mode.yres;
@@ -799,6 +799,7 @@ static int rk_fb_close(struct fb_info *info, int user)
 			info->var.vsync_len = dev_drv->screen0->mode.vsync_len;
 			info->var.hsync_len = dev_drv->screen0->mode.hsync_len;
 		}
+		info->var.reserved[0] = (__u32)win->area[0].ion_hdl;
 	}
 
 	return 0;
@@ -3155,7 +3156,7 @@ static int rk_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	struct ion_handle *handle = (struct ion_handle *)info->var.reserved[0];
 	struct dma_buf *dma_buf = NULL;
 
-	if (IS_ERR(handle)) {
+	if (handle == NULL || IS_ERR(handle)) {
 		dev_err(info->device, "failed to get ion handle:%ld\n",
 			PTR_ERR(handle));
 		return -ENOMEM;
@@ -3342,8 +3343,8 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		return 0;
 
 	if (rk_fb->disp_mode == ONE_DUAL) {
-		if (dev_drv->trsm_ops && dev_drv->trsm_ops->disable)
-			dev_drv->trsm_ops->disable();
+		if (dev_drv->ops->dsp_black)
+			dev_drv->ops->dsp_black(dev_drv, 1);
 		if (dev_drv->ops->set_screen_scaler)
 			dev_drv->ops->set_screen_scaler(dev_drv, dev_drv->screen0, 0);
 	}
@@ -3357,8 +3358,18 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		if (rk_fb->disp_mode == ONE_DUAL) {
 			dev_drv->cur_screen = dev_drv->screen0;
 			dev_drv->ops->load_screen(dev_drv, 1);
-			if (dev_drv->trsm_ops && dev_drv->trsm_ops->enable)
-				dev_drv->trsm_ops->enable();
+
+			/* force modify dsp size */
+			info = rk_fb->fb[dev_drv->fb_index_base];
+			info->var.grayscale &= 0xff;
+			info->var.grayscale |=
+				(dev_drv->cur_screen->mode.xres << 8) +
+				(dev_drv->cur_screen->mode.yres << 20);
+			info->fbops->fb_set_par(info);
+			info->fbops->fb_pan_display(&info->var, info);
+
+			if (dev_drv->ops->dsp_black)
+				dev_drv->ops->dsp_black(dev_drv, 0);
 		} else if (rk_fb->num_lcdc > 1) {
 			/* If there is more than one lcdc device, we disable
 			   the layer which attached to this device */
@@ -3400,8 +3411,14 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 					load_screen = 1;
 				}
 				info->var.activate |= FB_ACTIVATE_FORCE;
-				if (rk_fb->disp_mode == DUAL)
+				if (rk_fb->disp_mode == DUAL) {
 					rk_fb_update_ext_info(info, pmy_info, 1);
+				} else if (rk_fb->disp_mode == ONE_DUAL) {
+					info->var.grayscale &= 0xff;
+					info->var.grayscale |=
+						(dev_drv->cur_screen->xsize << 8) +
+						(dev_drv->cur_screen->ysize << 20);
+				}
 				info->fbops->fb_set_par(info);
 				info->fbops->fb_pan_display(&info->var, info);
 			}
@@ -3412,8 +3429,8 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	if (rk_fb->disp_mode == ONE_DUAL) {
 		if (dev_drv->ops->set_screen_scaler)
 			dev_drv->ops->set_screen_scaler(dev_drv, dev_drv->screen0, 1);
-		if (dev_drv->trsm_ops && dev_drv->trsm_ops->enable)
-			dev_drv->trsm_ops->enable();
+		if (dev_drv->ops->dsp_black)
+			dev_drv->ops->dsp_black(dev_drv, 0);
 	}
 	return 0;
 }

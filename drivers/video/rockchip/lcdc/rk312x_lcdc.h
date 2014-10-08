@@ -690,6 +690,7 @@ struct lcdc_device {
         u32 s_pixclock;
 
 	u32 standby;			/* 1:standby,0:work */
+	struct backlight_device *backlight;
 };
 
 static inline void lcdc_writel(struct lcdc_device *lcdc_dev, u32 offset, u32 v)
