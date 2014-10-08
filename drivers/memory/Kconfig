@@ -7,6 +7,16 @@ menuconfig MEMORY
 
 if MEMORY
 
+config ATMEL_SDRAMC
+	bool "Atmel (Multi-port DDR-)SDRAM Controller"
+	default y
+	depends on ARCH_AT91 && OF
+	help
+	  This driver is for Atmel SDRAM Controller or Atmel Multi-port
+	  DDR-SDRAM Controller available on Atmel AT91SAM9 and SAMA5 SoCs.
+	  Starting with the at91sam9g45, this controller supports SDR, DDR and
+	  LP-DDR memories.
+
 config TI_AEMIF
 	tristate "Texas Instruments AEMIF driver"
 	depends on (ARCH_DAVINCI || ARCH_KEYSTONE) && OF

@@ -1,0 +1,10 @@
+#
+# ARM Versatile SoC drivers
+#
+config SOC_REALVIEW
+	bool "SoC bus device for the ARM RealView platforms"
+	depends on ARCH_REALVIEW
+	select SOC_BUS
+	help
+	  Include support for the SoC bus on the ARM RealView platforms
+	  providing some sysfs information about the ASIC variant.

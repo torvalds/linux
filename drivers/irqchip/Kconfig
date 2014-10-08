@@ -75,6 +75,11 @@ config OR1K_PIC
 	bool
 	select IRQ_DOMAIN
 
+config OMAP_IRQCHIP
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
 config ORION_IRQCHIP
 	bool
 	select IRQ_DOMAIN

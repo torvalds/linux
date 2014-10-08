@@ -36,17 +36,6 @@ config OLD_IRQ_AT91
 	select MULTI_IRQ_HANDLER
 	select SPARSE_IRQ
 
-config AT91_SAM9_ALT_RESET
-	bool
-	default !ARCH_AT91X40
-
-config AT91_SAM9G45_RESET
-	bool
-	default !ARCH_AT91X40
-
-config AT91_SAM9_TIME
-	bool
-
 config HAVE_AT91_SMD
 	bool
 
@@ -55,18 +44,20 @@ config HAVE_AT91_H32MX
 
 config SOC_AT91SAM9
 	bool
-	select AT91_SAM9_TIME
 	select ATMEL_AIC_IRQ if !OLD_IRQ_AT91
 	select CPU_ARM926T
 	select GENERIC_CLOCKEVENTS
+	select MEMORY if USE_OF
+	select ATMEL_SDRAMC if USE_OF
 
 config SOC_SAMA5
 	bool
-	select AT91_SAM9_TIME
 	select ATMEL_AIC5_IRQ
 	select CPU_V7
 	select GENERIC_CLOCKEVENTS
 	select USE_OF
+	select MEMORY
+	select ATMEL_SDRAMC
 
 menu "Atmel AT91 System-on-Chip"
 

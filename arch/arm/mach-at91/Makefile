@@ -9,9 +9,6 @@ obj-		:=
 
 obj-$(CONFIG_OLD_IRQ_AT91)	+= irq.o
 obj-$(CONFIG_OLD_CLK_AT91)	+= clock.o
-obj-$(CONFIG_AT91_SAM9_ALT_RESET) += at91sam9_alt_reset.o
-obj-$(CONFIG_AT91_SAM9G45_RESET) += at91sam9g45_reset.o
-obj-$(CONFIG_AT91_SAM9_TIME)	+= at91sam926x_time.o
 obj-$(CONFIG_SOC_AT91SAM9)	+= sam9_smc.o
 
 # CPU-specific support

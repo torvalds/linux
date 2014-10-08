@@ -98,20 +98,14 @@ RAMC SDRAM/DDR Controller required properties:
 - compatible: Should be "atmel,at91rm9200-sdramc",
 			"atmel,at91sam9260-sdramc",
 			"atmel,at91sam9g45-ddramc",
+			"atmel,sama5d3-ddramc",
 - reg: Should contain registers location and length
-  For at91sam9263 and at91sam9g45 you must specify 2 entries.
 
 Examples:
 
 	ramc0: ramc@ffffe800 {
 		compatible = "atmel,at91sam9g45-ddramc";
 		reg = <0xffffe800 0x200>;
-	};
-
-	ramc0: ramc@ffffe400 {
-		compatible = "atmel,at91sam9g45-ddramc";
-		reg = <0xffffe400 0x200
-		       0xffffe600 0x200>;
 	};
 
 SHDWC Shutdown Controller

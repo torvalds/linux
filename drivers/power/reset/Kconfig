@@ -6,15 +6,33 @@ menuconfig POWER_RESET
 
 	  Say Y here to enable board reset and power off
 
+if POWER_RESET
+
 config POWER_RESET_AS3722
 	bool "ams AS3722 power-off driver"
-	depends on MFD_AS3722 && POWER_RESET
+	depends on MFD_AS3722
 	help
 	  This driver supports turning off board via a ams AS3722 power-off.
 
+config POWER_RESET_AT91_POWEROFF
+	bool "Atmel AT91 poweroff driver"
+	depends on ARCH_AT91
+	default SOC_AT91SAM9 || SOC_SAMA5
+	help
+	  This driver supports poweroff for Atmel AT91SAM9 and SAMA5
+	  SoCs
+
+config POWER_RESET_AT91_RESET
+	bool "Atmel AT91 reset driver"
+	depends on ARCH_AT91
+	default SOC_AT91SAM9 || SOC_SAMA5
+	help
+	  This driver supports restart for Atmel AT91SAM9 and SAMA5
+	  SoCs
+
 config POWER_RESET_AXXIA
 	bool "LSI Axxia reset driver"
-	depends on POWER_RESET && ARCH_AXXIA
+	depends on ARCH_AXXIA
 	help
 	  This driver supports restart for Axxia SoC.
 
@@ -33,7 +51,7 @@ config POWER_RESET_BRCMSTB
 
 config POWER_RESET_GPIO
 	bool "GPIO power-off driver"
-	depends on OF_GPIO && POWER_RESET
+	depends on OF_GPIO
 	help
 	  This driver supports turning off your board via a GPIO line.
 	  If your board needs a GPIO high/low to power down, say Y and
@@ -47,13 +65,13 @@ config POWER_RESET_HISI
 
 config POWER_RESET_MSM
 	bool "Qualcomm MSM power-off driver"
-	depends on POWER_RESET && ARCH_QCOM
+	depends on ARCH_QCOM
 	help
 	  Power off and restart support for Qualcomm boards.
 
 config POWER_RESET_QNAP
 	bool "QNAP power-off driver"
-	depends on OF_GPIO && POWER_RESET && PLAT_ORION
+	depends on OF_GPIO && PLAT_ORION
 	help
 	  This driver supports turning off QNAP NAS devices by sending
 	  commands to the microcontroller which controls the main power.
@@ -71,14 +89,22 @@ config POWER_RESET_RESTART
 config POWER_RESET_SUN6I
 	bool "Allwinner A31 SoC reset driver"
 	depends on ARCH_SUNXI
-	depends on POWER_RESET
 	help
 	  Reboot support for the Allwinner A31 SoCs.
+
+config POWER_RESET_VERSATILE
+	bool "ARM Versatile family reboot driver"
+	depends on ARM
+	depends on MFD_SYSCON
+	depends on OF
+	help
+	  Power off and restart support for ARM Versatile family of
+	  reference boards.
 
 config POWER_RESET_VEXPRESS
 	bool "ARM Versatile Express power-off and reset driver"
 	depends on ARM || ARM64
-	depends on POWER_RESET && VEXPRESS_CONFIG
+	depends on VEXPRESS_CONFIG
 	help
 	  Power off and reset support for the ARM Ltd. Versatile
 	  Express boards.
@@ -86,7 +112,6 @@ config POWER_RESET_VEXPRESS
 config POWER_RESET_XGENE
 	bool "APM SoC X-Gene reset driver"
 	depends on ARM64
-	depends on POWER_RESET
 	help
 	  Reboot support for the APM SoC X-Gene Eval boards.
 
@@ -97,3 +122,4 @@ config POWER_RESET_KEYSTONE
 	help
 	  Reboot support for the KEYSTONE SoCs.
 
+endif
