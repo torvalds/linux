@@ -1307,6 +1307,9 @@ struct ieee80211_local {
 	/* virtual monitor interface */
 	struct ieee80211_sub_if_data __rcu *monitor_sdata;
 	struct cfg80211_chan_def monitor_chandef;
+
+	/* extended capabilities provided by mac80211 */
+	u8 ext_capa[8];
 };
 
 static inline struct ieee80211_sub_if_data *
