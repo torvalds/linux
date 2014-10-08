@@ -64,6 +64,7 @@ int ipu_plane_set_base(struct ipu_plane *ipu_plane, struct drm_framebuffer *fb,
 {
 	struct drm_gem_cma_object *cma_obj;
 	unsigned long eba;
+	int active;
 
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
 	if (!cma_obj) {
@@ -76,8 +77,15 @@ int ipu_plane_set_base(struct ipu_plane *ipu_plane, struct drm_framebuffer *fb,
 
 	eba = cma_obj->paddr + fb->offsets[0] +
 	      fb->pitches[0] * y + (fb->bits_per_pixel >> 3) * x;
-	ipu_cpmem_set_buffer(ipu_plane->ipu_ch, 0, eba);
-	ipu_cpmem_set_buffer(ipu_plane->ipu_ch, 1, eba);
+
+	if (ipu_plane->enabled) {
+		active = ipu_idmac_get_current_buffer(ipu_plane->ipu_ch);
+		ipu_cpmem_set_buffer(ipu_plane->ipu_ch, !active, eba);
+		ipu_idmac_select_buffer(ipu_plane->ipu_ch, !active);
+	} else {
+		ipu_cpmem_set_buffer(ipu_plane->ipu_ch, 0, eba);
+		ipu_cpmem_set_buffer(ipu_plane->ipu_ch, 1, eba);
+	}
 
 	/* cache offsets for subsequent pageflips */
 	ipu_plane->x = x;
@@ -187,6 +195,7 @@ int ipu_plane_mode_set(struct ipu_plane *ipu_plane, struct drm_crtc *crtc,
 		return ret;
 	}
 	ipu_cpmem_set_high_priority(ipu_plane->ipu_ch);
+	ipu_idmac_set_double_buffer(ipu_plane->ipu_ch, 1);
 	ipu_cpmem_set_stride(ipu_plane->ipu_ch, fb->pitches[0]);
 
 	ret = ipu_plane_set_base(ipu_plane, fb, src_x, src_y);
