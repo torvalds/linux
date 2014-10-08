@@ -249,33 +249,52 @@ cycles_t ns2cycles(unsigned long nsecs)
 
 void update_vsyscall_tz(void)
 {
-	/* Userspace gettimeofday will spin while this value is odd. */
-	++vdso_data->tz_update_count;
-	smp_wmb();
+	write_seqcount_begin(&vdso_data->tz_seq);
 	vdso_data->tz_minuteswest = sys_tz.tz_minuteswest;
 	vdso_data->tz_dsttime = sys_tz.tz_dsttime;
-	smp_wmb();
-	++vdso_data->tz_update_count;
+	write_seqcount_end(&vdso_data->tz_seq);
 }
 
 void update_vsyscall(struct timekeeper *tk)
 {
-	struct timespec *wtm = &tk->wall_to_monotonic;
-	struct clocksource *clock = tk->tkr.clock;
-
-	if (clock != &cycle_counter_cs)
+	if (tk->tkr.clock != &cycle_counter_cs)
 		return;
 
-	/* Userspace gettimeofday will spin while this value is odd. */
-	++vdso_data->tb_update_count;
-	smp_wmb();
-	vdso_data->xtime_tod_stamp = tk->tkr.cycle_last;
-	vdso_data->xtime_clock_sec = tk->xtime_sec;
-	vdso_data->xtime_clock_nsec = tk->tkr.xtime_nsec;
-	vdso_data->wtom_clock_sec = wtm->tv_sec;
-	vdso_data->wtom_clock_nsec = wtm->tv_nsec;
-	vdso_data->mult = tk->tkr.mult;
-	vdso_data->shift = tk->tkr.shift;
-	smp_wmb();
-	++vdso_data->tb_update_count;
+	write_seqcount_begin(&vdso_data->tb_seq);
+
+	vdso_data->cycle_last		= tk->tkr.cycle_last;
+	vdso_data->mask			= tk->tkr.mask;
+	vdso_data->mult			= tk->tkr.mult;
+	vdso_data->shift		= tk->tkr.shift;
+
+	vdso_data->wall_time_sec	= tk->xtime_sec;
+	vdso_data->wall_time_snsec	= tk->tkr.xtime_nsec;
+
+	vdso_data->monotonic_time_sec	= tk->xtime_sec
+					+ tk->wall_to_monotonic.tv_sec;
+	vdso_data->monotonic_time_snsec	= tk->tkr.xtime_nsec
+					+ ((u64)tk->wall_to_monotonic.tv_nsec
+						<< tk->tkr.shift);
+	while (vdso_data->monotonic_time_snsec >=
+					(((u64)NSEC_PER_SEC) << tk->tkr.shift)) {
+		vdso_data->monotonic_time_snsec -=
+					((u64)NSEC_PER_SEC) << tk->tkr.shift;
+		vdso_data->monotonic_time_sec++;
+	}
+
+	vdso_data->wall_time_coarse_sec	= tk->xtime_sec;
+	vdso_data->wall_time_coarse_nsec = (long)(tk->tkr.xtime_nsec >>
+						 tk->tkr.shift);
+
+	vdso_data->monotonic_time_coarse_sec =
+		vdso_data->wall_time_coarse_sec + tk->wall_to_monotonic.tv_sec;
+	vdso_data->monotonic_time_coarse_nsec =
+		vdso_data->wall_time_coarse_nsec + tk->wall_to_monotonic.tv_nsec;
+
+	while (vdso_data->monotonic_time_coarse_nsec >= NSEC_PER_SEC) {
+		vdso_data->monotonic_time_coarse_nsec -= NSEC_PER_SEC;
+		vdso_data->monotonic_time_coarse_sec++;
+	}
+
+	write_seqcount_end(&vdso_data->tb_seq);
 }

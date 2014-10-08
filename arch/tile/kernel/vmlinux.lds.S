@@ -66,11 +66,9 @@ SECTIONS
 
   . = ALIGN(PAGE_SIZE);
   __init_begin = .;
-  VMLINUX_SYMBOL(_sinitdata) = .;
   INIT_DATA_SECTION(16) :data =0
   PERCPU_SECTION(L2_CACHE_BYTES)
   . = ALIGN(PAGE_SIZE);
-  VMLINUX_SYMBOL(_einitdata) = .;
   __init_end = .;
 
   _sdata = .;                   /* Start of data section */
