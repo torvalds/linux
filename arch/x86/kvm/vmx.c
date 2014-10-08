@@ -6426,6 +6426,8 @@ static void copy_shadow_to_vmcs12(struct vcpu_vmx *vmx)
 	const unsigned long *fields = shadow_read_write_fields;
 	const int num_fields = max_shadow_read_write_fields;
 
+	preempt_disable();
+
 	vmcs_load(shadow_vmcs);
 
 	for (i = 0; i < num_fields; i++) {
@@ -6449,6 +6451,8 @@ static void copy_shadow_to_vmcs12(struct vcpu_vmx *vmx)
 
 	vmcs_clear(shadow_vmcs);
 	vmcs_load(vmx->loaded_vmcs->vmcs);
+
+	preempt_enable();
 }
 
 static void copy_vmcs12_to_shadow(struct vcpu_vmx *vmx)
