@@ -202,10 +202,6 @@ int rk3036_hdmi_read_edid(struct hdmi *hdmi_drv, int block, u8 *buf)
 #endif
 			}
 
-			/* clear EDID interrupt reg */
-			hdmi_writel(hdmi_dev, INTERRUPT_STATUS1,
-				    m_INT_EDID_READY);
-
 			if ((checksum & 0xff) == 0) {
 				ret = 0;
 				hdmi_dbg(hdmi_drv->dev,
@@ -216,6 +212,10 @@ int rk3036_hdmi_read_edid(struct hdmi *hdmi_drv, int block, u8 *buf)
 	}
 	/*close edid irq*/
 	hdmi_writel(hdmi_dev, INTERRUPT_MASK1, 0);
+	/* clear EDID interrupt reg */
+	hdmi_writel(hdmi_dev, INTERRUPT_STATUS1,
+		    m_INT_EDID_READY);
+
 	enable_irq(hdmi_drv->irq);
 
 	return ret;
@@ -763,6 +763,12 @@ void rk3036_hdmi_irq(struct hdmi *hdmi_drv)
 	struct rk_hdmi_device *hdmi_dev = container_of(hdmi_drv,
 						       struct rk_hdmi_device,
 						       driver);
+	hdmi_readl(hdmi_dev, INTERRUPT_STATUS1, &interrupt);
+	if(interrupt) {
+		hdmi_writel(hdmi_dev, INTERRUPT_STATUS1, interrupt);
+		dev_info(hdmi_drv->dev, "Clear edid irq.\n");
+	}
+
 	hdmi_readl(hdmi_dev, HDMI_STATUS, &interrupt);
 	if(interrupt) {
 		hdmi_writel(hdmi_dev, HDMI_STATUS, interrupt);
