@@ -1001,23 +1001,7 @@ static void ieee80211_chswitch_work(struct work_struct *work)
 	/* XXX: shouldn't really modify cfg80211-owned data! */
 	ifmgd->associated->channel = sdata->csa_chandef.chan;
 
-	sdata->vif.csa_active = false;
-
-	/* XXX: wait for a beacon first? */
-	if (sdata->csa_block_tx) {
-		ieee80211_wake_vif_queues(local, sdata,
-					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		sdata->csa_block_tx = false;
-	}
-
-	ret = drv_post_channel_switch(sdata);
-	if (ret) {
-		sdata_info(sdata,
-			   "driver post channel switch failed, disconnecting\n");
-		ieee80211_queue_work(&local->hw,
-				     &ifmgd->csa_connection_drop_work);
-		goto out;
-	}
+	ifmgd->csa_waiting_bcn = true;
 
 	ieee80211_sta_reset_beacon_monitor(sdata);
 	ieee80211_sta_reset_conn_monitor(sdata);
@@ -1026,6 +1010,35 @@ out:
 	mutex_unlock(&local->chanctx_mtx);
 	mutex_unlock(&local->mtx);
 	sdata_unlock(sdata);
+}
+
+static void ieee80211_chswitch_post_beacon(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	int ret;
+
+	sdata_assert_lock(sdata);
+
+	WARN_ON(!sdata->vif.csa_active);
+
+	if (sdata->csa_block_tx) {
+		ieee80211_wake_vif_queues(local, sdata,
+					  IEEE80211_QUEUE_STOP_REASON_CSA);
+		sdata->csa_block_tx = false;
+	}
+
+	sdata->vif.csa_active = false;
+	ifmgd->csa_waiting_bcn = false;
+
+	ret = drv_post_channel_switch(sdata);
+	if (ret) {
+		sdata_info(sdata,
+			   "driver post channel switch failed, disconnecting\n");
+		ieee80211_queue_work(&local->hw,
+				     &ifmgd->csa_connection_drop_work);
+		return;
+	}
 }
 
 void ieee80211_chswitch_done(struct ieee80211_vif *vif, bool success)
@@ -1943,6 +1956,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	ieee80211_vif_release_channel(sdata);
 
 	sdata->vif.csa_active = false;
+	ifmgd->csa_waiting_bcn = false;
 	if (sdata->csa_block_tx) {
 		ieee80211_wake_vif_queues(local, sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
@@ -2191,6 +2205,7 @@ static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 			       true, frame_buf);
 	mutex_lock(&local->mtx);
 	sdata->vif.csa_active = false;
+	ifmgd->csa_waiting_bcn = false;
 	if (sdata->csa_block_tx) {
 		ieee80211_wake_vif_queues(local, sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
@@ -3215,6 +3230,9 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
+	if (ifmgd->csa_waiting_bcn)
+		ieee80211_chswitch_post_beacon(sdata);
+
 	if (ncrc == ifmgd->beacon_crc && ifmgd->beacon_crc_valid)
 		return;
 	ifmgd->beacon_crc = ncrc;
@@ -3687,11 +3705,12 @@ static void ieee80211_sta_bcn_mon_timer(unsigned long data)
 	struct ieee80211_sub_if_data *sdata =
 		(struct ieee80211_sub_if_data *) data;
 	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
 	if (local->quiescing)
 		return;
 
-	if (sdata->vif.csa_active)
+	if (sdata->vif.csa_active && !ifmgd->csa_waiting_bcn)
 		return;
 
 	sdata->u.mgd.connection_loss = false;
@@ -3709,7 +3728,7 @@ static void ieee80211_sta_conn_mon_timer(unsigned long data)
 	if (local->quiescing)
 		return;
 
-	if (sdata->vif.csa_active)
+	if (sdata->vif.csa_active && !ifmgd->csa_waiting_bcn)
 		return;
 
 	ieee80211_queue_work(&local->hw, &ifmgd->monitor_work);

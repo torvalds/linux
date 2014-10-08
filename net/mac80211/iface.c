@@ -842,6 +842,8 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	sdata_lock(sdata);
 	mutex_lock(&local->mtx);
 	sdata->vif.csa_active = false;
+	if (sdata->vif.type == NL80211_IFTYPE_STATION)
+		sdata->u.mgd.csa_waiting_bcn = false;
 	if (sdata->csa_block_tx) {
 		ieee80211_wake_vif_queues(local, sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
