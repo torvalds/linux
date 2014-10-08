@@ -414,19 +414,18 @@ u8 r8712_efuse_pg_packet_write(struct _adapter *padapter, const u8 offset,
 					bResult = false;
 			}
 			break;
-		} else { /* write header fail */
-			bResult = false;
-			if (0xFF == efuse_data)
-				return bResult; /* nothing damaged. */
-			/* call rescue procedure */
-			if (fix_header(padapter, efuse_data, efuse_addr) ==
-			    false)
-				return false; /* rescue fail */
-
-			if (++repeat_times > _REPEAT_THRESHOLD_) /* fail */
-				break;
-			/* otherwise, take another risk... */
 		}
+		/* write header fail */
+		bResult = false;
+		if (0xFF == efuse_data)
+			return bResult; /* nothing damaged. */
+		/* call rescue procedure */
+		if (!fix_header(padapter, efuse_data, efuse_addr))
+			return false; /* rescue fail */
+
+		if (++repeat_times > _REPEAT_THRESHOLD_) /* fail */
+			break;
+		/* otherwise, take another risk... */
 	}
 	return bResult;
 }
@@ -541,15 +540,16 @@ u8 r8712_efuse_map_write(struct _adapter *padapter, u16 addr, u16 cnts,
 				}
 				idx++;
 				break;
-			} else {
-				if ((data[idx] != pktdata[i]) || (data[idx+1] !=
-				     pktdata[i+1])) {
-					word_en &= ~BIT(i >> 1);
-					newdata[j++] = data[idx];
-					newdata[j++] = data[idx + 1];
-				}
-				idx += 2;
 			}
+
+			if ((data[idx] != pktdata[i]) || (data[idx+1] !=
+			     pktdata[i+1])) {
+				word_en &= ~BIT(i >> 1);
+				newdata[j++] = data[idx];
+				newdata[j++] = data[idx + 1];
+			}
+			idx += 2;
+
 			if (idx == cnts)
 				break;
 		}
