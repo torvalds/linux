@@ -74,8 +74,6 @@ int ipu_plane_set_base(struct ipu_plane *ipu_plane, struct drm_framebuffer *fb,
 	dev_dbg(ipu_plane->base.dev->dev, "phys = %pad, x = %d, y = %d",
 		&cma_obj->paddr, x, y);
 
-	ipu_cpmem_set_stride(ipu_plane->ipu_ch, fb->pitches[0]);
-
 	eba = cma_obj->paddr + fb->offsets[0] +
 	      fb->pitches[0] * y + (fb->bits_per_pixel >> 3) * x;
 	ipu_cpmem_set_buffer(ipu_plane->ipu_ch, 0, eba);
@@ -189,6 +187,7 @@ int ipu_plane_mode_set(struct ipu_plane *ipu_plane, struct drm_crtc *crtc,
 		return ret;
 	}
 	ipu_cpmem_set_high_priority(ipu_plane->ipu_ch);
+	ipu_cpmem_set_stride(ipu_plane->ipu_ch, fb->pitches[0]);
 
 	ret = ipu_plane_set_base(ipu_plane, fb, src_x, src_y);
 	if (ret < 0)
