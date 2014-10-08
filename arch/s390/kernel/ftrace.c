@@ -138,28 +138,24 @@ out:
 
 /*
  * Patch the kernel code at ftrace_graph_caller location. The instruction
- * there is branch relative and save to prepare_ftrace_return. To disable
- * the call to prepare_ftrace_return we patch the bras offset to point
- * directly after the instructions. To enable the call we calculate
- * the original offset to prepare_ftrace_return and put it back.
+ * there is branch relative on condition. To enable the ftrace graph code
+ * block, we simply patch the mask field of the instruction to zero and
+ * turn the instruction into a nop.
+ * To disable the ftrace graph code the mask field will be patched to
+ * all ones, which turns the instruction into an unconditional branch.
  */
-
 int ftrace_enable_ftrace_graph_caller(void)
 {
-	static unsigned short offset = 0x0002;
+	u8 op = 0x04; /* set mask field to zero */
 
-	return probe_kernel_write((void *) ftrace_graph_caller + 2,
-				  &offset, sizeof(offset));
+	return probe_kernel_write(__va(ftrace_graph_caller)+1, &op, sizeof(op));
 }
 
 int ftrace_disable_ftrace_graph_caller(void)
 {
-	unsigned short offset;
+	u8 op = 0xf4; /* set mask field to all ones */
 
-	offset = ((void *) &ftrace_graph_caller_end -
-		  (void *) ftrace_graph_caller) / 2;
-	return probe_kernel_write((void *) ftrace_graph_caller + 2,
-				  &offset, sizeof(offset));
+	return probe_kernel_write(__va(ftrace_graph_caller)+1, &op, sizeof(op));
 }
 
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */

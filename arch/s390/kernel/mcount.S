@@ -49,8 +49,7 @@ ENTRY(ftrace_caller)
 	basr	%r14,%r1
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 # The j instruction gets runtime patched to a nop instruction.
-# See ftrace_enable_ftrace_graph_caller. The patched instruction is:
-#	j	.+4
+# See ftrace_enable_ftrace_graph_caller.
 ENTRY(ftrace_graph_caller)
 	j	ftrace_graph_caller_end
 	lg	%r2,(STACK_PTREGS_GPRS+14*8)(%r15)
