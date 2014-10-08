@@ -19,11 +19,8 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/phy/phy.h>
-#include <linux/usb/phy.h>
-#include <linux/usb/samsung_usb_phy.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
-#include <linux/usb/otg.h>
 
 #include "ohci.h"
 
@@ -38,9 +35,7 @@ static struct hc_driver __read_mostly exynos_ohci_hc_driver;
 
 struct exynos_ohci_hcd {
 	struct clk *clk;
-	struct usb_phy *phy;
-	struct usb_otg *otg;
-	struct phy *phy_g[PHY_NUMBER];
+	struct phy *phy[PHY_NUMBER];
 };
 
 static int exynos_ohci_get_phy(struct device *dev,
@@ -49,30 +44,9 @@ static int exynos_ohci_get_phy(struct device *dev,
 	struct device_node *child;
 	struct phy *phy;
 	int phy_number;
-	int ret = 0;
+	int ret;
 
-	exynos_ohci->phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
-	if (IS_ERR(exynos_ohci->phy)) {
-		ret = PTR_ERR(exynos_ohci->phy);
-		if (ret != -ENXIO && ret != -ENODEV) {
-			dev_err(dev, "no usb2 phy configured\n");
-			return ret;
-		}
-		dev_dbg(dev, "Failed to get usb2 phy\n");
-	} else {
-		exynos_ohci->otg = exynos_ohci->phy->otg;
-	}
-
-	/*
-	 * Getting generic phy:
-	 * We are keeping both types of phys as a part of transiting OHCI
-	 * to generic phy framework, so as to maintain backward compatibilty
-	 * with old DTB.
-	 * If there are existing devices using DTB files built from them,
-	 * to remove the support for old bindings in this driver,
-	 * we need to make sure that such devices have their DTBs
-	 * updated to ones built from new DTS.
-	 */
+	/* Get PHYs for the controller */
 	for_each_available_child_of_node(dev->of_node, child) {
 		ret = of_property_read_u32(child, "reg", &phy_number);
 		if (ret) {
@@ -88,19 +62,21 @@ static int exynos_ohci_get_phy(struct device *dev,
 		}
 
 		phy = devm_of_phy_get(dev, child, NULL);
+		exynos_ohci->phy[phy_number] = phy;
 		of_node_put(child);
 		if (IS_ERR(phy)) {
 			ret = PTR_ERR(phy);
-			if (ret != -ENOSYS && ret != -ENODEV) {
-				dev_err(dev, "no usb2 phy configured\n");
+			if (ret == -EPROBE_DEFER) {
+				return ret;
+			} else if (ret != -ENOSYS && ret != -ENODEV) {
+				dev_err(dev,
+					"Error retrieving usb2 phy: %d\n", ret);
 				return ret;
 			}
-			dev_dbg(dev, "Failed to get usb2 phy\n");
 		}
-		exynos_ohci->phy_g[phy_number] = phy;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int exynos_ohci_phy_enable(struct device *dev)
@@ -110,16 +86,13 @@ static int exynos_ohci_phy_enable(struct device *dev)
 	int i;
 	int ret = 0;
 
-	if (!IS_ERR(exynos_ohci->phy))
-		return usb_phy_init(exynos_ohci->phy);
-
 	for (i = 0; ret == 0 && i < PHY_NUMBER; i++)
-		if (!IS_ERR(exynos_ohci->phy_g[i]))
-			ret = phy_power_on(exynos_ohci->phy_g[i]);
+		if (!IS_ERR(exynos_ohci->phy[i]))
+			ret = phy_power_on(exynos_ohci->phy[i]);
 	if (ret)
 		for (i--; i >= 0; i--)
-			if (!IS_ERR(exynos_ohci->phy_g[i]))
-				phy_power_off(exynos_ohci->phy_g[i]);
+			if (!IS_ERR(exynos_ohci->phy[i]))
+				phy_power_off(exynos_ohci->phy[i]);
 
 	return ret;
 }
@@ -130,14 +103,9 @@ static void exynos_ohci_phy_disable(struct device *dev)
 	struct exynos_ohci_hcd *exynos_ohci = to_exynos_ohci(hcd);
 	int i;
 
-	if (!IS_ERR(exynos_ohci->phy)) {
-		usb_phy_shutdown(exynos_ohci->phy);
-		return;
-	}
-
 	for (i = 0; i < PHY_NUMBER; i++)
-		if (!IS_ERR(exynos_ohci->phy_g[i]))
-			phy_power_off(exynos_ohci->phy_g[i]);
+		if (!IS_ERR(exynos_ohci->phy[i]))
+			phy_power_off(exynos_ohci->phy[i]);
 }
 
 static int exynos_ohci_probe(struct platform_device *pdev)
@@ -209,9 +177,6 @@ skip_phy:
 		goto fail_io;
 	}
 
-	if (exynos_ohci->otg)
-		exynos_ohci->otg->set_host(exynos_ohci->otg, &hcd->self);
-
 	platform_set_drvdata(pdev, hcd);
 
 	err = exynos_ohci_phy_enable(&pdev->dev);
@@ -244,9 +209,6 @@ static int exynos_ohci_remove(struct platform_device *pdev)
 
 	usb_remove_hcd(hcd);
 
-	if (exynos_ohci->otg)
-		exynos_ohci->otg->set_host(exynos_ohci->otg, &hcd->self);
-
 	exynos_ohci_phy_disable(&pdev->dev);
 
 	clk_disable_unprepare(exynos_ohci->clk);
@@ -275,9 +237,6 @@ static int exynos_ohci_suspend(struct device *dev)
 	if (rc)
 		return rc;
 
-	if (exynos_ohci->otg)
-		exynos_ohci->otg->set_host(exynos_ohci->otg, &hcd->self);
-
 	exynos_ohci_phy_disable(dev);
 
 	clk_disable_unprepare(exynos_ohci->clk);
@@ -292,9 +251,6 @@ static int exynos_ohci_resume(struct device *dev)
 	int ret;
 
 	clk_prepare_enable(exynos_ohci->clk);
-
-	if (exynos_ohci->otg)
-		exynos_ohci->otg->set_host(exynos_ohci->otg, &hcd->self);
 
 	ret = exynos_ohci_phy_enable(dev);
 	if (ret) {

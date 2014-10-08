@@ -258,7 +258,7 @@ static void nuke(struct dummy *dum, struct dummy_ep *ep)
 		req->req.status = -ESHUTDOWN;
 
 		spin_unlock(&dum->lock);
-		req->req.complete(&ep->ep, &req->req);
+		usb_gadget_giveback_request(&ep->ep, &req->req);
 		spin_lock(&dum->lock);
 	}
 }
@@ -658,7 +658,7 @@ static int dummy_queue(struct usb_ep *_ep, struct usb_request *_req,
 		spin_unlock(&dum->lock);
 		_req->actual = _req->length;
 		_req->status = 0;
-		_req->complete(_ep, _req);
+		usb_gadget_giveback_request(_ep, _req);
 		spin_lock(&dum->lock);
 	}  else
 		list_add_tail(&req->queue, &ep->queue);
@@ -702,7 +702,7 @@ static int dummy_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 		dev_dbg(udc_dev(dum),
 				"dequeued req %p from %s, len %d buf %p\n",
 				req, _ep->name, _req->length, _req->buf);
-		_req->complete(_ep, _req);
+		usb_gadget_giveback_request(_ep, _req);
 	}
 	local_irq_restore(flags);
 	return retval;
@@ -1385,7 +1385,7 @@ top:
 			list_del_init(&req->queue);
 
 			spin_unlock(&dum->lock);
-			req->req.complete(&ep->ep, &req->req);
+			usb_gadget_giveback_request(&ep->ep, &req->req);
 			spin_lock(&dum->lock);
 
 			/* requests might have been unlinked... */
@@ -1761,7 +1761,7 @@ restart:
 						req);
 
 				spin_unlock(&dum->lock);
-				req->req.complete(&ep->ep, &req->req);
+				usb_gadget_giveback_request(&ep->ep, &req->req);
 				spin_lock(&dum->lock);
 				ep->already_seen = 0;
 				goto restart;

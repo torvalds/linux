@@ -180,10 +180,10 @@ static void start_hnp(struct ohci_hcd *ohci)
 	unsigned long	flags;
 	u32 l;
 
-	otg_start_hnp(hcd->phy->otg);
+	otg_start_hnp(hcd->usb_phy->otg);
 
 	local_irq_save(flags);
-	hcd->phy->state = OTG_STATE_A_SUSPEND;
+	hcd->usb_phy->state = OTG_STATE_A_SUSPEND;
 	writel (RH_PS_PSS, &ohci->regs->roothub.portstatus [port]);
 	l = omap_readl(OTG_CTRL);
 	l &= ~OTG_A_BUSREQ;
@@ -220,14 +220,14 @@ static int ohci_omap_reset(struct usb_hcd *hcd)
 
 #ifdef	CONFIG_USB_OTG
 	if (need_transceiver) {
-		hcd->phy = usb_get_phy(USB_PHY_TYPE_USB2);
-		if (!IS_ERR_OR_NULL(hcd->phy)) {
-			int	status = otg_set_host(hcd->phy->otg,
+		hcd->usb_phy = usb_get_phy(USB_PHY_TYPE_USB2);
+		if (!IS_ERR_OR_NULL(hcd->usb_phy)) {
+			int	status = otg_set_host(hcd->usb_phy->otg,
 						&ohci_to_hcd(ohci)->self);
 			dev_dbg(hcd->self.controller, "init %s phy, status %d\n",
-					hcd->phy->label, status);
+					hcd->usb_phy->label, status);
 			if (status) {
-				usb_put_phy(hcd->phy);
+				usb_put_phy(hcd->usb_phy);
 				return status;
 			}
 		} else {
@@ -283,7 +283,7 @@ static int ohci_omap_reset(struct usb_hcd *hcd)
 		ohci_to_hcd(ohci)->power_budget = 0;
 	}
 
-	/* FIXME khubd hub requests should manage power switching */
+	/* FIXME hub_wq hub requests should manage power switching */
 	omap_ohci_transceiver_power(1);
 
 	/* board init will have already handled HMC and mux setup.
@@ -399,9 +399,9 @@ usb_hcd_omap_remove (struct usb_hcd *hcd, struct platform_device *pdev)
 	dev_dbg(hcd->self.controller, "stopping USB Controller\n");
 	usb_remove_hcd(hcd);
 	omap_ohci_clock_power(0);
-	if (!IS_ERR_OR_NULL(hcd->phy)) {
-		(void) otg_set_host(hcd->phy->otg, 0);
-		usb_put_phy(hcd->phy);
+	if (!IS_ERR_OR_NULL(hcd->usb_phy)) {
+		(void) otg_set_host(hcd->usb_phy->otg, 0);
+		usb_put_phy(hcd->usb_phy);
 	}
 	if (machine_is_omap_osk())
 		gpio_free(9);

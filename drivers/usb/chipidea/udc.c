@@ -627,7 +627,7 @@ __acquires(hwep->lock)
 
 		if (hwreq->req.complete != NULL) {
 			spin_unlock(hwep->lock);
-			hwreq->req.complete(&hwep->ep, &hwreq->req);
+			usb_gadget_giveback_request(&hwep->ep, &hwreq->req);
 			spin_lock(hwep->lock);
 		}
 	}
@@ -922,7 +922,7 @@ __acquires(hwep->lock)
 			if ((hwep->type == USB_ENDPOINT_XFER_CONTROL) &&
 					hwreq->req.length)
 				hweptemp = hwep->ci->ep0in;
-			hwreq->req.complete(&hweptemp->ep, &hwreq->req);
+			usb_gadget_giveback_request(&hweptemp->ep, &hwreq->req);
 			spin_lock(hwep->lock);
 		}
 	}
@@ -1347,7 +1347,7 @@ static int ep_dequeue(struct usb_ep *ep, struct usb_request *req)
 
 	if (hwreq->req.complete != NULL) {
 		spin_unlock(hwep->lock);
-		hwreq->req.complete(&hwep->ep, &hwreq->req);
+		usb_gadget_giveback_request(&hwep->ep, &hwreq->req);
 		spin_lock(hwep->lock);
 	}
 

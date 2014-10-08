@@ -200,19 +200,22 @@ static int obex_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 		if (alt != 0)
 			goto fail;
 		/* NOP */
-		DBG(cdev, "reset obex ttyGS%d control\n", obex->port_num);
+		dev_dbg(&cdev->gadget->dev,
+			"reset obex ttyGS%d control\n", obex->port_num);
 
 	} else if (intf == obex->data_id) {
 		if (alt > 1)
 			goto fail;
 
 		if (obex->port.in->driver_data) {
-			DBG(cdev, "reset obex ttyGS%d\n", obex->port_num);
+			dev_dbg(&cdev->gadget->dev,
+				"reset obex ttyGS%d\n", obex->port_num);
 			gserial_disconnect(&obex->port);
 		}
 
 		if (!obex->port.in->desc || !obex->port.out->desc) {
-			DBG(cdev, "init obex ttyGS%d\n", obex->port_num);
+			dev_dbg(&cdev->gadget->dev,
+				"init obex ttyGS%d\n", obex->port_num);
 			if (config_ep_by_speed(cdev->gadget, f,
 					       obex->port.in) ||
 			    config_ep_by_speed(cdev->gadget, f,
@@ -224,7 +227,8 @@ static int obex_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 		}
 
 		if (alt == 1) {
-			DBG(cdev, "activate obex ttyGS%d\n", obex->port_num);
+			dev_dbg(&cdev->gadget->dev,
+				"activate obex ttyGS%d\n", obex->port_num);
 			gserial_connect(&obex->port, obex->port_num);
 		}
 
@@ -252,7 +256,7 @@ static void obex_disable(struct usb_function *f)
 	struct f_obex	*obex = func_to_obex(f);
 	struct usb_composite_dev *cdev = f->config->cdev;
 
-	DBG(cdev, "obex ttyGS%d disable\n", obex->port_num);
+	dev_dbg(&cdev->gadget->dev, "obex ttyGS%d disable\n", obex->port_num);
 	gserial_disconnect(&obex->port);
 }
 
@@ -269,7 +273,8 @@ static void obex_connect(struct gserial *g)
 
 	status = usb_function_activate(&g->func);
 	if (status)
-		DBG(cdev, "obex ttyGS%d function activate --> %d\n",
+		dev_dbg(&cdev->gadget->dev,
+			"obex ttyGS%d function activate --> %d\n",
 			obex->port_num, status);
 }
 
@@ -284,7 +289,8 @@ static void obex_disconnect(struct gserial *g)
 
 	status = usb_function_deactivate(&g->func);
 	if (status)
-		DBG(cdev, "obex ttyGS%d function deactivate --> %d\n",
+		dev_dbg(&cdev->gadget->dev,
+			"obex ttyGS%d function deactivate --> %d\n",
 			obex->port_num, status);
 }
 
@@ -383,10 +389,10 @@ static int obex_bind(struct usb_configuration *c, struct usb_function *f)
 		obex->can_activate = true;
 
 
-	DBG(cdev, "obex ttyGS%d: %s speed IN/%s OUT/%s\n",
-			obex->port_num,
-			gadget_is_dualspeed(c->cdev->gadget) ? "dual" : "full",
-			obex->port.in->name, obex->port.out->name);
+	dev_dbg(&cdev->gadget->dev, "obex ttyGS%d: %s speed IN/%s OUT/%s\n",
+		obex->port_num,
+		gadget_is_dualspeed(c->cdev->gadget) ? "dual" : "full",
+		obex->port.in->name, obex->port.out->name);
 
 	return 0;
 

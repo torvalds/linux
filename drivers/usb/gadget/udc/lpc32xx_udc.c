@@ -1479,7 +1479,7 @@ static void done(struct lpc32xx_ep *ep, struct lpc32xx_request *req, int status)
 
 	ep->req_pending = 0;
 	spin_unlock(&udc->lock);
-	req->req.complete(&ep->ep, &req->req);
+	usb_gadget_giveback_request(&ep->ep, &req->req);
 	spin_lock(&udc->lock);
 }
 

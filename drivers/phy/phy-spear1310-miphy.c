@@ -212,10 +212,8 @@ static int spear1310_miphy_probe(struct platform_device *pdev)
 	struct phy_provider *phy_provider;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(dev, "can't alloc spear1310_miphy private date memory\n");
+	if (!priv)
 		return -ENOMEM;
-	}
 
 	priv->misc =
 		syscon_regmap_lookup_by_phandle(dev->of_node, "misc");
@@ -252,22 +250,11 @@ static struct platform_driver spear1310_miphy_driver = {
 	.probe		= spear1310_miphy_probe,
 	.driver = {
 		.name = "spear1310-miphy",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(spear1310_miphy_of_match),
 	},
 };
 
-static int __init spear1310_miphy_phy_init(void)
-{
-	return platform_driver_register(&spear1310_miphy_driver);
-}
-module_init(spear1310_miphy_phy_init);
-
-static void __exit spear1310_miphy_phy_exit(void)
-{
-	platform_driver_unregister(&spear1310_miphy_driver);
-}
-module_exit(spear1310_miphy_phy_exit);
+module_platform_driver(spear1310_miphy_driver);
 
 MODULE_DESCRIPTION("ST SPEAR1310-MIPHY driver");
 MODULE_AUTHOR("Pratyush Anand <pratyush.anand@st.com>");

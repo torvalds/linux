@@ -53,6 +53,7 @@ struct uvc_event
 #ifdef __KERNEL__
 
 #include <linux/usb.h>	/* For usb_endpoint_* */
+#include <linux/usb/composite.h>
 #include <linux/usb/gadget.h>
 #include <linux/videodev2.h>
 #include <linux/version.h>
@@ -95,9 +96,6 @@ extern unsigned int uvc_gadget_trace_param;
 /* ------------------------------------------------------------------------
  * Driver specific constants
  */
-
-#define DRIVER_VERSION				"0.1.0"
-#define DRIVER_VERSION_NUMBER			KERNEL_VERSION(0, 1, 0)
 
 #define UVC_NUM_REQUESTS			4
 #define UVC_MAX_REQUEST_SIZE			64

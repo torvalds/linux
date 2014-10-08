@@ -1387,12 +1387,17 @@ S:	Maintained
 F:	arch/arm/mach-sti/
 F:	arch/arm/boot/dts/sti*
 F:	drivers/clocksource/arm_global_timer.c
-F:	drivers/reset/sti/
-F:	drivers/pinctrl/pinctrl-st.c
-F:	drivers/media/rc/st_rc.c
 F:	drivers/i2c/busses/i2c-st.c
-F:	drivers/tty/serial/st-asc.c
+F:	drivers/media/rc/st_rc.c
 F:	drivers/mmc/host/sdhci-st.c
+F:	drivers/phy/phy-stih407-usb.c
+F:	drivers/phy/phy-stih41x-usb.c
+F:	drivers/pinctrl/pinctrl-st.c
+F:	drivers/reset/sti/
+F:	drivers/tty/serial/st-asc.c
+F:	drivers/usb/dwc3/dwc3-st.c
+F:	drivers/usb/host/ehci-st.c
+F:	drivers/usb/host/ohci-st.c
 
 ARM/TECHNOLOGIC SYSTEMS TS7250 MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
@@ -2849,6 +2854,7 @@ F:	drivers/platform/x86/dell-wmi.c
 DESIGNWARE USB2 DRD IP DRIVER
 M:	Paul Zimmerman <paulz@synopsys.com>
 L:	linux-usb@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/balbi/usb.git
 S:	Maintained
 F:	drivers/usb/dwc2/
 
@@ -9682,7 +9688,7 @@ USB WEBCAM GADGET
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
-F:	drivers/usb/gadget/function/*uvc*.c
+F:	drivers/usb/gadget/function/*uvc*
 F:	drivers/usb/gadget/legacy/webcam.c
 
 USB WIRELESS RNDIS DRIVER (rndis_wlan)

@@ -139,6 +139,21 @@ enum usb_device_speed of_usb_get_maximum_speed(struct device_node *np)
 }
 EXPORT_SYMBOL_GPL(of_usb_get_maximum_speed);
 
+/**
+ * of_usb_host_tpl_support - to get if Targeted Peripheral List is supported
+ * for given targeted hosts (non-PC hosts)
+ * @np: Pointer to the given device_node
+ *
+ * The function gets if the targeted hosts support TPL or not
+ */
+bool of_usb_host_tpl_support(struct device_node *np)
+{
+	if (of_find_property(np, "tpl-support", NULL))
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(of_usb_host_tpl_support);
 #endif
 
 MODULE_LICENSE("GPL");

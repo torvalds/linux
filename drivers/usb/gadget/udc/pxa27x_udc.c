@@ -758,7 +758,7 @@ static void req_done(struct pxa_ep *ep, struct pxa27x_request *req, int status,
 	if (pflags)
 		spin_unlock_irqrestore(&ep->lock, *pflags);
 	local_irq_save(flags);
-	req->req.complete(&req->udc_usb_ep->usb_ep, &req->req);
+	usb_gadget_giveback_request(&req->udc_usb_ep->usb_ep, &req->req);
 	local_irq_restore(flags);
 	if (pflags)
 		spin_lock_irqsave(&ep->lock, *pflags);

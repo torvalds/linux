@@ -30,6 +30,7 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 
+#include "debug.h"
 #include "core.h"
 #include "gadget.h"
 #include "io.h"
@@ -266,107 +267,19 @@ void dwc3_gadget_giveback(struct dwc3_ep *dep, struct dwc3_request *req,
 	dev_dbg(dwc->dev, "request %p from %s completed %d/%d ===> %d\n",
 			req, dep->name, req->request.actual,
 			req->request.length, status);
+	trace_dwc3_gadget_giveback(req);
 
 	spin_unlock(&dwc->lock);
-	req->request.complete(&dep->endpoint, &req->request);
+	usb_gadget_giveback_request(&dep->endpoint, &req->request);
 	spin_lock(&dwc->lock);
 }
 
-static const char *dwc3_gadget_ep_cmd_string(u8 cmd)
-{
-	switch (cmd) {
-	case DWC3_DEPCMD_DEPSTARTCFG:
-		return "Start New Configuration";
-	case DWC3_DEPCMD_ENDTRANSFER:
-		return "End Transfer";
-	case DWC3_DEPCMD_UPDATETRANSFER:
-		return "Update Transfer";
-	case DWC3_DEPCMD_STARTTRANSFER:
-		return "Start Transfer";
-	case DWC3_DEPCMD_CLEARSTALL:
-		return "Clear Stall";
-	case DWC3_DEPCMD_SETSTALL:
-		return "Set Stall";
-	case DWC3_DEPCMD_GETEPSTATE:
-		return "Get Endpoint State";
-	case DWC3_DEPCMD_SETTRANSFRESOURCE:
-		return "Set Endpoint Transfer Resource";
-	case DWC3_DEPCMD_SETEPCONFIG:
-		return "Set Endpoint Configuration";
-	default:
-		return "UNKNOWN command";
-	}
-}
-
-static const char *dwc3_gadget_generic_cmd_string(u8 cmd)
-{
-	switch (cmd) {
-	case DWC3_DGCMD_SET_LMP:
-		return "Set LMP";
-	case DWC3_DGCMD_SET_PERIODIC_PAR:
-		return "Set Periodic Parameters";
-	case DWC3_DGCMD_XMIT_FUNCTION:
-		return "Transmit Function Wake Device Notification";
-	case DWC3_DGCMD_SET_SCRATCHPAD_ADDR_LO:
-		return "Set Scratchpad Buffer Array Address Lo";
-	case DWC3_DGCMD_SET_SCRATCHPAD_ADDR_HI:
-		return "Set Scratchpad Buffer Array Address Hi";
-	case DWC3_DGCMD_SELECTED_FIFO_FLUSH:
-		return "Selected FIFO Flush";
-	case DWC3_DGCMD_ALL_FIFO_FLUSH:
-		return "All FIFO Flush";
-	case DWC3_DGCMD_SET_ENDPOINT_NRDY:
-		return "Set Endpoint NRDY";
-	case DWC3_DGCMD_RUN_SOC_BUS_LOOPBACK:
-		return "Run SoC Bus Loopback Test";
-	default:
-		return "UNKNOWN";
-	}
-}
-
-static const char *dwc3_gadget_link_string(enum dwc3_link_state link_state)
-{
-	switch (link_state) {
-	case DWC3_LINK_STATE_U0:
-		return "U0";
-	case DWC3_LINK_STATE_U1:
-		return "U1";
-	case DWC3_LINK_STATE_U2:
-		return "U2";
-	case DWC3_LINK_STATE_U3:
-		return "U3";
-	case DWC3_LINK_STATE_SS_DIS:
-		return "SS.Disabled";
-	case DWC3_LINK_STATE_RX_DET:
-		return "RX.Detect";
-	case DWC3_LINK_STATE_SS_INACT:
-		return "SS.Inactive";
-	case DWC3_LINK_STATE_POLL:
-		return "Polling";
-	case DWC3_LINK_STATE_RECOV:
-		return "Recovery";
-	case DWC3_LINK_STATE_HRESET:
-		return "Hot Reset";
-	case DWC3_LINK_STATE_CMPLY:
-		return "Compliance";
-	case DWC3_LINK_STATE_LPBK:
-		return "Loopback";
-	case DWC3_LINK_STATE_RESET:
-		return "Reset";
-	case DWC3_LINK_STATE_RESUME:
-		return "Resume";
-	default:
-		return "UNKNOWN link state\n";
-	}
-}
-
-int dwc3_send_gadget_generic_command(struct dwc3 *dwc, int cmd, u32 param)
+int dwc3_send_gadget_generic_command(struct dwc3 *dwc, unsigned cmd, u32 param)
 {
 	u32		timeout = 500;
 	u32		reg;
 
-	dev_vdbg(dwc->dev, "generic cmd '%s' [%d] param %08x\n",
-			dwc3_gadget_generic_cmd_string(cmd), cmd, param);
+	trace_dwc3_gadget_generic_cmd(cmd, param);
 
 	dwc3_writel(dwc->regs, DWC3_DGCMDPAR, param);
 	dwc3_writel(dwc->regs, DWC3_DGCMD, cmd | DWC3_DGCMD_CMDACT);
@@ -397,10 +310,7 @@ int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
 	u32			timeout = 500;
 	u32			reg;
 
-	dev_vdbg(dwc->dev, "%s: cmd '%s' [%d] params %08x %08x %08x\n",
-			dep->name,
-			dwc3_gadget_ep_cmd_string(cmd), cmd, params->param0,
-			params->param1, params->param2);
+	trace_dwc3_gadget_ep_cmd(dep, cmd, params);
 
 	dwc3_writel(dwc->regs, DWC3_DEPCMDPAR0(ep), params->param0);
 	dwc3_writel(dwc->regs, DWC3_DEPCMDPAR1(ep), params->param1);
@@ -789,16 +699,15 @@ static struct usb_request *dwc3_gadget_ep_alloc_request(struct usb_ep *ep,
 {
 	struct dwc3_request		*req;
 	struct dwc3_ep			*dep = to_dwc3_ep(ep);
-	struct dwc3			*dwc = dep->dwc;
 
 	req = kzalloc(sizeof(*req), gfp_flags);
-	if (!req) {
-		dev_err(dwc->dev, "not enough memory\n");
+	if (!req)
 		return NULL;
-	}
 
 	req->epnum	= dep->number;
 	req->dep	= dep;
+
+	trace_dwc3_alloc_request(req);
 
 	return &req->request;
 }
@@ -808,6 +717,7 @@ static void dwc3_gadget_ep_free_request(struct usb_ep *ep,
 {
 	struct dwc3_request		*req = to_dwc3_request(request);
 
+	trace_dwc3_free_request(req);
 	kfree(req);
 }
 
@@ -889,6 +799,8 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 		trb->ctrl |= DWC3_TRB_CTRL_SID_SOFN(req->request.stream_id);
 
 	trb->ctrl |= DWC3_TRB_CTRL_HWO;
+
+	trace_dwc3_prepare_trb(dep, trb);
 }
 
 /*
@@ -1235,6 +1147,7 @@ static int dwc3_gadget_ep_queue(struct usb_ep *ep, struct usb_request *request,
 
 	dev_vdbg(dwc->dev, "queing request %p to %s length %d\n",
 			request, ep->name, request->length);
+	trace_dwc3_ep_queue(req);
 
 	ret = __dwc3_gadget_ep_queue(dep, req);
 	spin_unlock_irqrestore(&dwc->lock, flags);
@@ -1253,6 +1166,8 @@ static int dwc3_gadget_ep_dequeue(struct usb_ep *ep,
 
 	unsigned long			flags;
 	int				ret = 0;
+
+	trace_dwc3_ep_dequeue(req);
 
 	spin_lock_irqsave(&dwc->lock, flags);
 
@@ -1744,11 +1659,8 @@ static int dwc3_gadget_init_hw_endpoints(struct dwc3 *dwc,
 		u8 epnum = (i << 1) | (!!direction);
 
 		dep = kzalloc(sizeof(*dep), GFP_KERNEL);
-		if (!dep) {
-			dev_err(dwc->dev, "can't allocate endpoint %d\n",
-					epnum);
+		if (!dep)
 			return -ENOMEM;
-		}
 
 		dep->dwc = dwc;
 		dep->number = epnum;
@@ -1846,6 +1758,8 @@ static int __dwc3_cleanup_done_trbs(struct dwc3 *dwc, struct dwc3_ep *dep,
 	unsigned int		count;
 	unsigned int		s_pkt = 0;
 	unsigned int		trb_status;
+
+	trace_dwc3_complete_trb(dep, trb);
 
 	if ((trb->ctrl & DWC3_TRB_CTRL_HWO) && status != -ESHUTDOWN)
 		/*
@@ -2020,9 +1934,6 @@ static void dwc3_endpoint_interrupt(struct dwc3 *dwc,
 
 	if (!(dep->flags & DWC3_EP_ENABLED))
 		return;
-
-	dev_vdbg(dwc->dev, "%s: %s\n", dep->name,
-			dwc3_ep_event_string(event->endpoint_event));
 
 	if (epnum == 0 || epnum == 1) {
 		dwc3_ep0_interrupt(dwc, event);
@@ -2210,8 +2121,6 @@ static void dwc3_gadget_disconnect_interrupt(struct dwc3 *dwc)
 {
 	int			reg;
 
-	dev_vdbg(dwc->dev, "%s\n", __func__);
-
 	reg = dwc3_readl(dwc->regs, DWC3_DCTL);
 	reg &= ~DWC3_DCTL_INITU1ENA;
 	dwc3_writel(dwc->regs, DWC3_DCTL, reg);
@@ -2229,8 +2138,6 @@ static void dwc3_gadget_disconnect_interrupt(struct dwc3 *dwc)
 static void dwc3_gadget_reset_interrupt(struct dwc3 *dwc)
 {
 	u32			reg;
-
-	dev_vdbg(dwc->dev, "%s\n", __func__);
 
 	/*
 	 * WORKAROUND: DWC3 revisions <1.88a have an issue which
@@ -2315,8 +2222,6 @@ static void dwc3_gadget_conndone_interrupt(struct dwc3 *dwc)
 	int			ret;
 	u32			reg;
 	u8			speed;
-
-	dev_vdbg(dwc->dev, "%s\n", __func__);
 
 	reg = dwc3_readl(dwc->regs, DWC3_DSTS);
 	speed = reg & DWC3_DSTS_CONNECTSPD;
@@ -2415,8 +2320,6 @@ static void dwc3_gadget_conndone_interrupt(struct dwc3 *dwc)
 
 static void dwc3_gadget_wakeup_interrupt(struct dwc3 *dwc)
 {
-	dev_vdbg(dwc->dev, "%s\n", __func__);
-
 	/*
 	 * TODO take core out of low power mode when that's
 	 * implemented.
@@ -2521,10 +2424,6 @@ static void dwc3_gadget_linksts_change_interrupt(struct dwc3 *dwc,
 		break;
 	}
 
-	dev_vdbg(dwc->dev, "link change: %s [%d] -> %s [%d]\n",
-			dwc3_gadget_link_string(dwc->link_state),
-			dwc->link_state, dwc3_gadget_link_string(next), next);
-
 	dwc->link_state = next;
 }
 
@@ -2601,6 +2500,8 @@ static void dwc3_gadget_interrupt(struct dwc3 *dwc,
 static void dwc3_process_event_entry(struct dwc3 *dwc,
 		const union dwc3_event *event)
 {
+	trace_dwc3_event(event->raw);
+
 	/* Endpoint IRQ, handle it and return early */
 	if (event->type.is_devspec == 0) {
 		/* depevt */
@@ -2754,7 +2655,6 @@ int dwc3_gadget_init(struct dwc3 *dwc)
 
 	dwc->setup_buf = kzalloc(DWC3_EP0_BOUNCE_SIZE, GFP_KERNEL);
 	if (!dwc->setup_buf) {
-		dev_err(dwc->dev, "failed to allocate setup buffer\n");
 		ret = -ENOMEM;
 		goto err2;
 	}

@@ -1775,6 +1775,7 @@ static struct usb_gadget_driver gadgetfs_driver = {
 	.bind		= gadgetfs_bind,
 	.unbind		= gadgetfs_unbind,
 	.setup		= gadgetfs_setup,
+	.reset		= gadgetfs_disconnect,
 	.disconnect	= gadgetfs_disconnect,
 	.suspend	= gadgetfs_suspend,
 
