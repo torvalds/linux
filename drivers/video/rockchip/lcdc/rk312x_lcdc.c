@@ -36,6 +36,7 @@
 #include <dt-bindings/clock/rk_system_status.h>
 #include <linux/rockchip-iovmm.h>
 #include "rk312x_lcdc.h"
+#include <linux/rockchip/dvfs.h>
 
 static int dbg_thresd;
 module_param(dbg_thresd, int, S_IRUGO | S_IWUSR);
@@ -750,35 +751,20 @@ static u32 calc_sclk_freq(struct rk_screen *src_screen, struct rk_screen *dst_sc
         return (u32)sclk_freq;
 }
 
-#define SCLK_PLL_LIMIT	594000000
+#define SCLK_PLL_LIMIT		594000000
+#define GPU_FREQ_MAX_LIMIT	297000000
+#define GPU_FREQ_NEED		400000000
+
 static u32 calc_sclk_pll_freq(u32 sclk_freq)
 {
-#define ACCURACY_LEV	100
-	u32 pll_freq = 0;
-	u32 decimal_num = 0;
-	u16 max_multi_num = 0, multi_num = 0, remainder_num = 0;
-	u32 less_delta = 0, greater_delta = 0;
+	u32 multi_num;
 
-	if (sclk_freq == 0)
-		return 0;
-
-	max_multi_num = SCLK_PLL_LIMIT / sclk_freq;
-	decimal_num = (sclk_freq / (1000000 / ACCURACY_LEV)) % ACCURACY_LEV;
-	multi_num = ACCURACY_LEV / decimal_num;
-
-	if (multi_num > max_multi_num) {
-		multi_num = max_multi_num;
-	} else if (decimal_num != 0) {
-		remainder_num = ACCURACY_LEV % decimal_num;
-		if (remainder_num != 0) {
-			less_delta = ACCURACY_LEV - (decimal_num * multi_num);
-			greater_delta = decimal_num * (multi_num + 1) - ACCURACY_LEV;
-			multi_num = (less_delta < greater_delta) ? multi_num : (multi_num + 1);
-		}
+	if (sclk_freq < (SCLK_PLL_LIMIT / 10)) {
+		return (sclk_freq * 10);
+	} else {
+		multi_num = GPU_FREQ_NEED / sclk_freq;
+		return (sclk_freq * multi_num);
 	}
-
-	pll_freq = sclk_freq * multi_num;
-	return pll_freq;
 }
 
 static int calc_dsp_frm_vst_hst(struct rk_screen *src,
@@ -824,16 +810,13 @@ static int calc_dsp_frm_vst_hst(struct rk_screen *src,
 		T_frm_st = (T_BP_in + T_Delta - T_BP_out);
 	else
 		T_frm_st = Tin - (T_BP_out - (T_BP_in + T_Delta));
-	printk("T_in=%lld,T_BP_in=%lld,T_Delta=%lld,T_BP_out=%lld\n",Tin,T_BP_in,T_Delta,T_BP_out);
-	printk("T_frm_st=%lld\n",T_frm_st);
-	printk("src_pixclock=%d\n,dst_pixclock=%d\n",src_pixclock,dst_pixclock);
 
 	/* (T_frm_st = scl_vst * src_htotal * src_pixclock + scl_hst * src_pixclock) */
-	temp = do_div(T_frm_st, src_htotal * src_pixclock);
+	temp = do_div(T_frm_st, src_pixclock);
+	temp = do_div(T_frm_st, src_htotal);
+	dst->scl_hst = temp - 1;
 	dst->scl_vst = T_frm_st;
-	do_div(temp, src_pixclock);
-	dst->scl_hst = temp;
-	printk("dst_frame_hst=%d,dst_frame_vst=%d\n",dst->scl_hst,dst->scl_vst);
+
 	return 0;
 }
 
@@ -855,6 +838,7 @@ static int rk312x_lcdc_set_scaler(struct rk_lcdc_driver *dev_drv,
 	struct rk_screen *dst;
         struct lcdc_device *lcdc_dev = container_of(dev_drv,
 						    struct lcdc_device, driver);
+	struct dvfs_node *gpu_clk = clk_get_dvfs_node("clk_gpu");
 
         if (unlikely(!lcdc_dev->clk_on))
                 return 0;
@@ -863,11 +847,20 @@ static int rk312x_lcdc_set_scaler(struct rk_lcdc_driver *dev_drv,
 		spin_lock(&lcdc_dev->reg_lock);
 		lcdc_msk_reg(lcdc_dev, SCALER_CTRL,
 				m_SCALER_EN | m_SCALER_OUT_ZERO | m_SCALER_OUT_EN,
-				v_SCALER_EN(0) | v_SCALER_OUT_ZERO(0) | v_SCALER_OUT_EN(0));
+				v_SCALER_EN(0) | v_SCALER_OUT_ZERO(1) | v_SCALER_OUT_EN(0));
+		lcdc_cfg_done(lcdc_dev);
 		spin_unlock(&lcdc_dev->reg_lock);
 		if (lcdc_dev->sclk_on) {
 			clk_disable_unprepare(lcdc_dev->sclk);
 			lcdc_dev->sclk_on = false;
+		}
+
+		/* switch pll freq as default when sclk is no used */
+		if (clk_get_rate(lcdc_dev->pll_sclk) != GPU_FREQ_NEED) {
+			dvfs_clk_enable_limit(gpu_clk, GPU_FREQ_MAX_LIMIT,
+					      GPU_FREQ_MAX_LIMIT);
+			clk_set_rate(lcdc_dev->pll_sclk, GPU_FREQ_NEED);
+			dvfs_clk_enable_limit(gpu_clk, 0, -1);
 		}
 		dev_dbg(lcdc_dev->dev, "%s: disable\n", __func__);
 		return 0;
@@ -889,7 +882,14 @@ static int rk312x_lcdc_set_scaler(struct rk_lcdc_driver *dev_drv,
 		clk_prepare_enable(lcdc_dev->sclk);
 		lcdc_dev->s_pixclock = calc_sclk_freq(src, dst);
 		pll_freq = calc_sclk_pll_freq(lcdc_dev->s_pixclock);
+
+		/* limit gpu freq */
+		dvfs_clk_enable_limit(gpu_clk, GPU_FREQ_MAX_LIMIT, GPU_FREQ_MAX_LIMIT);
+		/* set pll freq */
 		clk_set_rate(lcdc_dev->pll_sclk, pll_freq);
+		/* cancel limit gpu freq */
+		dvfs_clk_enable_limit(gpu_clk, 0, -1);
+
 		clk_set_rate(lcdc_dev->sclk, lcdc_dev->s_pixclock);
 		lcdc_dev->sclk_on = true;
 		dev_info(lcdc_dev->dev, "%s:sclk=%d\n", __func__,
@@ -1147,12 +1147,18 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 				     v_SW_OVERLAY_MODE(dev_drv->overlay_mode));
                 }
 
-		mask = m_DSP_OUT_FORMAT | m_HSYNC_POL | m_VSYNC_POL |
+		mask = m_HSYNC_POL | m_VSYNC_POL |
 		    m_DEN_POL | m_DCLK_POL;
-		val = v_DSP_OUT_FORMAT(face) | v_HSYNC_POL(screen->pin_hsync) |
+		val = v_HSYNC_POL(screen->pin_hsync) |
 		    v_VSYNC_POL(screen->pin_vsync) |
 		    v_DEN_POL(screen->pin_den) |
 		    v_DCLK_POL(screen->pin_dclk);
+
+		if (screen->type != SCREEN_HDMI) {
+			mask |= m_DSP_OUT_FORMAT;
+			val |= v_DSP_OUT_FORMAT(face);
+		}
+
 		lcdc_msk_reg(lcdc_dev, DSP_CTRL0, mask, val);
 
 		mask = m_BG_COLOR | m_DSP_BG_SWAP | m_DSP_RB_SWAP |
@@ -2199,6 +2205,60 @@ static int rk312x_lcdc_dpi_status(struct rk_lcdc_driver *dev_drv)
 	return ovl;
 }
 
+static int rk312x_lcdc_dsp_black(struct rk_lcdc_driver *dev_drv, int enable)
+{
+	struct lcdc_device *lcdc_dev = container_of(dev_drv,
+                                                    struct lcdc_device, driver);
+	struct device_node *backlight;
+
+	if (!lcdc_dev->backlight) {
+		backlight = of_parse_phandle(lcdc_dev->dev->of_node, "backlight", 0);
+		if (backlight) {
+			lcdc_dev->backlight = of_find_backlight_by_node(backlight);
+			if (!lcdc_dev->backlight)
+				dev_info(lcdc_dev->dev, "No find backlight device\n");
+		}
+	}
+
+	if (enable) {
+		/* close the backlight */
+		if (lcdc_dev->backlight) {
+			lcdc_dev->backlight->props.power = FB_BLANK_POWERDOWN;
+			backlight_update_status(lcdc_dev->backlight);
+		}
+
+		spin_lock(&lcdc_dev->reg_lock);
+		if (likely(lcdc_dev->clk_on)) {
+			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_BLACK_EN,
+				     v_BLACK_EN(1));
+			lcdc_cfg_done(lcdc_dev);
+		}
+		spin_unlock(&lcdc_dev->reg_lock);
+
+		if (dev_drv->trsm_ops && dev_drv->trsm_ops->disable)
+			dev_drv->trsm_ops->disable();
+	} else {
+		spin_lock(&lcdc_dev->reg_lock);
+		if (likely(lcdc_dev->clk_on)) {
+			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, m_BLACK_EN,
+				     v_BLACK_EN(0));
+			lcdc_cfg_done(lcdc_dev);
+		}
+		spin_unlock(&lcdc_dev->reg_lock);
+		if (dev_drv->trsm_ops && dev_drv->trsm_ops->enable)
+			dev_drv->trsm_ops->enable();
+		msleep(100);
+		/* open the backlight */
+		if (lcdc_dev->backlight) {
+			lcdc_dev->backlight->props.power = FB_BLANK_UNBLANK;
+			backlight_update_status(lcdc_dev->backlight);
+		}
+	}
+
+	return 0;
+}
+
+
 static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.open = rk312x_lcdc_open,
 	.load_screen = rk312x_load_screen,
@@ -2228,6 +2288,7 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.set_screen_scaler = rk312x_lcdc_set_scaler,
 	.set_hwc_lut = rk312x_lcdc_set_hwc_lut,
 	.set_irq_to_cpu = rk312x_lcdc_set_irq_to_cpu,
+	.dsp_black = rk312x_lcdc_dsp_black,
 };
 #if 0
 static const struct rk_lcdc_drvdata rk3036_lcdc_drvdata = {
@@ -2398,6 +2459,9 @@ static void rk312x_lcdc_shutdown(struct platform_device *pdev)
 	rk312x_lcdc_deinit(lcdc_dev);
         rk312x_lcdc_clk_disable(lcdc_dev);
 	rk_disp_pwr_disable(&lcdc_dev->driver);
+
+	if (lcdc_dev->backlight)
+		put_device(&lcdc_dev->backlight->dev);
 }
 
 static struct platform_driver rk312x_lcdc_driver = {

@@ -3343,8 +3343,8 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		return 0;
 
 	if (rk_fb->disp_mode == ONE_DUAL) {
-		if (dev_drv->trsm_ops && dev_drv->trsm_ops->disable)
-			dev_drv->trsm_ops->disable();
+		if (dev_drv->ops->dsp_black)
+			dev_drv->ops->dsp_black(dev_drv, 1);
 		if (dev_drv->ops->set_screen_scaler)
 			dev_drv->ops->set_screen_scaler(dev_drv, dev_drv->screen0, 0);
 	}
@@ -3358,8 +3358,18 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		if (rk_fb->disp_mode == ONE_DUAL) {
 			dev_drv->cur_screen = dev_drv->screen0;
 			dev_drv->ops->load_screen(dev_drv, 1);
-			if (dev_drv->trsm_ops && dev_drv->trsm_ops->enable)
-				dev_drv->trsm_ops->enable();
+
+			/* force modify dsp size */
+			info = rk_fb->fb[dev_drv->fb_index_base];
+			info->var.grayscale &= 0xff;
+			info->var.grayscale |=
+				(dev_drv->cur_screen->mode.xres << 8) +
+				(dev_drv->cur_screen->mode.yres << 20);
+			info->fbops->fb_set_par(info);
+			info->fbops->fb_pan_display(&info->var, info);
+
+			if (dev_drv->ops->dsp_black)
+				dev_drv->ops->dsp_black(dev_drv, 0);
 		} else if (rk_fb->num_lcdc > 1) {
 			/* If there is more than one lcdc device, we disable
 			   the layer which attached to this device */
@@ -3401,8 +3411,14 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 					load_screen = 1;
 				}
 				info->var.activate |= FB_ACTIVATE_FORCE;
-				if (rk_fb->disp_mode == DUAL)
+				if (rk_fb->disp_mode == DUAL) {
 					rk_fb_update_ext_info(info, pmy_info, 1);
+				} else if (rk_fb->disp_mode == ONE_DUAL) {
+					info->var.grayscale &= 0xff;
+					info->var.grayscale |=
+						(dev_drv->cur_screen->xsize << 8) +
+						(dev_drv->cur_screen->ysize << 20);
+				}
 				info->fbops->fb_set_par(info);
 				info->fbops->fb_pan_display(&info->var, info);
 			}
@@ -3413,8 +3429,8 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	if (rk_fb->disp_mode == ONE_DUAL) {
 		if (dev_drv->ops->set_screen_scaler)
 			dev_drv->ops->set_screen_scaler(dev_drv, dev_drv->screen0, 1);
-		if (dev_drv->trsm_ops && dev_drv->trsm_ops->enable)
-			dev_drv->trsm_ops->enable();
+		if (dev_drv->ops->dsp_black)
+			dev_drv->ops->dsp_black(dev_drv, 0);
 	}
 	return 0;
 }
