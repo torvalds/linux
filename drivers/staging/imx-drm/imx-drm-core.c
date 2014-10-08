@@ -29,8 +29,6 @@
 
 #define MAX_CRTC	4
 
-struct imx_drm_crtc;
-
 struct imx_drm_component {
 	struct device_node *of_node;
 	struct list_head list;
