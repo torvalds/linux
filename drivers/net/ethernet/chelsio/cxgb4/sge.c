@@ -850,13 +850,14 @@ static void write_sgl(const struct sk_buff *skb, struct sge_txq *q,
 		*end = 0;
 }
 
-/* This function copies 64 byte coalesced work request to
- * memory mapped BAR2 space(user space writes).
- * For coalesced WR SGE, fetches data from the FIFO instead of from Host.
+/* This function copies a tx_desc struct to memory mapped BAR2 space(user space
+ * writes). For coalesced WR SGE, fetches data from the FIFO instead of from
+ * Host.
  */
-static void cxgb_pio_copy(u64 __iomem *dst, u64 *src)
+static void cxgb_pio_copy(u64 __iomem *dst, struct tx_desc *desc)
 {
-	int count = 8;
+	int count = sizeof(*desc) / sizeof(u64);
+	u64 *src = (u64 *)desc;
 
 	while (count) {
 		writeq(*src, dst);
@@ -914,12 +915,9 @@ static inline void ring_tx_db(struct adapter *adap, struct sge_txq *q, int n)
 			int index = (q->pidx
 				     ? (q->pidx - 1)
 				     : (q->size - 1));
-			unsigned int *wr = (unsigned int *)&q->desc[index];
 
-			cxgb_pio_copy((u64 __iomem *)
-				      (adap->bar2 + q->udb +
-				       SGE_UDB_WCDOORBELL),
-				      (u64 *)wr);
+			cxgb_pio_copy(adap->bar2 + q->udb + SGE_UDB_WCDOORBELL,
+				      q->desc + index);
 		} else {
 			writel(val,  adap->bar2 + q->udb + SGE_UDB_KDOORBELL);
 		}
