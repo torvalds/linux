@@ -267,7 +267,7 @@ bool KeybSetKey(
 		}
 	}
 	if (j < (MAX_KEY_TABLE-1)) {
-		memcpy(pTable->KeyTable[j].abyBSSID, pbyBSSID, ETH_ALEN);
+		ether_addr_copy(pTable->KeyTable[j].abyBSSID, pbyBSSID);
 		pTable->KeyTable[j].bInUse = true;
 		if ((dwKeyIndex & PAIRWISE_KEY) != 0)  {
 			// Pairwise key
