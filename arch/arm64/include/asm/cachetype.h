@@ -39,6 +39,26 @@
 
 extern unsigned long __icache_flags;
 
+#define CCSIDR_EL1_LINESIZE_MASK	0x7
+#define CCSIDR_EL1_LINESIZE(x)		((x) & CCSIDR_EL1_LINESIZE_MASK)
+
+#define CCSIDR_EL1_NUMSETS_SHIFT	13
+#define CCSIDR_EL1_NUMSETS_MASK		(0x7fff << CCSIDR_EL1_NUMSETS_SHIFT)
+#define CCSIDR_EL1_NUMSETS(x) \
+	(((x) & CCSIDR_EL1_NUMSETS_MASK) >> CCSIDR_EL1_NUMSETS_SHIFT)
+
+extern u64 __attribute_const__ icache_get_ccsidr(void);
+
+static inline int icache_get_linesize(void)
+{
+	return 16 << CCSIDR_EL1_LINESIZE(icache_get_ccsidr());
+}
+
+static inline int icache_get_numsets(void)
+{
+	return 1 + CCSIDR_EL1_NUMSETS(icache_get_ccsidr());
+}
+
 /*
  * Whilst the D-side always behaves as PIPT on AArch64, aliasing is
  * permitted in the I-cache.

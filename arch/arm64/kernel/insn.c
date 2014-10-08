@@ -2,6 +2,8 @@
  * Copyright (C) 2013 Huawei Ltd.
  * Author: Jiang Liu <liuj97@gmail.com>
  *
+ * Copyright (C) 2014 Zi Shen Lim <zlim.lnx@gmail.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -20,8 +22,13 @@
 #include <linux/smp.h>
 #include <linux/stop_machine.h>
 #include <linux/uaccess.h>
+
 #include <asm/cacheflush.h>
+#include <asm/debug-monitors.h>
 #include <asm/insn.h>
+
+#define AARCH64_INSN_SF_BIT	BIT(31)
+#define AARCH64_INSN_N_BIT	BIT(22)
 
 static int aarch64_insn_encoding_class[] = {
 	AARCH64_INSN_CLS_UNKNOWN,
@@ -251,6 +258,19 @@ u32 __kprobes aarch64_insn_encode_immediate(enum aarch64_insn_imm_type type,
 		mask = BIT(9) - 1;
 		shift = 12;
 		break;
+	case AARCH64_INSN_IMM_7:
+		mask = BIT(7) - 1;
+		shift = 15;
+		break;
+	case AARCH64_INSN_IMM_6:
+	case AARCH64_INSN_IMM_S:
+		mask = BIT(6) - 1;
+		shift = 10;
+		break;
+	case AARCH64_INSN_IMM_R:
+		mask = BIT(6) - 1;
+		shift = 16;
+		break;
 	default:
 		pr_err("aarch64_insn_encode_immediate: unknown immediate encoding %d\n",
 			type);
@@ -264,10 +284,76 @@ u32 __kprobes aarch64_insn_encode_immediate(enum aarch64_insn_imm_type type,
 	return insn;
 }
 
-u32 __kprobes aarch64_insn_gen_branch_imm(unsigned long pc, unsigned long addr,
-					  enum aarch64_insn_branch_type type)
+static u32 aarch64_insn_encode_register(enum aarch64_insn_register_type type,
+					u32 insn,
+					enum aarch64_insn_register reg)
 {
-	u32 insn;
+	int shift;
+
+	if (reg < AARCH64_INSN_REG_0 || reg > AARCH64_INSN_REG_SP) {
+		pr_err("%s: unknown register encoding %d\n", __func__, reg);
+		return 0;
+	}
+
+	switch (type) {
+	case AARCH64_INSN_REGTYPE_RT:
+	case AARCH64_INSN_REGTYPE_RD:
+		shift = 0;
+		break;
+	case AARCH64_INSN_REGTYPE_RN:
+		shift = 5;
+		break;
+	case AARCH64_INSN_REGTYPE_RT2:
+	case AARCH64_INSN_REGTYPE_RA:
+		shift = 10;
+		break;
+	case AARCH64_INSN_REGTYPE_RM:
+		shift = 16;
+		break;
+	default:
+		pr_err("%s: unknown register type encoding %d\n", __func__,
+		       type);
+		return 0;
+	}
+
+	insn &= ~(GENMASK(4, 0) << shift);
+	insn |= reg << shift;
+
+	return insn;
+}
+
+static u32 aarch64_insn_encode_ldst_size(enum aarch64_insn_size_type type,
+					 u32 insn)
+{
+	u32 size;
+
+	switch (type) {
+	case AARCH64_INSN_SIZE_8:
+		size = 0;
+		break;
+	case AARCH64_INSN_SIZE_16:
+		size = 1;
+		break;
+	case AARCH64_INSN_SIZE_32:
+		size = 2;
+		break;
+	case AARCH64_INSN_SIZE_64:
+		size = 3;
+		break;
+	default:
+		pr_err("%s: unknown size encoding %d\n", __func__, type);
+		return 0;
+	}
+
+	insn &= ~GENMASK(31, 30);
+	insn |= size << 30;
+
+	return insn;
+}
+
+static inline long branch_imm_common(unsigned long pc, unsigned long addr,
+				     long range)
+{
 	long offset;
 
 	/*
@@ -276,20 +362,94 @@ u32 __kprobes aarch64_insn_gen_branch_imm(unsigned long pc, unsigned long addr,
 	 */
 	BUG_ON((pc & 0x3) || (addr & 0x3));
 
+	offset = ((long)addr - (long)pc);
+	BUG_ON(offset < -range || offset >= range);
+
+	return offset;
+}
+
+u32 __kprobes aarch64_insn_gen_branch_imm(unsigned long pc, unsigned long addr,
+					  enum aarch64_insn_branch_type type)
+{
+	u32 insn;
+	long offset;
+
 	/*
 	 * B/BL support [-128M, 128M) offset
 	 * ARM64 virtual address arrangement guarantees all kernel and module
 	 * texts are within +/-128M.
 	 */
-	offset = ((long)addr - (long)pc);
-	BUG_ON(offset < -SZ_128M || offset >= SZ_128M);
+	offset = branch_imm_common(pc, addr, SZ_128M);
 
-	if (type == AARCH64_INSN_BRANCH_LINK)
+	switch (type) {
+	case AARCH64_INSN_BRANCH_LINK:
 		insn = aarch64_insn_get_bl_value();
-	else
+		break;
+	case AARCH64_INSN_BRANCH_NOLINK:
 		insn = aarch64_insn_get_b_value();
+		break;
+	default:
+		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
+	}
 
 	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_26, insn,
+					     offset >> 2);
+}
+
+u32 aarch64_insn_gen_comp_branch_imm(unsigned long pc, unsigned long addr,
+				     enum aarch64_insn_register reg,
+				     enum aarch64_insn_variant variant,
+				     enum aarch64_insn_branch_type type)
+{
+	u32 insn;
+	long offset;
+
+	offset = branch_imm_common(pc, addr, SZ_1M);
+
+	switch (type) {
+	case AARCH64_INSN_BRANCH_COMP_ZERO:
+		insn = aarch64_insn_get_cbz_value();
+		break;
+	case AARCH64_INSN_BRANCH_COMP_NONZERO:
+		insn = aarch64_insn_get_cbnz_value();
+		break;
+	default:
+		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	switch (variant) {
+	case AARCH64_INSN_VARIANT_32BIT:
+		break;
+	case AARCH64_INSN_VARIANT_64BIT:
+		insn |= AARCH64_INSN_SF_BIT;
+		break;
+	default:
+		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RT, insn, reg);
+
+	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_19, insn,
+					     offset >> 2);
+}
+
+u32 aarch64_insn_gen_cond_branch_imm(unsigned long pc, unsigned long addr,
+				     enum aarch64_insn_condition cond)
+{
+	u32 insn;
+	long offset;
+
+	offset = branch_imm_common(pc, addr, SZ_1M);
+
+	insn = aarch64_insn_get_bcond_value();
+
+	BUG_ON(cond < AARCH64_INSN_COND_EQ || cond > AARCH64_INSN_COND_AL);
+	insn |= cond;
+
+	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_19, insn,
 					     offset >> 2);
 }
 
@@ -301,4 +461,501 @@ u32 __kprobes aarch64_insn_gen_hint(enum aarch64_insn_hint_op op)
 u32 __kprobes aarch64_insn_gen_nop(void)
 {
 	return aarch64_insn_gen_hint(AARCH64_INSN_HINT_NOP);
+}
+
+u32 aarch64_insn_gen_branch_reg(enum aarch64_insn_register reg,
+				enum aarch64_insn_branch_type type)
+{
+	u32 insn;
+
+	switch (type) {
+	case AARCH64_INSN_BRANCH_NOLINK:
+		insn = aarch64_insn_get_br_value();
+		break;
+	case AARCH64_INSN_BRANCH_LINK:
+		insn = aarch64_insn_get_blr_value();
+		break;
+	case AARCH64_INSN_BRANCH_RETURN:
+		insn = aarch64_insn_get_ret_value();
+		break;
+	default:
+		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	return aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RN, insn, reg);
+}
+
+u32 aarch64_insn_gen_load_store_reg(enum aarch64_insn_register reg,
+				    enum aarch64_insn_register base,
+				    enum aarch64_insn_register offset,
+				    enum aarch64_insn_size_type size,
+				    enum aarch64_insn_ldst_type type)
+{
+	u32 insn;
+
+	switch (type) {
+	case AARCH64_INSN_LDST_LOAD_REG_OFFSET:
+		insn = aarch64_insn_get_ldr_reg_value();
+		break;
+	case AARCH64_INSN_LDST_STORE_REG_OFFSET:
+		insn = aarch64_insn_get_str_reg_value();
+		break;
+	default:
+		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	insn = aarch64_insn_encode_ldst_size(size, insn);
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RT, insn, reg);
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RN, insn,
+					    base);
+
+	return aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RM, insn,
+					    offset);
+}
+
+u32 aarch64_insn_gen_load_store_pair(enum aarch64_insn_register reg1,
+				     enum aarch64_insn_register reg2,
+				     enum aarch64_insn_register base,
+				     int offset,
+				     enum aarch64_insn_variant variant,
+				     enum aarch64_insn_ldst_type type)
+{
+	u32 insn;
+	int shift;
+
+	switch (type) {
+	case AARCH64_INSN_LDST_LOAD_PAIR_PRE_INDEX:
+		insn = aarch64_insn_get_ldp_pre_value();
+		break;
+	case AARCH64_INSN_LDST_STORE_PAIR_PRE_INDEX:
+		insn = aarch64_insn_get_stp_pre_value();
+		break;
+	case AARCH64_INSN_LDST_LOAD_PAIR_POST_INDEX:
+		insn = aarch64_insn_get_ldp_post_value();
+		break;
+	case AARCH64_INSN_LDST_STORE_PAIR_POST_INDEX:
+		insn = aarch64_insn_get_stp_post_value();
+		break;
+	default:
+		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	switch (variant) {
+	case AARCH64_INSN_VARIANT_32BIT:
+		/* offset must be multiples of 4 in the range [-256, 252] */
+		BUG_ON(offset & 0x3);
+		BUG_ON(offset < -256 || offset > 252);
+		shift = 2;
+		break;
+	case AARCH64_INSN_VARIANT_64BIT:
+		/* offset must be multiples of 8 in the range [-512, 504] */
+		BUG_ON(offset & 0x7);
+		BUG_ON(offset < -512 || offset > 504);
+		shift = 3;
+		insn |= AARCH64_INSN_SF_BIT;
+		break;
+	default:
+		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RT, insn,
+					    reg1);
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RT2, insn,
+					    reg2);
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RN, insn,
+					    base);
+
+	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_7, insn,
+					     offset >> shift);
+}
+
+u32 aarch64_insn_gen_add_sub_imm(enum aarch64_insn_register dst,
+				 enum aarch64_insn_register src,
+				 int imm, enum aarch64_insn_variant variant,
+				 enum aarch64_insn_adsb_type type)
+{
+	u32 insn;
+
+	switch (type) {
+	case AARCH64_INSN_ADSB_ADD:
+		insn = aarch64_insn_get_add_imm_value();
+		break;
+	case AARCH64_INSN_ADSB_SUB:
+		insn = aarch64_insn_get_sub_imm_value();
+		break;
+	case AARCH64_INSN_ADSB_ADD_SETFLAGS:
+		insn = aarch64_insn_get_adds_imm_value();
+		break;
+	case AARCH64_INSN_ADSB_SUB_SETFLAGS:
+		insn = aarch64_insn_get_subs_imm_value();
+		break;
+	default:
+		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	switch (variant) {
+	case AARCH64_INSN_VARIANT_32BIT:
+		break;
+	case AARCH64_INSN_VARIANT_64BIT:
+		insn |= AARCH64_INSN_SF_BIT;
+		break;
+	default:
+		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	BUG_ON(imm & ~(SZ_4K - 1));
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RD, insn, dst);
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RN, insn, src);
+
+	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_12, insn, imm);
+}
+
+u32 aarch64_insn_gen_bitfield(enum aarch64_insn_register dst,
+			      enum aarch64_insn_register src,
+			      int immr, int imms,
+			      enum aarch64_insn_variant variant,
+			      enum aarch64_insn_bitfield_type type)
+{
+	u32 insn;
+	u32 mask;
+
+	switch (type) {
+	case AARCH64_INSN_BITFIELD_MOVE:
+		insn = aarch64_insn_get_bfm_value();
+		break;
+	case AARCH64_INSN_BITFIELD_MOVE_UNSIGNED:
+		insn = aarch64_insn_get_ubfm_value();
+		break;
+	case AARCH64_INSN_BITFIELD_MOVE_SIGNED:
+		insn = aarch64_insn_get_sbfm_value();
+		break;
+	default:
+		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	switch (variant) {
+	case AARCH64_INSN_VARIANT_32BIT:
+		mask = GENMASK(4, 0);
+		break;
+	case AARCH64_INSN_VARIANT_64BIT:
+		insn |= AARCH64_INSN_SF_BIT | AARCH64_INSN_N_BIT;
+		mask = GENMASK(5, 0);
+		break;
+	default:
+		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	BUG_ON(immr & ~mask);
+	BUG_ON(imms & ~mask);
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RD, insn, dst);
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RN, insn, src);
+
+	insn = aarch64_insn_encode_immediate(AARCH64_INSN_IMM_R, insn, immr);
+
+	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_S, insn, imms);
+}
+
+u32 aarch64_insn_gen_movewide(enum aarch64_insn_register dst,
+			      int imm, int shift,
+			      enum aarch64_insn_variant variant,
+			      enum aarch64_insn_movewide_type type)
+{
+	u32 insn;
+
+	switch (type) {
+	case AARCH64_INSN_MOVEWIDE_ZERO:
+		insn = aarch64_insn_get_movz_value();
+		break;
+	case AARCH64_INSN_MOVEWIDE_KEEP:
+		insn = aarch64_insn_get_movk_value();
+		break;
+	case AARCH64_INSN_MOVEWIDE_INVERSE:
+		insn = aarch64_insn_get_movn_value();
+		break;
+	default:
+		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	BUG_ON(imm & ~(SZ_64K - 1));
+
+	switch (variant) {
+	case AARCH64_INSN_VARIANT_32BIT:
+		BUG_ON(shift != 0 && shift != 16);
+		break;
+	case AARCH64_INSN_VARIANT_64BIT:
+		insn |= AARCH64_INSN_SF_BIT;
+		BUG_ON(shift != 0 && shift != 16 && shift != 32 &&
+		       shift != 48);
+		break;
+	default:
+		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	insn |= (shift >> 4) << 21;
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RD, insn, dst);
+
+	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_16, insn, imm);
+}
+
+u32 aarch64_insn_gen_add_sub_shifted_reg(enum aarch64_insn_register dst,
+					 enum aarch64_insn_register src,
+					 enum aarch64_insn_register reg,
+					 int shift,
+					 enum aarch64_insn_variant variant,
+					 enum aarch64_insn_adsb_type type)
+{
+	u32 insn;
+
+	switch (type) {
+	case AARCH64_INSN_ADSB_ADD:
+		insn = aarch64_insn_get_add_value();
+		break;
+	case AARCH64_INSN_ADSB_SUB:
+		insn = aarch64_insn_get_sub_value();
+		break;
+	case AARCH64_INSN_ADSB_ADD_SETFLAGS:
+		insn = aarch64_insn_get_adds_value();
+		break;
+	case AARCH64_INSN_ADSB_SUB_SETFLAGS:
+		insn = aarch64_insn_get_subs_value();
+		break;
+	default:
+		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	switch (variant) {
+	case AARCH64_INSN_VARIANT_32BIT:
+		BUG_ON(shift & ~(SZ_32 - 1));
+		break;
+	case AARCH64_INSN_VARIANT_64BIT:
+		insn |= AARCH64_INSN_SF_BIT;
+		BUG_ON(shift & ~(SZ_64 - 1));
+		break;
+	default:
+		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
+	}
+
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RD, insn, dst);
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RN, insn, src);
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RM, insn, reg);
+
+	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_6, insn, shift);
+}
+
+u32 aarch64_insn_gen_data1(enum aarch64_insn_register dst,
+			   enum aarch64_insn_register src,
+			   enum aarch64_insn_variant variant,
+			   enum aarch64_insn_data1_type type)
+{
+	u32 insn;
+
+	switch (type) {
+	case AARCH64_INSN_DATA1_REVERSE_16:
+		insn = aarch64_insn_get_rev16_value();
+		break;
+	case AARCH64_INSN_DATA1_REVERSE_32:
+		insn = aarch64_insn_get_rev32_value();
+		break;
+	case AARCH64_INSN_DATA1_REVERSE_64:
+		BUG_ON(variant != AARCH64_INSN_VARIANT_64BIT);
+		insn = aarch64_insn_get_rev64_value();
+		break;
+	default:
+		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	switch (variant) {
+	case AARCH64_INSN_VARIANT_32BIT:
+		break;
+	case AARCH64_INSN_VARIANT_64BIT:
+		insn |= AARCH64_INSN_SF_BIT;
+		break;
+	default:
+		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RD, insn, dst);
+
+	return aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RN, insn, src);
+}
+
+u32 aarch64_insn_gen_data2(enum aarch64_insn_register dst,
+			   enum aarch64_insn_register src,
+			   enum aarch64_insn_register reg,
+			   enum aarch64_insn_variant variant,
+			   enum aarch64_insn_data2_type type)
+{
+	u32 insn;
+
+	switch (type) {
+	case AARCH64_INSN_DATA2_UDIV:
+		insn = aarch64_insn_get_udiv_value();
+		break;
+	case AARCH64_INSN_DATA2_SDIV:
+		insn = aarch64_insn_get_sdiv_value();
+		break;
+	case AARCH64_INSN_DATA2_LSLV:
+		insn = aarch64_insn_get_lslv_value();
+		break;
+	case AARCH64_INSN_DATA2_LSRV:
+		insn = aarch64_insn_get_lsrv_value();
+		break;
+	case AARCH64_INSN_DATA2_ASRV:
+		insn = aarch64_insn_get_asrv_value();
+		break;
+	case AARCH64_INSN_DATA2_RORV:
+		insn = aarch64_insn_get_rorv_value();
+		break;
+	default:
+		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	switch (variant) {
+	case AARCH64_INSN_VARIANT_32BIT:
+		break;
+	case AARCH64_INSN_VARIANT_64BIT:
+		insn |= AARCH64_INSN_SF_BIT;
+		break;
+	default:
+		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RD, insn, dst);
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RN, insn, src);
+
+	return aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RM, insn, reg);
+}
+
+u32 aarch64_insn_gen_data3(enum aarch64_insn_register dst,
+			   enum aarch64_insn_register src,
+			   enum aarch64_insn_register reg1,
+			   enum aarch64_insn_register reg2,
+			   enum aarch64_insn_variant variant,
+			   enum aarch64_insn_data3_type type)
+{
+	u32 insn;
+
+	switch (type) {
+	case AARCH64_INSN_DATA3_MADD:
+		insn = aarch64_insn_get_madd_value();
+		break;
+	case AARCH64_INSN_DATA3_MSUB:
+		insn = aarch64_insn_get_msub_value();
+		break;
+	default:
+		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	switch (variant) {
+	case AARCH64_INSN_VARIANT_32BIT:
+		break;
+	case AARCH64_INSN_VARIANT_64BIT:
+		insn |= AARCH64_INSN_SF_BIT;
+		break;
+	default:
+		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RD, insn, dst);
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RA, insn, src);
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RN, insn,
+					    reg1);
+
+	return aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RM, insn,
+					    reg2);
+}
+
+u32 aarch64_insn_gen_logical_shifted_reg(enum aarch64_insn_register dst,
+					 enum aarch64_insn_register src,
+					 enum aarch64_insn_register reg,
+					 int shift,
+					 enum aarch64_insn_variant variant,
+					 enum aarch64_insn_logic_type type)
+{
+	u32 insn;
+
+	switch (type) {
+	case AARCH64_INSN_LOGIC_AND:
+		insn = aarch64_insn_get_and_value();
+		break;
+	case AARCH64_INSN_LOGIC_BIC:
+		insn = aarch64_insn_get_bic_value();
+		break;
+	case AARCH64_INSN_LOGIC_ORR:
+		insn = aarch64_insn_get_orr_value();
+		break;
+	case AARCH64_INSN_LOGIC_ORN:
+		insn = aarch64_insn_get_orn_value();
+		break;
+	case AARCH64_INSN_LOGIC_EOR:
+		insn = aarch64_insn_get_eor_value();
+		break;
+	case AARCH64_INSN_LOGIC_EON:
+		insn = aarch64_insn_get_eon_value();
+		break;
+	case AARCH64_INSN_LOGIC_AND_SETFLAGS:
+		insn = aarch64_insn_get_ands_value();
+		break;
+	case AARCH64_INSN_LOGIC_BIC_SETFLAGS:
+		insn = aarch64_insn_get_bics_value();
+		break;
+	default:
+		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	switch (variant) {
+	case AARCH64_INSN_VARIANT_32BIT:
+		BUG_ON(shift & ~(SZ_32 - 1));
+		break;
+	case AARCH64_INSN_VARIANT_64BIT:
+		insn |= AARCH64_INSN_SF_BIT;
+		BUG_ON(shift & ~(SZ_64 - 1));
+		break;
+	default:
+		BUG_ON(1);
+		return AARCH64_BREAK_FAULT;
+	}
+
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RD, insn, dst);
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RN, insn, src);
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RM, insn, reg);
+
+	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_6, insn, shift);
 }

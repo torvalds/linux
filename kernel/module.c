@@ -3388,7 +3388,7 @@ static inline int is_arm_mapping_symbol(const char *str)
 {
 	if (str[0] == '.' && str[1] == 'L')
 		return true;
-	return str[0] == '$' && strchr("atd", str[1])
+	return str[0] == '$' && strchr("axtd", str[1])
 	       && (str[2] == '\0' || str[2] == '.');
 }
 

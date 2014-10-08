@@ -35,6 +35,7 @@ config ARM64
 	select HAVE_ARCH_JUMP_LABEL
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_TRACEHOOK
+	select HAVE_BPF_JIT
 	select HAVE_C_RECORDMCOUNT
 	select HAVE_CC_STACKPROTECTOR
 	select HAVE_DEBUG_BUGVERBOSE
@@ -252,11 +253,11 @@ config SCHED_SMT
 	  places. If unsure say N here.
 
 config NR_CPUS
-	int "Maximum number of CPUs (2-32)"
-	range 2 32
+	int "Maximum number of CPUs (2-64)"
+	range 2 64
 	depends on SMP
 	# These have to remain sorted largest to smallest
-	default "8"
+	default "64"
 
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs"
