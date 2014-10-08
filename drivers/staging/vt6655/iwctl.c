@@ -1756,7 +1756,7 @@ int iwctl_siwencodeext(struct net_device *dev,
 	}
 
 /**************Translate iw_encode_ext to viawget_wpa_param****************/
-	memcpy(param->addr, addr, ETH_ALEN);
+	ether_addr_copy(param->addr, addr);
 	param->u.wpa_key.alg_name = (int)alg_name;
 	param->u.wpa_key.set_tx = set_tx;
 	param->u.wpa_key.key_index = key_idx;
