@@ -1695,6 +1695,9 @@ static int coda_release(struct file *file)
 
 	debugfs_remove_recursive(ctx->debugfs_entry);
 
+	if (ctx->inst_type == CODA_INST_DECODER)
+		coda_bit_stream_end_flag(ctx);
+
 	/* If this instance is running, call .job_abort and wait for it to end */
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
 
