@@ -978,8 +978,7 @@ static bool EthCSMatchEThTypeSAP(struct bcm_classifier_rule *pstClassifierRule,
 		if (pstEthCsPktInfo->ucDSAP ==
 				pstClassifierRule->au8EthCSEtherType[2])
 			return TRUE;
-		else
-			return false;
+		return false;
 
 	}
 
