@@ -465,6 +465,7 @@
 		pinctrl-0 = <&pwm3_pin>;
 		clocks = <&clk_gates7 10>;
 		clock-names = "pclk_pwm";
+		remote_pwm_id = <3>;
 		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 		status = "okay";
 	};

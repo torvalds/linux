@@ -1,5 +1,6 @@
 #include "rk312x-sdk.dtsi"
 #include "lcd-box.dtsi"
+#include <dt-bindings/input/input.h>
 
 / {
 	 compatible = "rockchip,rk3128";
@@ -286,6 +287,104 @@
 };
 
 &sdmmc {
-        status = "disabled";
+	status = "disabled";
 	cd-gpios = <&gpio1 GPIO_C1 GPIO_ACTIVE_HIGH>;/*CD GPIO*/
+};
+
+&remotectl {
+	handle_cpu_id = <1>;
+	ir_key1{
+		compatible = "rockchip,ir_key";
+		rockchip,usercode = <0x4040>;
+		rockchip,key_table = 
+			<0xf2	KEY_REPLY>,
+	    <0xba	KEY_BACK>, 
+	    <0xf4	KEY_UP>,
+	    <0xf1	KEY_DOWN>,
+	    <0xef	KEY_LEFT>,
+	    <0xee	KEY_RIGHT>, 
+	    <0xbd	KEY_HOME>,     
+	    <0xea	KEY_VOLUMEUP>,
+	    <0xe3	KEY_VOLUMEDOWN>,
+	    <0xe2	KEY_SEARCH>,     
+	    <0xb2	KEY_POWER>,    
+	    <0xbc	KEY_MUTE>,      
+	    <0xec	KEY_MENU>,
+	    <0xbf	0x190>,     
+	    <0xe0	0x191>,      
+	    <0xe1	0x192>,      
+	    <0xe9	183>,          
+	    <0xe6	248>,          
+	    <0xe8	185>,         
+	    <0xe7	186>,          
+	    <0xf0	388>,           
+	    <0xbe	0x175>;
+	};
+	ir_key2{
+		compatible = "rockchip,ir_key";
+		rockchip,usercode = <0xff00>;
+		rockchip,key_table = 
+			<0xf9	KEY_HOME>,    
+    	<0xbf	KEY_BACK>, 	
+    	<0xfb	KEY_MENU>,			
+    	<0xaa	KEY_REPLY>,		
+	    <0xb9	KEY_UP>,	
+	    <0xe9	KEY_DOWN>,
+	    <0xb8	KEY_LEFT>,
+	    <0xea	KEY_RIGHT>,
+	    <0xeb	KEY_VOLUMEDOWN>,
+	    <0xef	KEY_VOLUMEUP>,
+	    <0xf7	KEY_MUTE>,      
+	    <0xe7	KEY_POWER>,     
+	    <0xfc	KEY_POWER>,     
+	    <0xa9	KEY_VOLUMEDOWN>,	
+	    <0xa8	KEY_VOLUMEDOWN>,	
+	    <0xe0	KEY_VOLUMEDOWN>,	
+	    <0xa5	KEY_VOLUMEDOWN>,	
+	    <0xab	183>,	
+	    <0xb7	388>,	
+	    <0xf8	184>,	
+	    <0xaf	185>,	
+	    <0xed	KEY_VOLUMEDOWN>,	
+	    <0xee	186>,	
+	    <0xb3	KEY_VOLUMEDOWN>,	
+	    <0xf1	KEY_VOLUMEDOWN>,	
+	    <0xf2	KEY_VOLUMEDOWN>,	
+	    <0xf3	KEY_SEARCH>,	
+	    <0xb4	KEY_VOLUMEDOWN>,	
+	    <0xbe	KEY_SEARCH>;    
+	};
+	/*
+	ir_key3{
+		compatible = "rockchip,ir_key";
+		rockchip,usercode = <0x1dcc>;
+		rockchip,key_table = 
+			<0xee	KEY_REPLY>,
+			<0xf0	KEY_BACK>,
+			<0xf8	KEY_UP>,
+			<0xbb	KEY_DOWN>,
+			<0xef	KEY_LEFT>,
+			<0xed	KEY_RIGHT>,
+			<0xfc	KEY_HOME>,
+			<0xf1	KEY_VOLUMEUP>,
+			<0xfd	KEY_VOLUMEDOWN>,
+			<0xb7	KEY_SEARCH>,
+			<0xff	KEY_POWER>,
+			<0xf3	KEY_MUTE>,
+			<0xbf	KEY_MENU>,
+			<0xf9	0x191>,
+			<0xf5	0x192>,
+			<0xb3	388>,
+			<0xbe	KEY_1>,
+			<0xba	KEY_2>,
+			<0xb2	KEY_3>,
+			<0xbd	KEY_4>,
+			<0xf9	KEY_5>,
+			<0xb1	KEY_6>,
+			<0xfc	KEY_7>,
+			<0xf8	KEY_8>,
+			<0xb0	KEY_9>,
+			<0xb6	KEY_0>,
+			<0xb5	KEY_BACKSPACE>;    
+	};*/
 };
