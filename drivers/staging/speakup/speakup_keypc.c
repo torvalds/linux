@@ -229,7 +229,7 @@ spin_lock_irqsave(&speakup_info.spinlock, flags);
 			ch = PROCSPEECH;
 		outb_p(ch, synth_port);
 		SWAIT;
-		if ((jiffies >= jiff_max) && (ch == SPACE)) {
+		if (time_after_eq(jiffies, jiff_max) && (ch == SPACE)) {
 			timeout = 1000;
 			while (synth_writable())
 				if (--timeout <= 0)
