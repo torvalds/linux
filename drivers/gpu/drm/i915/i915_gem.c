@@ -5259,7 +5259,7 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 	struct drm_device *dev = dev_priv->dev;
 	struct drm_i915_gem_object *obj;
 	unsigned long timeout = msecs_to_jiffies(5000) + 1;
-	unsigned long pinned, bound, unbound, freed;
+	unsigned long pinned, bound, unbound, freed_pages;
 	bool was_interruptible;
 	bool unlock;
 
@@ -5276,7 +5276,7 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 	was_interruptible = dev_priv->mm.interruptible;
 	dev_priv->mm.interruptible = false;
 
-	freed = i915_gem_shrink_all(dev_priv);
+	freed_pages = i915_gem_shrink_all(dev_priv);
 
 	dev_priv->mm.interruptible = was_interruptible;
 
@@ -5308,13 +5308,13 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 		mutex_unlock(&dev->struct_mutex);
 
 	pr_info("Purging GPU memory, %lu bytes freed, %lu bytes still pinned.\n",
-		freed, pinned);
+		freed_pages << PAGE_SHIFT, pinned);
 	if (unbound || bound)
 		pr_err("%lu and %lu bytes still available in the "
 		       "bound and unbound GPU page lists.\n",
 		       bound, unbound);
 
-	*(unsigned long *)ptr += freed;
+	*(unsigned long *)ptr += freed_pages;
 	return NOTIFY_DONE;
 }
 
