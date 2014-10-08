@@ -362,25 +362,19 @@ static int nfs4_stat_to_errno(int);
 				XDR_QUADLEN(NFS4_MAX_SESSIONID_LEN) + 5)
 #define encode_reclaim_complete_maxsz	(op_encode_hdr_maxsz + 4)
 #define decode_reclaim_complete_maxsz	(op_decode_hdr_maxsz + 4)
-#define encode_getdevicelist_maxsz (op_encode_hdr_maxsz + 4 + \
-				encode_verifier_maxsz)
-#define decode_getdevicelist_maxsz (op_decode_hdr_maxsz + \
-				2 /* nfs_cookie4 gdlr_cookie */ + \
-				decode_verifier_maxsz \
-				  /* verifier4 gdlr_verifier */ + \
-				1 /* gdlr_deviceid_list count */ + \
-				XDR_QUADLEN(NFS4_PNFS_GETDEVLIST_MAXNUM * \
-					    NFS4_DEVICEID4_SIZE) \
-				  /* gdlr_deviceid_list */ + \
-				1 /* bool gdlr_eof */)
-#define encode_getdeviceinfo_maxsz (op_encode_hdr_maxsz + 4 + \
-				XDR_QUADLEN(NFS4_DEVICEID4_SIZE))
+#define encode_getdeviceinfo_maxsz (op_encode_hdr_maxsz + \
+				XDR_QUADLEN(NFS4_DEVICEID4_SIZE) + \
+				1 /* layout type */ + \
+				1 /* maxcount */ + \
+				1 /* bitmap size */ + \
+				1 /* notification bitmap length */ + \
+				1 /* notification bitmap, word 0 */)
 #define decode_getdeviceinfo_maxsz (op_decode_hdr_maxsz + \
 				1 /* layout type */ + \
 				1 /* opaque devaddr4 length */ + \
 				  /* devaddr4 payload is read into page */ \
 				1 /* notification bitmap length */ + \
-				1 /* notification bitmap */)
+				1 /* notification bitmap, word 0 */)
 #define encode_layoutget_maxsz	(op_encode_hdr_maxsz + 10 + \
 				encode_stateid_maxsz)
 #define decode_layoutget_maxsz	(op_decode_hdr_maxsz + 8 + \
@@ -395,7 +389,10 @@ static int nfs4_stat_to_errno(int);
 				2 /* last byte written */ + \
 				1 /* nt_timechanged (false) */ + \
 				1 /* layoutupdate4 layout type */ + \
-				1 /* NULL filelayout layoutupdate4 payload */)
+				1 /* layoutupdate4 opaqueue len */)
+				  /* the actual content of layoutupdate4 should
+				     be allocated by drivers and spliced in
+				     using xdr_write_pages */
 #define decode_layoutcommit_maxsz (op_decode_hdr_maxsz + 3)
 #define encode_layoutreturn_maxsz (8 + op_encode_hdr_maxsz + \
 				encode_stateid_maxsz + \
@@ -809,14 +806,6 @@ static int nfs4_stat_to_errno(int);
 #define NFS4_dec_reclaim_complete_sz	(compound_decode_hdr_maxsz + \
 					 decode_sequence_maxsz + \
 					 decode_reclaim_complete_maxsz)
-#define NFS4_enc_getdevicelist_sz (compound_encode_hdr_maxsz + \
-				encode_sequence_maxsz + \
-				encode_putfh_maxsz + \
-				encode_getdevicelist_maxsz)
-#define NFS4_dec_getdevicelist_sz (compound_decode_hdr_maxsz + \
-				decode_sequence_maxsz + \
-				decode_putfh_maxsz + \
-				decode_getdevicelist_maxsz)
 #define NFS4_enc_getdeviceinfo_sz (compound_encode_hdr_maxsz +    \
 				encode_sequence_maxsz +\
 				encode_getdeviceinfo_maxsz)
@@ -1927,24 +1916,6 @@ static void encode_sequence(struct xdr_stream *xdr,
 
 #ifdef CONFIG_NFS_V4_1
 static void
-encode_getdevicelist(struct xdr_stream *xdr,
-		     const struct nfs4_getdevicelist_args *args,
-		     struct compound_hdr *hdr)
-{
-	__be32 *p;
-	nfs4_verifier dummy = {
-		.data = "dummmmmy",
-	};
-
-	encode_op_hdr(xdr, OP_GETDEVICELIST, decode_getdevicelist_maxsz, hdr);
-	p = reserve_space(xdr, 16);
-	*p++ = cpu_to_be32(args->layoutclass);
-	*p++ = cpu_to_be32(NFS4_PNFS_GETDEVLIST_MAXNUM);
-	xdr_encode_hyper(p, 0ULL);                          /* cookie */
-	encode_nfs4_verifier(xdr, &dummy);
-}
-
-static void
 encode_getdeviceinfo(struct xdr_stream *xdr,
 		     const struct nfs4_getdeviceinfo_args *args,
 		     struct compound_hdr *hdr)
@@ -1952,12 +1923,15 @@ encode_getdeviceinfo(struct xdr_stream *xdr,
 	__be32 *p;
 
 	encode_op_hdr(xdr, OP_GETDEVICEINFO, decode_getdeviceinfo_maxsz, hdr);
-	p = reserve_space(xdr, 12 + NFS4_DEVICEID4_SIZE);
+	p = reserve_space(xdr, NFS4_DEVICEID4_SIZE + 4 + 4);
 	p = xdr_encode_opaque_fixed(p, args->pdev->dev_id.data,
 				    NFS4_DEVICEID4_SIZE);
 	*p++ = cpu_to_be32(args->pdev->layout_type);
 	*p++ = cpu_to_be32(args->pdev->maxcount);	/* gdia_maxcount */
-	*p++ = cpu_to_be32(0);				/* bitmap length 0 */
+
+	p = reserve_space(xdr, 4 + 4);
+	*p++ = cpu_to_be32(1);			/* bitmap length */
+	*p++ = cpu_to_be32(NOTIFY_DEVICEID4_CHANGE | NOTIFY_DEVICEID4_DELETE);
 }
 
 static void
@@ -1990,7 +1964,7 @@ encode_layoutget(struct xdr_stream *xdr,
 static int
 encode_layoutcommit(struct xdr_stream *xdr,
 		    struct inode *inode,
-		    const struct nfs4_layoutcommit_args *args,
+		    struct nfs4_layoutcommit_args *args,
 		    struct compound_hdr *hdr)
 {
 	__be32 *p;
@@ -2011,11 +1985,16 @@ encode_layoutcommit(struct xdr_stream *xdr,
 	*p++ = cpu_to_be32(0); /* Never send time_modify_changed */
 	*p++ = cpu_to_be32(NFS_SERVER(args->inode)->pnfs_curr_ld->id);/* type */
 
-	if (NFS_SERVER(inode)->pnfs_curr_ld->encode_layoutcommit)
+	if (NFS_SERVER(inode)->pnfs_curr_ld->encode_layoutcommit) {
 		NFS_SERVER(inode)->pnfs_curr_ld->encode_layoutcommit(
 			NFS_I(inode)->layout, xdr, args);
-	else
-		encode_uint32(xdr, 0); /* no layout-type payload */
+	} else {
+		encode_uint32(xdr, args->layoutupdate_len);
+		if (args->layoutupdate_pages) {
+			xdr_write_pages(xdr, args->layoutupdate_pages, 0,
+					args->layoutupdate_len);
+		}
+	}
 
 	return 0;
 }
@@ -2889,24 +2868,6 @@ static void nfs4_xdr_enc_reclaim_complete(struct rpc_rqst *req,
 	encode_compound_hdr(xdr, req, &hdr);
 	encode_sequence(xdr, &args->seq_args, &hdr);
 	encode_reclaim_complete(xdr, args, &hdr);
-	encode_nops(&hdr);
-}
-
-/*
- * Encode GETDEVICELIST request
- */
-static void nfs4_xdr_enc_getdevicelist(struct rpc_rqst *req,
-				       struct xdr_stream *xdr,
-				       struct nfs4_getdevicelist_args *args)
-{
-	struct compound_hdr hdr = {
-		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
-	};
-
-	encode_compound_hdr(xdr, req, &hdr);
-	encode_sequence(xdr, &args->seq_args, &hdr);
-	encode_putfh(xdr, args->fh, &hdr);
-	encode_getdevicelist(xdr, args, &hdr);
 	encode_nops(&hdr);
 }
 
@@ -5765,54 +5726,6 @@ out_overflow:
 }
 
 #if defined(CONFIG_NFS_V4_1)
-/*
- * TODO: Need to handle case when EOF != true;
- */
-static int decode_getdevicelist(struct xdr_stream *xdr,
-				struct pnfs_devicelist *res)
-{
-	__be32 *p;
-	int status, i;
-	nfs4_verifier verftemp;
-
-	status = decode_op_hdr(xdr, OP_GETDEVICELIST);
-	if (status)
-		return status;
-
-	p = xdr_inline_decode(xdr, 8 + 8 + 4);
-	if (unlikely(!p))
-		goto out_overflow;
-
-	/* TODO: Skip cookie for now */
-	p += 2;
-
-	/* Read verifier */
-	p = xdr_decode_opaque_fixed(p, verftemp.data, NFS4_VERIFIER_SIZE);
-
-	res->num_devs = be32_to_cpup(p);
-
-	dprintk("%s: num_dev %d\n", __func__, res->num_devs);
-
-	if (res->num_devs > NFS4_PNFS_GETDEVLIST_MAXNUM) {
-		printk(KERN_ERR "NFS: %s too many result dev_num %u\n",
-				__func__, res->num_devs);
-		return -EIO;
-	}
-
-	p = xdr_inline_decode(xdr,
-			      res->num_devs * NFS4_DEVICEID4_SIZE + 4);
-	if (unlikely(!p))
-		goto out_overflow;
-	for (i = 0; i < res->num_devs; i++)
-		p = xdr_decode_opaque_fixed(p, res->dev_id[i].data,
-					    NFS4_DEVICEID4_SIZE);
-	res->eof = be32_to_cpup(p);
-	return 0;
-out_overflow:
-	print_overflow_msg(__func__, xdr);
-	return -EIO;
-}
-
 static int decode_getdeviceinfo(struct xdr_stream *xdr,
 				struct pnfs_device *pdev)
 {
@@ -5862,9 +5775,16 @@ static int decode_getdeviceinfo(struct xdr_stream *xdr,
 		p = xdr_inline_decode(xdr, 4 * len);
 		if (unlikely(!p))
 			goto out_overflow;
-		for (i = 0; i < len; i++, p++) {
-			if (be32_to_cpup(p)) {
-				dprintk("%s: notifications not supported\n",
+
+		if (be32_to_cpup(p++) &
+		    ~(NOTIFY_DEVICEID4_CHANGE | NOTIFY_DEVICEID4_DELETE)) {
+			dprintk("%s: unsupported notification\n",
+				__func__);
+		}
+
+		for (i = 1; i < len; i++) {
+			if (be32_to_cpup(p++)) {
+				dprintk("%s: unsupported notification\n",
 					__func__);
 				return -EIO;
 			}
@@ -7097,32 +7017,6 @@ static int nfs4_xdr_dec_reclaim_complete(struct rpc_rqst *rqstp,
 }
 
 /*
- * Decode GETDEVICELIST response
- */
-static int nfs4_xdr_dec_getdevicelist(struct rpc_rqst *rqstp,
-				      struct xdr_stream *xdr,
-				      struct nfs4_getdevicelist_res *res)
-{
-	struct compound_hdr hdr;
-	int status;
-
-	dprintk("encoding getdevicelist!\n");
-
-	status = decode_compound_hdr(xdr, &hdr);
-	if (status != 0)
-		goto out;
-	status = decode_sequence(xdr, &res->seq_res, rqstp);
-	if (status != 0)
-		goto out;
-	status = decode_putfh(xdr);
-	if (status != 0)
-		goto out;
-	status = decode_getdevicelist(xdr, res->devlist);
-out:
-	return status;
-}
-
-/*
  * Decode GETDEVINFO response
  */
 static int nfs4_xdr_dec_getdeviceinfo(struct rpc_rqst *rqstp,
@@ -7490,7 +7384,6 @@ struct rpc_procinfo	nfs4_procedures[] = {
 	PROC(SECINFO_NO_NAME,	enc_secinfo_no_name,	dec_secinfo_no_name),
 	PROC(TEST_STATEID,	enc_test_stateid,	dec_test_stateid),
 	PROC(FREE_STATEID,	enc_free_stateid,	dec_free_stateid),
-	PROC(GETDEVICELIST,	enc_getdevicelist,	dec_getdevicelist),
 	PROC(BIND_CONN_TO_SESSION,
 			enc_bind_conn_to_session, dec_bind_conn_to_session),
 	PROC(DESTROY_CLIENTID,	enc_destroy_clientid,	dec_destroy_clientid),

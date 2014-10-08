@@ -670,17 +670,13 @@ EXPORT_SYMBOL(__page_cache_alloc);
  * at a cost of "thundering herd" phenomena during rare hash
  * collisions.
  */
-static wait_queue_head_t *page_waitqueue(struct page *page)
+wait_queue_head_t *page_waitqueue(struct page *page)
 {
 	const struct zone *zone = page_zone(page);
 
 	return &zone->wait_table[hash_ptr(page, zone->wait_table_bits)];
 }
-
-static inline void wake_up_page(struct page *page, int bit)
-{
-	__wake_up_bit(page_waitqueue(page), &page->flags, bit);
-}
+EXPORT_SYMBOL(page_waitqueue);
 
 void wait_on_page_bit(struct page *page, int bit_nr)
 {
@@ -702,6 +698,19 @@ int wait_on_page_bit_killable(struct page *page, int bit_nr)
 	return __wait_on_bit(page_waitqueue(page), &wait,
 			     bit_wait_io, TASK_KILLABLE);
 }
+
+int wait_on_page_bit_killable_timeout(struct page *page,
+				       int bit_nr, unsigned long timeout)
+{
+	DEFINE_WAIT_BIT(wait, &page->flags, bit_nr);
+
+	wait.key.timeout = jiffies + timeout;
+	if (!test_bit(bit_nr, &page->flags))
+		return 0;
+	return __wait_on_bit(page_waitqueue(page), &wait,
+			     bit_wait_io_timeout, TASK_KILLABLE);
+}
+EXPORT_SYMBOL_GPL(wait_on_page_bit_killable_timeout);
 
 /**
  * add_page_wait_queue - Add an arbitrary waiter to a page's wait queue

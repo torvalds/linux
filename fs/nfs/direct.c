@@ -178,7 +178,6 @@ static int nfs_direct_set_or_cmp_hdr_verf(struct nfs_direct_req *dreq,
 	return memcmp(verfp, &hdr->verf, sizeof(struct nfs_writeverf));
 }
 
-#if IS_ENABLED(CONFIG_NFS_V3) || IS_ENABLED(CONFIG_NFS_V4)
 /*
  * nfs_direct_cmp_commit_data_verf - compare verifier for commit data
  * @dreq - direct request possibly spanning multiple servers
@@ -197,7 +196,6 @@ static int nfs_direct_cmp_commit_data_verf(struct nfs_direct_req *dreq,
 	WARN_ON_ONCE(verfp->committed < 0);
 	return memcmp(verfp, &data->verf, sizeof(struct nfs_writeverf));
 }
-#endif
 
 /**
  * nfs_direct_IO - NFS address space operation for direct I/O
@@ -576,7 +574,6 @@ out:
 	return result;
 }
 
-#if IS_ENABLED(CONFIG_NFS_V3) || IS_ENABLED(CONFIG_NFS_V4)
 static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 {
 	struct nfs_pageio_descriptor desc;
@@ -699,17 +696,6 @@ static void nfs_direct_write_complete(struct nfs_direct_req *dreq, struct inode 
 {
 	schedule_work(&dreq->work); /* Calls nfs_direct_write_schedule_work */
 }
-
-#else
-static void nfs_direct_write_schedule_work(struct work_struct *work)
-{
-}
-
-static void nfs_direct_write_complete(struct nfs_direct_req *dreq, struct inode *inode)
-{
-	nfs_direct_complete(dreq, true);
-}
-#endif
 
 static void nfs_direct_write_completion(struct nfs_pgio_header *hdr)
 {

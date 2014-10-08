@@ -594,6 +594,9 @@ pnfs_layout_free_bulk_destroy_list(struct list_head *layout_list,
 		dprintk("%s freeing layout for inode %lu\n", __func__,
 			lo->plh_inode->i_ino);
 		inode = lo->plh_inode;
+
+		pnfs_layoutcommit_inode(inode, false);
+
 		spin_lock(&inode->i_lock);
 		list_del_init(&lo->plh_bulk_destroy);
 		lo->plh_block_lgets++; /* permanently block new LAYOUTGETs */
@@ -682,17 +685,6 @@ static bool pnfs_seqid_is_newer(u32 s1, u32 s2)
 	return (s32)(s1 - s2) > 0;
 }
 
-static void
-pnfs_verify_layout_stateid(struct pnfs_layout_hdr *lo,
-		const nfs4_stateid *new,
-		struct list_head *free_me_list)
-{
-	if (nfs4_stateid_match_other(&lo->plh_stateid, new))
-		return;
-	/* Layout is new! Kill existing layout segments */
-	pnfs_mark_matching_lsegs_invalid(lo, free_me_list, NULL);
-}
-
 /* update lo->plh_stateid with new if is more recent */
 void
 pnfs_set_layout_stateid(struct pnfs_layout_hdr *lo, const nfs4_stateid *new,
@@ -749,7 +741,8 @@ pnfs_choose_layoutget_stateid(nfs4_stateid *dst, struct pnfs_layout_hdr *lo,
 		status = -EAGAIN;
 	} else if (!nfs4_valid_open_stateid(open_state)) {
 		status = -EBADF;
-	} else if (list_empty(&lo->plh_segs)) {
+	} else if (list_empty(&lo->plh_segs) ||
+		   test_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags)) {
 		int seq;
 
 		do {
@@ -864,6 +857,16 @@ _pnfs_return_layout(struct inode *ino)
 	empty = list_empty(&lo->plh_segs);
 	pnfs_clear_layoutcommit(ino, &tmp_list);
 	pnfs_mark_matching_lsegs_invalid(lo, &tmp_list, NULL);
+
+	if (NFS_SERVER(ino)->pnfs_curr_ld->return_range) {
+		struct pnfs_layout_range range = {
+			.iomode		= IOMODE_ANY,
+			.offset		= 0,
+			.length		= NFS4_MAX_UINT64,
+		};
+		NFS_SERVER(ino)->pnfs_curr_ld->return_range(lo, &range);
+	}
+
 	/* Don't send a LAYOUTRETURN if list was initially empty */
 	if (empty) {
 		spin_unlock(&ino->i_lock);
@@ -871,6 +874,8 @@ _pnfs_return_layout(struct inode *ino)
 		dprintk("NFS: %s no layout segments to return\n", __func__);
 		goto out;
 	}
+
+	set_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags);
 	lo->plh_block_lgets++;
 	spin_unlock(&ino->i_lock);
 	pnfs_free_lseg_list(&tmp_list);
@@ -1358,25 +1363,41 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 		goto out;
 	}
 
+	init_lseg(lo, lseg);
+	lseg->pls_range = res->range;
+
 	spin_lock(&ino->i_lock);
 	if (test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags)) {
 		dprintk("%s forget reply due to recall\n", __func__);
 		goto out_forget_reply;
 	}
 
-	if (pnfs_layoutgets_blocked(lo, 1) ||
-	    pnfs_layout_stateid_blocked(lo, &res->stateid)) {
+	if (pnfs_layoutgets_blocked(lo, 1)) {
 		dprintk("%s forget reply due to state\n", __func__);
 		goto out_forget_reply;
 	}
 
-	/* Check that the new stateid matches the old stateid */
-	pnfs_verify_layout_stateid(lo, &res->stateid, &free_me);
-	/* Done processing layoutget. Set the layout stateid */
-	pnfs_set_layout_stateid(lo, &res->stateid, false);
+	if (nfs4_stateid_match_other(&lo->plh_stateid, &res->stateid)) {
+		/* existing state ID, make sure the sequence number matches. */
+		if (pnfs_layout_stateid_blocked(lo, &res->stateid)) {
+			dprintk("%s forget reply due to sequence\n", __func__);
+			goto out_forget_reply;
+		}
+		pnfs_set_layout_stateid(lo, &res->stateid, false);
+	} else {
+		/*
+		 * We got an entirely new state ID.  Mark all segments for the
+		 * inode invalid, and don't bother validating the stateid
+		 * sequence number.
+		 */
+		pnfs_mark_matching_lsegs_invalid(lo, &free_me, NULL);
 
-	init_lseg(lo, lseg);
-	lseg->pls_range = res->range;
+		nfs4_stateid_copy(&lo->plh_stateid, &res->stateid);
+		lo->plh_barrier = be32_to_cpu(res->stateid.seqid);
+	}
+
+	clear_bit(NFS_LAYOUT_INVALID_STID, &lo->plh_flags);
+
 	pnfs_get_lseg(lseg);
 	pnfs_layout_insert_lseg(lo, lseg);
 
@@ -1797,6 +1818,35 @@ pnfs_set_layoutcommit(struct nfs_pgio_header *hdr)
 }
 EXPORT_SYMBOL_GPL(pnfs_set_layoutcommit);
 
+void pnfs_commit_set_layoutcommit(struct nfs_commit_data *data)
+{
+	struct inode *inode = data->inode;
+	struct nfs_inode *nfsi = NFS_I(inode);
+	bool mark_as_dirty = false;
+
+	spin_lock(&inode->i_lock);
+	if (!test_and_set_bit(NFS_INO_LAYOUTCOMMIT, &nfsi->flags)) {
+		mark_as_dirty = true;
+		dprintk("%s: Set layoutcommit for inode %lu ",
+			__func__, inode->i_ino);
+	}
+	if (!test_and_set_bit(NFS_LSEG_LAYOUTCOMMIT, &data->lseg->pls_flags)) {
+		/* references matched in nfs4_layoutcommit_release */
+		pnfs_get_lseg(data->lseg);
+	}
+	if (data->lwb > nfsi->layout->plh_lwb)
+		nfsi->layout->plh_lwb = data->lwb;
+	spin_unlock(&inode->i_lock);
+	dprintk("%s: lseg %p end_pos %llu\n",
+		__func__, data->lseg, nfsi->layout->plh_lwb);
+
+	/* if pnfs_layoutcommit_inode() runs between inode locks, the next one
+	 * will be a noop because NFS_INO_LAYOUTCOMMIT will not be set */
+	if (mark_as_dirty)
+		mark_inode_dirty_sync(inode);
+}
+EXPORT_SYMBOL_GPL(pnfs_commit_set_layoutcommit);
+
 void pnfs_cleanup_layoutcommit(struct nfs4_layoutcommit_data *data)
 {
 	struct nfs_server *nfss = NFS_SERVER(data->args.inode);
@@ -1817,6 +1867,7 @@ void pnfs_cleanup_layoutcommit(struct nfs4_layoutcommit_data *data)
 int
 pnfs_layoutcommit_inode(struct inode *inode, bool sync)
 {
+	struct pnfs_layoutdriver_type *ld = NFS_SERVER(inode)->pnfs_curr_ld;
 	struct nfs4_layoutcommit_data *data;
 	struct nfs_inode *nfsi = NFS_I(inode);
 	loff_t end_pos;
@@ -1866,6 +1917,20 @@ pnfs_layoutcommit_inode(struct inode *inode, bool sync)
 	data->res.fattr = &data->fattr;
 	data->args.lastbytewritten = end_pos - 1;
 	data->res.server = NFS_SERVER(inode);
+
+	if (ld->prepare_layoutcommit) {
+		status = ld->prepare_layoutcommit(&data->args);
+		if (status) {
+			spin_lock(&inode->i_lock);
+			if (end_pos < nfsi->layout->plh_lwb)
+				nfsi->layout->plh_lwb = end_pos;
+			spin_unlock(&inode->i_lock);
+			put_rpccred(data->cred);
+			set_bit(NFS_INO_LAYOUTCOMMIT, &nfsi->flags);
+			goto clear_layoutcommitting;
+		}
+	}
+
 
 	status = nfs4_proc_layoutcommit(data, sync);
 out:

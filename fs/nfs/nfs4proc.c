@@ -77,7 +77,7 @@ struct nfs4_opendata;
 static int _nfs4_proc_open(struct nfs4_opendata *data);
 static int _nfs4_recover_proc_open(struct nfs4_opendata *data);
 static int nfs4_do_fsinfo(struct nfs_server *, struct nfs_fh *, struct nfs_fsinfo *);
-static int nfs4_async_handle_error(struct rpc_task *, const struct nfs_server *, struct nfs4_state *);
+static int nfs4_async_handle_error(struct rpc_task *, const struct nfs_server *, struct nfs4_state *, long *);
 static void nfs_fixup_referral_attributes(struct nfs_fattr *fattr);
 static int nfs4_proc_getattr(struct nfs_server *, struct nfs_fh *, struct nfs_fattr *, struct nfs4_label *label);
 static int _nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle, struct nfs_fattr *fattr, struct nfs4_label *label);
@@ -314,20 +314,30 @@ static void nfs4_setup_readdir(u64 cookie, __be32 *verifier, struct dentry *dent
 	kunmap_atomic(start);
 }
 
+static long nfs4_update_delay(long *timeout)
+{
+	long ret;
+	if (!timeout)
+		return NFS4_POLL_RETRY_MAX;
+	if (*timeout <= 0)
+		*timeout = NFS4_POLL_RETRY_MIN;
+	if (*timeout > NFS4_POLL_RETRY_MAX)
+		*timeout = NFS4_POLL_RETRY_MAX;
+	ret = *timeout;
+	*timeout <<= 1;
+	return ret;
+}
+
 static int nfs4_delay(struct rpc_clnt *clnt, long *timeout)
 {
 	int res = 0;
 
 	might_sleep();
 
-	if (*timeout <= 0)
-		*timeout = NFS4_POLL_RETRY_MIN;
-	if (*timeout > NFS4_POLL_RETRY_MAX)
-		*timeout = NFS4_POLL_RETRY_MAX;
-	freezable_schedule_timeout_killable_unsafe(*timeout);
+	freezable_schedule_timeout_killable_unsafe(
+		nfs4_update_delay(timeout));
 	if (fatal_signal_pending(current))
 		res = -ERESTARTSYS;
-	*timeout <<= 1;
 	return res;
 }
 
@@ -1307,15 +1317,13 @@ static struct nfs4_state *nfs4_try_open_cached(struct nfs4_opendata *opendata)
 	int ret = -EAGAIN;
 
 	for (;;) {
+		spin_lock(&state->owner->so_lock);
 		if (can_open_cached(state, fmode, open_mode)) {
-			spin_lock(&state->owner->so_lock);
-			if (can_open_cached(state, fmode, open_mode)) {
-				update_open_stateflags(state, fmode);
-				spin_unlock(&state->owner->so_lock);
-				goto out_return_state;
-			}
+			update_open_stateflags(state, fmode);
 			spin_unlock(&state->owner->so_lock);
+			goto out_return_state;
 		}
+		spin_unlock(&state->owner->so_lock);
 		rcu_read_lock();
 		delegation = rcu_dereference(nfsi->delegation);
 		if (!can_open_delegated(delegation, fmode)) {
@@ -2589,7 +2597,7 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 			if (calldata->arg.fmode == 0)
 				break;
 		default:
-			if (nfs4_async_handle_error(task, server, state) == -EAGAIN) {
+			if (nfs4_async_handle_error(task, server, state, NULL) == -EAGAIN) {
 				rpc_restart_call_prepare(task);
 				goto out_release;
 			}
@@ -3217,7 +3225,9 @@ nfs4_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 	struct nfs4_label *label = NULL;
 	int status;
 
-	if (pnfs_ld_layoutret_on_setattr(inode))
+	if (pnfs_ld_layoutret_on_setattr(inode) &&
+	    sattr->ia_valid & ATTR_SIZE &&
+	    sattr->ia_size < i_size_read(inode))
 		pnfs_commit_and_return_layout(inode);
 
 	nfs_fattr_init(fattr);
@@ -3576,7 +3586,8 @@ static int nfs4_proc_unlink_done(struct rpc_task *task, struct inode *dir)
 
 	if (!nfs4_sequence_done(task, &res->seq_res))
 		return 0;
-	if (nfs4_async_handle_error(task, res->server, NULL) == -EAGAIN)
+	if (nfs4_async_handle_error(task, res->server, NULL,
+				    &data->timeout) == -EAGAIN)
 		return 0;
 	update_changeattr(dir, &res->cinfo);
 	return 1;
@@ -3609,7 +3620,7 @@ static int nfs4_proc_rename_done(struct rpc_task *task, struct inode *old_dir,
 
 	if (!nfs4_sequence_done(task, &res->seq_res))
 		return 0;
-	if (nfs4_async_handle_error(task, res->server, NULL) == -EAGAIN)
+	if (nfs4_async_handle_error(task, res->server, NULL, &data->timeout) == -EAGAIN)
 		return 0;
 
 	update_changeattr(old_dir, &res->old_cinfo);
@@ -4113,7 +4124,8 @@ static int nfs4_read_done_cb(struct rpc_task *task, struct nfs_pgio_header *hdr)
 
 	trace_nfs4_read(hdr, task->tk_status);
 	if (nfs4_async_handle_error(task, server,
-				    hdr->args.context->state) == -EAGAIN) {
+				    hdr->args.context->state,
+				    NULL) == -EAGAIN) {
 		rpc_restart_call_prepare(task);
 		return -EAGAIN;
 	}
@@ -4181,10 +4193,11 @@ static int nfs4_write_done_cb(struct rpc_task *task,
 			      struct nfs_pgio_header *hdr)
 {
 	struct inode *inode = hdr->inode;
-	
+
 	trace_nfs4_write(hdr, task->tk_status);
 	if (nfs4_async_handle_error(task, NFS_SERVER(inode),
-				    hdr->args.context->state) == -EAGAIN) {
+				    hdr->args.context->state,
+				    NULL) == -EAGAIN) {
 		rpc_restart_call_prepare(task);
 		return -EAGAIN;
 	}
@@ -4264,7 +4277,8 @@ static int nfs4_commit_done_cb(struct rpc_task *task, struct nfs_commit_data *da
 	struct inode *inode = data->inode;
 
 	trace_nfs4_commit(data, task->tk_status);
-	if (nfs4_async_handle_error(task, NFS_SERVER(inode), NULL) == -EAGAIN) {
+	if (nfs4_async_handle_error(task, NFS_SERVER(inode),
+				    NULL, NULL) == -EAGAIN) {
 		rpc_restart_call_prepare(task);
 		return -EAGAIN;
 	}
@@ -4817,7 +4831,8 @@ out:
 
 
 static int
-nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server, struct nfs4_state *state)
+nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server,
+			struct nfs4_state *state, long *timeout)
 {
 	struct nfs_client *clp = server->nfs_client;
 
@@ -4867,6 +4882,8 @@ nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server, 
 #endif /* CONFIG_NFS_V4_1 */
 		case -NFS4ERR_DELAY:
 			nfs_inc_server_stats(server, NFSIOS_DELAY);
+			rpc_delay(task, nfs4_update_delay(timeout));
+			goto restart_call;
 		case -NFS4ERR_GRACE:
 			rpc_delay(task, NFS4_POLL_RETRY_MAX);
 		case -NFS4ERR_RETRY_UNCACHED_REP:
@@ -5107,8 +5124,8 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 			pnfs_roc_set_barrier(data->inode, data->roc_barrier);
 		break;
 	default:
-		if (nfs4_async_handle_error(task, data->res.server, NULL) ==
-				-EAGAIN) {
+		if (nfs4_async_handle_error(task, data->res.server,
+					    NULL, NULL) == -EAGAIN) {
 			rpc_restart_call_prepare(task);
 			return;
 		}
@@ -5372,7 +5389,8 @@ static void nfs4_locku_done(struct rpc_task *task, void *data)
 		case -NFS4ERR_EXPIRED:
 			break;
 		default:
-			if (nfs4_async_handle_error(task, calldata->server, NULL) == -EAGAIN)
+			if (nfs4_async_handle_error(task, calldata->server,
+						    NULL, NULL) == -EAGAIN)
 				rpc_restart_call_prepare(task);
 	}
 	nfs_release_seqid(calldata->arg.seqid);
@@ -5978,7 +5996,8 @@ static void nfs4_release_lockowner_done(struct rpc_task *task, void *calldata)
 		break;
 	case -NFS4ERR_LEASE_MOVED:
 	case -NFS4ERR_DELAY:
-		if (nfs4_async_handle_error(task, server, NULL) == -EAGAIN)
+		if (nfs4_async_handle_error(task, server,
+					    NULL, NULL) == -EAGAIN)
 			rpc_restart_call_prepare(task);
 	}
 }
@@ -7353,7 +7372,7 @@ static int nfs41_proc_async_sequence(struct nfs_client *clp, struct rpc_cred *cr
 	int ret = 0;
 
 	if ((renew_flags & NFS4_RENEW_TIMEOUT) == 0)
-		return 0;
+		return -EAGAIN;
 	task = _nfs41_proc_sequence(clp, cred, false);
 	if (IS_ERR(task))
 		ret = PTR_ERR(task);
@@ -7583,14 +7602,19 @@ static void nfs4_layoutget_done(struct rpc_task *task, void *calldata)
 		} else {
 			LIST_HEAD(head);
 
+			/*
+			 * Mark the bad layout state as invalid, then retry
+			 * with the current stateid.
+			 */
 			pnfs_mark_matching_lsegs_invalid(lo, &head, NULL);
 			spin_unlock(&inode->i_lock);
-			/* Mark the bad layout state as invalid, then
-			 * retry using the open stateid. */
 			pnfs_free_lseg_list(&head);
+	
+			task->tk_status = 0;
+			rpc_restart_call_prepare(task);
 		}
 	}
-	if (nfs4_async_handle_error(task, server, state) == -EAGAIN)
+	if (nfs4_async_handle_error(task, server, state, NULL) == -EAGAIN)
 		rpc_restart_call_prepare(task);
 out:
 	dprintk("<-- %s\n", __func__);
@@ -7750,7 +7774,7 @@ static void nfs4_layoutreturn_done(struct rpc_task *task, void *calldata)
 	case 0:
 		break;
 	case -NFS4ERR_DELAY:
-		if (nfs4_async_handle_error(task, server, NULL) != -EAGAIN)
+		if (nfs4_async_handle_error(task, server, NULL, NULL) != -EAGAIN)
 			break;
 		rpc_restart_call_prepare(task);
 		return;
@@ -7808,54 +7832,6 @@ int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp)
 	rpc_put_task(task);
 	return status;
 }
-
-/*
- * Retrieve the list of Data Server devices from the MDS.
- */
-static int _nfs4_getdevicelist(struct nfs_server *server,
-				    const struct nfs_fh *fh,
-				    struct pnfs_devicelist *devlist)
-{
-	struct nfs4_getdevicelist_args args = {
-		.fh = fh,
-		.layoutclass = server->pnfs_curr_ld->id,
-	};
-	struct nfs4_getdevicelist_res res = {
-		.devlist = devlist,
-	};
-	struct rpc_message msg = {
-		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_GETDEVICELIST],
-		.rpc_argp = &args,
-		.rpc_resp = &res,
-	};
-	int status;
-
-	dprintk("--> %s\n", __func__);
-	status = nfs4_call_sync(server->client, server, &msg, &args.seq_args,
-				&res.seq_res, 0);
-	dprintk("<-- %s status=%d\n", __func__, status);
-	return status;
-}
-
-int nfs4_proc_getdevicelist(struct nfs_server *server,
-			    const struct nfs_fh *fh,
-			    struct pnfs_devicelist *devlist)
-{
-	struct nfs4_exception exception = { };
-	int err;
-
-	do {
-		err = nfs4_handle_exception(server,
-				_nfs4_getdevicelist(server, fh, devlist),
-				&exception);
-	} while (exception.retry);
-
-	dprintk("%s: err=%d, num_devs=%u\n", __func__,
-		err, devlist->num_devs);
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(nfs4_proc_getdevicelist);
 
 static int
 _nfs4_proc_getdeviceinfo(struct nfs_server *server,
@@ -7929,7 +7905,7 @@ nfs4_layoutcommit_done(struct rpc_task *task, void *calldata)
 	case 0:
 		break;
 	default:
-		if (nfs4_async_handle_error(task, server, NULL) == -EAGAIN) {
+		if (nfs4_async_handle_error(task, server, NULL, NULL) == -EAGAIN) {
 			rpc_restart_call_prepare(task);
 			return;
 		}
@@ -8225,7 +8201,7 @@ static void nfs41_free_stateid_done(struct rpc_task *task, void *calldata)
 
 	switch (task->tk_status) {
 	case -NFS4ERR_DELAY:
-		if (nfs4_async_handle_error(task, data->server, NULL) == -EAGAIN)
+		if (nfs4_async_handle_error(task, data->server, NULL, NULL) == -EAGAIN)
 			rpc_restart_call_prepare(task);
 	}
 }
