@@ -306,10 +306,14 @@ struct net_bridge
 
 struct br_input_skb_cb {
 	struct net_device *brdev;
+
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	int igmp;
 	int mrouters_only;
 #endif
+
+	u16 frag_max_size;
+
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	bool vlan_filtered;
 #endif

@@ -528,9 +528,10 @@ pop_stack:
 		match_idx = stack[--stackp];
 		cur_match = tcf_em_get_match(tree, match_idx);
 
+		if (tcf_em_is_inverted(cur_match))
+			res = !res;
+
 		if (tcf_em_early_end(cur_match, res)) {
-			if (tcf_em_is_inverted(cur_match))
-				res = !res;
 			goto pop_stack;
 		} else {
 			match_idx++;

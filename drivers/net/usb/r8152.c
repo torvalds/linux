@@ -980,9 +980,14 @@ static int rtl8152_set_mac_address(struct net_device *netdev, void *p)
 {
 	struct r8152 *tp = netdev_priv(netdev);
 	struct sockaddr *addr = p;
+	int ret = -EADDRNOTAVAIL;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
+		goto out1;
+
+	ret = usb_autopm_get_interface(tp->intf);
+	if (ret < 0)
+		goto out1;
 
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 
@@ -990,7 +995,9 @@ static int rtl8152_set_mac_address(struct net_device *netdev, void *p)
 	pla_ocp_write(tp, PLA_IDR, BYTE_EN_SIX_BYTES, 8, addr->sa_data);
 	ocp_write_byte(tp, MCU_TYPE_PLA, PLA_CRWECR, CRWECR_NORAML);
 
-	return 0;
+	usb_autopm_put_interface(tp->intf);
+out1:
+	return ret;
 }
 
 static int set_ethernet_addr(struct r8152 *tp)
