@@ -1077,12 +1077,14 @@ static int mxcmci_probe(struct platform_device *pdev)
 		dat3_card_detect = true;
 
 	ret = mmc_regulator_get_supply(mmc);
-	if (ret) {
-		if (pdata && ret != -EPROBE_DEFER)
-			mmc->ocr_avail = pdata->ocr_avail ? :
-				MMC_VDD_32_33 | MMC_VDD_33_34;
+	if (ret == -EPROBE_DEFER)
+		goto out_free;
+
+	if (!mmc->ocr_avail) {
+		if (pdata && pdata->ocr_avail)
+			mmc->ocr_avail = pdata->ocr_avail;
 		else
-			goto out_free;
+			mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
 	}
 
 	if (dat3_card_detect)
