@@ -2258,7 +2258,7 @@ static u64 udb_address(struct adapter *adap, unsigned int cntxt_id,
 		(QUEUESPERPAGEPF1 - QUEUESPERPAGEPF0) * adap->fn);
 	udb_density = 1 << ((qpp >> s_qpp) & QUEUESPERPAGEPF0_MASK);
 	qpshift = PAGE_SHIFT - ilog2(udb_density);
-	udb = cntxt_id << qpshift;
+	udb = (u64)cntxt_id << qpshift;
 	udb &= PAGE_MASK;
 	page = udb / PAGE_SIZE;
 	udb += (cntxt_id - (page * udb_density)) * SGE_UDB_SIZE;
