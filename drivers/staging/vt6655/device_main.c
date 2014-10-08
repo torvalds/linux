@@ -1204,7 +1204,7 @@ static void device_free_rd0_ring(struct vnt_private *pDevice)
 
 		dev_kfree_skb(pRDInfo->skb);
 
-		kfree((void *)pDesc->pRDInfo);
+		kfree(pDesc->pRDInfo);
 	}
 }
 
@@ -1221,7 +1221,7 @@ static void device_free_rd1_ring(struct vnt_private *pDevice)
 
 		dev_kfree_skb(pRDInfo->skb);
 
-		kfree((void *)pDesc->pRDInfo);
+		kfree(pDesc->pRDInfo);
 	}
 }
 
@@ -1305,7 +1305,7 @@ static void device_free_td0_ring(struct vnt_private *pDevice)
 		if (pTDInfo->skb)
 			dev_kfree_skb(pTDInfo->skb);
 
-		kfree((void *)pDesc->pTDInfo);
+		kfree(pDesc->pTDInfo);
 	}
 }
 
@@ -1324,7 +1324,7 @@ static void device_free_td1_ring(struct vnt_private *pDevice)
 		if (pTDInfo->skb)
 			dev_kfree_skb(pTDInfo->skb);
 
-		kfree((void *)pDesc->pTDInfo);
+		kfree(pDesc->pTDInfo);
 	}
 }
 
