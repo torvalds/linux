@@ -417,7 +417,7 @@ static ssize_t ll_direct_IO_26(int rw, struct kiocb *iocb,
 
 		result = iov_iter_get_pages_alloc(iter, &pages, count, &offs);
 		if (likely(result > 0)) {
-			int n = (result + offs + PAGE_SIZE - 1) / PAGE_SIZE;
+			int n = DIV_ROUND_UP(result + offs, PAGE_SIZE);
 			result = ll_direct_IO_26_seg(env, io, rw, inode,
 						     file->f_mapping,
 						     result, file_offset,
