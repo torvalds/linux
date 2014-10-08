@@ -78,8 +78,8 @@ static void dgap_cleanup_board(struct board_t *brd);
 static void dgap_poll_handler(ulong dummy);
 static int dgap_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 static void dgap_remove_one(struct pci_dev *dev);
-static int dgap_do_remap(struct board_t *brd);
-static void dgap_release_remap(struct board_t *brd);
+static int dgap_remap(struct board_t *brd);
+static void dgap_unmap(struct board_t *brd);
 static irqreturn_t dgap_intr(int irq, void *voidbrd);
 
 static int dgap_tty_open(struct tty_struct *tty, struct file *file);
@@ -621,7 +621,7 @@ free_flipbuf:
 	dgap_free_flipbuf(brd);
 cleanup_brd:
 	dgap_cleanup_nodes();
-	dgap_release_remap(brd);
+	dgap_unmap(brd);
 	kfree(brd);
 
 	return rc;
@@ -683,7 +683,7 @@ static void dgap_cleanup_board(struct board_t *brd)
 
 	tasklet_kill(&brd->helper_tasklet);
 
-	dgap_release_remap(brd);
+	dgap_unmap(brd);
 
 	/* Free all allocated channels structs */
 	for (i = 0; i < MAXPORTS ; i++)
@@ -804,7 +804,7 @@ static struct board_t *dgap_found_board(struct pci_dev *pdev, int id,
 	tasklet_init(&brd->helper_tasklet, dgap_poll_tasklet,
 			(unsigned long) brd);
 
-	ret = dgap_do_remap(brd);
+	ret = dgap_remap(brd);
 	if (ret)
 		goto free_brd;
 
@@ -979,7 +979,7 @@ static int dgap_firmware_load(struct pci_dev *pdev, int card_type,
 /*
  * Remap PCI memory.
  */
-static int dgap_do_remap(struct board_t *brd)
+static int dgap_remap(struct board_t *brd)
 {
 	if (!brd || brd->magic != DGAP_BOARD_MAGIC)
 		return -EIO;
@@ -1011,7 +1011,7 @@ static int dgap_do_remap(struct board_t *brd)
 	return 0;
 }
 
-static void dgap_release_remap(struct board_t *brd)
+static void dgap_unmap(struct board_t *brd)
 {
 	iounmap(brd->re_map_port);
 	iounmap(brd->re_map_membase);
