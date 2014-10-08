@@ -306,7 +306,6 @@ void __show_regs(struct pt_regs *regs)
 
 void show_regs(struct pt_regs * regs)
 {
-	printk("\n");
 	__show_regs(regs);
 	dump_stack();
 }
@@ -474,19 +473,57 @@ int in_gate_area_no_mm(unsigned long addr)
 
 const char *arch_vma_name(struct vm_area_struct *vma)
 {
-	return is_gate_vma(vma) ? "[vectors]" :
-		(vma->vm_mm && vma->vm_start == vma->vm_mm->context.sigpage) ?
-		 "[sigpage]" : NULL;
+	return is_gate_vma(vma) ? "[vectors]" : NULL;
+}
+
+/* If possible, provide a placement hint at a random offset from the
+ * stack for the signal page.
+ */
+static unsigned long sigpage_addr(const struct mm_struct *mm,
+				  unsigned int npages)
+{
+	unsigned long offset;
+	unsigned long first;
+	unsigned long last;
+	unsigned long addr;
+	unsigned int slots;
+
+	first = PAGE_ALIGN(mm->start_stack);
+
+	last = TASK_SIZE - (npages << PAGE_SHIFT);
+
+	/* No room after stack? */
+	if (first > last)
+		return 0;
+
+	/* Just enough room? */
+	if (first == last)
+		return first;
+
+	slots = ((last - first) >> PAGE_SHIFT) + 1;
+
+	offset = get_random_int() % slots;
+
+	addr = first + (offset << PAGE_SHIFT);
+
+	return addr;
 }
 
 static struct page *signal_page;
 extern struct page *get_signal_page(void);
 
+static const struct vm_special_mapping sigpage_mapping = {
+	.name = "[sigpage]",
+	.pages = &signal_page,
+};
+
 int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 {
 	struct mm_struct *mm = current->mm;
+	struct vm_area_struct *vma;
 	unsigned long addr;
-	int ret;
+	unsigned long hint;
+	int ret = 0;
 
 	if (!signal_page)
 		signal_page = get_signal_page();
@@ -494,18 +531,23 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 		return -ENOMEM;
 
 	down_write(&mm->mmap_sem);
-	addr = get_unmapped_area(NULL, 0, PAGE_SIZE, 0, 0);
+	hint = sigpage_addr(mm, 1);
+	addr = get_unmapped_area(NULL, hint, PAGE_SIZE, 0, 0);
 	if (IS_ERR_VALUE(addr)) {
 		ret = addr;
 		goto up_fail;
 	}
 
-	ret = install_special_mapping(mm, addr, PAGE_SIZE,
+	vma = _install_special_mapping(mm, addr, PAGE_SIZE,
 		VM_READ | VM_EXEC | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC,
-		&signal_page);
+		&sigpage_mapping);
 
-	if (ret == 0)
-		mm->context.sigpage = addr;
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
+		goto up_fail;
+	}
+
+	mm->context.sigpage = addr;
 
  up_fail:
 	up_write(&mm->mmap_sem);
