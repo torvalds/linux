@@ -669,6 +669,7 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 	master->cleanup = dw_spi_cleanup;
 	master->transfer_one_message = dw_spi_transfer_one_message;
 	master->max_speed_hz = dws->max_freq;
+	master->dev.of_node = dev->of_node;
 
 	/* Basic HW init */
 	spi_hw_init(dws);
