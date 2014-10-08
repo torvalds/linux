@@ -880,7 +880,6 @@ static void max310x_set_termios(struct uart_port *port,
 static int max310x_ioctl(struct uart_port *port, unsigned int cmd,
 			 unsigned long arg)
 {
-#if defined(TIOCSRS485) && defined(TIOCGRS485)
 	struct serial_rs485 rs485;
 	unsigned int val;
 
@@ -923,7 +922,6 @@ static int max310x_ioctl(struct uart_port *port, unsigned int cmd,
 	default:
 		break;
 	}
-#endif
 
 	return -ENOIOCTLCMD;
 }
