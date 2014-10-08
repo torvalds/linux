@@ -215,6 +215,7 @@ u32 rtw_free_uc_swdec_pending_queue23a(struct rtw_adapter *adapter)
 {
 	u32 cnt = 0;
 	struct recv_frame *pending_frame;
+
 	while ((pending_frame = rtw_alloc_recvframe23a(&adapter->recvpriv.uc_swdec_pending_queue))) {
 		rtw_free_recvframe23a(pending_frame);
 		DBG_8723A("%s: dequeue uc_swdec_pending_queue\n", __func__);
@@ -239,6 +240,7 @@ int rtw_enqueue_recvbuf23a_to_head(struct recv_buf *precvbuf, struct rtw_queue *
 int rtw_enqueue_recvbuf23a(struct recv_buf *precvbuf, struct rtw_queue *queue)
 {
 	unsigned long irqL;
+
 	spin_lock_irqsave(&queue->lock, irqL);
 
 	list_del_init(&precvbuf->list);
@@ -364,6 +366,7 @@ int recvframe_chkmic(struct rtw_adapter *adapter,
 
 			if (bmic_err == true) {
 				int i;
+
 				RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
 					 ("\n *(pframemic-8)-*(pframemic-1) ="
 					  "0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:"
@@ -483,6 +486,7 @@ struct recv_frame *decryptor(struct rtw_adapter *padapter,
 
 	if (prxattrib->encrypt > 0) {
 		u8 *iv = precv_frame->pkt->data + prxattrib->hdrlen;
+
 		prxattrib->key_index = (((iv[3]) >> 6) & 0x3);
 
 		if (prxattrib->key_index > WEP_KEYS) {
@@ -1066,6 +1070,7 @@ int sta2ap_data_frame(struct rtw_adapter *adapter,
 		}
 	} else {
 		u8 *myhwaddr = myid(&adapter->eeprompriv);
+
 		if (!ether_addr_equal(pattrib->ra, myhwaddr)) {
 			ret = RTW_RX_HANDLED;
 			goto exit;
