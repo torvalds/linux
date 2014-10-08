@@ -33,7 +33,7 @@
 #include <linux/hugetlb.h>
 #include <asm/mman.h>
 #include <asm/mmu.h>
-#include <asm/spu.h>
+#include <asm/copro.h>
 #include <asm/hugetlb.h>
 
 /* some sanity checks */
@@ -234,9 +234,7 @@ static void slice_convert(struct mm_struct *mm, struct slice_mask mask, int psiz
 
 	spin_unlock_irqrestore(&slice_convert_lock, flags);
 
-#ifdef CONFIG_SPU_BASE
-	spu_flush_all_slbs(mm);
-#endif
+	copro_flush_all_slbs(mm);
 }
 
 /*
@@ -673,9 +671,7 @@ void slice_set_psize(struct mm_struct *mm, unsigned long address,
 
 	spin_unlock_irqrestore(&slice_convert_lock, flags);
 
-#ifdef CONFIG_SPU_BASE
-	spu_flush_all_slbs(mm);
-#endif
+	copro_flush_all_slbs(mm);
 }
 
 void slice_set_range_psize(struct mm_struct *mm, unsigned long start,
