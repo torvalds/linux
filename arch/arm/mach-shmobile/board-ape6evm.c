@@ -283,7 +283,8 @@ static const char *ape6evm_boards_compat_dt[] __initdata = {
 };
 
 DT_MACHINE_START(APE6EVM_DT, "ape6evm")
-	.init_early	= r8a73a4_init_early,
+	.init_early	= shmobile_init_delay,
 	.init_machine	= ape6evm_add_standard_devices,
+	.init_late	= shmobile_init_late,
 	.dt_compat	= ape6evm_boards_compat_dt,
 MACHINE_END

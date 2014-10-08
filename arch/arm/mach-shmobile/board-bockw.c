@@ -733,7 +733,7 @@ static const char *bockw_boards_compat_dt[] __initdata = {
 };
 
 DT_MACHINE_START(BOCKW_DT, "bockw")
-	.init_early	= r8a7778_init_delay,
+	.init_early	= shmobile_init_delay,
 	.init_irq	= r8a7778_init_irq_dt,
 	.init_machine	= bockw_init,
 	.dt_compat	= bockw_boards_compat_dt,

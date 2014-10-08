@@ -387,6 +387,7 @@ config ARCH_CLPS711X
 	select CPU_ARM720T
 	select GENERIC_CLOCKEVENTS
 	select MFD_SYSCON
+	select SOC_BUS
 	help
 	  Support for Cirrus Logic 711x/721x/731x based boards.
 
@@ -889,6 +890,8 @@ source "arch/arm/mach-ixp4xx/Kconfig"
 source "arch/arm/mach-keystone/Kconfig"
 
 source "arch/arm/mach-ks8695/Kconfig"
+
+source "arch/arm/mach-meson/Kconfig"
 
 source "arch/arm/mach-msm/Kconfig"
 
@@ -1406,6 +1409,15 @@ config MCPM
 	  This option provides the common power management infrastructure
 	  for (multi-)cluster based systems, such as big.LITTLE based
 	  systems.
+
+config MCPM_QUAD_CLUSTER
+	bool
+	depends on MCPM
+	help
+	  To avoid wasting resources unnecessarily, MCPM only supports up
+	  to 2 clusters by default.
+	  Platforms with 3 or 4 clusters that use MCPM must select this
+	  option to allow the additional clusters to be managed.
 
 config BIG_LITTLE
 	bool "big.LITTLE support (Experimental)"

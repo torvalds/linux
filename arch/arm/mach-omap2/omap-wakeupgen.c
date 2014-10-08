@@ -32,6 +32,7 @@
 #include "soc.h"
 #include "omap4-sar-layout.h"
 #include "common.h"
+#include "pm.h"
 
 #define AM43XX_NR_REG_BANKS	7
 #define AM43XX_IRQS		224
@@ -381,7 +382,7 @@ static struct notifier_block irq_notifier_block = {
 static void __init irq_pm_init(void)
 {
 	/* FIXME: Remove this when MPU OSWR support is added */
-	if (!soc_is_omap54xx())
+	if (!IS_PM44XX_ERRATUM(PM_OMAP4_CPU_OSWR_DISABLE))
 		cpu_pm_register_notifier(&irq_notifier_block);
 }
 #else
@@ -406,6 +407,7 @@ int __init omap_wakeupgen_init(void)
 {
 	int i;
 	unsigned int boot_cpu = smp_processor_id();
+	u32 val;
 
 	/* Not supported on OMAP4 ES1.0 silicon */
 	if (omap_rev() == OMAP4430_REV_ES1_0) {
@@ -450,6 +452,22 @@ int __init omap_wakeupgen_init(void)
 	/* Associate all the IRQs to boot CPU like GIC init does. */
 	for (i = 0; i < max_irqs; i++)
 		irq_target_cpu[i] = boot_cpu;
+
+	/*
+	 * Enables OMAP5 ES2 PM Mode using ES2_PM_MODE in AMBA_IF_MODE
+	 * 0x0:	ES1 behavior, CPU cores would enter and exit OFF mode together.
+	 * 0x1:	ES2 behavior, CPU cores are allowed to enter/exit OFF mode
+	 * independently.
+	 * This needs to be set one time thanks to always ON domain.
+	 *
+	 * We do not support ES1 behavior anymore. OMAP5 is assumed to be
+	 * ES2.0, and the same is applicable for DRA7.
+	 */
+	if (soc_is_omap54xx() || soc_is_dra7xx()) {
+		val = __raw_readl(wakeupgen_base + OMAP_AMBA_IF_MODE);
+		val |= BIT(5);
+		omap_smc1(OMAP5_MON_AMBA_IF_INDEX, val);
+	}
 
 	irq_hotplug_init();
 	irq_pm_init();

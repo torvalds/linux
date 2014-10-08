@@ -252,6 +252,10 @@
 	};
 };
 
+&cmt0 {
+	status = "ok";
+};
+
 &mmcif1 {
 	pinctrl-0 = <&mmc1_pins>;
 	pinctrl-names = "default";

@@ -23,11 +23,13 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <0>;
+			clock-frequency = <1196000000>;
 		};
 		cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <1>;
+			clock-frequency = <1196000000>;
 		};
 	};
 
@@ -43,6 +45,16 @@
 		compatible = "arm,cortex-a9-pmu";
 		interrupts = <0 55 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 56 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	cmt1: timer@e6138000 {
+		compatible = "renesas,cmt-48-sh73a0", "renesas,cmt-48";
+		reg = <0xe6138000 0x200>;
+		interrupts = <0 65 IRQ_TYPE_LEVEL_HIGH>;
+
+		renesas,channels-mask = <0x3f>;
+
+		status = "disabled";
 	};
 
 	irqpin0: irqpin@e6900000 {

@@ -173,6 +173,10 @@
 	};
 };
 
+&cmt1 {
+	status = "ok";
+};
+
 &i2c0 {
 	status = "okay";
 	as3711@40 {

@@ -63,6 +63,7 @@
 #include <asm/mach-types.h>
 
 #include "common.h"
+#include "intc.h"
 #include "irqs.h"
 #include "pm-rmobile.h"
 #include "sh-gpio.h"

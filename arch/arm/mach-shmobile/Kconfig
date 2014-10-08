@@ -50,6 +50,11 @@ config ARCH_R7S72100
 	bool "RZ/A1H (R7S72100)"
 	select SYS_SUPPORTS_SH_MTU2
 
+config ARCH_R8A7740
+	bool "R-Mobile A1 (R8A77400)"
+	select ARCH_RMOBILE
+	select RENESAS_INTC_IRQPIN
+
 config ARCH_R8A7779
 	bool "R-Car H1 (R8A77790)"
 	select ARCH_RCAR_GEN1
@@ -62,11 +67,11 @@ config ARCH_R8A7791
 	bool "R-Car M2-W (R8A77910)"
 	select ARCH_RCAR_GEN2
 
-comment "Renesas ARM SoCs Board Type"
+config ARCH_R8A7794
+	bool "R-Car E2 (R8A77940)"
+	select ARCH_RCAR_GEN2
 
-config MACH_GENMAI
-	bool "Genmai board"
-	depends on ARCH_R7S72100
+comment "Renesas ARM SoCs Board Type"
 
 config MACH_KOELSCH
 	bool "Koelsch board"
@@ -148,14 +153,6 @@ config ARCH_R8A7791
 	select MIGHT_HAVE_PCI
 	select ARCH_DMA_ADDR_T_64BIT if ARM_LPAE
 
-config ARCH_R7S72100
-	bool "RZ/A1H (R7S72100)"
-	select ARCH_WANT_OPTIONAL_GPIOLIB
-	select ARM_GIC
-	select CPU_V7
-	select SH_CLK_CPG
-	select SYS_SUPPORTS_SH_MTU2
-
 comment "Renesas ARM SoCs Board Type"
 
 config MACH_APE6EVM
@@ -194,21 +191,6 @@ config MACH_ARMADILLO800EVA
 	select SND_SOC_WM8978 if SND_SIMPLE_CARD
 	select USE_OF
 
-config MACH_ARMADILLO800EVA_REFERENCE
-	bool "Armadillo-800 EVA board - Reference Device Tree Implementation"
-	depends on ARCH_R8A7740
-	select ARCH_REQUIRE_GPIOLIB
-	select REGULATOR_FIXED_VOLTAGE if REGULATOR
-	select SMSC_PHY if SH_ETH
-	select SND_SOC_WM8978 if SND_SIMPLE_CARD
-	select USE_OF
-	---help---
-	   Use reference implementation of Armadillo800 EVA board support
-	   which makes greater use of device tree at the expense
-	   of not supporting a number of devices.
-
-	   This is intended to aid developers
-
 config MACH_BOCKW
 	bool "BOCK-W platform"
 	depends on ARCH_R8A7778
@@ -230,11 +212,6 @@ config MACH_BOCKW_REFERENCE
 	   of not supporting a number of devices.
 
 	   This is intended to aid developers
-
-config MACH_GENMAI
-	bool "Genmai board"
-	depends on ARCH_R7S72100
-	select USE_OF
 
 config MACH_MARZEN
 	bool "MARZEN board"

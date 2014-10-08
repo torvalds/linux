@@ -104,8 +104,9 @@
 	soc {
 		compatible = "ti,omap-infra";
 		mpu {
-			compatible = "ti,omap5-mpu";
+			compatible = "ti,omap4-mpu";
 			ti,hwmods = "mpu";
+			sram = <&ocmcram>;
 		};
 	};
 
@@ -131,6 +132,7 @@
 		prm: prm@4ae06000 {
 			compatible = "ti,omap5-prm";
 			reg = <0x4ae06000 0x3000>;
+			interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
 
 			prm_clocks: clocks {
 				#address-cells = <1>;
@@ -217,6 +219,11 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3000000>;
 			};
+		};
+
+		ocmcram: ocmcram@40300000 {
+			compatible = "mmio-sram";
+			reg = <0x40300000 0x20000>; /* 128k */
 		};
 
 		sdma: dma-controller@4a056000 {

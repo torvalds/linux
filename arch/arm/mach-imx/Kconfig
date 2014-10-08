@@ -69,6 +69,7 @@ config SOC_IMX1
 	select CPU_ARM920T
 	select IMX_HAVE_IOMUX_V1
 	select MXC_AVIC
+	select PINCTRL_IMX1
 
 config SOC_IMX21
 	bool
@@ -123,6 +124,13 @@ config MACH_APF9328
 	select SOC_IMX1
 	help
 	  Say Yes here if you are using the Armadeus APF9328 development board
+
+config MACH_IMX1_DT
+	bool "Support i.MX1 platforms from device tree"
+	select SOC_IMX1
+	help
+	  Include support for Freescale i.MX1 based platforms
+	  using the device tree for discovery.
 
 endif
 

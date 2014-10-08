@@ -2065,6 +2065,14 @@ F:	arch/arm/mach-bcm/bcm_5301x.c
 F:	arch/arm/boot/dts/bcm5301x.dtsi
 F:	arch/arm/boot/dts/bcm470*
 
+BROADCOM BCM63XX ARM ARCHITECTURE
+M:	Florian Fainelli <f.fainelli@gmail.com>
+L:	linux-arm-kernel@lists.infradead.org
+T:	git git://git.github.com/brcm/linux.git
+S:	Maintained
+F:	arch/arm/mach-bcm/bcm63xx.c
+F:	arch/arm/include/debug/bcm63xx.S
+
 BROADCOM BCM7XXX ARM ARCHITECTURE
 M:	Marc Carino <marc.ceeeee@gmail.com>
 M:	Brian Norris <computersforpeace@gmail.com>

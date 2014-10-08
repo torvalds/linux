@@ -42,6 +42,9 @@ static void __init imx6sx_init_irq(void)
 static void __init imx6sx_init_late(void)
 {
 	imx6q_cpuidle_init();
+
+	if (IS_ENABLED(CONFIG_ARM_IMX6Q_CPUFREQ))
+		platform_device_register_simple("imx6q-cpufreq", -1, NULL, 0);
 }
 
 static const char * const imx6sx_dt_compat[] __initconst = {
