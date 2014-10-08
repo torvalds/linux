@@ -1057,6 +1057,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_chanctx *chanctx;
 	enum ieee80211_band current_band;
 	struct ieee80211_csa_ie csa_ie;
+	struct ieee80211_channel_switch ch_switch;
 	int res;
 
 	sdata_assert_lock(sdata);
@@ -1128,6 +1129,22 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
+	ch_switch.timestamp = timestamp;
+	ch_switch.device_timestamp = device_timestamp;
+	ch_switch.block_tx = csa_ie.mode;
+	ch_switch.chandef = csa_ie.chandef;
+	ch_switch.count = csa_ie.count;
+
+	if (drv_pre_channel_switch(sdata, &ch_switch)) {
+		sdata_info(sdata,
+			   "preparing for channel switch failed, disconnecting\n");
+		ieee80211_queue_work(&local->hw,
+				     &ifmgd->csa_connection_drop_work);
+		mutex_unlock(&local->chanctx_mtx);
+		mutex_unlock(&local->mtx);
+		return;
+	}
+
 	res = ieee80211_vif_reserve_chanctx(sdata, &csa_ie.chandef,
 					    chanctx->mode, false);
 	if (res) {
@@ -1153,14 +1170,6 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 
 	if (local->ops->channel_switch) {
 		/* use driver's channel switch callback */
-		struct ieee80211_channel_switch ch_switch = {
-			.timestamp = timestamp,
-			.device_timestamp = device_timestamp,
-			.block_tx = csa_ie.mode,
-			.chandef = csa_ie.chandef,
-			.count = csa_ie.count,
-		};
-
 		drv_channel_switch(local, &ch_switch);
 		return;
 	}
