@@ -138,7 +138,7 @@ int spufs_handle_class1(struct spu_context *ctx)
 	if (ctx->state == SPU_STATE_RUNNABLE)
 		ctx->spu->stats.hash_flt++;
 
-	/* we must not hold the lock when entering spu_handle_mm_fault */
+	/* we must not hold the lock when entering copro_handle_mm_fault */
 	spu_release(ctx);
 
 	access = (_PAGE_PRESENT | _PAGE_USER);
@@ -149,7 +149,7 @@ int spufs_handle_class1(struct spu_context *ctx)
 
 	/* hashing failed, so try the actual fault handler */
 	if (ret)
-		ret = spu_handle_mm_fault(current->mm, ea, dsisr, &flt);
+		ret = copro_handle_mm_fault(current->mm, ea, dsisr, &flt);
 
 	/*
 	 * This is nasty: we need the state_mutex for all the bookkeeping even

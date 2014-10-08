@@ -1,5 +1,5 @@
 /*
- * SPU mm fault handler
+ * CoProcessor (SPU/AFU) mm fault handler
  *
  * (C) Copyright IBM Deutschland Entwicklung GmbH 2007
  *
@@ -23,16 +23,14 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/export.h>
-
-#include <asm/spu.h>
-#include <asm/spu_csa.h>
+#include <asm/reg.h>
 
 /*
  * This ought to be kept in sync with the powerpc specific do_page_fault
  * function. Currently, there are a few corner cases that we haven't had
  * to handle fortunately.
  */
-int spu_handle_mm_fault(struct mm_struct *mm, unsigned long ea,
+int copro_handle_mm_fault(struct mm_struct *mm, unsigned long ea,
 		unsigned long dsisr, unsigned *flt)
 {
 	struct vm_area_struct *vma;
@@ -58,12 +56,12 @@ int spu_handle_mm_fault(struct mm_struct *mm, unsigned long ea,
 			goto out_unlock;
 	}
 
-	is_write = dsisr & MFC_DSISR_ACCESS_PUT;
+	is_write = dsisr & DSISR_ISSTORE;
 	if (is_write) {
 		if (!(vma->vm_flags & VM_WRITE))
 			goto out_unlock;
 	} else {
-		if (dsisr & MFC_DSISR_ACCESS_DENIED)
+		if (dsisr & DSISR_PROTFAULT)
 			goto out_unlock;
 		if (!(vma->vm_flags & (VM_READ | VM_EXEC)))
 			goto out_unlock;
@@ -91,4 +89,4 @@ out_unlock:
 	up_read(&mm->mmap_sem);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(spu_handle_mm_fault);
+EXPORT_SYMBOL_GPL(copro_handle_mm_fault);
