@@ -424,7 +424,7 @@ static int mei_me_pm_runtime_resume(struct device *device)
 }
 
 /**
- * mei_me_set_pm_domain - fill and set pm domian stucture for device
+ * mei_me_set_pm_domain - fill and set pm domain structure for device
  *
  * @dev: mei_device
  */
@@ -444,7 +444,7 @@ static inline void mei_me_set_pm_domain(struct mei_device *dev)
 }
 
 /**
- * mei_me_unset_pm_domain - clean pm domian stucture for device
+ * mei_me_unset_pm_domain - clean pm domain structure for device
  *
  * @dev: mei_device
  */

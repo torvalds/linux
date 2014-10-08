@@ -455,7 +455,7 @@ void handle_sec_sci_fault(uint32_t gstat)
 			printk(KERN_DEBUG "sec ack err\n");
 			break;
 		default:
-			printk(KERN_DEBUG "sec sci unknow err\n");
+			printk(KERN_DEBUG "sec sci unknown err\n");
 		}
 	}
 

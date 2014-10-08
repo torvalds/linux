@@ -132,5 +132,5 @@
 
 5. REFERENCES
 
- [1]	include/linux/serial.h
+ [1]	include/uapi/linux/serial.h
  [2]	Documentation/devicetree/bindings/serial/rs485.txt

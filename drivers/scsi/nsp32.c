@@ -930,7 +930,7 @@ static int nsp32_queuecommand_lck(struct scsi_cmnd *SCpnt, void (*done)(struct s
 
 	/* check target ID is not same as this initiator ID */
 	if (scmd_id(SCpnt) == SCpnt->device->host->this_id) {
-		nsp32_dbg(NSP32_DEBUG_QUEUECOMMAND, "terget==host???");
+		nsp32_dbg(NSP32_DEBUG_QUEUECOMMAND, "target==host???");
 		SCpnt->result = DID_BAD_TARGET << 16;
 		done(SCpnt);
 		return 0;

@@ -73,7 +73,7 @@ config ATARI_ETHERNEC
 	  ROM port. The driver works by polling instead of interrupts, so it
 	  is quite slow.
 
-	  This driver also suppports the ethernet part of the NetUSBee ROM
+	  This driver also supports the ethernet part of the NetUSBee ROM
 	  port combined Ethernet/USB adapter.
 
 	  To compile the actual ethernet driver, choose Y or M in for the NE2000

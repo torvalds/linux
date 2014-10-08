@@ -1353,7 +1353,7 @@ static int lbs_cfg_connect(struct wiphy *wiphy, struct net_device *dev,
 		wait_event_interruptible_timeout(priv->scan_q,
 						 (priv->scan_req == NULL),
 						 (15 * HZ));
-		lbs_deb_assoc("assoc: scanning competed\n");
+		lbs_deb_assoc("assoc: scanning completed\n");
 	}
 
 	/* Find the BSS we want using available scan results */

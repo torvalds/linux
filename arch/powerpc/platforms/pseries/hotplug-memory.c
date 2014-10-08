@@ -126,7 +126,7 @@ static int pseries_remove_mem_node(struct device_node *np)
 		return 0;
 
 	/*
-	 * Find the bae address and size of the memblock
+	 * Find the base address and size of the memblock
 	 */
 	regs = of_get_property(np, "reg", NULL);
 	if (!regs)
@@ -200,7 +200,7 @@ static int pseries_update_drconf_memory(struct of_prop_reconfig *pr)
 
 	/* The first int of the property is the number of lmb's described
 	 * by the property. This is followed by an array of of_drconf_cell
-	 * entries. Get the niumber of entries and skip to the array of
+	 * entries. Get the number of entries and skip to the array of
 	 * of_drconf_cell's.
 	 */
 	entries = be32_to_cpu(*p++);

@@ -126,7 +126,7 @@ config XPS_USB_HCD_XILINX
 	select USB_EHCI_BIG_ENDIAN_DESC
 	select USB_EHCI_BIG_ENDIAN_MMIO
 	---help---
-		Xilinx xps USB host controller core is EHCI compilant and has
+		Xilinx xps USB host controller core is EHCI compliant and has
 		transaction translator built-in. It can be configured to either
 		support both high speed and full speed devices, or high speed
 		devices only.

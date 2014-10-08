@@ -96,7 +96,7 @@ static inline void mapping_set_gfp_mask(struct address_space *m, gfp_t mask)
 }
 
 /*
- * The page cache can done in larger chunks than
+ * The page cache can be done in larger chunks than
  * one page, because it allows for more efficient
  * throughput (it can then be mapped into user
  * space in smaller chunks for same flexibility).

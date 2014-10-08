@@ -398,7 +398,7 @@ if ($verbose) {
     print "Size of signer's name  : ", length($signers_name), "\n";
     print "Size of key identifier : ", length($key_identifier), "\n";
     print "Size of signature      : ", length($signature), "\n";
-    print "Size of informaton     : ", length($info), "\n";
+    print "Size of information    : ", length($info), "\n";
     print "Size of magic number   : ", length($magic_number), "\n";
     print "Signer's name          : '", $signers_name, "'\n";
     print "Digest                 : $dgst\n";

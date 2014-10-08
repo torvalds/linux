@@ -1695,7 +1695,7 @@ static int mlx4_master_activate_admin_state(struct mlx4_priv *priv, int slave)
 			if (err) {
 				vp_oper->vlan_idx = NO_INDX;
 				mlx4_warn(&priv->dev,
-					  "No vlan resorces slave %d, port %d\n",
+					  "No vlan resources slave %d, port %d\n",
 					  slave, port);
 				return err;
 			}
@@ -1711,7 +1711,7 @@ static int mlx4_master_activate_admin_state(struct mlx4_priv *priv, int slave)
 				err = vp_oper->mac_idx;
 				vp_oper->mac_idx = NO_INDX;
 				mlx4_warn(&priv->dev,
-					  "No mac resorces slave %d, port %d\n",
+					  "No mac resources slave %d, port %d\n",
 					  slave, port);
 				return err;
 			}

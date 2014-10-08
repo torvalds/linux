@@ -946,7 +946,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 		DRM_DEBUG_KMS("Analog port %c is also DP or TMDS compatible\n",
 			      port_name(port));
 	if (is_dvi && (port == PORT_A || port == PORT_E))
-		DRM_DEBUG_KMS("Port %c is TMDS compabile\n", port_name(port));
+		DRM_DEBUG_KMS("Port %c is TMDS compatible\n", port_name(port));
 	if (!is_dvi && !is_dp && !is_crt)
 		DRM_DEBUG_KMS("Port %c is not DP/TMDS/CRT compatible\n",
 			      port_name(port));

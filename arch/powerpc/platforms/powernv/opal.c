@@ -322,7 +322,7 @@ static void opal_handle_message(void)
 
 	/* check for errors. */
 	if (ret) {
-		pr_warning("%s: Failed to retrive opal message, err=%lld\n",
+		pr_warning("%s: Failed to retrieve opal message, err=%lld\n",
 				__func__, ret);
 		return;
 	}

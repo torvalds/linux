@@ -54,7 +54,7 @@ static u32 __hashfn(const struct rhashtable *ht, const void *key,
 
 /**
  * rhashtable_hashfn - compute hash for key of given length
- * @ht:		hash table to compuate for
+ * @ht:		hash table to compute for
  * @key:	pointer to key
  * @len:	length of key
  *
@@ -85,7 +85,7 @@ static u32 obj_hashfn(const struct rhashtable *ht, const void *ptr, u32 hsize)
 
 /**
  * rhashtable_obj_hashfn - compute hash for hashed object
- * @ht:		hash table to compuate for
+ * @ht:		hash table to compute for
  * @ptr:	pointer to hashed object
  *
  * Computes the hash value using the hash function `hashfn` respectively

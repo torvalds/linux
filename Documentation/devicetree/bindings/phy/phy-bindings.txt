@@ -27,7 +27,7 @@ phys: phy {
 };
 
 That node describes an IP block (PHY provider) that implements 2 different PHYs.
-In order to differentiate between these 2 PHYs, an additonal specifier should be
+In order to differentiate between these 2 PHYs, an additional specifier should be
 given while trying to get a reference to it.
 
 PHY user node

@@ -69,8 +69,8 @@
             nice        This parameter controls the driver's use of
                         idle CPU time, at the expense of some speed.
  
-	If this driver is built into the kernel, you can use kernel
-        the following command line parameters, with the same values
+	If this driver is built into the kernel, you can use the
+        following kernel command line parameters, with the same values
         as the corresponding module parameters listed above:
 
 	    pcd.drive0

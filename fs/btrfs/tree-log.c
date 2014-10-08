@@ -3994,7 +3994,8 @@ again:
 		if (ret < 0) {
 			err = ret;
 			goto out_unlock;
-		} if (ret) {
+		}
+		if (ret) {
 			ins_nr = 0;
 			btrfs_release_path(path);
 			continue;

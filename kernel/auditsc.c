@@ -2406,7 +2406,7 @@ int __audit_log_bprm_fcaps(struct linux_binprm *bprm,
  * @new: the new credentials
  * @old: the old (current) credentials
  *
- * Record the aguments userspace sent to sys_capset for later printing by the
+ * Record the arguments userspace sent to sys_capset for later printing by the
  * audit system if applicable
  */
 void __audit_log_capset(const struct cred *new, const struct cred *old)

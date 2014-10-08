@@ -110,8 +110,8 @@ on various other factors also like;
 	Other factor which governs the selection of ecc-scheme is oob-size.
 	Higher ECC schemes require more OOB/Spare area to store ECC syndrome,
 	so the device should have enough free bytes available its OOB/Spare
-	area to accomodate ECC for entire page. In general following expression
-	helps in determining if given device can accomodate ECC syndrome:
+	area to accommodate ECC for entire page. In general following expression
+	helps in determining if given device can accommodate ECC syndrome:
 	"2 + (PAGESIZE / 512) * ECC_BYTES" >= OOBSIZE"
 	where
 		OOBSIZE		number of bytes in OOB/spare area
@@ -133,5 +133,5 @@ on various other factors also like;
 	Example(b): For a device with PAGESIZE = 2048 and OOBSIZE = 128 and
 		trying to use BCH16 (ECC_BYTES=26) ecc-scheme.
 		Number of ECC bytes per page = (2 + (2048 / 512) * 26) = 106 B
-		which can be accomodate in the OOB/Spare area of this device
+		which can be accommodated in the OOB/Spare area of this device
 		(OOBSIZE=128). So this device can use BCH16 ecc-scheme.

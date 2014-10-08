@@ -182,7 +182,8 @@ done:
 /*
  *	Convert a name into device number.  We accept the following variants:
  *
- *	1) device number in hexadecimal	represents itself
+ *	1) <hex_major><hex_minor> device number in hexadecimal represents itself
+ *         no leading 0x, for example b302.
  *	2) /dev/nfs represents Root_NFS (0xff)
  *	3) /dev/<disk_name> represents the device number of disk
  *	4) /dev/<disk_name><decimal> represents the device number

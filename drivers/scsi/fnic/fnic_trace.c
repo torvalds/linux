@@ -592,7 +592,7 @@ int fnic_fc_trace_set_data(u32 host_no, u8 frame_type,
 
 	if (fnic_fc_trace_cleared == 1) {
 		fc_trace_entries.rd_idx = fc_trace_entries.wr_idx = 0;
-		pr_info("fnic: Reseting the read idx\n");
+		pr_info("fnic: Resetting the read idx\n");
 		memset((void *)fnic_fc_ctlr_trace_buf_p, 0,
 				fnic_fc_trace_max_pages * PAGE_SIZE);
 		fnic_fc_trace_cleared = 0;

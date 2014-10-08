@@ -727,7 +727,7 @@ EXPORT_SYMBOL_GPL(add_page_wait_queue);
  *
  * Unlocks the page and wakes up sleepers in ___wait_on_page_locked().
  * Also wakes sleepers in wait_on_page_writeback() because the wakeup
- * mechananism between PageLocked pages and PageWriteback pages is shared.
+ * mechanism between PageLocked pages and PageWriteback pages is shared.
  * But that's OK - sleepers in wait_on_page_writeback() just go back to sleep.
  *
  * The mb is necessary to enforce ordering between the clear_bit and the read

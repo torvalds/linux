@@ -216,7 +216,7 @@ static int pm860x_backlight_probe(struct platform_device *pdev)
 	data->reg_duty_cycle = res->start;
 	res = platform_get_resource_byname(pdev, IORESOURCE_REG, "always on");
 	if (!res) {
-		dev_err(&pdev->dev, "No REG resorce for always on\n");
+		dev_err(&pdev->dev, "No REG resource for always on\n");
 		return -ENXIO;
 	}
 	data->reg_always_on = res->start;

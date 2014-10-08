@@ -1870,7 +1870,7 @@ static int ocrdma_build_inline_sges(struct ocrdma_qp *qp,
 		hdr->total_len = ocrdma_sglist_len(wr->sg_list, wr->num_sge);
 		if (unlikely(hdr->total_len > qp->max_inline_data)) {
 			pr_err("%s() supported_len=0x%x,\n"
-			       " unspported len req=0x%x\n", __func__,
+			       " unsupported len req=0x%x\n", __func__,
 				qp->max_inline_data, hdr->total_len);
 			return -EINVAL;
 		}

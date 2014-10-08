@@ -90,7 +90,7 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	}
 	case SIOCSIFADDR:
 		dev_warn(&dev->dev,
-			 "Using DEBUGing ioctl SIOCSIFADDR isn't recommened!\n");
+			 "Using DEBUGing ioctl SIOCSIFADDR isn't recommended!\n");
 		if (sa->family != AF_IEEE802154 ||
 		    sa->addr.addr_type != IEEE802154_ADDR_SHORT ||
 		    sa->addr.pan_id == IEEE802154_PANID_BROADCAST ||

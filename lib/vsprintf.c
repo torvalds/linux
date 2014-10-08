@@ -1937,7 +1937,7 @@ EXPORT_SYMBOL(sprintf);
  * @args: Arguments for the format string
  *
  * The format follows C99 vsnprintf, except %n is ignored, and its argument
- * is skiped.
+ * is skipped.
  *
  * The return value is the number of words(32bits) which would be generated for
  * the given input.
