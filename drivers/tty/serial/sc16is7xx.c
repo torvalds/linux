@@ -830,7 +830,6 @@ static void sc16is7xx_set_termios(struct uart_port *port,
 	uart_update_timeout(port, termios->c_cflag, baud);
 }
 
-#if defined(TIOCSRS485) && defined(TIOCGRS485)
 static void sc16is7xx_config_rs485(struct uart_port *port,
 				   struct serial_rs485 *rs485)
 {
@@ -848,12 +847,10 @@ static void sc16is7xx_config_rs485(struct uart_port *port,
 				      0);
 	}
 }
-#endif
 
 static int sc16is7xx_ioctl(struct uart_port *port, unsigned int cmd,
 			   unsigned long arg)
 {
-#if defined(TIOCSRS485) && defined(TIOCGRS485)
 	struct serial_rs485 rs485;
 
 	switch (cmd) {
@@ -872,7 +869,6 @@ static int sc16is7xx_ioctl(struct uart_port *port, unsigned int cmd,
 	default:
 		break;
 	}
-#endif
 
 	return -ENOIOCTLCMD;
 }
