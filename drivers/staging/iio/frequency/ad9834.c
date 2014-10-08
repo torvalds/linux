@@ -28,6 +28,7 @@
 static unsigned int ad9834_calc_freqreg(unsigned long mclk, unsigned long fout)
 {
 	unsigned long long freqreg = (u64) fout * (u64) (1 << AD9834_FREQ_BITS);
+
 	do_div(freqreg, mclk);
 	return freqreg;
 }

@@ -10,7 +10,7 @@
 
 #define MAX_DATA_BUFFER_SIZE    2048
 
-//Num of Asynchronous reads pending
+/* Num of Asynchronous reads pending */
 #define NUM_RX_DESC 64
 
 #define SYS_CFG 0x0F000C00

@@ -71,7 +71,7 @@ struct vm_area_struct *our_vma(struct mm_struct *mm, unsigned long addr,
 	/* mmap_sem must have been held by caller. */
 	LASSERT(!down_write_trylock(&mm->mmap_sem));
 
-	for(vma = find_vma(mm, addr);
+	for (vma = find_vma(mm, addr);
 	    vma != NULL && vma->vm_start < (addr + count); vma = vma->vm_next) {
 		if (vma->vm_ops && vma->vm_ops == &ll_file_vm_ops &&
 		    vma->vm_flags & VM_SHARED) {
@@ -181,12 +181,14 @@ static int ll_page_mkwrite0(struct vm_area_struct *vma, struct page *vmpage,
 	LASSERT(vmpage != NULL);
 
 	io = ll_fault_io_init(vma, &env,  &nest, vmpage->index, NULL);
-	if (IS_ERR(io))
-		GOTO(out, result = PTR_ERR(io));
+	if (IS_ERR(io)) {
+		result = PTR_ERR(io);
+		goto out;
+	}
 
 	result = io->ci_result;
 	if (result < 0)
-		GOTO(out_io, result);
+		goto out_io;
 
 	io->u.ci_fault.ft_mkwrite = 1;
 	io->u.ci_fault.ft_writable = 1;
@@ -261,7 +263,7 @@ out:
 
 static inline int to_fault_error(int result)
 {
-	switch(result) {
+	switch (result) {
 	case 0:
 		result = VM_FAULT_LOCKED;
 		break;
@@ -310,10 +312,16 @@ static int ll_fault0(struct vm_area_struct *vma, struct vm_fault *vmf)
 		vio->u.fault.ft_vma       = vma;
 		vio->u.fault.ft_vmpage    = NULL;
 		vio->u.fault.fault.ft_vmf = vmf;
+		vio->u.fault.fault.ft_flags = 0;
+		vio->u.fault.fault.ft_flags_valid = 0;
 
 		result = cl_io_loop(env, io);
 
-		fault_ret = vio->u.fault.fault.ft_flags;
+		/* ft_flags are only valid if we reached
+		 * the call to filemap_fault */
+		if (vio->u.fault.fault.ft_flags_valid)
+			fault_ret = vio->u.fault.fault.ft_flags;
+
 		vmpage = vio->u.fault.ft_vmpage;
 		if (result != 0 && vmpage != NULL) {
 			page_cache_release(vmpage);
@@ -393,7 +401,7 @@ static int ll_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 		}
 	} while (retry);
 
-	switch(result) {
+	switch (result) {
 	case 0:
 		LASSERT(PageLocked(vmf->page));
 		result = VM_FAULT_LOCKED;
@@ -420,7 +428,7 @@ static int ll_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
  *  To avoid cancel the locks covering mmapped region for lock cache pressure,
  *  we track the mapped vma count in ccc_object::cob_mmap_cnt.
  */
-static void ll_vm_open(struct vm_area_struct * vma)
+static void ll_vm_open(struct vm_area_struct *vma)
 {
 	struct inode *inode    = vma->vm_file->f_dentry->d_inode;
 	struct ccc_object *vob = cl_inode2ccc(inode);
@@ -466,7 +474,7 @@ static const struct vm_operations_struct ll_file_vm_ops = {
 	.close			= ll_vm_close,
 };
 
-int ll_file_mmap(struct file *file, struct vm_area_struct * vma)
+int ll_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct inode *inode = file->f_dentry->d_inode;
 	int rc;

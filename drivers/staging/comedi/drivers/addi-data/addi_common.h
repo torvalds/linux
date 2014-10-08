@@ -107,10 +107,9 @@ struct addi_private {
 	unsigned char b_DmaDoubleBuffer;	/*  we can use double buffering */
 	unsigned int ui_DmaActualBuffer;	/*  which buffer is used now */
 	unsigned short *ul_DmaBufferVirtual[2];	/*  pointers to DMA buffer */
-	unsigned int ul_DmaBufferHw[2];	/*  hw address of DMA buff */
+	dma_addr_t ul_DmaBufferHw[2];		/*  hw address of DMA buff */
 	unsigned int ui_DmaBufferSize[2];	/*  size of dma buffer in bytes */
 	unsigned int ui_DmaBufferUsesize[2];	/*  which size we may now used for transfer */
-	unsigned int ui_DmaBufferPages[2];	/*  number of pages in buffer */
 	unsigned char b_DigitalOutputRegister;	/*  Digital Output Register */
 	unsigned char b_OutputMemoryStatus;
 	unsigned char b_TimerSelectMode;	/*  Contain data written at iobase + 0C */

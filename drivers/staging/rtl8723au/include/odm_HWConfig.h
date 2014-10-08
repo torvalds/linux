@@ -67,9 +67,9 @@
 
 struct phy_rx_agc_info {
 	#ifdef __LITTLE_ENDIAN
-		u8	gain:7,trsw:1;
+		u8	gain:7, trsw:1;
 	#else
-		u8	trsw:1,gain:7;
+		u8	trsw:1, gain:7;
 	#endif
 };
 

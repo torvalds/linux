@@ -77,10 +77,8 @@ See http://www.mccdaq.com/PDFs/Manuals/pcim-das1602-16.pdf for more details.
  */
 struct cb_pcimdas_private {
 	/* base addresses */
+	unsigned long daqio;
 	unsigned long BADR3;
-
-	/* Used for AO readback */
-	unsigned int ao_readback[2];
 };
 
 static int cb_pcimdas_ai_eoc(struct comedi_device *dev,
@@ -143,7 +141,7 @@ static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
 	/* convert n samples */
 	for (n = 0; n < insn->n; n++) {
 		/* trigger conversion */
-		outw(0, dev->iobase + 0);
+		outw(0, devpriv->daqio + 0);
 
 		/* wait for conversion to end */
 		ret = comedi_timeout(dev, s, insn, cb_pcimdas_ai_eoc, 0);
@@ -151,55 +149,31 @@ static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
 			return ret;
 
 		/* read data */
-		data[n] = inw(dev->iobase + 0);
+		data[n] = inw(devpriv->daqio + 0);
 	}
 
 	/* return the number of samples read/written */
 	return n;
 }
 
-static int cb_pcimdas_ao_winsn(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+static int cb_pcimdas_ao_insn_write(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_insn *insn,
+				    unsigned int *data)
 {
 	struct cb_pcimdas_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val = s->readback[chan];
+	unsigned int reg = (chan) ? DAC1_OFFSET : DAC0_OFFSET;
 	int i;
-	int chan = CR_CHAN(insn->chanspec);
 
-	/* Writing a list of values to an AO channel is probably not
-	 * very useful, but that's how the interface is defined. */
 	for (i = 0; i < insn->n; i++) {
-		switch (chan) {
-		case 0:
-			outw(data[i] & 0x0FFF, dev->iobase + DAC0_OFFSET);
-			break;
-		case 1:
-			outw(data[i] & 0x0FFF, dev->iobase + DAC1_OFFSET);
-			break;
-		default:
-			return -1;
-		}
-		devpriv->ao_readback[chan] = data[i];
+		val = data[i];
+		outw(val, devpriv->daqio + reg);
 	}
+	s->readback[chan] = val;
 
-	/* return the number of samples read/written */
-	return i;
-}
-
-/* AO subdevices should have a read insn as well as a write insn.
- * Usually this means copying a value stored in devpriv. */
-static int cb_pcimdas_ao_rinsn(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
-{
-	struct cb_pcimdas_private *devpriv = dev->private;
-	int i;
-	int chan = CR_CHAN(insn->chanspec);
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
-
-	return i;
+	return insn->n;
 }
 
 static int cb_pcimdas_auto_attach(struct comedi_device *dev,
@@ -208,7 +182,6 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct cb_pcimdas_private *devpriv;
 	struct comedi_subdevice *s;
-	unsigned long iobase_8255;
 	int ret;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
@@ -219,9 +192,9 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	dev->iobase = pci_resource_start(pcidev, 2);
+	devpriv->daqio = pci_resource_start(pcidev, 2);
 	devpriv->BADR3 = pci_resource_start(pcidev, 3);
-	iobase_8255 = pci_resource_start(pcidev, 4);
+	dev->iobase = pci_resource_start(pcidev, 4);
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
@@ -247,30 +220,27 @@ static int cb_pcimdas_auto_attach(struct comedi_device *dev,
 	s->maxdata = 0xfff;
 	/* ranges are hardware settable, but not software readable. */
 	s->range_table = &range_unknown;
-	s->insn_write = &cb_pcimdas_ao_winsn;
-	s->insn_read = &cb_pcimdas_ao_rinsn;
+	s->insn_write = cb_pcimdas_ao_insn_write;
+	s->insn_read = comedi_readback_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	s = &dev->subdevices[2];
 	/* digital i/o subdevice */
-	ret = subdev_8255_init(dev, s, NULL, iobase_8255);
+	ret = subdev_8255_init(dev, s, NULL, 0x00);
 	if (ret)
 		return ret;
 
 	return 0;
 }
 
-static void cb_pcimdas_detach(struct comedi_device *dev)
-{
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	comedi_pci_disable(dev);
-}
-
 static struct comedi_driver cb_pcimdas_driver = {
 	.driver_name	= "cb_pcimdas",
 	.module		= THIS_MODULE,
 	.auto_attach	= cb_pcimdas_auto_attach,
-	.detach		= cb_pcimdas_detach,
+	.detach		= comedi_pci_detach,
 };
 
 static int cb_pcimdas_pci_probe(struct pci_dev *dev,

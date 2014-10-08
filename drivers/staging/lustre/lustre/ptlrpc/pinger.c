@@ -281,7 +281,8 @@ static int ptlrpc_pinger_main(void *arg)
 		   ping will get sent 2 timeouts from now!  Beware. */
 		CDEBUG(D_INFO, "next wakeup in "CFS_DURATION_T" ("
 		       CFS_TIME_T")\n", time_to_next_wake,
-		       cfs_time_add(this_ping,cfs_time_seconds(PING_INTERVAL)));
+		       cfs_time_add(this_ping,
+				    cfs_time_seconds(PING_INTERVAL)));
 		if (time_to_next_wake > 0) {
 			lwi = LWI_TIMEOUT(max_t(long, time_to_next_wake,
 						cfs_time_seconds(1)),
@@ -434,7 +435,7 @@ struct timeout_item* ptlrpc_new_timeout(int time, enum timeout_event event,
 
 	OBD_ALLOC_PTR(ti);
 	if (!ti)
-		return(NULL);
+		return NULL;
 
 	INIT_LIST_HEAD(&ti->ti_obd_list);
 	INIT_LIST_HEAD(&ti->ti_chain);
@@ -489,7 +490,7 @@ int ptlrpc_add_timeout_client(int time, enum timeout_event event,
 	ti = ptlrpc_pinger_register_timeout(time, event, cb, data);
 	if (!ti) {
 		mutex_unlock(&pinger_mutex);
-		return (-EINVAL);
+		return -EINVAL;
 	}
 	list_add(obd_list, &ti->ti_obd_list);
 	mutex_unlock(&pinger_mutex);

@@ -181,8 +181,8 @@ __ipipe_get_format(struct iss_ipipe_device *ipipe, struct v4l2_subdev_fh *fh,
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
 		return v4l2_subdev_get_try_format(fh, pad);
-	else
-		return &ipipe->formats[pad];
+
+	return &ipipe->formats[pad];
 }
 
 /*

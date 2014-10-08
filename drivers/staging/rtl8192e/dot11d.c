@@ -49,6 +49,7 @@ static struct channel_list ChannelPlan[] = {
 void dot11d_init(struct rtllib_device *ieee)
 {
 	struct rt_dot11d_info *pDot11dInfo = GET_DOT11D_INFO(ieee);
+
 	pDot11dInfo->bEnabled = false;
 
 	pDot11dInfo->State = DOT11D_STATE_NONE;

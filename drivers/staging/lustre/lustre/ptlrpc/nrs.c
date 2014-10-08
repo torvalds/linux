@@ -264,7 +264,7 @@ static int nrs_policy_start_locked(struct ptlrpc_nrs_policy *policy)
 				module_put(policy->pol_desc->pd_owner);
 
 			policy->pol_state = NRS_POL_STATE_STOPPED;
-			GOTO(out, rc);
+			goto out;
 		}
 	}
 
@@ -327,7 +327,7 @@ static void nrs_policy_put(struct ptlrpc_nrs_policy *policy)
 /**
  * Find and return a policy by name.
  */
-static struct ptlrpc_nrs_policy * nrs_policy_find_locked(struct ptlrpc_nrs *nrs,
+static struct ptlrpc_nrs_policy *nrs_policy_find_locked(struct ptlrpc_nrs *nrs,
 							 char *name)
 {
 	struct ptlrpc_nrs_policy *tmp;
@@ -377,7 +377,7 @@ static void nrs_resource_put(struct ptlrpc_nrs_resource *res)
  * \see ptlrpc_nrs_pol_ops::op_res_get()
  */
 static
-struct ptlrpc_nrs_resource * nrs_resource_get(struct ptlrpc_nrs_policy *policy,
+struct ptlrpc_nrs_resource *nrs_resource_get(struct ptlrpc_nrs_policy *policy,
 					      struct ptlrpc_nrs_request *nrq,
 					      bool moving_req)
 {
@@ -530,7 +530,7 @@ static void nrs_resource_put_safe(struct ptlrpc_nrs_resource **resp)
  * \retval the NRS request to be handled
  */
 static inline
-struct ptlrpc_nrs_request * nrs_request_get(struct ptlrpc_nrs_policy *policy,
+struct ptlrpc_nrs_request *nrs_request_get(struct ptlrpc_nrs_policy *policy,
 					    bool peek, bool force)
 {
 	struct ptlrpc_nrs_request *nrq;
@@ -635,8 +635,10 @@ static int nrs_policy_ctl(struct ptlrpc_nrs *nrs, char *name,
 	spin_lock(&nrs->nrs_lock);
 
 	policy = nrs_policy_find_locked(nrs, name);
-	if (policy == NULL)
-		GOTO(out, rc = -ENOENT);
+	if (policy == NULL) {
+		rc = -ENOENT;
+		goto out;
+	}
 
 	switch (opc) {
 		/**
@@ -956,19 +958,21 @@ static int nrs_svcpt_setup_locked(struct ptlrpc_service_part *svcpt)
 	nrs = nrs_svcpt2nrs(svcpt, false);
 	rc = nrs_svcpt_setup_locked0(nrs, svcpt);
 	if (rc < 0)
-		GOTO(out, rc);
+		goto out;
 
 	/**
 	 * Optionally allocate a high-priority NRS head.
 	 */
 	if (svcpt->scp_service->srv_ops.so_hpreq_handler == NULL)
-		GOTO(out, rc);
+		goto out;
 
 	OBD_CPT_ALLOC_PTR(svcpt->scp_nrs_hp,
 			  svcpt->scp_service->srv_cptable,
 			  svcpt->scp_cpt);
-	if (svcpt->scp_nrs_hp == NULL)
-		GOTO(out, rc = -ENOMEM);
+	if (svcpt->scp_nrs_hp == NULL) {
+		rc = -ENOMEM;
+		goto out;
+	}
 
 	nrs = nrs_svcpt2nrs(svcpt, true);
 	rc = nrs_svcpt_setup_locked0(nrs, svcpt);
@@ -1154,12 +1158,15 @@ int ptlrpc_nrs_policy_register(struct ptlrpc_nrs_pol_conf *conf)
 		CERROR("NRS: failing to register policy %s which has already "
 		       "been registered with NRS core!\n",
 		       conf->nc_name);
-		GOTO(fail, rc = -EEXIST);
+		rc = -EEXIST;
+		goto fail;
 	}
 
 	OBD_ALLOC_PTR(desc);
-	if (desc == NULL)
-		GOTO(fail, rc = -ENOMEM);
+	if (desc == NULL) {
+		rc = -ENOMEM;
+		goto fail;
+	}
 
 	strncpy(desc->pd_name, conf->nc_name, NRS_POL_NAME_MAX);
 	desc->pd_ops		 = conf->nc_ops;
@@ -1214,7 +1221,7 @@ again:
 				LASSERT(rc2 == 0);
 				mutex_unlock(&ptlrpc_all_services_mutex);
 				OBD_FREE_PTR(desc);
-				GOTO(fail, rc);
+				goto fail;
 			}
 
 			if (!hp && nrs_svc_has_hp(svc)) {
@@ -1237,7 +1244,7 @@ again:
 				LASSERT(rc2 == 0);
 				mutex_unlock(&ptlrpc_all_services_mutex);
 				OBD_FREE_PTR(desc);
-				GOTO(fail, rc);
+				goto fail;
 			}
 		}
 	}
@@ -1288,7 +1295,8 @@ int ptlrpc_nrs_policy_unregister(struct ptlrpc_nrs_pol_conf *conf)
 		CERROR("Failing to unregister NRS policy %s which has "
 		       "not been registered with NRS core!\n",
 		       conf->nc_name);
-		GOTO(not_exist, rc = -ENOENT);
+		rc = -ENOENT;
+		goto not_exist;
 	}
 
 	mutex_lock(&ptlrpc_all_services_mutex);
@@ -1299,7 +1307,7 @@ int ptlrpc_nrs_policy_unregister(struct ptlrpc_nrs_pol_conf *conf)
 			CERROR("Please first stop policy %s on all service "
 			       "partitions and then retry to unregister the "
 			       "policy.\n", conf->nc_name);
-		GOTO(fail, rc);
+		goto fail;
 	}
 
 	CDEBUG(D_INFO, "Unregistering policy %s from NRS core.\n",
@@ -1347,7 +1355,7 @@ int ptlrpc_service_nrs_setup(struct ptlrpc_service *svc)
 	ptlrpc_service_for_each_part(svcpt, i, svc) {
 		rc = nrs_svcpt_setup_locked(svcpt);
 		if (rc != 0)
-			GOTO(failed, rc);
+			goto failed;
 	}
 
 	/**
@@ -1361,7 +1369,7 @@ int ptlrpc_service_nrs_setup(struct ptlrpc_service *svc)
 		if (desc->pd_ops->op_lprocfs_init != NULL) {
 			rc = desc->pd_ops->op_lprocfs_init(svc);
 			if (rc != 0)
-				GOTO(failed, rc);
+				goto failed;
 		}
 	}
 
@@ -1679,7 +1687,7 @@ int ptlrpc_nrs_policy_control(const struct ptlrpc_service *svc,
 					    opc, arg);
 			if (rc != 0 || (queue == PTLRPC_NRS_QUEUE_REG &&
 					single))
-				GOTO(out, rc);
+				goto out;
 		}
 
 		if ((queue & PTLRPC_NRS_QUEUE_HP) != 0) {
@@ -1694,7 +1702,7 @@ int ptlrpc_nrs_policy_control(const struct ptlrpc_service *svc,
 			rc = nrs_policy_ctl(nrs_svcpt2nrs(svcpt, true), name,
 					    opc, arg);
 			if (rc != 0 || single)
-				GOTO(out, rc);
+				goto out;
 		}
 	}
 out:
@@ -1721,7 +1729,7 @@ int ptlrpc_nrs_init(void)
 
 	rc = ptlrpc_nrs_policy_register(&nrs_conf_fifo);
 	if (rc != 0)
-		GOTO(fail, rc);
+		goto fail;
 
 
 	return rc;

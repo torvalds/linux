@@ -177,18 +177,21 @@ int class_resolve_dev_name(__u32 len, const char *name)
 
 	if (!len || !name) {
 		CERROR("No name passed,!\n");
-		GOTO(out, rc = -EINVAL);
+		rc = -EINVAL;
+		goto out;
 	}
 	if (name[len - 1] != 0) {
 		CERROR("Name not nul terminated!\n");
-		GOTO(out, rc = -EINVAL);
+		rc = -EINVAL;
+		goto out;
 	}
 
 	CDEBUG(D_IOCTL, "device name %s\n", name);
 	dev = class_name2dev(name);
 	if (dev == -1) {
 		CDEBUG(D_IOCTL, "No device for name %s!\n", name);
-		GOTO(out, rc = -EINVAL);
+		rc = -EINVAL;
+		goto out;
 	}
 
 	CDEBUG(D_IOCTL, "device name %s, dev %d\n", name, dev);
@@ -208,7 +211,7 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 
 	/* only for debugging */
 	if (cmd == LIBCFS_IOC_DEBUG_MASK) {
-		debug_data = (struct libcfs_debug_ioctl_data*)arg;
+		debug_data = (struct libcfs_debug_ioctl_data *)arg;
 		libcfs_subsystem_debug = debug_data->subs;
 		libcfs_debug = debug_data->debug;
 		return 0;
@@ -227,11 +230,14 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 
 		if (!data->ioc_plen1 || !data->ioc_pbuf1) {
 			CERROR("No config buffer passed!\n");
-			GOTO(out, err = -EINVAL);
+			err = -EINVAL;
+			goto out;
 		}
 		OBD_ALLOC(lcfg, data->ioc_plen1);
-		if (lcfg == NULL)
-			GOTO(out, err = -ENOMEM);
+		if (lcfg == NULL) {
+			err = -ENOMEM;
+			goto out;
+		}
 		err = copy_from_user(lcfg, data->ioc_pbuf1,
 					 data->ioc_plen1);
 		if (!err)
@@ -240,18 +246,20 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 			err = class_process_config(lcfg);
 
 		OBD_FREE(lcfg, data->ioc_plen1);
-		GOTO(out, err);
+		goto out;
 	}
 
 	case OBD_GET_VERSION:
 		if (!data->ioc_inlbuf1) {
 			CERROR("No buffer passed in ioctl\n");
-			GOTO(out, err = -EINVAL);
+			err = -EINVAL;
+			goto out;
 		}
 
 		if (strlen(BUILD_VERSION) + 1 > data->ioc_inllen1) {
 			CERROR("ioctl buffer too small to hold version\n");
-			GOTO(out, err = -EINVAL);
+			err = -EINVAL;
+			goto out;
 		}
 
 		memcpy(data->ioc_bulk, BUILD_VERSION,
@@ -260,7 +268,7 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 		err = obd_ioctl_popdata((void *)arg, data, len);
 		if (err)
 			err = -EFAULT;
-		GOTO(out, err);
+		goto out;
 
 	case OBD_IOC_NAME2DEV: {
 		/* Resolve a device name.  This does not change the
@@ -271,13 +279,15 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 		dev = class_resolve_dev_name(data->ioc_inllen1,
 					     data->ioc_inlbuf1);
 		data->ioc_dev = dev;
-		if (dev < 0)
-			GOTO(out, err = -EINVAL);
+		if (dev < 0) {
+			err = -EINVAL;
+			goto out;
+		}
 
 		err = obd_ioctl_popdata((void *)arg, data, sizeof(*data));
 		if (err)
 			err = -EFAULT;
-		GOTO(out, err);
+		goto out;
 	}
 
 	case OBD_IOC_UUID2DEV: {
@@ -289,11 +299,13 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 
 		if (!data->ioc_inllen1 || !data->ioc_inlbuf1) {
 			CERROR("No UUID passed!\n");
-			GOTO(out, err = -EINVAL);
+			err = -EINVAL;
+			goto out;
 		}
 		if (data->ioc_inlbuf1[data->ioc_inllen1 - 1] != 0) {
 			CERROR("UUID not NUL terminated!\n");
-			GOTO(out, err = -EINVAL);
+			err = -EINVAL;
+			goto out;
 		}
 
 		CDEBUG(D_IOCTL, "device name %s\n", data->ioc_inlbuf1);
@@ -303,7 +315,8 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 		if (dev == -1) {
 			CDEBUG(D_IOCTL, "No device for UUID %s!\n",
 			       data->ioc_inlbuf1);
-			GOTO(out, err = -EINVAL);
+			err = -EINVAL;
+			goto out;
 		}
 
 		CDEBUG(D_IOCTL, "device name %s, dev %d\n", data->ioc_inlbuf1,
@@ -311,13 +324,14 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 		err = obd_ioctl_popdata((void *)arg, data, sizeof(*data));
 		if (err)
 			err = -EFAULT;
-		GOTO(out, err);
+		goto out;
 	}
 
 	case OBD_IOC_CLOSE_UUID: {
 		CDEBUG(D_IOCTL, "closing all connections to uuid %s (NOOP)\n",
 		       data->ioc_inlbuf1);
-		GOTO(out, err = 0);
+		err = 0;
+		goto out;
 	}
 
 	case OBD_IOC_GETDEVICE: {
@@ -326,16 +340,20 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 
 		if (!data->ioc_inlbuf1) {
 			CERROR("No buffer passed in ioctl\n");
-			GOTO(out, err = -EINVAL);
+			err = -EINVAL;
+			goto out;
 		}
 		if (data->ioc_inllen1 < 128) {
 			CERROR("ioctl buffer too small to hold version\n");
-			GOTO(out, err = -EINVAL);
+			err = -EINVAL;
+			goto out;
 		}
 
 		obd = class_num2obd(index);
-		if (!obd)
-			GOTO(out, err = -ENOENT);
+		if (!obd) {
+			err = -ENOENT;
+			goto out;
+		}
 
 		if (obd->obd_stopping)
 			status = "ST";
@@ -352,56 +370,66 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 			 atomic_read(&obd->obd_refcount));
 		err = obd_ioctl_popdata((void *)arg, data, len);
 
-		GOTO(out, err = 0);
+		err = 0;
+		goto out;
 	}
 
 	}
 
 	if (data->ioc_dev == OBD_DEV_BY_DEVNAME) {
-		if (data->ioc_inllen4 <= 0 || data->ioc_inlbuf4 == NULL)
-			GOTO(out, err = -EINVAL);
-		if (strnlen(data->ioc_inlbuf4, MAX_OBD_NAME) >= MAX_OBD_NAME)
-			GOTO(out, err = -EINVAL);
+		if (data->ioc_inllen4 <= 0 || data->ioc_inlbuf4 == NULL) {
+			err = -EINVAL;
+			goto out;
+		}
+		if (strnlen(data->ioc_inlbuf4, MAX_OBD_NAME) >= MAX_OBD_NAME) {
+			err = -EINVAL;
+			goto out;
+		}
 		obd = class_name2obd(data->ioc_inlbuf4);
 	} else if (data->ioc_dev < class_devno_max()) {
 		obd = class_num2obd(data->ioc_dev);
 	} else {
 		CERROR("OBD ioctl: No device\n");
-		GOTO(out, err = -EINVAL);
+		err = -EINVAL;
+		goto out;
 	}
 
 	if (obd == NULL) {
 		CERROR("OBD ioctl : No Device %d\n", data->ioc_dev);
-		GOTO(out, err = -EINVAL);
+		err = -EINVAL;
+		goto out;
 	}
 	LASSERT(obd->obd_magic == OBD_DEVICE_MAGIC);
 
 	if (!obd->obd_set_up || obd->obd_stopping) {
-		CERROR("OBD ioctl: device not setup %d \n", data->ioc_dev);
-		GOTO(out, err = -EINVAL);
+		CERROR("OBD ioctl: device not setup %d\n", data->ioc_dev);
+		err = -EINVAL;
+		goto out;
 	}
 
-	switch(cmd) {
+	switch (cmd) {
 	case OBD_IOC_NO_TRANSNO: {
 		if (!obd->obd_attached) {
 			CERROR("Device %d not attached\n", obd->obd_minor);
-			GOTO(out, err = -ENODEV);
+			err = -ENODEV;
+			goto out;
 		}
 		CDEBUG(D_HA, "%s: disabling committed-transno notification\n",
 		       obd->obd_name);
 		obd->obd_no_transno = 1;
-		GOTO(out, err = 0);
+		err = 0;
+		goto out;
 	}
 
 	default: {
 		err = obd_iocontrol(cmd, obd->obd_self_export, len, data, NULL);
 		if (err)
-			GOTO(out, err);
+			goto out;
 
 		err = obd_ioctl_popdata((void *)arg, data, len);
 		if (err)
 			err = -EFAULT;
-		GOTO(out, err);
+		goto out;
 	}
 	}
 
@@ -506,20 +534,23 @@ static int __init init_obdclass(void)
 	spin_lock_init(&obd_types_lock);
 	obd_zombie_impexp_init();
 
-	obd_memory = lprocfs_alloc_stats(OBD_STATS_NUM,
-					 LPROCFS_STATS_FLAG_NONE |
-					 LPROCFS_STATS_FLAG_IRQ_SAFE);
-	if (obd_memory == NULL) {
-		CERROR("kmalloc of 'obd_memory' failed\n");
-		return -ENOMEM;
-	}
+	if (IS_ENABLED(CONFIG_PROC_FS)) {
+		obd_memory = lprocfs_alloc_stats(OBD_STATS_NUM,
+						 LPROCFS_STATS_FLAG_NONE |
+						 LPROCFS_STATS_FLAG_IRQ_SAFE);
 
-	lprocfs_counter_init(obd_memory, OBD_MEMORY_STAT,
-			     LPROCFS_CNTR_AVGMINMAX,
-			     "memused", "bytes");
-	lprocfs_counter_init(obd_memory, OBD_MEMORY_PAGES_STAT,
-			     LPROCFS_CNTR_AVGMINMAX,
-			     "pagesused", "pages");
+		if (obd_memory == NULL) {
+			CERROR("kmalloc of 'obd_memory' failed\n");
+			return -ENOMEM;
+		}
+
+		lprocfs_counter_init(obd_memory, OBD_MEMORY_STAT,
+				     LPROCFS_CNTR_AVGMINMAX,
+				     "memused", "bytes");
+		lprocfs_counter_init(obd_memory, OBD_MEMORY_PAGES_STAT,
+				     LPROCFS_CNTR_AVGMINMAX,
+				     "pagesused", "pages");
+	}
 
 	err = obd_init_checks();
 	if (err == -EOVERFLOW)

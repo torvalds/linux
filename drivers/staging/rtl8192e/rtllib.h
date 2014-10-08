@@ -1456,7 +1456,7 @@ enum eap_type {
 	EAPOL_ENCAP_ASF_ALERT
 };
 
-static const char *eap_types[] = {
+static const char * const eap_types[] = {
 	[EAP_PACKET]		= "EAP-Packet",
 	[EAPOL_START]		= "EAPOL-Start",
 	[EAPOL_LOGOFF]		= "EAPOL-Logoff",
@@ -1473,6 +1473,7 @@ static inline u8 Frame_QoSTID(u8 *buf)
 {
 	struct rtllib_hdr_3addr *hdr;
 	u16 fc;
+
 	hdr = (struct rtllib_hdr_3addr *)buf;
 	fc = le16_to_cpu(hdr->frame_ctl);
 	return (u8)((union frameqos *)(buf + (((fc & RTLLIB_FCTL_TODS) &&
@@ -2513,7 +2514,7 @@ struct rtllib_device {
 	void (*AllowAllDestAddrHandler)(struct net_device *dev,
 					bool bAllowAllDA, bool WriteIntoReg);
 
-	void (*rtllib_ips_leave_wq) (struct net_device *dev);
+	void (*rtllib_ips_leave_wq)(struct net_device *dev);
 	void (*rtllib_ips_leave)(struct net_device *dev);
 	void (*LeisurePSLeave)(struct net_device *dev);
 	void (*rtllib_rfkill_poll)(struct net_device *dev);

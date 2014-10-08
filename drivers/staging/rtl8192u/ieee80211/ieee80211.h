@@ -1211,7 +1211,7 @@ typedef union _frameqos {
 		u16 reserved:1;
 		u16 txop:8;
 	}field;
-}frameqos,*pframeqos;
+} frameqos, *pframeqos;
 
 /* SWEEP TABLE ENTRIES NUMBER*/
 #define MAX_SWEEP_TAB_ENTRIES		  42
@@ -1648,7 +1648,7 @@ typedef struct _bandwidth_autoswitch {
 	long	threshold_40Mhzto20Mhz;
 	bool bforced_tx20Mhz;
 	bool bautoswitch_enable;
-}bandwidth_autoswitch,*pbandwidth_autoswitch;
+} bandwidth_autoswitch, *pbandwidth_autoswitch;
 
 
 //added by amy for order
@@ -1745,7 +1745,7 @@ typedef struct _RT_POWER_SAVE_CONTROL {
 	//
 	bool				bLeisurePs;
 
-}RT_POWER_SAVE_CONTROL,*PRT_POWER_SAVE_CONTROL;
+} RT_POWER_SAVE_CONTROL, *PRT_POWER_SAVE_CONTROL;
 
 typedef u32 RT_RF_CHANGE_SOURCE;
 #define RF_CHANGE_BY_SW BIT31
@@ -2118,7 +2118,7 @@ struct ieee80211_device {
 	 * This function can't sleep.
 	 */
 	void (*softmac_data_hard_start_xmit)(struct sk_buff *skb,
-			       struct net_device *dev,int rate);
+			       struct net_device *dev, int rate);
 
 	/* stops the HW queue for DATA frames. Useful to avoid
 	 * waste time to TX data frame when we are reassociating
@@ -2133,7 +2133,7 @@ struct ieee80211_device {
 	 * This function can sleep. the driver should ensure
 	 * the radio has been swithced before return.
 	 */
-	void (*set_chan)(struct net_device *dev,short ch);
+	void (*set_chan)(struct net_device *dev, short ch);
 
 	/* These are not used if the ieee stack takes care of
 	 * scanning (IEEE_SOFTMAC_SCAN feature set).
@@ -2445,6 +2445,15 @@ extern void ieee80211_tkip_null(void);
 extern void ieee80211_wep_null(void);
 extern void ieee80211_ccmp_null(void);
 
+int ieee80211_crypto_init(void);
+void ieee80211_crypto_deinit(void);
+int ieee80211_crypto_tkip_init(void);
+void ieee80211_crypto_tkip_exit(void);
+int ieee80211_crypto_ccmp_init(void);
+void ieee80211_crypto_ccmp_exit(void);
+int ieee80211_crypto_wep_init(void);
+void ieee80211_crypto_wep_exit(void);
+
 /* ieee80211_softmac_wx.c */
 
 extern int ieee80211_wx_get_wap(struct ieee80211_device *ieee,
@@ -2484,6 +2493,10 @@ extern int ieee80211_wx_set_freq(struct ieee80211_device *ieee, struct iw_reques
 
 extern int ieee80211_wx_get_freq(struct ieee80211_device *ieee, struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b);
+
+/* ieee80211_module.c */
+extern int ieee80211_debug_init(void);
+extern void ieee80211_debug_exit(void);
 
 //extern void ieee80211_wx_sync_scan_wq(struct ieee80211_device *ieee);
 extern void ieee80211_wx_sync_scan_wq(struct work_struct *work);
@@ -2535,18 +2548,22 @@ extern u8 HTCCheck(struct ieee80211_device *ieee, u8 *pFrame);
 extern void HTResetIOTSetting(PRT_HIGH_THROUGHPUT  pHTInfo);
 extern bool IsHTHalfNmodeAPs(struct ieee80211_device *ieee);
 extern u16 HTHalfMcsToDataRate(struct ieee80211_device *ieee,  u8      nMcsRate);
-extern u16 HTMcsToDataRate( struct ieee80211_device *ieee, u8 nMcsRate);
-extern u16  TxCountToDataRate( struct ieee80211_device *ieee, u8 nDataRate);
+extern u16 HTMcsToDataRate(struct ieee80211_device *ieee, u8 nMcsRate);
+extern u16  TxCountToDataRate(struct ieee80211_device *ieee, u8 nDataRate);
 //function in BAPROC.c
-extern int ieee80211_rx_ADDBAReq( struct ieee80211_device *ieee, struct sk_buff *skb);
-extern int ieee80211_rx_ADDBARsp( struct ieee80211_device *ieee, struct sk_buff *skb);
+extern int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee,
+				 struct sk_buff *skb);
+extern int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee,
+				 struct sk_buff *skb);
 extern int ieee80211_rx_DELBA(struct ieee80211_device *ieee,struct sk_buff *skb);
-extern void TsInitAddBA( struct ieee80211_device *ieee, PTX_TS_RECORD   pTS, u8 Policy, u8 bOverwritePending);
-extern void TsInitDelBA( struct ieee80211_device *ieee, PTS_COMMON_INFO pTsCommonInfo, TR_SELECT TxRxSelect);
+extern void TsInitAddBA(struct ieee80211_device *ieee, PTX_TS_RECORD pTS,
+			u8 Policy, u8 bOverwritePending);
+extern void TsInitDelBA(struct ieee80211_device *ieee,
+			PTS_COMMON_INFO pTsCommonInfo, TR_SELECT TxRxSelect);
 extern void BaSetupTimeOut(unsigned long data);
 extern void TxBaInactTimeout(unsigned long data);
 extern void RxBaInactTimeout(unsigned long data);
-extern void ResetBaEntry( PBA_RECORD pBA);
+extern void ResetBaEntry(PBA_RECORD pBA);
 //function in TS.c
 extern bool GetTs(
 	struct ieee80211_device		*ieee,

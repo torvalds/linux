@@ -755,7 +755,7 @@ void cfs_trace_flush_pages(void)
 }
 
 int cfs_trace_copyin_string(char *knl_buffer, int knl_buffer_nob,
-			    const char *usr_buffer, int usr_buffer_nob)
+			    const char __user *usr_buffer, int usr_buffer_nob)
 {
 	int    nob;
 
@@ -763,7 +763,7 @@ int cfs_trace_copyin_string(char *knl_buffer, int knl_buffer_nob,
 		return -EOVERFLOW;
 
 	if (copy_from_user((void *)knl_buffer,
-			   (void *)usr_buffer, usr_buffer_nob))
+			   usr_buffer, usr_buffer_nob))
 		return -EFAULT;
 
 	nob = strnlen(knl_buffer, usr_buffer_nob);
@@ -782,7 +782,7 @@ int cfs_trace_copyin_string(char *knl_buffer, int knl_buffer_nob,
 }
 EXPORT_SYMBOL(cfs_trace_copyin_string);
 
-int cfs_trace_copyout_string(char *usr_buffer, int usr_buffer_nob,
+int cfs_trace_copyout_string(char __user *usr_buffer, int usr_buffer_nob,
 			     const char *knl_buffer, char *append)
 {
 	/* NB if 'append' != NULL, it's a single character to append to the
@@ -824,7 +824,7 @@ void cfs_trace_free_string_buffer(char *str, int nob)
 	kfree(str);
 }
 
-int cfs_trace_dump_debug_buffer_usrstr(void *usr_str, int usr_str_nob)
+int cfs_trace_dump_debug_buffer_usrstr(void __user *usr_str, int usr_str_nob)
 {
 	char	 *str;
 	int	   rc;
@@ -886,7 +886,7 @@ int cfs_trace_daemon_command(char *str)
 	return rc;
 }
 
-int cfs_trace_daemon_command_usrstr(void *usr_str, int usr_str_nob)
+int cfs_trace_daemon_command_usrstr(void __user *usr_str, int usr_str_nob)
 {
 	char *str;
 	int   rc;
@@ -939,7 +939,7 @@ int cfs_trace_set_debug_mb(int mb)
 	return 0;
 }
 
-int cfs_trace_set_debug_mb_usrstr(void *usr_str, int usr_str_nob)
+int cfs_trace_set_debug_mb_usrstr(void __user *usr_str, int usr_str_nob)
 {
 	char     str[32];
 	int      rc;

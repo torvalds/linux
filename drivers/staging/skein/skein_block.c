@@ -34,7 +34,7 @@
 
 #ifdef SKEIN_DEBUG
 #define debug_save_tweak(ctx) { \
-                        ctx->h.tweak[0] = ts[0]; ctx->h.tweak[1] = ts[1]; }
+			ctx->h.tweak[0] = ts[0]; ctx->h.tweak[1] = ts[1]; }
 #else
 #define debug_save_tweak(ctx)
 #endif

@@ -364,7 +364,7 @@ do_getxattr:
 		if (rc == -EAGAIN)
 			goto getxattr_nocache;
 		if (rc < 0)
-			GOTO(out_xattr, rc);
+			goto out_xattr;
 
 		/* Add "system.posix_acl_access" to the list */
 		if (lli->lli_posix_acl != NULL && valid & OBD_MD_FLXATTRLS) {
@@ -375,7 +375,8 @@ do_getxattr:
 				       sizeof(XATTR_NAME_ACL_ACCESS));
 				rc += sizeof(XATTR_NAME_ACL_ACCESS);
 			} else {
-				GOTO(out_xattr, rc = -ERANGE);
+				rc = -ERANGE;
+				goto out_xattr;
 			}
 		}
 	} else {
@@ -387,29 +388,36 @@ getxattr_nocache:
 		capa_put(oc);
 
 		if (rc < 0)
-			GOTO(out_xattr, rc);
+			goto out_xattr;
 
 		body = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
 		LASSERT(body);
 
 		/* only detect the xattr size */
-		if (size == 0)
-			GOTO(out, rc = body->eadatasize);
+		if (size == 0) {
+			rc = body->eadatasize;
+			goto out;
+		}
 
 		if (size < body->eadatasize) {
 			CERROR("server bug: replied size %u > %u\n",
 				body->eadatasize, (int)size);
-			GOTO(out, rc = -ERANGE);
+			rc = -ERANGE;
+			goto out;
 		}
 
-		if (body->eadatasize == 0)
-			GOTO(out, rc = -ENODATA);
+		if (body->eadatasize == 0) {
+			rc = -ENODATA;
+			goto out;
+		}
 
 		/* do not need swab xattr data */
 		xdata = req_capsule_server_sized_get(&req->rq_pill, &RMF_EADATA,
 							body->eadatasize);
-		if (!xdata)
-			GOTO(out, rc = -EFAULT);
+		if (!xdata) {
+			rc = -EFAULT;
+			goto out;
+		}
 
 		memcpy(buffer, xdata, body->eadatasize);
 		rc = body->eadatasize;
@@ -421,14 +429,16 @@ getxattr_nocache:
 
 		acl = lustre_posix_acl_xattr_2ext(
 					(posix_acl_xattr_header *)buffer, rc);
-		if (IS_ERR(acl))
-			GOTO(out, rc = PTR_ERR(acl));
+		if (IS_ERR(acl)) {
+			rc = PTR_ERR(acl);
+			goto out;
+		}
 
 		rc = ee_add(&sbi->ll_et, current_pid(), ll_inode2fid(inode),
 			    xattr_type, acl);
 		if (unlikely(rc < 0)) {
 			lustre_ext_acl_xattr_free(acl);
-			GOTO(out, rc);
+			goto out;
 		}
 	}
 #endif
@@ -476,7 +486,8 @@ ssize_t ll_getxattr(struct dentry *dentry, const char *name,
 		if (size == 0 && S_ISDIR(inode->i_mode)) {
 			/* XXX directory EA is fix for now, optimize to save
 			 * RPC transfer */
-			GOTO(out, rc = sizeof(struct lov_user_md));
+			rc = sizeof(struct lov_user_md);
+			goto out;
 		}
 
 		lsm = ccc_inode_lsm_get(inode);
@@ -496,7 +507,7 @@ ssize_t ll_getxattr(struct dentry *dentry, const char *name,
 		ccc_inode_lsm_put(inode, lsm);
 
 		if (rc < 0)
-		       GOTO(out, rc);
+			goto out;
 
 		if (size == 0) {
 			/* used to call ll_get_max_mdsize() forward to get
@@ -504,13 +515,14 @@ ssize_t ll_getxattr(struct dentry *dentry, const char *name,
 			 * rsync 3.0.x) care much about the exact xattr value
 			 * size */
 			rc = lmmsize;
-			GOTO(out, rc);
+			goto out;
 		}
 
 		if (size < lmmsize) {
 			CERROR("server bug: replied size %d > %d for %s (%s)\n",
 			       lmmsize, (int)size, dentry->d_name.name, name);
-			GOTO(out, rc = -ERANGE);
+			rc = -ERANGE;
+			goto out;
 		}
 
 		lump = (struct lov_user_md *)buffer;
@@ -526,7 +538,7 @@ out:
 			ptlrpc_req_finished(request);
 		else if (lmm)
 			obd_free_diskmd(ll_i2dtexp(inode), &lmm);
-		return(rc);
+		return rc;
 	}
 
 	return ll_getxattr_common(inode, name, buffer, size, OBD_MD_FLXATTR);
@@ -549,7 +561,7 @@ ssize_t ll_listxattr(struct dentry *dentry, char *buffer, size_t size)
 
 	rc = ll_getxattr_common(inode, NULL, buffer, size, OBD_MD_FLXATTRLS);
 	if (rc < 0)
-		GOTO(out, rc);
+		goto out;
 
 	if (buffer != NULL) {
 		struct ll_sb_info *sbi = ll_i2sbi(inode);
@@ -582,7 +594,8 @@ ssize_t ll_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	}
 
 	if (rc2 < 0) {
-		GOTO(out, rc2 = 0);
+		rc2 = 0;
+		goto out;
 	} else if (S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode)) {
 		const int prefix_len = sizeof(XATTR_LUSTRE_PREFIX) - 1;
 		const size_t name_len   = sizeof("lov") - 1;

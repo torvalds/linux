@@ -97,10 +97,6 @@ static const struct aio12_8_boardtype board_types[] = {
 	},
 };
 
-struct aio12_8_private {
-	unsigned int ao_readback[4];
-};
-
 static int aio_aio12_8_ai_eoc(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn,
@@ -149,28 +145,13 @@ static int aio_aio12_8_ai_read(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int aio_aio12_8_ao_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+static int aio_aio12_8_ao_insn_write(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     struct comedi_insn *insn,
+				     unsigned int *data)
 {
-	struct aio12_8_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	int val = devpriv->ao_readback[chan];
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = val;
-	return insn->n;
-}
-
-static int aio_aio12_8_ao_write(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
-{
-	struct aio12_8_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned long port = dev->iobase + AIO12_8_DAC_REG(chan);
-	unsigned int val = 0;
+	unsigned int val = s->readback[chan];
 	int i;
 
 	/* enable DACs */
@@ -178,10 +159,9 @@ static int aio_aio12_8_ao_write(struct comedi_device *dev,
 
 	for (i = 0; i < insn->n; i++) {
 		val = data[i];
-		outw(val, port);
+		outw(val, dev->iobase + AIO12_8_DAC_REG(chan));
 	}
-
-	devpriv->ao_readback[chan] = val;
+	s->readback[chan] = val;
 
 	return insn->n;
 }
@@ -198,18 +178,13 @@ static const struct comedi_lrange range_aio_aio12_8 = {
 static int aio_aio12_8_attach(struct comedi_device *dev,
 			      struct comedi_devconfig *it)
 {
-	const struct aio12_8_boardtype *board = comedi_board(dev);
-	struct aio12_8_private *devpriv;
+	const struct aio12_8_boardtype *board = dev->board_ptr;
 	struct comedi_subdevice *s;
 	int ret;
 
 	ret = comedi_request_region(dev, it->options[0], 32);
 	if (ret)
 		return ret;
-
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
-		return -ENOMEM;
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
@@ -236,16 +211,19 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 		s->n_chan	= 4;
 		s->maxdata	= 0x0fff;
 		s->range_table	= &range_aio_aio12_8;
-		s->insn_read	= aio_aio12_8_ao_read;
-		s->insn_write	= aio_aio12_8_ao_write;
+		s->insn_write	= aio_aio12_8_ao_insn_write;
+		s->insn_read	= comedi_readback_insn_read;
+
+		ret = comedi_alloc_subdev_readback(s);
+		if (ret)
+			return ret;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
 	s = &dev->subdevices[2];
 	/* 8255 Digital i/o subdevice */
-	ret = subdev_8255_init(dev, s, NULL,
-			       dev->iobase + AIO12_8_8255_BASE_REG);
+	ret = subdev_8255_init(dev, s, NULL, AIO12_8_8255_BASE_REG);
 	if (ret)
 		return ret;
 

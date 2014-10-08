@@ -213,6 +213,7 @@ int oz_usb_control_req(void *hpd, u8 req_id, struct usb_ctrlrequest *setup,
 		case USB_REQ_SET_INTERFACE: {
 				u8 if_num = (u8)windex;
 				u8 alt = (u8)wvalue;
+
 				rc = oz_usb_set_interface_req(hpd, req_id,
 					if_num, alt);
 			}
@@ -254,6 +255,7 @@ int oz_usb_send_isoc(void *hpd, u8 ep_num, struct urb *urb)
 	if (pd->mode & OZ_F_ISOC_NO_ELTS) {
 		for (i = 0; i < urb->number_of_packets; i++) {
 			u8 *data;
+
 			desc = &urb->iso_frame_desc[i];
 			data = ((u8 *)urb->transfer_buffer)+desc->offset;
 			oz_send_isoc_unit(pd, ep_num, data, desc->length);
@@ -271,6 +273,7 @@ int oz_usb_send_isoc(void *hpd, u8 ep_num, struct urb *urb)
 		int unit_count;
 		int unit_size;
 		int rem;
+
 		if (ei == NULL)
 			return -1;
 		rem = MAX_ISOC_FIXED_DATA;
@@ -340,6 +343,7 @@ static void oz_usb_handle_ep_data(struct oz_usb_ctx *usb_ctx,
 			u8 *data = body->data;
 			int count;
 			int i;
+
 			if (!unit_size)
 				break;
 			count = data_len/unit_size;
@@ -364,11 +368,11 @@ void oz_usb_rx(struct oz_pd *pd, struct oz_elt *elt)
 	struct oz_usb_hdr *usb_hdr = (struct oz_usb_hdr *)(elt + 1);
 	struct oz_usb_ctx *usb_ctx;
 
-	spin_lock_bh(&pd->app_lock[OZ_APPID_USB-1]);
-	usb_ctx = (struct oz_usb_ctx *)pd->app_ctx[OZ_APPID_USB-1];
+	spin_lock_bh(&pd->app_lock[OZ_APPID_USB]);
+	usb_ctx = (struct oz_usb_ctx *)pd->app_ctx[OZ_APPID_USB];
 	if (usb_ctx)
 		oz_usb_get(usb_ctx);
-	spin_unlock_bh(&pd->app_lock[OZ_APPID_USB-1]);
+	spin_unlock_bh(&pd->app_lock[OZ_APPID_USB]);
 	if (usb_ctx == NULL)
 		return; /* Context has gone so nothing to do. */
 	if (usb_ctx->stopped)
@@ -434,11 +438,11 @@ void oz_usb_farewell(struct oz_pd *pd, u8 ep_num, u8 *data, u8 len)
 {
 	struct oz_usb_ctx *usb_ctx;
 
-	spin_lock_bh(&pd->app_lock[OZ_APPID_USB-1]);
-	usb_ctx = (struct oz_usb_ctx *)pd->app_ctx[OZ_APPID_USB-1];
+	spin_lock_bh(&pd->app_lock[OZ_APPID_USB]);
+	usb_ctx = (struct oz_usb_ctx *)pd->app_ctx[OZ_APPID_USB];
 	if (usb_ctx)
 		oz_usb_get(usb_ctx);
-	spin_unlock_bh(&pd->app_lock[OZ_APPID_USB-1]);
+	spin_unlock_bh(&pd->app_lock[OZ_APPID_USB]);
 	if (usb_ctx == NULL)
 		return; /* Context has gone so nothing to do. */
 	if (!usb_ctx->stopped) {

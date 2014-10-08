@@ -118,9 +118,6 @@ struct atao_private {
 	unsigned short cfg1;
 	unsigned short cfg3;
 
-	/* Used for AO readback */
-	unsigned int ao_readback[10];
-
 	/* Used for caldac readback */
 	unsigned char caldac[21];
 };
@@ -141,9 +138,8 @@ static int atao_ao_insn_write(struct comedi_device *dev,
 			      struct comedi_insn *insn,
 			      unsigned int *data)
 {
-	struct atao_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int val;
+	unsigned int val = s->readback[chan];
 	int i;
 
 	if (chan == 0)
@@ -151,30 +147,15 @@ static int atao_ao_insn_write(struct comedi_device *dev,
 
 	for (i = 0; i < insn->n; i++) {
 		val = data[i];
-		devpriv->ao_readback[chan] = val;
 
-		/* munge offset binary (unsigned) to two's complement */
-		val = comedi_offset_munge(s, val);
-		outw(val, dev->iobase + ATAO_AO_REG(chan));
+		/* the hardware expects two's complement values */
+		outw(comedi_offset_munge(s, val),
+		     dev->iobase + ATAO_AO_REG(chan));
 	}
+	s->readback[chan] = val;
 
 	if (chan == 0)
 		atao_select_reg_group(dev, 0);
-
-	return insn->n;
-}
-
-static int atao_ao_insn_read(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn,
-			     unsigned int *data)
-{
-	struct atao_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
 
 	return insn->n;
 }
@@ -338,7 +319,7 @@ static void atao_reset(struct comedi_device *dev)
 
 static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct atao_board *board = comedi_board(dev);
+	const struct atao_board *board = dev->board_ptr;
 	struct atao_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
@@ -363,7 +344,11 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata	= 0x0fff;
 	s->range_table	= it->options[3] ? &range_unipolar10 : &range_bipolar10;
 	s->insn_write	= atao_ao_insn_write;
-	s->insn_read	= atao_ao_insn_read;
+	s->insn_read	= comedi_readback_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	/* Digital I/O subdevice */
 	s = &dev->subdevices[1];

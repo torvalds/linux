@@ -1069,14 +1069,20 @@ enum tsv_rsv_reg {
 	CARRY_REG_2 = 0x4d,
 };
 
+struct xlr_adapter {
+	struct net_device *netdev[4];
+};
+
 struct xlr_net_priv {
 	u32 __iomem *base_addr;
 	struct net_device *ndev;
+	struct xlr_adapter *adapter;
 	struct mii_bus *mii_bus;
 	int num_rx_desc;
 	int phy_addr;	/* PHY addr on MDIO bus */
 	int pcs_id;	/* PCS id on MDIO bus */
 	int port_id;	/* Port(gmac/xgmac) number, i.e 0-7 */
+	int tx_stnid;
 	u32 __iomem *mii_addr;
 	u32 __iomem *serdes_addr;
 	u32 __iomem *pcs_addr;
@@ -1096,4 +1102,4 @@ struct xlr_net_priv {
 	u64 *class_3_spill;
 };
 
-void xlr_set_gmac_speed(struct xlr_net_priv *priv);
+extern void xlr_set_gmac_speed(struct xlr_net_priv *priv);

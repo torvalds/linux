@@ -31,23 +31,19 @@
 #ifndef __80211MGR_H__
 #define __80211MGR_H__
 
+#include <linux/types.h>
+#include "linux/ieee80211.h"
+
 #include "ttype.h"
 #include "80211hdr.h"
 
 #define WLAN_MIN_ARRAY          1
 
 /* Information Element ID value */
-#define WLAN_EID_SSID           0
-#define WLAN_EID_SUPP_RATES     1
 #define WLAN_EID_FH_PARMS       2
 #define WLAN_EID_DS_PARMS       3
 #define WLAN_EID_CF_PARMS       4
-#define WLAN_EID_TIM            5
 #define WLAN_EID_IBSS_PARMS     6
-#define WLAN_EID_COUNTRY        7
-#define WLAN_EID_CHALLENGE      16
-#define WLAN_EID_PWR_CONSTRAINT 32
-#define WLAN_EID_PWR_CAPABILITY 33
 #define WLAN_EID_TPC_REQ        34
 #define WLAN_EID_TPC_REP        35
 #define WLAN_EID_SUPP_CH        36
@@ -58,7 +54,6 @@
 #define WLAN_EID_IBSS_DFS       41
 #define WLAN_EID_ERP            42
 /* reference 802.11i 7.3.2 table 20 */
-#define WLAN_EID_RSN            48
 #define WLAN_EID_EXTSUPP_RATES  50
 /* reference WiFi WPA spec. */
 #define WLAN_EID_RSN_WPA        221
@@ -464,7 +459,7 @@ typedef struct tagWLAN_FR_BEACON {
 	unsigned int	len;
 	unsigned char *pBuf;
 	PUWLAN_80211HDR         pHdr;
-	PQWORD                  pqwTimestamp;
+	__le64 *pqwTimestamp;
 	unsigned short *pwBeaconInterval;
 	unsigned short *pwCapInfo;
 	PWLAN_IE_SSID           pSSID;
@@ -577,7 +572,7 @@ typedef struct tagWLAN_FR_PROBERESP {
 	unsigned int	len;
 	unsigned char *pBuf;
 	PUWLAN_80211HDR         pHdr;
-	PQWORD                  pqwTimestamp;
+	__le64 *pqwTimestamp;
 	unsigned short *pwBeaconInterval;
 	unsigned short *pwCapInfo;
 	PWLAN_IE_SSID           pSSID;

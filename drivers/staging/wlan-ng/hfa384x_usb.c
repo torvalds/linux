@@ -3474,7 +3474,7 @@ static void hfa384x_usbin_rx(wlandevice_t *wlandev, struct sk_buff *skb)
 		/* If exclude and we receive an unencrypted, drop it */
 		if ((wlandev->hostwep & HOSTWEP_EXCLUDEUNENCRYPTED) &&
 		    !WLAN_GET_FC_ISWEP(fc)) {
-			goto done;
+			break;
 		}
 
 		data_len = le16_to_cpu(usbin->rxfrm.desc.data_len);
@@ -3528,12 +3528,8 @@ static void hfa384x_usbin_rx(wlandevice_t *wlandev, struct sk_buff *skb)
 		netdev_warn(hw->wlandev->netdev, "Received frame on unsupported port=%d\n",
 			    HFA384x_RXSTATUS_MACPORT_GET(
 				    usbin->rxfrm.desc.status));
-		goto done;
 		break;
 	}
-
-done:
-	return;
 }
 
 /*----------------------------------------------------------------
@@ -3643,8 +3639,6 @@ static void hfa384x_int_rxmonitor(wlandevice_t *wlandev,
 
 	/* pass it back up */
 	prism2sta_ev_rx(wlandev, skb);
-
-	return;
 }
 
 /*----------------------------------------------------------------
@@ -4127,7 +4121,6 @@ static int hfa384x_isgood_pdrcode(u16 pdrcode)
 	case HFA384x_PDR_HFA3861_MANF_TESTI:
 		/* code is OK */
 		return 1;
-		break;
 	default:
 		if (pdrcode < 0x1000) {
 			/* code is OK, but we don't know exactly what it is */
@@ -4140,7 +4133,6 @@ static int hfa384x_isgood_pdrcode(u16 pdrcode)
 				 pdrcode);
 			return 0;
 		}
-		break;
 	}
 	return 0;		/* avoid compiler warnings */
 }

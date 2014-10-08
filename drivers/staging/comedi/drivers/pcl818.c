@@ -319,7 +319,6 @@ struct pcl818_private {
 	unsigned int act_chanlist_len;	/*  how long is actual MUX list */
 	unsigned int act_chanlist_pos;	/*  actual position in MUX list */
 	unsigned int ai_data_len;	/*  len of data buffer */
-	unsigned int ao_readback[2];
 	unsigned int divisor1;
 	unsigned int divisor2;
 	unsigned int usefifo:1;
@@ -739,7 +738,7 @@ static int check_single_ended(unsigned int port)
 static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		      struct comedi_cmd *cmd)
 {
-	const struct pcl818_board *board = comedi_board(dev);
+	const struct pcl818_board *board = dev->board_ptr;
 	struct pcl818_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int arg;
@@ -937,32 +936,18 @@ static int pcl818_ao_insn_write(struct comedi_device *dev,
 				struct comedi_insn *insn,
 				unsigned int *data)
 {
-	struct pcl818_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val = s->readback[chan];
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		devpriv->ao_readback[chan] = data[i];
-		outb((data[i] & 0x000f) << 4,
+		val = data[i];
+		outb((val & 0x000f) << 4,
 		     dev->iobase + PCL818_AO_LSB_REG(chan));
-		outb((data[i] & 0x0ff0) >> 4,
+		outb((val & 0x0ff0) >> 4,
 		     dev->iobase + PCL818_AO_MSB_REG(chan));
 	}
-
-	return insn->n;
-}
-
-static int pcl818_ao_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn,
-			       unsigned int *data)
-{
-	struct pcl818_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
+	s->readback[chan] = val;
 
 	return insn->n;
 }
@@ -995,7 +980,7 @@ static int pcl818_do_insn_bits(struct comedi_device *dev,
 
 static void pcl818_reset(struct comedi_device *dev)
 {
-	const struct pcl818_board *board = comedi_board(dev);
+	const struct pcl818_board *board = dev->board_ptr;
 	unsigned long timer_base = dev->iobase + PCL818_TIMER_BASE;
 	unsigned int chan;
 
@@ -1033,7 +1018,7 @@ static void pcl818_set_ai_range_table(struct comedi_device *dev,
 				      struct comedi_subdevice *s,
 				      struct comedi_devconfig *it)
 {
-	const struct pcl818_board *board = comedi_board(dev);
+	const struct pcl818_board *board = dev->board_ptr;
 
 	/* default to the range table from the boardinfo */
 	s->range_table = board->ai_range_type;
@@ -1082,7 +1067,7 @@ static void pcl818_set_ai_range_table(struct comedi_device *dev,
 
 static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct pcl818_board *board = comedi_board(dev);
+	const struct pcl818_board *board = dev->board_ptr;
 	struct pcl818_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
@@ -1172,8 +1157,6 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->n_chan	= board->n_aochan;
 		s->maxdata	= 0x0fff;
 		s->range_table	= &range_unipolar5;
-		s->insn_read	= pcl818_ao_insn_read;
-		s->insn_write	= pcl818_ao_insn_write;
 		if (board->is_818) {
 			if ((it->options[4] == 1) || (it->options[4] == 10))
 				s->range_table = &range_unipolar10;
@@ -1185,6 +1168,12 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			if (it->options[5] == 2)
 				s->range_table = &range_unknown;
 		}
+		s->insn_write	= pcl818_ao_insn_write;
+		s->insn_read	= comedi_readback_insn_read;
+
+		ret = comedi_alloc_subdev_readback(s);
+		if (ret)
+			return ret;
 	} else {
 		s->type		= COMEDI_SUBD_UNUSED;
 	}

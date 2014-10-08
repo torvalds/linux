@@ -68,16 +68,16 @@ void cfs_tracefile_exit(void);
 
 
 int cfs_trace_copyin_string(char *knl_buffer, int knl_buffer_nob,
-			    const char *usr_buffer, int usr_buffer_nob);
-int cfs_trace_copyout_string(char *usr_buffer, int usr_buffer_nob,
+			    const char __user *usr_buffer, int usr_buffer_nob);
+int cfs_trace_copyout_string(char __user *usr_buffer, int usr_buffer_nob,
 			     const char *knl_str, char *append);
 int cfs_trace_allocate_string_buffer(char **str, int nob);
 void cfs_trace_free_string_buffer(char *str, int nob);
-int cfs_trace_dump_debug_buffer_usrstr(void *usr_str, int usr_str_nob);
+int cfs_trace_dump_debug_buffer_usrstr(void __user *usr_str, int usr_str_nob);
 int cfs_trace_daemon_command(char *str);
-int cfs_trace_daemon_command_usrstr(void *usr_str, int usr_str_nob);
+int cfs_trace_daemon_command_usrstr(void __user *usr_str, int usr_str_nob);
 int cfs_trace_set_debug_mb(int mb);
-int cfs_trace_set_debug_mb_usrstr(void *usr_str, int usr_str_nob);
+int cfs_trace_set_debug_mb_usrstr(void __user *usr_str, int usr_str_nob);
 int cfs_trace_get_debug_mb(void);
 
 extern void libcfs_debug_dumplog_internal(void *arg);

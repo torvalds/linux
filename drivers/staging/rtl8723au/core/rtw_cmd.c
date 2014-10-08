@@ -677,7 +677,7 @@ int rtw_setstakey_cmd23a(struct rtw_adapter *padapter, u8 *psta, u8 unicast_key)
 	struct set_stakey_rsp *psetstakey_rsp = NULL;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
-	struct sta_info *sta = (struct sta_info*)psta;
+	struct sta_info *sta = (struct sta_info *)psta;
 	int res = _SUCCESS;
 
 	ph2c = kzalloc(sizeof(struct cmd_obj), GFP_KERNEL);
@@ -717,11 +717,11 @@ int rtw_setstakey_cmd23a(struct rtw_adapter *padapter, u8 *psta, u8 unicast_key)
 
 	if (unicast_key == true) {
 		memcpy(&psetstakey_para->key, &sta->dot118021x_UncstKey, 16);
-        } else {
+	} else {
 		int idx = psecuritypriv->dot118021XGrpKeyid;
 		memcpy(&psetstakey_para->key,
 		       &psecuritypriv->dot118021XGrpKey[idx].skey, 16);
-        }
+	}
 
 	/* jeff: set this because at least sw key is ready */
 	padapter->securitypriv.busetkipkey = 1;
@@ -1493,7 +1493,7 @@ void rtw_setstaKey_cmdrsp_callback23a(struct rtw_adapter *padapter,
 	struct sta_info *psta;
 
 	pstapriv = &padapter->stapriv;
-	psetstakey_rsp = (struct set_stakey_rsp*) (pcmd->rsp);
+	psetstakey_rsp = (struct set_stakey_rsp *) (pcmd->rsp);
 	psta = rtw_get_stainfo23a(pstapriv, psetstakey_rsp->addr);
 
 	if (!psta) {
@@ -1513,12 +1513,12 @@ void rtw_setassocsta_cmdrsp_callback23a(struct rtw_adapter *padapter,
 {
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct set_assocsta_parm* passocsta_parm;
-	struct set_assocsta_rsp* passocsta_rsp;
+	struct set_assocsta_parm *passocsta_parm;
+	struct set_assocsta_rsp *passocsta_rsp;
 	struct sta_info *psta;
 
 	passocsta_parm = (struct set_assocsta_parm *)(pcmd->parmbuf);
-	passocsta_rsp = (struct set_assocsta_rsp*) (pcmd->rsp);
+	passocsta_rsp = (struct set_assocsta_rsp *) (pcmd->rsp);
 	psta = rtw_get_stainfo23a(pstapriv, passocsta_parm->addr);
 
 	if (psta == NULL) {

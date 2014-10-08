@@ -24,9 +24,11 @@
 #include "uniklog.h"
 #include "diagnostics/appos_subsystems.h"
 #include "uisutils.h"
-#include "commontypes.h"
 #include "vbuschannel.h"
 #include "vbushelper.h"
+#include <linux/types.h>
+#include <linux/io.h>
+#include <linux/uuid.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/pci.h>
@@ -39,7 +41,7 @@
 #include <linux/debugfs.h>
 #include "version.h"
 #include "guestlinuxdebug.h"
-#include "timskmodutils.h"
+#include "timskmod.h"
 
 struct driver_private {
 	struct kobject kobj;
@@ -172,6 +174,7 @@ static inline
 int WAIT_FOR_IO_CHANNEL(ULTRA_IO_CHANNEL_PROTOCOL __iomem  *chanptr)
 {
 	int count = 120;
+
 	while (count > 0) {
 
 		if (ULTRA_CHANNEL_SERVER_READY(&chanptr->ChannelHeader))
@@ -187,6 +190,7 @@ static int write_vbus_chpInfo(ULTRA_VBUS_CHANNEL_PROTOCOL *chan,
 			      ULTRA_VBUS_DEVICEINFO *info)
 {
 	int off;
+
 	if (!chan) {
 		LOGERR("vbus channel not present");
 		return -1;
@@ -205,6 +209,7 @@ static int write_vbus_busInfo(ULTRA_VBUS_CHANNEL_PROTOCOL *chan,
 			      ULTRA_VBUS_DEVICEINFO *info)
 {
 	int off;
+
 	if (!chan) {
 		LOGERR("vbus channel not present");
 		return -1;
@@ -226,6 +231,7 @@ write_vbus_devInfo(ULTRA_VBUS_CHANNEL_PROTOCOL *chan,
 		   ULTRA_VBUS_DEVICEINFO *info, int devix)
 {
 	int off;
+
 	if (!chan) {
 		LOGERR("vbus channel not present");
 		return -1;
@@ -249,6 +255,7 @@ static int add_vbus(struct add_vbus_guestpart *addparams)
 {
 	int ret;
 	struct device *vbus;
+
 	vbus = kzalloc(sizeof(struct device), GFP_ATOMIC);
 
 	POSTCODE_LINUX_2(VPCI_CREATE_ENTRY_PC, POSTCODE_SEVERITY_INFO);
@@ -326,7 +333,7 @@ static int add_vhba(struct add_virt_guestpart *addparams)
 
 	GET_SCSIADAPINFO_FROM_CHANPTR(addparams->chanptr);
 
-	GET_BUS_DEV(addparams->busNo);
+	GET_BUS_DEV(addparams->bus_no);
 
 	LOGINF("Adding vhba wwnn:%x:%x config:%d-%d-%d-%d chanptr:%p\n",
 	       scsi.wwnn.wwnn1, scsi.wwnn.wwnn2,
@@ -383,7 +390,7 @@ add_vnic(struct add_virt_guestpart *addparams)
 
 	GET_NETADAPINFO_FROM_CHANPTR(addparams->chanptr);
 
-	GET_BUS_DEV(addparams->busNo);
+	GET_BUS_DEV(addparams->bus_no);
 
 	LOGINF("Adding vnic macaddr:%02x:%02x:%02x:%02x:%02x:%02x rcvbufs:%d mtu:%d chanptr:%p%pUL\n",
 	     net.mac_addr[0], net.mac_addr[1], net.mac_addr[2], net.mac_addr[3],
@@ -410,12 +417,12 @@ delete_vbus(struct del_vbus_guestpart *delparams)
 	struct device *vbus;
 	unsigned char busid[BUS_ID_SIZE];
 
-	GET_BUS_DEV(delparams->busNo);
+	GET_BUS_DEV(delparams->bus_no);
 	/* ensure that bus has no devices? -- TBD */
 	LOGINF("Deleting %s\n", BUS_ID(vbus));
 	if (delete_vbus_device(vbus, NULL))
 		return 0;	/* failure */
-	LOGINF("Deleted vbus %d\n", delparams->busNo);
+	LOGINF("Deleted vbus %d\n", delparams->bus_no);
 	return 1;
 }
 
@@ -613,7 +620,7 @@ static int delete_all_virt(VIRTPCI_DEV_TYPE devtype, struct del_vbus_guestpart *
 	unsigned char busid[BUS_ID_SIZE];
 	struct device *vbus;
 
-	GET_BUS_DEV(delparams->busNo);
+	GET_BUS_DEV(delparams->bus_no);
 
 	if ((devtype != VIRTHBA_TYPE) && (devtype != VIRTNIC_TYPE)) {
 		LOGERR("**** FAILED to delete all devices; devtype:%d not vhba:%d or vnic:%d\n",
@@ -785,7 +792,7 @@ static void fix_vbus_devInfo(struct device *dev, int devNo, int devType,
 		stype = "unknown";
 		break;
 	}
-	BusDeviceInfo_Init(&devInfo, stype,
+	bus_device_info_init(&devInfo, stype,
 			   virtpcidrv->name,
 			   virtpcidrv->version,
 			   virtpcidrv->vertag);
@@ -854,6 +861,7 @@ static int virtpci_device_remove(struct device *dev_)
 	*/
 	struct virtpci_dev *virtpcidev = device_to_virtpci_dev(dev_);
 	struct virtpci_driver *virtpcidrv = virtpcidev->mydriver;
+
 	LOGINF("In virtpci_device_remove bus_id:%s dev_:%p virtpcidev:%p dev->driver:%p drivername:%s\n",
 	       BUS_ID(dev_), dev_, virtpcidev, dev_->driver,
 	       dev_->driver->name);	/* VERBOSE/DEBUG */
@@ -931,8 +939,8 @@ static int virtpci_device_add(struct device *parentbus, int devtype,
 		virtpcidev->net = *net;
 	}
 	virtpcidev->vendor = PCI_VENDOR_ID_UNISYS;
-	virtpcidev->busNo = addparams->busNo;
-	virtpcidev->deviceNo = addparams->deviceNo;
+	virtpcidev->busNo = addparams->bus_no;
+	virtpcidev->deviceNo = addparams->device_no;
 
 	virtpcidev->queueinfo.chan = addparams->chanptr;
 	virtpcidev->queueinfo.send_int_if_needed = NULL;
@@ -949,7 +957,7 @@ static int virtpci_device_add(struct device *parentbus, int devtype,
 	virtpcidev->generic_dev.release = virtpci_device_release;
 
 	dev_set_name(&virtpcidev->generic_dev, "%x:%x",
-		     addparams->busNo, addparams->deviceNo);
+		     addparams->bus_no, addparams->device_no);
 
 	/* add the vhba/vnic to virtpci device list - but check for
 	 * duplicate wwnn/macaddr first
@@ -1047,7 +1055,8 @@ static int virtpci_device_add(struct device *parentbus, int devtype,
 
 	LOGINF("Added %s:%d:%d &virtpcidev->generic_dev:%p\n",
 	       (devtype == VIRTHBA_TYPE) ? "virthba" : "virtnic",
-	       addparams->busNo, addparams->deviceNo, &virtpcidev->generic_dev);
+	       addparams->bus_no, addparams->device_no,
+	       &virtpcidev->generic_dev);
 	POSTCODE_LINUX_2(VPCI_CREATE_EXIT_PC, POSTCODE_SEVERITY_INFO);
 	return 1;
 }
@@ -1306,6 +1315,7 @@ static ssize_t virtpci_driver_attr_show(struct kobject *kobj,
 
 	struct driver_private *dprivate = to_driver(kobj);
 	struct device_driver *driver;
+
 	if (dprivate != NULL)
 		driver = dprivate->driver;
 	else
@@ -1328,6 +1338,7 @@ static ssize_t virtpci_driver_attr_store(struct kobject *kobj,
 
 	struct driver_private *dprivate = to_driver(kobj);
 	struct device_driver *driver;
+
 	if (dprivate != NULL)
 		driver = dprivate->driver;
 	else
@@ -1504,7 +1515,7 @@ static int __init virtpci_mod_init(void)
 		return ret;
 	}
 	DBGINF("bus_register successful\n");
-	BusDeviceInfo_Init(&Bus_DriverInfo, "clientbus", "virtpci",
+	bus_device_info_init(&Bus_DriverInfo, "clientbus", "virtpci",
 			   VERSION, NULL);
 
 	/* create a root bus used to parent all the virtpci buses. */

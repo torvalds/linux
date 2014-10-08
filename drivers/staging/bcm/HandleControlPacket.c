@@ -157,7 +157,9 @@ static VOID handle_rx_control_packet(struct bcm_mini_adapter *Adapter,
  * @ingroup ctrl_pkt_functions
  * Thread to handle control pkt reception
  */
-int control_packet_handler(struct bcm_mini_adapter *Adapter /* pointer to adapter object*/)
+
+/* pointer to adapter object*/
+int control_packet_handler(struct bcm_mini_adapter *Adapter)
 {
 	struct sk_buff *ctrl_packet = NULL;
 	unsigned long flags = 0;

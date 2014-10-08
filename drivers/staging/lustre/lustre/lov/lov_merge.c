@@ -52,9 +52,9 @@ int lov_merge_lvb_kms(struct lov_stripe_md *lsm,
 	__u64 size = 0;
 	__u64 kms = 0;
 	__u64 blocks = 0;
-	obd_time current_mtime = lvb->lvb_mtime;
-	obd_time current_atime = lvb->lvb_atime;
-	obd_time current_ctime = lvb->lvb_ctime;
+	s64 current_mtime = lvb->lvb_mtime;
+	s64 current_atime = lvb->lvb_atime;
+	s64 current_ctime = lvb->lvb_ctime;
 	int i;
 	int rc = 0;
 
@@ -66,7 +66,7 @@ int lov_merge_lvb_kms(struct lov_stripe_md *lsm,
 	       lvb->lvb_atime, lvb->lvb_ctime, lvb->lvb_blocks);
 	for (i = 0; i < lsm->lsm_stripe_count; i++) {
 		struct lov_oinfo *loi = lsm->lsm_oinfo[i];
-		obd_size lov_size, tmpsize;
+		u64 lov_size, tmpsize;
 
 		if (OST_LVB_IS_ERR(loi->loi_lvb.lvb_blocks)) {
 			rc = OST_LVB_GET_ERR(loi->loi_lvb.lvb_blocks);
@@ -109,36 +109,9 @@ int lov_merge_lvb_kms(struct lov_stripe_md *lsm,
 	return rc;
 }
 
-/** Merge the lock value block(&lvb) attributes from each of the stripes in a
- * file into a single lvb. It is expected that the caller initializes the
- * current atime, mtime, ctime to avoid regressing a more uptodate time on
- * the local client.
- *
- * If \a kms_only is set then we do not consider the recently seen size (rss)
- * when updating the known minimum size (kms).  Even when merging RSS, we will
- * take the KMS value if it's larger.  This prevents getattr from stomping on
- * dirty cached pages which extend the file size. */
-int lov_merge_lvb(struct obd_export *exp,
-		  struct lov_stripe_md *lsm, struct ost_lvb *lvb, int kms_only)
-{
-	int   rc;
-	__u64 kms;
-
-	lov_stripe_lock(lsm);
-	rc = lov_merge_lvb_kms(lsm, lvb, &kms);
-	lov_stripe_unlock(lsm);
-	if (kms_only)
-		lvb->lvb_size = kms;
-
-	CDEBUG(D_INODE, "merged for ID "DOSTID" s=%llu m=%llu a=%llu c=%llu b=%llu\n",
-	       POSTID(&lsm->lsm_oi), lvb->lvb_size, lvb->lvb_mtime,
-	       lvb->lvb_atime, lvb->lvb_ctime, lvb->lvb_blocks);
-	return rc;
-}
-
 /* Must be called under the lov_stripe_lock() */
 int lov_adjust_kms(struct obd_export *exp, struct lov_stripe_md *lsm,
-		   obd_off size, int shrink)
+		   u64 size, int shrink)
 {
 	struct lov_oinfo *loi;
 	int stripe = 0;
@@ -173,7 +146,7 @@ int lov_adjust_kms(struct obd_export *exp, struct lov_stripe_md *lsm,
 	return 0;
 }
 
-void lov_merge_attrs(struct obdo *tgt, struct obdo *src, obd_valid valid,
+void lov_merge_attrs(struct obdo *tgt, struct obdo *src, u64 valid,
 		     struct lov_stripe_md *lsm, int stripeno, int *set)
 {
 	valid &= src->o_valid;
@@ -181,7 +154,7 @@ void lov_merge_attrs(struct obdo *tgt, struct obdo *src, obd_valid valid,
 	if (*set) {
 		if (valid & OBD_MD_FLSIZE) {
 			/* this handles sparse files properly */
-			obd_size lov_size;
+			u64 lov_size;
 
 			lov_size = lov_stripe_size(lsm, src->o_size, stripeno);
 			if (lov_size > tgt->o_size)

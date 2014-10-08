@@ -84,6 +84,7 @@ parser_init_guts(u64 addr, u32 bytes, BOOL isLocal,
 	ctx->byte_stream = FALSE;
 	if (isLocal) {
 		void *p;
+
 		if (addr > virt_to_phys(high_memory - 1)) {
 			ERRDRV("%s - bad local address (0x%-16.16Lx for %lu)",
 			       __func__,
@@ -257,6 +258,7 @@ static int
 string_length_no_trail(char *s, int len)
 {
 	int i = len - 1;
+
 	while (i >= 0) {
 		if (!isspace(s[i]))
 			return i + 1;

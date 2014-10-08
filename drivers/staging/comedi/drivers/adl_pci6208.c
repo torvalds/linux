@@ -46,8 +46,6 @@
 #define PCI6208_DIO_DI_MASK		(0xf0)
 #define PCI6208_DIO_DI_SHIFT		(4)
 
-#define PCI6208_MAX_AO_CHANNELS		16
-
 enum pci6208_boardid {
 	BOARD_PCI6208,
 	BOARD_PCI6216,
@@ -69,10 +67,6 @@ static const struct pci6208_board pci6208_boards[] = {
 	},
 };
 
-struct pci6208_private {
-	unsigned int ao_readback[PCI6208_MAX_AO_CHANNELS];
-};
-
 static int pci6208_ao_eoc(struct comedi_device *dev,
 			  struct comedi_subdevice *s,
 			  struct comedi_insn *insn,
@@ -91,9 +85,8 @@ static int pci6208_ao_insn_write(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	struct pci6208_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int val = devpriv->ao_readback[chan];
+	unsigned int val = s->readback[chan];
 	int ret;
 	int i;
 
@@ -108,23 +101,9 @@ static int pci6208_ao_insn_write(struct comedi_device *dev,
 		/* the hardware expects two's complement values */
 		outw(comedi_offset_munge(s, val),
 		     dev->iobase + PCI6208_AO_CONTROL(chan));
+
+		s->readback[chan] = val;
 	}
-	devpriv->ao_readback[chan] = val;
-
-	return insn->n;
-}
-
-static int pci6208_ao_insn_read(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn,
-				unsigned int *data)
-{
-	struct pci6208_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
 
 	return insn->n;
 }
@@ -162,7 +141,6 @@ static int pci6208_auto_attach(struct comedi_device *dev,
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct pci6208_board *boardinfo = NULL;
-	struct pci6208_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned int val;
 	int ret;
@@ -173,10 +151,6 @@ static int pci6208_auto_attach(struct comedi_device *dev,
 		return -ENODEV;
 	dev->board_ptr = boardinfo;
 	dev->board_name = boardinfo->name;
-
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
-		return -ENOMEM;
 
 	ret = comedi_pci_enable(dev);
 	if (ret)
@@ -195,7 +169,11 @@ static int pci6208_auto_attach(struct comedi_device *dev,
 	s->maxdata	= 0xffff;
 	s->range_table	= &range_bipolar10;
 	s->insn_write	= pci6208_ao_insn_write;
-	s->insn_read	= pci6208_ao_insn_read;
+	s->insn_read	= comedi_readback_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	s = &dev->subdevices[1];
 	/* digital input subdevice */
@@ -230,7 +208,7 @@ static struct comedi_driver adl_pci6208_driver = {
 	.driver_name	= "adl_pci6208",
 	.module		= THIS_MODULE,
 	.auto_attach	= pci6208_auto_attach,
-	.detach		= comedi_pci_disable,
+	.detach		= comedi_pci_detach,
 };
 
 static int adl_pci6208_pci_probe(struct pci_dev *dev,

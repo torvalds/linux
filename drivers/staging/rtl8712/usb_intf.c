@@ -581,9 +581,11 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 			 * address by setting bit 1 of first octet.
 			 */
 			mac[0] &= 0xFE;
-			dev_info(&udev->dev, "r8712u: MAC Address from user = %pM\n", mac);
+			dev_info(&udev->dev,
+				"r8712u: MAC Address from user = %pM\n", mac);
 		} else
-			dev_info(&udev->dev, "r8712u: MAC Address from efuse = %pM\n", mac);
+			dev_info(&udev->dev,
+				"r8712u: MAC Address from efuse = %pM\n", mac);
 		memcpy(pnetdev->dev_addr, mac, ETH_ALEN);
 	}
 	/* step 6. Load the firmware asynchronously */
@@ -635,7 +637,6 @@ static void r871xu_dev_remove(struct usb_interface *pusb_intf)
 	 * Reset usb port for sitesurvey fail issue. */
 	if (udev->state != USB_STATE_NOTATTACHED)
 		usb_reset_device(udev);
-	return;
 }
 
 static int __init r8712u_drv_entry(void)

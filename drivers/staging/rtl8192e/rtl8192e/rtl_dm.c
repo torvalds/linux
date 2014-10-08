@@ -137,6 +137,7 @@ static	void	dm_ctstoself(struct net_device *dev);
 void init_hal_dm(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
+
 	priv->DM_Type = DM_Type_ByDriver;
 
 	priv->undecorated_smoothed_pwdb = -1;
@@ -167,6 +168,7 @@ void deinit_hal_dm(struct net_device *dev)
 void hal_dm_watchdog(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
+
 	if (priv->being_init_adapter)
 		return;
 
@@ -343,6 +345,7 @@ static void dm_check_rate_adaptive(struct net_device *dev)
 		currentRATR = read_nic_dword(dev, RATR0);
 		if (targetRATR !=  currentRATR) {
 			u32 ratr_value;
+
 			ratr_value = targetRATR;
 			RT_TRACE(COMP_RATE,
 				 "currentRATR = %x, targetRATR = %x\n",
@@ -1362,6 +1365,7 @@ static void dm_InitializeTXPowerTracking_ThermalMeter(struct net_device *dev)
 void dm_initialize_txpower_tracking(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
+
 	if (priv->IC_Cut >= IC_VersionCut_D)
 		dm_InitializeTXPowerTracking_TSSI(dev);
 	else
@@ -1372,6 +1376,7 @@ static void dm_CheckTXPowerTracking_TSSI(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	static u32 tx_power_track_counter;
+
 	RT_TRACE(COMP_POWER_TRACKING, "%s()\n", __func__);
 	if (read_nic_byte(dev, 0x11e) == 1)
 		return;
@@ -1437,6 +1442,7 @@ static void dm_CCKTxPowerAdjust_TSSI(struct net_device *dev, bool  bInCH14)
 {
 	u32 TempVal;
 	struct r8192_priv *priv = rtllib_priv(dev);
+
 	TempVal = 0;
 	if (!bInCH14) {
 		TempVal = (u32)(priv->cck_txbbgain_table[(u8)(priv->CCKPresentAttentuation)].ccktxbb_valuearray[0] +
@@ -1530,6 +1536,7 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,	bool  bInCH
 void dm_cck_txpower_adjust(struct net_device *dev, bool  binch14)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
+
 	if (priv->IC_Cut >= IC_VersionCut_D)
 		dm_CCKTxPowerAdjust_TSSI(dev, binch14);
 	else
@@ -1702,6 +1709,7 @@ void dm_change_dynamic_initgain_thresh(struct net_device *dev,
 static void dm_dig_init(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
+
 	dm_digtable.dig_enable_flag	= true;
 	dm_digtable.Backoff_Enable_Flag = true;
 
@@ -2129,6 +2137,7 @@ static void dm_check_edca_turbo(struct net_device *dev)
 			"self_softap"
 		};
 		static int wb_tmp;
+
 		if (wb_tmp == 0) {
 			printk(KERN_INFO "%s():iot peer is %s, bssid:"
 			       " %pM\n", __func__,
@@ -2187,6 +2196,7 @@ static void dm_check_edca_turbo(struct net_device *dev)
 	} else {
 		 if (priv->bcurrent_turbo_EDCA) {
 			u8 tmp = AC0_BE;
+
 			priv->rtllib->SetHwRegHandler(dev, HW_VAR_AC_PARAM, (u8 *)(&tmp));
 			priv->bcurrent_turbo_EDCA = false;
 		}
@@ -2275,12 +2285,12 @@ void dm_CheckRfCtrlGPIO(void *data)
 
 	if (priv->bHwRadioOff && (eRfPowerStateToSet == eRfOn)) {
 		RT_TRACE(COMP_RF, "gpiochangeRF  - HW Radio ON\n");
-		printk(KERN_INFO "gpiochangeRF  - HW Radio ON\n");
+		netdev_info(dev, "gpiochangeRF  - HW Radio ON\n");
 		priv->bHwRadioOff = false;
 		bActuallySet = true;
 	} else if (!priv->bHwRadioOff && (eRfPowerStateToSet == eRfOff)) {
 		RT_TRACE(COMP_RF, "gpiochangeRF  - HW Radio OFF\n");
-		printk(KERN_INFO "gpiochangeRF  - HW Radio OFF\n");
+		netdev_info(dev, "gpiochangeRF  - HW Radio OFF\n");
 		priv->bHwRadioOff = true;
 		bActuallySet = true;
 	}
@@ -2581,6 +2591,7 @@ static void dm_init_fsync(struct net_device *dev)
 static void dm_deInit_fsync(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
+
 	del_timer_sync(&priv->fsync_timer);
 }
 
@@ -2596,6 +2607,7 @@ void dm_fsync_timer_callback(unsigned long data)
 	    priv->rtllib->bfsync_enable &&
 	    (priv->rtllib->pHTInfo->IOTAction & HT_IOT_ACT_CDD_FSYNC)) {
 		u32 rate_bitmap;
+
 		for (rate_index = 0; rate_index <= 27; rate_index++) {
 			rate_bitmap  = 1 << rate_index;
 			if (priv->rtllib->fsync_rate_bitmap &  rate_bitmap)
@@ -2690,6 +2702,7 @@ static void dm_StartHWFsync(struct net_device *dev)
 {
 	u8 rf_timing = 0x77;
 	struct r8192_priv *priv = rtllib_priv(dev);
+
 	RT_TRACE(COMP_HALDM, "%s\n", __func__);
 	write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c12cf);
 	priv->rtllib->SetHwRegHandler(dev, HW_VAR_RF_TIMING,
@@ -2701,6 +2714,7 @@ static void dm_EndHWFsync(struct net_device *dev)
 {
 	u8 rf_timing = 0xaa;
 	struct r8192_priv *priv = rtllib_priv(dev);
+
 	RT_TRACE(COMP_HALDM, "%s\n", __func__);
 	write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c52cd);
 	priv->rtllib->SetHwRegHandler(dev, HW_VAR_RF_TIMING, (u8 *)
@@ -2923,6 +2937,7 @@ static void dm_dynamic_txpower(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	unsigned int txhipower_threshhold = 0;
 	unsigned int txlowpower_threshold = 0;
+
 	if (priv->rtllib->bdynamic_txpower_enable != true) {
 		priv->bDynamicTxHighPower = false;
 		priv->bDynamicTxLowPower = false;

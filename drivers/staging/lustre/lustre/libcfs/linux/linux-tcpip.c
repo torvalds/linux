@@ -298,7 +298,7 @@ libcfs_sock_write (struct socket *sock, void *buffer, int nob, int timeout)
 
 		if (rc == 0) {
 			CERROR ("Unexpected zero rc\n");
-			return (-ECONNABORTED);
+			return -ECONNABORTED;
 		}
 
 		if (ticks <= 0)
@@ -308,7 +308,7 @@ libcfs_sock_write (struct socket *sock, void *buffer, int nob, int timeout)
 		nob -= rc;
 	}
 
-	return (0);
+	return 0;
 }
 EXPORT_SYMBOL(libcfs_sock_write);
 
@@ -384,7 +384,7 @@ libcfs_sock_create (struct socket **sockp, int *fatal,
 	*sockp = sock;
 	if (rc != 0) {
 		CERROR ("Can't create socket: %d\n", rc);
-		return (rc);
+		return rc;
 	}
 
 	option = 1;
@@ -436,7 +436,7 @@ libcfs_sock_setbuf (struct socket *sock, int txbufsize, int rxbufsize)
 		if (rc != 0) {
 			CERROR ("Can't set send buffer %d: %d\n",
 				option, rc);
-			return (rc);
+			return rc;
 		}
 	}
 
@@ -447,7 +447,7 @@ libcfs_sock_setbuf (struct socket *sock, int txbufsize, int rxbufsize)
 		if (rc != 0) {
 			CERROR ("Can't set receive buffer %d: %d\n",
 				option, rc);
-			return (rc);
+			return rc;
 		}
 	}
 

@@ -110,7 +110,7 @@ int sptlrpc_unregister_policy(struct ptlrpc_sec_policy *policy)
 EXPORT_SYMBOL(sptlrpc_unregister_policy);
 
 static
-struct ptlrpc_sec_policy * sptlrpc_wireflavor2policy(__u32 flavor)
+struct ptlrpc_sec_policy *sptlrpc_wireflavor2policy(__u32 flavor)
 {
 	static DEFINE_MUTEX(load_mutex);
 	static atomic_t       loaded = ATOMIC_INIT(0);
@@ -1095,15 +1095,18 @@ int sptlrpc_cli_unwrap_early_reply(struct ptlrpc_request *req,
 	early_size = req->rq_nob_received;
 	early_bufsz = size_roundup_power2(early_size);
 	OBD_ALLOC_LARGE(early_buf, early_bufsz);
-	if (early_buf == NULL)
-		GOTO(err_req, rc = -ENOMEM);
+	if (early_buf == NULL) {
+		rc = -ENOMEM;
+		goto err_req;
+	}
 
 	/* sanity checkings and copy data out, do it inside spinlock */
 	spin_lock(&req->rq_lock);
 
 	if (req->rq_replied) {
 		spin_unlock(&req->rq_lock);
-		GOTO(err_buf, rc = -EALREADY);
+		rc = -EALREADY;
+		goto err_buf;
 	}
 
 	LASSERT(req->rq_repbuf);
@@ -1113,7 +1116,8 @@ int sptlrpc_cli_unwrap_early_reply(struct ptlrpc_request *req,
 	if (req->rq_reply_off != 0) {
 		CERROR("early reply with offset %u\n", req->rq_reply_off);
 		spin_unlock(&req->rq_lock);
-		GOTO(err_buf, rc = -EPROTO);
+		rc = -EPROTO;
+		goto err_buf;
 	}
 
 	if (req->rq_nob_received != early_size) {
@@ -1121,14 +1125,16 @@ int sptlrpc_cli_unwrap_early_reply(struct ptlrpc_request *req,
 		CERROR("data size has changed from %u to %u\n",
 		       early_size, req->rq_nob_received);
 		spin_unlock(&req->rq_lock);
-		GOTO(err_buf, rc = -EINVAL);
+		rc = -EINVAL;
+		goto err_buf;
 	}
 
 	if (req->rq_nob_received < sizeof(struct lustre_msg)) {
 		CERROR("early reply length %d too small\n",
 		       req->rq_nob_received);
 		spin_unlock(&req->rq_lock);
-		GOTO(err_buf, rc = -EALREADY);
+		rc = -EALREADY;
+		goto err_buf;
 	}
 
 	memcpy(early_buf, req->rq_repbuf, early_size);
@@ -1148,7 +1154,7 @@ int sptlrpc_cli_unwrap_early_reply(struct ptlrpc_request *req,
 	if (rc) {
 		DEBUG_REQ(D_ADAPTTO, early_req,
 			  "error %d unwrap early reply", rc);
-		GOTO(err_ctx, rc);
+		goto err_ctx;
 	}
 
 	LASSERT(early_req->rq_repmsg);
@@ -1267,7 +1273,7 @@ EXPORT_SYMBOL(sptlrpc_sec_put);
  * policy module is responsible for taking reference of import
  */
 static
-struct ptlrpc_sec * sptlrpc_sec_create(struct obd_import *imp,
+struct ptlrpc_sec *sptlrpc_sec_create(struct obd_import *imp,
 				       struct ptlrpc_svc_ctx *svc_ctx,
 				       struct sptlrpc_flavor *sf,
 				       enum lustre_sec_part sp)
@@ -1434,7 +1440,7 @@ int sptlrpc_import_sec_adapt(struct obd_import *imp,
 		char    str2[24];
 
 		if (flavor_equal(&sf, &sec->ps_flvr))
-			GOTO(out, rc);
+			goto out;
 
 		CDEBUG(D_SEC, "import %s->%s: changing flavor %s -> %s\n",
 		       imp->imp_obd->obd_name,
@@ -1447,7 +1453,7 @@ int sptlrpc_import_sec_adapt(struct obd_import *imp,
 		    SPTLRPC_FLVR_MECH(sf.sf_rpc) ==
 		    SPTLRPC_FLVR_MECH(sec->ps_flvr.sf_rpc)) {
 			sptlrpc_import_sec_adapt_inplace(imp, sec, &sf);
-			GOTO(out, rc);
+			goto out;
 		}
 	} else if (SPTLRPC_FLVR_BASE(sf.sf_rpc) !=
 		   SPTLRPC_FLVR_BASE(SPTLRPC_FLVR_NULL)) {
@@ -2366,7 +2372,7 @@ EXPORT_SYMBOL(sptlrpc_unpack_user_desc);
  * misc helpers			 *
  ****************************************/
 
-const char * sec2target_str(struct ptlrpc_sec *sec)
+const char *sec2target_str(struct ptlrpc_sec *sec)
 {
 	if (!sec || !sec->ps_import || !sec->ps_import->imp_obd)
 		return "*";

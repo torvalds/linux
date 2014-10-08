@@ -58,7 +58,7 @@ static inline __u32 ee_hashfunc(uid_t id)
 	return id & (EE_HASHES - 1);
 }
 
-obd_valid rce_ops2valid(int ops)
+u64 rce_ops2valid(int ops)
 {
 	switch (ops) {
 	case RMT_LSETFACL:
@@ -78,7 +78,7 @@ static struct rmtacl_ctl_entry *rce_alloc(pid_t key, int ops)
 {
 	struct rmtacl_ctl_entry *rce;
 
-	OBD_ALLOC_PTR(rce);
+	rce = kzalloc(sizeof(*rce), GFP_NOFS);
 	if (!rce)
 		return NULL;
 
@@ -184,7 +184,7 @@ static struct eacl_entry *ee_alloc(pid_t key, struct lu_fid *fid, int type,
 {
 	struct eacl_entry *ee;
 
-	OBD_ALLOC_PTR(ee);
+	ee = kzalloc(sizeof(*ee), GFP_NOFS);
 	if (!ee)
 		return NULL;
 

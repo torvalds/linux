@@ -238,7 +238,7 @@ static int vvp_mmap_locks(const struct lu_env *env,
 		addr &= CFS_PAGE_MASK;
 
 		down_read(&mm->mmap_sem);
-		while((vma = our_vma(mm, addr, count)) != NULL) {
+		while ((vma = our_vma(mm, addr, count)) != NULL) {
 			struct inode *inode = vma->vm_file->f_dentry->d_inode;
 			int flags = CEF_MUST;
 
@@ -615,6 +615,7 @@ static int vvp_io_kernel_fault(struct vvp_fault_io *cfio)
 	struct vm_fault *vmf = cfio->fault.ft_vmf;
 
 	cfio->fault.ft_flags = filemap_fault(cfio->ft_vma, vmf);
+	cfio->fault.ft_flags_valid = 1;
 
 	if (vmf->page) {
 		CDEBUG(D_PAGE,
@@ -703,7 +704,8 @@ static int vvp_io_fault_start(const struct lu_env *env,
 
 		/* return +1 to stop cl_io_loop() and ll_fault() will catch
 		 * and retry. */
-		GOTO(out, result = +1);
+		result = +1;
+		goto out;
 	}
 
 
@@ -720,7 +722,7 @@ static int vvp_io_fault_start(const struct lu_env *env,
 			CDEBUG(D_PAGE,
 				"llite: mkwrite and truncate race happened: "
 				"%p: 0x%lx 0x%lx\n",
-				vmpage->mapping,fio->ft_index,last_index);
+				vmpage->mapping, fio->ft_index, last_index);
 			/*
 			 * We need to return if we are
 			 * passed the end of the file. This will propagate
@@ -732,13 +734,16 @@ static int vvp_io_fault_start(const struct lu_env *env,
 			 * in ll_page_mkwrite0. Thus we return -ENODATA
 			 * to handle both cases
 			 */
-			GOTO(out, result = -ENODATA);
+			result = -ENODATA;
+			goto out;
 		}
 	}
 
 	page = cl_page_find(env, obj, fio->ft_index, vmpage, CPT_CACHEABLE);
-	if (IS_ERR(page))
-		GOTO(out, result = PTR_ERR(page));
+	if (IS_ERR(page)) {
+		result = PTR_ERR(page);
+		goto out;
+	}
 
 	/* if page is going to be written, we should add this page into cache
 	 * earlier. */
@@ -770,7 +775,7 @@ static int vvp_io_fault_start(const struct lu_env *env,
 				/* we're in big trouble, what can we do now? */
 				if (result == -EDQUOT)
 					result = -ENOSPC;
-				GOTO(out, result);
+				goto out;
 			} else
 				cl_page_disown(env, io, page);
 		}

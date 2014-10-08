@@ -99,9 +99,8 @@ static int adis16240_read_raw(struct iio_dev *indio_dev,
 				*val = 4;
 				*val2 = 880000; /* 4.88 mV */
 				return IIO_VAL_INT_PLUS_MICRO;
-			} else {
-				return -EINVAL;
 			}
+			return -EINVAL;
 		case IIO_TEMP:
 			*val = 244; /* 0.244 C */
 			*val2 = 0;
@@ -163,6 +162,7 @@ static int adis16240_write_raw(struct iio_dev *indio_dev,
 	int bits = 10;
 	s16 val16;
 	u8 addr;
+
 	switch (mask) {
 	case IIO_CHAN_INFO_CALIBBIAS:
 		val16 = val & ((1 << bits) - 1);

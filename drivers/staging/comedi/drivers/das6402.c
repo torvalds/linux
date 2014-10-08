@@ -143,7 +143,6 @@ struct das6402_private {
 	unsigned int divider2;
 
 	unsigned int ao_range;
-	unsigned int ao_readback[2];
 };
 
 static void das6402_set_mode(struct comedi_device *dev,
@@ -328,7 +327,7 @@ static int das6402_ao_insn_write(struct comedi_device *dev,
 	for (i = 0; i < insn->n; i++) {
 		val = data[i];
 
-		devpriv->ao_readback[chan] = val;
+		s->readback[chan] = val;
 
 		if (s->maxdata == 0x0fff) {
 			/*
@@ -358,9 +357,7 @@ static int das6402_ao_insn_read(struct comedi_device *dev,
 				struct comedi_insn *insn,
 				unsigned int *data)
 {
-	struct das6402_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
 
 	/*
 	 * If XFER mode is enabled, reading any DAC register
@@ -368,10 +365,7 @@ static int das6402_ao_insn_read(struct comedi_device *dev,
 	 */
 	inw(dev->iobase + DAS6402_AO_LSB_REG(chan));
 
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
-
-	return insn->n;
+	return comedi_readback_insn_read(dev, s, insn, data);
 }
 
 static int das6402_di_insn_bits(struct comedi_device *dev,
@@ -440,7 +434,7 @@ static void das6402_reset(struct comedi_device *dev)
 static int das6402_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
-	const struct das6402_boardinfo *board = comedi_board(dev);
+	const struct das6402_boardinfo *board = dev->board_ptr;
 	struct das6402_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
@@ -509,6 +503,10 @@ static int das6402_attach(struct comedi_device *dev,
 	s->range_table	= &das6402_ao_ranges;
 	s->insn_write	= das6402_ao_insn_write;
 	s->insn_read	= das6402_ao_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	/* Digital Input subdevice */
 	s = &dev->subdevices[2];

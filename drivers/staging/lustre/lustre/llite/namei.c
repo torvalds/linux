@@ -523,8 +523,10 @@ static struct dentry *ll_lookup_it(struct inode *parent, struct dentry *dentry,
 		rc = ll_statahead_enter(parent, &dentry, 0);
 		if (rc == 1) {
 			if (dentry == save)
-				GOTO(out, retval = NULL);
-			GOTO(out, retval = dentry);
+				retval = NULL;
+			else
+				retval = dentry;
+			goto out;
 		}
 	}
 
@@ -546,13 +548,16 @@ static struct dentry *ll_lookup_it(struct inode *parent, struct dentry *dentry,
 	rc = md_intent_lock(ll_i2mdexp(parent), op_data, NULL, 0, it,
 			    lookup_flags, &req, ll_md_blocking_ast, 0);
 	ll_finish_md_op_data(op_data);
-	if (rc < 0)
-		GOTO(out, retval = ERR_PTR(rc));
+	if (rc < 0) {
+		retval = ERR_PTR(rc);
+		goto out;
+	}
 
 	rc = ll_lookup_it_finish(req, it, parent, &dentry);
 	if (rc != 0) {
 		ll_intent_release(it);
-		GOTO(out, retval = ERR_PTR(rc));
+		retval = ERR_PTR(rc);
+		goto out;
 	}
 
 	if ((it->it_op & IT_OPEN) && dentry->d_inode &&
@@ -563,9 +568,10 @@ static struct dentry *ll_lookup_it(struct inode *parent, struct dentry *dentry,
 	ll_lookup_finish_locks(it, dentry);
 
 	if (dentry == save)
-		GOTO(out, retval = NULL);
+		retval = NULL;
 	else
-		GOTO(out, retval = dentry);
+		retval = dentry;
+	goto out;
  out:
 	if (req)
 		ptlrpc_req_finished(req);
@@ -618,7 +624,7 @@ static int ll_atomic_open(struct inode *dir, struct dentry *dentry,
 	       dentry->d_name.len, dentry->d_name.name, dir->i_ino,
 	       dir->i_generation, dir, file, open_flags, mode, *opened);
 
-	OBD_ALLOC(it, sizeof(*it));
+	it = kzalloc(sizeof(*it), GFP_NOFS);
 	if (!it)
 		return -ENOMEM;
 
@@ -697,8 +703,10 @@ static struct inode *ll_create_node(struct inode *dir, struct lookup_intent *it)
 	request = it->d.lustre.it_data;
 	it_clear_disposition(it, DISP_ENQ_CREATE_REF);
 	rc = ll_prep_inode(&inode, request, dir->i_sb, it);
-	if (rc)
-		GOTO(out, inode = ERR_PTR(rc));
+	if (rc) {
+		inode = ERR_PTR(rc);
+		goto out;
+	}
 
 	LASSERT(ll_d_hlist_empty(&inode->i_dentry));
 
@@ -783,8 +791,10 @@ static int ll_new_node(struct inode *dir, struct qstr *name,
 
 	op_data = ll_prep_md_op_data(NULL, dir, NULL, name->name,
 				     name->len, 0, opc, NULL);
-	if (IS_ERR(op_data))
-		GOTO(err_exit, err = PTR_ERR(op_data));
+	if (IS_ERR(op_data)) {
+		err = PTR_ERR(op_data);
+		goto err_exit;
+	}
 
 	err = md_create(sbi->ll_md_exp, op_data, tgt, tgt_len, mode,
 			from_kuid(&init_user_ns, current_fsuid()),
@@ -792,14 +802,14 @@ static int ll_new_node(struct inode *dir, struct qstr *name,
 			cfs_curproc_cap_pack(), rdev, &request);
 	ll_finish_md_op_data(op_data);
 	if (err)
-		GOTO(err_exit, err);
+		goto err_exit;
 
 	ll_update_times(request, dir);
 
 	if (dchild) {
 		err = ll_prep_inode(&inode, request, dchild->d_sb, NULL);
 		if (err)
-		     GOTO(err_exit, err);
+			goto err_exit;
 
 		d_instantiate(dchild, inode);
 	}
@@ -907,7 +917,7 @@ static int ll_link_generic(struct inode *src,  struct inode *dir,
 	err = md_link(sbi->ll_md_exp, op_data, &request);
 	ll_finish_md_op_data(op_data);
 	if (err)
-		GOTO(out, err);
+		goto out;
 
 	ll_update_times(request, dir);
 	ll_stats_ops_tally(sbi, LPROC_LL_LINK, 1);
@@ -1028,7 +1038,8 @@ int ll_objects_destroy(struct ptlrpc_request *request, struct inode *dir)
 
 	if (body->eadatasize == 0) {
 		CERROR("OBD_MD_FLEASIZE set but eadatasize zero\n");
-		GOTO(out, rc = -EPROTO);
+		rc = -EPROTO;
+		goto out;
 	}
 
 	/* The MDS sent back the EA because we unlinked the last reference
@@ -1042,13 +1053,15 @@ int ll_objects_destroy(struct ptlrpc_request *request, struct inode *dir)
 	rc = obd_unpackmd(ll_i2dtexp(dir), &lsm, eadata, body->eadatasize);
 	if (rc < 0) {
 		CERROR("obd_unpackmd: %d\n", rc);
-		GOTO(out, rc);
+		goto out;
 	}
 	LASSERT(rc >= sizeof(*lsm));
 
 	OBDO_ALLOC(oa);
-	if (oa == NULL)
-		GOTO(out_free_memmd, rc = -ENOMEM);
+	if (oa == NULL) {
+		rc = -ENOMEM;
+		goto out_free_memmd;
+	}
 
 	oa->o_oi = lsm->lsm_oi;
 	oa->o_mode = body->mode & S_IFMT;
@@ -1070,7 +1083,7 @@ int ll_objects_destroy(struct ptlrpc_request *request, struct inode *dir)
 	if (body->valid & OBD_MD_FLOSSCAPA) {
 		rc = md_unpack_capa(ll_i2mdexp(dir), request, &RMF_CAPA2, &oc);
 		if (rc)
-			GOTO(out_free_memmd, rc);
+			goto out_free_memmd;
 	}
 
 	rc = obd_destroy(NULL, ll_i2dtexp(dir), oa, lsm, &oti,
@@ -1116,7 +1129,7 @@ static int ll_unlink_generic(struct inode *dir, struct dentry *dparent,
 	rc = md_unlink(ll_i2sbi(dir)->ll_md_exp, op_data, &request);
 	ll_finish_md_op_data(op_data);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	ll_update_times(request, dir);
 	ll_stats_ops_tally(ll_i2sbi(dir), LPROC_LL_UNLINK, 1);
@@ -1137,7 +1150,8 @@ static int ll_rename_generic(struct inode *src, struct dentry *src_dparent,
 	struct md_op_data *op_data;
 	int err;
 
-	CDEBUG(D_VFSTRACE,"VFS Op:oldname=%.*s,src_dir=%lu/%u(%p),newname=%.*s,"
+	CDEBUG(D_VFSTRACE,
+	       "VFS Op:oldname=%.*s,src_dir=%lu/%u(%p),newname=%.*s,"
 	       "tgt_dir=%lu/%u(%p)\n", src_name->len, src_name->name,
 	       src->i_ino, src->i_generation, src, tgt_name->len,
 	       tgt_name->name, tgt->i_ino, tgt->i_generation, tgt);

@@ -246,8 +246,7 @@ static const struct iio_info magn_3d_info = {
 };
 
 /* Function to push data to buffer */
-static void hid_sensor_push_data(struct iio_dev *indio_dev, const void *data,
-	int len)
+static void hid_sensor_push_data(struct iio_dev *indio_dev, const void *data)
 {
 	dev_dbg(&indio_dev->dev, "hid_sensor_push_data\n");
 	iio_push_to_buffers(indio_dev, data);
@@ -263,9 +262,7 @@ static int magn_3d_proc_event(struct hid_sensor_hub_device *hsdev,
 
 	dev_dbg(&indio_dev->dev, "magn_3d_proc_event\n");
 	if (atomic_read(&magn_state->common_attributes.data_ready))
-		hid_sensor_push_data(indio_dev,
-				magn_state->iio_vals,
-				sizeof(magn_state->iio_vals));
+		hid_sensor_push_data(indio_dev, magn_state->iio_vals);
 
 	return 0;
 }
@@ -533,7 +530,6 @@ static struct platform_driver hid_magn_3d_platform_driver = {
 	.id_table = hid_magn_3d_ids,
 	.driver = {
 		.name	= KBUILD_MODNAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= hid_magn_3d_probe,
 	.remove		= hid_magn_3d_remove,

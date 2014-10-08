@@ -57,7 +57,7 @@ typedef struct tagSKeyItem {
 	bool bKeyValid;
 	unsigned long uKeyLength;
 	unsigned char abyKey[MAX_KEY_LEN];
-	QWORD       KeyRSC;
+	u64 KeyRSC;
 	unsigned long dwTSC47_16;
 	unsigned short wTSC15_0;
 	unsigned char byCipherSuite;
@@ -108,7 +108,7 @@ bool KeybSetKey(
 	unsigned char *pbyBSSID,
 	unsigned long dwKeyIndex,
 	unsigned long uKeyLength,
-	PQWORD          pKeyRSC,
+	u64 *pKeyRSC,
 	unsigned char *pbyKey,
 	unsigned char byKeyDecMode,
 	void __iomem *dwIoBase,
@@ -119,7 +119,7 @@ bool KeybSetDefaultKey(
 	PSKeyManagement pTable,
 	unsigned long dwKeyIndex,
 	unsigned long uKeyLength,
-	PQWORD          pKeyRSC,
+	u64 *pKeyRSC,
 	unsigned char *pbyKey,
 	unsigned char byKeyDecMode,
 	void __iomem *dwIoBase,
@@ -166,7 +166,7 @@ bool KeybSetAllGroupKey(
 	PSKeyManagement pTable,
 	unsigned long dwKeyIndex,
 	unsigned long uKeyLength,
-	PQWORD          pKeyRSC,
+	u64 *pKeyRSC,
 	unsigned char *pbyKey,
 	unsigned char byKeyDecMode,
 	void __iomem *dwIoBase,

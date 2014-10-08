@@ -55,7 +55,7 @@ enum _EFUSE_DEF_TYPE {
 #define		EFUSE_MAX_HW_SIZE		512
 #define		EFUSE_MAX_SECTION_BASE	16
 
-#define EXT_HEADER(header) ((header & 0x1F ) == 0x0F)
+#define EXT_HEADER(header) ((header & 0x1F) == 0x0F)
 #define ALL_WORDS_DISABLED(wde)	((wde & 0x0F) == 0x0F)
 #define GET_HDR_OFFSET_2_0(header) ( (header & 0xE0) >> 5)
 
@@ -95,7 +95,8 @@ void	EFUSE_GetEfuseDefinition23a(struct rtw_adapter *pAdapter, u8 efuseType, u8 
 int	efuse_OneByteRead23a(struct rtw_adapter *pAdapter, u16 addr, u8 *data);
 int	efuse_OneByteWrite23a(struct rtw_adapter *pAdapter, u16 addr, u8 data);
 
-void	Efuse_PowerSwitch23a(struct rtw_adapter *pAdapter,u8	bWrite,u8	 PwrState);
+void	Efuse_PowerSwitch23a(struct rtw_adapter *pAdapter, u8 bWrite,
+			     u8 PwrState);
 int	Efuse_PgPacketRead23a(struct rtw_adapter *pAdapter, u8 offset, u8 *data);
 int	Efuse_PgPacketWrite23a(struct rtw_adapter *pAdapter, u8 offset, u8 word_en, u8 *data);
 void	efuse_WordEnableDataRead23a(u8 word_en, u8 *sourdata, u8 *targetdata);

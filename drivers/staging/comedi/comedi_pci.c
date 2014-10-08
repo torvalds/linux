@@ -17,6 +17,7 @@
  */
 
 #include <linux/pci.h>
+#include <linux/interrupt.h>
 
 #include "comedidev.h"
 
@@ -71,6 +72,29 @@ void comedi_pci_disable(struct comedi_device *dev)
 	dev->ioenabled = false;
 }
 EXPORT_SYMBOL_GPL(comedi_pci_disable);
+
+/**
+ * comedi_pci_detach() - A generic (*detach) function for PCI drivers.
+ * @dev: comedi_device struct
+ */
+void comedi_pci_detach(struct comedi_device *dev)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
+	if (!pcidev || !dev->ioenabled)
+		return;
+
+	if (dev->irq) {
+		free_irq(dev->irq, dev);
+		dev->irq = 0;
+	}
+	if (dev->mmio) {
+		iounmap(dev->mmio);
+		dev->mmio = NULL;
+	}
+	comedi_pci_disable(dev);
+}
+EXPORT_SYMBOL_GPL(comedi_pci_detach);
 
 /**
  * comedi_pci_auto_config() - Configure/probe a comedi PCI driver.

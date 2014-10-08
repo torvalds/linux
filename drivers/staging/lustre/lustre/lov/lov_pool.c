@@ -107,7 +107,7 @@ static void *pool_key(struct hlist_node *hnode)
 	struct pool_desc *pool;
 
 	pool = hlist_entry(hnode, struct pool_desc, pool_hash);
-	return (pool->pool_name);
+	return pool->pool_name;
 }
 
 static int pool_hashkey_keycmp(const void *key, struct hlist_node *compared_hnode)
@@ -367,12 +367,14 @@ int lov_ost_pool_add(struct ost_pool *op, __u32 idx, unsigned int min_count)
 
 	rc = lov_ost_pool_extend(op, min_count);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	/* search ost in pool array */
 	for (i = 0; i < op->op_count; i++) {
-		if (op->op_array[i] == idx)
-			GOTO(out, rc = -EEXIST);
+		if (op->op_array[i] == idx) {
+			rc = -EEXIST;
+			goto out;
+		}
 	}
 	/* ost not found we add it */
 	op->op_array[op->op_count] = idx;
@@ -443,12 +445,12 @@ int lov_pool_new(struct obd_device *obd, char *poolname)
 	atomic_set(&new_pool->pool_refcount, 1);
 	rc = lov_ost_pool_init(&new_pool->pool_obds, 0);
 	if (rc)
-	       GOTO(out_err, rc);
+		goto out_err;
 
 	memset(&(new_pool->pool_rr), 0, sizeof(struct lov_qos_rr));
 	rc = lov_ost_pool_init(&new_pool->pool_rr.lqr_pool, 0);
 	if (rc)
-		GOTO(out_free_pool_obds, rc);
+		goto out_free_pool_obds;
 
 	INIT_HLIST_NODE(&new_pool->pool_hash);
 
@@ -475,8 +477,10 @@ int lov_pool_new(struct obd_device *obd, char *poolname)
 	/* add to find only when it fully ready  */
 	rc = cfs_hash_add_unique(lov->lov_pools_hash_body, poolname,
 				 &new_pool->pool_hash);
-	if (rc)
-		GOTO(out_err, rc = -EEXIST);
+	if (rc) {
+		rc = -EEXIST;
+		goto out_err;
+	}
 
 	CDEBUG(D_CONFIG, LOV_POOLNAMEF" is pool #%d\n",
 	       poolname, lov->lov_pool_count);
@@ -555,12 +559,14 @@ int lov_pool_add(struct obd_device *obd, char *poolname, char *ostname)
 			break;
 	}
 	/* test if ost found in lov */
-	if (lov_idx == lov->desc.ld_tgt_count)
-		GOTO(out, rc = -EINVAL);
+	if (lov_idx == lov->desc.ld_tgt_count) {
+		rc = -EINVAL;
+		goto out;
+	}
 
 	rc = lov_ost_pool_add(&pool->pool_obds, lov_idx, lov->lov_tgt_size);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	pool->pool_rr.lqr_dirty = 1;
 
@@ -601,8 +607,10 @@ int lov_pool_remove(struct obd_device *obd, char *poolname, char *ostname)
 	}
 
 	/* test if ost found in lov */
-	if (lov_idx == lov->desc.ld_tgt_count)
-		GOTO(out, rc = -EINVAL);
+	if (lov_idx == lov->desc.ld_tgt_count) {
+		rc = -EINVAL;
+		goto out;
+	}
 
 	lov_ost_pool_remove(&pool->pool_obds, lov_idx);
 
@@ -630,8 +638,10 @@ int lov_check_index_in_pool(__u32 idx, struct pool_desc *pool)
 	down_read(&pool_tgt_rw_sem(pool));
 
 	for (i = 0; i < pool_tgt_count(pool); i++) {
-		if (pool_tgt_array(pool)[i] == idx)
-			GOTO(out, rc = 0);
+		if (pool_tgt_array(pool)[i] == idx) {
+			rc = 0;
+			goto out;
+		}
 	}
 	rc = -ENOENT;
 out:

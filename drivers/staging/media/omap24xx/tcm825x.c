@@ -542,6 +542,7 @@ static int ioctl_s_ctrl(struct v4l2_int_device *s,
 	/* exposure time is special, spread across 2 registers */
 	if (vc->id == V4L2_CID_EXPOSURE) {
 		int val_lower, val_upper;
+
 		val_lower = val & TCM825X_MASK(TCM825X_ESRSPD_L);
 		val_upper = (val >> 8) & TCM825X_MASK(TCM825X_ESRSPD_U);
 

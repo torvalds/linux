@@ -471,5 +471,6 @@ void sptlrpc_null_fini(void)
 
 	rc = sptlrpc_unregister_policy(&null_policy);
 	if (rc)
-		CERROR("failed to unregister %s: %d\n", null_policy.sp_name,rc);
+		CERROR("failed to unregister %s: %d\n",
+		       null_policy.sp_name, rc);
 }

@@ -99,6 +99,7 @@ int cvm_oct_sgmii_open(struct net_device *dev)
 
 	if (priv->phydev) {
 		int r = phy_read_status(priv->phydev);
+
 		if (r == 0 && priv->phydev->link == 0)
 			netif_carrier_off(dev);
 		cvm_oct_adjust_link(dev);

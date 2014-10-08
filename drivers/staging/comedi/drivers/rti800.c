@@ -137,7 +137,6 @@ struct rti800_private {
 	bool adc_2comp;
 	bool dac_2comp[2];
 	const struct comedi_lrange *ao_range_type_list[2];
-	unsigned int ao_readback[2];
 	unsigned char muxgain_bits;
 };
 
@@ -207,21 +206,6 @@ static int rti800_ai_insn_read(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int rti800_ao_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn,
-			       unsigned int *data)
-{
-	struct rti800_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
-
-	return insn->n;
-}
-
 static int rti800_ao_insn_write(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn,
@@ -231,19 +215,19 @@ static int rti800_ao_insn_write(struct comedi_device *dev,
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	int reg_lo = chan ? RTI800_DAC1LO : RTI800_DAC0LO;
 	int reg_hi = chan ? RTI800_DAC1HI : RTI800_DAC0HI;
-	int val = devpriv->ao_readback[chan];
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		val = data[i];
+		unsigned int val = data[i];
+
+		s->readback[chan] = val;
+
 		if (devpriv->dac_2comp[chan])
 			val ^= 0x800;
 
 		outb(val & 0xff, dev->iobase + reg_lo);
 		outb((val >> 8) & 0xff, dev->iobase + reg_hi);
 	}
-
-	devpriv->ao_readback[chan] = val;
 
 	return insn->n;
 }
@@ -274,7 +258,7 @@ static int rti800_do_insn_bits(struct comedi_device *dev,
 
 static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct rti800_board *board = comedi_board(dev);
+	const struct rti800_board *board = dev->board_ptr;
 	struct rti800_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
@@ -318,8 +302,6 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->type		= COMEDI_SUBD_AO;
 		s->subdev_flags	= SDF_WRITABLE;
 		s->n_chan	= 2;
-		s->insn_read	= rti800_ao_insn_read;
-		s->insn_write	= rti800_ao_insn_write;
 		s->maxdata	= 0x0fff;
 		s->range_table_list = devpriv->ao_range_type_list;
 		devpriv->ao_range_type_list[0] =
@@ -330,6 +312,12 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			(it->options[7] < ARRAY_SIZE(rti800_ao_ranges))
 				? rti800_ao_ranges[it->options[7]]
 				: &range_unknown;
+		s->insn_write	= rti800_ao_insn_write;
+		s->insn_read	= comedi_readback_insn_read;
+
+		ret = comedi_alloc_subdev_readback(s);
+		if (ret)
+			return ret;
 	} else {
 		s->type		= COMEDI_SUBD_UNUSED;
 	}

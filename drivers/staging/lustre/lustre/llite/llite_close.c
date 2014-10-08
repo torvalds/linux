@@ -155,7 +155,7 @@ void ll_ioepoch_close(struct inode *inode, struct md_op_data *op_data,
 
 			inode = igrab(inode);
 			LASSERT(inode);
-			GOTO(out, 0);
+			goto out;
 		}
 		if (flags & LLIF_DONE_WRITING) {
 			/* Some pages are still dirty, it is early to send
@@ -167,7 +167,7 @@ void ll_ioepoch_close(struct inode *inode, struct md_op_data *op_data,
 
 			inode = igrab(inode);
 			LASSERT(inode);
-			GOTO(out, 0);
+			goto out;
 		}
 	}
 	CDEBUG(D_INODE, "Epoch %llu closed on "DFID"\n",
@@ -184,14 +184,14 @@ void ll_ioepoch_close(struct inode *inode, struct md_op_data *op_data,
 		/* Pack Size-on-MDS inode attributes only if they has changed */
 		if (!(lli->lli_flags & LLIF_SOM_DIRTY)) {
 			spin_unlock(&lli->lli_lock);
-			GOTO(out, 0);
+			goto out;
 		}
 
 		/* There is a pending DONE_WRITE -- close epoch with no
 		 * attribute change. */
 		if (lli->lli_flags & LLIF_EPOCH_PENDING) {
 			spin_unlock(&lli->lli_lock);
-			GOTO(out, 0);
+			goto out;
 		}
 	}
 
@@ -285,8 +285,8 @@ static void ll_done_writing(struct inode *inode)
 
 	LASSERT(exp_connect_som(ll_i2mdexp(inode)));
 
-	OBD_ALLOC_PTR(op_data);
-	if (op_data == NULL) {
+	op_data = kzalloc(sizeof(*op_data), GFP_NOFS);
+	if (!op_data) {
 		CERROR("can't allocate op_data\n");
 		return;
 	}
@@ -294,7 +294,7 @@ static void ll_done_writing(struct inode *inode)
 	ll_prepare_done_writing(inode, op_data, &och);
 	/* If there is no @och, we do not do D_W yet. */
 	if (och == NULL)
-		GOTO(out, 0);
+		goto out;
 
 	rc = md_done_writing(ll_i2sbi(inode)->ll_md_exp, op_data, NULL);
 	if (rc == -EAGAIN) {
@@ -367,8 +367,8 @@ int ll_close_thread_start(struct ll_close_queue **lcq_ret)
 	if (OBD_FAIL_CHECK(OBD_FAIL_LDLM_CLOSE_THREAD))
 		return -EINTR;
 
-	OBD_ALLOC(lcq, sizeof(*lcq));
-	if (lcq == NULL)
+	lcq = kzalloc(sizeof(*lcq), GFP_NOFS);
+	if (!lcq)
 		return -ENOMEM;
 
 	spin_lock_init(&lcq->lcq_lock);

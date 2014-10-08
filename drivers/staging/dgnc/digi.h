@@ -86,11 +86,11 @@
 						/* Adapter Memory	*/
 
 #define	DIGI_GETFLOW	('e'<<8) | 99		/* Get startc/stopc flow */
-						/* control characters 	 */
+						/* control characters	 */
 #define	DIGI_SETFLOW	('e'<<8) | 100		/* Set startc/stopc flow */
 						/* control characters	 */
 #define	DIGI_GETAFLOW	('e'<<8) | 101		/* Get Aux. startc/stopc */
-						/* flow control chars 	 */
+						/* flow control chars	 */
 #define	DIGI_SETAFLOW	('e'<<8) | 102		/* Set Aux. startc/stopc */
 						/* flow control chars	 */
 
@@ -222,7 +222,7 @@ struct shrink_buf_struct {
 						   xxinit call. */
 
 	unsigned char	shrink_buf_anports;	/* Number of async ports  */
-	unsigned char	shrink_buf_snports; 	/* Number of sync  ports */
+	unsigned char	shrink_buf_snports;	/* Number of sync  ports */
 	unsigned char	shrink_buf_type;	/* Board type 1 = PC/Xi,
 							      2 = PC/Xm,
 							      3 = PC/Xe
@@ -285,9 +285,9 @@ struct digi_stat {
 struct digi_ch {
 	unsigned int	info_bdnum;		/* Board number (0 based)  */
 	unsigned int	info_channel;		/* Channel index number    */
-	unsigned int	info_ch_cflag;		/* Channel cflag   	   */
-	unsigned int	info_ch_iflag;		/* Channel iflag   	   */
-	unsigned int	info_ch_oflag;		/* Channel oflag   	   */
+	unsigned int	info_ch_cflag;		/* Channel cflag	   */
+	unsigned int	info_ch_iflag;		/* Channel iflag	   */
+	unsigned int	info_ch_oflag;		/* Channel oflag	   */
 	unsigned int	info_chsize;		/* Channel structure size  */
 	unsigned int	info_sleep_stat;	/* sleep status		   */
 	dev_t		info_dev;		/* device number	   */
@@ -389,10 +389,10 @@ struct digi_getcounter {
 #define DIGI_SETCUSTOMBAUD	_IOW('e', 106, int)	/* Set integer baud rate */
 #define DIGI_GETCUSTOMBAUD	_IOR('e', 107, int)	/* Get integer baud rate */
 
-#define DIGI_REALPORT_GETBUFFERS ('e'<<8 ) | 108
-#define DIGI_REALPORT_SENDIMMEDIATE ('e'<<8 ) | 109
-#define DIGI_REALPORT_GETCOUNTERS ('e'<<8 ) | 110
-#define DIGI_REALPORT_GETEVENTS ('e'<<8 ) | 111
+#define DIGI_REALPORT_GETBUFFERS ('e'<<8) | 108
+#define DIGI_REALPORT_SENDIMMEDIATE ('e'<<8) | 109
+#define DIGI_REALPORT_GETCOUNTERS ('e'<<8) | 110
+#define DIGI_REALPORT_GETEVENTS ('e'<<8) | 111
 
 #define EV_OPU		0x0001		/* !<Output paused by client */
 #define EV_OPS		0x0002		/* !<Output paused by reqular sw flowctrl */

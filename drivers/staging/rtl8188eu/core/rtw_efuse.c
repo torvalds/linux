@@ -440,7 +440,7 @@ u8 Efuse_WordEnableDataWrite(struct adapter *pAdapter, u16 efuse_addr, u8 word_e
 	return badworden;
 }
 
-u16 Efuse_GetCurrentSize(struct adapter *pAdapter)
+static u16 Efuse_GetCurrentSize(struct adapter *pAdapter)
 {
 	int	bContinual = true;
 	u16	efuse_addr = 0;

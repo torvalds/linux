@@ -25,7 +25,7 @@
 
 #include "channel.h"
 #include "chanstub.h"
-#include "timskmodutils.h"
+#include "timskmod.h"
 #include "version.h"
 
 static __init int
@@ -47,6 +47,7 @@ SignalInsert_withLock(CHANNEL_HEADER __iomem *pChannel, u32 Queue,
 {
 	unsigned char result;
 	unsigned long flags;
+
 	spin_lock_irqsave(lock, flags);
 	result = visor_signal_insert(pChannel, Queue, pSignal);
 	spin_unlock_irqrestore(lock, flags);
@@ -58,6 +59,7 @@ SignalRemove_withLock(CHANNEL_HEADER __iomem *pChannel, u32 Queue,
 		      void *pSignal, spinlock_t *lock)
 {
 	unsigned char result;
+
 	spin_lock(lock);
 	result = visor_signal_remove(pChannel, Queue, pSignal);
 	spin_unlock(lock);

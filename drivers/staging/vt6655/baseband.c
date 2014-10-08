@@ -56,10 +56,6 @@
 #include "srom.h"
 #include "rf.h"
 
-/*---------------------  Static Definitions -------------------------*/
-/* static int          msglevel                =MSG_LEVEL_DEBUG; */
-static int msglevel = MSG_LEVEL_INFO;
-
 /*---------------------  Static Classes  ----------------------------*/
 
 /*---------------------  Static Variables  --------------------------*/
@@ -1704,25 +1700,26 @@ static unsigned char byVT3253B0_AGC[CB_VT3253B0_AGC][2] = {
 	{0xF0, 0x00},
 };
 
-static const unsigned short awcFrameTime[MAX_RATE] =
-{10, 20, 55, 110, 24, 36, 48, 72, 96, 144, 192, 216};
+static const unsigned short awcFrameTime[MAX_RATE] = {
+		10, 20, 55, 110, 24, 36, 48, 72, 96, 144, 192, 216
+};
 
 /*---------------------  Static Functions  --------------------------*/
 
 static
 unsigned long
-s_ulGetRatio(PSDevice pDevice);
+s_ulGetRatio(struct vnt_private *pDevice);
 
 static
 void
 s_vChangeAntenna(
-	PSDevice pDevice
+	struct vnt_private *pDevice
 );
 
 static
 void
 s_vChangeAntenna(
-	PSDevice pDevice
+	struct vnt_private *pDevice
 )
 {
 	if (pDevice->dwRxAntennaSel == 0) {
@@ -1814,163 +1811,147 @@ BBuGetFrameTime(
  *
  * Parameters:
  *  In:
- *      pDevice         - Device Structure
- *      cbFrameLength   - Tx Frame Length
- *      wRate           - Tx Rate
+ *      priv         - Device Structure
+ *      frame_length   - Tx Frame Length
+ *      tx_rate           - Tx Rate
  *  Out:
- *      pwPhyLen        - pointer to Phy Length field
- *      pbyPhySrv       - pointer to Phy Service field
- *      pbyPhySgn       - pointer to Phy Signal field
+ *	struct vnt_phy_field *phy
+ *		- pointer to Phy Length field
+ *		- pointer to Phy Service field
+ *		- pointer to Phy Signal field
  *
  * Return Value: none
  *
  */
-void
-BBvCalculateParameter(
-	PSDevice pDevice,
-	unsigned int cbFrameLength,
-	unsigned short wRate,
-	unsigned char byPacketType,
-	unsigned short *pwPhyLen,
-	unsigned char *pbyPhySrv,
-	unsigned char *pbyPhySgn
-)
+void vnt_get_phy_field(struct vnt_private *priv, u32 frame_length,
+		       u16 tx_rate, u8 pkt_type, struct vnt_phy_field *phy)
 {
-	unsigned int cbBitCount;
-	unsigned int cbUsCount = 0;
-	unsigned int cbTmp;
-	bool bExtBit;
-	unsigned char byPreambleType = pDevice->byPreambleType;
-	bool bCCK = pDevice->bCCK;
+	u32 bit_count;
+	u32 count = 0;
+	u32 tmp;
+	int ext_bit;
+	u8 preamble_type = priv->byPreambleType;
 
-	cbBitCount = cbFrameLength * 8;
-	bExtBit = false;
+	bit_count = frame_length * 8;
+	ext_bit = false;
 
-	switch (wRate) {
+	switch (tx_rate) {
 	case RATE_1M:
-		cbUsCount = cbBitCount;
-		*pbyPhySgn = 0x00;
-		break;
+		count = bit_count;
 
+		phy->signal = 0x00;
+
+		break;
 	case RATE_2M:
-		cbUsCount = cbBitCount / 2;
-		if (byPreambleType == 1)
-			*pbyPhySgn = 0x09;
-		else /* long preamble */
-			*pbyPhySgn = 0x01;
-		break;
+		count = bit_count / 2;
 
+		if (preamble_type == 1)
+			phy->signal = 0x09;
+		else
+			phy->signal = 0x01;
+
+		break;
 	case RATE_5M:
-		if (!bCCK)
-			cbBitCount++;
-		cbUsCount = (cbBitCount * 10) / 55;
-		cbTmp = (cbUsCount * 55) / 10;
-		if (cbTmp != cbBitCount)
-			cbUsCount++;
-		if (byPreambleType == 1)
-			*pbyPhySgn = 0x0a;
-		else /* long preamble */
-			*pbyPhySgn = 0x02;
-		break;
+		count = (bit_count * 10) / 55;
+		tmp = (count * 55) / 10;
 
+		if (tmp != bit_count)
+			count++;
+
+		if (preamble_type == 1)
+			phy->signal = 0x0a;
+		else
+			phy->signal = 0x02;
+
+		break;
 	case RATE_11M:
+		count = bit_count / 11;
+		tmp = count * 11;
 
-		if (!bCCK)
-			cbBitCount++;
-		cbUsCount = cbBitCount / 11;
-		cbTmp = cbUsCount * 11;
-		if (cbTmp != cbBitCount) {
-			cbUsCount++;
-			if ((cbBitCount - cbTmp) <= 3)
-				bExtBit = true;
+		if (tmp != bit_count) {
+			count++;
+
+			if ((bit_count - tmp) <= 3)
+				ext_bit = true;
 		}
-		if (byPreambleType == 1)
-			*pbyPhySgn = 0x0b;
-		else /* long preamble */
-			*pbyPhySgn = 0x03;
-		break;
 
+		if (preamble_type == 1)
+			phy->signal = 0x0b;
+		else
+			phy->signal = 0x03;
+
+		break;
 	case RATE_6M:
-		if (byPacketType == PK_TYPE_11A) { /*11a, 5GHZ */
-			*pbyPhySgn = 0x9B; /* 1001 1011 */
-		} else {/* 11g, 2.4GHZ */
-			*pbyPhySgn = 0x8B; /* 1000 1011 */
-		}
-		break;
+		if (pkt_type == PK_TYPE_11A)
+			phy->signal = 0x9b;
+		else
+			phy->signal = 0x8b;
 
+		break;
 	case RATE_9M:
-		if (byPacketType == PK_TYPE_11A) {/* 11a, 5GHZ */
-			*pbyPhySgn = 0x9F; /* 1001 1111 */
-		} else {/* 11g, 2.4GHZ */
-			*pbyPhySgn = 0x8F; /* 1000 1111 */
-		}
-		break;
+		if (pkt_type == PK_TYPE_11A)
+			phy->signal = 0x9f;
+		else
+			phy->signal = 0x8f;
 
+		break;
 	case RATE_12M:
-		if (byPacketType == PK_TYPE_11A) {/* 11a, 5GHZ */
-			*pbyPhySgn = 0x9A; /* 1001 1010 */
-		} else {/* 11g, 2.4GHZ */
-			*pbyPhySgn = 0x8A; /* 1000 1010 */
-		}
-		break;
+		if (pkt_type == PK_TYPE_11A)
+			phy->signal = 0x9a;
+		else
+			phy->signal = 0x8a;
 
+		break;
 	case RATE_18M:
-		if (byPacketType == PK_TYPE_11A) {/* 11a, 5GHZ */
-			*pbyPhySgn = 0x9E; /* 1001 1110 */
-		} else {/* 11g, 2.4GHZ */
-			*pbyPhySgn = 0x8E; /* 1000 1110 */
-		}
-		break;
+		if (pkt_type == PK_TYPE_11A)
+			phy->signal = 0x9e;
+		else
+			phy->signal = 0x8e;
 
+		break;
 	case RATE_24M:
-		if (byPacketType == PK_TYPE_11A) {/* 11a, 5GHZ */
-			*pbyPhySgn = 0x99; /* 1001 1001 */
-		} else {/* 11g, 2.4GHZ */
-			*pbyPhySgn = 0x89; /* 1000 1001 */
-		}
-		break;
+		if (pkt_type == PK_TYPE_11A)
+			phy->signal = 0x99;
+		else
+			phy->signal = 0x89;
 
+		break;
 	case RATE_36M:
-		if (byPacketType == PK_TYPE_11A) {/* 11a, 5GHZ */
-			*pbyPhySgn = 0x9D; /* 1001 1101 */
-		} else {/* 11g, 2.4GHZ */
-			*pbyPhySgn = 0x8D; /* 1000 1101 */
-		}
-		break;
+		if (pkt_type == PK_TYPE_11A)
+			phy->signal = 0x9d;
+		else
+			phy->signal = 0x8d;
 
+		break;
 	case RATE_48M:
-		if (byPacketType == PK_TYPE_11A) {/* 11a, 5GHZ */
-			*pbyPhySgn = 0x98; /* 1001 1000 */
-		} else {/* 11g, 2.4GHZ */
-			*pbyPhySgn = 0x88; /* 1000 1000 */
-		}
-		break;
+		if (pkt_type == PK_TYPE_11A)
+			phy->signal = 0x98;
+		else
+			phy->signal = 0x88;
 
+		break;
 	case RATE_54M:
-		if (byPacketType == PK_TYPE_11A) {/* 11a, 5GHZ */
-			*pbyPhySgn = 0x9C; /* 1001 1100 */
-		} else {/* 11g, 2.4GHZ */
-			*pbyPhySgn = 0x8C; /* 1000 1100 */
-		}
+		if (pkt_type == PK_TYPE_11A)
+			phy->signal = 0x9c;
+		else
+			phy->signal = 0x8c;
 		break;
-
 	default:
-		if (byPacketType == PK_TYPE_11A) {/* 11a, 5GHZ */
-			*pbyPhySgn = 0x9C; /* 1001 1100 */
-		} else {/* 11g, 2.4GHZ */
-			*pbyPhySgn = 0x8C; /* 1000 1100 */
-		}
+		if (pkt_type == PK_TYPE_11A)
+			phy->signal = 0x9c;
+		else
+			phy->signal = 0x8c;
 		break;
 	}
 
-	if (byPacketType == PK_TYPE_11B) {
-		*pbyPhySrv = 0x00;
-		if (bExtBit)
-			*pbyPhySrv = *pbyPhySrv | 0x80;
-		*pwPhyLen = (unsigned short)cbUsCount;
+	if (pkt_type == PK_TYPE_11B) {
+		phy->service = 0x00;
+		if (ext_bit)
+			phy->service |= 0x80;
+		phy->len = cpu_to_le16((u16)count);
 	} else {
-		*pbyPhySrv = 0x00;
-		*pwPhyLen = (unsigned short)cbFrameLength;
+		phy->service = 0x00;
+		phy->len = cpu_to_le16((u16)frame_length);
 	}
 }
 
@@ -2009,7 +1990,7 @@ bool BBbReadEmbedded(void __iomem *dwIoBase, unsigned char byBBAddr, unsigned ch
 
 	if (ww == W_MAX_TIMEOUT) {
 		DBG_PORT80(0x30);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x30)\n");
+		pr_debug(" DBG_PORT80(0x30)\n");
 		return false;
 	}
 	return true;
@@ -2050,7 +2031,7 @@ bool BBbWriteEmbedded(void __iomem *dwIoBase, unsigned char byBBAddr, unsigned c
 
 	if (ww == W_MAX_TIMEOUT) {
 		DBG_PORT80(0x31);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " DBG_PORT80(0x31)\n");
+		pr_debug(" DBG_PORT80(0x31)\n");
 		return false;
 	}
 	return true;
@@ -2115,7 +2096,7 @@ bool BBbIsRegBitsOff(void __iomem *dwIoBase, unsigned char byBBAddr, unsigned ch
  *
  */
 
-bool BBbVT3253Init(PSDevice pDevice)
+bool BBbVT3253Init(struct vnt_private *pDevice)
 {
 	bool bResult = true;
 	int        ii;
@@ -2310,7 +2291,7 @@ void BBvReadAllRegs(void __iomem *dwIoBase, unsigned char *pbyBBRegs)
  *
  */
 
-void BBvLoopbackOn(PSDevice pDevice)
+void BBvLoopbackOn(struct vnt_private *pDevice)
 {
 	unsigned char byData;
 	void __iomem *dwIoBase = pDevice->PortOffset;
@@ -2363,7 +2344,7 @@ void BBvLoopbackOn(PSDevice pDevice)
  * Return Value: none
  *
  */
-void BBvLoopbackOff(PSDevice pDevice)
+void BBvLoopbackOff(struct vnt_private *pDevice)
 {
 	unsigned char byData;
 	void __iomem *dwIoBase = pDevice->PortOffset;
@@ -2398,7 +2379,7 @@ void BBvLoopbackOff(PSDevice pDevice)
  *
  */
 void
-BBvSetShortSlotTime(PSDevice pDevice)
+BBvSetShortSlotTime(struct vnt_private *pDevice)
 {
 	unsigned char byBBRxConf = 0;
 	unsigned char byBBVGA = 0;
@@ -2418,7 +2399,7 @@ BBvSetShortSlotTime(PSDevice pDevice)
 	BBbWriteEmbedded(pDevice->PortOffset, 0x0A, byBBRxConf); /* CR10 */
 }
 
-void BBvSetVGAGainOffset(PSDevice pDevice, unsigned char byData)
+void BBvSetVGAGainOffset(struct vnt_private *pDevice, unsigned char byData)
 {
 	unsigned char byBBRxConf = 0;
 
@@ -2594,7 +2575,7 @@ BBvExitDeepSleep(void __iomem *dwIoBase, unsigned char byLocalID)
 
 static
 unsigned long
-s_ulGetRatio(PSDevice pDevice)
+s_ulGetRatio(struct vnt_private *pDevice)
 {
 	unsigned long ulRatio = 0;
 	unsigned long ulMaxPacket;
@@ -2689,7 +2670,7 @@ s_ulGetRatio(PSDevice pDevice)
 }
 
 void
-BBvClearAntDivSQ3Value(PSDevice pDevice)
+BBvClearAntDivSQ3Value(struct vnt_private *pDevice)
 {
 	unsigned int ii;
 
@@ -2713,8 +2694,8 @@ BBvClearAntDivSQ3Value(PSDevice pDevice)
  *
  */
 
-void
-BBvAntennaDiversity(PSDevice pDevice, unsigned char byRxRate, unsigned char bySQ3)
+void BBvAntennaDiversity(struct vnt_private *pDevice,
+			 unsigned char byRxRate, unsigned char bySQ3)
 {
 	if ((byRxRate >= MAX_RATE) || (pDevice->wAntDiversityMaxRate >= MAX_RATE))
 		return;
@@ -2725,18 +2706,22 @@ BBvAntennaDiversity(PSDevice pDevice, unsigned char byRxRate, unsigned char bySQ
 
 	if (pDevice->byAntennaState == 0) {
 		if (pDevice->uDiversityCnt > pDevice->ulDiversityNValue) {
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "ulDiversityNValue=[%d],54M-[%d]\n",
-				(int)pDevice->ulDiversityNValue, (int)pDevice->uNumSQ3[(int)pDevice->wAntDiversityMaxRate]);
+			pr_debug("ulDiversityNValue=[%d],54M-[%d]\n",
+				 (int)pDevice->ulDiversityNValue,
+				 (int)pDevice->uNumSQ3[(int)pDevice->wAntDiversityMaxRate]);
 
 			if (pDevice->uNumSQ3[pDevice->wAntDiversityMaxRate] < pDevice->uDiversityCnt/2) {
 				pDevice->ulRatio_State0 = s_ulGetRatio(pDevice);
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "SQ3_State0, rate = [%08x]\n", (int)pDevice->ulRatio_State0);
+				pr_debug("SQ3_State0, rate = [%08x]\n",
+					 (int)pDevice->ulRatio_State0);
 
 				if (pDevice->byTMax == 0)
 					return;
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "1.[%08x], uNumSQ3[%d]=%d, %d\n",
-					(int)pDevice->ulRatio_State0, (int)pDevice->wAntDiversityMaxRate,
-					(int)pDevice->uNumSQ3[(int)pDevice->wAntDiversityMaxRate], (int)pDevice->uDiversityCnt);
+				pr_debug("1.[%08x], uNumSQ3[%d]=%d, %d\n",
+					 (int)pDevice->ulRatio_State0,
+					 (int)pDevice->wAntDiversityMaxRate,
+					 (int)pDevice->uNumSQ3[(int)pDevice->wAntDiversityMaxRate],
+					 (int)pDevice->uDiversityCnt);
 
 				s_vChangeAntenna(pDevice);
 				pDevice->byAntennaState = 1;
@@ -2758,14 +2743,17 @@ BBvAntennaDiversity(PSDevice pDevice, unsigned char byRxRate, unsigned char bySQ
 			del_timer(&pDevice->TimerSQ3Tmax1);
 
 			pDevice->ulRatio_State1 = s_ulGetRatio(pDevice);
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "RX:SQ3_State1, rate0 = %08x,rate1 = %08x\n",
-				(int)pDevice->ulRatio_State0, (int)pDevice->ulRatio_State1);
+			pr_debug("RX:SQ3_State1, rate0 = %08x,rate1 = %08x\n",
+				 (int)pDevice->ulRatio_State0,
+				 (int)pDevice->ulRatio_State1);
 
 			if (pDevice->ulRatio_State1 < pDevice->ulRatio_State0) {
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "2.[%08x][%08x], uNumSQ3[%d]=%d, %d\n",
-					(int)pDevice->ulRatio_State0, (int)pDevice->ulRatio_State1,
-					(int)pDevice->wAntDiversityMaxRate,
-					(int)pDevice->uNumSQ3[(int)pDevice->wAntDiversityMaxRate], (int)pDevice->uDiversityCnt);
+				pr_debug("2.[%08x][%08x], uNumSQ3[%d]=%d, %d\n",
+					 (int)pDevice->ulRatio_State0,
+					 (int)pDevice->ulRatio_State1,
+					 (int)pDevice->wAntDiversityMaxRate,
+					 (int)pDevice->uNumSQ3[(int)pDevice->wAntDiversityMaxRate],
+					 (int)pDevice->uDiversityCnt);
 
 				s_vChangeAntenna(pDevice);
 				pDevice->TimerSQ3Tmax3.expires =  RUN_AT(pDevice->byTMax3 * HZ);
@@ -2798,12 +2786,14 @@ TimerSQ3CallBack(
 	void *hDeviceContext
 )
 {
-	PSDevice        pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "TimerSQ3CallBack...");
+	pr_debug("TimerSQ3CallBack...\n");
 	spin_lock_irq(&pDevice->lock);
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "3.[%08x][%08x], %d\n", (int)pDevice->ulRatio_State0, (int)pDevice->ulRatio_State1, (int)pDevice->uDiversityCnt);
+	pr_debug("3.[%08x][%08x], %d\n",
+		 (int)pDevice->ulRatio_State0, (int)pDevice->ulRatio_State1,
+		 (int)pDevice->uDiversityCnt);
 
 	s_vChangeAntenna(pDevice);
 	pDevice->byAntennaState = 0;
@@ -2840,9 +2830,9 @@ TimerState1CallBack(
 	void *hDeviceContext
 )
 {
-	PSDevice        pDevice = (PSDevice)hDeviceContext;
+	struct vnt_private *pDevice = hDeviceContext;
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "TimerState1CallBack...");
+	pr_debug("TimerState1CallBack...\n");
 
 	spin_lock_irq(&pDevice->lock);
 	if (pDevice->uDiversityCnt < pDevice->ulDiversityMValue/100) {
@@ -2853,14 +2843,17 @@ TimerState1CallBack(
 		add_timer(&pDevice->TimerSQ3Tmax2);
 	} else {
 		pDevice->ulRatio_State1 = s_ulGetRatio(pDevice);
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "SQ3_State1, rate0 = %08x,rate1 = %08x\n",
-			(int)pDevice->ulRatio_State0, (int)pDevice->ulRatio_State1);
+		pr_debug("SQ3_State1, rate0 = %08x,rate1 = %08x\n",
+			 (int)pDevice->ulRatio_State0,
+			 (int)pDevice->ulRatio_State1);
 
 		if (pDevice->ulRatio_State1 < pDevice->ulRatio_State0) {
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "2.[%08x][%08x], uNumSQ3[%d]=%d, %d\n",
-				(int)pDevice->ulRatio_State0, (int)pDevice->ulRatio_State1,
-				(int)pDevice->wAntDiversityMaxRate,
-				(int)pDevice->uNumSQ3[(int)pDevice->wAntDiversityMaxRate], (int)pDevice->uDiversityCnt);
+			pr_debug("2.[%08x][%08x], uNumSQ3[%d]=%d, %d\n",
+				 (int)pDevice->ulRatio_State0,
+				 (int)pDevice->ulRatio_State1,
+				 (int)pDevice->wAntDiversityMaxRate,
+				 (int)pDevice->uNumSQ3[(int)pDevice->wAntDiversityMaxRate],
+				 (int)pDevice->uDiversityCnt);
 
 			s_vChangeAntenna(pDevice);
 

@@ -88,8 +88,7 @@ static void ll_destroy_inodecache(void)
 }
 
 /* exported operations */
-struct super_operations lustre_super_operations =
-{
+struct super_operations lustre_super_operations = {
 	.alloc_inode   = ll_alloc_inode,
 	.destroy_inode = ll_destroy_inode,
 	.evict_inode   = ll_delete_inode,

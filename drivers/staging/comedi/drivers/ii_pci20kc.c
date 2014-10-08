@@ -132,29 +132,10 @@ static const struct comedi_lrange ii20k_ai_ranges = {
 	},
 };
 
-struct ii20k_ao_private {
-	unsigned int last_data[2];
-};
-
 static void __iomem *ii20k_module_iobase(struct comedi_device *dev,
 					 struct comedi_subdevice *s)
 {
 	return dev->mmio + (s->index + 1) * II20K_MOD_OFFSET;
-}
-
-static int ii20k_ao_insn_read(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn,
-			      unsigned int *data)
-{
-	struct ii20k_ao_private *ao_spriv = s->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = ao_spriv->last_data[chan];
-
-	return insn->n;
 }
 
 static int ii20k_ao_insn_write(struct comedi_device *dev,
@@ -162,14 +143,14 @@ static int ii20k_ao_insn_write(struct comedi_device *dev,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	struct ii20k_ao_private *ao_spriv = s->private;
 	void __iomem *iobase = ii20k_module_iobase(dev, s);
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int val = ao_spriv->last_data[chan];
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		val = data[i];
+		unsigned int val = data[i];
+
+		s->readback[chan] = val;
 
 		/* munge data */
 		val += ((s->maxdata + 1) >> 1);
@@ -179,8 +160,6 @@ static int ii20k_ao_insn_write(struct comedi_device *dev,
 		writeb((val >> 8) & 0xff, iobase + II20K_AO_MSB_REG(chan));
 		writeb(0x00, iobase + II20K_AO_STRB_REG(chan));
 	}
-
-	ao_spriv->last_data[chan] = val;
 
 	return insn->n;
 }
@@ -398,26 +377,26 @@ static int ii20k_dio_insn_bits(struct comedi_device *dev,
 static int ii20k_init_module(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
-	struct ii20k_ao_private *ao_spriv;
 	void __iomem *iobase = ii20k_module_iobase(dev, s);
 	unsigned char id;
+	int ret;
 
 	id = readb(iobase + II20K_ID_REG);
 	switch (id) {
 	case II20K_ID_PCI20006M_1:
 	case II20K_ID_PCI20006M_2:
-		ao_spriv = comedi_alloc_spriv(s, sizeof(*ao_spriv));
-		if (!ao_spriv)
-			return -ENOMEM;
-
 		/* Analog Output subdevice */
 		s->type		= COMEDI_SUBD_AO;
 		s->subdev_flags	= SDF_WRITABLE;
 		s->n_chan	= (id == II20K_ID_PCI20006M_2) ? 2 : 1;
 		s->maxdata	= 0xffff;
 		s->range_table	= &ii20k_ao_ranges;
-		s->insn_read	= ii20k_ao_insn_read;
 		s->insn_write	= ii20k_ao_insn_write;
+		s->insn_read	= comedi_readback_insn_read;
+
+		ret = comedi_alloc_subdev_readback(s);
+		if (ret)
+			return ret;
 		break;
 	case II20K_ID_PCI20341M_1:
 		/* Analog Input subdevice */

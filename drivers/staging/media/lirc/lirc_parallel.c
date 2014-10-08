@@ -177,10 +177,9 @@ static unsigned int init_lirc_timer(void)
 			pr_notice("using default timer: %u Hz\n",
 				  default_timer);
 			return default_timer;
-		} else {
-			pr_info("%u Hz timer detected\n", newtimer);
-			return newtimer; /* use detected value */
 		}
+		pr_info("%u Hz timer detected\n", newtimer);
+		return newtimer; /* use detected value */
 	}
 
 	pr_notice("no timer detected\n");

@@ -356,7 +356,7 @@ int init_hw_mlme_ext23a(struct rtw_adapter *padapter)
 	return _SUCCESS;
 }
 
-static void init_mlme_ext_priv23a_value(struct rtw_adapter* padapter)
+static void init_mlme_ext_priv23a_value(struct rtw_adapter *padapter)
 {
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -480,7 +480,7 @@ static void init_channel_list(struct rtw_adapter *padapter,
 	channel_list->reg_classes = cla;
 }
 
-static u8 init_channel_set(struct rtw_adapter* padapter, u8 cplan,
+static u8 init_channel_set(struct rtw_adapter *padapter, u8 cplan,
 			   struct rt_channel_info *c_set)
 {
 	u8 i, ch_size = 0;
@@ -564,10 +564,10 @@ static u8 init_channel_set(struct rtw_adapter* padapter, u8 cplan,
 	return ch_size;
 }
 
-int init_mlme_ext_priv23a(struct rtw_adapter* padapter)
+int init_mlme_ext_priv23a(struct rtw_adapter *padapter)
 {
 	int res = _SUCCESS;
-	struct registry_priv* pregistrypriv = &padapter->registrypriv;
+	struct registry_priv *pregistrypriv = &padapter->registrypriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -625,7 +625,7 @@ _mgt_dispatcher23a(struct rtw_adapter *padapter, struct mlme_handler *ptable,
 			return;
 
 		ptable->func(padapter, precv_frame);
-        }
+	}
 }
 
 void mgt_dispatcher23a(struct rtw_adapter *padapter,
@@ -1949,7 +1949,7 @@ OnDisassoc23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 
 	reason = le16_to_cpu(mgmt->u.disassoc.reason_code);
 
-        DBG_8723A("%s Reason code(%d)\n", __func__, reason);
+	DBG_8723A("%s Reason code(%d)\n", __func__, reason);
 
 #ifdef CONFIG_8723AU_AP_MODE
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
@@ -2436,7 +2436,7 @@ void issue_beacon23a(struct rtw_adapter *padapter, int timeout_ms)
 		if (wps_ie && wps_ie[1] > 0) {
 			rtw_get_wps_attr_content23a(wps_ie, wps_ie[1],
 						    WPS_ATTR_SELECTED_REGISTRAR,
-						    (u8*)&sr);
+						    (u8 *)&sr);
 		}
 		if (sr != 0)
 			set_fwstate(pmlmepriv, WIFI_UNDER_WPS);
@@ -4313,7 +4313,7 @@ fail:
 	return NULL;
 }
 
-static void start_create_ibss(struct rtw_adapter* padapter)
+static void start_create_ibss(struct rtw_adapter *padapter)
 {
 	unsigned short caps;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
@@ -4362,7 +4362,7 @@ static void start_create_ibss(struct rtw_adapter* padapter)
 	}
 }
 
-static void start_clnt_join(struct rtw_adapter* padapter)
+static void start_clnt_join(struct rtw_adapter *padapter)
 {
 	unsigned short caps;
 	u8 val8;
@@ -4422,7 +4422,7 @@ static void start_clnt_join(struct rtw_adapter* padapter)
 	}
 }
 
-static void start_clnt_auth(struct rtw_adapter* padapter)
+static void start_clnt_auth(struct rtw_adapter *padapter)
 {
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -4453,7 +4453,7 @@ static void start_clnt_auth(struct rtw_adapter* padapter)
 	set_link_timer(pmlmeext, REAUTH_TO);
 }
 
-static void start_clnt_assoc(struct rtw_adapter* padapter)
+static void start_clnt_assoc(struct rtw_adapter *padapter)
 {
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -4763,7 +4763,7 @@ void report_survey_event23a(struct rtw_adapter *padapter,
 	pcmd_obj->rsp = NULL;
 	pcmd_obj->rspsz  = 0;
 
-	pc2h_evt_hdr = (struct C2HEvent_Header*)(pevtcmd);
+	pc2h_evt_hdr = (struct C2HEvent_Header *)(pevtcmd);
 	pc2h_evt_hdr->len = sizeof(struct survey_event);
 	pc2h_evt_hdr->ID = GEN_EVT_CODE(_Survey);
 	pc2h_evt_hdr->seq = atomic_inc_return(&pmlmeext->event_seq);
@@ -4814,7 +4814,7 @@ void report_surveydone_event23a(struct rtw_adapter *padapter)
 	pcmd_obj->rsp = NULL;
 	pcmd_obj->rspsz  = 0;
 
-	pc2h_evt_hdr = (struct C2HEvent_Header*)(pevtcmd);
+	pc2h_evt_hdr = (struct C2HEvent_Header *)(pevtcmd);
 	pc2h_evt_hdr->len = sizeof(struct surveydone_event);
 	pc2h_evt_hdr->ID = GEN_EVT_CODE(_SurveyDone);
 	pc2h_evt_hdr->seq = atomic_inc_return(&pmlmeext->event_seq);
@@ -4858,7 +4858,7 @@ void report_join_res23a(struct rtw_adapter *padapter, int res)
 	pcmd_obj->rsp = NULL;
 	pcmd_obj->rspsz  = 0;
 
-	pc2h_evt_hdr = (struct C2HEvent_Header*)(pevtcmd);
+	pc2h_evt_hdr = (struct C2HEvent_Header *)(pevtcmd);
 	pc2h_evt_hdr->len = sizeof(struct joinbss_event);
 	pc2h_evt_hdr->ID = GEN_EVT_CODE(_JoinBss);
 	pc2h_evt_hdr->seq = atomic_inc_return(&pmlmeext->event_seq);
@@ -4878,7 +4878,7 @@ void report_join_res23a(struct rtw_adapter *padapter, int res)
 }
 
 void report_del_sta_event23a(struct rtw_adapter *padapter,
-			     unsigned char* MacAddr, unsigned short reason)
+			     unsigned char *MacAddr, unsigned short reason)
 {
 	struct cmd_obj *pcmd_obj;
 	u8 *pevtcmd;
@@ -4908,7 +4908,7 @@ void report_del_sta_event23a(struct rtw_adapter *padapter,
 	pcmd_obj->rsp = NULL;
 	pcmd_obj->rspsz  = 0;
 
-	pc2h_evt_hdr = (struct C2HEvent_Header*)(pevtcmd);
+	pc2h_evt_hdr = (struct C2HEvent_Header *)(pevtcmd);
 	pc2h_evt_hdr->len = sizeof(struct stadel_event);
 	pc2h_evt_hdr->ID = GEN_EVT_CODE(_DelSTA);
 	pc2h_evt_hdr->seq = atomic_inc_return(&pmlmeext->event_seq);
@@ -4934,7 +4934,7 @@ void report_del_sta_event23a(struct rtw_adapter *padapter,
 }
 
 void report_add_sta_event23a(struct rtw_adapter *padapter,
-			     unsigned char* MacAddr, int cam_idx)
+			     unsigned char *MacAddr, int cam_idx)
 {
 	struct cmd_obj *pcmd_obj;
 	u8 *pevtcmd;
@@ -4962,7 +4962,7 @@ void report_add_sta_event23a(struct rtw_adapter *padapter,
 	pcmd_obj->rsp = NULL;
 	pcmd_obj->rspsz  = 0;
 
-	pc2h_evt_hdr = (struct C2HEvent_Header*)(pevtcmd);
+	pc2h_evt_hdr = (struct C2HEvent_Header *)(pevtcmd);
 	pc2h_evt_hdr->len = sizeof(struct stassoc_event);
 	pc2h_evt_hdr->ID = GEN_EVT_CODE(_AddSTA);
 	pc2h_evt_hdr->seq = atomic_inc_return(&pmlmeext->event_seq);
@@ -5564,7 +5564,7 @@ int join_cmd_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	struct ieee80211_ht_operation *pht_info;
 	u32 i;
 	u8 *p;
-        /* u32	initialgain; */
+	/* u32	initialgain; */
 	/* u32	acparm; */
 
 	/* check already connecting to AP or not */
@@ -6022,7 +6022,7 @@ int add_ba_hdl23a(struct rtw_adapter *padapter, const u8 *pbuf)
 	return H2C_SUCCESS;
 }
 
-int set_tx_beacon_cmd23a(struct rtw_adapter* padapter)
+int set_tx_beacon_cmd23a(struct rtw_adapter *padapter)
 {
 	struct cmd_obj *ph2c;
 	struct Tx_Beacon_param *ptxBeacon_parm;

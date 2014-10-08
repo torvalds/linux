@@ -1842,7 +1842,7 @@ LedControl871x23a(struct rtw_adapter *padapter, enum led_ctl_mode LedAction) {
 	if ((padapter->bSurpriseRemoved == true) ||
 	    (padapter->bDriverStopped == true) ||
 	    (padapter->hw_init_completed == false)) {
-             return;
+		return;
 	}
 
 	if (ledpriv->bRegUseLed == false)

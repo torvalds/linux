@@ -1003,11 +1003,8 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *fh,
 {
 	struct omap24xxcam_fh *ofh = fh;
 	struct omap24xxcam_device *cam = ofh->cam;
-	int rval;
 
-	rval = vidioc_int_enum_fmt_cap(cam->sdev, f);
-
-	return rval;
+	return vidioc_int_enum_fmt_cap(cam->sdev, f);
 }
 
 static int vidioc_g_fmt_vid_cap(struct file *file, void *fh,
@@ -1245,11 +1242,8 @@ static int vidioc_queryctrl(struct file *file, void *fh,
 {
 	struct omap24xxcam_fh *ofh = fh;
 	struct omap24xxcam_device *cam = ofh->cam;
-	int rval;
 
-	rval = vidioc_int_queryctrl(cam->sdev, a);
-
-	return rval;
+	return vidioc_int_queryctrl(cam->sdev, a);
 }
 
 static int vidioc_g_ctrl(struct file *file, void *fh,

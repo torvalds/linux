@@ -34,42 +34,40 @@
 /* Exported functions                                */
 /*****************************************************/
 unsigned long long
-uisqueue_InterlockedOr(unsigned long long __iomem *Target,
-		       unsigned long long Set)
+uisqueue_interlocked_or(unsigned long long __iomem *tgt,
+		       unsigned long long set)
 {
 	unsigned long long i;
 	unsigned long long j;
 
-	j = readq(Target);
+	j = readq(tgt);
 	do {
 		i = j;
-		j = uislibcmpxchg64((__force unsigned long long *)Target,
-				    i, i | Set, sizeof(*(Target)));
+		j = cmpxchg((__force unsigned long long *)tgt, i, i | set);
 
 	} while (i != j);
 
 	return j;
 }
-EXPORT_SYMBOL_GPL(uisqueue_InterlockedOr);
+EXPORT_SYMBOL_GPL(uisqueue_interlocked_or);
 
 unsigned long long
-uisqueue_InterlockedAnd(unsigned long long __iomem *Target,
-			unsigned long long Set)
+uisqueue_interlocked_and(unsigned long long __iomem *tgt,
+			unsigned long long set)
 {
 	unsigned long long i;
 	unsigned long long j;
 
-	j = readq(Target);
+	j = readq(tgt);
 	do {
 		i = j;
-		j = uislibcmpxchg64((__force unsigned long long *)Target,
-				    i, i & Set, sizeof(*(Target)));
+		j = cmpxchg((__force unsigned long long *)tgt, i, i & set);
 
 	} while (i != j);
 
 	return j;
 }
-EXPORT_SYMBOL_GPL(uisqueue_InterlockedAnd);
+EXPORT_SYMBOL_GPL(uisqueue_interlocked_and);
 
 static u8
 do_locked_client_insert(struct uisqueue_info *queueinfo,
@@ -80,41 +78,18 @@ do_locked_client_insert(struct uisqueue_info *queueinfo,
 			u64 interruptHandle, u8 *channelId)
 {
 	unsigned long flags;
-	unsigned char queueWasEmpty;
-	unsigned int locked = 0;
-	unsigned int acquired = 0;
 	u8 rc = 0;
 
 	spin_lock_irqsave(lock, flags);
-	locked = 1;
-
 	if (!ULTRA_CHANNEL_CLIENT_ACQUIRE_OS(queueinfo->chan, channelId, NULL))
-		goto Away;
-
-	acquired = 1;
-
-	queueWasEmpty = visor_signalqueue_empty(queueinfo->chan, whichqueue);
-	if (!visor_signal_insert(queueinfo->chan, whichqueue, pSignal))
-		goto Away;
+		goto unlock;
+	if (visor_signal_insert(queueinfo->chan, whichqueue, pSignal)) {
+		queueinfo->packets_sent++;
+		rc = 1;
+	}
 	ULTRA_CHANNEL_CLIENT_RELEASE_OS(queueinfo->chan, channelId, NULL);
-	acquired = 0;
-	spin_unlock_irqrestore(lock, flags);
-	locked = 0;
-
-	queueinfo->packets_sent++;
-
-	rc = 1;
-Away:
-	if (acquired) {
-		ULTRA_CHANNEL_CLIENT_RELEASE_OS(queueinfo->chan, channelId,
-						NULL);
-		acquired = 0;
-	}
-	if (locked) {
-		spin_unlock_irqrestore((spinlock_t *) lock, flags);
-		locked = 0;
-	}
-
+unlock:
+	spin_unlock_irqrestore((spinlock_t *)lock, flags);
 	return rc;
 }
 
@@ -123,14 +98,14 @@ uisqueue_put_cmdrsp_with_lock_client(struct uisqueue_info *queueinfo,
 				     struct uiscmdrsp *cmdrsp,
 				     unsigned int whichqueue,
 				     void *insertlock,
-				     unsigned char issueInterruptIfEmpty,
-				     u64 interruptHandle,
-				     char oktowait, u8 *channelId)
+				     unsigned char issue_irq_if_empty,
+				     u64 irq_handle,
+				     char oktowait, u8 *channel_id)
 {
 	while (!do_locked_client_insert(queueinfo, whichqueue, cmdrsp,
 					(spinlock_t *) insertlock,
-					issueInterruptIfEmpty,
-					interruptHandle, channelId)) {
+					issue_irq_if_empty,
+					irq_handle, channel_id)) {
 		if (oktowait != OK_TO_WAIT) {
 			LOGERR("****FAILED visor_signal_insert failed; cannot wait; insert aborted\n");
 			return 0;	/* failed to queue */

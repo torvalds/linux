@@ -213,11 +213,6 @@ struct hal_ops {
 			    struct xmit_frame *pxmitframe);
 	s32 (*mgnt_xmit)(struct adapter *padapter,
 			 struct xmit_frame *pmgntframe);
-
-	u32	(*read_bbreg)(struct adapter *padapter, u32 RegAddr,
-			      u32 BitMask);
-	void	(*write_bbreg)(struct adapter *padapter, u32 RegAddr,
-			       u32 BitMask, u32 Data);
 	u32	(*read_rfreg)(struct adapter *padapter,
 			      enum rf_radio_path eRFPath, u32 RegAddr,
 			      u32 BitMask);
@@ -227,10 +222,6 @@ struct hal_ops {
 
 	void (*sreset_init_value)(struct adapter *padapter);
 	u8 (*sreset_get_wifi_status)(struct adapter *padapter);
-
-	int (*IOL_exec_cmds_sync)(struct adapter *padapter,
-				  struct xmit_frame *frame, u32 max_wait,
-				  u32 bndy_cnt);
 
 	void (*hal_notch_filter)(struct adapter *adapter, bool enable);
 	void (*hal_reset_security_engine)(struct adapter *adapter);
@@ -307,9 +298,6 @@ void	rtw_hal_clone_data(struct adapter *dst_adapt,
 
 void rtw_hal_bcn_related_reg_setting(struct adapter *padapter);
 
-u32	rtw_hal_read_bbreg(struct adapter *padapter, u32 RegAddr, u32 BitMask);
-void	rtw_hal_write_bbreg(struct adapter *padapter, u32 RegAddr, u32 BitMask,
-			    u32 Data);
 u32	rtw_hal_read_rfreg(struct adapter *padapter, enum rf_radio_path eRFPath,
 			   u32 RegAddr, u32 BitMask);
 void	rtw_hal_write_rfreg(struct adapter *padapter,
@@ -330,9 +318,6 @@ void	rtw_hal_antdiv_rssi_compared(struct adapter *padapter,
 
 void rtw_hal_sreset_init(struct adapter *padapter);
 u8   rtw_hal_sreset_get_wifi_status(struct adapter *padapter);
-
-int rtw_hal_iol_cmd(struct adapter  *adapter, struct xmit_frame *xmit_frame,
-		    u32 max_wating_ms, u32 bndy_cnt);
 
 void rtw_hal_notch_filter(struct adapter *adapter, bool enable);
 void rtw_hal_reset_security_engine(struct adapter *adapter);

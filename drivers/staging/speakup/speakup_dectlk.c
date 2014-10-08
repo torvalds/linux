@@ -169,6 +169,7 @@ static u_char lastind;
 static unsigned char get_index(void)
 {
 	u_char rv;
+
 	rv = lastind;
 	lastind = 0;
 	return rv;
@@ -180,6 +181,7 @@ static void read_buff_add(u_char c)
 
 	if (c == 0x01) {
 		unsigned long flags;
+
 		spin_lock_irqsave(&flush_lock, flags);
 		is_flushing = 0;
 		wake_up_interruptible(&flush);

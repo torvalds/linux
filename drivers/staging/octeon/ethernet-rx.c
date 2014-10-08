@@ -203,8 +203,7 @@ static inline int cvm_oct_check_rcv_error(cvmx_wqe_t *work)
 					ptr++;
 				}
 			} else {
-				printk_ratelimited("Port %d unknown preamble, packet "
-						   "dropped\n",
+				printk_ratelimited("Port %d unknown preamble, packet dropped\n",
 						   work->ipprt);
 				/*
 				   cvmx_helper_dump_packet(work);
