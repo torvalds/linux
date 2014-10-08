@@ -79,9 +79,6 @@
 #define xcounter	%xmm8
 #define xbyteswap	%xmm9
 #define xkey0		%xmm10
-#define xkey3		%xmm11
-#define xkey6		%xmm12
-#define xkey9		%xmm13
 #define xkey4		%xmm11
 #define xkey8		%xmm12
 #define xkey12		%xmm13
@@ -108,6 +105,10 @@
 
 byteswap_const:
 	.octa 0x000102030405060708090A0B0C0D0E0F
+ddq_low_msk:
+	.octa 0x0000000000000000FFFFFFFFFFFFFFFF
+ddq_high_add_1:
+	.octa 0x00000000000000010000000000000000
 ddq_add_1:
 	.octa 0x00000000000000000000000000000001
 ddq_add_2:
@@ -169,7 +170,12 @@ ddq_add_8:
 	.rept (by - 1)
 		club DDQ_DATA, i
 		club XDATA, i
-		vpaddd	var_ddq_add(%rip), xcounter, var_xdata
+		vpaddq	var_ddq_add(%rip), xcounter, var_xdata
+		vptest	ddq_low_msk(%rip), var_xdata
+		jnz 1f
+		vpaddq	ddq_high_add_1(%rip), var_xdata, var_xdata
+		vpaddq	ddq_high_add_1(%rip), xcounter, xcounter
+		1:
 		vpshufb	xbyteswap, var_xdata, var_xdata
 		.set i, (i +1)
 	.endr
@@ -178,7 +184,11 @@ ddq_add_8:
 
 	vpxor	xkey0, xdata0, xdata0
 	club DDQ_DATA, by
-	vpaddd	var_ddq_add(%rip), xcounter, xcounter
+	vpaddq	var_ddq_add(%rip), xcounter, xcounter
+	vptest	ddq_low_msk(%rip), xcounter
+	jnz	1f
+	vpaddq	ddq_high_add_1(%rip), xcounter, xcounter
+	1:
 
 	.set i, 1
 	.rept (by - 1)

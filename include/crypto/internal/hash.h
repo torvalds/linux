@@ -117,6 +117,15 @@ int shash_ahash_update(struct ahash_request *req, struct shash_desc *desc);
 int shash_ahash_finup(struct ahash_request *req, struct shash_desc *desc);
 int shash_ahash_digest(struct ahash_request *req, struct shash_desc *desc);
 
+int shash_ahash_mcryptd_update(struct ahash_request *req,
+			       struct shash_desc *desc);
+int shash_ahash_mcryptd_final(struct ahash_request *req,
+			      struct shash_desc *desc);
+int shash_ahash_mcryptd_finup(struct ahash_request *req,
+			      struct shash_desc *desc);
+int shash_ahash_mcryptd_digest(struct ahash_request *req,
+			       struct shash_desc *desc);
+
 int crypto_init_shash_ops_async(struct crypto_tfm *tfm);
 
 static inline void *crypto_ahash_ctx(struct crypto_ahash *tfm)
