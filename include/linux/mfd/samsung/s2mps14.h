@@ -123,10 +123,6 @@ enum s2mps14_regulators {
 };
 
 /* Regulator constraints for BUCKx */
-#define S2MPS14_BUCK1235_MIN_600MV	600000
-#define S2MPS14_BUCK4_MIN_1400MV	1400000
-#define S2MPS14_BUCK1235_STEP_6_25MV	6250
-#define S2MPS14_BUCK4_STEP_12_5MV	12500
 #define S2MPS14_BUCK1235_START_SEL	0x20
 #define S2MPS14_BUCK4_START_SEL		0x40
 /*
@@ -135,12 +131,6 @@ enum s2mps14_regulators {
  * Let's assume that default value will be set.
  */
 #define S2MPS14_BUCK_RAMP_DELAY		12500
-
-/* Regulator constraints for different types of LDOx */
-#define S2MPS14_LDO_MIN_800MV		800000
-#define S2MPS14_LDO_MIN_1800MV		1800000
-#define S2MPS14_LDO_STEP_12_5MV		12500
-#define S2MPS14_LDO_STEP_25MV		25000
 
 #define S2MPS14_LDO_VSEL_MASK		0x3F
 #define S2MPS14_BUCK_VSEL_MASK		0xFF
