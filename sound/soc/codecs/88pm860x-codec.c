@@ -146,7 +146,7 @@ struct pm860x_priv {
 	struct pm860x_det	det;
 
 	int			irq[4];
-	unsigned char		name[4][MAX_NAME_LEN];
+	unsigned char		name[4][MAX_NAME_LEN+1];
 };
 
 /* -9450dB to 0dB in 150dB steps ( mute instead of -9450dB) */

@@ -501,6 +501,9 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	priv->snd_card.dai_link = dai_link;
 	priv->snd_card.num_links = num_links;
 
+	priv->gpio_hp_det = -ENOENT;
+	priv->gpio_mic_det = -ENOENT;
+
 	/* Get room for the other properties */
 	priv->dai_props = devm_kzalloc(dev,
 			sizeof(*priv->dai_props) * num_links,

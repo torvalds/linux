@@ -78,7 +78,7 @@ static const struct snd_soc_dapm_widget imx_es8328_dapm_widgets[] = {
 static int imx_es8328_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct device_node *ssi_np, *codec_np;
+	struct device_node *ssi_np = NULL, *codec_np = NULL;
 	struct platform_device *ssi_pdev;
 	struct imx_es8328_data *data;
 	u32 int_port, ext_port;
@@ -104,6 +104,7 @@ static int imx_es8328_probe(struct platform_device *pdev)
 	if (ext_port > MUX_PORT_MAX || ext_port == 0) {
 		dev_err(dev, "mux-ext-port: hardware only has %d mux ports\n",
 			MUX_PORT_MAX);
+		ret = -EINVAL;
 		goto fail;
 	}
 
