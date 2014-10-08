@@ -705,6 +705,14 @@ static void __init arch_timer_init(struct device_node *np)
 	arch_timer_detect_rate(NULL, np);
 
 	/*
+	 * If we cannot rely on firmware initializing the timer registers then
+	 * we should use the physical timers instead.
+	 */
+	if (IS_ENABLED(CONFIG_ARM) &&
+	    of_property_read_bool(np, "arm,cpu-registers-not-fw-configured"))
+			arch_timer_use_virtual = false;
+
+	/*
 	 * If HYP mode is available, we know that the physical timer
 	 * has been configured to be accessible from PL1. Use it, so
 	 * that a guest can use the virtual timer instead.

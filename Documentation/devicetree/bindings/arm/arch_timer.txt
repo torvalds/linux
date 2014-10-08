@@ -22,6 +22,14 @@ to deliver its interrupts via SPIs.
 - always-on : a boolean property. If present, the timer is powered through an
   always-on power domain, therefore it never loses context.
 
+** Optional properties:
+
+- arm,cpu-registers-not-fw-configured : Firmware does not initialize
+  any of the generic timer CPU registers, which contain their
+  architecturally-defined reset values. Only supported for 32-bit
+  systems which follow the ARMv7 architected reset values.
+
+
 Example:
 
 	timer {
