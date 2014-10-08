@@ -44,6 +44,7 @@ static void BlinkTimerCallback(unsigned long data)
 void BlinkWorkItemCallback23a(struct work_struct *work)
 {
 	struct led_8723a *pLed = container_of(work, struct led_8723a, BlinkWorkItem);
+
 	BlinkHandler23a(pLed);
 }
 
