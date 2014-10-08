@@ -83,6 +83,15 @@ bool parameq(const char *a, const char *b)
 	return parameqn(a, b, strlen(a)+1);
 }
 
+static void param_check_unsafe(const struct kernel_param *kp)
+{
+	if (kp->flags & KERNEL_PARAM_FL_UNSAFE) {
+		pr_warn("Setting dangerous option %s - tainting kernel\n",
+			kp->name);
+		add_taint(TAINT_USER, LOCKDEP_STILL_OK);
+	}
+}
+
 static int parse_one(char *param,
 		     char *val,
 		     const char *doing,
@@ -104,11 +113,12 @@ static int parse_one(char *param,
 				return 0;
 			/* No one handled NULL, so do it here. */
 			if (!val &&
-			    !(params[i].ops->flags & KERNEL_PARAM_FL_NOARG))
+			    !(params[i].ops->flags & KERNEL_PARAM_OPS_FL_NOARG))
 				return -EINVAL;
 			pr_debug("handling %s with %p\n", param,
 				params[i].ops->set);
 			mutex_lock(&param_lock);
+			param_check_unsafe(&params[i]);
 			err = params[i].ops->set(val, &params[i]);
 			mutex_unlock(&param_lock);
 			return err;
@@ -318,7 +328,7 @@ int param_get_bool(char *buffer, const struct kernel_param *kp)
 EXPORT_SYMBOL(param_get_bool);
 
 struct kernel_param_ops param_ops_bool = {
-	.flags = KERNEL_PARAM_FL_NOARG,
+	.flags = KERNEL_PARAM_OPS_FL_NOARG,
 	.set = param_set_bool,
 	.get = param_get_bool,
 };
@@ -369,7 +379,7 @@ int param_set_bint(const char *val, const struct kernel_param *kp)
 EXPORT_SYMBOL(param_set_bint);
 
 struct kernel_param_ops param_ops_bint = {
-	.flags = KERNEL_PARAM_FL_NOARG,
+	.flags = KERNEL_PARAM_OPS_FL_NOARG,
 	.set = param_set_bint,
 	.get = param_get_int,
 };
@@ -552,6 +562,7 @@ static ssize_t param_attr_store(struct module_attribute *mattr,
 		return -EPERM;
 
 	mutex_lock(&param_lock);
+	param_check_unsafe(attribute->param);
 	err = attribute->param->ops->set(buf, attribute->param);
 	mutex_unlock(&param_lock);
 	if (!err)

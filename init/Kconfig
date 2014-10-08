@@ -1919,6 +1919,49 @@ config MODULE_SIG_HASH
 	default "sha384" if MODULE_SIG_SHA384
 	default "sha512" if MODULE_SIG_SHA512
 
+config MODULE_COMPRESS
+	bool "Compress modules on installation"
+	depends on MODULES
+	help
+	  This option compresses the kernel modules when 'make
+	  modules_install' is run.
+
+	  The modules will be compressed either using gzip or xz depend on the
+	  choice made in "Compression algorithm".
+
+	  module-init-tools has support for gzip format while kmod handle gzip
+	  and xz compressed modules.
+
+	  When a kernel module is installed from outside of the main kernel
+	  source and uses the Kbuild system for installing modules then that
+	  kernel module will also be compressed when it is installed.
+
+	  This option provides little benefit when the modules are to be used inside
+	  an initrd or initramfs, it generally is more efficient to compress the whole
+	  initrd or initramfs instead.
+
+	  This is fully compatible with signed modules while the signed module is
+	  compressed. module-init-tools or kmod handles decompression and provide to
+	  other layer the uncompressed but signed payload.
+
+choice
+	prompt "Compression algorithm"
+	depends on MODULE_COMPRESS
+	default MODULE_COMPRESS_GZIP
+	help
+	  This determines which sort of compression will be used during
+	  'make modules_install'.
+
+	  GZIP (default) and XZ are supported.
+
+config MODULE_COMPRESS_GZIP
+	bool "GZIP"
+
+config MODULE_COMPRESS_XZ
+	bool "XZ"
+
+endchoice
+
 endif # MODULES
 
 config INIT_ALL_POSSIBLE

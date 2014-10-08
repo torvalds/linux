@@ -3587,7 +3587,7 @@ static void __used s8250_options(void)
 #ifdef CONFIG_SERIAL_8250_RSA
 	__module_param_call(MODULE_PARAM_PREFIX, probe_rsa,
 		&param_array_ops, .arr = &__param_arr_probe_rsa,
-		0444, -1);
+		0444, -1, 0);
 #endif
 }
 #else
