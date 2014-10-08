@@ -1737,10 +1737,8 @@ static int omap24xxcam_probe(struct platform_device *pdev)
 	int irq;
 
 	cam = kzalloc(sizeof(*cam), GFP_KERNEL);
-	if (!cam) {
-		dev_err(&pdev->dev, "could not allocate memory\n");
+	if (!cam)
 		goto err;
-	}
 
 	platform_set_drvdata(pdev, cam);
 
