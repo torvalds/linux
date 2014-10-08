@@ -505,7 +505,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param,
 		}
 	}
 exit:
-	kfree((u8 *)pwep);
+	kfree(pwep);
 	return ret;
 }
 
@@ -2216,7 +2216,7 @@ static int wpa_supplicant_ioctl(struct net_device *dev, struct iw_point *p)
 	}
 	if (ret == 0 && copy_to_user(p->pointer, param, p->length))
 		ret = -EFAULT;
-	kfree((u8 *)param);
+	kfree(param);
 	return ret;
 }
 

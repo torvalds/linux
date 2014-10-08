@@ -205,12 +205,12 @@ void r8712_free_cmd_obj(struct cmd_obj *pcmd)
 {
 	if ((pcmd->cmdcode != _JoinBss_CMD_) &&
 	    (pcmd->cmdcode != _CreateBss_CMD_))
-		kfree((unsigned char *)pcmd->parmbuf);
+		kfree(pcmd->parmbuf);
 	if (pcmd->rsp != NULL) {
 		if (pcmd->rspsz != 0)
-			kfree((unsigned char *)pcmd->rsp);
+			kfree(pcmd->rsp);
 	}
-	kfree((unsigned char *)pcmd);
+	kfree(pcmd);
 }
 
 /*
@@ -232,7 +232,7 @@ u8 r8712_sitesurvey_cmd(struct _adapter *padapter,
 		return _FAIL;
 	psurveyPara = kmalloc(sizeof(*psurveyPara), GFP_ATOMIC);
 	if (psurveyPara == NULL) {
-		kfree((unsigned char *) ph2c);
+		kfree(ph2c);
 		return _FAIL;
 	}
 	init_h2fwcmd_w_parm_no_rsp(ph2c, psurveyPara,
@@ -264,7 +264,7 @@ u8 r8712_setdatarate_cmd(struct _adapter *padapter, u8 *rateset)
 		return _FAIL;
 	pbsetdataratepara = kmalloc(sizeof(*pbsetdataratepara), GFP_ATOMIC);
 	if (pbsetdataratepara == NULL) {
-		kfree((u8 *) ph2c);
+		kfree(ph2c);
 		return _FAIL;
 	}
 	init_h2fwcmd_w_parm_no_rsp(ph2c, pbsetdataratepara,
@@ -286,7 +286,7 @@ u8 r8712_set_chplan_cmd(struct _adapter *padapter, int chplan)
 		return _FAIL;
 	psetchplanpara = kmalloc(sizeof(*psetchplanpara), GFP_ATOMIC);
 	if (psetchplanpara == NULL) {
-		kfree((u8 *) ph2c);
+		kfree(ph2c);
 		return _FAIL;
 	}
 	init_h2fwcmd_w_parm_no_rsp(ph2c, psetchplanpara,
@@ -307,7 +307,7 @@ u8 r8712_setbasicrate_cmd(struct _adapter *padapter, u8 *rateset)
 		return _FAIL;
 	pssetbasicratepara = kmalloc(sizeof(*pssetbasicratepara), GFP_ATOMIC);
 	if (pssetbasicratepara == NULL) {
-		kfree((u8 *) ph2c);
+		kfree(ph2c);
 		return _FAIL;
 	}
 	init_h2fwcmd_w_parm_no_rsp(ph2c, pssetbasicratepara,
@@ -329,7 +329,7 @@ u8 r8712_setptm_cmd(struct _adapter *padapter, u8 type)
 		return _FAIL;
 	pwriteptmparm = kmalloc(sizeof(*pwriteptmparm), GFP_ATOMIC);
 	if (pwriteptmparm == NULL) {
-		kfree((u8 *) ph2c);
+		kfree(ph2c);
 		return _FAIL;
 	}
 	init_h2fwcmd_w_parm_no_rsp(ph2c, pwriteptmparm, GEN_CMD_CODE(_SetPT));
@@ -349,7 +349,7 @@ u8 r8712_setfwdig_cmd(struct _adapter *padapter, u8 type)
 		return _FAIL;
 	pwriteptmparm = kmalloc(sizeof(*pwriteptmparm), GFP_ATOMIC);
 	if (pwriteptmparm == NULL) {
-		kfree((u8 *) ph2c);
+		kfree(ph2c);
 		return _FAIL;
 	}
 	init_h2fwcmd_w_parm_no_rsp(ph2c, pwriteptmparm, GEN_CMD_CODE(_SetDIG));
@@ -369,7 +369,7 @@ u8 r8712_setfwra_cmd(struct _adapter *padapter, u8 type)
 		return _FAIL;
 	pwriteptmparm = kmalloc(sizeof(*pwriteptmparm), GFP_ATOMIC);
 	if (pwriteptmparm == NULL) {
-		kfree((u8 *) ph2c);
+		kfree(ph2c);
 		return _FAIL;
 	}
 	init_h2fwcmd_w_parm_no_rsp(ph2c, pwriteptmparm, GEN_CMD_CODE(_SetRA));
@@ -389,7 +389,7 @@ u8 r8712_setrfreg_cmd(struct _adapter  *padapter, u8 offset, u32 val)
 		return _FAIL;
 	pwriterfparm = kmalloc(sizeof(*pwriterfparm), GFP_ATOMIC);
 	if (pwriterfparm == NULL) {
-		kfree((u8 *) ph2c);
+		kfree(ph2c);
 		return _FAIL;
 	}
 	init_h2fwcmd_w_parm_no_rsp(ph2c, pwriterfparm, GEN_CMD_CODE(_SetRFReg));
@@ -410,7 +410,7 @@ u8 r8712_getrfreg_cmd(struct _adapter *padapter, u8 offset, u8 *pval)
 		return _FAIL;
 	prdrfparm = kmalloc(sizeof(*prdrfparm), GFP_ATOMIC);
 	if (prdrfparm == NULL) {
-		kfree((u8 *) ph2c);
+		kfree(ph2c);
 		return _FAIL;
 	}
 	INIT_LIST_HEAD(&ph2c->list);
@@ -626,7 +626,7 @@ u8 r8712_disassoc_cmd(struct _adapter *padapter) /* for sta_mode */
 		return _FAIL;
 	pdisconnect = kmalloc(sizeof(*pdisconnect), GFP_ATOMIC);
 	if (pdisconnect == NULL) {
-		kfree((u8 *)pdisconnect_cmd);
+		kfree(pdisconnect_cmd);
 		return _FAIL;
 	}
 	init_h2fwcmd_w_parm_no_rsp(pdisconnect_cmd, pdisconnect,
@@ -648,7 +648,7 @@ u8 r8712_setopmode_cmd(struct _adapter *padapter,
 		return _FAIL;
 	psetop = kmalloc(sizeof(*psetop), GFP_ATOMIC);
 	if (psetop == NULL) {
-		kfree((u8 *) ph2c);
+		kfree(ph2c);
 		return _FAIL;
 	}
 	init_h2fwcmd_w_parm_no_rsp(ph2c, psetop, _SetOpMode_CMD_);
@@ -672,13 +672,13 @@ u8 r8712_setstakey_cmd(struct _adapter *padapter, u8 *psta, u8 unicast_key)
 		return _FAIL;
 	psetstakey_para = kmalloc(sizeof(*psetstakey_para), GFP_ATOMIC);
 	if (psetstakey_para == NULL) {
-		kfree((u8 *) ph2c);
+		kfree(ph2c);
 		return _FAIL;
 	}
 	psetstakey_rsp = kmalloc(sizeof(*psetstakey_rsp), GFP_ATOMIC);
 	if (psetstakey_rsp == NULL) {
-		kfree((u8 *) ph2c);
-		kfree((u8 *) psetstakey_para);
+		kfree(ph2c);
+		kfree(psetstakey_para);
 		return _FAIL;
 	}
 	init_h2fwcmd_w_parm_no_rsp(ph2c, psetstakey_para, _SetStaKey_CMD_);
@@ -712,7 +712,7 @@ u8 r8712_setrfintfs_cmd(struct _adapter *padapter, u8 mode)
 		return _FAIL;
 	psetrfintfsparm = kmalloc(sizeof(*psetrfintfsparm), GFP_ATOMIC);
 	if (psetrfintfsparm == NULL) {
-		kfree((unsigned char *) ph2c);
+		kfree(ph2c);
 		return _FAIL;
 	}
 	init_h2fwcmd_w_parm_no_rsp(ph2c, psetrfintfsparm,
@@ -734,7 +734,7 @@ u8 r8712_setrttbl_cmd(struct _adapter *padapter,
 		return _FAIL;
 	psetrttblparm = kmalloc(sizeof(*psetrttblparm), GFP_ATOMIC);
 	if (psetrttblparm == NULL) {
-		kfree((unsigned char *)ph2c);
+		kfree(ph2c);
 		return _FAIL;
 	}
 	init_h2fwcmd_w_parm_no_rsp(ph2c, psetrttblparm,
@@ -755,7 +755,7 @@ u8 r8712_gettssi_cmd(struct _adapter *padapter, u8 offset, u8 *pval)
 		return _FAIL;
 	prdtssiparm = kmalloc(sizeof(*prdtssiparm), GFP_ATOMIC);
 	if (prdtssiparm == NULL) {
-		kfree((unsigned char *) ph2c);
+		kfree(ph2c);
 		return _FAIL;
 	}
 	INIT_LIST_HEAD(&ph2c->list);
@@ -781,7 +781,7 @@ u8 r8712_setMacAddr_cmd(struct _adapter *padapter, u8 *mac_addr)
 		return _FAIL;
 	psetMacAddr_para = kmalloc(sizeof(*psetMacAddr_para), GFP_ATOMIC);
 	if (psetMacAddr_para == NULL) {
-		kfree((u8 *) ph2c);
+		kfree(ph2c);
 		return _FAIL;
 	}
 	init_h2fwcmd_w_parm_no_rsp(ph2c, psetMacAddr_para,
@@ -803,13 +803,13 @@ u8 r8712_setassocsta_cmd(struct _adapter *padapter, u8 *mac_addr)
 		return _FAIL;
 	psetassocsta_para = kmalloc(sizeof(*psetassocsta_para), GFP_ATOMIC);
 	if (psetassocsta_para == NULL) {
-		kfree((u8 *) ph2c);
+		kfree(ph2c);
 		return _FAIL;
 	}
 	psetassocsta_rsp = kmalloc(sizeof(*psetassocsta_rsp), GFP_ATOMIC);
 	if (psetassocsta_rsp == NULL) {
-		kfree((u8 *)ph2c);
-		kfree((u8 *)psetassocsta_para);
+		kfree(ph2c);
+		kfree(psetassocsta_para);
 		return _FAIL;
 	}
 	init_h2fwcmd_w_parm_no_rsp(ph2c, psetassocsta_para, _SetAssocSta_CMD_);
@@ -831,7 +831,7 @@ u8 r8712_addbareq_cmd(struct _adapter *padapter, u8 tid)
 		return _FAIL;
 	paddbareq_parm = kmalloc(sizeof(*paddbareq_parm), GFP_ATOMIC);
 	if (paddbareq_parm == NULL) {
-		kfree((unsigned char *)ph2c);
+		kfree(ph2c);
 		return _FAIL;
 	}
 	paddbareq_parm->tid = tid;
@@ -852,7 +852,7 @@ u8 r8712_wdg_wk_cmd(struct _adapter *padapter)
 		return _FAIL;
 	pdrvintcmd_param = kmalloc(sizeof(*pdrvintcmd_param), GFP_ATOMIC);
 	if (pdrvintcmd_param == NULL) {
-		kfree((unsigned char *)ph2c);
+		kfree(ph2c);
 		return _FAIL;
 	}
 	pdrvintcmd_param->i_cid = WDG_WK_CID;
@@ -1026,7 +1026,7 @@ u8 r8712_disconnectCtrlEx_cmd(struct _adapter *adapter, u32 enableDrvCtrl,
 		return _FAIL;
 	param = kzalloc(sizeof(*param), GFP_ATOMIC);
 	if (param == NULL) {
-		kfree((unsigned char *) ph2c);
+		kfree(ph2c);
 		return _FAIL;
 	}
 

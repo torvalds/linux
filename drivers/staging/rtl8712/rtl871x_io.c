@@ -142,7 +142,7 @@ uint r8712_alloc_io_queue(struct _adapter *adapter)
 alloc_io_queue_fail:
 	if (pio_queue) {
 		kfree(pio_queue->pallocated_free_ioreqs_buf);
-		kfree((u8 *)pio_queue);
+		kfree(pio_queue);
 	}
 	adapter->pio_queue = NULL;
 	return _FAIL;
@@ -156,6 +156,6 @@ void r8712_free_io_queue(struct _adapter *adapter)
 		kfree(pio_queue->pallocated_free_ioreqs_buf);
 		adapter->pio_queue = NULL;
 		unregister_intf_hdl(&pio_queue->intf);
-		kfree((u8 *)pio_queue);
+		kfree(pio_queue);
 	}
 }

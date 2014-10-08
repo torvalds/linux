@@ -923,7 +923,7 @@ void r8712_joinbss_event_callback(struct _adapter *adapter, u8 *pbuf)
 ignore_joinbss_callback:
 	spin_unlock_irqrestore(&pmlmepriv->lock, irqL);
 	if (sizeof(struct list_head) == 4 * sizeof(u32))
-		kfree((u8 *)pnetwork);
+		kfree(pnetwork);
 }
 
 void r8712_stassoc_event_callback(struct _adapter *adapter, u8 *pbuf)
@@ -1218,7 +1218,7 @@ sint r8712_set_auth(struct _adapter *adapter,
 
 	psetauthparm = kzalloc(sizeof(*psetauthparm), GFP_ATOMIC);
 	if (psetauthparm == NULL) {
-		kfree((unsigned char *)pcmd);
+		kfree(pcmd);
 		return _FAIL;
 	}
 	psetauthparm->mode = (u8)psecuritypriv->AuthAlgrthm;
