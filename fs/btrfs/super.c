@@ -1248,6 +1248,7 @@ static int setup_security_options(struct btrfs_fs_info *fs_info,
 	if (ret)
 		return ret;
 
+#ifdef CONFIG_SECURITY
 	if (!fs_info->security_opts.num_mnt_opts) {
 		/* first time security setup, copy sec_opts to fs_info */
 		memcpy(&fs_info->security_opts, sec_opts, sizeof(*sec_opts));
@@ -1260,6 +1261,7 @@ static int setup_security_options(struct btrfs_fs_info *fs_info,
 		 */
 		security_free_mnt_opts(sec_opts);
 	}
+#endif
 	return ret;
 }
 
