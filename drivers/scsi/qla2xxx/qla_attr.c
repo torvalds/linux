@@ -484,7 +484,8 @@ qla2x00_sysfs_write_optrom_ctl(struct file *filp, struct kobject *kobj,
 		    start == (ha->flt_region_fw * 4))
 			valid = 1;
 		else if (IS_QLA24XX_TYPE(ha) || IS_QLA25XX(ha)
-			|| IS_CNA_CAPABLE(ha) || IS_QLA2031(ha))
+			|| IS_CNA_CAPABLE(ha) || IS_QLA2031(ha)
+			|| IS_QLA27XX(ha))
 			valid = 1;
 		if (!valid) {
 			ql_log(ql_log_warn, vha, 0x7065,
@@ -987,6 +988,8 @@ qla2x00_free_sysfs_attr(scsi_qla_host_t *vha, bool stop_beacon)
 			continue;
 		if (iter->is4GBp_only == 3 && !(IS_CNA_CAPABLE(vha->hw)))
 			continue;
+		if (iter->is4GBp_only == 0x27 && !IS_QLA27XX(vha->hw))
+			continue;
 
 		sysfs_remove_bin_file(&host->shost_gendev.kobj,
 		    iter->attr);
@@ -1014,7 +1017,7 @@ qla2x00_fw_version_show(struct device *dev,
 	char fw_str[128];
 
 	return scnprintf(buf, PAGE_SIZE, "%s\n",
-	    ha->isp_ops->fw_version_str(vha, fw_str));
+	    ha->isp_ops->fw_version_str(vha, fw_str, sizeof(fw_str)));
 }
 
 static ssize_t
@@ -1440,7 +1443,7 @@ qla2x00_fw_state_show(struct device *dev, struct device_attribute *attr,
 {
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 	int rval = QLA_FUNCTION_FAILED;
-	uint16_t state[5];
+	uint16_t state[6];
 	uint32_t pstate;
 
 	if (IS_QLAFX00(vha->hw)) {
@@ -1456,8 +1459,8 @@ qla2x00_fw_state_show(struct device *dev, struct device_attribute *attr,
 	if (rval != QLA_SUCCESS)
 		memset(state, -1, sizeof(state));
 
-	return scnprintf(buf, PAGE_SIZE, "0x%x 0x%x 0x%x 0x%x 0x%x\n", state[0],
-	    state[1], state[2], state[3], state[4]);
+	return scnprintf(buf, PAGE_SIZE, "0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
+	    state[0], state[1], state[2], state[3], state[4], state[5]);
 }
 
 static ssize_t
@@ -1924,7 +1927,8 @@ qla2x00_get_host_symbolic_name(struct Scsi_Host *shost)
 {
 	scsi_qla_host_t *vha = shost_priv(shost);
 
-	qla2x00_get_sym_node_name(vha, fc_host_symbolic_name(shost));
+	qla2x00_get_sym_node_name(vha, fc_host_symbolic_name(shost),
+	    sizeof(fc_host_symbolic_name(shost)));
 }
 
 static void

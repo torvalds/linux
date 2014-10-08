@@ -1084,7 +1084,8 @@ stop_rr_fcf_flogi:
 	 * accessing it.
 	 */
 	prsp = list_get_first(&pcmd->list, struct lpfc_dmabuf, list);
-
+	if (!prsp)
+		goto out;
 	sp = prsp->virt + sizeof(uint32_t);
 
 	/* FLOGI completes successfully */
@@ -1828,7 +1829,7 @@ lpfc_cmpl_els_plogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	IOCB_t *irsp;
 	struct lpfc_nodelist *ndlp;
 	struct lpfc_dmabuf *prsp;
-	int disc, rc, did, type;
+	int disc, rc;
 
 	/* we pass cmdiocb to state machine which needs rspiocb as well */
 	cmdiocb->context_un.rsp_iocb = rspiocb;
@@ -1872,10 +1873,6 @@ lpfc_cmpl_els_plogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		spin_unlock_irq(shost->host_lock);
 		goto out;
 	}
-
-	/* ndlp could be freed in DSM, save these values now */
-	type = ndlp->nlp_type;
-	did = ndlp->nlp_DID;
 
 	if (irsp->ulpStatus) {
 		/* Check for retry */
@@ -2269,8 +2266,6 @@ lpfc_adisc_done(struct lpfc_vport *vport)
 void
 lpfc_more_adisc(struct lpfc_vport *vport)
 {
-	int sentadisc;
-
 	if (vport->num_disc_nodes)
 		vport->num_disc_nodes--;
 	/* Continue discovery with <num_disc_nodes> ADISCs to go */
@@ -2283,7 +2278,7 @@ lpfc_more_adisc(struct lpfc_vport *vport)
 	if (vport->fc_flag & FC_NLP_MORE) {
 		lpfc_set_disctmo(vport);
 		/* go thru NPR nodes and issue any remaining ELS ADISCs */
-		sentadisc = lpfc_els_disc_adisc(vport);
+		lpfc_els_disc_adisc(vport);
 	}
 	if (!vport->num_disc_nodes)
 		lpfc_adisc_done(vport);
@@ -3027,10 +3022,9 @@ lpfc_els_retry_delay_handler(struct lpfc_nodelist *ndlp)
 {
 	struct lpfc_vport *vport = ndlp->vport;
 	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
-	uint32_t cmd, did, retry;
+	uint32_t cmd, retry;
 
 	spin_lock_irq(shost->host_lock);
-	did = ndlp->nlp_DID;
 	cmd = ndlp->nlp_last_elscmd;
 	ndlp->nlp_last_elscmd = 0;
 
@@ -5288,10 +5282,9 @@ lpfc_els_rcv_rnid(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	IOCB_t *icmd;
 	RNID *rn;
 	struct ls_rjt stat;
-	uint32_t cmd, did;
+	uint32_t cmd;
 
 	icmd = &cmdiocb->iocb;
-	did = icmd->un.elsreq64.remoteID;
 	pcmd = (struct lpfc_dmabuf *) cmdiocb->context2;
 	lp = (uint32_t *) pcmd->virt;
 
@@ -6693,6 +6686,13 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 	phba->fc_stat.elsRcvFrame++;
 
+	/*
+	 * Do not process any unsolicited ELS commands
+	 * if the ndlp is in DEV_LOSS
+	 */
+	if (ndlp->nlp_add_flag & NLP_IN_DEV_LOSS)
+		goto dropit;
+
 	elsiocb->context1 = lpfc_nlp_get(ndlp);
 	elsiocb->vport = vport;
 
@@ -7514,6 +7514,8 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	vport->fc_myDID = irsp->un.ulpWord[4] & Mask_DID;
 	lpfc_vport_set_state(vport, FC_VPORT_ACTIVE);
 	prsp = list_get_first(&pcmd->list, struct lpfc_dmabuf, list);
+	if (!prsp)
+		goto out;
 	sp = prsp->virt + sizeof(uint32_t);
 	fabric_param_changed = lpfc_check_clean_addr_bit(vport, sp);
 	memcpy(&vport->fabric_portname, &sp->portName,
@@ -8187,9 +8189,11 @@ lpfc_sli4_els_xri_aborted(struct lpfc_hba *phba,
 			list_del(&sglq_entry->list);
 			ndlp = sglq_entry->ndlp;
 			sglq_entry->ndlp = NULL;
+			spin_lock(&pring->ring_lock);
 			list_add_tail(&sglq_entry->list,
 				&phba->sli4_hba.lpfc_sgl_list);
 			sglq_entry->state = SGL_FREED;
+			spin_unlock(&pring->ring_lock);
 			spin_unlock(&phba->sli4_hba.abts_sgl_list_lock);
 			spin_unlock_irqrestore(&phba->hbalock, iflag);
 			lpfc_set_rrq_active(phba, ndlp,
@@ -8208,12 +8212,15 @@ lpfc_sli4_els_xri_aborted(struct lpfc_hba *phba,
 		spin_unlock_irqrestore(&phba->hbalock, iflag);
 		return;
 	}
+	spin_lock(&pring->ring_lock);
 	sglq_entry = __lpfc_get_active_sglq(phba, lxri);
 	if (!sglq_entry || (sglq_entry->sli4_xritag != xri)) {
+		spin_unlock(&pring->ring_lock);
 		spin_unlock_irqrestore(&phba->hbalock, iflag);
 		return;
 	}
 	sglq_entry->state = SGL_XRI_ABORTED;
+	spin_unlock(&pring->ring_lock);
 	spin_unlock_irqrestore(&phba->hbalock, iflag);
 	return;
 }

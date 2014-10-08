@@ -1741,12 +1741,7 @@ mptctl_replace_fw (unsigned long arg)
 
 	/* Allocate memory for the new FW image
 	 */
-	newFwSize = karg.newImageSize;
-
-	if (newFwSize & 0x01)
-		newFwSize += 1;
-	if (newFwSize & 0x02)
-		newFwSize += 2;
+	newFwSize = ALIGN(karg.newImageSize, 4);
 
 	mpt_alloc_fw_memory(ioc, newFwSize);
 	if (ioc->cached_fw == NULL)

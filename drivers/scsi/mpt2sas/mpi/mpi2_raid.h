@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2013 LSI Corporation.
+ *  Copyright (c) 2000-2014 LSI Corporation.
  *
  *
  *           Name:  mpi2_raid.h
  *          Title:  MPI Integrated RAID messages and structures
  *  Creation Date:  April 26, 2007
  *
- *    mpi2_raid.h Version:  02.00.09
+ *    mpi2_raid.h Version:  02.00.10
  *
  *  Version History
  *  ---------------
@@ -29,6 +29,7 @@
  *  02-06-12  02.00.08  Added MPI2_RAID_ACTION_PHYSDISK_HIDDEN.
  *  07-26-12  02.00.09  Added ElapsedSeconds field to MPI2_RAID_VOL_INDICATOR.
  *                      Added MPI2_RAID_VOL_FLAGS_ELAPSED_SECONDS_VALID define.
+ *  04-17-13  02.00.10  Added MPI25_RAID_ACTION_ADATA_ALLOW_PI.
  *  --------------------------------------------------------------------------
  */
 
@@ -44,6 +45,9 @@
 /****************************************************************************
 *  RAID Action messages
 ****************************************************************************/
+
+/* ActionDataWord defines for use with MPI2_RAID_ACTION_CREATE_VOLUME action */
+#define MPI25_RAID_ACTION_ADATA_ALLOW_PI            (0x80000000)
 
 /* ActionDataWord defines for use with MPI2_RAID_ACTION_DELETE_VOLUME action */
 #define MPI2_RAID_ACTION_ADATA_KEEP_LBA0            (0x00000000)
