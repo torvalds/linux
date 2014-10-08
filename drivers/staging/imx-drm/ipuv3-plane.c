@@ -148,14 +148,22 @@ int ipu_plane_mode_set(struct ipu_plane *ipu_plane, struct drm_crtc *crtc,
 				ret);
 			return ret;
 		}
-		ipu_dp_set_global_alpha(ipu_plane->dp, 1, 0, 1);
+		ipu_dp_set_global_alpha(ipu_plane->dp, true, 0, true);
 		break;
 	case IPU_DP_FLOW_SYNC_FG:
 		ipu_dp_setup_channel(ipu_plane->dp,
 				ipu_drm_fourcc_to_colorspace(fb->pixel_format),
 				IPUV3_COLORSPACE_UNKNOWN);
 		ipu_dp_set_window_pos(ipu_plane->dp, crtc_x, crtc_y);
-		break;
+		/* Enable local alpha on partial plane */
+		switch (fb->pixel_format) {
+		case DRM_FORMAT_ARGB8888:
+		case DRM_FORMAT_ABGR8888:
+			ipu_dp_set_global_alpha(ipu_plane->dp, false, 0, false);
+			break;
+		default:
+			break;
+		}
 	}
 
 	ret = ipu_dmfc_init_channel(ipu_plane->dmfc, crtc_w);
