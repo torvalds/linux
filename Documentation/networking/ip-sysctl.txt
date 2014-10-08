@@ -580,12 +580,6 @@ tcp_workaround_signed_windows - BOOLEAN
 	not receive a window scaling option from them.
 	Default: 0
 
-tcp_dma_copybreak - INTEGER
-	Lower limit, in bytes, of the size of socket reads that will be
-	offloaded to a DMA copy engine, if one is present in the system
-	and CONFIG_NET_DMA is enabled.
-	Default: 4096
-
 tcp_thin_linear_timeouts - BOOLEAN
 	Enable dynamic triggering of linear timeouts for thin streams.
 	If set, a check is performed upon retransmission by timeout to

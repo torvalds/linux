@@ -947,7 +947,7 @@ msix:
 	for (i = 0; i < msixcnt; i++)
 		device->msix_entries[i].entry = i;
 
-	err = pci_enable_msix(pdev, device->msix_entries, msixcnt);
+	err = pci_enable_msix_exact(pdev, device->msix_entries, msixcnt);
 	if (err)
 		goto msi;
 
@@ -1222,7 +1222,6 @@ int ioat1_dma_probe(struct ioatdma_device *device, int dca)
 	err = ioat_probe(device);
 	if (err)
 		return err;
-	ioat_set_tcp_copy_break(4096);
 	err = ioat_register(device);
 	if (err)
 		return err;

@@ -233,7 +233,6 @@ struct cg_proto;
   *	@sk_receive_queue: incoming packets
   *	@sk_wmem_alloc: transmit queue bytes committed
   *	@sk_write_queue: Packet sending queue
-  *	@sk_async_wait_queue: DMA copied packets
   *	@sk_omem_alloc: "o" is "option" or "other"
   *	@sk_wmem_queued: persistent queue size
   *	@sk_forward_alloc: space allocated forward
@@ -361,10 +360,6 @@ struct sock {
 
 	struct sk_filter __rcu	*sk_filter;
 	struct socket_wq __rcu	*sk_wq;
-
-#ifdef CONFIG_NET_DMA
-	struct sk_buff_head	sk_async_wait_queue;
-#endif
 
 #ifdef CONFIG_XFRM
 	struct xfrm_policy	*sk_policy[2];
@@ -2206,27 +2201,15 @@ void sock_tx_timestamp(const struct sock *sk, __u8 *tx_flags);
  * sk_eat_skb - Release a skb if it is no longer needed
  * @sk: socket to eat this skb from
  * @skb: socket buffer to eat
- * @copied_early: flag indicating whether DMA operations copied this data early
  *
  * This routine must be called with interrupts disabled or with the socket
  * locked so that the sk_buff queue operation is ok.
 */
-#ifdef CONFIG_NET_DMA
-static inline void sk_eat_skb(struct sock *sk, struct sk_buff *skb, bool copied_early)
-{
-	__skb_unlink(skb, &sk->sk_receive_queue);
-	if (!copied_early)
-		__kfree_skb(skb);
-	else
-		__skb_queue_tail(&sk->sk_async_wait_queue, skb);
-}
-#else
-static inline void sk_eat_skb(struct sock *sk, struct sk_buff *skb, bool copied_early)
+static inline void sk_eat_skb(struct sock *sk, struct sk_buff *skb)
 {
 	__skb_unlink(skb, &sk->sk_receive_queue);
 	__kfree_skb(skb);
 }
-#endif
 
 static inline
 struct net *sock_net(const struct sock *sk)

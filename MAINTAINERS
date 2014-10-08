@@ -1025,24 +1025,20 @@ F:	arch/arm/mach-pxa/colibri-pxa270-income.c
 
 ARM/INTEL IOP32X ARM ARCHITECTURE
 M:	Lennert Buytenhek <kernel@wantstofly.org>
-M:	Dan Williams <dan.j.williams@intel.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 
 ARM/INTEL IOP33X ARM ARCHITECTURE
-M:	Dan Williams <dan.j.williams@intel.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
+S:	Orphan
 
 ARM/INTEL IOP13XX ARM ARCHITECTURE
 M:	Lennert Buytenhek <kernel@wantstofly.org>
-M:	Dan Williams <dan.j.williams@intel.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 
 ARM/INTEL IQ81342EX MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
-M:	Dan Williams <dan.j.williams@intel.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 
@@ -1067,7 +1063,6 @@ F:	drivers/pcmcia/pxa2xx_stargate2.c
 
 ARM/INTEL XSC3 (MANZANO) ARM CORE
 M:	Lennert Buytenhek <kernel@wantstofly.org>
-M:	Dan Williams <dan.j.williams@intel.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 
@@ -1562,9 +1557,9 @@ F:	drivers/platform/x86/asus*.c
 F:	drivers/platform/x86/eeepc*.c
 
 ASYNCHRONOUS TRANSFERS/TRANSFORMS (IOAT) API
-M:	Dan Williams <dan.j.williams@intel.com>
+R:	Dan Williams <dan.j.williams@intel.com>
 W:	http://sourceforge.net/projects/xscaleiop
-S:	Maintained
+S:	Odd fixes
 F:	Documentation/crypto/async-tx-api.txt
 F:	crypto/async_tx/
 F:	drivers/dma/
@@ -2995,13 +2990,11 @@ T:	git git://git.linaro.org/people/sumitsemwal/linux-dma-buf.git
 
 DMA GENERIC OFFLOAD ENGINE SUBSYSTEM
 M:	Vinod Koul <vinod.koul@intel.com>
-M:	Dan Williams <dan.j.williams@intel.com>
 L:	dmaengine@vger.kernel.org
 Q:	https://patchwork.kernel.org/project/linux-dmaengine/list/
-S:	Supported
+S:	Maintained
 F:	drivers/dma/
 F:	include/linux/dma*
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/djbw/async_tx.git
 T:	git git://git.infradead.org/users/vkoul/slave-dma.git (slave-dma)
 
 DME1737 HARDWARE MONITOR DRIVER
@@ -4754,8 +4747,8 @@ F:	arch/x86/kernel/cpu/microcode/core*
 F:	arch/x86/kernel/cpu/microcode/intel*
 
 INTEL I/OAT DMA DRIVER
-M:	Dan Williams <dan.j.williams@intel.com>
 M:	Dave Jiang <dave.jiang@intel.com>
+R:	Dan Williams <dan.j.williams@intel.com>
 L:	dmaengine@vger.kernel.org
 Q:	https://patchwork.kernel.org/project/linux-dmaengine/list/
 S:	Supported
@@ -4770,7 +4763,7 @@ F:	drivers/iommu/intel-iommu.c
 F:	include/linux/intel-iommu.h
 
 INTEL IOP-ADMA DMA DRIVER
-M:	Dan Williams <dan.j.williams@intel.com>
+R:	Dan Williams <dan.j.williams@intel.com>
 S:	Odd fixes
 F:	drivers/dma/iop-adma.c
 

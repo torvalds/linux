@@ -73,7 +73,6 @@
 #include <net/inet_common.h>
 #include <linux/ipsec.h>
 #include <asm/unaligned.h>
-#include <net/netdma.h>
 #include <linux/errqueue.h>
 
 int sysctl_tcp_timestamps __read_mostly = 1;
@@ -4951,53 +4950,6 @@ static inline bool tcp_checksum_complete_user(struct sock *sk,
 	       __tcp_checksum_complete_user(sk, skb);
 }
 
-#ifdef CONFIG_NET_DMA
-static bool tcp_dma_try_early_copy(struct sock *sk, struct sk_buff *skb,
-				  int hlen)
-{
-	struct tcp_sock *tp = tcp_sk(sk);
-	int chunk = skb->len - hlen;
-	int dma_cookie;
-	bool copied_early = false;
-
-	if (tp->ucopy.wakeup)
-		return false;
-
-	if (!tp->ucopy.dma_chan && tp->ucopy.pinned_list)
-		tp->ucopy.dma_chan = net_dma_find_channel();
-
-	if (tp->ucopy.dma_chan && skb_csum_unnecessary(skb)) {
-
-		dma_cookie = dma_skb_copy_datagram_iovec(tp->ucopy.dma_chan,
-							 skb, hlen,
-							 tp->ucopy.iov, chunk,
-							 tp->ucopy.pinned_list);
-
-		if (dma_cookie < 0)
-			goto out;
-
-		tp->ucopy.dma_cookie = dma_cookie;
-		copied_early = true;
-
-		tp->ucopy.len -= chunk;
-		tp->copied_seq += chunk;
-		tcp_rcv_space_adjust(sk);
-
-		if ((tp->ucopy.len == 0) ||
-		    (tcp_flag_word(tcp_hdr(skb)) & TCP_FLAG_PSH) ||
-		    (atomic_read(&sk->sk_rmem_alloc) > (sk->sk_rcvbuf >> 1))) {
-			tp->ucopy.wakeup = 1;
-			sk->sk_data_ready(sk);
-		}
-	} else if (chunk > 0) {
-		tp->ucopy.wakeup = 1;
-		sk->sk_data_ready(sk);
-	}
-out:
-	return copied_early;
-}
-#endif /* CONFIG_NET_DMA */
-
 /* Does PAWS and seqno based validation of an incoming segment, flags will
  * play significant role here.
  */
@@ -5177,27 +5129,15 @@ void tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 			}
 		} else {
 			int eaten = 0;
-			int copied_early = 0;
 			bool fragstolen = false;
 
-			if (tp->copied_seq == tp->rcv_nxt &&
-			    len - tcp_header_len <= tp->ucopy.len) {
-#ifdef CONFIG_NET_DMA
-				if (tp->ucopy.task == current &&
-				    sock_owned_by_user(sk) &&
-				    tcp_dma_try_early_copy(sk, skb, tcp_header_len)) {
-					copied_early = 1;
-					eaten = 1;
-				}
-#endif
-				if (tp->ucopy.task == current &&
-				    sock_owned_by_user(sk) && !copied_early) {
-					__set_current_state(TASK_RUNNING);
+			if (tp->ucopy.task == current &&
+			    tp->copied_seq == tp->rcv_nxt &&
+			    len - tcp_header_len <= tp->ucopy.len &&
+			    sock_owned_by_user(sk)) {
+				__set_current_state(TASK_RUNNING);
 
-					if (!tcp_copy_to_iovec(sk, skb, tcp_header_len))
-						eaten = 1;
-				}
-				if (eaten) {
+				if (!tcp_copy_to_iovec(sk, skb, tcp_header_len)) {
 					/* Predicted packet is in window by definition.
 					 * seq == rcv_nxt and rcv_wup <= rcv_nxt.
 					 * Hence, check seq<=rcv_wup reduces to:
@@ -5213,9 +5153,8 @@ void tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 					__skb_pull(skb, tcp_header_len);
 					tp->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
 					NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPHPHITSTOUSER);
+					eaten = 1;
 				}
-				if (copied_early)
-					tcp_cleanup_rbuf(sk, skb->len);
 			}
 			if (!eaten) {
 				if (tcp_checksum_complete_user(sk, skb))
@@ -5252,14 +5191,8 @@ void tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 					goto no_ack;
 			}
 
-			if (!copied_early || tp->rcv_nxt != tp->rcv_wup)
-				__tcp_ack_snd_check(sk, 0);
+			__tcp_ack_snd_check(sk, 0);
 no_ack:
-#ifdef CONFIG_NET_DMA
-			if (copied_early)
-				__skb_queue_tail(&sk->sk_async_wait_queue, skb);
-			else
-#endif
 			if (eaten)
 				kfree_skb_partial(skb, fragstolen);
 			sk->sk_data_ready(sk);

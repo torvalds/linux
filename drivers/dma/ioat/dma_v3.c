@@ -740,7 +740,7 @@ ioat3_prep_xor(struct dma_chan *chan, dma_addr_t dest, dma_addr_t *src,
 	return __ioat3_prep_xor_lock(chan, NULL, dest, src, src_cnt, len, flags);
 }
 
-struct dma_async_tx_descriptor *
+static struct dma_async_tx_descriptor *
 ioat3_prep_xor_val(struct dma_chan *chan, dma_addr_t *src,
 		    unsigned int src_cnt, size_t len,
 		    enum sum_check_flags *result, unsigned long flags)
@@ -1091,7 +1091,7 @@ ioat3_prep_pq(struct dma_chan *chan, dma_addr_t *dst, dma_addr_t *src,
 	}
 }
 
-struct dma_async_tx_descriptor *
+static struct dma_async_tx_descriptor *
 ioat3_prep_pq_val(struct dma_chan *chan, dma_addr_t *pq, dma_addr_t *src,
 		  unsigned int src_cnt, const unsigned char *scf, size_t len,
 		  enum sum_check_flags *pqres, unsigned long flags)
@@ -1133,7 +1133,7 @@ ioat3_prep_pqxor(struct dma_chan *chan, dma_addr_t dst, dma_addr_t *src,
 				     flags);
 }
 
-struct dma_async_tx_descriptor *
+static struct dma_async_tx_descriptor *
 ioat3_prep_pqxor_val(struct dma_chan *chan, dma_addr_t *src,
 		     unsigned int src_cnt, size_t len,
 		     enum sum_check_flags *result, unsigned long flags)
@@ -1655,7 +1655,6 @@ int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 	err = ioat_probe(device);
 	if (err)
 		return err;
-	ioat_set_tcp_copy_break(262144);
 
 	list_for_each_entry(c, &dma->channels, device_node) {
 		chan = to_chan_common(c);
