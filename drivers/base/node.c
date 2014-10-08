@@ -603,7 +603,6 @@ void unregister_one_node(int nid)
 		return;
 
 	unregister_node(node_devices[nid]);
-	kfree(node_devices[nid]);
 	node_devices[nid] = NULL;
 }
 

@@ -165,6 +165,27 @@ config FW_LOADER_USER_HELPER_FALLBACK
 
 	  If you are unsure about this, say N here.
 
+config WANT_DEV_COREDUMP
+	bool
+	help
+	  Drivers should "select" this option if they desire to use the
+	  device coredump mechanism.
+
+config DISABLE_DEV_COREDUMP
+	bool "Disable device coredump" if EXPERT
+	help
+	  Disable the device coredump mechanism despite drivers wanting to
+	  use it; this allows for more sensitive systems or systems that
+	  don't want to ever access the information to not have the code,
+	  nor keep any data.
+
+	  If unsure, say N.
+
+config DEV_COREDUMP
+	bool
+	default y if WANT_DEV_COREDUMP
+	depends on !DISABLE_DEV_COREDUMP
+
 config DEBUG_DRIVER
 	bool "Driver Core verbose debug messages"
 	depends on DEBUG_KERNEL

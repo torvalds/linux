@@ -537,10 +537,9 @@ static char *dynamic_emit_prefix(const struct _ddebug *desc, char *buf)
 	return buf;
 }
 
-int __dynamic_pr_debug(struct _ddebug *descriptor, const char *fmt, ...)
+void __dynamic_pr_debug(struct _ddebug *descriptor, const char *fmt, ...)
 {
 	va_list args;
-	int res;
 	struct va_format vaf;
 	char buf[PREFIX_SIZE];
 
@@ -552,21 +551,17 @@ int __dynamic_pr_debug(struct _ddebug *descriptor, const char *fmt, ...)
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	res = printk(KERN_DEBUG "%s%pV",
-		     dynamic_emit_prefix(descriptor, buf), &vaf);
+	printk(KERN_DEBUG "%s%pV", dynamic_emit_prefix(descriptor, buf), &vaf);
 
 	va_end(args);
-
-	return res;
 }
 EXPORT_SYMBOL(__dynamic_pr_debug);
 
-int __dynamic_dev_dbg(struct _ddebug *descriptor,
+void __dynamic_dev_dbg(struct _ddebug *descriptor,
 		      const struct device *dev, const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
-	int res;
 
 	BUG_ON(!descriptor);
 	BUG_ON(!fmt);
@@ -577,30 +572,27 @@ int __dynamic_dev_dbg(struct _ddebug *descriptor,
 	vaf.va = &args;
 
 	if (!dev) {
-		res = printk(KERN_DEBUG "(NULL device *): %pV", &vaf);
+		printk(KERN_DEBUG "(NULL device *): %pV", &vaf);
 	} else {
 		char buf[PREFIX_SIZE];
 
-		res = dev_printk_emit(7, dev, "%s%s %s: %pV",
-				      dynamic_emit_prefix(descriptor, buf),
-				      dev_driver_string(dev), dev_name(dev),
-				      &vaf);
+		dev_printk_emit(7, dev, "%s%s %s: %pV",
+				dynamic_emit_prefix(descriptor, buf),
+				dev_driver_string(dev), dev_name(dev),
+				&vaf);
 	}
 
 	va_end(args);
-
-	return res;
 }
 EXPORT_SYMBOL(__dynamic_dev_dbg);
 
 #ifdef CONFIG_NET
 
-int __dynamic_netdev_dbg(struct _ddebug *descriptor,
-			 const struct net_device *dev, const char *fmt, ...)
+void __dynamic_netdev_dbg(struct _ddebug *descriptor,
+			  const struct net_device *dev, const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
-	int res;
 
 	BUG_ON(!descriptor);
 	BUG_ON(!fmt);
@@ -613,23 +605,21 @@ int __dynamic_netdev_dbg(struct _ddebug *descriptor,
 	if (dev && dev->dev.parent) {
 		char buf[PREFIX_SIZE];
 
-		res = dev_printk_emit(7, dev->dev.parent,
-				      "%s%s %s %s%s: %pV",
-				      dynamic_emit_prefix(descriptor, buf),
-				      dev_driver_string(dev->dev.parent),
-				      dev_name(dev->dev.parent),
-				      netdev_name(dev), netdev_reg_state(dev),
-				      &vaf);
+		dev_printk_emit(7, dev->dev.parent,
+				"%s%s %s %s%s: %pV",
+				dynamic_emit_prefix(descriptor, buf),
+				dev_driver_string(dev->dev.parent),
+				dev_name(dev->dev.parent),
+				netdev_name(dev), netdev_reg_state(dev),
+				&vaf);
 	} else if (dev) {
-		res = printk(KERN_DEBUG "%s%s: %pV", netdev_name(dev),
-			     netdev_reg_state(dev), &vaf);
+		printk(KERN_DEBUG "%s%s: %pV", netdev_name(dev),
+		       netdev_reg_state(dev), &vaf);
 	} else {
-		res = printk(KERN_DEBUG "(NULL net_device): %pV", &vaf);
+		printk(KERN_DEBUG "(NULL net_device): %pV", &vaf);
 	}
 
 	va_end(args);
-
-	return res;
 }
 EXPORT_SYMBOL(__dynamic_netdev_dbg);
 

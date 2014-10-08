@@ -2007,6 +2007,8 @@ create_syslog_header(const struct device *dev, char *hdr, size_t hdrlen)
 		return 0;
 
 	pos += snprintf(hdr + pos, hdrlen - pos, "SUBSYSTEM=%s", subsys);
+	if (pos >= hdrlen)
+		goto overflow;
 
 	/*
 	 * Add device identifier DEVICE=:
@@ -2038,7 +2040,14 @@ create_syslog_header(const struct device *dev, char *hdr, size_t hdrlen)
 				"DEVICE=+%s:%s", subsys, dev_name(dev));
 	}
 
+	if (pos >= hdrlen)
+		goto overflow;
+
 	return pos;
+
+overflow:
+	dev_WARN(dev, "device/subsystem name too long");
+	return 0;
 }
 
 int dev_vprintk_emit(int level, const struct device *dev,
