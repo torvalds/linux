@@ -631,6 +631,12 @@ static inline int drv_conf_tx(struct ieee80211_local *local,
 	if (!check_sdata_in_driver(sdata))
 		return -EIO;
 
+	if (WARN_ONCE(params->cw_min == 0 ||
+		      params->cw_min > params->cw_max,
+		      "%s: invalid CW_min/CW_max: %d/%d\n",
+		      sdata->name, params->cw_min, params->cw_max))
+		return -EINVAL;
+
 	trace_drv_conf_tx(local, sdata, ac, params);
 	if (local->ops->conf_tx)
 		ret = local->ops->conf_tx(&local->hw, &sdata->vif,
