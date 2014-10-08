@@ -122,5 +122,4 @@ MACHINE_START(OTOM, "Nex Vision - Otom 1.1")
 	.init_machine	= otom11_init,
 	.init_irq	= s3c2410_init_irq,
 	.init_time	= otom11_init_time,
-	.restart	= s3c2410_restart,
 MACHINE_END
