@@ -1372,7 +1372,8 @@ static void vh264_put_timer_func(unsigned long arg)
 #endif
 
     while (!kfifo_is_empty(&recycle_q) &&
-           ((READ_VREG(AV_SCRATCH_7) == 0) || (READ_VREG(AV_SCRATCH_8) == 0))) {
+           ((READ_VREG(AV_SCRATCH_7) == 0) || (READ_VREG(AV_SCRATCH_8) == 0)) &&
+           (vh264_stream_switching_state == SWITCHING_STATE_OFF)) {
         vframe_t *vf;
         if (kfifo_get(&recycle_q, &vf)) {
             if ((vf->index >= 0) && (vf != &switching_fense_vf)) {
@@ -1390,9 +1391,23 @@ static void vh264_put_timer_func(unsigned long arg)
         }
     }
 
-    if ((vh264_stream_switching_state != SWITCHING_STATE_OFF) &&
-        (kfifo_len(&newframe_q) == VF_POOL_SIZE)) {
-        stream_switching_done();
+    if (vh264_stream_switching_state != SWITCHING_STATE_OFF) {
+        while (!kfifo_is_empty(&recycle_q)) {
+            vframe_t *vf;
+            if (kfifo_get(&recycle_q, &vf)) {
+                if ((vf->index >= 0) && (vf != &switching_fense_vf)) {
+                    vf->index = VF_BUF_NUM;
+                    kfifo_put(&newframe_q, (const vframe_t **)&vf);
+                }
+            }
+        }
+
+        WRITE_VREG(AV_SCRATCH_7, 0);
+        WRITE_VREG(AV_SCRATCH_8, 0);
+
+        if (kfifo_len(&newframe_q) == VF_POOL_SIZE) {
+            stream_switching_done();
+        }
     }
 
     timer->expires = jiffies + PUT_INTERVAL;
