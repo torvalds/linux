@@ -5307,8 +5307,9 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 	if (unlock)
 		mutex_unlock(&dev->struct_mutex);
 
-	pr_info("Purging GPU memory, %lu bytes freed, %lu bytes still pinned.\n",
-		freed_pages << PAGE_SHIFT, pinned);
+	if (freed_pages || unbound || bound)
+		pr_info("Purging GPU memory, %lu bytes freed, %lu bytes still pinned.\n",
+			freed_pages << PAGE_SHIFT, pinned);
 	if (unbound || bound)
 		pr_err("%lu and %lu bytes still available in the "
 		       "bound and unbound GPU page lists.\n",
