@@ -1728,7 +1728,7 @@ int iwctl_siwencodeext(struct net_device *dev,
 		goto error;
 	}
 //recover addr
-	memcpy(addr, ext->addr.sa_data, ETH_ALEN);
+	ether_addr_copy(addr, ext->addr.sa_data);
 //recover key_idx
 	key_idx = (wrq->flags&IW_ENCODE_INDEX) - 1;
 //recover set_tx
