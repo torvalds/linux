@@ -374,9 +374,8 @@ bool KeybRemoveKey(
 			}
 			s_vCheckKeyTableValid(pTable, dwIoBase);
 			return true;
-		} else {
-			return false;
 		}
+		return false;
 	}
 
 	for (i = 0; i < MAX_KEY_TABLE; i++) {
@@ -394,9 +393,8 @@ bool KeybRemoveKey(
 				}
 				s_vCheckKeyTableValid(pTable, dwIoBase);
 				return true;
-			} else {
-				return false;
 			}
+			return false;
 		}
 	}
 	return false;
