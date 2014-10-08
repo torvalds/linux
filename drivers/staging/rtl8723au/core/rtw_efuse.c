@@ -117,12 +117,7 @@ Efuse_GetCurrentSize23a(struct rtw_adapter *pAdapter, u8 efuseType)
 u8
 Efuse_CalculateWordCnts23a(u8 word_en)
 {
-	u8 word_cnts = 0;
-	if (!(word_en & BIT(0)))	word_cnts++; /*  0 : write enable */
-	if (!(word_en & BIT(1)))	word_cnts++;
-	if (!(word_en & BIT(2)))	word_cnts++;
-	if (!(word_en & BIT(3)))	word_cnts++;
-	return word_cnts;
+	return hweight8((~word_en) & 0xf);
 }
 
 /*  */
