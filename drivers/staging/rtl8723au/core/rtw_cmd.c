@@ -359,6 +359,7 @@ int rtw_sitesurvey_cmd23a(struct rtw_adapter *padapter,
 	/* prepare ssid list */
 	if (ssid) {
 		int i;
+
 		for (i = 0; i < ssid_num && i < RTW_SSID_SCAN_AMOUNT; i++) {
 			if (ssid[i].ssid_len) {
 				memcpy(&psurveyPara->ssid[i], &ssid[i],
@@ -371,6 +372,7 @@ int rtw_sitesurvey_cmd23a(struct rtw_adapter *padapter,
 	/* prepare channel list */
 	if (ch) {
 		int i;
+
 		for (i = 0; i < ch_num && i < RTW_CHANNEL_SCAN_AMOUNT; i++) {
 			if (ch[i].hw_value &&
 			    !(ch[i].flags & IEEE80211_CHAN_DISABLED)) {
@@ -719,6 +721,7 @@ int rtw_setstakey_cmd23a(struct rtw_adapter *padapter, u8 *psta, u8 unicast_key)
 		memcpy(&psetstakey_para->key, &sta->dot118021x_UncstKey, 16);
 	} else {
 		int idx = psecuritypriv->dot118021XGrpKeyid;
+
 		memcpy(&psetstakey_para->key,
 		       &psecuritypriv->dot118021XGrpKey[idx].skey, 16);
 	}
