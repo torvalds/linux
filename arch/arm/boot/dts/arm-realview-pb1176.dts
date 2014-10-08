@@ -153,18 +153,6 @@
 			      <0x10120000 0x100>;
 		};
 
-		/* This GIC on the board is cascaded off the DevChip GIC */
-		intc_pb1176: interrupt-controller@10040000 {
-			compatible = "arm,arm1176jzf-devchip-gic", "arm,arm11mp-gic";
-			#interrupt-cells = <3>;
-			#address-cells = <1>;
-			interrupt-controller;
-			reg = <0x10041000 0x1000>,
-			      <0x10040000 0x100>;
-			interrupt-parent = <&intc_dc1176>;
-			interrupts = <0 31 IRQ_TYPE_LEVEL_HIGH>;
-		};
-
 		L2: l2-cache {
 			compatible = "arm,l220-cache";
 			reg = <0x10110000 0x1000>;
@@ -242,6 +230,26 @@
 			interrupts = <0 21 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&uartclk>, <&pclk>;
 			clock-names = "uartclk", "apb_pclk";
+		};
+	};
+
+	/* These peripherals are inside the FPGA rather than the DevChip */
+	fpga {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges;
+
+		/* This GIC on the board is cascaded off the DevChip GIC */
+		intc_fpga1176: interrupt-controller@10040000 {
+			compatible = "arm,arm1176jzf-devchip-gic", "arm,arm11mp-gic";
+			#interrupt-cells = <3>;
+			#address-cells = <1>;
+			interrupt-controller;
+			reg = <0x10041000 0x1000>,
+			      <0x10040000 0x100>;
+			interrupt-parent = <&intc_dc1176>;
+			interrupts = <0 31 IRQ_TYPE_LEVEL_HIGH>;
 		};
 	};
 };
