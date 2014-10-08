@@ -98,7 +98,7 @@ static void spear_adc_set_clk(struct spear_adc_state *st, u32 val)
 	u32 clk_high, clk_low, count;
 	u32 apb_clk = clk_get_rate(st->clk);
 
-	count = (apb_clk + val - 1) / val;
+	count = DIV_ROUND_UP(apb_clk, val);
 	clk_low = count / 2;
 	clk_high = count - clk_low;
 	st->current_clk = apb_clk / count;
