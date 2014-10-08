@@ -1,0 +1,1 @@
+subdir-y := mpssd
