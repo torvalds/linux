@@ -62,7 +62,7 @@ static inline void rt2500usb_register_read(struct rt2x00_dev *rt2x00dev,
 	__le16 reg;
 	rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_READ,
 				      USB_VENDOR_REQUEST_IN, offset,
-				      &reg, sizeof(reg), REGISTER_TIMEOUT);
+				      &reg, sizeof(reg));
 	*value = le16_to_cpu(reg);
 }
 
@@ -83,8 +83,7 @@ static inline void rt2500usb_register_multiread(struct rt2x00_dev *rt2x00dev,
 {
 	rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_READ,
 				      USB_VENDOR_REQUEST_IN, offset,
-				      value, length,
-				      REGISTER_TIMEOUT16(length));
+				      value, length);
 }
 
 static inline void rt2500usb_register_write(struct rt2x00_dev *rt2x00dev,
@@ -94,7 +93,7 @@ static inline void rt2500usb_register_write(struct rt2x00_dev *rt2x00dev,
 	__le16 reg = cpu_to_le16(value);
 	rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_WRITE,
 				      USB_VENDOR_REQUEST_OUT, offset,
-				      &reg, sizeof(reg), REGISTER_TIMEOUT);
+				      &reg, sizeof(reg));
 }
 
 static inline void rt2500usb_register_write_lock(struct rt2x00_dev *rt2x00dev,
@@ -113,8 +112,7 @@ static inline void rt2500usb_register_multiwrite(struct rt2x00_dev *rt2x00dev,
 {
 	rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_WRITE,
 				      USB_VENDOR_REQUEST_OUT, offset,
-				      value, length,
-				      REGISTER_TIMEOUT16(length));
+				      value, length);
 }
 
 static int rt2500usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
