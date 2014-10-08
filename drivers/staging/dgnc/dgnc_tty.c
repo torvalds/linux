@@ -3096,7 +3096,7 @@ static int dgnc_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		struct digi_getcounter buf;
 
 		buf.norun = ch->ch_err_overrun;
-		buf.noflow = 0;  	/* The driver doesn't keep this stat */
+		buf.noflow = 0;		/* The driver doesn't keep this stat */
 		buf.nframe = ch->ch_err_frame;
 		buf.nparity = ch->ch_err_parity;
 		buf.nbreak = ch->ch_err_break;
