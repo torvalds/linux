@@ -208,15 +208,26 @@ static int quota_setquota(struct super_block *sb, int type, qid_t id,
 	return sb->s_qcop->set_dqblk(sb, qid, &fdq);
 }
 
-static int quota_setxstate(struct super_block *sb, int cmd, void __user *addr)
+static int quota_enable(struct super_block *sb, void __user *addr)
 {
 	__u32 flags;
 
 	if (copy_from_user(&flags, addr, sizeof(flags)))
 		return -EFAULT;
-	if (!sb->s_qcop->set_xstate)
+	if (!sb->s_qcop->quota_enable)
 		return -ENOSYS;
-	return sb->s_qcop->set_xstate(sb, flags, cmd);
+	return sb->s_qcop->quota_enable(sb, flags);
+}
+
+static int quota_disable(struct super_block *sb, void __user *addr)
+{
+	__u32 flags;
+
+	if (copy_from_user(&flags, addr, sizeof(flags)))
+		return -EFAULT;
+	if (!sb->s_qcop->quota_disable)
+		return -ENOSYS;
+	return sb->s_qcop->quota_disable(sb, flags);
 }
 
 static int quota_getxstate(struct super_block *sb, void __user *addr)
@@ -447,8 +458,9 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id,
 			return -ENOSYS;
 		return sb->s_qcop->quota_sync(sb, type);
 	case Q_XQUOTAON:
+		return quota_enable(sb, addr);
 	case Q_XQUOTAOFF:
-		return quota_setxstate(sb, cmd, addr);
+		return quota_disable(sb, addr);
 	case Q_XQUOTARM:
 		return quota_rmxquota(sb, addr);
 	case Q_XGETQSTAT:
