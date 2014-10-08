@@ -190,6 +190,7 @@ F2FS_RW_ATTR(SM_INFO, f2fs_sm_info, reclaim_segments, rec_prefree_segments);
 F2FS_RW_ATTR(SM_INFO, f2fs_sm_info, max_small_discards, max_discards);
 F2FS_RW_ATTR(SM_INFO, f2fs_sm_info, ipu_policy, ipu_policy);
 F2FS_RW_ATTR(SM_INFO, f2fs_sm_info, min_ipu_util, min_ipu_util);
+F2FS_RW_ATTR(SM_INFO, f2fs_sm_info, min_fsync_blocks, min_fsync_blocks);
 F2FS_RW_ATTR(NM_INFO, f2fs_nm_info, ram_thresh, ram_thresh);
 F2FS_RW_ATTR(F2FS_SBI, f2fs_sb_info, max_victim_search, max_victim_search);
 F2FS_RW_ATTR(F2FS_SBI, f2fs_sb_info, dir_level, dir_level);
@@ -204,6 +205,7 @@ static struct attribute *f2fs_attrs[] = {
 	ATTR_LIST(max_small_discards),
 	ATTR_LIST(ipu_policy),
 	ATTR_LIST(min_ipu_util),
+	ATTR_LIST(min_fsync_blocks),
 	ATTR_LIST(max_victim_search),
 	ATTR_LIST(dir_level),
 	ATTR_LIST(ram_thresh),
@@ -366,11 +368,13 @@ static struct inode *f2fs_alloc_inode(struct super_block *sb)
 
 	/* Initialize f2fs-specific inode info */
 	fi->vfs_inode.i_version = 1;
-	atomic_set(&fi->dirty_dents, 0);
+	atomic_set(&fi->dirty_pages, 0);
 	fi->i_current_depth = 1;
 	fi->i_advise = 0;
 	rwlock_init(&fi->ext.ext_lock);
 	init_rwsem(&fi->i_sem);
+	INIT_LIST_HEAD(&fi->inmem_pages);
+	mutex_init(&fi->inmem_lock);
 
 	set_inode_flag(fi, FI_NEW_INODE);
 
@@ -432,14 +436,19 @@ static void f2fs_put_super(struct super_block *sb)
 	stop_gc_thread(sbi);
 
 	/* We don't need to do checkpoint when it's clean */
-	if (sbi->s_dirty)
-		write_checkpoint(sbi, true);
+	if (sbi->s_dirty) {
+		struct cp_control cpc = {
+			.reason = CP_UMOUNT,
+		};
+		write_checkpoint(sbi, &cpc);
+	}
 
 	/*
 	 * normally superblock is clean, so we need to release this.
 	 * In addition, EIO will skip do checkpoint, we need this as well.
 	 */
 	release_dirty_inode(sbi);
+	release_discard_addrs(sbi);
 
 	iput(sbi->node_inode);
 	iput(sbi->meta_inode);
@@ -464,8 +473,11 @@ int f2fs_sync_fs(struct super_block *sb, int sync)
 	trace_f2fs_sync_fs(sb, sync);
 
 	if (sync) {
+		struct cp_control cpc = {
+			.reason = CP_SYNC,
+		};
 		mutex_lock(&sbi->gc_mutex);
-		write_checkpoint(sbi, false);
+		write_checkpoint(sbi, &cpc);
 		mutex_unlock(&sbi->gc_mutex);
 	} else {
 		f2fs_balance_fs(sbi);
@@ -615,6 +627,9 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	 */
 	org_mount_opt = sbi->mount_opt;
 	active_logs = sbi->active_logs;
+
+	sbi->mount_opt.opt = 0;
+	sbi->active_logs = NR_CURSEG_TYPE;
 
 	/* parse mount options */
 	err = parse_options(sb, data);
@@ -786,14 +801,22 @@ static int sanity_check_raw_super(struct super_block *sb,
 		return 1;
 	}
 
-	if (le32_to_cpu(raw_super->log_sectorsize) !=
-					F2FS_LOG_SECTOR_SIZE) {
-		f2fs_msg(sb, KERN_INFO, "Invalid log sectorsize");
+	/* Currently, support 512/1024/2048/4096 bytes sector size */
+	if (le32_to_cpu(raw_super->log_sectorsize) >
+				F2FS_MAX_LOG_SECTOR_SIZE ||
+		le32_to_cpu(raw_super->log_sectorsize) <
+				F2FS_MIN_LOG_SECTOR_SIZE) {
+		f2fs_msg(sb, KERN_INFO, "Invalid log sectorsize (%u)",
+			le32_to_cpu(raw_super->log_sectorsize));
 		return 1;
 	}
-	if (le32_to_cpu(raw_super->log_sectors_per_block) !=
-					F2FS_LOG_SECTORS_PER_BLOCK) {
-		f2fs_msg(sb, KERN_INFO, "Invalid log sectors per block");
+	if (le32_to_cpu(raw_super->log_sectors_per_block) +
+		le32_to_cpu(raw_super->log_sectorsize) !=
+			F2FS_MAX_LOG_SECTOR_SIZE) {
+		f2fs_msg(sb, KERN_INFO,
+			"Invalid log sectors per block(%u) log sectorsize(%u)",
+			le32_to_cpu(raw_super->log_sectors_per_block),
+			le32_to_cpu(raw_super->log_sectorsize));
 		return 1;
 	}
 	return 0;
@@ -849,6 +872,7 @@ static void init_sb_info(struct f2fs_sb_info *sbi)
 		atomic_set(&sbi->nr_pages[i], 0);
 
 	sbi->dir_level = DEF_DIR_LEVEL;
+	sbi->need_fsck = false;
 }
 
 /*
@@ -1081,6 +1105,9 @@ try_onemore:
 							"%s", sb->s_id);
 	if (err)
 		goto free_proc;
+
+	if (!retry)
+		sbi->need_fsck = true;
 
 	/* recover fsynced data */
 	if (!test_opt(sbi, DISABLE_ROLL_FORWARD)) {
