@@ -315,6 +315,7 @@ static void update_attrib_vcs_info(struct rtw_adapter *padapter, struct xmit_fra
 			/* check HT op mode */
 			if (pattrib->ht_en) {
 				u8 HTOpMode = pmlmeinfo->HT_protection;
+
 				if ((pmlmeext->cur_bwmode && (HTOpMode == 2 || HTOpMode == 3)) ||
 				    (!pmlmeext->cur_bwmode && HTOpMode == 3)) {
 					pattrib->vcs_mode = RTS_CTS;
@@ -464,6 +465,7 @@ static int update_attrib(struct rtw_adapter *padapter,
 		if (pattrib->pktlen > 282 + 24) {
 			if (pattrib->ether_type == ETH_P_IP) {/*  IP header */
 				u8 *pframe = skb->data;
+
 				pframe += ETH_HLEN;
 
 				if ((pframe[21] == 68 && pframe[23] == 67) ||
