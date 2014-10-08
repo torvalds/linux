@@ -1013,15 +1013,10 @@ static int dgap_do_remap(struct board_t *brd)
 
 static void dgap_release_remap(struct board_t *brd)
 {
-	if (brd->re_map_membase) {
-		release_mem_region(brd->membase, 0x200000);
-		iounmap(brd->re_map_membase);
-	}
-
-	if (brd->re_map_port) {
-		release_mem_region(brd->membase + PCI_IO_OFFSET, 0x200000);
-		iounmap(brd->re_map_port);
-	}
+	iounmap(brd->re_map_port);
+	iounmap(brd->re_map_membase);
+	release_mem_region(brd->membase + PCI_IO_OFFSET, 0x200000);
+	release_mem_region(brd->membase, 0x200000);
 }
 /*****************************************************************************
 *
