@@ -143,6 +143,18 @@ int ipu_plane_mode_set(struct ipu_plane *ipu_plane, struct drm_crtc *crtc,
 	if (crtc_h < 2)
 		return -EINVAL;
 
+	/*
+	 * since we cannot touch active IDMAC channels, we do not support
+	 * resizing the enabled plane or changing its format
+	 */
+	if (ipu_plane->enabled) {
+		if (src_w != ipu_plane->w || src_h != ipu_plane->h ||
+		    fb->pixel_format != ipu_plane->base.fb->pixel_format)
+			return -EINVAL;
+
+		return ipu_plane_set_base(ipu_plane, fb, src_x, src_y);
+	}
+
 	switch (ipu_plane->dp_flow) {
 	case IPU_DP_FLOW_SYNC_BG:
 		ret = ipu_dp_setup_channel(ipu_plane->dp,
@@ -201,6 +213,9 @@ int ipu_plane_mode_set(struct ipu_plane *ipu_plane, struct drm_crtc *crtc,
 	ret = ipu_plane_set_base(ipu_plane, fb, src_x, src_y);
 	if (ret < 0)
 		return ret;
+
+	ipu_plane->w = src_w;
+	ipu_plane->h = src_h;
 
 	return 0;
 }
