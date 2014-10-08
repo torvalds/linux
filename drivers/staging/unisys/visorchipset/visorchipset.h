@@ -82,7 +82,7 @@ typedef struct {
 	uuid_le devInstGuid;
 	VISORCHIPSET_STATE state;
 	VISORCHIPSET_CHANNEL_INFO chanInfo;
-	u32 Reserved1;		/* CONTROLVM_ID */
+	u32 Reserved1;		/* control_vm_id */
 	u64 Reserved2;
 	u32 switchNo;		/* when devState.attached==1 */
 	u32 internalPortNo;	/* when devState.attached==1 */
@@ -169,7 +169,7 @@ typedef struct {
 	u8 *authService3;
 	u8 *securityContext;
 	u64 Reserved;
-	u32 Reserved2;		/* CONTROLVM_ID */
+	u32 Reserved2;		/* control_vm_id */
 	struct device dev;
 	BOOL dev_exists;
 	CONTROLVM_MESSAGE_HEADER pendingMsgHdr;
@@ -192,7 +192,7 @@ typedef struct {
 	u8 *ipGateway;
 	u8 *ipDNS;
 	u64 Reserved1;
-	u32 Reserved2;		/* CONTROLVM_ID */
+	u32 Reserved2;		/* control_vm_id */
 	struct device dev;
 	BOOL dev_exists;
 	CONTROLVM_MESSAGE_HEADER pendingMsgHdr;
@@ -209,7 +209,7 @@ typedef struct {
 	u32 busNo;		/* valid only when state.attached == 1 */
 	u32 devNo;		/* valid only when state.attached == 1 */
 	u64 Reserved1;
-	u32 Reserved2;		/* CONTROLVM_ID */
+	u32 Reserved2;		/* control_vm_id */
 	CONTROLVM_MESSAGE_HEADER pendingMsgHdr;
 	MYPROCOBJECT *procObject;
 

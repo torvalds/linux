@@ -88,7 +88,7 @@ static const uuid_le UltraControlvmChannelProtocolGuid =
  *  - issued on the EventQueue queue (q #2) in the ControlVm channel
  *  - responded to on the EventAckQueue queue (q #3) in the ControlVm channel
  */
-typedef enum  {
+enum control_vm_id {
 	CONTROLVM_INVALID = 0,
 	/* SWITCH commands required Parameter: SwitchNumber  */
 	/* BUS commands required Parameter: BusNumber  */
@@ -117,7 +117,7 @@ typedef enum  {
 	CONTROLVM_CHIPSET_READY = 0x304,	/* CP --> SP */
 	CONTROLVM_CHIPSET_SELFTEST = 0x305,	/* CP --> SP */
 
-} CONTROLVM_ID;
+};
 
 struct irq_info {
 	 /**< specifies interrupt info. It is used to send interrupts
@@ -239,7 +239,7 @@ typedef enum {
  *  looking at the flags.response field.
  */
 typedef struct _CONTROLVM_MESSAGE_HEADER  {
-	u32 Id;		/* See CONTROLVM_ID. */
+	u32 Id;		/* See control_vm_id. */
 	/* For requests, indicates the message type. */
 	/* For responses, indicates the type of message we are responding to. */
 
