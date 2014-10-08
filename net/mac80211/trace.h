@@ -2141,6 +2141,12 @@ TRACE_EVENT(drv_pre_channel_switch,
 	)
 );
 
+DEFINE_EVENT(local_sdata_evt, drv_post_channel_switch,
+	     TP_PROTO(struct ieee80211_local *local,
+		      struct ieee80211_sub_if_data *sdata),
+	     TP_ARGS(local, sdata)
+);
+
 
 #ifdef CONFIG_MAC80211_MESSAGE_TRACING
 #undef TRACE_SYSTEM

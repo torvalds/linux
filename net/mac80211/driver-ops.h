@@ -1214,6 +1214,22 @@ drv_pre_channel_switch(struct ieee80211_sub_if_data *sdata,
 	return ret;
 }
 
+static inline int
+drv_post_channel_switch(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+	int ret = 0;
+
+	if (!check_sdata_in_driver(sdata))
+		return -EIO;
+
+	trace_drv_post_channel_switch(local, sdata);
+	if (local->ops->post_channel_switch)
+		ret = local->ops->post_channel_switch(&local->hw, &sdata->vif);
+	trace_drv_return_int(local, ret);
+	return ret;
+}
+
 static inline int drv_join_ibss(struct ieee80211_local *local,
 				struct ieee80211_sub_if_data *sdata)
 {

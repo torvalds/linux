@@ -1010,6 +1010,15 @@ static void ieee80211_chswitch_work(struct work_struct *work)
 		sdata->csa_block_tx = false;
 	}
 
+	ret = drv_post_channel_switch(sdata);
+	if (ret) {
+		sdata_info(sdata,
+			   "driver post channel switch failed, disconnecting\n");
+		ieee80211_queue_work(&local->hw,
+				     &ifmgd->csa_connection_drop_work);
+		goto out;
+	}
+
 	ieee80211_sta_reset_beacon_monitor(sdata);
 	ieee80211_sta_reset_conn_monitor(sdata);
 
