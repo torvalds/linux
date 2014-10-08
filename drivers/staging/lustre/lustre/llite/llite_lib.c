@@ -1122,7 +1122,7 @@ void ll_put_super(struct super_block *sb)
 	}
 
 	next = 0;
-	while ((obd = class_devices_in_group(&sbi->ll_sb_uuid, &next)) !=NULL)
+	while ((obd = class_devices_in_group(&sbi->ll_sb_uuid, &next)))
 		class_manual_cleanup(obd);
 
 	if (sbi->ll_flags & LL_SBI_VERBOSE)
