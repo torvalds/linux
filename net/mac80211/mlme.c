@@ -1134,21 +1134,15 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 
 	chanctx = container_of(conf, struct ieee80211_chanctx, conf);
 
-	if (local->use_chanctx) {
-		u32 num_chanctx = 0;
-		list_for_each_entry(chanctx, &local->chanctx_list, list)
-		       num_chanctx++;
-
-		if (num_chanctx > 1 ||
-		    !(local->hw.flags & IEEE80211_HW_CHANCTX_STA_CSA)) {
-			sdata_info(sdata,
-				   "not handling chan-switch with channel contexts\n");
-			ieee80211_queue_work(&local->hw,
-					     &ifmgd->csa_connection_drop_work);
-			mutex_unlock(&local->chanctx_mtx);
-			mutex_unlock(&local->mtx);
-			return;
-		}
+	if (local->use_chanctx &&
+	    !(local->hw.flags & IEEE80211_HW_CHANCTX_STA_CSA)) {
+		sdata_info(sdata,
+			   "driver doesn't support chan-switch with channel contexts\n");
+		ieee80211_queue_work(&local->hw,
+				     &ifmgd->csa_connection_drop_work);
+		mutex_unlock(&local->chanctx_mtx);
+		mutex_unlock(&local->mtx);
+		return;
 	}
 
 	ch_switch.timestamp = timestamp;
@@ -1192,7 +1186,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 
 	if (local->ops->channel_switch) {
 		/* use driver's channel switch callback */
-		drv_channel_switch(local, &ch_switch);
+		drv_channel_switch(local, sdata, &ch_switch);
 		return;
 	}
 

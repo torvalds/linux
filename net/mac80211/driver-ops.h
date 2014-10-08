@@ -764,12 +764,13 @@ static inline void drv_flush(struct ieee80211_local *local,
 }
 
 static inline void drv_channel_switch(struct ieee80211_local *local,
-				     struct ieee80211_channel_switch *ch_switch)
+				      struct ieee80211_sub_if_data *sdata,
+				      struct ieee80211_channel_switch *ch_switch)
 {
 	might_sleep();
 
-	trace_drv_channel_switch(local, ch_switch);
-	local->ops->channel_switch(&local->hw, ch_switch);
+	trace_drv_channel_switch(local, sdata, ch_switch);
+	local->ops->channel_switch(&local->hw, &sdata->vif, ch_switch);
 	trace_drv_return_void(local);
 }
 
