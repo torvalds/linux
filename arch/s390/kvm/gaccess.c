@@ -254,8 +254,7 @@ static void ipte_unlock_simple(struct kvm_vcpu *vcpu)
 		new = old = ACCESS_ONCE(*ic);
 		new.k = 0;
 	} while (cmpxchg(&ic->val, old.val, new.val) != old.val);
-	if (!ipte_lock_count)
-		wake_up(&vcpu->kvm->arch.ipte_wq);
+	wake_up(&vcpu->kvm->arch.ipte_wq);
 out:
 	mutex_unlock(&ipte_mutex);
 }

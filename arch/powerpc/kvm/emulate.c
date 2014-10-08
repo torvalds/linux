@@ -219,7 +219,7 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	/* this default type might be overwritten by subcategories */
 	kvmppc_set_exit_type(vcpu, EMULATED_INST_EXITS);
 
-	emulated = kvmppc_get_last_inst(vcpu, false, &inst);
+	emulated = kvmppc_get_last_inst(vcpu, INST_GENERIC, &inst);
 	if (emulated != EMULATE_DONE)
 		return emulated;
 
@@ -272,6 +272,21 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			/* Attempt core-specific emulation below. */
 			emulated = EMULATE_FAIL;
 		}
+		break;
+
+	case 0:
+		/*
+		 * Instruction with primary opcode 0. Based on PowerISA
+		 * these are illegal instructions.
+		 */
+		if (inst == KVMPPC_INST_SW_BREAKPOINT) {
+			run->exit_reason = KVM_EXIT_DEBUG;
+			run->debug.arch.address = kvmppc_get_pc(vcpu);
+			emulated = EMULATE_EXIT_USER;
+			advance = 0;
+		} else
+			emulated = EMULATE_FAIL;
+
 		break;
 
 	default:

@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/vfio.h>
+#include "vfio.h"
 
 struct kvm_vfio_group {
 	struct list_head node;
@@ -246,6 +247,16 @@ static void kvm_vfio_destroy(struct kvm_device *dev)
 	kfree(dev); /* alloc by kvm_ioctl_create_device, free by .destroy */
 }
 
+static int kvm_vfio_create(struct kvm_device *dev, u32 type);
+
+static struct kvm_device_ops kvm_vfio_ops = {
+	.name = "kvm-vfio",
+	.create = kvm_vfio_create,
+	.destroy = kvm_vfio_destroy,
+	.set_attr = kvm_vfio_set_attr,
+	.has_attr = kvm_vfio_has_attr,
+};
+
 static int kvm_vfio_create(struct kvm_device *dev, u32 type)
 {
 	struct kvm_device *tmp;
@@ -268,10 +279,7 @@ static int kvm_vfio_create(struct kvm_device *dev, u32 type)
 	return 0;
 }
 
-struct kvm_device_ops kvm_vfio_ops = {
-	.name = "kvm-vfio",
-	.create = kvm_vfio_create,
-	.destroy = kvm_vfio_destroy,
-	.set_attr = kvm_vfio_set_attr,
-	.has_attr = kvm_vfio_has_attr,
-};
+int kvm_vfio_ops_init(void)
+{
+	return kvm_register_device_ops(&kvm_vfio_ops, KVM_DEV_TYPE_VFIO);
+}
