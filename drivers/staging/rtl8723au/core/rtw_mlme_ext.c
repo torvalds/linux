@@ -331,6 +331,7 @@ rtw_update_TSF(struct mlme_ext_priv *pmlmeext, struct ieee80211_mgmt *mgmt)
 int rtw_ch_set_search_ch23a(struct rt_channel_info *ch_set, const u32 ch)
 {
 	int i;
+
 	for (i = 0; ch_set[i]. ChannelNum != 0; i++) {
 		if (ch == ch_set[i].ChannelNum)
 			break;
@@ -1572,6 +1573,7 @@ OnAssocReq23a(struct rtw_adapter *padapter, struct recv_frame *precv_frame)
 	pstat->uapsd_bk = 0;
 	if (pmlmepriv->qos_option) {
 		const u8 *end = pos + left;
+
 		p = pos;
 
 		for (;;) {
@@ -2599,7 +2601,9 @@ static void issue_probersp(struct rtw_adapter *padapter, unsigned char *da,
 		if (ssid_ie && cur_network->Ssid.ssid_len) {
 			uint remainder_ielen;
 			u8 *remainder_ie;
+
 			remainder_ie = ssid_ie + 2;
+
 			remainder_ielen = pframe - remainder_ie;
 
 			DBG_8723A_LEVEL(_drv_warning_, "%s(%s): "
@@ -2862,6 +2866,7 @@ static void issue_auth(struct rtw_adapter *padapter, struct sta_info *psta,
 	if (psta) { /*  for AP mode */
 #ifdef CONFIG_8723AU_AP_MODE
 		unsigned short val16;
+
 		ether_addr_copy(mgmt->da, psta->hwaddr);
 		ether_addr_copy(mgmt->sa, myid(&padapter->eeprompriv));
 		ether_addr_copy(mgmt->bssid, myid(&padapter->eeprompriv));
@@ -3306,6 +3311,7 @@ static void issue_assocreq(struct rtw_adapter *padapter)
 			    !memcmp(p + 2, WMM_OUI23A, 4) ||
 			    !memcmp(p + 2, WPS_OUI23A, 4)) {
 				u8 plen = p[1];
+
 				if (!padapter->registrypriv.wifi_spec) {
 					/* Commented by Kurt 20110629 */
 					/* In some older APs, WPS handshake */
@@ -4070,6 +4076,7 @@ static void rtw_site_survey(struct rtw_adapter *padapter)
 		if (ScanType == SCAN_ACTIVE) /* obey the channel plan setting... */
 		{
 			int i;
+
 			for (i = 0;i<RTW_SSID_SCAN_AMOUNT;i++) {
 				if (pmlmeext->sitesurvey_res.ssid[i].ssid_len) {
 					/* todo: to issue two probe req??? */
@@ -4293,6 +4300,7 @@ static struct wlan_bssid_ex *collect_bss_info(struct rtw_adapter *padapter,
 				     bssid->IELength);
 		if (p && p[1] > 0) {
 			struct ieee80211_ht_cap *pHT_caps;
+
 			pHT_caps = (struct ieee80211_ht_cap *)(p + 2);
 
 			if (pHT_caps->cap_info &
@@ -4319,6 +4327,7 @@ static void start_create_ibss(struct rtw_adapter *padapter)
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct wlan_bssid_ex *pnetwork = &pmlmeinfo->network;
+
 	pmlmeext->cur_channel = (u8)pnetwork->DSConfig;
 	pmlmeinfo->bcn_interval = pnetwork->beacon_interval;
 
