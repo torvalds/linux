@@ -5927,6 +5927,7 @@ static int nl80211_channel_switch(struct sk_buff *skb, struct genl_info *info)
 	int err;
 	bool need_new_beacon = false;
 	int len, i;
+	u32 cs_count;
 
 	if (!rdev->ops->channel_switch ||
 	    !(rdev->wiphy.flags & WIPHY_FLAG_HAS_CHANNEL_SWITCH))
@@ -5963,7 +5964,14 @@ static int nl80211_channel_switch(struct sk_buff *skb, struct genl_info *info)
 	if (need_new_beacon && !info->attrs[NL80211_ATTR_CSA_IES])
 		return -EINVAL;
 
-	params.count = nla_get_u32(info->attrs[NL80211_ATTR_CH_SWITCH_COUNT]);
+	/* Even though the attribute is u32, the specification says
+	 * u8, so let's make sure we don't overflow.
+	 */
+	cs_count = nla_get_u32(info->attrs[NL80211_ATTR_CH_SWITCH_COUNT]);
+	if (cs_count > 255)
+		return -EINVAL;
+
+	params.count = cs_count;
 
 	if (!need_new_beacon)
 		goto skip_beacons;
