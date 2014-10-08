@@ -1046,7 +1046,8 @@ static void ieee80211_chswitch_timer(unsigned long data)
 
 static void
 ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
-				 u64 timestamp, struct ieee802_11_elems *elems,
+				 u64 timestamp, u32 device_timestamp,
+				 struct ieee802_11_elems *elems,
 				 bool beacon)
 {
 	struct ieee80211_local *local = sdata->local;
@@ -1154,6 +1155,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 		/* use driver's channel switch callback */
 		struct ieee80211_channel_switch ch_switch = {
 			.timestamp = timestamp,
+			.device_timestamp = device_timestamp,
 			.block_tx = csa_ie.mode,
 			.chandef = csa_ie.chandef,
 			.count = csa_ie.count,
@@ -3203,6 +3205,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems);
 
 	ieee80211_sta_process_chanswitch(sdata, rx_status->mactime,
+					 rx_status->device_timestamp,
 					 &elems, true);
 
 	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_WMM) &&
@@ -3334,8 +3337,9 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 				break;
 
 			ieee80211_sta_process_chanswitch(sdata,
-							 rx_status->mactime,
-							 &elems, false);
+						 rx_status->mactime,
+						 rx_status->device_timestamp,
+						 &elems, false);
 		} else if (mgmt->u.action.category == WLAN_CATEGORY_PUBLIC) {
 			ies_len = skb->len -
 				  offsetof(struct ieee80211_mgmt,
@@ -3356,8 +3360,9 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 				&mgmt->u.action.u.ext_chan_switch.data;
 
 			ieee80211_sta_process_chanswitch(sdata,
-							 rx_status->mactime,
-							 &elems, false);
+						 rx_status->mactime,
+						 rx_status->device_timestamp,
+						 &elems, false);
 		}
 		break;
 	}
