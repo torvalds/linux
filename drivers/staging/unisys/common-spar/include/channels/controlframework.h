@@ -63,15 +63,5 @@ static const struct ultra_segment_state SegmentStatePaused = {
 static const struct ultra_segment_state SegmentStateStandby = {
 	1, 1, 0, 0, 1, 1, 1, 0
 };
-typedef union {
-	u64 Full;
-	struct {
-		u8 Major;	/* will be 1 for the first release and
-				 * increment thereafter  */
-		u8 Minor;
-		u16 Maintenance;
-		u32 Revision;	/* Subversion revision */
-	} Part;
-} ULTRA_COMPONENT_VERSION;
 
 #endif				/* _CONTROL_FRAMEWORK_H_ not defined */
