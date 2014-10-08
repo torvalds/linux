@@ -1357,10 +1357,8 @@ static int iss_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	iss = devm_kzalloc(&pdev->dev, sizeof(*iss), GFP_KERNEL);
-	if (!iss) {
-		dev_err(&pdev->dev, "Could not allocate memory\n");
+	if (!iss)
 		return -ENOMEM;
-	}
 
 	mutex_init(&iss->iss_mutex);
 
