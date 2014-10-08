@@ -104,12 +104,6 @@
 			RT_PRINTK fmt;								\
 		}
 
-#define ODM_RT_TRACE_F(pDM_Odm, comp, level, fmt)						\
-		if(((comp) & pDM_Odm->DebugComponents) && (level <= pDM_Odm->DebugLevel))	\
-		{										\
-			RT_PRINTK fmt;								\
-		}
-
 #define ODM_RT_ASSERT(pDM_Odm, expr, fmt)							\
 		if(!(expr)) {									\
 			printk("Assertion failed! %s at ......\n", #expr);			\
@@ -117,21 +111,6 @@
 			RT_PRINTK fmt;								\
 			ASSERT(false);								\
 		}
-#define ODM_dbg_enter() { printk("==> %s\n", __func__); }
-#define ODM_dbg_exit() { printk("<== %s\n", __func__); }
-#define ODM_dbg_trace(str) { printk("%s:%s\n", __func__, str); }
-
-#define ODM_PRINT_ADDR(pDM_Odm, comp, level, title_str, ptr)						\
-			if(((comp) & pDM_Odm->DebugComponents) && (level <= pDM_Odm->DebugLevel){	\
-				int __i;			\
-				u8 *	__ptr = (u8 *)ptr;	\
-				printk("[ODM] ");		\
-				printk(title_str);		\
-				printk(" ");			\
-				for (__i=0; __i < 6; __i++)	\
-					printk("%02X%s", __ptr[__i], (__i == 5) ? "" : "-");		\
-				printk("\n");			\
-			}
 
 void ODM_InitDebugSetting23a(struct dm_odm_t *pDM_Odm);
 
