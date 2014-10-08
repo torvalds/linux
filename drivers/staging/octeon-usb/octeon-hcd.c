@@ -743,7 +743,7 @@ static int cvmx_usb_initialize(struct cvmx_usb_state *usb,
 	 *     such that USB is as close as possible to 125Mhz
 	 */
 	{
-		int divisor = (octeon_get_clock_rate()+125000000-1)/125000000;
+		int divisor = DIV_ROUND_UP(octeon_get_clock_rate(), 125000000);
 		/* Lower than 4 doesn't seem to work properly */
 		if (divisor < 4)
 			divisor = 4;
@@ -1606,8 +1606,8 @@ static void __cvmx_usb_start_channel_control(struct cvmx_usb_state *usb,
 	 * Calculate the number of packets to transfer. If the length is zero
 	 * we still need to transfer one packet
 	 */
-	packets_to_transfer = (bytes_to_transfer + pipe->max_packet - 1) /
-		pipe->max_packet;
+	packets_to_transfer = DIV_ROUND_UP(bytes_to_transfer,
+					   pipe->max_packet);
 	if (packets_to_transfer == 0)
 		packets_to_transfer = 1;
 	else if ((packets_to_transfer > 1) &&
@@ -1852,8 +1852,7 @@ static void __cvmx_usb_start_channel(struct cvmx_usb_state *usb,
 		 * zero we still need to transfer one packet
 		 */
 		packets_to_transfer =
-			(bytes_to_transfer + pipe->max_packet - 1) /
-			pipe->max_packet;
+			DIV_ROUND_UP(bytes_to_transfer, pipe->max_packet);
 		if (packets_to_transfer == 0)
 			packets_to_transfer = 1;
 		else if ((packets_to_transfer > 1) &&
