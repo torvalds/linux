@@ -62,14 +62,19 @@ typedef struct {
 	(s)->si_generation
 
 struct nfsd4_callback {
-	void *cb_op;
 	struct nfs4_client *cb_clp;
 	struct list_head cb_per_client;
 	u32 cb_minorversion;
 	struct rpc_message cb_msg;
-	const struct rpc_call_ops *cb_ops;
+	struct nfsd4_callback_ops *cb_ops;
 	struct work_struct cb_work;
 	bool cb_done;
+};
+
+struct nfsd4_callback_ops {
+	void (*prepare)(struct nfsd4_callback *);
+	int (*done)(struct nfsd4_callback *, struct rpc_task *);
+	void (*release)(struct nfsd4_callback *);
 };
 
 /*
@@ -126,6 +131,9 @@ struct nfs4_delegation {
 	int			dl_retries;
 	struct nfsd4_callback	dl_recall;
 };
+
+#define cb_to_delegation(cb) \
+	container_of(cb, struct nfs4_delegation, dl_recall)
 
 /* client delegation callback info */
 struct nfs4_cb_conn {
@@ -306,6 +314,7 @@ struct nfs4_client {
 #define NFSD4_CLIENT_STABLE		(2)	/* client on stable storage */
 #define NFSD4_CLIENT_RECLAIM_COMPLETE	(3)	/* reclaim_complete done */
 #define NFSD4_CLIENT_CONFIRMED		(4)	/* client is confirmed */
+#define NFSD4_CLIENT_UPCALL_LOCK	(5)	/* upcall serialization */
 #define NFSD4_CLIENT_CB_FLAG_MASK	(1 << NFSD4_CLIENT_CB_UPDATE | \
 					 1 << NFSD4_CLIENT_CB_KILL)
 	unsigned long		cl_flags;
@@ -517,6 +526,13 @@ static inline struct nfs4_ol_stateid *openlockstateid(struct nfs4_stid *s)
 #define RD_STATE	        0x00000010
 #define WR_STATE	        0x00000020
 
+enum nfsd4_cb_op {
+	NFSPROC4_CLNT_CB_NULL = 0,
+	NFSPROC4_CLNT_CB_RECALL,
+	NFSPROC4_CLNT_CB_SEQUENCE,
+};
+
+
 struct nfsd4_compound_state;
 struct nfsd_net;
 
@@ -531,12 +547,12 @@ extern struct nfs4_client_reclaim *nfsd4_find_reclaim_client(const char *recdir,
 extern __be32 nfs4_check_open_reclaim(clientid_t *clid,
 		struct nfsd4_compound_state *cstate, struct nfsd_net *nn);
 extern int set_callback_cred(void);
-void nfsd4_run_cb_null(struct work_struct *w);
-void nfsd4_run_cb_recall(struct work_struct *w);
 extern void nfsd4_probe_callback(struct nfs4_client *clp);
 extern void nfsd4_probe_callback_sync(struct nfs4_client *clp);
 extern void nfsd4_change_callback(struct nfs4_client *clp, struct nfs4_cb_conn *);
-extern void nfsd4_cb_recall(struct nfs4_delegation *dp);
+extern void nfsd4_init_cb(struct nfsd4_callback *cb, struct nfs4_client *clp,
+		struct nfsd4_callback_ops *ops, enum nfsd4_cb_op op);
+extern void nfsd4_run_cb(struct nfsd4_callback *cb);
 extern int nfsd4_create_callback_queue(void);
 extern void nfsd4_destroy_callback_queue(void);
 extern void nfsd4_shutdown_callback(struct nfs4_client *);
@@ -545,13 +561,16 @@ extern struct nfs4_client_reclaim *nfs4_client_to_reclaim(const char *name,
 							struct nfsd_net *nn);
 extern bool nfs4_has_reclaimed_state(const char *name, struct nfsd_net *nn);
 
+/* grace period management */
+void nfsd4_end_grace(struct nfsd_net *nn);
+
 /* nfs4recover operations */
 extern int nfsd4_client_tracking_init(struct net *net);
 extern void nfsd4_client_tracking_exit(struct net *net);
 extern void nfsd4_client_record_create(struct nfs4_client *clp);
 extern void nfsd4_client_record_remove(struct nfs4_client *clp);
 extern int nfsd4_client_record_check(struct nfs4_client *clp);
-extern void nfsd4_record_grace_done(struct nfsd_net *nn, time_t boot_time);
+extern void nfsd4_record_grace_done(struct nfsd_net *nn);
 
 /* nfs fault injection functions */
 #ifdef CONFIG_NFSD_FAULT_INJECTION
