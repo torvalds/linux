@@ -1311,8 +1311,6 @@ static const struct snd_soc_dapm_route max98090_dapm_routes[] = {
 	{"MIC1 Input", NULL, "MIC1"},
 	{"MIC2 Input", NULL, "MIC2"},
 
-	{"DMICL", NULL, "DMICL_ENA"},
-	{"DMICR", NULL, "DMICR_ENA"},
 	{"DMICL", NULL, "AHPF"},
 	{"DMICR", NULL, "AHPF"},
 
@@ -1370,6 +1368,8 @@ static const struct snd_soc_dapm_route max98090_dapm_routes[] = {
 	{"DMIC Mux", "ADC", "ADCR"},
 	{"DMIC Mux", "DMIC", "DMICL"},
 	{"DMIC Mux", "DMIC", "DMICR"},
+	{"DMIC Mux", "DMIC", "DMICL_ENA"},
+	{"DMIC Mux", "DMIC", "DMICR_ENA"},
 
 	{"LBENL Mux", "Normal", "DMIC Mux"},
 	{"LBENL Mux", "Loopback", "LTENL Mux"},
@@ -2159,11 +2159,15 @@ static void max98090_jack_work(struct work_struct *work)
 
 static irqreturn_t max98090_interrupt(int irq, void *data)
 {
-	struct snd_soc_codec *codec = data;
-	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
+	struct max98090_priv *max98090 = data;
+	struct snd_soc_codec *codec = max98090->codec;
 	int ret;
 	unsigned int mask;
 	unsigned int active;
+
+	/* Treat interrupt before codec is initialized as spurious */
+	if (codec == NULL)
+		return IRQ_NONE;
 
 	dev_dbg(codec->dev, "***** max98090_interrupt *****\n");
 
@@ -2329,7 +2333,6 @@ static int max98090_probe(struct snd_soc_codec *codec)
 	max98090->lin_state = 0;
 	max98090->pa1en = 0;
 	max98090->pa2en = 0;
-	max98090->extmic_mux = 0;
 
 	ret = snd_soc_read(codec, M98090_REG_REVISION_ID);
 	if (ret < 0) {
@@ -2366,17 +2369,6 @@ static int max98090_probe(struct snd_soc_codec *codec)
 	/* Enable jack detection */
 	snd_soc_write(codec, M98090_REG_JACK_DETECT,
 		M98090_JDETEN_MASK | M98090_JDEB_25MS);
-
-	/* Register for interrupts */
-	dev_dbg(codec->dev, "irq = %d\n", max98090->irq);
-
-	ret = devm_request_threaded_irq(codec->dev, max98090->irq, NULL,
-		max98090_interrupt, IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-		"max98090_interrupt", codec);
-	if (ret < 0) {
-		dev_err(codec->dev, "request_irq failed: %d\n",
-			ret);
-	}
 
 	/*
 	 * Clear any old interrupts.
@@ -2417,6 +2409,7 @@ static int max98090_remove(struct snd_soc_codec *codec)
 	cancel_delayed_work_sync(&max98090->pll_det_enable_work);
 	cancel_work_sync(&max98090->pll_det_disable_work);
 	cancel_work_sync(&max98090->pll_work);
+	max98090->codec = NULL;
 
 	return 0;
 }
@@ -2469,13 +2462,21 @@ static int max98090_i2c_probe(struct i2c_client *i2c,
 	max98090->devtype = driver_data;
 	i2c_set_clientdata(i2c, max98090);
 	max98090->pdata = i2c->dev.platform_data;
-	max98090->irq = i2c->irq;
 
 	max98090->regmap = devm_regmap_init_i2c(i2c, &max98090_regmap);
 	if (IS_ERR(max98090->regmap)) {
 		ret = PTR_ERR(max98090->regmap);
 		dev_err(&i2c->dev, "Failed to allocate regmap: %d\n", ret);
 		goto err_enable;
+	}
+
+	ret = devm_request_threaded_irq(&i2c->dev, i2c->irq, NULL,
+		max98090_interrupt, IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+		"max98090_interrupt", max98090);
+	if (ret < 0) {
+		dev_err(&i2c->dev, "request_irq failed: %d\n",
+			ret);
+		return ret;
 	}
 
 	ret = snd_soc_register_codec(&i2c->dev,

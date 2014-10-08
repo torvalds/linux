@@ -615,7 +615,7 @@ static void wm8971_work(struct work_struct *work)
 	struct snd_soc_dapm_context *dapm =
 		container_of(work, struct snd_soc_dapm_context,
 			     delayed_work.work);
-	struct snd_soc_codec *codec = dapm->codec;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(dapm);
 	wm8971_set_bias_level(codec, codec->dapm.bias_level);
 }
 
