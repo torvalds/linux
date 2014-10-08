@@ -1,0 +1,8 @@
+#
+# IBM Coherent Accelerator (CXL) compatible devices
+#
+
+config CXL_BASE
+	bool
+	default n
+	select PPC_COPRO_BASE
