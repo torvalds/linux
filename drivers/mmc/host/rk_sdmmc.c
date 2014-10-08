@@ -2961,7 +2961,7 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 
                 /* Stop edma when rountine card triggered */
                 if(cpu_is_rk3036() || cpu_is_rk312x())
-		        if(host->dma_ops->stop)
+		        if(host->dma_ops && host->dma_ops->stop)
 		                host->dma_ops->stop(host);
 
 		while (present != slot->last_detect_state) {
