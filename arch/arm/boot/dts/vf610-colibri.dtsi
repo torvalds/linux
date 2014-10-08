@@ -7,16 +7,11 @@
  * (at your option) any later version.
  */
 
-/dts-v1/;
 #include "vf610.dtsi"
 
 / {
 	model = "Toradex Colibri VF61 COM";
-	compatible = "toradex,vf610-colibri", "fsl,vf610";
-
-	chosen {
-		bootargs = "console=ttyLP0,115200";
-	};
+	compatible = "toradex,vf610-colibri_vf61", "fsl,vf610";
 
 	memory {
 		reg = <0x80000000 0x10000000>;
@@ -36,14 +31,12 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1>;
 	bus-width = <4>;
-	status = "okay";
 };
 
 &fec1 {
 	phy-mode = "rmii";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec1>;
-	status = "okay";
 };
 
 &L2 {
@@ -54,25 +47,32 @@
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart0>;
-	status = "okay";
 };
 
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
-	status = "okay";
 };
 
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
+};
+
+&usbdev0 {
+	disable-over-current;
+	status = "okay";
+};
+
+&usbh1 {
+	disable-over-current;
 	status = "okay";
 };
 
 &iomuxc {
 	vf610-colibri {
 		pinctrl_esdhc1: esdhc1grp {
-			fsl,fsl,pins = <
+			fsl,pins = <
 				VF610_PAD_PTA24__ESDHC1_CLK	0x31ef
 				VF610_PAD_PTA25__ESDHC1_CMD	0x31ef
 				VF610_PAD_PTA26__ESDHC1_DAT0	0x31ef

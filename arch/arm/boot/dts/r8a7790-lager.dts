@@ -32,7 +32,7 @@
 		reg = <0 0x40000000 0 0x40000000>;
 	};
 
-	memory@180000000 {
+	memory@140000000 {
 		device_type = "memory";
 		reg = <1 0x40000000 0 0xc0000000>;
 	};
@@ -234,6 +234,11 @@
 		renesas,groups = "usb2";
 		renesas,function = "usb2";
 	};
+
+	vin1_pins: vin {
+		renesas,groups = "vin1_data8", "vin1_clk";
+		renesas,function = "vin1";
+	};
 };
 
 &ether {
@@ -370,6 +375,19 @@
 	status = "ok";
 	pinctrl-0 = <&iic2_pins>;
 	pinctrl-names = "default";
+
+	composite-in@20 {
+		compatible = "adi,adv7180";
+		reg = <0x20>;
+		remote = <&vin1>;
+
+		port {
+			adv7180: endpoint {
+				bus-width = <8>;
+				remote-endpoint = <&vin1ep0>;
+			};
+		};
+	};
 };
 
 &iic3 {
@@ -378,7 +396,7 @@
 	status = "okay";
 
 	vdd_dvfs: regulator@68 {
-		compatible = "diasemi,da9210";
+		compatible = "dlg,da9210";
 		reg = <0x68>;
 
 		regulator-min-microvolt = <1000000>;
@@ -404,4 +422,22 @@
 	status = "okay";
 	pinctrl-0 = <&usb2_pins>;
 	pinctrl-names = "default";
+};
+
+/* composite video input */
+&vin1 {
+	pinctrl-0 = <&vin1_pins>;
+	pinctrl-names = "default";
+
+	status = "ok";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		vin1ep0: endpoint {
+			remote-endpoint = <&adv7180>;
+			bus-width = <8>;
+		};
+	};
 };

@@ -199,7 +199,6 @@
 	scif0: serial@ffe40000 {
 		compatible = "renesas,scif-r8a7779", "renesas,scif";
 		reg = <0xffe40000 0x100>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 88 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cpg_clocks R8A7779_CLK_P>;
 		clock-names = "sci_ick";
@@ -209,7 +208,6 @@
 	scif1: serial@ffe41000 {
 		compatible = "renesas,scif-r8a7779", "renesas,scif";
 		reg = <0xffe41000 0x100>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 89 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cpg_clocks R8A7779_CLK_P>;
 		clock-names = "sci_ick";
@@ -219,7 +217,6 @@
 	scif2: serial@ffe42000 {
 		compatible = "renesas,scif-r8a7779", "renesas,scif";
 		reg = <0xffe42000 0x100>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 90 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cpg_clocks R8A7779_CLK_P>;
 		clock-names = "sci_ick";
@@ -229,7 +226,6 @@
 	scif3: serial@ffe43000 {
 		compatible = "renesas,scif-r8a7779", "renesas,scif";
 		reg = <0xffe43000 0x100>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 91 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cpg_clocks R8A7779_CLK_P>;
 		clock-names = "sci_ick";
@@ -239,7 +235,6 @@
 	scif4: serial@ffe44000 {
 		compatible = "renesas,scif-r8a7779", "renesas,scif";
 		reg = <0xffe44000 0x100>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 92 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cpg_clocks R8A7779_CLK_P>;
 		clock-names = "sci_ick";
@@ -249,7 +244,6 @@
 	scif5: serial@ffe45000 {
 		compatible = "renesas,scif-r8a7779", "renesas,scif";
 		reg = <0xffe45000 0x100>;
-		interrupt-parent = <&gic>;
 		interrupts = <0 93 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cpg_clocks R8A7779_CLK_P>;
 		clock-names = "sci_ick";
@@ -262,7 +256,7 @@
 	};
 
 	thermal@ffc48000 {
-		compatible = "renesas,rcar-thermal";
+		compatible = "renesas,thermal-r8a7779", "renesas,rcar-thermal";
 		reg = <0xffc48000 0x38>;
 	};
 
@@ -446,10 +440,10 @@
 		/* Gate clocks */
 		mstp0_clks: clocks@ffc80030 {
 			compatible = "renesas,r8a7779-mstp-clocks",
-			             "renesas,cpg-mstp-clocks";
+				     "renesas,cpg-mstp-clocks";
 			reg = <0xffc80030 4>;
 			clocks = <&cpg_clocks R8A7779_CLK_S>,
-			         <&cpg_clocks R8A7779_CLK_P>,
+				 <&cpg_clocks R8A7779_CLK_P>,
 				 <&cpg_clocks R8A7779_CLK_P>,
 				 <&cpg_clocks R8A7779_CLK_P>,
 				 <&cpg_clocks R8A7779_CLK_S>,
@@ -483,7 +477,7 @@
 		};
 		mstp1_clks: clocks@ffc80034 {
 			compatible = "renesas,r8a7779-mstp-clocks",
-			             "renesas,cpg-mstp-clocks";
+				     "renesas,cpg-mstp-clocks";
 			reg = <0xffc80034 4>, <0xffc80044 4>;
 			clocks = <&cpg_clocks R8A7779_CLK_P>,
 				 <&cpg_clocks R8A7779_CLK_P>,
@@ -512,7 +506,7 @@
 		};
 		mstp3_clks: clocks@ffc8003c {
 			compatible = "renesas,r8a7779-mstp-clocks",
-			             "renesas,cpg-mstp-clocks";
+				     "renesas,cpg-mstp-clocks";
 			reg = <0xffc8003c 4>;
 			clocks = <&s4_clk>, <&s4_clk>, <&s4_clk>, <&s4_clk>,
 				 <&s4_clk>, <&s4_clk>;

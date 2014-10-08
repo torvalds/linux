@@ -401,7 +401,6 @@
 	mmc_0: mmc@12200000 {
 		status = "okay";
 		num-slots = <1>;
-		supports-highspeed;
 		broken-cd;
 		card-detect-delay = <200>;
 		samsung,dw-mshc-ciu-div = <3>;
@@ -410,17 +409,13 @@
 		vmmc-supply = <&mmc_reg>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_bus4 &sd0_bus8>;
-
-		slot@0 {
-			reg = <0>;
-			bus-width = <8>;
-		};
+		bus-width = <8>;
+		cap-mmc-highspeed;
 	};
 
 	mmc_2: mmc@12220000 {
 		status = "okay";
 		num-slots = <1>;
-		supports-highspeed;
 		card-detect-delay = <200>;
 		samsung,dw-mshc-ciu-div = <3>;
 		samsung,dw-mshc-sdr-timing = <2 3>;
@@ -428,12 +423,9 @@
 		vmmc-supply = <&mmc_reg>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_cd &sd2_bus4>;
-
-		slot@0 {
-			reg = <0>;
-			bus-width = <4>;
-			disable-wp;
-		};
+		bus-width = <4>;
+		disable-wp;
+		cap-sd-highspeed;
 	};
 
 	i2s0: i2s@03830000 {
@@ -569,9 +561,5 @@
 			reset-gpios = <&gpx3 5 1>;
 			connect-gpios = <&gpd1 7 1>;
 		};
-	};
-
-	usb@12110000 {
-		usb-phy = <&usb2_phy>;
 	};
 };

@@ -134,24 +134,32 @@
 		>;
 	};
 
+	ethernet_pins: pinmux_ethernet_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x20b4, PIN_INPUT_PULLDOWN | MUX_MODE4)	/* gpmc_ncs3.gpio_54 */
+			OMAP3_CORE1_IOPAD(0x20fc, PIN_OUTPUT | MUX_MODE4)		/* dss_data16.gpio_86 */
+			OMAP3_CORE1_IOPAD(0x219c, PIN_OUTPUT | MUX_MODE4)		/* uart3_rts_sd.gpio_164 */
+		>;
+	};
+
 	i2c1_pins: pinmux_i2c1_pins {
 		pinctrl-single,pins = <
-			0x18a (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c1_scl */
-			0x18c (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c1_sda */
+			0x18a (PIN_INPUT | MUX_MODE0)		/* i2c1_scl */
+			0x18c (PIN_INPUT | MUX_MODE0)		/* i2c1_sda */
 		>;
 	};
 
 	i2c2_pins: pinmux_i2c2_pins {
 		pinctrl-single,pins = <
-			0x18e (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c2_scl */
-			0x190 (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c2_sda */
+			0x18e (PIN_INPUT | MUX_MODE0)		/* i2c2_scl */
+			0x190 (PIN_INPUT | MUX_MODE0)		/* i2c2_sda */
 		>;
 	};
 
 	i2c3_pins: pinmux_i2c3_pins {
 		pinctrl-single,pins = <
-			0x192 (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c3_scl */
-			0x194 (PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c3_sda */
+			0x192 (PIN_INPUT | MUX_MODE0)		/* i2c3_scl */
+			0x194 (PIN_INPUT | MUX_MODE0)		/* i2c3_sda */
 		>;
 	};
 
@@ -578,6 +586,8 @@
 
 &gpmc {
 	ranges = <0 0 0x04000000 0x10000000>; /* 256MB */
+	ranges = <0 0 0x01000000 0x01000000>,	/* 16 MB for OneNAND */
+		 <1 0 0x02000000 0x01000000>;	/* 16 MB for smc91c96 */
 
 	/* gpio-irq for dma: 65 */
 
@@ -645,6 +655,38 @@
 			label = "rootfs";
 			reg = <0x004c0000 0x0fb40000>;
 		};
+	};
+
+	ethernet@gpmc {
+		compatible = "smsc,lan91c94";
+		interrupt-parent = <&gpio2>;
+		interrupts = <22 IRQ_TYPE_LEVEL_HIGH>;	/* gpio54 */
+		reg = <1 0x300 0xf>;		/* 16 byte IO range at offset 0x300 */
+		bank-width = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ethernet_pins>;
+		gpmc,device-width = <2>;
+		gpmc,sync-clk-ps = <0>;
+		gpmc,cs-on-ns = <0>;
+		gpmc,cs-rd-off-ns = <48>;
+		gpmc,cs-wr-off-ns = <24>;
+		gpmc,adv-on-ns = <0>;
+		gpmc,adv-rd-off-ns = <0>;
+		gpmc,adv-wr-off-ns = <0>;
+		gpmc,we-on-ns = <12>;
+		gpmc,we-off-ns = <18>;
+		gpmc,oe-on-ns = <12>;
+		gpmc,oe-off-ns = <48>;
+		gpmc,page-burst-access-ns = <0>;
+		gpmc,access-ns = <42>;
+		gpmc,rd-cycle-ns = <180>;
+		gpmc,wr-cycle-ns = <180>;
+		gpmc,bus-turnaround-ns = <0>;
+		gpmc,cycle2cycle-delay-ns = <0>;
+		gpmc,wait-monitoring-ns = <0>;
+		gpmc,clk-activation-ns = <0>;
+		gpmc,wr-access-ns = <0>;
+		gpmc,wr-data-mux-bus-ns = <12>;
 	};
 };
 

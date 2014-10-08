@@ -58,10 +58,12 @@
 	};
 
 	am43xx_pinmux: pinmux@44e10800 {
-		compatible = "pinctrl-single";
+		compatible = "ti,am437-padconf", "pinctrl-single";
 		reg = <0x44e10800 0x31c>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		#interrupt-cells = <1>;
+		interrupt-controller;
 		pinctrl-single,register-width = <32>;
 		pinctrl-single,function-mask = <0xffffffff>;
 	};
@@ -168,6 +170,10 @@
 			ti,hwmods = "mailbox";
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <8>;
+			mbox_wkupm3: wkup_m3 {
+				ti,mbox-tx = <0 0 0>;
+				ti,mbox-rx = <0 0 3>;
+			};
 		};
 
 		timer1: timer@44e31000 {

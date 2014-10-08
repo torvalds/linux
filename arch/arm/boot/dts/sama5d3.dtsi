@@ -177,6 +177,9 @@
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xf001c000 0x100>;
 				interrupts = <12 IRQ_TYPE_LEVEL_HIGH 5>;
+				dmas = <&dma0 2 AT91_DMA_CFG_PER_ID(3)>,
+				       <&dma0 2 (AT91_DMA_CFG_PER_ID(4) | AT91_DMA_CFG_FIFOCFG_ASAP)>;
+				dma-names = "tx", "rx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_usart0>;
 				clocks = <&usart0_clk>;
@@ -188,6 +191,9 @@
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xf0020000 0x100>;
 				interrupts = <13 IRQ_TYPE_LEVEL_HIGH 5>;
+				dmas = <&dma0 2 AT91_DMA_CFG_PER_ID(5)>,
+				       <&dma0 2 (AT91_DMA_CFG_PER_ID(6) | AT91_DMA_CFG_FIFOCFG_ASAP)>;
+				dma-names = "tx", "rx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_usart1>;
 				clocks = <&usart1_clk>;
@@ -333,6 +339,9 @@
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xf8020000 0x100>;
 				interrupts = <14 IRQ_TYPE_LEVEL_HIGH 5>;
+				dmas = <&dma1 2 AT91_DMA_CFG_PER_ID(7)>,
+				       <&dma1 2 (AT91_DMA_CFG_PER_ID(8) | AT91_DMA_CFG_FIFOCFG_ASAP)>;
+				dma-names = "tx", "rx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_usart2>;
 				clocks = <&usart2_clk>;
@@ -344,6 +353,9 @@
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xf8024000 0x100>;
 				interrupts = <15 IRQ_TYPE_LEVEL_HIGH 5>;
+				dmas = <&dma1 2 AT91_DMA_CFG_PER_ID(9)>,
+				       <&dma1 2 (AT91_DMA_CFG_PER_ID(10) | AT91_DMA_CFG_FIFOCFG_ASAP)>;
+				dma-names = "tx", "rx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_usart3>;
 				clocks = <&usart3_clk>;
@@ -402,14 +414,19 @@
 			};
 
 			ramc0: ramc@ffffea00 {
-				compatible = "atmel,at91sam9g45-ddramc";
+				compatible = "atmel,sama5d3-ddramc";
 				reg = <0xffffea00 0x200>;
+				clocks = <&ddrck>, <&mpddr_clk>;
+				clock-names = "ddrck", "mpddr";
 			};
 
 			dbgu: serial@ffffee00 {
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xffffee00 0x200>;
 				interrupts = <2 IRQ_TYPE_LEVEL_HIGH 7>;
+				dmas = <&dma1 2 AT91_DMA_CFG_PER_ID(13)>,
+				       <&dma1 2 (AT91_DMA_CFG_PER_ID(14) | AT91_DMA_CFG_FIFOCFG_ASAP)>;
+				dma-names = "tx", "rx";
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_dbgu>;
 				clocks = <&dbgu_clk>;
@@ -428,7 +445,7 @@
 			pinctrl@fffff200 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "atmel,at91sam9x5-pinctrl", "atmel,at91rm9200-pinctrl", "simple-bus";
+				compatible = "atmel,sama5d3-pinctrl", "atmel,at91sam9x5-pinctrl", "simple-bus";
 				ranges = <0xfffff200 0xfffff200 0xa00>;
 				atmel,mux-mask = <
 					/*   A          B          C  */
@@ -1003,6 +1020,11 @@
 						reg = <2>;
 					};
 
+					hsmc_clk: hsmc_clk {
+						#clock-cells = <0>;
+						reg = <5>;
+					};
+
 					pioA_clk: pioA_clk {
 						#clock-cells = <0>;
 						reg = <6>;
@@ -1170,12 +1192,22 @@
 						#clock-cells = <0>;
 						reg = <48>;
 					};
+
+					mpddr_clk: mpddr_clk {
+						#clock-cells = <0>;
+						reg = <49>;
+					};
 				};
 			};
 
 			rstc@fffffe00 {
 				compatible = "atmel,at91sam9g45-rstc";
 				reg = <0xfffffe00 0x10>;
+			};
+
+			shutdown-controller@fffffe10 {
+				compatible = "atmel,at91sam9x5-shdwc";
+				reg = <0xfffffe10 0x10>;
 			};
 
 			pit: timer@fffffe30 {
@@ -1393,6 +1425,7 @@
 					0xffffc000 0x00000070	/* NFC HSMC regs */
 					0x00200000 0x00100000	/* NFC SRAM banks */
 					>;
+				clocks = <&hsmc_clk>;
 			};
 		};
 	};

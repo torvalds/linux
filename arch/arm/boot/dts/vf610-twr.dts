@@ -220,8 +220,6 @@
 				VF610_PAD_PTB1__FTM0_CH1		0x1582
 				VF610_PAD_PTB2__FTM0_CH2		0x1582
 				VF610_PAD_PTB3__FTM0_CH3		0x1582
-				VF610_PAD_PTB6__FTM0_CH6		0x1582
-				VF610_PAD_PTB7__FTM0_CH7		0x1582
 			>;
 		};
 
@@ -243,6 +241,13 @@
 				VF610_PAD_PTB5__UART1_RX		0x21a1
 			>;
 		};
+
+		pinctrl_uart2: uart2grp {
+			fsl,pins = <
+				VF610_PAD_PTB6__UART2_TX		0x21a2
+				VF610_PAD_PTB7__UART2_RX		0x21a1
+			>;
+		};
 	};
 };
 
@@ -262,5 +267,21 @@
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
+	status = "okay";
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2>;
+	status = "okay";
+};
+
+&usbdev0 {
+	disable-over-current;
+	status = "okay";
+};
+
+&usbh1 {
+	disable-over-current;
 	status = "okay";
 };

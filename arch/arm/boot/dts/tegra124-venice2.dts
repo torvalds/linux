@@ -36,17 +36,17 @@
 			nvidia,panel = <&panel>;
 		};
 
-		dpaux: dpaux@0,545c0000 {
+		dpaux@0,545c0000 {
 			vdd-supply = <&vdd_3v3_panel>;
 			status = "okay";
 		};
 	};
 
 	pinmux: pinmux@0,70000868 {
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinmux_default>;
+		pinctrl-names = "boot";
+		pinctrl-0 = <&pinmux_boot>;
 
-		pinmux_default: common {
+		pinmux_boot: common {
 			dap_mclk1_pw4 {
 				nvidia,pins = "dap_mclk1_pw4";
 				nvidia,function = "extperiph1";
@@ -587,7 +587,7 @@
 		status = "okay";
 	};
 
-	pwm: pwm@0,7000a000 {
+	pwm@0,7000a000 {
 		status = "okay";
 	};
 
@@ -606,6 +606,14 @@
 	i2c@0,7000c400 {
 		status = "okay";
 		clock-frequency = <100000>;
+
+		trackpad@4b {
+			compatible = "atmel,maxtouch";
+			reg = <0x4b>;
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(W, 3) IRQ_TYPE_LEVEL_LOW>;
+			linux,gpio-keymap = <0 0 0 BTN_LEFT>;
+		};
 	};
 
 	i2c@0,7000c500 {
