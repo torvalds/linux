@@ -2943,7 +2943,7 @@ EXPORT_SYMBOL(drm_mode_legacy_fb_format);
  * @file_priv: drm file for the ioctl call
  *
  * Add a new FB to the specified CRTC, given a user request. This is the
- * original addfb ioclt which only supported RGB formats.
+ * original addfb ioctl which only supported RGB formats.
  *
  * Called by the user via ioctl.
  *
@@ -3080,7 +3080,7 @@ static int framebuffer_check(const struct drm_mode_fb_cmd2 *r)
 	num_planes = drm_format_num_planes(r->pixel_format);
 
 	if (r->width == 0 || r->width % hsub) {
-		DRM_DEBUG_KMS("bad framebuffer width %u\n", r->height);
+		DRM_DEBUG_KMS("bad framebuffer width %u\n", r->width);
 		return -EINVAL;
 	}
 
