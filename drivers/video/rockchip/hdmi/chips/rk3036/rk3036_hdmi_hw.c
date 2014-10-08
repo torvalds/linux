@@ -4,7 +4,18 @@
 #include <linux/of_irq.h>
 #include "rk3036_hdmi.h"
 #include "rk3036_hdmi_hw.h"
-
+static unsigned int rk3036_hdmi_support_vic[] = {
+	HDMI_720X480P_60HZ_VIC,
+	HDMI_720X480I_60HZ_VIC,
+	HDMI_720X576P_50HZ_VIC,
+	HDMI_720X576I_50HZ_VIC,
+	HDMI_1280X720P_50HZ_VIC,
+	HDMI_1280X720P_60HZ_VIC,
+	HDMI_1920X1080P_50HZ_VIC,
+	HDMI_1920X1080I_50HZ_VIC,
+	HDMI_1920X1080P_60HZ_VIC,
+	HDMI_1920X1080I_60HZ_VIC
+};
 static int __maybe_unused rk3036_hdmi_show_reg(struct hdmi *hdmi_drv)
 {
 	int i = 0;
@@ -840,6 +851,8 @@ int rk3036_hdmi_initial(struct hdmi *hdmi_drv)
 	hdmi_drv->read_edid = rk3036_hdmi_read_edid;
 	hdmi_drv->insert    = rk3036_hdmi_insert;
 	hdmi_drv->ops = &hdmi_drv_ops;
+	hdmi_drv->support_vic = rk3036_hdmi_support_vic;
+	hdmi_drv->support_vic_num = ARRAY_SIZE(rk3036_hdmi_support_vic);
 
 	if (!hdmi_drv->uboot_logo) {
 		rk3036_hdmi_reset_pclk();

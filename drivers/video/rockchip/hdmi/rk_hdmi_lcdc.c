@@ -377,6 +377,22 @@ static int hdmi_videomode_compare(const struct fb_videomode *mode1,
 	}
 	return -1;
 }
+int hdmi_check_support_videomode(int vic)
+{
+	int i, support = 0;
+	if (m_hdmi_drv->support_vic_num == 0)
+		return 1;
+
+	for (i=0; i<m_hdmi_drv->support_vic_num; i++) {
+		if (m_hdmi_drv->support_vic[i] == vic) {
+			support = 1;
+			break;
+		}
+	}
+	if(i >= m_hdmi_drv->support_vic_num)
+		support = 0;
+	return support;
+}
 
 /**
  * hdmi_add_videomode: adds videomode entry to modelist
@@ -396,7 +412,8 @@ int hdmi_add_videomode(const struct fb_videomode *mode, struct list_head *head)
 	for (i = 0; i < ARRAY_SIZE(hdmi_mode); i++) {
 		m = (struct fb_videomode *)&hdmi_mode[i];
 		if (fb_mode_is_equal(m, mode)) {
-			found = 1;
+			if(hdmi_check_support_videomode(m->flag))
+				found = 1;
 			break;
 		}
 	}
