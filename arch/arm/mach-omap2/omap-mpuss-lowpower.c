@@ -298,6 +298,10 @@ int omap4_hotplug_cpu(unsigned int cpu, unsigned int power_state)
 	if (omap_rev() == OMAP4430_REV_ES1_0)
 		return -ENXIO;
 
+	/* Use the achievable power state for the domain */
+	power_state = pwrdm_get_valid_lp_state(pm_info->pwrdm,
+					       false, power_state);
+
 	if (power_state == PWRDM_POWER_OFF)
 		cpu_state = 1;
 

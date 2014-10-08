@@ -1,5 +1,5 @@
 /*
- * Marvell RD88F6181 A1 Board descrition
+ * Marvell RD88F6181 Z0 stepping descrition
  *
  * Andrew Lunn <andrew@lunn.ch>
  *
@@ -7,17 +7,17 @@
  * License version 2.  This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  *
- * This file contains the definitions for the board with the A1 variant of
- * the SoC. The ethernet switch has a "wan" port.
- */
+ * This file contains the definitions for the board using the Z0
+ * stepping of the SoC. The ethernet switch has a "wan" port.
+*/
 
 /dts-v1/;
 
 #include "kirkwood-rd88f6281.dtsi"
 
 / {
-	model = "Marvell RD88f6281 Reference design, with A1 SoC";
-	compatible = "marvell,rd88f6281-a1", "marvell,rd88f6281","marvell,kirkwood-88f6281", "marvell,kirkwood";
+	model = "Marvell RD88f6281 Reference design, with Z0 SoC";
+	compatible = "marvell,rd88f6281-z0", "marvell,rd88f6281","marvell,kirkwood-88f6281", "marvell,kirkwood";
 
 	dsa@0 {
 		switch@0 {
@@ -28,4 +28,8 @@
 			};
 		};
 	};
+};
+
+&eth1 {
+      status = "disabled";
 };
