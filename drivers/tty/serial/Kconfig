@@ -200,10 +200,29 @@ config SERIAL_KS8695_CONSOLE
 	  receives all kernel messages and warnings and which allows
 	  logins in single user mode).
 
+config SERIAL_MESON
+	tristate "Meson serial port support"
+	depends on ARCH_MESON
+	select SERIAL_CORE
+	help
+	  This enables the driver for the on-chip UARTs of the Amlogic
+	  MesonX processors.
+
+config SERIAL_MESON_CONSOLE
+	bool "Support for console on meson"
+	depends on SERIAL_MESON=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Say Y here if you wish to use a Amlogic MesonX UART as the
+	  system console (the system console is the device which
+	  receives all kernel messages and warnings and which allows
+	  logins in single user mode) as /dev/ttyAMLx.
+
 config SERIAL_CLPS711X
 	tristate "CLPS711X serial port support"
 	depends on ARCH_CLPS711X || COMPILE_TEST
 	select SERIAL_CORE
+	select SERIAL_MCTRL_GPIO if GPIOLIB
 	help
 	  This enables the driver for the on-chip UARTs of the Cirrus
 	  Logic EP711x/EP721x/EP731x processors.
@@ -220,7 +239,7 @@ config SERIAL_CLPS711X_CONSOLE
 
 config SERIAL_SAMSUNG
 	tristate "Samsung SoC serial support"
-	depends on PLAT_SAMSUNG
+	depends on PLAT_SAMSUNG || ARCH_EXYNOS
 	select SERIAL_CORE
 	help
 	  Support for the on-chip UARTs on the Samsung S3C24XX series CPUs,
@@ -1051,6 +1070,7 @@ config SERIAL_MSM_CONSOLE
 	bool "MSM serial console support"
 	depends on SERIAL_MSM=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 
 config SERIAL_MSM_HS
 	tristate "MSM UART High Speed: Serial Driver"
@@ -1410,6 +1430,7 @@ config SERIAL_XILINX_PS_UART_CONSOLE
 	bool "Cadence UART console support"
 	depends on SERIAL_XILINX_PS_UART=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
 	  Enable a Cadence UART port to be the system console.
 

@@ -268,6 +268,9 @@ static void sunhv_send_xchar(struct uart_port *port, char ch)
 	unsigned long flags;
 	int limit = 10000;
 
+	if (ch == __DISABLED_CHAR)
+		return;
+
 	spin_lock_irqsave(&port->lock, flags);
 
 	while (limit-- > 0) {

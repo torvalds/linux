@@ -22,6 +22,7 @@
 #include <linux/of_platform.h>
 #include <linux/of_device.h>
 #include <linux/nwpserial.h>
+#include <linux/delay.h>
 #include <asm/prom.h>
 #include <asm/dcr.h>
 

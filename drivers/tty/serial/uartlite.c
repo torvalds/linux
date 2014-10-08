@@ -665,7 +665,6 @@ static struct platform_driver ulite_platform_driver = {
 	.probe = ulite_probe,
 	.remove = ulite_remove,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name  = "uartlite",
 		.of_match_table = of_match_ptr(ulite_of_match),
 	},

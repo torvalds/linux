@@ -908,8 +908,7 @@ void no_tty(void)
  *	stop_tty	-	propagate flow control
  *	@tty: tty to stop
  *
- *	Perform flow control to the driver. For PTY/TTY pairs we
- *	must also propagate the TIOCKPKT status. May be called
+ *	Perform flow control to the driver. May be called
  *	on an already stopped device and will not re-call the driver
  *	method.
  *
@@ -919,64 +918,58 @@ void no_tty(void)
  *	but not always.
  *
  *	Locking:
- *		Uses the tty control lock internally
+ *		flow_lock
  */
 
-void stop_tty(struct tty_struct *tty)
+void __stop_tty(struct tty_struct *tty)
 {
-	unsigned long flags;
-	spin_lock_irqsave(&tty->ctrl_lock, flags);
-	if (tty->stopped) {
-		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
+	if (tty->stopped)
 		return;
-	}
 	tty->stopped = 1;
-	if (tty->link && tty->link->packet) {
-		tty->ctrl_status &= ~TIOCPKT_START;
-		tty->ctrl_status |= TIOCPKT_STOP;
-		wake_up_interruptible_poll(&tty->link->read_wait, POLLIN);
-	}
-	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 	if (tty->ops->stop)
 		(tty->ops->stop)(tty);
 }
 
+void stop_tty(struct tty_struct *tty)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&tty->flow_lock, flags);
+	__stop_tty(tty);
+	spin_unlock_irqrestore(&tty->flow_lock, flags);
+}
 EXPORT_SYMBOL(stop_tty);
 
 /**
  *	start_tty	-	propagate flow control
  *	@tty: tty to start
  *
- *	Start a tty that has been stopped if at all possible. Perform
- *	any necessary wakeups and propagate the TIOCPKT status. If this
- *	is the tty was previous stopped and is being started then the
- *	driver start method is invoked and the line discipline woken.
+ *	Start a tty that has been stopped if at all possible. If this
+ *	tty was previous stopped and is now being started, the driver
+ *	start method is invoked and the line discipline woken.
  *
  *	Locking:
- *		ctrl_lock
+ *		flow_lock
  */
+
+void __start_tty(struct tty_struct *tty)
+{
+	if (!tty->stopped || tty->flow_stopped)
+		return;
+	tty->stopped = 0;
+	if (tty->ops->start)
+		(tty->ops->start)(tty);
+	tty_wakeup(tty);
+}
 
 void start_tty(struct tty_struct *tty)
 {
 	unsigned long flags;
-	spin_lock_irqsave(&tty->ctrl_lock, flags);
-	if (!tty->stopped || tty->flow_stopped) {
-		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
-		return;
-	}
-	tty->stopped = 0;
-	if (tty->link && tty->link->packet) {
-		tty->ctrl_status &= ~TIOCPKT_STOP;
-		tty->ctrl_status |= TIOCPKT_START;
-		wake_up_interruptible_poll(&tty->link->read_wait, POLLIN);
-	}
-	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
-	if (tty->ops->start)
-		(tty->ops->start)(tty);
-	/* If we have a running line discipline it may need kicking */
-	tty_wakeup(tty);
-}
 
+	spin_lock_irqsave(&tty->flow_lock, flags);
+	__start_tty(tty);
+	spin_unlock_irqrestore(&tty->flow_lock, flags);
+}
 EXPORT_SYMBOL(start_tty);
 
 /* We limit tty time update visibility to every 8 seconds or so. */
@@ -1030,14 +1023,14 @@ static ssize_t tty_read(struct file *file, char __user *buf, size_t count,
 	return i;
 }
 
-void tty_write_unlock(struct tty_struct *tty)
+static void tty_write_unlock(struct tty_struct *tty)
 	__releases(&tty->atomic_write_lock)
 {
 	mutex_unlock(&tty->atomic_write_lock);
 	wake_up_interruptible_poll(&tty->write_wait, POLLOUT);
 }
 
-int tty_write_lock(struct tty_struct *tty, int ndelay)
+static int tty_write_lock(struct tty_struct *tty, int ndelay)
 	__acquires(&tty->atomic_write_lock)
 {
 	if (!mutex_trylock(&tty->atomic_write_lock)) {
@@ -1222,6 +1215,35 @@ ssize_t redirected_tty_write(struct file *file, const char __user *buf,
 		return res;
 	}
 	return tty_write(file, buf, count, ppos);
+}
+
+/**
+ *	tty_send_xchar	-	send priority character
+ *
+ *	Send a high priority character to the tty even if stopped
+ *
+ *	Locking: none for xchar method, write ordering for write method.
+ */
+
+int tty_send_xchar(struct tty_struct *tty, char ch)
+{
+	int	was_stopped = tty->stopped;
+
+	if (tty->ops->send_xchar) {
+		tty->ops->send_xchar(tty, ch);
+		return 0;
+	}
+
+	if (tty_write_lock(tty, 0) < 0)
+		return -ERESTARTSYS;
+
+	if (was_stopped)
+		start_tty(tty);
+	tty->ops->write(tty, &ch, 1);
+	if (was_stopped)
+		stop_tty(tty);
+	tty_write_unlock(tty);
+	return 0;
 }
 
 static char ptychar[] = "pqrstuvwxyzabcde";
@@ -1544,13 +1566,14 @@ static void release_one_tty(struct work_struct *work)
 	struct tty_struct *tty =
 		container_of(work, struct tty_struct, hangup_work);
 	struct tty_driver *driver = tty->driver;
+	struct module *owner = driver->owner;
 
 	if (tty->ops->cleanup)
 		tty->ops->cleanup(tty);
 
 	tty->magic = 0;
 	tty_driver_kref_put(driver);
-	module_put(driver->owner);
+	module_put(owner);
 
 	spin_lock(&tty_files_lock);
 	list_del_init(&tty->tty_files);
@@ -3018,6 +3041,7 @@ struct tty_struct *alloc_tty_struct(struct tty_driver *driver, int idx)
 	INIT_WORK(&tty->hangup_work, do_tty_hangup);
 	mutex_init(&tty->atomic_write_lock);
 	spin_lock_init(&tty->ctrl_lock);
+	spin_lock_init(&tty->flow_lock);
 	INIT_LIST_HEAD(&tty->tty_files);
 	INIT_WORK(&tty->SAK_work, do_SAK_work);
 
