@@ -135,28 +135,25 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
 	size_t allocation;
 	bool empty = false;
 
-	if (align == 0) {
+	if (align == 0)
 		align = 1;
-	} else if (align & (align - 1)) {
+	else if (align & (align - 1))
 		return NULL;
-	}
 
-	if (size == 0) {
+	if (size == 0)
 		return NULL;
-	} else if (size < 4) {
+	else if (size < 4)
 		size = 4;
-	}
 
 	if ((size % align) != 0)
 		size = ALIGN(size, align);
 
 	allocation = max_t(size_t, size, PAGE_SIZE);
 
-	if (!boundary) {
+	if (!boundary)
 		boundary = allocation;
-	} else if ((boundary < size) || (boundary & (boundary - 1))) {
+	else if ((boundary < size) || (boundary & (boundary - 1)))
 		return NULL;
-	}
 
 	retval = kmalloc_node(sizeof(*retval), GFP_KERNEL, dev_to_node(dev));
 	if (!retval)
