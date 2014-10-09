@@ -1447,3 +1447,31 @@ int perf_hist_config(const char *var, const char *value)
 
 	return 0;
 }
+
+static int hists_evsel__init(struct perf_evsel *evsel)
+{
+	struct hists *hists = evsel__hists(evsel);
+
+	memset(hists, 0, sizeof(*hists));
+	hists->entries_in_array[0] = hists->entries_in_array[1] = RB_ROOT;
+	hists->entries_in = &hists->entries_in_array[0];
+	hists->entries_collapsed = RB_ROOT;
+	hists->entries = RB_ROOT;
+	pthread_mutex_init(&hists->lock, NULL);
+	return 0;
+}
+
+/*
+ * XXX We probably need a hists_evsel__exit() to free the hist_entries
+ * stored in the rbtree...
+ */
+
+int hists__init(void)
+{
+	int err = perf_evsel__object_config(sizeof(struct hists_evsel),
+					    hists_evsel__init, NULL);
+	if (err)
+		fputs("FATAL ERROR: Couldn't setup hists class\n", stderr);
+
+	return err;
+}

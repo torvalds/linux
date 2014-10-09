@@ -8,7 +8,6 @@
 #include <linux/types.h>
 #include "xyarray.h"
 #include "cgroup.h"
-#include "hist.h"
 #include "symbol.h"
 
 struct perf_counts_values {
@@ -66,7 +65,6 @@ struct perf_evsel {
 	struct perf_counts	*prev_raw_counts;
 	int			idx;
 	u32			ids;
-	struct hists		hists;
 	char			*name;
 	double			scale;
 	const char		*unit;
@@ -99,13 +97,6 @@ union u64_swap {
 	u64 val64;
 	u32 val32[2];
 };
-
-#define hists_to_evsel(h) container_of(h, struct perf_evsel, hists)
-
-static inline struct hists *evsel__hists(struct perf_evsel *evsel)
-{
-	return &evsel->hists;
-}
 
 struct cpu_map;
 struct thread_map;
@@ -289,8 +280,6 @@ static inline int perf_evsel__read_scaled(struct perf_evsel *evsel,
 {
 	return __perf_evsel__read(evsel, ncpus, nthreads, true);
 }
-
-void hists__init(struct hists *hists);
 
 int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 			     struct perf_sample *sample);
