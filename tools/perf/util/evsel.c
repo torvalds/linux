@@ -15,6 +15,7 @@
 #include <linux/perf_event.h>
 #include <sys/resource.h>
 #include "asm/bug.h"
+#include "callchain.h"
 #include "evsel.h"
 #include "evlist.h"
 #include "util.h"

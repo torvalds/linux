@@ -28,6 +28,7 @@
 
 #include "../../perf.h"
 #include "../debug.h"
+#include "../callchain.h"
 #include "../evsel.h"
 #include "../util.h"
 #include "../event.h"
