@@ -618,38 +618,6 @@ int private_ioctl(struct vnt_private *pDevice, struct ifreq *rq)
 		pReq->wResult = 0;
 		break;
 
-#ifdef WPA_SM_Transtatus
-	case 0xFF:
-		memset(wpa_Result.ifname, 0, sizeof(wpa_Result.ifname));
-		wpa_Result.proto = 0;
-		wpa_Result.key_mgmt = 0;
-		wpa_Result.eap_type = 0;
-		wpa_Result.authenticated = false;
-		pDevice->fWPA_Authened = false;
-		if (copy_from_user(&wpa_Result, pReq->data, sizeof(wpa_Result))) {
-			result = -EFAULT;
-			break;
-		}
-
-		if (wpa_Result.authenticated == true) {
-#ifdef SndEvt_ToAPI
-			{
-				union iwreq_data wrqu;
-
-				pItemSSID = (PWLAN_IE_SSID)pMgmt->abyCurrSSID;
-
-				memset(&wrqu, 0, sizeof(wrqu));
-				wrqu.data.flags = RT_WPACONNECTED_EVENT_FLAG;
-				wrqu.data.length = pItemSSID->len;
-				wireless_send_event(pDevice->dev, IWEVCUSTOM, &wrqu, pItemSSID->abySSID);
-			}
-#endif
-			pDevice->fWPA_Authened = true; /* is successful peer to wpa_Result.authenticated? */
-		}
-		pReq->wResult = 0;
-		break;
-#endif
-
 	default:
 		pr_debug("Private command not support..\n");
 	}
