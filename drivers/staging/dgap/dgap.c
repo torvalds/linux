@@ -71,6 +71,7 @@ MODULE_DESCRIPTION("Driver for the Digi International EPCA PCI based product lin
 MODULE_SUPPORTED_DEVICE("dgap");
 
 static int dgap_start(void);
+static void dgap_stop(void);
 static void dgap_init_globals(void);
 static struct board_t *dgap_found_board(struct pci_dev *pdev, int id,
 					int boardnum);
@@ -479,19 +480,20 @@ static int dgap_init_module(void)
 
 	rc = pci_register_driver(&dgap_driver);
 	if (rc)
-		goto err_cleanup;
+		goto err_stop;
 
 	rc = dgap_create_driver_sysfiles(&dgap_driver);
 	if (rc)
-		goto err_cleanup;
+		goto err_unregister;
 
 	dgap_driver_state = DRIVER_READY;
 
 	return 0;
 
-err_cleanup:
-
-	dgap_cleanup_module();
+err_unregister:
+	pci_unregister_driver(&dgap_driver);
+err_stop:
+	dgap_stop();
 
 	return rc;
 }
@@ -559,6 +561,21 @@ failed_device:
 failed_class:
 	unregister_chrdev(DIGI_DGAP_MAJOR, "dgap");
 	return rc;
+}
+
+static void dgap_stop(void)
+{
+	unsigned long lock_flags;
+
+	spin_lock_irqsave(&dgap_poll_lock, lock_flags);
+	dgap_poll_stop = 1;
+	spin_unlock_irqrestore(&dgap_poll_lock, lock_flags);
+
+	del_timer_sync(&dgap_poll_timer);
+
+	device_destroy(dgap_class, MKDEV(DIGI_DGAP_MAJOR, 0));
+	class_destroy(dgap_class);
+	unregister_chrdev(DIGI_DGAP_MAJOR, "dgap");
 }
 
 static int dgap_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
