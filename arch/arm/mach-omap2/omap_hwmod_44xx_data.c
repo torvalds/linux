@@ -647,7 +647,8 @@ static struct omap_hwmod omap44xx_dss_dispc_hwmod = {
 			.context_offs = OMAP4_RM_DSS_DSS_CONTEXT_OFFSET,
 		},
 	},
-	.dev_attr	= &omap44xx_dss_dispc_dev_attr
+	.dev_attr	= &omap44xx_dss_dispc_dev_attr,
+	.parent_hwmod	= &omap44xx_dss_hwmod,
 };
 
 /*
@@ -701,6 +702,7 @@ static struct omap_hwmod omap44xx_dss_dsi1_hwmod = {
 	},
 	.opt_clks	= dss_dsi1_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(dss_dsi1_opt_clks),
+	.parent_hwmod	= &omap44xx_dss_hwmod,
 };
 
 /* dss_dsi2 */
@@ -733,6 +735,7 @@ static struct omap_hwmod omap44xx_dss_dsi2_hwmod = {
 	},
 	.opt_clks	= dss_dsi2_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(dss_dsi2_opt_clks),
+	.parent_hwmod	= &omap44xx_dss_hwmod,
 };
 
 /*
@@ -790,6 +793,7 @@ static struct omap_hwmod omap44xx_dss_hdmi_hwmod = {
 	},
 	.opt_clks	= dss_hdmi_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(dss_hdmi_opt_clks),
+	.parent_hwmod	= &omap44xx_dss_hwmod,
 };
 
 /*
@@ -836,6 +840,7 @@ static struct omap_hwmod omap44xx_dss_rfbi_hwmod = {
 	},
 	.opt_clks	= dss_rfbi_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(dss_rfbi_opt_clks),
+	.parent_hwmod	= &omap44xx_dss_hwmod,
 };
 
 /*
@@ -859,6 +864,7 @@ static struct omap_hwmod omap44xx_dss_venc_hwmod = {
 			.context_offs = OMAP4_RM_DSS_DSS_CONTEXT_OFFSET,
 		},
 	},
+	.parent_hwmod	= &omap44xx_dss_hwmod,
 };
 
 /*
