@@ -93,17 +93,12 @@ struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
 		 * to be released by the balloon driver.
 		 */
 		if (trylock_page(page)) {
+			if (!PagePrivate(page)) {
+				/* raced with isolation */
+				unlock_page(page);
+				continue;
+			}
 			spin_lock_irqsave(&b_dev_info->pages_lock, flags);
-			/*
-			 * Raise the page refcount here to prevent any wrong
-			 * attempt to isolate this page, in case of coliding
-			 * with balloon_page_isolate() just after we release
-			 * the page lock.
-			 *
-			 * balloon_page_free() will take care of dropping
-			 * this extra refcount later.
-			 */
-			get_page(page);
 			balloon_page_delete(page);
 			spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
 			unlock_page(page);
@@ -187,7 +182,9 @@ static inline void __isolate_balloon_page(struct page *page)
 {
 	struct balloon_dev_info *b_dev_info = page->mapping->private_data;
 	unsigned long flags;
+
 	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+	ClearPagePrivate(page);
 	list_del(&page->lru);
 	b_dev_info->isolated_pages++;
 	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
@@ -197,7 +194,9 @@ static inline void __putback_balloon_page(struct page *page)
 {
 	struct balloon_dev_info *b_dev_info = page->mapping->private_data;
 	unsigned long flags;
+
 	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+	SetPagePrivate(page);
 	list_add(&page->lru, &b_dev_info->pages);
 	b_dev_info->isolated_pages--;
 	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
@@ -235,12 +234,11 @@ bool balloon_page_isolate(struct page *page)
 		 */
 		if (likely(trylock_page(page))) {
 			/*
-			 * A ballooned page, by default, has just one refcount.
+			 * A ballooned page, by default, has PagePrivate set.
 			 * Prevent concurrent compaction threads from isolating
-			 * an already isolated balloon page by refcount check.
+			 * an already isolated balloon page by clearing it.
 			 */
-			if (__is_movable_balloon_page(page) &&
-			    page_count(page) == 2) {
+			if (balloon_page_movable(page)) {
 				__isolate_balloon_page(page);
 				unlock_page(page);
 				return true;
