@@ -20,14 +20,14 @@
 # error "please don't include this file directly"
 #endif
 
-/* We only require natural alignment for exclusive accesses. */
-#define __lock_aligned
+#define TICKET_SHIFT	16
 
 typedef struct {
-	volatile unsigned int lock;
-} arch_spinlock_t;
+	u16 owner;
+	u16 next;
+} __aligned(4) arch_spinlock_t;
 
-#define __ARCH_SPIN_LOCK_UNLOCKED	{ 0 }
+#define __ARCH_SPIN_LOCK_UNLOCKED	{ 0 , 0 }
 
 typedef struct {
 	volatile unsigned int lock;

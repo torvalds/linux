@@ -170,8 +170,7 @@ static int __init parse_tag_fdt(const bp_tag_t *tag)
 
 __tagtable(BP_TAG_FDT, parse_tag_fdt);
 
-void __init early_init_dt_setup_initrd_arch(unsigned long start,
-		unsigned long end)
+void __init early_init_dt_setup_initrd_arch(u64 start, u64 end)
 {
 	initrd_start = (void *)__va(start);
 	initrd_end = (void *)__va(end);
@@ -223,6 +222,43 @@ static int __init parse_bootparam(const bp_tag_t* tag)
 }
 
 #ifdef CONFIG_OF
+bool __initdata dt_memory_scan = false;
+
+#if XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY
+unsigned long xtensa_kio_paddr = XCHAL_KIO_DEFAULT_PADDR;
+EXPORT_SYMBOL(xtensa_kio_paddr);
+
+static int __init xtensa_dt_io_area(unsigned long node, const char *uname,
+		int depth, void *data)
+{
+	const __be32 *ranges;
+	int len;
+
+	if (depth > 1)
+		return 0;
+
+	if (!of_flat_dt_is_compatible(node, "simple-bus"))
+		return 0;
+
+	ranges = of_get_flat_dt_prop(node, "ranges", &len);
+	if (!ranges)
+		return 1;
+	if (len == 0)
+		return 1;
+
+	xtensa_kio_paddr = of_read_ulong(ranges+1, 1);
+	/* round down to nearest 256MB boundary */
+	xtensa_kio_paddr &= 0xf0000000;
+
+	return 1;
+}
+#else
+static int __init xtensa_dt_io_area(unsigned long node, const char *uname,
+		int depth, void *data)
+{
+	return 1;
+}
+#endif
 
 void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 ARM Ltd.
+ * Copyright (C) 2002 ARM Limited, All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -13,19 +13,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef __ASM_SIGCONTEXT_H
-#define __ASM_SIGCONTEXT_H
 
-#include <uapi/asm/sigcontext.h>
+#ifndef _IRQ_GIC_COMMON_H
+#define _IRQ_GIC_COMMON_H
 
-/*
- * Auxiliary context saved in the sigcontext.__reserved array. Not exported to
- * user space as it will change with the addition of new context. User space
- * should check the magic/size information.
- */
-struct aux_context {
-	struct fpsimd_context fpsimd;
-	/* additional context to be added before "end" */
-	struct _aarch64_ctx end;
-};
-#endif
+#include <linux/of.h>
+#include <linux/irqdomain.h>
+
+void gic_configure_irq(unsigned int irq, unsigned int type,
+                       void __iomem *base, void (*sync_access)(void));
+void gic_dist_config(void __iomem *base, int gic_irqs,
+		     void (*sync_access)(void));
+void gic_cpu_config(void __iomem *base, void (*sync_access)(void));
+
+#endif /* _IRQ_GIC_COMMON_H */

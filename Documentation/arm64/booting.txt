@@ -68,13 +68,23 @@ Image target is available instead.
 
 Requirement: MANDATORY
 
-The decompressed kernel image contains a 32-byte header as follows:
+The decompressed kernel image contains a 64-byte header as follows:
 
-  u32 magic	= 0x14000008;	/* branch to stext, little-endian */
-  u32 res0	= 0;		/* reserved */
+  u32 code0;			/* Executable code */
+  u32 code1;			/* Executable code */
   u64 text_offset;		/* Image load offset */
+  u64 res0	= 0;		/* reserved */
   u64 res1	= 0;		/* reserved */
   u64 res2	= 0;		/* reserved */
+  u64 res3	= 0;		/* reserved */
+  u64 res4	= 0;		/* reserved */
+  u32 magic	= 0x644d5241;	/* Magic number, little endian, "ARM\x64" */
+  u32 res5 = 0;      		/* reserved */
+
+
+Header notes:
+
+- code0/code1 are responsible for branching to stext.
 
 The image must be placed at the specified offset (currently 0x80000)
 from the start of the system RAM and called there. The start of the
@@ -101,8 +111,14 @@ Before jumping into the kernel, the following conditions must be met:
 - Caches, MMUs
   The MMU must be off.
   Instruction cache may be on or off.
-  Data cache must be off and invalidated.
-  External caches (if present) must be configured and disabled.
+  The address range corresponding to the loaded kernel image must be
+  cleaned to the PoC. In the presence of a system cache or other
+  coherent masters with caches enabled, this will typically require
+  cache maintenance by VA rather than set/way operations.
+  System caches which respect the architected cache maintenance by VA
+  operations must be configured and may be enabled.
+  System caches which do not respect architected cache maintenance by VA
+  operations (not recommended) must be configured and disabled.
 
 - Architected timers
   CNTFRQ must be programmed with the timer frequency.
