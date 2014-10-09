@@ -2966,7 +2966,7 @@ static void end_bio_bh_io_sync(struct bio *bio, int err)
  * errors, this only handles the "we need to be able to
  * do IO at the final sector" case.
  */
-static void guard_bio_eod(int rw, struct bio *bio)
+void guard_bio_eod(int rw, struct bio *bio)
 {
 	sector_t maxsector;
 	struct bio_vec *bvec = &bio->bi_io_vec[bio->bi_vcnt - 1];
