@@ -1591,7 +1591,7 @@ static int  device_open(struct net_device *dev)
 	device_init_registers(pDevice);
 
 	MACvReadEtherAddress(pDevice->PortOffset, pDevice->abyCurrentNetAddr);
-	memcpy(pDevice->pMgmt->abyMACAddr, pDevice->abyCurrentNetAddr, ETH_ALEN);
+	ether_addr_copy(pDevice->pMgmt->abyMACAddr, pDevice->abyCurrentNetAddr);
 	device_set_multi(pDevice->dev);
 
 	// Init for Key Management
