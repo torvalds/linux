@@ -9,12 +9,8 @@
 #include <linux/pfn.h>
 #include <linux/suspend.h>
 #include <linux/mm.h>
+#include <asm/sections.h>
 #include <asm/ctl_reg.h>
-
-/*
- * References to section boundaries
- */
-extern const void __nosave_begin, __nosave_end;
 
 /*
  * The restore of the saved pages in an hibernation image will set
