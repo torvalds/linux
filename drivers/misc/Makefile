@@ -51,6 +51,7 @@ obj-y				+= carma/
 obj-$(CONFIG_USB_SWITCH_FSA9480) += fsa9480.o
 obj-$(CONFIG_ALTERA_STAPL)	+= altera-stapl/
 obj-$(CONFIG_ALTERA_HWMUTEX)	+= altera_hwmutex.o
+obj-$(CONFIG_ALTERA_ILC)	+= altera_ilc.o
 obj-$(CONFIG_ALTERA_SYSID)	+= altera_sysid.o
 obj-$(CONFIG_INTEL_MEI)		+= mei/
 obj-$(CONFIG_SI570)		+= si570.o
