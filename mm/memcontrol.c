@@ -318,9 +318,6 @@ struct mem_cgroup {
 	/* OOM-Killer disable */
 	int		oom_kill_disable;
 
-	/* set when res.limit == memsw.limit */
-	bool		memsw_is_minimum;
-
 	/* protect arrays of thresholds */
 	struct mutex thresholds_lock;
 
@@ -1818,8 +1815,6 @@ static unsigned long mem_cgroup_reclaim(struct mem_cgroup *memcg,
 
 	if (flags & MEM_CGROUP_RECLAIM_NOSWAP)
 		noswap = true;
-	if (!(flags & MEM_CGROUP_RECLAIM_SHRINK) && memcg->memsw_is_minimum)
-		noswap = true;
 
 	for (loop = 0; loop < MEM_CGROUP_MAX_RECLAIM_LOOPS; loop++) {
 		if (loop)
@@ -2557,16 +2552,17 @@ retry:
 		goto done;
 
 	size = batch * PAGE_SIZE;
-	if (!res_counter_charge(&memcg->res, size, &fail_res)) {
-		if (!do_swap_account)
+	if (!do_swap_account ||
+	    !res_counter_charge(&memcg->memsw, size, &fail_res)) {
+		if (!res_counter_charge(&memcg->res, size, &fail_res))
 			goto done_restock;
-		if (!res_counter_charge(&memcg->memsw, size, &fail_res))
-			goto done_restock;
-		res_counter_uncharge(&memcg->res, size);
+		if (do_swap_account)
+			res_counter_uncharge(&memcg->memsw, size);
+		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
+	} else {
 		mem_over_limit = mem_cgroup_from_res_counter(fail_res, memsw);
 		flags |= MEM_CGROUP_RECLAIM_NOSWAP;
-	} else
-		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
+	}
 
 	if (batch > nr_pages) {
 		batch = nr_pages;
@@ -3629,7 +3625,6 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
 				unsigned long long val)
 {
 	int retry_count;
-	u64 memswlimit, memlimit;
 	int ret = 0;
 	int children = mem_cgroup_count_children(memcg);
 	u64 curusage, oldusage;
@@ -3656,24 +3651,16 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
 		 * We have to guarantee memcg->res.limit <= memcg->memsw.limit.
 		 */
 		mutex_lock(&set_limit_mutex);
-		memswlimit = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
-		if (memswlimit < val) {
+		if (res_counter_read_u64(&memcg->memsw, RES_LIMIT) < val) {
 			ret = -EINVAL;
 			mutex_unlock(&set_limit_mutex);
 			break;
 		}
 
-		memlimit = res_counter_read_u64(&memcg->res, RES_LIMIT);
-		if (memlimit < val)
+		if (res_counter_read_u64(&memcg->res, RES_LIMIT) < val)
 			enlarge = 1;
 
 		ret = res_counter_set_limit(&memcg->res, val);
-		if (!ret) {
-			if (memswlimit == val)
-				memcg->memsw_is_minimum = true;
-			else
-				memcg->memsw_is_minimum = false;
-		}
 		mutex_unlock(&set_limit_mutex);
 
 		if (!ret)
@@ -3698,7 +3685,7 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
 					unsigned long long val)
 {
 	int retry_count;
-	u64 memlimit, memswlimit, oldusage, curusage;
+	u64 oldusage, curusage;
 	int children = mem_cgroup_count_children(memcg);
 	int ret = -EBUSY;
 	int enlarge = 0;
@@ -3717,22 +3704,14 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
 		 * We have to guarantee memcg->res.limit <= memcg->memsw.limit.
 		 */
 		mutex_lock(&set_limit_mutex);
-		memlimit = res_counter_read_u64(&memcg->res, RES_LIMIT);
-		if (memlimit > val) {
+		if (res_counter_read_u64(&memcg->res, RES_LIMIT) > val) {
 			ret = -EINVAL;
 			mutex_unlock(&set_limit_mutex);
 			break;
 		}
-		memswlimit = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
-		if (memswlimit < val)
+		if (res_counter_read_u64(&memcg->memsw, RES_LIMIT) < val)
 			enlarge = 1;
 		ret = res_counter_set_limit(&memcg->memsw, val);
-		if (!ret) {
-			if (memlimit == val)
-				memcg->memsw_is_minimum = true;
-			else
-				memcg->memsw_is_minimum = false;
-		}
 		mutex_unlock(&set_limit_mutex);
 
 		if (!ret)
