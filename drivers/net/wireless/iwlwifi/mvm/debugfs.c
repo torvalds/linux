@@ -121,78 +121,6 @@ static ssize_t iwl_dbgfs_sta_drain_write(struct iwl_mvm *mvm, char *buf,
 	return ret;
 }
 
-static int iwl_dbgfs_fw_error_dump_open(struct inode *inode, struct file *file)
-{
-	struct iwl_mvm *mvm = inode->i_private;
-	int ret;
-
-	if (!mvm)
-		return -EINVAL;
-
-	mutex_lock(&mvm->mutex);
-	if (!mvm->fw_error_dump) {
-		ret = -ENODATA;
-		goto out;
-	}
-
-	file->private_data = mvm->fw_error_dump;
-	mvm->fw_error_dump = NULL;
-	ret = 0;
-
-out:
-	mutex_unlock(&mvm->mutex);
-	return ret;
-}
-
-static ssize_t iwl_dbgfs_fw_error_dump_read(struct file *file,
-					    char __user *user_buf,
-					    size_t count, loff_t *ppos)
-{
-	struct iwl_mvm_dump_ptrs *dump_ptrs = (void *)file->private_data;
-	ssize_t bytes_read = 0;
-	ssize_t bytes_read_trans = 0;
-
-	if (*ppos < dump_ptrs->op_mode_len)
-		bytes_read +=
-			simple_read_from_buffer(user_buf, count, ppos,
-						dump_ptrs->op_mode_ptr,
-						dump_ptrs->op_mode_len);
-
-	if (bytes_read < 0 || *ppos < dump_ptrs->op_mode_len)
-		return bytes_read;
-
-	if (dump_ptrs->trans_ptr) {
-		*ppos -= dump_ptrs->op_mode_len;
-		bytes_read_trans =
-			simple_read_from_buffer(user_buf + bytes_read,
-						count - bytes_read, ppos,
-						dump_ptrs->trans_ptr->data,
-						dump_ptrs->trans_ptr->len);
-		*ppos += dump_ptrs->op_mode_len;
-
-		if (bytes_read_trans >= 0)
-			bytes_read += bytes_read_trans;
-		else if (!bytes_read)
-			/* propagate the failure */
-			return bytes_read_trans;
-	}
-
-	return bytes_read;
-
-}
-
-static int iwl_dbgfs_fw_error_dump_release(struct inode *inode,
-					   struct file *file)
-{
-	struct iwl_mvm_dump_ptrs *dump_ptrs = (void *)file->private_data;
-
-	vfree(dump_ptrs->op_mode_ptr);
-	vfree(dump_ptrs->trans_ptr);
-	kfree(dump_ptrs);
-
-	return 0;
-}
-
 static ssize_t iwl_dbgfs_sram_read(struct file *file, char __user *user_buf,
 				   size_t count, loff_t *ppos)
 {
@@ -1535,12 +1463,6 @@ MVM_DEBUGFS_WRITE_FILE_OPS(bt_force_ant, 10);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(scan_ant_rxchain, 8);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(d0i3_refs, 8);
 
-static const struct file_operations iwl_dbgfs_fw_error_dump_ops = {
-	.open = iwl_dbgfs_fw_error_dump_open,
-	.read = iwl_dbgfs_fw_error_dump_read,
-	.release = iwl_dbgfs_fw_error_dump_release,
-};
-
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(bcast_filters, 256);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(bcast_filters_macs, 256);
@@ -1567,7 +1489,6 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 			     S_IWUSR | S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(nic_temp, dbgfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(stations, dbgfs_dir, S_IRUSR);
-	MVM_DEBUGFS_ADD_FILE(fw_error_dump, dbgfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(bt_notif, dbgfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(bt_cmd, dbgfs_dir, S_IRUSR);
 	MVM_DEBUGFS_ADD_FILE(disable_power_off, mvm->debugfs_dir,

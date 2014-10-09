@@ -1764,6 +1764,13 @@ err:
 	IWL_ERR(trans, "failed to create the trans debugfs entry\n");
 	return -ENOMEM;
 }
+#else
+static int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans,
+					 struct dentry *dir)
+{
+	return 0;
+}
+#endif /*CONFIG_IWLWIFI_DEBUGFS */
 
 static u32 iwl_trans_pcie_get_cmdlen(struct iwl_tfd *tfd)
 {
@@ -2042,13 +2049,6 @@ struct iwl_trans_dump_data *iwl_trans_pcie_dump_data(struct iwl_trans *trans)
 
 	return dump_data;
 }
-#else
-static int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans,
-					 struct dentry *dir)
-{
-	return 0;
-}
-#endif /*CONFIG_IWLWIFI_DEBUGFS */
 
 static const struct iwl_trans_ops trans_ops_pcie = {
 	.start_hw = iwl_trans_pcie_start_hw,
@@ -2085,9 +2085,7 @@ static const struct iwl_trans_ops trans_ops_pcie = {
 	.release_nic_access = iwl_trans_pcie_release_nic_access,
 	.set_bits_mask = iwl_trans_pcie_set_bits_mask,
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
 	.dump_data = iwl_trans_pcie_dump_data,
-#endif
 };
 
 struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,

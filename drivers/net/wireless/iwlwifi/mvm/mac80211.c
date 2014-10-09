@@ -69,6 +69,7 @@
 #include <linux/etherdevice.h>
 #include <linux/ip.h>
 #include <linux/if_arp.h>
+#include <linux/devcoredump.h>
 #include <net/mac80211.h>
 #include <net/ieee80211_radiotap.h>
 #include <net/tcp.h>
@@ -679,10 +680,51 @@ static void iwl_mvm_cleanup_iterator(void *data, u8 *mac,
 	memset(&mvmvif->bf_data, 0, sizeof(mvmvif->bf_data));
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
+static ssize_t iwl_mvm_read_coredump(char *buffer, loff_t offset, size_t count,
+				     const void *data, size_t datalen)
+{
+	const struct iwl_mvm_dump_ptrs *dump_ptrs = data;
+	ssize_t bytes_read;
+	ssize_t bytes_read_trans;
+
+	if (offset < dump_ptrs->op_mode_len) {
+		bytes_read = min_t(ssize_t, count,
+				   dump_ptrs->op_mode_len - offset);
+		memcpy(buffer, (u8 *)dump_ptrs->op_mode_ptr + offset,
+		       bytes_read);
+		offset += bytes_read;
+		count -= bytes_read;
+
+		if (count == 0)
+			return bytes_read;
+	} else {
+		bytes_read = 0;
+	}
+
+	if (!dump_ptrs->trans_ptr)
+		return bytes_read;
+
+	offset -= dump_ptrs->op_mode_len;
+	bytes_read_trans = min_t(ssize_t, count,
+				 dump_ptrs->trans_ptr->len - offset);
+	memcpy(buffer + bytes_read,
+	       (u8 *)dump_ptrs->trans_ptr->data + offset,
+	       bytes_read_trans);
+
+	return bytes_read + bytes_read_trans;
+}
+
+static void iwl_mvm_free_coredump(const void *data)
+{
+	const struct iwl_mvm_dump_ptrs *fw_error_dump = data;
+
+	vfree(fw_error_dump->op_mode_ptr);
+	vfree(fw_error_dump->trans_ptr);
+	kfree(fw_error_dump);
+}
+
 void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 {
-	static char *env[] = { "DRIVER=iwlwifi", "EVENT=error_dump", NULL };
 	struct iwl_fw_error_dump_file *dump_file;
 	struct iwl_fw_error_dump_data *dump_data;
 	struct iwl_fw_error_dump_info *dump_info;
@@ -695,10 +737,7 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (mvm->fw_error_dump)
-		return;
-
-	fw_error_dump = kzalloc(sizeof(*mvm->fw_error_dump), GFP_KERNEL);
+	fw_error_dump = kzalloc(sizeof(*fw_error_dump), GFP_KERNEL);
 	if (!fw_error_dump)
 		return;
 
@@ -773,12 +812,10 @@ void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm)
 	if (fw_error_dump->trans_ptr)
 		file_len += fw_error_dump->trans_ptr->len;
 	dump_file->file_len = cpu_to_le32(file_len);
-	mvm->fw_error_dump = fw_error_dump;
 
-	/* notify the userspace about the error we had */
-	kobject_uevent_env(&mvm->hw->wiphy->dev.kobj, KOBJ_CHANGE, env);
+	dev_coredumpm(mvm->trans->dev, THIS_MODULE, fw_error_dump, 0,
+		      GFP_KERNEL, iwl_mvm_read_coredump, iwl_mvm_free_coredump);
 }
-#endif
 
 static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 {
