@@ -80,4 +80,4 @@ WPAb_Is_RSN(
 	PWLAN_IE_RSN_EXT pRSN
 );
 
-#endif // __WPA_H__
+#endif /* __WPA_H__ */
