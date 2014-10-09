@@ -259,8 +259,6 @@ void rtw_wep_decrypt23a(struct rtw_adapter *padapter,
 			  crc[1], payload[length - 3],
 			  crc[0], payload[length - 4]));
 	}
-
-	return;
 }
 
 /* 3		===== TKIP related ===== */
