@@ -2663,8 +2663,6 @@ static inline struct f_fs_opts *ffs_do_functionfs_bind(struct usb_function *f,
 	func->conf = c;
 	func->gadget = c->cdev->gadget;
 
-	ffs_data_get(func->ffs);
-
 	/*
 	 * in drivers/usb/gadget/configfs.c:configfs_composite_bind()
 	 * configurations are bound in sequence with list_for_each_entry,
