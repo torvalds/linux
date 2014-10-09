@@ -550,8 +550,6 @@ static int wpa_get_scan(struct vnt_private *pDevice,
 	int ret = 0;
 	u16 count = 0;
 	u16 ii, jj;
-#if 1
-
 	unsigned char *ptempBSS;
 
 	ptempBSS = kmalloc(sizeof(KnownBSS), GFP_ATOMIC);
@@ -583,7 +581,6 @@ static int wpa_get_scan(struct vnt_private *pDevice,
 	}
 
 	kfree(ptempBSS);
-#endif
 
 //******mike:bubble sort by stronger RSSI*****//
 

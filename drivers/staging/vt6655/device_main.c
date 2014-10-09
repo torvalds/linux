@@ -854,8 +854,6 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 		return -ENODEV;
 	}
 
-#if 1
-
 #ifdef	DEBUG
 
 	pr_debug("after get pci_info memaddr is %x, io addr is %x,io_size is %d\n", pDevice->memaddr, pDevice->ioaddr, pDevice->io_size);
@@ -892,8 +890,6 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 			}
 		}
 	}
-#endif
-
 #endif
 
 	pDevice->PortOffset = ioremap(pDevice->memaddr & PCI_BASE_ADDRESS_MEM_MASK, pDevice->io_size);
