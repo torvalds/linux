@@ -1,6 +1,4 @@
 /*
- * drivers/usb/otg/ab8500_usb.c
- *
  * USB transceiver driver for AB8500 family chips
  *
  * Copyright (C) 2010-2013 ST-Ericsson AB

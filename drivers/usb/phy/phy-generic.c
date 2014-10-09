@@ -1,6 +1,4 @@
 /*
- * drivers/usb/otg/nop-usb-xceiv.c
- *
  * NOP USB transceiver for all USB transceiver which are either built-in
  * into USB IP or which are mostly autonomous.
  *
