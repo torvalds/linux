@@ -11,6 +11,7 @@
 #include <linux/device-mapper.h>
 #include <linux/dm-io.h>
 #include <linux/dm-kcopyd.h>
+#include <linux/log2.h>
 #include <linux/list.h>
 #include <linux/rculist.h>
 #include <linux/init.h>
@@ -3242,15 +3243,42 @@ static void pool_io_hints(struct dm_target *ti, struct queue_limits *limits)
 {
 	struct pool_c *pt = ti->private;
 	struct pool *pool = pt->pool;
-	uint64_t io_opt_sectors = limits->io_opt >> SECTOR_SHIFT;
+	sector_t io_opt_sectors = limits->io_opt >> SECTOR_SHIFT;
+
+	/*
+	 * Adjust max_sectors_kb to highest possible power-of-2
+	 * factor of pool->sectors_per_block.
+	 */
+	if (limits->max_hw_sectors & (limits->max_hw_sectors - 1))
+		limits->max_sectors = rounddown_pow_of_two(limits->max_hw_sectors);
+	else
+		limits->max_sectors = limits->max_hw_sectors;
+
+	if (limits->max_sectors < pool->sectors_per_block) {
+		while (!is_factor(pool->sectors_per_block, limits->max_sectors)) {
+			if ((limits->max_sectors & (limits->max_sectors - 1)) == 0)
+				limits->max_sectors--;
+			limits->max_sectors = rounddown_pow_of_two(limits->max_sectors);
+		}
+	} else if (block_size_is_power_of_two(pool)) {
+		/* max_sectors_kb is >= power-of-2 thinp blocksize */
+		while (!is_factor(limits->max_sectors, pool->sectors_per_block)) {
+			if ((limits->max_sectors & (limits->max_sectors - 1)) == 0)
+				limits->max_sectors--;
+			limits->max_sectors = rounddown_pow_of_two(limits->max_sectors);
+		}
+	}
 
 	/*
 	 * If the system-determined stacked limits are compatible with the
 	 * pool's blocksize (io_opt is a factor) do not override them.
 	 */
 	if (io_opt_sectors < pool->sectors_per_block ||
-	    do_div(io_opt_sectors, pool->sectors_per_block)) {
-		blk_limits_io_min(limits, pool->sectors_per_block << SECTOR_SHIFT);
+	    !is_factor(io_opt_sectors, pool->sectors_per_block)) {
+		if (is_factor(pool->sectors_per_block, limits->max_sectors))
+			blk_limits_io_min(limits, limits->max_sectors << SECTOR_SHIFT);
+		else
+			blk_limits_io_min(limits, pool->sectors_per_block << SECTOR_SHIFT);
 		blk_limits_io_opt(limits, pool->sectors_per_block << SECTOR_SHIFT);
 	}
 
