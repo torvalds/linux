@@ -88,8 +88,10 @@
 #include <linux/net_tstamp.h>
 
 #include <asm/io.h>
+#ifdef CONFIG_PPC
 #include <asm/reg.h>
 #include <asm/mpc85xx.h>
+#endif
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 #include <linux/module.h>
@@ -100,6 +102,8 @@
 #include <linux/phy_fixed.h>
 #include <linux/of.h>
 #include <linux/of_net.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #include "gianfar.h"
 
@@ -161,7 +165,7 @@ static void gfar_init_rxbdp(struct gfar_priv_rx_q *rx_queue, struct rxbd8 *bdp,
 	if (bdp == rx_queue->rx_bd_base + rx_queue->rx_ring_size - 1)
 		lstatus |= BD_LFLAG(RXBD_WRAP);
 
-	eieio();
+	gfar_wmb();
 
 	bdp->lstatus = lstatus;
 }
@@ -1061,6 +1065,7 @@ static void gfar_init_filer_table(struct gfar_private *priv)
 	}
 }
 
+#ifdef CONFIG_PPC
 static void __gfar_detect_errata_83xx(struct gfar_private *priv)
 {
 	unsigned int pvr = mfspr(SPRN_PVR);
@@ -1093,6 +1098,7 @@ static void __gfar_detect_errata_85xx(struct gfar_private *priv)
 	    ((SVR_SOC_VER(svr) == SVR_P2010) && (SVR_REV(svr) < 0x20)))
 		priv->errata |= GFAR_ERRATA_76; /* aka eTSEC 20 */
 }
+#endif
 
 static void gfar_detect_errata(struct gfar_private *priv)
 {
@@ -1101,10 +1107,12 @@ static void gfar_detect_errata(struct gfar_private *priv)
 	/* no plans to fix */
 	priv->errata |= GFAR_ERRATA_A002;
 
+#ifdef CONFIG_PPC
 	if (pvr_version_is(PVR_VER_E500V1) || pvr_version_is(PVR_VER_E500V2))
 		__gfar_detect_errata_85xx(priv);
 	else /* non-mpc85xx parts, i.e. e300 core based */
 		__gfar_detect_errata_83xx(priv);
+#endif
 
 	if (priv->errata)
 		dev_info(dev, "enabled errata workarounds, flags: 0x%x\n",
@@ -1754,26 +1762,32 @@ static void gfar_halt_nodisable(struct gfar_private *priv)
 {
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	u32 tempval;
+	unsigned int timeout;
+	int stopped;
 
 	gfar_ints_disable(priv);
 
+	if (gfar_is_dma_stopped(priv))
+		return;
+
 	/* Stop the DMA, and wait for it to stop */
 	tempval = gfar_read(&regs->dmactrl);
-	if ((tempval & (DMACTRL_GRS | DMACTRL_GTS)) !=
-	    (DMACTRL_GRS | DMACTRL_GTS)) {
-		int ret;
+	tempval |= (DMACTRL_GRS | DMACTRL_GTS);
+	gfar_write(&regs->dmactrl, tempval);
 
-		tempval |= (DMACTRL_GRS | DMACTRL_GTS);
-		gfar_write(&regs->dmactrl, tempval);
-
-		do {
-			ret = spin_event_timeout(((gfar_read(&regs->ievent) &
-				 (IEVENT_GRSC | IEVENT_GTSC)) ==
-				 (IEVENT_GRSC | IEVENT_GTSC)), 1000000, 0);
-			if (!ret && !(gfar_read(&regs->ievent) & IEVENT_GRSC))
-				ret = __gfar_is_rx_idle(priv);
-		} while (!ret);
+retry:
+	timeout = 1000;
+	while (!(stopped = gfar_is_dma_stopped(priv)) && timeout) {
+		cpu_relax();
+		timeout--;
 	}
+
+	if (!timeout)
+		stopped = gfar_is_dma_stopped(priv);
+
+	if (!stopped && !gfar_is_rx_dma_stopped(priv) &&
+	    !__gfar_is_rx_idle(priv))
+		goto retry;
 }
 
 /* Halt the receive and transmit queues */
@@ -2357,18 +2371,11 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	spin_lock_irqsave(&tx_queue->txlock, flags);
 
-	/* The powerpc-specific eieio() is used, as wmb() has too strong
-	 * semantics (it requires synchronization between cacheable and
-	 * uncacheable mappings, which eieio doesn't provide and which we
-	 * don't need), thus requiring a more expensive sync instruction.  At
-	 * some point, the set of architecture-independent barrier functions
-	 * should be expanded to include weaker barriers.
-	 */
-	eieio();
+	gfar_wmb();
 
 	txbdp_start->lstatus = lstatus;
 
-	eieio(); /* force lstatus write before tx_skbuff */
+	gfar_wmb(); /* force lstatus write before tx_skbuff */
 
 	tx_queue->tx_skbuff[tx_queue->skb_curtx] = skb;
 
@@ -3240,22 +3247,21 @@ static void gfar_set_mac_for_addr(struct net_device *dev, int num,
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
-	int idx;
-	char tmpbuf[ETH_ALEN];
 	u32 tempval;
 	u32 __iomem *macptr = &regs->macstnaddr1;
 
 	macptr += num*2;
 
-	/* Now copy it into the mac registers backwards, cuz
-	 * little endian is silly
+	/* For a station address of 0x12345678ABCD in transmission
+	 * order (BE), MACnADDR1 is set to 0xCDAB7856 and
+	 * MACnADDR2 is set to 0x34120000.
 	 */
-	for (idx = 0; idx < ETH_ALEN; idx++)
-		tmpbuf[ETH_ALEN - 1 - idx] = addr[idx];
+	tempval = (addr[5] << 24) | (addr[4] << 16) |
+		  (addr[3] << 8)  |  addr[2];
 
-	gfar_write(macptr, *((u32 *) (tmpbuf)));
+	gfar_write(macptr, tempval);
 
-	tempval = *((u32 *) (tmpbuf + 4));
+	tempval = (addr[1] << 24) | (addr[0] << 16);
 
 	gfar_write(macptr+1, tempval);
 }
