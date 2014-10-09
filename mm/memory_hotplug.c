@@ -1307,7 +1307,7 @@ int is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
 /*
  * Confirm all pages in a range [start, end) is belongs to the same zone.
  */
-static int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
+int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
 {
 	unsigned long pfn;
 	struct zone *zone = NULL;
