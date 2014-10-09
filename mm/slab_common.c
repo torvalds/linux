@@ -211,8 +211,10 @@ kmem_cache_create(const char *name, size_t size, size_t align,
 	mutex_lock(&slab_mutex);
 
 	err = kmem_cache_sanity_check(name, size);
-	if (err)
+	if (err) {
+		s = NULL;	/* suppress uninit var warning */
 		goto out_unlock;
+	}
 
 	/*
 	 * Some allocators will constraint the set of valid flags to a subset
