@@ -382,7 +382,7 @@ static inline int inode_need_compress(struct inode *inode)
  * are written in the same order that the flusher thread sent them
  * down.
  */
-static noinline int compress_file_range(struct inode *inode,
+static noinline void compress_file_range(struct inode *inode,
 					struct page *locked_page,
 					u64 start, u64 end,
 					struct async_cow *async_cow,
@@ -620,8 +620,7 @@ cleanup_and_bail_uncompressed:
 		*num_added += 1;
 	}
 
-out:
-	return ret;
+	return;
 
 free_pages_out:
 	for (i = 0; i < nr_pages_ret; i++) {
@@ -629,8 +628,6 @@ free_pages_out:
 		page_cache_release(pages[i]);
 	}
 	kfree(pages);
-
-	goto out;
 }
 
 static void free_async_extent_pages(struct async_extent *async_extent)
