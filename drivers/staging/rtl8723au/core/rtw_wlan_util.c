@@ -608,8 +608,6 @@ void WMMOnAssocRsp23a(struct rtw_adapter *padapter)
 		DBG_8723A("wmm_para_seq(%d): %d\n", i,
 			  pxmitpriv->wmm_para_seq[i]);
 	}
-
-	return;
 }
 
 static void bwmode_update_check(struct rtw_adapter *padapter, const u8 *p)
@@ -750,7 +748,6 @@ void HT_caps_handler23a(struct rtw_adapter *padapter, const u8 *p)
 		else
 			cap->mcs.rx_mask[i] &= MCS_rate_2R23A[i];
 	}
-	return;
 }
 
 void HT_info_handler23a(struct rtw_adapter *padapter, const u8 *p)
@@ -771,7 +768,6 @@ void HT_info_handler23a(struct rtw_adapter *padapter, const u8 *p)
 
 	pmlmeinfo->HT_info_enable = 1;
 	memcpy(&pmlmeinfo->HT_info, p + 2, p[1]);
-	return;
 }
 
 void HTOnAssocRsp23a(struct rtw_adapter *padapter)
