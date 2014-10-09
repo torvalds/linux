@@ -67,6 +67,7 @@
 #define RATE_25_FPS  3840   /* 25 */
 #define DUR2PTS(x) ((x)*90/96)
 #define PTS2DUR(x) ((x)*96/90)
+#define DUR2PTS_REM(x) (x*90 - DUR2PTS(x)*96)
 
 static inline bool close_to(int a, int b, int m)
 {
@@ -189,6 +190,7 @@ static u32 use_idr_framerate = 0;
 
 static u32 seq_info;
 static u32 timing_info_present_flag;
+static u32 fixed_frame_rate_flag;
 static u32 aspect_ratio_info;
 static u32 num_units_in_tick;
 static u32 time_scale;
@@ -197,7 +199,7 @@ static u32 h264_ar;
 static u32 last_interlaced;
 #endif
 static unsigned char h264_first_pts_ready;
-static unsigned char h264_first_valid_pts_ready;
+static bool h264_first_valid_pts_ready;
 static u32 h264pts1, h264pts2;
 static u32 h264_pts_count, duration_from_pts_done,duration_on_correcting;
 static u32 vh264_error_count;
@@ -212,7 +214,7 @@ static u32 vh264_running;
 static s32 vh264_stream_switching_state;
 static s32 vh264_eos;
 static struct vframe_s *p_last_vf;
-static u32 last_pts;
+static u32 last_pts, last_pts_remainder;
 static bool check_pts_discontinue;
 static u32 wait_buffer_counter;
 static uint error_recovery_mode = 0;
@@ -786,10 +788,13 @@ static void vh264_set_params(void)
     }
 
     timing_info_present_flag = seq_info & 0x2;
+    fixed_frame_rate_flag = 0;
     aspect_ratio_info_present_flag = seq_info & 0x1;
     aspect_ratio_idc = (seq_info >> 16) & 0xff;
 
     if (timing_info_present_flag) {
+        fixed_frame_rate_flag = seq_info & 0x40;
+
         if (((num_units_in_tick * 120) >= time_scale && (!sync_outside)) && num_units_in_tick && time_scale) {
             if (use_idr_framerate || !frame_dur || !duration_from_pts_done || vh264_running) {
             	frame_dur = div_u64(96000ULL * 2 * num_units_in_tick, time_scale);
@@ -877,6 +882,24 @@ static void vh264_set_params(void)
     addr += mb_total * mb_mv_byte * max_reference_size;
     WRITE_VREG(AV_SCRATCH_4, addr);
     WRITE_VREG(AV_SCRATCH_0, (max_reference_size << 24) | (actual_dpb_size << 16) | (max_dpb_size << 8));
+}
+
+static unsigned pts_inc_by_duration(unsigned *new_pts, unsigned *new_pts_rem)
+{
+    unsigned r, rem;
+
+    r = last_pts + DUR2PTS(frame_dur);
+    rem = last_pts_remainder + DUR2PTS_REM(frame_dur);
+
+    if (rem >= 96) {
+        r++;
+        rem -= 96;
+    }
+
+    if (new_pts) *new_pts = r;
+    if (new_pts_rem) *new_pts_rem = rem;
+
+    return r;
 }
 
 #ifdef HANDLE_H264_IRQ
@@ -1099,12 +1122,34 @@ static void vh264_isr(void)
                 }
             }
 
-            if (timing_info_present_flag && frame_dur && use_idr_framerate) {
-                if (h264_first_valid_pts_ready == 0 && pts_valid) {
-            	  	h264_first_valid_pts_ready=1;
+            // if use_idr_framerate or fixed frame rate, only use PTS for IDR frames
+            if (timing_info_present_flag &&
+                frame_dur && 
+                (use_idr_framerate || (fixed_frame_rate_flag != 0)) &&
+                pts_valid &&
+                h264_first_valid_pts_ready) {
+                pts_valid = (idr_flag) ? 1 : 0;
+            }
+
+            if (!h264_first_valid_pts_ready && pts_valid) {
+                h264_first_valid_pts_ready = true;
+                last_pts = pts - DUR2PTS(frame_dur);
+                last_pts_remainder = 0;
+            }
+
+            // calculate PTS of next frame and smooth PTS for fixed rate source
+            if (pts_valid) {
+                if ((fixed_frame_rate_flag) &&
+                    (abs(pts_inc_by_duration(NULL, NULL) - pts)  < DUR2PTS(frame_dur))) {
+                    pts = pts_inc_by_duration(&last_pts, &last_pts_remainder);
                 } else {
-            	  	pts_valid = pts_valid && idr_flag;  // if fixed frame rate, then use duration
+                    last_pts = pts;
+                    last_pts_remainder = 0;
                 }
+
+            } else {
+                pts = pts_inc_by_duration(&last_pts, &last_pts_remainder);
+                pts_valid = 1;
             }
 
             if ((dec_control & DEC_CONTROL_FLAG_FORCE_2997_1080P_INTERLACE) &&
@@ -1578,7 +1623,7 @@ static void vh264_local_init(void)
     last_interlaced = 1;
 #endif
     h264_first_pts_ready = 0;
-    h264_first_valid_pts_ready=0;
+    h264_first_valid_pts_ready=false;
     h264pts1 = 0;
     h264pts2 = 0;
     h264_pts_count = 0;
