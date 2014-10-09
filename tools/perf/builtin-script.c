@@ -572,7 +572,6 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 
 	scripting_ops->process_event(event, sample, evsel, thread, &al);
 
-	evsel->hists.stats.total_period += sample->period;
 	return 0;
 }
 
