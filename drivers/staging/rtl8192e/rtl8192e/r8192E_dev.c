@@ -1287,7 +1287,7 @@ void  rtl8192_tx_fill_desc(struct net_device *dev, struct tx_desc *pdesc,
 
 void  rtl8192_tx_fill_cmd_desc(struct net_device *dev,
 			       struct tx_desc_cmd *entry,
-			       struct cb_desc *cb_desc, struct sk_buff* skb)
+			       struct cb_desc *cb_desc, struct sk_buff *skb)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	dma_addr_t mapping = pci_map_single(priv->pdev, skb->data, skb->len,
@@ -1302,7 +1302,7 @@ void  rtl8192_tx_fill_cmd_desc(struct net_device *dev,
 	if (cb_desc->bCmdOrInit == DESC_PACKET_TYPE_INIT) {
 		entry->CmdInit = DESC_PACKET_TYPE_INIT;
 	} else {
-		struct tx_desc * entry_tmp = (struct tx_desc *)entry;
+		struct tx_desc *entry_tmp = (struct tx_desc *)entry;
 
 		entry_tmp->CmdInit = DESC_PACKET_TYPE_NORMAL;
 		entry_tmp->Offset = sizeof(struct tx_fwinfo_8190pci) + 8;
