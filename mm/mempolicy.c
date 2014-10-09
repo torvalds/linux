@@ -1621,14 +1621,11 @@ COMPAT_SYSCALL_DEFINE6(mbind, compat_ulong_t, start, compat_ulong_t, len,
 struct mempolicy *get_vma_policy(struct task_struct *task,
 		struct vm_area_struct *vma, unsigned long addr)
 {
-	struct mempolicy *pol = get_task_policy(task);
+	struct mempolicy *pol = NULL;
 
 	if (vma) {
 		if (vma->vm_ops && vma->vm_ops->get_policy) {
-			struct mempolicy *vpol = vma->vm_ops->get_policy(vma,
-									addr);
-			if (vpol)
-				pol = vpol;
+			pol = vma->vm_ops->get_policy(vma, addr);
 		} else if (vma->vm_policy) {
 			pol = vma->vm_policy;
 
@@ -1643,12 +1640,15 @@ struct mempolicy *get_vma_policy(struct task_struct *task,
 		}
 	}
 
+	if (!pol)
+		pol = get_task_policy(task);
+
 	return pol;
 }
 
 bool vma_policy_mof(struct task_struct *task, struct vm_area_struct *vma)
 {
-	struct mempolicy *pol = get_task_policy(task);
+	struct mempolicy *pol = NULL;
 
 	if (vma) {
 		if (vma->vm_ops && vma->vm_ops->get_policy) {
@@ -1660,10 +1660,13 @@ bool vma_policy_mof(struct task_struct *task, struct vm_area_struct *vma)
 			mpol_cond_put(pol);
 
 			return ret;
-		} else if (vma->vm_policy) {
-			pol = vma->vm_policy;
 		}
+
+		pol = vma->vm_policy;
 	}
+
+	if (!pol)
+		pol = get_task_policy(task);
 
 	return pol->flags & MPOL_F_MOF;
 }
@@ -2068,12 +2071,12 @@ retry_cpuset:
  */
 struct page *alloc_pages_current(gfp_t gfp, unsigned order)
 {
-	struct mempolicy *pol = get_task_policy(current);
+	struct mempolicy *pol = &default_policy;
 	struct page *page;
 	unsigned int cpuset_mems_cookie;
 
-	if (in_interrupt() || (gfp & __GFP_THISNODE))
-		pol = &default_policy;
+	if (!in_interrupt() && !(gfp & __GFP_THISNODE))
+		pol = get_task_policy(current);
 
 retry_cpuset:
 	cpuset_mems_cookie = read_mems_allowed_begin();
