@@ -391,6 +391,8 @@ static dma_async_tx_callback __ld_cleanup(struct shdma_chan *schan, bool all)
 				dev_dbg(schan->dev, "Bring down channel %d\n", schan->id);
 				pm_runtime_put(schan->dev);
 				schan->pm_state = SHDMA_PM_ESTABLISHED;
+			} else if (schan->pm_state == SHDMA_PM_PENDING) {
+				shdma_chan_xfer_ld_queue(schan);
 			}
 		}
 	}
