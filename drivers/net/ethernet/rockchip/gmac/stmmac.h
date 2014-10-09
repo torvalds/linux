@@ -123,6 +123,8 @@ struct bsp_priv {
 	int power_io_level;
 	int reset_io;
 	int reset_io_level;
+	int phyirq_io;
+	int phyirq_io_level;
 	int phy_iface;
 	bool clock_input;
 	int chip;

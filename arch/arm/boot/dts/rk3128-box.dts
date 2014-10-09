@@ -261,6 +261,7 @@
 	//pmu_enable_level = <1>; //1->HIGH, 0->LOW
 	//power-gpio = <&gpio0 GPIO_A6 GPIO_ACTIVE_HIGH>;
 	reset-gpio = <&gpio2 GPIO_D0 GPIO_ACTIVE_LOW>;
+	phyirq-gpio = <&gpio0 GPIO_D1 GPIO_ACTIVE_LOW>;
 	phy-mode = "rgmii";
 	clock_in_out = "input";
 	tx_delay = <0x30>;

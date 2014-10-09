@@ -377,6 +377,7 @@ int stmmc_pltfr_init(struct platform_device *pdev) {
 	int phy_iface;
 	int err;
 	struct bsp_priv *bsp_priv;
+	int irq;
 
 	pr_info("%s: \n", __func__);
 
@@ -413,6 +414,36 @@ int stmmc_pltfr_init(struct platform_device *pdev) {
 			pr_err("%s: ERROR: Request gmac phy reset pin failed.\n", __func__);
 		}
 	}
+
+	if (bsp_priv->phyirq_io > 0) {
+		err = gpio_request(bsp_priv->phyirq_io, "gmac_phyirq");
+		if (err < 0) {
+			printk("gmac_phyirq: failed to request GPIO %d,"
+				" error %d\n", bsp_priv->phyirq_io, err);
+		} else {
+			err = gpio_direction_input(bsp_priv->phyirq_io);
+			if (err < 0) {
+				pr_err("gmac_phyirq: failed to configure input"
+					" direction for GPIO %d, error %d\n",
+				bsp_priv->phyirq_io, err);
+				gpio_free(bsp_priv->phyirq_io);
+			} else {
+				irq = gpio_to_irq(bsp_priv->phyirq_io);
+				if (irq < 0) {
+					err = irq;
+					pr_err("gpio-keys: Unable to get irq number for GPIO %d, error %d\n", bsp_priv->phyirq_io, err);
+					gpio_free(bsp_priv->phyirq_io);
+				} else {
+					struct plat_stmmacenet_data *plat_dat = dev_get_platdata(&pdev->dev);
+					if (plat_dat)
+						plat_dat->mdio_bus_data->probed_phy_irq = irq;
+					else
+						pr_err("%s: plat_data is NULL\n", __func__);
+				}
+			}
+		}
+	}
+
 //rmii or rgmii
 	if (phy_iface == PHY_INTERFACE_MODE_RGMII) {
 		pr_info("%s: init for RGMII\n", __func__);
@@ -554,6 +585,10 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 		g_bsp_priv.rx_delay = value;
 	}
 
+	g_bsp_priv.phyirq_io =
+			of_get_named_gpio_flags(np, "phyirq-gpio", 0, &flags);
+	g_bsp_priv.phyirq_io_level = (flags == GPIO_ACTIVE_HIGH) ? 1 : 0;
+
 	g_bsp_priv.reset_io = 
 			of_get_named_gpio_flags(np, "reset-gpio", 0, &flags);
 	g_bsp_priv.reset_io_level = (flags == GPIO_ACTIVE_HIGH) ? 1 : 0;
@@ -636,6 +671,9 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 			pr_err("%s: main dt probe failed", __func__);
 			return ret;
 		}
+
+		pdev->dev.platform_data = plat_dat;
+
 	} else {
 		plat_dat = pdev->dev.platform_data;
 	}
