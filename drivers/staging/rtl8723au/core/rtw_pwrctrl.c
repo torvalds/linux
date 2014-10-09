@@ -172,7 +172,6 @@ void rtw_ps_processor23a(struct rtw_adapter *padapter)
 exit:
 	rtw_set_pwr_state_check_timer(&padapter->pwrctrlpriv);
 	pwrpriv->ps_processing = false;
-	return;
 }
 
 static void pwr_state_check_handler(unsigned long data)
