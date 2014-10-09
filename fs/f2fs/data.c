@@ -1116,6 +1116,9 @@ static void f2fs_invalidate_data_page(struct page *page, unsigned int offset,
 	if (offset % PAGE_CACHE_SIZE || length != PAGE_CACHE_SIZE)
 		return;
 
+	if (f2fs_is_atomic_file(inode) || f2fs_is_volatile_file(inode))
+		invalidate_inmem_page(inode, page);
+
 	if (PageDirty(page))
 		inode_dec_dirty_pages(inode);
 	ClearPagePrivate(page);
