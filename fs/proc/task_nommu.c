@@ -217,17 +217,17 @@ static void *m_start(struct seq_file *m, loff_t *pos)
 		return ERR_PTR(-ESRCH);
 
 	mm = priv->mm;
-	if (!mm || !atomic_inc_not_zero(&mm->mm_users)) {
-		put_task_struct(priv->task);
-		priv->task = NULL;
+	if (!mm || !atomic_inc_not_zero(&mm->mm_users))
 		return NULL;
-	}
-	down_read(&mm->mmap_sem);
 
+	down_read(&mm->mmap_sem);
 	/* start from the Nth VMA */
 	for (p = rb_first(&mm->mm_rb); p; p = rb_next(p))
 		if (n-- == 0)
 			return p;
+
+	up_read(&mm->mmap_sem);
+	mmput(mm);
 	return NULL;
 }
 
@@ -235,11 +235,13 @@ static void m_stop(struct seq_file *m, void *_vml)
 {
 	struct proc_maps_private *priv = m->private;
 
+	if (!IS_ERR_OR_NULL(_vml)) {
+		up_read(&priv->mm->mmap_sem);
+		mmput(priv->mm);
+	}
 	if (priv->task) {
-		struct mm_struct *mm = priv->task->mm;
-		up_read(&mm->mmap_sem);
-		mmput(mm);
 		put_task_struct(priv->task);
+		priv->task = NULL;
 	}
 }
 
