@@ -996,6 +996,10 @@ static void tick_nohz_handler(struct clock_event_device *dev)
 	tick_sched_do_timer(now);
 	tick_sched_handle(ts, regs);
 
+	/* No need to reprogram if we are running tickless  */
+	if (unlikely(ts->tick_stopped))
+		return;
+
 	while (tick_nohz_reprogram(ts, now)) {
 		now = ktime_get();
 		tick_do_update_jiffies64(now);
@@ -1122,6 +1126,10 @@ static enum hrtimer_restart tick_sched_timer(struct hrtimer *timer)
 	 */
 	if (regs)
 		tick_sched_handle(ts, regs);
+
+	/* No need to reprogram if we are in idle or full dynticks mode */
+	if (unlikely(ts->tick_stopped))
+		return HRTIMER_NORESTART;
 
 	hrtimer_forward(timer, now, tick_period);
 

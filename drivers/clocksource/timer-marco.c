@@ -63,7 +63,7 @@ static inline void sirfsoc_timer_count_disable(int idx)
 /* enable count and interrupt */
 static inline void sirfsoc_timer_count_enable(int idx)
 {
-	writel_relaxed(readl_relaxed(sirfsoc_timer_base + SIRFSOC_TIMER_32COUNTER_0_CTRL + 4 * idx) | 0x7,
+	writel_relaxed(readl_relaxed(sirfsoc_timer_base + SIRFSOC_TIMER_32COUNTER_0_CTRL + 4 * idx) | 0x3,
 		sirfsoc_timer_base + SIRFSOC_TIMER_32COUNTER_0_CTRL + 4 * idx);
 }
 
@@ -102,6 +102,9 @@ static int sirfsoc_timer_set_next_event(unsigned long delta,
 	struct clock_event_device *ce)
 {
 	int cpu = smp_processor_id();
+
+	/* disable timer first, then modify the related registers */
+	sirfsoc_timer_count_disable(cpu);
 
 	writel_relaxed(0, sirfsoc_timer_base + SIRFSOC_TIMER_COUNTER_0 +
 		4 * cpu);
