@@ -10,9 +10,9 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/lzo.h>
+#include <linux/slab.h>
 
 #include "internal.h"
 
