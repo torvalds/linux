@@ -126,22 +126,20 @@ static struct mempolicy preferred_node_policy[MAX_NUMNODES];
 static struct mempolicy *get_task_policy(struct task_struct *p)
 {
 	struct mempolicy *pol = p->mempolicy;
+	int node;
 
-	if (!pol) {
-		int node = numa_node_id();
+	if (pol)
+		return pol;
 
-		if (node != NUMA_NO_NODE) {
-			pol = &preferred_node_policy[node];
-			/*
-			 * preferred_node_policy is not initialised early in
-			 * boot
-			 */
-			if (!pol->mode)
-				pol = NULL;
-		}
+	node = numa_node_id();
+	if (node != NUMA_NO_NODE) {
+		pol = &preferred_node_policy[node];
+		/* preferred_node_policy is not initialised early in boot */
+		if (pol->mode)
+			return pol;
 	}
 
-	return pol;
+	return &default_policy;
 }
 
 static const struct mempolicy_operations {
@@ -1644,14 +1642,14 @@ struct mempolicy *get_vma_policy(struct task_struct *task,
 				mpol_get(pol);
 		}
 	}
-	if (!pol)
-		pol = &default_policy;
+
 	return pol;
 }
 
 bool vma_policy_mof(struct task_struct *task, struct vm_area_struct *vma)
 {
 	struct mempolicy *pol = get_task_policy(task);
+
 	if (vma) {
 		if (vma->vm_ops && vma->vm_ops->get_policy) {
 			bool ret = false;
@@ -1666,9 +1664,6 @@ bool vma_policy_mof(struct task_struct *task, struct vm_area_struct *vma)
 			pol = vma->vm_policy;
 		}
 	}
-
-	if (!pol)
-		return default_policy.flags & MPOL_F_MOF;
 
 	return pol->flags & MPOL_F_MOF;
 }
@@ -2077,7 +2072,7 @@ struct page *alloc_pages_current(gfp_t gfp, unsigned order)
 	struct page *page;
 	unsigned int cpuset_mems_cookie;
 
-	if (!pol || in_interrupt() || (gfp & __GFP_THISNODE))
+	if (in_interrupt() || (gfp & __GFP_THISNODE))
 		pol = &default_policy;
 
 retry_cpuset:
