@@ -30,7 +30,7 @@ MODULE_PARM_DESC(debug,
 		 "set debugging level (1=info,xfer=2,rc=4,reg=8,i2c=16,fw=32 (or-able))."
 		 DVB_USB_DEBUG_STATUS);
 /* enable obnoxious led */
-bool dvb_usb_af9005_led = 1;
+bool dvb_usb_af9005_led = true;
 module_param_named(led, dvb_usb_af9005_led, bool, 0644);
 MODULE_PARM_DESC(led, "enable led (default: 1).");
 

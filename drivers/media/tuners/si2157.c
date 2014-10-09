@@ -1,5 +1,5 @@
 /*
- * Silicon Labs Si2157/2158 silicon tuner driver
+ * Silicon Labs Si2147/2157/2158 silicon tuner driver
  *
  * Copyright (C) 2014 Antti Palosaari <crope@iki.fi>
  *
@@ -55,8 +55,7 @@ static int si2157_cmd_execute(struct si2157 *s, struct si2157_cmd *cmd)
 				break;
 		}
 
-		dev_dbg(&s->client->dev, "%s: cmd execution took %d ms\n",
-				__func__,
+		dev_dbg(&s->client->dev, "cmd execution took %d ms\n",
 				jiffies_to_msecs(jiffies) -
 				(jiffies_to_msecs(timeout) - TIMEOUT));
 
@@ -75,7 +74,7 @@ err_mutex_unlock:
 
 	return 0;
 err:
-	dev_dbg(&s->client->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&s->client->dev, "failed=%d\n", ret);
 	return ret;
 }
 
@@ -88,9 +87,12 @@ static int si2157_init(struct dvb_frontend *fe)
 	u8 *fw_file;
 	unsigned int chip_id;
 
-	dev_dbg(&s->client->dev, "%s:\n", __func__);
+	dev_dbg(&s->client->dev, "\n");
 
-	/* configure? */
+	if (s->fw_loaded)
+		goto warm;
+
+	/* power up */
 	memcpy(cmd.args, "\xc0\x00\x0c\x00\x00\x01\x01\x01\x01\x01\x01\x02\x00\x00\x01", 15);
 	cmd.wlen = 15;
 	cmd.rlen = 1;
@@ -111,45 +113,47 @@ static int si2157_init(struct dvb_frontend *fe)
 
 	#define SI2158_A20 ('A' << 24 | 58 << 16 | '2' << 8 | '0' << 0)
 	#define SI2157_A30 ('A' << 24 | 57 << 16 | '3' << 8 | '0' << 0)
+	#define SI2147_A30 ('A' << 24 | 47 << 16 | '3' << 8 | '0' << 0)
 
 	switch (chip_id) {
 	case SI2158_A20:
 		fw_file = SI2158_A20_FIRMWARE;
 		break;
 	case SI2157_A30:
+	case SI2147_A30:
 		goto skip_fw_download;
 		break;
 	default:
 		dev_err(&s->client->dev,
-				"%s: unkown chip version Si21%d-%c%c%c\n",
-				KBUILD_MODNAME, cmd.args[2], cmd.args[1],
+				"unknown chip version Si21%d-%c%c%c\n",
+				cmd.args[2], cmd.args[1],
 				cmd.args[3], cmd.args[4]);
 		ret = -EINVAL;
 		goto err;
 	}
 
 	/* cold state - try to download firmware */
-	dev_info(&s->client->dev, "%s: found a '%s' in cold state\n",
-			KBUILD_MODNAME, si2157_ops.info.name);
+	dev_info(&s->client->dev, "found a '%s' in cold state\n",
+			si2157_ops.info.name);
 
 	/* request the firmware, this will block and timeout */
 	ret = request_firmware(&fw, fw_file, &s->client->dev);
 	if (ret) {
-		dev_err(&s->client->dev, "%s: firmware file '%s' not found\n",
-				KBUILD_MODNAME, fw_file);
+		dev_err(&s->client->dev, "firmware file '%s' not found\n",
+				fw_file);
 		goto err;
 	}
 
 	/* firmware should be n chunks of 17 bytes */
 	if (fw->size % 17 != 0) {
-		dev_err(&s->client->dev, "%s: firmware file '%s' is invalid\n",
-				KBUILD_MODNAME, fw_file);
+		dev_err(&s->client->dev, "firmware file '%s' is invalid\n",
+				fw_file);
 		ret = -EINVAL;
 		goto err;
 	}
 
-	dev_info(&s->client->dev, "%s: downloading firmware from file '%s'\n",
-			KBUILD_MODNAME, fw_file);
+	dev_info(&s->client->dev, "downloading firmware from file '%s'\n",
+			fw_file);
 
 	for (remaining = fw->size; remaining > 0; remaining -= 17) {
 		len = fw->data[fw->size - remaining];
@@ -159,8 +163,8 @@ static int si2157_init(struct dvb_frontend *fe)
 		ret = si2157_cmd_execute(s, &cmd);
 		if (ret) {
 			dev_err(&s->client->dev,
-					"%s: firmware download failed=%d\n",
-					KBUILD_MODNAME, ret);
+					"firmware download failed=%d\n",
+					ret);
 			goto err;
 		}
 	}
@@ -177,14 +181,17 @@ skip_fw_download:
 	if (ret)
 		goto err;
 
-	s->active = true;
+	s->fw_loaded = true;
 
+warm:
+	s->active = true;
 	return 0;
+
 err:
 	if (fw)
 		release_firmware(fw);
 
-	dev_dbg(&s->client->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&s->client->dev, "failed=%d\n", ret);
 	return ret;
 }
 
@@ -194,20 +201,21 @@ static int si2157_sleep(struct dvb_frontend *fe)
 	int ret;
 	struct si2157_cmd cmd;
 
-	dev_dbg(&s->client->dev, "%s:\n", __func__);
+	dev_dbg(&s->client->dev, "\n");
 
 	s->active = false;
 
-	memcpy(cmd.args, "\x13", 1);
-	cmd.wlen = 1;
-	cmd.rlen = 0;
+	/* standby */
+	memcpy(cmd.args, "\x16\x00", 2);
+	cmd.wlen = 2;
+	cmd.rlen = 1;
 	ret = si2157_cmd_execute(s, &cmd);
 	if (ret)
 		goto err;
 
 	return 0;
 err:
-	dev_dbg(&s->client->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&s->client->dev, "failed=%d\n", ret);
 	return ret;
 }
 
@@ -220,8 +228,8 @@ static int si2157_set_params(struct dvb_frontend *fe)
 	u8 bandwidth, delivery_system;
 
 	dev_dbg(&s->client->dev,
-			"%s: delivery_system=%d frequency=%u bandwidth_hz=%u\n",
-			__func__, c->delivery_system, c->frequency,
+			"delivery_system=%d frequency=%u bandwidth_hz=%u\n",
+			c->delivery_system, c->frequency,
 			c->bandwidth_hz);
 
 	if (!s->active) {
@@ -239,6 +247,9 @@ static int si2157_set_params(struct dvb_frontend *fe)
 		bandwidth = 0x0f;
 
 	switch (c->delivery_system) {
+	case SYS_ATSC:
+			delivery_system = 0x00;
+			break;
 	case SYS_DVBT:
 	case SYS_DVBT2: /* it seems DVB-T and DVB-T2 both are 0x20 here */
 			delivery_system = 0x20;
@@ -256,7 +267,14 @@ static int si2157_set_params(struct dvb_frontend *fe)
 	if (s->inversion)
 		cmd.args[5] = 0x01;
 	cmd.wlen = 6;
-	cmd.rlen = 1;
+	cmd.rlen = 4;
+	ret = si2157_cmd_execute(s, &cmd);
+	if (ret)
+		goto err;
+
+	memcpy(cmd.args, "\x14\x00\x02\x07\x01\x00", 6);
+	cmd.wlen = 6;
+	cmd.rlen = 4;
 	ret = si2157_cmd_execute(s, &cmd);
 	if (ret)
 		goto err;
@@ -275,7 +293,7 @@ static int si2157_set_params(struct dvb_frontend *fe)
 
 	return 0;
 err:
-	dev_dbg(&s->client->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&s->client->dev, "failed=%d\n", ret);
 	return ret;
 }
 
@@ -310,13 +328,14 @@ static int si2157_probe(struct i2c_client *client,
 	s = kzalloc(sizeof(struct si2157), GFP_KERNEL);
 	if (!s) {
 		ret = -ENOMEM;
-		dev_err(&client->dev, "%s: kzalloc() failed\n", KBUILD_MODNAME);
+		dev_err(&client->dev, "kzalloc() failed\n");
 		goto err;
 	}
 
 	s->client = client;
 	s->fe = cfg->fe;
 	s->inversion = cfg->inversion;
+	s->fw_loaded = false;
 	mutex_init(&s->i2c_mutex);
 
 	/* check if the tuner is there */
@@ -333,11 +352,10 @@ static int si2157_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, s);
 
 	dev_info(&s->client->dev,
-			"%s: Silicon Labs Si2157/Si2158 successfully attached\n",
-			KBUILD_MODNAME);
+			"Silicon Labs Si2157/Si2158 successfully attached\n");
 	return 0;
 err:
-	dev_dbg(&client->dev, "%s: failed=%d\n", __func__, ret);
+	dev_dbg(&client->dev, "failed=%d\n", ret);
 	kfree(s);
 
 	return ret;
@@ -348,7 +366,7 @@ static int si2157_remove(struct i2c_client *client)
 	struct si2157 *s = i2c_get_clientdata(client);
 	struct dvb_frontend *fe = s->fe;
 
-	dev_dbg(&client->dev, "%s:\n", __func__);
+	dev_dbg(&client->dev, "\n");
 
 	memset(&fe->ops.tuner_ops, 0, sizeof(struct dvb_tuner_ops));
 	fe->tuner_priv = NULL;

@@ -11,16 +11,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #include <asm/cacheflush.h>
@@ -319,10 +309,11 @@ isp_video_check_format(struct isp_video *video, struct isp_video_fh *vfh)
 	    vfh->format.fmt.pix.height != format.fmt.pix.height ||
 	    vfh->format.fmt.pix.width != format.fmt.pix.width ||
 	    vfh->format.fmt.pix.bytesperline != format.fmt.pix.bytesperline ||
-	    vfh->format.fmt.pix.sizeimage != format.fmt.pix.sizeimage)
+	    vfh->format.fmt.pix.sizeimage != format.fmt.pix.sizeimage ||
+	    vfh->format.fmt.pix.field != format.fmt.pix.field)
 		return -EINVAL;
 
-	return ret;
+	return 0;
 }
 
 /* -----------------------------------------------------------------------------
@@ -491,6 +482,11 @@ struct isp_buffer *omap3isp_video_buffer_next(struct isp_video *video)
 	else
 		buf->vb.v4l2_buf.sequence = atomic_read(&pipe->frame_number);
 
+	if (pipe->field != V4L2_FIELD_NONE)
+		buf->vb.v4l2_buf.sequence /= 2;
+
+	buf->vb.v4l2_buf.field = pipe->field;
+
 	/* Report pipeline errors to userspace on the capture device side. */
 	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE && pipe->error) {
 		state = VB2_BUF_STATE_ERROR;
@@ -641,7 +637,40 @@ isp_video_set_format(struct file *file, void *fh, struct v4l2_format *format)
 	if (format->type != video->type)
 		return -EINVAL;
 
-	mutex_lock(&video->mutex);
+	/* Replace unsupported field orders with sane defaults. */
+	switch (format->fmt.pix.field) {
+	case V4L2_FIELD_NONE:
+		/* Progressive is supported everywhere. */
+		break;
+	case V4L2_FIELD_ALTERNATE:
+		/* ALTERNATE is not supported on output nodes. */
+		if (video->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
+			format->fmt.pix.field = V4L2_FIELD_NONE;
+		break;
+	case V4L2_FIELD_INTERLACED:
+		/* The ISP has no concept of video standard, select the
+		 * top-bottom order when the unqualified interlaced order is
+		 * requested.
+		 */
+		format->fmt.pix.field = V4L2_FIELD_INTERLACED_TB;
+		/* Fall-through */
+	case V4L2_FIELD_INTERLACED_TB:
+	case V4L2_FIELD_INTERLACED_BT:
+		/* Interlaced orders are only supported at the CCDC output. */
+		if (video != &video->isp->isp_ccdc.video_out)
+			format->fmt.pix.field = V4L2_FIELD_NONE;
+		break;
+	case V4L2_FIELD_TOP:
+	case V4L2_FIELD_BOTTOM:
+	case V4L2_FIELD_SEQ_TB:
+	case V4L2_FIELD_SEQ_BT:
+	default:
+		/* All other field orders are currently unsupported, default to
+		 * progressive.
+		 */
+		format->fmt.pix.field = V4L2_FIELD_NONE;
+		break;
+	}
 
 	/* Fill the bytesperline and sizeimage fields by converting to media bus
 	 * format and back to pixel format.
@@ -649,9 +678,10 @@ isp_video_set_format(struct file *file, void *fh, struct v4l2_format *format)
 	isp_video_pix_to_mbus(&format->fmt.pix, &fmt);
 	isp_video_mbus_to_pix(video, &fmt, &format->fmt.pix);
 
+	mutex_lock(&video->mutex);
 	vfh->format = *format;
-
 	mutex_unlock(&video->mutex);
+
 	return 0;
 }
 
@@ -1039,6 +1069,7 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	video->queue = &vfh->queue;
 	INIT_LIST_HEAD(&video->dmaqueue);
 	atomic_set(&pipe->frame_number, -1);
+	pipe->field = vfh->format.fmt.pix.field;
 
 	mutex_lock(&video->queue_lock);
 	ret = vb2_streamon(&vfh->queue, type);

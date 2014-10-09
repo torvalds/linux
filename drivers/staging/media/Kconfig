@@ -19,8 +19,6 @@ menuconfig STAGING_MEDIA
 if STAGING_MEDIA
 
 # Please keep them in alphabetic order
-source "drivers/staging/media/as102/Kconfig"
-
 source "drivers/staging/media/bcm2048/Kconfig"
 
 source "drivers/staging/media/cxd2099/Kconfig"

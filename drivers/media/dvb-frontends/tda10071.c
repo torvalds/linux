@@ -1037,7 +1037,7 @@ static int tda10071_init(struct dvb_frontend *fe)
 			ret = -EFAULT;
 			goto error;
 		} else {
-			priv->warm = 1;
+			priv->warm = true;
 		}
 
 		cmd.args[0] = CMD_GET_FW_VERSION;

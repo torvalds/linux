@@ -38,6 +38,7 @@ MODULE_LICENSE("GPL");
 #define VPIF_CH3_MAX_MODES	2
 
 spinlock_t vpif_lock;
+EXPORT_SYMBOL_GPL(vpif_lock);
 
 void __iomem *vpif_base;
 EXPORT_SYMBOL_GPL(vpif_base);

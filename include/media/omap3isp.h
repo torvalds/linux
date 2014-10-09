@@ -57,6 +57,8 @@ enum {
  *		0 - Active high, 1 - Active low
  * @vs_pol: Vertical synchronization polarity
  *		0 - Active high, 1 - Active low
+ * @fld_pol: Field signal polarity
+ *		0 - Positive, 1 - Negative
  * @data_pol: Data polarity
  *		0 - Normal, 1 - One's complement
  */
@@ -65,6 +67,7 @@ struct isp_parallel_platform_data {
 	unsigned int clk_pol:1;
 	unsigned int hs_pol:1;
 	unsigned int vs_pol:1;
+	unsigned int fld_pol:1;
 	unsigned int data_pol:1;
 };
 

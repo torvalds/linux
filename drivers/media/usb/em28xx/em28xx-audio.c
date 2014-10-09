@@ -268,7 +268,7 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 	nonblock = !!(substream->f_flags & O_NONBLOCK);
 	if (nonblock) {
 		if (!mutex_trylock(&dev->lock))
-		return -EAGAIN;
+			return -EAGAIN;
 	} else
 		mutex_lock(&dev->lock);
 
@@ -893,7 +893,7 @@ static int em28xx_audio_init(struct em28xx *dev)
 	static int          devnr;
 	int		    err;
 
-	if (!dev->has_alsa_audio) {
+	if (dev->usb_audio_type != EM28XX_USB_AUDIO_VENDOR) {
 		/* This device does not support the extension (in this case
 		   the device is expecting the snd-usb-audio module or
 		   doesn't have analog audio support at all) */
@@ -975,7 +975,7 @@ static int em28xx_audio_fini(struct em28xx *dev)
 	if (dev == NULL)
 		return 0;
 
-	if (!dev->has_alsa_audio) {
+	if (dev->usb_audio_type != EM28XX_USB_AUDIO_VENDOR) {
 		/* This device does not support the extension (in this case
 		   the device is expecting the snd-usb-audio module or
 		   doesn't have analog audio support at all) */
@@ -1003,7 +1003,7 @@ static int em28xx_audio_suspend(struct em28xx *dev)
 	if (dev == NULL)
 		return 0;
 
-	if (!dev->has_alsa_audio)
+	if (dev->usb_audio_type != EM28XX_USB_AUDIO_VENDOR)
 		return 0;
 
 	em28xx_info("Suspending audio extension");
@@ -1017,7 +1017,7 @@ static int em28xx_audio_resume(struct em28xx *dev)
 	if (dev == NULL)
 		return 0;
 
-	if (!dev->has_alsa_audio)
+	if (dev->usb_audio_type != EM28XX_USB_AUDIO_VENDOR)
 		return 0;
 
 	em28xx_info("Resuming audio extension");

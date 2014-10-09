@@ -157,6 +157,12 @@ static struct sms_board sms_boards[] = {
 		.type = SMS_DENVER_2160,
 		.default_mode = DEVICE_MODE_DAB_TDMB,
 	},
+	[SMS1XXX_BOARD_PCTV_77E] = {
+		.name	= "Hauppauge microStick 77e",
+		.type	= SMS_NOVA_B0,
+		.fw[DEVICE_MODE_DVBT_BDA] = SMS_FW_DVB_NOVA_12MHZ_B0,
+		.default_mode = DEVICE_MODE_DVBT_BDA,
+	},
 };
 
 struct sms_board *sms_get_board(unsigned id)

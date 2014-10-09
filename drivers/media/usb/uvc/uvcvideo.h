@@ -147,6 +147,7 @@
 #define UVC_QUIRK_FIX_BANDWIDTH		0x00000080
 #define UVC_QUIRK_PROBE_DEF		0x00000100
 #define UVC_QUIRK_RESTRICT_FRAME_RATE	0x00000200
+#define UVC_QUIRK_RESTORE_CTRLS_ON_INIT	0x00000400
 
 /* Format flags */
 #define UVC_FMT_FLAG_COMPRESSED		0x00000001
@@ -456,6 +457,8 @@ struct uvc_streaming {
 	struct uvc_format *def_format;
 	struct uvc_format *cur_format;
 	struct uvc_frame *cur_frame;
+	size_t frame_size;
+
 	/* Protect access to ctrl, cur_format, cur_frame and hardware video
 	 * probe control.
 	 */
@@ -688,7 +691,7 @@ extern int uvc_ctrl_add_mapping(struct uvc_video_chain *chain,
 		const struct uvc_control_mapping *mapping);
 extern int uvc_ctrl_init_device(struct uvc_device *dev);
 extern void uvc_ctrl_cleanup_device(struct uvc_device *dev);
-extern int uvc_ctrl_resume_device(struct uvc_device *dev);
+extern int uvc_ctrl_restore_values(struct uvc_device *dev);
 
 extern int uvc_ctrl_begin(struct uvc_video_chain *chain);
 extern int __uvc_ctrl_commit(struct uvc_fh *handle, int rollback,

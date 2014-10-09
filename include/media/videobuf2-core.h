@@ -356,8 +356,8 @@ struct v4l2_fh;
  * @buf_struct_size: size of the driver-specific buffer structure;
  *		"0" indicates the driver doesn't want to use a custom buffer
  *		structure type, so sizeof(struct vb2_buffer) will is used
- * @timestamp_flags: Timestamp flags; V4L2_BUF_FLAGS_TIMESTAMP_* and
- *		V4L2_BUF_FLAGS_TSTAMP_SRC_*
+ * @timestamp_flags: Timestamp flags; V4L2_BUF_FLAG_TIMESTAMP_* and
+ *		V4L2_BUF_FLAG_TSTAMP_SRC_*
  * @gfp_flags:	additional gfp flags used when allocating the buffers.
  *		Typically this is 0, but it may be e.g. GFP_DMA or __GFP_DMA32
  *		to force the buffer allocation to a specific memory zone.
@@ -366,6 +366,7 @@ struct v4l2_fh;
  *		cannot be started unless at least this number of buffers
  *		have been queued into the driver.
  *
+ * @mmap_lock:	private mutex used when buffers are allocated/freed/mmapped
  * @memory:	current memory type used
  * @bufs:	videobuf buffer structures
  * @num_buffers: number of allocated/used buffers
@@ -402,6 +403,7 @@ struct vb2_queue {
 	u32				min_buffers_needed;
 
 /* private: internal use only */
+	struct mutex			mmap_lock;
 	enum v4l2_memory		memory;
 	struct vb2_buffer		*bufs[VIDEO_MAX_FRAME];
 	unsigned int			num_buffers;
@@ -590,6 +592,15 @@ vb2_plane_size(struct vb2_buffer *vb, unsigned int plane_no)
 	if (plane_no < vb->num_planes)
 		return vb->v4l2_planes[plane_no].length;
 	return 0;
+}
+
+/**
+ * vb2_start_streaming_called() - return streaming status of driver
+ * @q:		videobuf queue
+ */
+static inline bool vb2_start_streaming_called(struct vb2_queue *q)
+{
+	return q->start_streaming_called;
 }
 
 /*

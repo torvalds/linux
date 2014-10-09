@@ -2559,7 +2559,7 @@ static void dib7090_setHostBusMux(struct dib7000p_state *state, int mode)
 	dib7000p_write_word(state, 1288, reg_1288);
 }
 
-int dib7090_set_diversity_in(struct dvb_frontend *fe, int onoff)
+static int dib7090_set_diversity_in(struct dvb_frontend *fe, int onoff)
 {
 	struct dib7000p_state *state = fe->demodulator_priv;
 	u16 reg_1287;

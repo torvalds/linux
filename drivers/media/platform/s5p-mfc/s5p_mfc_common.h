@@ -698,6 +698,12 @@ struct mfc_control {
 #define s5p_mfc_hw_call(f, op, args...) \
 	((f && f->op) ? f->op(args) : -ENODEV)
 
+#define s5p_mfc_hw_call_void(f, op, args...) \
+do { \
+	if (f && f->op) \
+		f->op(args); \
+} while (0)
+
 #define fh_to_ctx(__fh) container_of(__fh, struct s5p_mfc_ctx, fh)
 #define ctrl_to_ctx(__ctrl) \
 	container_of((__ctrl)->handler, struct s5p_mfc_ctx, ctrl_handler)

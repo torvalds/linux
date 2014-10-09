@@ -21,6 +21,7 @@
 #include "s5p_mfc_intr.h"
 #include "s5p_mfc_opr.h"
 #include "s5p_mfc_pm.h"
+#include "s5p_mfc_ctrl.h"
 
 /* Allocate memory for firmware */
 int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
@@ -188,12 +189,12 @@ static inline void s5p_mfc_init_memctrl(struct s5p_mfc_dev *dev)
 {
 	if (IS_MFCV6_PLUS(dev)) {
 		mfc_write(dev, dev->bank1, S5P_FIMV_RISC_BASE_ADDRESS_V6);
-		mfc_debug(2, "Base Address : %08x\n", dev->bank1);
+		mfc_debug(2, "Base Address : %pad\n", &dev->bank1);
 	} else {
 		mfc_write(dev, dev->bank1, S5P_FIMV_MC_DRAMBASE_ADR_A);
 		mfc_write(dev, dev->bank2, S5P_FIMV_MC_DRAMBASE_ADR_B);
-		mfc_debug(2, "Bank1: %08x, Bank2: %08x\n",
-				dev->bank1, dev->bank2);
+		mfc_debug(2, "Bank1: %pad, Bank2: %pad\n",
+				&dev->bank1, &dev->bank2);
 	}
 }
 
@@ -257,9 +258,9 @@ int s5p_mfc_init_hw(struct s5p_mfc_dev *dev)
 		s5p_mfc_clock_off();
 		return ret;
 	}
-	mfc_debug(2, "Ok, now will write a command to init the system\n");
+	mfc_debug(2, "Ok, now will wait for completion of hardware init\n");
 	if (s5p_mfc_wait_for_done_dev(dev, S5P_MFC_R2H_CMD_SYS_INIT_RET)) {
-		mfc_err("Failed to load firmware\n");
+		mfc_err("Failed to init hardware\n");
 		s5p_mfc_reset(dev);
 		s5p_mfc_clock_off();
 		return -EIO;
@@ -293,7 +294,7 @@ void s5p_mfc_deinit_hw(struct s5p_mfc_dev *dev)
 	s5p_mfc_clock_on();
 
 	s5p_mfc_reset(dev);
-	s5p_mfc_hw_call(dev->mfc_ops, release_dev_context_buffer, dev);
+	s5p_mfc_hw_call_void(dev->mfc_ops, release_dev_context_buffer, dev);
 
 	s5p_mfc_clock_off();
 }
@@ -396,7 +397,7 @@ int s5p_mfc_open_mfc_inst(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx)
 
 	set_work_bit_irqsave(ctx);
 	s5p_mfc_clean_ctx_int_flags(ctx);
-	s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
+	s5p_mfc_hw_call_void(dev->mfc_ops, try_run, dev);
 	if (s5p_mfc_wait_for_done_ctx(ctx,
 		S5P_MFC_R2H_CMD_OPEN_INSTANCE_RET, 0)) {
 		/* Error or timeout */
@@ -410,9 +411,9 @@ int s5p_mfc_open_mfc_inst(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx)
 
 err_free_desc_buf:
 	if (ctx->type == MFCINST_DECODER)
-		s5p_mfc_hw_call(dev->mfc_ops, release_dec_desc_buffer, ctx);
+		s5p_mfc_hw_call_void(dev->mfc_ops, release_dec_desc_buffer, ctx);
 err_free_inst_buf:
-	s5p_mfc_hw_call(dev->mfc_ops, release_instance_buffer, ctx);
+	s5p_mfc_hw_call_void(dev->mfc_ops, release_instance_buffer, ctx);
 err:
 	return ret;
 }
@@ -422,17 +423,17 @@ void s5p_mfc_close_mfc_inst(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx)
 	ctx->state = MFCINST_RETURN_INST;
 	set_work_bit_irqsave(ctx);
 	s5p_mfc_clean_ctx_int_flags(ctx);
-	s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
+	s5p_mfc_hw_call_void(dev->mfc_ops, try_run, dev);
 	/* Wait until instance is returned or timeout occurred */
 	if (s5p_mfc_wait_for_done_ctx(ctx,
 				S5P_MFC_R2H_CMD_CLOSE_INSTANCE_RET, 0))
 		mfc_err("Err returning instance\n");
 
 	/* Free resources */
-	s5p_mfc_hw_call(dev->mfc_ops, release_codec_buffers, ctx);
-	s5p_mfc_hw_call(dev->mfc_ops, release_instance_buffer, ctx);
+	s5p_mfc_hw_call_void(dev->mfc_ops, release_codec_buffers, ctx);
+	s5p_mfc_hw_call_void(dev->mfc_ops, release_instance_buffer, ctx);
 	if (ctx->type == MFCINST_DECODER)
-		s5p_mfc_hw_call(dev->mfc_ops, release_dec_desc_buffer, ctx);
+		s5p_mfc_hw_call_void(dev->mfc_ops, release_dec_desc_buffer, ctx);
 
 	ctx->inst_no = MFC_NO_INSTANCE_SET;
 	ctx->state = MFCINST_FREE;

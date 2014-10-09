@@ -1252,7 +1252,7 @@ static int lme2510_get_stream_config(struct dvb_frontend *fe, u8 *ts_type,
 
 	/* Turn PID filter on the fly by module option */
 	if (pid_filter == 2) {
-		adap->pid_filtering  = 1;
+		adap->pid_filtering  = true;
 		adap->max_feed_count = 15;
 	}
 

@@ -46,6 +46,7 @@ source "drivers/media/usb/ttusb-budget/Kconfig"
 source "drivers/media/usb/ttusb-dec/Kconfig"
 source "drivers/media/usb/siano/Kconfig"
 source "drivers/media/usb/b2c2/Kconfig"
+source "drivers/media/usb/as102/Kconfig"
 endif
 
 if (MEDIA_CAMERA_SUPPORT || MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT)
@@ -55,8 +56,9 @@ endif
 
 if MEDIA_SDR_SUPPORT
 	comment "Software defined radio USB devices"
-source "drivers/media/usb/msi2500/Kconfig"
 source "drivers/media/usb/airspy/Kconfig"
+source "drivers/media/usb/hackrf/Kconfig"
+source "drivers/media/usb/msi2500/Kconfig"
 endif
 
 endif #MEDIA_USB_SUPPORT
