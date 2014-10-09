@@ -1,7 +1,7 @@
 /*
  * file.c - NTFS kernel file operations.  Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2011 Anton Altaparmakov and Tuxera Inc.
+ * Copyright (c) 2001-2014 Anton Altaparmakov and Tuxera Inc.
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -410,7 +410,8 @@ static inline int __ntfs_grab_cache_pages(struct address_space *mapping,
 	BUG_ON(!nr_pages);
 	err = nr = 0;
 	do {
-		pages[nr] = find_lock_page(mapping, index);
+		pages[nr] = find_get_page_flags(mapping, index, FGP_LOCK |
+				FGP_ACCESSED);
 		if (!pages[nr]) {
 			if (!*cached_page) {
 				*cached_page = page_cache_alloc(mapping);
