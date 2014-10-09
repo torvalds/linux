@@ -1693,7 +1693,6 @@ exit:
 static int prctl_set_mm(int opt, unsigned long addr,
 			unsigned long arg4, unsigned long arg5)
 {
-	unsigned long rlim = rlimit(RLIMIT_DATA);
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 	int error;
@@ -1733,9 +1732,8 @@ static int prctl_set_mm(int opt, unsigned long addr,
 		if (addr <= mm->end_data)
 			goto out;
 
-		if (rlim < RLIM_INFINITY &&
-		    (mm->brk - addr) +
-		    (mm->end_data - mm->start_data) > rlim)
+		if (check_data_rlimit(rlimit(RLIMIT_DATA), mm->brk, addr,
+				      mm->end_data, mm->start_data))
 			goto out;
 
 		mm->start_brk = addr;
@@ -1745,9 +1743,8 @@ static int prctl_set_mm(int opt, unsigned long addr,
 		if (addr <= mm->end_data)
 			goto out;
 
-		if (rlim < RLIM_INFINITY &&
-		    (addr - mm->start_brk) +
-		    (mm->end_data - mm->start_data) > rlim)
+		if (check_data_rlimit(rlimit(RLIMIT_DATA), addr, mm->start_brk,
+				      mm->end_data, mm->start_data))
 			goto out;
 
 		mm->brk = addr;
