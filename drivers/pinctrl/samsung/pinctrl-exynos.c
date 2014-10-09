@@ -56,12 +56,6 @@ static const struct samsung_pin_bank_type bank_type_alive = {
 	.reg_offset = { 0x00, 0x04, 0x08, 0x0c, },
 };
 
-/* list of external wakeup controllers supported */
-static const struct of_device_id exynos_wkup_irq_ids[] = {
-	{ .compatible = "samsung,exynos4210-wakeup-eint", },
-	{ }
-};
-
 static void exynos_irq_mask(struct irq_data *irqd)
 {
 	struct irq_chip *chip = irq_data_get_irq_chip(irqd);
@@ -384,9 +378,9 @@ static int exynos_wkup_irq_set_wake(struct irq_data *irqd, unsigned int on)
 /*
  * irq_chip for wakeup interrupts
  */
-static struct exynos_irq_chip exynos_wkup_irq_chip = {
+static struct exynos_irq_chip exynos4210_wkup_irq_chip __initdata = {
 	.chip = {
-		.name = "exynos_wkup_irq_chip",
+		.name = "exynos4210_wkup_irq_chip",
 		.irq_unmask = exynos_irq_unmask,
 		.irq_mask = exynos_irq_mask,
 		.irq_ack = exynos_irq_ack,
@@ -398,6 +392,31 @@ static struct exynos_irq_chip exynos_wkup_irq_chip = {
 	.eint_con = EXYNOS_WKUP_ECON_OFFSET,
 	.eint_mask = EXYNOS_WKUP_EMASK_OFFSET,
 	.eint_pend = EXYNOS_WKUP_EPEND_OFFSET,
+};
+
+static struct exynos_irq_chip exynos7_wkup_irq_chip __initdata = {
+	.chip = {
+		.name = "exynos7_wkup_irq_chip",
+		.irq_unmask = exynos_irq_unmask,
+		.irq_mask = exynos_irq_mask,
+		.irq_ack = exynos_irq_ack,
+		.irq_set_type = exynos_irq_set_type,
+		.irq_set_wake = exynos_wkup_irq_set_wake,
+		.irq_request_resources = exynos_irq_request_resources,
+		.irq_release_resources = exynos_irq_release_resources,
+	},
+	.eint_con = EXYNOS7_WKUP_ECON_OFFSET,
+	.eint_mask = EXYNOS7_WKUP_EMASK_OFFSET,
+	.eint_pend = EXYNOS7_WKUP_EPEND_OFFSET,
+};
+
+/* list of external wakeup controllers supported */
+static const struct of_device_id exynos_wkup_irq_ids[] = {
+	{ .compatible = "samsung,exynos4210-wakeup-eint",
+			.data = &exynos4210_wkup_irq_chip },
+	{ .compatible = "samsung,exynos7-wakeup-eint",
+			.data = &exynos7_wkup_irq_chip },
+	{ }
 };
 
 /* interrupt handler for wakeup interrupts 0..15 */
@@ -468,12 +487,18 @@ static int exynos_eint_wkup_init(struct samsung_pinctrl_drv_data *d)
 	struct samsung_pin_bank *bank;
 	struct exynos_weint_data *weint_data;
 	struct exynos_muxed_weint_data *muxed_data;
+	struct exynos_irq_chip *irq_chip;
 	unsigned int muxed_banks = 0;
 	unsigned int i;
 	int idx, irq;
 
 	for_each_child_of_node(dev->of_node, np) {
-		if (of_match_node(exynos_wkup_irq_ids, np)) {
+		const struct of_device_id *match;
+
+		match = of_match_node(exynos_wkup_irq_ids, np);
+		if (match) {
+			irq_chip = kmemdup(match->data,
+				sizeof(*irq_chip), GFP_KERNEL);
 			wkup_np = np;
 			break;
 		}
@@ -493,7 +518,7 @@ static int exynos_eint_wkup_init(struct samsung_pinctrl_drv_data *d)
 			return -ENXIO;
 		}
 
-		bank->irq_chip = &exynos_wkup_irq_chip;
+		bank->irq_chip = irq_chip;
 
 		if (!of_find_property(bank->of_node, "interrupts", NULL)) {
 			bank->eint_type = EINT_TYPE_WKUP_MUX;
