@@ -97,14 +97,18 @@ void blk_recalc_rq_segments(struct request *rq)
 
 void blk_recount_segments(struct request_queue *q, struct bio *bio)
 {
-	if (test_bit(QUEUE_FLAG_NO_SG_MERGE, &q->queue_flags) &&
+	bool no_sg_merge = !!test_bit(QUEUE_FLAG_NO_SG_MERGE,
+			&q->queue_flags);
+
+	if (no_sg_merge && !bio_flagged(bio, BIO_CLONED) &&
 			bio->bi_vcnt < queue_max_segments(q))
 		bio->bi_phys_segments = bio->bi_vcnt;
 	else {
 		struct bio *nxt = bio->bi_next;
 
 		bio->bi_next = NULL;
-		bio->bi_phys_segments = __blk_recalc_rq_segments(q, bio, false);
+		bio->bi_phys_segments = __blk_recalc_rq_segments(q, bio,
+				no_sg_merge);
 		bio->bi_next = nxt;
 	}
 
