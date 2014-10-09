@@ -38,47 +38,15 @@ static inline int pte_none(pte_t pte)		{ return (pte_val(pte) & ~_PTE_NONE_MASK)
 static inline pgprot_t pte_pgprot(pte_t pte)	{ return __pgprot(pte_val(pte) & PAGE_PROT_BITS); }
 
 #ifdef CONFIG_NUMA_BALANCING
-
 static inline int pte_present(pte_t pte)
 {
-	return pte_val(pte) & (_PAGE_PRESENT | _PAGE_NUMA);
+	return pte_val(pte) & _PAGE_NUMA_MASK;
 }
 
 #define pte_present_nonuma pte_present_nonuma
 static inline int pte_present_nonuma(pte_t pte)
 {
 	return pte_val(pte) & (_PAGE_PRESENT);
-}
-
-#define pte_numa pte_numa
-static inline int pte_numa(pte_t pte)
-{
-	return (pte_val(pte) &
-		(_PAGE_NUMA|_PAGE_PRESENT)) == _PAGE_NUMA;
-}
-
-#define pte_mknonnuma pte_mknonnuma
-static inline pte_t pte_mknonnuma(pte_t pte)
-{
-	pte_val(pte) &= ~_PAGE_NUMA;
-	pte_val(pte) |=  _PAGE_PRESENT | _PAGE_ACCESSED;
-	return pte;
-}
-
-#define pte_mknuma pte_mknuma
-static inline pte_t pte_mknuma(pte_t pte)
-{
-	/*
-	 * We should not set _PAGE_NUMA on non present ptes. Also clear the
-	 * present bit so that hash_page will return 1 and we collect this
-	 * as numa fault.
-	 */
-	if (pte_present(pte)) {
-		pte_val(pte) |= _PAGE_NUMA;
-		pte_val(pte) &= ~_PAGE_PRESENT;
-	} else
-		VM_BUG_ON(1);
-	return pte;
 }
 
 #define ptep_set_numa ptep_set_numa
@@ -92,12 +60,6 @@ static inline void ptep_set_numa(struct mm_struct *mm, unsigned long addr,
 	return;
 }
 
-#define pmd_numa pmd_numa
-static inline int pmd_numa(pmd_t pmd)
-{
-	return pte_numa(pmd_pte(pmd));
-}
-
 #define pmdp_set_numa pmdp_set_numa
 static inline void pmdp_set_numa(struct mm_struct *mm, unsigned long addr,
 				 pmd_t *pmdp)
@@ -109,16 +71,21 @@ static inline void pmdp_set_numa(struct mm_struct *mm, unsigned long addr,
 	return;
 }
 
-#define pmd_mknonnuma pmd_mknonnuma
-static inline pmd_t pmd_mknonnuma(pmd_t pmd)
+/*
+ * Generic NUMA pte helpers expect pteval_t and pmdval_t types to exist
+ * which was inherited from x86. For the purposes of powerpc pte_basic_t and
+ * pmd_t are equivalent
+ */
+#define pteval_t pte_basic_t
+#define pmdval_t pmd_t
+static inline pteval_t ptenuma_flags(pte_t pte)
 {
-	return pte_pmd(pte_mknonnuma(pmd_pte(pmd)));
+	return pte_val(pte) & _PAGE_NUMA_MASK;
 }
 
-#define pmd_mknuma pmd_mknuma
-static inline pmd_t pmd_mknuma(pmd_t pmd)
+static inline pmdval_t pmdnuma_flags(pmd_t pmd)
 {
-	return pte_pmd(pte_mknuma(pmd_pte(pmd)));
+	return pmd_val(pmd) & _PAGE_NUMA_MASK;
 }
 
 # else
