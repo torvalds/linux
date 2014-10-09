@@ -3475,7 +3475,6 @@ static void dm_check_txrateandretrycount(struct net_device *dev)
 
 static void dm_send_rssi_tofw(struct net_device *dev)
 {
-	DCMD_TXCMD_T			tx_cmd;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
 	// If we test chariot, we should stop the TX command ?
@@ -3483,9 +3482,6 @@ static void dm_send_rssi_tofw(struct net_device *dev)
 	// 0x1e0(byte) to notify driver.
 	write_nic_byte(dev, DRIVER_RSSI, (u8)priv->undecorated_smoothed_pwdb);
 	return;
-	tx_cmd.Op		= TXCMD_SET_RX_RSSI;
-	tx_cmd.Length	= 4;
-	tx_cmd.Value		= priv->undecorated_smoothed_pwdb;
 }
 
 /*---------------------------Define function prototype------------------------*/
