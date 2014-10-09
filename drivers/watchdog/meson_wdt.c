@@ -51,7 +51,7 @@ struct meson_wdt_dev {
 static int meson_restart_handle(struct notifier_block *this, unsigned long mode,
 				void *cmd)
 {
-	u32 tc_reboot = MESON_WDT_DC_RESET | MESON_WDT_TC_EN | 100;
+	u32 tc_reboot = MESON_WDT_DC_RESET | MESON_WDT_TC_EN;
 	struct meson_wdt_dev *meson_wdt = container_of(this,
 						       struct meson_wdt_dev,
 						       restart_handler);
