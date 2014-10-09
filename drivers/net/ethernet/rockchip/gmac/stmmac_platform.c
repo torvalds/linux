@@ -244,7 +244,7 @@ static int gmac_clk_enable(bool enable) {
 			if (!IS_ERR(bsp_priv->clk_mac))
 				clk_prepare_enable(bsp_priv->clk_mac);
 
-
+			mdelay(5);
 			bsp_priv->clk_enable = true;
 		}
 	} else {
