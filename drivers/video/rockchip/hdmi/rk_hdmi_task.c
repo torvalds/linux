@@ -255,12 +255,10 @@ void hdmi_work(struct work_struct *work)
 #endif
 				rockchip_set_system_status(SYS_STATUS_HDMI);
 			}
-			if (hdmi->uboot_logo) {
-				hdmi->state = CONFIG_AUDIO;
-			}
+
 			break;
 		case SYSTEM_CONFIG:
-			if (hdmi->remove)
+			if ((hdmi->remove) && !hdmi->uboot_logo)
 				hdmi->remove(hdmi);
 
 			if (hdmi->autoconfig)
@@ -271,6 +269,9 @@ void hdmi_work(struct work_struct *work)
 			rc = hdmi_switch_fb(hdmi, hdmi->vic);
 			if (rc == HDMI_ERROR_SUCESS)
 				hdmi->state = CONFIG_VIDEO;
+			if (hdmi->uboot_logo) {
+				hdmi->state = CONFIG_AUDIO;
+			}
 			break;
 		case CONFIG_VIDEO:
 			hdmi->display = HDMI_DISABLE;
