@@ -55,6 +55,9 @@ config GENERIC_IRQ_CHIP
 config IRQ_DOMAIN
 	bool
 
+config HANDLE_DOMAIN_IRQ
+	bool
+
 config IRQ_DOMAIN_DEBUG
 	bool "Expose hardware/virtual IRQ mapping via debugfs"
 	depends on IRQ_DOMAIN && DEBUG_FS
