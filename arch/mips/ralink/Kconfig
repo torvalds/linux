@@ -16,6 +16,7 @@ choice
 	config SOC_RT288X
 		bool "RT288x"
 		select MIPS_L1_CACHE_SHIFT_4
+		select HW_HAS_PCI
 
 	config SOC_RT305X
 		bool "RT305x"
