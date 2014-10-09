@@ -517,6 +517,7 @@ static ssize_t usb_udc_softconn_store(struct device *dev,
 		usb_gadget_connect(udc->gadget);
 	} else if (sysfs_streq(buf, "disconnect")) {
 		usb_gadget_disconnect(udc->gadget);
+		udc->driver->disconnect(udc->gadget);
 		usb_gadget_udc_stop(udc->gadget, udc->driver);
 	} else {
 		dev_err(dev, "unsupported command '%s'\n", buf);
