@@ -231,23 +231,23 @@ static void m_stop(struct seq_file *m, void *v)
 		put_task_struct(priv->task);
 }
 
+static int proc_maps_open(struct inode *inode, struct file *file,
+			const struct seq_operations *ops, int psize)
+{
+	struct proc_maps_private *priv = __seq_open_private(file, ops, psize);
+
+	if (!priv)
+		return -ENOMEM;
+
+	priv->pid = proc_pid(inode);
+	return 0;
+}
+
 static int do_maps_open(struct inode *inode, struct file *file,
 			const struct seq_operations *ops)
 {
-	struct proc_maps_private *priv;
-	int ret = -ENOMEM;
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (priv) {
-		priv->pid = proc_pid(inode);
-		ret = seq_open(file, ops);
-		if (!ret) {
-			struct seq_file *m = file->private_data;
-			m->private = priv;
-		} else {
-			kfree(priv);
-		}
-	}
-	return ret;
+	return proc_maps_open(inode, file, ops,
+				sizeof(struct proc_maps_private));
 }
 
 static void
@@ -1526,20 +1526,8 @@ static const struct seq_operations proc_tid_numa_maps_op = {
 static int numa_maps_open(struct inode *inode, struct file *file,
 			  const struct seq_operations *ops)
 {
-	struct numa_maps_private *priv;
-	int ret = -ENOMEM;
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (priv) {
-		priv->proc_maps.pid = proc_pid(inode);
-		ret = seq_open(file, ops);
-		if (!ret) {
-			struct seq_file *m = file->private_data;
-			m->private = priv;
-		} else {
-			kfree(priv);
-		}
-	}
-	return ret;
+	return proc_maps_open(inode, file, ops,
+				sizeof(struct numa_maps_private));
 }
 
 static int pid_numa_maps_open(struct inode *inode, struct file *file)
