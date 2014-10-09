@@ -1216,8 +1216,6 @@ static void update_bcn_wmm_ie(struct rtw_adapter *padapter)
 static void update_bcn_wps_ie(struct rtw_adapter *padapter)
 {
 	DBG_8723A("%s\n", __func__);
-
-	return;
 }
 
 static void update_bcn_p2p_ie(struct rtw_adapter *padapter)
