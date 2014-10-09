@@ -728,9 +728,10 @@
 
 	lvds: lvds@20038000 {
 		compatible = "rockchip,rk31xx-lvds";
-		reg = <0x20038000 0x4000>;
-		clocks = <&clk_gates5 0>;
-		clock-names = "pclk_lvds";
+		reg = <0x20038000 0x4000>, <0x101100b0 0x01>;
+		reg-names = "mipi_lvds_phy", "mipi_lvds_ctl";
+		clocks = <&clk_gates5 0>, <&clk_gates9 6>, <&clk_gates9 5>;
+		clock-names = "pclk_lvds", "pclk_lvds_ctl", "hclk_vio_h2p";
 		status = "disabled";
 	};
 
