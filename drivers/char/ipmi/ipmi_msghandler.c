@@ -474,6 +474,18 @@ static DEFINE_MUTEX(smi_watchers_mutex);
 #define ipmi_get_stat(intf, stat) \
 	((unsigned int) atomic_read(&(intf)->stats[IPMI_STAT_ ## stat]))
 
+static char *addr_src_to_str[] = { "invalid", "hotmod", "hardcoded", "SPMI",
+				   "ACPI", "SMBIOS", "PCI",
+				   "device-tree", "default" };
+
+const char *ipmi_addr_src_to_str(enum ipmi_addr_src src)
+{
+	if (src > SI_DEFAULT)
+		src = 0; /* Invalid */
+	return addr_src_to_str[src];
+}
+EXPORT_SYMBOL(ipmi_addr_src_to_str);
+
 static int is_lan_addr(struct ipmi_addr *addr)
 {
 	return addr->addr_type == IPMI_LAN_ADDR_TYPE;

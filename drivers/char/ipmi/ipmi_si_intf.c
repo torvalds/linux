@@ -111,10 +111,6 @@ enum si_type {
 };
 static char *si_to_str[] = { "kcs", "smic", "bt" };
 
-static char *ipmi_addr_src_to_str[] = { NULL, "hotmod", "hardcoded", "SPMI",
-					"ACPI", "SMBIOS", "PCI",
-					"device-tree", "default" };
-
 #define DEVICE_NAME "ipmi_si"
 
 static struct platform_driver ipmi_driver;
@@ -3279,8 +3275,8 @@ static int add_smi(struct smi_info *new_smi)
 	int rv = 0;
 
 	printk(KERN_INFO PFX "Adding %s-specified %s state machine",
-			ipmi_addr_src_to_str[new_smi->addr_source],
-			si_to_str[new_smi->si_type]);
+	       ipmi_addr_src_to_str(new_smi->addr_source),
+	       si_to_str[new_smi->si_type]);
 	mutex_lock(&smi_infos_lock);
 	if (!is_new_interface(new_smi)) {
 		printk(KERN_CONT " duplicate interface\n");
@@ -3310,7 +3306,7 @@ static int try_smi_init(struct smi_info *new_smi)
 	printk(KERN_INFO PFX "Trying %s-specified %s state"
 	       " machine at %s address 0x%lx, slave address 0x%x,"
 	       " irq %d\n",
-	       ipmi_addr_src_to_str[new_smi->addr_source],
+	       ipmi_addr_src_to_str(new_smi->addr_source),
 	       si_to_str[new_smi->si_type],
 	       addr_space_to_str[new_smi->io.addr_type],
 	       new_smi->io.addr_data,
