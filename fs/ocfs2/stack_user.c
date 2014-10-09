@@ -591,7 +591,7 @@ static int ocfs2_control_release(struct inode *inode, struct file *file)
 		 */
 		ocfs2_control_this_node = -1;
 		running_proto.pv_major = 0;
-		running_proto.pv_major = 0;
+		running_proto.pv_minor = 0;
 	}
 
 out:
