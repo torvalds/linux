@@ -890,6 +890,20 @@ static void ll_zero(struct thin_c *tc, struct dm_thin_new_mapping *m,
 	}
 }
 
+static void remap_and_issue_overwrite(struct thin_c *tc, struct bio *bio,
+				      dm_block_t data_block,
+				      struct dm_thin_new_mapping *m)
+{
+	struct pool *pool = tc->pool;
+	struct dm_thin_endio_hook *h = dm_per_bio_data(bio, sizeof(struct dm_thin_endio_hook));
+
+	h->overwrite_mapping = m;
+	m->bio = bio;
+	save_and_set_endio(bio, &m->saved_bi_end_io, overwrite_endio);
+	inc_all_io_entry(pool, bio);
+	remap_and_issue(tc, bio, data_block);
+}
+
 /*
  * A partial copy also needs to zero the uncopied region.
  */
@@ -924,15 +938,9 @@ static void schedule_copy(struct thin_c *tc, dm_block_t virt_block,
 	 * If the whole block of data is being overwritten, we can issue the
 	 * bio immediately. Otherwise we use kcopyd to clone the data first.
 	 */
-	if (io_overwrites_block(pool, bio)) {
-		struct dm_thin_endio_hook *h = dm_per_bio_data(bio, sizeof(struct dm_thin_endio_hook));
-
-		h->overwrite_mapping = m;
-		m->bio = bio;
-		save_and_set_endio(bio, &m->saved_bi_end_io, overwrite_endio);
-		inc_all_io_entry(pool, bio);
-		remap_and_issue(tc, bio, data_dest);
-	} else {
+	if (io_overwrites_block(pool, bio))
+		remap_and_issue_overwrite(tc, bio, data_dest, m);
+	else {
 		struct dm_io_region from, to;
 
 		from.bdev = origin->bdev;
@@ -1001,16 +1009,10 @@ static void schedule_zero(struct thin_c *tc, dm_block_t virt_block,
 	if (!pool->pf.zero_new_blocks)
 		process_prepared_mapping(m);
 
-	else if (io_overwrites_block(pool, bio)) {
-		struct dm_thin_endio_hook *h = dm_per_bio_data(bio, sizeof(struct dm_thin_endio_hook));
+	else if (io_overwrites_block(pool, bio))
+		remap_and_issue_overwrite(tc, bio, data_block, m);
 
-		h->overwrite_mapping = m;
-		m->bio = bio;
-		save_and_set_endio(bio, &m->saved_bi_end_io, overwrite_endio);
-		inc_all_io_entry(pool, bio);
-		remap_and_issue(tc, bio, data_block);
-
-	} else
+	else
 		ll_zero(tc, m,
 			data_block * pool->sectors_per_block,
 			(data_block + 1) * pool->sectors_per_block);
