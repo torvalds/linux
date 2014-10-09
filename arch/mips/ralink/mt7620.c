@@ -17,6 +17,7 @@
 #include <asm/mipsregs.h>
 #include <asm/mach-ralink/ralink_regs.h>
 #include <asm/mach-ralink/mt7620.h>
+#include <asm/mach-ralink/pinmux.h>
 
 #include "common.h"
 
@@ -39,118 +40,58 @@
 /* does the board have sdram or ddram */
 static int dram_type;
 
-static struct ralink_pinmux_grp mode_mux[] = {
-	{
-		.name = "i2c",
-		.mask = MT7620_GPIO_MODE_I2C,
-		.gpio_first = 1,
-		.gpio_last = 2,
-	}, {
-		.name = "spi",
-		.mask = MT7620_GPIO_MODE_SPI,
-		.gpio_first = 3,
-		.gpio_last = 6,
-	}, {
-		.name = "uartlite",
-		.mask = MT7620_GPIO_MODE_UART1,
-		.gpio_first = 15,
-		.gpio_last = 16,
-	}, {
-		.name = "wdt",
-		.mask = MT7620_GPIO_MODE_WDT,
-		.gpio_first = 17,
-		.gpio_last = 17,
-	}, {
-		.name = "mdio",
-		.mask = MT7620_GPIO_MODE_MDIO,
-		.gpio_first = 22,
-		.gpio_last = 23,
-	}, {
-		.name = "rgmii1",
-		.mask = MT7620_GPIO_MODE_RGMII1,
-		.gpio_first = 24,
-		.gpio_last = 35,
-	}, {
-		.name = "spi refclk",
-		.mask = MT7620_GPIO_MODE_SPI_REF_CLK,
-		.gpio_first = 37,
-		.gpio_last = 39,
-	}, {
-		.name = "jtag",
-		.mask = MT7620_GPIO_MODE_JTAG,
-		.gpio_first = 40,
-		.gpio_last = 44,
-	}, {
-		/* shared lines with jtag */
-		.name = "ephy",
-		.mask = MT7620_GPIO_MODE_EPHY,
-		.gpio_first = 40,
-		.gpio_last = 44,
-	}, {
-		.name = "nand",
-		.mask = MT7620_GPIO_MODE_JTAG,
-		.gpio_first = 45,
-		.gpio_last = 59,
-	}, {
-		.name = "rgmii2",
-		.mask = MT7620_GPIO_MODE_RGMII2,
-		.gpio_first = 60,
-		.gpio_last = 71,
-	}, {
-		.name = "wled",
-		.mask = MT7620_GPIO_MODE_WLED,
-		.gpio_first = 72,
-		.gpio_last = 72,
-	}, {0}
+static struct rt2880_pmx_func i2c_grp[] =  { FUNC("i2c", 0, 1, 2) };
+static struct rt2880_pmx_func spi_grp[] = { FUNC("spi", 0, 3, 4) };
+static struct rt2880_pmx_func uartlite_grp[] = { FUNC("uartlite", 0, 15, 2) };
+static struct rt2880_pmx_func mdio_grp[] = { FUNC("mdio", 0, 22, 2) };
+static struct rt2880_pmx_func rgmii1_grp[] = { FUNC("rgmii1", 0, 24, 12) };
+static struct rt2880_pmx_func refclk_grp[] = { FUNC("spi refclk", 0, 37, 3) };
+static struct rt2880_pmx_func ephy_grp[] = { FUNC("ephy", 0, 40, 5) };
+static struct rt2880_pmx_func rgmii2_grp[] = { FUNC("rgmii2", 0, 60, 12) };
+static struct rt2880_pmx_func wled_grp[] = { FUNC("wled", 0, 72, 1) };
+static struct rt2880_pmx_func pa_grp[] = { FUNC("pa", 0, 18, 4) };
+static struct rt2880_pmx_func uartf_grp[] = {
+	FUNC("uartf", MT7620_GPIO_MODE_UARTF, 7, 8),
+	FUNC("pcm uartf", MT7620_GPIO_MODE_PCM_UARTF, 7, 8),
+	FUNC("pcm i2s", MT7620_GPIO_MODE_PCM_I2S, 7, 8),
+	FUNC("i2s uartf", MT7620_GPIO_MODE_I2S_UARTF, 7, 8),
+	FUNC("pcm gpio", MT7620_GPIO_MODE_PCM_GPIO, 11, 4),
+	FUNC("gpio uartf", MT7620_GPIO_MODE_GPIO_UARTF, 7, 4),
+	FUNC("gpio i2s", MT7620_GPIO_MODE_GPIO_I2S, 7, 4),
+};
+static struct rt2880_pmx_func wdt_grp[] = {
+	FUNC("wdt rst", 0, 17, 1),
+	FUNC("wdt refclk", 0, 17, 1),
+	};
+static struct rt2880_pmx_func pcie_rst_grp[] = {
+	FUNC("pcie rst", MT7620_GPIO_MODE_PCIE_RST, 36, 1),
+	FUNC("pcie refclk", MT7620_GPIO_MODE_PCIE_REF, 36, 1)
+};
+static struct rt2880_pmx_func nd_sd_grp[] = {
+	FUNC("nand", MT7620_GPIO_MODE_NAND, 45, 15),
+	FUNC("sd", MT7620_GPIO_MODE_SD, 45, 15)
 };
 
-static struct ralink_pinmux_grp uart_mux[] = {
-	{
-		.name = "uartf",
-		.mask = MT7620_GPIO_MODE_UARTF,
-		.gpio_first = 7,
-		.gpio_last = 14,
-	}, {
-		.name = "pcm uartf",
-		.mask = MT7620_GPIO_MODE_PCM_UARTF,
-		.gpio_first = 7,
-		.gpio_last = 14,
-	}, {
-		.name = "pcm i2s",
-		.mask = MT7620_GPIO_MODE_PCM_I2S,
-		.gpio_first = 7,
-		.gpio_last = 14,
-	}, {
-		.name = "i2s uartf",
-		.mask = MT7620_GPIO_MODE_I2S_UARTF,
-		.gpio_first = 7,
-		.gpio_last = 14,
-	}, {
-		.name = "pcm gpio",
-		.mask = MT7620_GPIO_MODE_PCM_GPIO,
-		.gpio_first = 11,
-		.gpio_last = 14,
-	}, {
-		.name = "gpio uartf",
-		.mask = MT7620_GPIO_MODE_GPIO_UARTF,
-		.gpio_first = 7,
-		.gpio_last = 10,
-	}, {
-		.name = "gpio i2s",
-		.mask = MT7620_GPIO_MODE_GPIO_I2S,
-		.gpio_first = 7,
-		.gpio_last = 10,
-	}, {
-		.name = "gpio",
-		.mask = MT7620_GPIO_MODE_GPIO,
-	}, {0}
-};
-
-struct ralink_pinmux rt_gpio_pinmux = {
-	.mode = mode_mux,
-	.uart = uart_mux,
-	.uart_shift = MT7620_GPIO_MODE_UART0_SHIFT,
-	.uart_mask = MT7620_GPIO_MODE_UART0_MASK,
+static struct rt2880_pmx_group mt7620a_pinmux_data[] = {
+	GRP("i2c", i2c_grp, 1, MT7620_GPIO_MODE_I2C),
+	GRP("uartf", uartf_grp, MT7620_GPIO_MODE_UART0_MASK,
+		MT7620_GPIO_MODE_UART0_SHIFT),
+	GRP("spi", spi_grp, 1, MT7620_GPIO_MODE_SPI),
+	GRP("uartlite", uartlite_grp, 1, MT7620_GPIO_MODE_UART1),
+	GRP_G("wdt", wdt_grp, MT7620_GPIO_MODE_WDT_MASK,
+		MT7620_GPIO_MODE_WDT_GPIO, MT7620_GPIO_MODE_WDT_SHIFT),
+	GRP("mdio", mdio_grp, 1, MT7620_GPIO_MODE_MDIO),
+	GRP("rgmii1", rgmii1_grp, 1, MT7620_GPIO_MODE_RGMII1),
+	GRP("spi refclk", refclk_grp, 1, MT7620_GPIO_MODE_SPI_REF_CLK),
+	GRP_G("pcie", pcie_rst_grp, MT7620_GPIO_MODE_PCIE_MASK,
+		MT7620_GPIO_MODE_PCIE_GPIO, MT7620_GPIO_MODE_PCIE_SHIFT),
+	GRP_G("nd_sd", nd_sd_grp, MT7620_GPIO_MODE_ND_SD_MASK,
+		MT7620_GPIO_MODE_ND_SD_GPIO, MT7620_GPIO_MODE_ND_SD_SHIFT),
+	GRP("rgmii2", rgmii2_grp, 1, MT7620_GPIO_MODE_RGMII2),
+	GRP("wled", wled_grp, 1, MT7620_GPIO_MODE_WLED),
+	GRP("ephy", ephy_grp, 1, MT7620_GPIO_MODE_EPHY),
+	GRP("pa", pa_grp, 1, MT7620_GPIO_MODE_PA),
+	{ 0 }
 };
 
 static __init u32
