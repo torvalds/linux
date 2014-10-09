@@ -396,6 +396,7 @@ static int virtballoon_migratepage(struct balloon_dev_info *vb_dev_info,
 	spin_lock_irqsave(&vb_dev_info->pages_lock, flags);
 	balloon_page_insert(vb_dev_info, newpage);
 	vb_dev_info->isolated_pages--;
+	__count_vm_event(BALLOON_MIGRATE);
 	spin_unlock_irqrestore(&vb_dev_info->pages_lock, flags);
 	vb->num_pfns = VIRTIO_BALLOON_PAGES_PER_PAGE;
 	set_page_pfns(vb->pfns, newpage);
