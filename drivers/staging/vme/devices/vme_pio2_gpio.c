@@ -221,9 +221,7 @@ void pio2_gpio_exit(struct pio2_card *card)
 {
 	const char *label = card->gc.label;
 
-	if (gpiochip_remove(&(card->gc)))
-		dev_err(&card->vdev->dev, "Failed to remove GPIO\n");
-
+	gpiochip_remove(&(card->gc));
 	kfree(label);
 }
 

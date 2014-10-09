@@ -56,6 +56,8 @@ struct seq_file;
  *	as the chip access may sleep when e.g. reading out the IRQ status
  *	registers.
  * @exported: flags if the gpiochip is exported for use from sysfs. Private.
+ * @irq_not_threaded: flag must be set if @can_sleep is set but the
+ *	IRQs don't need to be threaded
  *
  * A gpio_chip can help platforms abstract various sources of GPIOs so
  * they can all be accessed through a common programing interface.
@@ -101,6 +103,7 @@ struct gpio_chip {
 	struct gpio_desc	*desc;
 	const char		*const *names;
 	bool			can_sleep;
+	bool			irq_not_threaded;
 	bool			exported;
 
 #ifdef CONFIG_GPIOLIB_IRQCHIP
@@ -141,7 +144,7 @@ extern const char *gpiochip_is_requested(struct gpio_chip *chip,
 
 /* add/remove chips */
 extern int gpiochip_add(struct gpio_chip *chip);
-extern int gpiochip_remove(struct gpio_chip *chip);
+extern void gpiochip_remove(struct gpio_chip *chip);
 extern struct gpio_chip *gpiochip_find(void *data,
 			      int (*match)(struct gpio_chip *chip, void *data));
 
@@ -166,7 +169,8 @@ int gpiochip_irqchip_add(struct gpio_chip *gpiochip,
 
 #endif /* CONFIG_GPIOLIB_IRQCHIP */
 
-int gpiochip_request_own_desc(struct gpio_desc *desc, const char *label);
+struct gpio_desc *gpiochip_request_own_desc(struct gpio_chip *chip, u16 hwnum,
+					    const char *label);
 void gpiochip_free_own_desc(struct gpio_desc *desc);
 
 #else /* CONFIG_GPIOLIB */

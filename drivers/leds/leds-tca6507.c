@@ -667,11 +667,8 @@ static int tca6507_probe_gpios(struct i2c_client *client,
 
 static void tca6507_remove_gpio(struct tca6507_chip *tca)
 {
-	if (tca->gpio.ngpio) {
-		int err = gpiochip_remove(&tca->gpio);
-		dev_err(&tca->client->dev, "%s failed, %d\n",
-			"gpiochip_remove()", err);
-	}
+	if (tca->gpio.ngpio)
+		gpiochip_remove(&tca->gpio);
 }
 #else /* CONFIG_GPIOLIB */
 static int tca6507_probe_gpios(struct i2c_client *client,

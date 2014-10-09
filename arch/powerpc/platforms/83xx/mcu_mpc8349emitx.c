@@ -141,7 +141,8 @@ static int mcu_gpiochip_add(struct mcu *mcu)
 
 static int mcu_gpiochip_remove(struct mcu *mcu)
 {
-	return gpiochip_remove(&mcu->gc);
+	gpiochip_remove(&mcu->gc);
+	return 0;
 }
 
 static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)

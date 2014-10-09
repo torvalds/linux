@@ -255,5 +255,6 @@ int bcma_gpio_init(struct bcma_drv_cc *cc)
 int bcma_gpio_unregister(struct bcma_drv_cc *cc)
 {
 	bcma_gpio_irq_domain_exit(cc);
-	return gpiochip_remove(&cc->gpio);
+	gpiochip_remove(&cc->gpio);
+	return 0;
 }
