@@ -942,15 +942,8 @@ static int read_mii_word(struct net_device *netdev, int phy_id, int reg)
 	if (phy_id != R8152_PHY_ID)
 		return -EINVAL;
 
-	ret = usb_autopm_get_interface(tp->intf);
-	if (ret < 0)
-		goto out;
-
 	ret = r8152_mdio_read(tp, reg);
 
-	usb_autopm_put_interface(tp->intf);
-
-out:
 	return ret;
 }
 
@@ -965,12 +958,7 @@ void write_mii_word(struct net_device *netdev, int phy_id, int reg, int val)
 	if (phy_id != R8152_PHY_ID)
 		return;
 
-	if (usb_autopm_get_interface(tp->intf) < 0)
-		return;
-
 	r8152_mdio_write(tp, reg, val);
-
-	usb_autopm_put_interface(tp->intf);
 }
 
 static int
@@ -3290,11 +3278,21 @@ static
 int rtl8152_get_settings(struct net_device *netdev, struct ethtool_cmd *cmd)
 {
 	struct r8152 *tp = netdev_priv(netdev);
+	int ret;
 
 	if (!tp->mii.mdio_read)
 		return -EOPNOTSUPP;
 
-	return mii_ethtool_gset(&tp->mii, cmd);
+	ret = usb_autopm_get_interface(tp->intf);
+	if (ret < 0)
+		goto out;
+
+	ret = mii_ethtool_gset(&tp->mii, cmd);
+
+	usb_autopm_put_interface(tp->intf);
+
+out:
+	return ret;
 }
 
 static int rtl8152_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
