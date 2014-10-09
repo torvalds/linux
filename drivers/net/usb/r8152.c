@@ -2145,6 +2145,11 @@ static int rtl8152_set_features(struct net_device *dev,
 {
 	netdev_features_t changed = features ^ dev->features;
 	struct r8152 *tp = netdev_priv(dev);
+	int ret;
+
+	ret = usb_autopm_get_interface(tp->intf);
+	if (ret < 0)
+		goto out;
 
 	if (changed & NETIF_F_HW_VLAN_CTAG_RX) {
 		if (features & NETIF_F_HW_VLAN_CTAG_RX)
@@ -2153,7 +2158,10 @@ static int rtl8152_set_features(struct net_device *dev,
 			rtl_rx_vlan_en(tp, false);
 	}
 
-	return 0;
+	usb_autopm_put_interface(tp->intf);
+
+out:
+	return ret;
 }
 
 #define WAKE_ANY (WAKE_PHY | WAKE_MAGIC | WAKE_UCAST | WAKE_BCAST | WAKE_MCAST)
