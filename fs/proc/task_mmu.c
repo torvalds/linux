@@ -138,12 +138,12 @@ static void vma_stop(struct proc_maps_private *priv)
 	mmput(mm);
 }
 
-static void *m_start(struct seq_file *m, loff_t *pos)
+static void *m_start(struct seq_file *m, loff_t *ppos)
 {
 	struct proc_maps_private *priv = m->private;
 	struct mm_struct *mm;
-	struct vm_area_struct *vma, *tail_vma = NULL;
-	loff_t l = *pos;
+	struct vm_area_struct *vma;
+	unsigned int pos = *ppos;
 
 	priv->task = get_pid_task(priv->pid, PIDTYPE_PID);
 	if (!priv->task)
@@ -152,33 +152,19 @@ static void *m_start(struct seq_file *m, loff_t *pos)
 	mm = priv->mm;
 	if (!mm || !atomic_inc_not_zero(&mm->mm_users))
 		return NULL;
+
 	down_read(&mm->mmap_sem);
-
-	tail_vma = get_gate_vma(mm);
-	priv->tail_vma = tail_vma;
 	hold_task_mempolicy(priv);
+	priv->tail_vma = get_gate_vma(mm);
 
-	/*
-	 * Check the vma index is within the range and do
-	 * sequential scan until m_index.
-	 */
-	vma = NULL;
-	if ((unsigned long)l < mm->map_count) {
-		vma = mm->mmap;
-		while (l-- && vma)
+	if (pos < mm->map_count) {
+		for (vma = mm->mmap; pos; pos--)
 			vma = vma->vm_next;
-		goto out;
+		return vma;
 	}
 
-	if (l != mm->map_count)
-		tail_vma = NULL; /* After gate vma */
-
-out:
-	if (vma)
-		return vma;
-
-	if (tail_vma)
-		return tail_vma;
+	if (pos == mm->map_count && priv->tail_vma)
+		return priv->tail_vma;
 
 	vma_stop(priv);
 	return NULL;
