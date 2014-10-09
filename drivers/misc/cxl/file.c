@@ -273,6 +273,7 @@ static ssize_t afu_read(struct file *file, char __user *buf, size_t count,
 	struct cxl_context *ctx = file->private_data;
 	struct cxl_event event;
 	unsigned long flags;
+	int rc;
 	DEFINE_WAIT(wait);
 
 	if (count < CXL_READ_MIN_SIZE)
@@ -285,13 +286,17 @@ static ssize_t afu_read(struct file *file, char __user *buf, size_t count,
 		if (ctx_event_pending(ctx))
 			break;
 
+		if (file->f_flags & O_NONBLOCK) {
+			rc = -EAGAIN;
+			goto out;
+		}
+
+		if (signal_pending(current)) {
+			rc = -ERESTARTSYS;
+			goto out;
+		}
+
 		spin_unlock_irqrestore(&ctx->lock, flags);
-		if (file->f_flags & O_NONBLOCK)
-			return -EAGAIN;
-
-		if (signal_pending(current))
-			return -ERESTARTSYS;
-
 		pr_devel("afu_read going to sleep...\n");
 		schedule();
 		pr_devel("afu_read woken up\n");
@@ -336,6 +341,11 @@ static ssize_t afu_read(struct file *file, char __user *buf, size_t count,
 	if (copy_to_user(buf, &event, event.header.size))
 		return -EFAULT;
 	return event.header.size;
+
+out:
+	finish_wait(&ctx->wq, &wait);
+	spin_unlock_irqrestore(&ctx->lock, flags);
+	return rc;
 }
 
 static const struct file_operations afu_fops = {
