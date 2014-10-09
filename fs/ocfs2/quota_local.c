@@ -701,8 +701,8 @@ static int ocfs2_local_read_info(struct super_block *sb, int type)
 	/* We don't need the lock and we have to acquire quota file locks
 	 * which will later depend on this lock */
 	mutex_unlock(&sb_dqopt(sb)->dqio_mutex);
-	info->dqi_maxblimit = 0x7fffffffffffffffLL;
-	info->dqi_maxilimit = 0x7fffffffffffffffLL;
+	info->dqi_max_spc_limit = 0x7fffffffffffffffLL;
+	info->dqi_max_ino_limit = 0x7fffffffffffffffLL;
 	oinfo = kmalloc(sizeof(struct ocfs2_mem_dqinfo), GFP_NOFS);
 	if (!oinfo) {
 		mlog(ML_ERROR, "failed to allocate memory for ocfs2 quota"

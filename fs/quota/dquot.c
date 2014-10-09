@@ -2385,16 +2385,6 @@ out:
 }
 EXPORT_SYMBOL(dquot_quota_on_mount);
 
-static inline qsize_t qbtos(qsize_t blocks)
-{
-	return blocks << QIF_DQBLKSIZE_BITS;
-}
-
-static inline qsize_t stoqb(qsize_t space)
-{
-	return (space + QIF_DQBLKSIZE - 1) >> QIF_DQBLKSIZE_BITS;
-}
-
 /* Generic routine for getting common part of quota structure */
 static void do_get_dqblk(struct dquot *dquot, struct qc_dqblk *di)
 {
@@ -2444,13 +2434,13 @@ static int do_set_dqblk(struct dquot *dquot, struct qc_dqblk *di)
 		return -EINVAL;
 
 	if (((di->d_fieldmask & QC_SPC_SOFT) &&
-	     stoqb(di->d_spc_softlimit) > dqi->dqi_maxblimit) ||
+	     di->d_spc_softlimit > dqi->dqi_max_spc_limit) ||
 	    ((di->d_fieldmask & QC_SPC_HARD) &&
-	     stoqb(di->d_spc_hardlimit) > dqi->dqi_maxblimit) ||
+	     di->d_spc_hardlimit > dqi->dqi_max_spc_limit) ||
 	    ((di->d_fieldmask & QC_INO_SOFT) &&
-	     (di->d_ino_softlimit > dqi->dqi_maxilimit)) ||
+	     (di->d_ino_softlimit > dqi->dqi_max_ino_limit)) ||
 	    ((di->d_fieldmask & QC_INO_HARD) &&
-	     (di->d_ino_hardlimit > dqi->dqi_maxilimit)))
+	     (di->d_ino_hardlimit > dqi->dqi_max_ino_limit)))
 		return -ERANGE;
 
 	spin_lock(&dq_data_lock);
