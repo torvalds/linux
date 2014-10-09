@@ -57,12 +57,9 @@ static int regcache_hw_init(struct regmap *map)
 	}
 
 	/* calculate the size of reg_defaults */
-	for (count = 0, i = 0; i < map->num_reg_defaults_raw; i++) {
-		val = regcache_get_val(map, map->reg_defaults_raw, i);
-		if (regmap_volatile(map, i * map->reg_stride))
-			continue;
-		count++;
-	}
+	for (count = 0, i = 0; i < map->num_reg_defaults_raw; i++)
+		if (!regmap_volatile(map, i * map->reg_stride))
+			count++;
 
 	map->reg_defaults = kmalloc(count * sizeof(struct reg_default),
 				      GFP_KERNEL);
