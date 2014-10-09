@@ -6077,8 +6077,12 @@ static void igb_vf_reset_msg(struct igb_adapter *adapter, u32 vf)
 	adapter->vf_data[vf].flags |= IGB_VF_FLAG_CTS;
 
 	/* reply to reset with ack and vf mac address */
-	msgbuf[0] = E1000_VF_RESET | E1000_VT_MSGTYPE_ACK;
-	memcpy(addr, vf_mac, ETH_ALEN);
+	if (!is_zero_ether_addr(vf_mac)) {
+		msgbuf[0] = E1000_VF_RESET | E1000_VT_MSGTYPE_ACK;
+		memcpy(addr, vf_mac, ETH_ALEN);
+	} else {
+		msgbuf[0] = E1000_VF_RESET | E1000_VT_MSGTYPE_NACK;
+	}
 	igb_write_mbx(hw, msgbuf, 3, vf);
 }
 
