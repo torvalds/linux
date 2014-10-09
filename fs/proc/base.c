@@ -632,29 +632,35 @@ static const struct file_operations proc_single_file_operations = {
 	.release	= single_release,
 };
 
+
+struct mm_struct *proc_mem_open(struct inode *inode, unsigned int mode)
+{
+	struct task_struct *task = get_proc_task(inode);
+	struct mm_struct *mm = ERR_PTR(-ESRCH);
+
+	if (task) {
+		mm = mm_access(task, mode);
+		put_task_struct(task);
+
+		if (!IS_ERR_OR_NULL(mm)) {
+			/* ensure this mm_struct can't be freed */
+			atomic_inc(&mm->mm_count);
+			/* but do not pin its memory */
+			mmput(mm);
+		}
+	}
+
+	return mm;
+}
+
 static int __mem_open(struct inode *inode, struct file *file, unsigned int mode)
 {
-	struct task_struct *task = get_proc_task(file_inode(file));
-	struct mm_struct *mm;
-
-	if (!task)
-		return -ESRCH;
-
-	mm = mm_access(task, mode);
-	put_task_struct(task);
+	struct mm_struct *mm = proc_mem_open(inode, mode);
 
 	if (IS_ERR(mm))
 		return PTR_ERR(mm);
 
-	if (mm) {
-		/* ensure this mm_struct can't be freed */
-		atomic_inc(&mm->mm_count);
-		/* but do not pin its memory */
-		mmput(mm);
-	}
-
 	file->private_data = mm;
-
 	return 0;
 }
 
