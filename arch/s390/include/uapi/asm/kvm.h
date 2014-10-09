@@ -108,6 +108,9 @@ struct kvm_guest_debug_arch {
 	struct kvm_hw_breakpoint __user *hw_bp;
 };
 
+/* for KVM_SYNC_PFAULT and KVM_REG_S390_PFTOKEN */
+#define KVM_S390_PFAULT_TOKEN_INVALID	0xffffffffffffffffULL
+
 #define KVM_SYNC_PREFIX (1UL << 0)
 #define KVM_SYNC_GPRS   (1UL << 1)
 #define KVM_SYNC_ACRS   (1UL << 2)

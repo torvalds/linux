@@ -469,7 +469,6 @@ struct kvm_vcpu_arch {
 	};
 	struct gmap *gmap;
 	struct kvm_guestdbg_info_arch guestdbg;
-#define KVM_S390_PFAULT_TOKEN_INVALID	(-1UL)
 	unsigned long pfault_token;
 	unsigned long pfault_select;
 	unsigned long pfault_compare;

@@ -936,6 +936,8 @@ static int kvm_arch_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu,
 	case KVM_REG_S390_PFTOKEN:
 		r = get_user(vcpu->arch.pfault_token,
 			     (u64 __user *)reg->addr);
+		if (vcpu->arch.pfault_token == KVM_S390_PFAULT_TOKEN_INVALID)
+			kvm_clear_async_pf_completion_queue(vcpu);
 		break;
 	case KVM_REG_S390_PFCOMPARE:
 		r = get_user(vcpu->arch.pfault_compare,
@@ -1408,6 +1410,8 @@ static void sync_regs(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		vcpu->arch.pfault_token = kvm_run->s.regs.pft;
 		vcpu->arch.pfault_select = kvm_run->s.regs.pfs;
 		vcpu->arch.pfault_compare = kvm_run->s.regs.pfc;
+		if (vcpu->arch.pfault_token == KVM_S390_PFAULT_TOKEN_INVALID)
+			kvm_clear_async_pf_completion_queue(vcpu);
 	}
 	kvm_run->kvm_dirty_regs = 0;
 }
