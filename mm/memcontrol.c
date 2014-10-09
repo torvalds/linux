@@ -481,14 +481,6 @@ enum res_type {
 #define OOM_CONTROL		(0)
 
 /*
- * Reclaim flags for mem_cgroup_hierarchical_reclaim
- */
-#define MEM_CGROUP_RECLAIM_NOSWAP_BIT	0x0
-#define MEM_CGROUP_RECLAIM_NOSWAP	(1 << MEM_CGROUP_RECLAIM_NOSWAP_BIT)
-#define MEM_CGROUP_RECLAIM_SHRINK_BIT	0x1
-#define MEM_CGROUP_RECLAIM_SHRINK	(1 << MEM_CGROUP_RECLAIM_SHRINK_BIT)
-
-/*
  * The memcg_create_mutex will be held whenever a new cgroup is created.
  * As a consequence, any change that needs to protect against new child cgroups
  * appearing has to hold it as well.
@@ -1805,40 +1797,6 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
 			 NULL, "Memory cgroup out of memory");
 }
 
-static unsigned long mem_cgroup_reclaim(struct mem_cgroup *memcg,
-					gfp_t gfp_mask,
-					unsigned long flags)
-{
-	unsigned long total = 0;
-	bool noswap = false;
-	int loop;
-
-	if (flags & MEM_CGROUP_RECLAIM_NOSWAP)
-		noswap = true;
-
-	for (loop = 0; loop < MEM_CGROUP_MAX_RECLAIM_LOOPS; loop++) {
-		if (loop)
-			drain_all_stock_async(memcg);
-		total += try_to_free_mem_cgroup_pages(memcg, gfp_mask, noswap);
-		/*
-		 * Allow limit shrinkers, which are triggered directly
-		 * by userspace, to catch signals and stop reclaim
-		 * after minimal progress, regardless of the margin.
-		 */
-		if (total && (flags & MEM_CGROUP_RECLAIM_SHRINK))
-			break;
-		if (mem_cgroup_margin(memcg))
-			break;
-		/*
-		 * If nothing was reclaimed after two attempts, there
-		 * may be no reclaimable pages in this hierarchy.
-		 */
-		if (loop && !total)
-			break;
-	}
-	return total;
-}
-
 /**
  * test_mem_cgroup_node_reclaimable
  * @memcg: the target memcg
@@ -2541,8 +2499,9 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
 	struct mem_cgroup *mem_over_limit;
 	struct res_counter *fail_res;
 	unsigned long nr_reclaimed;
-	unsigned long flags = 0;
 	unsigned long long size;
+	bool may_swap = true;
+	bool drained = false;
 	int ret = 0;
 
 	if (mem_cgroup_is_root(memcg))
@@ -2561,7 +2520,7 @@ retry:
 		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
 	} else {
 		mem_over_limit = mem_cgroup_from_res_counter(fail_res, memsw);
-		flags |= MEM_CGROUP_RECLAIM_NOSWAP;
+		may_swap = false;
 	}
 
 	if (batch > nr_pages) {
@@ -2586,10 +2545,17 @@ retry:
 	if (!(gfp_mask & __GFP_WAIT))
 		goto nomem;
 
-	nr_reclaimed = mem_cgroup_reclaim(mem_over_limit, gfp_mask, flags);
+	nr_reclaimed = try_to_free_mem_cgroup_pages(mem_over_limit, nr_pages,
+						    gfp_mask, may_swap);
 
 	if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
 		goto retry;
+
+	if (!drained) {
+		drain_all_stock_async(mem_over_limit);
+		drained = true;
+		goto retry;
+	}
 
 	if (gfp_mask & __GFP_NORETRY)
 		goto nomem;
@@ -3666,8 +3632,8 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
 		if (!ret)
 			break;
 
-		mem_cgroup_reclaim(memcg, GFP_KERNEL,
-				   MEM_CGROUP_RECLAIM_SHRINK);
+		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, true);
+
 		curusage = res_counter_read_u64(&memcg->res, RES_USAGE);
 		/* Usage is reduced ? */
 		if (curusage >= oldusage)
@@ -3717,9 +3683,8 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
 		if (!ret)
 			break;
 
-		mem_cgroup_reclaim(memcg, GFP_KERNEL,
-				   MEM_CGROUP_RECLAIM_NOSWAP |
-				   MEM_CGROUP_RECLAIM_SHRINK);
+		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, false);
+
 		curusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
 		/* Usage is reduced ? */
 		if (curusage >= oldusage)
@@ -3968,8 +3933,8 @@ static int mem_cgroup_force_empty(struct mem_cgroup *memcg)
 		if (signal_pending(current))
 			return -EINTR;
 
-		progress = try_to_free_mem_cgroup_pages(memcg, GFP_KERNEL,
-						false);
+		progress = try_to_free_mem_cgroup_pages(memcg, 1,
+							GFP_KERNEL, true);
 		if (!progress) {
 			nr_retries--;
 			/* maybe some writeback is necessary */
