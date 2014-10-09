@@ -2397,12 +2397,12 @@ static void handle_cap_grant(struct ceph_mds_client *mdsc,
 	u64 max_size = le64_to_cpu(grant->max_size);
 	struct timespec mtime, atime, ctime;
 	int check_caps = 0;
-	bool wake = 0;
-	bool writeback = 0;
-	bool queue_trunc = 0;
-	bool queue_invalidate = 0;
-	bool queue_revalidate = 0;
-	bool deleted_inode = 0;
+	bool wake = false;
+	bool writeback = false;
+	bool queue_trunc = false;
+	bool queue_invalidate = false;
+	bool queue_revalidate = false;
+	bool deleted_inode = false;
 
 	dout("handle_cap_grant inode %p cap %p mds%d seq %d %s\n",
 	     inode, cap, mds, seq, ceph_cap_string(newcaps));
@@ -2437,7 +2437,7 @@ static void handle_cap_grant(struct ceph_mds_client *mdsc,
 			/* there were locked pages.. invalidate later
 			   in a separate thread. */
 			if (ci->i_rdcache_revoking != ci->i_rdcache_gen) {
-				queue_invalidate = 1;
+				queue_invalidate = true;
 				ci->i_rdcache_revoking = ci->i_rdcache_gen;
 			}
 		}
@@ -2466,7 +2466,7 @@ static void handle_cap_grant(struct ceph_mds_client *mdsc,
 		set_nlink(inode, le32_to_cpu(grant->nlink));
 		if (inode->i_nlink == 0 &&
 		    (newcaps & (CEPH_CAP_LINK_SHARED | CEPH_CAP_LINK_EXCL)))
-			deleted_inode = 1;
+			deleted_inode = true;
 	}
 
 	if ((issued & CEPH_CAP_XATTR_EXCL) == 0 && grant->xattr_len) {
@@ -2487,7 +2487,7 @@ static void handle_cap_grant(struct ceph_mds_client *mdsc,
 	/* Do we need to revalidate our fscache cookie. Don't bother on the
 	 * first cache cap as we already validate at cookie creation time. */
 	if ((issued & CEPH_CAP_FILE_CACHE) && ci->i_rdcache_gen > 1)
-		queue_revalidate = 1;
+		queue_revalidate = true;
 
 	if (newcaps & CEPH_CAP_ANY_RD) {
 		/* ctime/mtime/atime? */
@@ -2516,7 +2516,7 @@ static void handle_cap_grant(struct ceph_mds_client *mdsc,
 				ci->i_wanted_max_size = 0;  /* reset */
 				ci->i_requested_max_size = 0;
 			}
-			wake = 1;
+			wake = true;
 		}
 	}
 
@@ -2546,7 +2546,7 @@ static void handle_cap_grant(struct ceph_mds_client *mdsc,
 		     ceph_cap_string(newcaps),
 		     ceph_cap_string(revoking));
 		if (revoking & used & CEPH_CAP_FILE_BUFFER)
-			writeback = 1;  /* initiate writeback; will delay ack */
+			writeback = true;  /* initiate writeback; will delay ack */
 		else if (revoking == CEPH_CAP_FILE_CACHE &&
 			 (newcaps & CEPH_CAP_FILE_LAZYIO) == 0 &&
 			 queue_invalidate)
@@ -2572,7 +2572,7 @@ static void handle_cap_grant(struct ceph_mds_client *mdsc,
 		cap->implemented |= newcaps; /* add bits only, to
 					      * avoid stepping on a
 					      * pending revocation */
-		wake = 1;
+		wake = true;
 	}
 	BUG_ON(cap->issued & ~cap->implemented);
 
@@ -2586,7 +2586,7 @@ static void handle_cap_grant(struct ceph_mds_client *mdsc,
 		kick_flushing_inode_caps(mdsc, session, inode);
 		up_read(&mdsc->snap_rwsem);
 		if (newcaps & ~issued)
-			wake = 1;
+			wake = true;
 	}
 
 	if (queue_trunc) {
