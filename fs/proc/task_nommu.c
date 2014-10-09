@@ -123,6 +123,25 @@ unsigned long task_statm(struct mm_struct *mm,
 	return size;
 }
 
+static pid_t pid_of_stack(struct proc_maps_private *priv,
+				struct vm_area_struct *vma, bool is_pid)
+{
+	struct inode *inode = priv->inode;
+	struct task_struct *task;
+	pid_t ret = 0;
+
+	rcu_read_lock();
+	task = pid_task(proc_pid(inode), PIDTYPE_PID);
+	if (task) {
+		task = task_of_stack(task, vma, is_pid);
+		if (task)
+			ret = task_pid_nr_ns(task, inode->i_sb->s_fs_info);
+	}
+	rcu_read_unlock();
+
+	return ret;
+}
+
 /*
  * display a single VMA to a sequenced file
  */
@@ -163,7 +182,7 @@ static int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma,
 		seq_pad(m, ' ');
 		seq_path(m, &file->f_path, "");
 	} else if (mm) {
-		pid_t tid = vm_is_stack(priv->task, vma, is_pid);
+		pid_t tid = pid_of_stack(priv, vma, is_pid);
 
 		if (tid != 0) {
 			seq_pad(m, ' ');
