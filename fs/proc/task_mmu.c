@@ -129,14 +129,13 @@ static void release_task_mempolicy(struct proc_maps_private *priv)
 }
 #endif
 
-static void vma_stop(struct proc_maps_private *priv, struct vm_area_struct *vma)
+static void vma_stop(struct proc_maps_private *priv)
 {
-	if (vma && vma != priv->tail_vma) {
-		struct mm_struct *mm = vma->vm_mm;
-		release_task_mempolicy(priv);
-		up_read(&mm->mmap_sem);
-		mmput(mm);
-	}
+	struct mm_struct *mm = priv->mm;
+
+	release_task_mempolicy(priv);
+	up_read(&mm->mmap_sem);
+	mmput(mm);
 }
 
 static void *m_start(struct seq_file *m, loff_t *pos)
@@ -199,12 +198,13 @@ out:
 	if (vma)
 		return vma;
 
-	release_task_mempolicy(priv);
 	/* End of vmas has been reached */
 	m->version = (tail_vma != NULL)? 0: -1UL;
-	up_read(&mm->mmap_sem);
-	mmput(mm);
-	return tail_vma;
+	if (tail_vma)
+		return tail_vma;
+
+	vma_stop(priv);
+	return NULL;
 }
 
 static void *m_next(struct seq_file *m, void *v, loff_t *pos)
@@ -212,21 +212,24 @@ static void *m_next(struct seq_file *m, void *v, loff_t *pos)
 	struct proc_maps_private *priv = m->private;
 	struct vm_area_struct *vma = v;
 	struct vm_area_struct *tail_vma = priv->tail_vma;
+	struct vm_area_struct *next;
 
 	(*pos)++;
 	if (vma && (vma != tail_vma) && vma->vm_next)
 		return vma->vm_next;
-	vma_stop(priv, vma);
-	return (vma != tail_vma)? tail_vma: NULL;
+
+	next = (vma != tail_vma) ? tail_vma : NULL;
+	if (!next)
+		vma_stop(priv);
+	return next;
 }
 
 static void m_stop(struct seq_file *m, void *v)
 {
 	struct proc_maps_private *priv = m->private;
-	struct vm_area_struct *vma = v;
 
-	if (!IS_ERR(vma))
-		vma_stop(priv, vma);
+	if (!IS_ERR_OR_NULL(v))
+		vma_stop(priv);
 	if (priv->task)
 		put_task_struct(priv->task);
 }
