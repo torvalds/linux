@@ -20,31 +20,20 @@
  * Author: Paul E. McKenney <paulmck@us.ibm.com>
  *	Based on kernel/rcu/torture.c.
  */
-#include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kthread.h>
-#include <linux/err.h>
 #include <linux/spinlock.h>
+#include <linux/rwlock.h>
 #include <linux/mutex.h>
+#include <linux/rwsem.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/atomic.h>
-#include <linux/bitops.h>
-#include <linux/completion.h>
 #include <linux/moduleparam.h>
-#include <linux/percpu.h>
-#include <linux/notifier.h>
-#include <linux/reboot.h>
-#include <linux/freezer.h>
-#include <linux/cpu.h>
 #include <linux/delay.h>
-#include <linux/stat.h>
 #include <linux/slab.h>
-#include <linux/trace_clock.h>
-#include <asm/byteorder.h>
 #include <linux/torture.h>
 
 MODULE_LICENSE("GPL");
@@ -204,7 +193,7 @@ static struct lock_torture_ops spin_lock_ops = {
 };
 
 static int torture_spin_lock_write_lock_irq(void)
-__acquires(torture_spinlock_irq)
+__acquires(torture_spinlock)
 {
 	unsigned long flags;
 
@@ -227,6 +216,110 @@ static struct lock_torture_ops spin_lock_irq_ops = {
 	.read_delay     = NULL,
 	.readunlock     = NULL,
 	.name		= "spin_lock_irq"
+};
+
+static DEFINE_RWLOCK(torture_rwlock);
+
+static int torture_rwlock_write_lock(void) __acquires(torture_rwlock)
+{
+	write_lock(&torture_rwlock);
+	return 0;
+}
+
+static void torture_rwlock_write_delay(struct torture_random_state *trsp)
+{
+	const unsigned long shortdelay_us = 2;
+	const unsigned long longdelay_ms = 100;
+
+	/* We want a short delay mostly to emulate likely code, and
+	 * we want a long delay occasionally to force massive contention.
+	 */
+	if (!(torture_random(trsp) %
+	      (cxt.nrealwriters_stress * 2000 * longdelay_ms)))
+		mdelay(longdelay_ms);
+	else
+		udelay(shortdelay_us);
+}
+
+static void torture_rwlock_write_unlock(void) __releases(torture_rwlock)
+{
+	write_unlock(&torture_rwlock);
+}
+
+static int torture_rwlock_read_lock(void) __acquires(torture_rwlock)
+{
+	read_lock(&torture_rwlock);
+	return 0;
+}
+
+static void torture_rwlock_read_delay(struct torture_random_state *trsp)
+{
+	const unsigned long shortdelay_us = 10;
+	const unsigned long longdelay_ms = 100;
+
+	/* We want a short delay mostly to emulate likely code, and
+	 * we want a long delay occasionally to force massive contention.
+	 */
+	if (!(torture_random(trsp) %
+	      (cxt.nrealreaders_stress * 2000 * longdelay_ms)))
+		mdelay(longdelay_ms);
+	else
+		udelay(shortdelay_us);
+}
+
+static void torture_rwlock_read_unlock(void) __releases(torture_rwlock)
+{
+	read_unlock(&torture_rwlock);
+}
+
+static struct lock_torture_ops rw_lock_ops = {
+	.writelock	= torture_rwlock_write_lock,
+	.write_delay	= torture_rwlock_write_delay,
+	.writeunlock	= torture_rwlock_write_unlock,
+	.readlock       = torture_rwlock_read_lock,
+	.read_delay     = torture_rwlock_read_delay,
+	.readunlock     = torture_rwlock_read_unlock,
+	.name		= "rw_lock"
+};
+
+static int torture_rwlock_write_lock_irq(void) __acquires(torture_rwlock)
+{
+	unsigned long flags;
+
+	write_lock_irqsave(&torture_rwlock, flags);
+	cxt.cur_ops->flags = flags;
+	return 0;
+}
+
+static void torture_rwlock_write_unlock_irq(void)
+__releases(torture_rwlock)
+{
+	write_unlock_irqrestore(&torture_rwlock, cxt.cur_ops->flags);
+}
+
+static int torture_rwlock_read_lock_irq(void) __acquires(torture_rwlock)
+{
+	unsigned long flags;
+
+	read_lock_irqsave(&torture_rwlock, flags);
+	cxt.cur_ops->flags = flags;
+	return 0;
+}
+
+static void torture_rwlock_read_unlock_irq(void)
+__releases(torture_rwlock)
+{
+	write_unlock_irqrestore(&torture_rwlock, cxt.cur_ops->flags);
+}
+
+static struct lock_torture_ops rw_lock_irq_ops = {
+	.writelock	= torture_rwlock_write_lock_irq,
+	.write_delay	= torture_rwlock_write_delay,
+	.writeunlock	= torture_rwlock_write_unlock_irq,
+	.readlock       = torture_rwlock_read_lock_irq,
+	.read_delay     = torture_rwlock_read_delay,
+	.readunlock     = torture_rwlock_read_unlock_irq,
+	.name		= "rw_lock_irq"
 };
 
 static DEFINE_MUTEX(torture_mutex);
@@ -348,14 +441,19 @@ static int lock_torture_writer(void *arg)
 	do {
 		if ((torture_random(&rand) & 0xfffff) == 0)
 			schedule_timeout_uninterruptible(1);
+
 		cxt.cur_ops->writelock();
 		if (WARN_ON_ONCE(lock_is_write_held))
 			lwsp->n_lock_fail++;
 		lock_is_write_held = 1;
+		if (WARN_ON_ONCE(lock_is_read_held))
+			lwsp->n_lock_fail++; /* rare, but... */
+
 		lwsp->n_lock_acquired++;
 		cxt.cur_ops->write_delay(&rand);
 		lock_is_write_held = 0;
 		cxt.cur_ops->writeunlock();
+
 		stutter_wait("lock_torture_writer");
 	} while (!torture_must_stop());
 	torture_kthread_stopping("lock_torture_writer");
@@ -377,12 +475,17 @@ static int lock_torture_reader(void *arg)
 	do {
 		if ((torture_random(&rand) & 0xfffff) == 0)
 			schedule_timeout_uninterruptible(1);
+
 		cxt.cur_ops->readlock();
 		lock_is_read_held = 1;
+		if (WARN_ON_ONCE(lock_is_write_held))
+			lrsp->n_lock_fail++; /* rare, but... */
+
 		lrsp->n_lock_acquired++;
 		cxt.cur_ops->read_delay(&rand);
 		lock_is_read_held = 0;
 		cxt.cur_ops->readunlock();
+
 		stutter_wait("lock_torture_reader");
 	} while (!torture_must_stop());
 	torture_kthread_stopping("lock_torture_reader");
@@ -535,8 +638,11 @@ static int __init lock_torture_init(void)
 	int i, j;
 	int firsterr = 0;
 	static struct lock_torture_ops *torture_ops[] = {
-		&lock_busted_ops, &spin_lock_ops, &spin_lock_irq_ops,
-		&mutex_lock_ops, &rwsem_lock_ops,
+		&lock_busted_ops,
+		&spin_lock_ops, &spin_lock_irq_ops,
+		&rw_lock_ops, &rw_lock_irq_ops,
+		&mutex_lock_ops,
+		&rwsem_lock_ops,
 	};
 
 	if (!torture_init_begin(torture_type, verbose, &torture_runnable))
@@ -571,7 +677,8 @@ static int __init lock_torture_init(void)
 		cxt.debug_lock = true;
 #endif
 #ifdef CONFIG_DEBUG_SPINLOCK
-	if (strncmp(torture_type, "spin", 4) == 0)
+	if ((strncmp(torture_type, "spin", 4) == 0) ||
+	    (strncmp(torture_type, "rw_lock", 7) == 0))
 		cxt.debug_lock = true;
 #endif
 
