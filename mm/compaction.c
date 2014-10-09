@@ -132,7 +132,7 @@ void reset_isolation_suitable(pg_data_t *pgdat)
  */
 static void update_pageblock_skip(struct compact_control *cc,
 			struct page *page, unsigned long nr_isolated,
-			bool set_unsuitable, bool migrate_scanner)
+			bool migrate_scanner)
 {
 	struct zone *zone = cc->zone;
 	unsigned long pfn;
@@ -146,12 +146,7 @@ static void update_pageblock_skip(struct compact_control *cc,
 	if (nr_isolated)
 		return;
 
-	/*
-	 * Only skip pageblocks when all forms of compaction will be known to
-	 * fail in the near future.
-	 */
-	if (set_unsuitable)
-		set_pageblock_skip(page);
+	set_pageblock_skip(page);
 
 	pfn = page_to_pfn(page);
 
@@ -180,7 +175,7 @@ static inline bool isolation_suitable(struct compact_control *cc,
 
 static void update_pageblock_skip(struct compact_control *cc,
 			struct page *page, unsigned long nr_isolated,
-			bool set_unsuitable, bool migrate_scanner)
+			bool migrate_scanner)
 {
 }
 #endif /* CONFIG_COMPACTION */
@@ -348,8 +343,7 @@ isolate_fail:
 
 	/* Update the pageblock-skip if the whole pageblock was scanned */
 	if (blockpfn == end_pfn)
-		update_pageblock_skip(cc, valid_page, total_isolated, true,
-				      false);
+		update_pageblock_skip(cc, valid_page, total_isolated, false);
 
 	count_compact_events(COMPACTFREE_SCANNED, nr_scanned);
 	if (total_isolated)
@@ -420,22 +414,19 @@ isolate_freepages_range(struct compact_control *cc,
 }
 
 /* Update the number of anon and file isolated pages in the zone */
-static void acct_isolated(struct zone *zone, bool locked, struct compact_control *cc)
+static void acct_isolated(struct zone *zone, struct compact_control *cc)
 {
 	struct page *page;
 	unsigned int count[2] = { 0, };
 
+	if (list_empty(&cc->migratepages))
+		return;
+
 	list_for_each_entry(page, &cc->migratepages, lru)
 		count[!!page_is_file_cache(page)]++;
 
-	/* If locked we can use the interrupt unsafe versions */
-	if (locked) {
-		__mod_zone_page_state(zone, NR_ISOLATED_ANON, count[0]);
-		__mod_zone_page_state(zone, NR_ISOLATED_FILE, count[1]);
-	} else {
-		mod_zone_page_state(zone, NR_ISOLATED_ANON, count[0]);
-		mod_zone_page_state(zone, NR_ISOLATED_FILE, count[1]);
-	}
+	mod_zone_page_state(zone, NR_ISOLATED_ANON, count[0]);
+	mod_zone_page_state(zone, NR_ISOLATED_FILE, count[1]);
 }
 
 /* Similar to reclaim, but different enough that they don't share logic */
@@ -454,40 +445,34 @@ static bool too_many_isolated(struct zone *zone)
 }
 
 /**
- * isolate_migratepages_range() - isolate all migrate-able pages in range.
- * @zone:	Zone pages are in.
+ * isolate_migratepages_block() - isolate all migrate-able pages within
+ *				  a single pageblock
  * @cc:		Compaction control structure.
- * @low_pfn:	The first PFN of the range.
- * @end_pfn:	The one-past-the-last PFN of the range.
- * @unevictable: true if it allows to isolate unevictable pages
+ * @low_pfn:	The first PFN to isolate
+ * @end_pfn:	The one-past-the-last PFN to isolate, within same pageblock
+ * @isolate_mode: Isolation mode to be used.
  *
  * Isolate all pages that can be migrated from the range specified by
- * [low_pfn, end_pfn).  Returns zero if there is a fatal signal
- * pending), otherwise PFN of the first page that was not scanned
- * (which may be both less, equal to or more then end_pfn).
+ * [low_pfn, end_pfn). The range is expected to be within same pageblock.
+ * Returns zero if there is a fatal signal pending, otherwise PFN of the
+ * first page that was not scanned (which may be both less, equal to or more
+ * than end_pfn).
  *
- * Assumes that cc->migratepages is empty and cc->nr_migratepages is
- * zero.
- *
- * Apart from cc->migratepages and cc->nr_migratetypes this function
- * does not modify any cc's fields, in particular it does not modify
- * (or read for that matter) cc->migrate_pfn.
+ * The pages are isolated on cc->migratepages list (not required to be empty),
+ * and cc->nr_migratepages is updated accordingly. The cc->migrate_pfn field
+ * is neither read nor updated.
  */
-unsigned long
-isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
-		unsigned long low_pfn, unsigned long end_pfn, bool unevictable)
+static unsigned long
+isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+			unsigned long end_pfn, isolate_mode_t isolate_mode)
 {
-	unsigned long last_pageblock_nr = 0, pageblock_nr;
+	struct zone *zone = cc->zone;
 	unsigned long nr_scanned = 0, nr_isolated = 0;
 	struct list_head *migratelist = &cc->migratepages;
 	struct lruvec *lruvec;
 	unsigned long flags;
 	bool locked = false;
 	struct page *page = NULL, *valid_page = NULL;
-	bool set_unsuitable = true;
-	const isolate_mode_t mode = (cc->mode == MIGRATE_ASYNC ?
-					ISOLATE_ASYNC_MIGRATE : 0) |
-				    (unevictable ? ISOLATE_UNEVICTABLE : 0);
 
 	/*
 	 * Ensure that there are not too many pages isolated from the LRU
@@ -518,19 +503,6 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
 			}
 		}
 
-		/*
-		 * migrate_pfn does not necessarily start aligned to a
-		 * pageblock. Ensure that pfn_valid is called when moving
-		 * into a new MAX_ORDER_NR_PAGES range in case of large
-		 * memory holes within the zone
-		 */
-		if ((low_pfn & (MAX_ORDER_NR_PAGES - 1)) == 0) {
-			if (!pfn_valid(low_pfn)) {
-				low_pfn += MAX_ORDER_NR_PAGES - 1;
-				continue;
-			}
-		}
-
 		if (!pfn_valid_within(low_pfn))
 			continue;
 		nr_scanned++;
@@ -547,28 +519,6 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
 
 		if (!valid_page)
 			valid_page = page;
-
-		/* If isolation recently failed, do not retry */
-		pageblock_nr = low_pfn >> pageblock_order;
-		if (last_pageblock_nr != pageblock_nr) {
-			int mt;
-
-			last_pageblock_nr = pageblock_nr;
-			if (!isolation_suitable(cc, page))
-				goto next_pageblock;
-
-			/*
-			 * For async migration, also only scan in MOVABLE
-			 * blocks. Async migration is optimistic to see if
-			 * the minimum amount of work satisfies the allocation
-			 */
-			mt = get_pageblock_migratetype(page);
-			if (cc->mode == MIGRATE_ASYNC &&
-			    !migrate_async_suitable(mt)) {
-				set_unsuitable = false;
-				goto next_pageblock;
-			}
-		}
 
 		/*
 		 * Skip if free. page_order cannot be used without zone->lock
@@ -604,8 +554,11 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
 		 */
 		if (PageTransHuge(page)) {
 			if (!locked)
-				goto next_pageblock;
-			low_pfn += (1 << compound_order(page)) - 1;
+				low_pfn = ALIGN(low_pfn + 1,
+						pageblock_nr_pages) - 1;
+			else
+				low_pfn += (1 << compound_order(page)) - 1;
+
 			continue;
 		}
 
@@ -635,7 +588,7 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
 		lruvec = mem_cgroup_page_lruvec(page, zone);
 
 		/* Try isolate the page */
-		if (__isolate_lru_page(page, mode) != 0)
+		if (__isolate_lru_page(page, isolate_mode) != 0)
 			continue;
 
 		VM_BUG_ON_PAGE(PageTransCompound(page), page);
@@ -654,14 +607,7 @@ isolate_success:
 			++low_pfn;
 			break;
 		}
-
-		continue;
-
-next_pageblock:
-		low_pfn = ALIGN(low_pfn + 1, pageblock_nr_pages) - 1;
 	}
-
-	acct_isolated(zone, locked, cc);
 
 	if (locked)
 		spin_unlock_irqrestore(&zone->lru_lock, flags);
@@ -671,8 +617,7 @@ next_pageblock:
 	 * if the whole pageblock was scanned without isolating any page.
 	 */
 	if (low_pfn == end_pfn)
-		update_pageblock_skip(cc, valid_page, nr_isolated,
-				      set_unsuitable, true);
+		update_pageblock_skip(cc, valid_page, nr_isolated, true);
 
 	trace_mm_compaction_isolate_migratepages(nr_scanned, nr_isolated);
 
@@ -683,15 +628,63 @@ next_pageblock:
 	return low_pfn;
 }
 
+/**
+ * isolate_migratepages_range() - isolate migrate-able pages in a PFN range
+ * @cc:        Compaction control structure.
+ * @start_pfn: The first PFN to start isolating.
+ * @end_pfn:   The one-past-last PFN.
+ *
+ * Returns zero if isolation fails fatally due to e.g. pending signal.
+ * Otherwise, function returns one-past-the-last PFN of isolated page
+ * (which may be greater than end_pfn if end fell in a middle of a THP page).
+ */
+unsigned long
+isolate_migratepages_range(struct compact_control *cc, unsigned long start_pfn,
+							unsigned long end_pfn)
+{
+	unsigned long pfn, block_end_pfn;
+
+	/* Scan block by block. First and last block may be incomplete */
+	pfn = start_pfn;
+	block_end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
+
+	for (; pfn < end_pfn; pfn = block_end_pfn,
+				block_end_pfn += pageblock_nr_pages) {
+
+		block_end_pfn = min(block_end_pfn, end_pfn);
+
+		/* Skip whole pageblock in case of a memory hole */
+		if (!pfn_valid(pfn))
+			continue;
+
+		pfn = isolate_migratepages_block(cc, pfn, block_end_pfn,
+							ISOLATE_UNEVICTABLE);
+
+		/*
+		 * In case of fatal failure, release everything that might
+		 * have been isolated in the previous iteration, and signal
+		 * the failure back to caller.
+		 */
+		if (!pfn) {
+			putback_movable_pages(&cc->migratepages);
+			cc->nr_migratepages = 0;
+			break;
+		}
+	}
+	acct_isolated(cc->zone, cc);
+
+	return pfn;
+}
+
 #endif /* CONFIG_COMPACTION || CONFIG_CMA */
 #ifdef CONFIG_COMPACTION
 /*
  * Based on information in the current compact_control, find blocks
  * suitable for isolating free pages from and then isolate them.
  */
-static void isolate_freepages(struct zone *zone,
-				struct compact_control *cc)
+static void isolate_freepages(struct compact_control *cc)
 {
+	struct zone *zone = cc->zone;
 	struct page *page;
 	unsigned long block_start_pfn;	/* start of current pageblock */
 	unsigned long block_end_pfn;	/* end of current pageblock */
@@ -809,7 +802,7 @@ static struct page *compaction_alloc(struct page *migratepage,
 	 */
 	if (list_empty(&cc->freepages)) {
 		if (!cc->contended)
-			isolate_freepages(cc->zone, cc);
+			isolate_freepages(cc);
 
 		if (list_empty(&cc->freepages))
 			return NULL;
@@ -843,34 +836,82 @@ typedef enum {
 } isolate_migrate_t;
 
 /*
- * Isolate all pages that can be migrated from the block pointed to by
- * the migrate scanner within compact_control.
+ * Isolate all pages that can be migrated from the first suitable block,
+ * starting at the block pointed to by the migrate scanner pfn within
+ * compact_control.
  */
 static isolate_migrate_t isolate_migratepages(struct zone *zone,
 					struct compact_control *cc)
 {
 	unsigned long low_pfn, end_pfn;
+	struct page *page;
+	const isolate_mode_t isolate_mode =
+		(cc->mode == MIGRATE_ASYNC ? ISOLATE_ASYNC_MIGRATE : 0);
 
-	/* Do not scan outside zone boundaries */
-	low_pfn = max(cc->migrate_pfn, zone->zone_start_pfn);
+	/*
+	 * Start at where we last stopped, or beginning of the zone as
+	 * initialized by compact_zone()
+	 */
+	low_pfn = cc->migrate_pfn;
 
 	/* Only scan within a pageblock boundary */
 	end_pfn = ALIGN(low_pfn + 1, pageblock_nr_pages);
 
-	/* Do not cross the free scanner or scan within a memory hole */
-	if (end_pfn > cc->free_pfn || !pfn_valid(low_pfn)) {
-		cc->migrate_pfn = end_pfn;
-		return ISOLATE_NONE;
+	/*
+	 * Iterate over whole pageblocks until we find the first suitable.
+	 * Do not cross the free scanner.
+	 */
+	for (; end_pfn <= cc->free_pfn;
+			low_pfn = end_pfn, end_pfn += pageblock_nr_pages) {
+
+		/*
+		 * This can potentially iterate a massively long zone with
+		 * many pageblocks unsuitable, so periodically check if we
+		 * need to schedule, or even abort async compaction.
+		 */
+		if (!(low_pfn % (SWAP_CLUSTER_MAX * pageblock_nr_pages))
+						&& compact_should_abort(cc))
+			break;
+
+		/* Skip whole pageblock in case of a memory hole */
+		if (!pfn_valid(low_pfn))
+			continue;
+
+		page = pfn_to_page(low_pfn);
+
+		/* If isolation recently failed, do not retry */
+		if (!isolation_suitable(cc, page))
+			continue;
+
+		/*
+		 * For async compaction, also only scan in MOVABLE blocks.
+		 * Async compaction is optimistic to see if the minimum amount
+		 * of work satisfies the allocation.
+		 */
+		if (cc->mode == MIGRATE_ASYNC &&
+		    !migrate_async_suitable(get_pageblock_migratetype(page)))
+			continue;
+
+		/* Perform the isolation */
+		low_pfn = isolate_migratepages_block(cc, low_pfn, end_pfn,
+								isolate_mode);
+
+		if (!low_pfn || cc->contended)
+			return ISOLATE_ABORT;
+
+		/*
+		 * Either we isolated something and proceed with migration. Or
+		 * we failed and compact_zone should decide if we should
+		 * continue or not.
+		 */
+		break;
 	}
 
-	/* Perform the isolation */
-	low_pfn = isolate_migratepages_range(zone, cc, low_pfn, end_pfn, false);
-	if (!low_pfn || cc->contended)
-		return ISOLATE_ABORT;
-
+	acct_isolated(zone, cc);
+	/* Record where migration scanner will be restarted */
 	cc->migrate_pfn = low_pfn;
 
-	return ISOLATE_SUCCESS;
+	return cc->nr_migratepages ? ISOLATE_SUCCESS : ISOLATE_NONE;
 }
 
 static int compact_finished(struct zone *zone,
@@ -1042,9 +1083,6 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 		case ISOLATE_SUCCESS:
 			;
 		}
-
-		if (!cc->nr_migratepages)
-			continue;
 
 		err = migrate_pages(&cc->migratepages, compaction_alloc,
 				compaction_free, (unsigned long)cc, cc->mode,
