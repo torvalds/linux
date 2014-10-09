@@ -44,7 +44,7 @@ static int regcache_hw_init(struct regmap *map)
 		map->cache_bypass = 1;
 		tmp_buf = kmalloc(map->cache_size_raw, GFP_KERNEL);
 		if (!tmp_buf)
-			return -EINVAL;
+			return -ENOMEM;
 		ret = regmap_raw_read(map, 0, tmp_buf,
 				      map->num_reg_defaults_raw);
 		map->cache_bypass = cache_bypass;
