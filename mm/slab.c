@@ -4178,19 +4178,15 @@ static const struct seq_operations slabstats_op = {
 
 static int slabstats_open(struct inode *inode, struct file *file)
 {
-	unsigned long *n = kzalloc(PAGE_SIZE, GFP_KERNEL);
-	int ret = -ENOMEM;
-	if (n) {
-		ret = seq_open(file, &slabstats_op);
-		if (!ret) {
-			struct seq_file *m = file->private_data;
-			*n = PAGE_SIZE / (2 * sizeof(unsigned long));
-			m->private = n;
-			n = NULL;
-		}
-		kfree(n);
-	}
-	return ret;
+	unsigned long *n;
+
+	n = __seq_open_private(file, &slabstats_op, PAGE_SIZE);
+	if (!n)
+		return -ENOMEM;
+
+	*n = PAGE_SIZE / (2 * sizeof(unsigned long));
+
+	return 0;
 }
 
 static const struct file_operations proc_slabstats_operations = {
