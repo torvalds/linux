@@ -110,16 +110,6 @@ static inline void __cpuinit arch_counter_set_user_access(void)
 	asm volatile("msr	cntkctl_el1, %0" : : "r" (cntkctl));
 }
 
-static inline u64 arch_counter_get_cntpct(void)
-{
-	u64 cval;
-
-	isb();
-	asm volatile("mrs %0, cntpct_el0" : "=r" (cval));
-
-	return cval;
-}
-
 static inline u64 arch_counter_get_cntvct(void)
 {
 	u64 cval;

@@ -240,11 +240,13 @@ ipip_tunnel_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	if (copy_from_user(&p, ifr->ifr_ifru.ifru_data, sizeof(p)))
 		return -EFAULT;
 
-	if (p.iph.version != 4 || p.iph.protocol != IPPROTO_IPIP ||
-			p.iph.ihl != 5 || (p.iph.frag_off&htons(~IP_DF)))
-		return -EINVAL;
-	if (p.i_key || p.o_key || p.i_flags || p.o_flags)
-		return -EINVAL;
+	if (cmd == SIOCADDTUNNEL || cmd == SIOCCHGTUNNEL) {
+		if (p.iph.version != 4 || p.iph.protocol != IPPROTO_IPIP ||
+		    p.iph.ihl != 5 || (p.iph.frag_off&htons(~IP_DF)))
+			return -EINVAL;
+	}
+
+	p.i_key = p.o_key = p.i_flags = p.o_flags = 0;
 	if (p.iph.ttl)
 		p.iph.frag_off |= htons(IP_DF);
 

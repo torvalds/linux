@@ -163,15 +163,13 @@ static inline int valid_user_regs(struct user_pt_regs *regs)
 	return 0;
 }
 
-#define instruction_pointer(regs)	(regs)->pc
+#define instruction_pointer(regs)	((unsigned long)(regs)->pc)
 
 #ifdef CONFIG_SMP
 extern unsigned long profile_pc(struct pt_regs *regs);
 #else
 #define profile_pc(regs) instruction_pointer(regs)
 #endif
-
-extern int aarch32_break_trap(struct pt_regs *regs);
 
 #endif /* __ASSEMBLY__ */
 #endif

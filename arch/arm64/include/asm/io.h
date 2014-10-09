@@ -26,6 +26,7 @@
 #include <asm/byteorder.h>
 #include <asm/barrier.h>
 #include <asm/pgtable.h>
+#include <asm/early_ioremap.h>
 
 /*
  * Generic IO read/write.  These perform native-endian accesses.
@@ -118,7 +119,7 @@ static inline u64 __raw_readq(const volatile void __iomem *addr)
  *  I/O port access primitives.
  */
 #define IO_SPACE_LIMIT		0xffff
-#define PCI_IOBASE		((void __iomem *)(MODULES_VADDR - SZ_2M))
+#define PCI_IOBASE		((void __iomem *)(MODULES_VADDR - SZ_32M))
 
 static inline u8 inb(unsigned long addr)
 {
@@ -224,18 +225,12 @@ extern void __memset_io(volatile void __iomem *, int, size_t);
  */
 extern void __iomem *__ioremap(phys_addr_t phys_addr, size_t size, pgprot_t prot);
 extern void __iounmap(volatile void __iomem *addr);
-
-#define PROT_DEFAULT		(PTE_TYPE_PAGE | PTE_AF | PTE_DIRTY)
-#define PROT_DEVICE_nGnRE	(PROT_DEFAULT | PTE_PXN | PTE_UXN | PTE_ATTRINDX(MT_DEVICE_nGnRE))
-#define PROT_NORMAL_NC		(PROT_DEFAULT | PTE_ATTRINDX(MT_NORMAL_NC))
+extern void __iomem *ioremap_cache(phys_addr_t phys_addr, size_t size);
 
 #define ioremap(addr, size)		__ioremap((addr), (size), __pgprot(PROT_DEVICE_nGnRE))
 #define ioremap_nocache(addr, size)	__ioremap((addr), (size), __pgprot(PROT_DEVICE_nGnRE))
 #define ioremap_wc(addr, size)		__ioremap((addr), (size), __pgprot(PROT_NORMAL_NC))
 #define iounmap				__iounmap
-
-#define PROT_SECT_DEFAULT	(PMD_TYPE_SECT | PMD_SECT_AF)
-#define PROT_SECT_DEVICE_nGnRE	(PROT_SECT_DEFAULT | PTE_PXN | PTE_UXN | PMD_ATTRINDX(MT_DEVICE_nGnRE))
 
 #define ARCH_HAS_IOREMAP_WC
 #include <asm-generic/iomap.h>

@@ -354,7 +354,7 @@ static int alloc_dispatch_log_kmem_cache(void)
 }
 early_initcall(alloc_dispatch_log_kmem_cache);
 
-static void pSeries_idle(void)
+static void pseries_lpar_idle(void)
 {
 	/* This would call on the cpuidle framework, and the back-end pseries
 	 * driver to  go to idle states
@@ -362,10 +362,22 @@ static void pSeries_idle(void)
 	if (cpuidle_idle_call()) {
 		/* On error, execute default handler
 		 * to go into low thread priority and possibly
-		 * low power mode.
+		 * low power mode by cedeing processor to hypervisor
 		 */
-		HMT_low();
-		HMT_very_low();
+
+		/* Indicate to hypervisor that we are idle. */
+		get_lppaca()->idle = 1;
+
+		/*
+		 * Yield the processor to the hypervisor.  We return if
+		 * an external interrupt occurs (which are driven prior
+		 * to returning here) or if a prod occurs from another
+		 * processor. When returning here, external interrupts
+		 * are enabled.
+		 */
+		cede_processor();
+
+		get_lppaca()->idle = 0;
 	}
 }
 
@@ -456,15 +468,14 @@ static void __init pSeries_setup_arch(void)
 
 	pSeries_nvram_init();
 
-	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
+	if (firmware_has_feature(FW_FEATURE_LPAR)) {
 		vpa_init(boot_cpuid);
-		ppc_md.power_save = pSeries_idle;
-	}
-
-	if (firmware_has_feature(FW_FEATURE_LPAR))
+		ppc_md.power_save = pseries_lpar_idle;
 		ppc_md.enable_pmcs = pseries_lpar_enable_pmcs;
-	else
+	} else {
+		/* No special idle routine */
 		ppc_md.enable_pmcs = power4_enable_pmcs;
+	}
 
 	ppc_md.pcibios_root_bridge_prepare = pseries_root_bridge_prepare;
 
@@ -635,7 +646,7 @@ static int __init pseries_probe_fw_features(unsigned long node,
 					    void *data)
 {
 	const char *prop;
-	unsigned long len;
+	int len;
 	static int hypertas_found;
 	static int vec5_found;
 
@@ -668,7 +679,7 @@ static int __init pseries_probe_fw_features(unsigned long node,
 static int __init pSeries_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
- 	char *dtype = of_get_flat_dt_prop(root, "device_type", NULL);
+	const char *dtype = of_get_flat_dt_prop(root, "device_type", NULL);
 
  	if (dtype == NULL)
  		return 0;

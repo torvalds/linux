@@ -68,6 +68,15 @@ _SetupMMU:
 
 #ifdef CONFIG_INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
 	initialize_mmu
+#if defined(CONFIG_MMU) && XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY
+	rsr	a2, excsave1
+	movi	a3, 0x08000000
+	bgeu	a2, a3, 1f
+	movi	a3, 0xd0000000
+	add	a2, a2, a3
+	wsr	a2, excsave1
+1:
+#endif
 #endif
 	.end	no-absolute-literals
 

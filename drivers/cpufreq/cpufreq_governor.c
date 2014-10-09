@@ -26,7 +26,6 @@
 #include <linux/tick.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
-#include <linux/cpu.h>
 
 #include "cpufreq_governor.h"
 
@@ -92,9 +91,9 @@ void dbs_check_cpu(struct dbs_data *dbs_data, int cpu)
 	unsigned int j;
 
 	if (dbs_data->cdata->governor == GOV_ONDEMAND)
-		ignore_nice = od_tuners->ignore_nice;
+		ignore_nice = od_tuners->ignore_nice_load;
 	else
-		ignore_nice = cs_tuners->ignore_nice;
+		ignore_nice = cs_tuners->ignore_nice_load;
 
 	policy = cdbs->cur_policy;
 
@@ -181,10 +180,8 @@ void gov_queue_work(struct dbs_data *dbs_data, struct cpufreq_policy *policy,
 	if (!all_cpus) {
 		__gov_queue_work(smp_processor_id(), dbs_data, delay);
 	} else {
-		get_online_cpus();
 		for_each_cpu(i, policy->cpus)
 			__gov_queue_work(i, dbs_data, delay);
-		put_online_cpus();
 	}
 }
 EXPORT_SYMBOL_GPL(gov_queue_work);
@@ -339,12 +336,12 @@ int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		cs_tuners = dbs_data->tuners;
 		cs_dbs_info = dbs_data->cdata->get_cpu_dbs_info_s(cpu);
 		sampling_rate = cs_tuners->sampling_rate;
-		ignore_nice = cs_tuners->ignore_nice;
+		ignore_nice = cs_tuners->ignore_nice_load;
 	} else {
 		od_tuners = dbs_data->tuners;
 		od_dbs_info = dbs_data->cdata->get_cpu_dbs_info_s(cpu);
 		sampling_rate = od_tuners->sampling_rate;
-		ignore_nice = od_tuners->ignore_nice;
+		ignore_nice = od_tuners->ignore_nice_load;
 		od_ops = dbs_data->cdata->gov_ops;
 		io_busy = od_tuners->io_is_busy;
 	}

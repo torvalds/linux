@@ -81,7 +81,7 @@ ENTRY(cpu_do_idle)
 ENDPROC(cpu_do_idle)
 
 /*
- *	cpu_switch_mm(pgd_phys, tsk)
+ *	cpu_do_switch_mm(pgd_phys, tsk)
  *
  *	Set the translation table base pointer to be pgd_phys.
  *
@@ -95,10 +95,6 @@ ENTRY(cpu_do_switch_mm)
 	ret
 ENDPROC(cpu_do_switch_mm)
 
-cpu_name:
-	.ascii	"AArch64 Processor"
-	.align
-
 	.section ".text.init", #alloc, #execinstr
 
 /*
@@ -108,19 +104,13 @@ cpu_name:
  *	value of the SCTLR_EL1 register.
  */
 ENTRY(__cpu_setup)
-	/*
-	 * Preserve the link register across the function call.
-	 */
-	mov	x28, lr
-	bl	__flush_dcache_all
-	mov	lr, x28
 	ic	iallu				// I+BTB cache invalidate
+	tlbi	vmalle1is			// invalidate I + D TLBs
 	dsb	sy
 
 	mov	x0, #3 << 20
 	msr	cpacr_el1, x0			// Enable FP/ASIMD
 	msr	mdscr_el1, xzr			// Reset mdscr_el1
-	tlbi	vmalle1is			// invalidate I + D TLBs
 	/*
 	 * Memory region attributes for LPAE:
 	 *
@@ -150,8 +140,14 @@ ENTRY(__cpu_setup)
 	 * Set/prepare TCR and TTBR. We use 512GB (39-bit) address range for
 	 * both user and kernel.
 	 */
-	ldr	x10, =TCR_TxSZ(VA_BITS) | TCR_FLAGS | TCR_IPS_40BIT | \
-		      TCR_ASID16 | (1 << 31)
+	ldr	x10, =TCR_TxSZ(VA_BITS) | TCR_FLAGS | \
+		      TCR_ASID16 | TCR_TBI0 | (1 << 31)
+	/*
+	 * Read the PARange bits from ID_AA64MMFR0_EL1 and set the IPS bits in
+	 * TCR_EL1.
+	 */
+	mrs	x9, ID_AA64MMFR0_EL1
+	bfi	x10, x9, #32, #3
 #ifdef CONFIG_ARM64_64K_PAGES
 	orr	x10, x10, TCR_TG0_64K
 	orr	x10, x10, TCR_TG1_64K

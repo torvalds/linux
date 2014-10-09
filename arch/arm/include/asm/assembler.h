@@ -30,8 +30,8 @@
  * Endian independent macros for shifting bytes within registers.
  */
 #ifndef __ARMEB__
-#define pull            lsr
-#define push            lsl
+#define lspull          lsr
+#define lspush          lsl
 #define get_byte_0      lsl #0
 #define get_byte_1	lsr #8
 #define get_byte_2	lsr #16
@@ -41,8 +41,8 @@
 #define put_byte_2	lsl #16
 #define put_byte_3	lsl #24
 #else
-#define pull            lsl
-#define push            lsr
+#define lspull          lsl
+#define lspush          lsr
 #define get_byte_0	lsr #24
 #define get_byte_1	lsr #16
 #define get_byte_2	lsr #8
@@ -212,9 +212,9 @@
 #ifdef CONFIG_SMP
 #if __LINUX_ARM_ARCH__ >= 7
 	.ifeqs "\mode","arm"
-	ALT_SMP(dmb)
+	ALT_SMP(dmb	ish)
 	.else
-	ALT_SMP(W(dmb))
+	ALT_SMP(W(dmb)	ish)
 	.endif
 #elif __LINUX_ARM_ARCH__ == 6
 	ALT_SMP(mcr	p15, 0, r0, c7, c10, 5)	@ dmb

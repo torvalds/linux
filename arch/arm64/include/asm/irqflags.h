@@ -87,5 +87,28 @@ static inline int arch_irqs_disabled_flags(unsigned long flags)
 	return flags & PSR_I_BIT;
 }
 
+/*
+ * save and restore debug state
+ */
+#define local_dbg_save(flags)						\
+	do {								\
+		typecheck(unsigned long, flags);			\
+		asm volatile(						\
+		"mrs    %0, daif		// local_dbg_save\n"	\
+		"msr    daifset, #8"					\
+		: "=r" (flags) : : "memory");				\
+	} while (0)
+
+#define local_dbg_restore(flags)					\
+	do {								\
+		typecheck(unsigned long, flags);			\
+		asm volatile(						\
+		"msr    daif, %0		// local_dbg_restore\n"	\
+		: : "r" (flags) : "memory");				\
+	} while (0)
+
+#define local_dbg_enable()	asm("msr	daifclr, #8" : : : "memory")
+#define local_dbg_disable()	asm("msr	daifset, #8" : : : "memory")
+
 #endif
 #endif

@@ -360,6 +360,8 @@ static int wm831x_clk_probe(struct platform_device *pdev)
 	if (!clkdata)
 		return -ENOMEM;
 
+	clkdata->wm831x = wm831x;
+
 	/* XTAL_ENA can only be set via OTP/InstantConfig so just read once */
 	ret = wm831x_reg_read(wm831x, WM831X_CLOCK_CONTROL_2);
 	if (ret < 0) {

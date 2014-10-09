@@ -668,6 +668,15 @@ resubmit:
 static inline int
 hub_clear_tt_buffer (struct usb_device *hdev, u16 devinfo, u16 tt)
 {
+	/* Need to clear both directions for control ep */
+	if (((devinfo >> 11) & USB_ENDPOINT_XFERTYPE_MASK) ==
+			USB_ENDPOINT_XFER_CONTROL) {
+		int status = usb_control_msg(hdev, usb_sndctrlpipe(hdev, 0),
+				HUB_CLEAR_TT_BUFFER, USB_RT_PORT,
+				devinfo ^ 0x8000, tt, NULL, 0, 1000);
+		if (status)
+			return status;
+	}
 	return usb_control_msg(hdev, usb_sndctrlpipe(hdev, 0),
 			       HUB_CLEAR_TT_BUFFER, USB_RT_PORT, devinfo,
 			       tt, NULL, 0, 1000);
@@ -2846,6 +2855,15 @@ static int usb_disable_function_remotewakeup(struct usb_device *udev)
 				USB_CTRL_SET_TIMEOUT);
 }
 
+/* Count of wakeup-enabled devices at or below udev */
+static unsigned wakeup_enabled_descendants(struct usb_device *udev)
+{
+	struct usb_hub *hub = usb_hub_to_struct_hub(udev);
+
+	return udev->do_remote_wakeup +
+			(hub ? hub->wakeup_enabled_descendants : 0);
+}
+
 /*
  * usb_port_suspend - suspend a usb device's upstream port
  * @udev: device that's no longer in active use, not a root hub
@@ -2886,8 +2904,8 @@ static int usb_disable_function_remotewakeup(struct usb_device *udev)
  * Linux (2.6) currently has NO mechanisms to initiate that:  no khubd
  * timer, no SRP, no requests through sysfs.
  *
- * If Runtime PM isn't enabled or used, non-SuperSpeed devices really get
- * suspended only when their bus goes into global suspend (i.e., the root
+ * If Runtime PM isn't enabled or used, non-SuperSpeed devices may not get
+ * suspended until their bus goes into global suspend (i.e., the root
  * hub is suspended).  Nevertheless, we change @udev->state to
  * USB_STATE_SUSPENDED as this is the device's "logical" state.  The actual
  * upstream port setting is stored in @udev->port_is_suspended.
@@ -2898,7 +2916,6 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 {
 	struct usb_hub	*hub = usb_hub_to_struct_hub(udev->parent);
 	struct usb_port *port_dev = hub->ports[udev->portnum - 1];
-	enum pm_qos_flags_status pm_qos_stat;
 	int		port1 = udev->portnum;
 	int		status;
 	bool		really_suspend = true;
@@ -2936,7 +2953,7 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 					status);
 			/* bail if autosuspend is requested */
 			if (PMSG_IS_AUTO(msg))
-				return status;
+				goto err_wakeup;
 		}
 	}
 
@@ -2945,28 +2962,36 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 		usb_set_usb2_hardware_lpm(udev, 0);
 
 	if (usb_disable_ltm(udev)) {
-		dev_err(&udev->dev, "%s Failed to disable LTM before suspend\n.",
-				__func__);
-		return -ENOMEM;
+		dev_err(&udev->dev, "Failed to disable LTM before suspend\n.");
+		status = -ENOMEM;
+		if (PMSG_IS_AUTO(msg))
+			goto err_ltm;
 	}
 	if (usb_unlocked_disable_lpm(udev)) {
-		dev_err(&udev->dev, "%s Failed to disable LPM before suspend\n.",
-				__func__);
-		return -ENOMEM;
+		dev_err(&udev->dev, "Failed to disable LPM before suspend\n.");
+		status = -ENOMEM;
+		if (PMSG_IS_AUTO(msg))
+			goto err_lpm3;
 	}
 
 	/* see 7.1.7.6 */
 	if (hub_is_superspeed(hub->hdev))
 		status = hub_set_port_link_state(hub, port1, USB_SS_PORT_LS_U3);
-	else if (PMSG_IS_AUTO(msg))
-		status = set_port_feature(hub->hdev, port1,
-						USB_PORT_FEAT_SUSPEND);
+
 	/*
 	 * For system suspend, we do not need to enable the suspend feature
 	 * on individual USB-2 ports.  The devices will automatically go
 	 * into suspend a few ms after the root hub stops sending packets.
 	 * The USB 2.0 spec calls this "global suspend".
+	 *
+	 * However, many USB hubs have a bug: They don't relay wakeup requests
+	 * from a downstream port if the port's suspend feature isn't on.
+	 * Therefore we will turn on the suspend feature if udev or any of its
+	 * descendants is enabled for remote wakeup.
 	 */
+	else if (PMSG_IS_AUTO(msg) || wakeup_enabled_descendants(udev) > 0)
+		status = set_port_feature(hub->hdev, port1,
+				USB_PORT_FEAT_SUSPEND);
 	else {
 		really_suspend = false;
 		status = 0;
@@ -2974,54 +2999,49 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 	if (status) {
 		dev_dbg(hub->intfdev, "can't suspend port %d, status %d\n",
 				port1, status);
-		/* paranoia:  "should not happen" */
-		if (udev->do_remote_wakeup) {
-			if (!hub_is_superspeed(hub->hdev)) {
-				(void) usb_control_msg(udev,
-						usb_sndctrlpipe(udev, 0),
-						USB_REQ_CLEAR_FEATURE,
-						USB_RECIP_DEVICE,
-						USB_DEVICE_REMOTE_WAKEUP, 0,
-						NULL, 0,
-						USB_CTRL_SET_TIMEOUT);
-			} else
-				(void) usb_disable_function_remotewakeup(udev);
 
-		}
-
+		/* Try to enable USB3 LPM and LTM again */
+		usb_unlocked_enable_lpm(udev);
+ err_lpm3:
+		usb_enable_ltm(udev);
+ err_ltm:
 		/* Try to enable USB2 hardware LPM again */
 		if (udev->usb2_hw_lpm_capable == 1)
 			usb_set_usb2_hardware_lpm(udev, 1);
 
-		/* Try to enable USB3 LTM and LPM again */
-		usb_enable_ltm(udev);
-		usb_unlocked_enable_lpm(udev);
+		if (udev->do_remote_wakeup) {
+			if (udev->speed < USB_SPEED_SUPER)
+				usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+						USB_REQ_CLEAR_FEATURE,
+						USB_RECIP_DEVICE,
+						USB_DEVICE_REMOTE_WAKEUP, 0,
+						NULL, 0, USB_CTRL_SET_TIMEOUT);
+			else
+				usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+						USB_REQ_CLEAR_FEATURE,
+						USB_RECIP_INTERFACE,
+						USB_INTRF_FUNC_SUSPEND, 0,
+						NULL, 0, USB_CTRL_SET_TIMEOUT);
+		}
+ err_wakeup:
 
 		/* System sleep transitions should never fail */
 		if (!PMSG_IS_AUTO(msg))
 			status = 0;
 	} else {
-		/* device has up to 10 msec to fully suspend */
 		dev_dbg(&udev->dev, "usb %ssuspend, wakeup %d\n",
 				(PMSG_IS_AUTO(msg) ? "auto-" : ""),
 				udev->do_remote_wakeup);
-		usb_set_device_state(udev, USB_STATE_SUSPENDED);
 		if (really_suspend) {
 			udev->port_is_suspended = 1;
+
+			/* device has up to 10 msec to fully suspend */
 			msleep(10);
 		}
+		usb_set_device_state(udev, USB_STATE_SUSPENDED);
 	}
 
-	/*
-	 * Check whether current status meets the requirement of
-	 * usb port power off mechanism
-	 */
-	pm_qos_stat = dev_pm_qos_flags(&port_dev->dev,
-			PM_QOS_FLAG_NO_POWER_OFF);
-	if (!udev->do_remote_wakeup
-			&& pm_qos_stat != PM_QOS_FLAGS_ALL
-			&& udev->persist_enabled
-			&& !status) {
+	if (status == 0 && !udev->do_remote_wakeup && udev->persist_enabled) {
 		pm_runtime_put_sync(&port_dev->dev);
 		port_dev->did_runtime_put = true;
 	}
@@ -3291,7 +3311,11 @@ static int hub_suspend(struct usb_interface *intf, pm_message_t msg)
 	unsigned		port1;
 	int			status;
 
-	/* Warn if children aren't already suspended */
+	/*
+	 * Warn if children aren't already suspended.
+	 * Also, add up the number of wakeup-enabled descendants.
+	 */
+	hub->wakeup_enabled_descendants = 0;
 	for (port1 = 1; port1 <= hdev->maxchild; port1++) {
 		struct usb_device	*udev;
 
@@ -3301,6 +3325,9 @@ static int hub_suspend(struct usb_interface *intf, pm_message_t msg)
 			if (PMSG_IS_AUTO(msg))
 				return -EBUSY;
 		}
+		if (udev)
+			hub->wakeup_enabled_descendants +=
+					wakeup_enabled_descendants(udev);
 	}
 
 	if (hdev->do_remote_wakeup && hub->quirk_check_port_auto_suspend) {
@@ -4764,7 +4791,8 @@ static void hub_events(void)
 					hub->ports[i - 1]->child;
 
 				dev_dbg(hub_dev, "warm reset port %d\n", i);
-				if (!udev) {
+				if (!udev || !(portstatus &
+						USB_PORT_STAT_CONNECTION)) {
 					status = hub_port_reset(hub, i,
 							NULL, HUB_BH_RESET_TIME,
 							true);
@@ -4774,8 +4802,8 @@ static void hub_events(void)
 					usb_lock_device(udev);
 					status = usb_reset_device(udev);
 					usb_unlock_device(udev);
+					connect_change = 0;
 				}
-				connect_change = 0;
 			}
 
 			if (connect_change)

@@ -71,11 +71,6 @@
 #define CAUSEB_DC       27
 #define CAUSEF_DC       (_ULCAST_(1)   << 27)
 
-struct kvm;
-struct kvm_run;
-struct kvm_vcpu;
-struct kvm_interrupt;
-
 extern atomic_t kvm_mips_instance;
 extern pfn_t(*kvm_mips_gfn_to_pfn) (struct kvm *kvm, gfn_t gfn);
 extern void (*kvm_mips_release_pfn_clean) (pfn_t pfn);
@@ -659,5 +654,16 @@ extern void mips32_SyncICache(unsigned long addr, unsigned long size);
 extern int kvm_mips_dump_stats(struct kvm_vcpu *vcpu);
 extern unsigned long kvm_mips_get_ramsize(struct kvm *kvm);
 
+static inline void kvm_arch_hardware_disable(void) {}
+static inline void kvm_arch_hardware_unsetup(void) {}
+static inline void kvm_arch_sync_events(struct kvm *kvm) {}
+static inline void kvm_arch_free_memslot(struct kvm *kvm,
+		struct kvm_memory_slot *free, struct kvm_memory_slot *dont) {}
+static inline void kvm_arch_memslots_updated(struct kvm *kvm) {}
+static inline void kvm_arch_flush_shadow_all(struct kvm *kvm) {}
+static inline void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
+		struct kvm_memory_slot *slot) {}
+static inline void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
 
 #endif /* __MIPS_KVM_HOST_H__ */

@@ -56,12 +56,11 @@ nvc0_mc_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nvc0_mc_priv *priv;
 	int ret;
 
-	ret = nouveau_mc_create(parent, engine, oclass, &priv);
+	ret = nouveau_mc_create(parent, engine, oclass, nvc0_mc_intr, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
-	priv->base.intr_map = nvc0_mc_intr;
 	return 0;
 }
 

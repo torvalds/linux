@@ -228,23 +228,22 @@ static int nfs41_setup_state_renewal(struct nfs_client *clp)
 	return status;
 }
 
-/*
- * Back channel returns NFS4ERR_DELAY for new requests when
- * NFS4_SESSION_DRAINING is set so there is no work to be done when draining
- * is ended.
- */
-static void nfs4_end_drain_session(struct nfs_client *clp)
+static void nfs4_end_drain_slot_table(struct nfs4_slot_table *tbl)
 {
-	struct nfs4_session *ses = clp->cl_session;
-	struct nfs4_slot_table *tbl;
-
-	if (ses == NULL)
-		return;
-	tbl = &ses->fc_slot_table;
 	if (test_and_clear_bit(NFS4_SLOT_TBL_DRAINING, &tbl->slot_tbl_state)) {
 		spin_lock(&tbl->slot_tbl_lock);
 		nfs41_wake_slot_table(tbl);
 		spin_unlock(&tbl->slot_tbl_lock);
+	}
+}
+
+static void nfs4_end_drain_session(struct nfs_client *clp)
+{
+	struct nfs4_session *ses = clp->cl_session;
+
+	if (ses != NULL) {
+		nfs4_end_drain_slot_table(&ses->bc_slot_table);
+		nfs4_end_drain_slot_table(&ses->fc_slot_table);
 	}
 }
 

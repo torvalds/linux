@@ -32,6 +32,7 @@ struct device_node *of_allnodes;
 EXPORT_SYMBOL(of_allnodes);
 struct device_node *of_chosen;
 struct device_node *of_aliases;
+static struct device_node *of_stdout;
 
 DEFINE_MUTEX(of_aliases_mutex);
 
@@ -1595,6 +1596,15 @@ void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
 	of_chosen = of_find_node_by_path("/chosen");
 	if (of_chosen == NULL)
 		of_chosen = of_find_node_by_path("/chosen@0");
+
+	if (of_chosen) {
+		const char *name;
+
+		name = of_get_property(of_chosen, "linux,stdout-path", NULL);
+		if (name)
+			of_stdout = of_find_node_by_path(name);
+	}
+
 	of_aliases = of_find_node_by_path("/aliases");
 	if (!of_aliases)
 		return;
@@ -1629,6 +1639,7 @@ void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
 		ap = dt_alloc(sizeof(*ap) + len + 1, 4);
 		if (!ap)
 			continue;
+		memset(ap, 0, sizeof(*ap) + len + 1);
 		ap->alias = start;
 		of_alias_add(ap, np, id, start, len);
 	}
@@ -1703,3 +1714,19 @@ const char *of_prop_next_string(struct property *prop, const char *cur)
 	return curv;
 }
 EXPORT_SYMBOL_GPL(of_prop_next_string);
+
+/**
+ * of_device_is_stdout_path - check if a device node matches the
+ *                            linux,stdout-path property
+ *
+ * Check if this device node matches the linux,stdout-path property
+ * in the chosen node. return true if yes, false otherwise.
+ */
+int of_device_is_stdout_path(struct device_node *dn)
+{
+	if (!of_stdout)
+		return false;
+
+	return of_stdout == dn;
+}
+EXPORT_SYMBOL_GPL(of_device_is_stdout_path);

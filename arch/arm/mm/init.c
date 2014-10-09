@@ -76,7 +76,7 @@ static int __init parse_tag_initrd2(const struct tag *tag)
 __tagtable(ATAG_INITRD2, parse_tag_initrd2);
 
 #ifdef CONFIG_OF_FLATTREE
-void __init early_init_dt_setup_initrd_arch(unsigned long start, unsigned long end)
+void __init early_init_dt_setup_initrd_arch(u64 start, u64 end)
 {
 	phys_initrd_start = start;
 	phys_initrd_size = end - start;
@@ -600,7 +600,7 @@ void __init mem_init(void)
 
 #ifdef CONFIG_SA1111
 	/* now that our DMA memory is actually so designated, we can free it */
-	free_reserved_area(__va(PHYS_PFN_OFFSET), swapper_pg_dir, 0, NULL);
+	free_reserved_area(__va(PHYS_OFFSET), swapper_pg_dir, 0, NULL);
 #endif
 
 	free_highpages();

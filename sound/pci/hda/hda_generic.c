@@ -519,7 +519,7 @@ static bool same_amp_caps(struct hda_codec *codec, hda_nid_t nid1,
 }
 
 #define nid_has_mute(codec, nid, dir) \
-	check_amp_caps(codec, nid, dir, AC_AMPCAP_MUTE)
+	check_amp_caps(codec, nid, dir, (AC_AMPCAP_MUTE | AC_AMPCAP_MIN_MUTE))
 #define nid_has_volume(codec, nid, dir) \
 	check_amp_caps(codec, nid, dir, AC_AMPCAP_NUM_STEPS)
 
@@ -621,7 +621,7 @@ static int get_amp_val_to_activate(struct hda_codec *codec, hda_nid_t nid,
 		if (enable)
 			val = (caps & AC_AMPCAP_OFFSET) >> AC_AMPCAP_OFFSET_SHIFT;
 	}
-	if (caps & AC_AMPCAP_MUTE) {
+	if (caps & (AC_AMPCAP_MUTE | AC_AMPCAP_MIN_MUTE)) {
 		if (!enable)
 			val |= HDA_AMP_MUTE;
 	}
@@ -645,7 +645,7 @@ static unsigned int get_amp_mask_to_modify(struct hda_codec *codec,
 {
 	unsigned int mask = 0xff;
 
-	if (caps & AC_AMPCAP_MUTE) {
+	if (caps & (AC_AMPCAP_MUTE | AC_AMPCAP_MIN_MUTE)) {
 		if (is_ctl_associated(codec, nid, dir, idx, NID_PATH_MUTE_CTL))
 			mask &= ~0x80;
 	}
@@ -840,7 +840,7 @@ static int add_control_with_pfx(struct hda_gen_spec *spec, int type,
 				const char *pfx, const char *dir,
 				const char *sfx, int cidx, unsigned long val)
 {
-	char name[32];
+	char name[44];
 	snprintf(name, sizeof(name), "%s %s %s", pfx, dir, sfx);
 	if (!add_control(spec, type, name, cidx, val))
 		return -ENOMEM;

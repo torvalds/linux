@@ -23,6 +23,7 @@ struct parisc_device {
 	/* generic info returned from pdc_pat_cell_module() */
 	unsigned long	mod_info;	/* PAT specific - Misc Module info */
 	unsigned long	pmod_loc;	/* physical Module location */
+	unsigned long	mod0;
 #endif
 	u64		dma_mask;	/* DMA mask for I/O */
 	struct device 	dev;
@@ -60,5 +61,7 @@ parisc_get_drvdata(struct parisc_device *d)
 }
 
 extern struct bus_type parisc_bus_type;
+
+int iosapic_serial_irq(struct parisc_device *dev);
 
 #endif /*_ASM_PARISC_PARISC_DEVICE_H_*/

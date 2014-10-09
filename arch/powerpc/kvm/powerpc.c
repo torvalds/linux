@@ -246,22 +246,14 @@ int kvmppc_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	return r;
 }
 
-int kvm_arch_hardware_enable(void *garbage)
+int kvm_arch_hardware_enable(void)
 {
 	return 0;
-}
-
-void kvm_arch_hardware_disable(void *garbage)
-{
 }
 
 int kvm_arch_hardware_setup(void)
 {
 	return 0;
-}
-
-void kvm_arch_hardware_unsetup(void)
-{
 }
 
 void kvm_arch_check_processor_compat(void *rtn)
@@ -296,11 +288,7 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	mutex_unlock(&kvm->lock);
 }
 
-void kvm_arch_sync_events(struct kvm *kvm)
-{
-}
-
-int kvm_dev_ioctl_check_extension(long ext)
+int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 {
 	int r;
 
@@ -409,15 +397,16 @@ long kvm_arch_dev_ioctl(struct file *filp,
 	return -EINVAL;
 }
 
-void kvm_arch_free_memslot(struct kvm_memory_slot *free,
+void kvm_arch_free_memslot(struct kvm *kvm, struct kvm_memory_slot *free,
 			   struct kvm_memory_slot *dont)
 {
-	kvmppc_core_free_memslot(free, dont);
+	kvmppc_core_free_memslot(kvm, free, dont);
 }
 
-int kvm_arch_create_memslot(struct kvm_memory_slot *slot, unsigned long npages)
+int kvm_arch_create_memslot(struct kvm *kvm, struct kvm_memory_slot *slot,
+			    unsigned long npages)
 {
-	return kvmppc_core_create_memslot(slot, npages);
+	return kvmppc_core_create_memslot(kvm, slot, npages);
 }
 
 int kvm_arch_prepare_memory_region(struct kvm *kvm,
@@ -434,10 +423,6 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 				   enum kvm_mr_change change)
 {
 	kvmppc_core_commit_memory_region(kvm, mem, old);
-}
-
-void kvm_arch_flush_shadow_all(struct kvm *kvm)
-{
 }
 
 void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
@@ -1124,8 +1109,4 @@ void kvmppc_init_lpid(unsigned long nr_lpids_param)
 int kvm_arch_init(void *opaque)
 {
 	return 0;
-}
-
-void kvm_arch_exit(void)
-{
 }

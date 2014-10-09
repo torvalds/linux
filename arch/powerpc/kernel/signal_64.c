@@ -410,6 +410,10 @@ static long restore_tm_sigcontexts(struct pt_regs *regs,
 
 	/* get MSR separately, transfer the LE bit if doing signal return */
 	err |= __get_user(msr, &sc->gp_regs[PT_MSR]);
+	/* pull in MSR TM from user context */
+	regs->msr = (regs->msr & ~MSR_TS_MASK) | (msr & MSR_TS_MASK);
+
+	/* pull in MSR LE from user context */
 	regs->msr = (regs->msr & ~MSR_LE) | (msr & MSR_LE);
 
 	/* The following non-GPR non-FPR non-VR state is also checkpointed: */
@@ -505,8 +509,6 @@ static long restore_tm_sigcontexts(struct pt_regs *regs,
 	tm_enable();
 	/* This loads the checkpointed FP/VEC state, if used */
 	tm_recheckpoint(&current->thread, msr);
-	/* The task has moved into TM state S, so ensure MSR reflects this: */
-	regs->msr = (regs->msr & ~MSR_TS_MASK) | __MASK(33);
 
 	/* This loads the speculative FP/VEC state, if used */
 	if (msr & MSR_FP) {
@@ -654,7 +656,7 @@ int sys_rt_sigreturn(unsigned long r3, unsigned long r4, unsigned long r5,
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	if (__get_user(msr, &uc->uc_mcontext.gp_regs[PT_MSR]))
 		goto badframe;
-	if (MSR_TM_SUSPENDED(msr)) {
+	if (MSR_TM_ACTIVE(msr)) {
 		/* We recheckpoint on return. */
 		struct ucontext __user *uc_transact;
 		if (__get_user(uc_transact, &uc->uc_link))

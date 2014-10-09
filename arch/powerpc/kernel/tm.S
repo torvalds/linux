@@ -224,6 +224,16 @@ dont_backup_fp:
 	std	r5, _CCR(r7)
 	std	r6, _XER(r7)
 
+
+	/* ******************** TAR, PPR, DSCR ********** */
+	mfspr	r3, SPRN_TAR
+	mfspr	r4, SPRN_PPR
+	mfspr	r5, SPRN_DSCR
+
+	std	r3, THREAD_TM_TAR(r12)
+	std	r4, THREAD_TM_PPR(r12)
+	std	r5, THREAD_TM_DSCR(r12)
+
 	/* MSR and flags:  We don't change CRs, and we don't need to alter
 	 * MSR.
 	 */
@@ -338,6 +348,16 @@ dont_restore_fp:
 	mtmsr	r6				/* FP/Vec off again! */
 
 restore_gprs:
+
+	/* ******************** TAR, PPR, DSCR ********** */
+	ld	r4, THREAD_TM_TAR(r3)
+	ld	r5, THREAD_TM_PPR(r3)
+	ld	r6, THREAD_TM_DSCR(r3)
+
+	mtspr	SPRN_TAR,	r4
+	mtspr	SPRN_PPR,	r5
+	mtspr	SPRN_DSCR,	r6
+
 	/* ******************** CR,LR,CCR,MSR ********** */
 	ld	r3, _CTR(r7)
 	ld	r4, _LINK(r7)

@@ -53,6 +53,17 @@ static const void *getprop(const void *fdt, const char *node_path,
 	return fdt_getprop(fdt, offset, property, len);
 }
 
+static uint32_t get_cell_size(const void *fdt)
+{
+	int len;
+	uint32_t cell_size = 1;
+	const uint32_t *size_len =  getprop(fdt, "/", "#size-cells", &len);
+
+	if (size_len)
+		cell_size = fdt32_to_cpu(*size_len);
+	return cell_size;
+}
+
 static void merge_fdt_bootargs(void *fdt, const char *fdt_cmdline)
 {
 	char cmdline[COMMAND_LINE_SIZE];
@@ -95,9 +106,11 @@ static void merge_fdt_bootargs(void *fdt, const char *fdt_cmdline)
 int atags_to_fdt(void *atag_list, void *fdt, int total_space)
 {
 	struct tag *atag = atag_list;
-	uint32_t mem_reg_property[2 * NR_BANKS];
+	/* In the case of 64 bits memory size, need to reserve 2 cells for
+	 * address and size for each bank */
+	uint32_t mem_reg_property[2 * 2 * NR_BANKS];
 	int memcount = 0;
-	int ret;
+	int ret, memsize;
 
 	/* make sure we've got an aligned pointer */
 	if ((u32)atag_list & 0x3)
@@ -137,8 +150,25 @@ int atags_to_fdt(void *atag_list, void *fdt, int total_space)
 				continue;
 			if (!atag->u.mem.size)
 				continue;
-			mem_reg_property[memcount++] = cpu_to_fdt32(atag->u.mem.start);
-			mem_reg_property[memcount++] = cpu_to_fdt32(atag->u.mem.size);
+			memsize = get_cell_size(fdt);
+
+			if (memsize == 2) {
+				/* if memsize is 2, that means that
+				 * each data needs 2 cells of 32 bits,
+				 * so the data are 64 bits */
+				uint64_t *mem_reg_prop64 =
+					(uint64_t *)mem_reg_property;
+				mem_reg_prop64[memcount++] =
+					cpu_to_fdt64(atag->u.mem.start);
+				mem_reg_prop64[memcount++] =
+					cpu_to_fdt64(atag->u.mem.size);
+			} else {
+				mem_reg_property[memcount++] =
+					cpu_to_fdt32(atag->u.mem.start);
+				mem_reg_property[memcount++] =
+					cpu_to_fdt32(atag->u.mem.size);
+			}
+
 		} else if (atag->hdr.tag == ATAG_INITRD2) {
 			uint32_t initrd_start, initrd_size;
 			initrd_start = atag->u.initrd.start;
@@ -150,8 +180,10 @@ int atags_to_fdt(void *atag_list, void *fdt, int total_space)
 		}
 	}
 
-	if (memcount)
-		setprop(fdt, "/memory", "reg", mem_reg_property, 4*memcount);
+	if (memcount) {
+		setprop(fdt, "/memory", "reg", mem_reg_property,
+			4 * memcount * memsize);
+	}
 
 	return fdt_pack(fdt);
 }

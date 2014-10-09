@@ -116,8 +116,8 @@ device_initcall(s5p_mfc_memory_init);
 int __init s5p_fdt_find_mfc_mem(unsigned long node, const char *uname,
 				int depth, void *data)
 {
-	__be32 *prop;
-	unsigned long len;
+	const __be32 *prop;
+	int len;
 	struct s5p_mfc_dt_meminfo *mfc_mem = data;
 
 	if (!data)

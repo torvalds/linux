@@ -1644,7 +1644,10 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl *param_kern
 	}
 
 	if (!dmi) {
+		unsigned noio_flag;
+		noio_flag = memalloc_noio_save();
 		dmi = __vmalloc(param_kernel->data_size, GFP_NOIO | __GFP_REPEAT | __GFP_HIGH, PAGE_KERNEL);
+		memalloc_noio_restore(noio_flag);
 		if (dmi)
 			*param_flags |= DM_PARAMS_VMALLOC;
 	}

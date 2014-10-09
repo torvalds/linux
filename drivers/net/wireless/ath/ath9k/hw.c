@@ -1872,7 +1872,8 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	ah->caldata = caldata;
 	if (caldata && (chan->channel != caldata->channel ||
-			chan->channelFlags != caldata->channelFlags)) {
+			chan->channelFlags != caldata->channelFlags ||
+			chan->chanmode != caldata->chanmode)) {
 		/* Operating channel changed, reset channel calibration data */
 		memset(caldata, 0, sizeof(*caldata));
 		ath9k_init_nfcal_hist_buffer(ah, chan);

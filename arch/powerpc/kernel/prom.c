@@ -162,7 +162,7 @@ static struct ibm_pa_feature {
 	{CPU_FTR_REAL_LE, PPC_FEATURE_TRUE_LE, 5, 0, 0},
 };
 
-static void __init scan_features(unsigned long node, unsigned char *ftrs,
+static void __init scan_features(unsigned long node, const unsigned char *ftrs,
 				 unsigned long tablelen,
 				 struct ibm_pa_feature *fp,
 				 unsigned long ft_size)
@@ -201,8 +201,8 @@ static void __init scan_features(unsigned long node, unsigned char *ftrs,
 
 static void __init check_cpu_pa_features(unsigned long node)
 {
-	unsigned char *pa_ftrs;
-	unsigned long tablelen;
+	const unsigned char *pa_ftrs;
+	int tablelen;
 
 	pa_ftrs = of_get_flat_dt_prop(node, "ibm,pa-features", &tablelen);
 	if (pa_ftrs == NULL)
@@ -215,7 +215,7 @@ static void __init check_cpu_pa_features(unsigned long node)
 #ifdef CONFIG_PPC_STD_MMU_64
 static void __init check_cpu_slb_size(unsigned long node)
 {
-	u32 *slb_size_ptr;
+	const __be32 *slb_size_ptr;
 
 	slb_size_ptr = of_get_flat_dt_prop(node, "slb-size", NULL);
 	if (slb_size_ptr != NULL) {
@@ -256,7 +256,7 @@ static struct feature_property {
 static inline void identical_pvr_fixup(unsigned long node)
 {
 	unsigned int pvr;
-	char *model = of_get_flat_dt_prop(node, "model", NULL);
+	const char *model = of_get_flat_dt_prop(node, "model", NULL);
 
 	/*
 	 * Since 440GR(x)/440EP(x) processors have the same pvr,
@@ -294,11 +294,11 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 					  const char *uname, int depth,
 					  void *data)
 {
-	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
-	const u32 *prop;
-	const u32 *intserv;
+	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+	const __be32 *prop;
+	const __be32 *intserv;
 	int i, nthreads;
-	unsigned long len;
+	int len;
 	int found = -1;
 	int found_thread = 0;
 
@@ -389,7 +389,7 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 int __init early_init_dt_scan_chosen_ppc(unsigned long node, const char *uname,
 					 int depth, void *data)
 {
-	unsigned long *lprop;
+	const unsigned long *lprop; /* All these set by kernel, so no need to convert endian */
 
 	/* Use common scan routine to determine if this is the chosen node */
 	if (early_init_dt_scan_chosen(node, uname, depth, data) == 0)
@@ -440,8 +440,9 @@ int __init early_init_dt_scan_chosen_ppc(unsigned long node, const char *uname,
  */
 static int __init early_init_dt_scan_drconf_memory(unsigned long node)
 {
-	__be32 *dm, *ls, *usm;
-	unsigned long l, n, flags;
+	const __be32 *dm, *ls, *usm;
+	int l;
+	unsigned long n, flags;
 	u64 base, size, memblock_size;
 	unsigned int is_kexec_kdump = 0, rngs;
 
@@ -550,8 +551,7 @@ void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
-void __init early_init_dt_setup_initrd_arch(unsigned long start,
-		unsigned long end)
+void __init early_init_dt_setup_initrd_arch(u64 start, u64 end)
 {
 	initrd_start = (unsigned long)__va(start);
 	initrd_end = (unsigned long)__va(end);

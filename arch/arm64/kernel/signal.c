@@ -100,8 +100,7 @@ static int restore_sigframe(struct pt_regs *regs,
 {
 	sigset_t set;
 	int i, err;
-	struct aux_context __user *aux =
-		(struct aux_context __user *)sf->uc.uc_mcontext.__reserved;
+	void *aux = sf->uc.uc_mcontext.__reserved;
 
 	err = __copy_from_user(&set, &sf->uc.uc_sigmask, sizeof(set));
 	if (err == 0)
@@ -121,8 +120,11 @@ static int restore_sigframe(struct pt_regs *regs,
 
 	err |= !valid_user_regs(&regs->user_regs);
 
-	if (err == 0)
-		err |= restore_fpsimd_context(&aux->fpsimd);
+	if (err == 0) {
+		struct fpsimd_context *fpsimd_ctx =
+			container_of(aux, struct fpsimd_context, head);
+		err |= restore_fpsimd_context(fpsimd_ctx);
+	}
 
 	return err;
 }
@@ -167,8 +169,8 @@ static int setup_sigframe(struct rt_sigframe __user *sf,
 			  struct pt_regs *regs, sigset_t *set)
 {
 	int i, err = 0;
-	struct aux_context __user *aux =
-		(struct aux_context __user *)sf->uc.uc_mcontext.__reserved;
+	void *aux = sf->uc.uc_mcontext.__reserved;
+	struct _aarch64_ctx *end;
 
 	/* set up the stack frame for unwinding */
 	__put_user_error(regs->regs[29], &sf->fp, err);
@@ -185,12 +187,17 @@ static int setup_sigframe(struct rt_sigframe __user *sf,
 
 	err |= __copy_to_user(&sf->uc.uc_sigmask, set, sizeof(*set));
 
-	if (err == 0)
-		err |= preserve_fpsimd_context(&aux->fpsimd);
+	if (err == 0) {
+		struct fpsimd_context *fpsimd_ctx =
+			container_of(aux, struct fpsimd_context, head);
+		err |= preserve_fpsimd_context(fpsimd_ctx);
+		aux += sizeof(*fpsimd_ctx);
+	}
 
 	/* set the "end" magic */
-	__put_user_error(0, &aux->end.magic, err);
-	__put_user_error(0, &aux->end.size, err);
+	end = aux;
+	__put_user_error(0, &end->magic, err);
+	__put_user_error(0, &end->size, err);
 
 	return err;
 }

@@ -1857,7 +1857,8 @@ void *carl9170_alloc(size_t priv_size)
 		     IEEE80211_HW_SUPPORTS_PS |
 		     IEEE80211_HW_PS_NULLFUNC_STACK |
 		     IEEE80211_HW_NEED_DTIM_BEFORE_ASSOC |
-		     IEEE80211_HW_SIGNAL_DBM;
+		     IEEE80211_HW_SIGNAL_DBM |
+		     IEEE80211_HW_SUPPORTS_HT_CCK_RATES;
 
 	if (!modparam_noht) {
 		/*

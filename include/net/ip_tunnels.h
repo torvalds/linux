@@ -141,20 +141,6 @@ static inline u8 ip_tunnel_ecn_encap(u8 tos, const struct iphdr *iph,
 	return INET_ECN_encapsulate(tos, inner);
 }
 
-static inline void tunnel_ip_select_ident(struct sk_buff *skb,
-					  const struct iphdr  *old_iph,
-					  struct dst_entry *dst)
-{
-	struct iphdr *iph = ip_hdr(skb);
-
-	/* Use inner packet iph-id if possible. */
-	if (skb->protocol == htons(ETH_P_IP) && old_iph->id)
-		iph->id	= old_iph->id;
-	else
-		__ip_select_ident(iph, dst,
-				  (skb_shinfo(skb)->gso_segs ?: 1) - 1);
-}
-
 static inline void iptunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	int err;

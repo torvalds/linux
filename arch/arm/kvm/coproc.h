@@ -58,8 +58,8 @@ static inline void print_cp_instr(const struct coproc_params *p)
 {
 	/* Look, we even formatted it for you to paste into the table! */
 	if (p->is_64bit) {
-		kvm_pr_unimpl(" { CRm(%2lu), Op1(%2lu), is64, func_%s },\n",
-			      p->CRm, p->Op1, p->is_write ? "write" : "read");
+		kvm_pr_unimpl(" { CRm64(%2lu), Op1(%2lu), is64, func_%s },\n",
+			      p->CRn, p->Op1, p->is_write ? "write" : "read");
 	} else {
 		kvm_pr_unimpl(" { CRn(%2lu), CRm(%2lu), Op1(%2lu), Op2(%2lu), is32,"
 			      " func_%s },\n",
@@ -139,15 +139,22 @@ static inline int cmp_reg(const struct coproc_reg *i1,
 		return i1->CRm - i2->CRm;
 	if (i1->Op1 != i2->Op1)
 		return i1->Op1 - i2->Op1;
-	return i1->Op2 - i2->Op2;
+	if (i1->Op2 != i2->Op2)
+		return i1->Op2 - i2->Op2;
+	return i2->is_64 - i1->is_64;
 }
 
 
 #define CRn(_x)		.CRn = _x
 #define CRm(_x) 	.CRm = _x
+#define CRm64(_x)       .CRn = _x, .CRm = 0
 #define Op1(_x) 	.Op1 = _x
 #define Op2(_x) 	.Op2 = _x
 #define is64		.is_64 = true
 #define is32		.is_64 = false
+
+bool access_sctlr(struct kvm_vcpu *vcpu,
+		  const struct coproc_params *p,
+		  const struct coproc_reg *r);
 
 #endif /* __ARM_KVM_COPROC_LOCAL_H__ */

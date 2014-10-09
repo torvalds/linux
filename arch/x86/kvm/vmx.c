@@ -2566,7 +2566,7 @@ static void kvm_cpu_vmxon(u64 addr)
 			: "memory", "cc");
 }
 
-static int hardware_enable(void *garbage)
+static int hardware_enable(void)
 {
 	int cpu = raw_smp_processor_id();
 	u64 phys_addr = __pa(per_cpu(vmxarea, cpu));
@@ -2630,7 +2630,7 @@ static void kvm_cpu_vmxoff(void)
 	asm volatile (__ex(ASM_VMX_VMXOFF) : : : "cc");
 }
 
-static void hardware_disable(void *garbage)
+static void hardware_disable(void)
 {
 	if (vmm_exclusive) {
 		vmclear_local_loaded_vmcss();
@@ -3399,15 +3399,22 @@ static void vmx_get_segment(struct kvm_vcpu *vcpu,
 	var->limit = vmx_read_guest_seg_limit(vmx, seg);
 	var->selector = vmx_read_guest_seg_selector(vmx, seg);
 	ar = vmx_read_guest_seg_ar(vmx, seg);
+	var->unusable = (ar >> 16) & 1;
 	var->type = ar & 15;
 	var->s = (ar >> 4) & 1;
 	var->dpl = (ar >> 5) & 3;
-	var->present = (ar >> 7) & 1;
+	/*
+	 * Some userspaces do not preserve unusable property. Since usable
+	 * segment has to be present according to VMX spec we can use present
+	 * property to amend userspace bug by making unusable segment always
+	 * nonpresent. vmx_segment_access_rights() already marks nonpresent
+	 * segment as unusable.
+	 */
+	var->present = !var->unusable;
 	var->avl = (ar >> 12) & 1;
 	var->l = (ar >> 13) & 1;
 	var->db = (ar >> 14) & 1;
 	var->g = (ar >> 15) & 1;
-	var->unusable = (ar >> 16) & 1;
 }
 
 static u64 vmx_get_segment_base(struct kvm_vcpu *vcpu, int seg)

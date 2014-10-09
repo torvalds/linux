@@ -3728,8 +3728,9 @@ next_slot:
 	}
 
 log_extents:
+	btrfs_release_path(path);
+	btrfs_release_path(dst_path);
 	if (fast_search) {
-		btrfs_release_path(dst_path);
 		ret = btrfs_log_changed_extents(trans, root, inode, dst_path);
 		if (ret) {
 			err = ret;
@@ -3746,8 +3747,6 @@ log_extents:
 	}
 
 	if (inode_only == LOG_INODE_ALL && S_ISDIR(inode->i_mode)) {
-		btrfs_release_path(path);
-		btrfs_release_path(dst_path);
 		ret = log_directory_changes(trans, root, inode, path, dst_path);
 		if (ret) {
 			err = ret;

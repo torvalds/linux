@@ -474,12 +474,13 @@ static void compat_setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 	/* Check if the handler is written for ARM or Thumb */
 	thumb = handler & 1;
 
-	if (thumb) {
+	if (thumb)
 		spsr |= COMPAT_PSR_T_BIT;
-		spsr &= ~COMPAT_PSR_IT_MASK;
-	} else {
+	else
 		spsr &= ~COMPAT_PSR_T_BIT;
-	}
+
+	/* The IT state must be cleared for both ARM and Thumb-2 */
+	spsr &= ~COMPAT_PSR_IT_MASK;
 
 	if (ka->sa.sa_flags & SA_RESTORER) {
 		retcode = ptr_to_compat(ka->sa.sa_restorer);

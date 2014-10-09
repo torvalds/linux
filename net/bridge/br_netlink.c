@@ -128,7 +128,7 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 		else
 			pv = br_get_vlan_info(br);
 
-		if (!pv || bitmap_empty(pv->vlan_bitmap, BR_VLAN_BITMAP_LEN))
+		if (!pv || bitmap_empty(pv->vlan_bitmap, VLAN_N_VID))
 			goto done;
 
 		af = nla_nest_start(skb, IFLA_AF_SPEC);
@@ -136,7 +136,7 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 			goto nla_put_failure;
 
 		pvid = br_get_pvid(pv);
-		for_each_set_bit(vid, pv->vlan_bitmap, BR_VLAN_BITMAP_LEN) {
+		for_each_set_bit(vid, pv->vlan_bitmap, VLAN_N_VID) {
 			vinfo.vid = vid;
 			vinfo.flags = 0;
 			if (vid == pvid)

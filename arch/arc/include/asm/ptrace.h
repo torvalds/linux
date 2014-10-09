@@ -52,12 +52,14 @@ struct pt_regs {
 
 	/*to distinguish bet excp, syscall, irq */
 	union {
+		struct {
 #ifdef CONFIG_CPU_BIG_ENDIAN
 		/* so that assembly code is same for LE/BE */
 		unsigned long orig_r8:16, event:16;
 #else
 		unsigned long event:16, orig_r8:16;
 #endif
+		};
 		long orig_r8_word;
 	};
 };
