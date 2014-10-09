@@ -1692,8 +1692,18 @@ static ssize_t __btrfs_direct_write(struct kiocb *iocb,
 		err = written_buffered;
 		goto out;
 	}
+	/*
+	 * Ensure all data is persisted. We want the next direct IO read to be
+	 * able to read what was just written.
+	 */
 	endbyte = pos + written_buffered - 1;
-	err = filemap_write_and_wait_range(file->f_mapping, pos, endbyte);
+	err = filemap_fdatawrite_range(file->f_mapping, pos, endbyte);
+	if (!err && test_bit(BTRFS_INODE_HAS_ASYNC_EXTENT,
+			     &BTRFS_I(file_inode(file))->runtime_flags))
+		err = filemap_fdatawrite_range(file->f_mapping, pos, endbyte);
+	if (err)
+		goto out;
+	err = filemap_fdatawait_range(file->f_mapping, pos, endbyte);
 	if (err)
 		goto out;
 	written += written_buffered;
