@@ -175,7 +175,7 @@ enum fullness_group {
  *	n <= N / f, where
  * n = number of allocated objects
  * N = total number of objects zspage can store
- * f = 1/fullness_threshold_frac
+ * f = fullness_threshold_frac
  *
  * Similarly, we assign zspage to:
  *	ZS_ALMOST_FULL	when n > N / f
