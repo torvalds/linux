@@ -2146,17 +2146,13 @@ int o2net_init(void)
 	o2quo_init();
 
 	if (o2net_debugfs_init())
-		return -ENOMEM;
+		goto out;
 
 	o2net_hand = kzalloc(sizeof(struct o2net_handshake), GFP_KERNEL);
 	o2net_keep_req = kzalloc(sizeof(struct o2net_msg), GFP_KERNEL);
 	o2net_keep_resp = kzalloc(sizeof(struct o2net_msg), GFP_KERNEL);
-	if (!o2net_hand || !o2net_keep_req || !o2net_keep_resp) {
-		kfree(o2net_hand);
-		kfree(o2net_keep_req);
-		kfree(o2net_keep_resp);
-		return -ENOMEM;
-	}
+	if (!o2net_hand || !o2net_keep_req || !o2net_keep_resp)
+		goto out;
 
 	o2net_hand->protocol_version = cpu_to_be64(O2NET_PROTOCOL_VERSION);
 	o2net_hand->connector_id = cpu_to_be64(1);
@@ -2181,6 +2177,14 @@ int o2net_init(void)
 	}
 
 	return 0;
+
+out:
+	kfree(o2net_hand);
+	kfree(o2net_keep_req);
+	kfree(o2net_keep_resp);
+
+	o2quo_exit();
+	return -ENOMEM;
 }
 
 void o2net_exit(void)
