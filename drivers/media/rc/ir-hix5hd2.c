@@ -20,6 +20,9 @@
 #ifndef writel_relaxed
 # define writel_relaxed writel
 #endif
+#ifndef readl_relaxed
+# define readl_relaxed readl
+#endif
 
 #define IR_ENABLE		0x00
 #define IR_CONFIG		0x04
