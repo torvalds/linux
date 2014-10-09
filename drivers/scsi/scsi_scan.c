@@ -1214,9 +1214,9 @@ static void scsi_sequential_lun_scan(struct scsi_target *starget,
 		sparse_lun = 0;
 
 	/*
-	 * If less than SCSI_1_CSS, and no special lun scaning, stop
+	 * If less than SCSI_1_CCS, and no special lun scanning, stop
 	 * scanning; this matches 2.4 behaviour, but could just be a bug
-	 * (to continue scanning a SCSI_1_CSS device).
+	 * (to continue scanning a SCSI_1_CCS device).
 	 *
 	 * This test is broken.  We might not have any device on lun0 for
 	 * a sparselun device, and if that's the case then how would we
