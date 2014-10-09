@@ -223,61 +223,72 @@ static void update_pageblock_skip(struct compact_control *cc,
 }
 #endif /* CONFIG_COMPACTION */
 
-static int should_release_lock(spinlock_t *lock)
+/*
+ * Compaction requires the taking of some coarse locks that are potentially
+ * very heavily contended. For async compaction, back out if the lock cannot
+ * be taken immediately. For sync compaction, spin on the lock if needed.
+ *
+ * Returns true if the lock is held
+ * Returns false if the lock is not held and compaction should abort
+ */
+static bool compact_trylock_irqsave(spinlock_t *lock, unsigned long *flags,
+						struct compact_control *cc)
 {
-	/*
-	 * Sched contention has higher priority here as we may potentially
-	 * have to abort whole compaction ASAP. Returning with lock contention
-	 * means we will try another zone, and further decisions are
-	 * influenced only when all zones are lock contended. That means
-	 * potentially missing a lock contention is less critical.
-	 */
-	if (need_resched())
-		return COMPACT_CONTENDED_SCHED;
-	else if (spin_is_contended(lock))
-		return COMPACT_CONTENDED_LOCK;
+	if (cc->mode == MIGRATE_ASYNC) {
+		if (!spin_trylock_irqsave(lock, *flags)) {
+			cc->contended = COMPACT_CONTENDED_LOCK;
+			return false;
+		}
+	} else {
+		spin_lock_irqsave(lock, *flags);
+	}
 
-	return COMPACT_CONTENDED_NONE;
+	return true;
 }
 
 /*
  * Compaction requires the taking of some coarse locks that are potentially
- * very heavily contended. Check if the process needs to be scheduled or
- * if the lock is contended. For async compaction, back out in the event
- * if contention is severe. For sync compaction, schedule.
+ * very heavily contended. The lock should be periodically unlocked to avoid
+ * having disabled IRQs for a long time, even when there is nobody waiting on
+ * the lock. It might also be that allowing the IRQs will result in
+ * need_resched() becoming true. If scheduling is needed, async compaction
+ * aborts. Sync compaction schedules.
+ * Either compaction type will also abort if a fatal signal is pending.
+ * In either case if the lock was locked, it is dropped and not regained.
  *
- * Returns true if the lock is held.
- * Returns false if the lock is released and compaction should abort
+ * Returns true if compaction should abort due to fatal signal pending, or
+ *		async compaction due to need_resched()
+ * Returns false when compaction can continue (sync compaction might have
+ *		scheduled)
  */
-static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
-				      bool locked, struct compact_control *cc)
+static bool compact_unlock_should_abort(spinlock_t *lock,
+		unsigned long flags, bool *locked, struct compact_control *cc)
 {
-	int contended = should_release_lock(lock);
+	if (*locked) {
+		spin_unlock_irqrestore(lock, flags);
+		*locked = false;
+	}
 
-	if (contended) {
-		if (locked) {
-			spin_unlock_irqrestore(lock, *flags);
-			locked = false;
-		}
+	if (fatal_signal_pending(current)) {
+		cc->contended = COMPACT_CONTENDED_SCHED;
+		return true;
+	}
 
-		/* async aborts if taking too long or contended */
+	if (need_resched()) {
 		if (cc->mode == MIGRATE_ASYNC) {
-			cc->contended = contended;
-			return false;
+			cc->contended = COMPACT_CONTENDED_SCHED;
+			return true;
 		}
-
 		cond_resched();
 	}
 
-	if (!locked)
-		spin_lock_irqsave(lock, *flags);
-	return true;
+	return false;
 }
 
 /*
  * Aside from avoiding lock contention, compaction also periodically checks
  * need_resched() and either schedules in sync compaction or aborts async
- * compaction. This is similar to what compact_checklock_irqsave() does, but
+ * compaction. This is similar to what compact_unlock_should_abort() does, but
  * is used where no lock is concerned.
  *
  * Returns false when no scheduling was needed, or sync compaction scheduled.
@@ -336,6 +347,16 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
 		int isolated, i;
 		struct page *page = cursor;
 
+		/*
+		 * Periodically drop the lock (if held) regardless of its
+		 * contention, to give chance to IRQs. Abort if fatal signal
+		 * pending or async compaction detects need_resched()
+		 */
+		if (!(blockpfn % SWAP_CLUSTER_MAX)
+		    && compact_unlock_should_abort(&cc->zone->lock, flags,
+								&locked, cc))
+			break;
+
 		nr_scanned++;
 		if (!pfn_valid_within(blockpfn))
 			goto isolate_fail;
@@ -353,8 +374,9 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
 		 * spin on the lock and we acquire the lock as late as
 		 * possible.
 		 */
-		locked = compact_checklock_irqsave(&cc->zone->lock, &flags,
-								locked, cc);
+		if (!locked)
+			locked = compact_trylock_irqsave(&cc->zone->lock,
+								&flags, cc);
 		if (!locked)
 			break;
 
@@ -552,13 +574,15 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 
 	/* Time to isolate some pages for migration */
 	for (; low_pfn < end_pfn; low_pfn++) {
-		/* give a chance to irqs before checking need_resched() */
-		if (locked && !(low_pfn % SWAP_CLUSTER_MAX)) {
-			if (should_release_lock(&zone->lru_lock)) {
-				spin_unlock_irqrestore(&zone->lru_lock, flags);
-				locked = false;
-			}
-		}
+		/*
+		 * Periodically drop the lock (if held) regardless of its
+		 * contention, to give chance to IRQs. Abort async compaction
+		 * if contended.
+		 */
+		if (!(low_pfn % SWAP_CLUSTER_MAX)
+		    && compact_unlock_should_abort(&zone->lru_lock, flags,
+								&locked, cc))
+			break;
 
 		if (!pfn_valid_within(low_pfn))
 			continue;
@@ -620,10 +644,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 		    page_count(page) > page_mapcount(page))
 			continue;
 
-		/* Check if it is ok to still hold the lock */
-		locked = compact_checklock_irqsave(&zone->lru_lock, &flags,
-								locked, cc);
-		if (!locked || fatal_signal_pending(current))
+		/* If the lock is not held, try to take it */
+		if (!locked)
+			locked = compact_trylock_irqsave(&zone->lru_lock,
+								&flags, cc);
+		if (!locked)
 			break;
 
 		/* Recheck PageLRU and PageTransHuge under lock */
