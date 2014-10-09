@@ -2297,24 +2297,28 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 	struct zonelist *zonelist, enum zone_type high_zoneidx,
 	nodemask_t *nodemask, int alloc_flags, struct zone *preferred_zone,
 	int classzone_idx, int migratetype, enum migrate_mode mode,
-	bool *contended_compaction, bool *deferred_compaction,
-	unsigned long *did_some_progress)
+	bool *contended_compaction, bool *deferred_compaction)
 {
+	struct zone *last_compact_zone = NULL;
+	unsigned long compact_result;
+
+
 	if (!order)
 		return NULL;
 
-	if (compaction_deferred(preferred_zone, order)) {
-		*deferred_compaction = true;
-		return NULL;
-	}
-
 	current->flags |= PF_MEMALLOC;
-	*did_some_progress = try_to_compact_pages(zonelist, order, gfp_mask,
+	compact_result = try_to_compact_pages(zonelist, order, gfp_mask,
 						nodemask, mode,
-						contended_compaction);
+						contended_compaction,
+						&last_compact_zone);
 	current->flags &= ~PF_MEMALLOC;
 
-	if (*did_some_progress != COMPACT_SKIPPED) {
+	if (compact_result > COMPACT_DEFERRED)
+		count_vm_event(COMPACTSTALL);
+	else
+		*deferred_compaction = true;
+
+	if (compact_result > COMPACT_SKIPPED) {
 		struct page *page;
 
 		/* Page migration frees to the PCP lists but we want merging */
@@ -2325,12 +2329,23 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 				order, zonelist, high_zoneidx,
 				alloc_flags & ~ALLOC_NO_WATERMARKS,
 				preferred_zone, classzone_idx, migratetype);
+
 		if (page) {
-			preferred_zone->compact_blockskip_flush = false;
-			compaction_defer_reset(preferred_zone, order, true);
+			struct zone *zone = page_zone(page);
+
+			zone->compact_blockskip_flush = false;
+			compaction_defer_reset(zone, order, true);
 			count_vm_event(COMPACTSUCCESS);
 			return page;
 		}
+
+		/*
+		 * last_compact_zone is where try_to_compact_pages thought
+		 * allocation should succeed, so it did not defer compaction.
+		 * But now we know that it didn't succeed, so we do the defer.
+		 */
+		if (last_compact_zone && mode != MIGRATE_ASYNC)
+			defer_compaction(last_compact_zone, order);
 
 		/*
 		 * It's bad if compaction run occurs and fails.
@@ -2338,13 +2353,6 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 		 * but not enough to satisfy watermarks.
 		 */
 		count_vm_event(COMPACTFAIL);
-
-		/*
-		 * As async compaction considers a subset of pageblocks, only
-		 * defer if the failure was a sync compaction failure.
-		 */
-		if (mode != MIGRATE_ASYNC)
-			defer_compaction(preferred_zone, order);
 
 		cond_resched();
 	}
@@ -2356,9 +2364,8 @@ static inline struct page *
 __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 	struct zonelist *zonelist, enum zone_type high_zoneidx,
 	nodemask_t *nodemask, int alloc_flags, struct zone *preferred_zone,
-	int classzone_idx, int migratetype,
-	enum migrate_mode mode, bool *contended_compaction,
-	bool *deferred_compaction, unsigned long *did_some_progress)
+	int classzone_idx, int migratetype, enum migrate_mode mode,
+	bool *contended_compaction, bool *deferred_compaction)
 {
 	return NULL;
 }
@@ -2634,8 +2641,7 @@ rebalance:
 					preferred_zone,
 					classzone_idx, migratetype,
 					migration_mode, &contended_compaction,
-					&deferred_compaction,
-					&did_some_progress);
+					&deferred_compaction);
 	if (page)
 		goto got_pg;
 
@@ -2727,8 +2733,7 @@ rebalance:
 					preferred_zone,
 					classzone_idx, migratetype,
 					migration_mode, &contended_compaction,
-					&deferred_compaction,
-					&did_some_progress);
+					&deferred_compaction);
 		if (page)
 			goto got_pg;
 	}
