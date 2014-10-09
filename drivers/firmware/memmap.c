@@ -184,6 +184,9 @@ static int add_sysfs_fw_map_entry(struct firmware_map_entry *entry)
 	static int map_entries_nr;
 	static struct kset *mmap_kset;
 
+	if (entry->kobj.state_in_sysfs)
+		return -EEXIST;
+
 	if (!mmap_kset) {
 		mmap_kset = kset_create_and_add("memmap", NULL, firmware_kobj);
 		if (!mmap_kset)
