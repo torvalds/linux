@@ -250,7 +250,8 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 
 	data->ocd_brw_size = MD_MAX_BRW_SIZE;
 
-	err = obd_connect(NULL, &sbi->ll_md_exp, obd, &sbi->ll_sb_uuid, data, NULL);
+	err = obd_connect(NULL, &sbi->ll_md_exp, obd, &sbi->ll_sb_uuid,
+			  data, NULL);
 	if (err == -EBUSY) {
 		LCONSOLE_ERROR_MSG(0x14f, "An MDT (md %s) is performing "
 				   "recovery, of which this client is not a "
@@ -757,9 +758,9 @@ void ll_kill_super(struct super_block *sb)
 		return;
 
 	sbi = ll_s2sbi(sb);
-	/* we need to restore s_dev from changed for clustered NFS before put_super
-	 * because new kernels have cached s_dev and change sb->s_dev in
-	 * put_super not affected real removing devices */
+	/* we need to restore s_dev from changed for clustered NFS before
+	 * put_super because new kernels have cached s_dev and change sb->s_dev
+	 * in put_super not affected real removing devices */
 	if (sbi) {
 		sb->s_dev = sbi->ll_sdev_orig;
 		sbi->ll_umounting = 1;
@@ -1734,7 +1735,8 @@ void ll_update_inode(struct inode *inode, struct lustre_md *md)
 		inode->i_mode = (inode->i_mode & ~S_IFMT)|(body->mode & S_IFMT);
 	LASSERT(inode->i_mode != 0);
 	if (S_ISREG(inode->i_mode))
-		inode->i_blkbits = min(PTLRPC_MAX_BRW_BITS + 1, LL_MAX_BLKSIZE_BITS);
+		inode->i_blkbits = min(PTLRPC_MAX_BRW_BITS + 1,
+				       LL_MAX_BLKSIZE_BITS);
 	else
 		inode->i_blkbits = inode->i_sb->s_blocksize_bits;
 	if (body->valid & OBD_MD_FLUID)
