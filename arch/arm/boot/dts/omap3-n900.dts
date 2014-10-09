@@ -659,6 +659,9 @@
 
 	ethernet@gpmc {
 		compatible = "smsc,lan91c94";
+
+		status = "disabled";
+
 		interrupt-parent = <&gpio2>;
 		interrupts = <22 IRQ_TYPE_LEVEL_HIGH>;	/* gpio54 */
 		reg = <1 0x300 0xf>;		/* 16 byte IO range at offset 0x300 */
