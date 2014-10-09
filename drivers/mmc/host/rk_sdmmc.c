@@ -2957,7 +2957,6 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 		int present;
 
 		present = dw_mci_get_cd(mmc);
-		dw_mci_ctrl_all_reset(host);
 
                 /* Stop edma when rountine card triggered */
                 if(cpu_is_rk3036() || cpu_is_rk312x())
@@ -2970,6 +2969,7 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 			MMC_DBG_BOOT_FUNC(mmc, "  The card is %s.  ===!!!!!!==[%s]\n",
 				present ? "inserted" : "removed.", mmc_hostname(mmc));
 	
+			dw_mci_ctrl_all_reset(host);
 			rk_send_wakeup_key();//wake up system
 			spin_lock_bh(&host->lock);
 
