@@ -1541,6 +1541,8 @@ struct drm_i915_private {
 	struct intel_opregion opregion;
 	struct intel_vbt_data vbt;
 
+	bool preserve_bios_swizzle;
+
 	/* overlay */
 	struct intel_overlay *overlay;
 

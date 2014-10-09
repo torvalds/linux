@@ -2359,6 +2359,7 @@ static void intel_find_plane_obj(struct intel_crtc *intel_crtc,
 				 struct intel_plane_config *plane_config)
 {
 	struct drm_device *dev = intel_crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *c;
 	struct intel_crtc *i;
 	struct drm_i915_gem_object *obj;
@@ -2390,6 +2391,9 @@ static void intel_find_plane_obj(struct intel_crtc *intel_crtc,
 			continue;
 
 		if (i915_gem_obj_ggtt_offset(obj) == plane_config->base) {
+			if (obj->tiling_mode != I915_TILING_NONE)
+				dev_priv->preserve_bios_swizzle = true;
+
 			drm_framebuffer_reference(c->primary->fb);
 			intel_crtc->base.primary->fb = c->primary->fb;
 			obj->frontbuffer_bits |= INTEL_FRONTBUFFER_PRIMARY(intel_crtc->pipe);
