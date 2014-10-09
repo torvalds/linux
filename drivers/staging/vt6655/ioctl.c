@@ -38,10 +38,6 @@
 #include "wpactl.h"
 #include "rf.h"
 
-#ifdef WPA_SM_Transtatus
-SWPAResult wpa_Result;
-#endif
-
 int private_ioctl(struct vnt_private *pDevice, struct ifreq *rq)
 {
 	PSCmdRequest	pReq = (PSCmdRequest)rq;
