@@ -82,10 +82,11 @@ struct spidev_data {
 	struct spi_device	*spi;
 	struct list_head	device_entry;
 
-	/* buffer is NULL unless this device is open (users > 0) */
+	/* TX/RX buffers are NULL unless this device is open (users > 0) */
 	struct mutex		buf_lock;
 	unsigned		users;
-	u8			*buffer;
+	u8			*tx_buffer;
+	u8			*rx_buffer;
 };
 
 static LIST_HEAD(device_list);
@@ -135,7 +136,7 @@ static inline ssize_t
 spidev_sync_write(struct spidev_data *spidev, size_t len)
 {
 	struct spi_transfer	t = {
-			.tx_buf		= spidev->buffer,
+			.tx_buf		= spidev->tx_buffer,
 			.len		= len,
 		};
 	struct spi_message	m;
@@ -149,7 +150,7 @@ static inline ssize_t
 spidev_sync_read(struct spidev_data *spidev, size_t len)
 {
 	struct spi_transfer	t = {
-			.rx_buf		= spidev->buffer,
+			.rx_buf		= spidev->rx_buffer,
 			.len		= len,
 		};
 	struct spi_message	m;
@@ -179,7 +180,7 @@ spidev_read(struct file *filp, char __user *buf, size_t count, loff_t *f_pos)
 	if (status > 0) {
 		unsigned long	missing;
 
-		missing = copy_to_user(buf, spidev->buffer, status);
+		missing = copy_to_user(buf, spidev->rx_buffer, status);
 		if (missing == status)
 			status = -EFAULT;
 		else
@@ -206,7 +207,7 @@ spidev_write(struct file *filp, const char __user *buf,
 	spidev = filp->private_data;
 
 	mutex_lock(&spidev->buf_lock);
-	missing = copy_from_user(spidev->buffer, buf, count);
+	missing = copy_from_user(spidev->tx_buffer, buf, count);
 	if (missing == 0)
 		status = spidev_sync_write(spidev, count);
 	else
@@ -224,7 +225,7 @@ static int spidev_message(struct spidev_data *spidev,
 	struct spi_transfer	*k_tmp;
 	struct spi_ioc_transfer *u_tmp;
 	unsigned		n, total;
-	u8			*buf;
+	u8			*tx_buf, *rx_buf;
 	int			status = -EFAULT;
 
 	spi_message_init(&msg);
@@ -236,7 +237,8 @@ static int spidev_message(struct spidev_data *spidev,
 	 * We walk the array of user-provided transfers, using each one
 	 * to initialize a kernel version of the same transfer.
 	 */
-	buf = spidev->buffer;
+	tx_buf = spidev->tx_buffer;
+	rx_buf = spidev->rx_buffer;
 	total = 0;
 	for (n = n_xfers, k_tmp = k_xfers, u_tmp = u_xfers;
 			n;
@@ -250,20 +252,21 @@ static int spidev_message(struct spidev_data *spidev,
 		}
 
 		if (u_tmp->rx_buf) {
-			k_tmp->rx_buf = buf;
+			k_tmp->rx_buf = rx_buf;
 			if (!access_ok(VERIFY_WRITE, (u8 __user *)
 						(uintptr_t) u_tmp->rx_buf,
 						u_tmp->len))
 				goto done;
 		}
 		if (u_tmp->tx_buf) {
-			k_tmp->tx_buf = buf;
-			if (copy_from_user(buf, (const u8 __user *)
+			k_tmp->tx_buf = tx_buf;
+			if (copy_from_user(tx_buf, (const u8 __user *)
 						(uintptr_t) u_tmp->tx_buf,
 					u_tmp->len))
 				goto done;
 		}
-		buf += k_tmp->len;
+		tx_buf += k_tmp->len;
+		rx_buf += k_tmp->len;
 
 		k_tmp->cs_change = !!u_tmp->cs_change;
 		k_tmp->tx_nbits = u_tmp->tx_nbits;
@@ -290,17 +293,17 @@ static int spidev_message(struct spidev_data *spidev,
 		goto done;
 
 	/* copy any rx data out of bounce buffer */
-	buf = spidev->buffer;
+	rx_buf = spidev->rx_buffer;
 	for (n = n_xfers, u_tmp = u_xfers; n; n--, u_tmp++) {
 		if (u_tmp->rx_buf) {
 			if (__copy_to_user((u8 __user *)
-					(uintptr_t) u_tmp->rx_buf, buf,
+					(uintptr_t) u_tmp->rx_buf, rx_buf,
 					u_tmp->len)) {
 				status = -EFAULT;
 				goto done;
 			}
 		}
-		buf += u_tmp->len;
+		rx_buf += u_tmp->len;
 	}
 	status = total;
 
@@ -508,22 +511,41 @@ static int spidev_open(struct inode *inode, struct file *filp)
 			break;
 		}
 	}
-	if (status == 0) {
-		if (!spidev->buffer) {
-			spidev->buffer = kmalloc(bufsiz, GFP_KERNEL);
-			if (!spidev->buffer) {
+
+	if (status) {
+		pr_debug("spidev: nothing for minor %d\n", iminor(inode));
+		goto err_find_dev;
+	}
+
+	if (!spidev->tx_buffer) {
+		spidev->tx_buffer = kmalloc(bufsiz, GFP_KERNEL);
+		if (!spidev->tx_buffer) {
 				dev_dbg(&spidev->spi->dev, "open/ENOMEM\n");
 				status = -ENOMEM;
+			goto err_find_dev;
 			}
 		}
-		if (status == 0) {
-			spidev->users++;
-			filp->private_data = spidev;
-			nonseekable_open(inode, filp);
-		}
-	} else
-		pr_debug("spidev: nothing for minor %d\n", iminor(inode));
 
+	if (!spidev->rx_buffer) {
+		spidev->rx_buffer = kmalloc(bufsiz, GFP_KERNEL);
+		if (!spidev->rx_buffer) {
+			dev_dbg(&spidev->spi->dev, "open/ENOMEM\n");
+			status = -ENOMEM;
+			goto err_alloc_rx_buf;
+		}
+	}
+
+	spidev->users++;
+	filp->private_data = spidev;
+	nonseekable_open(inode, filp);
+
+	mutex_unlock(&device_list_lock);
+	return 0;
+
+err_alloc_rx_buf:
+	kfree(spidev->tx_buffer);
+	spidev->tx_buffer = NULL;
+err_find_dev:
 	mutex_unlock(&device_list_lock);
 	return status;
 }
@@ -542,8 +564,11 @@ static int spidev_release(struct inode *inode, struct file *filp)
 	if (!spidev->users) {
 		int		dofree;
 
-		kfree(spidev->buffer);
-		spidev->buffer = NULL;
+		kfree(spidev->tx_buffer);
+		spidev->tx_buffer = NULL;
+
+		kfree(spidev->rx_buffer);
+		spidev->rx_buffer = NULL;
 
 		/* ... after we unbound from the underlying device? */
 		spin_lock_irq(&spidev->spi_lock);
