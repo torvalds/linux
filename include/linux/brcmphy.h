@@ -13,7 +13,11 @@
 #define PHY_ID_BCM5461			0x002060c0
 #define PHY_ID_BCM57780			0x03625d90
 
+#define PHY_ID_BCM7250			0xae025280
+#define PHY_ID_BCM7364			0xae025260
 #define PHY_ID_BCM7366			0x600d8490
+#define PHY_ID_BCM7425			0x03625e60
+#define PHY_ID_BCM7429			0x600d8730
 #define PHY_ID_BCM7439			0x600d8480
 #define PHY_ID_BCM7445			0x600d8510
 
@@ -21,9 +25,9 @@
 #define PHY_BCM_OUI_1			0x00206000
 #define PHY_BCM_OUI_2			0x0143bc00
 #define PHY_BCM_OUI_3			0x03625c00
-#define PHY_BCM_OUI_4			0x600d0000
+#define PHY_BCM_OUI_4			0x600d8400
 #define PHY_BCM_OUI_5			0x03625e00
-
+#define PHY_BCM_OUI_6			0xae025000
 
 #define PHY_BCM_FLAGS_MODE_COPPER	0x00000001
 #define PHY_BCM_FLAGS_MODE_1000BX	0x00000002
@@ -38,7 +42,8 @@
 #define PHY_BRCM_CLEAR_RGMII_MODE	0x00004000
 #define PHY_BRCM_DIS_TXCRXC_NOENRGY	0x00008000
 /* Broadcom BCM7xxx specific workarounds */
-#define PHY_BRCM_100MBPS_WAR		0x00010000
+#define PHY_BRCM_7XXX_REV(x)		(((x) >> 8) & 0xff)
+#define PHY_BRCM_7XXX_PATCH(x)		((x) & 0xff)
 #define PHY_BCM_FLAGS_VALID		0x80000000
 
 /* Broadcom BCM54XX register definitions, common to most Broadcom PHYs */
@@ -91,5 +96,131 @@
 #define MII_BCM54XX_AUXCTL_SHDWSEL_MISC	0x0007
 
 #define MII_BCM54XX_AUXCTL_SHDWSEL_AUXCTL	0x0000
+
+/*
+ * Broadcom LED source encodings.  These are used in BCM5461, BCM5481,
+ * BCM5482, and possibly some others.
+ */
+#define BCM_LED_SRC_LINKSPD1	0x0
+#define BCM_LED_SRC_LINKSPD2	0x1
+#define BCM_LED_SRC_XMITLED	0x2
+#define BCM_LED_SRC_ACTIVITYLED	0x3
+#define BCM_LED_SRC_FDXLED	0x4
+#define BCM_LED_SRC_SLAVE	0x5
+#define BCM_LED_SRC_INTR	0x6
+#define BCM_LED_SRC_QUALITY	0x7
+#define BCM_LED_SRC_RCVLED	0x8
+#define BCM_LED_SRC_MULTICOLOR1	0xa
+#define BCM_LED_SRC_OPENSHORT	0xb
+#define BCM_LED_SRC_OFF		0xe	/* Tied high */
+#define BCM_LED_SRC_ON		0xf	/* Tied low */
+
+
+/*
+ * BCM5482: Shadow registers
+ * Shadow values go into bits [14:10] of register 0x1c to select a shadow
+ * register to access.
+ */
+/* 00101: Spare Control Register 3 */
+#define BCM54XX_SHD_SCR3		0x05
+#define  BCM54XX_SHD_SCR3_DEF_CLK125	0x0001
+#define  BCM54XX_SHD_SCR3_DLLAPD_DIS	0x0002
+#define  BCM54XX_SHD_SCR3_TRDDAPD	0x0004
+
+/* 01010: Auto Power-Down */
+#define BCM54XX_SHD_APD			0x0a
+#define  BCM54XX_SHD_APD_EN		0x0020
+
+#define BCM5482_SHD_LEDS1	0x0d	/* 01101: LED Selector 1 */
+					/* LED3 / ~LINKSPD[2] selector */
+#define BCM5482_SHD_LEDS1_LED3(src)	((src & 0xf) << 4)
+					/* LED1 / ~LINKSPD[1] selector */
+#define BCM5482_SHD_LEDS1_LED1(src)	((src & 0xf) << 0)
+#define BCM54XX_SHD_RGMII_MODE	0x0b	/* 01011: RGMII Mode Selector */
+#define BCM5482_SHD_SSD		0x14	/* 10100: Secondary SerDes control */
+#define BCM5482_SHD_SSD_LEDM	0x0008	/* SSD LED Mode enable */
+#define BCM5482_SHD_SSD_EN	0x0001	/* SSD enable */
+#define BCM5482_SHD_MODE	0x1f	/* 11111: Mode Control Register */
+#define BCM5482_SHD_MODE_1000BX	0x0001	/* Enable 1000BASE-X registers */
+
+
+/*
+ * EXPANSION SHADOW ACCESS REGISTERS.  (PHY REG 0x15, 0x16, and 0x17)
+ */
+#define MII_BCM54XX_EXP_AADJ1CH0		0x001f
+#define  MII_BCM54XX_EXP_AADJ1CH0_SWP_ABCD_OEN	0x0200
+#define  MII_BCM54XX_EXP_AADJ1CH0_SWSEL_THPF	0x0100
+#define MII_BCM54XX_EXP_AADJ1CH3		0x601f
+#define  MII_BCM54XX_EXP_AADJ1CH3_ADCCKADJ	0x0002
+#define MII_BCM54XX_EXP_EXP08			0x0F08
+#define  MII_BCM54XX_EXP_EXP08_RJCT_2MHZ	0x0001
+#define  MII_BCM54XX_EXP_EXP08_EARLY_DAC_WAKE	0x0200
+#define MII_BCM54XX_EXP_EXP75			0x0f75
+#define  MII_BCM54XX_EXP_EXP75_VDACCTRL		0x003c
+#define  MII_BCM54XX_EXP_EXP75_CM_OSC		0x0001
+#define MII_BCM54XX_EXP_EXP96			0x0f96
+#define  MII_BCM54XX_EXP_EXP96_MYST		0x0010
+#define MII_BCM54XX_EXP_EXP97			0x0f97
+#define  MII_BCM54XX_EXP_EXP97_MYST		0x0c0c
+
+/*
+ * BCM5482: Secondary SerDes registers
+ */
+#define BCM5482_SSD_1000BX_CTL		0x00	/* 1000BASE-X Control */
+#define BCM5482_SSD_1000BX_CTL_PWRDOWN	0x0800	/* Power-down SSD */
+#define BCM5482_SSD_SGMII_SLAVE		0x15	/* SGMII Slave Register */
+#define BCM5482_SSD_SGMII_SLAVE_EN	0x0002	/* Slave mode enable */
+#define BCM5482_SSD_SGMII_SLAVE_AD	0x0001	/* Slave auto-detection */
+
+
+/*****************************************************************************/
+/* Fast Ethernet Transceiver definitions. */
+/*****************************************************************************/
+
+#define MII_BRCM_FET_INTREG		0x1a	/* Interrupt register */
+#define MII_BRCM_FET_IR_MASK		0x0100	/* Mask all interrupts */
+#define MII_BRCM_FET_IR_LINK_EN		0x0200	/* Link status change enable */
+#define MII_BRCM_FET_IR_SPEED_EN	0x0400	/* Link speed change enable */
+#define MII_BRCM_FET_IR_DUPLEX_EN	0x0800	/* Duplex mode change enable */
+#define MII_BRCM_FET_IR_ENABLE		0x4000	/* Interrupt enable */
+
+#define MII_BRCM_FET_BRCMTEST		0x1f	/* Brcm test register */
+#define MII_BRCM_FET_BT_SRE		0x0080	/* Shadow register enable */
+
+
+/*** Shadow register definitions ***/
+
+#define MII_BRCM_FET_SHDW_MISCCTRL	0x10	/* Shadow misc ctrl */
+#define MII_BRCM_FET_SHDW_MC_FAME	0x4000	/* Force Auto MDIX enable */
+
+#define MII_BRCM_FET_SHDW_AUXMODE4	0x1a	/* Auxiliary mode 4 */
+#define MII_BRCM_FET_SHDW_AM4_LED_MASK	0x0003
+#define MII_BRCM_FET_SHDW_AM4_LED_MODE1 0x0001
+
+#define MII_BRCM_FET_SHDW_AUXSTAT2	0x1b	/* Auxiliary status 2 */
+#define MII_BRCM_FET_SHDW_AS2_APDE	0x0020	/* Auto power down enable */
+
+/*
+ * Indirect register access functions for the 1000BASE-T/100BASE-TX/10BASE-T
+ * 0x1c shadow registers.
+ */
+static inline int bcm54xx_shadow_read(struct phy_device *phydev, u16 shadow)
+{
+	phy_write(phydev, MII_BCM54XX_SHD, MII_BCM54XX_SHD_VAL(shadow));
+	return MII_BCM54XX_SHD_DATA(phy_read(phydev, MII_BCM54XX_SHD));
+}
+
+static inline int bcm54xx_shadow_write(struct phy_device *phydev, u16 shadow,
+				       u16 val)
+{
+	return phy_write(phydev, MII_BCM54XX_SHD,
+			 MII_BCM54XX_SHD_WRITE |
+			 MII_BCM54XX_SHD_VAL(shadow) |
+			 MII_BCM54XX_SHD_DATA(val));
+}
+
+#define BRCM_CL45VEN_EEE_CONTROL	0x803d
+#define LPI_FEATURE_EN			0x8000
+#define LPI_FEATURE_EN_DIG1000X		0x4000
 
 #endif /* _LINUX_BRCMPHY_H */

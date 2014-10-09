@@ -565,8 +565,8 @@ retry:
 		 set->name, orig->htable_bits, htable_bits, orig);
 	if (!htable_bits) {
 		/* In case we have plenty of memory :-) */
-		pr_warning("Cannot increase the hashsize of set %s further\n",
-			   set->name);
+		pr_warn("Cannot increase the hashsize of set %s further\n",
+			set->name);
 		return -IPSET_ERR_HASH_FULL;
 	}
 	t = ip_set_alloc(sizeof(*t)
@@ -651,8 +651,8 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 
 	if (h->elements >= h->maxelem) {
 		if (net_ratelimit())
-			pr_warning("Set %s is full, maxelem %u reached\n",
-				   set->name, h->maxelem);
+			pr_warn("Set %s is full, maxelem %u reached\n",
+				set->name, h->maxelem);
 		return -IPSET_ERR_HASH_FULL;
 	}
 
@@ -720,6 +720,8 @@ reuse_slot:
 		ip_set_init_counter(ext_counter(data, set), ext);
 	if (SET_WITH_COMMENT(set))
 		ip_set_init_comment(ext_comment(data, set), ext);
+	if (SET_WITH_SKBINFO(set))
+		ip_set_init_skbinfo(ext_skbinfo(data, set), ext);
 
 out:
 	rcu_read_unlock_bh();
@@ -797,6 +799,9 @@ mtype_data_match(struct mtype_elem *data, const struct ip_set_ext *ext,
 	if (SET_WITH_COUNTER(set))
 		ip_set_update_counter(ext_counter(data, set),
 				      ext, mext, flags);
+	if (SET_WITH_SKBINFO(set))
+		ip_set_get_skbinfo(ext_skbinfo(data, set),
+				   ext, mext, flags);
 	return mtype_do_data_match(data);
 }
 
@@ -998,8 +1003,8 @@ mtype_list(const struct ip_set *set,
 nla_put_failure:
 	nlmsg_trim(skb, incomplete);
 	if (unlikely(first == cb->args[IPSET_CB_ARG0])) {
-		pr_warning("Can't list set %s: one bucket does not fit into "
-			   "a message. Please report it!\n", set->name);
+		pr_warn("Can't list set %s: one bucket does not fit into a message. Please report it!\n",
+			set->name);
 		cb->args[IPSET_CB_ARG0] = 0;
 		return -EMSGSIZE;
 	}
@@ -1049,8 +1054,10 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 	struct HTYPE *h;
 	struct htable *t;
 
+#ifndef IP_SET_PROTO_UNDEF
 	if (!(set->family == NFPROTO_IPV4 || set->family == NFPROTO_IPV6))
 		return -IPSET_ERR_INVALID_FAMILY;
+#endif
 
 #ifdef IP_SET_HASH_WITH_MARKMASK
 	markmask = 0xffffffff;
@@ -1093,7 +1100,7 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 	if (tb[IPSET_ATTR_MARKMASK]) {
 		markmask = ntohl(nla_get_u32(tb[IPSET_ATTR_MARKMASK]));
 
-		if ((markmask > 4294967295u) || markmask == 0)
+		if (markmask == 0)
 			return -IPSET_ERR_INVALID_MARKMASK;
 	}
 #endif
@@ -1132,25 +1139,32 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 	rcu_assign_pointer(h->table, t);
 
 	set->data = h;
+#ifndef IP_SET_PROTO_UNDEF
 	if (set->family == NFPROTO_IPV4) {
+#endif
 		set->variant = &IPSET_TOKEN(HTYPE, 4_variant);
 		set->dsize = ip_set_elem_len(set, tb,
 				sizeof(struct IPSET_TOKEN(HTYPE, 4_elem)));
+#ifndef IP_SET_PROTO_UNDEF
 	} else {
 		set->variant = &IPSET_TOKEN(HTYPE, 6_variant);
 		set->dsize = ip_set_elem_len(set, tb,
 				sizeof(struct IPSET_TOKEN(HTYPE, 6_elem)));
 	}
+#endif
 	if (tb[IPSET_ATTR_TIMEOUT]) {
 		set->timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
+#ifndef IP_SET_PROTO_UNDEF
 		if (set->family == NFPROTO_IPV4)
+#endif
 			IPSET_TOKEN(HTYPE, 4_gc_init)(set,
 				IPSET_TOKEN(HTYPE, 4_gc));
+#ifndef IP_SET_PROTO_UNDEF
 		else
 			IPSET_TOKEN(HTYPE, 6_gc_init)(set,
 				IPSET_TOKEN(HTYPE, 6_gc));
+#endif
 	}
-
 	pr_debug("create %s hashsize %u (%u) maxelem %u: %p(%p)\n",
 		 set->name, jhash_size(t->htable_bits),
 		 t->htable_bits, h->maxelem, set->data, t);

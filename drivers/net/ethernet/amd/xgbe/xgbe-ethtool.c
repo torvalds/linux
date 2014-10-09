@@ -121,7 +121,6 @@
 #include "xgbe.h"
 #include "xgbe-common.h"
 
-
 struct xgbe_stats {
 	char stat_string[ETH_GSTRING_LEN];
 	int stat_size;
@@ -173,6 +172,7 @@ static const struct xgbe_stats xgbe_gstring_stats[] = {
 	XGMAC_MMC_STAT("rx_watchdog_errors", rxwatchdogerror),
 	XGMAC_MMC_STAT("rx_pause_frames", rxpauseframes),
 };
+
 #define XGBE_STATS_COUNT	ARRAY_SIZE(xgbe_gstring_stats)
 
 static void xgbe_get_strings(struct net_device *netdev, u32 stringset, u8 *data)

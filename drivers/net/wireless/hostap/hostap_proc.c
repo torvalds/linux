@@ -186,11 +186,9 @@ static int prism2_bss_list_proc_show(struct seq_file *m, void *v)
 			   bss->ssid[i] : '_');
 
 	seq_putc(m, '\t');
-	for (i = 0; i < bss->ssid_len; i++)
-		seq_printf(m, "%02x", bss->ssid[i]);
+	seq_printf(m, "%*phN", (int)bss->ssid_len, bss->ssid);
 	seq_putc(m, '\t');
-	for (i = 0; i < bss->wpa_ie_len; i++)
-		seq_printf(m, "%02x", bss->wpa_ie[i]);
+	seq_printf(m, "%*phN", (int)bss->wpa_ie_len, bss->wpa_ie);
 	seq_putc(m, '\n');
 	return 0;
 }

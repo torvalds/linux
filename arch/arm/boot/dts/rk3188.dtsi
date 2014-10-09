@@ -168,6 +168,24 @@
 			 */
 		};
 
+		emac {
+			emac_xfer: emac-xfer {
+				rockchip,pins = <RK_GPIO3 16 RK_FUNC_2 &pcfg_pull_none>, /* tx_en */
+						<RK_GPIO3 17 RK_FUNC_2 &pcfg_pull_none>, /* txd1 */
+						<RK_GPIO3 18 RK_FUNC_2 &pcfg_pull_none>, /* txd0 */
+						<RK_GPIO3 19 RK_FUNC_2 &pcfg_pull_none>, /* rxd0 */
+						<RK_GPIO3 20 RK_FUNC_2 &pcfg_pull_none>, /* rxd1 */
+						<RK_GPIO3 21 RK_FUNC_2 &pcfg_pull_none>, /* mac_clk */
+						<RK_GPIO3 22 RK_FUNC_2 &pcfg_pull_none>, /* rx_err */
+						<RK_GPIO3 23 RK_FUNC_2 &pcfg_pull_none>; /* crs_dvalid */
+			};
+
+			emac_mdio: emac-mdio {
+				rockchip,pins = <RK_GPIO3 24 RK_FUNC_2 &pcfg_pull_none>,
+						<RK_GPIO3 25 RK_FUNC_2 &pcfg_pull_none>;
+			};
+		};
+
 		i2c0 {
 			i2c0_xfer: i2c0-xfer {
 				rockchip,pins = <RK_GPIO1 24 RK_FUNC_1 &pcfg_pull_none>,
@@ -378,6 +396,10 @@
 			};
 		};
 	};
+};
+
+&emac {
+	compatible = "rockchip,rk3188-emac";
 };
 
 &global_timer {

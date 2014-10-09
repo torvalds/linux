@@ -149,11 +149,25 @@ int com20020_check(struct net_device *dev)
 	return 0;
 }
 
+static int com20020_set_hwaddr(struct net_device *dev, void *addr)
+{
+	int ioaddr = dev->base_addr;
+	struct arcnet_local *lp = netdev_priv(dev);
+	struct sockaddr *hwaddr = addr;
+
+	memcpy(dev->dev_addr, hwaddr->sa_data, 1);
+	SET_SUBADR(SUB_NODE);
+	outb(dev->dev_addr[0], _XREG);
+
+	return 0;
+}
+
 const struct net_device_ops com20020_netdev_ops = {
 	.ndo_open	= arcnet_open,
 	.ndo_stop	= arcnet_close,
 	.ndo_start_xmit = arcnet_send_packet,
 	.ndo_tx_timeout = arcnet_timeout,
+	.ndo_set_mac_address = com20020_set_hwaddr,
 	.ndo_set_rx_mode = com20020_set_mc_list,
 };
 

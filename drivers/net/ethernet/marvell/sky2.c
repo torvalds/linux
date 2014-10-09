@@ -2814,7 +2814,7 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do, u16 idx)
 
 		default:
 			if (net_ratelimit())
-				pr_warning("unknown status opcode 0x%x\n", opcode);
+				pr_warn("unknown status opcode 0x%x\n", opcode);
 		}
 	} while (hw->st_idx != idx);
 

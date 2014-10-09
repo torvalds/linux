@@ -283,6 +283,9 @@ static const struct pci_device_id cxgb4_pci_tbl[] = {
 	CH_DEVICE(0x5083, 4),
 	CH_DEVICE(0x5084, 4),
 	CH_DEVICE(0x5085, 4),
+	CH_DEVICE(0x5086, 4),
+	CH_DEVICE(0x5087, 4),
+	CH_DEVICE(0x5088, 4),
 	CH_DEVICE(0x5401, 4),
 	CH_DEVICE(0x5402, 4),
 	CH_DEVICE(0x5403, 4),
@@ -310,6 +313,9 @@ static const struct pci_device_id cxgb4_pci_tbl[] = {
 	CH_DEVICE(0x5483, 4),
 	CH_DEVICE(0x5484, 4),
 	CH_DEVICE(0x5485, 4),
+	CH_DEVICE(0x5486, 4),
+	CH_DEVICE(0x5487, 4),
+	CH_DEVICE(0x5488, 4),
 	{ 0, }
 };
 
@@ -2747,8 +2753,31 @@ static int set_rx_intr_params(struct net_device *dev,
 	return 0;
 }
 
+static int set_adaptive_rx_setting(struct net_device *dev, int adaptive_rx)
+{
+	int i;
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = pi->adapter;
+	struct sge_eth_rxq *q = &adap->sge.ethrxq[pi->first_qset];
+
+	for (i = 0; i < pi->nqsets; i++, q++)
+		q->rspq.adaptive_rx = adaptive_rx;
+
+	return 0;
+}
+
+static int get_adaptive_rx_setting(struct net_device *dev)
+{
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = pi->adapter;
+	struct sge_eth_rxq *q = &adap->sge.ethrxq[pi->first_qset];
+
+	return q->rspq.adaptive_rx;
+}
+
 static int set_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 {
+	set_adaptive_rx_setting(dev, c->use_adaptive_rx_coalesce);
 	return set_rx_intr_params(dev, c->rx_coalesce_usecs,
 				  c->rx_max_coalesced_frames);
 }
@@ -2762,6 +2791,7 @@ static int get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 	c->rx_coalesce_usecs = qtimer_val(adap, rq);
 	c->rx_max_coalesced_frames = (rq->intr_params & QINTR_CNT_EN) ?
 		adap->sge.counter_val[rq->pktcnt_idx] : 0;
+	c->use_adaptive_rx_coalesce = get_adaptive_rx_setting(dev);
 	return 0;
 }
 
@@ -4390,7 +4420,6 @@ static int cxgb4_inet6addr_handler(struct notifier_block *this,
 		 * bond. We need to find such different adapters and add clip
 		 * in all of them only once.
 		 */
-		read_lock(&bond->lock);
 		bond_for_each_slave(bond, slave, iter) {
 			if (!first_pdev) {
 				ret = clip_add(slave->dev, ifa, event);
@@ -4404,7 +4433,6 @@ static int cxgb4_inet6addr_handler(struct notifier_block *this,
 				   to_pci_dev(slave->dev->dev.parent))
 					ret = clip_add(slave->dev, ifa, event);
 		}
-		read_unlock(&bond->lock);
 	} else
 		ret = clip_add(ifa->idev->dev, ifa, event);
 

@@ -1243,7 +1243,8 @@ static void do_action(int action, struct cardstate *cs,
 		break;
 	case ACT_FAILDLE0:
 		cs->cur_at_seq = SEQ_NONE;
-		dev_warn(cs->dev, "Could not leave DLE mode.\n");
+		dev_warn(cs->dev, "Error leaving DLE mode.\n");
+		cs->dle = 0;
 		at_state2 = &cs->bcs[cs->curchannel].at_state;
 		disconnect(&at_state2);
 		schedule_init(cs, MS_RECOVER);

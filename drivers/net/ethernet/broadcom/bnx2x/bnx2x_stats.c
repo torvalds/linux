@@ -137,7 +137,7 @@ static void bnx2x_storm_stats_post(struct bnx2x *bp)
 			cpu_to_le16(bp->stats_counter++);
 
 		DP(BNX2X_MSG_STATS, "Sending statistics ramrod %d\n",
-			bp->fw_stats_req->hdr.drv_stats_counter);
+		   le16_to_cpu(bp->fw_stats_req->hdr.drv_stats_counter));
 
 		/* adjust the ramrod to include VF queues statistics */
 		bnx2x_iov_adjust_stats_req(bp);
@@ -200,7 +200,7 @@ static void bnx2x_hw_stats_post(struct bnx2x *bp)
 	}
 }
 
-static int bnx2x_stats_comp(struct bnx2x *bp)
+static void bnx2x_stats_comp(struct bnx2x *bp)
 {
 	u32 *stats_comp = bnx2x_sp(bp, stats_comp);
 	int cnt = 10;
@@ -214,7 +214,6 @@ static int bnx2x_stats_comp(struct bnx2x *bp)
 		cnt--;
 		usleep_range(1000, 2000);
 	}
-	return 1;
 }
 
 /*
@@ -1629,6 +1628,11 @@ void bnx2x_stats_init(struct bnx2x *bp)
 {
 	int /*abs*/port = BP_PORT(bp);
 	int mb_idx = BP_FW_MB_IDX(bp);
+
+	if (IS_VF(bp)) {
+		bnx2x_memset_stats(bp);
+		return;
+	}
 
 	bp->stats_pending = 0;
 	bp->executer_idx = 0;

@@ -50,7 +50,7 @@ typedef long	psched_tdiff_t;
 
 static inline psched_time_t psched_get_time(void)
 {
-	return PSCHED_NS2TICKS(ktime_to_ns(ktime_get()));
+	return PSCHED_NS2TICKS(ktime_get_ns());
 }
 
 static inline psched_tdiff_t
@@ -65,12 +65,12 @@ struct qdisc_watchdog {
 };
 
 void qdisc_watchdog_init(struct qdisc_watchdog *wd, struct Qdisc *qdisc);
-void qdisc_watchdog_schedule_ns(struct qdisc_watchdog *wd, u64 expires);
+void qdisc_watchdog_schedule_ns(struct qdisc_watchdog *wd, u64 expires, bool throttle);
 
 static inline void qdisc_watchdog_schedule(struct qdisc_watchdog *wd,
 					   psched_time_t expires)
 {
-	qdisc_watchdog_schedule_ns(wd, PSCHED_TICKS2NS(expires));
+	qdisc_watchdog_schedule_ns(wd, PSCHED_TICKS2NS(expires), true);
 }
 
 void qdisc_watchdog_cancel(struct qdisc_watchdog *wd);
@@ -99,7 +99,7 @@ void qdisc_put_stab(struct qdisc_size_table *tab);
 void qdisc_warn_nonwc(const char *txt, struct Qdisc *qdisc);
 int sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
 		    struct net_device *dev, struct netdev_queue *txq,
-		    spinlock_t *root_lock);
+		    spinlock_t *root_lock, bool validate);
 
 void __qdisc_run(struct Qdisc *q);
 

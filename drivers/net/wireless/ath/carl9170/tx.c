@@ -1557,7 +1557,7 @@ static struct carl9170_vif_info *carl9170_pick_beaconing_vif(struct ar9170 *ar)
 	}
 
 out:
-	rcu_assign_pointer(ar->beacon_iter, cvif);
+	RCU_INIT_POINTER(ar->beacon_iter, cvif);
 	return cvif;
 }
 

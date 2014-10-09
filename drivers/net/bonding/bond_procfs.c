@@ -7,21 +7,18 @@
 
 static void *bond_info_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(RCU)
-	__acquires(&bond->lock)
 {
 	struct bonding *bond = seq->private;
 	struct list_head *iter;
 	struct slave *slave;
 	loff_t off = 0;
 
-	/* make sure the bond won't be taken away */
 	rcu_read_lock();
-	read_lock(&bond->lock);
 
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
 
-	bond_for_each_slave(bond, slave, iter)
+	bond_for_each_slave_rcu(bond, slave, iter)
 		if (++off == *pos)
 			return slave;
 
@@ -37,12 +34,9 @@ static void *bond_info_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 	++*pos;
 	if (v == SEQ_START_TOKEN)
-		return bond_first_slave(bond);
+		return bond_first_slave_rcu(bond);
 
-	if (bond_is_last_slave(bond, v))
-		return NULL;
-
-	bond_for_each_slave(bond, slave, iter) {
+	bond_for_each_slave_rcu(bond, slave, iter) {
 		if (found)
 			return slave;
 		if (slave == v)
@@ -53,12 +47,8 @@ static void *bond_info_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void bond_info_seq_stop(struct seq_file *seq, void *v)
-	__releases(&bond->lock)
 	__releases(RCU)
 {
-	struct bonding *bond = seq->private;
-
-	read_unlock(&bond->lock);
 	rcu_read_unlock();
 }
 
@@ -66,7 +56,7 @@ static void bond_info_show_master(struct seq_file *seq)
 {
 	struct bonding *bond = seq->private;
 	const struct bond_opt_value *optval;
-	struct slave *curr;
+	struct slave *curr, *primary;
 	int i;
 
 	curr = rcu_dereference(bond->curr_active_slave);
@@ -83,8 +73,7 @@ static void bond_info_show_master(struct seq_file *seq)
 
 	seq_printf(seq, "\n");
 
-	if (BOND_MODE(bond) == BOND_MODE_XOR ||
-		BOND_MODE(bond) == BOND_MODE_8023AD) {
+	if (bond_mode_uses_xmit_hash(bond)) {
 		optval = bond_opt_get_val(BOND_OPT_XMIT_HASH,
 					  bond->params.xmit_policy);
 		seq_printf(seq, "Transmit Hash Policy: %s (%d)\n",
@@ -92,10 +81,10 @@ static void bond_info_show_master(struct seq_file *seq)
 	}
 
 	if (bond_uses_primary(bond)) {
+		primary = rcu_dereference(bond->primary_slave);
 		seq_printf(seq, "Primary Slave: %s",
-			   (bond->primary_slave) ?
-			   bond->primary_slave->dev->name : "None");
-		if (bond->primary_slave) {
+			   primary ? primary->dev->name : "None");
+		if (primary) {
 			optval = bond_opt_get_val(BOND_OPT_PRIMARY_RESELECT,
 						  bond->params.primary_reselect);
 			seq_printf(seq, " (primary_reselect %s)",

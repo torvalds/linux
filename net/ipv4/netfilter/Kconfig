@@ -61,18 +61,13 @@ config NFT_CHAIN_ROUTE_IPV4
 	  fields such as the source, destination, type of service and
 	  the packet mark.
 
-config NFT_CHAIN_NAT_IPV4
-	depends on NF_TABLES_IPV4
-	depends on NF_NAT_IPV4 && NFT_NAT
-	tristate "IPv4 nf_tables nat chain support"
-	help
-	  This option enables the "nat" chain for IPv4 in nf_tables. This
-	  chain type is used to perform Network Address Translation (NAT)
-	  packet transformations such as the source, destination address and
-	  source and destination ports.
+config NF_REJECT_IPV4
+	tristate "IPv4 packet rejection"
+	default m if NETFILTER_ADVANCED=n
 
 config NFT_REJECT_IPV4
 	depends on NF_TABLES_IPV4
+	select NF_REJECT_IPV4
 	default NFT_REJECT
 	tristate
 
@@ -93,6 +88,30 @@ config NF_NAT_IPV4
 	  controlled by iptables or nft.
 
 if NF_NAT_IPV4
+
+config NFT_CHAIN_NAT_IPV4
+	depends on NF_TABLES_IPV4
+	tristate "IPv4 nf_tables nat chain support"
+	help
+	  This option enables the "nat" chain for IPv4 in nf_tables. This
+	  chain type is used to perform Network Address Translation (NAT)
+	  packet transformations such as the source, destination address and
+	  source and destination ports.
+
+config NF_NAT_MASQUERADE_IPV4
+	tristate "IPv4 masquerade support"
+	help
+	  This is the kernel functionality to provide NAT in the masquerade
+	  flavour (automatic source address selection).
+
+config NFT_MASQ_IPV4
+	tristate "IPv4 masquerading support for nf_tables"
+	depends on NF_TABLES_IPV4
+	depends on NFT_MASQ
+	select NF_NAT_MASQUERADE_IPV4
+	help
+	  This is the expression that provides IPv4 masquerading support for
+	  nf_tables.
 
 config NF_NAT_SNMP_BASIC
 	tristate "Basic SNMP-ALG support"
@@ -194,6 +213,7 @@ config IP_NF_FILTER
 config IP_NF_TARGET_REJECT
 	tristate "REJECT target support"
 	depends on IP_NF_FILTER
+	select NF_REJECT_IPV4
 	default m if NETFILTER_ADVANCED=n
 	help
 	  The REJECT target allows a filtering rule to specify that an ICMP
@@ -234,6 +254,7 @@ if IP_NF_NAT
 
 config IP_NF_TARGET_MASQUERADE
 	tristate "MASQUERADE target support"
+	select NF_NAT_MASQUERADE_IPV4
 	default m if NETFILTER_ADVANCED=n
 	help
 	  Masquerading is a special case of NAT: all outgoing connections are

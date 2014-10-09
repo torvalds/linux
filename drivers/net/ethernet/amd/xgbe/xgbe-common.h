@@ -271,7 +271,6 @@
 #define DMA_PBL_X8_DISABLE		0x00
 #define DMA_PBL_X8_ENABLE		0x01
 
-
 /* MAC register offsets */
 #define MAC_TCR				0x0000
 #define MAC_RCR				0x0004
@@ -792,7 +791,6 @@
 #define MTL_Q_DISABLED			0x00
 #define MTL_Q_ENABLED			0x02
 
-
 /* MTL traffic class register offsets
  *   Multiple traffic classes can be active.  The first class has registers
  *   that begin at 0x1100.  Each subsequent queue has registers that
@@ -815,7 +813,6 @@
 #define MTL_TSA_SP			0x00
 #define MTL_TSA_ETS			0x02
 
-
 /* PCS MMD select register offset
  *  The MMD select register is used for accessing PCS registers
  *  when the underlying APB3 interface is using indirect addressing.
@@ -824,7 +821,6 @@
  *  writing an address selection value to the MMD select regiesters.
  */
 #define PCS_MMD_SELECT			0xff
-
 
 /* Descriptor/Packet entry bit positions and sizes */
 #define RX_PACKET_ERRORS_CRC_INDEX		2
@@ -929,7 +925,6 @@
 #define MDIO_AN_COMP_STAT		0x0030
 #endif
 
-
 /* Bit setting and getting macros
  *  The get macro will extract the current bit field value from within
  *  the variable
@@ -956,7 +951,6 @@ do {									\
 	(_var) |= cpu_to_le32((((_val) &				\
 			      ((0x1 << (_width)) - 1)) << (_index)));	\
 } while (0)
-
 
 /* Bit setting and getting macros based on register fields
  *  The get macro uses the bit field definitions formed using the input
@@ -986,7 +980,6 @@ do {									\
 		 _prefix##_##_field##_INDEX,				\
 		 _prefix##_##_field##_WIDTH, (_val))
 
-
 /* Macros for reading or writing registers
  *  The ioread macros will get bit fields or full values using the
  *  register definitions formed using the input names
@@ -1014,7 +1007,6 @@ do {									\
 	XGMAC_IOWRITE((_pdata), _reg, reg_val);				\
 } while (0)
 
-
 /* Macros for reading or writing MTL queue or traffic class registers
  *  Similar to the standard read and write macros except that the
  *  base register value is calculated by the queue or traffic class number
@@ -1041,7 +1033,6 @@ do {									\
 	XGMAC_MTL_IOWRITE((_pdata), (_n), _reg, reg_val);		\
 } while (0)
 
-
 /* Macros for reading or writing DMA channel registers
  *  Similar to the standard read and write macros except that the
  *  base register value is obtained from the ring
@@ -1066,7 +1057,6 @@ do {									\
 	XGMAC_DMA_IOWRITE((_channel), _reg, reg_val);			\
 } while (0)
 
-
 /* Macros for building, reading or writing register values or bits
  * within the register values of XPCS registers.
  */
@@ -1075,7 +1065,6 @@ do {									\
 
 #define XPCS_IOREAD(_pdata, _off)					\
 	ioread32((_pdata)->xpcs_regs + (_off))
-
 
 /* Macros for building, reading or writing register values or bits
  * using MDIO.  Different from above because of the use of standardized

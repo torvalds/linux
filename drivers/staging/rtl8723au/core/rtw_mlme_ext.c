@@ -2128,7 +2128,7 @@ static int on_action_public23a(struct rtw_adapter *padapter,
 						      IEEE80211_BAND_5GHZ);
 
 	if (cfg80211_rx_mgmt(padapter->rtw_wdev, freq, 0, pframe,
-			     skb->len, 0, GFP_ATOMIC))
+			     skb->len, 0))
 		return _SUCCESS;
 
 	return _FAIL;

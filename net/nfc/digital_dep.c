@@ -33,6 +33,8 @@
 #define DIGITAL_ATR_REQ_MAX_SIZE 64
 
 #define DIGITAL_LR_BITS_PAYLOAD_SIZE_254B 0x30
+#define DIGITAL_FSL_BITS_PAYLOAD_SIZE_254B \
+				(DIGITAL_LR_BITS_PAYLOAD_SIZE_254B >> 4)
 #define DIGITAL_GB_BIT	0x02
 
 #define DIGITAL_NFC_DEP_PFB_TYPE(pfb) ((pfb) & 0xE0)
@@ -127,6 +129,98 @@ static int digital_skb_pull_dep_sod(struct nfc_digital_dev *ddev,
 	return 0;
 }
 
+static void digital_in_recv_psl_res(struct nfc_digital_dev *ddev, void *arg,
+				    struct sk_buff *resp)
+{
+	struct nfc_target *target = arg;
+	struct digital_psl_res *psl_res;
+	int rc;
+
+	if (IS_ERR(resp)) {
+		rc = PTR_ERR(resp);
+		resp = NULL;
+		goto exit;
+	}
+
+	rc = ddev->skb_check_crc(resp);
+	if (rc) {
+		PROTOCOL_ERR("14.4.1.6");
+		goto exit;
+	}
+
+	rc = digital_skb_pull_dep_sod(ddev, resp);
+	if (rc) {
+		PROTOCOL_ERR("14.4.1.2");
+		goto exit;
+	}
+
+	psl_res = (struct digital_psl_res *)resp->data;
+
+	if ((resp->len != sizeof(*psl_res)) ||
+	    (psl_res->dir != DIGITAL_NFC_DEP_FRAME_DIR_IN) ||
+	    (psl_res->cmd != DIGITAL_CMD_PSL_RES)) {
+		rc = -EIO;
+		goto exit;
+	}
+
+	rc = digital_in_configure_hw(ddev, NFC_DIGITAL_CONFIG_RF_TECH,
+				     NFC_DIGITAL_RF_TECH_424F);
+	if (rc)
+		goto exit;
+
+	rc = digital_in_configure_hw(ddev, NFC_DIGITAL_CONFIG_FRAMING,
+				     NFC_DIGITAL_FRAMING_NFCF_NFC_DEP);
+	if (rc)
+		goto exit;
+
+	if (!DIGITAL_DRV_CAPS_IN_CRC(ddev) &&
+	    (ddev->curr_rf_tech == NFC_DIGITAL_RF_TECH_106A)) {
+		ddev->skb_add_crc = digital_skb_add_crc_f;
+		ddev->skb_check_crc = digital_skb_check_crc_f;
+	}
+
+	ddev->curr_rf_tech = NFC_DIGITAL_RF_TECH_424F;
+
+	nfc_dep_link_is_up(ddev->nfc_dev, target->idx, NFC_COMM_ACTIVE,
+			   NFC_RF_INITIATOR);
+
+	ddev->curr_nfc_dep_pni = 0;
+
+exit:
+	dev_kfree_skb(resp);
+
+	if (rc)
+		ddev->curr_protocol = 0;
+}
+
+static int digital_in_send_psl_req(struct nfc_digital_dev *ddev,
+				   struct nfc_target *target)
+{
+	struct sk_buff *skb;
+	struct digital_psl_req *psl_req;
+
+	skb = digital_skb_alloc(ddev, sizeof(*psl_req));
+	if (!skb)
+		return -ENOMEM;
+
+	skb_put(skb, sizeof(*psl_req));
+
+	psl_req = (struct digital_psl_req *)skb->data;
+
+	psl_req->dir = DIGITAL_NFC_DEP_FRAME_DIR_OUT;
+	psl_req->cmd = DIGITAL_CMD_PSL_REQ;
+	psl_req->did = 0;
+	psl_req->brs = (0x2 << 3) | 0x2; /* 424F both directions */
+	psl_req->fsl = DIGITAL_FSL_BITS_PAYLOAD_SIZE_254B;
+
+	digital_skb_push_dep_sod(ddev, skb);
+
+	ddev->skb_add_crc(skb);
+
+	return digital_in_send_cmd(ddev, skb, 500, digital_in_recv_psl_res,
+				   target);
+}
+
 static void digital_in_recv_atr_res(struct nfc_digital_dev *ddev, void *arg,
 				 struct sk_buff *resp)
 {
@@ -165,6 +259,13 @@ static void digital_in_recv_atr_res(struct nfc_digital_dev *ddev, void *arg,
 	rc = nfc_set_remote_general_bytes(ddev->nfc_dev, atr_res->gb, gb_len);
 	if (rc)
 		goto exit;
+
+	if ((ddev->protocols & NFC_PROTO_FELICA_MASK) &&
+	    (ddev->curr_rf_tech != NFC_DIGITAL_RF_TECH_424F)) {
+		rc = digital_in_send_psl_req(ddev, target);
+		if (!rc)
+			goto exit;
+	}
 
 	rc = nfc_dep_link_is_up(ddev->nfc_dev, target->idx, NFC_COMM_ACTIVE,
 				NFC_RF_INITIATOR);

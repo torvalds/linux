@@ -22,19 +22,19 @@
  * Larry Finger <Larry.Finger@lwfinger.net>
  *
  *****************************************************************************/
-
 #include "../wifi.h"
-#include "rtl_btc.h"
-#include "halbt_precomp.h"
-
 #include <linux/vmalloc.h>
 #include <linux/module.h>
+
+#include "rtl_btc.h"
+#include "halbt_precomp.h"
 
 static struct rtl_btc_ops rtl_btc_operation = {
 	.btc_init_variables = rtl_btc_init_variables,
 	.btc_init_hal_vars = rtl_btc_init_hal_vars,
 	.btc_init_hw_config = rtl_btc_init_hw_config,
 	.btc_ips_notify = rtl_btc_ips_notify,
+	.btc_lps_notify = rtl_btc_lps_notify,
 	.btc_scan_notify = rtl_btc_scan_notify,
 	.btc_connect_notify = rtl_btc_connect_notify,
 	.btc_mediastatus_notify = rtl_btc_mediastatus_notify,
@@ -44,6 +44,7 @@ static struct rtl_btc_ops rtl_btc_operation = {
 	.btc_is_limited_dig = rtl_btc_is_limited_dig,
 	.btc_is_disable_edca_turbo = rtl_btc_is_disable_edca_turbo,
 	.btc_is_bt_disabled = rtl_btc_is_bt_disabled,
+	.btc_special_packet_notify = rtl_btc_special_packet_notify,
 };
 
 void rtl_btc_init_variables(struct rtl_priv *rtlpriv)
@@ -85,6 +86,11 @@ void rtl_btc_ips_notify(struct rtl_priv *rtlpriv, u8 type)
 	exhalbtc_ips_notify(&gl_bt_coexist, type);
 }
 
+void rtl_btc_lps_notify(struct rtl_priv *rtlpriv, u8 type)
+{
+	exhalbtc_lps_notify(&gl_bt_coexist, type);
+}
+
 void rtl_btc_scan_notify(struct rtl_priv *rtlpriv, u8 scantype)
 {
 	exhalbtc_scan_notify(&gl_bt_coexist, scantype);
@@ -96,13 +102,14 @@ void rtl_btc_connect_notify(struct rtl_priv *rtlpriv, u8 action)
 }
 
 void rtl_btc_mediastatus_notify(struct rtl_priv *rtlpriv,
-				enum _RT_MEDIA_STATUS mstatus)
+				enum rt_media_status mstatus)
 {
 	exhalbtc_mediastatus_notify(&gl_bt_coexist, mstatus);
 }
 
 void rtl_btc_periodical(struct rtl_priv *rtlpriv)
 {
+	/*rtl_bt_dm_monitor();*/
 	exhalbtc_periodical(&gl_bt_coexist);
 }
 
@@ -150,10 +157,16 @@ bool rtl_btc_is_disable_edca_turbo(struct rtl_priv *rtlpriv)
 
 bool rtl_btc_is_bt_disabled(struct rtl_priv *rtlpriv)
 {
+	/* It seems 'bt_disabled' is never be initialized or set. */
 	if (gl_bt_coexist.bt_info.bt_disabled)
 		return true;
 	else
 		return false;
+}
+
+void rtl_btc_special_packet_notify(struct rtl_priv *rtlpriv, u8 pkt_type)
+{
+	return exhalbtc_special_packet_notify(&gl_bt_coexist, pkt_type);
 }
 
 struct rtl_btc_ops *rtl_btc_get_ops_pointer(void)
@@ -174,11 +187,11 @@ u8 rtl_get_hwpg_ant_num(struct rtl_priv *rtlpriv)
 	return num;
 }
 
-enum _RT_MEDIA_STATUS mgnt_link_status_query(struct ieee80211_hw *hw)
+enum rt_media_status mgnt_link_status_query(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-	enum _RT_MEDIA_STATUS    m_status = RT_MEDIA_DISCONNECT;
+	enum rt_media_status    m_status = RT_MEDIA_DISCONNECT;
 
 	u8 bibss = (mac->opmode == NL80211_IFTYPE_ADHOC) ? 1 : 0;
 

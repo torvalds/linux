@@ -156,7 +156,6 @@
 #define	DM_REG_SLEEP_11N				0xEE0
 #define	DM_REG_PMPD_ANAEN_11N				0xEEC
 
-
 /*MAC REG LIST*/
 #define	DM_REG_BB_RST_11N				0x02
 #define	DM_REG_ANTSEL_PIN_11N				0x4C
@@ -168,8 +167,9 @@
 #define	DM_REG_EDCA_BK_11N				0x50C
 #define	DM_REG_TXPAUSE_11N				0x522
 #define	DM_REG_RESP_TX_11N				0x6D8
-#define	DM_REG_ANT_TRAIN_1				0x7b0
-#define	DM_REG_ANT_TRAIN_2				0x7b4
+#define	DM_REG_ANT_TRAIN_PARA1_11N			0x7b0
+#define	DM_REG_ANT_TRAIN_PARA2_11N			0x7b4
+
 
 /*DIG Related*/
 #define	DM_BIT_IGI_11N					0x0000007F
@@ -208,7 +208,7 @@
 #define DM_DIG_BACKOFF_MIN				-4
 #define DM_DIG_BACKOFF_DEFAULT				10
 
-#define RXPATHSELECTION_SS_TH_LOW			30
+#define RXPATHSELECTION_SS_TH_W				30
 #define RXPATHSELECTION_DIFF_TH				18
 
 #define DM_RATR_STA_INIT				0
@@ -232,20 +232,22 @@
 
 #define TX_POWER_NEAR_FIELD_THRESH_LVL2			74
 #define TX_POWER_NEAR_FIELD_THRESH_LVL1			67
-#define TXPWRTRACK_MAX_IDX				6
+#define TXPWRTRACK_MAX_IDX				 6
 
 struct swat_t {
 	u8 failure_cnt;
 	u8 try_flag;
 	u8 stop_trying;
+
 	long pre_rssi;
 	long trying_threshold;
 	u8 cur_antenna;
 	u8 pre_antenna;
+
 };
 
 enum FAT_STATE {
-	FAT_NORMAL_STATE	= 0,
+	FAT_NORMAL_STATE = 0,
 	FAT_TRAINING_STATE = 1,
 };
 
@@ -310,8 +312,9 @@ enum pwr_track_control_method {
 
 void rtl88e_dm_set_tx_ant_by_tx_info(struct ieee80211_hw *hw,
 				     u8 *pdesc, u32 mac_id);
-void rtl88e_dm_ant_sel_statistics(struct ieee80211_hw *hw, u8 antsel_tr_mux,
-				  u32 mac_id, u32 rx_pwdb_all);
+void rtl88e_dm_ant_sel_statistics(struct ieee80211_hw *hw,
+				  u8 antsel_tr_mux, u32 mac_id,
+				  u32 rx_pwdb_all);
 void rtl88e_dm_fast_antenna_training_callback(unsigned long data);
 void rtl88e_dm_init(struct ieee80211_hw *hw);
 void rtl88e_dm_watchdog(struct ieee80211_hw *hw);
@@ -320,7 +323,5 @@ void rtl88e_dm_init_edca_turbo(struct ieee80211_hw *hw);
 void rtl88e_dm_check_txpower_tracking(struct ieee80211_hw *hw);
 void rtl88e_dm_init_rate_adaptive_mask(struct ieee80211_hw *hw);
 void rtl88e_dm_txpower_track_adjust(struct ieee80211_hw *hw,
-				    u8 type, u8 *pdirection,
-				    u32 *poutwrite_val);
-
+	u8 type, u8 *pdirection, u32 *poutwrite_val);
 #endif

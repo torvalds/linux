@@ -1047,7 +1047,7 @@ static void pvc_setup(struct net_device *dev)
 	dev->flags = IFF_POINTOPOINT;
 	dev->hard_header_len = 10;
 	dev->addr_len = 2;
-	dev->priv_flags &= ~IFF_XMIT_DST_RELEASE;
+	netif_keep_dst(dev);
 }
 
 static const struct net_device_ops pvc_ops = {

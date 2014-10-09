@@ -174,7 +174,7 @@ static ssize_t write_file_tx99(struct file *file, const char __user *user_buf,
 	ssize_t len;
 	int r;
 
-	if (sc->nvifs > 1)
+	if (sc->cur_chan->nvifs > 1)
 		return -EOPNOTSUPP;
 
 	len = min(count, sizeof(buf) - 1);

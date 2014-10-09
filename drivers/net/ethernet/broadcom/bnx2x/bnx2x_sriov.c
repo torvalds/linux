@@ -1125,7 +1125,7 @@ static int bnx2x_ari_enabled(struct pci_dev *dev)
 	return dev->bus->self && dev->bus->self->ari_enabled;
 }
 
-static void
+static int
 bnx2x_get_vf_igu_cam_info(struct bnx2x *bp)
 {
 	int sb_id;
@@ -1150,6 +1150,7 @@ bnx2x_get_vf_igu_cam_info(struct bnx2x *bp)
 		   GET_FIELD((val), IGU_REG_MAPPING_MEMORY_VECTOR));
 	}
 	DP(BNX2X_MSG_IOV, "vf_sbs_pool is %d\n", BP_VFDB(bp)->vf_sbs_pool);
+	return BP_VFDB(bp)->vf_sbs_pool;
 }
 
 static void __bnx2x_iov_free_vfdb(struct bnx2x *bp)
@@ -1314,14 +1315,16 @@ int bnx2x_iov_init_one(struct bnx2x *bp, int int_mode_param,
 	}
 
 	/* re-read the IGU CAM for VFs - index and abs_vfid must be set */
-	bnx2x_get_vf_igu_cam_info(bp);
+	if (!bnx2x_get_vf_igu_cam_info(bp)) {
+		BNX2X_ERR("No entries in IGU CAM for vfs\n");
+		err = -EINVAL;
+		goto failed;
+	}
 
 	/* allocate the queue arrays for all VFs */
 	bp->vfdb->vfqs = kzalloc(
 		BNX2X_MAX_NUM_VF_QUEUES * sizeof(struct bnx2x_vf_queue),
 		GFP_KERNEL);
-
-	DP(BNX2X_MSG_IOV, "bp->vfdb->vfqs was %p\n", bp->vfdb->vfqs);
 
 	if (!bp->vfdb->vfqs) {
 		BNX2X_ERR("failed to allocate vf queue array\n");
@@ -1349,9 +1352,7 @@ void bnx2x_iov_remove_one(struct bnx2x *bp)
 	if (!IS_SRIOV(bp))
 		return;
 
-	DP(BNX2X_MSG_IOV, "about to call disable sriov\n");
-	pci_disable_sriov(bp->pdev);
-	DP(BNX2X_MSG_IOV, "sriov disabled\n");
+	bnx2x_disable_sriov(bp);
 
 	/* disable access to all VFs */
 	for (vf_idx = 0; vf_idx < bp->vfdb->sriov.total; vf_idx++) {
@@ -1985,21 +1986,6 @@ void bnx2x_iov_adjust_stats_req(struct bnx2x *bp)
 	bp->fw_stats_req->hdr.cmd_num = bp->fw_stats_num + stats_count;
 }
 
-static inline
-struct bnx2x_virtf *__vf_from_stat_id(struct bnx2x *bp, u8 stat_id)
-{
-	int i;
-	struct bnx2x_virtf *vf = NULL;
-
-	for_each_vf(bp, i) {
-		vf = BP_VF(bp, i);
-		if (stat_id >= vf->igu_base_id &&
-		    stat_id < vf->igu_base_id + vf_sb_count(vf))
-			break;
-	}
-	return vf;
-}
-
 /* VF API helpers */
 static void bnx2x_vf_qtbl_set_q(struct bnx2x *bp, u8 abs_vfid, u8 qid,
 				u8 enable)
@@ -2362,12 +2348,6 @@ int bnx2x_vf_release(struct bnx2x *bp, struct bnx2x_virtf *vf)
 	return rc;
 }
 
-static inline void bnx2x_vf_get_sbdf(struct bnx2x *bp,
-			      struct bnx2x_virtf *vf, u32 *sbdf)
-{
-	*sbdf = vf->devfn | (vf->bus << 8);
-}
-
 void bnx2x_lock_vf_pf_channel(struct bnx2x *bp, struct bnx2x_virtf *vf,
 			      enum channel_tlvs tlv)
 {
@@ -2416,7 +2396,7 @@ void bnx2x_unlock_vf_pf_channel(struct bnx2x *bp, struct bnx2x_virtf *vf,
 
 	/* log the unlock */
 	DP(BNX2X_MSG_IOV, "VF[%d]: vf pf channel unlocked by %d\n",
-	   vf->abs_vfid, vf->op_current);
+	   vf->abs_vfid, current_tlv);
 }
 
 static int bnx2x_set_pf_tx_switching(struct bnx2x *bp, bool enable)
@@ -2501,7 +2481,7 @@ int bnx2x_sriov_configure(struct pci_dev *dev, int num_vfs_param)
 	bp->requested_nr_virtfn = num_vfs_param;
 	if (num_vfs_param == 0) {
 		bnx2x_set_pf_tx_switching(bp, false);
-		pci_disable_sriov(dev);
+		bnx2x_disable_sriov(bp);
 		return 0;
 	} else {
 		return bnx2x_enable_sriov(bp);
@@ -2614,6 +2594,12 @@ void bnx2x_pf_set_vfs_vlan(struct bnx2x *bp)
 
 void bnx2x_disable_sriov(struct bnx2x *bp)
 {
+	if (pci_vfs_assigned(bp->pdev)) {
+		DP(BNX2X_MSG_IOV,
+		   "Unloading driver while VFs are assigned - VFs will not be deallocated\n");
+		return;
+	}
+
 	pci_disable_sriov(bp->pdev);
 }
 
@@ -2628,7 +2614,7 @@ static int bnx2x_vf_op_prep(struct bnx2x *bp, int vfidx,
 	}
 
 	if (!IS_SRIOV(bp)) {
-		BNX2X_ERR("sriov is disabled - can't utilize iov-realted functionality\n");
+		BNX2X_ERR("sriov is disabled - can't utilize iov-related functionality\n");
 		return -EINVAL;
 	}
 

@@ -128,7 +128,6 @@
 #include <linux/net_tstamp.h>
 #include <net/dcbnl.h>
 
-
 #define XGBE_DRV_NAME		"amd-xgbe"
 #define XGBE_DRV_VERSION	"1.0.0-a"
 #define XGBE_DRV_DESC		"AMD 10 Gigabit Ethernet Driver"
@@ -198,7 +197,6 @@
 #define XGBE_GET_DESC_DATA(_ring, _idx)				\
 	((_ring)->rdata +					\
 	 ((_idx) & ((_ring)->rdesc_count - 1)))
-
 
 /* Default coalescing parameters */
 #define XGMAC_INIT_DMA_TX_USECS		50

@@ -175,7 +175,6 @@ static void tcp_veno_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 				} else
 					tp->snd_cwnd_cnt++;
 			}
-
 		}
 		if (tp->snd_cwnd < 2)
 			tp->snd_cwnd = 2;

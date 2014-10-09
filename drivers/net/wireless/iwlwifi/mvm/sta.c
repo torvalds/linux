@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -245,15 +247,20 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 		memset(&mvm_sta->tid_data[i], 0, sizeof(mvm_sta->tid_data[i]));
 		mvm_sta->tid_data[i].seq_number = seq;
 	}
+	mvm_sta->agg_tids = 0;
 
 	ret = iwl_mvm_sta_send_to_fw(mvm, sta, false);
 	if (ret)
 		return ret;
 
-	/* The first station added is the AP, the others are TDLS STAs */
-	if (vif->type == NL80211_IFTYPE_STATION &&
-	    mvmvif->ap_sta_id == IWL_MVM_STATION_COUNT)
-		mvmvif->ap_sta_id = sta_id;
+	if (vif->type == NL80211_IFTYPE_STATION) {
+		if (!sta->tdls) {
+			WARN_ON(mvmvif->ap_sta_id != IWL_MVM_STATION_COUNT);
+			mvmvif->ap_sta_id = sta_id;
+		} else {
+			WARN_ON(mvmvif->ap_sta_id == IWL_MVM_STATION_COUNT);
+		}
+	}
 
 	rcu_assign_pointer(mvm->fw_id_to_mac_id[sta_id], sta);
 
@@ -458,8 +465,9 @@ int iwl_mvm_rm_sta_id(struct iwl_mvm *mvm,
 	return ret;
 }
 
-int iwl_mvm_allocate_int_sta(struct iwl_mvm *mvm, struct iwl_mvm_int_sta *sta,
-			     u32 qmask, enum nl80211_iftype iftype)
+static int iwl_mvm_allocate_int_sta(struct iwl_mvm *mvm,
+				    struct iwl_mvm_int_sta *sta,
+				    u32 qmask, enum nl80211_iftype iftype)
 {
 	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
 		sta->sta_id = iwl_mvm_find_free_sta_id(mvm, iftype);
@@ -474,7 +482,8 @@ int iwl_mvm_allocate_int_sta(struct iwl_mvm *mvm, struct iwl_mvm_int_sta *sta,
 	return 0;
 }
 
-void iwl_mvm_dealloc_int_sta(struct iwl_mvm *mvm, struct iwl_mvm_int_sta *sta)
+static void iwl_mvm_dealloc_int_sta(struct iwl_mvm *mvm,
+				    struct iwl_mvm_int_sta *sta)
 {
 	RCU_INIT_POINTER(mvm->fw_id_to_mac_id[sta->sta_id], NULL);
 	memset(sta, 0, sizeof(struct iwl_mvm_int_sta));
@@ -527,8 +536,8 @@ int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm)
 	lockdep_assert_held(&mvm->mutex);
 
 	/* Map Aux queue to fifo - needs to happen before adding Aux station */
-	iwl_trans_ac_txq_enable(mvm->trans, mvm->aux_queue,
-				IWL_MVM_TX_FIFO_MCAST);
+	iwl_mvm_enable_ac_txq(mvm, mvm->aux_queue,
+			      IWL_MVM_TX_FIFO_MCAST);
 
 	/* Allocate aux station and assign to it the aux queue */
 	ret = iwl_mvm_allocate_int_sta(mvm, &mvm->aux_sta, BIT(mvm->aux_queue),
@@ -544,6 +553,13 @@ int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm)
 	return ret;
 }
 
+void iwl_mvm_del_aux_sta(struct iwl_mvm *mvm)
+{
+	lockdep_assert_held(&mvm->mutex);
+
+	iwl_mvm_dealloc_int_sta(mvm, &mvm->aux_sta);
+}
+
 /*
  * Send the add station command for the vif's broadcast station.
  * Assumes that the station was already allocated.
@@ -552,10 +568,10 @@ int iwl_mvm_add_aux_sta(struct iwl_mvm *mvm)
  * @vif: the interface to which the broadcast station is added
  * @bsta: the broadcast station to add.
  */
-int iwl_mvm_send_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			   struct iwl_mvm_int_sta *bsta)
+int iwl_mvm_send_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_int_sta *bsta = &mvmvif->bcast_sta;
 	static const u8 _baddr[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 	const u8 *baddr = _baddr;
 
@@ -573,17 +589,38 @@ int iwl_mvm_send_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 /* Send the FW a request to remove the station from it's internal data
  * structures, but DO NOT remove the entry from the local data structures. */
-int iwl_mvm_send_rm_bcast_sta(struct iwl_mvm *mvm,
-			      struct iwl_mvm_int_sta *bsta)
+int iwl_mvm_send_rm_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	ret = iwl_mvm_rm_sta_common(mvm, bsta->sta_id);
+	ret = iwl_mvm_rm_sta_common(mvm, mvmvif->bcast_sta.sta_id);
 	if (ret)
 		IWL_WARN(mvm, "Failed sending remove station\n");
 	return ret;
+}
+
+int iwl_mvm_alloc_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	u32 qmask;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	qmask = iwl_mvm_mac_get_queues_mask(mvm, vif);
+
+	/*
+	 * The firmware defines the TFD queue mask to only be relevant
+	 * for *unicast* queues, so the multicast (CAB) queue shouldn't
+	 * be included.
+	 */
+	if (vif->type == NL80211_IFTYPE_AP)
+		qmask &= ~BIT(vif->cab_queue);
+
+	return iwl_mvm_allocate_int_sta(mvm, &mvmvif->bcast_sta, qmask,
+					ieee80211_vif_type_p2p(vif));
 }
 
 /* Allocate a new station entry for the broadcast station to the given vif,
@@ -593,45 +630,47 @@ int iwl_mvm_send_rm_bcast_sta(struct iwl_mvm *mvm,
  * @mvm: the mvm component
  * @vif: the interface to which the broadcast station is added
  * @bsta: the broadcast station to add. */
-int iwl_mvm_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			  struct iwl_mvm_int_sta *bsta)
+int iwl_mvm_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	static const u8 baddr[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-	u32 qmask;
+	struct iwl_mvm_int_sta *bsta = &mvmvif->bcast_sta;
 	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	qmask = iwl_mvm_mac_get_queues_mask(mvm, vif);
-	ret = iwl_mvm_allocate_int_sta(mvm, bsta, qmask,
-				       ieee80211_vif_type_p2p(vif));
+	ret = iwl_mvm_alloc_bcast_sta(mvm, vif);
 	if (ret)
 		return ret;
 
-	ret = iwl_mvm_add_int_sta_common(mvm, bsta, baddr,
-					 mvmvif->id, mvmvif->color);
+	ret = iwl_mvm_send_add_bcast_sta(mvm, vif);
 
 	if (ret)
 		iwl_mvm_dealloc_int_sta(mvm, bsta);
+
 	return ret;
+}
+
+void iwl_mvm_dealloc_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	iwl_mvm_dealloc_int_sta(mvm, &mvmvif->bcast_sta);
 }
 
 /*
  * Send the FW a request to remove the station from it's internal data
  * structures, and in addition remove it from the local data structure.
  */
-int iwl_mvm_rm_bcast_sta(struct iwl_mvm *mvm, struct iwl_mvm_int_sta *bsta)
+int iwl_mvm_rm_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	ret = iwl_mvm_rm_sta_common(mvm, bsta->sta_id);
-	if (ret)
-		return ret;
+	ret = iwl_mvm_send_rm_bcast_sta(mvm, vif);
 
-	iwl_mvm_dealloc_int_sta(mvm, bsta);
+	iwl_mvm_dealloc_bcast_sta(mvm, vif);
+
 	return ret;
 }
 
@@ -834,12 +873,16 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	int queue, fifo, ret;
 	u16 ssn;
 
+	BUILD_BUG_ON((sizeof(mvmsta->agg_tids) * BITS_PER_BYTE)
+		     != IWL_MAX_TID_COUNT);
+
 	buf_size = min_t(int, buf_size, LINK_QUAL_AGG_FRAME_LIMIT_DEF);
 
 	spin_lock_bh(&mvmsta->lock);
 	ssn = tid_data->ssn;
 	queue = tid_data->txq_id;
 	tid_data->state = IWL_AGG_ON;
+	mvmsta->agg_tids |= BIT(tid);
 	tid_data->ssn = 0xffff;
 	spin_unlock_bh(&mvmsta->lock);
 
@@ -849,8 +892,8 @@ int iwl_mvm_sta_tx_agg_oper(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (ret)
 		return -EIO;
 
-	iwl_trans_txq_enable(mvm->trans, queue, fifo, mvmsta->sta_id, tid,
-			     buf_size, ssn);
+	iwl_mvm_enable_agg_txq(mvm, queue, fifo, mvmsta->sta_id, tid,
+			       buf_size, ssn);
 
 	/*
 	 * Even though in theory the peer could have different
@@ -894,6 +937,8 @@ int iwl_mvm_sta_tx_agg_stop(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	IWL_DEBUG_TX_QUEUES(mvm, "Stop AGG: sta %d tid %d q %d state %d\n",
 			    mvmsta->sta_id, tid, txq_id, tid_data->state);
 
+	mvmsta->agg_tids &= ~BIT(tid);
+
 	switch (tid_data->state) {
 	case IWL_AGG_ON:
 		tid_data->ssn = IEEE80211_SEQ_TO_SN(tid_data->seq_number);
@@ -910,8 +955,16 @@ int iwl_mvm_sta_tx_agg_stop(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		}
 
 		tid_data->ssn = 0xffff;
-		iwl_trans_txq_disable(mvm->trans, txq_id);
-		/* fall through */
+		tid_data->state = IWL_AGG_OFF;
+		mvm->queue_to_mac80211[txq_id] = IWL_INVALID_MAC80211_QUEUE;
+		spin_unlock_bh(&mvmsta->lock);
+
+		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
+
+		iwl_mvm_sta_tx_agg(mvm, sta, tid, txq_id, false);
+
+		iwl_mvm_disable_txq(mvm, txq_id);
+		return 0;
 	case IWL_AGG_STARTING:
 	case IWL_EMPTYING_HW_QUEUE_ADDBA:
 		/*
@@ -959,13 +1012,16 @@ int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			    mvmsta->sta_id, tid, txq_id, tid_data->state);
 	old_state = tid_data->state;
 	tid_data->state = IWL_AGG_OFF;
+	mvmsta->agg_tids &= ~BIT(tid);
 	spin_unlock_bh(&mvmsta->lock);
 
 	if (old_state >= IWL_AGG_ON) {
 		if (iwl_mvm_flush_tx_path(mvm, BIT(txq_id), true))
 			IWL_ERR(mvm, "Couldn't flush the AGG queue\n");
 
-		iwl_trans_txq_disable(mvm->trans, tid_data->txq_id);
+		iwl_mvm_sta_tx_agg(mvm, sta, tid, txq_id, false);
+
+		iwl_mvm_disable_txq(mvm, tid_data->txq_id);
 	}
 
 	mvm->queue_to_mac80211[tid_data->txq_id] =

@@ -37,7 +37,6 @@
 
 #include "core.h"
 #include "link.h"
-#include "port.h"
 #include "socket.h"
 #include "msg.h"
 #include "bcast.h"
@@ -227,6 +226,17 @@ static void bclink_retransmit_pkt(u32 after, u32 to)
 }
 
 /**
+ * tipc_bclink_wakeup_users - wake up pending users
+ *
+ * Called with no locks taken
+ */
+void tipc_bclink_wakeup_users(void)
+{
+	while (skb_queue_len(&bclink->link.waiting_sks))
+		tipc_sk_rcv(skb_dequeue(&bclink->link.waiting_sks));
+}
+
+/**
  * tipc_bclink_acknowledge - handle acknowledgement of broadcast packets
  * @n_ptr: node that sent acknowledgement info
  * @acked: broadcast sequence # that has been acknowledged
@@ -300,8 +310,9 @@ void tipc_bclink_acknowledge(struct tipc_node *n_ptr, u32 acked)
 		tipc_link_push_queue(bcl);
 		bclink_set_last_sent();
 	}
-	if (unlikely(released && !list_empty(&bcl->waiting_ports)))
-		tipc_link_wakeup_ports(bcl, 0);
+	if (unlikely(released && !skb_queue_empty(&bcl->waiting_sks)))
+		n_ptr->action_flags |= TIPC_WAKEUP_BCAST_USERS;
+
 exit:
 	tipc_bclink_unlock();
 }
@@ -840,9 +851,10 @@ int tipc_bclink_init(void)
 	sprintf(bcbearer->media.name, "tipc-broadcast");
 
 	spin_lock_init(&bclink->lock);
-	INIT_LIST_HEAD(&bcl->waiting_ports);
+	__skb_queue_head_init(&bcl->waiting_sks);
 	bcl->next_out_no = 1;
 	spin_lock_init(&bclink->node.lock);
+	__skb_queue_head_init(&bclink->node.waiting_sks);
 	bcl->owner = &bclink->node;
 	bcl->max_pkt = MAX_PKT_DEFAULT_MCAST;
 	tipc_link_set_queue_limits(bcl, BCLINK_WIN_DEFAULT);

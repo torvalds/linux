@@ -2071,6 +2071,8 @@ static void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			cp.handle = ev->handle;
 			hci_send_cmd(hdev, HCI_OP_READ_REMOTE_FEATURES,
 				     sizeof(cp), &cp);
+
+			hci_update_page_scan(hdev, NULL);
 		}
 
 		/* Set packet type for incoming connection */
@@ -2247,9 +2249,12 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	mgmt_device_disconnected(hdev, &conn->dst, conn->type, conn->dst_type,
 				reason, mgmt_connected);
 
-	if (conn->type == ACL_LINK &&
-	    test_bit(HCI_CONN_FLUSH_KEY, &conn->flags))
-		hci_remove_link_key(hdev, &conn->dst);
+	if (conn->type == ACL_LINK) {
+		if (test_bit(HCI_CONN_FLUSH_KEY, &conn->flags))
+			hci_remove_link_key(hdev, &conn->dst);
+
+		hci_update_page_scan(hdev, NULL);
+	}
 
 	params = hci_conn_params_lookup(hdev, &conn->dst, conn->dst_type);
 	if (params) {
@@ -2315,8 +2320,7 @@ static void hci_auth_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			conn->sec_level = conn->pending_sec_level;
 		}
 	} else {
-		mgmt_auth_failed(hdev, &conn->dst, conn->type, conn->dst_type,
-				 ev->status);
+		mgmt_auth_failed(conn, ev->status);
 	}
 
 	clear_bit(HCI_CONN_AUTH_PEND, &conn->flags);
@@ -2433,6 +2437,12 @@ static void hci_encrypt_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			clear_bit(HCI_CONN_AES_CCM, &conn->flags);
 		}
 	}
+
+	/* We should disregard the current RPA and generate a new one
+	 * whenever the encryption procedure fails.
+	 */
+	if (ev->status && conn->type == LE_LINK)
+		set_bit(HCI_RPA_EXPIRED, &hdev->dev_flags);
 
 	clear_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags);
 
@@ -3895,8 +3905,7 @@ static void hci_simple_pair_complete_evt(struct hci_dev *hdev,
 	 * event gets always produced as initiator and is also mapped to
 	 * the mgmt_auth_failed event */
 	if (!test_bit(HCI_CONN_AUTH_PEND, &conn->flags) && ev->status)
-		mgmt_auth_failed(hdev, &conn->dst, conn->type, conn->dst_type,
-				 ev->status);
+		mgmt_auth_failed(conn, ev->status);
 
 	hci_conn_drop(conn);
 
@@ -4188,15 +4197,15 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		conn->dst_type = irk->addr_type;
 	}
 
-	if (conn->dst_type == ADDR_LE_DEV_PUBLIC)
-		addr_type = BDADDR_LE_PUBLIC;
-	else
-		addr_type = BDADDR_LE_RANDOM;
-
 	if (ev->status) {
 		hci_le_conn_failed(conn, ev->status);
 		goto unlock;
 	}
+
+	if (conn->dst_type == ADDR_LE_DEV_PUBLIC)
+		addr_type = BDADDR_LE_PUBLIC;
+	else
+		addr_type = BDADDR_LE_RANDOM;
 
 	/* Drop the connection if the device is blocked */
 	if (hci_bdaddr_list_lookup(&hdev->blacklist, &conn->dst, addr_type)) {
@@ -4220,11 +4229,13 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	hci_proto_connect_cfm(conn, ev->status);
 
-	params = hci_conn_params_lookup(hdev, &conn->dst, conn->dst_type);
+	params = hci_pend_le_action_lookup(&hdev->pend_le_conns, &conn->dst,
+					   conn->dst_type);
 	if (params) {
 		list_del_init(&params->action);
 		if (params->conn) {
 			hci_conn_drop(params->conn);
+			hci_conn_put(params->conn);
 			params->conn = NULL;
 		}
 	}
@@ -4316,7 +4327,7 @@ static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 		 * the parameters get removed and keep the reference
 		 * count consistent once the connection is established.
 		 */
-		params->conn = conn;
+		params->conn = hci_conn_get(conn);
 		return;
 	}
 
@@ -4501,10 +4512,7 @@ static void hci_le_ltk_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	memcpy(cp.ltk, ltk->val, sizeof(ltk->val));
 	cp.handle = cpu_to_le16(conn->handle);
 
-	if (ltk->authenticated)
-		conn->pending_sec_level = BT_SECURITY_HIGH;
-	else
-		conn->pending_sec_level = BT_SECURITY_MEDIUM;
+	conn->pending_sec_level = smp_ltk_sec_level(ltk);
 
 	conn->enc_key_size = ltk->enc_size;
 

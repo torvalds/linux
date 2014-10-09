@@ -10,6 +10,18 @@
 #define R2059_C3			0x800
 #define R2059_ALL			0xC00
 
+#define R2059_RCAL_CONFIG			0x004
+#define R2059_RFPLL_MASTER			0x011
+#define R2059_RFPLL_MISC_EN			0x02b
+#define R2059_RFPLL_MISC_CAL_RESETN		0x02e
+#define R2059_XTAL_CONFIG2			0x0c0
+#define R2059_RCCAL_START_R1_Q1_P1		0x13c
+#define R2059_RCCAL_X1				0x13d
+#define R2059_RCCAL_TRC0			0x13e
+#define R2059_RCCAL_DONE_OSCCAP			0x140
+#define R2059_RCAL_STATUS			0x145
+#define R2059_RCCAL_MASTER			0x17f
+
 /* Values for various registers uploaded on channel switching */
 struct b43_phy_ht_channeltab_e_radio2059 {
 	/* The channel frequency in MHz */
@@ -39,6 +51,8 @@ struct b43_phy_ht_channeltab_e_radio2059 {
 	/* Values for PHY registers */
 	struct b43_phy_ht_channeltab_e_phy phy_regs;
 };
+
+void r2059_upload_inittabs(struct b43_wldev *dev);
 
 const struct b43_phy_ht_channeltab_e_radio2059
 *b43_phy_ht_get_channeltab_e_r2059(struct b43_wldev *dev, u16 freq);

@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -158,8 +160,8 @@ static void iwl_mvm_scan_fill_ssids(struct iwl_ssid_ie *cmd_ssid,
 static u16 iwl_mvm_get_active_dwell(enum ieee80211_band band, int n_ssids)
 {
 	if (band == IEEE80211_BAND_2GHZ)
-		return 30  + 3 * (n_ssids + 1);
-	return 20  + 2 * (n_ssids + 1);
+		return 20  + 3 * (n_ssids + 1);
+	return 10  + 2 * (n_ssids + 1);
 }
 
 static u16 iwl_mvm_get_passive_dwell(enum ieee80211_band band)
@@ -279,6 +281,7 @@ static void iwl_mvm_scan_calc_params(struct iwl_mvm *mvm,
 {
 	bool global_bound = false;
 	enum ieee80211_band band;
+	u8 frag_passive_dwell = 0;
 
 	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
 					    IEEE80211_IFACE_ITER_NORMAL,
@@ -288,12 +291,36 @@ static void iwl_mvm_scan_calc_params(struct iwl_mvm *mvm,
 	if (!global_bound)
 		goto not_bound;
 
-	params->suspend_time = 100;
-	params->max_out_time = 600;
+	params->suspend_time = 30;
+	params->max_out_time = 170;
 
 	if (iwl_mvm_low_latency(mvm)) {
-		params->suspend_time = 250;
-		params->max_out_time = 250;
+		if (mvm->fw->ucode_capa.api[0] &
+		    IWL_UCODE_TLV_API_FRAGMENTED_SCAN) {
+			params->suspend_time = 105;
+			params->max_out_time = 70;
+			frag_passive_dwell = 20;
+		} else {
+			params->suspend_time = 120;
+			params->max_out_time = 120;
+		}
+	}
+
+	if (frag_passive_dwell && (mvm->fw->ucode_capa.api[0] &
+				   IWL_UCODE_TLV_API_FRAGMENTED_SCAN)) {
+		/*
+		 * P2P device scan should not be fragmented to avoid negative
+		 * impact on P2P device discovery. Configure max_out_time to be
+		 * equal to dwell time on passive channel. Take a longest
+		 * possible value, one that corresponds to 2GHz band
+		 */
+		if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
+			u32 passive_dwell =
+				iwl_mvm_get_passive_dwell(IEEE80211_BAND_2GHZ);
+			params->max_out_time = passive_dwell;
+		} else {
+			params->passive_fragmented = true;
+		}
 	}
 
 	if (flags & NL80211_SCAN_FLAG_LOW_PRIORITY)
@@ -302,10 +329,63 @@ static void iwl_mvm_scan_calc_params(struct iwl_mvm *mvm,
 not_bound:
 
 	for (band = IEEE80211_BAND_2GHZ; band < IEEE80211_NUM_BANDS; band++) {
-		params->dwell[band].passive = iwl_mvm_get_passive_dwell(band);
+		if (params->passive_fragmented)
+			params->dwell[band].passive = frag_passive_dwell;
+		else
+			params->dwell[band].passive =
+				iwl_mvm_get_passive_dwell(band);
 		params->dwell[band].active = iwl_mvm_get_active_dwell(band,
 								      n_ssids);
 	}
+}
+
+static inline bool iwl_mvm_rrm_scan_needed(struct iwl_mvm *mvm)
+{
+	/* require rrm scan whenever the fw supports it */
+	return mvm->fw->ucode_capa.capa[0] &
+	       IWL_UCODE_TLV_CAPA_DS_PARAM_SET_IE_SUPPORT;
+}
+
+static int iwl_mvm_max_scan_ie_fw_cmd_room(struct iwl_mvm *mvm,
+					   bool is_sched_scan)
+{
+	int max_probe_len;
+
+	if (mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN)
+		max_probe_len = SCAN_OFFLOAD_PROBE_REQ_SIZE;
+	else
+		max_probe_len = mvm->fw->ucode_capa.max_probe_length;
+
+	/* we create the 802.11 header and SSID element */
+	max_probe_len -= 24 + 2;
+
+	/* basic ssid is added only for hw_scan with and old api */
+	if (!(mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_NO_BASIC_SSID) &&
+	    !(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN) &&
+	    !is_sched_scan)
+		max_probe_len -= 32;
+
+	return max_probe_len;
+}
+
+int iwl_mvm_max_scan_ie_len(struct iwl_mvm *mvm, bool is_sched_scan)
+{
+	int max_ie_len = iwl_mvm_max_scan_ie_fw_cmd_room(mvm, is_sched_scan);
+
+	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_LMAC_SCAN))
+		return max_ie_len;
+
+	/* TODO: [BUG] This function should return the maximum allowed size of
+	 * scan IEs, however the LMAC scan api contains both 2GHZ and 5GHZ IEs
+	 * in the same command. So the correct implementation of this function
+	 * is just iwl_mvm_max_scan_ie_fw_cmd_room() / 2. Currently the scan
+	 * command has only 512 bytes and it would leave us with about 240
+	 * bytes for scan IEs, which is clearly not enough. So meanwhile
+	 * we will report an incorrect value. This may result in a failure to
+	 * issue a scan in unified_scan_lmac and unified_sched_scan_lmac
+	 * functions with -ENOBUFS, if a large enough probe will be provided.
+	 */
+	return max_ie_len;
 }
 
 int iwl_mvm_scan_request(struct iwl_mvm *mvm,
@@ -1100,10 +1180,11 @@ iwl_mvm_build_generic_unified_scan_cmd(struct iwl_mvm *mvm,
 				       struct iwl_mvm_scan_params *params)
 {
 	memset(cmd, 0, ksize(cmd));
-	cmd->active_dwell = (u8)params->dwell[IEEE80211_BAND_2GHZ].active;
-	cmd->passive_dwell = (u8)params->dwell[IEEE80211_BAND_2GHZ].passive;
-	/* TODO: Use params; now fragmented isn't used. */
-	cmd->fragmented_dwell = 0;
+	cmd->active_dwell = params->dwell[IEEE80211_BAND_2GHZ].active;
+	cmd->passive_dwell = params->dwell[IEEE80211_BAND_2GHZ].passive;
+	if (params->passive_fragmented)
+		cmd->fragmented_dwell =
+				params->dwell[IEEE80211_BAND_2GHZ].passive;
 	cmd->rx_chain_select = iwl_mvm_scan_rx_chain(mvm);
 	cmd->max_out_time = cpu_to_le32(params->max_out_time);
 	cmd->suspend_time = cpu_to_le32(params->suspend_time);
@@ -1121,6 +1202,10 @@ iwl_mvm_build_generic_unified_scan_cmd(struct iwl_mvm *mvm,
 				    IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE |
 				    IWL_SCAN_CHANNEL_FLAG_CACHE_ADD);
 	}
+
+	if (iwl_mvm_rrm_scan_needed(mvm))
+		cmd->scan_flags |=
+			cpu_to_le32(IWL_MVM_LMAC_SCAN_FLAGS_RRM_ENABLED);
 }
 
 int iwl_mvm_unified_scan_lmac(struct iwl_mvm *mvm,
@@ -1148,13 +1233,12 @@ int iwl_mvm_unified_scan_lmac(struct iwl_mvm *mvm,
 	if (WARN_ON(mvm->scan_cmd == NULL))
 		return -ENOMEM;
 
-	if (WARN_ON_ONCE(req->req.n_ssids > PROBE_OPTION_MAX ||
-			 req->ies.common_ie_len + req->ies.len[0] +
-				req->ies.len[1] + 24 + 2 >
-					SCAN_OFFLOAD_PROBE_REQ_SIZE ||
-			 req->req.n_channels >
-				mvm->fw->ucode_capa.n_scan_channels))
-		return -1;
+	if (req->req.n_ssids > PROBE_OPTION_MAX ||
+	    req->ies.common_ie_len + req->ies.len[NL80211_BAND_2GHZ] +
+	    req->ies.len[NL80211_BAND_5GHZ] >
+		iwl_mvm_max_scan_ie_fw_cmd_room(mvm, false) ||
+	    req->req.n_channels > mvm->fw->ucode_capa.n_scan_channels)
+		return -ENOBUFS;
 
 	mvm->scan_status = IWL_MVM_SCAN_OS;
 
@@ -1176,7 +1260,7 @@ int iwl_mvm_unified_scan_lmac(struct iwl_mvm *mvm,
 	if (req->req.n_ssids == 0)
 		flags |= IWL_MVM_LMAC_SCAN_FLAG_PASSIVE;
 
-	cmd->scan_flags = cpu_to_le32(flags);
+	cmd->scan_flags |= cpu_to_le32(flags);
 
 	cmd->flags = iwl_mvm_scan_rxon_flags(req->req.channels[0]->band);
 	cmd->filter_flags = cpu_to_le32(MAC_FILTER_ACCEPT_GRP |
@@ -1242,10 +1326,11 @@ int iwl_mvm_unified_sched_scan_lmac(struct iwl_mvm *mvm,
 	if (WARN_ON(mvm->scan_cmd == NULL))
 		return -ENOMEM;
 
-	if (WARN_ON_ONCE(req->n_ssids > PROBE_OPTION_MAX ||
-			 ies->common_ie_len + ies->len[0] + ies->len[1] + 24 + 2
-				> SCAN_OFFLOAD_PROBE_REQ_SIZE ||
-			 req->n_channels > mvm->fw->ucode_capa.n_scan_channels))
+	if (req->n_ssids > PROBE_OPTION_MAX ||
+	    ies->common_ie_len + ies->len[NL80211_BAND_2GHZ] +
+	    ies->len[NL80211_BAND_5GHZ] >
+		iwl_mvm_max_scan_ie_fw_cmd_room(mvm, true) ||
+	    req->n_channels > mvm->fw->ucode_capa.n_scan_channels)
 		return -ENOBUFS;
 
 	iwl_mvm_scan_calc_params(mvm, vif, req->n_ssids, 0, &params);
@@ -1273,7 +1358,7 @@ int iwl_mvm_unified_sched_scan_lmac(struct iwl_mvm *mvm,
 	if (req->n_ssids == 0)
 		flags |= IWL_MVM_LMAC_SCAN_FLAG_PASSIVE;
 
-	cmd->scan_flags = cpu_to_le32(flags);
+	cmd->scan_flags |= cpu_to_le32(flags);
 
 	cmd->flags = iwl_mvm_scan_rxon_flags(req->channels[0]->band);
 	cmd->filter_flags = cpu_to_le32(MAC_FILTER_ACCEPT_GRP |

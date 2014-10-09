@@ -47,6 +47,13 @@ static struct ctl_table tipc_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
+	{
+		.procname	= "named_timeout",
+		.data		= &sysctl_tipc_named_timeout,
+		.maxlen		= sizeof(sysctl_tipc_named_timeout),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
 	{}
 };
 

@@ -15,6 +15,17 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
+#include <linux/of.h>
+#include <linux/phy.h>
+#include <linux/phy_fixed.h>
+
+enum dsa_tag_protocol {
+	DSA_TAG_PROTO_NONE = 0,
+	DSA_TAG_PROTO_DSA,
+	DSA_TAG_PROTO_TRAILER,
+	DSA_TAG_PROTO_EDSA,
+	DSA_TAG_PROTO_BRCM,
+};
 
 #define DSA_MAX_SWITCHES	4
 #define DSA_MAX_PORTS		12
@@ -23,8 +34,14 @@ struct dsa_chip_data {
 	/*
 	 * How to access the switch configuration registers.
 	 */
-	struct device	*mii_bus;
+	struct device	*host_dev;
 	int		sw_addr;
+
+	/* Device tree node pointer for this specific switch chip
+	 * used during switch setup in case additional properties
+	 * and resources needs to be used
+	 */
+	struct device_node *of_node;
 
 	/*
 	 * The names of the switch's ports.  Use "cpu" to
@@ -34,6 +51,7 @@ struct dsa_chip_data {
 	 * or any other string to indicate this is a physical port.
 	 */
 	char		*port_names[DSA_MAX_PORTS];
+	struct device_node *port_dn[DSA_MAX_PORTS];
 
 	/*
 	 * An array (with nr_chips elements) of which element [a]
@@ -59,6 +77,8 @@ struct dsa_platform_data {
 	struct dsa_chip_data	*chip;
 };
 
+struct packet_type;
+
 struct dsa_switch_tree {
 	/*
 	 * Configuration data for the platform device that owns
@@ -71,7 +91,11 @@ struct dsa_switch_tree {
 	 * protocol to use.
 	 */
 	struct net_device	*master_netdev;
-	__be16			tag_protocol;
+	int			(*rcv)(struct sk_buff *skb,
+				       struct net_device *dev,
+				       struct packet_type *pt,
+				       struct net_device *orig_dev);
+	enum dsa_tag_protocol	tag_protocol;
 
 	/*
 	 * The switch and port to which the CPU is attached.
@@ -110,15 +134,16 @@ struct dsa_switch {
 	struct dsa_switch_driver	*drv;
 
 	/*
-	 * Reference to mii bus to use.
+	 * Reference to host device to use.
 	 */
-	struct mii_bus		*master_mii_bus;
+	struct device		*master_dev;
 
 	/*
 	 * Slave mii_bus and devices for the individual ports.
 	 */
 	u32			dsa_port_mask;
 	u32			phys_port_mask;
+	u32			phys_mii_mask;
 	struct mii_bus		*slave_mii_bus;
 	struct net_device	*ports[DSA_MAX_PORTS];
 };
@@ -147,15 +172,16 @@ static inline u8 dsa_upstream_port(struct dsa_switch *ds)
 struct dsa_switch_driver {
 	struct list_head	list;
 
-	__be16			tag_protocol;
+	enum dsa_tag_protocol	tag_protocol;
 	int			priv_size;
 
 	/*
 	 * Probing and setup.
 	 */
-	char	*(*probe)(struct mii_bus *bus, int sw_addr);
+	char	*(*probe)(struct device *host_dev, int sw_addr);
 	int	(*setup)(struct dsa_switch *ds);
 	int	(*set_addr)(struct dsa_switch *ds, u8 *addr);
+	u32	(*get_phy_flags)(struct dsa_switch *ds, int port);
 
 	/*
 	 * Access to the switch's PHY registers.
@@ -170,37 +196,64 @@ struct dsa_switch_driver {
 	void	(*poll_link)(struct dsa_switch *ds);
 
 	/*
+	 * Link state adjustment (called from libphy)
+	 */
+	void	(*adjust_link)(struct dsa_switch *ds, int port,
+				struct phy_device *phydev);
+	void	(*fixed_link_update)(struct dsa_switch *ds, int port,
+				struct fixed_phy_status *st);
+
+	/*
 	 * ethtool hardware statistics.
 	 */
 	void	(*get_strings)(struct dsa_switch *ds, int port, uint8_t *data);
 	void	(*get_ethtool_stats)(struct dsa_switch *ds,
 				     int port, uint64_t *data);
 	int	(*get_sset_count)(struct dsa_switch *ds);
+
+	/*
+	 * ethtool Wake-on-LAN
+	 */
+	void	(*get_wol)(struct dsa_switch *ds, int port,
+			   struct ethtool_wolinfo *w);
+	int	(*set_wol)(struct dsa_switch *ds, int port,
+			   struct ethtool_wolinfo *w);
+
+	/*
+	 * Suspend and resume
+	 */
+	int	(*suspend)(struct dsa_switch *ds);
+	int	(*resume)(struct dsa_switch *ds);
+
+	/*
+	 * Port enable/disable
+	 */
+	int	(*port_enable)(struct dsa_switch *ds, int port,
+			       struct phy_device *phy);
+	void	(*port_disable)(struct dsa_switch *ds, int port,
+				struct phy_device *phy);
+
+	/*
+	 * EEE setttings
+	 */
+	int	(*set_eee)(struct dsa_switch *ds, int port,
+			   struct phy_device *phydev,
+			   struct ethtool_eee *e);
+	int	(*get_eee)(struct dsa_switch *ds, int port,
+			   struct ethtool_eee *e);
 };
 
 void register_switch_driver(struct dsa_switch_driver *type);
 void unregister_switch_driver(struct dsa_switch_driver *type);
+struct mii_bus *dsa_host_dev_to_mii_bus(struct device *dev);
 
 static inline void *ds_to_priv(struct dsa_switch *ds)
 {
 	return (void *)(ds + 1);
 }
 
-/*
- * The original DSA tag format and some other tag formats have no
- * ethertype, which means that we need to add a little hack to the
- * networking receive path to make sure that received frames get
- * the right ->protocol assigned to them when one of those tag
- * formats is in use.
- */
-static inline bool dsa_uses_dsa_tags(struct dsa_switch_tree *dst)
+static inline bool dsa_uses_tagged_protocol(struct dsa_switch_tree *dst)
 {
-	return !!(dst->tag_protocol == htons(ETH_P_DSA));
+	return dst->rcv != NULL;
 }
-
-static inline bool dsa_uses_trailer_tags(struct dsa_switch_tree *dst)
-{
-	return !!(dst->tag_protocol == htons(ETH_P_TRAILER));
-}
-
 #endif

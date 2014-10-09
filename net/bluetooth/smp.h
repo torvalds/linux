@@ -102,6 +102,8 @@ struct smp_cmd_security_req {
 	__u8	auth_req;
 } __packed;
 
+#define SMP_CMD_MAX		0x0b
+
 #define SMP_PASSKEY_ENTRY_FAILED	0x01
 #define SMP_OOB_NOT_AVAIL		0x02
 #define SMP_AUTH_REQUIREMENTS		0x03
@@ -123,17 +125,23 @@ enum {
 	SMP_LTK_SLAVE,
 };
 
+static inline u8 smp_ltk_sec_level(struct smp_ltk *key)
+{
+	if (key->authenticated)
+		return BT_SECURITY_HIGH;
+
+	return BT_SECURITY_MEDIUM;
+}
+
 /* SMP Commands */
 bool smp_sufficient_security(struct hci_conn *hcon, u8 sec_level);
 int smp_conn_security(struct hci_conn *hcon, __u8 sec_level);
-int smp_sig_channel(struct l2cap_conn *conn, struct sk_buff *skb);
-int smp_distribute_keys(struct l2cap_conn *conn);
 int smp_user_confirm_reply(struct hci_conn *conn, u16 mgmt_op, __le32 passkey);
 
-void smp_chan_destroy(struct l2cap_conn *conn);
+bool smp_irk_matches(struct hci_dev *hdev, u8 irk[16], bdaddr_t *bdaddr);
+int smp_generate_rpa(struct hci_dev *hdev, u8 irk[16], bdaddr_t *rpa);
 
-bool smp_irk_matches(struct crypto_blkcipher *tfm, u8 irk[16],
-		     bdaddr_t *bdaddr);
-int smp_generate_rpa(struct crypto_blkcipher *tfm, u8 irk[16], bdaddr_t *rpa);
+int smp_register(struct hci_dev *hdev);
+void smp_unregister(struct hci_dev *hdev);
 
 #endif /* __SMP_H */

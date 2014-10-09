@@ -161,7 +161,7 @@ static int __init br_init(void)
 	if (err)
 		goto err_out1;
 
-	err = br_netfilter_init();
+	err = br_nf_core_init();
 	if (err)
 		goto err_out2;
 
@@ -179,11 +179,16 @@ static int __init br_init(void)
 	br_fdb_test_addr_hook = br_fdb_test_addr;
 #endif
 
+	pr_info("bridge: automatic filtering via arp/ip/ip6tables has been "
+		"deprecated. Update your scripts to load br_netfilter if you "
+		"need this.\n");
+
 	return 0;
+
 err_out4:
 	unregister_netdevice_notifier(&br_device_notifier);
 err_out3:
-	br_netfilter_fini();
+	br_nf_core_fini();
 err_out2:
 	unregister_pernet_subsys(&br_net_ops);
 err_out1:
@@ -196,20 +201,17 @@ err_out:
 static void __exit br_deinit(void)
 {
 	stp_proto_unregister(&br_stp_proto);
-
 	br_netlink_fini();
 	unregister_netdevice_notifier(&br_device_notifier);
 	brioctl_set(NULL);
-
 	unregister_pernet_subsys(&br_net_ops);
 
 	rcu_barrier(); /* Wait for completion of call_rcu()'s */
 
-	br_netfilter_fini();
+	br_nf_core_fini();
 #if IS_ENABLED(CONFIG_ATM_LANE)
 	br_fdb_test_addr_hook = NULL;
 #endif
-
 	br_fdb_fini();
 }
 

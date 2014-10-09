@@ -129,7 +129,7 @@ int mlx5_query_ext_port_caps(struct mlx5_ib_dev *dev, u8 port)
 
 	packet_error = be16_to_cpu(out_mad->status);
 
-	dev->mdev->caps.ext_port_cap[port - 1] = (!err && !packet_error) ?
+	dev->mdev->caps.gen.ext_port_cap[port - 1] = (!err && !packet_error) ?
 		MLX_EXT_PORT_CAP_FLAG_EXTENDED_PORT_INFO : 0;
 
 out:

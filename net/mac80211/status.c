@@ -3,6 +3,7 @@
  * Copyright 2005-2006, Devicescape Software, Inc.
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2008-2010	Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2013-2014  Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -537,6 +538,8 @@ static void ieee80211_tx_latency_end_msrmnt(struct ieee80211_local *local,
  *  - current throughput (higher value for higher tpt)?
  */
 #define STA_LOST_PKT_THRESHOLD	50
+#define STA_LOST_TDLS_PKT_THRESHOLD	10
+#define STA_LOST_TDLS_PKT_TIME		(10*HZ) /* 10secs since last ACK */
 
 static void ieee80211_lost_packet(struct sta_info *sta, struct sk_buff *skb)
 {
@@ -547,7 +550,20 @@ static void ieee80211_lost_packet(struct sta_info *sta, struct sk_buff *skb)
 	    !(info->flags & IEEE80211_TX_STAT_AMPDU))
 		return;
 
-	if (++sta->lost_packets < STA_LOST_PKT_THRESHOLD)
+	sta->lost_packets++;
+	if (!sta->sta.tdls && sta->lost_packets < STA_LOST_PKT_THRESHOLD)
+		return;
+
+	/*
+	 * If we're in TDLS mode, make sure that all STA_LOST_TDLS_PKT_THRESHOLD
+	 * of the last packets were lost, and that no ACK was received in the
+	 * last STA_LOST_TDLS_PKT_TIME ms, before triggering the CQM packet-loss
+	 * mechanism.
+	 */
+	if (sta->sta.tdls &&
+	    (sta->lost_packets < STA_LOST_TDLS_PKT_THRESHOLD ||
+	     time_before(jiffies,
+			 sta->last_tdls_pkt_time + STA_LOST_TDLS_PKT_TIME)))
 		return;
 
 	cfg80211_cqm_pktloss_notify(sta->sdata->dev, sta->sta.addr,
@@ -694,6 +710,10 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 			if (info->flags & IEEE80211_TX_STAT_ACK) {
 				if (sta->lost_packets)
 					sta->lost_packets = 0;
+
+				/* Track when last TDLS packet was ACKed */
+				if (test_sta_flag(sta, WLAN_STA_TDLS_PEER_AUTH))
+					sta->last_tdls_pkt_time = jiffies;
 			} else {
 				ieee80211_lost_packet(sta, skb);
 			}

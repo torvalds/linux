@@ -14,21 +14,106 @@
 #include <linux/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables.h>
 #include <net/netfilter/nft_reject.h>
+#include <net/netfilter/ipv4/nf_reject.h>
+#include <net/netfilter/ipv6/nf_reject.h>
 
 static void nft_reject_bridge_eval(const struct nft_expr *expr,
 				 struct nft_data data[NFT_REG_MAX + 1],
 				 const struct nft_pktinfo *pkt)
 {
+	struct nft_reject *priv = nft_expr_priv(expr);
+	struct net *net = dev_net((pkt->in != NULL) ? pkt->in : pkt->out);
+
 	switch (eth_hdr(pkt->skb)->h_proto) {
 	case htons(ETH_P_IP):
-		return nft_reject_ipv4_eval(expr, data, pkt);
+		switch (priv->type) {
+		case NFT_REJECT_ICMP_UNREACH:
+			nf_send_unreach(pkt->skb, priv->icmp_code);
+			break;
+		case NFT_REJECT_TCP_RST:
+			nf_send_reset(pkt->skb, pkt->ops->hooknum);
+			break;
+		case NFT_REJECT_ICMPX_UNREACH:
+			nf_send_unreach(pkt->skb,
+					nft_reject_icmp_code(priv->icmp_code));
+			break;
+		}
+		break;
 	case htons(ETH_P_IPV6):
-		return nft_reject_ipv6_eval(expr, data, pkt);
+		switch (priv->type) {
+		case NFT_REJECT_ICMP_UNREACH:
+			nf_send_unreach6(net, pkt->skb, priv->icmp_code,
+					 pkt->ops->hooknum);
+			break;
+		case NFT_REJECT_TCP_RST:
+			nf_send_reset6(net, pkt->skb, pkt->ops->hooknum);
+			break;
+		case NFT_REJECT_ICMPX_UNREACH:
+			nf_send_unreach6(net, pkt->skb,
+					 nft_reject_icmpv6_code(priv->icmp_code),
+					 pkt->ops->hooknum);
+			break;
+		}
+		break;
 	default:
 		/* No explicit way to reject this protocol, drop it. */
-		data[NFT_REG_VERDICT].verdict = NF_DROP;
 		break;
 	}
+	data[NFT_REG_VERDICT].verdict = NF_DROP;
+}
+
+static int nft_reject_bridge_init(const struct nft_ctx *ctx,
+				  const struct nft_expr *expr,
+				  const struct nlattr * const tb[])
+{
+	struct nft_reject *priv = nft_expr_priv(expr);
+	int icmp_code;
+
+	if (tb[NFTA_REJECT_TYPE] == NULL)
+		return -EINVAL;
+
+	priv->type = ntohl(nla_get_be32(tb[NFTA_REJECT_TYPE]));
+	switch (priv->type) {
+	case NFT_REJECT_ICMP_UNREACH:
+	case NFT_REJECT_ICMPX_UNREACH:
+		if (tb[NFTA_REJECT_ICMP_CODE] == NULL)
+			return -EINVAL;
+
+		icmp_code = nla_get_u8(tb[NFTA_REJECT_ICMP_CODE]);
+		if (priv->type == NFT_REJECT_ICMPX_UNREACH &&
+		    icmp_code > NFT_REJECT_ICMPX_MAX)
+			return -EINVAL;
+
+		priv->icmp_code = icmp_code;
+		break;
+	case NFT_REJECT_TCP_RST:
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int nft_reject_bridge_dump(struct sk_buff *skb,
+				  const struct nft_expr *expr)
+{
+	const struct nft_reject *priv = nft_expr_priv(expr);
+
+	if (nla_put_be32(skb, NFTA_REJECT_TYPE, htonl(priv->type)))
+		goto nla_put_failure;
+
+	switch (priv->type) {
+	case NFT_REJECT_ICMP_UNREACH:
+	case NFT_REJECT_ICMPX_UNREACH:
+		if (nla_put_u8(skb, NFTA_REJECT_ICMP_CODE, priv->icmp_code))
+			goto nla_put_failure;
+		break;
+	}
+
+	return 0;
+
+nla_put_failure:
+	return -1;
 }
 
 static struct nft_expr_type nft_reject_bridge_type;
@@ -36,8 +121,8 @@ static const struct nft_expr_ops nft_reject_bridge_ops = {
 	.type		= &nft_reject_bridge_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_reject)),
 	.eval		= nft_reject_bridge_eval,
-	.init		= nft_reject_init,
-	.dump		= nft_reject_dump,
+	.init		= nft_reject_bridge_init,
+	.dump		= nft_reject_bridge_dump,
 };
 
 static struct nft_expr_type nft_reject_bridge_type __read_mostly = {

@@ -485,7 +485,7 @@ static void __net_exit lowpan_frags_ns_sysctl_unregister(struct net *net)
 
 static struct ctl_table_header *lowpan_ctl_header;
 
-static int lowpan_frags_sysctl_register(void)
+static int __init lowpan_frags_sysctl_register(void)
 {
 	lowpan_ctl_header = register_net_sysctl(&init_net,
 						"net/ieee802154/6lowpan",
@@ -507,7 +507,7 @@ static inline void lowpan_frags_ns_sysctl_unregister(struct net *net)
 {
 }
 
-static inline int lowpan_frags_sysctl_register(void)
+static inline int __init lowpan_frags_sysctl_register(void)
 {
 	return 0;
 }

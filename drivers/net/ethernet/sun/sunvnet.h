@@ -11,6 +11,12 @@
  */
 #define VNET_TX_TIMEOUT			(5 * HZ)
 
+/* length of time (or less) we expect pending descriptors to be marked
+ * as VIO_DESC_DONE and skbs ready to be freed
+ */
+#define	VNET_CLEAN_TIMEOUT		((HZ/100)+1)
+
+#define VNET_MAXPACKET			(65535ULL + ETH_HLEN + VLAN_HLEN)
 #define VNET_TX_RING_SIZE		512
 #define VNET_TX_WAKEUP_THRESH(dr)	((dr)->pending / 4)
 
@@ -20,10 +26,12 @@
  */
 #define VNET_PACKET_SKIP		6
 
+#define VNET_MAXCOOKIES			(VNET_MAXPACKET/PAGE_SIZE + 1)
+
 struct vnet_tx_entry {
-	void			*buf;
+	struct sk_buff		*skb;
 	unsigned int		ncookies;
-	struct ldc_trans_cookie	cookies[2];
+	struct ldc_trans_cookie	cookies[VNET_MAXCOOKIES];
 };
 
 struct vnet;
@@ -40,6 +48,14 @@ struct vnet_port {
 	struct vnet_tx_entry	tx_bufs[VNET_TX_RING_SIZE];
 
 	struct list_head	list;
+
+	u32			stop_rx_idx;
+	bool			stop_rx;
+	bool			start_cons;
+
+	struct timer_list	clean_timer;
+
+	u64			rmtu;
 };
 
 static inline struct vnet_port *to_vnet_port(struct vio_driver_state *vio)

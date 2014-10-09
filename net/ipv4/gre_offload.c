@@ -15,13 +15,6 @@
 #include <net/protocol.h>
 #include <net/gre.h>
 
-static int gre_gso_send_check(struct sk_buff *skb)
-{
-	if (!skb->encapsulation)
-		return -EINVAL;
-	return 0;
-}
-
 static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 				       netdev_features_t features)
 {
@@ -44,6 +37,9 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 				  SKB_GSO_GRE |
 				  SKB_GSO_GRE_CSUM |
 				  SKB_GSO_IPIP)))
+		goto out;
+
+	if (!skb->encapsulation)
 		goto out;
 
 	if (unlikely(!pskb_may_pull(skb, sizeof(*greh))))
@@ -119,28 +115,6 @@ out:
 	return segs;
 }
 
-/* Compute the whole skb csum in s/w and store it, then verify GRO csum
- * starting from gro_offset.
- */
-static __sum16 gro_skb_checksum(struct sk_buff *skb)
-{
-	__sum16 sum;
-
-	skb->csum = skb_checksum(skb, 0, skb->len, 0);
-	NAPI_GRO_CB(skb)->csum = csum_sub(skb->csum,
-		csum_partial(skb->data, skb_gro_offset(skb), 0));
-	sum = csum_fold(NAPI_GRO_CB(skb)->csum);
-	if (unlikely(skb->ip_summed == CHECKSUM_COMPLETE)) {
-		if (unlikely(!sum) && !skb->csum_complete_sw)
-			netdev_rx_csum_fault(skb->dev);
-	} else {
-		skb->ip_summed = CHECKSUM_COMPLETE;
-		skb->csum_complete_sw = 1;
-	}
-
-	return sum;
-}
-
 static struct sk_buff **gre_gro_receive(struct sk_buff **head,
 					struct sk_buff *skb)
 {
@@ -192,22 +166,16 @@ static struct sk_buff **gre_gro_receive(struct sk_buff **head,
 		if (unlikely(!greh))
 			goto out_unlock;
 	}
-	if (greh->flags & GRE_CSUM) { /* Need to verify GRE csum first */
-		__sum16 csum = 0;
 
-		if (skb->ip_summed == CHECKSUM_COMPLETE)
-			csum = csum_fold(NAPI_GRO_CB(skb)->csum);
-		/* Don't trust csum error calculated/reported by h/w */
-		if (skb->ip_summed == CHECKSUM_NONE || csum != 0)
-			csum = gro_skb_checksum(skb);
-
-		/* GRE CSUM is the 1's complement of the 1's complement sum
-		 * of the GRE hdr plus payload so it should add up to 0xffff
-		 * (and 0 after csum_fold()) just like the IPv4 hdr csum.
-		 */
-		if (csum)
+	/* Don't bother verifying checksum if we're going to flush anyway. */
+	if ((greh->flags & GRE_CSUM) && !NAPI_GRO_CB(skb)->flush) {
+		if (skb_gro_checksum_simple_validate(skb))
 			goto out_unlock;
+
+		skb_gro_checksum_try_convert(skb, IPPROTO_GRE, 0,
+					     null_compute_pseudo);
 	}
+
 	flush = 0;
 
 	for (p = *head; p; p = p->next) {
@@ -284,7 +252,6 @@ static int gre_gro_complete(struct sk_buff *skb, int nhoff)
 
 static const struct net_offload gre_offload = {
 	.callbacks = {
-		.gso_send_check = gre_gso_send_check,
 		.gso_segment = gre_gso_segment,
 		.gro_receive = gre_gro_receive,
 		.gro_complete = gre_gro_complete,

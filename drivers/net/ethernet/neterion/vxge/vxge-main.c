@@ -3537,7 +3537,7 @@ static void vxge_device_unregister(struct __vxge_hw_device *hldev)
 	vxge_debug_entryexit(vdev->level_trace,	"%s: %s:%d", vdev->ndev->name,
 			     __func__, __LINE__);
 
-	strncpy(buf, dev->name, IFNAMSIZ);
+	strlcpy(buf, dev->name, IFNAMSIZ);
 
 	flush_work(&vdev->reset_task);
 

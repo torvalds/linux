@@ -158,7 +158,6 @@ static void ath_txq_skb_done(struct ath_softc *sc, struct ath_txq *txq,
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ath_frame_info *fi = get_frame_info(skb);
-	int hw_queue;
 	int q = fi->txq;
 
 	if (q < 0)
@@ -168,10 +167,9 @@ static void ath_txq_skb_done(struct ath_softc *sc, struct ath_txq *txq,
 	if (WARN_ON(--txq->pending_frames < 0))
 		txq->pending_frames = 0;
 
-	hw_queue = (info->hw_queue >= sc->hw->queues - 2) ? q : info->hw_queue;
 	if (txq->stopped &&
 	    txq->pending_frames < sc->tx.txq_max_pending[q]) {
-		ieee80211_wake_queue(sc->hw, hw_queue);
+		ieee80211_wake_queue(sc->hw, info->hw_queue);
 		txq->stopped = false;
 	}
 }
@@ -587,6 +585,10 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 				memcpy(tx_info->control.rates, rates, sizeof(rates));
 				ath_tx_rc_status(sc, bf, ts, nframes, nbad, txok);
 				rc_update = false;
+				if (bf == bf->bf_lastbf)
+					ath_dynack_sample_tx_ts(sc->sc_ah,
+								bf->bf_mpdu,
+								ts);
 			}
 
 			ath_tx_complete_buf(sc, bf, txq, &bf_head, ts,
@@ -681,12 +683,15 @@ static void ath_tx_process_buffer(struct ath_softc *sc, struct ath_txq *txq,
 	if (bf_is_ampdu_not_probing(bf))
 		txq->axq_ampdu_depth--;
 
+	ts->duration = ath9k_hw_get_duration(sc->sc_ah, bf->bf_desc,
+					     ts->ts_rateindex);
 	if (!bf_isampdu(bf)) {
 		if (!flush) {
 			info = IEEE80211_SKB_CB(bf->bf_mpdu);
 			memcpy(info->control.rates, bf->rates,
 			       sizeof(info->control.rates));
 			ath_tx_rc_status(sc, bf, ts, 1, txok ? 0 : 1, txok);
+			ath_dynack_sample_tx_ts(sc->sc_ah, bf->bf_mpdu, ts);
 		}
 		ath_tx_complete_buf(sc, bf, txq, bf_head, ts, txok);
 	} else
@@ -1836,15 +1841,17 @@ void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
 	if (txq->mac80211_qnum < 0)
 		return;
 
-	spin_lock_bh(&sc->chan_lock);
-	ac_list = &sc->cur_chan->acq[txq->mac80211_qnum];
-	spin_unlock_bh(&sc->chan_lock);
-
-	if (test_bit(ATH_OP_HW_RESET, &common->op_flags) ||
-	    list_empty(ac_list))
+	if (test_bit(ATH_OP_HW_RESET, &common->op_flags))
 		return;
 
 	spin_lock_bh(&sc->chan_lock);
+	ac_list = &sc->cur_chan->acq[txq->mac80211_qnum];
+
+	if (list_empty(ac_list)) {
+		spin_unlock_bh(&sc->chan_lock);
+		return;
+	}
+
 	rcu_read_lock();
 
 	last_ac = list_entry(ac_list->prev, struct ath_atx_ac, list);
@@ -2202,9 +2209,8 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct ath_txq *txq = txctl->txq;
 	struct ath_atx_tid *tid = NULL;
 	struct ath_buf *bf;
-	bool queue;
-	int q, hw_queue;
-	int ret;
+	bool queue, skip_uapsd = false;
+	int q, ret;
 
 	if (vif)
 		avp = (void *)vif->drv_priv;
@@ -2223,14 +2229,13 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 	 */
 
 	q = skb_get_queue_mapping(skb);
-	hw_queue = (info->hw_queue >= sc->hw->queues - 2) ? q : info->hw_queue;
 
 	ath_txq_lock(sc, txq);
 	if (txq == sc->tx.txq_map[q]) {
 		fi->txq = q;
 		if (++txq->pending_frames > sc->tx.txq_max_pending[q] &&
 		    !txq->stopped) {
-			ieee80211_stop_queue(sc->hw, hw_queue);
+			ieee80211_stop_queue(sc->hw, info->hw_queue);
 			txq->stopped = true;
 		}
 	}
@@ -2245,15 +2250,14 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 	     sc->cur_chan->stopped) && !txctl->force_channel) {
 		if (!txctl->an)
 			txctl->an = &avp->mcast_node;
-		info->flags &= ~IEEE80211_TX_CTL_PS_RESPONSE;
 		queue = true;
+		skip_uapsd = true;
 	}
 
 	if (txctl->an && queue)
 		tid = ath_get_skb_tid(sc, txctl->an, skb);
 
-	if (info->flags & (IEEE80211_TX_CTL_PS_RESPONSE |
-			   IEEE80211_TX_CTL_TX_OFFCHAN)) {
+	if (!skip_uapsd && (info->flags & IEEE80211_TX_CTL_PS_RESPONSE)) {
 		ath_txq_unlock(sc, txq);
 		txq = sc->tx.uapsdq;
 		ath_txq_lock(sc, txq);
@@ -2632,8 +2636,11 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 			sc->beacon.tx_processed = true;
 			sc->beacon.tx_last = !(ts.ts_status & ATH9K_TXERR_MASK);
 
-			ath_chanctx_event(sc, NULL,
-					  ATH_CHANCTX_EVENT_BEACON_SENT);
+			if (ath9k_is_chanctx_enabled()) {
+				ath_chanctx_event(sc, NULL,
+						  ATH_CHANCTX_EVENT_BEACON_SENT);
+			}
+
 			ath9k_csa_update(sc);
 			continue;
 		}

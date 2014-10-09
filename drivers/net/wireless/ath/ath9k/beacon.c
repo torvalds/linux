@@ -108,55 +108,6 @@ static void ath9k_beacon_setup(struct ath_softc *sc, struct ieee80211_vif *vif,
 	ath9k_hw_set_txdesc(ah, bf->bf_desc, &info);
 }
 
-static void ath9k_beacon_add_noa(struct ath_softc *sc, struct ath_vif *avp,
-				 struct sk_buff *skb)
-{
-	static const u8 noa_ie_hdr[] = {
-		WLAN_EID_VENDOR_SPECIFIC,	/* type */
-		0,				/* length */
-		0x50, 0x6f, 0x9a,		/* WFA OUI */
-		0x09,				/* P2P subtype */
-		0x0c,				/* Notice of Absence */
-		0x00,				/* LSB of little-endian len */
-		0x00,				/* MSB of little-endian len */
-	};
-
-	struct ieee80211_p2p_noa_attr *noa;
-	int noa_len, noa_desc, i = 0;
-	u8 *hdr;
-
-	if (!avp->offchannel_duration && !avp->periodic_noa_duration)
-		return;
-
-	noa_desc = !!avp->offchannel_duration + !!avp->periodic_noa_duration;
-	noa_len = 2 + sizeof(struct ieee80211_p2p_noa_desc) * noa_desc;
-
-	hdr = skb_put(skb, sizeof(noa_ie_hdr));
-	memcpy(hdr, noa_ie_hdr, sizeof(noa_ie_hdr));
-	hdr[1] = sizeof(noa_ie_hdr) + noa_len - 2;
-	hdr[7] = noa_len;
-
-	noa = (void *) skb_put(skb, noa_len);
-	memset(noa, 0, noa_len);
-
-	noa->index = avp->noa_index;
-	if (avp->periodic_noa_duration) {
-		u32 interval = TU_TO_USEC(sc->cur_chan->beacon.beacon_interval);
-
-		noa->desc[i].count = 255;
-		noa->desc[i].start_time = cpu_to_le32(avp->periodic_noa_start);
-		noa->desc[i].duration = cpu_to_le32(avp->periodic_noa_duration);
-		noa->desc[i].interval = cpu_to_le32(interval);
-		i++;
-	}
-
-	if (avp->offchannel_duration) {
-		noa->desc[i].count = 1;
-		noa->desc[i].start_time = cpu_to_le32(avp->offchannel_start);
-		noa->desc[i].duration = cpu_to_le32(avp->offchannel_duration);
-	}
-}
-
 static struct ath_buf *ath9k_beacon_generate(struct ieee80211_hw *hw,
 					     struct ieee80211_vif *vif)
 {
@@ -232,7 +183,7 @@ static struct ath_buf *ath9k_beacon_generate(struct ieee80211_hw *hw,
 	spin_unlock_bh(&cabq->axq_lock);
 
 	if (skb && cabq_depth) {
-		if (sc->nvifs > 1) {
+		if (sc->cur_chan->nvifs > 1) {
 			ath_dbg(common, BEACON,
 				"Flushing previous cabq traffic\n");
 			ath_draintxq(sc, cabq);
@@ -427,9 +378,10 @@ void ath9k_beacon_tasklet(unsigned long data)
 
 	/* EDMA devices check that in the tx completion function. */
 	if (!edma) {
-		if (sc->sched.beacon_pending)
-			ath_chanctx_event(sc, NULL,
+		if (ath9k_is_chanctx_enabled()) {
+			ath_chanctx_beacon_sent_ev(sc,
 					  ATH_CHANCTX_EVENT_BEACON_SENT);
+		}
 
 		if (ath9k_csa_is_finished(sc, vif))
 			return;
@@ -438,7 +390,10 @@ void ath9k_beacon_tasklet(unsigned long data)
 	if (!vif || !vif->bss_conf.enable_beacon)
 		return;
 
-	ath_chanctx_event(sc, vif, ATH_CHANCTX_EVENT_BEACON_PREPARE);
+	if (ath9k_is_chanctx_enabled()) {
+		ath_chanctx_event(sc, vif, ATH_CHANCTX_EVENT_BEACON_PREPARE);
+	}
+
 	bf = ath9k_beacon_generate(sc->hw, vif);
 
 	if (sc->beacon.bmisscnt != 0) {
@@ -559,6 +514,18 @@ static bool ath9k_allow_beacon_config(struct ath_softc *sc,
 				      struct ieee80211_vif *vif)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_vif *avp = (void *)vif->drv_priv;
+
+	if (ath9k_is_chanctx_enabled()) {
+		/*
+		 * If the VIF is not present in the current channel context,
+		 * then we can't do the usual opmode checks. Allow the
+		 * beacon config for the VIF to be updated in this case and
+		 * return immediately.
+		 */
+		if (sc->cur_chan != avp->chanctx)
+			return true;
+	}
 
 	if (sc->sc_ah->opmode == NL80211_IFTYPE_AP) {
 		if ((vif->type != NL80211_IFTYPE_AP) ||

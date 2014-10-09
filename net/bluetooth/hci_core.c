@@ -1898,6 +1898,8 @@ static int __hci_init(struct hci_dev *hdev)
 		debugfs_create_u16("discov_interleaved_timeout", 0644,
 				   hdev->debugfs,
 				   &hdev->discov_interleaved_timeout);
+
+		smp_register(hdev);
 	}
 
 	return 0;
@@ -2539,6 +2541,7 @@ static void hci_pend_le_actions_clear(struct hci_dev *hdev)
 	list_for_each_entry(p, &hdev->le_conn_params, list) {
 		if (p->conn) {
 			hci_conn_drop(p->conn);
+			hci_conn_put(p->conn);
 			p->conn = NULL;
 		}
 		list_del_init(&p->action);
@@ -3238,7 +3241,7 @@ struct smp_irk *hci_find_irk_by_rpa(struct hci_dev *hdev, bdaddr_t *rpa)
 	}
 
 	list_for_each_entry(irk, &hdev->identity_resolving_keys, list) {
-		if (smp_irk_matches(hdev->tfm_aes, irk->val, rpa)) {
+		if (smp_irk_matches(hdev, irk->val, rpa)) {
 			bacpy(&irk->rpa, rpa);
 			return irk;
 		}
@@ -3723,6 +3726,18 @@ int hci_conn_params_set(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type,
 	return 0;
 }
 
+static void hci_conn_params_free(struct hci_conn_params *params)
+{
+	if (params->conn) {
+		hci_conn_drop(params->conn);
+		hci_conn_put(params->conn);
+	}
+
+	list_del(&params->action);
+	list_del(&params->list);
+	kfree(params);
+}
+
 /* This function requires the caller holds hdev->lock */
 void hci_conn_params_del(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type)
 {
@@ -3732,12 +3747,7 @@ void hci_conn_params_del(struct hci_dev *hdev, bdaddr_t *addr, u8 addr_type)
 	if (!params)
 		return;
 
-	if (params->conn)
-		hci_conn_drop(params->conn);
-
-	list_del(&params->action);
-	list_del(&params->list);
-	kfree(params);
+	hci_conn_params_free(params);
 
 	hci_update_background_scan(hdev);
 
@@ -3764,13 +3774,8 @@ void hci_conn_params_clear_all(struct hci_dev *hdev)
 {
 	struct hci_conn_params *params, *tmp;
 
-	list_for_each_entry_safe(params, tmp, &hdev->le_conn_params, list) {
-		if (params->conn)
-			hci_conn_drop(params->conn);
-		list_del(&params->action);
-		list_del(&params->list);
-		kfree(params);
-	}
+	list_for_each_entry_safe(params, tmp, &hdev->le_conn_params, list)
+		hci_conn_params_free(params);
 
 	hci_update_background_scan(hdev);
 
@@ -3867,6 +3872,7 @@ static void set_random_addr(struct hci_request *req, bdaddr_t *rpa)
 	if (test_bit(HCI_LE_ADV, &hdev->dev_flags) ||
 	    hci_conn_hash_lookup_state(hdev, LE_LINK, BT_CONNECT)) {
 		BT_DBG("Deferring random address update");
+		set_bit(HCI_RPA_EXPIRED, &hdev->dev_flags);
 		return;
 	}
 
@@ -3892,7 +3898,7 @@ int hci_update_random_address(struct hci_request *req, bool require_privacy,
 		    !bacmp(&hdev->random_addr, &hdev->rpa))
 			return 0;
 
-		err = smp_generate_rpa(hdev->tfm_aes, hdev->irk, &hdev->rpa);
+		err = smp_generate_rpa(hdev, hdev->irk, &hdev->rpa);
 		if (err < 0) {
 			BT_ERR("%s failed to generate new RPA", hdev->name);
 			return err;
@@ -4100,18 +4106,9 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	dev_set_name(&hdev->dev, "%s", hdev->name);
 
-	hdev->tfm_aes = crypto_alloc_blkcipher("ecb(aes)", 0,
-					       CRYPTO_ALG_ASYNC);
-	if (IS_ERR(hdev->tfm_aes)) {
-		BT_ERR("Unable to create crypto context");
-		error = PTR_ERR(hdev->tfm_aes);
-		hdev->tfm_aes = NULL;
-		goto err_wqueue;
-	}
-
 	error = device_add(&hdev->dev);
 	if (error < 0)
-		goto err_tfm;
+		goto err_wqueue;
 
 	hdev->rfkill = rfkill_alloc(hdev->name, &hdev->dev,
 				    RFKILL_TYPE_BLUETOOTH, &hci_rfkill_ops,
@@ -4153,8 +4150,6 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	return id;
 
-err_tfm:
-	crypto_free_blkcipher(hdev->tfm_aes);
 err_wqueue:
 	destroy_workqueue(hdev->workqueue);
 	destroy_workqueue(hdev->req_workqueue);
@@ -4206,8 +4201,7 @@ void hci_unregister_dev(struct hci_dev *hdev)
 		rfkill_destroy(hdev->rfkill);
 	}
 
-	if (hdev->tfm_aes)
-		crypto_free_blkcipher(hdev->tfm_aes);
+	smp_unregister(hdev);
 
 	device_del(&hdev->dev);
 
@@ -4380,26 +4374,6 @@ static int hci_reassembly(struct hci_dev *hdev, int type, void *data,
 	return remain;
 }
 
-int hci_recv_fragment(struct hci_dev *hdev, int type, void *data, int count)
-{
-	int rem = 0;
-
-	if (type < HCI_ACLDATA_PKT || type > HCI_EVENT_PKT)
-		return -EILSEQ;
-
-	while (count) {
-		rem = hci_reassembly(hdev, type, data, count, type - 1);
-		if (rem < 0)
-			return rem;
-
-		data += (count - rem);
-		count = rem;
-	}
-
-	return rem;
-}
-EXPORT_SYMBOL(hci_recv_fragment);
-
 #define STREAM_REASSEMBLY 0
 
 int hci_recv_stream_fragment(struct hci_dev *hdev, void *data, int count)
@@ -4553,6 +4527,7 @@ static struct sk_buff *hci_prepare_cmd(struct hci_dev *hdev, u16 opcode,
 	BT_DBG("skb len %d", skb->len);
 
 	bt_cb(skb)->pkt_type = HCI_COMMAND_PKT;
+	bt_cb(skb)->opcode = opcode;
 
 	return skb;
 }
@@ -5689,4 +5664,53 @@ void hci_update_background_scan(struct hci_dev *hdev)
 	err = hci_req_run(&req, update_background_scan_complete);
 	if (err)
 		BT_ERR("Failed to run HCI request: err %d", err);
+}
+
+static bool disconnected_whitelist_entries(struct hci_dev *hdev)
+{
+	struct bdaddr_list *b;
+
+	list_for_each_entry(b, &hdev->whitelist, list) {
+		struct hci_conn *conn;
+
+		conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &b->bdaddr);
+		if (!conn)
+			return true;
+
+		if (conn->state != BT_CONNECTED && conn->state != BT_CONFIG)
+			return true;
+	}
+
+	return false;
+}
+
+void hci_update_page_scan(struct hci_dev *hdev, struct hci_request *req)
+{
+	u8 scan;
+
+	if (!test_bit(HCI_BREDR_ENABLED, &hdev->dev_flags))
+		return;
+
+	if (!hdev_is_powered(hdev))
+		return;
+
+	if (mgmt_powering_down(hdev))
+		return;
+
+	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags) ||
+	    disconnected_whitelist_entries(hdev))
+		scan = SCAN_PAGE;
+	else
+		scan = SCAN_DISABLED;
+
+	if (test_bit(HCI_PSCAN, &hdev->flags) == !!(scan & SCAN_PAGE))
+		return;
+
+	if (test_bit(HCI_DISCOVERABLE, &hdev->dev_flags))
+		scan |= SCAN_INQUIRY;
+
+	if (req)
+		hci_req_add(req, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
+	else
+		hci_send_cmd(hdev, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
 }
