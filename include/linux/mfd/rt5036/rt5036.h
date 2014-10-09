@@ -16,7 +16,7 @@
 #include <linux/power_supply.h>
 
 #define RT5036_DEV_NAME		"rt5036"
-#define RT5036_DRV_VER		"1.0.8_R"
+#define RT5036_DRV_VER		"1.0.9_R"
 
 enum {
 	RT5036_ID_DCDC1,

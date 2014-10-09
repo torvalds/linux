@@ -92,6 +92,13 @@ config CHARGER_RT5036
 	help
 	  Say Y here to enable support for RT5036 chip charger subdevice.
 
+config CHARGER_RT5036_VMID_HDMI
+	bool "RT5036 charger VMID HDMI support"
+	depends on CHARGER_RT5036
+	default n
+	help
+	  Say Y here to enable support for RT5036 charger VMID HDMI Boost.
+
 config RT_POWER
 	bool "RT PMIC cable report"
 	depends on CHARGER_RT5036 || CHARGER_RT5025

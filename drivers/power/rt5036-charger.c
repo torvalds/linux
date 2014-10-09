@@ -44,12 +44,20 @@
 
 static unsigned char chg_init_regval[] = {
 	0xb0,			/*REG 0x01*/
+#ifdef CONFIG_CHARGER_RT5036_VMID_HDMI
+	0xDC,			/*REG 0x02*/
+#else
 	0x58,			/*REG 0x02*/
+#endif /* #ifdef CONFIG_CHARGER_RT5036_VMID_HDMI */
 	0x00,			/*REG 0x03*/
 	0xFE,			/*REG 0x04*/
 	0x93,			/*REG 0x05*/
 	0xAD,			/*REG 0x06*/
+#ifdef CONFIG_CHARGER_RT5036_VMID_HDMI
+	0x94,			/*REG 0x07*/
+	#else
 	0xB4,			/*REG 0x07*/
+#endif /* #ifdef CONFIG_CHARGER_RT5036_VMID_HDMI */
 	0x01,			/*REG 0x08*/
 	0x0C,			/*REG 0x13*/
 	0x80,			/*REG 0x14*/
@@ -381,9 +389,16 @@ static int rt_charger_set_property(struct power_supply *psy,
 				ci->psy.set_property(&ci->psy,
 					POWER_SUPPLY_PROP_VOLTAGE_NOW,
 					&pval);
+#ifdef CONFIG_CHARGER_RT5036_VMID_HDMI
+				dev_info(ci->dev, "set UUG on\n");
+				ret = rt5036_set_bits(ci->i2c, RT5036_REG_CHGCTL6, 0x20);
+				rt5036_set_bits(ci->i2c, RT5036_REG_CHGCTL1,
+					    RT5036_CHGOPAMODE_MASK);
+#else
 				ret =
 				    rt5036_set_bits(ci->i2c, RT5036_REG_CHGCTL1,
 						    RT5036_CHGOPAMODE_MASK);
+#endif /* #ifdef CONFIG_CHARGER_RT5036_VMID_HDMI */
 				/* otg drop fix */
 				mdelay(10);
 				rt5036_clr_bits(ci->i2c, 0x23, 0x3);
@@ -396,23 +411,39 @@ static int rt_charger_set_property(struct power_supply *psy,
 			ci->psy.set_property(&ci->psy,
 					     POWER_SUPPLY_PROP_VOLTAGE_NOW,
 					     &pval);
+#ifdef CONFIG_CHARGER_RT5036_VMID_HDMI
+			ret = rt5036_set_bits(ci->i2c, RT5036_REG_CHGCTL6, 0x20);
+#else
 			ret =
 			    rt5036_set_bits(ci->i2c, RT5036_REG_CHGCTL1,
 					    RT5036_CHGOPAMODE_MASK);
+#endif /* #ifdef CONFIG_CHARGER_RT5036_VMID_HDMI */
 			/* otg drop fix */
 			mdelay(10);
 			rt5036_clr_bits(ci->i2c, 0x23, 0x3);
 #endif /* #ifdef CONFIG_RT_SUPPORT_ACUSB_DUALIN */
 		} else if (val->intval == 0) {
 #ifdef CONFIG_RT_SUPPORT_ACUSB_DUALIN
-			if (ci->charge_cable != POWER_SUPPLY_TYPE_MAINS)
+			if (ci->charge_cable != POWER_SUPPLY_TYPE_MAINS) {
+#ifdef CONFIG_CHARGER_RT5036_VMID_HDMI
+				dev_info(ci->dev, "set UUG off\n");
+				ret = rt5036_clr_bits(ci->i2c, RT5036_REG_CHGCTL6, 0x20);
+				rt5036_set_bits(ci->i2c, RT5036_REG_CHGCTL1,
+					    RT5036_CHGOPAMODE_MASK);
+#else
 				ret =
 				    rt5036_clr_bits(ci->i2c, RT5036_REG_CHGCTL1,
 						    RT5036_CHGOPAMODE_MASK);
+#endif /* #ifdef CONFIG_CHARGER_RT5036_VMID_HDMI */
+			}
+#else
+#ifdef CONFIG_CHARGER_RT5036_VMID_HDMI
+			ret = rt5036_clr_bits(ci->i2c, RT5036_REG_CHGCTL6, 0x20);
 #else
 			ret =
 			    rt5036_clr_bits(ci->i2c, RT5036_REG_CHGCTL1,
 					    RT5036_CHGOPAMODE_MASK);
+#endif /* #ifdef CONFIG_CHARGER_RT5036_VMID_HDMI */
 #endif /* #ifdef CONFIG_RT_SUPPORT_ACUSB_DUALIN */
 			ci->otg_en = 0;
 		} else if (val->intval < 500)
@@ -475,6 +506,11 @@ static void rt5036_stat2alrt_irq_handler(void *info, int eventno)
 			struct power_supply *psy =
 			    power_supply_get_by_name(RT_USB_NAME);
 			if (psy) {
+#ifdef CONFIG_CHARGER_RT5036_VMID_HDMI
+				rt5036_clr_bits(ci->i2c, RT5036_REG_CHGCTL1,
+					    RT5036_CHGOPAMODE_MASK);
+				rt5036_set_bits(ci->i2c, RT5036_REG_CHGCTL6, 0x20);
+#endif /* #ifdef CONFIG_CHARGER_RT5036_VMID_HDMI */
 				pval.intval = 1;
 				psy->set_property(psy, POWER_SUPPLY_PROP_ONLINE,
 						  &pval);
@@ -494,13 +530,21 @@ static void rt5036_stat2alrt_irq_handler(void *info, int eventno)
 				psy->set_property(psy, POWER_SUPPLY_PROP_ONLINE,
 						  &pval);
 				power_supply_changed(psy);
-			} else {
+#ifdef CONFIG_CHARGER_RT5036_VMID_HDMI
+				rt5036_clr_bits(ci->i2c, RT5036_REG_CHGCTL6, 0x20);
+				pval.intval = ci->otg_volt;
+				ci->psy.set_property(&ci->psy,
+						     POWER_SUPPLY_PROP_VOLTAGE_NOW,
+						     &pval);
+				rt5036_set_bits(ci->i2c, RT5036_REG_CHGCTL1,
+					    RT5036_CHGOPAMODE_MASK);
+#endif /* #ifdef CONFIG_CHARGER_RT5036_VMID_HDMI */
+			} else
 				dev_err(ci->dev, "couldn't get RT usb\n");
 			}
 #endif /* #ifndef CONFIG_RT_SUPPORT_ACUSB_DUALIN */
 			dev_info(ci->dev, "cable out\n");
 		}
-	}
 	/*jeita status change*/
 	old_stat = new_stat & RT5036_TSEVENT_MASK;
 	if (old_stat & RT5036_TSWC_MASK) {
@@ -752,9 +796,15 @@ static irqreturn_t rt5036_acdet_irq_handler(int irqno, void *param)
 		else
 			irq_set_irq_type(ci->acdet_irq, IRQF_TRIGGER_RISING);
 		if (psy) {
+#ifdef CONFIG_CHARGER_RT5036_VMID_HDMI
+			rt5036_clr_bits(ci->i2c, RT5036_REG_CHGCTL1,
+				    RT5036_CHGOPAMODE_MASK);
+			rt5036_set_bits(ci->i2c, RT5036_REG_CHGCTL6, 0x20);
+#else
 			if (ci->otg_en)
 				rt5036_clr_bits(ci->i2c, RT5036_REG_CHGCTL1,
 						RT5036_CHGOPAMODE_MASK);
+#endif /* #ifdef CONFIG_CHARGER_RT5036_VMID_HDMI */
 			pval.intval = 1;
 			psy->set_property(psy, POWER_SUPPLY_PROP_ONLINE, &pval);
 			power_supply_changed(psy);
@@ -774,6 +824,20 @@ static irqreturn_t rt5036_acdet_irq_handler(int irqno, void *param)
 			pval.intval = 0;
 			psy->set_property(psy, POWER_SUPPLY_PROP_ONLINE, &pval);
 			power_supply_changed(psy);
+#ifdef CONFIG_CHARGER_RT5036_VMID_HDMI
+			if (ci->charge_cable == 0) {
+				if (ci->otg_en)
+					rt5036_set_bits(ci->i2c, RT5036_REG_CHGCTL6, 0x20);
+				else
+					rt5036_clr_bits(ci->i2c, RT5036_REG_CHGCTL6, 0x20);
+				pval.intval = ci->otg_volt;
+				ci->psy.set_property(&ci->psy,
+						     POWER_SUPPLY_PROP_VOLTAGE_NOW,
+						     &pval);
+				rt5036_set_bits(ci->i2c, RT5036_REG_CHGCTL1,
+					    RT5036_CHGOPAMODE_MASK);
+			}
+#else
 			if (ci->otg_en) {
 				/*set otg voltage*/
 				pval.intval = ci->otg_volt;
@@ -783,7 +847,8 @@ static irqreturn_t rt5036_acdet_irq_handler(int irqno, void *param)
 				rt5036_set_bits(ci->i2c, RT5036_REG_CHGCTL1,
 						RT5036_CHGOPAMODE_MASK);
 			}
-		} else {
+#endif /* #ifdef CONFIG_CHARGER_RT5036_VMID_HDMI */
+		} else
 			dev_err(ci->dev, "couldn't get RT ac\n");
 			}
 		dev_info(ci->dev, "ac out\n");
@@ -808,6 +873,11 @@ static irqreturn_t rt5036_usbdet_irq_handler(int irqno, void *param)
 		else
 			irq_set_irq_type(ci->usbdet_irq, IRQF_TRIGGER_RISING);
 		if (psy) {
+#ifdef CONFIG_CHARGER_RT5036_VMID_HDMI
+			rt5036_clr_bits(ci->i2c, RT5036_REG_CHGCTL1,
+				    RT5036_CHGOPAMODE_MASK);
+			rt5036_set_bits(ci->i2c, RT5036_REG_CHGCTL6, 0x20);
+#endif /* #ifdef CONFIG_CHARGER_RT5036_VMID_HDMI */
 			pval.intval = 1;
 			psy->set_property(psy, POWER_SUPPLY_PROP_ONLINE, &pval);
 			power_supply_changed(psy);
@@ -827,7 +897,18 @@ static irqreturn_t rt5036_usbdet_irq_handler(int irqno, void *param)
 			pval.intval = 0;
 			psy->set_property(psy, POWER_SUPPLY_PROP_ONLINE, &pval);
 			power_supply_changed(psy);
-		} else {
+#ifdef CONFIG_CHARGER_RT5036_VMID_HDMI
+			if (ci->charge_cable == 0) {
+				rt5036_clr_bits(ci->i2c, RT5036_REG_CHGCTL6, 0x20);
+				pval.intval = ci->otg_volt;
+				ci->psy.set_property(&ci->psy,
+						     POWER_SUPPLY_PROP_VOLTAGE_NOW,
+						     &pval);
+				rt5036_set_bits(ci->i2c, RT5036_REG_CHGCTL1,
+					    RT5036_CHGOPAMODE_MASK);
+			}
+#endif /* #ifdef CONFIG_CHARGER_RT5036_VMID_HDMI */
+		} else
 			dev_err(ci->dev, "couldn't get RT usb\n");
 			}
 		dev_info(ci->dev, "usb out\n");
@@ -910,7 +991,11 @@ static int rt5036_charger_reginit(struct i2c_client *client)
 	/*thermal HGM*/
 	rt5036_set_bits(client, 0x20, 0x40);
 	/*charger fix in rev D IC*/
+#ifdef CONFIG_CHARGER_RT5036_VMID_HDMI
+	rt5036_reg_write(client, 0x22, 0x60);
+#else
 	rt5036_reg_write(client, 0x22, 0xE0);
+#endif /* #ifdef CONFIG_CHARGER_RT5036_VMID_HDMI */
 	/*write charger init val*/
 	rt5036_reg_block_write(client, RT5036_REG_CHGCTL1, 8, chg_init_regval);
 	rt5036_reg_block_write(client, RT5036_REG_CHGIRQMASK1, 3,
@@ -922,6 +1007,9 @@ static int rt5036_charger_reginit(struct i2c_client *client)
 	rt5036_reg_read(client, RT5036_REG_CHGIRQ3);
 	rt5036_set_bits(client, 0x20, RT5036_TERST_MASK);
 	rt5036_clr_bits(client, 0x20, RT5036_TERST_MASK);
+#ifdef CONFIG_CHARGER_RT5036_VMID_HDMI
+	rt5036_set_bits(client, RT5036_REG_CHGCTL1, RT5036_CHGOPAMODE_MASK);
+#endif /* #ifdef CONFIG_CHARGER_RT5036_VMID_HDMI */
 	RTINFO("\n");
 	return 0;
 }
