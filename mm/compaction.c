@@ -330,7 +330,7 @@ static bool suitable_migration_target(struct page *page)
  * (even though it may still end up isolating some pages).
  */
 static unsigned long isolate_freepages_block(struct compact_control *cc,
-				unsigned long blockpfn,
+				unsigned long *start_pfn,
 				unsigned long end_pfn,
 				struct list_head *freelist,
 				bool strict)
@@ -339,6 +339,7 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
 	struct page *cursor, *valid_page = NULL;
 	unsigned long flags;
 	bool locked = false;
+	unsigned long blockpfn = *start_pfn;
 
 	cursor = pfn_to_page(blockpfn);
 
@@ -415,6 +416,9 @@ isolate_fail:
 
 	}
 
+	/* Record how far we have got within the block */
+	*start_pfn = blockpfn;
+
 	trace_mm_compaction_isolate_freepages(nr_scanned, total_isolated);
 
 	/*
@@ -463,14 +467,16 @@ isolate_freepages_range(struct compact_control *cc,
 
 	for (; pfn < end_pfn; pfn += isolated,
 				block_end_pfn += pageblock_nr_pages) {
+		/* Protect pfn from changing by isolate_freepages_block */
+		unsigned long isolate_start_pfn = pfn;
 
 		block_end_pfn = min(block_end_pfn, end_pfn);
 
 		if (!pageblock_pfn_to_page(pfn, block_end_pfn, cc->zone))
 			break;
 
-		isolated = isolate_freepages_block(cc, pfn, block_end_pfn,
-						   &freelist, true);
+		isolated = isolate_freepages_block(cc, &isolate_start_pfn,
+						block_end_pfn, &freelist, true);
 
 		/*
 		 * In strict mode, isolate_freepages_block() returns 0 if
@@ -769,6 +775,7 @@ static void isolate_freepages(struct compact_control *cc)
 	struct zone *zone = cc->zone;
 	struct page *page;
 	unsigned long block_start_pfn;	/* start of current pageblock */
+	unsigned long isolate_start_pfn; /* exact pfn we start at */
 	unsigned long block_end_pfn;	/* end of current pageblock */
 	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
 	int nr_freepages = cc->nr_freepages;
@@ -777,14 +784,15 @@ static void isolate_freepages(struct compact_control *cc)
 	/*
 	 * Initialise the free scanner. The starting point is where we last
 	 * successfully isolated from, zone-cached value, or the end of the
-	 * zone when isolating for the first time. We need this aligned to
-	 * the pageblock boundary, because we do
+	 * zone when isolating for the first time. For looping we also need
+	 * this pfn aligned down to the pageblock boundary, because we do
 	 * block_start_pfn -= pageblock_nr_pages in the for loop.
 	 * For ending point, take care when isolating in last pageblock of a
 	 * a zone which ends in the middle of a pageblock.
 	 * The low boundary is the end of the pageblock the migration scanner
 	 * is using.
 	 */
+	isolate_start_pfn = cc->free_pfn;
 	block_start_pfn = cc->free_pfn & ~(pageblock_nr_pages-1);
 	block_end_pfn = min(block_start_pfn + pageblock_nr_pages,
 						zone_end_pfn(zone));
@@ -797,7 +805,8 @@ static void isolate_freepages(struct compact_control *cc)
 	 */
 	for (; block_start_pfn >= low_pfn && cc->nr_migratepages > nr_freepages;
 				block_end_pfn = block_start_pfn,
-				block_start_pfn -= pageblock_nr_pages) {
+				block_start_pfn -= pageblock_nr_pages,
+				isolate_start_pfn = block_start_pfn) {
 		unsigned long isolated;
 
 		/*
@@ -822,11 +831,23 @@ static void isolate_freepages(struct compact_control *cc)
 		if (!isolation_suitable(cc, page))
 			continue;
 
-		/* Found a block suitable for isolating free pages from */
-		cc->free_pfn = block_start_pfn;
-		isolated = isolate_freepages_block(cc, block_start_pfn,
+		/* Found a block suitable for isolating free pages from. */
+		isolated = isolate_freepages_block(cc, &isolate_start_pfn,
 					block_end_pfn, freelist, false);
 		nr_freepages += isolated;
+
+		/*
+		 * Remember where the free scanner should restart next time,
+		 * which is where isolate_freepages_block() left off.
+		 * But if it scanned the whole pageblock, isolate_start_pfn
+		 * now points at block_end_pfn, which is the start of the next
+		 * pageblock.
+		 * In that case we will however want to restart at the start
+		 * of the previous pageblock.
+		 */
+		cc->free_pfn = (isolate_start_pfn < block_end_pfn) ?
+				isolate_start_pfn :
+				block_start_pfn - pageblock_nr_pages;
 
 		/*
 		 * Set a flag that we successfully isolated in this pageblock.
