@@ -994,9 +994,9 @@ static bool ttm_bo_mem_compat(struct ttm_placement *placement,
 
 	for (i = 0; i < placement->num_placement; i++) {
 		const struct ttm_place *heap = &placement->placement[i];
-		if (mem->mm_node && heap->lpfn != 0 &&
+		if (mem->mm_node &&
 		    (mem->start < heap->fpfn ||
-		     mem->start + mem->num_pages > heap->lpfn))
+		     (heap->lpfn != 0 && (mem->start + mem->num_pages) > heap->lpfn)))
 			continue;
 
 		*new_flags = heap->flags;
@@ -1007,9 +1007,9 @@ static bool ttm_bo_mem_compat(struct ttm_placement *placement,
 
 	for (i = 0; i < placement->num_busy_placement; i++) {
 		const struct ttm_place *heap = &placement->busy_placement[i];
-		if (mem->mm_node && heap->lpfn != 0 &&
+		if (mem->mm_node &&
 		    (mem->start < heap->fpfn ||
-		     mem->start + mem->num_pages > heap->lpfn))
+		     (heap->lpfn != 0 && (mem->start + mem->num_pages) > heap->lpfn)))
 			continue;
 
 		*new_flags = heap->flags;
