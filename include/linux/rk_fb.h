@@ -593,6 +593,7 @@ struct rk_lcdc_driver {
 	struct overscan overscan;
 	struct rk_lcdc_bcsh bcsh;
 	int *hwc_lut;
+	int uboot_logo;
 };
 
 /*disp_mode: dual display mode

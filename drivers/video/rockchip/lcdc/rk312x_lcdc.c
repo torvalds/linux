@@ -154,19 +154,22 @@ static int rk312x_lcdc_enable_irq(struct rk_lcdc_driver *dev_drv)
 	u32 mask, val;
 	struct lcdc_device *lcdc_dev = container_of(dev_drv,
 						    struct lcdc_device, driver);
-        struct rk_screen *screen = dev_drv->cur_screen;
+	/*struct rk_screen *screen = dev_drv->cur_screen;*/
 
         spin_lock(&lcdc_dev->reg_lock);
 	if (likely(lcdc_dev->clk_on)) {
 	        mask = m_FS_INT_CLEAR | m_FS_INT_EN |
-                        m_LF_INT_CLEAR | m_LF_INT_EN | m_LF_INT_NUM |
+                        m_LF_INT_CLEAR | m_LF_INT_EN |
                         m_BUS_ERR_INT_CLEAR | m_BUS_ERR_INT_EN;
 	        val = v_FS_INT_CLEAR(1) | v_FS_INT_EN(1) |
                         v_LF_INT_CLEAR(1) | v_LF_INT_EN(1) |
-                        v_BUS_ERR_INT_CLEAR(1) | v_BUS_ERR_INT_EN(0) |
-	                v_LF_INT_NUM(screen->mode.vsync_len +
+                        v_BUS_ERR_INT_CLEAR(1) | v_BUS_ERR_INT_EN(0);
+		#if 0
+			mask |= m_LF_INT_NUM;
+			val  |= v_LF_INT_NUM(screen->mode.vsync_len +
 	                             screen->mode.upper_margin +
-	                             screen->mode.yres);
+	                             screen->mode.yres)
+		#endif
 #ifdef LCDC_IRQ_EMPTY_DEBUG
 		mask |= m_WIN0_EMPTY_INT_EN | m_WIN1_EMPTY_INT_EN;
 		val |= v_WIN0_EMPTY_INT_EN(1) | v_WIN1_EMPTY_INT_EN(1);
@@ -1299,7 +1302,7 @@ static int rk312x_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 		if (dev_drv->iommu_enabled)
 			rk312x_lcdc_mmu_en(dev_drv);
 		if ((support_uboot_display() && (lcdc_dev->prop == PRMRY))) {
-			rk312x_lcdc_set_dclk(dev_drv);
+			/*rk312x_lcdc_set_dclk(dev_drv);*/
 			rk312x_lcdc_enable_irq(dev_drv);
 		} else {
 			rk312x_load_screen(dev_drv, 1);
