@@ -2330,7 +2330,7 @@ COMPAT_SYSCALL_DEFINE1(sysinfo, struct compat_sysinfo __user *, info)
 	/* Check to see if any memory value is too large for 32-bit and scale
 	 *  down if needed
 	 */
-	if ((s.totalram >> 32) || (s.totalswap >> 32)) {
+	if (upper_32_bits(s.totalram) || upper_32_bits(s.totalswap)) {
 		int bitcount = 0;
 
 		while (s.mem_unit < PAGE_SIZE) {
