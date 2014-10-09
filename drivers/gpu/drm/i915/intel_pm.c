@@ -5654,16 +5654,6 @@ static void broadwell_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(WM2_LP_ILK, 0);
 	I915_WRITE(WM1_LP_ILK, 0);
 
-	/* FIXME(BDW): Check all the w/a, some might only apply to
-	 * pre-production hw. */
-
-
-	I915_WRITE(GAMTARBMODE, _MASKED_BIT_ENABLE(ARB_MODE_BWGTLB_DISABLE));
-
-	I915_WRITE(_3D_CHICKEN3,
-		   _MASKED_BIT_ENABLE(_3D_CHICKEN_SDE_LIMIT_FIFO_POLY_DEPTH(2)));
-
-
 	/* WaSwitchSolVfFArbitrationPriority:bdw */
 	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) | HSW_ECOCHK_ARB_PRIO_SOL);
 

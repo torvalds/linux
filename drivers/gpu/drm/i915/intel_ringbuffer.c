@@ -712,13 +712,12 @@ static int bdw_init_workarounds(struct intel_engine_cs *ring)
 		return ret;
 
 	/* WaDisablePartialInstShootdown:bdw */
-	/* WaDisableThreadStallDopClockGating:bdw */
-	/* FIXME: Unclear whether we really need this on production bdw. */
+	/* WaDisableThreadStallDopClockGating:bdw (pre-production) */
 	intel_ring_emit_wa(ring, GEN8_ROW_CHICKEN,
 			   _MASKED_BIT_ENABLE(PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE
 					     | STALL_DOP_GATING_DISABLE));
 
-	/* WaDisableDopClockGating:bdw May not be needed for production */
+	/* WaDisableDopClockGating:bdw */
 	intel_ring_emit_wa(ring, GEN7_ROW_CHICKEN2,
 			   _MASKED_BIT_ENABLE(DOP_CLOCK_GATING_DISABLE));
 
