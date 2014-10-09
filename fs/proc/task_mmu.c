@@ -138,6 +138,14 @@ static void vma_stop(struct proc_maps_private *priv)
 	mmput(mm);
 }
 
+static struct vm_area_struct *
+m_next_vma(struct proc_maps_private *priv, struct vm_area_struct *vma)
+{
+	if (vma == priv->tail_vma)
+		return NULL;
+	return vma->vm_next ?: priv->tail_vma;
+}
+
 static void *m_start(struct seq_file *m, loff_t *ppos)
 {
 	struct proc_maps_private *priv = m->private;
@@ -173,13 +181,10 @@ static void *m_start(struct seq_file *m, loff_t *ppos)
 static void *m_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	struct proc_maps_private *priv = m->private;
-	struct vm_area_struct *tail_vma = priv->tail_vma;
-	struct vm_area_struct *vma = v, *next = NULL;
+	struct vm_area_struct *next;
 
 	(*pos)++;
-	if (vma != tail_vma)
-		next = vma->vm_next ?: tail_vma;
-
+	next = m_next_vma(priv, v);
 	if (!next)
 		vma_stop(priv);
 	return next;
