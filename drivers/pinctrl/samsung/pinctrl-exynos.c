@@ -260,7 +260,7 @@ static int exynos_gpio_irq_map(struct irq_domain *h, unsigned int virq,
 	struct samsung_pin_bank *b = h->host_data;
 
 	irq_set_chip_data(virq, b);
-	irq_set_chip_and_handler(virq, &exynos_gpio_irq_chip.chip,
+	irq_set_chip_and_handler(virq, &b->irq_chip->chip,
 					handle_level_irq);
 	set_irq_flags(virq, IRQF_VALID);
 	return 0;
@@ -343,6 +343,8 @@ static int exynos_eint_gpio_init(struct samsung_pinctrl_drv_data *d)
 			ret = -ENOMEM;
 			goto err_domains;
 		}
+
+		bank->irq_chip = &exynos_gpio_irq_chip;
 	}
 
 	return 0;
@@ -444,9 +446,9 @@ static void exynos_irq_demux_eint16_31(unsigned int irq, struct irq_desc *desc)
 
 	for (i = 0; i < eintd->nr_banks; ++i) {
 		struct samsung_pin_bank *b = eintd->banks[i];
-		pend = readl(d->virt_base + EXYNOS_WKUP_EPEND_OFFSET
+		pend = readl(d->virt_base + b->irq_chip->eint_pend
 				+ b->eint_offset);
-		mask = readl(d->virt_base + EXYNOS_WKUP_EMASK_OFFSET
+		mask = readl(d->virt_base + b->irq_chip->eint_mask
 				+ b->eint_offset);
 		exynos_irq_demux_eint(pend & ~mask, b->irq_domain);
 	}
@@ -457,7 +459,9 @@ static void exynos_irq_demux_eint16_31(unsigned int irq, struct irq_desc *desc)
 static int exynos_wkup_irq_map(struct irq_domain *h, unsigned int virq,
 					irq_hw_number_t hw)
 {
-	irq_set_chip_and_handler(virq, &exynos_wkup_irq_chip.chip,
+	struct samsung_pin_bank *b = h->host_data;
+
+	irq_set_chip_and_handler(virq, &b->irq_chip->chip,
 					handle_level_irq);
 	irq_set_chip_data(virq, h->host_data);
 	set_irq_flags(virq, IRQF_VALID);
@@ -508,6 +512,8 @@ static int exynos_eint_wkup_init(struct samsung_pinctrl_drv_data *d)
 			dev_err(dev, "wkup irq domain add failed\n");
 			return -ENXIO;
 		}
+
+		bank->irq_chip = &exynos_wkup_irq_chip;
 
 		if (!of_find_property(bank->of_node, "interrupts", NULL)) {
 			bank->eint_type = EINT_TYPE_WKUP_MUX;

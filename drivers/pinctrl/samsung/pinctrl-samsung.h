@@ -151,6 +151,7 @@ struct samsung_pin_bank_data {
  * @irq_domain: IRQ domain of the bank.
  * @gpio_chip: GPIO chip of the bank.
  * @grange: linux gpio pin range supported by this bank.
+ * @irq_chip: link to irq chip for external gpio and wakeup interrupts.
  * @slock: spinlock protecting bank registers
  * @pm_save: saved register values during suspend
  */
@@ -171,6 +172,7 @@ struct samsung_pin_bank {
 	struct irq_domain *irq_domain;
 	struct gpio_chip gpio_chip;
 	struct pinctrl_gpio_range grange;
+	struct exynos_irq_chip *irq_chip;
 	spinlock_t slock;
 
 	u32 pm_save[PINCFG_TYPE_NUM + 1]; /* +1 to handle double CON registers*/
