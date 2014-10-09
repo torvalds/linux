@@ -166,6 +166,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_S390_IRQCHIP:
 	case KVM_CAP_VM_ATTRIBUTES:
 	case KVM_CAP_MP_STATE:
+	case KVM_CAP_S390_USER_SIGP:
 		r = 1;
 		break;
 	case KVM_CAP_NR_VCPUS:
@@ -252,6 +253,10 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 	switch (cap->cap) {
 	case KVM_CAP_S390_IRQCHIP:
 		kvm->arch.use_irqchip = 1;
+		r = 0;
+		break;
+	case KVM_CAP_S390_USER_SIGP:
+		kvm->arch.user_sigp = 1;
 		r = 0;
 		break;
 	default:

@@ -371,6 +371,53 @@ static int handle_sigp_dst(struct kvm_vcpu *vcpu, u8 order_code,
 	return rc;
 }
 
+static int handle_sigp_order_in_user_space(struct kvm_vcpu *vcpu, u8 order_code)
+{
+	if (!vcpu->kvm->arch.user_sigp)
+		return 0;
+
+	switch (order_code) {
+	case SIGP_SENSE:
+	case SIGP_EXTERNAL_CALL:
+	case SIGP_EMERGENCY_SIGNAL:
+	case SIGP_COND_EMERGENCY_SIGNAL:
+	case SIGP_SENSE_RUNNING:
+		return 0;
+	/* update counters as we're directly dropping to user space */
+	case SIGP_STOP:
+		vcpu->stat.instruction_sigp_stop++;
+		break;
+	case SIGP_STOP_AND_STORE_STATUS:
+		vcpu->stat.instruction_sigp_stop_store_status++;
+		break;
+	case SIGP_STORE_STATUS_AT_ADDRESS:
+		vcpu->stat.instruction_sigp_store_status++;
+		break;
+	case SIGP_SET_PREFIX:
+		vcpu->stat.instruction_sigp_prefix++;
+		break;
+	case SIGP_START:
+		vcpu->stat.instruction_sigp_start++;
+		break;
+	case SIGP_RESTART:
+		vcpu->stat.instruction_sigp_restart++;
+		break;
+	case SIGP_INITIAL_CPU_RESET:
+		vcpu->stat.instruction_sigp_init_cpu_reset++;
+		break;
+	case SIGP_CPU_RESET:
+		vcpu->stat.instruction_sigp_cpu_reset++;
+		break;
+	default:
+		vcpu->stat.instruction_sigp_unknown++;
+	}
+
+	VCPU_EVENT(vcpu, 4, "sigp order %u: completely handled in user space",
+		   order_code);
+
+	return 1;
+}
+
 int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 {
 	int r1 = (vcpu->arch.sie_block->ipa & 0x00f0) >> 4;
@@ -385,6 +432,8 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 
 	order_code = kvm_s390_get_base_disp_rs(vcpu);
+	if (handle_sigp_order_in_user_space(vcpu, order_code))
+		return -EOPNOTSUPP;
 
 	if (r1 % 2)
 		parameter = vcpu->run->s.regs.gprs[r1];

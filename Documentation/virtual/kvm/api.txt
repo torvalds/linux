@@ -3225,3 +3225,23 @@ userspace from doing that.
 If the hcall number specified is not one that has an in-kernel
 implementation, the KVM_ENABLE_CAP ioctl will fail with an EINVAL
 error.
+
+7.2 KVM_CAP_S390_USER_SIGP
+
+Architectures: s390
+Parameters: none
+
+This capability controls which SIGP orders will be handled completely in user
+space. With this capability enabled, all fast orders will be handled completely
+in the kernel:
+- SENSE
+- SENSE RUNNING
+- EXTERNAL CALL
+- EMERGENCY SIGNAL
+- CONDITIONAL EMERGENCY SIGNAL
+
+All other orders will be handled completely in user space.
+
+Only privileged operation exceptions will be checked for in the kernel (or even
+in the hardware prior to interception). If this capability is not enabled, the
+old way of handling SIGP orders is used (partially in kernel and user space).
