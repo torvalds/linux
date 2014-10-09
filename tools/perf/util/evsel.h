@@ -112,6 +112,10 @@ struct thread_map;
 struct perf_evlist;
 struct record_opts;
 
+int perf_evsel__object_config(size_t object_size,
+			      int (*init)(struct perf_evsel *evsel),
+			      void (*fini)(struct perf_evsel *evsel));
+
 struct perf_evsel *perf_evsel__new_idx(struct perf_event_attr *attr, int idx);
 
 static inline struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr)
