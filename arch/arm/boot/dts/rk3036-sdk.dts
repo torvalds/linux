@@ -3,6 +3,8 @@
 #include "rk3036.dtsi"
 #include "rk3036-pinctrl.dtsi"
 #include "lcd-box.dtsi"
+#include <dt-bindings/input/input.h>
+
 / {
 
 	fiq-debugger {
