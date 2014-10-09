@@ -67,6 +67,49 @@ static inline bool migrate_async_suitable(int migratetype)
 	return is_migrate_cma(migratetype) || migratetype == MIGRATE_MOVABLE;
 }
 
+/*
+ * Check that the whole (or subset of) a pageblock given by the interval of
+ * [start_pfn, end_pfn) is valid and within the same zone, before scanning it
+ * with the migration of free compaction scanner. The scanners then need to
+ * use only pfn_valid_within() check for arches that allow holes within
+ * pageblocks.
+ *
+ * Return struct page pointer of start_pfn, or NULL if checks were not passed.
+ *
+ * It's possible on some configurations to have a setup like node0 node1 node0
+ * i.e. it's possible that all pages within a zones range of pages do not
+ * belong to a single zone. We assume that a border between node0 and node1
+ * can occur within a single pageblock, but not a node0 node1 node0
+ * interleaving within a single pageblock. It is therefore sufficient to check
+ * the first and last page of a pageblock and avoid checking each individual
+ * page in a pageblock.
+ */
+static struct page *pageblock_pfn_to_page(unsigned long start_pfn,
+				unsigned long end_pfn, struct zone *zone)
+{
+	struct page *start_page;
+	struct page *end_page;
+
+	/* end_pfn is one past the range we are checking */
+	end_pfn--;
+
+	if (!pfn_valid(start_pfn) || !pfn_valid(end_pfn))
+		return NULL;
+
+	start_page = pfn_to_page(start_pfn);
+
+	if (page_zone(start_page) != zone)
+		return NULL;
+
+	end_page = pfn_to_page(end_pfn);
+
+	/* This gives a shorter code than deriving page_zone(end_page) */
+	if (page_zone_id(start_page) != page_zone_id(end_page))
+		return NULL;
+
+	return start_page;
+}
+
 #ifdef CONFIG_COMPACTION
 /* Returns true if the pageblock should be scanned for pages to isolate. */
 static inline bool isolation_suitable(struct compact_control *cc,
@@ -371,16 +414,16 @@ isolate_freepages_range(struct compact_control *cc,
 	unsigned long isolated, pfn, block_end_pfn;
 	LIST_HEAD(freelist);
 
-	for (pfn = start_pfn; pfn < end_pfn; pfn += isolated) {
-		if (!pfn_valid(pfn) || cc->zone != page_zone(pfn_to_page(pfn)))
-			break;
+	pfn = start_pfn;
+	block_end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
 
-		/*
-		 * On subsequent iterations ALIGN() is actually not needed,
-		 * but we keep it that we not to complicate the code.
-		 */
-		block_end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
+	for (; pfn < end_pfn; pfn += isolated,
+				block_end_pfn += pageblock_nr_pages) {
+
 		block_end_pfn = min(block_end_pfn, end_pfn);
+
+		if (!pageblock_pfn_to_page(pfn, block_end_pfn, cc->zone))
+			break;
 
 		isolated = isolate_freepages_block(cc, pfn, block_end_pfn,
 						   &freelist, true);
@@ -507,15 +550,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 			continue;
 		nr_scanned++;
 
-		/*
-		 * Get the page and ensure the page is within the same zone.
-		 * See the comment in isolate_freepages about overlapping
-		 * nodes. It is deliberate that the new zone lock is not taken
-		 * as memory compaction should not move pages between nodes.
-		 */
 		page = pfn_to_page(low_pfn);
-		if (page_zone(page) != zone)
-			continue;
 
 		if (!valid_page)
 			valid_page = page;
@@ -653,8 +688,7 @@ isolate_migratepages_range(struct compact_control *cc, unsigned long start_pfn,
 
 		block_end_pfn = min(block_end_pfn, end_pfn);
 
-		/* Skip whole pageblock in case of a memory hole */
-		if (!pfn_valid(pfn))
+		if (!pageblock_pfn_to_page(pfn, block_end_pfn, cc->zone))
 			continue;
 
 		pfn = isolate_migratepages_block(cc, pfn, block_end_pfn,
@@ -727,18 +761,9 @@ static void isolate_freepages(struct compact_control *cc)
 						&& compact_should_abort(cc))
 			break;
 
-		if (!pfn_valid(block_start_pfn))
-			continue;
-
-		/*
-		 * Check for overlapping nodes/zones. It's possible on some
-		 * configurations to have a setup like
-		 * node0 node1 node0
-		 * i.e. it's possible that all pages within a zones range of
-		 * pages do not belong to a single zone.
-		 */
-		page = pfn_to_page(block_start_pfn);
-		if (page_zone(page) != zone)
+		page = pageblock_pfn_to_page(block_start_pfn, block_end_pfn,
+									zone);
+		if (!page)
 			continue;
 
 		/* Check the block is suitable for migration */
@@ -873,11 +898,9 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
 						&& compact_should_abort(cc))
 			break;
 
-		/* Skip whole pageblock in case of a memory hole */
-		if (!pfn_valid(low_pfn))
+		page = pageblock_pfn_to_page(low_pfn, end_pfn, zone);
+		if (!page)
 			continue;
-
-		page = pfn_to_page(low_pfn);
 
 		/* If isolation recently failed, do not retry */
 		if (!isolation_suitable(cc, page))
