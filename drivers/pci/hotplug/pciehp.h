@@ -92,7 +92,7 @@ struct controller {
 	struct slot *slot;
 	wait_queue_head_t queue;	/* sleep & wake process */
 	u32 slot_cap;
-	u32 slot_ctrl;
+	u16 slot_ctrl;
 	struct timer_list poll_timer;
 	unsigned long cmd_started;	/* jiffies */
 	unsigned int cmd_busy:1;

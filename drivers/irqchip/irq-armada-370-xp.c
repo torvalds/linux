@@ -136,6 +136,10 @@ static int armada_370_xp_setup_msi_irq(struct msi_chip *chip,
 	struct msi_msg msg;
 	int virq, hwirq;
 
+	/* We support MSI, but not MSI-X */
+	if (desc->msi_attrib.is_msix)
+		return -EINVAL;
+
 	hwirq = armada_370_xp_alloc_msi();
 	if (hwirq < 0)
 		return hwirq;
@@ -164,15 +168,6 @@ static void armada_370_xp_teardown_msi_irq(struct msi_chip *chip,
 
 	irq_dispose_mapping(irq);
 	armada_370_xp_free_msi(hwirq);
-}
-
-static int armada_370_xp_check_msi_device(struct msi_chip *chip, struct pci_dev *dev,
-					  int nvec, int type)
-{
-	/* We support MSI, but not MSI-X */
-	if (type == PCI_CAP_ID_MSI)
-		return 0;
-	return -EINVAL;
 }
 
 static struct irq_chip armada_370_xp_msi_irq_chip = {
@@ -213,7 +208,6 @@ static int armada_370_xp_msi_init(struct device_node *node,
 
 	msi_chip->setup_irq = armada_370_xp_setup_msi_irq;
 	msi_chip->teardown_irq = armada_370_xp_teardown_msi_irq;
-	msi_chip->check_device = armada_370_xp_check_msi_device;
 	msi_chip->of_node = node;
 
 	armada_370_xp_msi_domain =
