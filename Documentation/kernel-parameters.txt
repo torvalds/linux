@@ -656,7 +656,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Sets the size of kernel global memory area for
 			contiguous memory allocations and optionally the
 			placement constraint by the physical address range of
-			memory allocations. For more information, see
+			memory allocations. A value of 0 disables CMA
+			altogether. For more information, see
 			include/linux/dma-contiguous.h
 
 	cmo_free_hint=	[PPC] Format: { yes | no }
