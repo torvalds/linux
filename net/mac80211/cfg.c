@@ -2901,11 +2901,7 @@ static int __ieee80211_csa_finalize(struct ieee80211_sub_if_data *sdata)
 		if (sdata->reserved_ready)
 			return 0;
 
-		err = ieee80211_vif_use_reserved_context(sdata);
-		if (err)
-			return err;
-
-		return 0;
+		return ieee80211_vif_use_reserved_context(sdata);
 	}
 
 	if (!cfg80211_chandef_identical(&sdata->vif.bss_conf.chandef,
