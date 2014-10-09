@@ -184,11 +184,14 @@ static void *m_start(struct seq_file *m, loff_t *ppos)
 
 	m->version = 0;
 	if (pos < mm->map_count) {
-		for (vma = mm->mmap; pos; pos--)
+		for (vma = mm->mmap; pos; pos--) {
+			m->version = vma->vm_start;
 			vma = vma->vm_next;
+		}
 		return vma;
 	}
 
+	/* we do not bother to update m->version in this case */
 	if (pos == mm->map_count && priv->tail_vma)
 		return priv->tail_vma;
 
