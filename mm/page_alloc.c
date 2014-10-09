@@ -1614,8 +1614,8 @@ again:
 
 	__mod_zone_page_state(zone, NR_ALLOC_BATCH, -(1 << order));
 	if (atomic_long_read(&zone->vm_stat[NR_ALLOC_BATCH]) <= 0 &&
-	    !zone_is_fair_depleted(zone))
-		zone_set_flag(zone, ZONE_FAIR_DEPLETED);
+	    !test_bit(ZONE_FAIR_DEPLETED, &zone->flags))
+		set_bit(ZONE_FAIR_DEPLETED, &zone->flags);
 
 	__count_zone_vm_events(PGALLOC, zone, 1 << order);
 	zone_statistics(preferred_zone, zone, gfp_flags);
@@ -1935,7 +1935,7 @@ static void reset_alloc_batches(struct zone *preferred_zone)
 		mod_zone_page_state(zone, NR_ALLOC_BATCH,
 			high_wmark_pages(zone) - low_wmark_pages(zone) -
 			atomic_long_read(&zone->vm_stat[NR_ALLOC_BATCH]));
-		zone_clear_flag(zone, ZONE_FAIR_DEPLETED);
+		clear_bit(ZONE_FAIR_DEPLETED, &zone->flags);
 	} while (zone++ != preferred_zone);
 }
 
@@ -1986,7 +1986,7 @@ zonelist_scan:
 		if (alloc_flags & ALLOC_FAIR) {
 			if (!zone_local(preferred_zone, zone))
 				break;
-			if (zone_is_fair_depleted(zone)) {
+			if (test_bit(ZONE_FAIR_DEPLETED, &zone->flags)) {
 				nr_fair_skipped++;
 				continue;
 			}
