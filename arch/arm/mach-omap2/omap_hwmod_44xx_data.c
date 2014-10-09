@@ -824,7 +824,7 @@ static struct omap_hwmod_dma_info omap44xx_dss_rfbi_sdma_reqs[] = {
 };
 
 static struct omap_hwmod_opt_clk dss_rfbi_opt_clks[] = {
-	{ .role = "ick", .clk = "dss_fck" },
+	{ .role = "ick", .clk = "l3_div_ck" },
 };
 
 static struct omap_hwmod omap44xx_dss_rfbi_hwmod = {
