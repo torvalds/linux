@@ -6,6 +6,7 @@ config DRM_IMX
 	select DRM_GEM_CMA_HELPER
 	select DRM_KMS_CMA_HELPER
 	depends on DRM && (ARCH_MXC || ARCH_MULTIPLATFORM)
+	depends on IMX_IPUV3_CORE
 	help
 	  enable i.MX graphics support
 
@@ -40,11 +41,11 @@ config DRM_IMX_LDB
 	  found on i.MX53 and i.MX6 processors.
 
 config DRM_IMX_IPUV3
-	tristate "DRM Support for i.MX IPUv3"
+	tristate
 	depends on DRM_IMX
 	depends on IMX_IPUV3_CORE
-	help
-	  Choose this if you have a i.MX5 or i.MX6 processor.
+	default y if DRM_IMX=y
+	default m if DRM_IMX=m
 
 config DRM_IMX_HDMI
 	tristate "Freescale i.MX DRM HDMI"
