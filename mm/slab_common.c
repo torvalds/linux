@@ -148,6 +148,33 @@ static void memcg_free_cache_params(struct kmem_cache *s)
 	kfree(s->memcg_params);
 }
 
+static int memcg_update_cache_params(struct kmem_cache *s, int num_memcgs)
+{
+	int size;
+	struct memcg_cache_params *new_params, *cur_params;
+
+	BUG_ON(!is_root_cache(s));
+
+	size = offsetof(struct memcg_cache_params, memcg_caches);
+	size += num_memcgs * sizeof(void *);
+
+	new_params = kzalloc(size, GFP_KERNEL);
+	if (!new_params)
+		return -ENOMEM;
+
+	cur_params = s->memcg_params;
+	memcpy(new_params->memcg_caches, cur_params->memcg_caches,
+	       memcg_limited_groups_array_size * sizeof(void *));
+
+	new_params->is_root_cache = true;
+
+	rcu_assign_pointer(s->memcg_params, new_params);
+	if (cur_params)
+		kfree_rcu(cur_params, rcu_head);
+
+	return 0;
+}
+
 int memcg_update_all_caches(int num_memcgs)
 {
 	struct kmem_cache *s;
@@ -158,9 +185,8 @@ int memcg_update_all_caches(int num_memcgs)
 		if (!is_root_cache(s))
 			continue;
 
-		ret = memcg_update_cache_size(s, num_memcgs);
+		ret = memcg_update_cache_params(s, num_memcgs);
 		/*
-		 * See comment in memcontrol.c, memcg_update_cache_size:
 		 * Instead of freeing the memory, we'll just leave the caches
 		 * up to this point in an updated state.
 		 */

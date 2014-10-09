@@ -2958,55 +2958,6 @@ void memcg_update_array_size(int num)
 	memcg_limited_groups_array_size = num;
 }
 
-int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
-{
-	struct memcg_cache_params *cur_params = s->memcg_params;
-	struct memcg_cache_params *new_params;
-	size_t size;
-	int i;
-
-	VM_BUG_ON(!is_root_cache(s));
-
-	size = num_groups * sizeof(void *);
-	size += offsetof(struct memcg_cache_params, memcg_caches);
-
-	new_params = kzalloc(size, GFP_KERNEL);
-	if (!new_params)
-		return -ENOMEM;
-
-	new_params->is_root_cache = true;
-
-	/*
-	 * There is the chance it will be bigger than
-	 * memcg_limited_groups_array_size, if we failed an allocation
-	 * in a cache, in which case all caches updated before it, will
-	 * have a bigger array.
-	 *
-	 * But if that is the case, the data after
-	 * memcg_limited_groups_array_size is certainly unused
-	 */
-	for (i = 0; i < memcg_limited_groups_array_size; i++) {
-		if (!cur_params->memcg_caches[i])
-			continue;
-		new_params->memcg_caches[i] =
-			cur_params->memcg_caches[i];
-	}
-
-	/*
-	 * Ideally, we would wait until all caches succeed, and only
-	 * then free the old one. But this is not worth the extra
-	 * pointer per-cache we'd have to have for this.
-	 *
-	 * It is not a big deal if some caches are left with a size
-	 * bigger than the others. And all updates will reset this
-	 * anyway.
-	 */
-	rcu_assign_pointer(s->memcg_params, new_params);
-	if (cur_params)
-		kfree_rcu(cur_params, rcu_head);
-	return 0;
-}
-
 static void memcg_register_cache(struct mem_cgroup *memcg,
 				 struct kmem_cache *root_cache)
 {
