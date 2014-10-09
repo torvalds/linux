@@ -146,17 +146,12 @@ static void *m_start(struct seq_file *m, loff_t *pos)
 	struct vm_area_struct *vma, *tail_vma = NULL;
 	loff_t l = *pos;
 
-	/* Clear the per syscall fields in priv */
-	priv->task = NULL;
-	priv->tail_vma = NULL;
-
 	/*
 	 * We remember last_addr rather than next_addr to hit with
 	 * vmacache most of the time. We have zero last_addr at
 	 * the beginning and also after lseek. We will have -1 last_addr
 	 * after the end of the vmas.
 	 */
-
 	if (last_addr == -1UL)
 		return NULL;
 
@@ -228,8 +223,10 @@ static void m_stop(struct seq_file *m, void *v)
 
 	if (!IS_ERR_OR_NULL(v))
 		vma_stop(priv);
-	if (priv->task)
+	if (priv->task) {
 		put_task_struct(priv->task);
+		priv->task = NULL;
+	}
 }
 
 static int proc_maps_open(struct inode *inode, struct file *file,
