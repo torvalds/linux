@@ -270,6 +270,7 @@ extern int proc_remount(struct super_block *, int *, char *);
 struct proc_maps_private {
 	struct pid *pid;
 	struct task_struct *task;
+	struct mm_struct *mm;
 #ifdef CONFIG_MMU
 	struct vm_area_struct *tail_vma;
 #endif
