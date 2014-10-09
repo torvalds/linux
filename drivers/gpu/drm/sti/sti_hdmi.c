@@ -130,8 +130,7 @@ static irqreturn_t hdmi_irq_thread(int irq, void *arg)
 
 	/* Hot plug/unplug IRQ */
 	if (hdmi->irq_status & HDMI_INT_HOT_PLUG) {
-		/* read gpio to get the status */
-		hdmi->hpd = gpio_get_value(hdmi->hpd_gpio);
+		hdmi->hpd = readl(hdmi->regs + HDMI_STA) & HDMI_STA_HOT_PLUG;
 		if (hdmi->drm_dev)
 			drm_helper_hpd_irq_event(hdmi->drm_dev);
 	}
@@ -766,13 +765,7 @@ static int sti_hdmi_probe(struct platform_device *pdev)
 		return PTR_ERR(hdmi->clk_audio);
 	}
 
-	hdmi->hpd_gpio = of_get_named_gpio(np, "hdmi,hpd-gpio", 0);
-	if (hdmi->hpd_gpio < 0) {
-		DRM_ERROR("Failed to get hdmi hpd-gpio\n");
-		return -EIO;
-	}
-
-	hdmi->hpd = gpio_get_value(hdmi->hpd_gpio);
+	hdmi->hpd = readl(hdmi->regs + HDMI_STA) & HDMI_STA_HOT_PLUG;
 
 	init_waitqueue_head(&hdmi->wait_event);
 
