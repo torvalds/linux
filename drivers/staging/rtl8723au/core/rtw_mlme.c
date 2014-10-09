@@ -218,8 +218,6 @@ void rtw_generate_random_ibss23a(u8 *pibss)
 	pibss[3] = curtime & 0xff;/* p[0]; */
 	pibss[4] = (curtime >> 8) & 0xff;/* p[1]; */
 	pibss[5] = (curtime >> 16) & 0xff;/* p[2]; */
-
-	return;
 }
 
 void rtw_set_roaming(struct rtw_adapter *adapter, u8 to_roaming)
@@ -579,8 +577,6 @@ void rtw_atimdone_event_callback23a(struct rtw_adapter *adapter, const u8 *pbuf)
 {
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
 		 ("receive atimdone_evet\n"));
-
-	return;
 }
 
 void rtw_survey_event_cb23a(struct rtw_adapter *adapter, const u8 *pbuf)
@@ -650,8 +646,6 @@ exit:
 
 	kfree(survey->bss);
 	survey->bss = NULL;
-
-	return;
 }
 
 void
