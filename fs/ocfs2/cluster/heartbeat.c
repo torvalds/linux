@@ -2572,6 +2572,25 @@ int o2hb_check_node_heartbeating(u8 node_num)
 }
 EXPORT_SYMBOL_GPL(o2hb_check_node_heartbeating);
 
+int o2hb_check_node_heartbeating_no_sem(u8 node_num)
+{
+	unsigned long testing_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
+	unsigned long flags;
+
+	spin_lock_irqsave(&o2hb_live_lock, flags);
+	o2hb_fill_node_map_from_callback(testing_map, sizeof(testing_map));
+	spin_unlock_irqrestore(&o2hb_live_lock, flags);
+	if (!test_bit(node_num, testing_map)) {
+		mlog(ML_HEARTBEAT,
+		     "node (%u) does not have heartbeating enabled.\n",
+		     node_num);
+		return 0;
+	}
+
+	return 1;
+}
+EXPORT_SYMBOL_GPL(o2hb_check_node_heartbeating_no_sem);
+
 int o2hb_check_node_heartbeating_from_callback(u8 node_num)
 {
 	unsigned long testing_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
