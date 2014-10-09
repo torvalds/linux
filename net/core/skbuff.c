@@ -4126,11 +4126,11 @@ EXPORT_SYMBOL(skb_vlan_untag);
 /**
  * alloc_skb_with_frags - allocate skb with page frags
  *
- * header_len: size of linear part
- * data_len: needed length in frags
- * max_page_order: max page order desired.
- * errcode: pointer to error code if any
- * gfp_mask: allocation mask
+ * @header_len: size of linear part
+ * @data_len: needed length in frags
+ * @max_page_order: max page order desired.
+ * @errcode: pointer to error code if any
+ * @gfp_mask: allocation mask
  *
  * This can be used to allocate a paged skb, given a maximal order for frags.
  */
