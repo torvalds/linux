@@ -245,7 +245,7 @@ static int do_test(struct hists *hists, struct result *expected, size_t nr_expec
 static int test1(struct perf_evsel *evsel, struct machine *machine)
 {
 	int err;
-	struct hists *hists = &evsel->hists;
+	struct hists *hists = evsel__hists(evsel);
 	/*
 	 * expected output:
 	 *
@@ -295,7 +295,7 @@ out:
 static int test2(struct perf_evsel *evsel, struct machine *machine)
 {
 	int err;
-	struct hists *hists = &evsel->hists;
+	struct hists *hists = evsel__hists(evsel);
 	/*
 	 * expected output:
 	 *
@@ -442,7 +442,7 @@ out:
 static int test3(struct perf_evsel *evsel, struct machine *machine)
 {
 	int err;
-	struct hists *hists = &evsel->hists;
+	struct hists *hists = evsel__hists(evsel);
 	/*
 	 * expected output:
 	 *
@@ -498,7 +498,7 @@ out:
 static int test4(struct perf_evsel *evsel, struct machine *machine)
 {
 	int err;
-	struct hists *hists = &evsel->hists;
+	struct hists *hists = evsel__hists(evsel);
 	/*
 	 * expected output:
 	 *

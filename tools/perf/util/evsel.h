@@ -102,6 +102,11 @@ union u64_swap {
 
 #define hists_to_evsel(h) container_of(h, struct perf_evsel, hists)
 
+static inline struct hists *evsel__hists(struct perf_evsel *evsel)
+{
+	return &evsel->hists;
+}
+
 struct cpu_map;
 struct thread_map;
 struct perf_evlist;

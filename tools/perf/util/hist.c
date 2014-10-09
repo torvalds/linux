@@ -509,6 +509,7 @@ iter_add_single_mem_entry(struct hist_entry_iter *iter, struct addr_location *al
 {
 	u64 cost;
 	struct mem_info *mi = iter->priv;
+	struct hists *hists = evsel__hists(iter->evsel);
 	struct hist_entry *he;
 
 	if (mi == NULL)
@@ -525,7 +526,7 @@ iter_add_single_mem_entry(struct hist_entry_iter *iter, struct addr_location *al
 	 * and this is indirectly achieved by passing period=weight here
 	 * and the he_stat__add_period() function.
 	 */
-	he = __hists__add_entry(&iter->evsel->hists, al, iter->parent, NULL, mi,
+	he = __hists__add_entry(hists, al, iter->parent, NULL, mi,
 				cost, cost, 0, true);
 	if (!he)
 		return -ENOMEM;
@@ -539,13 +540,14 @@ iter_finish_mem_entry(struct hist_entry_iter *iter,
 		      struct addr_location *al __maybe_unused)
 {
 	struct perf_evsel *evsel = iter->evsel;
+	struct hists *hists = evsel__hists(evsel);
 	struct hist_entry *he = iter->he;
 	int err = -EINVAL;
 
 	if (he == NULL)
 		goto out;
 
-	hists__inc_nr_samples(&evsel->hists, he->filtered);
+	hists__inc_nr_samples(hists, he->filtered);
 
 	err = hist_entry__append_callchain(he, iter->sample);
 
@@ -611,6 +613,7 @@ iter_add_next_branch_entry(struct hist_entry_iter *iter, struct addr_location *a
 {
 	struct branch_info *bi;
 	struct perf_evsel *evsel = iter->evsel;
+	struct hists *hists = evsel__hists(evsel);
 	struct hist_entry *he = NULL;
 	int i = iter->curr;
 	int err = 0;
@@ -624,12 +627,12 @@ iter_add_next_branch_entry(struct hist_entry_iter *iter, struct addr_location *a
 	 * The report shows the percentage of total branches captured
 	 * and not events sampled. Thus we use a pseudo period of 1.
 	 */
-	he = __hists__add_entry(&evsel->hists, al, iter->parent, &bi[i], NULL,
+	he = __hists__add_entry(hists, al, iter->parent, &bi[i], NULL,
 				1, 1, 0, true);
 	if (he == NULL)
 		return -ENOMEM;
 
-	hists__inc_nr_samples(&evsel->hists, he->filtered);
+	hists__inc_nr_samples(hists, he->filtered);
 
 out:
 	iter->he = he;
@@ -661,7 +664,7 @@ iter_add_single_normal_entry(struct hist_entry_iter *iter, struct addr_location 
 	struct perf_sample *sample = iter->sample;
 	struct hist_entry *he;
 
-	he = __hists__add_entry(&evsel->hists, al, iter->parent, NULL, NULL,
+	he = __hists__add_entry(evsel__hists(evsel), al, iter->parent, NULL, NULL,
 				sample->period, sample->weight,
 				sample->transaction, true);
 	if (he == NULL)
@@ -684,7 +687,7 @@ iter_finish_normal_entry(struct hist_entry_iter *iter,
 
 	iter->he = NULL;
 
-	hists__inc_nr_samples(&evsel->hists, he->filtered);
+	hists__inc_nr_samples(evsel__hists(evsel), he->filtered);
 
 	return hist_entry__append_callchain(he, sample);
 }
@@ -717,12 +720,13 @@ iter_add_single_cumulative_entry(struct hist_entry_iter *iter,
 				 struct addr_location *al)
 {
 	struct perf_evsel *evsel = iter->evsel;
+	struct hists *hists = evsel__hists(evsel);
 	struct perf_sample *sample = iter->sample;
 	struct hist_entry **he_cache = iter->priv;
 	struct hist_entry *he;
 	int err = 0;
 
-	he = __hists__add_entry(&evsel->hists, al, iter->parent, NULL, NULL,
+	he = __hists__add_entry(hists, al, iter->parent, NULL, NULL,
 				sample->period, sample->weight,
 				sample->transaction, true);
 	if (he == NULL)
@@ -739,7 +743,7 @@ iter_add_single_cumulative_entry(struct hist_entry_iter *iter,
 	 */
 	callchain_cursor_commit(&callchain_cursor);
 
-	hists__inc_nr_samples(&evsel->hists, he->filtered);
+	hists__inc_nr_samples(hists, he->filtered);
 
 	return err;
 }
@@ -795,7 +799,7 @@ iter_add_next_cumulative_entry(struct hist_entry_iter *iter,
 		}
 	}
 
-	he = __hists__add_entry(&evsel->hists, al, iter->parent, NULL, NULL,
+	he = __hists__add_entry(evsel__hists(evsel), al, iter->parent, NULL, NULL,
 				sample->period, sample->weight,
 				sample->transaction, false);
 	if (he == NULL)

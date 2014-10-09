@@ -1229,12 +1229,14 @@ static int hists__browser_title(struct hists *hists, char *bf, size_t size)
 		ev_name = buf;
 
 		for_each_group_member(pos, evsel) {
+			struct hists *pos_hists = evsel__hists(pos);
+
 			if (symbol_conf.filter_relative) {
-				nr_samples += pos->hists.stats.nr_non_filtered_samples;
-				nr_events += pos->hists.stats.total_non_filtered_period;
+				nr_samples += pos_hists->stats.nr_non_filtered_samples;
+				nr_events += pos_hists->stats.total_non_filtered_period;
 			} else {
-				nr_samples += pos->hists.stats.nr_events[PERF_RECORD_SAMPLE];
-				nr_events += pos->hists.stats.total_period;
+				nr_samples += pos_hists->stats.nr_events[PERF_RECORD_SAMPLE];
+				nr_events += pos_hists->stats.total_period;
 			}
 		}
 	}
@@ -1387,7 +1389,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 				    float min_pcnt,
 				    struct perf_session_env *env)
 {
-	struct hists *hists = &evsel->hists;
+	struct hists *hists = evsel__hists(evsel);
 	struct hist_browser *browser = hist_browser__new(hists);
 	struct branch_info *bi;
 	struct pstack *fstack;
@@ -1802,8 +1804,9 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 	struct perf_evsel_menu *menu = container_of(browser,
 						    struct perf_evsel_menu, b);
 	struct perf_evsel *evsel = list_entry(entry, struct perf_evsel, node);
+	struct hists *hists = evsel__hists(evsel);
 	bool current_entry = ui_browser__is_current_entry(browser, row);
-	unsigned long nr_events = evsel->hists.stats.nr_events[PERF_RECORD_SAMPLE];
+	unsigned long nr_events = hists->stats.nr_events[PERF_RECORD_SAMPLE];
 	const char *ev_name = perf_evsel__name(evsel);
 	char bf[256], unit;
 	const char *warn = " ";
@@ -1818,7 +1821,8 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 		ev_name = perf_evsel__group_name(evsel);
 
 		for_each_group_member(pos, evsel) {
-			nr_events += pos->hists.stats.nr_events[PERF_RECORD_SAMPLE];
+			struct hists *pos_hists = evsel__hists(pos);
+			nr_events += pos_hists->stats.nr_events[PERF_RECORD_SAMPLE];
 		}
 	}
 
@@ -1827,7 +1831,7 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 			   unit, unit == ' ' ? "" : " ", ev_name);
 	slsmg_printf("%s", bf);
 
-	nr_events = evsel->hists.stats.nr_events[PERF_RECORD_LOST];
+	nr_events = hists->stats.nr_events[PERF_RECORD_LOST];
 	if (nr_events != 0) {
 		menu->lost_events = true;
 		if (!current_entry)
