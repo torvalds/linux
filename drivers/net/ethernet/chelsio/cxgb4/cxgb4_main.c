@@ -6137,7 +6137,7 @@ static pci_ers_result_t eeh_slot_reset(struct pci_dev *pdev)
 	pci_save_state(pdev);
 	pci_cleanup_aer_uncorrect_error_status(pdev);
 
-	if (t4_wait_dev_ready(adap) < 0)
+	if (t4_wait_dev_ready(adap->regs) < 0)
 		return PCI_ERS_RESULT_DISCONNECT;
 	if (t4_fw_hello(adap, adap->fn, adap->fn, MASTER_MUST, NULL) < 0)
 		return PCI_ERS_RESULT_DISCONNECT;
@@ -6529,6 +6529,10 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		err = -ENOMEM;
 		goto out_disable_device;
 	}
+
+	err = t4_wait_dev_ready(regs);
+	if (err < 0)
+		goto out_unmap_bar0;
 
 	/* We control everything through one PF */
 	func = SOURCEPF_GET(readl(regs + PL_WHOAMI));

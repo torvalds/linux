@@ -3845,12 +3845,19 @@ static void init_link_config(struct link_config *lc, unsigned int caps)
 	}
 }
 
-int t4_wait_dev_ready(struct adapter *adap)
+#define CIM_PF_NOACCESS 0xeeeeeeee
+
+int t4_wait_dev_ready(void __iomem *regs)
 {
-	if (t4_read_reg(adap, PL_WHOAMI) != 0xffffffff)
+	u32 whoami;
+
+	whoami = readl(regs + PL_WHOAMI);
+	if (whoami != 0xffffffff && whoami != CIM_PF_NOACCESS)
 		return 0;
+
 	msleep(500);
-	return t4_read_reg(adap, PL_WHOAMI) != 0xffffffff ? 0 : -EIO;
+	whoami = readl(regs + PL_WHOAMI);
+	return (whoami != 0xffffffff && whoami != CIM_PF_NOACCESS ? 0 : -EIO);
 }
 
 struct flash_desc {
@@ -3918,10 +3925,6 @@ int t4_prep_adapter(struct adapter *adapter)
 	int ret, ver;
 	uint16_t device_id;
 	u32 pl_rev;
-
-	ret = t4_wait_dev_ready(adapter);
-	if (ret < 0)
-		return ret;
 
 	get_pci_mode(adapter, &adapter->params.pci);
 	pl_rev = G_REV(t4_read_reg(adapter, PL_REV));
