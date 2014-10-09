@@ -57,7 +57,7 @@ static void dump_flags(unsigned long flags,
 	unsigned long mask;
 	int i;
 
-	printk(KERN_ALERT "flags: %#lx(", flags);
+	pr_emerg("flags: %#lx(", flags);
 
 	/* remove zone id */
 	flags &= (1UL << NR_PAGEFLAGS) - 1;
@@ -69,24 +69,23 @@ static void dump_flags(unsigned long flags,
 			continue;
 
 		flags &= ~mask;
-		printk("%s%s", delim, names[i].name);
+		pr_cont("%s%s", delim, names[i].name);
 		delim = "|";
 	}
 
 	/* check for left over flags */
 	if (flags)
-		printk("%s%#lx", delim, flags);
+		pr_cont("%s%#lx", delim, flags);
 
-	printk(")\n");
+	pr_cont(")\n");
 }
 
 void dump_page_badflags(struct page *page, const char *reason,
 		unsigned long badflags)
 {
-	printk(KERN_ALERT
-	       "page:%p count:%d mapcount:%d mapping:%p index:%#lx\n",
-		page, atomic_read(&page->_count), page_mapcount(page),
-		page->mapping, page->index);
+	pr_emerg("page:%p count:%d mapcount:%d mapping:%p index:%#lx\n",
+		  page, atomic_read(&page->_count), page_mapcount(page),
+		  page->mapping, page->index);
 	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS);
 	dump_flags(page->flags, pageflag_names, ARRAY_SIZE(pageflag_names));
 	if (reason)
@@ -152,8 +151,7 @@ static const struct trace_print_flags vmaflags_names[] = {
 
 void dump_vma(const struct vm_area_struct *vma)
 {
-	printk(KERN_ALERT
-		"vma %p start %p end %p\n"
+	pr_emerg("vma %p start %p end %p\n"
 		"next %p prev %p mm %p\n"
 		"prot %lx anon_vma %p vm_ops %p\n"
 		"pgoff %lx file %p private_data %p\n",
@@ -168,8 +166,7 @@ EXPORT_SYMBOL(dump_vma);
 
 void dump_mm(const struct mm_struct *mm)
 {
-	printk(KERN_ALERT
-		"mm %p mmap %p seqnum %d task_size %lu\n"
+	pr_emerg("mm %p mmap %p seqnum %d task_size %lu\n"
 #ifdef CONFIG_MMU
 		"get_unmapped_area %p\n"
 #endif
