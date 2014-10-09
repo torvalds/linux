@@ -71,7 +71,7 @@ struct rkxx_remotectl_drvdata {
 	struct wake_lock remotectl_wake_lock;
 };
 
-static struct rkxx_remotectl_button *remotectl_button; 
+static struct rkxx_remotectl_button *remotectl_button;
 
 
 static int remotectl_keybd_num_lookup(struct rkxx_remotectl_drvdata *ddata)
@@ -106,17 +106,37 @@ static int remotectl_keycode_lookup(struct rkxx_remotectl_drvdata *ddata)
 	return 0;
 }
 
+static int rk_remotectl_get_irkeybd_count(struct platform_device *pdev)
+{
+	struct device_node *node = pdev->dev.of_node;
+	struct device_node *child_node;
+	int boardnum;
+	int temp_usercode;
+
+	boardnum = 0;
+	for_each_child_of_node(node, child_node) {
+		if(of_property_read_u32(child_node, "rockchip,usercode",
+			&temp_usercode)) {
+			DBG("get keybd num error.\n");
+		} else {
+			boardnum++;
+		}
+	}
+	DBG("get keybd num = 0x%x.\n", boardnum);
+	return boardnum;
+}
+
 
 static int rk_remotectl_parse_ir_keys(struct platform_device *pdev)
 {
 	struct rkxx_remotectl_drvdata *ddata = platform_get_drvdata(pdev);
 	struct device_node *node = pdev->dev.of_node;
 	struct device_node *child_node;
-	u32 loop;
-	u32 ret;
-	u32 len;
-	u32 boardnum;
-	
+	int loop;
+	int ret;
+	int len;
+	int boardnum;
+
 	boardnum = 0;
 	for_each_child_of_node(node, child_node) {
 		if(of_property_read_u32(child_node, "rockchip,usercode",
@@ -131,16 +151,16 @@ static int rk_remotectl_parse_ir_keys(struct platform_device *pdev)
 		len /= sizeof(u32);
 		DBG("len=0x%x\n",len);
 		remotectl_button[boardnum].nbuttons = len/2;
-		if(of_property_read_u32_array(child_node, "rockchip,key_table", 
+		if(of_property_read_u32_array(child_node, "rockchip,key_table",
 			 (u32 *)remotectl_button[boardnum].key_table, len)) {
 			dev_err(&pdev->dev, "Missing key_table property in the DTS.\n");
 			ret = -1;
 			return ret;
 		}
 		for (loop=0; loop<(len/2); loop++) {
-			DBG("board[%d].scanCode[%d]=0x%x\n", boardnum, loop, 
+			DBG("board[%d].scanCode[%d]=0x%x\n", boardnum, loop,
 					remotectl_button[boardnum].key_table[loop].scancode);
-			DBG("board[%d].keyCode[%d]=%d\n", boardnum, loop, 
+			DBG("board[%d].keyCode[%d]=%d\n", boardnum, loop,
 					remotectl_button[boardnum].key_table[loop].keycode);
 		}
 		boardnum++;
@@ -164,7 +184,7 @@ static void rk_pwm_remotectl_do_something(unsigned long  data)
 		break;
 	}
 	case RMC_PRELOAD: {
-		mod_timer(&ddata->timer, jiffies + msecs_to_jiffies(130));
+		mod_timer(&ddata->timer, jiffies + msecs_to_jiffies(140));
 		if ((RK_PWM_TIME_PRE_MIN < ddata->period) &&
 		    (ddata->period < RK_PWM_TIME_PRE_MAX)) {
 			ddata->scandata = 0;
@@ -346,9 +366,9 @@ static irqreturn_t rockchip_pwm_irq(int irq, void *dev_id)
 		}
 	}
 	break;
-	default:	
+	default:
 	break;
-	}		
+	}
 	return IRQ_NONE;
 }
 
@@ -390,9 +410,9 @@ static int rk_pwm_remotectl_hw_init(struct rkxx_remotectl_drvdata *ddata)
 		writel_relaxed(val, ddata->base + PWM3_REG_INT_EN);
 	}
 	break;
-	default:	
+	default:
 	break;
-	}		
+	}
 	val = readl_relaxed(ddata->base + PWM_REG_CTRL);
 	val = (val & 0xFFFFFFFE) | PWM_ENABLE;
 	writel_relaxed(val, ddata->base + PWM_REG_CTRL);
@@ -405,7 +425,6 @@ static int rk_pwm_probe(struct platform_device *pdev)
 {
 	struct rkxx_remotectl_drvdata *ddata;
 	struct device_node *np = pdev->dev.of_node;
-	struct device_node *child_node;
 	struct resource *r;
 	struct input_dev *input;
 	struct clk *clk;
@@ -416,7 +435,7 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	int i, j;
 	int cpu_id;
 	int pwm_id;
-	
+
 	pr_err(".. rk pwm remotectl v1.1 init\n");
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
@@ -437,11 +456,7 @@ static int rk_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 	platform_set_drvdata(pdev, ddata);
-	num = 0;
-	for_each_child_of_node(np, child_node){
-		if(of_device_is_compatible(child_node, "rockchip,ir_key"))
-			num++;
-	}
+	num = rk_remotectl_get_irkeybd_count(pdev);
 	if (num == 0) {
 		pr_err("remotectl: no ir keyboard add in dts!!\n");
 		return -1;
@@ -499,19 +514,19 @@ static int rk_pwm_probe(struct platform_device *pdev)
 		pr_err("remotectl: register input device err, ret: %d\n", ret);
 	input_set_capability(input, EV_KEY, KEY_WAKEUP);
 	device_init_wakeup(&pdev->dev, 1);
+	enable_irq_wake(irq);
+	setup_timer(&ddata->timer, rk_pwm_remotectl_timer,
+		    (unsigned long)ddata);
+	//mod_timer(&ddata->timer, jiffies + msecs_to_jiffies(1000));
+	cpumask_clear(&cpumask);
+	cpumask_set_cpu(cpu_id, &cpumask);
+	irq_set_affinity(irq, &cpumask);
 	ret = devm_request_irq(&pdev->dev, irq, rockchip_pwm_irq,
 			       0, "rk_pwm_irq", ddata);
 	if (ret) {
 		dev_err(&pdev->dev, "cannot claim IRQ %d\n", irq);
 		return ret;
 	}
-	enable_irq_wake(irq);
-	setup_timer(&ddata->timer, rk_pwm_remotectl_timer,
-		    (unsigned long)ddata);
-	mod_timer(&ddata->timer, jiffies + msecs_to_jiffies(1000));
-	cpumask_clear(&cpumask);
-	cpumask_set_cpu(cpu_id, &cpumask); 
-	irq_set_affinity(irq, &cpumask); 
 	rk_pwm_remotectl_hw_init(ddata);
 	return ret;
 }
@@ -528,7 +543,7 @@ static int remotectl_suspend(struct device *dev)
 	struct cpumask cpumask;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct rkxx_remotectl_drvdata *ddata = platform_get_drvdata(pdev);
-	
+
 	cpumask_clear(&cpumask);
 	cpumask_set_cpu(cpu, &cpumask);
 	irq_set_affinity(ddata->irq, &cpumask);
@@ -541,10 +556,10 @@ static int remotectl_resume(struct device *dev)
 	struct cpumask cpumask;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct rkxx_remotectl_drvdata *ddata = platform_get_drvdata(pdev);
-	
+
 	cpumask_clear(&cpumask);
-	cpumask_set_cpu(ddata->handle_cpu_id, &cpumask); 
-	irq_set_affinity(ddata->irq, &cpumask); 
+	cpumask_set_cpu(ddata->handle_cpu_id, &cpumask);
+	irq_set_affinity(ddata->irq, &cpumask);
 	return 0;
 }
 
@@ -566,8 +581,8 @@ static struct platform_driver rk_pwm_driver = {
 		.name = "remotectl-pwm",
 		.of_match_table = rk_pwm_of_match,
 #ifdef CONFIG_PM
-        .pm	= &remotectl_pm_ops,
-#endif	
+		.pm = &remotectl_pm_ops,
+#endif
 	},
 	.probe = rk_pwm_probe,
 	.remove = rk_pwm_remove,
