@@ -49,6 +49,9 @@
 static int mali_clk_status = 0;
 static int mali_pd_status = 0;
 
+u32 kbase_group_error = 0;
+static struct kobject *rk_gpu;
+
 int mali_dvfs_clk_set(struct dvfs_node *node,unsigned long rate)
 {
 	int ret = 0;
@@ -257,6 +260,16 @@ int kbase_platform_cmu_pmu_control(struct kbase_device *kbdev, int control)
 
 	return 0;
 }
+
+static ssize_t error_count_show(struct device *dev,struct device_attribute *attr, char *buf)
+{
+	struct kbase_device *kbdev = dev_get_drvdata(dev);
+	ssize_t ret;
+
+	ret = scnprintf(buf, PAGE_SIZE, "%d\n", kbdev->kbase_group_error);
+	return ret;
+}
+static DEVICE_ATTR(error_count, S_IRUGO, error_count_show, NULL);
 
 #ifdef CONFIG_MALI_MIDGARD_DEBUG_SYS
 static ssize_t show_clock(struct device *dev, struct device_attribute *attr, char *buf)
@@ -868,6 +881,7 @@ void kbase_platform_remove_sysfs_file(struct device *dev)
 mali_error kbase_platform_init(struct kbase_device *kbdev)
 {
 	struct rk_context *platform;
+	int ret;
 
 	platform = kmalloc(sizeof(struct rk_context), GFP_KERNEL);
 
@@ -884,6 +898,14 @@ mali_error kbase_platform_init(struct kbase_device *kbdev)
 	platform->time_tick = 0;
 	platform->dvfs_enabled = true;
 #endif
+
+	rk_gpu = kobject_create_and_add("rk_gpu", NULL);
+	if (!rk_gpu)
+		return MALI_ERROR_FUNCTION_FAILED;
+
+	ret = sysfs_create_file(rk_gpu, &dev_attr_error_count.attr);
+	if(ret)
+		return MALI_ERROR_FUNCTION_FAILED;
 
 	spin_lock_init(&platform->cmu_pmu_lock);
 

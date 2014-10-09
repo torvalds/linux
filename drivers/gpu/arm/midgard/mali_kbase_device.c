@@ -359,6 +359,7 @@ void kbase_report_gpu_fault(kbase_device *kbdev, int multiple)
 	address |= kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_FAULTADDRESS_LO), NULL);
 
 	dev_warn(kbdev->dev, "GPU Fault 0x%08x (%s) at 0x%016llx", status & 0xFF, kbase_exception_name(status), address);
+	kbdev->kbase_group_error++;
 	if (multiple)
 		dev_warn(kbdev->dev, "There were multiple GPU faults - some have not been reported\n");
 }

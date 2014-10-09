@@ -642,6 +642,7 @@ struct kbase_device {
 
 	struct list_head entry;
 	struct device *dev;
+	unsigned int kbase_group_error;
 	struct miscdevice mdev;
 	u64 reg_start;
 	size_t reg_size;

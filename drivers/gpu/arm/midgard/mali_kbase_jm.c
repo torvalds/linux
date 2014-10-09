@@ -357,6 +357,7 @@ void kbase_job_done(kbase_device *kbdev, u32 done)
 					/* fall throught */
 				default:
 					dev_warn(kbdev->dev, "error detected from slot %d, job status 0x%08x (%s)", i, completion_code, kbase_exception_name(completion_code));
+				kbdev->kbase_group_error++;
 				}
 			}
 
