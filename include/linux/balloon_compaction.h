@@ -57,21 +57,22 @@
  * balloon driver as a page book-keeper for its registered balloon devices.
  */
 struct balloon_dev_info {
-	void *balloon_device;		/* balloon device descriptor */
-	struct address_space *mapping;	/* balloon special page->mapping */
 	unsigned long isolated_pages;	/* # of isolated pages for migration */
 	spinlock_t pages_lock;		/* Protection to pages list */
 	struct list_head pages;		/* Pages enqueued & handled to Host */
+	int (*migratepage)(struct balloon_dev_info *, struct page *newpage,
+			struct page *page, enum migrate_mode mode);
 };
 
 extern struct page *balloon_page_enqueue(struct balloon_dev_info *b_dev_info);
 extern struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info);
-extern struct balloon_dev_info *balloon_devinfo_alloc(
-						void *balloon_dev_descriptor);
 
-static inline void balloon_devinfo_free(struct balloon_dev_info *b_dev_info)
+static inline void balloon_devinfo_init(struct balloon_dev_info *balloon)
 {
-	kfree(b_dev_info);
+	balloon->isolated_pages = 0;
+	spin_lock_init(&balloon->pages_lock);
+	INIT_LIST_HEAD(&balloon->pages);
+	balloon->migratepage = NULL;
 }
 
 #ifdef CONFIG_BALLOON_COMPACTION
@@ -79,14 +80,6 @@ extern bool balloon_page_isolate(struct page *page);
 extern void balloon_page_putback(struct page *page);
 extern int balloon_page_migrate(struct page *newpage,
 				struct page *page, enum migrate_mode mode);
-extern struct address_space
-*balloon_mapping_alloc(struct balloon_dev_info *b_dev_info,
-			const struct address_space_operations *a_ops);
-
-static inline void balloon_mapping_free(struct address_space *balloon_mapping)
-{
-	kfree(balloon_mapping);
-}
 
 /*
  * __is_movable_balloon_page - helper to perform @page PageBalloon tests
@@ -120,27 +113,25 @@ static inline bool isolated_balloon_page(struct page *page)
 
 /*
  * balloon_page_insert - insert a page into the balloon's page list and make
- *		         the page->mapping assignment accordingly.
+ *			 the page->private assignment accordingly.
+ * @balloon : pointer to balloon device
  * @page    : page to be assigned as a 'balloon page'
- * @mapping : allocated special 'balloon_mapping'
- * @head    : balloon's device page list head
  *
  * Caller must ensure the page is locked and the spin_lock protecting balloon
  * pages list is held before inserting a page into the balloon device.
  */
-static inline void balloon_page_insert(struct page *page,
-				       struct address_space *mapping,
-				       struct list_head *head)
+static inline void balloon_page_insert(struct balloon_dev_info *balloon,
+				       struct page *page)
 {
 	__SetPageBalloon(page);
 	SetPagePrivate(page);
-	page->mapping = mapping;
-	list_add(&page->lru, head);
+	set_page_private(page, (unsigned long)balloon);
+	list_add(&page->lru, &balloon->pages);
 }
 
 /*
  * balloon_page_delete - delete a page from balloon's page list and clear
- *			 the page->mapping assignement accordingly.
+ *			 the page->private assignement accordingly.
  * @page    : page to be released from balloon's page list
  *
  * Caller must ensure the page is locked and the spin_lock protecting balloon
@@ -149,7 +140,7 @@ static inline void balloon_page_insert(struct page *page,
 static inline void balloon_page_delete(struct page *page)
 {
 	__ClearPageBalloon(page);
-	page->mapping = NULL;
+	set_page_private(page, 0);
 	if (PagePrivate(page)) {
 		ClearPagePrivate(page);
 		list_del(&page->lru);
@@ -162,11 +153,7 @@ static inline void balloon_page_delete(struct page *page)
  */
 static inline struct balloon_dev_info *balloon_page_device(struct page *page)
 {
-	struct address_space *mapping = page->mapping;
-	if (likely(mapping))
-		return mapping->private_data;
-
-	return NULL;
+	return (struct balloon_dev_info *)page_private(page);
 }
 
 static inline gfp_t balloon_mapping_gfp_mask(void)
@@ -174,29 +161,12 @@ static inline gfp_t balloon_mapping_gfp_mask(void)
 	return GFP_HIGHUSER_MOVABLE;
 }
 
-static inline bool balloon_compaction_check(void)
-{
-	return true;
-}
-
 #else /* !CONFIG_BALLOON_COMPACTION */
 
-static inline void *balloon_mapping_alloc(void *balloon_device,
-				const struct address_space_operations *a_ops)
+static inline void balloon_page_insert(struct balloon_dev_info *balloon,
+				       struct page *page)
 {
-	return ERR_PTR(-EOPNOTSUPP);
-}
-
-static inline void balloon_mapping_free(struct address_space *balloon_mapping)
-{
-	return;
-}
-
-static inline void balloon_page_insert(struct page *page,
-				       struct address_space *mapping,
-				       struct list_head *head)
-{
-	list_add(&page->lru, head);
+	list_add(&page->lru, &balloon->pages);
 }
 
 static inline void balloon_page_delete(struct page *page)
@@ -240,9 +210,5 @@ static inline gfp_t balloon_mapping_gfp_mask(void)
 	return GFP_HIGHUSER;
 }
 
-static inline bool balloon_compaction_check(void)
-{
-	return false;
-}
 #endif /* CONFIG_BALLOON_COMPACTION */
 #endif /* _LINUX_BALLOON_COMPACTION_H */
