@@ -2725,7 +2725,7 @@ static int __init dquot_init(void)
 		panic("Cannot create dquot hash table");
 
 	for (i = 0; i < _DQST_DQSTAT_LAST; i++) {
-		ret = percpu_counter_init(&dqstats.counter[i], 0);
+		ret = percpu_counter_init(&dqstats.counter[i], 0, GFP_KERNEL);
 		if (ret)
 			panic("Cannot create dquot stat counters");
 	}

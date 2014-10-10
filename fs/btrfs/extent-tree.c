@@ -3494,7 +3494,7 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 	if (!found)
 		return -ENOMEM;
 
-	ret = percpu_counter_init(&found->total_bytes_pinned, 0);
+	ret = percpu_counter_init(&found->total_bytes_pinned, 0, GFP_KERNEL);
 	if (ret) {
 		kfree(found);
 		return ret;

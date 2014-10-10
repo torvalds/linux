@@ -1183,7 +1183,7 @@ static struct btrfs_subvolume_writers *btrfs_alloc_subvolume_writers(void)
 	if (!writers)
 		return ERR_PTR(-ENOMEM);
 
-	ret = percpu_counter_init(&writers->counter, 0);
+	ret = percpu_counter_init(&writers->counter, 0, GFP_KERNEL);
 	if (ret < 0) {
 		kfree(writers);
 		return ERR_PTR(ret);
@@ -2188,7 +2188,7 @@ int open_ctree(struct super_block *sb,
 		goto fail_srcu;
 	}
 
-	ret = percpu_counter_init(&fs_info->dirty_metadata_bytes, 0);
+	ret = percpu_counter_init(&fs_info->dirty_metadata_bytes, 0, GFP_KERNEL);
 	if (ret) {
 		err = ret;
 		goto fail_bdi;
@@ -2196,13 +2196,13 @@ int open_ctree(struct super_block *sb,
 	fs_info->dirty_metadata_batch = PAGE_CACHE_SIZE *
 					(1 + ilog2(nr_cpu_ids));
 
-	ret = percpu_counter_init(&fs_info->delalloc_bytes, 0);
+	ret = percpu_counter_init(&fs_info->delalloc_bytes, 0, GFP_KERNEL);
 	if (ret) {
 		err = ret;
 		goto fail_dirty_metadata_bytes;
 	}
 
-	ret = percpu_counter_init(&fs_info->bio_counter, 0);
+	ret = percpu_counter_init(&fs_info->bio_counter, 0, GFP_KERNEL);
 	if (ret) {
 		err = ret;
 		goto fail_delalloc_bytes;
