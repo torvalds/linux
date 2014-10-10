@@ -94,9 +94,6 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 		goto err_mode_config_cleanup;
 	}
 
-	/* init kms poll for handling hpd */
-	drm_kms_helper_poll_init(dev);
-
 	/* setup possible_clones. */
 	exynos_drm_encoder_setup(dev);
 
@@ -116,9 +113,6 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto err_cleanup_vblank;
 
-	/* force connectors detection */
-	drm_helper_hpd_irq_event(dev);
-
 	/*
 	 * enable drm irq mode.
 	 * - with irq_enabled = true, we can use the vblank feature.
@@ -135,6 +129,12 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	 * vblank event.(after drm_vblank_put function is called)
 	 */
 	dev->vblank_disable_allowed = true;
+
+	/* init kms poll for handling hpd */
+	drm_kms_helper_poll_init(dev);
+
+	/* force connectors detection */
+	drm_helper_hpd_irq_event(dev);
 
 	return 0;
 
