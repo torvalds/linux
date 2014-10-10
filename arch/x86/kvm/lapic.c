@@ -1132,9 +1132,10 @@ static void start_apic_timer(struct kvm_lapic *apic)
 		if (likely(tscdeadline > guest_tsc)) {
 			ns = (tscdeadline - guest_tsc) * 1000000ULL;
 			do_div(ns, this_tsc_khz);
-		}
-		hrtimer_start(&apic->lapic_timer.timer,
-			ktime_add_ns(now, ns), HRTIMER_MODE_ABS);
+			hrtimer_start(&apic->lapic_timer.timer,
+				ktime_add_ns(now, ns), HRTIMER_MODE_ABS);
+		} else
+			apic_timer_expired(apic);
 
 		local_irq_restore(flags);
 	}
@@ -1391,9 +1392,6 @@ void kvm_set_lapic_tscdeadline_msr(struct kvm_vcpu *vcpu, u64 data)
 		return;
 
 	hrtimer_cancel(&apic->lapic_timer.timer);
-	/* Inject here so clearing tscdeadline won't override new value */
-	if (apic_has_pending_timer(vcpu))
-		kvm_inject_apic_timer_irqs(vcpu);
 	apic->lapic_timer.tscdeadline = data;
 	start_apic_timer(apic);
 }
