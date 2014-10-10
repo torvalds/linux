@@ -23,6 +23,68 @@
 
 #include "trace.h"
 
+static void mmio_write_buf(char *buf, unsigned int len, unsigned long data)
+{
+	void *datap = NULL;
+	union {
+		u8	byte;
+		u16	hword;
+		u32	word;
+		u64	dword;
+	} tmp;
+
+	switch (len) {
+	case 1:
+		tmp.byte	= data;
+		datap		= &tmp.byte;
+		break;
+	case 2:
+		tmp.hword	= data;
+		datap		= &tmp.hword;
+		break;
+	case 4:
+		tmp.word	= data;
+		datap		= &tmp.word;
+		break;
+	case 8:
+		tmp.dword	= data;
+		datap		= &tmp.dword;
+		break;
+	}
+
+	memcpy(buf, datap, len);
+}
+
+static unsigned long mmio_read_buf(char *buf, unsigned int len)
+{
+	unsigned long data = 0;
+	union {
+		u16	hword;
+		u32	word;
+		u64	dword;
+	} tmp;
+
+	switch (len) {
+	case 1:
+		data = buf[0];
+		break;
+	case 2:
+		memcpy(&tmp.hword, buf, len);
+		data = tmp.hword;
+		break;
+	case 4:
+		memcpy(&tmp.word, buf, len);
+		data = tmp.word;
+		break;
+	case 8:
+		memcpy(&tmp.dword, buf, len);
+		data = tmp.dword;
+		break;
+	}
+
+	return data;
+}
+
 /**
  * kvm_handle_mmio_return -- Handle MMIO loads after user space emulation
  * @vcpu: The VCPU pointer
@@ -33,28 +95,27 @@
  */
 int kvm_handle_mmio_return(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
-	unsigned long *dest;
+	unsigned long data;
 	unsigned int len;
 	int mask;
 
 	if (!run->mmio.is_write) {
-		dest = vcpu_reg(vcpu, vcpu->arch.mmio_decode.rt);
-		*dest = 0;
-
 		len = run->mmio.len;
 		if (len > sizeof(unsigned long))
 			return -EINVAL;
 
-		memcpy(dest, run->mmio.data, len);
-
-		trace_kvm_mmio(KVM_TRACE_MMIO_READ, len, run->mmio.phys_addr,
-				*((u64 *)run->mmio.data));
+		data = mmio_read_buf(run->mmio.data, len);
 
 		if (vcpu->arch.mmio_decode.sign_extend &&
 		    len < sizeof(unsigned long)) {
 			mask = 1U << ((len * 8) - 1);
-			*dest = (*dest ^ mask) - mask;
+			data = (data ^ mask) - mask;
 		}
+
+		trace_kvm_mmio(KVM_TRACE_MMIO_READ, len, run->mmio.phys_addr,
+			       data);
+		data = vcpu_data_host_to_guest(vcpu, data, len);
+		*vcpu_reg(vcpu, vcpu->arch.mmio_decode.rt) = data;
 	}
 
 	return 0;
@@ -63,7 +124,8 @@ int kvm_handle_mmio_return(struct kvm_vcpu *vcpu, struct kvm_run *run)
 static int decode_hsr(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		      struct kvm_exit_mmio *mmio)
 {
-	unsigned long rt, len;
+	unsigned long rt;
+	int len;
 	bool is_write, sign_extend;
 
 	if (kvm_vcpu_dabt_isextabt(vcpu)) {
@@ -86,12 +148,6 @@ static int decode_hsr(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	sign_extend = kvm_vcpu_dabt_issext(vcpu);
 	rt = kvm_vcpu_dabt_get_rd(vcpu);
 
-	if (kvm_vcpu_reg_is_pc(vcpu, rt)) {
-		/* IO memory trying to read/write pc */
-		kvm_inject_pabt(vcpu, kvm_vcpu_get_hfar(vcpu));
-		return 1;
-	}
-
 	mmio->is_write = is_write;
 	mmio->phys_addr = fault_ipa;
 	mmio->len = len;
@@ -110,6 +166,7 @@ int io_mem_abort(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		 phys_addr_t fault_ipa)
 {
 	struct kvm_exit_mmio mmio;
+	unsigned long data;
 	unsigned long rt;
 	int ret;
 
@@ -130,13 +187,15 @@ int io_mem_abort(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	}
 
 	rt = vcpu->arch.mmio_decode.rt;
+	data = vcpu_data_guest_to_host(vcpu, *vcpu_reg(vcpu, rt), mmio.len);
+
 	trace_kvm_mmio((mmio.is_write) ? KVM_TRACE_MMIO_WRITE :
 					 KVM_TRACE_MMIO_READ_UNSATISFIED,
 			mmio.len, fault_ipa,
-			(mmio.is_write) ? *vcpu_reg(vcpu, rt) : 0);
+			(mmio.is_write) ? data : 0);
 
 	if (mmio.is_write)
-		memcpy(mmio.data, vcpu_reg(vcpu, rt), mmio.len);
+		mmio_write_buf(mmio.data, mmio.len, data);
 
 	if (vgic_handle_mmio(vcpu, run, &mmio))
 		return 1;

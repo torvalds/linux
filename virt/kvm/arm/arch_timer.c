@@ -25,14 +25,12 @@
 #include <clocksource/arm_arch_timer.h>
 #include <asm/arch_timer.h>
 
-#include <asm/kvm_vgic.h>
-#include <asm/kvm_arch_timer.h>
+#include <kvm/arm_vgic.h>
+#include <kvm/arm_arch_timer.h>
 
 static struct timecounter *timecounter;
 static struct workqueue_struct *wqueue;
-static struct kvm_irq_level timer_irq = {
-	.level	= 1,
-};
+static unsigned int host_vtimer_irq;
 
 static cycle_t kvm_phys_timer_read(void)
 {
@@ -67,8 +65,8 @@ static void kvm_timer_inject_irq(struct kvm_vcpu *vcpu)
 
 	timer->cntv_ctl |= ARCH_TIMER_CTRL_IT_MASK;
 	kvm_vgic_inject_irq(vcpu->kvm, vcpu->vcpu_id,
-			    vcpu->arch.timer_cpu.irq->irq,
-			    vcpu->arch.timer_cpu.irq->level);
+			    timer->irq->irq,
+			    timer->irq->level);
 }
 
 static irqreturn_t kvm_arch_timer_handler(int irq, void *dev_id)
@@ -156,6 +154,20 @@ void kvm_timer_sync_hwstate(struct kvm_vcpu *vcpu)
 	timer_arm(timer, ns);
 }
 
+void kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu,
+			  const struct kvm_irq_level *irq)
+{
+	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
+
+	/*
+	 * The vcpu timer irq number cannot be determined in
+	 * kvm_timer_vcpu_init() because it is called much before
+	 * kvm_vcpu_set_target(). To handle this, we determine
+	 * vcpu timer irq number when the vcpu is reset.
+	 */
+	timer->irq = irq;
+}
+
 void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
@@ -163,14 +175,47 @@ void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu)
 	INIT_WORK(&timer->expired, kvm_timer_inject_irq_work);
 	hrtimer_init(&timer->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	timer->timer.function = kvm_timer_expire;
-	timer->irq = &timer_irq;
 }
 
 static void kvm_timer_init_interrupt(void *info)
 {
-	enable_percpu_irq(timer_irq.irq, 0);
+	enable_percpu_irq(host_vtimer_irq, 0);
 }
 
+int kvm_arm_timer_set_reg(struct kvm_vcpu *vcpu, u64 regid, u64 value)
+{
+	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
+
+	switch (regid) {
+	case KVM_REG_ARM_TIMER_CTL:
+		timer->cntv_ctl = value;
+		break;
+	case KVM_REG_ARM_TIMER_CNT:
+		vcpu->kvm->arch.timer.cntvoff = kvm_phys_timer_read() - value;
+		break;
+	case KVM_REG_ARM_TIMER_CVAL:
+		timer->cntv_cval = value;
+		break;
+	default:
+		return -1;
+	}
+	return 0;
+}
+
+u64 kvm_arm_timer_get_reg(struct kvm_vcpu *vcpu, u64 regid)
+{
+	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
+
+	switch (regid) {
+	case KVM_REG_ARM_TIMER_CTL:
+		return timer->cntv_ctl;
+	case KVM_REG_ARM_TIMER_CNT:
+		return kvm_phys_timer_read() - vcpu->kvm->arch.timer.cntvoff;
+	case KVM_REG_ARM_TIMER_CVAL:
+		return timer->cntv_cval;
+	}
+	return (u64)-1;
+}
 
 static int kvm_timer_cpu_notify(struct notifier_block *self,
 				unsigned long action, void *cpu)
@@ -182,7 +227,7 @@ static int kvm_timer_cpu_notify(struct notifier_block *self,
 		break;
 	case CPU_DYING:
 	case CPU_DYING_FROZEN:
-		disable_percpu_irq(timer_irq.irq);
+		disable_percpu_irq(host_vtimer_irq);
 		break;
 	}
 
@@ -195,6 +240,7 @@ static struct notifier_block kvm_timer_cpu_nb = {
 
 static const struct of_device_id arch_timer_of_match[] = {
 	{ .compatible	= "arm,armv7-timer",	},
+	{ .compatible	= "arm,armv8-timer",	},
 	{},
 };
 
@@ -229,7 +275,7 @@ int kvm_timer_hyp_init(void)
 		goto out;
 	}
 
-	timer_irq.irq = ppi;
+	host_vtimer_irq = ppi;
 
 	err = register_cpu_notifier(&kvm_timer_cpu_nb);
 	if (err) {

@@ -61,10 +61,16 @@ struct arch_timer_cpu {
 #ifdef CONFIG_KVM_ARM_TIMER
 int kvm_timer_hyp_init(void);
 int kvm_timer_init(struct kvm *kvm);
+void kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu,
+			  const struct kvm_irq_level *irq);
 void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu);
 void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu);
 void kvm_timer_sync_hwstate(struct kvm_vcpu *vcpu);
 void kvm_timer_vcpu_terminate(struct kvm_vcpu *vcpu);
+
+u64 kvm_arm_timer_get_reg(struct kvm_vcpu *, u64 regid);
+int kvm_arm_timer_set_reg(struct kvm_vcpu *, u64 regid, u64 value);
+
 #else
 static inline int kvm_timer_hyp_init(void)
 {
@@ -76,10 +82,22 @@ static inline int kvm_timer_init(struct kvm *kvm)
 	return 0;
 }
 
+static inline void kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu,
+					const struct kvm_irq_level *irq) {}
 static inline void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu) {}
 static inline void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu) {}
 static inline void kvm_timer_sync_hwstate(struct kvm_vcpu *vcpu) {}
 static inline void kvm_timer_vcpu_terminate(struct kvm_vcpu *vcpu) {}
+
+static inline int kvm_arm_timer_set_reg(struct kvm_vcpu *vcpu, u64 regid, u64 value)
+{
+	return 0;
+}
+
+static inline u64 kvm_arm_timer_get_reg(struct kvm_vcpu *vcpu, u64 regid)
+{
+	return 0;
+}
 #endif
 
 #endif

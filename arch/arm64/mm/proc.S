@@ -209,8 +209,14 @@ ENTRY(__cpu_setup)
 	 * Set/prepare TCR and TTBR. We use 512GB (39-bit) address range for
 	 * both user and kernel.
 	 */
-	ldr	x10, =TCR_TxSZ(VA_BITS) | TCR_FLAGS | TCR_IPS_40BIT | \
+	ldr	x10, =TCR_TxSZ(VA_BITS) | TCR_FLAGS | \
 		      TCR_ASID16 | TCR_TBI0 | (1 << 31)
+	/*
+	 * Read the PARange bits from ID_AA64MMFR0_EL1 and set the IPS bits in
+	 * TCR_EL1.
+	 */
+	mrs	x9, ID_AA64MMFR0_EL1
+	bfi	x10, x9, #32, #3
 #ifdef CONFIG_ARM64_64K_PAGES
 	orr	x10, x10, TCR_TG0_64K
 	orr	x10, x10, TCR_TG1_64K

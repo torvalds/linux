@@ -53,7 +53,6 @@
 
 #define KVM_ARCH_WANT_MMU_NOTIFIER
 
-struct kvm;
 extern int kvm_unmap_hva(struct kvm *kvm, unsigned long hva);
 extern int kvm_unmap_hva_range(struct kvm *kvm,
 			       unsigned long start, unsigned long end);
@@ -80,10 +79,6 @@ extern void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte);
 
 /* Physical Address Mask - allowed range of real mode RAM access */
 #define KVM_PAM			0x0fffffffffffffffULL
-
-struct kvm;
-struct kvm_run;
-struct kvm_vcpu;
 
 struct lppaca;
 struct slb_shadow;
@@ -627,5 +622,13 @@ struct kvm_vcpu_arch {
 
 #define __KVM_HAVE_ARCH_WQP
 #define __KVM_HAVE_CREATE_DEVICE
+
+static inline void kvm_arch_hardware_disable(void) {}
+static inline void kvm_arch_hardware_unsetup(void) {}
+static inline void kvm_arch_sync_events(struct kvm *kvm) {}
+static inline void kvm_arch_memslots_updated(struct kvm *kvm) {}
+static inline void kvm_arch_flush_shadow_all(struct kvm *kvm) {}
+static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
+static inline void kvm_arch_exit(void) {}
 
 #endif /* __POWERPC_KVM_HOST_H__ */
