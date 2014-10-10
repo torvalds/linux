@@ -99,7 +99,6 @@ struct	wlan_network {
 	/*  set to fixed when not to be removed as site-surveying */
 	int	fixed;
 	unsigned long	last_scanned; /* timestamp for the network */
-	int	aid;		/* will only be valid when a BSS is joined. */
 	int	join_res;
 	struct wlan_bssid_ex	network; /* must be the last item */
 	struct wlan_bcn_info	BcnInfo;

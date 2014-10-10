@@ -4875,7 +4875,7 @@ void report_join_res23a(struct rtw_adapter *padapter, int res)
 	pjoinbss_evt = (struct joinbss_event*)(pevtcmd + sizeof(struct C2HEvent_Header));
 	memcpy((unsigned char *)&pjoinbss_evt->network.network,
 	       &pmlmeinfo->network, sizeof(struct wlan_bssid_ex));
-	pjoinbss_evt->network.join_res	= pjoinbss_evt->network.aid = res;
+	pjoinbss_evt->network.join_res = res;
 
 	DBG_8723A("report_join_res23a(%d)\n", res);
 

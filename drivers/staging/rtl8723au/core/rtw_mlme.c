@@ -110,7 +110,6 @@ struct wlan_network *rtw_alloc_network(struct mlme_priv *pmlmepriv, gfp_t gfp)
 		pnetwork->network_type = 0;
 		pnetwork->fixed = false;
 		pnetwork->last_scanned = jiffies;
-		pnetwork->aid = 0;
 		pnetwork->join_res = 0;
 	}
 
@@ -484,7 +483,6 @@ static void rtw_update_scanned_network(struct rtw_adapter *adapter,
 		pnetwork->last_scanned = jiffies;
 
 		pnetwork->network_type = 0;
-		pnetwork->aid = 0;
 		pnetwork->join_res = 0;
 
 		/* bss info not receiving from the right channel */
@@ -1021,7 +1019,6 @@ rtw_joinbss_update_network23a(struct rtw_adapter *padapter,
 	cur_network->network.beacon_interval =
 		ptarget_wlan->network.beacon_interval;
 	cur_network->network.tsf = ptarget_wlan->network.tsf;
-	cur_network->aid = pnetwork->join_res;
 
 	rtw_set_signal_stat_timer(&padapter->recvpriv);
 	padapter->recvpriv.signal_strength =
