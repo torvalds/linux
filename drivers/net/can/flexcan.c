@@ -184,14 +184,14 @@
  * FLEXCAN hardware feature flags
  *
  * Below is some version info we got:
- *    SOC   Version   IP-Version  Glitch-  [TR]WRN_INT  Memory err
- *                                Filter?   connected?  detection
- *   MX25  FlexCAN2  03.00.00.00     no         no         no
- *   MX28  FlexCAN2  03.00.04.00    yes        yes         no
- *   MX35  FlexCAN2  03.00.00.00     no         no         no
- *   MX53  FlexCAN2  03.00.00.00    yes         no         no
- *   MX6s  FlexCAN3  10.00.12.00    yes        yes         no
- *   VF610 FlexCAN3  ?               no        yes        yes
+ *    SOC   Version   IP-Version  Glitch- [TR]WRN_INT Memory err RTR re-
+ *                                Filter? connected?  detection  ception in MB
+ *   MX25  FlexCAN2  03.00.00.00     no        no         no        no
+ *   MX28  FlexCAN2  03.00.04.00    yes       yes         no        no
+ *   MX35  FlexCAN2  03.00.00.00     no        no         no        no
+ *   MX53  FlexCAN2  03.00.00.00    yes        no         no        no
+ *   MX6s  FlexCAN3  10.00.12.00    yes       yes         no       yes
+ *   VF610 FlexCAN3  ?               no       yes        yes       yes?
  *
  * Some SOCs do not have the RX_WARN & TX_WARN interrupt line connected.
  */
