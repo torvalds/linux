@@ -196,6 +196,15 @@
 			clock-names = "timer1", "timer2", "apb_pclk";
 		};
 
+		pb1176_rtc: rtc@10108000 {
+			compatible = "arm,pl031", "arm,primecell";
+			reg = <0x10108000 0x1000>;
+			interrupt-parent = <&intc_dc1176>;
+			interrupts = <0 14 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
+		};
+
 		pb1176_gpio0: gpio@1010a000 {
 			compatible = "arm,pl061", "arm,primecell";
 			reg = <0x1010a000 0x1000>;
@@ -296,6 +305,15 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
+		};
+
+		fpga_rtc: rtc@10017000 {
+			compatible = "arm,pl031", "arm,primecell";
+			reg = <0x10017000 0x1000>;
+			interrupt-parent = <&intc_fpga1176>;
+			interrupts = <0 25 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&pclk>;
 			clock-names = "apb_pclk";
 		};
