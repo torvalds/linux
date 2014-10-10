@@ -1276,8 +1276,14 @@ int perf_evlist__prepare_workload(struct perf_evlist *evlist, struct target *tar
 		sigaction(SIGUSR1, &act, NULL);
 	}
 
-	if (target__none(target))
+	if (target__none(target)) {
+		if (evlist->threads == NULL) {
+			fprintf(stderr, "FATAL: evlist->threads need to be set at this point (%s:%d).\n",
+				__func__, __LINE__);
+			goto out_close_pipes;
+		}
 		evlist->threads->map[0] = evlist->workload.pid;
+	}
 
 	close(child_ready_pipe[1]);
 	close(go_pipe[0]);
