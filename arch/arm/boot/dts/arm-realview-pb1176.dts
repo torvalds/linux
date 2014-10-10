@@ -57,6 +57,14 @@
 		clocks = <&xtal24mhz>;
 	};
 
+	kmiclk: kmiclk@24M {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clock-div = <1>;
+		clock-mult = <1>;
+		clocks = <&xtal24mhz>;
+	};
+
 	sspclk: sspclk@24M {
 		#clock-cells = <0>;
 		compatible = "fixed-factor-clock";
@@ -279,6 +287,24 @@
 		#size-cells = <1>;
 		compatible = "simple-bus";
 		ranges;
+
+		fpga_kmi0: kmi@10006000 {
+			compatible = "arm,pl050", "arm,primecell";
+			reg = <0x10006000 0x1000>;
+			interrupt-parent = <&intc_fpga1176>;
+			interrupts = <0 3 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&kmiclk>, <&pclk>;
+			clock-names = "KMIREFCLK", "apb_pclk";
+		};
+
+		fpga_kmi1: kmi@10007000 {
+			compatible = "arm,pl050", "arm,primecell";
+			reg = <0x10007000 0x1000>;
+			interrupt-parent = <&intc_fpga1176>;
+			interrupts = <0 4 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&kmiclk>, <&pclk>;
+			clock-names = "KMIREFCLK", "apb_pclk";
+		};
 
 		fpga_charlcd: charlcd@10008000 {
 			compatible = "arm,versatile-lcd";
