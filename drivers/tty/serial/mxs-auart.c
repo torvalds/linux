@@ -42,6 +42,9 @@
 
 #include <asm/cacheflush.h>
 
+#include <linux/err.h>
+#include "serial_mctrl_gpio.h"
+
 #define MXS_AUART_PORTS 5
 #define MXS_AUART_FIFO_SIZE		16
 
@@ -158,6 +161,8 @@ struct mxs_auart_port {
 	struct scatterlist rx_sgl;
 	struct dma_chan	*rx_dma_chan;
 	void *rx_dma_buf;
+
+	struct mctrl_gpios	*gpios;
 };
 
 static struct platform_device_id mxs_auart_devtype[] = {
@@ -405,6 +410,8 @@ static void mxs_auart_release_port(struct uart_port *u)
 
 static void mxs_auart_set_mctrl(struct uart_port *u, unsigned mctrl)
 {
+	struct mxs_auart_port *s = to_auart_port(u);
+
 	u32 ctrl = readl(u->membase + AUART_CTRL2);
 
 	ctrl &= ~(AUART_CTRL2_RTSEN | AUART_CTRL2_RTS);
@@ -416,17 +423,20 @@ static void mxs_auart_set_mctrl(struct uart_port *u, unsigned mctrl)
 	}
 
 	writel(ctrl, u->membase + AUART_CTRL2);
+
+	mctrl_gpio_set(s->gpios, mctrl);
 }
 
 static u32 mxs_auart_get_mctrl(struct uart_port *u)
 {
+	struct mxs_auart_port *s = to_auart_port(u);
 	u32 stat = readl(u->membase + AUART_STAT);
 	u32 mctrl = 0;
 
 	if (stat & AUART_STAT_CTS)
 		mctrl |= TIOCM_CTS;
 
-	return mctrl;
+	return mctrl_gpio_get(s->gpios, &mctrl);
 }
 
 static int mxs_auart_dma_prep_rx(struct mxs_auart_port *s);
@@ -554,6 +564,10 @@ err_out:
 
 }
 
+#define RTS_AT_AUART()	IS_ERR_OR_NULL(mctrl_gpio_to_gpiod(s->gpios,	\
+							UART_GPIO_RTS))
+#define CTS_AT_AUART()	IS_ERR_OR_NULL(mctrl_gpio_to_gpiod(s->gpios,	\
+							UART_GPIO_CTS))
 static void mxs_auart_settermios(struct uart_port *u,
 				 struct ktermios *termios,
 				 struct ktermios *old)
@@ -630,6 +644,7 @@ static void mxs_auart_settermios(struct uart_port *u,
 		ctrl |= AUART_LINECTRL_STP2;
 
 	/* figure out the hardware flow control settings */
+	ctrl2 &= ~(AUART_CTRL2_CTSEN | AUART_CTRL2_RTSEN);
 	if (cflag & CRTSCTS) {
 		/*
 		 * The DMA has a bug(see errata:2836) in mx23.
@@ -644,9 +659,11 @@ static void mxs_auart_settermios(struct uart_port *u,
 				ctrl2 |= AUART_CTRL2_TXDMAE | AUART_CTRL2_RXDMAE
 				       | AUART_CTRL2_DMAONERR;
 		}
-		ctrl2 |= AUART_CTRL2_CTSEN | AUART_CTRL2_RTSEN;
-	} else {
-		ctrl2 &= ~(AUART_CTRL2_CTSEN | AUART_CTRL2_RTSEN);
+		/* Even if RTS is GPIO line RTSEN can be enabled because
+		 * the pinctrl configuration decides about RTS pin function */
+		ctrl2 |= AUART_CTRL2_RTSEN;
+		if (CTS_AT_AUART())
+			ctrl2 |= AUART_CTRL2_CTSEN;
 	}
 
 	/* set baud rate */
@@ -690,7 +707,9 @@ static irqreturn_t mxs_auart_irq_handle(int irq, void *context)
 			s->port.membase + AUART_INTR_CLR);
 
 	if (istat & AUART_INTR_CTSMIS) {
-		uart_handle_cts_change(&s->port, stat & AUART_STAT_CTS);
+		if (CTS_AT_AUART())
+			uart_handle_cts_change(&s->port,
+					stat & AUART_STAT_CTS);
 		writel(AUART_INTR_CTSMIS,
 				s->port.membase + AUART_INTR_CLR);
 		istat &= ~AUART_INTR_CTSMIS;
@@ -1014,6 +1033,23 @@ static int serial_mxs_probe_dt(struct mxs_auart_port *s,
 	return 0;
 }
 
+static bool mxs_auart_init_gpios(struct mxs_auart_port *s, struct device *dev)
+{
+	s->gpios = mctrl_gpio_init(dev, 0);
+	if (IS_ERR_OR_NULL(s->gpios))
+		return false;
+
+	/* Block (enabled before) DMA option if RTS or CTS is GPIO line */
+	if (!RTS_AT_AUART() || !CTS_AT_AUART()) {
+		if (test_bit(MXS_AUART_RTSCTS, &s->flags))
+			dev_warn(dev,
+				 "DMA and flow control via gpio may cause some problems. DMA disabled!\n");
+		clear_bit(MXS_AUART_RTSCTS, &s->flags);
+	}
+
+	return true;
+}
+
 static int mxs_auart_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id =
@@ -1068,6 +1104,10 @@ static int mxs_auart_probe(struct platform_device *pdev)
 		goto out_free_clk;
 
 	platform_set_drvdata(pdev, s);
+
+	if (!mxs_auart_init_gpios(s, &pdev->dev))
+		dev_err(&pdev->dev,
+			"Failed to initialize GPIOs. The serial port may not work as expected\n");
 
 	auart_port[s->port.line] = s;
 
