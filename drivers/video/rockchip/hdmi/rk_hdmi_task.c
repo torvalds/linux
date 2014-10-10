@@ -9,7 +9,7 @@
 #define HDMI_MAX_ID 1
 
 static char *envp[] = { "INTERFACE=HDMI", NULL };
-static int uboot_vic;
+static int uboot_vic=-1;
 static void hdmi_sys_show_state(struct hdmi *hdmi)
 {
 	switch (hdmi->state) {
@@ -49,8 +49,7 @@ static void hdmi_sys_show_state(struct hdmi *hdmi)
 int hdmi_sys_init(struct hdmi *hdmi)
 {
 	hdmi->uboot_logo = support_uboot_display();
-	printk("%s,uboot-logo=%d,uboot_vic=%d\n",__func__,hdmi->uboot_logo,uboot_vic);
-	if (hdmi->uboot_logo) {
+	if ((uboot_vic > 0) && (hdmi->uboot_logo > 0)) {
 		hdmi->hotplug = HDMI_HPD_ACTIVED;
 		hdmi->state = PLAY_BACK;
 		hdmi->enable = HDMI_ENABLE;
@@ -62,7 +61,9 @@ int hdmi_sys_init(struct hdmi *hdmi)
 		hdmi->enable = HDMI_ENABLE;
 		hdmi->display = HDMI_DISABLE;
 		hdmi->vic = HDMI_VIDEO_DEFAULT_MODE;
+		hdmi->uboot_logo = 0;
 	}
+	hdmi_dbg(hdmi->dev, "uboot-logo=%d,uboot_vic=%d\n",hdmi->uboot_logo,uboot_vic);
 	hdmi->autoconfig = HDMI_AUTO_CONFIGURE;
 	hdmi->audio.channel = HDMI_AUDIO_DEFAULT_CHANNEL;
 	hdmi->audio.rate = HDMI_AUDIO_DEFAULT_RATE;
