@@ -929,6 +929,30 @@ static bool fm10k_tx_desc_push(struct fm10k_ring *tx_ring,
 	return i == tx_ring->count;
 }
 
+static int __fm10k_maybe_stop_tx(struct fm10k_ring *tx_ring, u16 size)
+{
+	netif_stop_subqueue(tx_ring->netdev, tx_ring->queue_index);
+
+	smp_mb();
+
+	/* We need to check again in a case another CPU has just
+	 * made room available. */
+	if (likely(fm10k_desc_unused(tx_ring) < size))
+		return -EBUSY;
+
+	/* A reprieve! - use start_queue because it doesn't call schedule */
+	netif_start_subqueue(tx_ring->netdev, tx_ring->queue_index);
+	++tx_ring->tx_stats.restart_queue;
+	return 0;
+}
+
+static inline int fm10k_maybe_stop_tx(struct fm10k_ring *tx_ring, u16 size)
+{
+	if (likely(fm10k_desc_unused(tx_ring) >= size))
+		return 0;
+	return __fm10k_maybe_stop_tx(tx_ring, size);
+}
+
 static void fm10k_tx_map(struct fm10k_ring *tx_ring,
 			 struct fm10k_tx_buffer *first)
 {
@@ -1022,13 +1046,18 @@ static void fm10k_tx_map(struct fm10k_ring *tx_ring,
 
 	tx_ring->next_to_use = i;
 
-	/* notify HW of packet */
-	writel(i, tx_ring->tail);
+	/* Make sure there is space in the ring for the next send. */
+	fm10k_maybe_stop_tx(tx_ring, DESC_NEEDED);
 
-	/* we need this if more than one processor can write to our tail
-	 * at a time, it synchronizes IO on IA64/Altix systems
-	 */
-	mmiowb();
+	/* notify HW of packet */
+	if (netif_xmit_stopped(txring_txq(tx_ring)) || !skb->xmit_more) {
+		writel(i, tx_ring->tail);
+
+		/* we need this if more than one processor can write to our tail
+		 * at a time, it synchronizes IO on IA64/Altix systems
+		 */
+		mmiowb();
+	}
 
 	return;
 dma_error:
@@ -1046,30 +1075,6 @@ dma_error:
 	}
 
 	tx_ring->next_to_use = i;
-}
-
-static int __fm10k_maybe_stop_tx(struct fm10k_ring *tx_ring, u16 size)
-{
-	netif_stop_subqueue(tx_ring->netdev, tx_ring->queue_index);
-
-	smp_mb();
-
-	/* We need to check again in a case another CPU has just
-	 * made room available. */
-	if (likely(fm10k_desc_unused(tx_ring) < size))
-		return -EBUSY;
-
-	/* A reprieve! - use start_queue because it doesn't call schedule */
-	netif_start_subqueue(tx_ring->netdev, tx_ring->queue_index);
-	++tx_ring->tx_stats.restart_queue;
-	return 0;
-}
-
-static inline int fm10k_maybe_stop_tx(struct fm10k_ring *tx_ring, u16 size)
-{
-	if (likely(fm10k_desc_unused(tx_ring) >= size))
-		return 0;
-	return __fm10k_maybe_stop_tx(tx_ring, size);
 }
 
 netdev_tx_t fm10k_xmit_frame_ring(struct sk_buff *skb,
@@ -1115,8 +1120,6 @@ netdev_tx_t fm10k_xmit_frame_ring(struct sk_buff *skb,
 		fm10k_tx_csum(tx_ring, first);
 
 	fm10k_tx_map(tx_ring, first);
-
-	fm10k_maybe_stop_tx(tx_ring, DESC_NEEDED);
 
 	return NETDEV_TX_OK;
 
