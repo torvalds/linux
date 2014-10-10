@@ -37,6 +37,11 @@
  */
 #define TRAMPOLINE_VA		UL(CONFIG_VECTORS_BASE)
 
+/*
+ * KVM_MMU_CACHE_MIN_PAGES is the number of stage2 page table translation levels.
+ */
+#define KVM_MMU_CACHE_MIN_PAGES	2
+
 #ifndef __ASSEMBLY__
 
 #include <asm/cacheflush.h>
@@ -83,6 +88,11 @@ static inline void kvm_clean_pgd(pgd_t *pgd)
 	clean_dcache_area(pgd, PTRS_PER_S2_PGD * sizeof(pgd_t));
 }
 
+static inline void kvm_clean_pmd(pmd_t *pmd)
+{
+	clean_dcache_area(pmd, PTRS_PER_PMD * sizeof(pmd_t));
+}
+
 static inline void kvm_clean_pmd_entry(pmd_t *pmd)
 {
 	clean_pmd_entry(pmd);
@@ -123,10 +133,23 @@ static inline bool kvm_page_empty(void *ptr)
 }
 
 
-#define kvm_pte_table_empty(ptep) kvm_page_empty(ptep)
-#define kvm_pmd_table_empty(pmdp) kvm_page_empty(pmdp)
-#define kvm_pud_table_empty(pudp) (0)
+#define kvm_pte_table_empty(kvm, ptep) kvm_page_empty(ptep)
+#define kvm_pmd_table_empty(kvm, pmdp) kvm_page_empty(pmdp)
+#define kvm_pud_table_empty(kvm, pudp) (0)
 
+#define KVM_PREALLOC_LEVEL	0
+
+static inline int kvm_prealloc_hwpgd(struct kvm *kvm, pgd_t *pgd)
+{
+	return 0;
+}
+
+static inline void kvm_free_hwpgd(struct kvm *kvm) { }
+
+static inline void *kvm_get_hwpgd(struct kvm *kvm)
+{
+	return kvm->arch.pgd;
+}
 
 struct kvm;
 
