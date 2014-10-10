@@ -72,7 +72,7 @@ nla_put_failure:
 }
 EXPORT_SYMBOL_GPL(nft_reject_dump);
 
-static u8 icmp_code_v4[NFT_REJECT_ICMPX_MAX] = {
+static u8 icmp_code_v4[NFT_REJECT_ICMPX_MAX + 1] = {
 	[NFT_REJECT_ICMPX_NO_ROUTE]		= ICMP_NET_UNREACH,
 	[NFT_REJECT_ICMPX_PORT_UNREACH]		= ICMP_PORT_UNREACH,
 	[NFT_REJECT_ICMPX_HOST_UNREACH]		= ICMP_HOST_UNREACH,
@@ -81,8 +81,7 @@ static u8 icmp_code_v4[NFT_REJECT_ICMPX_MAX] = {
 
 int nft_reject_icmp_code(u8 code)
 {
-	if (code > NFT_REJECT_ICMPX_MAX)
-		return -EINVAL;
+	BUG_ON(code > NFT_REJECT_ICMPX_MAX);
 
 	return icmp_code_v4[code];
 }
@@ -90,7 +89,7 @@ int nft_reject_icmp_code(u8 code)
 EXPORT_SYMBOL_GPL(nft_reject_icmp_code);
 
 
-static u8 icmp_code_v6[NFT_REJECT_ICMPX_MAX] = {
+static u8 icmp_code_v6[NFT_REJECT_ICMPX_MAX + 1] = {
 	[NFT_REJECT_ICMPX_NO_ROUTE]		= ICMPV6_NOROUTE,
 	[NFT_REJECT_ICMPX_PORT_UNREACH]		= ICMPV6_PORT_UNREACH,
 	[NFT_REJECT_ICMPX_HOST_UNREACH]		= ICMPV6_ADDR_UNREACH,
@@ -99,8 +98,7 @@ static u8 icmp_code_v6[NFT_REJECT_ICMPX_MAX] = {
 
 int nft_reject_icmpv6_code(u8 code)
 {
-	if (code > NFT_REJECT_ICMPX_MAX)
-		return -EINVAL;
+	BUG_ON(code > NFT_REJECT_ICMPX_MAX);
 
 	return icmp_code_v6[code];
 }
