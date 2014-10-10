@@ -126,6 +126,21 @@ int reset_control_deassert(struct reset_control *rstc)
 EXPORT_SYMBOL_GPL(reset_control_deassert);
 
 /**
+ * reset_control_status - returns a negative errno if not supported, a
+ * positive value if the reset line is asserted, or zero if the reset
+ * line is not asserted.
+ * @rstc: reset controller
+ */
+int reset_control_status(struct reset_control *rstc)
+{
+	if (rstc->rcdev->ops->status)
+		return rstc->rcdev->ops->status(rstc->rcdev, rstc->id);
+
+	return -ENOSYS;
+}
+EXPORT_SYMBOL_GPL(reset_control_status);
+
+/**
  * of_reset_control_get - Lookup and obtain a reference to a reset controller.
  * @node: device to be reset by the controller
  * @id: reset line name
