@@ -464,15 +464,6 @@ int iwctl_siwmode(struct net_device *dev,
 		rc = -EOPNOTSUPP;
 		break;
 
-		if (pMgmt->eConfigMode != WMAC_CONFIG_AP) {
-			pMgmt->eConfigMode = WMAC_CONFIG_AP;
-			if (pDevice->flags & DEVICE_FLAGS_OPENED)
-				pDevice->bCommit = true;
-
-		}
-		pr_debug("set mode to Access Point\n");
-		break;
-
 	case IW_MODE_REPEAT:
 		pMgmt->eConfigMode = WMAC_CONFIG_ESS_STA;
 		rc = -EOPNOTSUPP;
