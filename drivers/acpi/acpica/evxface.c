@@ -795,8 +795,16 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 	 */
 	if ((handler->original_flags & ACPI_GPE_DISPATCH_METHOD)
 	    && gpe_event_info->runtime_count) {
-		handler->originally_enabled = 1;
+		handler->originally_enabled = TRUE;
 		(void)acpi_ev_remove_gpe_reference(gpe_event_info);
+
+		/* Sanity check of original type against new type */
+
+		if (type !=
+		    (u32)(gpe_event_info->flags & ACPI_GPE_XRUPT_TYPE_MASK)) {
+			ACPI_WARNING((AE_INFO,
+				      "GPE type mismatch (level/edge)"));
+		}
 	}
 
 	/* Install the handler */
