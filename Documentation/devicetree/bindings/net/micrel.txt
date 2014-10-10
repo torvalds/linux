@@ -16,3 +16,9 @@ Optional properties:
 	      KSZ8051: register 0x1f, bits 5..4
 
               See the respective PHY datasheet for the mode values.
+
+ - clocks, clock-names: contains clocks according to the common clock bindings.
+
+              supported clocks:
+	      - KSZ8021, KSZ8031: "rmii-ref": The RMII refence input clock. Used
+		to determine the XI input clock.
