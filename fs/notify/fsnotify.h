@@ -23,9 +23,6 @@ extern int fsnotify_add_vfsmount_mark(struct fsnotify_mark *mark,
 				      struct fsnotify_group *group, struct vfsmount *mnt,
 				      int allow_dups);
 
-/* final kfree of a group */
-extern void fsnotify_final_destroy_group(struct fsnotify_group *group);
-
 /* vfsmount specific destruction of a mark */
 extern void fsnotify_destroy_vfsmount_mark(struct fsnotify_mark *mark);
 /* inode specific destruction of a mark */

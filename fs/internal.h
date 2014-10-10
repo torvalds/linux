@@ -35,6 +35,11 @@ static inline int __sync_blockdev(struct block_device *bdev, int wait)
 #endif
 
 /*
+ * buffer.c
+ */
+extern void guard_bio_eod(int rw, struct bio *bio);
+
+/*
  * char_dev.c
  */
 extern void __init chrdev_init(void);
