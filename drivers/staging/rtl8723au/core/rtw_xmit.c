@@ -180,8 +180,6 @@ int _rtw_init_xmit_priv23a(struct xmit_priv *pxmitpriv,
 	for (i = 0; i < 4; i ++)
 		pxmitpriv->wmm_para_seq[i] = i;
 
-	pxmitpriv->txirp_cnt = 1;
-
 	sema_init(&pxmitpriv->tx_retevt, 0);
 
 	pxmitpriv->ack_tx = false;

@@ -312,7 +312,6 @@ struct	xmit_priv {
 				 */
 
 	struct semaphore	tx_retevt;/* all tx return event; */
-	u8		txirp_cnt;/*  */
 
 	struct tasklet_struct xmit_tasklet;
 
