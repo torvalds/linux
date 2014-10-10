@@ -45,20 +45,27 @@ extern struct ion_handle *ion_handle_get_by_id(struct ion_client *client,
  						int id);
 extern int ion_handle_put(struct ion_handle *handle);
 
+#define MAX_ION_HEAP		10
+static struct ion_platform_heap ion_plat_heap[MAX_ION_HEAP];
+struct ion_platform_data ion_pdata = {
+	.nr = 0,
+	.heaps = ion_plat_heap,
+};
+
 static struct ion_heap_desc ion_heap_meta[] = {
 	{
-		.id		= ION_VMALLOC_HEAP_ID,
+		.id	= ION_VMALLOC_HEAP_ID,
 		.type	= ION_HEAP_TYPE_SYSTEM,
 		.name	= ION_VMALLOC_HEAP_NAME,
 	},
 	{
-		.id		= ION_CMA_HEAP_ID,
+		.id	= ION_CMA_HEAP_ID,
 		.type	= ION_HEAP_TYPE_DMA,
 		.name	= ION_CMA_HEAP_NAME,
 	},
 	{
-		.id		= ION_IOMMU_HEAP_ID,
-		.type	= ION_HEAP_TYPE_DMA,//ION_HEAP_TYPE_IOMMU,
+		.id	= ION_IOMMU_HEAP_ID,
+		.type	= ION_HEAP_TYPE_DMA,
 		.name	= ION_IOMMU_HEAP_NAME,
 	},
 	{
@@ -96,80 +103,6 @@ static int rockchip_ion_populate_heap(struct ion_platform_heap *heap)
 	if (ret)
 		pr_err("%s: Unable to populate heap, error: %d", __func__, ret);
 	return ret;
-}
-
-static int rockchip_ion_get_heap_base_size(struct device_node *node,
-				 struct ion_platform_heap *heap)
-{
-	unsigned int val[2];
-	int ret = 0;
-
-	ret = of_property_read_u32_array(node,
-			"reg", val, 2);
-	if (!ret) {
-		heap->base = val[0];
-		heap->size = val[1];
-	}
-
-	pr_debug("heap: %x@%lx\n", heap->size, heap->base);
-
-	return 0;
-}
-
-static struct ion_platform_data *rockchip_ion_parse_dt(
-					struct device *dev)
-{
-	struct device_node *dt_node = dev->of_node;
-	struct ion_platform_data *pdata = 0;
-	struct device_node *node;
-	uint32_t val = 0;
-	int ret = 0;
-	uint32_t num_heaps = 0;
-	int idx = 0;
-
-	for_each_child_of_node(dt_node, node)
-		num_heaps++;
-
-	pr_info("%s: num_heaps = %d\n", __func__, num_heaps);
-        
-	if (!num_heaps)
-		return ERR_PTR(-EINVAL);
-
-	pdata = kzalloc(sizeof(struct ion_platform_data) +
-			num_heaps*sizeof(struct ion_platform_heap), GFP_KERNEL);
-	if (!pdata)
-		return ERR_PTR(-ENOMEM);
-	pdata->heaps = (struct ion_platform_heap*)((void*)pdata+sizeof(struct ion_platform_data));
-	pdata->nr = num_heaps;
-        
-	for_each_child_of_node(dt_node, node) {
-		ret = of_property_read_u32(node, "rockchip,ion_heap", &val);
-		if (ret) {
-			pr_err("%s: Unable to find reg key", __func__);
-			goto free_heaps;
-		}
-		pdata->heaps[idx].id = val;
-
-		ret = rockchip_ion_populate_heap(&pdata->heaps[idx]);
-		if (ret)
-			goto free_heaps;
-
-//		rockchip_ion_get_heap_align(node, &pdata->heaps[idx]);
-		ret = rockchip_ion_get_heap_base_size(node, &pdata->heaps[idx]);
-		if (ret)
-			goto free_heaps;
-
-//		rockchip_ion_get_heap_adjacent(node, &pdata->heaps[idx]);
-		pr_info("%d:  %d  %d  %s  0x%p\n", idx, pdata->heaps[idx].type, pdata->heaps[idx].id, pdata->heaps[idx].name, pdata->heaps[idx].priv);
-
-		++idx;
-	}
-
-	return pdata;
-
-free_heaps:
-	kfree(pdata);
-	return ERR_PTR(ret);
 }
 
 struct ion_client *rockchip_ion_client_create(const char *name)
@@ -262,7 +195,6 @@ static long rockchip_custom_ioctl (struct ion_client *client, unsigned int cmd,
 static int rockchip_ion_probe(struct platform_device *pdev)
 {
 	struct ion_platform_data *pdata;
-	unsigned int pdata_needs_to_be_freed;
 	int err;
 	int i;
 
@@ -273,14 +205,12 @@ static int rockchip_ion_probe(struct platform_device *pdev)
 	}
 
 	if (pdev->dev.of_node) {
-		pdata = rockchip_ion_parse_dt(&pdev->dev);
+		pdata = &ion_pdata;
 		if (IS_ERR(pdata)) {
 			return PTR_ERR(pdata);
 		}
-		pdata_needs_to_be_freed = 1;
 	} else {
 		pdata = pdev->dev.platform_data;
-		pdata_needs_to_be_freed = 0;
 	}
 
 	num_heaps = pdata->nr;
@@ -303,8 +233,6 @@ static int rockchip_ion_probe(struct platform_device *pdev)
 		ion_device_add_heap(idev, heaps[i]);
 	}
 	platform_set_drvdata(pdev, idev);
-	if (pdata_needs_to_be_freed)
-		kfree(pdata);
 
 	pr_info("Rockchip ion module is successfully loaded (%s)\n", ROCKCHIP_ION_VERSION);
 	return 0;
@@ -313,8 +241,6 @@ err:
 		if (heaps[i])
 		ion_heap_destroy(heaps[i]);
 	}
-	if (pdata_needs_to_be_freed)
-		kfree(pdata);
 	kfree(heaps);
 	return err;
 }
@@ -331,43 +257,42 @@ static int rockchip_ion_remove(struct platform_device *pdev)
 	return 0;
 }
 
-int __init rockchip_ion_find_reserve_mem(unsigned long node, const char *uname,
+int __init rockchip_ion_find_heap(unsigned long node, const char *uname,
 				int depth, void *data)
 {
-#ifdef CONFIG_CMA
 	const __be32 *prop;
 	int len;
-	phys_addr_t size;
-	phys_addr_t base;
-	u32 heap_type;
+	struct ion_platform_heap* heap;
+	struct ion_platform_data* pdata = (struct ion_platform_data*)data;
 
-	if (!of_flat_dt_is_compatible(node, "rockchip,ion-reserve"))
+	if (pdata==NULL || pdata->nr >= MAX_ION_HEAP) {
+		// break now
+		pr_err("ion heap is too much!\n");
+		return 1;
+	}
+
+	if (!of_flat_dt_is_compatible(node, "rockchip,ion-heap"))
 		return 0;
-
-	prop = of_get_flat_dt_prop(node, "reg", &len);
-	if (!prop || (len != 2 * sizeof(unsigned long)))
-		return 0;
-
-	base = be32_to_cpu(prop[0]);
-	size = be32_to_cpu(prop[1]);
 
 	prop = of_get_flat_dt_prop(node, "rockchip,ion_heap", &len);
 	if (!prop || (len != sizeof(unsigned long)))
 		return 0;
 
-	heap_type = be32_to_cpu(prop[0]);
+	heap = &pdata->heaps[pdata->nr++];
+	heap->base = heap->size = heap->align = 0;
+	heap->id = be32_to_cpu(prop[0]);
+	rockchip_ion_populate_heap(heap);
 
-	pr_info("%s: heap type is %x\n", __func__, heap_type);
-
-	if (heap_type==ION_CARVEOUT_HEAP_ID) {
-		pr_info("%s: reserve carveout memory: %x@%x\n", __func__, size, base);
-		memblock_remove(base, size);
-	} else {
-		pr_info("%s: reserve cma memory: %x@%x\n", __func__, size, base);
-		dma_declare_contiguous(&rockchip_ion_cma_dev, size, base, 0);
+	prop = of_get_flat_dt_prop(node, "reg", &len);
+	if (prop && (len >= 2*sizeof(unsigned long))) {
+		heap->base = be32_to_cpu(prop[0]);
+		heap->size = be32_to_cpu(prop[1]);
+		if (len==3*sizeof(unsigned long))
+			heap->align = be32_to_cpu(prop[2]);
 	}
-#endif
 
+	pr_info("ion heap(%s): base(%lx) size(%x) align(%lx)\n", heap->name,
+			heap->base, heap->size, heap->align);
 	return 0;
 }
 

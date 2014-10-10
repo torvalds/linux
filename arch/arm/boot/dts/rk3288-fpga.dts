@@ -265,13 +265,14 @@
 		compatible = "rockchip,ion";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		rockchip,ion-heap@1 { /* CMA HEAP */
-			compatible = "rockchip,ion-reserve";
-			reg = <1>;
-			memory-reservation = <0x00000000 0x04000000>; /* 64MB */
+		ion_cma: rockchip,ion-heap@1 { /* CMA HEAP */
+			compatible = "rockchip,ion-heap";
+			rockchip,ion_heap = <1>;
+			reg = <0x00000000 0x04000000>; /* 64MB */
 		};
-		rockchip,ion-heap@3 { /* SYSTEM HEAP */
-			reg = <3>;
+		rockchip,ion-heap@3 { /* VMALLOC HEAP */
+			compatible = "rockchip,ion-heap";
+			rockchip,ion_heap = <3>;
 		};
 	};
 

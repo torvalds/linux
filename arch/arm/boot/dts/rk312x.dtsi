@@ -918,11 +918,12 @@
 		#size-cells = <0>;
 
 		ion_cma: rockchip,ion-heap@1 { /* CMA HEAP */
-			compatible = "rockchip,ion-reserve";
+			compatible = "rockchip,ion-heap";
 			rockchip,ion_heap = <1>;
 			reg = <0x00000000 0x800000>; /* 8MB */
 		};
 		rockchip,ion-heap@3 { /* VMALLOC HEAP */
+			compatible = "rockchip,ion-heap";
 			rockchip,ion_heap = <3>;
 		};
 	};

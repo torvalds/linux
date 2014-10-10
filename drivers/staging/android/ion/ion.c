@@ -2022,7 +2022,19 @@ void __init ion_reserve(struct ion_platform_data *data)
 		if (data->heaps[i].size == 0)
 			continue;
 
-		if (data->heaps[i].base == 0) {
+		if (data->heaps[i].id==ION_CMA_HEAP_ID) {
+			struct device *dev = (struct device*)data->heaps[i].priv;
+			int ret = dma_declare_contiguous(dev,
+						data->heaps[i].size,
+						data->heaps[i].base,
+						MEMBLOCK_ALLOC_ANYWHERE);
+			if (ret) {
+				pr_err("%s: dma_declare_contiguous failed %d\n",
+					__func__, ret);
+				continue;
+			};
+			data->heaps[i].base = PFN_PHYS(dev_get_cma_area(dev)->base_pfn);
+		} else if (data->heaps[i].base == 0) {
 			phys_addr_t paddr;
 			paddr = memblock_alloc_base(data->heaps[i].size,
 						    data->heaps[i].align,
@@ -2037,10 +2049,12 @@ void __init ion_reserve(struct ion_platform_data *data)
 		} else {
 			int ret = memblock_reserve(data->heaps[i].base,
 					       data->heaps[i].size);
-			if (ret)
+			if (ret) {
 				pr_err("memblock reserve of %zx@%lx failed\n",
 				       data->heaps[i].size,
 				       data->heaps[i].base);
+				continue;
+			}
 		}
 		pr_info("%s: %s reserved base %lx size %zu\n", __func__,
 			data->heaps[i].name,
