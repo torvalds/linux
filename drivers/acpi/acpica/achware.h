@@ -127,7 +127,7 @@ acpi_hw_clear_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 
 acpi_status
 acpi_hw_get_gpe_status(struct acpi_gpe_event_info *gpe_event_info,
-		       acpi_event_status * event_status);
+		       acpi_event_status *event_status);
 
 acpi_status acpi_hw_disable_all_gpes(void);
 

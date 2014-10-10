@@ -106,8 +106,8 @@ ACPI_EXPORT_SYMBOL(acpi_update_all_gpes)
  *
  * FUNCTION:    acpi_enable_gpe
  *
- * PARAMETERS:  gpe_device      - Parent GPE Device. NULL for GPE0/GPE1
- *              gpe_number      - GPE level within the GPE block
+ * PARAMETERS:  gpe_device          - Parent GPE Device. NULL for GPE0/GPE1
+ *              gpe_number          - GPE level within the GPE block
  *
  * RETURN:      Status
  *
@@ -115,7 +115,6 @@ ACPI_EXPORT_SYMBOL(acpi_update_all_gpes)
  *              hardware-enabled.
  *
  ******************************************************************************/
-
 acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number)
 {
 	acpi_status status = AE_BAD_PARAMETER;
@@ -490,8 +489,8 @@ ACPI_EXPORT_SYMBOL(acpi_clear_gpe)
  *
  * FUNCTION:    acpi_get_gpe_status
  *
- * PARAMETERS:  gpe_device      - Parent GPE Device. NULL for GPE0/GPE1
- *              gpe_number      - GPE level within the GPE block
+ * PARAMETERS:  gpe_device          - Parent GPE Device. NULL for GPE0/GPE1
+ *              gpe_number          - GPE level within the GPE block
  *              event_status        - Where the current status of the event
  *                                    will be returned
  *

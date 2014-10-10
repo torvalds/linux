@@ -786,14 +786,13 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 	handler->method_node = gpe_event_info->dispatch.method_node;
 	handler->original_flags = (u8)(gpe_event_info->flags &
 				       (ACPI_GPE_XRUPT_TYPE_MASK |
-				        ACPI_GPE_DISPATCH_MASK));
+					ACPI_GPE_DISPATCH_MASK));
 
 	/*
 	 * If the GPE is associated with a method, it may have been enabled
 	 * automatically during initialization, in which case it has to be
 	 * disabled now to avoid spurious execution of the handler.
 	 */
-
 	if ((handler->original_flags & ACPI_GPE_DISPATCH_METHOD)
 	    && gpe_event_info->runtime_count) {
 		handler->originally_enabled = 1;
@@ -808,7 +807,7 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 
 	gpe_event_info->flags &=
 	    ~(ACPI_GPE_XRUPT_TYPE_MASK | ACPI_GPE_DISPATCH_MASK);
-	gpe_event_info->flags |= (u8) (type | ACPI_GPE_DISPATCH_HANDLER);
+	gpe_event_info->flags |= (u8)(type | ACPI_GPE_DISPATCH_HANDLER);
 
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 
@@ -893,7 +892,7 @@ acpi_remove_gpe_handler(acpi_handle gpe_device,
 
 	gpe_event_info->dispatch.method_node = handler->method_node;
 	gpe_event_info->flags &=
-		~(ACPI_GPE_XRUPT_TYPE_MASK | ACPI_GPE_DISPATCH_MASK);
+	    ~(ACPI_GPE_XRUPT_TYPE_MASK | ACPI_GPE_DISPATCH_MASK);
 	gpe_event_info->flags |= handler->original_flags;
 
 	/*
@@ -946,7 +945,7 @@ ACPI_EXPORT_SYMBOL(acpi_remove_gpe_handler)
  * handle is returned.
  *
  ******************************************************************************/
-acpi_status acpi_acquire_global_lock(u16 timeout, u32 * handle)
+acpi_status acpi_acquire_global_lock(u16 timeout, u32 *handle)
 {
 	acpi_status status;
 
