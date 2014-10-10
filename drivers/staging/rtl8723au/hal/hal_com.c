@@ -727,7 +727,7 @@ void rtl8723a_fifo_cleanup(struct rtw_adapter *padapter)
 	rtl8723au_write8(padapter, REG_TXPAUSE, 0xff);
 
 	/*  keep sn */
-	padapter->xmitpriv.nqos_ssn = rtl8723au_read16(padapter, REG_NQOS_SEQ);
+	padapter->xmitpriv.nqos_ssn = rtl8723au_read8(padapter, REG_NQOS_SEQ);
 
 	if (pwrpriv->bkeepfwalive != true) {
 		u32 v32;

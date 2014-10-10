@@ -330,7 +330,7 @@ struct	xmit_priv {
 	struct list_head xmitextbuf_list;	/* track buffers for cleanup */
 	uint free_xmit_extbuf_cnt;
 
-	u16	nqos_ssn;
+	u8	nqos_ssn;
 	int	ack_tx;
 	struct mutex ack_tx_mutex;
 	struct submit_ctx ack_tx_ops;
