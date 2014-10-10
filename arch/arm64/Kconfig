@@ -232,7 +232,7 @@ config ARM64_VA_BITS_42
 
 config ARM64_VA_BITS_48
 	bool "48-bit"
-	depends on BROKEN
+	depends on !ARM_SMMU
 
 endchoice
 
