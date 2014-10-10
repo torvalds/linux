@@ -133,7 +133,7 @@ config MTD_OF_PARTS
 	help
 	  This provides a partition parsing function which derives
 	  the partition map from the children of the flash node,
-	  as described in Documentation/devicetree/booting-without-of.txt.
+	  as described in Documentation/devicetree/bindings/mtd/partition.txt.
 
 config MTD_AR7_PARTS
 	tristate "TI AR7 partitioning support"
