@@ -18,6 +18,8 @@
 #define GIC_CPU_RUNNINGPRI		0x14
 #define GIC_CPU_HIGHPRI			0x18
 
+#define GICC_IAR_INT_ID_MASK		0x3ff
+
 #define GIC_DIST_CTRL			0x000
 #define GIC_DIST_CTR			0x004
 #define GIC_DIST_IGROUP			0x080
@@ -68,6 +70,7 @@ extern struct irq_chip gic_arch_extn;
 void gic_init_bases(unsigned int, int, void __iomem *, void __iomem *,
 		    u32 offset, struct device_node *);
 void gic_cascade_irq(unsigned int gic_nr, unsigned int irq);
+void gic_cpu_if_down(void);
 
 void gic_cpu_if_down(void);
 
@@ -84,4 +87,10 @@ unsigned long gic_get_sgir_physaddr(void);
 
 #endif /* __ASSEMBLY */
 
+extern const struct irq_domain_ops *gic_routable_irq_domain_ops;
+static inline void __init register_routable_domain_ops
+					(const struct irq_domain_ops *ops)
+{
+	gic_routable_irq_domain_ops = ops;
+}
 #endif
