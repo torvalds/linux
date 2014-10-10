@@ -295,7 +295,6 @@ struct	xmit_priv {
 
 	struct rtw_adapter	*adapter;
 
-	u8   vcs_setting;
 	u8	vcs;
 
 	u64	tx_bytes;

@@ -1295,7 +1295,7 @@ void rtw_update_protection23a(struct rtw_adapter *padapter, u8 *ie, uint ie_len)
 	uint protection;
 	const u8 *p;
 
-	switch (pxmitpriv->vcs_setting) {
+	switch (pregistrypriv->vrtl_carrier_sense) {
 	case DISABLE_VCS:
 		pxmitpriv->vcs = NONE_VCS;
 		break;
