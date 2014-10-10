@@ -143,7 +143,6 @@ struct mxs_auart_port {
 #define MXS_AUART_DMA_RX_READY	3  /* bit 3 */
 #define MXS_AUART_RTSCTS	4  /* bit 4 */
 	unsigned long flags;
-	unsigned int ctrl;
 	enum mxs_auart_type devtype;
 
 	unsigned int irq;
@@ -406,8 +405,6 @@ static void mxs_auart_release_port(struct uart_port *u)
 
 static void mxs_auart_set_mctrl(struct uart_port *u, unsigned mctrl)
 {
-	struct mxs_auart_port *s = to_auart_port(u);
-
 	u32 ctrl = readl(u->membase + AUART_CTRL2);
 
 	ctrl &= ~(AUART_CTRL2_RTSEN | AUART_CTRL2_RTS);
@@ -418,23 +415,16 @@ static void mxs_auart_set_mctrl(struct uart_port *u, unsigned mctrl)
 			ctrl |= AUART_CTRL2_RTS;
 	}
 
-	s->ctrl = mctrl;
 	writel(ctrl, u->membase + AUART_CTRL2);
 }
 
 static u32 mxs_auart_get_mctrl(struct uart_port *u)
 {
-	struct mxs_auart_port *s = to_auart_port(u);
 	u32 stat = readl(u->membase + AUART_STAT);
-	int ctrl2 = readl(u->membase + AUART_CTRL2);
-	u32 mctrl = s->ctrl;
+	u32 mctrl = 0;
 
-	mctrl &= ~TIOCM_CTS;
 	if (stat & AUART_STAT_CTS)
 		mctrl |= TIOCM_CTS;
-
-	if (ctrl2 & AUART_CTRL2_RTS)
-		mctrl |= TIOCM_RTS;
 
 	return mctrl;
 }
@@ -1070,8 +1060,6 @@ static int mxs_auart_probe(struct platform_device *pdev)
 	s->port.uartclk = clk_get_rate(s->clk);
 	s->port.type = PORT_IMX;
 	s->port.dev = s->dev = &pdev->dev;
-
-	s->ctrl = 0;
 
 	s->irq = platform_get_irq(pdev, 0);
 	s->port.irq = s->irq;
