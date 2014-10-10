@@ -494,9 +494,10 @@
 		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		pinctrl-names = "default", "idle";
+		pinctrl-names = "default", "idle", "udbg";
 		pinctrl-0 = <&sdmmc0_clk &sdmmc0_cmd &sdmmc0_dectn &sdmmc0_bus4>;
 		pinctrl-1 = <&sdmmc0_gpio>;
+		pinctrl-2 = <&uart2_xfer>;
 		cd-gpios = <&gpio1 GPIO_C1 GPIO_ACTIVE_HIGH>;/*CD GPIO*/
 		clocks = <&clk_sdmmc0>, <&clk_gates5 10>;
 		clock-names = "clk_mmc", "hclk_mmc";

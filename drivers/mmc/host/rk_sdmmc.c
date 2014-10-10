@@ -2963,6 +2963,21 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 		        if(host->dma_ops && host->dma_ops->stop)
 		                host->dma_ops->stop(host);
 
+                /* Card insert, switch data line to uart function, and vice verse.
+                 * ONLY audi chip need switched by software, using udbg tag in dts!
+                 */
+                if (!(IS_ERR(host->pins_udbg)) && !(IS_ERR(host->pins_default))) {
+                         if (present) {
+                                if (pinctrl_select_state(host->pinctrl, host->pins_default) < 0)
+                                        dev_err(host->dev, "%s: Udbg pinctrl setting failed!\n",
+                                                mmc_hostname(host->mmc));
+                         } else {
+                                if (pinctrl_select_state(host->pinctrl, host->pins_udbg) < 0)
+                                        dev_err(host->dev, "%s: Default pinctrl setting failed!\n",
+                                                mmc_hostname(host->mmc));
+                        }
+                }
+
 		while (present != slot->last_detect_state) {
 			dev_dbg(&slot->mmc->class_dev, "card %s\n",
 				present ? "inserted" : "removed");
@@ -3261,6 +3276,64 @@ static void dw_mci_of_get_cd_gpio(struct device *dev, u8 slot,
 }
 #endif /* CONFIG_OF */
 
+/* @host: dw_mci host prvdata
+ * Init pinctrl for each platform. Usually we assign
+ * "defalut" tag for functional usage, "idle" tag for gpio
+ * state and "udbg" tag for uart_dbg if any.
+ */
+static void dw_mci_init_pinctrl(struct dw_mci *host)
+{
+        /* Fixme: DON'T TOUCH EMMC SETTING! */
+        if (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC)
+                return;
+
+        /* Get pinctrl for DTS */
+        host->pinctrl = devm_pinctrl_get(host->dev);
+        if (IS_ERR(host->pinctrl)) {
+                dev_err(host->dev, "%s: No pinctrl used!\n",
+                        mmc_hostname(host->mmc));
+                return;
+        }
+
+        /* Lookup idle state */
+        host->pins_idle = pinctrl_lookup_state(host->pinctrl,
+                                                PINCTRL_STATE_IDLE);
+        if (IS_ERR(host->pins_idle)) {
+                dev_err(host->dev, "%s: No idle tag found!\n",
+                        mmc_hostname(host->mmc));
+        } else {
+                if (pinctrl_select_state(host->pinctrl, host->pins_idle) < 0)
+                        dev_err(host->dev, "%s: Idle pinctrl setting failed!\n",
+                                mmc_hostname(host->mmc));
+        }
+
+        /* Lookup default state */
+        host->pins_default = pinctrl_lookup_state(host->pinctrl,
+                                                        PINCTRL_STATE_DEFAULT);
+        if (IS_ERR(host->pins_default)) {
+                dev_err(host->dev, "%s: No default pinctrl found!\n",
+                        mmc_hostname(host->mmc));
+        } else {
+                if (pinctrl_select_state(host->pinctrl, host->pins_default) < 0)
+                        dev_err(host->dev, "%s:  Default pinctrl setting failed!\n",
+                                mmc_hostname(host->mmc));
+        }
+
+        /* Sd card data0/1 may be used for uart_dbg, so were data2/3 for Jtag */
+        if ((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)) {
+                host->pins_udbg = pinctrl_lookup_state(host->pinctrl, "udbg");
+                if (IS_ERR(host->pins_udbg)) {
+                        dev_warn(host->dev, "%s: No udbg pinctrl found!\n",
+                                        mmc_hostname(host->mmc));
+                } else {
+                        if (pinctrl_select_state(host->pinctrl, host->pins_udbg) < 0)
+                                dev_err(host->dev, "%s: Udbg pinctrl setting failed!\n",
+                                        mmc_hostname(host->mmc));
+                }
+        }
+}
+
+
 static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 {
 	struct mmc_host *mmc;
@@ -3464,42 +3537,11 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
         if (mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO)
                 clear_bit(DW_MMC_CARD_PRESENT, &slot->flags);
 
+        dw_mci_init_pinctrl(host);
         ret = mmc_add_host(mmc);
         if (ret)
                 goto err_setup_bus;
 
-        /* Pinctrl set default iomux state to fucntion port.
-         * Fixme: DON'T TOUCH EMMC SETTING!
-         */
-        if(!(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC))
-        {
-                host->pinctrl = devm_pinctrl_get(host->dev);
-                if(IS_ERR(host->pinctrl)){
-                        printk("%s: Warning : No pinctrl used!\n",mmc_hostname(host->mmc));
-                }else{
-                        host->pins_idle= pinctrl_lookup_state(host->pinctrl,PINCTRL_STATE_IDLE);
-                        if(IS_ERR(host->pins_default)){
-                                printk("%s: Warning : No IDLE pinctrl matched!\n", mmc_hostname(host->mmc));
-                        }
-                        else
-                        { 
-                                if(pinctrl_select_state(host->pinctrl, host->pins_idle) < 0)
-                                        printk("%s: Warning :  Idle pinctrl setting failed!\n", mmc_hostname(host->mmc));  
-                        }
-        
-                        host->pins_default = pinctrl_lookup_state(host->pinctrl,PINCTRL_STATE_DEFAULT);
-                        if(IS_ERR(host->pins_default)){
-                                printk("%s: Warning : No default pinctrl matched!\n", mmc_hostname(host->mmc));
-                        }
-                        else
-                        {
-                                if(pinctrl_select_state(host->pinctrl, host->pins_default) < 0)
-                                        printk("%s: Warning :  Default pinctrl setting failed!\n", mmc_hostname(host->mmc));
-                        }
-                }
-        }
-    
-    
 #if defined(CONFIG_DEBUG_FS)
 	dw_mci_init_debugfs(slot);
 #endif
