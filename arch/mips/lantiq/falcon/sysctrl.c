@@ -147,12 +147,11 @@ static void falcon_gpe_enable(void)
 	if (status & (1 << (GPPC_OFFSET + 1)))
 		return;
 
-	if (status_r32(STATUS_CONFIG) == 0)
+	freq = (status_r32(STATUS_CONFIG) &
+		GPEFREQ_MASK) >>
+		GPEFREQ_OFFSET;
+	if (freq == 0)
 		freq = 1; /* use 625MHz on unfused chip */
-	else
-		freq = (status_r32(STATUS_CONFIG) &
-			GPEFREQ_MASK) >>
-			GPEFREQ_OFFSET;
 
 	/* apply new frequency */
 	sysctl_w32_mask(SYSCTL_SYS1, 7 << (GPPC_OFFSET + 1),
