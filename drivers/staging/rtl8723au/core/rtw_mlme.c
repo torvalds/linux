@@ -354,12 +354,12 @@ rtw_get_oldest_wlan_network23a(struct rtw_queue *scanned_queue)
 void update_network23a(struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src,
 		       struct rtw_adapter *padapter, bool update_ie)
 {
-	u8 ss_ori = dst->PhyInfo.SignalStrength;
-	u8 sq_ori = dst->PhyInfo.SignalQuality;
+	u8 ss_ori = dst->SignalStrength;
+	u8 sq_ori = dst->SignalQuality;
 	long rssi_ori = dst->Rssi;
 
-	u8 ss_smp = src->PhyInfo.SignalStrength;
-	u8 sq_smp = src->PhyInfo.SignalQuality;
+	u8 ss_smp = src->SignalStrength;
+	u8 sq_smp = src->SignalQuality;
 	long rssi_smp = src->Rssi;
 
 	u8 ss_final;
@@ -387,16 +387,16 @@ void update_network23a(struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src,
 			rssi_final = rssi_ori;
 	} else {
 		if (sq_smp != 101) { /* from the right channel */
-			ss_final = ((u32)src->PhyInfo.SignalStrength +
-				    (u32)dst->PhyInfo.SignalStrength * 4) / 5;
-			sq_final = ((u32)src->PhyInfo.SignalQuality +
-				    (u32)dst->PhyInfo.SignalQuality * 4) / 5;
+			ss_final = ((u32)src->SignalStrength +
+				    (u32)dst->SignalStrength * 4) / 5;
+			sq_final = ((u32)src->SignalQuality +
+				    (u32)dst->SignalQuality * 4) / 5;
 			rssi_final = src->Rssi+dst->Rssi * 4 / 5;
 		} else {
 			/* bss info not receiving from the right channel, use
 			   the original RX signal infos */
-			ss_final = dst->PhyInfo.SignalStrength;
-			sq_final = dst->PhyInfo.SignalQuality;
+			ss_final = dst->SignalStrength;
+			sq_final = dst->SignalQuality;
 			rssi_final = dst->Rssi;
 		}
 
@@ -405,14 +405,13 @@ void update_network23a(struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src,
 	if (update_ie)
 		memcpy(dst, src, get_wlan_bssid_ex_sz(src));
 
-	dst->PhyInfo.SignalStrength = ss_final;
-	dst->PhyInfo.SignalQuality = sq_final;
+	dst->SignalStrength = ss_final;
+	dst->SignalQuality = sq_final;
 	dst->Rssi = rssi_final;
 
 	DBG_8723A("%s %s(%pM), SignalStrength:%u, SignalQuality:%u, "
 		  "RawRSSI:%ld\n",  __func__, dst->Ssid.ssid, dst->MacAddress,
-		  dst->PhyInfo.SignalStrength,
-		  dst->PhyInfo.SignalQuality, dst->Rssi);
+		  dst->SignalStrength, dst->SignalQuality, dst->Rssi);
 }
 
 static void update_current_network(struct rtw_adapter *adapter,
@@ -489,8 +488,8 @@ static void rtw_update_scanned_network(struct rtw_adapter *adapter,
 		pnetwork->join_res = 0;
 
 		/* bss info not receiving from the right channel */
-		if (pnetwork->network.PhyInfo.SignalQuality == 101)
-			pnetwork->network.PhyInfo.SignalQuality = 0;
+		if (pnetwork->network.SignalQuality == 101)
+			pnetwork->network.SignalQuality = 0;
 	} else {
 		/*
 		 * we have an entry and we are going to update it. But
@@ -1026,15 +1025,14 @@ rtw_joinbss_update_network23a(struct rtw_adapter *padapter,
 
 	rtw_set_signal_stat_timer(&padapter->recvpriv);
 	padapter->recvpriv.signal_strength =
-		ptarget_wlan->network.PhyInfo.SignalStrength;
-	padapter->recvpriv.signal_qual =
-		ptarget_wlan->network.PhyInfo.SignalQuality;
+		ptarget_wlan->network.SignalStrength;
+	padapter->recvpriv.signal_qual = ptarget_wlan->network.SignalQuality;
 	/*
 	 * the ptarget_wlan->network.Rssi is raw data, we use
-	 * ptarget_wlan->network.PhyInfo.SignalStrength instead (has scaled)
+	 * ptarget_wlan->network.SignalStrength instead (has scaled)
 	 */
 	padapter->recvpriv.rssi = translate_percentage_to_dbm(
-		ptarget_wlan->network.PhyInfo.SignalStrength);
+		ptarget_wlan->network.SignalStrength);
 	DBG_8723A("%s signal_strength:%3u, rssi:%3d, signal_qual:%3u\n",
 		  __func__, padapter->recvpriv.signal_strength,
 		  padapter->recvpriv.rssi, padapter->recvpriv.signal_qual);

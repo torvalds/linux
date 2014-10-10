@@ -67,13 +67,6 @@ struct ndis_802_11_key {
 	u8 KeyMaterial[32]; /*  variable length depending on above field */
 };
 
-struct wlan_phy_info {
-	u8	SignalStrength;/* in percentage) */
-	u8	SignalQuality;/* in percentage) */
-	u8	Optimum_antenna;  /* for Antenna diversity */
-	u8	Reserved_0;
-};
-
 struct wlan_bcn_info {
 	/* these infor get from rtw_get_encrypt_info when
 	 *	 * translate scan to UI */
@@ -99,7 +92,8 @@ struct wlan_bssid_ex {
 	u32 DSConfig;           /*  Frequency, units are kHz */
 	enum nl80211_iftype ifmode;
 	unsigned char SupportedRates[NDIS_802_11_LENGTH_RATES_EX];
-	struct wlan_phy_info	PhyInfo;
+	u8 SignalStrength;/* in percentage */
+	u8 SignalQuality;/* in percentage */
 	u32  IELength;
 	u8  IEs[MAX_IE_SZ]; /* timestamp, beacon interval, and capability info*/
 } __packed;

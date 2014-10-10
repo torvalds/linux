@@ -4204,9 +4204,9 @@ static struct wlan_bssid_ex *collect_bss_info(struct rtw_adapter *padapter,
 	/* get the signal strength */
 	/*  in dBM.raw data */
 	bssid->Rssi = precv_frame->attrib.phy_info.RecvSignalPower;
-	bssid->PhyInfo.SignalQuality =
+	bssid->SignalQuality =
 		precv_frame->attrib.phy_info.SignalQuality;/* in percentage */
-	bssid->PhyInfo.SignalStrength =
+	bssid->SignalStrength =
 		precv_frame->attrib.phy_info.SignalStrength;/* in percentage */
 
 	/*  checking SSID */
@@ -4313,7 +4313,7 @@ static struct wlan_bssid_ex *collect_bss_info(struct rtw_adapter *padapter,
 
 	/*  mark bss info receiving from nearby channel as SignalQuality 101 */
 	if (bssid->DSConfig != rtw_get_oper_ch23a(padapter))
-		bssid->PhyInfo.SignalQuality = 101;
+		bssid->SignalQuality = 101;
 
 	return bssid;
 fail:

@@ -275,7 +275,8 @@ static int rtw_cfg80211_inform_bss(struct rtw_adapter *padapter,
 			    &pnetwork->network)) {
 		notify_signal = 100 * translate_percentage_to_dbm(padapter->recvpriv.signal_strength);	/* dbm */
 	} else {
-		notify_signal = 100 * translate_percentage_to_dbm(pnetwork->network.PhyInfo.SignalStrength);	/* dbm */
+		notify_signal = 100 * translate_percentage_to_dbm(
+			pnetwork->network.SignalStrength);	/* dbm */
 	}
 
 	bss = cfg80211_inform_bss(wiphy, notify_channel,
