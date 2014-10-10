@@ -295,8 +295,6 @@ struct	xmit_priv {
 
 	struct rtw_adapter	*adapter;
 
-	u8	vcs;
-
 	u64	tx_bytes;
 	u64	tx_pkts;
 	u64	tx_drop;
@@ -305,6 +303,8 @@ struct	xmit_priv {
 
 	struct hw_xmit *hwxmits;
 	u8	hwxmit_entry;
+	u8	vcs;
+	u8	nqos_ssn;
 
 	u8	wmm_para_seq[4];/* sequence for wmm ac parameter strength from
 				 * large to small. it's value is 0->vo, 1->vi,
@@ -330,7 +330,6 @@ struct	xmit_priv {
 	struct list_head xmitextbuf_list;	/* track buffers for cleanup */
 	uint free_xmit_extbuf_cnt;
 
-	u8	nqos_ssn;
 	int	ack_tx;
 	struct mutex ack_tx_mutex;
 	struct submit_ctx ack_tx_ops;
