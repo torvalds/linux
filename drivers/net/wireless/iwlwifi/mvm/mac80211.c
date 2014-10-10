@@ -2997,18 +2997,24 @@ static void iwl_mvm_mac_flush(struct ieee80211_hw *hw,
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	mvmsta = iwl_mvm_sta_from_staid_protected(mvm, mvmvif->ap_sta_id);
 
-	if (WARN_ON_ONCE(!mvmsta))
-		goto done;
+	if (WARN_ON_ONCE(!mvmsta)) {
+		mutex_unlock(&mvm->mutex);
+		return;
+	}
 
 	if (drop) {
 		if (iwl_mvm_flush_tx_path(mvm, mvmsta->tfd_queue_msk, true))
 			IWL_ERR(mvm, "flush request fail\n");
+		mutex_unlock(&mvm->mutex);
 	} else {
-		iwl_trans_wait_tx_queue_empty(mvm->trans,
-					      mvmsta->tfd_queue_msk);
+		u32 tfd_queue_msk = mvmsta->tfd_queue_msk;
+		mutex_unlock(&mvm->mutex);
+
+		/* this can take a while, and we may need/want other operations
+		 * to succeed while doing this, so do it without the mutex held
+		 */
+		iwl_trans_wait_tx_queue_empty(mvm->trans, tfd_queue_msk);
 	}
-done:
-	mutex_unlock(&mvm->mutex);
 }
 
 const struct ieee80211_ops iwl_mvm_hw_ops = {
