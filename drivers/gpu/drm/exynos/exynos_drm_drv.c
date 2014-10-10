@@ -87,8 +87,11 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 
 		plane = exynos_plane_init(dev, possible_crtcs,
 					  DRM_PLANE_TYPE_OVERLAY);
-		if (IS_ERR(plane))
-			goto err_mode_config_cleanup;
+		if (!IS_ERR(plane))
+			continue;
+
+		ret = PTR_ERR(plane);
+		goto err_mode_config_cleanup;
 	}
 
 	/* init kms poll for handling hpd */
