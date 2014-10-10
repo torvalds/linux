@@ -407,7 +407,8 @@ static rx_handler_result_t macvlan_handle_frame(struct sk_buff **pskb)
 	const struct macvlan_dev *src;
 	struct net_device *dev;
 	unsigned int len = 0;
-	int ret = NET_RX_DROP;
+	int ret;
+	rx_handler_result_t handle_res;
 
 	port = macvlan_port_get_rcu(skb->dev);
 	if (is_multicast_ether_addr(eth->h_dest)) {
@@ -423,6 +424,7 @@ static rx_handler_result_t macvlan_handle_frame(struct sk_buff **pskb)
 			vlan = src;
 			ret = macvlan_broadcast_one(skb, vlan, eth, 0) ?:
 			      netif_rx(skb);
+			handle_res = RX_HANDLER_CONSUMED;
 			goto out;
 		}
 
@@ -448,17 +450,20 @@ static rx_handler_result_t macvlan_handle_frame(struct sk_buff **pskb)
 	}
 	len = skb->len + ETH_HLEN;
 	skb = skb_share_check(skb, GFP_ATOMIC);
-	if (!skb)
+	if (!skb) {
+		ret = NET_RX_DROP;
+		handle_res = RX_HANDLER_CONSUMED;
 		goto out;
+	}
 
 	skb->dev = dev;
 	skb->pkt_type = PACKET_HOST;
 
-	ret = netif_rx(skb);
-
+	ret = NET_RX_SUCCESS;
+	handle_res = RX_HANDLER_ANOTHER;
 out:
 	macvlan_count_rx(vlan, len, ret == NET_RX_SUCCESS, false);
-	return RX_HANDLER_CONSUMED;
+	return handle_res;
 }
 
 static int macvlan_queue_xmit(struct sk_buff *skb, struct net_device *dev)
