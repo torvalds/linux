@@ -57,16 +57,6 @@ enum  {
 	Ndis802_11Encryption3KeyAbsent,
 };
 
-/*  Key mapping keys require a BSSID */
-struct ndis_802_11_key {
-	u32 Length;             /*  Length of this structure */
-	u32 KeyIndex;
-	u32 KeyLength;          /*  length of key in bytes */
-	unsigned char BSSID[6];
-	unsigned long long KeyRSC;
-	u8 KeyMaterial[32]; /*  variable length depending on above field */
-};
-
 struct wlan_bcn_info {
 	/* these infor get from rtw_get_encrypt_info when
 	 *	 * translate scan to UI */
