@@ -1865,12 +1865,10 @@ static bool ixgbe_add_rx_frag(struct ixgbe_ring *rx_ring,
 	/* flip page offset to other buffer */
 	rx_buffer->page_offset ^= truesize;
 
-	/*
-	 * since we are the only owner of the page and we need to
-	 * increment it, just set the value to 2 in order to avoid
-	 * an unecessary locked operation
+	/* Even if we own the page, we are not allowed to use atomic_set()
+	 * This would break get_page_unless_zero() users.
 	 */
-	atomic_set(&page->_count, 2);
+	atomic_inc(&page->_count);
 #else
 	/* move offset up to the next cache line */
 	rx_buffer->page_offset += truesize;
