@@ -162,7 +162,7 @@ optional_header:
 extra_header_fields:
 	.quad	0				// ImageBase
 	.long	0x1000				// SectionAlignment
-	.long	0x8				// FileAlignment
+	.long	PECOFF_FILE_ALIGNMENT		// FileAlignment
 	.short	0				// MajorOperatingSystemVersion
 	.short	0				// MinorOperatingSystemVersion
 	.short	0				// MajorImageVersion
