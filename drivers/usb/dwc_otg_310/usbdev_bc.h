@@ -10,6 +10,10 @@ enum bc_port_type{
 	USB_BC_TYPE_UNKNOW,
 	USB_BC_TYPE_MAX,
 };
+enum {
+	BC_BVALID = 0,
+	BC_IDDIG,
+};
 
 enum {
 	SYNOP_BC_BVALID = 0,
@@ -67,9 +71,11 @@ USB Port Type
 2 : DCP - charger
 3 : CDP - pc with big currect charge
 ***********************************/
-
 extern int dwc_otg_check_dpdm(bool wait);
-extern int usb_battery_charger_detect(bool wait);
-extern void usb20otg_battery_charger_detect_cb(int charger_type_new);
+extern enum bc_port_type usb_battery_charger_detect(bool wait);
+extern void rk_battery_charger_detect_cb(int charger_type_new);
+extern int rk_bc_detect_register_notifier(struct notifier_block *nb,
+						  enum bc_port_type *type);
+extern int rk_bc_detect_unregister_notifier(struct notifier_block *nb);
 
 #endif
