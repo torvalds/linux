@@ -56,6 +56,14 @@
 		clocks = <&xtal24mhz>;
 	};
 
+	sspclk: sspclk@24M {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clock-div = <1>;
+		clock-mult = <1>;
+		clocks = <&xtal24mhz>;
+	};
+
 	uartclk: uartclk@24M {
 		#clock-cells = <0>;
 		compatible = "fixed-factor-clock";
@@ -216,6 +224,15 @@
 			#interrupt-cells = <2>;
 			clocks = <&pclk>;
 			clock-names = "apb_pclk";
+		};
+
+		pb1176_ssp: ssp@1010b000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x1010b000 0x1000>;
+			interrupt-parent = <&intc_dc1176>;
+			interrupts = <0 17 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&sspclk>, <&pclk>;
+			clock-names = "SSPCLK", "apb_pclk";
 		};
 
 		pb1176_serial0: serial@1010c000 {
