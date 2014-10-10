@@ -2271,6 +2271,21 @@ static int usb_enumerate_device_otg(struct usb_device *udev)
 						err);
 					bus->b_hnp_enable = 0;
 				}
+
+				/* For OTG supplement version 1.3 or earlier */
+				if ((desc->bLength < 5) &&
+						(port1 == bus->otg_port)) {
+					err = usb_control_msg(udev,
+						usb_sndctrlpipe(udev, 0),
+						USB_REQ_SET_FEATURE, 0,
+						USB_DEVICE_A_HNP_SUPPORT,
+						0, NULL, 0,
+						USB_CTRL_SET_TIMEOUT);
+					if (err < 0)
+						dev_info(&udev->dev,
+						"can't set A_HNP_SUPPORT:%d\n",
+									err);
+				}
 			}
 		}
 	}
