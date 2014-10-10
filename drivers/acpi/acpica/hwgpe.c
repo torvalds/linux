@@ -220,7 +220,7 @@ acpi_hw_get_gpe_status(struct acpi_gpe_event_info * gpe_event_info,
 
 	if ((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) !=
 	    ACPI_GPE_DISPATCH_NONE) {
-		local_event_status |= ACPI_EVENT_FLAG_HANDLE;
+		local_event_status |= ACPI_EVENT_FLAG_HAS_HANDLER;
 	}
 
 	/* Get the info block for the entire GPE register */

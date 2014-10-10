@@ -343,7 +343,7 @@ acpi_status acpi_get_event_status(u32 event, acpi_event_status * event_status)
 	/* Fixed event currently can be dispatched? */
 
 	if (acpi_gbl_fixed_event_handlers[event].handler) {
-		local_event_status |= ACPI_EVENT_FLAG_HANDLE;
+		local_event_status |= ACPI_EVENT_FLAG_HAS_HANDLER;
 	}
 
 	/* Fixed event currently enabled? */
