@@ -100,6 +100,13 @@ ip:
 		if (ip_is_fragment(iph))
 			ip_proto = 0;
 
+		/* skip the address processing if skb is NULL.  The assumption
+		 * here is that if there is no skb we are not looking for flow
+		 * info but lengths and protocols.
+		 */
+		if (!skb)
+			break;
+
 		iph_to_flow_copy_addrs(flow, iph);
 		break;
 	}
@@ -114,16 +121,14 @@ ipv6:
 			return false;
 
 		ip_proto = iph->nexthdr;
-		flow->src = (__force __be32)ipv6_addr_hash(&iph->saddr);
-		flow->dst = (__force __be32)ipv6_addr_hash(&iph->daddr);
 		nhoff += sizeof(struct ipv6hdr);
 
-		/* skip the flow label processing if skb is NULL.  The
-		 * assumption here is that if there is no skb we are not
-		 * looking for flow info as much as we are length.
-		 */
+		/* see comment above in IPv4 section */
 		if (!skb)
 			break;
+
+		flow->src = (__force __be32)ipv6_addr_hash(&iph->saddr);
+		flow->dst = (__force __be32)ipv6_addr_hash(&iph->daddr);
 
 		flow_label = ip6_flowlabel(iph);
 		if (flow_label) {
@@ -231,8 +236,12 @@ ipv6:
 
 	flow->n_proto = proto;
 	flow->ip_proto = ip_proto;
-	flow->ports = __skb_flow_get_ports(skb, nhoff, ip_proto, data, hlen);
 	flow->thoff = (u16) nhoff;
+
+	/* unless skb is set we don't need to record port info */
+	if (skb)
+		flow->ports = __skb_flow_get_ports(skb, nhoff, ip_proto,
+						   data, hlen);
 
 	return true;
 }
@@ -334,15 +343,16 @@ u32 __skb_get_poff(const struct sk_buff *skb, void *data,
 
 	switch (keys->ip_proto) {
 	case IPPROTO_TCP: {
-		const struct tcphdr *tcph;
-		struct tcphdr _tcph;
+		/* access doff as u8 to avoid unaligned access */
+		const u8 *doff;
+		u8 _doff;
 
-		tcph = __skb_header_pointer(skb, poff, sizeof(_tcph),
-					    data, hlen, &_tcph);
-		if (!tcph)
+		doff = __skb_header_pointer(skb, poff + 12, sizeof(_doff),
+					    data, hlen, &_doff);
+		if (!doff)
 			return poff;
 
-		poff += max_t(u32, sizeof(struct tcphdr), tcph->doff * 4);
+		poff += max_t(u32, sizeof(struct tcphdr), (*doff & 0xF0) >> 2);
 		break;
 	}
 	case IPPROTO_UDP:
