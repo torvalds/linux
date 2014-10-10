@@ -318,20 +318,10 @@ void xgene_enet_parse_error(struct xgene_enet_desc_ring *ring,
 			    struct xgene_enet_pdata *pdata,
 			    enum xgene_enet_err_code status);
 
-void xgene_enet_reset(struct xgene_enet_pdata *priv);
-void xgene_gmac_reset(struct xgene_enet_pdata *priv);
-void xgene_gmac_init(struct xgene_enet_pdata *priv, int speed);
-void xgene_gmac_tx_enable(struct xgene_enet_pdata *priv);
-void xgene_gmac_rx_enable(struct xgene_enet_pdata *priv);
-void xgene_gmac_tx_disable(struct xgene_enet_pdata *priv);
-void xgene_gmac_rx_disable(struct xgene_enet_pdata *priv);
-void xgene_gmac_set_mac_addr(struct xgene_enet_pdata *pdata);
-void xgene_enet_cle_bypass(struct xgene_enet_pdata *pdata,
-			   u32 dst_ring_num, u16 bufpool_id);
-void xgene_gport_shutdown(struct xgene_enet_pdata *priv);
-void xgene_gmac_get_tx_stats(struct xgene_enet_pdata *pdata);
-
 int xgene_enet_mdio_config(struct xgene_enet_pdata *pdata);
 void xgene_enet_mdio_remove(struct xgene_enet_pdata *pdata);
+
+extern struct xgene_mac_ops xgene_gmac_ops;
+extern struct xgene_port_ops xgene_gport_ops;
 
 #endif /* __XGENE_ENET_HW_H__ */

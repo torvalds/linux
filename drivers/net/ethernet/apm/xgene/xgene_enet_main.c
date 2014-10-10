@@ -413,7 +413,7 @@ static void xgene_enet_timeout(struct net_device *ndev)
 {
 	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
 
-	xgene_gmac_reset(pdata);
+	pdata->mac_ops->reset(pdata);
 }
 
 static int xgene_enet_register_irq(struct net_device *ndev)
@@ -445,10 +445,11 @@ static void xgene_enet_free_irq(struct net_device *ndev)
 static int xgene_enet_open(struct net_device *ndev)
 {
 	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
+	struct xgene_mac_ops *mac_ops = pdata->mac_ops;
 	int ret;
 
-	xgene_gmac_tx_enable(pdata);
-	xgene_gmac_rx_enable(pdata);
+	mac_ops->tx_enable(pdata);
+	mac_ops->rx_enable(pdata);
 
 	ret = xgene_enet_register_irq(ndev);
 	if (ret)
@@ -466,6 +467,7 @@ static int xgene_enet_open(struct net_device *ndev)
 static int xgene_enet_close(struct net_device *ndev)
 {
 	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
+	struct xgene_mac_ops *mac_ops = pdata->mac_ops;
 
 	netif_stop_queue(ndev);
 
@@ -476,8 +478,8 @@ static int xgene_enet_close(struct net_device *ndev)
 	xgene_enet_free_irq(ndev);
 	xgene_enet_process_ring(pdata->rx_ring, -1);
 
-	xgene_gmac_tx_disable(pdata);
-	xgene_gmac_rx_disable(pdata);
+	mac_ops->tx_disable(pdata);
+	mac_ops->rx_disable(pdata);
 
 	return 0;
 }
@@ -724,7 +726,7 @@ static int xgene_enet_set_mac_address(struct net_device *ndev, void *addr)
 	ret = eth_mac_addr(ndev, addr);
 	if (ret)
 		return ret;
-	xgene_gmac_set_mac_addr(pdata);
+	pdata->mac_ops->set_mac_addr(pdata);
 
 	return ret;
 }
@@ -834,8 +836,8 @@ static int xgene_enet_init_hw(struct xgene_enet_pdata *pdata)
 	u16 dst_ring_num;
 	int ret;
 
-	xgene_gmac_tx_disable(pdata);
-	xgene_gmac_rx_disable(pdata);
+	pdata->mac_ops->tx_disable(pdata);
+	pdata->mac_ops->rx_disable(pdata);
 
 	ret = xgene_enet_create_desc_rings(ndev);
 	if (ret) {
@@ -853,9 +855,15 @@ static int xgene_enet_init_hw(struct xgene_enet_pdata *pdata)
 	}
 
 	dst_ring_num = xgene_enet_dst_ring_num(pdata->rx_ring);
-	xgene_enet_cle_bypass(pdata, dst_ring_num, buf_pool->id);
+	pdata->port_ops->cle_bypass(pdata, dst_ring_num, buf_pool->id);
 
 	return ret;
+}
+
+static void xgene_enet_setup_ops(struct xgene_enet_pdata *pdata)
+{
+	pdata->mac_ops = &xgene_gmac_ops;
+	pdata->port_ops = &xgene_gport_ops;
 }
 
 static int xgene_enet_probe(struct platform_device *pdev)
@@ -886,8 +894,9 @@ static int xgene_enet_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
-	xgene_enet_reset(pdata);
-	xgene_gmac_init(pdata, SPEED_1000);
+	xgene_enet_setup_ops(pdata);
+	pdata->port_ops->reset(pdata);
+	pdata->mac_ops->init(pdata);
 
 	ret = register_netdev(ndev);
 	if (ret) {
@@ -918,19 +927,21 @@ err:
 static int xgene_enet_remove(struct platform_device *pdev)
 {
 	struct xgene_enet_pdata *pdata;
+	struct xgene_mac_ops *mac_ops;
 	struct net_device *ndev;
 
 	pdata = platform_get_drvdata(pdev);
+	mac_ops = pdata->mac_ops;
 	ndev = pdata->ndev;
 
-	xgene_gmac_rx_disable(pdata);
-	xgene_gmac_tx_disable(pdata);
+	mac_ops->rx_disable(pdata);
+	mac_ops->tx_disable(pdata);
 
 	netif_napi_del(&pdata->rx_ring->napi);
 	xgene_enet_mdio_remove(pdata);
 	xgene_enet_delete_desc_rings(pdata);
 	unregister_netdev(ndev);
-	xgene_gport_shutdown(pdata);
+	pdata->port_ops->shutdown(pdata);
 	free_netdev(ndev);
 
 	return 0;
@@ -956,5 +967,6 @@ module_platform_driver(xgene_enet_driver);
 
 MODULE_DESCRIPTION("APM X-Gene SoC Ethernet driver");
 MODULE_VERSION(XGENE_DRV_VERSION);
+MODULE_AUTHOR("Iyappan Subramanian <isubramanian@apm.com>");
 MODULE_AUTHOR("Keyur Chudgar <kchudgar@apm.com>");
 MODULE_LICENSE("GPL");

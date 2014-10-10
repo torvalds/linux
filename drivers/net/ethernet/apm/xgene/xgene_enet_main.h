@@ -68,6 +68,23 @@ struct xgene_enet_desc_ring {
 	};
 };
 
+struct xgene_mac_ops {
+	void (*init)(struct xgene_enet_pdata *pdata);
+	void (*reset)(struct xgene_enet_pdata *pdata);
+	void (*tx_enable)(struct xgene_enet_pdata *pdata);
+	void (*rx_enable)(struct xgene_enet_pdata *pdata);
+	void (*tx_disable)(struct xgene_enet_pdata *pdata);
+	void (*rx_disable)(struct xgene_enet_pdata *pdata);
+	void (*set_mac_addr)(struct xgene_enet_pdata *pdata);
+};
+
+struct xgene_port_ops {
+	void (*reset)(struct xgene_enet_pdata *pdata);
+	void (*cle_bypass)(struct xgene_enet_pdata *pdata,
+			   u32 dst_ring_num, u16 bufpool_id);
+	void (*shutdown)(struct xgene_enet_pdata *pdata);
+};
+
 /* ethernet private data */
 struct xgene_enet_pdata {
 	struct net_device *ndev;
@@ -98,6 +115,8 @@ struct xgene_enet_pdata {
 	u32 speed;
 	u16 rm;
 	struct rtnl_link_stats64 stats;
+	struct xgene_mac_ops *mac_ops;
+	struct xgene_port_ops *port_ops;
 };
 
 /* Set the specified value into a bit-field defined by its starting position
