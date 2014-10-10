@@ -253,6 +253,15 @@
 		compatible = "simple-bus";
 		ranges;
 
+		fpga_charlcd: charlcd@10008000 {
+			compatible = "arm,versatile-lcd";
+			reg = <0x10008000 0x1000>;
+			interrupt-parent = <&intc_fpga1176>;
+			interrupts = <0 7 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
+		};
+
 		/* This GIC on the board is cascaded off the DevChip GIC */
 		intc_fpga1176: interrupt-controller@10040000 {
 			compatible = "arm,arm1176jzf-devchip-gic", "arm,arm11mp-gic";
