@@ -496,8 +496,8 @@ config QDIO
 
 menuconfig PCI
 	bool "PCI support"
-	default n
 	depends on 64BIT
+	select HAVE_DMA_ATTRS
 	select PCI_MSI
 	help
 	  Enable PCI support.
@@ -542,9 +542,6 @@ config HAS_DMA
 	select HAVE_DMA_API_DEBUG
 
 config NEED_SG_DMA_LENGTH
-	def_bool PCI
-
-config HAVE_DMA_ATTRS
 	def_bool PCI
 
 config NEED_DMA_MAP_STATE
