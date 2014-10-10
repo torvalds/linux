@@ -18,13 +18,6 @@
 #include <usb_ops_linux.h>
 #include <rtw_sreset.h>
 
-struct zero_bulkout_context {
-	void *pbuf;
-	void *purb;
-	void *pirp;
-	void *padapter;
-};
-
 void rtl8723au_read_port_cancel(struct rtw_adapter *padapter)
 {
 	struct recv_buf *precvbuf;
