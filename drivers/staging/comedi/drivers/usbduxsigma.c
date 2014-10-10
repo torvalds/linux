@@ -1,6 +1,6 @@
 /*
  * usbduxsigma.c
- * Copyright (C) 2011 Bernd Porr, Bernd.Porr@f2s.com
+ * Copyright (C) 2011-2014 Bernd Porr, mail@berndporr.me.uk
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,9 +17,9 @@
  * Driver: usbduxsigma
  * Description: University of Stirling USB DAQ & INCITE Technology Limited
  * Devices: (ITL) USB-DUX [usbduxsigma]
- * Author: Bernd Porr <BerndPorr@f2s.com>
- * Updated: 8 Nov 2011
- * Status: testing
+ * Author: Bernd Porr <mail@berndporr.me.uk>
+ * Updated: 10 Oct 2014
+ * Status: stable
  */
 
 /*
