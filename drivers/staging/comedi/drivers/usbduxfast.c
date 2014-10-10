@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2004 Bernd Porr, Bernd.Porr@f2s.com
+ *  Copyright (C) 2004-2014 Bernd Porr, mail@berndporr.me.uk
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -10,6 +10,15 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
+ */
+
+/*
+ * Driver: usbduxfast
+ * Description: University of Stirling USB DAQ & INCITE Technology Limited
+ * Devices: (ITL) USB-DUX [usbduxfast]
+ * Author: Bernd Porr <mail@berndporr.me.uk>
+ * Updated: 10 Oct 2014
+ * Status: stable
  */
 
 /*
