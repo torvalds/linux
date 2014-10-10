@@ -184,12 +184,6 @@ int _rtw_init_xmit_priv23a(struct xmit_priv *pxmitpriv,
 
 	sema_init(&pxmitpriv->tx_retevt, 0);
 
-	/* per AC pending irp */
-	pxmitpriv->beq_cnt = 0;
-	pxmitpriv->bkq_cnt = 0;
-	pxmitpriv->viq_cnt = 0;
-	pxmitpriv->voq_cnt = 0;
-
 	pxmitpriv->ack_tx = false;
 	mutex_init(&pxmitpriv->ack_tx_mutex);
 	rtw_sctx_init23a(&pxmitpriv->ack_tx_ops, 0);

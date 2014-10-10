@@ -315,11 +315,6 @@ struct	xmit_priv {
 	u8		txirp_cnt;/*  */
 
 	struct tasklet_struct xmit_tasklet;
-	/* per AC pending irp */
-	int beq_cnt;
-	int bkq_cnt;
-	int viq_cnt;
-	int voq_cnt;
 
 	struct rtw_queue free_xmitbuf_queue;
 	struct list_head xmitbuf_list;		/* track buffers for cleanup */
