@@ -1693,7 +1693,7 @@ static int parse_str(struct hotmod_vals *v, int *val, char *name, char **curr)
 	}
 	*s = '\0';
 	s++;
-	for (i = 0; hotmod_ops[i].name; i++) {
+	for (i = 0; v[i].name; i++) {
 		if (strcmp(*curr, v[i].name) == 0) {
 			*val = v[i].val;
 			*curr = s;
