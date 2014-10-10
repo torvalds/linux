@@ -1,37 +1,34 @@
 /*
-   comedi/drivers/usbdux.c
-   Copyright (C) 2003-2007 Bernd Porr, Bernd.Porr@f2s.com
+ * usbdux.c
+ * Copyright (C) 2003-2014 Bernd Porr, mail@berndporr.me.uk
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
+
 /*
-Driver: usbdux
-Description: University of Stirling USB DAQ & INCITE Technology Limited
-Devices: [ITL] USB-DUX (usbdux.o)
-Author: Bernd Porr <BerndPorr@f2s.com>
-Updated: 8 Dec 2008
-Status: Stable
-Configuration options:
-  You have to upload firmware with the -i option. The
-  firmware is usually installed under /usr/share/usb or
-  /usr/local/share/usb or /lib/firmware.
+ * Driver: usbdux
+ * Description: University of Stirling USB DAQ & INCITE Technology Limited
+ * Devices: (ITL) USB-DUX [usbdux]
+ * Author: Bernd Porr <mail@berndporr.me.uk>
+ * Updated: 10 Oct 2014
+ * Status: Stable
+ * Connection scheme for the counter at the digital port:
+ * 0=/CLK0, 1=UP/DOWN0, 2=RESET0, 4=/CLK1, 5=UP/DOWN1, 6=RESET1.
+ * The sampling rate of the counter is approximately 500Hz.
+ *
+ * Note that under USB2.0 the length of the channel list determines
+ * the max sampling rate. If you sample only one channel you get 8kHz
+ * sampling rate. If you sample two channels you get 4kHz and so on.
+ */
 
-Connection scheme for the counter at the digital port:
-  0=/CLK0, 1=UP/DOWN0, 2=RESET0, 4=/CLK1, 5=UP/DOWN1, 6=RESET1.
-  The sampling rate of the counter is approximately 500Hz.
-
-Please note that under USB2.0 the length of the channel list determines
-the max sampling rate. If you sample only one channel you get 8kHz
-sampling rate. If you sample two channels you get 4kHz and so on.
-*/
 /*
  * I must give credit here to Chris Baugher who
  * wrote the driver for AT-MIO-16d. I used some parts of this
