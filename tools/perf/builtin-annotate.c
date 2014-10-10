@@ -214,6 +214,7 @@ static int __cmd_annotate(struct perf_annotate *ann)
 
 	if (dump_trace) {
 		perf_session__fprintf_nr_events(session, stdout);
+		perf_evlist__fprintf_nr_events(session->evlist, stdout);
 		goto out;
 	}
 

@@ -3,6 +3,7 @@
 #include "hist.h"
 #include "session.h"
 #include "sort.h"
+#include "evlist.h"
 #include "evsel.h"
 #include "annotate.h"
 #include <math.h>
@@ -1404,6 +1405,21 @@ int hists__link(struct hists *leader, struct hists *other)
 
 	return 0;
 }
+
+
+size_t perf_evlist__fprintf_nr_events(struct perf_evlist *evlist, FILE *fp)
+{
+	struct perf_evsel *pos;
+	size_t ret = 0;
+
+	evlist__for_each(evlist, pos) {
+		ret += fprintf(fp, "%s stats:\n", perf_evsel__name(pos));
+		ret += events_stats__fprintf(&evsel__hists(pos)->stats, fp);
+	}
+
+	return ret;
+}
+
 
 u64 hists__total_period(struct hists *hists)
 {

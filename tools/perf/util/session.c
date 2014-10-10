@@ -1375,16 +1375,9 @@ size_t perf_session__fprintf_dsos_buildid(struct perf_session *session, FILE *fp
 
 size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp)
 {
-	struct perf_evsel *pos;
 	size_t ret = fprintf(fp, "Aggregated stats:\n");
 
 	ret += events_stats__fprintf(&session->stats, fp);
-
-	evlist__for_each(session->evlist, pos) {
-		ret += fprintf(fp, "%s stats:\n", perf_evsel__name(pos));
-		ret += events_stats__fprintf(&evsel__hists(pos)->stats, fp);
-	}
-
 	return ret;
 }
 
