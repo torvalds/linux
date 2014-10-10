@@ -59,10 +59,22 @@ static int xgene_get_settings(struct net_device *ndev, struct ethtool_cmd *cmd)
 	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
 	struct phy_device *phydev = pdata->phy_dev;
 
-	if (phydev == NULL)
-		return -ENODEV;
+	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII) {
+		if (phydev == NULL)
+			return -ENODEV;
 
-	return phy_ethtool_gset(phydev, cmd);
+		return phy_ethtool_gset(phydev, cmd);
+	}
+
+	cmd->supported = SUPPORTED_10000baseT_Full | SUPPORTED_FIBRE;
+	cmd->advertising = cmd->supported;
+	ethtool_cmd_speed_set(cmd, SPEED_10000);
+	cmd->duplex = DUPLEX_FULL;
+	cmd->port = PORT_FIBRE;
+	cmd->transceiver = XCVR_EXTERNAL;
+	cmd->autoneg = AUTONEG_DISABLE;
+
+	return 0;
 }
 
 static int xgene_set_settings(struct net_device *ndev, struct ethtool_cmd *cmd)
@@ -70,10 +82,14 @@ static int xgene_set_settings(struct net_device *ndev, struct ethtool_cmd *cmd)
 	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
 	struct phy_device *phydev = pdata->phy_dev;
 
-	if (phydev == NULL)
-		return -ENODEV;
+	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII) {
+		if (phydev == NULL)
+			return -ENODEV;
 
-	return phy_ethtool_sset(phydev, cmd);
+		return phy_ethtool_sset(phydev, cmd);
+	}
+
+	return -EINVAL;
 }
 
 static void xgene_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
