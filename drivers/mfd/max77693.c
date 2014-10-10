@@ -240,7 +240,7 @@ static int max77693_i2c_probe(struct i2c_client *i2c,
 		goto err_irq_charger;
 	}
 
-	ret = regmap_add_irq_chip(max77693->regmap, max77693->irq,
+	ret = regmap_add_irq_chip(max77693->regmap_muic, max77693->irq,
 				IRQF_ONESHOT | IRQF_SHARED |
 				IRQF_TRIGGER_FALLING, 0,
 				&max77693_muic_irq_chip,
