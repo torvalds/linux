@@ -7015,14 +7015,7 @@ static int lock_extent_direct(struct inode *inode, u64 lockstart, u64 lockend,
 			btrfs_put_ordered_extent(ordered);
 		} else {
 			/* Screw you mmap */
-			ret = filemap_fdatawrite_range(inode->i_mapping,
-						       lockstart,
-						       lockend);
-			if (!ret && test_bit(BTRFS_INODE_HAS_ASYNC_EXTENT,
-					     &BTRFS_I(inode)->runtime_flags))
-				ret = filemap_fdatawrite_range(inode->i_mapping,
-							       lockstart,
-							       lockend);
+			ret = btrfs_fdatawrite_range(inode, lockstart, lockend);
 			if (ret)
 				break;
 			ret = filemap_fdatawait_range(inode->i_mapping,
