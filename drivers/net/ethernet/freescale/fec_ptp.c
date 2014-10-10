@@ -70,6 +70,7 @@
 #define FEC_TS_TIMESTAMP	0x418
 
 #define FEC_CC_MULT	(1 << 31)
+#define FEC_COUNTER_PERIOD	(1 << 31)
 /**
  * fec_ptp_read - read raw cycle counter (to be used by time counter)
  * @cc: the cyclecounter structure
@@ -113,14 +114,15 @@ void fec_ptp_start_cyclecounter(struct net_device *ndev)
 	/* 1ns counter */
 	writel(inc << FEC_T_INC_OFFSET, fep->hwp + FEC_ATIME_INC);
 
-	/* use free running count */
-	writel(0, fep->hwp + FEC_ATIME_EVT_PERIOD);
+	/* use 31-bit timer counter */
+	writel(FEC_COUNTER_PERIOD, fep->hwp + FEC_ATIME_EVT_PERIOD);
 
-	writel(FEC_T_CTRL_ENABLE, fep->hwp + FEC_ATIME_CTRL);
+	writel(FEC_T_CTRL_ENABLE | FEC_T_CTRL_PERIOD_RST,
+		fep->hwp + FEC_ATIME_CTRL);
 
 	memset(&fep->cc, 0, sizeof(fep->cc));
 	fep->cc.read = fec_ptp_read;
-	fep->cc.mask = CLOCKSOURCE_MASK(32);
+	fep->cc.mask = CLOCKSOURCE_MASK(31);
 	fep->cc.shift = 31;
 	fep->cc.mult = FEC_CC_MULT;
 
