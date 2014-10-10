@@ -829,7 +829,7 @@ void VCS_update23a(struct rtw_adapter *padapter, struct sta_info *psta)
 		psta->cts2self = 0;
 		break;
 	case 1: /* on */
-		if (pregpriv->vcs_type == 1) { /* 1:RTS/CTS 2:CTS to self */
+		if (pregpriv->vcs_type == RTS_CTS) {
 			psta->rtsen = 1;
 			psta->cts2self = 0;
 		} else {
@@ -840,7 +840,7 @@ void VCS_update23a(struct rtw_adapter *padapter, struct sta_info *psta)
 	case 2: /* auto */
 	default:
 		if (pmlmeinfo->ERP_enable && pmlmeinfo->ERP_IE & BIT(1)) {
-			if (pregpriv->vcs_type == 1) {
+			if (pregpriv->vcs_type == RTS_CTS) {
 				psta->rtsen = 1;
 				psta->cts2self = 0;
 			} else {
