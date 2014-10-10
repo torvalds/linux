@@ -982,6 +982,32 @@ static int rk312x_lcdc_set_scaler(struct rk_lcdc_driver *dev_drv,
 	return 0;
 }
 
+static void rk312x_lcdc_select_bcsh(struct rk_lcdc_driver *dev_drv,
+					struct lcdc_device *lcdc_dev)
+{
+    if (dev_drv->overlay_mode == VOP_YUV_DOMAIN) {
+	if (dev_drv->output_color == COLOR_YCBCR)	/* bypass */
+		lcdc_msk_reg(lcdc_dev, BCSH_CTRL,
+				m_BCSH_Y2R_EN | m_BCSH_R2Y_EN,
+				v_BCSH_Y2R_EN(0) | v_BCSH_R2Y_EN(0));
+	else	/* YUV2RGB */
+		lcdc_msk_reg(lcdc_dev, BCSH_CTRL,
+				m_BCSH_Y2R_EN | m_BCSH_Y2R_CSC_MODE | m_BCSH_R2Y_EN,
+				v_BCSH_Y2R_EN(1) |
+				v_BCSH_Y2R_CSC_MODE(VOP_Y2R_CSC_MPEG) |
+				v_BCSH_R2Y_EN(0));
+	} else {	/* overlay_mode=VOP_RGB_DOMAIN */
+		if (dev_drv->output_color == COLOR_RGB)	/* bypass */
+			lcdc_msk_reg(lcdc_dev, BCSH_CTRL, m_BCSH_R2Y_EN | m_BCSH_Y2R_EN,
+					v_BCSH_R2Y_EN(1) | v_BCSH_Y2R_EN(1));
+		else	/* RGB2YUV */
+			lcdc_msk_reg(lcdc_dev, BCSH_CTRL,
+					m_BCSH_R2Y_EN | m_BCSH_R2Y_CSC_MODE | m_BCSH_Y2R_EN,
+					v_BCSH_R2Y_EN(1) | v_BCSH_R2Y_CSC_MODE(VOP_Y2R_CSC_MPEG) |
+					v_BCSH_Y2R_EN(0));
+		}
+}
+
 static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 {
 	u16 face = 0;
@@ -1061,6 +1087,7 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 					(screen->pin_den << 6);
 				grf_writel(RK3036_GRF_SOC_CON2, (mask << 16) | val);
 			}
+			rk312x_lcdc_select_bcsh(dev_drv,  lcdc_dev);
 			break;
 		case SCREEN_TVOUT:
 		case SCREEN_TVOUT_TEST:
@@ -1088,6 +1115,8 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
                                 lcdc_msk_reg(lcdc_dev, DSP_CTRL0,
                                              m_SW_UV_OFFSET_EN,
                                              v_SW_UV_OFFSET_EN(1));
+
+			rk312x_lcdc_select_bcsh(dev_drv, lcdc_dev);
                         }
 			break;
 		default:
@@ -1200,7 +1229,7 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			lcdc_writel(lcdc_dev, DSP_VS_ST_END_F1,
 				    v_VSYNC_ST_F1(screen->mode.vsync_len +
 						  upper_margin + y_res / 2 +
-						  lower_margin) |
+						lower_margin) |
 				    v_VSYNC_END_F1(2 * screen->mode.vsync_len +
 						   upper_margin + y_res / 2 +
 						   lower_margin));
@@ -1835,26 +1864,7 @@ static int rk312x_lcdc_open_bcsh(struct rk_lcdc_driver *dev_drv, bool open)
 
 	spin_lock(&lcdc_dev->reg_lock);
 	if (lcdc_dev->clk_on) {
-		if (dev_drv->overlay_mode == VOP_YUV_DOMAIN) {
-			if (dev_drv->output_color == COLOR_YCBCR)	/* bypass */
-				lcdc_msk_reg(lcdc_dev, BCSH_CTRL, m_BCSH_Y2R_EN | m_BCSH_R2Y_EN,
-						v_BCSH_Y2R_EN(0) | v_BCSH_R2Y_EN(0));
-			else	/* YUV2RGB */
-				lcdc_msk_reg(lcdc_dev, BCSH_CTRL,
-						m_BCSH_Y2R_EN | m_BCSH_Y2R_CSC_MODE | m_BCSH_R2Y_EN,
-						v_BCSH_Y2R_EN(1) |
-						v_BCSH_Y2R_CSC_MODE(VOP_Y2R_CSC_MPEG) |
-						v_BCSH_R2Y_EN(0));
-		} else {	/* overlay_mode=VOP_RGB_DOMAIN */
-			if (dev_drv->output_color == COLOR_RGB)	/* bypass */
-				lcdc_msk_reg(lcdc_dev, BCSH_CTRL, m_BCSH_R2Y_EN | m_BCSH_Y2R_EN,
-						v_BCSH_R2Y_EN(1) | v_BCSH_Y2R_EN(1));
-			else	/* RGB2YUV */
-				lcdc_msk_reg(lcdc_dev, BCSH_CTRL,
-						m_BCSH_R2Y_EN | m_BCSH_R2Y_CSC_MODE | m_BCSH_Y2R_EN,
-						v_BCSH_R2Y_EN(1) | v_BCSH_R2Y_CSC_MODE(VOP_Y2R_CSC_MPEG) |
-						v_BCSH_Y2R_EN(0));
-		}
+		rk312x_lcdc_select_bcsh(dev_drv,  lcdc_dev);
 		if (open) {
 			lcdc_msk_reg(lcdc_dev, BCSH_CTRL,m_BCSH_EN | m_BCSH_OUT_MODE,
 				    v_BCSH_EN(1) | v_BCSH_OUT_MODE(3));
