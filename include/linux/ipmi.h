@@ -37,6 +37,7 @@
 
 #include <linux/list.h>
 #include <linux/proc_fs.h>
+#include <linux/acpi.h> /* For acpi_handle */
 
 struct module;
 struct device;
@@ -281,13 +282,15 @@ enum ipmi_addr_src {
 const char *ipmi_addr_src_to_str(enum ipmi_addr_src src);
 
 union ipmi_smi_info_union {
+#ifdef CONFIG_ACPI
 	/*
 	 * the acpi_info element is defined for the SI_ACPI
 	 * address type
 	 */
 	struct {
-		void *acpi_handle;
+		acpi_handle acpi_handle;
 	} acpi_info;
+#endif
 };
 
 struct ipmi_smi_info {
