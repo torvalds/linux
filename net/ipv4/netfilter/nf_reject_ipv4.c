@@ -6,6 +6,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/module.h>
 #include <net/ip.h>
 #include <net/tcp.h>
 #include <net/route.h>
@@ -125,3 +126,5 @@ void nf_send_reset(struct sk_buff *oldskb, int hook)
 	kfree_skb(nskb);
 }
 EXPORT_SYMBOL_GPL(nf_send_reset);
+
+MODULE_LICENSE("GPL");

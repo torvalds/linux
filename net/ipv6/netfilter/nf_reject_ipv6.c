@@ -5,6 +5,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+
+#include <linux/module.h>
 #include <net/ipv6.h>
 #include <net/ip6_route.h>
 #include <net/ip6_fib.h>
@@ -161,3 +163,5 @@ void nf_send_reset6(struct net *net, struct sk_buff *oldskb, int hook)
 		ip6_local_out(nskb);
 }
 EXPORT_SYMBOL_GPL(nf_send_reset6);
+
+MODULE_LICENSE("GPL");
