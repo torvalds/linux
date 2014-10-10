@@ -35,6 +35,7 @@
 		serial1 = &pb1176_serial1;
 		serial2 = &pb1176_serial2;
 		serial3 = &pb1176_serial3;
+		serial4 = &fpga_serial;
 	};
 
 	memory {
@@ -288,6 +289,15 @@
 			clock-names = "apb_pclk";
 		};
 
+		fpga_serial: serial@10009000 {
+			compatible = "arm,pl011", "arm,primecell";
+			reg = <0x10009000 0x1000>;
+			interrupt-parent = <&intc_fpga1176>;
+			interrupts = <0 6 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&uartclk>, <&pclk>;
+			clock-names = "uartclk", "apb_pclk";
+		};
+
 		/* This GIC on the board is cascaded off the DevChip GIC */
 		intc_fpga1176: interrupt-controller@10040000 {
 			compatible = "arm,arm1176jzf-devchip-gic", "arm,arm11mp-gic";
@@ -334,5 +344,7 @@
 			clocks = <&pclk>;
 			clock-names = "apb_pclk";
 		};
+
+
 	};
 };
