@@ -1778,30 +1778,28 @@ static void ahci_handle_port_interrupt(struct ata_port *ap,
 	}
 }
 
-static void ahci_port_intr(struct ata_port *ap)
+static void ahci_update_intr_status(struct ata_port *ap)
 {
 	void __iomem *port_mmio = ahci_port_base(ap);
+	struct ahci_port_priv *pp = ap->private_data;
 	u32 status;
 
 	status = readl(port_mmio + PORT_IRQ_STAT);
 	writel(status, port_mmio + PORT_IRQ_STAT);
 
-	ahci_handle_port_interrupt(ap, port_mmio, status);
+	atomic_or(status, &pp->intr_status);
 }
 
-irqreturn_t ahci_thread_fn(int irq, void *dev_instance)
+static irqreturn_t ahci_port_thread_fn(int irq, void *dev_instance)
 {
 	struct ata_port *ap = dev_instance;
 	struct ahci_port_priv *pp = ap->private_data;
 	void __iomem *port_mmio = ahci_port_base(ap);
-	unsigned long flags;
 	u32 status;
 
-	spin_lock_irqsave(&ap->host->lock, flags);
-	status = pp->intr_status;
-	if (status)
-		pp->intr_status = 0;
-	spin_unlock_irqrestore(&ap->host->lock, flags);
+	status = atomic_xchg(&pp->intr_status, 0);
+	if (!status)
+		return IRQ_NONE;
 
 	spin_lock_bh(ap->lock);
 	ahci_handle_port_interrupt(ap, port_mmio, status);
@@ -1809,47 +1807,13 @@ irqreturn_t ahci_thread_fn(int irq, void *dev_instance)
 
 	return IRQ_HANDLED;
 }
-EXPORT_SYMBOL_GPL(ahci_thread_fn);
 
-static void ahci_hw_port_interrupt(struct ata_port *ap)
+irqreturn_t ahci_thread_fn(int irq, void *dev_instance)
 {
-	void __iomem *port_mmio = ahci_port_base(ap);
-	struct ahci_port_priv *pp = ap->private_data;
-	u32 status;
-
-	status = readl(port_mmio + PORT_IRQ_STAT);
-	writel(status, port_mmio + PORT_IRQ_STAT);
-
-	pp->intr_status |= status;
-}
-
-irqreturn_t ahci_hw_interrupt(int irq, void *dev_instance)
-{
-	struct ata_port *ap_this = dev_instance;
-	struct ahci_port_priv *pp = ap_this->private_data;
-	struct ata_host *host = ap_this->host;
+	struct ata_host *host = dev_instance;
 	struct ahci_host_priv *hpriv = host->private_data;
-	void __iomem *mmio = hpriv->mmio;
+	u32 irq_masked = hpriv->port_map;
 	unsigned int i;
-	u32 irq_stat, irq_masked;
-
-	VPRINTK("ENTER\n");
-
-	spin_lock(&host->lock);
-
-	irq_stat = readl(mmio + HOST_IRQ_STAT);
-
-	if (!irq_stat) {
-		u32 status = pp->intr_status;
-
-		spin_unlock(&host->lock);
-
-		VPRINTK("EXIT\n");
-
-		return status ? IRQ_WAKE_THREAD : IRQ_NONE;
-	}
-
-	irq_masked = irq_stat & hpriv->port_map;
 
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap;
@@ -1859,7 +1823,7 @@ irqreturn_t ahci_hw_interrupt(int irq, void *dev_instance)
 
 		ap = host->ports[i];
 		if (ap) {
-			ahci_hw_port_interrupt(ap);
+			ahci_port_thread_fn(irq, ap);
 			VPRINTK("port %u\n", i);
 		} else {
 			VPRINTK("port %u (no irq)\n", i);
@@ -1869,17 +1833,29 @@ irqreturn_t ahci_hw_interrupt(int irq, void *dev_instance)
 		}
 	}
 
-	writel(irq_stat, mmio + HOST_IRQ_STAT);
+	return IRQ_HANDLED;
+}
 
-	spin_unlock(&host->lock);
+static irqreturn_t ahci_multi_irqs_intr(int irq, void *dev_instance)
+{
+	struct ata_port *ap = dev_instance;
+	void __iomem *port_mmio = ahci_port_base(ap);
+	struct ahci_port_priv *pp = ap->private_data;
+	u32 status;
+
+	VPRINTK("ENTER\n");
+
+	status = readl(port_mmio + PORT_IRQ_STAT);
+	writel(status, port_mmio + PORT_IRQ_STAT);
+
+	atomic_or(status, &pp->intr_status);
 
 	VPRINTK("EXIT\n");
 
 	return IRQ_WAKE_THREAD;
 }
-EXPORT_SYMBOL_GPL(ahci_hw_interrupt);
 
-irqreturn_t ahci_interrupt(int irq, void *dev_instance)
+static irqreturn_t ahci_single_irq_intr(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	struct ahci_host_priv *hpriv;
@@ -1899,8 +1875,6 @@ irqreturn_t ahci_interrupt(int irq, void *dev_instance)
 
 	irq_masked = irq_stat & hpriv->port_map;
 
-	spin_lock(&host->lock);
-
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap;
 
@@ -1909,7 +1883,7 @@ irqreturn_t ahci_interrupt(int irq, void *dev_instance)
 
 		ap = host->ports[i];
 		if (ap) {
-			ahci_port_intr(ap);
+			ahci_update_intr_status(ap);
 			VPRINTK("port %u\n", i);
 		} else {
 			VPRINTK("port %u (no irq)\n", i);
@@ -1932,13 +1906,10 @@ irqreturn_t ahci_interrupt(int irq, void *dev_instance)
 	 */
 	writel(irq_stat, mmio + HOST_IRQ_STAT);
 
-	spin_unlock(&host->lock);
-
 	VPRINTK("EXIT\n");
 
-	return IRQ_RETVAL(handled);
+	return handled ? IRQ_WAKE_THREAD : IRQ_NONE;
 }
-EXPORT_SYMBOL_GPL(ahci_interrupt);
 
 unsigned int ahci_qc_issue(struct ata_queued_cmd *qc)
 {
@@ -2349,13 +2320,8 @@ static int ahci_port_start(struct ata_port *ap)
 	 */
 	pp->intr_mask = DEF_PORT_IRQ;
 
-	/*
-	 * Switch to per-port locking in case each port has its own MSI vector.
-	 */
-	if ((hpriv->flags & AHCI_HFLAG_MULTI_MSI)) {
-		spin_lock_init(&pp->lock);
-		ap->lock = &pp->lock;
-	}
+	spin_lock_init(&pp->lock);
+	ap->lock = &pp->lock;
 
 	ap->private_data = pp;
 
@@ -2471,6 +2437,105 @@ void ahci_set_em_messages(struct ahci_host_priv *hpriv,
 	}
 }
 EXPORT_SYMBOL_GPL(ahci_set_em_messages);
+
+static int ahci_host_activate_multi_irqs(struct ata_host *host, int irq,
+					 struct scsi_host_template *sht)
+{
+	int i, rc;
+
+	rc = ata_host_start(host);
+	if (rc)
+		return rc;
+
+	for (i = 0; i < host->n_ports; i++) {
+		struct ahci_port_priv *pp = host->ports[i]->private_data;
+
+		/* Do not receive interrupts sent by dummy ports */
+		if (!pp) {
+			disable_irq(irq + i);
+			continue;
+		}
+
+		rc = devm_request_threaded_irq(host->dev, irq + i,
+					       ahci_multi_irqs_intr,
+					       ahci_port_thread_fn, IRQF_SHARED,
+					       pp->irq_desc, host->ports[i]);
+		if (rc)
+			goto out_free_irqs;
+	}
+
+	for (i = 0; i < host->n_ports; i++)
+		ata_port_desc(host->ports[i], "irq %d", irq + i);
+
+	rc = ata_host_register(host, sht);
+	if (rc)
+		goto out_free_all_irqs;
+
+	return 0;
+
+out_free_all_irqs:
+	i = host->n_ports;
+out_free_irqs:
+	for (i--; i >= 0; i--)
+		devm_free_irq(host->dev, irq + i, host->ports[i]);
+
+	return rc;
+}
+
+static int ahci_host_activate_single_irq(struct ata_host *host, int irq,
+					 struct scsi_host_template *sht)
+{
+	int i, rc;
+
+	rc = ata_host_start(host);
+	if (rc)
+		return rc;
+
+	rc = devm_request_threaded_irq(host->dev, irq, ahci_single_irq_intr,
+				       ahci_thread_fn, IRQF_SHARED,
+				       dev_driver_string(host->dev), host);
+	if (rc)
+		return rc;
+
+	for (i = 0; i < host->n_ports; i++)
+		ata_port_desc(host->ports[i], "irq %d", irq);
+
+	rc = ata_host_register(host, sht);
+	if (rc)
+		devm_free_irq(host->dev, irq, host);
+
+	return rc;
+}
+
+/**
+ *	ahci_host_activate - start AHCI host, request IRQs and register it
+ *	@host: target ATA host
+ *	@irq: base IRQ number to request
+ *	@sht: scsi_host_template to use when registering the host
+ *
+ *	Similar to ata_host_activate, but requests IRQs according to AHCI-1.1
+ *	when multiple MSIs were allocated. That is one MSI per port, starting
+ *	from @irq.
+ *
+ *	LOCKING:
+ *	Inherited from calling layer (may sleep).
+ *
+ *	RETURNS:
+ *	0 on success, -errno otherwise.
+ */
+int ahci_host_activate(struct ata_host *host, int irq,
+		       struct scsi_host_template *sht)
+{
+	struct ahci_host_priv *hpriv = host->private_data;
+	int rc;
+
+	if (hpriv->flags & AHCI_HFLAG_MULTI_MSI)
+		rc = ahci_host_activate_multi_irqs(host, irq, sht);
+	else
+		rc = ahci_host_activate_single_irq(host, irq, sht);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(ahci_host_activate);
 
 MODULE_AUTHOR("Jeff Garzik");
 MODULE_DESCRIPTION("Common AHCI SATA low-level routines");
