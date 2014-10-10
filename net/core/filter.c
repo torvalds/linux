@@ -51,9 +51,9 @@
  *	@skb: buffer to filter
  *
  * Run the filter code and then cut skb->data to correct size returned by
- * sk_run_filter. If pkt_len is 0 we toss packet. If skb->len is smaller
+ * SK_RUN_FILTER. If pkt_len is 0 we toss packet. If skb->len is smaller
  * than pkt_len we keep whole skb->data. This is the socket level
- * wrapper to sk_run_filter. It returns 0 if the packet should
+ * wrapper to SK_RUN_FILTER. It returns 0 if the packet should
  * be accepted or -EPERM if the packet should be tossed.
  *
  */
@@ -566,11 +566,8 @@ err:
 
 /* Security:
  *
- * A BPF program is able to use 16 cells of memory to store intermediate
- * values (check u32 mem[BPF_MEMWORDS] in sk_run_filter()).
- *
  * As we dont want to clear mem[] array for each packet going through
- * sk_run_filter(), we check that filter loaded by user never try to read
+ * __bpf_prog_run(), we check that filter loaded by user never try to read
  * a cell if not previously written, and we check all branches to be sure
  * a malicious user doesn't try to abuse us.
  */
