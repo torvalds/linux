@@ -105,18 +105,17 @@ struct xgene_enet_pdata {
 	void __iomem *eth_ring_if_addr;
 	void __iomem *eth_diag_csr_addr;
 	void __iomem *mcx_mac_addr;
-	void __iomem *mcx_stats_addr;
 	void __iomem *mcx_mac_csr_addr;
 	void __iomem *base_addr;
 	void __iomem *ring_csr_addr;
 	void __iomem *ring_cmd_addr;
 	u32 phy_addr;
 	int phy_mode;
-	u32 speed;
-	u16 rm;
+	enum xgene_enet_rm rm;
 	struct rtnl_link_stats64 stats;
 	struct xgene_mac_ops *mac_ops;
 	struct xgene_port_ops *port_ops;
+	struct delayed_work link_work;
 };
 
 /* Set the specified value into a bit-field defined by its starting position
