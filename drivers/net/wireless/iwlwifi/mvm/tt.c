@@ -64,10 +64,6 @@
  *****************************************************************************/
 
 #include "mvm.h"
-#include "iwl-config.h"
-#include "iwl-io.h"
-#include "iwl-csr.h"
-#include "iwl-prph.h"
 
 #define IWL_MVM_TEMP_NOTIF_WAIT_TIMEOUT	HZ
 
