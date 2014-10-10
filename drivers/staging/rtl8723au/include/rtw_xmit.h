@@ -297,7 +297,6 @@ struct	xmit_priv {
 
 	u8   vcs_setting;
 	u8	vcs;
-	u8	vcs_type;
 
 	u64	tx_bytes;
 	u64	tx_pkts;
