@@ -799,6 +799,17 @@ struct station_parameters {
 };
 
 /**
+ * struct station_del_parameters - station deletion parameters
+ *
+ * Used to delete a station entry (or all stations).
+ *
+ * @mac: MAC address of the station to remove or NULL to remove all stations
+ */
+struct station_del_parameters {
+	const u8 *mac;
+};
+
+/**
  * enum cfg80211_station_type - the type of station being modified
  * @CFG80211_STA_AP_CLIENT: client of an AP interface
  * @CFG80211_STA_AP_MLME_CLIENT: client of an AP interface that has
@@ -2132,7 +2143,7 @@ struct cfg80211_qos_map {
  * @stop_ap: Stop being an AP, including stopping beaconing.
  *
  * @add_station: Add a new station.
- * @del_station: Remove a station; @mac may be NULL to remove all stations.
+ * @del_station: Remove a station
  * @change_station: Modify a given station. Note that flags changes are not much
  *	validated in cfg80211, in particular the auth/assoc/authorized flags
  *	might come to the driver in invalid combinations -- make sure to check
@@ -2378,7 +2389,7 @@ struct cfg80211_ops {
 			       const u8 *mac,
 			       struct station_parameters *params);
 	int	(*del_station)(struct wiphy *wiphy, struct net_device *dev,
-			       const u8 *mac);
+			       struct station_del_parameters *params);
 	int	(*change_station)(struct wiphy *wiphy, struct net_device *dev,
 				  const u8 *mac,
 				  struct station_parameters *params);
