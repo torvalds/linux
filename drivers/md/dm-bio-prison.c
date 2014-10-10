@@ -241,6 +241,20 @@ void dm_cell_error(struct dm_bio_prison *prison,
 }
 EXPORT_SYMBOL_GPL(dm_cell_error);
 
+void dm_cell_visit_release(struct dm_bio_prison *prison,
+			   void (*visit_fn)(void *, struct dm_bio_prison_cell *),
+			   void *context,
+			   struct dm_bio_prison_cell *cell)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&prison->lock, flags);
+	visit_fn(context, cell);
+	rb_erase(&cell->node, &prison->cells);
+	spin_unlock_irqrestore(&prison->lock, flags);
+}
+EXPORT_SYMBOL_GPL(dm_cell_visit_release);
+
 /*----------------------------------------------------------------*/
 
 #define DEFERRED_SET_SIZE 64
