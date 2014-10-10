@@ -1175,10 +1175,50 @@ void perf_evlist__close(struct perf_evlist *evlist)
 	}
 }
 
+static int perf_evlist__create_syswide_maps(struct perf_evlist *evlist)
+{
+	int err = -ENOMEM;
+
+	/*
+	 * Try reading /sys/devices/system/cpu/online to get
+	 * an all cpus map.
+	 *
+	 * FIXME: -ENOMEM is the best we can do here, the cpu_map
+	 * code needs an overhaul to properly forward the
+	 * error, and we may not want to do that fallback to a
+	 * default cpu identity map :-\
+	 */
+	evlist->cpus = cpu_map__new(NULL);
+	if (evlist->cpus == NULL)
+		goto out;
+
+	evlist->threads = thread_map__new_dummy();
+	if (evlist->threads == NULL)
+		goto out_free_cpus;
+
+	err = 0;
+out:
+	return err;
+out_free_cpus:
+	cpu_map__delete(evlist->cpus);
+	evlist->cpus = NULL;
+	goto out;
+}
+
 int perf_evlist__open(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel;
 	int err;
+
+	/*
+	 * Default: one fd per CPU, all threads, aka systemwide
+	 * as sys_perf_event_open(cpu = -1, thread = -1) is EINVAL
+	 */
+	if (evlist->threads == NULL && evlist->cpus == NULL) {
+		err = perf_evlist__create_syswide_maps(evlist);
+		if (err < 0)
+			goto out_err;
+	}
 
 	perf_evlist__update_id_pos(evlist);
 
