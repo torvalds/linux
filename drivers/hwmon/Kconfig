@@ -280,8 +280,8 @@ config SENSORS_K10TEMP
 	  If you say yes here you get support for the temperature
 	  sensor(s) inside your CPU. Supported are later revisions of
 	  the AMD Family 10h and all revisions of the AMD Family 11h,
-	  12h (Llano), 14h (Brazos), 15h (Bulldozer/Trinity/Kaveri) and
-	  16h (Kabini/Mullins) microarchitectures.
+	  12h (Llano), 14h (Brazos), 15h (Bulldozer/Trinity/Kaveri/Carrizo)
+	  and 16h (Kabini/Mullins) microarchitectures.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called k10temp.
@@ -839,6 +839,16 @@ config SENSORS_MCP3021
 	  This driver can also be built as a module.  If so, the module
 	  will be called mcp3021.
 
+config SENSORS_MENF21BMC_HWMON
+	tristate "MEN 14F021P00 BMC Hardware Monitoring"
+	depends on MFD_MENF21BMC
+	help
+	  Say Y here to include support for the MEN 14F021P00 BMC
+	  hardware monitoring.
+
+	  This driver can also be built as a module. If so the module
+	  will be called menf21bmc_hwmon.
+
 config SENSORS_ADCXX
 	tristate "National Semiconductor ADCxxxSxxx"
 	depends on SPI_MASTER
@@ -1077,6 +1087,7 @@ config SENSORS_PC87427
 config SENSORS_NTC_THERMISTOR
 	tristate "NTC thermistor support from Murata"
 	depends on !OF || IIO=n || IIO
+	depends on THERMAL || !THERMAL_OF
 	help
 	  This driver supports NTC thermistors sensor reading and its
 	  interpretation. The driver can also monitor the temperature and
