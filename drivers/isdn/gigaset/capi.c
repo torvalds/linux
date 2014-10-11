@@ -1180,6 +1180,7 @@ static void do_facility_req(struct gigaset_capi_ctr *iif,
 				confparam[3] = 2;	/* length */
 				capimsg_setu16(confparam, 4,
 					       CapiSupplementaryServiceNotSupported);
+				break;
 			}
 			info = CapiSuccess;
 			confparam[3] = 2;	/* length */
