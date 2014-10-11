@@ -945,18 +945,15 @@ static int armada_drm_crtc_page_flip(struct drm_crtc *crtc,
 	armada_reg_queue_end(work->regs, i);
 
 	/*
-	 * Hold the old framebuffer for the work - DRM appears to drop our
-	 * reference to the old framebuffer in drm_mode_page_flip_ioctl().
+	 * Ensure that we hold a reference on the new framebuffer.
+	 * This has to match the behaviour in mode_set.
 	 */
-	drm_framebuffer_reference(work->old_fb);
+	drm_framebuffer_reference(fb);
 
 	ret = armada_drm_crtc_queue_frame_work(dcrtc, work);
 	if (ret) {
-		/*
-		 * Undo our reference above; DRM does not drop the reference
-		 * to this object on error, so that's okay.
-		 */
-		drm_framebuffer_unreference(work->old_fb);
+		/* Undo our reference above */
+		drm_framebuffer_unreference(fb);
 		kfree(work);
 		return ret;
 	}
