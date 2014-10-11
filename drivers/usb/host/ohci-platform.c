@@ -43,20 +43,6 @@ struct ohci_platform_priv {
 
 static const char hcd_name[] = "ohci-platform";
 
-static int ohci_platform_reset(struct usb_hcd *hcd)
-{
-	struct platform_device *pdev = to_platform_device(hcd->self.controller);
-	struct usb_ohci_pdata *pdata = dev_get_platdata(&pdev->dev);
-	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
-
-	if (pdata->no_big_frame_no)
-		ohci->flags |= OHCI_QUIRK_FRAME_NO;
-	if (pdata->num_ports)
-		ohci->num_ports = pdata->num_ports;
-
-	return ohci_setup(hcd);
-}
-
 static int ohci_platform_power_on(struct platform_device *dev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(dev);
@@ -110,7 +96,6 @@ static struct hc_driver __read_mostly ohci_platform_hc_driver;
 
 static const struct ohci_driver_overrides platform_overrides __initconst = {
 	.product_desc =		"Generic Platform OHCI controller",
-	.reset =		ohci_platform_reset,
 	.extra_priv_size =	sizeof(struct ohci_platform_priv),
 };
 
@@ -218,6 +203,10 @@ static int ohci_platform_probe(struct platform_device *dev)
 		ohci->flags |= OHCI_QUIRK_BE_DESC;
 	if (pdata->big_endian_mmio)
 		ohci->flags |= OHCI_QUIRK_BE_MMIO;
+	if (pdata->no_big_frame_no)
+		ohci->flags |= OHCI_QUIRK_FRAME_NO;
+	if (pdata->num_ports)
+		ohci->num_ports = pdata->num_ports;
 
 #ifndef CONFIG_USB_OHCI_BIG_ENDIAN_MMIO
 	if (ohci->flags & OHCI_QUIRK_BE_MMIO) {
