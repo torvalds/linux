@@ -27,6 +27,12 @@ Optional properties:
   Boolean. Indicate MIC1/2 input and LOUT1/2/3 outputs are differential,
   rather than single-ended.
 
+- realtek,gpio-config
+  Array of six 8bit elements that configures GPIO.
+    0 - floating (reset value)
+    1 - pull down
+    2 - pull up
+
 Pins on the device (for linking into audio routes):
 
   * IN1P
@@ -56,4 +62,5 @@ rt5677 {
 	realtek,pow-ldo2-gpio =
 		<&gpio TEGRA_GPIO(V, 3) GPIO_ACTIVE_HIGH>;
 	realtek,in1-differential = "true";
+	realtek,gpio-config = /bits/ 8  <0 0 0 0 0 2>;   /* pull up GPIO6 */
 };

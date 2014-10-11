@@ -27,6 +27,9 @@ struct rt5677_platform_data {
 	bool lout3_diff;
 	/* DMIC2 clock source selection */
 	enum rt5677_dmic2_clk dmic2_clk_pin;
+
+	/* configures GPIO, 0 - floating, 1 - pulldown, 2 - pullup */
+	u8 gpio_config[6];
 };
 
 #endif
