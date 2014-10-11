@@ -250,6 +250,8 @@ static inline void dump_rawmsg(enum debuglevel level, const char *tag,
 	l -= 12;
 	if (l <= 0)
 		return;
+	if (l > 64)
+		l = 64; /* arbitrary limit */
 	dbgline = kmalloc(3 * l, GFP_ATOMIC);
 	if (!dbgline)
 		return;
