@@ -121,8 +121,7 @@ static bool ux500_configure_channel(struct dma_channel *channel,
 	slave_conf.dst_maxburst = 16;
 	slave_conf.device_fc = false;
 
-	dma_chan->device->device_control(dma_chan, DMA_SLAVE_CONFIG,
-					     (unsigned long) &slave_conf);
+	dmaengine_slave_config(dma_chan, &slave_conf);
 
 	dma_desc = dmaengine_prep_slave_sg(dma_chan, &sg, 1, direction,
 					     DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
@@ -246,9 +245,7 @@ static int ux500_dma_channel_abort(struct dma_channel *channel)
 			musb_writew(epio, MUSB_RXCSR, csr);
 		}
 
-		ux500_channel->dma_chan->device->
-				device_control(ux500_channel->dma_chan,
-					DMA_TERMINATE_ALL, 0);
+		dmaengine_terminate_all(ux500_channel->dma_chan);
 		channel->status = MUSB_DMA_STATUS_FREE;
 	}
 	return 0;
