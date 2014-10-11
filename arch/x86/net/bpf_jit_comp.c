@@ -182,12 +182,17 @@ struct jit_context {
 	bool seen_ld_abs;
 };
 
+/* maximum number of bytes emitted while JITing one eBPF insn */
+#define BPF_MAX_INSN_SIZE	128
+#define BPF_INSN_SAFETY		64
+
 static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 		  int oldproglen, struct jit_context *ctx)
 {
 	struct bpf_insn *insn = bpf_prog->insnsi;
 	int insn_cnt = bpf_prog->len;
-	u8 temp[64];
+	bool seen_ld_abs = ctx->seen_ld_abs | (oldproglen == 0);
+	u8 temp[BPF_MAX_INSN_SIZE + BPF_INSN_SAFETY];
 	int i;
 	int proglen = 0;
 	u8 *prog = temp;
@@ -225,7 +230,7 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 	EMIT2(0x31, 0xc0); /* xor eax, eax */
 	EMIT3(0x4D, 0x31, 0xED); /* xor r13, r13 */
 
-	if (ctx->seen_ld_abs) {
+	if (seen_ld_abs) {
 		/* r9d : skb->len - skb->data_len (headlen)
 		 * r10 : skb->data
 		 */
@@ -685,7 +690,7 @@ xadd:			if (is_imm8(insn->off))
 		case BPF_JMP | BPF_CALL:
 			func = (u8 *) __bpf_call_base + imm32;
 			jmp_offset = func - (image + addrs[i]);
-			if (ctx->seen_ld_abs) {
+			if (seen_ld_abs) {
 				EMIT2(0x41, 0x52); /* push %r10 */
 				EMIT2(0x41, 0x51); /* push %r9 */
 				/* need to adjust jmp offset, since
@@ -699,7 +704,7 @@ xadd:			if (is_imm8(insn->off))
 				return -EINVAL;
 			}
 			EMIT1_off32(0xE8, jmp_offset);
-			if (ctx->seen_ld_abs) {
+			if (seen_ld_abs) {
 				EMIT2(0x41, 0x59); /* pop %r9 */
 				EMIT2(0x41, 0x5A); /* pop %r10 */
 			}
@@ -804,7 +809,8 @@ emit_jmp:
 			goto common_load;
 		case BPF_LD | BPF_ABS | BPF_W:
 			func = CHOOSE_LOAD_FUNC(imm32, sk_load_word);
-common_load:		ctx->seen_ld_abs = true;
+common_load:
+			ctx->seen_ld_abs = seen_ld_abs = true;
 			jmp_offset = func - (image + addrs[i]);
 			if (!func || !is_simm32(jmp_offset)) {
 				pr_err("unsupported bpf func %d addr %p image %p\n",
@@ -878,6 +884,11 @@ common_load:		ctx->seen_ld_abs = true;
 		}
 
 		ilen = prog - temp;
+		if (ilen > BPF_MAX_INSN_SIZE) {
+			pr_err("bpf_jit_compile fatal insn size error\n");
+			return -EFAULT;
+		}
+
 		if (image) {
 			if (unlikely(proglen + ilen > oldproglen)) {
 				pr_err("bpf_jit_compile fatal error\n");
@@ -934,9 +945,11 @@ void bpf_int_jit_compile(struct bpf_prog *prog)
 			goto out;
 		}
 		if (image) {
-			if (proglen != oldproglen)
+			if (proglen != oldproglen) {
 				pr_err("bpf_jit: proglen=%d != oldproglen=%d\n",
 				       proglen, oldproglen);
+				goto out;
+			}
 			break;
 		}
 		if (proglen == oldproglen) {
