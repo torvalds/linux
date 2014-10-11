@@ -212,7 +212,6 @@ int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
 		      void                     *send_info,
 		      struct ipmi_device_id    *device_id,
 		      struct device            *dev,
-		      const char               *sysfs_name,
 		      unsigned char            slave_addr);
 
 /*

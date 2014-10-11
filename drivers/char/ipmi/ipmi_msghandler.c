@@ -342,7 +342,6 @@ struct ipmi_smi {
 
 	struct bmc_device *bmc;
 	char *my_dev_name;
-	char *sysfs_name;
 
 	/*
 	 * This is the lower-layer's sender routine.  Note that you
@@ -2373,11 +2372,7 @@ static void ipmi_bmc_unregister(ipmi_smi_t intf)
 {
 	struct bmc_device *bmc = intf->bmc;
 
-	if (intf->sysfs_name) {
-		sysfs_remove_link(&intf->si_dev->kobj, intf->sysfs_name);
-		kfree(intf->sysfs_name);
-		intf->sysfs_name = NULL;
-	}
+	sysfs_remove_link(&intf->si_dev->kobj, "bmc");
 	if (intf->my_dev_name) {
 		sysfs_remove_link(&bmc->pdev.dev.kobj, intf->my_dev_name);
 		kfree(intf->my_dev_name);
@@ -2417,8 +2412,7 @@ out:
 	return err;
 }
 
-static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum,
-			     const char *sysfs_name)
+static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum)
 {
 	int               rv;
 	struct bmc_device *bmc = intf->bmc;
@@ -2489,6 +2483,7 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum,
 		bmc->pdev.id = bmc->id.device_id;
 		bmc->pdev.dev.release = release_bmc_device;
 		bmc->pdev.dev.type = &bmc_device_type;
+		kref_init(&bmc->usecount);
 
 		rv = platform_device_register(&bmc->pdev);
 		mutex_unlock(&ipmidriver_mutex);
@@ -2504,8 +2499,6 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum,
 			 */
 			return rv;
 		}
-
-		kref_init(&bmc->usecount);
 
 		rv = create_bmc_files(bmc);
 		if (rv) {
@@ -2527,20 +2520,8 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum,
 	 * create symlink from system interface device to bmc device
 	 * and back.
 	 */
-	intf->sysfs_name = kstrdup(sysfs_name, GFP_KERNEL);
-	if (!intf->sysfs_name) {
-		rv = -ENOMEM;
-		printk(KERN_ERR
-		       "ipmi_msghandler: allocate link to BMC: %d\n",
-		       rv);
-		goto out_err;
-	}
-
-	rv = sysfs_create_link(&intf->si_dev->kobj,
-			       &bmc->pdev.dev.kobj, intf->sysfs_name);
+	rv = sysfs_create_link(&intf->si_dev->kobj, &bmc->pdev.dev.kobj, "bmc");
 	if (rv) {
-		kfree(intf->sysfs_name);
-		intf->sysfs_name = NULL;
 		printk(KERN_ERR
 		       "ipmi_msghandler: Unable to create bmc symlink: %d\n",
 		       rv);
@@ -2549,8 +2530,6 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum,
 
 	intf->my_dev_name = kasprintf(GFP_KERNEL, "ipmi%d", ifnum);
 	if (!intf->my_dev_name) {
-		kfree(intf->sysfs_name);
-		intf->sysfs_name = NULL;
 		rv = -ENOMEM;
 		printk(KERN_ERR
 		       "ipmi_msghandler: allocate link from BMC: %d\n",
@@ -2561,8 +2540,6 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum,
 	rv = sysfs_create_link(&bmc->pdev.dev.kobj, &intf->si_dev->kobj,
 			       intf->my_dev_name);
 	if (rv) {
-		kfree(intf->sysfs_name);
-		intf->sysfs_name = NULL;
 		kfree(intf->my_dev_name);
 		intf->my_dev_name = NULL;
 		printk(KERN_ERR
@@ -2761,7 +2738,6 @@ int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
 		      void		       *send_info,
 		      struct ipmi_device_id    *device_id,
 		      struct device            *si_dev,
-		      const char               *sysfs_name,
 		      unsigned char            slave_addr)
 {
 	int              i, j;
@@ -2895,7 +2871,7 @@ int ipmi_register_smi(struct ipmi_smi_handlers *handlers,
 	if (rv == 0)
 		rv = add_proc_entries(intf, i);
 
-	rv = ipmi_bmc_register(intf, i, sysfs_name);
+	rv = ipmi_bmc_register(intf, i);
 
  out:
 	if (rv) {
