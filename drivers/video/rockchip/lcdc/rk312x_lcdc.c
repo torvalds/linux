@@ -582,7 +582,7 @@ static void rk312x_lcdc_mmu_en(struct rk_lcdc_driver *dev_drv)
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
 
-	spin_lock(&lcdc_dev->reg_lock);
+	//spin_lock(&lcdc_dev->reg_lock);
 	if (likely(lcdc_dev->clk_on)) {
 		mask = m_MMU_EN | m_AXI_MAX_OUTSTANDING_EN |
 	                m_AXI_OUTSTANDING_MAX_NUM;
@@ -590,7 +590,7 @@ static void rk312x_lcdc_mmu_en(struct rk_lcdc_driver *dev_drv)
 	                v_AXI_MAX_OUTSTANDING_EN(1);
 		lcdc_msk_reg(lcdc_dev, AXI_BUS_CTRL, mask, val);
 	}
-	spin_unlock(&lcdc_dev->reg_lock);
+	//spin_unlock(&lcdc_dev->reg_lock);
 }
 static int rk312x_lcdc_set_hwc_lut(struct rk_lcdc_driver *dev_drv, int *hwc_lut,int mode)
 {
@@ -706,12 +706,12 @@ static int rk312x_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 
 	lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_AUTO_GATING_EN, v_AUTO_GATING_EN(0));
 	lcdc_cfg_done(lcdc_dev);
-	if (dev_drv->iommu_enabled) {/* disable all wins to workaround iommu pagefault */
+	/*if (dev_drv->iommu_enabled) {// disable all wins to workaround iommu pagefault 
 		lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_WIN0_EN | m_WIN1_EN,
 			     v_WIN0_EN(0) | v_WIN1_EN(0));
 		lcdc_cfg_done(lcdc_dev); 
 		while(lcdc_readl(lcdc_dev, SYS_CTRL) & (m_WIN0_EN | m_WIN1_EN));
-	}
+	}*/
 	if ((dev_drv->ops->open_bcsh)&&(dev_drv->output_color == COLOR_YCBCR))
 		dev_drv->ops->open_bcsh(dev_drv,1);
 	lcdc_dev->pre_init = true;
@@ -1335,13 +1335,13 @@ static int rk312x_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 					return -1;
 				}
 			}
-			if (dev_drv->mmu_dev)
-				rockchip_iovmm_activate(dev_drv->dev);
+			/*if (dev_drv->mmu_dev)
+				rockchip_iovmm_activate(dev_drv->dev);*/
 		}
 #endif
 		rk312x_lcdc_reg_restore(lcdc_dev);
-		if (dev_drv->iommu_enabled)
-			rk312x_lcdc_mmu_en(dev_drv);
+		/*if (dev_drv->iommu_enabled)
+			rk312x_lcdc_mmu_en(dev_drv);*/
 		if ((support_uboot_display() && (lcdc_dev->prop == PRMRY))) {
 			/*rk312x_lcdc_set_dclk(dev_drv);*/
 			rk312x_lcdc_enable_irq(dev_drv);
@@ -1733,8 +1733,31 @@ static int rk312x_lcdc_cfg_done(struct rk_lcdc_driver *dev_drv)
 	struct lcdc_device *lcdc_dev = container_of(dev_drv,
 						    struct lcdc_device, driver);
 	spin_lock(&lcdc_dev->reg_lock);
-	if (lcdc_dev->clk_on)
+	if (lcdc_dev->clk_on) {
+	#if defined(CONFIG_ROCKCHIP_IOMMU)
+	if(dev_drv->iommu_enabled) {
+		if (!lcdc_dev->iommu_status && dev_drv->mmu_dev) {
+			lcdc_dev->iommu_status = 1;
+				//if ((support_uboot_display()&&(lcdc_dev->prop == PRMRY))) {
+					//lcdc_writel(lcdc_dev,WIN0_CTRL1,0x0);
+					//mask =	m_WIN0_EN;
+					//val  =	v_WIN0_EN(0);
+					//lcdc_msk_reg(lcdc_dev, WIN0_CTRL0, mask,val);
+				//}
+				lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_LCDC_STANDBY,
+					     v_LCDC_STANDBY(1));
+				lcdc_cfg_done(lcdc_dev);
+				mdelay(50);
+				rockchip_iovmm_activate(dev_drv->dev);
+				rk312x_lcdc_mmu_en(dev_drv);
+				lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_LCDC_STANDBY,
+					     v_LCDC_STANDBY(0));				
+		}
+	}
+	#endif
 		lcdc_cfg_done(lcdc_dev);
+
+	}
 	spin_unlock(&lcdc_dev->reg_lock);
 	return 0;
 }
