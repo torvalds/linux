@@ -497,6 +497,7 @@ static int send_cb(struct cardstate *cs, struct cmdbuf_t *cb)
 static int gigaset_write_cmd(struct cardstate *cs, struct cmdbuf_t *cb)
 {
 	unsigned long flags;
+	int len;
 
 	gigaset_dbg_buffer(cs->mstate != MS_LOCKED ?
 			   DEBUG_TRANSCMD : DEBUG_LOCKCMD,
@@ -515,10 +516,11 @@ static int gigaset_write_cmd(struct cardstate *cs, struct cmdbuf_t *cb)
 	spin_unlock_irqrestore(&cs->cmdlock, flags);
 
 	spin_lock_irqsave(&cs->lock, flags);
+	len = cb->len;
 	if (cs->connected)
 		tasklet_schedule(&cs->write_tasklet);
 	spin_unlock_irqrestore(&cs->lock, flags);
-	return cb->len;
+	return len;
 }
 
 static int gigaset_write_room(struct cardstate *cs)
