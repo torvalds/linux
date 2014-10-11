@@ -264,7 +264,7 @@ s_vFillTxKey(
 		/* MICHDR0 */
 		mic_hdr->id = 0x59;
 		mic_hdr->tx_priority = 0;
-		memcpy(mic_hdr->mic_addr2, pMACHeader->abyAddr2, ETH_ALEN);
+		ether_addr_copy(mic_hdr->mic_addr2, pMACHeader->abyAddr2);
 
 		/* ccmp pn big endian order */
 		mic_hdr->ccmp_pn[0] = (u8)(pTransmitKey->dwTSC47_16 >> 24);
@@ -282,17 +282,17 @@ s_vFillTxKey(
 		else
 			mic_hdr->hlen = cpu_to_be16(22);
 
-		memcpy(mic_hdr->addr1, pMACHeader->abyAddr1, ETH_ALEN);
-		memcpy(mic_hdr->addr2, pMACHeader->abyAddr2, ETH_ALEN);
+		ether_addr_copy(mic_hdr->addr1, pMACHeader->abyAddr1);
+		ether_addr_copy(mic_hdr->addr2, pMACHeader->abyAddr2);
 
 		/* MICHDR2 */
-		memcpy(mic_hdr->addr3, pMACHeader->abyAddr3, ETH_ALEN);
+		ether_addr_copy(mic_hdr->addr3, pMACHeader->abyAddr3);
 		mic_hdr->frame_control =
 				cpu_to_le16(pMACHeader->wFrameCtl & 0xc78f);
 		mic_hdr->seq_ctrl = cpu_to_le16(pMACHeader->wSeqCtl & 0xf);
 
 		if (pDevice->bLongHeader)
-			memcpy(mic_hdr->addr4, pMACHeader->abyAddr4, ETH_ALEN);
+			ether_addr_copy(mic_hdr->addr4, pMACHeader->abyAddr4);
 	}
 }
 
@@ -853,14 +853,18 @@ s_vFillRTSHead(
 
 			if ((pDevice->op_mode == NL80211_IFTYPE_ADHOC) ||
 			    (pDevice->op_mode == NL80211_IFTYPE_AP)) {
-				memcpy(&buf->data.ra, psEthHeader->abyDstAddr, ETH_ALEN);
+				ether_addr_copy(buf->data.ra,
+						psEthHeader->abyDstAddr);
 			} else {
-				memcpy(&buf->data.ra, pDevice->abyBSSID, ETH_ALEN);
+				ether_addr_copy(buf->data.ra,
+						pDevice->abyBSSID);
 			}
 			if (pDevice->op_mode == NL80211_IFTYPE_AP)
-				memcpy(&buf->data.ta, pDevice->abyBSSID, ETH_ALEN);
+				ether_addr_copy(buf->data.ta,
+						pDevice->abyBSSID);
 			else
-				memcpy(&buf->data.ta, psEthHeader->abySrcAddr, ETH_ALEN);
+				ether_addr_copy(buf->data.ta,
+						psEthHeader->abySrcAddr);
 
 		} else {
 			struct vnt_rts_g_fb *buf = pvRTS;
@@ -917,15 +921,19 @@ s_vFillRTSHead(
 
 			if ((pDevice->op_mode == NL80211_IFTYPE_ADHOC) ||
 			    (pDevice->op_mode == NL80211_IFTYPE_AP)) {
-				memcpy(&buf->data.ra, psEthHeader->abyDstAddr, ETH_ALEN);
+				ether_addr_copy(buf->data.ra,
+						psEthHeader->abyDstAddr);
 			} else {
-				memcpy(&buf->data.ra, pDevice->abyBSSID, ETH_ALEN);
+				ether_addr_copy(buf->data.ra,
+						pDevice->abyBSSID);
 			}
 
 			if (pDevice->op_mode == NL80211_IFTYPE_AP)
-				memcpy(&buf->data.ta, pDevice->abyBSSID, ETH_ALEN);
+				ether_addr_copy(buf->data.ta,
+						pDevice->abyBSSID);
 			else
-				memcpy(&buf->data.ta, psEthHeader->abySrcAddr, ETH_ALEN);
+				ether_addr_copy(buf->data.ta,
+						psEthHeader->abySrcAddr);
 
 		} // if (byFBOption == AUTO_FB_NONE)
 	} else if (byPktType == PK_TYPE_11A) {
@@ -950,15 +958,19 @@ s_vFillRTSHead(
 
 			if ((pDevice->op_mode == NL80211_IFTYPE_ADHOC) ||
 			    (pDevice->op_mode == NL80211_IFTYPE_AP)) {
-				memcpy(&buf->data.ra, psEthHeader->abyDstAddr, ETH_ALEN);
+				ether_addr_copy(buf->data.ra,
+						psEthHeader->abyDstAddr);
 			} else {
-				memcpy(&buf->data.ra, pDevice->abyBSSID, ETH_ALEN);
+				ether_addr_copy(buf->data.ra,
+						pDevice->abyBSSID);
 			}
 
 			if (pDevice->op_mode == NL80211_IFTYPE_AP)
-				memcpy(&buf->data.ta, pDevice->abyBSSID, ETH_ALEN);
+				ether_addr_copy(buf->data.ta,
+						pDevice->abyBSSID);
 			else
-				memcpy(&buf->data.ta, psEthHeader->abySrcAddr, ETH_ALEN);
+				ether_addr_copy(buf->data.ta,
+						psEthHeader->abySrcAddr);
 
 		} else {
 			struct vnt_rts_a_fb *buf = pvRTS;
@@ -990,14 +1002,18 @@ s_vFillRTSHead(
 
 			if ((pDevice->op_mode == NL80211_IFTYPE_ADHOC) ||
 			    (pDevice->op_mode == NL80211_IFTYPE_AP)) {
-				memcpy(&buf->data.ra, psEthHeader->abyDstAddr, ETH_ALEN);
+				ether_addr_copy(buf->data.ra,
+						psEthHeader->abyDstAddr);
 			} else {
-				memcpy(&buf->data.ra, pDevice->abyBSSID, ETH_ALEN);
+				ether_addr_copy(buf->data.ra,
+						pDevice->abyBSSID);
 			}
 			if (pDevice->op_mode == NL80211_IFTYPE_AP)
-				memcpy(&buf->data.ta, pDevice->abyBSSID, ETH_ALEN);
+				ether_addr_copy(buf->data.ta,
+						pDevice->abyBSSID);
 			else
-				memcpy(&buf->data.ta, psEthHeader->abySrcAddr, ETH_ALEN);
+				ether_addr_copy(buf->data.ta,
+						psEthHeader->abySrcAddr);
 		}
 	} else if (byPktType == PK_TYPE_11B) {
 		struct vnt_rts_ab *buf = pvRTS;
@@ -1018,15 +1034,17 @@ s_vFillRTSHead(
 
 		if ((pDevice->op_mode == NL80211_IFTYPE_ADHOC) ||
 		    (pDevice->op_mode == NL80211_IFTYPE_AP)) {
-			memcpy(&buf->data.ra, psEthHeader->abyDstAddr, ETH_ALEN);
+			ether_addr_copy(buf->data.ra,
+					psEthHeader->abyDstAddr);
 		} else {
-			memcpy(&buf->data.ra, pDevice->abyBSSID, ETH_ALEN);
+			ether_addr_copy(buf->data.ra, pDevice->abyBSSID);
 		}
 
 		if (pDevice->op_mode == NL80211_IFTYPE_AP)
-			memcpy(&buf->data.ta, pDevice->abyBSSID, ETH_ALEN);
+			ether_addr_copy(buf->data.ta, pDevice->abyBSSID);
 		else
-			memcpy(&buf->data.ta, psEthHeader->abySrcAddr, ETH_ALEN);
+			ether_addr_copy(buf->data.ta,
+					psEthHeader->abySrcAddr);
 	}
 }
 
@@ -1093,7 +1111,8 @@ s_vFillCTSHead(
 
 			buf->reserved2 = 0x0;
 
-			memcpy(&buf->data.ra, pDevice->abyCurrentNetAddr, ETH_ALEN);
+			ether_addr_copy(buf->data.ra,
+					pDevice->abyCurrentNetAddr);
 		} else { //if (byFBOption != AUTO_FB_NONE && uDMAIdx != TYPE_ATIMDMA && uDMAIdx != TYPE_BEACONDMA)
 			struct vnt_cts *buf = pvCTS;
 			/* Get SignalField, ServiceField & Length */
@@ -1116,7 +1135,8 @@ s_vFillCTSHead(
 					    IEEE80211_STYPE_CTS);
 
 			buf->reserved2 = 0x0;
-			memcpy(&buf->data.ra, pDevice->abyCurrentNetAddr, ETH_ALEN);
+			ether_addr_copy(buf->data.ra,
+					pDevice->abyCurrentNetAddr);
 		}
 	}
 }
@@ -2105,19 +2125,28 @@ vGenerateMACHeader(
 		pMACHeader->wFrameCtl = TYPE_802_11_DATA;
 
 	if (pDevice->op_mode == NL80211_IFTYPE_AP) {
-		memcpy(&(pMACHeader->abyAddr1[0]), &(psEthHeader->abyDstAddr[0]), ETH_ALEN);
-		memcpy(&(pMACHeader->abyAddr2[0]), &(pDevice->abyBSSID[0]), ETH_ALEN);
-		memcpy(&(pMACHeader->abyAddr3[0]), &(psEthHeader->abySrcAddr[0]), ETH_ALEN);
+		ether_addr_copy(&(pMACHeader->abyAddr1[0]),
+				&(psEthHeader->abyDstAddr[0]));
+		ether_addr_copy(&(pMACHeader->abyAddr2[0]),
+				&(pDevice->abyBSSID[0]));
+		ether_addr_copy(&(pMACHeader->abyAddr3[0]),
+				&(psEthHeader->abySrcAddr[0]));
 		pMACHeader->wFrameCtl |= FC_FROMDS;
 	} else {
 		if (pDevice->op_mode == NL80211_IFTYPE_ADHOC) {
-			memcpy(&(pMACHeader->abyAddr1[0]), &(psEthHeader->abyDstAddr[0]), ETH_ALEN);
-			memcpy(&(pMACHeader->abyAddr2[0]), &(psEthHeader->abySrcAddr[0]), ETH_ALEN);
-			memcpy(&(pMACHeader->abyAddr3[0]), &(pDevice->abyBSSID[0]), ETH_ALEN);
+			ether_addr_copy(&(pMACHeader->abyAddr1[0]),
+					&(psEthHeader->abyDstAddr[0]));
+			ether_addr_copy(&(pMACHeader->abyAddr2[0]),
+					&(psEthHeader->abySrcAddr[0]));
+			ether_addr_copy(&(pMACHeader->abyAddr3[0]),
+					&(pDevice->abyBSSID[0]));
 		} else {
-			memcpy(&(pMACHeader->abyAddr3[0]), &(psEthHeader->abyDstAddr[0]), ETH_ALEN);
-			memcpy(&(pMACHeader->abyAddr2[0]), &(psEthHeader->abySrcAddr[0]), ETH_ALEN);
-			memcpy(&(pMACHeader->abyAddr1[0]), &(pDevice->abyBSSID[0]), ETH_ALEN);
+			ether_addr_copy(&(pMACHeader->abyAddr3[0]),
+					&(psEthHeader->abyDstAddr[0]));
+			ether_addr_copy(&(pMACHeader->abyAddr2[0]),
+					&(psEthHeader->abySrcAddr[0]));
+			ether_addr_copy(&(pMACHeader->abyAddr1[0]),
+					&(pDevice->abyBSSID[0]));
 			pMACHeader->wFrameCtl |= FC_TODS;
 		}
 	}
@@ -2311,8 +2340,10 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice, PSTxMgmtPacket pPacket)
 
 	memset((void *)(pbyTxBufferAddr + wTxBufSize), 0, (cbHeaderSize - wTxBufSize));
 
-	memcpy(&(sEthHeader.abyDstAddr[0]), &(pPacket->p80211Header->sA3.abyAddr1[0]), ETH_ALEN);
-	memcpy(&(sEthHeader.abySrcAddr[0]), &(pPacket->p80211Header->sA3.abyAddr2[0]), ETH_ALEN);
+	ether_addr_copy(&(sEthHeader.abyDstAddr[0]),
+			&(pPacket->p80211Header->sA3.abyAddr1[0]));
+	ether_addr_copy(&(sEthHeader.abySrcAddr[0]),
+			&(pPacket->p80211Header->sA3.abyAddr2[0]));
 	//=========================
 	//    No Fragmentation
 	//=========================
@@ -2804,8 +2835,10 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb,
 	}
 
 	memset((void *)(pbyTxBufferAddr + wTxBufSize), 0, (cbHeaderSize - wTxBufSize));
-	memcpy(&(sEthHeader.abyDstAddr[0]), &(p80211Header->sA3.abyAddr1[0]), ETH_ALEN);
-	memcpy(&(sEthHeader.abySrcAddr[0]), &(p80211Header->sA3.abyAddr2[0]), ETH_ALEN);
+	ether_addr_copy(&(sEthHeader.abyDstAddr[0]),
+			&(p80211Header->sA3.abyAddr1[0]));
+	ether_addr_copy(&(sEthHeader.abySrcAddr[0]),
+			&(p80211Header->sA3.abyAddr2[0]));
 	//=========================
 	//    No Fragmentation
 	//=========================

@@ -356,8 +356,11 @@ struct vnt_private {
 	u32                         io_size;
 
 	unsigned char byRevId;
+	unsigned char byRxMode;
 	unsigned short SubSystemID;
 	unsigned short SubVendorID;
+
+	spinlock_t                  lock;
 
 	int                         nTxQueues;
 	volatile int                iTDUsed[TYPE_MAXTD];
@@ -384,9 +387,6 @@ struct vnt_private {
 
 	u32                         rx_buf_sz;
 	int                         multicast_limit;
-	unsigned char byRxMode;
-
-	spinlock_t                  lock;
 
 	pid_t			MLMEThr_pid;
 	struct completion	notify;
@@ -403,8 +403,8 @@ struct vnt_private {
 	bool bZoneRegExist;
 	unsigned char byOriginalZonetype;
 	unsigned char abyMacContext[MAC_MAX_CONTEXT_REG];
-	bool bLinkPass;          // link status: OK or fail
 	unsigned char abyCurrentNetAddr[ETH_ALEN];
+	bool bLinkPass;          // link status: OK or fail
 
 	// Adapter statistics
 	SStatCounter                scStatistic;
