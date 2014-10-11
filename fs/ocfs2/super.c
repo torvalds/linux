@@ -899,11 +899,12 @@ static int ocfs2_susp_quotas(struct ocfs2_super *osb, int unsuspend)
 {
 	int type;
 	struct super_block *sb = osb->sb;
-	unsigned int feature[MAXQUOTAS] = { OCFS2_FEATURE_RO_COMPAT_USRQUOTA,
-					     OCFS2_FEATURE_RO_COMPAT_GRPQUOTA};
+	unsigned int feature[OCFS2_MAXQUOTAS] = {
+					OCFS2_FEATURE_RO_COMPAT_USRQUOTA,
+					OCFS2_FEATURE_RO_COMPAT_GRPQUOTA};
 	int status = 0;
 
-	for (type = 0; type < MAXQUOTAS; type++) {
+	for (type = 0; type < OCFS2_MAXQUOTAS; type++) {
 		if (!OCFS2_HAS_RO_COMPAT_FEATURE(sb, feature[type]))
 			continue;
 		if (unsuspend)
@@ -927,17 +928,19 @@ static int ocfs2_susp_quotas(struct ocfs2_super *osb, int unsuspend)
 
 static int ocfs2_enable_quotas(struct ocfs2_super *osb)
 {
-	struct inode *inode[MAXQUOTAS] = { NULL, NULL };
+	struct inode *inode[OCFS2_MAXQUOTAS] = { NULL, NULL };
 	struct super_block *sb = osb->sb;
-	unsigned int feature[MAXQUOTAS] = { OCFS2_FEATURE_RO_COMPAT_USRQUOTA,
-					     OCFS2_FEATURE_RO_COMPAT_GRPQUOTA};
-	unsigned int ino[MAXQUOTAS] = { LOCAL_USER_QUOTA_SYSTEM_INODE,
+	unsigned int feature[OCFS2_MAXQUOTAS] = {
+					OCFS2_FEATURE_RO_COMPAT_USRQUOTA,
+					OCFS2_FEATURE_RO_COMPAT_GRPQUOTA};
+	unsigned int ino[OCFS2_MAXQUOTAS] = {
+					LOCAL_USER_QUOTA_SYSTEM_INODE,
 					LOCAL_GROUP_QUOTA_SYSTEM_INODE };
 	int status;
 	int type;
 
 	sb_dqopt(sb)->flags |= DQUOT_QUOTA_SYS_FILE | DQUOT_NEGATIVE_USAGE;
-	for (type = 0; type < MAXQUOTAS; type++) {
+	for (type = 0; type < OCFS2_MAXQUOTAS; type++) {
 		if (!OCFS2_HAS_RO_COMPAT_FEATURE(sb, feature[type]))
 			continue;
 		inode[type] = ocfs2_get_system_file_inode(osb, ino[type],
@@ -952,12 +955,12 @@ static int ocfs2_enable_quotas(struct ocfs2_super *osb)
 			goto out_quota_off;
 	}
 
-	for (type = 0; type < MAXQUOTAS; type++)
+	for (type = 0; type < OCFS2_MAXQUOTAS; type++)
 		iput(inode[type]);
 	return 0;
 out_quota_off:
 	ocfs2_disable_quotas(osb);
-	for (type = 0; type < MAXQUOTAS; type++)
+	for (type = 0; type < OCFS2_MAXQUOTAS; type++)
 		iput(inode[type]);
 	mlog_errno(status);
 	return status;
@@ -972,7 +975,7 @@ static void ocfs2_disable_quotas(struct ocfs2_super *osb)
 
 	/* We mostly ignore errors in this function because there's not much
 	 * we can do when we see them */
-	for (type = 0; type < MAXQUOTAS; type++) {
+	for (type = 0; type < OCFS2_MAXQUOTAS; type++) {
 		if (!sb_has_quota_loaded(sb, type))
 			continue;
 		/* Cancel periodic syncing before we grab dqonoff_mutex */
@@ -993,8 +996,9 @@ static void ocfs2_disable_quotas(struct ocfs2_super *osb)
 /* Handle quota on quotactl */
 static int ocfs2_quota_on(struct super_block *sb, int type, int format_id)
 {
-	unsigned int feature[MAXQUOTAS] = { OCFS2_FEATURE_RO_COMPAT_USRQUOTA,
-					     OCFS2_FEATURE_RO_COMPAT_GRPQUOTA};
+	unsigned int feature[OCFS2_MAXQUOTAS] = {
+					OCFS2_FEATURE_RO_COMPAT_USRQUOTA,
+					OCFS2_FEATURE_RO_COMPAT_GRPQUOTA};
 
 	if (!OCFS2_HAS_RO_COMPAT_FEATURE(sb, feature[type]))
 		return -EINVAL;

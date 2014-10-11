@@ -1277,7 +1277,7 @@ update_time:
  */
 #define UDF_MAX_ICB_NESTING 1024
 
-static int udf_read_inode(struct inode *inode)
+static int udf_read_inode(struct inode *inode, bool hidden_inode)
 {
 	struct buffer_head *bh = NULL;
 	struct fileEntry *fe;
@@ -1436,8 +1436,11 @@ reread:
 
 	link_count = le16_to_cpu(fe->fileLinkCount);
 	if (!link_count) {
-		ret = -ESTALE;
-		goto out;
+		if (!hidden_inode) {
+			ret = -ESTALE;
+			goto out;
+		}
+		link_count = 1;
 	}
 	set_nlink(inode, link_count);
 
@@ -1826,7 +1829,8 @@ out:
 	return err;
 }
 
-struct inode *udf_iget(struct super_block *sb, struct kernel_lb_addr *ino)
+struct inode *__udf_iget(struct super_block *sb, struct kernel_lb_addr *ino,
+			 bool hidden_inode)
 {
 	unsigned long block = udf_get_lb_pblock(sb, ino, 0);
 	struct inode *inode = iget_locked(sb, block);
@@ -1839,7 +1843,7 @@ struct inode *udf_iget(struct super_block *sb, struct kernel_lb_addr *ino)
 		return inode;
 
 	memcpy(&UDF_I(inode)->i_location, ino, sizeof(struct kernel_lb_addr));
-	err = udf_read_inode(inode);
+	err = udf_read_inode(inode, hidden_inode);
 	if (err < 0) {
 		iget_failed(inode);
 		return ERR_PTR(err);
