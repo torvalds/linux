@@ -1012,15 +1012,6 @@ static int fsl_dma_device_control(struct dma_chan *dchan,
 		chan->set_request_count(chan, size);
 		return 0;
 
-	case FSLDMA_EXTERNAL_START:
-
-		/* make sure the channel supports external start */
-		if (!chan->toggle_ext_start)
-			return -ENXIO;
-
-		chan->toggle_ext_start(chan, arg);
-		return 0;
-
 	default:
 		return -ENXIO;
 	}
