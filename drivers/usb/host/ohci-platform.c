@@ -175,6 +175,12 @@ static int ohci_platform_probe(struct platform_device *dev)
 		if (of_property_read_bool(dev->dev.of_node, "big-endian"))
 			ohci->flags |= OHCI_QUIRK_BE_MMIO | OHCI_QUIRK_BE_DESC;
 
+		if (of_property_read_bool(dev->dev.of_node, "no-big-frame-no"))
+			ohci->flags |= OHCI_QUIRK_FRAME_NO;
+
+		of_property_read_u32(dev->dev.of_node, "num-ports",
+				     &ohci->num_ports);
+
 		priv->phy = devm_phy_get(&dev->dev, "usb");
 		if (IS_ERR(priv->phy)) {
 			err = PTR_ERR(priv->phy);
