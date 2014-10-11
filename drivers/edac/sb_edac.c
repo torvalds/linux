@@ -52,36 +52,6 @@ static int probed;
 #define GET_BITFIELD(v, lo, hi)	\
 	(((v) & GENMASK_ULL(hi, lo)) >> (lo))
 
-/*
- * sbridge Memory Controller Registers
- */
-
-/*
- * FIXME: For now, let's order by device function, as it makes
- * easier for driver's development process. This table should be
- * moved to pci_id.h when submitted upstream
- */
-#define PCI_DEVICE_ID_INTEL_SBRIDGE_SAD0	0x3cf4	/* 12.6 */
-#define PCI_DEVICE_ID_INTEL_SBRIDGE_SAD1	0x3cf6	/* 12.7 */
-#define PCI_DEVICE_ID_INTEL_SBRIDGE_BR		0x3cf5	/* 13.6 */
-#define PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_HA0	0x3ca0	/* 14.0 */
-#define PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TA	0x3ca8	/* 15.0 */
-#define PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_RAS	0x3c71	/* 15.1 */
-#define PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD0	0x3caa	/* 15.2 */
-#define PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD1	0x3cab	/* 15.3 */
-#define PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD2	0x3cac	/* 15.4 */
-#define PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD3	0x3cad	/* 15.5 */
-#define PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_DDRIO	0x3cb8	/* 17.0 */
-
-	/*
-	 * Currently, unused, but will be needed in the future
-	 * implementations, as they hold the error counters
-	 */
-#define PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_ERR0	0x3c72	/* 16.2 */
-#define PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_ERR1	0x3c73	/* 16.3 */
-#define PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_ERR2	0x3c76	/* 16.6 */
-#define PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_ERR3	0x3c77	/* 16.7 */
-
 /* Devices 12 Function 6, Offsets 0x80 to 0xcc */
 static const u32 sbridge_dram_rule[] = {
 	0x80, 0x88, 0x90, 0x98, 0xa0,
@@ -283,8 +253,9 @@ static const u32 correrrthrsld[] = {
  * sbridge structs
  */
 
-#define NUM_CHANNELS	4
-#define MAX_DIMMS	3		/* Max DIMMS per channel */
+#define NUM_CHANNELS		4
+#define MAX_DIMMS		3	/* Max DIMMS per channel */
+#define CHANNEL_UNSPECIFIED	0xf	/* Intel IA32 SDM 15-14 */
 
 enum type {
 	SANDY_BRIDGE,
@@ -529,7 +500,7 @@ static const struct pci_id_table pci_dev_descr_haswell_table[] = {
  *	pci_device_id	table for which devices we are looking for
  */
 static const struct pci_device_id sbridge_pci_tbl[] = {
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TA)},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_HA0)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TA)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_HASWELL_IMC_HA0)},
 	{0,}			/* 0 terminated list. */
@@ -1990,6 +1961,9 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 	edac_dbg(0, "%s\n", msg);
 
 	/* FIXME: need support for channel mask */
+
+	if (channel == CHANNEL_UNSPECIFIED)
+		channel = -1;
 
 	/* Call the helper to output message */
 	edac_mc_handle_error(tp_event, mci, core_err_cnt,
