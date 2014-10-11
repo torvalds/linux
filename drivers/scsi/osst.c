@@ -4969,10 +4969,10 @@ static long osst_ioctl(struct file * file,
 	 * may try and take the device offline, in which case all further
 	 * access to the device is prohibited.
 	 */
-	if( !scsi_block_when_processing_errors(STp->device) ) {
-		retval = (-ENXIO);
+	retval = scsi_ioctl_block_when_processing_errors(STp->device, cmd_in,
+			file->f_flags & O_NDELAY);
+	if (retval)
 		goto out;
-	}
 
 	cmd_type = _IOC_TYPE(cmd_in);
 	cmd_nr   = _IOC_NR(cmd_in);

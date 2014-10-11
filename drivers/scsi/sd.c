@@ -1334,9 +1334,9 @@ static int sd_ioctl(struct block_device *bdev, fmode_t mode,
 	 * may try and take the device offline, in which case all further
 	 * access to the device is prohibited.
 	 */
-	error = scsi_nonblockable_ioctl(sdp, cmd, p,
-					(mode & FMODE_NDELAY) != 0);
-	if (!scsi_block_when_processing_errors(sdp) || !error)
+	error = scsi_ioctl_block_when_processing_errors(sdp, cmd,
+			(mode & FMODE_NDELAY) != 0);
+	if (error)
 		goto out;
 
 	/*

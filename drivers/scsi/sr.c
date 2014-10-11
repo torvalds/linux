@@ -549,6 +549,11 @@ static int sr_block_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 
 	mutex_lock(&sr_mutex);
 
+	ret = scsi_ioctl_block_when_processing_errors(sdev, cmd,
+			(mode & FMODE_NDELAY) != 0);
+	if (ret)
+		goto out;
+
 	/*
 	 * Send SCSI addressing ioctls directly to mid level, send other
 	 * ioctls to cdrom/block level.
@@ -564,16 +569,6 @@ static int sr_block_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 	if (ret != -ENOSYS)
 		goto out;
 
-	/*
-	 * ENODEV means that we didn't recognise the ioctl, or that we
-	 * cannot execute it in the current device state.  In either
-	 * case fall through to scsi_ioctl, which will return ENDOEV again
-	 * if it doesn't recognise the ioctl
-	 */
-	ret = scsi_nonblockable_ioctl(sdev, cmd, argp,
-					(mode & FMODE_NDELAY) != 0);
-	if (ret != -ENODEV)
-		goto out;
 	ret = scsi_ioctl(sdev, cmd, argp);
 
 out:

@@ -616,6 +616,11 @@ static long ch_ioctl(struct file *file,
 	int retval;
 	void __user *argp = (void __user *)arg;
 
+	retval = scsi_ioctl_block_when_processing_errors(ch->device, cmd,
+			file->f_flags & O_NDELAY);
+	if (retval)
+		return retval;
+
 	switch (cmd) {
 	case CHIOGPARAMS:
 	{

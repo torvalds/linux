@@ -3376,11 +3376,10 @@ static long st_ioctl(struct file *file, unsigned int cmd_in, unsigned long arg)
 	 * may try and take the device offline, in which case all further
 	 * access to the device is prohibited.
 	 */
-	retval = scsi_nonblockable_ioctl(STp->device, cmd_in, p,
-					file->f_flags & O_NDELAY);
-	if (!scsi_block_when_processing_errors(STp->device) || retval != -ENODEV)
+	retval = scsi_ioctl_block_when_processing_errors(STp->device, cmd_in,
+			file->f_flags & O_NDELAY);
+	if (retval)
 		goto out;
-	retval = 0;
 
 	cmd_type = _IOC_TYPE(cmd_in);
 	cmd_nr = _IOC_NR(cmd_in);
