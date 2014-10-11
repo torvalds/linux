@@ -44,6 +44,9 @@
 
 #define BMC150_ACCEL_REG_INT_STATUS_2		0x0B
 #define BMC150_ACCEL_ANY_MOTION_MASK		0x07
+#define BMC150_ACCEL_ANY_MOTION_BIT_X		BIT(0)
+#define BMC150_ACCEL_ANY_MOTION_BIT_Y		BIT(1)
+#define BMC150_ACCEL_ANY_MOTION_BIT_Z		BIT(2)
 #define BMC150_ACCEL_ANY_MOTION_BIT_SIGN	BIT(3)
 
 #define BMC150_ACCEL_REG_PMU_LPW		0x11
@@ -1097,12 +1100,26 @@ static irqreturn_t bmc150_accel_event_handler(int irq, void *private)
 	else
 		dir = IIO_EV_DIR_RISING;
 
-	if (ret & BMC150_ACCEL_ANY_MOTION_MASK)
+	if (ret & BMC150_ACCEL_ANY_MOTION_BIT_X)
 		iio_push_event(indio_dev, IIO_MOD_EVENT_CODE(IIO_ACCEL,
 							0,
-							IIO_MOD_X_OR_Y_OR_Z,
+							IIO_MOD_X,
 							IIO_EV_TYPE_ROC,
-							IIO_EV_DIR_EITHER),
+							dir),
+							data->timestamp);
+	if (ret & BMC150_ACCEL_ANY_MOTION_BIT_Y)
+		iio_push_event(indio_dev, IIO_MOD_EVENT_CODE(IIO_ACCEL,
+							0,
+							IIO_MOD_Y,
+							IIO_EV_TYPE_ROC,
+							dir),
+							data->timestamp);
+	if (ret & BMC150_ACCEL_ANY_MOTION_BIT_Z)
+		iio_push_event(indio_dev, IIO_MOD_EVENT_CODE(IIO_ACCEL,
+							0,
+							IIO_MOD_Z,
+							IIO_EV_TYPE_ROC,
+							dir),
 							data->timestamp);
 ack_intr_status:
 	if (!data->dready_trigger_on)
