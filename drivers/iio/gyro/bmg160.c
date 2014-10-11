@@ -67,6 +67,9 @@
 #define BMG160_REG_INT_EN_0		0x15
 #define BMG160_DATA_ENABLE_INT		BIT(7)
 
+#define BMG160_REG_INT_EN_1		0x16
+#define BMG160_INT1_BIT_OD		BIT(1)
+
 #define BMG160_REG_XOUT_L		0x02
 #define BMG160_AXIS_TO_REG(axis)	(BMG160_REG_XOUT_L + (axis * 2))
 
@@ -222,6 +225,19 @@ static int bmg160_chip_init(struct bmg160_data *data)
 	data->slope_thres = ret;
 
 	/* Set default interrupt mode */
+	ret = i2c_smbus_read_byte_data(data->client, BMG160_REG_INT_EN_1);
+	if (ret < 0) {
+		dev_err(&data->client->dev, "Error reading reg_int_en_1\n");
+		return ret;
+	}
+	ret &= ~BMG160_INT1_BIT_OD;
+	ret = i2c_smbus_write_byte_data(data->client,
+					BMG160_REG_INT_EN_1, ret);
+	if (ret < 0) {
+		dev_err(&data->client->dev, "Error writing reg_int_en_1\n");
+		return ret;
+	}
+
 	ret = i2c_smbus_write_byte_data(data->client,
 					BMG160_REG_INT_RST_LATCH,
 					BMG160_INT_MODE_LATCH_INT |
