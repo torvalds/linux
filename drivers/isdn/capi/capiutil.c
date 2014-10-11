@@ -489,12 +489,17 @@ static char *mnames[] =
  * @cmd:	command number
  * @subcmd:	subcommand number
  *
- * Return value: static string, NULL if command/subcommand unknown
+ * Return value: static string
  */
 
 char *capi_cmd2str(u8 cmd, u8 subcmd)
 {
-	return mnames[command_2_index(cmd, subcmd)];
+	char *result;
+
+	result = mnames[command_2_index(cmd, subcmd)];
+	if (result == NULL)
+		result = "INVALID_COMMAND";
+	return result;
 }
 
 
