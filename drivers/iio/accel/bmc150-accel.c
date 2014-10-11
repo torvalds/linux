@@ -853,7 +853,7 @@ static const struct attribute_group bmc150_accel_attrs_group = {
 
 static const struct iio_event_spec bmc150_accel_event = {
 		.type = IIO_EV_TYPE_ROC,
-		.dir = IIO_EV_DIR_RISING | IIO_EV_DIR_FALLING,
+		.dir = IIO_EV_DIR_EITHER,
 		.mask_separate = BIT(IIO_EV_INFO_VALUE) |
 				 BIT(IIO_EV_INFO_ENABLE) |
 				 BIT(IIO_EV_INFO_PERIOD)
