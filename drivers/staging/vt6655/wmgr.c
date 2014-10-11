@@ -1022,7 +1022,8 @@ s_vMgrRxAssocResponse(
 				}
 
 				memset(&wrqu, 0, sizeof(wrqu));
-				memcpy(wrqu.ap_addr.sa_data, &pMgmt->abyCurrBSSID[0], ETH_ALEN);
+				ether_addr_copy(wrqu.ap_addr.sa_data,
+						&pMgmt->abyCurrBSSID[0]);
 				wrqu.ap_addr.sa_family = ARPHRD_ETHER;
 				wireless_send_event(pDevice->dev, SIOCGIWAP, &wrqu, NULL);
 			}
@@ -4419,7 +4420,7 @@ bAdd_PMKID_Candidate(
 	else
 		pCandidateList->Flags &= ~(NDIS_802_11_PMKID_CANDIDATE_PREAUTH_ENABLED);
 
-	memcpy(pCandidateList->BSSID, pbyBSSID, ETH_ALEN);
+	ether_addr_copy(pCandidateList->BSSID, pbyBSSID);
 	pDevice->gsPMKIDCandidate.NumCandidates++;
 	pr_debug("NumCandidates:%d\n",
 		 (int)pDevice->gsPMKIDCandidate.NumCandidates);

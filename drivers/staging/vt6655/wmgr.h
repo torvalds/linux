@@ -204,10 +204,10 @@ typedef struct tagSMgmtObject {
 
 	// Current state vars
 	unsigned int	uCurrChannel;
+	unsigned char abyCurrBSSID[WLAN_BSSID_LEN];
 	unsigned char abyCurrSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
 	unsigned char abyCurrExtSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
 	unsigned char abyCurrSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
-	unsigned char abyCurrBSSID[WLAN_BSSID_LEN];
 	unsigned short wCurrCapInfo;
 	unsigned short wCurrAID;
 	unsigned short wCurrATIMWindow;
