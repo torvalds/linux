@@ -591,9 +591,9 @@
 		num-cs = <2>;
 		clocks =<&clk_spi0>, <&clk_gates7 12>;
 		clock-names = "spi","pclk_spi0";
-		//dmas = <&pdma 8>, <&pdma 9>;
-		//#dma-cells = <2>;
-		//dma-names = "tx", "rx";
+		dmas = <&pdma 8>, <&pdma 9>;
+		#dma-cells = <2>;
+		dma-names = "tx", "rx";
 		status = "disabled";
 	};
 
