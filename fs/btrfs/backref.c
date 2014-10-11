@@ -25,6 +25,9 @@
 #include "delayed-ref.h"
 #include "locking.h"
 
+/* Just an arbitrary number so we can be sure this happened */
+#define BACKREF_FOUND_SHARED 6
+
 struct extent_inode_elem {
 	u64 inum;
 	u64 offset;
@@ -377,7 +380,8 @@ out:
 static int __resolve_indirect_refs(struct btrfs_fs_info *fs_info,
 				   struct btrfs_path *path, u64 time_seq,
 				   struct list_head *head,
-				   const u64 *extent_item_pos, u64 total_refs)
+				   const u64 *extent_item_pos, u64 total_refs,
+				   u64 root_objectid)
 {
 	int err;
 	int ret = 0;
@@ -402,6 +406,10 @@ static int __resolve_indirect_refs(struct btrfs_fs_info *fs_info,
 			continue;
 		if (ref->count == 0)
 			continue;
+		if (root_objectid && ref->root_id != root_objectid) {
+			ret = BACKREF_FOUND_SHARED;
+			goto out;
+		}
 		err = __resolve_indirect_ref(fs_info, path, time_seq, ref,
 					     parents, extent_item_pos,
 					     total_refs);
@@ -482,7 +490,7 @@ static int __add_missing_keys(struct btrfs_fs_info *fs_info,
 			continue;
 		BUG_ON(!ref->wanted_disk_byte);
 		eb = read_tree_block(fs_info->tree_root, ref->wanted_disk_byte,
-				     fs_info->tree_root->leafsize, 0);
+				     0);
 		if (!eb || !extent_buffer_uptodate(eb)) {
 			free_extent_buffer(eb);
 			return -EIO;
@@ -561,7 +569,8 @@ static void __merge_refs(struct list_head *head, int mode)
  * smaller or equal that seq to the list
  */
 static int __add_delayed_refs(struct btrfs_delayed_ref_head *head, u64 seq,
-			      struct list_head *prefs, u64 *total_refs)
+			      struct list_head *prefs, u64 *total_refs,
+			      u64 inum)
 {
 	struct btrfs_delayed_extent_op *extent_op = head->extent_op;
 	struct rb_node *n = &head->node.rb_node;
@@ -625,6 +634,16 @@ static int __add_delayed_refs(struct btrfs_delayed_ref_head *head, u64 seq,
 			key.objectid = ref->objectid;
 			key.type = BTRFS_EXTENT_DATA_KEY;
 			key.offset = ref->offset;
+
+			/*
+			 * Found a inum that doesn't match our known inum, we
+			 * know it's shared.
+			 */
+			if (inum && ref->objectid != inum) {
+				ret = BACKREF_FOUND_SHARED;
+				break;
+			}
+
 			ret = __add_prelim_ref(prefs, ref->root, &key, 0, 0,
 					       node->bytenr,
 					       node->ref_mod * sgn, GFP_ATOMIC);
@@ -659,7 +678,7 @@ static int __add_delayed_refs(struct btrfs_delayed_ref_head *head, u64 seq,
 static int __add_inline_refs(struct btrfs_fs_info *fs_info,
 			     struct btrfs_path *path, u64 bytenr,
 			     int *info_level, struct list_head *prefs,
-			     u64 *total_refs)
+			     u64 *total_refs, u64 inum)
 {
 	int ret = 0;
 	int slot;
@@ -744,6 +763,12 @@ static int __add_inline_refs(struct btrfs_fs_info *fs_info,
 								      dref);
 			key.type = BTRFS_EXTENT_DATA_KEY;
 			key.offset = btrfs_extent_data_ref_offset(leaf, dref);
+
+			if (inum && key.objectid != inum) {
+				ret = BACKREF_FOUND_SHARED;
+				break;
+			}
+
 			root = btrfs_extent_data_ref_root(leaf, dref);
 			ret = __add_prelim_ref(prefs, root, &key, 0, 0,
 					       bytenr, count, GFP_NOFS);
@@ -765,7 +790,7 @@ static int __add_inline_refs(struct btrfs_fs_info *fs_info,
  */
 static int __add_keyed_refs(struct btrfs_fs_info *fs_info,
 			    struct btrfs_path *path, u64 bytenr,
-			    int info_level, struct list_head *prefs)
+			    int info_level, struct list_head *prefs, u64 inum)
 {
 	struct btrfs_root *extent_root = fs_info->extent_root;
 	int ret;
@@ -827,6 +852,12 @@ static int __add_keyed_refs(struct btrfs_fs_info *fs_info,
 								      dref);
 			key.type = BTRFS_EXTENT_DATA_KEY;
 			key.offset = btrfs_extent_data_ref_offset(leaf, dref);
+
+			if (inum && key.objectid != inum) {
+				ret = BACKREF_FOUND_SHARED;
+				break;
+			}
+
 			root = btrfs_extent_data_ref_root(leaf, dref);
 			ret = __add_prelim_ref(prefs, root, &key, 0, 0,
 					       bytenr, count, GFP_NOFS);
@@ -854,7 +885,8 @@ static int __add_keyed_refs(struct btrfs_fs_info *fs_info,
 static int find_parent_nodes(struct btrfs_trans_handle *trans,
 			     struct btrfs_fs_info *fs_info, u64 bytenr,
 			     u64 time_seq, struct ulist *refs,
-			     struct ulist *roots, const u64 *extent_item_pos)
+			     struct ulist *roots, const u64 *extent_item_pos,
+			     u64 root_objectid, u64 inum)
 {
 	struct btrfs_key key;
 	struct btrfs_path *path;
@@ -929,7 +961,8 @@ again:
 			}
 			spin_unlock(&delayed_refs->lock);
 			ret = __add_delayed_refs(head, time_seq,
-						 &prefs_delayed, &total_refs);
+						 &prefs_delayed, &total_refs,
+						 inum);
 			mutex_unlock(&head->mutex);
 			if (ret)
 				goto out;
@@ -951,11 +984,11 @@ again:
 		     key.type == BTRFS_METADATA_ITEM_KEY)) {
 			ret = __add_inline_refs(fs_info, path, bytenr,
 						&info_level, &prefs,
-						&total_refs);
+						&total_refs, inum);
 			if (ret)
 				goto out;
 			ret = __add_keyed_refs(fs_info, path, bytenr,
-					       info_level, &prefs);
+					       info_level, &prefs, inum);
 			if (ret)
 				goto out;
 		}
@@ -971,7 +1004,8 @@ again:
 	__merge_refs(&prefs, 1);
 
 	ret = __resolve_indirect_refs(fs_info, path, time_seq, &prefs,
-				      extent_item_pos, total_refs);
+				      extent_item_pos, total_refs,
+				      root_objectid);
 	if (ret)
 		goto out;
 
@@ -981,6 +1015,11 @@ again:
 		ref = list_first_entry(&prefs, struct __prelim_ref, list);
 		WARN_ON(ref->count < 0);
 		if (roots && ref->count && ref->root_id && ref->parent == 0) {
+			if (root_objectid && ref->root_id != root_objectid) {
+				ret = BACKREF_FOUND_SHARED;
+				goto out;
+			}
+
 			/* no parent == root of tree */
 			ret = ulist_add(roots, ref->root_id, 0, GFP_NOFS);
 			if (ret < 0)
@@ -989,12 +1028,10 @@ again:
 		if (ref->count && ref->parent) {
 			if (extent_item_pos && !ref->inode_list &&
 			    ref->level == 0) {
-				u32 bsz;
 				struct extent_buffer *eb;
-				bsz = btrfs_level_size(fs_info->extent_root,
-							ref->level);
+
 				eb = read_tree_block(fs_info->extent_root,
-							   ref->parent, bsz, 0);
+							   ref->parent, 0);
 				if (!eb || !extent_buffer_uptodate(eb)) {
 					free_extent_buffer(eb);
 					ret = -EIO;
@@ -1087,7 +1124,7 @@ static int btrfs_find_all_leafs(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 
 	ret = find_parent_nodes(trans, fs_info, bytenr,
-				time_seq, *leafs, NULL, extent_item_pos);
+				time_seq, *leafs, NULL, extent_item_pos, 0, 0);
 	if (ret < 0 && ret != -ENOENT) {
 		free_leaf_list(*leafs);
 		return ret;
@@ -1130,7 +1167,7 @@ static int __btrfs_find_all_roots(struct btrfs_trans_handle *trans,
 	ULIST_ITER_INIT(&uiter);
 	while (1) {
 		ret = find_parent_nodes(trans, fs_info, bytenr,
-					time_seq, tmp, *roots, NULL);
+					time_seq, tmp, *roots, NULL, 0, 0);
 		if (ret < 0 && ret != -ENOENT) {
 			ulist_free(tmp);
 			ulist_free(*roots);
@@ -1158,6 +1195,54 @@ int btrfs_find_all_roots(struct btrfs_trans_handle *trans,
 	ret = __btrfs_find_all_roots(trans, fs_info, bytenr, time_seq, roots);
 	if (!trans)
 		up_read(&fs_info->commit_root_sem);
+	return ret;
+}
+
+int btrfs_check_shared(struct btrfs_trans_handle *trans,
+		       struct btrfs_fs_info *fs_info, u64 root_objectid,
+		       u64 inum, u64 bytenr)
+{
+	struct ulist *tmp = NULL;
+	struct ulist *roots = NULL;
+	struct ulist_iterator uiter;
+	struct ulist_node *node;
+	struct seq_list elem = {};
+	int ret = 0;
+
+	tmp = ulist_alloc(GFP_NOFS);
+	roots = ulist_alloc(GFP_NOFS);
+	if (!tmp || !roots) {
+		ulist_free(tmp);
+		ulist_free(roots);
+		return -ENOMEM;
+	}
+
+	if (trans)
+		btrfs_get_tree_mod_seq(fs_info, &elem);
+	else
+		down_read(&fs_info->commit_root_sem);
+	ULIST_ITER_INIT(&uiter);
+	while (1) {
+		ret = find_parent_nodes(trans, fs_info, bytenr, elem.seq, tmp,
+					roots, NULL, root_objectid, inum);
+		if (ret == BACKREF_FOUND_SHARED) {
+			ret = 1;
+			break;
+		}
+		if (ret < 0 && ret != -ENOENT)
+			break;
+		node = ulist_next(tmp, &uiter);
+		if (!node)
+			break;
+		bytenr = node->val;
+		cond_resched();
+	}
+	if (trans)
+		btrfs_put_tree_mod_seq(fs_info, &elem);
+	else
+		up_read(&fs_info->commit_root_sem);
+	ulist_free(tmp);
+	ulist_free(roots);
 	return ret;
 }
 
@@ -1193,7 +1278,7 @@ int btrfs_find_one_extref(struct btrfs_root *root, u64 inode_objectid,
 	unsigned long ptr;
 
 	key.objectid = inode_objectid;
-	btrfs_set_key_type(&key, BTRFS_INODE_EXTREF_KEY);
+	key.type = BTRFS_INODE_EXTREF_KEY;
 	key.offset = start_off;
 
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
@@ -1233,7 +1318,7 @@ int btrfs_find_one_extref(struct btrfs_root *root, u64 inode_objectid,
 		ret = -ENOENT;
 		if (found_key.objectid != inode_objectid)
 			break;
-		if (btrfs_key_type(&found_key) != BTRFS_INODE_EXTREF_KEY)
+		if (found_key.type != BTRFS_INODE_EXTREF_KEY)
 			break;
 
 		ret = 0;
@@ -1366,7 +1451,7 @@ int extent_from_logical(struct btrfs_fs_info *fs_info, u64 logical,
 	}
 	btrfs_item_key_to_cpu(path->nodes[0], found_key, path->slots[0]);
 	if (found_key->type == BTRFS_METADATA_ITEM_KEY)
-		size = fs_info->extent_root->leafsize;
+		size = fs_info->extent_root->nodesize;
 	else if (found_key->type == BTRFS_EXTENT_ITEM_KEY)
 		size = found_key->offset;
 

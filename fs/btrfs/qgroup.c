@@ -539,10 +539,9 @@ static int add_qgroup_item(struct btrfs_trans_handle *trans,
 	struct extent_buffer *leaf;
 	struct btrfs_key key;
 
-#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
-	if (unlikely(test_bit(BTRFS_ROOT_DUMMY_ROOT, &quota_root->state)))
+	if (btrfs_test_is_dummy_root(quota_root))
 		return 0;
-#endif
+
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
@@ -551,9 +550,15 @@ static int add_qgroup_item(struct btrfs_trans_handle *trans,
 	key.type = BTRFS_QGROUP_INFO_KEY;
 	key.offset = qgroupid;
 
+	/*
+	 * Avoid a transaction abort by catching -EEXIST here. In that
+	 * case, we proceed by re-initializing the existing structure
+	 * on disk.
+	 */
+
 	ret = btrfs_insert_empty_item(trans, quota_root, path, &key,
 				      sizeof(*qgroup_info));
-	if (ret)
+	if (ret && ret != -EEXIST)
 		goto out;
 
 	leaf = path->nodes[0];
@@ -572,7 +577,7 @@ static int add_qgroup_item(struct btrfs_trans_handle *trans,
 	key.type = BTRFS_QGROUP_LIMIT_KEY;
 	ret = btrfs_insert_empty_item(trans, quota_root, path, &key,
 				      sizeof(*qgroup_limit));
-	if (ret)
+	if (ret && ret != -EEXIST)
 		goto out;
 
 	leaf = path->nodes[0];
@@ -692,10 +697,9 @@ static int update_qgroup_info_item(struct btrfs_trans_handle *trans,
 	int ret;
 	int slot;
 
-#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
-	if (unlikely(test_bit(BTRFS_ROOT_DUMMY_ROOT, &root->state)))
+	if (btrfs_test_is_dummy_root(root))
 		return 0;
-#endif
+
 	key.objectid = 0;
 	key.type = BTRFS_QGROUP_INFO_KEY;
 	key.offset = qgroup->qgroupid;
@@ -1334,6 +1338,8 @@ int btrfs_qgroup_record_ref(struct btrfs_trans_handle *trans,
 	oper->seq = atomic_inc_return(&fs_info->qgroup_op_seq);
 	INIT_LIST_HEAD(&oper->elem.list);
 	oper->elem.seq = 0;
+
+	trace_btrfs_qgroup_record_ref(oper);
 
 	if (type == BTRFS_QGROUP_OPER_SUB_SUBTREE) {
 		/*
@@ -2077,6 +2083,8 @@ static int btrfs_qgroup_account(struct btrfs_trans_handle *trans,
 
 	ASSERT(is_fstree(oper->ref_root));
 
+	trace_btrfs_qgroup_account(oper);
+
 	switch (oper->type) {
 	case BTRFS_QGROUP_OPER_ADD_EXCL:
 	case BTRFS_QGROUP_OPER_SUB_EXCL:
@@ -2237,7 +2245,6 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
 	if (srcid) {
 		struct btrfs_root *srcroot;
 		struct btrfs_key srckey;
-		int srcroot_level;
 
 		srckey.objectid = srcid;
 		srckey.type = BTRFS_ROOT_ITEM_KEY;
@@ -2249,8 +2256,7 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
 		}
 
 		rcu_read_lock();
-		srcroot_level = btrfs_header_level(srcroot->node);
-		level_size = btrfs_level_size(srcroot, srcroot_level);
+		level_size = srcroot->nodesize;
 		rcu_read_unlock();
 	}
 
@@ -2566,7 +2572,7 @@ qgroup_rescan_leaf(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
 		    found.type != BTRFS_METADATA_ITEM_KEY)
 			continue;
 		if (found.type == BTRFS_METADATA_ITEM_KEY)
-			num_bytes = fs_info->extent_root->leafsize;
+			num_bytes = fs_info->extent_root->nodesize;
 		else
 			num_bytes = found.offset;
 
