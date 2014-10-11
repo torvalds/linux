@@ -196,8 +196,6 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	list_del(&common->cur_frm->list);
 	spin_unlock_irqrestore(&common->irqlock, flags);
-	/* Mark state of the current frame to active */
-	common->cur_frm->vb.state = VB2_BUF_STATE_ACTIVE;
 
 	addr = vb2_dma_contig_plane_dma_addr(&common->cur_frm->vb, 0);
 	common->set_addr((addr + common->ytop_off),
@@ -306,8 +304,6 @@ static void process_progressive_mode(struct common_obj *common)
 	/* Remove that buffer from the buffer queue */
 	list_del(&common->next_frm->list);
 	spin_unlock(&common->irqlock);
-	/* Mark status of the buffer as active */
-	common->next_frm->vb.state = VB2_BUF_STATE_ACTIVE;
 
 	/* Set top and bottom field addrs in VPIF registers */
 	addr = vb2_dma_contig_plane_dma_addr(&common->next_frm->vb, 0);
@@ -360,7 +356,6 @@ static irqreturn_t vpif_channel_isr(int irq, void *dev_id)
 	struct vpif_device *dev = &vpif_obj;
 	struct channel_obj *ch;
 	struct common_obj *common;
-	enum v4l2_field field;
 	int fid = -1, i;
 	int channel_id = 0;
 
@@ -369,7 +364,6 @@ static irqreturn_t vpif_channel_isr(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	ch = dev->dev[channel_id];
-	field = ch->common[VPIF_VIDEO_INDEX].fmt.fmt.pix.field;
 	for (i = 0; i < VPIF_NUMOBJECTS; i++) {
 		common = &ch->common[i];
 		/* If streaming is started in this channel */
@@ -502,7 +496,7 @@ static void vpif_calculate_offsets(struct channel_obj *ch)
 	struct vpif_params *vpifparams = &ch->vpifparams;
 	enum v4l2_field field = common->fmt.fmt.pix.field;
 	struct video_obj *vid_ch = &ch->video;
-	unsigned int hpitch, vpitch, sizeimage;
+	unsigned int hpitch, sizeimage;
 
 	if (V4L2_FIELD_ANY == common->fmt.fmt.pix.field) {
 		if (ch->vpifparams.std_info.frm_fmt)
@@ -516,7 +510,6 @@ static void vpif_calculate_offsets(struct channel_obj *ch)
 	sizeimage = common->fmt.fmt.pix.sizeimage;
 
 	hpitch = common->fmt.fmt.pix.bytesperline;
-	vpitch = sizeimage / (hpitch * 2);
 	if ((V4L2_FIELD_NONE == vid_ch->buf_field) ||
 	    (V4L2_FIELD_INTERLACED == vid_ch->buf_field)) {
 		common->ytop_off = 0;
@@ -813,17 +806,14 @@ static int vpif_set_output(struct vpif_display_config *vpif_cfg,
 {
 	struct vpif_display_chan_config *chan_cfg =
 		&vpif_cfg->chan_config[ch->channel_id];
-	struct vpif_subdev_info *subdev_info = NULL;
 	struct v4l2_subdev *sd = NULL;
 	u32 input = 0, output = 0;
 	int sd_index;
 	int ret;
 
 	sd_index = vpif_output_to_subdev(vpif_cfg, chan_cfg, index);
-	if (sd_index >= 0) {
+	if (sd_index >= 0)
 		sd = vpif_obj.sd[sd_index];
-		subdev_info = &vpif_cfg->subdevinfo[sd_index];
-	}
 
 	if (sd) {
 		input = chan_cfg->outputs[index].input_route;
@@ -1210,8 +1200,8 @@ static int vpif_probe_complete(void)
 		INIT_LIST_HEAD(&common->dma_queue);
 
 		/* register video device */
-		vpif_dbg(1, debug, "channel=%x,channel->video_dev=%x\n",
-			 (int)ch, (int)&ch->video_dev);
+		vpif_dbg(1, debug, "channel=%p,channel->video_dev=%p\n",
+			 ch, &ch->video_dev);
 
 		/* Initialize the video_device structure */
 		vdev = ch->video_dev;
@@ -1410,7 +1400,7 @@ static int vpif_suspend(struct device *dev)
 		ch = vpif_obj.dev[i];
 		common = &ch->common[VPIF_VIDEO_INDEX];
 
-		if (!vb2_is_streaming(&common->buffer_queue))
+		if (!vb2_start_streaming_called(&common->buffer_queue))
 			continue;
 
 		mutex_lock(&common->lock);
@@ -1442,7 +1432,7 @@ static int vpif_resume(struct device *dev)
 		ch = vpif_obj.dev[i];
 		common = &ch->common[VPIF_VIDEO_INDEX];
 
-		if (!vb2_is_streaming(&common->buffer_queue))
+		if (!vb2_start_streaming_called(&common->buffer_queue))
 			continue;
 
 		mutex_lock(&common->lock);

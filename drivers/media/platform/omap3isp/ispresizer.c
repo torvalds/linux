@@ -12,16 +12,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #include <linux/device.h>
@@ -239,7 +229,7 @@ static void resizer_set_phase(struct isp_res_device *res, u32 h_phase,
 			      u32 v_phase)
 {
 	struct isp_device *isp = to_isp_device(res);
-	u32 rgval = 0;
+	u32 rgval;
 
 	rgval = isp_reg_readl(isp, OMAP3_ISP_IOMEM_RESZ, ISPRSZ_CNT) &
 	      ~(ISPRSZ_CNT_HSTPH_MASK | ISPRSZ_CNT_VSTPH_MASK);
@@ -275,7 +265,7 @@ static void resizer_set_luma(struct isp_res_device *res,
 			     struct resizer_luma_yenh *luma)
 {
 	struct isp_device *isp = to_isp_device(res);
-	u32 rgval = 0;
+	u32 rgval;
 
 	rgval  = (luma->algo << ISPRSZ_YENH_ALGO_SHIFT)
 		  & ISPRSZ_YENH_ALGO_MASK;
@@ -322,7 +312,7 @@ static void resizer_set_ratio(struct isp_res_device *res,
 {
 	struct isp_device *isp = to_isp_device(res);
 	const u16 *h_filter, *v_filter;
-	u32 rgval = 0;
+	u32 rgval;
 
 	rgval = isp_reg_readl(isp, OMAP3_ISP_IOMEM_RESZ, ISPRSZ_CNT) &
 			      ~(ISPRSZ_CNT_HRSZ_MASK | ISPRSZ_CNT_VRSZ_MASK);
@@ -365,9 +355,8 @@ static void resizer_set_output_size(struct isp_res_device *res,
 				    u32 width, u32 height)
 {
 	struct isp_device *isp = to_isp_device(res);
-	u32 rgval = 0;
+	u32 rgval;
 
-	dev_dbg(isp->dev, "Output size[w/h]: %dx%d\n", width, height);
 	rgval  = (width << ISPRSZ_OUT_SIZE_HORZ_SHIFT)
 		 & ISPRSZ_OUT_SIZE_HORZ_MASK;
 	rgval |= (height << ISPRSZ_OUT_SIZE_VERT_SHIFT)
@@ -409,7 +398,7 @@ static void resizer_set_output_offset(struct isp_res_device *res, u32 offset)
 static void resizer_set_start(struct isp_res_device *res, u32 left, u32 top)
 {
 	struct isp_device *isp = to_isp_device(res);
-	u32 rgval = 0;
+	u32 rgval;
 
 	rgval = (left << ISPRSZ_IN_START_HORZ_ST_SHIFT)
 		& ISPRSZ_IN_START_HORZ_ST_MASK;
@@ -429,9 +418,7 @@ static void resizer_set_input_size(struct isp_res_device *res,
 				   u32 width, u32 height)
 {
 	struct isp_device *isp = to_isp_device(res);
-	u32 rgval = 0;
-
-	dev_dbg(isp->dev, "Input size[w/h]: %dx%d\n", width, height);
+	u32 rgval;
 
 	rgval = (width << ISPRSZ_IN_SIZE_HORZ_SHIFT)
 		& ISPRSZ_IN_SIZE_HORZ_MASK;
@@ -1075,9 +1062,12 @@ static void resizer_isr_buffer(struct isp_res_device *res)
 void omap3isp_resizer_isr(struct isp_res_device *res)
 {
 	struct v4l2_mbus_framefmt *informat, *outformat;
+	unsigned long flags;
 
 	if (omap3isp_module_sync_is_stopping(&res->wait, &res->stopping))
 		return;
+
+	spin_lock_irqsave(&res->lock, flags);
 
 	if (res->applycrop) {
 		outformat = __resizer_get_format(res, NULL, RESZ_PAD_SOURCE,
@@ -1087,6 +1077,8 @@ void omap3isp_resizer_isr(struct isp_res_device *res)
 		resizer_set_crop_params(res, informat, outformat);
 		res->applycrop = 0;
 	}
+
+	spin_unlock_irqrestore(&res->lock, flags);
 
 	resizer_isr_buffer(res);
 }
@@ -1290,8 +1282,10 @@ static int resizer_set_selection(struct v4l2_subdev *sd,
 {
 	struct isp_res_device *res = v4l2_get_subdevdata(sd);
 	struct isp_device *isp = to_isp_device(res);
-	struct v4l2_mbus_framefmt *format_sink, *format_source;
+	const struct v4l2_mbus_framefmt *format_sink;
+	struct v4l2_mbus_framefmt format_source;
 	struct resizer_ratio ratio;
+	unsigned long flags;
 
 	if (sel->target != V4L2_SEL_TGT_CROP ||
 	    sel->pad != RESZ_PAD_SINK)
@@ -1299,16 +1293,14 @@ static int resizer_set_selection(struct v4l2_subdev *sd,
 
 	format_sink = __resizer_get_format(res, fh, RESZ_PAD_SINK,
 					   sel->which);
-	format_source = __resizer_get_format(res, fh, RESZ_PAD_SOURCE,
-					     sel->which);
+	format_source = *__resizer_get_format(res, fh, RESZ_PAD_SOURCE,
+					      sel->which);
 
-	dev_dbg(isp->dev, "%s: L=%d,T=%d,W=%d,H=%d,which=%d\n", __func__,
-		sel->r.left, sel->r.top, sel->r.width, sel->r.height,
-		sel->which);
-
-	dev_dbg(isp->dev, "%s: input=%dx%d, output=%dx%d\n", __func__,
+	dev_dbg(isp->dev, "%s(%s): req %ux%u -> (%d,%d)/%ux%u -> %ux%u\n",
+		__func__, sel->which == V4L2_SUBDEV_FORMAT_TRY ? "try" : "act",
 		format_sink->width, format_sink->height,
-		format_source->width, format_source->height);
+		sel->r.left, sel->r.top, sel->r.width, sel->r.height,
+		format_source.width, format_source.height);
 
 	/* Clamp the crop rectangle to the bounds, and then mangle it further to
 	 * fulfill the TRM equations. Store the clamped but otherwise unmangled
@@ -1318,22 +1310,38 @@ static int resizer_set_selection(struct v4l2_subdev *sd,
 	 * smaller input crop rectangle every time the output size is set if we
 	 * stored the mangled rectangle.
 	 */
-	resizer_try_crop(format_sink, format_source, &sel->r);
+	resizer_try_crop(format_sink, &format_source, &sel->r);
 	*__resizer_get_crop(res, fh, sel->which) = sel->r;
-	resizer_calc_ratios(res, &sel->r, format_source, &ratio);
+	resizer_calc_ratios(res, &sel->r, &format_source, &ratio);
 
-	if (sel->which == V4L2_SUBDEV_FORMAT_TRY)
+	dev_dbg(isp->dev, "%s(%s): got %ux%u -> (%d,%d)/%ux%u -> %ux%u\n",
+		__func__, sel->which == V4L2_SUBDEV_FORMAT_TRY ? "try" : "act",
+		format_sink->width, format_sink->height,
+		sel->r.left, sel->r.top, sel->r.width, sel->r.height,
+		format_source.width, format_source.height);
+
+	if (sel->which == V4L2_SUBDEV_FORMAT_TRY) {
+		*__resizer_get_format(res, fh, RESZ_PAD_SOURCE, sel->which) =
+			format_source;
 		return 0;
+	}
+
+	/* Update the source format, resizing ratios and crop rectangle. If
+	 * streaming is on the IRQ handler will reprogram the resizer after the
+	 * current frame. We thus we need to protect against race conditions.
+	 */
+	spin_lock_irqsave(&res->lock, flags);
+
+	*__resizer_get_format(res, fh, RESZ_PAD_SOURCE, sel->which) =
+		format_source;
 
 	res->ratio = ratio;
 	res->crop.active = sel->r;
 
-	/*
-	 * set_selection can be called while streaming is on. In this case the
-	 * crop values will be set in the next IRQ.
-	 */
 	if (res->state != ISP_PIPELINE_STREAM_STOPPED)
 		res->applycrop = 1;
+
+	spin_unlock_irqrestore(&res->lock, flags);
 
 	return 0;
 }
@@ -1781,6 +1789,8 @@ int omap3isp_resizer_init(struct isp_device *isp)
 
 	init_waitqueue_head(&res->wait);
 	atomic_set(&res->stopping, 0);
+	spin_lock_init(&res->lock);
+
 	return resizer_init_entities(res);
 }
 

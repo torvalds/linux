@@ -355,6 +355,7 @@ header-y += serio.h
 header-y += shm.h
 header-y += signal.h
 header-y += signalfd.h
+header-y += smiapp.h
 header-y += snmp.h
 header-y += sock_diag.h
 header-y += socket.h

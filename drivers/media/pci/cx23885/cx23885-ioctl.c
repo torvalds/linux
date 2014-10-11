@@ -15,10 +15,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "cx23885.h"
@@ -28,7 +24,7 @@
 int cx23885_g_chip_info(struct file *file, void *fh,
 			 struct v4l2_dbg_chip_info *chip)
 {
-	struct cx23885_dev *dev = ((struct cx23885_fh *)fh)->dev;
+	struct cx23885_dev *dev = video_drvdata(file);
 
 	if (chip->match.addr > 1)
 		return -EINVAL;
@@ -64,7 +60,7 @@ static int cx23417_g_register(struct cx23885_dev *dev,
 int cx23885_g_register(struct file *file, void *fh,
 		       struct v4l2_dbg_register *reg)
 {
-	struct cx23885_dev *dev = ((struct cx23885_fh *)fh)->dev;
+	struct cx23885_dev *dev = video_drvdata(file);
 
 	if (reg->match.addr > 1)
 		return -EINVAL;
@@ -96,7 +92,7 @@ static int cx23417_s_register(struct cx23885_dev *dev,
 int cx23885_s_register(struct file *file, void *fh,
 		       const struct v4l2_dbg_register *reg)
 {
-	struct cx23885_dev *dev = ((struct cx23885_fh *)fh)->dev;
+	struct cx23885_dev *dev = video_drvdata(file);
 
 	if (reg->match.addr > 1)
 		return -EINVAL;

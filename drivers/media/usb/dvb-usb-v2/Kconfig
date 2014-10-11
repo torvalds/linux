@@ -141,3 +141,10 @@ config DVB_USB_RTL28XXU
 	help
 	  Say Y here to support the Realtek RTL28xxU DVB USB receiver.
 
+config DVB_USB_DVBSKY
+	tristate "DVBSky USB support"
+	depends on DVB_USB_V2
+	select DVB_M88DS3103 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_M88TS2022 if MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Say Y here to support the USB receivers from DVBSky.

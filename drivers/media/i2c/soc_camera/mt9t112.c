@@ -29,6 +29,7 @@
 #include <media/soc_camera.h>
 #include <media/v4l2-clk.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-image-sizes.h>
 
 /* you can check PLL/clock info */
 /* #define EXT_CLOCK 24000000 */
@@ -41,9 +42,6 @@
  */
 #define MAX_WIDTH   2048
 #define MAX_HEIGHT  1536
-
-#define VGA_WIDTH   640
-#define VGA_HEIGHT  480
 
 /*
  * macro of read/write

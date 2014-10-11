@@ -883,7 +883,7 @@ static int pctv452e_frontend_attach(struct dvb_usb_adapter *a)
 	if (!a->fe_adap[0].fe)
 		return -ENODEV;
 	if ((dvb_attach(lnbp22_attach, a->fe_adap[0].fe,
-					&a->dev->i2c_adap)) == 0)
+					&a->dev->i2c_adap)) == NULL)
 		err("Cannot attach lnbp22\n");
 
 	id = a->dev->desc->warm_ids[0];
@@ -900,7 +900,7 @@ static int pctv452e_tuner_attach(struct dvb_usb_adapter *a)
 	if (!a->fe_adap[0].fe)
 		return -ENODEV;
 	if (dvb_attach(stb6100_attach, a->fe_adap[0].fe, &stb6100_config,
-					&a->dev->i2c_adap) == 0) {
+					&a->dev->i2c_adap) == NULL) {
 		err("%s failed\n", __func__);
 		return -ENODEV;
 	}
@@ -965,7 +965,7 @@ static struct dvb_usb_device_properties pctv452e_properties = {
 		  .cold_ids = { NULL, NULL }, /* this is a warm only device */
 		  .warm_ids = { &pctv452e_usb_table[0], NULL }
 		},
-		{ 0 },
+		{ NULL },
 	}
 };
 
@@ -1023,7 +1023,7 @@ static struct dvb_usb_device_properties tt_connect_s2_3600_properties = {
 		  .cold_ids = { NULL, NULL },
 		  .warm_ids = { &pctv452e_usb_table[2], NULL }
 		},
-		{ 0 },
+		{ NULL },
 	}
 };
 

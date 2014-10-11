@@ -2246,7 +2246,7 @@ struct em28xx_board em28xx_boards[] = {
 };
 EXPORT_SYMBOL_GPL(em28xx_boards);
 
-const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
+static const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
 
 /* table of devices that work with this driver */
 struct usb_device_id em28xx_id_table[] = {
@@ -2931,9 +2931,9 @@ static void request_module_async(struct work_struct *work)
 #if defined(CONFIG_MODULES) && defined(MODULE)
 	if (dev->has_video)
 		request_module("em28xx-v4l");
-	if (dev->has_audio_class)
+	if (dev->usb_audio_type == EM28XX_USB_AUDIO_CLASS)
 		request_module("snd-usb-audio");
-	else if (dev->has_alsa_audio)
+	else if (dev->usb_audio_type == EM28XX_USB_AUDIO_VENDOR)
 		request_module("em28xx-alsa");
 	if (dev->board.has_dvb)
 		request_module("em28xx-dvb");
@@ -3098,16 +3098,6 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 		}
 	}
 
-	if (dev->chip_id == CHIP_ID_EM2870 ||
-	    dev->chip_id == CHIP_ID_EM2874 ||
-	    dev->chip_id == CHIP_ID_EM28174 ||
-	    dev->chip_id == CHIP_ID_EM28178) {
-		/* Digital only device - don't load any alsa module */
-		dev->audio_mode.has_audio = false;
-		dev->has_audio_class = false;
-		dev->has_alsa_audio = false;
-	}
-
 	if (chip_name != default_chip_name)
 		printk(KERN_INFO DRIVER_NAME
 		       ": chip ID is %s\n", chip_name);
@@ -3190,7 +3180,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	struct usb_device *udev;
 	struct em28xx *dev = NULL;
 	int retval;
-	bool has_audio = false, has_video = false, has_dvb = false;
+	bool has_vendor_audio = false, has_video = false, has_dvb = false;
 	int i, nr, try_bulk;
 	const int ifnum = interface->altsetting[0].desc.bInterfaceNumber;
 	char *speed;
@@ -3272,7 +3262,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 					break;
 				case 0x83:
 					if (usb_endpoint_xfer_isoc(e)) {
-						has_audio = true;
+						has_vendor_audio = true;
 					} else {
 						printk(KERN_INFO DRIVER_NAME
 						": error: skipping audio endpoint 0x83, because it uses bulk transfers !\n");
@@ -3328,7 +3318,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		}
 	}
 
-	if (!(has_audio || has_video || has_dvb)) {
+	if (!(has_vendor_audio || has_video || has_dvb)) {
 		retval = -ENODEV;
 		goto err_free;
 	}
@@ -3375,26 +3365,27 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	dev->devno = nr;
 	dev->model = id->driver_info;
 	dev->alt   = -1;
-	dev->is_audio_only = has_audio && !(has_video || has_dvb);
-	dev->has_alsa_audio = has_audio;
-	dev->audio_mode.has_audio = has_audio;
+	dev->is_audio_only = has_vendor_audio && !(has_video || has_dvb);
 	dev->has_video = has_video;
 	dev->ifnum = ifnum;
 
-	/* Checks if audio is provided by some interface */
+	if (has_vendor_audio) {
+		printk(KERN_INFO DRIVER_NAME ": Audio interface %i found %s\n",
+		       ifnum, "(Vendor Class)");
+		dev->usb_audio_type = EM28XX_USB_AUDIO_VENDOR;
+	}
+	/* Checks if audio is provided by a USB Audio Class interface */
 	for (i = 0; i < udev->config->desc.bNumInterfaces; i++) {
 		struct usb_interface *uif = udev->config->interface[i];
 		if (uif->altsetting[0].desc.bInterfaceClass == USB_CLASS_AUDIO) {
-			dev->has_audio_class = 1;
+			if (has_vendor_audio)
+				em28xx_err("em28xx: device seems to have vendor AND usb audio class interfaces !\n"
+					   "\t\tThe vendor interface will be ignored. Please contact the developers <linux-media@vger.kernel.org>\n");
+			dev->usb_audio_type = EM28XX_USB_AUDIO_CLASS;
 			break;
 		}
 	}
 
-	if (has_audio)
-		printk(KERN_INFO DRIVER_NAME
-		       ": Audio interface %i found %s\n",
-		       ifnum,
-		       dev->has_audio_class ? "(USB Audio Class)" : "(Vendor Class)");
 	if (has_video)
 		printk(KERN_INFO DRIVER_NAME
 		       ": Video interface %i found:%s%s\n",

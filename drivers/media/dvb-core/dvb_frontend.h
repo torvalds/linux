@@ -201,6 +201,8 @@ struct dvb_tuner_ops {
 	int (*release)(struct dvb_frontend *fe);
 	int (*init)(struct dvb_frontend *fe);
 	int (*sleep)(struct dvb_frontend *fe);
+	int (*suspend)(struct dvb_frontend *fe);
+	int (*resume)(struct dvb_frontend *fe);
 
 	/** This is for simple PLLs - set all parameters in one go. */
 	int (*set_params)(struct dvb_frontend *fe);

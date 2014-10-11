@@ -5827,6 +5827,29 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio = 0x0000800,
 		},
 	},
+	[SAA7134_BOARD_WIS_VOYAGER] = {
+		.name           = "WIS Voyager or compatible",
+		.audio_clock    = 0x00200000,
+		.tuner_type	= TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.mpeg		= SAA7134_MPEG_GO7007,
+		.inputs		= { {
+			.name = name_comp1,
+			.vmux = 0,
+			.amux = LINE2,
+		}, {
+			.name = name_tv,
+			.vmux = 3,
+			.amux = TV,
+			.tv   = 1,
+		}, {
+			.name = name_svideo,
+			.vmux = 6,
+		.amux = LINE1,
+		} },
+	},
 
 };
 
@@ -7079,6 +7102,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
 		.subdevice    = 0x2055, /* AverTV Satellite Hybrid+FM A706 */
 		.driver_data  = SAA7134_BOARD_AVERMEDIA_A706,
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1905, /* WIS */
+		.subdevice    = 0x7007,
+		.driver_data  = SAA7134_BOARD_WIS_VOYAGER,
 	}, {
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,

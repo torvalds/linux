@@ -40,16 +40,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #include <asm/cacheflush.h>
@@ -999,16 +989,14 @@ static int isp_pipeline_disable(struct isp_pipeline *pipe)
 					 video, s_stream, 0);
 		}
 
-		v4l2_subdev_call(subdev, video, s_stream, 0);
+		ret = v4l2_subdev_call(subdev, video, s_stream, 0);
 
 		if (subdev == &isp->isp_res.subdev)
-			ret = isp_pipeline_wait(isp, isp_pipeline_wait_resizer);
+			ret |= isp_pipeline_wait(isp, isp_pipeline_wait_resizer);
 		else if (subdev == &isp->isp_prev.subdev)
-			ret = isp_pipeline_wait(isp, isp_pipeline_wait_preview);
+			ret |= isp_pipeline_wait(isp, isp_pipeline_wait_preview);
 		else if (subdev == &isp->isp_ccdc.subdev)
-			ret = isp_pipeline_wait(isp, isp_pipeline_wait_ccdc);
-		else
-			ret = 0;
+			ret |= isp_pipeline_wait(isp, isp_pipeline_wait_ccdc);
 
 		/* Handle stop failures. An entity that fails to stop can
 		 * usually just be restarted. Flag the stop failure nonetheless

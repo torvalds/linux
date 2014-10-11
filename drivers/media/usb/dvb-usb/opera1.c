@@ -554,8 +554,8 @@ static int opera1_probe(struct usb_interface *intf,
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
 
-	if (udev->descriptor.idProduct == USB_PID_OPERA1_WARM &&
-		udev->descriptor.idVendor == USB_VID_OPERA1 &&
+	if (le16_to_cpu(udev->descriptor.idProduct) == USB_PID_OPERA1_WARM &&
+	    le16_to_cpu(udev->descriptor.idVendor) == USB_VID_OPERA1 &&
 		opera1_xilinx_load_firmware(udev, "dvb-usb-opera1-fpga-01.fw") != 0
 	    ) {
 		return -EINVAL;

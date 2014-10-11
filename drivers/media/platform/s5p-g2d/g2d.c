@@ -490,14 +490,13 @@ static void job_abort(void *prv)
 {
 	struct g2d_ctx *ctx = prv;
 	struct g2d_dev *dev = ctx->dev;
-	int ret;
 
 	if (dev->curr == NULL) /* No job currently running */
 		return;
 
-	ret = wait_event_timeout(dev->irq_queue,
-		dev->curr == NULL,
-		msecs_to_jiffies(G2D_TIMEOUT));
+	wait_event_timeout(dev->irq_queue,
+			   dev->curr == NULL,
+			   msecs_to_jiffies(G2D_TIMEOUT));
 }
 
 static void device_run(void *prv)

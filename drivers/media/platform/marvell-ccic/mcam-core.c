@@ -67,7 +67,7 @@ MODULE_PARM_DESC(dma_buf_size,
 		"parameters require larger buffers, an attempt to reallocate "
 		"will be made.");
 #else /* MCAM_MODE_VMALLOC */
-static const bool alloc_bufs_at_read = 0;
+static const bool alloc_bufs_at_read;
 static const int n_dma_bufs = 3;  /* Used by S/G_PARM */
 #endif /* MCAM_MODE_VMALLOC */
 

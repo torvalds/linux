@@ -338,6 +338,7 @@ struct saa7134_card_ir {
 #define SAA7134_BOARD_ASUSTeK_PS3_100      190
 #define SAA7134_BOARD_HAWELL_HW_9004V1      191
 #define SAA7134_BOARD_AVERMEDIA_A706		192
+#define SAA7134_BOARD_WIS_VOYAGER           193
 
 #define SAA7134_MAXBOARDS 32
 #define SAA7134_INPUT_MAX 8
@@ -368,6 +369,7 @@ enum saa7134_mpeg_type {
 	SAA7134_MPEG_UNUSED,
 	SAA7134_MPEG_EMPRESS,
 	SAA7134_MPEG_DVB,
+	SAA7134_MPEG_GO7007,
 };
 
 enum saa7134_mpeg_ts_type {
@@ -407,6 +409,7 @@ struct saa7134_board {
 #define card_has_radio(dev)   (NULL != saa7134_boards[dev->board].radio.name)
 #define card_is_empress(dev)  (SAA7134_MPEG_EMPRESS == saa7134_boards[dev->board].mpeg)
 #define card_is_dvb(dev)      (SAA7134_MPEG_DVB     == saa7134_boards[dev->board].mpeg)
+#define card_is_go7007(dev)   (SAA7134_MPEG_GO7007  == saa7134_boards[dev->board].mpeg)
 #define card_has_mpeg(dev)    (SAA7134_MPEG_UNUSED  != saa7134_boards[dev->board].mpeg)
 #define card(dev)             (saa7134_boards[dev->board])
 #define card_in(dev,n)        (saa7134_boards[dev->board].inputs[n])
@@ -522,6 +525,8 @@ struct saa7134_mpeg_ops {
 	int                        (*init)(struct saa7134_dev *dev);
 	int                        (*fini)(struct saa7134_dev *dev);
 	void                       (*signal_change)(struct saa7134_dev *dev);
+	void                       (*irq_ts_done)(struct saa7134_dev *dev,
+						  unsigned long status);
 };
 
 /* global device status */

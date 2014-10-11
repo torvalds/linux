@@ -1934,15 +1934,13 @@ static int dvb_frontend_ioctl_properties(struct file *file,
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int err = 0;
 
-	struct dtv_properties *tvps = NULL;
+	struct dtv_properties *tvps = parg;
 	struct dtv_property *tvp = NULL;
 	int i;
 
 	dev_dbg(fe->dvb->device, "%s:\n", __func__);
 
-	if(cmd == FE_SET_PROPERTY) {
-		tvps = (struct dtv_properties __user *)parg;
-
+	if (cmd == FE_SET_PROPERTY) {
 		dev_dbg(fe->dvb->device, "%s: properties.num = %d\n", __func__, tvps->num);
 		dev_dbg(fe->dvb->device, "%s: properties.props = %p\n", __func__, tvps->props);
 
@@ -1957,7 +1955,8 @@ static int dvb_frontend_ioctl_properties(struct file *file,
 			goto out;
 		}
 
-		if (copy_from_user(tvp, tvps->props, tvps->num * sizeof(struct dtv_property))) {
+		if (copy_from_user(tvp, (void __user *)tvps->props,
+				   tvps->num * sizeof(struct dtv_property))) {
 			err = -EFAULT;
 			goto out;
 		}
@@ -1972,10 +1971,7 @@ static int dvb_frontend_ioctl_properties(struct file *file,
 		if (c->state == DTV_TUNE)
 			dev_dbg(fe->dvb->device, "%s: Property cache is full, tuning\n", __func__);
 
-	} else
-	if(cmd == FE_GET_PROPERTY) {
-		tvps = (struct dtv_properties __user *)parg;
-
+	} else if (cmd == FE_GET_PROPERTY) {
 		dev_dbg(fe->dvb->device, "%s: properties.num = %d\n", __func__, tvps->num);
 		dev_dbg(fe->dvb->device, "%s: properties.props = %p\n", __func__, tvps->props);
 
@@ -1990,7 +1986,8 @@ static int dvb_frontend_ioctl_properties(struct file *file,
 			goto out;
 		}
 
-		if (copy_from_user(tvp, tvps->props, tvps->num * sizeof(struct dtv_property))) {
+		if (copy_from_user(tvp, (void __user *)tvps->props,
+				   tvps->num * sizeof(struct dtv_property))) {
 			err = -EFAULT;
 			goto out;
 		}
@@ -2012,7 +2009,8 @@ static int dvb_frontend_ioctl_properties(struct file *file,
 			(tvp + i)->result = err;
 		}
 
-		if (copy_to_user(tvps->props, tvp, tvps->num * sizeof(struct dtv_property))) {
+		if (copy_to_user((void __user *)tvps->props, tvp,
+				 tvps->num * sizeof(struct dtv_property))) {
 			err = -EFAULT;
 			goto out;
 		}
@@ -2071,6 +2069,23 @@ static int dtv_set_frontend(struct dvb_frontend *fe)
 		break;
 	case SYS_DVBC_ANNEX_C:
 		rolloff = 113;
+		break;
+	case SYS_DVBS:
+	case SYS_TURBO:
+		rolloff = 135;
+		break;
+	case SYS_DVBS2:
+		switch (c->rolloff) {
+		case ROLLOFF_20:
+			rolloff = 120;
+			break;
+		case ROLLOFF_25:
+			rolloff = 125;
+			break;
+		default:
+		case ROLLOFF_35:
+			rolloff = 135;
+		}
 		break;
 	default:
 		break;
@@ -2550,7 +2565,9 @@ int dvb_frontend_suspend(struct dvb_frontend *fe)
 	dev_dbg(fe->dvb->device, "%s: adap=%d fe=%d\n", __func__, fe->dvb->num,
 			fe->id);
 
-	if (fe->ops.tuner_ops.sleep)
+	if (fe->ops.tuner_ops.suspend)
+		ret = fe->ops.tuner_ops.suspend(fe);
+	else if (fe->ops.tuner_ops.sleep)
 		ret = fe->ops.tuner_ops.sleep(fe);
 
 	if (fe->ops.sleep)
@@ -2572,7 +2589,9 @@ int dvb_frontend_resume(struct dvb_frontend *fe)
 	if (fe->ops.init)
 		ret = fe->ops.init(fe);
 
-	if (fe->ops.tuner_ops.init)
+	if (fe->ops.tuner_ops.resume)
+		ret = fe->ops.tuner_ops.resume(fe);
+	else if (fe->ops.tuner_ops.init)
 		ret = fe->ops.tuner_ops.init(fe);
 
 	fe->exit = DVB_FE_NO_EXIT;
