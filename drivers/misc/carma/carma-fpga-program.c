@@ -16,6 +16,7 @@
 #include <linux/completion.h>
 #include <linux/miscdevice.h>
 #include <linux/dmaengine.h>
+#include <linux/fsldma.h>
 #include <linux/interrupt.h>
 #include <linux/highmem.h>
 #include <linux/kernel.h>
@@ -524,7 +525,7 @@ static noinline int fpga_program_dma(struct fpga_dev *priv)
 		goto out_dma_unmap;
 	}
 
-	ret = chan->device->device_control(chan, FSLDMA_EXTERNAL_START, 1);
+	ret = fsl_dma_external_start(chan, 1)
 	if (ret) {
 		dev_err(priv->dev, "DMA external control setup failed\n");
 		goto out_dma_unmap;
