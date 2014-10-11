@@ -2358,7 +2358,7 @@ int gigaset_isdn_regdev(struct cardstate *cs, const char *isdnid)
 	struct gigaset_capi_ctr *iif;
 	int rc;
 
-	iif = kmalloc(sizeof(*iif), GFP_KERNEL);
+	iif = kzalloc(sizeof(*iif), GFP_KERNEL);
 	if (!iif) {
 		pr_err("%s: out of memory\n", __func__);
 		return -ENOMEM;
@@ -2367,7 +2367,7 @@ int gigaset_isdn_regdev(struct cardstate *cs, const char *isdnid)
 	/* prepare controller structure */
 	iif->ctr.owner         = THIS_MODULE;
 	iif->ctr.driverdata    = cs;
-	strncpy(iif->ctr.name, isdnid, sizeof(iif->ctr.name));
+	strncpy(iif->ctr.name, isdnid, sizeof(iif->ctr.name) - 1);
 	iif->ctr.driver_name   = "gigaset";
 	iif->ctr.load_firmware = NULL;
 	iif->ctr.reset_ctr     = NULL;
