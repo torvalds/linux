@@ -36,6 +36,7 @@
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_ioctl.h>
+#include <scsi/sg.h>
 
 #include "scsi_priv.h"
 #include "scsi_logging.h"
@@ -2311,39 +2312,36 @@ scsi_reset_provider_done_command(struct scsi_cmnd *scmd)
 {
 }
 
-/*
- * Function:	scsi_reset_provider
- *
- * Purpose:	Send requested reset to a bus or device at any phase.
- *
- * Arguments:	device	- device to send reset to
- *		flag - reset type (see scsi.h)
- *
- * Returns:	SUCCESS/FAILURE.
- *
- * Notes:	This is used by the SCSI Generic driver to provide
- *		Bus/Device reset capability.
+/**
+ * scsi_ioctl_reset: explicitly reset a host/bus/target/device
+ * @dev:	scsi_device to operate on
+ * @arg:	reset type (see sg.h)
  */
 int
-scsi_reset_provider(struct scsi_device *dev, int flag)
+scsi_ioctl_reset(struct scsi_device *dev, int __user *arg)
 {
 	struct scsi_cmnd *scmd;
 	struct Scsi_Host *shost = dev->host;
 	struct request req;
 	unsigned long flags;
-	int rtn;
+	int error = 0, rtn, val;
+
+	if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
+		return -EACCES;
+
+	error = get_user(val, arg);
+	if (error)
+		return error;
 
 	if (scsi_autopm_get_host(shost) < 0)
-		return FAILED;
+		return -EIO;
 
-	if (!get_device(&dev->sdev_gendev)) {
-		rtn = FAILED;
+	error = -EIO;
+	if (!get_device(&dev->sdev_gendev))
 		goto out_put_autopm_host;
-	}
 
 	scmd = scsi_get_command(dev, GFP_KERNEL);
 	if (!scmd) {
-		rtn = FAILED;
 		put_device(&dev->sdev_gendev);
 		goto out_put_autopm_host;
 	}
@@ -2364,38 +2362,36 @@ scsi_reset_provider(struct scsi_device *dev, int flag)
 	shost->tmf_in_progress = 1;
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
-	switch (flag) {
-	case SCSI_TRY_RESET_DEVICE:
+	switch (val & ~SG_SCSI_RESET_NO_ESCALATE) {
+	case SG_SCSI_RESET_NOTHING:
+		rtn = SUCCESS;
+		break;
+	case SG_SCSI_RESET_DEVICE:
 		rtn = scsi_try_bus_device_reset(scmd);
-		if (rtn == SUCCESS)
+		if (rtn == SUCCESS || (val & SG_SCSI_RESET_NO_ESCALATE))
 			break;
 		/* FALLTHROUGH */
-	case SCSI_TRY_RESET_TARGET:
+	case SG_SCSI_RESET_TARGET:
 		rtn = scsi_try_target_reset(scmd);
-		if (rtn == SUCCESS)
+		if (rtn == SUCCESS || (val & SG_SCSI_RESET_NO_ESCALATE))
 			break;
 		/* FALLTHROUGH */
-	case SCSI_TRY_RESET_BUS:
+	case SG_SCSI_RESET_BUS:
 		rtn = scsi_try_bus_reset(scmd);
-		if (rtn == SUCCESS)
+		if (rtn == SUCCESS || (val & SG_SCSI_RESET_NO_ESCALATE))
 			break;
 		/* FALLTHROUGH */
-	case SCSI_TRY_RESET_HOST:
-	case SCSI_TRY_RESET_HOST | SCSI_TRY_RESET_NO_ESCALATE:
+	case SG_SCSI_RESET_HOST:
 		rtn = scsi_try_host_reset(scmd);
-		break;
-	case SCSI_TRY_RESET_DEVICE | SCSI_TRY_RESET_NO_ESCALATE:
-		rtn = scsi_try_bus_device_reset(scmd);
-		break;
-	case SCSI_TRY_RESET_TARGET | SCSI_TRY_RESET_NO_ESCALATE:
-		rtn = scsi_try_target_reset(scmd);
-		break;
-	case SCSI_TRY_RESET_BUS | SCSI_TRY_RESET_NO_ESCALATE:
-		rtn = scsi_try_bus_reset(scmd);
-		break;
+		if (rtn == SUCCESS)
+			break;
 	default:
+		/* FALLTHROUGH */
 		rtn = FAILED;
+		break;
 	}
+
+	error = (rtn == SUCCESS) ? 0 : -EIO;
 
 	spin_lock_irqsave(shost->host_lock, flags);
 	shost->tmf_in_progress = 0;
@@ -2416,9 +2412,9 @@ scsi_reset_provider(struct scsi_device *dev, int flag)
 	scsi_next_command(scmd);
 out_put_autopm_host:
 	scsi_autopm_put_host(shost);
-	return rtn;
+	return error;
 }
-EXPORT_SYMBOL(scsi_reset_provider);
+EXPORT_SYMBOL(scsi_ioctl_reset);
 
 /**
  * scsi_normalize_sense - normalize main elements from either fixed or

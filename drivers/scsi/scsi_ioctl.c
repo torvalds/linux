@@ -292,8 +292,6 @@ EXPORT_SYMBOL(scsi_ioctl);
 int scsi_nonblockable_ioctl(struct scsi_device *sdev, int cmd,
 			    void __user *arg, int ndelay)
 {
-	int val, val2, result;
-
 	/* The first set of iocts may be executed even if we're doing
 	 * error processing, as long as the device was opened
 	 * non-blocking */
@@ -305,36 +303,7 @@ int scsi_nonblockable_ioctl(struct scsi_device *sdev, int cmd,
 
 	switch (cmd) {
 	case SG_SCSI_RESET:
-		result = get_user(val, (int __user *)arg);
-		if (result)
-			return result;
-		if (val & SG_SCSI_RESET_NO_ESCALATE) {
-			val &= ~SG_SCSI_RESET_NO_ESCALATE;
-			val2 = SCSI_TRY_RESET_NO_ESCALATE;
-		} else
-			val2 = 0;
-		if (val == SG_SCSI_RESET_NOTHING)
-			return 0;
-		switch (val) {
-		case SG_SCSI_RESET_DEVICE:
-			val2 |= SCSI_TRY_RESET_DEVICE;
-			break;
-		case SG_SCSI_RESET_TARGET:
-			val2 |= SCSI_TRY_RESET_TARGET;
-			break;
-		case SG_SCSI_RESET_BUS:
-			val2 |= SCSI_TRY_RESET_BUS;
-			break;
-		case SG_SCSI_RESET_HOST:
-			val2 |= SCSI_TRY_RESET_HOST;
-			break;
-		default:
-			return -EINVAL;
-		}
-		if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
-			return -EACCES;
-		return (scsi_reset_provider(sdev, val2) ==
-			SUCCESS) ? 0 : -EIO;
+		return scsi_ioctl_reset(sdev, arg);
 	}
 	return -ENODEV;
 }
