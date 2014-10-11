@@ -15,6 +15,8 @@
 #include <linux/mmc/slot-gpio.h>
 #include "sdhci-pltfm.h"
 
+#define SDHCI_SIRF_8BITBUS BIT(3)
+
 struct sdhci_sirf_priv {
 	struct clk *clk;
 	int gpio_cd;
@@ -27,10 +29,30 @@ static unsigned int sdhci_sirf_get_max_clk(struct sdhci_host *host)
 	return clk_get_rate(priv->clk);
 }
 
+static void sdhci_sirf_set_bus_width(struct sdhci_host *host, int width)
+{
+	u8 ctrl;
+
+	ctrl = sdhci_readb(host, SDHCI_HOST_CONTROL);
+	ctrl &= ~(SDHCI_CTRL_4BITBUS | SDHCI_SIRF_8BITBUS);
+
+	/*
+	 * CSR atlas7 and prima2 SD host version is not 3.0
+	 * 8bit-width enable bit of CSR SD hosts is 3,
+	 * while stardard hosts use bit 5
+	 */
+	if (width == MMC_BUS_WIDTH_8)
+		ctrl |= SDHCI_SIRF_8BITBUS;
+	else if (width == MMC_BUS_WIDTH_4)
+		ctrl |= SDHCI_CTRL_4BITBUS;
+
+	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
+}
+
 static struct sdhci_ops sdhci_sirf_ops = {
 	.set_clock = sdhci_set_clock,
 	.get_max_clock	= sdhci_sirf_get_max_clk,
-	.set_bus_width = sdhci_set_bus_width,
+	.set_bus_width = sdhci_sirf_set_bus_width,
 	.reset = sdhci_reset,
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
 };
@@ -94,6 +116,7 @@ static int sdhci_sirf_probe(struct platform_device *pdev)
 				ret);
 			goto err_request_cd;
 		}
+		mmc_gpiod_request_cd_irq(host->mmc);
 	}
 
 	return 0;
@@ -167,7 +190,6 @@ MODULE_DEVICE_TABLE(of, sdhci_sirf_of_match);
 static struct platform_driver sdhci_sirf_driver = {
 	.driver		= {
 		.name	= "sdhci-sirf",
-		.owner	= THIS_MODULE,
 		.of_match_table = sdhci_sirf_of_match,
 #ifdef CONFIG_PM_SLEEP
 		.pm	= &sdhci_sirf_pm_ops,

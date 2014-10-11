@@ -69,7 +69,8 @@
 		samsung,dw-mshc-ddr-timing = <1 2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_cd &sd2_bus4>;
-		vmmc-supply = <&ldo10_reg>;
+		vmmc-supply = <&ldo19_reg>;
+		vqmmc-supply = <&ldo13_reg>;
 		bus-width = <4>;
 		cap-sd-highspeed;
 	};

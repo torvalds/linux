@@ -261,7 +261,6 @@ static int sdhci_pxav2_remove(struct platform_device *pdev)
 static struct platform_driver sdhci_pxav2_driver = {
 	.driver		= {
 		.name	= "sdhci-pxav2",
-		.owner	= THIS_MODULE,
 #ifdef CONFIG_OF
 		.of_match_table = sdhci_pxav2_of_match,
 #endif

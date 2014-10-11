@@ -213,7 +213,6 @@ MODULE_DEVICE_TABLE(of, sdhci_arasan_of_match);
 static struct platform_driver sdhci_arasan_driver = {
 	.driver = {
 		.name = "sdhci-arasan",
-		.owner = THIS_MODULE,
 		.of_match_table = sdhci_arasan_of_match,
 		.pm = &sdhci_arasan_dev_pm_ops,
 	},
