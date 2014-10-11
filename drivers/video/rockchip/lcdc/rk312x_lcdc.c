@@ -301,6 +301,12 @@ static int rk312x_lcdc_alpha_cfg(struct lcdc_device *lcdc_dev)
 		mask = m_WIN0_ALPHA_MODE | m_ALPHA_MODE_SEL0 | m_ALPHA_MODE_SEL1;
 		val = v_WIN0_ALPHA_MODE(1) | v_ALPHA_MODE_SEL0(1) | v_ALPHA_MODE_SEL1(0);
 		lcdc_msk_reg(lcdc_dev, DSP_CTRL0, mask, val);
+		/*this vop bg layer not support yuv domain overlay,so bg val
+		have to set 0x800a80 equeal to 0x000000 at rgb domian,after
+		android start we recover to 0x00000*/
+		mask = m_BG_COLOR;
+		val = v_BG_COLOR(0x000000);
+		lcdc_msk_reg(lcdc_dev, DSP_CTRL1, mask, val);
 	} else if ((!win0_top) && (lcdc_dev->atv_layer_cnt >= 2)
 		   && (win1_alpha_en)) {
 		mask =  m_WIN0_ALPHA_EN | m_WIN1_ALPHA_EN;
@@ -310,6 +316,12 @@ static int rk312x_lcdc_alpha_cfg(struct lcdc_device *lcdc_dev)
 		mask = m_WIN1_ALPHA_MODE | m_ALPHA_MODE_SEL0 | m_ALPHA_MODE_SEL1;
 		val = v_WIN1_ALPHA_MODE(1) | v_ALPHA_MODE_SEL0(1) | v_ALPHA_MODE_SEL1(0);
 		lcdc_msk_reg(lcdc_dev, DSP_CTRL0, mask, val);
+		/*this vop bg layer not support yuv domain overlay,so bg val
+		have to set 0x800a80 equeal to 0x000000 at rgb domian,after
+		android start we recover to 0x00000*/
+		mask = m_BG_COLOR;
+		val = v_BG_COLOR(0x000000);
+		lcdc_msk_reg(lcdc_dev, DSP_CTRL1, mask, val);
 	} else {
 		mask = m_WIN0_ALPHA_EN | m_WIN1_ALPHA_EN;
 		val = v_WIN0_ALPHA_EN(0) | v_WIN1_ALPHA_EN(0);
