@@ -995,19 +995,20 @@ static void drm_dp_check_port_guid(struct drm_dp_mst_branch *mstb,
 
 static void build_mst_prop_path(struct drm_dp_mst_port *port,
 				struct drm_dp_mst_branch *mstb,
-				char *proppath)
+				char *proppath,
+				size_t proppath_size)
 {
 	int i;
 	char temp[8];
-	snprintf(proppath, 255, "mst:%d", mstb->mgr->conn_base_id);
+	snprintf(proppath, proppath_size, "mst:%d", mstb->mgr->conn_base_id);
 	for (i = 0; i < (mstb->lct - 1); i++) {
 		int shift = (i % 2) ? 0 : 4;
 		int port_num = mstb->rad[i / 2] >> shift;
-		snprintf(temp, 8, "-%d", port_num);
-		strncat(proppath, temp, 255);
+		snprintf(temp, sizeof(temp), "-%d", port_num);
+		strlcat(proppath, temp, proppath_size);
 	}
-	snprintf(temp, 8, "-%d", port->port_num);
-	strncat(proppath, temp, 255);
+	snprintf(temp, sizeof(temp), "-%d", port->port_num);
+	strlcat(proppath, temp, proppath_size);
 }
 
 static void drm_dp_add_port(struct drm_dp_mst_branch *mstb,
@@ -1078,7 +1079,7 @@ static void drm_dp_add_port(struct drm_dp_mst_branch *mstb,
 
 	if (created && !port->input) {
 		char proppath[255];
-		build_mst_prop_path(port, mstb, proppath);
+		build_mst_prop_path(port, mstb, proppath, sizeof(proppath));
 		port->connector = (*mstb->mgr->cbs->add_connector)(mstb->mgr, port, proppath);
 	}
 
