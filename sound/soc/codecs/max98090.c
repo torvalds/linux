@@ -1311,8 +1311,6 @@ static const struct snd_soc_dapm_route max98090_dapm_routes[] = {
 	{"MIC1 Input", NULL, "MIC1"},
 	{"MIC2 Input", NULL, "MIC2"},
 
-	{"DMICL", NULL, "DMICL_ENA"},
-	{"DMICR", NULL, "DMICR_ENA"},
 	{"DMICL", NULL, "AHPF"},
 	{"DMICR", NULL, "AHPF"},
 
@@ -1370,6 +1368,8 @@ static const struct snd_soc_dapm_route max98090_dapm_routes[] = {
 	{"DMIC Mux", "ADC", "ADCR"},
 	{"DMIC Mux", "DMIC", "DMICL"},
 	{"DMIC Mux", "DMIC", "DMICR"},
+	{"DMIC Mux", "DMIC", "DMICL_ENA"},
+	{"DMIC Mux", "DMIC", "DMICR_ENA"},
 
 	{"LBENL Mux", "Normal", "DMIC Mux"},
 	{"LBENL Mux", "Loopback", "LTENL Mux"},
@@ -1972,6 +1972,102 @@ static int max98090_dai_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 	return 0;
 }
 
+static int max98090_dai_trigger(struct snd_pcm_substream *substream, int cmd,
+				struct snd_soc_dai *dai)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		if (!max98090->master && dai->active == 1)
+			queue_delayed_work(system_power_efficient_wq,
+					   &max98090->pll_det_enable_work,
+					   msecs_to_jiffies(10));
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		if (!max98090->master && dai->active == 1)
+			schedule_work(&max98090->pll_det_disable_work);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static void max98090_pll_det_enable_work(struct work_struct *work)
+{
+	struct max98090_priv *max98090 =
+		container_of(work, struct max98090_priv,
+			     pll_det_enable_work.work);
+	struct snd_soc_codec *codec = max98090->codec;
+	unsigned int status, mask;
+
+	/*
+	 * Clear status register in order to clear possibly already occurred
+	 * PLL unlock. If PLL hasn't still locked, the status will be set
+	 * again and PLL unlock interrupt will occur.
+	 * Note this will clear all status bits
+	 */
+	regmap_read(max98090->regmap, M98090_REG_DEVICE_STATUS, &status);
+
+	/*
+	 * Queue jack work in case jack state has just changed but handler
+	 * hasn't run yet
+	 */
+	regmap_read(max98090->regmap, M98090_REG_INTERRUPT_S, &mask);
+	status &= mask;
+	if (status & M98090_JDET_MASK)
+		queue_delayed_work(system_power_efficient_wq,
+				   &max98090->jack_work,
+				   msecs_to_jiffies(100));
+
+	/* Enable PLL unlock interrupt */
+	snd_soc_update_bits(codec, M98090_REG_INTERRUPT_S,
+			    M98090_IULK_MASK,
+			    1 << M98090_IULK_SHIFT);
+}
+
+static void max98090_pll_det_disable_work(struct work_struct *work)
+{
+	struct max98090_priv *max98090 =
+		container_of(work, struct max98090_priv, pll_det_disable_work);
+	struct snd_soc_codec *codec = max98090->codec;
+
+	cancel_delayed_work_sync(&max98090->pll_det_enable_work);
+
+	/* Disable PLL unlock interrupt */
+	snd_soc_update_bits(codec, M98090_REG_INTERRUPT_S,
+			    M98090_IULK_MASK, 0);
+}
+
+static void max98090_pll_work(struct work_struct *work)
+{
+	struct max98090_priv *max98090 =
+		container_of(work, struct max98090_priv, pll_work);
+	struct snd_soc_codec *codec = max98090->codec;
+
+	if (!snd_soc_codec_is_active(codec))
+		return;
+
+	dev_info(codec->dev, "PLL unlocked\n");
+
+	/* Toggle shutdown OFF then ON */
+	snd_soc_update_bits(codec, M98090_REG_DEVICE_SHUTDOWN,
+			    M98090_SHDNN_MASK, 0);
+	msleep(10);
+	snd_soc_update_bits(codec, M98090_REG_DEVICE_SHUTDOWN,
+			    M98090_SHDNN_MASK, M98090_SHDNN_MASK);
+
+	/* Give PLL time to lock */
+	msleep(10);
+}
+
 static void max98090_jack_work(struct work_struct *work)
 {
 	struct max98090_priv *max98090 = container_of(work,
@@ -2063,11 +2159,15 @@ static void max98090_jack_work(struct work_struct *work)
 
 static irqreturn_t max98090_interrupt(int irq, void *data)
 {
-	struct snd_soc_codec *codec = data;
-	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
+	struct max98090_priv *max98090 = data;
+	struct snd_soc_codec *codec = max98090->codec;
 	int ret;
 	unsigned int mask;
 	unsigned int active;
+
+	/* Treat interrupt before codec is initialized as spurious */
+	if (codec == NULL)
+		return IRQ_NONE;
 
 	dev_dbg(codec->dev, "***** max98090_interrupt *****\n");
 
@@ -2103,8 +2203,10 @@ static irqreturn_t max98090_interrupt(int irq, void *data)
 	if (active & M98090_SLD_MASK)
 		dev_dbg(codec->dev, "M98090_SLD_MASK\n");
 
-	if (active & M98090_ULK_MASK)
-		dev_err(codec->dev, "M98090_ULK_MASK\n");
+	if (active & M98090_ULK_MASK) {
+		dev_dbg(codec->dev, "M98090_ULK_MASK\n");
+		schedule_work(&max98090->pll_work);
+	}
 
 	if (active & M98090_JDET_MASK) {
 		dev_dbg(codec->dev, "M98090_JDET_MASK\n");
@@ -2177,6 +2279,7 @@ static struct snd_soc_dai_ops max98090_dai_ops = {
 	.set_tdm_slot = max98090_set_tdm_slot,
 	.hw_params = max98090_dai_hw_params,
 	.digital_mute = max98090_dai_digital_mute,
+	.trigger = max98090_dai_trigger,
 };
 
 static struct snd_soc_dai_driver max98090_dai[] = {
@@ -2230,7 +2333,6 @@ static int max98090_probe(struct snd_soc_codec *codec)
 	max98090->lin_state = 0;
 	max98090->pa1en = 0;
 	max98090->pa2en = 0;
-	max98090->extmic_mux = 0;
 
 	ret = snd_soc_read(codec, M98090_REG_REVISION_ID);
 	if (ret < 0) {
@@ -2258,21 +2360,15 @@ static int max98090_probe(struct snd_soc_codec *codec)
 	max98090->jack_state = M98090_JACK_STATE_NO_HEADSET;
 
 	INIT_DELAYED_WORK(&max98090->jack_work, max98090_jack_work);
+	INIT_DELAYED_WORK(&max98090->pll_det_enable_work,
+			  max98090_pll_det_enable_work);
+	INIT_WORK(&max98090->pll_det_disable_work,
+		  max98090_pll_det_disable_work);
+	INIT_WORK(&max98090->pll_work, max98090_pll_work);
 
 	/* Enable jack detection */
 	snd_soc_write(codec, M98090_REG_JACK_DETECT,
 		M98090_JDETEN_MASK | M98090_JDEB_25MS);
-
-	/* Register for interrupts */
-	dev_dbg(codec->dev, "irq = %d\n", max98090->irq);
-
-	ret = devm_request_threaded_irq(codec->dev, max98090->irq, NULL,
-		max98090_interrupt, IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-		"max98090_interrupt", codec);
-	if (ret < 0) {
-		dev_err(codec->dev, "request_irq failed: %d\n",
-			ret);
-	}
 
 	/*
 	 * Clear any old interrupts.
@@ -2310,6 +2406,10 @@ static int max98090_remove(struct snd_soc_codec *codec)
 	struct max98090_priv *max98090 = snd_soc_codec_get_drvdata(codec);
 
 	cancel_delayed_work_sync(&max98090->jack_work);
+	cancel_delayed_work_sync(&max98090->pll_det_enable_work);
+	cancel_work_sync(&max98090->pll_det_disable_work);
+	cancel_work_sync(&max98090->pll_work);
+	max98090->codec = NULL;
 
 	return 0;
 }
@@ -2362,13 +2462,21 @@ static int max98090_i2c_probe(struct i2c_client *i2c,
 	max98090->devtype = driver_data;
 	i2c_set_clientdata(i2c, max98090);
 	max98090->pdata = i2c->dev.platform_data;
-	max98090->irq = i2c->irq;
 
 	max98090->regmap = devm_regmap_init_i2c(i2c, &max98090_regmap);
 	if (IS_ERR(max98090->regmap)) {
 		ret = PTR_ERR(max98090->regmap);
 		dev_err(&i2c->dev, "Failed to allocate regmap: %d\n", ret);
 		goto err_enable;
+	}
+
+	ret = devm_request_threaded_irq(&i2c->dev, i2c->irq, NULL,
+		max98090_interrupt, IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+		"max98090_interrupt", max98090);
+	if (ret < 0) {
+		dev_err(&i2c->dev, "request_irq failed: %d\n",
+			ret);
+		return ret;
 	}
 
 	ret = snd_soc_register_codec(&i2c->dev,

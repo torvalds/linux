@@ -1395,18 +1395,6 @@ static struct snd_soc_dai_driver lm49453_dai[] = {
 	},
 };
 
-static int lm49453_suspend(struct snd_soc_codec *codec)
-{
-	lm49453_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int lm49453_resume(struct snd_soc_codec *codec)
-{
-	lm49453_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-
 /* power down chip */
 static int lm49453_remove(struct snd_soc_codec *codec)
 {
@@ -1416,8 +1404,6 @@ static int lm49453_remove(struct snd_soc_codec *codec)
 
 static struct snd_soc_codec_driver soc_codec_dev_lm49453 = {
 	.remove = lm49453_remove,
-	.suspend = lm49453_suspend,
-	.resume = lm49453_resume,
 	.set_bias_level = lm49453_set_bias_level,
 	.controls = lm49453_snd_controls,
 	.num_controls = ARRAY_SIZE(lm49453_snd_controls),

@@ -117,7 +117,7 @@ static int vx_reset_chk(struct vx_core *chip)
  *
  * returns 0 if successful, or a negative error code.
  * the error code can be VX-specific, retrieved via vx_get_error().
- * NB: call with spinlock held!
+ * NB: call with mutex held!
  */
 static int vx_transfer_end(struct vx_core *chip, int cmd)
 {
@@ -155,7 +155,7 @@ static int vx_transfer_end(struct vx_core *chip, int cmd)
  *
  * returns 0 if successful, or a negative error code.
  * the error code can be VX-specific, retrieved via vx_get_error().
- * NB: call with spinlock held!
+ * NB: call with mutex held!
  */
 static int vx_read_status(struct vx_core *chip, struct vx_rmh *rmh)
 {
@@ -236,7 +236,7 @@ static int vx_read_status(struct vx_core *chip, struct vx_rmh *rmh)
  * returns 0 if successful, or a negative error code.
  * the error code can be VX-specific, retrieved via vx_get_error().
  * 
- * this function doesn't call spinlock at all.
+ * this function doesn't call mutex lock at all.
  */
 int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh)
 {
@@ -337,7 +337,7 @@ int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh)
 
 
 /*
- * vx_send_msg - send a DSP message with spinlock
+ * vx_send_msg - send a DSP message with mutex
  * @rmh: the rmh record to send and receive
  *
  * returns 0 if successful, or a negative error code.
@@ -345,12 +345,11 @@ int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh)
  */
 int vx_send_msg(struct vx_core *chip, struct vx_rmh *rmh)
 {
-	unsigned long flags;
 	int err;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	mutex_lock(&chip->lock);
 	err = vx_send_msg_nolock(chip, rmh);
-	spin_unlock_irqrestore(&chip->lock, flags);
+	mutex_unlock(&chip->lock);
 	return err;
 }
 
@@ -362,7 +361,7 @@ int vx_send_msg(struct vx_core *chip, struct vx_rmh *rmh)
  * returns 0 if successful, or a negative error code.
  * the error code can be VX-specific, retrieved via vx_get_error().
  *
- * this function doesn't call spinlock at all.
+ * this function doesn't call mutex at all.
  *
  * unlike RMH, no command is sent to DSP.
  */
@@ -398,19 +397,18 @@ int vx_send_rih_nolock(struct vx_core *chip, int cmd)
 
 
 /*
- * vx_send_rih - send an RIH with spinlock
+ * vx_send_rih - send an RIH with mutex
  * @cmd: the command to send
  *
  * see vx_send_rih_nolock().
  */
 int vx_send_rih(struct vx_core *chip, int cmd)
 {
-	unsigned long flags;
 	int err;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	mutex_lock(&chip->lock);
 	err = vx_send_rih_nolock(chip, cmd);
-	spin_unlock_irqrestore(&chip->lock, flags);
+	mutex_unlock(&chip->lock);
 	return err;
 }
 
@@ -482,30 +480,30 @@ static int vx_test_irq_src(struct vx_core *chip, unsigned int *ret)
 	int err;
 
 	vx_init_rmh(&chip->irq_rmh, CMD_TEST_IT);
-	spin_lock(&chip->lock);
+	mutex_lock(&chip->lock);
 	err = vx_send_msg_nolock(chip, &chip->irq_rmh);
 	if (err < 0)
 		*ret = 0;
 	else
 		*ret = chip->irq_rmh.Stat[0];
-	spin_unlock(&chip->lock);
+	mutex_unlock(&chip->lock);
 	return err;
 }
 
 
 /*
- * vx_interrupt - soft irq handler
+ * snd_vx_threaded_irq_handler - threaded irq handler
  */
-static void vx_interrupt(unsigned long private_data)
+irqreturn_t snd_vx_threaded_irq_handler(int irq, void *dev)
 {
-	struct vx_core *chip = (struct vx_core *) private_data;
+	struct vx_core *chip = dev;
 	unsigned int events;
 		
 	if (chip->chip_status & VX_STAT_IS_STALE)
-		return;
+		return IRQ_HANDLED;
 
 	if (vx_test_irq_src(chip, &events) < 0)
-		return;
+		return IRQ_HANDLED;
     
 #if 0
 	if (events & 0x000800)
@@ -519,7 +517,7 @@ static void vx_interrupt(unsigned long private_data)
 	 */
 	if (events & FATAL_DSP_ERROR) {
 		snd_printk(KERN_ERR "vx_core: fatal DSP error!!\n");
-		return;
+		return IRQ_HANDLED;
 	}
 
 	/* The start on time code conditions are filled (ie the time code
@@ -534,8 +532,9 @@ static void vx_interrupt(unsigned long private_data)
 
 	/* update the pcm streams */
 	vx_pcm_update_intr(chip, events);
+	return IRQ_HANDLED;
 }
-
+EXPORT_SYMBOL(snd_vx_threaded_irq_handler);
 
 /**
  * snd_vx_irq_handler - interrupt handler
@@ -548,8 +547,8 @@ irqreturn_t snd_vx_irq_handler(int irq, void *dev)
 	    (chip->chip_status & VX_STAT_IS_STALE))
 		return IRQ_NONE;
 	if (! vx_test_and_ack(chip))
-		tasklet_schedule(&chip->tq);
-	return IRQ_HANDLED;
+		return IRQ_WAKE_THREAD;
+	return IRQ_NONE;
 }
 
 EXPORT_SYMBOL(snd_vx_irq_handler);
@@ -790,13 +789,11 @@ struct vx_core *snd_vx_create(struct snd_card *card, struct snd_vx_hardware *hw,
 		snd_printk(KERN_ERR "vx_core: no memory\n");
 		return NULL;
 	}
-	spin_lock_init(&chip->lock);
-	spin_lock_init(&chip->irq_lock);
+	mutex_init(&chip->lock);
 	chip->irq = -1;
 	chip->hw = hw;
 	chip->type = hw->type;
 	chip->ops = ops;
-	tasklet_init(&chip->tq, vx_interrupt, (unsigned long)chip);
 	mutex_init(&chip->mixer_mutex);
 
 	chip->card = card;

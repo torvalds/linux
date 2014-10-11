@@ -215,6 +215,7 @@ static char *snd_pcm_format_names[] = {
 	FORMAT(G723_40_1B),
 	FORMAT(DSD_U8),
 	FORMAT(DSD_U16_LE),
+	FORMAT(DSD_U32_LE),
 };
 
 const char *snd_pcm_format_name(snd_pcm_format_t format)
@@ -698,6 +699,7 @@ int snd_pcm_new_stream(struct snd_pcm *pcm, int stream, int substream_count)
 		}
 		substream->group = &substream->self_group;
 		spin_lock_init(&substream->self_group.lock);
+		mutex_init(&substream->self_group.mutex);
 		INIT_LIST_HEAD(&substream->self_group.substreams);
 		list_add_tail(&substream->link_list, &substream->self_group.substreams);
 		atomic_set(&substream->mmap_count, 0);

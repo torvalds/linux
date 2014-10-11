@@ -2528,7 +2528,7 @@ static int snd_ice1712_free(struct snd_ice1712 *ice)
 	if (!ice->port)
 		goto __hw_end;
 	/* mask all interrupts */
-	outb(0xc0, ICEMT(ice, IRQ));
+	outb(ICE1712_MULTI_CAPTURE | ICE1712_MULTI_PLAYBACK, ICEMT(ice, IRQ));
 	outb(0xff, ICEREG(ice, IRQMASK));
 	/* --- */
 __hw_end:
