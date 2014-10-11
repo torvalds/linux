@@ -766,7 +766,7 @@ static const struct attribute_group bmg160_attrs_group = {
 
 static const struct iio_event_spec bmg160_event = {
 		.type = IIO_EV_TYPE_ROC,
-		.dir = IIO_EV_DIR_RISING | IIO_EV_DIR_FALLING,
+		.dir = IIO_EV_DIR_EITHER,
 		.mask_shared_by_type = BIT(IIO_EV_INFO_VALUE) |
 				       BIT(IIO_EV_INFO_ENABLE)
 };
