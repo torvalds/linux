@@ -3320,7 +3320,7 @@ static void handle_stat1_irqs(struct net2280 *dev, u32 stat)
 	if (stat & tmp) {
 		writel(tmp, &dev->regs->irqstat1);
 		if ((((stat & BIT(ROOT_PORT_RESET_INTERRUPT)) &&
-				(readl(&dev->usb->usbstat) & mask)) ||
+				((readl(&dev->usb->usbstat) & mask) == 0)) ||
 				((readl(&dev->usb->usbctl) &
 					BIT(VBUS_PIN)) == 0)) &&
 				(dev->gadget.speed != USB_SPEED_UNKNOWN)) {

@@ -1095,7 +1095,7 @@ static struct clk_branch prng_clk = {
 };
 
 static const struct freq_tbl clk_tbl_sdc[] = {
-	{    144000, P_PXO,   5, 18,625 },
+	{    200000, P_PXO,   2, 2, 125 },
 	{    400000, P_PLL8,  4, 1, 240 },
 	{  16000000, P_PLL8,  4, 1,   6 },
 	{  17070000, P_PLL8,  1, 2,  45 },

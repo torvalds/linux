@@ -23,7 +23,7 @@ config F2FS_STAT_FS
 	  mounted as f2fs. Each file shows the whole f2fs information.
 
 	  /sys/kernel/debug/f2fs/status includes:
-	    - major file system information managed by f2fs currently
+	    - major filesystem information managed by f2fs currently
 	    - average SIT information about whole segments
 	    - current memory footprint consumed by f2fs.
 
@@ -68,6 +68,6 @@ config F2FS_CHECK_FS
 	bool "F2FS consistency checking feature"
 	depends on F2FS_FS
 	help
-	  Enables BUG_ONs which check the file system consistency in runtime.
+	  Enables BUG_ONs which check the filesystem consistency in runtime.
 
 	  If you want to improve the performance, say N.

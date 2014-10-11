@@ -361,6 +361,8 @@ void xgbe_get_all_hw_features(struct xgbe_prv_data *pdata)
 
 	memset(hw_feat, 0, sizeof(*hw_feat));
 
+	hw_feat->version = XGMAC_IOREAD(pdata, MAC_VR);
+
 	/* Hardware feature register 0 */
 	hw_feat->gmii        = XGMAC_GET_BITS(mac_hfr0, MAC_HWF0R, GMIISEL);
 	hw_feat->vlhash      = XGMAC_GET_BITS(mac_hfr0, MAC_HWF0R, VLHASH);

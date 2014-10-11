@@ -423,10 +423,14 @@
 				status = "disabled";
 
 				lvds-channel@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
 					reg = <0>;
 					status = "disabled";
 
-					port {
+					port@0 {
+						reg = <0>;
+
 						lvds0_in: endpoint {
 							remote-endpoint = <&ipu_di0_lvds0>;
 						};
@@ -434,10 +438,14 @@
 				};
 
 				lvds-channel@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
 					reg = <1>;
 					status = "disabled";
 
-					port {
+					port@1 {
+						reg = <1>;
+
 						lvds1_in: endpoint {
 							remote-endpoint = <&ipu_di1_lvds1>;
 						};

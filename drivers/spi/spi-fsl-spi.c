@@ -425,16 +425,16 @@ static int fsl_spi_setup(struct spi_device *spi)
 	struct fsl_spi_reg *reg_base;
 	int retval;
 	u32 hw_mode;
-	struct spi_mpc8xxx_cs	*cs = spi->controller_state;
+	struct spi_mpc8xxx_cs *cs = spi_get_ctldata(spi);
 
 	if (!spi->max_speed_hz)
 		return -EINVAL;
 
 	if (!cs) {
-		cs = devm_kzalloc(&spi->dev, sizeof(*cs), GFP_KERNEL);
+		cs = kzalloc(sizeof(*cs), GFP_KERNEL);
 		if (!cs)
 			return -ENOMEM;
-		spi->controller_state = cs;
+		spi_set_ctldata(spi, cs);
 	}
 	mpc8xxx_spi = spi_master_get_devdata(spi->master);
 
@@ -496,9 +496,13 @@ static int fsl_spi_setup(struct spi_device *spi)
 static void fsl_spi_cleanup(struct spi_device *spi)
 {
 	struct mpc8xxx_spi *mpc8xxx_spi = spi_master_get_devdata(spi->master);
+	struct spi_mpc8xxx_cs *cs = spi_get_ctldata(spi);
 
 	if (mpc8xxx_spi->type == TYPE_GRLIB && gpio_is_valid(spi->cs_gpio))
 		gpio_free(spi->cs_gpio);
+
+	kfree(cs);
+	spi_set_ctldata(spi, NULL);
 }
 
 static void fsl_spi_cpu_irq(struct mpc8xxx_spi *mspi, u32 events)

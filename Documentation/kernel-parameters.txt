@@ -1237,7 +1237,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	i8042.noloop	[HW] Disable the AUX Loopback command while probing
 			     for the AUX port
 	i8042.nomux	[HW] Don't check presence of an active multiplexing
-			     controller
+			     controller. Default: true.
 	i8042.nopnp	[HW] Don't use ACPIPnP / PnPBIOS to discover KBD/AUX
 			     controllers
 	i8042.notimeout	[HW] Ignore timeout condition signalled by controller
@@ -3541,6 +3541,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 					bogus residue values);
 				s = SINGLE_LUN (the device has only one
 					Logical Unit);
+				u = IGNORE_UAS (don't bind to the uas driver);
 				w = NO_WP_DETECT (don't test whether the
 					medium is write-protected).
 			Example: quirks=0419:aaf5:rl,0421:0433:rc

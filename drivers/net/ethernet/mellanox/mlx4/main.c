@@ -78,13 +78,13 @@ MODULE_PARM_DESC(msi_x, "attempt to use MSI-X if nonzero");
 #endif /* CONFIG_PCI_MSI */
 
 static uint8_t num_vfs[3] = {0, 0, 0};
-static int num_vfs_argc = 3;
+static int num_vfs_argc;
 module_param_array(num_vfs, byte , &num_vfs_argc, 0444);
 MODULE_PARM_DESC(num_vfs, "enable #num_vfs functions if num_vfs > 0\n"
 			  "num_vfs=port1,port2,port1+2");
 
 static uint8_t probe_vf[3] = {0, 0, 0};
-static int probe_vfs_argc = 3;
+static int probe_vfs_argc;
 module_param_array(probe_vf, byte, &probe_vfs_argc, 0444);
 MODULE_PARM_DESC(probe_vf, "number of vfs to probe by pf driver (num_vfs > 0)\n"
 			   "probe_vf=port1,port2,port1+2");

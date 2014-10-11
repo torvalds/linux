@@ -220,7 +220,7 @@ static int __init crossbar_of_init(struct device_node *node)
 			of_property_read_u32_index(node,
 						   "ti,irqs-reserved",
 						   i, &entry);
-			if (entry > max) {
+			if (entry >= max) {
 				pr_err("Invalid reserved entry\n");
 				ret = -EINVAL;
 				goto err_irq_map;
@@ -238,7 +238,7 @@ static int __init crossbar_of_init(struct device_node *node)
 			of_property_read_u32_index(node,
 						   "ti,irqs-skip",
 						   i, &entry);
-			if (entry > max) {
+			if (entry >= max) {
 				pr_err("Invalid skip entry\n");
 				ret = -EINVAL;
 				goto err_irq_map;

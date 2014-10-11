@@ -25,6 +25,7 @@ CONFIG_CMDLINE_OVERWRITE=y
 CONFIG_CMDLINE="console=ttySC1,115200 ip=dhcp root=/dev/nfs rw nfsroot=/nfs/rootfs,rsize=1024,wsize=1024 earlyprintk=sh-sci.1"
 CONFIG_PCCARD=y
 CONFIG_BINFMT_MISC=y
+CONFIG_NET=y
 CONFIG_PACKET=y
 CONFIG_UNIX=y
 CONFIG_XFRM_USER=y

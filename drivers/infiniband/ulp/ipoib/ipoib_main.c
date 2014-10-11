@@ -716,7 +716,7 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_neigh *neigh;
-	struct ipoib_cb *cb = (struct ipoib_cb *) skb->cb;
+	struct ipoib_cb *cb = ipoib_skb_cb(skb);
 	struct ipoib_header *header;
 	unsigned long flags;
 
@@ -813,7 +813,7 @@ static int ipoib_hard_header(struct sk_buff *skb,
 			     const void *daddr, const void *saddr, unsigned len)
 {
 	struct ipoib_header *header;
-	struct ipoib_cb *cb = (struct ipoib_cb *) skb->cb;
+	struct ipoib_cb *cb = ipoib_skb_cb(skb);
 
 	header = (struct ipoib_header *) skb_push(skb, sizeof *header);
 

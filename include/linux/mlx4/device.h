@@ -209,6 +209,7 @@ enum {
 	MLX4_BMME_FLAG_TYPE_2_WIN	= 1 <<  9,
 	MLX4_BMME_FLAG_RESERVED_LKEY	= 1 << 10,
 	MLX4_BMME_FLAG_FAST_REG_WR	= 1 << 11,
+	MLX4_BMME_FLAG_VSD_INIT2RTR	= 1 << 28,
 };
 
 enum mlx4_event {
@@ -1195,6 +1196,9 @@ int mlx4_map_sw_to_hw_steering_mode(struct mlx4_dev *dev,
 int mlx4_map_sw_to_hw_steering_id(struct mlx4_dev *dev,
 				  enum mlx4_net_trans_rule_id id);
 int mlx4_hw_rule_sz(struct mlx4_dev *dev, enum mlx4_net_trans_rule_id id);
+
+int mlx4_tunnel_steer_add(struct mlx4_dev *dev, unsigned char *addr,
+			  int port, int qpn, u16 prio, u64 *reg_id);
 
 void mlx4_sync_pkey_table(struct mlx4_dev *dev, int slave, int port,
 			  int i, int val);

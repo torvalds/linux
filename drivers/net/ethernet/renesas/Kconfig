@@ -5,6 +5,7 @@
 config SH_ETH
 	tristate "Renesas SuperH Ethernet support"
 	depends on HAS_DMA
+	depends on ARCH_SHMOBILE || SUPERH || COMPILE_TEST
 	select CRC32
 	select MII
 	select MDIO_BITBANG
