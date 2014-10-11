@@ -397,7 +397,6 @@ static void lm3533_bl_shutdown(struct platform_device *pdev)
 static struct platform_driver lm3533_bl_driver = {
 	.driver = {
 		.name	= "lm3533-backlight",
-		.owner	= THIS_MODULE,
 		.pm	= &lm3533_bl_pm_ops,
 	},
 	.probe		= lm3533_bl_probe,

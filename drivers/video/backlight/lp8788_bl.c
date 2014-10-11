@@ -315,7 +315,6 @@ static struct platform_driver lp8788_bl_driver = {
 	.remove = lp8788_backlight_remove,
 	.driver = {
 		.name = LP8788_DEV_BACKLIGHT,
-		.owner = THIS_MODULE,
 	},
 };
 module_platform_driver(lp8788_bl_driver);
