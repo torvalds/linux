@@ -555,6 +555,7 @@ enum {
 	HCI_CONN_STK_ENCRYPT,
 	HCI_CONN_AUTH_INITIATOR,
 	HCI_CONN_DROP,
+	HCI_CONN_PARAM_REMOVAL_PEND,
 };
 
 static inline bool hci_conn_ssp_enabled(struct hci_conn *conn)
