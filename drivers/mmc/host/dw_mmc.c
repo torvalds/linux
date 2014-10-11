@@ -1080,7 +1080,7 @@ static int dw_mci_switch_voltage(struct mmc_host *mmc, struct mmc_ios *ios)
 		ret = regulator_set_voltage(mmc->supply.vqmmc, min_uv, max_uv);
 
 		if (ret) {
-			dev_err(&mmc->class_dev,
+			dev_dbg(&mmc->class_dev,
 					 "Regulator set error %d: %d - %d\n",
 					 ret, min_uv, max_uv);
 			return ret;
