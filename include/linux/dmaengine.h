@@ -199,15 +199,12 @@ enum dma_ctrl_flags {
  * configuration data in statically from the platform). An additional
  * argument of struct dma_slave_config must be passed in with this
  * command.
- * @FSLDMA_EXTERNAL_START: this command will put the Freescale DMA controller
- * into external start mode.
  */
 enum dma_ctrl_cmd {
 	DMA_TERMINATE_ALL,
 	DMA_PAUSE,
 	DMA_RESUME,
 	DMA_SLAVE_CONFIG,
-	FSLDMA_EXTERNAL_START,
 };
 
 /**
