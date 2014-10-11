@@ -207,6 +207,8 @@ static unsigned command_2_index(unsigned c, unsigned sc)
 		c = 0x9 + (c & 0x0f);
 	else if (c == 0x41)
 		c = 0x9 + 0x1;
+	if (c > 0x18)
+		c = 0x00;
 	return (sc & 3) * (0x9 + 0x9) + c;
 }
 
