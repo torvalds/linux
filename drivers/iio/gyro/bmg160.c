@@ -85,6 +85,9 @@
 
 #define BMG160_REG_INT_STATUS_2	0x0B
 #define BMG160_ANY_MOTION_MASK		0x07
+#define BMG160_ANY_MOTION_BIT_X		BIT(0)
+#define BMG160_ANY_MOTION_BIT_Y		BIT(1)
+#define BMG160_ANY_MOTION_BIT_Z		BIT(2)
 
 #define BMG160_REG_TEMP		0x08
 #define BMG160_TEMP_CENTER_VAL		23
@@ -929,10 +932,24 @@ static irqreturn_t bmg160_event_handler(int irq, void *private)
 	else
 		dir = IIO_EV_DIR_FALLING;
 
-	if (ret & BMG160_ANY_MOTION_MASK)
+	if (ret & BMG160_ANY_MOTION_BIT_X)
 		iio_push_event(indio_dev, IIO_MOD_EVENT_CODE(IIO_ANGL_VEL,
 							0,
-							IIO_MOD_X_OR_Y_OR_Z,
+							IIO_MOD_X,
+							IIO_EV_TYPE_ROC,
+							dir),
+							data->timestamp);
+	if (ret & BMG160_ANY_MOTION_BIT_Y)
+		iio_push_event(indio_dev, IIO_MOD_EVENT_CODE(IIO_ANGL_VEL,
+							0,
+							IIO_MOD_Y,
+							IIO_EV_TYPE_ROC,
+							dir),
+							data->timestamp);
+	if (ret & BMG160_ANY_MOTION_BIT_Z)
+		iio_push_event(indio_dev, IIO_MOD_EVENT_CODE(IIO_ANGL_VEL,
+							0,
+							IIO_MOD_Z,
 							IIO_EV_TYPE_ROC,
 							dir),
 							data->timestamp);
