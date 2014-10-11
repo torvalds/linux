@@ -191,12 +191,12 @@ struct ipmi_proc_entry {
 #endif
 
 struct bmc_device {
-	struct platform_device *dev;
+	struct platform_device pdev;
 	struct ipmi_device_id  id;
 	unsigned char          guid[16];
 	int                    guid_set;
-
-	struct kref	       refcount;
+	char                   name[16];
+	struct kref	       usecount;
 
 	/* bmc device attributes */
 	struct device_attribute device_id_attr;
@@ -210,6 +210,7 @@ struct bmc_device {
 	struct device_attribute guid_attr;
 	struct device_attribute aux_firmware_rev_attr;
 };
+#define to_bmc_device(x) container_of((x), struct bmc_device, pdev.dev)
 
 /*
  * Various statistics for IPMI, these index stats[] in the ipmi_smi
@@ -2165,7 +2166,7 @@ static void remove_proc_entries(ipmi_smi_t smi)
 static int __find_bmc_guid(struct device *dev, void *data)
 {
 	unsigned char *id = data;
-	struct bmc_device *bmc = dev_get_drvdata(dev);
+	struct bmc_device *bmc = to_bmc_device(dev);
 	return memcmp(bmc->guid, id, 16) == 0;
 }
 
@@ -2176,7 +2177,7 @@ static struct bmc_device *ipmi_find_bmc_guid(struct device_driver *drv,
 
 	dev = driver_find_device(drv, NULL, guid, __find_bmc_guid);
 	if (dev)
-		return dev_get_drvdata(dev);
+		return to_bmc_device(dev);
 	else
 		return NULL;
 }
@@ -2189,7 +2190,7 @@ struct prod_dev_id {
 static int __find_bmc_prod_dev_id(struct device *dev, void *data)
 {
 	struct prod_dev_id *id = data;
-	struct bmc_device *bmc = dev_get_drvdata(dev);
+	struct bmc_device *bmc = to_bmc_device(dev);
 
 	return (bmc->id.product_id == id->product_id
 		&& bmc->id.device_id == id->device_id);
@@ -2207,7 +2208,7 @@ static struct bmc_device *ipmi_find_bmc_prod_dev_id(
 
 	dev = driver_find_device(drv, NULL, &id, __find_bmc_prod_dev_id);
 	if (dev)
-		return dev_get_drvdata(dev);
+		return to_bmc_device(dev);
 	else
 		return NULL;
 }
@@ -2216,84 +2217,92 @@ static ssize_t device_id_show(struct device *dev,
 			      struct device_attribute *attr,
 			      char *buf)
 {
-	struct bmc_device *bmc = dev_get_drvdata(dev);
+	struct bmc_device *bmc = to_bmc_device(dev);
 
 	return snprintf(buf, 10, "%u\n", bmc->id.device_id);
 }
+DEVICE_ATTR(device_id, S_IRUGO, device_id_show, NULL);
 
-static ssize_t provides_dev_sdrs_show(struct device *dev,
-				      struct device_attribute *attr,
-				      char *buf)
+static ssize_t provides_device_sdrs_show(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
 {
-	struct bmc_device *bmc = dev_get_drvdata(dev);
+	struct bmc_device *bmc = to_bmc_device(dev);
 
 	return snprintf(buf, 10, "%u\n",
 			(bmc->id.device_revision & 0x80) >> 7);
 }
+DEVICE_ATTR(provides_device_sdrs, S_IRUGO, provides_device_sdrs_show, NULL);
 
 static ssize_t revision_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
-	struct bmc_device *bmc = dev_get_drvdata(dev);
+	struct bmc_device *bmc = to_bmc_device(dev);
 
 	return snprintf(buf, 20, "%u\n",
 			bmc->id.device_revision & 0x0F);
 }
+DEVICE_ATTR(revision, S_IRUGO, revision_show, NULL);
 
-static ssize_t firmware_rev_show(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
+static ssize_t firmware_revision_show(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
 {
-	struct bmc_device *bmc = dev_get_drvdata(dev);
+	struct bmc_device *bmc = to_bmc_device(dev);
 
 	return snprintf(buf, 20, "%u.%x\n", bmc->id.firmware_revision_1,
 			bmc->id.firmware_revision_2);
 }
+DEVICE_ATTR(firmware_revision, S_IRUGO, firmware_revision_show, NULL);
 
 static ssize_t ipmi_version_show(struct device *dev,
 				 struct device_attribute *attr,
 				 char *buf)
 {
-	struct bmc_device *bmc = dev_get_drvdata(dev);
+	struct bmc_device *bmc = to_bmc_device(dev);
 
 	return snprintf(buf, 20, "%u.%u\n",
 			ipmi_version_major(&bmc->id),
 			ipmi_version_minor(&bmc->id));
 }
+DEVICE_ATTR(ipmi_version, S_IRUGO, ipmi_version_show, NULL);
 
 static ssize_t add_dev_support_show(struct device *dev,
 				    struct device_attribute *attr,
 				    char *buf)
 {
-	struct bmc_device *bmc = dev_get_drvdata(dev);
+	struct bmc_device *bmc = to_bmc_device(dev);
 
 	return snprintf(buf, 10, "0x%02x\n",
 			bmc->id.additional_device_support);
 }
+DEVICE_ATTR(additional_device_support, S_IRUGO, add_dev_support_show, NULL);
 
 static ssize_t manufacturer_id_show(struct device *dev,
 				    struct device_attribute *attr,
 				    char *buf)
 {
-	struct bmc_device *bmc = dev_get_drvdata(dev);
+	struct bmc_device *bmc = to_bmc_device(dev);
 
 	return snprintf(buf, 20, "0x%6.6x\n", bmc->id.manufacturer_id);
 }
+DEVICE_ATTR(manufacturer_id, S_IRUGO, manufacturer_id_show, NULL);
 
 static ssize_t product_id_show(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
 {
-	struct bmc_device *bmc = dev_get_drvdata(dev);
+	struct bmc_device *bmc = to_bmc_device(dev);
 
 	return snprintf(buf, 10, "0x%4.4x\n", bmc->id.product_id);
 }
+DEVICE_ATTR(product_id, S_IRUGO, product_id_show, NULL);
 
 static ssize_t aux_firmware_rev_show(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
 {
-	struct bmc_device *bmc = dev_get_drvdata(dev);
+	struct bmc_device *bmc = to_bmc_device(dev);
 
 	return snprintf(buf, 21, "0x%02x 0x%02x 0x%02x 0x%02x\n",
 			bmc->id.aux_firmware_revision[3],
@@ -2301,57 +2310,63 @@ static ssize_t aux_firmware_rev_show(struct device *dev,
 			bmc->id.aux_firmware_revision[1],
 			bmc->id.aux_firmware_revision[0]);
 }
+DEVICE_ATTR(aux_firmware_revision, S_IRUGO, aux_firmware_rev_show, NULL);
 
 static ssize_t guid_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
-	struct bmc_device *bmc = dev_get_drvdata(dev);
+	struct bmc_device *bmc = to_bmc_device(dev);
 
 	return snprintf(buf, 100, "%Lx%Lx\n",
 			(long long) bmc->guid[0],
 			(long long) bmc->guid[8]);
 }
+DEVICE_ATTR(guid, S_IRUGO, guid_show, NULL);
 
-static void remove_files(struct bmc_device *bmc)
+static struct attribute *bmc_dev_attrs[] = {
+	&dev_attr_device_id.attr,
+	&dev_attr_provides_device_sdrs.attr,
+	&dev_attr_revision.attr,
+	&dev_attr_firmware_revision.attr,
+	&dev_attr_ipmi_version.attr,
+	&dev_attr_additional_device_support.attr,
+	&dev_attr_manufacturer_id.attr,
+	&dev_attr_product_id.attr,
+	NULL
+};
+
+static struct attribute_group bmc_dev_attr_group = {
+	.attrs		= bmc_dev_attrs,
+};
+
+static const struct attribute_group *bmc_dev_attr_groups[] = {
+	&bmc_dev_attr_group,
+	NULL
+};
+
+static struct device_type bmc_device_type = {
+	.groups		= bmc_dev_attr_groups,
+};
+
+static void
+release_bmc_device(struct device *dev)
 {
-	if (!bmc->dev)
-		return;
-
-	device_remove_file(&bmc->dev->dev,
-			   &bmc->device_id_attr);
-	device_remove_file(&bmc->dev->dev,
-			   &bmc->provides_dev_sdrs_attr);
-	device_remove_file(&bmc->dev->dev,
-			   &bmc->revision_attr);
-	device_remove_file(&bmc->dev->dev,
-			   &bmc->firmware_rev_attr);
-	device_remove_file(&bmc->dev->dev,
-			   &bmc->version_attr);
-	device_remove_file(&bmc->dev->dev,
-			   &bmc->add_dev_support_attr);
-	device_remove_file(&bmc->dev->dev,
-			   &bmc->manufacturer_id_attr);
-	device_remove_file(&bmc->dev->dev,
-			   &bmc->product_id_attr);
-
-	if (bmc->id.aux_firmware_revision_set)
-		device_remove_file(&bmc->dev->dev,
-				   &bmc->aux_firmware_rev_attr);
-	if (bmc->guid_set)
-		device_remove_file(&bmc->dev->dev,
-				   &bmc->guid_attr);
+	kfree(to_bmc_device(dev));
 }
 
 static void
 cleanup_bmc_device(struct kref *ref)
 {
-	struct bmc_device *bmc;
+	struct bmc_device *bmc = container_of(ref, struct bmc_device, usecount);
 
-	bmc = container_of(ref, struct bmc_device, refcount);
+	if (bmc->id.aux_firmware_revision_set)
+		device_remove_file(&bmc->pdev.dev,
+				   &bmc->aux_firmware_rev_attr);
+	if (bmc->guid_set)
+		device_remove_file(&bmc->pdev.dev,
+				   &bmc->guid_attr);
 
-	remove_files(bmc);
-	platform_device_unregister(bmc->dev);
-	kfree(bmc);
+	platform_device_unregister(&bmc->pdev);
 }
 
 static void ipmi_bmc_unregister(ipmi_smi_t intf)
@@ -2364,111 +2379,29 @@ static void ipmi_bmc_unregister(ipmi_smi_t intf)
 		intf->sysfs_name = NULL;
 	}
 	if (intf->my_dev_name) {
-		sysfs_remove_link(&bmc->dev->dev.kobj, intf->my_dev_name);
+		sysfs_remove_link(&bmc->pdev.dev.kobj, intf->my_dev_name);
 		kfree(intf->my_dev_name);
 		intf->my_dev_name = NULL;
 	}
 
 	mutex_lock(&ipmidriver_mutex);
-	kref_put(&bmc->refcount, cleanup_bmc_device);
+	kref_put(&bmc->usecount, cleanup_bmc_device);
 	intf->bmc = NULL;
 	mutex_unlock(&ipmidriver_mutex);
 }
 
-static int create_files(struct bmc_device *bmc)
+static int create_bmc_files(struct bmc_device *bmc)
 {
 	int err;
 
-	bmc->device_id_attr.attr.name = "device_id";
-	bmc->device_id_attr.attr.mode = S_IRUGO;
-	bmc->device_id_attr.show = device_id_show;
-	sysfs_attr_init(&bmc->device_id_attr.attr);
-
-	bmc->provides_dev_sdrs_attr.attr.name = "provides_device_sdrs";
-	bmc->provides_dev_sdrs_attr.attr.mode = S_IRUGO;
-	bmc->provides_dev_sdrs_attr.show = provides_dev_sdrs_show;
-	sysfs_attr_init(&bmc->provides_dev_sdrs_attr.attr);
-
-	bmc->revision_attr.attr.name = "revision";
-	bmc->revision_attr.attr.mode = S_IRUGO;
-	bmc->revision_attr.show = revision_show;
-	sysfs_attr_init(&bmc->revision_attr.attr);
-
-	bmc->firmware_rev_attr.attr.name = "firmware_revision";
-	bmc->firmware_rev_attr.attr.mode = S_IRUGO;
-	bmc->firmware_rev_attr.show = firmware_rev_show;
-	sysfs_attr_init(&bmc->firmware_rev_attr.attr);
-
-	bmc->version_attr.attr.name = "ipmi_version";
-	bmc->version_attr.attr.mode = S_IRUGO;
-	bmc->version_attr.show = ipmi_version_show;
-	sysfs_attr_init(&bmc->version_attr.attr);
-
-	bmc->add_dev_support_attr.attr.name = "additional_device_support";
-	bmc->add_dev_support_attr.attr.mode = S_IRUGO;
-	bmc->add_dev_support_attr.show = add_dev_support_show;
-	sysfs_attr_init(&bmc->add_dev_support_attr.attr);
-
-	bmc->manufacturer_id_attr.attr.name = "manufacturer_id";
-	bmc->manufacturer_id_attr.attr.mode = S_IRUGO;
-	bmc->manufacturer_id_attr.show = manufacturer_id_show;
-	sysfs_attr_init(&bmc->manufacturer_id_attr.attr);
-
-	bmc->product_id_attr.attr.name = "product_id";
-	bmc->product_id_attr.attr.mode = S_IRUGO;
-	bmc->product_id_attr.show = product_id_show;
-	sysfs_attr_init(&bmc->product_id_attr.attr);
-
-	bmc->guid_attr.attr.name = "guid";
-	bmc->guid_attr.attr.mode = S_IRUGO;
-	bmc->guid_attr.show = guid_show;
-	sysfs_attr_init(&bmc->guid_attr.attr);
-
-	bmc->aux_firmware_rev_attr.attr.name = "aux_firmware_revision";
-	bmc->aux_firmware_rev_attr.attr.mode = S_IRUGO;
-	bmc->aux_firmware_rev_attr.show = aux_firmware_rev_show;
-	sysfs_attr_init(&bmc->aux_firmware_rev_attr.attr);
-
-	err = device_create_file(&bmc->dev->dev,
-			   &bmc->device_id_attr);
-	if (err)
-		goto out;
-	err = device_create_file(&bmc->dev->dev,
-			   &bmc->provides_dev_sdrs_attr);
-	if (err)
-		goto out_devid;
-	err = device_create_file(&bmc->dev->dev,
-			   &bmc->revision_attr);
-	if (err)
-		goto out_sdrs;
-	err = device_create_file(&bmc->dev->dev,
-			   &bmc->firmware_rev_attr);
-	if (err)
-		goto out_rev;
-	err = device_create_file(&bmc->dev->dev,
-			   &bmc->version_attr);
-	if (err)
-		goto out_firm;
-	err = device_create_file(&bmc->dev->dev,
-			   &bmc->add_dev_support_attr);
-	if (err)
-		goto out_version;
-	err = device_create_file(&bmc->dev->dev,
-			   &bmc->manufacturer_id_attr);
-	if (err)
-		goto out_add_dev;
-	err = device_create_file(&bmc->dev->dev,
-			   &bmc->product_id_attr);
-	if (err)
-		goto out_manu;
 	if (bmc->id.aux_firmware_revision_set) {
-		err = device_create_file(&bmc->dev->dev,
+		err = device_create_file(&bmc->pdev.dev,
 				   &bmc->aux_firmware_rev_attr);
 		if (err)
-			goto out_prod_id;
+			goto out;
 	}
 	if (bmc->guid_set) {
-		err = device_create_file(&bmc->dev->dev,
+		err = device_create_file(&bmc->pdev.dev,
 				   &bmc->guid_attr);
 		if (err)
 			goto out_aux_firm;
@@ -2478,32 +2411,8 @@ static int create_files(struct bmc_device *bmc)
 
 out_aux_firm:
 	if (bmc->id.aux_firmware_revision_set)
-		device_remove_file(&bmc->dev->dev,
+		device_remove_file(&bmc->pdev.dev,
 				   &bmc->aux_firmware_rev_attr);
-out_prod_id:
-	device_remove_file(&bmc->dev->dev,
-			   &bmc->product_id_attr);
-out_manu:
-	device_remove_file(&bmc->dev->dev,
-			   &bmc->manufacturer_id_attr);
-out_add_dev:
-	device_remove_file(&bmc->dev->dev,
-			   &bmc->add_dev_support_attr);
-out_version:
-	device_remove_file(&bmc->dev->dev,
-			   &bmc->version_attr);
-out_firm:
-	device_remove_file(&bmc->dev->dev,
-			   &bmc->firmware_rev_attr);
-out_rev:
-	device_remove_file(&bmc->dev->dev,
-			   &bmc->revision_attr);
-out_sdrs:
-	device_remove_file(&bmc->dev->dev,
-			   &bmc->provides_dev_sdrs_attr);
-out_devid:
-	device_remove_file(&bmc->dev->dev,
-			   &bmc->device_id_attr);
 out:
 	return err;
 }
@@ -2514,8 +2423,6 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum,
 	int               rv;
 	struct bmc_device *bmc = intf->bmc;
 	struct bmc_device *old_bmc;
-	int               size;
-	char              dummy[1];
 
 	mutex_lock(&ipmidriver_mutex);
 
@@ -2539,7 +2446,7 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum,
 		intf->bmc = old_bmc;
 		bmc = old_bmc;
 
-		kref_get(&bmc->refcount);
+		kref_get(&bmc->usecount);
 		mutex_unlock(&ipmidriver_mutex);
 
 		printk(KERN_INFO
@@ -2549,12 +2456,12 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum,
 		       bmc->id.product_id,
 		       bmc->id.device_id);
 	} else {
-		char name[14];
 		unsigned char orig_dev_id = bmc->id.device_id;
 		int warn_printed = 0;
 
-		snprintf(name, sizeof(name),
+		snprintf(bmc->name, sizeof(bmc->name),
 			 "ipmi_bmc.%4.4x", bmc->id.product_id);
+		bmc->pdev.name = bmc->name;
 
 		while (ipmi_find_bmc_prod_dev_id(&ipmidriver.driver,
 						 bmc->id.product_id,
@@ -2578,23 +2485,15 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum,
 			}
 		}
 
-		bmc->dev = platform_device_alloc(name, bmc->id.device_id);
-		if (!bmc->dev) {
-			mutex_unlock(&ipmidriver_mutex);
-			printk(KERN_ERR
-			       "ipmi_msghandler:"
-			       " Unable to allocate platform device\n");
-			return -ENOMEM;
-		}
-		bmc->dev->dev.driver = &ipmidriver.driver;
-		dev_set_drvdata(&bmc->dev->dev, bmc);
-		kref_init(&bmc->refcount);
+		bmc->pdev.dev.driver = &ipmidriver.driver;
+		bmc->pdev.id = bmc->id.device_id;
+		bmc->pdev.dev.release = release_bmc_device;
+		bmc->pdev.dev.type = &bmc_device_type;
 
-		rv = platform_device_add(bmc->dev);
+		rv = platform_device_register(&bmc->pdev);
 		mutex_unlock(&ipmidriver_mutex);
 		if (rv) {
-			platform_device_put(bmc->dev);
-			bmc->dev = NULL;
+			put_device(&bmc->pdev.dev);
 			printk(KERN_ERR
 			       "ipmi_msghandler:"
 			       " Unable to register bmc device: %d\n",
@@ -2606,10 +2505,12 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum,
 			return rv;
 		}
 
-		rv = create_files(bmc);
+		kref_init(&bmc->usecount);
+
+		rv = create_bmc_files(bmc);
 		if (rv) {
 			mutex_lock(&ipmidriver_mutex);
-			platform_device_unregister(bmc->dev);
+			platform_device_unregister(&bmc->pdev);
 			mutex_unlock(&ipmidriver_mutex);
 
 			return rv;
@@ -2636,7 +2537,7 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum,
 	}
 
 	rv = sysfs_create_link(&intf->si_dev->kobj,
-			       &bmc->dev->dev.kobj, intf->sysfs_name);
+			       &bmc->pdev.dev.kobj, intf->sysfs_name);
 	if (rv) {
 		kfree(intf->sysfs_name);
 		intf->sysfs_name = NULL;
@@ -2646,8 +2547,7 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum,
 		goto out_err;
 	}
 
-	size = snprintf(dummy, 0, "ipmi%d", ifnum);
-	intf->my_dev_name = kmalloc(size+1, GFP_KERNEL);
+	intf->my_dev_name = kasprintf(GFP_KERNEL, "ipmi%d", ifnum);
 	if (!intf->my_dev_name) {
 		kfree(intf->sysfs_name);
 		intf->sysfs_name = NULL;
@@ -2657,9 +2557,8 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum,
 		       rv);
 		goto out_err;
 	}
-	snprintf(intf->my_dev_name, size+1, "ipmi%d", ifnum);
 
-	rv = sysfs_create_link(&bmc->dev->dev.kobj, &intf->si_dev->kobj,
+	rv = sysfs_create_link(&bmc->pdev.dev.kobj, &intf->si_dev->kobj,
 			       intf->my_dev_name);
 	if (rv) {
 		kfree(intf->sysfs_name);
