@@ -95,9 +95,9 @@
 #define BMC150_ACCEL_SLOPE_THRES_MASK		0xFF
 
 /* Slope duration in terms of number of samples */
-#define BMC150_ACCEL_DEF_SLOPE_DURATION	2
+#define BMC150_ACCEL_DEF_SLOPE_DURATION		1
 /* in terms of multiples of g's/LSB, based on range */
-#define BMC150_ACCEL_DEF_SLOPE_THRESHOLD	5
+#define BMC150_ACCEL_DEF_SLOPE_THRESHOLD	1
 
 #define BMC150_ACCEL_REG_XOUT_L		0x02
 
