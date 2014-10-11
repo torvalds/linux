@@ -143,8 +143,7 @@ static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
 	txconf.dst_addr_width = dws->dma_width;
 	txconf.device_fc = false;
 
-	txchan->device->device_control(txchan, DMA_SLAVE_CONFIG,
-				       (unsigned long) &txconf);
+	dmaengine_slave_config(txchan, &txconf);
 
 	memset(&dws->tx_sgl, 0, sizeof(dws->tx_sgl));
 	dws->tx_sgl.dma_address = dws->tx_dma;
@@ -166,8 +165,7 @@ static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
 	rxconf.src_addr_width = dws->dma_width;
 	rxconf.device_fc = false;
 
-	rxchan->device->device_control(rxchan, DMA_SLAVE_CONFIG,
-				       (unsigned long) &rxconf);
+	dmaengine_slave_config(txchan, &rxconf);
 
 	memset(&dws->rx_sgl, 0, sizeof(dws->rx_sgl));
 	dws->rx_sgl.dma_address = dws->rx_dma;
