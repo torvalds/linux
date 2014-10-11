@@ -581,7 +581,7 @@ static unsigned int cdns_uart_tx_empty(struct uart_port *port)
 {
 	unsigned int status;
 
-	status = cdns_uart_readl(CDNS_UART_ISR_OFFSET) & CDNS_UART_IXR_TXEMPTY;
+	status = cdns_uart_readl(CDNS_UART_SR_OFFSET) & CDNS_UART_SR_TXEMPTY;
 	return status ? TIOCSER_TEMT : 0;
 }
 

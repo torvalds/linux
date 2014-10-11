@@ -1690,13 +1690,11 @@ void addrconf_dad_failure(struct inet6_ifaddr *ifp)
 	addrconf_mod_dad_work(ifp, 0);
 }
 
-/* Join to solicited addr multicast group. */
-
+/* Join to solicited addr multicast group.
+ * caller must hold RTNL */
 void addrconf_join_solict(struct net_device *dev, const struct in6_addr *addr)
 {
 	struct in6_addr maddr;
-
-	ASSERT_RTNL();
 
 	if (dev->flags&(IFF_LOOPBACK|IFF_NOARP))
 		return;
@@ -1705,11 +1703,10 @@ void addrconf_join_solict(struct net_device *dev, const struct in6_addr *addr)
 	ipv6_dev_mc_inc(dev, &maddr);
 }
 
+/* caller must hold RTNL */
 void addrconf_leave_solict(struct inet6_dev *idev, const struct in6_addr *addr)
 {
 	struct in6_addr maddr;
-
-	ASSERT_RTNL();
 
 	if (idev->dev->flags&(IFF_LOOPBACK|IFF_NOARP))
 		return;
@@ -1718,11 +1715,10 @@ void addrconf_leave_solict(struct inet6_dev *idev, const struct in6_addr *addr)
 	__ipv6_dev_mc_dec(idev, &maddr);
 }
 
+/* caller must hold RTNL */
 static void addrconf_join_anycast(struct inet6_ifaddr *ifp)
 {
 	struct in6_addr addr;
-
-	ASSERT_RTNL();
 
 	if (ifp->prefix_len >= 127) /* RFC 6164 */
 		return;
@@ -1732,11 +1728,10 @@ static void addrconf_join_anycast(struct inet6_ifaddr *ifp)
 	ipv6_dev_ac_inc(ifp->idev->dev, &addr);
 }
 
+/* caller must hold RTNL */
 static void addrconf_leave_anycast(struct inet6_ifaddr *ifp)
 {
 	struct in6_addr addr;
-
-	ASSERT_RTNL();
 
 	if (ifp->prefix_len >= 127) /* RFC 6164 */
 		return;
@@ -3099,11 +3094,13 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 
 	write_unlock_bh(&idev->lock);
 
-	/* Step 5: Discard multicast list */
-	if (how)
+	/* Step 5: Discard anycast and multicast list */
+	if (how) {
+		ipv6_ac_destroy_dev(idev);
 		ipv6_mc_destroy_dev(idev);
-	else
+	} else {
 		ipv6_mc_down(idev);
+	}
 
 	idev->tstamp = jiffies;
 
@@ -4773,24 +4770,21 @@ static void __ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
 		addrconf_leave_solict(ifp->idev, &ifp->addr);
 		if (!ipv6_addr_any(&ifp->peer_addr)) {
 			struct rt6_info *rt;
-			struct net_device *dev = ifp->idev->dev;
 
-			rt = rt6_lookup(dev_net(dev), &ifp->peer_addr, NULL,
-					dev->ifindex, 1);
-			if (rt) {
-				dst_hold(&rt->dst);
-				if (ip6_del_rt(rt))
-					dst_free(&rt->dst);
-			}
+			rt = addrconf_get_prefix_route(&ifp->peer_addr, 128,
+						       ifp->idev->dev, 0, 0);
+			if (rt && ip6_del_rt(rt))
+				dst_free(&rt->dst);
 		}
 		dst_hold(&ifp->rt->dst);
 
 		if (ip6_del_rt(ifp->rt))
 			dst_free(&ifp->rt->dst);
+
+		rt_genid_bump_ipv6(net);
 		break;
 	}
 	atomic_inc(&net->ipv6.dev_addr_genid);
-	rt_genid_bump_ipv6(net);
 }
 
 static void ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)

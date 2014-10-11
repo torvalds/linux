@@ -50,18 +50,18 @@ int cachefiles_daemon_bind(struct cachefiles_cache *cache, char *args)
 	       cache->brun_percent  < 100);
 
 	if (*args) {
-		pr_err("'bind' command doesn't take an argument");
+		pr_err("'bind' command doesn't take an argument\n");
 		return -EINVAL;
 	}
 
 	if (!cache->rootdirname) {
-		pr_err("No cache directory specified");
+		pr_err("No cache directory specified\n");
 		return -EINVAL;
 	}
 
 	/* don't permit already bound caches to be re-bound */
 	if (test_bit(CACHEFILES_READY, &cache->flags)) {
-		pr_err("Cache already bound");
+		pr_err("Cache already bound\n");
 		return -EBUSY;
 	}
 
@@ -248,7 +248,7 @@ error_open_root:
 	kmem_cache_free(cachefiles_object_jar, fsdef);
 error_root_object:
 	cachefiles_end_secure(cache, saved_cred);
-	pr_err("Failed to register: %d", ret);
+	pr_err("Failed to register: %d\n", ret);
 	return ret;
 }
 

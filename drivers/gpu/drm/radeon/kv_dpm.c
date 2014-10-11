@@ -33,6 +33,8 @@
 #define KV_MINIMUM_ENGINE_CLOCK         800
 #define SMC_RAM_END                     0x40000
 
+static int kv_enable_nb_dpm(struct radeon_device *rdev,
+			    bool enable);
 static void kv_init_graphics_levels(struct radeon_device *rdev);
 static int kv_calculate_ds_divider(struct radeon_device *rdev);
 static int kv_calculate_nbps_level_settings(struct radeon_device *rdev);
@@ -1295,6 +1297,9 @@ void kv_dpm_disable(struct radeon_device *rdev)
 {
 	kv_smc_bapm_enable(rdev, false);
 
+	if (rdev->family == CHIP_MULLINS)
+		kv_enable_nb_dpm(rdev, false);
+
 	/* powerup blocks */
 	kv_dpm_powergate_acp(rdev, false);
 	kv_dpm_powergate_samu(rdev, false);
@@ -1769,15 +1774,24 @@ static int kv_update_dfs_bypass_settings(struct radeon_device *rdev,
 	return ret;
 }
 
-static int kv_enable_nb_dpm(struct radeon_device *rdev)
+static int kv_enable_nb_dpm(struct radeon_device *rdev,
+			    bool enable)
 {
 	struct kv_power_info *pi = kv_get_pi(rdev);
 	int ret = 0;
 
-	if (pi->enable_nb_dpm && !pi->nb_dpm_enabled) {
-		ret = kv_notify_message_to_smu(rdev, PPSMC_MSG_NBDPM_Enable);
-		if (ret == 0)
-			pi->nb_dpm_enabled = true;
+	if (enable) {
+		if (pi->enable_nb_dpm && !pi->nb_dpm_enabled) {
+			ret = kv_notify_message_to_smu(rdev, PPSMC_MSG_NBDPM_Enable);
+			if (ret == 0)
+				pi->nb_dpm_enabled = true;
+		}
+	} else {
+		if (pi->enable_nb_dpm && pi->nb_dpm_enabled) {
+			ret = kv_notify_message_to_smu(rdev, PPSMC_MSG_NBDPM_Disable);
+			if (ret == 0)
+				pi->nb_dpm_enabled = false;
+		}
 	}
 
 	return ret;
@@ -1864,7 +1878,7 @@ int kv_dpm_set_power_state(struct radeon_device *rdev)
 			}
 			kv_update_sclk_t(rdev);
 			if (rdev->family == CHIP_MULLINS)
-				kv_enable_nb_dpm(rdev);
+				kv_enable_nb_dpm(rdev, true);
 		}
 	} else {
 		if (pi->enable_dpm) {
@@ -1889,7 +1903,7 @@ int kv_dpm_set_power_state(struct radeon_device *rdev)
 			}
 			kv_update_acp_boot_level(rdev);
 			kv_update_sclk_t(rdev);
-			kv_enable_nb_dpm(rdev);
+			kv_enable_nb_dpm(rdev, true);
 		}
 	}
 

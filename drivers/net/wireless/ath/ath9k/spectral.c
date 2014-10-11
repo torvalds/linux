@@ -253,7 +253,7 @@ static ssize_t write_file_spec_scan_ctl(struct file *file,
 
 	if (strncmp("trigger", buf, 7) == 0) {
 		ath9k_spectral_scan_trigger(sc->hw);
-	} else if (strncmp("background", buf, 9) == 0) {
+	} else if (strncmp("background", buf, 10) == 0) {
 		ath9k_spectral_scan_config(sc->hw, SPECTRAL_BACKGROUND);
 		ath_dbg(common, CONFIG, "spectral scan: background mode enabled\n");
 	} else if (strncmp("chanscan", buf, 8) == 0) {

@@ -23,7 +23,6 @@
 #include <linux/hash.h>
 #include <linux/random.h>
 #include <linux/rhashtable.h>
-#include <linux/log2.h>
 
 #define HASH_DEFAULT_SIZE	64UL
 #define HASH_MIN_SIZE		4UL
@@ -589,13 +588,13 @@ EXPORT_SYMBOL_GPL(rhashtable_init);
  * rhashtable_destroy - destroy hash table
  * @ht:		the hash table to destroy
  *
- * Frees the bucket array.
+ * Frees the bucket array. This function is not rcu safe, therefore the caller
+ * has to make sure that no resizing may happen by unpublishing the hashtable
+ * and waiting for the quiescent cycle before releasing the bucket array.
  */
 void rhashtable_destroy(const struct rhashtable *ht)
 {
-	const struct bucket_table *tbl = rht_dereference(ht->tbl, ht);
-
-	bucket_table_free(tbl);
+	bucket_table_free(ht->tbl);
 }
 EXPORT_SYMBOL_GPL(rhashtable_destroy);
 

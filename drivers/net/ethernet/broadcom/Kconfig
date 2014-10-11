@@ -84,7 +84,7 @@ config BNX2
 
 config CNIC
 	tristate "QLogic CNIC support"
-	depends on PCI
+	depends on PCI && (IPV6 || IPV6=n)
 	select BNX2
 	select UIO
 	---help---

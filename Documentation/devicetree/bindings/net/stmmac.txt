@@ -39,6 +39,10 @@ Optional properties:
   further clocks may be specified in derived bindings.
 - clock-names: One name for each entry in the clocks property, the
   first one should be "stmmaceth".
+- clk_ptp_ref: this is the PTP reference clock; in case of the PTP is
+  available this clock is used for programming the Timestamp Addend Register.
+  If not passed then the system clock will be used and this is fine on some
+  platforms.
 
 Examples:
 

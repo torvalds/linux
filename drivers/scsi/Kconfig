@@ -43,7 +43,7 @@ config SCSI_DMA
 config SCSI_NETLINK
 	bool
 	default	n
-	select NET
+	depends on NET
 
 config SCSI_PROC_FS
 	bool "legacy /proc/scsi/ support"
@@ -257,7 +257,7 @@ config SCSI_SPI_ATTRS
 
 config SCSI_FC_ATTRS
 	tristate "FiberChannel Transport Attributes"
-	depends on SCSI
+	depends on SCSI && NET
 	select SCSI_NETLINK
 	help
 	  If you wish to export transport-specific information about
@@ -585,28 +585,28 @@ config HYPERV_STORAGE
 
 config LIBFC
 	tristate "LibFC module"
-	select SCSI_FC_ATTRS
+	depends on SCSI_FC_ATTRS
 	select CRC32
 	---help---
 	  Fibre Channel library module
 
 config LIBFCOE
 	tristate "LibFCoE module"
-	select LIBFC
+	depends on LIBFC
 	---help---
 	  Library for Fibre Channel over Ethernet module
 
 config FCOE
 	tristate "FCoE module"
 	depends on PCI
-	select LIBFCOE
+	depends on LIBFCOE
 	---help---
 	  Fibre Channel over Ethernet module
 
 config FCOE_FNIC
 	tristate "Cisco FNIC Driver"
 	depends on PCI && X86
-	select LIBFCOE
+	depends on LIBFCOE
 	help
 	  This is support for the Cisco PCI-Express FCoE HBA.
 
@@ -816,7 +816,7 @@ config SCSI_IBMVSCSI
 config SCSI_IBMVFC
 	tristate "IBM Virtual FC support"
 	depends on PPC_PSERIES && SCSI
-	select SCSI_FC_ATTRS
+	depends on SCSI_FC_ATTRS
 	help
 	  This is the IBM POWER Virtual FC Client
 
@@ -1266,7 +1266,7 @@ source "drivers/scsi/qla4xxx/Kconfig"
 config SCSI_LPFC
 	tristate "Emulex LightPulse Fibre Channel Support"
 	depends on PCI && SCSI
-	select SCSI_FC_ATTRS
+	depends on SCSI_FC_ATTRS
 	select CRC_T10DIF
 	help
           This lpfc driver supports the Emulex LightPulse
@@ -1676,7 +1676,7 @@ config SCSI_SUNESP
 config ZFCP
 	tristate "FCP host bus adapter driver for IBM eServer zSeries"
 	depends on S390 && QDIO && SCSI
-	select SCSI_FC_ATTRS
+	depends on SCSI_FC_ATTRS
 	help
           If you want to access SCSI devices attached to your IBM eServer
           zSeries by means of Fibre Channel interfaces say Y.
@@ -1704,7 +1704,7 @@ config SCSI_PM8001
 config SCSI_BFA_FC
 	tristate "Brocade BFA Fibre Channel Support"
 	depends on PCI && SCSI
-	select SCSI_FC_ATTRS
+	depends on SCSI_FC_ATTRS
 	help
 	  This bfa driver supports all Brocade PCIe FC/FCOE host adapters.
 

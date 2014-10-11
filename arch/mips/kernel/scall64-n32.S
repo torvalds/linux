@@ -425,4 +425,6 @@ EXPORT(sysn32_call_table)
 	PTR	sys_sched_getattr
 	PTR	sys_renameat2			/* 6315 */
 	PTR	sys_seccomp
+	PTR	sys_getrandom
+	PTR	sys_memfd_create
 	.size	sysn32_call_table,.-sysn32_call_table

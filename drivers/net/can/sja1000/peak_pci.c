@@ -70,6 +70,8 @@ struct peak_pci_chan {
 #define PEAK_PC_104P_DEVICE_ID	0x0006	/* PCAN-PC/104+ cards */
 #define PEAK_PCI_104E_DEVICE_ID	0x0007	/* PCAN-PCI/104 Express cards */
 #define PEAK_MPCIE_DEVICE_ID	0x0008	/* The miniPCIe slot cards */
+#define PEAK_PCIE_OEM_ID	0x0009	/* PCAN-PCI Express OEM */
+#define PEAK_PCIEC34_DEVICE_ID	0x000A	/* PCAN-PCI Express 34 (one channel) */
 
 #define PEAK_PCI_CHAN_MAX	4
 
@@ -87,6 +89,7 @@ static const struct pci_device_id peak_pci_tbl[] = {
 	{PEAK_PCI_VENDOR_ID, PEAK_CPCI_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID,},
 #ifdef CONFIG_CAN_PEAK_PCIEC
 	{PEAK_PCI_VENDOR_ID, PEAK_PCIEC_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID,},
+	{PEAK_PCI_VENDOR_ID, PEAK_PCIEC34_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID,},
 #endif
 	{0,}
 };
@@ -653,7 +656,8 @@ static int peak_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		 * This must be done *before* register_sja1000dev() but
 		 * *after* devices linkage
 		 */
-		if (pdev->device == PEAK_PCIEC_DEVICE_ID) {
+		if (pdev->device == PEAK_PCIEC_DEVICE_ID ||
+		    pdev->device == PEAK_PCIEC34_DEVICE_ID) {
 			err = peak_pciec_probe(pdev, dev);
 			if (err) {
 				dev_err(&pdev->dev,

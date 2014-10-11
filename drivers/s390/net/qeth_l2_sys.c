@@ -5,16 +5,11 @@
 
 #include <linux/slab.h>
 #include <asm/ebcdic.h>
+#include "qeth_core.h"
 #include "qeth_l2.h"
 
 #define QETH_DEVICE_ATTR(_id, _name, _mode, _show, _store) \
 struct device_attribute dev_attr_##_id = __ATTR(_name, _mode, _show, _store)
-
-static int qeth_card_hw_is_reachable(struct qeth_card *card)
-{
-	return (card->state == CARD_STATE_SOFTSETUP) ||
-		(card->state == CARD_STATE_UP);
-}
 
 static ssize_t qeth_bridge_port_role_state_show(struct device *dev,
 				struct device_attribute *attr, char *buf,

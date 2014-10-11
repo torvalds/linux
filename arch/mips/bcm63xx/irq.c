@@ -434,7 +434,7 @@ static void bcm63xx_init_irq(void)
 		irq_stat_addr[0] += PERF_IRQSTAT_3368_REG;
 		irq_mask_addr[0] += PERF_IRQMASK_3368_REG;
 		irq_stat_addr[1] = 0;
-		irq_stat_addr[1] = 0;
+		irq_mask_addr[1] = 0;
 		irq_bits = 32;
 		ext_irq_count = 4;
 		ext_irq_cfg_reg1 = PERF_EXTIRQ_CFG_REG_3368;
@@ -443,7 +443,7 @@ static void bcm63xx_init_irq(void)
 		irq_stat_addr[0] += PERF_IRQSTAT_6328_REG(0);
 		irq_mask_addr[0] += PERF_IRQMASK_6328_REG(0);
 		irq_stat_addr[1] += PERF_IRQSTAT_6328_REG(1);
-		irq_stat_addr[1] += PERF_IRQMASK_6328_REG(1);
+		irq_mask_addr[1] += PERF_IRQMASK_6328_REG(1);
 		irq_bits = 64;
 		ext_irq_count = 4;
 		is_ext_irq_cascaded = 1;

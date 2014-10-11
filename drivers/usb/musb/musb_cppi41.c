@@ -39,6 +39,7 @@ struct cppi41_dma_channel {
 	u32 transferred;
 	u32 packet_sz;
 	struct list_head tx_check;
+	int tx_zlp;
 };
 
 #define MUSB_DMA_NUM_CHANNELS 15
@@ -122,6 +123,8 @@ static void cppi41_trans_done(struct cppi41_dma_channel *cppi41_channel)
 {
 	struct musb_hw_ep *hw_ep = cppi41_channel->hw_ep;
 	struct musb *musb = hw_ep->musb;
+	void __iomem *epio = hw_ep->regs;
+	u16 csr;
 
 	if (!cppi41_channel->prog_len ||
 	    (cppi41_channel->channel.status == MUSB_DMA_STATUS_FREE)) {
@@ -131,15 +134,24 @@ static void cppi41_trans_done(struct cppi41_dma_channel *cppi41_channel)
 			cppi41_channel->transferred;
 		cppi41_channel->channel.status = MUSB_DMA_STATUS_FREE;
 		cppi41_channel->channel.rx_packet_done = true;
+
+		/*
+		 * transmit ZLP using PIO mode for transfers which size is
+		 * multiple of EP packet size.
+		 */
+		if (cppi41_channel->tx_zlp && (cppi41_channel->transferred %
+					cppi41_channel->packet_sz) == 0) {
+			musb_ep_select(musb->mregs, hw_ep->epnum);
+			csr = MUSB_TXCSR_MODE | MUSB_TXCSR_TXPKTRDY;
+			musb_writew(epio, MUSB_TXCSR, csr);
+		}
 		musb_dma_completion(musb, hw_ep->epnum, cppi41_channel->is_tx);
 	} else {
 		/* next iteration, reload */
 		struct dma_chan *dc = cppi41_channel->dc;
 		struct dma_async_tx_descriptor *dma_desc;
 		enum dma_transfer_direction direction;
-		u16 csr;
 		u32 remain_bytes;
-		void __iomem *epio = cppi41_channel->hw_ep->regs;
 
 		cppi41_channel->buf_addr += cppi41_channel->packet_sz;
 
@@ -363,6 +375,7 @@ static bool cppi41_configure_channel(struct dma_channel *channel,
 	cppi41_channel->total_len = len;
 	cppi41_channel->transferred = 0;
 	cppi41_channel->packet_sz = packet_sz;
+	cppi41_channel->tx_zlp = (cppi41_channel->is_tx && mode) ? 1 : 0;
 
 	/*
 	 * Due to AM335x' Advisory 1.0.13 we are not allowed to transfer more

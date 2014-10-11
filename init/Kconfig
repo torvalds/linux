@@ -811,6 +811,7 @@ config LOG_BUF_SHIFT
 	int "Kernel log buffer size (16 => 64KB, 17 => 128KB)"
 	range 12 21
 	default 17
+	depends on PRINTK
 	help
 	  Select the minimal kernel log buffer size as a power of 2.
 	  The final size is affected by LOG_CPU_MAX_BUF_SHIFT config
@@ -830,6 +831,7 @@ config LOG_CPU_MAX_BUF_SHIFT
 	range 0 21
 	default 12 if !BASE_SMALL
 	default 0 if BASE_SMALL
+	depends on PRINTK
 	help
 	  This option allows to increase the default ring buffer size
 	  according to the number of CPUs. The value defines the contribution
@@ -1475,6 +1477,7 @@ config FUTEX
 
 config HAVE_FUTEX_CMPXCHG
 	bool
+	depends on FUTEX
 	help
 	  Architectures should select this if futex_atomic_cmpxchg_inatomic()
 	  is implemented and always working. This removes a couple of runtime

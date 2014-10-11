@@ -586,17 +586,12 @@ isert_connect_request(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 	init_completion(&isert_conn->conn_wait);
 	init_completion(&isert_conn->conn_wait_comp_err);
 	kref_init(&isert_conn->conn_kref);
-	kref_get(&isert_conn->conn_kref);
 	mutex_init(&isert_conn->conn_mutex);
 	spin_lock_init(&isert_conn->conn_lock);
 	INIT_LIST_HEAD(&isert_conn->conn_fr_pool);
 
 	cma_id->context = isert_conn;
 	isert_conn->conn_cm_id = cma_id;
-	isert_conn->responder_resources = event->param.conn.responder_resources;
-	isert_conn->initiator_depth = event->param.conn.initiator_depth;
-	pr_debug("Using responder_resources: %u initiator_depth: %u\n",
-		 isert_conn->responder_resources, isert_conn->initiator_depth);
 
 	isert_conn->login_buf = kzalloc(ISCSI_DEF_MAX_RECV_SEG_LEN +
 					ISER_RX_LOGIN_SIZE, GFP_KERNEL);
@@ -642,6 +637,12 @@ isert_connect_request(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 		ret = PTR_ERR(device);
 		goto out_rsp_dma_map;
 	}
+
+	/* Set max inflight RDMA READ requests */
+	isert_conn->initiator_depth = min_t(u8,
+				event->param.conn.initiator_depth,
+				device->dev_attr.max_qp_init_rd_atom);
+	pr_debug("Using initiator_depth: %u\n", isert_conn->initiator_depth);
 
 	isert_conn->conn_device = device;
 	isert_conn->conn_pd = ib_alloc_pd(isert_conn->conn_device->ib_device);
@@ -746,7 +747,9 @@ isert_connect_release(struct isert_conn *isert_conn)
 static void
 isert_connected_handler(struct rdma_cm_id *cma_id)
 {
-	return;
+	struct isert_conn *isert_conn = cma_id->context;
+
+	kref_get(&isert_conn->conn_kref);
 }
 
 static void
@@ -798,7 +801,6 @@ isert_disconnect_work(struct work_struct *work)
 
 wake_up:
 	complete(&isert_conn->conn_wait);
-	isert_put_conn(isert_conn);
 }
 
 static void
@@ -3067,7 +3069,6 @@ isert_rdma_accept(struct isert_conn *isert_conn)
 	int ret;
 
 	memset(&cp, 0, sizeof(struct rdma_conn_param));
-	cp.responder_resources = isert_conn->responder_resources;
 	cp.initiator_depth = isert_conn->initiator_depth;
 	cp.retry_count = 7;
 	cp.rnr_retry_count = 7;
@@ -3215,7 +3216,7 @@ static void isert_wait_conn(struct iscsi_conn *conn)
 	pr_debug("isert_wait_conn: Starting \n");
 
 	mutex_lock(&isert_conn->conn_mutex);
-	if (isert_conn->conn_cm_id) {
+	if (isert_conn->conn_cm_id && !isert_conn->disconnect) {
 		pr_debug("Calling rdma_disconnect from isert_wait_conn\n");
 		rdma_disconnect(isert_conn->conn_cm_id);
 	}
@@ -3234,6 +3235,7 @@ static void isert_wait_conn(struct iscsi_conn *conn)
 	wait_for_completion(&isert_conn->conn_wait_comp_err);
 
 	wait_for_completion(&isert_conn->conn_wait);
+	isert_put_conn(isert_conn);
 }
 
 static void isert_free_conn(struct iscsi_conn *conn)

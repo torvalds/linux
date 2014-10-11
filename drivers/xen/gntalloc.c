@@ -124,7 +124,7 @@ static int add_grefs(struct ioctl_gntalloc_alloc_gref *op,
 	int i, rc, readonly;
 	LIST_HEAD(queue_gref);
 	LIST_HEAD(queue_file);
-	struct gntalloc_gref *gref;
+	struct gntalloc_gref *gref, *next;
 
 	readonly = !(op->flags & GNTALLOC_FLAG_WRITABLE);
 	rc = -ENOMEM;
@@ -141,13 +141,11 @@ static int add_grefs(struct ioctl_gntalloc_alloc_gref *op,
 			goto undo;
 
 		/* Grant foreign access to the page. */
-		gref->gref_id = gnttab_grant_foreign_access(op->domid,
+		rc = gnttab_grant_foreign_access(op->domid,
 			pfn_to_mfn(page_to_pfn(gref->page)), readonly);
-		if ((int)gref->gref_id < 0) {
-			rc = gref->gref_id;
+		if (rc < 0)
 			goto undo;
-		}
-		gref_ids[i] = gref->gref_id;
+		gref_ids[i] = gref->gref_id = rc;
 	}
 
 	/* Add to gref lists. */
@@ -162,8 +160,8 @@ undo:
 	mutex_lock(&gref_mutex);
 	gref_size -= (op->count - i);
 
-	list_for_each_entry(gref, &queue_file, next_file) {
-		/* __del_gref does not remove from queue_file */
+	list_for_each_entry_safe(gref, next, &queue_file, next_file) {
+		list_del(&gref->next_file);
 		__del_gref(gref);
 	}
 
@@ -193,7 +191,7 @@ static void __del_gref(struct gntalloc_gref *gref)
 
 	gref->notify.flags = 0;
 
-	if (gref->gref_id > 0) {
+	if (gref->gref_id) {
 		if (gnttab_query_foreign_access(gref->gref_id))
 			return;
 

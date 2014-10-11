@@ -1590,10 +1590,13 @@ unlock:
 out:
 	switch (ret) {
 	case -EIO:
-		/* If this -EIO is due to a gpu hang, give the reset code a
-		 * chance to clean up the mess. Otherwise return the proper
-		 * SIGBUS. */
-		if (i915_terminally_wedged(&dev_priv->gpu_error)) {
+		/*
+		 * We eat errors when the gpu is terminally wedged to avoid
+		 * userspace unduly crashing (gl has no provisions for mmaps to
+		 * fail). But any other -EIO isn't ours (e.g. swap in failure)
+		 * and so needs to be reported.
+		 */
+		if (!i915_terminally_wedged(&dev_priv->gpu_error)) {
 			ret = VM_FAULT_SIGBUS;
 			break;
 		}

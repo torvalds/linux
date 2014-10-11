@@ -2545,6 +2545,30 @@ fields changed from _s32 to _u32.
       </orderedlist>
     </section>
 
+    <section>
+      <title>V4L2 in Linux 3.16</title>
+      <orderedlist>
+        <listitem>
+	  <para>Added event V4L2_EVENT_SOURCE_CHANGE.
+	  </para>
+        </listitem>
+      </orderedlist>
+    </section>
+
+    <section>
+      <title>V4L2 in Linux 3.17</title>
+      <orderedlist>
+        <listitem>
+	  <para>Extended &v4l2-pix-format;. Added format flags.
+	  </para>
+        </listitem>
+        <listitem>
+	  <para>Added compound control types and &VIDIOC-QUERY-EXT-CTRL;.
+	  </para>
+        </listitem>
+      </orderedlist>
+    </section>
+
     <section id="other">
       <title>Relation of V4L2 to other Linux multimedia APIs</title>
 

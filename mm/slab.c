@@ -2124,7 +2124,8 @@ static int __init_refok setup_cpu_cache(struct kmem_cache *cachep, gfp_t gfp)
 int
 __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
 {
-	size_t left_over, freelist_size, ralign;
+	size_t left_over, freelist_size;
+	size_t ralign = BYTES_PER_WORD;
 	gfp_t gfp;
 	int err;
 	size_t size = cachep->size;
@@ -2156,14 +2157,6 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
 		size += (BYTES_PER_WORD - 1);
 		size &= ~(BYTES_PER_WORD - 1);
 	}
-
-	/*
-	 * Redzoning and user store require word alignment or possibly larger.
-	 * Note this will be overridden by architecture or caller mandated
-	 * alignment if either is greater than BYTES_PER_WORD.
-	 */
-	if (flags & SLAB_STORE_USER)
-		ralign = BYTES_PER_WORD;
 
 	if (flags & SLAB_RED_ZONE) {
 		ralign = REDZONE_ALIGN;
@@ -2994,7 +2987,7 @@ out:
 
 #ifdef CONFIG_NUMA
 /*
- * Try allocating on another node if PF_SPREAD_SLAB is a mempolicy is set.
+ * Try allocating on another node if PFA_SPREAD_SLAB is a mempolicy is set.
  *
  * If we are in_interrupt, then process context, including cpusets and
  * mempolicy, may not apply and should not be used for allocation policy.
@@ -3226,7 +3219,7 @@ __do_cache_alloc(struct kmem_cache *cache, gfp_t flags)
 {
 	void *objp;
 
-	if (current->mempolicy || unlikely(current->flags & PF_SPREAD_SLAB)) {
+	if (current->mempolicy || cpuset_do_slab_mem_spread()) {
 		objp = alternate_node_alloc(cache, flags);
 		if (objp)
 			goto out;

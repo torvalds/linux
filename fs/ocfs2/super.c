@@ -2532,6 +2532,7 @@ static void ocfs2_delete_osb(struct ocfs2_super *osb)
 	kfree(osb->journal);
 	kfree(osb->local_alloc_copy);
 	kfree(osb->uuid_str);
+	kfree(osb->vol_label);
 	ocfs2_put_dlm_debug(osb->osb_dlm_debug);
 	memset(osb, 0, sizeof(struct ocfs2_super));
 }

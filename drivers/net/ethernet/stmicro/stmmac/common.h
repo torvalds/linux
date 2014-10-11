@@ -220,10 +220,10 @@ enum dma_irq_status {
 	handle_tx = 0x8,
 };
 
-#define	CORE_IRQ_TX_PATH_IN_LPI_MODE	(1 << 1)
-#define	CORE_IRQ_TX_PATH_EXIT_LPI_MODE	(1 << 2)
-#define	CORE_IRQ_RX_PATH_IN_LPI_MODE	(1 << 3)
-#define	CORE_IRQ_RX_PATH_EXIT_LPI_MODE	(1 << 4)
+#define	CORE_IRQ_TX_PATH_IN_LPI_MODE	(1 << 0)
+#define	CORE_IRQ_TX_PATH_EXIT_LPI_MODE	(1 << 1)
+#define	CORE_IRQ_RX_PATH_IN_LPI_MODE	(1 << 2)
+#define	CORE_IRQ_RX_PATH_EXIT_LPI_MODE	(1 << 3)
 
 #define	CORE_PCS_ANE_COMPLETE		(1 << 5)
 #define	CORE_PCS_LINK_STATUS		(1 << 6)
@@ -287,7 +287,7 @@ struct dma_features {
 
 /* Default LPI timers */
 #define STMMAC_DEFAULT_LIT_LS	0x3E8
-#define STMMAC_DEFAULT_TWT_LS	0x0
+#define STMMAC_DEFAULT_TWT_LS	0x1E
 
 #define STMMAC_CHAIN_MODE	0x1
 #define STMMAC_RING_MODE	0x2
@@ -425,7 +425,7 @@ struct stmmac_mode_ops {
 	void (*init) (void *des, dma_addr_t phy_addr, unsigned int size,
 		      unsigned int extend_desc);
 	unsigned int (*is_jumbo_frm) (int len, int ehn_desc);
-	unsigned int (*jumbo_frm) (void *priv, struct sk_buff *skb, int csum);
+	int (*jumbo_frm)(void *priv, struct sk_buff *skb, int csum);
 	int (*set_16kib_bfsize)(int mtu);
 	void (*init_desc3)(struct dma_desc *p);
 	void (*refill_desc3) (void *priv, struct dma_desc *p);
@@ -445,6 +445,7 @@ struct mac_device_info {
 	int multicast_filter_bins;
 	int unicast_filter_entries;
 	int mcast_bits_log2;
+	unsigned int rx_csum;
 };
 
 struct mac_device_info *dwmac1000_setup(void __iomem *ioaddr, int mcbins,

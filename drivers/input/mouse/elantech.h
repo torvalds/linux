@@ -94,6 +94,7 @@
 #define PACKET_V4_HEAD			0x05
 #define PACKET_V4_MOTION		0x06
 #define PACKET_V4_STATUS		0x07
+#define PACKET_TRACKPOINT		0x08
 
 /*
  * track up to 5 fingers for v4 hardware
@@ -114,6 +115,8 @@ struct finger_pos {
 };
 
 struct elantech_data {
+	struct input_dev *tp_dev;	/* Relative device for trackpoint */
+	char tp_phys[32];
 	unsigned char reg_07;
 	unsigned char reg_10;
 	unsigned char reg_11;

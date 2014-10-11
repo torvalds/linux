@@ -176,7 +176,7 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
 	if (list_empty(&dev->dma_pools) &&
 	    device_create_file(dev, &dev_attr_pools)) {
 		kfree(retval);
-		return NULL;
+		retval = NULL;
 	} else
 		list_add(&retval->pools, &dev->dma_pools);
 	mutex_unlock(&pools_lock);
