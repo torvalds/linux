@@ -4164,7 +4164,9 @@ static ssize_t video_zoom_store(struct class *cla, struct class_attribute *attr,
 
 static ssize_t video_screen_mode_show(struct class *cla, struct class_attribute *attr, char *buf)
 {
-    const char *wide_str[] = {"normal", "full stretch", "4-3", "16-9", "non-linear", "normal-noscaleup"};
+    const char *wide_str[] = {"normal", "full stretch", "4-3", "16-9", "non-linear", "normal-noscaleup",
+			"4-3 ignore", "4-3 letter box", "4-3 pan scan", "4-3 combined",
+			"16-9 ignore", "16-9 letter box", "16-9 pan scan", "16-9 combined"};
 
     if (wide_setting < ARRAY_SIZE(wide_str)) {
         return sprintf(buf, "%d:%s\n", wide_setting, wide_str[wide_setting]);
