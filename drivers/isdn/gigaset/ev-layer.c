@@ -1380,6 +1380,11 @@ static void do_action(int action, struct cardstate *cs,
 	/* events from the LL */
 
 	case ACT_DIAL:
+		if (!ev->ptr) {
+			*p_genresp = 1;
+			*p_resp_code = RSP_ERROR;
+			break;
+		}
 		start_dial(at_state, ev->ptr, ev->parameter);
 		break;
 	case ACT_ACCEPT:
