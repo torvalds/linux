@@ -914,9 +914,13 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 		tcp_ca_event(sk, CA_EVENT_TX_START);
 
 	/* if no packet is in qdisc/device queue, then allow XPS to select
-	 * another queue.
+	 * another queue. We can be called from tcp_tsq_handler()
+	 * which holds one reference to sk_wmem_alloc.
+	 *
+	 * TODO: Ideally, in-flight pure ACK packets should not matter here.
+	 * One way to get this would be to set skb->truesize = 2 on them.
 	 */
-	skb->ooo_okay = sk_wmem_alloc_get(sk) == 0;
+	skb->ooo_okay = sk_wmem_alloc_get(sk) < SKB_TRUESIZE(1);
 
 	skb_push(skb, tcp_header_size);
 	skb_reset_transport_header(skb);
