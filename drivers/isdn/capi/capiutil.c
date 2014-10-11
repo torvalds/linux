@@ -318,6 +318,8 @@ unsigned capi_cmsg2message(_cmsg *cmsg, u8 *msg)
 	cmsg->l = 8;
 	cmsg->p = 0;
 	cmsg->par = capi_cmd2par(cmsg->Command, cmsg->Subcommand);
+	if (!cmsg->par)
+		return 1;	/* invalid command/subcommand */
 
 	pars_2_message(cmsg);
 
@@ -391,6 +393,8 @@ unsigned capi_message2cmsg(_cmsg *cmsg, u8 *msg)
 	byteTRcpy(cmsg->m + 4, &cmsg->Command);
 	byteTRcpy(cmsg->m + 5, &cmsg->Subcommand);
 	cmsg->par = capi_cmd2par(cmsg->Command, cmsg->Subcommand);
+	if (!cmsg->par)
+		return 1;	/* invalid command/subcommand */
 
 	message_2_pars(cmsg);
 
@@ -640,6 +644,9 @@ static _cdebbuf *printstruct(_cdebbuf *cdb, u8 *m)
 
 static _cdebbuf *protocol_message_2_pars(_cdebbuf *cdb, _cmsg *cmsg, int level)
 {
+	if (!cmsg->par)
+		return NULL;	/* invalid command/subcommand */
+
 	for (; TYP != _CEND; cmsg->p++) {
 		int slen = 29 + 3 - level;
 		int i;
