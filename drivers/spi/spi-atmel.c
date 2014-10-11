@@ -482,11 +482,9 @@ error:
 static void atmel_spi_stop_dma(struct atmel_spi *as)
 {
 	if (as->dma.chan_rx)
-		as->dma.chan_rx->device->device_control(as->dma.chan_rx,
-							DMA_TERMINATE_ALL, 0);
+		dmaengine_terminate_all(as->dma.chan_rx);
 	if (as->dma.chan_tx)
-		as->dma.chan_tx->device->device_control(as->dma.chan_tx,
-							DMA_TERMINATE_ALL, 0);
+		dmaengine_terminate_all(as->dma.chan_tx);
 }
 
 static void atmel_spi_release_dma(struct atmel_spi *as)
