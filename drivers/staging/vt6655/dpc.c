@@ -742,7 +742,8 @@ device_receive_frame(
 					}
 
 					ev.src_addr.sa_family = ARPHRD_ETHER;
-					memcpy(ev.src_addr.sa_data, pMACHeader->abyAddr2, ETH_ALEN);
+					ether_addr_copy(ev.src_addr.sa_data,
+							pMACHeader->abyAddr2);
 					memset(&wrqu, 0, sizeof(wrqu));
 					wrqu.data.length = sizeof(ev);
 					wireless_send_event(pDevice->dev, IWEVMICHAELMICFAILURE, &wrqu, (char *)&ev);
