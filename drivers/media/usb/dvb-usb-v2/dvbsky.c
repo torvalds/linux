@@ -25,6 +25,10 @@
 #define DVBSKY_MSG_DELAY	0/*2000*/
 #define DVBSKY_BUF_LEN	64
 
+static int dvb_usb_dvbsky_disable_rc;
+module_param_named(disable_rc, dvb_usb_dvbsky_disable_rc, int, 0644);
+MODULE_PARM_DESC(disable_rc, "Disable inbuilt IR receiver.");
+
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 struct dvbsky_state {
@@ -213,6 +217,11 @@ static int dvbsky_rc_query(struct dvb_usb_device *d)
 
 static int dvbsky_get_rc_config(struct dvb_usb_device *d, struct dvb_usb_rc *rc)
 {
+	if (dvb_usb_dvbsky_disable_rc) {
+		rc->map_name = NULL;
+		return 0;
+	}
+
 	rc->allowed_protos = RC_BIT_RC5;
 	rc->query          = dvbsky_rc_query;
 	rc->interval       = 300;
