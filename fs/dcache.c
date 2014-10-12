@@ -264,6 +264,11 @@ static void __d_free_external(struct rcu_head *head)
 	kmem_cache_free(dentry_cache, dentry); 
 }
 
+static inline int dname_external(const struct dentry *dentry)
+{
+	return dentry->d_name.name != dentry->d_iname;
+}
+
 static void dentry_free(struct dentry *dentry)
 {
 	if (unlikely(dname_external(dentry))) {

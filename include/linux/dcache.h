@@ -226,11 +226,6 @@ struct dentry_operations {
 
 extern seqlock_t rename_lock;
 
-static inline int dname_external(const struct dentry *dentry)
-{
-	return dentry->d_name.name != dentry->d_iname;
-}
-
 /*
  * These are the low-level FS interfaces to the dcache..
  */
