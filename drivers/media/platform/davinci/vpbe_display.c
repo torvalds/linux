@@ -322,15 +322,6 @@ static void vpbe_wait_finish(struct vb2_queue *vq)
 	mutex_lock(&layer->opslock);
 }
 
-static int vpbe_buffer_init(struct vb2_buffer *vb)
-{
-	struct vpbe_disp_buffer *buf = container_of(vb,
-					struct vpbe_disp_buffer, vb);
-
-	INIT_LIST_HEAD(&buf->list);
-	return 0;
-}
-
 static int vpbe_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct vpbe_layer *layer = vb2_get_drv_priv(vq);
@@ -405,7 +396,6 @@ static struct vb2_ops video_qops = {
 	.queue_setup = vpbe_buffer_queue_setup,
 	.wait_prepare = vpbe_wait_prepare,
 	.wait_finish = vpbe_wait_finish,
-	.buf_init = vpbe_buffer_init,
 	.buf_prepare = vpbe_buffer_prepare,
 	.start_streaming = vpbe_start_streaming,
 	.stop_streaming = vpbe_stop_streaming,
