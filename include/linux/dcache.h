@@ -11,7 +11,6 @@
 #include <linux/rcupdate.h>
 #include <linux/lockref.h>
 
-struct nameidata;
 struct path;
 struct vfsmount;
 
