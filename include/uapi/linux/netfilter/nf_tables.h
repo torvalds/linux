@@ -774,7 +774,7 @@ enum nft_reject_inet_code {
 	NFT_REJECT_ICMPX_ADMIN_PROHIBITED,
 	__NFT_REJECT_ICMPX_MAX
 };
-#define NFT_REJECT_ICMPX_MAX	(__NFT_REJECT_ICMPX_MAX + 1)
+#define NFT_REJECT_ICMPX_MAX	(__NFT_REJECT_ICMPX_MAX - 1)
 
 /**
  * enum nft_reject_attributes - nf_tables reject expression netlink attributes

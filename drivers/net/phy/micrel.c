@@ -26,6 +26,7 @@
 #include <linux/phy.h>
 #include <linux/micrel_phy.h>
 #include <linux/of.h>
+#include <linux/clk.h>
 
 /* Operation Mode Strap Override */
 #define MII_KSZPHY_OMSO				0x16
@@ -72,9 +73,12 @@ static int ksz_config_flags(struct phy_device *phydev)
 {
 	int regval;
 
-	if (phydev->dev_flags & MICREL_PHY_50MHZ_CLK) {
+	if (phydev->dev_flags & (MICREL_PHY_50MHZ_CLK | MICREL_PHY_25MHZ_CLK)) {
 		regval = phy_read(phydev, MII_KSZPHY_CTRL);
-		regval |= KSZ8051_RMII_50MHZ_CLK;
+		if (phydev->dev_flags & MICREL_PHY_50MHZ_CLK)
+			regval |= KSZ8051_RMII_50MHZ_CLK;
+		else
+			regval &= ~KSZ8051_RMII_50MHZ_CLK;
 		return phy_write(phydev, MII_KSZPHY_CTRL, regval);
 	}
 	return 0;
@@ -440,6 +444,27 @@ ksz9021_wr_mmd_phyreg(struct phy_device *phydev, int ptrad, int devnum,
 {
 }
 
+static int ksz8021_probe(struct phy_device *phydev)
+{
+	struct clk *clk;
+
+	clk = devm_clk_get(&phydev->dev, "rmii-ref");
+	if (!IS_ERR(clk)) {
+		unsigned long rate = clk_get_rate(clk);
+
+		if (rate > 24500000 && rate < 25500000) {
+			phydev->dev_flags |= MICREL_PHY_25MHZ_CLK;
+		} else if (rate > 49500000 && rate < 50500000) {
+			phydev->dev_flags |= MICREL_PHY_50MHZ_CLK;
+		} else {
+			dev_err(&phydev->dev, "Clock rate out of range: %ld\n", rate);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static struct phy_driver ksphy_driver[] = {
 {
 	.phy_id		= PHY_ID_KS8737,
@@ -462,6 +487,7 @@ static struct phy_driver ksphy_driver[] = {
 	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause |
 			   SUPPORTED_Asym_Pause),
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
+	.probe		= ksz8021_probe,
 	.config_init	= ksz8021_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
@@ -477,6 +503,7 @@ static struct phy_driver ksphy_driver[] = {
 	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause |
 			   SUPPORTED_Asym_Pause),
 	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
+	.probe		= ksz8021_probe,
 	.config_init	= ksz8021_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,

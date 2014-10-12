@@ -2332,7 +2332,7 @@ static void ath9k_remove_chanctx(struct ieee80211_hw *hw,
 		conf->def.chan->center_freq);
 
 	ctx->assigned = false;
-	ctx->hw_queue_base = -1;
+	ctx->hw_queue_base = 0;
 	ath_chanctx_event(sc, NULL, ATH_CHANCTX_EVENT_UNASSIGN);
 
 	mutex_unlock(&sc->mutex);

@@ -42,6 +42,11 @@ static inline u32 xgene_get_bits(u32 val, u32 start, u32 end)
 	return (val & GENMASK(end, start)) >> start;
 }
 
+enum xgene_enet_rm {
+	RM0,
+	RM3 = 3
+};
+
 #define CSR_RING_ID		0x0008
 #define OVERWRITE		BIT(31)
 #define IS_BUFFER_POOL		BIT(20)
@@ -52,7 +57,6 @@ static inline u32 xgene_get_bits(u32 val, u32 start, u32 end)
 #define CSR_RING_WR_BASE	0x0070
 #define NUM_RING_CONFIG		5
 #define BUFPOOL_MODE		3
-#define RM3			3
 #define INC_DEC_CMD_ADDR	0x002c
 #define UDP_HDR_SIZE		2
 #define BUF_LEN_CODE_2K		0x5000
@@ -94,11 +98,9 @@ static inline u32 xgene_get_bits(u32 val, u32 start, u32 end)
 
 #define BLOCK_ETH_CSR_OFFSET		0x2000
 #define BLOCK_ETH_RING_IF_OFFSET	0x9000
-#define BLOCK_ETH_CLKRST_CSR_OFFSET	0xC000
 #define BLOCK_ETH_DIAG_CSR_OFFSET	0xD000
 
 #define BLOCK_ETH_MAC_OFFSET		0x0000
-#define BLOCK_ETH_STATS_OFFSET		0x0014
 #define BLOCK_ETH_MAC_CSR_OFFSET	0x2800
 
 #define MAC_ADDR_REG_OFFSET		0x00
@@ -106,12 +108,6 @@ static inline u32 xgene_get_bits(u32 val, u32 start, u32 end)
 #define MAC_WRITE_REG_OFFSET		0x08
 #define MAC_READ_REG_OFFSET		0x0c
 #define MAC_COMMAND_DONE_REG_OFFSET	0x10
-
-#define STAT_ADDR_REG_OFFSET		0x00
-#define STAT_COMMAND_REG_OFFSET		0x04
-#define STAT_WRITE_REG_OFFSET		0x08
-#define STAT_READ_REG_OFFSET		0x0c
-#define STAT_COMMAND_DONE_REG_OFFSET	0x10
 
 #define MII_MGMT_CONFIG_ADDR		0x20
 #define MII_MGMT_COMMAND_ADDR		0x24
@@ -318,20 +314,10 @@ void xgene_enet_parse_error(struct xgene_enet_desc_ring *ring,
 			    struct xgene_enet_pdata *pdata,
 			    enum xgene_enet_err_code status);
 
-void xgene_enet_reset(struct xgene_enet_pdata *priv);
-void xgene_gmac_reset(struct xgene_enet_pdata *priv);
-void xgene_gmac_init(struct xgene_enet_pdata *priv, int speed);
-void xgene_gmac_tx_enable(struct xgene_enet_pdata *priv);
-void xgene_gmac_rx_enable(struct xgene_enet_pdata *priv);
-void xgene_gmac_tx_disable(struct xgene_enet_pdata *priv);
-void xgene_gmac_rx_disable(struct xgene_enet_pdata *priv);
-void xgene_gmac_set_mac_addr(struct xgene_enet_pdata *pdata);
-void xgene_enet_cle_bypass(struct xgene_enet_pdata *pdata,
-			   u32 dst_ring_num, u16 bufpool_id);
-void xgene_gport_shutdown(struct xgene_enet_pdata *priv);
-void xgene_gmac_get_tx_stats(struct xgene_enet_pdata *pdata);
-
 int xgene_enet_mdio_config(struct xgene_enet_pdata *pdata);
 void xgene_enet_mdio_remove(struct xgene_enet_pdata *pdata);
+
+extern struct xgene_mac_ops xgene_gmac_ops;
+extern struct xgene_port_ops xgene_gport_ops;
 
 #endif /* __XGENE_ENET_HW_H__ */

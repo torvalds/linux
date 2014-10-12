@@ -72,9 +72,8 @@
 #define  PIDX_MASK   0x00003fffU
 #define  PIDX_SHIFT  0
 #define  PIDX(x)     ((x) << PIDX_SHIFT)
-#define  S_PIDX_T5   0
-#define  M_PIDX_T5   0x1fffU
-#define  PIDX_T5(x)  (((x) >> S_PIDX_T5) & M_PIDX_T5)
+#define  PIDX_SHIFT_T5   0
+#define  PIDX_T5(x)  ((x) << PIDX_SHIFT_T5)
 
 
 #define SGE_TIMERREGS	6

@@ -57,7 +57,8 @@ static inline int dev_requeue_skb(struct sk_buff *skb, struct Qdisc *q)
 
 static void try_bulk_dequeue_skb(struct Qdisc *q,
 				 struct sk_buff *skb,
-				 const struct netdev_queue *txq)
+				 const struct netdev_queue *txq,
+				 int *packets)
 {
 	int bytelimit = qdisc_avail_bulklimit(txq) - skb->len;
 
@@ -70,6 +71,7 @@ static void try_bulk_dequeue_skb(struct Qdisc *q,
 		bytelimit -= nskb->len; /* covers GSO len */
 		skb->next = nskb;
 		skb = nskb;
+		(*packets)++; /* GSO counts as one pkt */
 	}
 	skb->next = NULL;
 }
@@ -77,11 +79,13 @@ static void try_bulk_dequeue_skb(struct Qdisc *q,
 /* Note that dequeue_skb can possibly return a SKB list (via skb->next).
  * A requeued skb (via q->gso_skb) can also be a SKB list.
  */
-static struct sk_buff *dequeue_skb(struct Qdisc *q, bool *validate)
+static struct sk_buff *dequeue_skb(struct Qdisc *q, bool *validate,
+				   int *packets)
 {
 	struct sk_buff *skb = q->gso_skb;
 	const struct netdev_queue *txq = q->dev_queue;
 
+	*packets = 1;
 	*validate = true;
 	if (unlikely(skb)) {
 		/* check the reason of requeuing without tx lock first */
@@ -98,7 +102,7 @@ static struct sk_buff *dequeue_skb(struct Qdisc *q, bool *validate)
 		    !netif_xmit_frozen_or_stopped(txq)) {
 			skb = q->dequeue(q);
 			if (skb && qdisc_may_bulk(q))
-				try_bulk_dequeue_skb(q, skb, txq);
+				try_bulk_dequeue_skb(q, skb, txq, packets);
 		}
 	}
 	return skb;
@@ -204,7 +208,7 @@ int sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
  *				>0 - queue is not empty.
  *
  */
-static inline int qdisc_restart(struct Qdisc *q)
+static inline int qdisc_restart(struct Qdisc *q, int *packets)
 {
 	struct netdev_queue *txq;
 	struct net_device *dev;
@@ -213,7 +217,7 @@ static inline int qdisc_restart(struct Qdisc *q)
 	bool validate;
 
 	/* Dequeue packet */
-	skb = dequeue_skb(q, &validate);
+	skb = dequeue_skb(q, &validate, packets);
 	if (unlikely(!skb))
 		return 0;
 
@@ -227,14 +231,16 @@ static inline int qdisc_restart(struct Qdisc *q)
 void __qdisc_run(struct Qdisc *q)
 {
 	int quota = weight_p;
+	int packets;
 
-	while (qdisc_restart(q)) {
+	while (qdisc_restart(q, &packets)) {
 		/*
 		 * Ordered by possible occurrence: Postpone processing if
 		 * 1. we've exceeded packet quota
 		 * 2. another process needs the CPU;
 		 */
-		if (--quota <= 0 || need_resched()) {
+		quota -= packets;
+		if (quota <= 0 || need_resched()) {
 			__netif_schedule(q);
 			break;
 		}

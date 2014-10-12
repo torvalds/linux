@@ -700,11 +700,11 @@ Some core changes of the new internal format:
     bpf_exit
 
   If f2 is JITed and the pointer stored to '_f2'. The calls f1 -> f2 -> f3 and
-  returns will be seamless. Without JIT, __sk_run_filter() interpreter needs to
+  returns will be seamless. Without JIT, __bpf_prog_run() interpreter needs to
   be used to call into f2.
 
   For practical reasons all eBPF programs have only one argument 'ctx' which is
-  already placed into R1 (e.g. on __sk_run_filter() startup) and the programs
+  already placed into R1 (e.g. on __bpf_prog_run() startup) and the programs
   can call kernel functions with up to 5 arguments. Calls with 6 or more arguments
   are currently not supported, but these restrictions can be lifted if necessary
   in the future.
