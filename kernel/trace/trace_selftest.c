@@ -1029,6 +1029,12 @@ trace_selftest_startup_nop(struct tracer *trace, struct trace_array *tr)
 #endif
 
 #ifdef CONFIG_SCHED_TRACER
+
+struct wakeup_test_data {
+	struct completion	is_ready;
+	int			go;
+};
+
 static int trace_wakeup_test_thread(void *data)
 {
 	/* Make this a -deadline thread */
@@ -1038,51 +1044,56 @@ static int trace_wakeup_test_thread(void *data)
 		.sched_deadline = 10000000ULL,
 		.sched_period = 10000000ULL
 	};
-	struct completion *x = data;
+	struct wakeup_test_data *x = data;
 
 	sched_setattr(current, &attr);
 
 	/* Make it know we have a new prio */
-	complete(x);
+	complete(&x->is_ready);
 
 	/* now go to sleep and let the test wake us up */
 	set_current_state(TASK_INTERRUPTIBLE);
-	schedule();
+	while (!x->go) {
+		schedule();
+		set_current_state(TASK_INTERRUPTIBLE);
+	}
 
-	complete(x);
+	complete(&x->is_ready);
+
+	set_current_state(TASK_INTERRUPTIBLE);
 
 	/* we are awake, now wait to disappear */
 	while (!kthread_should_stop()) {
-		/*
-		 * This will likely be the system top priority
-		 * task, do short sleeps to let others run.
-		 */
-		msleep(100);
+		schedule();
+		set_current_state(TASK_INTERRUPTIBLE);
 	}
+
+	__set_current_state(TASK_RUNNING);
 
 	return 0;
 }
-
 int
 trace_selftest_startup_wakeup(struct tracer *trace, struct trace_array *tr)
 {
 	unsigned long save_max = tr->max_latency;
 	struct task_struct *p;
-	struct completion is_ready;
+	struct wakeup_test_data data;
 	unsigned long count;
 	int ret;
 
-	init_completion(&is_ready);
+	memset(&data, 0, sizeof(data));
+
+	init_completion(&data.is_ready);
 
 	/* create a -deadline thread */
-	p = kthread_run(trace_wakeup_test_thread, &is_ready, "ftrace-test");
+	p = kthread_run(trace_wakeup_test_thread, &data, "ftrace-test");
 	if (IS_ERR(p)) {
 		printk(KERN_CONT "Failed to create ftrace wakeup test thread ");
 		return -1;
 	}
 
 	/* make sure the thread is running at -deadline policy */
-	wait_for_completion(&is_ready);
+	wait_for_completion(&data.is_ready);
 
 	/* start the tracing */
 	ret = tracer_init(trace, tr);
@@ -1103,18 +1114,20 @@ trace_selftest_startup_wakeup(struct tracer *trace, struct trace_array *tr)
 		msleep(100);
 	}
 
-	init_completion(&is_ready);
+	init_completion(&data.is_ready);
+
+	data.go = 1;
+	/* memory barrier is in the wake_up_process() */
 
 	wake_up_process(p);
 
 	/* Wait for the task to wake up */
-	wait_for_completion(&is_ready);
+	wait_for_completion(&data.is_ready);
 
 	/* stop the tracing. */
 	tracing_stop();
 	/* check both trace buffers */
 	ret = trace_test_buffer(&tr->trace_buffer, NULL);
-	printk("ret = %d\n", ret);
 	if (!ret)
 		ret = trace_test_buffer(&tr->max_buffer, &count);
 
