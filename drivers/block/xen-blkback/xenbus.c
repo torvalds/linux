@@ -907,22 +907,17 @@ static int connect_ring(struct backend_info *be)
 	return 0;
 }
 
-
-/* ** Driver Registration ** */
-
-
 static const struct xenbus_device_id xen_blkbk_ids[] = {
 	{ "vbd" },
 	{ "" }
 };
 
-
-static DEFINE_XENBUS_DRIVER(xen_blkbk, ,
+static struct xenbus_driver xen_blkbk_driver = {
+	.ids  = xen_blkbk_ids,
 	.probe = xen_blkbk_probe,
 	.remove = xen_blkbk_remove,
 	.otherend_changed = frontend_changed
-);
-
+};
 
 int xen_blkif_xenbus_init(void)
 {

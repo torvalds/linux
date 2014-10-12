@@ -367,12 +367,13 @@ static const struct xenbus_device_id tpmfront_ids[] = {
 };
 MODULE_ALIAS("xen:vtpm");
 
-static DEFINE_XENBUS_DRIVER(tpmfront, ,
-		.probe = tpmfront_probe,
-		.remove = tpmfront_remove,
-		.resume = tpmfront_resume,
-		.otherend_changed = backend_changed,
-	);
+static struct xenbus_driver tpmfront_driver = {
+	.ids = tpmfront_ids,
+	.probe = tpmfront_probe,
+	.remove = tpmfront_remove,
+	.resume = tpmfront_resume,
+	.otherend_changed = backend_changed,
+};
 
 static int __init xen_tpmfront_init(void)
 {

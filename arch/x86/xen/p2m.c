@@ -173,18 +173,13 @@
 #include <xen/balloon.h>
 #include <xen/grant_table.h>
 
+#include "p2m.h"
 #include "multicalls.h"
 #include "xen-ops.h"
 
 static void __init m2p_override_init(void);
 
 unsigned long xen_max_p2m_pfn __read_mostly;
-
-#define P2M_PER_PAGE		(PAGE_SIZE / sizeof(unsigned long))
-#define P2M_MID_PER_PAGE	(PAGE_SIZE / sizeof(unsigned long *))
-#define P2M_TOP_PER_PAGE	(PAGE_SIZE / sizeof(unsigned long **))
-
-#define MAX_P2M_PFN		(P2M_TOP_PER_PAGE * P2M_MID_PER_PAGE * P2M_PER_PAGE)
 
 /* Placeholders for holes in the address space */
 static RESERVE_BRK_ARRAY(unsigned long, p2m_missing, P2M_PER_PAGE);
@@ -202,16 +197,12 @@ static RESERVE_BRK_ARRAY(unsigned long, p2m_mid_identity_mfn, P2M_MID_PER_PAGE);
 RESERVE_BRK(p2m_mid, PAGE_SIZE * (MAX_DOMAIN_PAGES / (P2M_PER_PAGE * P2M_MID_PER_PAGE)));
 RESERVE_BRK(p2m_mid_mfn, PAGE_SIZE * (MAX_DOMAIN_PAGES / (P2M_PER_PAGE * P2M_MID_PER_PAGE)));
 
-/* We might hit two boundary violations at the start and end, at max each
- * boundary violation will require three middle nodes. */
-RESERVE_BRK(p2m_mid_extra, PAGE_SIZE * 2 * 3);
-
-/* When we populate back during bootup, the amount of pages can vary. The
- * max we have is seen is 395979, but that does not mean it can't be more.
- * Some machines can have 3GB I/O holes even. With early_can_reuse_p2m_middle
- * it can re-use Xen provided mfn_list array, so we only need to allocate at
- * most three P2M top nodes. */
-RESERVE_BRK(p2m_populated, PAGE_SIZE * 3);
+/* For each I/O range remapped we may lose up to two leaf pages for the boundary
+ * violations and three mid pages to cover up to 3GB. With
+ * early_can_reuse_p2m_middle() most of the leaf pages will be reused by the
+ * remapped region.
+ */
+RESERVE_BRK(p2m_identity_remap, PAGE_SIZE * 2 * 3 * MAX_REMAP_RANGES);
 
 static inline unsigned p2m_top_index(unsigned long pfn)
 {
