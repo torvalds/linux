@@ -125,8 +125,8 @@ struct dma_buf_attachment;
 extern __printf(2, 3)
 void drm_ut_debug_printk(const char *function_name,
 			 const char *format, ...);
-extern __printf(2, 3)
-void drm_err(const char *func, const char *format, ...);
+extern __printf(1, 2)
+void drm_err(const char *format, ...);
 
 /***********************************************************************/
 /** \name DRM template customization defaults */
@@ -155,7 +155,7 @@ void drm_err(const char *func, const char *format, ...);
  * \param arg arguments
  */
 #define DRM_ERROR(fmt, ...)				\
-	drm_err(__func__, fmt, ##__VA_ARGS__)
+	drm_err(fmt, ##__VA_ARGS__)
 
 /**
  * Rate limited error output.  Like DRM_ERROR() but won't flood the log.
@@ -170,7 +170,7 @@ void drm_err(const char *func, const char *format, ...);
 				      DEFAULT_RATELIMIT_BURST);		\
 									\
 	if (__ratelimit(&_rs))						\
-		drm_err(__func__, fmt, ##__VA_ARGS__);			\
+		drm_err(fmt, ##__VA_ARGS__);				\
 })
 
 #define DRM_INFO(fmt, ...)				\
