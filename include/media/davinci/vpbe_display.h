@@ -91,10 +91,6 @@ struct vpbe_layer {
 	/* V4l2 specific parameters */
 	/* Identifies video device for this layer */
 	struct video_device video_dev;
-	/* This field keeps track of type of buffer exchange mechanism user
-	 * has selected
-	 */
-	enum v4l2_memory memory;
 	/* Used to store pixel format */
 	struct v4l2_pix_format pix_fmt;
 	enum v4l2_field buf_field;
