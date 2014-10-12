@@ -96,8 +96,7 @@ static int dvbsky_gpio_ctrl(struct dvb_usb_device *d, u8 gport, u8 value)
 	obuf[2] = value;
 	ret = dvbsky_usb_generic_rw(d, obuf, 3, ibuf, 1);
 	if (ret)
-		dev_err(&d->udev->dev, "%s: %s() failed=%d\n",
-			KBUILD_MODNAME, __func__, ret);
+		dev_err(&d->udev->dev, "failed=%d\n", ret);
 	return ret;
 }
 
@@ -114,7 +113,7 @@ static int dvbsky_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 
 	if (num > 2) {
 		dev_err(&d->udev->dev,
-		"dvbsky_usb: too many i2c messages[%d] than 2.", num);
+		"too many i2c messages[%d], max 2.", num);
 		ret = -EOPNOTSUPP;
 		goto i2c_error;
 	}
@@ -122,7 +121,7 @@ static int dvbsky_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 	if (num == 1) {
 		if (msg[0].len > 60) {
 			dev_err(&d->udev->dev,
-			"dvbsky_usb: too many i2c bytes[%d] than 60.",
+			"too many i2c bytes[%d], max 60.",
 			msg[0].len);
 			ret = -EOPNOTSUPP;
 			goto i2c_error;
@@ -136,8 +135,7 @@ static int dvbsky_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 			ret = dvbsky_usb_generic_rw(d, obuf, 4,
 					ibuf, msg[0].len + 1);
 			if (ret)
-				dev_err(&d->udev->dev, "%s: %s() failed=%d\n",
-					KBUILD_MODNAME, __func__, ret);
+				dev_err(&d->udev->dev, "failed=%d\n", ret);
 			if (!ret)
 				memcpy(msg[0].buf, &ibuf[1], msg[0].len);
 		} else {
@@ -149,13 +147,12 @@ static int dvbsky_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 			ret = dvbsky_usb_generic_rw(d, obuf,
 					msg[0].len + 3, ibuf, 1);
 			if (ret)
-				dev_err(&d->udev->dev, "%s: %s() failed=%d\n",
-					KBUILD_MODNAME, __func__, ret);
+				dev_err(&d->udev->dev, "failed=%d\n", ret);
 		}
 	} else {
 		if ((msg[0].len > 60) || (msg[1].len > 60)) {
 			dev_err(&d->udev->dev,
-			"dvbsky_usb: too many i2c bytes[w-%d][r-%d] than 60.",
+			"too many i2c bytes[w-%d][r-%d], max 60.",
 			msg[0].len, msg[1].len);
 			ret = -EOPNOTSUPP;
 			goto i2c_error;
@@ -169,8 +166,7 @@ static int dvbsky_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		ret = dvbsky_usb_generic_rw(d, obuf,
 			msg[0].len + 4, ibuf, msg[1].len + 1);
 		if (ret)
-			dev_err(&d->udev->dev, "%s: %s() failed=%d\n",
-				KBUILD_MODNAME, __func__, ret);
+			dev_err(&d->udev->dev, "failed=%d\n", ret);
 
 		if (!ret)
 			memcpy(msg[1].buf, &ibuf[1], msg[1].len);
@@ -201,8 +197,7 @@ static int dvbsky_rc_query(struct dvb_usb_device *d)
 	obuf[0] = 0x10;
 	ret = dvbsky_usb_generic_rw(d, obuf, 1, ibuf, 2);
 	if (ret)
-		dev_err(&d->udev->dev, "%s: %s() failed=%d\n",
-			KBUILD_MODNAME, __func__, ret);
+		dev_err(&d->udev->dev, "failed=%d\n", ret);
 	if (ret == 0)
 		code = (ibuf[0] << 8) | ibuf[1];
 	if (code != 0xffff) {
