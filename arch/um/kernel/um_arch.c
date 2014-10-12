@@ -292,7 +292,7 @@ int __init linux_main(int argc, char **argv)
 		physmem_size += UML_ROUND_UP(brk_start) - UML_ROUND_UP(&_end);
 	}
 
-	uml_physmem = (unsigned long) &__binary_start & PAGE_MASK;
+	uml_physmem = (unsigned long) __binary_start & PAGE_MASK;
 
 	/* Reserve up to 4M after the current brk */
 	uml_reserved = ROUND_4M(brk_start) + (1 << 22);

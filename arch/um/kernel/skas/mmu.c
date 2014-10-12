@@ -92,7 +92,7 @@ void uml_setup_stubs(struct mm_struct *mm)
 	int err, ret;
 
 	ret = init_stub_pte(mm, STUB_CODE,
-			    (unsigned long) &__syscall_stub_start);
+			    (unsigned long) __syscall_stub_start);
 	if (ret)
 		goto out;
 
@@ -100,7 +100,7 @@ void uml_setup_stubs(struct mm_struct *mm)
 	if (ret)
 		goto out;
 
-	mm->context.stub_pages[0] = virt_to_page(&__syscall_stub_start);
+	mm->context.stub_pages[0] = virt_to_page(__syscall_stub_start);
 	mm->context.stub_pages[1] = virt_to_page(mm->context.id.stack);
 
 	/* dup_mmap already holds mmap_sem */
