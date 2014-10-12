@@ -37,7 +37,7 @@ TRACE_EVENT(kvm_userspace_exit,
 		  __entry->errno < 0 ? -__entry->errno : __entry->reason)
 );
 
-#if defined(CONFIG_HAVE_KVM_IRQCHIP)
+#if defined(CONFIG_HAVE_KVM_IRQFD)
 TRACE_EVENT(kvm_set_irq,
 	TP_PROTO(unsigned int gsi, int level, int irq_source_id),
 	TP_ARGS(gsi, level, irq_source_id),
@@ -57,7 +57,7 @@ TRACE_EVENT(kvm_set_irq,
 	TP_printk("gsi %u level %d source %d",
 		  __entry->gsi, __entry->level, __entry->irq_source_id)
 );
-#endif
+#endif /* defined(CONFIG_HAVE_KVM_IRQFD) */
 
 #if defined(__KVM_HAVE_IOAPIC)
 #define kvm_deliver_mode		\
@@ -124,7 +124,7 @@ TRACE_EVENT(kvm_msi_set_irq,
 
 #endif /* defined(__KVM_HAVE_IOAPIC) */
 
-#if defined(CONFIG_HAVE_KVM_IRQCHIP)
+#if defined(CONFIG_HAVE_KVM_IRQFD)
 
 TRACE_EVENT(kvm_ack_irq,
 	TP_PROTO(unsigned int irqchip, unsigned int pin),
@@ -149,7 +149,7 @@ TRACE_EVENT(kvm_ack_irq,
 #endif
 );
 
-#endif /* defined(CONFIG_HAVE_KVM_IRQCHIP) */
+#endif /* defined(CONFIG_HAVE_KVM_IRQFD) */
 
 
 
@@ -296,23 +296,21 @@ DEFINE_EVENT(kvm_async_pf_nopresent_ready, kvm_async_pf_ready,
 
 TRACE_EVENT(
 	kvm_async_pf_completed,
-	TP_PROTO(unsigned long address, struct page *page, u64 gva),
-	TP_ARGS(address, page, gva),
+	TP_PROTO(unsigned long address, u64 gva),
+	TP_ARGS(address, gva),
 
 	TP_STRUCT__entry(
 		__field(unsigned long, address)
-		__field(pfn_t, pfn)
 		__field(u64, gva)
 		),
 
 	TP_fast_assign(
 		__entry->address = address;
-		__entry->pfn = page ? page_to_pfn(page) : 0;
 		__entry->gva = gva;
 		),
 
-	TP_printk("gva %#llx address %#lx pfn %#llx",  __entry->gva,
-		  __entry->address, __entry->pfn)
+	TP_printk("gva %#llx address %#lx",  __entry->gva,
+		  __entry->address)
 );
 
 #endif

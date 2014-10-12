@@ -1822,8 +1822,7 @@ int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 	return 0;
 }
 
-int kvm_set_routing_entry(struct kvm_irq_routing_table *rt,
-			  struct kvm_kernel_irq_routing_entry *e,
+int kvm_set_routing_entry(struct kvm_kernel_irq_routing_entry *e,
 			  const struct kvm_irq_routing_entry *ue)
 {
 	int r = -EINVAL;
@@ -1835,7 +1834,6 @@ int kvm_set_routing_entry(struct kvm_irq_routing_table *rt,
 		e->irqchip.pin = ue->u.irqchip.pin;
 		if (e->irqchip.pin >= KVM_IRQCHIP_NUM_PINS)
 			goto out;
-		rt->chip[ue->u.irqchip.irqchip][e->irqchip.pin] = ue->gsi;
 		break;
 	case KVM_IRQ_ROUTING_MSI:
 		e->set = kvm_set_msi;

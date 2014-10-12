@@ -65,11 +65,6 @@ static inline bool vcpu_mode_priv(struct kvm_vcpu *vcpu)
 	return cpsr_mode > USR_MODE;;
 }
 
-static inline bool kvm_vcpu_reg_is_pc(struct kvm_vcpu *vcpu, int reg)
-{
-	return reg == 15;
-}
-
 static inline u32 kvm_vcpu_get_hsr(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.fault.hsr;
@@ -154,12 +149,82 @@ static inline bool kvm_vcpu_trap_is_iabt(struct kvm_vcpu *vcpu)
 
 static inline u8 kvm_vcpu_trap_get_fault(struct kvm_vcpu *vcpu)
 {
+	return kvm_vcpu_get_hsr(vcpu) & HSR_FSC;
+}
+
+static inline u8 kvm_vcpu_trap_get_fault_type(struct kvm_vcpu *vcpu)
+{
 	return kvm_vcpu_get_hsr(vcpu) & HSR_FSC_TYPE;
 }
 
 static inline u32 kvm_vcpu_hvc_get_imm(struct kvm_vcpu *vcpu)
 {
 	return kvm_vcpu_get_hsr(vcpu) & HSR_HVC_IMM_MASK;
+}
+
+static inline unsigned long kvm_vcpu_get_mpidr(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.cp15[c0_MPIDR];
+}
+
+static inline void kvm_vcpu_set_be(struct kvm_vcpu *vcpu)
+{
+	*vcpu_cpsr(vcpu) |= PSR_E_BIT;
+}
+
+static inline bool kvm_vcpu_is_be(struct kvm_vcpu *vcpu)
+{
+	return !!(*vcpu_cpsr(vcpu) & PSR_E_BIT);
+}
+
+static inline unsigned long vcpu_data_guest_to_host(struct kvm_vcpu *vcpu,
+						    unsigned long data,
+						    unsigned int len)
+{
+	if (kvm_vcpu_is_be(vcpu)) {
+		switch (len) {
+		case 1:
+			return data & 0xff;
+		case 2:
+			return be16_to_cpu(data & 0xffff);
+		default:
+			return be32_to_cpu(data);
+		}
+	} else {
+		switch (len) {
+		case 1:
+			return data & 0xff;
+		case 2:
+			return le16_to_cpu(data & 0xffff);
+		default:
+			return le32_to_cpu(data);
+		}
+	}
+}
+
+static inline unsigned long vcpu_data_host_to_guest(struct kvm_vcpu *vcpu,
+						    unsigned long data,
+						    unsigned int len)
+{
+	if (kvm_vcpu_is_be(vcpu)) {
+		switch (len) {
+		case 1:
+			return data & 0xff;
+		case 2:
+			return cpu_to_be16(data & 0xffff);
+		default:
+			return cpu_to_be32(data);
+		}
+	} else {
+		switch (len) {
+		case 1:
+			return data & 0xff;
+		case 2:
+			return cpu_to_le16(data & 0xffff);
+		default:
+			return cpu_to_le32(data);
+		}
+	}
 }
 
 #endif /* __ARM_KVM_EMULATE_H__ */
