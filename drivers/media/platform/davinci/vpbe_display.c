@@ -1341,45 +1341,6 @@ static int vpbe_display_reqbufs(struct file *file, void *priv,
 }
 
 /*
- * vpbe_display_mmap()
- * It is used to map kernel space buffers into user spaces
- */
-static int vpbe_display_mmap(struct file *filep, struct vm_area_struct *vma)
-{
-	/* Get the layer object and file handle object */
-	struct vpbe_fh *fh = filep->private_data;
-	struct vpbe_layer *layer = fh->layer;
-	struct vpbe_device *vpbe_dev = fh->disp_dev->vpbe_dev;
-	int ret;
-
-	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev, "vpbe_display_mmap\n");
-
-	if (mutex_lock_interruptible(&layer->opslock))
-		return -ERESTARTSYS;
-	ret = vb2_mmap(&layer->buffer_queue, vma);
-	mutex_unlock(&layer->opslock);
-	return ret;
-}
-
-/* vpbe_display_poll(): It is used for select/poll system call
- */
-static unsigned int vpbe_display_poll(struct file *filep, poll_table *wait)
-{
-	struct vpbe_fh *fh = filep->private_data;
-	struct vpbe_layer *layer = fh->layer;
-	struct vpbe_device *vpbe_dev = fh->disp_dev->vpbe_dev;
-	unsigned int err = 0;
-
-	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev, "vpbe_display_poll\n");
-	if (layer->started) {
-		mutex_lock(&layer->opslock);
-		err = vb2_poll(&layer->buffer_queue, filep, wait);
-		mutex_unlock(&layer->opslock);
-	}
-	return err;
-}
-
-/*
  * vpbe_display_open()
  * It creates object of file handle structure and stores it in private_data
  * member of filepointer
@@ -1527,8 +1488,8 @@ static struct v4l2_file_operations vpbe_fops = {
 	.open = vpbe_display_open,
 	.release = vpbe_display_release,
 	.unlocked_ioctl = video_ioctl2,
-	.mmap = vpbe_display_mmap,
-	.poll = vpbe_display_poll
+	.mmap = vb2_fop_mmap,
+	.poll =  vb2_fop_poll,
 };
 
 static int vpbe_device_get(struct device *dev, void *data)
@@ -1608,6 +1569,7 @@ static int register_device(struct vpbe_layer *vpbe_display_layer,
 		  (int)vpbe_display_layer,
 		  (int)&vpbe_display_layer->video_dev);
 
+	vpbe_display_layer->video_dev.queue = &vpbe_display_layer->buffer_queue;
 	err = video_register_device(&vpbe_display_layer->video_dev,
 				    VFL_TYPE_GRABBER,
 				    -1);
