@@ -1467,6 +1467,13 @@ static void __init pcpu_populate_pte(unsigned long addr)
 	pud_t *pud;
 	pmd_t *pmd;
 
+	if (pgd_none(*pgd)) {
+		pud_t *new;
+
+		new = __alloc_bootmem(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
+		pgd_populate(&init_mm, pgd, new);
+	}
+
 	pud = pud_offset(pgd, addr);
 	if (pud_none(*pud)) {
 		pmd_t *new;
