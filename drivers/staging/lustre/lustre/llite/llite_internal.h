@@ -1509,24 +1509,6 @@ static inline void d_lustre_revalidate(struct dentry *dentry)
 	spin_unlock(&dentry->d_lock);
 }
 
-#if LUSTRE_VERSION_CODE < OBD_OCD_VERSION(2, 7, 50, 0)
-/* Compatibility for old (1.8) compiled userspace quota code */
-struct if_quotactl_18 {
-	__u32		   qc_cmd;
-	__u32		   qc_type;
-	__u32		   qc_id;
-	__u32		   qc_stat;
-	struct obd_dqinfo       qc_dqinfo;
-	struct obd_dqblk	qc_dqblk;
-	char		    obd_type[16];
-	struct obd_uuid	 obd_uuid;
-};
-#define LL_IOC_QUOTACTL_18	      _IOWR('f', 162, struct if_quotactl_18 *)
-/* End compatibility for old (1.8) compiled userspace quota code */
-#else
-#warning "remove old LL_IOC_QUOTACTL_18 compatibility code"
-#endif /* LUSTRE_VERSION_CODE < OBD_OCD_VERSION(2, 7, 50, 0) */
-
 enum {
 	LL_LAYOUT_GEN_NONE  = ((__u32)-2),	/* layout lock was cancelled */
 	LL_LAYOUT_GEN_EMPTY = ((__u32)-1)	/* for empty layout */

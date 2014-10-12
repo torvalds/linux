@@ -1693,64 +1693,6 @@ out_poll:
 		OBD_FREE_PTR(check);
 		return rc;
 	}
-#if LUSTRE_VERSION_CODE < OBD_OCD_VERSION(2, 7, 50, 0)
-	case LL_IOC_QUOTACTL_18: {
-		/* copy the old 1.x quota struct for internal use, then copy
-		 * back into old format struct.  For 1.8 compatibility. */
-		struct if_quotactl_18 *qctl_18;
-		struct if_quotactl *qctl_20;
-
-		qctl_18 = kzalloc(sizeof(*qctl_18), GFP_NOFS);
-		if (!qctl_18)
-			return -ENOMEM;
-
-		qctl_20 = kzalloc(sizeof(*qctl_20), GFP_NOFS);
-		if (!qctl_20) {
-			rc = -ENOMEM;
-			goto out_quotactl_18;
-		}
-
-		if (copy_from_user(qctl_18, (void *)arg, sizeof(*qctl_18))) {
-			rc = -ENOMEM;
-			goto out_quotactl_20;
-		}
-
-		QCTL_COPY(qctl_20, qctl_18);
-		qctl_20->qc_idx = 0;
-
-		/* XXX: dqb_valid was borrowed as a flag to mark that
-		 *      only mds quota is wanted */
-		if (qctl_18->qc_cmd == Q_GETQUOTA &&
-		    qctl_18->qc_dqblk.dqb_valid) {
-			qctl_20->qc_valid = QC_MDTIDX;
-			qctl_20->qc_dqblk.dqb_valid = 0;
-		} else if (qctl_18->obd_uuid.uuid[0] != '\0') {
-			qctl_20->qc_valid = QC_UUID;
-			qctl_20->obd_uuid = qctl_18->obd_uuid;
-		} else {
-			qctl_20->qc_valid = QC_GENERAL;
-		}
-
-		rc = quotactl_ioctl(sbi, qctl_20);
-
-		if (rc == 0) {
-			QCTL_COPY(qctl_18, qctl_20);
-			qctl_18->obd_uuid = qctl_20->obd_uuid;
-
-			if (copy_to_user((void *)arg, qctl_18,
-					     sizeof(*qctl_18)))
-				rc = -EFAULT;
-		}
-
-out_quotactl_20:
-		OBD_FREE_PTR(qctl_20);
-out_quotactl_18:
-		OBD_FREE_PTR(qctl_18);
-		return rc;
-	}
-#else
-#warning "remove old LL_IOC_QUOTACTL_18 compatibility code"
-#endif /* LUSTRE_VERSION_CODE < OBD_OCD_VERSION(2, 7, 50, 0) */
 	case LL_IOC_QUOTACTL: {
 		struct if_quotactl *qctl;
 
