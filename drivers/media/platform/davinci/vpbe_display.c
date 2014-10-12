@@ -285,29 +285,6 @@ static void vpbe_buffer_queue(struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&disp->dma_queue_lock, flags);
 }
 
-/*
- * vpbe_buf_cleanup()
- * This function is called from the vb2 layer to free memory allocated to
- * the buffers
- */
-static void vpbe_buf_cleanup(struct vb2_buffer *vb)
-{
-	/* Get the file handle object and layer object */
-	struct vpbe_layer *layer = vb2_get_drv_priv(vb->vb2_queue);
-	struct vpbe_device *vpbe_dev = layer->disp_dev->vpbe_dev;
-	struct vpbe_disp_buffer *buf = container_of(vb,
-					struct vpbe_disp_buffer, vb);
-	unsigned long flags;
-
-	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev,
-			"vpbe_buf_cleanup\n");
-
-	spin_lock_irqsave(&layer->irqlock, flags);
-	if (vb->state == VB2_BUF_STATE_ACTIVE)
-		list_del_init(&buf->list);
-	spin_unlock_irqrestore(&layer->irqlock, flags);
-}
-
 static int vpbe_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct vpbe_layer *layer = vb2_get_drv_priv(vq);
@@ -385,7 +362,6 @@ static struct vb2_ops video_qops = {
 	.buf_prepare = vpbe_buffer_prepare,
 	.start_streaming = vpbe_start_streaming,
 	.stop_streaming = vpbe_stop_streaming,
-	.buf_cleanup = vpbe_buf_cleanup,
 	.buf_queue = vpbe_buffer_queue,
 };
 
