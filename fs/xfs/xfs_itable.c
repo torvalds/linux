@@ -639,7 +639,8 @@ next_ag:
 		xfs_buf_relse(agbp);
 		agbp = NULL;
 		agino = 0;
-	} while (++agno < mp->m_sb.sb_agcount);
+		agno++;
+	} while (agno < mp->m_sb.sb_agcount);
 
 	if (!error) {
 		if (bufidx) {
