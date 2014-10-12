@@ -308,20 +308,6 @@ static void vpbe_buf_cleanup(struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&layer->irqlock, flags);
 }
 
-static void vpbe_wait_prepare(struct vb2_queue *vq)
-{
-	struct vpbe_layer *layer = vb2_get_drv_priv(vq);
-
-	mutex_unlock(&layer->opslock);
-}
-
-static void vpbe_wait_finish(struct vb2_queue *vq)
-{
-	struct vpbe_layer *layer = vb2_get_drv_priv(vq);
-
-	mutex_lock(&layer->opslock);
-}
-
 static int vpbe_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct vpbe_layer *layer = vb2_get_drv_priv(vq);
@@ -394,8 +380,8 @@ static void vpbe_stop_streaming(struct vb2_queue *vq)
 
 static struct vb2_ops video_qops = {
 	.queue_setup = vpbe_buffer_queue_setup,
-	.wait_prepare = vpbe_wait_prepare,
-	.wait_finish = vpbe_wait_finish,
+	.wait_prepare = vb2_ops_wait_prepare,
+	.wait_finish = vb2_ops_wait_finish,
 	.buf_prepare = vpbe_buffer_prepare,
 	.start_streaming = vpbe_start_streaming,
 	.stop_streaming = vpbe_stop_streaming,
@@ -1749,7 +1735,7 @@ static int vpbe_display_probe(struct platform_device *pdev)
 		q->buf_struct_size = sizeof(struct vpbe_disp_buffer);
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		q->min_buffers_needed = 1;
-
+		q->lock = &disp_dev->dev[i]->opslock;
 		err = vb2_queue_init(q);
 		if (err) {
 			v4l2_err(v4l2_dev, "vb2_queue_init() failed\n");
