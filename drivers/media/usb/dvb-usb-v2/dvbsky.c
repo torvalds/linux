@@ -265,8 +265,6 @@ static int dvbsky_read_mac_addr(struct dvb_usb_adapter *adap, u8 mac[6])
 	if (i2c_transfer(&d->i2c_adap, msg, 2) == 2)
 		memcpy(mac, ibuf, 6);
 
-	dev_info(&d->udev->dev, "dvbsky_usb MAC address=%pM\n", mac);
-
 	return 0;
 }
 
