@@ -215,22 +215,15 @@ static int vpbe_buffer_prepare(struct vb2_buffer *vb)
 	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev,
 				"vpbe_buffer_prepare\n");
 
-	if (vb->state != VB2_BUF_STATE_ACTIVE &&
-		vb->state != VB2_BUF_STATE_PREPARED) {
-		vb2_set_plane_payload(vb, 0, layer->pix_fmt.sizeimage);
-		if (vb2_plane_vaddr(vb, 0) &&
-		vb2_get_plane_payload(vb, 0) > vb2_plane_size(vb, 0))
-			return -EINVAL;
+	vb2_set_plane_payload(vb, 0, layer->pix_fmt.sizeimage);
+	if (vb2_get_plane_payload(vb, 0) > vb2_plane_size(vb, 0))
+		return -EINVAL;
 
-		addr = vb2_dma_contig_plane_dma_addr(vb, 0);
-		if (q->streaming) {
-			if (!IS_ALIGNED(addr, 8)) {
-				v4l2_err(&vpbe_dev->v4l2_dev,
-					"buffer_prepare:offset is \
-					not aligned to 32 bytes\n");
-				return -EINVAL;
-			}
-		}
+	addr = vb2_dma_contig_plane_dma_addr(vb, 0);
+	if (!IS_ALIGNED(addr, 8)) {
+		v4l2_err(&vpbe_dev->v4l2_dev,
+			 "buffer_prepare:offset is not aligned to 32 bytes\n");
+		return -EINVAL;
 	}
 	return 0;
 }
