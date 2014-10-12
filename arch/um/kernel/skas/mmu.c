@@ -8,11 +8,10 @@
 #include <linux/slab.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
+#include <asm/sections.h>
 #include <as-layout.h>
 #include <os.h>
 #include <skas.h>
-
-extern int __syscall_stub_start;
 
 static int init_stub_pte(struct mm_struct *mm, unsigned long proc,
 			 unsigned long kernel)

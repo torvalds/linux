@@ -8,6 +8,7 @@
 #include <linux/mm.h>
 #include <linux/pfn.h>
 #include <asm/page.h>
+#include <asm/sections.h>
 #include <as-layout.h>
 #include <init.h>
 #include <kern.h>
@@ -54,8 +55,6 @@ void map_memory(unsigned long virt, unsigned long phys, unsigned long len,
 		      "err = %d\n", virt, fd, offset, len, r, w, x, err);
 	}
 }
-
-extern int __syscall_stub_start;
 
 /**
  * setup_physmem() - Setup physical memory for UML

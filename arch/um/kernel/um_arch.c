@@ -248,8 +248,6 @@ EXPORT_SYMBOL(end_iomem);
 
 #define MIN_VMALLOC (32 * 1024 * 1024)
 
-extern char __binary_start;
-
 int __init linux_main(int argc, char **argv)
 {
 	unsigned long avail, diff;
