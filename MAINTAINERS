@@ -8198,6 +8198,8 @@ F:	drivers/mmc/host/sdhci-pltfm.[ch]
 
 SECURE COMPUTING
 M:	Kees Cook <keescook@chromium.org>
+R:	Andy Lutomirski <luto@amacapital.net>
+R:	Will Drewry <wad@chromium.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git seccomp
 S:	Supported
 F:	kernel/seccomp.c

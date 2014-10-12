@@ -1323,7 +1323,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Set number of hash buckets for inode cache.
 
 	ima_appraise=	[IMA] appraise integrity measurements
-			Format: { "off" | "enforce" | "fix" }
+			Format: { "off" | "enforce" | "fix" | "log" }
 			default: "enforce"
 
 	ima_appraise_tcb [IMA]

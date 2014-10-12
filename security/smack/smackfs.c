@@ -131,14 +131,17 @@ LIST_HEAD(smack_rule_list);
 
 struct smack_parsed_rule {
 	struct smack_known	*smk_subject;
-	char			*smk_object;
+	struct smack_known	*smk_object;
 	int			smk_access1;
 	int			smk_access2;
 };
 
 static int smk_cipso_doi_value = SMACK_CIPSO_DOI_DEFAULT;
 
-const char *smack_cipso_option = SMACK_CIPSO_OPTION;
+struct smack_known smack_cipso_option = {
+	.smk_known	= SMACK_CIPSO_OPTION,
+	.smk_secid	= 0,
+};
 
 /*
  * Values for parsing cipso rules
@@ -304,6 +307,10 @@ static int smk_perm_from_str(const char *string)
 		case 'L':
 			perm |= MAY_LOCK;
 			break;
+		case 'b':
+		case 'B':
+			perm |= MAY_BRINGUP;
+			break;
 		default:
 			return perm;
 		}
@@ -335,7 +342,7 @@ static int smk_fill_rule(const char *subject, const char *object,
 		if (rule->smk_subject == NULL)
 			return -EINVAL;
 
-		rule->smk_object = smk_import(object, len);
+		rule->smk_object = smk_import_entry(object, len);
 		if (rule->smk_object == NULL)
 			return -EINVAL;
 	} else {
@@ -355,7 +362,7 @@ static int smk_fill_rule(const char *subject, const char *object,
 		kfree(cp);
 		if (skp == NULL)
 			return -ENOENT;
-		rule->smk_object = skp->smk_known;
+		rule->smk_object = skp;
 	}
 
 	rule->smk_access1 = smk_perm_from_str(access1);
@@ -594,13 +601,15 @@ static void smk_rule_show(struct seq_file *s, struct smack_rule *srp, int max)
 	 * anything you read back.
 	 */
 	if (strlen(srp->smk_subject->smk_known) >= max ||
-	    strlen(srp->smk_object) >= max)
+	    strlen(srp->smk_object->smk_known) >= max)
 		return;
 
 	if (srp->smk_access == 0)
 		return;
 
-	seq_printf(s, "%s %s", srp->smk_subject->smk_known, srp->smk_object);
+	seq_printf(s, "%s %s",
+		   srp->smk_subject->smk_known,
+		   srp->smk_object->smk_known);
 
 	seq_putc(s, ' ');
 
@@ -616,6 +625,8 @@ static void smk_rule_show(struct seq_file *s, struct smack_rule *srp, int max)
 		seq_putc(s, 't');
 	if (srp->smk_access & MAY_LOCK)
 		seq_putc(s, 'l');
+	if (srp->smk_access & MAY_BRINGUP)
+		seq_putc(s, 'b');
 
 	seq_putc(s, '\n');
 }
@@ -1067,7 +1078,7 @@ static int netlbladdr_seq_show(struct seq_file *s, void *v)
 	for (maskn = 0; temp_mask; temp_mask <<= 1, maskn++);
 
 	seq_printf(s, "%u.%u.%u.%u/%d %s\n",
-		hp[0], hp[1], hp[2], hp[3], maskn, skp->smk_label);
+		hp[0], hp[1], hp[2], hp[3], maskn, skp->smk_label->smk_known);
 
 	return 0;
 }
@@ -1147,10 +1158,10 @@ static void smk_netlbladdr_insert(struct smk_netlbladdr *new)
 static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 				size_t count, loff_t *ppos)
 {
-	struct smk_netlbladdr *skp;
+	struct smk_netlbladdr *snp;
 	struct sockaddr_in newname;
 	char *smack;
-	char *sp;
+	struct smack_known *skp;
 	char *data;
 	char *host = (char *)&newname.sin_addr.s_addr;
 	int rc;
@@ -1213,15 +1224,15 @@ static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 	 * If smack begins with '-', it is an option, don't import it
 	 */
 	if (smack[0] != '-') {
-		sp = smk_import(smack, 0);
-		if (sp == NULL) {
+		skp = smk_import_entry(smack, 0);
+		if (skp == NULL) {
 			rc = -EINVAL;
 			goto free_out;
 		}
 	} else {
 		/* check known options */
-		if (strcmp(smack, smack_cipso_option) == 0)
-			sp = (char *)smack_cipso_option;
+		if (strcmp(smack, smack_cipso_option.smk_known) == 0)
+			skp = &smack_cipso_option;
 		else {
 			rc = -EINVAL;
 			goto free_out;
@@ -1244,9 +1255,9 @@ static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 	nsa = newname.sin_addr.s_addr;
 	/* try to find if the prefix is already in the list */
 	found = 0;
-	list_for_each_entry_rcu(skp, &smk_netlbladdr_list, list) {
-		if (skp->smk_host.sin_addr.s_addr == nsa &&
-		    skp->smk_mask.s_addr == mask.s_addr) {
+	list_for_each_entry_rcu(snp, &smk_netlbladdr_list, list) {
+		if (snp->smk_host.sin_addr.s_addr == nsa &&
+		    snp->smk_mask.s_addr == mask.s_addr) {
 			found = 1;
 			break;
 		}
@@ -1254,26 +1265,26 @@ static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 	smk_netlabel_audit_set(&audit_info);
 
 	if (found == 0) {
-		skp = kzalloc(sizeof(*skp), GFP_KERNEL);
-		if (skp == NULL)
+		snp = kzalloc(sizeof(*snp), GFP_KERNEL);
+		if (snp == NULL)
 			rc = -ENOMEM;
 		else {
 			rc = 0;
-			skp->smk_host.sin_addr.s_addr = newname.sin_addr.s_addr;
-			skp->smk_mask.s_addr = mask.s_addr;
-			skp->smk_label = sp;
-			smk_netlbladdr_insert(skp);
+			snp->smk_host.sin_addr.s_addr = newname.sin_addr.s_addr;
+			snp->smk_mask.s_addr = mask.s_addr;
+			snp->smk_label = skp;
+			smk_netlbladdr_insert(snp);
 		}
 	} else {
 		/* we delete the unlabeled entry, only if the previous label
 		 * wasn't the special CIPSO option */
-		if (skp->smk_label != smack_cipso_option)
+		if (snp->smk_label != &smack_cipso_option)
 			rc = netlbl_cfg_unlbl_static_del(&init_net, NULL,
-					&skp->smk_host.sin_addr, &skp->smk_mask,
+					&snp->smk_host.sin_addr, &snp->smk_mask,
 					PF_INET, &audit_info);
 		else
 			rc = 0;
-		skp->smk_label = sp;
+		snp->smk_label = skp;
 	}
 
 	/*
@@ -1281,10 +1292,10 @@ static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 	 * this host so that incoming packets get labeled.
 	 * but only if we didn't get the special CIPSO option
 	 */
-	if (rc == 0 && sp != smack_cipso_option)
+	if (rc == 0 && skp != &smack_cipso_option)
 		rc = netlbl_cfg_unlbl_static_add(&init_net, NULL,
-			&skp->smk_host.sin_addr, &skp->smk_mask, PF_INET,
-			smack_to_secid(skp->smk_label), &audit_info);
+			&snp->smk_host.sin_addr, &snp->smk_mask, PF_INET,
+			snp->smk_label->smk_secid, &audit_info);
 
 	if (rc == 0)
 		rc = count;
@@ -1677,7 +1688,7 @@ static ssize_t smk_write_onlycap(struct file *file, const char __user *buf,
 	if (smack_onlycap != NULL && smack_onlycap != skp)
 		return -EPERM;
 
-	data = kzalloc(count, GFP_KERNEL);
+	data = kzalloc(count + 1, GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
 
@@ -1880,7 +1891,10 @@ static ssize_t smk_user_access(struct file *file, const char __user *buf,
 	else if (res != -ENOENT)
 		return -EINVAL;
 
-	data[0] = res == 0 ? '1' : '0';
+	/*
+	 * smk_access() can return a value > 0 in the "bringup" case.
+	 */
+	data[0] = res >= 0 ? '1' : '0';
 	data[1] = '\0';
 
 	simple_transaction_set(file, 2);
@@ -2228,7 +2242,7 @@ static ssize_t smk_write_syslog(struct file *file, const char __user *buf,
 	if (!smack_privileged(CAP_MAC_ADMIN))
 		return -EPERM;
 
-	data = kzalloc(count, GFP_KERNEL);
+	data = kzalloc(count + 1, GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
 

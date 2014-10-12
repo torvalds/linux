@@ -37,6 +37,8 @@ static int key_get_type_from_user(char *type,
 		return ret;
 	if (ret == 0 || ret >= len)
 		return -EINVAL;
+	if (type[0] == '.')
+		return -EPERM;
 	type[len - 1] = '\0';
 	return 0;
 }

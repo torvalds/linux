@@ -3074,7 +3074,7 @@ opened:
 	error = open_check_o_direct(file);
 	if (error)
 		goto exit_fput;
-	error = ima_file_check(file, op->acc_mode);
+	error = ima_file_check(file, op->acc_mode, *opened);
 	if (error)
 		goto exit_fput;
 
