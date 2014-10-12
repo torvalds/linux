@@ -59,4 +59,12 @@
 			status = "okay";
 		};
 	};
+
+	timer@40a00000 {
+		compatible = "marvell,pxa-timer";
+		reg = <0x40a00000 0x20>;
+		interrupts = <26>;
+		clocks = <&clks CLK_OSTIMER>;
+		status = "okay";
+	};
 };
