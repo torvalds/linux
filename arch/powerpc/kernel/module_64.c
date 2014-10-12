@@ -15,6 +15,9 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/elf.h>
 #include <linux/moduleloader.h>
@@ -36,11 +39,6 @@
    Using a magic allocator which places modules within 32MB solves
    this, and makes other things simpler.  Anton?
    --RR.  */
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(fmt , ...)
-#endif
 
 #if defined(_CALL_ELF) && _CALL_ELF == 2
 #define R2_STACK_OFFSET 24
@@ -279,8 +277,8 @@ static unsigned long get_stubs_size(const Elf64_Ehdr *hdr,
 	/* Every relocated section... */
 	for (i = 1; i < hdr->e_shnum; i++) {
 		if (sechdrs[i].sh_type == SHT_RELA) {
-			DEBUGP("Found relocations in section %u\n", i);
-			DEBUGP("Ptr: %p.  Number: %lu\n",
+			pr_debug("Found relocations in section %u\n", i);
+			pr_debug("Ptr: %p.  Number: %Lu\n",
 			       (void *)sechdrs[i].sh_addr,
 			       sechdrs[i].sh_size / sizeof(Elf64_Rela));
 
@@ -304,7 +302,7 @@ static unsigned long get_stubs_size(const Elf64_Ehdr *hdr,
 	relocs++;
 #endif
 
-	DEBUGP("Looks like a total of %lu stubs, max\n", relocs);
+	pr_debug("Looks like a total of %lu stubs, max\n", relocs);
 	return relocs * sizeof(struct ppc64_stub_entry);
 }
 
@@ -390,7 +388,7 @@ int module_frob_arch_sections(Elf64_Ehdr *hdr,
 	}
 
 	if (!me->arch.stubs_section) {
-		printk("%s: doesn't contain .stubs.\n", me->name);
+		pr_err("%s: doesn't contain .stubs.\n", me->name);
 		return -ENOEXEC;
 	}
 
@@ -434,11 +432,11 @@ static inline int create_stub(Elf64_Shdr *sechdrs,
 	/* Stub uses address relative to r2. */
 	reladdr = (unsigned long)entry - my_r2(sechdrs, me);
 	if (reladdr > 0x7FFFFFFF || reladdr < -(0x80000000L)) {
-		printk("%s: Address %p of stub out of range of %p.\n",
+		pr_err("%s: Address %p of stub out of range of %p.\n",
 		       me->name, (void *)reladdr, (void *)my_r2);
 		return 0;
 	}
-	DEBUGP("Stub %p get data from reladdr %li\n", entry, reladdr);
+	pr_debug("Stub %p get data from reladdr %li\n", entry, reladdr);
 
 	entry->jump[0] |= PPC_HA(reladdr);
 	entry->jump[1] |= PPC_LO(reladdr);
@@ -477,7 +475,7 @@ static unsigned long stub_for_addr(Elf64_Shdr *sechdrs,
 static int restore_r2(u32 *instruction, struct module *me)
 {
 	if (*instruction != PPC_INST_NOP) {
-		printk("%s: Expect noop after relocate, got %08x\n",
+		pr_err("%s: Expect noop after relocate, got %08x\n",
 		       me->name, *instruction);
 		return 0;
 	}
@@ -498,7 +496,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 	unsigned long *location;
 	unsigned long value;
 
-	DEBUGP("Applying ADD relocate section %u to %u\n", relsec,
+	pr_debug("Applying ADD relocate section %u to %u\n", relsec,
 	       sechdrs[relsec].sh_info);
 
 	/* First time we're called, we can fix up .TOC. */
@@ -519,7 +517,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 		sym = (Elf64_Sym *)sechdrs[symindex].sh_addr
 			+ ELF64_R_SYM(rela[i].r_info);
 
-		DEBUGP("RELOC at %p: %li-type as %s (%lu) + %li\n",
+		pr_debug("RELOC at %p: %li-type as %s (0x%lx) + %li\n",
 		       location, (long)ELF64_R_TYPE(rela[i].r_info),
 		       strtab + sym->st_name, (unsigned long)sym->st_value,
 		       (long)rela[i].r_addend);
@@ -546,7 +544,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 			/* Subtract TOC pointer */
 			value -= my_r2(sechdrs, me);
 			if (value + 0x8000 > 0xffff) {
-				printk("%s: bad TOC16 relocation (%lu)\n",
+				pr_err("%s: bad TOC16 relocation (0x%lx)\n",
 				       me->name, value);
 				return -ENOEXEC;
 			}
@@ -567,7 +565,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 			/* Subtract TOC pointer */
 			value -= my_r2(sechdrs, me);
 			if ((value & 3) != 0 || value + 0x8000 > 0xffff) {
-				printk("%s: bad TOC16_DS relocation (%lu)\n",
+				pr_err("%s: bad TOC16_DS relocation (0x%lx)\n",
 				       me->name, value);
 				return -ENOEXEC;
 			}
@@ -580,7 +578,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 			/* Subtract TOC pointer */
 			value -= my_r2(sechdrs, me);
 			if ((value & 3) != 0) {
-				printk("%s: bad TOC16_LO_DS relocation (%lu)\n",
+				pr_err("%s: bad TOC16_LO_DS relocation (0x%lx)\n",
 				       me->name, value);
 				return -ENOEXEC;
 			}
@@ -613,7 +611,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 			/* Convert value to relative */
 			value -= (unsigned long)location;
 			if (value + 0x2000000 > 0x3ffffff || (value & 3) != 0){
-				printk("%s: REL24 %li out of range!\n",
+				pr_err("%s: REL24 %li out of range!\n",
 				       me->name, (long int)value);
 				return -ENOEXEC;
 			}
@@ -655,7 +653,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 			break;
 
 		default:
-			printk("%s: Unknown ADD relocation: %lu\n",
+			pr_err("%s: Unknown ADD relocation: %lu\n",
 			       me->name,
 			       (unsigned long)ELF64_R_TYPE(rela[i].r_info));
 			return -ENOEXEC;

@@ -24,7 +24,7 @@
 
 static struct device_node *halt_node;
 
-static struct of_device_id child_match[] = {
+static const struct of_device_id child_match[] = {
 	{
 		.compatible = "sgy,gpio-halt",
 	},
@@ -147,7 +147,7 @@ static int gpio_halt_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id gpio_halt_match[] = {
+static const struct of_device_id gpio_halt_match[] = {
 	/* We match on the gpio bus itself and scan the children since they
 	 * wont be matched against us. We know the bus wont match until it
 	 * has been registered too. */

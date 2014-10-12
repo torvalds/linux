@@ -173,6 +173,14 @@ static int pnv_dma_set_mask(struct device *dev, u64 dma_mask)
 	return __dma_set_mask(dev, dma_mask);
 }
 
+static u64 pnv_dma_get_required_mask(struct device *dev)
+{
+	if (dev_is_pci(dev))
+		return pnv_pci_dma_get_required_mask(to_pci_dev(dev));
+
+	return __dma_get_required_mask(dev);
+}
+
 static void pnv_shutdown(void)
 {
 	/* Let the PCI code clear up IODA tables */
@@ -307,7 +315,7 @@ static int __init pnv_probe(void)
  * Returns the cpu frequency for 'cpu' in Hz. This is used by
  * /proc/cpuinfo
  */
-unsigned long pnv_get_proc_freq(unsigned int cpu)
+static unsigned long pnv_get_proc_freq(unsigned int cpu)
 {
 	unsigned long ret_freq;
 
@@ -335,6 +343,7 @@ define_machine(powernv) {
 	.power_save             = power7_idle,
 	.calibrate_decr		= generic_calibrate_decr,
 	.dma_set_mask		= pnv_dma_set_mask,
+	.dma_get_required_mask	= pnv_dma_get_required_mask,
 #ifdef CONFIG_KEXEC
 	.kexec_cpu_down		= pnv_kexec_cpu_down,
 #endif

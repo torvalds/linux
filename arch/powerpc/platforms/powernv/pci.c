@@ -753,6 +753,17 @@ int pnv_pci_dma_set_mask(struct pci_dev *pdev, u64 dma_mask)
 	return __dma_set_mask(&pdev->dev, dma_mask);
 }
 
+u64 pnv_pci_dma_get_required_mask(struct pci_dev *pdev)
+{
+	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
+	struct pnv_phb *phb = hose->private_data;
+
+	if (phb && phb->dma_get_required_mask)
+		return phb->dma_get_required_mask(phb, pdev);
+
+	return __dma_get_required_mask(&pdev->dev);
+}
+
 void pnv_pci_shutdown(void)
 {
 	struct pci_controller *hose;

@@ -149,7 +149,7 @@ static int __init mvme5100_add_bridge(struct device_node *dev)
 	return 0;
 }
 
-static struct of_device_id mvme5100_of_bus_ids[] __initdata = {
+static const struct of_device_id mvme5100_of_bus_ids[] __initconst = {
 	{ .compatible = "hawk-bridge", },
 	{},
 };

@@ -48,7 +48,7 @@ static inline int pte_looks_normal(pte_t pte)
 	    (_PAGE_PRESENT | _PAGE_USER);
 }
 
-struct page * maybe_pte_to_page(pte_t pte)
+static struct page *maybe_pte_to_page(pte_t pte)
 {
 	unsigned long pfn = pte_pfn(pte);
 	struct page *page;

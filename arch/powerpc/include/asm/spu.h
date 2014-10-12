@@ -27,6 +27,8 @@
 #include <linux/workqueue.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
+#include <asm/reg.h>
+#include <asm/copro.h>
 
 #define LS_SIZE (256 * 1024)
 #define LS_ADDR_MASK (LS_SIZE - 1)
@@ -276,9 +278,6 @@ void spu_remove_dev_attr(struct device_attribute *attr);
 
 int spu_add_dev_attr_group(struct attribute_group *attrs);
 void spu_remove_dev_attr_group(struct attribute_group *attrs);
-
-int spu_handle_mm_fault(struct mm_struct *mm, unsigned long ea,
-		unsigned long dsisr, unsigned *flt);
 
 /*
  * Notifier blocks:

@@ -8,8 +8,6 @@
 #include <linux/threads.h>
 #include <asm/io.h>			/* For sub-arch specific PPC_PIN_SIZE */
 
-extern unsigned long va_to_phys(unsigned long address);
-extern pte_t *va_to_pte(unsigned long address);
 extern unsigned long ioremap_bot;
 
 #ifdef CONFIG_44x
@@ -50,10 +48,10 @@ extern int icache_44x_need_flush;
 #define FIRST_USER_ADDRESS	0
 
 #define pte_ERROR(e) \
-	printk("%s:%d: bad pte %llx.\n", __FILE__, __LINE__, \
+	pr_err("%s:%d: bad pte %llx.\n", __FILE__, __LINE__, \
 		(unsigned long long)pte_val(e))
 #define pgd_ERROR(e) \
-	printk("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
+	pr_err("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
 
 /*
  * This is the bottom of the PKMAP area with HIGHMEM or an arbitrary

@@ -92,7 +92,7 @@ static int __init adder875_probe(void)
 	return of_flat_dt_is_compatible(root, "analogue-and-micro,adder875");
 }
 
-static __initdata struct of_device_id of_bus_ids[] = {
+static const struct of_device_id of_bus_ids[] __initconst = {
 	{ .compatible = "simple-bus", },
 	{},
 };

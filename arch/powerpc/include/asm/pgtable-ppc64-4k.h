@@ -64,7 +64,7 @@
     (((addr) >> PUD_SHIFT) & (PTRS_PER_PUD - 1)))
 
 #define pud_ERROR(e) \
-	printk("%s:%d: bad pud %08lx.\n", __FILE__, __LINE__, pud_val(e))
+	pr_err("%s:%d: bad pud %08lx.\n", __FILE__, __LINE__, pud_val(e))
 
 /*
  * On all 4K setups, remap_4k_pfn() equates to remap_pfn_range() */

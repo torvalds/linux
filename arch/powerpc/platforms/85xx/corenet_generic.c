@@ -20,6 +20,7 @@
 #include <asm/time.h>
 #include <asm/machdep.h>
 #include <asm/pci-bridge.h>
+#include <asm/pgtable.h>
 #include <asm/ppc-pci.h>
 #include <mm/mmu_decl.h>
 #include <asm/prom.h>
@@ -66,6 +67,16 @@ void __init corenet_gen_setup_arch(void)
 	mpc85xx_smp_init();
 
 	swiotlb_detect_4g();
+
+#if defined(CONFIG_FSL_PCI) && defined(CONFIG_ZONE_DMA32)
+	/*
+	 * Inbound windows don't cover the full lower 4 GiB
+	 * due to conflicts with PCICSRBAR and outbound windows,
+	 * so limit the DMA32 zone to 2 GiB, to allow consistent
+	 * allocations to succeed.
+	 */
+	limit_zone_pfn(ZONE_DMA32, 1UL << (31 - PAGE_SHIFT));
+#endif
 
 	pr_info("%s board\n", ppc_md.name);
 
@@ -129,6 +140,9 @@ static const char * const boards[] __initconst = {
 	"fsl,B4220QDS",
 	"fsl,T1040QDS",
 	"fsl,T1042QDS",
+	"fsl,T1040RDB",
+	"fsl,T1042RDB",
+	"fsl,T1042RDB_PI",
 	"keymile,kmcoge4",
 	NULL
 };
