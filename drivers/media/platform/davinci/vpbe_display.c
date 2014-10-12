@@ -1450,7 +1450,7 @@ static int vpbe_display_probe(struct platform_device *pdev)
 		q = &disp_dev->dev[i]->buffer_queue;
 		memset(q, 0, sizeof(*q));
 		q->type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
-		q->io_modes = VB2_MMAP | VB2_USERPTR;
+		q->io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
 		q->drv_priv = disp_dev->dev[i];
 		q->ops = &video_qops;
 		q->mem_ops = &vb2_dma_contig_memops;
