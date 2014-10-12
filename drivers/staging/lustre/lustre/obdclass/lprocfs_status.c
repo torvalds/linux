@@ -177,7 +177,7 @@ int lprocfs_read_frac_helper(char *buffer, unsigned long count, long val,
 }
 EXPORT_SYMBOL(lprocfs_read_frac_helper);
 
-int lprocfs_write_frac_helper(const char *buffer, unsigned long count,
+int lprocfs_write_frac_helper(const char __user *buffer, unsigned long count,
 			      int *val, int mult)
 {
 	char kernbuf[20], *end, *pbuf;
@@ -1819,7 +1819,7 @@ __s64 lprocfs_read_helper(struct lprocfs_counter *lc,
 }
 EXPORT_SYMBOL(lprocfs_read_helper);
 
-int lprocfs_write_helper(const char *buffer, unsigned long count,
+int lprocfs_write_helper(const char __user *buffer, unsigned long count,
 			 int *val)
 {
 	return lprocfs_write_frac_helper(buffer, count, val, 1);
