@@ -106,12 +106,8 @@ struct vpbe_layer {
 	unsigned char window_enable;
 	/* number of open instances of the layer */
 	unsigned int usrs;
-	/* number of users performing IO */
-	unsigned int io_usrs;
 	/* Indicates id of the field which is being displayed */
 	unsigned int field_id;
-	/* Indicates whether streaming started */
-	unsigned char started;
 	/* Identifies device object */
 	enum vpbe_display_device_id device_id;
 	/* facilitation of ioctl ops lock by v4l2*/

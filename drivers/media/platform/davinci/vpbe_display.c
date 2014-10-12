@@ -152,8 +152,8 @@ static irqreturn_t venc_isr(int irq, void *arg)
 
 	for (i = 0; i < VPBE_DISPLAY_MAX_DEVICES; i++) {
 		layer = disp_dev->dev[i];
-		/* If streaming is started in this layer */
-		if (!layer->started)
+
+		if (!vb2_start_streaming_called(&layer->buffer_queue))
 			continue;
 
 		if (layer->layer_first_int) {
@@ -314,7 +314,6 @@ static int vpbe_start_streaming(struct vb2_queue *vq, unsigned int count)
 	 * if request format is yuv420 semiplanar, need to
 	 * enable both video windows
 	 */
-	layer->started = 1;
 	layer->layer_first_int = 1;
 
 	return ret;
@@ -829,11 +828,9 @@ static int vpbe_display_s_fmt(struct file *file, void *priv,
 			"VIDIOC_S_FMT, layer id = %d\n",
 			layer->device_id);
 
-	/* If streaming is started, return error */
-	if (layer->started) {
-		v4l2_err(&vpbe_dev->v4l2_dev, "Streaming is started\n");
+	if (vb2_is_busy(&layer->buffer_queue))
 		return -EBUSY;
-	}
+
 	if (V4L2_BUF_TYPE_VIDEO_OUTPUT != fmt->type) {
 		v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev, "invalid type\n");
 		return -EINVAL;
@@ -937,11 +934,9 @@ static int vpbe_display_s_std(struct file *file, void *priv,
 
 	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev, "VIDIOC_S_STD\n");
 
-	/* If streaming is started, return error */
-	if (layer->started) {
-		v4l2_err(&vpbe_dev->v4l2_dev, "Streaming is started\n");
+	if (vb2_is_busy(&layer->buffer_queue))
 		return -EBUSY;
-	}
+
 	if (NULL != vpbe_dev->ops.s_std) {
 		ret = vpbe_dev->ops.s_std(vpbe_dev, std_id);
 		if (ret) {
@@ -1021,11 +1016,10 @@ static int vpbe_display_s_output(struct file *file, void *priv,
 	int ret;
 
 	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev,	"VIDIOC_S_OUTPUT\n");
-	/* If streaming is started, return error */
-	if (layer->started) {
-		v4l2_err(&vpbe_dev->v4l2_dev, "Streaming is started\n");
+
+	if (vb2_is_busy(&layer->buffer_queue))
 		return -EBUSY;
-	}
+
 	if (NULL == vpbe_dev->ops.set_output)
 		return -EINVAL;
 
@@ -1102,12 +1096,8 @@ vpbe_display_s_dv_timings(struct file *file, void *priv,
 
 	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev, "VIDIOC_S_DV_TIMINGS\n");
 
-
-	/* If streaming is started, return error */
-	if (layer->started) {
-		v4l2_err(&vpbe_dev->v4l2_dev, "Streaming is started\n");
+	if (vb2_is_busy(&layer->buffer_queue))
 		return -EBUSY;
-	}
 
 	/* Set the given standard in the encoder */
 	if (!vpbe_dev->ops.s_dv_timings)
@@ -1212,13 +1202,9 @@ static int vpbe_display_release(struct file *file)
 	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev, "vpbe_display_release\n");
 
 	mutex_lock(&layer->opslock);
-	/* Reset io_usrs member of layer object */
-	layer->io_usrs = 0;
 
 	osd_device->ops.disable_layer(osd_device,
 			layer->layer_info.id);
-	layer->started = 0;
-
 	/* Decrement layer usrs counter */
 	layer->usrs--;
 	/* If this file handle has initialize encoder device, reset it */
