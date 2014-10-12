@@ -1520,7 +1520,9 @@ static void sdhci_do_set_ios(struct sdhci_host *host, struct mmc_ios *ios)
 		sdhci_enable_preset_value(host, false);
 
 	if (!ios->clock || ios->clock != host->clock) {
+		spin_unlock_irqrestore(&host->lock, flags);
 		host->ops->set_clock(host, ios->clock);
+		spin_lock_irqsave(&host->lock, flags);
 		host->clock = ios->clock;
 
 		if (host->quirks & SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK &&
@@ -1595,7 +1597,9 @@ static void sdhci_do_set_ios(struct sdhci_host *host, struct mmc_ios *ios)
 			sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
 
 			/* Re-enable SD Clock */
+			spin_unlock_irqrestore(&host->lock, flags);
 			host->ops->set_clock(host, host->clock);
+			spin_lock_irqsave(&host->lock, flags);
 		}
 
 		/* Reset SD Clock Enable */
@@ -1621,7 +1625,9 @@ static void sdhci_do_set_ios(struct sdhci_host *host, struct mmc_ios *ios)
 		}
 
 		/* Re-enable SD Clock */
+		spin_unlock_irqrestore(&host->lock, flags);
 		host->ops->set_clock(host, host->clock);
+		spin_lock_irqsave(&host->lock, flags);
 	} else
 		sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
 
