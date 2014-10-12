@@ -131,17 +131,6 @@ struct vpbe_display {
 	struct osd_state *osd_device;
 };
 
-/* File handle structure */
-struct vpbe_fh {
-	struct v4l2_fh fh;
-	/* vpbe device structure */
-	struct vpbe_display *disp_dev;
-	/* pointer to layer object for opened device */
-	struct vpbe_layer *layer;
-	/* Indicates whether this file handle is doing IO */
-	unsigned char io_allowed;
-};
-
 struct buf_config_params {
 	unsigned char min_numbuffers;
 	unsigned char numbuffers[VPBE_DISPLAY_MAX_DEVICES];
