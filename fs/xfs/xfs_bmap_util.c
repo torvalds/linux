@@ -1368,14 +1368,14 @@ xfs_zero_file_space(
 
 	if (start_boundary < end_boundary - 1) {
 		/*
-		 * punch out delayed allocation blocks and the page cache over
-		 * the conversion range
+		 * Writeback the range to ensure any inode size updates due to
+		 * appending writes make it to disk (otherwise we could just
+		 * punch out the delalloc blocks).
 		 */
-		xfs_ilock(ip, XFS_ILOCK_EXCL);
-		error = xfs_bmap_punch_delalloc_range(ip,
-				XFS_B_TO_FSBT(mp, start_boundary),
-				XFS_B_TO_FSB(mp, end_boundary - start_boundary));
-		xfs_iunlock(ip, XFS_ILOCK_EXCL);
+		error = filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
+				start_boundary, end_boundary - 1);
+		if (error)
+			goto out;
 		truncate_pagecache_range(VFS_I(ip), start_boundary,
 					 end_boundary - 1);
 

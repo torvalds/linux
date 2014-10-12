@@ -968,8 +968,6 @@ xfs_set_diflags(
 		di_flags |= XFS_DIFLAG_NOATIME;
 	if (xflags & XFS_XFLAG_NODUMP)
 		di_flags |= XFS_DIFLAG_NODUMP;
-	if (xflags & XFS_XFLAG_PROJINHERIT)
-		di_flags |= XFS_DIFLAG_PROJINHERIT;
 	if (xflags & XFS_XFLAG_NODEFRAG)
 		di_flags |= XFS_DIFLAG_NODEFRAG;
 	if (xflags & XFS_XFLAG_FILESTREAM)
@@ -981,6 +979,8 @@ xfs_set_diflags(
 			di_flags |= XFS_DIFLAG_NOSYMLINKS;
 		if (xflags & XFS_XFLAG_EXTSZINHERIT)
 			di_flags |= XFS_DIFLAG_EXTSZINHERIT;
+		if (xflags & XFS_XFLAG_PROJINHERIT)
+			di_flags |= XFS_DIFLAG_PROJINHERIT;
 	} else if (S_ISREG(ip->i_d.di_mode)) {
 		if (xflags & XFS_XFLAG_REALTIME)
 			di_flags |= XFS_DIFLAG_REALTIME;
@@ -1231,11 +1231,23 @@ xfs_ioctl_setattr(
 
 	}
 
-	if (mask & FSX_EXTSIZE)
-		ip->i_d.di_extsize = fa->fsx_extsize >> mp->m_sb.sb_blocklog;
 	if (mask & FSX_XFLAGS) {
 		xfs_set_diflags(ip, fa->fsx_xflags);
 		xfs_diflags_to_linux(ip);
+	}
+
+	/*
+	 * Only set the extent size hint if we've already determined that the
+	 * extent size hint should be set on the inode. If no extent size flags
+	 * are set on the inode then unconditionally clear the extent size hint.
+	 */
+	if (mask & FSX_EXTSIZE) {
+		int	extsize = 0;
+
+		if (ip->i_d.di_flags &
+				(XFS_DIFLAG_EXTSIZE | XFS_DIFLAG_EXTSZINHERIT))
+			extsize = fa->fsx_extsize >> mp->m_sb.sb_blocklog;
+		ip->i_d.di_extsize = extsize;
 	}
 
 	xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_CHG);

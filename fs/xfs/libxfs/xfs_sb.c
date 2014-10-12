@@ -445,6 +445,8 @@ __xfs_sb_from_disk(
 	to->sb_features_incompat = be32_to_cpu(from->sb_features_incompat);
 	to->sb_features_log_incompat =
 				be32_to_cpu(from->sb_features_log_incompat);
+	/* crc is only used on disk, not in memory; just init to 0 here. */
+	to->sb_crc = 0;
 	to->sb_pad = 0;
 	to->sb_pquotino = be64_to_cpu(from->sb_pquotino);
 	to->sb_lsn = be64_to_cpu(from->sb_lsn);
@@ -549,6 +551,9 @@ xfs_sb_to_disk(
 	ASSERT(fields);
 	if (!fields)
 		return;
+
+	/* We should never write the crc here, it's updated in the IO path */
+	fields &= ~XFS_SB_CRC;
 
 	xfs_sb_quota_to_disk(to, from, &fields);
 	while (fields) {
