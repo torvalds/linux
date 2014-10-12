@@ -1260,6 +1260,7 @@ static const struct v4l2_ioctl_ops vpbe_ioctl_ops = {
 	.vidioc_dqbuf		 = vb2_ioctl_dqbuf,
 	.vidioc_streamon	 = vb2_ioctl_streamon,
 	.vidioc_streamoff	 = vb2_ioctl_streamoff,
+	.vidioc_expbuf		 = vb2_ioctl_expbuf,
 
 	.vidioc_cropcap		 = vpbe_display_cropcap,
 	.vidioc_g_crop		 = vpbe_display_g_crop,
