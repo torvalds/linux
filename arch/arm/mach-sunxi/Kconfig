@@ -45,6 +45,8 @@ config MACH_SUN8I
 config MACH_SUN9I
 	bool "Allwinner (sun9i) SoCs support"
 	default ARCH_SUNXI
+	select ARCH_HAS_RESET_CONTROLLER
 	select ARM_GIC
+	select RESET_CONTROLLER
 
 endif
