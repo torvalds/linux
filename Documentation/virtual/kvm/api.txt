@@ -68,9 +68,12 @@ description:
 
   Capability: which KVM extension provides this ioctl.  Can be 'basic',
       which means that is will be provided by any kernel that supports
-      API version 12 (see section 4.1), or a KVM_CAP_xyz constant, which
+      API version 12 (see section 4.1), a KVM_CAP_xyz constant, which
       means availability needs to be checked with KVM_CHECK_EXTENSION
-      (see section 4.4).
+      (see section 4.4), or 'none' which means that while not all kernels
+      support this ioctl, there's no capability bit to check its
+      availability: for kernels that don't support the ioctl,
+      the ioctl returns -ENOTTY.
 
   Architectures: which instruction set architectures provide this ioctl.
       x86 includes both i386 and x86_64.
@@ -1257,7 +1260,7 @@ The flags bitmap is defined as:
 
 4.48 KVM_ASSIGN_PCI_DEVICE
 
-Capability: KVM_CAP_DEVICE_ASSIGNMENT
+Capability: none
 Architectures: x86 ia64
 Type: vm ioctl
 Parameters: struct kvm_assigned_pci_dev (in)
@@ -1298,10 +1301,16 @@ Only PCI header type 0 devices with PCI BAR resources are supported by
 device assignment.  The user requesting this ioctl must have read/write
 access to the PCI sysfs resource files associated with the device.
 
+Errors:
+  ENOTTY: kernel does not support this ioctl
+
+  Other error conditions may be defined by individual device types or
+  have their standard meanings.
+
 
 4.49 KVM_DEASSIGN_PCI_DEVICE
 
-Capability: KVM_CAP_DEVICE_DEASSIGNMENT
+Capability: none
 Architectures: x86 ia64
 Type: vm ioctl
 Parameters: struct kvm_assigned_pci_dev (in)
@@ -1309,9 +1318,14 @@ Returns: 0 on success, -1 on error
 
 Ends PCI device assignment, releasing all associated resources.
 
-See KVM_CAP_DEVICE_ASSIGNMENT for the data structure. Only assigned_dev_id is
+See KVM_ASSIGN_PCI_DEVICE for the data structure. Only assigned_dev_id is
 used in kvm_assigned_pci_dev to identify the device.
 
+Errors:
+  ENOTTY: kernel does not support this ioctl
+
+  Other error conditions may be defined by individual device types or
+  have their standard meanings.
 
 4.50 KVM_ASSIGN_DEV_IRQ
 
@@ -1345,6 +1359,12 @@ The following flags are defined:
 
 It is not valid to specify multiple types per host or guest IRQ. However, the
 IRQ type of host and guest can differ or can even be null.
+
+Errors:
+  ENOTTY: kernel does not support this ioctl
+
+  Other error conditions may be defined by individual device types or
+  have their standard meanings.
 
 
 4.51 KVM_DEASSIGN_DEV_IRQ
@@ -1423,7 +1443,7 @@ struct kvm_irq_routing_s390_adapter {
 
 4.53 KVM_ASSIGN_SET_MSIX_NR
 
-Capability: KVM_CAP_DEVICE_MSIX
+Capability: none
 Architectures: x86 ia64
 Type: vm ioctl
 Parameters: struct kvm_assigned_msix_nr (in)
@@ -1445,7 +1465,7 @@ struct kvm_assigned_msix_nr {
 
 4.54 KVM_ASSIGN_SET_MSIX_ENTRY
 
-Capability: KVM_CAP_DEVICE_MSIX
+Capability: none
 Architectures: x86 ia64
 Type: vm ioctl
 Parameters: struct kvm_assigned_msix_entry (in)
@@ -1460,6 +1480,12 @@ struct kvm_assigned_msix_entry {
 	__u16 entry; /* The index of entry in the MSI-X table */
 	__u16 padding[3];
 };
+
+Errors:
+  ENOTTY: kernel does not support this ioctl
+
+  Other error conditions may be defined by individual device types or
+  have their standard meanings.
 
 
 4.55 KVM_SET_TSC_KHZ
