@@ -225,6 +225,12 @@ static int ath10k_download_and_run_otp(struct ath10k *ar)
 	u32 result, address = ar->hw_params.patch_load_addr;
 	int ret;
 
+	ret = ath10k_download_board_data(ar);
+	if (ret) {
+		ath10k_err(ar, "failed to download board data: %d\n", ret);
+		return ret;
+	}
+
 	/* OTP is optional */
 
 	if (!ar->otp_data || !ar->otp_len) {
@@ -589,26 +595,13 @@ success:
 	return 0;
 }
 
-static int ath10k_init_download_firmware(struct ath10k *ar,
-					 enum ath10k_firmware_mode mode)
+static int ath10k_download_cal_data(struct ath10k *ar)
 {
 	int ret;
-
-	ret = ath10k_download_board_data(ar);
-	if (ret) {
-		ath10k_err(ar, "failed to download board data: %d\n", ret);
-		return ret;
-	}
 
 	ret = ath10k_download_and_run_otp(ar);
 	if (ret) {
 		ath10k_err(ar, "failed to run otp: %d\n", ret);
-		return ret;
-	}
-
-	ret = ath10k_download_fw(ar, mode);
-	if (ret) {
-		ath10k_err(ar, "failed to download firmware: %d\n", ret);
 		return ret;
 	}
 
@@ -729,7 +722,11 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode)
 		goto err;
 	}
 
-	status = ath10k_init_download_firmware(ar, mode);
+	status = ath10k_download_cal_data(ar);
+	if (status)
+		goto err;
+
+	status = ath10k_download_fw(ar, mode);
 	if (status)
 		goto err;
 
