@@ -142,7 +142,6 @@ struct machdep_calls {
 #endif
 
 	void		(*restart)(char *cmd);
-	void		(*power_off)(void);
 	void		(*halt)(void);
 	void		(*panic)(char *str);
 	void		(*cpu_die)(void);
