@@ -59,6 +59,25 @@ static unsigned long soft_lockup_nmi_warn;
 static int hardlockup_panic =
 			CONFIG_BOOTPARAM_HARDLOCKUP_PANIC_VALUE;
 
+static bool hardlockup_detector_enabled = true;
+/*
+ * We may not want to enable hard lockup detection by default in all cases,
+ * for example when running the kernel as a guest on a hypervisor. In these
+ * cases this function can be called to disable hard lockup detection. This
+ * function should only be executed once by the boot processor before the
+ * kernel command line parameters are parsed, because otherwise it is not
+ * possible to override this in hardlockup_panic_setup().
+ */
+void watchdog_enable_hardlockup_detector(bool val)
+{
+	hardlockup_detector_enabled = val;
+}
+
+bool watchdog_hardlockup_detector_is_enabled(void)
+{
+	return hardlockup_detector_enabled;
+}
+
 static int __init hardlockup_panic_setup(char *str)
 {
 	if (!strncmp(str, "panic", 5))
@@ -67,6 +86,14 @@ static int __init hardlockup_panic_setup(char *str)
 		hardlockup_panic = 0;
 	else if (!strncmp(str, "0", 1))
 		watchdog_user_enabled = 0;
+	else if (!strncmp(str, "1", 1) || !strncmp(str, "2", 1)) {
+		/*
+		 * Setting 'nmi_watchdog=1' or 'nmi_watchdog=2' (legacy option)
+		 * has the same effect.
+		 */
+		watchdog_user_enabled = 1;
+		watchdog_enable_hardlockup_detector(true);
+	}
 	return 1;
 }
 __setup("nmi_watchdog=", hardlockup_panic_setup);
@@ -465,6 +492,15 @@ static int watchdog_nmi_enable(unsigned int cpu)
 	struct perf_event_attr *wd_attr;
 	struct perf_event *event = per_cpu(watchdog_ev, cpu);
 
+	/*
+	 * Some kernels need to default hard lockup detection to
+	 * 'disabled', for example a guest on a hypervisor.
+	 */
+	if (!watchdog_hardlockup_detector_is_enabled()) {
+		event = ERR_PTR(-ENOENT);
+		goto handle_err;
+	}
+
 	/* is it already setup and enabled? */
 	if (event && event->state > PERF_EVENT_STATE_OFF)
 		goto out;
@@ -479,6 +515,7 @@ static int watchdog_nmi_enable(unsigned int cpu)
 	/* Try to register using hardware perf events */
 	event = perf_event_create_kernel_counter(wd_attr, cpu, NULL, watchdog_overflow_callback, NULL);
 
+handle_err:
 	/* save cpu0 error for future comparision */
 	if (cpu == 0 && IS_ERR(event))
 		cpu0_err = PTR_ERR(event);
@@ -624,11 +661,13 @@ int proc_dowatchdog(struct ctl_table *table, int write,
 		    void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	int err, old_thresh, old_enabled;
+	bool old_hardlockup;
 	static DEFINE_MUTEX(watchdog_proc_mutex);
 
 	mutex_lock(&watchdog_proc_mutex);
 	old_thresh = ACCESS_ONCE(watchdog_thresh);
 	old_enabled = ACCESS_ONCE(watchdog_user_enabled);
+	old_hardlockup = watchdog_hardlockup_detector_is_enabled();
 
 	err = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 	if (err || !write)
@@ -640,15 +679,22 @@ int proc_dowatchdog(struct ctl_table *table, int write,
 	 * disabled. The 'watchdog_running' variable check in
 	 * watchdog_*_all_cpus() function takes care of this.
 	 */
-	if (watchdog_user_enabled && watchdog_thresh)
+	if (watchdog_user_enabled && watchdog_thresh) {
+		/*
+		 * Prevent a change in watchdog_thresh accidentally overriding
+		 * the enablement of the hardlockup detector.
+		 */
+		if (watchdog_user_enabled != old_enabled)
+			watchdog_enable_hardlockup_detector(true);
 		err = watchdog_enable_all_cpus(old_thresh != watchdog_thresh);
-	else
+	} else
 		watchdog_disable_all_cpus();
 
 	/* Restore old values on failure */
 	if (err) {
 		watchdog_thresh = old_thresh;
 		watchdog_user_enabled = old_enabled;
+		watchdog_enable_hardlockup_detector(old_hardlockup);
 	}
 out:
 	mutex_unlock(&watchdog_proc_mutex);
