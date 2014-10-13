@@ -20,7 +20,6 @@ struct inode *affs_iget(struct super_block *sb, unsigned long ino)
 {
 	struct affs_sb_info	*sbi = AFFS_SB(sb);
 	struct buffer_head	*bh;
-	struct affs_head	*head;
 	struct affs_tail	*tail;
 	struct inode		*inode;
 	u32			 block;
@@ -49,7 +48,6 @@ struct inode *affs_iget(struct super_block *sb, unsigned long ino)
 		goto bad_inode;
 	}
 
-	head = AFFS_HEAD(bh);
 	tail = AFFS_TAIL(sb, bh);
 	prot = be32_to_cpu(tail->protect);
 
