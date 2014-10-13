@@ -24,6 +24,7 @@ static struct ima_template_desc defined_templates[] = {
 	{.name = IMA_TEMPLATE_IMA_NAME, .fmt = IMA_TEMPLATE_IMA_FMT},
 	{.name = "ima-ng", .fmt = "d-ng|n-ng"},
 	{.name = "ima-sig", .fmt = "d-ng|n-ng|sig"},
+	{.name = "", .fmt = ""},	/* placeholder for a custom format */
 };
 
 static struct ima_template_field supported_fields[] = {
@@ -41,11 +42,17 @@ static struct ima_template_field supported_fields[] = {
 
 static struct ima_template_desc *ima_template;
 static struct ima_template_desc *lookup_template_desc(const char *name);
+static int template_desc_init_fields(const char *template_fmt,
+				     struct ima_template_field ***fields,
+				     int *num_fields);
 
 static int __init ima_template_setup(char *str)
 {
 	struct ima_template_desc *template_desc;
 	int template_len = strlen(str);
+
+	if (ima_template)
+		return 1;
 
 	/*
 	 * Verify that a template with the supplied name exists.
@@ -72,6 +79,25 @@ static int __init ima_template_setup(char *str)
 	return 1;
 }
 __setup("ima_template=", ima_template_setup);
+
+static int __init ima_template_fmt_setup(char *str)
+{
+	int num_templates = ARRAY_SIZE(defined_templates);
+
+	if (ima_template)
+		return 1;
+
+	if (template_desc_init_fields(str, NULL, NULL) < 0) {
+		pr_err("format string '%s' not valid, using template %s\n",
+		       str, CONFIG_IMA_DEFAULT_TEMPLATE);
+		return 1;
+	}
+
+	defined_templates[num_templates - 1].fmt = str;
+	ima_template = defined_templates + num_templates - 1;
+	return 1;
+}
+__setup("ima_template_fmt=", ima_template_fmt_setup);
 
 static struct ima_template_desc *lookup_template_desc(const char *name)
 {
@@ -146,12 +172,15 @@ static int template_desc_init_fields(const char *template_fmt,
 		}
 	}
 
-	*fields = kmalloc_array(i, sizeof(*fields), GFP_KERNEL);
-	if (*fields == NULL)
-		return -ENOMEM;
+	if (fields && num_fields) {
+		*fields = kmalloc_array(i, sizeof(*fields), GFP_KERNEL);
+		if (*fields == NULL)
+			return -ENOMEM;
 
-	memcpy(*fields, found_fields, i * sizeof(*fields));
-	*num_fields = i;
+		memcpy(*fields, found_fields, i * sizeof(*fields));
+		*num_fields = i;
+	}
+
 	return 0;
 }
 
