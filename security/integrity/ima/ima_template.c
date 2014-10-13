@@ -116,9 +116,9 @@ static int template_desc_init_fields(const char *template_fmt,
 				     struct ima_template_field ***fields,
 				     int *num_fields)
 {
-	char *c, *template_fmt_copy, *template_fmt_ptr;
+	const char *template_fmt_ptr;
 	int template_num_fields = template_fmt_size(template_fmt);
-	int i, result = 0;
+	int i, len, result = 0;
 
 	if (template_num_fields > IMA_TEMPLATE_NUM_FIELDS_MAX) {
 		pr_err("format string '%s' contains too many fields\n",
@@ -126,24 +126,29 @@ static int template_desc_init_fields(const char *template_fmt,
 		return -EINVAL;
 	}
 
-	/* copying is needed as strsep() modifies the original buffer */
-	template_fmt_copy = kstrdup(template_fmt, GFP_KERNEL);
-	if (template_fmt_copy == NULL)
-		return -ENOMEM;
-
 	*fields = kzalloc(template_num_fields * sizeof(*fields), GFP_KERNEL);
 	if (*fields == NULL) {
 		result = -ENOMEM;
 		goto out;
 	}
 
-	template_fmt_ptr = template_fmt_copy;
-	for (i = 0; (c = strsep(&template_fmt_ptr, "|")) != NULL &&
-	     i < template_num_fields; i++) {
-		struct ima_template_field *f = lookup_template_field(c);
+	for (i = 0, template_fmt_ptr = template_fmt; i < template_num_fields;
+	     i++, template_fmt_ptr += len + 1) {
+		char tmp_field_id[IMA_TEMPLATE_FIELD_ID_MAX_LEN + 1];
+		struct ima_template_field *f;
 
+		len = strchrnul(template_fmt_ptr, '|') - template_fmt_ptr;
+		if (len == 0 || len > IMA_TEMPLATE_FIELD_ID_MAX_LEN) {
+			pr_err("Invalid field with length %d\n", len);
+			result = -EINVAL;
+			goto out;
+		}
+
+		memcpy(tmp_field_id, template_fmt_ptr, len);
+		tmp_field_id[len] = '\0';
+		f = lookup_template_field(tmp_field_id);
 		if (!f) {
-			pr_err("field '%s' not found\n", c);
+			pr_err("field '%s' not found\n", tmp_field_id);
 			result = -ENOENT;
 			goto out;
 		}
@@ -155,7 +160,6 @@ out:
 		kfree(*fields);
 		*fields = NULL;
 	}
-	kfree(template_fmt_copy);
 	return result;
 }
 
