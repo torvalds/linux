@@ -63,6 +63,20 @@
 
 struct ath10k;
 
+enum ath10k_bus {
+	ATH10K_BUS_PCI,
+};
+
+static inline const char *ath10k_bus_str(enum ath10k_bus bus)
+{
+	switch (bus) {
+	case ATH10K_BUS_PCI:
+		return "pci";
+	}
+
+	return "unknown";
+}
+
 struct ath10k_skb_cb {
 	dma_addr_t paddr;
 	u8 vdev_id;
@@ -423,6 +437,7 @@ struct ath10k {
 	bool p2p;
 
 	struct {
+		enum ath10k_bus bus;
 		const struct ath10k_hif_ops *ops;
 	} hif;
 
@@ -577,6 +592,7 @@ struct ath10k {
 };
 
 struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
+				  enum ath10k_bus bus,
 				  const struct ath10k_hif_ops *hif_ops);
 void ath10k_core_destroy(struct ath10k *ar);
 

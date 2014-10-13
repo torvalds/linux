@@ -2435,6 +2435,7 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 	u32 chip_id;
 
 	ar = ath10k_core_create(sizeof(*ar_pci), &pdev->dev,
+				ATH10K_BUS_PCI,
 				&ath10k_pci_hif_ops);
 	if (!ar) {
 		dev_err(&pdev->dev, "failed to allocate core\n");

@@ -1084,6 +1084,7 @@ void ath10k_core_unregister(struct ath10k *ar)
 EXPORT_SYMBOL(ath10k_core_unregister);
 
 struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
+				  enum ath10k_bus bus,
 				  const struct ath10k_hif_ops *hif_ops)
 {
 	struct ath10k *ar;
@@ -1100,6 +1101,7 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 	ar->dev = dev;
 
 	ar->hif.ops = hif_ops;
+	ar->hif.bus = bus;
 
 	init_completion(&ar->scan.started);
 	init_completion(&ar->scan.completed);
