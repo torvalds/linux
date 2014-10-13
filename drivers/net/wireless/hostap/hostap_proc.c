@@ -168,7 +168,6 @@ static int prism2_bss_list_proc_show(struct seq_file *m, void *v)
 	local_info_t *local = m->private;
 	struct list_head *ptr = v;
 	struct hostap_bss_info *bss;
-	int i;
 
 	if (ptr == &local->bss_list) {
 		seq_printf(m, "#BSSID\tlast_update\tcount\tcapab_info\tSSID(txt)\t"
@@ -181,9 +180,7 @@ static int prism2_bss_list_proc_show(struct seq_file *m, void *v)
 		   bss->bssid, bss->last_update,
 		   bss->count, bss->capab_info);
 
-	for (i = 0; i < bss->ssid_len; i++)
-		seq_putc(m,bss->ssid[i] >= 32 && bss->ssid[i] < 127 ?
-			   bss->ssid[i] : '_');
+	seq_printf(m, "%*pE", (int)bss->ssid_len, bss->ssid);
 
 	seq_putc(m, '\t');
 	seq_printf(m, "%*phN", (int)bss->ssid_len, bss->ssid);
