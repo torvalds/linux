@@ -309,6 +309,10 @@ static int recv_pkt(struct sk_buff *skb, struct net_device *dev,
 	if (dev->type != ARPHRD_6LOWPAN)
 		goto drop;
 
+	skb = skb_share_check(skb, GFP_ATOMIC);
+	if (!skb)
+		goto drop;
+
 	/* check that it's our buffer */
 	if (skb->data[0] == LOWPAN_DISPATCH_IPV6) {
 		/* Copy the packet so that the IPv6 header is

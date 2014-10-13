@@ -174,30 +174,22 @@ static int uncompress_context_based_src_addr(struct sk_buff *skb,
 static int skb_deliver(struct sk_buff *skb, struct ipv6hdr *hdr,
 		       struct net_device *dev, skb_delivery_cb deliver_skb)
 {
-	struct sk_buff *new;
 	int stat;
 
-	new = skb_copy_expand(skb, sizeof(struct ipv6hdr), skb_tailroom(skb),
-			      GFP_ATOMIC);
-	kfree_skb(skb);
+	skb_push(skb, sizeof(struct ipv6hdr));
+	skb_reset_network_header(skb);
+	skb_copy_to_linear_data(skb, hdr, sizeof(struct ipv6hdr));
 
-	if (!new)
-		return -ENOMEM;
-
-	skb_push(new, sizeof(struct ipv6hdr));
-	skb_reset_network_header(new);
-	skb_copy_to_linear_data(new, hdr, sizeof(struct ipv6hdr));
-
-	new->protocol = htons(ETH_P_IPV6);
-	new->pkt_type = PACKET_HOST;
-	new->dev = dev;
+	skb->protocol = htons(ETH_P_IPV6);
+	skb->pkt_type = PACKET_HOST;
+	skb->dev = dev;
 
 	raw_dump_table(__func__, "raw skb data dump before receiving",
-		       new->data, new->len);
+		       skb->data, skb->len);
 
-	stat = deliver_skb(new, dev);
+	stat = deliver_skb(skb, dev);
 
-	kfree_skb(new);
+	consume_skb(skb);
 
 	return stat;
 }
@@ -460,7 +452,7 @@ int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
 	/* UDP data uncompression */
 	if (iphc0 & LOWPAN_IPHC_NH_C) {
 		struct udphdr uh;
-		struct sk_buff *new;
+		const int needed = sizeof(struct udphdr) + sizeof(hdr);
 
 		if (uncompress_udp_header(skb, &uh))
 			goto drop;
@@ -468,14 +460,11 @@ int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
 		/* replace the compressed UDP head by the uncompressed UDP
 		 * header
 		 */
-		new = skb_copy_expand(skb, sizeof(struct udphdr),
-				      skb_tailroom(skb), GFP_ATOMIC);
-		kfree_skb(skb);
-
-		if (!new)
-			return -ENOMEM;
-
-		skb = new;
+		err = skb_cow(skb, needed);
+		if (unlikely(err)) {
+			kfree_skb(skb);
+			return err;
+		}
 
 		skb_push(skb, sizeof(struct udphdr));
 		skb_reset_transport_header(skb);
@@ -485,6 +474,12 @@ int lowpan_process_data(struct sk_buff *skb, struct net_device *dev,
 			       (u8 *)&uh, sizeof(uh));
 
 		hdr.nexthdr = UIP_PROTO_UDP;
+	} else {
+		err = skb_cow(skb, sizeof(hdr));
+		if (unlikely(err)) {
+			kfree_skb(skb);
+			return err;
+		}
 	}
 
 	hdr.payload_len = htons(skb->len);
