@@ -61,6 +61,7 @@ enum iommu_cap {
 	IOMMU_CAP_CACHE_COHERENCY,	/* IOMMU can enforce cache coherent DMA
 					   transactions */
 	IOMMU_CAP_INTR_REMAP,		/* IOMMU supports interrupt isolation */
+	IOMMU_CAP_NOEXEC,		/* IOMMU_NOEXEC flag */
 };
 
 /*
