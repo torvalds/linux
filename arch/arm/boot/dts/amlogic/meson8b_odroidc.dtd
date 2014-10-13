@@ -627,26 +627,6 @@ void root_func(){
 
 /// ***************************************************************************************
 ///     -       I2C
-//$$ MODULE="I2C"
-//$$ DEVICE="I2C_AO"
-//$$ L2 PROP_STR = "status"
-//$$ L3 PROP_U32 2 ="reg"
-//$$ L3 PROP_STR = "pinctrl-names"
-//$$ L2 PROP_CHOICE "I2C_AO_pin_match" = "pinctrl-0"
-        i2c@c8100500{ /*I2C-AO*/
-                compatible = "amlogic,aml_i2c";
-                dev_name = "i2c-AO";
-                status = "ok";
-                reg = <0xc8100500 0x1d>;
-                #address-cells = <1>;
-                #size-cells = <0>;
-                device_id = <0>;
-                pinctrl-names="default";
-                pinctrl-0=<&ao_i2c_master>;
-                use_pio = <0>;
-                master_i2c_speed = <100000>;
-        };
-
 //$$ DEVICE = "I2C_A"
 //$$ L2 PROP_STR = "status"
 //$$ L3 PROP_U32 2 ="reg"
@@ -931,157 +911,6 @@ void root_func(){
                 };
         };
 
-
-
-
-/// ***************************************************************************************
-/// -   Audio
-//$$ MODULE="Audio"
-//$$ DEVICE="audio_i2s"
-//$$ L2 PROP_STR = "status"
-    audio_platform{
-        compatible = "amlogic,aml-i2s";
-        dev_name = "aml-i2s.0";
-        status = "okay";
-    };
-
-//$$ DEVICE="audio_i2s_dai"
-//$$ L2 PROP_STR = "status"
-    audio_dai{
-        compatible = "amlogic,aml-i2s-dai";
-        dev_name = "aml-i2s-dai.0";
-        status = "okay";
-    };
-    audio_spdif_dai{
-        compatible = "amlogic,aml-spdif-dai";
-        dev_name = "aml-spdif-dai.0";
-        status = "okay";
-    };
-
-    audio_spdif_codec{
-        compatible = "amlogic,aml-spdif-codec";
-        dev_name = "spdif-dit.0";
-        pinctrl-names = "aml_audio_spdif";
-        pinctrl-0 = <&audio_spdif_pins>;
-        status = "okay";
-    };
-
-//$$ DEVICE="audio_pcm2BT_codec"
-//$$ L2 PROP_STR = "status"
-    audio_pcm2BT_codec{
-        compatible = "amlogic,pcm2BT-codec";
-        dev_name = "pcm2bt.0";
-        status = "okay";
-    };
-
-//$$ DEVICE="audio_pcm_dai"
-//$$ L2 PROP_STR = "status"
-    audio_pcm_dai{
-        compatible = "amlogic,aml-pcm-dai";
-        dev_name = "aml-pcm-dai.0";
-        status = "okay";
-    };
-
-//$$ DEVICE="audio_pcm"
-//$$ L2 PROP_STR = "status"
-    audio_pcm{
-        compatible = "amlogic,aml-pcm";
-        dev_name = "aml-pcm.0";
-        status = "okay";
-    };
-
-//$$ DEVICE="audio_m8_audio"
-//$$ L2 PROP_STR = "status"
-    audio_m8_audio{
-        compatible = "amlogic,m8_audio_codec";
-        dev_name = "aml_m8_codec.0";
-        status = "disable";
-    };
-    audio_pmu3_audio{
-        compatible = "amlogic,aml_pmu3_codec";
-        dev_name = "aml_pmu3_codec.0";
-        status = "okay";
-    };
-
-    aml_audio_codec{
-        compatible = "amlogic,audio_codec";
-        rt5616:rt5616{
-            codec_name = "rt5616";
-            i2c_addr = <0x1B>;
-            i2c_bus = "i2c_bus_d";
-            id_reg = <0x00>;
-            id_val = <0x21>;
-            capless = <0>;
-            status = "disable";
-        };
-        rt5631:rt5631{
-            codec_name = "rt5631";
-            i2c_addr = <0x1A>;
-            i2c_bus = "i2c_bus_b";
-            id_reg = <0x00>;
-            id_val = <0x01>;
-            capless = <0>;
-            status = "disable";
-        };
-        wm8960:wm8960{
-            codec_name = "wm8960";
-            i2c_addr = <0x1A>;
-            i2c_bus = "i2c_bus_b";
-            capless = <1>;
-            status = "disable";
-        };
-        pmu3:pmu3{
-                codec_name = "amlpmu3";
-                        status = "okay";
-        };
-    };
-
-//$$ DEVICE="aml_m8_sound_card"
-//$$ L2 PROP_STR = "aml,sound_card"
-//$$ L2 PROP_STR = "aml,codec_dai"
-//$$ L2 PROP_STR 6*2 = "aml,audio-routing"
-//$$ L2 PROP_STR = "mute_gpio"
-//$$ L2 PROP_U32 5 = "hp_paraments"
-//$$ L2 PROP_STR = "pinctrl-names"
-//$$ L2 PROP_CHOICE "Audio_pin_0_match" = "pinctrl-0"
-//$$ L2 PROP_STR = "status"
-    aml_m8_sound_card{
-        compatible = "sound_card, aml_snd_m8";
-        aml,sound_card = "AML-M8AUDIO";
-        aml,codec_dai = "AML-M8","rt5616-aif1","rt5631-hifi","wm8960-hifi","pmu3-hifi";
-        //aml,codec_name = "aml_m8_codec.0","rt5616.4-001b";
-        //aml,audio-codec = <&rt5616>;
-        aml,audio-routing-rt5616 =
-            "Ext Spk","LOUTL",
-            "Ext Spk","LOUTR",
-            "HP","HPOL",
-            "HP","HPOR",
-            "micbias1","MAIN MIC",
-            "IN2P","micbias1";
-        aml,audio-routing-amlm8 =
-            "Ext Spk","LINEOUTL",
-            "Ext Spk","LINEOUTR",
-            "HP","HP_L",
-            "HP","HP_R",
-            "MICBIAS","MAIN MIC",
-            "LINPUT1","MICBIAS";
-        aml,audio-routing-amlpmu3 =
-            "Ext Spk","LINEOUTL1",
-            "Ext Spk","LINEOUTR1",
-            "HP","HP_L",
-            "HP","HP_R",
-            "Mic Bias1","MAIN MIC",
-            "LINEINLP","Mic Bias1";
-        sleep_time = <130>;
-        mute_gpio = "GPIO_BSD_EN";
-        //mute_inv;
-        hp_paraments = <800 300 0 5 1>;
-        pinctrl-names = "aml_snd_m8";
-        pinctrl-0 = <&audio_pins>;
-        status = "okay";
-
-    };
-
 /// ***************************************************************************************
 ///     -       Input
 //$$ MODULE="Input"
@@ -1189,39 +1018,6 @@ void root_func(){
                 };
         };
 
-/// ***************************************************************************************
-///     -       Nand
-//$$ MODULE="Nand"
-//$$ DEVICE="aml_nand"
-//$$ L2 PROP_STR = "status"
-//$$ L3 PROP_U32 2 ="reg"
-//$$ L2 PROP_STR 2 = "pinctrl-names"
-//$$ L2 PROP_CHOICE 3 "Nand_pin_0_match" = "pinctrl-0"
-//$$ L2 PROP_CHOICE 3 "Nand_pin_1_match" = "pinctrl-1"
-//$$ L3 PROP_STR ="plat-names"
-//$$ L2 PROP_U32 = "plat-num"
-//$$ L2 PROP_CHOICE "plat-part-0_match" = "plat-part-0"
-        nand{
-                compatible = "amlogic,aml_nand";
-                dev_name = "nand";
-                status = "ok";
-                reg = <0xd0048600 0x24>;
-                pinctrl-names = "nand_rb_mod","nand_norb_mod";
-                pinctrl-0 = <&nand_input_state &conf_nand_state &nand_base>;
-                pinctrl-1 = <&nand_input_state &conf_nand_state &nand_base>;
-                device_id = <0>;
-                plat-names = "nandnormal";
-                plat-num = <1>;
-                plat-part-0 = <&normal>;
-
-//$$ MATCH "plat-part-0_match" = <&normal>
-//$$ L2 PROP_STR 4 = "enable_pad"
-//$$ L2 PROP_STR = "busy_pad"
-                normal: normal{
-                        enable_pad ="ce0","ce1","ce2","ce3";
-                        busy_pad = "rb0";
-                };
-        };
 
 /// ***************************************************************************************
 ///     -       Efuse
@@ -1847,16 +1643,6 @@ void root_func(){
                         amlogic,pins="GPIOAO_7";
                 };
 
-//$$ MATCH "Audio_pin_0_match" = "&audio_pins"
-//$$ L2 PROP_U32 4 = "amlogic,setmask"
-//$$ L2 PROP_U32 10 = "amlogic,clrmask"
-//$$ L2 PROP_STR 6 = "amlogic,pins"
-        audio_pins:audio_pin{
-            amlogic,setmask=<10 0x78000000//>;
-                              1 0x2000>;   /*I2s_in*/
-            amlogic,clrmask=<10 0x18000>;
-            amlogic,pins = "GPIOAO_8","GPIOAO_9","GPIOAO_10","GPIOAO_11","GPIOAO_6";
-        };
 //$$ MATCH "Audio_pin_0_match" = "&audio_spdif_pins"
 //$$ L2 PROP_U32 2 = "amlogic,setmask"
 //$$ L2 PROP_U32 2 = "amlogic,clrmask"
