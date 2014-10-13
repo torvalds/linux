@@ -1802,7 +1802,8 @@ struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *set)
 		if (!hctxs[i])
 			goto err_hctxs;
 
-		if (!zalloc_cpumask_var(&hctxs[i]->cpumask, GFP_KERNEL))
+		if (!zalloc_cpumask_var_node(&hctxs[i]->cpumask, GFP_KERNEL,
+						node))
 			goto err_hctxs;
 
 		atomic_set(&hctxs[i]->nr_active, 0);
