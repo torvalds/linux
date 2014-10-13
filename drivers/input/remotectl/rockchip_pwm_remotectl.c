@@ -207,7 +207,12 @@ static void rk_pwm_remotectl_do_something(unsigned long  data)
 				ddata->scandata = 0;
 				ddata->count = 0;
 			} else {
-				ddata->state = RMC_PRELOAD;
+				if (rk_remote_print_code){
+					ddata->state = RMC_GETDATA;
+					ddata->scandata = 0;
+					ddata->count = 0;
+				} else
+					ddata->state = RMC_PRELOAD;
 			}
 		}
 	}
@@ -564,8 +569,8 @@ static int remotectl_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops remotectl_pm_ops = {
-	.suspend = remotectl_suspend,
-	.resume	= remotectl_resume,
+	.suspend_late = remotectl_suspend,
+	.resume_early = remotectl_resume,
 };
 #endif
 
