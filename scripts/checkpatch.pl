@@ -4066,11 +4066,16 @@ sub process {
 			my $cnt = $realcnt;
 			my ($off, $dstat, $dcond, $rest);
 			my $ctx = '';
+			my $has_flow_statement = 0;
+			my $has_arg_concat = 0;
 			($dstat, $dcond, $ln, $cnt, $off) =
 				ctx_statement_block($linenr, $realcnt, 0);
 			$ctx = $dstat;
 			#print "dstat<$dstat> dcond<$dcond> cnt<$cnt> off<$off>\n";
 			#print "LINE<$lines[$ln-1]> len<" . length($lines[$ln-1]) . "\n";
+
+			$has_flow_statement = 1 if ($ctx =~ /\b(goto|return)\b/);
+			$has_arg_concat = 1 if ($ctx =~ /\#\#/);
 
 			$dstat =~ s/^.\s*\#\s*define\s+$Ident(?:\([^\)]*\))?\s*//;
 			$dstat =~ s/$;//g;
@@ -4134,6 +4139,19 @@ sub process {
 					ERROR("COMPLEX_MACRO",
 					      "Macros with complex values should be enclosed in parentheses\n" . "$herectx");
 				}
+			}
+
+# check for macros with flow control, but without ## concatenation
+# ## concatenation is commonly a macro that defines a function so ignore those
+			if ($has_flow_statement && !$has_arg_concat) {
+				my $herectx = $here . "\n";
+				my $cnt = statement_rawlines($ctx);
+
+				for (my $n = 0; $n < $cnt; $n++) {
+					$herectx .= raw_line($linenr, $n) . "\n";
+				}
+				WARN("MACRO_WITH_FLOW_CONTROL",
+				     "Macros with flow control statements should be avoided\n" . "$herectx");
 			}
 
 # check for line continuations outside of #defines, preprocessor #, and asm
