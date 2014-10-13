@@ -3462,6 +3462,12 @@ static int em_bswap(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_clflush(struct x86_emulate_ctxt *ctxt)
+{
+	/* emulating clflush regardless of cpuid */
+	return X86EMUL_CONTINUE;
+}
+
 static bool valid_cr(int nr)
 {
 	switch (nr) {
@@ -3800,6 +3806,16 @@ static const struct opcode group11[] = {
 	X7(D(Undefined)),
 };
 
+static const struct gprefix pfx_0f_ae_7 = {
+	I(0, em_clflush), N, N, N,
+};
+
+static const struct group_dual group15 = { {
+	N, N, N, N, N, N, N, GP(0, &pfx_0f_ae_7),
+}, {
+	N, N, N, N, N, N, N, N,
+} };
+
 static const struct gprefix pfx_0f_6f_0f_7f = {
 	I(Mmx, em_mov), I(Sse | Aligned, em_mov), N, I(Sse | Unaligned, em_mov),
 };
@@ -4063,7 +4079,7 @@ static const struct opcode twobyte_table[256] = {
 	F(DstMem | SrcReg | ModRM | BitOp | Lock | PageTable, em_bts),
 	F(DstMem | SrcReg | Src2ImmByte | ModRM, em_shrd),
 	F(DstMem | SrcReg | Src2CL | ModRM, em_shrd),
-	D(ModRM), F(DstReg | SrcMem | ModRM, em_imul),
+	GD(0, &group15), F(DstReg | SrcMem | ModRM, em_imul),
 	/* 0xB0 - 0xB7 */
 	I2bv(DstMem | SrcReg | ModRM | Lock | PageTable, em_cmpxchg),
 	I(DstReg | SrcMemFAddr | ModRM | Src2SS, em_lseg),
@@ -4992,8 +5008,6 @@ twobyte_insn:
 		break;
 	case 0x90 ... 0x9f:     /* setcc r/m8 */
 		ctxt->dst.val = test_cc(ctxt->b, ctxt->eflags);
-		break;
-	case 0xae:              /* clflush */
 		break;
 	case 0xb6 ... 0xb7:	/* movzx */
 		ctxt->dst.bytes = ctxt->op_bytes;
