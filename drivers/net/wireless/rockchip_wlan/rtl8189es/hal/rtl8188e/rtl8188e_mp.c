@@ -403,12 +403,12 @@ void Hal_SetCCKTxPower(PADAPTER pAdapter, u8 *TxPower)
 	// rf-A cck tx power
 	write_bbreg(pAdapter, rTxAGC_A_CCK1_Mcs32, bMaskByte1, TxPower[RF_PATH_A]);
 	tmpval = (TxPower[RF_PATH_A]<<16) | (TxPower[RF_PATH_A]<<8) | TxPower[RF_PATH_A];
-	write_bbreg(pAdapter, rTxAGC_B_CCK11_A_CCK2_11, 0xffffff00, tmpval);
+	write_bbreg(pAdapter, rTxAGC_B_CCK11_A_CCK2_11, bMaskH3Bytes, tmpval);
 
 	// rf-B cck tx power
 	write_bbreg(pAdapter, rTxAGC_B_CCK11_A_CCK2_11, bMaskByte0, TxPower[RF_PATH_B]);
 	tmpval = (TxPower[RF_PATH_B]<<16) | (TxPower[RF_PATH_B]<<8) | TxPower[RF_PATH_B];
-	write_bbreg(pAdapter, rTxAGC_B_CCK1_55_Mcs32, 0xffffff00, tmpval);
+	write_bbreg(pAdapter, rTxAGC_B_CCK1_55_Mcs32, bMaskH3Bytes, tmpval);
 
 	RT_TRACE(_module_mp_, _drv_notice_,
 		 ("-SetCCKTxPower: A[0x%02x] B[0x%02x]\n",
@@ -760,7 +760,7 @@ s32 Hal_SetThermalMeter(PADAPTER pAdapter, u8 target_ther)
 void Hal_TriggerRFThermalMeter(PADAPTER pAdapter)
 {
   
-	_write_rfreg( pAdapter, RF_PATH_A , RF_T_METER_88E , BIT17 |BIT16 , 0x03 );
+	PHY_SetRFReg(pAdapter, ODM_RF_PATH_A, RF_T_METER_88E, bRFRegOffsetMask, 0x60);
 
 //	RT_TRACE(_module_mp_,_drv_alert_, ("TriggerRFThermalMeter() finished.\n" ));
 }

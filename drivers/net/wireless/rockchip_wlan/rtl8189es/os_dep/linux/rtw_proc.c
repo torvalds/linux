@@ -19,6 +19,7 @@
  ******************************************************************************/
 
 #include <drv_types.h>
+#include <hal_data.h>
 #include "rtw_proc.h"
 
 #ifdef CONFIG_PROC_DEBUG
@@ -69,9 +70,9 @@ inline struct proc_dir_entry *rtw_proc_create_entry(const char *name, struct pro
 	struct proc_dir_entry *entry;
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26))
-	entry = proc_create_data(name,  S_IFREG|S_IRUGO, parent, fops, data);
+	entry = proc_create_data(name,  S_IFREG|S_IRUGO|S_IWUGO, parent, fops, data);
 #else
-	entry = create_proc_entry(name, S_IFREG|S_IRUGO, parent);
+	entry = create_proc_entry(name, S_IFREG|S_IRUGO|S_IWUGO, parent);
 	if (entry) {
 		entry->data = data;
 		entry->proc_fops = fops;
@@ -261,14 +262,93 @@ static int proc_get_rf_reg_dump(struct seq_file *m, void *v)
 
 	return 0;
 }
+
+
+//gpio setting
+#ifdef CONFIG_GPIO_API
+static ssize_t proc_set_config_gpio(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	char tmp[32]={0}; 
+	int num=0,gpio_pin=0,gpio_mode=0;//gpio_mode:0 input  1:output;
+	
+	if (count < 2)
+		return -EFAULT;
+	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) 
+	{
+		num	=sscanf(tmp, "%d %d",&gpio_pin,&gpio_mode);
+		DBG_871X("num=%d gpio_pin=%d mode=%d\n",num,gpio_pin,gpio_mode);
+      		padapter->pre_gpio_pin=gpio_pin;
+
+		if(gpio_mode==0 || gpio_mode==1  )
+			rtw_hal_config_gpio(padapter, gpio_pin,gpio_mode);	
+	}
+	return count;
+
+}
+static ssize_t proc_set_gpio_output_value(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	char tmp[32]={0}; 
+	int num=0,gpio_pin=0,pin_mode=0;//pin_mode: 1 high         0:low
+	
+	if (count < 2)
+		return -EFAULT;
+	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) 
+	{
+		num	=sscanf(tmp, "%d %d",&gpio_pin,&pin_mode);
+		DBG_871X("num=%d gpio_pin=%d pin_high=%d\n",num,gpio_pin,pin_mode);
+		padapter->pre_gpio_pin=gpio_pin;
+		
+		if(pin_mode==0 || pin_mode==1  )
+			rtw_hal_set_gpio_output_value(padapter, gpio_pin,pin_mode);	
+	}
+	return count;
+}
+static int proc_get_gpio(struct seq_file *m, void *v)
+{
+	u8 gpioreturnvalue=0;
+	struct net_device *dev = m->private;
+	
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	if(!padapter)	
+		return -EFAULT;
+	gpioreturnvalue = rtw_hal_get_gpio(padapter, padapter->pre_gpio_pin);
+	DBG_871X_SEL_NL(m, "get_gpio %d:%d \n",padapter->pre_gpio_pin ,gpioreturnvalue);
+	
+	return 0;
+
+}
+static ssize_t proc_set_gpio(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	char tmp[32]={0}; 
+	int num=0,gpio_pin=0;
+	
+	if (count < 1)
+		return -EFAULT;
+	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) 
+	{
+		num	=sscanf(tmp, "%d",&gpio_pin);
+		DBG_871X("num=%d gpio_pin=%d\n",num,gpio_pin);
+		padapter->pre_gpio_pin=gpio_pin;
+		
+	}
+		return count;
+}
+#endif
+
+
 static int proc_get_linked_info_dump(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
-	
-	if(padapter)
+	if(padapter)	
 		DBG_871X_SEL_NL(m, "linked_info_dump :%s \n", (padapter->bLinkInfoDump)?"enable":"disable");
-
+	
 	return 0;
 }
 
@@ -276,28 +356,40 @@ static ssize_t proc_set_linked_info_dump(struct file *file, const char __user *b
 {
 	struct net_device *dev = data;
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
-	
-	char tmp[2];
-	int mode=0;
+
+	char tmp[32]={0}; 
+	int mode=0,pre_mode=0;
+	int num=0;	
 
 	if (count < 1)
 		return -EFAULT;
 
-	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) {		
+	pre_mode=padapter->bLinkInfoDump;
+	DBG_871X("pre_mode=%d \n",pre_mode);
 
-		int num = sscanf(tmp, "%d ", &mode);
+	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) 
+	{
+		num	=sscanf(tmp, "%d ", &mode);
+		DBG_871X("num=%d mode=%d\n",num,mode);
 
-		if( padapter )
+		if(num!=1)
 		{
-			//padapter->bLinkInfoDump = mode;
-			//DBG_871X("linked_info_dump =%s \n", (padapter->bLinkInfoDump)?"enable":"disable");
-			 linked_info_dump(padapter,mode);		
+			DBG_871X("argument number is wrong\n");
+				return -EFAULT;
 		}
-
+	
+		if(mode==1 || (mode==0 && pre_mode==1) ) //not consider pwr_saving 0:
+		{
+			padapter->bLinkInfoDump = mode;	
+		
+		}
+		else if( (mode==2 ) || (mode==0 && pre_mode==2))//consider power_saving
+		{		
+			//DBG_871X("linked_info_dump =%s \n", (padapter->bLinkInfoDump)?"enable":"disable")
+			linked_info_dump(padapter,mode);	
+		}
 	}
-	
 	return count;
-	
 }
 
 int proc_get_rx_info(struct seq_file *m, void *v)
@@ -317,6 +409,167 @@ int proc_get_rx_info(struct seq_file *m, void *v)
 	DBG_871X_SEL_NL(m,"AMPDU BA window shift Count: %llu\n",(unsigned long long)pdbgpriv->dbg_rx_ampdu_window_shift_cnt);
 	return 0;
 }	
+
+static int proc_get_mac_qinfo(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *adapter = (_adapter *)rtw_netdev_priv(dev);
+
+	rtw_hal_get_hwreg(adapter, HW_VAR_DUMP_MAC_QUEUE_INFO, (u8 *)m);
+
+	return 0;
+}
+
+ssize_t proc_reset_rx_info(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct dvobj_priv *psdpriv = padapter->dvobj;
+	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
+	char cmd[32];
+	if (buffer && !copy_from_user(cmd, buffer, sizeof(cmd))) {
+		if('0' == cmd[0]){
+			pdbgpriv->dbg_rx_ampdu_drop_count = 0;
+			pdbgpriv->dbg_rx_ampdu_forced_indicate_count = 0;
+			pdbgpriv->dbg_rx_ampdu_loss_count = 0;
+			pdbgpriv->dbg_rx_dup_mgt_frame_drop_count = 0;
+			pdbgpriv->dbg_rx_ampdu_window_shift_cnt = 0;
+		}
+	}
+
+	return count;
+}
+
+int proc_get_wifi_spec(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct registry_priv	*pregpriv = &padapter->registrypriv;
+	
+	DBG_871X_SEL_NL(m,"wifi_spec=%d\n",pregpriv->wifi_spec);
+	return 0;
+}
+
+static int proc_get_chan_plan(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+
+	DBG_871X_SEL_NL(m,"Channel plan=0x%02x\n",padapter->mlmepriv.ChannelPlan);	
+	return 0;
+}
+static ssize_t proc_set_chan_plan(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct SetChannelPlan_param setChannelPlan_param;
+	
+	char tmp[32];
+	u8 chan_plan = RT_CHANNEL_DOMAIN_REALTEK_DEFINE;
+	
+	if (!padapter)
+		return -EFAULT;
+
+	if (count < 1)
+	{
+		DBG_871X("argument size is less than 1\n");
+		return -EFAULT;
+	}	
+
+	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) {		
+
+		int num = sscanf(tmp, "%hhx", &chan_plan);
+
+		if (num !=  1) {
+			DBG_871X("invalid read_reg parameter!\n");
+			return count;
+		}
+
+	}
+	setChannelPlan_param.channel_plan = chan_plan;
+	if( H2C_SUCCESS != set_chplan_hdl(padapter, (unsigned char *)&setChannelPlan_param) )
+		return -EFAULT;
+		
+	return count;
+
+}
+
+static int proc_get_udpport(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct recv_priv *precvpriv = &(padapter->recvpriv);
+
+	DBG_871X_SEL_NL(m,"%d\n",precvpriv->sink_udpport);	
+	return 0;
+}
+static ssize_t proc_set_udpport(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	struct recv_priv *precvpriv = &(padapter->recvpriv);
+	int sink_udpport = 0;	
+	char tmp[32];
+	
+	
+	if (!padapter)
+		return -EFAULT;
+
+	if (count < 1)
+	{
+		DBG_871X("argument size is less than 1\n");
+		return -EFAULT;
+	}	
+
+	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) {		
+
+		int num = sscanf(tmp, "%d", &sink_udpport);
+
+		if (num !=  1) {
+			DBG_871X("invalid input parameter number!\n");
+			return count;
+		}
+
+	}
+	precvpriv->sink_udpport = sink_udpport;
+	
+	return count;
+
+}
+
+static int proc_get_macid_info(struct seq_file *m, void *v)
+{
+	struct net_device *dev = m->private;
+	_adapter *adapter = (_adapter *)rtw_netdev_priv(dev);
+	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
+	struct macid_ctl_t *macid_ctl = dvobj_to_macidctl(dvobj);
+	u8 i;
+
+	DBG_871X_SEL_NL(m, "max_num:%u\n", macid_ctl->num);
+	DBG_871X_SEL_NL(m, "\n");
+
+	DBG_871X_SEL_NL(m, "used:\n");
+	dump_macid_map(m, &macid_ctl->used, macid_ctl->num);
+	DBG_871X_SEL_NL(m, "\n");
+
+	DBG_871X_SEL_NL(m, "%-3s %-3s %-4s %-4s"
+		"\n"
+		, "id", "bmc", "if_g", "ch_g"
+	);
+
+	for (i=0;i<macid_ctl->num;i++) {
+		if (rtw_macid_is_used(macid_ctl, i))
+			DBG_871X_SEL_NL(m, "%3u %3u %4d %4d"
+				"\n"
+				, i
+				, rtw_macid_is_bmc(macid_ctl, i)
+				, rtw_macid_get_if_g(macid_ctl, i)
+				, rtw_macid_get_ch_g(macid_ctl, i)
+			);
+	}
+
+	return 0;
+}
 
 static int proc_get_cam(struct seq_file *m, void *v)
 {
@@ -397,6 +650,38 @@ static int proc_get_cam_cache(struct seq_file *m, void *v)
 	return 0;
 }
 
+#ifdef CONFIG_BT_COEXIST
+ssize_t proc_set_btinfo_evt(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
+{
+	struct net_device *dev = data;
+	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
+	char tmp[32];
+	u8 btinfo[8];
+
+	if (count < 6)
+		return -EFAULT;
+
+	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) {		
+		int num = 0;
+
+		_rtw_memset(btinfo, 0, 8);
+		
+		num = sscanf(tmp, "%hhx %hhx %hhx %hhx %hhx %hhx %hhx %hhx"
+			, &btinfo[0], &btinfo[1], &btinfo[2], &btinfo[3]
+			, &btinfo[4], &btinfo[5], &btinfo[6], &btinfo[7]);
+
+		if (num < 6)
+			return -EINVAL;
+
+		btinfo[1] = num-2;
+
+		rtw_btinfo_cmd(padapter, btinfo, btinfo[1]+2);
+	}
+	
+	return count;
+}
+#endif
+
 /*
 * rtw_adapter_proc:
 * init/deinit when register/unregister net_device
@@ -415,11 +700,14 @@ const struct rtw_proc_hdl adapter_proc_hdls [] = {
 	{"adapter_state", proc_get_adapter_state, NULL},
 	{"trx_info", proc_get_trx_info, NULL},
 	{"rate_ctl", proc_get_rate_ctl, proc_set_rate_ctl},
+	{"dis_pwt_ctl", proc_get_dis_pwt, proc_set_dis_pwt},
+	{"mac_qinfo", proc_get_mac_qinfo, NULL},
+	{"macid_info", proc_get_macid_info, NULL},
 	{"cam", proc_get_cam, proc_set_cam},
 	{"cam_cache", proc_get_cam_cache, NULL},
 	{"suspend_info", proc_get_suspend_resume_info, NULL},
-	{"rx_info", proc_get_rx_info,NULL},
-
+	{"rx_info", proc_get_rx_info, proc_reset_rx_info},
+	{"wifi_spec",proc_get_wifi_spec,NULL},
 #ifdef CONFIG_LAYER2_ROAMING
 	{"roam_flags", proc_get_roam_flags, proc_set_roam_flags},
 	{"roam_param", proc_get_roam_param, proc_set_roam_param},
@@ -458,22 +746,49 @@ const struct rtw_proc_hdl adapter_proc_hdls [] = {
 	{"ampdu_enable", proc_get_ampdu_enable, proc_set_ampdu_enable},
 	{"rx_stbc", proc_get_rx_stbc, proc_set_rx_stbc},
 	{"rx_ampdu", proc_get_rx_ampdu, proc_set_rx_ampdu},
+	{"rx_ampdu_factor",proc_get_rx_ampdu_factor,proc_set_rx_ampdu_factor},
+	{"rx_ampdu_density",proc_get_rx_ampdu_density,proc_set_rx_ampdu_density},
+	{"tx_ampdu_density",proc_get_tx_ampdu_density,proc_set_tx_ampdu_density},	 
 #endif /* CONFIG_80211N_HT */
 
 	{"en_fwps", proc_get_en_fwps, proc_set_en_fwps},
 
 	//{"path_rssi", proc_get_two_path_rssi, NULL},
-	{"rssi_disp",proc_get_rssi_disp, proc_set_rssi_disp},
+//	{"rssi_disp",proc_get_rssi_disp, proc_set_rssi_disp},
 
 #ifdef CONFIG_BT_COEXIST
 	{"btcoex_dbg", proc_get_btcoex_dbg, proc_set_btcoex_dbg},
 	{"btcoex", proc_get_btcoex_info, NULL},
+	{"btinfo_evt", proc_get_dummy, proc_set_btinfo_evt},
 #endif /* CONFIG_BT_COEXIST */
 
 #if defined(DBG_CONFIG_ERROR_DETECT)
 	{"sreset", proc_get_sreset, proc_set_sreset},
 #endif /* DBG_CONFIG_ERROR_DETECT */
 	{"linked_info_dump",proc_get_linked_info_dump,proc_set_linked_info_dump},
+
+#ifdef CONFIG_GPIO_API
+	{"get_gpio",proc_get_gpio,proc_set_gpio},
+	{"set_gpio_output_value",proc_get_dummy,proc_set_gpio_output_value},
+	{"config_gpio",proc_get_dummy,proc_set_config_gpio},
+#endif
+
+#ifdef CONFIG_DBG_COUNTER
+	{"rx_logs", proc_get_rx_logs, NULL},
+	{"tx_logs", proc_get_tx_logs, NULL},
+	{"int_logs", proc_get_int_logs, NULL},
+#endif
+
+#ifdef CONFIG_PCI_HCI
+	{"rx_ring", proc_get_rx_ring, NULL},
+	{"tx_ring", proc_get_tx_ring, NULL},
+#endif
+#ifdef CONFIG_P2P_WOWLAN
+	{"p2p_wowlan_info", proc_get_p2p_wowlan_info, NULL},
+#endif
+	{"chan_plan",proc_get_chan_plan,proc_set_chan_plan},
+	{"new_bcn_max", proc_get_new_bcn_max, proc_set_new_bcn_max},
+	{"sink_udpport",proc_get_udpport,proc_set_udpport},
 };
 
 const int adapter_proc_hdls_num = sizeof(adapter_proc_hdls) / sizeof(struct rtw_proc_hdl);
@@ -648,6 +963,78 @@ ssize_t proc_set_odm_adaptivity(struct file *file, const char __user *buffer, si
 	return count;
 }
 
+static char *phydm_msg = NULL;
+#define PHYDM_MSG_LEN	80*24
+
+int proc_get_phydm_cmd(struct seq_file *m, void *v)
+{
+	struct net_device *netdev;
+	PADAPTER padapter;
+	PHAL_DATA_TYPE pHalData;
+	PDM_ODM_T phydm;
+
+
+	netdev = m->private;
+	padapter = (PADAPTER)rtw_netdev_priv(netdev);
+	pHalData = GET_HAL_DATA(padapter);
+	phydm = &pHalData->odmpriv;
+
+	if (NULL == phydm_msg) {
+		phydm_msg = rtw_zmalloc(PHYDM_MSG_LEN);
+		if (NULL == phydm_msg)
+			return -ENOMEM;
+
+		PhyDM_Cmd(phydm, NULL, 0, 0, phydm_msg, PHYDM_MSG_LEN);
+	}
+
+	DBG_871X_SEL(m, "%s\n", phydm_msg);
+
+	rtw_mfree(phydm_msg, PHYDM_MSG_LEN);
+	phydm_msg = NULL;
+
+	return 0;
+}
+
+ssize_t proc_set_phydm_cmd(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data)
+{
+	struct net_device *netdev;
+	PADAPTER padapter;
+	PHAL_DATA_TYPE pHalData;
+	PDM_ODM_T phydm;
+	char tmp[64] = {0};
+
+
+	netdev = (struct net_device*)data;
+	padapter = (PADAPTER)rtw_netdev_priv(netdev);
+	pHalData = GET_HAL_DATA(padapter);
+	phydm = &pHalData->odmpriv;
+
+	if (count < 1)
+		return -EFAULT;
+
+	if (count > sizeof(tmp))
+		return -EFAULT;
+
+	if (buffer && !copy_from_user(tmp, buffer, count)) {
+		if (NULL == phydm_msg) {
+			phydm_msg = rtw_zmalloc(PHYDM_MSG_LEN);
+			if (NULL == phydm_msg)
+				return -ENOMEM;
+		} else {
+			_rtw_memset(phydm_msg, 0, PHYDM_MSG_LEN);
+		}
+
+		PhyDM_Cmd(phydm, tmp, count, 1, phydm_msg, PHYDM_MSG_LEN);
+
+		if (strlen(phydm_msg) == 0) {
+			rtw_mfree(phydm_msg, PHYDM_MSG_LEN);
+			phydm_msg = NULL;
+		}
+	}
+
+	return count;
+}
+
 /*
 * rtw_odm_proc:
 * init/deinit when register/unregister net_device, along with rtw_adapter_proc
@@ -657,6 +1044,7 @@ const struct rtw_proc_hdl odm_proc_hdls [] = {
 	{"dbg_level", proc_get_odm_dbg_level, proc_set_odm_dbg_level},
 	{"ability", proc_get_odm_ability, proc_set_odm_ability},
 	{"adaptivity", proc_get_odm_adaptivity, proc_set_odm_adaptivity},
+	{"cmd", proc_get_phydm_cmd, proc_set_phydm_cmd},
 };
 
 const int odm_proc_hdls_num = sizeof(odm_proc_hdls) / sizeof(struct rtw_proc_hdl);
@@ -745,6 +1133,11 @@ void rtw_odm_proc_deinit(_adapter	*adapter)
 	remove_proc_entry("odm", adapter->dir_dev);
 
 	adapter->dir_odm = NULL;
+
+	if (phydm_msg) {
+		rtw_mfree(phydm_msg, PHYDM_MSG_LEN);
+		phydm_msg = NULL;
+	}
 }
 
 struct proc_dir_entry *rtw_adapter_proc_init(struct net_device *dev)

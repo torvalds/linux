@@ -80,11 +80,14 @@ enum h2c_cmd{
 	H2C_D0_SCAN_OFFLOAD_INFO = 0x86,
 	H2C_CHNL_SWITCH_OFFLOAD = 0x87,
 	H2C_AOAC_RSVDPAGE3 = 0x88,
+	H2C_P2P_OFFLOAD_RSVD_PAGE = 0x8A,
+	H2C_P2P_OFFLOAD = 0x8B,
 
 	H2C_RESET_TSF = 0xC0,
 	H2C_MAXID,
 };
 
+#define H2C_INACTIVE_PS_LEN		3
 #define H2C_RSVDPAGE_LOC_LEN		5
 #define H2C_MEDIA_STATUS_RPT_LEN		3
 #define H2C_KEEP_ALIVE_CTRL_LEN	2
@@ -96,7 +99,7 @@ enum h2c_cmd{
 #define H2C_PSTUNEPARAM_LEN			4
 #define H2C_MACID_CFG_LEN	 	7
 #define H2C_BTMP_OPER_LEN			4
-#define H2C_WOWLAN_LEN			4
+#define H2C_WOWLAN_LEN			5
 #define H2C_REMOTE_WAKE_CTRL_LEN	3
 #define H2C_AOAC_GLOBAL_INFO_LEN	2
 #define H2C_AOAC_RSVDPAGE_LOC_LEN	7
@@ -107,6 +110,8 @@ enum h2c_cmd{
 #define H2C_FORCE_BT_TXPWR_LEN		3
 #define H2C_BCN_RSVDPAGE_LEN		5
 #define H2C_PROBERSP_RSVDPAGE_LEN	5
+#define H2C_P2PRSVDPAGE_LOC_LEN	5
+#define H2C_P2P_OFFLOAD_LEN	3
 
 #ifdef CONFIG_WOWLAN	
 #define eqMacAddr(a,b)						( ((a)[0]==(b)[0] && (a)[1]==(b)[1] && (a)[2]==(b)[2] && (a)[3]==(b)[3] && (a)[4]==(b)[4] && (a)[5]==(b)[5]) ? 1:0 )
@@ -187,7 +192,6 @@ enum h2c_cmd{
 #define SET_H2CCMD_DISCONDECISION_PARM_CHECK_PERIOD(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE_8BIT(__pH2CCmd+1, 0, 8, __Value)
 #define SET_H2CCMD_DISCONDECISION_PARM_TRY_PKT_NUM(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE_8BIT(__pH2CCmd+2, 0, 8, __Value)
 
-#ifdef CONFIG_AP_WOWLAN
 //_AP_Offload 0x08
 #define SET_H2CCMD_AP_WOWLAN_EN(__pH2CCmd, __Value)			SET_BITS_TO_LE_1BYTE_8BIT(__pH2CCmd, 0, 8, __Value)
 //_BCN_RsvdPage	0x09
@@ -207,7 +211,6 @@ enum h2c_cmd{
 #define SET_H2CCMD_AP_WOW_PS_32K_EN(__pH2CCmd, __Value)		SET_BITS_TO_LE_1BYTE(__pH2CCmd, 1, 1, __Value)
 #define SET_H2CCMD_AP_WOW_PS_RF(__pH2CCmd, __Value)			SET_BITS_TO_LE_1BYTE(__pH2CCmd, 2, 1, __Value)
 #define SET_H2CCMD_AP_WOW_PS_DURATION(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE_8BIT((__pH2CCmd)+1, 0, 8, __Value)
-#endif
 
 // _WoWLAN PARAM_CMD_0x80
 #define SET_H2CCMD_WOWLAN_FUNC_ENABLE(__pH2CCmd, __Value)			SET_BITS_TO_LE_1BYTE(__pH2CCmd, 0, 1, __Value)
@@ -221,8 +224,9 @@ enum h2c_cmd{
 #define SET_H2CCMD_WOWLAN_GPIONUM(__pH2CCmd, __Value)				SET_BITS_TO_LE_1BYTE((__pH2CCmd)+1, 0, 7, __Value)
 #define SET_H2CCMD_WOWLAN_DATAPIN_WAKE_UP(__pH2CCmd, __Value)		SET_BITS_TO_LE_1BYTE((__pH2CCmd)+1, 7, 1, __Value)
 #define SET_H2CCMD_WOWLAN_GPIO_DURATION(__pH2CCmd, __Value)			SET_BITS_TO_LE_1BYTE_8BIT((__pH2CCmd)+2, 0, 8, __Value)
-//#define SET_H2CCMD_WOWLAN_GPIO_PULSE_EN(__pH2CCmd, __Value)		SET_BITS_TO_LE_1BYTE((__pH2CCmd)+3, 0, 1, __Value)
-#define SET_H2CCMD_WOWLAN_GPIO_PULSE_COUNT(__pH2CCmd, __Value)		SET_BITS_TO_LE_1BYTE_8BIT((__pH2CCmd)+3, 0, 8, __Value)
+#define SET_H2CCMD_WOWLAN_GPIO_PULSE_EN(__pH2CCmd, __Value)		SET_BITS_TO_LE_1BYTE((__pH2CCmd)+3, 0, 1, __Value)
+#define SET_H2CCMD_WOWLAN_GPIO_PULSE_COUNT(__pH2CCmd, __Value)		SET_BITS_TO_LE_1BYTE_8BIT((__pH2CCmd)+3, 1, 7, __Value)
+#define SET_H2CCMD_WOWLAN_LOWPR_RX(__pH2CCmd, __Value)				SET_BITS_TO_LE_1BYTE_8BIT((__pH2CCmd)+4, 0, 1, __Value)
 
 // _REMOTE_WAKEUP_CMD_0x81
 #define SET_H2CCMD_REMOTE_WAKECTRL_ENABLE(__pH2CCmd, __Value)		SET_BITS_TO_LE_1BYTE(__pH2CCmd, 0, 1, __Value)
@@ -231,6 +235,7 @@ enum h2c_cmd{
 #define SET_H2CCMD_REMOTE_WAKE_CTRL_GTK_OFFLOAD_EN(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE(__pH2CCmd, 3, 1, __Value)
 #define SET_H2CCMD_REMOTE_WAKE_CTRL_NLO_OFFLOAD_EN(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE(__pH2CCmd, 4, 1, __Value)
 #define SET_H2CCMD_REMOTE_WAKE_CTRL_FW_UNICAST_EN(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE(__pH2CCmd, 7, 1, __Value)
+#define SET_H2CCMD_REMOTE_WAKE_CTRL_P2P_OFFLAD_EN(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE((__pH2CCmd)+1, 0, 1, __Value)
 #define SET_H2CCMD_REMOTE_WAKE_CTRL_ARP_ACTION(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE((__pH2CCmd)+2, 0, 1, __Value)
 
 // AOAC_GLOBAL_INFO_0x82
@@ -257,6 +262,15 @@ enum h2c_cmd{
 #define SET_H2CCMD_AOAC_RSVDPAGE_LOC_SCAN_INFO(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE_8BIT((__pH2CCmd)+2, 0, 8, __Value)
 #define SET_H2CCMD_AOAC_RSVDPAGE_LOC_SSID_INFO(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE_8BIT((__pH2CCmd)+3, 0, 8, __Value)
 #endif //CONFIG_PNO_SUPPORT
+
+#ifdef CONFIG_P2P_WOWLAN
+//P2P_RsvdPage_0x8a
+#define SET_H2CCMD_RSVDPAGE_LOC_P2P_BCN(__pH2CCmd, __Value)			SET_BITS_TO_LE_1BYTE_8BIT(__pH2CCmd, 0, 8, __Value)
+#define SET_H2CCMD_RSVDPAGE_LOC_P2P_PROBE_RSP(__pH2CCmd, __Value)				SET_BITS_TO_LE_1BYTE_8BIT((__pH2CCmd)+1, 0, 8, __Value)
+#define SET_H2CCMD_RSVDPAGE_LOC_P2P_NEGO_RSP(__pH2CCmd, __Value)			SET_BITS_TO_LE_1BYTE_8BIT((__pH2CCmd)+2, 0, 8, __Value)
+#define SET_H2CCMD_RSVDPAGE_LOC_P2P_INVITE_RSP(__pH2CCmd, __Value)		SET_BITS_TO_LE_1BYTE_8BIT((__pH2CCmd)+3, 0, 8, __Value)
+#define SET_H2CCMD_RSVDPAGE_LOC_P2P_PD_RSP(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE_8BIT((__pH2CCmd)+4, 0, 8, __Value)
+#endif //CONFIG_P2P_WOWLAN
 
 //---------------------------------------------------------------------------------------------------------//
 //-------------------------------------------    Structure    --------------------------------------------------//
@@ -285,16 +299,31 @@ typedef struct _RSVDPAGE_LOC {
 	u8 LocProbePacket;
 #endif //CONFIG_PNO_SUPPORT
 #endif //CONFIG_WOWLAN	
-#ifdef CONFIG_AP_WOWLAN
 	u8 LocApOffloadBCN;
-#endif //CONFIG_AP_WOWLAN
+#ifdef CONFIG_P2P_WOWLAN
+	u8 LocP2PBeacon;
+	u8 LocP2PProbeRsp;
+	u8 LocNegoRsp;
+	u8 LocInviteRsp;
+	u8 LocPDRsp;
+#endif //CONFIG_P2P_WOWLAN
 } RSVDPAGE_LOC, *PRSVDPAGE_LOC;
 
 #endif
 void dump_TX_FIFO(PADAPTER padapter, u8 page_num, u16 page_size);
 u8 rtw_check_invalid_mac_address (u8 *mac_addr);
+u8 rtw_hal_set_fw_media_status_cmd(_adapter* adapter, u8 mstatus, u8 macid);
 #if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
 void rtw_get_current_ip_address(PADAPTER padapter, u8 *pcurrentip);
 void rtw_get_sec_iv(PADAPTER padapter, u8*pcur_dot11txpn, u8 *StaAddr);
 void rtw_set_sec_pn(_adapter *padapter);
+
+//WOW command function
+void rtw_hal_set_fw_wow_related_cmd(_adapter* padapter, u8 enable);
+#ifdef CONFIG_P2P_WOWLAN
+//H2C 0x8A
+u8 rtw_hal_set_FwP2PRsvdPage_cmd(_adapter* adapter, PRSVDPAGE_LOC rsvdpageloc);
+//H2C 0x8B
+u8 rtw_hal_set_p2p_wowlan_offload_cmd(_adapter* adapter);
+#endif //CONFIG_P2P_WOWLAN
 #endif

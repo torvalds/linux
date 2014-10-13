@@ -420,6 +420,8 @@
 #define rFPGA0_AdDaClockEn			0x888	// enable ad/da clock1 for dual-phy
 #define rFPGA0_AnalogParameter4	0x88c
 #define rFPGA0_XB_LSSIReadBack		0x8a4
+#define rFPGA0_XCD_RFPara	0x8b4
+
 //
 // 4. Page9(0x900)
 //
@@ -434,9 +436,11 @@
 //
 #define rCCK0_System				0xa00
 #define rCCK0_AFESetting				0xa04	// Disable init gain now // Select RX path by RSSI
+#define	rCCK0_DSPParameter2			0xa1c	//SQ threshold
 #define rCCK0_TxFilter1				0xa20
 #define rCCK0_TxFilter2				0xa24
 #define rCCK0_DebugPort				0xa28	//debug port and Tx filter3
+#define	rCCK0_FalseAlarmReport			0xa2c	//0xa2d	useless now 0xa30-a4f channel report
 
 //
 // PageB(0xB00)
@@ -717,6 +721,7 @@
 #define bMaskHWord                	0xffff0000
 #define bMaskLWord                		0x0000ffff
 #define bMaskDWord                	0xffffffff
+#define bMaskH3Bytes				0xffffff00
 #define bMask12Bits				0xfff	
 #define bMaskH4Bits				0xf0000000	
 #define bMaskOFDM_D			0xffc00000

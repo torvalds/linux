@@ -4126,8 +4126,16 @@ halbtc8812a2ant_InitHwConfig(
 // extern function start with EXhalbtc8812a2ant_
 //============================================================
 VOID
-EXhalbtc8812a2ant_InitHwConfig(
+EXhalbtc8812a2ant_PowerOnSetting(
 	IN	PBTC_COEXIST		pBtCoexist
+	)
+{
+}	
+
+VOID
+EXhalbtc8812a2ant_InitHwConfig(
+	IN	PBTC_COEXIST		pBtCoexist,
+	IN	BOOLEAN				bWifiOnly
 	)
 {
 	halbtc8812a2ant_InitHwConfig(pBtCoexist, TRUE);
@@ -4155,11 +4163,6 @@ EXhalbtc8812a2ant_DisplayCoexInfo(
 	u1Byte				u1Tmp[4], i, btInfoExt, psTdmaCase=0;
 	u2Byte				u2Tmp[4];
 	u4Byte				u4Tmp[4];
-	BOOLEAN				bRoam=FALSE, bScan=FALSE, bLink=FALSE, bWifiUnder5G=FALSE;
-	BOOLEAN				bBtHsOn=FALSE, bWifiBusy=FALSE;
-	s4Byte				wifiRssi=0, btHsRssi=0;
-	u4Byte				wifiBw, wifiTrafficDir;
-	u1Byte				wifiDot11Chnl, wifiHsChnl;
 	u4Byte				fwVer=0, btPatchVer=0;
 
 	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n ============[BT Coexist info]============");
@@ -4171,13 +4174,6 @@ EXhalbtc8812a2ant_DisplayCoexInfo(
 		CL_PRINTF(cliBuf);
 		CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n ==========================================");
 		CL_PRINTF(cliBuf);
-	}
-
-	if(!pBoardInfo->bBtExist)
-	{
-		CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n BT not exists !!!");
-		CL_PRINTF(cliBuf);
-		return;
 	}
 
 	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %d/ %d ", "Ant PG number/ Ant mechanism:", \
@@ -4194,41 +4190,18 @@ EXhalbtc8812a2ant_DisplayCoexInfo(
 		GLCoexVerDate8812a2Ant, GLCoexVer8812a2Ant, fwVer, btPatchVer, btPatchVer);
 	CL_PRINTF(cliBuf);
 
-	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_BL_HS_OPERATION, &bBtHsOn);
-	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_U1_WIFI_DOT11_CHNL, &wifiDot11Chnl);
-	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_U1_WIFI_HS_CHNL, &wifiHsChnl);
-	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %d / %d(%d)", "Dot11 channel / HsMode(HsChnl)", \
-		wifiDot11Chnl, bBtHsOn, wifiHsChnl);
-	CL_PRINTF(cliBuf);
-
-	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %02x %02x %02x ", "H2C Wifi inform bt chnl Info", \
+	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %02x %02x %02x ", "Wifi channel informed to BT", \
 		pCoexDm->wifiChnlInfo[0], pCoexDm->wifiChnlInfo[1],
 		pCoexDm->wifiChnlInfo[2]);
 	CL_PRINTF(cliBuf);
 
-	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_S4_WIFI_RSSI, &wifiRssi);
-	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_S4_HS_RSSI, &btHsRssi);
-	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %d/ %d", "Wifi rssi/ HS rssi", \
-		wifiRssi, btHsRssi);
+	// wifi status
+	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n %-35s", "============[Wifi Status]============");
 	CL_PRINTF(cliBuf);
+	pBtCoexist->fBtcDispDbgMsg(pBtCoexist, BTC_DBG_DISP_WIFI_STATUS);
 
-	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_BL_WIFI_SCAN, &bScan);
-	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_BL_WIFI_LINK, &bLink);
-	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_BL_WIFI_ROAM, &bRoam);
-	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %d/ %d/ %d ", "Wifi bLink/ bRoam/ bScan", \
-		bLink, bRoam, bScan);
+	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n %-35s", "============[BT Status]============");
 	CL_PRINTF(cliBuf);
-
-	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_BL_WIFI_UNDER_5G, &bWifiUnder5G);
-	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_U4_WIFI_BW, &wifiBw);
-	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_BL_WIFI_BUSY, &bWifiBusy);
-	pBtCoexist->fBtcGet(pBtCoexist, BTC_GET_U4_WIFI_TRAFFIC_DIRECTION, &wifiTrafficDir);
-	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %s / %s/ %s ", "Wifi status", \
-		(bWifiUnder5G? "5G":"2.4G"),
-		((BTC_WIFI_BW_LEGACY==wifiBw)? "Legacy": (((BTC_WIFI_BW_HT40==wifiBw)? "HT40":"HT20"))),
-		((!bWifiBusy)? "idle": ((BTC_WIFI_TRAFFIC_TX==wifiTrafficDir)? "uplink":"downlink")));
-	CL_PRINTF(cliBuf);
-
 	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = [%s/ %d/ %d] ", "BT [status/ rssi/ retryCnt]", \
 		((pBtCoexist->btInfo.bBtDisabled)? ("disabled"):	((pCoexSta->bC2hBtInquiryPage)?("inquiry/page scan"):((BT_8812A_2ANT_BT_STATUS_NON_CONNECTED_IDLE == pCoexDm->btStatus)? "non-connected idle":
 		(  (BT_8812A_2ANT_BT_STATUS_CONNECTED_IDLE == pCoexDm->btStatus)? "connected-idle":"busy")))),
@@ -4257,15 +4230,6 @@ EXhalbtc8812a2ant_DisplayCoexInfo(
 			CL_PRINTF(cliBuf);
 		}
 	}
-
-	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n %-35s = %s/%s, (0x%x/0x%x)", "PS state, IPS/LPS, (lps/rpwm)", \
-		((pCoexSta->bUnderIps? "IPS ON":"IPS OFF")),
-		((pCoexSta->bUnderLps? "LPS ON":"LPS OFF")), 
-		pBtCoexist->btInfo.lpsVal, 
-		pBtCoexist->btInfo.rpwmVal);
-	CL_PRINTF(cliBuf);
-
-	pBtCoexist->fBtcDispDbgMsg(pBtCoexist, BTC_DBG_DISP_FW_PWR_MODE_CMD);
 
 	// Sw mechanism	
 	CL_SPRINTF(cliBuf, BT_TMP_BUF_SIZE, "\r\n %-35s", "============[Sw mechanism]============");

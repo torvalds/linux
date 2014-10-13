@@ -22,19 +22,6 @@
 #include <drv_types.h>
 #include <rtl8188e_hal.h>
 
-static s32  translate2dbm(u8 signal_strength_idx)
-{
-	s32	signal_power; // in dBm.
-
-
-	// Translate to dBm (x=0.5y-95).
-	signal_power = (s32)((signal_strength_idx + 1) >> 1);
-	signal_power -= 95;
-
-	return signal_power;
-}
-
-
 static void process_rssi(_adapter *padapter,union recv_frame *prframe)
 {
 	u32	last_rssi, tmp_val;
@@ -77,10 +64,10 @@ static void process_rssi(_adapter *padapter,union recv_frame *prframe)
 		
 		if(padapter->recvpriv.is_signal_dbg) {
 			padapter->recvpriv.signal_strength= padapter->recvpriv.signal_strength_dbg;
-			padapter->recvpriv.rssi=(s8)translate2dbm((u8)padapter->recvpriv.signal_strength_dbg);
+			padapter->recvpriv.rssi=(s8)translate_percentage_to_dbm(padapter->recvpriv.signal_strength_dbg);
 		} else {
 			padapter->recvpriv.signal_strength= tmp_val;
-			padapter->recvpriv.rssi=(s8)translate2dbm((u8)tmp_val);
+			padapter->recvpriv.rssi=(s8)translate_percentage_to_dbm(tmp_val);
 		}
 
 		RT_TRACE(_module_rtl871x_recv_c_,_drv_info_,("UI RSSI = %d, ui_rssi.TotalVal = %d, ui_rssi.TotalNum = %d\n", tmp_val, padapter->recvpriv.signal_strength_data.total_val,padapter->recvpriv.signal_strength_data.total_num));
@@ -289,6 +276,8 @@ void update_recvframe_phyinfo_88e(
 		!pattrib->icv_err && !pattrib->crc_err &&
 		_rtw_memcmp(get_hdr_bssid(wlanhdr), get_bssid(&padapter->mlmepriv), ETH_ALEN));
 
+	pkt_info.bToSelf = ((!pattrib->icv_err) && (!pattrib->crc_err)) && (_rtw_memcmp(get_ra(wlanhdr), myid(&padapter->eeprompriv), ETH_ALEN));
+
 	pkt_info.bPacketToSelf = pkt_info.bPacketMatchBSSID && (_rtw_memcmp(get_ra(wlanhdr), myid(&padapter->eeprompriv), ETH_ALEN));
 
 	pkt_info.bPacketBeacon = pkt_info.bPacketMatchBSSID && (GetFrameSubType(wlanhdr) == WIFI_BEACON);
@@ -329,6 +318,7 @@ void update_recvframe_phyinfo_88e(
 
 	//_enter_critical_bh(&pHalData->odm_stainfo_lock, &irqL);	
 	ODM_PhyStatusQuery(&pHalData->odmpriv,pPHYInfo,(u8 *)pphy_status,&(pkt_info));
+	if(psta) psta->rssi = pattrib->phy_info.RecvSignalPower;
 	//_exit_critical_bh(&pHalData->odm_stainfo_lock, &irqL);
 
 	precvframe->u.hdr.psta = NULL;

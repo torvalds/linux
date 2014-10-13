@@ -7,7 +7,7 @@
 /*
  * Broadcom BCM4319 driver version.
  */
-#define RTL8192_DRV_VERSION "3.00"
+#define RTL8192_DRV_VERSION "4.00"
 
 #endif /* WIFI_VERSION_H */
 

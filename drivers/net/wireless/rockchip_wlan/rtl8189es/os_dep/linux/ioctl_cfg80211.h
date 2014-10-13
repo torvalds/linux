@@ -144,8 +144,10 @@ bool rtw_cfg80211_pwr_mgmt(_adapter *adapter);
 #define rtw_cfg80211_rx_mgmt(adapter, freq, sig_dbm, buf, len, gfp) cfg80211_rx_mgmt((adapter)->pnetdev, freq, buf, len, gfp)
 #elif (LINUX_VERSION_CODE < KERNEL_VERSION(3,6,0))
 #define rtw_cfg80211_rx_mgmt(adapter, freq, sig_dbm, buf, len, gfp) cfg80211_rx_mgmt((adapter)->pnetdev, freq, sig_dbm, buf, len, gfp)
-#else
+#elif (LINUX_VERSION_CODE < KERNEL_VERSION(3,12,0))
 #define rtw_cfg80211_rx_mgmt(adapter, freq, sig_dbm, buf, len, gfp) cfg80211_rx_mgmt((adapter)->rtw_wdev, freq, sig_dbm, buf, len, gfp)
+#else
+#define rtw_cfg80211_rx_mgmt(adapter, freq, sig_dbm, buf, len, gfp) cfg80211_rx_mgmt((adapter)->rtw_wdev, freq, sig_dbm, buf, len,0,gfp)
 #endif
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3,4,0))  && !defined(COMPAT_KERNEL_RELEASE)
@@ -170,6 +172,8 @@ bool rtw_cfg80211_pwr_mgmt(_adapter *adapter);
 #define rtw_cfg80211_ready_on_channel(adapter, cookie, chan, channel_type, duration, gfp)  cfg80211_ready_on_channel((adapter)->rtw_wdev, cookie, chan, duration, gfp)
 #define rtw_cfg80211_remain_on_channel_expired(adapter, cookie, chan, chan_type, gfp) cfg80211_remain_on_channel_expired((adapter)->rtw_wdev, cookie, chan, gfp)
 #endif
+
+#include "rtw_cfgvendor.h"
 
 #endif //__IOCTL_CFG80211_H__
 

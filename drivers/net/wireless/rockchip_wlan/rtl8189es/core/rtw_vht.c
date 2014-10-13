@@ -281,8 +281,9 @@ void	update_sta_vht_info_apmode(_adapter *padapter, PVOID sta)
 	}
 
 	bw_mode = GET_VHT_OPERATING_MODE_FIELD_CHNL_WIDTH(&pvhtpriv_sta->vht_op_mode_notify);
-	if (bw_mode > psta->bw_mode)
-		psta->bw_mode = bw_mode;
+	
+	//if (bw_mode > psta->bw_mode)
+	psta->bw_mode = bw_mode;
 
 	// B4 Rx LDPC
 	if (TEST_FLAG(pvhtpriv_ap->ldpc_cap, LDPC_VHT_ENABLE_TX) && 

@@ -21,7 +21,7 @@
 #define __GSPI_HAL_H__
 
 
-void spi_int_dpc(PADAPTER padapter);
+void spi_int_dpc(PADAPTER padapter, u32 sdio_hisr);
 void rtw_set_hal_ops(_adapter *padapter);
 
 #ifdef CONFIG_RTL8723A

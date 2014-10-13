@@ -209,7 +209,7 @@ struct security_priv
 	//u8				szCapability[256];				// For WPA2-PSK using zero-config, by Annie, 2005-09-20.
 
 	u8 bWepDefaultKeyIdxSet;
-	
+
 #define DBG_SW_SEC_CNT
 #ifdef DBG_SW_SEC_CNT
 	u64 wep_sw_enc_cnt_bc;
@@ -232,7 +232,7 @@ struct security_priv
 	u64 aes_sw_dec_cnt_bc;
 	u64 aes_sw_dec_cnt_mc;
 	u64 aes_sw_dec_cnt_uc;
-#endif /* DBG_SW_SEC_CNT */	
+#endif /* DBG_SW_SEC_CNT */
 };
 
 struct sha256_state {

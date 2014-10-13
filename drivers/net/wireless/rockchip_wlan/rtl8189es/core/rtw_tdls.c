@@ -22,8 +22,6 @@
 #include <drv_types.h>
 
 #ifdef CONFIG_TDLS
-extern unsigned char MCS_rate_2R[16];
-extern unsigned char MCS_rate_1R[16];
 extern void process_wmmps_data(_adapter *padapter, union recv_frame *precv_frame);
 
 void rtw_reset_tdls_info(_adapter* padapter)

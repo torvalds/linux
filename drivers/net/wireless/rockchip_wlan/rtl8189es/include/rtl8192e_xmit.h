@@ -127,17 +127,7 @@ typedef struct txdescriptor_8192e
 	u32 mcs15_sgi_max_len:4;
 }TXDESC_8192E, *PTXDESC_8192E; 
 
-//
-// Queue Select Value in TxDesc
-//
-#define QSLT_BK							0x2//0x01
-#define QSLT_BE							0x0
-#define QSLT_VI							0x5//0x4
-#define QSLT_VO							0x7//0x6
-#define QSLT_BEACON					0x10
-#define QSLT_HIGH						0x11
-#define QSLT_MGNT						0x12
-#define QSLT_CMD						0x13
+
 
 //For 88e early mode
 #define SET_EARLYMODE_PKTNUM(__pAddr, __Value) SET_BITS_TO_LE_4BYTE(__pAddr, 0, 3, __Value)
@@ -207,16 +197,48 @@ typedef struct txdescriptor_8192e
 #define USB_TXAGG_NUM_SHT	24
 
 
+//=====Tx Desc Buffer content
 
-//=====Desc content
+// config element for each tx buffer 
+/*
+#define SET_TXBUFFER_DESC_LEN_WITH_OFFSET(__pTxDesc, __Offset, __Valeu) SET_BITS_TO_LE_4BYTE(__pTxDesc+(__Offset*16), 0, 16, __Valeu)
+#define SET_TXBUFFER_DESC_AMSDU_WITH_OFFSET(__pTxDesc, __Offset, __Valeu) SET_BITS_TO_LE_4BYTE(__pTxDesc+(__Offset*16), 31, 1, __Valeu)
+#define SET_TXBUFFER_DESC_ADD_LOW_WITH_OFFSET(__pTxDesc, __Offset, __Valeu) SET_BITS_TO_LE_4BYTE(__pTxDesc+(__Offset*16)+4, 0, 32, __Valeu)
+#define SET_TXBUFFER_DESC_ADD_HIGT_WITH_OFFSET(__pTxDesc, __Offset, __Valeu) SET_BITS_TO_LE_4BYTE(__pTxDesc+(__Offset*16)+8, 0, 32, __Valeu)
+*/
+#define SET_TXBUFFER_DESC_LEN_WITH_OFFSET(__pTxDesc, __Offset, __Valeu) SET_BITS_TO_LE_4BYTE(__pTxDesc+(__Offset*8), 0, 16, __Valeu)
+#define SET_TXBUFFER_DESC_AMSDU_WITH_OFFSET(__pTxDesc, __Offset, __Valeu) SET_BITS_TO_LE_4BYTE(__pTxDesc+(__Offset*8), 31, 1, __Valeu)
+#define SET_TXBUFFER_DESC_ADD_LOW_WITH_OFFSET(__pTxDesc, __Offset, __Valeu) SET_BITS_TO_LE_4BYTE(__pTxDesc+(__Offset*8)+4, 0, 32, __Valeu)
+#define SET_TXBUFFER_DESC_ADD_HIGT_WITH_OFFSET(__pTxDesc, __Offset, __Valeu) SET_BITS_TO_LE_4BYTE(__pTxDesc+(__Offset*16)+8, 0, 32, __Valeu)
+
+
+// Dword 0
+#define SET_TX_BUFF_DESC_LEN_0_92E(__pTxDesc, __Valeu) SET_BITS_TO_LE_4BYTE(__pTxDesc, 0, 14, __Valeu)
+#define SET_TX_BUFF_DESC_PSB_92E(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc, 16, 15, __Value)
+#define SET_TX_BUFF_DESC_OWN_92E(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc, 31, 1, __Value)
+// Dword 1
+#define SET_TX_BUFF_DESC_ADDR_LOW_0_92E(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+4, 0, 32, __Value)
+#define GET_TX_DESC_TX_BUFFER_ADDRESS_92E(__pTxDesc) LE_BITS_TO_4BYTE(__pTxDesc+4, 0,32)
+
+
+// Dword 2
+#define SET_TX_BUFF_DESC_ADDR_HIGH_0_92E(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+8, 0, 32, __Value)
+// Dword 3, RESERVED 
+
+
+//=====Tx Desc content
 // Dword 0
 #define SET_TX_DESC_PKT_SIZE_92E(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc, 0, 16, __Value)
 #define SET_TX_DESC_OFFSET_92E(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc, 16, 8, __Value)
 #define SET_TX_DESC_BMC_92E(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc, 24, 1, __Value)
 #define SET_TX_DESC_HTC_92E(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc, 25, 1, __Value)
+#define SET_TX_DESC_LAST_SEG_92E(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc, 26, 1, __Value)
+#define SET_TX_DESC_FIRST_SEG_92E(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc, 27, 1, __Value)
 #define SET_TX_DESC_LINIP_92E(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc, 28, 1, __Value)
 #define SET_TX_DESC_NO_ACM_92E(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc, 29, 1, __Value)
 #define SET_TX_DESC_GF_92E(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc, 30, 1, __Value)
+#define SET_TX_DESC_OWN_92E(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc, 31, 1, __Value)
+#define GET_TX_DESC_OWN_92E(__pTxDesc) LE_BITS_TO_4BYTE(__pTxDesc, 31, 1)
 
 // Dword 1
 #define SET_TX_DESC_MACID_92E(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+4, 0, 7, __Value)
@@ -324,12 +346,7 @@ typedef struct txdescriptor_8192e
 #define SET_TX_DESC_TXBF_PATH_92E(__pTxDesc, __Value) 					SET_BITS_TO_LE_4BYTE(__pTxDesc+36, 11, 1, __Value)
 #define SET_TX_DESC_SEQ_92E(__pTxDesc, __Value) 					SET_BITS_TO_LE_4BYTE(__pTxDesc+36, 12, 12, __Value)
 #define SET_TX_DESC_FINAL_DATA_RATE_92E(__pTxDesc, __Value) 					SET_BITS_TO_LE_4BYTE(__pTxDesc+36, 24, 8, __Value)
-// Dword 10
-#define SET_TX_DESC_TX_BUFFER_ADDRESS_92E(__pTxDesc, __Value) 	SET_BITS_TO_LE_4BYTE(__pTxDesc+40, 0, 32, __Value)
 
-
-// Dword 11
-#define SET_TX_DESC_NEXT_DESC_ADDRESS_92E(__pTxDesc, __Value) 	SET_BITS_TO_LE_4BYTE(__pTxDesc+48, 0, 32, __Value)
 
 #define SET_EARLYMODE_PKTNUM_92E(__pAddr, __Value)					SET_BITS_TO_LE_4BYTE(__pAddr, 0, 4, __Value)
 #define SET_EARLYMODE_LEN0_92E(__pAddr, __Value) 					SET_BITS_TO_LE_4BYTE(__pAddr, 4, 15, __Value)
@@ -338,9 +355,8 @@ typedef struct txdescriptor_8192e
 #define SET_EARLYMODE_LEN2_92E(__pAddr, __Value) 					SET_BITS_TO_LE_4BYTE(__pAddr+4, 2, 15,  __Value)
 #define SET_EARLYMODE_LEN3_92E(__pAddr, __Value) 					SET_BITS_TO_LE_4BYTE(__pAddr+4, 17, 15, __Value)
 
-
-
 void rtl8192e_fill_fake_txdesc(PADAPTER	padapter,u8*pDesc,u32 BufferLen,u8 IsPsPoll,u8	IsBTQosNull);
+void rtl8192e_cal_txdesc_chksum(u8 *ptxdesc);
 
 #ifdef CONFIG_USB_HCI
 s32 rtl8192eu_init_xmit_priv(PADAPTER padapter);
@@ -358,12 +374,27 @@ s32 rtl8192eu_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv
 s32 rtl8192ee_init_xmit_priv(PADAPTER padapter);
 void rtl8192ee_free_xmit_priv(PADAPTER padapter);
 struct xmit_buf *rtl8192ee_dequeue_xmitbuf(struct rtw_tx_ring *ring);
+s32	rtl8192ee_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
 void	rtl8192ee_xmitframe_resume(_adapter *padapter);
 s32 rtl8192ee_hal_xmit(PADAPTER padapter, struct xmit_frame *pxmitframe);
 s32 rtl8192ee_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe);
 void rtl8192ee_xmit_tasklet(void *priv);
 #endif
 
+#if defined(CONFIG_SDIO_HCI)||defined (CONFIG_GSPI_HCI)
+s32 rtl8192es_init_xmit_priv(PADAPTER padapter);
+void rtl8192es_free_xmit_priv(PADAPTER padapter);
+
+s32 rtl8192es_hal_xmit(PADAPTER padapter, struct xmit_frame *pxmitframe);
+s32 rtl8192es_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe);
+s32	rtl8192es_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
+thread_return rtl8192es_xmit_thread(thread_context context);
+s32 rtl8192es_xmit_buf_handler(PADAPTER padapter);
+
+#ifdef CONFIG_SDIO_TX_TASKLET
+void rtl8192es_xmit_tasklet(void *priv);
+#endif
+#endif
 
 struct txrpt_ccx_92e {
 	/* offset 0 */
@@ -402,12 +433,19 @@ struct txrpt_ccx_92e {
 #ifdef CONFIG_TX_EARLY_MODE
 void UpdateEarlyModeInfo8192E(struct xmit_priv *pxmitpriv,struct xmit_buf *pxmitbuf );
 #endif
-
+ s32	rtl8192e_init_xmit_priv(_adapter *padapter);
 void _dbg_dump_tx_info(_adapter	*padapter,int frame_tag,u8 *ptxdesc);
 
-u8	BWMapping_92E(PADAPTER Adapter, struct pkt_attrib *pattrib);
+void rtl8192e_fill_fake_txdesc(PADAPTER	padapter,u8*pDesc,u32 BufferLen,u8 IsPsPoll,u8	IsBTQosNull);
+void rtl8192e_cal_txdesc_chksum(u8 *ptxdesc);
 
+u8	BWMapping_92E(PADAPTER Adapter, struct pkt_attrib *pattrib);
 u8	SCMapping_92E(PADAPTER Adapter, struct pkt_attrib	*pattrib);
+void fill_txdesc_phy(PADAPTER padapter, struct pkt_attrib *pattrib, u8 *ptxdesc);
+void fill_txdesc_vcs(struct pkt_attrib *pattrib, u8 *ptxdesc);
+void fill_txdesc_sectype(struct pkt_attrib *pattrib, u8 *ptxdesc);
+void rtl8192e_fixed_rate(_adapter *padapter,u8 *ptxdesc);
 
 #endif //__RTL8192E_XMIT_H__
+
 

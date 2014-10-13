@@ -118,7 +118,8 @@ enum mstat_f {
 	MSTAT_FUNC_RX_IO = 0x03<<8,
 	MSTAT_FUNC_TX = 0x04<<8,
 	MSTAT_FUNC_RX = 0x05<<8,
-	MSTAT_FUNC_MAX = 0x06<<8,
+	MSTAT_FUNC_CFG_VENDOR = 0x06<<8,
+	MSTAT_FUNC_MAX = 0x07<<8,
 };
 
 #define mstat_tf_idx(flags) ((flags)&0xff)
@@ -252,7 +253,7 @@ void _rtw_usb_buffer_free(struct usb_device *dev, size_t size, void *addr, dma_a
 #endif /* CONFIG_USB_HCI */
 #endif /* DBG_MEM_ALLOC */
 
-extern void*	rtw_malloc2d(int h, int w, int size);
+extern void*	rtw_malloc2d(int h, int w, size_t size);
 extern void	rtw_mfree2d(void *pbuf, int h, int w, int size);
 
 extern void	_rtw_memcpy(void* dec, void* sour, u32 sz);
@@ -474,6 +475,8 @@ __inline static u32 bitshift(u32 bitmask)
 	return i;
 }
 
+#define rtw_min(a, b) ((a>b)?b:a)
+
 #ifndef MAC_FMT
 #define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
 #endif
@@ -493,9 +496,6 @@ extern void rtw_lock_traffic_suspend_timeout(u32 timeout_ms);
 extern void rtw_lock_resume_scan_timeout(u32 timeout_ms);
 extern void rtw_resume_lock_suspend(void);
 extern void rtw_resume_unlock_suspend(void);
-extern void rtw_ap_connection_lock_suspend(void);
-extern void rtw_ap_connection_unlock_suspend(void);
-
 #ifdef CONFIG_AP_WOWLAN
 extern void rtw_softap_lock_suspend(void);
 extern void rtw_softap_unlock_suspend(void);

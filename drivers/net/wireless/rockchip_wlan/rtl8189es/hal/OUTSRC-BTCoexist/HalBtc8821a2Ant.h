@@ -45,10 +45,6 @@ typedef struct _COEX_DM_8821A_2ANT{
 	// fw mechanism
 	BOOLEAN		bPreDecBtPwr;
 	BOOLEAN		bCurDecBtPwr;
-	BOOLEAN		bPreBtLnaConstrain;
-	BOOLEAN		bCurBtLnaConstrain;
-	u1Byte		bPreBtPsdMode;
-	u1Byte		bCurBtPsdMode;
 	u1Byte		preFwDacSwingLvl;
 	u1Byte		curFwDacSwingLvl;
 	BOOLEAN		bCurIgnoreWlanAct;
@@ -122,8 +118,13 @@ typedef struct _COEX_STA_8821A_2ANT{
 // The following is interface which will notify coex module.
 //===========================================
 VOID
-EXhalbtc8821a2ant_InitHwConfig(
+EXhalbtc8821a2ant_PowerOnSetting(
 	IN	PBTC_COEXIST		pBtCoexist
+	);
+VOID
+EXhalbtc8821a2ant_InitHwConfig(
+	IN	PBTC_COEXIST		pBtCoexist,
+	IN	BOOLEAN				bWifiOnly
 	);
 VOID
 EXhalbtc8821a2ant_InitCoexDm(
@@ -168,6 +169,11 @@ EXhalbtc8821a2ant_BtInfoNotify(
 VOID
 EXhalbtc8821a2ant_HaltNotify(
 	IN	PBTC_COEXIST			pBtCoexist
+	);
+VOID
+EXhalbtc8821a2ant_PnpNotify(
+	IN	PBTC_COEXIST			pBtCoexist,
+	IN	u1Byte				pnpState
 	);
 VOID
 EXhalbtc8821a2ant_Periodical(

@@ -194,6 +194,8 @@ extern void rtl871x_cedbg(const char *fmt, ...);
 
 #if defined(_dbgdump)
 
+#define DBG_871X_EXP(level, EXP) do { if (level <= GlobalDebugLevel) EXP; } while (0)
+
 /* with driver-defined prefix */
 #undef DBG_871X_LEVEL
 #define DBG_871X_LEVEL(level, fmt, arg...)     \
@@ -317,6 +319,12 @@ extern void rtl871x_cedbg(const char *fmt, ...);
 #endif /* defined(_dbgdump) */
 #endif /* CONFIG_DEBUG_RTL871X */
 
+#ifdef CONFIG_DBG_COUNTER
+#define DBG_COUNTER(counter) counter++
+#else
+#define DBG_COUNTER(counter) 
+#endif
+
 void dump_drv_version(void *sel);
 void dump_log_level(void *sel);
 
@@ -327,6 +335,12 @@ void sd_f0_reg_dump(void *sel, _adapter *adapter);
 void mac_reg_dump(void *sel, _adapter *adapter);
 void bb_reg_dump(void *sel, _adapter *adapter);
 void rf_reg_dump(void *sel, _adapter *adapter);
+
+bool rtw_fwdl_test_trigger_chksum_fail(void);
+bool rtw_fwdl_test_trigger_wintint_rdy_fail(void);
+
+u32 rtw_get_wait_hiq_empty_ms(void);
+void rtw_sink_rtp_seq_dbg( _adapter *adapter,_pkt *pkt);
 
 #ifdef CONFIG_PROC_DEBUG
 ssize_t proc_set_write_reg(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
@@ -351,7 +365,11 @@ int proc_get_ap_info(struct seq_file *m, void *v);
 int proc_get_adapter_state(struct seq_file *m, void *v);
 int proc_get_trx_info(struct seq_file *m, void *v);
 int proc_get_rate_ctl(struct seq_file *m, void *v);
+int proc_get_wifi_spec(struct seq_file *m, void *v);
 ssize_t proc_set_rate_ctl(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
+int proc_get_dis_pwt(struct seq_file *m, void *v);
+ssize_t proc_set_dis_pwt(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);	
+
 int proc_get_suspend_resume_info(struct seq_file *m, void *v);
 
 ssize_t proc_set_fwdl_test_case(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
@@ -389,14 +407,24 @@ ssize_t proc_set_rx_ampdu(struct file *file, const char __user *buffer, size_t c
 
 int proc_get_rx_stbc(struct seq_file *m, void *v);
 ssize_t proc_set_rx_stbc(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
+
+
+int proc_get_rx_ampdu_factor(struct seq_file *m, void *v);
+ssize_t proc_set_rx_ampdu_factor(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
+
+int proc_get_rx_ampdu_density(struct seq_file *m, void *v);
+ssize_t proc_set_rx_ampdu_density(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
+
+int proc_get_tx_ampdu_density(struct seq_file *m, void *v);
+ssize_t proc_set_tx_ampdu_density(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
 #endif /* CONFIG_80211N_HT */
 
 int proc_get_en_fwps(struct seq_file *m, void *v);
 ssize_t proc_set_en_fwps(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
 
 //int proc_get_two_path_rssi(struct seq_file *m, void *v);
-int proc_get_rssi_disp(struct seq_file *m, void *v);
-ssize_t proc_set_rssi_disp(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
+//int proc_get_rssi_disp(struct seq_file *m, void *v);
+//ssize_t proc_set_rssi_disp(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
 
 #ifdef CONFIG_BT_COEXIST
 int proc_get_btcoex_dbg(struct seq_file *m, void *v);
@@ -416,6 +444,24 @@ ssize_t proc_set_odm_dbg_level(struct file *file, const char __user *buffer, siz
 
 int proc_get_odm_adaptivity(struct seq_file *m, void *v);
 ssize_t proc_set_odm_adaptivity(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
+
+#ifdef CONFIG_DBG_COUNTER
+int proc_get_rx_logs(struct seq_file *m, void *v);
+int proc_get_tx_logs(struct seq_file *m, void *v);
+int proc_get_int_logs(struct seq_file *m, void *v);
+#endif
+
+#ifdef CONFIG_PCI_HCI
+int proc_get_rx_ring(struct seq_file *m, void *v);
+int proc_get_tx_ring(struct seq_file *m, void *v);
+#endif
+
+#ifdef CONFIG_P2P_WOWLAN
+int proc_get_p2p_wowlan_info(struct seq_file *m, void *v);
+#endif /* CONFIG_P2P_WOWLAN */
+
+int proc_get_new_bcn_max(struct seq_file *m, void *v);
+ssize_t proc_set_new_bcn_max(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
 
 #endif /* CONFIG_PROC_DEBUG */
 

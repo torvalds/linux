@@ -21,11 +21,7 @@
 #define __RTL8812A_HAL_H__
 
 //#include "hal_com.h"
-#if 1
 #include "hal_data.h"
-#else
-#include "../hal/OUTSRC/odm_precomp.h"
-#endif
 
 //include HAL Related header after HAL Related compiling flags 
 #include "rtl8812a_spec.h"
@@ -270,17 +266,6 @@ typedef enum _TX_PWR_PERCENTAGE{
 //#define IS_MULTI_FUNC_CHIP(_Adapter)	(((((PHAL_DATA_TYPE)(_Adapter->HalData))->MultiFunc) & (RT_MULTI_FUNC_BT|RT_MULTI_FUNC_GPS)) ? _TRUE : _FALSE)
 
 //#define RT_IS_FUNC_DISABLED(__pAdapter, __FuncBits) ( (__pAdapter)->DisabledFunctions & (__FuncBits) )
-
-#define GetRegTxBBSwing_2G(_Adapter)	(_Adapter->registrypriv.TxBBSwing_2G)
-#define GetRegTxBBSwing_5G(_Adapter)	(_Adapter->registrypriv.TxBBSwing_5G)
-
-#define GetRegAmplifierType2G(_Adapter)	(_Adapter->registrypriv.AmplifierType_2G)
-#define GetRegAmplifierType5G(_Adapter)	(_Adapter->registrypriv.AmplifierType_5G)
-
-#define GetRegbENRFEType(_Adapter)	(_Adapter->registrypriv.bEn_RFE)
-#define GetRegRFEType(_Adapter)	(_Adapter->registrypriv.RFE_Type)
-
-#define GetDefaultAdapter(padapter)	padapter
 
 // rtl8812_hal_init.c
 void	_8051Reset8812(PADAPTER padapter);

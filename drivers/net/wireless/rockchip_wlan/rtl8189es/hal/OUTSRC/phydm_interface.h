@@ -60,36 +60,50 @@ ODM_REG(DIG,_pDM_Odm)
 #define _bit_11N(_name)			ODM_BIT_##_name##_11N 
 #define _bit_11AC(_name)		ODM_BIT_##_name##_11AC
 
-#if 1 //TODO: enable it if we need to support run-time to differentiate between 92C_SERIES and JAGUAR_SERIES.
+#ifdef __ECOS
+#define _rtk_cat(_name, _ic_type, _func)		\
+	( 					\
+		((_ic_type) & ODM_IC_11N_SERIES)? _func##_11N(_name):		\
+		_func##_11AC(_name)	\
+	)
+#else
+
 #define _cat(_name, _ic_type, _func)									\
 	( 															\
 		((_ic_type) & ODM_IC_11N_SERIES)? _func##_11N(_name):		\
 		_func##_11AC(_name)									\
 	)
 #endif
-#if 0 // only sample code
-#define _cat(_name, _ic_type, _func)									\
-	( 															\
-		((_ic_type) & ODM_RTL8192C)? _func##_ic(_name, _8192C):		\
-		((_ic_type) & ODM_RTL8192D)? _func##_ic(_name, _8192D):		\
-		((_ic_type) & ODM_RTL8192S)? _func##_ic(_name, _8192S):		\
-		((_ic_type) & ODM_RTL8723A)? _func##_ic(_name, _8723A):		\
-		((_ic_type) & ODM_RTL8188E)? _func##_ic(_name, _8188E):		\
-		_func##_ic(_name, _8195)									\
-	)
-#endif
+/* 
+// only sample code
+//#define _cat(_name, _ic_type, _func)									\
+//	( 															\
+//		((_ic_type) & ODM_RTL8192C)? _func##_ic(_name, _8192C):		\
+//		((_ic_type) & ODM_RTL8192D)? _func##_ic(_name, _8192D):		\
+//		((_ic_type) & ODM_RTL8192S)? _func##_ic(_name, _8192S):		\
+//		((_ic_type) & ODM_RTL8723A)? _func##_ic(_name, _8723A):		\
+//		((_ic_type) & ODM_RTL8188E)? _func##_ic(_name, _8188E):		\
+//		_func##_ic(_name, _8195)									\
+//	)
+*/
 
 // _name: name of register or bit.
 // Example: "ODM_REG(R_A_AGC_CORE1, pDM_Odm)" 
 //        gets "ODM_R_A_AGC_CORE1" or "ODM_R_A_AGC_CORE1_8192C", depends on SupportICType.
+#ifdef __ECOS
+#define ODM_REG(_name, _pDM_Odm)	_rtk_cat(_name, _pDM_Odm->SupportICType, _reg)
+#define ODM_BIT(_name, _pDM_Odm)	_rtk_cat(_name, _pDM_Odm->SupportICType, _bit)
+#else
 #define ODM_REG(_name, _pDM_Odm)	_cat(_name, _pDM_Odm->SupportICType, _reg)
 #define ODM_BIT(_name, _pDM_Odm)	_cat(_name, _pDM_Odm->SupportICType, _bit)
-
+#endif
 typedef enum _ODM_H2C_CMD 
 {
 	ODM_H2C_RSSI_REPORT = 0,
 	ODM_H2C_PSD_RESULT=1,	
-	ODM_H2C_PathDiv = 2,               
+	ODM_H2C_PathDiv = 2,
+	ODM_H2C_WIFI_CALIBRATION = 3,
+	ODM_H2C_IQ_CALIBRATION = 4,
 	ODM_MAX_H2CCMD
 }ODM_H2C_CMD;
 
@@ -251,6 +265,12 @@ s4Byte ODM_CompareMemory(
       IN	PVOID           pBuf2,
       IN	u4Byte          length
        );
+
+void ODM_Memory_Set
+	(IN 	PDM_ODM_T	pDM_Odm,
+		IN  PVOID	pbuf,
+		IN  s1Byte	value,
+		IN  u4Byte	length);
 	
 //
 // ODM MISC-spin lock relative API.
@@ -359,13 +379,13 @@ ODM_ReleaseTimer(
 //
 // ODM FW relative API.
 //
-#if (DM_ODM_SUPPORT_TYPE & ODM_WIN)
+#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN|ODM_CE))
 VOID
 ODM_FillH2CCmd(
-	IN	PADAPTER		Adapter,
-	IN	u1Byte 	ElementID,
-	IN	u4Byte 	CmdLen,
-	IN	pu1Byte	pCmdBuffer
+	IN	PDM_ODM_T		pDM_Odm,
+	IN	u1Byte 			ElementID,
+	IN	u4Byte 			CmdLen,
+	IN	pu1Byte			pCmdBuffer
 );
 #else
 u4Byte
@@ -380,14 +400,14 @@ ODM_FillH2CCmd(
 	);
 #endif
 
-u4Byte
+u8Byte
 ODM_GetCurrentTime(	
 	IN 	PDM_ODM_T		pDM_Odm
 	);
-s4Byte
+u8Byte
 ODM_GetProgressingTime(	
 	IN 	PDM_ODM_T		pDM_Odm,
-	IN	u4Byte			Start_Time
+	IN	u8Byte			Start_Time
 	);
 
 #endif	// __ODM_INTERFACE_H__

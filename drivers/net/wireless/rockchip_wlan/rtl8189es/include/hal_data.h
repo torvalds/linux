@@ -22,7 +22,7 @@
 
 #if 1//def  CONFIG_SINGLE_IMG
 
-#include "../hal/OUTSRC/odm_precomp.h"
+#include "../hal/OUTSRC/phydm_precomp.h"
 #ifdef CONFIG_BT_COEXIST
 #include <hal_btcoex.h>
 #endif
@@ -30,7 +30,9 @@
 #ifdef CONFIG_SDIO_HCI
 #include <hal_sdio.h>
 #endif
-
+#ifdef CONFIG_GSPI_HCI
+#include <hal_gspi.h>
+#endif
 //
 // <Roger_Notes> For RTL8723 WiFi/BT/GPS multi-function configuration. 2010.10.06.
 //
@@ -72,6 +74,22 @@ typedef	enum _INTERFACE_SELECT_USB{
 	INTF_SEL4_USB_Combo		= 4,		// USB Combo-Slim module
 	INTF_SEL5_USB_Combo_MF	= 5,		// USB WiFi+BT Multi-Function Combo, i.e., Proprietary layout(AS-VAU) which is the same as SDIO card
 } INTERFACE_SELECT_USB, *PINTERFACE_SELECT_USB;
+
+#ifdef CONFIG_USB_HCI
+//should be sync with INTERFACE_SELECT_USB
+typedef	enum _BOARD_TYPE_8192CUSB{
+	BOARD_USB_DONGLE 			= 0,		// USB dongle
+	BOARD_USB_High_PA 		= 1,		// USB dongle with high power PA
+	BOARD_MINICARD		  	= 2,		// Minicard
+	BOARD_USB_SOLO 		 	= 3,		// USB solo-Slim module
+	BOARD_USB_COMBO			= 4,		// USB Combo-Slim module
+} BOARD_TYPE_8192CUSB, *PBOARD_TYPE_8192CUSB;
+
+#define	SUPPORT_HW_RADIO_DETECT(pHalData) \
+	(pHalData->BoardType == BOARD_MINICARD||\
+	pHalData->BoardType == BOARD_USB_SOLO||\
+	pHalData->BoardType == BOARD_USB_COMBO)
+#endif
 
 typedef enum _RT_AMPDU_BRUST_MODE{
 	RT_AMPDU_BRUST_NONE 		= 0,
@@ -245,6 +263,7 @@ struct dm_priv
 
 	// Add for Reading Initial Data Rate SEL Register 0x484 during watchdog. Using for fill tx desc. 2011.3.21 by Thomas
 	u8	INIDATA_RATE[32];
+	_lock IQKSpinLock;
 };
 
 
@@ -364,18 +383,18 @@ typedef struct hal_com_data
 	u8	TxPwrLevelCck[RF_PATH_MAX_92C_88E][CHANNEL_MAX_NUMBER];
 	u8	TxPwrLevelHT40_1S[RF_PATH_MAX_92C_88E][CHANNEL_MAX_NUMBER];	// For HT 40MHZ pwr
 	u8	TxPwrLevelHT40_2S[RF_PATH_MAX_92C_88E][CHANNEL_MAX_NUMBER];	// For HT 40MHZ pwr
-	u8	TxPwrHt20Diff[RF_PATH_MAX_92C_88E][CHANNEL_MAX_NUMBER];// HT 20<->40 Pwr diff
+	s8	TxPwrHt20Diff[RF_PATH_MAX_92C_88E][CHANNEL_MAX_NUMBER];// HT 20<->40 Pwr diff
 	u8	TxPwrLegacyHtDiff[RF_PATH_MAX_92C_88E][CHANNEL_MAX_NUMBER];// For HT<->legacy pwr diff
 
 	// Power Limit Table for 2.4G
-	u8	TxPwrLimit_2_4G[MAX_REGULATION_NUM]
+	s8	TxPwrLimit_2_4G[MAX_REGULATION_NUM]
 						[MAX_2_4G_BANDWITH_NUM]
 	                                [MAX_RATE_SECTION_NUM]
 	                                [CHANNEL_MAX_NUMBER_2G]
 						[MAX_RF_PATH_NUM];
 
 	// Power Limit Table for 5G
-	u8	TxPwrLimit_5G[MAX_REGULATION_NUM]
+	s8	TxPwrLimit_5G[MAX_REGULATION_NUM]
 						[MAX_5G_BANDWITH_NUM]
 						[MAX_RATE_SECTION_NUM]
 						[CHANNEL_MAX_NUMBER_5G]
@@ -461,13 +480,13 @@ typedef struct hal_com_data
 	u8	RegReg542;
 	u8	RegCR_1;
 	u8	Reg837;
-	u8	RegRFPathS1;
 	u16	RegRRSR;
 
 	u8	CurAntenna;
 	u8	AntDivCfg;
 	u8	AntDetection;
 	u8	TRxAntDivType;
+	u8	ant_path; //for 8723B s0/s1 selection
 
 	u8	u1ForcedIgiLb;			// forced IGI lower bound
 
@@ -495,17 +514,17 @@ typedef struct hal_com_data
 	u8	p2p_ps_offload;
 #endif
 
-	u8	AMPDUDensity;
+	//u8	AMPDUDensity;
 
 	// Auto FSM to Turn On, include clock, isolation, power control for MAC only
 	u8	bMacPwrCtrlOn;
-
+	u8 	bDisableTXPowerTraining;
 	u8	RegIQKFWOffload;
 	struct submit_ctx 	iqk_sctx;
 
 	RT_AMPDU_BRUST		AMPDUBurstMode; //92C maybe not use, but for compile successfully
 
-#ifdef CONFIG_SDIO_HCI
+#if defined (CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
 	//
 	// For SDIO Interface HAL related
 	//
@@ -593,6 +612,8 @@ typedef struct hal_com_data
 	
 	u8	bInterruptMigration;
 	u8	bDisableTxInt;
+
+	u16	RxTag;	
 #endif //CONFIG_PCI_HCI
 
 	struct dm_priv	dmpriv;
@@ -678,6 +699,14 @@ typedef struct hal_com_data
 	char *rf_tx_pwr_lmt;
 	u32	rf_tx_pwr_lmt_len;
 #endif
+
+#ifdef CONFIG_BACKGROUND_NOISE_MONITOR
+	s16 noise[ODM_MAX_CHANNEL_NUM];
+#endif
+
+	u8 macid_num;
+	u8 cam_entry_num;
+
 } HAL_DATA_COMMON, *PHAL_DATA_COMMON;
 
 

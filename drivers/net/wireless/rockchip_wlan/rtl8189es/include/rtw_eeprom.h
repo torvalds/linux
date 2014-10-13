@@ -129,7 +129,7 @@ struct eeprom_priv
 #endif //CONFIG_RF_GAIN_OFFSET
 
 #ifdef CONFIG_SDIO_HCI
-	u8		sdio_setting;
+	u8		sdio_setting;	
 	u32		ocr;
 	u8		cis0[eeprom_cis0_sz];
 	u8		cis1[eeprom_cis1_sz];	

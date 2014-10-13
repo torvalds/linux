@@ -18,9 +18,9 @@
  *
  ******************************************************************************/
 
+#include "Mp_Precomp.h"
 
-
-#include "../odm_precomp.h"
+#include "../phydm_precomp.h"
 
 #if (RTL8188E_SUPPORT == 1)  
 
@@ -33,6 +33,13 @@ odm_ConfigRFReg_8188E(
 	IN	u4Byte				    RegAddr
 	)
 {
+#if (DM_ODM_SUPPORT_TYPE == ODM_AP)
+#ifndef SMP_SYNC
+		unsigned long x;
+#endif
+		struct rtl8192cd_priv *priv = pDM_Odm->priv;
+#endif
+
     if(Addr == 0xffe)
 	{ 					  
 		#ifdef CONFIG_LONG_DELAY_ISSUE
@@ -63,7 +70,14 @@ odm_ConfigRFReg_8188E(
 	}
 	else
 	{
+
+#if (DM_ODM_SUPPORT_TYPE == ODM_AP)
+		SAVE_INT_AND_CLI(x);	
 		ODM_SetRFReg(pDM_Odm, RF_PATH, RegAddr, bRFRegOffsetMask, Data);
+		RESTORE_INT(x);
+#else
+		ODM_SetRFReg(pDM_Odm, RF_PATH, RegAddr, bRFRegOffsetMask, Data);
+#endif		
 		// Add 1us delay between BB/RF register setting.
 		ODM_delay_us(1);
 	}	

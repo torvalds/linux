@@ -22,7 +22,9 @@
 // include files
 //============================================================
 
-#include "../odm_precomp.h"
+#include "Mp_Precomp.h"
+
+#include "../phydm_precomp.h"
 
 #if (RTL8188E_SUPPORT == 1)
 
@@ -79,7 +81,7 @@ odm_DynamicPrimaryCCA(
 	PRT_WLAN_STA	pEntry;
 #endif	
 
-	PFALSE_ALARM_STATISTICS		FalseAlmCnt = &(pDM_Odm->FalseAlmCnt);
+	PFALSE_ALARM_STATISTICS		FalseAlmCnt = (PFALSE_ALARM_STATISTICS)PhyDM_Get_Structure( pDM_Odm , PHYDM_FALSEALMCNT);
 	pPri_CCA_T		PrimaryCCA = &(pDM_Odm->DM_PriCCA);  
 	
 	BOOLEAN		Is40MHz;
@@ -95,9 +97,12 @@ odm_DynamicPrimaryCCA(
 	u1Byte		SecCHOffset;
 	u1Byte		i;
 	
+	if(!(pDM_Odm->SupportAbility & ODM_BB_PRIMARY_CCA))
+		return;
+	
 #if((DM_ODM_SUPPORT_TYPE==ODM_ADSL) ||( DM_ODM_SUPPORT_TYPE==ODM_CE))
 	return;
-#endif
+#else
 
 	if(pDM_Odm->SupportICType != ODM_RTL8188E) 
 		return;
@@ -434,6 +439,8 @@ odm_DynamicPrimaryCCA(
 	}
 
 	Client_40MHz_pre = Client_40MHz;
+
+#endif
 }
 #else //#if (RTL8188E_SUPPORT == 1)
 

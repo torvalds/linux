@@ -120,6 +120,11 @@ int rtw_ndev_notifier_register(void);
 void rtw_ndev_notifier_unregister(void);
 
 #include "../os_dep/linux/rtw_proc.h"
+
+#ifdef CONFIG_IOCTL_CFG80211
+#include "../os_dep/linux/ioctl_cfg80211.h"
+#endif //CONFIG_IOCTL_CFG80211
+
 #endif //PLATFORM_LINUX
 
 
@@ -154,11 +159,8 @@ void rtw_ndev_destructor(_nic_hdl ndev);
 int	rtw_gw_addr_query(_adapter *padapter);
 #endif
 
-#ifdef CONFIG_SUSPEND_REFINE
 int rtw_suspend_common(_adapter *padapter);
 int rtw_resume_common(_adapter *padapter);
-#endif
-
 
 #endif	//_OSDEP_INTF_H_
 

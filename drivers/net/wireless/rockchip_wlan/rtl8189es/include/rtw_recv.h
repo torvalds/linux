@@ -278,7 +278,16 @@ struct rx_pkt_attrib	{
 
 #define RECVBUFF_ALIGN_SZ 8
 
+#if defined (CONFIG_RTL8192E)
+	#ifdef CONFIG_PCI_HCI
+		#define RXDESC_SIZE 16
+		#define RX_WIFI_INFO_SIZE	24
+	#else
+		#define RXDESC_SIZE	24
+	#endif
+#else
 #define RXDESC_SIZE	24
+#endif
 #define RXDESC_OFFSET RXDESC_SIZE
 
 struct recv_stat
@@ -287,10 +296,13 @@ struct recv_stat
 
 	unsigned int rxdw1;
 
+#if !(defined(CONFIG_RTL8192E) && defined(CONFIG_PCI_HCI)) //exclude 8192ee
 	unsigned int rxdw2;
 
 	unsigned int rxdw3;
+#endif
 
+#ifndef BUF_DESC_ARCH
 	unsigned int rxdw4;
 
 	unsigned int rxdw5;
@@ -300,6 +312,7 @@ struct recv_stat
 
 	unsigned int rxdw7;
 #endif
+#endif //if BUF_DESC_ARCH is defined, rx_buf_desc occupy 4 double words
 };
 
 #define EOR BIT(30)
@@ -371,7 +384,7 @@ struct recv_priv
 	//u8 *pallocated_urb_buf;
 	_sema allrxreturnevt;
 	uint	ff_hwaddr;
-	u8	rx_pending_cnt;
+	ATOMIC_T	rx_pending_cnt;
 
 #ifdef CONFIG_USB_INTERRUPT_IN_PIPE
 #ifdef PLATFORM_LINUX
@@ -397,9 +410,6 @@ struct recv_priv
 	struct ifqueue rx_indicate_queue;
 #endif	// CONFIG_RX_INDICATE_QUEUE
 
-#ifdef CONFIG_USE_USB_BUFFER_ALLOC_RX
-	_queue	recv_buf_pending_queue;
-#endif	// CONFIG_USE_USB_BUFFER_ALLOC_RX
 #endif //defined(PLATFORM_LINUX) || defined(PLATFORM_FREEBSD)
 
 	u8 *pallocated_recv_buf;
@@ -407,7 +417,7 @@ struct recv_priv
 	_queue	free_recv_buf_queue;
 	u32	free_recv_buf_queue_cnt;
 
-#if defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
+#if defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI) || defined(CONFIG_USB_HCI) 
 	_queue	recv_buf_pending_queue;
 #endif
 
@@ -429,7 +439,7 @@ struct recv_priv
 	struct rx_raw_rssi raw_rssi_info;
 	#endif
 	//s8 rxpwdb;	
-	u8 noise;	
+	s16 noise;	
 	//int RxSNRdB[2];
 	//s8 RxRssi[2];
 	//int FalseAlmCnt_all;
@@ -445,7 +455,7 @@ struct recv_priv
 	struct smooth_rssi_data signal_qual_data;
 	struct smooth_rssi_data signal_strength_data;
 #endif //CONFIG_NEW_SIGNAL_STAT_PROCESS
-
+	u16 sink_udpport,pre_rtp_rxseq,cur_rtp_rxseq;
 };
 
 #ifdef CONFIG_NEW_SIGNAL_STAT_PROCESS
@@ -825,9 +835,14 @@ __inline static s32 translate_percentage_to_dbm(u32 SignalStrengthIndex)
 {
 	s32	SignalPower; // in dBm.
 
+#ifdef CONFIG_SKIP_SIGNAL_SCALE_MAPPING
+	// Translate to dBm (x=y-100)
+	SignalPower = SignalStrengthIndex - 100;
+#else
 	// Translate to dBm (x=0.5y-95).
 	SignalPower = (s32)((SignalStrengthIndex + 1) >> 1); 
 	SignalPower -= 95; 
+#endif
 
 	return SignalPower;
 }

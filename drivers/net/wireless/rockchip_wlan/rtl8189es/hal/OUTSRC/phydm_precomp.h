@@ -21,7 +21,7 @@
 #ifndef	__ODM_PRECOMP_H__
 #define __ODM_PRECOMP_H__
 
-#include "odm_types.h"
+#include "phydm_types.h"
 
 #if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
 #include "Precomp.h"		// We need to include mp_precomp.h due to batch file setting.
@@ -138,13 +138,14 @@
 
 
 //2 OutSrc Header Files
-
-#include "odm.h"
-#include "odm_HWConfig.h"
-#include "odm_debug.h"
-#include "odm_RegDefine11AC.h"
-#include "odm_RegDefine11N.h"
-#include "odm_AntDiv.h"
+#include "phydm.h"
+#include "phydm_HWConfig.h"
+#include "phydm_debug.h"
+#include "phydm_RegDefine11AC.h"
+#include "phydm_RegDefine11N.h"
+#include "phydm_AntDiv.h"
+#include "phydm_interface.h"
+#include "phydm_reg.h"
 
 #if (DM_ODM_SUPPORT_TYPE == ODM_AP)
 #if (RTL8192C_SUPPORT==1)
@@ -197,7 +198,8 @@
 	#if (RTL8821A_SUPPORT==1)
 		#include "rtl8821a/HalPhyRf_8821A.h"//for IQK,LCK,Power-tracking
 		#include "rtl8812a/HalPhyRf_8812A.h"//for IQK,LCK,Power-tracking
-		#include "rtl8812a_hal.h"		
+		#include "rtl8812a_hal.h"
+		#include "rtl8821a/PhyDM_IQK_8821A.h"
 	#endif
 
 	#if (RTL8723B_SUPPORT==1)
@@ -206,8 +208,6 @@
 	#endif
 #endif
 
-#include "odm_interface.h"
-#include "odm_reg.h"
 
 #if (RTL8192C_SUPPORT==1) 
 #if (DM_ODM_SUPPORT_TYPE == ODM_AP)
@@ -216,10 +216,10 @@
 #include "rtl8192c/Hal8192CHWImg_BB.h"
 #include "rtl8192c/Hal8192CHWImg_FW.h"
 #endif
-#include "rtl8192c/odm_RTL8192C.h"
+#include "rtl8192c/phydm_RTL8192C.h"
 #endif
 #if (RTL8192D_SUPPORT==1) 
-#include "rtl8192d/odm_RTL8192D.h"
+#include "rtl8192d/phydm_RTL8192D.h"
 #endif
 
 #if (RTL8723A_SUPPORT==1) 
@@ -227,7 +227,7 @@
 #include "rtl8723a/HalHWImg8723A_RF.h"
 #include "rtl8723a/HalHWImg8723A_BB.h"
 #include "rtl8723a/HalHWImg8723A_FW.h"
-#include "rtl8723a/odm_RegConfig8723A.h"
+#include "rtl8723a/phydm_RegConfig8723A.h"
 #endif
 
 #if (RTL8188E_SUPPORT==1) 
@@ -248,8 +248,8 @@
 #endif
 
 
-#include "rtl8188e/odm_RegConfig8188E.h"
-#include "rtl8188e/odm_RTL8188E.h"
+#include "rtl8188e/phydm_RegConfig8188E.h"
+#include "rtl8188e/phydm_RTL8188E.h"
 #endif
 
 #if (RTL8192E_SUPPORT==1) 
@@ -258,8 +258,8 @@
 #include "rtl8192e/HalHWImg8192E_BB.h"
 #include "rtl8192e/HalHWImg8192E_FW.h"
 #include "rtl8192e/Hal8192EReg.h"
-#include "rtl8192e/odm_RegConfig8192E.h"
-#include "rtl8192e/odm_RTL8192E.h"
+#include "rtl8192e/phydm_RegConfig8192E.h"
+#include "rtl8192e/phydm_RTL8192E.h"
 #endif
 
 #if (RTL8723B_SUPPORT==1) 
@@ -269,8 +269,8 @@
 #include "rtl8723b/HalHWImg8723B_FW.h"
 #include "rtl8723b/HalHWImg8723B_MP.h"
 #include "rtl8723b/Hal8723BReg.h"
-#include "rtl8723b/odm_RTL8723B.h"
-#include "rtl8723b/odm_RegConfig8723B.h"
+#include "rtl8723b/phydm_RTL8723B.h"
+#include "rtl8723b/phydm_RegConfig8723B.h"
 #endif
 
 #if (RTL8812A_SUPPORT==1) 
@@ -278,13 +278,8 @@
 #include "rtl8812a/HalHWImg8812A_RF.h"
 #include "rtl8812a/HalHWImg8812A_BB.h"
 #include "rtl8812a/HalHWImg8812A_FW.h"
-#include "rtl8812a/odm_RegConfig8812A.h"
-#include "rtl8812a/odm_RTL8812A.h"
-#if (TESTCHIP_SUPPORT == 1) 
-#include "rtl8812a/HalHWImg8812A_TestChip_MAC.h"
-#include "rtl8812a/HalHWImg8812A_TestChip_RF.h"
-#include "rtl8812a/HalHWImg8812A_TestChip_BB.h"
-#endif
+#include "rtl8812a/phydm_RegConfig8812A.h"
+#include "rtl8812a/phydm_RTL8812A.h"
 #endif
 
 
@@ -293,14 +288,8 @@
 #include "rtl8821a/HalHWImg8821A_RF.h"
 #include "rtl8821a/HalHWImg8821A_BB.h"
 #include "rtl8821a/HalHWImg8821A_FW.h"
-#include "rtl8821a/odm_RegConfig8821A.h"
-#include "rtl8821a/odm_RTL8821A.h"
-#if (TESTCHIP_SUPPORT == 1) 
-#include "rtl8821a/HalHWImg8821A_TestChip_MAC.h"
-#include "rtl8821a/HalHWImg8821A_TestChip_RF.h"
-#include "rtl8821a/HalHWImg8821A_TestChip_BB.h"
-#include "rtl8821a/HalHWImg8821A_TestChip_FW.h"
-#endif
+#include "rtl8821a/phydm_RegConfig8821A.h"
+#include "rtl8821a/phydm_RTL8821A.h"
 #endif
 
 #endif	// __ODM_PRECOMP_H__

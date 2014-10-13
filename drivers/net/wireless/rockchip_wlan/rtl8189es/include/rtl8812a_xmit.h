@@ -20,17 +20,6 @@
 #ifndef __RTL8812A_XMIT_H__
 #define __RTL8812A_XMIT_H__
 
-//
-// Queue Select Value in TxDesc
-//
-#define QSLT_BK							0x2//0x01
-#define QSLT_BE							0x0
-#define QSLT_VI							0x5//0x4
-#define QSLT_VO							0x7//0x6
-#define QSLT_BEACON						0x10
-#define QSLT_HIGH						0x11
-#define QSLT_MGNT						0x12
-#define QSLT_CMD						0x13
 
 //For 88e early mode
 #define SET_EARLYMODE_PKTNUM(__pAddr, __Value) SET_BITS_TO_LE_4BYTE(__pAddr, 0, 3, __Value)
@@ -331,7 +320,7 @@ typedef struct txdescriptor_8812
 
 
 void rtl8812a_cal_txdesc_chksum(u8 *ptxdesc);
-void rtl8812a_fill_fake_txdesc(PADAPTER	padapter,u8*pDesc,u32 BufferLen,u8 IsPsPoll,u8	IsBTQosNull);
+void rtl8812a_fill_fake_txdesc(PADAPTER	padapter,u8*pDesc,u32 BufferLen,u8 IsPsPoll,u8	IsBTQosNull, u8 bDataFrame);
 void rtl8812a_fill_txdesc_sectype(struct pkt_attrib *pattrib, u8 *ptxdesc);
 void rtl8812a_fill_txdesc_vcs(PADAPTER padapter, struct pkt_attrib *pattrib, u8 *ptxdesc);
 void rtl8812a_fill_txdesc_phy(PADAPTER padapter, struct pkt_attrib *pattrib, u8 *ptxdesc);

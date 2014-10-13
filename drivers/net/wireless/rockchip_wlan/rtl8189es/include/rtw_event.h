@@ -82,6 +82,10 @@ struct addba_event
  	unsigned int tid;
 };
 
+struct wmm_event
+{
+ 	unsigned char wmm;
+};
 
 #ifdef CONFIG_H2CLBK
 struct c2hlbk_event{
