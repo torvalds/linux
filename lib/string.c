@@ -59,6 +59,7 @@ int strncasecmp(const char *s1, const char *s2, size_t len)
 EXPORT_SYMBOL(strncasecmp);
 #endif
 #ifndef __HAVE_ARCH_STRNICMP
+#undef strnicmp
 int strnicmp(const char *s1, const char *s2, size_t len)
 {
 	return strncasecmp(s1, s2, len);
