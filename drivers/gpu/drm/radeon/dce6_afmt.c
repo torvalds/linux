@@ -155,7 +155,7 @@ void dce6_afmt_write_speaker_allocation(struct drm_encoder *encoder)
 	struct drm_connector *connector;
 	struct radeon_connector *radeon_connector = NULL;
 	u32 offset, tmp;
-	u8 *sadb;
+	u8 *sadb = NULL;
 	int sad_count;
 
 	if (!dig || !dig->afmt || !dig->afmt->pin)

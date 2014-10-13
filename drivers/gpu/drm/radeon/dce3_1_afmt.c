@@ -32,7 +32,7 @@ static void dce3_2_afmt_write_speaker_allocation(struct drm_encoder *encoder)
 	struct drm_connector *connector;
 	struct radeon_connector *radeon_connector = NULL;
 	u32 tmp;
-	u8 *sadb;
+	u8 *sadb = NULL;
 	int sad_count;
 
 	list_for_each_entry(connector, &encoder->dev->mode_config.connector_list, head) {
