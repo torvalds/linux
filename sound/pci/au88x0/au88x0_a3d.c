@@ -484,7 +484,7 @@ static void a3dsrc_ZeroState(a3dsrc_t * a)
 }
 
 /* Reset entire A3D engine */
-static void a3dsrc_ZeroStateA3D(a3dsrc_t * a)
+static void a3dsrc_ZeroStateA3D(a3dsrc_t *a, vortex_t *v)
 {
 	int i, var, var2;
 
@@ -601,7 +601,7 @@ static void vortex_Vort3D_enable(vortex_t *v)
 	Vort3DRend_Initialize(v, XT_HEADPHONE);
 	for (i = 0; i < NR_A3D; i++) {
 		vortex_A3dSourceHw_Initialize(v, i % 4, i >> 2);
-		a3dsrc_ZeroStateA3D(&(v->a3d[0]));
+		a3dsrc_ZeroStateA3D(&v->a3d[0], v);
 	}
 	/* Register ALSA controls */
 	vortex_a3d_register_controls(v);
@@ -676,7 +676,7 @@ static void vortex_Vort3D_connect(vortex_t * v, int en)
 }
 
 /* Initialize one single A3D source. */
-static void vortex_Vort3D_InitializeSource(a3dsrc_t * a, int en)
+static void vortex_Vort3D_InitializeSource(a3dsrc_t *a, int en, vortex_t *v)
 {
 	if (a->vortex == NULL) {
 		pr_warn

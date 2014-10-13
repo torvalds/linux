@@ -332,7 +332,7 @@ static int snd_vortex_pcm_prepare(struct snd_pcm_substream *substream)
 		dir = 1;
 	else
 		dir = 0;
-	fmt = vortex_alsafmt_aspfmt(runtime->format);
+	fmt = vortex_alsafmt_aspfmt(runtime->format, chip);
 	spin_lock_irq(&chip->lock);
 	if (VORTEX_PCM_TYPE(substream->pcm) != VORTEX_PCM_WT) {
 		vortex_adbdma_setmode(chip, dma, 1, dir, fmt,

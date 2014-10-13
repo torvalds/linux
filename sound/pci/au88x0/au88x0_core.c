@@ -2177,7 +2177,8 @@ vortex_adb_allocroute(vortex_t *vortex, int dma, int nr_ch, int dir,
 				return -EBUSY;
 			}
 			/* (De)Initialize A3D hardware source. */
-			vortex_Vort3D_InitializeSource(&(vortex->a3d[a3d]), en);
+			vortex_Vort3D_InitializeSource(&vortex->a3d[a3d], en,
+						       vortex);
 		}
 		/* Make SPDIF out exclusive to "spdif" device when in use. */
 		if ((stream->type == VORTEX_PCM_SPDIF) && (en)) {
@@ -2765,7 +2766,7 @@ static int vortex_core_shutdown(vortex_t * vortex)
 
 /* Alsa support. */
 
-static int vortex_alsafmt_aspfmt(int alsafmt)
+static int vortex_alsafmt_aspfmt(int alsafmt, vortex_t *v)
 {
 	int fmt;
 
