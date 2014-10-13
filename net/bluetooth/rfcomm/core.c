@@ -79,7 +79,7 @@ static struct rfcomm_session *rfcomm_session_del(struct rfcomm_session *s);
 
 #define __test_ea(b)      ((b & 0x01))
 #define __test_cr(b)      (!!(b & 0x02))
-#define __test_pf(b)      ((b & 0x10))
+#define __test_pf(b)      (!!(b & 0x10))
 
 #define __addr(cr, dlci)       (((dlci & 0x3f) << 2) | (cr << 1) | 0x01)
 #define __ctrl(type, pf)       (((type & 0xef) | (pf << 4)))
