@@ -1,40 +1,41 @@
 /*
-    comedi/drivers/cb_pcimdas.c
-    Comedi driver for Computer Boards PCIM-DAS1602/16
+ * comedi/drivers/cb_pcimdas.c
+ * Comedi driver for Computer Boards PCIM-DAS1602/16
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2000 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
 /*
-Driver: cb_pcimdas
-Description: Measurement Computing PCI Migration series boards
-Devices: [ComputerBoards] PCIM-DAS1602/16 (cb_pcimdas)
-Author: Richard Bytheway
-Updated: Wed, 13 Nov 2002 12:34:56 +0000
-Status: experimental
-
-Written to support the PCIM-DAS1602/16 on a 2.4 series kernel.
-
-Configuration Options:
-    [0] - PCI bus number
-    [1] - PCI slot number
-
-Developed from cb_pcidas and skel by Richard Bytheway (mocelet@sucs.org).
-Only supports DIO, AO and simple AI in it's present form.
-No interrupts, multi channel or FIFO AI,
-although the card looks like it could support this.
-See http://www.mccdaq.com/PDFs/Manuals/pcim-das1602-16.pdf for more details.
-*/
+ * Driver: cb_pcimdas
+ * Description: Measurement Computing PCI Migration series boards
+ * Devices: [ComputerBoards] PCIM-DAS1602/16 (cb_pcimdas)
+ * Author: Richard Bytheway
+ * Updated: Wed, 13 Nov 2002 12:34:56 +0000
+ * Status: experimental
+ *
+ * Written to support the PCIM-DAS1602/16 on a 2.4 series kernel.
+ *
+ * Configuration Options:
+ *     [0] - PCI bus number
+ *     [1] - PCI slot number
+ *
+ * Developed from cb_pcidas and skel by Richard Bytheway (mocelet@sucs.org).
+ * Only supports DIO, AO and simple AI in it's present form.
+ * No interrupts, multi channel or FIFO AI,
+ * although the card looks like it could support this.
+ * See http://www.mccdaq.com/PDFs/Manuals/pcim-das1602-16.pdf for more details.
+ */
 
 #include <linux/module.h>
 #include <linux/pci.h>
