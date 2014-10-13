@@ -55,8 +55,7 @@ struct gether {
 	u32				fixed_out_len;
 	u32				fixed_in_len;
 	unsigned		ul_max_pkts_per_xfer;
-/* Max number of SKB packets to be used to create Multi Packet RNDIS */
-#define TX_SKB_HOLD_THRESHOLD		3
+	unsigned		dl_max_pkts_per_xfer;
 	bool				multi_pkt_xfer;
 	struct sk_buff			*(*wrap)(struct gether *port,
 						struct sk_buff *skb);

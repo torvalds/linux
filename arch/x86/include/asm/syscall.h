@@ -90,8 +90,7 @@ static inline void syscall_set_arguments(struct task_struct *task,
 	memcpy(&regs->bx + i, args, n * sizeof(args[0]));
 }
 
-static inline int syscall_get_arch(struct task_struct *task,
-				   struct pt_regs *regs)
+static inline int syscall_get_arch(void)
 {
 	return AUDIT_ARCH_I386;
 }
@@ -220,8 +219,7 @@ static inline void syscall_set_arguments(struct task_struct *task,
 		}
 }
 
-static inline int syscall_get_arch(struct task_struct *task,
-				   struct pt_regs *regs)
+static inline int syscall_get_arch(void)
 {
 #ifdef CONFIG_IA32_EMULATION
 	/*
@@ -233,7 +231,7 @@ static inline int syscall_get_arch(struct task_struct *task,
 	 *
 	 * x32 tasks should be considered AUDIT_ARCH_X86_64.
 	 */
-	if (task_thread_info(task)->status & TS_COMPAT)
+	if (task_thread_info(current)->status & TS_COMPAT)
 		return AUDIT_ARCH_I386;
 #endif
 	/* Both x32 and x86_64 are considered "64-bit". */

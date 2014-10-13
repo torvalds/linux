@@ -60,6 +60,15 @@
 #define COMPAT_PT_TEXT_ADDR		0x10000
 #define COMPAT_PT_DATA_ADDR		0x10004
 #define COMPAT_PT_TEXT_END_ADDR		0x10008
+
+/*
+ * used to skip a system call when tracer changes its number to -1
+ * with ptrace(PTRACE_SET_SYSCALL)
+ */
+#define RET_SKIP_SYSCALL	-1
+#define RET_SKIP_SYSCALL_TRACE	-2
+#define IS_SKIP_SYSCALL(no)	((int)(no & 0xffffffff) == -1)
+
 #ifndef __ASSEMBLY__
 
 /* sizeof(struct user) for AArch32 */
@@ -133,6 +142,11 @@ struct pt_regs {
 #define user_stack_pointer(regs) \
 	(!compat_user_mode(regs) ? (regs)->sp : (regs)->compat_sp)
 
+static inline unsigned long regs_return_value(struct pt_regs *regs)
+{
+	return regs->regs[0];
+}
+
 /*
  * Are the current registers suitable for user mode? (used to maintain
  * security in signal handlers)
@@ -171,7 +185,13 @@ extern unsigned long profile_pc(struct pt_regs *regs);
 #define profile_pc(regs) instruction_pointer(regs)
 #endif
 
-extern int aarch32_break_trap(struct pt_regs *regs);
+/*
+ * True if instr is a 32-bit thumb instruction. This works if instr
+ * is the first or only half-word of a thumb instruction. It also works
+ * when instr holds all 32-bits of a wide thumb instruction if stored
+ * in the form (first_half<<16)|(second_half)
+ */
+#define is_wide_instruction(instr)	((unsigned)(instr) >= 0xe800)
 
 #endif /* __ASSEMBLY__ */
 #endif

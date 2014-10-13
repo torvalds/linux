@@ -7,6 +7,7 @@ config ARM64
 	select ARM_AMBA
 	select ARM_ARCH_TIMER
 	select ARM_GIC
+	select AUDIT_ARCH_COMPAT_GENERIC
 	select CLONE_BACKWARDS
 	select COMMON_CLK
 	select GENERIC_CLOCKEVENTS
@@ -18,6 +19,8 @@ config ARM64
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_TIME_VSYSCALL
 	select HARDIRQS_SW_RESEND
+	select HAVE_ARCH_AUDITSYSCALL
+	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_DEBUG_BUGVERBOSE
 	select HAVE_DEBUG_KMEMLEAK
@@ -152,6 +155,31 @@ config NR_CPUS
 	depends on SMP
 	default "4"
 
+config SWP_EMULATE
+	bool "Emulate SWP/SWPB instructions"
+	help
+	  ARMv6 architecture deprecates use of the SWP/SWPB instructions. ARMv8
+	  oblosetes the use of SWP/SWPB instructions. ARMv7 multiprocessing
+	  extensions introduce the ability to disable these instructions,
+	  triggering an undefined instruction exception when executed. Say Y
+	  here to enable software emulation of these instructions for userspace
+	  (not kernel) using LDREX/STREX. Also creates /proc/cpu/swp_emulation
+	  for statistics.
+
+	  In some older versions of glibc [<=2.8] SWP is used during futex
+	  trylock() operations with the assumption that the code will not
+	  be preempted. This invalid assumption may be more likely to fail
+	  with SWP emulation enabled, leading to deadlock of the user
+	  application.
+
+	  NOTE: when accessing uncached shared regions, LDREX/STREX rely
+	  on an external transaction monitoring block called a global
+	  monitor to maintain update atomicity. If your system does not
+	  implement a global monitor, this option can cause programs that
+	  perform SWP operations to uncached memory to deadlock.
+
+	  If unsure, say Y.
+
 source kernel/Kconfig.preempt
 
 config HZ
@@ -182,7 +210,42 @@ config HW_PERF_EVENTS
 	  Enable hardware performance counter support for perf events. If
 	  disabled, perf events will use software events only.
 
+config ARMV7_COMPAT
+	bool "Kernel support for ARMv7 applications"
+	depends on COMPAT
+	select SWP_EMULATE
+	help
+	 This option enables features that allow that ran on an ARMv7 or older
+	 processor to continue functioning.
+
+	 If you want to execute ARMv7 applications, say Y
+
+config ARMV7_COMPAT_CPUINFO
+	bool "Report backwards compatible cpu features in /proc/cpuinfo"
+	depends on ARMV7_COMPAT
+	default y
+	help
+	 This option makes /proc/cpuinfo list CPU features that an ARMv7 or
+	 earlier kernel would report, but are not optional on an ARMv8 or later
+	 processor.
+
+	 If you want to execute ARMv7 applications, say Y
+
 source "mm/Kconfig"
+
+config SECCOMP
+	bool "Enable seccomp to safely compute untrusted bytecode"
+	---help---
+	  This kernel feature is useful for number crunching applications
+	  that may need to compute untrusted bytecode during their
+	  execution. By using pipes or other transports made available to
+	  the process as file descriptors supporting the read/write
+	  syscalls, it's possible to isolate those applications in
+	  their own address space using seccomp. Once seccomp is
+	  enabled via prctl(PR_SET_SECCOMP), it cannot be disabled
+	  and the task is only allowed to execute a few safe syscalls
+	  defined by each seccomp mode.
+
 
 endmenu
 

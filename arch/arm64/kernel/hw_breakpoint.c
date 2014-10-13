@@ -20,13 +20,13 @@
 
 #define pr_fmt(fmt) "hw-breakpoint: " fmt
 
+#include <linux/compat.h>
 #include <linux/errno.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/perf_event.h>
 #include <linux/ptrace.h>
 #include <linux/smp.h>
 
-#include <asm/compat.h>
 #include <asm/current.h>
 #include <asm/debug-monitors.h>
 #include <asm/hw_breakpoint.h>
