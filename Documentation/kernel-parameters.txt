@@ -1723,6 +1723,49 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	lockd.nlm_udpport=M	[NFS] Assign UDP port.
 			Format: <integer>
 
+	locktorture.nreaders_stress= [KNL]
+			Set the number of locking read-acquisition kthreads.
+			Defaults to being automatically set based on the
+			number of online CPUs.
+
+	locktorture.nwriters_stress= [KNL]
+			Set the number of locking write-acquisition kthreads.
+
+	locktorture.onoff_holdoff= [KNL]
+			Set time (s) after boot for CPU-hotplug testing.
+
+	locktorture.onoff_interval= [KNL]
+			Set time (s) between CPU-hotplug operations, or
+			zero to disable CPU-hotplug testing.
+
+	locktorture.shuffle_interval= [KNL]
+			Set task-shuffle interval (jiffies).  Shuffling
+			tasks allows some CPUs to go into dyntick-idle
+			mode during the locktorture test.
+
+	locktorture.shutdown_secs= [KNL]
+			Set time (s) after boot system shutdown.  This
+			is useful for hands-off automated testing.
+
+	locktorture.stat_interval= [KNL]
+			Time (s) between statistics printk()s.
+
+	locktorture.stutter= [KNL]
+			Time (s) to stutter testing, for example,
+			specifying five seconds causes the test to run for
+			five seconds, wait for five seconds, and so on.
+			This tests the locking primitive's ability to
+			transition abruptly to and from idle.
+
+	locktorture.torture_runnable= [BOOT]
+			Start locktorture running at boot time.
+
+	locktorture.torture_type= [KNL]
+			Specify the locking implementation to test.
+
+	locktorture.verbose= [KNL]
+			Enable additional printk() statements.
+
 	logibm.irq=	[HW,MOUSE] Logitech Bus Mouse Driver
 			Format: <irq>
 
@@ -2900,6 +2943,24 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Lazy RCU callbacks are those which RCU can
 			prove do nothing more than free memory.
 
+	rcutorture.cbflood_inter_holdoff= [KNL]
+			Set holdoff time (jiffies) between successive
+			callback-flood tests.
+
+	rcutorture.cbflood_intra_holdoff= [KNL]
+			Set holdoff time (jiffies) between successive
+			bursts of callbacks within a given callback-flood
+			test.
+
+	rcutorture.cbflood_n_burst= [KNL]
+			Set the number of bursts making up a given
+			callback-flood test.  Set this to zero to
+			disable callback-flood testing.
+
+	rcutorture.cbflood_n_per_burst= [KNL]
+			Set the number of callbacks to be registered
+			in a given burst of a callback-flood test.
+
 	rcutorture.fqs_duration= [KNL]
 			Set duration of force_quiescent_state bursts.
 
@@ -2939,7 +3000,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Set time (s) between CPU-hotplug operations, or
 			zero to disable CPU-hotplug testing.
 
-	rcutorture.rcutorture_runnable= [BOOT]
+	rcutorture.torture_runnable= [BOOT]
 			Start rcutorture running at boot time.
 
 	rcutorture.shuffle_interval= [KNL]
@@ -3000,6 +3061,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	rcupdate.rcu_cpu_stall_timeout= [KNL]
 			Set timeout for RCU CPU stall warning messages.
+
+	rcupdate.rcu_task_stall_timeout= [KNL]
+			Set timeout in jiffies for RCU task stall warning
+			messages.  Disable with a value less than or equal
+			to zero.
 
 	rdinit=		[KNL]
 			Format: <full_path>

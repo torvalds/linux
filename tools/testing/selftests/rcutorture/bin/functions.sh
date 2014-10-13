@@ -64,6 +64,26 @@ configfrag_boot_params () {
 	fi
 }
 
+# configfrag_boot_cpus bootparam-string config-fragment-file config-cpus
+#
+# Decreases number of CPUs based on any maxcpus= boot parameters specified.
+configfrag_boot_cpus () {
+	local bootargs="`configfrag_boot_params "$1" "$2"`"
+	local maxcpus
+	if echo "${bootargs}" | grep -q 'maxcpus=[0-9]'
+	then
+		maxcpus="`echo "${bootargs}" | sed -e 's/^.*maxcpus=\([0-9]*\).*$/\1/'`"
+		if test "$3" -gt "$maxcpus"
+		then
+			echo $maxcpus
+		else
+			echo $3
+		fi
+	else
+		echo $3
+	fi
+}
+
 # configfrag_hotplug_cpu config-fragment-file
 #
 # Returns 1 if the config fragment specifies hotplug CPU.

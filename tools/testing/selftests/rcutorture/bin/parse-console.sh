@@ -1,11 +1,10 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Check the console output from an rcutorture run for oopses.
 # The "file" is a pathname on the local system, and "title" is
 # a text string for error-message purposes.
 #
-# Usage:
-#	sh parse-console.sh file title
+# Usage: parse-console.sh file title
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -33,6 +32,10 @@ title="$2"
 
 . functions.sh
 
+if grep -Pq '\x00' < $file
+then
+	print_warning Console output contains nul bytes, old qemu still running?
+fi
 egrep 'Badness|WARNING:|Warn|BUG|===========|Call Trace:|Oops:' < $file | grep -v 'ODEBUG: ' | grep -v 'Warning: unable to open an initial console' > $T
 if test -s $T
 then
