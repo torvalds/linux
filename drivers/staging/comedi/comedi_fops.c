@@ -1555,9 +1555,7 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 
 	comedi_buf_reset(s);
 
-	async->cb_mask =
-	    COMEDI_CB_EOA | COMEDI_CB_BLOCK | COMEDI_CB_ERROR |
-	    COMEDI_CB_OVERFLOW;
+	async->cb_mask = COMEDI_CB_BLOCK | COMEDI_CB_CANCEL_MASK;
 	if (async->cmd.flags & CMDF_WAKE_EOS)
 		async->cb_mask |= COMEDI_CB_EOS;
 
@@ -2390,14 +2388,14 @@ void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (!comedi_is_subdevice_running(s))
 		return;
 
-	if (s->
-	    async->events & (COMEDI_CB_EOA | COMEDI_CB_ERROR |
-			     COMEDI_CB_OVERFLOW)) {
+	if (s->async->events & COMEDI_CB_CANCEL_MASK)
 		runflags_mask |= SRF_RUNNING;
-	}
-	/* remember if an error event has occurred, so an error
-	 * can be returned the next time the user does a read() */
-	if (s->async->events & (COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW)) {
+
+	/*
+	 * Remember if an error event has occurred, so an error
+	 * can be returned the next time the user does a read().
+	 */
+	if (s->async->events & COMEDI_CB_ERROR_MASK) {
 		runflags_mask |= SRF_ERROR;
 		runflags |= SRF_ERROR;
 	}

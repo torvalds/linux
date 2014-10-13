@@ -1119,7 +1119,6 @@ static bool pci230_handle_ao_fifo(struct comedi_device *dev,
 	unsigned short dacstat;
 	unsigned int i, n;
 	unsigned int events = 0;
-	bool running;
 
 	/* Get DAC FIFO status. */
 	dacstat = inw(devpriv->daqio + PCI230_DACCON);
@@ -1201,12 +1200,8 @@ static bool pci230_handle_ao_fifo(struct comedi_device *dev,
 			events |= COMEDI_CB_OVERFLOW | COMEDI_CB_ERROR;
 		}
 	}
-	if (events & (COMEDI_CB_EOA | COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW))
-		running = false;
-	else
-		running = true;
 	async->events |= events;
-	return running;
+	return !(async->events & COMEDI_CB_CANCEL_MASK);
 }
 
 static int pci230_ao_inttrig_scan_begin(struct comedi_device *dev,
@@ -2128,8 +2123,7 @@ static void pci230_handle_ai(struct comedi_device *dev,
 		events |= COMEDI_CB_BLOCK;
 	}
 	async->events |= events;
-	if (!(async->events & (COMEDI_CB_EOA | COMEDI_CB_ERROR |
-			       COMEDI_CB_OVERFLOW))) {
+	if (!(async->events & COMEDI_CB_CANCEL_MASK)) {
 		/* update FIFO interrupt trigger level */
 		pci230_ai_update_fifo_trigger_level(dev, s);
 	}

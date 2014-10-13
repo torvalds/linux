@@ -375,7 +375,7 @@ unsigned int comedi_handle_events(struct comedi_device *dev,
 	if (events == 0)
 		return events;
 
-	if (events & (COMEDI_CB_EOA | COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW))
+	if (events & COMEDI_CB_CANCEL_MASK)
 		s->cancel(dev, s);
 
 	comedi_event(dev, s);

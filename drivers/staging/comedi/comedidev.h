@@ -221,6 +221,9 @@ struct comedi_async {
  * @COMEDI_CB_EOBUF:		DEPRECATED: end of buffer
  * @COMEDI_CB_ERROR:		card error during acquisition
  * @COMEDI_CB_OVERFLOW:		buffer overflow/underflow
+ *
+ * @COMEDI_CB_ERROR_MASK:	events that indicate an error has occurred
+ * @COMEDI_CB_CANCEL_MASK:	events that will cancel an async command
  */
 #define COMEDI_CB_EOS		(1 << 0)
 #define COMEDI_CB_EOA		(1 << 1)
@@ -228,6 +231,9 @@ struct comedi_async {
 #define COMEDI_CB_EOBUF		(1 << 3)
 #define COMEDI_CB_ERROR		(1 << 4)
 #define COMEDI_CB_OVERFLOW	(1 << 5)
+
+#define COMEDI_CB_ERROR_MASK	(COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW)
+#define COMEDI_CB_CANCEL_MASK	(COMEDI_CB_EOA | COMEDI_CB_ERROR_MASK)
 
 struct comedi_driver {
 	struct comedi_driver *next;
