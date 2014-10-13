@@ -1759,7 +1759,6 @@ static __initdata char *suffix_tbl[] = {
  */
 static int __init parse_crashkernel_suffix(char *cmdline,
 					   unsigned long long	*crash_size,
-					   unsigned long long	*crash_base,
 					   const char *suffix)
 {
 	char *cur = cmdline;
@@ -1848,7 +1847,7 @@ static int __init __parse_crashkernel(char *cmdline,
 
 	if (suffix)
 		return parse_crashkernel_suffix(ck_cmdline, crash_size,
-				crash_base, suffix);
+				suffix);
 	/*
 	 * if the commandline contains a ':', then that's the extended
 	 * syntax -- if not, it must be the classic syntax
