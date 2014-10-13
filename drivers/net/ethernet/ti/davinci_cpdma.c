@@ -561,7 +561,6 @@ int cpdma_chan_destroy(struct cpdma_chan *chan)
 		cpdma_chan_stop(chan);
 	ctlr->channels[chan->chan_num] = NULL;
 	spin_unlock_irqrestore(&ctlr->lock, flags);
-	kfree(chan);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(cpdma_chan_destroy);
