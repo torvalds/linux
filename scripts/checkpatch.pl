@@ -4447,6 +4447,17 @@ sub process {
 			}
 		}
 
+# check for logging functions with KERN_<LEVEL>
+		if ($line !~ /printk\s*\(/ &&
+		    $line =~ /\b$logFunctions\s*\(.*\b(KERN_[A-Z]+)\b/) {
+			my $level = $1;
+			if (WARN("UNNECESSARY_KERN_LEVEL",
+				 "Possible unnecessary $level\n" . $herecurr) &&
+			    $fix) {
+				$fixed[$fixlinenr] =~ s/\s*$level\s*//;
+			}
+		}
+
 # check for bad placement of section $InitAttribute (e.g.: __initdata)
 		if ($line =~ /(\b$InitAttribute\b)/) {
 			my $attr = $1;
