@@ -32,6 +32,16 @@ static int imx_audmux_config(int slave, int master)
 	pdcr = IMX_AUDMUX_V2_PDCR_RXDSEL(slave);
 	imx_audmux_v2_configure_port(master, ptcr, pdcr);
 
+	/*
+	 * According to RM, RCLKDIR and SYN should not be changed at same time.
+	 * So separate to two step for configuring this port.
+	 */
+	ptcr |= IMX_AUDMUX_V2_PTCR_RFSDIR |
+		IMX_AUDMUX_V2_PTCR_RFSEL(slave) |
+		IMX_AUDMUX_V2_PTCR_RCLKDIR |
+		IMX_AUDMUX_V2_PTCR_RCSEL(slave);
+	imx_audmux_v2_configure_port(master, ptcr, pdcr);
+
 	ptcr = IMX_AUDMUX_V2_PTCR_SYN;
 	pdcr = IMX_AUDMUX_V2_PDCR_RXDSEL(master);
 	imx_audmux_v2_configure_port(slave, ptcr, pdcr);
