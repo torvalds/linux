@@ -2912,19 +2912,11 @@ static void fec_poll_controller(struct net_device *dev)
 #endif
 
 #define FEATURES_NEED_QUIESCE NETIF_F_RXCSUM
-
-static int fec_set_features(struct net_device *netdev,
+static inline void fec_enet_set_netdev_features(struct net_device *netdev,
 	netdev_features_t features)
 {
 	struct fec_enet_private *fep = netdev_priv(netdev);
 	netdev_features_t changed = features ^ netdev->features;
-
-	/* Quiesce the device if necessary */
-	if (netif_running(netdev) && changed & FEATURES_NEED_QUIESCE) {
-		napi_disable(&fep->napi);
-		netif_tx_lock_bh(netdev);
-		fec_stop(netdev);
-	}
 
 	netdev->features = features;
 
@@ -2935,13 +2927,25 @@ static int fec_set_features(struct net_device *netdev,
 		else
 			fep->csum_flags &= ~FLAG_RX_CSUM_ENABLED;
 	}
+}
 
-	/* Resume the device after updates */
+static int fec_set_features(struct net_device *netdev,
+	netdev_features_t features)
+{
+	struct fec_enet_private *fep = netdev_priv(netdev);
+	netdev_features_t changed = features ^ netdev->features;
+
 	if (netif_running(netdev) && changed & FEATURES_NEED_QUIESCE) {
+		napi_disable(&fep->napi);
+		netif_tx_lock_bh(netdev);
+		fec_stop(netdev);
+		fec_enet_set_netdev_features(netdev, features);
 		fec_restart(netdev);
 		netif_tx_wake_all_queues(netdev);
 		netif_tx_unlock_bh(netdev);
 		napi_enable(&fep->napi);
+	} else {
+		fec_enet_set_netdev_features(netdev, features);
 	}
 
 	return 0;
