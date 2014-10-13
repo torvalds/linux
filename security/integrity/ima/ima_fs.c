@@ -118,6 +118,7 @@ static int ima_measurements_show(struct seq_file *m, void *v)
 	/* the list never shrinks, so we don't need a lock here */
 	struct ima_queue_entry *qe = v;
 	struct ima_template_entry *e;
+	char *template_name;
 	int namelen;
 	u32 pcr = CONFIG_IMA_MEASURE_PCR_IDX;
 	bool is_ima_template = false;
@@ -127,6 +128,9 @@ static int ima_measurements_show(struct seq_file *m, void *v)
 	e = qe->entry;
 	if (e == NULL)
 		return -1;
+
+	template_name = (e->template_desc->name[0] != '\0') ?
+	    e->template_desc->name : e->template_desc->fmt;
 
 	/*
 	 * 1st: PCRIndex
@@ -139,14 +143,14 @@ static int ima_measurements_show(struct seq_file *m, void *v)
 	ima_putc(m, e->digest, TPM_DIGEST_SIZE);
 
 	/* 3rd: template name size */
-	namelen = strlen(e->template_desc->name);
+	namelen = strlen(template_name);
 	ima_putc(m, &namelen, sizeof(namelen));
 
 	/* 4th:  template name */
-	ima_putc(m, e->template_desc->name, namelen);
+	ima_putc(m, template_name, namelen);
 
 	/* 5th:  template length (except for 'ima' template) */
-	if (strcmp(e->template_desc->name, IMA_TEMPLATE_IMA_NAME) == 0)
+	if (strcmp(template_name, IMA_TEMPLATE_IMA_NAME) == 0)
 		is_ima_template = true;
 
 	if (!is_ima_template)
@@ -200,12 +204,16 @@ static int ima_ascii_measurements_show(struct seq_file *m, void *v)
 	/* the list never shrinks, so we don't need a lock here */
 	struct ima_queue_entry *qe = v;
 	struct ima_template_entry *e;
+	char *template_name;
 	int i;
 
 	/* get entry */
 	e = qe->entry;
 	if (e == NULL)
 		return -1;
+
+	template_name = (e->template_desc->name[0] != '\0') ?
+	    e->template_desc->name : e->template_desc->fmt;
 
 	/* 1st: PCR used (config option) */
 	seq_printf(m, "%2d ", CONFIG_IMA_MEASURE_PCR_IDX);
@@ -214,7 +222,7 @@ static int ima_ascii_measurements_show(struct seq_file *m, void *v)
 	ima_print_digest(m, e->digest, TPM_DIGEST_SIZE);
 
 	/* 3th:  template name */
-	seq_printf(m, " %s", e->template_desc->name);
+	seq_printf(m, " %s", template_name);
 
 	/* 4th:  template specific data */
 	for (i = 0; i < e->template_desc->num_fields; i++) {

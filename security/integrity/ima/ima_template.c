@@ -176,7 +176,9 @@ int __init ima_init_template(void)
 					   &(template->fields),
 					   &(template->num_fields));
 	if (result < 0)
-		pr_err("template %s init failed, result: %d\n", template->name);
+		pr_err("template %s init failed, result: %d\n",
+		       (strlen(template->name) ?
+		       template->name : template->fmt), result);
 
 	return result;
 }
