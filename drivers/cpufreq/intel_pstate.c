@@ -64,6 +64,7 @@ struct pstate_data {
 	int	current_pstate;
 	int	min_pstate;
 	int	max_pstate;
+	int	scaling;
 	int	turbo_pstate;
 };
 
@@ -113,6 +114,7 @@ struct pstate_funcs {
 	int (*get_max)(void);
 	int (*get_min)(void);
 	int (*get_turbo)(void);
+	int (*get_scaling)(void);
 	void (*set)(struct cpudata*, int pstate);
 	void (*get_vid)(struct cpudata *);
 };
@@ -433,6 +435,22 @@ static void byt_set_pstate(struct cpudata *cpudata, int pstate)
 	wrmsrl(MSR_IA32_PERF_CTL, val);
 }
 
+#define BYT_BCLK_FREQS 5
+static int byt_freq_table[BYT_BCLK_FREQS] = { 833, 1000, 1333, 1167, 800};
+
+static int byt_get_scaling(void)
+{
+	u64 value;
+	int i;
+
+	rdmsrl(MSR_FSB_FREQ, value);
+	i = value & 0x3;
+
+	BUG_ON(i > BYT_BCLK_FREQS);
+
+	return byt_freq_table[i] * 100;
+}
+
 static void byt_get_vid(struct cpudata *cpudata)
 {
 	u64 value;
@@ -478,6 +496,11 @@ static int core_get_turbo_pstate(void)
 	return ret;
 }
 
+static inline int core_get_scaling(void)
+{
+	return 100000;
+}
+
 static void core_set_pstate(struct cpudata *cpudata, int pstate)
 {
 	u64 val;
@@ -502,6 +525,7 @@ static struct cpu_defaults core_params = {
 		.get_max = core_get_max_pstate,
 		.get_min = core_get_min_pstate,
 		.get_turbo = core_get_turbo_pstate,
+		.get_scaling = core_get_scaling,
 		.set = core_set_pstate,
 	},
 };
@@ -520,6 +544,7 @@ static struct cpu_defaults byt_params = {
 		.get_min = byt_get_min_pstate,
 		.get_turbo = byt_get_turbo_pstate,
 		.set = byt_set_pstate,
+		.get_scaling = byt_get_scaling,
 		.get_vid = byt_get_vid,
 	},
 };
@@ -554,7 +579,7 @@ static void intel_pstate_set_pstate(struct cpudata *cpu, int pstate)
 	if (pstate == cpu->pstate.current_pstate)
 		return;
 
-	trace_cpu_frequency(pstate * 100000, cpu->cpu);
+	trace_cpu_frequency(pstate * cpu->pstate.scaling, cpu->cpu);
 
 	cpu->pstate.current_pstate = pstate;
 
@@ -566,6 +591,7 @@ static void intel_pstate_get_cpu_pstates(struct cpudata *cpu)
 	cpu->pstate.min_pstate = pstate_funcs.get_min();
 	cpu->pstate.max_pstate = pstate_funcs.get_max();
 	cpu->pstate.turbo_pstate = pstate_funcs.get_turbo();
+	cpu->pstate.scaling = pstate_funcs.get_scaling();
 
 	if (pstate_funcs.get_vid)
 		pstate_funcs.get_vid(cpu);
@@ -581,7 +607,9 @@ static inline void intel_pstate_calc_busy(struct cpudata *cpu)
 	core_pct = div64_u64(core_pct, int_tofp(sample->mperf));
 
 	sample->freq = fp_toint(
-		mul_fp(int_tofp(cpu->pstate.max_pstate * 1000), core_pct));
+		mul_fp(int_tofp(
+			cpu->pstate.max_pstate * cpu->pstate.scaling / 100),
+			core_pct));
 
 	sample->core_pct_busy = (int32_t)core_pct;
 }
@@ -803,12 +831,13 @@ static int intel_pstate_cpu_init(struct cpufreq_policy *policy)
 	else
 		policy->policy = CPUFREQ_POLICY_POWERSAVE;
 
-	policy->min = cpu->pstate.min_pstate * 100000;
-	policy->max = cpu->pstate.turbo_pstate * 100000;
+	policy->min = cpu->pstate.min_pstate * cpu->pstate.scaling;
+	policy->max = cpu->pstate.turbo_pstate * cpu->pstate.scaling;
 
 	/* cpuinfo and default policy values */
-	policy->cpuinfo.min_freq = cpu->pstate.min_pstate * 100000;
-	policy->cpuinfo.max_freq = cpu->pstate.turbo_pstate * 100000;
+	policy->cpuinfo.min_freq = cpu->pstate.min_pstate * cpu->pstate.scaling;
+	policy->cpuinfo.max_freq =
+		cpu->pstate.turbo_pstate * cpu->pstate.scaling;
 	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
 	cpumask_set_cpu(policy->cpu, policy->cpus);
 
@@ -866,6 +895,7 @@ static void copy_cpu_funcs(struct pstate_funcs *funcs)
 	pstate_funcs.get_max   = funcs->get_max;
 	pstate_funcs.get_min   = funcs->get_min;
 	pstate_funcs.get_turbo = funcs->get_turbo;
+	pstate_funcs.get_scaling = funcs->get_scaling;
 	pstate_funcs.set       = funcs->set;
 	pstate_funcs.get_vid   = funcs->get_vid;
 }
