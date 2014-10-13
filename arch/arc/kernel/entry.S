@@ -554,7 +554,7 @@ resume_user_mode_begin:
 	; Fast Path return to user mode if no pending work
 	GET_CURR_THR_INFO_FLAGS   r9
 	and.f  0,  r9, _TIF_WORK_MASK
-	bz     restore_regs
+	bz     .Lrestore_regs
 
 	; --- (Slow Path #1) task preemption ---
 	bbit0  r9, TIF_NEED_RESCHED, .Lchk_pend_signals
@@ -613,11 +613,11 @@ resume_kernel_mode:
 	; Can't preempt if preemption disabled
 	GET_CURR_THR_INFO_FROM_SP   r10
 	ld  r8, [r10, THREAD_INFO_PREEMPT_COUNT]
-	brne  r8, 0, restore_regs
+	brne  r8, 0, .Lrestore_regs
 
 	; check if this task's NEED_RESCHED flag set
 	ld  r9, [r10, THREAD_INFO_FLAGS]
-	bbit0  r9, TIF_NEED_RESCHED, restore_regs
+	bbit0  r9, TIF_NEED_RESCHED, .Lrestore_regs
 
 	; Invoke PREEMPTION
 	bl      preempt_schedule_irq
@@ -633,7 +633,7 @@ resume_kernel_mode:
 ; IRQ shd definitely not happen between now and rtie
 ; All 2 entry points to here already disable interrupts
 
-restore_regs :
+.Lrestore_regs:
 
 	TRACE_ASM_IRQ_ENABLE
 
