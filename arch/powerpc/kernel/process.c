@@ -37,9 +37,9 @@
 #include <linux/personality.h>
 #include <linux/random.h>
 #include <linux/hw_breakpoint.h>
+#include <linux/uaccess.h>
 
 #include <asm/pgtable.h>
-#include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
@@ -921,12 +921,8 @@ static void show_instructions(struct pt_regs *regs)
 			pc = (unsigned long)phys_to_virt(pc);
 #endif
 
-		/* We use __get_user here *only* to avoid an OOPS on a
-		 * bad address because the pc *should* only be a
-		 * kernel address.
-		 */
 		if (!__kernel_text_address(pc) ||
-		     __get_user(instr, (unsigned int __user *)pc)) {
+		     probe_kernel_address((unsigned int __user *)pc, instr)) {
 			printk(KERN_CONT "XXXXXXXX ");
 		} else {
 			if (regs->nip == pc)
