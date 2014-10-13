@@ -366,19 +366,5 @@ do_slow_path_pf:
 
 	; Slow path TLB Miss handled as a regular ARC Exception
 	; (stack switching / save the complete reg-file).
-	EXCEPTION_PROLOGUE
-
-	; ------- setup args for Linux Page fault Hanlder ---------
-	mov_s r1, sp
-	lr    r0, [efa]
-
-	; We don't want exceptions to be disabled while the fault is handled.
-	; Now that we have saved the context we return from exception hence
-	; exceptions get re-enable
-
-	FAKE_RET_FROM_EXCPN  r9
-
-	bl  do_page_fault
-	b   ret_from_exception
-
+	b  call_do_page_fault
 END(EV_TLBMissD)

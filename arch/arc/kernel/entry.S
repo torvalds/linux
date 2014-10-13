@@ -368,6 +368,22 @@ ENTRY(EV_TLBProtV)
 
 END(EV_TLBProtV)
 
+; Wrapper for Linux page fault handler called from EV_TLBMiss*
+; Very similar to ProtV handler case (6a) above, but avoids the extra checks
+; for Misaligned access
+;
+ENTRY(call_do_page_fault)
+
+	EXCEPTION_PROLOGUE
+	lr  r0, [efa]	; Faulting Data address
+	mov   r1, sp
+	FAKE_RET_FROM_EXCPN r9
+
+	mov blink, ret_from_exception
+	b  do_page_fault
+
+END(call_do_page_fault)
+
 ; ---------------------------------------------
 ; Privilege Violation Exception Handler
 ; ---------------------------------------------
