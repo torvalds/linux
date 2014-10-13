@@ -60,6 +60,15 @@
 #define COMPAT_PT_TEXT_ADDR		0x10000
 #define COMPAT_PT_DATA_ADDR		0x10004
 #define COMPAT_PT_TEXT_END_ADDR		0x10008
+
+/*
+ * used to skip a system call when tracer changes its number to -1
+ * with ptrace(PTRACE_SET_SYSCALL)
+ */
+#define RET_SKIP_SYSCALL	-1
+#define RET_SKIP_SYSCALL_TRACE	-2
+#define IS_SKIP_SYSCALL(no)	((int)(no & 0xffffffff) == -1)
+
 #ifndef __ASSEMBLY__
 
 /* sizeof(struct user) for AArch32 */
