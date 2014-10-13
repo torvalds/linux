@@ -58,6 +58,7 @@
 #include "reassembly.h"
 
 static LIST_HEAD(lowpan_devices);
+static int lowpan_open_count;
 
 /* private device info */
 struct lowpan_dev_info {
@@ -571,11 +572,17 @@ drop:
 	return NET_RX_DROP;
 }
 
+static struct packet_type lowpan_packet_type = {
+	.type = htons(ETH_P_IEEE802154),
+	.func = lowpan_rcv,
+};
+
 static int lowpan_newlink(struct net *src_net, struct net_device *dev,
 			  struct nlattr *tb[], struct nlattr *data[])
 {
 	struct net_device *real_dev;
 	struct lowpan_dev_record *entry;
+	int ret;
 
 	pr_debug("adding new link\n");
 
@@ -610,9 +617,14 @@ static int lowpan_newlink(struct net *src_net, struct net_device *dev,
 	list_add_tail(&entry->list, &lowpan_devices);
 	mutex_unlock(&lowpan_dev_info(dev)->dev_list_mtx);
 
-	register_netdevice(dev);
+	ret = register_netdevice(dev);
+	if (ret >= 0) {
+		if (!lowpan_open_count)
+			dev_add_pack(&lowpan_packet_type);
+		lowpan_open_count++;
+	}
 
-	return 0;
+	return ret;
 }
 
 static void lowpan_dellink(struct net_device *dev, struct list_head *head)
@@ -622,6 +634,10 @@ static void lowpan_dellink(struct net_device *dev, struct list_head *head)
 	struct lowpan_dev_record *entry, *tmp;
 
 	ASSERT_RTNL();
+
+	lowpan_open_count--;
+	if (!lowpan_open_count)
+		dev_remove_pack(&lowpan_packet_type);
 
 	mutex_lock(&lowpan_dev_info(dev)->dev_list_mtx);
 	list_for_each_entry_safe(entry, tmp, &lowpan_devices, list) {
@@ -685,11 +701,6 @@ static struct notifier_block lowpan_dev_notifier = {
 	.notifier_call = lowpan_device_event,
 };
 
-static struct packet_type lowpan_packet_type = {
-	.type = htons(ETH_P_IEEE802154),
-	.func = lowpan_rcv,
-};
-
 static int __init lowpan_init_module(void)
 {
 	int err = 0;
@@ -702,8 +713,6 @@ static int __init lowpan_init_module(void)
 	if (err < 0)
 		goto out_frag;
 
-	dev_add_pack(&lowpan_packet_type);
-
 	err = register_netdevice_notifier(&lowpan_dev_notifier);
 	if (err < 0)
 		goto out_pack;
@@ -711,7 +720,6 @@ static int __init lowpan_init_module(void)
 	return 0;
 
 out_pack:
-	dev_remove_pack(&lowpan_packet_type);
 	lowpan_netlink_fini();
 out_frag:
 	lowpan_net_frag_exit();
@@ -722,8 +730,6 @@ out:
 static void __exit lowpan_cleanup_module(void)
 {
 	lowpan_netlink_fini();
-
-	dev_remove_pack(&lowpan_packet_type);
 
 	lowpan_net_frag_exit();
 
