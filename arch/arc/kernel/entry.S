@@ -186,9 +186,8 @@ reserved:		; processor restart
 ; ---------------------------------------------
 ENTRY(handle_interrupt_level2)
 
-	; TODO-vineetg for SMP this wont work
 	; free up r9 as scratchpad
-	st  r9, [@int2_saved_reg]
+	PROLOG_FREEUP_REG r9, @int2_saved_reg
 
 	;Which mode (user/kernel) was the system in when intr occured
 	lr  r9, [status32_l2]
@@ -234,12 +233,7 @@ END(handle_interrupt_level2)
 ; ---------------------------------------------
 ENTRY(handle_interrupt_level1)
 
-	/* free up r9 as scratchpad */
-#ifdef CONFIG_SMP
-	sr  r9, [ARC_REG_SCRATCH_DATA0]
-#else
-	st   r9, [@int1_saved_reg]
-#endif
+	PROLOG_FREEUP_REG r9, @int1_saved_reg
 
 	;Which mode (user/kernel) was the system in when intr occured
 	lr  r9, [status32_l1]
