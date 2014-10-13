@@ -422,9 +422,15 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 			      &dev_replace->scrub_progress, 0, 1);
 
 	ret = btrfs_dev_replace_finishing(root->fs_info, ret);
-	WARN_ON(ret);
+	/* don't warn if EINPROGRESS, someone else might be running scrub */
+	if (ret == -EINPROGRESS) {
+		args->result = BTRFS_IOCTL_DEV_REPLACE_RESULT_SCRUB_INPROGRESS;
+		ret = 0;
+	} else {
+		WARN_ON(ret);
+	}
 
-	return 0;
+	return ret;
 
 leave:
 	dev_replace->srcdev = NULL;
@@ -542,7 +548,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 			btrfs_destroy_dev_replace_tgtdev(fs_info, tgt_device);
 		mutex_unlock(&dev_replace->lock_finishing_cancel_unmount);
 
-		return 0;
+		return scrub_ret;
 	}
 
 	printk_in_rcu(KERN_INFO
