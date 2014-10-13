@@ -1,6 +1,6 @@
 /*
  * comedi/drivers/cb_pcimdas.c
- * Comedi driver for Computer Boards PCIM-DAS1602/16
+ * Comedi driver for Computer Boards PCIM-DAS1602/16 and PCIe-DAS1602/16
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
@@ -19,24 +19,26 @@
 /*
  * Driver: cb_pcimdas
  * Description: Measurement Computing PCI Migration series boards
- * Devices: [ComputerBoards] PCIM-DAS1602/16 (cb_pcimdas)
+ * Devices: [ComputerBoards] PCIM-DAS1602/16 (cb_pcimdas), PCIe-DAS1602/16
  * Author: Richard Bytheway
- * Updated: Wed, 13 Nov 2002 12:34:56 +0000
+ * Updated: Mon, 13 Oct 2014 11:57:39 +0000
  * Status: experimental
  *
- * Written to support the PCIM-DAS1602/16 on a 2.4 series kernel.
+ * Written to support the PCIM-DAS1602/16 and PCIe-DAS1602/16.
  *
  * Configuration Options:
  *   none
  *
- * Manual configuration of PCI cards is not supported; they are configured
+ * Manual configuration of PCI(e) cards is not supported; they are configured
  * automatically.
  *
  * Developed from cb_pcidas and skel by Richard Bytheway (mocelet@sucs.org).
  * Only supports DIO, AO and simple AI in it's present form.
  * No interrupts, multi channel or FIFO AI,
  * although the card looks like it could support this.
- * See http://www.mccdaq.com/PDFs/Manuals/pcim-das1602-16.pdf for more details.
+ *
+ * http://www.mccdaq.com/PDFs/Manuals/pcim-das1602-16.pdf
+ * http://www.mccdaq.com/PDFs/Manuals/pcie-das1602-16.pdf
  */
 
 #include <linux/module.h>
@@ -48,7 +50,7 @@
 #include "plx9052.h"
 #include "8255.h"
 
-/* Registers for the PCIM-DAS1602/16 */
+/* Registers for the PCIM-DAS1602/16 and PCIe-DAS1602/16 */
 
 /* DAC Offsets */
 #define ADC_TRIG 0
@@ -254,7 +256,8 @@ static int cb_pcimdas_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id cb_pcimdas_pci_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0056) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0056) },	/* PCIM-DAS1602/16 */
+	{ PCI_DEVICE(PCI_VENDOR_ID_CB, 0x0115) },	/* PCIe-DAS1602/16 */
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, cb_pcimdas_pci_table);
@@ -268,5 +271,5 @@ static struct pci_driver cb_pcimdas_pci_driver = {
 module_comedi_pci_driver(cb_pcimdas_driver, cb_pcimdas_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_DESCRIPTION("Comedi driver for PCIM-DAS1602/16 and PCIe-DAS1602/16");
 MODULE_LICENSE("GPL");
