@@ -193,12 +193,9 @@ fail:
 
 static void cpdma_desc_pool_destroy(struct cpdma_desc_pool *pool)
 {
-	unsigned long flags;
-
 	if (!pool)
 		return;
 
-	spin_lock_irqsave(&pool->lock, flags);
 	WARN_ON(pool->used_desc);
 	if (pool->cpumap) {
 		dma_free_coherent(pool->dev, pool->mem_size, pool->cpumap,
@@ -206,7 +203,6 @@ static void cpdma_desc_pool_destroy(struct cpdma_desc_pool *pool)
 	} else {
 		iounmap(pool->iomap);
 	}
-	spin_unlock_irqrestore(&pool->lock, flags);
 }
 
 static inline dma_addr_t desc_phys(struct cpdma_desc_pool *pool,
