@@ -58,7 +58,7 @@ Here is what the fields mean:
 
 
 There are some restrictions:
- - the whole register string may not exceed 255 characters
+ - the whole register string may not exceed 1920 characters
  - the magic must reside in the first 128 bytes of the file, i.e.
    offset+size(magic) has to be less than 128
  - the interpreter string may not exceed 127 characters
