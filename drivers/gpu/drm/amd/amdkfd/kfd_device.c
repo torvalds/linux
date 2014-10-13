@@ -32,6 +32,7 @@
 static const struct kfd_device_info kaveri_device_info = {
 	.max_pasid_bits = 16,
 	.ih_ring_entry_size = 4 * sizeof(uint32_t),
+	.num_of_watch_points = 4,
 	.mqd_size_aligned = MQD_SIZE_ALIGNED
 };
 

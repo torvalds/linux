@@ -107,6 +107,7 @@ enum cache_policy {
 struct kfd_device_info {
 	unsigned int max_pasid_bits;
 	size_t ih_ring_entry_size;
+	uint8_t num_of_watch_points;
 	uint16_t mqd_size_aligned;
 };
 
