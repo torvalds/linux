@@ -1648,7 +1648,7 @@ config DMA_API_DEBUG
 
 	  If unsure, say N.
 
-config TEST_MODULE
+config TEST_LKM
 	tristate "Test module loading with 'hello world' module"
 	default n
 	depends on m
