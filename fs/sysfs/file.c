@@ -184,6 +184,17 @@ static const struct kernfs_ops sysfs_file_kfops_rw = {
 	.write		= sysfs_kf_write,
 };
 
+static const struct kernfs_ops sysfs_prealloc_kfops_wo = {
+	.write		= sysfs_kf_write,
+	.prealloc	= true,
+};
+
+static const struct kernfs_ops sysfs_prealloc_kfops_rw = {
+	.seq_show	= sysfs_kf_seq_show,
+	.write		= sysfs_kf_write,
+	.prealloc	= true,
+};
+
 static const struct kernfs_ops sysfs_bin_kfops_ro = {
 	.read		= sysfs_kf_bin_read,
 };
@@ -222,13 +233,19 @@ int sysfs_add_file_mode_ns(struct kernfs_node *parent,
 			 kobject_name(kobj)))
 			return -EINVAL;
 
-		if (sysfs_ops->show && sysfs_ops->store)
-			ops = &sysfs_file_kfops_rw;
-		else if (sysfs_ops->show)
+		if (sysfs_ops->show && sysfs_ops->store) {
+			if (mode & SYSFS_PREALLOC)
+				ops = &sysfs_prealloc_kfops_rw;
+			else
+				ops = &sysfs_file_kfops_rw;
+		} else if (sysfs_ops->show)
 			ops = &sysfs_file_kfops_ro;
-		else if (sysfs_ops->store)
-			ops = &sysfs_file_kfops_wo;
-		else
+		else if (sysfs_ops->store) {
+			if (mode & SYSFS_PREALLOC)
+				ops = &sysfs_prealloc_kfops_wo;
+			else
+				ops = &sysfs_file_kfops_wo;
+		} else
 			ops = &sysfs_file_kfops_empty;
 
 		size = PAGE_SIZE;
@@ -253,7 +270,7 @@ int sysfs_add_file_mode_ns(struct kernfs_node *parent,
 	if (!attr->ignore_lockdep)
 		key = attr->key ?: (struct lock_class_key *)&attr->skey;
 #endif
-	kn = __kernfs_create_file(parent, attr->name, mode, size, ops,
+	kn = __kernfs_create_file(parent, attr->name, mode & 0777, size, ops,
 				  (void *)attr, ns, true, key);
 	if (IS_ERR(kn)) {
 		if (PTR_ERR(kn) == -EEXIST)

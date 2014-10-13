@@ -106,7 +106,7 @@ static void *kernfs_seq_start(struct seq_file *sf, loff_t *ppos)
 	const struct kernfs_ops *ops;
 
 	/*
-	 * @of->mutex nests outside active ref and is just to ensure that
+	 * @of->mutex nests outside active ref and is primarily to ensure that
 	 * the ops aren't called concurrently for the same open file.
 	 */
 	mutex_lock(&of->mutex);
@@ -194,7 +194,7 @@ static ssize_t kernfs_file_direct_read(struct kernfs_open_file *of,
 		return -ENOMEM;
 
 	/*
-	 * @of->mutex nests outside active ref and is just to ensure that
+	 * @of->mutex nests outside active ref and is primarily to ensure that
 	 * the ops aren't called concurrently for the same open file.
 	 */
 	mutex_lock(&of->mutex);
@@ -278,19 +278,16 @@ static ssize_t kernfs_fop_write(struct file *file, const char __user *user_buf,
 		len = min_t(size_t, count, PAGE_SIZE);
 	}
 
-	buf = kmalloc(len + 1, GFP_KERNEL);
+	buf = of->prealloc_buf;
+	if (!buf)
+		buf = kmalloc(len + 1, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
-	if (copy_from_user(buf, user_buf, len)) {
-		len = -EFAULT;
-		goto out_free;
-	}
-	buf[len] = '\0';	/* guarantee string termination */
-
 	/*
-	 * @of->mutex nests outside active ref and is just to ensure that
-	 * the ops aren't called concurrently for the same open file.
+	 * @of->mutex nests outside active ref and is used both to ensure that
+	 * the ops aren't called concurrently for the same open file, and
+	 * to provide exclusive access to ->prealloc_buf (when that exists).
 	 */
 	mutex_lock(&of->mutex);
 	if (!kernfs_get_active(of->kn)) {
@@ -299,19 +296,27 @@ static ssize_t kernfs_fop_write(struct file *file, const char __user *user_buf,
 		goto out_free;
 	}
 
+	if (copy_from_user(buf, user_buf, len)) {
+		len = -EFAULT;
+		goto out_unlock;
+	}
+	buf[len] = '\0';	/* guarantee string termination */
+
 	ops = kernfs_ops(of->kn);
 	if (ops->write)
 		len = ops->write(of, buf, len, *ppos);
 	else
 		len = -EINVAL;
 
-	kernfs_put_active(of->kn);
-	mutex_unlock(&of->mutex);
-
 	if (len > 0)
 		*ppos += len;
+
+out_unlock:
+	kernfs_put_active(of->kn);
+	mutex_unlock(&of->mutex);
 out_free:
-	kfree(buf);
+	if (buf != of->prealloc_buf)
+		kfree(buf);
 	return len;
 }
 
@@ -685,6 +690,14 @@ static int kernfs_fop_open(struct inode *inode, struct file *file)
 	 */
 	of->atomic_write_len = ops->atomic_write_len;
 
+	if (ops->prealloc) {
+		int len = of->atomic_write_len ?: PAGE_SIZE;
+		of->prealloc_buf = kmalloc(len + 1, GFP_KERNEL);
+		error = -ENOMEM;
+		if (!of->prealloc_buf)
+			goto err_free;
+	}
+
 	/*
 	 * Always instantiate seq_file even if read access doesn't use
 	 * seq_file or is not requested.  This unifies private data access
@@ -715,6 +728,7 @@ static int kernfs_fop_open(struct inode *inode, struct file *file)
 err_close:
 	seq_release(inode, file);
 err_free:
+	kfree(of->prealloc_buf);
 	kfree(of);
 err_out:
 	kernfs_put_active(kn);
@@ -728,6 +742,7 @@ static int kernfs_fop_release(struct inode *inode, struct file *filp)
 
 	kernfs_put_open_node(kn, of);
 	seq_release(inode, filp);
+	kfree(of->prealloc_buf);
 	kfree(of);
 
 	return 0;
