@@ -964,6 +964,7 @@ static void vgetcpu_set_mode(void)
 		vgetcpu_mode = VGETCPU_LSL;
 }
 
+#ifdef CONFIG_IA32_EMULATION
 /* May not be __init: called during resume */
 static void syscall32_cpu_init(void)
 {
@@ -975,7 +976,8 @@ static void syscall32_cpu_init(void)
 
 	wrmsrl(MSR_CSTAR, ia32_cstar_target);
 }
-#endif
+#endif		/* CONFIG_IA32_EMULATION */
+#endif		/* CONFIG_X86_64 */
 
 #ifdef CONFIG_X86_32
 void enable_sep_cpu(void)
