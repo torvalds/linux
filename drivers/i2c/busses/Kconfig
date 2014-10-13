@@ -122,6 +122,7 @@ config I2C_I801
 	    Wildcat Point (PCH)
 	    Wildcat Point-LP (PCH)
 	    BayTrail (SOC)
+	    Sunrise Point-H (PCH)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
