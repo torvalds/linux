@@ -9,7 +9,8 @@ use strict;
 use POSIX;
 
 my $P = $0;
-$P =~ s@.*/@@g;
+$P =~ s@(.*)/@@g;
+my $D = $1;
 
 my $V = '0.32';
 
@@ -44,6 +45,7 @@ my $max_line_length = 80;
 my $ignore_perl_version = 0;
 my $minimum_perl_version = 5.10.0;
 my $min_conf_desc_length = 4;
+my $spelling_file = "$D/spelling.txt";
 
 sub help {
 	my ($exitcode) = @_;
@@ -433,6 +435,29 @@ our $allowed_asm_includes = qr{(?x:
 	reboot
 )};
 # memory.h: ARM has a custom one
+
+# Load common spelling mistakes and build regular expression list.
+my $misspellings;
+my @spelling_list;
+my %spelling_fix;
+open(my $spelling, '<', $spelling_file)
+    or die "$P: Can't open $spelling_file for reading: $!\n";
+while (<$spelling>) {
+	my $line = $_;
+
+	$line =~ s/\s*\n?$//g;
+	$line =~ s/^\s*//g;
+
+	next if ($line =~ m/^\s*#/);
+	next if ($line =~ m/^\s*$/);
+
+	my ($suspect, $fix) = split(/\|\|/, $line);
+
+	push(@spelling_list, $suspect);
+	$spelling_fix{$suspect} = $fix;
+}
+close($spelling);
+$misspellings = join("|", @spelling_list);
 
 sub build_types {
 	my $mods = "(?x:  \n" . join("|\n  ", @modifierList) . "\n)";
@@ -2218,6 +2243,23 @@ sub process {
 		    $rawline =~ /$NON_ASCII_UTF8/) {
 			WARN("UTF8_BEFORE_PATCH",
 			    "8-bit UTF-8 used in possible commit log\n" . $herecurr);
+		}
+
+# Check for various typo / spelling mistakes
+		if ($in_commit_log || $line =~ /^\+/) {
+			while ($rawline =~ /(?:^|[^a-z@])($misspellings)(?:$|[^a-z@])/gi) {
+				my $typo = $1;
+				my $typo_fix = $spelling_fix{lc($typo)};
+				$typo_fix = ucfirst($typo_fix) if ($typo =~ /^[A-Z]/);
+				$typo_fix = uc($typo_fix) if ($typo =~ /^[A-Z]+$/);
+				my $msg_type = \&WARN;
+				$msg_type = \&CHK if ($file);
+				if (&{$msg_type}("TYPO_SPELLING",
+						 "'$typo' may be misspelled - perhaps '$typo_fix'?\n" . $herecurr) &&
+				    $fix) {
+					$fixed[$fixlinenr] =~ s/(^|[^A-Za-z@])($typo)($|[^A-Za-z@])/$1$typo_fix$3/;
+				}
+			}
 		}
 
 # ignore non-hunk lines and lines being removed
