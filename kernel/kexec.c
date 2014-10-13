@@ -2016,22 +2016,6 @@ static int __init crash_save_vmcoreinfo_init(void)
 subsys_initcall(crash_save_vmcoreinfo_init);
 
 #ifdef CONFIG_KEXEC_FILE
-static int __kexec_add_segment(struct kimage *image, char *buf,
-			       unsigned long bufsz, unsigned long mem,
-			       unsigned long memsz)
-{
-	struct kexec_segment *ksegment;
-
-	ksegment = &image->segment[image->nr_segments];
-	ksegment->kbuf = buf;
-	ksegment->bufsz = bufsz;
-	ksegment->mem = mem;
-	ksegment->memsz = memsz;
-	image->nr_segments++;
-
-	return 0;
-}
-
 static int locate_mem_hole_top_down(unsigned long start, unsigned long end,
 				    struct kexec_buf *kbuf)
 {
@@ -2064,8 +2048,7 @@ static int locate_mem_hole_top_down(unsigned long start, unsigned long end,
 	} while (1);
 
 	/* If we are here, we found a suitable memory range */
-	__kexec_add_segment(image, kbuf->buffer, kbuf->bufsz, temp_start,
-			    kbuf->memsz);
+	kbuf->mem = temp_start;
 
 	/* Success, stop navigating through remaining System RAM ranges */
 	return 1;
@@ -2099,8 +2082,7 @@ static int locate_mem_hole_bottom_up(unsigned long start, unsigned long end,
 	} while (1);
 
 	/* If we are here, we found a suitable memory range */
-	__kexec_add_segment(image, kbuf->buffer, kbuf->bufsz, temp_start,
-			    kbuf->memsz);
+	kbuf->mem = temp_start;
 
 	/* Success, stop navigating through remaining System RAM ranges */
 	return 1;
@@ -2187,7 +2169,12 @@ int kexec_add_buffer(struct kimage *image, char *buffer, unsigned long bufsz,
 	}
 
 	/* Found a suitable memory range */
-	ksegment = &image->segment[image->nr_segments - 1];
+	ksegment = &image->segment[image->nr_segments];
+	ksegment->kbuf = kbuf->buffer;
+	ksegment->bufsz = kbuf->bufsz;
+	ksegment->mem = kbuf->mem;
+	ksegment->memsz = kbuf->memsz;
+	image->nr_segments++;
 	*load_addr = ksegment->mem;
 	return 0;
 }
