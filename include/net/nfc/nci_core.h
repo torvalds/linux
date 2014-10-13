@@ -331,6 +331,13 @@ static inline void *nci_get_drvdata(struct nci_dev *ndev)
 	return ndev->driver_data;
 }
 
+static inline int nci_set_vendor_cmds(struct nci_dev *ndev,
+				      struct nfc_vendor_cmd *cmds,
+				      int n_cmds)
+{
+	return nfc_set_vendor_cmds(ndev->nfc_dev, cmds, n_cmds);
+}
+
 void nci_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb);
 void nci_ntf_packet(struct nci_dev *ndev, struct sk_buff *skb);
 int nci_prop_rsp_packet(struct nci_dev *ndev, __u16 opcode,
