@@ -22,6 +22,7 @@
 
 /dts-v1/;
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/gpio/gpio.h>
 #include "skeleton.dtsi"
 
 / {
@@ -43,6 +44,15 @@
 		reg = <0x00000000 0x08000000>;
 	};
 
+	/* The voltage to the MMC card is hardwired at 3.3V */
+	vmmc: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vmmc";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+        };
+
 	xtal24mhz: xtal24mhz@24M {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
@@ -53,6 +63,14 @@
 		#clock-cells = <0>;
 		compatible = "fixed-factor-clock";
 		clock-div = <24>;
+		clock-mult = <1>;
+		clocks = <&xtal24mhz>;
+	};
+
+	mclk: mclk@24M {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clock-div = <1>;
 		clock-mult = <1>;
 		clocks = <&xtal24mhz>;
 	};
@@ -287,6 +305,24 @@
 		#size-cells = <1>;
 		compatible = "simple-bus";
 		ranges;
+
+		fpga_mci: mmcsd@10005000 {
+			compatible = "arm,pl18x", "arm,primecell";
+			reg = <0x10005000 0x1000>;
+			interrupt-parent = <&intc_fpga1176>;
+			interrupts = <0 1 IRQ_TYPE_LEVEL_HIGH>,
+					<0 2 IRQ_TYPE_LEVEL_HIGH>;
+			/* Due to frequent FIFO overruns, use just 500 kHz */
+			max-frequency = <500000>;
+			bus-width = <4>;
+			cap-sd-highspeed;
+			cap-mmc-highspeed;
+			clocks = <&mclk>, <&pclk>;
+			clock-names = "mclk", "apb_pclk";
+			vmmc-supply = <&vmmc>;
+			cd-gpios = <&fpga_gpio1 0 GPIO_ACTIVE_LOW>;
+			wp-gpios = <&fpga_gpio1 1 GPIO_ACTIVE_HIGH>;
+		};
 
 		fpga_kmi0: kmi@10006000 {
 			compatible = "arm,pl050", "arm,primecell";
