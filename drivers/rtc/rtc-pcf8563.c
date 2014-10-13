@@ -168,7 +168,7 @@ static irqreturn_t pcf8563_irq(int irq, void *dev_id)
 
 	err = pcf8563_get_alarm_mode(pcf8563->client, NULL, &pending);
 	if (err)
-		return err;
+		return IRQ_NONE;
 
 	if (pending) {
 		rtc_update_irq(pcf8563->rtc, 1, RTC_IRQF | RTC_AF);
