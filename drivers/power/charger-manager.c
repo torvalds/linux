@@ -118,10 +118,17 @@ static bool is_batt_present(struct charger_manager *cm)
 			present = true;
 		break;
 	case CM_CHARGER_STAT:
-		for (i = 0; cm->charger_stat[i]; i++) {
-			ret = cm->charger_stat[i]->get_property(
-					cm->charger_stat[i],
-					POWER_SUPPLY_PROP_PRESENT, &val);
+		for (i = 0; cm->desc->psy_charger_stat[i]; i++) {
+			psy = power_supply_get_by_name(
+					cm->desc->psy_charger_stat[i]);
+			if (!psy) {
+				dev_err(cm->dev, "Cannot find power supply \"%s\"\n",
+					cm->desc->psy_charger_stat[i]);
+				continue;
+			}
+
+			ret = psy->get_property(psy, POWER_SUPPLY_PROP_PRESENT,
+					&val);
 			if (ret == 0 && val.intval) {
 				present = true;
 				break;
@@ -144,14 +151,20 @@ static bool is_batt_present(struct charger_manager *cm)
 static bool is_ext_pwr_online(struct charger_manager *cm)
 {
 	union power_supply_propval val;
+	struct power_supply *psy;
 	bool online = false;
 	int i, ret;
 
 	/* If at least one of them has one, it's yes. */
-	for (i = 0; cm->charger_stat[i]; i++) {
-		ret = cm->charger_stat[i]->get_property(
-				cm->charger_stat[i],
-				POWER_SUPPLY_PROP_ONLINE, &val);
+	for (i = 0; cm->desc->psy_charger_stat[i]; i++) {
+		psy = power_supply_get_by_name(cm->desc->psy_charger_stat[i]);
+		if (!psy) {
+			dev_err(cm->dev, "Cannot find power supply \"%s\"\n",
+					cm->desc->psy_charger_stat[i]);
+			continue;
+		}
+
+		ret = psy->get_property(psy, POWER_SUPPLY_PROP_ONLINE, &val);
 		if (ret == 0 && val.intval) {
 			online = true;
 			break;
@@ -196,6 +209,7 @@ static bool is_charging(struct charger_manager *cm)
 {
 	int i, ret;
 	bool charging = false;
+	struct power_supply *psy;
 	union power_supply_propval val;
 
 	/* If there is no battery, it cannot be charged */
@@ -203,17 +217,22 @@ static bool is_charging(struct charger_manager *cm)
 		return false;
 
 	/* If at least one of the charger is charging, return yes */
-	for (i = 0; cm->charger_stat[i]; i++) {
+	for (i = 0; cm->desc->psy_charger_stat[i]; i++) {
 		/* 1. The charger sholuld not be DISABLED */
 		if (cm->emergency_stop)
 			continue;
 		if (!cm->charger_enabled)
 			continue;
 
+		psy = power_supply_get_by_name(cm->desc->psy_charger_stat[i]);
+		if (!psy) {
+			dev_err(cm->dev, "Cannot find power supply \"%s\"\n",
+					cm->desc->psy_charger_stat[i]);
+			continue;
+		}
+
 		/* 2. The charger should be online (ext-power) */
-		ret = cm->charger_stat[i]->get_property(
-				cm->charger_stat[i],
-				POWER_SUPPLY_PROP_ONLINE, &val);
+		ret = psy->get_property(psy, POWER_SUPPLY_PROP_ONLINE, &val);
 		if (ret) {
 			dev_warn(cm->dev, "Cannot read ONLINE value from %s\n",
 				 cm->desc->psy_charger_stat[i]);
@@ -226,9 +245,7 @@ static bool is_charging(struct charger_manager *cm)
 		 * 3. The charger should not be FULL, DISCHARGING,
 		 * or NOT_CHARGING.
 		 */
-		ret = cm->charger_stat[i]->get_property(
-				cm->charger_stat[i],
-				POWER_SUPPLY_PROP_STATUS, &val);
+		ret = psy->get_property(psy, POWER_SUPPLY_PROP_STATUS, &val);
 		if (ret) {
 			dev_warn(cm->dev, "Cannot read STATUS value from %s\n",
 				 cm->desc->psy_charger_stat[i]);
@@ -1773,15 +1790,12 @@ static int charger_manager_probe(struct platform_device *pdev)
 	while (desc->psy_charger_stat[i])
 		i++;
 
-	cm->charger_stat = devm_kzalloc(&pdev->dev,
-				sizeof(struct power_supply *) * i, GFP_KERNEL);
-	if (!cm->charger_stat)
-		return -ENOMEM;
-
+	/* Check if charger's supplies are present at probe */
 	for (i = 0; desc->psy_charger_stat[i]; i++) {
-		cm->charger_stat[i] = power_supply_get_by_name(
-					desc->psy_charger_stat[i]);
-		if (!cm->charger_stat[i]) {
+		struct power_supply *psy;
+
+		psy = power_supply_get_by_name(desc->psy_charger_stat[i]);
+		if (!psy) {
 			dev_err(&pdev->dev, "Cannot find power supply \"%s\"\n",
 				desc->psy_charger_stat[i]);
 			return -ENODEV;
@@ -2110,8 +2124,8 @@ static bool find_power_supply(struct charger_manager *cm,
 	int i;
 	bool found = false;
 
-	for (i = 0; cm->charger_stat[i]; i++) {
-		if (psy == cm->charger_stat[i]) {
+	for (i = 0; cm->desc->psy_charger_stat[i]; i++) {
+		if (!strcmp(psy->name, cm->desc->psy_charger_stat[i])) {
 			found = true;
 			break;
 		}
