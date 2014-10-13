@@ -1088,33 +1088,33 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 
 ARM/TEXAS INSTRUMENT KEYSTONE ARCHITECTURE
-M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+M:	Santosh Shilimkar <ssantosh@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-keystone/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ssantosh/linux-keystone.git
 
 ARM/TEXAS INSTRUMENT KEYSTONE CLOCK FRAMEWORK
-M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+M:	Santosh Shilimkar <ssantosh@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	drivers/clk/keystone/
 
 ARM/TEXAS INSTRUMENT KEYSTONE ClOCKSOURCE
-M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+M:	Santosh Shilimkar <ssantosh@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	drivers/clocksource/timer-keystone.c
 
 ARM/TEXAS INSTRUMENT KEYSTONE RESET DRIVER
-M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+M:	Santosh Shilimkar <ssantosh@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	drivers/power/reset/keystone-reset.c
 
 ARM/TEXAS INSTRUMENT AEMIF/EMIF DRIVERS
-M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+M:	Santosh Shilimkar <ssantosh@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	drivers/memory/*emif*
@@ -6686,7 +6686,7 @@ F:	arch/arm/*omap*/usb*
 
 OMAP GPIO DRIVER
 M:	Javier Martinez Canillas <javier@dowhile0.org>
-M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+M:	Santosh Shilimkar <ssantosh@kernel.org>
 M:	Kevin Hilman <khilman@deeprootsystems.com>
 L:	linux-omap@vger.kernel.org
 S:	Maintained
@@ -9273,7 +9273,7 @@ F:	drivers/mmc/host/tifm_sd.c
 F:	include/linux/tifm.h
 
 TI KEYSTONE MULTICORE NAVIGATOR DRIVERS
-M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+M:	Santosh Shilimkar <ssantosh@kernel.org>
 L:	linux-kernel@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
