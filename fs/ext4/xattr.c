@@ -142,8 +142,7 @@ static int ext4_xattr_block_csum_verify(struct inode *inode,
 					sector_t block_nr,
 					struct ext4_xattr_header *hdr)
 {
-	if (EXT4_HAS_RO_COMPAT_FEATURE(inode->i_sb,
-		EXT4_FEATURE_RO_COMPAT_METADATA_CSUM) &&
+	if (ext4_has_metadata_csum(inode->i_sb) &&
 	    (hdr->h_checksum != ext4_xattr_block_csum(inode, block_nr, hdr)))
 		return 0;
 	return 1;
@@ -153,8 +152,7 @@ static void ext4_xattr_block_csum_set(struct inode *inode,
 				      sector_t block_nr,
 				      struct ext4_xattr_header *hdr)
 {
-	if (!EXT4_HAS_RO_COMPAT_FEATURE(inode->i_sb,
-		EXT4_FEATURE_RO_COMPAT_METADATA_CSUM))
+	if (!ext4_has_metadata_csum(inode->i_sb))
 		return;
 
 	hdr->h_checksum = ext4_xattr_block_csum(inode, block_nr, hdr);
