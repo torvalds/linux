@@ -860,6 +860,9 @@
 				interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_dbgu>;
+				dmas = <&dma1 1 AT91_DMA_CFG_PER_ID(8)>,
+				       <&dma1 1 (AT91_DMA_CFG_PER_ID(9) | AT91_DMA_CFG_FIFOCFG_ASAP)>;
+				dma-names = "tx", "rx";
 				clocks = <&mck>;
 				clock-names = "usart";
 				status = "disabled";
@@ -871,6 +874,9 @@
 				interrupts = <5 IRQ_TYPE_LEVEL_HIGH 5>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_usart0>;
+				dmas = <&dma0 1 AT91_DMA_CFG_PER_ID(3)>,
+				       <&dma0 1 (AT91_DMA_CFG_PER_ID(4) | AT91_DMA_CFG_FIFOCFG_ASAP)>;
+				dma-names = "tx", "rx";
 				clocks = <&usart0_clk>;
 				clock-names = "usart";
 				status = "disabled";
@@ -882,6 +888,9 @@
 				interrupts = <6 IRQ_TYPE_LEVEL_HIGH 5>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_usart1>;
+				dmas = <&dma0 1 AT91_DMA_CFG_PER_ID(5)>,
+				       <&dma0 1 (AT91_DMA_CFG_PER_ID(6) | AT91_DMA_CFG_FIFOCFG_ASAP)>;
+				dma-names = "tx", "rx";
 				clocks = <&usart1_clk>;
 				clock-names = "usart";
 				status = "disabled";
@@ -893,6 +902,9 @@
 				interrupts = <7 IRQ_TYPE_LEVEL_HIGH 5>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_usart2>;
+				dmas = <&dma1 1 AT91_DMA_CFG_PER_ID(12)>,
+				       <&dma1 1 (AT91_DMA_CFG_PER_ID(13) | AT91_DMA_CFG_FIFOCFG_ASAP)>;
+				dma-names = "tx", "rx";
 				clocks = <&usart2_clk>;
 				clock-names = "usart";
 				status = "disabled";
