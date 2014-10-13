@@ -796,15 +796,23 @@ static void set_state_bits(struct extent_io_tree *tree,
 	state->state |= bits_to_set;
 }
 
-static void cache_state(struct extent_state *state,
-			struct extent_state **cached_ptr)
+static void cache_state_if_flags(struct extent_state *state,
+				 struct extent_state **cached_ptr,
+				 const u64 flags)
 {
 	if (cached_ptr && !(*cached_ptr)) {
-		if (state->state & (EXTENT_IOBITS | EXTENT_BOUNDARY)) {
+		if (!flags || (state->state & flags)) {
 			*cached_ptr = state;
 			atomic_inc(&state->refs);
 		}
 	}
+}
+
+static void cache_state(struct extent_state *state,
+			struct extent_state **cached_ptr)
+{
+	return cache_state_if_flags(state, cached_ptr,
+				    EXTENT_IOBITS | EXTENT_BOUNDARY);
 }
 
 /*
@@ -1482,7 +1490,7 @@ int find_first_extent_bit(struct extent_io_tree *tree, u64 start,
 	state = find_first_extent_bit_state(tree, start, bits);
 got_it:
 	if (state) {
-		cache_state(state, cached_state);
+		cache_state_if_flags(state, cached_state, 0);
 		*start_ret = state->start;
 		*end_ret = state->end;
 		ret = 0;
