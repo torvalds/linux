@@ -94,9 +94,177 @@
 extern unsigned long iram_tlb_base_addr;
 extern unsigned long iram_tlb_phys_addr;
 
+/* QSPI register layout */
+#define QSPI_MCR			0x00
+#define QSPI_IPCR			0x08
+#define QSPI_BUF0CR			0x10
+#define QSPI_BUF1CR			0x14
+#define QSPI_BUF2CR			0x18
+#define QSPI_BUF3CR			0x1c
+#define QSPI_BFGENCR			0x20
+#define QSPI_BUF0IND			0x30
+#define QSPI_BUF1IND			0x34
+#define QSPI_BUF2IND			0x38
+#define QSPI_SFAR			0x100
+#define QSPI_SMPR			0x108
+#define QSPI_RBSR			0x10c
+#define QSPI_RBCT			0x110
+#define QSPI_TBSR			0x150
+#define QSPI_TBDR			0x154
+#define QSPI_SFA1AD			0x180
+#define QSPI_SFA2AD			0x184
+#define QSPI_SFB1AD			0x188
+#define QSPI_SFB2AD			0x18c
+#define QSPI_RBDR_BASE			0x200
+#define QSPI_LUTKEY			0x300
+#define QSPI_LCKCR			0x304
+#define QSPI_LUT_BASE			0x310
+
+#define QSPI_RBDR_(x)		(QSPI_RBDR_BASE + (x) * 4)
+#define QSPI_LUT(x)		(QSPI_LUT_BASE + (x) * 4)
+
+#define QSPI_LUTKEY_VALUE	0x5AF05AF0
+#define QSPI_LCKER_LOCK		0x1
+#define QSPI_LCKER_UNLOCK	0x2
+
+enum qspi_regs_valuetype {
+	QSPI_PREDEFINED,
+	QSPI_RETRIEVED,
+};
+
+struct qspi_regs {
+	int offset;
+	unsigned int value;
+	enum qspi_regs_valuetype valuetype;
+};
+
+struct qspi_regs qspi_regs_imx6sx[] = {
+	{QSPI_IPCR, 0, QSPI_RETRIEVED},
+	{QSPI_BUF0CR, 0, QSPI_RETRIEVED},
+	{QSPI_BUF1CR, 0, QSPI_RETRIEVED},
+	{QSPI_BUF2CR, 0, QSPI_RETRIEVED},
+	{QSPI_BUF3CR, 0, QSPI_RETRIEVED},
+	{QSPI_BFGENCR, 0, QSPI_RETRIEVED},
+	{QSPI_BUF0IND, 0, QSPI_RETRIEVED},
+	{QSPI_BUF1IND, 0, QSPI_RETRIEVED},
+	{QSPI_BUF2IND, 0, QSPI_RETRIEVED},
+	{QSPI_SFAR, 0, QSPI_RETRIEVED},
+	{QSPI_SMPR, 0, QSPI_RETRIEVED},
+	{QSPI_RBSR, 0, QSPI_RETRIEVED},
+	{QSPI_RBCT, 0, QSPI_RETRIEVED},
+	{QSPI_TBSR, 0, QSPI_RETRIEVED},
+	{QSPI_TBDR, 0, QSPI_RETRIEVED},
+	{QSPI_SFA1AD, 0, QSPI_RETRIEVED},
+	{QSPI_SFA2AD, 0, QSPI_RETRIEVED},
+	{QSPI_SFB1AD, 0, QSPI_RETRIEVED},
+	{QSPI_SFB2AD, 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(0), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(1), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(2), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(3), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(4), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(5), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(6), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(7), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(8), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(9), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(10), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(11), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(12), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(13), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(14), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(15), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(16), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(17), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(18), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(19), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(20), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(21), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(22), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(23), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(24), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(25), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(26), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(27), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(28), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(29), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(30), 0, QSPI_RETRIEVED},
+	{QSPI_RBDR_(31), 0, QSPI_RETRIEVED},
+	{QSPI_LUTKEY, QSPI_LUTKEY_VALUE, QSPI_PREDEFINED},
+	{QSPI_LCKCR, QSPI_LCKER_UNLOCK, QSPI_PREDEFINED},
+	{QSPI_LUT(0), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(1), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(2), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(3), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(4), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(5), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(6), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(7), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(8), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(9), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(10), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(11), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(12), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(13), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(14), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(15), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(16), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(17), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(18), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(19), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(20), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(21), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(22), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(23), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(24), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(25), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(26), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(27), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(28), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(29), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(30), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(31), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(32), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(33), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(34), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(35), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(36), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(37), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(38), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(39), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(40), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(41), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(42), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(43), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(44), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(45), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(46), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(47), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(48), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(49), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(50), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(51), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(52), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(53), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(54), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(55), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(56), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(57), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(58), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(59), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(60), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(61), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(62), 0, QSPI_RETRIEVED},
+	{QSPI_LUT(63), 0, QSPI_RETRIEVED},
+	{QSPI_LUTKEY, QSPI_LUTKEY_VALUE, QSPI_PREDEFINED},
+	{QSPI_LCKCR, QSPI_LCKER_LOCK, QSPI_PREDEFINED},
+	{QSPI_MCR, 0, QSPI_RETRIEVED},
+};
+
 static unsigned int *ocram_saved_in_ddr;
 static void __iomem *ocram_base;
 static void __iomem *console_base;
+static void __iomem *qspi_base;
 static unsigned int ocram_size;
 static void __iomem *ccm_base;
 static void __iomem *suspend_ocram_base;
@@ -545,6 +713,31 @@ static void imx6_console_restore(unsigned int *regs)
 	writel_relaxed(regs[3], console_base + UART_UCR4);
 }
 
+static void imx6_qspi_save(struct qspi_regs *pregs, int reg_num)
+{
+	int i;
+
+	if (!qspi_base)
+		return;
+
+	for (i = 0; i < reg_num; i++) {
+		if (QSPI_RETRIEVED == pregs[i].valuetype)
+			pregs[i].value = readl_relaxed(qspi_base +
+				pregs[i].offset);
+	}
+}
+
+static void imx6_qspi_restore(struct qspi_regs *pregs, int reg_num)
+{
+	int i;
+
+	if (!qspi_base)
+		return;
+
+	for (i = 0; i < reg_num; i++)
+		writel_relaxed(pregs[i].value, qspi_base + pregs[i].offset);
+}
+
 static int imx6q_pm_enter(suspend_state_t state)
 {
 	unsigned int console_saved_reg[11] = {0};
@@ -595,6 +788,10 @@ static int imx6q_pm_enter(suspend_state_t state)
 				CCGR6);
 			memcpy(ocram_saved_in_ddr, ocram_base, ocram_size);
 			imx6_console_save(console_saved_reg);
+			if (imx_src_is_m4_enabled())
+				imx6_qspi_save(qspi_regs_imx6sx,
+					sizeof(qspi_regs_imx6sx) /
+					sizeof(struct qspi_regs));
 		}
 
 		/* Zzz ... */
@@ -605,6 +802,10 @@ static int imx6q_pm_enter(suspend_state_t state)
 			writel_relaxed(ccm_ccgr6, ccm_base + CCGR6);
 			memcpy(ocram_base, ocram_saved_in_ddr, ocram_size);
 			imx6_console_restore(console_saved_reg);
+			if (imx_src_is_m4_enabled())
+				imx6_qspi_restore(qspi_regs_imx6sx,
+					sizeof(qspi_regs_imx6sx) /
+					sizeof(struct qspi_regs));
 		}
 		if (cpu_is_imx6q() || cpu_is_imx6dl())
 			imx_smp_prepare();
@@ -948,6 +1149,12 @@ void __init imx6sx_pm_init(void)
 		"/soc/aips-bus@02000000/spba-bus@02000000/serial@02020000");
 	if (np)
 		console_base = of_iomap(np, 0);
+	if (imx_src_is_m4_enabled()) {
+		np = of_find_node_by_path("/soc/aips-bus@02100000/qspi@021e4000");
+		if (np)
+			qspi_base = of_iomap(np, 0);
+		WARN_ON(!qspi_base);
+	}
 }
 
 void __init imx6ul_pm_init(void)
