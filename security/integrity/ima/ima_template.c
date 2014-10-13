@@ -52,8 +52,11 @@ static int __init ima_template_setup(char *str)
 	 * If not, use CONFIG_IMA_DEFAULT_TEMPLATE.
 	 */
 	template_desc = lookup_template_desc(str);
-	if (!template_desc)
+	if (!template_desc) {
+		pr_err("template %s not found, using %s\n",
+		       str, CONFIG_IMA_DEFAULT_TEMPLATE);
 		return 1;
+	}
 
 	/*
 	 * Verify whether the current hash algorithm is supported
@@ -117,8 +120,11 @@ static int template_desc_init_fields(const char *template_fmt,
 	int template_num_fields = template_fmt_size(template_fmt);
 	int i, result = 0;
 
-	if (template_num_fields > IMA_TEMPLATE_NUM_FIELDS_MAX)
+	if (template_num_fields > IMA_TEMPLATE_NUM_FIELDS_MAX) {
+		pr_err("format string '%s' contains too many fields\n",
+		       template_fmt);
 		return -EINVAL;
+	}
 
 	/* copying is needed as strsep() modifies the original buffer */
 	template_fmt_copy = kstrdup(template_fmt, GFP_KERNEL);
@@ -137,6 +143,7 @@ static int template_desc_init_fields(const char *template_fmt,
 		struct ima_template_field *f = lookup_template_field(c);
 
 		if (!f) {
+			pr_err("field '%s' not found\n", c);
 			result = -ENOENT;
 			goto out;
 		}
@@ -163,8 +170,13 @@ struct ima_template_desc *ima_template_desc_current(void)
 int __init ima_init_template(void)
 {
 	struct ima_template_desc *template = ima_template_desc_current();
+	int result;
 
-	return template_desc_init_fields(template->fmt,
-					 &(template->fields),
-					 &(template->num_fields));
+	result = template_desc_init_fields(template->fmt,
+					   &(template->fields),
+					   &(template->num_fields));
+	if (result < 0)
+		pr_err("template %s init failed, result: %d\n", template->name);
+
+	return result;
 }
