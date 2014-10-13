@@ -465,55 +465,37 @@
 	/* orig_r0, ECR, user_r25 skipped automatically */
 .endm
 
+/* Dummy ECR values for Interrupts */
+#define event_IRQ1		0x0031abcd
+#define event_IRQ2		0x0032abcd
 
-/*--------------------------------------------------------------
- * Save all registers used by interrupt handlers.
- *-------------------------------------------------------------*/
-.macro SAVE_ALL_INT1
+.macro INTERRUPT_PROLOGUE  LVL
+
+	/* free up r9 as scratchpad */
+	PROLOG_FREEUP_REG r9, @int\LVL\()_saved_reg
+
+	/* Which mode (user/kernel) was the system in when intr occurred */
+	lr  r9, [status32_l\LVL\()]
+
+	SWITCH_TO_KERNEL_STK
 
 	/* restore original r9 */
-	PROLOG_RESTORE_REG  r9, @int1_saved_reg
+	PROLOG_RESTORE_REG  r9, @int\LVL\()_saved_reg
 
-	/* now we are ready to save the remaining context :) */
-	st      event_IRQ1, [sp, 8]    /* Dummy ECR */
+	/* now we are ready to save the remaining context */
+	st      0x003\LVL\()abcd, [sp, 8]    /* Dummy ECR */
 	st      0, [sp, 4]    /* orig_r0 , N/A for IRQ */
 
 	SAVE_R0_TO_R12
 	PUSH	gp
 	PUSH	fp
 	PUSH	blink
-	PUSH	ilink1
-	PUSHAX	status32_l1
+	PUSH	ilink\LVL\()
+	PUSHAX	status32_l\LVL\()
 	PUSH	lp_count
 	PUSHAX	lp_end
 	PUSHAX	lp_start
-	PUSHAX	bta_l1
-.endm
-
-.macro SAVE_ALL_INT2
-
-	/*
-	 * In SMP we can't use mem nor can we use SCRARCH_DATA0
-	 * as we do for int1 because int2 can clobber it
-	 * Hence 2 levels of intr are NOT allowed in SMP (by Kconfig)
-	 */
-	/* restore original r9 */
-	PROLOG_RESTORE_REG r9, @int2_saved_reg
-
-	/* now we are ready to save the remaining context :) */
-	st      event_IRQ2, [sp, 8]    /* Dummy ECR */
-	st      0, [sp, 4]    /* orig_r0 , N/A for IRQ */
-
-	SAVE_R0_TO_R12
-	PUSH	gp
-	PUSH	fp
-	PUSH	blink
-	PUSH	ilink2
-	PUSHAX	status32_l2
-	PUSH	lp_count
-	PUSHAX	lp_end
-	PUSHAX	lp_start
-	PUSHAX	bta_l2
+	PUSHAX	bta_l\LVL\()
 .endm
 
 /*--------------------------------------------------------------
@@ -525,17 +507,16 @@
  * for memory load operations. If used in that way interrupts are deffered
  * by hardware and that is not good.
  *-------------------------------------------------------------*/
-
-.macro RESTORE_ALL_INT1
-	POPAX	bta_l1
+.macro INTERRUPT_EPILOGUE  LVL
+	POPAX	bta_l\LVL\()
 	POPAX	lp_start
 	POPAX	lp_end
 
 	POP	r9
 	mov	lp_count, r9	;LD to lp_count is not allowed
 
-	POPAX	status32_l1
-	POP	ilink1
+	POPAX	status32_l\LVL\()
+	POP	ilink\LVL\()
 	POP	blink
 	POP	fp
 	POP	gp
@@ -544,26 +525,6 @@
 	ld  sp, [sp] /* restore original sp */
 	/* orig_r0, ECR, user_r25 skipped automatically */
 .endm
-
-.macro RESTORE_ALL_INT2
-	POPAX	bta_l2
-	POPAX	lp_start
-	POPAX	lp_end
-
-	POP	r9
-	mov	lp_count, r9	;LD to lp_count is not allowed
-
-	POPAX	status32_l2
-	POP	ilink2
-	POP	blink
-	POP	fp
-	POP	gp
-	RESTORE_R12_TO_R0
-
-	ld  sp, [sp] /* restore original sp */
-	/* orig_r0, ECR, user_r25 skipped automatically */
-.endm
-
 
 /* Get CPU-ID of this core */
 .macro  GET_CPU_ID  reg

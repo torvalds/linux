@@ -186,14 +186,7 @@ reserved:		; processor restart
 ; ---------------------------------------------
 ENTRY(handle_interrupt_level2)
 
-	; free up r9 as scratchpad
-	PROLOG_FREEUP_REG r9, @int2_saved_reg
-
-	;Which mode (user/kernel) was the system in when intr occured
-	lr  r9, [status32_l2]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_INT2
+	INTERRUPT_PROLOGUE 2
 
 	;------------------------------------------------------
 	; if L2 IRQ interrupted a L1 ISR, disable preemption
@@ -233,13 +226,7 @@ END(handle_interrupt_level2)
 ; ---------------------------------------------
 ENTRY(handle_interrupt_level1)
 
-	PROLOG_FREEUP_REG r9, @int1_saved_reg
-
-	;Which mode (user/kernel) was the system in when intr occured
-	lr  r9, [status32_l1]
-
-	SWITCH_TO_KERNEL_STK
-	SAVE_ALL_INT1
+	INTERRUPT_PROLOGUE 1
 
 	lr  r0, [icause1]
 	and r0, r0, 0x1f
@@ -698,7 +685,7 @@ not_exception:
 
 149:
 	;return from level 2
-	RESTORE_ALL_INT2
+	INTERRUPT_EPILOGUE 2
 debug_marker_l2:
 	rtie
 
@@ -709,8 +696,7 @@ not_level2_interrupt:
 	bbit0  r10, STATUS_A1_BIT, not_level1_interrupt
 
 	;return from level 1
-
-	RESTORE_ALL_INT1
+	INTERRUPT_EPILOGUE 1
 debug_marker_l1:
 	rtie
 

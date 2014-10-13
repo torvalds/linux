@@ -76,9 +76,6 @@
 #define ECR_C_BIT_DTLB_LD_MISS		8
 #define ECR_C_BIT_DTLB_ST_MISS		9
 
-/* Dummy ECR values for Interrupts */
-#define event_IRQ1		0x0031abcd
-#define event_IRQ2		0x0032abcd
 
 /* Auxiliary registers */
 #define AUX_IDENTITY		4
