@@ -257,6 +257,7 @@ static int check_urb_status(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 	case -EILSEQ:
+	case -EPROTO:
 		/* device is gone, stop sending */
 		return status;
 	}
