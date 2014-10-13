@@ -387,6 +387,23 @@ enum ath10k_dev_flags {
 	ATH10K_FLAG_CORE_REGISTERED,
 };
 
+enum ath10k_cal_mode {
+	ATH10K_CAL_MODE_FILE,
+	ATH10K_CAL_MODE_OTP,
+};
+
+static inline const char *ath10k_cal_mode_str(enum ath10k_cal_mode mode)
+{
+	switch (mode) {
+	case ATH10K_CAL_MODE_FILE:
+		return "file";
+	case ATH10K_CAL_MODE_OTP:
+		return "otp";
+	}
+
+	return "unknown";
+}
+
 enum ath10k_scan_state {
 	ATH10K_SCAN_IDLE,
 	ATH10K_SCAN_STARTING,
@@ -473,7 +490,10 @@ struct ath10k {
 	const void *firmware_data;
 	size_t firmware_len;
 
+	const struct firmware *cal_file;
+
 	int fw_api;
+	enum ath10k_cal_mode cal_mode;
 
 	struct {
 		struct completion started;

@@ -138,7 +138,8 @@ static const struct firmware *ath10k_fetch_fw_file(struct ath10k *ar,
 	return fw;
 }
 
-static int ath10k_push_board_ext_data(struct ath10k *ar)
+static int ath10k_push_board_ext_data(struct ath10k *ar, const void *data,
+				      size_t data_len)
 {
 	u32 board_data_size = QCA988X_BOARD_DATA_SZ;
 	u32 board_ext_data_size = QCA988X_BOARD_EXT_DATA_SZ;
@@ -159,14 +160,14 @@ static int ath10k_push_board_ext_data(struct ath10k *ar)
 	if (board_ext_data_addr == 0)
 		return 0;
 
-	if (ar->board_len != (board_data_size + board_ext_data_size)) {
+	if (data_len != (board_data_size + board_ext_data_size)) {
 		ath10k_err(ar, "invalid board (ext) data sizes %zu != %d+%d\n",
-			   ar->board_len, board_data_size, board_ext_data_size);
+			   data_len, board_data_size, board_ext_data_size);
 		return -EINVAL;
 	}
 
 	ret = ath10k_bmi_write_memory(ar, board_ext_data_addr,
-				      ar->board_data + board_data_size,
+				      data + board_data_size,
 				      board_ext_data_size);
 	if (ret) {
 		ath10k_err(ar, "could not write board ext data (%d)\n", ret);
@@ -184,13 +185,14 @@ static int ath10k_push_board_ext_data(struct ath10k *ar)
 	return 0;
 }
 
-static int ath10k_download_board_data(struct ath10k *ar)
+static int ath10k_download_board_data(struct ath10k *ar, const void *data,
+				      size_t data_len)
 {
 	u32 board_data_size = QCA988X_BOARD_DATA_SZ;
 	u32 address;
 	int ret;
 
-	ret = ath10k_push_board_ext_data(ar);
+	ret = ath10k_push_board_ext_data(ar, data, data_len);
 	if (ret) {
 		ath10k_err(ar, "could not push board ext data (%d)\n", ret);
 		goto exit;
@@ -202,9 +204,9 @@ static int ath10k_download_board_data(struct ath10k *ar)
 		goto exit;
 	}
 
-	ret = ath10k_bmi_write_memory(ar, address, ar->board_data,
+	ret = ath10k_bmi_write_memory(ar, address, data,
 				      min_t(u32, board_data_size,
-					    ar->board_len));
+					    data_len));
 	if (ret) {
 		ath10k_err(ar, "could not write board data (%d)\n", ret);
 		goto exit;
@@ -220,12 +222,34 @@ exit:
 	return ret;
 }
 
+static int ath10k_download_cal_file(struct ath10k *ar)
+{
+	int ret;
+
+	if (!ar->cal_file)
+		return -ENOENT;
+
+	if (IS_ERR(ar->cal_file))
+		return PTR_ERR(ar->cal_file);
+
+	ret = ath10k_download_board_data(ar, ar->cal_file->data,
+					 ar->cal_file->size);
+	if (ret) {
+		ath10k_err(ar, "failed to download cal_file data: %d\n", ret);
+		return ret;
+	}
+
+	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot cal file downloaded\n");
+
+	return 0;
+}
+
 static int ath10k_download_and_run_otp(struct ath10k *ar)
 {
 	u32 result, address = ar->hw_params.patch_load_addr;
 	int ret;
 
-	ret = ath10k_download_board_data(ar);
+	ret = ath10k_download_board_data(ar, ar->board_data, ar->board_len);
 	if (ret) {
 		ath10k_err(ar, "failed to download board data: %d\n", ret);
 		return ret;
@@ -314,6 +338,9 @@ static void ath10k_core_free_firmware_files(struct ath10k *ar)
 	if (ar->firmware && !IS_ERR(ar->firmware))
 		release_firmware(ar->firmware);
 
+	if (ar->cal_file && !IS_ERR(ar->cal_file))
+		release_firmware(ar->cal_file);
+
 	ar->board = NULL;
 	ar->board_data = NULL;
 	ar->board_len = 0;
@@ -325,6 +352,27 @@ static void ath10k_core_free_firmware_files(struct ath10k *ar)
 	ar->firmware = NULL;
 	ar->firmware_data = NULL;
 	ar->firmware_len = 0;
+
+	ar->cal_file = NULL;
+}
+
+static int ath10k_fetch_cal_file(struct ath10k *ar)
+{
+	char filename[100];
+
+	/* cal-<bus>-<id>.bin */
+	scnprintf(filename, sizeof(filename), "cal-%s-%s.bin",
+		  ath10k_bus_str(ar->hif.bus), dev_name(ar->dev));
+
+	ar->cal_file = ath10k_fetch_fw_file(ar, ATH10K_FW_DIR, filename);
+	if (IS_ERR(ar->cal_file))
+		/* calibration file is optional, don't print any warnings */
+		return PTR_ERR(ar->cal_file);
+
+	ath10k_dbg(ar, ATH10K_DBG_BOOT, "found calibration file %s/%s\n",
+		   ATH10K_FW_DIR, filename);
+
+	return 0;
 }
 
 static int ath10k_core_fetch_firmware_api_1(struct ath10k *ar)
@@ -568,6 +616,9 @@ static int ath10k_core_fetch_firmware_files(struct ath10k *ar)
 {
 	int ret;
 
+	/* calibration file is optional, don't check for any errors */
+	ath10k_fetch_cal_file(ar);
+
 	ar->fw_api = 3;
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "trying fw api %d\n", ar->fw_api);
 
@@ -599,13 +650,28 @@ static int ath10k_download_cal_data(struct ath10k *ar)
 {
 	int ret;
 
+	ret = ath10k_download_cal_file(ar);
+	if (ret == 0) {
+		ar->cal_mode = ATH10K_CAL_MODE_FILE;
+		goto done;
+	}
+
+	ath10k_dbg(ar, ATH10K_DBG_BOOT,
+		   "boot did not find a calibration file, try OTP next: %d\n",
+		   ret);
+
 	ret = ath10k_download_and_run_otp(ar);
 	if (ret) {
 		ath10k_err(ar, "failed to run otp: %d\n", ret);
 		return ret;
 	}
 
-	return ret;
+	ar->cal_mode = ATH10K_CAL_MODE_OTP;
+
+done:
+	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot using calibration mode %s\n",
+		   ath10k_cal_mode_str(ar->cal_mode));
+	return 0;
 }
 
 static int ath10k_init_uart(struct ath10k *ar)
