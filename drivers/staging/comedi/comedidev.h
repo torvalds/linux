@@ -213,6 +213,22 @@ struct comedi_async {
 		       unsigned int x);
 };
 
+/**
+ * comedi_async callback "events"
+ * @COMEDI_CB_EOS:		end-of-scan
+ * @COMEDI_CB_EOA:		end-of-acquisition/output
+ * @COMEDI_CB_BLOCK:		data has arrived, wakes up read() / write()
+ * @COMEDI_CB_EOBUF:		DEPRECATED: end of buffer
+ * @COMEDI_CB_ERROR:		card error during acquisition
+ * @COMEDI_CB_OVERFLOW:		buffer overflow/underflow
+ */
+#define COMEDI_CB_EOS		(1 << 0)
+#define COMEDI_CB_EOA		(1 << 1)
+#define COMEDI_CB_BLOCK		(1 << 2)
+#define COMEDI_CB_EOBUF		(1 << 3)
+#define COMEDI_CB_ERROR		(1 << 4)
+#define COMEDI_CB_OVERFLOW	(1 << 5)
+
 struct comedi_driver {
 	struct comedi_driver *next;
 
