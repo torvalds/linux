@@ -725,7 +725,7 @@ void perf_evsel__config(struct perf_evsel *evsel, struct record_opts *opts)
 	}
 }
 
-int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
+static int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 {
 	int cpu, thread;
 
@@ -813,13 +813,13 @@ int perf_evsel__alloc_counts(struct perf_evsel *evsel, int ncpus)
 	return evsel->counts != NULL ? 0 : -ENOMEM;
 }
 
-void perf_evsel__free_fd(struct perf_evsel *evsel)
+static void perf_evsel__free_fd(struct perf_evsel *evsel)
 {
 	xyarray__delete(evsel->fd);
 	evsel->fd = NULL;
 }
 
-void perf_evsel__free_id(struct perf_evsel *evsel)
+static void perf_evsel__free_id(struct perf_evsel *evsel)
 {
 	xyarray__delete(evsel->sample_id);
 	evsel->sample_id = NULL;
