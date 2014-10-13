@@ -158,6 +158,7 @@ typedef struct xfs_buf {
 	struct list_head	b_lru;		/* lru list */
 	spinlock_t		b_lock;		/* internal state lock */
 	unsigned int		b_state;	/* internal state flags */
+	int			b_io_error;	/* internal IO error state */
 	wait_queue_head_t	b_waiters;	/* unpin waiters */
 	struct list_head	b_list;
 	struct xfs_perag	*b_pag;		/* contains rbtree root */
@@ -268,9 +269,9 @@ int xfs_buf_associate_memory(struct xfs_buf *bp, void *mem, size_t length);
 
 struct xfs_buf *xfs_buf_get_uncached(struct xfs_buftarg *target, size_t numblks,
 				int flags);
-struct xfs_buf *xfs_buf_read_uncached(struct xfs_buftarg *target,
-				xfs_daddr_t daddr, size_t numblks, int flags,
-				const struct xfs_buf_ops *ops);
+int xfs_buf_read_uncached(struct xfs_buftarg *target, xfs_daddr_t daddr,
+			  size_t numblks, int flags, struct xfs_buf **bpp,
+			  const struct xfs_buf_ops *ops);
 void xfs_buf_hold(struct xfs_buf *bp);
 
 /* Releasing Buffers */
@@ -286,17 +287,15 @@ extern void xfs_buf_unlock(xfs_buf_t *);
 
 /* Buffer Read and Write Routines */
 extern int xfs_bwrite(struct xfs_buf *bp);
-extern void xfs_buf_ioend(xfs_buf_t *,	int);
+extern void xfs_buf_ioend(struct xfs_buf *bp);
 extern void xfs_buf_ioerror(xfs_buf_t *, int);
 extern void xfs_buf_ioerror_alert(struct xfs_buf *, const char *func);
-extern void xfs_buf_iorequest(xfs_buf_t *);
-extern int xfs_buf_iowait(xfs_buf_t *);
+extern void xfs_buf_submit(struct xfs_buf *bp);
+extern int xfs_buf_submit_wait(struct xfs_buf *bp);
 extern void xfs_buf_iomove(xfs_buf_t *, size_t, size_t, void *,
 				xfs_buf_rw_t);
 #define xfs_buf_zero(bp, off, len) \
 	    xfs_buf_iomove((bp), (off), (len), NULL, XBRW_ZERO)
-
-extern int xfs_bioerror_relse(struct xfs_buf *);
 
 /* Buffer Utility Routines */
 extern xfs_caddr_t xfs_buf_offset(xfs_buf_t *, size_t);
