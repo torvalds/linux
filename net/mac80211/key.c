@@ -94,8 +94,17 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 
 	might_sleep();
 
-	if (key->flags & KEY_FLAG_TAINTED)
+	if (key->flags & KEY_FLAG_TAINTED) {
+		/* If we get here, it's during resume and the key is
+		 * tainted so shouldn't be used/programmed any more.
+		 * However, its flags may still indicate that it was
+		 * programmed into the device (since we're in resume)
+		 * so clear that flag now to avoid trying to remove
+		 * it again later.
+		 */
+		key->flags &= ~KEY_FLAG_UPLOADED_TO_HARDWARE;
 		return -EINVAL;
+	}
 
 	if (!key->local->ops->set_key)
 		goto out_unsupported;
