@@ -162,7 +162,7 @@ static void sisfb_search_mode(char *name, bool quiet)
 		return;
 	}
 
-	if(!strnicmp(name, sisbios_mode[MODE_INDEX_NONE].name, strlen(name))) {
+	if(!strncasecmp(name, sisbios_mode[MODE_INDEX_NONE].name, strlen(name))) {
 		if(!quiet)
 			printk(KERN_ERR "sisfb: Mode 'none' not supported anymore. Using default.\n");
 
@@ -201,7 +201,7 @@ static void sisfb_search_mode(char *name, bool quiet)
 
 	i = 0; j = 0;
 	while(sisbios_mode[i].mode_no[0] != 0) {
-		if(!strnicmp(nameptr, sisbios_mode[i++].name, strlen(nameptr))) {
+		if(!strncasecmp(nameptr, sisbios_mode[i++].name, strlen(nameptr))) {
 			if(sisfb_fstn) {
 				if(sisbios_mode[i-1].mode_no[1] == 0x50 ||
 				   sisbios_mode[i-1].mode_no[1] == 0x56 ||
@@ -262,7 +262,7 @@ sisfb_search_crt2type(const char *name)
 	if(name == NULL) return;
 
 	while(sis_crt2type[i].type_no != -1) {
-		if(!strnicmp(name, sis_crt2type[i].name, strlen(sis_crt2type[i].name))) {
+		if(!strncasecmp(name, sis_crt2type[i].name, strlen(sis_crt2type[i].name))) {
 			sisfb_crt2type = sis_crt2type[i].type_no;
 			sisfb_tvplug = sis_crt2type[i].tvplug_no;
 			sisfb_crt2flags = sis_crt2type[i].flags;
@@ -289,7 +289,7 @@ sisfb_search_tvstd(const char *name)
 		return;
 
 	while(sis_tvtype[i].type_no != -1) {
-		if(!strnicmp(name, sis_tvtype[i].name, strlen(sis_tvtype[i].name))) {
+		if(!strncasecmp(name, sis_tvtype[i].name, strlen(sis_tvtype[i].name))) {
 			sisfb_tvstd = sis_tvtype[i].type_no;
 			break;
 		}
@@ -308,12 +308,12 @@ sisfb_search_specialtiming(const char *name)
 	if(name == NULL)
 		return;
 
-	if(!strnicmp(name, "none", 4)) {
+	if(!strncasecmp(name, "none", 4)) {
 		sisfb_specialtiming = CUT_FORCENONE;
 		printk(KERN_DEBUG "sisfb: Special timing disabled\n");
 	} else {
 		while(mycustomttable[i].chipID != 0) {
-			if(!strnicmp(name,mycustomttable[i].optionName,
+			if(!strncasecmp(name,mycustomttable[i].optionName,
 			   strlen(mycustomttable[i].optionName))) {
 				sisfb_specialtiming = mycustomttable[i].SpecialID;
 				found = true;
@@ -3952,68 +3952,68 @@ static int __init sisfb_setup(char *options)
 
 		if(!(*this_opt)) continue;
 
-		if(!strnicmp(this_opt, "off", 3)) {
+		if(!strncasecmp(this_opt, "off", 3)) {
 			sisfb_off = 1;
-		} else if(!strnicmp(this_opt, "forcecrt2type:", 14)) {
+		} else if(!strncasecmp(this_opt, "forcecrt2type:", 14)) {
 			/* Need to check crt2 type first for fstn/dstn */
 			sisfb_search_crt2type(this_opt + 14);
-		} else if(!strnicmp(this_opt, "tvmode:",7)) {
+		} else if(!strncasecmp(this_opt, "tvmode:",7)) {
 			sisfb_search_tvstd(this_opt + 7);
-		} else if(!strnicmp(this_opt, "tvstandard:",11)) {
+		} else if(!strncasecmp(this_opt, "tvstandard:",11)) {
 			sisfb_search_tvstd(this_opt + 11);
-		} else if(!strnicmp(this_opt, "mode:", 5)) {
+		} else if(!strncasecmp(this_opt, "mode:", 5)) {
 			sisfb_search_mode(this_opt + 5, false);
-		} else if(!strnicmp(this_opt, "vesa:", 5)) {
+		} else if(!strncasecmp(this_opt, "vesa:", 5)) {
 			sisfb_search_vesamode(simple_strtoul(this_opt + 5, NULL, 0), false);
-		} else if(!strnicmp(this_opt, "rate:", 5)) {
+		} else if(!strncasecmp(this_opt, "rate:", 5)) {
 			sisfb_parm_rate = simple_strtoul(this_opt + 5, NULL, 0);
-		} else if(!strnicmp(this_opt, "forcecrt1:", 10)) {
+		} else if(!strncasecmp(this_opt, "forcecrt1:", 10)) {
 			sisfb_forcecrt1 = (int)simple_strtoul(this_opt + 10, NULL, 0);
-		} else if(!strnicmp(this_opt, "mem:",4)) {
+		} else if(!strncasecmp(this_opt, "mem:",4)) {
 			sisfb_parm_mem = simple_strtoul(this_opt + 4, NULL, 0);
-		} else if(!strnicmp(this_opt, "pdc:", 4)) {
+		} else if(!strncasecmp(this_opt, "pdc:", 4)) {
 			sisfb_pdc = simple_strtoul(this_opt + 4, NULL, 0);
-		} else if(!strnicmp(this_opt, "pdc1:", 5)) {
+		} else if(!strncasecmp(this_opt, "pdc1:", 5)) {
 			sisfb_pdca = simple_strtoul(this_opt + 5, NULL, 0);
-		} else if(!strnicmp(this_opt, "noaccel", 7)) {
+		} else if(!strncasecmp(this_opt, "noaccel", 7)) {
 			sisfb_accel = 0;
-		} else if(!strnicmp(this_opt, "accel", 5)) {
+		} else if(!strncasecmp(this_opt, "accel", 5)) {
 			sisfb_accel = -1;
-		} else if(!strnicmp(this_opt, "noypan", 6)) {
+		} else if(!strncasecmp(this_opt, "noypan", 6)) {
 			sisfb_ypan = 0;
-		} else if(!strnicmp(this_opt, "ypan", 4)) {
+		} else if(!strncasecmp(this_opt, "ypan", 4)) {
 			sisfb_ypan = -1;
-		} else if(!strnicmp(this_opt, "nomax", 5)) {
+		} else if(!strncasecmp(this_opt, "nomax", 5)) {
 			sisfb_max = 0;
-		} else if(!strnicmp(this_opt, "max", 3)) {
+		} else if(!strncasecmp(this_opt, "max", 3)) {
 			sisfb_max = -1;
-		} else if(!strnicmp(this_opt, "userom:", 7)) {
+		} else if(!strncasecmp(this_opt, "userom:", 7)) {
 			sisfb_userom = (int)simple_strtoul(this_opt + 7, NULL, 0);
-		} else if(!strnicmp(this_opt, "useoem:", 7)) {
+		} else if(!strncasecmp(this_opt, "useoem:", 7)) {
 			sisfb_useoem = (int)simple_strtoul(this_opt + 7, NULL, 0);
-		} else if(!strnicmp(this_opt, "nocrt2rate", 10)) {
+		} else if(!strncasecmp(this_opt, "nocrt2rate", 10)) {
 			sisfb_nocrt2rate = 1;
-		} else if(!strnicmp(this_opt, "scalelcd:", 9)) {
+		} else if(!strncasecmp(this_opt, "scalelcd:", 9)) {
 			unsigned long temp = 2;
 			temp = simple_strtoul(this_opt + 9, NULL, 0);
 			if((temp == 0) || (temp == 1)) {
 			   sisfb_scalelcd = temp ^ 1;
 			}
-		} else if(!strnicmp(this_opt, "tvxposoffset:", 13)) {
+		} else if(!strncasecmp(this_opt, "tvxposoffset:", 13)) {
 			int temp = 0;
 			temp = (int)simple_strtol(this_opt + 13, NULL, 0);
 			if((temp >= -32) && (temp <= 32)) {
 			   sisfb_tvxposoffset = temp;
 			}
-		} else if(!strnicmp(this_opt, "tvyposoffset:", 13)) {
+		} else if(!strncasecmp(this_opt, "tvyposoffset:", 13)) {
 			int temp = 0;
 			temp = (int)simple_strtol(this_opt + 13, NULL, 0);
 			if((temp >= -32) && (temp <= 32)) {
 			   sisfb_tvyposoffset = temp;
 			}
-		} else if(!strnicmp(this_opt, "specialtiming:", 14)) {
+		} else if(!strncasecmp(this_opt, "specialtiming:", 14)) {
 			sisfb_search_specialtiming(this_opt + 14);
-		} else if(!strnicmp(this_opt, "lvdshl:", 7)) {
+		} else if(!strncasecmp(this_opt, "lvdshl:", 7)) {
 			int temp = 4;
 			temp = simple_strtoul(this_opt + 7, NULL, 0);
 			if((temp >= 0) && (temp <= 3)) {
@@ -4022,9 +4022,9 @@ static int __init sisfb_setup(char *options)
 		} else if(this_opt[0] >= '0' && this_opt[0] <= '9') {
 			sisfb_search_mode(this_opt, true);
 #if !defined(__i386__) && !defined(__x86_64__)
-		} else if(!strnicmp(this_opt, "resetcard", 9)) {
+		} else if(!strncasecmp(this_opt, "resetcard", 9)) {
 			sisfb_resetcard = 1;
-	        } else if(!strnicmp(this_opt, "videoram:", 9)) {
+	        } else if(!strncasecmp(this_opt, "videoram:", 9)) {
 			sisfb_videoram = simple_strtoul(this_opt + 9, NULL, 0);
 #endif
 		} else {
