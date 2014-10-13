@@ -73,6 +73,35 @@ static void pydict_set_item_string_decref(PyObject *dict, const char *key, PyObj
 	Py_DECREF(val);
 }
 
+static PyObject *get_handler(const char *handler_name)
+{
+	PyObject *handler;
+
+	handler = PyDict_GetItemString(main_dict, handler_name);
+	if (handler && !PyCallable_Check(handler))
+		return NULL;
+	return handler;
+}
+
+static void call_object(PyObject *handler, PyObject *args, const char *die_msg)
+{
+	PyObject *retval;
+
+	retval = PyObject_CallObject(handler, args);
+	if (retval == NULL)
+		handler_call_die(die_msg);
+	Py_DECREF(retval);
+}
+
+static void try_call_object(const char *handler_name, PyObject *args)
+{
+	PyObject *handler;
+
+	handler = get_handler(handler_name);
+	if (handler)
+		call_object(handler, args, handler_name);
+}
+
 static void define_value(enum print_arg_type field_type,
 			 const char *ev_name,
 			 const char *field_name,
@@ -80,7 +109,7 @@ static void define_value(enum print_arg_type field_type,
 			 const char *field_str)
 {
 	const char *handler_name = "define_flag_value";
-	PyObject *handler, *t, *retval;
+	PyObject *t;
 	unsigned long long value;
 	unsigned n = 0;
 
@@ -98,13 +127,7 @@ static void define_value(enum print_arg_type field_type,
 	PyTuple_SetItem(t, n++, PyInt_FromLong(value));
 	PyTuple_SetItem(t, n++, PyString_FromString(field_str));
 
-	handler = PyDict_GetItemString(main_dict, handler_name);
-	if (handler && PyCallable_Check(handler)) {
-		retval = PyObject_CallObject(handler, t);
-		if (retval == NULL)
-			handler_call_die(handler_name);
-		Py_DECREF(retval);
-	}
+	try_call_object(handler_name, t);
 
 	Py_DECREF(t);
 }
@@ -127,7 +150,7 @@ static void define_field(enum print_arg_type field_type,
 			 const char *delim)
 {
 	const char *handler_name = "define_flag_field";
-	PyObject *handler, *t, *retval;
+	PyObject *t;
 	unsigned n = 0;
 
 	if (field_type == PRINT_SYMBOL)
@@ -145,13 +168,7 @@ static void define_field(enum print_arg_type field_type,
 	if (field_type == PRINT_FLAGS)
 		PyTuple_SetItem(t, n++, PyString_FromString(delim));
 
-	handler = PyDict_GetItemString(main_dict, handler_name);
-	if (handler && PyCallable_Check(handler)) {
-		retval = PyObject_CallObject(handler, t);
-		if (retval == NULL)
-			handler_call_die(handler_name);
-		Py_DECREF(retval);
-	}
+	try_call_object(handler_name, t);
 
 	Py_DECREF(t);
 }
@@ -362,7 +379,7 @@ static void python_process_tracepoint(struct perf_sample *sample,
 				      struct thread *thread,
 				      struct addr_location *al)
 {
-	PyObject *handler, *retval, *context, *t, *obj, *callchain;
+	PyObject *handler, *context, *t, *obj, *callchain;
 	PyObject *dict = NULL;
 	static char handler_name[256];
 	struct format_field *field;
@@ -387,9 +404,7 @@ static void python_process_tracepoint(struct perf_sample *sample,
 
 	sprintf(handler_name, "%s__%s", event->system, event->name);
 
-	handler = PyDict_GetItemString(main_dict, handler_name);
-	if (handler && !PyCallable_Check(handler))
-		handler = NULL;
+	handler = get_handler(handler_name);
 	if (!handler) {
 		dict = PyDict_New();
 		if (!dict)
@@ -450,19 +465,9 @@ static void python_process_tracepoint(struct perf_sample *sample,
 		Py_FatalError("error resizing Python tuple");
 
 	if (handler) {
-		retval = PyObject_CallObject(handler, t);
-		if (retval == NULL)
-			handler_call_die(handler_name);
-		Py_DECREF(retval);
+		call_object(handler, t, handler_name);
 	} else {
-		handler = PyDict_GetItemString(main_dict, "trace_unhandled");
-		if (handler && PyCallable_Check(handler)) {
-
-			retval = PyObject_CallObject(handler, t);
-			if (retval == NULL)
-				handler_call_die("trace_unhandled");
-			Py_DECREF(retval);
-		}
+		try_call_object("trace_unhandled", t);
 		Py_DECREF(dict);
 	}
 
@@ -474,7 +479,7 @@ static void python_process_general_event(struct perf_sample *sample,
 					 struct thread *thread,
 					 struct addr_location *al)
 {
-	PyObject *handler, *retval, *t, *dict, *callchain, *dict_sample;
+	PyObject *handler, *t, *dict, *callchain, *dict_sample;
 	static char handler_name[64];
 	unsigned n = 0;
 
@@ -496,8 +501,8 @@ static void python_process_general_event(struct perf_sample *sample,
 
 	snprintf(handler_name, sizeof(handler_name), "%s", "process_event");
 
-	handler = PyDict_GetItemString(main_dict, handler_name);
-	if (!handler || !PyCallable_Check(handler))
+	handler = get_handler(handler_name);
+	if (!handler)
 		goto exit;
 
 	pydict_set_item_string_decref(dict, "ev_name", PyString_FromString(perf_evsel__name(evsel)));
@@ -539,10 +544,7 @@ static void python_process_general_event(struct perf_sample *sample,
 	if (_PyTuple_Resize(&t, n) == -1)
 		Py_FatalError("error resizing Python tuple");
 
-	retval = PyObject_CallObject(handler, t);
-	if (retval == NULL)
-		handler_call_die(handler_name);
-	Py_DECREF(retval);
+	call_object(handler, t, handler_name);
 exit:
 	Py_DECREF(dict);
 	Py_DECREF(t);
@@ -566,36 +568,24 @@ static void python_process_event(union perf_event *event __maybe_unused,
 
 static int run_start_sub(void)
 {
-	PyObject *handler, *retval;
-	int err = 0;
-
 	main_module = PyImport_AddModule("__main__");
 	if (main_module == NULL)
 		return -1;
 	Py_INCREF(main_module);
 
 	main_dict = PyModule_GetDict(main_module);
-	if (main_dict == NULL) {
-		err = -1;
+	if (main_dict == NULL)
 		goto error;
-	}
 	Py_INCREF(main_dict);
 
-	handler = PyDict_GetItemString(main_dict, "trace_begin");
-	if (handler == NULL || !PyCallable_Check(handler))
-		goto out;
+	try_call_object("trace_begin", NULL);
 
-	retval = PyObject_CallObject(handler, NULL);
-	if (retval == NULL)
-		handler_call_die("trace_begin");
+	return 0;
 
-	Py_DECREF(retval);
-	return err;
 error:
 	Py_XDECREF(main_dict);
 	Py_XDECREF(main_module);
-out:
-	return err;
+	return -1;
 }
 
 /*
@@ -649,28 +639,23 @@ error:
 	return err;
 }
 
+static int python_flush_script(void)
+{
+	return 0;
+}
+
 /*
  * Stop trace script
  */
 static int python_stop_script(void)
 {
-	PyObject *handler, *retval;
-	int err = 0;
+	try_call_object("trace_end", NULL);
 
-	handler = PyDict_GetItemString(main_dict, "trace_end");
-	if (handler == NULL || !PyCallable_Check(handler))
-		goto out;
-
-	retval = PyObject_CallObject(handler, NULL);
-	if (retval == NULL)
-		handler_call_die("trace_end");
-	Py_DECREF(retval);
-out:
 	Py_XDECREF(main_dict);
 	Py_XDECREF(main_module);
 	Py_Finalize();
 
-	return err;
+	return 0;
 }
 
 static int python_generate_script(struct pevent *pevent, const char *outfile)
@@ -843,6 +828,7 @@ static int python_generate_script(struct pevent *pevent, const char *outfile)
 struct scripting_ops python_scripting_ops = {
 	.name = "Python",
 	.start_script = python_start_script,
+	.flush_script = python_flush_script,
 	.stop_script = python_stop_script,
 	.process_event = python_process_event,
 	.generate_script = python_generate_script,

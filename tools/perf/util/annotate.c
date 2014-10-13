@@ -232,9 +232,16 @@ static int mov__parse(struct ins_operands *ops)
 		return -1;
 
 	target = ++s;
+	comment = strchr(s, '#');
 
-	while (s[0] != '\0' && !isspace(s[0]))
-		++s;
+	if (comment != NULL)
+		s = comment - 1;
+	else
+		s = strchr(s, '\0') - 1;
+
+	while (s > target && isspace(s[0]))
+		--s;
+	s++;
 	prev = *s;
 	*s = '\0';
 
@@ -244,7 +251,6 @@ static int mov__parse(struct ins_operands *ops)
 	if (ops->target.raw == NULL)
 		goto out_free_source;
 
-	comment = strchr(s, '#');
 	if (comment == NULL)
 		return 0;
 
@@ -899,10 +905,8 @@ int symbol__annotate(struct symbol *sym, struct map *map, size_t privsize)
 	struct kcore_extract kce;
 	bool delete_extract = false;
 
-	if (filename) {
-		snprintf(symfs_filename, sizeof(symfs_filename), "%s%s",
-			 symbol_conf.symfs, filename);
-	}
+	if (filename)
+		symbol__join_symfs(symfs_filename, filename);
 
 	if (filename == NULL) {
 		if (dso->has_build_id) {
@@ -922,8 +926,7 @@ fallback:
 		 * DSO is the same as when 'perf record' ran.
 		 */
 		filename = (char *)dso->long_name;
-		snprintf(symfs_filename, sizeof(symfs_filename), "%s%s",
-			 symbol_conf.symfs, filename);
+		symbol__join_symfs(symfs_filename, filename);
 		free_filename = false;
 	}
 

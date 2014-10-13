@@ -42,7 +42,7 @@ struct thread *thread__new(pid_t pid, pid_t tid)
 			goto err_thread;
 
 		snprintf(comm_str, 32, ":%d", tid);
-		comm = comm__new(comm_str, 0);
+		comm = comm__new(comm_str, 0, false);
 		free(comm_str);
 		if (!comm)
 			goto err_thread;
@@ -81,19 +81,33 @@ struct comm *thread__comm(const struct thread *thread)
 	return list_first_entry(&thread->comm_list, struct comm, list);
 }
 
+struct comm *thread__exec_comm(const struct thread *thread)
+{
+	struct comm *comm, *last = NULL;
+
+	list_for_each_entry(comm, &thread->comm_list, list) {
+		if (comm->exec)
+			return comm;
+		last = comm;
+	}
+
+	return last;
+}
+
 /* CHECKME: time should always be 0 if event aren't ordered */
-int thread__set_comm(struct thread *thread, const char *str, u64 timestamp)
+int __thread__set_comm(struct thread *thread, const char *str, u64 timestamp,
+		       bool exec)
 {
 	struct comm *new, *curr = thread__comm(thread);
 	int err;
 
 	/* Override latest entry if it had no specific time coverage */
-	if (!curr->start) {
-		err = comm__override(curr, str, timestamp);
+	if (!curr->start && !curr->exec) {
+		err = comm__override(curr, str, timestamp, exec);
 		if (err)
 			return err;
 	} else {
-		new = comm__new(str, timestamp);
+		new = comm__new(str, timestamp, exec);
 		if (!new)
 			return -ENOMEM;
 		list_add(&new->list, &thread->comm_list);

@@ -10,6 +10,7 @@
 #include "symbol.h"
 #include "cache.h"
 #include "header.h"
+#include "debug.h"
 #include <api/fs/debugfs.h>
 #include "parse-events-bison.h"
 #define YY_EXTRA_TYPE int
@@ -633,18 +634,28 @@ int parse_events_add_pmu(struct list_head *list, int *idx,
 			 char *name, struct list_head *head_config)
 {
 	struct perf_event_attr attr;
+	struct perf_pmu_info info;
 	struct perf_pmu *pmu;
 	struct perf_evsel *evsel;
-	const char *unit;
-	double scale;
 
 	pmu = perf_pmu__find(name);
 	if (!pmu)
 		return -EINVAL;
 
-	memset(&attr, 0, sizeof(attr));
+	if (pmu->default_config) {
+		memcpy(&attr, pmu->default_config,
+		       sizeof(struct perf_event_attr));
+	} else {
+		memset(&attr, 0, sizeof(attr));
+	}
 
-	if (perf_pmu__check_alias(pmu, head_config, &unit, &scale))
+	if (!head_config) {
+		attr.type = pmu->type;
+		evsel = __add_event(list, idx, &attr, NULL, pmu->cpus);
+		return evsel ? 0 : -ENOMEM;
+	}
+
+	if (perf_pmu__check_alias(pmu, head_config, &info))
 		return -EINVAL;
 
 	/*
@@ -659,8 +670,8 @@ int parse_events_add_pmu(struct list_head *list, int *idx,
 	evsel = __add_event(list, idx, &attr, pmu_event_name(head_config),
 			    pmu->cpus);
 	if (evsel) {
-		evsel->unit = unit;
-		evsel->scale = scale;
+		evsel->unit = info.unit;
+		evsel->scale = info.scale;
 	}
 
 	return evsel ? 0 : -ENOMEM;
@@ -973,7 +984,7 @@ int parse_filter(const struct option *opt, const char *str,
 
 	if (last == NULL || last->attr.type != PERF_TYPE_TRACEPOINT) {
 		fprintf(stderr,
-			"-F option should follow a -e tracepoint option\n");
+			"--filter option should follow a -e tracepoint option\n");
 		return -1;
 	}
 
@@ -1006,9 +1017,11 @@ void print_tracepoint_events(const char *subsys_glob, const char *event_glob,
 	struct dirent *sys_next, *evt_next, sys_dirent, evt_dirent;
 	char evt_path[MAXPATHLEN];
 	char dir_path[MAXPATHLEN];
+	char sbuf[STRERR_BUFSIZE];
 
 	if (debugfs_valid_mountpoint(tracing_events_path)) {
-		printf("  [ Tracepoints not available: %s ]\n", strerror(errno));
+		printf("  [ Tracepoints not available: %s ]\n",
+			strerror_r(errno, sbuf, sizeof(sbuf)));
 		return;
 	}
 

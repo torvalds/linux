@@ -36,7 +36,8 @@
 
 struct perf_annotate {
 	struct perf_tool tool;
-	bool	   force, use_tui, use_stdio, use_gtk;
+	struct perf_session *session;
+	bool	   use_tui, use_stdio, use_gtk;
 	bool	   full_paths;
 	bool	   print_line;
 	bool	   skip_missing;
@@ -188,18 +189,9 @@ find_next:
 static int __cmd_annotate(struct perf_annotate *ann)
 {
 	int ret;
-	struct perf_session *session;
+	struct perf_session *session = ann->session;
 	struct perf_evsel *pos;
 	u64 total_nr_samples;
-	struct perf_data_file file = {
-		.path  = input_name,
-		.mode  = PERF_DATA_MODE_READ,
-		.force = ann->force,
-	};
-
-	session = perf_session__new(&file, false, &ann->tool);
-	if (session == NULL)
-		return -ENOMEM;
 
 	machines__set_symbol_filter(&session->machines, symbol__annotate_init);
 
@@ -207,22 +199,22 @@ static int __cmd_annotate(struct perf_annotate *ann)
 		ret = perf_session__cpu_bitmap(session, ann->cpu_list,
 					       ann->cpu_bitmap);
 		if (ret)
-			goto out_delete;
+			goto out;
 	}
 
 	if (!objdump_path) {
 		ret = perf_session_env__lookup_objdump(&session->header.env);
 		if (ret)
-			goto out_delete;
+			goto out;
 	}
 
 	ret = perf_session__process_events(session, &ann->tool);
 	if (ret)
-		goto out_delete;
+		goto out;
 
 	if (dump_trace) {
 		perf_session__fprintf_nr_events(session, stdout);
-		goto out_delete;
+		goto out;
 	}
 
 	if (verbose > 3)
@@ -250,8 +242,8 @@ static int __cmd_annotate(struct perf_annotate *ann)
 	}
 
 	if (total_nr_samples == 0) {
-		ui__error("The %s file has no samples!\n", file.path);
-		goto out_delete;
+		ui__error("The %s file has no samples!\n", session->file->path);
+		goto out;
 	}
 
 	if (use_browser == 2) {
@@ -261,24 +253,12 @@ static int __cmd_annotate(struct perf_annotate *ann)
 					 "perf_gtk__show_annotations");
 		if (show_annotations == NULL) {
 			ui__error("GTK browser not found!\n");
-			goto out_delete;
+			goto out;
 		}
 		show_annotations();
 	}
 
-out_delete:
-	/*
-	 * Speed up the exit process, for large files this can
-	 * take quite a while.
-	 *
-	 * XXX Enable this when using valgrind or if we ever
-	 * librarize this command.
-	 *
-	 * Also experiment with obstacks to see how much speed
-	 * up we'll get here.
-	 *
-	 * perf_session__delete(session);
-	 */
+out:
 	return ret;
 }
 
@@ -297,9 +277,13 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 			.comm	= perf_event__process_comm,
 			.exit	= perf_event__process_exit,
 			.fork	= perf_event__process_fork,
-			.ordered_samples = true,
+			.ordered_events = true,
 			.ordering_requires_timestamps = true,
 		},
+	};
+	struct perf_data_file file = {
+		.path  = input_name,
+		.mode  = PERF_DATA_MODE_READ,
 	};
 	const struct option options[] = {
 	OPT_STRING('i', "input", &input_name, "file",
@@ -308,7 +292,7 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "only consider symbols in these dsos"),
 	OPT_STRING('s', "symbol", &annotate.sym_hist_filter, "symbol",
 		    "symbol to annotate"),
-	OPT_BOOLEAN('f', "force", &annotate.force, "don't complain, do it"),
+	OPT_BOOLEAN('f', "force", &file.force, "don't complain, do it"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
@@ -341,6 +325,7 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "Show event group information together"),
 	OPT_END()
 	};
+	int ret;
 
 	argc = parse_options(argc, argv, options, annotate_usage, 0);
 
@@ -353,11 +338,16 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	setup_browser(true);
 
+	annotate.session = perf_session__new(&file, false, &annotate.tool);
+	if (annotate.session == NULL)
+		return -1;
+
 	symbol_conf.priv_size = sizeof(struct annotation);
 	symbol_conf.try_vmlinux_path = true;
 
-	if (symbol__init() < 0)
-		return -1;
+	ret = symbol__init(&annotate.session->header.env);
+	if (ret < 0)
+		goto out_delete;
 
 	if (setup_sorting() < 0)
 		usage_with_options(annotate_usage, options);
@@ -373,5 +363,20 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 		annotate.sym_hist_filter = argv[0];
 	}
 
-	return __cmd_annotate(&annotate);
+	ret = __cmd_annotate(&annotate);
+
+out_delete:
+	/*
+	 * Speed up the exit process, for large files this can
+	 * take quite a while.
+	 *
+	 * XXX Enable this when using valgrind or if we ever
+	 * librarize this command.
+	 *
+	 * Also experiment with obstacks to see how much speed
+	 * up we'll get here.
+	 *
+	 * perf_session__delete(session);
+	 */
+	return ret;
 }

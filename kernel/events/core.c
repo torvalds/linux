@@ -47,6 +47,8 @@
 
 #include <asm/irq_regs.h>
 
+static struct workqueue_struct *perf_wq;
+
 struct remote_function_call {
 	struct task_struct	*p;
 	int			(*func)(void *info);
@@ -118,6 +120,13 @@ static int cpu_function_call(int cpu, int (*func) (void *info), void *info)
 	smp_call_function_single(cpu, remote_function, &data, 1);
 
 	return data.ret;
+}
+
+#define EVENT_OWNER_KERNEL ((void *) -1)
+
+static bool is_kernel_event(struct perf_event *event)
+{
+	return event->owner == EVENT_OWNER_KERNEL;
 }
 
 #define PERF_FLAG_ALL (PERF_FLAG_FD_NO_GROUP |\
@@ -1370,6 +1379,45 @@ out:
 		perf_event__header_size(tmp);
 }
 
+/*
+ * User event without the task.
+ */
+static bool is_orphaned_event(struct perf_event *event)
+{
+	return event && !is_kernel_event(event) && !event->owner;
+}
+
+/*
+ * Event has a parent but parent's task finished and it's
+ * alive only because of children holding refference.
+ */
+static bool is_orphaned_child(struct perf_event *event)
+{
+	return is_orphaned_event(event->parent);
+}
+
+static void orphans_remove_work(struct work_struct *work);
+
+static void schedule_orphans_remove(struct perf_event_context *ctx)
+{
+	if (!ctx->task || ctx->orphans_remove_sched || !perf_wq)
+		return;
+
+	if (queue_delayed_work(perf_wq, &ctx->orphans_remove, 1)) {
+		get_ctx(ctx);
+		ctx->orphans_remove_sched = true;
+	}
+}
+
+static int __init perf_workqueue_init(void)
+{
+	perf_wq = create_singlethread_workqueue("perf");
+	WARN(!perf_wq, "failed to create perf workqueue\n");
+	return perf_wq ? 0 : -1;
+}
+
+core_initcall(perf_workqueue_init);
+
 static inline int
 event_filter_match(struct perf_event *event)
 {
@@ -1418,6 +1466,9 @@ event_sched_out(struct perf_event *event,
 		ctx->nr_freq--;
 	if (event->attr.exclusive || !cpuctx->active_oncpu)
 		cpuctx->exclusive = 0;
+
+	if (is_orphaned_child(event))
+		schedule_orphans_remove(ctx);
 
 	perf_pmu_enable(event->pmu);
 }
@@ -1725,6 +1776,9 @@ event_sched_in(struct perf_event *event,
 
 	if (event->attr.exclusive)
 		cpuctx->exclusive = 1;
+
+	if (is_orphaned_child(event))
+		schedule_orphans_remove(ctx);
 
 out:
 	perf_pmu_enable(event->pmu);
@@ -2326,7 +2380,7 @@ static void perf_event_context_sched_out(struct task_struct *task, int ctxn,
 	next_parent = rcu_dereference(next_ctx->parent_ctx);
 
 	/* If neither context have a parent context; they cannot be clones. */
-	if (!parent || !next_parent)
+	if (!parent && !next_parent)
 		goto unlock;
 
 	if (next_parent == ctx || next_ctx == parent || next_parent == parent) {
@@ -3073,6 +3127,7 @@ static void __perf_event_init_context(struct perf_event_context *ctx)
 	INIT_LIST_HEAD(&ctx->flexible_groups);
 	INIT_LIST_HEAD(&ctx->event_list);
 	atomic_set(&ctx->refcount, 1);
+	INIT_DELAYED_WORK(&ctx->orphans_remove, orphans_remove_work);
 }
 
 static struct perf_event_context *
@@ -3318,15 +3373,11 @@ static void free_event(struct perf_event *event)
 }
 
 /*
- * Called when the last reference to the file is gone.
+ * Remove user event from the owner task.
  */
-static void put_event(struct perf_event *event)
+static void perf_remove_from_owner(struct perf_event *event)
 {
-	struct perf_event_context *ctx = event->ctx;
 	struct task_struct *owner;
-
-	if (!atomic_long_dec_and_test(&event->refcount))
-		return;
 
 	rcu_read_lock();
 	owner = ACCESS_ONCE(event->owner);
@@ -3360,6 +3411,20 @@ static void put_event(struct perf_event *event)
 		mutex_unlock(&owner->perf_event_mutex);
 		put_task_struct(owner);
 	}
+}
+
+/*
+ * Called when the last reference to the file is gone.
+ */
+static void put_event(struct perf_event *event)
+{
+	struct perf_event_context *ctx = event->ctx;
+
+	if (!atomic_long_dec_and_test(&event->refcount))
+		return;
+
+	if (!is_kernel_event(event))
+		perf_remove_from_owner(event);
 
 	WARN_ON_ONCE(ctx->parent_ctx);
 	/*
@@ -3392,6 +3457,42 @@ static int perf_release(struct inode *inode, struct file *file)
 {
 	put_event(file->private_data);
 	return 0;
+}
+
+/*
+ * Remove all orphanes events from the context.
+ */
+static void orphans_remove_work(struct work_struct *work)
+{
+	struct perf_event_context *ctx;
+	struct perf_event *event, *tmp;
+
+	ctx = container_of(work, struct perf_event_context,
+			   orphans_remove.work);
+
+	mutex_lock(&ctx->mutex);
+	list_for_each_entry_safe(event, tmp, &ctx->event_list, event_entry) {
+		struct perf_event *parent_event = event->parent;
+
+		if (!is_orphaned_child(event))
+			continue;
+
+		perf_remove_from_context(event, true);
+
+		mutex_lock(&parent_event->child_mutex);
+		list_del_init(&event->child_list);
+		mutex_unlock(&parent_event->child_mutex);
+
+		free_event(event);
+		put_event(parent_event);
+	}
+
+	raw_spin_lock_irq(&ctx->lock);
+	ctx->orphans_remove_sched = false;
+	raw_spin_unlock_irq(&ctx->lock);
+	mutex_unlock(&ctx->mutex);
+
+	put_ctx(ctx);
 }
 
 u64 perf_event_read_value(struct perf_event *event, u64 *enabled, u64 *running)
@@ -3491,6 +3592,19 @@ static int perf_event_read_one(struct perf_event *event,
 	return n * sizeof(u64);
 }
 
+static bool is_event_hup(struct perf_event *event)
+{
+	bool no_children;
+
+	if (event->state != PERF_EVENT_STATE_EXIT)
+		return false;
+
+	mutex_lock(&event->child_mutex);
+	no_children = list_empty(&event->child_list);
+	mutex_unlock(&event->child_mutex);
+	return no_children;
+}
+
 /*
  * Read the performance event - simple non blocking version for now
  */
@@ -3532,7 +3646,12 @@ static unsigned int perf_poll(struct file *file, poll_table *wait)
 {
 	struct perf_event *event = file->private_data;
 	struct ring_buffer *rb;
-	unsigned int events = POLL_HUP;
+	unsigned int events = POLLHUP;
+
+	poll_wait(file, &event->waitq, wait);
+
+	if (is_event_hup(event))
+		return events;
 
 	/*
 	 * Pin the event->rb by taking event->mmap_mutex; otherwise
@@ -3543,9 +3662,6 @@ static unsigned int perf_poll(struct file *file, poll_table *wait)
 	if (rb)
 		events = atomic_xchg(&rb->poll, 0);
 	mutex_unlock(&event->mmap_mutex);
-
-	poll_wait(file, &event->waitq, wait);
-
 	return events;
 }
 
@@ -5809,7 +5925,7 @@ static void swevent_hlist_release(struct swevent_htable *swhash)
 	if (!hlist)
 		return;
 
-	rcu_assign_pointer(swhash->swevent_hlist, NULL);
+	RCU_INIT_POINTER(swhash->swevent_hlist, NULL);
 	kfree_rcu(hlist, rcu_head);
 }
 
@@ -7392,6 +7508,9 @@ perf_event_create_kernel_counter(struct perf_event_attr *attr, int cpu,
 		goto err;
 	}
 
+	/* Mark owner so we could distinguish it from user events. */
+	event->owner = EVENT_OWNER_KERNEL;
+
 	account_event(event);
 
 	ctx = find_get_context(event->pmu, task, cpu);
@@ -7479,6 +7598,12 @@ static void sync_child_event(struct perf_event *child_event,
 	mutex_unlock(&parent_event->child_mutex);
 
 	/*
+	 * Make sure user/parent get notified, that we just
+	 * lost one event.
+	 */
+	perf_event_wakeup(parent_event);
+
+	/*
 	 * Release the parent event, if this was the last
 	 * reference to it.
 	 */
@@ -7512,6 +7637,9 @@ __perf_event_exit_task(struct perf_event *child_event,
 	if (child_event->parent) {
 		sync_child_event(child_event, child);
 		free_event(child_event);
+	} else {
+		child_event->state = PERF_EVENT_STATE_EXIT;
+		perf_event_wakeup(child_event);
 	}
 }
 
@@ -7695,6 +7823,7 @@ inherit_event(struct perf_event *parent_event,
 	      struct perf_event *group_leader,
 	      struct perf_event_context *child_ctx)
 {
+	enum perf_event_active_state parent_state = parent_event->state;
 	struct perf_event *child_event;
 	unsigned long flags;
 
@@ -7715,7 +7844,8 @@ inherit_event(struct perf_event *parent_event,
 	if (IS_ERR(child_event))
 		return child_event;
 
-	if (!atomic_long_inc_not_zero(&parent_event->refcount)) {
+	if (is_orphaned_event(parent_event) ||
+	    !atomic_long_inc_not_zero(&parent_event->refcount)) {
 		free_event(child_event);
 		return NULL;
 	}
@@ -7727,7 +7857,7 @@ inherit_event(struct perf_event *parent_event,
 	 * not its attr.disabled bit.  We hold the parent's mutex,
 	 * so we won't race with perf_event_{en, dis}able_family.
 	 */
-	if (parent_event->state >= PERF_EVENT_STATE_INACTIVE)
+	if (parent_state >= PERF_EVENT_STATE_INACTIVE)
 		child_event->state = PERF_EVENT_STATE_INACTIVE;
 	else
 		child_event->state = PERF_EVENT_STATE_OFF;

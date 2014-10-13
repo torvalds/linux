@@ -26,7 +26,7 @@
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <sys/time.h>
-#include <sys/poll.h>
+#include <poll.h>
 #include <limits.h>
 #include <err.h>
 

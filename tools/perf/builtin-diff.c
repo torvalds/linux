@@ -360,7 +360,7 @@ static struct perf_tool tool = {
 	.exit	= perf_event__process_exit,
 	.fork	= perf_event__process_fork,
 	.lost	= perf_event__process_lost,
-	.ordered_samples = true,
+	.ordered_events = true,
 	.ordering_requires_timestamps = true,
 };
 
@@ -683,7 +683,7 @@ static int __cmd_diff(void)
 		d->session = perf_session__new(&d->file, false, &tool);
 		if (!d->session) {
 			pr_err("Failed to open %s\n", d->file.path);
-			ret = -ENOMEM;
+			ret = -1;
 			goto out_delete;
 		}
 
@@ -1143,7 +1143,7 @@ int cmd_diff(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	argc = parse_options(argc, argv, options, diff_usage, 0);
 
-	if (symbol__init() < 0)
+	if (symbol__init(NULL) < 0)
 		return -1;
 
 	if (data_init(argc, argv) < 0)

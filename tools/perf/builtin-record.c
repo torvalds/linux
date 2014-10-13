@@ -65,8 +65,9 @@ static int process_synthesized_event(struct perf_tool *tool,
 	return record__write(rec, event, event->header.size);
 }
 
-static int record__mmap_read(struct record *rec, struct perf_mmap *md)
+static int record__mmap_read(struct record *rec, int idx)
 {
+	struct perf_mmap *md = &rec->evlist->mmap[idx];
 	unsigned int head = perf_mmap__read_head(md);
 	unsigned int old = md->prev;
 	unsigned char *data = md->base + page_size;
@@ -102,8 +103,7 @@ static int record__mmap_read(struct record *rec, struct perf_mmap *md)
 	}
 
 	md->prev = old;
-	perf_mmap__write_tail(md, old);
-
+	perf_evlist__mmap_consume(rec->evlist, idx);
 out:
 	return rc;
 }
@@ -161,7 +161,7 @@ try_again:
 
 	if (perf_evlist__apply_filters(evlist)) {
 		error("failed to set filter with %d (%s)\n", errno,
-			strerror(errno));
+			strerror_r(errno, msg, sizeof(msg)));
 		rc = -1;
 		goto out;
 	}
@@ -175,7 +175,8 @@ try_again:
 			       "(current value: %u)\n", opts->mmap_pages);
 			rc = -errno;
 		} else {
-			pr_err("failed to mmap with %d (%s)\n", errno, strerror(errno));
+			pr_err("failed to mmap with %d (%s)\n", errno,
+				strerror_r(errno, msg, sizeof(msg)));
 			rc = -errno;
 		}
 		goto out;
@@ -244,7 +245,7 @@ static int record__mmap_read_all(struct record *rec)
 
 	for (i = 0; i < rec->evlist->nr_mmaps; i++) {
 		if (rec->evlist->mmap[i].base) {
-			if (record__mmap_read(rec, &rec->evlist->mmap[i]) != 0) {
+			if (record__mmap_read(rec, i) != 0) {
 				rc = -1;
 				goto out;
 			}
@@ -307,7 +308,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	struct record_opts *opts = &rec->opts;
 	struct perf_data_file *file = &rec->file;
 	struct perf_session *session;
-	bool disabled = false;
+	bool disabled = false, draining = false;
 
 	rec->progname = argv[0];
 
@@ -456,9 +457,9 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		}
 
 		if (hits == rec->samples) {
-			if (done)
+			if (done || draining)
 				break;
-			err = poll(rec->evlist->pollfd, rec->evlist->nr_fds, -1);
+			err = perf_evlist__poll(rec->evlist, -1);
 			/*
 			 * Propagate error, only if there's any. Ignore positive
 			 * number of returned events and interrupt error.
@@ -466,6 +467,9 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 			if (err > 0 || (err < 0 && errno == EINTR))
 				err = 0;
 			waking++;
+
+			if (perf_evlist__filter_pollfd(rec->evlist, POLLERR | POLLHUP) == 0)
+				draining = true;
 		}
 
 		/*
@@ -480,7 +484,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	}
 
 	if (forks && workload_exec_errno) {
-		char msg[512];
+		char msg[STRERR_BUFSIZE];
 		const char *emsg = strerror_r(workload_exec_errno, msg, sizeof(msg));
 		pr_err("Workload failed: %s\n", emsg);
 		err = -1;
@@ -620,145 +624,56 @@ error:
 	return ret;
 }
 
-#ifdef HAVE_DWARF_UNWIND_SUPPORT
-static int get_stack_size(char *str, unsigned long *_size)
-{
-	char *endptr;
-	unsigned long size;
-	unsigned long max_size = round_down(USHRT_MAX, sizeof(u64));
-
-	size = strtoul(str, &endptr, 0);
-
-	do {
-		if (*endptr)
-			break;
-
-		size = round_up(size, sizeof(u64));
-		if (!size || size > max_size)
-			break;
-
-		*_size = size;
-		return 0;
-
-	} while (0);
-
-	pr_err("callchain: Incorrect stack dump size (max %ld): %s\n",
-	       max_size, str);
-	return -1;
-}
-#endif /* HAVE_DWARF_UNWIND_SUPPORT */
-
-int record_parse_callchain(const char *arg, struct record_opts *opts)
-{
-	char *tok, *name, *saveptr = NULL;
-	char *buf;
-	int ret = -1;
-
-	/* We need buffer that we know we can write to. */
-	buf = malloc(strlen(arg) + 1);
-	if (!buf)
-		return -ENOMEM;
-
-	strcpy(buf, arg);
-
-	tok = strtok_r((char *)buf, ",", &saveptr);
-	name = tok ? : (char *)buf;
-
-	do {
-		/* Framepointer style */
-		if (!strncmp(name, "fp", sizeof("fp"))) {
-			if (!strtok_r(NULL, ",", &saveptr)) {
-				opts->call_graph = CALLCHAIN_FP;
-				ret = 0;
-			} else
-				pr_err("callchain: No more arguments "
-				       "needed for -g fp\n");
-			break;
-
-#ifdef HAVE_DWARF_UNWIND_SUPPORT
-		/* Dwarf style */
-		} else if (!strncmp(name, "dwarf", sizeof("dwarf"))) {
-			const unsigned long default_stack_dump_size = 8192;
-
-			ret = 0;
-			opts->call_graph = CALLCHAIN_DWARF;
-			opts->stack_dump_size = default_stack_dump_size;
-
-			tok = strtok_r(NULL, ",", &saveptr);
-			if (tok) {
-				unsigned long size = 0;
-
-				ret = get_stack_size(tok, &size);
-				opts->stack_dump_size = size;
-			}
-#endif /* HAVE_DWARF_UNWIND_SUPPORT */
-		} else {
-			pr_err("callchain: Unknown --call-graph option "
-			       "value: %s\n", arg);
-			break;
-		}
-
-	} while (0);
-
-	free(buf);
-	return ret;
-}
-
-static void callchain_debug(struct record_opts *opts)
+static void callchain_debug(void)
 {
 	static const char *str[CALLCHAIN_MAX] = { "NONE", "FP", "DWARF" };
 
-	pr_debug("callchain: type %s\n", str[opts->call_graph]);
+	pr_debug("callchain: type %s\n", str[callchain_param.record_mode]);
 
-	if (opts->call_graph == CALLCHAIN_DWARF)
+	if (callchain_param.record_mode == CALLCHAIN_DWARF)
 		pr_debug("callchain: stack dump size %d\n",
-			 opts->stack_dump_size);
+			 callchain_param.dump_size);
 }
 
-int record_parse_callchain_opt(const struct option *opt,
+int record_parse_callchain_opt(const struct option *opt __maybe_unused,
 			       const char *arg,
 			       int unset)
 {
-	struct record_opts *opts = opt->value;
 	int ret;
 
-	opts->call_graph_enabled = !unset;
+	callchain_param.enabled = !unset;
 
 	/* --no-call-graph */
 	if (unset) {
-		opts->call_graph = CALLCHAIN_NONE;
+		callchain_param.record_mode = CALLCHAIN_NONE;
 		pr_debug("callchain: disabled\n");
 		return 0;
 	}
 
-	ret = record_parse_callchain(arg, opts);
+	ret = parse_callchain_record_opt(arg);
 	if (!ret)
-		callchain_debug(opts);
+		callchain_debug();
 
 	return ret;
 }
 
-int record_callchain_opt(const struct option *opt,
+int record_callchain_opt(const struct option *opt __maybe_unused,
 			 const char *arg __maybe_unused,
 			 int unset __maybe_unused)
 {
-	struct record_opts *opts = opt->value;
+	callchain_param.enabled = true;
 
-	opts->call_graph_enabled = !unset;
+	if (callchain_param.record_mode == CALLCHAIN_NONE)
+		callchain_param.record_mode = CALLCHAIN_FP;
 
-	if (opts->call_graph == CALLCHAIN_NONE)
-		opts->call_graph = CALLCHAIN_FP;
-
-	callchain_debug(opts);
+	callchain_debug();
 	return 0;
 }
 
 static int perf_record_config(const char *var, const char *value, void *cb)
 {
-	struct record *rec = cb;
-
 	if (!strcmp(var, "record.call-graph"))
-		return record_parse_callchain(value, &rec->opts);
+		var = "call-graph.record-mode"; /* fall-through */
 
 	return perf_default_config(var, value, cb);
 }
@@ -781,6 +696,7 @@ static const char * const record_usage[] = {
  */
 static struct record record = {
 	.opts = {
+		.sample_time	     = true,
 		.mmap_pages	     = UINT_MAX,
 		.user_freq	     = UINT_MAX,
 		.user_interval	     = ULLONG_MAX,
@@ -907,7 +823,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 		usage_with_options(record_usage, record_options);
 	}
 
-	symbol__init();
+	symbol__init(NULL);
 
 	if (symbol_conf.kptr_restrict)
 		pr_warning(

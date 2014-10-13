@@ -9,25 +9,12 @@
 #include "symbol.h"
 #include "thread.h"
 #include "data.h"
+#include "ordered-events.h"
 #include <linux/rbtree.h>
 #include <linux/perf_event.h>
 
-struct sample_queue;
 struct ip_callchain;
 struct thread;
-
-struct ordered_samples {
-	u64			last_flush;
-	u64			next_flush;
-	u64			max_timestamp;
-	struct list_head	samples;
-	struct list_head	sample_cache;
-	struct list_head	to_free;
-	struct sample_queue	*sample_buffer;
-	struct sample_queue	*last_sample;
-	int			sample_buffer_idx;
-	unsigned int		nr_samples;
-};
 
 struct perf_session {
 	struct perf_header	header;
@@ -39,7 +26,7 @@ struct perf_session {
 	bool			one_mmap;
 	void			*one_mmap_addr;
 	u64			one_mmap_offset;
-	struct ordered_samples	ordered_samples;
+	struct ordered_events	ordered_events;
 	struct perf_data_file	*file;
 };
 
@@ -58,6 +45,11 @@ void perf_session__delete(struct perf_session *session);
 
 void perf_event_header__bswap(struct perf_event_header *hdr);
 
+int perf_session__peek_event(struct perf_session *session, off_t file_offset,
+			     void *buf, size_t buf_sz,
+			     union perf_event **event_ptr,
+			     struct perf_sample *sample);
+
 int __perf_session__process_events(struct perf_session *session,
 				   u64 data_offset, u64 data_size, u64 size,
 				   struct perf_tool *tool);
@@ -65,9 +57,15 @@ int perf_session__process_events(struct perf_session *session,
 				 struct perf_tool *tool);
 
 int perf_session_queue_event(struct perf_session *s, union perf_event *event,
-			     struct perf_sample *sample, u64 file_offset);
+			     struct perf_tool *tool, struct perf_sample *sample,
+			     u64 file_offset);
 
 void perf_tool__fill_defaults(struct perf_tool *tool);
+
+int perf_session__deliver_event(struct perf_session *session,
+				union perf_event *event,
+				struct perf_sample *sample,
+				struct perf_tool *tool, u64 file_offset);
 
 int perf_session__resolve_callchain(struct perf_session *session,
 				    struct perf_evsel *evsel,
@@ -128,5 +126,5 @@ int __perf_session__set_tracepoints_handlers(struct perf_session *session,
 
 extern volatile int session_done;
 
-#define session_done()	(*(volatile int *)(&session_done))
+#define session_done()	ACCESS_ONCE(session_done)
 #endif /* __PERF_SESSION_H */

@@ -23,6 +23,7 @@
 
 struct perf_inject {
 	struct perf_tool	tool;
+	struct perf_session	*session;
 	bool			build_ids;
 	bool			sched_stat;
 	const char		*input_name;
@@ -340,12 +341,8 @@ static int perf_evsel__check_stype(struct perf_evsel *evsel,
 
 static int __cmd_inject(struct perf_inject *inject)
 {
-	struct perf_session *session;
 	int ret = -EINVAL;
-	struct perf_data_file file = {
-		.path = inject->input_name,
-		.mode = PERF_DATA_MODE_READ,
-	};
+	struct perf_session *session = inject->session;
 	struct perf_data_file *file_out = &inject->output;
 
 	signal(SIGINT, sig_handler);
@@ -357,16 +354,12 @@ static int __cmd_inject(struct perf_inject *inject)
 		inject->tool.tracing_data = perf_event__repipe_tracing_data;
 	}
 
-	session = perf_session__new(&file, true, &inject->tool);
-	if (session == NULL)
-		return -ENOMEM;
-
 	if (inject->build_ids) {
 		inject->tool.sample = perf_event__inject_buildid;
 	} else if (inject->sched_stat) {
 		struct perf_evsel *evsel;
 
-		inject->tool.ordered_samples = true;
+		inject->tool.ordered_events = true;
 
 		evlist__for_each(session->evlist, evsel) {
 			const char *name = perf_evsel__name(evsel);
@@ -395,8 +388,6 @@ static int __cmd_inject(struct perf_inject *inject)
 		session->header.data_size = inject->bytes_written;
 		perf_session__write_header(session, session->evlist, file_out->fd, true);
 	}
-
-	perf_session__delete(session);
 
 	return ret;
 }
@@ -427,6 +418,11 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 			.mode = PERF_DATA_MODE_WRITE,
 		},
 	};
+	struct perf_data_file file = {
+		.mode = PERF_DATA_MODE_READ,
+	};
+	int ret;
+
 	const struct option options[] = {
 		OPT_BOOLEAN('b', "build-ids", &inject.build_ids,
 			    "Inject build-ids into the output stream"),
@@ -461,8 +457,17 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 		return -1;
 	}
 
-	if (symbol__init() < 0)
+	file.path = inject.input_name;
+	inject.session = perf_session__new(&file, true, &inject.tool);
+	if (inject.session == NULL)
 		return -1;
 
-	return __cmd_inject(&inject);
+	if (symbol__init(&inject.session->header.env) < 0)
+		return -1;
+
+	ret = __cmd_inject(&inject);
+
+	perf_session__delete(inject.session);
+
+	return ret;
 }

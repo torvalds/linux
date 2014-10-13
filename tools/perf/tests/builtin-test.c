@@ -154,6 +154,18 @@ static struct test {
 		.func = test__hists_cumulate,
 	},
 	{
+		.desc = "Test tracking with sched_switch",
+		.func = test__switch_tracking,
+	},
+	{
+		.desc = "Filter fds with revents mask in a fdarray",
+		.func = test__fdarray__filter,
+	},
+	{
+		.desc = "Add fd to a fdarray, making it autogrow",
+		.func = test__fdarray__add,
+	},
+	{
 		.func = NULL,
 	},
 };
@@ -185,9 +197,11 @@ static bool perf_test__matches(int curr, int argc, const char *argv[])
 static int run_test(struct test *test)
 {
 	int status, err = -1, child = fork();
+	char sbuf[STRERR_BUFSIZE];
 
 	if (child < 0) {
-		pr_err("failed to fork test: %s\n", strerror(errno));
+		pr_err("failed to fork test: %s\n",
+			strerror_r(errno, sbuf, sizeof(sbuf)));
 		return -1;
 	}
 
@@ -297,7 +311,7 @@ int cmd_test(int argc, const char **argv, const char *prefix __maybe_unused)
 	symbol_conf.sort_by_name = true;
 	symbol_conf.try_vmlinux_path = true;
 
-	if (symbol__init() < 0)
+	if (symbol__init(NULL) < 0)
 		return -1;
 
 	if (skip != NULL)

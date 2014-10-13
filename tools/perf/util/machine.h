@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <linux/rbtree.h>
 #include "map.h"
+#include "dso.h"
 #include "event.h"
 
 struct addr_location;
@@ -26,15 +27,17 @@ struct machine {
 	struct rb_node	  rb_node;
 	pid_t		  pid;
 	u16		  id_hdr_size;
+	bool		  comm_exec;
 	char		  *root_dir;
 	struct rb_root	  threads;
 	struct list_head  dead_threads;
 	struct thread	  *last_match;
 	struct vdso_info  *vdso_info;
-	struct list_head  user_dsos;
-	struct list_head  kernel_dsos;
+	struct dsos	  user_dsos;
+	struct dsos	  kernel_dsos;
 	struct map_groups kmaps;
 	struct map	  *vmlinux_maps[MAP__NR_TYPES];
+	u64		  kernel_start;
 	symbol_filter_t	  symbol_filter;
 	pid_t		  *current_tid;
 };
@@ -45,8 +48,26 @@ struct map *machine__kernel_map(struct machine *machine, enum map_type type)
 	return machine->vmlinux_maps[type];
 }
 
+int machine__get_kernel_start(struct machine *machine);
+
+static inline u64 machine__kernel_start(struct machine *machine)
+{
+	if (!machine->kernel_start)
+		machine__get_kernel_start(machine);
+	return machine->kernel_start;
+}
+
+static inline bool machine__kernel_ip(struct machine *machine, u64 ip)
+{
+	u64 kernel_start = machine__kernel_start(machine);
+
+	return ip >= kernel_start;
+}
+
 struct thread *machine__find_thread(struct machine *machine, pid_t pid,
 				    pid_t tid);
+struct comm *machine__thread_exec_comm(struct machine *machine,
+				       struct thread *thread);
 
 int machine__process_comm_event(struct machine *machine, union perf_event *event,
 				struct perf_sample *sample);
@@ -88,6 +109,7 @@ char *machine__mmap_name(struct machine *machine, char *bf, size_t size);
 
 void machines__set_symbol_filter(struct machines *machines,
 				 symbol_filter_t symbol_filter);
+void machines__set_comm_exec(struct machines *machines, bool comm_exec);
 
 struct machine *machine__new_host(void);
 int machine__init(struct machine *machine, const char *root_dir, pid_t pid);

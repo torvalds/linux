@@ -15,6 +15,7 @@
 #include "machine.h"
 #include "symbol.h"
 #include "strlist.h"
+#include "header.h"
 
 #include <elf.h>
 #include <limits.h>
@@ -33,6 +34,7 @@ struct symbol_conf symbol_conf = {
 	.try_vmlinux_path	= true,
 	.annotate_src		= true,
 	.demangle		= true,
+	.demangle_kernel	= false,
 	.cumulate_callchain	= true,
 	.show_hist_headers	= true,
 	.symfs			= "",
@@ -523,10 +525,15 @@ struct process_kallsyms_args {
 	struct dso *dso;
 };
 
+/*
+ * These are symbols in the kernel image, so make sure that
+ * sym is from a kernel DSO.
+ */
 bool symbol__is_idle(struct symbol *sym)
 {
 	const char * const idle_symbols[] = {
 		"cpu_idle",
+		"cpu_startup_entry",
 		"intel_idle",
 		"default_idle",
 		"native_safe_halt",
@@ -1468,8 +1475,7 @@ int dso__load_vmlinux(struct dso *dso, struct map *map,
 	if (vmlinux[0] == '/')
 		snprintf(symfs_vmlinux, sizeof(symfs_vmlinux), "%s", vmlinux);
 	else
-		snprintf(symfs_vmlinux, sizeof(symfs_vmlinux), "%s%s",
-			 symbol_conf.symfs, vmlinux);
+		symbol__join_symfs(symfs_vmlinux, vmlinux);
 
 	if (dso->kernel == DSO_TYPE_GUEST_KERNEL)
 		symtab_type = DSO_BINARY_TYPE__GUEST_VMLINUX;
@@ -1745,12 +1751,13 @@ static void vmlinux_path__exit(void)
 	zfree(&vmlinux_path);
 }
 
-static int vmlinux_path__init(void)
+static int vmlinux_path__init(struct perf_session_env *env)
 {
 	struct utsname uts;
 	char bf[PATH_MAX];
+	char *kernel_version;
 
-	vmlinux_path = malloc(sizeof(char *) * 5);
+	vmlinux_path = malloc(sizeof(char *) * 6);
 	if (vmlinux_path == NULL)
 		return -1;
 
@@ -1763,25 +1770,37 @@ static int vmlinux_path__init(void)
 		goto out_fail;
 	++vmlinux_path__nr_entries;
 
-	/* only try running kernel version if no symfs was given */
+	/* only try kernel version if no symfs was given */
 	if (symbol_conf.symfs[0] != 0)
 		return 0;
 
-	if (uname(&uts) < 0)
-		return -1;
+	if (env) {
+		kernel_version = env->os_release;
+	} else {
+		if (uname(&uts) < 0)
+			goto out_fail;
 
-	snprintf(bf, sizeof(bf), "/boot/vmlinux-%s", uts.release);
+		kernel_version = uts.release;
+	}
+
+	snprintf(bf, sizeof(bf), "/boot/vmlinux-%s", kernel_version);
 	vmlinux_path[vmlinux_path__nr_entries] = strdup(bf);
 	if (vmlinux_path[vmlinux_path__nr_entries] == NULL)
 		goto out_fail;
 	++vmlinux_path__nr_entries;
-	snprintf(bf, sizeof(bf), "/lib/modules/%s/build/vmlinux", uts.release);
+	snprintf(bf, sizeof(bf), "/usr/lib/debug/boot/vmlinux-%s",
+		 kernel_version);
+	vmlinux_path[vmlinux_path__nr_entries] = strdup(bf);
+	if (vmlinux_path[vmlinux_path__nr_entries] == NULL)
+		goto out_fail;
+        ++vmlinux_path__nr_entries;
+	snprintf(bf, sizeof(bf), "/lib/modules/%s/build/vmlinux", kernel_version);
 	vmlinux_path[vmlinux_path__nr_entries] = strdup(bf);
 	if (vmlinux_path[vmlinux_path__nr_entries] == NULL)
 		goto out_fail;
 	++vmlinux_path__nr_entries;
 	snprintf(bf, sizeof(bf), "/usr/lib/debug/lib/modules/%s/vmlinux",
-		 uts.release);
+		 kernel_version);
 	vmlinux_path[vmlinux_path__nr_entries] = strdup(bf);
 	if (vmlinux_path[vmlinux_path__nr_entries] == NULL)
 		goto out_fail;
@@ -1827,7 +1846,7 @@ static bool symbol__read_kptr_restrict(void)
 	return value;
 }
 
-int symbol__init(void)
+int symbol__init(struct perf_session_env *env)
 {
 	const char *symfs;
 
@@ -1842,7 +1861,7 @@ int symbol__init(void)
 		symbol_conf.priv_size += (sizeof(struct symbol_name_rb_node) -
 					  sizeof(struct symbol));
 
-	if (symbol_conf.try_vmlinux_path && vmlinux_path__init() < 0)
+	if (symbol_conf.try_vmlinux_path && vmlinux_path__init(env) < 0)
 		return -1;
 
 	if (symbol_conf.field_sep && *symbol_conf.field_sep == '.') {

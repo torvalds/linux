@@ -402,6 +402,31 @@ static size_t syscall_arg__scnprintf_mmap_flags(char *bf, size_t size,
 
 #define SCA_MMAP_FLAGS syscall_arg__scnprintf_mmap_flags
 
+static size_t syscall_arg__scnprintf_mremap_flags(char *bf, size_t size,
+						  struct syscall_arg *arg)
+{
+	int printed = 0, flags = arg->val;
+
+#define P_MREMAP_FLAG(n) \
+	if (flags & MREMAP_##n) { \
+		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", #n); \
+		flags &= ~MREMAP_##n; \
+	}
+
+	P_MREMAP_FLAG(MAYMOVE);
+#ifdef MREMAP_FIXED
+	P_MREMAP_FLAG(FIXED);
+#endif
+#undef P_MREMAP_FLAG
+
+	if (flags)
+		printed += scnprintf(bf + printed, size - printed, "%s%#x", printed ? "|" : "", flags);
+
+	return printed;
+}
+
+#define SCA_MREMAP_FLAGS syscall_arg__scnprintf_mremap_flags
+
 static size_t syscall_arg__scnprintf_madvise_behavior(char *bf, size_t size,
 						      struct syscall_arg *arg)
 {
@@ -1004,6 +1029,7 @@ static struct syscall_fmt {
 			     [2] = SCA_MMAP_PROT, /* prot */ }, },
 	{ .name	    = "mremap",	    .hexret = true,
 	  .arg_scnprintf = { [0] = SCA_HEX, /* addr */
+			     [3] = SCA_MREMAP_FLAGS, /* flags */
 			     [4] = SCA_HEX, /* new_addr */ }, },
 	{ .name	    = "munlock",    .errmsg = true,
 	  .arg_scnprintf = { [0] = SCA_HEX, /* addr */ }, },
@@ -1385,7 +1411,7 @@ static int trace__tool_process(struct perf_tool *tool,
 
 static int trace__symbols_init(struct trace *trace, struct perf_evlist *evlist)
 {
-	int err = symbol__init();
+	int err = symbol__init(NULL);
 
 	if (err)
 		return err;
@@ -1669,7 +1695,7 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 			   union perf_event *event __maybe_unused,
 			   struct perf_sample *sample)
 {
-	int ret;
+	long ret;
 	u64 duration = 0;
 	struct thread *thread;
 	int id = perf_evsel__sc_tp_uint(evsel, id, sample);
@@ -1722,9 +1748,9 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 
 	if (sc->fmt == NULL) {
 signed_print:
-		fprintf(trace->output, ") = %d", ret);
+		fprintf(trace->output, ") = %ld", ret);
 	} else if (ret < 0 && sc->fmt->errmsg) {
-		char bf[256];
+		char bf[STRERR_BUFSIZE];
 		const char *emsg = strerror_r(-ret, bf, sizeof(bf)),
 			   *e = audit_errno_to_name(-ret);
 
@@ -1732,7 +1758,7 @@ signed_print:
 	} else if (ret == 0 && sc->fmt->timeout)
 		fprintf(trace->output, ") = 0 Timeout");
 	else if (sc->fmt->hexret)
-		fprintf(trace->output, ") = %#x", ret);
+		fprintf(trace->output, ") = %#lx", ret);
 	else
 		goto signed_print;
 
@@ -2018,6 +2044,8 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	int err = -1, i;
 	unsigned long before;
 	const bool forks = argc > 0;
+	bool draining = false;
+	char sbuf[STRERR_BUFSIZE];
 
 	trace->live = true;
 
@@ -2079,7 +2107,8 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 
 	err = perf_evlist__mmap(evlist, trace->opts.mmap_pages, false);
 	if (err < 0) {
-		fprintf(trace->output, "Couldn't mmap the events: %s\n", strerror(errno));
+		fprintf(trace->output, "Couldn't mmap the events: %s\n",
+			strerror_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
@@ -2143,8 +2172,12 @@ next_event:
 	if (trace->nr_events == before) {
 		int timeout = done ? 100 : -1;
 
-		if (poll(evlist->pollfd, evlist->nr_fds, timeout) > 0)
+		if (!draining && perf_evlist__poll(evlist, timeout) > 0) {
+			if (perf_evlist__filter_pollfd(evlist, POLLERR | POLLHUP) == 0)
+				draining = true;
+
 			goto again;
+		}
 	} else {
 		goto again;
 	}
@@ -2209,18 +2242,18 @@ static int trace__replay(struct trace *trace)
 	trace->tool.tracing_data = perf_event__process_tracing_data;
 	trace->tool.build_id	  = perf_event__process_build_id;
 
-	trace->tool.ordered_samples = true;
+	trace->tool.ordered_events = true;
 	trace->tool.ordering_requires_timestamps = true;
 
 	/* add tid to output */
 	trace->multiple_threads = true;
 
-	if (symbol__init() < 0)
-		return -1;
-
 	session = perf_session__new(&file, false, &trace->tool);
 	if (session == NULL)
-		return -ENOMEM;
+		return -1;
+
+	if (symbol__init(&session->header.env) < 0)
+		goto out;
 
 	trace->host = &session->machines.host;
 

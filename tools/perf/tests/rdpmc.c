@@ -100,6 +100,7 @@ static int __test__rdpmc(void)
 	};
 	u64 delta_sum = 0;
         struct sigaction sa;
+	char sbuf[STRERR_BUFSIZE];
 
 	sigfillset(&sa.sa_mask);
 	sa.sa_sigaction = segfault_handler;
@@ -109,14 +110,15 @@ static int __test__rdpmc(void)
 				 perf_event_open_cloexec_flag());
 	if (fd < 0) {
 		pr_err("Error: sys_perf_event_open() syscall returned "
-		       "with %d (%s)\n", fd, strerror(errno));
+		       "with %d (%s)\n", fd,
+		       strerror_r(errno, sbuf, sizeof(sbuf)));
 		return -1;
 	}
 
 	addr = mmap(NULL, page_size, PROT_READ, MAP_SHARED, fd, 0);
 	if (addr == (void *)(-1)) {
 		pr_err("Error: mmap() syscall returned with (%s)\n",
-		       strerror(errno));
+		       strerror_r(errno, sbuf, sizeof(sbuf)));
 		goto out_close;
 	}
 

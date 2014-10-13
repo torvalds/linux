@@ -25,81 +25,217 @@
 
 __thread struct callchain_cursor callchain_cursor;
 
+#ifdef HAVE_DWARF_UNWIND_SUPPORT
+static int get_stack_size(const char *str, unsigned long *_size)
+{
+	char *endptr;
+	unsigned long size;
+	unsigned long max_size = round_down(USHRT_MAX, sizeof(u64));
+
+	size = strtoul(str, &endptr, 0);
+
+	do {
+		if (*endptr)
+			break;
+
+		size = round_up(size, sizeof(u64));
+		if (!size || size > max_size)
+			break;
+
+		*_size = size;
+		return 0;
+
+	} while (0);
+
+	pr_err("callchain: Incorrect stack dump size (max %ld): %s\n",
+	       max_size, str);
+	return -1;
+}
+#endif /* HAVE_DWARF_UNWIND_SUPPORT */
+
+int parse_callchain_record_opt(const char *arg)
+{
+	char *tok, *name, *saveptr = NULL;
+	char *buf;
+	int ret = -1;
+
+	/* We need buffer that we know we can write to. */
+	buf = malloc(strlen(arg) + 1);
+	if (!buf)
+		return -ENOMEM;
+
+	strcpy(buf, arg);
+
+	tok = strtok_r((char *)buf, ",", &saveptr);
+	name = tok ? : (char *)buf;
+
+	do {
+		/* Framepointer style */
+		if (!strncmp(name, "fp", sizeof("fp"))) {
+			if (!strtok_r(NULL, ",", &saveptr)) {
+				callchain_param.record_mode = CALLCHAIN_FP;
+				ret = 0;
+			} else
+				pr_err("callchain: No more arguments "
+				       "needed for -g fp\n");
+			break;
+
+#ifdef HAVE_DWARF_UNWIND_SUPPORT
+		/* Dwarf style */
+		} else if (!strncmp(name, "dwarf", sizeof("dwarf"))) {
+			const unsigned long default_stack_dump_size = 8192;
+
+			ret = 0;
+			callchain_param.record_mode = CALLCHAIN_DWARF;
+			callchain_param.dump_size = default_stack_dump_size;
+
+			tok = strtok_r(NULL, ",", &saveptr);
+			if (tok) {
+				unsigned long size = 0;
+
+				ret = get_stack_size(tok, &size);
+				callchain_param.dump_size = size;
+			}
+#endif /* HAVE_DWARF_UNWIND_SUPPORT */
+		} else {
+			pr_err("callchain: Unknown --call-graph option "
+			       "value: %s\n", arg);
+			break;
+		}
+
+	} while (0);
+
+	free(buf);
+	return ret;
+}
+
+static int parse_callchain_mode(const char *value)
+{
+	if (!strncmp(value, "graph", strlen(value))) {
+		callchain_param.mode = CHAIN_GRAPH_ABS;
+		return 0;
+	}
+	if (!strncmp(value, "flat", strlen(value))) {
+		callchain_param.mode = CHAIN_FLAT;
+		return 0;
+	}
+	if (!strncmp(value, "fractal", strlen(value))) {
+		callchain_param.mode = CHAIN_GRAPH_REL;
+		return 0;
+	}
+	return -1;
+}
+
+static int parse_callchain_order(const char *value)
+{
+	if (!strncmp(value, "caller", strlen(value))) {
+		callchain_param.order = ORDER_CALLER;
+		return 0;
+	}
+	if (!strncmp(value, "callee", strlen(value))) {
+		callchain_param.order = ORDER_CALLEE;
+		return 0;
+	}
+	return -1;
+}
+
+static int parse_callchain_sort_key(const char *value)
+{
+	if (!strncmp(value, "function", strlen(value))) {
+		callchain_param.key = CCKEY_FUNCTION;
+		return 0;
+	}
+	if (!strncmp(value, "address", strlen(value))) {
+		callchain_param.key = CCKEY_ADDRESS;
+		return 0;
+	}
+	return -1;
+}
+
 int
 parse_callchain_report_opt(const char *arg)
 {
-	char *tok, *tok2;
+	char *tok;
 	char *endptr;
+	bool minpcnt_set = false;
 
 	symbol_conf.use_callchain = true;
 
 	if (!arg)
 		return 0;
 
-	tok = strtok((char *)arg, ",");
-	if (!tok)
-		return -1;
+	while ((tok = strtok((char *)arg, ",")) != NULL) {
+		if (!strncmp(tok, "none", strlen(tok))) {
+			callchain_param.mode = CHAIN_NONE;
+			symbol_conf.use_callchain = false;
+			return 0;
+		}
 
-	/* get the output mode */
-	if (!strncmp(tok, "graph", strlen(arg))) {
-		callchain_param.mode = CHAIN_GRAPH_ABS;
+		if (!parse_callchain_mode(tok) ||
+		    !parse_callchain_order(tok) ||
+		    !parse_callchain_sort_key(tok)) {
+			/* parsing ok - move on to the next */
+		} else if (!minpcnt_set) {
+			/* try to get the min percent */
+			callchain_param.min_percent = strtod(tok, &endptr);
+			if (tok == endptr)
+				return -1;
+			minpcnt_set = true;
+		} else {
+			/* try print limit at last */
+			callchain_param.print_limit = strtoul(tok, &endptr, 0);
+			if (tok == endptr)
+				return -1;
+		}
 
-	} else if (!strncmp(tok, "flat", strlen(arg))) {
-		callchain_param.mode = CHAIN_FLAT;
-	} else if (!strncmp(tok, "fractal", strlen(arg))) {
-		callchain_param.mode = CHAIN_GRAPH_REL;
-	} else if (!strncmp(tok, "none", strlen(arg))) {
-		callchain_param.mode = CHAIN_NONE;
-		symbol_conf.use_callchain = false;
-		return 0;
-	} else {
-		return -1;
+		arg = NULL;
 	}
 
-	/* get the min percentage */
-	tok = strtok(NULL, ",");
-	if (!tok)
-		goto setup;
-
-	callchain_param.min_percent = strtod(tok, &endptr);
-	if (tok == endptr)
-		return -1;
-
-	/* get the print limit */
-	tok2 = strtok(NULL, ",");
-	if (!tok2)
-		goto setup;
-
-	if (tok2[0] != 'c') {
-		callchain_param.print_limit = strtoul(tok2, &endptr, 0);
-		tok2 = strtok(NULL, ",");
-		if (!tok2)
-			goto setup;
-	}
-
-	/* get the call chain order */
-	if (!strncmp(tok2, "caller", strlen("caller")))
-		callchain_param.order = ORDER_CALLER;
-	else if (!strncmp(tok2, "callee", strlen("callee")))
-		callchain_param.order = ORDER_CALLEE;
-	else
-		return -1;
-
-	/* Get the sort key */
-	tok2 = strtok(NULL, ",");
-	if (!tok2)
-		goto setup;
-	if (!strncmp(tok2, "function", strlen("function")))
-		callchain_param.key = CCKEY_FUNCTION;
-	else if (!strncmp(tok2, "address", strlen("address")))
-		callchain_param.key = CCKEY_ADDRESS;
-	else
-		return -1;
-setup:
 	if (callchain_register_param(&callchain_param) < 0) {
 		pr_err("Can't register callchain params\n");
 		return -1;
 	}
+	return 0;
+}
+
+int perf_callchain_config(const char *var, const char *value)
+{
+	char *endptr;
+
+	if (prefixcmp(var, "call-graph."))
+		return 0;
+	var += sizeof("call-graph.") - 1;
+
+	if (!strcmp(var, "record-mode"))
+		return parse_callchain_record_opt(value);
+#ifdef HAVE_DWARF_UNWIND_SUPPORT
+	if (!strcmp(var, "dump-size")) {
+		unsigned long size = 0;
+		int ret;
+
+		ret = get_stack_size(value, &size);
+		callchain_param.dump_size = size;
+
+		return ret;
+	}
+#endif
+	if (!strcmp(var, "print-type"))
+		return parse_callchain_mode(value);
+	if (!strcmp(var, "order"))
+		return parse_callchain_order(value);
+	if (!strcmp(var, "sort-key"))
+		return parse_callchain_sort_key(value);
+	if (!strcmp(var, "threshold")) {
+		callchain_param.min_percent = strtod(value, &endptr);
+		if (value == endptr)
+			return -1;
+	}
+	if (!strcmp(var, "print-limit")) {
+		callchain_param.print_limit = strtod(value, &endptr);
+		if (value == endptr)
+			return -1;
+	}
+
 	return 0;
 }
 

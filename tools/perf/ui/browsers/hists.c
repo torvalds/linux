@@ -10,6 +10,7 @@
 #include "../../util/pstack.h"
 #include "../../util/sort.h"
 #include "../../util/util.h"
+#include "../../util/top.h"
 #include "../../arch/common.h"
 
 #include "../browser.h"
@@ -228,8 +229,10 @@ static void callchain_node__init_have_children(struct callchain_node *node)
 {
 	struct callchain_list *chain;
 
-	list_for_each_entry(chain, &node->val, list)
+	if (!list_empty(&node->val)) {
+		chain = list_entry(node->val.prev, struct callchain_list, list);
 		chain->ms.has_children = !RB_EMPTY_ROOT(&node->rb_root);
+	}
 
 	callchain_node__init_have_children_rb_tree(node);
 }
@@ -474,26 +477,87 @@ static char *callchain_list__sym_name(struct callchain_list *cl,
 	return bf;
 }
 
+struct callchain_print_arg {
+	/* for hists browser */
+	off_t	row_offset;
+	bool	is_current_entry;
+
+	/* for file dump */
+	FILE	*fp;
+	int	printed;
+};
+
+typedef void (*print_callchain_entry_fn)(struct hist_browser *browser,
+					 struct callchain_list *chain,
+					 const char *str, int offset,
+					 unsigned short row,
+					 struct callchain_print_arg *arg);
+
+static void hist_browser__show_callchain_entry(struct hist_browser *browser,
+					       struct callchain_list *chain,
+					       const char *str, int offset,
+					       unsigned short row,
+					       struct callchain_print_arg *arg)
+{
+	int color, width;
+	char folded_sign = callchain_list__folded(chain);
+
+	color = HE_COLORSET_NORMAL;
+	width = browser->b.width - (offset + 2);
+	if (ui_browser__is_current_entry(&browser->b, row)) {
+		browser->selection = &chain->ms;
+		color = HE_COLORSET_SELECTED;
+		arg->is_current_entry = true;
+	}
+
+	ui_browser__set_color(&browser->b, color);
+	hist_browser__gotorc(browser, row, 0);
+	slsmg_write_nstring(" ", offset);
+	slsmg_printf("%c ", folded_sign);
+	slsmg_write_nstring(str, width);
+}
+
+static void hist_browser__fprintf_callchain_entry(struct hist_browser *b __maybe_unused,
+						  struct callchain_list *chain,
+						  const char *str, int offset,
+						  unsigned short row __maybe_unused,
+						  struct callchain_print_arg *arg)
+{
+	char folded_sign = callchain_list__folded(chain);
+
+	arg->printed += fprintf(arg->fp, "%*s%c %s\n", offset, " ",
+				folded_sign, str);
+}
+
+typedef bool (*check_output_full_fn)(struct hist_browser *browser,
+				     unsigned short row);
+
+static bool hist_browser__check_output_full(struct hist_browser *browser,
+					    unsigned short row)
+{
+	return browser->b.rows == row;
+}
+
+static bool hist_browser__check_dump_full(struct hist_browser *browser __maybe_unused,
+					  unsigned short row __maybe_unused)
+{
+	return false;
+}
+
 #define LEVEL_OFFSET_STEP 3
 
-static int hist_browser__show_callchain_node_rb_tree(struct hist_browser *browser,
-						     struct callchain_node *chain_node,
-						     u64 total, int level,
-						     unsigned short row,
-						     off_t *row_offset,
-						     bool *is_current_entry)
+static int hist_browser__show_callchain(struct hist_browser *browser,
+					struct rb_root *root, int level,
+					unsigned short row, u64 total,
+					print_callchain_entry_fn print,
+					struct callchain_print_arg *arg,
+					check_output_full_fn is_output_full)
 {
 	struct rb_node *node;
-	int first_row = row, width, offset = level * LEVEL_OFFSET_STEP;
-	u64 new_total, remaining;
+	int first_row = row, offset = level * LEVEL_OFFSET_STEP;
+	u64 new_total;
 
-	if (callchain_param.mode == CHAIN_GRAPH_REL)
-		new_total = chain_node->children_hit;
-	else
-		new_total = total;
-
-	remaining = new_total;
-	node = rb_first(&chain_node->rb_root);
+	node = rb_first(root);
 	while (node) {
 		struct callchain_node *child = rb_entry(node, struct callchain_node, rb_node);
 		struct rb_node *next = rb_next(node);
@@ -503,30 +567,28 @@ static int hist_browser__show_callchain_node_rb_tree(struct hist_browser *browse
 		int first = true;
 		int extra_offset = 0;
 
-		remaining -= cumul;
-
 		list_for_each_entry(chain, &child->val, list) {
 			char bf[1024], *alloc_str;
 			const char *str;
-			int color;
 			bool was_first = first;
 
 			if (first)
 				first = false;
-			else
+			else if (level > 1)
 				extra_offset = LEVEL_OFFSET_STEP;
 
 			folded_sign = callchain_list__folded(chain);
-			if (*row_offset != 0) {
-				--*row_offset;
+			if (arg->row_offset != 0) {
+				arg->row_offset--;
 				goto do_next;
 			}
 
 			alloc_str = NULL;
 			str = callchain_list__sym_name(chain, bf, sizeof(bf),
 						       browser->show_dso);
-			if (was_first) {
-				double percent = cumul * 100.0 / new_total;
+
+			if (was_first && level > 1) {
+				double percent = cumul * 100.0 / total;
 
 				if (asprintf(&alloc_str, "%2.2f%% %s", percent, str) < 0)
 					str = "Not enough memory!";
@@ -534,22 +596,11 @@ static int hist_browser__show_callchain_node_rb_tree(struct hist_browser *browse
 					str = alloc_str;
 			}
 
-			color = HE_COLORSET_NORMAL;
-			width = browser->b.width - (offset + extra_offset + 2);
-			if (ui_browser__is_current_entry(&browser->b, row)) {
-				browser->selection = &chain->ms;
-				color = HE_COLORSET_SELECTED;
-				*is_current_entry = true;
-			}
+			print(browser, chain, str, offset + extra_offset, row, arg);
 
-			ui_browser__set_color(&browser->b, color);
-			hist_browser__gotorc(browser, row, 0);
-			slsmg_write_nstring(" ", offset + extra_offset);
-			slsmg_printf("%c ", folded_sign);
-			slsmg_write_nstring(str, width);
 			free(alloc_str);
 
-			if (++row == browser->b.rows)
+			if (is_output_full(browser, ++row))
 				goto out;
 do_next:
 			if (folded_sign == '+')
@@ -558,89 +609,21 @@ do_next:
 
 		if (folded_sign == '-') {
 			const int new_level = level + (extra_offset ? 2 : 1);
-			row += hist_browser__show_callchain_node_rb_tree(browser, child, new_total,
-									 new_level, row, row_offset,
-									 is_current_entry);
+
+			if (callchain_param.mode == CHAIN_GRAPH_REL)
+				new_total = child->children_hit;
+			else
+				new_total = total;
+
+			row += hist_browser__show_callchain(browser, &child->rb_root,
+							    new_level, row, new_total,
+							    print, arg, is_output_full);
 		}
-		if (row == browser->b.rows)
-			goto out;
+		if (is_output_full(browser, row))
+			break;
 		node = next;
 	}
 out:
-	return row - first_row;
-}
-
-static int hist_browser__show_callchain_node(struct hist_browser *browser,
-					     struct callchain_node *node,
-					     int level, unsigned short row,
-					     off_t *row_offset,
-					     bool *is_current_entry)
-{
-	struct callchain_list *chain;
-	int first_row = row,
-	     offset = level * LEVEL_OFFSET_STEP,
-	     width = browser->b.width - offset;
-	char folded_sign = ' ';
-
-	list_for_each_entry(chain, &node->val, list) {
-		char bf[1024], *s;
-		int color;
-
-		folded_sign = callchain_list__folded(chain);
-
-		if (*row_offset != 0) {
-			--*row_offset;
-			continue;
-		}
-
-		color = HE_COLORSET_NORMAL;
-		if (ui_browser__is_current_entry(&browser->b, row)) {
-			browser->selection = &chain->ms;
-			color = HE_COLORSET_SELECTED;
-			*is_current_entry = true;
-		}
-
-		s = callchain_list__sym_name(chain, bf, sizeof(bf),
-					     browser->show_dso);
-		hist_browser__gotorc(browser, row, 0);
-		ui_browser__set_color(&browser->b, color);
-		slsmg_write_nstring(" ", offset);
-		slsmg_printf("%c ", folded_sign);
-		slsmg_write_nstring(s, width - 2);
-
-		if (++row == browser->b.rows)
-			goto out;
-	}
-
-	if (folded_sign == '-')
-		row += hist_browser__show_callchain_node_rb_tree(browser, node,
-								 browser->hists->stats.total_period,
-								 level + 1, row,
-								 row_offset,
-								 is_current_entry);
-out:
-	return row - first_row;
-}
-
-static int hist_browser__show_callchain(struct hist_browser *browser,
-					struct rb_root *chain,
-					int level, unsigned short row,
-					off_t *row_offset,
-					bool *is_current_entry)
-{
-	struct rb_node *nd;
-	int first_row = row;
-
-	for (nd = rb_first(chain); nd; nd = rb_next(nd)) {
-		struct callchain_node *node = rb_entry(nd, struct callchain_node, rb_node);
-
-		row += hist_browser__show_callchain_node(browser, node, level,
-							 row, row_offset,
-							 is_current_entry);
-		if (row == browser->b.rows)
-			break;
-	}
-
 	return row - first_row;
 }
 
@@ -653,17 +636,18 @@ struct hpp_arg {
 static int __hpp__slsmg_color_printf(struct perf_hpp *hpp, const char *fmt, ...)
 {
 	struct hpp_arg *arg = hpp->ptr;
-	int ret;
+	int ret, len;
 	va_list args;
 	double percent;
 
 	va_start(args, fmt);
+	len = va_arg(args, int);
 	percent = va_arg(args, double);
 	va_end(args);
 
 	ui_browser__set_percent_color(arg->b, percent, arg->current_entry);
 
-	ret = scnprintf(hpp->buf, hpp->size, fmt, percent);
+	ret = scnprintf(hpp->buf, hpp->size, fmt, len, percent);
 	slsmg_printf("%s", hpp->buf);
 
 	advance_hpp(hpp, ret);
@@ -677,12 +661,12 @@ static u64 __hpp_get_##_field(struct hist_entry *he)			\
 }									\
 									\
 static int								\
-hist_browser__hpp_color_##_type(struct perf_hpp_fmt *fmt __maybe_unused,\
+hist_browser__hpp_color_##_type(struct perf_hpp_fmt *fmt,		\
 				struct perf_hpp *hpp,			\
 				struct hist_entry *he)			\
 {									\
-	return __hpp__fmt(hpp, he, __hpp_get_##_field, " %6.2f%%",	\
-			  __hpp__slsmg_color_printf, true);		\
+	return hpp__fmt(fmt, hpp, he, __hpp_get_##_field, " %*.2f%%",	\
+			__hpp__slsmg_color_printf, true);		\
 }
 
 #define __HPP_COLOR_ACC_PERCENT_FN(_type, _field)			\
@@ -692,18 +676,20 @@ static u64 __hpp_get_acc_##_field(struct hist_entry *he)		\
 }									\
 									\
 static int								\
-hist_browser__hpp_color_##_type(struct perf_hpp_fmt *fmt __maybe_unused,\
+hist_browser__hpp_color_##_type(struct perf_hpp_fmt *fmt,		\
 				struct perf_hpp *hpp,			\
 				struct hist_entry *he)			\
 {									\
 	if (!symbol_conf.cumulate_callchain) {				\
-		int ret = scnprintf(hpp->buf, hpp->size, "%8s", "N/A");	\
+		int len = fmt->user_len ?: fmt->len;			\
+		int ret = scnprintf(hpp->buf, hpp->size,		\
+				    "%*s", len, "N/A");			\
 		slsmg_printf("%s", hpp->buf);				\
 									\
 		return ret;						\
 	}								\
-	return __hpp__fmt(hpp, he, __hpp_get_acc_##_field, " %6.2f%%",	\
-			  __hpp__slsmg_color_printf, true);		\
+	return hpp__fmt(fmt, hpp, he, __hpp_get_acc_##_field,		\
+			" %*.2f%%", __hpp__slsmg_color_printf, true);	\
 }
 
 __HPP_COLOR_PERCENT_FN(overhead, period)
@@ -812,10 +798,18 @@ static int hist_browser__show_entry(struct hist_browser *browser,
 		--row_offset;
 
 	if (folded_sign == '-' && row != browser->b.rows) {
-		printed += hist_browser__show_callchain(browser, &entry->sorted_chain,
-							1, row, &row_offset,
-							&current_entry);
-		if (current_entry)
+		u64 total = hists__total_period(entry->hists);
+		struct callchain_print_arg arg = {
+			.row_offset = row_offset,
+			.is_current_entry = current_entry,
+		};
+
+		printed += hist_browser__show_callchain(browser,
+					&entry->sorted_chain, 1, row, total,
+					hist_browser__show_callchain_entry, &arg,
+					hist_browser__check_output_full);
+
+		if (arg.is_current_entry)
 			browser->he_selection = entry;
 	}
 
@@ -846,9 +840,6 @@ static int hists__scnprintf_headers(char *buf, size_t size, struct hists *hists)
 	perf_hpp__for_each_format(fmt) {
 		if (perf_hpp__should_skip(fmt))
 			continue;
-
-		/* We need to add the length of the columns header. */
-		perf_hpp__reset_width(fmt, hists);
 
 		ret = fmt->header(fmt, &dummy_hpp, hists_to_evsel(hists));
 		if (advance_hpp_check(&dummy_hpp, ret))
@@ -1074,113 +1065,21 @@ do_offset:
 	}
 }
 
-static int hist_browser__fprintf_callchain_node_rb_tree(struct hist_browser *browser,
-							struct callchain_node *chain_node,
-							u64 total, int level,
-							FILE *fp)
-{
-	struct rb_node *node;
-	int offset = level * LEVEL_OFFSET_STEP;
-	u64 new_total, remaining;
-	int printed = 0;
-
-	if (callchain_param.mode == CHAIN_GRAPH_REL)
-		new_total = chain_node->children_hit;
-	else
-		new_total = total;
-
-	remaining = new_total;
-	node = rb_first(&chain_node->rb_root);
-	while (node) {
-		struct callchain_node *child = rb_entry(node, struct callchain_node, rb_node);
-		struct rb_node *next = rb_next(node);
-		u64 cumul = callchain_cumul_hits(child);
-		struct callchain_list *chain;
-		char folded_sign = ' ';
-		int first = true;
-		int extra_offset = 0;
-
-		remaining -= cumul;
-
-		list_for_each_entry(chain, &child->val, list) {
-			char bf[1024], *alloc_str;
-			const char *str;
-			bool was_first = first;
-
-			if (first)
-				first = false;
-			else
-				extra_offset = LEVEL_OFFSET_STEP;
-
-			folded_sign = callchain_list__folded(chain);
-
-			alloc_str = NULL;
-			str = callchain_list__sym_name(chain, bf, sizeof(bf),
-						       browser->show_dso);
-			if (was_first) {
-				double percent = cumul * 100.0 / new_total;
-
-				if (asprintf(&alloc_str, "%2.2f%% %s", percent, str) < 0)
-					str = "Not enough memory!";
-				else
-					str = alloc_str;
-			}
-
-			printed += fprintf(fp, "%*s%c %s\n", offset + extra_offset, " ", folded_sign, str);
-			free(alloc_str);
-			if (folded_sign == '+')
-				break;
-		}
-
-		if (folded_sign == '-') {
-			const int new_level = level + (extra_offset ? 2 : 1);
-			printed += hist_browser__fprintf_callchain_node_rb_tree(browser, child, new_total,
-										new_level, fp);
-		}
-
-		node = next;
-	}
-
-	return printed;
-}
-
-static int hist_browser__fprintf_callchain_node(struct hist_browser *browser,
-						struct callchain_node *node,
-						int level, FILE *fp)
-{
-	struct callchain_list *chain;
-	int offset = level * LEVEL_OFFSET_STEP;
-	char folded_sign = ' ';
-	int printed = 0;
-
-	list_for_each_entry(chain, &node->val, list) {
-		char bf[1024], *s;
-
-		folded_sign = callchain_list__folded(chain);
-		s = callchain_list__sym_name(chain, bf, sizeof(bf), browser->show_dso);
-		printed += fprintf(fp, "%*s%c %s\n", offset, " ", folded_sign, s);
-	}
-
-	if (folded_sign == '-')
-		printed += hist_browser__fprintf_callchain_node_rb_tree(browser, node,
-									browser->hists->stats.total_period,
-									level + 1,  fp);
-	return printed;
-}
-
 static int hist_browser__fprintf_callchain(struct hist_browser *browser,
-					   struct rb_root *chain, int level, FILE *fp)
+					   struct hist_entry *he, FILE *fp)
 {
-	struct rb_node *nd;
-	int printed = 0;
+	u64 total = hists__total_period(he->hists);
+	struct callchain_print_arg arg  = {
+		.fp = fp,
+	};
 
-	for (nd = rb_first(chain); nd; nd = rb_next(nd)) {
-		struct callchain_node *node = rb_entry(nd, struct callchain_node, rb_node);
+	if (symbol_conf.cumulate_callchain)
+		total = he->stat_acc->period;
 
-		printed += hist_browser__fprintf_callchain_node(browser, node, level, fp);
-	}
-
-	return printed;
+	hist_browser__show_callchain(browser, &he->sorted_chain, 1, 0, total,
+				     hist_browser__fprintf_callchain_entry, &arg,
+				     hist_browser__check_dump_full);
+	return arg.printed;
 }
 
 static int hist_browser__fprintf_entry(struct hist_browser *browser,
@@ -1219,7 +1118,7 @@ static int hist_browser__fprintf_entry(struct hist_browser *browser,
 	printed += fprintf(fp, "%s\n", rtrim(s));
 
 	if (folded_sign == '-')
-		printed += hist_browser__fprintf_callchain(browser, &he->sorted_chain, 1, fp);
+		printed += hist_browser__fprintf_callchain(browser, he, fp);
 
 	return printed;
 }
@@ -1498,6 +1397,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	char buf[64];
 	char script_opt[64];
 	int delay_secs = hbt ? hbt->refresh : 0;
+	struct perf_hpp_fmt *fmt;
 
 #define HIST_BROWSER_HELP_COMMON					\
 	"h/?/F1        Show this window\n"				\
@@ -1529,6 +1429,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	"P             Print histograms to perf.hist.N\n"
 	"t             Zoom into current Thread\n"
 	"V             Verbose (DSO names in callchains, etc)\n"
+	"z             Toggle zeroing of samples\n"
 	"/             Filter symbol by name";
 
 	if (browser == NULL)
@@ -1546,6 +1447,12 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	ui_helpline__push(helpline);
 
 	memset(options, 0, sizeof(options));
+
+	perf_hpp__for_each_format(fmt)
+		perf_hpp__reset_width(fmt, hists);
+
+	if (symbol_conf.col_width_list_str)
+		perf_hpp__set_user_width(symbol_conf.col_width_list_str);
 
 	while (1) {
 		const struct thread *thread = NULL;
@@ -1622,6 +1529,13 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			continue;
 		case 'F':
 			symbol_conf.filter_relative ^= 1;
+			continue;
+		case 'z':
+			if (!is_report_browser(hbt)) {
+				struct perf_top *top = hbt->arg;
+
+				top->zero = !top->zero;
+			}
 			continue;
 		case K_F1:
 		case 'h':
