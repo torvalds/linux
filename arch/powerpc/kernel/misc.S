@@ -114,3 +114,7 @@ _GLOBAL(longjmp)
 	mtlr	r0
 	mr	r3,r4
 	blr
+
+_GLOBAL(__get_SP)
+	PPC_LL	r3,0(r1)
+	blr
