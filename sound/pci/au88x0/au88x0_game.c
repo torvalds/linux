@@ -98,7 +98,8 @@ static int vortex_gameport_register(vortex_t *vortex)
 
 	vortex->gameport = gp = gameport_allocate_port();
 	if (!gp) {
-		pr_err( "vortex: cannot allocate memory for gameport\n");
+		dev_err(vortex->card->dev,
+			"cannot allocate memory for gameport\n");
 		return -ENOMEM;
 	}
 
