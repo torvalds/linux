@@ -12,7 +12,7 @@ Because things like lock contention can severely impact performance.
 - HOW
 
 Lockdep already has hooks in the lock functions and maps lock instances to
-lock classes. We build on that (see Documentation/lockdep-design.txt).
+lock classes. We build on that (see Documentation/lokcing/lockdep-design.txt).
 The graph below shows the relation between the lock functions and the various
 hooks therein.
 

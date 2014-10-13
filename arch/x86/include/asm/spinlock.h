@@ -187,7 +187,6 @@ static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
 		cpu_relax();
 }
 
-#ifndef CONFIG_QUEUE_RWLOCK
 /*
  * Read-write spinlocks, allowing multiple readers
  * but only one writer.
@@ -198,90 +197,14 @@ static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
  * irq-safe write-lock, but readers can get non-irqsafe
  * read-locks.
  *
- * On x86, we implement read-write locks as a 32-bit counter
- * with the high bit (sign) being the "contended" bit.
+ * On x86, we implement read-write locks using the generic qrwlock with
+ * x86 specific optimization.
  */
 
-/**
- * read_can_lock - would read_trylock() succeed?
- * @lock: the rwlock in question.
- */
-static inline int arch_read_can_lock(arch_rwlock_t *lock)
-{
-	return lock->lock > 0;
-}
-
-/**
- * write_can_lock - would write_trylock() succeed?
- * @lock: the rwlock in question.
- */
-static inline int arch_write_can_lock(arch_rwlock_t *lock)
-{
-	return lock->write == WRITE_LOCK_CMP;
-}
-
-static inline void arch_read_lock(arch_rwlock_t *rw)
-{
-	asm volatile(LOCK_PREFIX READ_LOCK_SIZE(dec) " (%0)\n\t"
-		     "jns 1f\n"
-		     "call __read_lock_failed\n\t"
-		     "1:\n"
-		     ::LOCK_PTR_REG (rw) : "memory");
-}
-
-static inline void arch_write_lock(arch_rwlock_t *rw)
-{
-	asm volatile(LOCK_PREFIX WRITE_LOCK_SUB(%1) "(%0)\n\t"
-		     "jz 1f\n"
-		     "call __write_lock_failed\n\t"
-		     "1:\n"
-		     ::LOCK_PTR_REG (&rw->write), "i" (RW_LOCK_BIAS)
-		     : "memory");
-}
-
-static inline int arch_read_trylock(arch_rwlock_t *lock)
-{
-	READ_LOCK_ATOMIC(t) *count = (READ_LOCK_ATOMIC(t) *)lock;
-
-	if (READ_LOCK_ATOMIC(dec_return)(count) >= 0)
-		return 1;
-	READ_LOCK_ATOMIC(inc)(count);
-	return 0;
-}
-
-static inline int arch_write_trylock(arch_rwlock_t *lock)
-{
-	atomic_t *count = (atomic_t *)&lock->write;
-
-	if (atomic_sub_and_test(WRITE_LOCK_CMP, count))
-		return 1;
-	atomic_add(WRITE_LOCK_CMP, count);
-	return 0;
-}
-
-static inline void arch_read_unlock(arch_rwlock_t *rw)
-{
-	asm volatile(LOCK_PREFIX READ_LOCK_SIZE(inc) " %0"
-		     :"+m" (rw->lock) : : "memory");
-}
-
-static inline void arch_write_unlock(arch_rwlock_t *rw)
-{
-	asm volatile(LOCK_PREFIX WRITE_LOCK_ADD(%1) "%0"
-		     : "+m" (rw->write) : "i" (RW_LOCK_BIAS) : "memory");
-}
-#else
 #include <asm/qrwlock.h>
-#endif /* CONFIG_QUEUE_RWLOCK */
 
 #define arch_read_lock_flags(lock, flags) arch_read_lock(lock)
 #define arch_write_lock_flags(lock, flags) arch_write_lock(lock)
-
-#undef READ_LOCK_SIZE
-#undef READ_LOCK_ATOMIC
-#undef WRITE_LOCK_ADD
-#undef WRITE_LOCK_SUB
-#undef WRITE_LOCK_CMP
 
 #define arch_spin_relax(lock)	cpu_relax()
 #define arch_read_relax(lock)	cpu_relax()

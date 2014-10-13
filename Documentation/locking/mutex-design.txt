@@ -145,9 +145,9 @@ Disadvantages
 
 Unlike its original design and purpose, 'struct mutex' is larger than
 most locks in the kernel. E.g: on x86-64 it is 40 bytes, almost twice
-as large as 'struct semaphore' (24 bytes) and 8 bytes shy of the
-'struct rw_semaphore' variant. Larger structure sizes mean more CPU
-cache and memory footprint.
+as large as 'struct semaphore' (24 bytes) and tied, along with rwsems,
+for the largest lock in the kernel. Larger structure sizes mean more
+CPU cache and memory footprint.
 
 When to use mutexes
 -------------------
