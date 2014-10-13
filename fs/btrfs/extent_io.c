@@ -1066,13 +1066,21 @@ int convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	int err = 0;
 	u64 last_start;
 	u64 last_end;
+	bool first_iteration = true;
 
 	btrfs_debug_check_extent_io_range(tree, start, end);
 
 again:
 	if (!prealloc && (mask & __GFP_WAIT)) {
+		/*
+		 * Best effort, don't worry if extent state allocation fails
+		 * here for the first iteration. We might have a cached state
+		 * that matches exactly the target range, in which case no
+		 * extent state allocations are needed. We'll only know this
+		 * after locking the tree.
+		 */
 		prealloc = alloc_extent_state(mask);
-		if (!prealloc)
+		if (!prealloc && !first_iteration)
 			return -ENOMEM;
 	}
 
@@ -1242,6 +1250,7 @@ search_again:
 	spin_unlock(&tree->lock);
 	if (mask & __GFP_WAIT)
 		cond_resched();
+	first_iteration = false;
 	goto again;
 }
 
