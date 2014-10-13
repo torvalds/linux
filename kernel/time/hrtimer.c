@@ -1776,7 +1776,6 @@ schedule_hrtimeout_range_clock(ktime_t *expires, unsigned long delta,
 	 */
 	if (!expires) {
 		schedule();
-		__set_current_state(TASK_RUNNING);
 		return -EINTR;
 	}
 

@@ -3215,7 +3215,6 @@ kiblnd_connd (void *arg)
 
 		schedule_timeout(timeout);
 
-		set_current_state(TASK_RUNNING);
 		remove_wait_queue(&kiblnd_data.kib_connd_waitq, &wait);
 		spin_lock_irqsave(&kiblnd_data.kib_connd_lock, flags);
 	}
@@ -3432,7 +3431,6 @@ kiblnd_scheduler(void *arg)
 		busy_loops = 0;
 
 		remove_wait_queue(&sched->ibs_waitq, &wait);
-		set_current_state(TASK_RUNNING);
 		spin_lock_irqsave(&sched->ibs_lock, flags);
 	}
 
@@ -3507,7 +3505,6 @@ kiblnd_failover_thread(void *arg)
 
 		rc = schedule_timeout(long_sleep ? cfs_time_seconds(10) :
 						   cfs_time_seconds(1));
-		set_current_state(TASK_RUNNING);
 		remove_wait_queue(&kiblnd_data.kib_failover_waitq, &wait);
 		write_lock_irqsave(glock, flags);
 
