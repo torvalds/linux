@@ -1248,6 +1248,7 @@ void set_de_type(struct f2fs_dir_entry *, struct inode *);
 struct page *init_inode_metadata(struct inode *, struct inode *,
 							const struct qstr *);
 void update_parent_metadata(struct inode *, struct inode *, unsigned int);
+int room_for_filename(const void *, int, int);
 void f2fs_drop_nlink(struct inode *, struct inode *, struct page *);
 struct f2fs_dir_entry *f2fs_find_entry(struct inode *, struct qstr *,
 							struct page **);

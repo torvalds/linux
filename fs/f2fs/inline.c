@@ -363,30 +363,6 @@ int make_empty_inline_dir(struct inode *inode, struct inode *parent,
 	return 0;
 }
 
-int room_in_inline_dir(struct f2fs_inline_dentry *dentry_blk, int slots)
-{
-	int bit_start = 0;
-	int zero_start, zero_end;
-next:
-	zero_start = find_next_zero_bit_le(&dentry_blk->dentry_bitmap,
-						NR_INLINE_DENTRY,
-						bit_start);
-	if (zero_start >= NR_INLINE_DENTRY)
-		return NR_INLINE_DENTRY;
-
-	zero_end = find_next_bit_le(&dentry_blk->dentry_bitmap,
-						NR_INLINE_DENTRY,
-						zero_start);
-	if (zero_end - zero_start >= slots)
-		return zero_start;
-
-	bit_start = zero_end + 1;
-
-	if (zero_end + 1 >= NR_INLINE_DENTRY)
-		return NR_INLINE_DENTRY;
-	goto next;
-}
-
 int f2fs_convert_inline_dir(struct inode *dir, struct page *ipage,
 				struct f2fs_inline_dentry *inline_dentry)
 {
@@ -460,7 +436,8 @@ int f2fs_add_inline_entry(struct inode *dir, const struct qstr *name,
 		return PTR_ERR(ipage);
 
 	dentry_blk = inline_data_addr(ipage);
-	bit_pos = room_in_inline_dir(dentry_blk, slots);
+	bit_pos = room_for_filename(&dentry_blk->dentry_bitmap,
+						slots, NR_INLINE_DENTRY);
 	if (bit_pos >= NR_INLINE_DENTRY) {
 		err = f2fs_convert_inline_dir(dir, ipage, dentry_blk);
 		if (!err)

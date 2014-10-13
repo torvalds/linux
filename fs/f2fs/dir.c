@@ -427,27 +427,23 @@ void update_parent_metadata(struct inode *dir, struct inode *inode,
 		clear_inode_flag(F2FS_I(inode), FI_INC_LINK);
 }
 
-static int room_for_filename(struct f2fs_dentry_block *dentry_blk, int slots)
+int room_for_filename(const void *bitmap, int slots, int max_slots)
 {
 	int bit_start = 0;
 	int zero_start, zero_end;
 next:
-	zero_start = find_next_zero_bit_le(&dentry_blk->dentry_bitmap,
-						NR_DENTRY_IN_BLOCK,
-						bit_start);
-	if (zero_start >= NR_DENTRY_IN_BLOCK)
-		return NR_DENTRY_IN_BLOCK;
+	zero_start = find_next_zero_bit_le(bitmap, max_slots, bit_start);
+	if (zero_start >= max_slots)
+		return max_slots;
 
-	zero_end = find_next_bit_le(&dentry_blk->dentry_bitmap,
-						NR_DENTRY_IN_BLOCK,
-						zero_start);
+	zero_end = find_next_bit_le(bitmap, max_slots, zero_start);
 	if (zero_end - zero_start >= slots)
 		return zero_start;
 
 	bit_start = zero_end + 1;
 
-	if (zero_end + 1 >= NR_DENTRY_IN_BLOCK)
-		return NR_DENTRY_IN_BLOCK;
+	if (zero_end + 1 >= max_slots)
+		return max_slots;
 	goto next;
 }
 
@@ -509,7 +505,8 @@ start:
 			return PTR_ERR(dentry_page);
 
 		dentry_blk = kmap(dentry_page);
-		bit_pos = room_for_filename(dentry_blk, slots);
+		bit_pos = room_for_filename(&dentry_blk->dentry_bitmap,
+						slots, NR_DENTRY_IN_BLOCK);
 		if (bit_pos < NR_DENTRY_IN_BLOCK)
 			goto add_dentry;
 
