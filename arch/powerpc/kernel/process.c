@@ -1545,7 +1545,7 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 		tsk = current;
 	if (sp == 0) {
 		if (tsk == current)
-			sp = __get_SP();
+			sp = current_stack_pointer();
 		else
 			sp = tsk->thread.ksp;
 	}

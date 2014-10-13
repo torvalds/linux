@@ -42,4 +42,4 @@ EXPORT_SYMBOL(giveup_spe);
 EXPORT_SYMBOL(epapr_hypercall_start);
 #endif
 
-EXPORT_SYMBOL(__get_SP);
+EXPORT_SYMBOL(current_stack_pointer);
