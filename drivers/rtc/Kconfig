@@ -298,6 +298,16 @@ config RTC_DRV_RK808
 	  This driver can also be built as a module. If so, the module
 	  will be called rk808-rtc.
 
+config RTC_DRV_MAX77802
+	tristate "Maxim 77802 RTC"
+	depends on MFD_MAX77686
+	help
+	  If you say yes here you will get support for the
+	  RTC of Maxim MAX77802 PMIC.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-max77802.
+
 config RTC_DRV_RS5C372
 	tristate "Ricoh R2025S/D, RS5C372A/B, RV5C386, RV5C387A"
 	help
