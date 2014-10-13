@@ -379,6 +379,9 @@ struct hc_driver {
 	int	(*disable_usb3_lpm_timeout)(struct usb_hcd *,
 			struct usb_device *, enum usb3_link_state state);
 	int	(*find_raw_port_number)(struct usb_hcd *, int);
+	/* Call for power on/off the port if necessary */
+	int	(*port_power)(struct usb_hcd *hcd, int portnum, bool enable);
+
 };
 
 static inline int hcd_giveback_urb_in_bh(struct usb_hcd *hcd)
