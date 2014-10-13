@@ -95,6 +95,10 @@ static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	u32 family;
 	int err;
 
+	err = nft_chain_validate_dependency(ctx->chain, NFT_CHAIN_T_NAT);
+	if (err < 0)
+		return err;
+
 	if (tb[NFTA_NAT_TYPE] == NULL)
 		return -EINVAL;
 
@@ -205,6 +209,13 @@ nla_put_failure:
 	return -1;
 }
 
+static int nft_nat_validate(const struct nft_ctx *ctx,
+			    const struct nft_expr *expr,
+			    const struct nft_data **data)
+{
+	return nft_chain_validate_dependency(ctx->chain, NFT_CHAIN_T_NAT);
+}
+
 static struct nft_expr_type nft_nat_type;
 static const struct nft_expr_ops nft_nat_ops = {
 	.type           = &nft_nat_type,
@@ -212,6 +223,7 @@ static const struct nft_expr_ops nft_nat_ops = {
 	.eval           = nft_nat_eval,
 	.init           = nft_nat_init,
 	.dump           = nft_nat_dump,
+	.validate	= nft_nat_validate,
 };
 
 static struct nft_expr_type nft_nat_type __read_mostly = {

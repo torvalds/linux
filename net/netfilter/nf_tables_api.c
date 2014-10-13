@@ -3744,6 +3744,20 @@ static const struct nfnetlink_subsystem nf_tables_subsys = {
 	.abort		= nf_tables_abort,
 };
 
+int nft_chain_validate_dependency(const struct nft_chain *chain,
+				  enum nft_chain_type type)
+{
+	const struct nft_base_chain *basechain;
+
+	if (chain->flags & NFT_BASE_CHAIN) {
+		basechain = nft_base_chain(chain);
+		if (basechain->type->type != type)
+			return -EOPNOTSUPP;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nft_chain_validate_dependency);
+
 /*
  * Loop detection - walk through the ruleset beginning at the destination chain
  * of a new jump until either the source chain is reached (loop) or all
