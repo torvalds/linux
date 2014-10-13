@@ -14,7 +14,6 @@
 #include "affs.h"
 
 extern const struct inode_operations affs_symlink_inode_operations;
-extern struct timezone sys_tz;
 
 struct inode *affs_iget(struct super_block *sb, unsigned long ino)
 {
