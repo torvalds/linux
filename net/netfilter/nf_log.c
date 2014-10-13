@@ -30,7 +30,7 @@ static struct nf_logger *__find_logger(int pf, const char *str_logger)
 
 		log = rcu_dereference_protected(loggers[pf][i],
 						lockdep_is_held(&nf_log_mutex));
-		if (!strnicmp(str_logger, log->name, strlen(log->name)))
+		if (!strncasecmp(str_logger, log->name, strlen(log->name)))
 			return log;
 	}
 
