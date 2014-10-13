@@ -138,6 +138,7 @@ struct perf_limits {
 
 static struct perf_limits limits = {
 	.no_turbo = 0,
+	.turbo_disabled = 0,
 	.max_perf_pct = 100,
 	.max_perf = int_tofp(1),
 	.min_perf_pct = 0,
@@ -218,6 +219,18 @@ static inline void intel_pstate_reset_all_pid(void)
 	}
 }
 
+static inline void update_turbo_state(void)
+{
+	u64 misc_en;
+	struct cpudata *cpu;
+
+	cpu = all_cpu_data[0];
+	rdmsrl(MSR_IA32_MISC_ENABLE, misc_en);
+	limits.turbo_disabled =
+		(misc_en & MSR_IA32_MISC_ENABLE_TURBO_DISABLE ||
+		 cpu->pstate.max_pstate == cpu->pstate.turbo_pstate);
+}
+
 /************************** debugfs begin ************************/
 static int pid_param_set(void *data, u64 val)
 {
@@ -274,6 +287,20 @@ static void __init intel_pstate_debug_expose_params(void)
 		return sprintf(buf, "%u\n", limits.object);		\
 	}
 
+static ssize_t show_no_turbo(struct kobject *kobj,
+			     struct attribute *attr, char *buf)
+{
+	ssize_t ret;
+
+	update_turbo_state();
+	if (limits.turbo_disabled)
+		ret = sprintf(buf, "%u\n", limits.turbo_disabled);
+	else
+		ret = sprintf(buf, "%u\n", limits.no_turbo);
+
+	return ret;
+}
+
 static ssize_t store_no_turbo(struct kobject *a, struct attribute *b,
 			      const char *buf, size_t count)
 {
@@ -283,11 +310,14 @@ static ssize_t store_no_turbo(struct kobject *a, struct attribute *b,
 	ret = sscanf(buf, "%u", &input);
 	if (ret != 1)
 		return -EINVAL;
-	limits.no_turbo = clamp_t(int, input, 0 , 1);
+
+	update_turbo_state();
 	if (limits.turbo_disabled) {
 		pr_warn("Turbo disabled by BIOS or unavailable on processor\n");
-		limits.no_turbo = limits.turbo_disabled;
+		return -EPERM;
 	}
+	limits.no_turbo = clamp_t(int, input, 0, 1);
+
 	return count;
 }
 
@@ -323,7 +353,6 @@ static ssize_t store_min_perf_pct(struct kobject *a, struct attribute *b,
 	return count;
 }
 
-show_one(no_turbo, no_turbo);
 show_one(max_perf_pct, max_perf_pct);
 show_one(min_perf_pct, min_perf_pct);
 
@@ -501,7 +530,7 @@ static void intel_pstate_get_min_max(struct cpudata *cpu, int *min, int *max)
 	int max_perf_adj;
 	int min_perf;
 
-	if (limits.no_turbo)
+	if (limits.no_turbo || limits.turbo_disabled)
 		max_perf = cpu->pstate.max_pstate;
 
 	max_perf_adj = fp_toint(mul_fp(int_tofp(max_perf), limits.max_perf));
@@ -515,6 +544,8 @@ static void intel_pstate_get_min_max(struct cpudata *cpu, int *min, int *max)
 static void intel_pstate_set_pstate(struct cpudata *cpu, int pstate)
 {
 	int max_perf, min_perf;
+
+	update_turbo_state();
 
 	intel_pstate_get_min_max(cpu, &min_perf, &max_perf);
 
@@ -717,7 +748,7 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 		limits.max_policy_pct = 100;
 		limits.max_perf_pct = 100;
 		limits.max_perf = int_tofp(1);
-		limits.no_turbo = limits.turbo_disabled;
+		limits.no_turbo = 0;
 		return 0;
 	}
 	limits.min_perf_pct = (policy->min * 100) / policy->cpuinfo.max_freq;
@@ -760,7 +791,6 @@ static int intel_pstate_cpu_init(struct cpufreq_policy *policy)
 {
 	struct cpudata *cpu;
 	int rc;
-	u64 misc_en;
 
 	rc = intel_pstate_init_cpu(policy->cpu);
 	if (rc)
@@ -768,12 +798,6 @@ static int intel_pstate_cpu_init(struct cpufreq_policy *policy)
 
 	cpu = all_cpu_data[policy->cpu];
 
-	rdmsrl(MSR_IA32_MISC_ENABLE, misc_en);
-	if (misc_en & MSR_IA32_MISC_ENABLE_TURBO_DISABLE ||
-	    cpu->pstate.max_pstate == cpu->pstate.turbo_pstate) {
-		limits.turbo_disabled = 1;
-		limits.no_turbo = 1;
-	}
 	if (limits.min_perf_pct == 100 && limits.max_perf_pct == 100)
 		policy->policy = CPUFREQ_POLICY_PERFORMANCE;
 	else
