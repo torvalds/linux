@@ -167,7 +167,7 @@ static irqreturn_t pcf8563_irq(int irq, void *dev_id)
 	char pending;
 
 	err = pcf8563_get_alarm_mode(pcf8563->client, NULL, &pending);
-	if (err < 0)
+	if (err)
 		return err;
 
 	if (pending) {
