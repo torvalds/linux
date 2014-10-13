@@ -832,7 +832,7 @@ struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 	 * moved b under k and client parallely did a lookup for
 	 * k/b.
 	 */
-	res = d_materialise_unique(dentry, inode);
+	res = d_splice_alias(inode, dentry);
 	if (!res)
 		v9fs_fid_add(dentry, fid);
 	else if (!IS_ERR(res))

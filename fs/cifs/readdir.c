@@ -123,7 +123,7 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 	if (!inode)
 		goto out;
 
-	alias = d_materialise_unique(dentry, inode);
+	alias = d_splice_alias(inode, dentry);
 	if (alias && !IS_ERR(alias))
 		dput(alias);
 out:

@@ -372,7 +372,7 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 	if (inode && get_node_id(inode) == FUSE_ROOT_ID)
 		goto out_iput;
 
-	newent = d_materialise_unique(entry, inode);
+	newent = d_splice_alias(inode, entry);
 	err = PTR_ERR(newent);
 	if (IS_ERR(newent))
 		goto out_err;
@@ -1320,7 +1320,7 @@ static int fuse_direntplus_link(struct file *file,
 	if (!inode)
 		goto out;
 
-	alias = d_materialise_unique(dentry, inode);
+	alias = d_splice_alias(inode, dentry);
 	err = PTR_ERR(alias);
 	if (IS_ERR(alias))
 		goto out;

@@ -51,7 +51,7 @@ static int nfs_superblock_set_dummy_root(struct super_block *sb, struct inode *i
 		/*
 		 * Ensure that this dentry is invisible to d_find_alias().
 		 * Otherwise, it may be spliced into the tree by
-		 * d_materialise_unique if a parent directory from the same
+		 * d_splice_alias if a parent directory from the same
 		 * filesystem gets mounted at a later time.
 		 * This again causes shrink_dcache_for_umount_subtree() to
 		 * Oops, since the test for IS_ROOT() will fail.

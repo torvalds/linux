@@ -967,7 +967,7 @@ static struct dentry *splice_dentry(struct dentry *dn, struct inode *in,
 	/* dn must be unhashed */
 	if (!d_unhashed(dn))
 		d_drop(dn);
-	realdn = d_materialise_unique(dn, in);
+	realdn = d_splice_alias(in, dn);
 	if (IS_ERR(realdn)) {
 		pr_err("splice_dentry error %ld %p inode %p ino %llx.%llx\n",
 		       PTR_ERR(realdn), dn, in, ceph_vinop(in));

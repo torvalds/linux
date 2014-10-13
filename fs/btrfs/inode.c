@@ -5303,7 +5303,7 @@ static struct dentry *btrfs_lookup(struct inode *dir, struct dentry *dentry,
 			return ERR_CAST(inode);
 	}
 
-	return d_materialise_unique(dentry, inode);
+	return d_splice_alias(inode, dentry);
 }
 
 unsigned char btrfs_filetype_table[] = {
