@@ -752,6 +752,7 @@ config RTC_DRV_DS1216
 
 config RTC_DRV_DS1286
 	tristate "Dallas DS1286"
+	depends on HAS_IOMEM
 	help
 	  If you say yes here you get support for the Dallas DS1286 RTC chips.
 
@@ -763,6 +764,7 @@ config RTC_DRV_DS1302
 
 config RTC_DRV_DS1511
 	tristate "Dallas DS1511"
+	depends on HAS_IOMEM
 	help
 	  If you say yes here you get support for the
 	  Dallas DS1511 timekeeping/watchdog chip.
@@ -772,6 +774,7 @@ config RTC_DRV_DS1511
 
 config RTC_DRV_DS1553
 	tristate "Maxim/Dallas DS1553"
+	depends on HAS_IOMEM
 	help
 	  If you say yes here you get support for the
 	  Maxim/Dallas DS1553 timekeeping chip.
@@ -781,6 +784,7 @@ config RTC_DRV_DS1553
 
 config RTC_DRV_DS1742
 	tristate "Maxim/Dallas DS1742/1743"
+	depends on HAS_IOMEM
 	help
 	  If you say yes here you get support for the
 	  Maxim/Dallas DS1742/1743 timekeeping chip.
@@ -836,6 +840,7 @@ config RTC_DRV_EFI
 
 config RTC_DRV_STK17TA8
 	tristate "Simtek STK17TA8"
+	depends on HAS_IOMEM
 	help
 	  If you say yes here you get support for the
 	  Simtek STK17TA8 timekeeping chip.
@@ -854,6 +859,7 @@ config RTC_DRV_M48T86
 
 config RTC_DRV_M48T35
 	tristate "ST M48T35"
+	depends on HAS_IOMEM
 	help
 	  If you say Y here you will get support for the
 	  ST M48T35 RTC chip.
@@ -863,6 +869,7 @@ config RTC_DRV_M48T35
 
 config RTC_DRV_M48T59
 	tristate "ST M48T59/M48T08/M48T02"
+	depends on HAS_IOMEM
 	help
 	  If you say Y here you will get support for the
 	  ST M48T59 RTC chip and compatible ST M48T08 and M48T02.
@@ -875,6 +882,7 @@ config RTC_DRV_M48T59
 
 config RTC_DRV_MSM6242
 	tristate "Oki MSM6242"
+	depends on HAS_IOMEM
 	help
 	  If you say yes here you get support for the Oki MSM6242
 	  timekeeping chip. It is used in some Amiga models (e.g. A2000).
@@ -884,6 +892,7 @@ config RTC_DRV_MSM6242
 
 config RTC_DRV_BQ4802
 	tristate "TI BQ4802"
+	depends on HAS_IOMEM
 	help
 	  If you say Y here you will get support for the TI
 	  BQ4802 RTC chip.
@@ -893,6 +902,7 @@ config RTC_DRV_BQ4802
 
 config RTC_DRV_RP5C01
 	tristate "Ricoh RP5C01"
+	depends on HAS_IOMEM
 	help
 	  If you say yes here you get support for the Ricoh RP5C01
 	  timekeeping chip. It is used in some Amiga models (e.g. A3000
@@ -1394,6 +1404,7 @@ config RTC_DRV_MOXART
 
 config RTC_DRV_XGENE
 	tristate "APM X-Gene RTC"
+	depends on HAS_IOMEM
 	help
 	  If you say yes here you get support for the APM X-Gene SoC real time
 	  clock.
