@@ -27,8 +27,10 @@
  * Written to support the PCIM-DAS1602/16 on a 2.4 series kernel.
  *
  * Configuration Options:
- *     [0] - PCI bus number
- *     [1] - PCI slot number
+ *   none
+ *
+ * Manual configuration of PCI cards is not supported; they are configured
+ * automatically.
  *
  * Developed from cb_pcidas and skel by Richard Bytheway (mocelet@sucs.org).
  * Only supports DIO, AO and simple AI in it's present form.
