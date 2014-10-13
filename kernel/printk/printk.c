@@ -519,14 +519,13 @@ struct devkmsg_user {
 	char buf[8192];
 };
 
-static ssize_t devkmsg_writev(struct kiocb *iocb, const struct iovec *iv,
-			      unsigned long count, loff_t pos)
+static ssize_t devkmsg_write(struct kiocb *iocb, struct iov_iter *from)
 {
 	char *buf, *line;
 	int i;
 	int level = default_message_loglevel;
 	int facility = 1;	/* LOG_USER */
-	size_t len = iov_length(iv, count);
+	size_t len = iocb->ki_nbytes;
 	ssize_t ret = len;
 
 	if (len > LOG_LINE_MAX)
@@ -535,13 +534,10 @@ static ssize_t devkmsg_writev(struct kiocb *iocb, const struct iovec *iv,
 	if (buf == NULL)
 		return -ENOMEM;
 
-	line = buf;
-	for (i = 0; i < count; i++) {
-		if (copy_from_user(line, iv[i].iov_base, iv[i].iov_len)) {
-			ret = -EFAULT;
-			goto out;
-		}
-		line += iv[i].iov_len;
+	buf[len] = '\0';
+	if (copy_from_iter(buf, len, from) != len) {
+		kfree(buf);
+		return -EFAULT;
 	}
 
 	/*
@@ -567,10 +563,8 @@ static ssize_t devkmsg_writev(struct kiocb *iocb, const struct iovec *iv,
 			line = endp;
 		}
 	}
-	line[len] = '\0';
 
 	printk_emit(facility, level, NULL, 0, "%s", line);
-out:
 	kfree(buf);
 	return ret;
 }
@@ -802,7 +796,7 @@ static int devkmsg_release(struct inode *inode, struct file *file)
 const struct file_operations kmsg_fops = {
 	.open = devkmsg_open,
 	.read = devkmsg_read,
-	.aio_write = devkmsg_writev,
+	.write_iter = devkmsg_write,
 	.llseek = devkmsg_llseek,
 	.poll = devkmsg_poll,
 	.release = devkmsg_release,

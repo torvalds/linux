@@ -87,8 +87,6 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 		return;
 
 	if (dentry) {
-		int err;
-
 		inode = dentry->d_inode;
 		if (inode) {
 			/*
@@ -105,10 +103,8 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 				goto out;
 			}
 		}
-		err = d_invalidate(dentry);
+		d_invalidate(dentry);
 		dput(dentry);
-		if (err)
-			return;
 	}
 
 	/*

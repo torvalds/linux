@@ -410,41 +410,19 @@ static ssize_t vme_user_write(struct file *file, const char __user *buf,
 
 static loff_t vme_user_llseek(struct file *file, loff_t off, int whence)
 {
-	loff_t absolute = -1;
 	unsigned int minor = MINOR(file_inode(file)->i_rdev);
 	size_t image_size;
+	loff_t res;
 
 	if (minor == CONTROL_MINOR)
 		return -EINVAL;
 
 	mutex_lock(&image[minor].mutex);
 	image_size = vme_get_size(image[minor].resource);
-
-	switch (whence) {
-	case SEEK_SET:
-		absolute = off;
-		break;
-	case SEEK_CUR:
-		absolute = file->f_pos + off;
-		break;
-	case SEEK_END:
-		absolute = image_size + off;
-		break;
-	default:
-		mutex_unlock(&image[minor].mutex);
-		return -EINVAL;
-	}
-
-	if ((absolute < 0) || (absolute >= image_size)) {
-		mutex_unlock(&image[minor].mutex);
-		return -EINVAL;
-	}
-
-	file->f_pos = absolute;
-
+	res = fixed_size_llseek(file, off, whence, image_size);
 	mutex_unlock(&image[minor].mutex);
 
-	return absolute;
+	return res;
 }
 
 /*

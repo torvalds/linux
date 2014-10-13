@@ -1245,6 +1245,9 @@ static int gfs2_atomic_open(struct inode *dir, struct dentry *dentry,
 	struct dentry *d;
 	bool excl = !!(flags & O_EXCL);
 
+	if (!d_unhashed(dentry))
+		goto skip_lookup;
+
 	d = __gfs2_lookup(dir, dentry, file, opened);
 	if (IS_ERR(d))
 		return PTR_ERR(d);
@@ -1261,6 +1264,8 @@ static int gfs2_atomic_open(struct inode *dir, struct dentry *dentry,
 	}
 
 	BUG_ON(d != NULL);
+
+skip_lookup:
 	if (!(flags & O_CREAT))
 		return -ENOENT;
 

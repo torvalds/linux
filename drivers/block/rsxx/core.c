@@ -62,12 +62,6 @@ static DEFINE_SPINLOCK(rsxx_ida_lock);
 
 /* --------------------Debugfs Setup ------------------- */
 
-struct rsxx_cram {
-	u32 f_pos;
-	u32 offset;
-	void *i_private;
-};
-
 static int rsxx_attr_pci_regs_show(struct seq_file *m, void *p)
 {
 	struct rsxx_cardinfo *card = m->private;
@@ -184,93 +178,50 @@ static int rsxx_attr_pci_regs_open(struct inode *inode, struct file *file)
 static ssize_t rsxx_cram_read(struct file *fp, char __user *ubuf,
 			      size_t cnt, loff_t *ppos)
 {
-	struct rsxx_cram *info = fp->private_data;
-	struct rsxx_cardinfo *card = info->i_private;
+	struct rsxx_cardinfo *card = file_inode(fp)->i_private;
 	char *buf;
-	int st;
+	ssize_t st;
 
-	buf = kzalloc(sizeof(*buf) * cnt, GFP_KERNEL);
+	buf = kzalloc(cnt, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
-	info->f_pos = (u32)*ppos + info->offset;
-
-	st = rsxx_creg_read(card, CREG_ADD_CRAM + info->f_pos, cnt, buf, 1);
-	if (st)
-		return st;
-
-	st = copy_to_user(ubuf, buf, cnt);
-	if (st)
-		return st;
-
-	info->offset += cnt;
-
+	st = rsxx_creg_read(card, CREG_ADD_CRAM + (u32)*ppos, cnt, buf, 1);
+	if (!st)
+		st = copy_to_user(ubuf, buf, cnt);
 	kfree(buf);
-
+	if (st)
+		return st;
+	*ppos += cnt;
 	return cnt;
 }
 
 static ssize_t rsxx_cram_write(struct file *fp, const char __user *ubuf,
 			       size_t cnt, loff_t *ppos)
 {
-	struct rsxx_cram *info = fp->private_data;
-	struct rsxx_cardinfo *card = info->i_private;
+	struct rsxx_cardinfo *card = file_inode(fp)->i_private;
 	char *buf;
-	int st;
+	ssize_t st;
 
-	buf = kzalloc(sizeof(*buf) * cnt, GFP_KERNEL);
+	buf = kzalloc(cnt, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
 	st = copy_from_user(buf, ubuf, cnt);
-	if (st)
-		return st;
-
-	info->f_pos = (u32)*ppos + info->offset;
-
-	st = rsxx_creg_write(card, CREG_ADD_CRAM + info->f_pos, cnt, buf, 1);
-	if (st)
-		return st;
-
-	info->offset += cnt;
-
+	if (!st)
+		st = rsxx_creg_write(card, CREG_ADD_CRAM + (u32)*ppos, cnt,
+				     buf, 1);
 	kfree(buf);
-
+	if (st)
+		return st;
+	*ppos += cnt;
 	return cnt;
-}
-
-static int rsxx_cram_open(struct inode *inode, struct file *file)
-{
-	struct rsxx_cram *info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (!info)
-		return -ENOMEM;
-
-	info->i_private = inode->i_private;
-	info->f_pos = file->f_pos;
-	file->private_data = info;
-
-	return 0;
-}
-
-static int rsxx_cram_release(struct inode *inode, struct file *file)
-{
-	struct rsxx_cram *info = file->private_data;
-
-	if (!info)
-		return 0;
-
-	kfree(info);
-	file->private_data = NULL;
-
-	return 0;
 }
 
 static const struct file_operations debugfs_cram_fops = {
 	.owner		= THIS_MODULE,
-	.open		= rsxx_cram_open,
 	.read		= rsxx_cram_read,
 	.write		= rsxx_cram_write,
-	.release	= rsxx_cram_release,
 };
 
 static const struct file_operations debugfs_stats_fops = {

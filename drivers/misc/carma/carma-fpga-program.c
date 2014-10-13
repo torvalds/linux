@@ -749,13 +749,8 @@ static ssize_t fpga_read(struct file *filp, char __user *buf, size_t count,
 			 loff_t *f_pos)
 {
 	struct fpga_dev *priv = filp->private_data;
-
-	count = min_t(size_t, priv->bytes - *f_pos, count);
-	if (copy_to_user(buf, priv->vb.vaddr + *f_pos, count))
-		return -EFAULT;
-
-	*f_pos += count;
-	return count;
+	return simple_read_from_buffer(buf, count, ppos,
+				       priv->vb.vaddr, priv->bytes);
 }
 
 static loff_t fpga_llseek(struct file *filp, loff_t offset, int origin)
@@ -767,26 +762,7 @@ static loff_t fpga_llseek(struct file *filp, loff_t offset, int origin)
 	if ((filp->f_flags & O_ACCMODE) != O_RDONLY)
 		return -EINVAL;
 
-	switch (origin) {
-	case SEEK_SET: /* seek relative to the beginning of the file */
-		newpos = offset;
-		break;
-	case SEEK_CUR: /* seek relative to current position in the file */
-		newpos = filp->f_pos + offset;
-		break;
-	case SEEK_END: /* seek relative to the end of the file */
-		newpos = priv->fw_size - offset;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	/* check for sanity */
-	if (newpos > priv->fw_size)
-		return -EINVAL;
-
-	filp->f_pos = newpos;
-	return newpos;
+	return fixed_size_llseek(file, offset, origin, priv->fw_size);
 }
 
 static const struct file_operations fpga_fops = {

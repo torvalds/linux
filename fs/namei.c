@@ -1306,7 +1306,8 @@ static struct dentry *lookup_dcache(struct qstr *name, struct dentry *dir,
 				if (error < 0) {
 					dput(dentry);
 					return ERR_PTR(error);
-				} else if (!d_invalidate(dentry)) {
+				} else {
+					d_invalidate(dentry);
 					dput(dentry);
 					dentry = NULL;
 				}
@@ -1435,10 +1436,9 @@ unlazy:
 			dput(dentry);
 			return status;
 		}
-		if (!d_invalidate(dentry)) {
-			dput(dentry);
-			goto need_lookup;
-		}
+		d_invalidate(dentry);
+		dput(dentry);
+		goto need_lookup;
 	}
 
 	path->mnt = mnt;
@@ -1950,7 +1950,7 @@ static int path_lookupat(int dfd, const char *name,
 	err = path_init(dfd, name, flags | LOOKUP_PARENT, nd, &base);
 
 	if (unlikely(err))
-		return err;
+		goto out;
 
 	current->total_link_count = 0;
 	err = link_path_walk(name, nd);
@@ -1982,6 +1982,7 @@ static int path_lookupat(int dfd, const char *name,
 		}
 	}
 
+out:
 	if (base)
 		fput(base);
 
@@ -2301,7 +2302,7 @@ path_mountpoint(int dfd, const char *name, struct path *path, unsigned int flags
 
 	err = path_init(dfd, name, flags | LOOKUP_PARENT, &nd, &base);
 	if (unlikely(err))
-		return err;
+		goto out;
 
 	current->total_link_count = 0;
 	err = link_path_walk(name, &nd);
@@ -3565,7 +3566,7 @@ int vfs_rmdir(struct inode *dir, struct dentry *dentry)
 	mutex_lock(&dentry->d_inode->i_mutex);
 
 	error = -EBUSY;
-	if (d_mountpoint(dentry))
+	if (is_local_mountpoint(dentry))
 		goto out;
 
 	error = security_inode_rmdir(dir, dentry);
@@ -3579,6 +3580,7 @@ int vfs_rmdir(struct inode *dir, struct dentry *dentry)
 
 	dentry->d_inode->i_flags |= S_DEAD;
 	dont_mount(dentry);
+	detach_mounts(dentry);
 
 out:
 	mutex_unlock(&dentry->d_inode->i_mutex);
@@ -3681,7 +3683,7 @@ int vfs_unlink(struct inode *dir, struct dentry *dentry, struct inode **delegate
 		return -EPERM;
 
 	mutex_lock(&target->i_mutex);
-	if (d_mountpoint(dentry))
+	if (is_local_mountpoint(dentry))
 		error = -EBUSY;
 	else {
 		error = security_inode_unlink(dir, dentry);
@@ -3690,8 +3692,10 @@ int vfs_unlink(struct inode *dir, struct dentry *dentry, struct inode **delegate
 			if (error)
 				goto out;
 			error = dir->i_op->unlink(dir, dentry);
-			if (!error)
+			if (!error) {
 				dont_mount(dentry);
+				detach_mounts(dentry);
+			}
 		}
 	}
 out:
@@ -4126,7 +4130,7 @@ int vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		mutex_lock(&target->i_mutex);
 
 	error = -EBUSY;
-	if (d_mountpoint(old_dentry) || d_mountpoint(new_dentry))
+	if (is_local_mountpoint(old_dentry) || is_local_mountpoint(new_dentry))
 		goto out;
 
 	if (max_links && new_dir != old_dir) {
@@ -4164,6 +4168,7 @@ int vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		if (is_dir)
 			target->i_flags |= S_DEAD;
 		dont_mount(new_dentry);
+		detach_mounts(new_dentry);
 	}
 	if (!(old_dir->i_sb->s_type->fs_flags & FS_RENAME_DOES_D_MOVE)) {
 		if (!(flags & RENAME_EXCHANGE))

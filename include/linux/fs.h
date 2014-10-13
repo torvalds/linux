@@ -1839,7 +1839,8 @@ extern struct vfsmount *kern_mount_data(struct file_system_type *, void *data);
 extern void kern_unmount(struct vfsmount *mnt);
 extern int may_umount_tree(struct vfsmount *);
 extern int may_umount(struct vfsmount *);
-extern long do_mount(const char *, const char *, const char *, unsigned long, void *);
+extern long do_mount(const char *, const char __user *,
+		     const char *, unsigned long, void *);
 extern struct vfsmount *collect_mounts(struct path *);
 extern void drop_collected_mounts(struct vfsmount *);
 extern int iterate_mounts(int (*)(struct vfsmount *, void *), void *,
@@ -1858,7 +1859,7 @@ extern int current_umask(void);
 extern void ihold(struct inode * inode);
 extern void iput(struct inode *);
 
-static inline struct inode *file_inode(struct file *f)
+static inline struct inode *file_inode(const struct file *f)
 {
 	return f->f_inode;
 }
