@@ -1041,8 +1041,9 @@ extern void drm_property_destroy(struct drm_device *dev, struct drm_property *pr
 extern int drm_property_add_enum(struct drm_property *property, int index,
 				 uint64_t value, const char *name);
 extern int drm_mode_create_dvi_i_properties(struct drm_device *dev);
-extern int drm_mode_create_tv_properties(struct drm_device *dev, int num_formats,
-				     char *formats[]);
+extern int drm_mode_create_tv_properties(struct drm_device *dev,
+					 unsigned int num_modes,
+					 char *modes[]);
 extern int drm_mode_create_scaling_mode_property(struct drm_device *dev);
 extern int drm_mode_create_aspect_ratio_property(struct drm_device *dev);
 extern int drm_mode_create_dirty_info_property(struct drm_device *dev);
