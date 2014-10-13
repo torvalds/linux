@@ -20,23 +20,22 @@
 
 #define ATOMIC_INIT(i)  { (i) }
 
-int __atomic_add_return(int, atomic_t *);
+int atomic_add_return(int, atomic_t *);
 int atomic_cmpxchg(atomic_t *, int, int);
 #define atomic_xchg(v, new) (xchg(&((v)->counter), new))
 int __atomic_add_unless(atomic_t *, int, int);
 void atomic_set(atomic_t *, int);
 
-#define atomic_read(v)          (*(volatile int *)&(v)->counter)
+#define atomic_read(v)          ACCESS_ONCE((v)->counter)
 
-#define atomic_add(i, v)	((void)__atomic_add_return( (int)(i), (v)))
-#define atomic_sub(i, v)	((void)__atomic_add_return(-(int)(i), (v)))
-#define atomic_inc(v)		((void)__atomic_add_return(        1, (v)))
-#define atomic_dec(v)		((void)__atomic_add_return(       -1, (v)))
+#define atomic_add(i, v)	((void)atomic_add_return( (int)(i), (v)))
+#define atomic_sub(i, v)	((void)atomic_add_return(-(int)(i), (v)))
+#define atomic_inc(v)		((void)atomic_add_return(        1, (v)))
+#define atomic_dec(v)		((void)atomic_add_return(       -1, (v)))
 
-#define atomic_add_return(i, v)	(__atomic_add_return( (int)(i), (v)))
-#define atomic_sub_return(i, v)	(__atomic_add_return(-(int)(i), (v)))
-#define atomic_inc_return(v)	(__atomic_add_return(        1, (v)))
-#define atomic_dec_return(v)	(__atomic_add_return(       -1, (v)))
+#define atomic_sub_return(i, v)	(atomic_add_return(-(int)(i), (v)))
+#define atomic_inc_return(v)	(atomic_add_return(        1, (v)))
+#define atomic_dec_return(v)	(atomic_add_return(       -1, (v)))
 
 #define atomic_add_negative(a, v)	(atomic_add_return((a), (v)) < 0)
 
