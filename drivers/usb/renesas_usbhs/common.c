@@ -505,10 +505,8 @@ static int usbhs_probe(struct platform_device *pdev)
 
 	/* usb private data */
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(&pdev->dev, "Could not allocate priv\n");
+	if (!priv)
 		return -ENOMEM;
-	}
 
 	priv->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(priv->base))
