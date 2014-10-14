@@ -106,6 +106,31 @@
 		clock-frequency = <0>;
 	};
 
+	flash@30000000 {
+		compatible = "arm,versatile-flash", "cfi-flash";
+		reg = <0x30000000 0x4000000>;
+		bank-width = <4>;
+	};
+
+	fpga_flash@38000000 {
+		compatible = "arm,versatile-flash", "cfi-flash";
+		reg = <0x38000000 0x800000>;
+		bank-width = <4>;
+	};
+
+	/*
+	 * The "secure flash" contains things like the boot
+	 * monitor so we don't want people to accidentally
+	 * screw this up. Mark the device tree node disabled
+	 * by default.
+	 */
+	secflash@3c000000 {
+		compatible = "arm,versatile-flash", "cfi-flash";
+		reg = <0x3c000000 0x4000000>;
+		bank-width = <4>;
+		status = "disabled";
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -296,6 +321,13 @@
 			interrupts = <0 21 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&uartclk>, <&pclk>;
 			clock-names = "uartclk", "apb_pclk";
+		};
+
+		/* Direct-mapped development chip ROM */
+		pb1176_rom@10200000 {
+			compatible = "direct-mapped";
+			reg = <0x10200000 0x4000>;
+			bank-width = <1>;
 		};
 	};
 
