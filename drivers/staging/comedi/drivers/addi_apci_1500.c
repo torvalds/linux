@@ -9,27 +9,13 @@
 
 #include "addi-data/hwdrv_apci1500.c"
 
-static const struct addi_board apci1500_boardtypes[] = {
-	{
-		.name			= "apci1500",
-		.i_NbrDiChannel		= 16,
-		.i_NbrDoChannel		= 16,
-		.i_DoMaxdata		= 0xffff,
-		.i_Timer		= 1,
-	},
-};
-
 static int apci1500_auto_attach(struct comedi_device *dev,
 				unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct addi_board *this_board = dev->board_ptr;
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
-
-	dev->board_ptr = &apci1500_boardtypes[0];
-	dev->board_name = this_board->name;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
@@ -45,22 +31,6 @@ static int apci1500_auto_attach(struct comedi_device *dev,
 	devpriv->i_IobaseAddon = pci_resource_start(pcidev, 2);
 	devpriv->i_IobaseReserved = pci_resource_start(pcidev, 3);
 
-	/* Initialize parameters that can be overridden in EEPROM */
-	devpriv->s_EeParameters.i_NbrAiChannel = this_board->i_NbrAiChannel;
-	devpriv->s_EeParameters.i_NbrAoChannel = this_board->i_NbrAoChannel;
-	devpriv->s_EeParameters.i_AiMaxdata = this_board->i_AiMaxdata;
-	devpriv->s_EeParameters.i_AoMaxdata = this_board->i_AoMaxdata;
-	devpriv->s_EeParameters.i_NbrDiChannel = this_board->i_NbrDiChannel;
-	devpriv->s_EeParameters.i_NbrDoChannel = this_board->i_NbrDoChannel;
-	devpriv->s_EeParameters.i_DoMaxdata = this_board->i_DoMaxdata;
-	devpriv->s_EeParameters.i_Timer = this_board->i_Timer;
-	devpriv->s_EeParameters.ui_MinAcquisitiontimeNs =
-		this_board->ui_MinAcquisitiontimeNs;
-	devpriv->s_EeParameters.ui_MinDelaytimeNs =
-		this_board->ui_MinDelaytimeNs;
-
-	/* ## */
-
 	if (pcidev->irq > 0) {
 		ret = request_irq(pcidev->irq, apci1500_interrupt, IRQF_SHARED,
 				  dev->board_name, dev);
@@ -74,55 +44,40 @@ static int apci1500_auto_attach(struct comedi_device *dev,
 
 	/*  Allocate and Initialise DI Subdevice Structures */
 	s = &dev->subdevices[0];
-	if (devpriv->s_EeParameters.i_NbrDiChannel) {
-		s->type = COMEDI_SUBD_DI;
-		s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = devpriv->s_EeParameters.i_NbrDiChannel;
-		s->maxdata = 1;
-		s->len_chanlist =
-			devpriv->s_EeParameters.i_NbrDiChannel;
-		s->range_table = &range_digital;
-		s->insn_config = apci1500_di_config;
-		s->insn_read = apci1500_di_read;
-		s->insn_write = apci1500_di_write;
-		s->insn_bits = apci1500_di_insn_bits;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type = COMEDI_SUBD_DI;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON;
+	s->n_chan = 16;
+	s->maxdata = 1;
+	s->range_table = &range_digital;
+	s->insn_config = apci1500_di_config;
+	s->insn_read = apci1500_di_read;
+	s->insn_write = apci1500_di_write;
+	s->insn_bits = apci1500_di_insn_bits;
+
 	/*  Allocate and Initialise DO Subdevice Structures */
 	s = &dev->subdevices[1];
-	if (devpriv->s_EeParameters.i_NbrDoChannel) {
-		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags =
-			SDF_READABLE | SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = devpriv->s_EeParameters.i_NbrDoChannel;
-		s->maxdata = devpriv->s_EeParameters.i_DoMaxdata;
-		s->len_chanlist =
-			devpriv->s_EeParameters.i_NbrDoChannel;
-		s->range_table = &range_digital;
-		s->insn_config = apci1500_do_config;
-		s->insn_write = apci1500_do_write;
-		s->insn_bits = apci1500_do_bits;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type = COMEDI_SUBD_DO;
+	s->subdev_flags =
+		SDF_READABLE | SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
+	s->n_chan = 16;
+	s->maxdata = 1;
+	s->range_table = &range_digital;
+	s->insn_config = apci1500_do_config;
+	s->insn_write = apci1500_do_write;
+	s->insn_bits = apci1500_do_bits;
 
 	/*  Allocate and Initialise Timer Subdevice Structures */
 	s = &dev->subdevices[2];
-	if (devpriv->s_EeParameters.i_Timer) {
-		s->type = COMEDI_SUBD_TIMER;
-		s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = 1;
-		s->maxdata = 0;
-		s->len_chanlist = 1;
-		s->range_table = &range_digital;
-		s->insn_write = apci1500_timer_write;
-		s->insn_read = apci1500_timer_read;
-		s->insn_config = apci1500_timer_config;
-		s->insn_bits = apci1500_timer_bits;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type = COMEDI_SUBD_TIMER;
+	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
+	s->n_chan = 1;
+	s->maxdata = 0;
+	s->len_chanlist = 1;
+	s->range_table = &range_digital;
+	s->insn_write = apci1500_timer_write;
+	s->insn_read = apci1500_timer_read;
+	s->insn_config = apci1500_timer_config;
+	s->insn_bits = apci1500_timer_bits;
 
 	apci1500_reset(dev);
 
