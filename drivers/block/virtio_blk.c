@@ -804,10 +804,13 @@ static int virtblk_restore(struct virtio_device *vdev)
 	int ret;
 
 	ret = init_vq(vdev->priv);
-	if (!ret)
-		blk_mq_start_stopped_hw_queues(vblk->disk->queue, true);
+	if (ret)
+		return ret;
 
-	return ret;
+	virtio_device_ready(vdev);
+
+	blk_mq_start_stopped_hw_queues(vblk->disk->queue, true);
+	return 0;
 }
 #endif
 
