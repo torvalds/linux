@@ -110,6 +110,9 @@ struct virtio_scsi {
 	/* CPU hotplug notifier */
 	struct notifier_block nb;
 
+	/* Protected by event_vq lock */
+	bool stop_events;
+
 	struct virtio_scsi_vq ctrl_vq;
 	struct virtio_scsi_vq event_vq;
 	struct virtio_scsi_vq req_vqs[];
@@ -303,6 +306,11 @@ static void virtscsi_cancel_event_work(struct virtio_scsi *vscsi)
 {
 	int i;
 
+	/* Stop scheduling work before calling cancel_work_sync.  */
+	spin_lock_irq(&vscsi->event_vq.vq_lock);
+	vscsi->stop_events = true;
+	spin_unlock_irq(&vscsi->event_vq.vq_lock);
+
 	for (i = 0; i < VIRTIO_SCSI_EVENT_LEN; i++)
 		cancel_work_sync(&vscsi->event_list[i].work);
 }
@@ -390,7 +398,8 @@ static void virtscsi_complete_event(struct virtio_scsi *vscsi, void *buf)
 {
 	struct virtio_scsi_event_node *event_node = buf;
 
-	queue_work(system_freezable_wq, &event_node->work);
+	if (!vscsi->stop_events)
+		queue_work(system_freezable_wq, &event_node->work);
 }
 
 static void virtscsi_event_done(struct virtqueue *vq)
