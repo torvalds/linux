@@ -65,14 +65,6 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 	return IRQ_RETVAL(1);
 }
 
-static int i_ADDI_Reset(struct comedi_device *dev)
-{
-	const struct addi_board *this_board = dev->board_ptr;
-
-	this_board->reset(dev);
-	return 0;
-}
-
 static int addi_auto_attach(struct comedi_device *dev,
 				      unsigned long context_unused)
 {
@@ -262,6 +254,5 @@ static int addi_auto_attach(struct comedi_device *dev,
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	i_ADDI_Reset(dev);
 	return 0;
 }

@@ -21,7 +21,6 @@ static const struct addi_board apci1500_boardtypes[] = {
 		.i_DoMaxdata		= 0xffff,
 		.i_Timer		= 1,
 		.interrupt		= apci1500_interrupt,
-		.reset			= apci1500_reset,
 		.di_config		= apci1500_di_config,
 		.di_read		= apci1500_di_read,
 		.di_write		= apci1500_di_write,
@@ -39,15 +38,23 @@ static const struct addi_board apci1500_boardtypes[] = {
 static int apci1500_auto_attach(struct comedi_device *dev,
 				unsigned long context)
 {
+	int ret;
+
 	dev->board_ptr = &apci1500_boardtypes[0];
 
-	return addi_auto_attach(dev, context);
+	ret = addi_auto_attach(dev, context);
+	if (ret)
+		return ret;
+
+	apci1500_reset(dev);
+
+	return 0;
 }
 
 static void apci1500_detach(struct comedi_device *dev)
 {
 	if (dev->iobase)
-		i_ADDI_Reset(dev);
+		apci1500_reset(dev);
 	comedi_pci_detach(dev);
 }
 

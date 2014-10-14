@@ -28,7 +28,6 @@ static const struct addi_board apci035_boardtypes[] = {
 		.ui_MinAcquisitiontimeNs = 10000,
 		.ui_MinDelaytimeNs	= 100000,
 		.interrupt		= apci035_interrupt,
-		.reset			= apci035_reset,
 		.ai_config		= apci035_ai_config,
 		.ai_read		= apci035_ai_read,
 		.timer_config		= apci035_timer_config,
@@ -40,15 +39,23 @@ static const struct addi_board apci035_boardtypes[] = {
 static int apci035_auto_attach(struct comedi_device *dev,
 			       unsigned long context)
 {
+	int ret;
+
 	dev->board_ptr = &apci035_boardtypes[0];
 
-	return addi_auto_attach(dev, context);
+	ret = addi_auto_attach(dev, context);
+	if (ret)
+		return ret;
+
+	apci035_reset(dev);
+
+	return 0;
 }
 
 static void apci035_detach(struct comedi_device *dev)
 {
 	if (dev->iobase)
-		i_ADDI_Reset(dev);
+		apci035_reset(dev);
 	comedi_pci_detach(dev);
 }
 
