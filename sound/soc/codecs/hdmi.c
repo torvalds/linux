@@ -76,6 +76,7 @@ static struct snd_soc_codec_driver hdmi_codec = {
 	.num_dapm_widgets = ARRAY_SIZE(hdmi_widgets),
 	.dapm_routes = hdmi_routes,
 	.num_dapm_routes = ARRAY_SIZE(hdmi_routes),
+	.ignore_pmdown_time = true,
 };
 
 static int hdmi_codec_probe(struct platform_device *pdev)
