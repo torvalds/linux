@@ -1267,10 +1267,8 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 	hsudc = devm_kzalloc(&pdev->dev, sizeof(struct s3c_hsudc) +
 			sizeof(struct s3c_hsudc_ep) * pd->epnum,
 			GFP_KERNEL);
-	if (!hsudc) {
-		dev_err(dev, "cannot allocate memory\n");
+	if (!hsudc)
 		return -ENOMEM;
-	}
 
 	platform_set_drvdata(pdev, dev);
 	hsudc->dev = dev;
