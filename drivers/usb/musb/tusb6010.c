@@ -1164,10 +1164,8 @@ static int tusb_probe(struct platform_device *pdev)
 	int				ret;
 
 	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
-	if (!glue) {
-		dev_err(&pdev->dev, "failed to allocate glue context\n");
+	if (!glue)
 		return -ENOMEM;
-	}
 
 	glue->dev			= &pdev->dev;
 
