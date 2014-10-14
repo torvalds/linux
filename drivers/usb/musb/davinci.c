@@ -520,10 +520,8 @@ static int davinci_probe(struct platform_device *pdev)
 	int				ret = -ENOMEM;
 
 	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
-	if (!glue) {
-		dev_err(&pdev->dev, "failed to allocate glue context\n");
+	if (!glue)
 		goto err0;
-	}
 
 	clk = devm_clk_get(&pdev->dev, "usb");
 	if (IS_ERR(clk)) {
