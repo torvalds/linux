@@ -159,4 +159,19 @@ const struct iwl_cfg iwl8260_2ac_sdio_cfg = {
 	.max_vht_ampdu_exponent = MAX_VHT_AMPDU_EXPONENT_8260_SDIO,
 };
 
+const struct iwl_cfg iwl4265_2ac_sdio_cfg = {
+	.name = "Intel(R) Dual Band Wireless-AC 4265",
+	.fw_name_pre = IWL8000_FW_PRE,
+	IWL_DEVICE_8000,
+	.ht_params = &iwl8000_ht_params,
+	.nvm_ver = IWL8000_NVM_VERSION,
+	.nvm_calib_ver = IWL8000_TX_POWER_VERSION,
+	.default_nvm_file = DEFAULT_NVM_FILE_FAMILY_8000,
+	.max_rx_agg_size = MAX_RX_AGG_SIZE_8260_SDIO,
+	.bt_shared_single_ant = true,
+	.disable_dummy_notification = true,
+	.max_ht_ampdu_exponent  = MAX_HT_AMPDU_EXPONENT_8260_SDIO,
+	.max_vht_ampdu_exponent = MAX_VHT_AMPDU_EXPONENT_8260_SDIO,
+};
+
 MODULE_FIRMWARE(IWL8000_MODULE_FIRMWARE(IWL8000_UCODE_API_OK));
