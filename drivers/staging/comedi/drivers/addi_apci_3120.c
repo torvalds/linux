@@ -16,8 +16,6 @@ enum apci3120_boardid {
 
 struct apci3120_board {
 	const char *name;
-	int i_NbrAiChannel;
-	int i_NbrAiChannelDiff;
 	int i_AiChannelList;
 	int i_NbrAoChannel;
 	int i_AiMaxdata;
@@ -27,8 +25,6 @@ struct apci3120_board {
 static const struct apci3120_board apci3120_boardtypes[] = {
 	[BOARD_APCI3120] = {
 		.name			= "apci3120",
-		.i_NbrAiChannel		= 16,
-		.i_NbrAiChannelDiff	= 8,
 		.i_AiChannelList	= 16,
 		.i_NbrAoChannel		= 8,
 		.i_AiMaxdata		= 0xffff,
@@ -36,8 +32,6 @@ static const struct apci3120_board apci3120_boardtypes[] = {
 	},
 	[BOARD_APCI3001] = {
 		.name			= "apci3001",
-		.i_NbrAiChannel		= 16,
-		.i_NbrAiChannelDiff	= 8,
 		.i_AiChannelList	= 16,
 		.i_AiMaxdata		= 0xfff,
 	},
@@ -113,10 +107,7 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	s->subdev_flags =
 		SDF_READABLE | SDF_COMMON | SDF_GROUND
 		| SDF_DIFF;
-	if (this_board->i_NbrAiChannel)
-		s->n_chan = this_board->i_NbrAiChannel;
-	else
-		s->n_chan = this_board->i_NbrAiChannelDiff;
+	s->n_chan = 16;
 	s->maxdata = this_board->i_AiMaxdata;
 	s->len_chanlist = this_board->i_AiChannelList;
 	s->range_table = &range_apci3120_ai;
