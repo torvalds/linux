@@ -35,6 +35,7 @@
 #include <linux/slab.h>
 #include <linux/kprobes.h>
 #include <linux/debugfs.h>
+#include <linux/nmi.h>
 #include <asm/timer.h>
 #include <asm/cpu.h>
 #include <asm/traps.h>
@@ -499,6 +500,13 @@ void __init kvm_guest_init(void)
 #else
 	kvm_guest_cpu_init();
 #endif
+
+	/*
+	 * Hard lockup detection is enabled by default. Disable it, as guests
+	 * can get false positives too easily, for example if the host is
+	 * overcommitted.
+	 */
+	watchdog_enable_hardlockup_detector(false);
 }
 
 static noinline uint32_t __kvm_cpuid_base(void)

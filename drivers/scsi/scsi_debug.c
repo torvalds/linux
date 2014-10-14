@@ -3371,7 +3371,7 @@ static ssize_t opts_store(struct device_driver *ddp, const char *buf,
 	char work[20];
 
         if (1 == sscanf(buf, "%10s", work)) {
-		if (0 == strnicmp(work,"0x", 2)) {
+		if (0 == strncasecmp(work,"0x", 2)) {
 			if (1 == sscanf(&work[2], "%x", &opts))
 				goto opts_done;
 		} else {

@@ -2,10 +2,14 @@
  * Driver for TI BQ32000 RTC.
  *
  * Copyright (C) 2009 Semihalf.
+ * Copyright (C) 2014 Pavel Machek <pavel@denx.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
+ *
+ * You can get hardware description at
+ * http://www.ti.com/lit/ds/symlink/bq32000.pdf
  */
 
 #include <linux/module.h>
@@ -26,6 +30,10 @@
 #define BQ32K_HOURS_MASK	0x3F	/* Mask over hours value */
 #define BQ32K_CENT		0x40	/* Century flag */
 #define BQ32K_CENT_EN		0x80	/* Century flag enable bit */
+
+#define BQ32K_CALIBRATION	0x07	/* CAL_CFG1, calibration and control */
+#define BQ32K_TCH2		0x08	/* Trickle charge enable */
+#define BQ32K_CFG2		0x09	/* Trickle charger control */
 
 struct bq32k_regs {
 	uint8_t		seconds;
@@ -122,6 +130,57 @@ static const struct rtc_class_ops bq32k_rtc_ops = {
 	.set_time	= bq32k_rtc_set_time,
 };
 
+static int trickle_charger_of_init(struct device *dev, struct device_node *node)
+{
+	unsigned char reg;
+	int error;
+	u32 ohms = 0;
+
+	if (of_property_read_u32(node, "trickle-resistor-ohms" , &ohms))
+		return 0;
+
+	switch (ohms) {
+	case 180+940:
+		/*
+		 * TCHE[3:0] == 0x05, TCH2 == 1, TCFE == 0 (charging
+		 * over diode and 940ohm resistor)
+		 */
+
+		if (of_property_read_bool(node, "trickle-diode-disable")) {
+			dev_err(dev, "diode and resistor mismatch\n");
+			return -EINVAL;
+		}
+		reg = 0x05;
+		break;
+
+	case 180+20000:
+		/* diode disabled */
+
+		if (!of_property_read_bool(node, "trickle-diode-disable")) {
+			dev_err(dev, "bq32k: diode and resistor mismatch\n");
+			return -EINVAL;
+		}
+		reg = 0x25;
+		break;
+
+	default:
+		dev_err(dev, "invalid resistor value (%d)\n", ohms);
+		return -EINVAL;
+	}
+
+	error = bq32k_write(dev, &reg, BQ32K_CFG2, 1);
+	if (error)
+		return error;
+
+	reg = 0x20;
+	error = bq32k_write(dev, &reg, BQ32K_TCH2, 1);
+	if (error)
+		return error;
+
+	dev_info(dev, "Enabled trickle RTC battery charge.\n");
+	return 0;
+}
+
 static int bq32k_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
@@ -152,6 +211,9 @@ static int bq32k_probe(struct i2c_client *client,
 	}
 	if (error)
 		return error;
+
+	if (client && client->dev.of_node)
+		trickle_charger_of_init(dev, client->dev.of_node);
 
 	rtc = devm_rtc_device_register(&client->dev, bq32k_driver.driver.name,
 						&bq32k_rtc_ops, THIS_MODULE);

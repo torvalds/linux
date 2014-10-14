@@ -819,22 +819,9 @@ static const struct seq_operations ddebug_proc_seqops = {
  */
 static int ddebug_proc_open(struct inode *inode, struct file *file)
 {
-	struct ddebug_iter *iter;
-	int err;
-
 	vpr_info("called\n");
-
-	iter = kzalloc(sizeof(*iter), GFP_KERNEL);
-	if (iter == NULL)
-		return -ENOMEM;
-
-	err = seq_open(file, &ddebug_proc_seqops);
-	if (err) {
-		kfree(iter);
-		return err;
-	}
-	((struct seq_file *)file->private_data)->private = iter;
-	return 0;
+	return seq_open_private(file, &ddebug_proc_seqops,
+				sizeof(struct ddebug_iter));
 }
 
 static const struct file_operations ddebug_proc_fops = {

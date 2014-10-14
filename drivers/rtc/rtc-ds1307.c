@@ -126,9 +126,14 @@ struct chip_desc {
 	u16			nvram_offset;
 	u16			nvram_size;
 	u16			trickle_charger_reg;
+	u8			trickle_charger_setup;
+	u8			(*do_trickle_setup)(struct i2c_client *, uint32_t, bool);
 };
 
-static const struct chip_desc chips[last_ds_type] = {
+static u8 do_trickle_setup_ds1339(struct i2c_client *,
+				  uint32_t ohms, bool diode);
+
+static struct chip_desc chips[last_ds_type] = {
 	[ds_1307] = {
 		.nvram_offset	= 8,
 		.nvram_size	= 56,
@@ -143,6 +148,7 @@ static const struct chip_desc chips[last_ds_type] = {
 	[ds_1339] = {
 		.alarm		= 1,
 		.trickle_charger_reg = 0x10,
+		.do_trickle_setup = &do_trickle_setup_ds1339,
 	},
 	[ds_1340] = {
 		.trickle_charger_reg = 0x08,
@@ -833,7 +839,50 @@ ds1307_nvram_write(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
+
 /*----------------------------------------------------------------------*/
+
+static u8 do_trickle_setup_ds1339(struct i2c_client *client,
+				  uint32_t ohms, bool diode)
+{
+	u8 setup = (diode) ? DS1307_TRICKLE_CHARGER_DIODE :
+		DS1307_TRICKLE_CHARGER_NO_DIODE;
+
+	switch (ohms) {
+	case 250:
+		setup |= DS1307_TRICKLE_CHARGER_250_OHM;
+		break;
+	case 2000:
+		setup |= DS1307_TRICKLE_CHARGER_2K_OHM;
+		break;
+	case 4000:
+		setup |= DS1307_TRICKLE_CHARGER_4K_OHM;
+		break;
+	default:
+		dev_warn(&client->dev,
+			 "Unsupported ohm value %u in dt\n", ohms);
+		return 0;
+	}
+	return setup;
+}
+
+static void ds1307_trickle_of_init(struct i2c_client *client,
+				   struct chip_desc *chip)
+{
+	uint32_t ohms = 0;
+	bool diode = true;
+
+	if (!chip->do_trickle_setup)
+		goto out;
+	if (of_property_read_u32(client->dev.of_node, "trickle-resistor-ohms" , &ohms))
+		goto out;
+	if (of_property_read_bool(client->dev.of_node, "trickle-diode-disable"))
+		diode = false;
+	chip->trickle_charger_setup = chip->do_trickle_setup(client,
+							     ohms, diode);
+out:
+	return;
+}
 
 static int ds1307_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
@@ -841,7 +890,7 @@ static int ds1307_probe(struct i2c_client *client,
 	struct ds1307		*ds1307;
 	int			err = -ENODEV;
 	int			tmp;
-	const struct chip_desc	*chip = &chips[id->driver_data];
+	struct chip_desc	*chip = &chips[id->driver_data];
 	struct i2c_adapter	*adapter = to_i2c_adapter(client->dev.parent);
 	bool			want_irq = false;
 	unsigned char		*buf;
@@ -866,9 +915,19 @@ static int ds1307_probe(struct i2c_client *client,
 	ds1307->client	= client;
 	ds1307->type	= id->driver_data;
 
-	if (pdata && pdata->trickle_charger_setup && chip->trickle_charger_reg)
+	if (!pdata && client->dev.of_node)
+		ds1307_trickle_of_init(client, chip);
+	else if (pdata && pdata->trickle_charger_setup)
+		chip->trickle_charger_setup = pdata->trickle_charger_setup;
+
+	if (chip->trickle_charger_setup && chip->trickle_charger_reg) {
+		dev_dbg(&client->dev, "writing trickle charger info 0x%x to 0x%x\n",
+		    DS13XX_TRICKLE_CHARGER_MAGIC | chip->trickle_charger_setup,
+		    chip->trickle_charger_reg);
 		i2c_smbus_write_byte_data(client, chip->trickle_charger_reg,
-			DS13XX_TRICKLE_CHARGER_MAGIC | pdata->trickle_charger_setup);
+		    DS13XX_TRICKLE_CHARGER_MAGIC |
+		    chip->trickle_charger_setup);
+	}
 
 	buf = ds1307->regs;
 	if (i2c_check_functionality(adapter, I2C_FUNC_SMBUS_I2C_BLOCK)) {

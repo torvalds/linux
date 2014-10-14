@@ -52,11 +52,11 @@ static int kdb_parsebp(int argc, const char **argv, int *nextargp, kdb_bp_t *bp)
 
 	bp->bph_length = 1;
 	if ((argc + 1) != nextarg) {
-		if (strnicmp(argv[nextarg], "datar", sizeof("datar")) == 0)
+		if (strncasecmp(argv[nextarg], "datar", sizeof("datar")) == 0)
 			bp->bp_type = BP_ACCESS_WATCHPOINT;
-		else if (strnicmp(argv[nextarg], "dataw", sizeof("dataw")) == 0)
+		else if (strncasecmp(argv[nextarg], "dataw", sizeof("dataw")) == 0)
 			bp->bp_type = BP_WRITE_WATCHPOINT;
-		else if (strnicmp(argv[nextarg], "inst", sizeof("inst")) == 0)
+		else if (strncasecmp(argv[nextarg], "inst", sizeof("inst")) == 0)
 			bp->bp_type = BP_HARDWARE_BREAKPOINT;
 		else
 			return KDB_ARGCOUNT;
