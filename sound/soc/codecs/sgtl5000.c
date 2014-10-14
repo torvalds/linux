@@ -140,6 +140,7 @@ struct sgtl5000_priv {
 	struct clk *mclk;
 	int revision;
 	u8 micbias_resistor;
+	u8 micbias_voltage;
 };
 
 /*
@@ -1342,6 +1343,9 @@ static int sgtl5000_probe(struct snd_soc_codec *codec)
 			SGTL5000_BIAS_R_MASK,
 			sgtl5000->micbias_resistor << SGTL5000_BIAS_R_SHIFT);
 
+	snd_soc_update_bits(codec, SGTL5000_CHIP_MIC_CTRL,
+			SGTL5000_BIAS_R_MASK,
+			sgtl5000->micbias_voltage << SGTL5000_BIAS_R_SHIFT);
 	/*
 	 * disable DAP
 	 * TODO:
@@ -1511,10 +1515,19 @@ static int sgtl5000_i2c_probe(struct i2c_client *client,
 			/* default is 4Kohms */
 			sgtl5000->micbias_resistor = 2;
 		}
+		if (!of_property_read_u32(np,
+			"micbias-voltage-m-volts", &value)) {
+			/* 1250mV => 0 */
+			/* steps of 250mV */
+			if ((value >= 1250) && (value <= 3000))
+				sgtl5000->micbias_voltage = (value / 250) - 5;
+			else {
+				sgtl5000->micbias_voltage = 0;
 				dev_err(&client->dev,
 					"Unsuitable MicBias resistor\n");
 			}
 		} else {
+			sgtl5000->micbias_voltage = 0;
 		}
 	}
 
