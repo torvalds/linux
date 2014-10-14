@@ -1505,10 +1505,8 @@ static int msm_otg_read_dt(struct platform_device *pdev, struct msm_otg *motg)
 	}
 
 	pdata->phy_init_seq = devm_kzalloc(&pdev->dev, len, GFP_KERNEL);
-	if (!pdata->phy_init_seq) {
-		dev_warn(&pdev->dev, "No space for PHY init sequence\n");
+	if (!pdata->phy_init_seq)
 		return 0;
-	}
 
 	ret = of_property_read_u32_array(node, "qcom,phy-init-sequence",
 					 pdata->phy_init_seq, words);
@@ -1530,10 +1528,8 @@ static int msm_otg_probe(struct platform_device *pdev)
 	void __iomem *phy_select;
 
 	motg = devm_kzalloc(&pdev->dev, sizeof(struct msm_otg), GFP_KERNEL);
-	if (!motg) {
-		dev_err(&pdev->dev, "unable to allocate msm_otg\n");
+	if (!motg)
 		return -ENOMEM;
-	}
 
 	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
@@ -1546,10 +1542,8 @@ static int msm_otg_probe(struct platform_device *pdev)
 
 	motg->phy.otg = devm_kzalloc(&pdev->dev, sizeof(struct usb_otg),
 				     GFP_KERNEL);
-	if (!motg->phy.otg) {
-		dev_err(&pdev->dev, "unable to allocate msm_otg\n");
+	if (!motg->phy.otg)
 		return -ENOMEM;
-	}
 
 	phy = &motg->phy;
 	phy->dev = &pdev->dev;
