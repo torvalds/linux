@@ -2933,6 +2933,7 @@ fec_enet_close(struct net_device *ndev)
 	fep->phy_dev = NULL;
 
 	fec_enet_clk_enable(ndev, false);
+	pm_qos_remove_request(&fep->pm_qos_req);
 	pinctrl_pm_select_sleep_state(&fep->pdev->dev);
 	fec_enet_free_buffers(ndev);
 
