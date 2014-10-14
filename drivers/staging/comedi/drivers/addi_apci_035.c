@@ -1,11 +1,20 @@
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/sched.h>
+#include <linux/interrupt.h>
 
 #include "../comedidev.h"
 #include "comedi_fc.h"
 #include "amcc_s5933.h"
 
-#include "addi-data/addi_common.h"
+struct apci035_private {
+	int iobase;
+	int i_IobaseAmcc;
+	int i_IobaseAddon;
+	int i_IobaseReserved;
+	unsigned char b_TimerSelectMode;
+	struct task_struct *tsk_Current;
+};
 
 #define ADDIDATA_WATCHDOG 2	/*  Or shold it be something else */
 
@@ -15,7 +24,7 @@ static int apci035_auto_attach(struct comedi_device *dev,
 			       unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	struct addi_private *devpriv;
+	struct apci035_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned int dw_Dummy;
 	int ret;

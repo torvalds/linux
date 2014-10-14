@@ -118,7 +118,7 @@ static int apci035_timer_config(struct comedi_device *dev,
 				struct comedi_insn *insn,
 				unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci035_private *devpriv = dev->private;
 	unsigned int ui_Status;
 	unsigned int ui_Command;
 	unsigned int ui_Mode;
@@ -248,7 +248,7 @@ static int apci035_timer_write(struct comedi_device *dev,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci035_private *devpriv = dev->private;
 	unsigned int ui_Command;
 	int i_Count;
 
@@ -345,7 +345,7 @@ static int apci035_timer_read(struct comedi_device *dev,
 			      struct comedi_insn *insn,
 			      unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci035_private *devpriv = dev->private;
 	unsigned int ui_Status;	/*  Status register */
 
 	i_WatchdogNbr = insn->unused[0];
@@ -380,7 +380,7 @@ static int apci035_ai_config(struct comedi_device *dev,
 			     struct comedi_insn *insn,
 			     unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci035_private *devpriv = dev->private;
 
 	devpriv->tsk_Current = current;
 	outl(0x200 | 0, devpriv->iobase + 128 + 0x4);
@@ -404,7 +404,7 @@ static int apci035_ai_read(struct comedi_device *dev,
 			   struct comedi_insn *insn,
 			   unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci035_private *devpriv = dev->private;
 	unsigned int ui_CommandRegister;
 
 	/*  Set the start */
@@ -420,7 +420,7 @@ static int apci035_ai_read(struct comedi_device *dev,
 
 static int apci035_reset(struct comedi_device *dev)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci035_private *devpriv = dev->private;
 	int i_Count;
 
 	for (i_Count = 1; i_Count <= 4; i_Count++) {
@@ -437,7 +437,7 @@ static int apci035_reset(struct comedi_device *dev)
 static irqreturn_t apci035_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct addi_private *devpriv = dev->private;
+	struct apci035_private *devpriv = dev->private;
 	unsigned int ui_StatusRegister1;
 	unsigned int ui_StatusRegister2;
 	unsigned int ui_ReadCommand;
