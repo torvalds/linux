@@ -729,7 +729,6 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue,
 
 	config = devm_kzalloc(&parent->dev, sizeof(*config), GFP_KERNEL);
 	if (!config) {
-		dev_err(dev, "failed to allocate musb hdrc config\n");
 		ret = -ENOMEM;
 		goto err;
 	}
@@ -781,10 +780,8 @@ static int dsps_probe(struct platform_device *pdev)
 
 	/* allocate glue */
 	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
-	if (!glue) {
-		dev_err(&pdev->dev, "unable to allocate glue memory\n");
+	if (!glue)
 		return -ENOMEM;
-	}
 
 	glue->dev = &pdev->dev;
 	glue->wrp = wrp;
