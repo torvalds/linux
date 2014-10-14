@@ -37,8 +37,6 @@
 #include "t4_regs.h"
 #include "t4fw_api.h"
 
-static int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
-			 const u8 *fw_data, unsigned int size, int force);
 /**
  *	t4_wait_op_done_val - wait until an operation is completed
  *	@adapter: the adapter performing the operation
@@ -3076,8 +3074,8 @@ static int t4_fw_restart(struct adapter *adap, unsigned int mbox, int reset)
  *	positive errno indicates that the adapter is ~probably~ intact, a
  *	negative errno indicates that things are looking bad ...
  */
-static int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
-			 const u8 *fw_data, unsigned int size, int force)
+int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
+		  const u8 *fw_data, unsigned int size, int force)
 {
 	const struct fw_hdr *fw_hdr = (const struct fw_hdr *)fw_data;
 	int reset, ret;
