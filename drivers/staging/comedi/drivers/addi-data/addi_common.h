@@ -38,60 +38,6 @@ struct addi_board {
 	int i_Timer;		/*    timer subdevice present or not */
 	unsigned int ui_MinAcquisitiontimeNs;	/*  Minimum Acquisition in Nano secs */
 	unsigned int ui_MinDelaytimeNs;	/*  Minimum Delay in Nano secs */
-
-	/* interrupt and reset */
-	void (*interrupt)(int irq, void *d);
-	int (*reset)(struct comedi_device *);
-
-	/* Subdevice functions */
-
-	/* ANALOG INPUT */
-	int (*ai_config)(struct comedi_device *, struct comedi_subdevice *,
-			 struct comedi_insn *, unsigned int *);
-	int (*ai_read)(struct comedi_device *, struct comedi_subdevice *,
-		       struct comedi_insn *, unsigned int *);
-	int (*ai_write)(struct comedi_device *, struct comedi_subdevice *,
-			struct comedi_insn *, unsigned int *);
-	int (*ai_bits)(struct comedi_device *, struct comedi_subdevice *,
-		       struct comedi_insn *, unsigned int *);
-	int (*ai_cmdtest)(struct comedi_device *, struct comedi_subdevice *,
-			  struct comedi_cmd *);
-	int (*ai_cmd)(struct comedi_device *, struct comedi_subdevice *);
-	int (*ai_cancel)(struct comedi_device *, struct comedi_subdevice *);
-
-	/* Analog Output */
-	int (*ao_write)(struct comedi_device *, struct comedi_subdevice *,
-			struct comedi_insn *, unsigned int *);
-
-	/* Digital Input */
-	int (*di_config)(struct comedi_device *, struct comedi_subdevice *,
-			 struct comedi_insn *, unsigned int *);
-	int (*di_read)(struct comedi_device *, struct comedi_subdevice *,
-		       struct comedi_insn *, unsigned int *);
-	int (*di_write)(struct comedi_device *, struct comedi_subdevice *,
-			struct comedi_insn *, unsigned int *);
-	int (*di_bits)(struct comedi_device *, struct comedi_subdevice *,
-		       struct comedi_insn *, unsigned int *);
-
-	/* Digital Output */
-	int (*do_config)(struct comedi_device *, struct comedi_subdevice *,
-			 struct comedi_insn *, unsigned int *);
-	int (*do_write)(struct comedi_device *, struct comedi_subdevice *,
-			struct comedi_insn *, unsigned int *);
-	int (*do_bits)(struct comedi_device *, struct comedi_subdevice *,
-		       struct comedi_insn *, unsigned int *);
-	int (*do_read)(struct comedi_device *, struct comedi_subdevice *,
-		       struct comedi_insn *, unsigned int *);
-
-	/* TIMER */
-	int (*timer_config)(struct comedi_device *, struct comedi_subdevice *,
-			    struct comedi_insn *, unsigned int *);
-	int (*timer_write)(struct comedi_device *, struct comedi_subdevice *,
-			   struct comedi_insn *, unsigned int *);
-	int (*timer_read)(struct comedi_device *, struct comedi_subdevice *,
-			  struct comedi_insn *, unsigned int *);
-	int (*timer_bits)(struct comedi_device *, struct comedi_subdevice *,
-			  struct comedi_insn *, unsigned int *);
 };
 
 struct addi_private {
