@@ -930,7 +930,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		}
 		coherent_cache_guest_page(vcpu, hva, PAGE_SIZE);
 		ret = stage2_set_pte(kvm, memcache, fault_ipa, &new_pte,
-				     mem_type == PAGE_S2_DEVICE);
+			pgprot_val(mem_type) == pgprot_val(PAGE_S2_DEVICE));
 	}
 
 
