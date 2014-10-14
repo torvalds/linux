@@ -638,7 +638,7 @@ restore_regs :
 
 	; if Returning from Exception
 	bbit0  r10, STATUS_AE_BIT, not_exception
-	RESTORE_ALL_SYS
+	EXCEPTION_EPILOGUE
 	rtie
 
 	; Not Exception so maybe Interrupts (Level 1 or 2)
@@ -704,7 +704,7 @@ not_level1_interrupt:
 
 	;this case is for syscalls or Exceptions (with fake rtie)
 
-	RESTORE_ALL_SYS
+	EXCEPTION_EPILOGUE
 debug_marker_syscall:
 	rtie
 

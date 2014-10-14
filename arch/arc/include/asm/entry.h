@@ -401,21 +401,6 @@
 	/* ARC700 doesn't provide auto-stack switching */
 	SWITCH_TO_KERNEL_STK
 
-	/* save the regfile */
-	SAVE_ALL_SYS
-.endm
-
-/*--------------------------------------------------------------
- * Save all registers used by Exceptions (TLB Miss, Prot-V, Mem err etc)
- * Requires SP to be already switched to kernel mode Stack
- * sp points to the next free element on the stack at exit of this macro.
- * Registers are pushed / popped in the order defined in struct ptregs
- * in asm/ptrace.h
- * Note that syscalls are implemented via TRAP which is also a exception
- * from CPU's point of view
- *-------------------------------------------------------------*/
-.macro SAVE_ALL_SYS
-
 	lr	r9, [ecr]
 	st      r9, [sp, 8]    /* ECR */
 	st      r0, [sp, 4]    /* orig_r0, needed only for sys calls */
@@ -446,7 +431,7 @@
  * for memory load operations. If used in that way interrupts are deffered
  * by hardware and that is not good.
  *-------------------------------------------------------------*/
-.macro RESTORE_ALL_SYS
+.macro EXCEPTION_EPILOGUE
 	POPAX	erbta
 	POPAX	lp_start
 	POPAX	lp_end
