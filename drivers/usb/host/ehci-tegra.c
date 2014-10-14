@@ -484,7 +484,6 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	u_phy->otg = devm_kzalloc(&pdev->dev, sizeof(struct usb_otg),
 			     GFP_KERNEL);
 	if (!u_phy->otg) {
-		dev_err(&pdev->dev, "Failed to alloc memory for otg\n");
 		err = -ENOMEM;
 		goto cleanup_phy;
 	}
