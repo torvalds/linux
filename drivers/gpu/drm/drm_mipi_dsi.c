@@ -198,6 +198,20 @@ int mipi_dsi_detach(struct mipi_dsi_device *dsi)
 }
 EXPORT_SYMBOL(mipi_dsi_detach);
 
+static ssize_t mipi_dsi_device_transfer(struct mipi_dsi_device *dsi,
+					struct mipi_dsi_msg *msg)
+{
+	const struct mipi_dsi_host_ops *ops = dsi->host->ops;
+
+	if (!ops || !ops->transfer)
+		return -ENOSYS;
+
+	if (dsi->mode_flags & MIPI_DSI_MODE_LPM)
+		msg->flags |= MIPI_DSI_MSG_USE_LPM;
+
+	return ops->transfer(dsi->host, msg);
+}
+
 /**
  * mipi_dsi_packet_format_is_short - check if a packet is of the short format
  * @type: MIPI DSI data type of the packet
@@ -327,15 +341,11 @@ EXPORT_SYMBOL(mipi_dsi_create_packet);
 ssize_t mipi_dsi_dcs_write(struct mipi_dsi_device *dsi, const void *data,
 			    size_t len)
 {
-	const struct mipi_dsi_host_ops *ops = dsi->host->ops;
 	struct mipi_dsi_msg msg = {
 		.channel = dsi->channel,
 		.tx_buf = data,
 		.tx_len = len
 	};
-
-	if (!ops || !ops->transfer)
-		return -ENOSYS;
 
 	switch (len) {
 	case 0:
@@ -351,10 +361,7 @@ ssize_t mipi_dsi_dcs_write(struct mipi_dsi_device *dsi, const void *data,
 		break;
 	}
 
-	if (dsi->mode_flags & MIPI_DSI_MODE_LPM)
-		msg.flags = MIPI_DSI_MSG_USE_LPM;
-
-	return ops->transfer(dsi->host, &msg);
+	return mipi_dsi_device_transfer(dsi, &msg);
 }
 EXPORT_SYMBOL(mipi_dsi_dcs_write);
 
@@ -370,7 +377,6 @@ EXPORT_SYMBOL(mipi_dsi_dcs_write);
 ssize_t mipi_dsi_dcs_read(struct mipi_dsi_device *dsi, u8 cmd, void *data,
 			  size_t len)
 {
-	const struct mipi_dsi_host_ops *ops = dsi->host->ops;
 	struct mipi_dsi_msg msg = {
 		.channel = dsi->channel,
 		.type = MIPI_DSI_DCS_READ,
@@ -380,13 +386,7 @@ ssize_t mipi_dsi_dcs_read(struct mipi_dsi_device *dsi, u8 cmd, void *data,
 		.rx_len = len
 	};
 
-	if (!ops || !ops->transfer)
-		return -ENOSYS;
-
-	if (dsi->mode_flags & MIPI_DSI_MODE_LPM)
-		msg.flags = MIPI_DSI_MSG_USE_LPM;
-
-	return ops->transfer(dsi->host, &msg);
+	return mipi_dsi_device_transfer(dsi, &msg);
 }
 EXPORT_SYMBOL(mipi_dsi_dcs_read);
 
