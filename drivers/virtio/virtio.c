@@ -239,6 +239,15 @@ void unregister_virtio_device(struct virtio_device *dev)
 }
 EXPORT_SYMBOL_GPL(unregister_virtio_device);
 
+void virtio_config_changed(struct virtio_device *dev)
+{
+	struct virtio_driver *drv = drv_to_virtio(dev->dev.driver);
+
+	if (drv && drv->config_changed)
+		drv->config_changed(dev);
+}
+EXPORT_SYMBOL_GPL(virtio_config_changed);
+
 static int virtio_init(void)
 {
 	if (bus_register(&virtio_bus) != 0)
