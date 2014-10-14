@@ -390,10 +390,8 @@ static int mxs_phy_probe(struct platform_device *pdev)
 	}
 
 	mxs_phy = devm_kzalloc(&pdev->dev, sizeof(*mxs_phy), GFP_KERNEL);
-	if (!mxs_phy) {
-		dev_err(&pdev->dev, "Failed to allocate USB PHY structure!\n");
+	if (!mxs_phy)
 		return -ENOMEM;
-	}
 
 	/* Some SoCs don't have anatop registers */
 	if (of_get_property(np, "fsl,anatop", NULL)) {
