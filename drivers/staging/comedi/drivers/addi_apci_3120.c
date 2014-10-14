@@ -1,13 +1,11 @@
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/sched.h>
+#include <linux/interrupt.h>
 
 #include "../comedidev.h"
 #include "comedi_fc.h"
 #include "amcc_s5933.h"
-
-#include "addi-data/addi_common.h"
-
-#include "addi-data/hwdrv_apci3120.c"
 
 enum apci3120_boardid {
 	BOARD_APCI3120,
@@ -31,12 +29,44 @@ static const struct apci3120_board apci3120_boardtypes[] = {
 	},
 };
 
+struct apci3120_private {
+	int iobase;
+	int i_IobaseAmcc;
+	int i_IobaseAddon;
+	int i_IobaseReserved;
+	unsigned int ui_AiActualScan;
+	unsigned int ui_AiNbrofChannels;
+	unsigned int ui_AiChannelList[32];
+	unsigned int ui_AiReadData[32];
+	unsigned short us_UseDma;
+	unsigned char b_DmaDoubleBuffer;
+	unsigned int ui_DmaActualBuffer;
+	unsigned short *ul_DmaBufferVirtual[2];
+	dma_addr_t ul_DmaBufferHw[2];
+	unsigned int ui_DmaBufferSize[2];
+	unsigned int ui_DmaBufferUsesize[2];
+	unsigned char b_DigitalOutputRegister;
+	unsigned char b_TimerSelectMode;
+	unsigned char b_ModeSelectRegister;
+	unsigned short us_OutputRegister;
+	unsigned char b_Timer2Mode;
+	unsigned char b_Timer2Interrupt;
+	unsigned int ai_running:1;
+	unsigned char b_InterruptMode;
+	unsigned char b_EocEosInterrupt;
+	unsigned int ui_EocEosConversionTime;
+	unsigned char b_ExttrigEnable;
+	struct task_struct *tsk_Current;
+};
+
+#include "addi-data/hwdrv_apci3120.c"
+
 static int apci3120_auto_attach(struct comedi_device *dev,
 				unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct apci3120_board *this_board = NULL;
-	struct addi_private *devpriv;
+	struct apci3120_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret, order, i;
 
@@ -163,7 +193,7 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 
 static void apci3120_detach(struct comedi_device *dev)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3120_private *devpriv = dev->private;
 
 	if (dev->iobase)
 		apci3120_reset(dev);

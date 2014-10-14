@@ -246,7 +246,7 @@ static int apci3120_ai_insn_config(struct comedi_device *dev,
 				   struct comedi_insn *insn,
 				   unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3120_private *devpriv = dev->private;
 	unsigned int i;
 
 	if ((data[0] != APCI3120_EOC_MODE) && (data[0] != APCI3120_EOS_MODE))
@@ -300,7 +300,7 @@ static int apci3120_setup_chan_list(struct comedi_device *dev,
 				    unsigned int *chanlist,
 				    char check)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3120_private *devpriv = dev->private;
 	unsigned int i;
 	unsigned int gain;
 	unsigned short us_TmpValue;
@@ -349,7 +349,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3120_private *devpriv = dev->private;
 	unsigned short us_ConvertTiming, us_TmpValue, i;
 	unsigned char b_Tmp;
 
@@ -585,7 +585,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 
 static int apci3120_reset(struct comedi_device *dev)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3120_private *devpriv = dev->private;
 	unsigned int i;
 	unsigned short us_TmpValue;
 
@@ -638,7 +638,7 @@ static int apci3120_reset(struct comedi_device *dev)
 
 static int apci3120_exttrig_enable(struct comedi_device *dev)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3120_private *devpriv = dev->private;
 
 	devpriv->us_OutputRegister |= APCI3120_ENABLE_EXT_TRIGGER;
 	outw(devpriv->us_OutputRegister, dev->iobase + APCI3120_WR_ADDRESS);
@@ -647,7 +647,7 @@ static int apci3120_exttrig_enable(struct comedi_device *dev)
 
 static int apci3120_exttrig_disable(struct comedi_device *dev)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3120_private *devpriv = dev->private;
 
 	devpriv->us_OutputRegister &= ~APCI3120_ENABLE_EXT_TRIGGER;
 	outw(devpriv->us_OutputRegister, dev->iobase + APCI3120_WR_ADDRESS);
@@ -657,7 +657,7 @@ static int apci3120_exttrig_disable(struct comedi_device *dev)
 static int apci3120_cancel(struct comedi_device *dev,
 			   struct comedi_subdevice *s)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3120_private *devpriv = dev->private;
 
 	/*  Disable A2P Fifo write and AMWEN signal */
 	outw(0, devpriv->i_IobaseAddon + 4);
@@ -778,7 +778,7 @@ static int apci3120_cyclic_ai(int mode,
 			      struct comedi_device *dev,
 			      struct comedi_subdevice *s)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3120_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned char b_Tmp;
 	unsigned int ui_Tmp, ui_DelayTiming = 0, ui_TimerValue1 = 0, dmalen0 =
@@ -1200,7 +1200,7 @@ static int apci3120_cyclic_ai(int mode,
 static int apci3120_ai_cmd(struct comedi_device *dev,
 			   struct comedi_subdevice *s)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3120_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
 	/* loading private structure with cmd structure inputs */
@@ -1225,7 +1225,7 @@ static void v_APCI3120_InterruptDmaMoveBlock16bit(struct comedi_device *dev,
 						  unsigned short *dma_buffer,
 						  unsigned int num_samples)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3120_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
 	devpriv->ui_AiActualScan +=
@@ -1245,7 +1245,7 @@ static void v_APCI3120_InterruptDmaMoveBlock16bit(struct comedi_device *dev,
 static void apci3120_interrupt_dma(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct addi_private *devpriv = dev->private;
+	struct apci3120_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int next_dma_buf, samplesinbuf;
@@ -1393,7 +1393,7 @@ static void apci3120_interrupt_dma(int irq, void *d)
  */
 static int apci3120_interrupt_handle_eos(struct comedi_device *dev)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3120_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	int n_chan, i;
 	int err = 1;
@@ -1414,7 +1414,7 @@ static int apci3120_interrupt_handle_eos(struct comedi_device *dev)
 static irqreturn_t apci3120_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct addi_private *devpriv = dev->private;
+	struct apci3120_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned short int_daq;
 	unsigned int int_amcc, ui_Check, i;
@@ -1600,7 +1600,7 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 				      struct comedi_insn *insn,
 				      unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3120_private *devpriv = dev->private;
 	unsigned int ui_Timervalue2;
 	unsigned short us_TmpValue;
 	unsigned char b_Tmp;
@@ -1737,7 +1737,7 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 				     struct comedi_insn *insn,
 				     unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3120_private *devpriv = dev->private;
 	unsigned int ui_Timervalue2 = 0;
 	unsigned short us_TmpValue;
 	unsigned char b_Tmp;
@@ -1902,7 +1902,7 @@ static int apci3120_read_insn_timer(struct comedi_device *dev,
 				    struct comedi_insn *insn,
 				    unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3120_private *devpriv = dev->private;
 	unsigned char b_Tmp;
 	unsigned short us_TmpValue, us_TmpValue_2, us_StatusValue;
 
@@ -1950,7 +1950,7 @@ static int apci3120_di_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3120_private *devpriv = dev->private;
 	unsigned int val;
 
 	/* the input channels are bits 11:8 of the status reg */
@@ -1965,7 +1965,7 @@ static int apci3120_do_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3120_private *devpriv = dev->private;
 
 	if (comedi_dio_update_state(s, data)) {
 		/* The do channels are bits 7:4 of the do register */
@@ -1985,7 +1985,7 @@ static int apci3120_ao_insn_write(struct comedi_device *dev,
 				  struct comedi_insn *insn,
 				  unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci3120_private *devpriv = dev->private;
 	unsigned int ui_Range, ui_Channel;
 	unsigned short us_TmpValue;
 
