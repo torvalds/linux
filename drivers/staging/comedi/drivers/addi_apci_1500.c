@@ -1,11 +1,20 @@
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/sched.h>
+#include <linux/interrupt.h>
 
 #include "../comedidev.h"
 #include "comedi_fc.h"
 #include "amcc_s5933.h"
 
-#include "addi-data/addi_common.h"
+struct apci1500_private {
+	int iobase;
+	int i_IobaseAmcc;
+	int i_IobaseAddon;
+	int i_IobaseReserved;
+	unsigned char b_OutputMemoryStatus;
+	struct task_struct *tsk_Current;
+};
 
 #include "addi-data/hwdrv_apci1500.c"
 
@@ -13,7 +22,7 @@ static int apci1500_auto_attach(struct comedi_device *dev,
 				unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	struct addi_private *devpriv;
+	struct apci1500_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
