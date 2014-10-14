@@ -19,6 +19,7 @@
 #include <linux/bitmap.h>
 #include <asm/asm-offsets.h>
 #include <asm/uaccess.h>
+#include <asm/sclp.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
 #include "trace-s390.h"
@@ -735,18 +736,17 @@ static int __must_check __deliver_floating_interrupt(struct kvm_vcpu *vcpu,
 	return rc;
 }
 
-/* Check whether SIGP interpretation facility has an external call pending */
-int kvm_s390_si_ext_call_pending(struct kvm_vcpu *vcpu)
+/* Check whether an external call is pending (deliverable or not) */
+int kvm_s390_ext_call_pending(struct kvm_vcpu *vcpu)
 {
-	atomic_t *sigp_ctrl = &vcpu->kvm->arch.sca->cpu[vcpu->vcpu_id].ctrl;
+	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
+	uint8_t sigp_ctrl = vcpu->kvm->arch.sca->cpu[vcpu->vcpu_id].sigp_ctrl;
 
-	if (!psw_extint_disabled(vcpu) &&
-	    (vcpu->arch.sie_block->gcr[0] & 0x2000ul) &&
-	    (atomic_read(sigp_ctrl) & SIGP_CTRL_C) &&
-	    (atomic_read(&vcpu->arch.sie_block->cpuflags) & CPUSTAT_ECALL_PEND))
-		return 1;
+	if (!sclp_has_sigpif())
+		return test_bit(IRQ_PEND_EXT_EXTERNAL, &li->pending_irqs);
 
-	return 0;
+	return (sigp_ctrl & SIGP_CTRL_C) &&
+	       (atomic_read(&vcpu->arch.sie_block->cpuflags) & CPUSTAT_ECALL_PEND);
 }
 
 int kvm_s390_vcpu_has_irq(struct kvm_vcpu *vcpu, int exclude_stop)
@@ -770,7 +770,10 @@ int kvm_s390_vcpu_has_irq(struct kvm_vcpu *vcpu, int exclude_stop)
 	if (!rc && kvm_cpu_has_pending_timer(vcpu))
 		rc = 1;
 
-	if (!rc && kvm_s390_si_ext_call_pending(vcpu))
+	/* external call pending and deliverable */
+	if (!rc && kvm_s390_ext_call_pending(vcpu) &&
+	    !psw_extint_disabled(vcpu) &&
+	    (vcpu->arch.sie_block->gcr[0] & 0x2000ul))
 		rc = 1;
 
 	if (!rc && !exclude_stop && kvm_s390_is_stop_irq_pending(vcpu))
@@ -875,8 +878,7 @@ void kvm_s390_clear_local_irqs(struct kvm_vcpu *vcpu)
 
 	/* clear pending external calls set by sigp interpretation facility */
 	atomic_clear_mask(CPUSTAT_ECALL_PEND, li->cpuflags);
-	atomic_clear_mask(SIGP_CTRL_C,
-			  &vcpu->kvm->arch.sca->cpu[vcpu->vcpu_id].ctrl);
+	vcpu->kvm->arch.sca->cpu[vcpu->vcpu_id].sigp_ctrl = 0;
 }
 
 int __must_check kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
@@ -1000,18 +1002,43 @@ static int __inject_pfault_init(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 	return 0;
 }
 
+static int __inject_extcall_sigpif(struct kvm_vcpu *vcpu, uint16_t src_id)
+{
+	unsigned char new_val, old_val;
+	uint8_t *sigp_ctrl = &vcpu->kvm->arch.sca->cpu[vcpu->vcpu_id].sigp_ctrl;
+
+	new_val = SIGP_CTRL_C | (src_id & SIGP_CTRL_SCN_MASK);
+	old_val = *sigp_ctrl & ~SIGP_CTRL_C;
+	if (cmpxchg(sigp_ctrl, old_val, new_val) != old_val) {
+		/* another external call is pending */
+		return -EBUSY;
+	}
+	atomic_set_mask(CPUSTAT_ECALL_PEND, &vcpu->arch.sie_block->cpuflags);
+	return 0;
+}
+
 static int __inject_extcall(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 {
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
 	struct kvm_s390_extcall_info *extcall = &li->irq.extcall;
+	uint16_t src_id = irq->u.extcall.code;
 
 	VCPU_EVENT(vcpu, 3, "inject: external call source-cpu:%u",
-		   irq->u.extcall.code);
+		   src_id);
 	trace_kvm_s390_inject_vcpu(vcpu->vcpu_id, KVM_S390_INT_EXTERNAL_CALL,
-				   irq->u.extcall.code, 0, 2);
+				   src_id, 0, 2);
 
+	/* sending vcpu invalid */
+	if (src_id >= KVM_MAX_VCPUS ||
+	    kvm_get_vcpu(vcpu->kvm, src_id) == NULL)
+		return -EINVAL;
+
+	if (sclp_has_sigpif())
+		return __inject_extcall_sigpif(vcpu, src_id);
+
+	if (!test_and_set_bit(IRQ_PEND_EXT_EXTERNAL, &li->pending_irqs))
+		return -EBUSY;
 	*extcall = irq->u.extcall;
-	set_bit(IRQ_PEND_EXT_EXTERNAL, &li->pending_irqs);
 	atomic_set_mask(CPUSTAT_EXT_INT, li->cpuflags);
 	return 0;
 }

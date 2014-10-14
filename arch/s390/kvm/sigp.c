@@ -26,15 +26,17 @@ static int __sigp_sense(struct kvm_vcpu *vcpu, struct kvm_vcpu *dst_vcpu,
 	struct kvm_s390_local_interrupt *li;
 	int cpuflags;
 	int rc;
+	int ext_call_pending;
 
 	li = &dst_vcpu->arch.local_int;
 
 	cpuflags = atomic_read(li->cpuflags);
-	if (!(cpuflags & (CPUSTAT_ECALL_PEND | CPUSTAT_STOPPED)))
+	ext_call_pending = kvm_s390_ext_call_pending(dst_vcpu);
+	if (!(cpuflags & CPUSTAT_STOPPED) && !ext_call_pending)
 		rc = SIGP_CC_ORDER_CODE_ACCEPTED;
 	else {
 		*reg &= 0xffffffff00000000UL;
-		if (cpuflags & CPUSTAT_ECALL_PEND)
+		if (ext_call_pending)
 			*reg |= SIGP_STATUS_EXT_CALL_PENDING;
 		if (cpuflags & CPUSTAT_STOPPED)
 			*reg |= SIGP_STATUS_STOPPED;
@@ -96,7 +98,7 @@ static int __sigp_conditional_emergency(struct kvm_vcpu *vcpu,
 }
 
 static int __sigp_external_call(struct kvm_vcpu *vcpu,
-				struct kvm_vcpu *dst_vcpu)
+				struct kvm_vcpu *dst_vcpu, u64 *reg)
 {
 	struct kvm_s390_irq irq = {
 		.type = KVM_S390_INT_EXTERNAL_CALL,
@@ -105,9 +107,14 @@ static int __sigp_external_call(struct kvm_vcpu *vcpu,
 	int rc;
 
 	rc = kvm_s390_inject_vcpu(dst_vcpu, &irq);
-	if (!rc)
+	if (rc == -EBUSY) {
+		*reg &= 0xffffffff00000000UL;
+		*reg |= SIGP_STATUS_EXT_CALL_PENDING;
+		return SIGP_CC_STATUS_STORED;
+	} else if (rc == 0) {
 		VCPU_EVENT(vcpu, 4, "sent sigp ext call to cpu %x",
 			   dst_vcpu->vcpu_id);
+	}
 
 	return rc ? rc : SIGP_CC_ORDER_CODE_ACCEPTED;
 }
@@ -303,7 +310,7 @@ static int handle_sigp_dst(struct kvm_vcpu *vcpu, u8 order_code,
 		break;
 	case SIGP_EXTERNAL_CALL:
 		vcpu->stat.instruction_sigp_external_call++;
-		rc = __sigp_external_call(vcpu, dst_vcpu);
+		rc = __sigp_external_call(vcpu, dst_vcpu, status_reg);
 		break;
 	case SIGP_EMERGENCY_SIGNAL:
 		vcpu->stat.instruction_sigp_emergency++;

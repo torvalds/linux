@@ -35,11 +35,13 @@
 #define KVM_NR_IRQCHIPS 1
 #define KVM_IRQCHIP_NUM_PINS 4096
 
-#define SIGP_CTRL_C	0x00800000
+#define SIGP_CTRL_C		0x80
+#define SIGP_CTRL_SCN_MASK	0x3f
 
 struct sca_entry {
-	atomic_t ctrl;
-	__u32	reserved;
+	__u8	reserved0;
+	__u8	sigp_ctrl;
+	__u16	reserved[3];
 	__u64	sda;
 	__u64	reserved2[2];
 } __attribute__((packed));

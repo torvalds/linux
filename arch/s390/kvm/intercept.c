@@ -288,11 +288,13 @@ static int handle_external_interrupt(struct kvm_vcpu *vcpu)
 		irq.type = KVM_S390_INT_CPU_TIMER;
 		break;
 	case EXT_IRQ_EXTERNAL_CALL:
-		if (kvm_s390_si_ext_call_pending(vcpu))
-			return 0;
 		irq.type = KVM_S390_INT_EXTERNAL_CALL;
 		irq.u.extcall.code = vcpu->arch.sie_block->extcpuaddr;
-		break;
+		rc = kvm_s390_inject_vcpu(vcpu, &irq);
+		/* ignore if another external call is already pending */
+		if (rc == -EBUSY)
+			return 0;
+		return rc;
 	default:
 		return -EOPNOTSUPP;
 	}
