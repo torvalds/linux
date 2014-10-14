@@ -11,7 +11,7 @@ static const struct qlcnic_mailbox_metadata qlcnic_mbx_tbl[] = {
 	{QLCNIC_CMD_CREATE_RX_CTX, 4, 1},
 	{QLCNIC_CMD_DESTROY_RX_CTX, 2, 1},
 	{QLCNIC_CMD_CREATE_TX_CTX, 4, 1},
-	{QLCNIC_CMD_DESTROY_TX_CTX, 2, 1},
+	{QLCNIC_CMD_DESTROY_TX_CTX, 3, 1},
 	{QLCNIC_CMD_INTRPT_TEST, 4, 1},
 	{QLCNIC_CMD_SET_MTU, 4, 1},
 	{QLCNIC_CMD_READ_PHY, 4, 2},
