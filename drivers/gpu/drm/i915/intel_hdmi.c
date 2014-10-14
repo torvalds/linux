@@ -869,10 +869,15 @@ static enum drm_mode_status
 intel_hdmi_mode_valid(struct drm_connector *connector,
 		      struct drm_display_mode *mode)
 {
-	if (mode->clock > hdmi_portclock_limit(intel_attached_hdmi(connector),
-					       true))
+	int clock = mode->clock;
+
+	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
+		clock *= 2;
+
+	if (clock > hdmi_portclock_limit(intel_attached_hdmi(connector),
+					 true))
 		return MODE_CLOCK_HIGH;
-	if (mode->clock < 20000)
+	if (clock < 20000)
 		return MODE_CLOCK_LOW;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
@@ -890,7 +895,7 @@ static bool hdmi_12bpc_possible(struct intel_crtc *crtc)
 	if (HAS_GMCH_DISPLAY(dev))
 		return false;
 
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, base.head) {
+	for_each_intel_encoder(dev, encoder) {
 		if (encoder->new_crtc != crtc)
 			continue;
 
@@ -924,6 +929,10 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 			intel_hdmi->color_range = HDMI_COLOR_RANGE_16_235;
 		else
 			intel_hdmi->color_range = 0;
+	}
+
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK) {
+		pipe_config->pixel_multiplier = 2;
 	}
 
 	if (intel_hdmi->color_range)
@@ -967,104 +976,117 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	return true;
 }
 
-static enum drm_connector_status
-intel_hdmi_detect(struct drm_connector *connector, bool force)
+static void
+intel_hdmi_unset_edid(struct drm_connector *connector)
 {
-	struct drm_device *dev = connector->dev;
 	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
-	struct intel_digital_port *intel_dig_port =
-		hdmi_to_dig_port(intel_hdmi);
-	struct intel_encoder *intel_encoder = &intel_dig_port->base;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct edid *edid;
-	enum intel_display_power_domain power_domain;
-	enum drm_connector_status status = connector_status_disconnected;
-
-	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
-		      connector->base.id, connector->name);
-
-	power_domain = intel_display_port_power_domain(intel_encoder);
-	intel_display_power_get(dev_priv, power_domain);
 
 	intel_hdmi->has_hdmi_sink = false;
 	intel_hdmi->has_audio = false;
 	intel_hdmi->rgb_quant_range_selectable = false;
-	edid = drm_get_edid(connector,
-			    intel_gmbus_get_adapter(dev_priv,
-						    intel_hdmi->ddc_bus));
 
-	if (edid) {
-		if (edid->input & DRM_EDID_INPUT_DIGITAL) {
-			status = connector_status_connected;
-			if (intel_hdmi->force_audio != HDMI_AUDIO_OFF_DVI)
-				intel_hdmi->has_hdmi_sink =
-						drm_detect_hdmi_monitor(edid);
-			intel_hdmi->has_audio = drm_detect_monitor_audio(edid);
-			intel_hdmi->rgb_quant_range_selectable =
-				drm_rgb_quant_range_selectable(edid);
-		}
-		kfree(edid);
-	}
-
-	if (status == connector_status_connected) {
-		if (intel_hdmi->force_audio != HDMI_AUDIO_AUTO)
-			intel_hdmi->has_audio =
-				(intel_hdmi->force_audio == HDMI_AUDIO_ON);
-		intel_encoder->type = INTEL_OUTPUT_HDMI;
-	}
-
-	intel_display_power_put(dev_priv, power_domain);
-
-	return status;
+	kfree(to_intel_connector(connector)->detect_edid);
+	to_intel_connector(connector)->detect_edid = NULL;
 }
 
-static int intel_hdmi_get_modes(struct drm_connector *connector)
+static bool
+intel_hdmi_set_edid(struct drm_connector *connector)
 {
-	struct intel_encoder *intel_encoder = intel_attached_encoder(connector);
-	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&intel_encoder->base);
-	struct drm_i915_private *dev_priv = connector->dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(connector->dev);
+	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
+	struct intel_encoder *intel_encoder =
+		&hdmi_to_dig_port(intel_hdmi)->base;
 	enum intel_display_power_domain power_domain;
-	int ret;
-
-	/* We should parse the EDID data and find out if it's an HDMI sink so
-	 * we can send audio to it.
-	 */
+	struct edid *edid;
+	bool connected = false;
 
 	power_domain = intel_display_port_power_domain(intel_encoder);
 	intel_display_power_get(dev_priv, power_domain);
 
-	ret = intel_ddc_get_modes(connector,
-				   intel_gmbus_get_adapter(dev_priv,
-							   intel_hdmi->ddc_bus));
+	edid = drm_get_edid(connector,
+			    intel_gmbus_get_adapter(dev_priv,
+						    intel_hdmi->ddc_bus));
 
 	intel_display_power_put(dev_priv, power_domain);
 
-	return ret;
+	to_intel_connector(connector)->detect_edid = edid;
+	if (edid && edid->input & DRM_EDID_INPUT_DIGITAL) {
+		intel_hdmi->rgb_quant_range_selectable =
+			drm_rgb_quant_range_selectable(edid);
+
+		intel_hdmi->has_audio = drm_detect_monitor_audio(edid);
+		if (intel_hdmi->force_audio != HDMI_AUDIO_AUTO)
+			intel_hdmi->has_audio =
+				intel_hdmi->force_audio == HDMI_AUDIO_ON;
+
+		if (intel_hdmi->force_audio != HDMI_AUDIO_OFF_DVI)
+			intel_hdmi->has_hdmi_sink =
+				drm_detect_hdmi_monitor(edid);
+
+		connected = true;
+	}
+
+	return connected;
+}
+
+static enum drm_connector_status
+intel_hdmi_detect(struct drm_connector *connector, bool force)
+{
+	enum drm_connector_status status;
+
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
+		      connector->base.id, connector->name);
+
+	intel_hdmi_unset_edid(connector);
+
+	if (intel_hdmi_set_edid(connector)) {
+		struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
+
+		hdmi_to_dig_port(intel_hdmi)->base.type = INTEL_OUTPUT_HDMI;
+		status = connector_status_connected;
+	} else
+		status = connector_status_disconnected;
+
+	return status;
+}
+
+static void
+intel_hdmi_force(struct drm_connector *connector)
+{
+	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
+
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
+		      connector->base.id, connector->name);
+
+	intel_hdmi_unset_edid(connector);
+
+	if (connector->status != connector_status_connected)
+		return;
+
+	intel_hdmi_set_edid(connector);
+	hdmi_to_dig_port(intel_hdmi)->base.type = INTEL_OUTPUT_HDMI;
+}
+
+static int intel_hdmi_get_modes(struct drm_connector *connector)
+{
+	struct edid *edid;
+
+	edid = to_intel_connector(connector)->detect_edid;
+	if (edid == NULL)
+		return 0;
+
+	return intel_connector_update_modes(connector, edid);
 }
 
 static bool
 intel_hdmi_detect_audio(struct drm_connector *connector)
 {
-	struct intel_encoder *intel_encoder = intel_attached_encoder(connector);
-	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&intel_encoder->base);
-	struct drm_i915_private *dev_priv = connector->dev->dev_private;
-	enum intel_display_power_domain power_domain;
-	struct edid *edid;
 	bool has_audio = false;
+	struct edid *edid;
 
-	power_domain = intel_display_port_power_domain(intel_encoder);
-	intel_display_power_get(dev_priv, power_domain);
-
-	edid = drm_get_edid(connector,
-			    intel_gmbus_get_adapter(dev_priv,
-						    intel_hdmi->ddc_bus));
-	if (edid) {
-		if (edid->input & DRM_EDID_INPUT_DIGITAL)
-			has_audio = drm_detect_monitor_audio(edid);
-		kfree(edid);
-	}
-
-	intel_display_power_put(dev_priv, power_domain);
+	edid = to_intel_connector(connector)->detect_edid;
+	if (edid && edid->input & DRM_EDID_INPUT_DIGITAL)
+		has_audio = drm_detect_monitor_audio(edid);
 
 	return has_audio;
 }
@@ -1265,6 +1287,8 @@ static void chv_hdmi_pre_pll_enable(struct intel_encoder *encoder)
 	enum pipe pipe = intel_crtc->pipe;
 	u32 val;
 
+	intel_hdmi_prepare(encoder);
+
 	mutex_lock(&dev_priv->dpio_lock);
 
 	/* program left/right clock distribution */
@@ -1434,8 +1458,8 @@ static void chv_hdmi_pre_enable(struct intel_encoder *encoder)
 
 	for (i = 0; i < 4; i++) {
 		val = vlv_dpio_read(dev_priv, pipe, CHV_TX_DW2(ch, i));
-		val &= ~DPIO_SWING_MARGIN_MASK;
-		val |= 102 << DPIO_SWING_MARGIN_SHIFT;
+		val &= ~DPIO_SWING_MARGIN000_MASK;
+		val |= 102 << DPIO_SWING_MARGIN000_SHIFT;
 		vlv_dpio_write(dev_priv, pipe, CHV_TX_DW2(ch, i), val);
 	}
 
@@ -1482,6 +1506,7 @@ static void chv_hdmi_pre_enable(struct intel_encoder *encoder)
 
 static void intel_hdmi_destroy(struct drm_connector *connector)
 {
+	kfree(to_intel_connector(connector)->detect_edid);
 	drm_connector_cleanup(connector);
 	kfree(connector);
 }
@@ -1489,6 +1514,7 @@ static void intel_hdmi_destroy(struct drm_connector *connector)
 static const struct drm_connector_funcs intel_hdmi_connector_funcs = {
 	.dpms = intel_connector_dpms,
 	.detect = intel_hdmi_detect,
+	.force = intel_hdmi_force,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = intel_hdmi_set_property,
 	.destroy = intel_hdmi_destroy,

@@ -28,13 +28,6 @@
 #include "i915_drv.h"
 #include "intel_renderstate.h"
 
-struct render_state {
-	const struct intel_renderstate_rodata *rodata;
-	struct drm_i915_gem_object *obj;
-	u64 ggtt_offset;
-	int gen;
-};
-
 static const struct intel_renderstate_rodata *
 render_state_get_rodata(struct drm_device *dev, const int gen)
 {
@@ -127,10 +120,34 @@ static int render_state_setup(struct render_state *so)
 	return 0;
 }
 
-static void render_state_fini(struct render_state *so)
+void i915_gem_render_state_fini(struct render_state *so)
 {
 	i915_gem_object_ggtt_unpin(so->obj);
 	drm_gem_object_unreference(&so->obj->base);
+}
+
+int i915_gem_render_state_prepare(struct intel_engine_cs *ring,
+				  struct render_state *so)
+{
+	int ret;
+
+	if (WARN_ON(ring->id != RCS))
+		return -ENOENT;
+
+	ret = render_state_init(so, ring->dev);
+	if (ret)
+		return ret;
+
+	if (so->rodata == NULL)
+		return 0;
+
+	ret = render_state_setup(so);
+	if (ret) {
+		i915_gem_render_state_fini(so);
+		return ret;
+	}
+
+	return 0;
 }
 
 int i915_gem_render_state_init(struct intel_engine_cs *ring)
@@ -138,19 +155,12 @@ int i915_gem_render_state_init(struct intel_engine_cs *ring)
 	struct render_state so;
 	int ret;
 
-	if (WARN_ON(ring->id != RCS))
-		return -ENOENT;
-
-	ret = render_state_init(&so, ring->dev);
+	ret = i915_gem_render_state_prepare(ring, &so);
 	if (ret)
 		return ret;
 
 	if (so.rodata == NULL)
 		return 0;
-
-	ret = render_state_setup(&so);
-	if (ret)
-		goto out;
 
 	ret = ring->dispatch_execbuffer(ring,
 					so.ggtt_offset,
@@ -164,6 +174,6 @@ int i915_gem_render_state_init(struct intel_engine_cs *ring)
 	ret = __i915_add_request(ring, NULL, so.obj, NULL);
 	/* __i915_add_request moves object to inactive if it fails */
 out:
-	render_state_fini(&so);
+	i915_gem_render_state_fini(&so);
 	return ret;
 }

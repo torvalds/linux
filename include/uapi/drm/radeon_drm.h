@@ -511,6 +511,7 @@ typedef struct {
 #define DRM_RADEON_GEM_BUSY		0x2a
 #define DRM_RADEON_GEM_VA		0x2b
 #define DRM_RADEON_GEM_OP		0x2c
+#define DRM_RADEON_GEM_USERPTR		0x2d
 
 #define DRM_IOCTL_RADEON_CP_INIT    DRM_IOW( DRM_COMMAND_BASE + DRM_RADEON_CP_INIT, drm_radeon_init_t)
 #define DRM_IOCTL_RADEON_CP_START   DRM_IO(  DRM_COMMAND_BASE + DRM_RADEON_CP_START)
@@ -554,6 +555,7 @@ typedef struct {
 #define DRM_IOCTL_RADEON_GEM_BUSY	DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_BUSY, struct drm_radeon_gem_busy)
 #define DRM_IOCTL_RADEON_GEM_VA		DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_VA, struct drm_radeon_gem_va)
 #define DRM_IOCTL_RADEON_GEM_OP		DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_OP, struct drm_radeon_gem_op)
+#define DRM_IOCTL_RADEON_GEM_USERPTR	DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_GEM_USERPTR, struct drm_radeon_gem_userptr)
 
 typedef struct drm_radeon_init {
 	enum {
@@ -799,6 +801,10 @@ struct drm_radeon_gem_info {
 #define RADEON_GEM_NO_BACKING_STORE	(1 << 0)
 #define RADEON_GEM_GTT_UC		(1 << 1)
 #define RADEON_GEM_GTT_WC		(1 << 2)
+/* BO is expected to be accessed by the CPU */
+#define RADEON_GEM_CPU_ACCESS		(1 << 3)
+/* CPU access is not expected to work for this BO */
+#define RADEON_GEM_NO_CPU_ACCESS	(1 << 4)
 
 struct drm_radeon_gem_create {
 	uint64_t	size;
@@ -806,6 +812,23 @@ struct drm_radeon_gem_create {
 	uint32_t	handle;
 	uint32_t	initial_domain;
 	uint32_t	flags;
+};
+
+/*
+ * This is not a reliable API and you should expect it to fail for any
+ * number of reasons and have fallback path that do not use userptr to
+ * perform any operation.
+ */
+#define RADEON_GEM_USERPTR_READONLY	(1 << 0)
+#define RADEON_GEM_USERPTR_ANONONLY	(1 << 1)
+#define RADEON_GEM_USERPTR_VALIDATE	(1 << 2)
+#define RADEON_GEM_USERPTR_REGISTER	(1 << 3)
+
+struct drm_radeon_gem_userptr {
+	uint64_t		addr;
+	uint64_t		size;
+	uint32_t		flags;
+	uint32_t		handle;
 };
 
 #define RADEON_TILING_MACRO				0x1

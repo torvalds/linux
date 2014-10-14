@@ -231,6 +231,9 @@ ssize_t mipi_dsi_dcs_write(struct mipi_dsi_device *dsi, const void *data,
 		break;
 	}
 
+	if (dsi->mode_flags & MIPI_DSI_MODE_LPM)
+		msg.flags = MIPI_DSI_MSG_USE_LPM;
+
 	return ops->transfer(dsi->host, &msg);
 }
 EXPORT_SYMBOL(mipi_dsi_dcs_write);
@@ -259,6 +262,9 @@ ssize_t mipi_dsi_dcs_read(struct mipi_dsi_device *dsi, u8 cmd, void *data,
 
 	if (!ops || !ops->transfer)
 		return -ENOSYS;
+
+	if (dsi->mode_flags & MIPI_DSI_MODE_LPM)
+		msg.flags = MIPI_DSI_MSG_USE_LPM;
 
 	return ops->transfer(dsi->host, &msg);
 }

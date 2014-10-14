@@ -1,7 +1,7 @@
 /*
  * shmob_drm_plane.c  --  SH Mobile DRM Planes
  *
- * Copyright (C) 2012 Renesas Corporation
+ * Copyright (C) 2012 Renesas Electronics Corporation
  *
  * Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *

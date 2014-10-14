@@ -1089,7 +1089,7 @@ static char	*link_train_names[] = {
 };
 #endif
 
-#define CDV_DP_VOLTAGE_MAX	    DP_TRAIN_VOLTAGE_SWING_1200
+#define CDV_DP_VOLTAGE_MAX	    DP_TRAIN_VOLTAGE_SWING_LEVEL_3
 /*
 static uint8_t
 cdv_intel_dp_pre_emphasis_max(uint8_t voltage_swing)
@@ -1276,7 +1276,7 @@ cdv_intel_dp_set_vswing_premph(struct gma_encoder *encoder, uint8_t signal_level
 		cdv_sb_write(dev, ddi_reg->VSwing2, dp_vswing_premph_table[index]);
 
 	/* ;gfx_dpio_set_reg(0x814c, 0x40802040) */
-	if ((vswing + premph) == DP_TRAIN_VOLTAGE_SWING_1200)
+	if ((vswing + premph) == DP_TRAIN_VOLTAGE_SWING_LEVEL_3)
 		cdv_sb_write(dev, ddi_reg->VSwing3, 0x70802040);
 	else
 		cdv_sb_write(dev, ddi_reg->VSwing3, 0x40802040);

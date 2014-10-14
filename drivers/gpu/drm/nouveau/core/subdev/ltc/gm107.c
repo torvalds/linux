@@ -87,11 +87,6 @@ gm107_ltc_intr(struct nouveau_subdev *subdev)
 			gm107_ltc_lts_isr(priv, ltc, lts);
 		mask &= ~(1 << ltc);
 	}
-
-	/* we do something horribly wrong and upset PMFB a lot, so mask off
-	 * interrupts from it after the first one until it's fixed
-	 */
-	nv_mask(priv, 0x000640, 0x02000000, 0x00000000);
 }
 
 static int

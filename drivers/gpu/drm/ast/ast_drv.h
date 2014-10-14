@@ -36,6 +36,8 @@
 #include <drm/ttm/ttm_memory.h>
 #include <drm/ttm/ttm_module.h>
 
+#include <drm/drm_gem.h>
+
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 
@@ -125,14 +127,17 @@ struct ast_gem_object;
 
 #define AST_IO_AR_PORT_WRITE		(0x40)
 #define AST_IO_MISC_PORT_WRITE		(0x42)
+#define AST_IO_VGA_ENABLE_PORT		(0x43)
 #define AST_IO_SEQ_PORT			(0x44)
-#define AST_DAC_INDEX_READ		(0x3c7)
+#define AST_IO_DAC_INDEX_READ		(0x47)
 #define AST_IO_DAC_INDEX_WRITE		(0x48)
 #define AST_IO_DAC_DATA		        (0x49)
 #define AST_IO_GR_PORT			(0x4E)
 #define AST_IO_CRTC_PORT		(0x54)
 #define AST_IO_INPUT_STATUS1_READ	(0x5A)
 #define AST_IO_MISC_PORT_READ		(0x4C)
+
+#define AST_IO_MM_OFFSET		(0x380)
 
 #define __ast_read(x) \
 static inline u##x ast_read##x(struct ast_private *ast, u32 reg) { \
@@ -316,7 +321,7 @@ struct ast_bo {
 	struct ttm_placement placement;
 	struct ttm_bo_kmap_obj kmap;
 	struct drm_gem_object gem;
-	u32 placements[3];
+	struct ttm_place placements[3];
 	int pin_count;
 };
 #define gem_to_ast_bo(gobj) container_of((gobj), struct ast_bo, gem)
@@ -381,6 +386,9 @@ int ast_bo_push_sysram(struct ast_bo *bo);
 int ast_mmap(struct file *filp, struct vm_area_struct *vma);
 
 /* ast post */
+void ast_enable_vga(struct drm_device *dev);
+void ast_enable_mmio(struct drm_device *dev);
+bool ast_is_vga_enabled(struct drm_device *dev);
 void ast_post_gpu(struct drm_device *dev);
 u32 ast_mindwm(struct ast_private *ast, u32 r);
 void ast_moutdwm(struct ast_private *ast, u32 r, u32 v);

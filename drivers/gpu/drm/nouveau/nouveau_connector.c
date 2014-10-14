@@ -45,15 +45,15 @@
 #include <nvif/event.h>
 
 MODULE_PARM_DESC(tv_disable, "Disable TV-out detection");
-static int nouveau_tv_disable = 0;
+int nouveau_tv_disable = 0;
 module_param_named(tv_disable, nouveau_tv_disable, int, 0400);
 
 MODULE_PARM_DESC(ignorelid, "Ignore ACPI lid status");
-static int nouveau_ignorelid = 0;
+int nouveau_ignorelid = 0;
 module_param_named(ignorelid, nouveau_ignorelid, int, 0400);
 
 MODULE_PARM_DESC(duallink, "Allow dual-link TMDS (default: enabled)");
-static int nouveau_duallink = 1;
+int nouveau_duallink = 1;
 module_param_named(duallink, nouveau_duallink, int, 0400);
 
 struct nouveau_encoder *

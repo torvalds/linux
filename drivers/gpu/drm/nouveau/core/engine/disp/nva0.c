@@ -112,6 +112,10 @@ nva0_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
+	ret = nvkm_event_init(&nv50_disp_chan_uevent, 1, 9, &priv->uevent);
+	if (ret)
+		return ret;
+
 	nv_engine(priv)->sclass = nva0_disp_base_oclass;
 	nv_engine(priv)->cclass = &nv50_disp_cclass;
 	nv_subdev(priv)->intr = nv50_disp_intr;

@@ -15,7 +15,6 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 
-#include <linux/anon_inodes.h>
 #include <linux/component.h>
 
 #include <drm/exynos_drm.h>
@@ -86,8 +85,9 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 		struct drm_plane *plane;
 		unsigned long possible_crtcs = (1 << MAX_CRTC) - 1;
 
-		plane = exynos_plane_init(dev, possible_crtcs, false);
-		if (!plane)
+		plane = exynos_plane_init(dev, possible_crtcs,
+					  DRM_PLANE_TYPE_OVERLAY);
+		if (IS_ERR(plane))
 			goto err_mode_config_cleanup;
 	}
 
@@ -116,6 +116,23 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	/* force connectors detection */
 	drm_helper_hpd_irq_event(dev);
 
+	/*
+	 * enable drm irq mode.
+	 * - with irq_enabled = true, we can use the vblank feature.
+	 *
+	 * P.S. note that we wouldn't use drm irq handler but
+	 *	just specific driver own one instead because
+	 *	drm framework supports only one irq handler.
+	 */
+	dev->irq_enabled = true;
+
+	/*
+	 * with vblank_disable_allowed = true, vblank interrupt will be disabled
+	 * by drm timer once a current process gives up ownership of
+	 * vblank event.(after drm_vblank_put function is called)
+	 */
+	dev->vblank_disable_allowed = true;
+
 	return 0;
 
 err_unbind_all:
@@ -136,22 +153,18 @@ static int exynos_drm_unload(struct drm_device *dev)
 	exynos_drm_device_subdrv_remove(dev);
 
 	exynos_drm_fbdev_fini(dev);
-	drm_vblank_cleanup(dev);
 	drm_kms_helper_poll_fini(dev);
-	drm_mode_config_cleanup(dev);
-
-	drm_release_iommu_mapping(dev);
-	kfree(dev->dev_private);
 
 	component_unbind_all(dev->dev, dev);
+	drm_vblank_cleanup(dev);
+	drm_mode_config_cleanup(dev);
+	drm_release_iommu_mapping(dev);
+
+	kfree(dev->dev_private);
 	dev->dev_private = NULL;
 
 	return 0;
 }
-
-static const struct file_operations exynos_drm_gem_fops = {
-	.mmap = exynos_drm_gem_mmap_buffer,
-};
 
 static int exynos_drm_suspend(struct drm_device *dev, pm_message_t state)
 {
@@ -191,7 +204,6 @@ static int exynos_drm_resume(struct drm_device *dev)
 static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_exynos_file_private *file_priv;
-	struct file *anon_filp;
 	int ret;
 
 	file_priv = kzalloc(sizeof(*file_priv), GFP_KERNEL);
@@ -204,20 +216,7 @@ static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
 	if (ret)
 		goto err_file_priv_free;
 
-	anon_filp = anon_inode_getfile("exynos_gem", &exynos_drm_gem_fops,
-					NULL, 0);
-	if (IS_ERR(anon_filp)) {
-		ret = PTR_ERR(anon_filp);
-		goto err_subdrv_close;
-	}
-
-	anon_filp->f_mode = FMODE_READ | FMODE_WRITE;
-	file_priv->anon_filp = anon_filp;
-
 	return ret;
-
-err_subdrv_close:
-	exynos_drm_subdrv_close(dev, file);
 
 err_file_priv_free:
 	kfree(file_priv);
@@ -234,7 +233,6 @@ static void exynos_drm_preclose(struct drm_device *dev,
 static void exynos_drm_postclose(struct drm_device *dev, struct drm_file *file)
 {
 	struct exynos_drm_private *private = dev->dev_private;
-	struct drm_exynos_file_private *file_priv;
 	struct drm_pending_vblank_event *v, *vt;
 	struct drm_pending_event *e, *et;
 	unsigned long flags;
@@ -260,10 +258,6 @@ static void exynos_drm_postclose(struct drm_device *dev, struct drm_file *file)
 	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
-	file_priv = file->driver_priv;
-	if (file_priv->anon_filp)
-		fput(file_priv->anon_filp);
-
 	kfree(file->driver_priv);
 	file->driver_priv = NULL;
 }
@@ -282,11 +276,6 @@ static const struct vm_operations_struct exynos_drm_gem_vm_ops = {
 static const struct drm_ioctl_desc exynos_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(EXYNOS_GEM_CREATE, exynos_drm_gem_create_ioctl,
 			DRM_UNLOCKED | DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(EXYNOS_GEM_MAP_OFFSET,
-			exynos_drm_gem_map_offset_ioctl, DRM_UNLOCKED |
-			DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(EXYNOS_GEM_MMAP,
-			exynos_drm_gem_mmap_ioctl, DRM_UNLOCKED | DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(EXYNOS_GEM_GET,
 			exynos_drm_gem_get_ioctl, DRM_UNLOCKED),
 	DRM_IOCTL_DEF_DRV(EXYNOS_VIDI_CONNECTION,
@@ -330,6 +319,7 @@ static struct drm_driver exynos_drm_driver = {
 	.preclose		= exynos_drm_preclose,
 	.lastclose		= exynos_drm_lastclose,
 	.postclose		= exynos_drm_postclose,
+	.set_busid		= drm_platform_set_busid,
 	.get_vblank_counter	= drm_vblank_count,
 	.enable_vblank		= exynos_drm_crtc_enable_vblank,
 	.disable_vblank		= exynos_drm_crtc_disable_vblank,
@@ -485,21 +475,20 @@ void exynos_drm_component_del(struct device *dev,
 	mutex_unlock(&drm_component_lock);
 }
 
-static int compare_of(struct device *dev, void *data)
+static int compare_dev(struct device *dev, void *data)
 {
 	return dev == (struct device *)data;
 }
 
-static int exynos_drm_add_components(struct device *dev, struct master *m)
+static struct component_match *exynos_drm_match_add(struct device *dev)
 {
+	struct component_match *match = NULL;
 	struct component_dev *cdev;
 	unsigned int attach_cnt = 0;
 
 	mutex_lock(&drm_component_lock);
 
 	list_for_each_entry(cdev, &drm_component_list, list) {
-		int ret;
-
 		/*
 		 * Add components to master only in case that crtc and
 		 * encoder/connector device objects exist.
@@ -514,16 +503,10 @@ static int exynos_drm_add_components(struct device *dev, struct master *m)
 		/*
 		 * fimd and dpi modules have same device object so add
 		 * only crtc device object in this case.
-		 *
-		 * TODO. if dpi module follows driver-model driver then
-		 * below codes can be removed.
 		 */
 		if (cdev->crtc_dev == cdev->conn_dev) {
-			ret = component_master_add_child(m, compare_of,
-					cdev->crtc_dev);
-			if (ret < 0)
-				return ret;
-
+			component_match_add(dev, &match, compare_dev,
+						cdev->crtc_dev);
 			goto out_lock;
 		}
 
@@ -533,11 +516,8 @@ static int exynos_drm_add_components(struct device *dev, struct master *m)
 		 * connector/encoder need pipe number of crtc when they
 		 * are created.
 		 */
-		ret = component_master_add_child(m, compare_of, cdev->crtc_dev);
-		ret |= component_master_add_child(m, compare_of,
-							cdev->conn_dev);
-		if (ret < 0)
-			return ret;
+		component_match_add(dev, &match, compare_dev, cdev->crtc_dev);
+		component_match_add(dev, &match, compare_dev, cdev->conn_dev);
 
 out_lock:
 		mutex_lock(&drm_component_lock);
@@ -545,7 +525,7 @@ out_lock:
 
 	mutex_unlock(&drm_component_lock);
 
-	return attach_cnt ? 0 : -ENODEV;
+	return attach_cnt ? match : ERR_PTR(-EPROBE_DEFER);
 }
 
 static int exynos_drm_bind(struct device *dev)
@@ -559,13 +539,13 @@ static void exynos_drm_unbind(struct device *dev)
 }
 
 static const struct component_master_ops exynos_drm_ops = {
-	.add_components = exynos_drm_add_components,
 	.bind		= exynos_drm_bind,
 	.unbind		= exynos_drm_unbind,
 };
 
 static int exynos_drm_platform_probe(struct platform_device *pdev)
 {
+	struct component_match *match;
 	int ret;
 
 	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
@@ -632,13 +612,23 @@ static int exynos_drm_platform_probe(struct platform_device *pdev)
 		goto err_unregister_ipp_drv;
 #endif
 
-	ret = component_master_add(&pdev->dev, &exynos_drm_ops);
-	if (ret < 0)
-		DRM_DEBUG_KMS("re-tried by last sub driver probed later.\n");
+	match = exynos_drm_match_add(&pdev->dev);
+	if (IS_ERR(match)) {
+		ret = PTR_ERR(match);
+		goto err_unregister_resources;
+	}
 
-	return 0;
+	ret = component_master_add_with_match(&pdev->dev, &exynos_drm_ops,
+						match);
+	if (ret < 0)
+		goto err_unregister_resources;
+
+	return ret;
+
+err_unregister_resources:
 
 #ifdef CONFIG_DRM_EXYNOS_IPP
+	exynos_platform_device_ipp_unregister();
 err_unregister_ipp_drv:
 	platform_driver_unregister(&ipp_driver);
 err_unregister_gsc_drv:

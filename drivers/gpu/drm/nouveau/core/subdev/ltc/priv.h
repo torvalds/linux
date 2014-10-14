@@ -4,6 +4,8 @@
 #include <subdev/ltc.h>
 #include <subdev/fb.h>
 
+#include <core/enum.h>
+
 struct nvkm_ltc_priv {
 	struct nouveau_ltc base;
 	u32 ltc_nr;

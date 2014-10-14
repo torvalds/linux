@@ -7,48 +7,13 @@
  */
 
 #include <linux/module.h>
-#include <drm/drm_usb.h>
+#include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include "udl_drv.h"
 
-static struct drm_driver driver;
-
-/*
- * There are many DisplayLink-based graphics products, all with unique PIDs.
- * So we match on DisplayLink's VID + Vendor-Defined Interface Class (0xff)
- * We also require a match on SubClass (0x00) and Protocol (0x00),
- * which is compatible with all known USB 2.0 era graphics chips and firmware,
- * but allows DisplayLink to increment those for any future incompatible chips
- */
-static struct usb_device_id id_table[] = {
-	{.idVendor = 0x17e9, .bInterfaceClass = 0xff,
-	 .bInterfaceSubClass = 0x00,
-	 .bInterfaceProtocol = 0x00,
-	 .match_flags = USB_DEVICE_ID_MATCH_VENDOR |
-			USB_DEVICE_ID_MATCH_INT_CLASS |
-			USB_DEVICE_ID_MATCH_INT_SUBCLASS |
-			USB_DEVICE_ID_MATCH_INT_PROTOCOL,},
-	{},
-};
-MODULE_DEVICE_TABLE(usb, id_table);
-
-MODULE_LICENSE("GPL");
-
-static int udl_usb_probe(struct usb_interface *interface,
-			 const struct usb_device_id *id)
+static int udl_driver_set_busid(struct drm_device *d, struct drm_master *m)
 {
-	return drm_get_usb_dev(interface, id, &driver);
-}
-
-static void udl_usb_disconnect(struct usb_interface *interface)
-{
-	struct drm_device *dev = usb_get_intfdata(interface);
-
-	drm_kms_helper_poll_disable(dev);
-	drm_connector_unplug_all(dev);
-	udl_fbdev_unplug(dev);
-	udl_drop_usb(dev);
-	drm_unplug_dev(dev);
+	return 0;
 }
 
 static const struct vm_operations_struct udl_gem_vm_ops = {
@@ -75,6 +40,7 @@ static struct drm_driver driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME,
 	.load = udl_driver_load,
 	.unload = udl_driver_unload,
+	.set_busid = udl_driver_set_busid,
 
 	/* gem hooks */
 	.gem_free_object = udl_gem_free_object,
@@ -96,6 +62,61 @@ static struct drm_driver driver = {
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
+static int udl_usb_probe(struct usb_interface *interface,
+			 const struct usb_device_id *id)
+{
+	struct usb_device *udev = interface_to_usbdev(interface);
+	struct drm_device *dev;
+	int r;
+
+	dev = drm_dev_alloc(&driver, &interface->dev);
+	if (!dev)
+		return -ENOMEM;
+
+	r = drm_dev_register(dev, (unsigned long)udev);
+	if (r)
+		goto err_free;
+
+	usb_set_intfdata(interface, dev);
+	DRM_INFO("Initialized udl on minor %d\n", dev->primary->index);
+
+	return 0;
+
+err_free:
+	drm_dev_unref(dev);
+	return r;
+}
+
+static void udl_usb_disconnect(struct usb_interface *interface)
+{
+	struct drm_device *dev = usb_get_intfdata(interface);
+
+	drm_kms_helper_poll_disable(dev);
+	drm_connector_unplug_all(dev);
+	udl_fbdev_unplug(dev);
+	udl_drop_usb(dev);
+	drm_unplug_dev(dev);
+}
+
+/*
+ * There are many DisplayLink-based graphics products, all with unique PIDs.
+ * So we match on DisplayLink's VID + Vendor-Defined Interface Class (0xff)
+ * We also require a match on SubClass (0x00) and Protocol (0x00),
+ * which is compatible with all known USB 2.0 era graphics chips and firmware,
+ * but allows DisplayLink to increment those for any future incompatible chips
+ */
+static struct usb_device_id id_table[] = {
+	{.idVendor = 0x17e9, .bInterfaceClass = 0xff,
+	 .bInterfaceSubClass = 0x00,
+	 .bInterfaceProtocol = 0x00,
+	 .match_flags = USB_DEVICE_ID_MATCH_VENDOR |
+			USB_DEVICE_ID_MATCH_INT_CLASS |
+			USB_DEVICE_ID_MATCH_INT_SUBCLASS |
+			USB_DEVICE_ID_MATCH_INT_PROTOCOL,},
+	{},
+};
+MODULE_DEVICE_TABLE(usb, id_table);
+
 static struct usb_driver udl_driver = {
 	.name = "udl",
 	.probe = udl_usb_probe,
@@ -105,13 +126,14 @@ static struct usb_driver udl_driver = {
 
 static int __init udl_init(void)
 {
-	return drm_usb_init(&driver, &udl_driver);
+	return usb_register(&udl_driver);
 }
 
 static void __exit udl_exit(void)
 {
-	drm_usb_exit(&driver, &udl_driver);
+	usb_deregister(&udl_driver);
 }
 
 module_init(udl_init);
 module_exit(udl_exit);
+MODULE_LICENSE("GPL");

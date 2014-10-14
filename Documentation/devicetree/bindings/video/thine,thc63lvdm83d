@@ -1,0 +1,50 @@
+THine Electronics THC63LVDM83D LVDS serializer
+----------------------------------------------
+
+The THC63LVDM83D is an LVDS serializer designed to support pixel data
+transmission between a host and a flat panel.
+
+Required properties:
+
+- compatible: Should be "thine,thc63lvdm83d"
+
+Optional properties:
+
+- pwdn-gpios: Power down control GPIO
+
+Required nodes:
+
+The THC63LVDM83D has two video ports. Their connections are modeled using the
+OFgraph bindings specified in Documentation/devicetree/bindings/graph.txt.
+
+- Video port 0 for CMOS/TTL input
+- Video port 1 for LVDS output
+
+
+Example
+-------
+
+	lvds_enc: encoder@0 {
+		compatible = "thine,thc63lvdm83d";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				lvds_enc_in: endpoint@0 {
+					remote-endpoint = <&rgb_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				lvds_enc_out: endpoint@0 {
+					remote-endpoint = <&panel_in>;
+				};
+			};
+		};
+	};

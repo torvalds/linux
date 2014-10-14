@@ -3164,7 +3164,7 @@ F:	include/drm/drm_panel.h
 F:	Documentation/devicetree/bindings/panel/
 
 INTEL DRM DRIVERS (excluding Poulsbo, Moorestown and derivative chipsets)
-M:	Daniel Vetter <daniel.vetter@ffwll.ch>
+M:	Daniel Vetter <daniel.vetter@intel.com>
 M:	Jani Nikula <jani.nikula@linux.intel.com>
 L:	intel-gfx@lists.freedesktop.org
 L:	dri-devel@lists.freedesktop.org

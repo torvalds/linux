@@ -29,6 +29,9 @@
 #include <linux/export.h>
 #include <linux/dma-buf.h>
 #include <drm/drmP.h>
+#include <drm/drm_gem.h>
+
+#include "drm_internal.h"
 
 /*
  * DMA-BUF/GEM Object references and lifetime overview:
@@ -522,7 +525,7 @@ struct drm_gem_object *drm_gem_prime_import(struct drm_device *dev,
 		goto fail_detach;
 	}
 
-	obj = dev->driver->gem_prime_import_sg_table(dev, dma_buf->size, sgt);
+	obj = dev->driver->gem_prime_import_sg_table(dev, attach, sgt);
 	if (IS_ERR(obj)) {
 		ret = PTR_ERR(obj);
 		goto fail_unmap;

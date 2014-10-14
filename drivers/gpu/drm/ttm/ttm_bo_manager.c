@@ -49,8 +49,7 @@ struct ttm_range_manager {
 
 static int ttm_bo_man_get_node(struct ttm_mem_type_manager *man,
 			       struct ttm_buffer_object *bo,
-			       struct ttm_placement *placement,
-			       uint32_t flags,
+			       const struct ttm_place *place,
 			       struct ttm_mem_reg *mem)
 {
 	struct ttm_range_manager *rman = (struct ttm_range_manager *) man->priv;
@@ -60,7 +59,7 @@ static int ttm_bo_man_get_node(struct ttm_mem_type_manager *man,
 	unsigned long lpfn;
 	int ret;
 
-	lpfn = placement->lpfn;
+	lpfn = place->lpfn;
 	if (!lpfn)
 		lpfn = man->size;
 
@@ -68,13 +67,13 @@ static int ttm_bo_man_get_node(struct ttm_mem_type_manager *man,
 	if (!node)
 		return -ENOMEM;
 
-	if (flags & TTM_PL_FLAG_TOPDOWN)
+	if (place->flags & TTM_PL_FLAG_TOPDOWN)
 		aflags = DRM_MM_CREATE_TOP;
 
 	spin_lock(&rman->lock);
 	ret = drm_mm_insert_node_in_range_generic(mm, node, mem->num_pages,
 					  mem->page_alignment, 0,
-					  placement->fpfn, lpfn,
+					  place->fpfn, lpfn,
 					  DRM_MM_SEARCH_BEST,
 					  aflags);
 	spin_unlock(&rman->lock);

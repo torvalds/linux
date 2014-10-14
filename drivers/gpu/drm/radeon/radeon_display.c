@@ -402,12 +402,21 @@ static void radeon_flip_work_func(struct work_struct *__work)
 
         down_read(&rdev->exclusive_lock);
 	if (work->fence) {
-		r = radeon_fence_wait(work->fence, false);
-		if (r == -EDEADLK) {
-			up_read(&rdev->exclusive_lock);
-			r = radeon_gpu_reset(rdev);
-			down_read(&rdev->exclusive_lock);
-		}
+		struct radeon_fence *fence;
+
+		fence = to_radeon_fence(work->fence);
+		if (fence && fence->rdev == rdev) {
+			r = radeon_fence_wait(fence, false);
+			if (r == -EDEADLK) {
+				up_read(&rdev->exclusive_lock);
+				do {
+					r = radeon_gpu_reset(rdev);
+				} while (r == -EAGAIN);
+				down_read(&rdev->exclusive_lock);
+			}
+		} else
+			r = fence_wait(work->fence, false);
+
 		if (r)
 			DRM_ERROR("failed to wait on page flip fence (%d)!\n", r);
 
@@ -416,7 +425,8 @@ static void radeon_flip_work_func(struct work_struct *__work)
 		 * confused about which BO the CRTC is scanning out
 		 */
 
-		radeon_fence_unref(&work->fence);
+		fence_put(work->fence);
+		work->fence = NULL;
 	}
 
 	/* We borrow the event spin lock for protecting flip_status */
@@ -474,11 +484,6 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 	obj = new_radeon_fb->obj;
 	new_rbo = gem_to_radeon_bo(obj);
 
-	spin_lock(&new_rbo->tbo.bdev->fence_lock);
-	if (new_rbo->tbo.sync_obj)
-		work->fence = radeon_fence_ref(new_rbo->tbo.sync_obj);
-	spin_unlock(&new_rbo->tbo.bdev->fence_lock);
-
 	/* pin the new buffer */
 	DRM_DEBUG_DRIVER("flip-ioctl() cur_rbo = %p, new_rbo = %p\n",
 			 work->old_rbo, new_rbo);
@@ -497,6 +502,7 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 		DRM_ERROR("failed to pin new rbo buffer before flip\n");
 		goto cleanup;
 	}
+	work->fence = fence_get(reservation_object_get_excl(new_rbo->tbo.resv));
 	radeon_bo_get_tiling_flags(new_rbo, &tiling_flags, NULL);
 	radeon_bo_unreserve(new_rbo);
 
@@ -578,9 +584,8 @@ pflip_cleanup:
 
 cleanup:
 	drm_gem_object_unreference_unlocked(&work->old_rbo->gem_base);
-	radeon_fence_unref(&work->fence);
+	fence_put(work->fence);
 	kfree(work);
-
 	return r;
 }
 
@@ -1917,7 +1922,7 @@ int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc, unsigned int fl
 
 	/* In vblank? */
 	if (in_vbl)
-		ret |= DRM_SCANOUTPOS_INVBL;
+		ret |= DRM_SCANOUTPOS_IN_VBLANK;
 
 	/* Is vpos outside nominal vblank area, but less than
 	 * 1/100 of a frame height away from start of vblank?

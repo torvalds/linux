@@ -2,6 +2,7 @@
 #define __DRM_GEM_CMA_HELPER_H__
 
 #include <drm/drmP.h>
+#include <drm/drm_gem.h>
 
 struct drm_gem_cma_object {
 	struct drm_gem_object base;
@@ -44,7 +45,8 @@ void drm_gem_cma_describe(struct drm_gem_cma_object *obj, struct seq_file *m);
 
 struct sg_table *drm_gem_cma_prime_get_sg_table(struct drm_gem_object *obj);
 struct drm_gem_object *
-drm_gem_cma_prime_import_sg_table(struct drm_device *dev, size_t size,
+drm_gem_cma_prime_import_sg_table(struct drm_device *dev,
+				  struct dma_buf_attachment *attach,
 				  struct sg_table *sgt);
 int drm_gem_cma_prime_mmap(struct drm_gem_object *obj,
 			   struct vm_area_struct *vma);

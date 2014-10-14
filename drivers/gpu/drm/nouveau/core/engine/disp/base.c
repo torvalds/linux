@@ -32,7 +32,8 @@
 #include "conn.h"
 
 int
-nouveau_disp_vblank_ctor(void *data, u32 size, struct nvkm_notify *notify)
+nouveau_disp_vblank_ctor(struct nouveau_object *object, void *data, u32 size,
+			 struct nvkm_notify *notify)
 {
 	struct nouveau_disp *disp =
 		container_of(notify->event, typeof(*disp), vblank);
@@ -61,7 +62,8 @@ nouveau_disp_vblank(struct nouveau_disp *disp, int head)
 }
 
 static int
-nouveau_disp_hpd_ctor(void *data, u32 size, struct nvkm_notify *notify)
+nouveau_disp_hpd_ctor(struct nouveau_object *object, void *data, u32 size,
+		      struct nvkm_notify *notify)
 {
 	struct nouveau_disp *disp =
 		container_of(notify->event, typeof(*disp), hpd);

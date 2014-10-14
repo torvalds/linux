@@ -115,7 +115,7 @@ nouveau_gpuobj_create_(struct nouveau_object *parent,
 	gpuobj->size = size;
 
 	if (heap) {
-		ret = nouveau_mm_head(heap, 1, size, size,
+		ret = nouveau_mm_head(heap, 0, 1, size, size,
 				      max(align, (u32)1), &gpuobj->node);
 		if (ret)
 			return ret;

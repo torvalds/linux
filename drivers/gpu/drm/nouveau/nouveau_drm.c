@@ -51,6 +51,7 @@
 #include "nouveau_fence.h"
 #include "nouveau_debugfs.h"
 #include "nouveau_usif.h"
+#include "nouveau_connector.h"
 
 MODULE_PARM_DESC(config, "option string to pass to driver core");
 static char *nouveau_config;
@@ -73,7 +74,9 @@ MODULE_PARM_DESC(runpm, "disable (0), force enable (1), optimus only default (-1
 int nouveau_runtime_pm = -1;
 module_param_named(runpm, nouveau_runtime_pm, int, 0400);
 
-static struct drm_driver driver;
+static struct drm_driver driver_stub;
+static struct drm_driver driver_pci;
+static struct drm_driver driver_platform;
 
 static u64
 nouveau_pci_name(struct pci_dev *pdev)
@@ -322,7 +325,7 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	ret = drm_get_pci_dev(pdev, pent, &driver);
+	ret = drm_get_pci_dev(pdev, pent, &driver_pci);
 	if (ret) {
 		nouveau_object_ref(NULL, (struct nouveau_object **)&device);
 		return ret;
@@ -831,7 +834,7 @@ nouveau_driver_fops = {
 };
 
 static struct drm_driver
-driver = {
+driver_stub = {
 	.driver_features =
 		DRIVER_USE_AGP |
 		DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME | DRIVER_RENDER,
@@ -1002,6 +1005,23 @@ static int nouveau_pmops_runtime_idle(struct device *dev)
 	return 1;
 }
 
+static void nouveau_display_options(void)
+{
+	DRM_DEBUG_DRIVER("Loading Nouveau with parameters:\n");
+
+	DRM_DEBUG_DRIVER("... tv_disable   : %d\n", nouveau_tv_disable);
+	DRM_DEBUG_DRIVER("... ignorelid    : %d\n", nouveau_ignorelid);
+	DRM_DEBUG_DRIVER("... duallink     : %d\n", nouveau_duallink);
+	DRM_DEBUG_DRIVER("... nofbaccel    : %d\n", nouveau_nofbaccel);
+	DRM_DEBUG_DRIVER("... config       : %s\n", nouveau_config);
+	DRM_DEBUG_DRIVER("... debug        : %s\n", nouveau_debug);
+	DRM_DEBUG_DRIVER("... noaccel      : %d\n", nouveau_noaccel);
+	DRM_DEBUG_DRIVER("... modeset      : %d\n", nouveau_modeset);
+	DRM_DEBUG_DRIVER("... runpm        : %d\n", nouveau_runtime_pm);
+	DRM_DEBUG_DRIVER("... vram_pushbuf : %d\n", nouveau_vram_pushbuf);
+	DRM_DEBUG_DRIVER("... pstate       : %d\n", nouveau_pstate);
+}
+
 static const struct dev_pm_ops nouveau_pm_ops = {
 	.suspend = nouveau_pmops_suspend,
 	.resume = nouveau_pmops_resume,
@@ -1037,7 +1057,7 @@ nouveau_platform_device_create_(struct platform_device *pdev, int size,
 	if (err)
 		return ERR_PTR(err);
 
-	drm = drm_dev_alloc(&driver, &pdev->dev);
+	drm = drm_dev_alloc(&driver_platform, &pdev->dev);
 	if (!drm) {
 		err = -ENOMEM;
 		goto err_free;
@@ -1062,6 +1082,13 @@ EXPORT_SYMBOL(nouveau_platform_device_create_);
 static int __init
 nouveau_drm_init(void)
 {
+	driver_pci = driver_stub;
+	driver_pci.set_busid = drm_pci_set_busid;
+	driver_platform = driver_stub;
+	driver_platform.set_busid = drm_platform_set_busid;
+
+	nouveau_display_options();
+
 	if (nouveau_modeset == -1) {
 #ifdef CONFIG_VGA_CONSOLE
 		if (vgacon_text_force())
@@ -1073,7 +1100,7 @@ nouveau_drm_init(void)
 		return 0;
 
 	nouveau_register_dsm_handler();
-	return drm_pci_init(&driver, &nouveau_drm_pci_driver);
+	return drm_pci_init(&driver_pci, &nouveau_drm_pci_driver);
 }
 
 static void __exit
@@ -1082,7 +1109,7 @@ nouveau_drm_exit(void)
 	if (!nouveau_modeset)
 		return;
 
-	drm_pci_exit(&driver, &nouveau_drm_pci_driver);
+	drm_pci_exit(&driver_pci, &nouveau_drm_pci_driver);
 	nouveau_unregister_dsm_handler();
 }
 

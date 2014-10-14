@@ -1,33 +1,37 @@
 #ifndef __NOUVEAU_FENCE_H__
 #define __NOUVEAU_FENCE_H__
 
+#include <linux/fence.h>
+#include <nvif/notify.h>
+
 struct nouveau_drm;
+struct nouveau_bo;
 
 struct nouveau_fence {
+	struct fence base;
+
 	struct list_head head;
-	struct list_head work;
-	struct kref kref;
 
 	bool sysmem;
 
 	struct nouveau_channel *channel;
 	unsigned long timeout;
-	u32 sequence;
 };
 
 int  nouveau_fence_new(struct nouveau_channel *, bool sysmem,
 		       struct nouveau_fence **);
-struct nouveau_fence *
-nouveau_fence_ref(struct nouveau_fence *);
 void nouveau_fence_unref(struct nouveau_fence **);
 
 int  nouveau_fence_emit(struct nouveau_fence *, struct nouveau_channel *);
 bool nouveau_fence_done(struct nouveau_fence *);
-void nouveau_fence_work(struct nouveau_fence *, void (*)(void *), void *);
+void nouveau_fence_work(struct fence *, void (*)(void *), void *);
 int  nouveau_fence_wait(struct nouveau_fence *, bool lazy, bool intr);
-int  nouveau_fence_sync(struct nouveau_fence *, struct nouveau_channel *);
+int  nouveau_fence_sync(struct nouveau_bo *, struct nouveau_channel *, bool exclusive, bool intr);
 
 struct nouveau_fence_chan {
+	spinlock_t lock;
+	struct kref fence_ref;
+
 	struct list_head pending;
 	struct list_head flip;
 
@@ -38,8 +42,12 @@ struct nouveau_fence_chan {
 	int  (*emit32)(struct nouveau_channel *, u64, u32);
 	int  (*sync32)(struct nouveau_channel *, u64, u32);
 
-	spinlock_t lock;
 	u32 sequence;
+	u32 context;
+	char name[32];
+
+	struct nvif_notify notify;
+	int notify_ref;
 };
 
 struct nouveau_fence_priv {
@@ -49,14 +57,15 @@ struct nouveau_fence_priv {
 	int  (*context_new)(struct nouveau_channel *);
 	void (*context_del)(struct nouveau_channel *);
 
-	wait_queue_head_t waiting;
+	u32 contexts, context_base;
 	bool uevent;
 };
 
 #define nouveau_fence(drm) ((struct nouveau_fence_priv *)(drm)->fence)
 
-void nouveau_fence_context_new(struct nouveau_fence_chan *);
+void nouveau_fence_context_new(struct nouveau_channel *, struct nouveau_fence_chan *);
 void nouveau_fence_context_del(struct nouveau_fence_chan *);
+void nouveau_fence_context_free(struct nouveau_fence_chan *);
 
 int nv04_fence_create(struct nouveau_drm *);
 int nv04_fence_mthd(struct nouveau_channel *, u32, u32, u32);

@@ -1,7 +1,7 @@
 /*
  * shmob_drm_drv.c  --  SH Mobile DRM driver
  *
- * Copyright (C) 2012 Renesas Corporation
+ * Copyright (C) 2012 Renesas Electronics Corporation
  *
  * Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
@@ -267,6 +267,7 @@ static struct drm_driver shmob_drm_driver = {
 	.load			= shmob_drm_load,
 	.unload			= shmob_drm_unload,
 	.preclose		= shmob_drm_preclose,
+	.set_busid		= drm_platform_set_busid,
 	.irq_handler		= shmob_drm_irq,
 	.get_vblank_counter	= drm_vblank_count,
 	.enable_vblank		= shmob_drm_enable_vblank,

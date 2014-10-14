@@ -1066,7 +1066,7 @@ nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 	u32 vscan = (mode->flags & DRM_MODE_FLAG_DBLSCAN) ? 2 : 1;
 	u32 hactive, hsynce, hbackp, hfrontp, hblanke, hblanks;
 	u32 vactive, vsynce, vbackp, vfrontp, vblanke, vblanks;
-	u32 vblan2e = 0, vblan2s = 1;
+	u32 vblan2e = 0, vblan2s = 1, vblankus = 0;
 	u32 *push;
 	int ret;
 
@@ -1083,6 +1083,11 @@ nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 	vblanke = vsynce + vbackp;
 	vfrontp = (mode->vsync_start - mode->vdisplay) * vscan / ilace;
 	vblanks = vactive - vfrontp - 1;
+	/* XXX: Safe underestimate, even "0" works */
+	vblankus = (vactive - mode->vdisplay - 2) * hactive;
+	vblankus *= 1000;
+	vblankus /= mode->clock;
+
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		vblan2e = vactive + vsynce + vbackp;
 		vblan2s = vblan2e + (mode->vdisplay * vscan / ilace);
@@ -1099,14 +1104,14 @@ nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 			evo_mthd(push, 0x0804 + (nv_crtc->index * 0x400), 2);
 			evo_data(push, 0x00800000 | mode->clock);
 			evo_data(push, (ilace == 2) ? 2 : 0);
-			evo_mthd(push, 0x0810 + (nv_crtc->index * 0x400), 6);
+			evo_mthd(push, 0x0810 + (nv_crtc->index * 0x400), 8);
 			evo_data(push, 0x00000000);
 			evo_data(push, (vactive << 16) | hactive);
 			evo_data(push, ( vsynce << 16) | hsynce);
 			evo_data(push, (vblanke << 16) | hblanke);
 			evo_data(push, (vblanks << 16) | hblanks);
 			evo_data(push, (vblan2e << 16) | vblan2s);
-			evo_mthd(push, 0x082c + (nv_crtc->index * 0x400), 1);
+			evo_data(push, vblankus);
 			evo_data(push, 0x00000000);
 			evo_mthd(push, 0x0900 + (nv_crtc->index * 0x400), 2);
 			evo_data(push, 0x00000311);
@@ -1378,7 +1383,7 @@ nv50_crtc_create(struct drm_device *dev, int index)
 	drm_mode_crtc_set_gamma_size(crtc, 256);
 
 	ret = nouveau_bo_new(dev, 8192, 0x100, TTM_PL_FLAG_VRAM,
-			     0, 0x0000, NULL, &head->base.lut.nvbo);
+			     0, 0x0000, NULL, NULL, &head->base.lut.nvbo);
 	if (!ret) {
 		ret = nouveau_bo_pin(head->base.lut.nvbo, TTM_PL_FLAG_VRAM);
 		if (!ret) {
@@ -1401,7 +1406,7 @@ nv50_crtc_create(struct drm_device *dev, int index)
 		goto out;
 
 	ret = nouveau_bo_new(dev, 64 * 64 * 4, 0x100, TTM_PL_FLAG_VRAM,
-			     0, 0x0000, NULL, &head->base.cursor.nvbo);
+			     0, 0x0000, NULL, NULL, &head->base.cursor.nvbo);
 	if (!ret) {
 		ret = nouveau_bo_pin(head->base.cursor.nvbo, TTM_PL_FLAG_VRAM);
 		if (!ret) {
@@ -1651,17 +1656,21 @@ static void
 nv50_audio_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
 	struct nouveau_connector *nv_connector;
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
-	struct {
-		struct nv50_disp_mthd_v1 base;
-		struct nv50_disp_sor_hda_eld_v0 eld;
+	struct __packed {
+		struct {
+			struct nv50_disp_mthd_v1 mthd;
+			struct nv50_disp_sor_hda_eld_v0 eld;
+		} base;
 		u8 data[sizeof(nv_connector->base.eld)];
 	} args = {
-		.base.version = 1,
-		.base.method  = NV50_DISP_MTHD_V1_SOR_HDA_ELD,
-		.base.hasht   = nv_encoder->dcb->hasht,
-		.base.hashm   = nv_encoder->dcb->hashm,
+		.base.mthd.version = 1,
+		.base.mthd.method  = NV50_DISP_MTHD_V1_SOR_HDA_ELD,
+		.base.mthd.hasht   = nv_encoder->dcb->hasht,
+		.base.mthd.hashm   = (0xf0ff & nv_encoder->dcb->hashm) |
+				     (0x0100 << nv_crtc->index),
 	};
 
 	nv_connector = nouveau_encoder_connector_get(nv_encoder);
@@ -1671,11 +1680,11 @@ nv50_audio_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode)
 	drm_edid_to_eld(&nv_connector->base, nv_connector->edid);
 	memcpy(args.data, nv_connector->base.eld, sizeof(args.data));
 
-	nvif_mthd(disp->disp, 0, &args, sizeof(args));
+	nvif_mthd(disp->disp, 0, &args, sizeof(args.base) + args.data[2] * 4);
 }
 
 static void
-nv50_audio_disconnect(struct drm_encoder *encoder)
+nv50_audio_disconnect(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
@@ -1686,7 +1695,8 @@ nv50_audio_disconnect(struct drm_encoder *encoder)
 		.base.version = 1,
 		.base.method  = NV50_DISP_MTHD_V1_SOR_HDA_ELD,
 		.base.hasht   = nv_encoder->dcb->hasht,
-		.base.hashm   = nv_encoder->dcb->hashm,
+		.base.hashm   = (0xf0ff & nv_encoder->dcb->hashm) |
+				(0x0100 << nv_crtc->index),
 	};
 
 	nvif_mthd(disp->disp, 0, &args, sizeof(args));
@@ -1744,8 +1754,6 @@ nv50_hdmi_disconnect(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc)
 		.base.hashm  = (0xf0ff & nv_encoder->dcb->hashm) |
 			       (0x0100 << nv_crtc->index),
 	};
-
-	nv50_audio_disconnect(encoder);
 
 	nvif_mthd(disp->disp, 0, &args, sizeof(args));
 }
@@ -1855,6 +1863,7 @@ nv50_sor_disconnect(struct drm_encoder *encoder)
 	if (nv_crtc) {
 		nv50_crtc_prepare(&nv_crtc->base);
 		nv50_sor_ctrl(nv_encoder, 1 << nv_crtc->index, 0);
+		nv50_audio_disconnect(encoder, nv_crtc);
 		nv50_hdmi_disconnect(&nv_encoder->base.base, nv_crtc);
 	}
 }
@@ -1954,6 +1963,7 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 			proto = 0x8;
 		else
 			proto = 0x9;
+		nv50_audio_mode_set(encoder, mode);
 		break;
 	default:
 		BUG_ON(1);
@@ -2458,7 +2468,7 @@ nv50_display_create(struct drm_device *dev)
 
 	/* small shared memory area we use for notifiers and semaphores */
 	ret = nouveau_bo_new(dev, 4096, 0x1000, TTM_PL_FLAG_VRAM,
-			     0, 0x0000, NULL, &disp->sync);
+			     0, 0x0000, NULL, NULL, &disp->sync);
 	if (!ret) {
 		ret = nouveau_bo_pin(disp->sync, TTM_PL_FLAG_VRAM);
 		if (!ret) {

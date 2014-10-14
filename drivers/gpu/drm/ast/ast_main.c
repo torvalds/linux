@@ -63,7 +63,7 @@ uint8_t ast_get_index_reg_mask(struct ast_private *ast,
 }
 
 
-static int ast_detect_chip(struct drm_device *dev)
+static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 {
 	struct ast_private *ast = dev->dev_private;
 	uint32_t data, jreg;
@@ -110,6 +110,21 @@ static int ast_detect_chip(struct drm_device *dev)
 		}
 	}
 
+	/*
+	 * If VGA isn't enabled, we need to enable now or subsequent
+	 * access to the scratch registers will fail. We also inform
+	 * our caller that it needs to POST the chip
+	 * (Assumption: VGA not enabled -> need to POST)
+	 */
+	if (!ast_is_vga_enabled(dev)) {
+		ast_enable_vga(dev);
+		ast_enable_mmio(dev);
+		DRM_INFO("VGA not enabled on entry, requesting chip POST\n");
+		*need_post = true;
+	} else
+		*need_post = false;
+
+	/* Check if we support wide screen */
 	switch (ast->chip) {
 	case AST1180:
 		ast->support_wide_screen = true;
@@ -125,6 +140,7 @@ static int ast_detect_chip(struct drm_device *dev)
 			ast->support_wide_screen = true;
 		else {
 			ast->support_wide_screen = false;
+			/* Read SCU7c (silicon revision register) */
 			ast_write32(ast, 0xf004, 0x1e6e0000);
 			ast_write32(ast, 0xf000, 0x1);
 			data = ast_read32(ast, 0x1207c);
@@ -137,11 +153,29 @@ static int ast_detect_chip(struct drm_device *dev)
 		break;
 	}
 
+	/* Check 3rd Tx option (digital output afaik) */
 	ast->tx_chip_type = AST_TX_NONE;
-	jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa3, 0xff);
-	if (jreg & 0x80)
-		ast->tx_chip_type = AST_TX_SIL164;
+
+	/*
+	 * VGACRA3 Enhanced Color Mode Register, check if DVO is already
+	 * enabled, in that case, assume we have a SIL164 TMDS transmitter
+	 *
+	 * Don't make that assumption if we the chip wasn't enabled and
+	 * is at power-on reset, otherwise we'll incorrectly "detect" a
+	 * SIL164 when there is none.
+	 */
+	if (!*need_post) {
+		jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa3, 0xff);
+		if (jreg & 0x80)
+			ast->tx_chip_type = AST_TX_SIL164;
+	}
+
 	if ((ast->chip == AST2300) || (ast->chip == AST2400)) {
+		/*
+		 * On AST2300 and 2400, look the configuration set by the SoC in
+		 * the SOC scratch register #1 bits 11:8 (interestingly marked
+		 * as "reserved" in the spec)
+		 */
 		jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd1, 0xff);
 		switch (jreg) {
 		case 0x04:
@@ -162,6 +196,17 @@ static int ast_detect_chip(struct drm_device *dev)
 		}
 	}
 
+	/* Print stuff for diagnostic purposes */
+	switch(ast->tx_chip_type) {
+	case AST_TX_SIL164:
+		DRM_INFO("Using Sil164 TMDS transmitter\n");
+		break;
+	case AST_TX_DP501:
+		DRM_INFO("Using DP501 DisplayPort transmitter\n");
+		break;
+	default:
+		DRM_INFO("Analog VGA only\n");
+	}
 	return 0;
 }
 
@@ -346,6 +391,7 @@ static u32 ast_get_vram_info(struct drm_device *dev)
 int ast_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	struct ast_private *ast;
+	bool need_post;
 	int ret = 0;
 
 	ast = kzalloc(sizeof(struct ast_private), GFP_KERNEL);
@@ -360,19 +406,36 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 		ret = -EIO;
 		goto out_free;
 	}
-	ast->ioregs = pci_iomap(dev->pdev, 2, 0);
-	if (!ast->ioregs) {
-		ret = -EIO;
-		goto out_free;
+
+	/*
+	 * If we don't have IO space at all, use MMIO now and
+	 * assume the chip has MMIO enabled by default (rev 0x20
+	 * and higher).
+	 */
+	if (!(pci_resource_flags(dev->pdev, 2) & IORESOURCE_IO)) {
+		DRM_INFO("platform has no IO space, trying MMIO\n");
+		ast->ioregs = ast->regs + AST_IO_MM_OFFSET;
 	}
 
-	ast_detect_chip(dev);
+	/* "map" IO regs if the above hasn't done so already */
+	if (!ast->ioregs) {
+		ast->ioregs = pci_iomap(dev->pdev, 2, 0);
+		if (!ast->ioregs) {
+			ret = -EIO;
+			goto out_free;
+		}
+	}
+
+	ast_detect_chip(dev, &need_post);
 
 	if (ast->chip != AST1180) {
 		ast_get_dram_info(dev);
 		ast->vram_size = ast_get_vram_info(dev);
 		DRM_INFO("dram %d %d %d %08x\n", ast->mclk, ast->dram_type, ast->dram_bus_width, ast->vram_size);
 	}
+
+	if (need_post)
+		ast_post_gpu(dev);
 
 	ret = ast_mm_init(ast);
 	if (ret)

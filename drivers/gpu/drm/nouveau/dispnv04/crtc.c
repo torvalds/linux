@@ -1127,7 +1127,7 @@ nv04_crtc_create(struct drm_device *dev, int crtc_num)
 	drm_mode_crtc_set_gamma_size(&nv_crtc->base, 256);
 
 	ret = nouveau_bo_new(dev, 64*64*4, 0x100, TTM_PL_FLAG_VRAM,
-			     0, 0x0000, NULL, &nv_crtc->cursor.nvbo);
+			     0, 0x0000, NULL, NULL, &nv_crtc->cursor.nvbo);
 	if (!ret) {
 		ret = nouveau_bo_pin(nv_crtc->cursor.nvbo, TTM_PL_FLAG_VRAM);
 		if (!ret) {

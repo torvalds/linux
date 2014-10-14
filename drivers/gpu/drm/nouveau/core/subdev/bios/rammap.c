@@ -75,36 +75,58 @@ nvbios_rammapEe(struct nouveau_bios *bios, int idx,
 }
 
 u32
-nvbios_rammapEm(struct nouveau_bios *bios, u16 khz,
-		u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
-{
-	int idx = 0;
-	u32 data;
-	while ((data = nvbios_rammapEe(bios, idx++, ver, hdr, cnt, len))) {
-		if (khz >= nv_ro16(bios, data + 0x00) &&
-		    khz <= nv_ro16(bios, data + 0x02))
-			break;
-	}
-	return data;
-}
-
-u32
-nvbios_rammapEp(struct nouveau_bios *bios, u16 khz,
+nvbios_rammapEp(struct nouveau_bios *bios, int idx,
 		u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 		struct nvbios_ramcfg *p)
 {
-	u32 data = nvbios_rammapEm(bios, khz, ver, hdr, cnt, len);
+	u32 data = nvbios_rammapEe(bios, idx, ver, hdr, cnt, len), temp;
 	memset(p, 0x00, sizeof(*p));
+	p->rammap_ver = *ver;
+	p->rammap_hdr = *hdr;
 	switch (!!data * *ver) {
+	case 0x10:
+		p->rammap_min      =  nv_ro16(bios, data + 0x00);
+		p->rammap_max      =  nv_ro16(bios, data + 0x02);
+		p->rammap_10_04_02 = (nv_ro08(bios, data + 0x04) & 0x02) >> 1;
+		p->rammap_10_04_08 = (nv_ro08(bios, data + 0x04) & 0x08) >> 3;
+		break;
 	case 0x11:
+		p->rammap_min      =  nv_ro16(bios, data + 0x00);
+		p->rammap_max      =  nv_ro16(bios, data + 0x02);
 		p->rammap_11_08_01 = (nv_ro08(bios, data + 0x08) & 0x01) >> 0;
 		p->rammap_11_08_0c = (nv_ro08(bios, data + 0x08) & 0x0c) >> 2;
 		p->rammap_11_08_10 = (nv_ro08(bios, data + 0x08) & 0x10) >> 4;
+		temp = nv_ro32(bios, data + 0x09);
+		p->rammap_11_09_01ff = (temp & 0x000001ff) >> 0;
+		p->rammap_11_0a_03fe = (temp & 0x0003fe00) >> 9;
+		p->rammap_11_0a_0400 = (temp & 0x00040000) >> 18;
+		p->rammap_11_0a_0800 = (temp & 0x00080000) >> 19;
+		p->rammap_11_0b_01f0 = (temp & 0x01f00000) >> 20;
+		p->rammap_11_0b_0200 = (temp & 0x02000000) >> 25;
+		p->rammap_11_0b_0400 = (temp & 0x04000000) >> 26;
+		p->rammap_11_0b_0800 = (temp & 0x08000000) >> 27;
+		p->rammap_11_0d    =  nv_ro08(bios, data + 0x0d);
+		p->rammap_11_0e    =  nv_ro08(bios, data + 0x0e);
+		p->rammap_11_0f    =  nv_ro08(bios, data + 0x0f);
 		p->rammap_11_11_0c = (nv_ro08(bios, data + 0x11) & 0x0c) >> 2;
 		break;
 	default:
 		data = 0;
 		break;
+	}
+	return data;
+}
+
+u32
+nvbios_rammapEm(struct nouveau_bios *bios, u16 mhz,
+		u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
+		struct nvbios_ramcfg *info)
+{
+	int idx = 0;
+	u32 data;
+	while ((data = nvbios_rammapEp(bios, idx++, ver, hdr, cnt, len, info))) {
+		if (mhz >= info->rammap_min && mhz <= info->rammap_max)
+			break;
 	}
 	return data;
 }
@@ -129,8 +151,28 @@ nvbios_rammapSp(struct nouveau_bios *bios, u32 data,
 		u8 *ver, u8 *hdr, struct nvbios_ramcfg *p)
 {
 	data = nvbios_rammapSe(bios, data, ever, ehdr, ecnt, elen, idx, ver, hdr);
+	p->ramcfg_ver = *ver;
+	p->ramcfg_hdr = *hdr;
 	switch (!!data * *ver) {
+	case 0x10:
+		p->ramcfg_timing   =  nv_ro08(bios, data + 0x01);
+		p->ramcfg_10_02_01 = (nv_ro08(bios, data + 0x02) & 0x01) >> 0;
+		p->ramcfg_10_02_02 = (nv_ro08(bios, data + 0x02) & 0x02) >> 1;
+		p->ramcfg_10_02_04 = (nv_ro08(bios, data + 0x02) & 0x04) >> 2;
+		p->ramcfg_10_02_08 = (nv_ro08(bios, data + 0x02) & 0x08) >> 3;
+		p->ramcfg_10_02_10 = (nv_ro08(bios, data + 0x02) & 0x10) >> 4;
+		p->ramcfg_10_02_20 = (nv_ro08(bios, data + 0x02) & 0x20) >> 5;
+		p->ramcfg_10_02_40 = (nv_ro08(bios, data + 0x02) & 0x40) >> 6;
+		p->ramcfg_10_03_0f = (nv_ro08(bios, data + 0x03) & 0x0f) >> 0;
+		p->ramcfg_10_05    = (nv_ro08(bios, data + 0x05) & 0xff) >> 0;
+		p->ramcfg_10_06    = (nv_ro08(bios, data + 0x06) & 0xff) >> 0;
+		p->ramcfg_10_07    = (nv_ro08(bios, data + 0x07) & 0xff) >> 0;
+		p->ramcfg_10_08    = (nv_ro08(bios, data + 0x08) & 0xff) >> 0;
+		p->ramcfg_10_09_0f = (nv_ro08(bios, data + 0x09) & 0x0f) >> 0;
+		p->ramcfg_10_09_f0 = (nv_ro08(bios, data + 0x09) & 0xf0) >> 4;
+		break;
 	case 0x11:
+		p->ramcfg_timing   =  nv_ro08(bios, data + 0x00);
 		p->ramcfg_11_01_01 = (nv_ro08(bios, data + 0x01) & 0x01) >> 0;
 		p->ramcfg_11_01_02 = (nv_ro08(bios, data + 0x01) & 0x02) >> 1;
 		p->ramcfg_11_01_04 = (nv_ro08(bios, data + 0x01) & 0x04) >> 2;

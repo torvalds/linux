@@ -175,7 +175,8 @@ nv50_software_context_ctor(struct nouveau_object *parent,
 		return ret;
 
 	for (i = 0; pdisp && i < pdisp->vblank.index_nr; i++) {
-		ret = nvkm_notify_init(&pdisp->vblank, pclass->vblank, false,
+		ret = nvkm_notify_init(NULL, &pdisp->vblank, pclass->vblank,
+				       false,
 				       &(struct nvif_notify_head_req_v0) {
 					.head = i,
 				       },

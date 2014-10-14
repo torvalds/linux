@@ -80,13 +80,14 @@ static int r200_get_vtx_size_0(uint32_t vtx_fmt_0)
 	return vtx_size;
 }
 
-int r200_copy_dma(struct radeon_device *rdev,
-		  uint64_t src_offset,
-		  uint64_t dst_offset,
-		  unsigned num_gpu_pages,
-		  struct radeon_fence **fence)
+struct radeon_fence *r200_copy_dma(struct radeon_device *rdev,
+				   uint64_t src_offset,
+				   uint64_t dst_offset,
+				   unsigned num_gpu_pages,
+				   struct reservation_object *resv)
 {
 	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
+	struct radeon_fence *fence;
 	uint32_t size;
 	uint32_t cur_size;
 	int i, num_loops;
@@ -98,7 +99,7 @@ int r200_copy_dma(struct radeon_device *rdev,
 	r = radeon_ring_lock(rdev, ring, num_loops * 4 + 64);
 	if (r) {
 		DRM_ERROR("radeon: moving bo (%d).\n", r);
-		return r;
+		return ERR_PTR(r);
 	}
 	/* Must wait for 2D idle & clean before DMA or hangs might happen */
 	radeon_ring_write(ring, PACKET0(RADEON_WAIT_UNTIL, 0));
@@ -118,11 +119,13 @@ int r200_copy_dma(struct radeon_device *rdev,
 	}
 	radeon_ring_write(ring, PACKET0(RADEON_WAIT_UNTIL, 0));
 	radeon_ring_write(ring, RADEON_WAIT_DMA_GUI_IDLE);
-	if (fence) {
-		r = radeon_fence_emit(rdev, fence, RADEON_RING_TYPE_GFX_INDEX);
+	r = radeon_fence_emit(rdev, &fence, RADEON_RING_TYPE_GFX_INDEX);
+	if (r) {
+		radeon_ring_unlock_undo(rdev, ring);
+		return ERR_PTR(r);
 	}
 	radeon_ring_unlock_commit(rdev, ring, false);
-	return r;
+	return fence;
 }
 
 

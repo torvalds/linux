@@ -24,6 +24,7 @@
  */
 
 #include "priv.h"
+#include <subdev/fuse.h>
 
 struct nv84_therm_priv {
 	struct nouveau_therm_priv base;
@@ -32,7 +33,25 @@ struct nv84_therm_priv {
 int
 nv84_temp_get(struct nouveau_therm *therm)
 {
-	return nv_rd32(therm, 0x20400);
+	struct nouveau_fuse *fuse = nouveau_fuse(therm);
+
+	if (nv_ro32(fuse, 0x1a8) == 1)
+		return nv_rd32(therm, 0x20400);
+	else
+		return -ENODEV;
+}
+
+void
+nv84_sensor_setup(struct nouveau_therm *therm)
+{
+	struct nouveau_fuse *fuse = nouveau_fuse(therm);
+
+	/* enable temperature reading for cards with insane defaults */
+	if (nv_ro32(fuse, 0x1a8) == 1) {
+		nv_mask(therm, 0x20008, 0x80008000, 0x80000000);
+		nv_mask(therm, 0x2000c, 0x80000003, 0x00000000);
+		mdelay(20); /* wait for the temperature to stabilize */
+	}
 }
 
 static void
@@ -171,6 +190,21 @@ nv84_therm_intr(struct nouveau_subdev *subdev)
 }
 
 static int
+nv84_therm_init(struct nouveau_object *object)
+{
+	struct nv84_therm_priv *priv = (void *)object;
+	int ret;
+
+	ret = nouveau_therm_init(&priv->base.base);
+	if (ret)
+		return ret;
+
+	nv84_sensor_setup(&priv->base.base);
+
+	return 0;
+}
+
+static int
 nv84_therm_ctor(struct nouveau_object *parent,
 		struct nouveau_object *engine,
 		struct nouveau_oclass *oclass, void *data, u32 size,
@@ -228,7 +262,7 @@ nv84_therm_oclass = {
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv84_therm_ctor,
 		.dtor = _nouveau_therm_dtor,
-		.init = _nouveau_therm_init,
+		.init = nv84_therm_init,
 		.fini = nv84_therm_fini,
 	},
 };

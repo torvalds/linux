@@ -21,6 +21,7 @@
 #include <drm/drm_sysfs.h>
 #include <drm/drm_core.h>
 #include <drm/drmP.h>
+#include "drm_internal.h"
 
 #define to_drm_minor(d) dev_get_drvdata(d)
 #define to_drm_connector(d) dev_get_drvdata(d)

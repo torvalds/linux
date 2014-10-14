@@ -20,7 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <core/os.h>
+#include <core/object.h>
 #include <core/event.h>
 
 void

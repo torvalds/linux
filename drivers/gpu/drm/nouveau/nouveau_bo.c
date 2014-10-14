@@ -88,13 +88,13 @@ nv10_bo_get_tile_region(struct drm_device *dev, int i)
 
 static void
 nv10_bo_put_tile_region(struct drm_device *dev, struct nouveau_drm_tile *tile,
-			struct nouveau_fence *fence)
+			struct fence *fence)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 
 	if (tile) {
 		spin_lock(&drm->tile.lock);
-		tile->fence = nouveau_fence_ref(fence);
+		tile->fence = (struct nouveau_fence *)fence_get(fence);
 		tile->used = false;
 		spin_unlock(&drm->tile.lock);
 	}
@@ -181,7 +181,7 @@ nouveau_bo_fixup_align(struct nouveau_bo *nvbo, u32 flags,
 int
 nouveau_bo_new(struct drm_device *dev, int size, int align,
 	       uint32_t flags, uint32_t tile_mode, uint32_t tile_flags,
-	       struct sg_table *sg,
+	       struct sg_table *sg, struct reservation_object *robj,
 	       struct nouveau_bo **pnvbo)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
@@ -230,7 +230,7 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 	ret = ttm_bo_init(&drm->ttm.bdev, &nvbo->bo, size,
 			  type, &nvbo->placement,
 			  align >> PAGE_SHIFT, false, NULL, acc_size, sg,
-			  nouveau_bo_del_ttm);
+			  robj, nouveau_bo_del_ttm);
 	if (ret) {
 		/* ttm will call nouveau_bo_del_ttm if it fails.. */
 		return ret;
@@ -241,16 +241,16 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 }
 
 static void
-set_placement_list(uint32_t *pl, unsigned *n, uint32_t type, uint32_t flags)
+set_placement_list(struct ttm_place *pl, unsigned *n, uint32_t type, uint32_t flags)
 {
 	*n = 0;
 
 	if (type & TTM_PL_FLAG_VRAM)
-		pl[(*n)++] = TTM_PL_FLAG_VRAM | flags;
+		pl[(*n)++].flags = TTM_PL_FLAG_VRAM | flags;
 	if (type & TTM_PL_FLAG_TT)
-		pl[(*n)++] = TTM_PL_FLAG_TT | flags;
+		pl[(*n)++].flags = TTM_PL_FLAG_TT | flags;
 	if (type & TTM_PL_FLAG_SYSTEM)
-		pl[(*n)++] = TTM_PL_FLAG_SYSTEM | flags;
+		pl[(*n)++].flags = TTM_PL_FLAG_SYSTEM | flags;
 }
 
 static void
@@ -258,6 +258,7 @@ set_placement_range(struct nouveau_bo *nvbo, uint32_t type)
 {
 	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
 	u32 vram_pages = drm->device.info.ram_size >> PAGE_SHIFT;
+	unsigned i, fpfn, lpfn;
 
 	if (drm->device.info.family == NV_DEVICE_INFO_V0_CELSIUS &&
 	    nvbo->tile_mode && (type & TTM_PL_FLAG_VRAM) &&
@@ -269,11 +270,19 @@ set_placement_range(struct nouveau_bo *nvbo, uint32_t type)
 		 * at the same time.
 		 */
 		if (nvbo->tile_flags & NOUVEAU_GEM_TILE_ZETA) {
-			nvbo->placement.fpfn = vram_pages / 2;
-			nvbo->placement.lpfn = ~0;
+			fpfn = vram_pages / 2;
+			lpfn = ~0;
 		} else {
-			nvbo->placement.fpfn = 0;
-			nvbo->placement.lpfn = vram_pages / 2;
+			fpfn = 0;
+			lpfn = vram_pages / 2;
+		}
+		for (i = 0; i < nvbo->placement.num_placement; ++i) {
+			nvbo->placements[i].fpfn = fpfn;
+			nvbo->placements[i].lpfn = lpfn;
+		}
+		for (i = 0; i < nvbo->placement.num_busy_placement; ++i) {
+			nvbo->busy_placements[i].fpfn = fpfn;
+			nvbo->busy_placements[i].lpfn = lpfn;
 		}
 	}
 }
@@ -961,13 +970,14 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 	}
 
 	mutex_lock_nested(&cli->mutex, SINGLE_DEPTH_NESTING);
-	ret = nouveau_fence_sync(bo->sync_obj, chan);
+	ret = nouveau_fence_sync(nouveau_bo(bo), chan, true, intr);
 	if (ret == 0) {
 		ret = drm->ttm.move(chan, bo, &bo->mem, new_mem);
 		if (ret == 0) {
 			ret = nouveau_fence_new(chan, false, &fence);
 			if (ret == 0) {
-				ret = ttm_bo_move_accel_cleanup(bo, fence,
+				ret = ttm_bo_move_accel_cleanup(bo,
+								&fence->base,
 								evict,
 								no_wait_gpu,
 								new_mem);
@@ -1041,12 +1051,15 @@ static int
 nouveau_bo_move_flipd(struct ttm_buffer_object *bo, bool evict, bool intr,
 		      bool no_wait_gpu, struct ttm_mem_reg *new_mem)
 {
-	u32 placement_memtype = TTM_PL_FLAG_TT | TTM_PL_MASK_CACHING;
+	struct ttm_place placement_memtype = {
+		.fpfn = 0,
+		.lpfn = 0,
+		.flags = TTM_PL_FLAG_TT | TTM_PL_MASK_CACHING
+	};
 	struct ttm_placement placement;
 	struct ttm_mem_reg tmp_mem;
 	int ret;
 
-	placement.fpfn = placement.lpfn = 0;
 	placement.num_placement = placement.num_busy_placement = 1;
 	placement.placement = placement.busy_placement = &placement_memtype;
 
@@ -1074,12 +1087,15 @@ static int
 nouveau_bo_move_flips(struct ttm_buffer_object *bo, bool evict, bool intr,
 		      bool no_wait_gpu, struct ttm_mem_reg *new_mem)
 {
-	u32 placement_memtype = TTM_PL_FLAG_TT | TTM_PL_MASK_CACHING;
+	struct ttm_place placement_memtype = {
+		.fpfn = 0,
+		.lpfn = 0,
+		.flags = TTM_PL_FLAG_TT | TTM_PL_MASK_CACHING
+	};
 	struct ttm_placement placement;
 	struct ttm_mem_reg tmp_mem;
 	int ret;
 
-	placement.fpfn = placement.lpfn = 0;
 	placement.num_placement = placement.num_busy_placement = 1;
 	placement.placement = placement.busy_placement = &placement_memtype;
 
@@ -1152,8 +1168,9 @@ nouveau_bo_vm_cleanup(struct ttm_buffer_object *bo,
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct drm_device *dev = drm->dev;
+	struct fence *fence = reservation_object_get_excl(bo->resv);
 
-	nv10_bo_put_tile_region(dev, *old_tile, bo->sync_obj);
+	nv10_bo_put_tile_region(dev, *old_tile, fence);
 	*old_tile = new_tile;
 }
 
@@ -1197,9 +1214,7 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
 	}
 
 	/* Fallback to software copy. */
-	spin_lock(&bo->bdev->fence_lock);
 	ret = ttm_bo_wait(bo, true, intr, no_wait_gpu);
-	spin_unlock(&bo->bdev->fence_lock);
 	if (ret == 0)
 		ret = ttm_bo_move_memcpy(bo, evict, no_wait_gpu, new_mem);
 
@@ -1294,7 +1309,7 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nvif_device *device = &drm->device;
 	u32 mappable = nv_device_resource_len(nvkm_device(device), 1) >> PAGE_SHIFT;
-	int ret;
+	int i, ret;
 
 	/* as long as the bo isn't in vram, and isn't tiled, we've got
 	 * nothing to do here.
@@ -1319,9 +1334,16 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 	    bo->mem.start + bo->mem.num_pages < mappable)
 		return 0;
 
+	for (i = 0; i < nvbo->placement.num_placement; ++i) {
+		nvbo->placements[i].fpfn = 0;
+		nvbo->placements[i].lpfn = mappable;
+	}
 
-	nvbo->placement.fpfn = 0;
-	nvbo->placement.lpfn = mappable;
+	for (i = 0; i < nvbo->placement.num_busy_placement; ++i) {
+		nvbo->busy_placements[i].fpfn = 0;
+		nvbo->busy_placements[i].lpfn = mappable;
+	}
+
 	nouveau_bo_placement_set(nvbo, TTM_PL_FLAG_VRAM, 0);
 	return nouveau_bo_validate(nvbo, false, false);
 }
@@ -1436,47 +1458,14 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 }
 
 void
-nouveau_bo_fence(struct nouveau_bo *nvbo, struct nouveau_fence *fence)
+nouveau_bo_fence(struct nouveau_bo *nvbo, struct nouveau_fence *fence, bool exclusive)
 {
-	struct nouveau_fence *new_fence = nouveau_fence_ref(fence);
-	struct nouveau_fence *old_fence = NULL;
+	struct reservation_object *resv = nvbo->bo.resv;
 
-	spin_lock(&nvbo->bo.bdev->fence_lock);
-	old_fence = nvbo->bo.sync_obj;
-	nvbo->bo.sync_obj = new_fence;
-	spin_unlock(&nvbo->bo.bdev->fence_lock);
-
-	nouveau_fence_unref(&old_fence);
-}
-
-static void
-nouveau_bo_fence_unref(void **sync_obj)
-{
-	nouveau_fence_unref((struct nouveau_fence **)sync_obj);
-}
-
-static void *
-nouveau_bo_fence_ref(void *sync_obj)
-{
-	return nouveau_fence_ref(sync_obj);
-}
-
-static bool
-nouveau_bo_fence_signalled(void *sync_obj)
-{
-	return nouveau_fence_done(sync_obj);
-}
-
-static int
-nouveau_bo_fence_wait(void *sync_obj, bool lazy, bool intr)
-{
-	return nouveau_fence_wait(sync_obj, lazy, intr);
-}
-
-static int
-nouveau_bo_fence_flush(void *sync_obj)
-{
-	return 0;
+	if (exclusive)
+		reservation_object_add_excl_fence(resv, &fence->base);
+	else if (fence)
+		reservation_object_add_shared_fence(resv, &fence->base);
 }
 
 struct ttm_bo_driver nouveau_bo_driver = {
@@ -1489,11 +1478,6 @@ struct ttm_bo_driver nouveau_bo_driver = {
 	.move_notify = nouveau_bo_move_ntfy,
 	.move = nouveau_bo_move,
 	.verify_access = nouveau_bo_verify_access,
-	.sync_obj_signaled = nouveau_bo_fence_signalled,
-	.sync_obj_wait = nouveau_bo_fence_wait,
-	.sync_obj_flush = nouveau_bo_fence_flush,
-	.sync_obj_unref = nouveau_bo_fence_unref,
-	.sync_obj_ref = nouveau_bo_fence_ref,
 	.fault_reserve_notify = &nouveau_ttm_fault_reserve_notify,
 	.io_mem_reserve = &nouveau_ttm_io_mem_reserve,
 	.io_mem_free = &nouveau_ttm_io_mem_free,

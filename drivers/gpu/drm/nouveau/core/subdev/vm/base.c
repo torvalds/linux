@@ -296,7 +296,7 @@ nouveau_vm_get(struct nouveau_vm *vm, u64 size, u32 page_shift,
 	int ret;
 
 	mutex_lock(&nv_subdev(vmm)->mutex);
-	ret = nouveau_mm_head(&vm->mm, page_shift, msize, msize, align,
+	ret = nouveau_mm_head(&vm->mm, 0, page_shift, msize, msize, align,
 			     &vma->node);
 	if (unlikely(ret != 0)) {
 		mutex_unlock(&nv_subdev(vmm)->mutex);

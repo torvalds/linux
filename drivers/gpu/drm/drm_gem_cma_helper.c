@@ -316,7 +316,8 @@ out:
 EXPORT_SYMBOL_GPL(drm_gem_cma_prime_get_sg_table);
 
 struct drm_gem_object *
-drm_gem_cma_prime_import_sg_table(struct drm_device *dev, size_t size,
+drm_gem_cma_prime_import_sg_table(struct drm_device *dev,
+				  struct dma_buf_attachment *attach,
 				  struct sg_table *sgt)
 {
 	struct drm_gem_cma_object *cma_obj;
@@ -325,14 +326,14 @@ drm_gem_cma_prime_import_sg_table(struct drm_device *dev, size_t size,
 		return ERR_PTR(-EINVAL);
 
 	/* Create a CMA GEM buffer. */
-	cma_obj = __drm_gem_cma_create(dev, size);
+	cma_obj = __drm_gem_cma_create(dev, attach->dmabuf->size);
 	if (IS_ERR(cma_obj))
 		return ERR_CAST(cma_obj);
 
 	cma_obj->paddr = sg_dma_address(sgt->sgl);
 	cma_obj->sgt = sgt;
 
-	DRM_DEBUG_PRIME("dma_addr = %pad, size = %zu\n", &cma_obj->paddr, size);
+	DRM_DEBUG_PRIME("dma_addr = %pad, size = %zu\n", &cma_obj->paddr, attach->dmabuf->size);
 
 	return &cma_obj->base;
 }

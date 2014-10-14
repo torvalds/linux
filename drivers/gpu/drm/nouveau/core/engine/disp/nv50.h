@@ -26,6 +26,8 @@ struct nv50_disp_priv {
 	struct work_struct supervisor;
 	u32 super;
 
+	struct nvkm_event uevent;
+
 	struct {
 		int nr;
 	} head;
@@ -75,6 +77,7 @@ int nvd0_hda_eld(NV50_DISP_MTHD_V1);
 int nv84_hdmi_ctrl(NV50_DISP_MTHD_V1);
 int nva3_hdmi_ctrl(NV50_DISP_MTHD_V1);
 int nvd0_hdmi_ctrl(NV50_DISP_MTHD_V1);
+int nve0_hdmi_ctrl(NV50_DISP_MTHD_V1);
 
 int nv50_sor_power(NV50_DISP_MTHD_V1);
 
@@ -116,9 +119,16 @@ struct nv50_disp_chan {
 	int chid;
 };
 
+int  nv50_disp_chan_ntfy(struct nouveau_object *, u32, struct nvkm_event **);
 int  nv50_disp_chan_map(struct nouveau_object *, u64 *, u32 *);
 u32  nv50_disp_chan_rd32(struct nouveau_object *, u64);
 void nv50_disp_chan_wr32(struct nouveau_object *, u64, u32);
+extern const struct nvkm_event_func nv50_disp_chan_uevent;
+int  nv50_disp_chan_uevent_ctor(struct nouveau_object *, void *, u32,
+				struct nvkm_notify *);
+void nv50_disp_chan_uevent_send(struct nv50_disp_priv *, int);
+
+extern const struct nvkm_event_func nvd0_disp_chan_uevent;
 
 #define nv50_disp_chan_init(a)                                                 \
 	nouveau_namedb_init(&(a)->base)

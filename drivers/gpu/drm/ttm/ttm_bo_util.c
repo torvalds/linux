@@ -37,6 +37,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/module.h>
+#include <linux/reservation.h>
 
 void ttm_bo_free_old_node(struct ttm_buffer_object *bo)
 {
@@ -444,8 +445,6 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 				      struct ttm_buffer_object **new_obj)
 {
 	struct ttm_buffer_object *fbo;
-	struct ttm_bo_device *bdev = bo->bdev;
-	struct ttm_bo_driver *driver = bdev->driver;
 	int ret;
 
 	fbo = kmalloc(sizeof(*fbo), GFP_KERNEL);
@@ -466,12 +465,6 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	drm_vma_node_reset(&fbo->vma_node);
 	atomic_set(&fbo->cpu_writers, 0);
 
-	spin_lock(&bdev->fence_lock);
-	if (bo->sync_obj)
-		fbo->sync_obj = driver->sync_obj_ref(bo->sync_obj);
-	else
-		fbo->sync_obj = NULL;
-	spin_unlock(&bdev->fence_lock);
 	kref_init(&fbo->list_kref);
 	kref_init(&fbo->kref);
 	fbo->destroy = &ttm_transfered_destroy;
@@ -487,28 +480,24 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 
 pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp)
 {
+	/* Cached mappings need no adjustment */
+	if (caching_flags & TTM_PL_FLAG_CACHED)
+		return tmp;
+
 #if defined(__i386__) || defined(__x86_64__)
 	if (caching_flags & TTM_PL_FLAG_WC)
 		tmp = pgprot_writecombine(tmp);
 	else if (boot_cpu_data.x86 > 3)
 		tmp = pgprot_noncached(tmp);
-
-#elif defined(__powerpc__)
-	if (!(caching_flags & TTM_PL_FLAG_CACHED)) {
-		pgprot_val(tmp) |= _PAGE_NO_CACHE;
-		if (caching_flags & TTM_PL_FLAG_UNCACHED)
-			pgprot_val(tmp) |= _PAGE_GUARDED;
-	}
 #endif
-#if defined(__ia64__) || defined(__arm__)
+#if defined(__ia64__) || defined(__arm__) || defined(__powerpc__)
 	if (caching_flags & TTM_PL_FLAG_WC)
 		tmp = pgprot_writecombine(tmp);
 	else
 		tmp = pgprot_noncached(tmp);
 #endif
 #if defined(__sparc__) || defined(__mips__)
-	if (!(caching_flags & TTM_PL_FLAG_CACHED))
-		tmp = pgprot_noncached(tmp);
+	tmp = pgprot_noncached(tmp);
 #endif
 	return tmp;
 }
@@ -567,9 +556,7 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 		 * We need to use vmap to get the desired page protection
 		 * or to make the buffer object look contiguous.
 		 */
-		prot = (mem->placement & TTM_PL_FLAG_CACHED) ?
-			PAGE_KERNEL :
-			ttm_io_prot(mem->placement, PAGE_KERNEL);
+		prot = ttm_io_prot(mem->placement, PAGE_KERNEL);
 		map->bo_kmap_type = ttm_bo_map_vmap;
 		map->virtual = vmap(ttm->pages + start_page, num_pages,
 				    0, prot);
@@ -644,30 +631,20 @@ void ttm_bo_kunmap(struct ttm_bo_kmap_obj *map)
 EXPORT_SYMBOL(ttm_bo_kunmap);
 
 int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
-			      void *sync_obj,
+			      struct fence *fence,
 			      bool evict,
 			      bool no_wait_gpu,
 			      struct ttm_mem_reg *new_mem)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
-	struct ttm_bo_driver *driver = bdev->driver;
 	struct ttm_mem_type_manager *man = &bdev->man[new_mem->mem_type];
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	int ret;
 	struct ttm_buffer_object *ghost_obj;
-	void *tmp_obj = NULL;
 
-	spin_lock(&bdev->fence_lock);
-	if (bo->sync_obj) {
-		tmp_obj = bo->sync_obj;
-		bo->sync_obj = NULL;
-	}
-	bo->sync_obj = driver->sync_obj_ref(sync_obj);
+	reservation_object_add_excl_fence(bo->resv, fence);
 	if (evict) {
 		ret = ttm_bo_wait(bo, false, false, false);
-		spin_unlock(&bdev->fence_lock);
-		if (tmp_obj)
-			driver->sync_obj_unref(&tmp_obj);
 		if (ret)
 			return ret;
 
@@ -688,13 +665,12 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 		 */
 
 		set_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags);
-		spin_unlock(&bdev->fence_lock);
-		if (tmp_obj)
-			driver->sync_obj_unref(&tmp_obj);
 
 		ret = ttm_buffer_object_transfer(bo, &ghost_obj);
 		if (ret)
 			return ret;
+
+		reservation_object_add_excl_fence(ghost_obj->resv, fence);
 
 		/**
 		 * If we're not moving to fixed memory, the TTM object
