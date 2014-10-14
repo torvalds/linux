@@ -9,53 +9,16 @@
 
 #define ADDIDATA_WATCHDOG 2	/*  Or shold it be something else */
 
-#include "addi-data/addi_eeprom.c"
 #include "addi-data/hwdrv_apci035.c"
-
-static const struct addi_board apci035_boardtypes[] = {
-	{
-		.name			= "apci035",
-		.pc_EepromChip		= "S5920",
-		.i_NbrAiChannel		= 16,
-		.i_NbrAiChannelDiff	= 8,
-		.i_AiChannelList	= 16,
-		.i_AiMaxdata		= 0xff,
-		.pr_AiRangelist		= &range_apci035_ai,
-		.i_Timer		= 1,
-		.ui_MinAcquisitiontimeNs = 10000,
-		.ui_MinDelaytimeNs	= 100000,
-	},
-};
-
-static int i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev,
-				     struct comedi_subdevice *s,
-				     struct comedi_insn *insn,
-				     unsigned int *data)
-{
-	const struct addi_board *this_board = dev->board_ptr;
-	struct addi_private *devpriv = dev->private;
-	unsigned short w_Address = CR_CHAN(insn->chanspec);
-	unsigned short w_Data;
-
-	w_Data = addi_eeprom_readw(devpriv->i_IobaseAmcc,
-		this_board->pc_EepromChip, 2 * w_Address);
-	data[0] = w_Data;
-
-	return insn->n;
-}
 
 static int apci035_auto_attach(struct comedi_device *dev,
 			       unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct addi_board *this_board = dev->board_ptr;
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned int dw_Dummy;
 	int ret;
-
-	dev->board_ptr = &apci035_boardtypes[0];
-	dev->board_name = this_board->name;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
@@ -71,22 +34,6 @@ static int apci035_auto_attach(struct comedi_device *dev,
 	devpriv->i_IobaseAddon = pci_resource_start(pcidev, 2);
 	devpriv->i_IobaseReserved = pci_resource_start(pcidev, 3);
 
-	/* Initialize parameters that can be overridden in EEPROM */
-	devpriv->s_EeParameters.i_NbrAiChannel = this_board->i_NbrAiChannel;
-	devpriv->s_EeParameters.i_NbrAoChannel = this_board->i_NbrAoChannel;
-	devpriv->s_EeParameters.i_AiMaxdata = this_board->i_AiMaxdata;
-	devpriv->s_EeParameters.i_AoMaxdata = this_board->i_AoMaxdata;
-	devpriv->s_EeParameters.i_NbrDiChannel = this_board->i_NbrDiChannel;
-	devpriv->s_EeParameters.i_NbrDoChannel = this_board->i_NbrDoChannel;
-	devpriv->s_EeParameters.i_DoMaxdata = this_board->i_DoMaxdata;
-	devpriv->s_EeParameters.i_Timer = this_board->i_Timer;
-	devpriv->s_EeParameters.ui_MinAcquisitiontimeNs =
-		this_board->ui_MinAcquisitiontimeNs;
-	devpriv->s_EeParameters.ui_MinDelaytimeNs =
-		this_board->ui_MinDelaytimeNs;
-
-	/* ## */
-
 	if (pcidev->irq > 0) {
 		ret = request_irq(pcidev->irq, apci035_interrupt, IRQF_SHARED,
 				  dev->board_name, dev);
@@ -101,58 +48,33 @@ static int apci035_auto_attach(struct comedi_device *dev,
 	dw_Dummy = inl(devpriv->i_IobaseAmcc + 0x38);
 	outl(dw_Dummy | 0x2000, devpriv->i_IobaseAmcc + 0x38);
 
-	/*  Read eepeom and fill addi_board Structure */
-	addi_eeprom_read_info(dev, pci_resource_start(pcidev, 0));
-
-	ret = comedi_alloc_subdevices(dev, 3);
+	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
 		return ret;
 
 	/*  Allocate and Initialise AI Subdevice Structures */
 	s = &dev->subdevices[0];
-	if ((devpriv->s_EeParameters.i_NbrAiChannel)
-		|| (this_board->i_NbrAiChannelDiff)) {
-		dev->read_subdev = s;
-		s->type = COMEDI_SUBD_AI;
-		s->subdev_flags =
-			SDF_READABLE | SDF_COMMON | SDF_GROUND
-			| SDF_DIFF;
-		if (devpriv->s_EeParameters.i_NbrAiChannel)
-			s->n_chan = devpriv->s_EeParameters.i_NbrAiChannel;
-		else
-			s->n_chan = this_board->i_NbrAiChannelDiff;
-		s->maxdata = devpriv->s_EeParameters.i_AiMaxdata;
-		s->len_chanlist = this_board->i_AiChannelList;
-		s->range_table = this_board->pr_AiRangelist;
-		s->insn_config = apci035_ai_config;
-		s->insn_read = apci035_ai_read;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	dev->read_subdev = s;
+	s->type = COMEDI_SUBD_AI;
+	s->subdev_flags = SDF_READABLE | SDF_COMMON | SDF_GROUND | SDF_DIFF;
+	s->n_chan = 16;
+	s->maxdata = 0xff;
+	s->len_chanlist = s->n_chan;
+	s->range_table = &range_apci035_ai;
+	s->insn_config = apci035_ai_config;
+	s->insn_read = apci035_ai_read;
 
 	/*  Allocate and Initialise Timer Subdevice Structures */
 	s = &dev->subdevices[1];
-	if (devpriv->s_EeParameters.i_Timer) {
-		s->type = COMEDI_SUBD_TIMER;
-		s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = 1;
-		s->maxdata = 0;
-		s->len_chanlist = 1;
-		s->range_table = &range_digital;
-		s->insn_write = apci035_timer_write;
-		s->insn_read = apci035_timer_read;
-		s->insn_config = apci035_timer_config;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
-
-	/* EEPROM */
-	s = &dev->subdevices[2];
-	s->type = COMEDI_SUBD_MEMORY;
-	s->subdev_flags = SDF_READABLE | SDF_INTERNAL;
-	s->n_chan = 256;
-	s->maxdata = 0xffff;
-	s->insn_read = i_ADDIDATA_InsnReadEeprom;
+	s->type = COMEDI_SUBD_TIMER;
+	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
+	s->n_chan = 1;
+	s->maxdata = 0;
+	s->len_chanlist = 1;
+	s->range_table = &range_digital;
+	s->insn_write = apci035_timer_write;
+	s->insn_read = apci035_timer_read;
+	s->insn_config = apci035_timer_config;
 
 	apci035_reset(dev);
 
