@@ -15,7 +15,6 @@
 static const struct addi_board apci035_boardtypes[] = {
 	{
 		.name			= "apci035",
-		.i_PCIEeprom		= 1,
 		.pc_EepromChip		= "S5920",
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
@@ -95,22 +94,15 @@ static int apci035_auto_attach(struct comedi_device *dev,
 			dev->irq = pcidev->irq;
 	}
 
+	/*  Set 3 wait stait */
+	outl(0x80808082, devpriv->i_IobaseAmcc + 0x60);
+
+	/*  Enable the interrupt for the controller */
+	dw_Dummy = inl(devpriv->i_IobaseAmcc + 0x38);
+	outl(dw_Dummy | 0x2000, devpriv->i_IobaseAmcc + 0x38);
+
 	/*  Read eepeom and fill addi_board Structure */
-
-	if (this_board->i_PCIEeprom) {
-		if (!(strcmp(this_board->pc_EepromChip, "S5920"))) {
-			/*  Set 3 wait stait */
-			if (!(strcmp(dev->board_name, "apci035")))
-				outl(0x80808082, devpriv->i_IobaseAmcc + 0x60);
-			else
-				outl(0x83838383, devpriv->i_IobaseAmcc + 0x60);
-
-			/*  Enable the interrupt for the controller */
-			dw_Dummy = inl(devpriv->i_IobaseAmcc + 0x38);
-			outl(dw_Dummy | 0x2000, devpriv->i_IobaseAmcc + 0x38);
-		}
-		addi_eeprom_read_info(dev, pci_resource_start(pcidev, 0));
-	}
+	addi_eeprom_read_info(dev, pci_resource_start(pcidev, 0));
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
@@ -156,15 +148,11 @@ static int apci035_auto_attach(struct comedi_device *dev,
 
 	/* EEPROM */
 	s = &dev->subdevices[2];
-	if (this_board->i_PCIEeprom) {
-		s->type = COMEDI_SUBD_MEMORY;
-		s->subdev_flags = SDF_READABLE | SDF_INTERNAL;
-		s->n_chan = 256;
-		s->maxdata = 0xffff;
-		s->insn_read = i_ADDIDATA_InsnReadEeprom;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type = COMEDI_SUBD_MEMORY;
+	s->subdev_flags = SDF_READABLE | SDF_INTERNAL;
+	s->n_chan = 256;
+	s->maxdata = 0xffff;
+	s->insn_read = i_ADDIDATA_InsnReadEeprom;
 
 	apci035_reset(dev);
 
