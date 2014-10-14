@@ -265,8 +265,6 @@ static unsigned long pnv_memory_block_size(void)
 static void __init pnv_setup_machdep_opal(void)
 {
 	ppc_md.get_boot_time = opal_get_boot_time;
-	ppc_md.get_rtc_time = opal_get_rtc_time;
-	ppc_md.set_rtc_time = opal_set_rtc_time;
 	ppc_md.restart = pnv_restart;
 	pm_power_off = pnv_power_off;
 	ppc_md.halt = pnv_halt;

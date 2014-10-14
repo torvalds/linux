@@ -819,3 +819,9 @@ void opal_free_sg_list(struct opal_sg_list *sg)
 			sg = NULL;
 	}
 }
+
+EXPORT_SYMBOL_GPL(opal_poll_events);
+EXPORT_SYMBOL_GPL(opal_rtc_read);
+EXPORT_SYMBOL_GPL(opal_rtc_write);
+EXPORT_SYMBOL_GPL(opal_tpo_read);
+EXPORT_SYMBOL_GPL(opal_tpo_write);
