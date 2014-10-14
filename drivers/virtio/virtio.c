@@ -248,6 +248,60 @@ void virtio_config_changed(struct virtio_device *dev)
 }
 EXPORT_SYMBOL_GPL(virtio_config_changed);
 
+#ifdef CONFIG_PM_SLEEP
+int virtio_device_freeze(struct virtio_device *dev)
+{
+	struct virtio_driver *drv = drv_to_virtio(dev->dev.driver);
+
+	dev->failed = dev->config->get_status(dev) & VIRTIO_CONFIG_S_FAILED;
+
+	if (drv && drv->freeze)
+		return drv->freeze(dev);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(virtio_device_freeze);
+
+int virtio_device_restore(struct virtio_device *dev)
+{
+	struct virtio_driver *drv = drv_to_virtio(dev->dev.driver);
+
+	/* We always start by resetting the device, in case a previous
+	 * driver messed it up. */
+	dev->config->reset(dev);
+
+	/* Acknowledge that we've seen the device. */
+	add_status(dev, VIRTIO_CONFIG_S_ACKNOWLEDGE);
+
+	/* Maybe driver failed before freeze.
+	 * Restore the failed status, for debugging. */
+	if (dev->failed)
+		add_status(dev, VIRTIO_CONFIG_S_FAILED);
+
+	if (!drv)
+		return 0;
+
+	/* We have a driver! */
+	add_status(dev, VIRTIO_CONFIG_S_DRIVER);
+
+	dev->config->finalize_features(dev);
+
+	if (drv->restore) {
+		int ret = drv->restore(dev);
+		if (ret) {
+			add_status(dev, VIRTIO_CONFIG_S_FAILED);
+			return ret;
+		}
+	}
+
+	/* Finally, tell the device we're all set */
+	add_status(dev, VIRTIO_CONFIG_S_DRIVER_OK);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(virtio_device_restore);
+#endif
+
 static int virtio_init(void)
 {
 	if (bus_register(&virtio_bus) != 0)
