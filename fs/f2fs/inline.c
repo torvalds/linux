@@ -263,49 +263,31 @@ struct f2fs_dir_entry *find_in_inline_dir(struct inode *dir,
 				struct qstr *name, struct page **res_page)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(dir->i_sb);
-	struct page *ipage;
+	struct f2fs_inline_dentry *inline_dentry;
 	struct f2fs_dir_entry *de;
-	f2fs_hash_t namehash;
-	unsigned long bit_pos = 0;
-	struct f2fs_inline_dentry *dentry_blk;
-	const void *dentry_bits;
+	struct page *ipage;
+	int max_slots = NR_INLINE_DENTRY;
 
 	ipage = get_node_page(sbi, dir->i_ino);
 	if (IS_ERR(ipage))
 		return NULL;
 
-	namehash = f2fs_dentry_hash(name);
+	inline_dentry = inline_data_addr(ipage);
 
-	dentry_blk = inline_data_addr(ipage);
-	dentry_bits = &dentry_blk->dentry_bitmap;
-
-	while (bit_pos < NR_INLINE_DENTRY) {
-		if (!test_bit_le(bit_pos, dentry_bits)) {
-			bit_pos++;
-			continue;
-		}
-		de = &dentry_blk->dentry[bit_pos];
-		if (early_match_name(name->len, namehash, de)) {
-			if (!memcmp(dentry_blk->filename[bit_pos],
-							name->name,
-							name->len)) {
-				*res_page = ipage;
-				goto found;
-			}
-		}
-
-		/*
-		 * For the most part, it should be a bug when name_len is zero.
-		 * We stop here for figuring out where the bugs are occurred.
-		 */
-		f2fs_bug_on(F2FS_P_SB(ipage), !de->name_len);
-
-		bit_pos += GET_DENTRY_SLOTS(le16_to_cpu(de->name_len));
-	}
-
-	de = NULL;
-found:
+	de = find_target_dentry(name, &max_slots, &inline_dentry->dentry_bitmap,
+						inline_dentry->dentry,
+						inline_dentry->filename);
 	unlock_page(ipage);
+	if (de)
+		*res_page = ipage;
+	else
+		f2fs_put_page(ipage, 0);
+
+	/*
+	 * For the most part, it should be a bug when name_len is zero.
+	 * We stop here for figuring out where the bugs has occurred.
+	 */
+	f2fs_bug_on(sbi, max_slots < 0);
 	return de;
 }
 
