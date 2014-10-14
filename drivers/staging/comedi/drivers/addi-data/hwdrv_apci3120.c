@@ -351,7 +351,6 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	const struct addi_board *this_board = dev->board_ptr;
 	struct addi_private *devpriv = dev->private;
 	unsigned short us_ConvertTiming, us_TmpValue, i;
 	unsigned char b_Tmp;
@@ -382,7 +381,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 
 		/* EL250804: Testing if board APCI3120 have the new Quartz or if it is an APCI3001 */
 		if ((us_TmpValue & 0x00B0) == 0x00B0
-			|| !strcmp(this_board->pc_DriverName, "apci3001")) {
+			|| !strcmp(dev->board_name, "apci3001")) {
 			us_ConvertTiming = (us_ConvertTiming * 2) - 2;
 		} else {
 			us_ConvertTiming =
@@ -781,7 +780,6 @@ static int apci3120_cyclic_ai(int mode,
 			      struct comedi_device *dev,
 			      struct comedi_subdevice *s)
 {
-	const struct addi_board *this_board = dev->board_ptr;
 	struct addi_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned char b_Tmp;
@@ -838,7 +836,7 @@ static int apci3120_cyclic_ai(int mode,
 	/* EL241003 Begin: add this section to replace floats calculation by integer calculations */
 	/* EL250804: Testing if board APCI3120 have the new Quartz or if it is an APCI3001 */
 	if ((us_TmpValue & 0x00B0) == 0x00B0
-		|| !strcmp(this_board->pc_DriverName, "apci3001")) {
+		|| !strcmp(dev->board_name, "apci3001")) {
 		ui_TimerValue0 = ui_ConvertTiming * 2 - 2000;
 		ui_TimerValue0 = ui_TimerValue0 / 1000;
 
@@ -1604,7 +1602,6 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 				      struct comedi_insn *insn,
 				      unsigned int *data)
 {
-	const struct addi_board *this_board = dev->board_ptr;
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Timervalue2;
 	unsigned short us_TmpValue;
@@ -1624,7 +1621,7 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 	 * is an APCI3001 and calculate the time value to set in the timer
 	 */
 	if ((us_TmpValue & 0x00B0) == 0x00B0
-		|| !strcmp(this_board->pc_DriverName, "apci3001")) {
+		|| !strcmp(dev->board_name, "apci3001")) {
 		/* Calculate the time value to set in the timer */
 		ui_Timervalue2 = ui_Timervalue2 / 50;
 	} else {
@@ -1742,7 +1739,6 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 				     struct comedi_insn *insn,
 				     unsigned int *data)
 {
-	const struct addi_board *this_board = dev->board_ptr;
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Timervalue2 = 0;
 	unsigned short us_TmpValue;
@@ -1862,7 +1858,7 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 		 * is an APCI3001 and calculate the time value to set in the timer
 		 */
 		if ((us_TmpValue & 0x00B0) == 0x00B0
-			|| !strcmp(this_board->pc_DriverName, "apci3001")) {
+			|| !strcmp(dev->board_name, "apci3001")) {
 			/* Calculate the time value to set in the timer */
 			ui_Timervalue2 = ui_Timervalue2 / 50;
 		} else {

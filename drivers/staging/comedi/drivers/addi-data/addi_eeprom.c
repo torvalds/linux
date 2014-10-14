@@ -287,7 +287,7 @@ static void addi_eeprom_read_ai_info(struct comedi_device *dev,
 	/* No of channels for 1st hard component */
 	tmp = addi_eeprom_readw(iobase, type, addr + 10);
 	devpriv->s_EeParameters.i_NbrAiChannel = (tmp >> 4) & 0x3ff;
-	if (!strcmp(this_board->pc_DriverName, "apci3200"))
+	if (!strcmp(dev->board_name, "apci3200"))
 		devpriv->s_EeParameters.i_NbrAiChannel *= 4;
 
 	tmp = addi_eeprom_readw(iobase, type, addr + 16);

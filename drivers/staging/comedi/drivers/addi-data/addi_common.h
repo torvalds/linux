@@ -19,7 +19,7 @@
 #include <linux/interrupt.h>
 
 struct addi_board {
-	const char *pc_DriverName;	/*  driver name */
+	const char *name;
 	int i_IorangeBase1;
 	int i_PCIEeprom;	/*  eeprom present or not */
 	char *pc_EepromChip;	/*  type of chip */

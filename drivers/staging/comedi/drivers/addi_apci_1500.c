@@ -12,7 +12,7 @@
 
 static const struct addi_board apci1500_boardtypes[] = {
 	{
-		.pc_DriverName		= "apci1500",
+		.name			= "apci1500",
 		.i_IorangeBase1		= APCI1500_ADDRESS_RANGE,
 		.i_PCIEeprom		= 0,
 		.i_NbrDiChannel		= 16,
@@ -50,7 +50,7 @@ static int apci1500_auto_attach(struct comedi_device *dev,
 	int ret;
 
 	dev->board_ptr = &apci1500_boardtypes[0];
-	dev->board_name = this_board->pc_DriverName;
+	dev->board_name = this_board->name;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
