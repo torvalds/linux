@@ -207,7 +207,22 @@ static unsigned command_2_index(unsigned c, unsigned sc)
 		c = 0x9 + (c & 0x0f);
 	else if (c == 0x41)
 		c = 0x9 + 0x1;
+	if (c > 0x18)
+		c = 0x00;
 	return (sc & 3) * (0x9 + 0x9) + c;
+}
+
+/**
+ * capi_cmd2par() - find parameter string for CAPI 2.0 command/subcommand
+ * @cmd:	command number
+ * @subcmd:	subcommand number
+ *
+ * Return value: static string, NULL if command/subcommand unknown
+ */
+
+static unsigned char *capi_cmd2par(u8 cmd, u8 subcmd)
+{
+	return cpars[command_2_index(cmd, subcmd)];
 }
 
 /*-------------------------------------------------------*/
@@ -302,7 +317,9 @@ unsigned capi_cmsg2message(_cmsg *cmsg, u8 *msg)
 	cmsg->m = msg;
 	cmsg->l = 8;
 	cmsg->p = 0;
-	cmsg->par = cpars[command_2_index(cmsg->Command, cmsg->Subcommand)];
+	cmsg->par = capi_cmd2par(cmsg->Command, cmsg->Subcommand);
+	if (!cmsg->par)
+		return 1;	/* invalid command/subcommand */
 
 	pars_2_message(cmsg);
 
@@ -375,7 +392,9 @@ unsigned capi_message2cmsg(_cmsg *cmsg, u8 *msg)
 	cmsg->p = 0;
 	byteTRcpy(cmsg->m + 4, &cmsg->Command);
 	byteTRcpy(cmsg->m + 5, &cmsg->Subcommand);
-	cmsg->par = cpars[command_2_index(cmsg->Command, cmsg->Subcommand)];
+	cmsg->par = capi_cmd2par(cmsg->Command, cmsg->Subcommand);
+	if (!cmsg->par)
+		return 1;	/* invalid command/subcommand */
 
 	message_2_pars(cmsg);
 
@@ -470,12 +489,17 @@ static char *mnames[] =
  * @cmd:	command number
  * @subcmd:	subcommand number
  *
- * Return value: static string, NULL if command/subcommand unknown
+ * Return value: static string
  */
 
 char *capi_cmd2str(u8 cmd, u8 subcmd)
 {
-	return mnames[command_2_index(cmd, subcmd)];
+	char *result;
+
+	result = mnames[command_2_index(cmd, subcmd)];
+	if (result == NULL)
+		result = "INVALID_COMMAND";
+	return result;
 }
 
 
@@ -625,6 +649,9 @@ static _cdebbuf *printstruct(_cdebbuf *cdb, u8 *m)
 
 static _cdebbuf *protocol_message_2_pars(_cdebbuf *cdb, _cmsg *cmsg, int level)
 {
+	if (!cmsg->par)
+		return NULL;	/* invalid command/subcommand */
+
 	for (; TYP != _CEND; cmsg->p++) {
 		int slen = 29 + 3 - level;
 		int i;
@@ -759,10 +786,10 @@ _cdebbuf *capi_message2str(u8 *msg)
 	cmsg->p = 0;
 	byteTRcpy(cmsg->m + 4, &cmsg->Command);
 	byteTRcpy(cmsg->m + 5, &cmsg->Subcommand);
-	cmsg->par = cpars[command_2_index(cmsg->Command, cmsg->Subcommand)];
+	cmsg->par = capi_cmd2par(cmsg->Command, cmsg->Subcommand);
 
 	cdb = bufprint(cdb, "%-26s ID=%03d #0x%04x LEN=%04d\n",
-		       mnames[command_2_index(cmsg->Command, cmsg->Subcommand)],
+		       capi_cmd2str(cmsg->Command, cmsg->Subcommand),
 		       ((unsigned short *) msg)[1],
 		       ((unsigned short *) msg)[3],
 		       ((unsigned short *) msg)[0]);
@@ -796,7 +823,7 @@ _cdebbuf *capi_cmsg2str(_cmsg *cmsg)
 	cmsg->l = 8;
 	cmsg->p = 0;
 	cdb = bufprint(cdb, "%s ID=%03d #0x%04x LEN=%04d\n",
-		       mnames[command_2_index(cmsg->Command, cmsg->Subcommand)],
+		       capi_cmd2str(cmsg->Command, cmsg->Subcommand),
 		       ((u16 *) cmsg->m)[1],
 		       ((u16 *) cmsg->m)[3],
 		       ((u16 *) cmsg->m)[0]);
