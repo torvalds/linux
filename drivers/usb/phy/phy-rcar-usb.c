@@ -202,10 +202,8 @@ static int rcar_usb_phy_probe(struct platform_device *pdev)
 	}
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(dev, "priv data allocation error\n");
+	if (!priv)
 		return -ENOMEM;
-	}
 
 	priv->reg0		= reg0;
 	priv->reg1		= reg1;
