@@ -782,11 +782,8 @@ int ci_hdrc_otg_fsm_init(struct ci_hdrc *ci)
 
 	otg = devm_kzalloc(ci->dev,
 			sizeof(struct usb_otg), GFP_KERNEL);
-	if (!otg) {
-		dev_err(ci->dev,
-		"Failed to allocate usb_otg structure for ci hdrc otg!\n");
+	if (!otg)
 		return -ENOMEM;
-	}
 
 	otg->phy = ci->transceiver;
 	otg->gadget = &ci->gadget;
@@ -801,11 +798,8 @@ int ci_hdrc_otg_fsm_init(struct ci_hdrc *ci)
 
 	ci->fsm_timer = devm_kzalloc(ci->dev,
 			sizeof(struct ci_otg_fsm_timer_list), GFP_KERNEL);
-	if (!ci->fsm_timer) {
-		dev_err(ci->dev,
-		"Failed to allocate timer structure for ci hdrc otg!\n");
+	if (!ci->fsm_timer)
 		return -ENOMEM;
-	}
 
 	INIT_LIST_HEAD(&ci->fsm_timer->active_timers);
 	retval = ci_otg_init_timers(ci);
