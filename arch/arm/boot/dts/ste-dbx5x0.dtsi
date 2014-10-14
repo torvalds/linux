@@ -714,6 +714,7 @@
 			dmas = <&dma 8 0 0x2>, /* Logical - DevToMem */
 			       <&dma 8 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		ssp@80003000 {
@@ -727,6 +728,7 @@
 			dmas = <&dma 9 0 0x2>, /* Logical - DevToMem */
 			       <&dma 9 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		spi@8011a000 {
@@ -741,6 +743,7 @@
 			dmas = <&dma 0 0 0x2>, /* Logical - DevToMem */
 			       <&dma 0 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		spi@80112000 {
@@ -755,6 +758,7 @@
 			dmas = <&dma 35 0 0x2>, /* Logical - DevToMem */
 			       <&dma 35 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		spi@80111000 {
@@ -769,6 +773,7 @@
 			dmas = <&dma 33 0 0x2>, /* Logical - DevToMem */
 			       <&dma 33 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		spi@80129000 {
@@ -783,6 +788,7 @@
 			dmas = <&dma 40 0 0x2>, /* Logical - DevToMem */
 			       <&dma 40 0 0x0>; /* Logical - MemToDev */
 			dma-names = "rx", "tx";
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		uart@80120000 {
