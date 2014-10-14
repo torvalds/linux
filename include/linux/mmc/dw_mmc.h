@@ -135,7 +135,6 @@ struct dw_mci {
 	struct mmc_command	stop_abort;
 	unsigned int		prev_blksz;
 	unsigned char		timing;
-	struct workqueue_struct	*card_workqueue;
 
 	/* DMA interface members*/
 	int			use_dma;
@@ -154,7 +153,6 @@ struct dw_mci {
 	u32			stop_cmdr;
 	u32			dir_status;
 	struct tasklet_struct	tasklet;
-	struct work_struct	card_work;
 	unsigned long		pending_events;
 	unsigned long		completed_events;
 	enum dw_mci_state	state;

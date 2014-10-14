@@ -214,7 +214,6 @@ extern int dw_mci_resume(struct dw_mci *host);
  *	with CONFIG_MMC_CLKGATE.
  * @flags: Random state bits associated with the slot.
  * @id: Number of this slot.
- * @last_detect_state: Most recently observed card detect state.
  */
 struct dw_mci_slot {
 	struct mmc_host		*mmc;
@@ -234,7 +233,6 @@ struct dw_mci_slot {
 #define DW_MMC_CARD_PRESENT	0
 #define DW_MMC_CARD_NEED_INIT	1
 	int			id;
-	int			last_detect_state;
 };
 
 struct dw_mci_tuning_data {
