@@ -880,11 +880,8 @@ static int utmi_phy_probe(struct tegra_usb_phy *tegra_phy,
 
 	tegra_phy->config = devm_kzalloc(&pdev->dev, sizeof(*config),
 					 GFP_KERNEL);
-	if (!tegra_phy->config) {
-		dev_err(&pdev->dev,
-			"unable to allocate memory for USB UTMIP config\n");
+	if (!tegra_phy->config)
 		return -ENOMEM;
-	}
 
 	config = tegra_phy->config;
 
@@ -979,10 +976,8 @@ static int tegra_usb_phy_probe(struct platform_device *pdev)
 	int err;
 
 	tegra_phy = devm_kzalloc(&pdev->dev, sizeof(*tegra_phy), GFP_KERNEL);
-	if (!tegra_phy) {
-		dev_err(&pdev->dev, "unable to allocate memory for USB2 PHY\n");
+	if (!tegra_phy)
 		return -ENOMEM;
-	}
 
 	match = of_match_device(tegra_usb_phy_id_table, &pdev->dev);
 	if (!match) {
