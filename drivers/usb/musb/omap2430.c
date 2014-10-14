@@ -518,10 +518,8 @@ static int omap2430_probe(struct platform_device *pdev)
 	int				ret = -ENOMEM;
 
 	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
-	if (!glue) {
-		dev_err(&pdev->dev, "failed to allocate glue context\n");
+	if (!glue)
 		goto err0;
-	}
 
 	musb = platform_device_alloc("musb-hdrc", PLATFORM_DEVID_AUTO);
 	if (!musb) {
@@ -543,25 +541,16 @@ static int omap2430_probe(struct platform_device *pdev)
 		struct platform_device *control_pdev;
 
 		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-		if (!pdata) {
-			dev_err(&pdev->dev,
-				"failed to allocate musb platform data\n");
+		if (!pdata)
 			goto err2;
-		}
 
 		data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
-		if (!data) {
-			dev_err(&pdev->dev,
-				"failed to allocate musb board data\n");
+		if (!data)
 			goto err2;
-		}
 
 		config = devm_kzalloc(&pdev->dev, sizeof(*config), GFP_KERNEL);
-		if (!config) {
-			dev_err(&pdev->dev,
-				"failed to allocate musb hdrc config\n");
+		if (!config)
 			goto err2;
-		}
 
 		of_property_read_u32(np, "mode", (u32 *)&pdata->mode);
 		of_property_read_u32(np, "interface-type",
