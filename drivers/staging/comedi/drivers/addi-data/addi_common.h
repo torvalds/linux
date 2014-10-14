@@ -18,26 +18,6 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 
-struct addi_board {
-	const char *name;
-	char *pc_EepromChip;	/*  type of chip */
-	int i_NbrAiChannel;	/*  num of A/D chans */
-	int i_NbrAiChannelDiff;	/*  num of A/D chans in diff mode */
-	int i_AiChannelList;	/*  len of chanlist */
-	int i_NbrAoChannel;	/*  num of D/A chans */
-	int i_AiMaxdata;	/*  resolution of A/D */
-	int i_AoMaxdata;	/*  resolution of D/A */
-	const struct comedi_lrange *pr_AiRangelist;	/* rangelist for A/D */
-
-	int i_NbrDiChannel;	/*  Number of DI channels */
-	int i_NbrDoChannel;	/*  Number of DO channels */
-	int i_DoMaxdata;	/*  data to set all channels high */
-
-	int i_Timer;		/*    timer subdevice present or not */
-	unsigned int ui_MinAcquisitiontimeNs;	/*  Minimum Acquisition in Nano secs */
-	unsigned int ui_MinDelaytimeNs;	/*  Minimum Delay in Nano secs */
-};
-
 struct addi_private {
 	int iobase;
 	int i_IobaseAmcc;	/*  base+size for AMCC chip */

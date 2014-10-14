@@ -14,7 +14,20 @@ enum apci3120_boardid {
 	BOARD_APCI3001,
 };
 
-static const struct addi_board apci3120_boardtypes[] = {
+struct apci3120_board {
+	const char *name;
+	int i_NbrAiChannel;
+	int i_NbrAiChannelDiff;
+	int i_AiChannelList;
+	int i_NbrAoChannel;
+	int i_AiMaxdata;
+	int i_AoMaxdata;
+	int i_NbrDiChannel;
+	int i_NbrDoChannel;
+	int i_DoMaxdata;
+};
+
+static const struct apci3120_board apci3120_boardtypes[] = {
 	[BOARD_APCI3120] = {
 		.name			= "apci3120",
 		.i_NbrAiChannel		= 16,
@@ -43,7 +56,7 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 				unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct addi_board *this_board = NULL;
+	const struct apci3120_board *this_board = NULL;
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret, order, i;
