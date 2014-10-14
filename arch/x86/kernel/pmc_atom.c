@@ -235,6 +235,11 @@ err:
 	pmc_dbgfs_unregister(pmc);
 	return -ENODEV;
 }
+#else
+static int pmc_dbgfs_register(struct pmc_dev *pmc, struct pci_dev *pdev)
+{
+	return 0;
+}
 #endif /* CONFIG_DEBUG_FS */
 
 static int pmc_setup_dev(struct pci_dev *pdev)
@@ -262,14 +267,12 @@ static int pmc_setup_dev(struct pci_dev *pdev)
 	/* PMC hardware registers setup */
 	pmc_hw_reg_setup(pmc);
 
-#ifdef CONFIG_DEBUG_FS
 	ret = pmc_dbgfs_register(pmc, pdev);
 	if (ret) {
 		iounmap(pmc->regmap);
-		return ret;
 	}
-#endif /* CONFIG_DEBUG_FS */
-	return 0;
+
+	return ret;
 }
 
 /*
