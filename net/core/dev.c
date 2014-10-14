@@ -2675,7 +2675,7 @@ static struct sk_buff *validate_xmit_skb(struct sk_buff *skb, struct net_device 
 	if (skb->encapsulation)
 		features &= dev->hw_enc_features;
 
-	if (netif_needs_gso(skb, features)) {
+	if (netif_needs_gso(dev, skb, features)) {
 		struct sk_buff *segs;
 
 		segs = skb_gso_segment(skb, features);
