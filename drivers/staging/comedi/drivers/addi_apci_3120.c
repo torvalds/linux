@@ -16,19 +16,18 @@ enum apci3120_boardid {
 
 struct apci3120_board {
 	const char *name;
-	int i_AiMaxdata;
+	unsigned int ai_is_16bit:1;
 	unsigned int has_ao:1;
 };
 
 static const struct apci3120_board apci3120_boardtypes[] = {
 	[BOARD_APCI3120] = {
-		.name			= "apci3120",
-		.i_AiMaxdata		= 0xffff,
-		.has_ao			= 1,
+		.name		= "apci3120",
+		.ai_is_16bit	= 1,
+		.has_ao		= 1,
 	},
 	[BOARD_APCI3001] = {
-		.name			= "apci3001",
-		.i_AiMaxdata		= 0xfff,
+		.name		= "apci3001",
 	},
 };
 
@@ -103,7 +102,7 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 		SDF_READABLE | SDF_COMMON | SDF_GROUND
 		| SDF_DIFF;
 	s->n_chan = 16;
-	s->maxdata = this_board->i_AiMaxdata;
+	s->maxdata = this_board->ai_is_16bit ? 0xffff : 0x0fff;
 	s->len_chanlist = s->n_chan;
 	s->range_table = &range_apci3120_ai;
 
