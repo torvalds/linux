@@ -20,7 +20,6 @@
 
 struct addi_board {
 	const char *name;
-	int i_IorangeBase1;
 	int i_PCIEeprom;	/*  eeprom present or not */
 	char *pc_EepromChip;	/*  type of chip */
 	int i_NbrAiChannel;	/*  num of A/D chans */

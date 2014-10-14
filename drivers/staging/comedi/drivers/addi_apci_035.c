@@ -15,7 +15,6 @@
 static const struct addi_board apci035_boardtypes[] = {
 	{
 		.name			= "apci035",
-		.i_IorangeBase1		= APCI035_ADDRESS_RANGE,
 		.i_PCIEeprom		= 1,
 		.pc_EepromChip		= "S5920",
 		.i_NbrAiChannel		= 16,
@@ -67,11 +66,7 @@ static int apci035_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	if (this_board->i_IorangeBase1)
-		dev->iobase = pci_resource_start(pcidev, 1);
-	else
-		dev->iobase = pci_resource_start(pcidev, 0);
-
+	dev->iobase = pci_resource_start(pcidev, 1);
 	devpriv->iobase = dev->iobase;
 	devpriv->i_IobaseAmcc = pci_resource_start(pcidev, 0);
 	devpriv->i_IobaseAddon = pci_resource_start(pcidev, 2);
