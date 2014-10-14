@@ -116,36 +116,12 @@ static int apci1500_auto_attach(struct comedi_device *dev,
 
 	/*  Allocate and Initialise AI Subdevice Structures */
 	s = &dev->subdevices[0];
-	if ((devpriv->s_EeParameters.i_NbrAiChannel)
-		|| (this_board->i_NbrAiChannelDiff)) {
-		dev->read_subdev = s;
-		s->type = COMEDI_SUBD_AI;
-		s->subdev_flags =
-			SDF_READABLE | SDF_COMMON | SDF_GROUND
-			| SDF_DIFF;
-		if (devpriv->s_EeParameters.i_NbrAiChannel)
-			s->n_chan = devpriv->s_EeParameters.i_NbrAiChannel;
-		else
-			s->n_chan = this_board->i_NbrAiChannelDiff;
-		s->maxdata = devpriv->s_EeParameters.i_AiMaxdata;
-		s->len_chanlist = this_board->i_AiChannelList;
-		s->range_table = this_board->pr_AiRangelist;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type = COMEDI_SUBD_UNUSED;
 
 	/*  Allocate and Initialise AO Subdevice Structures */
 	s = &dev->subdevices[1];
-	if (devpriv->s_EeParameters.i_NbrAoChannel) {
-		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = devpriv->s_EeParameters.i_NbrAoChannel;
-		s->maxdata = devpriv->s_EeParameters.i_AoMaxdata;
-		s->len_chanlist =
-			devpriv->s_EeParameters.i_NbrAoChannel;
-	} else {
 		s->type = COMEDI_SUBD_UNUSED;
-	}
+
 	/*  Allocate and Initialise DI Subdevice Structures */
 	s = &dev->subdevices[2];
 	if (devpriv->s_EeParameters.i_NbrDiChannel) {
