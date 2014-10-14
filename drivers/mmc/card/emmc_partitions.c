@@ -581,8 +581,10 @@ int aml_emmc_partition_ops (struct mmc_card *card, struct gendisk *disk)
     struct mmc_host *mmc_host = card->host;
     struct amlsd_platform* pdata = mmc_priv(mmc_host);
     struct amlsd_host *host = pdata->host;
+#if !defined(CONFIG_MACH_MESON8B_ODROIDC)
     struct disk_part_iter piter;
     struct hd_struct *part;
+#endif
     struct class * aml_store_class = NULL;
 
     // printk("Enter %s\n", __FUNCTION__);
@@ -599,6 +601,7 @@ int aml_emmc_partition_ops (struct mmc_card *card, struct gendisk *disk)
     }
 
     mmc_claim_host(card->host);
+#if !defined(CONFIG_MACH_MESON8B_ODROIDC)
     disk_part_iter_init(&piter, disk, DISK_PITER_INCL_EMPTY);
     while ((part = disk_part_iter_next(&piter))){
 	printk("Delete invalid mbr partition part %p, part->partno %d\n",
@@ -606,7 +609,7 @@ int aml_emmc_partition_ops (struct mmc_card *card, struct gendisk *disk)
         delete_partition(disk, part->partno);
     }
     disk_part_iter_exit(&piter);
-
+#endif
     ret = mmc_read_partition_tbl(card, pt_fmt);
     if (ret == 0) { // ok
         ret = add_emmc_partition(disk, pt_fmt);
