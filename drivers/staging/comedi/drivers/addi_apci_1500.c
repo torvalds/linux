@@ -19,17 +19,6 @@ static const struct addi_board apci1500_boardtypes[] = {
 		.i_NbrDoChannel		= 16,
 		.i_DoMaxdata		= 0xffff,
 		.i_Timer		= 1,
-		.di_config		= apci1500_di_config,
-		.di_read		= apci1500_di_read,
-		.di_write		= apci1500_di_write,
-		.di_bits		= apci1500_di_insn_bits,
-		.do_config		= apci1500_do_config,
-		.do_write		= apci1500_do_write,
-		.do_bits		= apci1500_do_bits,
-		.timer_config		= apci1500_timer_config,
-		.timer_write		= apci1500_timer_write,
-		.timer_read		= apci1500_timer_read,
-		.timer_bits		= apci1500_timer_bits,
 	},
 };
 
@@ -141,15 +130,6 @@ static int apci1500_auto_attach(struct comedi_device *dev,
 		s->maxdata = devpriv->s_EeParameters.i_AiMaxdata;
 		s->len_chanlist = this_board->i_AiChannelList;
 		s->range_table = this_board->pr_AiRangelist;
-
-		s->insn_config = this_board->ai_config;
-		s->insn_read = this_board->ai_read;
-		s->insn_write = this_board->ai_write;
-		s->insn_bits = this_board->ai_bits;
-		s->do_cmdtest = this_board->ai_cmdtest;
-		s->do_cmd = this_board->ai_cmd;
-		s->cancel = this_board->ai_cancel;
-
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
@@ -163,7 +143,6 @@ static int apci1500_auto_attach(struct comedi_device *dev,
 		s->maxdata = devpriv->s_EeParameters.i_AoMaxdata;
 		s->len_chanlist =
 			devpriv->s_EeParameters.i_NbrAoChannel;
-		s->insn_write = this_board->ao_write;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
@@ -177,10 +156,10 @@ static int apci1500_auto_attach(struct comedi_device *dev,
 		s->len_chanlist =
 			devpriv->s_EeParameters.i_NbrDiChannel;
 		s->range_table = &range_digital;
-		s->insn_config = this_board->di_config;
-		s->insn_read = this_board->di_read;
-		s->insn_write = this_board->di_write;
-		s->insn_bits = this_board->di_bits;
+		s->insn_config = apci1500_di_config;
+		s->insn_read = apci1500_di_read;
+		s->insn_write = apci1500_di_write;
+		s->insn_bits = apci1500_di_insn_bits;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
@@ -195,12 +174,9 @@ static int apci1500_auto_attach(struct comedi_device *dev,
 		s->len_chanlist =
 			devpriv->s_EeParameters.i_NbrDoChannel;
 		s->range_table = &range_digital;
-
-		/* insn_config - for digital output memory */
-		s->insn_config = this_board->do_config;
-		s->insn_write = this_board->do_write;
-		s->insn_bits = this_board->do_bits;
-		s->insn_read = this_board->do_read;
+		s->insn_config = apci1500_do_config;
+		s->insn_write = apci1500_do_write;
+		s->insn_bits = apci1500_do_bits;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
@@ -214,11 +190,10 @@ static int apci1500_auto_attach(struct comedi_device *dev,
 		s->maxdata = 0;
 		s->len_chanlist = 1;
 		s->range_table = &range_digital;
-
-		s->insn_write = this_board->timer_write;
-		s->insn_read = this_board->timer_read;
-		s->insn_config = this_board->timer_config;
-		s->insn_bits = this_board->timer_bits;
+		s->insn_write = apci1500_timer_write;
+		s->insn_read = apci1500_timer_read;
+		s->insn_config = apci1500_timer_config;
+		s->insn_bits = apci1500_timer_bits;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
