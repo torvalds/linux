@@ -35,6 +35,7 @@
 #include <linux/memblock.h>
 #include <linux/hugetlb.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 
 #include <asm/pgalloc.h>
 #include <asm/prom.h>
@@ -144,8 +145,17 @@ int arch_remove_memory(u64 start, u64 size)
 
 	zone = page_zone(pfn_to_page(start_pfn));
 	ret = __remove_pages(zone, start_pfn, nr_pages);
-	if (!ret && (ppc_md.remove_memory))
-		ret = ppc_md.remove_memory(start, size);
+	if (ret)
+		return ret;
+
+	/* Remove htab bolted mappings for this section of memory */
+	start = (unsigned long)__va(start);
+	ret = remove_section_mapping(start, start + size);
+
+	/* Ensure all vmalloc mappings are flushed in case they also
+	 * hit that section of memory
+	 */
+	vm_unmap_aliases();
 
 	return ret;
 }

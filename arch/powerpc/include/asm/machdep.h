@@ -291,10 +291,6 @@ struct machdep_calls {
 #ifdef CONFIG_ARCH_RANDOM
 	int (*get_random_long)(unsigned long *v);
 #endif
-
-#ifdef CONFIG_MEMORY_HOTREMOVE
-	int (*remove_memory)(u64, u64);
-#endif
 };
 
 extern void e500_idle(void);
