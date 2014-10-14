@@ -3,9 +3,6 @@
 #
 
 obj-y		:= gpio.o setup.o sysirq_mask.o
-obj-m		:=
-obj-n		:=
-obj-		:=
 
 obj-$(CONFIG_OLD_IRQ_AT91)	+= irq.o
 obj-$(CONFIG_OLD_CLK_AT91)	+= clock.o

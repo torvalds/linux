@@ -7,11 +7,6 @@
 
 ccflags-$(CONFIG_ARCH_MULTIPLATFORM) += -I$(srctree)/$(src)/include -I$(srctree)/arch/arm/plat-samsung/include
 
-obj-y				:=
-obj-m				:=
-obj-n				:=
-obj-				:=
-
 # Core
 
 obj-$(CONFIG_ARCH_EXYNOS)	+= exynos.o pmu.o exynos-smc.o firmware.o
