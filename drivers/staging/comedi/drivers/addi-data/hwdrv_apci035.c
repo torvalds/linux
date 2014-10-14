@@ -434,7 +434,7 @@ static int apci035_reset(struct comedi_device *dev)
 	return 0;
 }
 
-static void apci035_interrupt(int irq, void *d)
+static irqreturn_t apci035_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct addi_private *devpriv = dev->private;
@@ -477,4 +477,6 @@ static void apci035_interrupt(int irq, void *d)
 		/*  send signal to the sample */
 		send_sig(SIGIO, devpriv->tsk_Current, 0);
 	}
+
+	return IRQ_HANDLED;
 }

@@ -1415,7 +1415,7 @@ static int apci3120_interrupt_handle_eos(struct comedi_device *dev)
 	return 0;
 }
 
-static void apci3120_interrupt(int irq, void *d)
+static irqreturn_t apci3120_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
 	struct addi_private *devpriv = dev->private;
@@ -1432,7 +1432,7 @@ static void apci3120_interrupt(int irq, void *d)
 
 	if ((!int_daq) && (!(int_amcc & ANY_S593X_INT))) {
 		dev_err(dev->class_dev, "IRQ from unknown source\n");
-		return;
+		return IRQ_NONE;
 	}
 
 	outl(int_amcc | 0x00ff0000, devpriv->i_IobaseAmcc + AMCC_OP_REG_INTCSR);	/*  shutdown IRQ reasons in AMCC */
@@ -1587,6 +1587,8 @@ static void apci3120_interrupt(int irq, void *d)
 
 	}
 	comedi_handle_events(dev, s);
+
+	return IRQ_HANDLED;
 }
 
 /*

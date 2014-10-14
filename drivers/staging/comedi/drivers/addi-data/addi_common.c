@@ -55,12 +55,3 @@ static int i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev,
 
 	return insn->n;
 }
-
-static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
-{
-	struct comedi_device *dev = d;
-	const struct addi_board *this_board = dev->board_ptr;
-
-	this_board->interrupt(irq, d);
-	return IRQ_RETVAL(1);
-}

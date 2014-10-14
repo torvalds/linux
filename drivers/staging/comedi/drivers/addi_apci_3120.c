@@ -26,7 +26,6 @@ static const struct addi_board apci3120_boardtypes[] = {
 		.i_NbrDiChannel		= 4,
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 0x0f,
-		.interrupt		= apci3120_interrupt,
 	},
 	[BOARD_APCI3001] = {
 		.pc_DriverName		= "apci3001",
@@ -37,18 +36,8 @@ static const struct addi_board apci3120_boardtypes[] = {
 		.i_NbrDiChannel		= 4,
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 0x0f,
-		.interrupt		= apci3120_interrupt,
 	},
 };
-
-static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
-{
-	struct comedi_device *dev = d;
-	const struct addi_board *this_board = dev->board_ptr;
-
-	this_board->interrupt(irq, d);
-	return IRQ_RETVAL(1);
-}
 
 static int apci3120_auto_attach(struct comedi_device *dev,
 				unsigned long context)
@@ -82,7 +71,7 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	devpriv->i_IobaseReserved = pci_resource_start(pcidev, 3);
 
 	if (pcidev->irq > 0) {
-		ret = request_irq(pcidev->irq, v_ADDI_Interrupt, IRQF_SHARED,
+		ret = request_irq(pcidev->irq, apci3120_interrupt, IRQF_SHARED,
 				  dev->board_name, dev);
 		if (ret == 0)
 			dev->irq = pcidev->irq;

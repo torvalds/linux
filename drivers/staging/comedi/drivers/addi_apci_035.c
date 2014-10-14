@@ -27,7 +27,6 @@ static const struct addi_board apci035_boardtypes[] = {
 		.i_Timer		= 1,
 		.ui_MinAcquisitiontimeNs = 10000,
 		.ui_MinDelaytimeNs	= 100000,
-		.interrupt		= apci035_interrupt,
 		.ai_config		= apci035_ai_config,
 		.ai_read		= apci035_ai_read,
 		.timer_config		= apci035_timer_config,
@@ -84,7 +83,7 @@ static int apci035_auto_attach(struct comedi_device *dev,
 	/* ## */
 
 	if (pcidev->irq > 0) {
-		ret = request_irq(pcidev->irq, v_ADDI_Interrupt, IRQF_SHARED,
+		ret = request_irq(pcidev->irq, apci035_interrupt, IRQF_SHARED,
 				  dev->board_name, dev);
 		if (ret == 0)
 			dev->irq = pcidev->irq;

@@ -2011,7 +2011,7 @@ static int apci1500_do_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static void apci1500_interrupt(int irq, void *d)
+static irqreturn_t apci1500_interrupt(int irq, void *d)
 {
 
 	struct comedi_device *dev = d;
@@ -2180,6 +2180,8 @@ static void apci1500_interrupt(int irq, void *d)
 			"Interrupt from unknown source\n");
 
 	}
+
+	return IRQ_HANDLED;
 }
 
 static int apci1500_reset(struct comedi_device *dev)
