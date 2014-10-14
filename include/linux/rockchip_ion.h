@@ -39,14 +39,13 @@ enum ion_heap_ids {
 
 #define ION_CMA_HEAP_NAME		"cma"
 #define ION_IOMMU_HEAP_NAME		"iommu"
-#define ION_VMALLOC_HEAP_NAME	"vmalloc"
+#define ION_VMALLOC_HEAP_NAME		"vmalloc"
 #define ION_DRM_HEAP_NAME		"drm"
-#define ION_CARVEOUT_HEAP_NAME	"carveout"
+#define ION_CARVEOUT_HEAP_NAME		"carveout"
 
 #define ION_SET_CACHED(__cache)		(__cache | ION_FLAG_CACHED)
 #define ION_SET_UNCACHED(__cache)	(__cache & ~ION_FLAG_CACHED)
-
-#define ION_IS_CACHED(__flags)	((__flags) & ION_FLAG_CACHED)
+#define ION_IS_CACHED(__flags)		((__flags) & ION_FLAG_CACHED)
 
 /* struct ion_flush_data - data passed to ion for flushing caches
  *

@@ -64,13 +64,8 @@ static struct ion_heap_desc ion_heap_meta[] = {
 		.name	= ION_CMA_HEAP_NAME,
 	},
 	{
-		.id	= ION_IOMMU_HEAP_ID,
-		.type	= ION_HEAP_TYPE_DMA,
-		.name	= ION_IOMMU_HEAP_NAME,
-	},
-	{
 		.id 	= ION_DRM_HEAP_ID,
-		.type	= ION_HEAP_TYPE_DMA,
+		.type	= ION_HEAP_TYPE_DRM,
 		.name	= ION_DRM_HEAP_NAME,
 	},
 	{
