@@ -21,6 +21,7 @@
 
 #include "xgene_enet_main.h"
 #include "xgene_enet_hw.h"
+#include "xgene_enet_sgmac.h"
 #include "xgene_enet_xgmac.h"
 
 static void xgene_enet_init_bufpool(struct xgene_enet_desc_ring *buf_pool)
@@ -813,6 +814,7 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 		return pdata->phy_mode;
 	}
 	if (pdata->phy_mode != PHY_INTERFACE_MODE_RGMII &&
+	    pdata->phy_mode != PHY_INTERFACE_MODE_SGMII &&
 	    pdata->phy_mode != PHY_INTERFACE_MODE_XGMII) {
 		dev_err(dev, "Incorrect phy-connection-type specified\n");
 		return -ENODEV;
@@ -830,7 +832,8 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 	pdata->eth_csr_addr = base_addr + BLOCK_ETH_CSR_OFFSET;
 	pdata->eth_ring_if_addr = base_addr + BLOCK_ETH_RING_IF_OFFSET;
 	pdata->eth_diag_csr_addr = base_addr + BLOCK_ETH_DIAG_CSR_OFFSET;
-	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII) {
+	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII ||
+	    pdata->phy_mode == PHY_INTERFACE_MODE_SGMII) {
 		pdata->mcx_mac_addr = base_addr + BLOCK_ETH_MAC_OFFSET;
 		pdata->mcx_mac_csr_addr = base_addr + BLOCK_ETH_MAC_CSR_OFFSET;
 	} else {
@@ -880,6 +883,11 @@ static void xgene_enet_setup_ops(struct xgene_enet_pdata *pdata)
 		pdata->mac_ops = &xgene_gmac_ops;
 		pdata->port_ops = &xgene_gport_ops;
 		pdata->rm = RM3;
+		break;
+	case PHY_INTERFACE_MODE_SGMII:
+		pdata->mac_ops = &xgene_sgmac_ops;
+		pdata->port_ops = &xgene_sgport_ops;
+		pdata->rm = RM1;
 		break;
 	default:
 		pdata->mac_ops = &xgene_xgmac_ops;

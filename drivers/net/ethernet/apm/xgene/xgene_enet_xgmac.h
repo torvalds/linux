@@ -47,9 +47,6 @@
 #define XG_ENET_SPARE_CFG_REG_1_ADDR	0x0410
 #define XGENET_RX_DV_GATE_REG_0_ADDR	0x0804
 
-#define PHY_POLL_LINK_ON	(10 * HZ)
-#define PHY_POLL_LINK_OFF	(PHY_POLL_LINK_ON / 5)
-
 extern struct xgene_mac_ops xgene_xgmac_ops;
 extern struct xgene_port_ops xgene_xgport_ops;
 
