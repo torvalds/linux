@@ -484,12 +484,22 @@ struct fec_enet_private {
 	unsigned int itr_clk_rate;
 
 	u32 rx_copybreak;
+
+	/* ptp clock period in ns*/
+	unsigned int ptp_inc;
+
+	/* pps  */
+	int pps_channel;
+	unsigned int reload_period;
+	int pps_enable;
+	unsigned int next_counter;
 };
 
 void fec_ptp_init(struct platform_device *pdev);
 void fec_ptp_start_cyclecounter(struct net_device *ndev);
 int fec_ptp_set(struct net_device *ndev, struct ifreq *ifr);
 int fec_ptp_get(struct net_device *ndev, struct ifreq *ifr);
+uint fec_ptp_check_pps_event(struct fec_enet_private *fep);
 
 /****************************************************************************/
 #endif /* FEC_H */
