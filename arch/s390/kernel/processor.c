@@ -23,7 +23,6 @@ static DEFINE_PER_CPU(struct cpuid, cpu_id);
  */
 void cpu_init(void)
 {
-	struct s390_idle_data *idle = &__get_cpu_var(s390_idle);
 	struct cpuid *id = &__get_cpu_var(cpu_id);
 
 	get_cpu_id(id);
@@ -31,7 +30,6 @@ void cpu_init(void)
 	current->active_mm = &init_mm;
 	BUG_ON(current->mm);
 	enter_lazy_tlb(&init_mm, current);
-	memset(idle, 0, sizeof(*idle));
 }
 
 /*
@@ -41,7 +39,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 {
 	static const char *hwcap_str[] = {
 		"esan3", "zarch", "stfle", "msa", "ldisp", "eimm", "dfp",
-		"edat", "etf3eh", "highgprs", "te"
+		"edat", "etf3eh", "highgprs", "te", "vx"
 	};
 	unsigned long n = (unsigned long) v - 1;
 	int i;

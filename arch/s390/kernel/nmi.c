@@ -20,6 +20,7 @@
 #include <asm/cputime.h>
 #include <asm/nmi.h>
 #include <asm/crw.h>
+#include <asm/switch_to.h>
 
 struct mcck_struct {
 	int kill_task;
@@ -163,6 +164,21 @@ static int notrace s390_revalidate_registers(struct mci *mci)
 			"	ld	15,120(%0)\n"
 			: : "a" (fpt_save_area));
 	}
+
+#ifdef CONFIG_64BIT
+	/* Revalidate vector registers */
+	if (MACHINE_HAS_VX && current->thread.vxrs) {
+		if (!mci->vr) {
+			/*
+			 * Vector registers can't be restored and therefore
+			 * the process needs to be terminated.
+			 */
+			kill_task = 1;
+		}
+		restore_vx_regs((__vector128 *)
+				S390_lowcore.vector_save_area_addr);
+	}
+#endif
 	/* Revalidate access registers */
 	asm volatile(
 		"	lam	0,15,0(%0)"

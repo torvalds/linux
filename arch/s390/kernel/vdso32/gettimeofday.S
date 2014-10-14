@@ -29,8 +29,8 @@ __kernel_gettimeofday:
 	l	%r4,__VDSO_UPD_COUNT+4(%r5)	/* load update counter */
 	tml	%r4,0x0001			/* pending update ? loop */
 	jnz	1b
-	stck	24(%r15)			/* Store TOD clock */
-	lm	%r0,%r1,24(%r15)
+	stcke	24(%r15)			/* Store TOD clock */
+	lm	%r0,%r1,25(%r15)
 	s	%r0,__VDSO_XTIME_STAMP(%r5)	/* TOD - cycle_last */
 	sl	%r1,__VDSO_XTIME_STAMP+4(%r5)
 	brc	3,3f

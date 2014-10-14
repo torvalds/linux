@@ -561,7 +561,7 @@ static irqreturn_t do_cio_interrupt(int irq, void *dummy)
 	struct subchannel *sch;
 	struct irb *irb;
 
-	__this_cpu_write(s390_idle.nohz_delay, 1);
+	set_cpu_flag(CIF_NOHZ_DELAY);
 	tpi_info = (struct tpi_info *) &get_irq_regs()->int_code;
 	irb = &__get_cpu_var(cio_irb);
 	sch = (struct subchannel *)(unsigned long) tpi_info->intparm;

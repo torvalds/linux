@@ -61,30 +61,6 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 	return sf->gprs[8];
 }
 
-void arch_cpu_idle(void)
-{
-	local_mcck_disable();
-	if (test_cpu_flag(CIF_MCCK_PENDING)) {
-		local_mcck_enable();
-		local_irq_enable();
-		return;
-	}
-	/* Halt the cpu and keep track of cpu time accounting. */
-	vtime_stop_cpu();
-	local_irq_enable();
-}
-
-void arch_cpu_idle_exit(void)
-{
-	if (test_cpu_flag(CIF_MCCK_PENDING))
-		s390_handle_mcck();
-}
-
-void arch_cpu_idle_dead(void)
-{
-	cpu_die();
-}
-
 extern void __kprobes kernel_thread_starter(void);
 
 /*

@@ -58,161 +58,13 @@ struct kprobe_insn_cache kprobe_dmainsn_slots = {
 	.insn_size = MAX_INSN_SIZE,
 };
 
-static int __kprobes is_prohibited_opcode(kprobe_opcode_t *insn)
-{
-	if (!is_known_insn((unsigned char *)insn))
-		return -EINVAL;
-	switch (insn[0] >> 8) {
-	case 0x0c:	/* bassm */
-	case 0x0b:	/* bsm	 */
-	case 0x83:	/* diag  */
-	case 0x44:	/* ex	 */
-	case 0xac:	/* stnsm */
-	case 0xad:	/* stosm */
-		return -EINVAL;
-	case 0xc6:
-		switch (insn[0] & 0x0f) {
-		case 0x00: /* exrl   */
-			return -EINVAL;
-		}
-	}
-	switch (insn[0]) {
-	case 0x0101:	/* pr	 */
-	case 0xb25a:	/* bsa	 */
-	case 0xb240:	/* bakr  */
-	case 0xb258:	/* bsg	 */
-	case 0xb218:	/* pc	 */
-	case 0xb228:	/* pt	 */
-	case 0xb98d:	/* epsw	 */
-		return -EINVAL;
-	}
-	return 0;
-}
-
-static int __kprobes get_fixup_type(kprobe_opcode_t *insn)
-{
-	/* default fixup method */
-	int fixup = FIXUP_PSW_NORMAL;
-
-	switch (insn[0] >> 8) {
-	case 0x05:	/* balr	*/
-	case 0x0d:	/* basr */
-		fixup = FIXUP_RETURN_REGISTER;
-		/* if r2 = 0, no branch will be taken */
-		if ((insn[0] & 0x0f) == 0)
-			fixup |= FIXUP_BRANCH_NOT_TAKEN;
-		break;
-	case 0x06:	/* bctr	*/
-	case 0x07:	/* bcr	*/
-		fixup = FIXUP_BRANCH_NOT_TAKEN;
-		break;
-	case 0x45:	/* bal	*/
-	case 0x4d:	/* bas	*/
-		fixup = FIXUP_RETURN_REGISTER;
-		break;
-	case 0x47:	/* bc	*/
-	case 0x46:	/* bct	*/
-	case 0x86:	/* bxh	*/
-	case 0x87:	/* bxle	*/
-		fixup = FIXUP_BRANCH_NOT_TAKEN;
-		break;
-	case 0x82:	/* lpsw	*/
-		fixup = FIXUP_NOT_REQUIRED;
-		break;
-	case 0xb2:	/* lpswe */
-		if ((insn[0] & 0xff) == 0xb2)
-			fixup = FIXUP_NOT_REQUIRED;
-		break;
-	case 0xa7:	/* bras	*/
-		if ((insn[0] & 0x0f) == 0x05)
-			fixup |= FIXUP_RETURN_REGISTER;
-		break;
-	case 0xc0:
-		if ((insn[0] & 0x0f) == 0x05)	/* brasl */
-			fixup |= FIXUP_RETURN_REGISTER;
-		break;
-	case 0xeb:
-		switch (insn[2] & 0xff) {
-		case 0x44: /* bxhg  */
-		case 0x45: /* bxleg */
-			fixup = FIXUP_BRANCH_NOT_TAKEN;
-			break;
-		}
-		break;
-	case 0xe3:	/* bctg	*/
-		if ((insn[2] & 0xff) == 0x46)
-			fixup = FIXUP_BRANCH_NOT_TAKEN;
-		break;
-	case 0xec:
-		switch (insn[2] & 0xff) {
-		case 0xe5: /* clgrb */
-		case 0xe6: /* cgrb  */
-		case 0xf6: /* crb   */
-		case 0xf7: /* clrb  */
-		case 0xfc: /* cgib  */
-		case 0xfd: /* cglib */
-		case 0xfe: /* cib   */
-		case 0xff: /* clib  */
-			fixup = FIXUP_BRANCH_NOT_TAKEN;
-			break;
-		}
-		break;
-	}
-	return fixup;
-}
-
-static int __kprobes is_insn_relative_long(kprobe_opcode_t *insn)
-{
-	/* Check if we have a RIL-b or RIL-c format instruction which
-	 * we need to modify in order to avoid instruction emulation. */
-	switch (insn[0] >> 8) {
-	case 0xc0:
-		if ((insn[0] & 0x0f) == 0x00) /* larl */
-			return true;
-		break;
-	case 0xc4:
-		switch (insn[0] & 0x0f) {
-		case 0x02: /* llhrl  */
-		case 0x04: /* lghrl  */
-		case 0x05: /* lhrl   */
-		case 0x06: /* llghrl */
-		case 0x07: /* sthrl  */
-		case 0x08: /* lgrl   */
-		case 0x0b: /* stgrl  */
-		case 0x0c: /* lgfrl  */
-		case 0x0d: /* lrl    */
-		case 0x0e: /* llgfrl */
-		case 0x0f: /* strl   */
-			return true;
-		}
-		break;
-	case 0xc6:
-		switch (insn[0] & 0x0f) {
-		case 0x02: /* pfdrl  */
-		case 0x04: /* cghrl  */
-		case 0x05: /* chrl   */
-		case 0x06: /* clghrl */
-		case 0x07: /* clhrl  */
-		case 0x08: /* cgrl   */
-		case 0x0a: /* clgrl  */
-		case 0x0c: /* cgfrl  */
-		case 0x0d: /* crl    */
-		case 0x0e: /* clgfrl */
-		case 0x0f: /* clrl   */
-			return true;
-		}
-		break;
-	}
-	return false;
-}
-
 static void __kprobes copy_instruction(struct kprobe *p)
 {
 	s64 disp, new_disp;
 	u64 addr, new_addr;
 
 	memcpy(p->ainsn.insn, p->addr, insn_length(p->opcode >> 8));
-	if (!is_insn_relative_long(p->ainsn.insn))
+	if (!probe_is_insn_relative_long(p->ainsn.insn))
 		return;
 	/*
 	 * For pc-relative instructions in RIL-b or RIL-c format patch the
@@ -276,7 +128,7 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	if ((unsigned long) p->addr & 0x01)
 		return -EINVAL;
 	/* Make sure the probe isn't going on a difficult instruction */
-	if (is_prohibited_opcode(p->addr))
+	if (probe_is_prohibited_opcode(p->addr))
 		return -EINVAL;
 	if (s390_get_insn_slot(p))
 		return -ENOMEM;
@@ -605,7 +457,7 @@ static void __kprobes resume_execution(struct kprobe *p, struct pt_regs *regs)
 {
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 	unsigned long ip = regs->psw.addr & PSW_ADDR_INSN;
-	int fixup = get_fixup_type(p->ainsn.insn);
+	int fixup = probe_get_fixup_type(p->ainsn.insn);
 
 	if (fixup & FIXUP_PSW_NORMAL)
 		ip += (unsigned long) p->addr - (unsigned long) p->ainsn.insn;
@@ -787,11 +639,6 @@ int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 void __kprobes jprobe_return(void)
 {
 	asm volatile(".word 0x0002");
-}
-
-static void __used __kprobes jprobe_return_end(void)
-{
-	asm volatile("bcr 0,0");
 }
 
 int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
