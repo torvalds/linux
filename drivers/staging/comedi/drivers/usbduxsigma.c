@@ -349,62 +349,25 @@ static int usbduxsigma_ao_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-static void usbduxsigma_ao_urb_complete(struct urb *urb)
+static void usbduxsigma_ao_handle_urb(struct comedi_device *dev,
+				      struct comedi_subdevice *s,
+				      struct urb *urb)
 {
-	struct comedi_device *dev = urb->context;
 	struct usbduxsigma_private *devpriv = dev->private;
-	struct comedi_subdevice *s = dev->write_subdev;
-	struct comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
 	uint8_t *datap;
 	int ret;
 	int i;
 
-	switch (urb->status) {
-	case 0:
-		/* success */
-		break;
-
-	case -ECONNRESET:
-	case -ENOENT:
-	case -ESHUTDOWN:
-	case -ECONNABORTED:
-		/* happens after an unlink command */
-		if (devpriv->ao_cmd_running) {
-			usbduxsigma_ao_stop(dev, 0);	/* w/o unlink */
-			s->async->events |= COMEDI_CB_EOA;
-			comedi_event(dev, s);
-		}
-		return;
-
-	default:
-		/* a real error */
-		if (devpriv->ao_cmd_running) {
-			dev_err(dev->class_dev,
-				"%s: non-zero urb status (%d)\n",
-				__func__, urb->status);
-			usbduxsigma_ao_stop(dev, 0);	/* w/o unlink */
-			s->async->events |= (COMEDI_CB_ERROR | COMEDI_CB_EOA);
-			comedi_event(dev, s);
-		}
-		return;
-	}
-
-	if (!devpriv->ao_cmd_running)
-		return;
-
 	devpriv->ao_counter--;
-	if ((int)devpriv->ao_counter <= 0) {
-		/* timer zero, transfer from comedi */
+	if (devpriv->ao_counter == 0) {
 		devpriv->ao_counter = devpriv->ao_timer;
 
 		if (cmd->stop_src == TRIG_COUNT) {
-			/* not continuous, fixed number of samples */
 			devpriv->ao_sample_count--;
 			if (devpriv->ao_sample_count < 0) {
-				usbduxsigma_ao_stop(dev, 0);	/* w/o unlink */
-				/* acquistion is over, tell comedi */
-				s->async->events |= COMEDI_CB_EOA;
-				comedi_event(dev, s);
+				async->events |= COMEDI_CB_EOA;
 				return;
 			}
 		}
@@ -416,44 +379,85 @@ static void usbduxsigma_ao_urb_complete(struct urb *urb)
 			unsigned int chan = CR_CHAN(cmd->chanlist[i]);
 			unsigned short val;
 
-			ret = comedi_buf_get(s, &val);
-			if (ret < 0) {
+			if (!comedi_buf_get(s, &val)) {
 				dev_err(dev->class_dev, "buffer underflow\n");
-				s->async->events |= (COMEDI_CB_EOA |
-						     COMEDI_CB_OVERFLOW);
+				async->events |= COMEDI_CB_OVERFLOW;
+				return;
 			}
+
 			*datap++ = val;
 			*datap++ = chan;
 			s->readback[chan] = val;
+		}
+		async->events |= COMEDI_CB_BLOCK;
+	}
 
-			s->async->events |= COMEDI_CB_BLOCK;
-			comedi_event(dev, s);
+	/* if command is still running, resubmit urb */
+	if (!(async->events & COMEDI_CB_CANCEL_MASK)) {
+		urb->transfer_buffer_length = SIZEOUTBUF;
+		urb->dev = comedi_to_usb_dev(dev);
+		urb->status = 0;
+		if (devpriv->high_speed)
+			urb->interval = 8;	/* uframes */
+		else
+			urb->interval = 1;	/* frames */
+		urb->number_of_packets = 1;
+		urb->iso_frame_desc[0].offset = 0;
+		urb->iso_frame_desc[0].length = SIZEOUTBUF;
+		urb->iso_frame_desc[0].status = 0;
+		ret = usb_submit_urb(urb, GFP_ATOMIC);
+		if (ret < 0) {
+			dev_err(dev->class_dev,
+				"%s: urb resubmit failed (%d)\n",
+				__func__, ret);
+			if (ret == -EL2NSYNC)
+				dev_err(dev->class_dev,
+					"buggy USB host controller or bug in IRQ handler\n");
+			async->events |= COMEDI_CB_ERROR;
 		}
 	}
+}
 
-	urb->transfer_buffer_length = SIZEOUTBUF;
-	urb->dev = comedi_to_usb_dev(dev);
-	urb->status = 0;
-	if (devpriv->high_speed)
-		urb->interval = 8;	/* uframes */
-	else
-		urb->interval = 1;	/* frames */
-	urb->number_of_packets = 1;
-	urb->iso_frame_desc[0].offset = 0;
-	urb->iso_frame_desc[0].length = SIZEOUTBUF;
-	urb->iso_frame_desc[0].status = 0;
-	ret = usb_submit_urb(urb, GFP_ATOMIC);
-	if (ret < 0) {
-		dev_err(dev->class_dev,
-			"%s: urb resubmit failed (%d)\n",
-			__func__, ret);
-		if (ret == -EL2NSYNC)
-			dev_err(dev->class_dev,
-				"buggy USB host controller or bug in IRQ handler\n");
-		usbduxsigma_ao_stop(dev, 0);	/* w/o unlink */
-		s->async->events |= (COMEDI_CB_EOA | COMEDI_CB_ERROR);
-		comedi_event(dev, s);
+static void usbduxsigma_ao_urb_complete(struct urb *urb)
+{
+	struct comedi_device *dev = urb->context;
+	struct usbduxsigma_private *devpriv = dev->private;
+	struct comedi_subdevice *s = dev->write_subdev;
+	struct comedi_async *async = s->async;
+
+	/* exit if not running a command, do not resubmit urb */
+	if (!devpriv->ao_cmd_running)
+		return;
+
+	switch (urb->status) {
+	case 0:
+		usbduxsigma_ao_handle_urb(dev, s, urb);
+		break;
+
+	case -ECONNRESET:
+	case -ENOENT:
+	case -ESHUTDOWN:
+	case -ECONNABORTED:
+		/* happens after an unlink command */
+		async->events |= COMEDI_CB_ERROR;
+		break;
+
+	default:
+		/* a real error */
+		dev_err(dev->class_dev, "%s: non-zero urb status (%d)\n",
+			__func__, urb->status);
+		async->events |= COMEDI_CB_ERROR;
+		break;
 	}
+
+	/*
+	 * comedi_handle_events() cannot be used in this driver. The (*cancel)
+	 * operation would unlink the urb.
+	 */
+	if (async->events & COMEDI_CB_CANCEL_MASK)
+		usbduxsigma_ao_stop(dev, 0);
+
+	comedi_event(dev, s);
 }
 
 static int usbduxsigma_submit_urbs(struct comedi_device *dev,
