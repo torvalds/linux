@@ -1344,7 +1344,7 @@ static int amaudio_release(struct inode *inode, struct file *file)
         audout_irq_alloced = 0;
       }
 #endif      
-      kfree(amaudio);
+ 
       kfree(amaudio_tmpbuf_out);
       amaudio_tmpbuf_out = 0;
       direct_audio_flag = DIRECT_AUDIO_OFF;
@@ -1356,7 +1356,7 @@ static int amaudio_release(struct inode *inode, struct file *file)
 #else
       free_irq(INT_AUDIO_IN, &amaudio_in);
 #endif      
-      kfree(amaudio);
+    
       direct_audio_flag = DIRECT_AUDIO_OFF;
       kfree((void*)amaudio_inbuf.out_start);
       kfree(amaudio_tmpbuf_in);
@@ -1368,7 +1368,8 @@ static int amaudio_release(struct inode *inode, struct file *file)
       dump_buf = 0;
 #endif      
     }
-
+  if(amaudio)
+	  kfree(amaudio);
 	return 0;
 }
 static long amaudio_ioctl(struct file *file,
