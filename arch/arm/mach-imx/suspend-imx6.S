@@ -77,6 +77,7 @@
 #define MX6Q_GPC_IMR3	0x10
 #define MX6Q_GPC_IMR4	0x14
 #define MX6Q_CCM_CCR	0x0
+#define MX6Q_ANATOP_CORE	0x140
 
 	.align 3
 
@@ -578,6 +579,27 @@ rbc_loop:
 	subs	r6, r6, #0x1
 	bne	rbc_loop
 
+	/*
+	 * ERR005852 Analog: Transition from Deep Sleep Mode to
+	 * LDO Bypass Mode may cause the slow response of the
+	 * VDDARM_CAP output.
+	 *
+	 * Software workaround:
+	 * if internal ldo(VDDARM) bypassed, switch to analog bypass
+	 * mode (0x1E), prio to entering DSM, and then, revert to the
+	 * normal bypass mode, when exiting from DSM.
+	 */
+	ldr	r11, [r0, #PM_INFO_MX6Q_ANATOP_V_OFFSET]
+	ldr	r10, [r11, #MX6Q_ANATOP_CORE]
+	and	r10, r10, #0x1f
+	cmp	r10, #0x1f
+	bne	ldo_check_done1
+ldo_analog_bypass:
+	ldr	r10, [r11, #MX6Q_ANATOP_CORE]
+	bic	r10, r10, #0x1f
+	orr	r10, r10, #0x1e
+	str	r10, [r11, #MX6Q_ANATOP_CORE]
+ldo_check_done1:
 	/* Zzz, enter stop mode */
 	wfi
 	nop
@@ -590,6 +612,16 @@ rbc_loop:
 	 * wakeup source, system should auto
 	 * resume, we need to restore MMDC IO first
 	 */
+	/* restore it with 0x1f if use ldo bypass mode.*/
+	ldr	r10, [r11, #MX6Q_ANATOP_CORE]
+	and	r10, r10, #0x1f
+	cmp	r10, #0x1e
+	bne	ldo_check_done2
+ldo_bypass_restore:
+	ldr	r10, [r11, #MX6Q_ANATOP_CORE]
+	orr	r10, r10, #0x1f
+	str	r10, [r11, #MX6Q_ANATOP_CORE]
+ldo_check_done2:
 	mov	r5, #0x0
 	/* check whether it supports Mega/Fast off */
 	ldr	r6, [r0, #PM_INFO_MMDC_NUM_OFFSET]
@@ -616,6 +648,16 @@ resume:
 	mcr     p15, 0, r6, c1, c0, 0
 	isb
 
+	/* restore it with 0x1f if use ldo bypass mode.*/
+	ldr	r11, [r0, #PM_INFO_MX6Q_ANATOP_P_OFFSET]
+	ldr	r7, [r11, #MX6Q_ANATOP_CORE]
+	and	r7, r7, #0x1f
+	cmp	r7, #0x1e
+	bne	ldo_check_done3
+	ldr	r7, [r11, #MX6Q_ANATOP_CORE]
+	orr	r7, r7, #0x1f
+	str	r7, [r11, #MX6Q_ANATOP_CORE]
+ldo_check_done3:
 	/* get physical resume address from pm_info. */
 	ldr	lr, [r0, #PM_INFO_RESUME_ADDR_OFFSET]
 	/* clear core0's entry and parameter */

@@ -1055,7 +1055,6 @@ static int __init imx6q_suspend_init(const struct imx6_pm_socdata *socdata)
 	pm_info->anatop_base.vbase = (void __iomem *)
 				  IMX_IO_P2V(MX6Q_ANATOP_BASE_ADDR);
 
-
 	pm_info->ddr_type = imx_mmdc_get_ddr_type();
 	pm_info->mmdc_io_num = socdata->mmdc_io_num;
 	mmdc_io_offset_array = socdata->mmdc_io_offset;
