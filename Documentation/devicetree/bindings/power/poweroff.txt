@@ -1,0 +1,18 @@
+* Generic Poweroff capability
+
+Power-management integrated circuits or miscellaneous harware components are
+sometimes able to control the system power. The device driver associated to these
+components might needs to define poweroff capability, which tells to the kernel
+how to switch off the system. The corresponding driver must have the standard
+property "poweroff-source" in its device node. This property marks the device as
+able to shutdown the system. In order to test if this property is found
+programmatically, use the helper function "of_system_has_poweroff_source" from
+of.h .
+
+Example:
+
+act8846: act8846@5 {
+	 compatible = "active-semi,act8846";
+	 status = "okay";
+	 poweroff-source;
+}
