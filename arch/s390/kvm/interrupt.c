@@ -1026,6 +1026,9 @@ static int __inject_set_prefix(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 	trace_kvm_s390_inject_vcpu(vcpu->vcpu_id, KVM_S390_SIGP_SET_PREFIX,
 				   prefix->address, 0, 2);
 
+	if (!is_vcpu_stopped(vcpu))
+		return -EBUSY;
+
 	*prefix = irq->u.prefix;
 	set_bit(IRQ_PEND_SET_PREFIX, &li->pending_irqs);
 	return 0;

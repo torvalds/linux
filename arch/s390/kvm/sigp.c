@@ -176,41 +176,33 @@ static int __sigp_set_arch(struct kvm_vcpu *vcpu, u32 parameter)
 static int __sigp_set_prefix(struct kvm_vcpu *vcpu, struct kvm_vcpu *dst_vcpu,
 			     u32 address, u64 *reg)
 {
-	struct kvm_s390_local_interrupt *li;
+	struct kvm_s390_irq irq = {
+		.type = KVM_S390_SIGP_SET_PREFIX,
+		.u.prefix.address = address & 0x7fffe000u,
+	};
 	int rc;
-
-	li = &dst_vcpu->arch.local_int;
 
 	/*
 	 * Make sure the new value is valid memory. We only need to check the
 	 * first page, since address is 8k aligned and memory pieces are always
 	 * at least 1MB aligned and have at least a size of 1MB.
 	 */
-	address &= 0x7fffe000u;
-	if (kvm_is_error_gpa(vcpu->kvm, address)) {
+	if (kvm_is_error_gpa(vcpu->kvm, irq.u.prefix.address)) {
 		*reg &= 0xffffffff00000000UL;
 		*reg |= SIGP_STATUS_INVALID_PARAMETER;
 		return SIGP_CC_STATUS_STORED;
 	}
 
-	spin_lock(&li->lock);
-	/* cpu must be in stopped state */
-	if (!(atomic_read(li->cpuflags) & CPUSTAT_STOPPED)) {
+	rc = kvm_s390_inject_vcpu(dst_vcpu, &irq);
+	if (rc == -EBUSY) {
 		*reg &= 0xffffffff00000000UL;
 		*reg |= SIGP_STATUS_INCORRECT_STATE;
-		rc = SIGP_CC_STATUS_STORED;
-		goto out_li;
+		return SIGP_CC_STATUS_STORED;
+	} else if (rc == 0) {
+		VCPU_EVENT(vcpu, 4, "set prefix of cpu %02x to %x",
+			   dst_vcpu->vcpu_id, irq.u.prefix.address);
 	}
 
-	li->irq.prefix.address = address;
-	set_bit(IRQ_PEND_SET_PREFIX, &li->pending_irqs);
-	kvm_s390_vcpu_wakeup(dst_vcpu);
-	rc = SIGP_CC_ORDER_CODE_ACCEPTED;
-
-	VCPU_EVENT(vcpu, 4, "set prefix of cpu %02x to %x", dst_vcpu->vcpu_id,
-		   address);
-out_li:
-	spin_unlock(&li->lock);
 	return rc;
 }
 
