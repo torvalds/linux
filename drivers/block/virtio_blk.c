@@ -44,9 +44,6 @@ struct virtio_blk
 	/* Lock for config space updates */
 	struct mutex config_lock;
 
-	/* enable config space updates */
-	bool config_enable;
-
 	/* What host tells us, plus 2 for header & tailer. */
 	unsigned int sg_elems;
 
@@ -348,8 +345,6 @@ static void virtblk_config_changed_work(struct work_struct *work)
 	u64 capacity, size;
 
 	mutex_lock(&vblk->config_lock);
-	if (!vblk->config_enable)
-		goto done;
 
 	/* Host must always specify the capacity. */
 	virtio_cread(vdev, struct virtio_blk_config, capacity, &capacity);
@@ -374,7 +369,7 @@ static void virtblk_config_changed_work(struct work_struct *work)
 	set_capacity(vblk->disk, capacity);
 	revalidate_disk(vblk->disk);
 	kobject_uevent_env(&disk_to_dev(vblk->disk)->kobj, KOBJ_CHANGE, envp);
-done:
+
 	mutex_unlock(&vblk->config_lock);
 }
 
@@ -609,7 +604,6 @@ static int virtblk_probe(struct virtio_device *vdev)
 	mutex_init(&vblk->config_lock);
 
 	INIT_WORK(&vblk->config_work, virtblk_config_changed_work);
-	vblk->config_enable = true;
 
 	err = init_vq(vblk);
 	if (err)
@@ -771,10 +765,8 @@ static void virtblk_remove(struct virtio_device *vdev)
 	int index = vblk->index;
 	int refc;
 
-	/* Prevent config work handler from accessing the device. */
-	mutex_lock(&vblk->config_lock);
-	vblk->config_enable = false;
-	mutex_unlock(&vblk->config_lock);
+	/* Make sure no work handler is accessing the device. */
+	flush_work(&vblk->config_work);
 
 	del_gendisk(vblk->disk);
 	blk_cleanup_queue(vblk->disk->queue);
@@ -783,8 +775,6 @@ static void virtblk_remove(struct virtio_device *vdev)
 
 	/* Stop all the virtqueues. */
 	vdev->config->reset(vdev);
-
-	flush_work(&vblk->config_work);
 
 	refc = atomic_read(&disk_to_dev(vblk->disk)->kobj.kref.refcount);
 	put_disk(vblk->disk);
@@ -805,11 +795,7 @@ static int virtblk_freeze(struct virtio_device *vdev)
 	/* Ensure we don't receive any more interrupts */
 	vdev->config->reset(vdev);
 
-	/* Prevent config work handler from accessing the device. */
-	mutex_lock(&vblk->config_lock);
-	vblk->config_enable = false;
-	mutex_unlock(&vblk->config_lock);
-
+	/* Make sure no work handler is accessing the device. */
 	flush_work(&vblk->config_work);
 
 	blk_mq_stop_hw_queues(vblk->disk->queue);
@@ -823,7 +809,6 @@ static int virtblk_restore(struct virtio_device *vdev)
 	struct virtio_blk *vblk = vdev->priv;
 	int ret;
 
-	vblk->config_enable = true;
 	ret = init_vq(vdev->priv);
 	if (!ret)
 		blk_mq_start_stopped_hw_queues(vblk->disk->queue, true);
