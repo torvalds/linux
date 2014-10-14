@@ -16,17 +16,15 @@ enum apci3120_boardid {
 
 struct apci3120_board {
 	const char *name;
-	int i_NbrAoChannel;
 	int i_AiMaxdata;
-	int i_AoMaxdata;
+	unsigned int has_ao:1;
 };
 
 static const struct apci3120_board apci3120_boardtypes[] = {
 	[BOARD_APCI3120] = {
 		.name			= "apci3120",
-		.i_NbrAoChannel		= 8,
 		.i_AiMaxdata		= 0xffff,
-		.i_AoMaxdata		= 0x3fff,
+		.has_ao			= 1,
 	},
 	[BOARD_APCI3001] = {
 		.name			= "apci3001",
@@ -117,12 +115,11 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 
 	/*  Allocate and Initialise AO Subdevice Structures */
 	s = &dev->subdevices[1];
-	if (this_board->i_NbrAoChannel) {
+	if (this_board->has_ao) {
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = this_board->i_NbrAoChannel;
-		s->maxdata = this_board->i_AoMaxdata;
-		s->len_chanlist = this_board->i_NbrAoChannel;
+		s->n_chan = 8;
+		s->maxdata = 0x3fff;
 		s->range_table = &range_apci3120_ao;
 		s->insn_write = apci3120_ao_insn_write;
 	} else {
