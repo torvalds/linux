@@ -284,7 +284,7 @@ static void xgene_enet_shutdown(struct xgene_enet_pdata *pdata)
 	clk_disable_unprepare(pdata->clk);
 }
 
-void xgene_enet_link_state(struct work_struct *work)
+static void xgene_enet_link_state(struct work_struct *work)
 {
 	struct xgene_enet_pdata *pdata = container_of(to_delayed_work(work),
 					 struct xgene_enet_pdata, link_work);
@@ -322,6 +322,7 @@ struct xgene_mac_ops xgene_xgmac_ops = {
 	.rx_disable = xgene_xgmac_rx_disable,
 	.tx_disable = xgene_xgmac_tx_disable,
 	.set_mac_addr = xgene_xgmac_set_mac_addr,
+	.link_state = xgene_enet_link_state
 };
 
 struct xgene_port_ops xgene_xgport_ops = {
