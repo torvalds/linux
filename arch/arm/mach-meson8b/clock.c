@@ -1221,7 +1221,7 @@ SETPLL:
 
 		aml_write_reg32(P_HHI_SYS_PLL_CNTL,  cpu_clk_cntl);
 
-		udelay_scaled(100, dst / 1000000, 24 /*clk_get_rate_xtal*/);
+		udelay_scaled(500, dst / 1000000, 24 /*clk_get_rate_xtal*/);
 
 		cntl = aml_read_reg32(P_HHI_SYS_PLL_CNTL);
 		if((cntl & (1<<31)) == 0){
