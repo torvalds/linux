@@ -686,10 +686,8 @@ static int mv_otg_probe(struct platform_device *pdev)
 	}
 
 	mvotg = devm_kzalloc(&pdev->dev, sizeof(*mvotg), GFP_KERNEL);
-	if (!mvotg) {
-		dev_err(&pdev->dev, "failed to allocate memory!\n");
+	if (!mvotg)
 		return -ENOMEM;
-	}
 
 	otg = devm_kzalloc(&pdev->dev, sizeof(*otg), GFP_KERNEL);
 	if (!otg)
