@@ -153,7 +153,6 @@ static int mv_ehci_probe(struct platform_device *pdev)
 
 	ehci_mv = devm_kzalloc(&pdev->dev, sizeof(*ehci_mv), GFP_KERNEL);
 	if (ehci_mv == NULL) {
-		dev_err(&pdev->dev, "cannot allocate ehci_hcd_mv\n");
 		retval = -ENOMEM;
 		goto err_put_hcd;
 	}
