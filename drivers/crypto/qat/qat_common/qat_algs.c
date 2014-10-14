@@ -605,6 +605,8 @@ static int qat_alg_sgl_to_bufl(struct qat_crypto_instance *inst,
 		goto err;
 
 	for_each_sg(assoc, sg, assoc_n, i) {
+		if (!sg->length)
+			continue;
 		bufl->bufers[bufs].addr = dma_map_single(dev,
 							 sg_virt(sg),
 							 sg->length,
