@@ -126,7 +126,6 @@ static int ehci_hcd_sh_probe(struct platform_device *pdev)
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct ehci_sh_priv),
 			    GFP_KERNEL);
 	if (!priv) {
-		dev_dbg(&pdev->dev, "error allocating priv data\n");
 		ret = -ENOMEM;
 		goto fail_request_resource;
 	}
