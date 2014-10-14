@@ -50,7 +50,6 @@
 #define PHY_POLL_LINK_ON	(10 * HZ)
 #define PHY_POLL_LINK_OFF	(PHY_POLL_LINK_ON / 5)
 
-void xgene_enet_link_state(struct work_struct *work);
 extern struct xgene_mac_ops xgene_xgmac_ops;
 extern struct xgene_port_ops xgene_xgport_ops;
 

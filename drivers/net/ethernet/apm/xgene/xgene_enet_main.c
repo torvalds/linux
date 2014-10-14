@@ -833,11 +833,9 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII) {
 		pdata->mcx_mac_addr = base_addr + BLOCK_ETH_MAC_OFFSET;
 		pdata->mcx_mac_csr_addr = base_addr + BLOCK_ETH_MAC_CSR_OFFSET;
-		pdata->rm = RM3;
 	} else {
 		pdata->mcx_mac_addr = base_addr + BLOCK_AXG_MAC_OFFSET;
 		pdata->mcx_mac_csr_addr = base_addr + BLOCK_AXG_MAC_CSR_OFFSET;
-		pdata->rm = RM0;
 	}
 	pdata->rx_buff_cnt = NUM_PKT_BUF;
 
@@ -881,10 +879,12 @@ static void xgene_enet_setup_ops(struct xgene_enet_pdata *pdata)
 	case PHY_INTERFACE_MODE_RGMII:
 		pdata->mac_ops = &xgene_gmac_ops;
 		pdata->port_ops = &xgene_gport_ops;
+		pdata->rm = RM3;
 		break;
 	default:
 		pdata->mac_ops = &xgene_xgmac_ops;
 		pdata->port_ops = &xgene_xgport_ops;
+		pdata->rm = RM0;
 		break;
 	}
 }
@@ -895,6 +895,7 @@ static int xgene_enet_probe(struct platform_device *pdev)
 	struct xgene_enet_pdata *pdata;
 	struct device *dev = &pdev->dev;
 	struct napi_struct *napi;
+	struct xgene_mac_ops *mac_ops;
 	int ret;
 
 	ndev = alloc_etherdev(sizeof(struct xgene_enet_pdata));
@@ -937,10 +938,11 @@ static int xgene_enet_probe(struct platform_device *pdev)
 
 	napi = &pdata->rx_ring->napi;
 	netif_napi_add(ndev, napi, xgene_enet_napi, NAPI_POLL_WEIGHT);
+	mac_ops = pdata->mac_ops;
 	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII)
 		ret = xgene_enet_mdio_config(pdata);
 	else
-		INIT_DELAYED_WORK(&pdata->link_work, xgene_enet_link_state);
+		INIT_DELAYED_WORK(&pdata->link_work, mac_ops->link_state);
 
 	return ret;
 err:

@@ -179,7 +179,6 @@ enum xgene_enet_rm {
 #define TUND_ADDR			0x4a
 
 #define TSO_IPPROTO_TCP			1
-#define	FULL_DUPLEX			2
 
 #define USERINFO_POS			0
 #define USERINFO_LEN			32

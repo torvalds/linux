@@ -76,6 +76,7 @@ struct xgene_mac_ops {
 	void (*tx_disable)(struct xgene_enet_pdata *pdata);
 	void (*rx_disable)(struct xgene_enet_pdata *pdata);
 	void (*set_mac_addr)(struct xgene_enet_pdata *pdata);
+	void (*link_state)(struct work_struct *work);
 };
 
 struct xgene_port_ops {
@@ -109,7 +110,6 @@ struct xgene_enet_pdata {
 	void __iomem *base_addr;
 	void __iomem *ring_csr_addr;
 	void __iomem *ring_cmd_addr;
-	u32 phy_addr;
 	int phy_mode;
 	enum xgene_enet_rm rm;
 	struct rtnl_link_stats64 stats;
