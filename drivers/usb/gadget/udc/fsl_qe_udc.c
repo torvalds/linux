@@ -2538,7 +2538,6 @@ static int qe_udc_probe(struct platform_device *ofdev)
 	/* create a buf for ZLP send, need to remain zeroed */
 	udc->nullbuf = devm_kzalloc(&ofdev->dev, 256, GFP_KERNEL);
 	if (udc->nullbuf == NULL) {
-		dev_err(udc->dev, "cannot alloc nullbuf\n");
 		ret = -ENOMEM;
 		goto err3;
 	}
