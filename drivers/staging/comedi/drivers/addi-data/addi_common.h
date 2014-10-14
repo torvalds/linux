@@ -49,20 +49,4 @@ struct addi_private {
 
 	/* Pointer to the current process */
 	struct task_struct *tsk_Current;
-
-	/* Parameters read from EEPROM overriding static board info */
-	struct {
-		int i_NbrAiChannel;	/*  num of A/D chans */
-		int i_NbrAoChannel;	/*  num of D/A chans */
-		int i_AiMaxdata;	/*  resolution of A/D */
-		int i_AoMaxdata;	/*  resolution of D/A */
-		int i_NbrDiChannel;	/*  Number of DI channels */
-		int i_NbrDoChannel;	/*  Number of DO channels */
-		int i_DoMaxdata;	/*  data to set all channels high */
-		int i_Timer;		/*  timer subdevice present or not */
-		unsigned int ui_MinAcquisitiontimeNs;
-					/*  Minimum Acquisition in Nano secs */
-		unsigned int ui_MinDelaytimeNs;
-					/*  Minimum Delay in Nano secs */
-	} s_EeParameters;
 };
