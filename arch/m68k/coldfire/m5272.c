@@ -1,7 +1,7 @@
 /***************************************************************************/
 
 /*
- *	linux/arch/m68knommu/platform/5272/config.c
+ *	m5272.c  -- platform support for ColdFire 5272 based boards
  *
  *	Copyright (C) 1999-2002, Greg Ungerer (gerg@snapgear.com)
  *	Copyright (C) 2001-2002, SnapGear Inc. (www.snapgear.com)

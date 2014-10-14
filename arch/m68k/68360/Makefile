@@ -1,5 +1,5 @@
 #
-# Makefile for arch/m68knommu/platform/68360.
+# Makefile for 68360 machines.
 #
 model-y			  := ram
 model-$(CONFIG_ROMKERNEL) := rom

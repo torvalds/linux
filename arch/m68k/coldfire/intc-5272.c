@@ -36,7 +36,7 @@
  * they also need acknowledging via acknowledge bits.
  */
 struct irqmap {
-	unsigned char	icr;
+	unsigned int	icr;
 	unsigned char	index;
 	unsigned char	ack;
 };

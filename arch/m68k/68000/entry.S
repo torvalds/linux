@@ -1,15 +1,13 @@
 /*
- *  linux/arch/m68knommu/platform/68360/entry.S
+ *  entry.S -- non-mmu 68000 interrupt and exception entry points
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
- *  Copyright (C) 2001 SED Systems, a Division of Calian Ltd.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file README.legal in the main directory of this archive
  * for more details.
  *
  * Linux/m68k support by Hamish Macdonald
- * M68360 Port by SED Systems, and Lineo.
  */
 
 #include <linux/linkage.h>
@@ -30,7 +28,13 @@
 .globl ret_from_signal
 .globl sys_call_table
 .globl bad_interrupt
-.globl inthandler
+.globl inthandler1
+.globl inthandler2
+.globl inthandler3
+.globl inthandler4
+.globl inthandler5
+.globl inthandler6
+.globl inthandler7
 
 badsys:
 	movel	#-ENOSYS,%sp@(PT_OFF_D0)
@@ -121,24 +125,100 @@ Lsignal_return:
 	jra	1b
 
 /*
- * This is the main interrupt handler, responsible for calling do_IRQ()
+ * This is the main interrupt handler, responsible for calling process_int()
  */
+inthandler1:
+	SAVE_ALL_INT
+	movew	%sp@(PT_OFF_FORMATVEC), %d0
+	and	#0x3ff, %d0
+
+	movel	%sp,%sp@-
+	movel	#65,%sp@- 		/*  put vector # on stack*/
+	jbsr	process_int		/*  process the IRQ*/
+3:     	addql	#8,%sp			/*  pop parameters off stack*/
+	bra	ret_from_exception
+
+inthandler2:
+	SAVE_ALL_INT
+	movew	%sp@(PT_OFF_FORMATVEC), %d0
+	and	#0x3ff, %d0
+
+	movel	%sp,%sp@-
+	movel	#66,%sp@- 		/*  put vector # on stack*/
+	jbsr	process_int		/*  process the IRQ*/
+3:     	addql	#8,%sp			/*  pop parameters off stack*/
+	bra	ret_from_exception
+
+inthandler3:
+	SAVE_ALL_INT
+	movew	%sp@(PT_OFF_FORMATVEC), %d0
+	and	#0x3ff, %d0
+
+	movel	%sp,%sp@-
+	movel	#67,%sp@- 		/*  put vector # on stack*/
+	jbsr	process_int		/*  process the IRQ*/
+3:     	addql	#8,%sp			/*  pop parameters off stack*/
+	bra	ret_from_exception
+
+inthandler4:
+	SAVE_ALL_INT
+	movew	%sp@(PT_OFF_FORMATVEC), %d0
+	and	#0x3ff, %d0
+
+	movel	%sp,%sp@-
+	movel	#68,%sp@- 		/*  put vector # on stack*/
+	jbsr	process_int		/*  process the IRQ*/
+3:     	addql	#8,%sp			/*  pop parameters off stack*/
+	bra	ret_from_exception
+
+inthandler5:
+	SAVE_ALL_INT
+	movew	%sp@(PT_OFF_FORMATVEC), %d0
+	and	#0x3ff, %d0
+
+	movel	%sp,%sp@-
+	movel	#69,%sp@- 		/*  put vector # on stack*/
+	jbsr	process_int		/*  process the IRQ*/
+3:     	addql	#8,%sp			/*  pop parameters off stack*/
+	bra	ret_from_exception
+
+inthandler6:
+	SAVE_ALL_INT
+	movew	%sp@(PT_OFF_FORMATVEC), %d0
+	and	#0x3ff, %d0
+
+	movel	%sp,%sp@-
+	movel	#70,%sp@- 		/*  put vector # on stack*/
+	jbsr	process_int		/*  process the IRQ*/
+3:     	addql	#8,%sp			/*  pop parameters off stack*/
+	bra	ret_from_exception
+
+inthandler7:
+	SAVE_ALL_INT
+	movew	%sp@(PT_OFF_FORMATVEC), %d0
+	and	#0x3ff, %d0
+
+	movel	%sp,%sp@-
+	movel	#71,%sp@- 		/*  put vector # on stack*/
+	jbsr	process_int		/*  process the IRQ*/
+3:     	addql	#8,%sp			/*  pop parameters off stack*/
+	bra	ret_from_exception
+
 inthandler:
 	SAVE_ALL_INT
 	movew	%sp@(PT_OFF_FORMATVEC), %d0
-	and.l	#0x3ff, %d0
-	lsr.l   #0x02,  %d0
+	and	#0x3ff, %d0
 
 	movel	%sp,%sp@-
 	movel	%d0,%sp@- 		/*  put vector # on stack*/
-	jbsr	do_IRQ			/*  process the IRQ */
-	addql	#8,%sp			/*  pop parameters off stack*/
-	jra	ret_from_exception
+	jbsr	process_int		/*  process the IRQ*/
+3:     	addql	#8,%sp			/*  pop parameters off stack*/
+	bra	ret_from_exception
 
 /*
  * Handler for uninitialized and spurious interrupts.
  */
-bad_interrupt:
+ENTRY(bad_interrupt)
 	addql	#1,irq_err_count
 	rte
 

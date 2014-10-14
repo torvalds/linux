@@ -1,5 +1,5 @@
 /*
- *  linux/arch/m68knommu/platform/5307/entry.S
+ *  entry.S  -- interrupt and exception processing for ColdFire
  *
  *  Copyright (C) 1999-2007, Greg Ungerer (gerg@snapgear.com)
  *  Copyright (C) 1998  D. Jeff Dionne <jeff@lineo.ca>,

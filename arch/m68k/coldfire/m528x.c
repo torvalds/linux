@@ -1,13 +1,13 @@
 /***************************************************************************/
 
 /*
- *	linux/arch/m68knommu/platform/527x/config.c
+ *	m528x.c  -- platform support for ColdFire 528x based boards
  *
  *	Sub-architcture dependent initialization code for the Freescale
- *	5270/5271 CPUs.
+ *	5280, 5281 and 5282 CPUs.
  *
- *	Copyright (C) 1999-2004, Greg Ungerer (gerg@snapgear.com)
- *	Copyright (C) 2001-2004, SnapGear Inc. (www.snapgear.com)
+ *	Copyright (C) 1999-2003, Greg Ungerer (gerg@snapgear.com)
+ *	Copyright (C) 2001-2003, SnapGear Inc. (www.snapgear.com)
  */
 
 /***************************************************************************/
@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/param.h>
 #include <linux/init.h>
+#include <linux/platform_device.h>
 #include <linux/io.h>
 #include <asm/machdep.h>
 #include <asm/coldfire.h>
@@ -35,7 +36,6 @@ DEFINE_CLK(mcfuart1, "mcfuart.1", MCF_BUSCLK);
 DEFINE_CLK(mcfuart2, "mcfuart.2", MCF_BUSCLK);
 DEFINE_CLK(mcfqspi0, "mcfqspi.0", MCF_BUSCLK);
 DEFINE_CLK(fec0, "fec.0", MCF_BUSCLK);
-DEFINE_CLK(fec1, "fec.1", MCF_BUSCLK);
 
 struct clk *mcf_clks[] = {
 	&clk_pll,
@@ -49,78 +49,84 @@ struct clk *mcf_clks[] = {
 	&clk_mcfuart2,
 	&clk_mcfqspi0,
 	&clk_fec0,
-	&clk_fec1,
 	NULL
 };
 
 /***************************************************************************/
 
-static void __init m527x_qspi_init(void)
+static void __init m528x_qspi_init(void)
 {
 #if IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI)
-#if defined(CONFIG_M5271)
-	u16 par;
-
-	/* setup QSPS pins for QSPI with gpio CS control */
-	writeb(0x1f, MCFGPIO_PAR_QSPI);
-	/* and CS2 & CS3 as gpio */
-	par = readw(MCFGPIO_PAR_TIMER);
-	par &= 0x3f3f;
-	writew(par, MCFGPIO_PAR_TIMER);
-#elif defined(CONFIG_M5275)
-	/* setup QSPS pins for QSPI with gpio CS control */
-	writew(0x003e, MCFGPIO_PAR_QSPI);
-#endif
+	/* setup Port QS for QSPI with gpio CS control */
+	__raw_writeb(0x07, MCFGPIO_PQSPAR);
 #endif /* IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI) */
 }
 
 /***************************************************************************/
 
-static void __init m527x_uarts_init(void)
+static void __init m528x_uarts_init(void)
 {
-	u16 sepmask;
+	u8 port;
 
-	/*
-	 * External Pin Mask Setting & Enable External Pin for Interface
-	 */
-	sepmask = readw(MCFGPIO_PAR_UART);
-	sepmask |= UART0_ENABLE_MASK | UART1_ENABLE_MASK | UART2_ENABLE_MASK;
-	writew(sepmask, MCFGPIO_PAR_UART);
+	/* make sure PUAPAR is set for UART0 and UART1 */
+	port = readb(MCFGPIO_PUAPAR);
+	port |= 0x03 | (0x03 << 2);
+	writeb(port, MCFGPIO_PUAPAR);
 }
 
 /***************************************************************************/
 
-static void __init m527x_fec_init(void)
+static void __init m528x_fec_init(void)
 {
-	u16 par;
-	u8 v;
+	u16 v16;
 
 	/* Set multi-function pins to ethernet mode for fec0 */
-#if defined(CONFIG_M5271)
-	v = readb(MCFGPIO_PAR_FECI2C);
-	writeb(v | 0xf0, MCFGPIO_PAR_FECI2C);
-#else
-	par = readw(MCFGPIO_PAR_FECI2C);
-	writew(par | 0xf00, MCFGPIO_PAR_FECI2C);
-	v = readb(MCFGPIO_PAR_FEC0HL);
-	writeb(v | 0xc0, MCFGPIO_PAR_FEC0HL);
-
-	/* Set multi-function pins to ethernet mode for fec1 */
-	par = readw(MCFGPIO_PAR_FECI2C);
-	writew(par | 0xa0, MCFGPIO_PAR_FECI2C);
-	v = readb(MCFGPIO_PAR_FEC1HL);
-	writeb(v | 0xc0, MCFGPIO_PAR_FEC1HL);
-#endif
+	v16 = readw(MCFGPIO_PASPAR);
+	writew(v16 | 0xf00, MCFGPIO_PASPAR);
+	writeb(0xc0, MCFGPIO_PEHLPAR);
 }
 
 /***************************************************************************/
+
+#ifdef CONFIG_WILDFIRE
+void wildfire_halt(void)
+{
+	writeb(0, 0x30000007);
+	writeb(0x2, 0x30000007);
+}
+#endif
+
+#ifdef CONFIG_WILDFIREMOD
+void wildfiremod_halt(void)
+{
+	printk(KERN_INFO "WildFireMod hibernating...\n");
+
+	/* Set portE.5 to Digital IO */
+	MCF5282_GPIO_PEPAR &= ~(1 << (5 * 2));
+
+	/* Make portE.5 an output */
+	MCF5282_GPIO_DDRE |= (1 << 5);
+
+	/* Now toggle portE.5 from low to high */
+	MCF5282_GPIO_PORTE &= ~(1 << 5);
+	MCF5282_GPIO_PORTE |= (1 << 5);
+
+	printk(KERN_EMERG "Failed to hibernate. Halting!\n");
+}
+#endif
 
 void __init config_BSP(char *commandp, int size)
 {
+#ifdef CONFIG_WILDFIRE
+	mach_halt = wildfire_halt;
+#endif
+#ifdef CONFIG_WILDFIREMOD
+	mach_halt = wildfiremod_halt;
+#endif
 	mach_sched_init = hw_timer_init;
-	m527x_uarts_init();
-	m527x_fec_init();
-	m527x_qspi_init();
+	m528x_uarts_init();
+	m528x_fec_init();
+	m528x_qspi_init();
 }
 
 /***************************************************************************/
