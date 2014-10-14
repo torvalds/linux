@@ -26,11 +26,6 @@ static const struct addi_board apci035_boardtypes[] = {
 		.i_Timer		= 1,
 		.ui_MinAcquisitiontimeNs = 10000,
 		.ui_MinDelaytimeNs	= 100000,
-		.ai_config		= apci035_ai_config,
-		.ai_read		= apci035_ai_read,
-		.timer_config		= apci035_timer_config,
-		.timer_write		= apci035_timer_write,
-		.timer_read		= apci035_timer_read,
 	},
 };
 
@@ -142,15 +137,8 @@ static int apci035_auto_attach(struct comedi_device *dev,
 		s->maxdata = devpriv->s_EeParameters.i_AiMaxdata;
 		s->len_chanlist = this_board->i_AiChannelList;
 		s->range_table = this_board->pr_AiRangelist;
-
-		s->insn_config = this_board->ai_config;
-		s->insn_read = this_board->ai_read;
-		s->insn_write = this_board->ai_write;
-		s->insn_bits = this_board->ai_bits;
-		s->do_cmdtest = this_board->ai_cmdtest;
-		s->do_cmd = this_board->ai_cmd;
-		s->cancel = this_board->ai_cancel;
-
+		s->insn_config = apci035_ai_config;
+		s->insn_read = apci035_ai_read;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
@@ -164,7 +152,6 @@ static int apci035_auto_attach(struct comedi_device *dev,
 		s->maxdata = devpriv->s_EeParameters.i_AoMaxdata;
 		s->len_chanlist =
 			devpriv->s_EeParameters.i_NbrAoChannel;
-		s->insn_write = this_board->ao_write;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
@@ -178,10 +165,6 @@ static int apci035_auto_attach(struct comedi_device *dev,
 		s->len_chanlist =
 			devpriv->s_EeParameters.i_NbrDiChannel;
 		s->range_table = &range_digital;
-		s->insn_config = this_board->di_config;
-		s->insn_read = this_board->di_read;
-		s->insn_write = this_board->di_write;
-		s->insn_bits = this_board->di_bits;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
@@ -196,12 +179,6 @@ static int apci035_auto_attach(struct comedi_device *dev,
 		s->len_chanlist =
 			devpriv->s_EeParameters.i_NbrDoChannel;
 		s->range_table = &range_digital;
-
-		/* insn_config - for digital output memory */
-		s->insn_config = this_board->do_config;
-		s->insn_write = this_board->do_write;
-		s->insn_bits = this_board->do_bits;
-		s->insn_read = this_board->do_read;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
@@ -215,11 +192,9 @@ static int apci035_auto_attach(struct comedi_device *dev,
 		s->maxdata = 0;
 		s->len_chanlist = 1;
 		s->range_table = &range_digital;
-
-		s->insn_write = this_board->timer_write;
-		s->insn_read = this_board->timer_read;
-		s->insn_config = this_board->timer_config;
-		s->insn_bits = this_board->timer_bits;
+		s->insn_write = apci035_timer_write;
+		s->insn_read = apci035_timer_read;
+		s->insn_config = apci035_timer_config;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
