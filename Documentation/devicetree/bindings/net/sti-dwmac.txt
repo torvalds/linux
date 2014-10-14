@@ -3,8 +3,8 @@ STMicroelectronics SoC DWMAC glue layer controller
 The device node has following properties.
 
 Required properties:
- - compatible	: Can be "st,stih415-dwmac", "st,stih416-dwmac" or
-   "st,stid127-dwmac".
+ - compatible	: Can be "st,stih415-dwmac", "st,stih416-dwmac",
+   "st,stid127-dwmac", "st,stih407-dwmac".
  - reg		: Offset of the glue configuration register map in system
    configuration regmap pointed by st,syscon property and size.
 
