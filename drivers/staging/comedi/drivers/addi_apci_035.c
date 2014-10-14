@@ -145,43 +145,15 @@ static int apci035_auto_attach(struct comedi_device *dev,
 
 	/*  Allocate and Initialise AO Subdevice Structures */
 	s = &dev->subdevices[1];
-	if (devpriv->s_EeParameters.i_NbrAoChannel) {
-		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = devpriv->s_EeParameters.i_NbrAoChannel;
-		s->maxdata = devpriv->s_EeParameters.i_AoMaxdata;
-		s->len_chanlist =
-			devpriv->s_EeParameters.i_NbrAoChannel;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type = COMEDI_SUBD_UNUSED;
+
 	/*  Allocate and Initialise DI Subdevice Structures */
 	s = &dev->subdevices[2];
-	if (devpriv->s_EeParameters.i_NbrDiChannel) {
-		s->type = COMEDI_SUBD_DI;
-		s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = devpriv->s_EeParameters.i_NbrDiChannel;
-		s->maxdata = 1;
-		s->len_chanlist =
-			devpriv->s_EeParameters.i_NbrDiChannel;
-		s->range_table = &range_digital;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type = COMEDI_SUBD_UNUSED;
+
 	/*  Allocate and Initialise DO Subdevice Structures */
 	s = &dev->subdevices[3];
-	if (devpriv->s_EeParameters.i_NbrDoChannel) {
-		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags =
-			SDF_READABLE | SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = devpriv->s_EeParameters.i_NbrDoChannel;
-		s->maxdata = devpriv->s_EeParameters.i_DoMaxdata;
-		s->len_chanlist =
-			devpriv->s_EeParameters.i_NbrDoChannel;
-		s->range_table = &range_digital;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type = COMEDI_SUBD_UNUSED;
 
 	/*  Allocate and Initialise Timer Subdevice Structures */
 	s = &dev->subdevices[4];
