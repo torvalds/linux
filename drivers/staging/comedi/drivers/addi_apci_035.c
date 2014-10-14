@@ -11,7 +11,6 @@
 
 #include "addi-data/addi_eeprom.c"
 #include "addi-data/hwdrv_apci035.c"
-#include "addi-data/addi_common.c"
 
 static const struct addi_board apci035_boardtypes[] = {
 	{
@@ -34,6 +33,23 @@ static const struct addi_board apci035_boardtypes[] = {
 		.timer_read		= apci035_timer_read,
 	},
 };
+
+static int i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     struct comedi_insn *insn,
+				     unsigned int *data)
+{
+	const struct addi_board *this_board = dev->board_ptr;
+	struct addi_private *devpriv = dev->private;
+	unsigned short w_Address = CR_CHAN(insn->chanspec);
+	unsigned short w_Data;
+
+	w_Data = addi_eeprom_readw(devpriv->i_IobaseAmcc,
+		this_board->pc_EepromChip, 2 * w_Address);
+	data[0] = w_Data;
+
+	return insn->n;
+}
 
 static int apci035_auto_attach(struct comedi_device *dev,
 			       unsigned long context)
