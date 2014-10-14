@@ -1247,7 +1247,7 @@ void set_de_type(struct f2fs_dir_entry *, struct inode *);
 struct f2fs_dir_entry *find_target_dentry(struct qstr *, int *, const void *,
 			struct f2fs_dir_entry *, __u8 (*)[F2FS_SLOT_LEN]);
 struct page *init_inode_metadata(struct inode *, struct inode *,
-							const struct qstr *);
+			const struct qstr *, struct page *);
 void update_parent_metadata(struct inode *, struct inode *, unsigned int);
 int room_for_filename(const void *, int, int);
 void f2fs_drop_nlink(struct inode *, struct inode *, struct page *);

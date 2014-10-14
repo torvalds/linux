@@ -427,14 +427,14 @@ int f2fs_add_inline_entry(struct inode *dir, const struct qstr *name,
 		goto out;
 	}
 
-	f2fs_wait_on_page_writeback(ipage, NODE);
-
 	down_write(&F2FS_I(inode)->i_sem);
-	page = init_inode_metadata(inode, dir, name);
+	page = init_inode_metadata(inode, dir, name, ipage);
 	if (IS_ERR(page)) {
 		err = PTR_ERR(page);
 		goto fail;
 	}
+
+	f2fs_wait_on_page_writeback(ipage, NODE);
 	de = &dentry_blk->dentry[bit_pos];
 	de->hash_code = name_hash;
 	de->name_len = cpu_to_le16(namelen);
