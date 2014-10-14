@@ -102,6 +102,22 @@ static ssize_t sysfs_kf_bin_read(struct kernfs_open_file *of, char *buf,
 	return battr->read(of->file, kobj, battr, buf, pos, count);
 }
 
+/* kernfs read callback for regular sysfs files with pre-alloc */
+static ssize_t sysfs_kf_read(struct kernfs_open_file *of, char *buf,
+			     size_t count, loff_t pos)
+{
+	const struct sysfs_ops *ops = sysfs_file_ops(of->kn);
+	struct kobject *kobj = of->kn->parent->priv;
+
+	/*
+	 * If buf != of->prealloc_buf, we don't know how
+	 * large it is, so cannot safely pass it to ->show
+	 */
+	if (pos || WARN_ON_ONCE(buf != of->prealloc_buf))
+		return 0;
+	return ops->show(kobj, of->kn->priv, buf);
+}
+
 /* kernfs write callback for regular sysfs files */
 static ssize_t sysfs_kf_write(struct kernfs_open_file *of, char *buf,
 			      size_t count, loff_t pos)
@@ -184,13 +200,18 @@ static const struct kernfs_ops sysfs_file_kfops_rw = {
 	.write		= sysfs_kf_write,
 };
 
+static const struct kernfs_ops sysfs_prealloc_kfops_ro = {
+	.read		= sysfs_kf_read,
+	.prealloc	= true,
+};
+
 static const struct kernfs_ops sysfs_prealloc_kfops_wo = {
 	.write		= sysfs_kf_write,
 	.prealloc	= true,
 };
 
 static const struct kernfs_ops sysfs_prealloc_kfops_rw = {
-	.seq_show	= sysfs_kf_seq_show,
+	.read		= sysfs_kf_read,
 	.write		= sysfs_kf_write,
 	.prealloc	= true,
 };
@@ -238,9 +259,12 @@ int sysfs_add_file_mode_ns(struct kernfs_node *parent,
 				ops = &sysfs_prealloc_kfops_rw;
 			else
 				ops = &sysfs_file_kfops_rw;
-		} else if (sysfs_ops->show)
-			ops = &sysfs_file_kfops_ro;
-		else if (sysfs_ops->store) {
+		} else if (sysfs_ops->show) {
+			if (mode & SYSFS_PREALLOC)
+				ops = &sysfs_prealloc_kfops_ro;
+			else
+				ops = &sysfs_file_kfops_ro;
+		} else if (sysfs_ops->store) {
 			if (mode & SYSFS_PREALLOC)
 				ops = &sysfs_prealloc_kfops_wo;
 			else

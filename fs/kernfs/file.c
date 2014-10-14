@@ -189,13 +189,16 @@ static ssize_t kernfs_file_direct_read(struct kernfs_open_file *of,
 	const struct kernfs_ops *ops;
 	char *buf;
 
-	buf = kmalloc(len, GFP_KERNEL);
+	buf = of->prealloc_buf;
+	if (!buf)
+		buf = kmalloc(len, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
 	/*
-	 * @of->mutex nests outside active ref and is primarily to ensure that
-	 * the ops aren't called concurrently for the same open file.
+	 * @of->mutex nests outside active ref and is used both to ensure that
+	 * the ops aren't called concurrently for the same open file, and
+	 * to provide exclusive access to ->prealloc_buf (when that exists).
 	 */
 	mutex_lock(&of->mutex);
 	if (!kernfs_get_active(of->kn)) {
@@ -210,21 +213,22 @@ static ssize_t kernfs_file_direct_read(struct kernfs_open_file *of,
 	else
 		len = -EINVAL;
 
-	kernfs_put_active(of->kn);
-	mutex_unlock(&of->mutex);
-
 	if (len < 0)
-		goto out_free;
+		goto out_unlock;
 
 	if (copy_to_user(user_buf, buf, len)) {
 		len = -EFAULT;
-		goto out_free;
+		goto out_unlock;
 	}
 
 	*ppos += len;
 
+ out_unlock:
+	kernfs_put_active(of->kn);
+	mutex_unlock(&of->mutex);
  out_free:
-	kfree(buf);
+	if (buf != of->prealloc_buf)
+		kfree(buf);
 	return len;
 }
 
@@ -690,6 +694,14 @@ static int kernfs_fop_open(struct inode *inode, struct file *file)
 	 */
 	of->atomic_write_len = ops->atomic_write_len;
 
+	error = -EINVAL;
+	/*
+	 * ->seq_show is incompatible with ->prealloc,
+	 * as seq_read does its own allocation.
+	 * ->read must be used instead.
+	 */
+	if (ops->prealloc && ops->seq_show)
+		goto err_free;
 	if (ops->prealloc) {
 		int len = of->atomic_write_len ?: PAGE_SIZE;
 		of->prealloc_buf = kmalloc(len + 1, GFP_KERNEL);
