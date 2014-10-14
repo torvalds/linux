@@ -95,6 +95,8 @@ nft_target_set_tgchk_param(struct xt_tgchk_param *par,
 		const struct nf_hook_ops *ops = &basechain->ops[0];
 
 		par->hook_mask = 1 << ops->hooknum;
+	} else {
+		par->hook_mask = 0;
 	}
 	par->family	= ctx->afi->family;
 }
@@ -293,6 +295,8 @@ nft_match_set_mtchk_param(struct xt_mtchk_param *par, const struct nft_ctx *ctx,
 		const struct nf_hook_ops *ops = &basechain->ops[0];
 
 		par->hook_mask = 1 << ops->hooknum;
+	} else {
+		par->hook_mask = 0;
 	}
 	par->family	= ctx->afi->family;
 }
