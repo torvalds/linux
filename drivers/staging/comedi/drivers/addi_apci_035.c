@@ -117,7 +117,7 @@ static int apci035_auto_attach(struct comedi_device *dev,
 		addi_eeprom_read_info(dev, pci_resource_start(pcidev, 0));
 	}
 
-	ret = comedi_alloc_subdevices(dev, 7);
+	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
 		return ret;
 
@@ -143,20 +143,8 @@ static int apci035_auto_attach(struct comedi_device *dev,
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	/*  Allocate and Initialise AO Subdevice Structures */
-	s = &dev->subdevices[1];
-	s->type = COMEDI_SUBD_UNUSED;
-
-	/*  Allocate and Initialise DI Subdevice Structures */
-	s = &dev->subdevices[2];
-	s->type = COMEDI_SUBD_UNUSED;
-
-	/*  Allocate and Initialise DO Subdevice Structures */
-	s = &dev->subdevices[3];
-	s->type = COMEDI_SUBD_UNUSED;
-
 	/*  Allocate and Initialise Timer Subdevice Structures */
-	s = &dev->subdevices[4];
+	s = &dev->subdevices[1];
 	if (devpriv->s_EeParameters.i_Timer) {
 		s->type = COMEDI_SUBD_TIMER;
 		s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
@@ -171,12 +159,8 @@ static int apci035_auto_attach(struct comedi_device *dev,
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	/*  Allocate and Initialise TTL */
-	s = &dev->subdevices[5];
-	s->type = COMEDI_SUBD_UNUSED;
-
 	/* EEPROM */
-	s = &dev->subdevices[6];
+	s = &dev->subdevices[2];
 	if (this_board->i_PCIEeprom) {
 		s->type = COMEDI_SUBD_MEMORY;
 		s->subdev_flags = SDF_READABLE | SDF_INTERNAL;
