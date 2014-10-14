@@ -265,10 +265,3 @@ static int addi_auto_attach(struct comedi_device *dev,
 	i_ADDI_Reset(dev);
 	return 0;
 }
-
-static void i_ADDI_Detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		i_ADDI_Reset(dev);
-	comedi_pci_detach(dev);
-}

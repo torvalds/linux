@@ -45,11 +45,18 @@ static int apci035_auto_attach(struct comedi_device *dev,
 	return addi_auto_attach(dev, context);
 }
 
+static void apci035_detach(struct comedi_device *dev)
+{
+	if (dev->iobase)
+		i_ADDI_Reset(dev);
+	comedi_pci_detach(dev);
+}
+
 static struct comedi_driver apci035_driver = {
 	.driver_name	= "addi_apci_035",
 	.module		= THIS_MODULE,
 	.auto_attach	= apci035_auto_attach,
-	.detach		= i_ADDI_Detach,
+	.detach		= apci035_detach,
 };
 
 static int apci035_pci_probe(struct pci_dev *dev,
