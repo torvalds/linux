@@ -419,9 +419,10 @@ static int adf_init_bank(struct adf_accel_dev *accel_dev,
 		WRITE_CSR_RING_BASE(csr_addr, bank_num, i, 0);
 		ring = &bank->rings[i];
 		if (hw_data->tx_rings_mask & (1 << i)) {
-			ring->inflights = kzalloc_node(sizeof(atomic_t),
-						       GFP_KERNEL,
-						       accel_dev->numa_node);
+			ring->inflights =
+				kzalloc_node(sizeof(atomic_t),
+					     GFP_KERNEL,
+					     dev_to_node(&GET_DEV(accel_dev)));
 			if (!ring->inflights)
 				goto err;
 		} else {
@@ -469,13 +470,14 @@ int adf_init_etr_data(struct adf_accel_dev *accel_dev)
 	int i, ret;
 
 	etr_data = kzalloc_node(sizeof(*etr_data), GFP_KERNEL,
-				accel_dev->numa_node);
+				dev_to_node(&GET_DEV(accel_dev)));
 	if (!etr_data)
 		return -ENOMEM;
 
 	num_banks = GET_MAX_BANKS(accel_dev);
 	size = num_banks * sizeof(struct adf_etr_bank_data);
-	etr_data->banks = kzalloc_node(size, GFP_KERNEL, accel_dev->numa_node);
+	etr_data->banks = kzalloc_node(size, GFP_KERNEL,
+				       dev_to_node(&GET_DEV(accel_dev)));
 	if (!etr_data->banks) {
 		ret = -ENOMEM;
 		goto err_bank;
