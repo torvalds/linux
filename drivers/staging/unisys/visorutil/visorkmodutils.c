@@ -36,16 +36,6 @@
 int unisys_spar_platform;
 EXPORT_SYMBOL_GPL(unisys_spar_platform);
 
-/** Callers to interfaces that set __GFP_NORETRY flag below
- *  must check for a NULL (error) result as we are telling the
- *  kernel interface that it is okay to fail.
- */
-
-void *kmalloc_kernel(size_t siz)
-{
-	return kmalloc(siz, GFP_KERNEL | __GFP_NORETRY);
-}
-
 static __init uint32_t
 visorutil_spar_detect(void)
 {
