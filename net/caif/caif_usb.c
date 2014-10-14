@@ -92,7 +92,7 @@ static struct cflayer *cfusbl_create(int phyid, u8 ethaddr[ETH_ALEN],
 
 	caif_assert(offsetof(struct cfusbl, layer) == 0);
 
-	memset(this, 0, sizeof(struct cflayer));
+	memset(&this->layer, 0, sizeof(this->layer));
 	this->layer.receive = cfusbl_receive;
 	this->layer.transmit = cfusbl_transmit;
 	this->layer.ctrlcmd = cfusbl_ctrlcmd;
