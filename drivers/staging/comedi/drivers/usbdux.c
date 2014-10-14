@@ -399,69 +399,25 @@ static int usbdux_ao_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-static void usbduxsub_ao_isoc_irq(struct urb *urb)
+static void usbduxsub_ao_handle_urb(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct urb *urb)
 {
-	struct comedi_device *dev = urb->context;
-	struct comedi_subdevice *s = dev->write_subdev;
 	struct usbdux_private *devpriv = dev->private;
-	struct comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
 	uint8_t *datap;
 	int ret;
 	int i;
 
-	switch (urb->status) {
-	case 0:
-		/* success */
-		break;
-
-	case -ECONNRESET:
-	case -ENOENT:
-	case -ESHUTDOWN:
-	case -ECONNABORTED:
-		/* after an unlink command, unplug, ... etc */
-		/* no unlink needed here. Already shutting down. */
-		if (devpriv->ao_cmd_running) {
-			s->async->events |= COMEDI_CB_EOA;
-			comedi_event(dev, s);
-			usbdux_ao_stop(dev, 0);
-		}
-		return;
-
-	default:
-		/* a real error */
-		if (devpriv->ao_cmd_running) {
-			dev_err(dev->class_dev,
-				"Non-zero urb status received in ao intr context: %d\n",
-				urb->status);
-			s->async->events |= COMEDI_CB_ERROR;
-			s->async->events |= COMEDI_CB_EOA;
-			comedi_event(dev, s);
-			/* we do an unlink if we are in the high speed mode */
-			usbdux_ao_stop(dev, 0);
-		}
-		return;
-	}
-
-	/* are we actually running? */
-	if (!devpriv->ao_cmd_running)
-		return;
-
-	/* normal operation: executing a command in this subdevice */
 	devpriv->ao_counter--;
-	if ((int)devpriv->ao_counter <= 0) {
-		/* timer zero */
+	if (devpriv->ao_counter == 0) {
 		devpriv->ao_counter = devpriv->ao_timer;
 
-		/* handle non continous acquisition */
 		if (cmd->stop_src == TRIG_COUNT) {
-			/* fixed number of samples */
 			devpriv->ao_sample_count--;
 			if (devpriv->ao_sample_count < 0) {
-				/* all samples transmitted */
-				usbdux_ao_stop(dev, 0);
-				s->async->events |= COMEDI_CB_EOA;
-				comedi_event(dev, s);
-				/* no resubmit of the urb */
+				async->events |= COMEDI_CB_EOA;
 				return;
 			}
 		}
@@ -473,26 +429,26 @@ static void usbduxsub_ao_isoc_irq(struct urb *urb)
 			unsigned int chan = CR_CHAN(cmd->chanlist[i]);
 			unsigned short val;
 
-			ret = comedi_buf_get(s, &val);
-			if (ret < 0) {
+			if (!comedi_buf_get(s, &val)) {
 				dev_err(dev->class_dev, "buffer underflow\n");
-				s->async->events |= (COMEDI_CB_EOA |
-						     COMEDI_CB_OVERFLOW);
+				async->events |= COMEDI_CB_OVERFLOW;
+				return;
 			}
+
 			/* pointer to the DA */
 			*datap++ = val & 0xff;
 			*datap++ = (val >> 8) & 0xff;
 			*datap++ = chan << 6;
 			s->readback[chan] = val;
-
-			s->async->events |= COMEDI_CB_BLOCK;
-			comedi_event(dev, s);
 		}
+		async->events |= COMEDI_CB_BLOCK;
 	}
-	urb->transfer_buffer_length = SIZEOUTBUF;
-	urb->dev = comedi_to_usb_dev(dev);
-	urb->status = 0;
-	if (devpriv->ao_cmd_running) {
+
+	/* if command is still running, resubmit urb for BULK transfer */
+	if (!(async->events & COMEDI_CB_CANCEL_MASK)) {
+		urb->transfer_buffer_length = SIZEOUTBUF;
+		urb->dev = comedi_to_usb_dev(dev);
+		urb->status = 0;
 		if (devpriv->high_speed)
 			urb->interval = 8;	/* uframes */
 		else
@@ -509,14 +465,52 @@ static void usbduxsub_ao_isoc_irq(struct urb *urb)
 			if (ret == -EL2NSYNC)
 				dev_err(dev->class_dev,
 					"buggy USB host controller or bug in IRQ handling!\n");
-
-			s->async->events |= COMEDI_CB_EOA;
-			s->async->events |= COMEDI_CB_ERROR;
-			comedi_event(dev, s);
-			/* don't do an unlink here */
-			usbdux_ao_stop(dev, 0);
+			async->events |= COMEDI_CB_ERROR;
 		}
 	}
+}
+
+static void usbduxsub_ao_isoc_irq(struct urb *urb)
+{
+	struct comedi_device *dev = urb->context;
+	struct comedi_subdevice *s = dev->write_subdev;
+	struct comedi_async *async = s->async;
+	struct usbdux_private *devpriv = dev->private;
+
+	/* exit if not running a command, do not resubmit urb */
+	if (!devpriv->ao_cmd_running)
+		return;
+
+	switch (urb->status) {
+	case 0:
+		usbduxsub_ao_handle_urb(dev, s, urb);
+		break;
+
+	case -ECONNRESET:
+	case -ENOENT:
+	case -ESHUTDOWN:
+	case -ECONNABORTED:
+		/* after an unlink command, unplug, ... etc */
+		async->events |= COMEDI_CB_ERROR;
+		break;
+
+	default:
+		/* a real error */
+		dev_err(dev->class_dev,
+			"Non-zero urb status received in ao intr context: %d\n",
+			urb->status);
+		async->events |= COMEDI_CB_ERROR;
+		break;
+	}
+
+	/*
+	 * comedi_handle_events() cannot be used in this driver. The (*cancel)
+	 * operation would unlink the urb.
+	 */
+	if (async->events & COMEDI_CB_CANCEL_MASK)
+		usbdux_ao_stop(dev, 0);
+
+	comedi_event(dev, s);
 }
 
 static int usbdux_submit_urbs(struct comedi_device *dev,
