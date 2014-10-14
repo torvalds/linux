@@ -246,7 +246,6 @@ static int apci3120_ai_insn_config(struct comedi_device *dev,
 				   struct comedi_insn *insn,
 				   unsigned int *data)
 {
-	const struct addi_board *this_board = dev->board_ptr;
 	struct addi_private *devpriv = dev->private;
 	unsigned int i;
 
@@ -261,8 +260,7 @@ static int apci3120_ai_insn_config(struct comedi_device *dev,
 		/* Test the number of the channel */
 		for (i = 0; i < data[3]; i++) {
 
-			if (CR_CHAN(data[4 + i]) >=
-				this_board->i_NbrAiChannel) {
+			if (CR_CHAN(data[4 + i]) >= s->n_chan) {
 				dev_err(dev->class_dev, "bad channel list\n");
 				return -2;
 			}
