@@ -522,8 +522,11 @@ struct ceph_mds_reply_dirfrag {
 	__le32 dist[];
 } __attribute__ ((packed));
 
-#define CEPH_LOCK_FCNTL    1
-#define CEPH_LOCK_FLOCK    2
+#define CEPH_LOCK_FCNTL		1
+#define CEPH_LOCK_FLOCK		2
+#define CEPH_LOCK_FCNTL_INTR    3
+#define CEPH_LOCK_FLOCK_INTR    4
+
 
 #define CEPH_LOCK_SHARED   1
 #define CEPH_LOCK_EXCL     2

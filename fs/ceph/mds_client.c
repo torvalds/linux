@@ -2208,6 +2208,8 @@ int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
 			&req->r_completion, req->r_timeout);
 		if (err == 0)
 			err = -EIO;
+	} else if (req->r_wait_for_completion) {
+		err = req->r_wait_for_completion(mdsc, req);
 	} else {
 		err = wait_for_completion_killable(&req->r_completion);
 	}
