@@ -4435,6 +4435,7 @@ static int ipmi_init_msghandler(void)
 	proc_ipmi_root = proc_mkdir("ipmi", NULL);
 	if (!proc_ipmi_root) {
 	    printk(KERN_ERR PFX "Unable to create IPMI proc dir");
+	    driver_unregister(&ipmidriver.driver);
 	    return -ENOMEM;
 	}
 
