@@ -1,0 +1,6 @@
+config RTL8192DU
+	tristate "Realtek 8192D USB WiFi"
+	depends on USB
+	---help---
+	  Help message of RTL8192DU
+
