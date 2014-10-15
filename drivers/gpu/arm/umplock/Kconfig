@@ -1,0 +1,6 @@
+menu "Mali 400 UMPLOCK device driver"
+config UMPLOCK
+        tristate "UMPLOCK support"
+        default y
+        ---help---
+		Mali UMPLOCK Support
