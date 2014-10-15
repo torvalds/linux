@@ -461,8 +461,7 @@ static void sdc_disable_channel(struct mx3fb_info *mx3_fbi)
 
 	spin_unlock_irqrestore(&mx3fb->lock, flags);
 
-	mx3_fbi->txd->chan->device->device_control(mx3_fbi->txd->chan,
-						   DMA_TERMINATE_ALL, 0);
+	dmaengine_terminate_all(mx3_fbi->txd->chan);
 	mx3_fbi->txd = NULL;
 	mx3_fbi->cookie = -EINVAL;
 }
