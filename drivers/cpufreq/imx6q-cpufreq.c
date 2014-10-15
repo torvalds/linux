@@ -16,6 +16,7 @@
 #include <linux/pm_opp.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
+#include <linux/suspend.h>
 
 #define PU_SOC_VOLTAGE_NORMAL	1250000
 #define PU_SOC_VOLTAGE_HIGH	1275000
@@ -43,7 +44,7 @@ static struct device *cpu_dev;
 static bool free_opp;
 static struct cpufreq_frequency_table *freq_table;
 static unsigned int transition_latency;
-
+static struct mutex set_cpufreq_lock;
 static u32 *imx6_soc_volt;
 static u32 soc_opp_count;
 
@@ -54,6 +55,8 @@ static int imx6q_set_target(struct cpufreq_policy *policy, unsigned int index)
 	unsigned int old_freq, new_freq;
 	int ret;
 
+	mutex_lock(&set_cpufreq_lock);
+
 	new_freq = freq_table[index].frequency;
 	freq_hz = new_freq * 1000;
 	old_freq = clk_get_rate(arm_clk) / 1000;
@@ -63,6 +66,7 @@ static int imx6q_set_target(struct cpufreq_policy *policy, unsigned int index)
 	if (IS_ERR(opp)) {
 		rcu_read_unlock();
 		dev_err(cpu_dev, "failed to find OPP for %ld\n", freq_hz);
+		mutex_unlock(&set_cpufreq_lock);
 		return PTR_ERR(opp);
 	}
 
@@ -86,18 +90,21 @@ static int imx6q_set_target(struct cpufreq_policy *policy, unsigned int index)
 			ret = regulator_set_voltage_tol(pu_reg, imx6_soc_volt[index], 0);
 			if (ret) {
 				dev_err(cpu_dev, "failed to scale vddpu up: %d\n", ret);
+				mutex_unlock(&set_cpufreq_lock);
 				return ret;
 			}
 		}
 		ret = regulator_set_voltage_tol(soc_reg, imx6_soc_volt[index], 0);
 		if (ret) {
 			dev_err(cpu_dev, "failed to scale vddsoc up: %d\n", ret);
+			mutex_unlock(&set_cpufreq_lock);
 			return ret;
 		}
 		ret = regulator_set_voltage_tol(arm_reg, volt, 0);
 		if (ret) {
 			dev_err(cpu_dev,
 				"failed to scale vddarm up: %d\n", ret);
+			mutex_unlock(&set_cpufreq_lock);
 			return ret;
 		}
 	}
@@ -152,6 +159,7 @@ static int imx6q_set_target(struct cpufreq_policy *policy, unsigned int index)
 	if (ret) {
 		dev_err(cpu_dev, "failed to set clock rate: %d\n", ret);
 		regulator_set_voltage_tol(arm_reg, volt_old, 0);
+		mutex_unlock(&set_cpufreq_lock);
 		return ret;
 	}
 
@@ -183,6 +191,7 @@ static int imx6q_set_target(struct cpufreq_policy *policy, unsigned int index)
 	if (old_freq > FREQ_396_MHZ && new_freq <= FREQ_396_MHZ)
 		release_bus_freq(BUS_FREQ_HIGH);
 
+	mutex_unlock(&set_cpufreq_lock);
 	return 0;
 }
 
@@ -211,6 +220,40 @@ static struct cpufreq_driver imx6q_cpufreq_driver = {
 	.init = imx6q_cpufreq_init,
 	.name = "imx6q-cpufreq",
 	.attr = cpufreq_generic_attr,
+};
+
+static int imx6_cpufreq_pm_notify(struct notifier_block *nb,
+	unsigned long event, void *dummy)
+{
+	struct cpufreq_policy *data = cpufreq_cpu_get(0);
+	static u32 cpufreq_policy_min_pre_suspend;
+
+	/*
+	 * During suspend/resume, When cpufreq driver try to increase
+	 * voltage/freq, it needs to control I2C/SPI to communicate
+	 * with external PMIC to adjust voltage, but these I2C/SPI
+	 * devices may be already suspended, to avoid such scenario,
+	 * we just increase cpufreq to highest setpoint before suspend.
+	 */
+	switch (event) {
+	case PM_SUSPEND_PREPARE:
+		cpufreq_policy_min_pre_suspend = data->user_policy.min;
+		data->user_policy.min = data->user_policy.max;
+		break;
+	case PM_POST_SUSPEND:
+		data->user_policy.min = cpufreq_policy_min_pre_suspend;
+		break;
+	default:
+		break;
+	}
+
+	cpufreq_update_policy(0);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block imx6_cpufreq_pm_notifier = {
+	.notifier_call = imx6_cpufreq_pm_notify,
 };
 
 static int imx6q_cpufreq_probe(struct platform_device *pdev)
@@ -385,11 +428,15 @@ soc_opp_out:
 	if (ret > 0)
 		transition_latency += ret * 1000;
 
+	mutex_init(&set_cpufreq_lock);
+
 	ret = cpufreq_register_driver(&imx6q_cpufreq_driver);
 	if (ret) {
 		dev_err(cpu_dev, "failed register driver: %d\n", ret);
 		goto free_freq_table;
 	}
+
+	register_pm_notifier(&imx6_cpufreq_pm_notifier);
 
 	of_node_put(np);
 	return 0;
