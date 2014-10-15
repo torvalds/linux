@@ -373,20 +373,16 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
-		   -fno-delete-null-pointer-checks \
-		   -Werror
+		   -fno-delete-null-pointer-checks 
+
 KBUILD_CFLAGS   += -Werror=enum-compare \
 		   -Werror=comment \
 		   -Werror=implicit-int \
 		   -Werror=missing-braces \
 		   -Werror=unused-value \
-		   -Werror=unused-variable \
 		   -Werror=format \
-		   -Werror=unused-function \
 		   -Werror=switch \
 		   -Werror=strict-prototypes \
-		   -Werror=declaration-after-statement \
-		   -Werror=uninitialized \
 		   -Werror=unused-label \
 		   -Werror=undef \
 		   -Werror=unused-result \
@@ -595,7 +591,7 @@ all: vmlinux
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS	+= -Os $(call cc-disable-warning,maybe-uninitialized,)
 else
-KBUILD_CFLAGS	+= -O2
+KBUILD_CFLAGS	+= -O2 $(call cc-disable-warning,maybe-uninitialized,)
 endif
 
 include $(srctree)/arch/$(SRCARCH)/Makefile
