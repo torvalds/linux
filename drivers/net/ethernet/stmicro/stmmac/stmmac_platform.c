@@ -37,10 +37,10 @@ static const struct of_device_id stmmac_dt_ids[] = {
 	{ .compatible = "allwinner,sun7i-a20-gmac", .data = &sun7i_gmac_data},
 #endif
 #ifdef CONFIG_DWMAC_STI
-	{ .compatible = "st,stih415-dwmac", .data = &sti_gmac_data},
-	{ .compatible = "st,stih416-dwmac", .data = &sti_gmac_data},
-	{ .compatible = "st,stid127-dwmac", .data = &sti_gmac_data},
-	{ .compatible = "st,stih407-dwmac", .data = &sti_gmac_data},
+	{ .compatible = "st,stih415-dwmac", .data = &stih4xx_dwmac_data},
+	{ .compatible = "st,stih416-dwmac", .data = &stih4xx_dwmac_data},
+	{ .compatible = "st,stid127-dwmac", .data = &stid127_dwmac_data},
+	{ .compatible = "st,stih407-dwmac", .data = &stih4xx_dwmac_data},
 #endif
 #ifdef CONFIG_DWMAC_SOCFPGA
 	{ .compatible = "altr,socfpga-stmmac", .data = &socfpga_gmac_data },
