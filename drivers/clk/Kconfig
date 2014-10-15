@@ -32,11 +32,22 @@ config COMMON_CLK_WM831X
 
 source "drivers/clk/versatile/Kconfig"
 
+config COMMON_CLK_MAX_GEN
+        bool
+
 config COMMON_CLK_MAX77686
 	tristate "Clock driver for Maxim 77686 MFD"
 	depends on MFD_MAX77686
+	select COMMON_CLK_MAX_GEN
 	---help---
 	  This driver supports Maxim 77686 crystal oscillator clock. 
+
+config COMMON_CLK_MAX77802
+	tristate "Clock driver for Maxim 77802 PMIC"
+	depends on MFD_MAX77686
+	select COMMON_CLK_MAX_GEN
+	---help---
+	  This driver supports Maxim 77802 crystal oscillator clock.
 
 config COMMON_CLK_RK808
 	tristate "Clock driver for RK808"
@@ -117,6 +128,11 @@ config COMMON_CLK_PALMAS
 	---help---
 	  This driver supports TI Palmas devices 32KHz output KG and KG_AUDIO
 	  using common clock framework.
+
+config COMMON_CLK_PXA
+	def_bool COMMON_CLK && ARCH_PXA
+	---help---
+	  Sypport for the Marvell PXA SoC.
 
 source "drivers/clk/qcom/Kconfig"
 

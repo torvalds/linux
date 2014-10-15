@@ -221,7 +221,6 @@ static const struct of_device_id sun6i_a31_ar100_clk_dt_ids[] = {
 static struct platform_driver sun6i_a31_ar100_clk_driver = {
 	.driver = {
 		.name = "sun6i-a31-ar100-clk",
-		.owner = THIS_MODULE,
 		.of_match_table = sun6i_a31_ar100_clk_dt_ids,
 	},
 	.probe = sun6i_a31_ar100_clk_probe,

@@ -605,11 +605,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			See Documentation/s390/CommonIO for details.
 	clk_ignore_unused
 			[CLK]
-			Keep all clocks already enabled by bootloader on,
-			even if no driver has claimed them. This is useful
-			for debug and development, but should not be
-			needed on a platform with proper driver support.
-			For more information, see Documentation/clk.txt.
+			Prevents the clock framework from automatically gating
+			clocks that have not been explicitly enabled by a Linux
+			device driver but are enabled in hardware at reset or
+			by the bootloader/firmware. Note that this does not
+			force such clocks to be always-on nor does it reserve
+			those clocks in any way. This parameter is useful for
+			debug and development, but should not be needed on a
+			platform with proper driver support.  For more
+			information, see Documentation/clk.txt.
 
 	clock=		[BUGS=X86-32, HW] gettimeofday clocksource override.
 			[Deprecated]

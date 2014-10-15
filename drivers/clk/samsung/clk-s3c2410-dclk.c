@@ -426,7 +426,6 @@ MODULE_DEVICE_TABLE(platform, s3c24xx_dclk_driver_ids);
 static struct platform_driver s3c24xx_dclk_driver = {
 	.driver = {
 		.name		= "s3c24xx-dclk",
-		.owner		= THIS_MODULE,
 		.pm		= &s3c24xx_dclk_pm_ops,
 	},
 	.probe = s3c24xx_dclk_probe,
