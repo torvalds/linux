@@ -145,6 +145,9 @@
 #define RXBUSY						(1 << 0)
 #define TXBUSY						(1 << 1)
 
+/* sclk_out: spi master internal logic in rk3x can support 50Mhz */
+#define MAX_SCLK_OUT		50000000
+
 enum rockchip_ssi_type {
 	SSI_MOTO_SPI = 0,
 	SSI_TI_SSP,
@@ -494,6 +497,15 @@ static void rockchip_spi_config(struct rockchip_spi *rs)
 			dmacr |= TF_DMA_EN;
 		if (rs->rx)
 			dmacr |= RF_DMA_EN;
+	}
+
+	if (WARN_ON(rs->speed > MAX_SCLK_OUT))
+		rs->speed = MAX_SCLK_OUT;
+
+	/* the minimum divsor is 2 */
+	if (rs->max_freq < 2 * rs->speed) {
+		clk_set_rate(rs->spiclk, 2 * rs->speed);
+		rs->max_freq = clk_get_rate(rs->spiclk);
 	}
 
 	/* div doesn't support odd number */
