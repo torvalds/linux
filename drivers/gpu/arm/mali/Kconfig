@@ -1,0 +1,102 @@
+menu "Mali GPU OpenGL device driver"
+config MALI400
+	tristate "Mali-300/400/450 support"
+	depends on ARM
+    depends on m
+	default m
+	select DMA_SHARED_BUFFER
+	---help---
+	  This enables support for the ARM Mali-300, Mali-400, and Mali-450
+	  GPUs.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called mali.
+
+config MALI400_DEBUG
+	bool "Enable debug in Mali driver"
+	depends on MALI400
+	---help---
+	  This enabled extra debug checks and messages in the Mali driver.
+
+config MALI400_PROFILING_EXTRA_SUPPORT
+	bool "Select other items in kernel to support PROFILING."
+	depends on MALI400_PROFILING
+	select PROFILING
+	select FTRACE
+	select PERF_EVENTS
+	select ENABLE_DEFAULT_TRACERS
+	select DEBUG_MUTEXES
+	select HIGH_RES_TIMERS
+	select HW_PERF_EVENTS
+	select CPU_FREQ
+
+config MALI400_PROFILING
+	bool "Enable Mali profiling"
+	depends on MALI400
+	select MALI400_DEBUG
+	select TRACEPOINTS
+	default n
+	---help---
+	  This enables gator profiling of Mali GPU events.
+
+config MALI400_INTERNAL_PROFILING
+	bool "Enable internal Mali profiling API"
+	depends on MALI400_PROFILING
+	default n
+	---help---
+	  This enables the internal legacy Mali profiling API.
+
+config MALI400_UMP
+	bool "Enable UMP support"
+	depends on MALI400
+    default y
+	---help---
+	  This enables support for the UMP memory sharing API in the Mali driver.
+
+config MALI400_POWER_PERFORMANCE_POLICY
+	bool "Enable Mali power performance policy"
+	depends on ARM
+	default n
+	---help---
+	  This enables support for dynamic performance scaling of Mali with the goal of lowering power consumption.
+
+config MALI_DMA_BUF_MAP_ON_ATTACH
+	bool "Map dma-buf attachments on attach"
+	depends on MALI400 && DMA_SHARED_BUFFER
+	default y
+	---help---
+	  This makes the Mali driver map dma-buf attachments after doing
+	  attach. If this is not set the dma-buf attachments will be mapped for
+	  every time the GPU need to access the buffer.
+
+	  Mapping for each access can cause lower performance.
+
+config MALI_SHARED_INTERRUPTS
+	bool "Support for shared interrupts"
+	depends on MALI400
+	default n
+	---help---
+	  Adds functionality required to properly support shared interrupts.  Without this support,
+	  the device driver will fail during insmod if it detects shared interrupts.  This also
+	  works when the GPU is not using shared interrupts, but might have a slight performance
+	  impact.
+
+if ARCH_MESON6
+config	MESON6_GPU_EXTRA
+	bool "M6 fix"
+	depends on MALI400
+	default y
+	select MALI_SHARED_INTERRUPTS
+endif
+
+config MALI_PMU_PARALLEL_POWER_UP
+	bool "Power up Mali PMU domains in parallel"
+	depends on MALI400
+	default n
+	---help---
+	  This makes the Mali driver power up all PMU power domains in parallel, instead of
+	  powering up domains one by one, with a slight delay in between. Powering on all power
+	  domains at the same time may cause peak currents higher than what some systems can handle.
+	  These systems must not enable this option.
+	  
+endmenu

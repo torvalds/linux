@@ -1,0 +1,27 @@
+/// ***************************************************************************************
+///	-	MALI
+//$$ MODULE="MALI"
+//$$ DEVICE="mali"
+//$$ L2 PROP_STR = "status"
+ mali{
+	compatible = "arm,mali";
+	dev_name = "mali";
+	status = "ok";
+		
+//$$ L2 PROP_U32 = "dvfs_id"
+//$$ L2 PROP_U32 = "recorde_number"
+//$$ L2 PROP_U32 = "dvfs_table"
+	cfg {
+		shared_memory = <1024>;  /** Mbyte **/
+		dvfs_size = <5>;                                 /** must be correct count for dvfs_table */
+		dvfs_table  = <
+		/* NOTE: frequent in this table must be ascending order */
+		/* freq_idx volage_index min max */
+			0  0  0 	200
+			1  1  152	205
+			2  2  180	212
+			3  3  205	236
+			4  4  230	256
+		>;
+	};
+};

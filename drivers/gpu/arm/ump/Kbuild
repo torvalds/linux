@@ -1,0 +1,78 @@
+#
+# Copyright (C) 2010-2012 ARM Limited. All rights reserved.
+# 
+# This program is free software and is provided to you under the terms of the GNU General Public License version 2
+# as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
+# 
+# A copy of the licence is included with the program, and can also be obtained from Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#
+
+# Set default configuration to use, if Makefile didn't provide one.
+# Change this to use a different config.h
+CONFIG ?= aml-meson-m400-1
+
+ifneq ($(KBUILD_SRC),)
+	ifneq ($(wildcard $(KBUILD_SRC)/$(src)),)
+		TOP_KBUILD_SRC := $(KBUILD_SRC)/
+	endif
+endif
+
+# Validate selected config
+ifneq ($(shell [ -d $(TOP_KBUILD_SRC)$(src)/arch-$(CONFIG) ] && [ -f  $(TOP_KBUILD_SRC)$(src)/arch-$(CONFIG)/config.h ] && echo "OK"), OK)
+$(warning Current directory is $(src))
+$(error No configuration found for config $(CONFIG). Check that arch-$(CONFIG)/config.h exists)
+else
+# Link arch to the selected arch-config directory
+$(shell [ -L $(TOP_KBUILD_SRC)$(src)/arch ] && rm $(TOP_KBUILD_SRC)$(src)/arch)
+$(shell ln -sf arch-$(CONFIG) $(TOP_KBUILD_SRC)$(src)/arch)
+$(shell touch $(TOP_KBUILD_SRC)$(src)/arch/config.h)
+endif
+
+UDD_FILE_PREFIX = ../mali/
+
+# Get subversion revision number, fall back to 0000 if no svn info is available
+SVN_REV := 0000
+
+ccflags-y += -DSVN_REV=$(SVN_REV)
+ccflags-y += -DSVN_REV_STRING=\"$(SVN_REV)\"
+
+ccflags-y += -I$(src) -I$(TOP_KBUILD_SRC)$(src)/common -I$(TOP_KBUILD_SRC)$(src)/linux -I$(TOP_KBUILD_SRC)$(src)/../mali/common -I$(src)/../mali/linux -I$(src)/../ump/include/ump
+ccflags-y += -I$(srctree)/drivers/staging/android
+ccflags-y += -DMALI_STATE_TRACKING=0
+ccflags-y += -DMALI_ENABLE_CPU_CYCLES=0
+ccflags-$(CONFIG_UMP_DEBUG) += -DDEBUG
+ccflags-$(CONFIG_MALI400_DEBUG) += -DDEBUG
+
+# For customer releases the Linux Device Drivers will be provided as ARM proprietary and GPL releases:
+# The ARM proprietary product will only include the license/proprietary directory
+# The GPL product will only include the license/gpl directory
+
+ifeq ($(wildcard $(TOP_KBUILD_SRC)$(src)/linux/license/gpl/*),)
+ccflags-y += -I$(TOP_KBUILD_SRC)$(src)/linux/license/proprietary -I$(TOP_KBUILD_SRC)$(src)/$(UDD_FILE_PREFIX)linux/license/proprietary
+else
+ccflags-y += -I$(TOP_KBUILD_SRC)$(src)/linux/license/gpl -I$(TOP_KBUILD_SRC)$(src)/$(UDD_FILE_PREFIX)linux/license/gpl
+endif
+
+ump-y = common/ump_kernel_common.o \
+	common/ump_kernel_descriptor_mapping.o \
+	common/ump_kernel_api.o \
+	common/ump_kernel_ref_drv.o \
+	linux/ump_kernel_linux.o \
+	linux/ump_kernel_memory_backend_os.o \
+	linux/ump_kernel_memory_backend_dedicated.o \
+	linux/ump_memory_backend.o \
+	linux/ump_ukk_wrappers.o \
+	linux/ump_ukk_ref_wrappers.o \
+	linux/ump_osk_atomics.o \
+	linux/ump_osk_low_level_mem.o \
+	linux/ump_osk_misc.o \
+	$(UDD_FILE_PREFIX)linux/mali_osk_atomics.o \
+	$(UDD_FILE_PREFIX)linux/mali_osk_locks.o \
+	$(UDD_FILE_PREFIX)linux/mali_osk_memory.o \
+	$(UDD_FILE_PREFIX)linux/mali_osk_math.o \
+	$(UDD_FILE_PREFIX)linux/mali_osk_misc.o
+
+
+obj-$(CONFIG_UMP) := ump.o
+
