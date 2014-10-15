@@ -1,0 +1,9 @@
+menu "Amlogic PMU battery algorithm Support"
+
+config AML_PMU_ALGORITHM_SUPPORT
+    tristate "Amlogic PMU battery algorithm support"
+    select AML_RTC
+    help
+        Say y if your pmu device need this algorithm support
+
+endmenu
