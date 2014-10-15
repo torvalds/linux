@@ -541,15 +541,17 @@ static struct regulator_init_data regl_init_data[AXP152_REGULATOR_COUNT] = {
 			.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
 		}
 	},
-	[axp152_dcdc3] = { /* Vddr, power on 1.5V, Android from fex */
+	[axp152_dcdc3] = { /* Vddr, power on 1.5V, use u-boot value */
 		.num_consumer_supplies = 1,
 		.consumer_supplies = &axp152_dcdc3_supply,
 		.constraints = {
-			.min_uV =  1500 * 1000,
-			.max_uV =  1500 * 1000,
+			.min_uV =  1000 * 1000,
+			.max_uV =  1600 * 1000,
 			.always_on = 1,
-			.apply_uV = 1,
-			.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
+			/*
+			 * We do not allow changing the DRAM voltage, because
+			 * of stability, so no REGULATOR_CHANGE_VOLTAGE.
+			 */
 		}
 	},
 	[axp152_dcdc4] = { /* Vcpu, power on 1.25V, Android from fex */
@@ -622,11 +624,11 @@ static int __init axp_board_init(void)
 
 	/* Note we ignore the dcdc2_vol key as dcdc2 is set by the dvfs code */
 
-	ret = script_parser_fetch("target", "dcdc3_vol", &val, sizeof(int));
-	if (ret == 0) {
-		regl_init_data[axp152_dcdc3].constraints.min_uV = val * 1000;
-		regl_init_data[axp152_dcdc3].constraints.max_uV = val * 1000;
-	}
+	/*
+	 * Note we ignore the dcdc3_vol key as that sometimes contains wrong
+	 * values make the dram unstable, instead we stick with the bootloader
+	 * set voltage.
+	 */
 
 	ret = script_parser_fetch("target", "dcdc4_vol", &val, sizeof(int));
 	if (ret == 0) {
