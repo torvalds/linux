@@ -1,0 +1,11 @@
+--- arch/arm/mach-meson6/include/mach/usbclock.h.orig	2014-07-18 11:36:55.687502450 +0800
++++ arch/arm/mach-meson6/include/mach/usbclock.h	2014-07-18 11:37:02.943502586 +0800
+@@ -207,7 +207,7 @@
+ #define USB_BC_MODE_CDP		3	/* PC + Charger */
+ 
+ #define USB_CORE_RESET_TIME 	200
+-#define USB_ID_CHANGE_TIME	100
++#define USB_ID_CHANGE_TIME	200
+ 
+ int clk_enable_usb(struct clk *clk);
+ int clk_disable_usb(struct clk *clk);

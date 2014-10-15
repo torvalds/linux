@@ -2641,7 +2641,6 @@ void osd_init_hw(u32  logo_loaded)
 	osd_hw.color_info[OSD2]=NULL;
 	vf.width =vf.height=0;
 	osd_hw.color_key[OSD1]=osd_hw.color_key[OSD2]=0xffffffff;
-	osd_hw.free_scale_enable[OSD1]=osd_hw.free_scale_enable[OSD2]=0;
 	osd_hw.scale[OSD1].h_enable=osd_hw.scale[OSD1].v_enable=0;
 	osd_hw.scale[OSD2].h_enable=osd_hw.scale[OSD2].v_enable=0;
 	osd_hw.mode_3d[OSD2].enable=osd_hw.mode_3d[OSD1].enable=0;
@@ -2658,6 +2657,12 @@ void osd_init_hw(u32  logo_loaded)
 	osd_hw.free_scale_mode[OSD1] = osd_hw.free_scale_mode[OSD2] = 1;
 #else
 	osd_hw.free_scale_mode[OSD1] = osd_hw.free_scale_mode[OSD2] = 0;
+#endif
+
+#if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8
+    osd_hw.free_scale_mode[OSD1] = osd_hw.free_scale_mode[OSD2] = 1;
+#else
+    osd_hw.free_scale_mode[OSD1] = osd_hw.free_scale_mode[OSD2] = 0;
 #endif
 
 	memset(osd_hw.rotate,0,sizeof(osd_rotate_t));
@@ -2778,6 +2783,33 @@ void osd_cursor_hw(s16 x, s16 y, s16 xstart, s16 ystart, u32 osd_w, u32 osd_h, i
 	add_to_update_list(OSD2,DISP_GEOMETRY);
 }
 #endif //CONFIG_FB_OSD2_CURSOR
+
+void osddev_copy_data_tocursor_hw(u32 cursor_mem_vaddr, aml_hwc_addr_t *hwc_mem)
+{
+	u32 tmp;
+	u32 i;
+	u32 value_pixel = 0;
+	u32 size = 32*32*4;
+
+	if (hwc_mem->addr & 0x3) { /* Address not 32bit aligned */
+		for (i = 0; i < size; i += 4) {
+			tmp = readb(hwc_mem->addr + i);
+			value_pixel = tmp;
+			tmp = readb(hwc_mem->addr + i + 1);
+			value_pixel |= (tmp << 8);
+			tmp = readb(hwc_mem->addr + i + 2);
+			value_pixel |= (tmp << 16);
+			tmp = readb(hwc_mem->addr + i + 3);
+			value_pixel |= (tmp << 24);
+			writel(value_pixel, cursor_mem_vaddr+ i);
+		}
+	} else {
+		for (i = 0; i < size; i += 4) {
+			tmp = readl(hwc_mem->addr + i);
+			writel(tmp, cursor_mem_vaddr+ i);
+		}
+	}
+}
 
 void  osd_suspend_hw(void)
 {

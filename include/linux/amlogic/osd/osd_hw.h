@@ -121,6 +121,7 @@ extern void osd_pan_display_hw(unsigned int xoffset, unsigned int yoffset,int in
 #if defined(CONFIG_FB_OSD2_CURSOR)
 extern void osd_cursor_hw(s16 x, s16 y, s16 xstart, s16 ystart, u32 osd_w, u32 osd_h, int index);
 #endif
+extern void osddev_copy_data_tocursor_hw(u32 cursor_mem_paddr, aml_hwc_addr_t *hwc_mem);
 extern void osd_suspend_hw(void);
 extern void osd_resume_hw(void);
 extern void osd_init_hw(u32  logo_loaded);

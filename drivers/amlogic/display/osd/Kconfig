@@ -103,6 +103,11 @@ config FB_OSD1_DEFAULT_HEIGHT_VIRTUAL
 	---help---
 	  The default osd1/fb0 virtual height. Does not affect ability to change height using fbset or FBIOPUT ioctl.
 
-
+config FB_AMLOGIC_UMP
+   bool "amlogic ump"
+   default y
+   depends on  FB_AM
+   help
+                enable osd ump when we use mali for x11
 
 endmenu	

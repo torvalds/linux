@@ -55,6 +55,9 @@ typedef  enum {
 	
 }color_index_t;
 
+typedef struct {
+	unsigned int addr;
+} aml_hwc_addr_t;
 
 
 typedef  struct {

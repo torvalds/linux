@@ -199,6 +199,13 @@ config DRM_SAVAGE
 	  Choose this option if you have a Savage3D/4/SuperSavage/Pro/Twister
 	  chipset. If M is selected the module will be called savage.
 
+config DRM_MALI
+	tristate "arm mali cards"
+	depends on DRM
+	help
+	  Choose this option if you have a ARM GPU Mali.
+	  If M is selected the module will be called arm.
+
 source "drivers/gpu/drm/exynos/Kconfig"
 
 source "drivers/gpu/drm/vmwgfx/Kconfig"

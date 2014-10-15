@@ -227,7 +227,7 @@ void Edid_CompareTimingDescriptors(HDMI_TX_INFO_t * info, unsigned char *Data)
     {
         for(index2=0;index2<12;index2++)
         {
-            if(Data[index2]!=Edid_TimingDescriptors[index1*14+index2])
+            if(Data[index2]!=Edid_TimingDescriptors[index1*12+index2])
                 break;
         }
         if(index2==12)
