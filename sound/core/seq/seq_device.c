@@ -127,15 +127,15 @@ static void snd_seq_device_info(struct snd_info_entry *entry,
 
 #ifdef CONFIG_MODULES
 /* avoid auto-loading during module_init() */
-static int snd_seq_in_init;
+static atomic_t snd_seq_in_init = ATOMIC_INIT(0);
 void snd_seq_autoload_lock(void)
 {
-	snd_seq_in_init++;
+	atomic_inc(&snd_seq_in_init);
 }
 
 void snd_seq_autoload_unlock(void)
 {
-	snd_seq_in_init--;
+	atomic_dec(&snd_seq_in_init);
 }
 #endif
 
@@ -147,7 +147,7 @@ void snd_seq_device_load_drivers(void)
 	/* Calling request_module during module_init()
 	 * may cause blocking.
 	 */
-	if (snd_seq_in_init)
+	if (atomic_read(&snd_seq_in_init))
 		return;
 
 	mutex_lock(&ops_mutex);
