@@ -317,6 +317,20 @@ follows:
 			    In such systems entry-latency-us + exit-latency-us
 			    will exceed wakeup-latency-us by this duration.
 
+	- status:
+		Usage: Optional
+		Value type: <string>
+		Definition: A standard device tree property [5] that indicates
+			    the operational status of an idle-state.
+			    If present, it shall be:
+			    "okay": to indicate that the idle state is
+				    operational.
+			    "disabled": to indicate that the idle state has
+					been disabled in firmware so it is not
+					operational.
+			    If the property is not present the idle-state must
+			    be considered operational.
+
 	In addition to the properties listed above, a state node may require
 	additional properties specifics to the entry-method defined in the
 	idle-states node, please refer to the entry-method bindings
