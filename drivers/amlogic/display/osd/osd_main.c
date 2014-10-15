@@ -715,10 +715,8 @@ static ssize_t store_enable_3d(struct device *device, struct device_attribute *a
 {
 	struct fb_info *fb_info = dev_get_drvdata(device);
 	struct myfb_dev *fbdev = (struct myfb_dev *)fb_info->par;
-	int err;
 	fbdev->enable_3d= simple_strtoul(buf, NULL, 0);
-	if ((err = osd_ioctl(fb_info,FBIOPUT_OSD_ENABLE_3D_MODE,fbdev->enable_3d)))
-		return err;
+	osddev_enable_3d_mode(fb_info->node, fbdev->enable_3d);
 	return count;
 }
 
@@ -958,10 +956,10 @@ static ssize_t store_scale_width(struct device *device, struct device_attribute 
 {
 	struct fb_info *fb_info = dev_get_drvdata(device);
 	unsigned int free_scale_width=0;
-	int err;
-	 free_scale_width= simple_strtoul(buf, NULL, 0);
-	if ((err = osd_ioctl(fb_info,FBIOPUT_OSD_FREE_SCALE_WIDTH,free_scale_width)))
-		return err;
+    
+	free_scale_width= simple_strtoul(buf, NULL, 0);
+	osddev_free_scale_width(fb_info->node, free_scale_width);
+
 	return count;
 }
 
@@ -981,10 +979,10 @@ static ssize_t store_scale_height(struct device *device, struct device_attribute
 {
 	struct fb_info *fb_info = dev_get_drvdata(device);
 	unsigned int free_scale_height=0;
-	int err;
-	 free_scale_height= simple_strtoul(buf, NULL, 0);
-	if ((err = osd_ioctl(fb_info,FBIOPUT_OSD_FREE_SCALE_HEIGHT,free_scale_height)))
-		return err;
+
+	free_scale_height= simple_strtoul(buf, NULL, 0);
+	osddev_free_scale_height(fb_info->node, free_scale_height);
+
 	return count;
 }
 
@@ -1003,10 +1001,10 @@ static ssize_t store_free_scale(struct device *device, struct device_attribute *
 {
 	struct fb_info *fb_info = dev_get_drvdata(device);
 	unsigned int free_scale_enable=0;
-	int err;
+
 	free_scale_enable= simple_strtoul(buf, NULL, 0);
-	if ((err = osd_ioctl(fb_info,FBIOPUT_OSD_FREE_SCALE_ENABLE,free_scale_enable)))
-		return err;
+	osddev_free_scale_enable(fb_info->node, free_scale_enable);
+
 	return count;
 }
 
@@ -1025,10 +1023,10 @@ static ssize_t store_freescale_mode(struct device *device, struct device_attribu
 {
 	struct fb_info *fb_info = dev_get_drvdata(device);
 	unsigned int free_scale_mode=0;
-	int err;
+    
 	free_scale_mode= simple_strtoul(buf, NULL, 0);
-	if ((err = osd_ioctl(fb_info,FBIOPUT_OSD_FREE_SCALE_MODE,free_scale_mode)))
-		return err;
+	osddev_free_scale_mode(fb_info->node, free_scale_mode);
+
 	return count;
 }
 
@@ -1048,10 +1046,10 @@ static ssize_t store_scale(struct device *device, struct device_attribute *attr,
 {
 	struct fb_info *fb_info = dev_get_drvdata(device);
 	struct myfb_dev *fbdev = (struct myfb_dev *)fb_info->par;
-	int err;
+
 	fbdev->scale = simple_strtoul(buf, NULL, 0);
-	if ((err = osd_ioctl(fb_info,FBIOPUT_OSD_2X_SCALE,fbdev->scale)))
-		return err;
+	osddev_set_2x_scale(fb_info->node,fbdev->scale&0xffff0000?1:0,fbdev->scale&0xffff?1:0);
+
 	return count;
 }
 
@@ -1156,11 +1154,10 @@ static ssize_t store_order(struct device *device, struct device_attribute *attr,
 {
 	struct fb_info *fb_info = dev_get_drvdata(device);
 	struct myfb_dev *fbdev = (struct myfb_dev *)fb_info->par;
-	int err;
 
 	fbdev->order = simple_strtoul(buf, NULL, 0);
-	if ((err = osd_ioctl(fb_info,FBIOPUT_OSD_ORDER,fbdev->order)))
-		return err;
+	osddev_change_osd_order(fb_info->node, fbdev->order);
+
 	return count;
 }
 
@@ -1169,10 +1166,9 @@ static ssize_t show_order(struct device *device, struct device_attribute *attr,
 {
 	struct fb_info *fb_info = dev_get_drvdata(device);
 	struct myfb_dev *fbdev = (struct myfb_dev *)fb_info->par;
-	int err;
-	
-	if ((err = osd_ioctl(fb_info,FBIOGET_OSD_ORDER,(unsigned long)&fbdev->order)))
-		return err;
+
+	fbdev->order = osddev_get_osd_order(fb_info->node);
+
 	return snprintf(buf, PAGE_SIZE, "order:[0x%x]\n",fbdev->order);
 }
 
@@ -1249,10 +1245,10 @@ static ssize_t store_osd_reverse(struct device *device, struct device_attribute 
 {
 	struct fb_info *fb_info = dev_get_drvdata(device);
 	unsigned int osd_reverse = 0;
-	int err;
+
 	osd_reverse = simple_strtoul(buf, NULL, 0);
-	if ((err = osd_ioctl(fb_info,FBIOPUT_OSD_REVERSE,osd_reverse)))
-		return err;
+	osddev_set_osd_reverse(fb_info->node, osd_reverse);
+
 	return count;
 }
 static ssize_t show_rotate_on(struct device *device, struct device_attribute *attr,
@@ -1270,10 +1266,10 @@ static ssize_t store_rotate_on(struct device *device, struct device_attribute *a
 {
         struct fb_info *fb_info = dev_get_drvdata(device);
         unsigned int osd_rotate = 0;
-        int err;
+
         osd_rotate = simple_strtoul(buf, NULL, 0);
-        if ((err = osd_ioctl(fb_info,FBIOPUT_OSD_ROTATE_ON,osd_rotate)))
-                return err;
+        osddev_set_osd_rotate_on(fb_info->node, osd_rotate);
+
         return count;
 }
 
@@ -1304,10 +1300,10 @@ static ssize_t store_rotate_angle(struct device *device, struct device_attribute
 {
         struct fb_info *fb_info = dev_get_drvdata(device);
         unsigned int osd_rotate_angle = 0;
-        int err;
+
         osd_rotate_angle = simple_strtoul(buf, NULL, 0);
-        if ((err = osd_ioctl(fb_info,FBIOPUT_OSD_ROTATE_ANGLE,osd_rotate_angle)))
-                return err;
+        osddev_set_osd_rotate_angle(fb_info->node, osd_rotate_angle);
+
         return count;
 }
 
