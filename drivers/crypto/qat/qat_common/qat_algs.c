@@ -466,7 +466,6 @@ static int qat_alg_init_sessions(struct qat_alg_session_ctx *ctx,
 		break;
 	default:
 		goto bad_key;
-		break;
 	}
 
 	if (qat_alg_init_enc_session(ctx, alg, &keys))
