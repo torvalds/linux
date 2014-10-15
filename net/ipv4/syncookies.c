@@ -321,7 +321,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 		int opt_size = sizeof(struct ip_options_rcu) + opt->optlen;
 
 		ireq->opt = kmalloc(opt_size, GFP_ATOMIC);
-		if (ireq->opt != NULL && ip_options_echo(&ireq->opt->opt, skb)) {
+		if (ireq->opt != NULL && __ip_options_echo(&ireq->opt->opt, skb, opt)) {
 			kfree(ireq->opt);
 			ireq->opt = NULL;
 		}
