@@ -1095,16 +1095,15 @@ __u32 get_cmu_clk(void)
 {
 	__u32 reg_val;
 	__u32 div_p, factor_n;
-	__u32 factor_k, factor_m;
+	__u32 factor_k;
 	__u32 clock;
 
 	reg_val  = *(volatile unsigned int *)(0xf1c20000 + 0x20);
 	div_p    = (reg_val >> 16) & 0x3;
 	factor_n = (reg_val >> 8) & 0x1f;
 	factor_k = ((reg_val >> 4) & 0x3) + 1;
-	factor_m = ((reg_val >> 0) & 0x3) + 1;
 
-	clock = 24 * factor_n * factor_k/div_p/factor_m;
+	clock = (24 * factor_n * factor_k) >> div_p;
 
 	return clock;
 }
