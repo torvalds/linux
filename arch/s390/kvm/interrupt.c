@@ -394,13 +394,20 @@ static int __must_check __deliver_restart(struct kvm_vcpu *vcpu)
 
 static int __must_check __deliver_stop(struct kvm_vcpu *vcpu)
 {
+	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
+	struct kvm_s390_stop_info *stop = &li->irq.stop;
+
+	spin_lock(&li->lock);
+	stop->flags = 0;
+	clear_bit(IRQ_PEND_SIGP_STOP, &li->pending_irqs);
+	spin_unlock(&li->lock);
+
 	VCPU_EVENT(vcpu, 4, "%s", "interrupt: cpu stop");
 	vcpu->stat.deliver_stop_signal++;
 	trace_kvm_s390_deliver_interrupt(vcpu->vcpu_id, KVM_S390_SIGP_STOP,
 					 0, 0);
 
 	__set_cpuflag(vcpu, CPUSTAT_STOP_INT);
-	clear_bit(IRQ_PEND_SIGP_STOP, &vcpu->arch.local_int.pending_irqs);
 	return 0;
 }
 
@@ -1031,13 +1038,19 @@ static int __inject_set_prefix(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 	return 0;
 }
 
+#define KVM_S390_STOP_SUPP_FLAGS 0
 static int __inject_sigp_stop(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 {
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
+	struct kvm_s390_stop_info *stop = &li->irq.stop;
 
 	trace_kvm_s390_inject_vcpu(vcpu->vcpu_id, KVM_S390_SIGP_STOP, 0, 0, 2);
 
+	if (irq->u.stop.flags & ~KVM_S390_STOP_SUPP_FLAGS)
+		return -EINVAL;
+
 	li->action_bits |= ACTION_STOP_ON_STOP;
+	stop->flags = irq->u.stop.flags;
 	set_bit(IRQ_PEND_SIGP_STOP, &li->pending_irqs);
 	return 0;
 }
@@ -1305,6 +1318,9 @@ int s390int_to_s390irq(struct kvm_s390_interrupt *s390int,
 		break;
 	case KVM_S390_SIGP_SET_PREFIX:
 		irq->u.prefix.address = s390int->parm;
+		break;
+	case KVM_S390_SIGP_STOP:
+		irq->u.stop.flags = s390int->parm;
 		break;
 	case KVM_S390_INT_EXTERNAL_CALL:
 		if (irq->u.extcall.code & 0xffff0000)

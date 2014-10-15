@@ -2312,7 +2312,7 @@ struct kvm_s390_interrupt {
 
 type can be one of the following:
 
-KVM_S390_SIGP_STOP (vcpu) - sigp restart
+KVM_S390_SIGP_STOP (vcpu) - sigp stop; optional flags in parm
 KVM_S390_PROGRAM_INT (vcpu) - program check; code in parm
 KVM_S390_SIGP_SET_PREFIX (vcpu) - sigp set prefix; prefix address in parm
 KVM_S390_RESTART (vcpu) - restart

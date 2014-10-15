@@ -378,6 +378,7 @@ struct kvm_s390_interrupt_info {
 		struct kvm_s390_emerg_info emerg;
 		struct kvm_s390_extcall_info extcall;
 		struct kvm_s390_prefix_info prefix;
+		struct kvm_s390_stop_info stop;
 		struct kvm_s390_mchk_info mchk;
 	};
 };
@@ -393,6 +394,7 @@ struct kvm_s390_irq_payload {
 	struct kvm_s390_emerg_info emerg;
 	struct kvm_s390_extcall_info extcall;
 	struct kvm_s390_prefix_info prefix;
+	struct kvm_s390_stop_info stop;
 	struct kvm_s390_mchk_info mchk;
 };
 

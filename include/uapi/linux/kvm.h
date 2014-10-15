@@ -491,6 +491,11 @@ struct kvm_s390_emerg_info {
 	__u16 code;
 };
 
+#define KVM_S390_STOP_FLAG_STORE_STATUS	0x01
+struct kvm_s390_stop_info {
+	__u32 flags;
+};
+
 struct kvm_s390_mchk_info {
 	__u64 cr14;
 	__u64 mcic;
@@ -509,6 +514,7 @@ struct kvm_s390_irq {
 		struct kvm_s390_emerg_info emerg;
 		struct kvm_s390_extcall_info extcall;
 		struct kvm_s390_prefix_info prefix;
+		struct kvm_s390_stop_info stop;
 		struct kvm_s390_mchk_info mchk;
 		char reserved[64];
 	} u;
