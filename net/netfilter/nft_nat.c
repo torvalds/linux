@@ -191,17 +191,19 @@ static int nft_nat_dump(struct sk_buff *skb, const struct nft_expr *expr)
 
 	if (nla_put_be32(skb, NFTA_NAT_FAMILY, htonl(priv->family)))
 		goto nla_put_failure;
-	if (nla_put_be32(skb,
-			 NFTA_NAT_REG_ADDR_MIN, htonl(priv->sreg_addr_min)))
-		goto nla_put_failure;
-	if (nla_put_be32(skb,
-			 NFTA_NAT_REG_ADDR_MAX, htonl(priv->sreg_addr_max)))
-		goto nla_put_failure;
+
+	if (priv->sreg_addr_min) {
+		if (nla_put_be32(skb, NFTA_NAT_REG_ADDR_MIN,
+				 htonl(priv->sreg_addr_min)) ||
+		    nla_put_be32(skb, NFTA_NAT_REG_ADDR_MAX,
+				 htonl(priv->sreg_addr_max)))
+			goto nla_put_failure;
+	}
+
 	if (priv->sreg_proto_min) {
 		if (nla_put_be32(skb, NFTA_NAT_REG_PROTO_MIN,
-				 htonl(priv->sreg_proto_min)))
-			goto nla_put_failure;
-		if (nla_put_be32(skb, NFTA_NAT_REG_PROTO_MAX,
+				 htonl(priv->sreg_proto_min)) ||
+		    nla_put_be32(skb, NFTA_NAT_REG_PROTO_MAX,
 				 htonl(priv->sreg_proto_max)))
 			goto nla_put_failure;
 	}
