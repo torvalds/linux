@@ -259,6 +259,7 @@ static void send_act_open_req(struct cxgbi_sock *csk, struct sk_buff *skb,
 	cxgb4_l2t_send(csk->cdev->ports[csk->port_id], skb, csk->l2t);
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
 static void send_act_open_req6(struct cxgbi_sock *csk, struct sk_buff *skb,
 			       struct l2t_entry *e)
 {
@@ -344,6 +345,7 @@ static void send_act_open_req6(struct cxgbi_sock *csk, struct sk_buff *skb,
 
 	cxgb4_l2t_send(csk->cdev->ports[csk->port_id], skb, csk->l2t);
 }
+#endif
 
 static void send_close_req(struct cxgbi_sock *csk)
 {
@@ -781,9 +783,11 @@ static void csk_act_open_retry_timer(unsigned long data)
 	if (csk->csk_family == AF_INET) {
 		send_act_open_func = send_act_open_req;
 		skb = alloc_wr(size, 0, GFP_ATOMIC);
+#if IS_ENABLED(CONFIG_IPV6)
 	} else {
 		send_act_open_func = send_act_open_req6;
 		skb = alloc_wr(size6, 0, GFP_ATOMIC);
+#endif
 	}
 
 	if (!skb)
@@ -1335,8 +1339,10 @@ static int init_act_open(struct cxgbi_sock *csk)
 
 	if (csk->csk_family == AF_INET)
 		skb = alloc_wr(size, 0, GFP_NOIO);
+#if IS_ENABLED(CONFIG_IPV6)
 	else
 		skb = alloc_wr(size6, 0, GFP_NOIO);
+#endif
 
 	if (!skb)
 		goto rel_resource;
@@ -1370,8 +1376,10 @@ static int init_act_open(struct cxgbi_sock *csk)
 	cxgbi_sock_set_state(csk, CTP_ACTIVE_OPEN);
 	if (csk->csk_family == AF_INET)
 		send_act_open_req(csk, skb, csk->l2t);
+#if IS_ENABLED(CONFIG_IPV6)
 	else
 		send_act_open_req6(csk, skb, csk->l2t);
+#endif
 	neigh_release(n);
 
 	return 0;
