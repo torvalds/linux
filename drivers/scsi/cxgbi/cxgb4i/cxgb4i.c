@@ -1317,11 +1317,6 @@ static int init_act_open(struct cxgbi_sock *csk)
 	cxgbi_sock_set_flag(csk, CTPF_HAS_ATID);
 	cxgbi_sock_get(csk);
 
-	n = dst_neigh_lookup(csk->dst, &csk->daddr.sin_addr.s_addr);
-	if (!n) {
-		pr_err("%s, can't get neighbour of csk->dst.\n", ndev->name);
-		goto rel_resource;
-	}
 	csk->l2t = cxgb4_l2t_get(lldi->l2t, n, ndev, 0);
 	if (!csk->l2t) {
 		pr_err("%s, cannot alloc l2t.\n", ndev->name);
