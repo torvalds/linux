@@ -1382,6 +1382,9 @@ bool iwl_mvm_bcast_filter_build_cmd(struct iwl_mvm *mvm,
 		.cmd = cmd,
 	};
 
+	if (IWL_MVM_FW_BCAST_FILTER_PASS_ALL)
+		return false;
+
 	memset(cmd, 0, sizeof(*cmd));
 	cmd->max_bcast_filters = ARRAY_SIZE(cmd->filters);
 	cmd->max_macs = ARRAY_SIZE(cmd->macs);
