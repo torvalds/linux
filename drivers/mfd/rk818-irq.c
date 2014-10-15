@@ -46,7 +46,7 @@ static irqreturn_t rk818_irq(int irq, void *irq_data)
 	u32 irq_sts;
 	u32 irq_mask;
 	u8 reg;
-	int i;
+	int i, cur_irq;
 	//printk(" rk818 irq %d \n",irq);	
 	wake_lock(&rk818->irq_wake);	
 	rk818_i2c_read(rk818, RK818_INT_STS_REG1, 1, &reg);
@@ -72,7 +72,10 @@ static irqreturn_t rk818_irq(int irq, void *irq_data)
 		if (!(irq_sts & (1 << i)))
 			continue;
 
-		handle_nested_irq(rk818->irq_base + i);
+		cur_irq = irq_find_mapping(rk818->irq_domain, i);
+
+                if (cur_irq)
+                	handle_nested_irq(cur_irq);
 	}
 
 	/* Write the STS register back to clear IRQs we handled */
