@@ -83,6 +83,7 @@ static void __init imx7d_enet_clk_sel(void)
 
 static inline void imx7d_enet_init(void)
 {
+	imx6_enet_mac_init("fsl,imx7d-fec", "fsl,imx7d-ocotp");
 	imx7d_enet_phy_init();
 	imx7d_enet_clk_sel();
 }
