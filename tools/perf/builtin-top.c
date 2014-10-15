@@ -251,6 +251,7 @@ static void perf_top__print_sym_table(struct perf_top *top)
 	char bf[160];
 	int printed = 0;
 	const int win_width = top->winsize.ws_col - 1;
+	struct hists *hists = evsel__hists(top->sym_evsel);
 
 	puts(CONSOLE_CLEAR);
 
@@ -261,13 +262,13 @@ static void perf_top__print_sym_table(struct perf_top *top)
 
 	printf("%-*.*s\n", win_width, win_width, graph_dotted_line);
 
-	if (top->sym_evsel->hists.stats.nr_lost_warned !=
-	    top->sym_evsel->hists.stats.nr_events[PERF_RECORD_LOST]) {
-		top->sym_evsel->hists.stats.nr_lost_warned =
-			top->sym_evsel->hists.stats.nr_events[PERF_RECORD_LOST];
+	if (hists->stats.nr_lost_warned !=
+	    hists->stats.nr_events[PERF_RECORD_LOST]) {
+		hists->stats.nr_lost_warned =
+			      hists->stats.nr_events[PERF_RECORD_LOST];
 		color_fprintf(stdout, PERF_COLOR_RED,
 			      "WARNING: LOST %d chunks, Check IO/CPU overload",
-			      top->sym_evsel->hists.stats.nr_lost_warned);
+			      hists->stats.nr_lost_warned);
 		++printed;
 	}
 
@@ -277,21 +278,18 @@ static void perf_top__print_sym_table(struct perf_top *top)
 	}
 
 	if (top->zero) {
-		hists__delete_entries(&top->sym_evsel->hists);
+		hists__delete_entries(hists);
 	} else {
-		hists__decay_entries(&top->sym_evsel->hists,
-				     top->hide_user_symbols,
+		hists__decay_entries(hists, top->hide_user_symbols,
 				     top->hide_kernel_symbols);
 	}
 
-	hists__collapse_resort(&top->sym_evsel->hists, NULL);
-	hists__output_resort(&top->sym_evsel->hists);
+	hists__collapse_resort(hists, NULL);
+	hists__output_resort(hists);
 
-	hists__output_recalc_col_len(&top->sym_evsel->hists,
-				     top->print_entries - printed);
+	hists__output_recalc_col_len(hists, top->print_entries - printed);
 	putchar('\n');
-	hists__fprintf(&top->sym_evsel->hists, false,
-		       top->print_entries - printed, win_width,
+	hists__fprintf(hists, false, top->print_entries - printed, win_width,
 		       top->min_percent, stdout);
 }
 
@@ -334,6 +332,7 @@ static void perf_top__prompt_symbol(struct perf_top *top, const char *msg)
 {
 	char *buf = malloc(0), *p;
 	struct hist_entry *syme = top->sym_filter_entry, *n, *found = NULL;
+	struct hists *hists = evsel__hists(top->sym_evsel);
 	struct rb_node *next;
 	size_t dummy = 0;
 
@@ -351,7 +350,7 @@ static void perf_top__prompt_symbol(struct perf_top *top, const char *msg)
 	if (p)
 		*p = 0;
 
-	next = rb_first(&top->sym_evsel->hists.entries);
+	next = rb_first(&hists->entries);
 	while (next) {
 		n = rb_entry(next, struct hist_entry, rb_node);
 		if (n->ms.sym && !strcmp(buf, n->ms.sym->name)) {
@@ -538,21 +537,24 @@ static bool perf_top__handle_keypress(struct perf_top *top, int c)
 static void perf_top__sort_new_samples(void *arg)
 {
 	struct perf_top *t = arg;
+	struct hists *hists;
+
 	perf_top__reset_sample_counters(t);
 
 	if (t->evlist->selected != NULL)
 		t->sym_evsel = t->evlist->selected;
 
+	hists = evsel__hists(t->sym_evsel);
+
 	if (t->zero) {
-		hists__delete_entries(&t->sym_evsel->hists);
+		hists__delete_entries(hists);
 	} else {
-		hists__decay_entries(&t->sym_evsel->hists,
-				     t->hide_user_symbols,
+		hists__decay_entries(hists, t->hide_user_symbols,
 				     t->hide_kernel_symbols);
 	}
 
-	hists__collapse_resort(&t->sym_evsel->hists, NULL);
-	hists__output_resort(&t->sym_evsel->hists);
+	hists__collapse_resort(hists, NULL);
+	hists__output_resort(hists);
 }
 
 static void *display_thread_tui(void *arg)
@@ -573,8 +575,10 @@ static void *display_thread_tui(void *arg)
 	 * Zooming in/out UIDs. For now juse use whatever the user passed
 	 * via --uid.
 	 */
-	evlist__for_each(top->evlist, pos)
-		pos->hists.uid_filter_str = top->record_opts.target.uid_str;
+	evlist__for_each(top->evlist, pos) {
+		struct hists *hists = evsel__hists(pos);
+		hists->uid_filter_str = top->record_opts.target.uid_str;
+	}
 
 	perf_evlist__tui_browse_hists(top->evlist, help, &hbt, top->min_percent,
 				      &top->session->header.env);
@@ -768,6 +772,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 	}
 
 	if (al.sym == NULL || !al.sym->ignore) {
+		struct hists *hists = evsel__hists(evsel);
 		struct hist_entry_iter iter = {
 			.add_entry_cb = hist_iter__top_callback,
 		};
@@ -777,14 +782,14 @@ static void perf_event__process_sample(struct perf_tool *tool,
 		else
 			iter.ops = &hist_iter_normal;
 
-		pthread_mutex_lock(&evsel->hists.lock);
+		pthread_mutex_lock(&hists->lock);
 
 		err = hist_entry_iter__add(&iter, &al, evsel, sample,
 					   top->max_stack, top);
 		if (err < 0)
 			pr_err("Problem incrementing symbol period, skipping event\n");
 
-		pthread_mutex_unlock(&evsel->hists.lock);
+		pthread_mutex_unlock(&hists->lock);
 	}
 
 	return;
@@ -849,7 +854,7 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 			perf_event__process_sample(&top->tool, event, evsel,
 						   &sample, machine);
 		} else if (event->header.type < PERF_RECORD_MAX) {
-			hists__inc_nr_events(&evsel->hists, event->header.type);
+			hists__inc_nr_events(evsel__hists(evsel), event->header.type);
 			machine__process_event(machine, event, &sample);
 		} else
 			++session->stats.nr_unknown_events;
@@ -1042,7 +1047,6 @@ parse_percent_limit(const struct option *opt, const char *arg,
 
 int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 {
-	int status = -1;
 	char errbuf[BUFSIZ];
 	struct perf_top top = {
 		.count_filter	     = 5,
@@ -1160,6 +1164,10 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		"perf top [<options>]",
 		NULL
 	};
+	int status = hists__init();
+
+	if (status < 0)
+		return status;
 
 	top.evlist = perf_evlist__new();
 	if (top.evlist == NULL)

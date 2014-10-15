@@ -327,6 +327,7 @@ static int diff__process_sample_event(struct perf_tool *tool __maybe_unused,
 				      struct machine *machine)
 {
 	struct addr_location al;
+	struct hists *hists = evsel__hists(evsel);
 
 	if (perf_event__preprocess_sample(event, machine, &al, sample) < 0) {
 		pr_warning("problem processing %d event, skipping it.\n",
@@ -334,7 +335,7 @@ static int diff__process_sample_event(struct perf_tool *tool __maybe_unused,
 		return -1;
 	}
 
-	if (hists__add_entry(&evsel->hists, &al, sample->period,
+	if (hists__add_entry(hists, &al, sample->period,
 			     sample->weight, sample->transaction)) {
 		pr_warning("problem incrementing symbol period, skipping event\n");
 		return -1;
@@ -346,9 +347,9 @@ static int diff__process_sample_event(struct perf_tool *tool __maybe_unused,
 	 * hists__output_resort() and precompute needs the total
 	 * period in order to sort entries by percentage delta.
 	 */
-	evsel->hists.stats.total_period += sample->period;
+	hists->stats.total_period += sample->period;
 	if (!al.filtered)
-		evsel->hists.stats.total_non_filtered_period += sample->period;
+		hists->stats.total_non_filtered_period += sample->period;
 
 	return 0;
 }
@@ -382,7 +383,7 @@ static void perf_evlist__collapse_resort(struct perf_evlist *evlist)
 	struct perf_evsel *evsel;
 
 	evlist__for_each(evlist, evsel) {
-		struct hists *hists = &evsel->hists;
+		struct hists *hists = evsel__hists(evsel);
 
 		hists__collapse_resort(hists, NULL);
 	}
@@ -631,24 +632,26 @@ static void data_process(void)
 	bool first = true;
 
 	evlist__for_each(evlist_base, evsel_base) {
+		struct hists *hists_base = evsel__hists(evsel_base);
 		struct data__file *d;
 		int i;
 
 		data__for_each_file_new(i, d) {
 			struct perf_evlist *evlist = d->session->evlist;
 			struct perf_evsel *evsel;
+			struct hists *hists;
 
 			evsel = evsel_match(evsel_base, evlist);
 			if (!evsel)
 				continue;
 
-			d->hists = &evsel->hists;
+			hists = evsel__hists(evsel);
+			d->hists = hists;
 
-			hists__match(&evsel_base->hists, &evsel->hists);
+			hists__match(hists_base, hists);
 
 			if (!show_baseline_only)
-				hists__link(&evsel_base->hists,
-					    &evsel->hists);
+				hists__link(hists_base, hists);
 		}
 
 		fprintf(stdout, "%s# Event '%s'\n#\n", first ? "" : "\n",
@@ -659,7 +662,7 @@ static void data_process(void)
 		if (verbose || data__files_cnt > 2)
 			data__fprintf();
 
-		hists__process(&evsel_base->hists);
+		hists__process(hists_base);
 	}
 }
 

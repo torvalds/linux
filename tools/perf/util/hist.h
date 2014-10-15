@@ -4,11 +4,10 @@
 #include <linux/types.h>
 #include <pthread.h>
 #include "callchain.h"
+#include "evsel.h"
 #include "header.h"
 #include "color.h"
 #include "ui/progress.h"
-
-extern struct callchain_param callchain_param;
 
 struct hist_entry;
 struct addr_location;
@@ -21,32 +20,6 @@ enum hist_filter {
 	HIST_FILTER__SYMBOL,
 	HIST_FILTER__GUEST,
 	HIST_FILTER__HOST,
-};
-
-/*
- * The kernel collects the number of events it couldn't send in a stretch and
- * when possible sends this number in a PERF_RECORD_LOST event. The number of
- * such "chunks" of lost events is stored in .nr_events[PERF_EVENT_LOST] while
- * total_lost tells exactly how many events the kernel in fact lost, i.e. it is
- * the sum of all struct lost_event.lost fields reported.
- *
- * The total_period is needed because by default auto-freq is used, so
- * multipling nr_events[PERF_EVENT_SAMPLE] by a frequency isn't possible to get
- * the total number of low level events, it is necessary to to sum all struct
- * sample_event.period and stash the result in total_period.
- */
-struct events_stats {
-	u64 total_period;
-	u64 total_non_filtered_period;
-	u64 total_lost;
-	u64 total_invalid_chains;
-	u32 nr_events[PERF_RECORD_HEADER_MAX];
-	u32 nr_non_filtered_samples;
-	u32 nr_lost_warned;
-	u32 nr_unknown_events;
-	u32 nr_invalid_chains;
-	u32 nr_unknown_id;
-	u32 nr_unprocessable_samples;
 };
 
 enum hist_column {
@@ -165,6 +138,7 @@ size_t events_stats__fprintf(struct events_stats *stats, FILE *fp);
 
 size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		      int max_cols, float min_pcnt, FILE *fp);
+size_t perf_evlist__fprintf_nr_events(struct perf_evlist *evlist, FILE *fp);
 
 void hists__filter_by_dso(struct hists *hists);
 void hists__filter_by_thread(struct hists *hists);
@@ -184,6 +158,25 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *he);
 
 void hists__match(struct hists *leader, struct hists *other);
 int hists__link(struct hists *leader, struct hists *other);
+
+struct hists_evsel {
+	struct perf_evsel evsel;
+	struct hists	  hists;
+};
+
+static inline struct perf_evsel *hists_to_evsel(struct hists *hists)
+{
+	struct hists_evsel *hevsel = container_of(hists, struct hists_evsel, hists);
+	return &hevsel->evsel;
+}
+
+static inline struct hists *evsel__hists(struct perf_evsel *evsel)
+{
+	struct hists_evsel *hevsel = (struct hists_evsel *)evsel;
+	return &hevsel->hists;
+}
+
+int hists__init(void);
 
 struct perf_hpp {
 	char *buf;
