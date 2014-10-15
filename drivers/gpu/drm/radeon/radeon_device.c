@@ -1126,7 +1126,7 @@ static void radeon_check_arguments(struct radeon_device *rdev)
 	if (radeon_vm_block_size == -1) {
 
 		/* Total bits covered by PD + PTs */
-		unsigned bits = ilog2(radeon_vm_size) + 17;
+		unsigned bits = ilog2(radeon_vm_size) + 18;
 
 		/* Make sure the PD is 4K in size up to 8GB address space.
 		   Above that split equal between PD and PTs */
