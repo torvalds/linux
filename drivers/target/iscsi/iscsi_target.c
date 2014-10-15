@@ -3491,7 +3491,7 @@ iscsit_build_sendtargets_response(struct iscsi_cmd *cmd,
 				len = sprintf(buf, "TargetAddress="
 					"%s:%hu,%hu",
 					inaddr_any ? conn->local_ip : np->np_ip,
-					inaddr_any ? conn->local_port : np->np_port,
+					np->np_port,
 					tpg->tpgt);
 				len += 1;
 
