@@ -1,0 +1,8 @@
+menu "Amlogic touch algorithm Support"
+
+config AML_TOUCH_ALGORITHM_SUPPORT
+    tristate "Amlogic touch algorithm support"
+    help
+        Say y if your touch device need this algorithm support
+
+endmenu
