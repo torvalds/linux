@@ -397,12 +397,23 @@ static int fsl_pwm_init(struct fsl_pwm_chip *fpc)
 	return 0;
 }
 
+static bool fsl_pwm_volatile_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case FTM_CNT:
+		return true;
+	}
+	return false;
+}
+
 static const struct regmap_config fsl_pwm_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
 
 	.max_register = FTM_PWMLOAD,
+	.volatile_reg = fsl_pwm_volatile_reg,
+	.cache_type = REGCACHE_RBTREE,
 };
 
 static int fsl_pwm_probe(struct platform_device *pdev)
