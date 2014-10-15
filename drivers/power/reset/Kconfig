@@ -40,7 +40,7 @@ config POWER_RESET_AXXIA
 
 config POWER_RESET_BRCMSTB
 	bool "Broadcom STB reset driver" if COMPILE_TEST
-	depends on POWER_RESET && ARM
+	depends on ARM
 	default ARCH_BRCMSTB
 	help
 	  This driver provides restart support for ARM-based Broadcom STB
@@ -57,9 +57,17 @@ config POWER_RESET_GPIO
 	  If your board needs a GPIO high/low to power down, say Y and
 	  create a binding in your devicetree.
 
+config POWER_RESET_GPIO_RESTART
+	bool "GPIO restart driver"
+	depends on OF_GPIO
+	help
+	  This driver supports restarting your board via a GPIO line.
+	  If your board needs a GPIO high/low to restart, say Y and
+	  create a binding in your devicetree.
+
 config POWER_RESET_HISI
 	bool "Hisilicon power-off driver"
-	depends on POWER_RESET && ARCH_HISI
+	depends on ARCH_HISI
 	help
 	  Reboot support for Hisilicon boards.
 
@@ -68,6 +76,13 @@ config POWER_RESET_MSM
 	depends on ARCH_QCOM
 	help
 	  Power off and restart support for Qualcomm boards.
+
+config POWER_RESET_LTC2952
+	bool "LTC2952 PowerPath power-off driver"
+	depends on OF_GPIO
+	help
+	  This driver supports an external powerdown trigger and board power
+	  down via the LTC2952. Bindings are made in the device tree.
 
 config POWER_RESET_QNAP
 	bool "QNAP power-off driver"
@@ -91,6 +106,12 @@ config POWER_RESET_SUN6I
 	depends on ARCH_SUNXI
 	help
 	  Reboot support for the Allwinner A31 SoCs.
+
+config POWER_RESET_ST
+	bool "ST restart power-off driver"
+	depends on ARCH_STI
+	help
+	  Power off and reset support for STMicroelectronics boards.
 
 config POWER_RESET_VERSATILE
 	bool "ARM Versatile family reboot driver"
@@ -122,4 +143,12 @@ config POWER_RESET_KEYSTONE
 	help
 	  Reboot support for the KEYSTONE SoCs.
 
+config POWER_RESET_SYSCON
+	bool "Generic SYSCON regmap reset driver"
+	depends on OF
+	select MFD_SYSCON
+	help
+	  Reboot support for generic SYSCON mapped register reset.
+
 endif
+
