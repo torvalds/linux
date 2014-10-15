@@ -147,7 +147,7 @@ struct _lowcore {
 	__u32	softirq_pending;		/* 0x02ec */
 	__u32	percpu_offset;			/* 0x02f0 */
 	__u32	machine_flags;			/* 0x02f4 */
-	__u32	ftrace_func;			/* 0x02f8 */
+	__u8	pad_0x02f8[0x02fc-0x02f8];	/* 0x02f8 */
 	__u32	spinlock_lockval;		/* 0x02fc */
 
 	__u8	pad_0x0300[0x0e00-0x0300];	/* 0x0300 */
@@ -297,7 +297,7 @@ struct _lowcore {
 	__u64	percpu_offset;			/* 0x0378 */
 	__u64	vdso_per_cpu_data;		/* 0x0380 */
 	__u64	machine_flags;			/* 0x0388 */
-	__u64	ftrace_func;			/* 0x0390 */
+	__u8	pad_0x0390[0x0398-0x0390];	/* 0x0390 */
 	__u64	gmap;				/* 0x0398 */
 	__u32	spinlock_lockval;		/* 0x03a0 */
 	__u8	pad_0x03a0[0x0400-0x03a4];	/* 0x03a4 */

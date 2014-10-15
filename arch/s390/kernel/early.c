@@ -12,7 +12,6 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
-#include <linux/ftrace.h>
 #include <linux/lockdep.h>
 #include <linux/module.h>
 #include <linux/pfn.h>
@@ -490,8 +489,5 @@ void __init startup_init(void)
 	detect_machine_facilities();
 	setup_topology();
 	sclp_early_detect();
-#ifdef CONFIG_DYNAMIC_FTRACE
-	S390_lowcore.ftrace_func = (unsigned long)ftrace_caller;
-#endif
 	lockdep_on();
 }
