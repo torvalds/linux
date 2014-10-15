@@ -68,18 +68,23 @@ static int handle_noop(struct kvm_vcpu *vcpu)
 
 static int handle_stop(struct kvm_vcpu *vcpu)
 {
+	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
 	int rc = 0;
-	unsigned int action_bits;
+	uint8_t flags, stop_pending;
 
 	vcpu->stat.exit_stop_request++;
-	trace_kvm_s390_stop_request(vcpu->arch.local_int.action_bits);
 
-	action_bits = vcpu->arch.local_int.action_bits;
+	/* avoid races with the injection/SIGP STOP code */
+	spin_lock(&li->lock);
+	flags = li->irq.stop.flags;
+	stop_pending = kvm_s390_is_stop_irq_pending(vcpu);
+	spin_unlock(&li->lock);
 
-	if (!(action_bits & ACTION_STOP_ON_STOP))
+	trace_kvm_s390_stop_request(stop_pending, flags);
+	if (!stop_pending)
 		return 0;
 
-	if (action_bits & ACTION_STORE_ON_STOP) {
+	if (flags & KVM_S390_STOP_FLAG_STORE_STATUS) {
 		rc = kvm_s390_vcpu_store_status(vcpu,
 						KVM_S390_STORE_STATUS_NOADDR);
 		if (rc)

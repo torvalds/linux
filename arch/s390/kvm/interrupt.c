@@ -159,6 +159,12 @@ static unsigned long deliverable_local_irqs(struct kvm_vcpu *vcpu)
 	if (psw_mchk_disabled(vcpu))
 		active_mask &= ~IRQ_PEND_MCHK_MASK;
 
+	/*
+	 * STOP irqs will never be actively delivered. They are triggered via
+	 * intercept requests and cleared when the stop intercept is performed.
+	 */
+	__clear_bit(IRQ_PEND_SIGP_STOP, &active_mask);
+
 	return active_mask;
 }
 
@@ -186,9 +192,6 @@ static void __reset_intercept_indicators(struct kvm_vcpu *vcpu)
 					       LCTL_CR10 | LCTL_CR11);
 		vcpu->arch.sie_block->ictl |= (ICTL_STCTL | ICTL_PINT);
 	}
-
-	if (vcpu->arch.local_int.action_bits & ACTION_STOP_ON_STOP)
-		atomic_set_mask(CPUSTAT_STOP_INT, &vcpu->arch.sie_block->cpuflags);
 }
 
 static void __set_cpuflag(struct kvm_vcpu *vcpu, u32 flag)
@@ -216,11 +219,18 @@ static void set_intercept_indicators_mchk(struct kvm_vcpu *vcpu)
 		vcpu->arch.sie_block->lctl |= LCTL_CR14;
 }
 
+static void set_intercept_indicators_stop(struct kvm_vcpu *vcpu)
+{
+	if (kvm_s390_is_stop_irq_pending(vcpu))
+		__set_cpuflag(vcpu, CPUSTAT_STOP_INT);
+}
+
 /* Set interception request for non-deliverable local interrupts */
 static void set_intercept_indicators_local(struct kvm_vcpu *vcpu)
 {
 	set_intercept_indicators_ext(vcpu);
 	set_intercept_indicators_mchk(vcpu);
+	set_intercept_indicators_stop(vcpu);
 }
 
 static void __set_intercept_indicator(struct kvm_vcpu *vcpu,
@@ -390,25 +400,6 @@ static int __must_check __deliver_restart(struct kvm_vcpu *vcpu)
 			    &vcpu->arch.sie_block->gpsw, sizeof(psw_t));
 	clear_bit(IRQ_PEND_RESTART, &li->pending_irqs);
 	return rc ? -EFAULT : 0;
-}
-
-static int __must_check __deliver_stop(struct kvm_vcpu *vcpu)
-{
-	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
-	struct kvm_s390_stop_info *stop = &li->irq.stop;
-
-	spin_lock(&li->lock);
-	stop->flags = 0;
-	clear_bit(IRQ_PEND_SIGP_STOP, &li->pending_irqs);
-	spin_unlock(&li->lock);
-
-	VCPU_EVENT(vcpu, 4, "%s", "interrupt: cpu stop");
-	vcpu->stat.deliver_stop_signal++;
-	trace_kvm_s390_deliver_interrupt(vcpu->vcpu_id, KVM_S390_SIGP_STOP,
-					 0, 0);
-
-	__set_cpuflag(vcpu, CPUSTAT_STOP_INT);
-	return 0;
 }
 
 static int __must_check __deliver_set_prefix(struct kvm_vcpu *vcpu)
@@ -712,7 +703,6 @@ static const deliver_irq_t deliver_irq_funcs[] = {
 	[IRQ_PEND_EXT_CLOCK_COMP] = __deliver_ckc,
 	[IRQ_PEND_EXT_CPU_TIMER]  = __deliver_cpu_timer,
 	[IRQ_PEND_RESTART]        = __deliver_restart,
-	[IRQ_PEND_SIGP_STOP]      = __deliver_stop,
 	[IRQ_PEND_SET_PREFIX]     = __deliver_set_prefix,
 	[IRQ_PEND_PFAULT_INIT]    = __deliver_pfault_init,
 };
@@ -781,6 +771,9 @@ int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu)
 		rc = 1;
 
 	if (!rc && kvm_s390_si_ext_call_pending(vcpu))
+		rc = 1;
+
+	if (!rc && kvm_s390_is_stop_irq_pending(vcpu))
 		rc = 1;
 
 	return rc;
@@ -1038,20 +1031,29 @@ static int __inject_set_prefix(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 	return 0;
 }
 
-#define KVM_S390_STOP_SUPP_FLAGS 0
+#define KVM_S390_STOP_SUPP_FLAGS (KVM_S390_STOP_FLAG_STORE_STATUS)
 static int __inject_sigp_stop(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 {
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
 	struct kvm_s390_stop_info *stop = &li->irq.stop;
+	int rc = 0;
 
 	trace_kvm_s390_inject_vcpu(vcpu->vcpu_id, KVM_S390_SIGP_STOP, 0, 0, 2);
 
 	if (irq->u.stop.flags & ~KVM_S390_STOP_SUPP_FLAGS)
 		return -EINVAL;
 
-	li->action_bits |= ACTION_STOP_ON_STOP;
+	if (is_vcpu_stopped(vcpu)) {
+		if (irq->u.stop.flags & KVM_S390_STOP_FLAG_STORE_STATUS)
+			rc = kvm_s390_store_status_unloaded(vcpu,
+						KVM_S390_STORE_STATUS_NOADDR);
+		return rc;
+	}
+
+	if (test_and_set_bit(IRQ_PEND_SIGP_STOP, &li->pending_irqs))
+		return -EBUSY;
 	stop->flags = irq->u.stop.flags;
-	set_bit(IRQ_PEND_SIGP_STOP, &li->pending_irqs);
+	__set_cpuflag(vcpu, CPUSTAT_STOP_INT);
 	return 0;
 }
 
@@ -1337,6 +1339,23 @@ int s390int_to_s390irq(struct kvm_s390_interrupt *s390int,
 		break;
 	}
 	return 0;
+}
+
+int kvm_s390_is_stop_irq_pending(struct kvm_vcpu *vcpu)
+{
+	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
+
+	return test_bit(IRQ_PEND_SIGP_STOP, &li->pending_irqs);
+}
+
+void kvm_s390_clear_stop_irq(struct kvm_vcpu *vcpu)
+{
+	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
+
+	spin_lock(&li->lock);
+	li->irq.stop.flags = 0;
+	clear_bit(IRQ_PEND_SIGP_STOP, &li->pending_irqs);
+	spin_unlock(&li->lock);
 }
 
 int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)

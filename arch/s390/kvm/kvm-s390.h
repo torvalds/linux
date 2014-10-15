@@ -233,6 +233,8 @@ int psw_extint_disabled(struct kvm_vcpu *vcpu);
 void kvm_s390_destroy_adapters(struct kvm *kvm);
 int kvm_s390_si_ext_call_pending(struct kvm_vcpu *vcpu);
 extern struct kvm_device_ops kvm_flic_ops;
+int kvm_s390_is_stop_irq_pending(struct kvm_vcpu *vcpu);
+void kvm_s390_clear_stop_irq(struct kvm_vcpu *vcpu);
 
 /* implemented in guestdbg.c */
 void kvm_s390_backup_guest_per_regs(struct kvm_vcpu *vcpu);

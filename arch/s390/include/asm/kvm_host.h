@@ -383,10 +383,6 @@ struct kvm_s390_interrupt_info {
 	};
 };
 
-/* for local_interrupt.action_flags */
-#define ACTION_STORE_ON_STOP		(1<<0)
-#define ACTION_STOP_ON_STOP		(1<<1)
-
 struct kvm_s390_irq_payload {
 	struct kvm_s390_io_info io;
 	struct kvm_s390_ext_info ext;
@@ -403,7 +399,6 @@ struct kvm_s390_local_interrupt {
 	struct kvm_s390_float_interrupt *float_int;
 	wait_queue_head_t *wq;
 	atomic_t *cpuflags;
-	unsigned int action_bits;
 	DECLARE_BITMAP(sigp_emerg_pending, KVM_MAX_VCPUS);
 	struct kvm_s390_irq_payload irq;
 	unsigned long pending_irqs;
