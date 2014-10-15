@@ -1,0 +1,23 @@
+#
+# TVAFE Device Driver Configuration
+#
+
+
+config TVIN_AFE
+	tristate "Amlogic AFE device driver"
+	default n
+	help
+	  AFE device driver.
+if TVIN_AFE
+   config ADC_DOUBLE_SAMPLING_FOR_SD
+        bool "Enable double sampling function"
+        default n
+        help
+                Adc double sampling for SD.        
+   config TVIN_VBI
+    	tristate "Amlogic TVIN VBI device"
+    	default n
+    	help
+        	VBI devices driver.
+     
+endif 

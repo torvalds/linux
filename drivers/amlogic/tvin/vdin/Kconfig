@@ -1,0 +1,11 @@
+#
+# VDIN Device Driver Configuration
+#
+
+
+config TVIN_VDIN
+	tristate "Amlogic VDIN device driver"
+	default n
+	help
+	  VDIN device driver.
+

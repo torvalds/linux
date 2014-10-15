@@ -1,0 +1,14 @@
+
+config  VIUIN 
+	tristate "Amlogic VIUIN device driver"
+	default n
+	help
+		VIUIN device driver.
+if VIUIN
+   config GAMMA_AUTO_TUNE
+        bool "Enable gamma auto tune function"
+        default n
+        help
+                Auto tune the gamma.
+                
+endif 

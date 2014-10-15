@@ -1,0 +1,10 @@
+#
+# HDMI Rx Device Driver Configuration
+#
+
+
+config TVIN_HDMI
+    tristate "Amlogic HDMI RX device driver"
+    default n
+    help
+      HDMI RX device driver.

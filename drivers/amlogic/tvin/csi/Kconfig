@@ -1,0 +1,11 @@
+#
+# CSI Device Driver Configuration
+#
+
+
+config TVIN_CSI
+	tristate "Amlogic CSI device driver"
+	default y
+	help
+	  CSI device driver.
+

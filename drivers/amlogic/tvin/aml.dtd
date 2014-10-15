@@ -1,0 +1,29 @@
+#ifdef CONFIG_TVIN_VDIN
+//$$ DEVICE="vdin0"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 2 = "reg"
+//$$ L2 PROP_U32 = "irq"
+//$$ L2 PROP_U32 = "vdin_id"
+    vdin0{
+        compatible = "amlogic,vdin";
+        dev_name = "vdin0";
+        status = "ok";
+        reg = <0x11b00000 0x04000000>;
+        irq = <115>;
+        vdin_id = <0>;
+	};
+	
+//$$ DEVICE="vdin1"
+//$$ L2 PROP_STR = "status"
+//$$ L2 PROP_U32 2 = "reg"
+//$$ L2 PROP_U32 = "irq"
+//$$ L2 PROP_U32 = "vdin_id"
+    vdin1{
+        compatible = "amlogic,vdin";
+        dev_name = "vdin1";
+        status = "ok";
+        reg = <0x15b00000 0x04000000>;
+        irq = <117>;
+        vdin_id = <1>;
+	};
+#endif

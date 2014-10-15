@@ -1,0 +1,14 @@
+#
+#Hdmirx It660xin Device Driver Configuration
+#
+config  AM_HDMI_REPEATER
+	bool 
+	default n
+
+config TVIN_IT660X
+    tristate "Amlogic IT660XIN device driver" 
+    default  n
+    select AM_HDMI_REPEATER
+    help
+         Amlogic IT660XIN device driver.
+

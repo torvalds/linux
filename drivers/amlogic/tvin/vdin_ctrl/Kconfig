@@ -1,0 +1,10 @@
+#
+#VDIN Controler Device Driver Configuration
+#
+ 
+config TVIN_VDIN_CTRL
+    tristate "Amlogic VDIN driver level controller" 
+    default  n
+    help
+         Amlogic VDIN Controller device driver.
+

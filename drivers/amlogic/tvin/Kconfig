@@ -1,0 +1,21 @@
+#
+# Amlogic tvin devices configuration
+#
+
+menuconfig TVIN
+	tristate "Amlogic TVIN support"
+	default n
+
+if TVIN
+
+source "../hardware/tvin/vdin/Kconfig"
+source "../hardware/tvin/tvafe/Kconfig"
+source "../hardware/tvin/hdmirx/Kconfig"
+source "../hardware/tvin/bt656/Kconfig"
+source "../hardware/tvin/csi/Kconfig"
+source "../hardware/tvin/viu/Kconfig"
+source "../hardware/tvin/it660x/Kconfig"
+source "../hardware/tvin/isp/Kconfig"
+source "../hardware/tvin/vdin_ctrl/Kconfig"
+endif
+
