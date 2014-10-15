@@ -1,0 +1,6 @@
+config RTL8723AU
+	tristate "Realtek 8723A USB WiFi"
+	depends on USB
+	---help---
+	  Help message of RTL8723AU
+

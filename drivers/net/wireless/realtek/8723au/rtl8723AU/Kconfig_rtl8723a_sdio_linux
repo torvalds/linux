@@ -1,0 +1,5 @@
+config RTL8723AS
+	tristate "Realtek 8723A SDIO WiFi"
+	---help---
+	  Help message of RTL8723AS
+
