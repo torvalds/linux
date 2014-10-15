@@ -331,6 +331,12 @@ follows:
 			    If the property is not present the idle-state must
 			    be considered operational.
 
+	- idle-state-name:
+		Usage: Optional
+		Value type: <string>
+		Definition: A string used as a descriptive name for the idle
+			    state.
+
 	In addition to the properties listed above, a state node may require
 	additional properties specifics to the entry-method defined in the
 	idle-states node, please refer to the entry-method bindings

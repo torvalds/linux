@@ -27,6 +27,7 @@ static int init_state_node(struct cpuidle_state *idle_state,
 {
 	int err;
 	const struct of_device_id *match_id;
+	const char *desc;
 
 	match_id = of_match_node(matches, state_node);
 	if (!match_id)
@@ -73,6 +74,10 @@ static int init_state_node(struct cpuidle_state *idle_state,
 		return -EINVAL;
 	}
 
+	err = of_property_read_string(state_node, "idle-state-name", &desc);
+	if (err)
+		desc = state_node->name;
+
 	idle_state->flags = CPUIDLE_FLAG_TIME_VALID;
 	if (of_property_read_bool(state_node, "local-timer-stop"))
 		idle_state->flags |= CPUIDLE_FLAG_TIMER_STOP;
@@ -82,7 +87,7 @@ static int init_state_node(struct cpuidle_state *idle_state,
 	 *	and desc become string pointers
 	 */
 	strncpy(idle_state->name, state_node->name, CPUIDLE_NAME_LEN - 1);
-	strncpy(idle_state->desc, state_node->name, CPUIDLE_DESC_LEN - 1);
+	strncpy(idle_state->desc, desc, CPUIDLE_DESC_LEN - 1);
 	return 0;
 }
 
