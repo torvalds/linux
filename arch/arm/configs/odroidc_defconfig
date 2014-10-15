@@ -2669,10 +2669,14 @@ CONFIG_MEDIA_ATTACH=y
 #
 # Graphics support
 #
-# CONFIG_DRM is not set
+CONFIG_DRM=y
+CONFIG_DRM_MALI=y
+# CONFIG_DRM_UDL is not set
+# CONFIG_DRM_TILCDC is not set
 CONFIG_ION=y
 # CONFIG_VGASTATE is not set
 # CONFIG_VIDEO_OUTPUT_CONTROL is not set
+CONFIG_HDMI=y
 CONFIG_FB=y
 # CONFIG_FIRMWARE_EDID is not set
 # CONFIG_FB_DDC is not set
