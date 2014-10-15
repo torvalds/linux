@@ -654,6 +654,8 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 			codec_dai->rate = 0;
 	}
 
+	snd_soc_dai_digital_mute(cpu_dai, 1, substream->stream);
+
 	if (cpu_dai->driver->ops->shutdown)
 		cpu_dai->driver->ops->shutdown(substream, cpu_dai);
 
@@ -772,6 +774,7 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 	for (i = 0; i < rtd->num_codecs; i++)
 		snd_soc_dai_digital_mute(rtd->codec_dais[i], 0,
 					 substream->stream);
+	snd_soc_dai_digital_mute(cpu_dai, 0, substream->stream);
 
 out:
 	mutex_unlock(&rtd->pcm_mutex);
