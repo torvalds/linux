@@ -286,7 +286,22 @@ static struct regulator_ops max77802_buck_16_dvs_ops = {
 	.set_suspend_disable	= max77802_set_suspend_disable,
 };
 
-/* BUCKs 2-4, 5, 7-10 */
+/* BUCKs 2-4 */
+static struct regulator_ops max77802_buck_234_ops = {
+	.list_voltage		= regulator_list_voltage_linear,
+	.map_voltage		= regulator_map_voltage_linear,
+	.is_enabled		= regulator_is_enabled_regmap,
+	.enable			= max77802_enable,
+	.disable		= regulator_disable_regmap,
+	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
+	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
+	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
+	.set_ramp_delay		= max77802_set_ramp_delay_2bit,
+	.set_suspend_enable	= max77802_enable,
+	.set_suspend_disable	= max77802_set_suspend_disable,
+};
+
+/* BUCKs 5, 7-10 */
 static struct regulator_ops max77802_buck_dvs_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
@@ -360,7 +375,7 @@ static struct regulator_ops max77802_buck_dvs_ops = {
 	.name		= "BUCK"#num,					\
 	.id		= MAX77802_BUCK##num,				\
 	.supply_name	= "inb"#num,					\
-	.ops		= &max77802_buck_dvs_ops,			\
+	.ops		= &max77802_buck_234_ops,			\
 	.type		= REGULATOR_VOLTAGE,				\
 	.owner		= THIS_MODULE,					\
 	.min_uV		= 600000,					\
