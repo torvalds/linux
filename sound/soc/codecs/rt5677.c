@@ -3104,7 +3104,8 @@ static int rt5677_hw_params(struct snd_pcm_substream *substream,
 	rt5677->lrck[dai->id] = params_rate(params);
 	pre_div = rl6231_get_clk_info(rt5677->sysclk, rt5677->lrck[dai->id]);
 	if (pre_div < 0) {
-		dev_err(codec->dev, "Unsupported clock setting\n");
+		dev_err(codec->dev, "Unsupported clock setting: sysclk=%dHz lrck=%dHz\n",
+			rt5677->sysclk, rt5677->lrck[dai->id]);
 		return -EINVAL;
 	}
 	frame_size = snd_soc_params_to_frame_size(params);
