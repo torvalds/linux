@@ -153,6 +153,10 @@ struct sst_device {
 struct sst_data;
 
 int sst_dsp_init_v2_dpcm(struct snd_soc_platform *platform);
+int sst_send_pipe_gains(struct snd_soc_dai *dai, int stream, int mute);
+int send_ssp_cmd(struct snd_soc_dai *dai, const char *id, bool enable);
+int sst_handle_vb_timer(struct snd_soc_dai *dai, bool enable);
+
 void sst_set_stream_status(struct sst_runtime_stream *stream, int state);
 int sst_fill_stream_params(void *substream, const struct sst_data *ctx,
 			   struct snd_sst_params *str_params, bool is_compress);
