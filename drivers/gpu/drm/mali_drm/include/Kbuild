@@ -1,0 +1,11 @@
+unifdef-y += drm.h drm_sarea.h
+unifdef-y += i810_drm.h
+unifdef-y += i830_drm.h
+unifdef-y += i915_drm.h
+unifdef-y += mga_drm.h
+unifdef-y += r128_drm.h
+unifdef-y += radeon_drm.h
+unifdef-y += sis_drm.h
+unifdef-y += savage_drm.h
+unifdef-y += via_drm.h
+unifdef-y += mali_drm.h
