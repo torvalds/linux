@@ -28,7 +28,7 @@
 #include "osd.h"
 #include <linux/amlogic/vout/vinfo.h>
 #include <linux/amlogic/logo/logo.h>
-#include "../../../../../hardware/arm/gpu/ump/include/ump/ump_kernel_interface.h"
+#include <ump/ump_kernel_interface.h>
 #define  OSD_COUNT 	2 /* we have two osd layer on hardware*/
 
 #define KEYCOLOR_FLAG_TARGET  1
