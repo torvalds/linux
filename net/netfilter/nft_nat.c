@@ -126,38 +126,44 @@ static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	priv->family = family;
 
 	if (tb[NFTA_NAT_REG_ADDR_MIN]) {
-		priv->sreg_addr_min = ntohl(nla_get_be32(
-						tb[NFTA_NAT_REG_ADDR_MIN]));
+		priv->sreg_addr_min =
+			ntohl(nla_get_be32(tb[NFTA_NAT_REG_ADDR_MIN]));
+
 		err = nft_validate_input_register(priv->sreg_addr_min);
 		if (err < 0)
 			return err;
+
+		if (tb[NFTA_NAT_REG_ADDR_MAX]) {
+			priv->sreg_addr_max =
+				ntohl(nla_get_be32(tb[NFTA_NAT_REG_ADDR_MAX]));
+
+			err = nft_validate_input_register(priv->sreg_addr_max);
+			if (err < 0)
+				return err;
+		} else {
+			priv->sreg_addr_max = priv->sreg_addr_min;
+		}
 	}
 
-	if (tb[NFTA_NAT_REG_ADDR_MAX]) {
-		priv->sreg_addr_max = ntohl(nla_get_be32(
-						tb[NFTA_NAT_REG_ADDR_MAX]));
-		err = nft_validate_input_register(priv->sreg_addr_max);
-		if (err < 0)
-			return err;
-	} else
-		priv->sreg_addr_max = priv->sreg_addr_min;
-
 	if (tb[NFTA_NAT_REG_PROTO_MIN]) {
-		priv->sreg_proto_min = ntohl(nla_get_be32(
-						tb[NFTA_NAT_REG_PROTO_MIN]));
+		priv->sreg_proto_min =
+			ntohl(nla_get_be32(tb[NFTA_NAT_REG_PROTO_MIN]));
+
 		err = nft_validate_input_register(priv->sreg_proto_min);
 		if (err < 0)
 			return err;
-	}
 
-	if (tb[NFTA_NAT_REG_PROTO_MAX]) {
-		priv->sreg_proto_max = ntohl(nla_get_be32(
-						tb[NFTA_NAT_REG_PROTO_MAX]));
-		err = nft_validate_input_register(priv->sreg_proto_max);
-		if (err < 0)
-			return err;
-	} else
-		priv->sreg_proto_max = priv->sreg_proto_min;
+		if (tb[NFTA_NAT_REG_PROTO_MAX]) {
+			priv->sreg_proto_max =
+				ntohl(nla_get_be32(tb[NFTA_NAT_REG_PROTO_MAX]));
+
+			err = nft_validate_input_register(priv->sreg_proto_max);
+			if (err < 0)
+				return err;
+		} else {
+			priv->sreg_proto_max = priv->sreg_proto_min;
+		}
+	}
 
 	if (tb[NFTA_NAT_FLAGS]) {
 		priv->flags = ntohl(nla_get_be32(tb[NFTA_NAT_FLAGS]));
