@@ -58,7 +58,6 @@
  */
 #define RBIO_CACHE_READY_BIT	3
 
-
 #define RBIO_CACHE_SIZE 1024
 
 struct btrfs_raid_bio {
@@ -146,6 +145,10 @@ struct btrfs_raid_bio {
 
 	atomic_t refs;
 
+
+	atomic_t stripes_pending;
+
+	atomic_t error;
 	/*
 	 * these are two arrays of pointers.  We allocate the
 	 * rbio big enough to hold them both and setup their
@@ -858,13 +861,13 @@ static void raid_write_end_io(struct bio *bio, int err)
 
 	bio_put(bio);
 
-	if (!atomic_dec_and_test(&rbio->bbio->stripes_pending))
+	if (!atomic_dec_and_test(&rbio->stripes_pending))
 		return;
 
 	err = 0;
 
 	/* OK, we have read all the stripes we need to. */
-	if (atomic_read(&rbio->bbio->error) > rbio->bbio->max_errors)
+	if (atomic_read(&rbio->error) > rbio->bbio->max_errors)
 		err = -EIO;
 
 	rbio_orig_end_io(rbio, err, 0);
@@ -949,6 +952,8 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_root *root,
 	rbio->faila = -1;
 	rbio->failb = -1;
 	atomic_set(&rbio->refs, 1);
+	atomic_set(&rbio->error, 0);
+	atomic_set(&rbio->stripes_pending, 0);
 
 	/*
 	 * the stripe_pages and bio_pages array point to the extra
@@ -1169,7 +1174,7 @@ static noinline void finish_rmw(struct btrfs_raid_bio *rbio)
 	set_bit(RBIO_RMW_LOCKED_BIT, &rbio->flags);
 	spin_unlock_irq(&rbio->bio_list_lock);
 
-	atomic_set(&rbio->bbio->error, 0);
+	atomic_set(&rbio->error, 0);
 
 	/*
 	 * now that we've set rmw_locked, run through the
@@ -1245,8 +1250,8 @@ static noinline void finish_rmw(struct btrfs_raid_bio *rbio)
 		}
 	}
 
-	atomic_set(&bbio->stripes_pending, bio_list_size(&bio_list));
-	BUG_ON(atomic_read(&bbio->stripes_pending) == 0);
+	atomic_set(&rbio->stripes_pending, bio_list_size(&bio_list));
+	BUG_ON(atomic_read(&rbio->stripes_pending) == 0);
 
 	while (1) {
 		bio = bio_list_pop(&bio_list);
@@ -1331,11 +1336,11 @@ static int fail_rbio_index(struct btrfs_raid_bio *rbio, int failed)
 	if (rbio->faila == -1) {
 		/* first failure on this rbio */
 		rbio->faila = failed;
-		atomic_inc(&rbio->bbio->error);
+		atomic_inc(&rbio->error);
 	} else if (rbio->failb == -1) {
 		/* second failure on this rbio */
 		rbio->failb = failed;
-		atomic_inc(&rbio->bbio->error);
+		atomic_inc(&rbio->error);
 	} else {
 		ret = -EIO;
 	}
@@ -1394,11 +1399,11 @@ static void raid_rmw_end_io(struct bio *bio, int err)
 
 	bio_put(bio);
 
-	if (!atomic_dec_and_test(&rbio->bbio->stripes_pending))
+	if (!atomic_dec_and_test(&rbio->stripes_pending))
 		return;
 
 	err = 0;
-	if (atomic_read(&rbio->bbio->error) > rbio->bbio->max_errors)
+	if (atomic_read(&rbio->error) > rbio->bbio->max_errors)
 		goto cleanup;
 
 	/*
@@ -1439,7 +1444,6 @@ static void async_read_rebuild(struct btrfs_raid_bio *rbio)
 static int raid56_rmw_stripe(struct btrfs_raid_bio *rbio)
 {
 	int bios_to_read = 0;
-	struct btrfs_bio *bbio = rbio->bbio;
 	struct bio_list bio_list;
 	int ret;
 	int nr_pages = DIV_ROUND_UP(rbio->stripe_len, PAGE_CACHE_SIZE);
@@ -1455,7 +1459,7 @@ static int raid56_rmw_stripe(struct btrfs_raid_bio *rbio)
 
 	index_rbio_pages(rbio);
 
-	atomic_set(&rbio->bbio->error, 0);
+	atomic_set(&rbio->error, 0);
 	/*
 	 * build a list of bios to read all the missing parts of this
 	 * stripe
@@ -1503,7 +1507,7 @@ static int raid56_rmw_stripe(struct btrfs_raid_bio *rbio)
 	 * the bbio may be freed once we submit the last bio.  Make sure
 	 * not to touch it after that
 	 */
-	atomic_set(&bbio->stripes_pending, bios_to_read);
+	atomic_set(&rbio->stripes_pending, bios_to_read);
 	while (1) {
 		bio = bio_list_pop(&bio_list);
 		if (!bio)
@@ -1917,10 +1921,10 @@ static void raid_recover_end_io(struct bio *bio, int err)
 		set_bio_pages_uptodate(bio);
 	bio_put(bio);
 
-	if (!atomic_dec_and_test(&rbio->bbio->stripes_pending))
+	if (!atomic_dec_and_test(&rbio->stripes_pending))
 		return;
 
-	if (atomic_read(&rbio->bbio->error) > rbio->bbio->max_errors)
+	if (atomic_read(&rbio->error) > rbio->bbio->max_errors)
 		rbio_orig_end_io(rbio, -EIO, 0);
 	else
 		__raid_recover_end_io(rbio);
@@ -1951,7 +1955,7 @@ static int __raid56_parity_recover(struct btrfs_raid_bio *rbio)
 	if (ret)
 		goto cleanup;
 
-	atomic_set(&rbio->bbio->error, 0);
+	atomic_set(&rbio->error, 0);
 
 	/*
 	 * read everything that hasn't failed.  Thanks to the
@@ -1960,7 +1964,7 @@ static int __raid56_parity_recover(struct btrfs_raid_bio *rbio)
 	 */
 	for (stripe = 0; stripe < bbio->num_stripes; stripe++) {
 		if (rbio->faila == stripe || rbio->failb == stripe) {
-			atomic_inc(&rbio->bbio->error);
+			atomic_inc(&rbio->error);
 			continue;
 		}
 
@@ -1990,7 +1994,7 @@ static int __raid56_parity_recover(struct btrfs_raid_bio *rbio)
 		 * were up to date, or we might have no bios to read because
 		 * the devices were gone.
 		 */
-		if (atomic_read(&rbio->bbio->error) <= rbio->bbio->max_errors) {
+		if (atomic_read(&rbio->error) <= rbio->bbio->max_errors) {
 			__raid_recover_end_io(rbio);
 			goto out;
 		} else {
@@ -2002,7 +2006,7 @@ static int __raid56_parity_recover(struct btrfs_raid_bio *rbio)
 	 * the bbio may be freed once we submit the last bio.  Make sure
 	 * not to touch it after that
 	 */
-	atomic_set(&bbio->stripes_pending, bios_to_read);
+	atomic_set(&rbio->stripes_pending, bios_to_read);
 	while (1) {
 		bio = bio_list_pop(&bio_list);
 		if (!bio)
