@@ -1635,129 +1635,6 @@ static int cxgb4i_ddp_init(struct cxgbi_device *cdev)
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_IPV6)
-static int cxgbi_inet6addr_handler(struct notifier_block *this,
-				   unsigned long event, void *data)
-{
-	struct inet6_ifaddr *ifa = data;
-	struct net_device *event_dev = ifa->idev->dev;
-	struct cxgbi_device *cdev;
-	int ret = NOTIFY_DONE;
-
-	if (event_dev->priv_flags & IFF_802_1Q_VLAN)
-		event_dev = vlan_dev_real_dev(event_dev);
-
-	cdev = cxgbi_device_find_by_netdev_rcu(event_dev, NULL);
-
-	if (!cdev)
-		return ret;
-
-	switch (event) {
-	case NETDEV_UP:
-		ret = cxgb4_clip_get(event_dev,
-				     (const struct in6_addr *)
-				     ((ifa)->addr.s6_addr));
-		if (ret < 0)
-			return ret;
-
-		ret = NOTIFY_OK;
-		break;
-
-	case NETDEV_DOWN:
-		cxgb4_clip_release(event_dev,
-				   (const struct in6_addr *)
-				   ((ifa)->addr.s6_addr));
-		ret = NOTIFY_OK;
-		break;
-
-	default:
-		break;
-	}
-
-	return ret;
-}
-
-static struct notifier_block cxgbi_inet6addr_notifier = {
-	.notifier_call = cxgbi_inet6addr_handler
-};
-
-/* Retrieve IPv6 addresses from a root device (bond, vlan) associated with
- * a physical device.
- * The physical device reference is needed to send the actual CLIP command.
- */
-static int update_dev_clip(struct net_device *root_dev, struct net_device *dev)
-{
-	struct inet6_dev *idev = NULL;
-	struct inet6_ifaddr *ifa;
-	int ret = 0;
-
-	idev = __in6_dev_get(root_dev);
-	if (!idev)
-		return ret;
-
-	read_lock_bh(&idev->lock);
-	list_for_each_entry(ifa, &idev->addr_list, if_list) {
-		pr_info("updating the clip for addr %pI6\n",
-			ifa->addr.s6_addr);
-		ret = cxgb4_clip_get(dev, (const struct in6_addr *)
-				     ifa->addr.s6_addr);
-		if (ret < 0)
-			break;
-	}
-
-	read_unlock_bh(&idev->lock);
-	return ret;
-}
-
-static int update_root_dev_clip(struct net_device *dev)
-{
-	struct net_device *root_dev = NULL;
-	int i, ret = 0;
-
-	/* First populate the real net device's IPv6 address */
-	ret = update_dev_clip(dev, dev);
-	if (ret)
-		return ret;
-
-	/* Parse all bond and vlan devices layered on top of the physical dev */
-	root_dev = netdev_master_upper_dev_get(dev);
-	if (root_dev) {
-		ret = update_dev_clip(root_dev, dev);
-		if (ret)
-			return ret;
-	}
-
-	for (i = 0; i < VLAN_N_VID; i++) {
-		root_dev = __vlan_find_dev_deep_rcu(dev, htons(ETH_P_8021Q), i);
-		if (!root_dev)
-			continue;
-
-		ret = update_dev_clip(root_dev, dev);
-		if (ret)
-			break;
-	}
-	return ret;
-}
-
-static void cxgbi_update_clip(struct cxgbi_device *cdev)
-{
-	int i;
-
-	rcu_read_lock();
-
-	for (i = 0; i < cdev->nports; i++) {
-		struct net_device *dev = cdev->ports[i];
-		int ret = 0;
-
-		if (dev)
-			ret = update_root_dev_clip(dev);
-		if (ret < 0)
-			break;
-	}
-	rcu_read_unlock();
-}
-#endif /* IS_ENABLED(CONFIG_IPV6) */
-
 static void *t4_uld_add(const struct cxgb4_lld_info *lldi)
 {
 	struct cxgbi_device *cdev;
@@ -1876,10 +1753,6 @@ static int t4_uld_state_change(void *handle, enum cxgb4_state state)
 	switch (state) {
 	case CXGB4_STATE_UP:
 		pr_info("cdev 0x%p, UP.\n", cdev);
-#if IS_ENABLED(CONFIG_IPV6)
-		cxgbi_update_clip(cdev);
-#endif
-		/* re-initialize */
 		break;
 	case CXGB4_STATE_START_RECOVERY:
 		pr_info("cdev 0x%p, RECOVERY.\n", cdev);
@@ -1910,17 +1783,11 @@ static int __init cxgb4i_init_module(void)
 		return rc;
 	cxgb4_register_uld(CXGB4_ULD_ISCSI, &cxgb4i_uld_info);
 
-#if IS_ENABLED(CONFIG_IPV6)
-	register_inet6addr_notifier(&cxgbi_inet6addr_notifier);
-#endif
 	return 0;
 }
 
 static void __exit cxgb4i_exit_module(void)
 {
-#if IS_ENABLED(CONFIG_IPV6)
-	unregister_inet6addr_notifier(&cxgbi_inet6addr_notifier);
-#endif
 	cxgb4_unregister_uld(CXGB4_ULD_ISCSI);
 	cxgbi_device_unregister_all(CXGBI_FLAG_DEV_T4);
 	cxgbi_iscsi_cleanup(&cxgb4i_iscsi_transport, &cxgb4i_stt);

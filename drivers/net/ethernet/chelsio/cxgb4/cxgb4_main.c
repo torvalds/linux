@@ -4490,6 +4490,13 @@ static int update_root_dev_clip(struct net_device *dev)
 		return ret;
 
 	/* Parse all bond and vlan devices layered on top of the physical dev */
+	root_dev = netdev_master_upper_dev_get_rcu(dev);
+	if (root_dev) {
+		ret = update_dev_clip(root_dev, dev);
+		if (ret)
+			return ret;
+	}
+
 	for (i = 0; i < VLAN_N_VID; i++) {
 		root_dev = __vlan_find_dev_deep_rcu(dev, htons(ETH_P_8021Q), i);
 		if (!root_dev)
