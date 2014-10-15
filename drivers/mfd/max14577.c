@@ -456,8 +456,7 @@ static int max14577_i2c_probe(struct i2c_client *i2c,
 	}
 
 	ret = mfd_add_devices(max14577->dev, -1, mfd_devs,
-			mfd_devs_size, NULL, 0,
-			regmap_irq_get_domain(max14577->irq_data));
+			mfd_devs_size, NULL, 0, NULL);
 	if (ret < 0)
 		goto err_mfd;
 

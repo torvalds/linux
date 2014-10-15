@@ -157,7 +157,7 @@ static int cros_ec_keyb_get_state(struct cros_ec_keyb *ckdev, uint8_t *kb_state)
 		.insize = ckdev->cols,
 	};
 
-	return ckdev->ec->cmd_xfer(ckdev->ec, &msg);
+	return cros_ec_cmd_xfer(ckdev->ec, &msg);
 }
 
 static irqreturn_t cros_ec_keyb_irq(int irq, void *data)

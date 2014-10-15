@@ -54,6 +54,7 @@
  *	document number TBD : Avoton SoC
  *	document number TBD : Coleto Creek
  *	document number TBD : Wildcat Point-LP
+ *	document number TBD : 9 Series
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -216,6 +217,8 @@ enum lpc_chipsets {
 	LPC_BAYTRAIL,   /* Bay Trail SoC */
 	LPC_COLETO,	/* Coleto Creek */
 	LPC_WPT_LP,	/* Wildcat Point-LP */
+	LPC_BRASWELL,	/* Braswell SoC */
+	LPC_9S,		/* 9 Series */
 };
 
 static struct lpc_ich_info lpc_chipset_info[] = {
@@ -519,6 +522,14 @@ static struct lpc_ich_info lpc_chipset_info[] = {
 		.name = "Wildcat Point_LP",
 		.iTCO_version = 2,
 	},
+	[LPC_BRASWELL] = {
+		.name = "Braswell SoC",
+		.iTCO_version = 3,
+	},
+	[LPC_9S] = {
+		.name = "9 Series",
+		.iTCO_version = 2,
+	},
 };
 
 /*
@@ -745,6 +756,12 @@ static const struct pci_device_id lpc_ich_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x9cc6), LPC_WPT_LP},
 	{ PCI_VDEVICE(INTEL, 0x9cc7), LPC_WPT_LP},
 	{ PCI_VDEVICE(INTEL, 0x9cc9), LPC_WPT_LP},
+	{ PCI_VDEVICE(INTEL, 0x229c), LPC_BRASWELL},
+	{ PCI_VDEVICE(INTEL, 0x8cc1), LPC_9S},
+	{ PCI_VDEVICE(INTEL, 0x8cc2), LPC_9S},
+	{ PCI_VDEVICE(INTEL, 0x8cc3), LPC_9S},
+	{ PCI_VDEVICE(INTEL, 0x8cc4), LPC_9S},
+	{ PCI_VDEVICE(INTEL, 0x8cc6), LPC_9S},
 	{ 0, },			/* End of list */
 };
 MODULE_DEVICE_TABLE(pci, lpc_ich_ids);
