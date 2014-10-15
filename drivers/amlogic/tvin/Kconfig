@@ -8,14 +8,14 @@ menuconfig TVIN
 
 if TVIN
 
-source "../hardware/tvin/vdin/Kconfig"
-source "../hardware/tvin/tvafe/Kconfig"
-source "../hardware/tvin/hdmirx/Kconfig"
-source "../hardware/tvin/bt656/Kconfig"
-source "../hardware/tvin/csi/Kconfig"
-source "../hardware/tvin/viu/Kconfig"
-source "../hardware/tvin/it660x/Kconfig"
-source "../hardware/tvin/isp/Kconfig"
-source "../hardware/tvin/vdin_ctrl/Kconfig"
+source "drivers/amlogic/tvin/vdin/Kconfig"
+source "drivers/amlogic/tvin/tvafe/Kconfig"
+source "drivers/amlogic/tvin/hdmirx/Kconfig"
+source "drivers/amlogic/tvin/bt656/Kconfig"
+source "drivers/amlogic/tvin/csi/Kconfig"
+source "drivers/amlogic/tvin/viu/Kconfig"
+source "drivers/amlogic/tvin/it660x/Kconfig"
+source "drivers/amlogic/tvin/isp/Kconfig"
+source "drivers/amlogic/tvin/vdin_ctrl/Kconfig"
 endif
 
