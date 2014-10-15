@@ -249,8 +249,10 @@ enum bc_port_type usb_battery_charger_detect_inno(bool wait)
 
 	}
 out:
+	/*
 	printk("%s, Charger type %s, %s DCD, dcd_state = %d\n", __func__,
 	       bc_string[port_type], wait ? "wait" : "pass", dcd_state);
+	*/
 	return port_type;
 
 }
