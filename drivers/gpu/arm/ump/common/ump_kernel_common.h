@@ -12,7 +12,7 @@
 #define __UMP_KERNEL_COMMON_H__
 
 #include "ump_kernel_types.h"
-#include "ump_kernel_interface.h"
+#include <ump/ump_kernel_interface.h>
 #include "ump_kernel_descriptor_mapping.h"
 #include "ump_kernel_memory_backend.h"
 

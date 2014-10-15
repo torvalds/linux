@@ -12,7 +12,7 @@
 #define __MALI_MEMORY_TYPES_H__
 
 #if defined(CONFIG_MALI400_UMP)
-#include "ump_kernel_interface.h"
+#include <ump/ump_kernel_interface.h>
 #endif
 
 typedef u32 mali_address_t;

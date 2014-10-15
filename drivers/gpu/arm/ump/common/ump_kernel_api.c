@@ -12,7 +12,7 @@
 #include "mali_osk_list.h"
 #include "ump_osk.h"
 #include "ump_uk_types.h"
-#include "ump_kernel_interface.h"
+#include <ump/ump_kernel_interface.h>
 #include "ump_kernel_common.h"
 
 

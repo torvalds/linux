@@ -66,12 +66,12 @@ ump-y = common/ump_kernel_common.o \
 	linux/ump_ukk_ref_wrappers.o \
 	linux/ump_osk_atomics.o \
 	linux/ump_osk_low_level_mem.o \
-	linux/ump_osk_misc.o \
-	$(UDD_FILE_PREFIX)linux/mali_osk_atomics.o \
-	$(UDD_FILE_PREFIX)linux/mali_osk_locks.o \
-	$(UDD_FILE_PREFIX)linux/mali_osk_memory.o \
-	$(UDD_FILE_PREFIX)linux/mali_osk_math.o \
-	$(UDD_FILE_PREFIX)linux/mali_osk_misc.o
+	linux/ump_osk_misc.o 
+#	$(UDD_FILE_PREFIX)linux/mali_osk_atomics.o \
+#	$(UDD_FILE_PREFIX)linux/mali_osk_locks.o \
+#	$(UDD_FILE_PREFIX)linux/mali_osk_memory.o \
+#	$(UDD_FILE_PREFIX)linux/mali_osk_math.o \
+#	$(UDD_FILE_PREFIX)linux/mali_osk_misc.o
 
 
 obj-$(CONFIG_UMP) := ump.o
