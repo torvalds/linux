@@ -99,7 +99,9 @@ static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 	if (err < 0)
 		return err;
 
-	if (tb[NFTA_NAT_TYPE] == NULL)
+	if (tb[NFTA_NAT_TYPE] == NULL ||
+	    (tb[NFTA_NAT_REG_ADDR_MIN] == NULL &&
+	     tb[NFTA_NAT_REG_PROTO_MIN] == NULL))
 		return -EINVAL;
 
 	switch (ntohl(nla_get_be32(tb[NFTA_NAT_TYPE]))) {
