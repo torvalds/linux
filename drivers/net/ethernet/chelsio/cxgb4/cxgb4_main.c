@@ -4369,6 +4369,7 @@ EXPORT_SYMBOL(cxgb4_unregister_uld);
  * success (true) if it belongs otherwise failure (false).
  * Called with rcu_read_lock() held.
  */
+#if IS_ENABLED(CONFIG_IPV6)
 static bool cxgb4_netdev(const struct net_device *netdev)
 {
 	struct adapter *adap;
@@ -4490,6 +4491,13 @@ static int update_root_dev_clip(struct net_device *dev)
 		return ret;
 
 	/* Parse all bond and vlan devices layered on top of the physical dev */
+	root_dev = netdev_master_upper_dev_get_rcu(dev);
+	if (root_dev) {
+		ret = update_dev_clip(root_dev, dev);
+		if (ret)
+			return ret;
+	}
+
 	for (i = 0; i < VLAN_N_VID; i++) {
 		root_dev = __vlan_find_dev_deep_rcu(dev, htons(ETH_P_8021Q), i);
 		if (!root_dev)
@@ -4522,6 +4530,7 @@ static void update_clip(const struct adapter *adap)
 	}
 	rcu_read_unlock();
 }
+#endif /* IS_ENABLED(CONFIG_IPV6) */
 
 /**
  *	cxgb_up - enable the adapter
@@ -4568,7 +4577,9 @@ static int cxgb_up(struct adapter *adap)
 	t4_intr_enable(adap);
 	adap->flags |= FULL_INIT_DONE;
 	notify_ulds(adap, CXGB4_STATE_UP);
+#if IS_ENABLED(CONFIG_IPV6)
 	update_clip(adap);
+#endif
  out:
 	return err;
  irq_err:
@@ -6862,14 +6873,18 @@ static int __init cxgb4_init_module(void)
 	if (ret < 0)
 		debugfs_remove(cxgb4_debugfs_root);
 
+#if IS_ENABLED(CONFIG_IPV6)
 	register_inet6addr_notifier(&cxgb4_inet6addr_notifier);
+#endif
 
 	return ret;
 }
 
 static void __exit cxgb4_cleanup_module(void)
 {
+#if IS_ENABLED(CONFIG_IPV6)
 	unregister_inet6addr_notifier(&cxgb4_inet6addr_notifier);
+#endif
 	pci_unregister_driver(&cxgb4_driver);
 	debugfs_remove(cxgb4_debugfs_root);  /* NULL ok */
 }
