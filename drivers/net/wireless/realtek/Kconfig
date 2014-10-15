@@ -1,0 +1,11 @@
+source "drivers/net/wireless/realtek/8723au/rtl8723AU/Kconfig"
+source "drivers/net/wireless/realtek/8723bs/Kconfig"
+source "drivers/net/wireless/realtek/8812au/Kconfig"
+source "drivers/net/wireless/realtek/8192cu/Kconfig"
+source "drivers/net/wireless/realtek/8192eu/Kconfig"
+source "drivers/net/wireless/realtek/8811au/Kconfig"
+source "drivers/net/wireless/realtek/8188eu/rtl8xxx_EU_MP/Kconfig"
+source "drivers/net/wireless/realtek/8188eu/rtl8xxx_EU/Kconfig"
+source "drivers/net/wireless/realtek/8189es/Kconfig"
+source "drivers/net/wireless/realtek/8192du/Kconfig"
+
