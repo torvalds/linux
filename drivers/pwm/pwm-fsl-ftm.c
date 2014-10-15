@@ -299,7 +299,7 @@ static int fsl_counter_clock_enable(struct fsl_pwm_chip *fpc)
 {
 	int ret;
 
-	if (fpc->use_count != 0)
+	if (fpc->use_count++ != 0)
 		return 0;
 
 	/* select counter clock source */
@@ -315,8 +315,6 @@ static int fsl_counter_clock_enable(struct fsl_pwm_chip *fpc)
 		clk_disable_unprepare(fpc->clk[fpc->cnt_select]);
 		return ret;
 	}
-
-	fpc->use_count++;
 
 	return 0;
 }
