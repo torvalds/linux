@@ -479,6 +479,8 @@ static int __init arm64_dmi_init(void)
 	 * itself, depends on dmi_scan_machine() having been called already.
 	 */
 	dmi_scan_machine();
+	if (dmi_available)
+		dmi_set_dump_stack_arch_desc();
 	return 0;
 }
 core_initcall(arm64_dmi_init);
