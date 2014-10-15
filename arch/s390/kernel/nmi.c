@@ -54,8 +54,12 @@ void s390_handle_mcck(void)
 	 */
 	local_irq_save(flags);
 	local_mcck_disable();
-	mcck = __get_cpu_var(cpu_mcck);
-	memset(&__get_cpu_var(cpu_mcck), 0, sizeof(struct mcck_struct));
+	/*
+	 * Ummm... Does this make sense at all? Copying the percpu struct
+	 * and then zapping it one statement later?
+	 */
+	memcpy(&mcck, this_cpu_ptr(&cpu_mcck), sizeof(mcck));
+	memset(&mcck, 0, sizeof(struct mcck_struct));
 	clear_cpu_flag(CIF_MCCK_PENDING);
 	local_mcck_enable();
 	local_irq_restore(flags);
@@ -269,7 +273,7 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	nmi_enter();
 	inc_irq_stat(NMI_NMI);
 	mci = (struct mci *) &S390_lowcore.mcck_interruption_code;
-	mcck = &__get_cpu_var(cpu_mcck);
+	mcck = this_cpu_ptr(&cpu_mcck);
 	umode = user_mode(regs);
 
 	if (mci->sd) {

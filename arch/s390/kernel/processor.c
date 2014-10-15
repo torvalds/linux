@@ -23,7 +23,7 @@ static DEFINE_PER_CPU(struct cpuid, cpu_id);
  */
 void cpu_init(void)
 {
-	struct cpuid *id = &__get_cpu_var(cpu_id);
+	struct cpuid *id = this_cpu_ptr(&cpu_id);
 
 	get_cpu_id(id);
 	atomic_inc(&init_mm.mm_count);

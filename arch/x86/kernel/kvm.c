@@ -244,9 +244,9 @@ u32 kvm_read_and_reset_pf_reason(void)
 {
 	u32 reason = 0;
 
-	if (__get_cpu_var(apf_reason).enabled) {
-		reason = __get_cpu_var(apf_reason).reason;
-		__get_cpu_var(apf_reason).reason = 0;
+	if (__this_cpu_read(apf_reason.enabled)) {
+		reason = __this_cpu_read(apf_reason.reason);
+		__this_cpu_write(apf_reason.reason, 0);
 	}
 
 	return reason;
@@ -319,7 +319,7 @@ static void kvm_guest_apic_eoi_write(u32 reg, u32 val)
 	 * there's no need for lock or memory barriers.
 	 * An optimization barrier is implied in apic write.
 	 */
-	if (__test_and_clear_bit(KVM_PV_EOI_BIT, &__get_cpu_var(kvm_apic_eoi)))
+	if (__test_and_clear_bit(KVM_PV_EOI_BIT, this_cpu_ptr(&kvm_apic_eoi)))
 		return;
 	apic_write(APIC_EOI, APIC_EOI_ACK);
 }
@@ -330,13 +330,13 @@ void kvm_guest_cpu_init(void)
 		return;
 
 	if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF) && kvmapf) {
-		u64 pa = slow_virt_to_phys(&__get_cpu_var(apf_reason));
+		u64 pa = slow_virt_to_phys(this_cpu_ptr(&apf_reason));
 
 #ifdef CONFIG_PREEMPT
 		pa |= KVM_ASYNC_PF_SEND_ALWAYS;
 #endif
 		wrmsrl(MSR_KVM_ASYNC_PF_EN, pa | KVM_ASYNC_PF_ENABLED);
-		__get_cpu_var(apf_reason).enabled = 1;
+		__this_cpu_write(apf_reason.enabled, 1);
 		printk(KERN_INFO"KVM setup async PF for cpu %d\n",
 		       smp_processor_id());
 	}
@@ -345,8 +345,8 @@ void kvm_guest_cpu_init(void)
 		unsigned long pa;
 		/* Size alignment is implied but just to make it explicit. */
 		BUILD_BUG_ON(__alignof__(kvm_apic_eoi) < 4);
-		__get_cpu_var(kvm_apic_eoi) = 0;
-		pa = slow_virt_to_phys(&__get_cpu_var(kvm_apic_eoi))
+		__this_cpu_write(kvm_apic_eoi, 0);
+		pa = slow_virt_to_phys(this_cpu_ptr(&kvm_apic_eoi))
 			| KVM_MSR_ENABLED;
 		wrmsrl(MSR_KVM_PV_EOI_EN, pa);
 	}
@@ -357,11 +357,11 @@ void kvm_guest_cpu_init(void)
 
 static void kvm_pv_disable_apf(void)
 {
-	if (!__get_cpu_var(apf_reason).enabled)
+	if (!__this_cpu_read(apf_reason.enabled))
 		return;
 
 	wrmsrl(MSR_KVM_ASYNC_PF_EN, 0);
-	__get_cpu_var(apf_reason).enabled = 0;
+	__this_cpu_write(apf_reason.enabled, 0);
 
 	printk(KERN_INFO"Unregister pv shared memory for cpu %d\n",
 	       smp_processor_id());
@@ -724,7 +724,7 @@ __visible void kvm_lock_spinning(struct arch_spinlock *lock, __ticket_t want)
 	if (in_nmi())
 		return;
 
-	w = &__get_cpu_var(klock_waiting);
+	w = this_cpu_ptr(&klock_waiting);
 	cpu = smp_processor_id();
 	start = spin_time_start();
 

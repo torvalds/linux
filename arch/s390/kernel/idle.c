@@ -21,7 +21,7 @@ static DEFINE_PER_CPU(struct s390_idle_data, s390_idle);
 
 void __kprobes enabled_wait(void)
 {
-	struct s390_idle_data *idle = &__get_cpu_var(s390_idle);
+	struct s390_idle_data *idle = this_cpu_ptr(&s390_idle);
 	unsigned long long idle_time;
 	unsigned long psw_mask;
 

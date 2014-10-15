@@ -474,7 +474,7 @@ void intel_pmu_enable_bts(u64 config)
 
 void intel_pmu_disable_bts(void)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	unsigned long debugctlmsr;
 
 	if (!cpuc->ds)
@@ -491,7 +491,7 @@ void intel_pmu_disable_bts(void)
 
 int intel_pmu_drain_bts_buffer(void)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct debug_store *ds = cpuc->ds;
 	struct bts_record {
 		u64	from;
@@ -669,7 +669,7 @@ struct event_constraint *intel_pebs_constraints(struct perf_event *event)
 
 void intel_pmu_pebs_enable(struct perf_event *event)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct hw_perf_event *hwc = &event->hw;
 
 	hwc->config &= ~ARCH_PERFMON_EVENTSEL_INT;
@@ -684,7 +684,7 @@ void intel_pmu_pebs_enable(struct perf_event *event)
 
 void intel_pmu_pebs_disable(struct perf_event *event)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct hw_perf_event *hwc = &event->hw;
 
 	cpuc->pebs_enabled &= ~(1ULL << hwc->idx);
@@ -702,7 +702,7 @@ void intel_pmu_pebs_disable(struct perf_event *event)
 
 void intel_pmu_pebs_enable_all(void)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 
 	if (cpuc->pebs_enabled)
 		wrmsrl(MSR_IA32_PEBS_ENABLE, cpuc->pebs_enabled);
@@ -710,7 +710,7 @@ void intel_pmu_pebs_enable_all(void)
 
 void intel_pmu_pebs_disable_all(void)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 
 	if (cpuc->pebs_enabled)
 		wrmsrl(MSR_IA32_PEBS_ENABLE, 0);
@@ -718,7 +718,7 @@ void intel_pmu_pebs_disable_all(void)
 
 static int intel_pmu_pebs_fixup_ip(struct pt_regs *regs)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	unsigned long from = cpuc->lbr_entries[0].from;
 	unsigned long old_to, to = cpuc->lbr_entries[0].to;
 	unsigned long ip = regs->ip;
@@ -829,7 +829,7 @@ static void __intel_pmu_pebs_event(struct perf_event *event,
 	 * We cast to the biggest pebs_record but are careful not to
 	 * unconditionally access the 'extra' entries.
 	 */
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct pebs_record_hsw *pebs = __pebs;
 	struct perf_sample_data data;
 	struct pt_regs regs;
@@ -916,7 +916,7 @@ static void __intel_pmu_pebs_event(struct perf_event *event,
 
 static void intel_pmu_drain_pebs_core(struct pt_regs *iregs)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct debug_store *ds = cpuc->ds;
 	struct perf_event *event = cpuc->events[0]; /* PMC0 only */
 	struct pebs_record_core *at, *top;
@@ -957,7 +957,7 @@ static void intel_pmu_drain_pebs_core(struct pt_regs *iregs)
 
 static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct debug_store *ds = cpuc->ds;
 	struct perf_event *event = NULL;
 	void *at, *top;

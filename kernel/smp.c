@@ -165,7 +165,7 @@ static int generic_exec_single(int cpu, struct call_single_data *csd,
 	if (!csd) {
 		csd = &csd_stack;
 		if (!wait)
-			csd = &__get_cpu_var(csd_data);
+			csd = this_cpu_ptr(&csd_data);
 	}
 
 	csd_lock(csd);
@@ -230,7 +230,7 @@ static void flush_smp_call_function_queue(bool warn_cpu_offline)
 
 	WARN_ON(!irqs_disabled());
 
-	head = &__get_cpu_var(call_single_queue);
+	head = this_cpu_ptr(&call_single_queue);
 	entry = llist_del_all(head);
 	entry = llist_reverse_order(entry);
 
@@ -420,7 +420,7 @@ void smp_call_function_many(const struct cpumask *mask,
 		return;
 	}
 
-	cfd = &__get_cpu_var(cfd_data);
+	cfd = this_cpu_ptr(&cfd_data);
 
 	cpumask_and(cfd->cpumask, mask, cpu_online_mask);
 	cpumask_clear_cpu(this_cpu, cfd->cpumask);
