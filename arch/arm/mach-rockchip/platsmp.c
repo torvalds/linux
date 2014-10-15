@@ -155,6 +155,19 @@ static int __init rockchip_smp_prepare_pmu(void)
 	struct device_node *node;
 	void __iomem *pmu_base;
 
+	/*
+	 * This function is only called via smp_ops->smp_prepare_cpu().
+	 * That only happens if a "/cpus" device tree node exists
+	 * and has an "enable-method" property that selects the SMP
+	 * operations defined herein.
+	 */
+	node = of_find_node_by_path("/cpus");
+
+	pmu = syscon_regmap_lookup_by_phandle(node, "rockchip,pmu");
+	of_node_put(node);
+	if (!IS_ERR(pmu))
+		return 0;
+
 	pmu = syscon_regmap_lookup_by_compatible("rockchip,rk3066-pmu");
 	if (!IS_ERR(pmu))
 		return 0;
