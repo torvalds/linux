@@ -16,7 +16,7 @@
 #include <linux/vermagic.h>
 #include <linux/version.h>
 #include <drm/drmP.h>
-#include "../include/mali_drm.h"
+#include "include/mali_drm.h"
 #include "mali_drv.h"
 
 static struct platform_device *dev0;
