@@ -22,8 +22,7 @@
  * @{ */
 
 
-#include "ump_kernel_platform.h"
-
+#include <ump/ump_kernel_platform.h>
 
 #ifdef __cplusplus
 extern "C" {
