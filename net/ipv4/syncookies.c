@@ -317,15 +317,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	/* We throwed the options of the initial SYN away, so we hope
 	 * the ACK carries the same options again (see RFC1122 4.2.3.8)
 	 */
-	if (opt && opt->optlen) {
-		int opt_size = sizeof(struct ip_options_rcu) + opt->optlen;
-
-		ireq->opt = kmalloc(opt_size, GFP_ATOMIC);
-		if (ireq->opt != NULL && __ip_options_echo(&ireq->opt->opt, skb, opt)) {
-			kfree(ireq->opt);
-			ireq->opt = NULL;
-		}
-	}
+	ireq->opt = tcp_v4_save_options(skb);
 
 	if (security_inet_conn_request(sk, skb, req)) {
 		reqsk_free(req);
