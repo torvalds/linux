@@ -166,6 +166,14 @@ int f2fs_write_inline_data(struct inode *inode,
 		return err;
 	ipage = dn.inode_page;
 
+	/* Release any data block if it is allocated */
+	if (!f2fs_has_inline_data(inode)) {
+		int count = ADDRS_PER_PAGE(dn.node_page, F2FS_I(inode));
+		truncate_data_blocks_range(&dn, count);
+		set_inode_flag(F2FS_I(inode), FI_INLINE_DATA);
+		stat_inc_inline_inode(inode);
+	}
+
 	f2fs_wait_on_page_writeback(ipage, NODE);
 	zero_user_segment(ipage, INLINE_DATA_OFFSET,
 				 INLINE_DATA_OFFSET + MAX_INLINE_DATA);
@@ -173,13 +181,6 @@ int f2fs_write_inline_data(struct inode *inode,
 	dst_addr = inline_data_addr(ipage);
 	memcpy(dst_addr, src_addr, size);
 	kunmap(page);
-
-	/* Release the first data block if it is allocated */
-	if (!f2fs_has_inline_data(inode)) {
-		truncate_data_blocks_range(&dn, 1);
-		set_inode_flag(F2FS_I(inode), FI_INLINE_DATA);
-		stat_inc_inline_inode(inode);
-	}
 
 	set_inode_flag(F2FS_I(inode), FI_APPEND_WRITE);
 	sync_inode_page(&dn);
