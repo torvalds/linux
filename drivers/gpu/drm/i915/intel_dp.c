@@ -4498,6 +4498,18 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 	if (intel_dig_port->base.type != INTEL_OUTPUT_EDP)
 		intel_dig_port->base.type = INTEL_OUTPUT_DISPLAYPORT;
 
+	if (long_hpd && intel_dig_port->base.type == INTEL_OUTPUT_EDP) {
+		/*
+		 * vdd off can generate a long pulse on eDP which
+		 * would require vdd on to handle it, and thus we
+		 * would end up in an endless cycle of
+		 * "vdd off -> long hpd -> vdd on -> detect -> vdd off -> ..."
+		 */
+		DRM_DEBUG_KMS("ignoring long hpd on eDP port %c\n",
+			      port_name(intel_dig_port->port));
+		return false;
+	}
+
 	DRM_DEBUG_KMS("got hpd irq on port %c - %s\n",
 		      port_name(intel_dig_port->port),
 		      long_hpd ? "long" : "short");
