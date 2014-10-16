@@ -3363,10 +3363,10 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	if (screen->type == SCREEN_HDMI)
 		printk("hdmi %s lcdc%d\n", enable ? "connect to" : "remove from",
                		dev_drv->id);
-        else if (screen->type == SCREEN_TVOUT)
+        else if (screen->type == SCREEN_TVOUT ||
+		     screen->type == SCREEN_TVOUT_TEST )
         	printk("cvbs %s lcdc%d\n", enable ? "connect to" : "remove from",
                		dev_drv->id);
-
 	if (enable == 2 /*&& dev_drv->enable*/)
 		return 0;
 
