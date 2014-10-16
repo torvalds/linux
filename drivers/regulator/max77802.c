@@ -49,6 +49,7 @@
 #define MAX77802_RAMP_RATE_MASK_4BIT	0xF0
 #define MAX77802_RAMP_RATE_SHIFT_4BIT	4
 
+#define MAX77802_STATUS_OFF		0x0
 #define MAX77802_OFF_PWRREQ		0x1
 #define MAX77802_LP_PWRREQ		0x2
 
@@ -615,7 +616,7 @@ static int max77802_pmic_probe(struct platform_device *pdev)
 		 * the hardware reports OFF as the regulator operating mode.
 		 * Default to operating mode NORMAL in that case.
 		 */
-		if (val == MAX77802_OPMODE_OFF)
+		if (val == MAX77802_STATUS_OFF)
 			max77802->opmode[id] = MAX77802_OPMODE_NORMAL;
 		else
 			max77802->opmode[id] = val;
