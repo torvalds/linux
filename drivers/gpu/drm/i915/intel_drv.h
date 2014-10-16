@@ -592,6 +592,7 @@ struct intel_dp {
 	 * this port. Only relevant on VLV/CHV.
 	 */
 	enum pipe pps_pipe;
+	struct edp_power_seq pps_delays;
 
 	bool use_tps3;
 	bool can_mst; /* this port supports mst */
