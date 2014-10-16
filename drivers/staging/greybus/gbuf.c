@@ -105,7 +105,7 @@ int greybus_submit_gbuf(struct gbuf *gbuf, gfp_t gfp_mask)
 {
 	struct greybus_host_device *hd = gbuf->connection->hd;
 
-	return hd->driver->submit_gbuf(gbuf, hd, gfp_mask);
+	return hd->driver->submit_gbuf(gbuf, gfp_mask);
 }
 
 int greybus_kill_gbuf(struct gbuf *gbuf)

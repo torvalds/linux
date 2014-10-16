@@ -206,9 +206,9 @@ static struct urb *next_free_urb(struct es1_ap_dev *es1, gfp_t gfp_mask)
 	return urb;
 }
 
-static int submit_gbuf(struct gbuf *gbuf, struct greybus_host_device *hd,
-		       gfp_t gfp_mask)
+static int submit_gbuf(struct gbuf *gbuf, gfp_t gfp_mask)
 {
+	struct greybus_host_device *hd = gbuf->connection->hd;
 	struct es1_ap_dev *es1 = hd_to_es1(hd);
 	struct usb_device *udev = es1->usb_dev;
 	int retval;
