@@ -722,7 +722,6 @@ static int k3_dma_probe(struct platform_device *op)
 	d->slave.device_issue_pending = k3_dma_issue_pending;
 	d->slave.device_control = k3_dma_control;
 	d->slave.copy_align = DMA_ALIGN;
-	d->slave.chancnt = d->dma_requests;
 
 	/* init virtual channel */
 	d->chans = devm_kzalloc(&op->dev,
