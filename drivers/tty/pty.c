@@ -178,13 +178,12 @@ static int pty_get_lock(struct tty_struct *tty, int __user *arg)
 /* Set the packet mode on a pty */
 static int pty_set_pktmode(struct tty_struct *tty, int __user *arg)
 {
-	unsigned long flags;
 	int pktmode;
 
 	if (get_user(pktmode, arg))
 		return -EFAULT;
 
-	spin_lock_irqsave(&tty->ctrl_lock, flags);
+	spin_lock_irq(&tty->ctrl_lock);
 	if (pktmode) {
 		if (!tty->packet) {
 			tty->packet = 1;
@@ -192,7 +191,7 @@ static int pty_set_pktmode(struct tty_struct *tty, int __user *arg)
 		}
 	} else
 		tty->packet = 0;
-	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
+	spin_unlock_irq(&tty->ctrl_lock);
 
 	return 0;
 }
@@ -221,16 +220,15 @@ static int pty_signal(struct tty_struct *tty, int sig)
 static void pty_flush_buffer(struct tty_struct *tty)
 {
 	struct tty_struct *to = tty->link;
-	unsigned long flags;
 
 	if (!to)
 		return;
 	/* tty_buffer_flush(to); FIXME */
 	if (to->packet) {
-		spin_lock_irqsave(&tty->ctrl_lock, flags);
+		spin_lock_irq(&tty->ctrl_lock);
 		tty->ctrl_status |= TIOCPKT_FLUSHWRITE;
 		wake_up_interruptible(&to->read_wait);
-		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
+		spin_unlock_irq(&tty->ctrl_lock);
 	}
 }
 

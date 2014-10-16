@@ -2128,7 +2128,6 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 	int minimum, time;
 	ssize_t retval = 0;
 	long timeout;
-	unsigned long flags;
 	int packet;
 
 	c = job_control(tty, file);
@@ -2174,10 +2173,10 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 			unsigned char cs;
 			if (b != buf)
 				break;
-			spin_lock_irqsave(&tty->link->ctrl_lock, flags);
+			spin_lock_irq(&tty->link->ctrl_lock);
 			cs = tty->link->ctrl_status;
 			tty->link->ctrl_status = 0;
-			spin_unlock_irqrestore(&tty->link->ctrl_lock, flags);
+			spin_unlock_irq(&tty->link->ctrl_lock);
 			if (tty_put_user(tty, cs, b++)) {
 				retval = -EFAULT;
 				b--;
