@@ -2728,6 +2728,10 @@ static void vlv_steal_power_sequencer(struct drm_device *dev,
 		DRM_DEBUG_KMS("stealing pipe %c power sequencer from port %c\n",
 			      pipe_name(pipe), port_name(port));
 
+		WARN(encoder->connectors_active,
+		     "stealing pipe %c power sequencer from active eDP port %c\n",
+		     pipe_name(pipe), port_name(port));
+
 		/* make sure vdd is off before we steal it */
 		vlv_detach_power_sequencer(intel_dp);
 	}
