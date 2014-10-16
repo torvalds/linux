@@ -91,13 +91,8 @@ static const struct host1x_bo_ops tegra_bo_ops = {
 	.kunmap = tegra_bo_kunmap,
 };
 
-static void tegra_bo_destroy(struct drm_device *drm, struct tegra_bo *bo)
-{
-	dma_free_writecombine(drm->dev, bo->gem.size, bo->vaddr, bo->paddr);
-}
-
-struct tegra_bo *tegra_bo_create(struct drm_device *drm, unsigned int size,
-				 unsigned long flags)
+static struct tegra_bo *tegra_bo_alloc_object(struct drm_device *drm,
+					      size_t size)
 {
 	struct tegra_bo *bo;
 	int err;
@@ -109,6 +104,38 @@ struct tegra_bo *tegra_bo_create(struct drm_device *drm, unsigned int size,
 	host1x_bo_init(&bo->base, &tegra_bo_ops);
 	size = round_up(size, PAGE_SIZE);
 
+	err = drm_gem_object_init(drm, &bo->gem, size);
+	if (err < 0)
+		goto free;
+
+	err = drm_gem_create_mmap_offset(&bo->gem);
+	if (err < 0)
+		goto release;
+
+	return bo;
+
+release:
+	drm_gem_object_release(&bo->gem);
+free:
+	kfree(bo);
+	return ERR_PTR(err);
+}
+
+static void tegra_bo_destroy(struct drm_device *drm, struct tegra_bo *bo)
+{
+	dma_free_writecombine(drm->dev, bo->gem.size, bo->vaddr, bo->paddr);
+}
+
+struct tegra_bo *tegra_bo_create(struct drm_device *drm, unsigned int size,
+				 unsigned long flags)
+{
+	struct tegra_bo *bo;
+	int err;
+
+	bo = tegra_bo_alloc_object(drm, size);
+	if (IS_ERR(bo))
+		return bo;
+
 	bo->vaddr = dma_alloc_writecombine(drm->dev, size, &bo->paddr,
 					   GFP_KERNEL | __GFP_NOWARN);
 	if (!bo->vaddr) {
@@ -118,14 +145,6 @@ struct tegra_bo *tegra_bo_create(struct drm_device *drm, unsigned int size,
 		goto err_dma;
 	}
 
-	err = drm_gem_object_init(drm, &bo->gem, size);
-	if (err)
-		goto err_init;
-
-	err = drm_gem_create_mmap_offset(&bo->gem);
-	if (err)
-		goto err_mmap;
-
 	if (flags & DRM_TEGRA_GEM_CREATE_TILED)
 		bo->tiling.mode = TEGRA_BO_TILING_MODE_TILED;
 
@@ -134,10 +153,6 @@ struct tegra_bo *tegra_bo_create(struct drm_device *drm, unsigned int size,
 
 	return bo;
 
-err_mmap:
-	drm_gem_object_release(&bo->gem);
-err_init:
-	tegra_bo_destroy(drm, bo);
 err_dma:
 	kfree(bo);
 
@@ -175,28 +190,16 @@ static struct tegra_bo *tegra_bo_import(struct drm_device *drm,
 {
 	struct dma_buf_attachment *attach;
 	struct tegra_bo *bo;
-	ssize_t size;
 	int err;
 
-	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
-	if (!bo)
-		return ERR_PTR(-ENOMEM);
-
-	host1x_bo_init(&bo->base, &tegra_bo_ops);
-	size = round_up(buf->size, PAGE_SIZE);
-
-	err = drm_gem_object_init(drm, &bo->gem, size);
-	if (err < 0)
-		goto free;
-
-	err = drm_gem_create_mmap_offset(&bo->gem);
-	if (err < 0)
-		goto release;
+	bo = tegra_bo_alloc_object(drm, buf->size);
+	if (IS_ERR(bo))
+		return bo;
 
 	attach = dma_buf_attach(buf, drm->dev);
 	if (IS_ERR(attach)) {
 		err = PTR_ERR(attach);
-		goto free_mmap;
+		goto free;
 	}
 
 	get_dma_buf(buf);
@@ -228,13 +231,9 @@ detach:
 
 	dma_buf_detach(buf, attach);
 	dma_buf_put(buf);
-free_mmap:
-	drm_gem_free_mmap_offset(&bo->gem);
-release:
-	drm_gem_object_release(&bo->gem);
 free:
+	drm_gem_object_release(&bo->gem);
 	kfree(bo);
-
 	return ERR_PTR(err);
 }
 
