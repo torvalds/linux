@@ -265,15 +265,18 @@ SMB3_request_interfaces(const unsigned int xid, struct cifs_tcon *tcon)
 			FSCTL_QUERY_NETWORK_INTERFACE_INFO, true /* is_fsctl */,
 			NULL /* no data input */, 0 /* no data input */,
 			(char **)&out_buf, &ret_data_len);
-
-	if ((rc == 0)  && (ret_data_len > 0)) {
+	if (rc != 0)
+		cifs_dbg(VFS, "error %d on ioctl to get interface list\n", rc);
+	else if (ret_data_len < sizeof(struct network_interface_info_ioctl_rsp)) {
+		cifs_dbg(VFS, "server returned bad net interface info buf\n");
+		rc = -EINVAL;
+	} else {
 		/* Dump info on first interface */
 		cifs_dbg(FYI, "Adapter Capability 0x%x\t",
 			le32_to_cpu(out_buf->Capability));
 		cifs_dbg(FYI, "Link Speed %lld\n",
 			le64_to_cpu(out_buf->LinkSpeed));
-	} else
-		cifs_dbg(VFS, "error %d on ioctl to get interface list\n", rc);
+	}
 
 	return rc;
 }
