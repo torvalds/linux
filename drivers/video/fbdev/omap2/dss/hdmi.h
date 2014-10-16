@@ -316,6 +316,7 @@ int hdmi_wp_init(struct platform_device *pdev, struct hdmi_wp_data *wp);
 /* HDMI PLL funcs */
 int hdmi_pll_enable(struct hdmi_pll_data *pll);
 void hdmi_pll_disable(struct hdmi_pll_data *pll);
+int hdmi_pll_set_config(struct hdmi_pll_data *pll);
 void hdmi_pll_dump(struct hdmi_pll_data *pll, struct seq_file *s);
 void hdmi_pll_compute(struct hdmi_pll_data *pll, unsigned long clkin,
 	unsigned long target_tmds);

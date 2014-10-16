@@ -214,11 +214,16 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 	hdmi_wp_set_irqstatus(&hdmi.wp,
 			hdmi_wp_get_irqstatus(&hdmi.wp));
 
-	/* config the PLL and PHY hdmi_set_pll_pwrfirst */
 	r = hdmi_pll_enable(&hdmi.pll);
 	if (r) {
-		DSSDBG("Failed to lock PLL\n");
+		DSSERR("Failed to enable PLL\n");
 		goto err_pll_enable;
+	}
+
+	r = hdmi_pll_set_config(&hdmi.pll);
+	if (r) {
+		DSSERR("Failed to configure PLL\n");
+		goto err_pll_cfg;
 	}
 
 	r = hdmi_phy_configure(&hdmi.phy, hdmi.pll.info.clkdco,
@@ -259,6 +264,7 @@ err_vid_enable:
 	hdmi_wp_set_phy_pwr(&hdmi.wp, HDMI_PHYPWRCMD_OFF);
 err_phy_pwr:
 err_phy_cfg:
+err_pll_cfg:
 	hdmi_pll_disable(&hdmi.pll);
 err_pll_enable:
 	hdmi_power_off_core(dssdev);

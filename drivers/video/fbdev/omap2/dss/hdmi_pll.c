@@ -103,7 +103,7 @@ void hdmi_pll_compute(struct hdmi_pll_data *pll, unsigned long clkin,
 	pi->clkout = clkout;
 }
 
-static int hdmi_pll_config(struct hdmi_pll_data *pll)
+int hdmi_pll_set_config(struct hdmi_pll_data *pll)
 {
 	u32 r;
 	struct hdmi_pll_info *fmt = &pll->info;
@@ -176,10 +176,6 @@ int hdmi_pll_enable(struct hdmi_pll_data *pll)
 		return r;
 
 	r = hdmi_wp_set_pll_pwr(wp, HDMI_PLLPWRCMD_BOTHON_ALLCLKS);
-	if (r)
-		return r;
-
-	r = hdmi_pll_config(pll);
 	if (r)
 		return r;
 
