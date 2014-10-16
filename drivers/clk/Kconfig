@@ -28,7 +28,7 @@ config COMMON_CLK_WM831X
 	depends on MFD_WM831X
 	---help---
           Supports the clocking subsystem of the WM831x/2x series of
-	  PMICs from Wolfson Microlectronics.
+	  PMICs from Wolfson Microelectronics.
 
 source "drivers/clk/versatile/Kconfig"
 

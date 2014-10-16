@@ -204,5 +204,5 @@ static int __init spics_gpio_init(void)
 subsys_initcall(spics_gpio_init);
 
 MODULE_AUTHOR("Shiraz Hashim <shiraz.linux.kernel@gmail.com>");
-MODULE_DESCRIPTION("ST Microlectronics SPEAr SPI Chip Select Abstraction");
+MODULE_DESCRIPTION("STMicroelectronics SPEAr SPI Chip Select Abstraction");
 MODULE_LICENSE("GPL");
