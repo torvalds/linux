@@ -294,6 +294,7 @@ static void free_hd(struct kref *kref)
 	hd = container_of(kref, struct greybus_host_device, kref);
 
 	kfree(hd);
+	mutex_unlock(&hd_mutex);
 }
 
 struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver,
