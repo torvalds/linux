@@ -2957,6 +2957,15 @@ HVC instruction based PSCI call from the vcpu. The 'type' field describes
 the system-level event type. The 'flags' field describes architecture
 specific flags for the system-level event.
 
+Valid values for 'type' are:
+  KVM_SYSTEM_EVENT_SHUTDOWN -- the guest has requested a shutdown of the
+   VM. Userspace is not obliged to honour this, and if it does honour
+   this does not need to destroy the VM synchronously (ie it may call
+   KVM_RUN again before shutdown finally occurs).
+  KVM_SYSTEM_EVENT_RESET -- the guest has requested a reset of the VM.
+   As with SHUTDOWN, userspace can choose to ignore the request, or
+   to schedule the reset to occur in the future and may call KVM_RUN again.
+
 		/* Fix the size of the union. */
 		char padding[256];
 	};
