@@ -4733,6 +4733,10 @@ intel_dp_init_panel_power_sequencer(struct drm_device *dev,
 
 	lockdep_assert_held(&dev_priv->pps_mutex);
 
+	/* already initialized? */
+	if (final->t11_t12 != 0)
+		return;
+
 	if (HAS_PCH_SPLIT(dev)) {
 		pp_ctrl_reg = PCH_PP_CONTROL;
 		pp_on_reg = PCH_PP_ON_DELAYS;
