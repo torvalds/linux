@@ -1055,7 +1055,7 @@ static const char *get_line_out_pfx(struct hda_codec *codec, int ch,
 
 	/* for a single channel output, we don't have to name the channel */
 	if (cfg->line_outs == 1 && !spec->multi_ios)
-		return "PCM";
+		return "Line Out";
 
 	if (ch >= ARRAY_SIZE(channel_name)) {
 		snd_BUG();
