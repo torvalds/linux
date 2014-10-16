@@ -186,8 +186,9 @@ static int pty_set_pktmode(struct tty_struct *tty, int __user *arg)
 	spin_lock_irq(&tty->ctrl_lock);
 	if (pktmode) {
 		if (!tty->packet) {
-			tty->packet = 1;
 			tty->link->ctrl_status = 0;
+			smp_mb();
+			tty->packet = 1;
 		}
 	} else
 		tty->packet = 0;
