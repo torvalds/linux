@@ -12,16 +12,6 @@
 #include "parse-events.h"
 #include "cpumap.h"
 
-#define UNIT_MAX_LEN	31 /* max length for event unit name */
-
-struct perf_pmu_alias {
-	char *name;
-	struct list_head terms; /* HEAD struct parse_events_term -> list */
-	struct list_head list;  /* ELEM */
-	char unit[UNIT_MAX_LEN+1];
-	double scale;
-};
-
 struct perf_pmu_format {
 	char *name;
 	int value;

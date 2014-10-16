@@ -140,7 +140,7 @@ OPTIONS
     
 		"Overriding previous field request for all events."
     
-	Alternativey, consider the order:
+	Alternatively, consider the order:
     
 		-f comm,tid,time,ip,sym -f trace:
     
