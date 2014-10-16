@@ -305,10 +305,9 @@ static void cport_in_callback(struct urb *urb)
 	if (status)
 		return;
 
-	/* The size has to be more then just an "empty" transfer */
-	if (urb->actual_length <= 2) {
-		dev_err(dev, "%s: \"short\" cport in transfer of %d bytes?\n",
-			__func__, urb->actual_length);
+	/* The size has to be at least one, for the cport id */
+	if (!urb->actual_length) {
+		dev_err(dev, "%s: no cport id in input buffer?\n", __func__);
 		goto exit;
 	}
 
@@ -337,10 +336,6 @@ static void cport_out_callback(struct urb *urb)
 	struct es1_ap_dev *es1 = hd_to_es1(gbuf->connection->hd);
 	unsigned long flags;
 	int i;
-
-	/* If no error, tell the core the gbuf is properly sent */
-	if (!check_urb_status(urb))
-		greybus_gbuf_finished(gbuf);
 
 	/*
 	 * See if this was an urb in our pool, if so mark it "free", otherwise
