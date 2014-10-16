@@ -857,6 +857,14 @@ int rk3036_hdmi_initial(struct hdmi *hdmi_drv)
 	if (!hdmi_drv->uboot_logo) {
 		rk3036_hdmi_reset_pclk();
 		rk3036_hdmi_reset(hdmi_drv);
+	} else {
+		hdmi_drv->hotplug = rk3036_hdmi_detect_hotplug(hdmi_drv);
+		if (hdmi_drv->hotplug == HDMI_HPD_REMOVED) {
+			rk3036_hdmi_removed(hdmi_drv);
+			hdmi_drv->state = HDMI_SLEEP;
+			hdmi_drv->lcdc->uboot_logo = 0;
+			hdmi_drv->uboot_logo = 0;
+		}
 	}
 	if (hdmi_drv->hdcp_power_on_cb)
 		rc = hdmi_drv->hdcp_power_on_cb();

@@ -48,8 +48,8 @@ static void hdmi_sys_show_state(struct hdmi *hdmi)
 
 int hdmi_sys_init(struct hdmi *hdmi)
 {
-	hdmi->uboot_logo = support_uboot_display();
-	if ((uboot_vic > 0) && (hdmi->uboot_logo > 0)) {
+	if (uboot_vic > 0) {
+		hdmi->uboot_logo = support_uboot_display();
 		hdmi->hotplug = HDMI_HPD_ACTIVED;
 		hdmi->state = PLAY_BACK;
 		hdmi->enable = HDMI_ENABLE;
