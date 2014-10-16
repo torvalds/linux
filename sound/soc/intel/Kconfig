@@ -3,6 +3,7 @@ config SND_MFLD_MACHINE
 	depends on INTEL_SCU_IPC
 	select SND_SOC_SN95031
 	select SND_SST_MFLD_PLATFORM
+	select SND_SST_IPC
 	help
           This adds support for ASoC machine driver for Intel(R) MID Medfield platform
           used as alsa device in audio substem in Intel(R) MID devices
@@ -10,6 +11,9 @@ config SND_MFLD_MACHINE
           If unsure select "N".
 
 config SND_SST_MFLD_PLATFORM
+	tristate
+
+config SND_SST_IPC
 	tristate
 
 config SND_SOC_INTEL_SST
