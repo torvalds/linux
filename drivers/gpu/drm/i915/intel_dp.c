@@ -113,6 +113,7 @@ static struct intel_dp *intel_attached_dp(struct drm_connector *connector)
 static void intel_dp_link_down(struct intel_dp *intel_dp);
 static bool edp_panel_vdd_on(struct intel_dp *intel_dp);
 static void edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync);
+static void vlv_init_panel_power_sequencer(struct intel_dp *intel_dp);
 
 int
 intel_dp_max_link_bw(struct intel_dp *intel_dp)
@@ -1539,22 +1540,6 @@ static void edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync)
 		edp_panel_vdd_schedule_off(intel_dp);
 }
 
-/*
- * Must be paired with intel_edp_panel_vdd_on().
- * Nested calls to these functions are not allowed since
- * we drop the lock. Caller must use some higher level
- * locking to prevent nested calls from other threads.
- */
-static void intel_edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync)
-{
-	if (!is_edp(intel_dp))
-		return;
-
-	pps_lock(intel_dp);
-	edp_panel_vdd_off(intel_dp, sync);
-	pps_unlock(intel_dp);
-}
-
 static void edp_panel_on(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
@@ -2552,10 +2537,19 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 	if (WARN_ON(dp_reg & DP_PORT_EN))
 		return;
 
+	pps_lock(intel_dp);
+
+	if (IS_VALLEYVIEW(dev))
+		vlv_init_panel_power_sequencer(intel_dp);
+
 	intel_dp_enable_port(intel_dp);
-	intel_edp_panel_vdd_on(intel_dp);
-	intel_edp_panel_on(intel_dp);
-	intel_edp_panel_vdd_off(intel_dp, true);
+
+	edp_panel_vdd_on(intel_dp);
+	edp_panel_on(intel_dp);
+	edp_panel_vdd_off(intel_dp, true);
+
+	pps_unlock(intel_dp);
+
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 	intel_dp_start_link_train(intel_dp);
 	intel_dp_complete_link_train(intel_dp);
@@ -2633,6 +2627,9 @@ static void vlv_init_panel_power_sequencer(struct intel_dp *intel_dp)
 
 	lockdep_assert_held(&dev_priv->pps_mutex);
 
+	if (!is_edp(intel_dp))
+		return;
+
 	if (intel_dp->pps_pipe == crtc->pipe)
 		return;
 
@@ -2686,12 +2683,6 @@ static void vlv_pre_enable_dp(struct intel_encoder *encoder)
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS_DW23(port), 0x00400888);
 
 	mutex_unlock(&dev_priv->dpio_lock);
-
-	if (is_edp(intel_dp)) {
-		pps_lock(intel_dp);
-		vlv_init_panel_power_sequencer(intel_dp);
-		pps_unlock(intel_dp);
-	}
 
 	intel_enable_dp(encoder);
 
@@ -2786,12 +2777,6 @@ static void chv_pre_enable_dp(struct intel_encoder *encoder)
 	/* FIXME: Fix up value only after power analysis */
 
 	mutex_unlock(&dev_priv->dpio_lock);
-
-	if (is_edp(intel_dp)) {
-		pps_lock(intel_dp);
-		vlv_init_panel_power_sequencer(intel_dp);
-		pps_unlock(intel_dp);
-	}
 
 	intel_enable_dp(encoder);
 
