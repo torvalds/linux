@@ -1038,6 +1038,19 @@ static const char *get_line_out_pfx(struct hda_codec *codec, int ch,
 			break;
 		*index = ch;
 		return "Headphone";
+	case AUTO_PIN_LINE_OUT:
+		/* This deals with the case where we have two DACs and
+		 * one LO, one HP and one Speaker */
+		if (!ch && cfg->speaker_outs && cfg->hp_outs) {
+			bool hp_lo_shared = !path_has_mixer(codec, spec->hp_paths[0], ctl_type);
+			bool spk_lo_shared = !path_has_mixer(codec, spec->speaker_paths[0], ctl_type);
+			if (hp_lo_shared && spk_lo_shared)
+				return spec->vmaster_mute.hook ? "PCM" : "Master";
+			if (hp_lo_shared)
+				return "Headphone+LO";
+			if (spk_lo_shared)
+				return "Speaker+LO";
+		}
 	}
 
 	/* for a single channel output, we don't have to name the channel */
@@ -4524,7 +4537,7 @@ static const char * const slave_pfxs[] = {
 	"CLFE", "Bass Speaker", "PCM",
 	"Speaker Front", "Speaker Surround", "Speaker CLFE", "Speaker Side",
 	"Headphone Front", "Headphone Surround", "Headphone CLFE",
-	"Headphone Side",
+	"Headphone Side", "Headphone+LO", "Speaker+LO",
 	NULL,
 };
 
