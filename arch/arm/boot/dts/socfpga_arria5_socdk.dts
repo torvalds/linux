@@ -37,6 +37,13 @@
 		*/
 		ethernet0 = &gmac1;
 	};
+
+	regulator_3_3v: 3-3-v-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
 };
 
 &gmac1 {
@@ -66,6 +73,11 @@
 		compatible = "dallas,ds1339";
 		reg = <0x68>;
 	};
+};
+
+&mmc0 {
+	vmmc-supply = <&regulator_3_3v>;
+	vqmmc-supply = <&regulator_3_3v>;
 };
 
 &usb1 {
