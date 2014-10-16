@@ -20,6 +20,11 @@
 #define GB_OPERATION_TYPE_RESPONSE	0x80
 
 /*
+ * XXX This needs to be coordinated with host driver parameters
+ */
+#define GB_OPERATION_MESSAGE_SIZE_MAX	4096
+
+/*
  * All operation messages (both requests and responses) begin with
  * a common header that encodes the size of the data (header
  * included).  This header also contains a unique identifier, which
@@ -93,7 +98,7 @@ static void gb_operation_remove(struct gb_operation *operation)
 static struct gb_operation *
 gb_operation_find(struct gb_connection *connection, u16 id)
 {
-	struct gb_operation *operation;
+	struct gb_operation *operation = NULL;
 	struct rb_node *node;
 	bool found = false;
 
@@ -121,10 +126,12 @@ gb_operation_find(struct gb_connection *connection, u16 id)
  */
 void gb_operation_complete(struct gb_operation *operation)
 {
+	/* XXX Should probably report bad status if no callback */
 	if (operation->callback)
 		operation->callback(operation);
 	else
 		complete_all(&operation->completion);
+	gb_operation_destroy(operation);
 }
 
 /*
@@ -142,41 +149,11 @@ int gb_operation_wait(struct gb_operation *operation)
 }
 
 /*
- * Submit an outbound operation.  The caller has filled in any
- * payload so the request message is ready to go.  If non-null,
- * the callback function supplied will be called when the response
- * message has arrived indicating the operation is complete.  A null
- * callback function is used for a synchronous request; return from
- * this function won't occur until the operation is complete (or an
- * interrupt occurs).
- */
-int gb_operation_submit(struct gb_operation *operation,
-			gb_operation_callback callback)
-{
-	int ret;
-
-	/*
-	 * XXX
-	 * I think the order of operations is going to be
-	 * significant, and if so, we may need a mutex to surround
-	 * setting the operation id and submitting the gbuf.
-	 */
-	operation->callback = callback;
-	gb_operation_insert(operation);
-	ret = greybus_submit_gbuf(operation->request, GFP_KERNEL);
-	if (ret)
-		return ret;
-	if (!callback)
-		ret = gb_operation_wait(operation);
-
-	return ret;
-}
-
-/*
  * Called when an operation buffer completes.
  */
 static void gb_operation_gbuf_complete(struct gbuf *gbuf)
 {
+	/* Don't do anything */
 	struct gb_operation *operation;
 	struct gb_operation_msg_hdr *header;
 	u16 id;
@@ -309,4 +286,95 @@ void gb_operation_destroy(struct gb_operation *operation)
 	greybus_free_gbuf(operation->request);
 
 	kfree(operation);
+}
+
+/*
+ * Send an operation request message.  The caller has filled in
+ * any payload so the request message is ready to go.  If non-null,
+ * the callback function supplied will be called when the response
+ * message has arrived indicating the operation is complete.  A null
+ * callback function is used for a synchronous request; return from
+ * this function won't occur until the operation is complete (or an
+ * interrupt occurs).
+ */
+int gb_operation_request_send(struct gb_operation *operation,
+				gb_operation_callback callback)
+{
+	int ret;
+
+	/*
+	 * XXX
+	 * I think the order of operations is going to be
+	 * significant, and if so, we may need a mutex to surround
+	 * setting the operation id and submitting the gbuf.
+	 */
+	operation->callback = callback;
+	gb_operation_insert(operation);
+	ret = greybus_submit_gbuf(operation->request, GFP_KERNEL);
+	if (ret)
+		return ret;
+	if (!callback)
+		ret = gb_operation_wait(operation);
+
+	return ret;
+}
+
+/*
+ * Send a response for an incoming operation request.
+ */
+int gb_operation_response_send(struct gb_operation *operation)
+{
+	/* XXX
+	 * Caller needs to have set operation->response->actual_length
+	 */
+	gb_operation_remove(operation);
+	gb_operation_destroy(operation);
+
+	return 0;
+}
+
+void gb_connection_operation_recv(struct gb_connection *connection,
+				void *data, size_t size)
+{
+	struct gb_operation_msg_hdr *header;
+	struct gb_operation *operation;
+	struct gbuf *gbuf;
+	u16 msg_size;
+
+	if (size > GB_OPERATION_MESSAGE_SIZE_MAX) {
+		gb_connection_err(connection, "message too big");
+		return;
+	}
+
+	header = data;
+	msg_size = le16_to_cpu(header->size);
+	if (header->type & GB_OPERATION_TYPE_RESPONSE) {
+		u16 id = le16_to_cpu(header->id);
+
+		operation = gb_operation_find(connection, id);
+		if (!operation) {
+			gb_connection_err(connection, "operation not found");
+				return;
+		}
+		gb_operation_remove(operation);
+		gbuf = operation->response;
+		if (size > gbuf->transfer_buffer_length) {
+			gb_connection_err(connection, "recv buffer too small");
+			return;
+		}
+	} else {
+		WARN_ON(msg_size != size);
+		operation = gb_operation_create(connection, header->type,
+							msg_size, 0);
+		if (!operation) {
+			gb_connection_err(connection, "can't create operation");
+			return;
+		}
+		gbuf = operation->request;
+	}
+
+	memcpy(gbuf->transfer_buffer, data, msg_size);
+	gbuf->actual_length = msg_size;
+
+	/* XXX And now we let a work queue handle the rest */
 }

@@ -66,10 +66,17 @@ struct gb_operation {
 	void			*response_payload;
 };
 
+void gb_connection_operation_recv(struct gb_connection *connection,
+					void *data, size_t size);
+
 struct gb_operation *gb_operation_create(struct gb_connection *connection,
 					u8 type, size_t request_size,
 					size_t response_size);
 void gb_operation_destroy(struct gb_operation *operation);
+
+int gb_operation_request_send(struct gb_operation *operation,
+				gb_operation_callback callback);
+int gb_operation_response_send(struct gb_operation *operation);
 
 int gb_operation_wait(struct gb_operation *operation);
 void gb_operation_complete(struct gb_operation *operation);

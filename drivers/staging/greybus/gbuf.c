@@ -167,6 +167,7 @@ void greybus_cport_in(struct greybus_host_device *hd, u16 cport_id,
 			"nonexistent connection (%zu bytes dropped)\n", length);
 		return;
 	}
+	gb_connection_operation_recv(connection, data, length);
 
 	/* first check to see if we have a cport handler for this cport */
 	ch = &cport_handler[cport_id];
