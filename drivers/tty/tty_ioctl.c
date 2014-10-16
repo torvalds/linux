@@ -528,6 +528,8 @@ EXPORT_SYMBOL(tty_termios_hw_change);
  *	is a bit of layering violation here with n_tty in terms of the
  *	internal knowledge of this function.
  *
+ *	A master pty's termios should never be set.
+ *
  *	Locking: termios_rwsem
  */
 
@@ -537,6 +539,8 @@ int tty_set_termios(struct tty_struct *tty, struct ktermios *new_termios)
 	struct tty_ldisc *ld;
 	unsigned long flags;
 
+	WARN_ON(tty->driver->type == TTY_DRIVER_TYPE_PTY &&
+		tty->driver->subtype == PTY_TYPE_MASTER);
 	/*
 	 *	Perform the actual termios internal changes under lock.
 	 */
