@@ -38,9 +38,8 @@
 					 * TA_AIDL_BDIS: section 5.5, Table 5-1
 					 */
 /* B-Idle to A-Disconnect */
-#define TA_BIDL_ADIS         (500)	/* TA_BIDL_ADIS: section 5.2.1
-					 * 500ms is used for B switch to host
-					 * for safe
+#define TA_BIDL_ADIS         (160)	/* TA_BIDL_ADIS: section 5.2.1
+					 * 155ms ~ 200 ms
 					 */
 
 #define TA_DP_END             (200)
