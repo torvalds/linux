@@ -2342,8 +2342,6 @@ int uart_register_driver(struct uart_driver *drv)
 
 		tty_port_init(port);
 		port->ops = &uart_port_ops;
-		port->close_delay     = HZ / 2;	/* .5 seconds */
-		port->closing_wait    = 30 * HZ;/* 30 seconds */
 	}
 
 	retval = tty_register_driver(normal);
