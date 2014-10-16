@@ -166,6 +166,7 @@ static int otg_set_state(struct otg_fsm *fsm, enum usb_otg_state new_state)
 		otg_loc_sof(fsm, 0);
 		otg_set_protocol(fsm, PROTO_GADGET);
 		otg_loc_conn(fsm, 1);
+		fsm->b_bus_req = 0;
 		break;
 	case OTG_STATE_B_WAIT_ACON:
 		otg_chrg_vbus(fsm, 0);
