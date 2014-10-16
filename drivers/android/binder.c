@@ -38,7 +38,11 @@
 #include <linux/slab.h>
 #include <linux/pid_namespace.h>
 
-#include "binder.h"
+#ifdef CONFIG_ANDROID_BINDER_IPC_32BIT
+#define BINDER_IPC_32BIT 1
+#endif
+
+#include <uapi/linux/android/binder.h>
 #include "binder_trace.h"
 
 static DEFINE_MUTEX(binder_main_lock);
