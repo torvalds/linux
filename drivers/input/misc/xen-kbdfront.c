@@ -285,7 +285,7 @@ static int xenkbd_connect_backend(struct xenbus_device *dev,
  error_evtchan:
 	xenbus_free_evtchn(dev, evtchn);
  error_grant:
-	gnttab_end_foreign_access_ref(info->gref, 0);
+	gnttab_end_foreign_access(info->gref, 0, 0UL);
 	info->gref = -1;
 	return ret;
 }
@@ -296,7 +296,7 @@ static void xenkbd_disconnect_backend(struct xenkbd_info *info)
 		unbind_from_irqhandler(info->irq, info);
 	info->irq = -1;
 	if (info->gref >= 0)
-		gnttab_end_foreign_access_ref(info->gref, 0);
+		gnttab_end_foreign_access(info->gref, 0, 0UL);
 	info->gref = -1;
 }
 
