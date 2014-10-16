@@ -249,19 +249,12 @@ static struct lowpan_dev *lookup_dev(struct l2cap_conn *conn)
 static int give_skb_to_upper(struct sk_buff *skb, struct net_device *dev)
 {
 	struct sk_buff *skb_cp;
-	int ret;
 
 	skb_cp = skb_copy(skb, GFP_ATOMIC);
 	if (!skb_cp)
 		return -ENOMEM;
 
-	ret = netif_rx(skb_cp);
-	if (ret < 0) {
-		BT_DBG("receive skb %d", ret);
-		return NET_RX_DROP;
-	}
-
-	return ret;
+	return netif_rx(skb_cp);
 }
 
 static int process_data(struct sk_buff *skb, struct net_device *netdev,
