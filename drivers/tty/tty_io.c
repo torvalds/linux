@@ -506,19 +506,18 @@ void proc_clear_tty(struct task_struct *p)
 
 static void __proc_set_tty(struct tty_struct *tty)
 {
-	if (tty) {
-		unsigned long flags;
-		/* We should not have a session or pgrp to put here but.... */
-		spin_lock_irqsave(&tty->ctrl_lock, flags);
-		put_pid(tty->session);
-		put_pid(tty->pgrp);
-		tty->pgrp = get_pid(task_pgrp(current));
-		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
-		tty->session = get_pid(task_session(current));
-		if (current->signal->tty) {
-			printk(KERN_DEBUG "tty not NULL!!\n");
-			tty_kref_put(current->signal->tty);
-		}
+	unsigned long flags;
+
+	/* We should not have a session or pgrp to put here but.... */
+	spin_lock_irqsave(&tty->ctrl_lock, flags);
+	put_pid(tty->session);
+	put_pid(tty->pgrp);
+	tty->pgrp = get_pid(task_pgrp(current));
+	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
+	tty->session = get_pid(task_session(current));
+	if (current->signal->tty) {
+		printk(KERN_DEBUG "tty not NULL!!\n");
+		tty_kref_put(current->signal->tty);
 	}
 	put_pid(current->signal->tty_old_pgrp);
 	current->signal->tty = tty_kref_get(tty);
