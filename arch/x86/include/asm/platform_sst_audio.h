@@ -16,6 +16,9 @@
 
 #include <linux/sfi.h>
 
+#define MAX_NUM_STREAMS_MRFLD	25
+#define MAX_NUM_STREAMS	MAX_NUM_STREAMS_MRFLD
+
 enum sst_audio_task_id_mrfld {
 	SST_TASK_ID_NONE = 0,
 	SST_TASK_ID_SBA = 1,
@@ -73,6 +76,37 @@ struct sst_platform_data {
 	unsigned int strm_map_size;
 };
 
+struct sst_info {
+	u32 iram_start;
+	u32 iram_end;
+	bool iram_use;
+	u32 dram_start;
+	u32 dram_end;
+	bool dram_use;
+	u32 imr_start;
+	u32 imr_end;
+	bool imr_use;
+	u32 mailbox_start;
+	bool use_elf;
+	bool lpe_viewpt_rqd;
+	unsigned int max_streams;
+	u32 dma_max_len;
+	u8 num_probes;
+};
+
+struct sst_lib_dnld_info {
+	unsigned int mod_base;
+	unsigned int mod_end;
+	unsigned int mod_table_offset;
+	unsigned int mod_table_size;
+	bool mod_ddr_dnld;
+};
+
+struct sst_platform_info {
+	const struct sst_info *probe_data;
+	const struct sst_ipc_info *ipc_info;
+	const struct sst_lib_dnld_info *lib_info;
+};
 int add_sst_platform_device(void);
 #endif
 
