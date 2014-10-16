@@ -160,21 +160,33 @@ struct uart_port {
 	/* flags must be updated while holding port mutex */
 	upf_t			flags;
 
-#define UPF_FOURPORT		((__force upf_t) (1 << 1))
-#define UPF_SAK			((__force upf_t) (1 << 2))
-#define UPF_SPD_MASK		((__force upf_t) (0x1030))
-#define UPF_SPD_HI		((__force upf_t) (0x0010))
-#define UPF_SPD_VHI		((__force upf_t) (0x0020))
-#define UPF_SPD_CUST		((__force upf_t) (0x0030))
-#define UPF_SPD_SHI		((__force upf_t) (0x1000))
-#define UPF_SPD_WARP		((__force upf_t) (0x1010))
-#define UPF_SKIP_TEST		((__force upf_t) (1 << 6))
-#define UPF_AUTO_IRQ		((__force upf_t) (1 << 7))
-#define UPF_HARDPPS_CD		((__force upf_t) (1 << 11))
-#define UPF_LOW_LATENCY		((__force upf_t) (1 << 13))
-#define UPF_BUGGY_UART		((__force upf_t) (1 << 14))
+	/*
+	 * These flags must be equivalent to the flags defined in
+	 * include/uapi/linux/tty_flags.h which are the userspace definitions
+	 * assigned from the serial_struct flags in uart_set_info()
+	 * [for bit definitions in the UPF_CHANGE_MASK]
+	 *
+	 * Bits [0..UPF_LAST_USER] are userspace defined/visible/changeable
+	 * except bit 15 (UPF_NO_TXEN_TEST) which is masked off.
+	 * The remaining bits are serial-core specific and not modifiable by
+	 * userspace.
+	 */
+#define UPF_FOURPORT		((__force upf_t) ASYNC_FOURPORT       /* 1  */ )
+#define UPF_SAK			((__force upf_t) ASYNC_SAK            /* 2  */ )
+#define UPF_SPD_HI		((__force upf_t) ASYNC_SPD_HI         /* 4  */ )
+#define UPF_SPD_VHI		((__force upf_t) ASYNC_SPD_VHI        /* 5  */ )
+#define UPF_SPD_CUST		((__force upf_t) ASYNC_SPD_CUST   /* 0x0030 */ )
+#define UPF_SPD_WARP		((__force upf_t) ASYNC_SPD_WARP   /* 0x1010 */ )
+#define UPF_SPD_MASK		((__force upf_t) ASYNC_SPD_MASK   /* 0x1030 */ )
+#define UPF_SKIP_TEST		((__force upf_t) ASYNC_SKIP_TEST      /* 6  */ )
+#define UPF_AUTO_IRQ		((__force upf_t) ASYNC_AUTO_IRQ       /* 7  */ )
+#define UPF_HARDPPS_CD		((__force upf_t) ASYNC_HARDPPS_CD     /* 11 */ )
+#define UPF_SPD_SHI		((__force upf_t) ASYNC_SPD_SHI        /* 12 */ )
+#define UPF_LOW_LATENCY		((__force upf_t) ASYNC_LOW_LATENCY    /* 13 */ )
+#define UPF_BUGGY_UART		((__force upf_t) ASYNC_BUGGY_UART     /* 14 */ )
 #define UPF_NO_TXEN_TEST	((__force upf_t) (1 << 15))
-#define UPF_MAGIC_MULTIPLIER	((__force upf_t) (1 << 16))
+#define UPF_MAGIC_MULTIPLIER	((__force upf_t) ASYNC_MAGIC_MULTIPLIER /* 16 */ )
+
 /* Port has hardware-assisted h/w flow control (iow, auto-RTS *not* auto-CTS) */
 #define UPF_HARD_FLOW		((__force upf_t) (1 << 21))
 /* Port has hardware-assisted s/w flow control */
@@ -190,8 +202,13 @@ struct uart_port {
 #define UPF_DEAD		((__force upf_t) (1 << 30))
 #define UPF_IOREMAP		((__force upf_t) (1 << 31))
 
-#define UPF_CHANGE_MASK		((__force upf_t) (0x17fff))
+#define __UPF_CHANGE_MASK	0x17fff
+#define UPF_CHANGE_MASK		((__force upf_t) __UPF_CHANGE_MASK)
 #define UPF_USR_MASK		((__force upf_t) (UPF_SPD_MASK|UPF_LOW_LATENCY))
+
+#if __UPF_CHANGE_MASK > ASYNC_FLAGS
+#error Change mask not equivalent to userspace-visible bit defines
+#endif
 
 	/* status must be updated while holding port lock */
 	upstat_t		status;

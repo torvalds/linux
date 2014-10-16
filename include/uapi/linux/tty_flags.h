@@ -6,6 +6,8 @@
  * shared by the tty_port flags structures.
  *
  * Define ASYNCB_* for convenient use with {test,set,clear}_bit.
+ *
+ * Bits [0..ASYNCB_LAST_USER] are userspace defined/visible/changeable
  */
 #define ASYNCB_HUP_NOTIFY	 0 /* Notify getty on hangups and closes
 				    * on the callout port */
@@ -26,7 +28,8 @@
 #define ASYNCB_BUGGY_UART	14 /* This is a buggy UART, skip some safety
 				    * checks.  Note: can be dangerous! */
 #define ASYNCB_AUTOPROBE	15 /* Port was autoprobed by PCI or PNP code */
-#define ASYNCB_LAST_USER	15
+#define ASYNCB_MAGIC_MULTIPLIER	16 /* Use special CLK or divisor */
+#define ASYNCB_LAST_USER	16
 
 /* Internal flags used only by kernel */
 #define ASYNCB_INITIALIZED	31 /* Serial port was initialized */
@@ -57,6 +60,7 @@
 #define ASYNC_LOW_LATENCY	(1U << ASYNCB_LOW_LATENCY)
 #define ASYNC_BUGGY_UART	(1U << ASYNCB_BUGGY_UART)
 #define ASYNC_AUTOPROBE		(1U << ASYNCB_AUTOPROBE)
+#define ASYNC_MAGIC_MULTIPLIER	(1U << ASYNCB_MAGIC_MULTIPLIER)
 
 #define ASYNC_FLAGS		((1U << (ASYNCB_LAST_USER + 1)) - 1)
 #define ASYNC_USR_MASK		(ASYNC_SPD_MASK|ASYNC_CALLOUT_NOHUP| \
