@@ -525,8 +525,6 @@ static int bcm2835_dma_chan_init(struct bcm2835_dmadev *d, int chan_id, int irq)
 	vchan_init(&c->vc, &d->ddev);
 	INIT_LIST_HEAD(&c->node);
 
-	d->ddev.chancnt++;
-
 	c->chan_base = BCM2835_DMA_CHANIO(d->base, chan_id);
 	c->ch = chan_id;
 	c->irq_number = irq;
