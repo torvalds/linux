@@ -185,8 +185,8 @@ static int mmc_get_ext_csd(struct mmc_card *card, u8 **new_ext_csd)
 	int err;
 	u8 *ext_csd;
 
-	BUG_ON(!card);
-	BUG_ON(!new_ext_csd);
+	if (!card || !new_ext_csd)
+		return -EINVAL;
 
 	if (!mmc_can_ext_csd(card))
 		return -EOPNOTSUPP;
@@ -367,8 +367,6 @@ static int mmc_decode_ext_csd(struct mmc_card *card, u8 *ext_csd)
 {
 	int err = 0, idx;
 	unsigned int part_size;
-
-	BUG_ON(!card);
 
 	/* Version is coded in the CSD_STRUCTURE byte in the EXT_CSD register */
 	card->ext_csd.raw_ext_csd_structure = ext_csd[EXT_CSD_STRUCTURE];
