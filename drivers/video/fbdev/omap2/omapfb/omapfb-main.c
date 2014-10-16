@@ -1837,6 +1837,9 @@ static void omapfb_free_resources(struct omapfb2_device *fbdev)
 		struct omap_overlay *ovl = fbdev->overlays[i];
 
 		ovl->disable(ovl);
+
+		if (ovl->manager)
+			ovl->unset_manager(ovl);
 	}
 
 	for (i = 0; i < fbdev->num_fbs; i++)
