@@ -3846,8 +3846,6 @@ intel_dp_probe_oui(struct intel_dp *intel_dp)
 	if (!(intel_dp->dpcd[DP_DOWN_STREAM_PORT_COUNT] & DP_OUI_SUPPORT))
 		return;
 
-	intel_edp_panel_vdd_on(intel_dp);
-
 	if (intel_dp_dpcd_read_wake(&intel_dp->aux, DP_SINK_OUI, buf, 3) == 3)
 		DRM_DEBUG_KMS("Sink OUI: %02hx%02hx%02hx\n",
 			      buf[0], buf[1], buf[2]);
@@ -3855,8 +3853,6 @@ intel_dp_probe_oui(struct intel_dp *intel_dp)
 	if (intel_dp_dpcd_read_wake(&intel_dp->aux, DP_BRANCH_OUI, buf, 3) == 3)
 		DRM_DEBUG_KMS("Branch OUI: %02hx%02hx%02hx\n",
 			      buf[0], buf[1], buf[2]);
-
-	intel_edp_panel_vdd_off(intel_dp, false);
 }
 
 static bool
@@ -3870,7 +3866,6 @@ intel_dp_probe_mst(struct intel_dp *intel_dp)
 	if (intel_dp->dpcd[DP_DPCD_REV] < 0x12)
 		return false;
 
-	intel_edp_panel_vdd_on(intel_dp);
 	if (intel_dp_dpcd_read_wake(&intel_dp->aux, DP_MSTM_CAP, buf, 1)) {
 		if (buf[0] & DP_MST_CAP) {
 			DRM_DEBUG_KMS("Sink is MST capable\n");
@@ -3880,7 +3875,6 @@ intel_dp_probe_mst(struct intel_dp *intel_dp)
 			intel_dp->is_mst = false;
 		}
 	}
-	intel_edp_panel_vdd_off(intel_dp, false);
 
 	drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr, intel_dp->is_mst);
 	return intel_dp->is_mst;
@@ -5086,9 +5080,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	intel_edp_panel_vdd_sanitize(intel_encoder);
 
 	/* Cache DPCD and EDID for edp. */
-	intel_edp_panel_vdd_on(intel_dp);
 	has_dpcd = intel_dp_get_dpcd(intel_dp);
-	intel_edp_panel_vdd_off(intel_dp, false);
 
 	if (has_dpcd) {
 		if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11)
