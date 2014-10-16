@@ -138,6 +138,11 @@ static const struct drm_i915_cmd_descriptor common_cmds[] = {
 			.mask = MI_GLOBAL_GTT,
 			.expected = 0,
 	      }},						       ),
+	/*
+	 * MI_BATCH_BUFFER_START requires some special handling. It's not
+	 * really a 'skip' action but it doesn't seem like it's worth adding
+	 * a new action. See i915_parse_cmds().
+	 */
 	CMD(  MI_BATCH_BUFFER_START,            SMI,   !F,  0xFF,   S  ),
 };
 
@@ -955,7 +960,8 @@ static bool check_cmd(const struct intel_engine_cs *ring,
  * Parses the specified batch buffer looking for privilege violations as
  * described in the overview.
  *
- * Return: non-zero if the parser finds violations or otherwise fails
+ * Return: non-zero if the parser finds violations or otherwise fails; -EACCES
+ * if the batch appears legal but should use hardware parsing
  */
 int i915_parse_cmds(struct intel_engine_cs *ring,
 		    struct drm_i915_gem_object *batch_obj,
@@ -999,6 +1005,16 @@ int i915_parse_cmds(struct intel_engine_cs *ring,
 			DRM_DEBUG_DRIVER("CMD: Unrecognized command: 0x%08X\n",
 					 *cmd);
 			ret = -EINVAL;
+			break;
+		}
+
+		/*
+		 * If the batch buffer contains a chained batch, return an
+		 * error that tells the caller to abort and dispatch the
+		 * workload as a non-secure batch.
+		 */
+		if (desc->cmd.value == MI_BATCH_BUFFER_START) {
+			ret = -EACCES;
 			break;
 		}
 

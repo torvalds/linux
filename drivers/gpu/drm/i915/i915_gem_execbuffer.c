@@ -1365,17 +1365,19 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 				      batch_obj,
 				      args->batch_start_offset,
 				      file->is_master);
-		if (ret)
-			goto err;
-
-		/*
-		 * XXX: Actually do this when enabling batch copy...
-		 *
-		 * Set the DISPATCH_SECURE bit to remove the NON_SECURE bit
-		 * from MI_BATCH_BUFFER_START commands issued in the
-		 * dispatch_execbuffer implementations. We specifically don't
-		 * want that set when the command parser is enabled.
-		 */
+		if (ret) {
+			if (ret != -EACCES)
+				goto err;
+		} else {
+			/*
+			 * XXX: Actually do this when enabling batch copy...
+			 *
+			 * Set the DISPATCH_SECURE bit to remove the NON_SECURE bit
+			 * from MI_BATCH_BUFFER_START commands issued in the
+			 * dispatch_execbuffer implementations. We specifically don't
+			 * want that set when the command parser is enabled.
+			 */
+		}
 	}
 
 	/* snb/ivb/vlv conflate the "batch in ppgtt" bit with the "non-secure
