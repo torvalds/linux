@@ -53,6 +53,10 @@
 	rxc-skew-ps = <2000>;
 };
 
+&gpio1 {
+	status = "okay";
+};
+
 &i2c0 {
 	status = "okay";
 
@@ -69,7 +73,7 @@
 };
 
 &mmc0 {
-	cd-gpios = <&gpio1 18 0>;
+	cd-gpios = <&portb 18 0>;
 };
 
 &usb1 {
