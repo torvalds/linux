@@ -20,6 +20,7 @@
 #include <linux/pinctrl/pinmux.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
+#include <linux/slab.h>
 
 #include <dt-bindings/pinctrl/pinctrl-tegra-xusb.h>
 
@@ -171,7 +172,7 @@ static int tegra_xusb_padctl_parse_subnode(struct tegra_xusb_padctl *padctl,
 			if (err == -EINVAL)
 				continue;
 
-			return err;
+			goto out;
 		}
 
 		config = TEGRA_XUSB_PADCTL_PACK(properties[i].param, value);
@@ -179,7 +180,7 @@ static int tegra_xusb_padctl_parse_subnode(struct tegra_xusb_padctl *padctl,
 		err = pinctrl_utils_add_config(padctl->pinctrl, &configs,
 					       &num_configs, config);
 		if (err < 0)
-			return err;
+			goto out;
 	}
 
 	if (function)
@@ -190,14 +191,14 @@ static int tegra_xusb_padctl_parse_subnode(struct tegra_xusb_padctl *padctl,
 
 	err = of_property_count_strings(np, "nvidia,lanes");
 	if (err < 0)
-		return err;
+		goto out;
 
 	reserve *= err;
 
 	err = pinctrl_utils_reserve_map(padctl->pinctrl, maps, reserved_maps,
 					num_maps, reserve);
 	if (err < 0)
-		return err;
+		goto out;
 
 	of_property_for_each_string(np, "nvidia,lanes", prop, group) {
 		if (function) {
@@ -205,7 +206,7 @@ static int tegra_xusb_padctl_parse_subnode(struct tegra_xusb_padctl *padctl,
 					reserved_maps, num_maps, group,
 					function);
 			if (err < 0)
-				return err;
+				goto out;
 		}
 
 		if (num_configs) {
@@ -214,11 +215,15 @@ static int tegra_xusb_padctl_parse_subnode(struct tegra_xusb_padctl *padctl,
 					configs, num_configs,
 					PIN_MAP_TYPE_CONFIGS_GROUP);
 			if (err < 0)
-				return err;
+				goto out;
 		}
 	}
 
-	return 0;
+	err = 0;
+
+out:
+	kfree(configs);
+	return err;
 }
 
 static int tegra_xusb_padctl_dt_node_to_map(struct pinctrl_dev *pinctrl,
