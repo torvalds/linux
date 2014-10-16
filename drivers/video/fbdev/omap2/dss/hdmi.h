@@ -248,6 +248,8 @@ struct hdmi_wp_data {
 struct hdmi_pll_data {
 	void __iomem *base;
 
+	struct hdmi_wp_data *wp;
+
 	struct hdmi_pll_info info;
 };
 
@@ -312,12 +314,13 @@ void hdmi_wp_init_vid_fmt_timings(struct hdmi_video_format *video_fmt,
 int hdmi_wp_init(struct platform_device *pdev, struct hdmi_wp_data *wp);
 
 /* HDMI PLL funcs */
-int hdmi_pll_enable(struct hdmi_pll_data *pll, struct hdmi_wp_data *wp);
-void hdmi_pll_disable(struct hdmi_pll_data *pll, struct hdmi_wp_data *wp);
+int hdmi_pll_enable(struct hdmi_pll_data *pll);
+void hdmi_pll_disable(struct hdmi_pll_data *pll);
 void hdmi_pll_dump(struct hdmi_pll_data *pll, struct seq_file *s);
 void hdmi_pll_compute(struct hdmi_pll_data *pll, unsigned long clkin,
 	unsigned long target_tmds);
-int hdmi_pll_init(struct platform_device *pdev, struct hdmi_pll_data *pll);
+int hdmi_pll_init(struct platform_device *pdev, struct hdmi_pll_data *pll,
+	struct hdmi_wp_data *wp);
 
 /* HDMI PHY funcs */
 int hdmi_phy_configure(struct hdmi_phy_data *phy, unsigned long hfbitclk,

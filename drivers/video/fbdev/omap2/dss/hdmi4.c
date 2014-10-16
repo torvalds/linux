@@ -197,7 +197,7 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 	hdmi_pll_compute(&hdmi.pll, clk_get_rate(hdmi.sys_clk), p->pixelclock);
 
 	/* config the PLL and PHY hdmi_set_pll_pwrfirst */
-	r = hdmi_pll_enable(&hdmi.pll, &hdmi.wp);
+	r = hdmi_pll_enable(&hdmi.pll);
 	if (r) {
 		DSSDBG("Failed to lock PLL\n");
 		goto err_pll_enable;
@@ -241,7 +241,7 @@ err_vid_enable:
 err_phy_cfg:
 	hdmi_wp_set_phy_pwr(&hdmi.wp, HDMI_PHYPWRCMD_OFF);
 err_phy_pwr:
-	hdmi_pll_disable(&hdmi.pll, &hdmi.wp);
+	hdmi_pll_disable(&hdmi.pll);
 err_pll_enable:
 	hdmi_power_off_core(dssdev);
 	return -EIO;
@@ -259,7 +259,7 @@ static void hdmi_power_off_full(struct omap_dss_device *dssdev)
 
 	hdmi_wp_set_phy_pwr(&hdmi.wp, HDMI_PHYPWRCMD_OFF);
 
-	hdmi_pll_disable(&hdmi.pll, &hdmi.wp);
+	hdmi_pll_disable(&hdmi.pll);
 
 	hdmi_power_off_core(dssdev);
 }
@@ -688,7 +688,7 @@ static int omapdss_hdmihw_probe(struct platform_device *pdev)
 	if (r)
 		return r;
 
-	r = hdmi_pll_init(pdev, &hdmi.pll);
+	r = hdmi_pll_init(pdev, &hdmi.pll, &hdmi.wp);
 	if (r)
 		return r;
 

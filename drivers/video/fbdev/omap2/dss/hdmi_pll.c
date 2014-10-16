@@ -166,8 +166,9 @@ static int hdmi_pll_config(struct hdmi_pll_data *pll)
 	return 0;
 }
 
-int hdmi_pll_enable(struct hdmi_pll_data *pll, struct hdmi_wp_data *wp)
+int hdmi_pll_enable(struct hdmi_pll_data *pll)
 {
+	struct hdmi_wp_data *wp = pll->wp;
 	u16 r = 0;
 
 	r = hdmi_wp_set_pll_pwr(wp, HDMI_PLLPWRCMD_ALLOFF);
@@ -185,8 +186,10 @@ int hdmi_pll_enable(struct hdmi_pll_data *pll, struct hdmi_wp_data *wp)
 	return 0;
 }
 
-void hdmi_pll_disable(struct hdmi_pll_data *pll, struct hdmi_wp_data *wp)
+void hdmi_pll_disable(struct hdmi_pll_data *pll)
 {
+	struct hdmi_wp_data *wp = pll->wp;
+
 	hdmi_wp_set_pll_pwr(wp, HDMI_PLLPWRCMD_ALLOFF);
 }
 
@@ -245,10 +248,13 @@ static int hdmi_pll_init_features(struct platform_device *pdev)
 	return 0;
 }
 
-int hdmi_pll_init(struct platform_device *pdev, struct hdmi_pll_data *pll)
+int hdmi_pll_init(struct platform_device *pdev, struct hdmi_pll_data *pll,
+	struct hdmi_wp_data *wp)
 {
 	int r;
 	struct resource *res;
+
+	pll->wp = wp;
 
 	r = hdmi_pll_init_features(pdev);
 	if (r)
