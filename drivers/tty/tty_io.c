@@ -504,7 +504,7 @@ void proc_clear_tty(struct task_struct *p)
 
 /* Called under the sighand lock */
 
-static void __proc_set_tty(struct task_struct *tsk, struct tty_struct *tty)
+static void __proc_set_tty(struct tty_struct *tty)
 {
 	if (tty) {
 		unsigned long flags;
@@ -512,24 +512,24 @@ static void __proc_set_tty(struct task_struct *tsk, struct tty_struct *tty)
 		spin_lock_irqsave(&tty->ctrl_lock, flags);
 		put_pid(tty->session);
 		put_pid(tty->pgrp);
-		tty->pgrp = get_pid(task_pgrp(tsk));
+		tty->pgrp = get_pid(task_pgrp(current));
 		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
-		tty->session = get_pid(task_session(tsk));
-		if (tsk->signal->tty) {
+		tty->session = get_pid(task_session(current));
+		if (current->signal->tty) {
 			printk(KERN_DEBUG "tty not NULL!!\n");
-			tty_kref_put(tsk->signal->tty);
+			tty_kref_put(current->signal->tty);
 		}
 	}
-	put_pid(tsk->signal->tty_old_pgrp);
-	tsk->signal->tty = tty_kref_get(tty);
-	tsk->signal->tty_old_pgrp = NULL;
+	put_pid(current->signal->tty_old_pgrp);
+	current->signal->tty = tty_kref_get(tty);
+	current->signal->tty_old_pgrp = NULL;
 }
 
-static void proc_set_tty(struct task_struct *tsk, struct tty_struct *tty)
+static void proc_set_tty(struct tty_struct *tty)
 {
-	spin_lock_irq(&tsk->sighand->siglock);
-	__proc_set_tty(tsk, tty);
-	spin_unlock_irq(&tsk->sighand->siglock);
+	spin_lock_irq(&current->sighand->siglock);
+	__proc_set_tty(tty);
+	spin_unlock_irq(&current->sighand->siglock);
 }
 
 struct tty_struct *get_current_tty(void)
@@ -2156,7 +2156,7 @@ retry_open:
 	    current->signal->leader &&
 	    !current->signal->tty &&
 	    tty->session == NULL)
-		__proc_set_tty(current, tty);
+		__proc_set_tty(tty);
 	spin_unlock_irq(&current->sighand->siglock);
 	tty_unlock(tty);
 	mutex_unlock(&tty_mutex);
@@ -2482,7 +2482,7 @@ static int tiocsctty(struct tty_struct *tty, int arg)
 			goto unlock;
 		}
 	}
-	proc_set_tty(current, tty);
+	proc_set_tty(tty);
 unlock:
 	mutex_unlock(&tty_mutex);
 	return ret;
