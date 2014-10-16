@@ -113,7 +113,7 @@ static int alloc_gbuf_data(struct gbuf *gbuf, unsigned int size,
 	 * CPort Id before the data; set aside an extra byte for
 	 * that purpose in that case.
 	 */
-	buffer = kmalloc(cport_reserve + size, gfp_mask);
+	buffer = kzalloc(cport_reserve + size, gfp_mask);
 	if (!buffer)
 		return -ENOMEM;
 
