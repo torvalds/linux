@@ -33,6 +33,7 @@
 #include <linux/regulator/of_regulator.h>
 #include <linux/mfd/max77686.h>
 #include <linux/mfd/max77686-private.h>
+#include <dt-bindings/regulator/maxim,max77802.h>
 
 /* Default ramp delay in case it is not manually set */
 #define MAX77802_RAMP_DELAY		100000		/* uV/us */

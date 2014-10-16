@@ -131,13 +131,6 @@ enum max77686_opmode {
 	MAX77686_OPMODE_STANDBY,
 };
 
-enum max77802_opmode {
-	MAX77802_OPMODE_OFF,
-	MAX77802_OPMODE_STANDBY,
-	MAX77802_OPMODE_LP,
-	MAX77802_OPMODE_NORMAL,
-};
-
 struct max77686_opmode_data {
 	int id;
 	int mode;
