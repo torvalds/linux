@@ -266,6 +266,59 @@ bool mipi_dsi_packet_format_is_long(u8 type)
 EXPORT_SYMBOL(mipi_dsi_packet_format_is_long);
 
 /**
+ * mipi_dsi_create_packet - create a packet from a message according to the
+ *     DSI protocol
+ * @packet: pointer to a DSI packet structure
+ * @msg: message to translate into a packet
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int mipi_dsi_create_packet(struct mipi_dsi_packet *packet,
+			   const struct mipi_dsi_msg *msg)
+{
+	const u8 *tx = msg->tx_buf;
+
+	if (!packet || !msg)
+		return -EINVAL;
+
+	/* do some minimum sanity checking */
+	if (!mipi_dsi_packet_format_is_short(msg->type) &&
+	    !mipi_dsi_packet_format_is_long(msg->type))
+		return -EINVAL;
+
+	if (msg->channel > 3)
+		return -EINVAL;
+
+	memset(packet, 0, sizeof(*packet));
+	packet->header[0] = ((msg->channel & 0x3) << 6) | (msg->type & 0x3f);
+
+	/* TODO: compute ECC if hardware support is not available */
+
+	/*
+	 * Long write packets contain the word count in header bytes 1 and 2.
+	 * The payload follows the header and is word count bytes long.
+	 *
+	 * Short write packets encode up to two parameters in header bytes 1
+	 * and 2.
+	 */
+	if (mipi_dsi_packet_format_is_long(msg->type)) {
+		packet->header[1] = (msg->tx_len >> 0) & 0xff;
+		packet->header[2] = (msg->tx_len >> 8) & 0xff;
+
+		packet->payload_length = msg->tx_len;
+		packet->payload = tx;
+	} else {
+		packet->header[1] = (msg->tx_len > 0) ? tx[0] : 0;
+		packet->header[2] = (msg->tx_len > 1) ? tx[1] : 0;
+	}
+
+	packet->size = sizeof(packet->header) + packet->payload_length;
+
+	return 0;
+}
+EXPORT_SYMBOL(mipi_dsi_create_packet);
+
+/**
  * mipi_dsi_dcs_write - send DCS write command
  * @dsi: DSI device
  * @data: pointer to the command followed by parameters

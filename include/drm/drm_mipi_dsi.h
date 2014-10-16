@@ -47,6 +47,24 @@ bool mipi_dsi_packet_format_is_short(u8 type);
 bool mipi_dsi_packet_format_is_long(u8 type);
 
 /**
+ * struct mipi_dsi_packet - represents a MIPI DSI packet in protocol format
+ * @size: size (in bytes) of the packet
+ * @header: the four bytes that make up the header (Data ID, Word Count or
+ *     Packet Data, and ECC)
+ * @payload_length: number of bytes in the payload
+ * @payload: a pointer to a buffer containing the payload, if any
+ */
+struct mipi_dsi_packet {
+	size_t size;
+	u8 header[4];
+	size_t payload_length;
+	const u8 *payload;
+};
+
+int mipi_dsi_create_packet(struct mipi_dsi_packet *packet,
+			   const struct mipi_dsi_msg *msg);
+
+/**
  * struct mipi_dsi_host_ops - DSI bus operations
  * @attach: attach DSI device to DSI host
  * @detach: detach DSI device from DSI host
