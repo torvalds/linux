@@ -1848,6 +1848,8 @@ static int i915_execlists(struct seq_file *m, void *data)
 	if (ret)
 		return ret;
 
+	intel_runtime_pm_get(dev_priv);
+
 	for_each_ring(ring, dev_priv, ring_id) {
 		struct intel_ctx_submit_request *head_req = NULL;
 		int count = 0;
@@ -1899,6 +1901,7 @@ static int i915_execlists(struct seq_file *m, void *data)
 		seq_putc(m, '\n');
 	}
 
+	intel_runtime_pm_put(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
