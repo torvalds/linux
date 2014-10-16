@@ -321,6 +321,52 @@ static void pps_unlock(struct intel_dp *intel_dp)
 	intel_display_power_put(dev_priv, power_domain);
 }
 
+static void
+vlv_power_sequencer_kick(struct intel_dp *intel_dp)
+{
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = intel_dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum pipe pipe = intel_dp->pps_pipe;
+	uint32_t DP;
+
+	if (WARN(I915_READ(intel_dp->output_reg) & DP_PORT_EN,
+		 "skipping pipe %c power seqeuncer kick due to port %c being active\n",
+		 pipe_name(pipe), port_name(intel_dig_port->port)))
+		return;
+
+	DRM_DEBUG_KMS("kicking pipe %c power sequencer for port %c\n",
+		      pipe_name(pipe), port_name(intel_dig_port->port));
+
+	/* Preserve the BIOS-computed detected bit. This is
+	 * supposed to be read-only.
+	 */
+	DP = I915_READ(intel_dp->output_reg) & DP_DETECTED;
+	DP |= DP_VOLTAGE_0_4 | DP_PRE_EMPHASIS_0;
+	DP |= DP_PORT_WIDTH(1);
+	DP |= DP_LINK_TRAIN_PAT_1;
+
+	if (IS_CHERRYVIEW(dev))
+		DP |= DP_PIPE_SELECT_CHV(pipe);
+	else if (pipe == PIPE_B)
+		DP |= DP_PIPEB_SELECT;
+
+	/*
+	 * Similar magic as in intel_dp_enable_port().
+	 * We _must_ do this port enable + disable trick
+	 * to make this power seqeuencer lock onto the port.
+	 * Otherwise even VDD force bit won't work.
+	 */
+	I915_WRITE(intel_dp->output_reg, DP);
+	POSTING_READ(intel_dp->output_reg);
+
+	I915_WRITE(intel_dp->output_reg, DP | DP_PORT_EN);
+	POSTING_READ(intel_dp->output_reg);
+
+	I915_WRITE(intel_dp->output_reg, DP & ~DP_PORT_EN);
+	POSTING_READ(intel_dp->output_reg);
+}
+
 static enum pipe
 vlv_power_sequencer_pipe(struct intel_dp *intel_dp)
 {
@@ -368,6 +414,12 @@ vlv_power_sequencer_pipe(struct intel_dp *intel_dp)
 	/* init power sequencer on this pipe and port */
 	intel_dp_init_panel_power_sequencer(dev, intel_dp);
 	intel_dp_init_panel_power_sequencer_registers(dev, intel_dp);
+
+	/*
+	 * Even vdd force doesn't work until we've made
+	 * the power sequencer lock in on the port.
+	 */
+	vlv_power_sequencer_kick(intel_dp);
 
 	return intel_dp->pps_pipe;
 }
