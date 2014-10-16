@@ -194,6 +194,11 @@
 	 display-timings = <&disp_timings>;
 };
 
+&fb {
+	rockchip,disp-mode = <NO_DUAL>;
+	rockchip,uboot-logo-on = <1>;
+};
+
 &lcdc {
 	status = "okay";
 };
