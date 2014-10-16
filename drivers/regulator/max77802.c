@@ -50,6 +50,7 @@
 #define MAX77802_RAMP_RATE_SHIFT_4BIT	4
 
 #define MAX77802_OFF_PWRREQ		0x1
+#define MAX77802_LP_PWRREQ		0x2
 
 /* MAX77802 has two register formats: 2-bit and 4-bit */
 static const unsigned int ramp_table_77802_2bit[] = {
@@ -148,71 +149,68 @@ static unsigned max77802_get_mode(struct regulator_dev *rdev)
 	return max77802_map_mode(max77802->opmode[id]);
 }
 
-/*
- * Some LDOs supports LPM-ON/OFF/Normal-ON mode during suspend state
- * (Enable Control Logic1 by PWRREQ)
+/**
+ * max77802_set_suspend_mode - set regulator opmode when the system is suspended
+ * @rdev: regulator to change mode
+ * @mode: operating mode to be set
  *
- * LDOs 2, 4-19, 22-35.
+ * Will set the operating mode for the regulators during system suspend.
+ * This function is valid for the three different enable control logics:
  *
+ * Enable Control Logic1 by PWRREQ (BUCK 2-4 and LDOs 2, 4-19, 22-35)
+ * Enable Control Logic2 by PWRREQ (LDOs 1, 20, 21)
+ * Enable Control Logic3 by PWRREQ (LDO 3)
+ *
+ * If setting the regulator mode fails, the function only warns but does
+ * not return an error code to avoid the regulator core to stop setting
+ * the operating mode for the remaining regulators.
  */
-static int max77802_ldo_set_suspend_mode_logic1(struct regulator_dev *rdev,
-						unsigned int mode)
+static int max77802_set_suspend_mode(struct regulator_dev *rdev,
+				     unsigned int mode)
 {
 	struct max77802_regulator_prv *max77802 = rdev_get_drvdata(rdev);
 	int id = rdev_get_id(rdev);
 	unsigned int val;
 	int shift = max77802_get_opmode_shift(id);
 
+	/*
+	 * If the regulator has been disabled for suspend
+	 * then is invalid to try setting a suspend mode.
+	 */
+	if (!max77802->opmode[id] == MAX77802_OFF_PWRREQ) {
+		dev_warn(&rdev->dev, "%s: is disabled, mode: 0x%x not set\n",
+			 rdev->desc->name, mode);
+		return 0;
+	}
+
 	switch (mode) {
-	case REGULATOR_MODE_IDLE:			/* ON in LP Mode */
-		val = MAX77802_OPMODE_LP;
+	case REGULATOR_MODE_STANDBY:
+		/*
+		 * If the regulator opmode is normal then enable
+		 * ON in Low Power Mode by PWRREQ. If the mode is
+		 * already Low Power then no action is required.
+		 */
+		if (max77802->opmode[id] == MAX77802_OPMODE_NORMAL)
+			val = MAX77802_LP_PWRREQ;
+		else
+			return 0;
 		break;
-	case REGULATOR_MODE_NORMAL:			/* ON in Normal Mode */
-		val = MAX77802_OPMODE_NORMAL;
-		break;
-	case REGULATOR_MODE_STANDBY:			/* ON/OFF by PWRREQ */
-		val = MAX77802_OPMODE_STANDBY;
-		break;
+	case REGULATOR_MODE_NORMAL:
+		/*
+		 * If the regulator operating mode is Low Power then
+		 * normal is not a valid opmode in suspend. If the
+		 * mode is already normal then no action is required.
+		 */
+		if (max77802->opmode[id] == MAX77802_OPMODE_LP)
+			dev_warn(&rdev->dev, "%s: in Low Power: 0x%x invalid\n",
+				 rdev->desc->name, mode);
+		return 0;
 	default:
 		dev_warn(&rdev->dev, "%s: regulator mode: 0x%x not supported\n",
 			 rdev->desc->name, mode);
 		return -EINVAL;
 	}
 
-	max77802->opmode[id] = val;
-	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
-				  rdev->desc->enable_mask, val << shift);
-}
-
-/*
- * Mode 1 (Output[ON/OFF] by PWRREQ) is not supported on some LDOs
- * (Enable Control Logic2 by PWRREQ)
- *
- * LDOs 1, 20, 21, and 3,
- *
- */
-static int max77802_ldo_set_suspend_mode_logic2(struct regulator_dev *rdev,
-						unsigned int mode)
-{
-	struct max77802_regulator_prv *max77802 = rdev_get_drvdata(rdev);
-	int id = rdev_get_id(rdev);
-	unsigned int val;
-	int shift = max77802_get_opmode_shift(id);
-
-	switch (mode) {
-	case REGULATOR_MODE_IDLE:			/* ON in LP Mode */
-		val = MAX77802_OPMODE_LP;
-		break;
-	case REGULATOR_MODE_NORMAL:			/* ON in Normal Mode */
-		val = MAX77802_OPMODE_NORMAL;
-		break;
-	default:
-		dev_warn(&rdev->dev, "%s: regulator mode: 0x%x not supported\n",
-			 rdev->desc->name, mode);
-		return -EINVAL;
-	}
-
-	max77802->opmode[id] = val;
 	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
 				  rdev->desc->enable_mask, val << shift);
 }
@@ -297,7 +295,7 @@ static struct regulator_ops max77802_ldo_ops_logic1 = {
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
 	.set_suspend_enable	= max77802_enable,
 	.set_suspend_disable	= max77802_set_suspend_disable,
-	.set_suspend_mode	= max77802_ldo_set_suspend_mode_logic1,
+	.set_suspend_mode	= max77802_set_suspend_mode,
 };
 
 /*
@@ -314,7 +312,7 @@ static struct regulator_ops max77802_ldo_ops_logic2 = {
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
 	.set_mode		= max77802_set_mode,
 	.get_mode		= max77802_get_mode,
-	.set_suspend_mode	= max77802_ldo_set_suspend_mode_logic2,
+	.set_suspend_mode	= max77802_set_suspend_mode,
 };
 
 /* BUCKS 1, 6 */
@@ -345,6 +343,7 @@ static struct regulator_ops max77802_buck_234_ops = {
 	.set_ramp_delay		= max77802_set_ramp_delay_2bit,
 	.set_suspend_enable	= max77802_enable,
 	.set_suspend_disable	= max77802_set_suspend_disable,
+	.set_suspend_mode	= max77802_set_suspend_mode,
 };
 
 /* BUCKs 5, 7-10 */
