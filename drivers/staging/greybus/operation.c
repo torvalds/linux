@@ -24,6 +24,9 @@
  */
 #define GB_OPERATION_MESSAGE_SIZE_MAX	4096
 
+/* Workqueue to handle Greybus operation completions. */
+static struct workqueue_struct *gb_operation_recv_workqueue;
+
 /*
  * All operation messages (both requests and responses) begin with
  * a common header that encodes the size of the data (header
@@ -126,16 +129,13 @@ gb_operation_find(struct gb_connection *connection, u16 id)
  */
 void gb_operation_complete(struct gb_operation *operation)
 {
-	/* XXX Should probably report bad status if no callback */
 	if (operation->callback)
 		operation->callback(operation);
 	else
 		complete_all(&operation->completion);
-	gb_operation_destroy(operation);
 }
 
-/*
- * Wait for a submitted operatnoi to complete */
+/* Wait for a submitted operation to complete */
 int gb_operation_wait(struct gb_operation *operation)
 {
 	int ret;
@@ -148,46 +148,100 @@ int gb_operation_wait(struct gb_operation *operation)
 
 }
 
+
+typedef void (*gb_operation_recv_handler)(struct gb_operation *operation);
+static gb_operation_recv_handler gb_operation_recv_handlers[] = {
+	[GREYBUS_PROTOCOL_CONTROL]	= NULL,
+	[GREYBUS_PROTOCOL_AP]		= NULL,
+	[GREYBUS_PROTOCOL_GPIO]		= NULL,
+	[GREYBUS_PROTOCOL_I2C]		= NULL,
+	[GREYBUS_PROTOCOL_UART]		= NULL,
+	[GREYBUS_PROTOCOL_HID]		= NULL,
+	[GREYBUS_PROTOCOL_VENDOR]	= NULL,
+};
+
+static void gb_operation_request_handle(struct gb_operation *operation)
+{
+	u8 protocol = operation->connection->protocol;
+
+	/* Subtract one from array size to stay within u8 range */
+	if (protocol <= (u8)(ARRAY_SIZE(gb_operation_recv_handlers) - 1)) {
+		gb_operation_recv_handler handler;
+
+		handler = gb_operation_recv_handlers[protocol];
+		if (handler) {
+			handler(operation);	/* Handle the request */
+			return;
+		}
+	}
+
+	gb_connection_err(operation->connection, "unrecognized protocol %u\n",
+		(unsigned int)protocol);
+	operation->result = GB_OP_PROTOCOL_BAD;
+	gb_operation_complete(operation);
+}
+
 /*
- * Called when an operation buffer completes.
+ * Either this operation contains an incoming request, or its
+ * response has arrived.  An incoming request will have a null
+ * response buffer pointer (it is the responsibility of the request
+ * handler to allocate and fill in the response buffer).
+ */
+static void gb_operation_recv_work(struct work_struct *recv_work)
+{
+	struct gb_operation *operation;
+	bool incoming_request;
+
+	operation = container_of(recv_work, struct gb_operation, recv_work);
+	incoming_request = operation->response == NULL;
+	if (incoming_request)
+		gb_operation_request_handle(operation);
+	gb_operation_complete(operation);
+
+	/* We're finished with the buffer we read into */
+	if (incoming_request)
+		greybus_gbuf_finished(operation->request);
+	else
+		greybus_gbuf_finished(operation->response);
+}
+
+/*
+ * Buffer completion function.  We get notified whenever any buffer
+ * completes.  For outbound messages, this tells us that the message
+ * has been sent.  For inbound messages, it means the data has
+ * landed in the buffer and is ready to be processed.
+ *
+ * Either way, we don't do anything.  We don't really care when an
+ * outbound message has been sent, and for incoming messages we
+ * we'll be done with everything we need to do before we mark it
+ * finished.
+ *
+ * XXX We may want to record that a buffer is (or is no longer) in flight.
  */
 static void gb_operation_gbuf_complete(struct gbuf *gbuf)
 {
-	/* Don't do anything */
-	struct gb_operation *operation;
-	struct gb_operation_msg_hdr *header;
-	u16 id;
-
-	/*
-	 * This isn't right, but it keeps things balanced until we
-	 * can set up operation response handling.
-	 */
-	header = gbuf->transfer_buffer;
-	id = le16_to_cpu(header->id);
-	operation = gb_operation_find(gbuf->connection, id);
-	if (operation)
-		gb_operation_remove(operation);
-	else
-		gb_connection_err(gbuf->connection, "operation not found");
+	return;
 }
 
 /*
  * Allocate a buffer to be used for an operation request or response
- * message.  Both types of message contain a header, which is filled
- * in here.  W
+ * message.  For outgoing messages, both types of message contain a
+ * common header, which is filled in here.  Incoming requests or
+ * responses also contain the same header, but there's no need to
+ * initialize it here (it'll be overwritten by the incoming
+ * message).
  */
 struct gbuf *gb_operation_gbuf_create(struct gb_operation *operation,
-					u8 type, size_t size, bool outbound)
+					u8 type, size_t size, bool data_out)
 {
 	struct gb_connection *connection = operation->connection;
 	struct gb_operation_msg_hdr *header;
 	struct gbuf *gbuf;
-	gfp_t gfp_flags = outbound ? GFP_KERNEL : GFP_ATOMIC;
+	gfp_t gfp_flags = data_out ? GFP_KERNEL : GFP_ATOMIC;
 
-	/* Operation buffers hold a header in addition to their payload */
 	size += sizeof(*header);
 	gbuf = greybus_alloc_gbuf(connection, gb_operation_gbuf_complete,
-					size, outbound, gfp_flags, operation);
+					size, data_out, gfp_flags, operation);
 	if (!gbuf)
 		return NULL;
 
@@ -222,11 +276,7 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 {
 	struct gb_operation *operation;
 	gfp_t gfp_flags = response_size ? GFP_KERNEL : GFP_ATOMIC;
-
-	if (!request_size) {
-		gb_connection_err(connection, "zero-sized request");
-		return NULL;
-	}
+	bool outgoing = response_size != 0;
 
 	/* XXX Use a slab cache */
 	operation = kzalloc(sizeof(*operation), gfp_flags);
@@ -235,7 +285,8 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 	operation->connection = connection;		/* XXX refcount? */
 
 	operation->request = gb_operation_gbuf_create(operation, type,
-							request_size, true);
+							request_size,
+							outgoing);
 	if (!operation->request) {
 		kfree(operation);
 		return NULL;
@@ -245,10 +296,11 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 	/* We always use the full request buffer */
 	operation->request->actual_length = request_size;
 
-	if (response_size) {
+	if (outgoing) {
 		type |= GB_OPERATION_TYPE_RESPONSE;
 		operation->response = gb_operation_gbuf_create(operation,
-						type, response_size, false);
+						type, response_size,
+						false);
 		if (!operation->response) {
 			greybus_free_gbuf(operation->request);
 			kfree(operation);
@@ -259,6 +311,7 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 				sizeof(struct gb_operation_msg_hdr);
 	}
 
+	INIT_WORK(&operation->recv_work, gb_operation_recv_work);
 	operation->callback = NULL;	/* set at submit time */
 	init_completion(&operation->completion);
 
@@ -333,6 +386,11 @@ int gb_operation_response_send(struct gb_operation *operation)
 	return 0;
 }
 
+/*
+ * Handle data arriving on a connection.  This is called in
+ * interrupt context, so just copy the incoming data into a buffer
+ * and do remaining handling via a work queue.
+ */
 void gb_connection_operation_recv(struct gb_connection *connection,
 				void *data, size_t size)
 {
@@ -354,7 +412,7 @@ void gb_connection_operation_recv(struct gb_connection *connection,
 		operation = gb_operation_find(connection, id);
 		if (!operation) {
 			gb_connection_err(connection, "operation not found");
-				return;
+			return;
 		}
 		gb_operation_remove(operation);
 		gbuf = operation->response;
@@ -376,5 +434,20 @@ void gb_connection_operation_recv(struct gb_connection *connection,
 	memcpy(gbuf->transfer_buffer, data, msg_size);
 	gbuf->actual_length = msg_size;
 
-	/* XXX And now we let a work queue handle the rest */
+	/* The rest will be handled in work queue context */
+	queue_work(gb_operation_recv_workqueue, &operation->recv_work);
+}
+
+int gb_operation_init(void)
+{
+	gb_operation_recv_workqueue = alloc_workqueue("greybus_recv", 0, 1);
+	if (!gb_operation_recv_workqueue)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void gb_operation_exit(void)
+{
+	destroy_workqueue(gb_operation_recv_workqueue);
 }
