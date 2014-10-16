@@ -5203,6 +5203,11 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	if (type == DRM_MODE_CONNECTOR_eDP)
 		intel_encoder->type = INTEL_OUTPUT_EDP;
 
+	/* eDP only on port B and/or C on vlv/chv */
+	if (WARN_ON(IS_VALLEYVIEW(dev) && is_edp(intel_dp) &&
+		    port != PORT_B && port != PORT_C))
+		return false;
+
 	DRM_DEBUG_KMS("Adding %s connector on port %c\n",
 			type == DRM_MODE_CONNECTOR_eDP ? "eDP" : "DP",
 			port_name(port));
