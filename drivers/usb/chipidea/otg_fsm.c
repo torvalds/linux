@@ -212,6 +212,7 @@ static unsigned otg_timer_ms[] = {
 	TA_AIDL_BDIS,
 	TB_ASE0_BRST,
 	TA_BIDL_ADIS,
+	TB_AIDL_BDIS,
 	TB_SE0_SRP,
 	TB_SRP_FAIL,
 	0,
@@ -330,6 +331,12 @@ static int a_bidl_adis_tmout(struct ci_hdrc *ci)
 	return 0;
 }
 
+static int b_aidl_bdis_tmout(struct ci_hdrc *ci)
+{
+	ci->fsm.a_bus_suspend = 1;
+	return 0;
+}
+
 static int b_se0_srp_tmout(struct ci_hdrc *ci)
 {
 	ci->fsm.b_se0_srp = 1;
@@ -426,6 +433,7 @@ static int (*otg_timer_handlers[])(struct ci_hdrc *) = {
 	a_aidl_bdis_tmout,	/* A_AIDL_BDIS */
 	b_ase0_brst_tmout,	/* B_ASE0_BRST */
 	a_bidl_adis_tmout,	/* A_BIDL_ADIS */
+	b_aidl_bdis_tmout,	/* B_AIDL_BDIS */
 	b_se0_srp_tmout,	/* B_SE0_SRP */
 	b_srp_fail_tmout,	/* B_SRP_FAIL */
 	NULL,			/* A_WAIT_ENUM */
@@ -761,9 +769,9 @@ static void ci_otg_fsm_event(struct ci_hdrc *ci)
 		break;
 	case OTG_STATE_B_PERIPHERAL:
 		if ((intr_sts & USBi_SLI) && port_conn && otg_bsess_vld) {
-			fsm->a_bus_suspend = 1;
-			ci_otg_queue_work(ci);
+			ci_otg_add_timer(ci, B_AIDL_BDIS);
 		} else if (intr_sts & USBi_PCI) {
+			ci_otg_del_timer(ci, B_AIDL_BDIS);
 			if (fsm->a_bus_suspend == 1)
 				fsm->a_bus_suspend = 0;
 		}
