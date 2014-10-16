@@ -114,6 +114,8 @@ static void intel_dp_link_down(struct intel_dp *intel_dp);
 static bool edp_panel_vdd_on(struct intel_dp *intel_dp);
 static void edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync);
 static void vlv_init_panel_power_sequencer(struct intel_dp *intel_dp);
+static void vlv_steal_power_sequencer(struct drm_device *dev,
+				      enum pipe pipe);
 
 int
 intel_dp_max_link_bw(struct intel_dp *intel_dp)
@@ -375,8 +377,12 @@ vlv_power_sequencer_pipe(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_encoder *encoder;
 	unsigned int pipes = (1 << PIPE_A) | (1 << PIPE_B);
+	enum pipe pipe;
 
 	lockdep_assert_held(&dev_priv->pps_mutex);
+
+	/* We should never land here with regular DP ports */
+	WARN_ON(!is_edp(intel_dp));
 
 	if (intel_dp->pps_pipe != INVALID_PIPE)
 		return intel_dp->pps_pipe;
@@ -403,9 +409,12 @@ vlv_power_sequencer_pipe(struct intel_dp *intel_dp)
 	 * are two power sequencers and up to two eDP ports.
 	 */
 	if (WARN_ON(pipes == 0))
-		return PIPE_A;
+		pipe = PIPE_A;
+	else
+		pipe = ffs(pipes) - 1;
 
-	intel_dp->pps_pipe = ffs(pipes) - 1;
+	vlv_steal_power_sequencer(dev, pipe);
+	intel_dp->pps_pipe = pipe;
 
 	DRM_DEBUG_KMS("picked pipe %c power sequencer for port %c\n",
 		      pipe_name(intel_dp->pps_pipe),
