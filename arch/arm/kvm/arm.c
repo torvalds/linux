@@ -263,6 +263,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 {
 	/* Force users to call KVM_ARM_VCPU_INIT */
 	vcpu->arch.target = -1;
+	bitmap_zero(vcpu->arch.features, KVM_VCPU_MAX_FEATURES);
 
 	/* Set up the timer */
 	kvm_timer_vcpu_init(vcpu);
@@ -648,6 +649,48 @@ int kvm_vm_ioctl_irq_line(struct kvm *kvm, struct kvm_irq_level *irq_level,
 
 	return -EINVAL;
 }
+
+static int kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
+			       const struct kvm_vcpu_init *init)
+{
+	unsigned int i;
+	int phys_target = kvm_target_cpu();
+
+	if (init->target != phys_target)
+		return -EINVAL;
+
+	/*
+	 * Secondary and subsequent calls to KVM_ARM_VCPU_INIT must
+	 * use the same target.
+	 */
+	if (vcpu->arch.target != -1 && vcpu->arch.target != init->target)
+		return -EINVAL;
+
+	/* -ENOENT for unknown features, -EINVAL for invalid combinations. */
+	for (i = 0; i < sizeof(init->features) * 8; i++) {
+		bool set = (init->features[i / 32] & (1 << (i % 32)));
+
+		if (set && i >= KVM_VCPU_MAX_FEATURES)
+			return -ENOENT;
+
+		/*
+		 * Secondary and subsequent calls to KVM_ARM_VCPU_INIT must
+		 * use the same feature set.
+		 */
+		if (vcpu->arch.target != -1 && i < KVM_VCPU_MAX_FEATURES &&
+		    test_bit(i, vcpu->arch.features) != set)
+			return -EINVAL;
+
+		if (set)
+			set_bit(i, vcpu->arch.features);
+	}
+
+	vcpu->arch.target = phys_target;
+
+	/* Now we know what it is, we can reset it. */
+	return kvm_reset_vcpu(vcpu);
+}
+
 
 static int kvm_arch_vcpu_ioctl_vcpu_init(struct kvm_vcpu *vcpu,
 					 struct kvm_vcpu_init *init)

@@ -2453,6 +2453,11 @@ return ENOEXEC for that vcpu.
 Note that because some registers reflect machine topology, all vcpus
 should be created before this ioctl is invoked.
 
+Userspace can call this function multiple times for a given vcpu, including
+after the vcpu has been run. This will reset the vcpu to its initial
+state. All calls to this function after the initial call must use the same
+target and same set of feature flags, otherwise EINVAL will be returned.
+
 Possible features:
 	- KVM_ARM_VCPU_POWER_OFF: Starts the CPU in a power-off state.
 	  Depends on KVM_CAP_ARM_PSCI.  If not set, the CPU will be powered on

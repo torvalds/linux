@@ -273,31 +273,6 @@ int __attribute_const__ kvm_target_cpu(void)
 	}
 }
 
-int kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
-			const struct kvm_vcpu_init *init)
-{
-	unsigned int i;
-
-	/* We can only cope with guest==host and only on A15/A7 (for now). */
-	if (init->target != kvm_target_cpu())
-		return -EINVAL;
-
-	vcpu->arch.target = init->target;
-	bitmap_zero(vcpu->arch.features, KVM_VCPU_MAX_FEATURES);
-
-	/* -ENOENT for unknown features, -EINVAL for invalid combinations. */
-	for (i = 0; i < sizeof(init->features) * 8; i++) {
-		if (test_bit(i, (void *)init->features)) {
-			if (i >= KVM_VCPU_MAX_FEATURES)
-				return -ENOENT;
-			set_bit(i, vcpu->arch.features);
-		}
-	}
-
-	/* Now we know what it is, we can reset it. */
-	return kvm_reset_vcpu(vcpu);
-}
-
 int kvm_vcpu_preferred_target(struct kvm_vcpu_init *init)
 {
 	int target = kvm_target_cpu();
