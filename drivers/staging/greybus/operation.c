@@ -148,13 +148,21 @@ int gb_operation_wait(struct gb_operation *operation)
 
 }
 
+/*
+ * This handler is used if no operation response messages are ever
+ * expected for a given protocol.
+ */
+static void gb_operation_recv_none(struct gb_operation *operation)
+{
+	/* Nothing to do! */
+}
 
 typedef void (*gb_operation_recv_handler)(struct gb_operation *operation);
 static gb_operation_recv_handler gb_operation_recv_handlers[] = {
 	[GREYBUS_PROTOCOL_CONTROL]	= NULL,
 	[GREYBUS_PROTOCOL_AP]		= NULL,
 	[GREYBUS_PROTOCOL_GPIO]		= NULL,
-	[GREYBUS_PROTOCOL_I2C]		= NULL,
+	[GREYBUS_PROTOCOL_I2C]		= gb_operation_recv_none,
 	[GREYBUS_PROTOCOL_UART]		= NULL,
 	[GREYBUS_PROTOCOL_HID]		= NULL,
 	[GREYBUS_PROTOCOL_VENDOR]	= NULL,

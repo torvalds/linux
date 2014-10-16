@@ -202,6 +202,7 @@ int gb_connection_init(struct gb_connection *connection)
 {
 	switch (connection->protocol) {
 	case GREYBUS_PROTOCOL_I2C:
+		return gb_i2c_device_init(connection);
 	case GREYBUS_PROTOCOL_CONTROL:
 	case GREYBUS_PROTOCOL_AP:
 	case GREYBUS_PROTOCOL_GPIO:
