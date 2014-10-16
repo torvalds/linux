@@ -37,6 +37,7 @@
 
 #include "gadget_chips.h"
 
+#define USBF_MIDI_INCLUDED
 #include "f_midi.c"
 
 /*-------------------------------------------------------------------------*/
