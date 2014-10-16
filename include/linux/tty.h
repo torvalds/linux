@@ -498,9 +498,6 @@ extern int tty_init_termios(struct tty_struct *tty);
 extern int tty_standard_install(struct tty_driver *driver,
 		struct tty_struct *tty);
 
-extern struct tty_struct *tty_pair_get_tty(struct tty_struct *tty);
-extern struct tty_struct *tty_pair_get_pty(struct tty_struct *tty);
-
 extern struct mutex tty_mutex;
 extern spinlock_t tty_files_lock;
 
