@@ -735,7 +735,6 @@ static int sirfsoc_dma_probe(struct platform_device *op)
 
 	dma = &sdma->dma;
 	dma->dev = dev;
-	dma->chancnt = SIRFSOC_DMA_CHANNELS;
 
 	dma->device_alloc_chan_resources = sirfsoc_dma_alloc_chan_resources;
 	dma->device_free_chan_resources = sirfsoc_dma_free_chan_resources;
@@ -752,7 +751,7 @@ static int sirfsoc_dma_probe(struct platform_device *op)
 	dma_cap_set(DMA_INTERLEAVE, dma->cap_mask);
 	dma_cap_set(DMA_PRIVATE, dma->cap_mask);
 
-	for (i = 0; i < dma->chancnt; i++) {
+	for (i = 0; i < SIRFSOC_DMA_CHANNELS; i++) {
 		schan = &sdma->channels[i];
 
 		schan->chan.device = dma;
