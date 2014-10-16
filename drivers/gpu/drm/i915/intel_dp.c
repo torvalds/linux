@@ -1555,23 +1555,23 @@ static void intel_edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync)
 	pps_unlock(intel_dp);
 }
 
-void intel_edp_panel_on(struct intel_dp *intel_dp)
+static void edp_panel_on(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 pp;
 	u32 pp_ctrl_reg;
 
+	lockdep_assert_held(&dev_priv->pps_mutex);
+
 	if (!is_edp(intel_dp))
 		return;
 
 	DRM_DEBUG_KMS("Turn eDP power on\n");
 
-	pps_lock(intel_dp);
-
 	if (edp_have_panel_power(intel_dp)) {
 		DRM_DEBUG_KMS("eDP power already on\n");
-		goto out;
+		return;
 	}
 
 	wait_panel_power_cycle(intel_dp);
@@ -1600,12 +1600,20 @@ void intel_edp_panel_on(struct intel_dp *intel_dp)
 		I915_WRITE(pp_ctrl_reg, pp);
 		POSTING_READ(pp_ctrl_reg);
 	}
+}
 
- out:
+void intel_edp_panel_on(struct intel_dp *intel_dp)
+{
+	if (!is_edp(intel_dp))
+		return;
+
+	pps_lock(intel_dp);
+	edp_panel_on(intel_dp);
 	pps_unlock(intel_dp);
 }
 
-void intel_edp_panel_off(struct intel_dp *intel_dp)
+
+static void edp_panel_off(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct intel_encoder *intel_encoder = &intel_dig_port->base;
@@ -1615,12 +1623,12 @@ void intel_edp_panel_off(struct intel_dp *intel_dp)
 	u32 pp;
 	u32 pp_ctrl_reg;
 
+	lockdep_assert_held(&dev_priv->pps_mutex);
+
 	if (!is_edp(intel_dp))
 		return;
 
 	DRM_DEBUG_KMS("Turn eDP power off\n");
-
-	pps_lock(intel_dp);
 
 	WARN(!intel_dp->want_panel_vdd, "Need VDD to turn off panel\n");
 
@@ -1643,7 +1651,15 @@ void intel_edp_panel_off(struct intel_dp *intel_dp)
 	/* We got a reference when we enabled the VDD. */
 	power_domain = intel_display_port_power_domain(intel_encoder);
 	intel_display_power_put(dev_priv, power_domain);
+}
 
+void intel_edp_panel_off(struct intel_dp *intel_dp)
+{
+	if (!is_edp(intel_dp))
+		return;
+
+	pps_lock(intel_dp);
+	edp_panel_off(intel_dp);
 	pps_unlock(intel_dp);
 }
 
