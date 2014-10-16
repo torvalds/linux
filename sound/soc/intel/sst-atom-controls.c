@@ -454,7 +454,7 @@ static int sst_gain_get(struct snd_kcontrol *kcontrol,
 		dev_err(component->dev, "Invalid Input- gain type:%d\n",
 				mc->type);
 		return -EINVAL;
-	};
+	}
 
 	return 0;
 }
@@ -494,7 +494,7 @@ static int sst_gain_put(struct snd_kcontrol *kcontrol,
 		dev_err(cmpnt->dev, "Invalid Input- gain type:%d\n",
 				mc->type);
 		return -EINVAL;
-	};
+	}
 
 	if (mc->w && mc->w->power)
 		ret = sst_send_gain_cmd(drv, gv, mc->task_id,
