@@ -12,6 +12,10 @@
                 enable-gpios = <&gpio3 GPIO_C1 GPIO_ACTIVE_HIGH>;
         };
 
+	gpio_poweroff {
+		compatible = "gpio-poweroff";
+		gpios = <&gpio1 GPIO_A2 GPIO_ACTIVE_LOW>;
+	};
 
 	usb_control {
 		compatible = "rockchip,rk3126-usb-control";
@@ -246,7 +250,6 @@
 		compatible = "rk30-adc-battery";
                 io-channels = <&adc 0>;
 		dc_det_gpio = <&gpio2 GPIO_B1 GPIO_ACTIVE_LOW>;
-		pwr_hold = <&gpio1 GPIO_A2 GPIO_ACTIVE_LOW>;
 		//bat_low_gpio = <&gpio0 GPIO_A7 GPIO_ACTIVE_LOW>;
 		//chg_ok_gpio = <&gpio0 GPIO_B1 GPIO_ACTIVE_HIGH>;
 		bat_table = <0 0 0 0 100 100
@@ -346,7 +349,7 @@
 
 &dwc_control_usb {
 	usb_uart {
-		status = "disabled";
+		status = "ok";
 	};
 };
 
