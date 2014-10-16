@@ -2517,11 +2517,20 @@ static void intel_dp_enable_port(struct intel_dp *intel_dp)
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	intel_dp->DP |= DP_PORT_EN;
-
 	/* enable with pattern 1 (as per spec) */
 	_intel_dp_set_link_train(intel_dp, &intel_dp->DP,
 				 DP_TRAINING_PATTERN_1);
+
+	I915_WRITE(intel_dp->output_reg, intel_dp->DP);
+	POSTING_READ(intel_dp->output_reg);
+
+	/*
+	 * Magic for VLV/CHV. We _must_ first set up the register
+	 * without actually enabling the port, and then do another
+	 * write to enable the port. Otherwise link training will
+	 * fail when the power sequencer is freshly used for this port.
+	 */
+	intel_dp->DP |= DP_PORT_EN;
 
 	I915_WRITE(intel_dp->output_reg, intel_dp->DP);
 	POSTING_READ(intel_dp->output_reg);
