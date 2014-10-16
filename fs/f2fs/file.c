@@ -471,7 +471,7 @@ int truncate_blocks(struct inode *inode, u64 from, bool lock)
 
 	trace_f2fs_truncate_blocks_enter(inode, from);
 
-	if (f2fs_has_inline_data(inode))
+	if (f2fs_has_inline_data(inode) || f2fs_has_inline_dentry(inode))
 		goto done;
 
 	free_from = (pgoff_t)
