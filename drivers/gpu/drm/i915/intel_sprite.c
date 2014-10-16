@@ -438,6 +438,8 @@ vlv_update_plane(struct drm_plane *dplane, struct drm_crtc *crtc,
 	else
 		I915_WRITE(SPLINOFF(pipe, plane), linear_offset);
 
+	I915_WRITE(SPCONSTALPHA(pipe, plane), 0);
+
 	I915_WRITE(SPSIZE(pipe, plane), (crtc_h << 16) | crtc_w);
 	I915_WRITE(SPCNTR(pipe, plane), sprctl);
 	I915_WRITE(SPSURF(pipe, plane), i915_gem_obj_ggtt_offset(obj) +

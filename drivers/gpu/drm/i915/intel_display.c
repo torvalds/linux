@@ -2451,6 +2451,12 @@ static void i9xx_update_primary_plane(struct drm_crtc *crtc,
 			   ((intel_crtc->config.pipe_src_h - 1) << 16) |
 			   (intel_crtc->config.pipe_src_w - 1));
 		I915_WRITE(DSPPOS(plane), 0);
+	} else if (IS_CHERRYVIEW(dev) && plane == PLANE_B) {
+		I915_WRITE(PRIMSIZE(plane),
+			   ((intel_crtc->config.pipe_src_h - 1) << 16) |
+			   (intel_crtc->config.pipe_src_w - 1));
+		I915_WRITE(PRIMPOS(plane), 0);
+		I915_WRITE(PRIMCNSTALPHA(plane), 0);
 	}
 
 	switch (fb->pixel_format) {
@@ -4855,6 +4861,13 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 		intel_dp_set_m_n(intel_crtc);
 
 	intel_set_pipe_timings(intel_crtc);
+
+	if (IS_CHERRYVIEW(dev) && pipe == PIPE_B) {
+		struct drm_i915_private *dev_priv = dev->dev_private;
+
+		I915_WRITE(CHV_BLEND(pipe), CHV_BLEND_LEGACY);
+		I915_WRITE(CHV_CANVAS(pipe), 0);
+	}
 
 	i9xx_set_pipeconf(intel_crtc);
 

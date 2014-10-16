@@ -4272,9 +4272,11 @@ enum punit_power_well {
 #define   DISPPLANE_NO_LINE_DOUBLE		0
 #define   DISPPLANE_STEREO_POLARITY_FIRST	0
 #define   DISPPLANE_STEREO_POLARITY_SECOND	(1<<18)
-#define   DISPPLANE_ROTATE_180         (1<<15)
+#define   DISPPLANE_ALPHA_PREMULTIPLY		(1<<16) /* CHV pipe B */
+#define   DISPPLANE_ROTATE_180			(1<<15)
 #define   DISPPLANE_TRICKLE_FEED_DISABLE	(1<<14) /* Ironlake */
 #define   DISPPLANE_TILED			(1<<10)
+#define   DISPPLANE_MIRROR			(1<<8) /* CHV pipe B */
 #define _DSPAADDR				0x70184
 #define _DSPASTRIDE				0x70188
 #define _DSPAPOS				0x7018C /* reserved */
@@ -4294,6 +4296,24 @@ enum punit_power_well {
 #define DSPLINOFF(plane) DSPADDR(plane)
 #define DSPOFFSET(plane) _PIPE2(plane, _DSPAOFFSET)
 #define DSPSURFLIVE(plane) _PIPE2(plane, _DSPASURFLIVE)
+
+/* CHV pipe B blender and primary plane */
+#define _CHV_BLEND_A		0x60a00
+#define   CHV_BLEND_LEGACY		(0<<30)
+#define   CHV_BLEND_ANDROID		(1<<30)
+#define   CHV_BLEND_MPO			(2<<30)
+#define   CHV_BLEND_MASK		(3<<30)
+#define _CHV_CANVAS_A		0x60a04
+#define _PRIMPOS_A		0x60a08
+#define _PRIMSIZE_A		0x60a0c
+#define _PRIMCNSTALPHA_A	0x60a10
+#define   PRIM_CONST_ALPHA_ENABLE	(1<<31)
+
+#define CHV_BLEND(pipe) _TRANSCODER2(pipe, _CHV_BLEND_A)
+#define CHV_CANVAS(pipe) _TRANSCODER2(pipe, _CHV_CANVAS_A)
+#define PRIMPOS(plane) _TRANSCODER2(plane, _PRIMPOS_A)
+#define PRIMSIZE(plane) _TRANSCODER2(plane, _PRIMSIZE_A)
+#define PRIMCNSTALPHA(plane) _TRANSCODER2(plane, _PRIMCNSTALPHA_A)
 
 /* Display/Sprite base address macros */
 #define DISP_BASEADDR_MASK	(0xfffff000)
@@ -4496,6 +4516,7 @@ enum punit_power_well {
 #define   SP_FORMAT_RGBA1010102		(9<<26)
 #define   SP_FORMAT_RGBX8888		(0xe<<26)
 #define   SP_FORMAT_RGBA8888		(0xf<<26)
+#define   SP_ALPHA_PREMULTIPLY		(1<<23) /* CHV pipe B */
 #define   SP_SOURCE_KEY			(1<<22)
 #define   SP_YUV_BYTE_ORDER_MASK	(3<<16)
 #define   SP_YUV_ORDER_YUYV		(0<<16)
@@ -4504,6 +4525,7 @@ enum punit_power_well {
 #define   SP_YUV_ORDER_VYUY		(3<<16)
 #define   SP_ROTATE_180			(1<<15)
 #define   SP_TILED			(1<<10)
+#define   SP_MIRROR			(1<<8) /* CHV pipe B */
 #define _SPALINOFF		(VLV_DISPLAY_BASE + 0x72184)
 #define _SPASTRIDE		(VLV_DISPLAY_BASE + 0x72188)
 #define _SPAPOS			(VLV_DISPLAY_BASE + 0x7218c)
@@ -4514,6 +4536,7 @@ enum punit_power_well {
 #define _SPAKEYMAXVAL		(VLV_DISPLAY_BASE + 0x721a0)
 #define _SPATILEOFF		(VLV_DISPLAY_BASE + 0x721a4)
 #define _SPACONSTALPHA		(VLV_DISPLAY_BASE + 0x721a8)
+#define   SP_CONST_ALPHA_ENABLE		(1<<31)
 #define _SPAGAMC		(VLV_DISPLAY_BASE + 0x721f4)
 
 #define _SPBCNTR		(VLV_DISPLAY_BASE + 0x72280)
