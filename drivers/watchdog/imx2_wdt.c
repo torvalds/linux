@@ -327,18 +327,21 @@ static void imx2_wdt_shutdown(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
-/* Disable watchdog if it is active during suspend */
+/* Disable watchdog if it is active or non-active but still running */
 static int imx2_wdt_suspend(struct device *dev)
 {
 	struct watchdog_device *wdog = dev_get_drvdata(dev);
 	struct imx2_wdt_device *wdev = watchdog_get_drvdata(wdog);
 
-	imx2_wdt_set_timeout(wdog, IMX2_WDT_MAX_TIME);
-	imx2_wdt_ping(wdog);
+	/* The watchdog IP block is running */
+	if (imx2_wdt_is_running(wdev)) {
+		imx2_wdt_set_timeout(wdog, IMX2_WDT_MAX_TIME);
+		imx2_wdt_ping(wdog);
 
-	/* Watchdog has been stopped but IP block is still running */
-	if (!watchdog_active(wdog) && imx2_wdt_is_running(wdev))
-		del_timer_sync(&wdev->timer);
+		/* The watchdog is not active */
+		if (!watchdog_active(wdog))
+			del_timer_sync(&wdev->timer);
+	}
 
 	clk_disable_unprepare(wdev->clk);
 
@@ -354,15 +357,25 @@ static int imx2_wdt_resume(struct device *dev)
 	clk_prepare_enable(wdev->clk);
 
 	if (watchdog_active(wdog) && !imx2_wdt_is_running(wdev)) {
-		/* Resumes from deep sleep we need restart
-		 * the watchdog again.
+		/*
+		 * If the watchdog is still active and resumes
+		 * from deep sleep state, need to restart the
+		 * watchdog again.
 		 */
 		imx2_wdt_setup(wdog);
 		imx2_wdt_set_timeout(wdog, wdog->timeout);
 		imx2_wdt_ping(wdog);
 	} else if (imx2_wdt_is_running(wdev)) {
+		/* Resuming from non-deep sleep state. */
+		imx2_wdt_set_timeout(wdog, wdog->timeout);
 		imx2_wdt_ping(wdog);
-		mod_timer(&wdev->timer, jiffies + wdog->timeout * HZ / 2);
+		/*
+		 * But the watchdog is not active, then start
+		 * the timer again.
+		 */
+		if (!watchdog_active(wdog))
+			mod_timer(&wdev->timer,
+				  jiffies + wdog->timeout * HZ / 2);
 	}
 
 	return 0;
