@@ -508,7 +508,8 @@ void proc_clear_tty(struct task_struct *p)
  * Only callable by the session leader and only if it does not already have
  * a controlling terminal.
  *
- * Caller must hold:  a readlock on tasklist_lock
+ * Caller must hold:  tty_lock()
+ *		      a readlock on tasklist_lock
  *		      sighand lock
  */
 static void __proc_set_tty(struct tty_struct *tty)
@@ -2152,11 +2153,8 @@ retry_open:
 		goto retry_open;
 	}
 	clear_bit(TTY_HUPPED, &tty->flags);
-	tty_unlock(tty);
 
 
-	mutex_lock(&tty_mutex);
-	tty_lock(tty);
 	read_lock(&tasklist_lock);
 	spin_lock_irq(&current->sighand->siglock);
 	if (!noctty &&
@@ -2167,7 +2165,6 @@ retry_open:
 	spin_unlock_irq(&current->sighand->siglock);
 	read_unlock(&tasklist_lock);
 	tty_unlock(tty);
-	mutex_unlock(&tty_mutex);
 	return 0;
 err_unlock:
 	mutex_unlock(&tty_mutex);
@@ -2448,7 +2445,7 @@ static int fionbio(struct file *file, int __user *p)
  *	leader to set this tty as the controlling tty for the session.
  *
  *	Locking:
- *		Takes tty_mutex() to protect tty instance
+ *		Takes tty_lock() to serialize proc_set_tty() for this tty
  *		Takes tasklist_lock internally to walk sessions
  *		Takes ->siglock() when updating signal->tty
  */
@@ -2457,7 +2454,7 @@ static int tiocsctty(struct tty_struct *tty, int arg)
 {
 	int ret = 0;
 
-	mutex_lock(&tty_mutex);
+	tty_lock(tty);
 	read_lock(&tasklist_lock);
 
 	if (current->signal->leader && (task_session(current) == tty->session))
@@ -2490,7 +2487,7 @@ static int tiocsctty(struct tty_struct *tty, int arg)
 	proc_set_tty(tty);
 unlock:
 	read_unlock(&tasklist_lock);
-	mutex_unlock(&tty_mutex);
+	tty_unlock(tty);
 	return ret;
 }
 
