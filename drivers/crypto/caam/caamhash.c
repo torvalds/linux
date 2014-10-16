@@ -1,7 +1,7 @@
 /*
  * caam - Freescale FSL CAAM support for ahash functions of crypto API
  *
- * Copyright 2011 Freescale Semiconductor, Inc.
+ * Copyright 2011-2015 Freescale Semiconductor, Inc.
  *
  * Based on caamalg.c crypto API driver.
  *
@@ -173,6 +173,7 @@ static inline dma_addr_t buf_map_to_sec4_sg(struct device *jrdev,
 	dma_addr_t buf_dma;
 
 	buf_dma = dma_map_single(jrdev, buf, buflen, DMA_TO_DEVICE);
+	dma_sync_single_for_device(jrdev, buf_dma, buflen, DMA_TO_DEVICE);
 	dma_to_sec4_sg_one(sec4_sg, buf_dma, buflen, 0);
 
 	return buf_dma;
@@ -217,6 +218,10 @@ static inline int ctx_map_to_sec4_sg(u32 *desc, struct device *jrdev,
 		dev_err(jrdev, "unable to map ctx\n");
 		return -ENOMEM;
 	}
+
+	if ((flag == DMA_TO_DEVICE) || (flag == DMA_BIDIRECTIONAL))
+		dma_sync_single_for_device(jrdev, state->ctx_dma, ctx_len,
+					   flag);
 
 	dma_to_sec4_sg_one(sec4_sg, state->ctx_dma, ctx_len, 0);
 
@@ -365,6 +370,8 @@ static int ahash_set_sh_desc(struct crypto_ahash *ahash)
 		       "ahash update first shdesc@"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
 #endif
+	dma_sync_single_for_device(jrdev, ctx->sh_desc_update_first_dma,
+				   desc_bytes(desc), DMA_TO_DEVICE);
 
 	/* ahash_final shared descriptor */
 	desc = ctx->sh_desc_fin;
@@ -383,6 +390,8 @@ static int ahash_set_sh_desc(struct crypto_ahash *ahash)
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc,
 		       desc_bytes(desc), 1);
 #endif
+	dma_sync_single_for_device(jrdev, ctx->sh_desc_fin_dma,
+				   desc_bytes(desc), DMA_TO_DEVICE);
 
 	/* ahash_finup shared descriptor */
 	desc = ctx->sh_desc_finup;
@@ -401,6 +410,8 @@ static int ahash_set_sh_desc(struct crypto_ahash *ahash)
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc,
 		       desc_bytes(desc), 1);
 #endif
+	dma_sync_single_for_device(jrdev, ctx->sh_desc_finup_dma,
+				   desc_bytes(desc), DMA_TO_DEVICE);
 
 	/* ahash_digest shared descriptor */
 	desc = ctx->sh_desc_digest;
@@ -421,6 +432,8 @@ static int ahash_set_sh_desc(struct crypto_ahash *ahash)
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc,
 		       desc_bytes(desc), 1);
 #endif
+	dma_sync_single_for_device(jrdev, ctx->sh_desc_digest_dma,
+				   desc_bytes(desc), DMA_TO_DEVICE);
 
 	return 0;
 }
@@ -458,6 +471,8 @@ static int hash_digest_key(struct caam_hash_ctx *ctx, const u8 *key_in,
 		kfree(desc);
 		return -ENOMEM;
 	}
+	dma_sync_single_for_device(jrdev, src_dma, *keylen, DMA_TO_DEVICE);
+
 	dst_dma = dma_map_single(jrdev, (void *)key_out, digestsize,
 				 DMA_FROM_DEVICE);
 	if (dma_mapping_error(jrdev, dst_dma)) {
@@ -500,6 +515,7 @@ static int hash_digest_key(struct caam_hash_ctx *ctx, const u8 *key_in,
 #endif
 	}
 	dma_unmap_single(jrdev, src_dma, *keylen, DMA_TO_DEVICE);
+	dma_sync_single_for_cpu(jrdev, dst_dma, digestsize, DMA_FROM_DEVICE);
 	dma_unmap_single(jrdev, dst_dma, digestsize, DMA_FROM_DEVICE);
 
 	*keylen = digestsize;
@@ -560,6 +576,10 @@ static int ahash_setkey(struct crypto_ahash *ahash,
 		ret = -ENOMEM;
 		goto map_err;
 	}
+
+	dma_sync_single_for_device(jrdev, ctx->key_dma, ctx->split_key_pad_len,
+				   DMA_TO_DEVICE);
+
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "ctx.key@"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, ctx->key,
@@ -608,8 +628,11 @@ static inline void ahash_unmap(struct device *dev,
 	if (edesc->src_nents)
 		dma_unmap_sg_chained(dev, req->src, edesc->src_nents,
 				     DMA_TO_DEVICE, edesc->chained);
-	if (edesc->dst_dma)
+	if (edesc->dst_dma) {
+		dma_sync_single_for_cpu(dev, edesc->dst_dma, dst_len,
+					DMA_FROM_DEVICE);
 		dma_unmap_single(dev, edesc->dst_dma, dst_len, DMA_FROM_DEVICE);
+	}
 
 	if (edesc->sec4_sg_bytes)
 		dma_unmap_single(dev, edesc->sec4_sg_dma,
@@ -624,8 +647,12 @@ static inline void ahash_unmap_ctx(struct device *dev,
 	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
 	struct caam_hash_state *state = ahash_request_ctx(req);
 
-	if (state->ctx_dma)
+	if (state->ctx_dma) {
+		if ((flag == DMA_FROM_DEVICE) || (flag == DMA_BIDIRECTIONAL))
+			dma_sync_single_for_cpu(dev, state->ctx_dma,
+						ctx->ctx_len, flag);
 		dma_unmap_single(dev, state->ctx_dma, ctx->ctx_len, flag);
+	}
 	ahash_unmap(dev, edesc, req, dst_len);
 }
 
@@ -807,7 +834,7 @@ static int ahash_update_ctx(struct ahash_request *req)
 		 * allocate space for base edesc and hw desc commands,
 		 * link tables
 		 */
-		edesc = kmalloc(sizeof(struct ahash_edesc) + DESC_JOB_IO_LEN +
+		edesc = kzalloc(sizeof(struct ahash_edesc) + DESC_JOB_IO_LEN +
 				sec4_sg_bytes, GFP_DMA | flags);
 		if (!edesc) {
 			dev_err(jrdev,
@@ -864,6 +891,9 @@ static int ahash_update_ctx(struct ahash_request *req)
 
 		append_seq_out_ptr(desc, state->ctx_dma, ctx->ctx_len, 0);
 
+		dma_sync_single_for_device(jrdev, edesc->sec4_sg_dma,
+					   sec4_sg_bytes, DMA_TO_DEVICE);
+
 #ifdef DEBUG
 		print_hex_dump(KERN_ERR, "jobdesc@"__stringify(__LINE__)": ",
 			       DUMP_PREFIX_ADDRESS, 16, 4, desc,
@@ -919,7 +949,7 @@ static int ahash_final_ctx(struct ahash_request *req)
 	sec4_sg_bytes = sec4_sg_src_index * sizeof(struct sec4_sg_entry);
 
 	/* allocate space for base edesc and hw desc commands, link tables */
-	edesc = kmalloc(sizeof(struct ahash_edesc) + DESC_JOB_IO_LEN +
+	edesc = kzalloc(sizeof(struct ahash_edesc) + DESC_JOB_IO_LEN +
 			sec4_sg_bytes, GFP_DMA | flags);
 	if (!edesc) {
 		dev_err(jrdev, "could not allocate extended descriptor\n");
@@ -961,6 +991,9 @@ static int ahash_final_ctx(struct ahash_request *req)
 		dev_err(jrdev, "unable to map dst\n");
 		return -ENOMEM;
 	}
+
+	dma_sync_single_for_device(jrdev, edesc->sec4_sg_dma, sec4_sg_bytes,
+				   DMA_TO_DEVICE);
 
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "jobdesc@"__stringify(__LINE__)": ",
@@ -1006,7 +1039,7 @@ static int ahash_finup_ctx(struct ahash_request *req)
 			 sizeof(struct sec4_sg_entry);
 
 	/* allocate space for base edesc and hw desc commands, link tables */
-	edesc = kmalloc(sizeof(struct ahash_edesc) + DESC_JOB_IO_LEN +
+	edesc = kzalloc(sizeof(struct ahash_edesc) + DESC_JOB_IO_LEN +
 			sec4_sg_bytes, GFP_DMA | flags);
 	if (!edesc) {
 		dev_err(jrdev, "could not allocate extended descriptor\n");
@@ -1052,6 +1085,9 @@ static int ahash_finup_ctx(struct ahash_request *req)
 		return -ENOMEM;
 	}
 
+	dma_sync_single_for_device(jrdev, edesc->sec4_sg_dma, sec4_sg_bytes,
+				   DMA_TO_DEVICE);
+
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "jobdesc@"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
@@ -1092,7 +1128,7 @@ static int ahash_digest(struct ahash_request *req)
 	sec4_sg_bytes = src_nents * sizeof(struct sec4_sg_entry);
 
 	/* allocate space for base edesc and hw desc commands, link tables */
-	edesc = kmalloc(sizeof(struct ahash_edesc) + sec4_sg_bytes +
+	edesc = kzalloc(sizeof(struct ahash_edesc) + sec4_sg_bytes +
 			DESC_JOB_IO_LEN, GFP_DMA | flags);
 	if (!edesc) {
 		dev_err(jrdev, "could not allocate extended descriptor\n");
@@ -1100,6 +1136,8 @@ static int ahash_digest(struct ahash_request *req)
 	}
 	edesc->sec4_sg = (void *)edesc + sizeof(struct ahash_edesc) +
 			  DESC_JOB_IO_LEN;
+	edesc->sec4_sg_dma = dma_map_single(jrdev, edesc->sec4_sg,
+					    sec4_sg_bytes, DMA_TO_DEVICE);
 	edesc->sec4_sg_bytes = sec4_sg_bytes;
 	edesc->src_nents = src_nents;
 	edesc->chained = chained;
@@ -1123,6 +1161,9 @@ static int ahash_digest(struct ahash_request *req)
 		options = 0;
 	}
 	append_seq_in_ptr(desc, src_dma, req->nbytes, options);
+
+	dma_sync_single_for_device(jrdev, edesc->sec4_sg_dma,
+				   edesc->sec4_sg_bytes, DMA_TO_DEVICE);
 
 	edesc->dst_dma = map_seq_out_ptr_result(desc, jrdev, req->result,
 						digestsize);
@@ -1166,7 +1207,7 @@ static int ahash_final_no_ctx(struct ahash_request *req)
 	int sh_len;
 
 	/* allocate space for base edesc and hw desc commands, link tables */
-	edesc = kmalloc(sizeof(struct ahash_edesc) + DESC_JOB_IO_LEN,
+	edesc = kzalloc(sizeof(struct ahash_edesc) + DESC_JOB_IO_LEN,
 			GFP_DMA | flags);
 	if (!edesc) {
 		dev_err(jrdev, "could not allocate extended descriptor\n");
@@ -1194,6 +1235,8 @@ static int ahash_final_no_ctx(struct ahash_request *req)
 	}
 	edesc->src_nents = 0;
 
+	dma_sync_single_for_device(jrdev, state->buf_dma, buflen,
+				   DMA_TO_DEVICE);
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "jobdesc@"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
@@ -1246,7 +1289,7 @@ static int ahash_update_no_ctx(struct ahash_request *req)
 		 * allocate space for base edesc and hw desc commands,
 		 * link tables
 		 */
-		edesc = kmalloc(sizeof(struct ahash_edesc) + DESC_JOB_IO_LEN +
+		edesc = kzalloc(sizeof(struct ahash_edesc) + DESC_JOB_IO_LEN +
 				sec4_sg_bytes, GFP_DMA | flags);
 		if (!edesc) {
 			dev_err(jrdev,
@@ -1291,6 +1334,8 @@ static int ahash_update_no_ctx(struct ahash_request *req)
 		if (ret)
 			return ret;
 
+		dma_sync_single_for_device(jrdev, edesc->sec4_sg_dma,
+					   sec4_sg_bytes, DMA_TO_DEVICE);
 #ifdef DEBUG
 		print_hex_dump(KERN_ERR, "jobdesc@"__stringify(__LINE__)": ",
 			       DUMP_PREFIX_ADDRESS, 16, 4, desc,
@@ -1353,7 +1398,7 @@ static int ahash_finup_no_ctx(struct ahash_request *req)
 			 sizeof(struct sec4_sg_entry);
 
 	/* allocate space for base edesc and hw desc commands, link tables */
-	edesc = kmalloc(sizeof(struct ahash_edesc) + DESC_JOB_IO_LEN +
+	edesc = kzalloc(sizeof(struct ahash_edesc) + DESC_JOB_IO_LEN +
 			sec4_sg_bytes, GFP_DMA | flags);
 	if (!edesc) {
 		dev_err(jrdev, "could not allocate extended descriptor\n");
@@ -1393,6 +1438,9 @@ static int ahash_finup_no_ctx(struct ahash_request *req)
 		dev_err(jrdev, "unable to map dst\n");
 		return -ENOMEM;
 	}
+
+	dma_sync_single_for_device(jrdev, edesc->sec4_sg_dma, sec4_sg_bytes,
+				   DMA_TO_DEVICE);
 
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "jobdesc@"__stringify(__LINE__)": ",
@@ -1448,7 +1496,7 @@ static int ahash_update_first(struct ahash_request *req)
 		 * allocate space for base edesc and hw desc commands,
 		 * link tables
 		 */
-		edesc = kmalloc(sizeof(struct ahash_edesc) + DESC_JOB_IO_LEN +
+		edesc = kzalloc(sizeof(struct ahash_edesc) + DESC_JOB_IO_LEN +
 				sec4_sg_bytes, GFP_DMA | flags);
 		if (!edesc) {
 			dev_err(jrdev,
@@ -1496,6 +1544,8 @@ static int ahash_update_first(struct ahash_request *req)
 		if (ret)
 			return ret;
 
+		dma_sync_single_for_device(jrdev, edesc->sec4_sg_dma,
+					   sec4_sg_bytes, DMA_TO_DEVICE);
 #ifdef DEBUG
 		print_hex_dump(KERN_ERR, "jobdesc@"__stringify(__LINE__)": ",
 			       DUMP_PREFIX_ADDRESS, 16, 4, desc,

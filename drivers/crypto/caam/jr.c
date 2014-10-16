@@ -168,6 +168,9 @@ static void caam_jr_dequeue(unsigned long devarg)
 	void (*usercall)(struct device *dev, u32 *desc, u32 status, void *arg);
 	u32 *userdesc, userstatus;
 	void *userarg;
+	dma_addr_t outbusaddr;
+
+	outbusaddr = rd_reg64(&jrp->rregs->outring_base);
 
 	while (rd_reg32(&jrp->rregs->outring_used)) {
 
@@ -177,6 +180,9 @@ static void caam_jr_dequeue(unsigned long devarg)
 
 		sw_idx = tail = jrp->tail;
 		hw_idx = jrp->out_ring_read_index;
+		dma_sync_single_for_cpu(dev, outbusaddr,
+					sizeof(struct jr_outentry) * JOBR_DEPTH,
+					DMA_FROM_DEVICE);
 
 		for (i = 0; CIRC_CNT(head, tail + i, JOBR_DEPTH) >= 1; i++) {
 			sw_idx = (tail + i) & (JOBR_DEPTH - 1);
@@ -201,6 +207,8 @@ static void caam_jr_dequeue(unsigned long devarg)
 		userarg = jrp->entinfo[sw_idx].cbkarg;
 		userdesc = jrp->entinfo[sw_idx].desc_addr_virt;
 		userstatus = jrp->outring[hw_idx].jrstatus;
+
+		smp_mb();
 
 		/* set done */
 		wr_reg32(&jrp->rregs->outring_rmvd, 1);
@@ -320,7 +328,7 @@ int caam_jr_enqueue(struct device *dev, u32 *desc,
 	struct caam_drv_private_jr *jrp = dev_get_drvdata(dev);
 	struct caam_jrentry_info *head_entry;
 	int head, tail, desc_size;
-	dma_addr_t desc_dma;
+	dma_addr_t desc_dma, inpbusaddr;
 
 	desc_size = (*desc & HDR_JD_LENGTH_MASK) * sizeof(u32);
 	desc_dma = dma_map_single(dev, desc, desc_size, DMA_TO_DEVICE);
@@ -328,6 +336,13 @@ int caam_jr_enqueue(struct device *dev, u32 *desc,
 		dev_err(dev, "caam_jr_enqueue(): can't map jobdesc\n");
 		return -EIO;
 	}
+
+	dma_sync_single_for_device(dev, desc_dma, desc_size, DMA_TO_DEVICE);
+
+	inpbusaddr = rd_reg64(&jrp->rregs->inpring_base);
+	dma_sync_single_for_device(dev, inpbusaddr,
+					sizeof(dma_addr_t) * JOBR_DEPTH,
+					DMA_TO_DEVICE);
 
 	spin_lock_bh(&jrp->inplock);
 
@@ -350,11 +365,17 @@ int caam_jr_enqueue(struct device *dev, u32 *desc,
 
 	jrp->inpring[jrp->inp_ring_write_index] = desc_dma;
 
+	dma_sync_single_for_device(dev, inpbusaddr,
+					sizeof(dma_addr_t) * JOBR_DEPTH,
+					DMA_TO_DEVICE);
+
 	smp_wmb();
 
 	jrp->inp_ring_write_index = (jrp->inp_ring_write_index + 1) &
 				    (JOBR_DEPTH - 1);
 	jrp->head = (head + 1) & (JOBR_DEPTH - 1);
+
+	wmb();
 
 	wr_reg32(&jrp->rregs->inpring_jobadd, 1);
 
