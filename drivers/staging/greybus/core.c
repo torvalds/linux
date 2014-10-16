@@ -131,59 +131,6 @@ static struct device_type greybus_module_type = {
 	.release =	greybus_module_release,
 };
 
-/* XXX
- * This needs to be driven by the list of functions that the
- * manifest says are present.
- */
-static int gb_init_subdevs(struct gb_module *gmod,
-			   const struct greybus_module_id *id)
-{
-	int retval;
-
-	/* Allocate all of the different "sub device types" for this device */
-
-	/* XXX
-	 * Decide what exactly we should get supplied for the i2c
-	 * probe, and then work that back to what should be present
-	 * in the manifest.
-	 */
-	retval = gb_i2c_probe(gmod, id);
-	if (retval)
-		goto error_i2c;
-
-	retval = gb_gpio_probe(gmod, id);
-	if (retval)
-		goto error_gpio;
-
-	retval = gb_sdio_probe(gmod, id);
-	if (retval)
-		goto error_sdio;
-
-	retval = gb_tty_probe(gmod, id);
-	if (retval)
-		goto error_tty;
-
-	retval = gb_battery_probe(gmod, id);
-	if (retval)
-		goto error_battery;
-	return 0;
-
-error_battery:
-	gb_tty_disconnect(gmod);
-
-error_tty:
-	gb_sdio_disconnect(gmod);
-
-error_sdio:
-	gb_gpio_disconnect(gmod);
-
-error_gpio:
-	gb_i2c_disconnect(gmod);
-
-error_i2c:
-	return retval;
-}
-
 static const struct greybus_module_id fake_greybus_module_id = {
 	GREYBUS_DEVICE(0x42, 0x42)
 };
@@ -235,19 +182,8 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 	dev_set_name(&gmod->dev, "%d", module_id);
 
 	retval = device_add(&gmod->dev);
-	if (retval)
-		goto error;
-
-	retval = gb_init_subdevs(gmod, &fake_greybus_module_id);
-	if (retval)
-		goto error_subdevs;
-
-	//return gmod;
-	return;
-
-error_subdevs:
-	device_del(&gmod->dev);
-
+	if (!retval)
+		return;		/* Success */
 error:
 	gb_module_destroy(gmod);
 
@@ -274,13 +210,6 @@ void gb_remove_module(struct greybus_host_device *hd, u8 module_id)
 
 void greybus_remove_device(struct gb_module *gmod)
 {
-	/* tear down all of the "sub device types" for this device */
-	gb_i2c_disconnect(gmod);
-	gb_gpio_disconnect(gmod);
-	gb_sdio_disconnect(gmod);
-	gb_tty_disconnect(gmod);
-	gb_battery_disconnect(gmod);
-
 	device_del(&gmod->dev);
 	put_device(&gmod->dev);
 }

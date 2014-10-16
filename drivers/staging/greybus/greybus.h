@@ -265,23 +265,6 @@ void gb_deregister_cport_complete(u16 cport_id);
 
 extern const struct attribute_group *greybus_module_groups[];
 
-/*
- * Because we are allocating a data structure per "type" in the greybus device,
- * we have static functions for this, not "dynamic" drivers like we really
- * should in the end.
- */
-int gb_i2c_probe(struct gb_module *gmod, const struct greybus_module_id *id);
-void gb_i2c_disconnect(struct gb_module *gmod);
-int gb_gpio_probe(struct gb_module *gmod, const struct greybus_module_id *id);
-void gb_gpio_disconnect(struct gb_module *gmod);
-int gb_sdio_probe(struct gb_module *gmod, const struct greybus_module_id *id);
-void gb_sdio_disconnect(struct gb_module *gmod);
-int gb_tty_probe(struct gb_module *gmod, const struct greybus_module_id *id);
-void gb_tty_disconnect(struct gb_module *gmod);
-int gb_battery_probe(struct gb_module *gmod,
-			const struct greybus_module_id *id);
-void gb_battery_disconnect(struct gb_module *gmod);
-
 int gb_tty_init(void);
 void gb_tty_exit(void);
 
