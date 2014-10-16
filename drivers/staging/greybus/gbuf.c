@@ -15,16 +15,10 @@
 #include <linux/kref.h>
 #include <linux/device.h>
 #include <linux/slab.h>
-#include <linux/workqueue.h>
 
 #include "greybus.h"
 
-static void cport_process_event(struct work_struct *work);
-
 static struct kmem_cache *gbuf_head_cache;
-
-/* Workqueue to handle Greybus buffer completions. */
-static struct workqueue_struct *gbuf_workqueue;
 
 /**
  * greybus_alloc_gbuf - allocate a greybus buffer
@@ -57,7 +51,6 @@ struct gbuf *greybus_alloc_gbuf(struct gb_connection *connection,
 
 	kref_init(&gbuf->kref);
 	gbuf->connection = connection;
-	INIT_WORK(&gbuf->event, cport_process_event);
 	gbuf->outbound = outbound;
 	gbuf->complete = complete;
 	gbuf->context = context;
@@ -112,15 +105,6 @@ int greybus_kill_gbuf(struct gbuf *gbuf)
 {
 	// FIXME - implement
 	return -ENOMEM;
-}
-
-static void cport_process_event(struct work_struct *work)
-{
-	struct gbuf *gbuf = container_of(work, struct gbuf, event);
-
-	/* Call the completion handler, then drop our reference */
-	gbuf->complete(gbuf);
-	greybus_put_gbuf(gbuf);
 }
 
 #define MAX_CPORTS	1024
@@ -196,24 +180,18 @@ void greybus_cport_in(struct greybus_host_device *hd, u16 cport_id,
 	 */
 	memcpy(gbuf->transfer_buffer, data, length);
 	gbuf->actual_length = length;
-
-	queue_work(gbuf_workqueue, &gbuf->event);
 }
 EXPORT_SYMBOL_GPL(greybus_cport_in);
 
 /* Can be called in interrupt context, do the work and get out of here */
 void greybus_gbuf_finished(struct gbuf *gbuf)
 {
-	queue_work(gbuf_workqueue, &gbuf->event);
+	gbuf->complete(gbuf);
 }
 EXPORT_SYMBOL_GPL(greybus_gbuf_finished);
 
 int gb_gbuf_init(void)
 {
-	gbuf_workqueue = alloc_workqueue("greybus_gbuf", 0, 1);
-	if (!gbuf_workqueue)
-		return -ENOMEM;
-
 	gbuf_head_cache = kmem_cache_create("gbuf_head_cache",
 					    sizeof(struct gbuf), 0, 0, NULL);
 	return 0;
@@ -221,6 +199,5 @@ int gb_gbuf_init(void)
 
 void gb_gbuf_exit(void)
 {
-	destroy_workqueue(gbuf_workqueue);
 	kmem_cache_destroy(gbuf_head_cache);
 }

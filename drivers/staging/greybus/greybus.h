@@ -134,7 +134,6 @@ struct gbuf {
 	bool outbound;			/* AP-relative data direction */
 
 	void *context;
-	struct work_struct event;
 	gbuf_complete_t complete;
 };
 
