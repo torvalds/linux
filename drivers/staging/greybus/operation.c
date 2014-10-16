@@ -14,6 +14,12 @@
 #include "greybus.h"
 
 /*
+ * The top bit of the type in an operation message header indicates
+ * whether the message is a request (bit clear) or response (bit set)
+ */
+#define GB_OPERATION_TYPE_RESPONSE	0x80
+
+/*
  * All operation messages (both requests and responses) begin with
  * a common header that encodes the size of the data (header
  * included).  This header also contains a unique identifier, which
@@ -61,7 +67,7 @@ int gb_operation_wait(struct gb_operation *operation)
 	ret = wait_for_completion_interruptible(&operation->completion);
 	/* If interrupted, cancel the in-flight buffer */
 	if (ret < 0)
-		ret = greybus_kill_gbuf(operation->gbuf);
+		ret = greybus_kill_gbuf(operation->request);
 	return ret;
 
 }
@@ -80,12 +86,14 @@ int gb_operation_submit(struct gb_operation *operation,
 {
 	int ret;
 
-	/* XXX
-	 * gfp is probably GFP_ATOMIC but really I think
-	 * the gfp mask should go away.
+	/*
+	 * XXX
+	 * I think the order of operations is going to be
+	 * significant, and if so, we may need a mutex to surround
+	 * setting the operation id and submitting the gbuf.
 	 */
 	operation->callback = callback;
-	ret = greybus_submit_gbuf(operation->gbuf, GFP_KERNEL);
+	ret = greybus_submit_gbuf(operation->request, GFP_KERNEL);
 	if (ret)
 		return ret;
 	if (!callback)
@@ -95,52 +103,100 @@ int gb_operation_submit(struct gb_operation *operation,
 }
 
 /*
- * Called when a greybus request message has actually been sent.
+ * Called when an operation buffer completes.
  */
-static void gbuf_out_callback(struct gbuf *gbuf)
+static void gb_operation_gbuf_complete(struct gbuf *gbuf)
 {
-	/* Record it's been submitted; need response now */
+	/* TODO */
 }
 
 /*
- * Create a Greybus operation having a buffer big enough for an
- * outgoing payload of the given size to be sent over the given
- * connection.
- *
- * Returns a pointer to the new operation or a null pointer if a
- * failure occurs due to memory exhaustion.
+ * Allocate a buffer to be used for an operation request or response
+ * message.  Both types of message contain a header, which is filled
+ * in here.  W
  */
-struct gb_operation *gb_operation_create(struct gb_connection *connection,
-					size_t size, u8 type)
+struct gbuf *gb_operation_gbuf_create(struct gb_operation *operation,
+					u8 type, size_t size, bool outbound)
 {
-	struct gb_operation *operation;
+	struct gb_connection *connection = operation->connection;
 	struct gb_operation_msg_hdr *header;
 	struct gbuf *gbuf;
+	gfp_t gfp_flags = outbound ? GFP_KERNEL : GFP_ATOMIC;
 
-	/* XXX Use a slab cache */
-	operation = kzalloc(sizeof(*operation), GFP_KERNEL);
-	if (!operation)
-		return NULL;
-
-	/* Our buffer holds a header in addition to the requested payload */
+	/* Operation buffers hold a header in addition to their payload */
 	size += sizeof(*header);
-	gbuf = greybus_alloc_gbuf(connection, gbuf_out_callback, size,
-				true, GFP_KERNEL, operation);
-	if (gbuf) {
-		kfree(operation);
+	gbuf = greybus_alloc_gbuf(connection, gb_operation_gbuf_complete,
+					size, outbound, gfp_flags, operation);
+	if (!gbuf)
 		return NULL;
-	}
-	gbuf->actual_length = size;	/* Record what we'll use */
 
-	operation->connection = connection;		/* XXX refcount? */
-
-	/* Fill in the header structure and payload pointer */
-	operation->gbuf = gbuf;
-	header = (struct gb_operation_msg_hdr *)&gbuf->transfer_buffer;
+	/* Fill in the header structure */
+	header = (struct gb_operation_msg_hdr *)gbuf->transfer_buffer;
 	header->size = cpu_to_le16(size);
 	header->id = 0;		/* Filled in when submitted */
 	header->type = type;
-	operation->payload = (char *)header + sizeof(*header);
+
+	return gbuf;
+}
+
+/*
+ * Create a Greybus operation to be sent over the given connection.
+ * The request buffer will big enough for a payload of the given
+ * size.  Outgoing requests must specify the size of the response
+ * buffer size, which must be sufficient to hold all expected
+ * response data.
+ *
+ * Incoming requests will supply a response size of 0, and in that
+ * case no response buffer is allocated.  (A response always
+ * includes a status byte, so 0 is not a valid size.)  Whatever
+ * handles the operation request is responsible for allocating the
+ * response buffer.
+ *
+ * Returns a pointer to the new operation or a null pointer if an
+ * error occurs.
+ */
+struct gb_operation *gb_operation_create(struct gb_connection *connection,
+					u8 type, size_t request_size,
+					size_t response_size)
+{
+	struct gb_operation *operation;
+	gfp_t gfp_flags = response_size ? GFP_KERNEL : GFP_ATOMIC;
+
+	if (!request_size) {
+		gb_connection_err(connection, "zero-sized request");
+		return NULL;
+	}
+
+	/* XXX Use a slab cache */
+	operation = kzalloc(sizeof(*operation), gfp_flags);
+	if (!operation)
+		return NULL;
+	operation->connection = connection;		/* XXX refcount? */
+
+	operation->request = gb_operation_gbuf_create(operation, type,
+							request_size, true);
+	if (!operation->request) {
+		kfree(operation);
+		return NULL;
+	}
+	operation->request_payload = operation->request->transfer_buffer +
+					sizeof(struct gb_operation_msg_hdr);
+	/* We always use the full request buffer */
+	operation->request->actual_length = request_size;
+
+	if (response_size) {
+		type |= GB_OPERATION_TYPE_RESPONSE;
+		operation->response = gb_operation_gbuf_create(operation,
+						type, response_size, false);
+		if (!operation->response) {
+			greybus_free_gbuf(operation->request);
+			kfree(operation);
+			return NULL;
+		}
+		operation->response_payload =
+				operation->response->transfer_buffer +
+				sizeof(struct gb_operation_msg_hdr);
+	}
 
 	operation->callback = NULL;	/* set at submit time */
 	init_completion(&operation->completion);
@@ -165,7 +221,8 @@ void gb_operation_destroy(struct gb_operation *operation)
 	list_del(&operation->links);
 	spin_unlock_irq(&gb_operations_lock);
 
-	greybus_free_gbuf(operation->gbuf);
+	greybus_free_gbuf(operation->response);
+	greybus_free_gbuf(operation->request);
 
 	kfree(operation);
 }

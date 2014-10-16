@@ -50,17 +50,23 @@ struct gb_operation;
 typedef void (*gb_operation_callback)(struct gb_operation *);
 struct gb_operation {
 	struct gb_connection	*connection;
-	struct gbuf		*gbuf;
-	void			*payload;	/* sender data */
+	struct gbuf		*request;
+	struct gbuf		*response;
+
 	gb_operation_callback	callback;	/* If asynchronous */
 	struct completion	completion;	/* Used if no callback */
 	u8			result;
 
 	struct list_head	links;		/* connection->operations */
+
+	/* These are what's used by caller */
+	void			*request_payload;
+	void			*response_payload;
 };
 
 struct gb_operation *gb_operation_create(struct gb_connection *connection,
-					size_t size, u8 type);
+					u8 type, size_t request_size,
+					size_t response_size);
 void gb_operation_destroy(struct gb_operation *operation);
 
 int gb_operation_wait(struct gb_operation *operation);
