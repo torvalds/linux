@@ -82,6 +82,7 @@ static void free_gbuf(struct kref *kref)
 	gbuf->connection->hd->driver->free_gbuf_data(gbuf);
 
 	kmem_cache_free(gbuf_head_cache, gbuf);
+	mutex_unlock(&gbuf_mutex);
 }
 
 void greybus_free_gbuf(struct gbuf *gbuf)
