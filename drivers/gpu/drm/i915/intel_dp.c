@@ -1629,10 +1629,10 @@ static void edp_panel_on(struct intel_dp *intel_dp)
 	DRM_DEBUG_KMS("Turn eDP port %c panel power on\n",
 		      port_name(dp_to_dig_port(intel_dp)->port));
 
-	if (edp_have_panel_power(intel_dp)) {
-		DRM_DEBUG_KMS("eDP power already on\n");
+	if (WARN(edp_have_panel_power(intel_dp),
+		 "eDP port %c panel power already on\n",
+		 port_name(dp_to_dig_port(intel_dp)->port)))
 		return;
-	}
 
 	wait_panel_power_cycle(intel_dp);
 
