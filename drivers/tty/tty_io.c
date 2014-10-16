@@ -502,8 +502,15 @@ void proc_clear_tty(struct task_struct *p)
 	tty_kref_put(tty);
 }
 
-/* Called under the sighand lock */
-
+/**
+ * proc_set_tty -  set the controlling terminal
+ *
+ * Only callable by the session leader and only if it does not already have
+ * a controlling terminal.
+ *
+ * Caller must hold:  a readlock on tasklist_lock
+ *		      sighand lock
+ */
 static void __proc_set_tty(struct tty_struct *tty)
 {
 	unsigned long flags;
@@ -2150,6 +2157,7 @@ retry_open:
 
 	mutex_lock(&tty_mutex);
 	tty_lock(tty);
+	read_lock(&tasklist_lock);
 	spin_lock_irq(&current->sighand->siglock);
 	if (!noctty &&
 	    current->signal->leader &&
@@ -2157,6 +2165,7 @@ retry_open:
 	    tty->session == NULL)
 		__proc_set_tty(tty);
 	spin_unlock_irq(&current->sighand->siglock);
+	read_unlock(&tasklist_lock);
 	tty_unlock(tty);
 	mutex_unlock(&tty_mutex);
 	return 0;
@@ -2447,10 +2456,13 @@ static int fionbio(struct file *file, int __user *p)
 static int tiocsctty(struct tty_struct *tty, int arg)
 {
 	int ret = 0;
-	if (current->signal->leader && (task_session(current) == tty->session))
-		return ret;
 
 	mutex_lock(&tty_mutex);
+	read_lock(&tasklist_lock);
+
+	if (current->signal->leader && (task_session(current) == tty->session))
+		goto unlock;
+
 	/*
 	 * The process must be a session leader and
 	 * not have a controlling tty already.
@@ -2469,9 +2481,7 @@ static int tiocsctty(struct tty_struct *tty, int arg)
 			/*
 			 * Steal it away
 			 */
-			read_lock(&tasklist_lock);
 			session_clear_tty(tty->session);
-			read_unlock(&tasklist_lock);
 		} else {
 			ret = -EPERM;
 			goto unlock;
@@ -2479,6 +2489,7 @@ static int tiocsctty(struct tty_struct *tty, int arg)
 	}
 	proc_set_tty(tty);
 unlock:
+	read_unlock(&tasklist_lock);
 	mutex_unlock(&tty_mutex);
 	return ret;
 }
