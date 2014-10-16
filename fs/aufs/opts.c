@@ -265,7 +265,6 @@ static int au_do_optstr_br_attr(au_br_perm_str_t *str, int perm)
 	const char *p;
 	char *q;
 
-	sz = 0;
 	q = str->a;
 	*q = 0;
 	p = au_optstr(&perm, brattr);
@@ -287,7 +286,7 @@ static int au_do_optstr_br_attr(au_br_perm_str_t *str, int perm)
 	} while (p);
 
 out:
-	return sz;
+	return q - str->a;
 }
 
 static int noinline_for_stack br_perm_val(char *perm)
