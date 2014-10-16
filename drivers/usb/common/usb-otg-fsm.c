@@ -90,6 +90,7 @@ static void otg_leave_state(struct otg_fsm *fsm, enum usb_otg_state old_state)
 			fsm->otg_hnp_reqd = 0;
 			fsm->b_bus_req = 0;
 		}
+		fsm->a_conn = 0;
 		break;
 	case OTG_STATE_A_IDLE:
 		fsm->adp_prb = 0;
