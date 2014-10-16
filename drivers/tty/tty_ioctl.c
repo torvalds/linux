@@ -524,10 +524,7 @@ EXPORT_SYMBOL(tty_termios_hw_change);
  *	@tty: tty to update
  *	@new_termios: desired new value
  *
- *	Perform updates to the termios values set on this terminal. There
- *	is a bit of layering violation here with n_tty in terms of the
- *	internal knowledge of this function.
- *
+ *	Perform updates to the termios values set on this terminal.
  *	A master pty's termios should never be set.
  *
  *	Locking: termios_rwsem
@@ -537,7 +534,6 @@ int tty_set_termios(struct tty_struct *tty, struct ktermios *new_termios)
 {
 	struct ktermios old_termios;
 	struct tty_ldisc *ld;
-	unsigned long flags;
 
 	WARN_ON(tty->driver->type == TTY_DRIVER_TYPE_PTY &&
 		tty->driver->subtype == PTY_TYPE_MASTER);
@@ -552,32 +548,6 @@ int tty_set_termios(struct tty_struct *tty, struct ktermios *new_termios)
 	old_termios = tty->termios;
 	tty->termios = *new_termios;
 	unset_locked_termios(&tty->termios, &old_termios, &tty->termios_locked);
-
-	/* See if packet mode change of state. */
-	if (tty->link && tty->link->packet) {
-		int extproc = (old_termios.c_lflag & EXTPROC) |
-				(tty->termios.c_lflag & EXTPROC);
-		int old_flow = ((old_termios.c_iflag & IXON) &&
-				(old_termios.c_cc[VSTOP] == '\023') &&
-				(old_termios.c_cc[VSTART] == '\021'));
-		int new_flow = (I_IXON(tty) &&
-				STOP_CHAR(tty) == '\023' &&
-				START_CHAR(tty) == '\021');
-		if ((old_flow != new_flow) || extproc) {
-			spin_lock_irqsave(&tty->ctrl_lock, flags);
-			if (old_flow != new_flow) {
-				tty->ctrl_status &= ~(TIOCPKT_DOSTOP | TIOCPKT_NOSTOP);
-				if (new_flow)
-					tty->ctrl_status |= TIOCPKT_DOSTOP;
-				else
-					tty->ctrl_status |= TIOCPKT_NOSTOP;
-			}
-			if (extproc)
-				tty->ctrl_status |= TIOCPKT_IOCTL;
-			spin_unlock_irqrestore(&tty->ctrl_lock, flags);
-			wake_up_interruptible(&tty->link->read_wait);
-		}
-	}
 
 	if (tty->ops->set_termios)
 		(*tty->ops->set_termios)(tty, &old_termios);
