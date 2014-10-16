@@ -914,7 +914,6 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 	sdc->slave.device_prep_slave_sg		= sun6i_dma_prep_slave_sg;
 	sdc->slave.device_prep_dma_memcpy	= sun6i_dma_prep_dma_memcpy;
 	sdc->slave.device_control		= sun6i_dma_control;
-	sdc->slave.chancnt			= NR_MAX_VCHANS;
 
 	sdc->slave.dev = &pdev->dev;
 
