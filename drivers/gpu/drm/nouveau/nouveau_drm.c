@@ -128,6 +128,7 @@ nouveau_cli_destroy(struct nouveau_cli *cli)
 	nvkm_vm_ref(NULL, &nvxx_client(&cli->base)->vm, NULL);
 	nvif_client_fini(&cli->base);
 	usif_client_fini(cli);
+	kfree(cli);
 }
 
 static void
