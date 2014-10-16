@@ -339,26 +339,26 @@ static void pty_start(struct tty_struct *tty)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&tty->ctrl_lock, flags);
 	if (tty->link && tty->link->packet) {
+		spin_lock_irqsave(&tty->ctrl_lock, flags);
 		tty->ctrl_status &= ~TIOCPKT_STOP;
 		tty->ctrl_status |= TIOCPKT_START;
+		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 		wake_up_interruptible_poll(&tty->link->read_wait, POLLIN);
 	}
-	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 }
 
 static void pty_stop(struct tty_struct *tty)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&tty->ctrl_lock, flags);
 	if (tty->link && tty->link->packet) {
+		spin_lock_irqsave(&tty->ctrl_lock, flags);
 		tty->ctrl_status &= ~TIOCPKT_START;
 		tty->ctrl_status |= TIOCPKT_STOP;
+		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 		wake_up_interruptible_poll(&tty->link->read_wait, POLLIN);
 	}
-	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 }
 
 /**
