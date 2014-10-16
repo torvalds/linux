@@ -658,6 +658,8 @@ static int kvm_arch_vcpu_ioctl_vcpu_init(struct kvm_vcpu *vcpu,
 	if (ret)
 		return ret;
 
+	vcpu_reset_hcr(vcpu);
+
 	/*
 	 * Handle the "start in power-off" case by marking the VCPU as paused.
 	 */
