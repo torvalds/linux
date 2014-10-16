@@ -36,6 +36,11 @@
 		};
 	};
 
+	gpio_poweroff {
+		compatible = "gpio-poweroff";
+		gpios = <&gpio1 GPIO_A2 GPIO_ACTIVE_LOW>;
+	};
+
 	wireless-wlan {
 		compatible = "wlan-platdata";
 
@@ -71,32 +76,22 @@
 		compatible = "rockchip,key";
 	};
 
-	codec_hdmi_i2s: codec-hdmi-i2s {
-		compatible = "hdmi-i2s";
-	};
-
-	rockchip-hdmi-i2s {
-		compatible = "rockchip-hdmi-i2s";
-		dais {
-			dai0 {
-				audio-codec = <&codec_hdmi_i2s>;
-				i2s-controller = <&i2s>;
-				format = "i2s";
-				//continuous-clock;
-				//bitclock-inversion;
-				//frame-inversion;
-				//bitclock-master;
-				//frame-master;
-			};
-		};
-	};
-
 	codec_hdmi_spdif: codec-hdmi-spdif {
 		compatible = "hdmi-spdif";
 	};
 
 	rockchip-hdmi-spdif {
 		compatible = "rockchip-hdmi-spdif";
+		dais {
+			dai0 {
+				audio-codec = <&codec_hdmi_spdif>;
+				i2s-controller = <&spdif>;
+			};
+		};
+	};
+
+	rockchip-spdif-card {
+		compatible = "rockchip-spdif-card";
 		dais {
 			dai0 {
 				audio-codec = <&codec_hdmi_spdif>;
