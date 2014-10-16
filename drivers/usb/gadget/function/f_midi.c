@@ -654,6 +654,14 @@ static struct snd_rawmidi_ops gmidi_out_ops = {
 	.trigger = f_midi_out_trigger
 };
 
+static inline void f_midi_unregister_card(struct f_midi *midi)
+{
+	if (midi->card) {
+		snd_card_free(midi->card);
+		midi->card = NULL;
+	}
+}
+
 /* register as a sound "card" */
 static int f_midi_register_card(struct f_midi *midi)
 {
@@ -715,10 +723,7 @@ static int f_midi_register_card(struct f_midi *midi)
 	return 0;
 
 fail:
-	if (midi->card) {
-		snd_card_free(midi->card);
-		midi->card = NULL;
-	}
+	f_midi_unregister_card(midi);
 	return err;
 }
 
@@ -967,15 +972,23 @@ int __init f_midi_bind_config(struct usb_configuration *c,
 	midi->func.disable     = f_midi_disable;
 
 	midi->id = kstrdup(id, GFP_KERNEL);
+	if (id && !midi->id) {
+		status = -ENOMEM;
+		goto kstrdup_fail;
+	}
 	midi->buflen = buflen;
 	midi->qlen = qlen;
 
 	status = usb_add_function(c, &midi->func);
 	if (status)
-		goto setup_fail;
+		goto add_fail;
 
 	return 0;
 
+add_fail:
+	kfree(midi->id);
+kstrdup_fail:
+	f_midi_unregister_card(midi);
 setup_fail:
 	for (--i; i >= 0; i--)
 		kfree(midi->in_port[i]);
