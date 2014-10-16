@@ -2806,6 +2806,13 @@ intel_dp_dpcd_read_wake(struct drm_dp_aux *aux, unsigned int offset,
 	ssize_t ret;
 	int i;
 
+	/*
+	 * Sometime we just get the same incorrect byte repeated
+	 * over the entire buffer. Doing just one throw away read
+	 * initially seems to "solve" it.
+	 */
+	drm_dp_dpcd_read(aux, DP_DPCD_REV, buffer, 1);
+
 	for (i = 0; i < 3; i++) {
 		ret = drm_dp_dpcd_read(aux, offset, buffer, size);
 		if (ret == size)
