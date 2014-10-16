@@ -152,7 +152,8 @@ struct ceph_msg_header {
 			     receiver: mask against ~PAGE_MASK */
 
 	struct ceph_entity_name src;
-	__le32 reserved;
+	__le16 compat_version;
+	__le16 reserved;
 	__le32 crc;       /* header crc32c */
 } __attribute__ ((packed));
 
