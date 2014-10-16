@@ -954,6 +954,7 @@ int __init f_midi_bind_config(struct usb_configuration *c,
 	/* set up ALSA midi devices */
 	midi->in_ports = in_ports;
 	midi->out_ports = out_ports;
+	midi->index = index;
 	status = f_midi_register_card(midi);
 	if (status < 0)
 		goto setup_fail;
@@ -966,7 +967,6 @@ int __init f_midi_bind_config(struct usb_configuration *c,
 	midi->func.disable     = f_midi_disable;
 
 	midi->id = kstrdup(id, GFP_KERNEL);
-	midi->index = index;
 	midi->buflen = buflen;
 	midi->qlen = qlen;
 
