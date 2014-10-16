@@ -130,8 +130,15 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 
 	port->dev = &ofdev->dev;
 
-	if (type == PORT_TEGRA)
+	switch (type) {
+	case PORT_TEGRA:
 		port->handle_break = tegra_serial_handle_break;
+		break;
+
+	case PORT_RT2880:
+		port->iotype = UPIO_AU;
+		break;
+	}
 
 	return 0;
 out:
@@ -317,6 +324,7 @@ static struct of_device_id of_platform_serial_table[] = {
 	{ .compatible = "ns16850",  .data = (void *)PORT_16850, },
 	{ .compatible = "nvidia,tegra20-uart", .data = (void *)PORT_TEGRA, },
 	{ .compatible = "nxp,lpc3220-uart", .data = (void *)PORT_LPC3220, },
+	{ .compatible = "ralink,rt2880-uart", .data = (void *)PORT_RT2880, },
 	{ .compatible = "altr,16550-FIFO32",
 		.data = (void *)PORT_ALTR_16550_F32, },
 	{ .compatible = "altr,16550-FIFO64",
