@@ -33,6 +33,15 @@ Optional properties:
     1 - pull down
     2 - pull up
 
+- realtek,jd1-gpio
+  Configures GPIO Mic Jack detection 1.
+  Select 0 ~ 3 as OFF, GPIO1, GPIO2 and GPIO3 respectively.
+
+- realtek,jd2-gpio
+- realtek,jd3-gpio
+  Configures GPIO Mic Jack detection 2 and 3.
+  Select 0 ~ 3 as OFF, GPIO4, GPIO5 and GPIO6 respectively.
+
 Pins on the device (for linking into audio routes):
 
   * IN1P
@@ -63,4 +72,5 @@ rt5677 {
 		<&gpio TEGRA_GPIO(V, 3) GPIO_ACTIVE_HIGH>;
 	realtek,in1-differential = "true";
 	realtek,gpio-config = /bits/ 8  <0 0 0 0 0 2>;   /* pull up GPIO6 */
+	realtek,jd2-gpio = <3>;  /* Enables Jack detection for GPIO6 */
 };
