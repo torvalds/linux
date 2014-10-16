@@ -733,11 +733,12 @@ void rk_fb_platform_set_sysmmu(struct device *sysmmu, struct device *dev)
 
 static int rk_fb_open(struct fb_info *info, int user)
 {
-	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)info->par;
+	struct rk_fb_par *fb_par = (struct rk_fb_par *)info->par;
+	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
 	int win_id;
 
 	win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
-	dev_drv->win[win_id]->logicalstate++;
+	fb_par->state++;
 	/* if this win aready opened ,no need to reopen */
 	if (dev_drv->win[win_id]->state)
 		return 0;
@@ -750,7 +751,8 @@ static int get_extend_fb_id(struct fb_info *info)
 {
 	int fb_id = 0;
 	char *id = info->fix.id;
-	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)info->par;
+	struct rk_fb_par *fb_par = (struct rk_fb_par *)info->par;
+	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
 
 	if (!strcmp(id, "fb0"))
 		fb_id = 0;
@@ -765,14 +767,15 @@ static int get_extend_fb_id(struct fb_info *info)
 
 static int rk_fb_close(struct fb_info *info, int user)
 {
-	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)info->par;
+	struct rk_fb_par *fb_par = (struct rk_fb_par *)info->par;
+	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
 	struct rk_lcdc_win *win = NULL;
 	int win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
 
 	if (win_id >= 0) {
 		win = dev_drv->win[win_id];
-		win->logicalstate--;
-		if (!win->logicalstate) {
+		fb_par->state--;
+		if (!fb_par->state) {
 			info->fix.smem_start = win->reserved;
 			info->var.xres = dev_drv->screen0->mode.xres;
 			info->var.yres = dev_drv->screen0->mode.yres;
@@ -799,7 +802,6 @@ static int rk_fb_close(struct fb_info *info, int user)
 			info->var.vsync_len = dev_drv->screen0->mode.vsync_len;
 			info->var.hsync_len = dev_drv->screen0->mode.hsync_len;
 		}
-		info->var.reserved[0] = (__u32)win->area[0].ion_hdl;
 	}
 
 	return 0;
@@ -883,8 +885,8 @@ static void fb_copy_by_ipp(struct fb_info *dst_info,
 	int dst_w, dst_h, dst_vir_w;
 	int ipp_fmt;
 	u8 data_format = (dst_info->var.nonstd) & 0xff;
-	struct rk_lcdc_driver *ext_dev_drv =
-			(struct rk_lcdc_driver *)dst_info->par;
+	struct rk_fb_par *fb_par = (struct rk_fb_par *)dst_info->par;
+	struct rk_lcdc_driver *ext_dev_drv = fb_par->lcdc_drv;
 	u16 orientation = ext_dev_drv->rotate_mode;
 
 	memset(&ipp_req, 0, sizeof(struct rk29_ipp_req));
@@ -1104,9 +1106,10 @@ static void win_copy_by_rga(struct rk_lcdc_win *dst_win,
 static void fb_copy_by_rga(struct fb_info *dst_info,
 				struct fb_info *src_info)
 {
-	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)src_info->par;
-	struct rk_lcdc_driver *ext_dev_drv =
-	    (struct rk_lcdc_driver *)dst_info->par;
+	struct rk_fb_par *src_fb_par = (struct rk_fb_par *)src_info->par;
+	struct rk_fb_par *dst_fb_par = (struct rk_fb_par *)dst_info->par;
+	struct rk_lcdc_driver *dev_drv = src_fb_par->lcdc_drv;
+	struct rk_lcdc_driver *ext_dev_drv = dst_fb_par->lcdc_drv;
 	int win_id = 0, ext_win_id;
 	struct rk_lcdc_win *src_win, *dst_win;
 
@@ -1155,6 +1158,7 @@ static int rk_fb_set_ext_win_buffer(struct rk_lcdc_win *ext_win,
 {
 	struct rk_fb *rk_fb =  platform_get_drvdata(fb_pdev);
 	struct fb_info *ext_info = rk_fb->fb[(rk_fb->num_fb >> 1)];
+	struct rk_fb_par *ext_fb_par = (struct rk_fb_par *)ext_info->par;
 	struct rk_lcdc_driver *ext_dev_drv = rk_get_extend_lcdc_drv();
 	struct rk_lcdc_win *last_win;
 	static u8 fb_index = 0;
@@ -1223,7 +1227,7 @@ static int rk_fb_set_ext_win_buffer(struct rk_lcdc_win *ext_win,
 	/* rotate mode */
 	if (!iommu_en) {
 		if (ext_win->id == 0) {
-			ext_win->area[0].smem_start = rk_fb->ext_fb_phy_base;
+			ext_win->area[0].smem_start = ext_fb_par->fb_phy_base;
 			ext_win->area[0].y_offset = (get_rotate_fb_size() >> 1) * fb_index;
 			if ((++fb_index) > 1)
 				fb_index = 0;
@@ -1261,7 +1265,9 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var,
 			     struct fb_info *info)
 {
 	struct rk_fb *rk_fb = dev_get_drvdata(info->device);
-	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)info->par;
+	struct rk_fb_par *fb_par = (struct rk_fb_par *)info->par;
+	struct rk_fb_par *extend_fb_par = NULL;
+	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
 	struct fb_fix_screeninfo *fix = &info->fix;
 	struct fb_info *extend_info = NULL;
 	struct rk_lcdc_driver *extend_dev_drv = NULL;
@@ -1294,7 +1300,8 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var,
 	if (rk_fb->disp_mode == DUAL) {
 		fb_id = get_extend_fb_id(info);
 		extend_info = rk_fb->fb[(rk_fb->num_fb >> 1) + fb_id];
-		extend_dev_drv = (struct rk_lcdc_driver *)extend_info->par;
+		extend_fb_par = (struct rk_fb_par *)extend_info->par;
+		extend_dev_drv = extend_fb_par->lcdc_drv;
 		extend_win_id = dev_drv->ops->fb_get_win_id(extend_dev_drv,
 							   extend_info->fix.id);
 		extend_win = extend_dev_drv->win[extend_win_id];
@@ -1396,7 +1403,8 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var,
 	dev_drv->ops->pan_display(dev_drv, win_id);
 
 	if (rk_fb->disp_mode == DUAL) {
-		if (extend_win->state && hdmi_switch_complete) {
+		if (extend_info != info && extend_win->state &&
+		    hdmi_switch_complete) {
 			rk_fb_set_ext_win_buffer(extend_win, win,
 						 extend_dev_drv->rotate_mode,
 						 extend_dev_drv->iommu_enabled);
@@ -1441,7 +1449,8 @@ void rk_fd_fence_wait(struct rk_lcdc_driver *dev_drv, struct sync_fence *fence)
 #if 0
 static int rk_fb_copy_from_loader(struct fb_info *info)
 {
-	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)info->par;
+	struct rk_fb_par *fb_par = (struct rk_fb_par *)info->par;
+	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
 	void *dst = info->screen_base;
 	u32 dsp_addr[4];
 	u32 src;
@@ -1988,7 +1997,8 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 {
 	struct rk_fb *rk_fb = dev_get_drvdata(info->device);
 	struct fb_fix_screeninfo *fix = &info->fix;
-	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)info->par;
+	struct rk_fb_par *fb_par = (struct rk_fb_par *)info->par;
+	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
 	struct rk_screen *screen = dev_drv->cur_screen;
         struct rk_screen primary_screen;
 	struct fb_info *fbi = rk_fb->fb[0];
@@ -2219,7 +2229,8 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 static int rk_fb_set_win_config(struct fb_info *info,
 				struct rk_fb_win_cfg_data *win_data)
 {
-	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)info->par;
+	struct rk_fb_par *fb_par = (struct rk_fb_par *)info->par;
+	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
 	struct rk_fb_reg_data *regs;
 #ifdef H_USE_FENCE
 	struct sync_fence *release_fence[RK_MAX_BUF_NUM];
@@ -2417,7 +2428,9 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		       unsigned long arg)
 {
 	struct rk_fb *rk_fb = dev_get_drvdata(info->device);
-	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)info->par;
+	struct rk_fb_par *fb_par = (struct rk_fb_par *)info->par;
+	struct rk_fb_par *extend_fb_par = NULL;
+	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
 	struct fb_fix_screeninfo *fix = &info->fix;
 	int fb_id = 0, extend_win_id = 0;
 	struct fb_info *extend_info = NULL;
@@ -2439,7 +2452,8 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 	if (rk_fb->disp_mode == DUAL) {
 		fb_id = get_extend_fb_id(info);
 		extend_info = rk_fb->fb[(rk_fb->num_fb >> 1) + fb_id];
-		extend_dev_drv = (struct rk_lcdc_driver *)extend_info->par;
+		extend_fb_par = (struct rk_fb_par *)extend_info->par;
+		extend_dev_drv = extend_fb_par->lcdc_drv;
 		extend_win_id = dev_drv->ops->fb_get_win_id(extend_dev_drv,
 							    extend_info->fix.id);
 		extend_win = extend_dev_drv->win[extend_win_id];
@@ -2634,7 +2648,7 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		}
 #endif
 	case RK_FBIOSET_CLEAR_FB:
-		memset(info->screen_base, 0, info->fix.smem_len);
+		memset(fb_par->fb_virt_base, 0, fb_par->fb_size);
 		break;
 	case RK_FBIOSET_CONFIG_DONE:
 		{
@@ -2679,7 +2693,8 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 
 static int rk_fb_blank(int blank_mode, struct fb_info *info)
 {
-	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)info->par;
+	struct rk_fb_par *fb_par = (struct rk_fb_par *)info->par;
+	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
 	struct fb_fix_screeninfo *fix = &info->fix;
 	int win_id;
 #if defined(CONFIG_RK_HDMI)
@@ -2743,7 +2758,8 @@ static ssize_t rk_fb_read(struct fb_info *info, char __user *buf,
 	u8 __iomem *src;
 	int c, cnt = 0, err = 0;
 	unsigned long total_size;
-	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)info->par;
+	struct rk_fb_par *fb_par = (struct rk_fb_par *)info->par;
+	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
 	struct rk_lcdc_win *win = NULL;
 	int win_id = 0;
 
@@ -2807,7 +2823,8 @@ static ssize_t rk_fb_write(struct fb_info *info, const char __user *buf,
 	u8 __iomem *dst;
 	int c, cnt = 0, err = 0;
 	unsigned long total_size;
-	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)info->par;
+	struct rk_fb_par *fb_par = (struct rk_fb_par *)info->par;
+	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
 	struct rk_lcdc_win *win = NULL;
 	int win_id = 0;
 
@@ -2877,6 +2894,8 @@ static int rk_fb_update_ext_info(struct fb_info *ext_info,
 					struct fb_info *info, int update_buffer)
 {
 	struct rk_fb *rk_fb =  platform_get_drvdata(fb_pdev);
+	struct rk_fb_par *fb_par = NULL;
+	struct rk_fb_par *ext_fb_par = NULL;
 	struct rk_lcdc_driver *dev_drv = NULL;
 	struct rk_lcdc_driver *ext_dev_drv = NULL;
 	struct rk_lcdc_win *win = NULL;
@@ -2888,8 +2907,10 @@ static int rk_fb_update_ext_info(struct fb_info *ext_info,
 	if (unlikely(!info) || unlikely(!ext_info))
                 return -1;
 
-	dev_drv = (struct rk_lcdc_driver *)info->par;
-	ext_dev_drv = (struct rk_lcdc_driver *)ext_info->par;
+	fb_par = (struct rk_fb_par *)info->par;
+	ext_fb_par = (struct rk_fb_par *)ext_info->par;
+	dev_drv = fb_par->lcdc_drv;
+	ext_dev_drv = ext_fb_par->lcdc_drv;
 	if (unlikely(!dev_drv) || unlikely(!ext_dev_drv))
                 return -1;
 
@@ -2937,7 +2958,9 @@ static int rk_fb_set_par(struct fb_info *info)
 {
 	struct fb_var_screeninfo *var = &info->var;
 	struct fb_fix_screeninfo *fix = &info->fix;
-	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)info->par;
+	struct rk_fb_par *fb_par = (struct rk_fb_par *)info->par;
+	struct rk_fb_par *extend_fb_par = NULL;
+	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
 	struct rk_fb *rk_fb = dev_get_drvdata(info->device);
 	int fb_id, extend_win_id = 0;
 	struct fb_info *extend_info = NULL;
@@ -2974,7 +2997,8 @@ static int rk_fb_set_par(struct fb_info *info)
 	if (rk_fb->disp_mode == DUAL) {
 		fb_id = get_extend_fb_id(info);
 		extend_info = rk_fb->fb[(rk_fb->num_fb >> 1) + fb_id];
-		extend_dev_drv = (struct rk_lcdc_driver *)extend_info->par;
+		extend_fb_par = (struct rk_fb_par *)extend_info->par;
+		extend_dev_drv = extend_fb_par->lcdc_drv;
 		extend_win_id = dev_drv->ops->fb_get_win_id(extend_dev_drv,
 							    extend_info->fix.id);
 		extend_win = extend_dev_drv->win[extend_win_id];
@@ -3153,11 +3177,12 @@ static int fb_setcolreg(unsigned regno,
 static int rk_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct rk_fb *rk_fb = platform_get_drvdata(fb_pdev);
-	struct ion_handle *handle = (struct ion_handle *)info->var.reserved[0];
+	struct rk_fb_par *fb_par = (struct rk_fb_par *)info->par;
+	struct ion_handle *handle = fb_par->ion_hdl;
 	struct dma_buf *dma_buf = NULL;
 
-	if (handle == NULL || IS_ERR(handle)) {
-		dev_err(info->device, "failed to get ion handle:%ld\n",
+	if (IS_ERR_OR_NULL(handle)) {
+		dev_err(info->dev, "failed to get ion handle:%ld\n",
 			PTR_ERR(handle));
 		return -ENOMEM;
 	}
@@ -3243,7 +3268,8 @@ static ssize_t rk_fb_vsync_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct fb_info *fbi = dev_get_drvdata(dev);
-	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)fbi->par;
+	struct rk_fb_par *fb_par = (struct rk_fb_par *)fbi->par;
+	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
 	return scnprintf(buf, PAGE_SIZE, "%llu\n",
 			 ktime_to_ns(dev_drv->vsync_info.timestamp));
 }
@@ -3313,14 +3339,16 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	struct rk_fb *rk_fb =  platform_get_drvdata(fb_pdev);
 	struct fb_info *info = NULL;
 	struct fb_info *pmy_info = NULL;
+	struct rk_fb_par *fb_par = NULL;
+	struct rk_fb_par *pmy_fb_par = NULL;
 	struct rk_lcdc_driver *dev_drv = NULL;
-	struct rk_lcdc_driver *pmy_dev_drv = rk_get_prmry_lcdc_drv();
 	char name[6] = {0};
 	int i, win_id, load_screen = 0;
 
-	if (unlikely(!rk_fb) || unlikely(!pmy_dev_drv) || unlikely(!screen))
+	if (unlikely(!rk_fb) || unlikely(!screen))
 		return -ENODEV;
 
+	hdmi_switch_complete = 0;
 	/* get lcdc driver */
 	sprintf(name, "lcdc%d", lcdc_id);
 	if (rk_fb->disp_mode != DUAL)
@@ -3393,17 +3421,18 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	if (!dev_drv->uboot_logo) {
 		for (i = 0; i < dev_drv->lcdc_win_num; i++) {
 			info = rk_fb->fb[dev_drv->fb_index_base + i];
+			fb_par = (struct rk_fb_par *)info->par;
 			win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
 			if (dev_drv->win[win_id]) {
 				if (rk_fb->disp_mode == DUAL) {
-					if (dev_drv != pmy_dev_drv &&
-							pmy_dev_drv->win[win_id]) {
-						dev_drv->win[win_id]->logicalstate =
-							pmy_dev_drv->win[win_id]->logicalstate;
-						pmy_info = rk_fb->fb[pmy_dev_drv->fb_index_base + i];
+					pmy_info = rk_fb->fb[i];
+					if (pmy_info != info) {
+						pmy_fb_par =
+							(struct rk_fb_par *)pmy_info->par;
+						fb_par->state = pmy_fb_par->state;
 					}
 				}
-				if (dev_drv->win[win_id]->logicalstate) {
+				if (fb_par->state) {
 					if (!dev_drv->win[win_id]->state)
 						dev_drv->ops->open(dev_drv, win_id, 1);
 					if (!load_screen) {
@@ -3519,7 +3548,8 @@ static int rk_fb_alloc_buffer_by_ion(struct fb_info *fbi,
 				     unsigned long fb_mem_size)
 {
 	struct rk_fb *rk_fb = platform_get_drvdata(fb_pdev);
-	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)fbi->par;
+	struct rk_fb_par *fb_par = (struct rk_fb_par *)fbi->par;
+	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
 	struct ion_handle *handle;
 	ion_phys_addr_t phy_addr;
 	size_t len;
@@ -3536,7 +3566,8 @@ static int rk_fb_alloc_buffer_by_ion(struct fb_info *fbi,
 			PTR_ERR(handle));
 		return -ENOMEM;
 	}
-	fbi->var.reserved[0] = (__u32)handle;
+
+	fb_par->ion_hdl = handle;
 	win->area[0].dma_buf = ion_share_dma_buf(rk_fb->ion_client, handle);
 	if (IS_ERR_OR_NULL(win->area[0].dma_buf)) {
 		printk("ion_share_dma_buf() failed\n");
@@ -3546,7 +3577,7 @@ static int rk_fb_alloc_buffer_by_ion(struct fb_info *fbi,
         if (dev_drv->prop == PRMRY)
 	        fbi->screen_base = ion_map_kernel(rk_fb->ion_client, handle);
 #ifdef CONFIG_ROCKCHIP_IOMMU
-	if (dev_drv->iommu_enabled)
+	if (dev_drv->iommu_enabled && dev_drv->mmu_dev)
 		ret = ion_map_iommu(dev_drv->dev, rk_fb->ion_client, handle,
 					(unsigned long *)&phy_addr,
 					(unsigned long *)&len);
@@ -3561,10 +3592,6 @@ static int rk_fb_alloc_buffer_by_ion(struct fb_info *fbi,
 	}
 	fbi->fix.smem_start = phy_addr;
 	fbi->fix.smem_len = len;
-	if (dev_drv->prop == PRMRY)
-		rk_fb->fb_phy_base = phy_addr;
-	else
-		rk_fb->ext_fb_phy_base = phy_addr;
 	printk(KERN_INFO "alloc_buffer:ion_phy_addr=0x%lx\n", phy_addr);
 	return 0;
 
@@ -3577,7 +3604,8 @@ err_share_dma_buf:
 static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 {
 	struct rk_fb *rk_fb = platform_get_drvdata(fb_pdev);
-	struct rk_lcdc_driver *dev_drv = (struct rk_lcdc_driver *)fbi->par;
+	struct rk_fb_par *fb_par = (struct rk_fb_par *)fbi->par;
+	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
 	struct rk_lcdc_win *win = NULL;
 	int win_id;
 	int ret = 0;
@@ -3609,7 +3637,6 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 		fbi->fix.smem_len = fb_mem_size;
 		fbi->fix.smem_start = fb_mem_phys;
 		fbi->screen_base = fb_mem_virt;
-		rk_fb->fb_phy_base = fb_mem_phys;
 #endif
 		memset(fbi->screen_base, 0, fbi->fix.smem_len);
 		printk(KERN_INFO "fb%d:phy:%lx>>vir:%p>>len:0x%x\n", fb_id,
@@ -3635,13 +3662,11 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 			fbi->fix.smem_len = fb_mem_size;
 			fbi->fix.smem_start = fb_mem_phys;
 			fbi->screen_base = fb_mem_virt;
-			rk_fb->ext_fb_phy_base = fb_mem_phys;
 #endif
 		} else {
 			fbi->fix.smem_start = rk_fb->fb[0]->fix.smem_start;
 			fbi->fix.smem_len = rk_fb->fb[0]->fix.smem_len;
 			fbi->screen_base = rk_fb->fb[0]->screen_base;
-			rk_fb->ext_fb_phy_base = rk_fb->fb_phy_base;
 		}
 
 		printk(KERN_INFO "fb%d:phy:%lx>>vir:%p>>len:0x%x\n", fb_id,
@@ -3650,6 +3675,9 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 	}
 
 	fbi->screen_size = fbi->fix.smem_len;
+	fb_par->fb_phy_base = fbi->fix.smem_start;
+	fb_par->fb_virt_base = fbi->screen_base;
+	fb_par->fb_size = fbi->fix.smem_len;
 	win_id = dev_drv->ops->fb_get_win_id(dev_drv, fbi->fix.id);
 	if (win_id >= 0) {
 		win = dev_drv->win[win_id];
@@ -3806,12 +3834,9 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 {
 	struct rk_fb *rk_fb = platform_get_drvdata(fb_pdev);
 	struct fb_info *fbi;
+	struct rk_fb_par *fb_par = NULL;
 	int i = 0, ret = 0, index = 0;
-/*
-#if defined(CONFIG_ROCKCHIP_IOMMU)
-	struct device *mmu_dev = NULL;
-#endif
-*/
+
 	if (rk_fb->num_lcdc == RK30_MAX_LCDC_SUPPORT)
 		return -ENXIO;
 
@@ -3833,7 +3858,16 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 			dev_err(&fb_pdev->dev, "fb framebuffer_alloc fail!");
 			ret = -ENOMEM;
 		}
-		fbi->par = dev_drv;
+		fb_par = devm_kzalloc(&fb_pdev->dev, sizeof(struct rk_fb_par),
+				      GFP_KERNEL);
+		if (!fb_par) {
+			dev_err(&fb_pdev->dev, "malloc fb_par for fb%d fail!",
+				rk_fb->num_fb);
+			return -ENOMEM;
+		}
+		fb_par->id = rk_fb->num_fb;
+		fb_par->lcdc_drv = dev_drv;
+		fbi->par = (void *)fb_par;
 		fbi->var = def_var;
 		fbi->fix = def_fix;
 		sprintf(fbi->fix.id, "fb%d", rk_fb->num_fb);
@@ -3927,8 +3961,10 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 		rk_fb_alloc_buffer(main_fbi, 0);	/* only alloc memory for main fb */
 		dev_drv->uboot_logo = support_uboot_display();
 		if (support_uboot_display()) {
-			/*if (dev_drv->iommu_enabled) 
-				rk_fb_copy_from_loader(main_fbi);*/
+			/*
+			if (dev_drv->iommu_enabled)
+				rk_fb_copy_from_loader(main_fbi);
+			*/
 			return 0;
 		}
 		main_fbi->fbops->fb_set_par(main_fbi);
