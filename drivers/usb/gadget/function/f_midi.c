@@ -717,6 +717,7 @@ static int f_midi_bind(struct usb_configuration *c, struct usb_function *f)
 	struct usb_midi_out_jack_descriptor_1 jack_out_emb_desc[MAX_PORTS];
 	struct usb_composite_dev *cdev = c->cdev;
 	struct f_midi *midi = func_to_midi(f);
+	struct usb_string *us;
 	int status, n, jack = 1, i = 0;
 
 	midi->gadget = cdev->gadget;
@@ -726,12 +727,13 @@ static int f_midi_bind(struct usb_configuration *c, struct usb_function *f)
 		goto fail_register;
 
 	/* maybe allocate device-global string ID */
-	if (midi_string_defs[0].id == 0) {
-		status = usb_string_id(c->cdev);
-		if (status < 0)
-			goto fail;
-		midi_string_defs[0].id = status;
+	us = usb_gstrings_attach(c->cdev, midi_strings,
+				 ARRAY_SIZE(midi_string_defs));
+	if (IS_ERR(us)) {
+		status = PTR_ERR(us);
+		goto fail;
 	}
+	ac_interface_desc.iInterface = us[STRING_FUNC_IDX].id;
 
 	/* We have two interfaces, AudioControl and MIDIStreaming */
 	status = usb_interface_id(c, f);
@@ -991,7 +993,6 @@ struct usb_function *f_midi_alloc(struct usb_function_instance *fi)
 	midi->qlen = opts->qlen;
 
 	midi->func.name		= "gmidi function";
-	midi->func.strings	= midi_strings;
 	midi->func.bind		= f_midi_bind;
 	midi->func.unbind	= f_midi_unbind;
 	midi->func.set_alt	= f_midi_set_alt;
