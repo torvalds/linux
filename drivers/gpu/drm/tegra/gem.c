@@ -166,23 +166,21 @@ struct tegra_bo *tegra_bo_create_with_handle(struct drm_file *file,
 					     unsigned int *handle)
 {
 	struct tegra_bo *bo;
-	int ret;
+	int err;
 
 	bo = tegra_bo_create(drm, size, flags);
 	if (IS_ERR(bo))
 		return bo;
 
-	ret = drm_gem_handle_create(file, &bo->gem, handle);
-	if (ret)
-		goto err;
+	err = drm_gem_handle_create(file, &bo->gem, handle);
+	if (err) {
+		tegra_bo_free_object(&bo->gem);
+		return ERR_PTR(err);
+	}
 
 	drm_gem_object_unreference_unlocked(&bo->gem);
 
 	return bo;
-
-err:
-	tegra_bo_free_object(&bo->gem);
-	return ERR_PTR(ret);
 }
 
 static struct tegra_bo *tegra_bo_import(struct drm_device *drm,
