@@ -259,8 +259,6 @@ out:
 static void pty_set_termios(struct tty_struct *tty,
 					struct ktermios *old_termios)
 {
-	unsigned long flags;
-
 	/* See if packet mode change of state. */
 	if (tty->link && tty->link->packet) {
 		int extproc = (old_termios->c_lflag & EXTPROC) |
@@ -272,7 +270,7 @@ static void pty_set_termios(struct tty_struct *tty,
 				STOP_CHAR(tty) == '\023' &&
 				START_CHAR(tty) == '\021');
 		if ((old_flow != new_flow) || extproc) {
-			spin_lock_irqsave(&tty->ctrl_lock, flags);
+			spin_lock_irq(&tty->ctrl_lock);
 			if (old_flow != new_flow) {
 				tty->ctrl_status &= ~(TIOCPKT_DOSTOP | TIOCPKT_NOSTOP);
 				if (new_flow)
@@ -282,7 +280,7 @@ static void pty_set_termios(struct tty_struct *tty,
 			}
 			if (extproc)
 				tty->ctrl_status |= TIOCPKT_IOCTL;
-			spin_unlock_irqrestore(&tty->ctrl_lock, flags);
+			spin_unlock_irq(&tty->ctrl_lock);
 			wake_up_interruptible(&tty->link->read_wait);
 		}
 	}
