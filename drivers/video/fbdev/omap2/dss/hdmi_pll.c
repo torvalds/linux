@@ -144,8 +144,8 @@ static int hdmi_pll_config(struct hdmi_pll_data *pll)
 
 	/* wait for bit change */
 	if (hdmi_wait_for_bit_change(pll->base, PLLCTRL_PLL_GO,
-			0, 0, 1) != 1) {
-		DSSERR("PLL GO bit not set\n");
+			0, 0, 0) != 0) {
+		DSSERR("PLL GO bit not clearing\n");
 		return -ETIMEDOUT;
 	}
 
