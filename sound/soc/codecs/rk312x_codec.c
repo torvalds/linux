@@ -1895,7 +1895,6 @@ static int rk312x_startup(struct snd_pcm_substream *substream,
 	if (rk312x_priv->rk312x_for_mid) {
 		return 0;
 	}
-
 	if (!rk312x) {
 		DBG("%s : rk312x is NULL\n", __func__);
 		return -EINVAL;
@@ -1914,20 +1913,13 @@ static int rk312x_startup(struct snd_pcm_substream *substream,
 				rk312x_codec_ctl_gpio(CODEC_SET_SPK, rk312x_priv->spk_active_level);
 			}
 	} else {
-		if (rk312x->capture_active > 0 &&
-		    !is_codec_capture_running) {
-			if (rk312x_codec_work_capture_type
-			    != RK312x_CODEC_WORK_POWER_UP) {
-				cancel_delayed_work_sync(
-					&capture_delayed_work);
-				if (rk312x_codec_work_capture_type ==
-					RK312x_CODEC_WORK_NULL) {
-					rk312x_codec_power_up(
-						RK312x_CODEC_CAPTURE);
-				} else {
-					rk312x_codec_work_capture_type =
-						RK312x_CODEC_WORK_NULL;
-				}
+		if (rk312x->capture_active > 0 && !is_codec_capture_running) {
+			if (rk312x_codec_work_capture_type != RK312x_CODEC_WORK_POWER_UP) {
+				//cancel_delayed_work_sync(&capture_delayed_work);
+				if (rk312x_codec_work_capture_type == RK312x_CODEC_WORK_NULL)
+					rk312x_codec_power_up(RK312x_CODEC_CAPTURE);
+				else
+					rk312x_codec_work_capture_type = RK312x_CODEC_WORK_NULL;
 			}
 		}
 	}
@@ -2234,17 +2226,15 @@ static int rk312x_probe(struct snd_soc_codec *codec)
 	codec->read = rk312x_codec_read;
 	codec->write = rk312x_codec_write;
 
-	if (rk312x_priv->rk312x_for_mid) {
-		rk312x_codec->playback_active = 0;
-		rk312x_codec->capture_active = 0;
+	rk312x_codec->playback_active = 0;
+	rk312x_codec->capture_active = 0;
 
-		rk312x_codec_workq = create_freezable_workqueue("rk312x-codec");
+	rk312x_codec_workq = create_freezable_workqueue("rk312x-codec");
 
-		if (rk312x_codec_workq == NULL) {
-			DBG("%s : rk312x_codec_workq is NULL!\n", __func__);
-			ret = -ENOMEM;
-			goto err__;
-		}
+	if (rk312x_codec_workq == NULL) {
+		DBG("%s : rk312x_codec_workq is NULL!\n", __func__);
+		ret = -ENOMEM;
+		goto err__;
 	}
 
 	val = snd_soc_read(codec, RK312x_RESET);
