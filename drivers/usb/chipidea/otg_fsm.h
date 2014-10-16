@@ -25,7 +25,7 @@
 					 * ->DC Electrical Timing
 					 */
 /* Wait for VBUS Fall  */
-#define TA_WAIT_VFALL        (1000)	/* a_wait_vfall: section 7.1.7
+#define TA_WAIT_VFALL        (500)	/* a_wait_vfall: section 7.1.7
 					 * a_wait_vfall_tmr: section: 7.4.5.2
 					 */
 /* Wait for B-Connect */
