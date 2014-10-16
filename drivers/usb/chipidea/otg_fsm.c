@@ -307,6 +307,7 @@ static int a_wait_vfall_tmout(struct ci_hdrc *ci)
 static int a_wait_bcon_tmout(struct ci_hdrc *ci)
 {
 	ci->fsm.a_wait_bcon_tmout = 1;
+	dev_warn(ci->dev, "Device No Response\n");
 	return 0;
 }
 
