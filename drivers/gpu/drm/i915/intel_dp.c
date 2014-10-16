@@ -1473,7 +1473,8 @@ static bool edp_panel_vdd_on(struct intel_dp *intel_dp)
 	power_domain = intel_display_port_power_domain(intel_encoder);
 	intel_display_power_get(dev_priv, power_domain);
 
-	DRM_DEBUG_KMS("Turning eDP VDD on\n");
+	DRM_DEBUG_KMS("Turning eDP port %c VDD on\n",
+		      port_name(intel_dig_port->port));
 
 	if (!edp_have_panel_power(intel_dp))
 		wait_panel_power_cycle(intel_dp);
@@ -1492,7 +1493,8 @@ static bool edp_panel_vdd_on(struct intel_dp *intel_dp)
 	 * If the panel wasn't on, delay before accessing aux channel
 	 */
 	if (!edp_have_panel_power(intel_dp)) {
-		DRM_DEBUG_KMS("eDP was not running\n");
+		DRM_DEBUG_KMS("eDP port %c panel power wasn't enabled\n",
+			      port_name(intel_dig_port->port));
 		msleep(intel_dp->panel_power_up_delay);
 	}
 
@@ -1517,7 +1519,8 @@ void intel_edp_panel_vdd_on(struct intel_dp *intel_dp)
 	vdd = edp_panel_vdd_on(intel_dp);
 	pps_unlock(intel_dp);
 
-	WARN(!vdd, "eDP VDD already requested on\n");
+	WARN(!vdd, "eDP port %c VDD already requested on\n",
+	     port_name(dp_to_dig_port(intel_dp)->port));
 }
 
 static void edp_panel_vdd_off_sync(struct intel_dp *intel_dp)
@@ -1538,7 +1541,8 @@ static void edp_panel_vdd_off_sync(struct intel_dp *intel_dp)
 	if (!edp_have_panel_vdd(intel_dp))
 		return;
 
-	DRM_DEBUG_KMS("Turning eDP VDD off\n");
+	DRM_DEBUG_KMS("Turning eDP port %c VDD off\n",
+		      port_name(intel_dig_port->port));
 
 	pp = ironlake_get_pp_control(intel_dp);
 	pp &= ~EDP_FORCE_VDD;
@@ -1599,7 +1603,8 @@ static void edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync)
 	if (!is_edp(intel_dp))
 		return;
 
-	WARN(!intel_dp->want_panel_vdd, "eDP VDD not forced on");
+	WARN(!intel_dp->want_panel_vdd, "eDP port %c VDD not forced on",
+	     port_name(dp_to_dig_port(intel_dp)->port));
 
 	intel_dp->want_panel_vdd = false;
 
@@ -1621,7 +1626,8 @@ static void edp_panel_on(struct intel_dp *intel_dp)
 	if (!is_edp(intel_dp))
 		return;
 
-	DRM_DEBUG_KMS("Turn eDP power on\n");
+	DRM_DEBUG_KMS("Turn eDP port %c panel power on\n",
+		      port_name(dp_to_dig_port(intel_dp)->port));
 
 	if (edp_have_panel_power(intel_dp)) {
 		DRM_DEBUG_KMS("eDP power already on\n");
@@ -1682,9 +1688,11 @@ static void edp_panel_off(struct intel_dp *intel_dp)
 	if (!is_edp(intel_dp))
 		return;
 
-	DRM_DEBUG_KMS("Turn eDP power off\n");
+	DRM_DEBUG_KMS("Turn eDP port %c panel power off\n",
+		      port_name(dp_to_dig_port(intel_dp)->port));
 
-	WARN(!intel_dp->want_panel_vdd, "Need VDD to turn off panel\n");
+	WARN(!intel_dp->want_panel_vdd, "Need eDP port %c VDD to turn off panel\n",
+	     port_name(dp_to_dig_port(intel_dp)->port));
 
 	pp = ironlake_get_pp_control(intel_dp);
 	/* We need to switch off panel power _and_ force vdd, for otherwise some
