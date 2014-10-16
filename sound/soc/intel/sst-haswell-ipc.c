@@ -1630,6 +1630,10 @@ int sst_hsw_device_set_config(struct sst_hsw *hsw,
 	config.clock_frequency = mclk;
 	config.mode = mode;
 	config.clock_divider = clock_divider;
+	if (mode == SST_HSW_DEVICE_TDM_CLOCK_MASTER)
+		config.channels = 4;
+	else
+		config.channels = 2;
 
 	trace_hsw_device_config_req(&config);
 
