@@ -66,6 +66,7 @@
 #include "amvideocap_priv.h"
 #include "amports_priv.h"
 #include "amports_config.h"
+#include "tsync_pcr.h"
 
 #include <linux/firmware.h>
 
@@ -665,24 +666,25 @@ static  int amstream_port_init(stream_port_t *port)
         }
     }
 
-    if (port->type & PORT_TYPE_MPTS) {
-        if (HAS_HEVC_VDEC) {
-            r = tsdemux_init((port->flag & PORT_FLAG_VID) ? port->vid : 0xffff,
-                             (port->flag & PORT_FLAG_AID) ? port->aid : 0xffff,
-                             (port->flag & PORT_FLAG_SID) ? port->sid : 0xffff,
-                             port->pcrid,
-                             (port->vformat == VFORMAT_HEVC));
-        } else {
-            r = tsdemux_init((port->flag & PORT_FLAG_VID) ? port->vid : 0xffff,
-                             (port->flag & PORT_FLAG_AID) ? port->aid : 0xffff,
-                             (port->flag & PORT_FLAG_SID) ? port->sid : 0xffff,
-                             port->pcrid, 0);
-        }
-
+    if (port->type & PORT_TYPE_MPTS) { 
+	if (HAS_HEVC_VDEC) {
+	       r = tsdemux_init((port->flag & PORT_FLAG_VID) ? port->vid : 0xffff,
+	                         (port->flag & PORT_FLAG_AID) ? port->aid : 0xffff,
+	                         (port->flag & PORT_FLAG_SID) ? port->sid : 0xffff,
+	                         (port->pcr_inited == 1) ? port->pcrid : 0xffff,
+	                         (port->vformat == VFORMAT_HEVC));
+	}else{
+	        r = tsdemux_init((port->flag & PORT_FLAG_VID) ? port->vid : 0xffff,
+	                         (port->flag & PORT_FLAG_AID) ? port->aid : 0xffff,
+	                         (port->flag & PORT_FLAG_SID) ? port->sid : 0xffff,
+	                         (port->pcr_inited == 1) ? port->pcrid : 0xffff, 0);
+	}
+ 
         if (r < 0) {
             printk("tsdemux_init  failed\n");
             goto error4;
         }
+        tsync_pcr_start();
     }
     if (port->type & PORT_TYPE_MPPS) {
         r = psparser_init((port->flag & PORT_FLAG_VID) ? port->vid : 0xffff,
@@ -736,6 +738,7 @@ static  int amstream_port_release(stream_port_t *port)
     }
 
     if (port->type & PORT_TYPE_MPTS) {
+    	 tsync_pcr_stop();
         tsdemux_release();
     }
 
@@ -756,6 +759,7 @@ static  int amstream_port_release(stream_port_t *port)
         sub_port_release(port, psbuf);
     }
 
+    port->pcr_inited=0;
     port->flag = 0;
     return 0;
 }
@@ -1142,6 +1146,7 @@ static int amstream_open(struct inode *inode, struct file *file)
     file->private_data = this;
 
     this->flag = PORT_FLAG_IN_USE;
+    this->pcr_inited = 0;
 #ifdef DATA_DEBUG
     debug_filp = filp_open(DEBUG_FILE_NAME, O_WRONLY, 0);
     if (IS_ERR(debug_filp)) {
@@ -1334,6 +1339,7 @@ static long amstream_ioctl(struct file *file,
 
     case AMSTREAM_IOC_PCRID:
 	this->pcrid= (u32)arg;
+	this->pcr_inited = 1;
        printk("set pcrid = 0x%x \n", this->pcrid);
     	break;
     	
@@ -1742,6 +1748,9 @@ static long amstream_ioctl(struct file *file,
                 printk("Get audio pts from user space fault! \n");
                 return -EFAULT;
             }
+	    if(tsync_get_mode()==TSYNC_MODE_PCRMASTER)
+		tsync_pcr_set_apts(pts);
+            else
             tsync_set_apts(pts);
             break;
          }
@@ -1811,6 +1820,7 @@ static ssize_t ports_show(struct class *class, struct class_attribute *attr, cha
         pbuf += sprintf(pbuf, "\tVid:%d\n", (p->flag & PORT_FLAG_VID) ? p->vid : -1);
         pbuf += sprintf(pbuf, "\tAid:%d\n", (p->flag & PORT_FLAG_AID) ? p->aid : -1);
         pbuf += sprintf(pbuf, "\tSid:%d\n", (p->flag & PORT_FLAG_SID) ? p->sid : -1);
+        pbuf += sprintf(pbuf, "\tPCRid:%d\n", (p->pcr_inited == 1) ? p->pcrid : -1);
         pbuf += sprintf(pbuf, "\tachannel:%d\n", p->achanl);
         pbuf += sprintf(pbuf, "\tasamprate:%d\n", p->asamprate);
         pbuf += sprintf(pbuf, "\tadatawidth:%d\n\n", p->adatawidth);

@@ -1406,6 +1406,7 @@ static int dmx_enable(struct aml_dmx *dmx)
 			(1<<VIDEO_PACKET)               |
 			(1<<AUDIO_PACKET)               |
 			(1<<SUB_PACKET)                 |
+			(1<<SCR_ONLY_PACKET)		|
 			(1<<OTHER_PES_PACKET));
 	 	DMX_WRITE_REG(dmx->id, PES_STRONG_SYNC, 0x1234);
  		DMX_WRITE_REG(dmx->id, DEMUX_ENDIAN,
@@ -1482,6 +1483,9 @@ static u32 dmx_get_chan_target(struct aml_dmx *dmx, int cid)
 			case DMX_PES_SUBTITLE:
 			case DMX_PES_TELETEXT:
 				type = SUB_PACKET;
+			break;
+			case DMX_PES_PCR:
+				type=SCR_ONLY_PACKET;
 			break;
 			default:
 				type = OTHER_PES_PACKET;

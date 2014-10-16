@@ -81,7 +81,8 @@ extern ssize_t tsdemux_write(struct file *file,
                              const char __user *buf, size_t count);
 
 extern u32 tsdemux_pcrscr_get(void);
-extern int tsdemux_pcrscr_valid(void);
+extern u8 tsdemux_pcrscr_valid(void);
+extern u32 tsdemux_first_pcrscr_get(void);
 
 int     tsdemux_class_register(void);
 void  tsdemux_class_unregister(void);

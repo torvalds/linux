@@ -556,8 +556,19 @@ static ssize_t tso_store_source(struct class *class,struct class_attribute *attr
     return size;
 }
 
-
-
+/*Show PCR*/
+#define DEMUX_PCR_FUNC_DECL(i)  \
+static ssize_t demux##i##_show_pcr(struct class *class,  struct class_attribute *attr,char *buf)\
+{\
+	int f = 0;\
+	if(i == 0)\
+		f = READ_MPEG_REG(PCR_DEMUX);\
+	else if(i==1)\
+		f = READ_MPEG_REG(PCR_DEMUX_2);\
+	else if(i==2)\
+		f = READ_MPEG_REG(PCR_DEMUX_3);\
+	return sprintf(buf, "%08x\n", f);\
+}
 
 /*Show the STB input source*/
 #define DEMUX_SOURCE_FUNC_DECL(i)  \
@@ -736,6 +747,7 @@ static ssize_t dvr##i##_store_mode(struct class *class,  struct class_attribute 
 }
 
 #if DMX_DEV_COUNT>0
+	DEMUX_PCR_FUNC_DECL(0)
 	DEMUX_SOURCE_FUNC_DECL(0)
 	DEMUX_FREE_FILTERS_FUNC_DECL(0)
 	DEMUX_FILTER_USERS_FUNC_DECL(0)
@@ -744,6 +756,7 @@ static ssize_t dvr##i##_store_mode(struct class *class,  struct class_attribute 
 	DEMUX_CHANNEL_ACTIVITY_FUNC_DECL(0)
 #endif
 #if DMX_DEV_COUNT>1
+	DEMUX_PCR_FUNC_DECL(1)
 	DEMUX_SOURCE_FUNC_DECL(1)
 	DEMUX_FREE_FILTERS_FUNC_DECL(1)
 	DEMUX_FILTER_USERS_FUNC_DECL(1)
@@ -752,6 +765,7 @@ static ssize_t dvr##i##_store_mode(struct class *class,  struct class_attribute 
 	DEMUX_CHANNEL_ACTIVITY_FUNC_DECL(1)
 #endif
 #if DMX_DEV_COUNT>2
+	DEMUX_PCR_FUNC_DECL(2)
 	DEMUX_SOURCE_FUNC_DECL(2)
 	DEMUX_FREE_FILTERS_FUNC_DECL(2)
 	DEMUX_FILTER_USERS_FUNC_DECL(2)
@@ -1044,6 +1058,8 @@ static struct class_attribute aml_stb_class_attrs[] = {
 	__ATTR(source,  S_IRUGO | S_IWUSR | S_IWGRP, stb_show_source, stb_store_source),
 	__ATTR(dsc_source,  S_IRUGO | S_IWUSR, dsc_show_source, dsc_store_source),
 	__ATTR(tso_source,  S_IRUGO | S_IWUSR, tso_show_source, tso_store_source),
+#define DEMUX_SOURCE_ATTR_PCR(i)\
+		__ATTR(demux##i##_pcr,  S_IRUGO | S_IWUSR, demux##i##_show_pcr, NULL)
 #define DEMUX_SOURCE_ATTR_DECL(i)\
 		__ATTR(demux##i##_source,  S_IRUGO | S_IWUSR | S_IWGRP, demux##i##_show_source, demux##i##_store_source)
 #define DEMUX_FREE_FILTERS_ATTR_DECL(i)\
@@ -1057,6 +1073,7 @@ static struct class_attribute aml_stb_class_attrs[] = {
 #define DEMUX_CHANNEL_ACTIVITY_ATTR_DECL(i)\
 		__ATTR(demux##i##_channel_activity,  S_IRUGO | S_IWUSR, demux##i##_show_channel_activity, NULL)
 #if DMX_DEV_COUNT>0
+	DEMUX_SOURCE_ATTR_PCR(0),
 	DEMUX_SOURCE_ATTR_DECL(0),
 	DEMUX_FREE_FILTERS_ATTR_DECL(0),
 	DEMUX_FILTER_USERS_ATTR_DECL(0),
@@ -1065,6 +1082,7 @@ static struct class_attribute aml_stb_class_attrs[] = {
 	DEMUX_CHANNEL_ACTIVITY_ATTR_DECL(0),
 #endif
 #if DMX_DEV_COUNT>1
+	DEMUX_SOURCE_ATTR_PCR(1),
 	DEMUX_SOURCE_ATTR_DECL(1),
 	DEMUX_FREE_FILTERS_ATTR_DECL(1),
 	DEMUX_FILTER_USERS_ATTR_DECL(1),
@@ -1073,6 +1091,7 @@ static struct class_attribute aml_stb_class_attrs[] = {
 	DEMUX_CHANNEL_ACTIVITY_ATTR_DECL(1),
 #endif
 #if DMX_DEV_COUNT>2
+	DEMUX_SOURCE_ATTR_PCR(2),
 	DEMUX_SOURCE_ATTR_DECL(2),
 	DEMUX_FREE_FILTERS_ATTR_DECL(2),
 	DEMUX_FILTER_USERS_ATTR_DECL(2),

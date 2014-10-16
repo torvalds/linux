@@ -67,6 +67,7 @@ typedef struct stream_port_s {
     /* ports control */
     s32 type;
     s32 flag;
+    s32 pcr_inited;
 
     /* decoder info */
     s32 vformat;

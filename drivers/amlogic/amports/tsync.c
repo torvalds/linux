@@ -976,6 +976,12 @@ void tsync_pcr_recover(void)
 
 EXPORT_SYMBOL(tsync_pcr_recover);
 
+int tsync_get_mode(void)
+{
+    return tsync_mode;
+}
+EXPORT_SYMBOL(tsync_get_mode);
+
 int tsync_get_debug_pts_checkin(void)
 {
     return debug_pts_checkin;

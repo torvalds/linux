@@ -280,6 +280,27 @@ int calculation_vcached_delayed(void)
 }
 EXPORT_SYMBOL(calculation_vcached_delayed);
 
+// return the 1/90000 unit time
+int calculation_acached_delayed(void){
+	pts_table_t *pTable;
+	u32 delay=0;
+
+	pTable = &pts_table[PTS_TYPE_AUDIO];
+
+	delay = pTable->last_checkin_pts-pTable->last_checkout_pts;
+	if (0<delay && delay<5*90000) 
+		return delay;
+
+	if(pTable->last_avg_bitrate>0){
+		int diff = pTable->last_checkin_offset-pTable->last_checkout_offset;
+      		delay=diff*90000/(1+pTable->last_avg_bitrate/8);
+
+		return delay;
+	}
+
+	return -1;
+}
+EXPORT_SYMBOL(calculation_acached_delayed);
 int calculation_stream_ext_delayed_ms(u8 type)
 {
     pts_table_t *pTable;
@@ -548,7 +569,7 @@ int pts_lookup(u8 type, u32 *val, u32 pts_margin)
 }
 
 EXPORT_SYMBOL(pts_lookup);
-static int pts_lookup_offset_inline(
+static int _pts_lookup_offset_inline(
     u8 type, u32 offset, u32 *val, u32 pts_margin, u64 *uS64)
 {
     ulong flags;
@@ -771,6 +792,24 @@ static int pts_lookup_offset_inline(
 
     return -1;
 }
+static int pts_lookup_offset_inline(
+    u8 type, u32 offset, u32 *val, u32 pts_margin, u64 *uS64){
+    int res = _pts_lookup_offset_inline(type,offset,val,pts_margin,uS64);
+
+    if(timestamp_firstvpts_get()==0&&res==0&&(*val)!=0&&type==PTS_TYPE_VIDEO){
+    	timestamp_firstvpts_set(*val);
+    }
+#if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8    
+    else if(timestamp_firstvpts_get()==0&&res==0&&(*val)!=0&&type==PTS_TYPE_HEVC){
+    	timestamp_firstvpts_set(*val);
+    }
+#endif    
+    else if(timestamp_firstapts_get()==0&&res==0&&(*val)!=0&&type==PTS_TYPE_AUDIO){
+    	timestamp_firstapts_set(*val);
+    }    
+
+    return res;
+}
 int pts_lookup_offset(u8 type, u32 offset, u32 *val, u32 pts_margin){
 	u64 pts_us;
 	return pts_lookup_offset_inline(type,offset,val,pts_margin,&pts_us);
@@ -929,6 +968,7 @@ int pts_start(u8 type)
                                - pTable->buf_start;
             WRITE_MPEG_REG(VIDEO_PTS, 0);
             timestamp_pcrscr_set(0);//video always need the pcrscr,Clear it to use later
+            timestamp_firstvpts_set(0);
             pTable->first_checkin_pts = -1;
             pTable->first_lookup_ok = 0;
             pTable->first_lookup_is_fail = 0;
@@ -948,6 +988,7 @@ int pts_start(u8 type)
 
             WRITE_MPEG_REG(VIDEO_PTS, 0);
             timestamp_pcrscr_set(0);//video always need the pcrscr,Clear it to use later
+            timestamp_firstvpts_set(0);
             pTable->first_checkin_pts = -1;
             pTable->first_lookup_ok = 0;
             pTable->first_lookup_is_fail = 0;
@@ -959,6 +1000,7 @@ int pts_start(u8 type)
             //BUG_ON(pTable->buf_size <= 0x10000);
 
             WRITE_MPEG_REG(AUDIO_PTS, 0);
+            timestamp_firstapts_set(0);
             pTable->first_checkin_pts = -1;
             pTable->first_lookup_ok = 0;
 	    pTable->first_lookup_is_fail = 0;

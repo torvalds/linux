@@ -65,6 +65,8 @@ extern void tsync_set_dec_reset(void);
 
 extern void tsync_set_enable(int enable);
 
+extern int tsync_get_mode(void);
+
 extern int tsync_get_sync_adiscont(void);
 
 extern int tsync_get_sync_vdiscont(void);

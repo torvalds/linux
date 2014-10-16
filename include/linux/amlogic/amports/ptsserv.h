@@ -74,4 +74,5 @@ extern int calculation_stream_delayed_ms(u8 type,u32 *latestbirate,u32*avg_bitar
 
 extern int calculation_vcached_delayed(void);
 
+extern int calculation_acached_delayed(void);
 #endif /* PTSSERV_H */

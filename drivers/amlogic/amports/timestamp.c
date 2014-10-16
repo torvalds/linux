@@ -1,5 +1,5 @@
 #include <linux/module.h>
-
+#include <linux/amlogic/amports/tsync.h>
 #include <mach/am_regs.h>
 unsigned int timestamp_enable_resample_flag = 0;
 EXPORT_SYMBOL(timestamp_enable_resample_flag);
@@ -72,7 +72,7 @@ void timestamp_apts_inc(s32 inc)
 #ifdef MODIFY_TIMESTAMP_INC_WITH_PLL
 	inc = inc*timestamp_inc_factor/PLL_FACTOR;
 #endif
-    if(0){//timestamp_enable_resample_flag){
+    if(tsync_get_mode()!=TSYNC_MODE_PCRMASTER){//timestamp_enable_resample_flag){
 		if(timestamp_resample_type_flag==0){      
 			//0-->no resample  processing
 		}else if(timestamp_resample_type_flag==1){//1-->down resample processing
@@ -100,6 +100,7 @@ EXPORT_SYMBOL(timestamp_apts_inc);
 void timestamp_apts_enable(u32 enable)
 {
     audio_pts_up = enable;
+    printk("timestamp_apts_enable enable:%x, \n", enable);
 }
 
 EXPORT_SYMBOL(timestamp_apts_enable);
@@ -135,6 +136,7 @@ EXPORT_SYMBOL(timestamp_pcrscr_set);
 void timestamp_firstvpts_set(u32 pts)
 {
     first_vpts = pts;
+    printk("video first pts = %x\n", first_vpts);
 }
 
 EXPORT_SYMBOL(timestamp_firstvpts_set);
@@ -148,6 +150,7 @@ EXPORT_SYMBOL(timestamp_firstvpts_get);
 void timestamp_firstapts_set(u32 pts)
 {
     first_apts = pts;
+    printk("audio first pts = %x\n", first_apts);
 }
 
 EXPORT_SYMBOL(timestamp_firstapts_set);
@@ -164,7 +167,7 @@ void timestamp_pcrscr_inc(s32 inc)
 #ifdef MODIFY_TIMESTAMP_INC_WITH_PLL
         inc = inc*timestamp_inc_factor/PLL_FACTOR;
 #endif
-		if(0){//timestamp_enable_resample_flag){
+		if(tsync_get_mode()!=TSYNC_MODE_PCRMASTER){//timestamp_enable_resample_flag){
 			if(timestamp_resample_type_flag==0){	  //0-->no resample  processing
 				
 			}else if(timestamp_resample_type_flag==1){//1-->down resample processing
