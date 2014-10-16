@@ -552,7 +552,7 @@ static u32 hsw_notify_pointer(struct sst_hsw_stream *stream, void *data)
 	pos = frames_to_bytes(runtime,
 		(runtime->control->appl_ptr % runtime->buffer_size));
 
-	dev_dbg(rtd->dev, "PCM: App pointer %d bytes\n", pos);
+	dev_vdbg(rtd->dev, "PCM: App pointer %d bytes\n", pos);
 
 	/* let alsa know we have play a period */
 	snd_pcm_period_elapsed(substream);
@@ -574,7 +574,7 @@ static snd_pcm_uframes_t hsw_pcm_pointer(struct snd_pcm_substream *substream)
 	offset = bytes_to_frames(runtime, position);
 	ppos = sst_hsw_get_dsp_presentation_position(hsw, pcm_data->stream);
 
-	dev_dbg(rtd->dev, "PCM: DMA pointer %du bytes, pos %llu\n",
+	dev_vdbg(rtd->dev, "PCM: DMA pointer %du bytes, pos %llu\n",
 		position, ppos);
 	return offset;
 }
