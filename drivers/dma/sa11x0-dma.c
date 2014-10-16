@@ -829,7 +829,6 @@ static int sa11x0_dma_init_dmadev(struct dma_device *dmadev,
 {
 	unsigned i;
 
-	dmadev->chancnt = ARRAY_SIZE(chan_desc);
 	INIT_LIST_HEAD(&dmadev->channels);
 	dmadev->dev = dev;
 	dmadev->device_alloc_chan_resources = sa11x0_dma_alloc_chan_resources;
@@ -838,7 +837,7 @@ static int sa11x0_dma_init_dmadev(struct dma_device *dmadev,
 	dmadev->device_tx_status = sa11x0_dma_tx_status;
 	dmadev->device_issue_pending = sa11x0_dma_issue_pending;
 
-	for (i = 0; i < dmadev->chancnt; i++) {
+	for (i = 0; i < ARRAY_SIZE(chan_desc); i++) {
 		struct sa11x0_dma_chan *c;
 
 		c = kzalloc(sizeof(*c), GFP_KERNEL);
