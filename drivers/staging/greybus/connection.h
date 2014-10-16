@@ -34,6 +34,8 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 				u16 cport_id, enum greybus_protocol protocol);
 void gb_connection_destroy(struct gb_connection *connection);
 
+int gb_connection_init(struct gb_connection *connection);
+
 struct gb_connection *gb_hd_connection_find(struct greybus_host_device *hd,
 				u16 cport_id);
 

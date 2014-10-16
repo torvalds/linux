@@ -55,39 +55,52 @@ const struct greybus_module_id *gb_module_match_id(struct gb_module *gmod,
  */
 struct gb_module *gb_module_create(struct greybus_host_device *hd, u8 module_id)
 {
-	struct gb_module *module;
+	struct gb_module *gmod;
 
-	module = kzalloc(sizeof(*module), GFP_KERNEL);
-	if (!module)
+	gmod = kzalloc(sizeof(*gmod), GFP_KERNEL);
+	if (!gmod)
 		return NULL;
 
-	module->hd = hd;		/* XXX refcount? */
-	module->module_id = module_id;
-	INIT_LIST_HEAD(&module->interfaces);
+	gmod->hd = hd;		/* XXX refcount? */
+	gmod->module_id = module_id;
+	INIT_LIST_HEAD(&gmod->interfaces);
 
 	spin_lock_irq(&gb_modules_lock);
-	list_add_tail(&module->links, &hd->modules);
+	list_add_tail(&gmod->links, &hd->modules);
 	spin_unlock_irq(&gb_modules_lock);
 
-	return module;
+	return gmod;
 }
 
 /*
  * Tear down a previously set up module.
  */
-void gb_module_destroy(struct gb_module *module)
+void gb_module_destroy(struct gb_module *gmod)
 {
-	if (WARN_ON(!module))
+	if (WARN_ON(!gmod))
 		return;
 
-	kfree(module->product_string);
-	kfree(module->vendor_string);
+	kfree(gmod->product_string);
+	kfree(gmod->vendor_string);
 
 	spin_lock_irq(&gb_modules_lock);
-	list_del(&module->links);
+	list_del(&gmod->links);
 	spin_unlock_irq(&gb_modules_lock);
 
 	/* kref_put(module->hd); */
 
-	kfree(module);
+	kfree(gmod);
+}
+
+void gb_module_interfaces_init(struct gb_module *gmod)
+{
+	struct gb_interface *interface;
+	int ret = 0;
+
+	list_for_each_entry(interface, &gmod->interfaces, links) {
+		ret = gb_interface_connections_init(interface);
+		if (ret)
+			dev_err(gmod->hd->parent,
+				"module interface init error %d\n", ret);
+	}
 }

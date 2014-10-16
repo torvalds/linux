@@ -182,8 +182,11 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 	dev_set_name(&gmod->dev, "%d", module_id);
 
 	retval = device_add(&gmod->dev);
-	if (!retval)
-		return;		/* Success */
+	if (retval)
+		goto error;
+
+	gb_module_interfaces_init(gmod);
+	return;
 error:
 	gb_module_destroy(gmod);
 
@@ -252,7 +255,6 @@ void greybus_remove_hd(struct greybus_host_device *hd)
 	kref_put_mutex(&hd->kref, free_hd, &hd_mutex);
 }
 EXPORT_SYMBOL_GPL(greybus_remove_hd);
-
 
 static int __init gb_init(void)
 {

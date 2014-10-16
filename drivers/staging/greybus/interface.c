@@ -57,3 +57,18 @@ void gb_interface_destroy(struct gb_interface *interface)
 	/* kref_put(gmod); */
 	kfree(interface);
 }
+
+int gb_interface_connections_init(struct gb_interface *interface)
+{
+	struct gb_connection *connection;
+	int ret = 0;
+
+	list_for_each_entry(connection, &interface->connections,
+			interface_links) {
+		ret = gb_connection_init(connection);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}

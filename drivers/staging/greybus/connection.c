@@ -191,3 +191,27 @@ void gb_connection_err(struct gb_connection *connection, const char *fmt, ...)
 
 	va_end(args);
 }
+
+/*
+ * XXX Protocols should have a set of function pointers:
+ *	->init (called here, to initialize the device)
+ *	->input_handler
+ *	->exit (reverse of init)
+ */
+int gb_connection_init(struct gb_connection *connection)
+{
+	switch (connection->protocol) {
+	case GREYBUS_PROTOCOL_I2C:
+	case GREYBUS_PROTOCOL_CONTROL:
+	case GREYBUS_PROTOCOL_AP:
+	case GREYBUS_PROTOCOL_GPIO:
+	case GREYBUS_PROTOCOL_UART:
+	case GREYBUS_PROTOCOL_HID:
+	case GREYBUS_PROTOCOL_VENDOR:
+	default:
+		gb_connection_err(connection, "unimplemented protocol %u",
+			(u32)connection->protocol);
+		break;
+	}
+	return -ENXIO;
+}
