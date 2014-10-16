@@ -61,7 +61,7 @@ static void uart_port_shutdown(struct tty_port *port);
 
 static int uart_dcd_enabled(struct uart_port *uport)
 {
-	return uport->status & UPSTAT_DCD_ENABLE;
+	return !!(uport->status & UPSTAT_DCD_ENABLE);
 }
 
 /*

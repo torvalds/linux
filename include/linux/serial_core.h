@@ -367,7 +367,7 @@ static inline int uart_tx_stopped(struct uart_port *port)
 
 static inline bool uart_cts_enabled(struct uart_port *uport)
 {
-	return uport->status & UPSTAT_CTS_ENABLE;
+	return !!(uport->status & UPSTAT_CTS_ENABLE);
 }
 
 /*
