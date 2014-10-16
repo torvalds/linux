@@ -207,15 +207,12 @@ static int pty_get_pktmode(struct tty_struct *tty, int __user *arg)
 /* Send a signal to the slave */
 static int pty_signal(struct tty_struct *tty, int sig)
 {
-	unsigned long flags;
 	struct pid *pgrp;
 
 	if (tty->link) {
-		spin_lock_irqsave(&tty->link->ctrl_lock, flags);
-		pgrp = get_pid(tty->link->pgrp);
-		spin_unlock_irqrestore(&tty->link->ctrl_lock, flags);
-
-		kill_pgrp(pgrp, sig, 1);
+		pgrp = tty_get_pgrp(tty->link);
+		if (pgrp)
+			kill_pgrp(pgrp, sig, 1);
 		put_pid(pgrp);
 	}
 	return 0;
@@ -278,7 +275,6 @@ static void pty_set_termios(struct tty_struct *tty,
 static int pty_resize(struct tty_struct *tty,  struct winsize *ws)
 {
 	struct pid *pgrp, *rpgrp;
-	unsigned long flags;
 	struct tty_struct *pty = tty->link;
 
 	/* For a PTY we need to lock the tty side */
@@ -286,17 +282,9 @@ static int pty_resize(struct tty_struct *tty,  struct winsize *ws)
 	if (!memcmp(ws, &tty->winsize, sizeof(*ws)))
 		goto done;
 
-	/* Get the PID values and reference them so we can
-	   avoid holding the tty ctrl lock while sending signals.
-	   We need to lock these individually however. */
-
-	spin_lock_irqsave(&tty->ctrl_lock, flags);
-	pgrp = get_pid(tty->pgrp);
-	spin_unlock_irqrestore(&tty->ctrl_lock, flags);
-
-	spin_lock_irqsave(&pty->ctrl_lock, flags);
-	rpgrp = get_pid(pty->pgrp);
-	spin_unlock_irqrestore(&pty->ctrl_lock, flags);
+	/* Signal the foreground process group of both ptys */
+	pgrp = tty_get_pgrp(tty);
+	rpgrp = tty_get_pgrp(pty);
 
 	if (pgrp)
 		kill_pgrp(pgrp, SIGWINCH, 1);
