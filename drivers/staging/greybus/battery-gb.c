@@ -135,6 +135,8 @@ void gb_battery_disconnect(struct gb_module *gmod)
 	struct gb_battery *gb;
 
 	gb = gmod->gb_battery;
+	if (!gb)
+		return;
 
 	power_supply_unregister(&gb->bat);
 

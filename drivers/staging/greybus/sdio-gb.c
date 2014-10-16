@@ -71,8 +71,10 @@ void gb_sdio_disconnect(struct gb_module *gmod)
 	struct gb_sdio_host *host;
 
 	host = gmod->gb_sdio_host;
-	mmc = host->mmc;
+	if (!host)
+		return;
 
+	mmc = host->mmc;
 	mmc_remove_host(mmc);
 	mmc_free_host(mmc);
 }

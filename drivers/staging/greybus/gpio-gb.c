@@ -92,6 +92,8 @@ void gb_gpio_disconnect(struct gb_module *gmod)
 	int retval;
 
 	gb_gpio_dev = gmod->gb_gpio_dev;
+	if (!gb_gpio_dev)
+		return;
 
 	retval = gpiochip_remove(&gb_gpio_dev->chip);
 	kfree(gb_gpio_dev);

@@ -121,6 +121,8 @@ void gb_i2c_disconnect(struct gb_module *gmod)
 	struct gb_i2c_device *gb_i2c_dev;
 
 	gb_i2c_dev = gmod->gb_i2c_dev;
+	if (!gb_i2c_dev)
+		return;
 	i2c_del_adapter(gb_i2c_dev->adapter);
 	kfree(gb_i2c_dev->adapter);
 	kfree(gb_i2c_dev);
