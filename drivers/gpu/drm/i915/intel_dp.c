@@ -2657,6 +2657,32 @@ static void g4x_pre_enable_dp(struct intel_encoder *encoder)
 	}
 }
 
+static void vlv_detach_power_sequencer(struct intel_dp *intel_dp)
+{
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_i915_private *dev_priv = intel_dig_port->base.base.dev->dev_private;
+	enum pipe pipe = intel_dp->pps_pipe;
+	int pp_on_reg = VLV_PIPE_PP_ON_DELAYS(pipe);
+
+	edp_panel_vdd_off_sync(intel_dp);
+
+	/*
+	 * VLV seems to get confused when multiple power seqeuencers
+	 * have the same port selected (even if only one has power/vdd
+	 * enabled). The failure manifests as vlv_wait_port_ready() failing
+	 * CHV on the other hand doesn't seem to mind having the same port
+	 * selected in multiple power seqeuencers, but let's clear the
+	 * port select always when logically disconnecting a power sequencer
+	 * from a port.
+	 */
+	DRM_DEBUG_KMS("detaching pipe %c power sequencer from port %c\n",
+		      pipe_name(pipe), port_name(intel_dig_port->port));
+	I915_WRITE(pp_on_reg, 0);
+	POSTING_READ(pp_on_reg);
+
+	intel_dp->pps_pipe = INVALID_PIPE;
+}
+
 static void vlv_steal_power_sequencer(struct drm_device *dev,
 				      enum pipe pipe)
 {
@@ -2683,9 +2709,7 @@ static void vlv_steal_power_sequencer(struct drm_device *dev,
 			      pipe_name(pipe), port_name(port));
 
 		/* make sure vdd is off before we steal it */
-		edp_panel_vdd_off_sync(intel_dp);
-
-		intel_dp->pps_pipe = INVALID_PIPE;
+		vlv_detach_power_sequencer(intel_dp);
 	}
 }
 
@@ -2711,7 +2735,7 @@ static void vlv_init_panel_power_sequencer(struct intel_dp *intel_dp)
 	 * we still have control of it.
 	 */
 	if (intel_dp->pps_pipe != INVALID_PIPE)
-		edp_panel_vdd_off_sync(intel_dp);
+		vlv_detach_power_sequencer(intel_dp);
 
 	/*
 	 * We may be stealing the power
