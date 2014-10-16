@@ -179,8 +179,6 @@ static int otg_set_state(struct otg_fsm *fsm, enum usb_otg_state new_state)
 		otg_loc_conn(fsm, 0);
 		otg_loc_sof(fsm, 1);
 		otg_set_protocol(fsm, PROTO_HOST);
-		usb_bus_start_enum(fsm->otg->host,
-				fsm->otg->host->otg_port);
 		otg_add_timer(fsm, HNP_POLLING);
 		break;
 	case OTG_STATE_A_IDLE:

@@ -1150,6 +1150,10 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 			need_debounce_delay = true;
 			usb_clear_port_feature(hub->hdev, port1,
 					USB_PORT_FEAT_C_CONNECTION);
+#ifdef CONFIG_USB_OTG
+			if (hdev->bus->is_b_host)
+				usb_bus_start_enum(hdev->bus, port1);
+#endif
 		}
 		if (portchange & USB_PORT_STAT_C_ENABLE) {
 			need_debounce_delay = true;
