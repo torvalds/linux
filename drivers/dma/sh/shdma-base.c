@@ -951,7 +951,7 @@ void shdma_chan_probe(struct shdma_dev *sdev,
 	/* Add the channel to DMA device channel list */
 	list_add_tail(&schan->dma_chan.device_node,
 			&sdev->dma_dev.channels);
-	sdev->schan[sdev->dma_dev.chancnt++] = schan;
+	sdev->schan[id] = schan;
 }
 EXPORT_SYMBOL(shdma_chan_probe);
 
