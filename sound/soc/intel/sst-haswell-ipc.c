@@ -1256,10 +1256,6 @@ int sst_hsw_stream_set_channels(struct sst_hsw *hsw,
 		return -EINVAL;
 	}
 
-	/* stereo is only supported atm */
-	if (channels != 2)
-		return -EINVAL;
-
 	stream->request.format.ch_num = channels;
 	return 0;
 }

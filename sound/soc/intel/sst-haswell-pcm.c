@@ -421,13 +421,7 @@ static int hsw_pcm_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	/* we only support stereo atm */
 	channels = params_channels(params);
-	if (channels != 2) {
-		dev_err(rtd->dev, "error: invalid channels %d\n", channels);
-		return -EINVAL;
-	}
-
 	map = create_channel_map(SST_HSW_CHANNEL_CONFIG_STEREO);
 	sst_hsw_stream_set_map_config(hsw, pcm_data->stream,
 			map, SST_HSW_CHANNEL_CONFIG_STEREO);
@@ -743,7 +737,7 @@ static struct snd_soc_dai_driver hsw_dais[] = {
 		.capture = {
 			.stream_name = "Analog Capture",
 			.channels_min = 2,
-			.channels_max = 2,
+			.channels_max = 4,
 			.rates = SNDRV_PCM_RATE_48000,
 			.formats = SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S16_LE,
 		},
