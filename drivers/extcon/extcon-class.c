@@ -29,6 +29,7 @@
 #include <linux/fs.h>
 #include <linux/err.h>
 #include <linux/extcon.h>
+#include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/of.h>
@@ -997,13 +998,16 @@ struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev, int index)
 		return ERR_PTR(-ENODEV);
 	}
 
-	edev = extcon_get_extcon_dev(node->name);
-	if (!edev) {
-		dev_err(dev, "unable to get extcon device : %s\n", node->name);
-		return ERR_PTR(-ENODEV);
+	mutex_lock(&extcon_dev_list_lock);
+	list_for_each_entry(edev, &extcon_dev_list, entry) {
+		if (edev->dev.parent && edev->dev.parent->of_node == node) {
+			mutex_unlock(&extcon_dev_list_lock);
+			return edev;
+		}
 	}
+	mutex_unlock(&extcon_dev_list_lock);
 
-	return edev;
+	return ERR_PTR(-EPROBE_DEFER);
 }
 #else
 struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev, int index)
