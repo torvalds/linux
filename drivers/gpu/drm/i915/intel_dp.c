@@ -597,6 +597,10 @@ static bool edp_have_panel_power(struct intel_dp *intel_dp)
 
 	lockdep_assert_held(&dev_priv->pps_mutex);
 
+	if (IS_VALLEYVIEW(dev) &&
+	    intel_dp->pps_pipe == INVALID_PIPE)
+		return false;
+
 	return (I915_READ(_pp_stat_reg(intel_dp)) & PP_ON) != 0;
 }
 
@@ -606,6 +610,10 @@ static bool edp_have_panel_vdd(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	lockdep_assert_held(&dev_priv->pps_mutex);
+
+	if (IS_VALLEYVIEW(dev) &&
+	    intel_dp->pps_pipe == INVALID_PIPE)
+		return false;
 
 	return I915_READ(_pp_ctrl_reg(intel_dp)) & EDP_FORCE_VDD;
 }
