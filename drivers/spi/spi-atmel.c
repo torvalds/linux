@@ -1511,15 +1511,10 @@ static int atmel_spi_runtime_resume(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct atmel_spi *as = spi_master_get_devdata(master);
-	int ret;
 
 	pinctrl_pm_select_default_state(dev);
 
-	ret = clk_prepare_enable(as->clk);
-	if (ret)
-		return ret;
-
-	return 0;
+	return clk_prepare_enable(as->clk);
 }
 #endif
 
