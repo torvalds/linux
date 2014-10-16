@@ -26,6 +26,7 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/pm_runtime.h>
 
 /* SPI register offsets */
 #define SPI_CR					0x0000
@@ -190,6 +191,8 @@
 #define DMA_MIN_BYTES	16
 
 #define SPI_DMA_TIMEOUT		(msecs_to_jiffies(1000))
+
+#define AUTOSUSPEND_TIMEOUT	2000
 
 struct atmel_spi_dma {
 	struct dma_chan			*chan_rx;
@@ -1313,6 +1316,7 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	master->setup = atmel_spi_setup;
 	master->transfer_one_message = atmel_spi_transfer_one_message;
 	master->cleanup = atmel_spi_cleanup;
+	master->auto_runtime_pm = true;
 	platform_set_drvdata(pdev, master);
 
 	as = spi_master_get_devdata(master);
@@ -1385,6 +1389,11 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "Atmel SPI Controller at 0x%08lx (irq %d)\n",
 			(unsigned long)regs->start, irq);
 
+	pm_runtime_set_autosuspend_delay(&pdev->dev, AUTOSUSPEND_TIMEOUT);
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+
 	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret)
 		goto out_free_dma;
@@ -1392,6 +1401,9 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	return 0;
 
 out_free_dma:
+	pm_runtime_disable(&pdev->dev);
+	pm_runtime_set_suspended(&pdev->dev);
+
 	if (as->use_dma)
 		atmel_spi_release_dma(as);
 
@@ -1413,6 +1425,8 @@ static int atmel_spi_remove(struct platform_device *pdev)
 	struct spi_master	*master = platform_get_drvdata(pdev);
 	struct atmel_spi	*as = spi_master_get_devdata(master);
 
+	pm_runtime_get_sync(&pdev->dev);
+
 	/* reset the hardware and block queue progress */
 	spin_lock_irq(&as->lock);
 	if (as->use_dma) {
@@ -1430,9 +1444,13 @@ static int atmel_spi_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(as->clk);
 
+	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
+
 	return 0;
 }
 
+#ifdef CONFIG_PM
 #ifdef CONFIG_PM_SLEEP
 static int atmel_spi_suspend(struct device *dev)
 {
@@ -1447,9 +1465,10 @@ static int atmel_spi_suspend(struct device *dev)
 		return ret;
 	}
 
-	clk_disable_unprepare(as->clk);
-
-	pinctrl_pm_select_sleep_state(dev);
+	if (!pm_runtime_suspended(dev)) {
+		clk_disable_unprepare(as->clk);
+		pinctrl_pm_select_sleep_state(dev);
+	}
 
 	return 0;
 }
@@ -1460,9 +1479,12 @@ static int atmel_spi_resume(struct device *dev)
 	struct atmel_spi	*as = spi_master_get_devdata(master);
 	int ret;
 
-	pinctrl_pm_select_default_state(dev);
-
-	clk_prepare_enable(as->clk);
+	if (!pm_runtime_suspended(dev)) {
+		pinctrl_pm_select_default_state(dev);
+		ret = clk_prepare_enable(as->clk);
+		if (ret)
+			return ret;
+	}
 
 	/* Start the queue running */
 	ret = spi_master_resume(master);
@@ -1471,9 +1493,41 @@ static int atmel_spi_resume(struct device *dev)
 
 	return ret;
 }
+#endif
 
-static SIMPLE_DEV_PM_OPS(atmel_spi_pm_ops, atmel_spi_suspend, atmel_spi_resume);
+#ifdef CONFIG_PM_RUNTIME
+static int atmel_spi_runtime_suspend(struct device *dev)
+{
+	struct spi_master *master = dev_get_drvdata(dev);
+	struct atmel_spi *as = spi_master_get_devdata(master);
 
+	clk_disable_unprepare(as->clk);
+	pinctrl_pm_select_sleep_state(dev);
+
+	return 0;
+}
+
+static int atmel_spi_runtime_resume(struct device *dev)
+{
+	struct spi_master *master = dev_get_drvdata(dev);
+	struct atmel_spi *as = spi_master_get_devdata(master);
+	int ret;
+
+	pinctrl_pm_select_default_state(dev);
+
+	ret = clk_prepare_enable(as->clk);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops atmel_spi_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(atmel_spi_suspend, atmel_spi_resume)
+	SET_RUNTIME_PM_OPS(atmel_spi_runtime_suspend,
+			   atmel_spi_runtime_resume, NULL)
+};
 #define ATMEL_SPI_PM_OPS	(&atmel_spi_pm_ops)
 #else
 #define ATMEL_SPI_PM_OPS	NULL
