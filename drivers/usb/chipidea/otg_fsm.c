@@ -206,6 +206,7 @@ static unsigned otg_timer_ms[] = {
 	0,
 	TB_DATA_PLS,
 	TB_SSEND_SRP,
+	TA_DP_END,
 };
 
 /*
@@ -345,6 +346,13 @@ static int b_ssend_srp_tmout(struct ci_hdrc *ci)
 		return 1;
 }
 
+static int a_dp_end_tmout(struct ci_hdrc *ci)
+{
+	ci->fsm.a_bus_drop = 0;
+	ci->fsm.a_srp_det = 1;
+	return 0;
+}
+
 /*
  * Keep this list in the same order as timers indexed
  * by enum otg_fsm_timer in include/linux/usb/otg-fsm.h
@@ -361,6 +369,7 @@ static int (*otg_timer_handlers[])(struct ci_hdrc *) = {
 	NULL,			/* A_WAIT_ENUM */
 	b_data_pls_tmout,	/* B_DATA_PLS */
 	b_ssend_srp_tmout,	/* B_SSEND_SRP */
+	a_dp_end_tmout,		/* A_DP_END */
 };
 
 /*
@@ -738,8 +747,7 @@ irqreturn_t ci_otg_fsm_irq(struct ci_hdrc *ci)
 	if (otg_int_src) {
 		if (otg_int_src & OTGSC_DPIS) {
 			hw_write_otgsc(ci, OTGSC_DPIS, OTGSC_DPIS);
-			fsm->a_srp_det = 1;
-			fsm->a_bus_drop = 0;
+			ci_otg_add_timer(ci, A_DP_END);
 		} else if (otg_int_src & OTGSC_IDIS) {
 			hw_write_otgsc(ci, OTGSC_IDIS, OTGSC_IDIS);
 			if (fsm->id == 0) {

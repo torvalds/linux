@@ -1013,13 +1013,10 @@ static void ci_otg_fsm_wakeup_by_srp(struct ci_hdrc *ci)
 {
 	if ((ci->fsm.otg->state == OTG_STATE_A_IDLE) &&
 		(ci->fsm.a_bus_drop == 1) && (ci->fsm.a_bus_req == 0)) {
-		if (!hw_read_otgsc(ci, OTGSC_ID)) {
-			ci->fsm.a_srp_det = 1;
-			ci->fsm.a_bus_drop = 0;
-		} else {
+		if (!hw_read_otgsc(ci, OTGSC_ID))
+			otg_add_timer(&ci->fsm, A_DP_END);
+		else
 			ci->fsm.id = 1;
-		}
-		ci_otg_queue_work(ci);
 	}
 }
 

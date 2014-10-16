@@ -55,6 +55,7 @@ enum otg_fsm_timer {
 	A_WAIT_ENUM,
 	B_DATA_PLS,
 	B_SSEND_SRP,
+	A_DP_END,
 
 	NUM_OTG_FSM_TIMERS,
 };

@@ -43,6 +43,8 @@
 					 * for safe
 					 */
 
+#define TA_DP_END             (200)
+
 /*
  * B-device timing constants
  */
