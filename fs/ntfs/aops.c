@@ -1,8 +1,7 @@
 /**
  * aops.c - NTFS kernel address space operations and page cache handling.
- *	    Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2007 Anton Altaparmakov
+ * Copyright (c) 2001-2014 Anton Altaparmakov and Tuxera Inc.
  * Copyright (c) 2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -1539,16 +1538,33 @@ err_out:
 #endif	/* NTFS_RW */
 
 /**
- * ntfs_aops - general address space operations for inodes and attributes
+ * ntfs_normal_aops - address space operations for normal inodes and attributes
+ *
+ * Note these are not used for compressed or mst protected inodes and
+ * attributes.
  */
-const struct address_space_operations ntfs_aops = {
-	.readpage	= ntfs_readpage,	/* Fill page with data. */
+const struct address_space_operations ntfs_normal_aops = {
+	.readpage	= ntfs_readpage,
 #ifdef NTFS_RW
-	.writepage	= ntfs_writepage,	/* Write dirty page to disk. */
+	.writepage	= ntfs_writepage,
+	.set_page_dirty	= __set_page_dirty_buffers,
 #endif /* NTFS_RW */
-	.migratepage	= buffer_migrate_page,	/* Move a page cache page from
-						   one physical page to an
-						   other. */
+	.migratepage	= buffer_migrate_page,
+	.is_partially_uptodate = block_is_partially_uptodate,
+	.error_remove_page = generic_error_remove_page,
+};
+
+/**
+ * ntfs_compressed_aops - address space operations for compressed inodes
+ */
+const struct address_space_operations ntfs_compressed_aops = {
+	.readpage	= ntfs_readpage,
+#ifdef NTFS_RW
+	.writepage	= ntfs_writepage,
+	.set_page_dirty	= __set_page_dirty_buffers,
+#endif /* NTFS_RW */
+	.migratepage	= buffer_migrate_page,
+	.is_partially_uptodate = block_is_partially_uptodate,
 	.error_remove_page = generic_error_remove_page,
 };
 
@@ -1564,9 +1580,8 @@ const struct address_space_operations ntfs_mst_aops = {
 						   without touching the buffers
 						   belonging to the page. */
 #endif /* NTFS_RW */
-	.migratepage	= buffer_migrate_page,	/* Move a page cache page from
-						   one physical page to an
-						   other. */
+	.migratepage	= buffer_migrate_page,
+	.is_partially_uptodate	= block_is_partially_uptodate,
 	.error_remove_page = generic_error_remove_page,
 };
 
