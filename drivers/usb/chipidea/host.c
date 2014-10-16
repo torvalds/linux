@@ -146,6 +146,38 @@ static int ci_imx_ehci_bus_resume(struct usb_hcd *hcd)
 	return 0;
 }
 
+#ifdef CONFIG_USB_OTG
+
+static int ci_start_port_reset(struct usb_hcd *hcd, unsigned port)
+{
+	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+	u32 __iomem *reg;
+	u32 status;
+
+	if (!port)
+		return -EINVAL;
+	port--;
+	/* start port reset before HNP protocol time out */
+	reg = &ehci->regs->port_status[port];
+	status = ehci_readl(ehci, reg);
+	if (!(status & PORT_CONNECT))
+		return -ENODEV;
+
+	/* khubd will finish the reset later */
+	if (ehci_is_TDI(ehci))
+		ehci_writel(ehci, status | (PORT_RESET & ~PORT_RWC_BITS), reg);
+	else
+		ehci_writel(ehci, status | PORT_RESET, reg);
+
+	return 0;
+}
+
+#else
+
+#define ci_start_port_reset    NULL
+
+#endif
+
 /* The below code is based on tegra ehci driver */
 static int ci_imx_ehci_hub_control(
 	struct usb_hcd	*hcd,
@@ -533,4 +565,5 @@ void ci_hdrc_host_driver_init(void)
 	ci_ehci_hc_driver.bus_suspend = ci_ehci_bus_suspend;
 	ci_ehci_hc_driver.bus_resume = ci_imx_ehci_bus_resume;
 	ci_ehci_hc_driver.hub_control = ci_imx_ehci_hub_control;
+	ci_ehci_hc_driver.start_port_reset = ci_start_port_reset;
 }
