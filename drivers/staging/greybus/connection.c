@@ -141,6 +141,7 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 	spin_unlock_irq(&gb_connections_lock);
 
 	INIT_LIST_HEAD(&connection->operations);
+	connection->pending = RB_ROOT;
 	atomic_set(&connection->op_cycle, 0);
 
 	return connection;
@@ -168,7 +169,7 @@ void gb_connection_destroy(struct gb_connection *connection)
 	kfree(connection);
 }
 
-u16 gb_connection_op_id(struct gb_connection *connection)
+u16 gb_connection_operation_id(struct gb_connection *connection)
 {
 	return (u16)(atomic_inc_return(&connection->op_cycle) % U16_MAX);
 }

@@ -44,6 +44,75 @@ struct gb_operation_msg_hdr {
 /* XXX Could be per-host device, per-module, or even per-connection */
 static DEFINE_SPINLOCK(gb_operations_lock);
 
+static void gb_operation_insert(struct gb_operation *operation)
+{
+	struct gb_connection *connection = operation->connection;
+	struct rb_root *root = &connection->pending;
+	struct rb_node *node = &operation->node;
+	struct rb_node **link = &root->rb_node;
+	struct rb_node *above = NULL;
+	struct gb_operation_msg_hdr *header;
+	__le16 wire_id;
+
+	/*
+	 * Assign the operation's id, and store it in the header of
+	 * both request and response message headers.
+	 */
+	operation->id = gb_connection_operation_id(connection);
+	wire_id = cpu_to_le16(operation->id);
+	header = operation->request->transfer_buffer;
+	header->id = wire_id;
+
+	/* OK, insert the operation into its connection's tree */
+	spin_lock_irq(&gb_operations_lock);
+
+	while (*link) {
+		struct gb_operation *other;
+
+		above = *link;
+		other = rb_entry(above, struct gb_operation, node);
+		header = other->request->transfer_buffer;
+		if (other->id > operation->id)
+			link = &above->rb_left;
+		else if (other->id < operation->id)
+			link = &above->rb_right;
+	}
+	rb_link_node(node, above, link);
+	rb_insert_color(node, root);
+
+	spin_unlock_irq(&gb_operations_lock);
+}
+
+static void gb_operation_remove(struct gb_operation *operation)
+{
+	spin_lock_irq(&gb_operations_lock);
+	rb_erase(&operation->node, &operation->connection->pending);
+	spin_unlock_irq(&gb_operations_lock);
+}
+
+static struct gb_operation *
+gb_operation_find(struct gb_connection *connection, u16 id)
+{
+	struct gb_operation *operation;
+	struct rb_node *node;
+	bool found = false;
+
+	spin_lock_irq(&gb_operations_lock);
+	node = connection->pending.rb_node;
+	while (node && !found) {
+		operation = rb_entry(node, struct gb_operation, node);
+		if (operation->id > id)
+			node = node->rb_left;
+		else if (operation->id < id)
+			node = node->rb_right;
+		else
+			found = true;
+	}
+	spin_unlock_irq(&gb_operations_lock);
+
+	return found ? operation : NULL;
+}
+
 /*
  * An operations's response message has arrived.  If no callback was
  * supplied it was submitted for asynchronous completion, so we notify
@@ -93,6 +162,7 @@ int gb_operation_submit(struct gb_operation *operation,
 	 * setting the operation id and submitting the gbuf.
 	 */
 	operation->callback = callback;
+	gb_operation_insert(operation);
 	ret = greybus_submit_gbuf(operation->request, GFP_KERNEL);
 	if (ret)
 		return ret;
@@ -107,7 +177,21 @@ int gb_operation_submit(struct gb_operation *operation,
  */
 static void gb_operation_gbuf_complete(struct gbuf *gbuf)
 {
-	/* TODO */
+	struct gb_operation *operation;
+	struct gb_operation_msg_hdr *header;
+	u16 id;
+
+	/*
+	 * This isn't right, but it keeps things balanced until we
+	 * can set up operation response handling.
+	 */
+	header = gbuf->transfer_buffer;
+	id = le16_to_cpu(header->id);
+	operation = gb_operation_find(gbuf->connection, id);
+	if (operation)
+		gb_operation_remove(operation);
+	else
+		gb_connection_err(gbuf->connection, "operation not found");
 }
 
 /*

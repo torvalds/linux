@@ -52,12 +52,14 @@ struct gb_operation {
 	struct gb_connection	*connection;
 	struct gbuf		*request;
 	struct gbuf		*response;
+	u16			id;
 
+	u8			result;
 	gb_operation_callback	callback;	/* If asynchronous */
 	struct completion	completion;	/* Used if no callback */
-	u8			result;
 
 	struct list_head	links;		/* connection->operations */
+	struct rb_node		node;		/* connection->pending */
 
 	/* These are what's used by caller */
 	void			*request_payload;

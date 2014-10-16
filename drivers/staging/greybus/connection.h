@@ -24,6 +24,7 @@ struct gb_connection {
 	enum greybus_protocol		protocol;
 
 	struct list_head		operations;
+	struct rb_root			pending;	/* awaiting reponse */
 	atomic_t			op_cycle;
 
 	void				*private;
@@ -36,7 +37,7 @@ void gb_connection_destroy(struct gb_connection *connection);
 struct gb_connection *gb_hd_connection_find(struct greybus_host_device *hd,
 				u16 cport_id);
 
-u16 gb_connection_op_id(struct gb_connection *connection);
+u16 gb_connection_operation_id(struct gb_connection *connection);
 
 __printf(2, 3)
 void gb_connection_err(struct gb_connection *connection, const char *fmt, ...);
