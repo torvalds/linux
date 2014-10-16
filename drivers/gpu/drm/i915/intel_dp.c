@@ -2550,6 +2550,9 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 
 	pps_unlock(intel_dp);
 
+	if (IS_VALLEYVIEW(dev))
+		vlv_wait_port_ready(dev_priv, dp_to_dig_port(intel_dp));
+
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 	intel_dp_start_link_train(intel_dp);
 	intel_dp_complete_link_train(intel_dp);
@@ -2685,8 +2688,6 @@ static void vlv_pre_enable_dp(struct intel_encoder *encoder)
 	mutex_unlock(&dev_priv->dpio_lock);
 
 	intel_enable_dp(encoder);
-
-	vlv_wait_port_ready(dev_priv, dport);
 }
 
 static void vlv_dp_pre_pll_enable(struct intel_encoder *encoder)
@@ -2779,8 +2780,6 @@ static void chv_pre_enable_dp(struct intel_encoder *encoder)
 	mutex_unlock(&dev_priv->dpio_lock);
 
 	intel_enable_dp(encoder);
-
-	vlv_wait_port_ready(dev_priv, dport);
 }
 
 static void chv_dp_pre_pll_enable(struct intel_encoder *encoder)
