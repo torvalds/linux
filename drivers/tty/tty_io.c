@@ -1024,14 +1024,12 @@ static ssize_t tty_read(struct file *file, char __user *buf, size_t count,
 }
 
 static void tty_write_unlock(struct tty_struct *tty)
-	__releases(&tty->atomic_write_lock)
 {
 	mutex_unlock(&tty->atomic_write_lock);
 	wake_up_interruptible_poll(&tty->write_wait, POLLOUT);
 }
 
 static int tty_write_lock(struct tty_struct *tty, int ndelay)
-	__acquires(&tty->atomic_write_lock)
 {
 	if (!mutex_trylock(&tty->atomic_write_lock)) {
 		if (ndelay)
