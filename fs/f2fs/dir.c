@@ -706,22 +706,49 @@ bool f2fs_empty_dir(struct inode *dir)
 	return true;
 }
 
+bool f2fs_fill_dentries(struct dir_context *ctx,
+			const void *bitmap, struct f2fs_dir_entry *dentry,
+			__u8 (*filenames)[F2FS_SLOT_LEN], int max,
+			unsigned int start_pos)
+{
+	unsigned char d_type = DT_UNKNOWN;
+	unsigned int bit_pos;
+	struct f2fs_dir_entry *de = NULL;
+
+	bit_pos = ((unsigned long)ctx->pos % max);
+
+	while (bit_pos < max) {
+		bit_pos = find_next_bit_le(bitmap, max, bit_pos);
+		if (bit_pos >= max)
+			break;
+
+		de = &dentry[bit_pos];
+		if (de->file_type < F2FS_FT_MAX)
+			d_type = f2fs_filetype_table[de->file_type];
+		else
+			d_type = DT_UNKNOWN;
+		if (!dir_emit(ctx, filenames[bit_pos],
+					le16_to_cpu(de->name_len),
+					le32_to_cpu(de->ino), d_type))
+			return true;
+
+		bit_pos += GET_DENTRY_SLOTS(le16_to_cpu(de->name_len));
+		ctx->pos = start_pos + bit_pos;
+	}
+	return false;
+}
+
 static int f2fs_readdir(struct file *file, struct dir_context *ctx)
 {
 	struct inode *inode = file_inode(file);
 	unsigned long npages = dir_blocks(inode);
-	unsigned int bit_pos = 0;
 	struct f2fs_dentry_block *dentry_blk = NULL;
-	struct f2fs_dir_entry *de = NULL;
 	struct page *dentry_page = NULL;
 	struct file_ra_state *ra = &file->f_ra;
 	unsigned int n = ((unsigned long)ctx->pos / NR_DENTRY_IN_BLOCK);
-	unsigned char d_type = DT_UNKNOWN;
 
 	if (f2fs_has_inline_dentry(inode))
 		return f2fs_read_inline_dir(file, ctx);
-
-	bit_pos = ((unsigned long)ctx->pos % NR_DENTRY_IN_BLOCK);
 
 	/* readahead for multi pages of dir */
 	if (npages - n > 1 && !ra_has_index(ra, n))
@@ -734,28 +761,13 @@ static int f2fs_readdir(struct file *file, struct dir_context *ctx)
 			continue;
 
 		dentry_blk = kmap(dentry_page);
-		while (bit_pos < NR_DENTRY_IN_BLOCK) {
-			bit_pos = find_next_bit_le(&dentry_blk->dentry_bitmap,
-							NR_DENTRY_IN_BLOCK,
-							bit_pos);
-			if (bit_pos >= NR_DENTRY_IN_BLOCK)
-				break;
 
-			de = &dentry_blk->dentry[bit_pos];
-			if (de->file_type < F2FS_FT_MAX)
-				d_type = f2fs_filetype_table[de->file_type];
-			else
-				d_type = DT_UNKNOWN;
-			if (!dir_emit(ctx,
-					dentry_blk->filename[bit_pos],
-					le16_to_cpu(de->name_len),
-					le32_to_cpu(de->ino), d_type))
-				goto stop;
+		if (f2fs_fill_dentries(ctx,
+				&dentry_blk->dentry_bitmap, dentry_blk->dentry,
+				dentry_blk->filename,
+				NR_DENTRY_IN_BLOCK, n * NR_DENTRY_IN_BLOCK))
+			goto stop;
 
-			bit_pos += GET_DENTRY_SLOTS(le16_to_cpu(de->name_len));
-			ctx->pos = n * NR_DENTRY_IN_BLOCK + bit_pos;
-		}
-		bit_pos = 0;
 		ctx->pos = (n + 1) * NR_DENTRY_IN_BLOCK;
 		kunmap(dentry_page);
 		f2fs_put_page(dentry_page, 1);

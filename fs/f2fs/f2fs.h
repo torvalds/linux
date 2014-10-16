@@ -1247,6 +1247,9 @@ extern unsigned char f2fs_filetype_table[F2FS_FT_MAX];
 void set_de_type(struct f2fs_dir_entry *, struct inode *);
 struct f2fs_dir_entry *find_target_dentry(struct qstr *, int *, const void *,
 			struct f2fs_dir_entry *, __u8 (*)[F2FS_SLOT_LEN]);
+bool f2fs_fill_dentries(struct dir_context *,
+			const void *, struct f2fs_dir_entry *,
+			__u8 (*)[F2FS_SLOT_LEN], int, unsigned int);
 struct page *init_inode_metadata(struct inode *, struct inode *,
 			const struct qstr *, struct page *);
 void update_parent_metadata(struct inode *, struct inode *, unsigned int);

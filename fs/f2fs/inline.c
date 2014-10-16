@@ -517,49 +517,24 @@ bool f2fs_empty_inline_dir(struct inode *dir)
 int f2fs_read_inline_dir(struct file *file, struct dir_context *ctx)
 {
 	struct inode *inode = file_inode(file);
-	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
-	unsigned int bit_pos = 0;
 	struct f2fs_inline_dentry *inline_dentry = NULL;
-	struct f2fs_dir_entry *de = NULL;
 	struct page *ipage = NULL;
-	unsigned char d_type = DT_UNKNOWN;
 
 	if (ctx->pos == NR_INLINE_DENTRY)
 		return 0;
 
-	ipage = get_node_page(sbi, inode->i_ino);
+	ipage = get_node_page(F2FS_I_SB(inode), inode->i_ino);
 	if (IS_ERR(ipage))
 		return PTR_ERR(ipage);
 
-	bit_pos = ((unsigned long)ctx->pos % NR_INLINE_DENTRY);
-
 	inline_dentry = inline_data_addr(ipage);
-	while (bit_pos < NR_INLINE_DENTRY) {
-		bit_pos = find_next_bit_le(&inline_dentry->dentry_bitmap,
-						NR_INLINE_DENTRY,
-						bit_pos);
-		if (bit_pos >= NR_INLINE_DENTRY)
-			break;
 
-		de = &inline_dentry->dentry[bit_pos];
-		if (de->file_type < F2FS_FT_MAX)
-			d_type = f2fs_filetype_table[de->file_type];
-		else
-			d_type = DT_UNKNOWN;
+	if (!f2fs_fill_dentries(ctx, &inline_dentry->dentry_bitmap,
+				inline_dentry->dentry,
+				inline_dentry->filename,
+				NR_INLINE_DENTRY, 0))
+		ctx->pos = NR_INLINE_DENTRY;
 
-		if (!dir_emit(ctx,
-				inline_dentry->filename[bit_pos],
-				le16_to_cpu(de->name_len),
-				le32_to_cpu(de->ino), d_type))
-			goto out;
-
-		bit_pos += GET_DENTRY_SLOTS(le16_to_cpu(de->name_len));
-		ctx->pos = bit_pos;
-	}
-
-	ctx->pos = NR_INLINE_DENTRY;
-out:
 	f2fs_put_page(ipage, 1);
-
 	return 0;
 }
