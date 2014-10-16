@@ -2515,6 +2515,27 @@ struct pid *tty_get_pgrp(struct tty_struct *tty)
 }
 EXPORT_SYMBOL_GPL(tty_get_pgrp);
 
+/*
+ * This checks not only the pgrp, but falls back on the pid if no
+ * satisfactory pgrp is found. I dunno - gdb doesn't work correctly
+ * without this...
+ *
+ * The caller must hold rcu lock or the tasklist lock.
+ */
+static struct pid *session_of_pgrp(struct pid *pgrp)
+{
+	struct task_struct *p;
+	struct pid *sid = NULL;
+
+	p = pid_task(pgrp, PIDTYPE_PGID);
+	if (p == NULL)
+		p = pid_task(pgrp, PIDTYPE_PID);
+	if (p != NULL)
+		sid = task_session(p);
+
+	return sid;
+}
+
 /**
  *	tiocgpgrp		-	get process group
  *	@tty: tty passed by user
