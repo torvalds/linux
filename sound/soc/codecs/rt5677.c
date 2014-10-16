@@ -3646,6 +3646,11 @@ static void rt5677_free_gpio(struct i2c_client *i2c)
 	gpiochip_remove(&rt5677->gpio_chip);
 }
 #else
+static void rt5677_gpio_config(struct rt5677_priv *rt5677, unsigned offset,
+		int value)
+{
+}
+
 static void rt5677_init_gpio(struct i2c_client *i2c)
 {
 }
