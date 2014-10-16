@@ -1074,8 +1074,6 @@ static int omap_dma_chan_init(struct omap_dmadev *od, int dma_sig)
 	vchan_init(&c->vc, &od->ddev);
 	INIT_LIST_HEAD(&c->node);
 
-	od->ddev.chancnt++;
-
 	return 0;
 }
 
