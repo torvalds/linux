@@ -141,8 +141,6 @@ void gb_deregister_cport_complete(u16 cport_id)
 void greybus_cport_in(struct greybus_host_device *hd, u16 cport_id,
 			u8 *data, size_t length)
 {
-	struct gb_cport_handler *ch;
-	struct gbuf *gbuf;
 	struct gb_connection *connection;
 
 	connection = gb_hd_connection_find(hd, cport_id);
@@ -152,34 +150,6 @@ void greybus_cport_in(struct greybus_host_device *hd, u16 cport_id,
 		return;
 	}
 	gb_connection_operation_recv(connection, data, length);
-
-	/* first check to see if we have a cport handler for this cport */
-	ch = &cport_handler[cport_id];
-	if (!ch->handler) {
-		/* Ugh, drop the data on the floor, after logging it... */
-		dev_err(hd->parent,
-			"Received data for cport %d, but no handler!\n",
-			cport_id);
-		return;
-	}
-
-	gbuf = greybus_alloc_gbuf(connection, ch->handler, length, false,
-					GFP_ATOMIC, ch->context);
-
-	if (!gbuf) {
-		/* Again, something bad went wrong, log it... */
-		pr_err("can't allocate gbuf???\n");
-		return;
-	}
-
-	/*
-	 * FIXME:
-	 * Very dumb copy data method for now, if this is slow (odds are it will
-	 * be, we should move to a model where the hd "owns" all buffers, but we
-	 * want something up and working first for now.
-	 */
-	memcpy(gbuf->transfer_buffer, data, length);
-	gbuf->actual_length = length;
 }
 EXPORT_SYMBOL_GPL(greybus_cport_in);
 
