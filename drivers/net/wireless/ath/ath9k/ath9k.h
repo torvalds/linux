@@ -345,6 +345,7 @@ struct ath_chanctx {
 	u64 tsf_val;
 	u32 last_beacon;
 
+	int flush_timeout;
 	u16 txpower;
 	bool offchannel;
 	bool stopped;

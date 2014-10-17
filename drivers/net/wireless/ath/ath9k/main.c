@@ -2034,7 +2034,7 @@ void __ath9k_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	int timeout = HZ / 5; /* 200 ms */
+	int timeout;
 	bool drain_txq;
 
 	cancel_delayed_work_sync(&sc->tx_complete_work);
@@ -2048,6 +2048,13 @@ void __ath9k_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 		ath_dbg(common, ANY, "Device not present\n");
 		return;
 	}
+
+	spin_lock_bh(&sc->chan_lock);
+	timeout = sc->cur_chan->flush_timeout;
+	spin_unlock_bh(&sc->chan_lock);
+
+	ath_dbg(common, CHAN_CTX,
+		"Flush timeout: %d\n", jiffies_to_msecs(timeout));
 
 	if (wait_event_timeout(sc->tx_wait, !ath9k_has_tx_pending(sc),
 			       timeout) > 0)
