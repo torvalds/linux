@@ -4,6 +4,10 @@
 
 / {
 	 compatible = "rockchip,rk3128";
+	 gpio_poweroff {
+		compatible = "gpio-poweroff";
+		gpios = <&gpio1 GPIO_A2 GPIO_ACTIVE_LOW>;
+	};
 	wireless-wlan {
 		compatible = "wlan-platdata";
 
