@@ -171,10 +171,6 @@ int hdmi_pll_enable(struct hdmi_pll_data *pll)
 	struct hdmi_wp_data *wp = pll->wp;
 	u16 r = 0;
 
-	r = hdmi_wp_set_pll_pwr(wp, HDMI_PLLPWRCMD_ALLOFF);
-	if (r)
-		return r;
-
 	r = hdmi_wp_set_pll_pwr(wp, HDMI_PLLPWRCMD_BOTHON_ALLCLKS);
 	if (r)
 		return r;
