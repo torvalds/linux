@@ -2048,6 +2048,13 @@ int blk_insert_cloned_request(struct request_queue *q, struct request *rq)
 	    should_fail_request(&rq->rq_disk->part0, blk_rq_bytes(rq)))
 		return -EIO;
 
+	if (q->mq_ops) {
+		if (blk_queue_io_stat(q))
+			blk_account_io_start(rq, true);
+		blk_mq_insert_request(rq, false, true, true);
+		return 0;
+	}
+
 	spin_lock_irqsave(q->queue_lock, flags);
 	if (unlikely(blk_queue_dying(q))) {
 		spin_unlock_irqrestore(q->queue_lock, flags);
