@@ -325,7 +325,7 @@ EXPORT_SYMBOL_GPL(usb_add_gadget_udc);
 static void usb_gadget_remove_driver(struct usb_udc *udc)
 {
 	dev_dbg(&udc->dev, "unregistering UDC driver [%s]\n",
-			udc->gadget->name);
+			udc->driver->function);
 
 	kobject_uevent(&udc->dev.kobj, KOBJ_CHANGE);
 
