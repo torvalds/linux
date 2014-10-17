@@ -1647,10 +1647,8 @@ static void i40evf_adminq_task(struct work_struct *work)
 					   v_msg->v_retval, event.msg_buf,
 					   event.msg_size);
 		if (pending != 0) {
-			dev_info(&adapter->pdev->dev,
-				 "%s: ARQ: Pending events %d\n",
-				 __func__, pending);
 			memset(event.msg_buf, 0, I40EVF_MAX_AQ_BUF_SIZE);
+			event.msg_size = I40EVF_MAX_AQ_BUF_SIZE;
 		}
 	} while (pending);
 
