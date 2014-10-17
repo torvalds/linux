@@ -2365,7 +2365,6 @@ static int ath9k_add_chanctx(struct ieee80211_hw *hw,
 			conf->def.chan->center_freq);
 
 		ath_chanctx_set_channel(sc, ctx, &conf->def);
-		ath_chanctx_event(sc, NULL, ATH_CHANCTX_EVENT_ASSIGN);
 
 		mutex_unlock(&sc->mutex);
 		return 0;
@@ -2495,6 +2494,19 @@ static void ath9k_mgd_prepare_tx(struct ieee80211_hw *hw,
 
 	if (!changed)
 		goto out;
+
+	if (test_bit(ATH_OP_SCANNING, &common->op_flags)) {
+		ath_dbg(common, CHAN_CTX,
+			"%s: Aborting HW scan\n", __func__);
+
+		mutex_unlock(&sc->mutex);
+
+		del_timer_sync(&sc->offchannel.timer);
+		ath_scan_complete(sc, true);
+		flush_work(&sc->chanctx_work);
+
+		mutex_lock(&sc->mutex);
+	}
 
 	go_ctx = ath_is_go_chanctx_present(sc);
 
