@@ -315,7 +315,7 @@ int mmc_send_csd(struct mmc_card *card, u32 *csd)
 		return mmc_send_cxd_native(card->host, card->rca << 16,
 				csd, MMC_SEND_CSD);
 
-	csd_tmp = kmalloc(16, GFP_KERNEL);
+	csd_tmp = kzalloc(16, GFP_KERNEL);
 	if (!csd_tmp)
 		return -ENOMEM;
 
@@ -343,7 +343,7 @@ int mmc_send_cid(struct mmc_host *host, u32 *cid)
 				cid, MMC_SEND_CID);
 	}
 
-	cid_tmp = kmalloc(16, GFP_KERNEL);
+	cid_tmp = kzalloc(16, GFP_KERNEL);
 	if (!cid_tmp)
 		return -ENOMEM;
 
@@ -374,7 +374,7 @@ int mmc_get_ext_csd(struct mmc_card *card, u8 **new_ext_csd)
 	 * As the ext_csd is so large and mostly unused, we don't store the
 	 * raw block in mmc_card.
 	 */
-	ext_csd = kmalloc(512, GFP_KERNEL);
+	ext_csd = kzalloc(512, GFP_KERNEL);
 	if (!ext_csd)
 		return -ENOMEM;
 
