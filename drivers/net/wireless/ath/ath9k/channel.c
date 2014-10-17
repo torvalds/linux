@@ -366,6 +366,31 @@ static void ath_chanctx_setup_timer(struct ath_softc *sc, u32 tsf_time)
 		"Setup chanctx timer with timeout: %d ms\n", jiffies_to_msecs(tsf_time));
 }
 
+static void ath_chanctx_handle_bmiss(struct ath_softc *sc,
+				     struct ath_chanctx *ctx,
+				     struct ath_vif *avp)
+{
+	/*
+	 * Clear the extend_absence flag if it had been
+	 * set during the previous beacon transmission,
+	 * since we need to revert to the normal NoA
+	 * schedule.
+	 */
+	if (ctx->active && sc->sched.extend_absence) {
+		avp->noa_duration = 0;
+		sc->sched.extend_absence = false;
+	}
+
+	/* If at least two consecutive beacons were missed on the STA
+	 * chanctx, stay on the STA channel for one extra beacon period,
+	 * to resync the timer properly.
+	 */
+	if (ctx->active && sc->sched.beacon_miss >= 2) {
+		avp->noa_duration = 0;
+		sc->sched.extend_absence = true;
+	}
+}
+
 static void ath_chanctx_offchannel_noa(struct ath_softc *sc,
 				       struct ath_chanctx *ctx,
 				       struct ath_vif *avp,
@@ -524,25 +549,7 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 			break;
 		}
 
-		/*
-		 * Clear the extend_absence flag if it had been
-		 * set during the previous beacon transmission,
-		 * since we need to revert to the normal NoA
-		 * schedule.
-		 */
-		if (ctx->active && sc->sched.extend_absence) {
-			avp->noa_duration = 0;
-			sc->sched.extend_absence = false;
-		}
-
-		/* If at least two consecutive beacons were missed on the STA
-		 * chanctx, stay on the STA channel for one extra beacon period,
-		 * to resync the timer properly.
-		 */
-		if (ctx->active && sc->sched.beacon_miss >= 2) {
-			avp->noa_duration = 0;
-			sc->sched.extend_absence = true;
-		}
+		ath_chanctx_handle_bmiss(sc, ctx, avp);
 
 		/* Prevent wrap-around issues */
 		if (avp->noa_duration && tsf_time - avp->noa_start > BIT(30))
