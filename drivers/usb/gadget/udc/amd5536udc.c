@@ -1971,7 +1971,7 @@ static int amd5536_udc_stop(struct usb_gadget *g,
 
 	spin_lock_irqsave(&dev->lock, flags);
 	udc_mask_unused_interrupts(dev);
-	shutdown(dev, driver);
+	shutdown(dev, NULL);
 	spin_unlock_irqrestore(&dev->lock, flags);
 
 	dev->driver = NULL;
