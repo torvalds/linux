@@ -1284,7 +1284,7 @@ static int mv_u3d_stop(struct usb_gadget *g,
 	mv_u3d_controller_stop(u3d);
 	/* stop all usb activities */
 	u3d->gadget.speed = USB_SPEED_UNKNOWN;
-	mv_u3d_stop_activity(u3d, driver);
+	mv_u3d_stop_activity(u3d, NULL);
 	mv_u3d_disable(u3d);
 
 	if (pdata->phy_deinit)
