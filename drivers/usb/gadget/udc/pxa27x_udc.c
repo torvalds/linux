@@ -1698,10 +1698,10 @@ static void udc_disable(struct pxa_udc *udc)
 	udc_writel(udc, UDCICR1, 0);
 
 	udc_clear_mask_UDCCR(udc, UDCCR_UDE);
-	clk_disable(udc->clk);
 
 	ep0_idle(udc);
 	udc->gadget.speed = USB_SPEED_UNKNOWN;
+	clk_disable(udc->clk);
 
 	udc->enabled = 0;
 }
@@ -1754,16 +1754,16 @@ static void udc_enable(struct pxa_udc *udc)
 	if (udc->enabled)
 		return;
 
+	clk_enable(udc->clk);
 	udc_writel(udc, UDCICR0, 0);
 	udc_writel(udc, UDCICR1, 0);
 	udc_clear_mask_UDCCR(udc, UDCCR_UDE);
-
-	clk_enable(udc->clk);
 
 	ep0_idle(udc);
 	udc->gadget.speed = USB_SPEED_FULL;
 	memset(&udc->stats, 0, sizeof(udc->stats));
 
+	pxa_eps_setup(udc);
 	udc_set_mask_UDCCR(udc, UDCCR_UDE);
 	ep_write_UDCCSR(&udc->pxa_ep[0], UDCCSR0_ACM);
 	udelay(2);
@@ -2469,7 +2469,6 @@ static int pxa_udc_probe(struct platform_device *pdev)
 	the_controller = udc;
 	platform_set_drvdata(pdev, udc);
 	udc_init_data(udc);
-	pxa_eps_setup(udc);
 
 	/* irq setup after old hardware state is cleaned up */
 	retval = devm_request_irq(&pdev->dev, udc->irq, pxa_udc_irq,
@@ -2485,7 +2484,8 @@ static int pxa_udc_probe(struct platform_device *pdev)
 		goto err;
 
 	pxa_init_debugfs(udc);
-
+	if (should_enable_udc(udc))
+		udc_enable(udc);
 	return 0;
 err:
 	clk_unprepare(udc->clk);
@@ -2538,19 +2538,11 @@ extern void pxa27x_clear_otgph(void);
  */
 static int pxa_udc_suspend(struct platform_device *_dev, pm_message_t state)
 {
-	int i;
 	struct pxa_udc *udc = platform_get_drvdata(_dev);
 	struct pxa_ep *ep;
 
 	ep = &udc->pxa_ep[0];
 	udc->udccsr0 = udc_ep_readl(ep, UDCCSR);
-	for (i = 1; i < NR_PXA_ENDPOINTS; i++) {
-		ep = &udc->pxa_ep[i];
-		ep->udccsr_value = udc_ep_readl(ep, UDCCSR);
-		ep->udccr_value  = udc_ep_readl(ep, UDCCR);
-		ep_dbg(ep, "udccsr:0x%03x, udccr:0x%x\n",
-				ep->udccsr_value, ep->udccr_value);
-	}
 
 	udc_disable(udc);
 	udc->pullup_resume = udc->pullup_on;
@@ -2568,19 +2560,11 @@ static int pxa_udc_suspend(struct platform_device *_dev, pm_message_t state)
  */
 static int pxa_udc_resume(struct platform_device *_dev)
 {
-	int i;
 	struct pxa_udc *udc = platform_get_drvdata(_dev);
 	struct pxa_ep *ep;
 
 	ep = &udc->pxa_ep[0];
 	udc_ep_writel(ep, UDCCSR, udc->udccsr0 & (UDCCSR0_FST | UDCCSR0_DME));
-	for (i = 1; i < NR_PXA_ENDPOINTS; i++) {
-		ep = &udc->pxa_ep[i];
-		udc_ep_writel(ep, UDCCSR, ep->udccsr_value);
-		udc_ep_writel(ep, UDCCR,  ep->udccr_value);
-		ep_dbg(ep, "udccsr:0x%03x, udccr:0x%x\n",
-				ep->udccsr_value, ep->udccr_value);
-	}
 
 	dplus_pullup(udc, udc->pullup_resume);
 	if (should_enable_udc(udc))
