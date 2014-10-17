@@ -495,9 +495,14 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		    sc->cur_chan == &sc->offchannel.chan)
 			break;
 
-		ath_chanctx_adjust_tbtt_delta(sc);
 		sc->sched.beacon_pending = false;
 		sc->sched.beacon_miss = 0;
+
+		if (sc->sched.state == ATH_CHANCTX_STATE_FORCE_ACTIVE ||
+		    !sc->cur_chan->tsf_val)
+			break;
+
+		ath_chanctx_adjust_tbtt_delta(sc);
 
 		/* TSF time might have been updated by the incoming beacon,
 		 * need update the channel switch timer to reflect the change.
