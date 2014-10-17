@@ -731,6 +731,9 @@ void sync_dirty_dir_inodes(struct f2fs_sb_info *sbi)
 	struct dir_inode_entry *entry;
 	struct inode *inode;
 retry:
+	if (unlikely(f2fs_cp_error(sbi)))
+		return;
+
 	spin_lock(&sbi->dir_inode_lock);
 
 	head = &sbi->dir_inode_list;
