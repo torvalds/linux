@@ -1547,6 +1547,31 @@ static int ath9k_sta_remove(struct ieee80211_hw *hw,
 	return 0;
 }
 
+static int ath9k_sta_state(struct ieee80211_hw *hw,
+			   struct ieee80211_vif *vif,
+			   struct ieee80211_sta *sta,
+			   enum ieee80211_sta_state old_state,
+			   enum ieee80211_sta_state new_state)
+{
+	struct ath_softc *sc = hw->priv;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	int ret = 0;
+
+	if (old_state == IEEE80211_STA_AUTH &&
+	    new_state == IEEE80211_STA_ASSOC) {
+		ret = ath9k_sta_add(hw, vif, sta);
+		ath_dbg(common, CONFIG,
+			"Add station: %pM\n", sta->addr);
+	} else if (old_state == IEEE80211_STA_ASSOC &&
+		   new_state == IEEE80211_STA_AUTH) {
+		ret = ath9k_sta_remove(hw, vif, sta);
+		ath_dbg(common, CONFIG,
+			"Remove station: %pM\n", sta->addr);
+	}
+
+	return ret;
+}
+
 static void ath9k_sta_set_tx_filter(struct ath_hw *ah,
 				    struct ath_node *an,
 				    bool set)
@@ -2471,8 +2496,7 @@ struct ieee80211_ops ath9k_ops = {
 	.remove_interface   = ath9k_remove_interface,
 	.config 	    = ath9k_config,
 	.configure_filter   = ath9k_configure_filter,
-	.sta_add	    = ath9k_sta_add,
-	.sta_remove	    = ath9k_sta_remove,
+	.sta_state          = ath9k_sta_state,
 	.sta_notify         = ath9k_sta_notify,
 	.conf_tx 	    = ath9k_conf_tx,
 	.bss_info_changed   = ath9k_bss_info_changed,
