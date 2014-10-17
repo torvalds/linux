@@ -54,7 +54,8 @@ u8 ath9k_parse_mpdudensity(u8 mpdudensity)
 	}
 }
 
-static bool ath9k_has_pending_frames(struct ath_softc *sc, struct ath_txq *txq)
+static bool ath9k_has_pending_frames(struct ath_softc *sc, struct ath_txq *txq,
+				     bool sw_pending)
 {
 	bool pending = false;
 
@@ -64,6 +65,9 @@ static bool ath9k_has_pending_frames(struct ath_softc *sc, struct ath_txq *txq)
 		pending = true;
 		goto out;
 	}
+
+	if (!sw_pending)
+		goto out;
 
 	if (txq->mac80211_qnum >= 0) {
 		struct list_head *list;
@@ -2003,7 +2007,8 @@ static void ath9k_set_coverage_class(struct ieee80211_hw *hw,
 	mutex_unlock(&sc->mutex);
 }
 
-static bool ath9k_has_tx_pending(struct ath_softc *sc)
+static bool ath9k_has_tx_pending(struct ath_softc *sc,
+				 bool sw_pending)
 {
 	int i, npend = 0;
 
@@ -2011,7 +2016,8 @@ static bool ath9k_has_tx_pending(struct ath_softc *sc)
 		if (!ATH_TXQ_SETUP(sc, i))
 			continue;
 
-		npend = ath9k_has_pending_frames(sc, &sc->tx.txq[i]);
+		npend = ath9k_has_pending_frames(sc, &sc->tx.txq[i],
+						 sw_pending);
 		if (npend)
 			break;
 	}
@@ -2025,11 +2031,12 @@ static void ath9k_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct ath_softc *sc = hw->priv;
 
 	mutex_lock(&sc->mutex);
-	__ath9k_flush(hw, queues, drop);
+	__ath9k_flush(hw, queues, drop, true);
 	mutex_unlock(&sc->mutex);
 }
 
-void __ath9k_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
+void __ath9k_flush(struct ieee80211_hw *hw, u32 queues, bool drop,
+		   bool sw_pending)
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
@@ -2056,7 +2063,7 @@ void __ath9k_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 	ath_dbg(common, CHAN_CTX,
 		"Flush timeout: %d\n", jiffies_to_msecs(timeout));
 
-	if (wait_event_timeout(sc->tx_wait, !ath9k_has_tx_pending(sc),
+	if (wait_event_timeout(sc->tx_wait, !ath9k_has_tx_pending(sc, sw_pending),
 			       timeout) > 0)
 		drop = false;
 
@@ -2079,7 +2086,7 @@ static bool ath9k_tx_frames_pending(struct ieee80211_hw *hw)
 {
 	struct ath_softc *sc = hw->priv;
 
-	return ath9k_has_tx_pending(sc);
+	return ath9k_has_tx_pending(sc, true);
 }
 
 static int ath9k_tx_last_beacon(struct ieee80211_hw *hw)

@@ -1137,10 +1137,11 @@ void ath_chanctx_set_next(struct ath_softc *sc, bool force)
 		ath9k_chanctx_stop_queues(sc, sc->cur_chan);
 		queues_stopped = true;
 
-		__ath9k_flush(sc->hw, ~0, true);
+		__ath9k_flush(sc->hw, ~0, true, false);
 
 		if (ath_chanctx_send_ps_frame(sc, true))
-			__ath9k_flush(sc->hw, BIT(IEEE80211_AC_VO), false);
+			__ath9k_flush(sc->hw, BIT(IEEE80211_AC_VO),
+				      false, false);
 
 		send_ps = true;
 		spin_lock_bh(&sc->chan_lock);
