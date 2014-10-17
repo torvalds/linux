@@ -2918,7 +2918,11 @@ static struct dma_async_tx_descriptor *pl330_prep_dma_cyclic(
 		}
 
 		desc->rqcfg.brst_size = pch->burst_sz;
+#ifdef CONFIG_ARCH_ROCKCHIP
+		desc->rqcfg.brst_len = pch->burst_len;
+#else
 		desc->rqcfg.brst_len = 1;
+#endif
 		desc->req.infiniteloop = *infinite;
 		fill_px(&desc->px, dst, src, period_len);
 
@@ -3047,7 +3051,11 @@ pl330_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		}
 
 		desc->rqcfg.brst_size = pch->burst_sz;
+#ifdef CONFIG_ARCH_ROCKCHIP
+		desc->rqcfg.brst_len = pch->burst_len;
+#else
 		desc->rqcfg.brst_len = 1;
+#endif
 	}
 
 	/* Return the last desc in the chain */
