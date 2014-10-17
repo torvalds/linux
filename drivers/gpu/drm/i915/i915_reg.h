@@ -4054,17 +4054,18 @@ enum punit_power_well {
 #define   DSPFW_PLANEA_WM1_HI_MASK	(1<<0)
 
 /* drain latency register values*/
+#define DRAIN_LATENCY_PRECISION_16	16
 #define DRAIN_LATENCY_PRECISION_32	32
 #define DRAIN_LATENCY_PRECISION_64	64
 #define VLV_DDL(pipe)			(VLV_DISPLAY_BASE + 0x70050 + 4 * (pipe))
-#define DDL_CURSOR_PRECISION_64		(1<<31)
-#define DDL_CURSOR_PRECISION_32		(0<<31)
+#define DDL_CURSOR_PRECISION_HIGH	(1<<31)
+#define DDL_CURSOR_PRECISION_LOW	(0<<31)
 #define DDL_CURSOR_SHIFT		24
-#define DDL_SPRITE_PRECISION_64(sprite)	(1<<(15+8*(sprite)))
-#define DDL_SPRITE_PRECISION_32(sprite)	(0<<(15+8*(sprite)))
+#define DDL_SPRITE_PRECISION_HIGH(sprite)	(1<<(15+8*(sprite)))
+#define DDL_SPRITE_PRECISION_LOW(sprite)	(0<<(15+8*(sprite)))
 #define DDL_SPRITE_SHIFT(sprite)	(8+8*(sprite))
-#define DDL_PLANE_PRECISION_64		(1<<7)
-#define DDL_PLANE_PRECISION_32		(0<<7)
+#define DDL_PLANE_PRECISION_HIGH	(1<<7)
+#define DDL_PLANE_PRECISION_LOW		(0<<7)
 #define DDL_PLANE_SHIFT			0
 #define DRAIN_LATENCY_MASK		0x7f
 
