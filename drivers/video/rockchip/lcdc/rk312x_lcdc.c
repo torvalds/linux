@@ -1737,6 +1737,7 @@ static int rk312x_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 
 	if (dev_drv->trsm_ops && dev_drv->trsm_ops->enable)
 		dev_drv->trsm_ops->enable();
+	msleep(160);
 	return 0;
 }
 
