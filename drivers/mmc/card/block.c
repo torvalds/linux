@@ -1309,19 +1309,11 @@ static int mmc_blk_packed_err_check(struct mmc_card *card,
 	}
 
 	if (status & R1_EXCEPTION_EVENT) {
-		ext_csd = kzalloc(512, GFP_KERNEL);
-		if (!ext_csd) {
-			pr_err("%s: unable to allocate buffer for ext_csd\n",
-			       req->rq_disk->disk_name);
-			return -ENOMEM;
-		}
-
-		err = mmc_send_ext_csd(card, ext_csd);
+		err = mmc_get_ext_csd(card, &ext_csd);
 		if (err) {
 			pr_err("%s: error %d sending ext_csd\n",
 			       req->rq_disk->disk_name, err);
-			check = MMC_BLK_ABORT;
-			goto free;
+			return MMC_BLK_ABORT;
 		}
 
 		if ((ext_csd[EXT_CSD_EXP_EVENTS_STATUS] &
@@ -1339,7 +1331,6 @@ static int mmc_blk_packed_err_check(struct mmc_card *card,
 			       req->rq_disk->disk_name, packed->nr_entries,
 			       packed->blocks, packed->idx_failure);
 		}
-free:
 		kfree(ext_csd);
 	}
 
