@@ -264,20 +264,6 @@ mmc_send_cxd_data(struct mmc_card *card, struct mmc_host *host,
 	struct mmc_command cmd = {0};
 	struct mmc_data data = {0};
 	struct scatterlist sg;
-	void *data_buf;
-	int is_on_stack;
-
-	is_on_stack = object_is_on_stack(buf);
-	if (is_on_stack) {
-		/*
-		 * dma onto stack is unsafe/nonportable, but callers to this
-		 * routine normally provide temporary on-stack buffers ...
-		 */
-		data_buf = kmalloc(len, GFP_KERNEL);
-		if (!data_buf)
-			return -ENOMEM;
-	} else
-		data_buf = buf;
 
 	mrq.cmd = &cmd;
 	mrq.data = &data;
@@ -298,7 +284,7 @@ mmc_send_cxd_data(struct mmc_card *card, struct mmc_host *host,
 	data.sg = &sg;
 	data.sg_len = 1;
 
-	sg_init_one(&sg, data_buf, len);
+	sg_init_one(&sg, buf, len);
 
 	if (opcode == MMC_SEND_CSD || opcode == MMC_SEND_CID) {
 		/*
@@ -311,11 +297,6 @@ mmc_send_cxd_data(struct mmc_card *card, struct mmc_host *host,
 		mmc_set_data_timeout(&data, card);
 
 	mmc_wait_for_req(host, &mrq);
-
-	if (is_on_stack) {
-		memcpy(buf, data_buf, len);
-		kfree(data_buf);
-	}
 
 	if (cmd.error)
 		return cmd.error;
