@@ -2334,10 +2334,10 @@ static int fsl_qe_stop(struct usb_gadget *gadget,
 		nuke(loop_ep, -ESHUTDOWN);
 	spin_unlock_irqrestore(&udc->lock, flags);
 
+	dev_info(udc->dev, "unregistered gadget driver '%s'\r\n",
+			udc->driver->driver.name);
 	udc->driver = NULL;
 
-	dev_info(udc->dev, "unregistered gadget driver '%s'\r\n",
-			driver->driver.name);
 	return 0;
 }
 
