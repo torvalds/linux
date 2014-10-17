@@ -52,11 +52,11 @@ static loff_t msr_seek(struct file *file, loff_t offset, int orig)
 
 	mutex_lock(&inode->i_mutex);
 	switch (orig) {
-	case 0:
+	case SEEK_SET:
 		file->f_pos = offset;
 		ret = file->f_pos;
 		break;
-	case 1:
+	case SEEK_CUR:
 		file->f_pos += offset;
 		ret = file->f_pos;
 		break;
