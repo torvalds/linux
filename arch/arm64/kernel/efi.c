@@ -112,8 +112,6 @@ static int __init uefi_init(void)
 		efi.systab->hdr.revision & 0xffff, vendor);
 
 	retval = efi_config_init(NULL);
-	if (retval == 0)
-		set_bit(EFI_CONFIG_TABLES, &efi.flags);
 
 out:
 	early_memunmap(efi.systab,  sizeof(efi_system_table_t));
