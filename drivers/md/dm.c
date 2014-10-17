@@ -1719,6 +1719,7 @@ static int setup_clone(struct request *clone, struct request *rq,
 {
 	int r;
 
+	blk_rq_init(NULL, rq);
 	r = blk_rq_prep_clone(clone, rq, tio->md->bs, GFP_ATOMIC,
 			      dm_rq_bio_constructor, tio);
 	if (r)

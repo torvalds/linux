@@ -2945,8 +2945,6 @@ int blk_rq_prep_clone(struct request *rq, struct request *rq_src,
 	if (!bs)
 		bs = fs_bio_set;
 
-	blk_rq_init(NULL, rq);
-
 	__rq_for_each_bio(bio_src, rq_src) {
 		bio = bio_clone_fast(bio_src, gfp_mask, bs);
 		if (!bio)
