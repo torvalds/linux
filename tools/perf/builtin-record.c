@@ -15,6 +15,7 @@
 #include "util/parse-events.h"
 
 #include "util/callchain.h"
+#include "util/cgroup.h"
 #include "util/header.h"
 #include "util/event.h"
 #include "util/evlist.h"

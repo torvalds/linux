@@ -16,6 +16,7 @@
 #include <sys/resource.h>
 #include "asm/bug.h"
 #include "callchain.h"
+#include "cgroup.h"
 #include "evsel.h"
 #include "evlist.h"
 #include "util.h"

@@ -7,7 +7,6 @@
 #include <linux/perf_event.h>
 #include <linux/types.h>
 #include "xyarray.h"
-#include "cgroup.h"
 #include "symbol.h"
 
 struct perf_counts_values {
@@ -41,6 +40,8 @@ struct perf_sample_id {
 	/* Holds total ID period value for PERF_SAMPLE_READ processing. */
 	u64			period;
 };
+
+struct cgroup_sel;
 
 /** struct perf_evsel - event selector
  *
