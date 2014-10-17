@@ -112,6 +112,15 @@ config CRYPTO_DEV_FSL_CAAM_RNG_API
 	  To compile this as a module, choose M here: the module
 	  will be called caamrng.
 
+config CRYPTO_DEV_FSL_CAAM_RNG_TEST
+	boolean "Test caam rng"
+	depends on CRYPTO_DEV_FSL_CAAM_RNG_API
+	default n
+	help
+	  Selecting this will enable a self-test to run for the
+	  caam RNG. This test is several minutes long and executes
+	  just before the RNG is registered with the hw_random API.
+
 config CRYPTO_DEV_FSL_CAAM_DEBUG
 	bool "Enable debug output in CAAM driver"
 	depends on CRYPTO_DEV_FSL_CAAM
