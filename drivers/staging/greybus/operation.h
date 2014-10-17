@@ -16,7 +16,8 @@ enum gb_operation_status {
 	GB_OP_INVALID		= 1,
 	GB_OP_NO_MEMORY		= 2,
 	GB_OP_INTERRUPTED	= 3,
-	GB_OP_PROTOCOL_BAD	= 4,
+	GB_OP_RETRY		= 4,
+	GB_OP_PROTOCOL_BAD	= 5,
 };
 
 /*

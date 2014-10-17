@@ -382,9 +382,13 @@ static int gb_i2c_transfer_operation(struct gb_i2c_device *gb_i2c_dev,
 
 	response = operation->response_payload;
 	if (response->status) {
-		gb_connection_err(connection, "transfer response %hhu",
-			response->status);
-		ret = -EIO;
+		if (response->status == GB_OP_RETRY) {
+			ret = -EAGAIN;
+		} else {
+			gb_connection_err(connection, "transfer response %hhu",
+				response->status);
+			ret = -EIO;
+		}
 	} else {
 		gb_i2c_transfer_response(msgs, msg_count, response->data);
 		ret = msg_count;
