@@ -78,7 +78,7 @@ static int set_target(struct cpufreq_policy *policy, unsigned int index)
 	}
 
 	dev_dbg(cpu_dev, "%u MHz, %ld mV --> %u MHz, %ld mV\n",
-		old_freq / 1000, volt_old ? volt_old / 1000 : -1,
+		old_freq / 1000, (volt_old > 0) ? volt_old / 1000 : -1,
 		new_freq / 1000, volt ? volt / 1000 : -1);
 
 	/* scaling up?  scale voltage before frequency */
@@ -94,7 +94,7 @@ static int set_target(struct cpufreq_policy *policy, unsigned int index)
 	ret = clk_set_rate(cpu_clk, freq_exact);
 	if (ret) {
 		dev_err(cpu_dev, "failed to set clock rate: %d\n", ret);
-		if (!IS_ERR(cpu_reg))
+		if (!IS_ERR(cpu_reg) && volt_old > 0)
 			regulator_set_voltage_tol(cpu_reg, volt_old, tol);
 		return ret;
 	}
