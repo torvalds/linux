@@ -274,6 +274,8 @@ static int parse_ipv6hdr(struct sk_buff *skb, struct sw_flow_key *key)
 			key->ip.frag = OVS_FRAG_TYPE_LATER;
 		else
 			key->ip.frag = OVS_FRAG_TYPE_FIRST;
+	} else {
+		key->ip.frag = OVS_FRAG_TYPE_NONE;
 	}
 
 	nh_len = payload_ofs - nh_ofs;
@@ -358,6 +360,7 @@ static int parse_icmpv6(struct sk_buff *skb, struct sw_flow_key *key,
 	 */
 	key->tp.src = htons(icmp->icmp6_type);
 	key->tp.dst = htons(icmp->icmp6_code);
+	memset(&key->ipv6.nd, 0, sizeof(key->ipv6.nd));
 
 	if (icmp->icmp6_code == 0 &&
 	    (icmp->icmp6_type == NDISC_NEIGHBOUR_SOLICITATION ||
@@ -673,9 +676,6 @@ int ovs_flow_key_extract(struct ovs_tunnel_info *tun_info,
 	key->phy.skb_mark = skb->mark;
 	key->ovs_flow_hash = 0;
 	key->recirc_id = 0;
-
-	/* Flags are always used as part of stats */
-	key->tp.flags = 0;
 
 	return key_extract(skb, key);
 }
