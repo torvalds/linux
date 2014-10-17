@@ -2062,17 +2062,14 @@ F:	arch/arm/configs/bcm_defconfig
 F:	drivers/mmc/host/sdhci-bcm-kona.c
 F:	drivers/clocksource/bcm_kona_timer.c
 
-BROADCOM BCM2835 ARM ARCHICTURE
+BROADCOM BCM2835 ARM ARCHITECTURE
 M:	Stephen Warren <swarren@wwwdotorg.org>
 L:	linux-rpi-kernel@lists.infradead.org (moderated for non-subscribers)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/swarren/linux-rpi.git
 S:	Maintained
-F:	arch/arm/mach-bcm/board_bcm2835.c
-F:	arch/arm/boot/dts/bcm2835*
-F:	arch/arm/configs/bcm2835_defconfig
-F:	drivers/*/*bcm2835*
+N:	bcm2835
 
-BROADCOM BCM5301X ARM ARCHICTURE
+BROADCOM BCM5301X ARM ARCHITECTURE
 M:	Hauke Mehrtens <hauke@hauke-m.de>
 L:	linux-arm-kernel@lists.infradead.org
 S:	Maintained
