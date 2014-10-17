@@ -30,11 +30,11 @@
 #include <linux/stat.h>
 #include <linux/types.h>
 #include <linux/platform_data/atmel.h>
+#include <linux/platform_data/mmc-atmel-mci.h>
 
 #include <linux/mmc/host.h>
 #include <linux/mmc/sdio.h>
 
-#include <mach/atmel-mci.h>
 #include <linux/atmel-mci.h>
 #include <linux/atmel_pdc.h>
 
