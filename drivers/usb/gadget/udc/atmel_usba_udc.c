@@ -1791,8 +1791,6 @@ static int atmel_usba_start(struct usb_gadget *gadget,
 		return ret;
 	}
 
-	DBG(DBG_GADGET, "registered driver `%s'\n", driver->driver.name);
-
 	udc->vbus_prev = 0;
 	if (gpio_is_valid(udc->vbus_pin))
 		enable_irq(gpio_to_irq(udc->vbus_pin));
@@ -1829,8 +1827,6 @@ static int atmel_usba_stop(struct usb_gadget *gadget,
 
 	clk_disable_unprepare(udc->hclk);
 	clk_disable_unprepare(udc->pclk);
-
-	DBG(DBG_GADGET, "unregistered driver `%s'\n", udc->driver->driver.name);
 
 	udc->driver = NULL;
 
