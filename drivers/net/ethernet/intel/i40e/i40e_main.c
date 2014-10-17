@@ -5358,6 +5358,7 @@ static void i40e_veb_link_event(struct i40e_veb *veb, bool link_up)
 static void i40e_link_event(struct i40e_pf *pf)
 {
 	bool new_link, old_link;
+	struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
 
 	/* set this to force the get_link_status call to refresh state */
 	pf->hw.phy.get_link_info = true;
@@ -5366,10 +5367,12 @@ static void i40e_link_event(struct i40e_pf *pf)
 	new_link = i40e_get_link_status(&pf->hw);
 
 	if (new_link == old_link &&
-	    new_link == netif_carrier_ok(pf->vsi[pf->lan_vsi]->netdev))
+	    (test_bit(__I40E_DOWN, &vsi->state) ||
+	     new_link == netif_carrier_ok(vsi->netdev)))
 		return;
-	if (!test_bit(__I40E_DOWN, &pf->vsi[pf->lan_vsi]->state))
-		i40e_print_link_message(pf->vsi[pf->lan_vsi], new_link);
+
+	if (!test_bit(__I40E_DOWN, &vsi->state))
+		i40e_print_link_message(vsi, new_link);
 
 	/* Notify the base of the switch tree connected to
 	 * the link.  Floating VEBs are not notified.
@@ -5377,7 +5380,7 @@ static void i40e_link_event(struct i40e_pf *pf)
 	if (pf->lan_veb != I40E_NO_VEB && pf->veb[pf->lan_veb])
 		i40e_veb_link_event(pf->veb[pf->lan_veb], new_link);
 	else
-		i40e_vsi_link_event(pf->vsi[pf->lan_vsi], new_link);
+		i40e_vsi_link_event(vsi, new_link);
 
 	if (pf->vf)
 		i40e_vc_notify_link_state(pf);
