@@ -2031,14 +2031,33 @@ static void ath9k_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			u32 queues, bool drop)
 {
 	struct ath_softc *sc = hw->priv;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
+	if (ath9k_is_chanctx_enabled()) {
+		if (!test_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags))
+			goto flush;
+
+		/*
+		 * If MCC is active, extend the flush timeout
+		 * and wait for the HW/SW queues to become
+		 * empty. This needs to be done outside the
+		 * sc->mutex lock to allow the channel scheduler
+		 * to switch channel contexts.
+		 *
+		 * The vif queues have been stopped in mac80211,
+		 * so there won't be any incoming frames.
+		 */
+		__ath9k_flush(hw, queues, drop, true, true);
+		return;
+	}
+flush:
 	mutex_lock(&sc->mutex);
-	__ath9k_flush(hw, queues, drop, true);
+	__ath9k_flush(hw, queues, drop, true, false);
 	mutex_unlock(&sc->mutex);
 }
 
 void __ath9k_flush(struct ieee80211_hw *hw, u32 queues, bool drop,
-		   bool sw_pending)
+		   bool sw_pending, bool timeout_override)
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
@@ -2059,7 +2078,10 @@ void __ath9k_flush(struct ieee80211_hw *hw, u32 queues, bool drop,
 	}
 
 	spin_lock_bh(&sc->chan_lock);
-	timeout = sc->cur_chan->flush_timeout;
+	if (timeout_override)
+		timeout = HZ / 5;
+	else
+		timeout = sc->cur_chan->flush_timeout;
 	spin_unlock_bh(&sc->chan_lock);
 
 	ath_dbg(common, CHAN_CTX,

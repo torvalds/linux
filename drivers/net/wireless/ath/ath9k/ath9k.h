@@ -719,7 +719,7 @@ void ath_update_survey_nf(struct ath_softc *sc, int channel);
 void ath9k_queue_reset(struct ath_softc *sc, enum ath_reset_type type);
 void ath_ps_full_sleep(unsigned long data);
 void __ath9k_flush(struct ieee80211_hw *hw, u32 queues, bool drop,
-		   bool sw_pending);
+		   bool sw_pending, bool timeout_override);
 
 /**********/
 /* BTCOEX */
