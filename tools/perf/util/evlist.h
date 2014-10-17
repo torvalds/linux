@@ -117,6 +117,8 @@ int perf_evlist__prepare_workload(struct perf_evlist *evlist,
 						     void *ucontext));
 int perf_evlist__start_workload(struct perf_evlist *evlist);
 
+struct option;
+
 int perf_evlist__parse_mmap_pages(const struct option *opt,
 				  const char *str,
 				  int unset);
