@@ -1590,10 +1590,12 @@ static int ath9k_sta_state(struct ieee80211_hw *hw,
 	}
 
 	if (ath9k_is_chanctx_enabled()) {
-		if (old_state == IEEE80211_STA_ASSOC &&
-		    new_state == IEEE80211_STA_AUTHORIZED)
-			ath_chanctx_event(sc, vif,
-					  ATH_CHANCTX_EVENT_AUTHORIZED);
+		if (vif->type == NL80211_IFTYPE_STATION) {
+			if (old_state == IEEE80211_STA_ASSOC &&
+			    new_state == IEEE80211_STA_AUTHORIZED)
+				ath_chanctx_event(sc, vif,
+						  ATH_CHANCTX_EVENT_AUTHORIZED);
+		}
 	}
 
 	return ret;
