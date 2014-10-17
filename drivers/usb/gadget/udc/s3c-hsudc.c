@@ -1199,11 +1199,7 @@ static int s3c_hsudc_stop(struct usb_gadget *gadget,
 	if (!hsudc)
 		return -ENODEV;
 
-	if (!driver || driver != hsudc->driver)
-		return -EINVAL;
-
 	spin_lock_irqsave(&hsudc->lock, flags);
-	hsudc->driver = NULL;
 	hsudc->gadget.speed = USB_SPEED_UNKNOWN;
 	s3c_hsudc_uninit_phy();
 
@@ -1222,7 +1218,9 @@ static int s3c_hsudc_stop(struct usb_gadget *gadget,
 	regulator_bulk_disable(ARRAY_SIZE(hsudc->supplies), hsudc->supplies);
 
 	dev_info(hsudc->dev, "unregistered gadget driver '%s'\n",
-			driver->driver.name);
+			hsudc->driver->driver.name);
+	hsudc->driver = NULL;
+
 	return 0;
 }
 
