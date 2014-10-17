@@ -274,10 +274,11 @@ static void svc_in_callback(struct urb *urb)
 	int status = check_urb_status(urb);
 	int retval;
 
-	if (status == -EAGAIN)
+	if (status) {
+		if (status != -EAGAIN)
+			dev_err(dev, "urb svc in error %d (dropped)\n", status);
 		goto exit;
-	if (status)
-		return;
+	}
 
 	/* We have a message, create a new message structure, add it to the
 	 * list, and wake up our thread that will process the messages.
@@ -300,10 +301,12 @@ static void cport_in_callback(struct urb *urb)
 	u8 cport;
 	u8 *data;
 
-	if (status == -EAGAIN)
+	if (status) {
+		if (status != -EAGAIN)
+			dev_err(dev, "urb cport in error %d (dropped)\n",
+				status);
 		goto exit;
-	if (status)
-		return;
+	}
 
 	/* The size has to be at least one, for the cport id */
 	if (!urb->actual_length) {
@@ -336,6 +339,9 @@ static void cport_out_callback(struct urb *urb)
 	struct es1_ap_dev *es1 = hd_to_es1(gbuf->connection->hd);
 	unsigned long flags;
 	int i;
+
+	/* Record whether the transfer was successful */
+	gbuf->status = check_urb_status(urb);
 
 	/*
 	 * See if this was an urb in our pool, if so mark it "free", otherwise

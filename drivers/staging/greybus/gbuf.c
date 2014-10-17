@@ -54,6 +54,7 @@ struct gbuf *greybus_alloc_gbuf(struct gb_connection *connection,
 	gbuf->outbound = outbound;
 	gbuf->complete = complete;
 	gbuf->context = context;
+	gbuf->status = -EBADR;	/* Initial value--means "never set" */
 
 	/* Host controller specific allocation for the actual buffer */
 	retval = connection->hd->driver->alloc_gbuf_data(gbuf, size, gfp_mask);
@@ -97,6 +98,8 @@ EXPORT_SYMBOL_GPL(greybus_get_gbuf);
 int greybus_submit_gbuf(struct gbuf *gbuf, gfp_t gfp_mask)
 {
 	struct greybus_host_device *hd = gbuf->connection->hd;
+
+	gbuf->status = -EINPROGRESS;
 
 	return hd->driver->submit_gbuf(gbuf, gfp_mask);
 }

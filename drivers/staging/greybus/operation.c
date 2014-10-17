@@ -424,6 +424,7 @@ void gb_connection_operation_recv(struct gb_connection *connection,
 		}
 		gb_operation_remove(operation);
 		gbuf = operation->response;
+		gbuf->status = GB_OP_SUCCESS;	/* If we got here we're good */
 		if (size > gbuf->transfer_buffer_length) {
 			gb_connection_err(connection, "recv buffer too small");
 			return;
