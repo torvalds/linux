@@ -1851,8 +1851,6 @@ static int musb_gadget_start(struct usb_gadget *g,
 
 	pm_runtime_get_sync(musb->controller);
 
-	dev_dbg(musb->controller, "registering driver %s\n", driver->function);
-
 	musb->softconnect = 0;
 	musb->gadget_driver = driver;
 
@@ -1948,9 +1946,6 @@ static int musb_gadget_stop(struct usb_gadget *g,
 	musb->xceiv->state = OTG_STATE_UNDEFINED;
 	stop_activity(musb, NULL);
 	otg_set_peripheral(musb->xceiv->otg, NULL);
-
-	dev_dbg(musb->controller, "unregistering driver %s\n",
-			musb->gadget_driver->function);
 
 	musb->is_active = 0;
 	musb->gadget_driver = NULL;
