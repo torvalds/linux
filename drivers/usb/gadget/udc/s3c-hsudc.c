@@ -1172,8 +1172,6 @@ static int s3c_hsudc_start(struct usb_gadget *gadget,
 	}
 
 	enable_irq(hsudc->irq);
-	dev_info(hsudc->dev, "bound driver %s\n", driver->driver.name);
-
 	s3c_hsudc_reconfig(hsudc);
 
 	pm_runtime_get_sync(hsudc->dev);
@@ -1216,9 +1214,6 @@ static int s3c_hsudc_stop(struct usb_gadget *gadget,
 	disable_irq(hsudc->irq);
 
 	regulator_bulk_disable(ARRAY_SIZE(hsudc->supplies), hsudc->supplies);
-
-	dev_info(hsudc->dev, "unregistered gadget driver '%s'\n",
-			hsudc->driver->driver.name);
 	hsudc->driver = NULL;
 
 	return 0;
