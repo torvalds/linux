@@ -78,7 +78,7 @@ static void tve_set_mode(int mode)
 	if (cvbsformat >= 0)
 		return;
 	tve_writel(TV_RESET, v_RESET(1));
-	udelay_range(100, 100);
+	usleep_range(100, 100);
 	tve_writel(TV_RESET, v_RESET(0));
 	if (rk3036_tve->inputformat == INPUT_FORMAT_RGB)
 		tve_writel(TV_CTRL, v_CVBS_MODE(mode) | v_CLK_UPSTREAM_EN(2) |
@@ -130,7 +130,7 @@ static void tve_set_mode(int mode)
 		if (rk3036_tve->soctype == SOC_RK312X) {
 			tve_writel(TV_ADJ_TIMING, (0xa << 28) |
 					0x06c00800 | 0x80);
-			udelay_range(100, 100);
+			usleep_range(100, 100);
 			tve_writel(TV_ADJ_TIMING, (0xa << 28) |
 					0x06c00800 | 0x80);
 			tve_writel(TV_ACT_TIMING, 0x0694011D |
