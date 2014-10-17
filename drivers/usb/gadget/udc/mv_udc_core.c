@@ -1386,7 +1386,7 @@ static int mv_udc_stop(struct usb_gadget *gadget,
 
 	/* stop all usb activities */
 	udc->gadget.speed = USB_SPEED_UNKNOWN;
-	stop_activity(udc, driver);
+	stop_activity(udc, NULL);
 	mv_udc_disable(udc);
 
 	spin_unlock_irqrestore(&udc->lock, flags);
