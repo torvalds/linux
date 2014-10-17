@@ -592,11 +592,7 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 			spin_lock(&old_file->d_inode->i_lock);
 			inc_nlink(old_file->d_inode);
 			spin_unlock(&old_file->d_inode->i_lock);
-			/*
-			 * BB should we make this contingent on superblock flag
-			 * NOATIME?
-			 */
-			/* old_file->d_inode->i_ctime = CURRENT_TIME; */
+
 			/*
 			 * parent dir timestamps will update from srv within a
 			 * second, would it really be worth it to set the parent
@@ -606,7 +602,9 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 		}
 		/*
 		 * if not oplocked will force revalidate to get info on source
-		 * file from srv
+		 * file from srv.  Note Samba server prior to 4.2 has bug -
+		 * not updating src file ctime on hardlinks but Windows servers
+		 * handle it properly
 		 */
 		cifsInode->time = 0;
 
