@@ -1932,9 +1932,6 @@ static int gr_udc_start(struct usb_gadget *gadget,
 
 	spin_unlock(&dev->lock);
 
-	dev_info(dev->dev, "Started with gadget driver '%s'\n",
-		 driver->driver.name);
-
 	return 0;
 }
 
@@ -1950,8 +1947,6 @@ static int gr_udc_stop(struct usb_gadget *gadget,
 	gr_stop_activity(dev);
 
 	spin_unlock_irqrestore(&dev->lock, flags);
-
-	dev_info(dev->dev, "Stopped\n");
 
 	return 0;
 }
