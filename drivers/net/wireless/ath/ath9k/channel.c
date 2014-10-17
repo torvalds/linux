@@ -392,6 +392,39 @@ static void ath_chanctx_offchannel_noa(struct ath_softc *sc,
 		avp->noa_duration = 0;
 }
 
+static void ath_chanctx_set_periodic_noa(struct ath_softc *sc,
+					 struct ath_vif *avp,
+					 struct ath_beacon_config *cur_conf,
+					 u32 tsf_time,
+					 u32 beacon_int)
+{
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+
+	avp->noa_index++;
+	avp->noa_start = tsf_time;
+
+	if (sc->sched.extend_absence)
+		avp->noa_duration = (3 * beacon_int / 2) +
+			sc->sched.channel_switch_time;
+	else
+		avp->noa_duration =
+			TU_TO_USEC(cur_conf->beacon_interval) / 2 +
+			sc->sched.channel_switch_time;
+
+	if (test_bit(ATH_OP_SCANNING, &common->op_flags) ||
+	    sc->sched.extend_absence)
+		avp->periodic_noa = false;
+	else
+		avp->periodic_noa = true;
+
+	ath_dbg(common, CHAN_CTX,
+		"noa_duration: %d, noa_start: %d, noa_index: %d, periodic: %d\n",
+		avp->noa_duration,
+		avp->noa_start,
+		avp->noa_index,
+		avp->periodic_noa);
+}
+
 void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		       enum ath_chanctx_event ev)
 {
@@ -521,31 +554,9 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		 * announcement.
 		 */
 		if (ctx->active &&
-		    (!avp->noa_duration || sc->sched.force_noa_update)) {
-			avp->noa_index++;
-			avp->noa_start = tsf_time;
-
-			if (sc->sched.extend_absence)
-				avp->noa_duration = (3 * beacon_int / 2) +
-					sc->sched.channel_switch_time;
-			else
-				avp->noa_duration =
-					TU_TO_USEC(cur_conf->beacon_interval) / 2 +
-					sc->sched.channel_switch_time;
-
-			if (test_bit(ATH_OP_SCANNING, &common->op_flags) ||
-			    sc->sched.extend_absence)
-				avp->periodic_noa = false;
-			else
-				avp->periodic_noa = true;
-
-			ath_dbg(common, CHAN_CTX,
-				"noa_duration: %d, noa_start: %d, noa_index: %d, periodic: %d\n",
-				avp->noa_duration,
-				avp->noa_start,
-				avp->noa_index,
-				avp->periodic_noa);
-		}
+		    (!avp->noa_duration || sc->sched.force_noa_update))
+			ath_chanctx_set_periodic_noa(sc, avp, cur_conf,
+						     tsf_time, beacon_int);
 
 		if (ctx->active && sc->sched.force_noa_update)
 			sc->sched.force_noa_update = false;
