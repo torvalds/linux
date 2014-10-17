@@ -1569,6 +1569,13 @@ static int ath9k_sta_state(struct ieee80211_hw *hw,
 			"Remove station: %pM\n", sta->addr);
 	}
 
+	if (ath9k_is_chanctx_enabled()) {
+		if (old_state == IEEE80211_STA_ASSOC &&
+		    new_state == IEEE80211_STA_AUTHORIZED)
+			ath_chanctx_event(sc, vif,
+					  ATH_CHANCTX_EVENT_AUTHORIZED);
+	}
+
 	return ret;
 }
 
@@ -1761,12 +1768,6 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 		avp->assoc = bss_conf->assoc;
 
 		ath9k_calculate_summary_state(sc, avp->chanctx);
-
-		if (ath9k_is_chanctx_enabled()) {
-			if (bss_conf->assoc)
-				ath_chanctx_event(sc, vif,
-						  ATH_CHANCTX_EVENT_ASSOC);
-		}
 	}
 
 	if (changed & BSS_CHANGED_IBSS) {

@@ -171,7 +171,7 @@ static const char *chanctx_event_string(enum ath_chanctx_event ev)
 		case_rtn_string(ATH_CHANCTX_EVENT_BEACON_SENT);
 		case_rtn_string(ATH_CHANCTX_EVENT_TSF_TIMER);
 		case_rtn_string(ATH_CHANCTX_EVENT_BEACON_RECEIVED);
-		case_rtn_string(ATH_CHANCTX_EVENT_ASSOC);
+		case_rtn_string(ATH_CHANCTX_EVENT_AUTHORIZED);
 		case_rtn_string(ATH_CHANCTX_EVENT_SWITCH);
 		case_rtn_string(ATH_CHANCTX_EVENT_ASSIGN);
 		case_rtn_string(ATH_CHANCTX_EVENT_UNASSIGN);
@@ -510,7 +510,7 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 
 		ath_chanctx_setup_timer(sc, tsf_time);
 		break;
-	case ATH_CHANCTX_EVENT_ASSOC:
+	case ATH_CHANCTX_EVENT_AUTHORIZED:
 		if (sc->sched.state != ATH_CHANCTX_STATE_FORCE_ACTIVE ||
 		    avp->chanctx != sc->cur_chan)
 			break;
