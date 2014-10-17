@@ -66,7 +66,7 @@ static int ath_set_channel(struct ath_softc *sc)
 	}
 
 	hchan = &sc->sc_ah->channels[pos];
-	r = ath_reset_internal(sc, hchan);
+	r = ath_reset(sc, hchan);
 	if (r)
 		return r;
 

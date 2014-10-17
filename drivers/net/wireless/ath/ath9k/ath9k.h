@@ -540,7 +540,6 @@ static inline void ath_chanctx_check_active(struct ath_softc *sc,
 
 #endif /* CONFIG_ATH9K_CHANNEL_CONTEXT */
 
-int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan);
 void ath_startrecv(struct ath_softc *sc);
 bool ath_stoprecv(struct ath_softc *sc);
 u32 ath_calcrxfilter(struct ath_softc *sc);
@@ -1069,7 +1068,7 @@ void ath9k_tasklet(unsigned long data);
 int ath_cabq_update(struct ath_softc *);
 u8 ath9k_parse_mpdudensity(u8 mpdudensity);
 irqreturn_t ath_isr(int irq, void *dev);
-int ath_reset(struct ath_softc *sc);
+int ath_reset(struct ath_softc *sc, struct ath9k_channel *hchan);
 void ath_cancel_work(struct ath_softc *sc);
 void ath_restart_work(struct ath_softc *sc);
 int ath9k_init_device(u16 devid, struct ath_softc *sc,

@@ -270,7 +270,7 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 	return true;
 }
 
-int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan)
+static int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -598,12 +598,12 @@ chip_reset:
 #undef SCHED_INTR
 }
 
-int ath_reset(struct ath_softc *sc)
+int ath_reset(struct ath_softc *sc, struct ath9k_channel *hchan)
 {
 	int r;
 
 	ath9k_ps_wakeup(sc);
-	r = ath_reset_internal(sc, NULL);
+	r = ath_reset_internal(sc, hchan);
 	ath9k_ps_restore(sc);
 
 	return r;
@@ -623,7 +623,9 @@ void ath_reset_work(struct work_struct *work)
 {
 	struct ath_softc *sc = container_of(work, struct ath_softc, hw_reset_work);
 
-	ath_reset(sc);
+	ath9k_ps_wakeup(sc);
+	ath_reset_internal(sc, NULL);
+	ath9k_ps_restore(sc);
 }
 
 /**********************/
@@ -2044,7 +2046,7 @@ void __ath9k_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 		spin_unlock_bh(&sc->sc_pcu_lock);
 
 		if (!drain_txq)
-			ath_reset(sc);
+			ath_reset(sc, NULL);
 
 		ath9k_ps_restore(sc);
 	}
