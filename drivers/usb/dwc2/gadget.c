@@ -2921,8 +2921,7 @@ err:
  *
  * Stop udc hw block and stay tunned for future transmissions
  */
-static int s3c_hsotg_udc_stop(struct usb_gadget *gadget,
-			  struct usb_gadget_driver *driver)
+static int s3c_hsotg_udc_stop(struct usb_gadget *gadget)
 {
 	struct s3c_hsotg *hsotg = to_hsotg(gadget);
 	unsigned long flags = 0;

@@ -1223,7 +1223,7 @@ static int mv_udc_pullup(struct usb_gadget *gadget, int is_on)
 }
 
 static int mv_udc_start(struct usb_gadget *, struct usb_gadget_driver *);
-static int mv_udc_stop(struct usb_gadget *, struct usb_gadget_driver *);
+static int mv_udc_stop(struct usb_gadget *);
 /* device controller usb_gadget_ops structure */
 static const struct usb_gadget_ops mv_ops = {
 
@@ -1371,8 +1371,7 @@ static int mv_udc_start(struct usb_gadget *gadget,
 	return 0;
 }
 
-static int mv_udc_stop(struct usb_gadget *gadget,
-		struct usb_gadget_driver *driver)
+static int mv_udc_stop(struct usb_gadget *gadget)
 {
 	struct mv_udc *udc;
 	unsigned long flags;

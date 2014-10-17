@@ -984,8 +984,8 @@ static int at91_set_selfpowered(struct usb_gadget *gadget, int is_on)
 
 static int at91_start(struct usb_gadget *gadget,
 		struct usb_gadget_driver *driver);
-static int at91_stop(struct usb_gadget *gadget,
-		struct usb_gadget_driver *driver);
+static int at91_stop(struct usb_gadget *gadget);
+
 static const struct usb_gadget_ops at91_udc_ops = {
 	.get_frame		= at91_get_frame,
 	.wakeup			= at91_wakeup,
@@ -1644,8 +1644,7 @@ static int at91_start(struct usb_gadget *gadget,
 	return 0;
 }
 
-static int at91_stop(struct usb_gadget *gadget,
-		struct usb_gadget_driver *driver)
+static int at91_stop(struct usb_gadget *gadget)
 {
 	struct at91_udc *udc;
 	unsigned long	flags;

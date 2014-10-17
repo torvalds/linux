@@ -1763,8 +1763,7 @@ static int r8a66597_start(struct usb_gadget *gadget,
 	return 0;
 }
 
-static int r8a66597_stop(struct usb_gadget *gadget,
-		struct usb_gadget_driver *driver)
+static int r8a66597_stop(struct usb_gadget *gadget)
 {
 	struct r8a66597 *r8a66597 = gadget_to_r8a66597(gadget);
 	unsigned long flags;

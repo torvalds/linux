@@ -1311,8 +1311,7 @@ static int omap_pullup(struct usb_gadget *gadget, int is_on)
 
 static int omap_udc_start(struct usb_gadget *g,
 		struct usb_gadget_driver *driver);
-static int omap_udc_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver);
+static int omap_udc_stop(struct usb_gadget *g);
 
 static const struct usb_gadget_ops omap_gadget_ops = {
 	.get_frame		= omap_get_frame,
@@ -2102,8 +2101,7 @@ done:
 	return status;
 }
 
-static int omap_udc_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver)
+static int omap_udc_stop(struct usb_gadget *g)
 {
 	unsigned long	flags;
 	int		status = -ENODEV;

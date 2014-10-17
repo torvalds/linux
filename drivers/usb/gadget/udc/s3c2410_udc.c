@@ -1541,8 +1541,7 @@ static int s3c2410_vbus_draw(struct usb_gadget *_gadget, unsigned ma)
 
 static int s3c2410_udc_start(struct usb_gadget *g,
 		struct usb_gadget_driver *driver);
-static int s3c2410_udc_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver);
+static int s3c2410_udc_stop(struct usb_gadget *g);
 
 static const struct usb_gadget_ops s3c2410_ops = {
 	.get_frame		= s3c2410_udc_get_frame,
@@ -1683,8 +1682,7 @@ static int s3c2410_udc_start(struct usb_gadget *g,
 	return 0;
 }
 
-static int s3c2410_udc_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver)
+static int s3c2410_udc_stop(struct usb_gadget *g)
 {
 	struct s3c2410_udc *udc = to_s3c2410(g);
 

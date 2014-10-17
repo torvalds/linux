@@ -851,8 +851,7 @@ static int usbhsg_gadget_start(struct usb_gadget *gadget,
 	return usbhsg_try_start(priv, USBHSG_STATUS_REGISTERD);
 }
 
-static int usbhsg_gadget_stop(struct usb_gadget *gadget,
-		struct usb_gadget_driver *driver)
+static int usbhsg_gadget_stop(struct usb_gadget *gadget)
 {
 	struct usbhsg_gpriv *gpriv = usbhsg_gadget_to_gpriv(gadget);
 	struct usbhs_priv *priv = usbhsg_gpriv_to_priv(gpriv);

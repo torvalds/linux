@@ -1544,8 +1544,7 @@ static int ci_udc_pullup(struct usb_gadget *_gadget, int is_on)
 
 static int ci_udc_start(struct usb_gadget *gadget,
 			 struct usb_gadget_driver *driver);
-static int ci_udc_stop(struct usb_gadget *gadget,
-			struct usb_gadget_driver *driver);
+static int ci_udc_stop(struct usb_gadget *gadget);
 /**
  * Device operations part of the API to the USB controller hardware,
  * which don't involve endpoints (or i/o)
@@ -1682,8 +1681,7 @@ static int ci_udc_start(struct usb_gadget *gadget,
 /**
  * ci_udc_stop: unregister a gadget driver
  */
-static int ci_udc_stop(struct usb_gadget *gadget,
-			struct usb_gadget_driver *driver)
+static int ci_udc_stop(struct usb_gadget *gadget)
 {
 	struct ci_hdrc *ci = container_of(gadget, struct ci_hdrc, gadget);
 	unsigned long flags;

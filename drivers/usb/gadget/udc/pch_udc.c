@@ -1240,8 +1240,8 @@ static int pch_udc_pcd_vbus_draw(struct usb_gadget *gadget, unsigned int mA)
 
 static int pch_udc_start(struct usb_gadget *g,
 		struct usb_gadget_driver *driver);
-static int pch_udc_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver);
+static int pch_udc_stop(struct usb_gadget *g);
+
 static const struct usb_gadget_ops pch_udc_ops = {
 	.get_frame = pch_udc_pcd_get_frame,
 	.wakeup = pch_udc_pcd_wakeup,
@@ -3008,8 +3008,7 @@ static int pch_udc_start(struct usb_gadget *g,
 	return 0;
 }
 
-static int pch_udc_stop(struct usb_gadget *g,
-		struct usb_gadget_driver *driver)
+static int pch_udc_stop(struct usb_gadget *g)
 {
 	struct pch_udc_dev	*dev = to_pch_udc(g);
 
