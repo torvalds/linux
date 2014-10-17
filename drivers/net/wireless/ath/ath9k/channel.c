@@ -207,6 +207,26 @@ void ath_chanctx_check_active(struct ath_softc *sc, struct ath_chanctx *ctx)
 	if (!ctx)
 		return;
 
+	if (ctx == &sc->offchannel.chan) {
+		spin_lock_bh(&sc->chan_lock);
+
+		if (likely(sc->sched.channel_switch_time))
+			ctx->flush_timeout =
+				usecs_to_jiffies(sc->sched.channel_switch_time);
+		else
+			ctx->flush_timeout =
+				msecs_to_jiffies(10);
+
+		spin_unlock_bh(&sc->chan_lock);
+
+		/*
+		 * There is no need to iterate over the
+		 * active/assigned channel contexts if
+		 * the current context is offchannel.
+		 */
+		return;
+	}
+
 	ictx = ctx;
 
 	list_for_each_entry(avp, &ctx->vifs, list) {
