@@ -2462,10 +2462,14 @@ static int i40e_configure_tx_ring(struct i40e_ring *ring)
 	}
 
 	/* Now associate this queue with this PCI function */
-	if (vsi->type == I40E_VSI_VMDQ2)
+	if (vsi->type == I40E_VSI_VMDQ2) {
 		qtx_ctl = I40E_QTX_CTL_VM_QUEUE;
-	else
+		qtx_ctl |= ((vsi->id) << I40E_QTX_CTL_VFVM_INDX_SHIFT) &
+			   I40E_QTX_CTL_VFVM_INDX_MASK;
+	} else {
 		qtx_ctl = I40E_QTX_CTL_PF_QUEUE;
+	}
+
 	qtx_ctl |= ((hw->pf_id << I40E_QTX_CTL_PF_INDX_SHIFT) &
 		    I40E_QTX_CTL_PF_INDX_MASK);
 	wr32(hw, I40E_QTX_CTL(pf_q), qtx_ctl);
