@@ -378,13 +378,6 @@ err:
 	return ret;
 }
 
-int mmc_send_ext_csd(struct mmc_card *card, u8 *ext_csd)
-{
-	return mmc_send_cxd_data(card, card->host, MMC_SEND_EXT_CSD,
-			ext_csd, 512);
-}
-EXPORT_SYMBOL_GPL(mmc_send_ext_csd);
-
 int mmc_get_ext_csd(struct mmc_card *card, u8 **new_ext_csd)
 {
 	int err;
@@ -404,7 +397,8 @@ int mmc_get_ext_csd(struct mmc_card *card, u8 **new_ext_csd)
 	if (!ext_csd)
 		return -ENOMEM;
 
-	err = mmc_send_ext_csd(card, ext_csd);
+	err = mmc_send_cxd_data(card, card->host, MMC_SEND_EXT_CSD, ext_csd,
+				512);
 	if (err)
 		kfree(ext_csd);
 	else
