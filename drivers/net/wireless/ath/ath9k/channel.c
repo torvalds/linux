@@ -199,12 +199,15 @@ static const char *chanctx_state_string(enum ath_chanctx_state state)
 void ath_chanctx_check_active(struct ath_softc *sc, struct ath_chanctx *ctx)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_chanctx *ictx;
 	struct ath_vif *avp;
 	bool active = false;
 	u8 n_active = 0;
 
 	if (!ctx)
 		return;
+
+	ictx = ctx;
 
 	list_for_each_entry(avp, &ctx->vifs, list) {
 		struct ieee80211_vif *vif = avp->vif;
@@ -228,12 +231,23 @@ void ath_chanctx_check_active(struct ath_softc *sc, struct ath_chanctx *ctx)
 		n_active++;
 	}
 
+	spin_lock_bh(&sc->chan_lock);
+
 	if (n_active <= 1) {
+		ictx->flush_timeout = HZ / 5;
 		clear_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags);
+		spin_unlock_bh(&sc->chan_lock);
 		return;
 	}
-	if (test_and_set_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags))
+
+	ictx->flush_timeout = usecs_to_jiffies(sc->sched.channel_switch_time);
+
+	if (test_and_set_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags)) {
+		spin_unlock_bh(&sc->chan_lock);
 		return;
+	}
+
+	spin_unlock_bh(&sc->chan_lock);
 
 	if (ath9k_is_chanctx_enabled()) {
 		ath_chanctx_event(sc, NULL,
