@@ -7957,8 +7957,8 @@ static int i40e_vsi_setup_vectors(struct i40e_vsi *vsi)
 						 vsi->num_q_vectors, vsi->idx);
 	if (vsi->base_vector < 0) {
 		dev_info(&pf->pdev->dev,
-			 "failed to get queue tracking for VSI %d, err=%d\n",
-			 vsi->seid, vsi->base_vector);
+			 "failed to get tracking for %d vectors for VSI %d, err=%d\n",
+			 vsi->num_q_vectors, vsi->seid, vsi->base_vector);
 		i40e_vsi_free_q_vectors(vsi);
 		ret = -ENOENT;
 		goto vector_setup_out;
@@ -7994,8 +7994,9 @@ static struct i40e_vsi *i40e_vsi_reinit_setup(struct i40e_vsi *vsi)
 
 	ret = i40e_get_lump(pf, pf->qp_pile, vsi->alloc_queue_pairs, vsi->idx);
 	if (ret < 0) {
-		dev_info(&pf->pdev->dev, "VSI %d get_lump failed %d\n",
-			 vsi->seid, ret);
+		dev_info(&pf->pdev->dev,
+			 "failed to get tracking for %d queues for VSI %d err=%d\n",
+			 vsi->alloc_queue_pairs, vsi->seid, ret);
 		goto err_vsi;
 	}
 	vsi->base_queue = ret;
@@ -8124,8 +8125,9 @@ struct i40e_vsi *i40e_vsi_setup(struct i40e_pf *pf, u8 type,
 	ret = i40e_get_lump(pf, pf->qp_pile, vsi->alloc_queue_pairs,
 				vsi->idx);
 	if (ret < 0) {
-		dev_info(&pf->pdev->dev, "VSI %d get_lump failed %d\n",
-			 vsi->seid, ret);
+		dev_info(&pf->pdev->dev,
+			 "failed to get tracking for %d queues for VSI %d err=%d\n",
+			 vsi->alloc_queue_pairs, vsi->seid, ret);
 		goto err_vsi;
 	}
 	vsi->base_queue = ret;
