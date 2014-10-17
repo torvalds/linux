@@ -921,9 +921,8 @@ static int dummy_udc_stop(struct usb_gadget *g,
 	struct dummy_hcd	*dum_hcd = gadget_to_dummy_hcd(g);
 	struct dummy		*dum = dum_hcd->dum;
 
-	if (driver)
-		dev_dbg(udc_dev(dum), "unregister gadget driver '%s'\n",
-				driver->driver.name);
+	dev_dbg(udc_dev(dum), "unregister gadget driver '%s'\n",
+			dum->driver->driver.name);
 
 	dum->driver = NULL;
 
