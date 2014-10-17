@@ -1862,7 +1862,7 @@ static int pxa27x_udc_stop(struct usb_gadget *g,
 {
 	struct pxa_udc *udc = to_pxa(g);
 
-	stop_activity(udc, driver);
+	stop_activity(udc, NULL);
 	udc_disable(udc);
 	dplus_pullup(udc, 0);
 
