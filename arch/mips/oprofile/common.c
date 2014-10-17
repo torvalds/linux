@@ -110,6 +110,12 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 		break;
 	};
 
+	/*
+	 * Always set the backtrace. This allows unsupported CPU types to still
+	 * use timer-based oprofile.
+	 */
+	ops->backtrace = op_mips_backtrace;
+
 	if (!lmodel)
 		return -ENODEV;
 
@@ -125,7 +131,6 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	ops->start		= op_mips_start;
 	ops->stop		= op_mips_stop;
 	ops->cpu_type		= lmodel->cpu_type;
-	ops->backtrace		= op_mips_backtrace;
 
 	printk(KERN_INFO "oprofile: using %s performance monitoring.\n",
 	       lmodel->cpu_type);
