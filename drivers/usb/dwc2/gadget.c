@@ -2561,8 +2561,10 @@ static int s3c_hsotg_ep_enable(struct usb_ep *ep,
 			hs_ep->fifo_size = val;
 			break;
 		}
-		if (i == 8)
-			return -ENOMEM;
+		if (i == 8) {
+			ret = -ENOMEM;
+			goto error;
+		}
 	}
 
 	/* for non control endpoints, set PID to D0 */
@@ -2579,6 +2581,7 @@ static int s3c_hsotg_ep_enable(struct usb_ep *ep,
 	/* enable the endpoint interrupt */
 	s3c_hsotg_ctrl_epint(hsotg, index, dir_in, 1);
 
+error:
 	spin_unlock_irqrestore(&hsotg->lock, flags);
 	return ret;
 }
