@@ -3255,6 +3255,8 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[pipe];
+	struct intel_crtc *crtc = to_intel_crtc(intel_get_crtc_for_pipe(dev,
+									pipe));
 	u32 val = 0; /* shut up gcc */
 	int ret;
 
@@ -3289,6 +3291,14 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 					    GFP_KERNEL);
 		if (!pipe_crc->entries)
 			return -ENOMEM;
+
+		/*
+		 * When IPS gets enabled, the pipe CRC changes. Since IPS gets
+		 * enabled and disabled dynamically based on package C states,
+		 * user space can't make reliable use of the CRCs, so let's just
+		 * completely disable it.
+		 */
+		hsw_disable_ips(crtc);
 
 		spin_lock_irq(&pipe_crc->lock);
 		pipe_crc->head = 0;
@@ -3328,6 +3338,8 @@ static int pipe_crc_set_source(struct drm_device *dev, enum pipe pipe,
 			vlv_undo_pipe_scramble_reset(dev, pipe);
 		else if (IS_HASWELL(dev) && pipe == PIPE_A)
 			hsw_undo_trans_edp_pipe_A_crc_wa(dev);
+
+		hsw_enable_ips(crtc);
 	}
 
 	return 0;
