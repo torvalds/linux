@@ -557,10 +557,11 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 	} else if (key->eth.type == htons(ETH_P_ARP) ||
 		   key->eth.type == htons(ETH_P_RARP)) {
 		struct arp_eth_header *arp;
+		bool arp_available = arphdr_ok(skb);
 
 		arp = (struct arp_eth_header *)skb_network_header(skb);
 
-		if (arphdr_ok(skb) &&
+		if (arp_available &&
 		    arp->ar_hrd == htons(ARPHRD_ETHER) &&
 		    arp->ar_pro == htons(ETH_P_IP) &&
 		    arp->ar_hln == ETH_ALEN &&
