@@ -5211,6 +5211,9 @@ static void i40e_fdir_flush_and_replay(struct i40e_pf *pf)
 	int flush_wait_retry = 50;
 	int reg;
 
+	if (!(pf->flags & (I40E_FLAG_FD_SB_ENABLED | I40E_FLAG_FD_ATR_ENABLED)))
+		return;
+
 	if (time_after(jiffies, pf->fd_flush_timestamp +
 				(I40E_MIN_FD_FLUSH_INTERVAL * HZ))) {
 		set_bit(__I40E_FD_FLUSH_REQUESTED, &pf->state);
@@ -5270,6 +5273,9 @@ static void i40e_fdir_reinit_subtask(struct i40e_pf *pf)
 
 	/* if interface is down do nothing */
 	if (test_bit(__I40E_DOWN, &pf->state))
+		return;
+
+	if (!(pf->flags & (I40E_FLAG_FD_SB_ENABLED | I40E_FLAG_FD_ATR_ENABLED)))
 		return;
 
 	if ((pf->fd_add_err >= I40E_MAX_FD_PROGRAM_ERROR) &&
