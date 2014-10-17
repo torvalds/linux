@@ -25,9 +25,7 @@
 /* Since we request GPIOs from ourself */
 #include <linux/pinctrl/consumer.h>
 
-#include <mach/hardware.h>
-#include <mach/at91_pio.h>
-
+#include "pinctrl-at91.h"
 #include "core.h"
 
 #define MAX_GPIO_BANKS		5
