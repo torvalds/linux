@@ -58,6 +58,8 @@ static int set_target(struct cpufreq_policy *policy, unsigned int index)
 	old_freq = clk_get_rate(cpu_clk) / 1000;
 
 	if (!IS_ERR(cpu_reg)) {
+		unsigned long opp_freq;
+
 		rcu_read_lock();
 		opp = dev_pm_opp_find_freq_ceil(cpu_dev, &freq_Hz);
 		if (IS_ERR(opp)) {
@@ -67,9 +69,12 @@ static int set_target(struct cpufreq_policy *policy, unsigned int index)
 			return PTR_ERR(opp);
 		}
 		volt = dev_pm_opp_get_voltage(opp);
+		opp_freq = dev_pm_opp_get_freq(opp);
 		rcu_read_unlock();
 		tol = volt * priv->voltage_tolerance / 100;
 		volt_old = regulator_get_voltage(cpu_reg);
+		dev_dbg(cpu_dev, "Found OPP: %ld kHz, %ld uV\n",
+			opp_freq / 1000, volt);
 	}
 
 	dev_dbg(cpu_dev, "%u MHz, %ld mV --> %u MHz, %ld mV\n",
