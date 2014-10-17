@@ -177,37 +177,6 @@ static int mmc_decode_csd(struct mmc_card *card)
 	return 0;
 }
 
-/*
- * Read extended CSD.
- */
-static int mmc_get_ext_csd(struct mmc_card *card, u8 **new_ext_csd)
-{
-	int err;
-	u8 *ext_csd;
-
-	if (!card || !new_ext_csd)
-		return -EINVAL;
-
-	if (!mmc_can_ext_csd(card))
-		return -EOPNOTSUPP;
-
-	/*
-	 * As the ext_csd is so large and mostly unused, we don't store the
-	 * raw block in mmc_card.
-	 */
-	ext_csd = kmalloc(512, GFP_KERNEL);
-	if (!ext_csd)
-		return -ENOMEM;
-
-	err = mmc_send_ext_csd(card, ext_csd);
-	if (err)
-		kfree(ext_csd);
-	else
-		*new_ext_csd = ext_csd;
-
-	return err;
-}
-
 static void mmc_select_card_type(struct mmc_card *card)
 {
 	struct mmc_host *host = card->host;

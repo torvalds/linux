@@ -385,6 +385,35 @@ int mmc_send_ext_csd(struct mmc_card *card, u8 *ext_csd)
 }
 EXPORT_SYMBOL_GPL(mmc_send_ext_csd);
 
+int mmc_get_ext_csd(struct mmc_card *card, u8 **new_ext_csd)
+{
+	int err;
+	u8 *ext_csd;
+
+	if (!card || !new_ext_csd)
+		return -EINVAL;
+
+	if (!mmc_can_ext_csd(card))
+		return -EOPNOTSUPP;
+
+	/*
+	 * As the ext_csd is so large and mostly unused, we don't store the
+	 * raw block in mmc_card.
+	 */
+	ext_csd = kmalloc(512, GFP_KERNEL);
+	if (!ext_csd)
+		return -ENOMEM;
+
+	err = mmc_send_ext_csd(card, ext_csd);
+	if (err)
+		kfree(ext_csd);
+	else
+		*new_ext_csd = ext_csd;
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(mmc_get_ext_csd);
+
 int mmc_spi_read_ocr(struct mmc_host *host, int highcap, u32 *ocrp)
 {
 	struct mmc_command cmd = {0};
