@@ -418,8 +418,10 @@ static void rockchip_spi_dma_txcb(void *data)
 	spin_lock_irqsave(&rs->lock, flags);
 
 	rs->state &= ~TXBUSY;
-	if (!(rs->state & RXBUSY))
+	if (!(rs->state & RXBUSY)) {
+		spi_enable_chip(rs, 0);
 		spi_finalize_current_transfer(rs->master);
+	}
 
 	spin_unlock_irqrestore(&rs->lock, flags);
 }
