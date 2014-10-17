@@ -6699,6 +6699,7 @@ static int i40e_init_msix(struct i40e_pf *pf)
 {
 	i40e_status err = 0;
 	struct i40e_hw *hw = &pf->hw;
+	int other_vecs = 0;
 	int v_budget, i;
 	int vec;
 
@@ -6724,10 +6725,10 @@ static int i40e_init_msix(struct i40e_pf *pf)
 	 */
 	pf->num_lan_msix = pf->num_lan_qps - (pf->rss_size_max - pf->rss_size);
 	pf->num_vmdq_msix = pf->num_vmdq_qps;
-	v_budget = 1 + pf->num_lan_msix;
-	v_budget += (pf->num_vmdq_vsis * pf->num_vmdq_msix);
+	other_vecs = 1;
+	other_vecs += (pf->num_vmdq_vsis * pf->num_vmdq_msix);
 	if (pf->flags & I40E_FLAG_FD_SB_ENABLED)
-		v_budget++;
+		other_vecs++;
 
 #ifdef I40E_FCOE
 	if (pf->flags & I40E_FLAG_FCOE_ENABLED) {
@@ -6737,7 +6738,9 @@ static int i40e_init_msix(struct i40e_pf *pf)
 
 #endif
 	/* Scale down if necessary, and the rings will share vectors */
-	v_budget = min_t(int, v_budget, hw->func_caps.num_msix_vectors);
+	pf->num_lan_msix = min_t(int, pf->num_lan_msix,
+			(hw->func_caps.num_msix_vectors - other_vecs));
+	v_budget = pf->num_lan_msix + other_vecs;
 
 	pf->msix_entries = kcalloc(v_budget, sizeof(struct msix_entry),
 				   GFP_KERNEL);
