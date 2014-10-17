@@ -4601,7 +4601,7 @@ S:	Supported
 F:	drivers/crypto/nx/
 
 IBM Power 842 compression accelerator
-M:	Nathan Fontenot <nfont@linux.vnet.ibm.com>
+M:	Dan Streetman <ddstreet@us.ibm.com>
 S:	Supported
 F:	drivers/crypto/nx/nx-842.c
 F:	include/linux/nx842.h
