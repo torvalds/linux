@@ -421,6 +421,9 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 				"Move chanctx state from WAIT_FOR_TIMER to WAIT_FOR_BEACON\n");
 		}
 
+		if (sc->sched.mgd_prepare_tx)
+			sc->sched.state = ATH_CHANCTX_STATE_WAIT_FOR_BEACON;
+
 		/*
 		 * When a context becomes inactive, for example,
 		 * disassociation of a station context, the NoA
@@ -547,6 +550,15 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		}
 
 		sc->sched.beacon_pending = false;
+
+		if (sc->sched.mgd_prepare_tx) {
+			sc->sched.mgd_prepare_tx = false;
+			complete(&sc->go_beacon);
+			ath_dbg(common, CHAN_CTX,
+				"Beacon sent, complete go_beacon\n");
+			break;
+		}
+
 		if (sc->sched.state != ATH_CHANCTX_STATE_WAIT_FOR_BEACON)
 			break;
 
@@ -1263,6 +1275,8 @@ void ath9k_init_channel_context(struct ath_softc *sc)
 		    (unsigned long)sc);
 	setup_timer(&sc->sched.timer, ath_chanctx_timer,
 		    (unsigned long)sc);
+
+	init_completion(&sc->go_beacon);
 }
 
 void ath9k_deinit_channel_context(struct ath_softc *sc)

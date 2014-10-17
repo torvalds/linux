@@ -2474,7 +2474,11 @@ static void ath9k_mgd_prepare_tx(struct ieee80211_hw *hw,
 	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_vif *avp = (struct ath_vif *) vif->drv_priv;
+	struct ath_beacon_config *cur_conf;
+	struct ath_chanctx *go_ctx;
+	unsigned long timeout;
 	bool changed = false;
+	u32 beacon_int;
 
 	if (!test_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags))
 		return;
@@ -2485,19 +2489,46 @@ static void ath9k_mgd_prepare_tx(struct ieee80211_hw *hw,
 	mutex_lock(&sc->mutex);
 
 	spin_lock_bh(&sc->chan_lock);
-	if (sc->next_chan || (sc->cur_chan != avp->chanctx)) {
-		sc->next_chan = avp->chanctx;
+	if (sc->next_chan || (sc->cur_chan != avp->chanctx))
 		changed = true;
+	spin_unlock_bh(&sc->chan_lock);
+
+	if (!changed)
+		goto out;
+
+	go_ctx = ath_is_go_chanctx_present(sc);
+
+	if (go_ctx) {
+		/*
+		 * Wait till the GO interface gets a chance
+		 * to send out an NoA.
+		 */
+		spin_lock_bh(&sc->chan_lock);
+		sc->sched.mgd_prepare_tx = true;
+		cur_conf = &go_ctx->beacon;
+		beacon_int = TU_TO_USEC(cur_conf->beacon_interval);
+		spin_unlock_bh(&sc->chan_lock);
+
+		timeout = usecs_to_jiffies(beacon_int);
+		init_completion(&sc->go_beacon);
+
+		if (wait_for_completion_timeout(&sc->go_beacon,
+						timeout) == 0)
+			ath_dbg(common, CHAN_CTX,
+				"Failed to send new NoA\n");
 	}
+
 	ath_dbg(common, CHAN_CTX,
-		"%s: Set chanctx state to FORCE_ACTIVE, changed: %d\n",
-		__func__, changed);
+		"%s: Set chanctx state to FORCE_ACTIVE for vif: %pM\n",
+		__func__, vif->addr);
+
+	spin_lock_bh(&sc->chan_lock);
+	sc->next_chan = avp->chanctx;
 	sc->sched.state = ATH_CHANCTX_STATE_FORCE_ACTIVE;
 	spin_unlock_bh(&sc->chan_lock);
 
-	if (changed)
-		ath_chanctx_set_next(sc, true);
-
+	ath_chanctx_set_next(sc, true);
+out:
 	mutex_unlock(&sc->mutex);
 }
 

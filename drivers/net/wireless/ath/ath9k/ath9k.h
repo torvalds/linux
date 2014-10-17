@@ -385,6 +385,7 @@ struct ath_chanctx_sched {
 	bool wait_switch;
 	bool force_noa_update;
 	bool extend_absence;
+	bool mgd_prepare_tx;
 	enum ath_chanctx_state state;
 	u8 beacon_miss;
 
@@ -977,6 +978,7 @@ struct ath_softc {
 	struct ath_chanctx_sched sched;
 	struct ath_offchannel offchannel;
 	struct ath_chanctx *next_chan;
+	struct completion go_beacon;
 #endif
 
 	unsigned long driver_data;
