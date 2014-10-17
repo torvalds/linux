@@ -1057,7 +1057,7 @@ static void ath9k_set_offchannel_state(struct ath_softc *sc)
 
 	eth_zero_addr(common->curbssid);
 	eth_broadcast_addr(common->bssidmask);
-	ether_addr_copy(common->macaddr, vif->addr);
+	memcpy(common->macaddr, vif->addr, ETH_ALEN);
 	common->curaid = 0;
 	ah->opmode = vif->type;
 	ah->imask &= ~ATH9K_INT_SWBA;
@@ -1098,7 +1098,7 @@ void ath9k_calculate_summary_state(struct ath_softc *sc,
 	ath9k_calculate_iter_data(sc, ctx, &iter_data);
 
 	if (iter_data.has_hw_macaddr)
-		ether_addr_copy(common->macaddr, iter_data.hw_macaddr);
+		memcpy(common->macaddr, iter_data.hw_macaddr, ETH_ALEN);
 
 	memcpy(common->bssidmask, iter_data.mask, ETH_ALEN);
 	ath_hw_setbssidmask(common);
@@ -1785,7 +1785,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 		ath_dbg(common, CONFIG, "BSSID %pM Changed ASSOC %d\n",
 			bss_conf->bssid, bss_conf->assoc);
 
-		ether_addr_copy(avp->bssid, bss_conf->bssid);
+		memcpy(avp->bssid, bss_conf->bssid, ETH_ALEN);
 		avp->aid = bss_conf->aid;
 		avp->assoc = bss_conf->assoc;
 

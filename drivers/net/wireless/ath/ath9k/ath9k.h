@@ -595,7 +595,7 @@ struct ath_vif {
 	u16 seq_no;
 
 	/* BSS info */
-	u8 bssid[ETH_ALEN];
+	u8 bssid[ETH_ALEN] __aligned(2);
 	u16 aid;
 	bool assoc;
 
