@@ -469,6 +469,7 @@ void ath_chanctx_set_next(struct ath_softc *sc, bool force);
 void ath_offchannel_next(struct ath_softc *sc);
 void ath_scan_complete(struct ath_softc *sc, bool abort);
 void ath_roc_complete(struct ath_softc *sc, bool abort);
+struct ath_chanctx* ath_is_go_chanctx_present(struct ath_softc *sc);
 
 #else
 

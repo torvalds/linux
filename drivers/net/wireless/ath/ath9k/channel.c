@@ -146,6 +146,36 @@ void ath_chanctx_set_channel(struct ath_softc *sc, struct ath_chanctx *ctx,
 
 #ifdef CONFIG_ATH9K_CHANNEL_CONTEXT
 
+/*************/
+/* Utilities */
+/*************/
+
+struct ath_chanctx* ath_is_go_chanctx_present(struct ath_softc *sc)
+{
+	struct ath_chanctx *ctx;
+	struct ath_vif *avp;
+	struct ieee80211_vif *vif;
+
+	spin_lock_bh(&sc->chan_lock);
+
+	ath_for_each_chanctx(sc, ctx) {
+		if (!ctx->active)
+			continue;
+
+		list_for_each_entry(avp, &ctx->vifs, list) {
+			vif = avp->vif;
+
+			if (ieee80211_vif_type_p2p(vif) == NL80211_IFTYPE_P2P_GO) {
+				spin_unlock_bh(&sc->chan_lock);
+				return ctx;
+			}
+		}
+	}
+
+	spin_unlock_bh(&sc->chan_lock);
+	return NULL;
+}
+
 /**********************************************************/
 /* Functions to handle the channel context state machine. */
 /**********************************************************/
