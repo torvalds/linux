@@ -1511,12 +1511,13 @@ static int net2272_stop(struct usb_gadget *_gadget,
 	dev = container_of(_gadget, struct net2272, gadget);
 
 	spin_lock_irqsave(&dev->lock, flags);
-	stop_activity(dev, driver);
+	stop_activity(dev, NULL);
 	spin_unlock_irqrestore(&dev->lock, flags);
 
+	dev_dbg(dev->dev, "unregistered driver '%s'\n",
+			dev->driver->driver.name);
 	dev->driver = NULL;
 
-	dev_dbg(dev->dev, "unregistered driver '%s'\n", driver->driver.name);
 	return 0;
 }
 
