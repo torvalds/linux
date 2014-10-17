@@ -81,12 +81,14 @@ static ssize_t spi_test_write(struct file *file,
 
 	spi = g_spi_test_data[nr]->spi;
 
-	for(i=0; i<100; i++)
+	for(i=0; i<5000; i++)
 	{
 		ret = spi_write(spi, txbuf, 256);
-		ret = spi_read(spi, rxbuf, 256);
-		ret = spi_write_then_read(spi,txbuf,256,rxbuf,256);		
-		ret = spi_write_and_read(spi,txbuf,rxbuf,256);
+		ret = spi_read(spi, rxbuf, 255);
+		ret = spi_write_then_read(spi,txbuf,254,rxbuf,253);
+		ret = spi_write_and_read(spi,txbuf,rxbuf,252);
+		ret = spi_write_and_read(spi,txbuf,rxbuf,251);
+		if(i%500==0)
 		printk("%s:test %d times\n\n",__func__,i+1);
 	}
 	

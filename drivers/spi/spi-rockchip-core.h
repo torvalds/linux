@@ -179,6 +179,8 @@ struct dw_spi {
 	u8			n_bytes;	/* current is a 1/2 bytes op */
 	u8			max_bits_per_word;	/* maxim is 16b */
 	u32			dma_width;
+	int			dmatdlr;
+	int			dmardlr;
 	int			cs_change;
 	void			*tx_buffer;
 	void			*rx_buffer;
