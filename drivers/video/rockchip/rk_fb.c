@@ -2634,9 +2634,15 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		}
 	case RK_FBIOGET_DMABUF_FD:
 		{
-			int fd =
-			    ion_share_dma_buf_fd(rk_fb->ion_client,
-						 win->area[0].ion_hdl);
+			int fd = -1;
+
+			if (IS_ERR_OR_NULL(fb_par->ion_hdl)) {
+				dev_err(info->dev,
+					"get dma_buf fd failed,ion handle is err\n");
+				return PTR_ERR(fb_par->ion_hdl);
+			}
+			fd = ion_share_dma_buf_fd(rk_fb->ion_client,
+						  fb_par->ion_hdl);
 			if (fd < 0) {
 				dev_err(info->dev,
 					"ion_share_dma_buf_fd failed\n");
