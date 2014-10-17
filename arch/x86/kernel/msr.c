@@ -22,6 +22,8 @@
  * an SMP box will direct the access to CPU %d.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 
 #include <linux/types.h>
@@ -248,8 +250,7 @@ static int __init msr_init(void)
 	i = 0;
 
 	if (__register_chrdev(MSR_MAJOR, 0, NR_CPUS, "cpu/msr", &msr_fops)) {
-		printk(KERN_ERR "msr: unable to get major %d for msr\n",
-		       MSR_MAJOR);
+		pr_err("unable to get major %d for msr\n", MSR_MAJOR);
 		err = -EBUSY;
 		goto out;
 	}
