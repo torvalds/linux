@@ -356,6 +356,21 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 				"Move chanctx state from WAIT_FOR_TIMER to WAIT_FOR_BEACON\n");
 		}
 
+		/*
+		 * When a context becomes inactive, for example,
+		 * disassociation of a station context, the NoA
+		 * attribute needs to be removed from subsequent
+		 * beacons.
+		 */
+		if (!ctx->active && avp->noa_duration &&
+		    sc->sched.state != ATH_CHANCTX_STATE_WAIT_FOR_BEACON) {
+			avp->noa_duration = 0;
+			avp->periodic_noa = false;
+
+			ath_dbg(common, CHAN_CTX,
+				"Clearing NoA schedule\n");
+		}
+
 		if (sc->sched.state != ATH_CHANCTX_STATE_WAIT_FOR_BEACON)
 			break;
 
