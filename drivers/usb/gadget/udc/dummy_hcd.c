@@ -908,10 +908,8 @@ static int dummy_udc_start(struct usb_gadget *g,
 	 */
 
 	dum->devstatus = 0;
-
 	dum->driver = driver;
-	dev_dbg(udc_dev(dum), "binding gadget driver '%s'\n",
-			driver->driver.name);
+
 	return 0;
 }
 
@@ -920,9 +918,6 @@ static int dummy_udc_stop(struct usb_gadget *g,
 {
 	struct dummy_hcd	*dum_hcd = gadget_to_dummy_hcd(g);
 	struct dummy		*dum = dum_hcd->dum;
-
-	dev_dbg(udc_dev(dum), "unregister gadget driver '%s'\n",
-			dum->driver->driver.name);
 
 	dum->driver = NULL;
 
