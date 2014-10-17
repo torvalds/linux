@@ -9023,6 +9023,11 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw->bus.func = PCI_FUNC(pdev->devfn);
 	pf->instance = pfs_found;
 
+	if (debug != -1) {
+		pf->msg_enable = pf->hw.debug_mask;
+		pf->msg_enable = debug;
+	}
+
 	/* do a special CORER for clearing PXE mode once at init */
 	if (hw->revision_id == 0 &&
 	    (rd32(hw, I40E_GLLAN_RCTL_0) & I40E_GLLAN_RCTL_0_PXE_MODE_MASK)) {
