@@ -2397,11 +2397,6 @@ static int net2280_start(struct usb_gadget *_gadget,
 
 	ep0_start(dev);
 
-	ep_dbg(dev, "%s ready, usbctl %08x stdrsp %08x\n",
-			driver->driver.name,
-			readl(&dev->usb->usbctl),
-			readl(&dev->usb->stdrsp));
-
 	/* pci writes may still be posted */
 	return 0;
 
@@ -2458,7 +2453,6 @@ static int net2280_stop(struct usb_gadget *_gadget,
 	device_remove_file(&dev->pdev->dev, &dev_attr_function);
 	device_remove_file(&dev->pdev->dev, &dev_attr_queues);
 
-	ep_dbg(dev, "unregistered driver '%s'\n", dev->driver->driver.name);
 	dev->driver = NULL;
 
 	return 0;
