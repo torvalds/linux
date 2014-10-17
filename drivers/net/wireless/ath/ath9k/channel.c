@@ -450,6 +450,27 @@ static void ath_chanctx_set_periodic_noa(struct ath_softc *sc,
 		avp->periodic_noa);
 }
 
+static void ath_chanctx_set_oneshot_noa(struct ath_softc *sc,
+					struct ath_vif *avp,
+					u32 tsf_time,
+					u32 duration)
+{
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+
+	avp->noa_index++;
+	avp->noa_start = tsf_time;
+	avp->periodic_noa = false;
+	avp->oneshot_noa = true;
+	avp->noa_duration = duration + sc->sched.channel_switch_time;
+
+	ath_dbg(common, CHAN_CTX,
+		"oneshot noa_duration: %d, noa_start: %d, noa_index: %d, periodic: %d\n",
+		avp->noa_duration,
+		avp->noa_start,
+		avp->noa_index,
+		avp->periodic_noa);
+}
+
 void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		       enum ath_chanctx_event ev)
 {
@@ -475,6 +496,14 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 	case ATH_CHANCTX_EVENT_BEACON_PREPARE:
 		if (avp->offchannel_duration)
 			avp->offchannel_duration = 0;
+
+		if (avp->oneshot_noa) {
+			avp->noa_duration = 0;
+			avp->oneshot_noa = false;
+
+			ath_dbg(common, CHAN_CTX,
+				"Clearing oneshot NoA\n");
+		}
 
 		if (avp->chanctx != sc->cur_chan) {
 			ath_dbg(common, CHAN_CTX,
@@ -550,6 +579,18 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		}
 
 		ath_chanctx_handle_bmiss(sc, ctx, avp);
+
+		/*
+		 * If a mgd_prepare_tx() has been called by mac80211,
+		 * a one-shot NoA needs to be sent. This can happen
+		 * with one or more active channel contexts - in both
+		 * cases, a new NoA schedule has to be advertised.
+		 */
+		if (sc->sched.mgd_prepare_tx) {
+			ath_chanctx_set_oneshot_noa(sc, avp, tsf_time,
+						    jiffies_to_usecs(HZ / 5));
+			break;
+		}
 
 		/* Prevent wrap-around issues */
 		if (avp->noa_duration && tsf_time - avp->noa_start > BIT(30))

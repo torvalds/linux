@@ -620,6 +620,7 @@ struct ath_vif {
 	u32 noa_start;
 	u32 noa_duration;
 	bool periodic_noa;
+	bool oneshot_noa;
 };
 
 struct ath9k_vif_iter_data {
