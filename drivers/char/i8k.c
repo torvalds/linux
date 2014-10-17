@@ -796,6 +796,8 @@ static struct dmi_system_id i8k_dmi_table[] __initdata = {
 	{ }
 };
 
+MODULE_DEVICE_TABLE(dmi, i8k_dmi_table);
+
 /*
  * Probe for the presence of a supported laptop.
  */
