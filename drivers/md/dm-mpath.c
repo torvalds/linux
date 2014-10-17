@@ -384,12 +384,11 @@ static int multipath_map(struct dm_target *ti, struct request *clone,
 	struct multipath *m = (struct multipath *) ti->private;
 	int r = DM_MAPIO_REQUEUE;
 	size_t nr_bytes = blk_rq_bytes(clone);
-	unsigned long flags;
 	struct pgpath *pgpath;
 	struct block_device *bdev;
 	struct dm_mpath_io *mpio;
 
-	spin_lock_irqsave(&m->lock, flags);
+	spin_lock_irq(&m->lock);
 
 	/* Do we need to select a new pgpath? */
 	if (!m->current_pgpath ||
@@ -411,21 +410,26 @@ static int multipath_map(struct dm_target *ti, struct request *clone,
 		/* ENOMEM, requeue */
 		goto out_unlock;
 
-	bdev = pgpath->path.dev->bdev;
-	clone->q = bdev_get_queue(bdev);
-	clone->rq_disk = bdev->bd_disk;
-	clone->cmd_flags |= REQ_FAILFAST_TRANSPORT;
 	mpio = map_context->ptr;
 	mpio->pgpath = pgpath;
 	mpio->nr_bytes = nr_bytes;
+
+	bdev = pgpath->path.dev->bdev;
+
+	clone->q = bdev_get_queue(bdev);
+	clone->rq_disk = bdev->bd_disk;
+	clone->cmd_flags |= REQ_FAILFAST_TRANSPORT;
+
+	spin_unlock_irq(&m->lock);
+
 	if (pgpath->pg->ps.type->start_io)
 		pgpath->pg->ps.type->start_io(&pgpath->pg->ps,
 					      &pgpath->path,
 					      nr_bytes);
-	r = DM_MAPIO_REMAPPED;
+	return DM_MAPIO_REMAPPED;
 
 out_unlock:
-	spin_unlock_irqrestore(&m->lock, flags);
+	spin_unlock_irq(&m->lock);
 
 	return r;
 }

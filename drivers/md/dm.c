@@ -20,6 +20,7 @@
 #include <linux/hdreg.h>
 #include <linux/delay.h>
 #include <linux/wait.h>
+#include <linux/kthread.h>
 
 #include <trace/events/block.h>
 
@@ -79,6 +80,7 @@ struct dm_rq_target_io {
 	struct mapped_device *md;
 	struct dm_target *ti;
 	struct request *orig, *clone;
+	struct kthread_work work;
 	int error;
 	union map_info info;
 };
@@ -208,6 +210,9 @@ struct mapped_device {
 	struct bio flush_bio;
 
 	struct dm_stats stats;
+
+	struct kthread_worker kworker;
+	struct task_struct *kworker_task;
 };
 
 /*
@@ -1773,6 +1778,8 @@ static struct request *__clone_rq(struct request *rq, struct mapped_device *md,
 	return clone;
 }
 
+static void map_tio_request(struct kthread_work *work);
+
 static struct request *clone_rq(struct request *rq, struct mapped_device *md,
 				gfp_t gfp_mask)
 {
@@ -1789,6 +1796,7 @@ static struct request *clone_rq(struct request *rq, struct mapped_device *md,
 	tio->orig = rq;
 	tio->error = 0;
 	memset(&tio->info, 0, sizeof(tio->info));
+	init_kthread_work(&tio->work, map_tio_request);
 
 	clone = __clone_rq(rq, md, tio, GFP_ATOMIC);
 	if (!clone) {
@@ -1833,7 +1841,6 @@ static int map_request(struct dm_target *ti, struct request *clone,
 	int r, requeued = 0;
 	struct dm_rq_target_io *tio = clone->end_io_data;
 
-	tio->ti = ti;
 	r = ti->type->map_rq(ti, clone, &tio->info);
 	switch (r) {
 	case DM_MAPIO_SUBMITTED:
@@ -1862,6 +1869,13 @@ static int map_request(struct dm_target *ti, struct request *clone,
 	}
 
 	return requeued;
+}
+
+static void map_tio_request(struct kthread_work *work)
+{
+	struct dm_rq_target_io *tio = container_of(work, struct dm_rq_target_io, work);
+
+	map_request(tio->ti, tio->clone, tio->md);
 }
 
 static struct request *dm_start_request(struct mapped_device *md, struct request *orig)
@@ -1895,6 +1909,7 @@ static void dm_request_fn(struct request_queue *q)
 	struct dm_table *map = dm_get_live_table(md, &srcu_idx);
 	struct dm_target *ti;
 	struct request *rq, *clone;
+	struct dm_rq_target_io *tio;
 	sector_t pos;
 
 	/*
@@ -1930,19 +1945,14 @@ static void dm_request_fn(struct request_queue *q)
 
 		clone = dm_start_request(md, rq);
 
-		spin_unlock(q->queue_lock);
-		if (map_request(ti, clone, md))
-			goto requeued;
-
+		tio = rq->special;
+		/* Establish tio->ti before queuing work (map_tio_request) */
+		tio->ti = ti;
+		queue_kthread_work(&md->kworker, &tio->work);
 		BUG_ON(!irqs_disabled());
-		spin_lock(q->queue_lock);
 	}
 
 	goto out;
-
-requeued:
-	BUG_ON(!irqs_disabled());
-	spin_lock(q->queue_lock);
 
 delay_and_out:
 	blk_delay_queue(q, HZ / 10);
@@ -2129,6 +2139,7 @@ static struct mapped_device *alloc_dev(int minor)
 	INIT_WORK(&md->work, dm_wq_work);
 	init_waitqueue_head(&md->eventq);
 	init_completion(&md->kobj_holder.completion);
+	md->kworker_task = NULL;
 
 	md->disk->major = _major;
 	md->disk->first_minor = minor;
@@ -2189,6 +2200,9 @@ static void free_dev(struct mapped_device *md)
 	unlock_fs(md);
 	bdput(md->bdev);
 	destroy_workqueue(md->wq);
+
+	if (md->kworker_task)
+		kthread_stop(md->kworker_task);
 	if (md->io_pool)
 		mempool_destroy(md->io_pool);
 	if (md->rq_pool)
@@ -2484,6 +2498,11 @@ static int dm_init_request_based_queue(struct mapped_device *md)
 	blk_queue_prep_rq(md->queue, dm_prep_fn);
 	blk_queue_lld_busy(md->queue, dm_lld_busy);
 
+	/* Also initialize the request-based DM worker thread */
+	init_kthread_worker(&md->kworker);
+	md->kworker_task = kthread_run(kthread_worker_fn, &md->kworker,
+				       "kdmwork-%s", dm_device_name(md));
+
 	elv_register_queue(md->queue);
 
 	return 1;
@@ -2573,6 +2592,9 @@ static void __dm_destroy(struct mapped_device *md, bool wait)
 	idr_replace(&_minor_idr, MINOR_ALLOCED, MINOR(disk_devt(dm_disk(md))));
 	set_bit(DMF_FREEING, &md->flags);
 	spin_unlock(&_minor_lock);
+
+	if (dm_request_based(md))
+		flush_kthread_worker(&md->kworker);
 
 	if (!dm_suspended_md(md)) {
 		dm_table_presuspend_targets(map);
@@ -2817,8 +2839,10 @@ static int __dm_suspend(struct mapped_device *md, struct dm_table *map,
 	 * Stop md->queue before flushing md->wq in case request-based
 	 * dm defers requests to md->wq from md->queue.
 	 */
-	if (dm_request_based(md))
+	if (dm_request_based(md)) {
 		stop_queue(md->queue);
+		flush_kthread_worker(&md->kworker);
+	}
 
 	flush_workqueue(md->wq);
 
