@@ -1319,7 +1319,7 @@ static int pxa25x_udc_stop(struct usb_gadget*g,
 	local_irq_disable();
 	dev->pullup = 0;
 	pullup(dev);
-	stop_activity(dev, driver);
+	stop_activity(dev, NULL);
 	local_irq_enable();
 
 	if (!IS_ERR_OR_NULL(dev->transceiver))
