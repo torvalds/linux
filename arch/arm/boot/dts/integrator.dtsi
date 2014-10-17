@@ -6,7 +6,7 @@
 
 / {
 	core-module@10000000 {
-		compatible = "arm,core-module-integrator";
+		compatible = "arm,core-module-integrator", "syscon";
 		reg = <0x10000000 0x200>;
 	};
 

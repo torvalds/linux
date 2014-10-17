@@ -140,14 +140,6 @@ void __init integrator_reserve(void)
 	memblock_reserve(PHYS_OFFSET, __pa(swapper_pg_dir) - PHYS_OFFSET);
 }
 
-/*
- * To reset, we hit the on-board reset register in the system FPGA
- */
-void integrator_restart(enum reboot_mode mode, const char *cmd)
-{
-	cm_control(CM_CTRL_RESET, CM_CTRL_RESET);
-}
-
 static u32 integrator_id;
 
 static ssize_t intcp_get_manf(struct device *dev,
