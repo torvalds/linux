@@ -366,6 +366,32 @@ static void ath_chanctx_setup_timer(struct ath_softc *sc, u32 tsf_time)
 		"Setup chanctx timer with timeout: %d ms\n", jiffies_to_msecs(tsf_time));
 }
 
+static void ath_chanctx_offchannel_noa(struct ath_softc *sc,
+				       struct ath_chanctx *ctx,
+				       struct ath_vif *avp,
+				       u32 tsf_time)
+{
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+
+	avp->noa_index++;
+	avp->offchannel_start = tsf_time;
+	avp->offchannel_duration = sc->sched.offchannel_duration;
+
+	ath_dbg(common, CHAN_CTX,
+		"offchannel noa_duration: %d, noa_start: %d, noa_index: %d\n",
+		avp->offchannel_duration,
+		avp->offchannel_start,
+		avp->noa_index);
+
+	/*
+	 * When multiple contexts are active, the NoA
+	 * has to be recalculated and advertised after
+	 * an offchannel operation.
+	 */
+	if (ctx->active && avp->noa_duration)
+		avp->noa_duration = 0;
+}
+
 void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		       enum ath_chanctx_event ev)
 {
@@ -461,24 +487,7 @@ void ath_chanctx_event(struct ath_softc *sc, struct ieee80211_vif *vif,
 		 * values and increment the index.
 		 */
 		if (sc->next_chan == &sc->offchannel.chan) {
-			avp->noa_index++;
-			avp->offchannel_start = tsf_time;
-			avp->offchannel_duration = sc->sched.offchannel_duration;
-
-			ath_dbg(common, CHAN_CTX,
-				"offchannel noa_duration: %d, noa_start: %d, noa_index: %d\n",
-				avp->offchannel_duration,
-				avp->offchannel_start,
-				avp->noa_index);
-
-			/*
-			 * When multiple contexts are active, the NoA
-			 * has to be recalculated and advertised after
-			 * an offchannel operation.
-			 */
-			if (ctx->active && avp->noa_duration)
-				avp->noa_duration = 0;
-
+			ath_chanctx_offchannel_noa(sc, ctx, avp, tsf_time);
 			break;
 		}
 
