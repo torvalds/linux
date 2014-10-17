@@ -598,9 +598,16 @@ chip_reset:
 #undef SCHED_INTR
 }
 
+/*
+ * This function is called when a HW reset cannot be deferred
+ * and has to be immediate.
+ */
 int ath_reset(struct ath_softc *sc, struct ath9k_channel *hchan)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	int r;
+
+	set_bit(ATH_OP_HW_RESET, &common->op_flags);
 
 	ath9k_ps_wakeup(sc);
 	r = ath_reset_internal(sc, hchan);
@@ -609,6 +616,11 @@ int ath_reset(struct ath_softc *sc, struct ath9k_channel *hchan)
 	return r;
 }
 
+/*
+ * When a HW reset can be deferred, it is added to the
+ * hw_reset_work workqueue, but we set ATH_OP_HW_RESET before
+ * queueing.
+ */
 void ath9k_queue_reset(struct ath_softc *sc, enum ath_reset_type type)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
