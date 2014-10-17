@@ -564,7 +564,7 @@ static bool dell_laptop_i8042_filter(unsigned char data, unsigned char str,
 {
 	static bool extended;
 
-	if (str & 0x20)
+	if (str & I8042_STR_AUXDATA)
 		return false;
 
 	if (unlikely(data == 0xe0)) {
