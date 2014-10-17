@@ -13,42 +13,39 @@
 #include <trace/events/rpm.h>
 #include "power.h"
 
-#define RPM_GET_CALLBACK(dev, cb)				\
-({								\
-	int (*__rpm_cb)(struct device *__d);			\
-								\
-	if (dev->pm_domain)					\
-		__rpm_cb = dev->pm_domain->ops.cb;		\
-	else if (dev->type && dev->type->pm)			\
-		__rpm_cb = dev->type->pm->cb;			\
-	else if (dev->class && dev->class->pm)			\
-		__rpm_cb = dev->class->pm->cb;			\
-	else if (dev->bus && dev->bus->pm)			\
-		__rpm_cb = dev->bus->pm->cb;			\
-	else							\
-		__rpm_cb = NULL;				\
-								\
-	if (!__rpm_cb && dev->driver && dev->driver->pm)	\
-		__rpm_cb = dev->driver->pm->cb;			\
-								\
-	__rpm_cb;						\
-})
+typedef int (*pm_callback_t)(struct device *);
 
-static int (*rpm_get_suspend_cb(struct device *dev))(struct device *)
+static pm_callback_t __rpm_get_callback(struct device *dev, size_t cb_offset)
 {
-	return RPM_GET_CALLBACK(dev, runtime_suspend);
+	pm_callback_t cb;
+	const struct dev_pm_ops *ops;
+
+	if (dev->pm_domain)
+		ops = &dev->pm_domain->ops;
+	else if (dev->type && dev->type->pm)
+		ops = dev->type->pm;
+	else if (dev->class && dev->class->pm)
+		ops = dev->class->pm;
+	else if (dev->bus && dev->bus->pm)
+		ops = dev->bus->pm;
+	else
+		ops = NULL;
+
+	if (ops)
+		cb = *(pm_callback_t *)((void *)ops + cb_offset);
+	else
+		cb = NULL;
+
+	if (!cb && dev->driver && dev->driver->pm)
+		cb = *(pm_callback_t *)((void *)dev->driver->pm + cb_offset);
+
+	return cb;
 }
 
-static int (*rpm_get_resume_cb(struct device *dev))(struct device *)
-{
-	return RPM_GET_CALLBACK(dev, runtime_resume);
-}
+#define RPM_GET_CALLBACK(dev, callback) \
+		__rpm_get_callback(dev, offsetof(struct dev_pm_ops, callback))
 
 #ifdef CONFIG_PM_RUNTIME
-static int (*rpm_get_idle_cb(struct device *dev))(struct device *)
-{
-	return RPM_GET_CALLBACK(dev, runtime_idle);
-}
 
 static int rpm_resume(struct device *dev, int rpmflags);
 static int rpm_suspend(struct device *dev, int rpmflags);
@@ -347,7 +344,7 @@ static int rpm_idle(struct device *dev, int rpmflags)
 
 	dev->power.idle_notification = true;
 
-	callback = rpm_get_idle_cb(dev);
+	callback = RPM_GET_CALLBACK(dev, runtime_idle);
 
 	if (callback)
 		retval = __rpm_callback(callback, dev);
@@ -517,7 +514,7 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 
 	__update_runtime_status(dev, RPM_SUSPENDING);
 
-	callback = rpm_get_suspend_cb(dev);
+	callback = RPM_GET_CALLBACK(dev, runtime_suspend);
 
 	retval = rpm_callback(callback, dev);
 	if (retval)
@@ -737,7 +734,7 @@ static int rpm_resume(struct device *dev, int rpmflags)
 
 	__update_runtime_status(dev, RPM_RESUMING);
 
-	callback = rpm_get_resume_cb(dev);
+	callback = RPM_GET_CALLBACK(dev, runtime_resume);
 
 	retval = rpm_callback(callback, dev);
 	if (retval) {
@@ -1431,7 +1428,7 @@ int pm_runtime_force_suspend(struct device *dev)
 	if (pm_runtime_status_suspended(dev))
 		return 0;
 
-	callback = rpm_get_suspend_cb(dev);
+	callback = RPM_GET_CALLBACK(dev, runtime_suspend);
 
 	if (!callback) {
 		ret = -ENOSYS;
@@ -1467,7 +1464,7 @@ int pm_runtime_force_resume(struct device *dev)
 	int (*callback)(struct device *);
 	int ret = 0;
 
-	callback = rpm_get_resume_cb(dev);
+	callback = RPM_GET_CALLBACK(dev, runtime_resume);
 
 	if (!callback) {
 		ret = -ENOSYS;
