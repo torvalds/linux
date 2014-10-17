@@ -3483,6 +3483,7 @@ static void vh265_put_timer_func(unsigned long arg)
 {
     struct timer_list *timer = (struct timer_list *)arg;
     unsigned char empty_flag;
+    unsigned int buf_level;	
 
     receviver_start_e state = RECEIVER_INACTIVE;
     
@@ -3504,8 +3505,10 @@ static void vh265_put_timer_func(unsigned long arg)
     if (empty_flag == 0){
         // decoder has input
         if((debug&H265_DEBUG_DIS_LOC_ERROR_PROC)==0){
+
+	buf_level = READ_VREG(HEVC_STREAM_LEVEL);
             if((state == RECEIVER_INACTIVE) &&                       // receiver has no buffer to recycle
-                (kfifo_is_empty(&display_q))                        // no buffer in display queue
+                (kfifo_is_empty(&display_q)&& buf_level>0x200)                        // no buffer in display queue  .not to do error recover when buf_level is low
                 ){
                 if(gHevc.error_flag==0){
                     error_watchdog_count++;
