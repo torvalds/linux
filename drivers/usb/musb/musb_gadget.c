@@ -1946,11 +1946,11 @@ static int musb_gadget_stop(struct usb_gadget *g,
 	(void) musb_gadget_vbus_draw(&musb->g, 0);
 
 	musb->xceiv->state = OTG_STATE_UNDEFINED;
-	stop_activity(musb, driver);
+	stop_activity(musb, NULL);
 	otg_set_peripheral(musb->xceiv->otg, NULL);
 
 	dev_dbg(musb->controller, "unregistering driver %s\n",
-				  driver ? driver->function : "(removed)");
+			musb->gadget_driver->function);
 
 	musb->is_active = 0;
 	musb->gadget_driver = NULL;
