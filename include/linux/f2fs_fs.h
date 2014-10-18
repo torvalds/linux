@@ -33,7 +33,8 @@
 #define F2FS_META_INO(sbi)	(sbi->meta_ino_num)
 
 /* This flag is used by node and meta inodes, and by recovery */
-#define GFP_F2FS_ZERO	(GFP_NOFS | __GFP_ZERO)
+#define GFP_F2FS_ZERO		(GFP_NOFS | __GFP_ZERO)
+#define GFP_F2FS_HIGH_ZERO	(GFP_NOFS | __GFP_ZERO | __GFP_HIGHMEM)
 
 /*
  * For further optimization on multi-head logs, on-disk layout supports maximum
