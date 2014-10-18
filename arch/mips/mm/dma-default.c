@@ -16,6 +16,7 @@
 #include <linux/string.h>
 #include <linux/gfp.h>
 #include <linux/highmem.h>
+#include <linux/dma-contiguous.h>
 
 #include <asm/cache.h>
 #include <asm/cpu-type.h>
@@ -128,23 +129,30 @@ static void *mips_dma_alloc_coherent(struct device *dev, size_t size,
 	dma_addr_t * dma_handle, gfp_t gfp, struct dma_attrs *attrs)
 {
 	void *ret;
+	struct page *page = NULL;
+	unsigned int count = PAGE_ALIGN(size) >> PAGE_SHIFT;
 
 	if (dma_alloc_from_coherent(dev, size, dma_handle, &ret))
 		return ret;
 
 	gfp = massage_gfp_flags(dev, gfp);
 
-	ret = (void *) __get_free_pages(gfp, get_order(size));
+	if (IS_ENABLED(CONFIG_DMA_CMA) && !(gfp & GFP_ATOMIC))
+		page = dma_alloc_from_contiguous(dev,
+					count, get_order(size));
+	if (!page)
+		page = alloc_pages(gfp, get_order(size));
 
-	if (ret) {
-		memset(ret, 0, size);
-		*dma_handle = plat_map_dma_mem(dev, ret, size);
+	if (!page)
+		return NULL;
 
-		if (!plat_device_is_coherent(dev)) {
-			dma_cache_wback_inv((unsigned long) ret, size);
-			if (!hw_coherentio)
-				ret = UNCAC_ADDR(ret);
-		}
+	ret = page_address(page);
+	memset(ret, 0, size);
+	*dma_handle = plat_map_dma_mem(dev, ret, size);
+	if (!plat_device_is_coherent(dev)) {
+		dma_cache_wback_inv((unsigned long) ret, size);
+		if (!hw_coherentio)
+			ret = UNCAC_ADDR(ret);
 	}
 
 	return ret;
@@ -164,6 +172,8 @@ static void mips_dma_free_coherent(struct device *dev, size_t size, void *vaddr,
 {
 	unsigned long addr = (unsigned long) vaddr;
 	int order = get_order(size);
+	unsigned int count = PAGE_ALIGN(size) >> PAGE_SHIFT;
+	struct page *page = NULL;
 
 	if (dma_release_from_coherent(dev, order, vaddr))
 		return;
@@ -173,7 +183,10 @@ static void mips_dma_free_coherent(struct device *dev, size_t size, void *vaddr,
 	if (!plat_device_is_coherent(dev) && !hw_coherentio)
 		addr = CAC_ADDR(addr);
 
-	free_pages(addr, get_order(size));
+	page = virt_to_page((void *) addr);
+
+	if (!dma_release_from_contiguous(dev, page, count))
+		__free_pages(page, get_order(size));
 }
 
 static inline void __dma_sync_virtual(void *addr, size_t size,

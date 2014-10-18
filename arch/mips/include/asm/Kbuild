@@ -1,6 +1,7 @@
 # MIPS headers
 generic-y += cputime.h
 generic-y += current.h
+generic-y += dma-contiguous.h
 generic-y += emergency-restart.h
 generic-y += hash.h
 generic-y += irq_work.h
