@@ -16,6 +16,7 @@
 #include <sys/resource.h>
 #include "asm/bug.h"
 #include "callchain.h"
+#include "cgroup.h"
 #include "evsel.h"
 #include "evlist.h"
 #include "util.h"
@@ -850,17 +851,17 @@ void perf_evsel__exit(struct perf_evsel *evsel)
 	assert(list_empty(&evsel->node));
 	perf_evsel__free_fd(evsel);
 	perf_evsel__free_id(evsel);
+	close_cgroup(evsel->cgrp);
+	zfree(&evsel->group_name);
+	if (evsel->tp_format)
+		pevent_free_format(evsel->tp_format);
+	zfree(&evsel->name);
 	perf_evsel__object.fini(evsel);
 }
 
 void perf_evsel__delete(struct perf_evsel *evsel)
 {
 	perf_evsel__exit(evsel);
-	close_cgroup(evsel->cgrp);
-	zfree(&evsel->group_name);
-	if (evsel->tp_format)
-		pevent_free_format(evsel->tp_format);
-	zfree(&evsel->name);
 	free(evsel);
 }
 
