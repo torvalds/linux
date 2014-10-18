@@ -2195,18 +2195,8 @@ static void
 net2272_remove(struct net2272 *dev)
 {
 	usb_del_gadget_udc(&dev->gadget);
-
-	/* start with the driver above us */
-	if (dev->driver) {
-		/* should have been done already by driver model core */
-		dev_warn(dev->dev, "pci remove, driver '%s' is still registered\n",
-			dev->driver->driver.name);
-		usb_gadget_unregister_driver(dev->driver);
-	}
-
 	free_irq(dev->irq, dev);
 	iounmap(dev->base_addr);
-
 	device_remove_file(dev->dev, &dev_attr_registers);
 
 	dev_info(dev->dev, "unbind\n");
