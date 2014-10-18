@@ -2362,7 +2362,6 @@ static void dummy_stop(struct usb_hcd *hcd)
 
 	dum = hcd_to_dummy_hcd(hcd)->dum;
 	device_remove_file(dummy_dev(hcd_to_dummy_hcd(hcd)), &dev_attr_urbs);
-	usb_gadget_unregister_driver(dum->driver);
 	dev_info(dummy_dev(hcd_to_dummy_hcd(hcd)), "stopped\n");
 }
 
