@@ -1512,8 +1512,8 @@ static int update_cpu_topology(void *data)
 		if (cpu != update->cpu)
 			continue;
 
-		unmap_cpu_from_node(update->cpu);
-		map_cpu_to_node(update->cpu, update->new_nid);
+		unmap_cpu_from_node(cpu);
+		map_cpu_to_node(cpu, update->new_nid);
 		vdso_getcpu_init();
 	}
 
