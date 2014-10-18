@@ -3605,14 +3605,7 @@ static int s3c_hsotg_remove(struct platform_device *pdev)
 	struct s3c_hsotg *hsotg = platform_get_drvdata(pdev);
 
 	usb_del_gadget_udc(&hsotg->gadget);
-
 	s3c_hsotg_delete_debug(hsotg);
-
-	if (hsotg->driver) {
-		/* should have been done already by driver model core */
-		usb_gadget_unregister_driver(hsotg->driver);
-	}
-
 	clk_disable_unprepare(hsotg->clk);
 
 	return 0;
