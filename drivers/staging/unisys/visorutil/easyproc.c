@@ -254,9 +254,9 @@ void visor_easyproc_CreateDeviceProperty(struct easyproc_device_info *p,
 	}
 	strcpy(px->property_name, property_name);
 	if (px->procEntry == NULL) {
-		ERRDEVX(p->devno, "failed to register /proc/%s/device/%d/%s entry",
-			p->pdriver->ProcId, p->devno, property_name
-		       );
+		ERRDEVX(p->devno,
+			"failed to register /proc/%s/device/%d/%s entry",
+			p->pdriver->ProcId, p->devno, property_name);
 		return;
 	}
 	px->show_device_property_info = show_property_info;
