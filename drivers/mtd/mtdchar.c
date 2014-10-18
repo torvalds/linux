@@ -549,6 +549,9 @@ static int mtdchar_blkpg_ioctl(struct mtd_info *mtd,
 		if (mtd_is_partition(mtd))
 			return -EINVAL;
 
+		/* Sanitize user input */
+		p.devname[BLKPG_DEVNAMELTH - 1] = '\0';
+
 		return mtd_add_partition(mtd, p.devname, p.start, p.length);
 
 	case BLKPG_DEL_PARTITION:

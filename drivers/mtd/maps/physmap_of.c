@@ -103,7 +103,7 @@ static struct mtd_info *obsolete_probe(struct platform_device *dev,
 		if (strcmp(of_probe, "ROM") != 0)
 			dev_warn(&dev->dev, "obsolete_probe: don't know probe "
 				 "type '%s', mapping as rom\n", of_probe);
-		return do_map_probe("mtd_rom", map);
+		return do_map_probe("map_rom", map);
 	}
 }
 
@@ -338,6 +338,10 @@ static struct of_device_id of_flash_match[] = {
 	{
 		.compatible     = "mtd-ram",
 		.data           = (void *)"map_ram",
+	},
+	{
+		.compatible     = "mtd-rom",
+		.data           = (void *)"map_rom",
 	},
 	{
 		.type		= "rom",
