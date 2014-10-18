@@ -16,6 +16,7 @@
  * General Public License for more details.
  */
 
+#include <linux/device.h>
 #include <linux/gcd.h>
 #include <linux/lcm.h>
 #include <linux/module.h>
