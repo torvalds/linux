@@ -70,6 +70,7 @@ enum {
 	Opt_forcegid, Opt_noforcegid,
 	Opt_noblocksend, Opt_noautotune,
 	Opt_hard, Opt_soft, Opt_perm, Opt_noperm,
+	Opt_mapposix, Opt_nomapposix,
 	Opt_mapchars, Opt_nomapchars, Opt_sfu,
 	Opt_nosfu, Opt_nodfs, Opt_posixpaths,
 	Opt_noposixpaths, Opt_nounix,
@@ -124,8 +125,10 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_soft, "soft" },
 	{ Opt_perm, "perm" },
 	{ Opt_noperm, "noperm" },
-	{ Opt_mapchars, "mapchars" },
+	{ Opt_mapchars, "mapchars" }, /* SFU style */
 	{ Opt_nomapchars, "nomapchars" },
+	{ Opt_mapposix, "mapposix" }, /* SFM style */
+	{ Opt_nomapposix, "nomapposix" },
 	{ Opt_sfu, "sfu" },
 	{ Opt_nosfu, "nosfu" },
 	{ Opt_nodfs, "nodfs" },
@@ -1231,6 +1234,14 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 	vol->linux_uid = current_uid();
 	vol->linux_gid = current_gid();
 
+	/*
+	 * default to SFM style remapping of seven reserved characters
+	 * unless user overrides it or we negotiate CIFS POSIX where
+	 * it is unnecessary.  Can not simultaneously use more than one mapping
+	 * since then readdir could list files that open could not open
+	 */
+	vol->remap = true;
+
 	/* default to only allowing write access to owner of the mount */
 	vol->dir_mode = vol->file_mode = S_IRUGO | S_IXUGO | S_IWUSR;
 
@@ -1338,10 +1349,18 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			vol->noperm = 1;
 			break;
 		case Opt_mapchars:
-			vol->remap = 1;
+			vol->sfu_remap = true;
+			vol->remap = false; /* disable SFM mapping */
 			break;
 		case Opt_nomapchars:
-			vol->remap = 0;
+			vol->sfu_remap = false;
+			break;
+		case Opt_mapposix:
+			vol->remap = true;
+			vol->sfu_remap = false; /* disable SFU mapping */
+			break;
+		case Opt_nomapposix:
+			vol->remap = false;
 			break;
 		case Opt_sfu:
 			vol->sfu_emul = 1;
@@ -3197,6 +3216,8 @@ void cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 	if (pvolume_info->server_ino)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_SERVER_INUM;
 	if (pvolume_info->remap)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_MAP_SFM_CHR;
+	if (pvolume_info->sfu_remap)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_MAP_SPECIAL_CHR;
 	if (pvolume_info->no_xattr)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_XATTR;
@@ -3239,10 +3260,20 @@ void cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 	}
 	if (pvolume_info->mfsymlinks) {
 		if (pvolume_info->sfu_emul) {
-			cifs_dbg(VFS, "mount option mfsymlinks ignored if sfu mount option is used\n");
-		} else {
-			cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_MF_SYMLINKS;
+			/*
+			 * Our SFU ("Services for Unix" emulation does not allow
+			 * creating symlinks but does allow reading existing SFU
+			 * symlinks (it does allow both creating and reading SFU
+			 * style mknod and FIFOs though). When "mfsymlinks" and
+			 * "sfu" are both enabled at the same time, it allows
+			 * reading both types of symlinks, but will only create
+			 * them with mfsymlinks format. This allows better
+			 * Apple compatibility (probably better for Samba too)
+			 * while still recognizing old Windows style symlinks.
+			 */
+			cifs_dbg(VFS, "mount options mfsymlinks and sfu both enabled\n");
 		}
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_MF_SYMLINKS;
 	}
 
 	if ((pvolume_info->cifs_acl) && (pvolume_info->dynperm))
@@ -3330,8 +3361,7 @@ expand_dfs_referral(const unsigned int xid, struct cifs_ses *ses,
 	ref_path = check_prefix ? full_path + 1 : volume_info->UNC + 1;
 
 	rc = get_dfs_path(xid, ses, ref_path, cifs_sb->local_nls,
-			  &num_referrals, &referrals,
-			  cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+			  &num_referrals, &referrals, cifs_remap(cifs_sb));
 
 	if (!rc && num_referrals > 0) {
 		char *fake_devname = NULL;
