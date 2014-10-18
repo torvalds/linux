@@ -2366,7 +2366,17 @@ scsi_reset_provider(struct scsi_device *dev, int flag)
 			break;
 		/* FALLTHROUGH */
 	case SCSI_TRY_RESET_HOST:
+	case SCSI_TRY_RESET_HOST | SCSI_TRY_RESET_NO_ESCALATE:
 		rtn = scsi_try_host_reset(scmd);
+		break;
+	case SCSI_TRY_RESET_DEVICE | SCSI_TRY_RESET_NO_ESCALATE:
+		rtn = scsi_try_bus_device_reset(scmd);
+		break;
+	case SCSI_TRY_RESET_TARGET | SCSI_TRY_RESET_NO_ESCALATE:
+		rtn = scsi_try_target_reset(scmd);
+		break;
+	case SCSI_TRY_RESET_BUS | SCSI_TRY_RESET_NO_ESCALATE:
+		rtn = scsi_try_bus_reset(scmd);
 		break;
 	default:
 		rtn = FAILED;

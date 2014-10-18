@@ -62,11 +62,16 @@ extern void scsi_build_sense_buffer(int desc, u8 *buf, u8 key, u8 asc, u8 ascq);
 
 /*
  * Reset request from external source
+ * Note: if SCSI_TRY_RESET_DEVICE fails then it will escalate to
+ * SCSI_TRY_RESET_TARGET which if it fails will escalate to
+ * SCSI_TRY_RESET_BUS which if it fails will escalate to SCSI_TRY_RESET_HOST.
+ * To prevent escalation OR with SCSI_TRY_RESET_NO_ESCALATE.
  */
 #define SCSI_TRY_RESET_DEVICE	1
 #define SCSI_TRY_RESET_BUS	2
 #define SCSI_TRY_RESET_HOST	3
 #define SCSI_TRY_RESET_TARGET	4
+#define SCSI_TRY_RESET_NO_ESCALATE	0x100	/* OR-ed to prior defines */
 
 extern int scsi_reset_provider(struct scsi_device *, int);
 

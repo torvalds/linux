@@ -285,13 +285,14 @@ EXPORT_SYMBOL(scsi_ioctl);
  * scsi_nonblockable_ioctl() - Handle SG_SCSI_RESET
  * @sdev: scsi device receiving ioctl
  * @cmd: Must be SC_SCSI_RESET
- * @arg: pointer to int containing SG_SCSI_RESET_{DEVICE,BUS,HOST}
+ * @arg: pointer to int containing SG_SCSI_RESET_{DEVICE,TARGET,BUS,HOST}
+ *       possibly OR-ed with SG_SCSI_RESET_NO_ESCALATE
  * @ndelay: file mode O_NDELAY flag
  */
 int scsi_nonblockable_ioctl(struct scsi_device *sdev, int cmd,
 			    void __user *arg, int ndelay)
 {
-	int val, result;
+	int val, val2, result;
 
 	/* The first set of iocts may be executed even if we're doing
 	 * error processing, as long as the device was opened
@@ -307,27 +308,32 @@ int scsi_nonblockable_ioctl(struct scsi_device *sdev, int cmd,
 		result = get_user(val, (int __user *)arg);
 		if (result)
 			return result;
+		if (val & SG_SCSI_RESET_NO_ESCALATE) {
+			val &= ~SG_SCSI_RESET_NO_ESCALATE;
+			val2 = SCSI_TRY_RESET_NO_ESCALATE;
+		} else
+			val2 = 0;
 		if (val == SG_SCSI_RESET_NOTHING)
 			return 0;
 		switch (val) {
 		case SG_SCSI_RESET_DEVICE:
-			val = SCSI_TRY_RESET_DEVICE;
+			val2 |= SCSI_TRY_RESET_DEVICE;
 			break;
 		case SG_SCSI_RESET_TARGET:
-			val = SCSI_TRY_RESET_TARGET;
+			val2 |= SCSI_TRY_RESET_TARGET;
 			break;
 		case SG_SCSI_RESET_BUS:
-			val = SCSI_TRY_RESET_BUS;
+			val2 |= SCSI_TRY_RESET_BUS;
 			break;
 		case SG_SCSI_RESET_HOST:
-			val = SCSI_TRY_RESET_HOST;
+			val2 |= SCSI_TRY_RESET_HOST;
 			break;
 		default:
 			return -EINVAL;
 		}
 		if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
 			return -EACCES;
-		return (scsi_reset_provider(sdev, val) ==
+		return (scsi_reset_provider(sdev, val2) ==
 			SUCCESS) ? 0 : -EIO;
 	}
 	return -ENODEV;
