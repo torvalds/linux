@@ -255,9 +255,9 @@ bool cookie_check_timestamp(struct tcp_options_received *tcp_opt,
 }
 EXPORT_SYMBOL(cookie_check_timestamp);
 
-struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
-			     struct ip_options *opt)
+struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb)
 {
+	struct ip_options *opt = &TCP_SKB_CB(skb)->header.h4.opt;
 	struct tcp_options_received tcp_opt;
 	struct inet_request_sock *ireq;
 	struct tcp_request_sock *treq;
@@ -317,15 +317,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	/* We throwed the options of the initial SYN away, so we hope
 	 * the ACK carries the same options again (see RFC1122 4.2.3.8)
 	 */
-	if (opt && opt->optlen) {
-		int opt_size = sizeof(struct ip_options_rcu) + opt->optlen;
-
-		ireq->opt = kmalloc(opt_size, GFP_ATOMIC);
-		if (ireq->opt != NULL && ip_options_echo(&ireq->opt->opt, skb)) {
-			kfree(ireq->opt);
-			ireq->opt = NULL;
-		}
-	}
+	ireq->opt = tcp_v4_save_options(skb);
 
 	if (security_inet_conn_request(sk, skb, req)) {
 		reqsk_free(req);
@@ -344,7 +336,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	flowi4_init_output(&fl4, sk->sk_bound_dev_if, ireq->ir_mark,
 			   RT_CONN_FLAGS(sk), RT_SCOPE_UNIVERSE, IPPROTO_TCP,
 			   inet_sk_flowi_flags(sk),
-			   (opt && opt->srr) ? opt->faddr : ireq->ir_rmt_addr,
+			   opt->srr ? opt->faddr : ireq->ir_rmt_addr,
 			   ireq->ir_loc_addr, th->source, th->dest);
 	security_req_classify_flow(req, flowi4_to_flowi(&fl4));
 	rt = ip_route_output_key(sock_net(sk), &fl4);

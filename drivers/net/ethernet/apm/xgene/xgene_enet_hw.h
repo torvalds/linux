@@ -44,6 +44,7 @@ static inline u32 xgene_get_bits(u32 val, u32 start, u32 end)
 
 enum xgene_enet_rm {
 	RM0,
+	RM1,
 	RM3 = 3
 };
 
@@ -143,6 +144,8 @@ enum xgene_enet_rm {
 #define CFG_CLE_FPSEL0_SET(dst, val)		xgene_set_bits(dst, val, 16, 4)
 #define CFG_MACMODE_SET(dst, val)		xgene_set_bits(dst, val, 18, 2)
 #define CFG_WAITASYNCRD_SET(dst, val)		xgene_set_bits(dst, val, 0, 16)
+#define CFG_CLE_DSTQID0(val)		(val & GENMASK(11, 0))
+#define CFG_CLE_FPSEL0(val)		((val << 16) & GENMASK(19, 16))
 #define ICM_CONFIG0_REG_0_ADDR		0x0400
 #define ICM_CONFIG2_REG_0_ADDR		0x0410
 #define RX_DV_GATE_REG_0_ADDR		0x05fc
@@ -179,7 +182,6 @@ enum xgene_enet_rm {
 #define TUND_ADDR			0x4a
 
 #define TSO_IPPROTO_TCP			1
-#define	FULL_DUPLEX			2
 
 #define USERINFO_POS			0
 #define USERINFO_LEN			32

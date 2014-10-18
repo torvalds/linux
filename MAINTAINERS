@@ -564,7 +564,7 @@ L:	linux-alpha@vger.kernel.org
 F:	arch/alpha/
 
 ALTERA TRIPLE SPEED ETHERNET DRIVER
-M:	Vince Bridgers <vbridgers2013@gmail.com>
+M:	Vince Bridgers <vbridger@opensource.altera.com>
 L:	netdev@vger.kernel.org
 L:	nios2-dev@lists.rocketboards.org (moderated for non-subscribers)
 S:	Maintained

@@ -198,8 +198,10 @@ static int ksz8021_config_init(struct phy_device *phydev)
 	if (rc)
 		dev_err(&phydev->dev, "failed to set led mode\n");
 
-	phy_write(phydev, MII_KSZPHY_OMSO, val);
 	rc = ksz_config_flags(phydev);
+	if (rc < 0)
+		return rc;
+	rc = phy_write(phydev, MII_KSZPHY_OMSO, val);
 	return rc < 0 ? rc : 0;
 }
 

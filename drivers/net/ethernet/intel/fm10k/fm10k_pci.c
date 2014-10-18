@@ -1489,6 +1489,7 @@ void fm10k_up(struct fm10k_intfc *interface)
 	netif_tx_start_all_queues(interface->netdev);
 
 	/* kick off the service timer */
+	hw->mac.get_host_state = 1;
 	mod_timer(&interface->service_timer, jiffies);
 }
 

@@ -11,6 +11,7 @@
 #include <linux/list.h>
 #include <linux/etherdevice.h>
 #include <linux/phy.h>
+#include <linux/phy_fixed.h>
 #include <linux/of_net.h>
 #include <linux/of_mdio.h>
 #include "dsa_priv.h"

@@ -839,16 +839,27 @@ void tcp_wfree(struct sk_buff *skb)
 {
 	struct sock *sk = skb->sk;
 	struct tcp_sock *tp = tcp_sk(sk);
+	int wmem;
+
+	/* Keep one reference on sk_wmem_alloc.
+	 * Will be released by sk_free() from here or tcp_tasklet_func()
+	 */
+	wmem = atomic_sub_return(skb->truesize - 1, &sk->sk_wmem_alloc);
+
+	/* If this softirq is serviced by ksoftirqd, we are likely under stress.
+	 * Wait until our queues (qdisc + devices) are drained.
+	 * This gives :
+	 * - less callbacks to tcp_write_xmit(), reducing stress (batches)
+	 * - chance for incoming ACK (processed by another cpu maybe)
+	 *   to migrate this flow (skb->ooo_okay will be eventually set)
+	 */
+	if (wmem >= SKB_TRUESIZE(1) && this_cpu_ksoftirqd() == current)
+		goto out;
 
 	if (test_and_clear_bit(TSQ_THROTTLED, &tp->tsq_flags) &&
 	    !test_and_set_bit(TSQ_QUEUED, &tp->tsq_flags)) {
 		unsigned long flags;
 		struct tsq_tasklet *tsq;
-
-		/* Keep a ref on socket.
-		 * This last ref will be released in tcp_tasklet_func()
-		 */
-		atomic_sub(skb->truesize - 1, &sk->sk_wmem_alloc);
 
 		/* queue this socket to tasklet queue */
 		local_irq_save(flags);
@@ -856,9 +867,10 @@ void tcp_wfree(struct sk_buff *skb)
 		list_add(&tp->tsq_node, &tsq->head);
 		tasklet_schedule(&tsq->tasklet);
 		local_irq_restore(flags);
-	} else {
-		sock_wfree(skb);
+		return;
 	}
+out:
+	sk_free(sk);
 }
 
 /* This routine actually transmits TCP packets queued in by
@@ -914,9 +926,13 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it,
 		tcp_ca_event(sk, CA_EVENT_TX_START);
 
 	/* if no packet is in qdisc/device queue, then allow XPS to select
-	 * another queue.
+	 * another queue. We can be called from tcp_tsq_handler()
+	 * which holds one reference to sk_wmem_alloc.
+	 *
+	 * TODO: Ideally, in-flight pure ACK packets should not matter here.
+	 * One way to get this would be to set skb->truesize = 2 on them.
 	 */
-	skb->ooo_okay = sk_wmem_alloc_get(sk) == 0;
+	skb->ooo_okay = sk_wmem_alloc_get(sk) < SKB_TRUESIZE(1);
 
 	skb_push(skb, tcp_header_size);
 	skb_reset_transport_header(skb);

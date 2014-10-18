@@ -468,8 +468,7 @@ void inet_sk_rx_dst_set(struct sock *sk, const struct sk_buff *skb);
 /* From syncookies.c */
 int __cookie_v4_check(const struct iphdr *iph, const struct tcphdr *th,
 		      u32 cookie);
-struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
-			     struct ip_options *opt);
+struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb);
 #ifdef CONFIG_SYN_COOKIES
 
 /* Syncookies use a monotonic timer which increments every 60 seconds.
@@ -729,6 +728,15 @@ struct tcp_skb_cb {
 };
 
 #define TCP_SKB_CB(__skb)	((struct tcp_skb_cb *)&((__skb)->cb[0]))
+
+
+/* This is the variant of inet6_iif() that must be used by TCP,
+ * as TCP moves IP6CB into a different location in skb->cb[]
+ */
+static inline int tcp_v6_iif(const struct sk_buff *skb)
+{
+	return TCP_SKB_CB(skb)->header.h6.iif;
+}
 
 /* Due to TSO, an SKB can be composed of multiple actual
  * packets.  To keep these tracked properly, we use this.
@@ -1665,5 +1673,25 @@ int tcpv4_offload_init(void);
 
 void tcp_v4_init(void);
 void tcp_init(void);
+
+/*
+ * Save and compile IPv4 options, return a pointer to it
+ */
+static inline struct ip_options_rcu *tcp_v4_save_options(struct sk_buff *skb)
+{
+	const struct ip_options *opt = &TCP_SKB_CB(skb)->header.h4.opt;
+	struct ip_options_rcu *dopt = NULL;
+
+	if (opt->optlen) {
+		int opt_size = sizeof(*dopt) + opt->optlen;
+
+		dopt = kmalloc(opt_size, GFP_ATOMIC);
+		if (dopt && __ip_options_echo(&dopt->opt, skb, opt)) {
+			kfree(dopt);
+			dopt = NULL;
+		}
+	}
+	return dopt;
+}
 
 #endif	/* _TCP_H */

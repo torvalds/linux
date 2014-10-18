@@ -162,7 +162,7 @@ union sub_key {
  * data: network byte order
  * return: host byte order
  */
-static u32 comp_hash(u8 *key, int klen, u8 *data, int dlen)
+static u32 comp_hash(u8 *key, int klen, void *data, int dlen)
 {
 	union sub_key subk;
 	int k_next = 4;
@@ -176,7 +176,7 @@ static u32 comp_hash(u8 *key, int klen, u8 *data, int dlen)
 	for (i = 0; i < dlen; i++) {
 		subk.kb = key[k_next];
 		k_next = (k_next + 1) % klen;
-		dt = data[i];
+		dt = ((u8 *)data)[i];
 		for (j = 0; j < 8; j++) {
 			if (dt & 0x80)
 				ret ^= subk.ka;
@@ -190,26 +190,20 @@ static u32 comp_hash(u8 *key, int klen, u8 *data, int dlen)
 
 static bool netvsc_set_hash(u32 *hash, struct sk_buff *skb)
 {
-	struct iphdr *iphdr;
+	struct flow_keys flow;
 	int data_len;
-	bool ret = false;
 
-	if (eth_hdr(skb)->h_proto != htons(ETH_P_IP))
+	if (!skb_flow_dissect(skb, &flow) || flow.n_proto != htons(ETH_P_IP))
 		return false;
 
-	iphdr = ip_hdr(skb);
+	if (flow.ip_proto == IPPROTO_TCP)
+		data_len = 12;
+	else
+		data_len = 8;
 
-	if (iphdr->version == 4) {
-		if (iphdr->protocol == IPPROTO_TCP)
-			data_len = 12;
-		else
-			data_len = 8;
-		*hash = comp_hash(netvsc_hash_key, HASH_KEYLEN,
-				  (u8 *)&iphdr->saddr, data_len);
-		ret = true;
-	}
+	*hash = comp_hash(netvsc_hash_key, HASH_KEYLEN, &flow, data_len);
 
-	return ret;
+	return true;
 }
 
 static u16 netvsc_select_queue(struct net_device *ndev, struct sk_buff *skb,
