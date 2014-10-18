@@ -2501,7 +2501,6 @@ static int pxa_udc_remove(struct platform_device *_dev)
 	struct pxa_udc *udc = platform_get_drvdata(_dev);
 
 	usb_del_gadget_udc(&udc->gadget);
-	usb_gadget_unregister_driver(udc->driver);
 	pxa_cleanup_debugfs(udc);
 
 	usb_put_phy(udc->transceiver);
