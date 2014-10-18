@@ -35,12 +35,13 @@ static int f2fs_vm_page_mkwrite(struct vm_area_struct *vma,
 	struct inode *inode = file_inode(vma->vm_file);
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct dnode_of_data dn;
+	struct page *ipage;
 	int err;
 
 	f2fs_balance_fs(sbi);
 
 	sb_start_pagefault(inode->i_sb);
-
+retry:
 	/* force to convert with normal data indices */
 	err = f2fs_convert_inline_data(inode, MAX_INLINE_DATA + 1, page);
 	if (err)
@@ -48,11 +49,28 @@ static int f2fs_vm_page_mkwrite(struct vm_area_struct *vma,
 
 	/* block allocation */
 	f2fs_lock_op(sbi);
-	set_new_dnode(&dn, inode, NULL, NULL, 0);
-	err = f2fs_reserve_block(&dn, page->index);
-	f2fs_unlock_op(sbi);
-	if (err)
+
+	/* check inline_data */
+	ipage = get_node_page(sbi, inode->i_ino);
+	if (IS_ERR(ipage)) {
+		f2fs_unlock_op(sbi);
 		goto out;
+	}
+
+	if (f2fs_has_inline_data(inode)) {
+		f2fs_put_page(ipage, 1);
+		f2fs_unlock_op(sbi);
+		goto retry;
+	}
+
+	set_new_dnode(&dn, inode, ipage, NULL, 0);
+	err = f2fs_reserve_block(&dn, page->index);
+	if (err) {
+		f2fs_unlock_op(sbi);
+		goto out;
+	}
+	f2fs_put_dnode(&dn);
+	f2fs_unlock_op(sbi);
 
 	file_update_time(vma->vm_file);
 	lock_page(page);

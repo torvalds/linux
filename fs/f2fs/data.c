@@ -257,9 +257,6 @@ int f2fs_reserve_block(struct dnode_of_data *dn, pgoff_t index)
 	bool need_put = dn->inode_page ? false : true;
 	int err;
 
-	/* if inode_page exists, index should be zero */
-	f2fs_bug_on(F2FS_I_SB(dn->inode), !need_put && index);
-
 	err = get_dnode_of_data(dn, index, ALLOC_NODE);
 	if (err)
 		return err;
@@ -951,7 +948,7 @@ static int f2fs_write_begin(struct file *file, struct address_space *mapping,
 {
 	struct inode *inode = mapping->host;
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
-	struct page *page;
+	struct page *page, *ipage;
 	pgoff_t index = ((unsigned long long) pos) >> PAGE_CACHE_SHIFT;
 	struct dnode_of_data dn;
 	int err = 0;
@@ -979,13 +976,26 @@ repeat:
 		goto inline_data;
 
 	f2fs_lock_op(sbi);
-	set_new_dnode(&dn, inode, NULL, NULL, 0);
-	err = f2fs_reserve_block(&dn, index);
-	f2fs_unlock_op(sbi);
-	if (err) {
+
+	/* check inline_data */
+	ipage = get_node_page(sbi, inode->i_ino);
+	if (IS_ERR(ipage))
+		goto unlock_fail;
+
+	if (f2fs_has_inline_data(inode)) {
+		f2fs_put_page(ipage, 1);
+		f2fs_unlock_op(sbi);
 		f2fs_put_page(page, 0);
-		goto fail;
+		goto repeat;
 	}
+
+	set_new_dnode(&dn, inode, ipage, NULL, 0);
+	err = f2fs_reserve_block(&dn, index);
+	if (err)
+		goto unlock_fail;
+	f2fs_put_dnode(&dn);
+	f2fs_unlock_op(sbi);
+
 inline_data:
 	lock_page(page);
 	if (unlikely(page->mapping != mapping)) {
@@ -1038,6 +1048,10 @@ out:
 	SetPageUptodate(page);
 	clear_cold_data(page);
 	return 0;
+
+unlock_fail:
+	f2fs_unlock_op(sbi);
+	f2fs_put_page(page, 0);
 fail:
 	f2fs_write_failed(mapping, pos + len);
 	return err;
