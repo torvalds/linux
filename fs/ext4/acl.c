@@ -15,7 +15,7 @@
  * Convert from filesystem to in-memory representation.
  */
 static struct posix_acl *
-ext4_acl_from_disk(const void *value, size_t size)
+ext4_acl_from_disk(struct super_block *sb, const void *value, size_t size)
 {
 	const char *end = (char *)value + size;
 	int n, count;
@@ -59,16 +59,20 @@ ext4_acl_from_disk(const void *value, size_t size)
 			if ((char *)value > end)
 				goto fail;
 			acl->a_entries[n].e_uid =
-				make_kuid(&init_user_ns,
+				make_kuid(sb->s_user_ns,
 					  le32_to_cpu(entry->e_id));
+			if (!uid_valid(acl->a_entries[n].e_uid))
+				goto fail;
 			break;
 		case ACL_GROUP:
 			value = (char *)value + sizeof(ext4_acl_entry);
 			if ((char *)value > end)
 				goto fail;
 			acl->a_entries[n].e_gid =
-				make_kgid(&init_user_ns,
+				make_kgid(sb->s_user_ns,
 					  le32_to_cpu(entry->e_id));
+			if (!gid_valid(acl->a_entries[n].e_gid))
+				goto fail;
 			break;
 
 		default:
@@ -88,11 +92,14 @@ fail:
  * Convert from in-memory to filesystem representation.
  */
 static void *
-ext4_acl_to_disk(const struct posix_acl *acl, size_t *size)
+ext4_acl_to_disk(struct super_block *sb, const struct posix_acl *acl,
+		 size_t *size)
 {
 	ext4_acl_header *ext_acl;
 	char *e;
 	size_t n;
+	uid_t uid;
+	gid_t gid;
 
 	*size = ext4_acl_size(acl->a_count);
 	ext_acl = kmalloc(sizeof(ext4_acl_header) + acl->a_count *
@@ -108,13 +115,17 @@ ext4_acl_to_disk(const struct posix_acl *acl, size_t *size)
 		entry->e_perm = cpu_to_le16(acl_e->e_perm);
 		switch (acl_e->e_tag) {
 		case ACL_USER:
-			entry->e_id = cpu_to_le32(
-				from_kuid(&init_user_ns, acl_e->e_uid));
+			uid = from_kuid(sb->s_user_ns, acl_e->e_uid);
+			if (uid == (uid_t)-1)
+				goto fail;
+			entry->e_id = cpu_to_le32(uid);
 			e += sizeof(ext4_acl_entry);
 			break;
 		case ACL_GROUP:
-			entry->e_id = cpu_to_le32(
-				from_kgid(&init_user_ns, acl_e->e_gid));
+			gid = from_kgid(sb->s_user_ns, acl_e->e_gid);
+			if (gid == (gid_t)-1)
+				goto fail;
+			entry->e_id = cpu_to_le32(gid);
 			e += sizeof(ext4_acl_entry);
 			break;
 
@@ -167,7 +178,7 @@ ext4_get_acl(struct inode *inode, int type)
 		retval = ext4_xattr_get(inode, name_index, "", value, retval);
 	}
 	if (retval > 0)
-		acl = ext4_acl_from_disk(value, retval);
+		acl = ext4_acl_from_disk(inode->i_sb, value, retval);
 	else if (retval == -ENODATA || retval == -ENOSYS)
 		acl = NULL;
 	else
@@ -206,7 +217,7 @@ __ext4_set_acl(handle_t *handle, struct inode *inode, int type,
 		return -EINVAL;
 	}
 	if (acl) {
-		value = ext4_acl_to_disk(acl, &size);
+		value = ext4_acl_to_disk(inode->i_sb, acl, &size);
 		if (IS_ERR(value))
 			return (int)PTR_ERR(value);
 	}

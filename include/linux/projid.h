@@ -48,6 +48,11 @@ static inline bool projid_valid(kprojid_t projid)
 	return !projid_eq(projid, INVALID_PROJID);
 }
 
+static inline bool projid_valid_eq(kprojid_t left, kprojid_t right)
+{
+	return projid_eq(left, right) && projid_valid(left);
+}
+
 #ifdef CONFIG_USER_NS
 
 extern kprojid_t make_kprojid(struct user_namespace *from, projid_t projid);

@@ -22,7 +22,7 @@ int ext4_resize_begin(struct super_block *sb)
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	int ret = 0;
 
-	if (!capable(CAP_SYS_RESOURCE))
+	if (!ns_capable(sb->s_user_ns, CAP_SYS_RESOURCE))
 		return -EPERM;
 
 	/*
