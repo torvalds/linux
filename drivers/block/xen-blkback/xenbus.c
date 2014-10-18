@@ -270,6 +270,9 @@ static int xen_blkif_disconnect(struct xen_blkif *blkif)
 		blkif->blk_rings.common.sring = NULL;
 	}
 
+	/* Remove all persistent grants and the cache of ballooned pages. */
+	xen_blkbk_free_caches(blkif);
+
 	return 0;
 }
 
@@ -280,9 +283,6 @@ static void xen_blkif_free(struct xen_blkif *blkif)
 
 	xen_blkif_disconnect(blkif);
 	xen_vbd_free(&blkif->vbd);
-
-	/* Remove all persistent grants and the cache of ballooned pages. */
-	xen_blkbk_free_caches(blkif);
 
 	/* Make sure everything is drained before shutting down */
 	BUG_ON(blkif->persistent_gnt_c != 0);
