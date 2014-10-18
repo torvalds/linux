@@ -37,6 +37,8 @@
 
 #include "flow.h"
 
+size_t ovs_key_attr_size(void);
+
 void ovs_match_init(struct sw_flow_match *match,
 		    struct sw_flow_key *key, struct sw_flow_mask *mask);
 

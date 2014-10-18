@@ -252,6 +252,38 @@ static bool match_validate(const struct sw_flow_match *match,
 	return true;
 }
 
+size_t ovs_key_attr_size(void)
+{
+	/* Whenever adding new OVS_KEY_ FIELDS, we should consider
+	 * updating this function.
+	 */
+	BUILD_BUG_ON(OVS_KEY_ATTR_TUNNEL_INFO != 22);
+
+	return    nla_total_size(4)   /* OVS_KEY_ATTR_PRIORITY */
+		+ nla_total_size(0)   /* OVS_KEY_ATTR_TUNNEL */
+		  + nla_total_size(8)   /* OVS_TUNNEL_KEY_ATTR_ID */
+		  + nla_total_size(4)   /* OVS_TUNNEL_KEY_ATTR_IPV4_SRC */
+		  + nla_total_size(4)   /* OVS_TUNNEL_KEY_ATTR_IPV4_DST */
+		  + nla_total_size(1)   /* OVS_TUNNEL_KEY_ATTR_TOS */
+		  + nla_total_size(1)   /* OVS_TUNNEL_KEY_ATTR_TTL */
+		  + nla_total_size(0)   /* OVS_TUNNEL_KEY_ATTR_DONT_FRAGMENT */
+		  + nla_total_size(0)   /* OVS_TUNNEL_KEY_ATTR_CSUM */
+		  + nla_total_size(0)   /* OVS_TUNNEL_KEY_ATTR_OAM */
+		  + nla_total_size(256) /* OVS_TUNNEL_KEY_ATTR_GENEVE_OPTS */
+		+ nla_total_size(4)   /* OVS_KEY_ATTR_IN_PORT */
+		+ nla_total_size(4)   /* OVS_KEY_ATTR_SKB_MARK */
+		+ nla_total_size(4)   /* OVS_KEY_ATTR_DP_HASH */
+		+ nla_total_size(4)   /* OVS_KEY_ATTR_RECIRC_ID */
+		+ nla_total_size(12)  /* OVS_KEY_ATTR_ETHERNET */
+		+ nla_total_size(2)   /* OVS_KEY_ATTR_ETHERTYPE */
+		+ nla_total_size(4)   /* OVS_KEY_ATTR_VLAN */
+		+ nla_total_size(0)   /* OVS_KEY_ATTR_ENCAP */
+		+ nla_total_size(2)   /* OVS_KEY_ATTR_ETHERTYPE */
+		+ nla_total_size(40)  /* OVS_KEY_ATTR_IPV6 */
+		+ nla_total_size(2)   /* OVS_KEY_ATTR_ICMPV6 */
+		+ nla_total_size(28); /* OVS_KEY_ATTR_ND */
+}
+
 /* The size of the argument for each %OVS_KEY_ATTR_* Netlink attribute.  */
 static const int ovs_key_lens[OVS_KEY_ATTR_MAX + 1] = {
 	[OVS_KEY_ATTR_ENCAP] = -1,
