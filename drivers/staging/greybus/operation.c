@@ -224,10 +224,29 @@ static void gb_operation_recv_work(struct work_struct *recv_work)
  * we'll be done with everything we need to do before we mark it
  * finished.
  *
- * XXX We may want to record that a buffer is (or is no longer) in flight.
+ * XXX We may want to record that a request is (or is no longer) in flight.
  */
 static void gb_operation_gbuf_complete(struct gbuf *gbuf)
 {
+	if (gbuf->status) {
+		struct gb_operation *operation = gbuf->context;
+		struct gb_operation_msg_hdr *header;
+		int id;
+		int type;
+
+		if (gbuf == operation->request)
+			header = operation->request_payload;
+		else if (gbuf == operation->response)
+			header = operation->response_payload;
+		else
+			header = NULL;
+		id = header ? (int)header->id : -1;
+		type = header ? (int)header->type : -1;
+
+		gb_connection_err(operation->connection,
+			"operation %d type %d gbuf error %d",
+			id, type, gbuf->status);
+	}
 	return;
 }
 
