@@ -177,7 +177,7 @@ static void end_cmd(struct nullb_cmd *cmd)
 {
 	switch (queue_mode)  {
 	case NULL_Q_MQ:
-		blk_mq_end_io(cmd->rq, 0);
+		blk_mq_end_request(cmd->rq, 0);
 		return;
 	case NULL_Q_RQ:
 		INIT_LIST_HEAD(&cmd->rq->queuelist);
@@ -313,12 +313,15 @@ static void null_request_fn(struct request_queue *q)
 	}
 }
 
-static int null_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *rq)
+static int null_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *rq,
+		bool last)
 {
 	struct nullb_cmd *cmd = blk_mq_rq_to_pdu(rq);
 
 	cmd->rq = rq;
 	cmd->nq = hctx->driver_data;
+
+	blk_mq_start_request(rq);
 
 	null_handle_cmd(cmd);
 	return BLK_MQ_RQ_QUEUE_OK;

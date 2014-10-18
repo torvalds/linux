@@ -129,7 +129,7 @@ static inline void virtblk_request_done(struct request *req)
 		req->errors = (error != 0);
 	}
 
-	blk_mq_end_io(req, error);
+	blk_mq_end_request(req, error);
 }
 
 static void virtblk_done(struct virtqueue *vq)
@@ -158,14 +158,14 @@ static void virtblk_done(struct virtqueue *vq)
 	spin_unlock_irqrestore(&vblk->vqs[qid].lock, flags);
 }
 
-static int virtio_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *req)
+static int virtio_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *req,
+		bool last)
 {
 	struct virtio_blk *vblk = hctx->queue->queuedata;
 	struct virtblk_req *vbr = blk_mq_rq_to_pdu(req);
 	unsigned long flags;
 	unsigned int num;
 	int qid = hctx->queue_num;
-	const bool last = (req->cmd_flags & REQ_END) != 0;
 	int err;
 	bool notify = false;
 
@@ -198,6 +198,8 @@ static int virtio_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *req)
 			BUG();
 		}
 	}
+
+	blk_mq_start_request(req);
 
 	num = blk_rq_map_sg(hctx->queue, vbr->req, vbr->sg);
 	if (num) {

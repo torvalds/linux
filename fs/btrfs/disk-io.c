@@ -1702,7 +1702,7 @@ static int btrfs_congested_fn(void *congested_data, int bdi_bits)
 		if (!device->bdev)
 			continue;
 		bdi = blk_get_backing_dev_info(device->bdev);
-		if (bdi && bdi_congested(bdi, bdi_bits)) {
+		if (bdi_congested(bdi, bdi_bits)) {
 			ret = 1;
 			break;
 		}
