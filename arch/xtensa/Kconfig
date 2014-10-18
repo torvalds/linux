@@ -98,12 +98,6 @@ config XTENSA_VARIANT_DC233C
 	help
 	  This variant refers to Tensilica's Diamond 233L Standard core Rev.C (LE).
 
-config XTENSA_VARIANT_S6000
-	bool "s6000 - Stretch software configurable processor"
-	select VARIANT_IRQ_SWITCH
-	select ARCH_REQUIRE_GPIOLIB
-	select XTENSA_CALIBRATE_CCOUNT
-
 config XTENSA_VARIANT_CUSTOM
 	bool "Custom Xtensa processor configuration"
 	select MAY_HAVE_SMP
@@ -126,7 +120,6 @@ config XTENSA_VARIANT_NAME
 	default "dc232b"			if XTENSA_VARIANT_DC232B
 	default "dc233c"			if XTENSA_VARIANT_DC233C
 	default "fsf"				if XTENSA_VARIANT_FSF
-	default "s6000"				if XTENSA_VARIANT_S6000
 	default XTENSA_VARIANT_CUSTOM_NAME	if XTENSA_VARIANT_CUSTOM
 
 config XTENSA_VARIANT_MMU
@@ -309,12 +302,6 @@ config XTENSA_PLATFORM_XT2000
 	help
 	  XT2000 is the name of Tensilica's feature-rich emulation platform.
 	  This hardware is capable of running a full Linux distribution.
-
-config XTENSA_PLATFORM_S6105
-	bool "S6105"
-	select HAVE_IDE
-	select SERIAL_CONSOLE
-	select NO_IOPORT_MAP
 
 config XTENSA_PLATFORM_XTFPGA
 	bool "XTFPGA"
