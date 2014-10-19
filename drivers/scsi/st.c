@@ -56,7 +56,8 @@ static const char *verstr = "20101219";
 
 /* The driver prints some debugging information on the console if DEBUG
    is defined and non-zero. */
-#define DEBUG 0
+#define DEBUG 1
+#define NO_DEBUG 0
 
 #define ST_DEB_MSG  KERN_NOTICE
 #if DEBUG
@@ -80,6 +81,7 @@ static int max_sg_segs;
 static int try_direct_io = TRY_DIRECT_IO;
 static int try_rdio = 1;
 static int try_wdio = 1;
+static int debug_flag;
 
 static struct class st_sysfs_class;
 static const struct attribute_group *st_dev_groups[];
@@ -100,6 +102,9 @@ module_param_named(max_sg_segs, max_sg_segs, int, 0);
 MODULE_PARM_DESC(max_sg_segs, "Maximum number of scatter/gather segments to use (256)");
 module_param_named(try_direct_io, try_direct_io, int, 0);
 MODULE_PARM_DESC(try_direct_io, "Try direct I/O between user buffer and tape drive (1)");
+module_param_named(debug_flag, debug_flag, int, 0);
+MODULE_PARM_DESC(debug_flag, "Enable DEBUG, same as setting debugging=1");
+
 
 /* Extra parameters for testing */
 module_param_named(try_rdio, try_rdio, int, 0);
@@ -124,6 +129,9 @@ static struct st_dev_parm {
 	},
 	{
 		"try_direct_io", &try_direct_io
+	},
+	{
+		"debug_flag", &debug_flag
 	}
 };
 #endif
@@ -4308,6 +4316,12 @@ static int __init init_st(void)
 
 	printk(KERN_INFO "st: Version %s, fixed bufsize %d, s/g segs %d\n",
 		verstr, st_fixed_buffer_size, st_max_sg_segs);
+
+	debugging = (debug_flag > 0) ? debug_flag : NO_DEBUG;
+	if (debugging) {
+		printk(KERN_INFO "st: Debugging enabled debug_flag = %d\n",
+			debugging);
+	}
 
 	err = class_register(&st_sysfs_class);
 	if (err) {
