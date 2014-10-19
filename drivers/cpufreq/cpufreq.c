@@ -1731,6 +1731,21 @@ const char *cpufreq_get_current_driver(void)
 }
 EXPORT_SYMBOL_GPL(cpufreq_get_current_driver);
 
+/**
+ *	cpufreq_get_driver_data - return current driver data
+ *
+ *	Return the private data of the currently loaded cpufreq
+ *	driver, or NULL if no cpufreq driver is loaded.
+ */
+void *cpufreq_get_driver_data(void)
+{
+	if (cpufreq_driver)
+		return cpufreq_driver->driver_data;
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(cpufreq_get_driver_data);
+
 /*********************************************************************
  *                     NOTIFIER LISTS INTERFACE                      *
  *********************************************************************/
