@@ -2,7 +2,6 @@
 #define __PERF_SESSION_H
 
 #include "trace-event.h"
-#include "hist.h"
 #include "event.h"
 #include "header.h"
 #include "machine.h"

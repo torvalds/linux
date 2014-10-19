@@ -257,6 +257,13 @@ static int report__setup_sample_type(struct report *rep)
 		}
 	}
 
+	if (symbol_conf.use_callchain || symbol_conf.cumulate_callchain) {
+		if ((sample_type & PERF_SAMPLE_REGS_USER) &&
+		    (sample_type & PERF_SAMPLE_STACK_USER))
+			callchain_param.record_mode = CALLCHAIN_DWARF;
+		else
+			callchain_param.record_mode = CALLCHAIN_FP;
+	}
 	return 0;
 }
 
@@ -288,12 +295,14 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 		evname = buf;
 
 		for_each_group_member(pos, evsel) {
+			const struct hists *pos_hists = evsel__hists(pos);
+
 			if (symbol_conf.filter_relative) {
-				nr_samples += pos->hists.stats.nr_non_filtered_samples;
-				nr_events += pos->hists.stats.total_non_filtered_period;
+				nr_samples += pos_hists->stats.nr_non_filtered_samples;
+				nr_events += pos_hists->stats.total_non_filtered_period;
 			} else {
-				nr_samples += pos->hists.stats.nr_events[PERF_RECORD_SAMPLE];
-				nr_events += pos->hists.stats.total_period;
+				nr_samples += pos_hists->stats.nr_events[PERF_RECORD_SAMPLE];
+				nr_events += pos_hists->stats.total_period;
 			}
 		}
 	}
@@ -318,7 +327,7 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 	struct perf_evsel *pos;
 
 	evlist__for_each(evlist, pos) {
-		struct hists *hists = &pos->hists;
+		struct hists *hists = evsel__hists(pos);
 		const char *evname = perf_evsel__name(pos);
 
 		if (symbol_conf.event_group &&
@@ -427,7 +436,7 @@ static void report__collapse_hists(struct report *rep)
 	ui_progress__init(&prog, rep->nr_entries, "Merging related events...");
 
 	evlist__for_each(rep->session->evlist, pos) {
-		struct hists *hists = &pos->hists;
+		struct hists *hists = evsel__hists(pos);
 
 		if (pos->idx == 0)
 			hists->symbol_filter_str = rep->symbol_filter_str;
@@ -437,7 +446,7 @@ static void report__collapse_hists(struct report *rep)
 		/* Non-group events are considered as leader */
 		if (symbol_conf.event_group &&
 		    !perf_evsel__is_group_leader(pos)) {
-			struct hists *leader_hists = &pos->leader->hists;
+			struct hists *leader_hists = evsel__hists(pos->leader);
 
 			hists__match(leader_hists, hists);
 			hists__link(leader_hists, hists);
@@ -485,6 +494,7 @@ static int __cmd_report(struct report *rep)
 
 		if (dump_trace) {
 			perf_session__fprintf_nr_events(session, stdout);
+			perf_evlist__fprintf_nr_events(session->evlist, stdout);
 			return 0;
 		}
 	}
@@ -500,7 +510,7 @@ static int __cmd_report(struct report *rep)
 	}
 
 	evlist__for_each(session->evlist, pos)
-		hists__output_resort(&pos->hists);
+		hists__output_resort(evsel__hists(pos));
 
 	return report__browse_hists(rep);
 }
@@ -565,7 +575,6 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	struct stat st;
 	bool has_br_stack = false;
 	int branch_mode = -1;
-	int ret = -1;
 	char callchain_default_opt[] = "fractal,0.5,callee";
 	const char * const report_usage[] = {
 		"perf report [<options>]",
@@ -692,6 +701,10 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	struct perf_data_file file = {
 		.mode  = PERF_DATA_MODE_READ,
 	};
+	int ret = hists__init();
+
+	if (ret < 0)
+		return ret;
 
 	perf_config(report__config, &report);
 

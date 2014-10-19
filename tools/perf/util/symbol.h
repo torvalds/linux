@@ -95,7 +95,7 @@ void symbols__delete(struct rb_root *symbols);
 
 static inline size_t symbol__size(const struct symbol *sym)
 {
-	return sym->end - sym->start + 1;
+	return sym->end - sym->start;
 }
 
 struct strlist;

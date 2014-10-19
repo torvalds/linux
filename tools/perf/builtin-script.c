@@ -44,6 +44,7 @@ enum perf_output_field {
 	PERF_OUTPUT_ADDR            = 1U << 10,
 	PERF_OUTPUT_SYMOFFSET       = 1U << 11,
 	PERF_OUTPUT_SRCLINE         = 1U << 12,
+	PERF_OUTPUT_PERIOD          = 1U << 13,
 };
 
 struct output_option {
@@ -63,6 +64,7 @@ struct output_option {
 	{.str = "addr",  .field = PERF_OUTPUT_ADDR},
 	{.str = "symoff", .field = PERF_OUTPUT_SYMOFFSET},
 	{.str = "srcline", .field = PERF_OUTPUT_SRCLINE},
+	{.str = "period", .field = PERF_OUTPUT_PERIOD},
 };
 
 /* default set to maintain compatibility with current format */
@@ -80,7 +82,8 @@ static struct {
 		.fields = PERF_OUTPUT_COMM | PERF_OUTPUT_TID |
 			      PERF_OUTPUT_CPU | PERF_OUTPUT_TIME |
 			      PERF_OUTPUT_EVNAME | PERF_OUTPUT_IP |
-				  PERF_OUTPUT_SYM | PERF_OUTPUT_DSO,
+			      PERF_OUTPUT_SYM | PERF_OUTPUT_DSO |
+			      PERF_OUTPUT_PERIOD,
 
 		.invalid_fields = PERF_OUTPUT_TRACE,
 	},
@@ -91,7 +94,8 @@ static struct {
 		.fields = PERF_OUTPUT_COMM | PERF_OUTPUT_TID |
 			      PERF_OUTPUT_CPU | PERF_OUTPUT_TIME |
 			      PERF_OUTPUT_EVNAME | PERF_OUTPUT_IP |
-				  PERF_OUTPUT_SYM | PERF_OUTPUT_DSO,
+			      PERF_OUTPUT_SYM | PERF_OUTPUT_DSO |
+			      PERF_OUTPUT_PERIOD,
 
 		.invalid_fields = PERF_OUTPUT_TRACE,
 	},
@@ -110,7 +114,8 @@ static struct {
 		.fields = PERF_OUTPUT_COMM | PERF_OUTPUT_TID |
 			      PERF_OUTPUT_CPU | PERF_OUTPUT_TIME |
 			      PERF_OUTPUT_EVNAME | PERF_OUTPUT_IP |
-				  PERF_OUTPUT_SYM | PERF_OUTPUT_DSO,
+			      PERF_OUTPUT_SYM | PERF_OUTPUT_DSO |
+			      PERF_OUTPUT_PERIOD,
 
 		.invalid_fields = PERF_OUTPUT_TRACE,
 	},
@@ -227,6 +232,11 @@ static int perf_evsel__check_attr(struct perf_evsel *evsel,
 	if (PRINT_FIELD(CPU) &&
 		perf_evsel__check_stype(evsel, PERF_SAMPLE_CPU, "CPU",
 					PERF_OUTPUT_CPU))
+		return -EINVAL;
+
+	if (PRINT_FIELD(PERIOD) &&
+		perf_evsel__check_stype(evsel, PERF_SAMPLE_PERIOD, "PERIOD",
+					PERF_OUTPUT_PERIOD))
 		return -EINVAL;
 
 	return 0;
@@ -448,6 +458,9 @@ static void process_event(union perf_event *event, struct perf_sample *sample,
 
 	print_sample_start(sample, thread, evsel);
 
+	if (PRINT_FIELD(PERIOD))
+		printf("%10" PRIu64 " ", sample->period);
+
 	if (PRINT_FIELD(EVNAME)) {
 		const char *evname = perf_evsel__name(evsel);
 		printf("%s: ", evname ? evname : "[unknown]");
@@ -572,7 +585,6 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 
 	scripting_ops->process_event(event, sample, evsel, thread, &al);
 
-	evsel->hists.stats.total_period += sample->period;
 	return 0;
 }
 
@@ -1544,7 +1556,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		     "comma separated output fields prepend with 'type:'. "
 		     "Valid types: hw,sw,trace,raw. "
 		     "Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,"
-		     "addr,symoff", parse_output_fields),
+		     "addr,symoff,period", parse_output_fields),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
 		    "system-wide collection from all CPUs"),
 	OPT_STRING('S', "symbols", &symbol_conf.sym_list_str, "symbol[,symbol...]",

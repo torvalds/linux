@@ -51,6 +51,7 @@ static int perf_evsel__add_sample(struct perf_evsel *evsel,
 				  struct addr_location *al,
 				  struct perf_annotate *ann)
 {
+	struct hists *hists = evsel__hists(evsel);
 	struct hist_entry *he;
 	int ret;
 
@@ -66,13 +67,12 @@ static int perf_evsel__add_sample(struct perf_evsel *evsel,
 		return 0;
 	}
 
-	he = __hists__add_entry(&evsel->hists, al, NULL, NULL, NULL, 1, 1, 0,
-				true);
+	he = __hists__add_entry(hists, al, NULL, NULL, NULL, 1, 1, 0, true);
 	if (he == NULL)
 		return -ENOMEM;
 
 	ret = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
-	hists__inc_nr_samples(&evsel->hists, true);
+	hists__inc_nr_samples(hists, true);
 	return ret;
 }
 
@@ -214,6 +214,7 @@ static int __cmd_annotate(struct perf_annotate *ann)
 
 	if (dump_trace) {
 		perf_session__fprintf_nr_events(session, stdout);
+		perf_evlist__fprintf_nr_events(session->evlist, stdout);
 		goto out;
 	}
 
@@ -225,7 +226,7 @@ static int __cmd_annotate(struct perf_annotate *ann)
 
 	total_nr_samples = 0;
 	evlist__for_each(session->evlist, pos) {
-		struct hists *hists = &pos->hists;
+		struct hists *hists = evsel__hists(pos);
 		u32 nr_samples = hists->stats.nr_events[PERF_RECORD_SAMPLE];
 
 		if (nr_samples > 0) {
@@ -325,7 +326,10 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "Show event group information together"),
 	OPT_END()
 	};
-	int ret;
+	int ret = hists__init();
+
+	if (ret < 0)
+		return ret;
 
 	argc = parse_options(argc, argv, options, annotate_usage, 0);
 
