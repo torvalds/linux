@@ -212,6 +212,32 @@ static inline bool __has_cursum_space(struct f2fs_summary_block *sum, int size,
 /*
  * For INODE and NODE manager
  */
+/* for directory operations */
+struct f2fs_dentry_ptr {
+	const void *bitmap;
+	struct f2fs_dir_entry *dentry;
+	__u8 (*filename)[F2FS_SLOT_LEN];
+	int max;
+};
+
+static inline void make_dentry_ptr(struct f2fs_dentry_ptr *d,
+					void *src, int type)
+{
+	if (type == 1) {
+		struct f2fs_dentry_block *t = (struct f2fs_dentry_block *)src;
+		d->max = NR_DENTRY_IN_BLOCK;
+		d->bitmap = &t->dentry_bitmap;
+		d->dentry = t->dentry;
+		d->filename = t->filename;
+	} else {
+		struct f2fs_inline_dentry *t = (struct f2fs_inline_dentry *)src;
+		d->max = NR_INLINE_DENTRY;
+		d->bitmap = &t->dentry_bitmap;
+		d->dentry = t->dentry;
+		d->filename = t->filename;
+	}
+}
+
 /*
  * XATTR_NODE_OFFSET stores xattrs to one node block per file keeping -1
  * as its node offset to distinguish from index node blocks.
@@ -1245,11 +1271,10 @@ struct dentry *f2fs_get_parent(struct dentry *child);
  */
 extern unsigned char f2fs_filetype_table[F2FS_FT_MAX];
 void set_de_type(struct f2fs_dir_entry *, struct inode *);
-struct f2fs_dir_entry *find_target_dentry(struct qstr *, int *, const void *,
-			struct f2fs_dir_entry *, __u8 (*)[F2FS_SLOT_LEN]);
-bool f2fs_fill_dentries(struct dir_context *,
-			const void *, struct f2fs_dir_entry *,
-			__u8 (*)[F2FS_SLOT_LEN], int, unsigned int);
+struct f2fs_dir_entry *find_target_dentry(struct qstr *, int *,
+			struct f2fs_dentry_ptr *);
+bool f2fs_fill_dentries(struct dir_context *, struct f2fs_dentry_ptr *,
+			unsigned int);
 struct page *init_inode_metadata(struct inode *, struct inode *,
 			const struct qstr *, struct page *);
 void update_parent_metadata(struct inode *, struct inode *, unsigned int);
