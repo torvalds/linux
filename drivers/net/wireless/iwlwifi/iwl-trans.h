@@ -382,6 +382,8 @@ enum iwl_trans_status {
  *	are considered stuck and will trigger device restart
  * @command_names: array of command names, must be 256 entries
  *	(one for each command); for debugging only
+ * @sdio_adma_addr: the default address to set for the ADMA in SDIO mode until
+ *	we get the ALIVE from the uCode
  */
 struct iwl_trans_config {
 	struct iwl_op_mode *op_mode;
@@ -396,6 +398,8 @@ struct iwl_trans_config {
 	bool scd_set_active;
 	unsigned int queue_watchdog_timeout;
 	const char *const *command_names;
+
+	u32 sdio_adma_addr;
 };
 
 struct iwl_trans_dump_data {

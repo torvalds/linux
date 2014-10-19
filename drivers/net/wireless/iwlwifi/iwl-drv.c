@@ -903,6 +903,12 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 					    IWL_UCODE_REGULAR_USNIFFER,
 					    tlv_len);
 			break;
+		case IWL_UCODE_TLV_SDIO_ADMA_ADDR:
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			drv->fw.sdio_adma_addr =
+				le32_to_cpup((__le32 *)tlv_data);
+			break;
 		default:
 			IWL_DEBUG_INFO(drv, "unknown TLV: %d\n", tlv_type);
 			break;

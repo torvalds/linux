@@ -481,6 +481,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	trans_cfg.cmd_fifo = IWL_MVM_TX_FIFO_CMD;
 	trans_cfg.scd_set_active = true;
 
+	trans_cfg.sdio_adma_addr = fw->sdio_adma_addr;
+
 	snprintf(mvm->hw->wiphy->fw_version,
 		 sizeof(mvm->hw->wiphy->fw_version),
 		 "%s", fw->fw_version);
