@@ -288,11 +288,6 @@ static const __le64 iwl_ci_mask[][3] = {
 	},
 };
 
-static const __le32 iwl_bt_mprio_lut[BT_COEX_MULTI_PRIO_LUT_SIZE] = {
-	cpu_to_le32(0x2e402280),
-	cpu_to_le32(0x7711a751),
-};
-
 struct corunning_block_luts {
 	u8 range;
 	__le32 lut20[BT_COEX_CORUN_LUT_SIZE];
@@ -648,8 +643,8 @@ int iwl_send_bt_init_conf_old(struct iwl_mvm *mvm)
 
 	memcpy(&bt_cmd->bt_prio_boost, iwl_bt_prio_boost,
 	       sizeof(iwl_bt_prio_boost));
-	memcpy(&bt_cmd->bt4_multiprio_lut, iwl_bt_mprio_lut,
-	       sizeof(iwl_bt_mprio_lut));
+	bt_cmd->bt4_multiprio_lut[0] = cpu_to_le32(IWL_MVM_BT_COEX_MPLUT_REG0);
+	bt_cmd->bt4_multiprio_lut[1] = cpu_to_le32(IWL_MVM_BT_COEX_MPLUT_REG1);
 
 send_cmd:
 	memset(&mvm->last_bt_notif_old, 0, sizeof(mvm->last_bt_notif_old));
