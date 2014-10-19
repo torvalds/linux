@@ -1260,7 +1260,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	i8042.noloop	[HW] Disable the AUX Loopback command while probing
 			     for the AUX port
 	i8042.nomux	[HW] Don't check presence of an active multiplexing
-			     controller
+			     controller. Default: true.
 	i8042.nopnp	[HW] Don't use ACPIPnP / PnPBIOS to discover KBD/AUX
 			     controllers
 	i8042.notimeout	[HW] Ignore timeout condition signalled by controller
