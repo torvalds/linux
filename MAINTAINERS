@@ -9703,11 +9703,6 @@ S:	Maintained
 F:	Documentation/hid/hiddev.txt
 F:	drivers/hid/usbhid/
 
-USB/IP DRIVERS
-L:	linux-usb@vger.kernel.org
-S:	Orphan
-F:	drivers/staging/usbip/
-
 USB ISP116X DRIVER
 M:	Olav Kongas <ok@artecdesign.ee>
 L:	linux-usb@vger.kernel.org
