@@ -1263,13 +1263,8 @@ static void retry_bios_on_resume(struct pool *pool, struct dm_bio_prison_cell *c
 	bio_list_init(&bios);
 	cell_release(pool, cell, &bios);
 
-	error = should_error_unserviceable_bio(pool);
-	if (error)
-		while ((bio = bio_list_pop(&bios)))
-			bio_endio(bio, error);
-	else
-		while ((bio = bio_list_pop(&bios)))
-			retry_on_resume(bio);
+	while ((bio = bio_list_pop(&bios)))
+		retry_on_resume(bio);
 }
 
 static void process_discard_cell(struct thin_c *tc, struct dm_bio_prison_cell *cell)
