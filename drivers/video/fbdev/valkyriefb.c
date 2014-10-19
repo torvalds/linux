@@ -136,7 +136,8 @@ static struct fb_ops valkyriefb_ops = {
 /* Sets the video mode according to info->var */
 static int valkyriefb_set_par(struct fb_info *info)
 {
-	struct fb_info_valkyrie *p = (struct fb_info_valkyrie *) info;
+	struct fb_info_valkyrie *p =
+		container_of(info, struct fb_info_valkyrie, info);
 	volatile struct valkyrie_regs __iomem *valkyrie_regs = p->valkyrie_regs;
 	struct fb_par_valkyrie *par = info->par;
 	struct valkyrie_regvals	*init;
@@ -194,7 +195,8 @@ valkyriefb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
  */
 static int valkyriefb_blank(int blank_mode, struct fb_info *info)
 {
-	struct fb_info_valkyrie *p = (struct fb_info_valkyrie *) info;
+	struct fb_info_valkyrie *p =
+		container_of(info, struct fb_info_valkyrie, info);
 	struct fb_par_valkyrie *par = info->par;
 	struct valkyrie_regvals	*init = par->init;
 
@@ -226,7 +228,8 @@ static int valkyriefb_blank(int blank_mode, struct fb_info *info)
 static int valkyriefb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 			     u_int transp, struct fb_info *info)
 {
-	struct fb_info_valkyrie *p = (struct fb_info_valkyrie *) info;
+	struct fb_info_valkyrie *p =
+		container_of(info, struct fb_info_valkyrie, info);
 	volatile struct cmap_regs __iomem *cmap_regs = p->cmap_regs;
 	struct fb_par_valkyrie *par = info->par;
 
@@ -263,10 +266,10 @@ static inline int valkyrie_vram_reqd(int video_mode, int color_mode)
 
 static void set_valkyrie_clock(unsigned char *params)
 {
+#ifdef CONFIG_ADB_CUDA
 	struct adb_request req;
 	int i;
 
-#ifdef CONFIG_ADB_CUDA
 	for (i = 0; i < 3; ++i) {
 		cuda_request(&req, NULL, 5, CUDA_PACKET, CUDA_GET_SET_IIC,
 			     0x50, i + 1, params[i]);
@@ -465,7 +468,8 @@ static int valkyrie_var_to_par(struct fb_var_screeninfo *var,
 {
 	int vmode, cmode;
 	struct valkyrie_regvals *init;
-	struct fb_info_valkyrie *p = (struct fb_info_valkyrie *) fb_info;
+	struct fb_info_valkyrie *p =
+		container_of(fb_info, struct fb_info_valkyrie, info);
 
 	if (mac_var_to_vmode(var, &vmode, &cmode) != 0) {
 		printk(KERN_ERR "valkyriefb: can't do %dx%dx%d.\n",

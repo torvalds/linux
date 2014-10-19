@@ -1341,19 +1341,57 @@ struct video_board {
 	struct matrox_switch* lowlevel;
 		 };
 #ifdef CONFIG_FB_MATROX_MILLENIUM
-static struct video_board vbMillennium		= {0x0800000, 0x0800000, FB_ACCEL_MATROX_MGA2064W,	&matrox_millennium};
-static struct video_board vbMillennium2		= {0x1000000, 0x0800000, FB_ACCEL_MATROX_MGA2164W,	&matrox_millennium};
-static struct video_board vbMillennium2A	= {0x1000000, 0x0800000, FB_ACCEL_MATROX_MGA2164W_AGP,	&matrox_millennium};
+static struct video_board vbMillennium = {
+	.maxvram = 0x0800000,
+	.maxdisplayable = 0x0800000,
+	.accelID = FB_ACCEL_MATROX_MGA2064W,
+	.lowlevel = &matrox_millennium
+};
+
+static struct video_board vbMillennium2 = {
+	.maxvram = 0x1000000,
+	.maxdisplayable = 0x0800000,
+	.accelID = FB_ACCEL_MATROX_MGA2164W,
+	.lowlevel = &matrox_millennium
+};
+
+static struct video_board vbMillennium2A = {
+	.maxvram = 0x1000000,
+	.maxdisplayable = 0x0800000,
+	.accelID = FB_ACCEL_MATROX_MGA2164W_AGP,
+	.lowlevel = &matrox_millennium
+};
 #endif	/* CONFIG_FB_MATROX_MILLENIUM */
 #ifdef CONFIG_FB_MATROX_MYSTIQUE
-static struct video_board vbMystique		= {0x0800000, 0x0800000, FB_ACCEL_MATROX_MGA1064SG,	&matrox_mystique};
+static struct video_board vbMystique = {
+	.maxvram = 0x0800000,
+	.maxdisplayable = 0x0800000,
+	.accelID = FB_ACCEL_MATROX_MGA1064SG,
+	.lowlevel = &matrox_mystique
+};
 #endif	/* CONFIG_FB_MATROX_MYSTIQUE */
 #ifdef CONFIG_FB_MATROX_G
-static struct video_board vbG100		= {0x0800000, 0x0800000, FB_ACCEL_MATROX_MGAG100,	&matrox_G100};
-static struct video_board vbG200		= {0x1000000, 0x1000000, FB_ACCEL_MATROX_MGAG200,	&matrox_G100};
+static struct video_board vbG100 = {
+	.maxvram = 0x0800000,
+	.maxdisplayable = 0x0800000,
+	.accelID = FB_ACCEL_MATROX_MGAG100,
+	.lowlevel = &matrox_G100
+};
+
+static struct video_board vbG200 = {
+	.maxvram = 0x1000000,
+	.maxdisplayable = 0x1000000,
+	.accelID = FB_ACCEL_MATROX_MGAG200,
+	.lowlevel = &matrox_G100
+};
 /* from doc it looks like that accelerator can draw only to low 16MB :-( Direct accesses & displaying are OK for
    whole 32MB */
-static struct video_board vbG400		= {0x2000000, 0x1000000, FB_ACCEL_MATROX_MGAG400,	&matrox_G100};
+static struct video_board vbG400 = {
+	.maxvram = 0x2000000,
+	.maxdisplayable = 0x1000000,
+	.accelID = FB_ACCEL_MATROX_MGAG400,
+	.lowlevel = &matrox_G100
+};
 #endif
 
 #define DEVF_VIDEO64BIT		0x0001
