@@ -2929,7 +2929,7 @@ static int srp_parse_options(const char *buf, struct srp_target_port *target)
 		return -ENOMEM;
 
 	sep_opt = options;
-	while ((p = strsep(&sep_opt, ",")) != NULL) {
+	while ((p = strsep(&sep_opt, ",\n")) != NULL) {
 		if (!*p)
 			continue;
 
