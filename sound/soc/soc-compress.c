@@ -258,10 +258,7 @@ static int soc_compr_free_fe(struct snd_compr_stream *cstream)
 	list_for_each_entry(dpcm, &fe->dpcm[stream].be_clients, list_be)
 		dpcm->state = SND_SOC_DPCM_LINK_STATE_FREE;
 
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
-		dpcm_dapm_stream_event(fe, stream, SND_SOC_DAPM_STREAM_STOP);
-	else
-		dpcm_dapm_stream_event(fe, stream, SND_SOC_DAPM_STREAM_STOP);
+	dpcm_dapm_stream_event(fe, stream, SND_SOC_DAPM_STREAM_STOP);
 
 	fe->dpcm[stream].state = SND_SOC_DPCM_STATE_CLOSE;
 	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_NO;
@@ -456,11 +453,7 @@ static int soc_compr_set_params_fe(struct snd_compr_stream *cstream,
 	if (ret < 0)
 		goto out;
 
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
-		dpcm_dapm_stream_event(fe, stream, SND_SOC_DAPM_STREAM_START);
-	else
-		dpcm_dapm_stream_event(fe, stream, SND_SOC_DAPM_STREAM_START);
-
+	dpcm_dapm_stream_event(fe, stream, SND_SOC_DAPM_STREAM_START);
 	fe->dpcm[stream].state = SND_SOC_DPCM_STATE_PREPARE;
 
 out:
