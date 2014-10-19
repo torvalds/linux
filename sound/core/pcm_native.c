@@ -818,7 +818,7 @@ static int snd_pcm_action_group(struct action_ops *ops,
 		/* unlock streams */
 		snd_pcm_group_for_each_entry(s1, substream) {
 			if (s1 != substream) {
-				if (s->pcm->nonatomic)
+				if (s1->pcm->nonatomic)
 					mutex_unlock(&s1->self_group.mutex);
 				else
 					spin_unlock(&s1->self_group.lock);
