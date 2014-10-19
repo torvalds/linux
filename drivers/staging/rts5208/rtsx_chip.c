@@ -263,6 +263,51 @@ static int rtsx_reset_aspm(struct rtsx_chip *chip)
 	return STATUS_SUCCESS;
 }
 
+static int rtsx_enable_pcie_intr(struct rtsx_chip *chip)
+{
+	int ret;
+
+	if (!chip->asic_code || !CHECK_PID(chip, 0x5208)) {
+		rtsx_enable_bus_int(chip);
+		return STATUS_SUCCESS;
+	}
+
+	if (chip->phy_debug_mode) {
+		RTSX_WRITE_REG(chip, CDRESUMECTL, 0x77, 0);
+		rtsx_disable_bus_int(chip);
+	} else {
+		rtsx_enable_bus_int(chip);
+	}
+
+	if (chip->ic_version >= IC_VER_D) {
+		u16 reg;
+
+		ret = rtsx_read_phy_register(chip, 0x00, &reg);
+		if (ret != STATUS_SUCCESS)
+			TRACE_RET(chip, STATUS_FAIL);
+
+		reg &= 0xFE7F;
+		reg |= 0x80;
+		ret = rtsx_write_phy_register(chip, 0x00, reg);
+		if (ret != STATUS_SUCCESS)
+			TRACE_RET(chip, STATUS_FAIL);
+
+		ret = rtsx_read_phy_register(chip, 0x1C, &reg);
+		if (ret != STATUS_SUCCESS)
+			TRACE_RET(chip, STATUS_FAIL);
+
+		reg &= 0xFFF7;
+		ret = rtsx_write_phy_register(chip, 0x1C, reg);
+		if (ret != STATUS_SUCCESS)
+			TRACE_RET(chip, STATUS_FAIL);
+	}
+
+	if (chip->driver_first_load && (chip->ic_version < IC_VER_C))
+		rtsx_calibration(chip);
+
+	return STATUS_SUCCESS;
+}
+
 int rtsx_reset_chip(struct rtsx_chip *chip)
 {
 	int retval;
@@ -367,53 +412,9 @@ int rtsx_reset_chip(struct rtsx_chip *chip)
 
 	RTSX_WRITE_REG(chip, PERST_GLITCH_WIDTH, 0xFF, 0x80);
 
-	/* Enable PCIE interrupt */
-	if (chip->asic_code) {
-		if (CHECK_PID(chip, 0x5208)) {
-			if (chip->phy_debug_mode) {
-				RTSX_WRITE_REG(chip, CDRESUMECTL, 0x77, 0);
-				rtsx_disable_bus_int(chip);
-			} else {
-				rtsx_enable_bus_int(chip);
-			}
-
-			if (chip->ic_version >= IC_VER_D) {
-				u16 reg;
-
-				retval = rtsx_read_phy_register(chip, 0x00,
-								&reg);
-				if (retval != STATUS_SUCCESS)
-					TRACE_RET(chip, STATUS_FAIL);
-
-				reg &= 0xFE7F;
-				reg |= 0x80;
-				retval = rtsx_write_phy_register(chip, 0x00,
-								 reg);
-				if (retval != STATUS_SUCCESS)
-					TRACE_RET(chip, STATUS_FAIL);
-
-				retval = rtsx_read_phy_register(chip, 0x1C,
-								&reg);
-				if (retval != STATUS_SUCCESS)
-					TRACE_RET(chip, STATUS_FAIL);
-
-				reg &= 0xFFF7;
-				retval = rtsx_write_phy_register(chip, 0x1C,
-								 reg);
-				if (retval != STATUS_SUCCESS)
-					TRACE_RET(chip, STATUS_FAIL);
-			}
-
-			if (chip->driver_first_load &&
-			    (chip->ic_version < IC_VER_C))
-				rtsx_calibration(chip);
-
-		} else {
-			rtsx_enable_bus_int(chip);
-		}
-	} else {
-		rtsx_enable_bus_int(chip);
-	}
+	retval = rtsx_enable_pcie_intr(chip);
+	if (retval != STATUS_SUCCESS)
+		TRACE_RET(chip, STATUS_FAIL);
 
 	chip->need_reset = 0;
 
