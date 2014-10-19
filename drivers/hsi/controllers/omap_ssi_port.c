@@ -1118,8 +1118,7 @@ static int __init ssi_port_probe(struct platform_device *pd)
 	dev_dbg(&pd->dev, "init ssi port...\n");
 
 	if (!try_module_get(ssi->owner)) {
-		dev_err(&pd->dev, "could not increment parent module refcount (err=%d)\n",
-			err);
+		dev_err(&pd->dev, "could not increment parent module refcount\n");
 		return -ENODEV;
 	}
 
