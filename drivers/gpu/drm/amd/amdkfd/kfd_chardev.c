@@ -125,22 +125,221 @@ static long kfd_ioctl_get_version(struct file *filep, struct kfd_process *p,
 	return -ENODEV;
 }
 
+static int set_queue_properties_from_user(struct queue_properties *q_properties,
+				struct kfd_ioctl_create_queue_args *args)
+{
+	if (args->queue_percentage > KFD_MAX_QUEUE_PERCENTAGE) {
+		pr_err("kfd: queue percentage must be between 0 to KFD_MAX_QUEUE_PERCENTAGE\n");
+		return -EINVAL;
+	}
+
+	if (args->queue_priority > KFD_MAX_QUEUE_PRIORITY) {
+		pr_err("kfd: queue priority must be between 0 to KFD_MAX_QUEUE_PRIORITY\n");
+		return -EINVAL;
+	}
+
+	if ((args->ring_base_address) &&
+		(!access_ok(VERIFY_WRITE, args->ring_base_address, sizeof(uint64_t)))) {
+		pr_err("kfd: can't access ring base address\n");
+		return -EFAULT;
+	}
+
+	if (!is_power_of_2(args->ring_size) && (args->ring_size != 0)) {
+		pr_err("kfd: ring size must be a power of 2 or 0\n");
+		return -EINVAL;
+	}
+
+	if (!access_ok(VERIFY_WRITE, args->read_pointer_address, sizeof(uint32_t))) {
+		pr_err("kfd: can't access read pointer\n");
+		return -EFAULT;
+	}
+
+	if (!access_ok(VERIFY_WRITE, args->write_pointer_address, sizeof(uint32_t))) {
+		pr_err("kfd: can't access write pointer\n");
+		return -EFAULT;
+	}
+
+	q_properties->is_interop = false;
+	q_properties->queue_percent = args->queue_percentage;
+	q_properties->priority = args->queue_priority;
+	q_properties->queue_address = args->ring_base_address;
+	q_properties->queue_size = args->ring_size;
+	q_properties->read_ptr = (uint32_t *) args->read_pointer_address;
+	q_properties->write_ptr = (uint32_t *) args->write_pointer_address;
+	if (args->queue_type == KFD_IOC_QUEUE_TYPE_COMPUTE ||
+		args->queue_type == KFD_IOC_QUEUE_TYPE_COMPUTE_AQL)
+		q_properties->type = KFD_QUEUE_TYPE_COMPUTE;
+	else
+		return -ENOTSUPP;
+
+	if (args->queue_type == KFD_IOC_QUEUE_TYPE_COMPUTE_AQL)
+		q_properties->format = KFD_QUEUE_FORMAT_AQL;
+	else
+		q_properties->format = KFD_QUEUE_FORMAT_PM4;
+
+	pr_debug("Queue Percentage (%d, %d)\n",
+			q_properties->queue_percent, args->queue_percentage);
+
+	pr_debug("Queue Priority (%d, %d)\n",
+			q_properties->priority, args->queue_priority);
+
+	pr_debug("Queue Address (0x%llX, 0x%llX)\n",
+			q_properties->queue_address, args->ring_base_address);
+
+	pr_debug("Queue Size (0x%llX, %u)\n",
+			q_properties->queue_size, args->ring_size);
+
+	pr_debug("Queue r/w Pointers (0x%llX, 0x%llX)\n",
+			(uint64_t) q_properties->read_ptr,
+			(uint64_t) q_properties->write_ptr);
+
+	pr_debug("Queue Format (%d)\n", q_properties->format);
+
+	return 0;
+}
+
 static long kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 					void __user *arg)
 {
-	return -ENODEV;
+	struct kfd_ioctl_create_queue_args args;
+	struct kfd_dev *dev;
+	int err = 0;
+	unsigned int queue_id;
+	struct kfd_process_device *pdd;
+	struct queue_properties q_properties;
+
+	memset(&q_properties, 0, sizeof(struct queue_properties));
+
+	if (copy_from_user(&args, arg, sizeof(args)))
+		return -EFAULT;
+
+	pr_debug("kfd: creating queue ioctl\n");
+
+	err = set_queue_properties_from_user(&q_properties, &args);
+	if (err)
+		return err;
+
+	dev = kfd_device_by_id(args.gpu_id);
+	if (dev == NULL)
+		return -EINVAL;
+
+	mutex_lock(&p->mutex);
+
+	pdd = kfd_bind_process_to_device(dev, p);
+	if (IS_ERR(pdd) < 0) {
+		err = PTR_ERR(pdd);
+		goto err_bind_process;
+	}
+
+	pr_debug("kfd: creating queue for PASID %d on GPU 0x%x\n",
+			p->pasid,
+			dev->id);
+
+	err = pqm_create_queue(&p->pqm, dev, filep, &q_properties, 0,
+				KFD_QUEUE_TYPE_COMPUTE, &queue_id);
+	if (err != 0)
+		goto err_create_queue;
+
+	args.queue_id = queue_id;
+
+	/* Return gpu_id as doorbell offset for mmap usage */
+	args.doorbell_offset = args.gpu_id << PAGE_SHIFT;
+
+	if (copy_to_user(arg, &args, sizeof(args))) {
+		err = -EFAULT;
+		goto err_copy_args_out;
+	}
+
+	mutex_unlock(&p->mutex);
+
+	pr_debug("kfd: queue id %d was created successfully\n", args.queue_id);
+
+	pr_debug("ring buffer address == 0x%016llX\n",
+			args.ring_base_address);
+
+	pr_debug("read ptr address    == 0x%016llX\n",
+			args.read_pointer_address);
+
+	pr_debug("write ptr address   == 0x%016llX\n",
+			args.write_pointer_address);
+
+	return 0;
+
+err_copy_args_out:
+	pqm_destroy_queue(&p->pqm, queue_id);
+err_create_queue:
+err_bind_process:
+	mutex_unlock(&p->mutex);
+	return err;
 }
 
 static int kfd_ioctl_destroy_queue(struct file *filp, struct kfd_process *p,
 					void __user *arg)
 {
-	return -ENODEV;
+	int retval;
+	struct kfd_ioctl_destroy_queue_args args;
+
+	if (copy_from_user(&args, arg, sizeof(args)))
+		return -EFAULT;
+
+	pr_debug("kfd: destroying queue id %d for PASID %d\n",
+				args.queue_id,
+				p->pasid);
+
+	mutex_lock(&p->mutex);
+
+	retval = pqm_destroy_queue(&p->pqm, args.queue_id);
+
+	mutex_unlock(&p->mutex);
+	return retval;
 }
 
 static int kfd_ioctl_update_queue(struct file *filp, struct kfd_process *p,
 					void __user *arg)
 {
-	return -ENODEV;
+	int retval;
+	struct kfd_ioctl_update_queue_args args;
+	struct queue_properties properties;
+
+	if (copy_from_user(&args, arg, sizeof(args)))
+		return -EFAULT;
+
+	if (args.queue_percentage > KFD_MAX_QUEUE_PERCENTAGE) {
+		pr_err("kfd: queue percentage must be between 0 to KFD_MAX_QUEUE_PERCENTAGE\n");
+		return -EINVAL;
+	}
+
+	if (args.queue_priority > KFD_MAX_QUEUE_PRIORITY) {
+		pr_err("kfd: queue priority must be between 0 to KFD_MAX_QUEUE_PRIORITY\n");
+		return -EINVAL;
+	}
+
+	if ((args.ring_base_address) &&
+		(!access_ok(VERIFY_WRITE, args.ring_base_address, sizeof(uint64_t)))) {
+		pr_err("kfd: can't access ring base address\n");
+		return -EFAULT;
+	}
+
+	if (!is_power_of_2(args.ring_size) && (args.ring_size != 0)) {
+		pr_err("kfd: ring size must be a power of 2 or 0\n");
+		return -EINVAL;
+	}
+
+	properties.queue_address = args.ring_base_address;
+	properties.queue_size = args.ring_size;
+	properties.queue_percent = args.queue_percentage;
+	properties.priority = args.queue_priority;
+
+	pr_debug("kfd: updating queue id %d for PASID %d\n",
+			args.queue_id, p->pasid);
+
+	mutex_lock(&p->mutex);
+
+	retval = pqm_update_queue(&p->pqm, args.queue_id, &properties);
+
+	mutex_unlock(&p->mutex);
+
+	return retval;
 }
 
 static long kfd_ioctl_set_memory_policy(struct file *filep,
