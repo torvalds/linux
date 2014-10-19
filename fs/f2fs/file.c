@@ -494,7 +494,7 @@ int truncate_blocks(struct inode *inode, u64 from, bool lock)
 	/* writepage can convert inline_data under get_donde_of_data */
 	if (f2fs_has_inline_data(inode)) {
 		f2fs_put_dnode(&dn);
-		goto done;
+		goto unlock_done;
 	}
 
 	count = ADDRS_PER_PAGE(dn.node_page, F2FS_I(inode));
@@ -510,6 +510,7 @@ int truncate_blocks(struct inode *inode, u64 from, bool lock)
 	f2fs_put_dnode(&dn);
 free_next:
 	err = truncate_inode_blocks(inode, free_from);
+unlock_done:
 	if (lock)
 		f2fs_unlock_op(sbi);
 done:
