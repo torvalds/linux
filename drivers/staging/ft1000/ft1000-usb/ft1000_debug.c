@@ -38,7 +38,7 @@
 #include <linux/debugfs.h>
 #include "ft1000_usb.h"
 
-static int ft1000_flarion_cnt = 0;
+static int ft1000_flarion_cnt;
 
 static int ft1000_open(struct inode *inode, struct file *file);
 static unsigned int ft1000_poll_dev(struct file *file, poll_table *wait);
