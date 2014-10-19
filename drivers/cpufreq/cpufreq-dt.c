@@ -147,8 +147,8 @@ try_again:
 			goto try_again;
 		}
 
-		dev_warn(cpu_dev, "failed to get cpu%d regulator: %ld\n",
-			 cpu, PTR_ERR(cpu_reg));
+		dev_dbg(cpu_dev, "no regulator for cpu%d: %ld\n",
+			cpu, PTR_ERR(cpu_reg));
 	}
 
 	cpu_clk = clk_get(cpu_dev, NULL);
