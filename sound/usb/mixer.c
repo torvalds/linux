@@ -1290,9 +1290,8 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 						    kctl->id.name,
 						    sizeof(kctl->id.name), 1);
 			if (!len)
-				len = snprintf(kctl->id.name,
-					       sizeof(kctl->id.name),
-					       "Feature %d", unitid);
+				snprintf(kctl->id.name, sizeof(kctl->id.name),
+					 "Feature %d", unitid);
 		}
 
 		if (!mapped_name)
@@ -1305,9 +1304,9 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 		 */
 		if (!mapped_name && !(state->oterm.type >> 16)) {
 			if ((state->oterm.type & 0xff00) == 0x0100)
-				len = append_ctl_name(kctl, " Capture");
+				append_ctl_name(kctl, " Capture");
 			else
-				len = append_ctl_name(kctl, " Playback");
+				append_ctl_name(kctl, " Playback");
 		}
 		append_ctl_name(kctl, control == UAC_FU_MUTE ?
 				" Switch" : " Volume");
