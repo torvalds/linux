@@ -227,6 +227,10 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	st_fwrd_space.addr = mvm->sf_space.addr;
 	st_fwrd_space.size = mvm->sf_space.size;
 	ret = iwl_trans_update_sf(mvm->trans, &st_fwrd_space);
+	if (ret) {
+		IWL_ERR(mvm, "Failed to update SF size. ret %d\n", ret);
+		return ret;
+	}
 
 	iwl_trans_fw_alive(mvm->trans, alive_data.scd_base_addr);
 
