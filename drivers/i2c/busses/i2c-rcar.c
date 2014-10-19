@@ -195,7 +195,7 @@ static int rcar_i2c_clock_calculate(struct rcar_i2c_priv *priv,
 	 */
 	rate = clk_get_rate(priv->clk);
 	cdf = rate / 20000000;
-	if (cdf >= 1 << cdf_width) {
+	if (cdf >= 1U << cdf_width) {
 		dev_err(dev, "Input clock %lu too high\n", rate);
 		return -EIO;
 	}
@@ -245,7 +245,7 @@ scgd_find:
 	return 0;
 }
 
-static int rcar_i2c_prepare_msg(struct rcar_i2c_priv *priv)
+static void rcar_i2c_prepare_msg(struct rcar_i2c_priv *priv)
 {
 	int read = !!rcar_i2c_is_recv(priv);
 
@@ -253,8 +253,6 @@ static int rcar_i2c_prepare_msg(struct rcar_i2c_priv *priv)
 	rcar_i2c_write(priv, ICMSR, 0);
 	rcar_i2c_write(priv, ICMCR, RCAR_BUS_PHASE_START);
 	rcar_i2c_write(priv, ICMIER, read ? RCAR_IRQ_RECV : RCAR_IRQ_SEND);
-
-	return 0;
 }
 
 /*
@@ -365,6 +363,7 @@ static int rcar_i2c_irq_recv(struct rcar_i2c_priv *priv, u32 msr)
 static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 {
 	struct rcar_i2c_priv *priv = ptr;
+	irqreturn_t result = IRQ_HANDLED;
 	u32 msr;
 
 	/*-------------- spin lock -----------------*/
@@ -374,6 +373,10 @@ static irqreturn_t rcar_i2c_irq(int irq, void *ptr)
 
 	/* Only handle interrupts that are currently enabled */
 	msr &= rcar_i2c_read(priv, ICMIER);
+	if (!msr) {
+		result = IRQ_NONE;
+		goto exit;
+	}
 
 	/* Arbitration lost */
 	if (msr & MAL) {
@@ -408,10 +411,11 @@ out:
 		wake_up(&priv->wait);
 	}
 
+exit:
 	spin_unlock(&priv->lock);
 	/*-------------- spin unlock -----------------*/
 
-	return IRQ_HANDLED;
+	return result;
 }
 
 static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
@@ -453,16 +457,13 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 		priv->msg	= &msgs[i];
 		priv->pos	= 0;
 		priv->flags	= 0;
-		if (priv->msg == &msgs[num - 1])
+		if (i == num - 1)
 			rcar_i2c_flags_set(priv, ID_LAST_MSG);
 
-		ret = rcar_i2c_prepare_msg(priv);
+		rcar_i2c_prepare_msg(priv);
 
 		spin_unlock_irqrestore(&priv->lock, flags);
 		/*-------------- spin unlock -----------------*/
-
-		if (ret < 0)
-			break;
 
 		timeout = wait_event_timeout(priv->wait,
 					     rcar_i2c_flags_has(priv, ID_DONE),
