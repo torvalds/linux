@@ -55,11 +55,10 @@ int f2fs_read_inline_data(struct inode *inode, struct page *page)
 
 	/* Copy the whole inline data block */
 	src_addr = inline_data_addr(ipage);
-	dst_addr = kmap(page);
+	dst_addr = kmap_atomic(page);
 	memcpy(dst_addr, src_addr, MAX_INLINE_DATA);
-	kunmap(page);
+	kunmap_atomic(dst_addr);
 	f2fs_put_page(ipage, 1);
-
 out:
 	SetPageUptodate(page);
 	unlock_page(page);
@@ -105,9 +104,9 @@ static int __f2fs_convert_inline_data(struct inode *inode, struct page *page)
 
 	/* Copy the whole inline data block */
 	src_addr = inline_data_addr(ipage);
-	dst_addr = kmap(page);
+	dst_addr = kmap_atomic(page);
 	memcpy(dst_addr, src_addr, MAX_INLINE_DATA);
-	kunmap(page);
+	kunmap_atomic(dst_addr);
 	SetPageUptodate(page);
 
 	/* write data page to try to make data consistent */
@@ -177,10 +176,10 @@ int f2fs_write_inline_data(struct inode *inode,
 	f2fs_wait_on_page_writeback(ipage, NODE);
 	zero_user_segment(ipage, INLINE_DATA_OFFSET,
 				 INLINE_DATA_OFFSET + MAX_INLINE_DATA);
-	src_addr = kmap(page);
+	src_addr = kmap_atomic(page);
 	dst_addr = inline_data_addr(ipage);
 	memcpy(dst_addr, src_addr, size);
-	kunmap(page);
+	kunmap_atomic(src_addr);
 
 	set_inode_flag(F2FS_I(inode), FI_APPEND_WRITE);
 	sync_inode_page(&dn);
@@ -351,7 +350,7 @@ int f2fs_convert_inline_dir(struct inode *dir, struct page *ipage,
 	f2fs_wait_on_page_writeback(page, DATA);
 	zero_user_segment(page, 0, PAGE_CACHE_SIZE);
 
-	dentry_blk = kmap(page);
+	dentry_blk = kmap_atomic(page);
 
 	/* copy data from inline dentry block to new dentry block */
 	memcpy(dentry_blk->dentry_bitmap, inline_dentry->dentry_bitmap,
@@ -361,7 +360,7 @@ int f2fs_convert_inline_dir(struct inode *dir, struct page *ipage,
 	memcpy(dentry_blk->filename, inline_dentry->filename,
 					NR_INLINE_DENTRY * F2FS_SLOT_LEN);
 
-	kunmap(page);
+	kunmap_atomic(dentry_blk);
 	SetPageUptodate(page);
 	set_page_dirty(page);
 
