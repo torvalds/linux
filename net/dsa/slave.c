@@ -599,7 +599,7 @@ dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	netif_carrier_off(slave_dev);
 
 	if (p->phy != NULL) {
-		if (ds->drv->get_phy_flags(ds, port))
+		if (ds->drv->get_phy_flags)
 			p->phy->dev_flags |= ds->drv->get_phy_flags(ds, port);
 
 		phy_attach(slave_dev, dev_name(&p->phy->dev),
