@@ -665,14 +665,14 @@ static int iwl_pcie_load_section(struct iwl_trans *trans, u8 section_num,
 	return ret;
 }
 
-static int iwl_pcie_load_cpu_secured_sections(struct iwl_trans *trans,
-					      const struct fw_img *image,
-					      int cpu,
-					      int *first_ucode_section)
+static int iwl_pcie_load_cpu_sections_8000b(struct iwl_trans *trans,
+					    const struct fw_img *image,
+					    int cpu,
+					    int *first_ucode_section)
 {
 	int shift_param;
-	int i, ret = 0;
-	u32 last_read_idx = 0;
+	int i, ret = 0, sec_num = 0x1;
+	u32 val, last_read_idx = 0;
 
 	if (cpu == 1) {
 		shift_param = 0;
@@ -693,21 +693,16 @@ static int iwl_pcie_load_cpu_secured_sections(struct iwl_trans *trans,
 			break;
 		}
 
-		if (i == (*first_ucode_section) + 1)
-			/* set CPU to started */
-			iwl_set_bits_prph(trans,
-					  CSR_UCODE_LOAD_STATUS_ADDR,
-					  LMPM_CPU_HDRS_LOADING_COMPLETED
-					  << shift_param);
-
 		ret = iwl_pcie_load_section(trans, i, &image->sec[i]);
 		if (ret)
 			return ret;
+
+		/* Notify the ucode of the loaded section number and status */
+		val = iwl_read_direct32(trans, FH_UCODE_LOAD_STATUS);
+		val = val | (sec_num << shift_param);
+		iwl_write_direct32(trans, FH_UCODE_LOAD_STATUS, val);
+		sec_num = (sec_num << 1) | 0x1;
 	}
-	/* image loading complete */
-	iwl_set_bits_prph(trans,
-			  CSR_UCODE_LOAD_STATUS_ADDR,
-			  LMPM_CPU_UCODE_LOADING_COMPLETED << shift_param);
 
 	*first_ucode_section = last_read_idx;
 
@@ -767,39 +762,13 @@ static int iwl_pcie_load_given_ucode(struct iwl_trans *trans,
 	int ret = 0;
 	int first_ucode_section;
 
-	IWL_DEBUG_FW(trans,
-		     "working with %s CPU\n",
+	IWL_DEBUG_FW(trans, "working with %s CPU\n",
 		     image->is_dual_cpus ? "Dual" : "Single");
 
-	/* configure the ucode to be ready to get the secured image */
-	if (iwl_has_secure_boot(trans->hw_rev, trans->cfg->device_family)) {
-		/* set secure boot inspector addresses */
-		iwl_write_prph(trans,
-			       LMPM_SECURE_INSPECTOR_CODE_ADDR,
-			       LMPM_SECURE_INSPECTOR_CODE_MEM_SPACE);
-
-		iwl_write_prph(trans,
-			       LMPM_SECURE_INSPECTOR_DATA_ADDR,
-			       LMPM_SECURE_INSPECTOR_DATA_MEM_SPACE);
-
-		/* set CPU1 header address */
-		iwl_write_prph(trans,
-			       LMPM_SECURE_UCODE_LOAD_CPU1_HDR_ADDR,
-			       LMPM_SECURE_CPU1_HDR_MEM_SPACE);
-
-		/* load to FW the binary Secured sections of CPU1 */
-		ret = iwl_pcie_load_cpu_secured_sections(trans, image, 1,
-							 &first_ucode_section);
-		if (ret)
-			return ret;
-
-	} else {
-		/* load to FW the binary Non secured sections of CPU1 */
-		ret = iwl_pcie_load_cpu_sections(trans, image, 1,
-						 &first_ucode_section);
-		if (ret)
-			return ret;
-	}
+	/* load to FW the binary non secured sections of CPU1 */
+	ret = iwl_pcie_load_cpu_sections(trans, image, 1, &first_ucode_section);
+	if (ret)
+		return ret;
 
 	if (image->is_dual_cpus) {
 		/* set CPU2 header address */
@@ -808,14 +777,8 @@ static int iwl_pcie_load_given_ucode(struct iwl_trans *trans,
 			       LMPM_SECURE_CPU2_HDR_MEM_SPACE);
 
 		/* load to FW the binary sections of CPU2 */
-		if (iwl_has_secure_boot(trans->hw_rev,
-					trans->cfg->device_family))
-			ret = iwl_pcie_load_cpu_secured_sections(
-							trans, image, 2,
-							&first_ucode_section);
-		else
-			ret = iwl_pcie_load_cpu_sections(trans, image, 2,
-							 &first_ucode_section);
+		ret = iwl_pcie_load_cpu_sections(trans, image, 2,
+						 &first_ucode_section);
 		if (ret)
 			return ret;
 	}
@@ -840,18 +803,50 @@ static int iwl_pcie_load_given_ucode(struct iwl_trans *trans,
 	else
 		iwl_write32(trans, CSR_RESET, 0);
 
-	if (iwl_has_secure_boot(trans->hw_rev, trans->cfg->device_family)) {
-		/* wait for image verification to complete  */
-		ret = iwl_poll_prph_bit(trans,
-					LMPM_SECURE_BOOT_CPU1_STATUS_ADDR,
-					LMPM_SECURE_BOOT_STATUS_SUCCESS,
-					LMPM_SECURE_BOOT_STATUS_SUCCESS,
-					LMPM_SECURE_TIME_OUT);
+	return 0;
+}
 
-		if (ret < 0) {
-			IWL_ERR(trans, "Time out on secure boot process\n");
-			return ret;
-		}
+static int iwl_pcie_load_given_ucode_8000b(struct iwl_trans *trans,
+					   const struct fw_img *image)
+{
+	int ret = 0;
+	int first_ucode_section;
+	u32 reg;
+
+	IWL_DEBUG_FW(trans, "working with %s CPU\n",
+		     image->is_dual_cpus ? "Dual" : "Single");
+
+	/* configure the ucode to be ready to get the secured image */
+	/* release CPU reset */
+	iwl_write_prph(trans, RELEASE_CPU_RESET, RELEASE_CPU_RESET_BIT);
+
+	/* load to FW the binary Secured sections of CPU1 */
+	ret = iwl_pcie_load_cpu_sections_8000b(trans, image, 1,
+					       &first_ucode_section);
+	if (ret)
+		return ret;
+
+	/* load to FW the binary sections of CPU2 */
+	ret = iwl_pcie_load_cpu_sections_8000b(trans, image, 2,
+					       &first_ucode_section);
+	if (ret)
+		return ret;
+
+	/* Notify FW loading is done */
+	iwl_write_direct32(trans, FH_UCODE_LOAD_STATUS, 0xFFFFFFFF);
+
+	/* wait for image verification to complete  */
+	ret = iwl_poll_prph_bit(trans, LMPM_SECURE_BOOT_CPU1_STATUS_ADDR_B0,
+				LMPM_SECURE_BOOT_STATUS_SUCCESS,
+				LMPM_SECURE_BOOT_STATUS_SUCCESS,
+				LMPM_SECURE_TIME_OUT);
+	if (ret < 0) {
+		reg = iwl_read_prph(trans,
+				    LMPM_SECURE_BOOT_CPU1_STATUS_ADDR_B0);
+
+		IWL_ERR(trans, "Timeout on secure boot process, reg = %x\n",
+			reg);
+		return ret;
 	}
 
 	return 0;
@@ -903,7 +898,11 @@ static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 	iwl_write32(trans, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
 
 	/* Load the given image to the HW */
-	return iwl_pcie_load_given_ucode(trans, fw);
+	if ((trans->cfg->device_family == IWL_DEVICE_FAMILY_8000) &&
+	    (CSR_HW_REV_STEP(trans->hw_rev) == SILICON_B_STEP))
+		return iwl_pcie_load_given_ucode_8000b(trans, fw);
+	else
+		return iwl_pcie_load_given_ucode(trans, fw);
 }
 
 static void iwl_trans_pcie_fw_alive(struct iwl_trans *trans, u32 scd_addr)
