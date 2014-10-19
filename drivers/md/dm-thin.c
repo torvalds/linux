@@ -457,21 +457,32 @@ struct dm_thin_endio_hook {
 	struct rb_node rb_node;
 };
 
-static void requeue_bio_list(struct thin_c *tc, struct bio_list *master)
+static void __merge_bio_list(struct bio_list *bios, struct bio_list *master)
+{
+	bio_list_merge(bios, master);
+	bio_list_init(master);
+}
+
+static void error_bio_list(struct bio_list *bios, int error)
 {
 	struct bio *bio;
+
+	while ((bio = bio_list_pop(bios)))
+		bio_endio(bio, error);
+}
+
+static void error_thin_bio_list(struct thin_c *tc, struct bio_list *master, int error)
+{
 	struct bio_list bios;
 	unsigned long flags;
 
 	bio_list_init(&bios);
 
 	spin_lock_irqsave(&tc->lock, flags);
-	bio_list_merge(&bios, master);
-	bio_list_init(master);
+	__merge_bio_list(&bios, master);
 	spin_unlock_irqrestore(&tc->lock, flags);
 
-	while ((bio = bio_list_pop(&bios)))
-		bio_endio(bio, DM_ENDIO_REQUEUE);
+	error_bio_list(&bios, error);
 }
 
 static void requeue_deferred_cells(struct thin_c *tc)
@@ -493,26 +504,18 @@ static void requeue_deferred_cells(struct thin_c *tc)
 
 static void requeue_io(struct thin_c *tc)
 {
-	requeue_bio_list(tc, &tc->deferred_bio_list);
-	requeue_bio_list(tc, &tc->retry_on_resume_list);
-	requeue_deferred_cells(tc);
-}
-
-static void error_thin_retry_list(struct thin_c *tc)
-{
-	struct bio *bio;
-	unsigned long flags;
 	struct bio_list bios;
+	unsigned long flags;
 
 	bio_list_init(&bios);
 
 	spin_lock_irqsave(&tc->lock, flags);
-	bio_list_merge(&bios, &tc->retry_on_resume_list);
-	bio_list_init(&tc->retry_on_resume_list);
+	__merge_bio_list(&bios, &tc->deferred_bio_list);
+	__merge_bio_list(&bios, &tc->retry_on_resume_list);
 	spin_unlock_irqrestore(&tc->lock, flags);
 
-	while ((bio = bio_list_pop(&bios)))
-		bio_io_error(bio);
+	error_bio_list(&bios, DM_ENDIO_REQUEUE);
+	requeue_deferred_cells(tc);
 }
 
 static void error_retry_list(struct pool *pool)
@@ -521,7 +524,7 @@ static void error_retry_list(struct pool *pool)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(tc, &pool->active_thins, list)
-		error_thin_retry_list(tc);
+		error_thin_bio_list(tc, &tc->retry_on_resume_list, -EIO);
 	rcu_read_unlock();
 }
 
@@ -1752,7 +1755,7 @@ static void process_thin_deferred_bios(struct thin_c *tc)
 	unsigned count = 0;
 
 	if (tc->requeue_mode) {
-		requeue_bio_list(tc, &tc->deferred_bio_list);
+		error_thin_bio_list(tc, &tc->deferred_bio_list, DM_ENDIO_REQUEUE);
 		return;
 	}
 
