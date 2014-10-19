@@ -1284,7 +1284,7 @@ nla_put_failure:
 
 #define MAX_ACTIONS_BUFSIZE	(32 * 1024)
 
-struct sw_flow_actions *ovs_nla_alloc_flow_actions(int size)
+static struct sw_flow_actions *nla_alloc_flow_actions(int size)
 {
 	struct sw_flow_actions *sfa;
 
@@ -1329,7 +1329,7 @@ static struct nlattr *reserve_sfa_size(struct sw_flow_actions **sfa,
 		new_acts_size = MAX_ACTIONS_BUFSIZE;
 	}
 
-	acts = ovs_nla_alloc_flow_actions(new_acts_size);
+	acts = nla_alloc_flow_actions(new_acts_size);
 	if (IS_ERR(acts))
 		return (void *)acts;
 
@@ -1396,7 +1396,7 @@ static inline void add_nested_action_end(struct sw_flow_actions *sfa,
 	a->nla_len = sfa->actions_len - st_offset;
 }
 
-static int ovs_nla_copy_actions__(const struct nlattr *attr,
+static int __ovs_nla_copy_actions(const struct nlattr *attr,
 				  const struct sw_flow_key *key,
 				  int depth, struct sw_flow_actions **sfa,
 				  __be16 eth_type, __be16 vlan_tci);
@@ -1441,7 +1441,7 @@ static int validate_and_copy_sample(const struct nlattr *attr,
 	if (st_acts < 0)
 		return st_acts;
 
-	err = ovs_nla_copy_actions__(actions, key, depth + 1, sfa,
+	err = __ovs_nla_copy_actions(actions, key, depth + 1, sfa,
 				     eth_type, vlan_tci);
 	if (err)
 		return err;
@@ -1684,7 +1684,7 @@ static int copy_action(const struct nlattr *from,
 	return 0;
 }
 
-static int ovs_nla_copy_actions__(const struct nlattr *attr,
+static int __ovs_nla_copy_actions(const struct nlattr *attr,
 				  const struct sw_flow_key *key,
 				  int depth, struct sw_flow_actions **sfa,
 				  __be16 eth_type, __be16 vlan_tci)
@@ -1846,8 +1846,18 @@ int ovs_nla_copy_actions(const struct nlattr *attr,
 			 const struct sw_flow_key *key,
 			 struct sw_flow_actions **sfa)
 {
-	return ovs_nla_copy_actions__(attr, key, 0, sfa, key->eth.type,
-				      key->eth.tci);
+	int err;
+
+	*sfa = nla_alloc_flow_actions(nla_len(attr));
+	if (IS_ERR(*sfa))
+		return PTR_ERR(*sfa);
+
+	err = __ovs_nla_copy_actions(attr, key, 0, sfa, key->eth.type,
+				     key->eth.tci);
+	if (err)
+		kfree(*sfa);
+
+	return err;
 }
 
 static int sample_action_to_attr(const struct nlattr *attr, struct sk_buff *skb)
