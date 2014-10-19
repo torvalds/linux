@@ -8062,7 +8062,7 @@ SYNOPSYS DESIGNWARE DMAC DRIVER
 M:	Viresh Kumar <viresh.linux@gmail.com>
 M:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
 S:	Maintained
-F:	include/linux/dw_dmac.h
+F:	include/linux/platform_data/dma-dw.h
 F:	drivers/dma/dw/
 
 SYNOPSYS DESIGNWARE MMC/SD/SDIO DRIVER
