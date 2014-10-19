@@ -323,12 +323,35 @@ int update_dent_inode(struct inode *inode, const struct qstr *name)
 	return 0;
 }
 
+void do_make_empty_dir(struct inode *inode, struct inode *parent,
+					struct f2fs_dentry_ptr *d)
+{
+	struct f2fs_dir_entry *de;
+
+	de = &d->dentry[0];
+	de->name_len = cpu_to_le16(1);
+	de->hash_code = 0;
+	de->ino = cpu_to_le32(inode->i_ino);
+	memcpy(d->filename[0], ".", 1);
+	set_de_type(de, inode);
+
+	de = &d->dentry[1];
+	de->hash_code = 0;
+	de->name_len = cpu_to_le16(2);
+	de->ino = cpu_to_le32(parent->i_ino);
+	memcpy(d->filename[1], "..", 2);
+	set_de_type(de, inode);
+
+	test_and_set_bit_le(0, (void *)d->bitmap);
+	test_and_set_bit_le(1, (void *)d->bitmap);
+}
+
 static int make_empty_dir(struct inode *inode,
 		struct inode *parent, struct page *page)
 {
 	struct page *dentry_page;
 	struct f2fs_dentry_block *dentry_blk;
-	struct f2fs_dir_entry *de;
+	struct f2fs_dentry_ptr d;
 
 	if (f2fs_has_inline_dentry(inode))
 		return make_empty_inline_dir(inode, parent, page);
@@ -339,22 +362,9 @@ static int make_empty_dir(struct inode *inode,
 
 	dentry_blk = kmap_atomic(dentry_page);
 
-	de = &dentry_blk->dentry[0];
-	de->name_len = cpu_to_le16(1);
-	de->hash_code = 0;
-	de->ino = cpu_to_le32(inode->i_ino);
-	memcpy(dentry_blk->filename[0], ".", 1);
-	set_de_type(de, inode);
+	make_dentry_ptr(&d, (void *)dentry_blk, 1);
+	do_make_empty_dir(inode, parent, &d);
 
-	de = &dentry_blk->dentry[1];
-	de->hash_code = 0;
-	de->name_len = cpu_to_le16(2);
-	de->ino = cpu_to_le32(parent->i_ino);
-	memcpy(dentry_blk->filename[1], "..", 2);
-	set_de_type(de, inode);
-
-	test_and_set_bit_le(0, &dentry_blk->dentry_bitmap);
-	test_and_set_bit_le(1, &dentry_blk->dentry_bitmap);
 	kunmap_atomic(dentry_blk);
 
 	set_page_dirty(dentry_page);

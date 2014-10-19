@@ -314,26 +314,12 @@ int make_empty_inline_dir(struct inode *inode, struct inode *parent,
 							struct page *ipage)
 {
 	struct f2fs_inline_dentry *dentry_blk;
-	struct f2fs_dir_entry *de;
+	struct f2fs_dentry_ptr d;
 
 	dentry_blk = inline_data_addr(ipage);
 
-	de = &dentry_blk->dentry[0];
-	de->name_len = cpu_to_le16(1);
-	de->hash_code = 0;
-	de->ino = cpu_to_le32(inode->i_ino);
-	memcpy(dentry_blk->filename[0], ".", 1);
-	set_de_type(de, inode);
-
-	de = &dentry_blk->dentry[1];
-	de->hash_code = 0;
-	de->name_len = cpu_to_le16(2);
-	de->ino = cpu_to_le32(parent->i_ino);
-	memcpy(dentry_blk->filename[1], "..", 2);
-	set_de_type(de, inode);
-
-	test_and_set_bit_le(0, &dentry_blk->dentry_bitmap);
-	test_and_set_bit_le(1, &dentry_blk->dentry_bitmap);
+	make_dentry_ptr(&d, (void *)dentry_blk, 2);
+	do_make_empty_dir(inode, parent, &d);
 
 	set_page_dirty(ipage);
 
