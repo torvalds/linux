@@ -239,8 +239,6 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 
 static void apci3120_detach(struct comedi_device *dev)
 {
-	if (dev->iobase)
-		apci3120_reset(dev);
 	comedi_pci_detach(dev);
 	apci3120_dma_free(dev);
 }
