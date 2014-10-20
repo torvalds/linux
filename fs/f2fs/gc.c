@@ -646,12 +646,14 @@ next_iput:
 }
 
 static int __get_victim(struct f2fs_sb_info *sbi, unsigned int *victim,
-						int gc_type, int type)
+			int gc_type)
 {
 	struct sit_info *sit_i = SIT_I(sbi);
 	int ret;
+
 	mutex_lock(&sit_i->sentry_lock);
-	ret = DIRTY_I(sbi)->v_ops->get_victim(sbi, victim, gc_type, type, LFS);
+	ret = DIRTY_I(sbi)->v_ops->get_victim(sbi, victim, gc_type,
+					      NO_CHECK_TYPE, LFS);
 	mutex_unlock(&sit_i->sentry_lock);
 	return ret;
 }
@@ -709,7 +711,7 @@ gc_more:
 		write_checkpoint(sbi, &cpc);
 	}
 
-	if (!__get_victim(sbi, &segno, gc_type, NO_CHECK_TYPE))
+	if (!__get_victim(sbi, &segno, gc_type))
 		goto stop;
 	ret = 0;
 
