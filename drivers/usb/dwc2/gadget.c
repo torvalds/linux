@@ -2124,7 +2124,7 @@ static int s3c_hsotg_corereset(struct s3c_hsotg *hsotg)
  *
  * Issue a soft reset to the core, and await the core finishing it.
  */
-static void s3c_hsotg_core_init(struct s3c_hsotg *hsotg)
+static void s3c_hsotg_core_init_disconnected(struct s3c_hsotg *hsotg)
 {
 	s3c_hsotg_corereset(hsotg);
 
@@ -2241,14 +2241,23 @@ static void s3c_hsotg_core_init(struct s3c_hsotg *hsotg)
 		readl(hsotg->regs + DOEPCTL0));
 
 	/* clear global NAKs */
-	writel(DCTL_CGOUTNAK | DCTL_CGNPINNAK,
+	writel(DCTL_CGOUTNAK | DCTL_CGNPINNAK | DCTL_SFTDISCON,
 	       hsotg->regs + DCTL);
 
 	/* must be at-least 3ms to allow bus to see disconnect */
 	mdelay(3);
 
 	hsotg->last_rst = jiffies;
+}
 
+static void s3c_hsotg_core_disconnect(struct s3c_hsotg *hsotg)
+{
+	/* set the soft-disconnect bit */
+	__orr32(hsotg->regs + DCTL, DCTL_SFTDISCON);
+}
+
+static void s3c_hsotg_core_connect(struct s3c_hsotg *hsotg)
+{
 	/* remove the soft-disconnect and let's go */
 	__bic32(hsotg->regs + DCTL, DCTL_SFTDISCON);
 }
@@ -2342,7 +2351,8 @@ irq_retry:
 				kill_all_requests(hsotg, &hsotg->eps[0],
 							  -ECONNRESET, true);
 
-				s3c_hsotg_core_init(hsotg);
+				s3c_hsotg_core_init_disconnected(hsotg);
+				s3c_hsotg_core_connect(hsotg);
 			}
 		}
 	}
@@ -2977,7 +2987,8 @@ static int s3c_hsotg_pullup(struct usb_gadget *gadget, int is_on)
 	if (is_on) {
 		s3c_hsotg_phy_enable(hsotg);
 		clk_enable(hsotg->clk);
-		s3c_hsotg_core_init(hsotg);
+		s3c_hsotg_core_init_disconnected(hsotg);
+		s3c_hsotg_core_connect(hsotg);
 	} else {
 		clk_disable(hsotg->clk);
 		s3c_hsotg_phy_disable(hsotg);
@@ -3657,7 +3668,8 @@ static int s3c_hsotg_resume(struct platform_device *pdev)
 
 	spin_lock_irqsave(&hsotg->lock, flags);
 	s3c_hsotg_phy_enable(hsotg);
-	s3c_hsotg_core_init(hsotg);
+	s3c_hsotg_core_init_disconnected(hsotg);
+	s3c_hsotg_core_connect(hsotg);
 	spin_unlock_irqrestore(&hsotg->lock, flags);
 
 	return ret;
