@@ -1060,7 +1060,6 @@ static struct platform_driver m2mtest_pdrv = {
 	.remove		= m2mtest_remove,
 	.driver		= {
 		.name	= MEM2MEM_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 
