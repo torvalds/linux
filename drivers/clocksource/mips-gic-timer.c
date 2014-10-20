@@ -61,7 +61,7 @@ static void gic_clockevent_cpu_init(struct clock_event_device *cd)
 	cd->features		= CLOCK_EVT_FEAT_ONESHOT |
 				  CLOCK_EVT_FEAT_C3STOP;
 
-	cd->rating		= 300;
+	cd->rating		= 350;
 	cd->irq			= gic_timer_irq;
 	cd->cpumask		= cpumask_of(cpu);
 	cd->set_next_event	= gic_next_event;
