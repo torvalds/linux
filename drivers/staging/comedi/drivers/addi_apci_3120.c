@@ -186,22 +186,22 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	s->do_cmd = apci3120_ai_cmd;
 	s->cancel = apci3120_cancel;
 
-	/*  Allocate and Initialise AO Subdevice Structures */
+	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
 	if (this_board->has_ao) {
-		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = 8;
-		s->maxdata = 0x3fff;
-		s->range_table = &range_bipolar10;
-		s->insn_write = apci3120_ao_insn_write;
-		s->insn_read = comedi_readback_insn_read;
+		s->type		= COMEDI_SUBD_AO;
+		s->subdev_flags	= SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
+		s->n_chan	= 8;
+		s->maxdata	= 0x3fff;
+		s->range_table	= &range_bipolar10;
+		s->insn_write	= apci3120_ao_insn_write;
+		s->insn_read	= comedi_readback_insn_read;
 
 		ret = comedi_alloc_subdev_readback(s);
 		if (ret)
 			return ret;
 	} else {
-		s->type = COMEDI_SUBD_UNUSED;
+		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
 	/*  Allocate and Initialise DI Subdevice Structures */
