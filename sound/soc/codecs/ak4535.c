@@ -379,13 +379,6 @@ static int ak4535_resume(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int ak4535_probe(struct snd_soc_codec *codec)
-{
-	snd_soc_add_codec_controls(codec, ak4535_snd_controls,
-				ARRAY_SIZE(ak4535_snd_controls));
-	return 0;
-}
-
 static const struct regmap_config ak4535_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -399,11 +392,12 @@ static const struct regmap_config ak4535_regmap = {
 };
 
 static struct snd_soc_codec_driver soc_codec_dev_ak4535 = {
-	.probe =	ak4535_probe,
 	.resume =	ak4535_resume,
 	.set_bias_level = ak4535_set_bias_level,
 	.suspend_bias_off = true,
 
+	.controls = ak4535_snd_controls,
+	.num_controls = ARRAY_SIZE(ak4535_snd_controls),
 	.dapm_widgets = ak4535_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(ak4535_dapm_widgets),
 	.dapm_routes = ak4535_audio_map,
