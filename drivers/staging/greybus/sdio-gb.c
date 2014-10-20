@@ -61,12 +61,13 @@ int gb_sdio_probe(struct gb_module *gmod,
 	mmc->ops = &gb_sd_ops;
 	// FIXME - set up size limits we can handle.
 
-	gmod->gb_sdio_host = host;
+	// gmod->gb_sdio_host = host;
 	return 0;
 }
 
 void gb_sdio_disconnect(struct gb_module *gmod)
 {
+#if 0
 	struct mmc_host *mmc;
 	struct gb_sdio_host *host;
 
@@ -77,6 +78,7 @@ void gb_sdio_disconnect(struct gb_module *gmod)
 	mmc = host->mmc;
 	mmc_remove_host(mmc);
 	mmc_free_host(mmc);
+#endif
 }
 
 #if 0

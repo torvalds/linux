@@ -146,6 +146,7 @@ int gb_battery_device_init(struct gb_connection *connection)
 
 void gb_battery_disconnect(struct gb_module *gmod)
 {
+#if 0
 	struct gb_battery *gb;
 
 	gb = gmod->gb_battery;
@@ -155,6 +156,7 @@ void gb_battery_disconnect(struct gb_module *gmod)
 	power_supply_unregister(&gb->bat);
 
 	kfree(gb);
+#endif
 }
 
 #if 0

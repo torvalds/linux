@@ -35,12 +35,7 @@ struct gb_module {
 
 	struct greybus_host_device *hd;
 
-	struct gb_i2c_device *gb_i2c_dev;
-	struct gb_gpio_device *gb_gpio_dev;
-	struct gb_sdio_host *gb_sdio_host;
 	struct gb_tty *gb_tty;
-	struct gb_usb_device *gb_usb_dev;
-	struct gb_battery *gb_battery;
 };
 #define to_gb_module(d) container_of(d, struct gb_module, dev)
 
