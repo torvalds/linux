@@ -222,18 +222,15 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	s->range_table	= &range_digital;
 	s->insn_bits	= apci3120_do_insn_bits;
 
-	/*  Allocate and Initialise Timer Subdevice Structures */
+	/* Timer subdevice */
 	s = &dev->subdevices[4];
-	s->type = COMEDI_SUBD_TIMER;
-	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-	s->n_chan = 1;
-	s->maxdata = 0;
-	s->len_chanlist = 1;
-	s->range_table = &range_digital;
-
-	s->insn_write = apci3120_write_insn_timer;
-	s->insn_read = apci3120_read_insn_timer;
-	s->insn_config = apci3120_config_insn_timer;
+	s->type		= COMEDI_SUBD_TIMER;
+	s->subdev_flags	= SDF_WRITEABLE | SDF_READABLE;
+	s->n_chan	= 1;
+	s->maxdata	= 0x00ffffff;
+	s->insn_write	= apci3120_write_insn_timer;
+	s->insn_read	= apci3120_read_insn_timer;
+	s->insn_config	= apci3120_config_insn_timer;
 
 	apci3120_reset(dev);
 	return 0;
