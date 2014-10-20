@@ -1900,7 +1900,6 @@ static struct platform_driver wl12xx_driver = {
 	.id_table	= wl12xx_id_table,
 	.driver = {
 		.name	= "wl12xx_driver",
-		.owner	= THIS_MODULE,
 	}
 };
 
