@@ -1143,14 +1143,37 @@ static void ath10k_pci_hif_get_default_pipe(struct ath10k *ar,
 						 &dl_is_polled);
 }
 
+static void ath10k_pci_irq_msi_fw_mask(struct ath10k *ar)
+{
+	u32 val;
+
+	val = ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS + CORE_CTRL_ADDRESS);
+	val &= ~CORE_CTRL_PCIE_REG_31_MASK;
+
+	ath10k_pci_write32(ar, SOC_CORE_BASE_ADDRESS + CORE_CTRL_ADDRESS, val);
+}
+
+static void ath10k_pci_irq_msi_fw_unmask(struct ath10k *ar)
+{
+	u32 val;
+
+	val = ath10k_pci_read32(ar, SOC_CORE_BASE_ADDRESS + CORE_CTRL_ADDRESS);
+	val |= CORE_CTRL_PCIE_REG_31_MASK;
+
+	ath10k_pci_write32(ar, SOC_CORE_BASE_ADDRESS + CORE_CTRL_ADDRESS, val);
+}
+
 static void ath10k_pci_irq_disable(struct ath10k *ar)
+{
+	ath10k_ce_disable_interrupts(ar);
+	ath10k_pci_disable_and_clear_legacy_irq(ar);
+	ath10k_pci_irq_msi_fw_mask(ar);
+}
+
+static void ath10k_pci_irq_sync(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	int i;
-
-	ath10k_ce_disable_interrupts(ar);
-	ath10k_pci_disable_and_clear_legacy_irq(ar);
-	/* FIXME: How to mask all MSI interrupts? */
 
 	for (i = 0; i < max(1, ar_pci->num_msi_intrs); i++)
 		synchronize_irq(ar_pci->pdev->irq + i);
@@ -1160,7 +1183,7 @@ static void ath10k_pci_irq_enable(struct ath10k *ar)
 {
 	ath10k_ce_enable_interrupts(ar);
 	ath10k_pci_enable_legacy_irq(ar);
-	/* FIXME: How to unmask all MSI interrupts? */
+	ath10k_pci_irq_msi_fw_unmask(ar);
 }
 
 static int ath10k_pci_hif_start(struct ath10k *ar)
@@ -1288,6 +1311,7 @@ static void ath10k_pci_hif_stop(struct ath10k *ar)
 	ath10k_pci_warm_reset(ar);
 
 	ath10k_pci_irq_disable(ar);
+	ath10k_pci_irq_sync(ar);
 	ath10k_pci_flush(ar);
 }
 
@@ -2285,6 +2309,7 @@ static int ath10k_pci_wait_for_target_init(struct ath10k *ar)
 	} while (time_before(jiffies, timeout));
 
 	ath10k_pci_disable_and_clear_legacy_irq(ar);
+	ath10k_pci_irq_msi_fw_mask(ar);
 
 	if (val == 0xffffffff) {
 		ath10k_err(ar, "failed to read device register, device is gone\n");
@@ -2478,20 +2503,7 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 	}
 
 	ath10k_pci_ce_deinit(ar);
-
-	ret = ath10k_ce_disable_interrupts(ar);
-	if (ret) {
-		ath10k_err(ar, "failed to disable copy engine interrupts: %d\n",
-			   ret);
-		goto err_free_ce;
-	}
-
-	/* Workaround: There's no known way to mask all possible interrupts via
-	 * device CSR. The only way to make sure device doesn't assert
-	 * interrupts is to reset it. Interrupts are then disabled on host
-	 * after handlers are registered.
-	 */
-	ath10k_pci_warm_reset(ar);
+	ath10k_pci_irq_disable(ar);
 
 	ret = ath10k_pci_init_irq(ar);
 	if (ret) {
@@ -2508,9 +2520,6 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 		ath10k_warn(ar, "failed to request irqs: %d\n", ret);
 		goto err_deinit_irq;
 	}
-
-	/* This shouldn't race as the device has been reset above. */
-	ath10k_pci_irq_disable(ar);
 
 	ret = ath10k_core_register(ar, chip_id);
 	if (ret) {
