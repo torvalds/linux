@@ -208,7 +208,6 @@ static const struct of_device_id ccp_platform_ids[] = {
 static struct platform_driver ccp_platform_driver = {
 	.driver = {
 		.name = "AMD Cryptographic Coprocessor",
-		.owner = THIS_MODULE,
 		.of_match_table = ccp_platform_ids,
 	},
 	.probe = ccp_platform_probe,
