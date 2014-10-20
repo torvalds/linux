@@ -22,7 +22,7 @@ static bool nogreybus;
 #ifdef MODULE
 module_param(nogreybus, bool, 0444);
 #else
-core_param(nogreybus, bool, 0444);
+core_param(nogreybus, nogreybus, bool, 0444);
 #endif
 int greybus_disabled(void)
 {
