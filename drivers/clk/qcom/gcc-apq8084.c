@@ -3589,7 +3589,6 @@ static struct platform_driver gcc_apq8084_driver = {
 	.remove		= gcc_apq8084_remove,
 	.driver		= {
 		.name	= "gcc-apq8084",
-		.owner	= THIS_MODULE,
 		.of_match_table = gcc_apq8084_match_table,
 	},
 };
