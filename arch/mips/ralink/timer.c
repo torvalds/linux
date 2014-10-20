@@ -173,7 +173,6 @@ static struct platform_driver rt_timer_driver = {
 	.remove = rt_timer_remove,
 	.driver = {
 		.name		= "rt-timer",
-		.owner          = THIS_MODULE,
 		.of_match_table	= rt_timer_match
 	},
 };
