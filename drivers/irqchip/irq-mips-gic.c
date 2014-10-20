@@ -253,8 +253,8 @@ static unsigned int gic_get_int(void)
 	intrmask = intrmask_regs[smp_processor_id()].intrmask;
 	pcpu_mask = pcpu_masks[smp_processor_id()].pcpu_mask;
 
-	pending_reg = GIC_REG(SHARED, GIC_SH_PEND_31_0);
-	intrmask_reg = GIC_REG(SHARED, GIC_SH_MASK_31_0);
+	pending_reg = GIC_REG(SHARED, GIC_SH_PEND);
+	intrmask_reg = GIC_REG(SHARED, GIC_SH_MASK);
 
 	for (i = 0; i < BITS_TO_LONGS(gic_shared_intrs); i++) {
 		pending[i] = gic_read(pending_reg);
