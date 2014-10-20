@@ -94,7 +94,7 @@ int sst_get_sfreq(struct snd_sst_params *str_param)
 }
 
 /*
- * sst_get_sfreq - this function returns the frequency of the stream
+ * sst_get_num_channel - get number of channels for the stream
  *
  * @str_param : stream params
  */
