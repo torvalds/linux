@@ -149,7 +149,6 @@ static struct platform_driver da9052_onkey_driver = {
 	.remove	= da9052_onkey_remove,
 	.driver = {
 		.name	= "da9052-onkey",
-		.owner	= THIS_MODULE,
 	},
 };
 module_platform_driver(da9052_onkey_driver);

@@ -214,7 +214,6 @@ static struct platform_driver soc_button_driver = {
 	.remove		= soc_button_remove,
 	.driver		= {
 		.name = KBUILD_MODNAME,
-		.owner = THIS_MODULE,
 		.acpi_match_table = ACPI_PTR(soc_button_acpi_match),
 	},
 };

@@ -125,7 +125,6 @@ static const struct dev_pm_ops pcspkr_pm_ops = {
 static struct platform_driver pcspkr_platform_driver = {
 	.driver		= {
 		.name	= "pcspkr",
-		.owner	= THIS_MODULE,
 		.pm	= &pcspkr_pm_ops,
 	},
 	.probe		= pcspkr_probe,

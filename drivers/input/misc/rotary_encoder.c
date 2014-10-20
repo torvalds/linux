@@ -325,7 +325,6 @@ static struct platform_driver rotary_encoder_driver = {
 	.remove		= rotary_encoder_remove,
 	.driver		= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(rotary_encoder_of_match),
 	}
 };

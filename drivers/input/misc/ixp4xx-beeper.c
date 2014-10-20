@@ -168,7 +168,6 @@ static void ixp4xx_spkr_shutdown(struct platform_device *dev)
 static struct platform_driver ixp4xx_spkr_platform_driver = {
 	.driver		= {
 		.name	= "ixp4xx-beeper",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ixp4xx_spkr_probe,
 	.remove		= ixp4xx_spkr_remove,

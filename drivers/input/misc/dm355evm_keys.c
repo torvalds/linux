@@ -263,7 +263,6 @@ static struct platform_driver dm355evm_keys_driver = {
 	.probe		= dm355evm_keys_probe,
 	.remove		= dm355evm_keys_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "dm355evm_keys",
 	},
 };
