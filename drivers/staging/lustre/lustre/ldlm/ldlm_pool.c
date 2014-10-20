@@ -1205,8 +1205,7 @@ int ldlm_pools_recalc(ldlm_side_t client)
 		 * The rest is given to greedy namespaces.
 		 */
 		list_for_each_entry(ns, ldlm_namespace_list(client),
-					ns_list_chain)
-		{
+				    ns_list_chain) {
 			if (!equal && ns->ns_appetite != LDLM_NAMESPACE_GREEDY)
 				continue;
 
