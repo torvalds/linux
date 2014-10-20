@@ -200,7 +200,7 @@ static int pcmcia_probe(struct sa1111_dev *dev)
 	pcmcia_badge4_init(dev);
 #endif
 #ifdef CONFIG_SA1100_JORNADA720
-	pcmcia_jornada720_init(&dev->dev);
+	pcmcia_jornada720_init(dev);
 #endif
 #ifdef CONFIG_ARCH_LUBBOCK
 	pcmcia_lubbock_init(dev);
