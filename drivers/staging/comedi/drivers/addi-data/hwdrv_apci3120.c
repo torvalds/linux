@@ -633,13 +633,13 @@ static int apci3120_cancel(struct comedi_device *dev,
 	struct apci3120_private *devpriv = dev->private;
 
 	/*  Disable A2P Fifo write and AMWEN signal */
-	outw(0, devpriv->i_IobaseAddon + 4);
+	outw(0, devpriv->addon + 4);
 
 	/* Disable Bus Master ADD ON */
-	outw(APCI3120_ADD_ON_AGCSTS_LOW, devpriv->i_IobaseAddon + 0);
-	outw(0, devpriv->i_IobaseAddon + 2);
-	outw(APCI3120_ADD_ON_AGCSTS_HIGH, devpriv->i_IobaseAddon + 0);
-	outw(0, devpriv->i_IobaseAddon + 2);
+	outw(APCI3120_ADD_ON_AGCSTS_LOW, devpriv->addon + 0);
+	outw(0, devpriv->addon + 2);
+	outw(APCI3120_ADD_ON_AGCSTS_HIGH, devpriv->addon + 0);
+	outw(0, devpriv->addon + 2);
 
 	/* Disable BUS Master PCI */
 	outl(0, devpriv->i_IobaseAmcc + AMCC_OP_REG_MCSR);
@@ -1039,19 +1039,17 @@ static int apci3120_cyclic_ai(int mode,
 
 		/*  changed  since 16 bit interface for add on */
 		/* ENABLE BUS MASTER */
-		outw(APCI3120_ADD_ON_AGCSTS_LOW, devpriv->i_IobaseAddon + 0);
-		outw(APCI3120_ENABLE_TRANSFER_ADD_ON_LOW,
-			devpriv->i_IobaseAddon + 2);
+		outw(APCI3120_ADD_ON_AGCSTS_LOW, devpriv->addon + 0);
+		outw(APCI3120_ENABLE_TRANSFER_ADD_ON_LOW, devpriv->addon + 2);
 
-		outw(APCI3120_ADD_ON_AGCSTS_HIGH, devpriv->i_IobaseAddon + 0);
-		outw(APCI3120_ENABLE_TRANSFER_ADD_ON_HIGH,
-			devpriv->i_IobaseAddon + 2);
+		outw(APCI3120_ADD_ON_AGCSTS_HIGH, devpriv->addon + 0);
+		outw(APCI3120_ENABLE_TRANSFER_ADD_ON_HIGH, devpriv->addon + 2);
 
 		/*
 		 * TO VERIFIED BEGIN JK 07.05.04: Comparison between WIN32 and Linux
 		 * driver
 		 */
-		outw(0x1000, devpriv->i_IobaseAddon + 2);
+		outw(0x1000, devpriv->addon + 2);
 		/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
 
 		/* 2 No change */
@@ -1068,12 +1066,12 @@ static int apci3120_cyclic_ai(int mode,
 		 */
 
 		/*  DMA Start Address Low */
-		outw(APCI3120_ADD_ON_MWAR_LOW, devpriv->i_IobaseAddon + 0);
-		outw(dmabuf0->hw & 0xffff, devpriv->i_IobaseAddon + 2);
+		outw(APCI3120_ADD_ON_MWAR_LOW, devpriv->addon + 0);
+		outw(dmabuf0->hw & 0xffff, devpriv->addon + 2);
 
 		/* DMA Start Address High */
-		outw(APCI3120_ADD_ON_MWAR_HIGH, devpriv->i_IobaseAddon + 0);
-		outw((dmabuf0->hw >> 16) & 0xffff, devpriv->i_IobaseAddon + 2);
+		outw(APCI3120_ADD_ON_MWAR_HIGH, devpriv->addon + 0);
+		outw((dmabuf0->hw >> 16) & 0xffff, devpriv->addon + 2);
 
 		/*
 		 * 4
@@ -1082,13 +1080,12 @@ static int apci3120_cyclic_ai(int mode,
 		 */
 
 		/* Nbr of acquisition LOW */
-		outw(APCI3120_ADD_ON_MWTC_LOW, devpriv->i_IobaseAddon + 0);
-		outw(dmabuf0->use_size & 0xffff, devpriv->i_IobaseAddon + 2);
+		outw(APCI3120_ADD_ON_MWTC_LOW, devpriv->addon + 0);
+		outw(dmabuf0->use_size & 0xffff, devpriv->addon + 2);
 
 		/* Nbr of acquisition HIGH */
-		outw(APCI3120_ADD_ON_MWTC_HIGH, devpriv->i_IobaseAddon + 0);
-		outw((dmabuf0->use_size >> 16) & 0xffff,
-		     devpriv->i_IobaseAddon + 2);
+		outw(APCI3120_ADD_ON_MWTC_HIGH, devpriv->addon + 0);
+		outw((dmabuf0->use_size >> 16) & 0xffff, devpriv->addon + 2);
 
 		/*
 		 * 5
@@ -1122,7 +1119,7 @@ static int apci3120_cyclic_ai(int mode,
 
 		/* BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver */
 		/* ENABLE A2P FIFO WRITE AND ENABLE AMWEN */
-		outw(3, devpriv->i_IobaseAddon + 4);
+		outw(3, devpriv->addon + 4);
 		/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
 
 		/* A2P FIFO RESET */
@@ -1247,37 +1244,33 @@ static void apci3120_interrupt_dma(int irq, void *d)
 		outl(ui_Tmp, devpriv->i_IobaseAmcc + AMCC_OP_REG_AGCSTS);
 
 		/*  changed  since 16 bit interface for add on */
-		outw(APCI3120_ADD_ON_AGCSTS_LOW, devpriv->i_IobaseAddon + 0);
-		outw(APCI3120_ENABLE_TRANSFER_ADD_ON_LOW,
-			devpriv->i_IobaseAddon + 2);
-		outw(APCI3120_ADD_ON_AGCSTS_HIGH, devpriv->i_IobaseAddon + 0);
-		outw(APCI3120_ENABLE_TRANSFER_ADD_ON_HIGH, devpriv->i_IobaseAddon + 2);	/*  0x1000 is out putted in windows driver */
+		outw(APCI3120_ADD_ON_AGCSTS_LOW, devpriv->addon + 0);
+		outw(APCI3120_ENABLE_TRANSFER_ADD_ON_LOW, devpriv->addon + 2);
+		outw(APCI3120_ADD_ON_AGCSTS_HIGH, devpriv->addon + 0);
+		outw(APCI3120_ENABLE_TRANSFER_ADD_ON_HIGH, devpriv->addon + 2);	/*  0x1000 is out putted in windows driver */
 
 		/* DMA Start Address Low */
-		outw(APCI3120_ADD_ON_MWAR_LOW, devpriv->i_IobaseAddon + 0);
-		outw(next_dmabuf->hw & 0xffff, devpriv->i_IobaseAddon + 2);
+		outw(APCI3120_ADD_ON_MWAR_LOW, devpriv->addon + 0);
+		outw(next_dmabuf->hw & 0xffff, devpriv->addon + 2);
 
 		/* DMA Start Address High */
-		outw(APCI3120_ADD_ON_MWAR_HIGH, devpriv->i_IobaseAddon + 0);
-		outw((next_dmabuf->hw >> 16) & 0xffff,
-		     devpriv->i_IobaseAddon + 2);
+		outw(APCI3120_ADD_ON_MWAR_HIGH, devpriv->addon + 0);
+		outw((next_dmabuf->hw >> 16) & 0xffff, devpriv->addon + 2);
 
 		/* Nbr of acquisition LOW */
-		outw(APCI3120_ADD_ON_MWTC_LOW, devpriv->i_IobaseAddon + 0);
-		outw(next_dmabuf->use_size & 0xffff,
-		     devpriv->i_IobaseAddon + 2);
+		outw(APCI3120_ADD_ON_MWTC_LOW, devpriv->addon + 0);
+		outw(next_dmabuf->use_size & 0xffff, devpriv->addon + 2);
 
 		/* Nbr of acquisition HIGH */
-		outw(APCI3120_ADD_ON_MWTC_HIGH, devpriv->i_IobaseAddon + 0);
-		outw((next_dmabuf->use_size > 16) & 0xffff,
-		     devpriv->i_IobaseAddon + 2);
+		outw(APCI3120_ADD_ON_MWTC_HIGH, devpriv->addon + 0);
+		outw((next_dmabuf->use_size > 16) & 0xffff, devpriv->addon + 2);
 
 		/*
 		 * To configure A2P FIFO
 		 * ENABLE A2P FIFO WRITE AND ENABLE AMWEN
 		 * AMWEN_ENABLE | A2P_FIFO_WRITE_ENABLE (0x01|0x02)=0x03
 		 */
-		outw(3, devpriv->i_IobaseAddon + 4);
+		outw(3, devpriv->addon + 4);
 		/* initialise end of dma interrupt  AINT_WRITE_COMPL = ENABLE_WRITE_TC_INT(ADDI) */
 		outl((APCI3120_FIFO_ADVANCE_ON_BYTE_2 |
 				APCI3120_ENABLE_WRITE_TC_INT),
@@ -1309,11 +1302,10 @@ static void apci3120_interrupt_dma(int irq, void *d)
 		outl(ui_Tmp, devpriv->i_IobaseAmcc + AMCC_OP_REG_AGCSTS);
 
 		/*  changed  since 16 bit interface for add on */
-		outw(APCI3120_ADD_ON_AGCSTS_LOW, devpriv->i_IobaseAddon + 0);
-		outw(APCI3120_ENABLE_TRANSFER_ADD_ON_LOW,
-			devpriv->i_IobaseAddon + 2);
-		outw(APCI3120_ADD_ON_AGCSTS_HIGH, devpriv->i_IobaseAddon + 0);
-		outw(APCI3120_ENABLE_TRANSFER_ADD_ON_HIGH, devpriv->i_IobaseAddon + 2);
+		outw(APCI3120_ADD_ON_AGCSTS_LOW, devpriv->addon + 0);
+		outw(APCI3120_ENABLE_TRANSFER_ADD_ON_LOW, devpriv->addon + 2);
+		outw(APCI3120_ADD_ON_AGCSTS_HIGH, devpriv->addon + 0);
+		outw(APCI3120_ENABLE_TRANSFER_ADD_ON_HIGH, devpriv->addon + 2);
 		/*
 		 * A2P FIFO MANAGEMENT
 		 * A2P fifo reset & transfer control enable
@@ -1321,23 +1313,22 @@ static void apci3120_interrupt_dma(int irq, void *d)
 		outl(APCI3120_A2P_FIFO_MANAGEMENT,
 			devpriv->i_IobaseAmcc + AMCC_OP_REG_MCSR);
 
-		outw(APCI3120_ADD_ON_MWAR_LOW, devpriv->i_IobaseAddon + 0);
-		outw(dmabuf->hw & 0xffff, devpriv->i_IobaseAddon + 2);
-		outw(APCI3120_ADD_ON_MWAR_HIGH, devpriv->i_IobaseAddon + 0);
-		outw((dmabuf->hw >> 16) & 0xffff, devpriv->i_IobaseAddon + 2);
+		outw(APCI3120_ADD_ON_MWAR_LOW, devpriv->addon + 0);
+		outw(dmabuf->hw & 0xffff, devpriv->addon + 2);
+		outw(APCI3120_ADD_ON_MWAR_HIGH, devpriv->addon + 0);
+		outw((dmabuf->hw >> 16) & 0xffff, devpriv->addon + 2);
 
-		outw(APCI3120_ADD_ON_MWTC_LOW, devpriv->i_IobaseAddon + 0);
-		outw(dmabuf->use_size & 0xffff, devpriv->i_IobaseAddon + 2);
-		outw(APCI3120_ADD_ON_MWTC_HIGH, devpriv->i_IobaseAddon + 0);
-		outw((dmabuf->use_size >> 16) & 0xffff,
-		     devpriv->i_IobaseAddon + 2);
+		outw(APCI3120_ADD_ON_MWTC_LOW, devpriv->addon + 0);
+		outw(dmabuf->use_size & 0xffff, devpriv->addon + 2);
+		outw(APCI3120_ADD_ON_MWTC_HIGH, devpriv->addon + 0);
+		outw((dmabuf->use_size >> 16) & 0xffff, devpriv->addon + 2);
 
 		/*
 		 * To configure A2P FIFO
 		 * ENABLE A2P FIFO WRITE AND ENABLE AMWEN
 		 * AMWEN_ENABLE | A2P_FIFO_WRITE_ENABLE (0x01|0x02)=0x03
 		 */
-		outw(3, devpriv->i_IobaseAddon + 4);
+		outw(3, devpriv->addon + 4);
 		/* initialise end of dma interrupt  AINT_WRITE_COMPL = ENABLE_WRITE_TC_INT(ADDI) */
 		outl((APCI3120_FIFO_ADVANCE_ON_BYTE_2 |
 				APCI3120_ENABLE_WRITE_TC_INT),
