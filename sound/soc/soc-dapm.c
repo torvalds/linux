@@ -754,34 +754,6 @@ static int dapm_new_pga(struct snd_soc_dapm_widget *w)
 	return 0;
 }
 
-/* reset 'walked' bit for each dapm path */
-static void dapm_clear_walk_output(struct snd_soc_dapm_context *dapm,
-				   struct list_head *sink)
-{
-	struct snd_soc_dapm_path *p;
-
-	list_for_each_entry(p, sink, list_source) {
-		if (p->walked) {
-			p->walked = 0;
-			dapm_clear_walk_output(dapm, &p->sink->sinks);
-		}
-	}
-}
-
-static void dapm_clear_walk_input(struct snd_soc_dapm_context *dapm,
-				  struct list_head *source)
-{
-	struct snd_soc_dapm_path *p;
-
-	list_for_each_entry(p, source, list_sink) {
-		if (p->walked) {
-			p->walked = 0;
-			dapm_clear_walk_input(dapm, &p->source->sources);
-		}
-	}
-}
-
-
 /* We implement power down on suspend by checking the power state of
  * the ALSA card - when we are suspending the ALSA state for the card
  * is set to D3.
@@ -904,13 +876,9 @@ static int is_connected_output_ep(struct snd_soc_dapm_widget *widget,
 		if (path->walking)
 			return 1;
 
-		if (path->walked)
-			continue;
-
 		trace_snd_soc_dapm_output_path(widget, path);
 
 		if (path->connect) {
-			path->walked = 1;
 			path->walking = 1;
 
 			/* do we need to add this widget to the list ? */
@@ -1012,13 +980,9 @@ static int is_connected_input_ep(struct snd_soc_dapm_widget *widget,
 		if (path->walking)
 			return 1;
 
-		if (path->walked)
-			continue;
-
 		trace_snd_soc_dapm_input_path(widget, path);
 
 		if (path->connect) {
-			path->walked = 1;
 			path->walking = 1;
 
 			/* do we need to add this widget to the list ? */
@@ -1066,15 +1030,10 @@ int snd_soc_dapm_dai_get_connected_widgets(struct snd_soc_dai *dai, int stream,
 	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
 	dapm_reset(card);
 
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
 		paths = is_connected_output_ep(dai->playback_widget, list);
-		dapm_clear_walk_output(&card->dapm,
-				       &dai->playback_widget->sinks);
-	} else {
+	else
 		paths = is_connected_input_ep(dai->capture_widget, list);
-		dapm_clear_walk_input(&card->dapm,
-				      &dai->capture_widget->sources);
-	}
 
 	trace_snd_soc_dapm_connected(paths, stream);
 	mutex_unlock(&card->dapm_mutex);
@@ -1163,9 +1122,7 @@ static int dapm_generic_check_power(struct snd_soc_dapm_widget *w)
 	DAPM_UPDATE_STAT(w, power_checks);
 
 	in = is_connected_input_ep(w, NULL);
-	dapm_clear_walk_input(w->dapm, &w->sources);
 	out = is_connected_output_ep(w, NULL);
-	dapm_clear_walk_output(w->dapm, &w->sinks);
 	return out != 0 && in != 0;
 }
 
@@ -1823,9 +1780,7 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 		return -ENOMEM;
 
 	in = is_connected_input_ep(w, NULL);
-	dapm_clear_walk_input(w->dapm, &w->sources);
 	out = is_connected_output_ep(w, NULL);
-	dapm_clear_walk_output(w->dapm, &w->sinks);
 
 	ret = snprintf(buf, PAGE_SIZE, "%s: %s%s  in %d out %d",
 		       w->name, w->power ? "On" : "Off",
