@@ -54,10 +54,6 @@ struct irqaction gic_compare_irqaction = {
 	.name = "timer",
 };
 
-static void gic_event_handler(struct clock_event_device *dev)
-{
-}
-
 int gic_clockevent_init(void)
 {
 	unsigned int cpu = smp_processor_id();
@@ -86,7 +82,6 @@ int gic_clockevent_init(void)
 	cd->cpumask		= cpumask_of(cpu);
 	cd->set_next_event	= gic_next_event;
 	cd->set_mode		= gic_set_clock_mode;
-	cd->event_handler	= gic_event_handler;
 
 	clockevents_register_device(cd);
 
