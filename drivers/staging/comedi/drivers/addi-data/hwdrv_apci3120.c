@@ -1924,6 +1924,8 @@ static int apci3120_ao_insn_write(struct comedi_device *dev,
 
 		outw(APCI3120_AO_MUX(chan) | APCI3120_AO_DATA(val),
 		     dev->iobase + APCI3120_AO_REG(chan));
+
+		s->readback[chan] = val;
 	}
 
 	return insn->n;
