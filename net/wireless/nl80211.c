@@ -4414,6 +4414,27 @@ static int nl80211_del_station(struct sk_buff *skb, struct genl_info *info)
 	if (!rdev->ops->del_station)
 		return -EOPNOTSUPP;
 
+	if (info->attrs[NL80211_ATTR_MGMT_SUBTYPE]) {
+		params.subtype =
+			nla_get_u8(info->attrs[NL80211_ATTR_MGMT_SUBTYPE]);
+		if (params.subtype != IEEE80211_STYPE_DISASSOC >> 4 &&
+		    params.subtype != IEEE80211_STYPE_DEAUTH >> 4)
+			return -EINVAL;
+	} else {
+		/* Default to Deauthentication frame */
+		params.subtype = IEEE80211_STYPE_DEAUTH >> 4;
+	}
+
+	if (info->attrs[NL80211_ATTR_REASON_CODE]) {
+		params.reason_code =
+			nla_get_u16(info->attrs[NL80211_ATTR_REASON_CODE]);
+		if (params.reason_code == 0)
+			return -EINVAL; /* 0 is reserved */
+	} else {
+		/* Default to reason code 2 */
+		params.reason_code = WLAN_REASON_PREV_AUTH_NOT_VALID;
+	}
+
 	return rdev_del_station(rdev, dev, &params);
 }
 

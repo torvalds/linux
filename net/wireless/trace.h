@@ -688,14 +688,20 @@ DECLARE_EVENT_CLASS(station_del,
 		WIPHY_ENTRY
 		NETDEV_ENTRY
 		MAC_ENTRY(sta_mac)
+		__field(u8, subtype)
+		__field(u16, reason_code)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
 		NETDEV_ASSIGN;
 		MAC_ASSIGN(sta_mac, params->mac);
+		__entry->subtype = params->subtype;
+		__entry->reason_code = params->reason_code;
 	),
-	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", station mac: " MAC_PR_FMT,
-		  WIPHY_PR_ARG, NETDEV_PR_ARG, MAC_PR_ARG(sta_mac))
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", station mac: " MAC_PR_FMT
+		  ", subtype: %u, reason_code: %u",
+		  WIPHY_PR_ARG, NETDEV_PR_ARG, MAC_PR_ARG(sta_mac),
+		  __entry->subtype, __entry->reason_code)
 );
 
 DEFINE_EVENT(station_del, rdev_del_station,

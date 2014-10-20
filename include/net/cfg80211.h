@@ -804,9 +804,14 @@ struct station_parameters {
  * Used to delete a station entry (or all stations).
  *
  * @mac: MAC address of the station to remove or NULL to remove all stations
+ * @subtype: Management frame subtype to use for indicating removal
+ *	(10 = Disassociation, 12 = Deauthentication)
+ * @reason_code: Reason code for the Disassociation/Deauthentication frame
  */
 struct station_del_parameters {
 	const u8 *mac;
+	u8 subtype;
+	u16 reason_code;
 };
 
 /**
