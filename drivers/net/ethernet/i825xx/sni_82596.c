@@ -165,7 +165,6 @@ static struct platform_driver sni_82596_driver = {
 	.remove	= sni_82596_driver_remove,
 	.driver	= {
 		.name	= sni_82596_string,
-		.owner	= THIS_MODULE,
 	},
 };
 
