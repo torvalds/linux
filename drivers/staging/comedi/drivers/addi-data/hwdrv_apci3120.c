@@ -642,7 +642,7 @@ static int apci3120_cancel(struct comedi_device *dev,
 	outw(0, devpriv->addon + 2);
 
 	/* Disable BUS Master PCI */
-	outl(0, devpriv->i_IobaseAmcc + AMCC_OP_REG_MCSR);
+	outl(0, devpriv->amcc + AMCC_OP_REG_MCSR);
 
 	/* Disable ext trigger */
 	apci3120_exttrig_disable(dev);
@@ -754,9 +754,13 @@ static int apci3120_cyclic_ai(int mode,
 	struct apci3120_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned char b_Tmp;
-	unsigned int ui_Tmp, ui_DelayTiming = 0, ui_TimerValue1 = 0, dmalen0 =
-		0, dmalen1 = 0, ui_TimerValue2 =
-		0, ui_TimerValue0, ui_ConvertTiming;
+	unsigned int ui_DelayTiming = 0;
+	unsigned int ui_TimerValue1 = 0;
+	unsigned int dmalen0 = 0;
+	unsigned int dmalen1 = 0;
+	unsigned int ui_TimerValue2 = 0;
+	unsigned int ui_TimerValue0;
+	unsigned int ui_ConvertTiming;
 	unsigned short us_TmpValue;
 
 	/* Resets the FIFO */
@@ -771,7 +775,7 @@ static int apci3120_cyclic_ai(int mode,
 
 	/* Clear Timer Write TC int */
 	outl(APCI3120_CLEAR_WRITE_TC_INT,
-		devpriv->i_IobaseAmcc + APCI3120_AMCC_OP_REG_INTCSR);
+	     devpriv->amcc + APCI3120_AMCC_OP_REG_INTCSR);
 
 	/* Disables All Timer     */
 	/* Sets PR and PA to 0    */
@@ -1034,8 +1038,8 @@ static int apci3120_cyclic_ai(int mode,
 		 * Set Transfer count enable bit and A2P_fifo reset bit in AGCSTS
 		 * register 1
 		 */
-		ui_Tmp = AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO;
-		outl(ui_Tmp, devpriv->i_IobaseAmcc + AMCC_OP_REG_AGCSTS);
+		outl(AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO,
+		     devpriv->amcc + AMCC_OP_REG_AGCSTS);
 
 		/*  changed  since 16 bit interface for add on */
 		/* ENABLE BUS MASTER */
@@ -1055,8 +1059,8 @@ static int apci3120_cyclic_ai(int mode,
 		/* 2 No change */
 		/* A2P FIFO MANAGEMENT */
 		/* A2P fifo reset & transfer control enable */
-		outl(APCI3120_A2P_FIFO_MANAGEMENT, devpriv->i_IobaseAmcc +
-			APCI3120_AMCC_OP_MCSR);
+		outl(APCI3120_A2P_FIFO_MANAGEMENT,
+		     devpriv->amcc + APCI3120_AMCC_OP_MCSR);
 
 		/*
 		 * 3
@@ -1090,7 +1094,7 @@ static int apci3120_cyclic_ai(int mode,
 		/*
 		 * 5
 		 * To configure A2P FIFO testing outl(
-		 * FIFO_ADVANCE_ON_BYTE_2,devpriv->i_IobaseAmcc+AMCC_OP_REG_INTCSR);
+		 * FIFO_ADVANCE_ON_BYTE_2, devpriv->amcc + AMCC_OP_REG_INTCSR);
 		 */
 
 		/* A2P FIFO RESET */
@@ -1098,7 +1102,7 @@ static int apci3120_cyclic_ai(int mode,
 		 * TO VERIFY BEGIN JK 07.05.04: Comparison between WIN32 and Linux
 		 * driver
 		 */
-		outl(0x04000000UL, devpriv->i_IobaseAmcc + AMCC_OP_REG_MCSR);
+		outl(0x04000000UL, devpriv->amcc + AMCC_OP_REG_MCSR);
 		/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
 
 		/*
@@ -1115,7 +1119,7 @@ static int apci3120_cyclic_ai(int mode,
 		/* A2P FIFO CONFIGURATE, END OF DMA intERRUPT INIT */
 		outl((APCI3120_FIFO_ADVANCE_ON_BYTE_2 |
 				APCI3120_ENABLE_WRITE_TC_INT),
-			devpriv->i_IobaseAmcc + AMCC_OP_REG_INTCSR);
+			devpriv->amcc + AMCC_OP_REG_INTCSR);
 
 		/* BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver */
 		/* ENABLE A2P FIFO WRITE AND ENABLE AMWEN */
@@ -1124,8 +1128,7 @@ static int apci3120_cyclic_ai(int mode,
 
 		/* A2P FIFO RESET */
 		/* BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver */
-		outl(0x04000000UL,
-			devpriv->i_IobaseAmcc + APCI3120_AMCC_OP_MCSR);
+		outl(0x04000000UL, devpriv->amcc + APCI3120_AMCC_OP_MCSR);
 		/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
 	}
 
@@ -1223,8 +1226,7 @@ static void apci3120_interrupt_dma(int irq, void *d)
 
 	dmabuf = &devpriv->dmabuf[devpriv->ui_DmaActualBuffer];
 
-	samplesinbuf = dmabuf->use_size -
-		       inl(devpriv->i_IobaseAmcc + AMCC_OP_REG_MWTC);
+	samplesinbuf = dmabuf->use_size - inl(devpriv->amcc + AMCC_OP_REG_MWTC);
 
 	if (samplesinbuf < dmabuf->use_size)
 		dev_err(dev->class_dev, "Interrupted DMA transfer!\n");
@@ -1241,7 +1243,7 @@ static void apci3120_interrupt_dma(int irq, void *d)
 		next_dmabuf = &devpriv->dmabuf[1 - devpriv->ui_DmaActualBuffer];
 
 		ui_Tmp = AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO;
-		outl(ui_Tmp, devpriv->i_IobaseAmcc + AMCC_OP_REG_AGCSTS);
+		outl(ui_Tmp, devpriv->amcc + AMCC_OP_REG_AGCSTS);
 
 		/*  changed  since 16 bit interface for add on */
 		outw(APCI3120_ADD_ON_AGCSTS_LOW, devpriv->addon + 0);
@@ -1272,9 +1274,9 @@ static void apci3120_interrupt_dma(int irq, void *d)
 		 */
 		outw(3, devpriv->addon + 4);
 		/* initialise end of dma interrupt  AINT_WRITE_COMPL = ENABLE_WRITE_TC_INT(ADDI) */
-		outl((APCI3120_FIFO_ADVANCE_ON_BYTE_2 |
-				APCI3120_ENABLE_WRITE_TC_INT),
-			devpriv->i_IobaseAmcc + AMCC_OP_REG_INTCSR);
+		outl(APCI3120_FIFO_ADVANCE_ON_BYTE_2 |
+		     APCI3120_ENABLE_WRITE_TC_INT,
+		     devpriv->amcc + AMCC_OP_REG_INTCSR);
 
 	}
 	if (samplesinbuf) {
@@ -1298,8 +1300,8 @@ static void apci3120_interrupt_dma(int irq, void *d)
 		 * restart DMA if is not used double buffering
 		 * ADDED REINITIALISE THE DMA
 		 */
-		ui_Tmp = AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO;
-		outl(ui_Tmp, devpriv->i_IobaseAmcc + AMCC_OP_REG_AGCSTS);
+		outl(AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO,
+		     devpriv->amcc + AMCC_OP_REG_AGCSTS);
 
 		/*  changed  since 16 bit interface for add on */
 		outw(APCI3120_ADD_ON_AGCSTS_LOW, devpriv->addon + 0);
@@ -1311,7 +1313,7 @@ static void apci3120_interrupt_dma(int irq, void *d)
 		 * A2P fifo reset & transfer control enable
 		 */
 		outl(APCI3120_A2P_FIFO_MANAGEMENT,
-			devpriv->i_IobaseAmcc + AMCC_OP_REG_MCSR);
+		     devpriv->amcc + AMCC_OP_REG_MCSR);
 
 		outw(APCI3120_ADD_ON_MWAR_LOW, devpriv->addon + 0);
 		outw(dmabuf->hw & 0xffff, devpriv->addon + 2);
@@ -1330,9 +1332,9 @@ static void apci3120_interrupt_dma(int irq, void *d)
 		 */
 		outw(3, devpriv->addon + 4);
 		/* initialise end of dma interrupt  AINT_WRITE_COMPL = ENABLE_WRITE_TC_INT(ADDI) */
-		outl((APCI3120_FIFO_ADVANCE_ON_BYTE_2 |
-				APCI3120_ENABLE_WRITE_TC_INT),
-			devpriv->i_IobaseAmcc + AMCC_OP_REG_INTCSR);
+		outl(APCI3120_FIFO_ADVANCE_ON_BYTE_2 |
+		     APCI3120_ENABLE_WRITE_TC_INT,
+		     devpriv->amcc + AMCC_OP_REG_INTCSR);
 	}
 }
 
@@ -1373,14 +1375,14 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 	ui_Check = 1;
 
 	int_daq = inw(dev->iobase + APCI3120_RD_STATUS) & 0xf000;	/*  get IRQ reasons */
-	int_amcc = inl(devpriv->i_IobaseAmcc + AMCC_OP_REG_INTCSR);	/*  get AMCC int register */
+	int_amcc = inl(devpriv->amcc + AMCC_OP_REG_INTCSR);
 
 	if ((!int_daq) && (!(int_amcc & ANY_S593X_INT))) {
 		dev_err(dev->class_dev, "IRQ from unknown source\n");
 		return IRQ_NONE;
 	}
 
-	outl(int_amcc | 0x00ff0000, devpriv->i_IobaseAmcc + AMCC_OP_REG_INTCSR);	/*  shutdown IRQ reasons in AMCC */
+	outl(int_amcc | 0x00ff0000, devpriv->amcc + AMCC_OP_REG_INTCSR);
 
 	int_daq = (int_daq >> 12) & 0xF;
 
@@ -1515,8 +1517,7 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 
 			/* Clear Timer Write TC int */
 			outl(APCI3120_CLEAR_WRITE_TC_INT,
-				devpriv->i_IobaseAmcc +
-				APCI3120_AMCC_OP_REG_INTCSR);
+			     devpriv->amcc + APCI3120_AMCC_OP_REG_INTCSR);
 
 			/* Clears the timer status register */
 			inw(dev->iobase + APCI3120_TIMER_STATUS_REGISTER);
