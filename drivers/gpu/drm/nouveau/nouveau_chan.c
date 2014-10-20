@@ -285,7 +285,6 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	struct nouveau_software_chan *swch;
 	struct nv_dma_v0 args = {};
 	int ret, i;
-	bool save;
 
 	nvif_object_map(chan->object);
 
@@ -387,11 +386,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	}
 
 	/* initialise synchronisation */
-	save = cli->base.super;
-	cli->base.super = true; /* hack until fencenv50 fixed */
-	ret = nouveau_fence(chan->drm)->context_new(chan);
-	cli->base.super = save;
-	return ret;
+	return nouveau_fence(chan->drm)->context_new(chan);
 }
 
 int
