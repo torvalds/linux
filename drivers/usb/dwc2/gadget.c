@@ -2916,6 +2916,8 @@ static int s3c_hsotg_udc_start(struct usb_gadget *gadget,
 		goto err;
 	}
 
+	s3c_hsotg_phy_enable(hsotg);
+
 	dev_info(hsotg->dev, "bound driver %s\n", driver->driver.name);
 	return 0;
 
@@ -2951,6 +2953,8 @@ static int s3c_hsotg_udc_stop(struct usb_gadget *gadget)
 
 	spin_unlock_irqrestore(&hsotg->lock, flags);
 
+	s3c_hsotg_phy_disable(hsotg);
+
 	regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
 
 	clk_disable(hsotg->clk);
@@ -2985,13 +2989,11 @@ static int s3c_hsotg_pullup(struct usb_gadget *gadget, int is_on)
 
 	spin_lock_irqsave(&hsotg->lock, flags);
 	if (is_on) {
-		s3c_hsotg_phy_enable(hsotg);
 		clk_enable(hsotg->clk);
 		s3c_hsotg_core_init_disconnected(hsotg);
 		s3c_hsotg_core_connect(hsotg);
 	} else {
 		clk_disable(hsotg->clk);
-		s3c_hsotg_phy_disable(hsotg);
 	}
 
 	hsotg->gadget.speed = USB_SPEED_UNKNOWN;
