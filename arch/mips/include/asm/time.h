@@ -57,7 +57,7 @@ extern int gic_clockevent_init(void);
 
 static inline int mips_clockevent_init(void)
 {
-#if   defined(CONFIG_CEVT_GIC)
+#if   defined(CONFIG_CLKSRC_MIPS_GIC)
 	return (gic_clockevent_init() | r4k_clockevent_init());
 #elif defined(CONFIG_CEVT_R4K)
 	return r4k_clockevent_init();
