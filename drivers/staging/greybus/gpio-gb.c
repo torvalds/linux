@@ -799,12 +799,11 @@ out_err:
 void gb_gpio_controller_exit(struct gb_connection *connection)
 {
 	struct gb_gpio_controller *gb_gpio_controller = connection->private;
-	int ret;
 
 	if (!gb_gpio_controller)
 		return;
 
-	ret = gpiochip_remove(&gb_gpio_controller->chip);
+	gb_gpiochip_remove(&gb_gpio_controller->chip);
 	/* kref_put(gb_gpio_controller->connection) */
 	kfree(gb_gpio_controller);
 }

@@ -26,4 +26,26 @@
 #define U16_MAX	((u16)(~0U))
 #endif /* !U16_MAX */
 
+/*
+ * The GPIO api sucks rocks in places, like removal, so work around their
+ * explicit requirements of catching the return value for kernels older than
+ * 3.17, which they explicitly changed in the 3.17 kernel.  Consistency is
+ * overrated.
+ */
+#include <linux/version.h>
+#include <linux/gpio.h>
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0)
+static inline void gb_gpiochip_remove(struct gpio_chip *chip)
+{
+	gpiochip_remove(chip);
+}
+#else
+static inline void gb_gpiochip_remove(struct gpio_chip *chip)
+{
+	int ret;
+	ret = gpiochip_remove(chip);
+}
+#endif
+
 #endif	/* __GREYBUS_KERNEL_VER_H */
