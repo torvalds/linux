@@ -806,15 +806,6 @@ void __init prom_init(void)
 #endif
 	}
 
-	if (octeon_is_simulation()) {
-		/*
-		 * The simulator uses a mtdram device pre filled with
-		 * the filesystem. Also specify the calibration delay
-		 * to avoid calculating it every time.
-		 */
-		strcat(arcs_cmdline, " rw root=1f00 slram=root,0x40000000,+1073741824");
-	}
-
 	mips_hpt_frequency = octeon_get_clock_rate();
 
 	octeon_init_cvmcount();
