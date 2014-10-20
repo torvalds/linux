@@ -29,7 +29,7 @@
 #define WZRD_NUM_OUTPUTS	7
 #define WZRD_ACLK_MAX_FREQ	250000000UL
 
-#define WZRD_CLK_CFG_REG(n)	(0x200 + 4 * n)
+#define WZRD_CLK_CFG_REG(n)	(0x200 + 4 * (n))
 
 #define WZRD_CLkOUT0_FRAC_EN	BIT(18)
 #define WZRD_CLkFBOUT_FRAC_EN	BIT(26)
