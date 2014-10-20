@@ -1476,7 +1476,6 @@ static struct platform_driver iss_driver = {
 	.remove		= iss_remove,
 	.id_table	= omap4iss_id_table,
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "omap4iss",
 	},
 };
