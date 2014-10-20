@@ -110,7 +110,6 @@ static struct platform_driver of_pci_phb_driver = {
 	.probe = of_pci_phb_probe,
 	.driver = {
 		.name = "of-pci",
-		.owner = THIS_MODULE,
 		.of_match_table = of_pci_phb_ids,
 	},
 };
