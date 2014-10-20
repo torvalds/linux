@@ -25,18 +25,8 @@ struct gic_pcpu_mask {
 	DECLARE_BITMAP(pcpu_mask, GIC_MAX_INTRS);
 };
 
-struct gic_pending_regs {
-	DECLARE_BITMAP(pending, GIC_MAX_INTRS);
-};
-
-struct gic_intrmask_regs {
-	DECLARE_BITMAP(intrmask, GIC_MAX_INTRS);
-};
-
 static void __iomem *gic_base;
 static struct gic_pcpu_mask pcpu_masks[NR_CPUS];
-static struct gic_pending_regs pending_regs[NR_CPUS];
-static struct gic_intrmask_regs intrmask_regs[NR_CPUS];
 static DEFINE_SPINLOCK(gic_lock);
 static struct irq_domain *gic_irq_domain;
 static int gic_shared_intrs;
@@ -242,12 +232,12 @@ int gic_get_c0_perfcount_int(void)
 static unsigned int gic_get_int(void)
 {
 	unsigned int i;
-	unsigned long *pending, *intrmask, *pcpu_mask;
+	unsigned long *pcpu_mask;
 	unsigned long pending_reg, intrmask_reg;
+	DECLARE_BITMAP(pending, GIC_MAX_INTRS);
+	DECLARE_BITMAP(intrmask, GIC_MAX_INTRS);
 
 	/* Get per-cpu bitmaps */
-	pending = pending_regs[smp_processor_id()].pending;
-	intrmask = intrmask_regs[smp_processor_id()].intrmask;
 	pcpu_mask = pcpu_masks[smp_processor_id()].pcpu_mask;
 
 	pending_reg = GIC_REG(SHARED, GIC_SH_PEND);
