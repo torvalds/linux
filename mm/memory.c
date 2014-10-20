@@ -2095,6 +2095,12 @@ static inline int wp_page_reuse(struct fault_env *fe, pte_t orig_pte,
 	return VM_FAULT_WRITE;
 }
 
+static bool pte_map_lock(struct fault_env *fe)
+{
+	fe->pte = pte_offset_map_lock(fe->vma->vm_mm, fe->pmd, fe->address, &fe->ptl);
+	return true;
+}
+
 /*
  * Handle the case of a page which we actually need to copy to a new page.
  *
@@ -2122,6 +2128,7 @@ static int wp_page_copy(struct fault_env *fe, pte_t orig_pte,
 	const unsigned long mmun_start = fe->address & PAGE_MASK;
 	const unsigned long mmun_end = mmun_start + PAGE_SIZE;
 	struct mem_cgroup *memcg;
+	int ret = VM_FAULT_OOM;
 
 	if (unlikely(anon_vma_prepare(vma)))
 		goto oom;
@@ -2148,7 +2155,11 @@ static int wp_page_copy(struct fault_env *fe, pte_t orig_pte,
 	/*
 	 * Re-check the pte - we dropped the lock
 	 */
-	fe->pte = pte_offset_map_lock(mm, fe->pmd, fe->address, &fe->ptl);
+	if (!pte_map_lock(fe)) {
+		mem_cgroup_cancel_charge(new_page, memcg, false);
+		ret = VM_FAULT_RETRY;
+		goto oom_free_new;
+	}
 	if (likely(pte_same(*fe->pte, orig_pte))) {
 		if (old_page) {
 			if (!PageAnon(old_page)) {
@@ -2236,7 +2247,7 @@ oom_free_new:
 oom:
 	if (old_page)
 		put_page(old_page);
-	return VM_FAULT_OOM;
+	return ret;
 }
 
 /*
@@ -2261,8 +2272,12 @@ static int wp_pfn_shared(struct fault_env *fe,  pte_t orig_pte)
 		ret = vma->vm_ops->pfn_mkwrite(vma, &vmf);
 		if (ret & VM_FAULT_ERROR)
 			return ret;
-		fe->pte = pte_offset_map_lock(vma->vm_mm, fe->pmd, fe->address,
-				&fe->ptl);
+
+		if (!pte_map_lock(fe)) {
+			ret |= VM_FAULT_RETRY;
+			return ret;
+		}
+
 		/*
 		 * We might have raced with another page fault while we
 		 * released the pte_offset_map_lock.
@@ -2300,8 +2315,11 @@ static int wp_page_shared(struct fault_env *fe, pte_t orig_pte,
 		 * they did, we just return, as we can count on the
 		 * MMU to tell us if they didn't also make it writable.
 		 */
-		fe->pte = pte_offset_map_lock(vma->vm_mm, fe->pmd, fe->address,
-						 &fe->ptl);
+		if (!pte_map_lock(fe)) {
+			unlock_page(old_page);
+			put_page(old_page);
+			return VM_FAULT_RETRY;
+		}
 		if (!pte_same(*fe->pte, orig_pte)) {
 			unlock_page(old_page);
 			pte_unmap_unlock(fe->pte, fe->ptl);
@@ -2365,8 +2383,11 @@ static int do_wp_page(struct fault_env *fe, pte_t orig_pte)
 			get_page(old_page);
 			pte_unmap_unlock(fe->pte, fe->ptl);
 			lock_page(old_page);
-			fe->pte = pte_offset_map_lock(vma->vm_mm, fe->pmd,
-					fe->address, &fe->ptl);
+			if (!pte_map_lock(fe)) {
+				unlock_page(old_page);
+				put_page(old_page);
+				return VM_FAULT_RETRY;
+			}
 			if (!pte_same(*fe->pte, orig_pte)) {
 				unlock_page(old_page);
 				pte_unmap_unlock(fe->pte, fe->ptl);
@@ -2522,8 +2543,10 @@ int do_swap_page(struct fault_env *fe, pte_t orig_pte)
 			 * Back out if somebody else faulted in this pte
 			 * while we released the pte lock.
 			 */
-			fe->pte = pte_offset_map_lock(vma->vm_mm, fe->pmd,
-					fe->address, &fe->ptl);
+			if (!pte_map_lock(fe)) {
+				delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
+				return VM_FAULT_RETRY;
+			}
 			if (likely(pte_same(*fe->pte, orig_pte)))
 				ret = VM_FAULT_OOM;
 			delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
@@ -2579,8 +2602,11 @@ int do_swap_page(struct fault_env *fe, pte_t orig_pte)
 	/*
 	 * Back out if somebody else already faulted in this pte.
 	 */
-	fe->pte = pte_offset_map_lock(vma->vm_mm, fe->pmd, fe->address,
-			&fe->ptl);
+	if (!pte_map_lock(fe)) {
+		ret = VM_FAULT_RETRY;
+		mem_cgroup_cancel_charge(page, memcg, false);
+		goto out_page;
+	}
 	if (unlikely(!pte_same(*fe->pte, orig_pte)))
 		goto out_nomap;
 
@@ -2712,6 +2738,7 @@ static int do_anonymous_page(struct fault_env *fe)
 	struct mem_cgroup *memcg;
 	struct page *page;
 	pte_t entry;
+	int ret = 0;
 
 	/* File mapping without ->vm_ops ? */
 	if (vma->vm_flags & VM_SHARED)
@@ -2743,8 +2770,8 @@ static int do_anonymous_page(struct fault_env *fe)
 			!mm_forbids_zeropage(vma->vm_mm)) {
 		entry = pte_mkspecial(pfn_pte(my_zero_pfn(fe->address),
 						vma->vm_page_prot));
-		fe->pte = pte_offset_map_lock(vma->vm_mm, fe->pmd, fe->address,
-				&fe->ptl);
+		if (!pte_map_lock(fe))
+			return VM_FAULT_RETRY;
 		if (!pte_none(*fe->pte))
 			goto unlock;
 		/* Deliver the page fault to userland, check inside PT lock */
@@ -2776,8 +2803,12 @@ static int do_anonymous_page(struct fault_env *fe)
 	if (vma->vm_flags & VM_WRITE)
 		entry = pte_mkwrite(pte_mkdirty(entry));
 
-	fe->pte = pte_offset_map_lock(vma->vm_mm, fe->pmd, fe->address,
-			&fe->ptl);
+	if (!pte_map_lock(fe)) {
+		/* XXX: should be factorized */
+		mem_cgroup_cancel_charge(page, memcg, false);
+		put_page(page);
+		return VM_FAULT_RETRY;
+	}
 	if (!pte_none(*fe->pte))
 		goto release;
 
@@ -2800,7 +2831,7 @@ setpte:
 	update_mmu_cache(vma, fe->address, fe->pte);
 unlock:
 	pte_unmap_unlock(fe->pte, fe->ptl);
-	return 0;
+	return ret;
 release:
 	mem_cgroup_cancel_charge(page, memcg, false);
 	put_page(page);
@@ -2842,7 +2873,7 @@ static int __do_fault(struct fault_env *fe, pgoff_t pgoff,
 		if (ret & VM_FAULT_LOCKED)
 			unlock_page(vmf.page);
 		put_page(vmf.page);
-		return VM_FAULT_HWPOISON;
+		return ret | VM_FAULT_HWPOISON;
 	}
 
 	if (unlikely(!(ret & VM_FAULT_LOCKED)))
@@ -2889,8 +2920,9 @@ map_pte:
 	if (pmd_trans_unstable(fe->pmd) || pmd_devmap(*fe->pmd))
 		return VM_FAULT_NOPAGE;
 
-	fe->pte = pte_offset_map_lock(vma->vm_mm, fe->pmd, fe->address,
-			&fe->ptl);
+	if (!pte_map_lock(fe))
+		return VM_FAULT_RETRY;
+
 	return 0;
 }
 
@@ -3152,6 +3184,7 @@ static int do_read_fault(struct fault_env *fe, pgoff_t pgoff)
 	 * something).
 	 */
 	if (vma->vm_ops->map_pages && fault_around_bytes >> PAGE_SHIFT > 1) {
+		/* XXX: is a call to pte_map_lock(fe) required here ? */
 		ret = do_fault_around(fe, pgoff);
 		if (ret)
 			return ret;
