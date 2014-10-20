@@ -2247,6 +2247,8 @@ static void s3c_hsotg_core_init(struct s3c_hsotg *hsotg)
 	/* must be at-least 3ms to allow bus to see disconnect */
 	mdelay(3);
 
+	hsotg->last_rst = jiffies;
+
 	/* remove the soft-disconnect and let's go */
 	__bic32(hsotg->regs + DCTL, DCTL_SFTDISCON);
 }
@@ -2341,7 +2343,6 @@ irq_retry:
 							  -ECONNRESET, true);
 
 				s3c_hsotg_core_init(hsotg);
-				hsotg->last_rst = jiffies;
 			}
 		}
 	}
@@ -2905,7 +2906,6 @@ static int s3c_hsotg_udc_start(struct usb_gadget *gadget,
 		goto err;
 	}
 
-	hsotg->last_rst = jiffies;
 	dev_info(hsotg->dev, "bound driver %s\n", driver->driver.name);
 	return 0;
 
@@ -3656,7 +3656,6 @@ static int s3c_hsotg_resume(struct platform_device *pdev)
 	}
 
 	spin_lock_irqsave(&hsotg->lock, flags);
-	hsotg->last_rst = jiffies;
 	s3c_hsotg_phy_enable(hsotg);
 	s3c_hsotg_core_init(hsotg);
 	spin_unlock_irqrestore(&hsotg->lock, flags);
