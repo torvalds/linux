@@ -1344,6 +1344,11 @@ static int drm_mode_create_standard_connector_properties(struct drm_device *dev)
 				       "PATH", 0);
 	dev->mode_config.path_property = dev_path;
 
+	dev->mode_config.tile_property = drm_property_create(dev,
+							     DRM_MODE_PROP_BLOB |
+							     DRM_MODE_PROP_IMMUTABLE,
+							     "TILE", 0);
+
 	return 0;
 }
 
@@ -4086,6 +4091,52 @@ int drm_mode_connector_set_path_property(struct drm_connector *connector,
 	return ret;
 }
 EXPORT_SYMBOL(drm_mode_connector_set_path_property);
+
+/**
+ * drm_mode_connector_set_tile_property - set tile property on connector
+ * @connector: connector to set property on.
+ *
+ * This looks up the tile information for a connector, and creates a
+ * property for userspace to parse if it exists. The property is of
+ * the form of 8 integers using ':' as a separator.
+ *
+ * Returns:
+ * Zero on success, errno on failure.
+ */
+int drm_mode_connector_set_tile_property(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	int ret, size;
+	char tile[256];
+
+	if (connector->tile_blob_ptr)
+		drm_property_destroy_blob(dev, connector->tile_blob_ptr);
+
+	if (!connector->has_tile) {
+		connector->tile_blob_ptr = NULL;
+		ret = drm_object_property_set_value(&connector->base,
+						    dev->mode_config.tile_property, 0);
+		return ret;
+	}
+
+	snprintf(tile, 256, "%d:%d:%d:%d:%d:%d:%d:%d",
+		 connector->tile_group->id, connector->tile_is_single_monitor,
+		 connector->num_h_tile, connector->num_v_tile,
+		 connector->tile_h_loc, connector->tile_v_loc,
+		 connector->tile_h_size, connector->tile_v_size);
+	size = strlen(tile) + 1;
+
+	connector->tile_blob_ptr = drm_property_create_blob(connector->dev,
+							    size, tile);
+	if (!connector->tile_blob_ptr)
+		return -EINVAL;
+
+	ret = drm_object_property_set_value(&connector->base,
+					    dev->mode_config.tile_property,
+					    connector->tile_blob_ptr->base.id);
+	return ret;
+}
+EXPORT_SYMBOL(drm_mode_connector_set_tile_property);
 
 /**
  * drm_mode_connector_update_edid_property - update the edid property of a connector
