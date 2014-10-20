@@ -609,7 +609,6 @@ static int ntc_thermistor_remove(struct platform_device *pdev)
 static struct platform_driver ntc_thermistor_driver = {
 	.driver = {
 		.name = "ntc-thermistor",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(ntc_match),
 	},
 	.probe = ntc_thermistor_probe,

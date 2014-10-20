@@ -314,7 +314,6 @@ MODULE_DEVICE_TABLE(of, env_match);
 static struct platform_driver env_driver = {
 	.driver = {
 		.name = "ultra45_env",
-		.owner = THIS_MODULE,
 		.of_match_table = env_match,
 	},
 	.probe		= env_probe,
