@@ -611,20 +611,7 @@ static struct snd_soc_dai_driver ak4671_dai = {
 	.ops = &ak4671_dai_ops,
 };
 
-static int ak4671_probe(struct snd_soc_codec *codec)
-{
-	return ak4671_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-}
-
-static int ak4671_remove(struct snd_soc_codec *codec)
-{
-	ak4671_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_ak4671 = {
-	.probe = ak4671_probe,
-	.remove = ak4671_remove,
 	.set_bias_level = ak4671_set_bias_level,
 	.controls = ak4671_snd_controls,
 	.num_controls = ARRAY_SIZE(ak4671_snd_controls),
