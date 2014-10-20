@@ -262,6 +262,7 @@ static int write_begin_slow(struct address_space *mapping,
 			if (err) {
 				unlock_page(page);
 				page_cache_release(page);
+				ubifs_release_budget(c, &req);
 				return err;
 			}
 		}
