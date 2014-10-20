@@ -740,7 +740,6 @@ static const struct of_device_id ehv_bc_tty_of_ids[] = {
 
 static struct platform_driver ehv_bc_tty_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "ehv-bc",
 		.of_match_table = ehv_bc_tty_of_ids,
 	},
