@@ -29,6 +29,13 @@ static const struct apci3120_board apci3120_boardtypes[] = {
 	},
 };
 
+struct apci3120_dmabuf {
+	unsigned short *virt;
+	dma_addr_t hw;
+	unsigned int size;
+	unsigned int use_size;
+};
+
 struct apci3120_private {
 	int iobase;
 	int i_IobaseAmcc;
@@ -41,10 +48,7 @@ struct apci3120_private {
 	unsigned short us_UseDma;
 	unsigned char b_DmaDoubleBuffer;
 	unsigned int ui_DmaActualBuffer;
-	unsigned short *ul_DmaBufferVirtual[2];
-	dma_addr_t ul_DmaBufferHw[2];
-	unsigned int ui_DmaBufferSize[2];
-	unsigned int ui_DmaBufferUsesize[2];
+	struct apci3120_dmabuf dmabuf[2];
 	unsigned char b_DigitalOutputRegister;
 	unsigned char b_TimerSelectMode;
 	unsigned char b_ModeSelectRegister;
@@ -64,22 +68,23 @@ struct apci3120_private {
 static void apci3120_dma_alloc(struct comedi_device *dev)
 {
 	struct apci3120_private *devpriv = dev->private;
+	struct apci3120_dmabuf *dmabuf;
 	int order;
 	int i;
 
 	for (i = 0; i < 2; i++) {
+		dmabuf = &devpriv->dmabuf[i];
 		for (order = 2; order >= 0; order--) {
-			devpriv->ul_DmaBufferVirtual[i] =
-			    dma_alloc_coherent(dev->hw_dev, PAGE_SIZE << order,
-					       &devpriv->ul_DmaBufferHw[i],
-					       GFP_KERNEL);
-
-			if (devpriv->ul_DmaBufferVirtual[i])
+			dmabuf->virt = dma_alloc_coherent(dev->hw_dev,
+							  PAGE_SIZE << order,
+							  &dmabuf->hw,
+							  GFP_KERNEL);
+			if (dmabuf->virt)
 				break;
 		}
-		if (!devpriv->ul_DmaBufferVirtual[i])
+		if (!dmabuf->virt)
 			break;
-		devpriv->ui_DmaBufferSize[i] = PAGE_SIZE << order;
+		dmabuf->size = PAGE_SIZE << order;
 
 		if (i == 0)
 			devpriv->us_UseDma = 1;
@@ -91,17 +96,17 @@ static void apci3120_dma_alloc(struct comedi_device *dev)
 static void apci3120_dma_free(struct comedi_device *dev)
 {
 	struct apci3120_private *devpriv = dev->private;
+	struct apci3120_dmabuf *dmabuf;
 	int i;
 
 	if (!devpriv)
 		return;
 
 	for (i = 0; i < 2; i++) {
-		if (devpriv->ul_DmaBufferVirtual[i]) {
-			dma_free_coherent(dev->hw_dev,
-					  devpriv->ui_DmaBufferSize[i],
-					  devpriv->ul_DmaBufferVirtual[i],
-					  devpriv->ul_DmaBufferHw[i]);
+		dmabuf = &devpriv->dmabuf[i];
+		if (dmabuf->virt) {
+			dma_free_coherent(dev->hw_dev, dmabuf->size,
+					  dmabuf->virt, dmabuf->hw);
 		}
 	}
 }

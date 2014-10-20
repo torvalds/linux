@@ -1003,6 +1003,8 @@ static int apci3120_cyclic_ai(int mode,
 		}
 	} else {
 		/* If DMA Enabled */
+		struct apci3120_dmabuf *dmabuf0 = &devpriv->dmabuf[0];
+		struct apci3120_dmabuf *dmabuf1 = &devpriv->dmabuf[1];
 		unsigned int scan_bytes = cmd->scan_end_arg * sizeof(short);
 
 		devpriv->b_InterruptMode = APCI3120_DMA_MODE;
@@ -1014,8 +1016,8 @@ static int apci3120_cyclic_ai(int mode,
 		outb(devpriv->b_ModeSelectRegister,
 			dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
-		dmalen0 = devpriv->ui_DmaBufferSize[0];
-		dmalen1 = devpriv->ui_DmaBufferSize[1];
+		dmalen0 = dmabuf0->size;
+		dmalen1 = dmabuf1->size;
 
 		if (cmd->stop_src == TRIG_COUNT) {
 			/*
@@ -1050,8 +1052,8 @@ static int apci3120_cyclic_ai(int mode,
 			if (dmalen1 > s->async->prealloc_bufsz)
 				dmalen1 = s->async->prealloc_bufsz;
 		}
-		devpriv->ui_DmaBufferUsesize[0] = dmalen0;
-		devpriv->ui_DmaBufferUsesize[1] = dmalen1;
+		dmabuf0->use_size = dmalen0;
+		dmabuf1->use_size = dmalen1;
 
 		/* Initialize DMA */
 
@@ -1094,13 +1096,11 @@ static int apci3120_cyclic_ai(int mode,
 
 		/*  DMA Start Address Low */
 		outw(APCI3120_ADD_ON_MWAR_LOW, devpriv->i_IobaseAddon + 0);
-		outw((devpriv->ul_DmaBufferHw[0] & 0xFFFF),
-			devpriv->i_IobaseAddon + 2);
+		outw(dmabuf0->hw & 0xffff, devpriv->i_IobaseAddon + 2);
 
 		/* DMA Start Address High */
 		outw(APCI3120_ADD_ON_MWAR_HIGH, devpriv->i_IobaseAddon + 0);
-		outw((devpriv->ul_DmaBufferHw[0] / 65536),
-			devpriv->i_IobaseAddon + 2);
+		outw((dmabuf0->hw >> 16) & 0xffff, devpriv->i_IobaseAddon + 2);
 
 		/*
 		 * 4
@@ -1110,13 +1110,12 @@ static int apci3120_cyclic_ai(int mode,
 
 		/* Nbr of acquisition LOW */
 		outw(APCI3120_ADD_ON_MWTC_LOW, devpriv->i_IobaseAddon + 0);
-		outw((devpriv->ui_DmaBufferUsesize[0] & 0xFFFF),
-			devpriv->i_IobaseAddon + 2);
+		outw(dmabuf0->use_size & 0xffff, devpriv->i_IobaseAddon + 2);
 
 		/* Nbr of acquisition HIGH */
 		outw(APCI3120_ADD_ON_MWTC_HIGH, devpriv->i_IobaseAddon + 0);
-		outw((devpriv->ui_DmaBufferUsesize[0] / 65536),
-			devpriv->i_IobaseAddon + 2);
+		outw((dmabuf0->use_size >> 16) & 0xffff,
+		     devpriv->i_IobaseAddon + 2);
 
 		/*
 		 * 5
@@ -1248,18 +1247,17 @@ static void apci3120_interrupt_dma(int irq, void *d)
 	struct apci3120_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int next_dma_buf, samplesinbuf;
-	unsigned long low_word, high_word, var;
+	struct apci3120_dmabuf *dmabuf;
+	unsigned int samplesinbuf;
 	unsigned int ui_Tmp;
 
-	samplesinbuf =
-		devpriv->ui_DmaBufferUsesize[devpriv->ui_DmaActualBuffer] -
-		inl(devpriv->i_IobaseAmcc + AMCC_OP_REG_MWTC);
+	dmabuf = &devpriv->dmabuf[devpriv->ui_DmaActualBuffer];
 
-	if (samplesinbuf <
-		devpriv->ui_DmaBufferUsesize[devpriv->ui_DmaActualBuffer]) {
+	samplesinbuf = dmabuf->use_size -
+		       inl(devpriv->i_IobaseAmcc + AMCC_OP_REG_MWTC);
+
+	if (samplesinbuf < dmabuf->use_size)
 		dev_err(dev->class_dev, "Interrupted DMA transfer!\n");
-	}
 	if (samplesinbuf & 1) {
 		dev_err(dev->class_dev, "Odd count of bytes in DMA ring!\n");
 		apci3120_cancel(dev, s);
@@ -1268,7 +1266,9 @@ static void apci3120_interrupt_dma(int irq, void *d)
 	samplesinbuf = samplesinbuf >> 1;	/*  number of received samples */
 	if (devpriv->b_DmaDoubleBuffer) {
 		/*  switch DMA buffers if is used double buffering */
-		next_dma_buf = 1 - devpriv->ui_DmaActualBuffer;
+		struct apci3120_dmabuf *next_dmabuf;
+
+		next_dmabuf = &devpriv->dmabuf[1 - devpriv->ui_DmaActualBuffer];
 
 		ui_Tmp = AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO;
 		outl(ui_Tmp, devpriv->i_IobaseAddon + AMCC_OP_REG_AGCSTS);
@@ -1280,31 +1280,24 @@ static void apci3120_interrupt_dma(int irq, void *d)
 		outw(APCI3120_ADD_ON_AGCSTS_HIGH, devpriv->i_IobaseAddon + 0);
 		outw(APCI3120_ENABLE_TRANSFER_ADD_ON_HIGH, devpriv->i_IobaseAddon + 2);	/*  0x1000 is out putted in windows driver */
 
-		var = devpriv->ul_DmaBufferHw[next_dma_buf];
-		low_word = var & 0xffff;
-		var = devpriv->ul_DmaBufferHw[next_dma_buf];
-		high_word = var / 65536;
-
 		/* DMA Start Address Low */
 		outw(APCI3120_ADD_ON_MWAR_LOW, devpriv->i_IobaseAddon + 0);
-		outw(low_word, devpriv->i_IobaseAddon + 2);
+		outw(next_dmabuf->hw & 0xffff, devpriv->i_IobaseAddon + 2);
 
 		/* DMA Start Address High */
 		outw(APCI3120_ADD_ON_MWAR_HIGH, devpriv->i_IobaseAddon + 0);
-		outw(high_word, devpriv->i_IobaseAddon + 2);
-
-		var = devpriv->ui_DmaBufferUsesize[next_dma_buf];
-		low_word = var & 0xffff;
-		var = devpriv->ui_DmaBufferUsesize[next_dma_buf];
-		high_word = var / 65536;
+		outw((next_dmabuf->hw >> 16) & 0xffff,
+		     devpriv->i_IobaseAddon + 2);
 
 		/* Nbr of acquisition LOW */
 		outw(APCI3120_ADD_ON_MWTC_LOW, devpriv->i_IobaseAddon + 0);
-		outw(low_word, devpriv->i_IobaseAddon + 2);
+		outw(next_dmabuf->use_size & 0xffff,
+		     devpriv->i_IobaseAddon + 2);
 
 		/* Nbr of acquisition HIGH */
 		outw(APCI3120_ADD_ON_MWTC_HIGH, devpriv->i_IobaseAddon + 0);
-		outw(high_word, devpriv->i_IobaseAddon + 2);
+		outw((next_dmabuf->use_size > 16) & 0xffff,
+		     devpriv->i_IobaseAddon + 2);
 
 		/*
 		 * To configure A2P FIFO
@@ -1319,9 +1312,8 @@ static void apci3120_interrupt_dma(int irq, void *d)
 
 	}
 	if (samplesinbuf) {
-		v_APCI3120_InterruptDmaMoveBlock16bit(dev, s,
-			devpriv->ul_DmaBufferVirtual[devpriv->
-				ui_DmaActualBuffer], samplesinbuf);
+		v_APCI3120_InterruptDmaMoveBlock16bit(dev, s, dmabuf->virt,
+						      samplesinbuf);
 
 		if (!(cmd->flags & CMDF_WAKE_EOS))
 			s->async->events |= COMEDI_CB_EOS;
@@ -1356,23 +1348,16 @@ static void apci3120_interrupt_dma(int irq, void *d)
 		outl(APCI3120_A2P_FIFO_MANAGEMENT,
 			devpriv->i_IobaseAmcc + AMCC_OP_REG_MCSR);
 
-		var = devpriv->ul_DmaBufferHw[0];
-		low_word = var & 0xffff;
-		var = devpriv->ul_DmaBufferHw[0];
-		high_word = var / 65536;
 		outw(APCI3120_ADD_ON_MWAR_LOW, devpriv->i_IobaseAddon + 0);
-		outw(low_word, devpriv->i_IobaseAddon + 2);
+		outw(dmabuf->hw & 0xffff, devpriv->i_IobaseAddon + 2);
 		outw(APCI3120_ADD_ON_MWAR_HIGH, devpriv->i_IobaseAddon + 0);
-		outw(high_word, devpriv->i_IobaseAddon + 2);
+		outw((dmabuf->hw >> 16) & 0xffff, devpriv->i_IobaseAddon + 2);
 
-		var = devpriv->ui_DmaBufferUsesize[0];
-		low_word = var & 0xffff;	/* changed */
-		var = devpriv->ui_DmaBufferUsesize[0];
-		high_word = var / 65536;
 		outw(APCI3120_ADD_ON_MWTC_LOW, devpriv->i_IobaseAddon + 0);
-		outw(low_word, devpriv->i_IobaseAddon + 2);
+		outw(dmabuf->use_size & 0xffff, devpriv->i_IobaseAddon + 2);
 		outw(APCI3120_ADD_ON_MWTC_HIGH, devpriv->i_IobaseAddon + 0);
-		outw(high_word, devpriv->i_IobaseAddon + 2);
+		outw((dmabuf->use_size >> 16) & 0xffff,
+		     devpriv->i_IobaseAddon + 2);
 
 		/*
 		 * To configure A2P FIFO
