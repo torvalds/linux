@@ -1848,7 +1848,6 @@ static struct platform_driver samsung_serial_driver = {
 	.id_table	= s3c24xx_serial_driver_ids,
 	.driver		= {
 		.name	= "samsung-uart",
-		.owner	= THIS_MODULE,
 		.pm	= SERIAL_SAMSUNG_PM_OPS,
 		.of_match_table	= of_match_ptr(s3c24xx_uart_dt_match),
 	},

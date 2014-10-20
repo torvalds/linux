@@ -623,7 +623,6 @@ static struct platform_driver altera_uart_platform_driver = {
 	.remove	= altera_uart_remove,
 	.driver	= {
 		.name		= DRV_NAME,
-		.owner		= THIS_MODULE,
 		.of_match_table	= of_match_ptr(altera_uart_match),
 	},
 };

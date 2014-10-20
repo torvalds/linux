@@ -1874,7 +1874,6 @@ static struct platform_driver pmz_driver = {
 	.remove		= __exit_p(pmz_detach),
 	.driver		= {
 		.name		= "scc",
-		.owner		= THIS_MODULE,
 	},
 };
 

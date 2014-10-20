@@ -1537,7 +1537,6 @@ MODULE_DEVICE_TABLE(of, su_match);
 static struct platform_driver su_driver = {
 	.driver = {
 		.name = "su",
-		.owner = THIS_MODULE,
 		.of_match_table = su_match,
 	},
 	.probe		= su_probe,

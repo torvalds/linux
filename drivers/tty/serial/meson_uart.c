@@ -599,7 +599,6 @@ static  struct platform_driver meson_uart_platform_driver = {
 	.probe		= meson_uart_probe,
 	.remove		= meson_uart_remove,
 	.driver		= {
-		.owner		= THIS_MODULE,
 		.name		= "meson_uart",
 		.of_match_table	= meson_uart_dt_match,
 	},

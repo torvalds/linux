@@ -768,7 +768,6 @@ static struct platform_driver serial_hs_lpc32xx_driver = {
 	.resume		= serial_hs_lpc32xx_resume,
 	.driver		= {
 		.name	= MODNAME,
-		.owner	= THIS_MODULE,
 		.of_match_table	= serial_hs_lpc32xx_dt_ids,
 	},
 };
