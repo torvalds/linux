@@ -105,7 +105,6 @@ struct gb_gpio_direction_out_response {
 };
 
 struct gb_gpio_get_value_request {
-	__u8	status;
 	__u8	which;
 };
 struct gb_gpio_get_value_response {
