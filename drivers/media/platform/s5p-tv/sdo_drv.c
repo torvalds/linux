@@ -482,7 +482,6 @@ static struct platform_driver sdo_driver __refdata = {
 	.remove = sdo_remove,
 	.driver = {
 		.name = "s5p-sdo",
-		.owner = THIS_MODULE,
 		.pm = &sdo_pm_ops,
 	}
 };
