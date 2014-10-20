@@ -250,7 +250,7 @@ static void efuse_read_phymap_from_txpktbuf(
 		while (!(reg_0x143 = usb_read8(adapter, REG_TXPKTBUF_DBG)) &&
 		       (passing_time = rtw_get_passing_time_ms(start)) < 1000) {
 			DBG_88E("%s polling reg_0x143:0x%02x, reg_0x106:0x%02x\n", __func__, reg_0x143, usb_read8(adapter, 0x106));
-			msleep(1);
+			usleep_range(1000, 2000);
 		}
 
 		lo32 = usb_read32(adapter, REG_PKTBUF_DBG_DATA_L);
