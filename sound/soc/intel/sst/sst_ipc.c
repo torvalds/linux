@@ -54,6 +54,21 @@ struct sst_block *sst_create_block(struct intel_sst_drv *ctx,
 	return msg;
 }
 
+/*
+ * while handling the interrupts, we need to check for message status and
+ * then if we are blocking for a message
+ *
+ * here we are unblocking the blocked ones, this is based on id we have
+ * passed and search that for block threads.
+ * We will not find block in two cases
+ *  a) when its small message and block in not there, so silently ignore
+ *  them
+ *  b) when we are actually not able to find the block (bug perhaps)
+ *
+ *  Since we have bit of small messages we can spam kernel log with err
+ *  print on above so need to keep as debug prints which should be enabled
+ *  via dynamic debug while debugging IPC issues
+ */
 int sst_wake_up_block(struct intel_sst_drv *ctx, int result,
 		u32 drv_id, u32 ipc, void *data, u32 size)
 {
