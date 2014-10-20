@@ -486,7 +486,6 @@ static struct platform_driver vt8500lcd_driver = {
 	.probe		= vt8500lcd_probe,
 	.remove		= vt8500lcd_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "vt8500-lcd",
 		.of_match_table = of_match_ptr(via_dt_ids),
 	},

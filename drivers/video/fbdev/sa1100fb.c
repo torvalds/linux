@@ -1288,7 +1288,6 @@ static struct platform_driver sa1100fb_driver = {
 	.resume		= sa1100fb_resume,
 	.driver		= {
 		.name	= "sa11x0-fb",
-		.owner	= THIS_MODULE,
 	},
 };
 
