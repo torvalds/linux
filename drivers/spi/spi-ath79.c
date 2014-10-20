@@ -307,7 +307,6 @@ static struct platform_driver ath79_spi_driver = {
 	.shutdown	= ath79_spi_shutdown,
 	.driver		= {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 module_platform_driver(ath79_spi_driver);

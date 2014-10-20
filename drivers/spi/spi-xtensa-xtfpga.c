@@ -160,7 +160,6 @@ static struct platform_driver xtfpga_spi_driver = {
 	.remove = xtfpga_spi_remove,
 	.driver = {
 		.name = XTFPGA_SPI_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(xtfpga_spi_of_match),
 	},
 };
