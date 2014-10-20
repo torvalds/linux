@@ -206,7 +206,7 @@ static void gic_bind_eic_interrupt(int irq, int set)
 
 void gic_send_ipi(unsigned int intr)
 {
-	gic_write(GIC_REG(SHARED, GIC_SH_WEDGE), 0x80000000 | intr);
+	gic_write(GIC_REG(SHARED, GIC_SH_WEDGE), GIC_SH_WEDGE_SET(intr));
 }
 
 int gic_get_c0_compare_int(void)
@@ -270,7 +270,7 @@ static void gic_ack_irq(struct irq_data *d)
 {
 	unsigned int irq = GIC_HWIRQ_TO_SHARED(d->hwirq);
 
-	gic_write(GIC_REG(SHARED, GIC_SH_WEDGE), irq);
+	gic_write(GIC_REG(SHARED, GIC_SH_WEDGE), GIC_SH_WEDGE_CLR(irq));
 }
 
 static int gic_set_type(struct irq_data *d, unsigned int type)
