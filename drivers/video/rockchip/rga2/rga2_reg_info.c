@@ -434,8 +434,8 @@ RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
     s_y_rd_addr = s_y_ld_addr + (msg->dst.act_w - 1) * spw;
 
     yrgb_addr = (RK_U32)msg->dst.yrgb_addr + (msg->dst.y_offset * d_stride) + (msg->dst.x_offset * dpw);
-    u_addr = (RK_U32)msg->dst.uv_addr + msg->dst.y_offset * d_uv_stride + msg->dst.x_offset / x_div;
-    v_addr = (RK_U32)msg->dst.v_addr + msg->dst.y_offset * d_uv_stride + msg->dst.x_offset / x_div;
+    u_addr = (RK_U32)msg->dst.uv_addr + (msg->dst.y_offset / y_div) * d_uv_stride + msg->dst.x_offset / x_div;
+    v_addr = (RK_U32)msg->dst.v_addr + (msg->dst.y_offset / y_div) * d_uv_stride + msg->dst.x_offset / x_div;
 
     y_lt_addr = yrgb_addr;
     u_lt_addr = u_addr;
