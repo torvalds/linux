@@ -55,6 +55,17 @@
 #define SDMMC_BUFADDR		0x098
 #define SDMMC_CDTHRCTL		0x100
 #define SDMMC_DATA(x)		(x)
+/*
+* Registers to support idmac 64-bit address mode
+*/
+#define SDMMC_DBADDRL		0x088
+#define SDMMC_DBADDRU		0x08c
+#define SDMMC_IDSTS64		0x090
+#define SDMMC_IDINTEN64		0x094
+#define SDMMC_DSCADDRL		0x098
+#define SDMMC_DSCADDRU		0x09c
+#define SDMMC_BUFADDRL		0x0A0
+#define SDMMC_BUFADDRU		0x0A4
 
 /*
  * Data offset is difference according to Version
