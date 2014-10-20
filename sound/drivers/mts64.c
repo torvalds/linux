@@ -1040,7 +1040,6 @@ static struct platform_driver snd_mts64_driver = {
 	.remove = snd_mts64_remove,
 	.driver = {
 		.name = PLATFORM_DRIVER,
-		.owner	= THIS_MODULE,
 	}
 };
 
