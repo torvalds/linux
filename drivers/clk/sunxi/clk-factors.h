@@ -7,8 +7,6 @@
 
 #define SUNXI_FACTORS_NOT_APPLICABLE	(0)
 
-#define SUNXI_FACTORS_MUX_MASK 0x3
-
 struct clk_factors_config {
 	u8 nshift;
 	u8 nwidth;
@@ -24,6 +22,7 @@ struct clk_factors_config {
 struct factors_data {
 	int enable;
 	int mux;
+	int muxmask;
 	struct clk_factors_config *table;
 	void (*getter) (u32 *rate, u32 parent_rate, u8 *n, u8 *k, u8 *m, u8 *p);
 	const char *name;

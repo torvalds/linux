@@ -70,6 +70,7 @@ static struct clk_factors_config sun4i_a10_mod0_config = {
 static const struct factors_data sun4i_a10_mod0_data __initconst = {
 	.enable = 31,
 	.mux = 24,
+	.muxmask = BIT(1) | BIT(0),
 	.table = &sun4i_a10_mod0_config,
 	.getter = sun4i_a10_get_mod0_factors,
 };
