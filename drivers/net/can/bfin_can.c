@@ -680,7 +680,6 @@ static struct platform_driver bfin_can_driver = {
 	.resume = bfin_can_resume,
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 	},
 };
 

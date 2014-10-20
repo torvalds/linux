@@ -1738,7 +1738,6 @@ MODULE_DEVICE_TABLE(of, grcan_match);
 static struct platform_driver grcan_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = grcan_match,
 	},
 	.probe = grcan_probe,
