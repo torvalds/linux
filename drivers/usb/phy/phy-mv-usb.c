@@ -896,7 +896,6 @@ static struct platform_driver mv_otg_driver = {
 	.probe = mv_otg_probe,
 	.remove = mv_otg_remove,
 	.driver = {
-		   .owner = THIS_MODULE,
 		   .name = driver_name,
 		   },
 #ifdef CONFIG_PM

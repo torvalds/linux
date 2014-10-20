@@ -491,7 +491,6 @@ static struct platform_driver mxs_phy_driver = {
 	.remove = mxs_phy_remove,
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = mxs_phy_dt_ids,
 		.pm = &mxs_phy_pm,
 	 },
