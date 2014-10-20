@@ -610,7 +610,6 @@ static struct platform_driver ssi_pdriver = {
 	.remove	= __exit_p(ssi_remove),
 	.driver	= {
 		.name	= "omap_ssi",
-		.owner	= THIS_MODULE,
 		.pm     = DEV_PM_OPS,
 		.of_match_table = omap_ssi_of_match,
 	},
