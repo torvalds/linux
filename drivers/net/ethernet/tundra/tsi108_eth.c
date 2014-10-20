@@ -161,7 +161,6 @@ static struct platform_driver tsi_eth_driver = {
 	.remove = tsi108_ether_remove,
 	.driver	= {
 		.name = "tsi-ethernet",
-		.owner = THIS_MODULE,
 	},
 };
 
