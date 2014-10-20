@@ -324,7 +324,6 @@ MODULE_DEVICE_TABLE(of, sun4i_ts_of_match);
 
 static struct platform_driver sun4i_ts_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "sun4i-ts",
 		.of_match_table = of_match_ptr(sun4i_ts_of_match),
 	},
