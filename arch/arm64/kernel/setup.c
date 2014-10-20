@@ -402,7 +402,6 @@ void __init setup_arch(char **cmdline_p)
 	request_standard_resources();
 
 	efi_virtmap_init();
-	efi_idmap_init();
 	early_ioremap_reset();
 
 	unflatten_device_tree();

@@ -54,27 +54,6 @@ static int __init is_normal_ram(efi_memory_desc_t *md)
 	return 0;
 }
 
-static void __init efi_setup_idmap(void)
-{
-	struct memblock_region *r;
-	efi_memory_desc_t *md;
-	u64 paddr, npages, size;
-
-	for_each_memblock(memory, r)
-		create_id_mapping(r->base, r->size, 0);
-
-	/* map runtime io spaces */
-	for_each_efi_memory_desc(&memmap, md) {
-		if (!(md->attribute & EFI_MEMORY_RUNTIME) || is_normal_ram(md))
-			continue;
-		paddr = md->phys_addr;
-		npages = md->num_pages;
-		memrange_efi_to_native(&paddr, &npages);
-		size = npages << PAGE_SHIFT;
-		create_id_mapping(paddr, size, 1);
-	}
-}
-
 /*
  * Translate a EFI virtual address into a physical address: this is necessary,
  * as some data members of the EFI system table are virtually remapped after
@@ -236,16 +215,6 @@ void __init efi_init(void)
 	reserve_regions();
 }
 
-void __init efi_idmap_init(void)
-{
-	if (!efi_enabled(EFI_BOOT))
-		return;
-
-	/* boot time idmap_pg_dir is incomplete, so fill in missing parts */
-	efi_setup_idmap();
-	early_memunmap(memmap.map, memmap.map_end - memmap.map);
-}
-
 /*
  * Enable the UEFI Runtime Services if all prerequisites are in place, i.e.,
  * non-early mapping of the UEFI system table and virtual mappings for all
@@ -386,4 +355,5 @@ void __init efi_virtmap_init(void)
 		create_pgd_mapping(&efi_mm, paddr, md->virt_addr, size, prot);
 	}
 	set_bit(EFI_VIRTMAP, &efi.flags);
+	early_memunmap(memmap.map, memmap.map_end - memmap.map);
 }
