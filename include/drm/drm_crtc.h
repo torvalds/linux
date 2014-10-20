@@ -607,6 +607,15 @@ struct drm_encoder {
  * @bad_edid_counter: track sinks that give us an EDID with invalid checksum
  * @debugfs_entry: debugfs directory for this connector
  * @state: current atomic state for this connector
+ * @has_tile: is this connector connected to a tiled monitor
+ * @tile_group: tile group for the connected monitor
+ * @tile_is_single_monitor: whether the tile is one monitor housing
+ * @num_h_tile: number of horizontal tiles in the tile group
+ * @num_v_tile: number of vertical tiles in the tile group
+ * @tile_h_loc: horizontal location of this tile
+ * @tile_v_loc: vertical location of this tile
+ * @tile_h_size: horizontal size of this tile.
+ * @tile_v_size: vertical size of this tile.
  *
  * Each connector may be connected to one or more CRTCs, or may be clonable by
  * another connector if they can share a CRTC.  Each connector also has a specific
@@ -669,6 +678,15 @@ struct drm_connector {
 	struct dentry *debugfs_entry;
 
 	struct drm_connector_state *state;
+
+	/* DisplayID bits */
+	bool has_tile;
+	struct drm_tile_group *tile_group;
+	bool tile_is_single_monitor;
+
+	uint8_t num_h_tile, num_v_tile;
+	uint8_t tile_h_loc, tile_v_loc;
+	uint16_t tile_h_size, tile_v_size;
 };
 
 /**
