@@ -405,7 +405,6 @@ static struct platform_driver ieee802154fake_driver = {
 	.remove = ieee802154fake_remove,
 	.driver = {
 			.name = "ieee802154hardmac",
-			.owner = THIS_MODULE,
 	},
 };
 
