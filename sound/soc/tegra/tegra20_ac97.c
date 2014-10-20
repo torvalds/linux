@@ -438,7 +438,6 @@ static const struct of_device_id tegra20_ac97_of_match[] = {
 static struct platform_driver tegra20_ac97_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = tegra20_ac97_of_match,
 	},
 	.probe = tegra20_ac97_platform_probe,
