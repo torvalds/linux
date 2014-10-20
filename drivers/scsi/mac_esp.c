@@ -617,7 +617,6 @@ static struct platform_driver esp_mac_driver = {
 	.remove   = esp_mac_remove,
 	.driver   = {
 		.name	= DRV_MODULE_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 
