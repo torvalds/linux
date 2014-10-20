@@ -1117,15 +1117,6 @@ static inline void set_acl_inode(struct f2fs_inode_info *fi, umode_t mode)
 	set_inode_flag(fi, FI_ACL_MODE);
 }
 
-static inline int cond_clear_inode_flag(struct f2fs_inode_info *fi, int flag)
-{
-	if (is_inode_flag_set(fi, FI_ACL_MODE)) {
-		clear_inode_flag(fi, FI_ACL_MODE);
-		return 1;
-	}
-	return 0;
-}
-
 static inline void get_inline_info(struct f2fs_inode_info *fi,
 					struct f2fs_inode *ri)
 {
