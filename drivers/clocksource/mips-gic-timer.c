@@ -39,17 +39,16 @@ static void gic_set_clock_mode(enum clock_event_mode mode,
 
 static irqreturn_t gic_compare_interrupt(int irq, void *dev_id)
 {
-	struct clock_event_device *cd;
-	int cpu = smp_processor_id();
+	struct clock_event_device *cd = dev_id;
 
 	gic_write_compare(gic_read_compare());
-	cd = &per_cpu(gic_clockevent_device, cpu);
 	cd->event_handler(cd);
 	return IRQ_HANDLED;
 }
 
 struct irqaction gic_compare_irqaction = {
 	.handler = gic_compare_interrupt,
+	.percpu_dev_id = &gic_clockevent_device,
 	.flags = IRQF_PERCPU | IRQF_TIMER,
 	.name = "timer",
 };
