@@ -599,7 +599,6 @@ static int ams_delta_remove(struct platform_device *pdev)
 static struct platform_driver ams_delta_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 	},
 	.probe = ams_delta_probe,
 	.remove = ams_delta_remove,

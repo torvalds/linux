@@ -73,7 +73,6 @@ static int omap_hdmi_remove(struct platform_device *pdev)
 static struct platform_driver omap_hdmi_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.owner = THIS_MODULE,
 	},
 	.probe = omap_hdmi_probe,
 	.remove = omap_hdmi_remove,
