@@ -559,7 +559,6 @@ static struct platform_driver moxart_mac_driver = {
 	.remove	= moxart_remove,
 	.driver	= {
 		.name		= "moxart-ethernet",
-		.owner		= THIS_MODULE,
 		.of_match_table	= moxart_mac_match,
 	},
 };
