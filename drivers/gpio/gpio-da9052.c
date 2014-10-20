@@ -246,7 +246,6 @@ static struct platform_driver da9052_gpio_driver = {
 	.remove = da9052_gpio_remove,
 	.driver = {
 		.name	= "da9052-gpio",
-		.owner	= THIS_MODULE,
 	},
 };
 

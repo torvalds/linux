@@ -452,7 +452,6 @@ MODULE_DEVICE_TABLE(platform, ts5500_dio_ids);
 static struct platform_driver ts5500_dio_driver = {
 	.driver = {
 		.name = "ts5500-dio",
-		.owner = THIS_MODULE,
 	},
 	.probe = ts5500_dio_probe,
 	.remove = ts5500_dio_remove,

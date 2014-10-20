@@ -121,7 +121,6 @@ MODULE_ALIAS("platform:twl6040-gpo");
 static struct platform_driver gpo_twl6040_driver = {
 	.driver = {
 		.name	= "twl6040-gpo",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= gpo_twl6040_probe,
 	.remove		= gpo_twl6040_remove,

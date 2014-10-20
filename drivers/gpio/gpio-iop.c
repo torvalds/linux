@@ -120,7 +120,6 @@ static int iop3xx_gpio_probe(struct platform_device *pdev)
 static struct platform_driver iop3xx_gpio_driver = {
 	.driver = {
 		.name = "gpio-iop",
-		.owner = THIS_MODULE,
 	},
 	.probe = iop3xx_gpio_probe,
 };

@@ -253,7 +253,6 @@ static int syscon_gpio_remove(struct platform_device *pdev)
 static struct platform_driver syscon_gpio_driver = {
 	.driver	= {
 		.name		= "gpio-syscon",
-		.owner		= THIS_MODULE,
 		.of_match_table	= syscon_gpio_ids,
 	},
 	.probe	= syscon_gpio_probe,

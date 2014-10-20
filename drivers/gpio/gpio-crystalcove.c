@@ -379,7 +379,6 @@ static struct platform_driver crystalcove_gpio_driver = {
 	.remove = crystalcove_gpio_remove,
 	.driver = {
 		.name = "crystal_cove_gpio",
-		.owner = THIS_MODULE,
 	},
 };
 

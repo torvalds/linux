@@ -428,7 +428,6 @@ static struct platform_driver em_gio_device_driver = {
 	.driver		= {
 		.name	= "em_gio",
 		.of_match_table = em_gio_dt_ids,
-		.owner		= THIS_MODULE,
 	}
 };
 

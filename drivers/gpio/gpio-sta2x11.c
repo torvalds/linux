@@ -429,7 +429,6 @@ err_free_descs:
 static struct platform_driver sta2x11_gpio_platform_driver = {
 	.driver = {
 		.name	= "sta2x11-gpio",
-		.owner	= THIS_MODULE,
 	},
 	.probe = gsta_probe,
 };

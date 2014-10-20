@@ -157,7 +157,6 @@ static int xtensa_gpio_probe(struct platform_device *pdev)
 static struct platform_driver xtensa_gpio_driver = {
 	.driver		= {
 		.name		= "xtensa-gpio",
-		.owner		= THIS_MODULE,
 	},
 	.probe		= xtensa_gpio_probe,
 };

@@ -605,7 +605,6 @@ MODULE_ALIAS("platform:twl4030_gpio");
 static struct platform_driver gpio_twl4030_driver = {
 	.driver = {
 		.name	= "twl4030_gpio",
-		.owner	= THIS_MODULE,
 		.of_match_table = twl_gpio_match,
 	},
 	.probe		= gpio_twl4030_probe,
