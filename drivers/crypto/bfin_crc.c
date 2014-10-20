@@ -724,7 +724,6 @@ static struct platform_driver bfin_crypto_crc_driver = {
 	.resume    = bfin_crypto_crc_resume,
 	.driver    = {
 		.name  = DRIVER_NAME,
-		.owner = THIS_MODULE,
 	},
 };
 

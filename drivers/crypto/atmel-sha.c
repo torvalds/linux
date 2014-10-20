@@ -1529,7 +1529,6 @@ static struct platform_driver atmel_sha_driver = {
 	.remove		= atmel_sha_remove,
 	.driver		= {
 		.name	= "atmel_sha",
-		.owner	= THIS_MODULE,
 		.of_match_table	= of_match_ptr(atmel_sha_dt_ids),
 	},
 };

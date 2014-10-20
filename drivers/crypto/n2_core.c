@@ -2210,7 +2210,6 @@ MODULE_DEVICE_TABLE(of, n2_crypto_match);
 static struct platform_driver n2_crypto_driver = {
 	.driver = {
 		.name		=	"n2cp",
-		.owner		=	THIS_MODULE,
 		.of_match_table	=	n2_crypto_match,
 	},
 	.probe		=	n2_crypto_probe,
@@ -2238,7 +2237,6 @@ MODULE_DEVICE_TABLE(of, n2_mau_match);
 static struct platform_driver n2_mau_driver = {
 	.driver = {
 		.name		=	"ncp",
-		.owner		=	THIS_MODULE,
 		.of_match_table	=	n2_mau_match,
 	},
 	.probe		=	n2_mau_probe,
