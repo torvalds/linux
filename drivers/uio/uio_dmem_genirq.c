@@ -343,7 +343,6 @@ static struct platform_driver uio_dmem_genirq = {
 	.remove = uio_dmem_genirq_remove,
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.pm = &uio_dmem_genirq_dev_pm_ops,
 		.of_match_table = of_match_ptr(uio_of_genirq_match),
 	},
