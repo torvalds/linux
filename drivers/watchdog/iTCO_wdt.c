@@ -576,7 +576,6 @@ static struct platform_driver iTCO_wdt_driver = {
 	.remove         = iTCO_wdt_remove,
 	.shutdown       = iTCO_wdt_shutdown,
 	.driver         = {
-		.owner  = THIS_MODULE,
 		.name   = DRV_NAME,
 	},
 };

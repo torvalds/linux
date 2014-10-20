@@ -172,7 +172,6 @@ static struct platform_driver mid_wdt_driver = {
 	.probe		= mid_wdt_probe,
 	.remove		= mid_wdt_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "intel_mid_wdt",
 	},
 };

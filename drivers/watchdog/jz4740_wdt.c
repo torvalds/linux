@@ -211,7 +211,6 @@ static struct platform_driver jz4740_wdt_driver = {
 	.remove = jz4740_wdt_remove,
 	.driver = {
 		.name = "jz4740-wdt",
-		.owner	= THIS_MODULE,
 	},
 };
 
