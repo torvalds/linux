@@ -391,7 +391,6 @@ static struct platform_driver __refdata sh_csi2_pdrv = {
 	.probe	= sh_csi2_probe,
 	.driver	= {
 		.name	= "sh-mobile-csi2",
-		.owner	= THIS_MODULE,
 	},
 };
 
