@@ -103,7 +103,6 @@ static struct platform_driver ahci_da850_driver = {
 	.remove = ata_platform_remove_one,
 	.driver = {
 		.name = "ahci_da850",
-		.owner = THIS_MODULE,
 		.pm = &ahci_da850_pm_ops,
 	},
 };

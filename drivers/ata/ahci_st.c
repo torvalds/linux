@@ -230,7 +230,6 @@ MODULE_DEVICE_TABLE(of, st_ahci_match);
 static struct platform_driver st_ahci_driver = {
 	.driver = {
 		.name = "st_ahci",
-		.owner = THIS_MODULE,
 		.pm = &st_ahci_pm_ops,
 		.of_match_table = of_match_ptr(st_ahci_match),
 	},
