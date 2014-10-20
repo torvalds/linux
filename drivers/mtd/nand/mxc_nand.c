@@ -280,14 +280,10 @@ static void memcpy32_fromio(void *trg, const void __iomem  *src, size_t size)
 		*t++ = __raw_readl(s++);
 }
 
-static void memcpy32_toio(void __iomem *trg, const void *src, int size)
+static inline void memcpy32_toio(void __iomem *trg, const void *src, int size)
 {
-	int i;
-	u32 __iomem *t = trg;
-	const u32 *s = src;
-
-	for (i = 0; i < (size >> 2); i++)
-		__raw_writel(*s++, t++);
+	/* __iowrite32_copy use 32bit size values so divide by 4 */
+	__iowrite32_copy(trg, src, size / 4);
 }
 
 static int check_int_v3(struct mxc_nand_host *host)
