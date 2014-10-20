@@ -53,13 +53,10 @@ extern int __weak get_c0_perfcount_int(void);
  */
 extern unsigned int __weak get_c0_compare_int(void);
 extern int r4k_clockevent_init(void);
-extern int gic_clockevent_init(void);
 
 static inline int mips_clockevent_init(void)
 {
-#if   defined(CONFIG_CLKSRC_MIPS_GIC)
-	return (gic_clockevent_init() | r4k_clockevent_init());
-#elif defined(CONFIG_CEVT_R4K)
+#ifdef CONFIG_CEVT_R4K
 	return r4k_clockevent_init();
 #else
 	return -ENXIO;
