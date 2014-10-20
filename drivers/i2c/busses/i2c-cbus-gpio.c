@@ -287,7 +287,6 @@ static struct platform_driver cbus_i2c_driver = {
 	.probe	= cbus_i2c_probe,
 	.remove	= cbus_i2c_remove,
 	.driver	= {
-		.owner	= THIS_MODULE,
 		.name	= "i2c-cbus-gpio",
 		.of_match_table = of_match_ptr(i2c_cbus_dt_ids),
 	},

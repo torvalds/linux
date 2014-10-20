@@ -813,7 +813,6 @@ static struct platform_driver mpc_i2c_driver = {
 	.probe		= fsl_i2c_probe,
 	.remove		= fsl_i2c_remove,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = DRV_NAME,
 		.of_match_table = mpc_i2c_of_match,
 		.pm = MPC_I2C_PM_OPS,

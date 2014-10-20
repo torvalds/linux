@@ -861,7 +861,6 @@ static struct platform_driver exynos5_i2c_driver = {
 	.probe		= exynos5_i2c_probe,
 	.remove		= exynos5_i2c_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "exynos5-hsi2c",
 		.pm	= &exynos5_i2c_dev_pm_ops,
 		.of_match_table = exynos5_i2c_match,

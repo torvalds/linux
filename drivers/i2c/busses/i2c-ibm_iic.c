@@ -802,7 +802,6 @@ static const struct of_device_id ibm_iic_match[] = {
 static struct platform_driver ibm_iic_driver = {
 	.driver = {
 		.name = "ibm-iic",
-		.owner = THIS_MODULE,
 		.of_match_table = ibm_iic_match,
 	},
 	.probe	= iic_probe,

@@ -628,7 +628,6 @@ static struct platform_driver pmcmsptwi_driver = {
 	.remove	= pmcmsptwi_remove,
 	.driver = {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 	},
 };
 

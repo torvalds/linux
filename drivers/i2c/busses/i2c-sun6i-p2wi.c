@@ -332,7 +332,6 @@ static struct platform_driver p2wi_driver = {
 	.probe	= p2wi_probe,
 	.remove	= p2wi_remove,
 	.driver	= {
-		.owner = THIS_MODULE,
 		.name = "i2c-sunxi-p2wi",
 		.of_match_table = p2wi_of_match_table,
 	},

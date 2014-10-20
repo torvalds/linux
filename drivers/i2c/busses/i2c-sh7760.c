@@ -552,7 +552,6 @@ static int sh7760_i2c_remove(struct platform_device *pdev)
 static struct platform_driver sh7760_i2c_drv = {
 	.driver	= {
 		.name	= SH7760_I2C_DEVNAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= sh7760_i2c_probe,
 	.remove		= sh7760_i2c_remove,
