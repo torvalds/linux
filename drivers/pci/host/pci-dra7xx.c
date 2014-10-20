@@ -446,7 +446,6 @@ static struct platform_driver dra7xx_pcie_driver = {
 	.remove		= __exit_p(dra7xx_pcie_remove),
 	.driver = {
 		.name	= "dra7-pcie",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_dra7xx_pcie_match,
 	},
 };
