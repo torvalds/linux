@@ -181,7 +181,7 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 		s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
 		s->n_chan = 8;
 		s->maxdata = 0x3fff;
-		s->range_table = &range_apci3120_ao;
+		s->range_table = &range_bipolar10;
 		s->insn_write = apci3120_ao_insn_write;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;

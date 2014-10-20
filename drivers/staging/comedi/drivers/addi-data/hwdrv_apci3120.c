@@ -214,16 +214,6 @@ static const struct comedi_lrange range_apci3120_ai = {
 	}
 };
 
-/* ANALOG OUTPUT RANGE */
-static const struct comedi_lrange range_apci3120_ao = {
-	2, {
-		BIP_RANGE(10),
-		UNI_RANGE(10)
-	}
-};
-
-
-/* FUNCTION DEFINITIONS */
 static int apci3120_ai_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn,
@@ -1954,29 +1944,12 @@ static int apci3120_ao_insn_write(struct comedi_device *dev,
 				  unsigned int *data)
 {
 	struct apci3120_private *devpriv = dev->private;
-	unsigned int ui_Range, ui_Channel;
+	unsigned int ui_Channel;
 	unsigned short us_TmpValue;
 
-	ui_Range = CR_RANGE(insn->chanspec);
 	ui_Channel = CR_CHAN(insn->chanspec);
 
-	if (ui_Range) {		/*  if 1 then unipolar */
-
-		if (data[0] != 0)
-			data[0] =
-				((((ui_Channel & 0x03) << 14) & 0xC000) | (1 <<
-					13) | (data[0] + 8191));
-		else
-			data[0] =
-				((((ui_Channel & 0x03) << 14) & 0xC000) | (1 <<
-					13) | 8192);
-
-	} else {			/*  if 0 then   bipolar */
-		data[0] =
-			((((ui_Channel & 0x03) << 14) & 0xC000) | (0 << 13) |
-			data[0]);
-
-	}
+	data[0] = ((((ui_Channel & 0x03) << 14) & 0xC000) | data[0]);
 
 	do {			/* Waiting of DA_READY BIT */
 		us_TmpValue =
