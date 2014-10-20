@@ -1270,7 +1270,6 @@ static int ft1000_parse_dpram_msg(struct net_device *dev)
 	u16 nxtph;
 	u16 total_len;
 	int i = 0;
-	int cnt;
 	unsigned long flags;
 
 	doorbell = ft1000_read_reg(dev, FT1000_REG_DOORBELL);
@@ -1336,7 +1335,6 @@ static int ft1000_parse_dpram_msg(struct net_device *dev)
 			  total_len);
 		if ((total_len < MAX_CMD_SQSIZE) && (total_len > sizeof(struct pseudo_hdr))) {
             total_len += nxtph;
-            cnt = 0;
 			/*
 			 * ft1000_read_reg will return a value that needs to be byteswap
 			 * in order to get DSP_QID_OFFSET.
