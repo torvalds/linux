@@ -1157,8 +1157,7 @@ static int mmc_select_timing(struct mmc_card *card)
 {
 	int err = 0;
 
-	if ((card->csd.mmca_vsn < CSD_SPEC_VER_4 &&
-	     card->ext_csd.hs_max_dtr == 0))
+	if (card->csd.mmca_vsn < CSD_SPEC_VER_4)
 		goto bus_speed;
 
 	if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS200)
