@@ -153,7 +153,6 @@ static int rsctrl_probe(struct platform_device *pdev)
 static struct platform_driver rsctrl_driver = {
 	.probe = rsctrl_probe,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = KBUILD_MODNAME,
 		.of_match_table = rsctrl_of_match,
 	},
