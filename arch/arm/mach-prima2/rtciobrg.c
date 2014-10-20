@@ -123,7 +123,6 @@ static struct platform_driver sirfsoc_rtciobrg_driver = {
 	.probe		= sirfsoc_rtciobrg_probe,
 	.driver = {
 		.name = "sirfsoc-rtciobrg",
-		.owner = THIS_MODULE,
 		.of_match_table	= rtciobrg_ids,
 	},
 };
