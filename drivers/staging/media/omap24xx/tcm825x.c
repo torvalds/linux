@@ -751,7 +751,7 @@ static int ioctl_g_ifparm(struct v4l2_int_device *s, struct v4l2_ifparm *p)
 		(2457 * tgt_fps) / MAX_FPS;
 	tgt_xclk *= 10000;
 
-	tgt_xclk = min(tgt_xclk, (u32)TCM825X_XCLK_MAX);
+	tgt_xclk = min_t(u32, tgt_xclk, TCM825X_XCLK_MAX);
 	tgt_xclk = max(tgt_xclk, (u32)TCM825X_XCLK_MIN);
 
 	p->u.bt656.clock_curr = tgt_xclk;
