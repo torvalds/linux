@@ -370,6 +370,7 @@ extern void gic_init(unsigned long gic_base_addr,
 	unsigned int irqbase);
 extern void gic_clocksource_init(unsigned int);
 extern cycle_t gic_read_count(void);
+extern unsigned int gic_get_count_width(void);
 extern cycle_t gic_read_compare(void);
 extern void gic_write_compare(cycle_t cnt);
 extern void gic_write_cpu_compare(cycle_t cnt, int cpu);

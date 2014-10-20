@@ -63,6 +63,17 @@ cycle_t gic_read_count(void)
 	return (((cycle_t) hi) << 32) + lo;
 }
 
+unsigned int gic_get_count_width(void)
+{
+	unsigned int bits, config;
+
+	GICREAD(GIC_REG(SHARED, GIC_SH_CONFIG), config);
+	bits = 32 + 4 * ((config & GIC_SH_CONFIG_COUNTBITS_MSK) >>
+			 GIC_SH_CONFIG_COUNTBITS_SHF);
+
+	return bits;
+}
+
 void gic_write_compare(cycle_t cnt)
 {
 	GICWRITE(GIC_REG(VPE_LOCAL, GIC_VPE_COMPARE_HI),

@@ -23,15 +23,8 @@ static struct clocksource gic_clocksource = {
 
 void __init gic_clocksource_init(unsigned int frequency)
 {
-	unsigned int config, bits;
-
-	/* Calculate the clocksource mask. */
-	GICREAD(GIC_REG(SHARED, GIC_SH_CONFIG), config);
-	bits = 32 + ((config & GIC_SH_CONFIG_COUNTBITS_MSK) >>
-		(GIC_SH_CONFIG_COUNTBITS_SHF - 2));
-
 	/* Set clocksource mask. */
-	gic_clocksource.mask = CLOCKSOURCE_MASK(bits);
+	gic_clocksource.mask = CLOCKSOURCE_MASK(gic_get_count_width());
 
 	/* Calculate a somewhat reasonable rating value. */
 	gic_clocksource.rating = 200 + frequency / 10000000;
