@@ -5751,7 +5751,6 @@ static struct platform_driver omap_dsihw_driver = {
 	.remove         = __exit_p(omap_dsihw_remove),
 	.driver         = {
 		.name   = "omapdss_dsi",
-		.owner  = THIS_MODULE,
 		.pm	= &dsi_pm_ops,
 		.of_match_table = dsi_of_match,
 	},
