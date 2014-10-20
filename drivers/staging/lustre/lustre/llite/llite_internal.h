@@ -1413,7 +1413,7 @@ extern ssize_t ll_direct_rw_pages(const struct lu_env *env, struct cl_io *io,
 static inline int ll_file_nolock(const struct file *file)
 {
 	struct ll_file_data *fd = LUSTRE_FPRIVATE(file);
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 
 	LASSERT(fd != NULL);
 	return ((fd->fd_flags & LL_FILE_IGNORE_LOCK) ||

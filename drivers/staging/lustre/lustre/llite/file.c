@@ -489,7 +489,7 @@ static int ll_och_fill(struct obd_export *md_exp, struct lookup_intent *it,
 static int ll_local_open(struct file *file, struct lookup_intent *it,
 			 struct ll_file_data *fd, struct obd_client_handle *och)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct ll_inode_info *lli = ll_i2info(inode);
 
 	LASSERT(!LUSTRE_FPRIVATE(file));
@@ -1053,7 +1053,7 @@ int ll_glimpse_ioctl(struct ll_sb_info *sbi, struct lov_stripe_md *lsm,
 static bool file_is_noatime(const struct file *file)
 {
 	const struct vfsmount *mnt = file->f_path.mnt;
-	const struct inode *inode = file->f_path.dentry->d_inode;
+	const struct inode *inode = file_inode(file);
 
 	/* Adapted from file_accessed() and touch_atime().*/
 	if (file->f_flags & O_NOATIME)
@@ -1079,7 +1079,7 @@ static bool file_is_noatime(const struct file *file)
 
 void ll_io_init(struct cl_io *io, const struct file *file, int write)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 
 	io->u.ci_rw.crw_nonblock = file->f_flags & O_NONBLOCK;
 	if (write) {
@@ -1105,7 +1105,7 @@ ll_file_io_generic(const struct lu_env *env, struct vvp_io_args *args,
 		   struct file *file, enum cl_io_type iot,
 		   loff_t *ppos, size_t count)
 {
-	struct ll_inode_info *lli = ll_i2info(file->f_dentry->d_inode);
+	struct ll_inode_info *lli = ll_i2info(file_inode(file));
 	struct ll_file_data  *fd  = LUSTRE_FPRIVATE(file);
 	struct cl_io	 *io;
 	ssize_t	       result;
@@ -1175,11 +1175,11 @@ out:
 
 	if (iot == CIT_READ) {
 		if (result >= 0)
-			ll_stats_ops_tally(ll_i2sbi(file->f_dentry->d_inode),
+			ll_stats_ops_tally(ll_i2sbi(file_inode(file)),
 					   LPROC_LL_READ_BYTES, result);
 	} else if (iot == CIT_WRITE) {
 		if (result >= 0) {
-			ll_stats_ops_tally(ll_i2sbi(file->f_dentry->d_inode),
+			ll_stats_ops_tally(ll_i2sbi(file_inode(file)),
 					   LPROC_LL_WRITE_BYTES, result);
 			fd->fd_write_failed = false;
 		} else if (result != -ERESTARTSYS) {
@@ -1950,8 +1950,8 @@ static int ll_swap_layouts(struct file *file1, struct file *file2,
 	if (!llss)
 		return -ENOMEM;
 
-	llss->inode1 = file1->f_dentry->d_inode;
-	llss->inode2 = file2->f_dentry->d_inode;
+	llss->inode1 = file_inode(file1);
+	llss->inode2 = file_inode(file2);
 
 	if (!S_ISREG(llss->inode2->i_mode)) {
 		rc = -EINVAL;
@@ -2195,7 +2195,7 @@ out:
 static long
 ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct inode		*inode = file->f_dentry->d_inode;
+	struct inode		*inode = file_inode(file);
 	struct ll_file_data	*fd = LUSTRE_FPRIVATE(file);
 	int			 flags, rc;
 
@@ -2514,7 +2514,7 @@ ll_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 static loff_t ll_file_seek(struct file *file, loff_t offset, int origin)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	loff_t retval, eof = 0;
 
 	retval = offset + ((origin == SEEK_END) ? i_size_read(inode) :
@@ -2538,7 +2538,7 @@ static loff_t ll_file_seek(struct file *file, loff_t offset, int origin)
 
 static int ll_flush(struct file *file, fl_owner_t id)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct ll_inode_info *lli = ll_i2info(inode);
 	struct ll_file_data *fd = LUSTRE_FPRIVATE(file);
 	int rc, err;
@@ -2621,8 +2621,7 @@ int cl_sync_file_range(struct inode *inode, loff_t start, loff_t end,
 
 int ll_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
-	struct dentry *dentry = file->f_dentry;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct ll_inode_info *lli = ll_i2info(inode);
 	struct ptlrpc_request *req;
 	struct obd_capa *oc;
@@ -2675,7 +2674,7 @@ int ll_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 static int
 ll_file_flock(struct file *file, int cmd, struct file_lock *file_lock)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct ll_sb_info *sbi = ll_i2sbi(inode);
 	struct ldlm_enqueue_info einfo = {
 		.ei_type	= LDLM_FLOCK,
