@@ -375,7 +375,6 @@ static int asoc_bfin_ac97_remove(struct platform_device *pdev)
 static struct platform_driver asoc_bfin_ac97_driver = {
 	.driver = {
 			.name = "bfin-ac97",
-			.owner = THIS_MODULE,
 	},
 
 	.probe = asoc_bfin_ac97_probe,
