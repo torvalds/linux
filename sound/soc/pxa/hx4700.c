@@ -226,7 +226,6 @@ static int hx4700_audio_remove(struct platform_device *pdev)
 static struct platform_driver hx4700_audio_driver = {
 	.driver	= {
 		.name = "hx4700-audio",
-		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe	= hx4700_audio_probe,

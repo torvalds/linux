@@ -826,7 +826,6 @@ static int asoc_ssp_remove(struct platform_device *pdev)
 static struct platform_driver asoc_ssp_driver = {
 	.driver = {
 		.name = "pxa-ssp-dai",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(pxa_ssp_of_ids),
 	},
 

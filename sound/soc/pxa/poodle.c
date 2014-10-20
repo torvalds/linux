@@ -296,7 +296,6 @@ static int poodle_remove(struct platform_device *pdev)
 static struct platform_driver poodle_driver = {
 	.driver		= {
 		.name	= "poodle-audio",
-		.owner	= THIS_MODULE,
 		.pm     = &snd_soc_pm_ops,
 	},
 	.probe		= poodle_probe,

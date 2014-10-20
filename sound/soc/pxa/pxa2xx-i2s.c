@@ -383,7 +383,6 @@ static struct platform_driver pxa2xx_i2s_driver = {
 
 	.driver = {
 		.name = "pxa2xx-i2s",
-		.owner = THIS_MODULE,
 	},
 };
 
