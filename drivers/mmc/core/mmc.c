@@ -388,7 +388,7 @@ static void mmc_manage_gp_partitions(struct mmc_card *card, u8 *ext_csd)
 /*
  * Decode extended CSD.
  */
-static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
+static int mmc_decode_ext_csd(struct mmc_card *card, u8 *ext_csd)
 {
 	int err = 0, idx;
 	unsigned int part_size;
@@ -634,6 +634,20 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 			!(ext_csd[EXT_CSD_FW_CONFIG] & 0x1);
 	}
 out:
+	return err;
+}
+
+static int mmc_read_ext_csd(struct mmc_card *card)
+{
+	u8 *ext_csd = NULL;
+	int err;
+
+	err = mmc_get_ext_csd(card, &ext_csd);
+	if (err)
+		return err;
+
+	err = mmc_decode_ext_csd(card, ext_csd);
+	kfree(ext_csd);
 	return err;
 }
 
@@ -1259,7 +1273,6 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	int err;
 	u32 cid[4];
 	u32 rocr;
-	u8 *ext_csd = NULL;
 
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
@@ -1368,14 +1381,8 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	}
 
 	if (!oldcard) {
-		/*
-		 * Fetch and process extended CSD.
-		 */
-
-		err = mmc_get_ext_csd(card, &ext_csd);
-		if (err)
-			goto free_card;
-		err = mmc_read_ext_csd(card, ext_csd);
+		/* Read extended CSD. */
+		err = mmc_read_ext_csd(card);
 		if (err)
 			goto free_card;
 
@@ -1552,15 +1559,12 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	if (!oldcard)
 		host->card = card;
 
-	kfree(ext_csd);
 	return 0;
 
 free_card:
 	if (!oldcard)
 		mmc_remove_card(card);
 err:
-	kfree(ext_csd);
-
 	return err;
 }
 
