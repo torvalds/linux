@@ -499,7 +499,6 @@ MODULE_DEVICE_TABLE(of, dryice_dt_ids);
 static struct platform_driver dryice_rtc_driver = {
 	.driver = {
 		   .name = "imxdi_rtc",
-		   .owner = THIS_MODULE,
 		   .of_match_table = of_match_ptr(dryice_dt_ids),
 		   },
 	.remove = __exit_p(dryice_rtc_remove),

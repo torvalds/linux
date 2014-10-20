@@ -117,7 +117,6 @@ out_err:
 static struct platform_driver au1xrtc_driver = {
 	.driver		= {
 		.name	= "rtc-au1xxx",
-		.owner	= THIS_MODULE,
 	},
 };
 

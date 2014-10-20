@@ -329,7 +329,6 @@ static struct platform_driver mv_rtc_driver = {
 	.remove		= __exit_p(mv_rtc_remove),
 	.driver		= {
 		.name	= "rtc-mv",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(rtc_mv_of_match_table),
 	},
 };

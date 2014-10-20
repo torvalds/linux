@@ -51,7 +51,6 @@ static int __init generic_rtc_probe(struct platform_device *dev)
 static struct platform_driver generic_rtc_driver = {
 	.driver = {
 		.name = "rtc-generic",
-		.owner = THIS_MODULE,
 	},
 };
 

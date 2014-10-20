@@ -188,7 +188,6 @@ err:
 static struct platform_driver  ls1x_rtc_driver = {
 	.driver		= {
 		.name	= "ls1x-rtc",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ls1x_rtc_probe,
 };

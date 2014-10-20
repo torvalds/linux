@@ -569,7 +569,6 @@ static struct platform_driver omap_rtc_driver = {
 	.shutdown	= omap_rtc_shutdown,
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 		.pm	= &omap_rtc_pm_ops,
 		.of_match_table = omap_rtc_of_match,
 	},

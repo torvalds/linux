@@ -504,7 +504,6 @@ MODULE_ALIAS("platform:rtc-m48t59");
 static struct platform_driver m48t59_rtc_driver = {
 	.driver		= {
 		.name	= "rtc-m48t59",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= m48t59_rtc_probe,
 	.remove		= m48t59_rtc_remove,
