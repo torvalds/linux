@@ -15,8 +15,8 @@
 
 #include <asm/time.h>
 
-DEFINE_PER_CPU(struct clock_event_device, gic_clockevent_device);
-int gic_timer_irq_installed;
+static DEFINE_PER_CPU(struct clock_event_device, gic_clockevent_device);
+static int gic_timer_irq_installed;
 
 static int gic_next_event(unsigned long delta, struct clock_event_device *evt)
 {
@@ -30,13 +30,13 @@ static int gic_next_event(unsigned long delta, struct clock_event_device *evt)
 	return res;
 }
 
-void gic_set_clock_mode(enum clock_event_mode mode,
+static void gic_set_clock_mode(enum clock_event_mode mode,
 				struct clock_event_device *evt)
 {
 	/* Nothing to do ...  */
 }
 
-irqreturn_t gic_compare_interrupt(int irq, void *dev_id)
+static irqreturn_t gic_compare_interrupt(int irq, void *dev_id)
 {
 	struct clock_event_device *cd;
 	int cpu = smp_processor_id();
@@ -53,7 +53,7 @@ struct irqaction gic_compare_irqaction = {
 	.name = "timer",
 };
 
-void gic_event_handler(struct clock_event_device *dev)
+static void gic_event_handler(struct clock_event_device *dev)
 {
 }
 
