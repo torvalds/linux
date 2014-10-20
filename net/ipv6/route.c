@@ -944,11 +944,11 @@ redo_rt6_select:
 			goto out;
 	}
 
-	if (rt->rt6i_flags & RTF_CACHE)
-		goto out;
-
 	dst_hold(&rt->dst);
 	read_unlock_bh(&table->tb6_lock);
+
+	if (rt->rt6i_flags & RTF_CACHE)
+		goto out2;
 
 	if (!(rt->rt6i_flags & (RTF_NONEXTHOP | RTF_GATEWAY)))
 		nrt = rt6_alloc_cow(rt, &fl6->daddr, &fl6->saddr);
