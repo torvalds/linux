@@ -266,6 +266,35 @@ static int check_urb_status(struct urb *urb)
 	return -EAGAIN;
 }
 
+static void ap_disconnect(struct usb_interface *interface)
+{
+	struct es1_ap_dev *es1;
+	int i;
+
+	es1 = usb_get_intfdata(interface);
+	if (!es1)
+		return;
+
+	/* Tear down everything! */
+	for (i = 0; i < NUM_CPORT_OUT_URB; ++i) {
+		usb_kill_urb(es1->cport_out_urb[i]);
+		usb_free_urb(es1->cport_out_urb[i]);
+	}
+
+	for (i = 0; i < NUM_CPORT_IN_URB; ++i) {
+		usb_kill_urb(es1->cport_in_urb[i]);
+		usb_free_urb(es1->cport_in_urb[i]);
+		kfree(es1->cport_in_buffer[i]);
+	}
+
+	usb_kill_urb(es1->svc_urb);
+	usb_free_urb(es1->svc_urb);
+	usb_put_dev(es1->usb_dev);
+	kfree(es1->svc_buffer);
+	greybus_remove_hd(es1->hd);
+	usb_set_intfdata(interface, NULL);
+}
+
 /* Callback for when we get a SVC message */
 static void svc_in_callback(struct urb *urb)
 {
@@ -501,35 +530,6 @@ error_int_urb:
 error:
 	greybus_remove_hd(es1->hd);
 	return retval;
-}
-
-static void ap_disconnect(struct usb_interface *interface)
-{
-	struct es1_ap_dev *es1;
-	int i;
-
-	es1 = usb_get_intfdata(interface);
-	if (!es1)
-		return;
-
-	/* Tear down everything! */
-	for (i = 0; i < NUM_CPORT_OUT_URB; ++i) {
-		usb_kill_urb(es1->cport_out_urb[i]);
-		usb_free_urb(es1->cport_out_urb[i]);
-	}
-
-	for (i = 0; i < NUM_CPORT_IN_URB; ++i) {
-		usb_kill_urb(es1->cport_in_urb[i]);
-		usb_free_urb(es1->cport_in_urb[i]);
-		kfree(es1->cport_in_buffer[i]);
-	}
-
-	usb_kill_urb(es1->svc_urb);
-	usb_free_urb(es1->svc_urb);
-	usb_put_dev(es1->usb_dev);
-	kfree(es1->svc_buffer);
-	greybus_remove_hd(es1->hd);
-	usb_set_intfdata(interface, NULL);
 }
 
 static struct usb_driver es1_ap_driver = {
