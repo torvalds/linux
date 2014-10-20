@@ -501,7 +501,7 @@ cfs_hash_ops_t ldlm_ns_fid_hash_ops = {
 	.hs_put	 = ldlm_res_hop_put
 };
 
-typedef struct {
+struct ldlm_ns_hash_def {
 	ldlm_ns_type_t  nsd_type;
 	/** hash bucket bits */
 	unsigned	nsd_bkt_bits;
@@ -509,9 +509,9 @@ typedef struct {
 	unsigned	nsd_all_bits;
 	/** hash operations */
 	cfs_hash_ops_t *nsd_hops;
-} ldlm_ns_hash_def_t;
+};
 
-ldlm_ns_hash_def_t ldlm_ns_hash_defs[] = {
+struct ldlm_ns_hash_def ldlm_ns_hash_defs[] = {
 	{
 		.nsd_type       = LDLM_NS_TYPE_MDC,
 		.nsd_bkt_bits   = 11,
@@ -563,7 +563,7 @@ struct ldlm_namespace *ldlm_namespace_new(struct obd_device *obd, char *name,
 {
 	struct ldlm_namespace *ns = NULL;
 	struct ldlm_ns_bucket *nsb;
-	ldlm_ns_hash_def_t    *nsd;
+	struct ldlm_ns_hash_def    *nsd;
 	struct cfs_hash_bd	  bd;
 	int		    idx;
 	int		    rc;
