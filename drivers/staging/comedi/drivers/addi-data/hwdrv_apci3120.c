@@ -1399,7 +1399,7 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 		devpriv->b_ExttrigEnable = APCI3120_DISABLE;
 	}
 	/* clear the timer 2 interrupt */
-	inb(devpriv->i_IobaseAmcc + APCI3120_TIMER_STATUS_REGISTER);
+	inb(devpriv->iobase + APCI3120_TIMER_STATUS_REGISTER);
 
 	if (int_amcc & MASTER_ABORT_INT)
 		dev_err(dev->class_dev, "AMCC IRQ - MASTER DMA ABORT!\n");
