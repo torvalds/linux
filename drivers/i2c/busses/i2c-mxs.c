@@ -429,7 +429,7 @@ static int mxs_i2c_pio_setup_xfer(struct i2c_adapter *adap,
 		ret = mxs_i2c_pio_wait_xfer_end(i2c);
 		if (ret) {
 			dev_err(i2c->dev,
-				"PIO: Failed to send SELECT command!\n");
+				"PIO: Failed to send READ command!\n");
 			goto cleanup;
 		}
 

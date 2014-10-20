@@ -563,15 +563,21 @@ static void xgene_enet_free_desc_rings(struct xgene_enet_pdata *pdata)
 	struct xgene_enet_desc_ring *ring;
 
 	ring = pdata->tx_ring;
-	if (ring && ring->cp_ring && ring->cp_ring->cp_skb)
-		devm_kfree(dev, ring->cp_ring->cp_skb);
-	xgene_enet_free_desc_ring(ring);
+	if (ring) {
+		if (ring->cp_ring && ring->cp_ring->cp_skb)
+			devm_kfree(dev, ring->cp_ring->cp_skb);
+		xgene_enet_free_desc_ring(ring);
+	}
 
 	ring = pdata->rx_ring;
-	if (ring && ring->buf_pool && ring->buf_pool->rx_skb)
-		devm_kfree(dev, ring->buf_pool->rx_skb);
-	xgene_enet_free_desc_ring(ring->buf_pool);
-	xgene_enet_free_desc_ring(ring);
+	if (ring) {
+		if (ring->buf_pool) {
+			if (ring->buf_pool->rx_skb)
+				devm_kfree(dev, ring->buf_pool->rx_skb);
+			xgene_enet_free_desc_ring(ring->buf_pool);
+		}
+		xgene_enet_free_desc_ring(ring);
+	}
 }
 
 static struct xgene_enet_desc_ring *xgene_enet_create_desc_ring(

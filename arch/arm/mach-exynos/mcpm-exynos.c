@@ -43,7 +43,6 @@
 	"mcr	p15, 0, r0, c1, c0, 0	@ set SCTLR\n\t" \
 	"isb\n\t"\
 	"bl	v7_flush_dcache_"__stringify(level)"\n\t" \
-	"clrex\n\t"\
 	"mrc	p15, 0, r0, c1, c0, 1	@ get ACTLR\n\t" \
 	"bic	r0, r0, #(1 << 6)	@ disable local coherency\n\t" \
 	/* Dummy Load of a device register to avoid Erratum 799270 */ \

@@ -854,6 +854,10 @@ intel_enable_tv(struct intel_encoder *encoder)
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	/* Prevents vblank waits from timing out in intel_tv_detect_type() */
+	intel_wait_for_vblank(encoder->base.dev,
+			      to_intel_crtc(encoder->base.crtc)->pipe);
+
 	I915_WRITE(TV_CTL, I915_READ(TV_CTL) | TV_ENC_ENABLE);
 }
 
@@ -1311,6 +1315,7 @@ intel_tv_detect(struct drm_connector *connector, bool force)
 {
 	struct drm_display_mode mode;
 	struct intel_tv *intel_tv = intel_attached_tv(connector);
+	enum drm_connector_status status;
 	int type;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] force=%d\n",
@@ -1323,16 +1328,24 @@ intel_tv_detect(struct drm_connector *connector, bool force)
 		struct intel_load_detect_pipe tmp;
 		struct drm_modeset_acquire_ctx ctx;
 
+		drm_modeset_acquire_init(&ctx, 0);
+
 		if (intel_get_load_detect_pipe(connector, &mode, &tmp, &ctx)) {
 			type = intel_tv_detect_type(intel_tv, connector);
-			intel_release_load_detect_pipe(connector, &tmp, &ctx);
+			intel_release_load_detect_pipe(connector, &tmp);
+			status = type < 0 ?
+				connector_status_disconnected :
+				connector_status_connected;
 		} else
-			return connector_status_unknown;
+			status = connector_status_unknown;
+
+		drm_modeset_drop_locks(&ctx);
+		drm_modeset_acquire_fini(&ctx);
 	} else
 		return connector->status;
 
-	if (type < 0)
-		return connector_status_disconnected;
+	if (status != connector_status_connected)
+		return status;
 
 	intel_tv->type = type;
 	intel_tv_find_better_format(connector);

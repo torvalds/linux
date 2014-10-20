@@ -1175,8 +1175,8 @@ static void ieee80211_iface_work(struct work_struct *work)
 			if (sta) {
 				u16 last_seq;
 
-				last_seq = le16_to_cpu(
-					sta->last_seq_ctrl[rx_agg->tid]);
+				last_seq = IEEE80211_SEQ_TO_SN(le16_to_cpu(
+					sta->last_seq_ctrl[rx_agg->tid]));
 
 				__ieee80211_start_rx_ba_session(sta,
 						0, 0,

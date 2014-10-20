@@ -191,12 +191,6 @@ int cayman_dma_resume(struct radeon_device *rdev)
 	u32 reg_offset, wb_offset;
 	int i, r;
 
-	/* Reset dma */
-	WREG32(SRBM_SOFT_RESET, SOFT_RESET_DMA | SOFT_RESET_DMA1);
-	RREG32(SRBM_SOFT_RESET);
-	udelay(50);
-	WREG32(SRBM_SOFT_RESET, 0);
-
 	for (i = 0; i < 2; i++) {
 		if (i == 0) {
 			ring = &rdev->ring[R600_RING_TYPE_DMA_INDEX];

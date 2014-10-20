@@ -101,9 +101,8 @@ static dispatch_init_table_t __initdata dispatch_init_table[] = {
 #if XCHAL_UNALIGNED_LOAD_EXCEPTION || XCHAL_UNALIGNED_STORE_EXCEPTION
 #ifdef CONFIG_XTENSA_UNALIGNED_USER
 { EXCCAUSE_UNALIGNED,		USER,	   fast_unaligned },
-#else
-{ EXCCAUSE_UNALIGNED,		0,	   do_unaligned_user },
 #endif
+{ EXCCAUSE_UNALIGNED,		0,	   do_unaligned_user },
 { EXCCAUSE_UNALIGNED,		KRNL,	   fast_unaligned },
 #endif
 #ifdef CONFIG_MMU
@@ -264,7 +263,6 @@ do_illegal_instruction(struct pt_regs *regs)
  */
 
 #if XCHAL_UNALIGNED_LOAD_EXCEPTION || XCHAL_UNALIGNED_STORE_EXCEPTION
-#ifndef CONFIG_XTENSA_UNALIGNED_USER
 void
 do_unaligned_user (struct pt_regs *regs)
 {
@@ -285,7 +283,6 @@ do_unaligned_user (struct pt_regs *regs)
 	force_sig_info(SIGSEGV, &info, current);
 
 }
-#endif
 #endif
 
 void

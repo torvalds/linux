@@ -404,7 +404,7 @@ static int htcpld_register_chip_i2c(
 	}
 
 	i2c_set_clientdata(client, chip);
-	snprintf(client->name, I2C_NAME_SIZE, "Chip_0x%d", client->addr);
+	snprintf(client->name, I2C_NAME_SIZE, "Chip_0x%x", client->addr);
 	chip->client = client;
 
 	/* Reset the chip */

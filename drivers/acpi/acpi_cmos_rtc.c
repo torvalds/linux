@@ -33,7 +33,7 @@ acpi_cmos_rtc_space_handler(u32 function, acpi_physical_address address,
 		      void *handler_context, void *region_context)
 {
 	int i;
-	u8 *value = (u8 *)&value64;
+	u8 *value = (u8 *)value64;
 
 	if (address > 0xff || !value64)
 		return AE_BAD_PARAMETER;

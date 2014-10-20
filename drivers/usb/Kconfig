@@ -92,6 +92,8 @@ source "drivers/usb/storage/Kconfig"
 
 source "drivers/usb/image/Kconfig"
 
+source "drivers/usb/usbip/Kconfig"
+
 endif
 
 source "drivers/usb/musb/Kconfig"

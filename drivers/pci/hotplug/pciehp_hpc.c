@@ -160,7 +160,7 @@ static void pcie_wait_cmd(struct controller *ctrl)
 	    ctrl->slot_ctrl & PCI_EXP_SLTCTL_CCIE)
 		rc = wait_event_timeout(ctrl->queue, !ctrl->cmd_busy, timeout);
 	else
-		rc = pcie_poll_cmd(ctrl, timeout);
+		rc = pcie_poll_cmd(ctrl, jiffies_to_msecs(timeout));
 
 	/*
 	 * Controllers with errata like Intel CF118 don't generate
@@ -506,6 +506,8 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 {
 	struct controller *ctrl = (struct controller *)dev_id;
 	struct pci_dev *pdev = ctrl_dev(ctrl);
+	struct pci_bus *subordinate = pdev->subordinate;
+	struct pci_dev *dev;
 	struct slot *slot = ctrl->slot;
 	u16 detected, intr_loc;
 
@@ -537,6 +539,16 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 		ctrl->cmd_busy = 0;
 		smp_mb();
 		wake_up(&ctrl->queue);
+	}
+
+	if (subordinate) {
+		list_for_each_entry(dev, &subordinate->devices, bus_list) {
+			if (dev->ignore_hotplug) {
+				ctrl_dbg(ctrl, "ignoring hotplug event %#06x (%s requested no hotplug)\n",
+					 intr_loc, pci_name(dev));
+				return IRQ_HANDLED;
+			}
+		}
 	}
 
 	if (!(intr_loc & ~PCI_EXP_SLTSTA_CC))

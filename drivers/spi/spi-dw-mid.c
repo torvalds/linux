@@ -113,8 +113,7 @@ static void dw_spi_dma_done(void *arg)
 
 static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
 {
-	struct dma_async_tx_descriptor *txdesc = NULL, *rxdesc = NULL;
-	struct dma_chan *txchan, *rxchan;
+	struct dma_async_tx_descriptor *txdesc, *rxdesc;
 	struct dma_slave_config txconf, rxconf;
 	u16 dma_ctrl = 0;
 
@@ -124,16 +123,14 @@ static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
 		dw_writew(dws, DW_SPI_DMARDLR, 0xf);
 		dw_writew(dws, DW_SPI_DMATDLR, 0x10);
 		if (dws->tx_dma)
-			dma_ctrl |= 0x2;
+			dma_ctrl |= SPI_DMA_TDMAE;
 		if (dws->rx_dma)
-			dma_ctrl |= 0x1;
+			dma_ctrl |= SPI_DMA_RDMAE;
 		dw_writew(dws, DW_SPI_DMACR, dma_ctrl);
 		spi_enable_chip(dws, 1);
 	}
 
 	dws->dma_chan_done = 0;
-	txchan = dws->txchan;
-	rxchan = dws->rxchan;
 
 	/* 2. Prepare the TX dma transfer */
 	txconf.direction = DMA_MEM_TO_DEV;
@@ -143,17 +140,17 @@ static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
 	txconf.dst_addr_width = dws->dma_width;
 	txconf.device_fc = false;
 
-	dmaengine_slave_config(txchan, &txconf);
+	dmaengine_slave_config(dws->txchan, &txconf);
 
 	memset(&dws->tx_sgl, 0, sizeof(dws->tx_sgl));
 	dws->tx_sgl.dma_address = dws->tx_dma;
 	dws->tx_sgl.length = dws->len;
 
-	txdesc = dmaengine_prep_slave_sg(txchan,
+	txdesc = dmaengine_prep_slave_sg(dws->txchan,
 				&dws->tx_sgl,
 				1,
 				DMA_MEM_TO_DEV,
-				DMA_PREP_INTERRUPT);
+				DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	txdesc->callback = dw_spi_dma_done;
 	txdesc->callback_param = dws;
 
@@ -165,23 +162,27 @@ static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
 	rxconf.src_addr_width = dws->dma_width;
 	rxconf.device_fc = false;
 
-	dmaengine_slave_config(txchan, &rxconf);
+	dmaengine_slave_config(dws->rxchan, &rxconf);
 
 	memset(&dws->rx_sgl, 0, sizeof(dws->rx_sgl));
 	dws->rx_sgl.dma_address = dws->rx_dma;
 	dws->rx_sgl.length = dws->len;
 
-	rxdesc = dmaengine_prep_slave_sg(rxchan,
+	rxdesc = dmaengine_prep_slave_sg(dws->rxchan,
 				&dws->rx_sgl,
 				1,
 				DMA_DEV_TO_MEM,
-				DMA_PREP_INTERRUPT);
+				DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	rxdesc->callback = dw_spi_dma_done;
 	rxdesc->callback_param = dws;
 
 	/* rx must be started before tx due to spi instinct */
-	rxdesc->tx_submit(rxdesc);
-	txdesc->tx_submit(txdesc);
+	dmaengine_submit(rxdesc);
+	dma_async_issue_pending(dws->rxchan);
+
+	dmaengine_submit(txdesc);
+	dma_async_issue_pending(dws->txchan);
+
 	return 0;
 }
 

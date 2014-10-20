@@ -98,6 +98,7 @@ static int
 gm107_ltc_init(struct nouveau_object *object)
 {
 	struct nvkm_ltc_priv *priv = (void *)object;
+	u32 lpg128 = !(nv_rd32(priv, 0x100c80) & 0x00000001);
 	int ret;
 
 	ret = nvkm_ltc_init(priv);
@@ -106,6 +107,7 @@ gm107_ltc_init(struct nouveau_object *object)
 
 	nv_wr32(priv, 0x17e27c, priv->ltc_nr);
 	nv_wr32(priv, 0x17e278, priv->tag_base);
+	nv_mask(priv, 0x17e264, 0x00000002, lpg128 ? 0x00000002 : 0x00000000);
 	return 0;
 }
 

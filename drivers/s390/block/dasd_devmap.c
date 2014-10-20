@@ -77,7 +77,7 @@ EXPORT_SYMBOL_GPL(dasd_nofcx);
  * strings when running as a module.
  */
 static char *dasd[256];
-module_param_array(dasd, charp, NULL, 0);
+module_param_array(dasd, charp, NULL, S_IRUGO);
 
 /*
  * Single spinlock to protect devmap and servermap structures and lists.

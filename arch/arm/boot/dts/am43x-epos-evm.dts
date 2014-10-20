@@ -435,13 +435,13 @@
 };
 
 &gpmc {
-	status = "okay";
+	status = "okay";	/* Disable QSPI when enabling GPMC (NAND) */
 	pinctrl-names = "default";
 	pinctrl-0 = <&nand_flash_x8>;
 	ranges = <0 0 0x08000000 0x10000000>;	/* CS0: NAND */
 	nand@0,0 {
 		reg = <0 0 0>; /* CS0, offset 0 */
-		ti,nand-ecc-opt = "bch8";
+		ti,nand-ecc-opt = "bch16";
 		ti,elm-id = <&elm>;
 		nand-bus-width = <8>;
 		gpmc,device-width = <1>;
@@ -459,8 +459,7 @@
 		gpmc,access-ns = <30>; /* tCEA + 4*/
 		gpmc,rd-cycle-ns = <40>;
 		gpmc,wr-cycle-ns = <40>;
-		gpmc,wait-on-read = "true";
-		gpmc,wait-on-write = "true";
+		gpmc,wait-pin = <0>;
 		gpmc,bus-turnaround-ns = <0>;
 		gpmc,cycle2cycle-delay-ns = <0>;
 		gpmc,clk-activation-ns = <0>;
@@ -557,7 +556,7 @@
 };
 
 &qspi {
-	status = "okay";
+	status = "disabled";	/* Disable GPMC (NAND) when enabling QSPI */
 	pinctrl-names = "default";
 	pinctrl-0 = <&qspi1_default>;
 

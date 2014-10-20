@@ -49,7 +49,8 @@ static bool gpmc_hwecc_bch_capable(enum omap_ecc ecc_opt)
 		return 0;
 
 	/* legacy platforms support only HAM1 (1-bit Hamming) ECC scheme */
-	if (ecc_opt == OMAP_ECC_HAM1_CODE_HW)
+	if (ecc_opt == OMAP_ECC_HAM1_CODE_HW ||
+	    ecc_opt == OMAP_ECC_HAM1_CODE_SW)
 		return 1;
 	else
 		return 0;

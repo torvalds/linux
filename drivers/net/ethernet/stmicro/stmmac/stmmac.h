@@ -34,6 +34,11 @@
 #include <linux/ptp_clock_kernel.h>
 #include <linux/reset.h>
 
+struct stmmac_tx_info {
+	dma_addr_t buf;
+	bool map_as_page;
+};
+
 struct stmmac_priv {
 	/* Frequently used values are kept adjacent for cache effect */
 	struct dma_extended_desc *dma_etx ____cacheline_aligned_in_smp;
@@ -45,7 +50,7 @@ struct stmmac_priv {
 	u32 tx_count_frames;
 	u32 tx_coal_frames;
 	u32 tx_coal_timer;
-	dma_addr_t *tx_skbuff_dma;
+	struct stmmac_tx_info *tx_skbuff_dma;
 	dma_addr_t dma_tx_phy;
 	int tx_coalesce;
 	int hwts_tx_en;
@@ -105,6 +110,8 @@ struct stmmac_priv {
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_clock_ops;
 	unsigned int default_addend;
+	struct clk *clk_ptp_ref;
+	unsigned int clk_ptp_rate;
 	u32 adv_ts;
 	int use_riwt;
 	int irq_wake;

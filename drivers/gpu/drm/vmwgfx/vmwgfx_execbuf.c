@@ -450,11 +450,11 @@ static int vmw_cmd_res_reloc_add(struct vmw_private *dev_priv,
 					  res,
 					  id_loc - sw_context->buf_start);
 	if (unlikely(ret != 0))
-		goto out_err;
+		return ret;
 
 	ret = vmw_resource_val_add(sw_context, res, &node);
 	if (unlikely(ret != 0))
-		goto out_err;
+		return ret;
 
 	if (res_type == vmw_res_context && dev_priv->has_mob &&
 	    node->first_usage) {
@@ -468,13 +468,13 @@ static int vmw_cmd_res_reloc_add(struct vmw_private *dev_priv,
 
 		ret = vmw_resource_context_res_add(dev_priv, sw_context, res);
 		if (unlikely(ret != 0))
-			goto out_err;
+			return ret;
 		node->staged_bindings =
 			kzalloc(sizeof(*node->staged_bindings), GFP_KERNEL);
 		if (node->staged_bindings == NULL) {
 			DRM_ERROR("Failed to allocate context binding "
 				  "information.\n");
-			goto out_err;
+			return -ENOMEM;
 		}
 		INIT_LIST_HEAD(&node->staged_bindings->list);
 	}
@@ -482,8 +482,7 @@ static int vmw_cmd_res_reloc_add(struct vmw_private *dev_priv,
 	if (p_val)
 		*p_val = node;
 
-out_err:
-	return ret;
+	return 0;
 }
 
 

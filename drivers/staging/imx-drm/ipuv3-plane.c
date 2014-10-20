@@ -281,7 +281,8 @@ static void ipu_plane_dpms(struct ipu_plane *ipu_plane, int mode)
 
 		ipu_idmac_put(ipu_plane->ipu_ch);
 		ipu_dmfc_put(ipu_plane->dmfc);
-		ipu_dp_put(ipu_plane->dp);
+		if (ipu_plane->dp)
+			ipu_dp_put(ipu_plane->dp);
 	}
 }
 

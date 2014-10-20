@@ -157,6 +157,23 @@ static int bcm7xxx_28nm_config_init(struct phy_device *phydev)
 	return bcm7xxx_28nm_afe_config_init(phydev);
 }
 
+static int bcm7xxx_28nm_resume(struct phy_device *phydev)
+{
+	int ret;
+
+	/* Re-apply workarounds coming out suspend/resume */
+	ret = bcm7xxx_28nm_config_init(phydev);
+	if (ret)
+		return ret;
+
+	/* 28nm Gigabit PHYs come out of reset without any half-duplex
+	 * or "hub" compliant advertised mode, fix that. This does not
+	 * cause any problems with the PHY library since genphy_config_aneg()
+	 * gracefully handles auto-negotiated and forced modes.
+	 */
+	return genphy_config_aneg(phydev);
+}
+
 static int phy_set_clr_bits(struct phy_device *dev, int location,
 					int set_mask, int clr_mask)
 {
@@ -212,7 +229,7 @@ static int bcm7xxx_config_init(struct phy_device *phydev)
 }
 
 /* Workaround for putting the PHY in IDDQ mode, required
- * for all BCM7XXX PHYs
+ * for all BCM7XXX 40nm and 65nm PHYs
  */
 static int bcm7xxx_suspend(struct phy_device *phydev)
 {
@@ -257,8 +274,7 @@ static struct phy_driver bcm7xxx_driver[] = {
 	.config_init	= bcm7xxx_28nm_afe_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
-	.suspend	= bcm7xxx_suspend,
-	.resume		= bcm7xxx_28nm_afe_config_init,
+	.resume		= bcm7xxx_28nm_resume,
 	.driver		= { .owner = THIS_MODULE },
 }, {
 	.phy_id		= PHY_ID_BCM7439,
@@ -270,8 +286,7 @@ static struct phy_driver bcm7xxx_driver[] = {
 	.config_init	= bcm7xxx_28nm_afe_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
-	.suspend	= bcm7xxx_suspend,
-	.resume		= bcm7xxx_28nm_afe_config_init,
+	.resume		= bcm7xxx_28nm_resume,
 	.driver		= { .owner = THIS_MODULE },
 }, {
 	.phy_id		= PHY_ID_BCM7445,
@@ -283,21 +298,7 @@ static struct phy_driver bcm7xxx_driver[] = {
 	.config_init	= bcm7xxx_28nm_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
-	.suspend	= bcm7xxx_suspend,
-	.resume		= bcm7xxx_28nm_config_init,
-	.driver		= { .owner = THIS_MODULE },
-}, {
-	.name		= "Broadcom BCM7XXX 28nm",
-	.phy_id		= PHY_ID_BCM7XXX_28,
-	.phy_id_mask	= PHY_BCM_OUI_MASK,
-	.features	= PHY_GBIT_FEATURES |
-			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,
-	.flags		= PHY_IS_INTERNAL,
-	.config_init	= bcm7xxx_28nm_config_init,
-	.config_aneg	= genphy_config_aneg,
-	.read_status	= genphy_read_status,
-	.suspend	= bcm7xxx_suspend,
-	.resume		= bcm7xxx_28nm_config_init,
+	.resume		= bcm7xxx_28nm_afe_config_init,
 	.driver		= { .owner = THIS_MODULE },
 }, {
 	.phy_id		= PHY_BCM_OUI_4,
@@ -331,7 +332,6 @@ static struct mdio_device_id __maybe_unused bcm7xxx_tbl[] = {
 	{ PHY_ID_BCM7366, 0xfffffff0, },
 	{ PHY_ID_BCM7439, 0xfffffff0, },
 	{ PHY_ID_BCM7445, 0xfffffff0, },
-	{ PHY_ID_BCM7XXX_28, 0xfffffc00 },
 	{ PHY_BCM_OUI_4, 0xffff0000 },
 	{ PHY_BCM_OUI_5, 0xffffff00 },
 	{ }

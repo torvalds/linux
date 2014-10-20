@@ -497,8 +497,6 @@ static __always_inline int fls64(__u64 x)
 
 #include <asm-generic/bitops/sched.h>
 
-#define ARCH_HAS_FAST_MULTIPLIER 1
-
 #include <asm/arch_hweight.h>
 
 #include <asm-generic/bitops/const_hweight.h>

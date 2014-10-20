@@ -13,22 +13,22 @@
  *
  */
 
+#include <linux/clk.h>
+#include <linux/delay.h>
+#include <linux/err.h>
+#include <linux/errno.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/interrupt.h>
-#include <linux/errno.h>
-#include <linux/platform_device.h>
-#include <linux/regmap.h>
-#include <linux/sched.h>
-#include <linux/delay.h>
-#include <linux/io.h>
-#include <linux/clk.h>
-#include <linux/err.h>
-#include <linux/spi/spi.h>
-#include <linux/spi/spi_bitbang.h>
-#include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
+#include <linux/regmap.h>
+#include <linux/sched.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/spi_bitbang.h>
 
 #define DRIVER_NAME "fsl-dspi"
 
@@ -493,9 +493,6 @@ static int dspi_probe(struct platform_device *pdev)
 	}
 
 	dspi_regmap_config.lock_arg = dspi;
-	dspi_regmap_config.val_format_endian =
-		of_property_read_bool(np, "big-endian")
-			? REGMAP_ENDIAN_BIG : REGMAP_ENDIAN_DEFAULT;
 	dspi->regmap = devm_regmap_init_mmio_clk(&pdev->dev, "dspi", base,
 						&dspi_regmap_config);
 	if (IS_ERR(dspi->regmap)) {
@@ -535,7 +532,6 @@ static int dspi_probe(struct platform_device *pdev)
 		goto out_clk_put;
 	}
 
-	pr_info(KERN_INFO "Freescale DSPI master initialized\n");
 	return ret;
 
 out_clk_put:

@@ -2603,7 +2603,7 @@ int qlcnic_83xx_lockless_flash_read32(struct qlcnic_adapter *adapter,
 	}
 
 	qlcnic_83xx_wrt_reg_indirect(adapter, QLC_83XX_FLASH_DIRECT_WINDOW,
-				     (addr));
+				     (addr & 0xFFFF0000));
 
 	range = flash_offset + (count * sizeof(u32));
 	/* Check if data is spread across multiple sectors */
@@ -2753,7 +2753,7 @@ int qlcnic_83xx_read_flash_descriptor_table(struct qlcnic_adapter *adapter)
 	ret = qlcnic_83xx_lockless_flash_read32(adapter, QLCNIC_FDT_LOCATION,
 						(u8 *)&adapter->ahw->fdt,
 						count);
-
+	qlcnic_swap32_buffer((u32 *)&adapter->ahw->fdt, count);
 	qlcnic_83xx_unlock_flash(adapter);
 	return ret;
 }
@@ -2788,7 +2788,7 @@ int qlcnic_83xx_erase_flash_sector(struct qlcnic_adapter *adapter,
 
 	addr1 = (sector_start_addr & 0xFF) << 16;
 	addr2 = (sector_start_addr & 0xFF0000) >> 16;
-	reversed_addr = addr1 | addr2;
+	reversed_addr = addr1 | addr2 | (sector_start_addr & 0xFF00);
 
 	qlcnic_83xx_wrt_reg_indirect(adapter, QLC_83XX_FLASH_WRDATA,
 				     reversed_addr);

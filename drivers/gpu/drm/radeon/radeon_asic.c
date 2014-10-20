@@ -185,7 +185,6 @@ static struct radeon_asic_ring r100_gfx_ring = {
 	.get_rptr = &r100_gfx_get_rptr,
 	.get_wptr = &r100_gfx_get_wptr,
 	.set_wptr = &r100_gfx_set_wptr,
-	.hdp_flush = &r100_ring_hdp_flush,
 };
 
 static struct radeon_asic r100_asic = {
@@ -332,7 +331,6 @@ static struct radeon_asic_ring r300_gfx_ring = {
 	.get_rptr = &r100_gfx_get_rptr,
 	.get_wptr = &r100_gfx_get_wptr,
 	.set_wptr = &r100_gfx_set_wptr,
-	.hdp_flush = &r100_ring_hdp_flush,
 };
 
 static struct radeon_asic r300_asic = {

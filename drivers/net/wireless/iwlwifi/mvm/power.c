@@ -281,7 +281,6 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif,
 				    struct iwl_mac_power_cmd *cmd)
 {
-	struct ieee80211_hw *hw = mvm->hw;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct ieee80211_channel *chan;
 	int dtimper, dtimper_msec;
@@ -292,7 +291,7 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 
 	cmd->id_and_color = cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id,
 							    mvmvif->color));
-	dtimper = hw->conf.ps_dtim_period ?: 1;
+	dtimper = vif->bss_conf.dtim_period;
 
 	/*
 	 * Regardless of power management state the driver must set
@@ -885,7 +884,7 @@ int iwl_mvm_update_d0i3_power_mode(struct iwl_mvm *mvm,
 	iwl_mvm_power_build_cmd(mvm, vif, &cmd);
 	if (enable) {
 		/* configure skip over dtim up to 300 msec */
-		int dtimper = mvm->hw->conf.ps_dtim_period ?: 1;
+		int dtimper = vif->bss_conf.dtim_period ?: 1;
 		int dtimper_msec = dtimper * vif->bss_conf.beacon_int;
 
 		if (WARN_ON(!dtimper_msec))

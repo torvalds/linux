@@ -1230,7 +1230,7 @@ int ehci_hub_control(
 			if (selector == EHSET_TEST_SINGLE_STEP_SET_FEATURE) {
 				spin_unlock_irqrestore(&ehci->lock, flags);
 				retval = ehset_single_step_set_feature(hcd,
-									wIndex);
+								wIndex + 1);
 				spin_lock_irqsave(&ehci->lock, flags);
 				break;
 			}

@@ -2389,6 +2389,22 @@ struct mlx4_slaves_pport mlx4_phys_to_slaves_pport_actv(
 }
 EXPORT_SYMBOL_GPL(mlx4_phys_to_slaves_pport_actv);
 
+static int mlx4_slaves_closest_port(struct mlx4_dev *dev, int slave, int port)
+{
+	struct mlx4_active_ports actv_ports = mlx4_get_active_ports(dev, slave);
+	int min_port = find_first_bit(actv_ports.ports, dev->caps.num_ports)
+			+ 1;
+	int max_port = min_port +
+		bitmap_weight(actv_ports.ports, dev->caps.num_ports);
+
+	if (port < min_port)
+		port = min_port;
+	else if (port >= max_port)
+		port = max_port - 1;
+
+	return port;
+}
+
 int mlx4_set_vf_mac(struct mlx4_dev *dev, int port, int vf, u64 mac)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -2402,6 +2418,7 @@ int mlx4_set_vf_mac(struct mlx4_dev *dev, int port, int vf, u64 mac)
 	if (slave < 0)
 		return -EINVAL;
 
+	port = mlx4_slaves_closest_port(dev, slave, port);
 	s_info = &priv->mfunc.master.vf_admin[slave].vport[port];
 	s_info->mac = mac;
 	mlx4_info(dev, "default mac on vf %d port %d to %llX will take afect only after vf restart\n",
@@ -2428,6 +2445,7 @@ int mlx4_set_vf_vlan(struct mlx4_dev *dev, int port, int vf, u16 vlan, u8 qos)
 	if (slave < 0)
 		return -EINVAL;
 
+	port = mlx4_slaves_closest_port(dev, slave, port);
 	vf_admin = &priv->mfunc.master.vf_admin[slave].vport[port];
 
 	if ((0 == vlan) && (0 == qos))
@@ -2455,6 +2473,7 @@ bool mlx4_get_slave_default_vlan(struct mlx4_dev *dev, int port, int slave,
 	struct mlx4_priv *priv;
 
 	priv = mlx4_priv(dev);
+	port = mlx4_slaves_closest_port(dev, slave, port);
 	vp_oper = &priv->mfunc.master.vf_oper[slave].vport[port];
 
 	if (MLX4_VGT != vp_oper->state.default_vlan) {
@@ -2482,6 +2501,7 @@ int mlx4_set_vf_spoofchk(struct mlx4_dev *dev, int port, int vf, bool setting)
 	if (slave < 0)
 		return -EINVAL;
 
+	port = mlx4_slaves_closest_port(dev, slave, port);
 	s_info = &priv->mfunc.master.vf_admin[slave].vport[port];
 	s_info->spoofchk = setting;
 
@@ -2535,6 +2555,7 @@ int mlx4_set_vf_link_state(struct mlx4_dev *dev, int port, int vf, int link_stat
 	if (slave < 0)
 		return -EINVAL;
 
+	port = mlx4_slaves_closest_port(dev, slave, port);
 	switch (link_state) {
 	case IFLA_VF_LINK_STATE_AUTO:
 		/* get current link state */

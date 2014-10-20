@@ -847,6 +847,7 @@ int __init db1200_dev_setup(void)
 			pr_warn("DB1200: cant get I2C close to 50MHz\n");
 		else
 			clk_set_rate(c, pfc);
+		clk_prepare_enable(c);
 		clk_put(c);
 	}
 
@@ -922,11 +923,6 @@ int __init db1200_dev_setup(void)
 	}
 
 	/* Audio PSC clock is supplied externally. (FIXME: platdata!!) */
-	c = clk_get(NULL, "psc1_intclk");
-	if (!IS_ERR(c)) {
-		clk_prepare_enable(c);
-		clk_put(c);
-	}
 	__raw_writel(PSC_SEL_CLK_SERCLK,
 	    (void __iomem *)KSEG1ADDR(AU1550_PSC1_PHYS_ADDR) + PSC_SEL_OFFSET);
 	wmb();

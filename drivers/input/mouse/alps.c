@@ -2234,8 +2234,8 @@ static int alps_identify(struct psmouse *psmouse, struct alps_data *priv)
 		return 0;
 	}
 
-	psmouse_info(psmouse,
-		     "Unknown ALPS touchpad: E7=%3ph, EC=%3ph\n", e7, ec);
+	psmouse_dbg(psmouse,
+		    "Likely not an ALPS touchpad: E7=%3ph, EC=%3ph\n", e7, ec);
 
 	return -EINVAL;
 }
@@ -2372,6 +2372,10 @@ int alps_init(struct psmouse *psmouse)
 	dev2->relbit[BIT_WORD(REL_X)] = BIT_MASK(REL_X) | BIT_MASK(REL_Y);
 	dev2->keybit[BIT_WORD(BTN_LEFT)] =
 		BIT_MASK(BTN_LEFT) | BIT_MASK(BTN_MIDDLE) | BIT_MASK(BTN_RIGHT);
+
+	__set_bit(INPUT_PROP_POINTER, dev2->propbit);
+	if (priv->flags & ALPS_DUALPOINT)
+		__set_bit(INPUT_PROP_POINTING_STICK, dev2->propbit);
 
 	if (input_register_device(priv->dev2))
 		goto init_fail;

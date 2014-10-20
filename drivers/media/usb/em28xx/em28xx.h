@@ -524,6 +524,7 @@ struct em28xx_v4l2 {
 	int sensor_yres;
 	int sensor_xtal;
 
+	int users;		/* user count for exclusive use */
 	int streaming_users;    /* number of actively streaming users */
 
 	u32 frequency;		/* selected tuner frequency */

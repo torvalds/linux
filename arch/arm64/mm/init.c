@@ -32,6 +32,7 @@
 #include <linux/of_fdt.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-contiguous.h>
+#include <linux/efi.h>
 
 #include <asm/fixmap.h>
 #include <asm/sections.h>

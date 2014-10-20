@@ -166,7 +166,7 @@ EXPORT_SYMBOL(sk_ns_capable);
 /**
  * sk_capable - Socket global capability test
  * @sk: Socket to use a capability on or through
- * @cap: The global capbility to use
+ * @cap: The global capability to use
  *
  * Test to see if the opener of the socket had when the socket was
  * created and the current process has the capability @cap in all user
@@ -183,7 +183,7 @@ EXPORT_SYMBOL(sk_capable);
  * @sk: Socket to use a capability on or through
  * @cap: The capability to use
  *
- * Test to see if the opener of the socket had when the socke was created
+ * Test to see if the opener of the socket had when the socket was created
  * and the current process has the capability @cap over the network namespace
  * the socket is a member of.
  */
@@ -1822,6 +1822,9 @@ struct sk_buff *sock_alloc_send_pskb(struct sock *sk, unsigned long header_len,
 							   order);
 					if (page)
 						goto fill_page;
+					/* Do not retry other high order allocations */
+					order = 1;
+					max_page_order = 0;
 				}
 				order--;
 			}
@@ -1863,16 +1866,14 @@ EXPORT_SYMBOL(sock_alloc_send_skb);
  * skb_page_frag_refill - check that a page_frag contains enough room
  * @sz: minimum size of the fragment we want to get
  * @pfrag: pointer to page_frag
- * @prio: priority for memory allocation
+ * @gfp: priority for memory allocation
  *
  * Note: While this allocator tries to use high order pages, there is
  * no guarantee that allocations succeed. Therefore, @sz MUST be
  * less or equal than PAGE_SIZE.
  */
-bool skb_page_frag_refill(unsigned int sz, struct page_frag *pfrag, gfp_t prio)
+bool skb_page_frag_refill(unsigned int sz, struct page_frag *pfrag, gfp_t gfp)
 {
-	int order;
-
 	if (pfrag->page) {
 		if (atomic_read(&pfrag->page->_count) == 1) {
 			pfrag->offset = 0;
@@ -1883,20 +1884,21 @@ bool skb_page_frag_refill(unsigned int sz, struct page_frag *pfrag, gfp_t prio)
 		put_page(pfrag->page);
 	}
 
-	order = SKB_FRAG_PAGE_ORDER;
-	do {
-		gfp_t gfp = prio;
-
-		if (order)
-			gfp |= __GFP_COMP | __GFP_NOWARN | __GFP_NORETRY;
-		pfrag->page = alloc_pages(gfp, order);
+	pfrag->offset = 0;
+	if (SKB_FRAG_PAGE_ORDER) {
+		pfrag->page = alloc_pages(gfp | __GFP_COMP |
+					  __GFP_NOWARN | __GFP_NORETRY,
+					  SKB_FRAG_PAGE_ORDER);
 		if (likely(pfrag->page)) {
-			pfrag->offset = 0;
-			pfrag->size = PAGE_SIZE << order;
+			pfrag->size = PAGE_SIZE << SKB_FRAG_PAGE_ORDER;
 			return true;
 		}
-	} while (--order >= 0);
-
+	}
+	pfrag->page = alloc_page(gfp);
+	if (likely(pfrag->page)) {
+		pfrag->size = PAGE_SIZE;
+		return true;
+	}
 	return false;
 }
 EXPORT_SYMBOL(skb_page_frag_refill);

@@ -652,6 +652,7 @@ struct adapter {
 	struct tid_info tids;
 	void **tid_release_head;
 	spinlock_t tid_release_lock;
+	struct workqueue_struct *workq;
 	struct work_struct tid_release_task;
 	struct work_struct db_full_task;
 	struct work_struct db_drop_task;

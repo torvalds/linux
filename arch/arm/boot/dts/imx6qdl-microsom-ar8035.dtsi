@@ -17,7 +17,7 @@
 	enet {
 		pinctrl_microsom_enet_ar8035: microsom-enet-ar8035 {
 			fsl,pins = <
-				MX6QDL_PAD_ENET_MDIO__ENET_MDIO		0x1b0b0
+				MX6QDL_PAD_ENET_MDIO__ENET_MDIO		0x1b8b0
 				MX6QDL_PAD_ENET_MDC__ENET_MDC		0x1b0b0
 				/* AR8035 reset */
 				MX6QDL_PAD_KEY_ROW4__GPIO4_IO15		0x130b0

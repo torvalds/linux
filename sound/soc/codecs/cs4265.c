@@ -282,10 +282,10 @@ static const struct cs4265_clk_para clk_map_table[] = {
 
 	/*64k*/
 	{8192000, 64000, 1, 0},
-	{1228800, 64000, 1, 1},
-	{1693440, 64000, 1, 2},
-	{2457600, 64000, 1, 3},
-	{3276800, 64000, 1, 4},
+	{12288000, 64000, 1, 1},
+	{16934400, 64000, 1, 2},
+	{24576000, 64000, 1, 3},
+	{32768000, 64000, 1, 4},
 
 	/* 88.2k */
 	{11289600, 88200, 1, 0},
@@ -435,10 +435,10 @@ static int cs4265_pcm_hw_params(struct snd_pcm_substream *substream,
 	index = cs4265_get_clk_index(cs4265->sysclk, params_rate(params));
 	if (index >= 0) {
 		snd_soc_update_bits(codec, CS4265_ADC_CTL,
-			CS4265_ADC_FM, clk_map_table[index].fm_mode);
+			CS4265_ADC_FM, clk_map_table[index].fm_mode << 6);
 		snd_soc_update_bits(codec, CS4265_MCLK_FREQ,
 			CS4265_MCLK_FREQ_MASK,
-			clk_map_table[index].mclkdiv);
+			clk_map_table[index].mclkdiv << 4);
 
 	} else {
 		dev_err(codec->dev, "can't get correct mclk\n");
@@ -458,12 +458,12 @@ static int cs4265_pcm_hw_params(struct snd_pcm_substream *substream,
 		if (params_width(params) == 16) {
 			snd_soc_update_bits(codec, CS4265_DAC_CTL,
 				CS4265_DAC_CTL_DIF, (1 << 5));
-			snd_soc_update_bits(codec, CS4265_ADC_CTL,
+			snd_soc_update_bits(codec, CS4265_SPDIF_CTL2,
 				CS4265_SPDIF_CTL2_DIF, (1 << 7));
 		} else {
 			snd_soc_update_bits(codec, CS4265_DAC_CTL,
 				CS4265_DAC_CTL_DIF, (3 << 5));
-			snd_soc_update_bits(codec, CS4265_ADC_CTL,
+			snd_soc_update_bits(codec, CS4265_SPDIF_CTL2,
 				CS4265_SPDIF_CTL2_DIF, (1 << 7));
 		}
 		break;
@@ -472,7 +472,7 @@ static int cs4265_pcm_hw_params(struct snd_pcm_substream *substream,
 			CS4265_DAC_CTL_DIF, 0);
 		snd_soc_update_bits(codec, CS4265_ADC_CTL,
 			CS4265_ADC_DIF, 0);
-		snd_soc_update_bits(codec, CS4265_ADC_CTL,
+		snd_soc_update_bits(codec, CS4265_SPDIF_CTL2,
 			CS4265_SPDIF_CTL2_DIF, (1 << 6));
 
 		break;

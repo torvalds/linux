@@ -2602,6 +2602,7 @@ static void wa_buf_in_cb(struct urb *urb)
 	dev = &wa->usb_iface->dev;
 	--(wa->active_buf_in_urbs);
 	active_buf_in_urbs = wa->active_buf_in_urbs;
+	rpipe = xfer->ep->hcpriv;
 
 	if (usb_pipeisoc(xfer->urb->pipe)) {
 		struct usb_iso_packet_descriptor *iso_frame_desc =
@@ -2659,7 +2660,6 @@ static void wa_buf_in_cb(struct urb *urb)
 			  resubmit_dti = (isoc_data_frame_count ==
 							urb_frame_count);
 		} else if (active_buf_in_urbs == 0) {
-			rpipe = xfer->ep->hcpriv;
 			dev_dbg(dev,
 				"xfer %p 0x%08X#%u: data in done (%zu bytes)\n",
 				xfer, wa_xfer_id(xfer), seg->index,
@@ -2685,7 +2685,6 @@ static void wa_buf_in_cb(struct urb *urb)
 		 */
 		resubmit_dti = wa->dti_state != WA_DTI_TRANSFER_RESULT_PENDING;
 		spin_lock_irqsave(&xfer->lock, flags);
-		rpipe = xfer->ep->hcpriv;
 		if (printk_ratelimit())
 			dev_err(dev, "xfer %p 0x%08X#%u: data in error %d\n",
 				xfer, wa_xfer_id(xfer), seg->index,

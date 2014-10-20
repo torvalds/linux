@@ -62,10 +62,10 @@ long kvmppc_alloc_hpt(struct kvm *kvm, u32 *htab_orderp)
 	}
 
 	kvm->arch.hpt_cma_alloc = 0;
-	page = kvm_alloc_hpt(1 << (order - PAGE_SHIFT));
+	page = kvm_alloc_hpt(1ul << (order - PAGE_SHIFT));
 	if (page) {
 		hpt = (unsigned long)pfn_to_kaddr(page_to_pfn(page));
-		memset((void *)hpt, 0, (1 << order));
+		memset((void *)hpt, 0, (1ul << order));
 		kvm->arch.hpt_cma_alloc = 1;
 	}
 

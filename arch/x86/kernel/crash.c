@@ -182,8 +182,7 @@ void native_machine_crash_shutdown(struct pt_regs *regs)
 	crash_save_cpu(regs, safe_smp_processor_id());
 }
 
-#ifdef CONFIG_X86_64
-
+#ifdef CONFIG_KEXEC_FILE
 static int get_nr_ram_ranges_callback(unsigned long start_pfn,
 				unsigned long nr_pfn, void *arg)
 {
@@ -696,5 +695,4 @@ int crash_load_segments(struct kimage *image)
 
 	return ret;
 }
-
-#endif /* CONFIG_X86_64 */
+#endif /* CONFIG_KEXEC_FILE */

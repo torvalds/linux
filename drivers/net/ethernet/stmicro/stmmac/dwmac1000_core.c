@@ -58,7 +58,11 @@ static int dwmac1000_rx_ipc_enable(struct mac_device_info *hw)
 	void __iomem *ioaddr = hw->pcsr;
 	u32 value = readl(ioaddr + GMAC_CONTROL);
 
-	value |= GMAC_CONTROL_IPC;
+	if (hw->rx_csum)
+		value |= GMAC_CONTROL_IPC;
+	else
+		value &= ~GMAC_CONTROL_IPC;
+
 	writel(value, ioaddr + GMAC_CONTROL);
 
 	value = readl(ioaddr + GMAC_CONTROL);

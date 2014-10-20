@@ -231,7 +231,8 @@ struct qdisc_skb_cb {
 	unsigned int		pkt_len;
 	u16			slave_dev_queue_mapping;
 	u16			_pad;
-	unsigned char		data[24];
+#define QDISC_CB_PRIV_LEN 20
+	unsigned char		data[QDISC_CB_PRIV_LEN];
 };
 
 static inline void qdisc_cb_private_validate(const struct sk_buff *skb, int sz)

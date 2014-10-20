@@ -49,7 +49,7 @@
 #endif
 #define GICBIS(reg, mask, bits)			\
 	do { u32 data;				\
-		GICREAD((reg), data);		\
+		GICREAD(reg, data);		\
 		data &= ~(mask);		\
 		data |= ((bits) & (mask));	\
 		GICWRITE((reg), data);		\

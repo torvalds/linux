@@ -83,10 +83,6 @@
 		regulator-always-on;
 	};
 
-	clk32kg: regulator-clk32kg {
-		compatible = "ti,twl6030-clk32kg";
-	};
-
 	twl_usb_comparator: usb-comparator {
 		compatible = "ti,twl6030-usb";
 		interrupts = <4>, <10>;

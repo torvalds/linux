@@ -27,8 +27,8 @@ struct msm_iommu {
 static int msm_fault_handler(struct iommu_domain *iommu, struct device *dev,
 		unsigned long iova, int flags, void *arg)
 {
-	DBG("*** fault: iova=%08lx, flags=%d", iova, flags);
-	return -ENOSYS;
+	pr_warn_ratelimited("*** fault: iova=%08lx, flags=%d\n", iova, flags);
+	return 0;
 }
 
 static int msm_iommu_attach(struct msm_mmu *mmu, const char **names, int cnt)

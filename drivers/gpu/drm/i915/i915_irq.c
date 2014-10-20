@@ -1189,8 +1189,8 @@ static void i915_hotplug_work_func(struct work_struct *work)
 	  * some connectors */
 	if (hpd_disabled) {
 		drm_kms_helper_poll_enable(dev);
-		mod_timer(&dev_priv->hotplug_reenable_timer,
-			  jiffies + msecs_to_jiffies(I915_REENABLE_HOTPLUG_DELAY));
+		mod_delayed_work(system_wq, &dev_priv->hotplug_reenable_work,
+				 msecs_to_jiffies(I915_REENABLE_HOTPLUG_DELAY));
 	}
 
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
@@ -1211,11 +1211,6 @@ static void i915_hotplug_work_func(struct work_struct *work)
 
 	if (changed)
 		drm_kms_helper_hotplug_event(dev);
-}
-
-static void intel_hpd_irq_uninstall(struct drm_i915_private *dev_priv)
-{
-	del_timer_sync(&dev_priv->hotplug_reenable_timer);
 }
 
 static void ironlake_rps_change_irq_handler(struct drm_device *dev)
@@ -3892,8 +3887,6 @@ static void gen8_irq_uninstall(struct drm_device *dev)
 	if (!dev_priv)
 		return;
 
-	intel_hpd_irq_uninstall(dev_priv);
-
 	gen8_irq_reset(dev);
 }
 
@@ -3907,8 +3900,6 @@ static void valleyview_irq_uninstall(struct drm_device *dev)
 		return;
 
 	I915_WRITE(VLV_MASTER_IER, 0);
-
-	intel_hpd_irq_uninstall(dev_priv);
 
 	for_each_pipe(pipe)
 		I915_WRITE(PIPESTAT(pipe), 0xffff);
@@ -3987,8 +3978,6 @@ static void ironlake_irq_uninstall(struct drm_device *dev)
 
 	if (!dev_priv)
 		return;
-
-	intel_hpd_irq_uninstall(dev_priv);
 
 	ironlake_irq_reset(dev);
 }
@@ -4360,8 +4349,6 @@ static void i915_irq_uninstall(struct drm_device * dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe;
 
-	intel_hpd_irq_uninstall(dev_priv);
-
 	if (I915_HAS_HOTPLUG(dev)) {
 		I915_WRITE(PORT_HOTPLUG_EN, 0);
 		I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
@@ -4598,8 +4585,6 @@ static void i965_irq_uninstall(struct drm_device * dev)
 	if (!dev_priv)
 		return;
 
-	intel_hpd_irq_uninstall(dev_priv);
-
 	I915_WRITE(PORT_HOTPLUG_EN, 0);
 	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
 
@@ -4615,13 +4600,17 @@ static void i965_irq_uninstall(struct drm_device * dev)
 	I915_WRITE(IIR, I915_READ(IIR));
 }
 
-static void intel_hpd_irq_reenable(unsigned long data)
+static void intel_hpd_irq_reenable(struct work_struct *work)
 {
-	struct drm_i915_private *dev_priv = (struct drm_i915_private *)data;
+	struct drm_i915_private *dev_priv =
+		container_of(work, typeof(*dev_priv),
+			     hotplug_reenable_work.work);
 	struct drm_device *dev = dev_priv->dev;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	unsigned long irqflags;
 	int i;
+
+	intel_runtime_pm_get(dev_priv);
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	for (i = (HPD_NONE + 1); i < HPD_NUM_PINS; i++) {
@@ -4648,6 +4637,8 @@ static void intel_hpd_irq_reenable(unsigned long data)
 	if (dev_priv->display.hpd_irq_setup)
 		dev_priv->display.hpd_irq_setup(dev);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+
+	intel_runtime_pm_put(dev_priv);
 }
 
 void intel_irq_init(struct drm_device *dev)
@@ -4670,8 +4661,8 @@ void intel_irq_init(struct drm_device *dev)
 	setup_timer(&dev_priv->gpu_error.hangcheck_timer,
 		    i915_hangcheck_elapsed,
 		    (unsigned long) dev);
-	setup_timer(&dev_priv->hotplug_reenable_timer, intel_hpd_irq_reenable,
-		    (unsigned long) dev_priv);
+	INIT_DELAYED_WORK(&dev_priv->hotplug_reenable_work,
+			  intel_hpd_irq_reenable);
 
 	pm_qos_add_request(&dev_priv->pm_qos, PM_QOS_CPU_DMA_LATENCY, PM_QOS_DEFAULT_VALUE);
 

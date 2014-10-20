@@ -334,6 +334,8 @@ void flush_thread(void)
 	memset(&tsk->thread.debug, 0, sizeof(struct debug_info));
 	memset(&thread->fpstate, 0, sizeof(union fp_state));
 
+	flush_tls();
+
 	thread_notify(THREAD_NOTIFY_FLUSH, thread);
 }
 

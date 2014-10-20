@@ -262,6 +262,9 @@ struct gfs2_holder {
 	unsigned long gh_ip;
 };
 
+/* Number of quota types we support */
+#define GFS2_MAXQUOTAS 2
+
 /* Resource group multi-block reservation, in order of appearance:
 
    Step 1. Function prepares to write, allocates a mb, sets the size hint.
@@ -282,8 +285,8 @@ struct gfs2_blkreserv {
 	u64 rs_inum;                  /* Inode number for reservation */
 
 	/* ancillary quota stuff */
-	struct gfs2_quota_data *rs_qa_qd[2 * MAXQUOTAS];
-	struct gfs2_holder rs_qa_qd_ghs[2 * MAXQUOTAS];
+	struct gfs2_quota_data *rs_qa_qd[2 * GFS2_MAXQUOTAS];
+	struct gfs2_holder rs_qa_qd_ghs[2 * GFS2_MAXQUOTAS];
 	unsigned int rs_qa_qd_num;
 };
 

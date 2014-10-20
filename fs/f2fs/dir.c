@@ -124,7 +124,7 @@ static struct f2fs_dir_entry *find_in_block(struct page *dentry_page,
 
 		/*
 		 * For the most part, it should be a bug when name_len is zero.
-		 * We stop here for figuring out where the bugs are occurred.
+		 * We stop here for figuring out where the bugs has occurred.
 		 */
 		f2fs_bug_on(!de->name_len);
 
@@ -391,7 +391,7 @@ put_error:
 error:
 	/* once the failed inode becomes a bad inode, i_mode is S_IFREG */
 	truncate_inode_pages(&inode->i_data, 0);
-	truncate_blocks(inode, 0);
+	truncate_blocks(inode, 0, false);
 	remove_dirty_dir_inode(inode);
 	remove_inode_page(inode);
 	return ERR_PTR(err);
@@ -563,7 +563,7 @@ fail:
 }
 
 /*
- * It only removes the dentry from the dentry page,corresponding name
+ * It only removes the dentry from the dentry page, corresponding name
  * entry in name page does not need to be touched during deletion.
  */
 void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,

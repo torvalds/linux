@@ -62,7 +62,7 @@ Example:
 		#gpio-cells = <2>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
-		interrupts = <0 32 0x4>;
+		interrupts = <0 16 0x4>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&gsbi5_uart_default>;

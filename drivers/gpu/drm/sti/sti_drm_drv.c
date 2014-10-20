@@ -201,8 +201,8 @@ static int sti_drm_platform_probe(struct platform_device *pdev)
 	master = platform_device_register_resndata(dev,
 			DRIVER_NAME "__master", -1,
 			NULL, 0, NULL, 0);
-	if (!master)
-		return -EINVAL;
+	if (IS_ERR(master))
+               return PTR_ERR(master);
 
 	platform_set_drvdata(pdev, master);
 	return 0;

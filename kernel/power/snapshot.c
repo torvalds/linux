@@ -725,14 +725,6 @@ static void memory_bm_clear_bit(struct memory_bitmap *bm, unsigned long pfn)
 	clear_bit(bit, addr);
 }
 
-static void memory_bm_clear_current(struct memory_bitmap *bm)
-{
-	int bit;
-
-	bit = max(bm->cur.node_bit - 1, 0);
-	clear_bit(bit, bm->cur.node->data);
-}
-
 static int memory_bm_test_bit(struct memory_bitmap *bm, unsigned long pfn)
 {
 	void *addr;
@@ -1341,35 +1333,23 @@ static struct memory_bitmap copy_bm;
 
 void swsusp_free(void)
 {
-	unsigned long fb_pfn, fr_pfn;
+	struct zone *zone;
+	unsigned long pfn, max_zone_pfn;
 
-	memory_bm_position_reset(forbidden_pages_map);
-	memory_bm_position_reset(free_pages_map);
+	for_each_populated_zone(zone) {
+		max_zone_pfn = zone_end_pfn(zone);
+		for (pfn = zone->zone_start_pfn; pfn < max_zone_pfn; pfn++)
+			if (pfn_valid(pfn)) {
+				struct page *page = pfn_to_page(pfn);
 
-loop:
-	fr_pfn = memory_bm_next_pfn(free_pages_map);
-	fb_pfn = memory_bm_next_pfn(forbidden_pages_map);
-
-	/*
-	 * Find the next bit set in both bitmaps. This is guaranteed to
-	 * terminate when fb_pfn == fr_pfn == BM_END_OF_MAP.
-	 */
-	do {
-		if (fb_pfn < fr_pfn)
-			fb_pfn = memory_bm_next_pfn(forbidden_pages_map);
-		if (fr_pfn < fb_pfn)
-			fr_pfn = memory_bm_next_pfn(free_pages_map);
-	} while (fb_pfn != fr_pfn);
-
-	if (fr_pfn != BM_END_OF_MAP && pfn_valid(fr_pfn)) {
-		struct page *page = pfn_to_page(fr_pfn);
-
-		memory_bm_clear_current(forbidden_pages_map);
-		memory_bm_clear_current(free_pages_map);
-		__free_page(page);
-		goto loop;
+				if (swsusp_page_is_forbidden(page) &&
+				    swsusp_page_is_free(page)) {
+					swsusp_unset_page_forbidden(page);
+					swsusp_unset_page_free(page);
+					__free_page(page);
+				}
+			}
 	}
-
 	nr_copy_pages = 0;
 	nr_meta_pages = 0;
 	restore_pblist = NULL;

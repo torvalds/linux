@@ -298,7 +298,6 @@ static int hdmi_avi_infoframe_config(struct sti_hdmi *hdmi)
 	hdmi_write(hdmi, val, HDMI_SW_DI_N_PKT_WORD2(HDMI_IFRAME_SLOT_AVI));
 
 	val = frame[0xC];
-	val |= frame[0xD] << 8;
 	hdmi_write(hdmi, val, HDMI_SW_DI_N_PKT_WORD3(HDMI_IFRAME_SLOT_AVI));
 
 	/* Enable transmission slot for AVI infoframe
@@ -677,7 +676,7 @@ static const struct component_ops sti_hdmi_ops = {
 	.unbind = sti_hdmi_unbind,
 };
 
-static struct of_device_id hdmi_of_match[] = {
+static const struct of_device_id hdmi_of_match[] = {
 	{
 		.compatible = "st,stih416-hdmi",
 		.data = &tx3g0c55phy_ops,
@@ -713,8 +712,8 @@ static int sti_hdmi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	hdmi->regs = devm_ioremap_nocache(dev, res->start, resource_size(res));
-	if (IS_ERR(hdmi->regs))
-		return PTR_ERR(hdmi->regs);
+	if (!hdmi->regs)
+		return -ENOMEM;
 
 	if (of_device_is_compatible(np, "st,stih416-hdmi")) {
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
@@ -725,8 +724,8 @@ static int sti_hdmi_probe(struct platform_device *pdev)
 		}
 		hdmi->syscfg = devm_ioremap_nocache(dev, res->start,
 						    resource_size(res));
-		if (IS_ERR(hdmi->syscfg))
-			return PTR_ERR(hdmi->syscfg);
+		if (!hdmi->syscfg)
+			return -ENOMEM;
 
 	}
 

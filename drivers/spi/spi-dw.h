@@ -74,6 +74,10 @@
 #define SPI_INT_RXFI			(1 << 4)
 #define SPI_INT_MSTI			(1 << 5)
 
+/* Bit fields in DMACR */
+#define SPI_DMA_RDMAE			(1 << 0)
+#define SPI_DMA_TDMAE			(1 << 1)
+
 /* TX RX interrupt level threshold, max can be 256 */
 #define SPI_INT_THRESHOLD		32
 

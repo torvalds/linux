@@ -552,7 +552,8 @@ static int cache_block_group(struct btrfs_block_group_cache *cache,
 	caching_ctl->block_group = cache;
 	caching_ctl->progress = cache->key.objectid;
 	atomic_set(&caching_ctl->count, 1);
-	btrfs_init_work(&caching_ctl->work, caching_thread, NULL, NULL);
+	btrfs_init_work(&caching_ctl->work, btrfs_cache_helper,
+			caching_thread, NULL, NULL);
 
 	spin_lock(&cache->lock);
 	/*
@@ -2749,8 +2750,8 @@ int btrfs_async_run_delayed_refs(struct btrfs_root *root,
 		async->sync = 0;
 	init_completion(&async->wait);
 
-	btrfs_init_work(&async->work, delayed_ref_async_start,
-			NULL, NULL);
+	btrfs_init_work(&async->work, btrfs_extent_refs_helper,
+			delayed_ref_async_start, NULL, NULL);
 
 	btrfs_queue_work(root->fs_info->extent_workers, &async->work);
 
@@ -3586,13 +3587,7 @@ static u64 get_restripe_target(struct btrfs_fs_info *fs_info, u64 flags)
  */
 static u64 btrfs_reduce_alloc_profile(struct btrfs_root *root, u64 flags)
 {
-	/*
-	 * we add in the count of missing devices because we want
-	 * to make sure that any RAID levels on a degraded FS
-	 * continue to be honored.
-	 */
-	u64 num_devices = root->fs_info->fs_devices->rw_devices +
-		root->fs_info->fs_devices->missing_devices;
+	u64 num_devices = root->fs_info->fs_devices->rw_devices;
 	u64 target;
 	u64 tmp;
 
@@ -8440,13 +8435,7 @@ static u64 update_block_group_flags(struct btrfs_root *root, u64 flags)
 	if (stripped)
 		return extended_to_chunk(stripped);
 
-	/*
-	 * we add in the count of missing devices because we want
-	 * to make sure that any RAID levels on a degraded FS
-	 * continue to be honored.
-	 */
-	num_devices = root->fs_info->fs_devices->rw_devices +
-		root->fs_info->fs_devices->missing_devices;
+	num_devices = root->fs_info->fs_devices->rw_devices;
 
 	stripped = BTRFS_BLOCK_GROUP_RAID0 |
 		BTRFS_BLOCK_GROUP_RAID5 | BTRFS_BLOCK_GROUP_RAID6 |

@@ -709,11 +709,13 @@ int i915_cmd_parser_init_ring(struct intel_engine_cs *ring)
 	BUG_ON(!validate_cmds_sorted(ring, cmd_tables, cmd_table_count));
 	BUG_ON(!validate_regs_sorted(ring));
 
-	ret = init_hash_table(ring, cmd_tables, cmd_table_count);
-	if (ret) {
-		DRM_ERROR("CMD: cmd_parser_init failed!\n");
-		fini_hash_table(ring);
-		return ret;
+	if (hash_empty(ring->cmd_hash)) {
+		ret = init_hash_table(ring, cmd_tables, cmd_table_count);
+		if (ret) {
+			DRM_ERROR("CMD: cmd_parser_init failed!\n");
+			fini_hash_table(ring);
+			return ret;
+		}
 	}
 
 	ring->needs_cmd_parser = true;

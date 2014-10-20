@@ -314,6 +314,19 @@ static int af9033_init(struct dvb_frontend *fe)
 			goto err;
 	}
 
+	/* feed clock to RF tuner */
+	switch (state->cfg.tuner) {
+	case AF9033_TUNER_IT9135_38:
+	case AF9033_TUNER_IT9135_51:
+	case AF9033_TUNER_IT9135_52:
+	case AF9033_TUNER_IT9135_60:
+	case AF9033_TUNER_IT9135_61:
+	case AF9033_TUNER_IT9135_62:
+		ret = af9033_wr_reg(state, 0x80fba8, 0x00);
+		if (ret < 0)
+			goto err;
+	}
+
 	/* settings for TS interface */
 	if (state->cfg.ts_mode == AF9033_TS_MODE_USB) {
 		ret = af9033_wr_reg_mask(state, 0x80f9a5, 0x00, 0x01);

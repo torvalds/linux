@@ -1783,33 +1783,31 @@ static void __rtl8169_set_features(struct net_device *dev,
 				   netdev_features_t features)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
-	netdev_features_t changed = features ^ dev->features;
 	void __iomem *ioaddr = tp->mmio_addr;
+	u32 rx_config;
 
-	if (!(changed & (NETIF_F_RXALL | NETIF_F_RXCSUM |
-			 NETIF_F_HW_VLAN_CTAG_RX)))
-		return;
+	rx_config = RTL_R32(RxConfig);
+	if (features & NETIF_F_RXALL)
+		rx_config |= (AcceptErr | AcceptRunt);
+	else
+		rx_config &= ~(AcceptErr | AcceptRunt);
 
-	if (changed & (NETIF_F_RXCSUM | NETIF_F_HW_VLAN_CTAG_RX)) {
-		if (features & NETIF_F_RXCSUM)
-			tp->cp_cmd |= RxChkSum;
-		else
-			tp->cp_cmd &= ~RxChkSum;
+	RTL_W32(RxConfig, rx_config);
 
-		if (dev->features & NETIF_F_HW_VLAN_CTAG_RX)
-			tp->cp_cmd |= RxVlan;
-		else
-			tp->cp_cmd &= ~RxVlan;
+	if (features & NETIF_F_RXCSUM)
+		tp->cp_cmd |= RxChkSum;
+	else
+		tp->cp_cmd &= ~RxChkSum;
 
-		RTL_W16(CPlusCmd, tp->cp_cmd);
-		RTL_R16(CPlusCmd);
-	}
-	if (changed & NETIF_F_RXALL) {
-		int tmp = (RTL_R32(RxConfig) & ~(AcceptErr | AcceptRunt));
-		if (features & NETIF_F_RXALL)
-			tmp |= (AcceptErr | AcceptRunt);
-		RTL_W32(RxConfig, tmp);
-	}
+	if (features & NETIF_F_HW_VLAN_CTAG_RX)
+		tp->cp_cmd |= RxVlan;
+	else
+		tp->cp_cmd &= ~RxVlan;
+
+	tp->cp_cmd |= RTL_R16(CPlusCmd) & ~(RxVlan | RxChkSum);
+
+	RTL_W16(CPlusCmd, tp->cp_cmd);
+	RTL_R16(CPlusCmd);
 }
 
 static int rtl8169_set_features(struct net_device *dev,
@@ -1817,8 +1815,11 @@ static int rtl8169_set_features(struct net_device *dev,
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 
+	features &= NETIF_F_RXALL | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_CTAG_RX;
+
 	rtl_lock_work(tp);
-	__rtl8169_set_features(dev, features);
+	if (features ^ dev->features)
+		__rtl8169_set_features(dev, features);
 	rtl_unlock_work(tp);
 
 	return 0;
@@ -7118,8 +7119,7 @@ static void rtl_hw_initialize(struct rtl8169_private *tp)
 	}
 }
 
-static int
-rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	const struct rtl_cfg_info *cfg = rtl_cfg_infos + ent->driver_data;
 	const unsigned int region = cfg->region;
@@ -7194,7 +7194,7 @@ rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_mwi_2;
 	}
 
-	tp->cp_cmd = RxChkSum;
+	tp->cp_cmd = 0;
 
 	if ((sizeof(dma_addr_t) > 4) &&
 	    !pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) && use_dac) {
@@ -7234,13 +7234,6 @@ rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rtl_ack_events(tp, 0xffff);
 
 	pci_set_master(pdev);
-
-	/*
-	 * Pretend we are using VLANs; This bypasses a nasty bug where
-	 * Interrupts stop flowing on high load on 8110SCd controllers.
-	 */
-	if (tp->mac_version == RTL_GIGA_MAC_VER_05)
-		tp->cp_cmd |= RxVlan;
 
 	rtl_init_mdio_ops(tp);
 	rtl_init_pll_power_ops(tp);
@@ -7302,8 +7295,14 @@ rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO |
 		NETIF_F_HIGHDMA;
 
+	tp->cp_cmd |= RxChkSum | RxVlan;
+
+	/*
+	 * Pretend we are using VLANs; This bypasses a nasty bug where
+	 * Interrupts stop flowing on high load on 8110SCd controllers.
+	 */
 	if (tp->mac_version == RTL_GIGA_MAC_VER_05)
-		/* 8110SCd requires hardware Rx VLAN - disallow toggling */
+		/* Disallow toggling */
 		dev->hw_features &= ~NETIF_F_HW_VLAN_CTAG_RX;
 
 	if (tp->txd_version == RTL_TD_0)

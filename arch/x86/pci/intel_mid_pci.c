@@ -229,7 +229,7 @@ static int intel_mid_pci_irq_enable(struct pci_dev *dev)
 
 static void intel_mid_pci_irq_disable(struct pci_dev *dev)
 {
-	if (!dev->dev.power.is_prepared && dev->irq > 0)
+	if (!mp_should_keep_irq(&dev->dev) && dev->irq > 0)
 		mp_unmap_irq(dev->irq);
 }
 

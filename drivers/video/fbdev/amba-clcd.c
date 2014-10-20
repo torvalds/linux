@@ -24,6 +24,7 @@
 #include <linux/list.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
+#include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/hardirq.h>
 #include <linux/dma-mapping.h>
@@ -638,9 +639,7 @@ static int clcdfb_of_init_tft_panel(struct clcd_fb *fb, u32 r0, u32 g0, u32 b0)
 		if (g0 != panels[i].g0)
 			continue;
 		if (r0 == panels[i].r0 && b0 == panels[i].b0)
-			fb->panel->caps = panels[i].caps & CLCD_CAP_RGB;
-		if (r0 == panels[i].b0 && b0 == panels[i].r0)
-			fb->panel->caps = panels[i].caps & CLCD_CAP_BGR;
+			fb->panel->caps = panels[i].caps;
 	}
 
 	return fb->panel->caps ? 0 : -EINVAL;
@@ -650,6 +649,7 @@ static int clcdfb_of_init_display(struct clcd_fb *fb)
 {
 	struct device_node *endpoint;
 	int err;
+	unsigned int bpp;
 	u32 max_bandwidth;
 	u32 tft_r0b0g0[3];
 
@@ -667,11 +667,22 @@ static int clcdfb_of_init_display(struct clcd_fb *fb)
 
 	err = of_property_read_u32(fb->dev->dev.of_node, "max-memory-bandwidth",
 			&max_bandwidth);
-	if (!err)
-		fb->panel->bpp = 8 * max_bandwidth / (fb->panel->mode.xres *
-				fb->panel->mode.yres * fb->panel->mode.refresh);
-	else
-		fb->panel->bpp = 32;
+	if (!err) {
+		/*
+		 * max_bandwidth is in bytes per second and pixclock in
+		 * pico-seconds, so the maximum allowed bits per pixel is
+		 *   8 * max_bandwidth / (PICOS2KHZ(pixclock) * 1000)
+		 * Rearrange this calculation to avoid overflow and then ensure
+		 * result is a valid format.
+		 */
+		bpp = max_bandwidth / (1000 / 8)
+			/ PICOS2KHZ(fb->panel->mode.pixclock);
+		bpp = rounddown_pow_of_two(bpp);
+		if (bpp > 32)
+			bpp = 32;
+	} else
+		bpp = 32;
+	fb->panel->bpp = bpp;
 
 #ifdef CONFIG_CPU_BIG_ENDIAN
 	fb->panel->cntl |= CNTL_BEBO;

@@ -220,7 +220,7 @@ static inline void wait_for_idle(struct rockchip_spi *rs)
 	do {
 		if (!(readl_relaxed(rs->regs + ROCKCHIP_SPI_SR) & SR_BUSY))
 			return;
-	} while (time_before(jiffies, timeout));
+	} while (!time_after(jiffies, timeout));
 
 	dev_warn(rs->dev, "spi controller is in busy state!\n");
 }
@@ -415,7 +415,7 @@ static void rockchip_spi_dma_txcb(void *data)
 	spin_unlock_irqrestore(&rs->lock, flags);
 }
 
-static int rockchip_spi_dma_transfer(struct rockchip_spi *rs)
+static void rockchip_spi_prepare_dma(struct rockchip_spi *rs)
 {
 	unsigned long flags;
 	struct dma_slave_config rxconf, txconf;
@@ -474,8 +474,6 @@ static int rockchip_spi_dma_transfer(struct rockchip_spi *rs)
 		dmaengine_submit(txdesc);
 		dma_async_issue_pending(rs->dma_tx.ch);
 	}
-
-	return 1;
 }
 
 static void rockchip_spi_config(struct rockchip_spi *rs)
@@ -499,7 +497,7 @@ static void rockchip_spi_config(struct rockchip_spi *rs)
 	}
 
 	/* div doesn't support odd number */
-	div = rs->max_freq / rs->speed;
+	div = max_t(u32, rs->max_freq / rs->speed, 1);
 	div = (div + 1) & 0xfffe;
 
 	spi_enable_chip(rs, 0);
@@ -529,7 +527,8 @@ static int rockchip_spi_transfer_one(
 	int ret = 0;
 	struct rockchip_spi *rs = spi_master_get_devdata(master);
 
-	WARN_ON((readl_relaxed(rs->regs + ROCKCHIP_SPI_SR) & SR_BUSY));
+	WARN_ON(readl_relaxed(rs->regs + ROCKCHIP_SPI_SSIENR) &&
+		(readl_relaxed(rs->regs + ROCKCHIP_SPI_SR) & SR_BUSY));
 
 	if (!xfer->tx_buf && !xfer->rx_buf) {
 		dev_err(rs->dev, "No buffer for transfer\n");
@@ -556,16 +555,17 @@ static int rockchip_spi_transfer_one(
 	else if (rs->rx)
 		rs->tmode = CR0_XFM_RO;
 
-	if (master->can_dma && master->can_dma(master, spi, xfer))
+	/* we need prepare dma before spi was enabled */
+	if (master->can_dma && master->can_dma(master, spi, xfer)) {
 		rs->use_dma = 1;
-	else
+		rockchip_spi_prepare_dma(rs);
+	} else {
 		rs->use_dma = 0;
+	}
 
 	rockchip_spi_config(rs);
 
-	if (rs->use_dma)
-		ret = rockchip_spi_dma_transfer(rs);
-	else
+	if (!rs->use_dma)
 		ret = rockchip_spi_pio_transfer(rs);
 
 	return ret;
@@ -678,7 +678,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 		rs->dma_tx.addr = (dma_addr_t)(mem->start + ROCKCHIP_SPI_TXDR);
 		rs->dma_rx.addr = (dma_addr_t)(mem->start + ROCKCHIP_SPI_RXDR);
 		rs->dma_tx.direction = DMA_MEM_TO_DEV;
-		rs->dma_tx.direction = DMA_DEV_TO_MEM;
+		rs->dma_rx.direction = DMA_DEV_TO_MEM;
 
 		master->can_dma = rockchip_spi_can_dma;
 		master->dma_tx = rs->dma_tx.ch;

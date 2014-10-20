@@ -138,6 +138,9 @@ int __of_add_property_sysfs(struct device_node *np, struct property *pp)
 	/* Important: Don't leak passwords */
 	bool secure = strncmp(pp->name, "security-", 9) == 0;
 
+	if (!IS_ENABLED(CONFIG_SYSFS))
+		return 0;
+
 	if (!of_kset || !of_node_is_attached(np))
 		return 0;
 
@@ -157,6 +160,9 @@ int __of_attach_node_sysfs(struct device_node *np)
 	const char *name;
 	struct property *pp;
 	int rc;
+
+	if (!IS_ENABLED(CONFIG_SYSFS))
+		return 0;
 
 	if (!of_kset)
 		return 0;
@@ -1713,6 +1719,9 @@ int __of_remove_property(struct device_node *np, struct property *prop)
 
 void __of_remove_property_sysfs(struct device_node *np, struct property *prop)
 {
+	if (!IS_ENABLED(CONFIG_SYSFS))
+		return;
+
 	/* at early boot, bail here and defer setup to of_init() */
 	if (of_kset && of_node_is_attached(np))
 		sysfs_remove_bin_file(&np->kobj, &prop->attr);
@@ -1777,6 +1786,9 @@ int __of_update_property(struct device_node *np, struct property *newprop,
 void __of_update_property_sysfs(struct device_node *np, struct property *newprop,
 		struct property *oldprop)
 {
+	if (!IS_ENABLED(CONFIG_SYSFS))
+		return;
+
 	/* At early boot, bail out and defer setup to of_init() */
 	if (!of_kset)
 		return;
@@ -1847,6 +1859,7 @@ void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
 {
 	struct property *pp;
 
+	of_aliases = of_find_node_by_path("/aliases");
 	of_chosen = of_find_node_by_path("/chosen");
 	if (of_chosen == NULL)
 		of_chosen = of_find_node_by_path("/chosen@0");
@@ -1862,7 +1875,6 @@ void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
 			of_stdout = of_find_node_by_path(name);
 	}
 
-	of_aliases = of_find_node_by_path("/aliases");
 	if (!of_aliases)
 		return;
 
@@ -1986,7 +1998,7 @@ bool of_console_check(struct device_node *dn, char *name, int index)
 {
 	if (!dn || dn != of_stdout || console_set_on_cmdline)
 		return false;
-	return add_preferred_console(name, index, NULL);
+	return !add_preferred_console(name, index, NULL);
 }
 EXPORT_SYMBOL_GPL(of_console_check);
 

@@ -206,7 +206,7 @@ EXPORT_SYMBOL(gnet_stats_copy_queue);
  * @st: application specific statistics data
  * @len: length of data
  *
- * Appends the application sepecific statistics to the top level TLV created by
+ * Appends the application specific statistics to the top level TLV created by
  * gnet_stats_start_copy() and remembers the data for XSTATS if the dumping
  * handle is in backward compatibility mode.
  *

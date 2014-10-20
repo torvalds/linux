@@ -46,7 +46,6 @@ static void program_hpp_type0(struct pci_dev *dev, struct hpp_type0 *hpp)
 		 */
 		if (pci_is_pcie(dev))
 			return;
-		dev_info(&dev->dev, "using default PCI settings\n");
 		hpp = &pci_default_type0;
 	}
 
@@ -153,7 +152,6 @@ void pci_configure_slot(struct pci_dev *dev)
 {
 	struct pci_dev *cdev;
 	struct hotplug_params hpp;
-	int ret;
 
 	if (!(dev->hdr_type == PCI_HEADER_TYPE_NORMAL ||
 			(dev->hdr_type == PCI_HEADER_TYPE_BRIDGE &&
@@ -163,9 +161,7 @@ void pci_configure_slot(struct pci_dev *dev)
 	pcie_bus_configure_settings(dev->bus);
 
 	memset(&hpp, 0, sizeof(hpp));
-	ret = pci_get_hp_params(dev, &hpp);
-	if (ret)
-		dev_warn(&dev->dev, "no hotplug settings from platform\n");
+	pci_get_hp_params(dev, &hpp);
 
 	program_hpp_type2(dev, hpp.t2);
 	program_hpp_type1(dev, hpp.t1);

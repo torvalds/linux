@@ -182,7 +182,6 @@ config MEDIA_SUBDRV_AUTOSELECT
 	depends on HAS_IOMEM
 	select I2C
 	select I2C_MUX
-	select SPI
 	default y
 	help
 	  By default, a media driver auto-selects all possible ancillary

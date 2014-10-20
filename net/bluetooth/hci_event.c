@@ -4221,8 +4221,13 @@ static void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_proto_connect_cfm(conn, ev->status);
 
 	params = hci_conn_params_lookup(hdev, &conn->dst, conn->dst_type);
-	if (params)
+	if (params) {
 		list_del_init(&params->action);
+		if (params->conn) {
+			hci_conn_drop(params->conn);
+			params->conn = NULL;
+		}
+	}
 
 unlock:
 	hci_update_background_scan(hdev);
@@ -4304,8 +4309,16 @@ static void check_pending_le_conn(struct hci_dev *hdev, bdaddr_t *addr,
 
 	conn = hci_connect_le(hdev, addr, addr_type, BT_SECURITY_LOW,
 			      HCI_LE_AUTOCONN_TIMEOUT, HCI_ROLE_MASTER);
-	if (!IS_ERR(conn))
+	if (!IS_ERR(conn)) {
+		/* Store the pointer since we don't really have any
+		 * other owner of the object besides the params that
+		 * triggered it. This way we can abort the connection if
+		 * the parameters get removed and keep the reference
+		 * count consistent once the connection is established.
+		 */
+		params->conn = conn;
 		return;
+	}
 
 	switch (PTR_ERR(conn)) {
 	case -EBUSY:

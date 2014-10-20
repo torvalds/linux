@@ -195,6 +195,7 @@ uvc_video_complete(struct usb_ep *ep, struct usb_request *req)
 		printk(KERN_INFO "Failed to queue request (%d).\n", ret);
 		usb_ep_set_halt(ep);
 		spin_unlock_irqrestore(&video->queue.irqlock, flags);
+		uvc_queue_cancel(queue, 0);
 		goto requeue;
 	}
 	spin_unlock_irqrestore(&video->queue.irqlock, flags);
@@ -281,6 +282,7 @@ error:
 static int
 uvc_video_pump(struct uvc_video *video)
 {
+	struct uvc_video_queue *queue = &video->queue;
 	struct usb_request *req;
 	struct uvc_buffer *buf;
 	unsigned long flags;
@@ -322,6 +324,7 @@ uvc_video_pump(struct uvc_video *video)
 			printk(KERN_INFO "Failed to queue request (%d)\n", ret);
 			usb_ep_set_halt(video->ep);
 			spin_unlock_irqrestore(&video->queue.irqlock, flags);
+			uvc_queue_cancel(queue, 0);
 			break;
 		}
 		spin_unlock_irqrestore(&video->queue.irqlock, flags);

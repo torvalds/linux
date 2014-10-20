@@ -15,17 +15,17 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
-#include <linux/types.h>
-#include <linux/kernel.h>
-#include <linux/spi/spi.h>
-#include <linux/fsl_devices.h>
-#include <linux/dma-mapping.h>
-#include <linux/of_address.h>
 #include <asm/cpm.h>
 #include <asm/qe.h>
+#include <linux/dma-mapping.h>
+#include <linux/fsl_devices.h>
+#include <linux/kernel.h>
+#include <linux/of_address.h>
+#include <linux/spi/spi.h>
+#include <linux/types.h>
 
-#include "spi-fsl-lib.h"
 #include "spi-fsl-cpm.h"
+#include "spi-fsl-lib.h"
 #include "spi-fsl-spi.h"
 
 /* CPM1 and CPM2 are mutually exclusive. */

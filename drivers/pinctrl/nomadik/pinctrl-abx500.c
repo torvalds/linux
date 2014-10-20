@@ -620,8 +620,7 @@ static void abx500_gpio_dbg_show_one(struct seq_file *s,
 	} else
 		seq_printf(s, " %-9s", chip->get(chip, offset) ? "hi" : "lo");
 
-	if (pctldev)
-		mode = abx500_get_mode(pctldev, chip, offset);
+	mode = abx500_get_mode(pctldev, chip, offset);
 
 	seq_printf(s, " %s", (mode < 0) ? "unknown" : modes[mode]);
 

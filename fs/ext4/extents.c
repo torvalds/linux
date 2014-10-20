@@ -4665,7 +4665,8 @@ retry:
 }
 
 static int ext4_alloc_file_blocks(struct file *file, ext4_lblk_t offset,
-				  ext4_lblk_t len, int flags, int mode)
+				  ext4_lblk_t len, loff_t new_size,
+				  int flags, int mode)
 {
 	struct inode *inode = file_inode(file);
 	handle_t *handle;
@@ -4674,8 +4675,10 @@ static int ext4_alloc_file_blocks(struct file *file, ext4_lblk_t offset,
 	int retries = 0;
 	struct ext4_map_blocks map;
 	unsigned int credits;
+	loff_t epos;
 
 	map.m_lblk = offset;
+	map.m_len = len;
 	/*
 	 * Don't normalize the request if it can fit in one extent so
 	 * that it doesn't get unnecessarily split into multiple
@@ -4690,9 +4693,7 @@ static int ext4_alloc_file_blocks(struct file *file, ext4_lblk_t offset,
 	credits = ext4_chunk_trans_blocks(inode, len);
 
 retry:
-	while (ret >= 0 && ret < len) {
-		map.m_lblk = map.m_lblk + ret;
-		map.m_len = len = len - ret;
+	while (ret >= 0 && len) {
 		handle = ext4_journal_start(inode, EXT4_HT_MAP_BLOCKS,
 					    credits);
 		if (IS_ERR(handle)) {
@@ -4709,6 +4710,21 @@ retry:
 			ret2 = ext4_journal_stop(handle);
 			break;
 		}
+		map.m_lblk += ret;
+		map.m_len = len = len - ret;
+		epos = (loff_t)map.m_lblk << inode->i_blkbits;
+		inode->i_ctime = ext4_current_time(inode);
+		if (new_size) {
+			if (epos > new_size)
+				epos = new_size;
+			if (ext4_update_inode_size(inode, epos) & 0x1)
+				inode->i_mtime = inode->i_ctime;
+		} else {
+			if (epos > inode->i_size)
+				ext4_set_inode_flag(inode,
+						    EXT4_INODE_EOFBLOCKS);
+		}
+		ext4_mark_inode_dirty(handle, inode);
 		ret2 = ext4_journal_stop(handle);
 		if (ret2)
 			break;
@@ -4731,7 +4747,8 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 	loff_t new_size = 0;
 	int ret = 0;
 	int flags;
-	int partial;
+	int credits;
+	int partial_begin, partial_end;
 	loff_t start, end;
 	ext4_lblk_t lblk;
 	struct address_space *mapping = inode->i_mapping;
@@ -4771,7 +4788,8 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 
 	if (start < offset || end > offset + len)
 		return -EINVAL;
-	partial = (offset + len) & ((1 << blkbits) - 1);
+	partial_begin = offset & ((1 << blkbits) - 1);
+	partial_end = (offset + len) & ((1 << blkbits) - 1);
 
 	lblk = start >> blkbits;
 	max_blocks = (end >> blkbits);
@@ -4805,7 +4823,7 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 		 * If we have a partial block after EOF we have to allocate
 		 * the entire block.
 		 */
-		if (partial)
+		if (partial_end)
 			max_blocks += 1;
 	}
 
@@ -4813,6 +4831,7 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 
 		/* Now release the pages and zero block aligned part of pages*/
 		truncate_pagecache_range(inode, start, end - 1);
+		inode->i_mtime = inode->i_ctime = ext4_current_time(inode);
 
 		/* Wait all existing dio workers, newcomers will block on i_mutex */
 		ext4_inode_block_unlocked_dio(inode);
@@ -4825,13 +4844,22 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 		if (ret)
 			goto out_dio;
 
-		ret = ext4_alloc_file_blocks(file, lblk, max_blocks, flags,
-					     mode);
+		ret = ext4_alloc_file_blocks(file, lblk, max_blocks, new_size,
+					     flags, mode);
 		if (ret)
 			goto out_dio;
 	}
+	if (!partial_begin && !partial_end)
+		goto out_dio;
 
-	handle = ext4_journal_start(inode, EXT4_HT_MISC, 4);
+	/*
+	 * In worst case we have to writeout two nonadjacent unwritten
+	 * blocks and update the inode
+	 */
+	credits = (2 * ext4_ext_index_trans_blocks(inode, 2)) + 1;
+	if (ext4_should_journal_data(inode))
+		credits += 2;
+	handle = ext4_journal_start(inode, EXT4_HT_MISC, credits);
 	if (IS_ERR(handle)) {
 		ret = PTR_ERR(handle);
 		ext4_std_error(inode->i_sb, ret);
@@ -4839,12 +4867,8 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 	}
 
 	inode->i_mtime = inode->i_ctime = ext4_current_time(inode);
-
 	if (new_size) {
-		if (new_size > i_size_read(inode))
-			i_size_write(inode, new_size);
-		if (new_size > EXT4_I(inode)->i_disksize)
-			ext4_update_i_disksize(inode, new_size);
+		ext4_update_inode_size(inode, new_size);
 	} else {
 		/*
 		* Mark that we allocate beyond EOF so the subsequent truncate
@@ -4853,7 +4877,6 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 		if ((offset + len) > i_size_read(inode))
 			ext4_set_inode_flag(inode, EXT4_INODE_EOFBLOCKS);
 	}
-
 	ext4_mark_inode_dirty(handle, inode);
 
 	/* Zero out partial block at the edges of the range */
@@ -4880,13 +4903,11 @@ out_mutex:
 long ext4_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 {
 	struct inode *inode = file_inode(file);
-	handle_t *handle;
 	loff_t new_size = 0;
 	unsigned int max_blocks;
 	int ret = 0;
 	int flags;
 	ext4_lblk_t lblk;
-	struct timespec tv;
 	unsigned int blkbits = inode->i_blkbits;
 
 	/* Return error if mode is not supported */
@@ -4937,36 +4958,15 @@ long ext4_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 			goto out;
 	}
 
-	ret = ext4_alloc_file_blocks(file, lblk, max_blocks, flags, mode);
+	ret = ext4_alloc_file_blocks(file, lblk, max_blocks, new_size,
+				     flags, mode);
 	if (ret)
 		goto out;
 
-	handle = ext4_journal_start(inode, EXT4_HT_INODE, 2);
-	if (IS_ERR(handle))
-		goto out;
-
-	tv = inode->i_ctime = ext4_current_time(inode);
-
-	if (new_size) {
-		if (new_size > i_size_read(inode)) {
-			i_size_write(inode, new_size);
-			inode->i_mtime = tv;
-		}
-		if (new_size > EXT4_I(inode)->i_disksize)
-			ext4_update_i_disksize(inode, new_size);
-	} else {
-		/*
-		* Mark that we allocate beyond EOF so the subsequent truncate
-		* can proceed even if the new size is the same as i_size.
-		*/
-		if ((offset + len) > i_size_read(inode))
-			ext4_set_inode_flag(inode, EXT4_INODE_EOFBLOCKS);
+	if (file->f_flags & O_SYNC && EXT4_SB(inode->i_sb)->s_journal) {
+		ret = jbd2_complete_transaction(EXT4_SB(inode->i_sb)->s_journal,
+						EXT4_I(inode)->i_sync_tid);
 	}
-	ext4_mark_inode_dirty(handle, inode);
-	if (file->f_flags & O_SYNC)
-		ext4_handle_sync(handle);
-
-	ext4_journal_stop(handle);
 out:
 	mutex_unlock(&inode->i_mutex);
 	trace_ext4_fallocate_exit(inode, offset, max_blocks, ret);

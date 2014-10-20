@@ -50,6 +50,8 @@ MODULE_PARM_DESC(static_hdmi_pcm, "Don't restrict PCM parameters per ELD info");
 #define is_haswell_plus(codec) (is_haswell(codec) || is_broadwell(codec))
 
 #define is_valleyview(codec) ((codec)->vendor_id == 0x80862882)
+#define is_cherryview(codec) ((codec)->vendor_id == 0x80862883)
+#define is_valleyview_plus(codec) (is_valleyview(codec) || is_cherryview(codec))
 
 struct hdmi_spec_per_cvt {
 	hda_nid_t cvt_nid;
@@ -1459,7 +1461,7 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 			    mux_idx);
 
 	/* configure unused pins to choose other converters */
-	if (is_haswell_plus(codec) || is_valleyview(codec))
+	if (is_haswell_plus(codec) || is_valleyview_plus(codec))
 		intel_not_share_assigned_cvt(codec, per_pin->pin_nid, mux_idx);
 
 	snd_hda_spdif_ctls_assign(codec, pin_idx, per_cvt->cvt_nid);
@@ -1598,7 +1600,8 @@ static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 		 *   and this can make HW reset converter selection on a pin.
 		 */
 		if (eld->eld_valid && !old_eld_valid && per_pin->setup) {
-			if (is_haswell_plus(codec) || is_valleyview(codec)) {
+			if (is_haswell_plus(codec) ||
+				is_valleyview_plus(codec)) {
 				intel_verify_pin_cvt_connect(codec, per_pin);
 				intel_not_share_assigned_cvt(codec, pin_nid,
 							per_pin->mux_idx);
@@ -1779,7 +1782,7 @@ static int generic_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 	bool non_pcm;
 	int pinctl;
 
-	if (is_haswell_plus(codec) || is_valleyview(codec)) {
+	if (is_haswell_plus(codec) || is_valleyview_plus(codec)) {
 		/* Verify pin:cvt selections to avoid silent audio after S3.
 		 * After S3, the audio driver restores pin:cvt selections
 		 * but this can happen before gfx is ready and such selection
@@ -2330,9 +2333,8 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 		intel_haswell_fixup_enable_dp12(codec);
 	}
 
-	if (is_haswell(codec) || is_valleyview(codec)) {
+	if (is_haswell_plus(codec) || is_valleyview_plus(codec))
 		codec->depop_delay = 0;
-	}
 
 	if (hdmi_parse_codec(codec) < 0) {
 		codec->spec = NULL;

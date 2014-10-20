@@ -275,6 +275,9 @@ struct fec_enet_private {
 	struct clk *clk_enet_out;
 	struct clk *clk_ptp;
 
+	bool ptp_clk_on;
+	struct mutex ptp_clk_mutex;
+
 	/* The saved address of a sent-in-place packet/buffer, for skfree(). */
 	unsigned char *tx_bounce[TX_RING_SIZE];
 	struct	sk_buff *tx_skbuff[TX_RING_SIZE];
@@ -335,7 +338,7 @@ struct fec_enet_private {
 	u32 cycle_speed;
 	int hwts_rx_en;
 	int hwts_tx_en;
-	struct timer_list time_keep;
+	struct delayed_work time_keep;
 	struct regulator *reg_phy;
 };
 

@@ -149,7 +149,7 @@
 				usb: usbck {
 					compatible = "atmel,at91rm9200-clk-usb";
 					#clock-cells = <0>;
-					atmel,clk-divisors = <1 2>;
+					atmel,clk-divisors = <1 2 0 0>;
 					clocks = <&pllb>;
 				};
 
