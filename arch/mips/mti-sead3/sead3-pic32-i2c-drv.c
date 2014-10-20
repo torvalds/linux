@@ -393,7 +393,6 @@ i2c_platform_resume(struct platform_device *pdev)
 static struct platform_driver i2c_platform_driver = {
 	.driver = {
 		.name	= "i2c_pic32",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= i2c_platform_probe,
 	.remove		= i2c_platform_remove,
