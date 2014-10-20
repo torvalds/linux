@@ -130,7 +130,6 @@ MODULE_DEVICE_TABLE(platform, platform_device_ids);
 static struct platform_driver platform_driver = {
 	.driver = {
 		.name = "loongson2_cpufreq",
-		.owner = THIS_MODULE,
 	},
 	.id_table = platform_device_ids,
 };
