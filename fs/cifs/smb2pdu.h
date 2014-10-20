@@ -836,6 +836,25 @@ struct smb2_query_directory_rsp {
 #define SMB2_O_INFO_SECURITY	0x03
 #define SMB2_O_INFO_QUOTA	0x04
 
+/* Security info type additionalinfo flags. See MS-SMB2 (2.2.37) or MS-DTYP */
+#define OWNER_SECINFO   0x00000001
+#define GROUP_SECINFO   0x00000002
+#define DACL_SECINFO   0x00000004
+#define SACL_SECINFO   0x00000008
+#define LABEL_SECINFO   0x00000010
+#define ATTRIBUTE_SECINFO   0x00000020
+#define SCOPE_SECINFO   0x00000040
+#define BACKUP_SECINFO   0x00010000
+#define UNPROTECTED_SACL_SECINFO   0x10000000
+#define UNPROTECTED_DACL_SECINFO   0x20000000
+#define PROTECTED_SACL_SECINFO   0x40000000
+#define PROTECTED_DACL_SECINFO   0x80000000
+
+/* Flags used for FileFullEAinfo */
+#define SL_RESTART_SCAN		0x00000001
+#define SL_RETURN_SINGLE_ENTRY	0x00000002
+#define SL_INDEX_SPECIFIED	0x00000004
+
 struct smb2_query_info_req {
 	struct smb2_hdr hdr;
 	__le16 StructureSize; /* Must be 41 */
