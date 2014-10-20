@@ -608,7 +608,6 @@ static struct platform_driver jz4740_dma_driver = {
 	.remove = jz4740_dma_remove,
 	.driver = {
 		.name = "jz4740-dma",
-		.owner = THIS_MODULE,
 	},
 };
 module_platform_driver(jz4740_dma_driver);

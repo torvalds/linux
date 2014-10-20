@@ -1402,7 +1402,6 @@ static int s3c24xx_dma_remove(struct platform_device *pdev)
 static struct platform_driver s3c24xx_dma_driver = {
 	.driver		= {
 		.name	= "s3c24xx-dma",
-		.owner	= THIS_MODULE,
 	},
 	.id_table	= s3c24xx_dma_driver_ids,
 	.probe		= s3c24xx_dma_probe,

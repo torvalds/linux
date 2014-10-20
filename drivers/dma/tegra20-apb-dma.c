@@ -1597,7 +1597,6 @@ static const struct dev_pm_ops tegra_dma_dev_pm_ops = {
 static struct platform_driver tegra_dmac_driver = {
 	.driver = {
 		.name	= "tegra-apbdma",
-		.owner = THIS_MODULE,
 		.pm	= &tegra_dma_dev_pm_ops,
 		.of_match_table = tegra_dma_of_match,
 	},
