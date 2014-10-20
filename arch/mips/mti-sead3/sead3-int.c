@@ -20,16 +20,16 @@
 #define SEAD_CONFIG_BASE		0x1b100110
 #define SEAD_CONFIG_SIZE		4
 
-static unsigned long sead3_config_reg;
+static void __iomem *sead3_config_reg;
 
 void __init arch_init_irq(void)
 {
 	if (!cpu_has_veic)
 		mips_cpu_irq_init();
 
-	sead3_config_reg = (unsigned long)ioremap_nocache(SEAD_CONFIG_BASE,
-		SEAD_CONFIG_SIZE);
-	gic_present = (REG32(sead3_config_reg) & SEAD_CONFIG_GIC_PRESENT_MSK) >>
+	sead3_config_reg = ioremap_nocache(SEAD_CONFIG_BASE, SEAD_CONFIG_SIZE);
+	gic_present = (__raw_readl(sead3_config_reg) &
+		       SEAD_CONFIG_GIC_PRESENT_MSK) >>
 		SEAD_CONFIG_GIC_PRESENT_SHF;
 	pr_info("GIC: %spresent\n", (gic_present) ? "" : "not ");
 	pr_info("EIC: %s\n",
