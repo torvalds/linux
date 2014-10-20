@@ -1575,7 +1575,6 @@ MODULE_ALIAS("platform:si476x-radio");
 static struct platform_driver si476x_radio_driver = {
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 	},
 	.probe		= si476x_radio_probe,
 	.remove		= si476x_radio_remove,
