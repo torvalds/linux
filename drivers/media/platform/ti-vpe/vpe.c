@@ -2376,7 +2376,6 @@ static struct platform_driver vpe_pdrv = {
 	.remove		= vpe_remove,
 	.driver		= {
 		.name	= VPE_MODULE_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = vpe_of_match,
 	},
 };
