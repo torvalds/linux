@@ -163,7 +163,6 @@ MODULE_DEVICE_TABLE(of, clps711x_pwm_dt_ids);
 static struct platform_driver clps711x_pwm_driver = {
 	.driver = {
 		.name = "clps711x-pwm",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(clps711x_pwm_dt_ids),
 	},
 	.probe = clps711x_pwm_probe,
