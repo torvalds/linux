@@ -2645,18 +2645,7 @@ static int hdspm_set_clock_source(struct hdspm * hdspm, int mode)
 static int snd_hdspm_info_clock_source(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_info *uinfo)
 {
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 9;
-
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item =
-		    uinfo->value.enumerated.items - 1;
-
-	strcpy(uinfo->value.enumerated.name,
-	       texts_freq[uinfo->value.enumerated.item+1]);
-
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 9, texts_freq + 1);
 }
 
 static int snd_hdspm_get_clock_source(struct snd_kcontrol *kcontrol,
