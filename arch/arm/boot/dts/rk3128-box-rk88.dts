@@ -12,9 +12,16 @@
 	wireless-wlan {
 		compatible = "wlan-platdata";
 
+		/* wifi_chip_type - wifi chip define
+		* bcmwifi ==> like ap6xxx, rk90x, ...;
+		* rtkwifi ==> like rtl8188xx, rtl8723xx, ...;
+		* esp8089 ==> esp8089;
+		* other   ==> for other wifi;
+		*/
 		wifi_chip_type = "esp8089";
 		sdio_vref = <0>; //1800mv or 3300mv
 
+		//keep_wifi_power_on;
 		//power_ctrl_by_pmu;
 		//power_pmu_regulator = "act_ldo3";
 		//power_pmu_enable_level = <1>; //1->HIGH, 0->LOW

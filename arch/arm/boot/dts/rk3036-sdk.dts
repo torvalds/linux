@@ -44,10 +44,17 @@
 	wireless-wlan {
 		compatible = "wlan-platdata";
 
+		/* wifi_chip_type - wifi chip define
+		* bcmwifi ==> like ap6xxx, rk90x;
+		* rtkwifi ==> like rtl8188xx, rtl8723xx,rtl8812auv;
+		* esp8089 ==> esp8089;
+		* other   ==> for other wifi;
+		*/
 		wifi_chip_type = "esp8089";
 		sdio_vref = <0>; //1800mv or 3300mv
 
 		//power_ctrl_by_pmu;
+		//keep_wifi_power_on;
 		//power_pmu_regulator = "act_ldo3";
 		//power_pmu_enable_level = <1>; //1->HIGH, 0->LOW
 
@@ -62,6 +69,24 @@
 
 		status = "okay";
     };
+
+	/* wireless-bluetooth {
+		compatible = "bluetooth-platdata";
+		//wifi-bt-power-toggle;
+
+		uart_rts_gpios = <&gpio4 GPIO_C3 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default","rts_gpio";
+		pinctrl-0 = <&uart0_rts>;
+		pinctrl-1 = <&uart0_rts_gpio>;
+
+		//BT,power_gpio = <&gpio4 GPIO_D3 GPIO_ACTIVE_HIGH>;
+		BT,reset_gpio = <&gpio4 GPIO_D5 GPIO_ACTIVE_HIGH>;
+		BT,wake_gpio = <&gpio4 GPIO_D2 GPIO_ACTIVE_HIGH>;
+		BT,wake_host_irq = <&gpio4 GPIO_D7 GPIO_ACTIVE_LOW>;
+
+		status = "okay";
+
+	};*/
 
 	usb_control {
 		compatible = "rockchip,rk3036-usb-control";
