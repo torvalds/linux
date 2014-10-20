@@ -28,11 +28,6 @@ struct gb_module {
 	char *product_string;
 	u64 unique_id;
 
-	int num_cports;
-	int num_strings;
-	u16 cport_ids[MAX_CPORTS_PER_MODULE];
-	struct gmod_string *string[MAX_STRINGS_PER_MODULE];
-
 	struct greybus_host_device *hd;
 
 	struct gb_tty *gb_tty;

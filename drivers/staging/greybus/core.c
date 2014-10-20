@@ -118,10 +118,7 @@ EXPORT_SYMBOL_GPL(greybus_deregister);
 static void greybus_module_release(struct device *dev)
 {
 	struct gb_module *gmod = to_gb_module(dev);
-	int i;
 
-	for (i = 0; i < gmod->num_strings; ++i)
-		kfree(gmod->string[i]);
 	kfree(gmod);
 }
 
