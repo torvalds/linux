@@ -1391,7 +1391,6 @@ static struct platform_driver davinci_mcasp_driver = {
 	.remove		= davinci_mcasp_remove,
 	.driver		= {
 		.name	= "davinci-mcasp",
-		.owner	= THIS_MODULE,
 		.of_match_table = mcasp_dt_ids,
 	},
 };
