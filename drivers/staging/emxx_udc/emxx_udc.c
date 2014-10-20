@@ -3491,7 +3491,6 @@ static struct platform_driver udc_driver = {
 	.suspend	= nbu2ss_drv_suspend,
 	.resume		= nbu2ss_drv_resume,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= driver_name,
 	},
 };
