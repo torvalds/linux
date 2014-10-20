@@ -154,6 +154,8 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	devpriv->amcc = pci_resource_start(pcidev, 0);
 	devpriv->addon = pci_resource_start(pcidev, 2);
 
+	apci3120_reset(dev);
+
 	if (pcidev->irq > 0) {
 		ret = request_irq(pcidev->irq, apci3120_interrupt, IRQF_SHARED,
 				  dev->board_name, dev);
@@ -232,7 +234,6 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	s->insn_read	= apci3120_read_insn_timer;
 	s->insn_config	= apci3120_config_insn_timer;
 
-	apci3120_reset(dev);
 	return 0;
 }
 
