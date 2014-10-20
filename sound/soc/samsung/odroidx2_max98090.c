@@ -162,7 +162,6 @@ static int odroidx2_audio_remove(struct platform_device *pdev)
 static struct platform_driver odroidx2_audio_driver = {
 	.driver = {
 		.name		= "odroidx2-audio",
-		.owner		= THIS_MODULE,
 		.of_match_table	= odroidx2_audio_of_match,
 		.pm		= &snd_soc_pm_ops,
 	},

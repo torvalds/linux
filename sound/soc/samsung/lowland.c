@@ -198,7 +198,6 @@ static int lowland_probe(struct platform_device *pdev)
 static struct platform_driver lowland_driver = {
 	.driver = {
 		.name = "lowland",
-		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe = lowland_probe,

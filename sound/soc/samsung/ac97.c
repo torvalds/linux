@@ -442,7 +442,6 @@ static struct platform_driver s3c_ac97_driver = {
 	.remove = s3c_ac97_remove,
 	.driver = {
 		.name = "samsung-ac97",
-		.owner = THIS_MODULE,
 	},
 };
 
