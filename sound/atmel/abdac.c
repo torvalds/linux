@@ -588,7 +588,6 @@ static struct platform_driver atmel_abdac_driver = {
 	.remove		= atmel_abdac_remove,
 	.driver		= {
 		.name	= "atmel_abdac",
-		.owner	= THIS_MODULE,
 		.pm	= ATMEL_ABDAC_PM_OPS,
 	},
 };

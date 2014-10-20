@@ -1203,7 +1203,6 @@ static struct platform_driver atmel_ac97c_driver = {
 	.remove		= atmel_ac97c_remove,
 	.driver		= {
 		.name	= "atmel_ac97c",
-		.owner	= THIS_MODULE,
 		.pm	= ATMEL_AC97C_PM_OPS,
 	},
 };
