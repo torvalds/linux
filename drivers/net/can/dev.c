@@ -110,7 +110,7 @@ static int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
 	long rate;
 	u64 v64;
 
-	/* Use CIA recommended sample points */
+	/* Use CiA recommended sample points */
 	if (bt->sample_point) {
 		sampl_pt = bt->sample_point;
 	} else {
