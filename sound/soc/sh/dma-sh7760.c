@@ -345,7 +345,6 @@ static int sh7760_soc_platform_remove(struct platform_device *pdev)
 static struct platform_driver sh7760_pcm_driver = {
 	.driver = {
 			.name = "sh7760-pcm-audio",
-			.owner = THIS_MODULE,
 	},
 
 	.probe = sh7760_soc_platform_probe,
