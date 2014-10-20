@@ -245,7 +245,6 @@ static int cell_edac_remove(struct platform_device *pdev)
 static struct platform_driver cell_edac_driver = {
 	.driver		= {
 		.name	= "cbe-mic",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= cell_edac_probe,
 	.remove		= cell_edac_remove,
