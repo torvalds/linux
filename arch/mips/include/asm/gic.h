@@ -16,8 +16,6 @@
 
 #include <irq.h>
 
-#undef	GICISBYTELITTLEENDIAN
-
 #define GIC_MAX_INTRS			256
 
 /* Constants */
@@ -29,36 +27,9 @@
 #define GIC_TRIG_DUAL_DISABLE		0
 
 #define MSK(n) ((1 << (n)) - 1)
-#define REG32(addr)		(*(volatile unsigned int *) (addr))
-#define REG(base, offs)		REG32((unsigned long)(base) + offs##_##OFS)
-#define REGP(base, phys)	REG32((unsigned long)(base) + (phys))
 
 /* Accessors */
-#define GIC_REG(segment, offset) \
-	REG32(_gic_base + segment##_##SECTION_OFS + offset##_##OFS)
-#define GIC_REG_ADDR(segment, offset) \
-	REG32(_gic_base + segment##_##SECTION_OFS + offset)
-
-#define GIC_ABS_REG(segment, offset) \
-	(_gic_base + segment##_##SECTION_OFS + offset##_##OFS)
-#define GIC_REG_ABS_ADDR(segment, offset) \
-	(_gic_base + segment##_##SECTION_OFS + offset)
-
-#ifdef GICISBYTELITTLEENDIAN
-#define GICREAD(reg, data)	((data) = (reg), (data) = le32_to_cpu(data))
-#define GICWRITE(reg, data)	((reg) = cpu_to_le32(data))
-#else
-#define GICREAD(reg, data)	((data) = (reg))
-#define GICWRITE(reg, data)	((reg) = (data))
-#endif
-#define GICBIS(reg, mask, bits)			\
-	do { u32 data;				\
-		GICREAD(reg, data);		\
-		data &= ~(mask);		\
-		data |= ((bits) & (mask));	\
-		GICWRITE((reg), data);		\
-	} while (0)
-
+#define GIC_REG(segment, offset) (segment##_##SECTION_OFS + offset##_##OFS)
 
 /* GIC Address Space */
 #define SHARED_SECTION_OFS		0x0000
@@ -155,14 +126,13 @@
 #define GIC_SH_INTR_MAP_TO_PIN_BASE_OFS 0x0500
 
 /* Maps Interrupt X to a Pin */
-#define GIC_SH_MAP_TO_PIN(intr) \
-	(GIC_SH_INTR_MAP_TO_PIN_BASE_OFS + (4 * intr))
+#define GIC_SH_MAP_TO_PIN(intr)		(4 * (intr))
 
 #define GIC_SH_INTR_MAP_TO_VPE_BASE_OFS 0x2000
 
 /* Maps Interrupt X to a VPE */
 #define GIC_SH_MAP_TO_VPE_REG_OFF(intr, vpe) \
-	(GIC_SH_INTR_MAP_TO_VPE_BASE_OFS + (32 * (intr)) + (((vpe) / 32) * 4))
+	((32 * (intr)) + (((vpe) / 32) * 4))
 #define GIC_SH_MAP_TO_VPE_REG_BIT(vpe)	(1 << ((vpe) % 32))
 
 /* Convert an interrupt number to a byte offset/bit for multi-word registers */
@@ -171,34 +141,16 @@
 
 /* Polarity : Reset Value is always 0 */
 #define GIC_SH_SET_POLARITY_OFS		0x0100
-#define GIC_SET_POLARITY(intr, pol) \
-	GICBIS(GIC_REG_ADDR(SHARED, GIC_SH_SET_POLARITY_OFS + \
-		GIC_INTR_OFS(intr)), (1 << GIC_INTR_BIT(intr)), \
-		(pol) << GIC_INTR_BIT(intr))
 
 /* Triggering : Reset Value is always 0 */
 #define GIC_SH_SET_TRIGGER_OFS		0x0180
-#define GIC_SET_TRIGGER(intr, trig) \
-	GICBIS(GIC_REG_ADDR(SHARED, GIC_SH_SET_TRIGGER_OFS + \
-		GIC_INTR_OFS(intr)), (1 << GIC_INTR_BIT(intr)), \
-		(trig) << GIC_INTR_BIT(intr))
 
 /* Dual edge triggering : Reset Value is always 0 */
 #define GIC_SH_SET_DUAL_OFS		0x0200
-#define GIC_SET_DUAL(intr, dual) \
-	GICBIS(GIC_REG_ADDR(SHARED, GIC_SH_SET_DUAL_OFS + \
-		GIC_INTR_OFS(intr)), (1 << GIC_INTR_BIT(intr)), \
-		(dual) << GIC_INTR_BIT(intr))
 
 /* Mask manipulation */
 #define GIC_SH_SMASK_OFS		0x0380
-#define GIC_SET_INTR_MASK(intr) \
-	GICWRITE(GIC_REG_ADDR(SHARED, GIC_SH_SMASK_OFS + \
-		GIC_INTR_OFS(intr)), 1 << GIC_INTR_BIT(intr))
 #define GIC_SH_RMASK_OFS		0x0300
-#define GIC_CLR_INTR_MASK(intr) \
-	GICWRITE(GIC_REG_ADDR(SHARED, GIC_SH_RMASK_OFS + \
-		GIC_INTR_OFS(intr)), 1 << GIC_INTR_BIT(intr))
 
 /* Register Map for Local Section */
 #define GIC_VPE_CTL_OFS			0x0000
@@ -220,13 +172,11 @@
 #define GIC_VPE_COMPARE_LO_OFS		0x00a0
 #define GIC_VPE_COMPARE_HI_OFS		0x00a4
 
-#define GIC_VPE_EIC_SHADOW_SET_BASE	0x0100
-#define GIC_VPE_EIC_SS(intr) \
-	(GIC_VPE_EIC_SHADOW_SET_BASE + (4 * intr))
+#define GIC_VPE_EIC_SHADOW_SET_BASE_OFS	0x0100
+#define GIC_VPE_EIC_SS(intr)		(4 * (intr))
 
-#define GIC_VPE_EIC_VEC_BASE		0x0800
-#define GIC_VPE_EIC_VEC(intr) \
-	(GIC_VPE_EIC_VEC_BASE + (4 * intr))
+#define GIC_VPE_EIC_VEC_BASE_OFS	0x0800
+#define GIC_VPE_EIC_VEC(intr)		(4 * (intr))
 
 #define GIC_VPE_TENABLE_NMI_OFS		0x1000
 #define GIC_VPE_TENABLE_YQ_OFS		0x1004
@@ -316,13 +266,6 @@
 #define GIC_VPE_SMASK_SWINT1_SHF	5
 #define GIC_VPE_SMASK_SWINT1_MSK	(MSK(1) << GIC_VPE_SMASK_SWINT1_SHF)
 
-/*
- * Set the Mapping of Interrupt X to a VPE.
- */
-#define GIC_SH_MAP_TO_VPE_SMASK(intr, vpe) \
-	GICWRITE(GIC_REG_ADDR(SHARED, GIC_SH_MAP_TO_VPE_REG_OFF(intr, vpe)), \
-		 GIC_SH_MAP_TO_VPE_REG_BIT(vpe))
-
 /* GIC nomenclature for Core Interrupt Pins. */
 #define GIC_CPU_INT0		0 /* Core Interrupt 2 */
 #define GIC_CPU_INT1		1 /* .		      */
@@ -363,7 +306,6 @@
 
 extern unsigned int gic_present;
 extern unsigned int gic_frequency;
-extern unsigned long _gic_base;
 
 extern void gic_init(unsigned long gic_base_addr,
 	unsigned long gic_addrspace_size, unsigned int cpu_vec,
