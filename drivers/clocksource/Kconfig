@@ -223,4 +223,8 @@ config CLKSRC_VERSATILE
 	  ARM Versatile, RealView and Versatile Express reference
 	  platforms.
 
+config CLKSRC_MIPS_GIC
+	bool
+	depends on MIPS_GIC
+
 endmenu

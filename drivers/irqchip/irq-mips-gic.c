@@ -103,7 +103,7 @@ static inline void gic_map_to_vpe(unsigned int intr, unsigned int vpe)
 		  GIC_SH_MAP_TO_VPE_REG_BIT(vpe));
 }
 
-#if defined(CONFIG_CSRC_GIC) || defined(CONFIG_CEVT_GIC)
+#if defined(CONFIG_CLKSRC_MIPS_GIC) || defined(CONFIG_CEVT_GIC)
 cycle_t gic_read_count(void)
 {
 	unsigned int hi, hi2, lo;

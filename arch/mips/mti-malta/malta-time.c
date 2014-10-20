@@ -183,7 +183,7 @@ void __init plat_time_init(void)
 		freq = freqround(gic_frequency, 5000);
 		printk("GIC frequency %d.%02d MHz\n", freq/1000000,
 		       (freq%1000000)*100/1000000);
-#ifdef CONFIG_CSRC_GIC
+#ifdef CONFIG_CLKSRC_MIPS_GIC
 		gic_clocksource_init(gic_frequency);
 #endif
 	}
