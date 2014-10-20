@@ -579,13 +579,12 @@ out:
 static int gb_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
 	struct gb_gpio_controller *gb_gpio_controller = gpio_chip_to_gb_gpio_controller(chip);
-	u8 which;
 	int ret;
 
-	if (offset < chip->base || offset >= chip->base + chip->ngpio)
+	if (offset < 0 || offset >= chip->ngpio)
 		return -EINVAL;
-	which = (u8)(offset - chip->base);
-	ret = gb_gpio_activate_operation(gb_gpio_controller, which);
+	printk("passed check\n");
+	ret = gb_gpio_activate_operation(gb_gpio_controller, (u8)offset);
 	if (ret)
 		;	/* return ret; */
 	return 0;
@@ -594,16 +593,14 @@ static int gb_gpio_request(struct gpio_chip *chip, unsigned offset)
 static void gb_gpio_free(struct gpio_chip *chip, unsigned offset)
 {
 	struct gb_gpio_controller *gb_gpio_controller = gpio_chip_to_gb_gpio_controller(chip);
-	u8 which;
 	int ret;
 
-	if (offset < chip->base || offset >= chip->base + chip->ngpio) {
-		pr_err("bad offset %u supplied (must be %u..%u)\n",
-			offset, chip->base, chip->base + chip->ngpio - 1);
+	if (offset < 0 || offset >= chip->ngpio) {
+		pr_err("bad offset %u supplied (must be 0..%u)\n",
+			offset, chip->ngpio - 1);
 		return;
 	}
-	which = (u8)(offset - chip->base);
-	ret = gb_gpio_deactivate_operation(gb_gpio_controller, which);
+	ret = gb_gpio_deactivate_operation(gb_gpio_controller, (u8)offset);
 	if (ret)
 		;	/* return ret; */
 }
@@ -614,9 +611,9 @@ static int gb_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 	u8 which;
 	int ret;
 
-	if (offset < chip->base || offset >= chip->base + chip->ngpio)
+	if (offset < 0 || offset >= chip->ngpio)
 		return -EINVAL;
-	which = (u8)(offset - chip->base);
+	which = (u8)offset;
 	ret = gb_gpio_get_direction_operation(gb_gpio_controller, which);
 	if (ret)
 		;	/* return ret; */
@@ -626,13 +623,11 @@ static int gb_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 static int gb_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
 	struct gb_gpio_controller *gb_gpio_controller = gpio_chip_to_gb_gpio_controller(chip);
-	u8 which;
 	int ret;
 
-	if (offset < chip->base || offset >= chip->base + chip->ngpio)
+	if (offset < 0 || offset >= chip->ngpio)
 		return -EINVAL;
-	which = (u8)(offset - chip->base);
-	ret = gb_gpio_direction_in_operation(gb_gpio_controller, which);
+	ret = gb_gpio_direction_in_operation(gb_gpio_controller, (u8)offset);
 	if (ret)
 		;	/* return ret; */
 	return 0;
@@ -642,13 +637,11 @@ static int gb_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 					int value)
 {
 	struct gb_gpio_controller *gb_gpio_controller = gpio_chip_to_gb_gpio_controller(chip);
-	u8 which;
 	int ret;
 
-	if (offset < chip->base || offset >= chip->base + chip->ngpio)
+	if (offset < 0 || offset >= chip->ngpio)
 		return -EINVAL;
-	which = (u8)(offset - chip->base);
-	ret = gb_gpio_direction_out_operation(gb_gpio_controller, which, !!value);
+	ret = gb_gpio_direction_out_operation(gb_gpio_controller, (u8)offset, !!value);
 	if (ret)
 		;	/* return ret; */
 	return 0;
@@ -660,9 +653,9 @@ static int gb_gpio_get(struct gpio_chip *chip, unsigned offset)
 	u8 which;
 	int ret;
 
-	if (offset < chip->base || offset >= chip->base + chip->ngpio)
+	if (offset < 0 || offset >= chip->ngpio)
 		return -EINVAL;
-	which = (u8)(offset - chip->base);
+	which = (u8)offset;
 	ret = gb_gpio_get_value_operation(gb_gpio_controller, which);
 	if (ret)
 		return ret;
@@ -672,16 +665,14 @@ static int gb_gpio_get(struct gpio_chip *chip, unsigned offset)
 static void gb_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
 	struct gb_gpio_controller *gb_gpio_controller = gpio_chip_to_gb_gpio_controller(chip);
-	u8 which;
 	int ret;
 
-	if (offset < chip->base || offset >= chip->base + chip->ngpio) {
-		pr_err("bad offset %u supplied (must be %u..%u)\n",
-			offset, chip->base, chip->base + chip->ngpio - 1);
+	if (offset < 0 || offset >= chip->ngpio) {
+		pr_err("bad offset %u supplied (must be 0..%u)\n",
+			offset, chip->ngpio - 1);
 		return;
 	}
-	which = (u8)(offset - chip->base);
-	ret = gb_gpio_set_value_operation(gb_gpio_controller, which, !!value);
+	ret = gb_gpio_set_value_operation(gb_gpio_controller, (u8)offset, !!value);
 	if (ret)
 		;	/* return ret; */
 }
@@ -691,16 +682,14 @@ static int gb_gpio_set_debounce(struct gpio_chip *chip, unsigned offset,
 {
 	struct gb_gpio_controller *gb_gpio_controller = gpio_chip_to_gb_gpio_controller(chip);
 	u16 usec;
-	u8 which;
 	int ret;
 
-	if (offset < chip->base || offset >= chip->base + chip->ngpio)
+	if (offset < 0 || offset >= chip->ngpio)
 		return -EINVAL;
-	which = (u8)(offset - chip->base);
 	if (debounce > (unsigned int)U16_MAX)
 		return -EINVAL;
 	usec = (u8)debounce;
-	ret = gb_gpio_set_debounce_operation(gb_gpio_controller, which, usec);
+	ret = gb_gpio_set_debounce_operation(gb_gpio_controller, (u8)offset, usec);
 	if (ret)
 		;	/* return ret; */
 
@@ -709,11 +698,8 @@ static int gb_gpio_set_debounce(struct gpio_chip *chip, unsigned offset,
 
 static int gb_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	u8 which;
-
-	if (offset < chip->base || offset >= chip->base + chip->ngpio)
+	if (offset < 0 || offset >= chip->ngpio)
 		return -EINVAL;
-	which = (u8)(offset - chip->base);
 
 	return 0;	/* XXX */
 }
