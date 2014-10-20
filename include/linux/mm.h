@@ -320,6 +320,7 @@ struct fault_env {
 	struct vm_area_struct *vma;	/* Target VMA */
 	unsigned long address;		/* Faulting virtual address */
 	unsigned int flags;		/* FAULT_FLAG_xxx flags */
+	unsigned int sequence;
 	pmd_t *pmd;			/* Pointer to pmd entry matching
 					 * the 'address'
 					 */
@@ -1258,6 +1259,8 @@ int invalidate_inode_page(struct page *page);
 #ifdef CONFIG_MMU
 extern int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
 		unsigned int flags);
+extern int handle_speculative_fault(struct mm_struct *mm,
+			unsigned long address, unsigned int flags);
 extern int fixup_user_fault(struct task_struct *tsk, struct mm_struct *mm,
 			    unsigned long address, unsigned int fault_flags,
 			    bool *unlocked);

@@ -2106,8 +2106,37 @@ static bool pte_spinlock(struct fault_env *fe)
 
 static bool pte_map_lock(struct fault_env *fe)
 {
-	fe->pte = pte_offset_map_lock(fe->vma->vm_mm, fe->pmd, fe->address, &fe->ptl);
-	return true;
+	bool ret = false;
+
+	if (!(fe->flags & FAULT_FLAG_SPECULATIVE)) {
+		fe->pte = pte_offset_map_lock(fe->vma->vm_mm, fe->pmd,
+					      fe->address, &fe->ptl);
+		return true;
+	}
+
+	/*
+	 * The first vma_is_dead() guarantees the page-tables are still valid,
+	 * having IRQs disabled ensures they stay around, hence the second
+	 * vma_is_dead() to make sure they are still valid once we've got the
+	 * lock. After that a concurrent zap_pte_range() will block on the PTL
+	 * and thus we're safe.
+	 */
+	local_irq_disable();
+	if (vma_is_dead(fe->vma, fe->sequence))
+		goto out;
+
+	fe->pte = pte_offset_map_lock(fe->vma->vm_mm, fe->pmd,
+				      fe->address, &fe->ptl);
+
+	if (vma_is_dead(fe->vma, fe->sequence)) {
+		pte_unmap_unlock(fe->pte, fe->ptl);
+		goto out;
+	}
+
+	ret = true;
+out:
+	local_irq_enable();
+	return ret;
 }
 
 /*
@@ -2533,6 +2562,7 @@ int do_swap_page(struct fault_env *fe, pte_t orig_pte)
 	entry = pte_to_swp_entry(orig_pte);
 	if (unlikely(non_swap_entry(entry))) {
 		if (is_migration_entry(entry)) {
+			/* XXX fe->pmd might be dead */
 			migration_entry_wait(vma->vm_mm, fe->pmd, fe->address);
 		} else if (is_hwpoison_entry(entry)) {
 			ret = VM_FAULT_HWPOISON;
@@ -3623,6 +3653,94 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
 	}
 
 	return handle_pte_fault(&fe);
+}
+
+int handle_speculative_fault(struct mm_struct *mm, unsigned long address, unsigned int flags)
+{
+	struct fault_env fe = {
+		.address = address,
+		.flags = flags | FAULT_FLAG_SPECULATIVE,
+	};
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	int dead, seq, idx, ret = VM_FAULT_RETRY;
+	struct vm_area_struct *vma;
+
+	idx = srcu_read_lock(&vma_srcu);
+	vma = find_vma_srcu(mm, address);
+	if (!vma)
+		goto unlock;
+
+	/*
+	 * Validate the VMA found by the lockless lookup.
+	 */
+	dead = RB_EMPTY_NODE(&vma->vm_rb);
+	seq = raw_read_seqcount(&vma->vm_sequence); /* rmb <-> seqlock,vma_rb_erase() */
+	if ((seq & 1) || dead) /* XXX wait for !&1 instead? */
+		goto unlock;
+
+	if (address < vma->vm_start || vma->vm_end <= address)
+		goto unlock;
+
+	/*
+	 * We need to re-validate the VMA after checking the bounds, otherwise
+	 * we might have a false positive on the bounds.
+	 */
+	if (read_seqcount_retry(&vma->vm_sequence, seq))
+		goto unlock;
+
+	/*
+	 * Do a speculative lookup of the PTE entry.
+	 */
+	local_irq_disable();
+	pgd = pgd_offset(mm, address);
+	if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))
+		goto out_walk;
+
+	pud = pud_offset(pgd, address);
+	if (pud_none(*pud) || unlikely(pud_bad(*pud)))
+		goto out_walk;
+
+	pmd = pmd_offset(pud, address);
+	if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd)))
+		goto out_walk;
+
+	/*
+	 * The above does not allocate/instantiate page-tables because doing so
+	 * would lead to the possibility of instantiating page-tables after
+	 * free_pgtables() -- and consequently leaking them.
+	 *
+	 * The result is that we take at least one !speculative fault per PMD
+	 * in order to instantiate it.
+	 *
+	 * XXX try and fix that.. should be possible somehow.
+	 */
+
+	if (pmd_huge(*pmd)) /* XXX no huge support */
+		goto out_walk;
+
+	fe.vma = vma;
+	fe.pmd = pmd;
+	fe.sequence = seq;
+
+#if 0
+#warning This is done in handle_pte_fault()...
+	pte = pte_offset_map(pmd, address);
+	fe.entry = ACCESS_ONCE(pte); /* XXX gup_get_pte() */
+	pte_unmap(pte);
+#endif
+	local_irq_enable();
+
+	ret = handle_pte_fault(&fe);
+
+unlock:
+	srcu_read_unlock(&vma_srcu, idx);
+	return ret;
+
+out_walk:
+	local_irq_enable();
+	goto unlock;
 }
 
 /*
