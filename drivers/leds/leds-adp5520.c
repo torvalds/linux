@@ -201,7 +201,6 @@ static int adp5520_led_remove(struct platform_device *pdev)
 static struct platform_driver adp5520_led_driver = {
 	.driver	= {
 		.name	= "adp5520-led",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= adp5520_led_probe,
 	.remove		= adp5520_led_remove,

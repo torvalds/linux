@@ -221,7 +221,6 @@ static int regulator_led_remove(struct platform_device *pdev)
 static struct platform_driver regulator_led_driver = {
 	.driver = {
 		   .name  = "leds-regulator",
-		   .owner = THIS_MODULE,
 		   },
 	.probe  = regulator_led_probe,
 	.remove = regulator_led_remove,
