@@ -460,7 +460,6 @@ static struct platform_driver omap4_keypad_driver = {
 	.remove		= omap4_keypad_remove,
 	.driver		= {
 		.name	= "omap4-keypad",
-		.owner	= THIS_MODULE,
 		.pm	= &omap4_keypad_pm_ops,
 		.of_match_table = omap_keypad_dt_match,
 	},
