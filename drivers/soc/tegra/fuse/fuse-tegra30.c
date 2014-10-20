@@ -130,7 +130,6 @@ static struct platform_driver tegra30_fuse_driver = {
 	.probe = tegra30_fuse_probe,
 	.driver = {
 		.name = "tegra_fuse",
-		.owner = THIS_MODULE,
 		.of_match_table = tegra30_fuse_of_match,
 	}
 };
