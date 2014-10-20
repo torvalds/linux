@@ -185,7 +185,6 @@ static struct platform_driver pbias_regulator_driver = {
 	.probe		= pbias_regulator_probe,
 	.driver		= {
 		.name		= "pbias-regulator",
-		.owner		= THIS_MODULE,
 		.of_match_table = of_match_ptr(pbias_of_match),
 	},
 };

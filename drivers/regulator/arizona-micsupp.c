@@ -300,7 +300,6 @@ static struct platform_driver arizona_micsupp_driver = {
 	.probe = arizona_micsupp_probe,
 	.driver		= {
 		.name	= "arizona-micsupp",
-		.owner	= THIS_MODULE,
 	},
 };
 
