@@ -1244,7 +1244,7 @@ static void apci3120_interrupt_dma(int irq, void *d)
 		next_dmabuf = &devpriv->dmabuf[1 - devpriv->ui_DmaActualBuffer];
 
 		ui_Tmp = AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO;
-		outl(ui_Tmp, devpriv->i_IobaseAddon + AMCC_OP_REG_AGCSTS);
+		outl(ui_Tmp, devpriv->i_IobaseAmcc + AMCC_OP_REG_AGCSTS);
 
 		/*  changed  since 16 bit interface for add on */
 		outw(APCI3120_ADD_ON_AGCSTS_LOW, devpriv->i_IobaseAddon + 0);
@@ -1306,7 +1306,7 @@ static void apci3120_interrupt_dma(int irq, void *d)
 		 * ADDED REINITIALISE THE DMA
 		 */
 		ui_Tmp = AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO;
-		outl(ui_Tmp, devpriv->i_IobaseAddon + AMCC_OP_REG_AGCSTS);
+		outl(ui_Tmp, devpriv->i_IobaseAmcc + AMCC_OP_REG_AGCSTS);
 
 		/*  changed  since 16 bit interface for add on */
 		outw(APCI3120_ADD_ON_AGCSTS_LOW, devpriv->i_IobaseAddon + 0);
