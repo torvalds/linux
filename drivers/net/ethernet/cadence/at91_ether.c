@@ -469,7 +469,6 @@ static struct platform_driver at91ether_driver = {
 	.resume		= at91ether_resume,
 	.driver		= {
 		.name	= "at91_ether",
-		.owner	= THIS_MODULE,
 		.of_match_table	= of_match_ptr(at91ether_dt_ids),
 	},
 };
