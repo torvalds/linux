@@ -352,17 +352,8 @@ static int special_clk_get(struct snd_bebob *bebob, unsigned int *id)
 static int special_clk_ctl_info(struct snd_kcontrol *kctl,
 				struct snd_ctl_elem_info *einf)
 {
-	einf->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	einf->count = 1;
-	einf->value.enumerated.items = ARRAY_SIZE(special_clk_labels);
-
-	if (einf->value.enumerated.item >= einf->value.enumerated.items)
-		einf->value.enumerated.item = einf->value.enumerated.items - 1;
-
-	strcpy(einf->value.enumerated.name,
-	       special_clk_labels[einf->value.enumerated.item]);
-
-	return 0;
+	return snd_ctl_enum_info(einf, 1, ARRAY_SIZE(special_clk_labels),
+				 special_clk_labels);
 }
 static int special_clk_ctl_get(struct snd_kcontrol *kctl,
 			       struct snd_ctl_elem_value *uval)
@@ -444,17 +435,9 @@ static const char *const special_dig_in_iface_labels[] = {
 static int special_dig_in_iface_ctl_info(struct snd_kcontrol *kctl,
 					 struct snd_ctl_elem_info *einf)
 {
-	einf->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	einf->count = 1;
-	einf->value.enumerated.items = ARRAY_SIZE(special_dig_in_iface_labels);
-
-	if (einf->value.enumerated.item >= einf->value.enumerated.items)
-		einf->value.enumerated.item = einf->value.enumerated.items - 1;
-
-	strcpy(einf->value.enumerated.name,
-	       special_dig_in_iface_labels[einf->value.enumerated.item]);
-
-	return 0;
+	return snd_ctl_enum_info(einf, 1,
+				 ARRAY_SIZE(special_dig_in_iface_labels),
+				 special_dig_in_iface_labels);
 }
 static int special_dig_in_iface_ctl_get(struct snd_kcontrol *kctl,
 					struct snd_ctl_elem_value *uval)
@@ -545,17 +528,9 @@ static const char *const special_dig_out_iface_labels[] = {
 static int special_dig_out_iface_ctl_info(struct snd_kcontrol *kctl,
 					  struct snd_ctl_elem_info *einf)
 {
-	einf->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	einf->count = 1;
-	einf->value.enumerated.items = ARRAY_SIZE(special_dig_out_iface_labels);
-
-	if (einf->value.enumerated.item >= einf->value.enumerated.items)
-		einf->value.enumerated.item = einf->value.enumerated.items - 1;
-
-	strcpy(einf->value.enumerated.name,
-	       special_dig_out_iface_labels[einf->value.enumerated.item]);
-
-	return 0;
+	return snd_ctl_enum_info(einf, 1,
+				 ARRAY_SIZE(special_dig_out_iface_labels),
+				 special_dig_out_iface_labels);
 }
 static int special_dig_out_iface_ctl_get(struct snd_kcontrol *kctl,
 					 struct snd_ctl_elem_value *uval)
