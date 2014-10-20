@@ -6,9 +6,9 @@
  * Copyright (C) 2012 MIPS Technologies, Inc.  All rights reserved.
  */
 #include <linux/init.h>
+#include <linux/irqchip/mips-gic.h>
 
 #include <asm/cpu.h>
-#include <asm/gic.h>
 #include <asm/setup.h>
 #include <asm/time.h>
 #include <asm/irq.h>

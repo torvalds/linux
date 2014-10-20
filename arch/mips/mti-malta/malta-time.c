@@ -24,6 +24,7 @@
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
+#include <linux/irqchip/mips-gic.h>
 #include <linux/timex.h>
 #include <linux/mc146818rtc.h>
 
@@ -37,7 +38,6 @@
 #include <asm/time.h>
 #include <asm/mc146818-time.h>
 #include <asm/msc01_ic.h>
-#include <asm/gic.h>
 
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/maltaint.h>

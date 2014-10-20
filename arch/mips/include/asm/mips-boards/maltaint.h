@@ -10,7 +10,7 @@
 #ifndef _MIPS_MALTAINT_H
 #define _MIPS_MALTAINT_H
 
-#include <asm/gic.h>
+#include <linux/irqchip/mips-gic.h>
 
 /*
  * Interrupts 0..15 are used for Malta ISA compatible interrupts

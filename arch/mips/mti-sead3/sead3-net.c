@@ -7,10 +7,10 @@
  */
 #include <linux/module.h>
 #include <linux/irq.h>
+#include <linux/irqchip/mips-gic.h>
 #include <linux/platform_device.h>
 #include <linux/smsc911x.h>
 
-#include <asm/gic.h>
 #include <asm/mips-boards/sead3int.h>
 
 static struct smsc911x_platform_config sead3_smsc911x_data = {

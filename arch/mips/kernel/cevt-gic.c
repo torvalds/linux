@@ -10,9 +10,9 @@
 #include <linux/percpu.h>
 #include <linux/smp.h>
 #include <linux/irq.h>
+#include <linux/irqchip/mips-gic.h>
 
 #include <asm/time.h>
-#include <asm/gic.h>
 #include <asm/mips-boards/maltaint.h>
 
 DEFINE_PER_CPU(struct clock_event_device, gic_clockevent_device);

@@ -9,8 +9,8 @@
 #include <linux/irq.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
+#include <linux/irqchip/mips-gic.h>
 
-#include <asm/gic.h>
 #include <asm/mips-boards/sead3int.h>
 
 struct resource ehci_resources[] = {

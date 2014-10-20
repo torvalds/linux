@@ -7,9 +7,9 @@
  */
 #include <linux/init.h>
 #include <linux/irq.h>
+#include <linux/irqchip/mips-gic.h>
 #include <linux/io.h>
 
-#include <asm/gic.h>
 #include <asm/irq_cpu.h>
 #include <asm/setup.h>
 

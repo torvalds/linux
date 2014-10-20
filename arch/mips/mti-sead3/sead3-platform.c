@@ -7,9 +7,9 @@
  */
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/irqchip/mips-gic.h>
 #include <linux/serial_8250.h>
 
-#include <asm/gic.h>
 #include <asm/mips-boards/sead3int.h>
 
 #define UART(base)							\

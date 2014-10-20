@@ -21,6 +21,7 @@
 #include <linux/sched.h>
 #include <linux/cpumask.h>
 #include <linux/interrupt.h>
+#include <linux/irqchip/mips-gic.h>
 #include <linux/compiler.h>
 #include <linux/smp.h>
 
@@ -34,7 +35,6 @@
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
 #include <asm/mips_mt.h>
-#include <asm/gic.h>
 
 static void __init smvp_copy_vpe_config(void)
 {

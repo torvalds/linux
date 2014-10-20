@@ -9,13 +9,13 @@
 #include <linux/bitmap.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/irqchip/mips-gic.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/irq.h>
 #include <linux/clocksource.h>
 
 #include <asm/io.h>
-#include <asm/gic.h>
 #include <asm/setup.h>
 #include <asm/traps.h>
 #include <linux/hardirq.h>

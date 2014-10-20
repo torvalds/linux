@@ -9,13 +9,13 @@
  */
 
 #include <linux/io.h>
+#include <linux/irqchip/mips-gic.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/types.h>
 
 #include <asm/bcache.h>
-#include <asm/gic.h>
 #include <asm/mips-cm.h>
 #include <asm/mips-cpc.h>
 #include <asm/mips_mt.h>

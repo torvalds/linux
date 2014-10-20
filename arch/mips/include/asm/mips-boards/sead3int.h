@@ -10,7 +10,7 @@
 #ifndef _MIPS_SEAD3INT_H
 #define _MIPS_SEAD3INT_H
 
-#include <asm/gic.h>
+#include <linux/irqchip/mips-gic.h>
 
 /* SEAD-3 GIC address space definitions. */
 #define GIC_BASE_ADDR		0x1b1c0000

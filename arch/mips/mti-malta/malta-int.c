@@ -18,6 +18,7 @@
 #include <linux/smp.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/irqchip/mips-gic.h>
 #include <linux/kernel_stat.h>
 #include <linux/kernel.h>
 #include <linux/random.h>
@@ -33,7 +34,6 @@
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/msc01_pci.h>
 #include <asm/msc01_ic.h>
-#include <asm/gic.h>
 #include <asm/setup.h>
 #include <asm/rtlx.h>
 

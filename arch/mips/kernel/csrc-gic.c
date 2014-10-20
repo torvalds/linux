@@ -6,9 +6,8 @@
  * Copyright (C) 2012 MIPS Technologies, Inc.  All rights reserved.
  */
 #include <linux/init.h>
+#include <linux/irqchip/mips-gic.h>
 #include <linux/time.h>
-
-#include <asm/gic.h>
 
 static cycle_t gic_hpt_read(struct clocksource *cs)
 {
