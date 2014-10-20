@@ -1462,6 +1462,7 @@ static int __comedi_get_user_chanlist(struct comedi_device *dev,
 	unsigned int *chanlist;
 	int ret;
 
+	cmd->chanlist = NULL;
 	chanlist = memdup_user(user_chanlist,
 			       cmd->chanlist_len * sizeof(unsigned int));
 	if (IS_ERR(chanlist))
@@ -1614,6 +1615,8 @@ static int do_cmdtest_ioctl(struct comedi_device *dev,
 	}
 
 	ret = s->do_cmdtest(dev, s, &cmd);
+
+	kfree(cmd.chanlist);	/* free kernel copy of user chanlist */
 
 	/* restore chanlist pointer before copying back */
 	cmd.chanlist = (unsigned int __force *)user_chanlist;
