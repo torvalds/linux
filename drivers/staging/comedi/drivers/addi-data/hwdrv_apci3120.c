@@ -200,23 +200,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 					 APCI3120_DISABLE_TIMER1 &	\
 					 APCI3120_DISABLE_TIMER2)
 
-#define MAX_ANALOGINPUT_CHANNELS	32
-
-struct str_AnalogReadInformation {
-	/* EOC or EOS */
-	unsigned char b_Type;
-	/* Interrupt use or not */
-	unsigned char b_InterruptFlag;
-	/* Selection of the conversion time */
-	unsigned int ui_ConvertTiming;
-	/* Number of channel to read */
-	unsigned char b_NbrOfChannel;
-	/* Number of the channel to be read */
-	unsigned int ui_ChannelList[MAX_ANALOGINPUT_CHANNELS];
-	/* Gain of each channel */
-	unsigned int ui_RangeList[MAX_ANALOGINPUT_CHANNELS];
-};
-
 /* ANALOG INPUT RANGE */
 static const struct comedi_lrange range_apci3120_ai = {
 	8, {
