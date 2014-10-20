@@ -447,7 +447,6 @@ static struct platform_driver intel_msic_driver = {
 	.remove		= intel_msic_remove,
 	.driver		= {
 		.name	= "intel_msic",
-		.owner	= THIS_MODULE,
 	},
 };
 

@@ -166,7 +166,6 @@ static const struct platform_device_id syscon_ids[] = {
 static struct platform_driver syscon_driver = {
 	.driver = {
 		.name = "syscon",
-		.owner = THIS_MODULE,
 		.of_match_table = of_syscon_match,
 	},
 	.probe		= syscon_probe,
