@@ -573,7 +573,6 @@ static struct attribute_group msipf_old_attribute_group = {
 static struct platform_driver msipf_driver = {
 	.driver = {
 		.name = "msi-laptop-pf",
-		.owner = THIS_MODULE,
 		.pm = &msi_laptop_pm,
 	},
 };

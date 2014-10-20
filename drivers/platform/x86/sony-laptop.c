@@ -581,7 +581,6 @@ static atomic_t sony_pf_users = ATOMIC_INIT(0);
 static struct platform_driver sony_pf_driver = {
 	.driver = {
 		   .name = "sony-laptop",
-		   .owner = THIS_MODULE,
 		   }
 };
 static struct platform_device *sony_pf_device;
