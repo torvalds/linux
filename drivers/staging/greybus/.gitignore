@@ -7,3 +7,6 @@ Module.symvers
 *.swp
 .tmp_versions
 tags
+cscope.*
+ncscope.*
+*.patch
