@@ -1887,25 +1887,6 @@ static void max98088_handle_pdata(struct snd_soc_codec *codec)
                max98088_handle_eq_pdata(codec);
 }
 
-#ifdef CONFIG_PM
-static int max98088_suspend(struct snd_soc_codec *codec)
-{
-       max98088_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-       return 0;
-}
-
-static int max98088_resume(struct snd_soc_codec *codec)
-{
-       max98088_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-       return 0;
-}
-#else
-#define max98088_suspend NULL
-#define max98088_resume NULL
-#endif
-
 static int max98088_probe(struct snd_soc_codec *codec)
 {
        struct max98088_priv *max98088 = snd_soc_codec_get_drvdata(codec);
@@ -1946,9 +1927,6 @@ static int max98088_probe(struct snd_soc_codec *codec)
 
        snd_soc_write(codec, M98088_REG_51_PWR_SYS, M98088_PWRSV);
 
-       /* initialize registers cache to hardware default */
-       max98088_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
        snd_soc_write(codec, M98088_REG_0F_IRQ_ENABLE, 0x00);
 
        snd_soc_write(codec, M98088_REG_22_MIX_DAC,
@@ -1974,7 +1952,6 @@ static int max98088_remove(struct snd_soc_codec *codec)
 {
        struct max98088_priv *max98088 = snd_soc_codec_get_drvdata(codec);
 
-       max98088_set_bias_level(codec, SND_SOC_BIAS_OFF);
        kfree(max98088->eq_texts);
 
        return 0;
@@ -1983,9 +1960,9 @@ static int max98088_remove(struct snd_soc_codec *codec)
 static struct snd_soc_codec_driver soc_codec_dev_max98088 = {
 	.probe   = max98088_probe,
 	.remove  = max98088_remove,
-	.suspend = max98088_suspend,
-	.resume  = max98088_resume,
 	.set_bias_level = max98088_set_bias_level,
+	.suspend_bias_off = true,
+
 	.controls = max98088_snd_controls,
 	.num_controls = ARRAY_SIZE(max98088_snd_controls),
 	.dapm_widgets = max98088_dapm_widgets,
