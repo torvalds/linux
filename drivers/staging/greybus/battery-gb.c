@@ -27,10 +27,22 @@ static const struct greybus_module_id id_table[] = {
 	{ },	/* terminating NULL entry */
 };
 
+static int get_tech(struct gb_battery *gb)
+{
+	// FIXME - guess!
+	return POWER_SUPPLY_TECHNOLOGY_NiMH;
+}
+
 static int get_status(struct gb_battery *gb)
 {
 	// FIXME!!!
 	return 0;
+}
+
+static int get_max_voltage(struct gb_battery *gb)
+{
+	// FIXME!!!
+	return 4700000;
 }
 
 static int get_capacity(struct gb_battery *gb)
@@ -59,8 +71,7 @@ static int get_property(struct power_supply *b,
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		// FIXME - guess!
-		val->intval = POWER_SUPPLY_TECHNOLOGY_NiMH;
+		val->intval = get_tech(gb);
 		break;
 
 	case POWER_SUPPLY_PROP_STATUS:
@@ -68,7 +79,7 @@ static int get_property(struct power_supply *b,
 		break;
 
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN:
-		val->intval = 4700000;	// FIXME - guess???
+		val->intval = get_max_voltage(gb);
 		break;
 
 	case POWER_SUPPLY_PROP_CAPACITY:
