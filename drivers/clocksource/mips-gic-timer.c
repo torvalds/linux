@@ -17,6 +17,7 @@
 
 static DEFINE_PER_CPU(struct clock_event_device, gic_clockevent_device);
 static int gic_timer_irq_installed;
+static unsigned int gic_frequency;
 
 static int gic_next_event(unsigned long delta, struct clock_event_device *evt)
 {
@@ -112,6 +113,8 @@ static struct clocksource gic_clocksource = {
 
 void __init gic_clocksource_init(unsigned int frequency)
 {
+	gic_frequency = frequency;
+
 	/* Set clocksource mask. */
 	gic_clocksource.mask = CLOCKSOURCE_MASK(gic_get_count_width());
 

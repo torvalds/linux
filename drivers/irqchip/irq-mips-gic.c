@@ -18,7 +18,6 @@
 #include <asm/setup.h>
 #include <asm/traps.h>
 
-unsigned int gic_frequency;
 unsigned int gic_present;
 
 struct gic_pcpu_mask {

@@ -46,6 +46,8 @@ static int mips_cpu_timer_irq;
 static int mips_cpu_perf_irq;
 extern int cp0_perfcount_irq;
 
+static unsigned int gic_frequency;
+
 static void mips_timer_dispatch(void)
 {
 	do_IRQ(mips_cpu_timer_irq);
