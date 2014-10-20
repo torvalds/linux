@@ -880,32 +880,6 @@ chan_err:
 	return -EINVAL;
 }
 
-static void atmel_flip_buffer_rx_dma(struct uart_port *port,
-					char *buf, size_t count)
-{
-	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
-	struct tty_port *tport = &port->state->port;
-
-	dma_sync_sg_for_cpu(port->dev,
-				&atmel_port->sg_rx,
-				1,
-				DMA_DEV_TO_MEM);
-
-	tty_insert_flip_string(tport, buf, count);
-
-	dma_sync_sg_for_device(port->dev,
-				&atmel_port->sg_rx,
-				1,
-				DMA_DEV_TO_MEM);
-	/*
-	 * Drop the lock here since it might end up calling
-	 * uart_start(), which takes the lock.
-	 */
-	spin_unlock(&port->lock);
-	tty_flip_buffer_push(tport);
-	spin_lock(&port->lock);
-}
-
 static void atmel_complete_rx_dma(void *arg)
 {
 	struct uart_port *port = arg;
@@ -934,11 +908,12 @@ static void atmel_release_rx_dma(struct uart_port *port)
 static void atmel_rx_from_dma(struct uart_port *port)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
+	struct tty_port *tport = &port->state->port;
 	struct circ_buf *ring = &atmel_port->rx_ring;
 	struct dma_chan *chan = atmel_port->chan_rx;
 	struct dma_tx_state state;
 	enum dma_status dmastat;
-	size_t pending, count;
+	size_t count;
 
 
 	/* Reset the UART timeout early so that we don't miss one */
@@ -953,26 +928,67 @@ static void atmel_rx_from_dma(struct uart_port *port)
 		tasklet_schedule(&atmel_port->tasklet);
 		return;
 	}
-	/* current transfer size should no larger than dma buffer */
-	pending = sg_dma_len(&atmel_port->sg_rx) - state.residue;
-	BUG_ON(pending > sg_dma_len(&atmel_port->sg_rx));
+
+	/* CPU claims ownership of RX DMA buffer */
+	dma_sync_sg_for_cpu(port->dev,
+			    &atmel_port->sg_rx,
+			    1,
+			    DMA_DEV_TO_MEM);
 
 	/*
-	 * This will take the chars we have so far,
-	 * ring->head will record the transfer size, only new bytes come
-	 * will insert into the framework.
+	 * ring->head points to the end of data already written by the DMA.
+	 * ring->tail points to the beginning of data to be read by the
+	 * framework.
+	 * The current transfer size should not be larger than the dma buffer
+	 * length.
 	 */
-	if (pending > ring->head) {
-		count = pending - ring->head;
+	ring->head = sg_dma_len(&atmel_port->sg_rx) - state.residue;
+	BUG_ON(ring->head > sg_dma_len(&atmel_port->sg_rx));
+	/*
+	 * At this point ring->head may point to the first byte right after the
+	 * last byte of the dma buffer:
+	 * 0 <= ring->head <= sg_dma_len(&atmel_port->sg_rx)
+	 *
+	 * However ring->tail must always points inside the dma buffer:
+	 * 0 <= ring->tail <= sg_dma_len(&atmel_port->sg_rx) - 1
+	 *
+	 * Since we use a ring buffer, we have to handle the case
+	 * where head is lower than tail. In such a case, we first read from
+	 * tail to the end of the buffer then reset tail.
+	 */
+	if (ring->head < ring->tail) {
+		count = sg_dma_len(&atmel_port->sg_rx) - ring->tail;
 
-		atmel_flip_buffer_rx_dma(port, ring->buf + ring->head, count);
-
-		ring->head += count;
-		if (ring->head == sg_dma_len(&atmel_port->sg_rx))
-			ring->head = 0;
-
+		tty_insert_flip_string(tport, ring->buf + ring->tail, count);
+		ring->tail = 0;
 		port->icount.rx += count;
 	}
+
+	/* Finally we read data from tail to head */
+	if (ring->tail < ring->head) {
+		count = ring->head - ring->tail;
+
+		tty_insert_flip_string(tport, ring->buf + ring->tail, count);
+		/* Wrap ring->head if needed */
+		if (ring->head >= sg_dma_len(&atmel_port->sg_rx))
+			ring->head = 0;
+		ring->tail = ring->head;
+		port->icount.rx += count;
+	}
+
+	/* USART retreives ownership of RX DMA buffer */
+	dma_sync_sg_for_device(port->dev,
+			       &atmel_port->sg_rx,
+			       1,
+			       DMA_DEV_TO_MEM);
+
+	/*
+	 * Drop the lock here since it might end up calling
+	 * uart_start(), which takes the lock.
+	 */
+	spin_unlock(&port->lock);
+	tty_flip_buffer_push(tport);
+	spin_lock(&port->lock);
 
 	UART_PUT_IER(port, ATMEL_US_TIMEOUT);
 }
