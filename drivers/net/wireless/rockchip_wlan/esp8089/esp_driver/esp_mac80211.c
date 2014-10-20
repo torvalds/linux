@@ -355,6 +355,67 @@ static void esp_op_remove_interface(struct ieee80211_hw *hw,
 }
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29))
+#define BEACON_TIM_SAVE_MAX 20
+u8 beacon_tim_saved[BEACON_TIM_SAVE_MAX];
+int beacon_tim_count;
+static void beacon_tim_init(void)
+{
+	memset(beacon_tim_saved, BEACON_TIM_SAVE_MAX, 0);
+	beacon_tim_count = 0;
+}
+
+static u8 beacon_tim_save(u8 this_tim)
+{
+	u8 all_tim = 0;
+	int i;
+	beacon_tim_saved[beacon_tim_count] = this_tim;
+	if(++beacon_tim_count >= BEACON_TIM_SAVE_MAX)
+		beacon_tim_count = 0;
+	for(i = 0; i < BEACON_TIM_SAVE_MAX; i++)
+		all_tim |= beacon_tim_saved[i];
+	return all_tim;
+}
+
+static bool beacon_tim_alter(struct sk_buff *beacon)
+{
+        u8 *p, *tim_end;
+	u8 tim_count;
+        int len;
+        int remain_len;
+        struct ieee80211_mgmt * mgmt;
+
+        if (beacon == NULL)
+                return false;
+
+        mgmt = (struct ieee80211_mgmt *)((u8 *)beacon->data);
+
+        remain_len = beacon->len - ((u8 *)mgmt->u.beacon.variable - (u8 *)mgmt + 12);
+        p = mgmt->u.beacon.variable;
+
+        while (remain_len > 0) {
+                len = *(++p);
+                if (*p == WLAN_EID_TIM) {       // tim field
+                        tim_end = p + len;
+			tim_count = *(++p);
+			p += 2;
+			//multicast
+			if(tim_count == 0)
+			    *p |= 0x1;
+			if((*p & 0xfe) == 0 && tim_end >= p+1){// we only support 8 sta in this case
+                        	p++;
+				*p = beacon_tim_save(*p);
+			}
+                        return tim_count == 0;
+                }
+                p += (len + 1);
+                remain_len -= (2 + len);
+        }
+
+        return false;
+}
+
+unsigned long init_jiffies;
+unsigned long cycle_beacon_count;
 static void drv_handle_beacon(unsigned long data)
 {
 	struct ieee80211_vif *vif = (struct ieee80211_vif *) data;
@@ -362,10 +423,16 @@ static void drv_handle_beacon(unsigned long data)
 	struct sk_buff *beacon;
 	struct sk_buff *skb;
 	static int dbgcnt = 0;
+	bool tim_reach = false;
 
 	if(evif->epub == NULL)
 		return;
+
+	mdelay(2400 * (cycle_beacon_count % 25) % 10000 /1000);
+	
 	beacon = ieee80211_beacon_get(evif->epub->hw, vif);
+
+	tim_reach = beacon_tim_alter(beacon);
 
 	if (beacon && !(dbgcnt++ % 600)) {
 		ESP_IEEE80211_DBG(ESP_SHOW, " beacon length:%d,fc:0x%x\n", beacon->len,
@@ -373,19 +440,26 @@ static void drv_handle_beacon(unsigned long data)
 
 	}
 
-	sip_tx_data_pkt_enqueue(evif->epub, beacon);
+	if(beacon)
+		sip_tx_data_pkt_enqueue(evif->epub, beacon);
 
+	if(cycle_beacon_count++ == 100){
+		init_jiffies = jiffies;
+		cycle_beacon_count -= 100;
+	}
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28))    
-	mod_timer(&evif->beacon_timer, jiffies+msecs_to_jiffies(vif->bss_conf.beacon_int));
+	mod_timer(&evif->beacon_timer, init_jiffies + msecs_to_jiffies(cycle_beacon_count * vif->bss_conf.beacon_int*1024/1000));
 #else
-    mod_timer(&evif->beacon_timer, jiffies+msecs_to_jiffies(evif->beacon_interval));
+	mod_timer(&evif->beacon_timer, init_jiffies +msecs_to_jiffies(cycle_beacon_count * evif->beacon_interval*1024/1000));
 #endif
 	//FIXME:the packets must be sent at home channel
 	//send buffer mcast frames
-	skb = ieee80211_get_buffered_bc(evif->epub->hw, vif);
-	while (skb) {
-		sip_tx_data_pkt_enqueue(evif->epub, skb);
+	if(tim_reach){
 		skb = ieee80211_get_buffered_bc(evif->epub->hw, vif);
+		while (skb) {
+			sip_tx_data_pkt_enqueue(evif->epub, skb);
+			skb = ieee80211_get_buffered_bc(evif->epub->hw, vif);
+		}
 	}
 }
 
@@ -395,8 +469,15 @@ static void init_beacon_timer(struct ieee80211_vif *vif)
 
 	ESP_IEEE80211_DBG(ESP_DBG_OP, " %s enter: beacon interval %x\n", __func__, evif->beacon_interval);
 
+	beacon_tim_init();
 	init_timer(&evif->beacon_timer);  //TBD, not init here...
-	evif->beacon_timer.expires=jiffies+msecs_to_jiffies(evif->beacon_interval*1024/1000);
+	cycle_beacon_count = 1;
+	init_jiffies = jiffies;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28))
+	evif->beacon_timer.expires = init_jiffies + msecs_to_jiffies(cycle_beacon_count * vif->bss_conf.beacon_int*1024/1000);
+#else
+	evif->beacon_timer.expires = init_jiffies + msecs_to_jiffies(cycle_beacon_count * evif->beacon_interval*1024/1000);
+#endif
 	evif->beacon_timer.data = (unsigned long) vif;
 	evif->beacon_timer.function = drv_handle_beacon;
 	add_timer(&evif->beacon_timer);
@@ -1699,10 +1780,9 @@ static void _esp_flush_rxq(struct esp_pub *epub)
         struct sk_buff *skb = NULL;
 
         while ((skb = skb_dequeue(&epub->rxq))) {
-                esp_dbg(ESP_DBG_TRACE, "%s call ieee80211_rx \n", __func__);
-                //local_bh_disable();
+		//do not log when in spin_lock
+                //esp_dbg(ESP_DBG_TRACE, "%s call ieee80211_rx \n", __func__);
                 ieee80211_rx(epub->hw, skb);
-                //local_bh_enable();
         }
 }
 

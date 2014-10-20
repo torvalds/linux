@@ -8,7 +8,7 @@
 #ifdef ASSERT_PANIC
 #define ESSERT(v) BUG_ON(!(v))
 #else
-#define ESSERT(v) WARN_ON(!(v))
+#define ESSERT(v) if(!(v)) printk("ESSERT:%s %d\n", __FILE__, __LINE__)
 #endif 
 
 

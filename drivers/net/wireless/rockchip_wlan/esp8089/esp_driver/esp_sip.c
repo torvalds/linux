@@ -609,9 +609,9 @@ void sip_rxq_process(struct work_struct *work)
 		return;
 	}
 
-        spin_lock(&sip->rx_lock);
+        mutex_lock(&sip->rx_mtx);
         _sip_rxq_process(sip);
-        spin_unlock(&sip->rx_lock);
+        mutex_unlock(&sip->rx_mtx);
 }
 
 static inline void sip_rx_pkt_enqueue(struct esp_sip *sip, struct sk_buff *skb)
@@ -1099,8 +1099,12 @@ static int sip_pack_pkt(struct esp_sip *sip, struct sk_buff *skb, int *pm_state)
                 wh = (struct ieee80211_hdr *)skb->data;
                 if (ieee80211_is_mgmt(wh->frame_control)) {
 		/* addba/delba/bar may use different tid/ac */
-                        if (ieee80211_is_beacon(wh->frame_control)||shdr->d_ac == WME_AC_VO) {
+                        if (shdr->d_ac == WME_AC_VO) {
                                 shdr->d_tid = 7;
+                        }
+                        if (ieee80211_is_beacon(wh->frame_control)) {
+                                shdr->d_tid = 8;
+                                shdr->d_ac = 4;
                         }
                 }
 //#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
@@ -1608,7 +1612,7 @@ int sip_channel_value_inconsistency(u8 *start, size_t len, unsigned channel)
                 case WLAN_EID_SSID:
 			if (elen >= 33) {
                 		esp_dbg(ESP_DBG_ERROR, "SSID to long\n");
-				show_buf(start-36, 256);
+				//show_buf(start-36, 256);
 				return -1;
 			}
                        	memcpy(ssid, pos, elen);
@@ -1635,7 +1639,7 @@ int sip_channel_value_inconsistency(u8 *start, size_t len, unsigned channel)
                 channel_parsed = DS_Param[0];
         } else {
                 esp_dbg(ESP_DBG_ERROR, "DS_Param not found\n");
-		show_buf(start-36, 256);
+		//show_buf(start-36, 256);
                 return -1;
         }
 
@@ -1905,7 +1909,7 @@ struct esp_sip * sip_attach(struct esp_pub *epub)
                 }
         }
 
-        spin_lock_init(&sip->rx_lock);
+        mutex_init(&sip->rx_mtx);
         skb_queue_head_init(&sip->rxq);
 #ifndef RX_SYNC
         INIT_WORK(&sip->rx_process_work, sip_rxq_process);
@@ -1962,6 +1966,7 @@ void sip_detach(struct esp_sip *sip)
 #endif/* RX_SYNC */
 
                 skb_queue_purge(&sip->rxq);
+		mutex_destroy(&sip->rx_mtx);
                 cancel_work_sync(&sip->epub->sendup_work);
                 skb_queue_purge(&sip->epub->rxq);
 
@@ -2002,6 +2007,7 @@ void sip_detach(struct esp_sip *sip)
                         cancel_work_sync(&sip->rx_process_work);
 #endif/* RX_SYNC */
                         skb_queue_purge(&sip->rxq);
+			mutex_destroy(&sip->rx_mtx);
                         cancel_work_sync(&sip->epub->sendup_work);
                         skb_queue_purge(&sip->epub->rxq);
                 }
