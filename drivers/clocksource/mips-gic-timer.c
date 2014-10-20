@@ -15,8 +15,6 @@
 #include <linux/smp.h>
 #include <linux/time.h>
 
-#include <asm/time.h>
-
 static DEFINE_PER_CPU(struct clock_event_device, gic_clockevent_device);
 static int gic_timer_irq;
 static unsigned int gic_frequency;
@@ -63,19 +61,13 @@ static void gic_clockevent_cpu_init(struct clock_event_device *cd)
 	cd->features		= CLOCK_EVT_FEAT_ONESHOT |
 				  CLOCK_EVT_FEAT_C3STOP;
 
-	clockevent_set_clock(cd, gic_frequency);
-
-	/* Calculate the min / max delta */
-	cd->max_delta_ns	= clockevent_delta2ns(0x7fffffff, cd);
-	cd->min_delta_ns	= clockevent_delta2ns(0x300, cd);
-
 	cd->rating		= 300;
 	cd->irq			= gic_timer_irq;
 	cd->cpumask		= cpumask_of(cpu);
 	cd->set_next_event	= gic_next_event;
 	cd->set_mode		= gic_set_clock_mode;
 
-	clockevents_register_device(cd);
+	clockevents_config_and_register(cd, gic_frequency, 0x300, 0x7fffffff);
 
 	enable_percpu_irq(gic_timer_irq, IRQ_TYPE_NONE);
 }
