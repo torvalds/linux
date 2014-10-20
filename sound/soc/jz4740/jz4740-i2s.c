@@ -455,7 +455,6 @@ static struct platform_driver jz4740_i2s_driver = {
 	.probe = jz4740_i2s_dev_probe,
 	.driver = {
 		.name = "jz4740-i2s",
-		.owner = THIS_MODULE,
 	},
 };
 
