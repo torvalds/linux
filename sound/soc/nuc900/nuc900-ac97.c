@@ -385,7 +385,6 @@ static int nuc900_ac97_drvremove(struct platform_device *pdev)
 static struct platform_driver nuc900_ac97_driver = {
 	.driver	= {
 		.name	= "nuc900-ac97",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= nuc900_ac97_drvprobe,
 	.remove		= nuc900_ac97_drvremove,
