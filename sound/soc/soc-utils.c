@@ -154,7 +154,6 @@ static int snd_soc_dummy_remove(struct platform_device *pdev)
 static struct platform_driver soc_dummy_driver = {
 	.driver = {
 		.name = "snd-soc-dummy",
-		.owner = THIS_MODULE,
 	},
 	.probe = snd_soc_dummy_probe,
 	.remove = snd_soc_dummy_remove,
