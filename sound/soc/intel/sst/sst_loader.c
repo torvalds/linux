@@ -39,14 +39,12 @@
 #include "sst.h"
 #include "../sst-dsp.h"
 
-static void memcpy32_toio(void __iomem *dst, const void *src, int count)
+static inline void memcpy32_toio(void __iomem *dst, const void *src, int count)
 {
-	int i;
-	const u32 *src_32 = src;
-	u32 *dst_32 = dst;
-
-	for (i = 0; i < count/sizeof(u32); i++)
-		writel(*src_32++, dst_32++);
+	/* __iowrite32_copy uses 32-bit count values so divide by 4 for
+	 * right count in words
+	 */
+	__iowrite32_copy(dst, src, count/4);
 }
 
 /**
