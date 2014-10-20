@@ -758,6 +758,18 @@ static const struct gates_data sun8i_a23_ahb1_gates_data __initconst = {
 	.mask = {0x25386742, 0x2505111},
 };
 
+static const struct gates_data sun9i_a80_ahb0_gates_data __initconst = {
+	.mask = {0xF5F12B},
+};
+
+static const struct gates_data sun9i_a80_ahb1_gates_data __initconst = {
+	.mask = {0x1E20003},
+};
+
+static const struct gates_data sun9i_a80_ahb2_gates_data __initconst = {
+	.mask = {0x9B7},
+};
+
 static const struct gates_data sun4i_apb0_gates_data __initconst = {
 	.mask = {0x4EF},
 };
@@ -772,6 +784,10 @@ static const struct gates_data sun5i_a13_apb0_gates_data __initconst = {
 
 static const struct gates_data sun7i_a20_apb0_gates_data __initconst = {
 	.mask = { 0x4ff },
+};
+
+static const struct gates_data sun9i_a80_apb0_gates_data __initconst = {
+	.mask = {0xEB822},
 };
 
 static const struct gates_data sun4i_apb1_gates_data __initconst = {
@@ -800,6 +816,10 @@ static const struct gates_data sun6i_a31_apb2_gates_data __initconst = {
 
 static const struct gates_data sun7i_a20_apb1_gates_data __initconst = {
 	.mask = { 0xff80ff },
+};
+
+static const struct gates_data sun9i_a80_apb1_gates_data __initconst = {
+	.mask = {0x3F001F},
 };
 
 static const struct gates_data sun8i_a23_apb2_gates_data __initconst = {
@@ -1103,16 +1123,21 @@ static const struct of_device_id clk_gates_match[] __initconst = {
 	{.compatible = "allwinner,sun6i-a31-ahb1-gates-clk", .data = &sun6i_a31_ahb1_gates_data,},
 	{.compatible = "allwinner,sun7i-a20-ahb-gates-clk", .data = &sun7i_a20_ahb_gates_data,},
 	{.compatible = "allwinner,sun8i-a23-ahb1-gates-clk", .data = &sun8i_a23_ahb1_gates_data,},
+	{.compatible = "allwinner,sun9i-a80-ahb0-gates-clk", .data = &sun9i_a80_ahb0_gates_data,},
+	{.compatible = "allwinner,sun9i-a80-ahb1-gates-clk", .data = &sun9i_a80_ahb1_gates_data,},
+	{.compatible = "allwinner,sun9i-a80-ahb2-gates-clk", .data = &sun9i_a80_ahb2_gates_data,},
 	{.compatible = "allwinner,sun4i-a10-apb0-gates-clk", .data = &sun4i_apb0_gates_data,},
 	{.compatible = "allwinner,sun5i-a10s-apb0-gates-clk", .data = &sun5i_a10s_apb0_gates_data,},
 	{.compatible = "allwinner,sun5i-a13-apb0-gates-clk", .data = &sun5i_a13_apb0_gates_data,},
 	{.compatible = "allwinner,sun7i-a20-apb0-gates-clk", .data = &sun7i_a20_apb0_gates_data,},
+	{.compatible = "allwinner,sun9i-a80-apb0-gates-clk", .data = &sun9i_a80_apb0_gates_data,},
 	{.compatible = "allwinner,sun4i-a10-apb1-gates-clk", .data = &sun4i_apb1_gates_data,},
 	{.compatible = "allwinner,sun5i-a10s-apb1-gates-clk", .data = &sun5i_a10s_apb1_gates_data,},
 	{.compatible = "allwinner,sun5i-a13-apb1-gates-clk", .data = &sun5i_a13_apb1_gates_data,},
 	{.compatible = "allwinner,sun6i-a31-apb1-gates-clk", .data = &sun6i_a31_apb1_gates_data,},
 	{.compatible = "allwinner,sun7i-a20-apb1-gates-clk", .data = &sun7i_a20_apb1_gates_data,},
 	{.compatible = "allwinner,sun8i-a23-apb1-gates-clk", .data = &sun8i_a23_apb1_gates_data,},
+	{.compatible = "allwinner,sun9i-a80-apb1-gates-clk", .data = &sun9i_a80_apb1_gates_data,},
 	{.compatible = "allwinner,sun6i-a31-apb2-gates-clk", .data = &sun6i_a31_apb2_gates_data,},
 	{.compatible = "allwinner,sun8i-a23-apb2-gates-clk", .data = &sun8i_a23_apb2_gates_data,},
 	{.compatible = "allwinner,sun4i-a10-usb-clk", .data = &sun4i_a10_usb_gates_data,},
@@ -1201,3 +1226,9 @@ static void __init sun6i_init_clocks(struct device_node *node)
 }
 CLK_OF_DECLARE(sun6i_a31_clk_init, "allwinner,sun6i-a31", sun6i_init_clocks);
 CLK_OF_DECLARE(sun8i_a23_clk_init, "allwinner,sun8i-a23", sun6i_init_clocks);
+
+static void __init sun9i_init_clocks(struct device_node *node)
+{
+	sunxi_init_clocks(NULL, 0);
+}
+CLK_OF_DECLARE(sun9i_a80_clk_init, "allwinner,sun9i-a80", sun9i_init_clocks);
