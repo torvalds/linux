@@ -1073,6 +1073,15 @@ static inline int f2fs_clear_bit(unsigned int nr, char *addr)
 	return ret;
 }
 
+static inline void f2fs_change_bit(unsigned int nr, char *addr)
+{
+	int mask;
+
+	addr += (nr >> 3);
+	mask = 1 << (7 - (nr & 0x07));
+	*addr ^= mask;
+}
+
 /* used for f2fs_inode_info->flags */
 enum {
 	FI_NEW_INODE,		/* indicate newly allocated inode */

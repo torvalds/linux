@@ -657,10 +657,7 @@ static inline void set_to_next_sit(struct sit_info *sit_i, unsigned int start)
 {
 	unsigned int block_off = SIT_BLOCK_OFFSET(start);
 
-	if (f2fs_test_bit(block_off, sit_i->sit_bitmap))
-		f2fs_clear_bit(block_off, sit_i->sit_bitmap);
-	else
-		f2fs_set_bit(block_off, sit_i->sit_bitmap);
+	f2fs_change_bit(block_off, sit_i->sit_bitmap);
 }
 
 static inline unsigned long long get_mtime(struct f2fs_sb_info *sbi)
