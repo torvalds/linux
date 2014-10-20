@@ -593,7 +593,6 @@ static struct platform_driver axmclk_driver = {
 	.remove		= axmclk_remove,
 	.driver		= {
 		.name	= "clk-axm5516",
-		.owner	= THIS_MODULE,
 		.of_match_table = axmclk_match_table,
 	},
 };
