@@ -188,10 +188,8 @@ static int mmc_get_ext_csd(struct mmc_card *card, u8 **new_ext_csd)
 	BUG_ON(!card);
 	BUG_ON(!new_ext_csd);
 
-	*new_ext_csd = NULL;
-
 	if (!mmc_can_ext_csd(card))
-		return 0;
+		return -EOPNOTSUPP;
 
 	/*
 	 * As the ext_csd is so large and mostly unused, we don't store the
@@ -202,32 +200,9 @@ static int mmc_get_ext_csd(struct mmc_card *card, u8 **new_ext_csd)
 		return -ENOMEM;
 
 	err = mmc_send_ext_csd(card, ext_csd);
-	if (err) {
+	if (err)
 		kfree(ext_csd);
-		*new_ext_csd = NULL;
-
-		/* If the host or the card can't do the switch,
-		 * fail more gracefully. */
-		if ((err != -EINVAL)
-		 && (err != -ENOSYS)
-		 && (err != -EFAULT))
-			return err;
-
-		/*
-		 * High capacity cards should have this "magic" size
-		 * stored in their CSD.
-		 */
-		if (card->csd.capacity == (4096 * 512)) {
-			pr_err("%s: unable to read EXT_CSD "
-				"on a possible high capacity card. "
-				"Card will be ignored.\n",
-				mmc_hostname(card->host));
-		} else {
-			pr_warn("%s: unable to read EXT_CSD, performance might suffer\n",
-				mmc_hostname(card->host));
-			err = 0;
-		}
-	} else
+	else
 		*new_ext_csd = ext_csd;
 
 	return err;
@@ -394,9 +369,6 @@ static int mmc_decode_ext_csd(struct mmc_card *card, u8 *ext_csd)
 	unsigned int part_size;
 
 	BUG_ON(!card);
-
-	if (!ext_csd)
-		return 0;
 
 	/* Version is coded in the CSD_STRUCTURE byte in the EXT_CSD register */
 	card->ext_csd.raw_ext_csd_structure = ext_csd[EXT_CSD_STRUCTURE];
@@ -639,12 +611,36 @@ out:
 
 static int mmc_read_ext_csd(struct mmc_card *card)
 {
-	u8 *ext_csd = NULL;
+	u8 *ext_csd;
 	int err;
 
+	if (!mmc_can_ext_csd(card))
+		return 0;
+
 	err = mmc_get_ext_csd(card, &ext_csd);
-	if (err)
+	if (err) {
+		/* If the host or the card can't do the switch,
+		 * fail more gracefully. */
+		if ((err != -EINVAL)
+		 && (err != -ENOSYS)
+		 && (err != -EFAULT))
+			return err;
+
+		/*
+		 * High capacity cards should have this "magic" size
+		 * stored in their CSD.
+		 */
+		if (card->csd.capacity == (4096 * 512)) {
+			pr_err("%s: unable to read EXT_CSD on a possible high capacity card. Card will be ignored.\n",
+				mmc_hostname(card->host));
+		} else {
+			pr_warn("%s: unable to read EXT_CSD, performance might suffer\n",
+				mmc_hostname(card->host));
+			err = 0;
+		}
+
 		return err;
+	}
 
 	err = mmc_decode_ext_csd(card, ext_csd);
 	kfree(ext_csd);
@@ -660,11 +656,8 @@ static int mmc_compare_ext_csds(struct mmc_card *card, unsigned bus_width)
 		return 0;
 
 	err = mmc_get_ext_csd(card, &bw_ext_csd);
-
-	if (err || bw_ext_csd == NULL) {
-		err = -EINVAL;
-		goto out;
-	}
+	if (err)
+		return err;
 
 	/* only compare read only fields */
 	err = !((card->ext_csd.raw_partition_support ==
@@ -723,7 +716,6 @@ static int mmc_compare_ext_csds(struct mmc_card *card, unsigned bus_width)
 	if (err)
 		err = -EINVAL;
 
-out:
 	kfree(bw_ext_csd);
 	return err;
 }
