@@ -667,7 +667,7 @@ static inline int lu_device_is_dt(const struct lu_device *d)
 	return ergo(d != NULL, d->ld_type->ldt_tags & LU_DEVICE_DT);
 }
 
-static inline struct dt_device * lu2dt_dev(struct lu_device *l)
+static inline struct dt_device *lu2dt_dev(struct lu_device *l)
 {
 	LASSERT(lu_device_is_dt(l));
 	return container_of0(l, struct dt_device, dd_lu_dev);

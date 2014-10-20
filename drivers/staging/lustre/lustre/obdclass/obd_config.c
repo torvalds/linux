@@ -835,7 +835,7 @@ int class_del_conn(struct obd_device *obd, struct lustre_cfg *lcfg)
 
 LIST_HEAD(lustre_profile_list);
 
-struct lustre_profile *class_get_profile(const char * prof)
+struct lustre_profile *class_get_profile(const char *prof)
 {
 	struct lustre_profile *lprof;
 
