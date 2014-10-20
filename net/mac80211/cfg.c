@@ -3108,7 +3108,8 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_channel_switch ch_switch;
 	struct ieee80211_chanctx_conf *conf;
 	struct ieee80211_chanctx *chanctx;
-	int err, changed = 0;
+	u32 changed = 0;
+	int err;
 
 	sdata_assert_lock(sdata);
 	lockdep_assert_held(&local->mtx);
