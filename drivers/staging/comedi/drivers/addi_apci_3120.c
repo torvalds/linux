@@ -7,6 +7,22 @@
 #include "comedi_fc.h"
 #include "amcc_s5933.h"
 
+/*
+ * PCI BAR 0 register map (devpriv->amcc)
+ * see amcc_s5933.h for register and bit defines
+ */
+
+/*
+ * PCI BAR 1 register map (dev->iobase)
+ */
+#define APCI3120_AO_REG(x)			(0x08 + (((x) / 4) * 2))
+#define APCI3120_AO_MUX(x)			(((x) & 0x3) << 14)
+#define APCI3120_AO_DATA(x)			((x) << 0)
+
+/*
+ * PCI BAR 2 register map (devpriv->addon)
+ */
+
 enum apci3120_boardid {
 	BOARD_APCI3120,
 	BOARD_APCI3001,

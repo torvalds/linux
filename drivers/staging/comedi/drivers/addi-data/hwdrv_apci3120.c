@@ -96,24 +96,12 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define	APCI3120_SET4DIGITALOUTPUTON	1
 #define APCI3120_SET4DIGITALOUTPUTOFF	0
 
-/* analog output SELECT BIT */
-#define APCI3120_ANALOG_OP_CHANNEL_1	0x0000
-#define APCI3120_ANALOG_OP_CHANNEL_2	0x4000
-#define APCI3120_ANALOG_OP_CHANNEL_3	0x8000
-#define APCI3120_ANALOG_OP_CHANNEL_4	0xc000
-#define APCI3120_ANALOG_OP_CHANNEL_5	0x0000
-#define APCI3120_ANALOG_OP_CHANNEL_6	0x4000
-#define APCI3120_ANALOG_OP_CHANNEL_7	0x8000
-#define APCI3120_ANALOG_OP_CHANNEL_8	0xc000
-
 /* Enable external trigger bit in nWrAddress */
 #define APCI3120_ENABLE_EXT_TRIGGER	0x8000
 
 /* ANALOG OUTPUT AND INPUT DEFINE */
 #define APCI3120_UNIPOLAR		0x80
 #define APCI3120_BIPOLAR		0x00
-#define APCI3120_ANALOG_OUTPUT_1	0x08
-#define APCI3120_ANALOG_OUTPUT_2	0x0a
 #define APCI3120_1_GAIN			0x00
 #define APCI3120_2_GAIN			0x10
 #define APCI3120_5_GAIN			0x20
@@ -1923,31 +1911,20 @@ static int apci3120_ao_insn_write(struct comedi_device *dev,
 				  struct comedi_insn *insn,
 				  unsigned int *data)
 {
-	unsigned int ui_Channel;
-	int ret;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int i;
 
-	ui_Channel = CR_CHAN(insn->chanspec);
+	for (i = 0; i < insn->n; i++) {
+		unsigned int val = data[i];
+		int ret;
 
-	data[0] = ((((ui_Channel & 0x03) << 14) & 0xC000) | data[0]);
+		ret = comedi_timeout(dev, s, insn, apci3120_ao_ready, 0);
+		if (ret)
+			return ret;
 
-	ret = comedi_timeout(dev, s, insn, apci3120_ao_ready, 0);
-	if (ret)
-		return ret;
-
-	if (ui_Channel <= 3)
-		/*
-		 * for channel 0-3 out at the register 1 (wrDac1-8) data[i]
-		 * typecasted to ushort since word write is to be done
-		 */
-		outw((unsigned short) data[0],
-		     dev->iobase + APCI3120_ANALOG_OUTPUT_1);
-	else
-		/*
-		 * for channel 4-7 out at the register 2 (wrDac5-8) data[i]
-		 * typecasted to ushort since word write is to be done
-		 */
-		outw((unsigned short) data[0],
-		     dev->iobase + APCI3120_ANALOG_OUTPUT_2);
+		outw(APCI3120_AO_MUX(chan) | APCI3120_AO_DATA(val),
+		     dev->iobase + APCI3120_AO_REG(chan));
+	}
 
 	return insn->n;
 }
