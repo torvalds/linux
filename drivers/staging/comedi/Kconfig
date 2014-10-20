@@ -594,14 +594,6 @@ config COMEDI_ADDI_WATCHDOG
 	  boards. This module will be automatically selected when needed. The
 	  module will be called addi_watchdog.
 
-config COMEDI_ADDI_APCI_035
-	tristate "ADDI-DATA APCI_035 support"
-	---help---
-	  Enable support for ADDI-DATA APCI_035 cards
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called addi_apci_035.
-
 config COMEDI_ADDI_APCI_1032
 	tristate "ADDI-DATA APCI_1032 support"
 	---help---
