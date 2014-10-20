@@ -1204,7 +1204,6 @@ static struct platform_driver brcmf_sdio_pd = {
 	.remove		= brcmf_sdio_pd_remove,
 	.driver		= {
 		.name	= BRCMFMAC_SDIO_PDATA_NAME,
-		.owner	= THIS_MODULE,
 	}
 };
 
