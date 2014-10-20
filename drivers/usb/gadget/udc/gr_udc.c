@@ -2262,7 +2262,6 @@ MODULE_DEVICE_TABLE(of, gr_match);
 static struct platform_driver gr_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.of_match_table = gr_match,
 	},
 	.probe = gr_probe,

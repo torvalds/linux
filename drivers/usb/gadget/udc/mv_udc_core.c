@@ -2403,7 +2403,6 @@ static struct platform_driver udc_driver = {
 	.remove		= mv_udc_remove,
 	.shutdown	= mv_udc_shutdown,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "mv-udc",
 #ifdef CONFIG_PM
 		.pm	= &mv_udc_pm_ops,
