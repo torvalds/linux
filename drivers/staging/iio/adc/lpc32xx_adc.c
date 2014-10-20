@@ -204,7 +204,6 @@ static struct platform_driver lpc32xx_adc_driver = {
 	.probe		= lpc32xx_adc_probe,
 	.driver		= {
 		.name	= MOD_NAME,
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(lpc32xx_adc_match),
 	},
 };
