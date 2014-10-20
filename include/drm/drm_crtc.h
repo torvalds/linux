@@ -137,6 +137,14 @@ struct drm_display_info {
 	u8 cea_rev;
 };
 
+/* data corresponds to displayid vend/prod/serial */
+struct drm_tile_group {
+	struct kref refcount;
+	struct drm_device *dev;
+	int id;
+	u8 group_data[8];
+};
+
 struct drm_framebuffer_funcs {
 	/* note: use drm_framebuffer_remove() */
 	void (*destroy)(struct drm_framebuffer *framebuffer);
@@ -978,6 +986,7 @@ struct drm_mode_config {
 	struct drm_modeset_acquire_ctx *acquire_ctx; /* for legacy _lock_all() / _unlock_all() */
 	struct mutex idr_mutex; /* for IDR management */
 	struct idr crtc_idr; /* use this idr for all IDs, fb, crtc, connector, modes - just makes life easier */
+	struct idr tile_idr; /* use this idr for all IDs, fb, crtc, connector, modes - just makes life easier */
 	/* this is limited to one for now */
 
 	struct mutex fb_lock; /* proctects global and per-file fb lists */
@@ -1326,6 +1335,13 @@ extern void drm_set_preferred_mode(struct drm_connector *connector,
 extern int drm_edid_header_is_valid(const u8 *raw_edid);
 extern bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid);
 extern bool drm_edid_is_valid(struct edid *edid);
+
+extern struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
+							 char topology[8]);
+extern struct drm_tile_group *drm_mode_get_tile_group(struct drm_device *dev,
+					       char topology[8]);
+extern void drm_mode_put_tile_group(struct drm_device *dev,
+				   struct drm_tile_group *tg);
 struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
 					   int hsize, int vsize, int fresh,
 					   bool rb);
