@@ -456,7 +456,6 @@ static SIMPLE_DEV_PM_OPS(omap_rng_pm, omap_rng_suspend, omap_rng_resume);
 static struct platform_driver omap_rng_driver = {
 	.driver = {
 		.name		= "omap_rng",
-		.owner		= THIS_MODULE,
 		.pm		= OMAP_RNG_PM,
 		.of_match_table = of_match_ptr(omap_rng_of_match),
 	},
