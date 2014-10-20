@@ -3788,35 +3788,54 @@ int snd_soc_dapm_ignore_suspend(struct snd_soc_dapm_context *dapm,
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_ignore_suspend);
 
+/**
+ * dapm_is_external_path() - Checks if a path is a external path
+ * @card: The card the path belongs to
+ * @path: The path to check
+ *
+ * Returns true if the path is either between two different DAPM contexts or
+ * between two external pins of the same DAPM context. Otherwise returns
+ * false.
+ */
+static bool dapm_is_external_path(struct snd_soc_card *card,
+	struct snd_soc_dapm_path *path)
+{
+	dev_dbg(card->dev,
+		"... Path %s(id:%d dapm:%p) - %s(id:%d dapm:%p)\n",
+		path->source->name, path->source->id, path->source->dapm,
+		path->sink->name, path->sink->id, path->sink->dapm);
+
+	/* Connection between two different DAPM contexts */
+	if (path->source->dapm != path->sink->dapm)
+		return true;
+
+	/* Loopback connection from external pin to external pin */
+	if (path->sink->id == snd_soc_dapm_input) {
+		switch (path->source->id) {
+		case snd_soc_dapm_output:
+		case snd_soc_dapm_micbias:
+			return true;
+		default:
+			break;
+		}
+	}
+
+	return false;
+}
+
 static bool snd_soc_dapm_widget_in_card_paths(struct snd_soc_card *card,
 					      struct snd_soc_dapm_widget *w)
 {
 	struct snd_soc_dapm_path *p;
 
-	list_for_each_entry(p, &card->paths, list) {
-		if ((p->source == w) || (p->sink == w)) {
-			dev_dbg(card->dev,
-			    "... Path %s(id:%d dapm:%p) - %s(id:%d dapm:%p)\n",
-			    p->source->name, p->source->id, p->source->dapm,
-			    p->sink->name, p->sink->id, p->sink->dapm);
+	list_for_each_entry(p, &w->sources, list_sink) {
+		if (dapm_is_external_path(card, p))
+			return true;
+	}
 
-			/* Connected to something other than the codec */
-			if (p->source->dapm != p->sink->dapm)
-				return true;
-			/*
-			 * Loopback connection from codec external pin to
-			 * codec external pin
-			 */
-			if (p->sink->id == snd_soc_dapm_input) {
-				switch (p->source->id) {
-				case snd_soc_dapm_output:
-				case snd_soc_dapm_micbias:
-					return true;
-				default:
-					break;
-				}
-			}
-		}
+	list_for_each_entry(p, &w->sinks, list_source) {
+		if (dapm_is_external_path(card, p))
+			return true;
 	}
 
 	return false;
