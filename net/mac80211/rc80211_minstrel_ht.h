@@ -13,8 +13,17 @@
  * The number of streams can be changed to 2 to reduce code
  * size and memory footprint.
  */
-#define MINSTREL_MAX_STREAMS	3
-#define MINSTREL_STREAM_GROUPS	4
+#define MINSTREL_MAX_STREAMS		3
+#define MINSTREL_HT_STREAM_GROUPS	4 /* BW(=2) * SGI(=2) */
+
+#define MINSTREL_HT_GROUPS_NB	(MINSTREL_MAX_STREAMS *		\
+				 MINSTREL_HT_STREAM_GROUPS)
+#define MINSTREL_CCK_GROUPS_NB	1
+#define MINSTREL_GROUPS_NB	(MINSTREL_HT_GROUPS_NB +	\
+				 MINSTREL_CCK_GROUPS_NB)
+
+#define MINSTREL_HT_GROUP_0	0
+#define MINSTREL_CCK_GROUP	(MINSTREL_HT_GROUP_0 + MINSTREL_HT_GROUPS_NB)
 
 #define MCS_GROUP_RATES	8
 
@@ -80,7 +89,7 @@ struct minstrel_ht_sta {
 	u8 cck_supported_short;
 
 	/* MCS rate group info and statistics */
-	struct minstrel_mcs_group_data groups[MINSTREL_MAX_STREAMS * MINSTREL_STREAM_GROUPS + 1];
+	struct minstrel_mcs_group_data groups[MINSTREL_GROUPS_NB];
 };
 
 struct minstrel_ht_sta_priv {

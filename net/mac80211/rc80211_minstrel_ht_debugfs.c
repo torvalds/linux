@@ -18,7 +18,6 @@
 static char *
 minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 {
-	unsigned int max_mcs = MINSTREL_MAX_STREAMS * MINSTREL_STREAM_GROUPS;
 	const struct mcs_group *mg;
 	unsigned int j, tp, prob, eprob;
 	char htmode = '2';
@@ -41,7 +40,7 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 		if (!(mi->groups[i].supported & BIT(j)))
 			continue;
 
-		if (i == max_mcs)
+		if (i == MINSTREL_CCK_GROUP)
 			p += sprintf(p, "CCK/%cP   ", j < 4 ? 'L' : 'S');
 		else
 			p += sprintf(p, "HT%c0/%cGI ", htmode, gimode);
@@ -52,7 +51,7 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 		*(p++) = (idx == mi->max_tp_rate[3]) ? 'D' : ' ';
 		*(p++) = (idx == mi->max_prob_rate) ? 'P' : ' ';
 
-		if (i == max_mcs) {
+		if (i == MINSTREL_CCK_GROUP) {
 			int r = bitrates[j % 4];
 			p += sprintf(p, " %2u.%1uM", r / 10, r % 10);
 		} else {
@@ -85,7 +84,6 @@ minstrel_ht_stats_open(struct inode *inode, struct file *file)
 	struct minstrel_ht_sta *mi = &msp->ht;
 	struct minstrel_debugfs_info *ms;
 	unsigned int i;
-	unsigned int max_mcs = MINSTREL_MAX_STREAMS * MINSTREL_STREAM_GROUPS;
 	char *p;
 	int ret;
 
@@ -106,8 +104,8 @@ minstrel_ht_stats_open(struct inode *inode, struct file *file)
 			"ret  *ok(*cum)        ok(      cum)\n");
 
 
-	p = minstrel_ht_stats_dump(mi, max_mcs, p);
-	for (i = 0; i < max_mcs; i++)
+	p = minstrel_ht_stats_dump(mi, MINSTREL_CCK_GROUP, p);
+	for (i = 0; i < MINSTREL_CCK_GROUP; i++)
 		p = minstrel_ht_stats_dump(mi, i, p);
 
 	p += sprintf(p, "\nTotal packet count::    ideal %d      "
