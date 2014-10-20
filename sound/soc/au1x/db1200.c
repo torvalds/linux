@@ -200,7 +200,6 @@ static int db1200_audio_remove(struct platform_device *pdev)
 static struct platform_driver db1200_audio_driver = {
 	.driver	= {
 		.name	= "db1200-ac97",
-		.owner	= THIS_MODULE,
 		.pm	= &snd_soc_pm_ops,
 	},
 	.id_table	= db1200_pids,
