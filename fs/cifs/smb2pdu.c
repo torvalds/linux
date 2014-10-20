@@ -431,8 +431,7 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	if (rc)
 		goto neg_exit;
 	if (blob_length)
-		rc = decode_neg_token_init(security_blob, blob_length,
-				   &server->sec_type);
+		rc = decode_negTokenInit(security_blob, blob_length, server);
 	if (rc == 1)
 		rc = 0;
 	else if (rc == 0) {
