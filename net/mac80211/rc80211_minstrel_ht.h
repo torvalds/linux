@@ -34,8 +34,8 @@ struct minstrel_mcs_group_data {
 	u8 supported;
 
 	/* sorted rate set within a MCS group*/
-	u8 max_group_tp_rate[MAX_THR_RATES];
-	u8 max_group_prob_rate;
+	u16 max_group_tp_rate[MAX_THR_RATES];
+	u16 max_group_prob_rate;
 
 	/* MCS rate statistics */
 	struct minstrel_rate_stats rates[MCS_GROUP_RATES];
@@ -52,8 +52,8 @@ struct minstrel_ht_sta {
 	unsigned int avg_ampdu_len;
 
 	/* overall sorted rate set */
-	u8 max_tp_rate[MAX_THR_RATES];
-	u8 max_prob_rate;
+	u16 max_tp_rate[MAX_THR_RATES];
+	u16 max_prob_rate;
 
 	/* time of last status update */
 	unsigned long stats_update;

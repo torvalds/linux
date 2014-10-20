@@ -240,8 +240,8 @@ minstrel_ht_calc_tp(struct minstrel_ht_sta *mi, int group, int rate)
  * MCS groups, CCK rates do not provide aggregation and are therefore at last.
  */
 static void
-minstrel_ht_sort_best_tp_rates(struct minstrel_ht_sta *mi, u8 index,
-			       u8 *tp_list)
+minstrel_ht_sort_best_tp_rates(struct minstrel_ht_sta *mi, u16 index,
+			       u16 *tp_list)
 {
 	int cur_group, cur_idx, cur_thr, cur_prob;
 	int tmp_group, tmp_idx, tmp_thr, tmp_prob;
@@ -278,7 +278,7 @@ minstrel_ht_sort_best_tp_rates(struct minstrel_ht_sta *mi, u8 index,
  * Find and set the topmost probability rate per sta and per group
  */
 static void
-minstrel_ht_set_best_prob_rate(struct minstrel_ht_sta *mi, u8 index)
+minstrel_ht_set_best_prob_rate(struct minstrel_ht_sta *mi, u16 index)
 {
 	struct minstrel_mcs_group_data *mg;
 	struct minstrel_rate_stats *mr;
@@ -321,8 +321,8 @@ minstrel_ht_set_best_prob_rate(struct minstrel_ht_sta *mi, u8 index)
  */
 static void
 minstrel_ht_assign_best_tp_rates(struct minstrel_ht_sta *mi,
-				 u8 tmp_mcs_tp_rate[MAX_THR_RATES],
-				 u8 tmp_cck_tp_rate[MAX_THR_RATES])
+				 u16 tmp_mcs_tp_rate[MAX_THR_RATES],
+				 u16 tmp_cck_tp_rate[MAX_THR_RATES])
 {
 	unsigned int tmp_group, tmp_idx, tmp_cck_tp, tmp_mcs_tp;
 	int i;
@@ -386,8 +386,8 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	struct minstrel_mcs_group_data *mg;
 	struct minstrel_rate_stats *mr;
 	int group, i, j;
-	u8 tmp_mcs_tp_rate[MAX_THR_RATES], tmp_group_tp_rate[MAX_THR_RATES];
-	u8 tmp_cck_tp_rate[MAX_THR_RATES], index;
+	u16 tmp_mcs_tp_rate[MAX_THR_RATES], tmp_group_tp_rate[MAX_THR_RATES];
+	u16 tmp_cck_tp_rate[MAX_THR_RATES], index;
 
 	if (mi->ampdu_packets > 0) {
 		mi->avg_ampdu_len = minstrel_ewma(mi->avg_ampdu_len,
@@ -517,7 +517,7 @@ minstrel_next_sample_idx(struct minstrel_ht_sta *mi)
 }
 
 static void
-minstrel_downgrade_rate(struct minstrel_ht_sta *mi, u8 *idx, bool primary)
+minstrel_downgrade_rate(struct minstrel_ht_sta *mi, u16 *idx, bool primary)
 {
 	int group, orig_group;
 
