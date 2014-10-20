@@ -40,8 +40,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
   +----------+-----------+------------------------------------------------+
 */
 
-#include <linux/delay.h>
-
 /*
  * ADDON RELATED ADDITIONS
  */
@@ -577,22 +575,6 @@ static int apci3120_reset(struct comedi_device *dev)
 	/*  Disables all counters, ext trigger and clears PA, PR */
 	devpriv->us_OutputRegister = 0;
 	outw(devpriv->us_OutputRegister, dev->iobase + APCI3120_WR_ADDRESS);
-
-	/*
-	 * Code to set the all anolog o/p channel to 0v 8191 is decimal
-	 * value for zero(0 v)volt in bipolar mode(default)
-	 */
-	outw(8191 | APCI3120_ANALOG_OP_CHANNEL_1, dev->iobase + APCI3120_ANALOG_OUTPUT_1);	/* channel 1 */
-	outw(8191 | APCI3120_ANALOG_OP_CHANNEL_2, dev->iobase + APCI3120_ANALOG_OUTPUT_1);	/* channel 2 */
-	outw(8191 | APCI3120_ANALOG_OP_CHANNEL_3, dev->iobase + APCI3120_ANALOG_OUTPUT_1);	/* channel 3 */
-	outw(8191 | APCI3120_ANALOG_OP_CHANNEL_4, dev->iobase + APCI3120_ANALOG_OUTPUT_1);	/* channel 4 */
-
-	outw(8191 | APCI3120_ANALOG_OP_CHANNEL_5, dev->iobase + APCI3120_ANALOG_OUTPUT_2);	/* channel 5 */
-	outw(8191 | APCI3120_ANALOG_OP_CHANNEL_6, dev->iobase + APCI3120_ANALOG_OUTPUT_2);	/* channel 6 */
-	outw(8191 | APCI3120_ANALOG_OP_CHANNEL_7, dev->iobase + APCI3120_ANALOG_OUTPUT_2);	/* channel 7 */
-	outw(8191 | APCI3120_ANALOG_OP_CHANNEL_8, dev->iobase + APCI3120_ANALOG_OUTPUT_2);	/* channel 8 */
-
-	udelay(10);
 
 	inw(dev->iobase + 0);	/* make a dummy read */
 	inb(dev->iobase + APCI3120_RESET_FIFO);	/*  flush FIFO */
