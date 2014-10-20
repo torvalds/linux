@@ -1923,21 +1923,34 @@ static int apci3120_do_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
+static int apci3120_ao_ready(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn,
+			     unsigned long context)
+{
+	unsigned int status;
+
+	status = inw(dev->iobase + APCI3120_RD_STATUS);
+	if (status & 0x0001)	/* waiting for DA_READY */
+		return 0;
+	return -EBUSY;
+}
+
 static int apci3120_ao_insn_write(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn,
 				  unsigned int *data)
 {
 	unsigned int ui_Channel;
-	unsigned short us_TmpValue;
+	int ret;
 
 	ui_Channel = CR_CHAN(insn->chanspec);
 
 	data[0] = ((((ui_Channel & 0x03) << 14) & 0xC000) | data[0]);
 
-	do {			/* Waiting of DA_READY BIT */
-		us_TmpValue = inw(dev->iobase + APCI3120_RD_STATUS) & 0x0001;
-	} while (us_TmpValue != 0x0001);
+	ret = comedi_timeout(dev, s, insn, apci3120_ao_ready, 0);
+	if (ret)
+		return ret;
 
 	if (ui_Channel <= 3)
 		/*
