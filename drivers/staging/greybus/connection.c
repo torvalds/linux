@@ -211,6 +211,7 @@ int gb_connection_init(struct gb_connection *connection)
 	case GREYBUS_PROTOCOL_AP:
 	case GREYBUS_PROTOCOL_UART:
 	case GREYBUS_PROTOCOL_HID:
+	case GREYBUS_PROTOCOL_LED:
 	case GREYBUS_PROTOCOL_VENDOR:
 	default:
 		gb_connection_err(connection, "unimplemented protocol %u",

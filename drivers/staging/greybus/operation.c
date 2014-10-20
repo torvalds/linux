@@ -166,6 +166,7 @@ static gb_operation_recv_handler gb_operation_recv_handlers[] = {
 	[GREYBUS_PROTOCOL_UART]		= NULL,
 	[GREYBUS_PROTOCOL_HID]		= NULL,
 	[GREYBUS_PROTOCOL_BATTERY]	= gb_operation_recv_none,
+	[GREYBUS_PROTOCOL_LED]		= NULL,
 	[GREYBUS_PROTOCOL_VENDOR]	= NULL,
 };
 
