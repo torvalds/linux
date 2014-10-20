@@ -330,7 +330,6 @@ static struct platform_driver rcar_du_platform_driver = {
 	.probe		= rcar_du_probe,
 	.remove		= rcar_du_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "rcar-du",
 		.pm	= &rcar_du_pm_ops,
 		.of_match_table = rcar_du_of_table,
