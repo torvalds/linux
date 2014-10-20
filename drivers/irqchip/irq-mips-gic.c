@@ -7,19 +7,16 @@
  * Copyright (C) 2012 MIPS Technologies, Inc.  All rights reserved.
  */
 #include <linux/bitmap.h>
+#include <linux/clocksource.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/irqchip/mips-gic.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
-#include <linux/irq.h>
-#include <linux/clocksource.h>
 
-#include <asm/io.h>
 #include <asm/setup.h>
 #include <asm/traps.h>
-#include <linux/hardirq.h>
-#include <asm-generic/bitops/find.h>
 
 unsigned int gic_frequency;
 unsigned int gic_present;
