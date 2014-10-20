@@ -277,22 +277,37 @@ static void ap_disconnect(struct usb_interface *interface)
 
 	/* Tear down everything! */
 	for (i = 0; i < NUM_CPORT_OUT_URB; ++i) {
-		usb_kill_urb(es1->cport_out_urb[i]);
-		usb_free_urb(es1->cport_out_urb[i]);
+		struct urb *urb = es1->cport_out_urb[i];
+
+		if (!urb)
+			break;
+		usb_kill_urb(urb);
+		usb_free_urb(urb);
+		es1->cport_out_urb[i] = NULL;
+		es1->cport_out_urb_busy[i] = false;	/* just to be anal */
 	}
 
 	for (i = 0; i < NUM_CPORT_IN_URB; ++i) {
-		usb_kill_urb(es1->cport_in_urb[i]);
-		usb_free_urb(es1->cport_in_urb[i]);
+		struct urb *urb = es1->cport_in_urb[i];
+
+		if (!urb)
+			break;
+		usb_kill_urb(urb);
+		usb_free_urb(urb);
 		kfree(es1->cport_in_buffer[i]);
+		es1->cport_in_buffer[i] = NULL;
 	}
 
 	usb_kill_urb(es1->svc_urb);
 	usb_free_urb(es1->svc_urb);
-	usb_put_dev(es1->usb_dev);
+	es1->svc_urb = NULL;
 	kfree(es1->svc_buffer);
-	greybus_remove_hd(es1->hd);
+	es1->svc_buffer = NULL;
+
 	usb_set_intfdata(interface, NULL);
+	greybus_remove_hd(es1->hd);
+
+	usb_put_dev(es1->usb_dev);
 }
 
 /* Callback for when we get a SVC message */
@@ -466,7 +481,7 @@ static int ap_probe(struct usb_interface *interface,
 
 	es1->svc_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!es1->svc_urb)
-		goto error_int_urb;
+		goto error;
 
 	usb_fill_int_urb(es1->svc_urb, udev,
 			 usb_rcvintpipe(udev, es1->svc_endpoint),
@@ -474,7 +489,7 @@ static int ap_probe(struct usb_interface *interface,
 			 es1, svc_interval);
 	retval = usb_submit_urb(es1->svc_urb, GFP_KERNEL);
 	if (retval)
-		goto error_submit_urb;
+		goto error;
 
 	/* Allocate buffers for our cport in messages and start them up */
 	for (i = 0; i < NUM_CPORT_IN_URB; ++i) {
@@ -483,10 +498,10 @@ static int ap_probe(struct usb_interface *interface,
 
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb)
-			goto error_bulk_in_urb;
+			goto error;
 		buffer = kmalloc(ES1_GBUF_MSG_SIZE, GFP_KERNEL);
 		if (!buffer)
-			goto error_bulk_in_urb;
+			goto error;
 
 		usb_fill_bulk_urb(urb, udev,
 				  usb_rcvbulkpipe(udev, es1->cport_in_endpoint),
@@ -495,7 +510,7 @@ static int ap_probe(struct usb_interface *interface,
 		es1->cport_in_buffer[i] = buffer;
 		retval = usb_submit_urb(urb, GFP_KERNEL);
 		if (retval)
-			goto error_bulk_in_urb;
+			goto error;
 	}
 
 	/* Allocate urbs for our CPort OUT messages */
@@ -504,31 +519,16 @@ static int ap_probe(struct usb_interface *interface,
 
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb)
-			goto error_bulk_out_urb;
+			goto error;
 
 		es1->cport_out_urb[i] = urb;
 		es1->cport_out_urb_busy[i] = false;	/* just to be anal */
 	}
 
 	return 0;
-
-error_bulk_out_urb:
-	for (i = 0; i < NUM_CPORT_OUT_URB; ++i)
-		usb_free_urb(es1->cport_out_urb[i]);
-
-error_bulk_in_urb:
-	for (i = 0; i < NUM_CPORT_IN_URB; ++i) {
-		usb_kill_urb(es1->cport_in_urb[i]);
-		usb_free_urb(es1->cport_in_urb[i]);
-		kfree(es1->cport_in_buffer[i]);
-	}
-
-error_submit_urb:
-	usb_free_urb(es1->svc_urb);
-error_int_urb:
-	kfree(es1->svc_buffer);
 error:
-	greybus_remove_hd(es1->hd);
+	ap_disconnect(interface);
+
 	return retval;
 }
 
