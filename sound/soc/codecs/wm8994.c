@@ -4508,7 +4508,6 @@ static const struct dev_pm_ops wm8994_pm_ops = {
 static struct platform_driver wm8994_codec_driver = {
 	.driver = {
 		.name = "wm8994-codec",
-		.owner = THIS_MODULE,
 		.pm = &wm8994_pm_ops,
 	},
 	.probe = wm8994_probe,

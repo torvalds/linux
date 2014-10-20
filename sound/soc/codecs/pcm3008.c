@@ -162,7 +162,6 @@ static struct platform_driver pcm3008_codec_driver = {
 	.remove		= pcm3008_codec_remove,
 	.driver		= {
 		.name	= "pcm3008-codec",
-		.owner	= THIS_MODULE,
 	},
 };
 

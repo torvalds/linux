@@ -2609,7 +2609,6 @@ static int ab8500_codec_driver_remove(struct platform_device *pdev)
 static struct platform_driver ab8500_codec_platform_driver = {
 	.driver	= {
 		.name	= "ab8500-codec",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ab8500_codec_driver_probe,
 	.remove		= ab8500_codec_driver_remove,
