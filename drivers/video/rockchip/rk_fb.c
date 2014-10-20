@@ -776,7 +776,8 @@ static int rk_fb_close(struct fb_info *info, int user)
 		win = dev_drv->win[win_id];
 		fb_par->state--;
 		if (!fb_par->state) {
-			info->fix.smem_start = win->reserved;
+			if (fb_par->fb_phy_base > 0)
+				info->fix.smem_start = fb_par->fb_phy_base;
 			info->var.xres = dev_drv->screen0->mode.xres;
 			info->var.yres = dev_drv->screen0->mode.yres;
 			/*
@@ -3684,11 +3685,6 @@ static int rk_fb_alloc_buffer(struct fb_info *fbi, int fb_id)
 	fb_par->fb_phy_base = fbi->fix.smem_start;
 	fb_par->fb_virt_base = fbi->screen_base;
 	fb_par->fb_size = fbi->fix.smem_len;
-	win_id = dev_drv->ops->fb_get_win_id(dev_drv, fbi->fix.id);
-	if (win_id >= 0) {
-		win = dev_drv->win[win_id];
-		win->reserved = fbi->fix.smem_start;
-	}
 
 	return ret;
 }
