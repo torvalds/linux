@@ -861,6 +861,8 @@ static void drm_dp_destroy_port(struct kref *kref)
 	struct drm_dp_mst_topology_mgr *mgr = port->mgr;
 	if (!port->input) {
 		port->vcpi.num_slots = 0;
+
+		kfree(port->cached_edid);
 		if (port->connector)
 			(*port->mgr->cbs->destroy_connector)(mgr, port->connector);
 		drm_dp_port_teardown_pdt(port, port->pdt);
@@ -1100,6 +1102,10 @@ static void drm_dp_add_port(struct drm_dp_mst_branch *mstb,
 		char proppath[255];
 		build_mst_prop_path(port, mstb, proppath, sizeof(proppath));
 		port->connector = (*mstb->mgr->cbs->add_connector)(mstb->mgr, port, proppath);
+
+		if (port->port_num >= 8) {
+			port->cached_edid = drm_get_edid(port->connector, &port->aux.ddc);
+		}
 	}
 
 	/* put reference to this port */
@@ -2170,7 +2176,8 @@ EXPORT_SYMBOL(drm_dp_mst_hpd_irq);
  * This returns the current connection state for a port. It validates the
  * port pointer still exists so the caller doesn't require a reference
  */
-enum drm_connector_status drm_dp_mst_detect_port(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port)
+enum drm_connector_status drm_dp_mst_detect_port(struct drm_connector *connector,
+						 struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port)
 {
 	enum drm_connector_status status = connector_status_disconnected;
 
@@ -2189,6 +2196,10 @@ enum drm_connector_status drm_dp_mst_detect_port(struct drm_dp_mst_topology_mgr 
 
 	case DP_PEER_DEVICE_SST_SINK:
 		status = connector_status_connected;
+		/* for logical ports - cache the EDID */
+		if (port->port_num >= 8 && !port->cached_edid) {
+			port->cached_edid = drm_get_edid(connector, &port->aux.ddc);
+		}
 		break;
 	case DP_PEER_DEVICE_DP_LEGACY_CONV:
 		if (port->ldps)
@@ -2220,7 +2231,11 @@ struct edid *drm_dp_mst_get_edid(struct drm_connector *connector, struct drm_dp_
 	if (!port)
 		return NULL;
 
-	edid = drm_get_edid(connector, &port->aux.ddc);
+	if (port->cached_edid)
+		edid = drm_edid_duplicate(port->cached_edid);
+	else
+		edid = drm_get_edid(connector, &port->aux.ddc);
+
 	drm_dp_put_port(port);
 	return edid;
 }
