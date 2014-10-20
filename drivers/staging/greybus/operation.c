@@ -24,6 +24,8 @@
  */
 #define GB_OPERATION_MESSAGE_SIZE_MAX	4096
 
+static struct kmem_cache *gb_operation_cache;
+
 /* Workqueue to handle Greybus operation completions. */
 static struct workqueue_struct *gb_operation_recv_workqueue;
 
@@ -307,8 +309,7 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 	gfp_t gfp_flags = response_size ? GFP_KERNEL : GFP_ATOMIC;
 	bool outgoing = response_size != 0;
 
-	/* XXX Use a slab cache */
-	operation = kzalloc(sizeof(*operation), gfp_flags);
+	operation = kmem_cache_zalloc(gb_operation_cache, gfp_flags);
 	if (!operation)
 		return NULL;
 	operation->connection = connection;		/* XXX refcount? */
@@ -316,10 +317,8 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 	operation->request = gb_operation_gbuf_create(operation, type,
 							request_size,
 							outgoing);
-	if (!operation->request) {
-		kfree(operation);
-		return NULL;
-	}
+	if (!operation->request)
+		goto err_cache;
 	operation->request_payload = operation->request->transfer_buffer +
 					sizeof(struct gb_operation_msg_hdr);
 	/* We always use the full request buffer */
@@ -330,11 +329,8 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 		operation->response = gb_operation_gbuf_create(operation,
 						type, response_size,
 						false);
-		if (!operation->response) {
-			greybus_free_gbuf(operation->request);
-			kfree(operation);
-			return NULL;
-		}
+		if (!operation->response)
+			goto err_request;
 		operation->response_payload =
 				operation->response->transfer_buffer +
 				sizeof(struct gb_operation_msg_hdr);
@@ -349,6 +345,13 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 	spin_unlock_irq(&gb_operations_lock);
 
 	return operation;
+
+err_request:
+	greybus_free_gbuf(operation->request);
+err_cache:
+	kmem_cache_free(gb_operation_cache, operation);
+
+	return NULL;
 }
 
 /*
@@ -367,7 +370,7 @@ void gb_operation_destroy(struct gb_operation *operation)
 	greybus_free_gbuf(operation->response);
 	greybus_free_gbuf(operation->request);
 
-	kfree(operation);
+	kmem_cache_free(gb_operation_cache, operation);
 }
 
 /*
@@ -470,14 +473,25 @@ void gb_connection_operation_recv(struct gb_connection *connection,
 
 int gb_operation_init(void)
 {
-	gb_operation_recv_workqueue = alloc_workqueue("greybus_recv", 0, 1);
-	if (!gb_operation_recv_workqueue)
+	gb_operation_cache = kmem_cache_create("gb_operation_cache",
+				sizeof(struct gb_operation), 0, 0, NULL);
+	if (!gb_operation_cache)
 		return -ENOMEM;
+
+	gb_operation_recv_workqueue = alloc_workqueue("greybus_recv", 0, 1);
+	if (!gb_operation_recv_workqueue) {
+		kmem_cache_destroy(gb_operation_cache);
+		gb_operation_cache = NULL;
+		return -ENOMEM;
+	}
 
 	return 0;
 }
 
 void gb_operation_exit(void)
 {
+	kmem_cache_destroy(gb_operation_cache);
+	gb_operation_cache = NULL;
 	destroy_workqueue(gb_operation_recv_workqueue);
+	gb_operation_recv_workqueue = NULL;
 }
