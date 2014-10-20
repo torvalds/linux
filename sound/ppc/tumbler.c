@@ -795,16 +795,11 @@ static int snapper_set_capture_source(struct pmac_tumbler *mix)
 static int snapper_info_capture_source(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[2] = {
+	static const char * const texts[2] = {
 		"Line", "Mic"
 	};
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 2;
-	if (uinfo->value.enumerated.item > 1)
-		uinfo->value.enumerated.item = 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+
+	return snd_ctl_enum_info(uinfo, 1, 2, texts);
 }
 
 static int snapper_get_capture_source(struct snd_kcontrol *kcontrol,
