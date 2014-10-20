@@ -1384,7 +1384,7 @@ lmv_out_free:
 		if (copy_from_user(lumv1, lumv1p, sizeof(*lumv1)))
 			return -EFAULT;
 
-		if ((lumv1->lmm_magic == LOV_USER_MAGIC_V3) ) {
+		if (lumv1->lmm_magic == LOV_USER_MAGIC_V3) {
 			if (copy_from_user(&lumv3, lumv3p, sizeof(lumv3)))
 				return -EFAULT;
 		}

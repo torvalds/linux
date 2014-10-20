@@ -709,7 +709,7 @@ static int vvp_io_fault_start(const struct lu_env *env,
 	}
 
 
-	if (fio->ft_mkwrite ) {
+	if (fio->ft_mkwrite) {
 		pgoff_t last_index;
 		/*
 		 * Capture the size while holding the lli_trunc_sem from above

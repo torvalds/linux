@@ -302,7 +302,7 @@ int capa_encrypt_id(__u32 *d, __u32 *s, __u8 *key, int keylen)
 
 	/* passing "aes" in a variable instead of a constant string keeps gcc
 	 * 4.3.2 happy */
-	tfm = crypto_alloc_blkcipher(alg, 0, 0 );
+	tfm = crypto_alloc_blkcipher(alg, 0, 0);
 	if (IS_ERR(tfm)) {
 		CERROR("failed to load transform for aes\n");
 		return PTR_ERR(tfm);
@@ -355,7 +355,7 @@ int capa_decrypt_id(__u32 *d, __u32 *s, __u8 *key, int keylen)
 
 	/* passing "aes" in a variable instead of a constant string keeps gcc
 	 * 4.3.2 happy */
-	tfm = crypto_alloc_blkcipher(alg, 0, 0 );
+	tfm = crypto_alloc_blkcipher(alg, 0, 0);
 	if (IS_ERR(tfm)) {
 		CERROR("failed to load transform for aes\n");
 		return PTR_ERR(tfm);
@@ -407,7 +407,7 @@ EXPORT_SYMBOL(capa_cpy);
 
 void _debug_capa(struct lustre_capa *c,
 		 struct libcfs_debug_msg_data *msgdata,
-		 const char *fmt, ... )
+		 const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
