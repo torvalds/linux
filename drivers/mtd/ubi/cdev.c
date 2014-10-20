@@ -48,13 +48,14 @@
 
 /**
  * get_exclusive - get exclusive access to an UBI volume.
+ * @ubi: UBI device description object
  * @desc: volume descriptor
  *
  * This function changes UBI volume open mode to "exclusive". Returns previous
  * mode value (positive integer) in case of success and a negative error code
  * in case of failure.
  */
-static int get_exclusive(struct ubi_volume_desc *desc)
+static int get_exclusive(struct ubi_device *ubi, struct ubi_volume_desc *desc)
 {
 	int users, err;
 	struct ubi_volume *vol = desc->vol;
@@ -63,7 +64,7 @@ static int get_exclusive(struct ubi_volume_desc *desc)
 	users = vol->readers + vol->writers + vol->exclusive;
 	ubi_assert(users > 0);
 	if (users > 1) {
-		ubi_err("%d users for volume %d", users, vol->vol_id);
+		ubi_err(ubi, "%d users for volume %d", users, vol->vol_id);
 		err = -EBUSY;
 	} else {
 		vol->readers = vol->writers = 0;
@@ -134,7 +135,7 @@ static int vol_cdev_release(struct inode *inode, struct file *file)
 		vol->ubi->ubi_num, vol->vol_id, desc->mode);
 
 	if (vol->updating) {
-		ubi_warn("update of volume %d not finished, volume is damaged",
+		ubi_warn(vol->ubi, "update of volume %d not finished, volume is damaged",
 			 vol->vol_id);
 		ubi_assert(!vol->changing_leb);
 		vol->updating = 0;
@@ -158,7 +159,7 @@ static loff_t vol_cdev_llseek(struct file *file, loff_t offset, int origin)
 
 	if (vol->updating) {
 		/* Update is in progress, seeking is prohibited */
-		ubi_err("updating");
+		ubi_err(vol->ubi, "updating");
 		return -EBUSY;
 	}
 
@@ -193,11 +194,11 @@ static ssize_t vol_cdev_read(struct file *file, __user char *buf, size_t count,
 		count, *offp, vol->vol_id);
 
 	if (vol->updating) {
-		ubi_err("updating");
+		ubi_err(vol->ubi, "updating");
 		return -EBUSY;
 	}
 	if (vol->upd_marker) {
-		ubi_err("damaged volume, update marker is set");
+		ubi_err(vol->ubi, "damaged volume, update marker is set");
 		return -EBADF;
 	}
 	if (*offp == vol->used_bytes || count == 0)
@@ -277,7 +278,7 @@ static ssize_t vol_cdev_direct_write(struct file *file, const char __user *buf,
 
 	lnum = div_u64_rem(*offp, vol->usable_leb_size, &off);
 	if (off & (ubi->min_io_size - 1)) {
-		ubi_err("unaligned position");
+		ubi_err(ubi, "unaligned position");
 		return -EINVAL;
 	}
 
@@ -286,7 +287,7 @@ static ssize_t vol_cdev_direct_write(struct file *file, const char __user *buf,
 
 	/* We can write only in fractions of the minimum I/O unit */
 	if (count & (ubi->min_io_size - 1)) {
-		ubi_err("unaligned write length");
+		ubi_err(ubi, "unaligned write length");
 		return -EINVAL;
 	}
 
@@ -348,7 +349,7 @@ static ssize_t vol_cdev_write(struct file *file, const char __user *buf,
 		err = ubi_more_leb_change_data(ubi, vol, buf, count);
 
 	if (err < 0) {
-		ubi_err("cannot accept more %zd bytes of data, error %d",
+		ubi_err(ubi, "cannot accept more %zd bytes of data, error %d",
 			count, err);
 		return err;
 	}
@@ -370,7 +371,7 @@ static ssize_t vol_cdev_write(struct file *file, const char __user *buf,
 			return err;
 
 		if (err) {
-			ubi_warn("volume %d on UBI device %d is corrupted",
+			ubi_warn(ubi, "volume %d on UBI device %d is corrupted",
 				 vol->vol_id, ubi->ubi_num);
 			vol->corrupted = 1;
 		}
@@ -420,7 +421,7 @@ static long vol_cdev_ioctl(struct file *file, unsigned int cmd,
 			break;
 		}
 
-		err = get_exclusive(desc);
+		err = get_exclusive(ubi, desc);
 		if (err < 0)
 			break;
 
@@ -456,7 +457,7 @@ static long vol_cdev_ioctl(struct file *file, unsigned int cmd,
 		    req.bytes < 0 || req.lnum >= vol->usable_leb_size)
 			break;
 
-		err = get_exclusive(desc);
+		err = get_exclusive(ubi, desc);
 		if (err < 0)
 			break;
 
@@ -642,7 +643,7 @@ static int verify_mkvol_req(const struct ubi_device *ubi,
 	return 0;
 
 bad:
-	ubi_err("bad volume creation request");
+	ubi_err(ubi, "bad volume creation request");
 	ubi_dump_mkvol_req(req);
 	return err;
 }
@@ -708,12 +709,12 @@ static int rename_volumes(struct ubi_device *ubi,
 	for (i = 0; i < req->count - 1; i++) {
 		for (n = i + 1; n < req->count; n++) {
 			if (req->ents[i].vol_id == req->ents[n].vol_id) {
-				ubi_err("duplicated volume id %d",
+				ubi_err(ubi, "duplicated volume id %d",
 					req->ents[i].vol_id);
 				return -EINVAL;
 			}
 			if (!strcmp(req->ents[i].name, req->ents[n].name)) {
-				ubi_err("duplicated volume name \"%s\"",
+				ubi_err(ubi, "duplicated volume name \"%s\"",
 					req->ents[i].name);
 				return -EINVAL;
 			}
@@ -736,7 +737,8 @@ static int rename_volumes(struct ubi_device *ubi,
 		re->desc = ubi_open_volume(ubi->ubi_num, vol_id, UBI_READWRITE);
 		if (IS_ERR(re->desc)) {
 			err = PTR_ERR(re->desc);
-			ubi_err("cannot open volume %d, error %d", vol_id, err);
+			ubi_err(ubi, "cannot open volume %d, error %d",
+				vol_id, err);
 			kfree(re);
 			goto out_free;
 		}
@@ -795,7 +797,7 @@ static int rename_volumes(struct ubi_device *ubi,
 				continue;
 
 			/* The volume exists but busy, or an error occurred */
-			ubi_err("cannot open volume \"%s\", error %d",
+			ubi_err(ubi, "cannot open volume \"%s\", error %d",
 				re->new_name, err);
 			goto out_free;
 		}
