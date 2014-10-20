@@ -675,3 +675,8 @@ int mmc_send_hpi_cmd(struct mmc_card *card, u32 *status)
 
 	return 0;
 }
+
+int mmc_can_ext_csd(struct mmc_card *card)
+{
+	return (card && card->csd.mmca_vsn > CSD_SPEC_VER_3);
+}
