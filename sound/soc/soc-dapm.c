@@ -909,7 +909,7 @@ static int is_connected_output_ep(struct snd_soc_dapm_widget *widget,
 
 		trace_snd_soc_dapm_output_path(widget, path);
 
-		if (path->sink && path->connect) {
+		if (path->connect) {
 			path->walked = 1;
 			path->walking = 1;
 
@@ -1017,7 +1017,7 @@ static int is_connected_input_ep(struct snd_soc_dapm_widget *widget,
 
 		trace_snd_soc_dapm_input_path(widget, path);
 
-		if (path->source && path->connect) {
+		if (path->connect) {
 			path->walked = 1;
 			path->walking = 1;
 
@@ -1217,9 +1217,6 @@ static int dapm_supply_check_power(struct snd_soc_dapm_widget *w)
 
 		if (path->connected &&
 		    !path->connected(path->source, path->sink))
-			continue;
-
-		if (!path->sink)
 			continue;
 
 		if (dapm_widget_power_check(path->sink))
@@ -1636,12 +1633,9 @@ static void dapm_widget_set_power(struct snd_soc_dapm_widget *w, bool power,
 	/* If we changed our power state perhaps our neigbours changed
 	 * also.
 	 */
-	list_for_each_entry(path, &w->sources, list_sink) {
-		if (path->source) {
-			dapm_widget_set_peer_power(path->source, power,
-						   path->connect);
-		}
-	}
+	list_for_each_entry(path, &w->sources, list_sink)
+		dapm_widget_set_peer_power(path->source, power, path->connect);
+
 	switch (w->id) {
 	case snd_soc_dapm_supply:
 	case snd_soc_dapm_regulator_supply:
@@ -1650,12 +1644,9 @@ static void dapm_widget_set_power(struct snd_soc_dapm_widget *w, bool power,
 		/* Supplies can't affect their outputs, only their inputs */
 		break;
 	default:
-		list_for_each_entry(path, &w->sinks, list_source) {
-			if (path->sink) {
-				dapm_widget_set_peer_power(path->sink, power,
-							   path->connect);
-			}
-		}
+		list_for_each_entry(path, &w->sinks, list_source)
+			dapm_widget_set_peer_power(path->sink, power,
+						   path->connect);
 		break;
 	}
 
