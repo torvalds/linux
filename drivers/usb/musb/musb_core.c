@@ -2362,7 +2362,6 @@ static struct platform_driver musb_driver = {
 	.driver = {
 		.name		= (char *)musb_driver_name,
 		.bus		= &platform_bus_type,
-		.owner		= THIS_MODULE,
 		.pm		= MUSB_DEV_PM_OPS,
 	},
 	.probe		= musb_probe,
