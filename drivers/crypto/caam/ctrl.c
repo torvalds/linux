@@ -720,7 +720,6 @@ MODULE_DEVICE_TABLE(of, caam_match);
 static struct platform_driver caam_driver = {
 	.driver = {
 		.name = "caam",
-		.owner = THIS_MODULE,
 		.of_match_table = caam_match,
 	},
 	.probe       = caam_probe,
