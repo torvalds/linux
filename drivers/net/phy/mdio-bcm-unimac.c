@@ -199,7 +199,6 @@ static struct of_device_id unimac_mdio_ids[] = {
 static struct platform_driver unimac_mdio_driver = {
 	.driver = {
 		.name = "unimac-mdio",
-		.owner = THIS_MODULE,
 		.of_match_table = unimac_mdio_ids,
 	},
 	.probe	= unimac_mdio_probe,
