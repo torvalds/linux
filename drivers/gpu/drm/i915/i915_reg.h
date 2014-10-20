@@ -664,7 +664,7 @@ enum punit_power_well {
  * need to be accessed during AUX communication,
  *
  * Generally the common lane corresponds to the pipe and
- * the spline (PCS/TX) correponds to the port.
+ * the spline (PCS/TX) corresponds to the port.
  *
  * For dual channel PHY (VLV/CHV):
  *

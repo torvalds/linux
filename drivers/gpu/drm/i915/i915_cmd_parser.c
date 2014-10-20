@@ -73,7 +73,7 @@
  * those commands required by the parser. This generally works because command
  * opcode ranges have standard command length encodings. So for commands that
  * the parser does not need to check, it can easily skip them. This is
- * implementated via a per-ring length decoding vfunc.
+ * implemented via a per-ring length decoding vfunc.
  *
  * Unfortunately, there are a number of commands that do not follow the standard
  * length encoding for their opcode range, primarily amongst the MI_* commands.
@@ -836,7 +836,7 @@ finish:
  * @ring: the ring in question
  *
  * Only certain platforms require software batch buffer command parsing, and
- * only when enabled via module paramter.
+ * only when enabled via module parameter.
  *
  * Return: true if the ring requires software command parsing
  */

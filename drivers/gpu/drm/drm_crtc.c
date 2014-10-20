@@ -3611,7 +3611,7 @@ static struct drm_property *property_create_range(struct drm_device *dev,
  * object with drm_object_attach_property. The returned property object must be
  * freed with drm_property_destroy.
  *
- * Userspace is allowed to set any interger value in the (min, max) range
+ * Userspace is allowed to set any integer value in the (min, max) range
  * inclusive.
  *
  * Returns:
