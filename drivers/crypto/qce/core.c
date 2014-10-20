@@ -273,7 +273,6 @@ static struct platform_driver qce_crypto_driver = {
 	.probe = qce_crypto_probe,
 	.remove = qce_crypto_remove,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = KBUILD_MODNAME,
 		.of_match_table = qce_crypto_of_match,
 	},
