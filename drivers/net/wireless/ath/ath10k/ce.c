@@ -1023,36 +1023,9 @@ ath10k_ce_alloc_dest_ring(struct ath10k *ar, unsigned int ce_id,
  * initialized by software/firmware.
  */
 int ath10k_ce_init_pipe(struct ath10k *ar, unsigned int ce_id,
-			const struct ce_attr *attr,
-			void (*send_cb)(struct ath10k_ce_pipe *),
-			void (*recv_cb)(struct ath10k_ce_pipe *))
+			const struct ce_attr *attr)
 {
-	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	struct ath10k_ce_pipe *ce_state = &ar_pci->ce_states[ce_id];
 	int ret;
-
-	/*
-	 * Make sure there's enough CE ringbuffer entries for HTT TX to avoid
-	 * additional TX locking checks.
-	 *
-	 * For the lack of a better place do the check here.
-	 */
-	BUILD_BUG_ON(2*TARGET_NUM_MSDU_DESC >
-		     (CE_HTT_H2T_MSG_SRC_NENTRIES - 1));
-	BUILD_BUG_ON(2*TARGET_10X_NUM_MSDU_DESC >
-		     (CE_HTT_H2T_MSG_SRC_NENTRIES - 1));
-
-	spin_lock_bh(&ar_pci->ce_lock);
-	ce_state->ar = ar;
-	ce_state->id = ce_id;
-	ce_state->ctrl_addr = ath10k_ce_base_address(ce_id);
-	ce_state->attr_flags = attr->flags;
-	ce_state->src_sz_max = attr->src_sz_max;
-	if (attr->src_nentries)
-		ce_state->send_cb = send_cb;
-	if (attr->dest_nentries)
-		ce_state->recv_cb = recv_cb;
-	spin_unlock_bh(&ar_pci->ce_lock);
 
 	if (attr->src_nentries) {
 		ret = ath10k_ce_init_src_ring(ar, ce_id, attr);
@@ -1101,11 +1074,36 @@ void ath10k_ce_deinit_pipe(struct ath10k *ar, unsigned int ce_id)
 }
 
 int ath10k_ce_alloc_pipe(struct ath10k *ar, int ce_id,
-			 const struct ce_attr *attr)
+			 const struct ce_attr *attr,
+			 void (*send_cb)(struct ath10k_ce_pipe *),
+			 void (*recv_cb)(struct ath10k_ce_pipe *))
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct ath10k_ce_pipe *ce_state = &ar_pci->ce_states[ce_id];
 	int ret;
+
+	/*
+	 * Make sure there's enough CE ringbuffer entries for HTT TX to avoid
+	 * additional TX locking checks.
+	 *
+	 * For the lack of a better place do the check here.
+	 */
+	BUILD_BUG_ON(2*TARGET_NUM_MSDU_DESC >
+		     (CE_HTT_H2T_MSG_SRC_NENTRIES - 1));
+	BUILD_BUG_ON(2*TARGET_10X_NUM_MSDU_DESC >
+		     (CE_HTT_H2T_MSG_SRC_NENTRIES - 1));
+
+	ce_state->ar = ar;
+	ce_state->id = ce_id;
+	ce_state->ctrl_addr = ath10k_ce_base_address(ce_id);
+	ce_state->attr_flags = attr->flags;
+	ce_state->src_sz_max = attr->src_sz_max;
+
+	if (attr->src_nentries)
+		ce_state->send_cb = send_cb;
+
+	if (attr->dest_nentries)
+		ce_state->recv_cb = recv_cb;
 
 	if (attr->src_nentries) {
 		ce_state->src_ring = ath10k_ce_alloc_src_ring(ar, ce_id, attr);
