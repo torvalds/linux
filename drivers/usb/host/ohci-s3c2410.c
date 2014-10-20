@@ -462,7 +462,6 @@ static struct platform_driver ohci_hcd_s3c2410_driver = {
 	.remove		= ohci_hcd_s3c2410_drv_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "s3c2410-ohci",
 		.pm	= &ohci_hcd_s3c2410_pm_ops,
 	},

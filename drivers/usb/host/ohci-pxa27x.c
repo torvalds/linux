@@ -610,7 +610,6 @@ static struct platform_driver ohci_hcd_pxa27x_driver = {
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver		= {
 		.name	= "pxa27x-ohci",
-		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(pxa_ohci_dt_ids),
 #ifdef CONFIG_PM
 		.pm	= &ohci_hcd_pxa27x_pm_ops,
