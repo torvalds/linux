@@ -18,7 +18,10 @@ struct gb_battery {
 	// we will want to keep the battery stats in here as we will be getting
 	// updates from the SVC "on the fly" so we don't have to always go ask
 	// the battery for some information.  Hopefully...
-	struct gb_module *gmod;
+	struct gb_connection *connection;
+	u8 version_major;
+	u8 version_minor;
+
 };
 #define to_gb_battery(x) container_of(x, struct gb_battery, bat)
 
@@ -111,8 +114,7 @@ static enum power_supply_property battery_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 };
 
-int gb_battery_probe(struct gb_module *gmod,
-		     const struct greybus_module_id *id)
+int gb_battery_device_init(struct gb_connection *connection)
 {
 	struct gb_battery *gb;
 	struct power_supply *b;
@@ -121,6 +123,8 @@ int gb_battery_probe(struct gb_module *gmod,
 	gb = kzalloc(sizeof(*gb), GFP_KERNEL);
 	if (!gb)
 		return -ENOMEM;
+
+	gb->connection = connection;	// FIXME refcount!
 
 	b = &gb->bat;
 	// FIXME - get a better (i.e. unique) name
@@ -131,12 +135,11 @@ int gb_battery_probe(struct gb_module *gmod,
 	b->num_properties	= ARRAY_SIZE(battery_props),
 	b->get_property		= get_property,
 
-	retval = power_supply_register(&gmod->dev, b);
+	retval = power_supply_register(&connection->interface->gmod->dev, b);
 	if (retval) {
 		kfree(gb);
 		return retval;
 	}
-	gmod->gb_battery = gb;
 
 	return 0;
 }
