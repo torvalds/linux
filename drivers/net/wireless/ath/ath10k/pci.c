@@ -2279,13 +2279,12 @@ static int ath10k_pci_wait_for_target_init(struct ath10k *ar)
 
 		if (ar_pci->num_msi_intrs == 0)
 			/* Fix potential race by repeating CORE_BASE writes */
-			ath10k_pci_write32(ar, SOC_CORE_BASE_ADDRESS +
-					   PCIE_INTR_ENABLE_ADDRESS,
-					   PCIE_INTR_FIRMWARE_MASK |
-					   PCIE_INTR_CE_MASK_ALL);
+			ath10k_pci_enable_legacy_irq(ar);
 
 		mdelay(10);
 	} while (time_before(jiffies, timeout));
+
+	ath10k_pci_disable_and_clear_legacy_irq(ar);
 
 	if (val == 0xffffffff) {
 		ath10k_err(ar, "failed to read device register, device is gone\n");
