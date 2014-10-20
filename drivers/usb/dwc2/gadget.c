@@ -3568,6 +3568,7 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 		s3c_hsotg_initep(hsotg, &hsotg->eps[epnum], epnum);
 
 	/* disable power and clock */
+	s3c_hsotg_phy_disable(hsotg);
 
 	ret = regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies),
 				    hsotg->supplies);
@@ -3575,8 +3576,6 @@ static int s3c_hsotg_probe(struct platform_device *pdev)
 		dev_err(hsotg->dev, "failed to disable supplies: %d\n", ret);
 		goto err_ep_mem;
 	}
-
-	s3c_hsotg_phy_disable(hsotg);
 
 	ret = usb_add_gadget_udc(&pdev->dev, &hsotg->gadget);
 	if (ret)
