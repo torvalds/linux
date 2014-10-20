@@ -1416,21 +1416,14 @@ static struct snd_kcontrol_new snd_echo_vmixer = {
 static int snd_echo_digital_mode_info(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_info *uinfo)
 {
-	static char *names[4] = {
+	static const char * const names[4] = {
 		"S/PDIF Coaxial", "S/PDIF Optical", "ADAT Optical",
 		"S/PDIF Cdrom"
 	};
 	struct echoaudio *chip;
 
 	chip = snd_kcontrol_chip(kcontrol);
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->value.enumerated.items = chip->num_digital_modes;
-	uinfo->count = 1;
-	if (uinfo->value.enumerated.item >= chip->num_digital_modes)
-		uinfo->value.enumerated.item = chip->num_digital_modes - 1;
-	strcpy(uinfo->value.enumerated.name, names[
-			chip->digital_mode_list[uinfo->value.enumerated.item]]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, chip->num_digital_modes, names);
 }
 
 static int snd_echo_digital_mode_get(struct snd_kcontrol *kcontrol,
@@ -1509,16 +1502,9 @@ static struct snd_kcontrol_new snd_echo_digital_mode_switch = {
 static int snd_echo_spdif_mode_info(struct snd_kcontrol *kcontrol,
 				    struct snd_ctl_elem_info *uinfo)
 {
-	static char *names[2] = {"Consumer", "Professional"};
+	static const char * const names[2] = {"Consumer", "Professional"};
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->value.enumerated.items = 2;
-	uinfo->count = 1;
-	if (uinfo->value.enumerated.item)
-		uinfo->value.enumerated.item = 1;
-	strcpy(uinfo->value.enumerated.name,
-	       names[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 2, names);
 }
 
 static int snd_echo_spdif_mode_get(struct snd_kcontrol *kcontrol,
@@ -1566,21 +1552,14 @@ static struct snd_kcontrol_new snd_echo_spdif_mode_switch = {
 static int snd_echo_clock_source_info(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_info *uinfo)
 {
-	static char *names[8] = {
+	static const char * const names[8] = {
 		"Internal", "Word", "Super", "S/PDIF", "ADAT", "ESync",
 		"ESync96", "MTC"
 	};
 	struct echoaudio *chip;
 
 	chip = snd_kcontrol_chip(kcontrol);
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->value.enumerated.items = chip->num_clock_sources;
-	uinfo->count = 1;
-	if (uinfo->value.enumerated.item >= chip->num_clock_sources)
-		uinfo->value.enumerated.item = chip->num_clock_sources - 1;
-	strcpy(uinfo->value.enumerated.name, names[
-			chip->clock_source_list[uinfo->value.enumerated.item]]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, chip->num_clock_sources, names);
 }
 
 static int snd_echo_clock_source_get(struct snd_kcontrol *kcontrol,
