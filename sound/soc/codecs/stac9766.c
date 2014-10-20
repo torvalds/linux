@@ -254,12 +254,6 @@ static int stac9766_reset(struct snd_soc_codec *codec, int try_warm)
 	return 0;
 }
 
-static int stac9766_codec_suspend(struct snd_soc_codec *codec)
-{
-	stac9766_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
 static int stac9766_codec_resume(struct snd_soc_codec *codec)
 {
 	u16 id, reset;
@@ -278,7 +272,6 @@ reset:
 		reset++;
 		goto reset;
 	}
-	stac9766_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	return 0;
 }
@@ -349,8 +342,6 @@ static int stac9766_codec_probe(struct snd_soc_codec *codec)
 		goto codec_err;
 	}
 
-	stac9766_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	snd_soc_add_codec_controls(codec, stac9766_snd_ac97_controls,
 			     ARRAY_SIZE(stac9766_snd_ac97_controls));
 
@@ -371,9 +362,9 @@ static struct snd_soc_codec_driver soc_codec_dev_stac9766 = {
 	.write = stac9766_ac97_write,
 	.read = stac9766_ac97_read,
 	.set_bias_level = stac9766_set_bias_level,
+	.suspend_bias_off = true,
 	.probe = stac9766_codec_probe,
 	.remove = stac9766_codec_remove,
-	.suspend = stac9766_codec_suspend,
 	.resume = stac9766_codec_resume,
 	.reg_cache_size = ARRAY_SIZE(stac9766_reg),
 	.reg_word_size = sizeof(u16),
