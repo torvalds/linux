@@ -125,17 +125,17 @@ out:
  */
 static __init int is_reserve_region(efi_memory_desc_t *md)
 {
-	if (!is_normal_ram(md))
+	switch (md->type) {
+	case EFI_LOADER_CODE:
+	case EFI_LOADER_DATA:
+	case EFI_BOOT_SERVICES_CODE:
+	case EFI_BOOT_SERVICES_DATA:
+	case EFI_CONVENTIONAL_MEMORY:
 		return 0;
-
-	if (md->attribute & EFI_MEMORY_RUNTIME)
-		return 1;
-
-	if (md->type == EFI_ACPI_RECLAIM_MEMORY ||
-	    md->type == EFI_RESERVED_TYPE)
-		return 1;
-
-	return 0;
+	default:
+		break;
+	}
+	return is_normal_ram(md);
 }
 
 static __init void reserve_regions(void)
