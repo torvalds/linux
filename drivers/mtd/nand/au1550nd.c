@@ -503,7 +503,6 @@ static int au1550nd_remove(struct platform_device *pdev)
 static struct platform_driver au1550nd_driver = {
 	.driver = {
 		.name	= "au1550-nand",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= au1550nd_probe,
 	.remove		= au1550nd_remove,

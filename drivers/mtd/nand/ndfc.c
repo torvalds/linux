@@ -277,7 +277,6 @@ MODULE_DEVICE_TABLE(of, ndfc_match);
 static struct platform_driver ndfc_driver = {
 	.driver = {
 		.name = "ndfc",
-		.owner = THIS_MODULE,
 		.of_match_table = ndfc_match,
 	},
 	.probe = ndfc_probe,

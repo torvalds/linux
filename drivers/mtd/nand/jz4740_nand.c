@@ -577,7 +577,6 @@ static struct platform_driver jz_nand_driver = {
 	.remove = jz_nand_remove,
 	.driver = {
 		.name = "jz4740-nand",
-		.owner = THIS_MODULE,
 	},
 };
 
