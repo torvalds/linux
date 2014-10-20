@@ -317,7 +317,7 @@ struct obd_device *class_newdev(const char *type_name, const char *name)
 					 result->obd_minor, new_obd_minor);
 
 				obd_devs[result->obd_minor] = NULL;
-				result->obd_name[0]='\0';
+				result->obd_name[0] = '\0';
 			 }
 			result = ERR_PTR(-EEXIST);
 			break;
