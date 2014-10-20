@@ -710,7 +710,6 @@ MODULE_DEVICE_TABLE(of, plgpio_of_match);
 static struct platform_driver plgpio_driver = {
 	.probe = plgpio_probe,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "spear-plgpio",
 		.pm = &plgpio_dev_pm_ops,
 		.of_match_table = plgpio_of_match,
