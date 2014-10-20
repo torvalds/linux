@@ -118,7 +118,6 @@ static int ipmmu_probe(struct platform_device *pdev)
 static struct platform_driver ipmmu_driver = {
 	.probe = ipmmu_probe,
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "ipmmu",
 	},
 };
