@@ -411,7 +411,6 @@ static int sudmac_remove(struct platform_device *pdev)
 
 static struct platform_driver sudmac_driver = {
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= SUDMAC_DRV_NAME,
 	},
 	.probe		= sudmac_probe,

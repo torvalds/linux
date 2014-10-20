@@ -367,7 +367,6 @@ static struct platform_driver audmapp_driver = {
 	.probe		= audmapp_probe,
 	.remove		= audmapp_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
 		.name	= "rcar-audmapp-engine",
 		.of_match_table = audmapp_of_match,
 	},
