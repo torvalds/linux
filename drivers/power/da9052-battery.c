@@ -656,7 +656,6 @@ static struct platform_driver da9052_bat_driver = {
 	.remove = da9052_bat_remove,
 	.driver = {
 		.name = "da9052-bat",
-		.owner = THIS_MODULE,
 	},
 };
 module_platform_driver(da9052_bat_driver);

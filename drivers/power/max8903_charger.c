@@ -368,7 +368,6 @@ static struct platform_driver max8903_driver = {
 	.remove	= max8903_remove,
 	.driver = {
 		.name	= "max8903-charger",
-		.owner	= THIS_MODULE,
 	},
 };
 

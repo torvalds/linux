@@ -579,7 +579,6 @@ static int da9030_battery_remove(struct platform_device *dev)
 static struct platform_driver da903x_battery_driver = {
 	.driver	= {
 		.name	= "da903x-battery",
-		.owner	= THIS_MODULE,
 	},
 	.probe = da9030_battery_probe,
 	.remove = da9030_battery_remove,

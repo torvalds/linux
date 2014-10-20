@@ -2156,7 +2156,6 @@ static struct platform_driver abx500_chargalg_driver = {
 	.resume = abx500_chargalg_resume,
 	.driver = {
 		.name = "ab8500-chargalg",
-		.owner = THIS_MODULE,
 		.of_match_table = ab8500_chargalg_match,
 	},
 };
