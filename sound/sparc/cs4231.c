@@ -2119,7 +2119,6 @@ MODULE_DEVICE_TABLE(of, cs4231_match);
 static struct platform_driver cs4231_driver = {
 	.driver = {
 		.name = "audio",
-		.owner = THIS_MODULE,
 		.of_match_table = cs4231_match,
 	},
 	.probe		= cs4231_probe,
