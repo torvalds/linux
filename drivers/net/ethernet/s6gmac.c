@@ -1048,7 +1048,6 @@ static struct platform_driver s6gmac_driver = {
 	.remove = s6gmac_remove,
 	.driver = {
 		.name = "s6gmac",
-		.owner = THIS_MODULE,
 	},
 };
 
