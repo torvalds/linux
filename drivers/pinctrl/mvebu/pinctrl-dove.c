@@ -851,7 +851,6 @@ static int dove_pinctrl_remove(struct platform_device *pdev)
 static struct platform_driver dove_pinctrl_driver = {
 	.driver = {
 		.name = "dove-pinctrl",
-		.owner = THIS_MODULE,
 		.of_match_table = dove_pinctrl_of_match,
 	},
 	.probe = dove_pinctrl_probe,
