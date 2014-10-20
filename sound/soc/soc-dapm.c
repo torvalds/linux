@@ -1169,38 +1169,6 @@ static int dapm_generic_check_power(struct snd_soc_dapm_widget *w)
 	return out != 0 && in != 0;
 }
 
-/* Check to see if an ADC has power */
-static int dapm_adc_check_power(struct snd_soc_dapm_widget *w)
-{
-	int in;
-
-	DAPM_UPDATE_STAT(w, power_checks);
-
-	if (w->active) {
-		in = is_connected_input_ep(w, NULL);
-		dapm_clear_walk_input(w->dapm, &w->sources);
-		return in != 0;
-	} else {
-		return dapm_generic_check_power(w);
-	}
-}
-
-/* Check to see if a DAC has power */
-static int dapm_dac_check_power(struct snd_soc_dapm_widget *w)
-{
-	int out;
-
-	DAPM_UPDATE_STAT(w, power_checks);
-
-	if (w->active) {
-		out = is_connected_output_ep(w, NULL);
-		dapm_clear_walk_output(w->dapm, &w->sinks);
-		return out != 0;
-	} else {
-		return dapm_generic_check_power(w);
-	}
-}
-
 /* Check to see if a power supply is needed */
 static int dapm_supply_check_power(struct snd_soc_dapm_widget *w)
 {
@@ -3086,12 +3054,6 @@ snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 	case snd_soc_dapm_mux:
 		w->power_check = dapm_generic_check_power;
 		break;
-	case snd_soc_dapm_dai_out:
-		w->power_check = dapm_adc_check_power;
-		break;
-	case snd_soc_dapm_dai_in:
-		w->power_check = dapm_dac_check_power;
-		break;
 	case snd_soc_dapm_adc:
 	case snd_soc_dapm_aif_out:
 	case snd_soc_dapm_dac:
@@ -3106,6 +3068,8 @@ snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 	case snd_soc_dapm_mic:
 	case snd_soc_dapm_line:
 	case snd_soc_dapm_dai_link:
+	case snd_soc_dapm_dai_out:
+	case snd_soc_dapm_dai_in:
 		w->power_check = dapm_generic_check_power;
 		break;
 	case snd_soc_dapm_supply:
