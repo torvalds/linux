@@ -635,7 +635,7 @@ static int apci3120_cancel(struct comedi_device *dev,
 	devpriv->ai_running = 0;
 	devpriv->b_InterruptMode = APCI3120_EOC_MODE;
 	devpriv->b_EocEosInterrupt = APCI3120_DISABLE;
-	apci3120_reset(dev);
+
 	return 0;
 }
 
