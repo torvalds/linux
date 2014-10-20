@@ -204,14 +204,14 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
-	/*  Allocate and Initialise DI Subdevice Structures */
+	/* Digital Input subdevice */
 	s = &dev->subdevices[2];
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON;
-	s->n_chan = 4;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = apci3120_di_insn_bits;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 4;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= apci3120_di_insn_bits;
 
 	/*  Allocate and Initialise DO Subdevice Structures */
 	s = &dev->subdevices[3];
