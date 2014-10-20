@@ -606,7 +606,6 @@ static struct platform_driver s6000_i2s_driver = {
 	.remove = s6000_i2s_remove,
 	.driver = {
 		.name   = "s6000-i2s",
-		.owner  = THIS_MODULE,
 	},
 };
 
