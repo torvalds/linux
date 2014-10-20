@@ -37,6 +37,20 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
+static bool
+format_is_yuv(uint32_t format)
+{
+	switch (format) {
+	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_UYVY:
+	case DRM_FORMAT_VYUY:
+	case DRM_FORMAT_YVYU:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static int usecs_to_scanlines(const struct drm_display_mode *mode, int usecs)
 {
 	/* paranoia */
@@ -320,6 +334,45 @@ skl_get_colorkey(struct drm_plane *drm_plane,
 }
 
 static void
+chv_update_csc(struct intel_plane *intel_plane, uint32_t format)
+{
+	struct drm_i915_private *dev_priv = intel_plane->base.dev->dev_private;
+	int plane = intel_plane->plane;
+
+	/* Seems RGB data bypasses the CSC always */
+	if (!format_is_yuv(format))
+		return;
+
+	/*
+	 * BT.601 limited range YCbCr -> full range RGB
+	 *
+	 * |r|   | 6537 4769     0|   |cr  |
+	 * |g| = |-3330 4769 -1605| x |y-64|
+	 * |b|   |    0 4769  8263|   |cb  |
+	 *
+	 * Cb and Cr apparently come in as signed already, so no
+	 * need for any offset. For Y we need to remove the offset.
+	 */
+	I915_WRITE(SPCSCYGOFF(plane), SPCSC_OOFF(0) | SPCSC_IOFF(-64));
+	I915_WRITE(SPCSCCBOFF(plane), SPCSC_OOFF(0) | SPCSC_IOFF(0));
+	I915_WRITE(SPCSCCROFF(plane), SPCSC_OOFF(0) | SPCSC_IOFF(0));
+
+	I915_WRITE(SPCSCC01(plane), SPCSC_C1(4769) | SPCSC_C0(6537));
+	I915_WRITE(SPCSCC23(plane), SPCSC_C1(-3330) | SPCSC_C0(0));
+	I915_WRITE(SPCSCC45(plane), SPCSC_C1(-1605) | SPCSC_C0(4769));
+	I915_WRITE(SPCSCC67(plane), SPCSC_C1(4769) | SPCSC_C0(0));
+	I915_WRITE(SPCSCC8(plane), SPCSC_C0(8263));
+
+	I915_WRITE(SPCSCYGICLAMP(plane), SPCSC_IMAX(940) | SPCSC_IMIN(64));
+	I915_WRITE(SPCSCCBICLAMP(plane), SPCSC_IMAX(448) | SPCSC_IMIN(-448));
+	I915_WRITE(SPCSCCRICLAMP(plane), SPCSC_IMAX(448) | SPCSC_IMIN(-448));
+
+	I915_WRITE(SPCSCYGOCLAMP(plane), SPCSC_OMAX(1023) | SPCSC_OMIN(0));
+	I915_WRITE(SPCSCCBOCLAMP(plane), SPCSC_OMAX(1023) | SPCSC_OMIN(0));
+	I915_WRITE(SPCSCCROCLAMP(plane), SPCSC_OMAX(1023) | SPCSC_OMIN(0));
+}
+
+static void
 vlv_update_plane(struct drm_plane *dplane, struct drm_crtc *crtc,
 		 struct drm_framebuffer *fb,
 		 struct drm_i915_gem_object *obj, int crtc_x, int crtc_y,
@@ -429,6 +482,9 @@ vlv_update_plane(struct drm_plane *dplane, struct drm_crtc *crtc,
 	atomic_update = intel_pipe_update_start(intel_crtc, &start_vbl_count);
 
 	intel_update_primary_plane(intel_crtc);
+
+	if (IS_CHERRYVIEW(dev) && pipe == PIPE_B)
+		chv_update_csc(intel_plane, fb->pixel_format);
 
 	I915_WRITE(SPSTRIDE(pipe, plane), fb->pitches[0]);
 	I915_WRITE(SPPOS(pipe, plane), (crtc_y << 16) | crtc_x);
@@ -1002,20 +1058,6 @@ ilk_get_colorkey(struct drm_plane *plane, struct drm_intel_sprite_colorkey *key)
 		key->flags = I915_SET_COLORKEY_SOURCE;
 	else
 		key->flags = I915_SET_COLORKEY_NONE;
-}
-
-static bool
-format_is_yuv(uint32_t format)
-{
-	switch (format) {
-	case DRM_FORMAT_YUYV:
-	case DRM_FORMAT_UYVY:
-	case DRM_FORMAT_VYUY:
-	case DRM_FORMAT_YVYU:
-		return true;
-	default:
-		return false;
-	}
 }
 
 static bool colorkey_enabled(struct intel_plane *intel_plane)

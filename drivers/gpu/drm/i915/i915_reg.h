@@ -4565,6 +4565,39 @@ enum punit_power_well {
 #define SPCONSTALPHA(pipe, plane) _PIPE(pipe * 2 + plane, _SPACONSTALPHA, _SPBCONSTALPHA)
 #define SPGAMC(pipe, plane) _PIPE(pipe * 2 + plane, _SPAGAMC, _SPBGAMC)
 
+/*
+ * CHV pipe B sprite CSC
+ *
+ * |cr|   |c0 c1 c2|   |cr + cr_ioff|   |cr_ooff|
+ * |yg| = |c3 c4 c5| x |yg + yg_ioff| + |yg_ooff|
+ * |cb|   |c6 c7 c8|   |cb + cr_ioff|   |cb_ooff|
+ */
+#define SPCSCYGOFF(sprite)	(VLV_DISPLAY_BASE + 0x6d900 + (sprite) * 0x1000)
+#define SPCSCCBOFF(sprite)	(VLV_DISPLAY_BASE + 0x6d904 + (sprite) * 0x1000)
+#define SPCSCCROFF(sprite)	(VLV_DISPLAY_BASE + 0x6d908 + (sprite) * 0x1000)
+#define  SPCSC_OOFF(x)		(((x) & 0x7ff) << 16) /* s11 */
+#define  SPCSC_IOFF(x)		(((x) & 0x7ff) << 0) /* s11 */
+
+#define SPCSCC01(sprite)	(VLV_DISPLAY_BASE + 0x6d90c + (sprite) * 0x1000)
+#define SPCSCC23(sprite)	(VLV_DISPLAY_BASE + 0x6d910 + (sprite) * 0x1000)
+#define SPCSCC45(sprite)	(VLV_DISPLAY_BASE + 0x6d914 + (sprite) * 0x1000)
+#define SPCSCC67(sprite)	(VLV_DISPLAY_BASE + 0x6d918 + (sprite) * 0x1000)
+#define SPCSCC8(sprite)		(VLV_DISPLAY_BASE + 0x6d91c + (sprite) * 0x1000)
+#define  SPCSC_C1(x)		(((x) & 0x7fff) << 16) /* s3.12 */
+#define  SPCSC_C0(x)		(((x) & 0x7fff) << 0) /* s3.12 */
+
+#define SPCSCYGICLAMP(sprite)	(VLV_DISPLAY_BASE + 0x6d920 + (sprite) * 0x1000)
+#define SPCSCCBICLAMP(sprite)	(VLV_DISPLAY_BASE + 0x6d924 + (sprite) * 0x1000)
+#define SPCSCCRICLAMP(sprite)	(VLV_DISPLAY_BASE + 0x6d928 + (sprite) * 0x1000)
+#define  SPCSC_IMAX(x)		(((x) & 0x7ff) << 16) /* s11 */
+#define  SPCSC_IMIN(x)		(((x) & 0x7ff) << 0) /* s11 */
+
+#define SPCSCYGOCLAMP(sprite)	(VLV_DISPLAY_BASE + 0x6d92c + (sprite) * 0x1000)
+#define SPCSCCBOCLAMP(sprite)	(VLV_DISPLAY_BASE + 0x6d930 + (sprite) * 0x1000)
+#define SPCSCCROCLAMP(sprite)	(VLV_DISPLAY_BASE + 0x6d934 + (sprite) * 0x1000)
+#define  SPCSC_OMAX(x)		((x) << 16) /* u10 */
+#define  SPCSC_OMIN(x)		((x) << 0) /* u10 */
+
 /* Skylake plane registers */
 
 #define _PLANE_CTL_1_A				0x70180
