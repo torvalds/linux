@@ -360,7 +360,6 @@ MODULE_DEVICE_TABLE(of, electra_cf_match);
 static struct platform_driver electra_cf_driver = {
 	.driver = {
 		.name = driver_name,
-		.owner = THIS_MODULE,
 		.of_match_table = electra_cf_match,
 	},
 	.probe	  = electra_cf_probe,

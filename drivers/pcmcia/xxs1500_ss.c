@@ -314,7 +314,6 @@ static int xxs1500_pcmcia_remove(struct platform_device *pdev)
 static struct platform_driver xxs1500_pcmcia_socket_driver = {
 	.driver	= {
 		.name	= "xxs1500_pcmcia",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= xxs1500_pcmcia_probe,
 	.remove		= xxs1500_pcmcia_remove,
