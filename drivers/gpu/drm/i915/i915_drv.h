@@ -460,7 +460,7 @@ struct drm_i915_display_funcs {
 	 * Returns true on success, false on failure.
 	 */
 	bool (*find_dpll)(const struct intel_limit *limit,
-			  struct drm_crtc *crtc,
+			  struct intel_crtc *crtc,
 			  int target, int refclk,
 			  struct dpll *match_clock,
 			  struct dpll *best_clock);
