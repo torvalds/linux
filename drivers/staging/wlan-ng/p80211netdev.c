@@ -358,7 +358,7 @@ static int p80211knetdev_hard_start_xmit(struct sk_buff *skb,
 		 * and return success .
 		 * TODO: we need a saner way to handle this
 		 */
-		if (skb->protocol != ETH_P_80211_RAW) {
+		if (be16_to_cpu(skb->protocol) != ETH_P_80211_RAW) {
 			netif_start_queue(wlandev->netdev);
 			netdev_notice(netdev, "Tx attempt prior to association, frame dropped.\n");
 			netdev->stats.tx_dropped++;
@@ -369,7 +369,7 @@ static int p80211knetdev_hard_start_xmit(struct sk_buff *skb,
 	}
 
 	/* Check for raw transmits */
-	if (skb->protocol == ETH_P_80211_RAW) {
+	if (be16_to_cpu(skb->protocol) == ETH_P_80211_RAW) {
 		if (!capable(CAP_NET_ADMIN)) {
 			result = 1;
 			goto failed;
