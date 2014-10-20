@@ -833,23 +833,6 @@ static struct snd_soc_dai_driver sta32x_dai = {
 	.ops = &sta32x_dai_ops,
 };
 
-#ifdef CONFIG_PM
-static int sta32x_suspend(struct snd_soc_codec *codec)
-{
-	sta32x_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-
-static int sta32x_resume(struct snd_soc_codec *codec)
-{
-	sta32x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	return 0;
-}
-#else
-#define sta32x_suspend NULL
-#define sta32x_resume NULL
-#endif
-
 static int sta32x_probe(struct snd_soc_codec *codec)
 {
 	struct sta32x_priv *sta32x = snd_soc_codec_get_drvdata(codec);
@@ -936,7 +919,6 @@ static int sta32x_remove(struct snd_soc_codec *codec)
 	struct sta32x_priv *sta32x = snd_soc_codec_get_drvdata(codec);
 
 	sta32x_watchdog_stop(sta32x);
-	sta32x_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	regulator_bulk_disable(ARRAY_SIZE(sta32x->supplies), sta32x->supplies);
 
 	return 0;
@@ -955,9 +937,8 @@ static bool sta32x_reg_is_volatile(struct device *dev, unsigned int reg)
 static const struct snd_soc_codec_driver sta32x_codec = {
 	.probe =		sta32x_probe,
 	.remove =		sta32x_remove,
-	.suspend =		sta32x_suspend,
-	.resume =		sta32x_resume,
 	.set_bias_level =	sta32x_set_bias_level,
+	.suspend_bias_off =	true,
 	.controls =		sta32x_snd_controls,
 	.num_controls =		ARRAY_SIZE(sta32x_snd_controls),
 	.dapm_widgets =		sta32x_dapm_widgets,
