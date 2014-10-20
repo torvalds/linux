@@ -1993,25 +1993,20 @@ EXPORT_SYMBOL(snd_wss_timer);
 static int snd_wss_info_mux(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[4] = {
+	static const char * const texts[4] = {
 		"Line", "Aux", "Mic", "Mix"
 	};
-	static char *opl3sa_texts[4] = {
+	static const char * const opl3sa_texts[4] = {
 		"Line", "CD", "Mic", "Mix"
 	};
-	static char *gusmax_texts[4] = {
+	static const char * const gusmax_texts[4] = {
 		"Line", "Synth", "Mic", "Mix"
 	};
-	char **ptexts = texts;
+	const char * const *ptexts = texts;
 	struct snd_wss *chip = snd_kcontrol_chip(kcontrol);
 
 	if (snd_BUG_ON(!chip->card))
 		return -EINVAL;
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 2;
-	uinfo->value.enumerated.items = 4;
-	if (uinfo->value.enumerated.item > 3)
-		uinfo->value.enumerated.item = 3;
 	if (!strcmp(chip->card->driver, "GUS MAX"))
 		ptexts = gusmax_texts;
 	switch (chip->hardware) {
@@ -2023,8 +2018,7 @@ static int snd_wss_info_mux(struct snd_kcontrol *kcontrol,
 		ptexts = opl3sa_texts;
 		break;
 	}
-	strcpy(uinfo->value.enumerated.name, ptexts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 2, 4, ptexts);
 }
 
 static int snd_wss_get_mux(struct snd_kcontrol *kcontrol,
