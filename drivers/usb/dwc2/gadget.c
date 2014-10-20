@@ -2880,6 +2880,7 @@ static int s3c_hsotg_udc_start(struct usb_gadget *gadget,
 			   struct usb_gadget_driver *driver)
 {
 	struct s3c_hsotg *hsotg = to_hsotg(gadget);
+	unsigned long flags;
 	int ret;
 
 	if (!hsotg) {
@@ -2918,7 +2919,13 @@ static int s3c_hsotg_udc_start(struct usb_gadget *gadget,
 
 	s3c_hsotg_phy_enable(hsotg);
 
+	spin_lock_irqsave(&hsotg->lock, flags);
+	s3c_hsotg_init(hsotg);
+	s3c_hsotg_core_init_disconnected(hsotg);
+	spin_unlock_irqrestore(&hsotg->lock, flags);
+
 	dev_info(hsotg->dev, "bound driver %s\n", driver->driver.name);
+
 	return 0;
 
 err:
@@ -2990,9 +2997,9 @@ static int s3c_hsotg_pullup(struct usb_gadget *gadget, int is_on)
 	spin_lock_irqsave(&hsotg->lock, flags);
 	if (is_on) {
 		clk_enable(hsotg->clk);
-		s3c_hsotg_core_init_disconnected(hsotg);
 		s3c_hsotg_core_connect(hsotg);
 	} else {
+		s3c_hsotg_core_disconnect(hsotg);
 		clk_disable(hsotg->clk);
 	}
 
