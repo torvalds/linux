@@ -563,7 +563,7 @@ static struct dentry *ll_lookup_it(struct inode *parent, struct dentry *dentry,
 	if ((it->it_op & IT_OPEN) && dentry->d_inode &&
 	    !S_ISREG(dentry->d_inode->i_mode) &&
 	    !S_ISDIR(dentry->d_inode->i_mode)) {
-		ll_release_openhandle(dentry, it);
+		ll_release_openhandle(dentry->d_inode, it);
 	}
 	ll_lookup_finish_locks(it, dentry);
 

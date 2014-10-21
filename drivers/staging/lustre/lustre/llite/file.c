@@ -430,7 +430,7 @@ static int ll_intent_file_open(struct dentry *dentry, void *lmm,
 		if (!it_disposition(itp, DISP_OPEN_OPEN) ||
 		     it_open_error(DISP_OPEN_OPEN, itp))
 			goto out;
-		ll_release_openhandle(dentry, itp);
+		ll_release_openhandle(inode, itp);
 		goto out;
 	}
 
@@ -620,7 +620,7 @@ restart:
 				goto out_openerr;
 			}
 
-			ll_release_openhandle(file->f_dentry, it);
+			ll_release_openhandle(inode, it);
 		}
 		(*och_usecount)++;
 
@@ -1366,7 +1366,7 @@ int ll_lov_setstripe_ea_info(struct inode *inode, struct dentry *dentry,
 	if (rc < 0)
 		goto out_req_free;
 
-	ll_release_openhandle(dentry, &oit);
+	ll_release_openhandle(inode, &oit);
 
 out_unlock:
 	ll_inode_size_unlock(inode);
@@ -1622,22 +1622,21 @@ int ll_put_grouplock(struct inode *inode, struct file *file, unsigned long arg)
 /**
  * Close inode open handle
  *
- * \param dentry [in]     dentry which contains the inode
+ * \param inode  [in]     inode in question
  * \param it     [in,out] intent which contains open info and result
  *
  * \retval 0     success
  * \retval <0    failure
  */
-int ll_release_openhandle(struct dentry *dentry, struct lookup_intent *it)
+int ll_release_openhandle(struct inode *inode, struct lookup_intent *it)
 {
-	struct inode *inode = dentry->d_inode;
 	struct obd_client_handle *och;
 	int rc;
 
 	LASSERT(inode);
 
 	/* Root ? Do nothing. */
-	if (dentry->d_inode->i_sb->s_root == dentry)
+	if (inode->i_sb->s_root->d_inode == inode)
 		return 0;
 
 	/* No open handle to close? Move away */

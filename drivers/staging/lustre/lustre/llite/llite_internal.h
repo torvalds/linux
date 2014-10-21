@@ -748,7 +748,7 @@ int ll_file_release(struct inode *inode, struct file *file);
 int ll_glimpse_ioctl(struct ll_sb_info *sbi,
 		     struct lov_stripe_md *lsm, lstat_t *st);
 void ll_ioepoch_open(struct ll_inode_info *lli, __u64 ioepoch);
-int ll_release_openhandle(struct dentry *, struct lookup_intent *);
+int ll_release_openhandle(struct inode *, struct lookup_intent *);
 int ll_md_real_close(struct inode *inode, fmode_t fmode);
 void ll_ioepoch_close(struct inode *inode, struct md_op_data *op_data,
 		      struct obd_client_handle **och, unsigned long flags);
