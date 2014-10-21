@@ -79,6 +79,7 @@ struct lpfc_iocbq {
 #define LPFC_FIP_ELS_ID_SHIFT	14
 
 #define LPFC_IO_OAS		0x10000 /* OAS FCP IO */
+#define LPFC_IO_FOF		0x20000 /* FOF FCP IO */
 
 	uint32_t drvrTimeout;	/* driver timeout in seconds */
 	uint32_t fcp_wqidx;	/* index to FCP work queue */

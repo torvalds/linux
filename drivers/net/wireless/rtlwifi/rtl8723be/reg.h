@@ -78,11 +78,11 @@
 #define REG_WOL_EVENT				0x0081
 #define REG_MCUTSTCFG				0x0084
 
-
 #define REG_HIMR				0x00B0
 #define REG_HISR				0x00B4
 #define REG_HIMRE				0x00B8
 #define REG_HISRE				0x00BC
+#define REG_PMC_DBG_CTRL2			0x00CC
 
 #define REG_EFUSE_ACCESS			0x00CF
 
@@ -95,7 +95,8 @@
 #define REG_HPON_FSM				0x00EC
 #define REG_SYS_CFG				0x00F0
 #define REG_GPIO_OUTSTS				0x00F4
-#define REG_SYS_CFG1				0x00F0
+#define REG_MAC_PHY_CTRL_NORMAL			0x00F8
+#define REG_SYS_CFG1				0x00FC
 #define REG_ROM_VERSION				0x00FD
 
 #define REG_CR					0x0100
@@ -170,8 +171,14 @@
 #define	REG_BKQ_DESA				0x0338
 #define	REG_RX_DESA				0x0340
 
-#define	REG_DBI					0x0348
-#define	REG_MDIO				0x0354
+#define	REG_DBI_WDATA				0x0348
+#define	REG_DBI_RDATA				0x034C
+#define	REG_DBI_CTRL				0x0350
+#define	REG_DBI_ADDR				0x0350
+#define	REG_DBI_FLAG				0x0352
+#define	REG_MDIO_WDATA				0x0354
+#define	REG_MDIO_RDATA				0x0356
+#define	REG_MDIO_CTL				0x0358
 #define	REG_DBG_SEL				0x0360
 #define	REG_PCIE_HRPWM				0x0361
 #define	REG_PCIE_HCPWM				0x0363
@@ -179,7 +186,6 @@
 #define	REG_WATCH_DOG				0x0368
 #define	REG_UART_TX_DESA			0x0370
 #define	REG_UART_RX_DESA			0x0378
-
 
 #define	REG_HDAQ_DESA_NODEF			0x0000
 #define	REG_CMDQ_DESA_NODEF			0x0000
@@ -192,7 +198,6 @@
 #define REG_HGQ_INFORMATION			0x0414
 #define REG_BCNQ_INFORMATION			0x0418
 #define REG_TXPKT_EMPTY				0x041A
-
 
 #define REG_CPU_MGQ_INFORMATION			0x041C
 #define REG_FWHW_TXQ_CTRL			0x0420
@@ -207,9 +212,7 @@
 #define REG_RARFRC				0x0438
 #define REG_RRSR				0x0440
 #define REG_ARFR0				0x0444
-#define REG_ARFR1				0x0448
-#define REG_ARFR2				0x044C
-#define REG_ARFR3				0x0450
+#define REG_ARFR1				0x044C
 #define REG_AMPDU_MAX_TIME			0x0456
 #define REG_AGGLEN_LMT				0x0458
 #define REG_AMPDU_MIN_SPACE			0x045C
@@ -223,7 +226,10 @@
 #define REG_POWER_STAGE2			0x04B8
 #define REG_PKT_LIFE_TIME			0x04C0
 #define REG_STBC_SETTING			0x04C4
+#define REG_HT_SINGLE_AMPDU			0x04C7
+
 #define REG_PROT_MODE_CTRL			0x04C8
+#define REG_MAX_AGGR_NUM			0x04CA
 #define REG_BAR_MODE_CTRL			0x04CC
 #define REG_RA_TRY_RATE_AGG_LMT			0x04CF
 #define REG_EARLY_MODE_CONTROL			0x04D0
@@ -303,6 +309,7 @@
 #define REG_EIFS				0x0642
 
 #define REG_NAV_CTRL				0x0650
+#define	REG_NAV_UPPER				0x0652
 #define REG_BACAMCMD				0x0654
 #define REG_BACAMCONTENT			0x0658
 #define REG_LBDLY				0x0660
@@ -355,43 +362,43 @@
 #define REG_NORMAL_SIE_MAC_ADDR			0xFE70
 #define REG_NORMAL_SIE_STRING			0xFE80
 
-#define	CR9346					REG_9346CR
-#define	MSR					(REG_CR + 2)
-#define	ISR					REG_HISR
-#define	TSFR					REG_TSFTR
+#define	CR9346				REG_9346CR
+#define	MSR				(REG_CR + 2)
+#define	ISR				REG_HISR
+#define	TSFR				REG_TSFTR
 
-#define	MACIDR0					REG_MACID
-#define	MACIDR4					(REG_MACID + 4)
+#define	MACIDR0				REG_MACID
+#define	MACIDR4				(REG_MACID + 4)
 
-#define PBP					REG_PBP
+#define PBP				REG_PBP
 
-#define	IDR0					MACIDR0
-#define	IDR4					MACIDR4
+#define	IDR0				MACIDR0
+#define	IDR4				MACIDR4
 
-#define	UNUSED_REGISTER				0x1BF
-#define	DCAM					UNUSED_REGISTER
-#define	PSR					UNUSED_REGISTER
-#define BBADDR					UNUSED_REGISTER
-#define	PHYDATAR				UNUSED_REGISTER
+#define	UNUSED_REGISTER			0x1BF
+#define	DCAM				UNUSED_REGISTER
+#define	PSR				UNUSED_REGISTER
+#define BBADDR				UNUSED_REGISTER
+#define	PHYDATAR			UNUSED_REGISTER
 
-#define	INVALID_BBRF_VALUE			0x12345678
+#define	INVALID_BBRF_VALUE		0x12345678
 
-#define	MAX_MSS_DENSITY_2T			0x13
-#define	MAX_MSS_DENSITY_1T			0x0A
+#define	MAX_MSS_DENSITY_2T		0x13
+#define	MAX_MSS_DENSITY_1T		0x0A
 
-#define	CMDEEPROM_EN				BIT(5)
-#define	CMDEEPROM_SEL				BIT(4)
-#define	CMD9346CR_9356SEL			BIT(4)
-#define	AUTOLOAD_EEPROM				(CMDEEPROM_EN | CMDEEPROM_SEL)
-#define	AUTOLOAD_EFUSE				CMDEEPROM_EN
+#define	CMDEEPROM_EN			BIT(5)
+#define	CMDEEPROM_SEL			BIT(4)
+#define	CMD9346CR_9356SEL		BIT(4)
+#define	AUTOLOAD_EEPROM			(CMDEEPROM_EN | CMDEEPROM_SEL)
+#define	AUTOLOAD_EFUSE			CMDEEPROM_EN
 
-#define	GPIOSEL_GPIO				0
-#define	GPIOSEL_ENBT				BIT(5)
+#define	GPIOSEL_GPIO			0
+#define	GPIOSEL_ENBT			BIT(5)
 
-#define	GPIO_IN					REG_GPIO_PIN_CTRL
-#define	GPIO_OUT				(REG_GPIO_PIN_CTRL + 1)
-#define	GPIO_IO_SEL				(REG_GPIO_PIN_CTRL + 2)
-#define	GPIO_MOD				(REG_GPIO_PIN_CTRL + 3)
+#define	GPIO_IN				REG_GPIO_PIN_CTRL
+#define	GPIO_OUT			(REG_GPIO_PIN_CTRL + 1)
+#define	GPIO_IO_SEL			(REG_GPIO_PIN_CTRL + 2)
+#define	GPIO_MOD			(REG_GPIO_PIN_CTRL + 3)
 
 /* 8723/8188E Host System Interrupt Mask Register (offset 0x58, 32 byte) */
 #define	HSIMR_GPIO12_0_INT_EN			BIT(0)
@@ -400,8 +407,7 @@
 #define	HSIMR_PDN_INT_EN			BIT(7)
 #define	HSIMR_GPIO9_INT_EN			BIT(25)
 
-/* 8723/8188E Host System Interrupt Status Register (offset 0x5C, 32 byte) */
-
+/*  8723/8188E Host System Interrupt Status Register (offset 0x5C, 32 byte) */
 #define	HSISR_GPIO12_0_INT			BIT(0)
 #define	HSISR_SPS_OCP_INT			BIT(5)
 #define	HSISR_RON_INT_EN			BIT(6)
@@ -412,7 +418,6 @@
 #define	MSR_ADHOC				0x01
 #define	MSR_INFRA				0x02
 #define	MSR_AP					0x03
-#define	MSR_MASK				0x03
 
 #define	RRSR_RSC_OFFSET				21
 #define	RRSR_SHORT_OFFSET			23
@@ -542,7 +547,8 @@
 
 /*********************************************
 *       8723BE IMR/ISR bits
-**********************************************/
+*********************************************
+*/
 #define	IMR_DISABLED				0x0
 /* IMR DW0(0x0060-0063) Bit 0-31 */
 #define	IMR_TXCCK		BIT(30)	/* TXRPT interrupt when
@@ -644,7 +650,7 @@
 #define RF_OPTION1				0x79
 #define RF_OPTION2				0x7A
 #define RF_OPTION3				0x7B
-#define RF_OPTION4				0xC3
+#define EEPROM_RF_BT_SETTING_8723B		0xC3
 
 #define EEPROM_DEFAULT_PID			0x1234
 #define EEPROM_DEFAULT_VID			0x5678
@@ -678,13 +684,10 @@
 #define EEPROM_CLK				0x06
 #define EEPROM_TESTR				0x08
 
-
 #define EEPROM_TXPOWERCCK			0x10
 #define	EEPROM_TXPOWERHT40_1S			0x16
 #define EEPROM_TXPOWERHT20DIFF			0x1B
 #define EEPROM_TXPOWER_OFDMDIFF			0x1B
-
-
 
 #define	EEPROM_TX_PWR_INX			0x10
 
@@ -1198,7 +1201,7 @@
 #define APP_MIC					BIT(30)
 #define APP_FCS					BIT(31)
 
-#define _MIN_SPACE(x)			((x) & 0x7)
+#define _MIN_SPACE(x)				((x) & 0x7)
 #define _SHORT_GI_PADDING(x)		(((x) & 0x1F) << 3)
 
 #define RXERR_TYPE_OFDM_PPDU		0
@@ -1216,105 +1219,105 @@
 #define RXERR_TYPE_HT_MPDU_FAIL		12
 #define RXERR_TYPE_RX_FULL_DROP		15
 
-#define RXERR_COUNTER_MASK		0xFFFFF
-#define RXERR_RPT_RST			BIT(27)
-#define _RXERR_RPT_SEL(type)		((type) << 28)
+#define RXERR_COUNTER_MASK			0xFFFFF
+#define RXERR_RPT_RST				BIT(27)
+#define _RXERR_RPT_SEL(type)			((type) << 28)
 
-#define	SCR_TXUSEDK			BIT(0)
-#define	SCR_RXUSEDK			BIT(1)
-#define	SCR_TXENCENABLE			BIT(2)
-#define	SCR_RXDECENABLE			BIT(3)
-#define	SCR_SKBYA2			BIT(4)
-#define	SCR_NOSKMC			BIT(5)
-#define SCR_TXBCUSEDK			BIT(6)
-#define SCR_RXBCUSEDK			BIT(7)
+#define	SCR_TXUSEDK				BIT(0)
+#define	SCR_RXUSEDK				BIT(1)
+#define	SCR_TXENCENABLE				BIT(2)
+#define	SCR_RXDECENABLE				BIT(3)
+#define	SCR_SKBYA2				BIT(4)
+#define	SCR_NOSKMC				BIT(5)
+#define SCR_TXBCUSEDK				BIT(6)
+#define SCR_RXBCUSEDK				BIT(7)
 
-#define XCLK_VLD			BIT(0)
-#define ACLK_VLD			BIT(1)
-#define UCLK_VLD			BIT(2)
-#define PCLK_VLD			BIT(3)
-#define PCIRSTB				BIT(4)
-#define V15_VLD				BIT(5)
-#define TRP_B15V_EN			BIT(7)
-#define SIC_IDLE			BIT(8)
-#define BD_MAC2				BIT(9)
-#define BD_MAC1				BIT(10)
-#define IC_MACPHY_MODE			BIT(11)
-#define BT_FUNC				BIT(16)
-#define VENDOR_ID			BIT(19)
-#define PAD_HWPD_IDN			BIT(22)
-#define TRP_VAUX_EN			BIT(23)
-#define TRP_BT_EN			BIT(24)
-#define BD_PKG_SEL			BIT(25)
-#define BD_HCI_SEL			BIT(26)
-#define TYPE_ID				BIT(27)
+#define XCLK_VLD				BIT(0)
+#define ACLK_VLD				BIT(1)
+#define UCLK_VLD				BIT(2)
+#define PCLK_VLD				BIT(3)
+#define PCIRSTB					BIT(4)
+#define V15_VLD					BIT(5)
+#define TRP_B15V_EN				BIT(7)
+#define SIC_IDLE				BIT(8)
+#define BD_MAC2					BIT(9)
+#define BD_MAC1					BIT(10)
+#define IC_MACPHY_MODE				BIT(11)
+#define BT_FUNC					BIT(16)
+#define VENDOR_ID				BIT(19)
+#define PAD_HWPD_IDN				BIT(22)
+#define TRP_VAUX_EN				BIT(23)
+#define TRP_BT_EN				BIT(24)
+#define BD_PKG_SEL				BIT(25)
+#define BD_HCI_SEL				BIT(26)
+#define TYPE_ID					BIT(27)
 
-#define USB_IS_HIGH_SPEED		0
-#define USB_IS_FULL_SPEED		1
-#define USB_SPEED_MASK			BIT(5)
+#define USB_IS_HIGH_SPEED			0
+#define USB_IS_FULL_SPEED			1
+#define USB_SPEED_MASK				BIT(5)
 
-#define USB_NORMAL_SIE_EP_MASK		0xF
-#define USB_NORMAL_SIE_EP_SHIFT		4
+#define USB_NORMAL_SIE_EP_MASK			0xF
+#define USB_NORMAL_SIE_EP_SHIFT			4
 
-#define USB_TEST_EP_MASK		0x30
-#define USB_TEST_EP_SHIFT		4
+#define USB_TEST_EP_MASK			0x30
+#define USB_TEST_EP_SHIFT			4
 
-#define USB_AGG_EN			BIT(3)
+#define USB_AGG_EN				BIT(3)
 
-#define MAC_ADDR_LEN			6
-#define LAST_ENTRY_OF_TX_PKT_BUFFER	175/*255    88e*/
+#define MAC_ADDR_LEN				6
+#define LAST_ENTRY_OF_TX_PKT_BUFFER		175/*255    88e*/
 
-#define POLLING_LLT_THRESHOLD		20
-#define POLLING_READY_TIMEOUT_COUNT	3000
+#define POLLING_LLT_THRESHOLD			20
+#define POLLING_READY_TIMEOUT_COUNT		3000
 
-#define	MAX_MSS_DENSITY_2T		0x13
-#define	MAX_MSS_DENSITY_1T		0x0A
+#define	MAX_MSS_DENSITY_2T			0x13
+#define	MAX_MSS_DENSITY_1T			0x0A
 
 #define EPROM_CMD_OPERATING_MODE_MASK	((1<<7)|(1<<6))
-#define EPROM_CMD_CONFIG		0x3
-#define EPROM_CMD_LOAD			1
+#define EPROM_CMD_CONFIG			0x3
+#define EPROM_CMD_LOAD				1
 
-#define	HWSET_MAX_SIZE_92S		HWSET_MAX_SIZE
+#define	HWSET_MAX_SIZE_92S			HWSET_MAX_SIZE
 
-#define	HAL_8192C_HW_GPIO_WPS_BIT	BIT(2)
+#define	HAL_8192C_HW_GPIO_WPS_BIT		BIT(2)
 
-#define	RPMAC_RESET			0x100
-#define	RPMAC_TXSTART			0x104
-#define	RPMAC_TXLEGACYSIG		0x108
-#define	RPMAC_TXHTSIG1			0x10c
-#define	RPMAC_TXHTSIG2			0x110
-#define	RPMAC_PHYDEBUG			0x114
-#define	RPMAC_TXPACKETNUM		0x118
-#define	RPMAC_TXIDLE			0x11c
-#define	RPMAC_TXMACHEADER0		0x120
-#define	RPMAC_TXMACHEADER1		0x124
-#define	RPMAC_TXMACHEADER2		0x128
-#define	RPMAC_TXMACHEADER3		0x12c
-#define	RPMAC_TXMACHEADER4		0x130
-#define	RPMAC_TXMACHEADER5		0x134
-#define	RPMAC_TXDADATYPE		0x138
-#define	RPMAC_TXRANDOMSEED		0x13c
-#define	RPMAC_CCKPLCPPREAMBLE		0x140
-#define	RPMAC_CCKPLCPHEADER		0x144
-#define	RPMAC_CCKCRC16			0x148
-#define	RPMAC_OFDMRXCRC32OK		0x170
-#define	RPMAC_OFDMRXCRC32ER		0x174
-#define	RPMAC_OFDMRXPARITYER		0x178
-#define	RPMAC_OFDMRXCRC8ER		0x17c
-#define	RPMAC_CCKCRXRC16ER		0x180
-#define	RPMAC_CCKCRXRC32ER		0x184
-#define	RPMAC_CCKCRXRC32OK		0x188
-#define	RPMAC_TXSTATUS			0x18c
+#define	RPMAC_RESET				0x100
+#define	RPMAC_TXSTART				0x104
+#define	RPMAC_TXLEGACYSIG			0x108
+#define	RPMAC_TXHTSIG1				0x10c
+#define	RPMAC_TXHTSIG2				0x110
+#define	RPMAC_PHYDEBUG				0x114
+#define	RPMAC_TXPACKETNUM			0x118
+#define	RPMAC_TXIDLE				0x11c
+#define	RPMAC_TXMACHEADER0			0x120
+#define	RPMAC_TXMACHEADER1			0x124
+#define	RPMAC_TXMACHEADER2			0x128
+#define	RPMAC_TXMACHEADER3			0x12c
+#define	RPMAC_TXMACHEADER4			0x130
+#define	RPMAC_TXMACHEADER5			0x134
+#define	RPMAC_TXDADATYPE			0x138
+#define	RPMAC_TXRANDOMSEED			0x13c
+#define	RPMAC_CCKPLCPPREAMBLE			0x140
+#define	RPMAC_CCKPLCPHEADER			0x144
+#define	RPMAC_CCKCRC16				0x148
+#define	RPMAC_OFDMRXCRC32OK			0x170
+#define	RPMAC_OFDMRXCRC32ER			0x174
+#define	RPMAC_OFDMRXPARITYER			0x178
+#define	RPMAC_OFDMRXCRC8ER			0x17c
+#define	RPMAC_CCKCRXRC16ER			0x180
+#define	RPMAC_CCKCRXRC32ER			0x184
+#define	RPMAC_CCKCRXRC32OK			0x188
+#define	RPMAC_TXSTATUS				0x18c
 
-#define	RFPGA0_RFMOD			0x800
+#define	RFPGA0_RFMOD				0x800
 
-#define	RFPGA0_TXINFO			0x804
-#define	RFPGA0_PSDFUNCTION		0x808
+#define	RFPGA0_TXINFO				0x804
+#define	RFPGA0_PSDFUNCTION			0x808
 
-#define	RFPGA0_TXGAINSTAGE		0x80c
+#define	RFPGA0_TXGAINSTAGE			0x80c
 
-#define	RFPGA0_RFTIMING1		0x810
-#define	RFPGA0_RFTIMING2		0x814
+#define	RFPGA0_RFTIMING1			0x810
+#define	RFPGA0_RFTIMING2			0x814
 
 #define	RFPGA0_XA_HSSIPARAMETER1	0x820
 #define	RFPGA0_XA_HSSIPARAMETER2	0x824
@@ -1385,7 +1388,6 @@
 #define	RCCK0_FACOUNTERUPPER		0xa58
 #define	RCCK0_CCA_CNT			0xa60
 
-
 /* PageB(0xB00) */
 #define	RPDP_ANTA			0xb00
 #define	RPDP_ANTA_4			0xb04
@@ -1399,7 +1401,7 @@
 #define	RPDP_ANTA_24			0xb24
 
 #define	RCONFIG_PMPD_ANTA		0xb28
-#define	CONFIG_RAM64X16			0xb2c
+#define	RCONFIG_ram64x16		0xb2c
 
 #define	RBNDA				0xb30
 #define	RHSSIPAR			0xb34
@@ -1493,7 +1495,6 @@
 #define	ROFDM0_TXPSEUDONOISEWGT		0xce4
 #define	ROFDM0_FRAMESYNC		0xcf0
 #define	ROFDM0_DFSREPORT		0xcf4
-
 
 #define	ROFDM1_LSTF			0xd00
 #define	ROFDM1_TRXPATHENABLE		0xd04
@@ -1593,144 +1594,144 @@
 #define	RSLEEP				0xee0
 #define	RPMPD_ANAEN			0xeec
 
-#define	RZEBRA1_HSSIENABLE		0x0
-#define	RZEBRA1_TRXENABLE1		0x1
-#define	RZEBRA1_TRXENABLE2		0x2
-#define	RZEBRA1_AGC			0x4
-#define	RZEBRA1_CHARGEPUMP		0x5
-#define	RZEBRA1_CHANNEL			0x7
+#define	RZEBRA1_HSSIENABLE			0x0
+#define	RZEBRA1_TRXENABLE1			0x1
+#define	RZEBRA1_TRXENABLE2			0x2
+#define	RZEBRA1_AGC				0x4
+#define	RZEBRA1_CHARGEPUMP			0x5
+#define	RZEBRA1_CHANNEL				0x7
 
-#define	RZEBRA1_TXGAIN			0x8
-#define	RZEBRA1_TXLPF			0x9
-#define	RZEBRA1_RXLPF			0xb
-#define	RZEBRA1_RXHPFCORNER		0xc
+#define	RZEBRA1_TXGAIN				0x8
+#define	RZEBRA1_TXLPF				0x9
+#define	RZEBRA1_RXLPF				0xb
+#define	RZEBRA1_RXHPFCORNER			0xc
 
-#define	RGLOBALCTRL			0
-#define	RRTL8256_TXLPF			19
-#define	RRTL8256_RXLPF			11
-#define	RRTL8258_TXLPF			0x11
-#define	RRTL8258_RXLPF			0x13
-#define	RRTL8258_RSSILPF		0xa
+#define	RGLOBALCTRL				0
+#define	RRTL8256_TXLPF				19
+#define	RRTL8256_RXLPF				11
+#define	RRTL8258_TXLPF				0x11
+#define	RRTL8258_RXLPF				0x13
+#define	RRTL8258_RSSILPF			0xa
 
-#define	RF_AC				0x00
+#define	RF_AC					0x00
 
-#define	RF_IQADJ_G1			0x01
-#define	RF_IQADJ_G2			0x02
-#define	RF_POW_TRSW			0x05
+#define	RF_IQADJ_G1				0x01
+#define	RF_IQADJ_G2				0x02
+#define	RF_POW_TRSW				0x05
 
-#define	RF_GAIN_RX			0x06
-#define	RF_GAIN_TX			0x07
+#define	RF_GAIN_RX				0x06
+#define	RF_GAIN_TX				0x07
 
-#define	RF_TXM_IDAC			0x08
-#define	RF_BS_IQGEN			0x0F
+#define	RF_TXM_IDAC				0x08
+#define	RF_BS_IQGEN				0x0F
 
-#define	RF_MODE1			0x10
-#define	RF_MODE2			0x11
+#define	RF_MODE1				0x10
+#define	RF_MODE2				0x11
 
-#define	RF_RX_AGC_HP			0x12
-#define	RF_TX_AGC			0x13
-#define	RF_BIAS				0x14
-#define	RF_IPA				0x15
-#define	RF_POW_ABILITY			0x17
-#define	RF_MODE_AG			0x18
-#define	RRFCHANNEL			0x18
-#define	RF_CHNLBW			0x18
-#define	RF_TOP				0x19
+#define	RF_RX_AGC_HP				0x12
+#define	RF_TX_AGC				0x13
+#define	RF_BIAS					0x14
+#define	RF_IPA					0x15
+#define	RF_POW_ABILITY				0x17
+#define	RF_MODE_AG				0x18
+#define	RRFCHANNEL				0x18
+#define	RF_CHNLBW				0x18
+#define	RF_TOP					0x19
 
-#define	RF_RX_G1			0x1A
-#define	RF_RX_G2			0x1B
+#define	RF_RX_G1				0x1A
+#define	RF_RX_G2				0x1B
 
-#define	RF_RX_BB2			0x1C
-#define	RF_RX_BB1			0x1D
+#define	RF_RX_BB2				0x1C
+#define	RF_RX_BB1				0x1D
 
-#define	RF_RCK1				0x1E
-#define	RF_RCK2				0x1F
+#define	RF_RCK1					0x1E
+#define	RF_RCK2					0x1F
 
-#define	RF_TX_G1			0x20
-#define	RF_TX_G2			0x21
-#define	RF_TX_G3			0x22
+#define	RF_TX_G1				0x20
+#define	RF_TX_G2				0x21
+#define	RF_TX_G3				0x22
 
-#define	RF_TX_BB1			0x23
-#define	RF_T_METER			0x42
+#define	RF_TX_BB1				0x23
+#define	RF_T_METER				0x42
 
-#define	RF_SYN_G1			0x25
-#define	RF_SYN_G2			0x26
-#define	RF_SYN_G3			0x27
-#define	RF_SYN_G4			0x28
-#define	RF_SYN_G5			0x29
-#define	RF_SYN_G6			0x2A
-#define	RF_SYN_G7			0x2B
-#define	RF_SYN_G8			0x2C
+#define	RF_SYN_G1				0x25
+#define	RF_SYN_G2				0x26
+#define	RF_SYN_G3				0x27
+#define	RF_SYN_G4				0x28
+#define	RF_SYN_G5				0x29
+#define	RF_SYN_G6				0x2A
+#define	RF_SYN_G7				0x2B
+#define	RF_SYN_G8				0x2C
 
-#define	RF_RCK_OS			0x30
-#define	RF_TXPA_G1			0x31
-#define	RF_TXPA_G2			0x32
-#define	RF_TXPA_G3			0x33
+#define	RF_RCK_OS				0x30
+#define	RF_TXPA_G1				0x31
+#define	RF_TXPA_G2				0x32
+#define	RF_TXPA_G3				0x33
 
-#define	RF_TX_BIAS_A			0x35
-#define	RF_TX_BIAS_D			0x36
-#define	RF_LOBF_9			0x38
-#define	RF_RXRF_A3			0x3C
-#define	RF_TRSW				0x3F
+#define	RF_TX_BIAS_A				0x35
+#define	RF_TX_BIAS_D				0x36
+#define	RF_LOBF_9				0x38
+#define	RF_RXRF_A3				0x3C
+#define	RF_TRSW					0x3F
 
-#define	RF_TXRF_A2			0x41
-#define	RF_TXPA_G4			0x46
-#define	RF_TXPA_A4			0x4B
+#define	RF_TXRF_A2				0x41
+#define	RF_TXPA_G4				0x46
+#define	RF_TXPA_A4				0x4B
 
-#define	RF_WE_LUT			0xEF
+#define	RF_WE_LUT				0xEF
 
-#define	BBBRESETB			0x100
-#define	BGLOBALRESETB			0x200
-#define	BOFDMTXSTART			0x4
-#define	BCCKTXSTART			0x8
-#define	BCRC32DEBUG			0x100
-#define	BPMACLOOPBACK			0x10
-#define	BTXLSIG				0xffffff
-#define	BOFDMTXRATE			0xf
-#define	BOFDMTXRESERVED			0x10
-#define	BOFDMTXLENGTH			0x1ffe0
-#define	BOFDMTXPARITY			0x20000
-#define	BTXHTSIG1			0xffffff
-#define	BTXHTMCSRATE			0x7f
-#define	BTXHTBW				0x80
-#define	BTXHTLENGTH			0xffff00
-#define	BTXHTSIG2			0xffffff
-#define	BTXHTSMOOTHING			0x1
-#define	BTXHTSOUNDING			0x2
-#define	BTXHTRESERVED			0x4
-#define	BTXHTAGGREATION			0x8
-#define	BTXHTSTBC			0x30
-#define	BTXHTADVANCECODING		0x40
-#define	BTXHTSHORTGI			0x80
-#define	BTXHTNUMBERHT_LTF		0x300
-#define	BTXHTCRC8			0x3fc00
-#define	BCOUNTERRESET			0x10000
-#define	BNUMOFOFDMTX			0xffff
-#define	BNUMOFCCKTX			0xffff0000
-#define	BTXIDLEINTERVAL			0xffff
-#define	BOFDMSERVICE			0xffff0000
-#define	BTXMACHEADER			0xffffffff
-#define	BTXDATAINIT			0xff
-#define	BTXHTMODE			0x100
-#define	BTXDATATYPE			0x30000
-#define	BTXRANDOMSEED			0xffffffff
-#define	BCCKTXPREAMBLE			0x1
-#define	BCCKTXSFD			0xffff0000
-#define	BCCKTXSIG			0xff
-#define	BCCKTXSERVICE			0xff00
-#define	BCCKLENGTHEXT			0x8000
-#define	BCCKTXLENGHT			0xffff0000
-#define	BCCKTXCRC16			0xffff
-#define	BCCKTXSTATUS			0x1
-#define	BOFDMTXSTATUS			0x2
+#define	BBBRESETB				0x100
+#define	BGLOBALRESETB				0x200
+#define	BOFDMTXSTART				0x4
+#define	BCCKTXSTART				0x8
+#define	BCRC32DEBUG				0x100
+#define	BPMACLOOPBACK				0x10
+#define	BTXLSIG					0xffffff
+#define	BOFDMTXRATE				0xf
+#define	BOFDMTXRESERVED				0x10
+#define	BOFDMTXLENGTH				0x1ffe0
+#define	BOFDMTXPARITY				0x20000
+#define	BTXHTSIG1				0xffffff
+#define	BTXHTMCSRATE				0x7f
+#define	BTXHTBW					0x80
+#define	BTXHTLENGTH				0xffff00
+#define	BTXHTSIG2				0xffffff
+#define	BTXHTSMOOTHING				0x1
+#define	BTXHTSOUNDING				0x2
+#define	BTXHTRESERVED				0x4
+#define	BTXHTAGGREATION				0x8
+#define	BTXHTSTBC				0x30
+#define	BTXHTADVANCECODING			0x40
+#define	BTXHTSHORTGI				0x80
+#define	BTXHTNUMBERHT_LTF			0x300
+#define	BTXHTCRC8				0x3fc00
+#define	BCOUNTERRESET				0x10000
+#define	BNUMOFOFDMTX				0xffff
+#define	BNUMOFCCKTX				0xffff0000
+#define	BTXIDLEINTERVAL				0xffff
+#define	BOFDMSERVICE				0xffff0000
+#define	BTXMACHEADER				0xffffffff
+#define	BTXDATAINIT				0xff
+#define	BTXHTMODE				0x100
+#define	BTXDATATYPE				0x30000
+#define	BTXRANDOMSEED				0xffffffff
+#define	BCCKTXPREAMBLE				0x1
+#define	BCCKTXSFD				0xffff0000
+#define	BCCKTXSIG				0xff
+#define	BCCKTXSERVICE				0xff00
+#define	BCCKLENGTHEXT				0x8000
+#define	BCCKTXLENGHT				0xffff0000
+#define	BCCKTXCRC16				0xffff
+#define	BCCKTXSTATUS				0x1
+#define	BOFDMTXSTATUS				0x2
 #define IS_BB_REG_OFFSET_92S(_offset)	\
 	((_offset >= 0x800) && (_offset <= 0xfff))
 
-#define	BRFMOD				0x1
-#define	BJAPANMODE			0x2
-#define	BCCKTXSC			0x30
-#define	BCCKEN				0x1000000
-#define	BOFDMEN				0x2000000
+#define	BRFMOD					0x1
+#define	BJAPANMODE				0x2
+#define	BCCKTXSC				0x30
+#define	BCCKEN					0x1000000
+#define	BOFDMEN					0x2000000
 
 #define	BOFDMRXADCPHASE			0x10000
 #define	BOFDMTXDACPHASE			0x40000
@@ -1824,13 +1825,13 @@
 #define	BDA6SWING			0x380000
 
 #define	BADCLKPHASE			0x4000000
-#define	B80MCLKDELAY	0x18000000
-#define	BAFEWATCHDOGENABLE	0x20000000
+#define	B80MCLKDELAY			0x18000000
+#define	BAFEWATCHDOGENABLE		0x20000000
 
-#define	BXTALCAP01	0xc0000000
-#define	BXTALCAP23	0x3
+#define	BXTALCAP01			0xc0000000
+#define	BXTALCAP23			0x3
 #define	BXTALCAP92X			0x0f000000
-#define BXTALCAP	0x0f000000
+#define BXTALCAP			0x0f000000
 
 #define	BINTDIFCLKENABLE		0x400
 #define	BEXTSIGCLKENABLE		0x800
@@ -1857,7 +1858,7 @@
 #define	BCCKRX_AGC_FORMAT		0x200
 #define	BPSDFFT_SAMPLE_POINT		0xc000
 #define	BPSD_AVERAGE_NUM		0x3000
-#define	BIQPATH_CONTROL	0xc00
+#define	BIQPATH_CONTROL			0xc00
 #define	BPSD_FREQ			0x3ff
 #define	BPSD_ANTENNA_PATH		0x30
 #define	BPSD_IQ_SWITCH			0x40
@@ -1957,300 +1958,316 @@
 #define	BCCK_DEFAULT_RXPATH		0xc000000
 #define	BCCK_OPTION_RXPATH		0x3000000
 
-#define	BNUM_OFSTF	0x3
-#define	BSHIFT_L	0xc0
-#define	BGI_TH	0xc
-#define	BRXPATH_A	0x1
-#define	BRXPATH_B	0x2
-#define	BRXPATH_C	0x4
-#define	BRXPATH_D	0x8
-#define	BTXPATH_A	0x1
-#define	BTXPATH_B	0x2
-#define	BTXPATH_C	0x4
-#define	BTXPATH_D	0x8
-#define	BTRSSI_FREQ	0x200
-#define	BADC_BACKOFF	0x3000
-#define	BDFIR_BACKOFF	0xc000
-#define	BTRSSI_LATCH_PHASE	0x10000
-#define	BRX_LDC_OFFSET	0xff
-#define	BRX_QDC_OFFSET	0xff00
-#define	BRX_DFIR_MODE	0x1800000
-#define	BRX_DCNF_TYPE	0xe000000
-#define	BRXIQIMB_A	0x3ff
-#define	BRXIQIMB_B	0xfc00
-#define	BRXIQIMB_C	0x3f0000
-#define	BRXIQIMB_D	0xffc00000
-#define	BDC_DC_NOTCH	0x60000
-#define	BRXNB_NOTCH	0x1f000000
-#define	BPD_TH	0xf
-#define	BPD_TH_OPT2	0xc000
-#define	BPWED_TH	0x700
-#define	BIFMF_WIN_L	0x800
-#define	BPD_OPTION	0x1000
-#define	BMF_WIN_L	0xe000
-#define	BBW_SEARCH_L	0x30000
-#define	BWIN_ENH_L	0xc0000
-#define	BBW_TH	0x700000
-#define	BED_TH2	0x3800000
-#define	BBW_OPTION	0x4000000
-#define	BRADIO_TH	0x18000000
-#define	BWINDOW_L	0xe0000000
-#define	BSBD_OPTION	0x1
-#define	BFRAME_TH	0x1c
-#define	BFS_OPTION	0x60
-#define	BDC_SLOPE_CHECK	0x80
-#define	BFGUARD_COUNTER_DC_L	0xe00
-#define	BFRAME_WEIGHT_SHORT	0x7000
-#define	BSUB_TUNE	0xe00000
-#define	BFRAME_DC_LENGTH	0xe000000
-#define	BSBD_START_OFFSET	0x30000000
-#define	BFRAME_TH_2	0x7
-#define	BFRAME_GI2_TH	0x38
-#define	BGI2_SYNC_EN	0x40
-#define	BSARCH_SHORT_EARLY	0x300
-#define	BSARCH_SHORT_LATE	0xc00
-#define	BSARCH_GI2_LATE	0x70000
-#define	BCFOANTSUM	0x1
-#define	BCFOACC	0x2
-#define	BCFOSTARTOFFSET	0xc
-#define	BCFOLOOPBACK	0x70
-#define	BCFOSUMWEIGHT	0x80
-#define	BDAGCENABLE	0x10000
-#define	BTXIQIMB_A	0x3ff
-#define	BTXIQIMB_b	0xfc00
-#define	BTXIQIMB_C	0x3f0000
-#define	BTXIQIMB_D	0xffc00000
-#define	BTXIDCOFFSET	0xff
-#define	BTXIQDCOFFSET	0xff00
-#define	BTXDFIRMODE	0x10000
-#define	BTXPESUDO_NOISEON	0x4000000
-#define	BTXPESUDO_NOISE_A	0xff
-#define	BTXPESUDO_NOISE_B	0xff00
-#define	BTXPESUDO_NOISE_C	0xff0000
-#define	BTXPESUDO_NOISE_D	0xff000000
-#define	BCCA_DROPOPTION	0x20000
-#define	BCCA_DROPTHRES	0xfff00000
-#define	BEDCCA_H	0xf
-#define	BEDCCA_L	0xf0
-#define	BLAMBDA_ED	0x300
-#define	BRX_INITIALGAIN	0x7f
-#define	BRX_ANTDIV_EN	0x80
+#define	BNUM_OFSTF			0x3
+#define	BSHIFT_L			0xc0
+#define	BGI_TH				0xc
+#define	BRXPATH_A			0x1
+#define	BRXPATH_B			0x2
+#define	BRXPATH_C			0x4
+#define	BRXPATH_D			0x8
+#define	BTXPATH_A			0x1
+#define	BTXPATH_B			0x2
+#define	BTXPATH_C			0x4
+#define	BTXPATH_D			0x8
+#define	BTRSSI_FREQ			0x200
+#define	BADC_BACKOFF			0x3000
+#define	BDFIR_BACKOFF			0xc000
+#define	BTRSSI_LATCH_PHASE		0x10000
+#define	BRX_LDC_OFFSET			0xff
+#define	BRX_QDC_OFFSET			0xff00
+#define	BRX_DFIR_MODE			0x1800000
+#define	BRX_DCNF_TYPE			0xe000000
+#define	BRXIQIMB_A			0x3ff
+#define	BRXIQIMB_B			0xfc00
+#define	BRXIQIMB_C			0x3f0000
+#define	BRXIQIMB_D			0xffc00000
+#define	BDC_DC_NOTCH			0x60000
+#define	BRXNB_NOTCH			0x1f000000
+#define	BPD_TH				0xf
+#define	BPD_TH_OPT2			0xc000
+#define	BPWED_TH			0x700
+#define	BIFMF_WIN_L			0x800
+#define	BPD_OPTION			0x1000
+#define	BMF_WIN_L			0xe000
+#define	BBW_SEARCH_L			0x30000
+#define	BWIN_ENH_L			0xc0000
+#define	BBW_TH				0x700000
+#define	BED_TH2				0x3800000
+#define	BBW_OPTION			0x4000000
+#define	BRADIO_TH			0x18000000
+#define	BWINDOW_L			0xe0000000
+#define	BSBD_OPTION			0x1
+#define	BFRAME_TH			0x1c
+#define	BFS_OPTION			0x60
+#define	BDC_SLOPE_CHECK			0x80
+#define	BFGUARD_COUNTER_DC_L		0xe00
+#define	BFRAME_WEIGHT_SHORT		0x7000
+#define	BSUB_TUNE			0xe00000
+#define	BFRAME_DC_LENGTH		0xe000000
+#define	BSBD_START_OFFSET		0x30000000
+#define	BFRAME_TH_2			0x7
+#define	BFRAME_GI2_TH			0x38
+#define	BGI2_SYNC_EN			0x40
+#define	BSARCH_SHORT_EARLY		0x300
+#define	BSARCH_SHORT_LATE		0xc00
+#define	BSARCH_GI2_LATE			0x70000
+#define	BCFOANTSUM			0x1
+#define	BCFOACC				0x2
+#define	BCFOSTARTOFFSET			0xc
+#define	BCFOLOOPBACK			0x70
+#define	BCFOSUMWEIGHT			0x80
+#define	BDAGCENABLE			0x10000
+#define	BTXIQIMB_A			0x3ff
+#define	BTXIQIMB_b			0xfc00
+#define	BTXIQIMB_C			0x3f0000
+#define	BTXIQIMB_D			0xffc00000
+#define	BTXIDCOFFSET			0xff
+#define	BTXIQDCOFFSET			0xff00
+#define	BTXDFIRMODE			0x10000
+#define	BTXPESUDO_NOISEON		0x4000000
+#define	BTXPESUDO_NOISE_A		0xff
+#define	BTXPESUDO_NOISE_B		0xff00
+#define	BTXPESUDO_NOISE_C		0xff0000
+#define	BTXPESUDO_NOISE_D		0xff000000
+#define	BCCA_DROPOPTION			0x20000
+#define	BCCA_DROPTHRES			0xfff00000
+#define	BEDCCA_H			0xf
+#define	BEDCCA_L			0xf0
+#define	BLAMBDA_ED			0x300
+#define	BRX_INITIALGAIN			0x7f
+#define	BRX_ANTDIV_EN			0x80
 #define	BRX_AGC_ADDRESS_FOR_LNA		0x7f00
-#define	BRX_HIGHPOWER_FLOW	0x8000
+#define	BRX_HIGHPOWER_FLOW		0x8000
 #define	BRX_AGC_FREEZE_THRES		0xc0000
-#define	BRX_FREEZESTEP_AGC1	0x300000
-#define	BRX_FREEZESTEP_AGC2	0xc00000
-#define	BRX_FREEZESTEP_AGC3	0x3000000
-#define	BRX_FREEZESTEP_AGC0	0xc000000
-#define	BRXRSSI_CMP_EN	0x10000000
-#define	BRXQUICK_AGCEN	0x20000000
+#define	BRX_FREEZESTEP_AGC1		0x300000
+#define	BRX_FREEZESTEP_AGC2		0xc00000
+#define	BRX_FREEZESTEP_AGC3		0x3000000
+#define	BRX_FREEZESTEP_AGC0		0xc000000
+#define	BRXRSSI_CMP_EN			0x10000000
+#define	BRXQUICK_AGCEN			0x20000000
 #define	BRXAGC_FREEZE_THRES_MODE	0x40000000
-#define	BRX_OVERFLOW_CHECKTYPE	0x80000000
-#define	BRX_AGCSHIFT	0x7f
-#define	BTRSW_TRI_ONLY	0x80
-#define	BPOWER_THRES	0x300
-#define	BRXAGC_EN	0x1
-#define	BRXAGC_TOGETHER_EN	0x2
-#define	BRXAGC_MIN	0x4
-#define	BRXHP_INI	0x7
-#define	BRXHP_TRLNA	0x70
-#define	BRXHP_RSSI	0x700
-#define	BRXHP_BBP1	0x7000
-#define	BRXHP_BBP2	0x70000
-#define	BRXHP_BBP3	0x700000
-#define	BRSSI_H	0x7f0000
-#define	BRSSI_GEN	0x7f000000
-#define	BRXSETTLE_TRSW	0x7
-#define	BRXSETTLE_LNA	0x38
-#define	BRXSETTLE_RSSI	0x1c0
-#define	BRXSETTLE_BBP	0xe00
-#define	BRXSETTLE_RXHP	0x7000
-#define	BRXSETTLE_ANTSW_RSSI	0x38000
-#define	BRXSETTLE_ANTSW	0xc0000
-#define	BRXPROCESS_TIME_DAGC	0x300000
-#define	BRXSETTLE_HSSI	0x400000
-#define	BRXPROCESS_TIME_BBPPW	0x800000
-#define	BRXANTENNA_POWER_SHIFT	0x3000000
-#define	BRSSI_TABLE_SELECT	0xc000000
-#define	BRXHP_FINAL	0x7000000
-#define	BRXHPSETTLE_BBP	0x7
-#define	BRXHTSETTLE_HSSI	0x8
-#define	BRXHTSETTLE_RXHP	0x70
-#define	BRXHTSETTLE_BBPPW	0x80
-#define	BRXHTSETTLE_IDLE	0x300
-#define	BRXHTSETTLE_RESERVED	0x1c00
-#define	BRXHT_RXHP_EN	0x8000
-#define	BRXAGC_FREEZE_THRES	0x30000
-#define	BRXAGC_TOGETHEREN	0x40000
-#define	BRXHTAGC_MIN	0x80000
-#define	BRXHTAGC_EN	0x100000
-#define	BRXHTDAGC_EN	0x200000
-#define	BRXHT_RXHP_BBP	0x1c00000
-#define	BRXHT_RXHP_FINAL	0xe0000000
-#define	BRXPW_RADIO_TH	0x3
-#define	BRXPW_RADIO_EN	0x4
-#define	BRXMF_HOLD	0x3800
-#define	BRXPD_DELAY_TH1	0x38
-#define	BRXPD_DELAY_TH2	0x1c0
-#define	BRXPD_DC_COUNT_MAX	0x600
-#define	BRXPD_DELAY_TH	0x8000
-#define	BRXPROCESS_DELAY	0xf0000
+#define	BRX_OVERFLOW_CHECKTYPE		0x80000000
+#define	BRX_AGCSHIFT			0x7f
+#define	BTRSW_TRI_ONLY			0x80
+#define	BPOWER_THRES			0x300
+#define	BRXAGC_EN			0x1
+#define	BRXAGC_TOGETHER_EN		0x2
+#define	BRXAGC_MIN			0x4
+#define	BRXHP_INI			0x7
+#define	BRXHP_TRLNA			0x70
+#define	BRXHP_RSSI			0x700
+#define	BRXHP_BBP1			0x7000
+#define	BRXHP_BBP2			0x70000
+#define	BRXHP_BBP3			0x700000
+#define	BRSSI_H				0x7f0000
+#define	BRSSI_GEN			0x7f000000
+#define	BRXSETTLE_TRSW			0x7
+#define	BRXSETTLE_LNA			0x38
+#define	BRXSETTLE_RSSI			0x1c0
+#define	BRXSETTLE_BBP			0xe00
+#define	BRXSETTLE_RXHP			0x7000
+#define	BRXSETTLE_ANTSW_RSSI		0x38000
+#define	BRXSETTLE_ANTSW			0xc0000
+#define	BRXPROCESS_TIME_DAGC		0x300000
+#define	BRXSETTLE_HSSI			0x400000
+#define	BRXPROCESS_TIME_BBPPW		0x800000
+#define	BRXANTENNA_POWER_SHIFT		0x3000000
+#define	BRSSI_TABLE_SELECT		0xc000000
+#define	BRXHP_FINAL			0x7000000
+#define	BRXHPSETTLE_BBP			0x7
+#define	BRXHTSETTLE_HSSI		0x8
+#define	BRXHTSETTLE_RXHP		0x70
+#define	BRXHTSETTLE_BBPPW		0x80
+#define	BRXHTSETTLE_IDLE		0x300
+#define	BRXHTSETTLE_RESERVED		0x1c00
+#define	BRXHT_RXHP_EN			0x8000
+#define	BRXAGC_FREEZE_THRES		0x30000
+#define	BRXAGC_TOGETHEREN		0x40000
+#define	BRXHTAGC_MIN			0x80000
+#define	BRXHTAGC_EN			0x100000
+#define	BRXHTDAGC_EN			0x200000
+#define	BRXHT_RXHP_BBP			0x1c00000
+#define	BRXHT_RXHP_FINAL		0xe0000000
+#define	BRXPW_RADIO_TH			0x3
+#define	BRXPW_RADIO_EN			0x4
+#define	BRXMF_HOLD			0x3800
+#define	BRXPD_DELAY_TH1			0x38
+#define	BRXPD_DELAY_TH2			0x1c0
+#define	BRXPD_DC_COUNT_MAX		0x600
+#define	BRXPD_DELAY_TH			0x8000
+#define	BRXPROCESS_DELAY		0xf0000
 #define	BRXSEARCHRANGE_GI2_EARLY	0x700000
 #define	BRXFRAME_FUARD_COUNTER_L	0x3800000
-#define	BRXSGI_GUARD_L	0xc000000
-#define	BRXSGI_SEARCH_L	0x30000000
-#define	BRXSGI_TH	0xc0000000
-#define	BDFSCNT0	0xff
-#define	BDFSCNT1	0xff00
-#define	BDFSFLAG	0xf0000
-#define	BMF_WEIGHT_SUM	0x300000
-#define	BMINIDX_TH	0x7f000000
-#define	BDAFORMAT	0x40000
-#define	BTXCH_EMU_ENABLE	0x01000000
-#define	BTRSW_ISOLATION_A	0x7f
-#define	BTRSW_ISOLATION_B	0x7f00
-#define	BTRSW_ISOLATION_C	0x7f0000
-#define	BTRSW_ISOLATION_D	0x7f000000
-#define	BEXT_LNA_GAIN	0x7c00
+#define	BRXSGI_GUARD_L			0xc000000
+#define	BRXSGI_SEARCH_L			0x30000000
+#define	BRXSGI_TH			0xc0000000
+#define	BDFSCNT0			0xff
+#define	BDFSCNT1			0xff00
+#define	BDFSFLAG			0xf0000
+#define	BMF_WEIGHT_SUM			0x300000
+#define	BMINIDX_TH			0x7f000000
+#define	BDAFORMAT			0x40000
+#define	BTXCH_EMU_ENABLE		0x01000000
+#define	BTRSW_ISOLATION_A		0x7f
+#define	BTRSW_ISOLATION_B		0x7f00
+#define	BTRSW_ISOLATION_C		0x7f0000
+#define	BTRSW_ISOLATION_D		0x7f000000
+#define	BEXT_LNA_GAIN			0x7c00
 
-#define	BSTBC_EN	0x4
-#define	BANTENNA_MAPPING	0x10
-#define	BNSS	0x20
+#define	BSTBC_EN			0x4
+#define	BANTENNA_MAPPING		0x10
+#define	BNSS				0x20
 #define	BCFO_ANTSUM_ID			0x200
-#define	BPHY_COUNTER_RESET	0x8000000
-#define	BCFO_REPORT_GET	0x4000000
-#define	BOFDM_CONTINUE_TX	0x10000000
-#define	BOFDM_SINGLE_CARRIER	0x20000000
-#define	BOFDM_SINGLE_TONE	0x40000000
-#define	BHT_DETECT	0x100
-#define	BCFOEN	0x10000
-#define	BCFOVALUE	0xfff00000
-#define	BSIGTONE_RE	0x3f
-#define	BSIGTONE_IM	0x7f00
-#define	BCOUNTER_CCA	0xffff
-#define	BCOUNTER_PARITYFAIL	0xffff0000
-#define	BCOUNTER_RATEILLEGAL	0xffff
-#define	BCOUNTER_CRC8FAIL	0xffff0000
-#define	BCOUNTER_MCSNOSUPPORT	0xffff
-#define	BCOUNTER_FASTSYNC	0xffff
-#define	BSHORTCFO	0xfff
-#define	BSHORTCFOT_LENGTH	12
-#define	BSHORTCFOF_LENGTH	11
-#define	BLONGCFO	0x7ff
-#define	BLONGCFOT_LENGTH	11
-#define	BLONGCFOF_LENGTH	11
-#define	BTAILCFO	0x1fff
-#define	BTAILCFOT_LENGTH	13
-#define	BTAILCFOF_LENGTH	12
-#define	BNOISE_EN_PWDB	0xffff
-#define	BCC_POWER_DB	0xffff0000
-#define	BMOISE_PWDB	0xffff
-#define	BPOWERMEAST_LENGTH	10
-#define	BPOWERMEASF_LENGTH	3
-#define	BRX_HT_BW	0x1
-#define	BRXSC	0x6
-#define	BRX_HT	0x8
-#define	BNB_INTF_DET_ON	0x1
-#define	BINTF_WIN_LEN_CFG	0x30
-#define	BNB_INTF_TH_CFG	0x1c0
-#define	BRFGAIN	0x3f
-#define	BTABLESEL	0x40
-#define	BTRSW	0x80
-#define	BRXSNR_A	0xff
-#define	BRXSNR_B	0xff00
-#define	BRXSNR_C	0xff0000
-#define	BRXSNR_D	0xff000000
-#define	BSNR_EVMT_LENGTH	8
-#define	BSNR_EVMF_LENGTH	1
-#define	BCSI1ST	0xff
-#define	BCSI2ND	0xff00
-#define	BRXEVM1ST	0xff0000
-#define	BRXEVM2ND	0xff000000
-#define	BSIGEVM	0xff
-#define	BPWDB	0xff00
-#define	BSGIEN	0x10000
+#define	BPHY_COUNTER_RESET		0x8000000
+#define	BCFO_REPORT_GET			0x4000000
+#define	BOFDM_CONTINUE_TX		0x10000000
+#define	BOFDM_SINGLE_CARRIER		0x20000000
+#define	BOFDM_SINGLE_TONE		0x40000000
+#define	BHT_DETECT			0x100
+#define	BCFOEN				0x10000
+#define	BCFOVALUE			0xfff00000
+#define	BSIGTONE_RE			0x3f
+#define	BSIGTONE_IM			0x7f00
+#define	BCOUNTER_CCA			0xffff
+#define	BCOUNTER_PARITYFAIL		0xffff0000
+#define	BCOUNTER_RATEILLEGAL		0xffff
+#define	BCOUNTER_CRC8FAIL		0xffff0000
+#define	BCOUNTER_MCSNOSUPPORT		0xffff
+#define	BCOUNTER_FASTSYNC		0xffff
+#define	BSHORTCFO			0xfff
+#define	BSHORTCFOT_LENGTH		12
+#define	BSHORTCFOF_LENGTH		11
+#define	BLONGCFO			0x7ff
+#define	BLONGCFOT_LENGTH		11
+#define	BLONGCFOF_LENGTH		11
+#define	BTAILCFO			0x1fff
+#define	BTAILCFOT_LENGTH		13
+#define	BTAILCFOF_LENGTH		12
+#define	BNOISE_EN_PWDB			0xffff
+#define	BCC_POWER_DB			0xffff0000
+#define	BMOISE_PWDB			0xffff
+#define	BPOWERMEAST_LENGTH		10
+#define	BPOWERMEASF_LENGTH		3
+#define	BRX_HT_BW			0x1
+#define	BRXSC				0x6
+#define	BRX_HT				0x8
+#define	BNB_INTF_DET_ON			0x1
+#define	BINTF_WIN_LEN_CFG		0x30
+#define	BNB_INTF_TH_CFG			0x1c0
+#define	BRFGAIN				0x3f
+#define	BTABLESEL			0x40
+#define	BTRSW				0x80
+#define	BRXSNR_A			0xff
+#define	BRXSNR_B			0xff00
+#define	BRXSNR_C			0xff0000
+#define	BRXSNR_D			0xff000000
+#define	BSNR_EVMT_LENGTH		8
+#define	BSNR_EVMF_LENGTH		1
+#define	BCSI1ST				0xff
+#define	BCSI2ND				0xff00
+#define	BRXEVM1ST			0xff0000
+#define	BRXEVM2ND			0xff000000
+#define	BSIGEVM				0xff
+#define	BPWDB				0xff00
+#define	BSGIEN				0x10000
 
-#define	BSFACTOR_QMA1	0xf
-#define	BSFACTOR_QMA2	0xf0
-#define	BSFACTOR_QMA3	0xf00
-#define	BSFACTOR_QMA4	0xf000
-#define	BSFACTOR_QMA5	0xf0000
-#define	BSFACTOR_QMA6	0xf0000
-#define	BSFACTOR_QMA7	0xf00000
-#define	BSFACTOR_QMA8	0xf000000
-#define	BSFACTOR_QMA9	0xf0000000
-#define	BCSI_SCHEME	0x100000
+#define	BSFACTOR_QMA1			0xf
+#define	BSFACTOR_QMA2			0xf0
+#define	BSFACTOR_QMA3			0xf00
+#define	BSFACTOR_QMA4			0xf000
+#define	BSFACTOR_QMA5			0xf0000
+#define	BSFACTOR_QMA6			0xf0000
+#define	BSFACTOR_QMA7			0xf00000
+#define	BSFACTOR_QMA8			0xf000000
+#define	BSFACTOR_QMA9			0xf0000000
+#define	BCSI_SCHEME			0x100000
 
 #define	BNOISE_LVL_TOP_SET		0x3
-#define	BCHSMOOTH	0x4
-#define	BCHSMOOTH_CFG1	0x38
-#define	BCHSMOOTH_CFG2	0x1c0
-#define	BCHSMOOTH_CFG3	0xe00
-#define	BCHSMOOTH_CFG4	0x7000
-#define	BMRCMODE	0x800000
-#define	BTHEVMCFG	0x7000000
+#define	BCHSMOOTH			0x4
+#define	BCHSMOOTH_CFG1			0x38
+#define	BCHSMOOTH_CFG2			0x1c0
+#define	BCHSMOOTH_CFG3			0xe00
+#define	BCHSMOOTH_CFG4			0x7000
+#define	BMRCMODE			0x800000
+#define	BTHEVMCFG			0x7000000
 
-#define	BLOOP_FIT_TYPE	0x1
-#define	BUPD_CFO	0x40
-#define	BUPD_CFO_OFFDATA	0x80
-#define	BADV_UPD_CFO	0x100
-#define	BADV_TIME_CTRL	0x800
-#define	BUPD_CLKO	0x1000
-#define	BFC	0x6000
-#define	BTRACKING_MODE	0x8000
-#define	BPHCMP_ENABLE	0x10000
-#define	BUPD_CLKO_LTF	0x20000
-#define	BCOM_CH_CFO	0x40000
-#define	BCSI_ESTI_MODE	0x80000
-#define	BADV_UPD_EQZ	0x100000
-#define	BUCHCFG	0x7000000
-#define	BUPDEQZ	0x8000000
+#define	BLOOP_FIT_TYPE			0x1
+#define	BUPD_CFO			0x40
+#define	BUPD_CFO_OFFDATA		0x80
+#define	BADV_UPD_CFO			0x100
+#define	BADV_TIME_CTRL			0x800
+#define	BUPD_CLKO			0x1000
+#define	BFC				0x6000
+#define	BTRACKING_MODE			0x8000
+#define	BPHCMP_ENABLE			0x10000
+#define	BUPD_CLKO_LTF			0x20000
+#define	BCOM_CH_CFO			0x40000
+#define	BCSI_ESTI_MODE			0x80000
+#define	BADV_UPD_EQZ			0x100000
+#define	BUCHCFG				0x7000000
+#define	BUPDEQZ				0x8000000
 
 #define	BRX_PESUDO_NOISE_ON		0x20000000
-#define	BRX_PESUDO_NOISE_A	0xff
-#define	BRX_PESUDO_NOISE_B	0xff00
-#define	BRX_PESUDO_NOISE_C	0xff0000
-#define	BRX_PESUDO_NOISE_D	0xff000000
+#define	BRX_PESUDO_NOISE_A		0xff
+#define	BRX_PESUDO_NOISE_B		0xff00
+#define	BRX_PESUDO_NOISE_C		0xff0000
+#define	BRX_PESUDO_NOISE_D		0xff000000
 #define	BRX_PESUDO_NOISESTATE_A		0xffff
 #define	BRX_PESUDO_NOISESTATE_B		0xffff0000
 #define	BRX_PESUDO_NOISESTATE_C		0xffff
 #define	BRX_PESUDO_NOISESTATE_D		0xffff0000
 
-#define	BZEBRA1_HSSIENABLE	0x8
-#define	BZEBRA1_TRXCONTROL	0xc00
-#define	BZEBRA1_TRXGAINSETTING	0x07f
-#define	BZEBRA1_RXCOUNTER	0xc00
-#define	BZEBRA1_TXCHANGEPUMP	0x38
-#define	BZEBRA1_RXCHANGEPUMP	0x7
-#define	BZEBRA1_CHANNEL_NUM	0xf80
-#define	BZEBRA1_TXLPFBW	0x400
-#define	BZEBRA1_RXLPFBW	0x600
+#define	BZEBRA1_HSSIENABLE		0x8
+#define	BZEBRA1_TRXCONTROL		0xc00
+#define	BZEBRA1_TRXGAINSETTING		0x07f
+#define	BZEBRA1_RXCOUNTER		0xc00
+#define	BZEBRA1_TXCHANGEPUMP		0x38
+#define	BZEBRA1_RXCHANGEPUMP		0x7
+#define	BZEBRA1_CHANNEL_NUM		0xf80
+#define	BZEBRA1_TXLPFBW			0x400
+#define	BZEBRA1_RXLPFBW			0x600
 
 #define	BRTL8256REG_MODE_CTRL1		0x100
 #define	BRTL8256REG_MODE_CTRL0		0x40
 #define	BRTL8256REG_TXLPFBW		0x18
 #define	BRTL8256REG_RXLPFBW		0x600
 
-#define	BRTL8258_TXLPFBW	0xc
-#define	BRTL8258_RXLPFBW	0xc00
-#define	BRTL8258_RSSILPFBW	0xc0
+#define	BRTL8258_TXLPFBW		0xc
+#define	BRTL8258_RXLPFBW		0xc00
+#define	BRTL8258_RSSILPFBW		0xc0
 
-#define	BBYTE0	0x1
-#define	BBYTE1	0x2
-#define	BBYTE2	0x4
-#define	BBYTE3	0x8
-#define	BWORD0	0x3
-#define	BWORD1	0xc
-#define	BWORD	0xf
+#define	BBYTE0				0x1
+#define	BBYTE1				0x2
+#define	BBYTE2				0x4
+#define	BBYTE3				0x8
+#define	BWORD0				0x3
+#define	BWORD1				0xc
+#define	BWORD				0xf
 
-#define	BENABLE	0x1
-#define	BDISABLE	0x0
+#define	MASKBYTE0			0xff
+#define	MASKBYTE1			0xff00
+#define	MASKBYTE2			0xff0000
+#define	MASKBYTE3			0xff000000
+#define	MASKHWORD			0xffff0000
+#define	MASKLWORD			0x0000ffff
+#define	MASKDWORD			0xffffffff
+#define	MASK12BITS			0xfff
+#define	MASKH4BITS			0xf0000000
+#define MASKOFDM_D			0xffc00000
+#define	MASKCCK				0x3f3f3f3f
 
-#define	LEFT_ANTENNA	0x0
-#define	RIGHT_ANTENNA	0x1
+#define	MASK4BITS			0x0f
+#define	MASK20BITS			0xfffff
+#define RFREG_OFFSET_MASK		0xfffff
 
-#define	TCHECK_TXSTATUS	500
-#define	TUPDATE_RXCOUNTER	100
+#define	BENABLE				0x1
+#define	BDISABLE			0x0
+
+#define	LEFT_ANTENNA			0x0
+#define	RIGHT_ANTENNA			0x1
+
+#define	TCHECK_TXSTATUS			500
+#define	TUPDATE_RXCOUNTER		100
 
 #define	REG_UN_used_register		0x01bf
 

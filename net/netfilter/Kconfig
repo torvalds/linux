@@ -496,6 +496,15 @@ config NFT_LIMIT
 	  This option adds the "limit" expression that you can use to
 	  ratelimit rule matchings.
 
+config NFT_MASQ
+	depends on NF_TABLES
+	depends on NF_CONNTRACK
+	depends on NF_NAT
+	tristate "Netfilter nf_tables masquerade support"
+	help
+	  This option adds the "masquerade" expression that you can use
+	  to perform NAT in the masquerade flavour.
+
 config NFT_NAT
 	depends on NF_TABLES
 	depends on NF_CONNTRACK

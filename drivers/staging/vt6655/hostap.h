@@ -52,7 +52,7 @@
 #define ARPHRD_IEEE80211 801
 #endif
 
-int vt6655_hostap_set_hostapd(PSDevice pDevice, int val, int rtnl_locked);
-int vt6655_hostap_ioctl(PSDevice pDevice, struct iw_point *p);
+int vt6655_hostap_set_hostapd(struct vnt_private *, int val, int rtnl_locked);
+int vt6655_hostap_ioctl(struct vnt_private *, struct iw_point *p);
 
 #endif // __HOSTAP_H__

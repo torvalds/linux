@@ -24,8 +24,6 @@ menuconfig STAGING
 
 if STAGING
 
-source "drivers/staging/et131x/Kconfig"
-
 source "drivers/staging/slicoss/Kconfig"
 
 source "drivers/staging/wlan-ng/Kconfig"
@@ -44,11 +42,7 @@ source "drivers/staging/rtl8712/Kconfig"
 
 source "drivers/staging/rtl8188eu/Kconfig"
 
-source "drivers/staging/rtl8192ee/Kconfig"
-
 source "drivers/staging/rtl8723au/Kconfig"
-
-source "drivers/staging/rtl8821ae/Kconfig"
 
 source "drivers/staging/rts5208/Kconfig"
 
@@ -104,15 +98,11 @@ source "drivers/staging/mt29f_spinand/Kconfig"
 
 source "drivers/staging/lustre/Kconfig"
 
-source "drivers/staging/xillybus/Kconfig"
-
 source "drivers/staging/dgnc/Kconfig"
 
 source "drivers/staging/dgap/Kconfig"
 
 source "drivers/staging/gs_fpgaboot/Kconfig"
-
-source "drivers/staging/nokia_h4p/Kconfig"
 
 source "drivers/staging/skein/Kconfig"
 

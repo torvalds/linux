@@ -10,6 +10,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/clk/at91_pmc.h>
 
 #include <asm/proc-fns.h>
@@ -23,7 +24,6 @@
 #include <mach/hardware.h>
 
 #include "at91_aic.h"
-#include "at91_rstc.h"
 #include "soc.h"
 #include "generic.h"
 #include "sam9_smc.h"
@@ -311,8 +311,6 @@ static void __init at91sam9rl_map_io(void)
 
 static void __init at91sam9rl_ioremap_registers(void)
 {
-	at91_ioremap_shdwc(AT91SAM9RL_BASE_SHDWC);
-	at91_ioremap_rstc(AT91SAM9RL_BASE_RSTC);
 	at91_ioremap_ramc(0, AT91SAM9RL_BASE_SDRAMC, 512);
 	at91sam926x_ioremap_pit(AT91SAM9RL_BASE_PIT);
 	at91sam9_ioremap_smc(0, AT91SAM9RL_BASE_SMC);
@@ -323,13 +321,51 @@ static void __init at91sam9rl_ioremap_registers(void)
 static void __init at91sam9rl_initialize(void)
 {
 	arm_pm_idle = at91sam9_idle;
-	arm_pm_restart = at91sam9_alt_restart;
 
 	at91_sysirq_mask_rtc(AT91SAM9RL_BASE_RTC);
 	at91_sysirq_mask_rtt(AT91SAM9RL_BASE_RTT);
 
 	/* Register GPIO subsystem */
 	at91_gpio_init(at91sam9rl_gpio, 4);
+}
+
+static struct resource rstc_resources[] = {
+	[0] = {
+		.start  = AT91SAM9RL_BASE_RSTC,
+		.end    = AT91SAM9RL_BASE_RSTC + SZ_16 - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = AT91SAM9RL_BASE_SDRAMC,
+		.end    = AT91SAM9RL_BASE_SDRAMC + SZ_512 - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device rstc_device = {
+	.name           = "at91-sam9260-reset",
+	.resource       = rstc_resources,
+	.num_resources  = ARRAY_SIZE(rstc_resources),
+};
+
+static struct resource shdwc_resources[] = {
+	[0] = {
+		.start  = AT91SAM9RL_BASE_SHDWC,
+		.end    = AT91SAM9RL_BASE_SHDWC + SZ_16 - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device shdwc_device = {
+	.name           = "at91-poweroff",
+	.resource       = shdwc_resources,
+	.num_resources  = ARRAY_SIZE(shdwc_resources),
+};
+
+static void __init at91sam9rl_register_devices(void)
+{
+	platform_device_register(&rstc_device);
+	platform_device_register(&shdwc_device);
 }
 
 /* --------------------------------------------------------------------
@@ -374,6 +410,11 @@ static unsigned int at91sam9rl_default_irq_priority[NR_AIC_IRQS] __initdata = {
 	0,	/* Advanced Interrupt Controller */
 };
 
+static void __init at91sam9rl_init_time(void)
+{
+	at91sam926x_pit_init(NR_IRQS_LEGACY + AT91_ID_SYS);
+}
+
 AT91_SOC_START(at91sam9rl)
 	.map_io = at91sam9rl_map_io,
 	.default_irq_priority = at91sam9rl_default_irq_priority,
@@ -382,5 +423,7 @@ AT91_SOC_START(at91sam9rl)
 #if defined(CONFIG_OLD_CLK_AT91)
 	.register_clocks = at91sam9rl_register_clocks,
 #endif
+	.register_devices = at91sam9rl_register_devices,
 	.init = at91sam9rl_initialize,
+	.init_time = at91sam9rl_init_time,
 AT91_SOC_END

@@ -80,7 +80,7 @@ static void get_runstate_snapshot(struct vcpu_runstate_info *res)
 
 	BUG_ON(preemptible());
 
-	state = &__get_cpu_var(xen_runstate);
+	state = this_cpu_ptr(&xen_runstate);
 
 	/*
 	 * The runstate info is always updated by the hypervisor on
@@ -123,7 +123,7 @@ static void do_stolen_accounting(void)
 
 	WARN_ON(state.state != RUNSTATE_running);
 
-	snap = &__get_cpu_var(xen_runstate_snapshot);
+	snap = this_cpu_ptr(&xen_runstate_snapshot);
 
 	/* work out how much time the VCPU has not been runn*ing*  */
 	runnable = state.time[RUNSTATE_runnable] - snap->time[RUNSTATE_runnable];
@@ -158,7 +158,7 @@ cycle_t xen_clocksource_read(void)
 	cycle_t ret;
 
 	preempt_disable_notrace();
-	src = &__get_cpu_var(xen_vcpu)->time;
+	src = this_cpu_ptr(&xen_vcpu->time);
 	ret = pvclock_clocksource_read(src);
 	preempt_enable_notrace();
 	return ret;
@@ -397,7 +397,7 @@ static DEFINE_PER_CPU(struct xen_clock_event_device, xen_clock_events) = { .evt.
 
 static irqreturn_t xen_timer_interrupt(int irq, void *dev_id)
 {
-	struct clock_event_device *evt = &__get_cpu_var(xen_clock_events).evt;
+	struct clock_event_device *evt = this_cpu_ptr(&xen_clock_events.evt);
 	irqreturn_t ret;
 
 	ret = IRQ_NONE;
@@ -460,7 +460,7 @@ void xen_setup_cpu_clockevents(void)
 {
 	BUG_ON(preemptible());
 
-	clockevents_register_device(&__get_cpu_var(xen_clock_events).evt);
+	clockevents_register_device(this_cpu_ptr(&xen_clock_events.evt));
 }
 
 void xen_timer_resume(void)

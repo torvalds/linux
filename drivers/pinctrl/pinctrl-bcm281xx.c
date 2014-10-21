@@ -1055,9 +1055,9 @@ static int bcm281xx_pinctrl_get_fcn_groups(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int bcm281xx_pinmux_enable(struct pinctrl_dev *pctldev,
-				  unsigned function,
-				  unsigned group)
+static int bcm281xx_pinmux_set(struct pinctrl_dev *pctldev,
+			       unsigned function,
+			       unsigned group)
 {
 	struct bcm281xx_pinctrl_data *pdata = pinctrl_dev_get_drvdata(pctldev);
 	const struct bcm281xx_pin_function *f = &pdata->functions[function];
@@ -1084,7 +1084,7 @@ static struct pinmux_ops bcm281xx_pinctrl_pinmux_ops = {
 	.get_functions_count = bcm281xx_pinctrl_get_fcns_count,
 	.get_function_name = bcm281xx_pinctrl_get_fcn_name,
 	.get_function_groups = bcm281xx_pinctrl_get_fcn_groups,
-	.enable = bcm281xx_pinmux_enable,
+	.set_mux = bcm281xx_pinmux_set,
 };
 
 static int bcm281xx_pinctrl_pin_config_get(struct pinctrl_dev *pctldev,

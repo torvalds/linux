@@ -300,6 +300,7 @@ architectures:
 - arm
 - ppc
 - mips
+- s390
 
 3. Configuring Kprobes
 

@@ -139,6 +139,7 @@ static struct snd_soc_card byt_max98090_card = {
 	.num_dapm_routes = ARRAY_SIZE(byt_max98090_audio_map),
 	.controls = byt_max98090_controls,
 	.num_controls = ARRAY_SIZE(byt_max98090_controls),
+	.fully_routed = true,
 };
 
 static int byt_max98090_probe(struct platform_device *pdev)

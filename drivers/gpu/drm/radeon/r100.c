@@ -869,13 +869,14 @@ bool r100_semaphore_ring_emit(struct radeon_device *rdev,
 	return false;
 }
 
-int r100_copy_blit(struct radeon_device *rdev,
-		   uint64_t src_offset,
-		   uint64_t dst_offset,
-		   unsigned num_gpu_pages,
-		   struct radeon_fence **fence)
+struct radeon_fence *r100_copy_blit(struct radeon_device *rdev,
+				    uint64_t src_offset,
+				    uint64_t dst_offset,
+				    unsigned num_gpu_pages,
+				    struct reservation_object *resv)
 {
 	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
+	struct radeon_fence *fence;
 	uint32_t cur_pages;
 	uint32_t stride_bytes = RADEON_GPU_PAGE_SIZE;
 	uint32_t pitch;
@@ -896,7 +897,7 @@ int r100_copy_blit(struct radeon_device *rdev,
 	r = radeon_ring_lock(rdev, ring, ndw);
 	if (r) {
 		DRM_ERROR("radeon: moving bo (%d) asking for %u dw.\n", r, ndw);
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	}
 	while (num_gpu_pages > 0) {
 		cur_pages = num_gpu_pages;
@@ -936,11 +937,13 @@ int r100_copy_blit(struct radeon_device *rdev,
 			  RADEON_WAIT_2D_IDLECLEAN |
 			  RADEON_WAIT_HOST_IDLECLEAN |
 			  RADEON_WAIT_DMA_GUI_IDLE);
-	if (fence) {
-		r = radeon_fence_emit(rdev, fence, RADEON_RING_TYPE_GFX_INDEX);
+	r = radeon_fence_emit(rdev, &fence, RADEON_RING_TYPE_GFX_INDEX);
+	if (r) {
+		radeon_ring_unlock_undo(rdev, ring);
+		return ERR_PTR(r);
 	}
 	radeon_ring_unlock_commit(rdev, ring, false);
-	return r;
+	return fence;
 }
 
 static int r100_cp_wait_for_idle(struct radeon_device *rdev)

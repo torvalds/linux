@@ -46,6 +46,7 @@ enum {
 /**
  * struct the_nilfs - struct to supervise multiple nilfs mount points
  * @ns_flags: flags
+ * @ns_flushed_device: flag indicating if all volatile data was flushed
  * @ns_bdev: block device
  * @ns_sem: semaphore for shared states
  * @ns_snapshot_mount_mutex: mutex to protect snapshot mounts
@@ -103,6 +104,7 @@ enum {
  */
 struct the_nilfs {
 	unsigned long		ns_flags;
+	int			ns_flushed_device;
 
 	struct block_device    *ns_bdev;
 	struct rw_semaphore	ns_sem;
@@ -369,6 +371,26 @@ static inline __u64 nilfs_last_cno(struct the_nilfs *nilfs)
 static inline int nilfs_segment_is_active(struct the_nilfs *nilfs, __u64 n)
 {
 	return n == nilfs->ns_segnum || n == nilfs->ns_nextnum;
+}
+
+static inline int nilfs_flush_device(struct the_nilfs *nilfs)
+{
+	int err;
+
+	if (!nilfs_test_opt(nilfs, BARRIER) || nilfs->ns_flushed_device)
+		return 0;
+
+	nilfs->ns_flushed_device = 1;
+	/*
+	 * the store to ns_flushed_device must not be reordered after
+	 * blkdev_issue_flush().
+	 */
+	smp_wmb();
+
+	err = blkdev_issue_flush(nilfs->ns_bdev, GFP_KERNEL, NULL);
+	if (err != -EIO)
+		err = 0;
+	return err;
 }
 
 #endif /* _THE_NILFS_H */

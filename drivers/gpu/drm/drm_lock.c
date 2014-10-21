@@ -36,6 +36,7 @@
 #include <linux/export.h>
 #include <drm/drmP.h>
 #include "drm_legacy.h"
+#include "drm_internal.h"
 
 static int drm_notifier(void *priv);
 
@@ -52,7 +53,8 @@ static int drm_lock_take(struct drm_lock_data *lock_data, unsigned int context);
  *
  * Add the current task to the lock wait queue, and attempt to take to lock.
  */
-int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
+int drm_legacy_lock(struct drm_device *dev, void *data,
+		    struct drm_file *file_priv)
 {
 	DECLARE_WAITQUEUE(entry, current);
 	struct drm_lock *lock = data;
@@ -120,7 +122,7 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 		sigaddset(&dev->sigmask, SIGTTOU);
 		dev->sigdata.context = lock->context;
 		dev->sigdata.lock = master->lock.hw_lock;
-		block_all_signals(drm_notifier, &dev->sigdata, &dev->sigmask);
+		block_all_signals(drm_notifier, dev, &dev->sigmask);
 	}
 
 	if (dev->driver->dma_quiescent && (lock->flags & _DRM_LOCK_QUIESCENT))
@@ -146,7 +148,7 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
  *
  * Transfer and free the lock.
  */
-int drm_unlock(struct drm_device *dev, void *data, struct drm_file *file_priv)
+int drm_legacy_unlock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	struct drm_lock *lock = data;
 	struct drm_master *master = file_priv->master;
@@ -157,7 +159,7 @@ int drm_unlock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 		return -EINVAL;
 	}
 
-	if (drm_lock_free(&master->lock, lock->context)) {
+	if (drm_legacy_lock_free(&master->lock, lock->context)) {
 		/* FIXME: Should really bail out here. */
 	}
 
@@ -250,7 +252,7 @@ static int drm_lock_transfer(struct drm_lock_data *lock_data,
  * Marks the lock as not held, via the \p cmpxchg instruction. Wakes any task
  * waiting on the lock queue.
  */
-int drm_lock_free(struct drm_lock_data *lock_data, unsigned int context)
+int drm_legacy_lock_free(struct drm_lock_data *lock_data, unsigned int context)
 {
 	unsigned int old, new, prev;
 	volatile unsigned int *lock = &lock_data->hw_lock->lock;
@@ -286,26 +288,27 @@ int drm_lock_free(struct drm_lock_data *lock_data, unsigned int context)
  * If the lock is not held, then let the signal proceed as usual.  If the lock
  * is held, then set the contended flag and keep the signal blocked.
  *
- * \param priv pointer to a drm_sigdata structure.
+ * \param priv pointer to a drm_device structure.
  * \return one if the signal should be delivered normally, or zero if the
  * signal should be blocked.
  */
 static int drm_notifier(void *priv)
 {
-	struct drm_sigdata *s = (struct drm_sigdata *) priv;
+	struct drm_device *dev = priv;
+	struct drm_hw_lock *lock = dev->sigdata.lock;
 	unsigned int old, new, prev;
 
 	/* Allow signal delivery if lock isn't held */
-	if (!s->lock || !_DRM_LOCK_IS_HELD(s->lock->lock)
-	    || _DRM_LOCKING_CONTEXT(s->lock->lock) != s->context)
+	if (!lock || !_DRM_LOCK_IS_HELD(lock->lock)
+	    || _DRM_LOCKING_CONTEXT(lock->lock) != dev->sigdata.context)
 		return 1;
 
 	/* Otherwise, set flag to force call to
 	   drmUnlock */
 	do {
-		old = s->lock->lock;
+		old = lock->lock;
 		new = old | _DRM_LOCK_CONT;
-		prev = cmpxchg(&s->lock->lock, old, new);
+		prev = cmpxchg(&lock->lock, old, new);
 	} while (prev != old);
 	return 0;
 }
@@ -323,7 +326,7 @@ static int drm_notifier(void *priv)
  * having to worry about starvation.
  */
 
-void drm_idlelock_take(struct drm_lock_data *lock_data)
+void drm_legacy_idlelock_take(struct drm_lock_data *lock_data)
 {
 	int ret;
 
@@ -340,9 +343,9 @@ void drm_idlelock_take(struct drm_lock_data *lock_data)
 	}
 	spin_unlock_bh(&lock_data->spinlock);
 }
-EXPORT_SYMBOL(drm_idlelock_take);
+EXPORT_SYMBOL(drm_legacy_idlelock_take);
 
-void drm_idlelock_release(struct drm_lock_data *lock_data)
+void drm_legacy_idlelock_release(struct drm_lock_data *lock_data)
 {
 	unsigned int old, prev;
 	volatile unsigned int *lock = &lock_data->hw_lock->lock;
@@ -360,9 +363,10 @@ void drm_idlelock_release(struct drm_lock_data *lock_data)
 	}
 	spin_unlock_bh(&lock_data->spinlock);
 }
-EXPORT_SYMBOL(drm_idlelock_release);
+EXPORT_SYMBOL(drm_legacy_idlelock_release);
 
-int drm_i_have_hw_lock(struct drm_device *dev, struct drm_file *file_priv)
+int drm_legacy_i_have_hw_lock(struct drm_device *dev,
+			      struct drm_file *file_priv)
 {
 	struct drm_master *master = file_priv->master;
 	return (file_priv->lock_count && master->lock.hw_lock &&

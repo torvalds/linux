@@ -1101,7 +1101,15 @@ static void ncm_tx_tasklet(unsigned long data)
 	/* Only send if data is available. */
 	if (ncm->skb_tx_data) {
 		ncm->timer_force_tx = true;
+
+		/* XXX This allowance of a NULL skb argument to ndo_start_xmit
+		 * XXX is not sane.  The gadget layer should be redesigned so
+		 * XXX that the dev->wrap() invocations to build SKBs is transparent
+		 * XXX and performed in some way outside of the ndo_start_xmit
+		 * XXX interface.
+		 */
 		ncm->netdev->netdev_ops->ndo_start_xmit(NULL, ncm->netdev);
+
 		ncm->timer_force_tx = false;
 	}
 }

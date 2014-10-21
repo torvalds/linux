@@ -25,10 +25,12 @@ struct acpi_gpio_event {
 	acpi_handle handle;
 	unsigned int pin;
 	unsigned int irq;
+	struct gpio_desc *desc;
 };
 
 struct acpi_gpio_connection {
 	struct list_head node;
+	unsigned int pin;
 	struct gpio_desc *desc;
 };
 
@@ -143,14 +145,8 @@ static acpi_status acpi_gpiochip_request_interrupt(struct acpi_resource *ares,
 	if (!handler)
 		return AE_BAD_PARAMETER;
 
-	desc = gpiochip_get_desc(chip, pin);
+	desc = gpiochip_request_own_desc(chip, pin, "ACPI:Event");
 	if (IS_ERR(desc)) {
-		dev_err(chip->dev, "Failed to get GPIO descriptor\n");
-		return AE_ERROR;
-	}
-
-	ret = gpiochip_request_own_desc(desc, "ACPI:Event");
-	if (ret) {
 		dev_err(chip->dev, "Failed to request GPIO\n");
 		return AE_ERROR;
 	}
@@ -197,6 +193,7 @@ static acpi_status acpi_gpiochip_request_interrupt(struct acpi_resource *ares,
 	event->handle = evt_handle;
 	event->irq = irq;
 	event->pin = pin;
+	event->desc = desc;
 
 	ret = request_threaded_irq(event->irq, NULL, handler, irqflags,
 				   "ACPI:Event", event);
@@ -280,7 +277,7 @@ void acpi_gpiochip_free_interrupts(struct gpio_chip *chip)
 		struct gpio_desc *desc;
 
 		free_irq(event->irq, event);
-		desc = gpiochip_get_desc(chip, event->pin);
+		desc = event->desc;
 		if (WARN_ON(IS_ERR(desc)))
 			continue;
 		gpio_unlock_as_irq(chip, event->pin);
@@ -409,26 +406,20 @@ acpi_gpio_adr_space_handler(u32 function, acpi_physical_address address,
 		struct gpio_desc *desc;
 		bool found;
 
-		desc = gpiochip_get_desc(chip, pin);
-		if (IS_ERR(desc)) {
-			status = AE_ERROR;
-			goto out;
-		}
-
 		mutex_lock(&achip->conn_lock);
 
 		found = false;
 		list_for_each_entry(conn, &achip->conns, node) {
-			if (conn->desc == desc) {
+			if (conn->pin == pin) {
 				found = true;
+				desc = conn->desc;
 				break;
 			}
 		}
 		if (!found) {
-			int ret;
-
-			ret = gpiochip_request_own_desc(desc, "ACPI:OpRegion");
-			if (ret) {
+			desc = gpiochip_request_own_desc(chip, pin,
+							 "ACPI:OpRegion");
+			if (IS_ERR(desc)) {
 				status = AE_ERROR;
 				mutex_unlock(&achip->conn_lock);
 				goto out;
@@ -465,6 +456,7 @@ acpi_gpio_adr_space_handler(u32 function, acpi_physical_address address,
 				goto out;
 			}
 
+			conn->pin = pin;
 			conn->desc = desc;
 			list_add_tail(&conn->node, &achip->conns);
 		}

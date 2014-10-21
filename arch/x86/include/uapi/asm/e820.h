@@ -21,11 +21,6 @@
  * this size.
  */
 
-/*
- * Odd: 'make headers_check' complains about numa.h if I try
- * to collapse the next two #ifdef lines to a single line:
- *	#if defined(__KERNEL__) && defined(CONFIG_EFI)
- */
 #ifndef __KERNEL__
 #define E820_X_MAX E820MAX
 #endif

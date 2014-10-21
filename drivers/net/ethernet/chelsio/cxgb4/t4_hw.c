@@ -37,8 +37,6 @@
 #include "t4_regs.h"
 #include "t4fw_api.h"
 
-static int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
-			 const u8 *fw_data, unsigned int size, int force);
 /**
  *	t4_wait_op_done_val - wait until an operation is completed
  *	@adapter: the adapter performing the operation
@@ -1098,6 +1096,9 @@ bye:
 static int t4_flash_erase_sectors(struct adapter *adapter, int start, int end)
 {
 	int ret = 0;
+
+	if (end >= adapter->params.sf_nsec)
+		return -EINVAL;
 
 	while (start <= end) {
 		if ((ret = sf1_write(adapter, 1, 0, 1, SF_WR_ENABLE)) != 0 ||
@@ -3073,8 +3074,8 @@ static int t4_fw_restart(struct adapter *adap, unsigned int mbox, int reset)
  *	positive errno indicates that the adapter is ~probably~ intact, a
  *	negative errno indicates that things are looking bad ...
  */
-static int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
-			 const u8 *fw_data, unsigned int size, int force)
+int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
+		  const u8 *fw_data, unsigned int size, int force)
 {
 	const struct fw_hdr *fw_hdr = (const struct fw_hdr *)fw_data;
 	int reset, ret;
@@ -3842,16 +3843,35 @@ static void init_link_config(struct link_config *lc, unsigned int caps)
 	}
 }
 
-int t4_wait_dev_ready(struct adapter *adap)
+#define CIM_PF_NOACCESS 0xeeeeeeee
+
+int t4_wait_dev_ready(void __iomem *regs)
 {
-	if (t4_read_reg(adap, PL_WHOAMI) != 0xffffffff)
+	u32 whoami;
+
+	whoami = readl(regs + PL_WHOAMI);
+	if (whoami != 0xffffffff && whoami != CIM_PF_NOACCESS)
 		return 0;
+
 	msleep(500);
-	return t4_read_reg(adap, PL_WHOAMI) != 0xffffffff ? 0 : -EIO;
+	whoami = readl(regs + PL_WHOAMI);
+	return (whoami != 0xffffffff && whoami != CIM_PF_NOACCESS ? 0 : -EIO);
 }
+
+struct flash_desc {
+	u32 vendor_and_model_id;
+	u32 size_mb;
+};
 
 static int get_flash_params(struct adapter *adap)
 {
+	/* Table for non-Numonix supported flash parts.  Numonix parts are left
+	 * to the preexisting code.  All flash parts have 64KB sectors.
+	 */
+	static struct flash_desc supported_flash[] = {
+		{ 0x150201, 4 << 20 },       /* Spansion 4MB S25FL032P */
+	};
+
 	int ret;
 	u32 info;
 
@@ -3861,6 +3881,14 @@ static int get_flash_params(struct adapter *adap)
 	t4_write_reg(adap, SF_OP, 0);                    /* unlock SF */
 	if (ret)
 		return ret;
+
+	for (ret = 0; ret < ARRAY_SIZE(supported_flash); ++ret)
+		if (supported_flash[ret].vendor_and_model_id == info) {
+			adap->params.sf_size = supported_flash[ret].size_mb;
+			adap->params.sf_nsec =
+				adap->params.sf_size / SF_SEC_SIZE;
+			return 0;
+		}
 
 	if ((info & 0xff) != 0x20)             /* not a Numonix flash */
 		return -EINVAL;
@@ -3874,6 +3902,10 @@ static int get_flash_params(struct adapter *adap)
 	adap->params.sf_size = 1 << info;
 	adap->params.sf_fw_start =
 		t4_read_reg(adap, CIM_BOOT_CFG) & BOOTADDR_MASK;
+
+	if (adap->params.sf_size < FLASH_MIN_SIZE)
+		dev_warn(adap->pdev_dev, "WARNING!!! FLASH size %#x < %#x!!!\n",
+			 adap->params.sf_size, FLASH_MIN_SIZE);
 	return 0;
 }
 
@@ -3891,10 +3923,6 @@ int t4_prep_adapter(struct adapter *adapter)
 	int ret, ver;
 	uint16_t device_id;
 	u32 pl_rev;
-
-	ret = t4_wait_dev_ready(adapter);
-	if (ret < 0)
-		return ret;
 
 	get_pci_mode(adapter, &adapter->params.pci);
 	pl_rev = G_REV(t4_read_reg(adapter, PL_REV));

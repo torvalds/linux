@@ -71,3 +71,13 @@ Groups:
   Errors:
     -ENODEV: Getting or setting this register is not yet supported
     -EBUSY: One or more VCPUs are running
+
+  KVM_DEV_ARM_VGIC_GRP_NR_IRQS
+  Attributes:
+    A value describing the number of interrupts (SGI, PPI and SPI) for
+    this GIC instance, ranging from 64 to 1024, in increments of 32.
+
+  Errors:
+    -EINVAL: Value set is out of the expected range
+    -EBUSY: Value has already be set, or GIC has already been initialized
+            with default values.

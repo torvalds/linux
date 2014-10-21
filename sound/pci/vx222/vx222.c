@@ -168,8 +168,9 @@ static int snd_vx222_create(struct snd_card *card, struct pci_dev *pci,
 	for (i = 0; i < 2; i++)
 		vx->port[i] = pci_resource_start(pci, i + 1);
 
-	if (request_irq(pci->irq, snd_vx_irq_handler, IRQF_SHARED,
-			KBUILD_MODNAME, chip)) {
+	if (request_threaded_irq(pci->irq, snd_vx_irq_handler,
+				 snd_vx_threaded_irq_handler, IRQF_SHARED,
+				 KBUILD_MODNAME, chip)) {
 		dev_err(card->dev, "unable to grab IRQ %d\n", pci->irq);
 		snd_vx222_free(chip);
 		return -EBUSY;

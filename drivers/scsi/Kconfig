@@ -45,6 +45,17 @@ config SCSI_NETLINK
 	default	n
 	depends on NET
 
+config SCSI_MQ_DEFAULT
+	bool "SCSI: use blk-mq I/O path by default"
+	depends on SCSI
+	---help---
+	  This option enables the new blk-mq based I/O path for SCSI
+	  devices by default.  With the option the scsi_mod.use_blk_mq
+	  module/boot option defaults to Y, without it to N, but it can
+	  still be overriden either way.
+
+	  If unsure say N.
+
 config SCSI_PROC_FS
 	bool "legacy /proc/scsi/ support"
 	depends on SCSI && PROC_FS
@@ -62,7 +73,6 @@ comment "SCSI support type (disk, tape, CD-ROM)"
 config BLK_DEV_SD
 	tristate "SCSI disk support"
 	depends on SCSI
-	select CRC_T10DIF if BLK_DEV_INTEGRITY
 	---help---
 	  If you want to use SCSI hard disks, Fibre Channel disks,
 	  Serial ATA (SATA) or Parallel ATA (PATA) hard disks,
@@ -575,6 +585,16 @@ config VMWARE_PVSCSI
 	  This driver supports VMware's para virtualized SCSI HBA.
 	  To compile this driver as a module, choose M here: the
 	  module will be called vmw_pvscsi.
+
+config XEN_SCSI_FRONTEND
+	tristate "XEN SCSI frontend driver"
+	depends on SCSI && XEN
+	select XEN_XENBUS_FRONTEND
+	help
+	  The XEN SCSI frontend driver allows the kernel to access SCSI Devices
+	  within another guest OS (usually Dom0).
+	  Only needed if the kernel is running in a XEN guest and generic
+	  SCSI access to a device is needed.
 
 config HYPERV_STORAGE
 	tristate "Microsoft Hyper-V virtual storage driver"

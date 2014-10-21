@@ -305,6 +305,7 @@ static int cvm_oct_common_change_mtu(struct net_device *dev, int new_mtu)
 			 * than the MTU and smaller the 64 bytes.
 			 */
 			union cvmx_pip_frm_len_chkx frm_len_chk;
+
 			frm_len_chk.u64 = 0;
 			frm_len_chk.s.minlen = 64;
 			frm_len_chk.s.maxlen = max_packet;
@@ -337,6 +338,7 @@ static void cvm_oct_common_set_multicast_list(struct net_device *dev)
 	    && (cvmx_helper_interface_get_mode(interface) !=
 		CVMX_HELPER_INTERFACE_MODE_SPI)) {
 		union cvmx_gmxx_rxx_adr_ctl control;
+
 		control.u64 = 0;
 		control.s.bcst = 1;	/* Allow broadcast MAC addresses */
 
@@ -397,6 +399,7 @@ static int cvm_oct_set_mac_filter(struct net_device *dev)
 		int i;
 		uint8_t *ptr = dev->dev_addr;
 		uint64_t mac = 0;
+
 		for (i = 0; i < 6; i++)
 			mac = (mac << 8) | (uint64_t)ptr[i];
 
@@ -648,6 +651,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 		     port < cvmx_helper_get_ipd_port(interface, num_ports);
 		     port++) {
 			union cvmx_pip_prt_tagx pip_prt_tagx;
+
 			pip_prt_tagx.u64 =
 			    cvmx_read_csr(CVMX_PIP_PRT_TAGX(port));
 			pip_prt_tagx.s.grp = pow_receive_group;
@@ -671,6 +675,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 
 	if ((pow_send_group != -1)) {
 		struct net_device *dev;
+
 		pr_info("\tConfiguring device for POW only access\n");
 		dev = alloc_etherdev(sizeof(struct octeon_ethernet));
 		if (dev) {
@@ -715,7 +720,8 @@ static int cvm_oct_probe(struct platform_device *pdev)
 			struct net_device *dev =
 			    alloc_etherdev(sizeof(struct octeon_ethernet));
 			if (!dev) {
-				pr_err("Failed to allocate ethernet device for port %d\n", port);
+				pr_err("Failed to allocate ethernet device for port %d\n",
+				       port);
 				continue;
 			}
 
@@ -780,8 +786,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 			if (!dev->netdev_ops) {
 				free_netdev(dev);
 			} else if (register_netdev(dev) < 0) {
-				pr_err("Failed to register ethernet device "
-					 "for interface %d, port %d\n",
+				pr_err("Failed to register ethernet device for interface %d, port %d\n",
 					 interface, priv->port);
 				free_netdev(dev);
 			} else {
@@ -833,6 +838,7 @@ static int cvm_oct_remove(struct platform_device *pdev)
 		if (cvm_oct_device[port]) {
 			struct net_device *dev = cvm_oct_device[port];
 			struct octeon_ethernet *priv = netdev_priv(dev);
+
 			cancel_delayed_work_sync(&priv->port_periodic_work);
 
 			cvm_oct_tx_shutdown_dev(dev);

@@ -530,6 +530,17 @@ config PANTHERLORD_FF
 	  Say Y here if you have a PantherLord/GreenAsia based game controller
 	  or adapter and want to enable force feedback support for it.
 
+config HID_PENMOUNT
+	tristate "Penmount touch device"
+	depends on USB_HID
+	---help---
+	  This selects a driver for the PenMount 6000 touch controller.
+
+	  The driver works around a problem in the report descript allowing
+	  the userspace to touch events instead of mouse events.
+
+	  Say Y here if you have a Penmount based touch controller.
+
 config HID_PETALYNX
 	tristate "Petalynx Maxter remote control"
 	depends on HID

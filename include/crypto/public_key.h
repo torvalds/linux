@@ -15,6 +15,7 @@
 #define _LINUX_PUBLIC_KEY_H
 
 #include <linux/mpi.h>
+#include <keys/asymmetric-type.h>
 #include <crypto/hash_info.h>
 
 enum pkey_algo {
@@ -98,8 +99,9 @@ struct key;
 extern int verify_signature(const struct key *key,
 			    const struct public_key_signature *sig);
 
+struct asymmetric_key_id;
 extern struct key *x509_request_asymmetric_key(struct key *keyring,
-					       const char *issuer,
-					       const char *key_id);
+					       const struct asymmetric_key_id *kid,
+					       bool partial);
 
 #endif /* _LINUX_PUBLIC_KEY_H */

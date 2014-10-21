@@ -66,11 +66,12 @@ static int add_hist_entries(struct perf_evlist *evlist,
 				.ops = &hist_iter_normal,
 				.hide_unresolved = false,
 			};
+			struct hists *hists = evsel__hists(evsel);
 
 			/* make sure it has no filter at first */
-			evsel->hists.thread_filter = NULL;
-			evsel->hists.dso_filter = NULL;
-			evsel->hists.symbol_filter_str = NULL;
+			hists->thread_filter = NULL;
+			hists->dso_filter = NULL;
+			hists->symbol_filter_str = NULL;
 
 			sample.pid = fake_samples[i].pid;
 			sample.tid = fake_samples[i].pid;
@@ -134,7 +135,7 @@ int test__hists_filter(void)
 		goto out;
 
 	evlist__for_each(evlist, evsel) {
-		struct hists *hists = &evsel->hists;
+		struct hists *hists = evsel__hists(evsel);
 
 		hists__collapse_resort(hists, NULL);
 		hists__output_resort(hists);
@@ -160,7 +161,7 @@ int test__hists_filter(void)
 				hists->stats.total_non_filtered_period);
 
 		/* now applying thread filter for 'bash' */
-		evsel->hists.thread_filter = fake_samples[9].thread;
+		hists->thread_filter = fake_samples[9].thread;
 		hists__filter_by_thread(hists);
 
 		if (verbose > 2) {
@@ -185,11 +186,11 @@ int test__hists_filter(void)
 				hists->stats.total_non_filtered_period == 400);
 
 		/* remove thread filter first */
-		evsel->hists.thread_filter = NULL;
+		hists->thread_filter = NULL;
 		hists__filter_by_thread(hists);
 
 		/* now applying dso filter for 'kernel' */
-		evsel->hists.dso_filter = fake_samples[0].map->dso;
+		hists->dso_filter = fake_samples[0].map->dso;
 		hists__filter_by_dso(hists);
 
 		if (verbose > 2) {
@@ -214,7 +215,7 @@ int test__hists_filter(void)
 				hists->stats.total_non_filtered_period == 300);
 
 		/* remove dso filter first */
-		evsel->hists.dso_filter = NULL;
+		hists->dso_filter = NULL;
 		hists__filter_by_dso(hists);
 
 		/*
@@ -224,7 +225,7 @@ int test__hists_filter(void)
 		 * be counted as a separate entry but the sample count and
 		 * total period will be remained.
 		 */
-		evsel->hists.symbol_filter_str = "main";
+		hists->symbol_filter_str = "main";
 		hists__filter_by_symbol(hists);
 
 		if (verbose > 2) {
@@ -249,8 +250,8 @@ int test__hists_filter(void)
 				hists->stats.total_non_filtered_period == 300);
 
 		/* now applying all filters at once. */
-		evsel->hists.thread_filter = fake_samples[1].thread;
-		evsel->hists.dso_filter = fake_samples[1].map->dso;
+		hists->thread_filter = fake_samples[1].thread;
+		hists->dso_filter = fake_samples[1].map->dso;
 		hists__filter_by_thread(hists);
 		hists__filter_by_dso(hists);
 

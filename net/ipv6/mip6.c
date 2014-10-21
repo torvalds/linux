@@ -336,11 +336,10 @@ static void mip6_destopt_destroy(struct xfrm_state *x)
 {
 }
 
-static const struct xfrm_type mip6_destopt_type =
-{
+static const struct xfrm_type mip6_destopt_type = {
 	.description	= "MIP6DESTOPT",
 	.owner		= THIS_MODULE,
-	.proto	     	= IPPROTO_DSTOPTS,
+	.proto		= IPPROTO_DSTOPTS,
 	.flags		= XFRM_TYPE_NON_FRAGMENT | XFRM_TYPE_LOCAL_COADDR,
 	.init_state	= mip6_destopt_init_state,
 	.destructor	= mip6_destopt_destroy,
@@ -469,11 +468,10 @@ static void mip6_rthdr_destroy(struct xfrm_state *x)
 {
 }
 
-static const struct xfrm_type mip6_rthdr_type =
-{
+static const struct xfrm_type mip6_rthdr_type = {
 	.description	= "MIP6RT",
 	.owner		= THIS_MODULE,
-	.proto	     	= IPPROTO_ROUTING,
+	.proto		= IPPROTO_ROUTING,
 	.flags		= XFRM_TYPE_NON_FRAGMENT | XFRM_TYPE_REMOTE_COADDR,
 	.init_state	= mip6_rthdr_init_state,
 	.destructor	= mip6_rthdr_destroy,

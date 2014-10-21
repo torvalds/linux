@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2013 Emulex
+ * Copyright (C) 2005 - 2014 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -943,17 +943,20 @@ mgmt_static_ip_modify(struct beiscsi_hba *phba,
 
 	if (ip_action == IP_ACTION_ADD) {
 		memcpy(req->ip_params.ip_record.ip_addr.addr, ip_param->value,
-		       ip_param->len);
+		       sizeof(req->ip_params.ip_record.ip_addr.addr));
 
 		if (subnet_param)
 			memcpy(req->ip_params.ip_record.ip_addr.subnet_mask,
-			       subnet_param->value, subnet_param->len);
+			       subnet_param->value,
+			       sizeof(req->ip_params.ip_record.ip_addr.subnet_mask));
 	} else {
 		memcpy(req->ip_params.ip_record.ip_addr.addr,
-		       if_info->ip_addr.addr, ip_param->len);
+		       if_info->ip_addr.addr,
+		       sizeof(req->ip_params.ip_record.ip_addr.addr));
 
 		memcpy(req->ip_params.ip_record.ip_addr.subnet_mask,
-		       if_info->ip_addr.subnet_mask, ip_param->len);
+		       if_info->ip_addr.subnet_mask,
+		       sizeof(req->ip_params.ip_record.ip_addr.subnet_mask));
 	}
 
 	rc = mgmt_exec_nonemb_cmd(phba, &nonemb_cmd, NULL, 0);
@@ -981,7 +984,7 @@ static int mgmt_modify_gateway(struct beiscsi_hba *phba, uint8_t *gt_addr,
 	req->action = gtway_action;
 	req->ip_addr.ip_type = BE2_IPV4;
 
-	memcpy(req->ip_addr.addr, gt_addr, param_len);
+	memcpy(req->ip_addr.addr, gt_addr, sizeof(req->ip_addr.addr));
 
 	return mgmt_exec_nonemb_cmd(phba, &nonemb_cmd, NULL, 0);
 }

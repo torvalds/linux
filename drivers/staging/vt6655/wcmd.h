@@ -114,11 +114,10 @@ vCommandTimerWait(
 	void *hDeviceContext,
 	unsigned int MSecond
 );
-#ifdef TxInSleep
+
 void
 BSSvSecondTxData(
 	void *hDeviceContext
 );
-#endif
 
 #endif //__WCMD_H__

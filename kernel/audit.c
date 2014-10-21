@@ -126,7 +126,7 @@ static atomic_t    audit_lost = ATOMIC_INIT(0);
 
 /* The netlink socket. */
 static struct sock *audit_sock;
-int audit_net_id;
+static int audit_net_id;
 
 /* Hash for inode-based rules */
 struct list_head audit_inode_hash[AUDIT_INODE_BUCKETS];
@@ -724,7 +724,7 @@ static int audit_get_feature(struct sk_buff *skb)
 
 	seq = nlmsg_hdr(skb)->nlmsg_seq;
 
-	audit_send_reply(skb, seq, AUDIT_GET, 0, 0, &af, sizeof(af));
+	audit_send_reply(skb, seq, AUDIT_GET_FEATURE, 0, 0, &af, sizeof(af));
 
 	return 0;
 }
@@ -750,7 +750,7 @@ static int audit_set_feature(struct sk_buff *skb)
 	struct audit_features *uaf;
 	int i;
 
-	BUILD_BUG_ON(AUDIT_LAST_FEATURE + 1 > sizeof(audit_feature_names)/sizeof(audit_feature_names[0]));
+	BUILD_BUG_ON(AUDIT_LAST_FEATURE + 1 > ARRAY_SIZE(audit_feature_names));
 	uaf = nlmsg_data(nlmsg_hdr(skb));
 
 	/* if there is ever a version 2 we should handle that here */
@@ -1301,19 +1301,9 @@ err:
  */
 unsigned int audit_serial(void)
 {
-	static DEFINE_SPINLOCK(serial_lock);
-	static unsigned int serial = 0;
+	static atomic_t serial = ATOMIC_INIT(0);
 
-	unsigned long flags;
-	unsigned int ret;
-
-	spin_lock_irqsave(&serial_lock, flags);
-	do {
-		ret = ++serial;
-	} while (unlikely(!ret));
-	spin_unlock_irqrestore(&serial_lock, flags);
-
-	return ret;
+	return atomic_add_return(1, &serial);
 }
 
 static inline void audit_get_stamp(struct audit_context *ctx,
@@ -1681,7 +1671,7 @@ void audit_log_cap(struct audit_buffer *ab, char *prefix, kernel_cap_t *cap)
 	}
 }
 
-void audit_log_fcaps(struct audit_buffer *ab, struct audit_names *name)
+static void audit_log_fcaps(struct audit_buffer *ab, struct audit_names *name)
 {
 	kernel_cap_t *perm = &name->fcap.permitted;
 	kernel_cap_t *inh = &name->fcap.inheritable;
@@ -1860,7 +1850,7 @@ EXPORT_SYMBOL(audit_log_task_context);
 void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk)
 {
 	const struct cred *cred;
-	char name[sizeof(tsk->comm)];
+	char comm[sizeof(tsk->comm)];
 	struct mm_struct *mm = tsk->mm;
 	char *tty;
 
@@ -1894,9 +1884,8 @@ void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk)
 			 from_kgid(&init_user_ns, cred->fsgid),
 			 tty, audit_get_sessionid(tsk));
 
-	get_task_comm(name, tsk);
 	audit_log_format(ab, " comm=");
-	audit_log_untrustedstring(ab, name);
+	audit_log_untrustedstring(ab, get_task_comm(comm, tsk));
 
 	if (mm) {
 		down_read(&mm->mmap_sem);
@@ -1959,6 +1948,7 @@ void audit_log_end(struct audit_buffer *ab)
 	} else {
 		struct nlmsghdr *nlh = nlmsg_hdr(ab->skb);
 
+		nlh->nlmsg_len = ab->skb->len;
 		kauditd_send_multicast_skb(ab->skb);
 
 		/*
@@ -1970,7 +1960,7 @@ void audit_log_end(struct audit_buffer *ab)
 		 * protocol between the kaudit kernel subsystem and the auditd
 		 * userspace code.
 		 */
-		nlh->nlmsg_len = ab->skb->len - NLMSG_HDRLEN;
+		nlh->nlmsg_len -= NLMSG_HDRLEN;
 
 		if (audit_pid) {
 			skb_queue_tail(&audit_skb_queue, ab->skb);

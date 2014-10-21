@@ -550,7 +550,7 @@ static int __init dns323_identify_rev(void)
 			break;
 	}
 	if (i >= 1000) {
-		pr_warning("DNS-323: Timeout accessing PHY, assuming rev B1\n");
+		pr_warn("DNS-323: Timeout accessing PHY, assuming rev B1\n");
 		return DNS323_REV_B1;
 	}
 	writel((3 << 21)	/* phy ID reg */ |
@@ -562,7 +562,7 @@ static int __init dns323_identify_rev(void)
 			break;
 	}
 	if (i >= 1000) {
-		pr_warning("DNS-323: Timeout reading PHY, assuming rev B1\n");
+		pr_warn("DNS-323: Timeout reading PHY, assuming rev B1\n");
 		return DNS323_REV_B1;
 	}
 	pr_debug("DNS-323: Ethernet PHY ID 0x%x\n", reg & 0xffff);
@@ -577,8 +577,8 @@ static int __init dns323_identify_rev(void)
 	case 0x0e10: /* MV88E1118 */
 		return DNS323_REV_C1;
 	default:
-		pr_warning("DNS-323: Unknown PHY ID 0x%04x, assuming rev B1\n",
-			   reg & 0xffff);
+		pr_warn("DNS-323: Unknown PHY ID 0x%04x, assuming rev B1\n",
+			reg & 0xffff);
 	}
 	return DNS323_REV_B1;
 }

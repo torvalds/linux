@@ -252,7 +252,6 @@ void r8712_wep_decrypt(struct _adapter  *padapter, u8 *precvframe)
 		/* calculate icv and compare the icv */
 		*((u32 *)crc) = cpu_to_le32(getcrc32(payload, length - 4));
 	}
-	return;
 }
 
 /* 3 =====TKIP related===== */

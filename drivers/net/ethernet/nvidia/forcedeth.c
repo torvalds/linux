@@ -1481,7 +1481,7 @@ static int phy_init(struct net_device *dev)
 	}
 
 	/* phy vendor specific configuration */
-	if ((np->phy_oui == PHY_OUI_CICADA)) {
+	if (np->phy_oui == PHY_OUI_CICADA) {
 		if (init_cicada(dev, np, phyinterface)) {
 			netdev_info(dev, "%s: phy init failed\n",
 				    pci_name(np->pci_dev));

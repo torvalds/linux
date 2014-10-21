@@ -26,7 +26,6 @@
  */
 
 #include <linux/string.h>
-#include <linux/syscalls.h>
 #include <linux/pagemap.h>
 #include <linux/key.h>
 #include <linux/random.h>
@@ -1846,7 +1845,6 @@ int ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 					"(Tag 11 not allowed by itself)\n");
 			rc = -EIO;
 			goto out_wipe_list;
-			break;
 		default:
 			ecryptfs_printk(KERN_DEBUG, "No packet at offset [%zd] "
 					"of the file header; hex value of "

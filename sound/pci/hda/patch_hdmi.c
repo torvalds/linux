@@ -1163,15 +1163,21 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec,
 
 static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll);
 
-static void jack_callback(struct hda_codec *codec, struct hda_jack_tbl *jack)
+static void check_presence_and_report(struct hda_codec *codec, hda_nid_t nid)
 {
 	struct hdmi_spec *spec = codec->spec;
-	int pin_idx = pin_nid_to_pin_index(codec, jack->nid);
+	int pin_idx = pin_nid_to_pin_index(codec, nid);
+
 	if (pin_idx < 0)
 		return;
-
 	if (hdmi_present_sense(get_pin(spec, pin_idx), 1))
 		snd_hda_jack_report_sync(codec);
+}
+
+static void jack_callback(struct hda_codec *codec,
+			  struct hda_jack_callback *jack)
+{
+	check_presence_and_report(codec, jack->tbl->nid);
 }
 
 static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
@@ -1190,7 +1196,7 @@ static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
 		codec->addr, jack->nid, dev_entry, !!(res & AC_UNSOL_RES_IA),
 		!!(res & AC_UNSOL_RES_PD), !!(res & AC_UNSOL_RES_ELDV));
 
-	jack_callback(codec, jack);
+	check_presence_and_report(codec, jack->nid);
 }
 
 static void hdmi_non_intrinsic_event(struct hda_codec *codec, unsigned int res)
@@ -2165,7 +2171,7 @@ static int generic_hdmi_init(struct hda_codec *codec)
 		hda_nid_t pin_nid = per_pin->pin_nid;
 
 		hdmi_init_pin(codec, pin_nid);
-		snd_hda_jack_detect_enable_callback(codec, pin_nid, pin_nid,
+		snd_hda_jack_detect_enable_callback(codec, pin_nid,
 			codec->jackpoll_interval > 0 ? jack_callback : NULL);
 	}
 	return 0;
@@ -2428,7 +2434,7 @@ static int simple_playback_init(struct hda_codec *codec)
 	if (get_wcaps(codec, pin) & AC_WCAP_OUT_AMP)
 		snd_hda_codec_write(codec, pin, 0, AC_VERB_SET_AMP_GAIN_MUTE,
 				    AMP_OUT_UNMUTE);
-	snd_hda_jack_detect_enable(codec, pin, pin);
+	snd_hda_jack_detect_enable(codec, pin);
 	return 0;
 }
 

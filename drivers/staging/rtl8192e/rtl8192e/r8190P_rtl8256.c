@@ -79,17 +79,14 @@ void PHY_SetRF8256Bandwidth(struct net_device *dev,
 
 		}
 	}
-	return;
 }
 
 bool PHY_RF8256_Config(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	bool rtStatus = true;
-	priv->NumTotalRFPath = RTL819X_TOTAL_RF_PATH;
-	rtStatus = phy_RF8256_Config_ParaFile(dev);
 
-	return rtStatus;
+	priv->NumTotalRFPath = RTL819X_TOTAL_RF_PATH;
+	return phy_RF8256_Config_ParaFile(dev);
 }
 
 bool phy_RF8256_Config_ParaFile(struct net_device *dev)
@@ -231,11 +228,11 @@ bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 
 	}
 
-	RT_TRACE(COMP_PHY, "PHY Initialization Success\n") ;
+	RT_TRACE(COMP_PHY, "PHY Initialization Success\n");
 	return true;
 
 phy_RF8256_Config_ParaFile_Fail:
-	RT_TRACE(COMP_ERR, "PHY Initialization failed\n") ;
+	RT_TRACE(COMP_ERR, "PHY Initialization failed\n");
 	return false;
 }
 
@@ -302,5 +299,4 @@ void PHY_SetRF8256OFDMTxPower(struct net_device *dev, u8 powerlevel)
 		rtl8192_setBBreg(dev, RegOffset[index], 0x7f7f7f7f, writeVal);
 	}
 
-	return;
 }

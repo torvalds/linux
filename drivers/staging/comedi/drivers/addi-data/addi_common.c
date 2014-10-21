@@ -44,7 +44,7 @@ static int i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev,
 				     struct comedi_insn *insn,
 				     unsigned int *data)
 {
-	const struct addi_board *this_board = comedi_board(dev);
+	const struct addi_board *this_board = dev->board_ptr;
 	struct addi_private *devpriv = dev->private;
 	unsigned short w_Address = CR_CHAN(insn->chanspec);
 	unsigned short w_Data;
@@ -59,7 +59,7 @@ static int i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev,
 static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	const struct addi_board *this_board = comedi_board(dev);
+	const struct addi_board *this_board = dev->board_ptr;
 
 	this_board->interrupt(irq, d);
 	return IRQ_RETVAL(1);
@@ -67,7 +67,7 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 
 static int i_ADDI_Reset(struct comedi_device *dev)
 {
-	const struct addi_board *this_board = comedi_board(dev);
+	const struct addi_board *this_board = dev->board_ptr;
 
 	this_board->reset(dev);
 	return 0;
@@ -77,7 +77,7 @@ static int addi_auto_attach(struct comedi_device *dev,
 				      unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct addi_board *this_board = comedi_board(dev);
+	const struct addi_board *this_board = dev->board_ptr;
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret, n_subdevices;
@@ -268,13 +268,7 @@ static int addi_auto_attach(struct comedi_device *dev,
 
 static void i_ADDI_Detach(struct comedi_device *dev)
 {
-	struct addi_private *devpriv = dev->private;
-
-	if (devpriv) {
-		if (dev->iobase)
-			i_ADDI_Reset(dev);
-		if (dev->irq)
-			free_irq(dev->irq, dev);
-	}
-	comedi_pci_disable(dev);
+	if (dev->iobase)
+		i_ADDI_Reset(dev);
+	comedi_pci_detach(dev);
 }

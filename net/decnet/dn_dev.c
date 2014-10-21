@@ -41,6 +41,7 @@
 #include <linux/sysctl.h>
 #include <linux/notifier.h>
 #include <linux/slab.h>
+#include <linux/jiffies.h>
 #include <asm/uaccess.h>
 #include <net/net_namespace.h>
 #include <net/neighbour.h>
@@ -875,7 +876,7 @@ static void dn_send_endnode_hello(struct net_device *dev, struct dn_ifaddr *ifa)
 static int dn_am_i_a_router(struct dn_neigh *dn, struct dn_dev *dn_db, struct dn_ifaddr *ifa)
 {
 	/* First check time since device went up */
-	if ((jiffies - dn_db->uptime) < DRDELAY)
+	if (time_before(jiffies, dn_db->uptime + DRDELAY))
 		return 0;
 
 	/* If there is no router, then yes... */

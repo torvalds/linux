@@ -20,7 +20,6 @@
 
 #include <linux/uuid.h>
 
-#include "commontypes.h"
 #include "memregion.h"
 #include "channel.h"
 #ifndef HOSTADDRESS

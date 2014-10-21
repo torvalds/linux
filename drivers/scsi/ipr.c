@@ -2440,6 +2440,7 @@ static void ipr_handle_log_data(struct ipr_ioa_cfg *ioa_cfg,
 {
 	u32 ioasc;
 	int error_index;
+	struct ipr_hostrcb_type_21_error *error;
 
 	if (hostrcb->hcam.notify_type != IPR_HOST_RCB_NOTIF_TYPE_ERROR_LOG_ENTRY)
 		return;
@@ -2463,6 +2464,15 @@ static void ipr_handle_log_data(struct ipr_ioa_cfg *ioa_cfg,
 
 	if (!ipr_error_table[error_index].log_hcam)
 		return;
+
+	if (ioasc == IPR_IOASC_HW_CMD_FAILED &&
+	    hostrcb->hcam.overlay_id == IPR_HOST_RCB_OVERLAY_ID_21) {
+		error = &hostrcb->hcam.u.error64.u.type_21_error;
+
+		if (((be32_to_cpu(error->sense_data[0]) & 0x0000ff00) >> 8) == ILLEGAL_REQUEST &&
+			ioa_cfg->log_level <= IPR_DEFAULT_LOG_LEVEL)
+				return;
+	}
 
 	ipr_hcam_err(hostrcb, "%s\n", ipr_error_table[error_index].error);
 

@@ -18,12 +18,26 @@ Required properties:
 - pinctrl-names: Must contain a "default" entry.
 - pinctrl-NNN: One property must exist for each entry in pinctrl-names.
   See ../pinctrl/pinctrl-bindings.txt for details of the property values.
-- big-endian-regs: If this property is absent, the little endian mode will
-  be in use as default, or the big endian mode will be in use for all the
-  device registers.
-- big-endian-data: If this property is absent, the little endian mode will
-  be in use as default, or the big endian mode will be in use for all the
-  fifo data.
+- big-endian: Boolean property, required if all the FTM_PWM registers
+  are big-endian rather than little-endian.
+- lsb-first: Configures whether the LSB or the MSB is transmitted first for
+  the fifo data. If this property is absent, the MSB is transmitted first as
+  default, or the LSB is transmitted first.
+- fsl,sai-synchronous-rx: This is a boolean property. If present, indicating
+  that SAI will work in the synchronous mode (sync Tx with Rx) which means
+  both the transimitter and receiver will send and receive data by following
+  receiver's bit clocks and frame sync clocks.
+- fsl,sai-asynchronous: This is a boolean property. If present, indicating
+  that SAI will work in the asynchronous mode, which means both transimitter
+  and receiver will send and receive data by following their own bit clocks
+  and frame sync clocks separately.
+
+Note:
+- If both fsl,sai-asynchronous and fsl,sai-synchronous-rx are absent, the
+  default synchronous mode (sync Rx with Tx) will be used, which means both
+  transimitter and receiver will send and receive data by following clocks
+  of transimitter.
+- fsl,sai-asynchronous and fsl,sai-synchronous-rx are exclusive.
 
 Example:
 sai2: sai@40031000 {
@@ -38,6 +52,6 @@ sai2: sai@40031000 {
 	      dma-names = "tx", "rx";
 	      dmas = <&edma0 0 VF610_EDMA_MUXID0_SAI2_TX>,
 		   <&edma0 0 VF610_EDMA_MUXID0_SAI2_RX>;
-	      big-endian-regs;
-	      big-endian-data;
+	      big-endian;
+	      lsb-first;
 };

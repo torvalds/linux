@@ -35,6 +35,35 @@ static void qlcnic_83xx_get_beacon_state(struct qlcnic_adapter *);
 #define QLC_SKIP_INACTIVE_PCI_REGS	7
 #define QLC_MAX_LEGACY_FUNC_SUPP	8
 
+/* 83xx Module type */
+#define QLC_83XX_MODULE_FIBRE_10GBASE_LRM	0x1 /* 10GBase-LRM */
+#define QLC_83XX_MODULE_FIBRE_10GBASE_LR	0x2 /* 10GBase-LR */
+#define QLC_83XX_MODULE_FIBRE_10GBASE_SR	0x3 /* 10GBase-SR */
+#define QLC_83XX_MODULE_DA_10GE_PASSIVE_CP	0x4 /* 10GE passive
+						     * copper(compliant)
+						     */
+#define QLC_83XX_MODULE_DA_10GE_ACTIVE_CP	0x5 /* 10GE active limiting
+						     * copper(compliant)
+						     */
+#define QLC_83XX_MODULE_DA_10GE_LEGACY_CP	0x6 /* 10GE passive copper
+						     * (legacy, best effort)
+						     */
+#define QLC_83XX_MODULE_FIBRE_1000BASE_SX	0x7 /* 1000Base-SX */
+#define QLC_83XX_MODULE_FIBRE_1000BASE_LX	0x8 /* 1000Base-LX */
+#define QLC_83XX_MODULE_FIBRE_1000BASE_CX	0x9 /* 1000Base-CX */
+#define QLC_83XX_MODULE_TP_1000BASE_T		0xa /* 1000Base-T*/
+#define QLC_83XX_MODULE_DA_1GE_PASSIVE_CP	0xb /* 1GE passive copper
+						     * (legacy, best effort)
+						     */
+#define QLC_83XX_MODULE_UNKNOWN			0xf /* Unknown module type */
+
+/* Port types */
+#define QLC_83XX_10_CAPABLE	 BIT_8
+#define QLC_83XX_100_CAPABLE	 BIT_9
+#define QLC_83XX_1G_CAPABLE	 BIT_10
+#define QLC_83XX_10G_CAPABLE	 BIT_11
+#define QLC_83XX_AUTONEG_ENABLE	 BIT_15
+
 static const struct qlcnic_mailbox_metadata qlcnic_83xx_mbx_tbl[] = {
 	{QLCNIC_CMD_CONFIGURE_IP_ADDR, 6, 1},
 	{QLCNIC_CMD_CONFIG_INTRPT, 18, 34},
@@ -667,6 +696,7 @@ void qlcnic_83xx_write_crb(struct qlcnic_adapter *adapter, char *buf,
 
 int qlcnic_83xx_get_port_info(struct qlcnic_adapter *adapter)
 {
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	int status;
 
 	status = qlcnic_83xx_get_port_config(adapter);
@@ -674,13 +704,20 @@ int qlcnic_83xx_get_port_info(struct qlcnic_adapter *adapter)
 		dev_err(&adapter->pdev->dev,
 			"Get Port Info failed\n");
 	} else {
-		if (QLC_83XX_SFP_10G_CAPABLE(adapter->ahw->port_config))
-			adapter->ahw->port_type = QLCNIC_XGBE;
-		else
-			adapter->ahw->port_type = QLCNIC_GBE;
 
-		if (QLC_83XX_AUTONEG(adapter->ahw->port_config))
-			adapter->ahw->link_autoneg = AUTONEG_ENABLE;
+		if (ahw->port_config & QLC_83XX_10G_CAPABLE) {
+			ahw->port_type = QLCNIC_XGBE;
+		} else if (ahw->port_config & QLC_83XX_10_CAPABLE ||
+			   ahw->port_config & QLC_83XX_100_CAPABLE ||
+			   ahw->port_config & QLC_83XX_1G_CAPABLE) {
+			ahw->port_type = QLCNIC_GBE;
+		} else {
+			ahw->port_type = QLCNIC_XGBE;
+		}
+
+		if (QLC_83XX_AUTONEG(ahw->port_config))
+			ahw->link_autoneg = AUTONEG_ENABLE;
+
 	}
 	return status;
 }
@@ -2664,7 +2701,7 @@ static int qlcnic_83xx_poll_flash_status_reg(struct qlcnic_adapter *adapter)
 		    QLC_83XX_FLASH_STATUS_READY)
 			break;
 
-		msleep(QLC_83XX_FLASH_STATUS_REG_POLL_DELAY);
+		usleep_range(1000, 1100);
 	} while (--retries);
 
 	if (!retries)
@@ -3176,22 +3213,33 @@ int qlcnic_83xx_test_link(struct qlcnic_adapter *adapter)
 			break;
 		}
 		config = cmd.rsp.arg[3];
-		if (QLC_83XX_SFP_PRESENT(config)) {
-			switch (ahw->module_type) {
-			case LINKEVENT_MODULE_OPTICAL_UNKNOWN:
-			case LINKEVENT_MODULE_OPTICAL_SRLR:
-			case LINKEVENT_MODULE_OPTICAL_LRM:
-			case LINKEVENT_MODULE_OPTICAL_SFP_1G:
-				ahw->supported_type = PORT_FIBRE;
-				break;
-			case LINKEVENT_MODULE_TWINAX_UNSUPPORTED_CABLE:
-			case LINKEVENT_MODULE_TWINAX_UNSUPPORTED_CABLELEN:
-			case LINKEVENT_MODULE_TWINAX:
-				ahw->supported_type = PORT_TP;
-				break;
-			default:
-				ahw->supported_type = PORT_OTHER;
-			}
+		switch (QLC_83XX_SFP_MODULE_TYPE(config)) {
+		case QLC_83XX_MODULE_FIBRE_10GBASE_LRM:
+		case QLC_83XX_MODULE_FIBRE_10GBASE_LR:
+		case QLC_83XX_MODULE_FIBRE_10GBASE_SR:
+			ahw->supported_type = PORT_FIBRE;
+			ahw->port_type = QLCNIC_XGBE;
+			break;
+		case QLC_83XX_MODULE_FIBRE_1000BASE_SX:
+		case QLC_83XX_MODULE_FIBRE_1000BASE_LX:
+		case QLC_83XX_MODULE_FIBRE_1000BASE_CX:
+			ahw->supported_type = PORT_FIBRE;
+			ahw->port_type = QLCNIC_GBE;
+			break;
+		case QLC_83XX_MODULE_TP_1000BASE_T:
+			ahw->supported_type = PORT_TP;
+			ahw->port_type = QLCNIC_GBE;
+			break;
+		case QLC_83XX_MODULE_DA_10GE_PASSIVE_CP:
+		case QLC_83XX_MODULE_DA_10GE_ACTIVE_CP:
+		case QLC_83XX_MODULE_DA_10GE_LEGACY_CP:
+		case QLC_83XX_MODULE_DA_1GE_PASSIVE_CP:
+			ahw->supported_type = PORT_DA;
+			ahw->port_type = QLCNIC_XGBE;
+			break;
+		default:
+			ahw->supported_type = PORT_OTHER;
+			ahw->port_type = QLCNIC_XGBE;
 		}
 		if (config & 1)
 			err = 1;
@@ -3204,9 +3252,9 @@ out:
 int qlcnic_83xx_get_settings(struct qlcnic_adapter *adapter,
 			     struct ethtool_cmd *ecmd)
 {
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	u32 config = 0;
 	int status = 0;
-	struct qlcnic_hardware_context *ahw = adapter->ahw;
 
 	if (!test_bit(__QLCNIC_MAINTENANCE_MODE, &adapter->state)) {
 		/* Get port configuration info */
@@ -3229,20 +3277,41 @@ int qlcnic_83xx_get_settings(struct qlcnic_adapter *adapter,
 		ecmd->autoneg = AUTONEG_DISABLE;
 	}
 
-	if (ahw->port_type == QLCNIC_XGBE) {
-		ecmd->supported = SUPPORTED_10000baseT_Full;
-		ecmd->advertising = ADVERTISED_10000baseT_Full;
+	ecmd->supported = (SUPPORTED_10baseT_Full |
+			   SUPPORTED_100baseT_Full |
+			   SUPPORTED_1000baseT_Full |
+			   SUPPORTED_10000baseT_Full |
+			   SUPPORTED_Autoneg);
+
+	if (ecmd->autoneg == AUTONEG_ENABLE) {
+		if (ahw->port_config & QLC_83XX_10_CAPABLE)
+			ecmd->advertising |= SUPPORTED_10baseT_Full;
+		if (ahw->port_config & QLC_83XX_100_CAPABLE)
+			ecmd->advertising |= SUPPORTED_100baseT_Full;
+		if (ahw->port_config & QLC_83XX_1G_CAPABLE)
+			ecmd->advertising |= SUPPORTED_1000baseT_Full;
+		if (ahw->port_config & QLC_83XX_10G_CAPABLE)
+			ecmd->advertising |= SUPPORTED_10000baseT_Full;
+		if (ahw->port_config & QLC_83XX_AUTONEG_ENABLE)
+			ecmd->advertising |= ADVERTISED_Autoneg;
 	} else {
-		ecmd->supported = (SUPPORTED_10baseT_Half |
-				   SUPPORTED_10baseT_Full |
-				   SUPPORTED_100baseT_Half |
-				   SUPPORTED_100baseT_Full |
-				   SUPPORTED_1000baseT_Half |
-				   SUPPORTED_1000baseT_Full);
-		ecmd->advertising = (ADVERTISED_100baseT_Half |
-				     ADVERTISED_100baseT_Full |
-				     ADVERTISED_1000baseT_Half |
-				     ADVERTISED_1000baseT_Full);
+		switch (ahw->link_speed) {
+		case SPEED_10:
+			ecmd->advertising = SUPPORTED_10baseT_Full;
+			break;
+		case SPEED_100:
+			ecmd->advertising = SUPPORTED_100baseT_Full;
+			break;
+		case SPEED_1000:
+			ecmd->advertising = SUPPORTED_1000baseT_Full;
+			break;
+		case SPEED_10000:
+			ecmd->advertising = SUPPORTED_10000baseT_Full;
+			break;
+		default:
+			break;
+		}
+
 	}
 
 	switch (ahw->supported_type) {
@@ -3258,6 +3327,12 @@ int qlcnic_83xx_get_settings(struct qlcnic_adapter *adapter,
 		ecmd->port = PORT_TP;
 		ecmd->transceiver = XCVR_INTERNAL;
 		break;
+	case PORT_DA:
+		ecmd->supported |= SUPPORTED_FIBRE;
+		ecmd->advertising |= ADVERTISED_FIBRE;
+		ecmd->port = PORT_DA;
+		ecmd->transceiver = XCVR_EXTERNAL;
+		break;
 	default:
 		ecmd->supported |= SUPPORTED_FIBRE;
 		ecmd->advertising |= ADVERTISED_FIBRE;
@@ -3272,35 +3347,60 @@ int qlcnic_83xx_get_settings(struct qlcnic_adapter *adapter,
 int qlcnic_83xx_set_settings(struct qlcnic_adapter *adapter,
 			     struct ethtool_cmd *ecmd)
 {
-	int status = 0;
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	u32 config = adapter->ahw->port_config;
+	int status = 0;
 
-	if (ecmd->autoneg)
-		adapter->ahw->port_config |= BIT_15;
-
-	switch (ethtool_cmd_speed(ecmd)) {
-	case SPEED_10:
-		adapter->ahw->port_config |= BIT_8;
-		break;
-	case SPEED_100:
-		adapter->ahw->port_config |= BIT_9;
-		break;
-	case SPEED_1000:
-		adapter->ahw->port_config |= BIT_10;
-		break;
-	case SPEED_10000:
-		adapter->ahw->port_config |= BIT_11;
-		break;
-	default:
-		return -EINVAL;
+	/* 83xx devices do not support Half duplex */
+	if (ecmd->duplex == DUPLEX_HALF) {
+			netdev_info(adapter->netdev,
+				    "Half duplex mode not supported\n");
+			return -EINVAL;
 	}
 
+	if (ecmd->autoneg) {
+		ahw->port_config |= QLC_83XX_AUTONEG_ENABLE;
+		ahw->port_config |= (QLC_83XX_100_CAPABLE |
+				     QLC_83XX_1G_CAPABLE |
+				     QLC_83XX_10G_CAPABLE);
+	} else { /* force speed */
+		ahw->port_config &= ~QLC_83XX_AUTONEG_ENABLE;
+		switch (ethtool_cmd_speed(ecmd)) {
+		case SPEED_10:
+			ahw->port_config &= ~(QLC_83XX_100_CAPABLE |
+					      QLC_83XX_1G_CAPABLE |
+					      QLC_83XX_10G_CAPABLE);
+			ahw->port_config |= QLC_83XX_10_CAPABLE;
+			break;
+		case SPEED_100:
+			ahw->port_config &= ~(QLC_83XX_10_CAPABLE |
+					      QLC_83XX_1G_CAPABLE |
+					      QLC_83XX_10G_CAPABLE);
+			ahw->port_config |= QLC_83XX_100_CAPABLE;
+			break;
+		case SPEED_1000:
+			ahw->port_config &= ~(QLC_83XX_10_CAPABLE |
+					      QLC_83XX_100_CAPABLE |
+					      QLC_83XX_10G_CAPABLE);
+			ahw->port_config |= QLC_83XX_1G_CAPABLE;
+			break;
+		case SPEED_10000:
+			ahw->port_config &= ~(QLC_83XX_10_CAPABLE |
+					      QLC_83XX_100_CAPABLE |
+					      QLC_83XX_1G_CAPABLE);
+			ahw->port_config |= QLC_83XX_10G_CAPABLE;
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
 	status = qlcnic_83xx_set_port_config(adapter);
 	if (status) {
-		dev_info(&adapter->pdev->dev,
-			 "Failed to Set Link Speed and autoneg.\n");
-		adapter->ahw->port_config = config;
+		netdev_info(adapter->netdev,
+			    "Failed to Set Link Speed and autoneg.\n");
+		ahw->port_config = config;
 	}
+
 	return status;
 }
 

@@ -255,6 +255,12 @@ static struct attribute *uwb_dev_attrs[] = {
 };
 ATTRIBUTE_GROUPS(uwb_dev);
 
+/* UWB bus type. */
+struct bus_type uwb_bus_type = {
+	.name =		"uwb",
+	.dev_groups =	uwb_dev_groups,
+};
+
 /**
  * Device SYSFS registration
  */
@@ -263,10 +269,6 @@ static int __uwb_dev_sys_add(struct uwb_dev *uwb_dev, struct device *parent_dev)
 	struct device *dev;
 
 	dev = &uwb_dev->dev;
-	/* Device sysfs files are only useful for neighbor devices not
-	   local radio controllers. */
-	if (&uwb_dev->rc->uwb_dev != uwb_dev)
-		dev->groups = uwb_dev_groups;
 	dev->parent = parent_dev;
 	dev_set_drvdata(dev, uwb_dev);
 
@@ -365,8 +367,8 @@ int __uwb_dev_offair(struct uwb_dev *uwb_dev, struct uwb_rc *rc)
 	uwb_dev_addr_print(devbuf, sizeof(devbuf), &uwb_dev->dev_addr);
 	dev_info(dev, "uwb device (mac %s dev %s) disconnected from %s %s\n",
 		 macbuf, devbuf,
-		 rc ? rc->uwb_dev.dev.parent->bus->name : "n/a",
-		 rc ? dev_name(rc->uwb_dev.dev.parent) : "");
+		 uwb_dev->dev.bus->name,
+		 rc ? dev_name(&(rc->uwb_dev.dev)) : "");
 	uwb_dev_rm(uwb_dev);
 	list_del(&uwb_dev->bce->node);
 	uwb_bce_put(uwb_dev->bce);
@@ -428,6 +430,7 @@ void uwbd_dev_onair(struct uwb_rc *rc, struct uwb_beca_e *bce)
 		return;
 	}
 	uwb_dev_init(uwb_dev);		/* This sets refcnt to one, we own it */
+	uwb_dev->dev.bus = &uwb_bus_type;
 	uwb_dev->mac_addr = *bce->mac_addr;
 	uwb_dev->dev_addr = bce->dev_addr;
 	dev_set_name(&uwb_dev->dev, "%s", macbuf);
@@ -445,8 +448,8 @@ void uwbd_dev_onair(struct uwb_rc *rc, struct uwb_beca_e *bce)
 	}
 
 	dev_info(dev, "uwb device (mac %s dev %s) connected to %s %s\n",
-		 macbuf, devbuf, rc->uwb_dev.dev.parent->bus->name,
-		 dev_name(rc->uwb_dev.dev.parent));
+		 macbuf, devbuf, uwb_dev->dev.bus->name,
+		 dev_name(&(rc->uwb_dev.dev)));
 	uwb_notify(rc, uwb_dev, UWB_NOTIF_ONAIR);
 	return;
 

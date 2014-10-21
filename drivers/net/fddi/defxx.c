@@ -466,7 +466,8 @@ static void dfx_get_bars(struct device *bdev,
 			*bar_len = (bar | PI_MEM_ADD_MASK_M) + 1;
 		} else {
 			*bar_start = base_addr;
-			*bar_len = PI_ESIC_K_CSR_IO_LEN;
+			*bar_len = PI_ESIC_K_CSR_IO_LEN +
+				   PI_ESIC_K_BURST_HOLDOFF_LEN;
 		}
 	}
 	if (dfx_bus_tc) {
@@ -683,6 +684,9 @@ static void dfx_bus_init(struct net_device *dev)
 	if (dfx_bus_eisa) {
 		unsigned long base_addr = to_eisa_device(bdev)->base_addr;
 
+		/* Disable the board before fiddling with the decoders.  */
+		outb(0, base_addr + PI_ESIC_K_SLOT_CNTRL);
+
 		/* Get the interrupt level from the ESIC chip.  */
 		val = inb(base_addr + PI_ESIC_K_IO_CONFIG_STAT_0);
 		val &= PI_CONFIG_STAT_0_M_IRQ;
@@ -709,38 +713,46 @@ static void dfx_bus_init(struct net_device *dev)
 		/*
 		 * Enable memory decoding (MEMCS0) and/or port decoding
 		 * (IOCS1/IOCS0) as appropriate in Function Control
-		 * Register.  One of the port chip selects seems to be
-		 * used for the Burst Holdoff register, but this bit of
-		 * documentation is missing and as yet it has not been
-		 * determined which of the two.  This is also the reason
-		 * the size of the decoded port range is twice as large
-		 * as one required by the PDQ.
+		 * Register.  IOCS0 is used for PDQ registers, taking 16
+		 * 32-bit words, while IOCS1 is used for the Burst Holdoff
+		 * register, taking a single 32-bit word only.  We use the
+		 * slot-specific I/O range as per the ESIC spec, that is
+		 * set bits 15:12 in the mask registers to mask them out.
 		 */
 
 		/* Set the decode range of the board.  */
-		val = ((bp->base.port >> 12) << PI_IO_CMP_V_SLOT);
-		outb(base_addr + PI_ESIC_K_IO_ADD_CMP_0_1, val);
-		outb(base_addr + PI_ESIC_K_IO_ADD_CMP_0_0, 0);
-		outb(base_addr + PI_ESIC_K_IO_ADD_CMP_1_1, val);
-		outb(base_addr + PI_ESIC_K_IO_ADD_CMP_1_0, 0);
-		val = PI_ESIC_K_CSR_IO_LEN - 1;
-		outb(base_addr + PI_ESIC_K_IO_ADD_MASK_0_1, (val >> 8) & 0xff);
-		outb(base_addr + PI_ESIC_K_IO_ADD_MASK_0_0, val & 0xff);
-		outb(base_addr + PI_ESIC_K_IO_ADD_MASK_1_1, (val >> 8) & 0xff);
-		outb(base_addr + PI_ESIC_K_IO_ADD_MASK_1_0, val & 0xff);
+		val = 0;
+		outb(val, base_addr + PI_ESIC_K_IO_ADD_CMP_0_1);
+		val = PI_DEFEA_K_CSR_IO;
+		outb(val, base_addr + PI_ESIC_K_IO_ADD_CMP_0_0);
+
+		val = PI_IO_CMP_M_SLOT;
+		outb(val, base_addr + PI_ESIC_K_IO_ADD_MASK_0_1);
+		val = (PI_ESIC_K_CSR_IO_LEN - 1) & ~3;
+		outb(val, base_addr + PI_ESIC_K_IO_ADD_MASK_0_0);
+
+		val = 0;
+		outb(val, base_addr + PI_ESIC_K_IO_ADD_CMP_1_1);
+		val = PI_DEFEA_K_BURST_HOLDOFF;
+		outb(val, base_addr + PI_ESIC_K_IO_ADD_CMP_1_0);
+
+		val = PI_IO_CMP_M_SLOT;
+		outb(val, base_addr + PI_ESIC_K_IO_ADD_MASK_1_1);
+		val = (PI_ESIC_K_BURST_HOLDOFF_LEN - 1) & ~3;
+		outb(val, base_addr + PI_ESIC_K_IO_ADD_MASK_1_0);
 
 		/* Enable the decoders.  */
 		val = PI_FUNCTION_CNTRL_M_IOCS1 | PI_FUNCTION_CNTRL_M_IOCS0;
 		if (dfx_use_mmio)
 			val |= PI_FUNCTION_CNTRL_M_MEMCS0;
-		outb(base_addr + PI_ESIC_K_FUNCTION_CNTRL, val);
+		outb(val, base_addr + PI_ESIC_K_FUNCTION_CNTRL);
 
 		/*
 		 * Enable access to the rest of the module
 		 * (including PDQ and packet memory).
 		 */
 		val = PI_SLOT_CNTRL_M_ENB;
-		outb(base_addr + PI_ESIC_K_SLOT_CNTRL, val);
+		outb(val, base_addr + PI_ESIC_K_SLOT_CNTRL);
 
 		/*
 		 * Map PDQ registers into memory or port space.  This is
@@ -748,15 +760,15 @@ static void dfx_bus_init(struct net_device *dev)
 		 */
 		val = inb(base_addr + PI_DEFEA_K_BURST_HOLDOFF);
 		if (dfx_use_mmio)
-			val |= PI_BURST_HOLDOFF_V_MEM_MAP;
+			val |= PI_BURST_HOLDOFF_M_MEM_MAP;
 		else
-			val &= ~PI_BURST_HOLDOFF_V_MEM_MAP;
-		outb(base_addr + PI_DEFEA_K_BURST_HOLDOFF, val);
+			val &= ~PI_BURST_HOLDOFF_M_MEM_MAP;
+		outb(val, base_addr + PI_DEFEA_K_BURST_HOLDOFF);
 
 		/* Enable interrupts at EISA bus interface chip (ESIC) */
 		val = inb(base_addr + PI_ESIC_K_IO_CONFIG_STAT_0);
 		val |= PI_CONFIG_STAT_0_M_INT_ENB;
-		outb(base_addr + PI_ESIC_K_IO_CONFIG_STAT_0, val);
+		outb(val, base_addr + PI_ESIC_K_IO_CONFIG_STAT_0);
 	}
 	if (dfx_bus_pci) {
 		struct pci_dev *pdev = to_pci_dev(bdev);
@@ -825,7 +837,7 @@ static void dfx_bus_uninit(struct net_device *dev)
 		/* Disable interrupts at EISA bus interface chip (ESIC) */
 		val = inb(base_addr + PI_ESIC_K_IO_CONFIG_STAT_0);
 		val &= ~PI_CONFIG_STAT_0_M_INT_ENB;
-		outb(base_addr + PI_ESIC_K_IO_CONFIG_STAT_0, val);
+		outb(val, base_addr + PI_ESIC_K_IO_CONFIG_STAT_0);
 	}
 	if (dfx_bus_pci) {
 		/* Disable interrupts at PCI bus interface chip (PFI) */
@@ -1917,7 +1929,7 @@ static irqreturn_t dfx_interrupt(int irq, void *dev_id)
 
 		/* Disable interrupts at the ESIC */
 		status &= ~PI_CONFIG_STAT_0_M_INT_ENB;
-		outb(base_addr + PI_ESIC_K_IO_CONFIG_STAT_0, status);
+		outb(status, base_addr + PI_ESIC_K_IO_CONFIG_STAT_0);
 
 		/* Call interrupt service routine for this adapter */
 		dfx_int_common(dev);
@@ -1925,7 +1937,7 @@ static irqreturn_t dfx_interrupt(int irq, void *dev_id)
 		/* Reenable interrupts at the ESIC */
 		status = inb(base_addr + PI_ESIC_K_IO_CONFIG_STAT_0);
 		status |= PI_CONFIG_STAT_0_M_INT_ENB;
-		outb(base_addr + PI_ESIC_K_IO_CONFIG_STAT_0, status);
+		outb(status, base_addr + PI_ESIC_K_IO_CONFIG_STAT_0);
 
 		spin_unlock(&bp->lock);
 	}

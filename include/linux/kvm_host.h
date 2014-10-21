@@ -136,12 +136,11 @@ static inline bool is_error_page(struct page *page)
 #define KVM_REQ_GLOBAL_CLOCK_UPDATE 22
 #define KVM_REQ_ENABLE_IBS        23
 #define KVM_REQ_DISABLE_IBS       24
+#define KVM_REQ_APIC_PAGE_RELOAD  25
 
 #define KVM_USERSPACE_IRQ_SOURCE_ID		0
 #define KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID	1
 
-struct kvm;
-struct kvm_vcpu;
 extern struct kmem_cache *kvm_vcpu_cache;
 
 extern spinlock_t kvm_lock;
@@ -199,6 +198,17 @@ int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, unsigned long hva,
 		       struct kvm_arch_async_pf *arch);
 int kvm_async_pf_wakeup_all(struct kvm_vcpu *vcpu);
 #endif
+
+/*
+ * Carry out a gup that requires IO. Allow the mm to relinquish the mmap
+ * semaphore if the filemap/swap has to wait on a page lock. pagep == NULL
+ * controls whether we retry the gup one more time to completion in that case.
+ * Typically this is called after a FAULT_FLAG_RETRY_NOWAIT in the main tdp
+ * handler.
+ */
+int kvm_get_user_page_io(struct task_struct *tsk, struct mm_struct *mm,
+			 unsigned long addr, bool write_fault,
+			 struct page **pagep);
 
 enum {
 	OUTSIDE_GUEST_MODE,
@@ -324,8 +334,6 @@ struct kvm_kernel_irq_routing_entry {
 	};
 	struct hlist_node link;
 };
-
-struct kvm_irq_routing_table;
 
 #ifndef KVM_PRIVATE_MEM_SLOTS
 #define KVM_PRIVATE_MEM_SLOTS 0
@@ -528,6 +536,8 @@ struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn);
 unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn);
 unsigned long gfn_to_hva_prot(struct kvm *kvm, gfn_t gfn, bool *writable);
 unsigned long gfn_to_hva_memslot(struct kvm_memory_slot *slot, gfn_t gfn);
+unsigned long gfn_to_hva_memslot_prot(struct kvm_memory_slot *slot, gfn_t gfn,
+				      bool *writable);
 void kvm_release_page_clean(struct page *page);
 void kvm_release_page_dirty(struct page *page);
 void kvm_set_page_accessed(struct page *page);
@@ -579,6 +589,7 @@ void kvm_flush_remote_tlbs(struct kvm *kvm);
 void kvm_reload_remote_mmus(struct kvm *kvm);
 void kvm_make_mclock_inprogress_request(struct kvm *kvm);
 void kvm_make_scan_ioapic_request(struct kvm *kvm);
+bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req);
 
 long kvm_arch_dev_ioctl(struct file *filp,
 			unsigned int ioctl, unsigned long arg);
@@ -624,6 +635,8 @@ void kvm_arch_exit(void);
 int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu);
 void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu);
 
+void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu);
+
 void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu);
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu);
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu);
@@ -632,8 +645,8 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu);
 int kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu);
 void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu);
 
-int kvm_arch_hardware_enable(void *garbage);
-void kvm_arch_hardware_disable(void *garbage);
+int kvm_arch_hardware_enable(void);
+void kvm_arch_hardware_disable(void);
 int kvm_arch_hardware_setup(void);
 void kvm_arch_hardware_unsetup(void);
 void kvm_arch_check_processor_compat(void *rtn);
@@ -1034,8 +1047,6 @@ static inline bool kvm_check_request(int req, struct kvm_vcpu *vcpu)
 
 extern bool kvm_rebooting;
 
-struct kvm_device_ops;
-
 struct kvm_device {
 	struct kvm_device_ops *ops;
 	struct kvm *kvm;
@@ -1068,12 +1079,10 @@ struct kvm_device_ops {
 void kvm_device_get(struct kvm_device *dev);
 void kvm_device_put(struct kvm_device *dev);
 struct kvm_device *kvm_device_from_filp(struct file *filp);
+int kvm_register_device_ops(struct kvm_device_ops *ops, u32 type);
 
 extern struct kvm_device_ops kvm_mpic_ops;
 extern struct kvm_device_ops kvm_xics_ops;
-extern struct kvm_device_ops kvm_vfio_ops;
-extern struct kvm_device_ops kvm_arm_vgic_v2_ops;
-extern struct kvm_device_ops kvm_flic_ops;
 
 #ifdef CONFIG_HAVE_KVM_CPU_RELAX_INTERCEPT
 

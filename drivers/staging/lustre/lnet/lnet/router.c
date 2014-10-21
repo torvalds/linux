@@ -321,7 +321,7 @@ lnet_add_route(__u32 net, unsigned int hops, lnet_nid_t gateway,
 	    LNET_NETTYP(net) == LOLND ||
 	    LNET_NIDNET(gateway) == net ||
 	    hops < 1 || hops > 255)
-		return (-EINVAL);
+		return -EINVAL;
 
 	if (lnet_islocalnet(net))	       /* it's a local network */
 		return 0;		       /* ignore the route entry */

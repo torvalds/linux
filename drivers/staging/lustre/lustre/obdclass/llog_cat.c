@@ -96,7 +96,7 @@ static int llog_cat_new_log(const struct lu_env *env,
 			      LLOG_F_IS_PLAIN | LLOG_F_ZAP_WHEN_EMPTY,
 			      &cathandle->lgh_hdr->llh_tgtuuid);
 	if (rc)
-		GOTO(out_destroy, rc);
+		goto out_destroy;
 
 	if (index == 0)
 		index = 1;
@@ -114,7 +114,8 @@ static int llog_cat_new_log(const struct lu_env *env,
 	cathandle->lgh_last_idx = index;
 	llh->llh_tail.lrt_index = index;
 
-	CDEBUG(D_RPCTRACE,"new recovery log "DOSTID":%x for index %u of catalog"
+	CDEBUG(D_RPCTRACE,
+	       "new recovery log "DOSTID":%x for index %u of catalog"
 	       DOSTID"\n", POSTID(&loghandle->lgh_id.lgl_oi),
 	       loghandle->lgh_id.lgl_ogen, index,
 	       POSTID(&cathandle->lgh_id.lgl_oi));
@@ -130,7 +131,7 @@ static int llog_cat_new_log(const struct lu_env *env,
 	rc = llog_write_rec(env, cathandle, &rec.lid_hdr,
 			    &loghandle->u.phd.phd_cookie, 1, NULL, index, th);
 	if (rc < 0)
-		GOTO(out_destroy, rc);
+		goto out_destroy;
 
 	loghandle->lgh_hdr->llh_cat_idx = index;
 	return 0;
@@ -173,7 +174,8 @@ int llog_cat_id2handle(const struct lu_env *env, struct llog_handle *cathandle,
 			}
 			loghandle->u.phd.phd_cat_handle = cathandle;
 			up_write(&cathandle->lgh_lock);
-			GOTO(out, rc = 0);
+			rc = 0;
+			goto out;
 		}
 	}
 	up_write(&cathandle->lgh_lock);
@@ -403,20 +405,20 @@ int llog_cat_declare_add_rec(const struct lu_env *env,
 		up_write(&cathandle->lgh_lock);
 	}
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	if (!llog_exist(cathandle->u.chd.chd_current_log)) {
 		rc = llog_declare_create(env, cathandle->u.chd.chd_current_log,
 					 th);
 		if (rc)
-			GOTO(out, rc);
+			goto out;
 		llog_declare_write_rec(env, cathandle, NULL, -1, th);
 	}
 	/* declare records in the llogs */
 	rc = llog_declare_write_rec(env, cathandle->u.chd.chd_current_log,
 				    rec, -1, th);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	next = cathandle->u.chd.chd_next_log;
 	if (next) {
@@ -454,11 +456,11 @@ int llog_cat_add(const struct lu_env *env, struct llog_handle *cathandle,
 
 		rc = llog_cat_declare_add_rec(env, cathandle, rec, th);
 		if (rc)
-			GOTO(out_trans, rc);
+			goto out_trans;
 
 		rc = dt_trans_start_local(env, dt, th);
 		if (rc)
-			GOTO(out_trans, rc);
+			goto out_trans;
 		rc = llog_cat_add_rec(env, cathandle, rec, reccookie, buf, th);
 out_trans:
 		dt_trans_stop(env, dt, th);

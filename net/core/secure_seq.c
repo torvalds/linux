@@ -35,7 +35,7 @@ static u32 seq_scale(u32 seq)
 	 *	overlaps less than one time per MSL (2 minutes).
 	 *	Choosing a clock of 64 ns period is OK. (period of 274 s)
 	 */
-	return seq + (ktime_to_ns(ktime_get_real()) >> 6);
+	return seq + (ktime_get_real_ns() >> 6);
 }
 #endif
 
@@ -135,7 +135,7 @@ u64 secure_dccp_sequence_number(__be32 saddr, __be32 daddr,
 	md5_transform(hash, net_secret);
 
 	seq = hash[0] | (((u64)hash[1]) << 32);
-	seq += ktime_to_ns(ktime_get_real());
+	seq += ktime_get_real_ns();
 	seq &= (1ull << 48) - 1;
 
 	return seq;
@@ -163,7 +163,7 @@ u64 secure_dccpv6_sequence_number(__be32 *saddr, __be32 *daddr,
 	md5_transform(hash, secret);
 
 	seq = hash[0] | (((u64)hash[1]) << 32);
-	seq += ktime_to_ns(ktime_get_real());
+	seq += ktime_get_real_ns();
 	seq &= (1ull << 48) - 1;
 
 	return seq;

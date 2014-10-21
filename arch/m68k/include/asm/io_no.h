@@ -179,6 +179,15 @@ static inline void *ioremap_fullcache(unsigned long physaddr, unsigned long size
  */
 #define xlate_dev_kmem_ptr(p)	p
 
+static inline void __iomem *ioport_map(unsigned long port, unsigned int nr)
+{
+	return (void __iomem *) port;
+}
+
+static inline void ioport_unmap(void __iomem *p)
+{
+}
+
 #endif /* __KERNEL__ */
 
 #endif /* _M68KNOMMU_IO_H */

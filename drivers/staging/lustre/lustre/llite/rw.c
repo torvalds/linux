@@ -317,8 +317,10 @@ static unsigned long ll_ra_count_get(struct ll_sb_info *sbi,
 	 * otherwise it will form small read RPC(< 1M), which hurt server
 	 * performance a lot. */
 	ret = min(ra->ra_max_pages - atomic_read(&ra->ra_cur_pages), pages);
-	if (ret < 0 || ret < min_t(long, PTLRPC_MAX_BRW_PAGES, pages))
-		GOTO(out, ret = 0);
+	if (ret < 0 || ret < min_t(long, PTLRPC_MAX_BRW_PAGES, pages)) {
+		ret = 0;
+		goto out;
+	}
 
 	/* If the non-strided (ria_pages == 0) readahead window
 	 * (ria_start + ret) has grown across an RPC boundary, then trim
@@ -1018,7 +1020,7 @@ void ras_update(struct ll_sb_info *sbi, struct inode *inode,
 			ras->ras_next_readahead = 0;
 			ras->ras_window_len = min(ra->ra_max_pages_per_file,
 				ra->ra_max_read_ahead_whole_pages);
-			GOTO(out_unlock, 0);
+			goto out_unlock;
 		}
 	}
 	if (zero) {
@@ -1033,7 +1035,7 @@ void ras_update(struct ll_sb_info *sbi, struct inode *inode,
 			}
 			ras_reset(inode, ras, index);
 			ras->ras_consecutive_pages++;
-			GOTO(out_unlock, 0);
+			goto out_unlock;
 		} else {
 			ras->ras_consecutive_pages = 0;
 			ras->ras_consecutive_requests = 0;
@@ -1058,7 +1060,7 @@ void ras_update(struct ll_sb_info *sbi, struct inode *inode,
 				ras_reset(inode, ras, index);
 				ras->ras_consecutive_pages++;
 				ras_stride_reset(ras);
-				GOTO(out_unlock, 0);
+				goto out_unlock;
 			}
 		} else if (stride_io_mode(ras)) {
 			/* If this is contiguous read but in stride I/O mode
@@ -1090,7 +1092,7 @@ void ras_update(struct ll_sb_info *sbi, struct inode *inode,
 	 * is not incremented and thus can't be used to trigger RA */
 	if (!ras->ras_window_len && ras->ras_consecutive_pages == 4) {
 		ras->ras_window_len = RAS_INCREASE_STEP(inode);
-		GOTO(out_unlock, 0);
+		goto out_unlock;
 	}
 
 	/* Initially reset the stride window offset to next_readahead*/
@@ -1136,8 +1138,10 @@ int ll_writepage(struct page *vmpage, struct writeback_control *wbc)
 	LASSERT(ll_i2dtexp(inode) != NULL);
 
 	env = cl_env_nested_get(&nest);
-	if (IS_ERR(env))
-		GOTO(out, result = PTR_ERR(env));
+	if (IS_ERR(env)) {
+		result = PTR_ERR(env);
+		goto out;
+	}
 
 	clob  = ll_i2info(inode)->lli_clob;
 	LASSERT(clob != NULL);
@@ -1197,7 +1201,7 @@ int ll_writepage(struct page *vmpage, struct writeback_control *wbc)
 	}
 
 	cl_env_nested_put(&nest, env);
-	GOTO(out, result);
+	goto out;
 
 out:
 	if (result < 0) {

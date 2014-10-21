@@ -54,7 +54,7 @@ static void pnv_smp_setup_cpu(int cpu)
 #endif
 }
 
-int pnv_smp_kick_cpu(int nr)
+static int pnv_smp_kick_cpu(int nr)
 {
 	unsigned int pcpu = get_hard_smp_processor_id(nr);
 	unsigned long start_here =
@@ -168,9 +168,9 @@ static void pnv_smp_cpu_kill_self(void)
 		power7_nap(1);
 		ppc64_runlatch_on();
 
-		/* Reenable IRQs briefly to clear the IPI that woke us */
-		local_irq_enable();
-		local_irq_disable();
+		/* Clear the IPI that woke us up */
+		icp_native_flush_interrupt();
+		local_paca->irq_happened &= PACA_IRQ_HARD_DIS;
 		mb();
 
 		if (cpu_core_split_required())

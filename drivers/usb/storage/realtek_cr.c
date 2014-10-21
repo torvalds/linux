@@ -115,7 +115,7 @@ struct rts51x_chip {
 	enum RTS51X_STAT state;
 	int support_auto_delink;
 #endif
-	/* used to back up the protocal choosen in probe1 phase */
+	/* used to back up the protocol chosen in probe1 phase */
 	proto_cmnd proto_handler_backup;
 };
 
@@ -925,7 +925,7 @@ static int realtek_cr_autosuspend_setup(struct us_data *us)
 			(unsigned long)chip);
 	fw5895_init(us);
 
-	/* enable autosuspend funciton of the usb device */
+	/* enable autosuspend function of the usb device */
 	usb_enable_autosuspend(us->pusb_dev);
 
 	return 0;

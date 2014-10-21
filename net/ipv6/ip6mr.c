@@ -845,7 +845,7 @@ static void ip6mr_destroy_unres(struct mr6_table *mrt, struct mfc6_cache *c)
 
 	atomic_dec(&mrt->cache_resolve_queue_len);
 
-	while((skb = skb_dequeue(&c->mfc_un.unres.unresolved)) != NULL) {
+	while ((skb = skb_dequeue(&c->mfc_un.unres.unresolved)) != NULL) {
 		if (ipv6_hdr(skb)->version == 0) {
 			struct nlmsghdr *nlh = (struct nlmsghdr *)skb_pull(skb, sizeof(struct ipv6hdr));
 			nlh->nlmsg_type = NLMSG_ERROR;
@@ -1103,7 +1103,7 @@ static void ip6mr_cache_resolve(struct net *net, struct mr6_table *mrt,
 	 *	Play the pending entries through our router
 	 */
 
-	while((skb = __skb_dequeue(&uc->mfc_un.unres.unresolved))) {
+	while ((skb = __skb_dequeue(&uc->mfc_un.unres.unresolved))) {
 		if (ipv6_hdr(skb)->version == 0) {
 			struct nlmsghdr *nlh = (struct nlmsghdr *)skb_pull(skb, sizeof(struct ipv6hdr));
 

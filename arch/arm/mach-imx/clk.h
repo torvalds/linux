@@ -36,6 +36,9 @@ struct clk *clk_register_gate2(struct device *dev, const char *name,
 struct clk * imx_obtain_fixed_clock(
 			const char *name, unsigned long rate);
 
+struct clk *imx_clk_gate_exclusive(const char *name, const char *parent,
+	 void __iomem *reg, u8 shift, u32 exclusive_mask);
+
 static inline struct clk *imx_clk_gate2(const char *name, const char *parent,
 		void __iomem *reg, u8 shift)
 {

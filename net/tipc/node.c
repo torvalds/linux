@@ -38,6 +38,7 @@
 #include "config.h"
 #include "node.h"
 #include "name_distr.h"
+#include "socket.h"
 
 #define NODE_HTABLE_SIZE 512
 
@@ -49,6 +50,13 @@ LIST_HEAD(tipc_node_list);
 static u32 tipc_num_nodes;
 static u32 tipc_num_links;
 static DEFINE_SPINLOCK(node_list_lock);
+
+struct tipc_sock_conn {
+	u32 port;
+	u32 peer_port;
+	u32 peer_node;
+	struct list_head list;
+};
 
 /*
  * A trivial power-of-two bitmask technique is used for speed, since this
@@ -100,6 +108,8 @@ struct tipc_node *tipc_node_create(u32 addr)
 	INIT_HLIST_NODE(&n_ptr->hash);
 	INIT_LIST_HEAD(&n_ptr->list);
 	INIT_LIST_HEAD(&n_ptr->nsub);
+	INIT_LIST_HEAD(&n_ptr->conn_sks);
+	__skb_queue_head_init(&n_ptr->waiting_sks);
 
 	hlist_add_head_rcu(&n_ptr->hash, &node_htable[tipc_hashfn(addr)]);
 
@@ -134,6 +144,71 @@ void tipc_node_stop(void)
 	list_for_each_entry_safe(node, t_node, &tipc_node_list, list)
 		tipc_node_delete(node);
 	spin_unlock_bh(&node_list_lock);
+}
+
+int tipc_node_add_conn(u32 dnode, u32 port, u32 peer_port)
+{
+	struct tipc_node *node;
+	struct tipc_sock_conn *conn;
+
+	if (in_own_node(dnode))
+		return 0;
+
+	node = tipc_node_find(dnode);
+	if (!node) {
+		pr_warn("Connecting sock to node 0x%x failed\n", dnode);
+		return -EHOSTUNREACH;
+	}
+	conn = kmalloc(sizeof(*conn), GFP_ATOMIC);
+	if (!conn)
+		return -EHOSTUNREACH;
+	conn->peer_node = dnode;
+	conn->port = port;
+	conn->peer_port = peer_port;
+
+	tipc_node_lock(node);
+	list_add_tail(&conn->list, &node->conn_sks);
+	tipc_node_unlock(node);
+	return 0;
+}
+
+void tipc_node_remove_conn(u32 dnode, u32 port)
+{
+	struct tipc_node *node;
+	struct tipc_sock_conn *conn, *safe;
+
+	if (in_own_node(dnode))
+		return;
+
+	node = tipc_node_find(dnode);
+	if (!node)
+		return;
+
+	tipc_node_lock(node);
+	list_for_each_entry_safe(conn, safe, &node->conn_sks, list) {
+		if (port != conn->port)
+			continue;
+		list_del(&conn->list);
+		kfree(conn);
+	}
+	tipc_node_unlock(node);
+}
+
+void tipc_node_abort_sock_conns(struct list_head *conns)
+{
+	struct tipc_sock_conn *conn, *safe;
+	struct sk_buff *buf;
+
+	list_for_each_entry_safe(conn, safe, conns, list) {
+		buf = tipc_msg_create(TIPC_CRITICAL_IMPORTANCE, TIPC_CONN_MSG,
+				      SHORT_H_SIZE, 0, tipc_own_addr,
+				      conn->peer_node, conn->port,
+				      conn->peer_port, TIPC_ERR_NO_NODE);
+		if (likely(buf))
+			tipc_sk_rcv(buf);
+		list_del(&conn->list);
+		kfree(conn);
+	}
 }
 
 /**
@@ -474,25 +549,45 @@ int tipc_node_get_linkname(u32 bearer_id, u32 addr, char *linkname, size_t len)
 void tipc_node_unlock(struct tipc_node *node)
 {
 	LIST_HEAD(nsub_list);
+	LIST_HEAD(conn_sks);
+	struct sk_buff_head waiting_sks;
 	u32 addr = 0;
+	unsigned int flags = node->action_flags;
 
 	if (likely(!node->action_flags)) {
 		spin_unlock_bh(&node->lock);
 		return;
 	}
 
+	__skb_queue_head_init(&waiting_sks);
+	if (node->action_flags & TIPC_WAKEUP_USERS) {
+		skb_queue_splice_init(&node->waiting_sks, &waiting_sks);
+		node->action_flags &= ~TIPC_WAKEUP_USERS;
+	}
 	if (node->action_flags & TIPC_NOTIFY_NODE_DOWN) {
 		list_replace_init(&node->nsub, &nsub_list);
+		list_replace_init(&node->conn_sks, &conn_sks);
 		node->action_flags &= ~TIPC_NOTIFY_NODE_DOWN;
 	}
 	if (node->action_flags & TIPC_NOTIFY_NODE_UP) {
 		node->action_flags &= ~TIPC_NOTIFY_NODE_UP;
 		addr = node->addr;
 	}
+	node->action_flags &= ~TIPC_WAKEUP_BCAST_USERS;
 	spin_unlock_bh(&node->lock);
+
+	while (!skb_queue_empty(&waiting_sks))
+		tipc_sk_rcv(__skb_dequeue(&waiting_sks));
+
+	if (!list_empty(&conn_sks))
+		tipc_node_abort_sock_conns(&conn_sks);
 
 	if (!list_empty(&nsub_list))
 		tipc_nodesub_notify(&nsub_list);
+
+	if (flags & TIPC_WAKEUP_BCAST_USERS)
+		tipc_bclink_wakeup_users();
+
 	if (addr)
 		tipc_named_node_up(addr);
 }

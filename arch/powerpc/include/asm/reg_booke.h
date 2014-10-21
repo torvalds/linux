@@ -319,6 +319,8 @@
  * DBSR bits which have conflicting definitions on true Book E versus IBM 40x.
  */
 #ifdef CONFIG_BOOKE
+#define DBSR_IDE	0x80000000	/* Imprecise Debug Event */
+#define DBSR_MRR	0x30000000	/* Most Recent Reset */
 #define DBSR_IC		0x08000000	/* Instruction Completion */
 #define DBSR_BT		0x04000000	/* Branch Taken */
 #define DBSR_IRPT	0x02000000	/* Exception Debug Event */

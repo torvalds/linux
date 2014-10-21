@@ -310,7 +310,7 @@ static void amd_threshold_interrupt(void)
 			 * event.
 			 */
 			machine_check_poll(MCP_TIMESTAMP,
-					&__get_cpu_var(mce_poll_banks));
+					this_cpu_ptr(&mce_poll_banks));
 
 			if (high & MASK_OVERFLOW_HI) {
 				rdmsrl(address, m.misc);

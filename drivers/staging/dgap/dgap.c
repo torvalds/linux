@@ -41,6 +41,8 @@
  */
 #undef DIGI_CONCENTRATORS_SUPPORTED
 
+#define pr_fmt(fmt) "dgap: " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -86,7 +88,8 @@ static int dgap_block_til_ready(struct tty_struct *tty, struct file *file,
 				struct channel_t *ch);
 static int dgap_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 				unsigned long arg);
-static int dgap_tty_digigeta(struct channel_t *ch, struct digi_t __user *retinfo);
+static int dgap_tty_digigeta(struct channel_t *ch,
+			     struct digi_t __user *retinfo);
 static int dgap_tty_digiseta(struct channel_t *ch, struct board_t *bd,
 			     struct un_t *un, struct digi_t __user *new_info);
 static int dgap_tty_digigetedelay(struct tty_struct *tty, int __user *retinfo);
@@ -102,8 +105,9 @@ static void dgap_tty_flush_chars(struct tty_struct *tty);
 static void dgap_tty_flush_buffer(struct tty_struct *tty);
 static void dgap_tty_hangup(struct tty_struct *tty);
 static int dgap_wait_for_drain(struct tty_struct *tty);
-static int dgap_set_modem_info(struct channel_t *ch, struct board_t *bd, struct un_t *un,
-			       unsigned int command, unsigned int __user *value);
+static int dgap_set_modem_info(struct channel_t *ch, struct board_t *bd,
+			       struct un_t *un, unsigned int command,
+			       unsigned int __user *value);
 static int dgap_get_modem_info(struct channel_t *ch,
 				unsigned int __user *value);
 static int dgap_tty_digisetcustombaud(struct channel_t *ch, struct board_t *bd,
@@ -153,17 +157,10 @@ static void dgap_firmware_reset_port(struct channel_t *ch);
 static int dgap_gettok(char **in);
 static char *dgap_getword(char **in);
 static int dgap_checknode(struct cnode *p);
-static void dgap_err(char *s);
 
 /*
  * Function prototypes from dgap_sysfs.h
  */
-struct board_t;
-struct channel_t;
-struct un_t;
-struct pci_driver;
-struct class_device;
-
 static void dgap_create_ports_sysfiles(struct board_t *bd);
 static void dgap_remove_ports_sysfiles(struct board_t *bd);
 
@@ -183,7 +180,6 @@ static char *dgap_create_config_string(struct board_t *bd, char *string);
 static uint dgap_config_get_useintr(struct board_t *bd);
 static uint dgap_config_get_altpin(struct board_t *bd);
 
-static int dgap_ms_sleep(ulong ms);
 static void dgap_do_bios_load(struct board_t *brd, const u8 *ubios, int len);
 static void dgap_do_fep_load(struct board_t *brd, const u8 *ufep, int len);
 #ifdef DIGI_CONCENTRATORS_SUPPORTED
@@ -201,6 +197,7 @@ static int dgap_test_fep(struct board_t *brd);
 static int dgap_tty_register_ports(struct board_t *brd);
 static int dgap_firmware_load(struct pci_dev *pdev, int card_type,
 			      struct board_t *brd);
+static void dgap_cleanup_nodes(void);
 
 static void dgap_cleanup_module(void);
 
@@ -404,10 +401,7 @@ struct toklist {
 	char *string;
 };
 
-static struct toklist dgap_tlist[] = {
-	{ BEGIN,	"config_begin" },
-	{ END,		"config_end" },
-	{ BOARD,	"board"	},
+static struct toklist dgap_brdtype[] = {
 	{ PCX,		"Digi_AccelePort_C/X_PCI" },
 	{ PEPC,		"Digi_AccelePort_EPC/X_PCI" },
 	{ PPCM,		"Digi_AccelePort_Xem_PCI" },
@@ -416,6 +410,13 @@ static struct toklist dgap_tlist[] = {
 	{ APORT8_920P,	"Digi_AccelePort_8r_920_PCI" },
 	{ PAPORT4,	"Digi_AccelePort_4r_PCI(EIA-232/RS-422)" },
 	{ PAPORT8,	"Digi_AccelePort_8r_PCI(EIA-232/RS-422)" },
+	{ 0, NULL }
+};
+
+static struct toklist dgap_tlist[] = {
+	{ BEGIN,	"config_begin" },
+	{ END,		"config_end" },
+	{ BOARD,	"board"	},
 	{ IO,		"io" },
 	{ PCIINFO,	"pciinfo" },
 	{ LINE,		"line" },
@@ -619,6 +620,7 @@ unregister_tty:
 free_flipbuf:
 	dgap_free_flipbuf(brd);
 cleanup_brd:
+	dgap_cleanup_nodes();
 	dgap_release_remap(brd);
 	kfree(brd);
 
@@ -659,6 +661,8 @@ static void dgap_cleanup_module(void)
 		dgap_cleanup_board(dgap_board[i]);
 	}
 
+	dgap_cleanup_nodes();
+
 	if (dgap_numboards)
 		pci_unregister_driver(&dgap_driver);
 }
@@ -679,17 +683,7 @@ static void dgap_cleanup_board(struct board_t *brd)
 
 	tasklet_kill(&brd->helper_tasklet);
 
-	if (brd->re_map_port) {
-		release_mem_region(brd->membase + 0x200000, 0x200000);
-		iounmap(brd->re_map_port);
-		brd->re_map_port = NULL;
-	}
-
-	if (brd->re_map_membase) {
-		release_mem_region(brd->membase, 0x200000);
-		iounmap(brd->re_map_membase);
-		brd->re_map_membase = NULL;
-	}
+	dgap_release_remap(brd);
 
 	/* Free all allocated channels structs */
 	for (i = 0; i < MAXPORTS ; i++)
@@ -738,7 +732,6 @@ static struct board_t *dgap_found_board(struct pci_dev *pdev, int id,
 
 	spin_lock_init(&brd->bd_lock);
 
-	brd->runwait		= 0;
 	brd->inhibit_poller	= FALSE;
 	brd->wait_for_bios	= 0;
 	brd->wait_for_fep	= 0;
@@ -834,23 +827,16 @@ static int dgap_request_irq(struct board_t *brd)
 	if (!brd || brd->magic != DGAP_BOARD_MAGIC)
 		return -ENODEV;
 
-	brd->use_interrupts = dgap_config_get_useintr(brd);
-
 	/*
 	 * Set up our interrupt handler if we are set to do interrupts.
 	 */
-	if (brd->use_interrupts && brd->irq) {
+	if (dgap_config_get_useintr(brd) && brd->irq) {
 
 		rc = request_irq(brd->irq, dgap_intr, IRQF_SHARED, "DGAP", brd);
 
-		if (rc)
-			brd->intr_used = 0;
-		else
+		if (!rc)
 			brd->intr_used = 1;
-	} else {
-		brd->intr_used = 0;
 	}
-
 	return 0;
 }
 
@@ -875,7 +861,7 @@ static int dgap_firmware_load(struct pci_dev *pdev, int card_type,
 		ret = request_firmware(&fw, fw_info[card_type].conf_name,
 					 &pdev->dev);
 		if (ret) {
-			pr_err("dgap: config file %s not found\n",
+			dev_err(&pdev->dev, "config file %s not found\n",
 				fw_info[card_type].conf_name);
 			return ret;
 		}
@@ -920,7 +906,7 @@ static int dgap_firmware_load(struct pci_dev *pdev, int card_type,
 			dgap_find_config(PAPORT4, brd->pci_bus, brd->pci_slot);
 
 	if (!brd->bd_config) {
-		pr_err("dgap: No valid configuration found\n");
+		dev_err(&pdev->dev, "No valid configuration found\n");
 		return -EINVAL;
 	}
 
@@ -928,7 +914,7 @@ static int dgap_firmware_load(struct pci_dev *pdev, int card_type,
 		ret = request_firmware(&fw, fw_info[card_type].bios_name,
 					&pdev->dev);
 		if (ret) {
-			pr_err("dgap: bios file %s not found\n",
+			dev_err(&pdev->dev, "bios file %s not found\n",
 				fw_info[card_type].bios_name);
 			return ret;
 		}
@@ -945,7 +931,7 @@ static int dgap_firmware_load(struct pci_dev *pdev, int card_type,
 		ret = request_firmware(&fw, fw_info[card_type].fep_name,
 					&pdev->dev);
 		if (ret) {
-			pr_err("dgap: fep file %s not found\n",
+			dev_err(&pdev->dev, "dgap: fep file %s not found\n",
 				fw_info[card_type].fep_name);
 			return ret;
 		}
@@ -974,7 +960,7 @@ static int dgap_firmware_load(struct pci_dev *pdev, int card_type,
 		ret = request_firmware(&fw, fw_info[card_type].con_name,
 					&pdev->dev);
 		if (ret) {
-			pr_err("dgap: conc file %s not found\n",
+			dev_err(&pdev->dev, "conc file %s not found\n",
 				fw_info[card_type].con_name);
 			return ret;
 		}
@@ -1027,9 +1013,15 @@ static int dgap_do_remap(struct board_t *brd)
 
 static void dgap_release_remap(struct board_t *brd)
 {
-	release_mem_region(brd->membase, 0x200000);
-	release_mem_region(brd->membase + PCI_IO_OFFSET, 0x200000);
-	iounmap(brd->re_map_membase);
+	if (brd->re_map_membase) {
+		release_mem_region(brd->membase, 0x200000);
+		iounmap(brd->re_map_membase);
+	}
+
+	if (brd->re_map_port) {
+		release_mem_region(brd->membase + PCI_IO_OFFSET, 0x200000);
+		iounmap(brd->re_map_port);
+	}
 }
 /*****************************************************************************
 *
@@ -1202,26 +1194,6 @@ static void dgap_init_globals(void)
 
 /************************************************************************
  *
- * Utility functions
- *
- ************************************************************************/
-
-/*
- * dgap_ms_sleep()
- *
- * Put the driver to sleep for x ms's
- *
- * Returns 0 if timed out, !0 (showing signal) if interrupted by a signal.
- */
-static int dgap_ms_sleep(ulong ms)
-{
-	current->state = TASK_INTERRUPTIBLE;
-	schedule_timeout((ms * HZ) / 1000);
-	return signal_pending(current);
-}
-
-/************************************************************************
- *
  * TTY Initialization/Cleanup Functions
  *
  ************************************************************************/
@@ -1316,11 +1288,9 @@ static int dgap_tty_register(struct board_t *brd)
 	if (rc < 0)
 		goto unregister_serial_drv;
 
-	brd->dgap_major_serial_registered = TRUE;
 	dgap_boards_by_major[brd->serial_driver->major] = brd;
 	brd->dgap_serial_major = brd->serial_driver->major;
 
-	brd->dgap_major_transparent_print_registered = TRUE;
 	dgap_boards_by_major[brd->print_driver->major] = brd;
 	brd->dgap_transparent_print_major = brd->print_driver->major;
 
@@ -1378,19 +1348,17 @@ static int dgap_tty_init(struct board_t *brd)
 		brd->nasync = brd->maxports;
 
 	if (true_count != brd->nasync) {
-		if ((brd->type == PPCM) && (true_count == 64)) {
-			pr_warn("dgap: %s configured for %d ports, has %d ports.\n",
-				brd->name, brd->nasync, true_count);
-			pr_warn("dgap: Please make SURE the EBI cable running from the card\n");
-			pr_warn("dgap: to each EM module is plugged into EBI IN!\n");
-		} else if ((brd->type == PPCM) && (true_count == 0)) {
-			pr_warn("dgap: %s configured for %d ports, has %d ports.\n",
-				brd->name, brd->nasync, true_count);
-			pr_warn("dgap: Please make SURE the EBI cable running from the card\n");
-			pr_warn("dgap: to each EM module is plugged into EBI IN!\n");
-		} else
-			pr_warn("dgap: %s configured for %d ports, has %d ports.\n",
-				brd->name, brd->nasync, true_count);
+		dev_warn(&brd->pdev->dev,
+			 "%s configured for %d ports, has %d ports.\n",
+			 brd->name, brd->nasync, true_count);
+
+		if ((brd->type == PPCM) &&
+		    (true_count == 64 || true_count == 0)) {
+			dev_warn(&brd->pdev->dev,
+				 "Please make SURE the EBI cable running from the card\n");
+			dev_warn(&brd->pdev->dev,
+				 "to each EM module is plugged into EBI IN!\n");
+		}
 
 		brd->nasync = true_count;
 
@@ -1468,9 +1436,6 @@ static int dgap_tty_init(struct board_t *brd)
 		ch->ch_tstart = 0;
 		ch->ch_rstart = 0;
 
-		/* .25 second delay */
-		ch->ch_close_delay = 250;
-
 		/*
 		 * Set queue water marks, interrupt mask,
 		 * and general tty parameters.
@@ -1540,35 +1505,29 @@ static void dgap_cleanup_tty(struct board_t *brd)
 	struct device *dev;
 	int i;
 
-	if (brd->dgap_major_serial_registered) {
-		dgap_boards_by_major[brd->serial_driver->major] = NULL;
-		brd->dgap_serial_major = 0;
-		for (i = 0; i < brd->nasync; i++) {
-			tty_port_destroy(&brd->serial_ports[i]);
-			dev = brd->channels[i]->ch_tun.un_sysfs;
-			dgap_remove_tty_sysfs(dev);
-			tty_unregister_device(brd->serial_driver, i);
-		}
-		tty_unregister_driver(brd->serial_driver);
-		put_tty_driver(brd->serial_driver);
-		kfree(brd->serial_ports);
-		brd->dgap_major_serial_registered = FALSE;
+	dgap_boards_by_major[brd->serial_driver->major] = NULL;
+	brd->dgap_serial_major = 0;
+	for (i = 0; i < brd->nasync; i++) {
+		tty_port_destroy(&brd->serial_ports[i]);
+		dev = brd->channels[i]->ch_tun.un_sysfs;
+		dgap_remove_tty_sysfs(dev);
+		tty_unregister_device(brd->serial_driver, i);
 	}
+	tty_unregister_driver(brd->serial_driver);
+	put_tty_driver(brd->serial_driver);
+	kfree(brd->serial_ports);
 
-	if (brd->dgap_major_transparent_print_registered) {
-		dgap_boards_by_major[brd->print_driver->major] = NULL;
-		brd->dgap_transparent_print_major = 0;
-		for (i = 0; i < brd->nasync; i++) {
-			tty_port_destroy(&brd->printer_ports[i]);
-			dev = brd->channels[i]->ch_pun.un_sysfs;
-			dgap_remove_tty_sysfs(dev);
-			tty_unregister_device(brd->print_driver, i);
-		}
-		tty_unregister_driver(brd->print_driver);
-		put_tty_driver(brd->print_driver);
-		kfree(brd->printer_ports);
-		brd->dgap_major_transparent_print_registered = FALSE;
+	dgap_boards_by_major[brd->print_driver->major] = NULL;
+	brd->dgap_transparent_print_major = 0;
+	for (i = 0; i < brd->nasync; i++) {
+		tty_port_destroy(&brd->printer_ports[i]);
+		dev = brd->channels[i]->ch_pun.un_sysfs;
+		dgap_remove_tty_sysfs(dev);
+		tty_unregister_device(brd->print_driver, i);
 	}
+	tty_unregister_driver(brd->print_driver);
+	put_tty_driver(brd->print_driver);
+	kfree(brd->printer_ports);
 }
 
 /*=======================================================================
@@ -2309,12 +2268,13 @@ static void dgap_tty_close(struct tty_struct *tty, struct file *file)
 			 * Go to sleep to ensure RTS/DTR
 			 * have been dropped for modems to see it.
 			 */
-			if (ch->ch_close_delay) {
-				spin_unlock_irqrestore(&ch->ch_lock,
-						       lock_flags);
-				dgap_ms_sleep(ch->ch_close_delay);
-				spin_lock_irqsave(&ch->ch_lock, lock_flags);
-			}
+			spin_unlock_irqrestore(&ch->ch_lock,
+					lock_flags);
+
+			/* .25 second delay for dropping RTS/DTR */
+			schedule_timeout_interruptible(msecs_to_jiffies(250));
+
+			spin_lock_irqsave(&ch->ch_lock, lock_flags);
 		}
 
 		ch->pscan_state = 0;
@@ -3090,8 +3050,9 @@ static int dgap_get_modem_info(struct channel_t *ch, unsigned int __user *value)
  *
  * Set modem signals, called by ld.
  */
-static int dgap_set_modem_info(struct channel_t *ch, struct board_t *bd, struct un_t *un,
-			       unsigned int command, unsigned int __user *value)
+static int dgap_set_modem_info(struct channel_t *ch, struct board_t *bd,
+			       struct un_t *un, unsigned int command,
+			       unsigned int __user *value)
 {
 	int ret;
 	unsigned int arg;
@@ -3167,7 +3128,8 @@ static int dgap_set_modem_info(struct channel_t *ch, struct board_t *bd, struct 
  *
  *
  */
-static int dgap_tty_digigeta(struct channel_t *ch, struct digi_t __user *retinfo)
+static int dgap_tty_digigeta(struct channel_t *ch,
+			     struct digi_t __user *retinfo)
 {
 	struct digi_t tmp;
 	ulong lock_flags;
@@ -4215,7 +4177,7 @@ static int dgap_test_bios(struct board_t *brd)
 	/* Gave up on board after too long of time taken */
 	err1 = readw(addr + SEQUENCE);
 	err2 = readw(addr + ERROR);
-	pr_warn("dgap: %s failed diagnostics.  Error #(%x,%x).\n",
+	dev_warn(&brd->pdev->dev, "%s failed diagnostics.  Error #(%x,%x).\n",
 		brd->name, err1, err2);
 	brd->state = BOARD_FAILED;
 	brd->dpastatus = BD_NOBIOS;
@@ -4310,8 +4272,9 @@ static int dgap_test_fep(struct board_t *brd)
 	/* Gave up on board after too long of time taken */
 	err1 = readw(addr + SEQUENCE);
 	err2 = readw(addr + ERROR);
-	pr_warn("dgap: FEPOS for %s not functioning.  Error #(%x,%x).\n",
-		brd->name, err1, err2);
+	dev_warn(&brd->pdev->dev,
+		 "FEPOS for %s not functioning.  Error #(%x,%x).\n",
+		 brd->name, err1, err2);
 	brd->state = BOARD_FAILED;
 	brd->dpastatus = BD_NOFEP;
 
@@ -4343,7 +4306,8 @@ static void dgap_do_reset_board(struct board_t *brd)
 
 	}
 	if (i > 1000) {
-		pr_warn("dgap: Board not resetting...  Failing board.\n");
+		dev_warn(&brd->pdev->dev,
+			 "dgap: Board not resetting...  Failing board.\n");
 		brd->state = BOARD_FAILED;
 		brd->dpastatus = BD_NOFEP;
 		return;
@@ -4358,8 +4322,9 @@ static void dgap_do_reset_board(struct board_t *brd)
 	check2 = readl(brd->re_map_membase + HIGHMEM);
 
 	if ((check1 != 0xa55a3cc3) || (check2 != 0x5aa5c33c)) {
-		pr_warn("dgap: No memory at %p for board.\n",
-			brd->re_map_membase);
+		dev_warn(&brd->pdev->dev,
+			 "No memory at %p for board.\n",
+			 brd->re_map_membase);
 		brd->state = BOARD_FAILED;
 		brd->dpastatus = BD_NOFEP;
 		return;
@@ -6323,6 +6288,54 @@ static void dgap_remove_tty_sysfs(struct device *c)
 	sysfs_remove_group(&c->kobj, &dgap_tty_attribute_group);
 }
 
+static void dgap_cleanup_nodes(void)
+{
+	struct cnode *p;
+
+	p = &dgap_head;
+
+	while (p) {
+		struct cnode *tmp = p->next;
+
+		if (p->type == NULLNODE) {
+			p = tmp;
+			continue;
+		}
+
+		switch (p->type) {
+		case BNODE:
+			kfree(p->u.board.portstr);
+			kfree(p->u.board.addrstr);
+			kfree(p->u.board.pcibusstr);
+			kfree(p->u.board.pcislotstr);
+			kfree(p->u.board.method);
+			break;
+		case CNODE:
+			kfree(p->u.conc.id);
+			kfree(p->u.conc.connect);
+			break;
+		case MNODE:
+			kfree(p->u.module.id);
+			break;
+		case TNODE:
+			kfree(p->u.ttyname);
+			break;
+		case CUNODE:
+			kfree(p->u.cuname);
+			break;
+		case LNODE:
+			kfree(p->u.line.cable);
+			break;
+		case PNODE:
+			kfree(p->u.printname);
+			break;
+		}
+
+		kfree(p->u.board.status);
+		kfree(p);
+		p = tmp;
+	}
+}
 /*
  * Parse a configuration file read into memory as a string.
  */
@@ -6343,21 +6356,25 @@ static int dgap_parsefile(char **in)
 	/* file must start with a BEGIN */
 	while ((rc = dgap_gettok(in)) != BEGIN) {
 		if (rc == 0) {
-			dgap_err("unexpected EOF");
+			pr_err("unexpected EOF");
 			return -1;
 		}
 	}
 
 	for (; ;) {
+		int board_type = 0;
+		int conc_type = 0;
+		int module_type = 0;
+
 		rc = dgap_gettok(in);
 		if (rc == 0) {
-			dgap_err("unexpected EOF");
+			pr_err("unexpected EOF");
 			return -1;
 		}
 
 		switch (rc) {
 		case BEGIN:	/* should only be 1 begin */
-			dgap_err("unexpected config_begin\n");
+			pr_err("unexpected config_begin\n");
 			return -1;
 
 		case END:
@@ -6368,10 +6385,9 @@ static int dgap_parsefile(char **in)
 				return -1;
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
-			if (!p->next) {
-				dgap_err("out of memory");
+			if (!p->next)
 				return -1;
-			}
+
 			p = p->next;
 
 			p->type = BNODE;
@@ -6379,103 +6395,30 @@ static int dgap_parsefile(char **in)
 			line = conc = NULL;
 			brd = p;
 			linecnt = -1;
-			break;
 
-		case APORT2_920P:	/* AccelePort_4 */
-			if (p->type != BNODE) {
-				dgap_err("unexpected Digi_2r_920 string");
+			board_type = dgap_gettok(in);
+			if (board_type == 0) {
+				pr_err("board !!type not specified");
 				return -1;
 			}
-			p->u.board.type = APORT2_920P;
-			p->u.board.v_type = 1;
-			break;
 
-		case APORT4_920P:	/* AccelePort_4 */
-			if (p->type != BNODE) {
-				dgap_err("unexpected Digi_4r_920 string");
-				return -1;
-			}
-			p->u.board.type = APORT4_920P;
-			p->u.board.v_type = 1;
-			break;
+			p->u.board.type = board_type;
 
-		case APORT8_920P:	/* AccelePort_8 */
-			if (p->type != BNODE) {
-				dgap_err("unexpected Digi_8r_920 string");
-				return -1;
-			}
-			p->u.board.type = APORT8_920P;
-			p->u.board.v_type = 1;
-			break;
-
-		case PAPORT4:	/* AccelePort_4 PCI */
-			if (p->type != BNODE) {
-				dgap_err("unexpected Digi_4r(PCI) string");
-				return -1;
-			}
-			p->u.board.type = PAPORT4;
-			p->u.board.v_type = 1;
-			break;
-
-		case PAPORT8:	/* AccelePort_8 PCI */
-			if (p->type != BNODE) {
-				dgap_err("unexpected Digi_8r string");
-				return -1;
-			}
-			p->u.board.type = PAPORT8;
-			p->u.board.v_type = 1;
-			break;
-
-		case PCX:	/* PCI C/X */
-			if (p->type != BNODE) {
-				dgap_err("unexpected Digi_C/X_(PCI) string");
-				return -1;
-			}
-			p->u.board.type = PCX;
-			p->u.board.v_type = 1;
-			p->u.board.conc1 = 0;
-			p->u.board.conc2 = 0;
-			p->u.board.module1 = 0;
-			p->u.board.module2 = 0;
-			break;
-
-		case PEPC:	/* PCI EPC/X */
-			if (p->type != BNODE) {
-				dgap_err("unexpected \"Digi_EPC/X_(PCI)\" string");
-				return -1;
-			}
-			p->u.board.type = PEPC;
-			p->u.board.v_type = 1;
-			p->u.board.conc1 = 0;
-			p->u.board.conc2 = 0;
-			p->u.board.module1 = 0;
-			p->u.board.module2 = 0;
-			break;
-
-		case PPCM:	/* PCI/Xem */
-			if (p->type != BNODE) {
-				dgap_err("unexpected PCI/Xem string");
-				return -1;
-			}
-			p->u.board.type = PPCM;
-			p->u.board.v_type = 1;
-			p->u.board.conc1 = 0;
-			p->u.board.conc2 = 0;
 			break;
 
 		case IO:	/* i/o port */
 			if (p->type != BNODE) {
-				dgap_err("IO port only vaild for boards");
+				pr_err("IO port only vaild for boards");
 				return -1;
 			}
 			s = dgap_getword(in);
 			if (!s) {
-				dgap_err("unexpected end of file");
+				pr_err("unexpected end of file");
 				return -1;
 			}
 			p->u.board.portstr = kstrdup(s, GFP_KERNEL);
 			if (kstrtol(s, 0, &p->u.board.port)) {
-				dgap_err("bad number for IO port");
+				pr_err("bad number for IO port");
 				return -1;
 			}
 			p->u.board.v_port = 1;
@@ -6483,17 +6426,17 @@ static int dgap_parsefile(char **in)
 
 		case MEM:	/* memory address */
 			if (p->type != BNODE) {
-				dgap_err("memory address only vaild for boards");
+				pr_err("memory address only vaild for boards");
 				return -1;
 			}
 			s = dgap_getword(in);
 			if (!s) {
-				dgap_err("unexpected end of file");
+				pr_err("unexpected end of file");
 				return -1;
 			}
 			p->u.board.addrstr = kstrdup(s, GFP_KERNEL);
 			if (kstrtoul(s, 0, &p->u.board.addr)) {
-				dgap_err("bad number for memory address");
+				pr_err("bad number for memory address");
 				return -1;
 			}
 			p->u.board.v_addr = 1;
@@ -6501,28 +6444,28 @@ static int dgap_parsefile(char **in)
 
 		case PCIINFO:	/* pci information */
 			if (p->type != BNODE) {
-				dgap_err("memory address only vaild for boards");
+				pr_err("memory address only vaild for boards");
 				return -1;
 			}
 			s = dgap_getword(in);
 			if (!s) {
-				dgap_err("unexpected end of file");
+				pr_err("unexpected end of file");
 				return -1;
 			}
 			p->u.board.pcibusstr = kstrdup(s, GFP_KERNEL);
 			if (kstrtoul(s, 0, &p->u.board.pcibus)) {
-				dgap_err("bad number for pci bus");
+				pr_err("bad number for pci bus");
 				return -1;
 			}
 			p->u.board.v_pcibus = 1;
 			s = dgap_getword(in);
 			if (!s) {
-				dgap_err("unexpected end of file");
+				pr_err("unexpected end of file");
 				return -1;
 			}
 			p->u.board.pcislotstr = kstrdup(s, GFP_KERNEL);
 			if (kstrtoul(s, 0, &p->u.board.pcislot)) {
-				dgap_err("bad number for pci slot");
+				pr_err("bad number for pci slot");
 				return -1;
 			}
 			p->u.board.v_pcislot = 1;
@@ -6530,12 +6473,12 @@ static int dgap_parsefile(char **in)
 
 		case METHOD:
 			if (p->type != BNODE) {
-				dgap_err("install method only vaild for boards");
+				pr_err("install method only vaild for boards");
 				return -1;
 			}
 			s = dgap_getword(in);
 			if (!s) {
-				dgap_err("unexpected end of file");
+				pr_err("unexpected end of file");
 				return -1;
 			}
 			p->u.board.method = kstrdup(s, GFP_KERNEL);
@@ -6544,12 +6487,12 @@ static int dgap_parsefile(char **in)
 
 		case STATUS:
 			if (p->type != BNODE) {
-				dgap_err("config status only vaild for boards");
+				pr_err("config status only vaild for boards");
 				return -1;
 			}
 			s = dgap_getword(in);
 			if (!s) {
-				dgap_err("unexpected end of file");
+				pr_err("unexpected end of file");
 				return -1;
 			}
 			p->u.board.status = kstrdup(s, GFP_KERNEL);
@@ -6559,38 +6502,38 @@ static int dgap_parsefile(char **in)
 			if (p->type == BNODE) {
 				s = dgap_getword(in);
 				if (!s) {
-					dgap_err("unexpected end of file");
+					pr_err("unexpected end of file");
 					return -1;
 				}
 				if (kstrtol(s, 0, &p->u.board.nport)) {
-					dgap_err("bad number for number of ports");
+					pr_err("bad number for number of ports");
 					return -1;
 				}
 				p->u.board.v_nport = 1;
 			} else if (p->type == CNODE) {
 				s = dgap_getword(in);
 				if (!s) {
-					dgap_err("unexpected end of file");
+					pr_err("unexpected end of file");
 					return -1;
 				}
 				if (kstrtol(s, 0, &p->u.conc.nport)) {
-					dgap_err("bad number for number of ports");
+					pr_err("bad number for number of ports");
 					return -1;
 				}
 				p->u.conc.v_nport = 1;
 			} else if (p->type == MNODE) {
 				s = dgap_getword(in);
 				if (!s) {
-					dgap_err("unexpected end of file");
+					pr_err("unexpected end of file");
 					return -1;
 				}
 				if (kstrtol(s, 0, &p->u.module.nport)) {
-					dgap_err("bad number for number of ports");
+					pr_err("bad number for number of ports");
 					return -1;
 				}
 				p->u.module.v_nport = 1;
 			} else {
-				dgap_err("nports only valid for concentrators or modules");
+				pr_err("nports only valid for concentrators or modules");
 				return -1;
 			}
 			break;
@@ -6598,7 +6541,7 @@ static int dgap_parsefile(char **in)
 		case ID:	/* letter ID used in tty name */
 			s = dgap_getword(in);
 			if (!s) {
-				dgap_err("unexpected end of file");
+				pr_err("unexpected end of file");
 				return -1;
 			}
 
@@ -6611,7 +6554,7 @@ static int dgap_parsefile(char **in)
 				p->u.module.id = kstrdup(s, GFP_KERNEL);
 				p->u.module.v_id = 1;
 			} else {
-				dgap_err("id only valid for concentrators or modules");
+				pr_err("id only valid for concentrators or modules");
 				return -1;
 			}
 			break;
@@ -6620,38 +6563,38 @@ static int dgap_parsefile(char **in)
 			if (p->type == BNODE) {
 				s = dgap_getword(in);
 				if (!s) {
-					dgap_err("unexpected end of file");
+					pr_err("unexpected end of file");
 					return -1;
 				}
 				if (kstrtol(s, 0, &p->u.board.start)) {
-					dgap_err("bad number for start of tty count");
+					pr_err("bad number for start of tty count");
 					return -1;
 				}
 				p->u.board.v_start = 1;
 			} else if (p->type == CNODE) {
 				s = dgap_getword(in);
 				if (!s) {
-					dgap_err("unexpected end of file");
+					pr_err("unexpected end of file");
 					return -1;
 				}
 				if (kstrtol(s, 0, &p->u.conc.start)) {
-					dgap_err("bad number for start of tty count");
+					pr_err("bad number for start of tty count");
 					return -1;
 				}
 				p->u.conc.v_start = 1;
 			} else if (p->type == MNODE) {
 				s = dgap_getword(in);
 				if (!s) {
-					dgap_err("unexpected end of file");
+					pr_err("unexpected end of file");
 					return -1;
 				}
 				if (kstrtol(s, 0, &p->u.module.start)) {
-					dgap_err("bad number for start of tty count");
+					pr_err("bad number for start of tty count");
 					return -1;
 				}
 				p->u.module.v_start = 1;
 			} else {
-				dgap_err("start only valid for concentrators or modules");
+				pr_err("start only valid for concentrators or modules");
 				return -1;
 			}
 			break;
@@ -6661,24 +6604,21 @@ static int dgap_parsefile(char **in)
 				return -1;
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
-			if (!p->next) {
-				dgap_err("out of memory");
+			if (!p->next)
 				return -1;
-			}
 
 			p = p->next;
 			p->type = TNODE;
 
 			s = dgap_getword(in);
 			if (!s) {
-				dgap_err("unexpeced end of file");
+				pr_err("unexpeced end of file");
 				return -1;
 			}
 			p->u.ttyname = kstrdup(s, GFP_KERNEL);
-			if (!p->u.ttyname) {
-				dgap_err("out of memory");
+			if (!p->u.ttyname)
 				return -1;
-			}
+
 			break;
 
 		case CU:	/* cu name prefix */
@@ -6686,44 +6626,39 @@ static int dgap_parsefile(char **in)
 				return -1;
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
-			if (!p->next) {
-				dgap_err("out of memory");
+			if (!p->next)
 				return -1;
-			}
 
 			p = p->next;
 			p->type = CUNODE;
 
 			s = dgap_getword(in);
 			if (!s) {
-				dgap_err("unexpeced end of file");
+				pr_err("unexpeced end of file");
 				return -1;
 			}
 			p->u.cuname = kstrdup(s, GFP_KERNEL);
-			if (!p->u.cuname) {
-				dgap_err("out of memory");
+			if (!p->u.cuname)
 				return -1;
-			}
+
 			break;
 
 		case LINE:	/* line information */
 			if (dgap_checknode(p))
 				return -1;
 			if (!brd) {
-				dgap_err("must specify board before line info");
+				pr_err("must specify board before line info");
 				return -1;
 			}
 			switch (brd->u.board.type) {
 			case PPCM:
-				dgap_err("line not vaild for PC/em");
+				pr_err("line not vaild for PC/em");
 				return -1;
 			}
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
-			if (!p->next) {
-				dgap_err("out of memory");
+			if (!p->next)
 				return -1;
-			}
 
 			p = p->next;
 			p->type = LNODE;
@@ -6736,15 +6671,13 @@ static int dgap_parsefile(char **in)
 			if (dgap_checknode(p))
 				return -1;
 			if (!line) {
-				dgap_err("must specify line info before concentrator");
+				pr_err("must specify line info before concentrator");
 				return -1;
 			}
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
-			if (!p->next) {
-				dgap_err("out of memory");
+			if (!p->next)
 				return -1;
-			}
 
 			p = p->next;
 			p->type = CNODE;
@@ -6755,31 +6688,22 @@ static int dgap_parsefile(char **in)
 			else
 				brd->u.board.conc1++;
 
-			break;
-
-		case CX:	/* c/x type concentrator */
-			if (p->type != CNODE) {
-				dgap_err("cx only valid for concentrators");
+			conc_type = dgap_gettok(in);
+			if (conc_type == 0 || conc_type != CX ||
+			    conc_type != EPC) {
+				pr_err("failed to set a type of concentratros");
 				return -1;
 			}
-			p->u.conc.type = CX;
-			p->u.conc.v_type = 1;
-			break;
 
-		case EPC:	/* epc type concentrator */
-			if (p->type != CNODE) {
-				dgap_err("cx only valid for concentrators");
-				return -1;
-			}
-			p->u.conc.type = EPC;
-			p->u.conc.v_type = 1;
+			p->u.conc.type = conc_type;
+
 			break;
 
 		case MOD:	/* EBI module */
 			if (dgap_checknode(p))
 				return -1;
 			if (!brd) {
-				dgap_err("must specify board info before EBI modules");
+				pr_err("must specify board info before EBI modules");
 				return -1;
 			}
 			switch (brd->u.board.type) {
@@ -6788,16 +6712,15 @@ static int dgap_parsefile(char **in)
 				break;
 			default:
 				if (!conc) {
-					dgap_err("must specify concentrator info before EBI module");
+					pr_err("must specify concentrator info before EBI module");
 					return -1;
 				}
 			}
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
-			if (!p->next) {
-				dgap_err("out of memory");
+			if (!p->next)
 				return -1;
-			}
+
 			p = p->next;
 			p->type = MNODE;
 
@@ -6806,31 +6729,22 @@ static int dgap_parsefile(char **in)
 			else
 				brd->u.board.module1++;
 
-			break;
-
-		case PORTS:	/* ports type EBI module */
-			if (p->type != MNODE) {
-				dgap_err("ports only valid for EBI modules");
+			module_type = dgap_gettok(in);
+			if (module_type == 0 || module_type != PORTS ||
+			    module_type != MODEM) {
+				pr_err("failed to set a type of module");
 				return -1;
 			}
-			p->u.module.type = PORTS;
-			p->u.module.v_type = 1;
-			break;
 
-		case MODEM:	/* ports type EBI module */
-			if (p->type != MNODE) {
-				dgap_err("modem only valid for modem modules");
-				return -1;
-			}
-			p->u.module.type = MODEM;
-			p->u.module.v_type = 1;
+			p->u.module.type = module_type;
+
 			break;
 
 		case CABLE:
 			if (p->type == LNODE) {
 				s = dgap_getword(in);
 				if (!s) {
-					dgap_err("unexpected end of file");
+					pr_err("unexpected end of file");
 					return -1;
 				}
 				p->u.line.cable = kstrdup(s, GFP_KERNEL);
@@ -6842,27 +6756,27 @@ static int dgap_parsefile(char **in)
 			if (p->type == LNODE) {
 				s = dgap_getword(in);
 				if (!s) {
-					dgap_err("unexpected end of file");
+					pr_err("unexpected end of file");
 					return -1;
 				}
 				if (kstrtol(s, 0, &p->u.line.speed)) {
-					dgap_err("bad number for line speed");
+					pr_err("bad number for line speed");
 					return -1;
 				}
 				p->u.line.v_speed = 1;
 			} else if (p->type == CNODE) {
 				s = dgap_getword(in);
 				if (!s) {
-					dgap_err("unexpected end of file");
+					pr_err("unexpected end of file");
 					return -1;
 				}
 				if (kstrtol(s, 0, &p->u.conc.speed)) {
-					dgap_err("bad number for line speed");
+					pr_err("bad number for line speed");
 					return -1;
 				}
 				p->u.conc.v_speed = 1;
 			} else {
-				dgap_err("speed valid only for lines or concentrators.");
+				pr_err("speed valid only for lines or concentrators.");
 				return -1;
 			}
 			break;
@@ -6871,7 +6785,7 @@ static int dgap_parsefile(char **in)
 			if (p->type == CNODE) {
 				s = dgap_getword(in);
 				if (!s) {
-					dgap_err("unexpected end of file");
+					pr_err("unexpected end of file");
 					return -1;
 				}
 				p->u.conc.connect = kstrdup(s, GFP_KERNEL);
@@ -6883,24 +6797,21 @@ static int dgap_parsefile(char **in)
 				return -1;
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
-			if (!p->next) {
-				dgap_err("out of memory");
+			if (!p->next)
 				return -1;
-			}
 
 			p = p->next;
 			p->type = PNODE;
 
 			s = dgap_getword(in);
 			if (!s) {
-				dgap_err("unexpeced end of file");
+				pr_err("unexpeced end of file");
 				return -1;
 			}
 			p->u.printname = kstrdup(s, GFP_KERNEL);
-			if (!p->u.printname) {
-				dgap_err("out of memory");
+			if (!p->u.printname)
 				return -1;
-			}
+
 			break;
 
 		case CMAJOR:	/* major number */
@@ -6908,21 +6819,19 @@ static int dgap_parsefile(char **in)
 				return -1;
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
-			if (!p->next) {
-				dgap_err("out of memory");
+			if (!p->next)
 				return -1;
-			}
 
 			p = p->next;
 			p->type = JNODE;
 
 			s = dgap_getword(in);
 			if (!s) {
-				dgap_err("unexpected end of file");
+				pr_err("unexpected end of file");
 				return -1;
 			}
 			if (kstrtol(s, 0, &p->u.majornumber)) {
-				dgap_err("bad number for major number");
+				pr_err("bad number for major number");
 				return -1;
 			}
 			break;
@@ -6932,21 +6841,19 @@ static int dgap_parsefile(char **in)
 				return -1;
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
-			if (!p->next) {
-				dgap_err("out of memory");
+			if (!p->next)
 				return -1;
-			}
 
 			p = p->next;
 			p->type = ANODE;
 
 			s = dgap_getword(in);
 			if (!s) {
-				dgap_err("unexpected end of file");
+				pr_err("unexpected end of file");
 				return -1;
 			}
 			if (kstrtol(s, 0, &p->u.altpin)) {
-				dgap_err("bad number for altpin");
+				pr_err("bad number for altpin");
 				return -1;
 			}
 			break;
@@ -6956,19 +6863,18 @@ static int dgap_parsefile(char **in)
 				return -1;
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
-			if (!p->next) {
-				dgap_err("out of memory");
+			if (!p->next)
 				return -1;
-			}
+
 			p = p->next;
 			p->type = INTRNODE;
 			s = dgap_getword(in);
 			if (!s) {
-				dgap_err("unexpected end of file");
+				pr_err("unexpected end of file");
 				return -1;
 			}
 			if (kstrtol(s, 0, &p->u.useintr)) {
-				dgap_err("bad number for useintr");
+				pr_err("bad number for useintr");
 				return -1;
 			}
 			break;
@@ -6978,21 +6884,19 @@ static int dgap_parsefile(char **in)
 				return -1;
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
-			if (!p->next) {
-				dgap_err("out of memory");
+			if (!p->next)
 				return -1;
-			}
 
 			p = p->next;
 			p->type = TSNODE;
 
 			s = dgap_getword(in);
 			if (!s) {
-				dgap_err("unexpected end of file");
+				pr_err("unexpected end of file");
 				return -1;
 			}
 			if (kstrtol(s, 0, &p->u.ttysize)) {
-				dgap_err("bad number for ttysize");
+				pr_err("bad number for ttysize");
 				return -1;
 			}
 			break;
@@ -7002,21 +6906,19 @@ static int dgap_parsefile(char **in)
 				return -1;
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
-			if (!p->next) {
-				dgap_err("out of memory");
+			if (!p->next)
 				return -1;
-			}
 
 			p = p->next;
 			p->type = CSNODE;
 
 			s = dgap_getword(in);
 			if (!s) {
-				dgap_err("unexpected end of file");
+				pr_err("unexpected end of file");
 				return -1;
 			}
 			if (kstrtol(s, 0, &p->u.chsize)) {
-				dgap_err("bad number for chsize");
+				pr_err("bad number for chsize");
 				return -1;
 			}
 			break;
@@ -7026,21 +6928,19 @@ static int dgap_parsefile(char **in)
 				return -1;
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
-			if (!p->next) {
-				dgap_err("out of memory");
+			if (!p->next)
 				return -1;
-			}
 
 			p = p->next;
 			p->type = BSNODE;
 
 			s = dgap_getword(in);
 			if (!s) {
-				dgap_err("unexpected end of file");
+				pr_err("unexpected end of file");
 				return -1;
 			}
 			if (kstrtol(s, 0, &p->u.bssize)) {
-				dgap_err("bad number for bssize");
+				pr_err("bad number for bssize");
 				return -1;
 			}
 			break;
@@ -7050,21 +6950,19 @@ static int dgap_parsefile(char **in)
 				return -1;
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
-			if (!p->next) {
-				dgap_err("out of memory");
+			if (!p->next)
 				return -1;
-			}
 
 			p = p->next;
 			p->type = USNODE;
 
 			s = dgap_getword(in);
 			if (!s) {
-				dgap_err("unexpected end of file");
+				pr_err("unexpected end of file");
 				return -1;
 			}
 			if (kstrtol(s, 0, &p->u.unsize)) {
-				dgap_err("bad number for schedsize");
+				pr_err("bad number for schedsize");
 				return -1;
 			}
 			break;
@@ -7074,21 +6972,19 @@ static int dgap_parsefile(char **in)
 				return -1;
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
-			if (!p->next) {
-				dgap_err("out of memory");
+			if (!p->next)
 				return -1;
-			}
 
 			p = p->next;
 			p->type = FSNODE;
 
 			s = dgap_getword(in);
 			if (!s) {
-				dgap_err("unexpected end of file");
+				pr_err("unexpected end of file");
 				return -1;
 			}
 			if (kstrtol(s, 0, &p->u.f2size)) {
-				dgap_err("bad number for f2200size");
+				pr_err("bad number for f2200size");
 				return -1;
 			}
 			break;
@@ -7098,21 +6994,19 @@ static int dgap_parsefile(char **in)
 				return -1;
 
 			p->next = kzalloc(sizeof(struct cnode), GFP_KERNEL);
-			if (!p->next) {
-				dgap_err("out of memory");
+			if (!p->next)
 				return -1;
-			}
 
 			p = p->next;
 			p->type = VSNODE;
 
 			s = dgap_getword(in);
 			if (!s) {
-				dgap_err("unexpected end of file");
+				pr_err("unexpected end of file");
 				return -1;
 			}
 			if (kstrtol(s, 0, &p->u.vpixsize)) {
-				dgap_err("bad number for vpixsize");
+				pr_err("bad number for vpixsize");
 				return -1;
 			}
 			break;
@@ -7165,12 +7059,10 @@ static int dgap_gettok(char **in)
 	if (strstr(dgap_cword, "board")) {
 		w = dgap_getword(in);
 		snprintf(dgap_cword, MAXCWORD, "%s", w);
-		for (t = dgap_tlist; t->token != 0; t++) {
+		for (t = dgap_brdtype; t->token != 0; t++) {
 			if (!strcmp(w, t->string))
 				return t->token;
 		}
-		dgap_err("board !!type not specified");
-		return 1;
 	} else {
 		while ((w = dgap_getword(in))) {
 			snprintf(dgap_cword, MAXCWORD, "%s", w);
@@ -7179,8 +7071,9 @@ static int dgap_gettok(char **in)
 					return t->token;
 			}
 		}
-		return 0;
 	}
+
+	return 0;
 }
 
 /*
@@ -7213,66 +7106,41 @@ static char *dgap_getword(char **in)
 }
 
 /*
- * print an error message, giving the line number in the file where
- * the error occurred.
- */
-static void dgap_err(char *s)
-{
-	pr_err("dgap: parse: %s\n", s);
-}
-
-/*
  * dgap_checknode: see if all the necessary info has been supplied for a node
  * before creating the next node.
  */
 static int dgap_checknode(struct cnode *p)
 {
 	switch (p->type) {
-	case BNODE:
-		if (p->u.board.v_type == 0) {
-			dgap_err("board type !not specified");
-			return 1;
-		}
-
-		return 0;
-
 	case LNODE:
 		if (p->u.line.v_speed == 0) {
-			dgap_err("line speed not specified");
+			pr_err("line speed not specified");
 			return 1;
 		}
 		return 0;
 
 	case CNODE:
-		if (p->u.conc.v_type == 0) {
-			dgap_err("concentrator type not specified");
-			return 1;
-		}
 		if (p->u.conc.v_speed == 0) {
-			dgap_err("concentrator line speed not specified");
+			pr_err("concentrator line speed not specified");
 			return 1;
 		}
 		if (p->u.conc.v_nport == 0) {
-			dgap_err("number of ports on concentrator not specified");
+			pr_err("number of ports on concentrator not specified");
 			return 1;
 		}
 		if (p->u.conc.v_id == 0) {
-			dgap_err("concentrator id letter not specified");
+			pr_err("concentrator id letter not specified");
 			return 1;
 		}
 		return 0;
 
 	case MNODE:
-		if (p->u.module.v_type == 0) {
-			dgap_err("EBI module type not specified");
-			return 1;
-		}
 		if (p->u.module.v_nport == 0) {
-			dgap_err("number of ports on EBI module not specified");
+			pr_err("number of ports on EBI module not specified");
 			return 1;
 		}
 		if (p->u.module.v_id == 0) {
-			dgap_err("EBI module id letter not specified");
+			pr_err("EBI module id letter not specified");
 			return 1;
 		}
 		return 0;

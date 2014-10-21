@@ -33,7 +33,7 @@
 #ifndef _DIAG_CHANNEL_H_
 #define _DIAG_CHANNEL_H_
 
-#include "commontypes.h"
+#include <linux/uuid.h>
 #include "channel.h"
 
 /* {EEA7A573-DB82-447c-8716-EFBEAAAE4858} */

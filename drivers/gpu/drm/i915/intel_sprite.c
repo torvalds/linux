@@ -53,6 +53,7 @@ static bool intel_pipe_update_start(struct intel_crtc *crtc, uint32_t *start_vbl
 	enum pipe pipe = crtc->pipe;
 	long timeout = msecs_to_jiffies_timeout(1);
 	int scanline, min, max, vblank_start;
+	wait_queue_head_t *wq = drm_crtc_vblank_waitqueue(&crtc->base);
 	DEFINE_WAIT(wait);
 
 	WARN_ON(!drm_modeset_is_locked(&crtc->base.mutex));
@@ -81,7 +82,7 @@ static bool intel_pipe_update_start(struct intel_crtc *crtc, uint32_t *start_vbl
 		 * other CPUs can see the task state update by the time we
 		 * read the scanline.
 		 */
-		prepare_to_wait(&crtc->vbl_wait, &wait, TASK_UNINTERRUPTIBLE);
+		prepare_to_wait(wq, &wait, TASK_UNINTERRUPTIBLE);
 
 		scanline = intel_get_crtc_scanline(crtc);
 		if (scanline < min || scanline > max)
@@ -100,7 +101,7 @@ static bool intel_pipe_update_start(struct intel_crtc *crtc, uint32_t *start_vbl
 		local_irq_disable();
 	}
 
-	finish_wait(&crtc->vbl_wait, &wait);
+	finish_wait(wq, &wait);
 
 	drm_vblank_put(dev, pipe);
 
@@ -163,6 +164,7 @@ vlv_update_plane(struct drm_plane *dplane, struct drm_crtc *crtc,
 	sprctl &= ~SP_PIXFORMAT_MASK;
 	sprctl &= ~SP_YUV_BYTE_ORDER_MASK;
 	sprctl &= ~SP_TILED;
+	sprctl &= ~SP_ROTATE_180;
 
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_YUYV:
@@ -234,6 +236,14 @@ vlv_update_plane(struct drm_plane *dplane, struct drm_crtc *crtc,
 							pixel_size,
 							fb->pitches[0]);
 	linear_offset -= sprsurf_offset;
+
+	if (intel_plane->rotation == BIT(DRM_ROTATE_180)) {
+		sprctl |= SP_ROTATE_180;
+
+		x += src_w;
+		y += src_h;
+		linear_offset += src_h * fb->pitches[0] + src_w * pixel_size;
+	}
 
 	atomic_update = intel_pipe_update_start(intel_crtc, &start_vbl_count);
 
@@ -364,6 +374,7 @@ ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	sprctl &= ~SPRITE_RGB_ORDER_RGBX;
 	sprctl &= ~SPRITE_YUV_BYTE_ORDER_MASK;
 	sprctl &= ~SPRITE_TILED;
+	sprctl &= ~SPRITE_ROTATE_180;
 
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_XBGR8888:
@@ -425,6 +436,18 @@ ivb_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		intel_gen4_compute_page_offset(&x, &y, obj->tiling_mode,
 					       pixel_size, fb->pitches[0]);
 	linear_offset -= sprsurf_offset;
+
+	if (intel_plane->rotation == BIT(DRM_ROTATE_180)) {
+		sprctl |= SPRITE_ROTATE_180;
+
+		/* HSW and BDW does this automagically in hardware */
+		if (!IS_HASWELL(dev) && !IS_BROADWELL(dev)) {
+			x += src_w;
+			y += src_h;
+			linear_offset += src_h * fb->pitches[0] +
+				src_w * pixel_size;
+		}
+	}
 
 	atomic_update = intel_pipe_update_start(intel_crtc, &start_vbl_count);
 
@@ -571,6 +594,7 @@ ilk_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	dvscntr &= ~DVS_RGB_ORDER_XBGR;
 	dvscntr &= ~DVS_YUV_BYTE_ORDER_MASK;
 	dvscntr &= ~DVS_TILED;
+	dvscntr &= ~DVS_ROTATE_180;
 
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_XBGR8888:
@@ -627,6 +651,14 @@ ilk_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		intel_gen4_compute_page_offset(&x, &y, obj->tiling_mode,
 					       pixel_size, fb->pitches[0]);
 	linear_offset -= dvssurf_offset;
+
+	if (intel_plane->rotation == BIT(DRM_ROTATE_180)) {
+		dvscntr |= DVS_ROTATE_180;
+
+		x += src_w;
+		y += src_h;
+		linear_offset += src_h * fb->pitches[0] + src_w * pixel_size;
+	}
 
 	atomic_update = intel_pipe_update_start(intel_crtc, &start_vbl_count);
 
@@ -895,6 +927,9 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	max_scale = intel_plane->max_downscale << 16;
 	min_scale = intel_plane->can_scale ? 1 : (1 << 16);
 
+	drm_rect_rotate(&src, fb->width << 16, fb->height << 16,
+			intel_plane->rotation);
+
 	hscale = drm_rect_calc_hscale_relaxed(&src, &dst, min_scale, max_scale);
 	BUG_ON(hscale < 0);
 
@@ -932,6 +967,9 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		drm_rect_adjust_size(&src,
 				     drm_rect_width(&dst) * hscale - drm_rect_width(&src),
 				     drm_rect_height(&dst) * vscale - drm_rect_height(&src));
+
+		drm_rect_rotate_inv(&src, fb->width << 16, fb->height << 16,
+				    intel_plane->rotation);
 
 		/* sanity check to make sure the src viewport wasn't enlarged */
 		WARN_ON(src.x1 < (int) src_x ||
@@ -1180,18 +1218,45 @@ out_unlock:
 	return ret;
 }
 
-void intel_plane_restore(struct drm_plane *plane)
+int intel_plane_set_property(struct drm_plane *plane,
+			     struct drm_property *prop,
+			     uint64_t val)
+{
+	struct drm_device *dev = plane->dev;
+	struct intel_plane *intel_plane = to_intel_plane(plane);
+	uint64_t old_val;
+	int ret = -ENOENT;
+
+	if (prop == dev->mode_config.rotation_property) {
+		/* exactly one rotation angle please */
+		if (hweight32(val & 0xf) != 1)
+			return -EINVAL;
+
+		if (intel_plane->rotation == val)
+			return 0;
+
+		old_val = intel_plane->rotation;
+		intel_plane->rotation = val;
+		ret = intel_plane_restore(plane);
+		if (ret)
+			intel_plane->rotation = old_val;
+	}
+
+	return ret;
+}
+
+int intel_plane_restore(struct drm_plane *plane)
 {
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 
 	if (!plane->crtc || !plane->fb)
-		return;
+		return 0;
 
-	intel_update_plane(plane, plane->crtc, plane->fb,
-			   intel_plane->crtc_x, intel_plane->crtc_y,
-			   intel_plane->crtc_w, intel_plane->crtc_h,
-			   intel_plane->src_x, intel_plane->src_y,
-			   intel_plane->src_w, intel_plane->src_h);
+	return plane->funcs->update_plane(plane, plane->crtc, plane->fb,
+				  intel_plane->crtc_x, intel_plane->crtc_y,
+				  intel_plane->crtc_w, intel_plane->crtc_h,
+				  intel_plane->src_x, intel_plane->src_y,
+				  intel_plane->src_w, intel_plane->src_h);
 }
 
 void intel_plane_disable(struct drm_plane *plane)
@@ -1206,6 +1271,7 @@ static const struct drm_plane_funcs intel_plane_funcs = {
 	.update_plane = intel_update_plane,
 	.disable_plane = intel_disable_plane,
 	.destroy = intel_destroy_plane,
+	.set_property = intel_plane_set_property,
 };
 
 static uint32_t ilk_plane_formats[] = {
@@ -1310,13 +1376,28 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 
 	intel_plane->pipe = pipe;
 	intel_plane->plane = plane;
+	intel_plane->rotation = BIT(DRM_ROTATE_0);
 	possible_crtcs = (1 << pipe);
-	ret = drm_plane_init(dev, &intel_plane->base, possible_crtcs,
-			     &intel_plane_funcs,
-			     plane_formats, num_plane_formats,
-			     false);
-	if (ret)
+	ret = drm_universal_plane_init(dev, &intel_plane->base, possible_crtcs,
+				       &intel_plane_funcs,
+				       plane_formats, num_plane_formats,
+				       DRM_PLANE_TYPE_OVERLAY);
+	if (ret) {
 		kfree(intel_plane);
+		goto out;
+	}
 
+	if (!dev->mode_config.rotation_property)
+		dev->mode_config.rotation_property =
+			drm_mode_create_rotation_property(dev,
+							  BIT(DRM_ROTATE_0) |
+							  BIT(DRM_ROTATE_180));
+
+	if (dev->mode_config.rotation_property)
+		drm_object_attach_property(&intel_plane->base.base,
+					   dev->mode_config.rotation_property,
+					   intel_plane->rotation);
+
+ out:
 	return ret;
 }

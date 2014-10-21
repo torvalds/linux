@@ -2,6 +2,7 @@
  * cfg80211 scan result handling
  *
  * Copyright 2008 Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2013-2014  Intel Mobile Communications GmbH
  */
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -884,6 +885,7 @@ struct cfg80211_bss*
 cfg80211_inform_bss_width(struct wiphy *wiphy,
 			  struct ieee80211_channel *rx_channel,
 			  enum nl80211_bss_scan_width scan_width,
+			  enum cfg80211_bss_frame_type ftype,
 			  const u8 *bssid, u64 tsf, u16 capability,
 			  u16 beacon_interval, const u8 *ie, size_t ielen,
 			  s32 signal, gfp_t gfp)
@@ -911,21 +913,32 @@ cfg80211_inform_bss_width(struct wiphy *wiphy,
 	tmp.pub.beacon_interval = beacon_interval;
 	tmp.pub.capability = capability;
 	/*
-	 * Since we do not know here whether the IEs are from a Beacon or Probe
+	 * If we do not know here whether the IEs are from a Beacon or Probe
 	 * Response frame, we need to pick one of the options and only use it
 	 * with the driver that does not provide the full Beacon/Probe Response
 	 * frame. Use Beacon frame pointer to avoid indicating that this should
 	 * override the IEs pointer should we have received an earlier
 	 * indication of Probe Response data.
 	 */
-	ies = kmalloc(sizeof(*ies) + ielen, gfp);
+	ies = kzalloc(sizeof(*ies) + ielen, gfp);
 	if (!ies)
 		return NULL;
 	ies->len = ielen;
 	ies->tsf = tsf;
+	ies->from_beacon = false;
 	memcpy(ies->data, ie, ielen);
 
-	rcu_assign_pointer(tmp.pub.beacon_ies, ies);
+	switch (ftype) {
+	case CFG80211_BSS_FTYPE_BEACON:
+		ies->from_beacon = true;
+		/* fall through to assign */
+	case CFG80211_BSS_FTYPE_UNKNOWN:
+		rcu_assign_pointer(tmp.pub.beacon_ies, ies);
+		break;
+	case CFG80211_BSS_FTYPE_PRESP:
+		rcu_assign_pointer(tmp.pub.proberesp_ies, ies);
+		break;
+	}
 	rcu_assign_pointer(tmp.pub.ies, ies);
 
 	signal_valid = abs(rx_channel->center_freq - channel->center_freq) <=
@@ -982,11 +995,12 @@ cfg80211_inform_bss_width_frame(struct wiphy *wiphy,
 	if (!channel)
 		return NULL;
 
-	ies = kmalloc(sizeof(*ies) + ielen, gfp);
+	ies = kzalloc(sizeof(*ies) + ielen, gfp);
 	if (!ies)
 		return NULL;
 	ies->len = ielen;
 	ies->tsf = le64_to_cpu(mgmt->u.probe_resp.timestamp);
+	ies->from_beacon = ieee80211_is_beacon(mgmt->frame_control);
 	memcpy(ies->data, mgmt->u.probe_resp.variable, ielen);
 
 	if (ieee80211_is_probe_resp(mgmt->frame_control))

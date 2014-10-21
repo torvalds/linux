@@ -138,7 +138,18 @@ extern int udf_write_fi(struct inode *inode, struct fileIdentDesc *,
 /* file.c */
 extern long udf_ioctl(struct file *, unsigned int, unsigned long);
 /* inode.c */
-extern struct inode *udf_iget(struct super_block *, struct kernel_lb_addr *);
+extern struct inode *__udf_iget(struct super_block *, struct kernel_lb_addr *,
+				bool hidden_inode);
+static inline struct inode *udf_iget_special(struct super_block *sb,
+					     struct kernel_lb_addr *ino)
+{
+	return __udf_iget(sb, ino, true);
+}
+static inline struct inode *udf_iget(struct super_block *sb,
+				     struct kernel_lb_addr *ino)
+{
+	return __udf_iget(sb, ino, false);
+}
 extern int udf_expand_file_adinicb(struct inode *);
 extern struct buffer_head *udf_expand_dir_adinicb(struct inode *, int *, int *);
 extern struct buffer_head *udf_bread(struct inode *, int, int, int *);

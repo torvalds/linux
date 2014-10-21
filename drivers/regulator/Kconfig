@@ -199,13 +199,14 @@ config REGULATOR_DA9210
 	  interface.
 
 config REGULATOR_DA9211
-	tristate "Dialog Semiconductor DA9211/DA9212 regulator"
+	tristate "Dialog Semiconductor DA9211/DA9212/DA9213/DA9214 regulator"
 	depends on I2C
 	select REGMAP_I2C
 	help
-	  Say y here to support for the Dialog Semiconductor DA9211/DA9212.
-	  The DA9211/DA9212 is a multi-phase synchronous step down
-	  converter 12A DC-DC Buck controlled through an I2C
+	  Say y here to support for the Dialog Semiconductor DA9211/DA9212
+	  /DA9213/DA9214.
+	  The DA9211/DA9212/DA9213/DA9214 is a multi-phase synchronous
+	  step down converter 12A or 16A DC-DC Buck controlled through an I2C
 	  interface.
 
 config REGULATOR_DBX500_PRCMU
@@ -239,6 +240,23 @@ config REGULATOR_GPIO
 	  It is capable of supporting current and voltage regulators
 	  and the platform has to provide a mapping of GPIO-states
 	  to target volts/amps.
+
+config REGULATOR_HI6421
+	tristate "HiSilicon Hi6421 PMIC voltage regulator support"
+	depends on MFD_HI6421_PMIC && OF
+	help
+	  This driver provides support for the voltage regulators on the
+	  HiSilicon Hi6421 PMU / Codec IC.
+	  Hi6421 is a multi-function device which, on regulator part, provides
+	  21 general purpose LDOs, 3 dedicated LDOs, and 5 BUCKs. All
+	  of them come with support to either ECO (idle) or sleep mode.
+
+config REGULATOR_ISL9305
+	tristate "Intersil ISL9305 regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver supports ISL9305 voltage regulator chip.
 
 config REGULATOR_ISL6271A
 	tristate "Intersil ISL6271A Power regulator"
@@ -387,6 +405,15 @@ config REGULATOR_MAX77693
 	  and one current regulator 'CHARGER'. This is suitable for
 	  Exynos-4x12 chips.
 
+config REGULATOR_MAX77802
+	tristate "Maxim 77802 regulator"
+	depends on MFD_MAX77686
+	help
+	  This driver controls a Maxim 77802 regulator
+	  via I2C bus. The provided regulator is suitable for
+	  Exynos5420/Exynos5800 SoCs to control various voltages.
+	  It includes support for control of voltage and ramp speed.
+
 config REGULATOR_MC13XXX_CORE
 	tristate
 
@@ -449,6 +476,25 @@ config REGULATOR_PFUZE100
 	  Say y here to support the regulators found on the Freescale
 	  PFUZE100/PFUZE200 PMIC.
 
+config REGULATOR_PWM
+	tristate "PWM voltage regulator"
+	depends on PWM
+	help
+	  This driver supports PWM controlled voltage regulators. PWM
+	  duty cycle can increase or decrease the voltage.
+
+config REGULATOR_QCOM_RPM
+	tristate "Qualcomm RPM regulator driver"
+	depends on MFD_QCOM_RPM
+	help
+	  If you say yes to this option, support will be included for the
+	  regulators exposed by the Resource Power Manager found in Qualcomm
+	  8660, 8960 and 8064 based devices.
+
+	  Say M here if you want to include support for the regulators on the
+	  Qualcomm RPM as a module. The module will be named
+	  "qcom_rpm-regulator".
+
 config REGULATOR_RC5T583
 	tristate "RICOH RC5T583 Power regulators"
 	depends on MFD_RC5T583
@@ -458,6 +504,22 @@ config REGULATOR_RC5T583
 	  This driver supports the control of different power rails of device
 	  through regulator interface. The device supports multiple DCDC/LDO
 	  outputs which can be controlled by i2c communication.
+
+config REGULATOR_RK808
+	tristate "Rockchip RK808 Power regulators"
+	depends on MFD_RK808
+	help
+	  Select this option to enable the power regulator of ROCKCHIP
+	  PMIC RK808.
+	  This driver supports the control of different power rails of device
+	  through regulator interface. The device supports multiple DCDC/LDO
+	  outputs which can be controlled by i2c communication.
+
+config REGULATOR_RN5T618
+	tristate "Ricoh RN5T618 voltage regulators"
+	depends on MFD_RN5T618
+	help
+	  Say y here to support the regulators found on Ricoh RN5T618 PMIC.
 
 config REGULATOR_S2MPA01
 	tristate "Samsung S2MPA01 voltage regulator"
@@ -483,11 +545,16 @@ config REGULATOR_S5M8767
 	 via I2C bus. S5M8767A have 9 Bucks and 28 LDOs output and
 	 supports DVS mode with 8bits of output voltage control.
 
-config REGULATOR_ST_PWM
-	tristate "STMicroelectronics PWM voltage regulator"
-	depends on ARCH_STI
+config REGULATOR_SKY81452
+	tristate "Skyworks Solutions SKY81452 voltage regulator"
+	depends on SKY81452
 	help
-	 This driver supports ST's PWM controlled voltage regulators.
+	  This driver supports Skyworks SKY81452 voltage output regulator
+	  via I2C bus. SKY81452 has one voltage linear regulator can be
+	  programmed from 4.5V to 20V.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called sky81452-regulator.
 
 config REGULATOR_TI_ABB
 	tristate "TI Adaptive Body Bias on-chip LDO"

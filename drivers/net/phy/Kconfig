@@ -159,8 +159,6 @@ config MDIO_OCTEON
 config MDIO_SUN4I
 	tristate "Allwinner sun4i MDIO interface support"
 	depends on ARCH_SUNXI
-	select REGULATOR
-	select REGULATOR_FIXED_VOLTAGE
 	help
 	  This driver supports the MDIO interface found in the network
 	  interface units of the Allwinner SoC that have an EMAC (A10,
@@ -204,6 +202,15 @@ config MDIO_BUS_MUX_MMIOREG
 	  the FPGA's registers.
 
 	  Currently, only 8-bit registers are supported.
+
+config MDIO_BCM_UNIMAC
+	tristate "Broadcom UniMAC MDIO bus controller"
+	depends on HAS_IOMEM
+	help
+	  This module provides a driver for the Broadcom UniMAC MDIO busses.
+	  This hardware can be found in the Broadcom GENET Ethernet MAC
+	  controllers as well as some Broadcom Ethernet switches such as the
+	  Starfighter 2 switches.
 
 endif # PHYLIB
 

@@ -2,6 +2,8 @@
 #define BLK_INTERNAL_H
 
 #include <linux/idr.h>
+#include <linux/blk-mq.h>
+#include "blk-mq.h"
 
 /* Amount of time in which a process may batch requests */
 #define BLK_BATCH_TIME	(HZ/50UL)
@@ -12,15 +14,43 @@
 /* Max future timer expiry for timeouts */
 #define BLK_MAX_TIMEOUT		(5 * HZ)
 
+struct blk_flush_queue {
+	unsigned int		flush_queue_delayed:1;
+	unsigned int		flush_pending_idx:1;
+	unsigned int		flush_running_idx:1;
+	unsigned long		flush_pending_since;
+	struct list_head	flush_queue[2];
+	struct list_head	flush_data_in_flight;
+	struct request		*flush_rq;
+	spinlock_t		mq_flush_lock;
+};
+
 extern struct kmem_cache *blk_requestq_cachep;
 extern struct kmem_cache *request_cachep;
 extern struct kobj_type blk_queue_ktype;
 extern struct ida blk_queue_ida;
 
+static inline struct blk_flush_queue *blk_get_flush_queue(
+		struct request_queue *q, struct blk_mq_ctx *ctx)
+{
+	struct blk_mq_hw_ctx *hctx;
+
+	if (!q->mq_ops)
+		return q->fq;
+
+	hctx = q->mq_ops->map_queue(q, ctx->cpu);
+
+	return hctx->fq;
+}
+
 static inline void __blk_get_queue(struct request_queue *q)
 {
 	kobject_get(&q->kobj);
 }
+
+struct blk_flush_queue *blk_alloc_flush_queue(struct request_queue *q,
+		int node, int cmd_size);
+void blk_free_flush_queue(struct blk_flush_queue *q);
 
 int blk_init_rl(struct request_list *rl, struct request_queue *q,
 		gfp_t gfp_mask);
@@ -38,8 +68,6 @@ bool __blk_end_bidi_request(struct request *rq, int error,
 			    unsigned int nr_bytes, unsigned int bidi_bytes);
 
 void blk_rq_timed_out_timer(unsigned long data);
-void blk_rq_check_expired(struct request *rq, unsigned long *next_timeout,
-			  unsigned int *next_set);
 unsigned long blk_rq_timeout(unsigned long timeout);
 void blk_add_timer(struct request *req);
 void blk_delete_timer(struct request *);
@@ -88,6 +116,7 @@ void blk_insert_flush(struct request *rq);
 static inline struct request *__elv_next_request(struct request_queue *q)
 {
 	struct request *rq;
+	struct blk_flush_queue *fq = blk_get_flush_queue(q, NULL);
 
 	while (1) {
 		if (!list_empty(&q->queue_head)) {
@@ -110,9 +139,9 @@ static inline struct request *__elv_next_request(struct request_queue *q)
 		 * should be restarted later. Please see flush_end_io() for
 		 * details.
 		 */
-		if (q->flush_pending_idx != q->flush_running_idx &&
+		if (fq->flush_pending_idx != fq->flush_running_idx &&
 				!queue_flush_queueable(q)) {
-			q->flush_queue_delayed = 1;
+			fq->flush_queue_delayed = 1;
 			return NULL;
 		}
 		if (unlikely(blk_queue_bypass(q)) ||

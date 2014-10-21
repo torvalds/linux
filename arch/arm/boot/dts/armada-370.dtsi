@@ -151,6 +151,25 @@
 						       "mpp62", "mpp60", "mpp58";
 					marvell,function = "audio";
 				};
+
+				mdio_pins: mdio-pins {
+					marvell,pins = "mpp17", "mpp18";
+					marvell,function = "ge";
+				};
+
+				ge0_rgmii_pins: ge0-rgmii-pins {
+					marvell,pins = "mpp5", "mpp6", "mpp7", "mpp8",
+						       "mpp9", "mpp10", "mpp11", "mpp12",
+						       "mpp13", "mpp14", "mpp15", "mpp16";
+					marvell,function = "ge0";
+				};
+
+				ge1_rgmii_pins: ge1-rgmii-pins {
+					marvell,pins = "mpp19", "mpp20", "mpp21", "mpp22",
+						       "mpp23", "mpp24", "mpp25", "mpp26",
+						       "mpp27", "mpp28", "mpp29", "mpp30";
+					marvell,function = "ge1";
+				};
 			};
 
 			gpio0: gpio@18100 {
@@ -204,6 +223,10 @@
 				reg = <0x18300 0x4
 					0x18304 0x4>;
 				status = "okay";
+			};
+
+			sscg@18330 {
+				reg = <0x18330 0x4>;
 			};
 
 			interrupt-controller@20000 {

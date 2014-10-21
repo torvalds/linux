@@ -8,6 +8,8 @@
 #ifndef ARMADA_GEM_H
 #define ARMADA_GEM_H
 
+#include <drm/drm_gem.h>
+
 /* GEM */
 struct armada_gem_object {
 	struct drm_gem_object	obj;

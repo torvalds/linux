@@ -163,7 +163,7 @@ config USB_R8A66597
 
 config USB_RENESAS_USBHS_UDC
 	tristate 'Renesas USBHS controller'
-	depends on USB_RENESAS_USBHS
+	depends on USB_RENESAS_USBHS && HAS_DMA
 	help
 	   Renesas USBHS is a discrete USB host and peripheral controller chip
 	   that supports both full and high speed USB 2.0 data transfers.
@@ -354,6 +354,21 @@ config USB_EG20T
 	  ML7213/ML7831 is completely compatible for Intel EG20T PCH.
 
 	  This driver can be used with Intel's Quark X1000 SOC platform
+
+config USB_GADGET_XILINX
+	tristate "Xilinx USB Driver"
+	depends on OF || COMPILE_TEST
+	help
+	  USB peripheral controller driver for Xilinx USB2 device.
+	  Xilinx USB2 device is a soft IP which supports both full
+	  and high speed USB 2.0 data transfers. It has seven configurable
+	  endpoints(bulk or interrupt or isochronous), as well as
+	  endpoint zero(for control transfers).
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "udc-xilinx" and force all
+	  gadget drivers to also be dynamically linked.
+
 #
 # LAST -- dummy/emulated controller
 #

@@ -208,6 +208,9 @@ static int bcma_host_pci_probe(struct pci_dev *dev,
 	bus->boardinfo.vendor = bus->host_pci->subsystem_vendor;
 	bus->boardinfo.type = bus->host_pci->subsystem_device;
 
+	/* Initialize struct, detect chip */
+	bcma_init_bus(bus);
+
 	/* Register */
 	err = bcma_bus_register(bus);
 	if (err)

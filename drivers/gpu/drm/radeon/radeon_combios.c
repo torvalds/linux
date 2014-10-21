@@ -116,7 +116,7 @@ enum radeon_combios_connector {
 	CONNECTOR_UNSUPPORTED_LEGACY
 };
 
-const int legacy_connector_convert[] = {
+static const int legacy_connector_convert[] = {
 	DRM_MODE_CONNECTOR_Unknown,
 	DRM_MODE_CONNECTOR_DVID,
 	DRM_MODE_CONNECTOR_VGA,

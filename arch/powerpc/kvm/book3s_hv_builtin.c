@@ -163,6 +163,12 @@ void __init kvm_cma_reserve(void)
 	unsigned long align_size;
 	struct memblock_region *reg;
 	phys_addr_t selected_size = 0;
+
+	/*
+	 * We need CMA reservation only when we are in HV mode
+	 */
+	if (!cpu_has_feature(CPU_FTR_HVMODE))
+		return;
 	/*
 	 * We cannot use memblock_phys_mem_size() here, because
 	 * memblock_analyze() has not been called yet.

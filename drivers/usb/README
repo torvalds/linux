@@ -24,7 +24,7 @@ Here is a list of what each subdirectory here is, and what is contained in
 them.
 
 core/		- This is for the core USB host code, including the
-		  usbfs files and the hub class driver ("khubd").
+		  usbfs files and the hub class driver ("hub_wq").
 
 host/		- This is for USB host controller drivers.  This
 		  includes UHCI, OHCI, EHCI, and others that might

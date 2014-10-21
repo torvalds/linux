@@ -139,6 +139,8 @@ static int hw_alloc_regmap(struct ci_hdrc *ci, bool is_lpm)
 /**
  * hw_read_intr_enable: returns interrupt enable register
  *
+ * @ci: the controller
+ *
  * This function returns register data
  */
 u32 hw_read_intr_enable(struct ci_hdrc *ci)
@@ -148,6 +150,8 @@ u32 hw_read_intr_enable(struct ci_hdrc *ci)
 
 /**
  * hw_read_intr_status: returns interrupt status register
+ *
+ * @ci: the controller
  *
  * This function returns register data
  */
@@ -175,6 +179,8 @@ int hw_port_test_set(struct ci_hdrc *ci, u8 mode)
 
 /**
  * hw_port_test_get: reads port test mode value
+ *
+ * @ci: the controller
  *
  * This function returns port test mode value
  */
@@ -295,7 +301,7 @@ static void hw_phymode_configure(struct ci_hdrc *ci)
 /**
  * ci_usb_phy_init: initialize phy according to different phy type
  * @ci: the controller
-  *
+ *
  * This function returns an error code if usb_phy_init has failed
  */
 static int ci_usb_phy_init(struct ci_hdrc *ci)
@@ -473,6 +479,10 @@ static int ci_get_platdata(struct device *dev,
 				PTR_ERR(platdata->reg_vbus));
 			return PTR_ERR(platdata->reg_vbus);
 		}
+		/* Get TPL support */
+		if (!platdata->tpl_support)
+			platdata->tpl_support =
+				of_usb_host_tpl_support(dev->of_node);
 	}
 
 	if (of_usb_get_maximum_speed(dev->of_node) == USB_SPEED_FULL)
@@ -658,7 +668,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		goto deinit_phy;
 	}
 
-	if (ci->is_otg) {
+	if (ci->is_otg && ci->roles[CI_ROLE_GADGET]) {
 		/* Disable and clear all OTG irq */
 		hw_write_otgsc(ci, OTGSC_INT_EN_BITS | OTGSC_INT_STATUS_BITS,
 							OTGSC_INT_STATUS_BITS);

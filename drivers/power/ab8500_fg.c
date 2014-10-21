@@ -2969,7 +2969,7 @@ static struct device_attribute ab8505_fg_sysfs_psy_attrs[] = {
 
 static int ab8500_fg_sysfs_psy_create_attrs(struct device *dev)
 {
-	unsigned int i, j;
+	unsigned int i;
 	struct power_supply *psy = dev_get_drvdata(dev);
 	struct ab8500_fg *di;
 
@@ -2978,14 +2978,15 @@ static int ab8500_fg_sysfs_psy_create_attrs(struct device *dev)
 	if (((is_ab8505(di->parent) || is_ab9540(di->parent)) &&
 	     abx500_get_chip_id(dev->parent) >= AB8500_CUT2P0)
 	    || is_ab8540(di->parent)) {
-		for (j = 0; j < ARRAY_SIZE(ab8505_fg_sysfs_psy_attrs); j++)
-			if (device_create_file(dev, &ab8505_fg_sysfs_psy_attrs[j]))
+		for (i = 0; i < ARRAY_SIZE(ab8505_fg_sysfs_psy_attrs); i++)
+			if (device_create_file(dev,
+					       &ab8505_fg_sysfs_psy_attrs[i]))
 				goto sysfs_psy_create_attrs_failed_ab8505;
 	}
 	return 0;
 sysfs_psy_create_attrs_failed_ab8505:
 	dev_err(dev, "Failed creating sysfs psy attrs for ab8505.\n");
-	while (j--)
+	while (i--)
 		device_remove_file(dev, &ab8505_fg_sysfs_psy_attrs[i]);
 
 	return -EIO;

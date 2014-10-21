@@ -233,9 +233,13 @@ if NETWORK_FILESYSTEMS
 source "fs/nfs/Kconfig"
 source "fs/nfsd/Kconfig"
 
+config GRACE_PERIOD
+	tristate
+
 config LOCKD
 	tristate
 	depends on FILE_LOCKING
+	select GRACE_PERIOD
 
 config LOCKD_V4
 	bool
@@ -249,7 +253,7 @@ config NFS_ACL_SUPPORT
 
 config NFS_COMMON
 	bool
-	depends on NFSD || NFS_FS
+	depends on NFSD || NFS_FS || LOCKD
 	default y
 
 source "net/sunrpc/Kconfig"

@@ -505,7 +505,8 @@ nouveau_device_sclass[] = {
 };
 
 static int
-nouveau_device_event_ctor(void *data, u32 size, struct nvkm_notify *notify)
+nouveau_device_event_ctor(struct nouveau_object *object, void *data, u32 size,
+			  struct nvkm_notify *notify)
 {
 	if (!WARN_ON(size != 0)) {
 		notify->size  = 0;

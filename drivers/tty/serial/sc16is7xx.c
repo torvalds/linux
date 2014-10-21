@@ -1157,7 +1157,7 @@ static int sc16is7xx_probe(struct device *dev,
 
 #ifdef CONFIG_GPIOLIB
 	if (devtype->nr_gpio)
-		WARN_ON(gpiochip_remove(&s->gpio));
+		gpiochip_remove(&s->gpio);
 
 out_uart:
 #endif
@@ -1173,14 +1173,11 @@ out_clk:
 static int sc16is7xx_remove(struct device *dev)
 {
 	struct sc16is7xx_port *s = dev_get_drvdata(dev);
-	int i, ret = 0;
+	int i;
 
 #ifdef CONFIG_GPIOLIB
-	if (s->devtype->nr_gpio) {
-		ret = gpiochip_remove(&s->gpio);
-		if (ret)
-			return ret;
-	}
+	if (s->devtype->nr_gpio)
+		gpiochip_remove(&s->gpio);
 #endif
 
 	for (i = 0; i < s->uart.nr; i++) {
@@ -1195,7 +1192,7 @@ static int sc16is7xx_remove(struct device *dev)
 	if (!IS_ERR(s->clk))
 		clk_disable_unprepare(s->clk);
 
-	return ret;
+	return 0;
 }
 
 static const struct of_device_id __maybe_unused sc16is7xx_dt_ids[] = {

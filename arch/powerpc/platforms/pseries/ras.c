@@ -126,7 +126,7 @@ struct epow_errorlog {
 #define EPOW_MAIN_ENCLOSURE		5
 #define EPOW_POWER_OFF			7
 
-void rtas_parse_epow_errlog(struct rtas_error_log *log)
+static void rtas_parse_epow_errlog(struct rtas_error_log *log)
 {
 	struct pseries_errorlog *pseries_log;
 	struct epow_errorlog *epow_log;

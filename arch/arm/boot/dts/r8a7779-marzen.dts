@@ -78,6 +78,10 @@
 	clock-frequency = <31250000>;
 };
 
+&tmu0 {
+	status = "okay";
+};
+
 &pfc {
 	lan0_pins: lan0 {
 		intc {

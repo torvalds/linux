@@ -507,18 +507,18 @@ static int s6e63m0_power_on(struct s6e63m0 *lcd)
 	if (!pd->power_on) {
 		dev_err(lcd->dev, "power_on is NULL.\n");
 		return -EINVAL;
-	} else {
-		pd->power_on(lcd->ld, 1);
-		msleep(pd->power_on_delay);
 	}
+
+	pd->power_on(lcd->ld, 1);
+	msleep(pd->power_on_delay);
 
 	if (!pd->reset) {
 		dev_err(lcd->dev, "reset is NULL.\n");
 		return -EINVAL;
-	} else {
-		pd->reset(lcd->ld);
-		msleep(pd->reset_delay);
 	}
+
+	pd->reset(lcd->ld);
+	msleep(pd->reset_delay);
 
 	ret = s6e63m0_ldi_init(lcd);
 	if (ret) {

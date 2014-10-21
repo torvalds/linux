@@ -18,6 +18,10 @@ Required properties:
    Documentation/devicetree/bindings/video/display-timing.txt for display
    timing binding details.
 
+Optional properties:
+- backlight: phandle of the backlight device attached to the panel
+- enable-gpios: GPIO pin to enable or disable the panel
+
 Recommended properties:
  - pinctrl-names, pinctrl-0: the pincontrol settings to configure
    muxing properly for pins that connect to TFP410 device
@@ -29,6 +33,9 @@ Example:
 		compatible = "ti,tilcdc,panel";
 		pinctrl-names = "default";
 		pinctrl-0 = <&bone_lcd3_cape_lcd_pins>;
+		backlight = <&backlight>;
+		enable-gpios = <&gpio3 19 0>;
+
 		panel-info {
 			ac-bias           = <255>;
 			ac-bias-intrpt    = <0>;

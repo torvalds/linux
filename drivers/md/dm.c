@@ -142,6 +142,9 @@ struct mapped_device {
 	 */
 	struct dm_table *map;
 
+	struct list_head table_devices;
+	struct mutex table_devices_lock;
+
 	unsigned long flags;
 
 	struct request_queue *queue;
@@ -210,6 +213,12 @@ struct mapped_device {
 struct dm_md_mempools {
 	mempool_t *io_pool;
 	struct bio_set *bs;
+};
+
+struct table_device {
+	struct list_head list;
+	atomic_t count;
+	struct dm_dev dm_dev;
 };
 
 #define RESERVED_BIO_BASED_IOS		16
@@ -667,6 +676,120 @@ static struct dm_table *dm_get_live_table_fast(struct mapped_device *md) __acqui
 static void dm_put_live_table_fast(struct mapped_device *md) __releases(RCU)
 {
 	rcu_read_unlock();
+}
+
+/*
+ * Open a table device so we can use it as a map destination.
+ */
+static int open_table_device(struct table_device *td, dev_t dev,
+			     struct mapped_device *md)
+{
+	static char *_claim_ptr = "I belong to device-mapper";
+	struct block_device *bdev;
+
+	int r;
+
+	BUG_ON(td->dm_dev.bdev);
+
+	bdev = blkdev_get_by_dev(dev, td->dm_dev.mode | FMODE_EXCL, _claim_ptr);
+	if (IS_ERR(bdev))
+		return PTR_ERR(bdev);
+
+	r = bd_link_disk_holder(bdev, dm_disk(md));
+	if (r) {
+		blkdev_put(bdev, td->dm_dev.mode | FMODE_EXCL);
+		return r;
+	}
+
+	td->dm_dev.bdev = bdev;
+	return 0;
+}
+
+/*
+ * Close a table device that we've been using.
+ */
+static void close_table_device(struct table_device *td, struct mapped_device *md)
+{
+	if (!td->dm_dev.bdev)
+		return;
+
+	bd_unlink_disk_holder(td->dm_dev.bdev, dm_disk(md));
+	blkdev_put(td->dm_dev.bdev, td->dm_dev.mode | FMODE_EXCL);
+	td->dm_dev.bdev = NULL;
+}
+
+static struct table_device *find_table_device(struct list_head *l, dev_t dev,
+					      fmode_t mode) {
+	struct table_device *td;
+
+	list_for_each_entry(td, l, list)
+		if (td->dm_dev.bdev->bd_dev == dev && td->dm_dev.mode == mode)
+			return td;
+
+	return NULL;
+}
+
+int dm_get_table_device(struct mapped_device *md, dev_t dev, fmode_t mode,
+			struct dm_dev **result) {
+	int r;
+	struct table_device *td;
+
+	mutex_lock(&md->table_devices_lock);
+	td = find_table_device(&md->table_devices, dev, mode);
+	if (!td) {
+		td = kmalloc(sizeof(*td), GFP_KERNEL);
+		if (!td) {
+			mutex_unlock(&md->table_devices_lock);
+			return -ENOMEM;
+		}
+
+		td->dm_dev.mode = mode;
+		td->dm_dev.bdev = NULL;
+
+		if ((r = open_table_device(td, dev, md))) {
+			mutex_unlock(&md->table_devices_lock);
+			kfree(td);
+			return r;
+		}
+
+		format_dev_t(td->dm_dev.name, dev);
+
+		atomic_set(&td->count, 0);
+		list_add(&td->list, &md->table_devices);
+	}
+	atomic_inc(&td->count);
+	mutex_unlock(&md->table_devices_lock);
+
+	*result = &td->dm_dev;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dm_get_table_device);
+
+void dm_put_table_device(struct mapped_device *md, struct dm_dev *d)
+{
+	struct table_device *td = container_of(d, struct table_device, dm_dev);
+
+	mutex_lock(&md->table_devices_lock);
+	if (atomic_dec_and_test(&td->count)) {
+		close_table_device(td, md);
+		list_del(&td->list);
+		kfree(td);
+	}
+	mutex_unlock(&md->table_devices_lock);
+}
+EXPORT_SYMBOL(dm_put_table_device);
+
+static void free_table_devices(struct list_head *devices)
+{
+	struct list_head *tmp, *next;
+
+	list_for_each_safe(tmp, next, devices) {
+		struct table_device *td = list_entry(tmp, struct table_device, list);
+
+		DMWARN("dm_destroy: %s still exists with %d references",
+		       td->dm_dev.name, atomic_read(&td->count));
+		kfree(td);
+	}
 }
 
 /*
@@ -1249,13 +1372,13 @@ static void clone_bio(struct dm_target_io *tio, struct bio *bio,
 }
 
 static struct dm_target_io *alloc_tio(struct clone_info *ci,
-				      struct dm_target *ti, int nr_iovecs,
+				      struct dm_target *ti,
 				      unsigned target_bio_nr)
 {
 	struct dm_target_io *tio;
 	struct bio *clone;
 
-	clone = bio_alloc_bioset(GFP_NOIO, nr_iovecs, ci->md->bs);
+	clone = bio_alloc_bioset(GFP_NOIO, 0, ci->md->bs);
 	tio = container_of(clone, struct dm_target_io, clone);
 
 	tio->io = ci->io;
@@ -1269,17 +1392,12 @@ static void __clone_and_map_simple_bio(struct clone_info *ci,
 				       struct dm_target *ti,
 				       unsigned target_bio_nr, unsigned *len)
 {
-	struct dm_target_io *tio = alloc_tio(ci, ti, ci->bio->bi_max_vecs, target_bio_nr);
+	struct dm_target_io *tio = alloc_tio(ci, ti, target_bio_nr);
 	struct bio *clone = &tio->clone;
 
 	tio->len_ptr = len;
 
-	/*
-	 * Discard requests require the bio's inline iovecs be initialized.
-	 * ci->bio->bi_max_vecs is BIO_INLINE_VECS anyway, for both flush
-	 * and discard, so no need for concern about wasted bvec allocations.
-	 */
-	 __bio_clone_fast(clone, ci->bio);
+	__bio_clone_fast(clone, ci->bio);
 	if (len)
 		bio_setup_sector(clone, ci->sector, *len);
 
@@ -1322,7 +1440,7 @@ static void __clone_and_map_data_bio(struct clone_info *ci, struct dm_target *ti
 		num_target_bios = ti->num_write_bios(ti, bio);
 
 	for (target_bio_nr = 0; target_bio_nr < num_target_bios; target_bio_nr++) {
-		tio = alloc_tio(ci, ti, 0, target_bio_nr);
+		tio = alloc_tio(ci, ti, target_bio_nr);
 		tio->len_ptr = len;
 		clone_bio(tio, bio, sector, *len);
 		__map_bio(tio);
@@ -1949,12 +2067,14 @@ static struct mapped_device *alloc_dev(int minor)
 	md->type = DM_TYPE_NONE;
 	mutex_init(&md->suspend_lock);
 	mutex_init(&md->type_lock);
+	mutex_init(&md->table_devices_lock);
 	spin_lock_init(&md->deferred_lock);
 	atomic_set(&md->holders, 1);
 	atomic_set(&md->open_count, 0);
 	atomic_set(&md->event_nr, 0);
 	atomic_set(&md->uevent_seq, 0);
 	INIT_LIST_HEAD(&md->uevent_list);
+	INIT_LIST_HEAD(&md->table_devices);
 	spin_lock_init(&md->uevent_lock);
 
 	md->queue = blk_alloc_queue(GFP_KERNEL);
@@ -2040,6 +2160,7 @@ static void free_dev(struct mapped_device *md)
 	blk_integrity_unregister(md->disk);
 	del_gendisk(md->disk);
 	cleanup_srcu_struct(&md->io_barrier);
+	free_table_devices(&md->table_devices);
 	free_minor(minor);
 
 	spin_lock(&_minor_lock);
@@ -2900,7 +3021,7 @@ struct dm_md_mempools *dm_alloc_md_mempools(unsigned type, unsigned integrity, u
 	if (!pools->io_pool)
 		goto out;
 
-	pools->bs = bioset_create(pool_size, front_pad);
+	pools->bs = bioset_create_nobvec(pool_size, front_pad);
 	if (!pools->bs)
 		goto out;
 

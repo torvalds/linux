@@ -185,6 +185,12 @@
 				};
 			};
 
+			rtc@10300 {
+				compatible = "marvell,orion-rtc";
+				reg = <0x10300 0x20>;
+				interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
 			spi0: spi@10600 {
 				compatible = "marvell,orion-spi";
 				reg = <0x10600 0x50>;

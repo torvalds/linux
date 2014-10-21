@@ -533,7 +533,7 @@ static int nsp_negate_signal(struct scsi_cmnd *SCpnt, unsigned char mask,
 	} while ((--time_out != 0) && (reg & mask) != 0);
 
 	if (time_out == 0) {
-		nsp_msg(KERN_DEBUG, " %s signal off timeut", str);
+		nsp_msg(KERN_DEBUG, " %s signal off timeout", str);
 	}
 
 	return 0;

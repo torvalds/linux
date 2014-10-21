@@ -7,6 +7,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/errno.h>
+#include <linux/hashtable.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
@@ -24,7 +25,7 @@ static struct selftest_results {
 	int failed;
 } selftest_results;
 
-#define NO_OF_NODES 2
+#define NO_OF_NODES 3
 static struct device_node *nodes[NO_OF_NODES];
 static int last_node_index;
 static bool selftest_live_tree;
@@ -143,6 +144,97 @@ static void __init of_selftest_dynamic(void)
 	if (prop->value)
 		selftest(of_add_property(np, prop) == 0,
 			 "Adding a large property should have passed\n");
+}
+
+static int __init of_selftest_check_node_linkage(struct device_node *np)
+{
+	struct device_node *child, *allnext_index = np;
+	int count = 0, rc;
+
+	for_each_child_of_node(np, child) {
+		if (child->parent != np) {
+			pr_err("Child node %s links to wrong parent %s\n",
+				 child->name, np->name);
+			return -EINVAL;
+		}
+
+		while (allnext_index && allnext_index != child)
+			allnext_index = allnext_index->allnext;
+		if (allnext_index != child) {
+			pr_err("Node %s is ordered differently in sibling and allnode lists\n",
+				 child->name);
+			return -EINVAL;
+		}
+
+		rc = of_selftest_check_node_linkage(child);
+		if (rc < 0)
+			return rc;
+		count += rc;
+	}
+
+	return count + 1;
+}
+
+static void __init of_selftest_check_tree_linkage(void)
+{
+	struct device_node *np;
+	int allnode_count = 0, child_count;
+
+	if (!of_allnodes)
+		return;
+
+	for_each_of_allnodes(np)
+		allnode_count++;
+	child_count = of_selftest_check_node_linkage(of_allnodes);
+
+	selftest(child_count > 0, "Device node data structure is corrupted\n");
+	selftest(child_count == allnode_count, "allnodes list size (%i) doesn't match"
+		 "sibling lists size (%i)\n", allnode_count, child_count);
+	pr_debug("allnodes list size (%i); sibling lists size (%i)\n", allnode_count, child_count);
+}
+
+struct node_hash {
+	struct hlist_node node;
+	struct device_node *np;
+};
+
+static DEFINE_HASHTABLE(phandle_ht, 8);
+static void __init of_selftest_check_phandles(void)
+{
+	struct device_node *np;
+	struct node_hash *nh;
+	struct hlist_node *tmp;
+	int i, dup_count = 0, phandle_count = 0;
+
+	for_each_of_allnodes(np) {
+		if (!np->phandle)
+			continue;
+
+		hash_for_each_possible(phandle_ht, nh, node, np->phandle) {
+			if (nh->np->phandle == np->phandle) {
+				pr_info("Duplicate phandle! %i used by %s and %s\n",
+					np->phandle, nh->np->full_name, np->full_name);
+				dup_count++;
+				break;
+			}
+		}
+
+		nh = kzalloc(sizeof(*nh), GFP_KERNEL);
+		if (WARN_ON(!nh))
+			return;
+
+		nh->np = np;
+		hash_add(phandle_ht, &nh->node, np->phandle);
+		phandle_count++;
+	}
+	selftest(dup_count == 0, "Found %i duplicates in %i phandles\n",
+		 dup_count, phandle_count);
+
+	/* Clean up */
+	hash_for_each_safe(phandle_ht, i, tmp, nh, node) {
+		hash_del(&nh->node);
+		kfree(nh);
+	}
 }
 
 static void __init of_selftest_parse_phandle_with_args(void)
@@ -637,6 +729,8 @@ static int attach_node_and_children(struct device_node *np)
 	dup = np;
 
 	while (dup) {
+		if (WARN_ON(last_node_index >= NO_OF_NODES))
+			return -EINVAL;
 		nodes[last_node_index++] = dup;
 		dup = dup->sibling;
 	}
@@ -670,6 +764,7 @@ static int __init selftest_data_add(void)
 	extern uint8_t __dtb_testcases_begin[];
 	extern uint8_t __dtb_testcases_end[];
 	const int size = __dtb_testcases_end - __dtb_testcases_begin;
+	int rc;
 
 	if (!size) {
 		pr_warn("%s: No testcase data to attach; not running tests\n",
@@ -689,6 +784,12 @@ static int __init selftest_data_add(void)
 	if (!selftest_data_node) {
 		pr_warn("%s: No tree to attach; not running tests\n", __func__);
 		return -ENODATA;
+	}
+	of_node_set_flag(selftest_data_node, OF_DETACHED);
+	rc = of_resolve_phandles(selftest_data_node);
+	if (rc) {
+		pr_err("%s: Failed to resolve phandles (rc=%i)\n", __func__, rc);
+		return -EINVAL;
 	}
 
 	if (!of_allnodes) {
@@ -717,10 +818,6 @@ static void detach_node_and_children(struct device_node *np)
 {
 	while (np->child)
 		detach_node_and_children(np->child);
-
-	while (np->sibling)
-		detach_node_and_children(np->sibling);
-
 	of_detach_node(np);
 }
 
@@ -749,8 +846,7 @@ static void selftest_data_remove(void)
 		if (nodes[last_node_index]) {
 			np = of_find_node_by_path(nodes[last_node_index]->full_name);
 			if (strcmp(np->full_name, "/aliases") != 0) {
-				detach_node_and_children(np->child);
-				of_detach_node(np);
+				detach_node_and_children(np);
 			} else {
 				for_each_property_of_node(np, prop) {
 					if (strcmp(prop->name, "testcase-alias") == 0)
@@ -780,6 +876,8 @@ static int __init of_selftest(void)
 	of_node_put(np);
 
 	pr_info("start of selftest - you will see error messages\n");
+	of_selftest_check_tree_linkage();
+	of_selftest_check_phandles();
 	of_selftest_find_node_by_name();
 	of_selftest_dynamic();
 	of_selftest_parse_phandle_with_args();
@@ -790,11 +888,15 @@ static int __init of_selftest(void)
 	of_selftest_parse_interrupts_extended();
 	of_selftest_match_node();
 	of_selftest_platform_populate();
-	pr_info("end of selftest - %i passed, %i failed\n",
-		selftest_results.passed, selftest_results.failed);
 
 	/* removing selftest data from live tree */
 	selftest_data_remove();
+
+	/* Double check linkage after removing testcase data */
+	of_selftest_check_tree_linkage();
+
+	pr_info("end of selftest - %i passed, %i failed\n",
+		selftest_results.passed, selftest_results.failed);
 
 	return 0;
 }

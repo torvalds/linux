@@ -27,6 +27,12 @@
 
 &i2c1 {
 	clock-frequency = <400000>;
+
+	pmic@72 {
+		compatible = "menelaus";
+		reg = <0x72>;
+		interrupts = <7 IRQ_TYPE_EDGE_RISING>;
+	};
 };
 
 &i2c2 {

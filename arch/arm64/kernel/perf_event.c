@@ -1276,7 +1276,7 @@ arch_initcall(cpu_pmu_reset);
 /*
  * PMU platform driver and devicetree bindings.
  */
-static struct of_device_id armpmu_of_device_ids[] = {
+static const struct of_device_id armpmu_of_device_ids[] = {
 	{.compatible = "arm,armv8-pmuv3"},
 	{},
 };

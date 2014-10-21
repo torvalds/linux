@@ -27,6 +27,7 @@
 #include <asm/msa.h>
 #include <asm/watch.h>
 #include <asm/elf.h>
+#include <asm/pgtable-bits.h>
 #include <asm/spram.h>
 #include <asm/uaccess.h>
 
@@ -764,6 +765,7 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 			break;
 		case PRID_REV_LOONGSON3A:
 			c->cputype = CPU_LOONGSON3;
+			c->writecombine = _CACHE_UNCACHED_ACCELERATED;
 			__cpu_name[cpu] = "ICT Loongson-3";
 			set_elf_platform(cpu, "loongson3a");
 			break;
@@ -798,67 +800,83 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 
 static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 {
+	c->writecombine = _CACHE_UNCACHED_ACCELERATED;
 	switch (c->processor_id & PRID_IMP_MASK) {
 	case PRID_IMP_4KC:
 		c->cputype = CPU_4KC;
+		c->writecombine = _CACHE_UNCACHED;
 		__cpu_name[cpu] = "MIPS 4Kc";
 		break;
 	case PRID_IMP_4KEC:
 	case PRID_IMP_4KECR2:
 		c->cputype = CPU_4KEC;
+		c->writecombine = _CACHE_UNCACHED;
 		__cpu_name[cpu] = "MIPS 4KEc";
 		break;
 	case PRID_IMP_4KSC:
 	case PRID_IMP_4KSD:
 		c->cputype = CPU_4KSC;
+		c->writecombine = _CACHE_UNCACHED;
 		__cpu_name[cpu] = "MIPS 4KSc";
 		break;
 	case PRID_IMP_5KC:
 		c->cputype = CPU_5KC;
+		c->writecombine = _CACHE_UNCACHED;
 		__cpu_name[cpu] = "MIPS 5Kc";
 		break;
 	case PRID_IMP_5KE:
 		c->cputype = CPU_5KE;
+		c->writecombine = _CACHE_UNCACHED;
 		__cpu_name[cpu] = "MIPS 5KE";
 		break;
 	case PRID_IMP_20KC:
 		c->cputype = CPU_20KC;
+		c->writecombine = _CACHE_UNCACHED;
 		__cpu_name[cpu] = "MIPS 20Kc";
 		break;
 	case PRID_IMP_24K:
 		c->cputype = CPU_24K;
+		c->writecombine = _CACHE_UNCACHED;
 		__cpu_name[cpu] = "MIPS 24Kc";
 		break;
 	case PRID_IMP_24KE:
 		c->cputype = CPU_24K;
+		c->writecombine = _CACHE_UNCACHED;
 		__cpu_name[cpu] = "MIPS 24KEc";
 		break;
 	case PRID_IMP_25KF:
 		c->cputype = CPU_25KF;
+		c->writecombine = _CACHE_UNCACHED;
 		__cpu_name[cpu] = "MIPS 25Kc";
 		break;
 	case PRID_IMP_34K:
 		c->cputype = CPU_34K;
+		c->writecombine = _CACHE_UNCACHED;
 		__cpu_name[cpu] = "MIPS 34Kc";
 		break;
 	case PRID_IMP_74K:
 		c->cputype = CPU_74K;
+		c->writecombine = _CACHE_UNCACHED;
 		__cpu_name[cpu] = "MIPS 74Kc";
 		break;
 	case PRID_IMP_M14KC:
 		c->cputype = CPU_M14KC;
+		c->writecombine = _CACHE_UNCACHED;
 		__cpu_name[cpu] = "MIPS M14Kc";
 		break;
 	case PRID_IMP_M14KEC:
 		c->cputype = CPU_M14KEC;
+		c->writecombine = _CACHE_UNCACHED;
 		__cpu_name[cpu] = "MIPS M14KEc";
 		break;
 	case PRID_IMP_1004K:
 		c->cputype = CPU_1004K;
+		c->writecombine = _CACHE_UNCACHED;
 		__cpu_name[cpu] = "MIPS 1004Kc";
 		break;
 	case PRID_IMP_1074K:
 		c->cputype = CPU_1074K;
+		c->writecombine = _CACHE_UNCACHED;
 		__cpu_name[cpu] = "MIPS 1074Kc";
 		break;
 	case PRID_IMP_INTERAPTIV_UP:
@@ -932,6 +950,7 @@ static inline void cpu_probe_sibyte(struct cpuinfo_mips *c, unsigned int cpu)
 {
 	decode_configs(c);
 
+	c->writecombine = _CACHE_UNCACHED_ACCELERATED;
 	switch (c->processor_id & PRID_IMP_MASK) {
 	case PRID_IMP_SB1:
 		c->cputype = CPU_SB1;
@@ -1063,6 +1082,7 @@ static inline void cpu_probe_ingenic(struct cpuinfo_mips *c, unsigned int cpu)
 	switch (c->processor_id & PRID_IMP_MASK) {
 	case PRID_IMP_JZRISC:
 		c->cputype = CPU_JZRISC;
+		c->writecombine = _CACHE_UNCACHED_ACCELERATED;
 		__cpu_name[cpu] = "Ingenic JZRISC";
 		break;
 	default:
@@ -1169,6 +1189,7 @@ void cpu_probe(void)
 	c->processor_id = PRID_IMP_UNKNOWN;
 	c->fpu_id	= FPIR_IMP_NONE;
 	c->cputype	= CPU_UNKNOWN;
+	c->writecombine = _CACHE_UNCACHED;
 
 	c->processor_id = read_c0_prid();
 	switch (c->processor_id & PRID_COMP_MASK) {

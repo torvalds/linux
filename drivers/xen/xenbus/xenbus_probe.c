@@ -297,9 +297,13 @@ void xenbus_dev_shutdown(struct device *_dev)
 EXPORT_SYMBOL_GPL(xenbus_dev_shutdown);
 
 int xenbus_register_driver_common(struct xenbus_driver *drv,
-				  struct xen_bus_type *bus)
+				  struct xen_bus_type *bus,
+				  struct module *owner, const char *mod_name)
 {
+	drv->driver.name = drv->name ? drv->name : drv->ids[0].devicetype;
 	drv->driver.bus = &bus->bus;
+	drv->driver.owner = owner;
+	drv->driver.mod_name = mod_name;
 
 	return driver_register(&drv->driver);
 }

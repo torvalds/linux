@@ -29,7 +29,6 @@ static int rtt0 = 25;
 module_param(rtt0, int, 0644);
 MODULE_PARM_DESC(rtt0, "reference rout trip time (ms)");
 
-
 /* This is called to refresh values for hybla parameters */
 static inline void hybla_recalc_param (struct sock *sk)
 {

@@ -116,6 +116,8 @@ struct intel_dsi {
 	u16 clk_hs_to_lp_count;
 
 	u16 init_count;
+	u32 pclk;
+	u16 burst_mode_ratio;
 
 	/* all delays in ms */
 	u16 backlight_off_delay;

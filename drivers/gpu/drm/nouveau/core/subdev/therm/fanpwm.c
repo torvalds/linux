@@ -25,6 +25,8 @@
 
 #include <core/option.h>
 #include <subdev/gpio.h>
+#include <subdev/bios.h>
+#include <subdev/bios/fan.h>
 
 #include "priv.h"
 
@@ -86,11 +88,15 @@ nouveau_fanpwm_create(struct nouveau_therm *therm, struct dcb_gpio_func *func)
 {
 	struct nouveau_device *device = nv_device(therm);
 	struct nouveau_therm_priv *tpriv = (void *)therm;
+	struct nouveau_bios *bios = nouveau_bios(therm);
 	struct nouveau_fanpwm_priv *priv;
+	struct nvbios_therm_fan fan;
 	u32 divs, duty;
 
+	nvbios_fan_parse(bios, &fan);
+
 	if (!nouveau_boolopt(device->cfgopt, "NvFanPWM", func->param) ||
-	    !therm->pwm_ctrl ||
+	    !therm->pwm_ctrl || fan.type == NVBIOS_THERM_FAN_TOGGLE ||
 	     therm->pwm_get(therm, func->line, &divs, &duty) == -ENODEV)
 		return -ENODEV;
 

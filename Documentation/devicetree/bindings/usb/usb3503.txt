@@ -8,8 +8,8 @@ Optional properties:
        if I2C is used.
 - connect-gpios: Should specify GPIO for connect.
 - disabled-ports: Should specify the ports unused.
-	'1' or '2' or '3' are availe for this property to describe the port
-	number. 1~3 property values are possible to be desribed.
+	'1' or '2' or '3' are available for this property to describe the port
+	number. 1~3 property values are possible to be described.
 	Do not describe this property if all ports have to be enabled.
 - intn-gpios: Should specify GPIO for interrupt.
 - reset-gpios: Should specify GPIO for reset.

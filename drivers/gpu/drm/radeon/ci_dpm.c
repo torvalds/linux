@@ -162,8 +162,6 @@ static const struct ci_pt_config_reg didt_config_ci[] =
 };
 
 extern u8 rv770_get_memory_module_index(struct radeon_device *rdev);
-extern void btc_get_max_clock_from_voltage_dependency_table(struct radeon_clock_voltage_dependency_table *table,
-							    u32 *max_clock);
 extern int ni_copy_and_switch_arb_sets(struct radeon_device *rdev,
 				       u32 arb_freq_src, u32 arb_freq_dest);
 extern u8 si_get_ddr3_mclk_frequency_ratio(u32 memory_clock);
@@ -748,7 +746,6 @@ static void ci_apply_state_adjust_rules(struct radeon_device *rdev,
 	struct radeon_clock_and_voltage_limits *max_limits;
 	bool disable_mclk_switching;
 	u32 sclk, mclk;
-	u32 max_sclk_vddc, max_mclk_vddci, max_mclk_vddc;
 	int i;
 
 	if (rps->vce_active) {
@@ -781,29 +778,6 @@ static void ci_apply_state_adjust_rules(struct radeon_device *rdev,
 				ps->performance_levels[i].mclk = max_limits->mclk;
 			if (ps->performance_levels[i].sclk > max_limits->sclk)
 				ps->performance_levels[i].sclk = max_limits->sclk;
-		}
-	}
-
-	/* limit clocks to max supported clocks based on voltage dependency tables */
-	btc_get_max_clock_from_voltage_dependency_table(&rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk,
-							&max_sclk_vddc);
-	btc_get_max_clock_from_voltage_dependency_table(&rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk,
-							&max_mclk_vddci);
-	btc_get_max_clock_from_voltage_dependency_table(&rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk,
-							&max_mclk_vddc);
-
-	for (i = 0; i < ps->performance_level_count; i++) {
-		if (max_sclk_vddc) {
-			if (ps->performance_levels[i].sclk > max_sclk_vddc)
-				ps->performance_levels[i].sclk = max_sclk_vddc;
-		}
-		if (max_mclk_vddci) {
-			if (ps->performance_levels[i].mclk > max_mclk_vddci)
-				ps->performance_levels[i].mclk = max_mclk_vddci;
-		}
-		if (max_mclk_vddc) {
-			if (ps->performance_levels[i].mclk > max_mclk_vddc)
-				ps->performance_levels[i].mclk = max_mclk_vddc;
 		}
 	}
 
@@ -5293,9 +5267,13 @@ int ci_dpm_init(struct radeon_device *rdev)
 void ci_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 						    struct seq_file *m)
 {
+	struct ci_power_info *pi = ci_get_pi(rdev);
+	struct radeon_ps *rps = &pi->current_rps;
 	u32 sclk = ci_get_average_sclk_freq(rdev);
 	u32 mclk = ci_get_average_mclk_freq(rdev);
 
+	seq_printf(m, "uvd    %sabled\n", pi->uvd_enabled ? "en" : "dis");
+	seq_printf(m, "vce    %sabled\n", rps->vce_active ? "en" : "dis");
 	seq_printf(m, "power level avg    sclk: %u mclk: %u\n",
 		   sclk, mclk);
 }

@@ -347,7 +347,7 @@ static void done(struct pxa25x_ep *ep, struct pxa25x_request *req, int status)
 
 	/* don't modify queue heads during completion callback */
 	ep->stopped = 1;
-	req->req.complete(&ep->ep, &req->req);
+	usb_gadget_giveback_request(&ep->ep, &req->req);
 	ep->stopped = stopped;
 }
 

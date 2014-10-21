@@ -279,7 +279,6 @@ static snd_pcm_uframes_t lx_pcm_stream_pointer(struct snd_pcm_substream
 {
 	struct lx6464es *chip = snd_pcm_substream_chip(substream);
 	snd_pcm_uframes_t pos;
-	unsigned long flags;
 	int is_capture = (substream->stream == SNDRV_PCM_STREAM_CAPTURE);
 
 	struct lx_stream *lx_stream = is_capture ? &chip->capture_stream :
@@ -287,9 +286,9 @@ static snd_pcm_uframes_t lx_pcm_stream_pointer(struct snd_pcm_substream
 
 	dev_dbg(chip->card->dev, "->lx_pcm_stream_pointer\n");
 
-	spin_lock_irqsave(&chip->lock, flags);
+	mutex_lock(&chip->lock);
 	pos = lx_stream->frame_pos * substream->runtime->period_size;
-	spin_unlock_irqrestore(&chip->lock, flags);
+	mutex_unlock(&chip->lock);
 
 	dev_dbg(chip->card->dev, "stream_pointer at %ld\n", pos);
 	return pos;
@@ -485,8 +484,8 @@ static void lx_trigger_stop(struct lx6464es *chip, struct lx_stream *lx_stream)
 
 }
 
-static void lx_trigger_tasklet_dispatch_stream(struct lx6464es *chip,
-					       struct lx_stream *lx_stream)
+static void lx_trigger_dispatch_stream(struct lx6464es *chip,
+				       struct lx_stream *lx_stream)
 {
 	switch (lx_stream->status) {
 	case LX_STREAM_STATUS_SCHEDULE_RUN:
@@ -502,24 +501,12 @@ static void lx_trigger_tasklet_dispatch_stream(struct lx6464es *chip,
 	}
 }
 
-static void lx_trigger_tasklet(unsigned long data)
-{
-	struct lx6464es *chip = (struct lx6464es *)data;
-	unsigned long flags;
-
-	dev_dbg(chip->card->dev, "->lx_trigger_tasklet\n");
-
-	spin_lock_irqsave(&chip->lock, flags);
-	lx_trigger_tasklet_dispatch_stream(chip, &chip->capture_stream);
-	lx_trigger_tasklet_dispatch_stream(chip, &chip->playback_stream);
-	spin_unlock_irqrestore(&chip->lock, flags);
-}
-
 static int lx_pcm_trigger_dispatch(struct lx6464es *chip,
 				   struct lx_stream *lx_stream, int cmd)
 {
 	int err = 0;
 
+	mutex_lock(&chip->lock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		lx_stream->status = LX_STREAM_STATUS_SCHEDULE_RUN;
@@ -533,9 +520,12 @@ static int lx_pcm_trigger_dispatch(struct lx6464es *chip,
 		err = -EINVAL;
 		goto exit;
 	}
-	tasklet_schedule(&chip->trigger_tasklet);
+
+	lx_trigger_dispatch_stream(chip, &chip->capture_stream);
+	lx_trigger_dispatch_stream(chip, &chip->playback_stream);
 
 exit:
+	mutex_unlock(&chip->lock);
 	return err;
 }
 
@@ -861,6 +851,7 @@ static int lx_pcm_create(struct lx6464es *chip)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &lx_ops_capture);
 
 	pcm->info_flags = 0;
+	pcm->nonatomic = true;
 	strcpy(pcm->name, card_name);
 
 	err = snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
@@ -1009,15 +1000,9 @@ static int snd_lx6464es_create(struct snd_card *card,
 	chip->irq = -1;
 
 	/* initialize synchronization structs */
-	spin_lock_init(&chip->lock);
-	spin_lock_init(&chip->msg_lock);
+	mutex_init(&chip->lock);
+	mutex_init(&chip->msg_lock);
 	mutex_init(&chip->setup_mutex);
-	tasklet_init(&chip->trigger_tasklet, lx_trigger_tasklet,
-		     (unsigned long)chip);
-	tasklet_init(&chip->tasklet_capture, lx_tasklet_capture,
-		     (unsigned long)chip);
-	tasklet_init(&chip->tasklet_playback, lx_tasklet_playback,
-		     (unsigned long)chip);
 
 	/* request resources */
 	err = pci_request_regions(pci, card_name);
@@ -1032,8 +1017,8 @@ static int snd_lx6464es_create(struct snd_card *card,
 	/* dsp port */
 	chip->port_dsp_bar = pci_ioremap_bar(pci, 2);
 
-	err = request_irq(pci->irq, lx_interrupt, IRQF_SHARED,
-			  KBUILD_MODNAME, chip);
+	err = request_threaded_irq(pci->irq, lx_interrupt, lx_threaded_irq,
+				   IRQF_SHARED, KBUILD_MODNAME, chip);
 	if (err) {
 		dev_err(card->dev, "unable to grab IRQ %d\n", pci->irq);
 		goto request_irq_failed;

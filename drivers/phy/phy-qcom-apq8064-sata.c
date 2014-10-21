@@ -279,7 +279,6 @@ static struct platform_driver qcom_apq8064_sata_phy_driver = {
 	.remove	= qcom_apq8064_sata_phy_remove,
 	.driver = {
 		.name	= "qcom-apq8064-sata-phy",
-		.owner	= THIS_MODULE,
 		.of_match_table	= qcom_apq8064_sata_phy_of_match,
 	}
 };

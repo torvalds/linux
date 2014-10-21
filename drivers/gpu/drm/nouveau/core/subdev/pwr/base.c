@@ -203,6 +203,8 @@ _nouveau_pwr_init(struct nouveau_object *object)
 	nv_wait(ppwr, 0x10a04c, 0xffffffff, 0x00000000);
 	nv_mask(ppwr, 0x000200, 0x00002000, 0x00000000);
 	nv_mask(ppwr, 0x000200, 0x00002000, 0x00002000);
+	nv_rd32(ppwr, 0x000200);
+	nv_wait(ppwr, 0x10a10c, 0x00000006, 0x00000000);
 
 	/* upload data segment */
 	nv_wr32(ppwr, 0x10a1c0, 0x01000000);

@@ -1198,7 +1198,8 @@ static void binder_send_failed_reply(struct binder_transaction *t,
 			if (target_thread->return_error == BR_OK) {
 				binder_debug(BINDER_DEBUG_FAILED_TRANSACTION,
 					     "send failed reply for transaction %d to %d:%d\n",
-					      t->debug_id, target_thread->proc->pid,
+					      t->debug_id,
+					      target_thread->proc->pid,
 					      target_thread->pid);
 
 				binder_pop_transaction(target_thread, t);
@@ -2198,12 +2199,16 @@ retry:
 		struct binder_work *w;
 		struct binder_transaction *t = NULL;
 
-		if (!list_empty(&thread->todo))
-			w = list_first_entry(&thread->todo, struct binder_work, entry);
-		else if (!list_empty(&proc->todo) && wait_for_proc_work)
-			w = list_first_entry(&proc->todo, struct binder_work, entry);
-		else {
-			if (ptr - buffer == 4 && !(thread->looper & BINDER_LOOPER_STATE_NEED_RETURN)) /* no data added */
+		if (!list_empty(&thread->todo)) {
+			w = list_first_entry(&thread->todo, struct binder_work,
+					     entry);
+		} else if (!list_empty(&proc->todo) && wait_for_proc_work) {
+			w = list_first_entry(&proc->todo, struct binder_work,
+					     entry);
+		} else {
+			/* no data added */
+			if (ptr - buffer == 4 &&
+			    !(thread->looper & BINDER_LOOPER_STATE_NEED_RETURN))
 				goto retry;
 			break;
 		}

@@ -20,21 +20,19 @@
 
 #include "timskmod.h"
 
-
-
 /* PERIODIC_WORK an opaque structure to users.
  * Fields are declared only in the implementation .c files.
  */
-typedef struct PERIODIC_WORK_Tag PERIODIC_WORK;
+struct periodic_work;
 
-PERIODIC_WORK *visor_periodic_work_create(ulong jiffy_interval,
-					  struct workqueue_struct *workqueue,
-					  void (*workfunc)(void *),
-					  void *workfuncarg,
-					  const char *devnam);
-void            visor_periodic_work_destroy(PERIODIC_WORK *periodic_work);
-BOOL            visor_periodic_work_nextperiod(PERIODIC_WORK *periodic_work);
-BOOL            visor_periodic_work_start(PERIODIC_WORK *periodic_work);
-BOOL            visor_periodic_work_stop(PERIODIC_WORK *periodic_work);
+struct periodic_work *visor_periodic_work_create(ulong jiffy_interval,
+					struct workqueue_struct *workqueue,
+					void (*workfunc)(void *),
+					void *workfuncarg,
+					const char *devnam);
+void visor_periodic_work_destroy(struct periodic_work *pw);
+BOOL visor_periodic_work_nextperiod(struct periodic_work *pw);
+BOOL visor_periodic_work_start(struct periodic_work *pw);
+BOOL visor_periodic_work_stop(struct periodic_work *pw);
 
 #endif

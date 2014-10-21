@@ -351,15 +351,12 @@ static void bt_clear_tag(struct blk_mq_bitmap_tags *bt, unsigned int tag)
 		return;
 
 	wait_cnt = atomic_dec_return(&bs->wait_cnt);
+	if (unlikely(wait_cnt < 0))
+		wait_cnt = atomic_inc_return(&bs->wait_cnt);
 	if (wait_cnt == 0) {
-wake:
 		atomic_add(bt->wake_cnt, &bs->wait_cnt);
 		bt_index_atomic_inc(&bt->wake_index);
 		wake_up(&bs->wait);
-	} else if (wait_cnt < 0) {
-		wait_cnt = atomic_inc_return(&bs->wait_cnt);
-		if (!wait_cnt)
-			goto wake;
 	}
 }
 
@@ -392,45 +389,37 @@ void blk_mq_put_tag(struct blk_mq_hw_ctx *hctx, unsigned int tag,
 		__blk_mq_put_reserved_tag(tags, tag);
 }
 
-static void bt_for_each_free(struct blk_mq_bitmap_tags *bt,
-			     unsigned long *free_map, unsigned int off)
+static void bt_for_each(struct blk_mq_hw_ctx *hctx,
+		struct blk_mq_bitmap_tags *bt, unsigned int off,
+		busy_iter_fn *fn, void *data, bool reserved)
 {
-	int i;
+	struct request *rq;
+	int bit, i;
 
 	for (i = 0; i < bt->map_nr; i++) {
 		struct blk_align_bitmap *bm = &bt->map[i];
-		int bit = 0;
 
-		do {
-			bit = find_next_zero_bit(&bm->word, bm->depth, bit);
-			if (bit >= bm->depth)
-				break;
-
-			__set_bit(bit + off, free_map);
-			bit++;
-		} while (1);
+		for (bit = find_first_bit(&bm->word, bm->depth);
+		     bit < bm->depth;
+		     bit = find_next_bit(&bm->word, bm->depth, bit + 1)) {
+		     	rq = blk_mq_tag_to_rq(hctx->tags, off + bit);
+			if (rq->q == hctx->queue)
+				fn(hctx, rq, data, reserved);
+		}
 
 		off += (1 << bt->bits_per_word);
 	}
 }
 
-void blk_mq_tag_busy_iter(struct blk_mq_tags *tags,
-			  void (*fn)(void *, unsigned long *), void *data)
+void blk_mq_tag_busy_iter(struct blk_mq_hw_ctx *hctx, busy_iter_fn *fn,
+		void *priv)
 {
-	unsigned long *tag_map;
-	size_t map_size;
+	struct blk_mq_tags *tags = hctx->tags;
 
-	map_size = ALIGN(tags->nr_tags, BITS_PER_LONG) / BITS_PER_LONG;
-	tag_map = kzalloc(map_size * sizeof(unsigned long), GFP_ATOMIC);
-	if (!tag_map)
-		return;
-
-	bt_for_each_free(&tags->bitmap_tags, tag_map, tags->nr_reserved_tags);
 	if (tags->nr_reserved_tags)
-		bt_for_each_free(&tags->breserved_tags, tag_map, 0);
-
-	fn(data, tag_map);
-	kfree(tag_map);
+		bt_for_each(hctx, &tags->breserved_tags, 0, fn, priv, true);
+	bt_for_each(hctx, &tags->bitmap_tags, tags->nr_reserved_tags, fn, priv,
+			false);
 }
 EXPORT_SYMBOL(blk_mq_tag_busy_iter);
 
@@ -463,8 +452,8 @@ static void bt_update_count(struct blk_mq_bitmap_tags *bt,
 	}
 
 	bt->wake_cnt = BT_WAIT_BATCH;
-	if (bt->wake_cnt > depth / 4)
-		bt->wake_cnt = max(1U, depth / 4);
+	if (bt->wake_cnt > depth / BT_WAIT_QUEUES)
+		bt->wake_cnt = max(1U, depth / BT_WAIT_QUEUES);
 
 	bt->depth = depth;
 }

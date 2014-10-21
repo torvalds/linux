@@ -487,8 +487,7 @@ u8 vnt_get_pkt_type(struct vnt_private *priv)
 		return (u8)priv->bb_type;
 	else if (vnt_ofdm_min_rate(priv))
 		return PK_TYPE_11GA;
-	else
-		return PK_TYPE_11GB;
+	return PK_TYPE_11GB;
 }
 
 /*

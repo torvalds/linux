@@ -33,6 +33,7 @@
 #define SD8787_DEFAULT_FW_NAME "mrvl/sd8787_uapsta.bin"
 #define SD8797_DEFAULT_FW_NAME "mrvl/sd8797_uapsta.bin"
 #define SD8897_DEFAULT_FW_NAME "mrvl/sd8897_uapsta.bin"
+#define SD8887_DEFAULT_FW_NAME "mrvl/sd8887_uapsta.bin"
 
 #define BLOCK_MODE	1
 #define BYTE_MODE	0
@@ -52,13 +53,9 @@
 #define HOST_TERM_CMD53			(0x1U << 2)
 #define REG_PORT			0
 #define MEM_PORT			0x10000
-#define CMD_RD_LEN_0			0xB4
-#define CMD_RD_LEN_1			0xB5
-#define CARD_CONFIG_2_1_REG             0xCD
+
 #define CMD53_NEW_MODE			(0x1U << 0)
-#define CMD_CONFIG_0			0xB8
 #define CMD_PORT_RD_LEN_EN		(0x1U << 2)
-#define CMD_CONFIG_1			0xB9
 #define CMD_PORT_AUTO_EN		(0x1U << 0)
 #define CMD_PORT_SLCT			0x8000
 #define UP_LD_CMD_PORT_HOST_INT_STATUS	(0x40U)
@@ -70,38 +67,23 @@
 /* Misc. Config Register : Auto Re-enable interrupts */
 #define AUTO_RE_ENABLE_INT              BIT(4)
 
-/* Host Control Registers */
-/* Host Control Registers : I/O port 0 */
-#define IO_PORT_0_REG			0x78
-/* Host Control Registers : I/O port 1 */
-#define IO_PORT_1_REG			0x79
-/* Host Control Registers : I/O port 2 */
-#define IO_PORT_2_REG			0x7A
-
 /* Host Control Registers : Configuration */
 #define CONFIGURATION_REG		0x00
 /* Host Control Registers : Host power up */
 #define HOST_POWER_UP			(0x1U << 1)
 
-/* Host Control Registers : Host interrupt mask */
-#define HOST_INT_MASK_REG		0x02
 /* Host Control Registers : Upload host interrupt mask */
 #define UP_LD_HOST_INT_MASK		(0x1U)
 /* Host Control Registers : Download host interrupt mask */
 #define DN_LD_HOST_INT_MASK		(0x2U)
 
-/* Host Control Registers : Host interrupt status */
-#define HOST_INTSTATUS_REG		0x03
 /* Host Control Registers : Upload host interrupt status */
 #define UP_LD_HOST_INT_STATUS		(0x1U)
 /* Host Control Registers : Download host interrupt status */
 #define DN_LD_HOST_INT_STATUS		(0x2U)
 
-/* Host Control Registers : Host interrupt RSR */
-#define HOST_INT_RSR_REG		0x01
-
 /* Host Control Registers : Host interrupt status */
-#define HOST_INT_STATUS_REG		0x28
+#define CARD_INT_STATUS_REG		0x28
 
 /* Card Control Registers : Card I/O ready */
 #define CARD_IO_READY                   (0x1U << 3)
@@ -203,10 +185,16 @@ struct mwifiex_sdio_card_reg {
 	u8 base_1_reg;
 	u8 poll_reg;
 	u8 host_int_enable;
+	u8 host_int_rsr_reg;
+	u8 host_int_status_reg;
+	u8 host_int_mask_reg;
 	u8 status_reg_0;
 	u8 status_reg_1;
 	u8 sdio_int_mask;
 	u32 data_port_mask;
+	u8 io_port_0_reg;
+	u8 io_port_1_reg;
+	u8 io_port_2_reg;
 	u8 max_mp_regs;
 	u8 rd_bitmap_l;
 	u8 rd_bitmap_u;
@@ -219,6 +207,15 @@ struct mwifiex_sdio_card_reg {
 	u8 rd_len_p0_l;
 	u8 rd_len_p0_u;
 	u8 card_misc_cfg_reg;
+	u8 card_cfg_2_1_reg;
+	u8 cmd_rd_len_0;
+	u8 cmd_rd_len_1;
+	u8 cmd_rd_len_2;
+	u8 cmd_rd_len_3;
+	u8 cmd_cfg_0;
+	u8 cmd_cfg_1;
+	u8 cmd_cfg_2;
+	u8 cmd_cfg_3;
 	u8 fw_dump_ctrl;
 	u8 fw_dump_start;
 	u8 fw_dump_end;
@@ -274,10 +271,16 @@ static const struct mwifiex_sdio_card_reg mwifiex_reg_sd87xx = {
 	.base_1_reg = 0x0041,
 	.poll_reg = 0x30,
 	.host_int_enable = UP_LD_HOST_INT_MASK | DN_LD_HOST_INT_MASK,
+	.host_int_rsr_reg = 0x1,
+	.host_int_mask_reg = 0x02,
+	.host_int_status_reg = 0x03,
 	.status_reg_0 = 0x60,
 	.status_reg_1 = 0x61,
 	.sdio_int_mask = 0x3f,
 	.data_port_mask = 0x0000fffe,
+	.io_port_0_reg = 0x78,
+	.io_port_1_reg = 0x79,
+	.io_port_2_reg = 0x7A,
 	.max_mp_regs = 64,
 	.rd_bitmap_l = 0x04,
 	.rd_bitmap_u = 0x05,
@@ -296,10 +299,16 @@ static const struct mwifiex_sdio_card_reg mwifiex_reg_sd8897 = {
 	.poll_reg = 0x50,
 	.host_int_enable = UP_LD_HOST_INT_MASK | DN_LD_HOST_INT_MASK |
 			CMD_PORT_UPLD_INT_MASK | CMD_PORT_DNLD_INT_MASK,
+	.host_int_rsr_reg = 0x1,
+	.host_int_status_reg = 0x03,
+	.host_int_mask_reg = 0x02,
 	.status_reg_0 = 0xc0,
 	.status_reg_1 = 0xc1,
 	.sdio_int_mask = 0xff,
 	.data_port_mask = 0xffffffff,
+	.io_port_0_reg = 0xD8,
+	.io_port_1_reg = 0xD9,
+	.io_port_2_reg = 0xDA,
 	.max_mp_regs = 184,
 	.rd_bitmap_l = 0x04,
 	.rd_bitmap_u = 0x05,
@@ -312,9 +321,59 @@ static const struct mwifiex_sdio_card_reg mwifiex_reg_sd8897 = {
 	.rd_len_p0_l = 0x0c,
 	.rd_len_p0_u = 0x0d,
 	.card_misc_cfg_reg = 0xcc,
+	.card_cfg_2_1_reg = 0xcd,
+	.cmd_rd_len_0 = 0xb4,
+	.cmd_rd_len_1 = 0xb5,
+	.cmd_rd_len_2 = 0xb6,
+	.cmd_rd_len_3 = 0xb7,
+	.cmd_cfg_0 = 0xb8,
+	.cmd_cfg_1 = 0xb9,
+	.cmd_cfg_2 = 0xba,
+	.cmd_cfg_3 = 0xbb,
 	.fw_dump_ctrl = 0xe2,
 	.fw_dump_start = 0xe3,
 	.fw_dump_end = 0xea,
+};
+
+static const struct mwifiex_sdio_card_reg mwifiex_reg_sd8887 = {
+	.start_rd_port = 0,
+	.start_wr_port = 0,
+	.base_0_reg = 0x6C,
+	.base_1_reg = 0x6D,
+	.poll_reg = 0x5C,
+	.host_int_enable = UP_LD_HOST_INT_MASK | DN_LD_HOST_INT_MASK |
+			CMD_PORT_UPLD_INT_MASK | CMD_PORT_DNLD_INT_MASK,
+	.host_int_rsr_reg = 0x4,
+	.host_int_status_reg = 0x0C,
+	.host_int_mask_reg = 0x08,
+	.status_reg_0 = 0x90,
+	.status_reg_1 = 0x91,
+	.sdio_int_mask = 0xff,
+	.data_port_mask = 0xffffffff,
+	.io_port_0_reg = 0xE4,
+	.io_port_1_reg = 0xE5,
+	.io_port_2_reg = 0xE6,
+	.max_mp_regs = 196,
+	.rd_bitmap_l = 0x10,
+	.rd_bitmap_u = 0x11,
+	.rd_bitmap_1l = 0x12,
+	.rd_bitmap_1u = 0x13,
+	.wr_bitmap_l = 0x14,
+	.wr_bitmap_u = 0x15,
+	.wr_bitmap_1l = 0x16,
+	.wr_bitmap_1u = 0x17,
+	.rd_len_p0_l = 0x18,
+	.rd_len_p0_u = 0x19,
+	.card_misc_cfg_reg = 0xd8,
+	.card_cfg_2_1_reg = 0xd9,
+	.cmd_rd_len_0 = 0xc0,
+	.cmd_rd_len_1 = 0xc1,
+	.cmd_rd_len_2 = 0xc2,
+	.cmd_rd_len_3 = 0xc3,
+	.cmd_cfg_0 = 0xc4,
+	.cmd_cfg_1 = 0xc5,
+	.cmd_cfg_2 = 0xc6,
+	.cmd_cfg_3 = 0xc7,
 };
 
 static const struct mwifiex_sdio_device mwifiex_sdio_sd8786 = {
@@ -367,6 +426,19 @@ static const struct mwifiex_sdio_device mwifiex_sdio_sd8897 = {
 	.mp_tx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_32K,
 	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_32K,
 	.supports_fw_dump = true,
+};
+
+static const struct mwifiex_sdio_device mwifiex_sdio_sd8887 = {
+	.firmware = SD8887_DEFAULT_FW_NAME,
+	.reg = &mwifiex_reg_sd8887,
+	.max_ports = 32,
+	.mp_agg_pkt_limit = 16,
+	.supports_sdio_new_mode = true,
+	.has_control_mask = false,
+	.tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_4K,
+	.mp_tx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_32K,
+	.mp_rx_agg_buf_size = MWIFIEX_MP_AGGR_BUF_SIZE_32K,
+	.supports_fw_dump = false,
 };
 
 /*

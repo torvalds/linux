@@ -79,7 +79,7 @@ int rtw_android_cmdstr_to_num(char *cmdstr)
 {
 	int cmd_num;
 	for (cmd_num = 0; cmd_num < ANDROID_WIFI_CMD_MAX; cmd_num++)
-		if (0 == strnicmp(cmdstr , android_wifi_cmd_str[cmd_num],
+		if (0 == strncasecmp(cmdstr , android_wifi_cmd_str[cmd_num],
 				  strlen(android_wifi_cmd_str[cmd_num])))
 			break;
 	return cmd_num;
@@ -106,23 +106,18 @@ static int rtw_android_get_link_speed(struct net_device *net, char *command,
 				      int total_len)
 {
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(net);
-	int bytes_written;
 	u16 link_speed;
 
 	link_speed = rtw_get_cur_max_rate(padapter) / 10;
-	bytes_written = snprintf(command, total_len, "LinkSpeed %d",
+	return snprintf(command, total_len, "LinkSpeed %d",
 				 link_speed);
-	return bytes_written;
 }
 
 static int rtw_android_get_macaddr(struct net_device *net, char *command,
 				   int total_len)
 {
-	int bytes_written;
-
-	bytes_written = snprintf(command, total_len, "Macaddr = %pM",
+	return snprintf(command, total_len, "Macaddr = %pM",
 				 net->dev_addr);
-	return bytes_written;
 }
 
 static int android_set_cntry(struct net_device *net, char *command,

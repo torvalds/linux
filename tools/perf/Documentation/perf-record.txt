@@ -146,7 +146,7 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 
 -N::
 --no-buildid-cache::
-Do not update the builid cache. This saves some overhead in situations
+Do not update the buildid cache. This saves some overhead in situations
 where the information in the perf.data file (which includes buildids)
 is sufficient.
 

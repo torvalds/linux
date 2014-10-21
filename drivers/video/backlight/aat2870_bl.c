@@ -211,7 +211,6 @@ static int aat2870_bl_remove(struct platform_device *pdev)
 static struct platform_driver aat2870_bl_driver = {
 	.driver = {
 		.name	= "aat2870-backlight",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= aat2870_bl_probe,
 	.remove		= aat2870_bl_remove,

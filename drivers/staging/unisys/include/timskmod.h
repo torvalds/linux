@@ -62,64 +62,11 @@
 #if !defined SUCCESS
 #define SUCCESS 0
 #endif
-#define FAILURE (-1)
-#define DRIVERNAMEMAX 50
 #define MIN(a, b)     (((a) < (b)) ? (a) : (b))
 #define MAX(a, b)     (((a) > (b)) ? (a) : (b))
 #define STRUCTSEQUAL(x, y) (memcmp(&x, &y, sizeof(x)) == 0)
 #ifndef HOSTADDRESS
 #define HOSTADDRESS unsigned long long
-#endif
-
-typedef long VMMIO;  /**< Virtual MMIO address (returned from ioremap), which
-    *   is a virtual address pointer to a memory-mapped region.
-    *   These are declared as "long" instead of u32* to force you to
-    *   use readb()/writeb()/memcpy_fromio()/etc to access them.
-    *   (On x86 we could probably get away with treating them as
-    *   pointers.)
-    */
-typedef long VMMIO8; /**< #VMMIO pointing to  8-bit data */
-typedef long VMMIO16;/**< #VMMIO pointing to 16-bit data */
-typedef long VMMIO32;/**< #VMMIO pointing to 32-bit data */
-
-#define LOCKSEM(sem)                   down_interruptible(sem)
-#define LOCKSEM_UNINTERRUPTIBLE(sem)   down(sem)
-#define UNLOCKSEM(sem)                 up(sem)
-
-/** lock read/write semaphore for reading.
-    Note that all read/write semaphores are of the "uninterruptible" variety.
-    @param sem (rw_semaphore *) points to semaphore to lock
- */
-#define LOCKREADSEM(sem)               down_read(sem)
-
-/** unlock read/write semaphore for reading.
-    Note that all read/write semaphores are of the "uninterruptible" variety.
-    @param sem (rw_semaphore *) points to semaphore to unlock
- */
-#define UNLOCKREADSEM(sem)             up_read(sem)
-
-/** lock read/write semaphore for writing.
-    Note that all read/write semaphores are of the "uninterruptible" variety.
-    @param sem (rw_semaphore *) points to semaphore to lock
- */
-#define LOCKWRITESEM(sem)              down_write(sem)
-
-/** unlock read/write semaphore for writing.
-    Note that all read/write semaphores are of the "uninterruptible" variety.
-    @param sem (rw_semaphore *) points to semaphore to unlock
- */
-#define UNLOCKWRITESEM(sem)            up_write(sem)
-
-#ifdef ENABLE_RETURN_TRACE
-#define RETTRACE(x)                                            \
-	do {						       \
-		if (1) {				       \
-			INFODRV("RET 0x%lx in %s",	       \
-				(ulong)(x), __func__);     \
-		}					   \
-	} while (0)
-#else
-#define RETTRACE(x)
 #endif
 
 /** Try to evaulate the provided expression, and do a RETINT(x) iff
@@ -167,7 +114,6 @@ typedef long VMMIO32;/**< #VMMIO pointing to 32-bit data */
 #define INFODEVX(devno, fmt, args...)     LOGINFDEVX(devno, fmt, ## args)
 #define DEBUGDEV(devname, fmt, args...)   DBGINFDEV(devname, fmt, ## args)
 
-
 /* @} */
 
 /** Verifies the consistency of your PRIVATEDEVICEDATA structure using
@@ -192,94 +138,6 @@ typedef long VMMIO32;/**< #VMMIO pointing to 32-bit data */
 	 ((fd)->sig1 == sizeof(PRIVATEFILEDATA)) &&    \
 	 ((fd)->sig2 == fd))
 
-/** Locks dd->lockDev if you havn't already locked it */
-#define LOCKDEV(dd)                                                    \
-	{                                                              \
-		if (!lockedDev) {				       \
-			spin_lock(&dd->lockDev);		       \
-			lockedDev = TRUE;			       \
-		}						       \
-	}
-
-/** Unlocks dd->lockDev if you previously locked it */
-#define UNLOCKDEV(dd)                                                  \
-	{                                                              \
-		if (lockedDev) {				       \
-			spin_unlock(&dd->lockDev);		       \
-			lockedDev = FALSE;			       \
-		}						       \
-	}
-
-/** Locks dd->lockDevISR if you havn't already locked it */
-#define LOCKDEVISR(dd)                                                 \
-	{                                                              \
-		if (!lockedDevISR) {				       \
-			spin_lock_irqsave(&dd->lockDevISR, flags);     \
-			lockedDevISR = TRUE;			       \
-		}						       \
-	}
-
-/** Unlocks dd->lockDevISR if you previously locked it */
-#define UNLOCKDEVISR(dd)						\
-	{								\
-		if (lockedDevISR) {					\
-			spin_unlock_irqrestore(&dd->lockDevISR, flags); \
-			lockedDevISR = FALSE;				\
-		}							\
-	}
-
-/** Locks LockGlobalISR if you havn't already locked it */
-#define LOCKGLOBALISR                                                  \
-	{                                                              \
-		if (!lockedGlobalISR) {				       \
-			spin_lock_irqsave(&LockGlobalISR, flags);      \
-			lockedGlobalISR = TRUE;			       \
-		}						       \
-	}
-
-/** Unlocks LockGlobalISR if you previously locked it */
-#define UNLOCKGLOBALISR                                                \
-	{                                                              \
-		if (lockedGlobalISR) {				       \
-			spin_unlock_irqrestore(&LockGlobalISR, flags); \
-			lockedGlobalISR = FALSE;		       \
-		}						       \
-	}
-
-/** Locks LockGlobal if you havn't already locked it */
-#define LOCKGLOBAL                                                     \
-	{                                                              \
-		if (!lockedGlobal) {				       \
-			spin_lock(&LockGlobal);			       \
-			lockedGlobal = TRUE;			       \
-		}						       \
-	}
-
-/** Unlocks LockGlobal if you previously locked it */
-#define UNLOCKGLOBAL                                                   \
-	{                                                              \
-		if (lockedGlobal) {				       \
-			spin_unlock(&LockGlobal);		       \
-			lockedGlobal = FALSE;			       \
-		}						       \
-	}
-
-/** Use this at the beginning of functions where you intend to
- *  use #LOCKDEV/#UNLOCKDEV, #LOCKDEVISR/#UNLOCKDEVISR,
- *  #LOCKGLOBAL/#UNLOCKGLOBAL, #LOCKGLOBALISR/#UNLOCKGLOBALISR.
- *
- *  Note that __attribute__((unused)) is how you tell GNU C to suppress
- *  any warning messages about the variable being unused.
- */
-#define LOCKPREAMBLE							\
-	ulong flags __attribute__((unused)) = 0;			\
-	BOOL lockedDev __attribute__((unused)) = FALSE;			\
-	BOOL lockedDevISR __attribute__((unused)) = FALSE;		\
-	BOOL lockedGlobal __attribute__((unused)) = FALSE;		\
-	BOOL lockedGlobalISR __attribute__((unused)) = FALSE
-
-
-
 /** Sleep for an indicated number of seconds (for use in kernel mode).
  *  @param x the number of seconds to sleep.
  */
@@ -297,13 +155,14 @@ typedef long VMMIO32;/**< #VMMIO pointing to 32-bit data */
 	} while (0)
 
 #ifndef max
-#define max(a, b) (((a) > (b)) ? (a):(b))
+#define max(a, b) (((a) > (b)) ? (a) : (b))
 #endif
 
 static inline struct cdev *cdev_alloc_init(struct module *owner,
 					   const struct file_operations *fops)
 {
 	struct cdev *cdev = NULL;
+
 	cdev = cdev_alloc();
 	if (!cdev)
 		return NULL;
@@ -319,6 +178,6 @@ static inline struct cdev *cdev_alloc_init(struct module *owner,
 	return cdev;
 }
 
-#include "timskmodutils.h"
+extern int unisys_spar_platform;
 
 #endif

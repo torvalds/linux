@@ -70,10 +70,8 @@ int lmv_intent_open(struct obd_export *exp, struct md_op_data *op_data,
 
 int lmv_blocking_ast(struct ldlm_lock *, struct ldlm_lock_desc *,
 		     void *, int);
-int lmv_fld_lookup(struct lmv_obd *lmv, const struct lu_fid *fid,
-		   mdsno_t *mds);
-int __lmv_fid_alloc(struct lmv_obd *lmv, struct lu_fid *fid,
-		    mdsno_t mds);
+int lmv_fld_lookup(struct lmv_obd *lmv, const struct lu_fid *fid, u32 *mds);
+int __lmv_fid_alloc(struct lmv_obd *lmv, struct lu_fid *fid, u32 mds);
 int lmv_fid_alloc(struct obd_export *exp, struct lu_fid *fid,
 		  struct md_op_data *op_data);
 
@@ -95,7 +93,7 @@ static inline struct lmv_stripe_md *lmv_get_mea(struct ptlrpc_request *req)
 
 	if (mea->mea_count == 0)
 		return NULL;
-	if( mea->mea_magic != MEA_MAGIC_LAST_CHAR &&
+	if (mea->mea_magic != MEA_MAGIC_LAST_CHAR &&
 		mea->mea_magic != MEA_MAGIC_ALL_CHARS &&
 		mea->mea_magic != MEA_MAGIC_HASH_SEGMENT)
 		return NULL;
@@ -111,7 +109,7 @@ static inline int lmv_get_easize(struct lmv_obd *lmv)
 }
 
 static inline struct lmv_tgt_desc *
-lmv_get_target(struct lmv_obd *lmv, mdsno_t mds)
+lmv_get_target(struct lmv_obd *lmv, u32 mds)
 {
 	int count = lmv->desc.ld_tgt_count;
 	int i;
@@ -130,7 +128,7 @@ lmv_get_target(struct lmv_obd *lmv, mdsno_t mds)
 static inline struct lmv_tgt_desc *
 lmv_find_target(struct lmv_obd *lmv, const struct lu_fid *fid)
 {
-	mdsno_t mds = 0;
+	u32 mds = 0;
 	int rc;
 
 	if (lmv->desc.ld_tgt_count > 1) {
@@ -146,7 +144,7 @@ struct lmv_tgt_desc
 *lmv_locate_mds(struct lmv_obd *lmv, struct md_op_data *op_data,
 		struct lu_fid *fid);
 /* lproc_lmv.c */
-#if defined (CONFIG_PROC_FS)
+#if defined(CONFIG_PROC_FS)
 void lprocfs_lmv_init_vars(struct lprocfs_static_vars *lvars);
 #else
 static inline void lprocfs_lmv_init_vars(struct lprocfs_static_vars *lvars)

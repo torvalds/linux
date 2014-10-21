@@ -218,7 +218,7 @@ static int ltq_pci_probe(struct platform_device *pdev)
 	res_cfg = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	res_bridge = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!res_cfg || !res_bridge) {
-		dev_err(&pdev->dev, "missing memory reources\n");
+		dev_err(&pdev->dev, "missing memory resources\n");
 		return -EINVAL;
 	}
 

@@ -53,9 +53,7 @@ static void unlock_dir(struct dentry *dir)
 
 static int ecryptfs_inode_test(struct inode *inode, void *lower_inode)
 {
-	if (ecryptfs_inode_to_lower(inode) == (struct inode *)lower_inode)
-		return 1;
-	return 0;
+	return ecryptfs_inode_to_lower(inode) == lower_inode;
 }
 
 static int ecryptfs_inode_set(struct inode *inode, void *opaque)
@@ -192,12 +190,6 @@ ecryptfs_do_create(struct inode *directory_inode,
 
 	lower_dentry = ecryptfs_dentry_to_lower(ecryptfs_dentry);
 	lower_dir_dentry = lock_parent(lower_dentry);
-	if (IS_ERR(lower_dir_dentry)) {
-		ecryptfs_printk(KERN_ERR, "Error locking directory of "
-				"dentry\n");
-		inode = ERR_CAST(lower_dir_dentry);
-		goto out;
-	}
 	rc = vfs_create(lower_dir_dentry->d_inode, lower_dentry, mode, true);
 	if (rc) {
 		printk(KERN_ERR "%s: Failure to create dentry in lower fs; "
@@ -215,7 +207,6 @@ ecryptfs_do_create(struct inode *directory_inode,
 	fsstack_copy_inode_size(directory_inode, lower_dir_dentry->d_inode);
 out_lock:
 	unlock_dir(lower_dir_dentry);
-out:
 	return inode;
 }
 
@@ -250,8 +241,8 @@ int ecryptfs_initialize_file(struct dentry *ecryptfs_dentry,
 	if (rc) {
 		printk(KERN_ERR "%s: Error attempting to initialize "
 			"the lower file for the dentry with name "
-			"[%s]; rc = [%d]\n", __func__,
-			ecryptfs_dentry->d_name.name, rc);
+			"[%pd]; rc = [%d]\n", __func__,
+			ecryptfs_dentry, rc);
 		goto out;
 	}
 	rc = ecryptfs_write_metadata(ecryptfs_dentry, ecryptfs_inode);
@@ -313,8 +304,8 @@ static int ecryptfs_i_size_read(struct dentry *dentry, struct inode *inode)
 	if (rc) {
 		printk(KERN_ERR "%s: Error attempting to initialize "
 			"the lower file for the dentry with name "
-			"[%s]; rc = [%d]\n", __func__,
-			dentry->d_name.name, rc);
+			"[%pd]; rc = [%d]\n", __func__,
+			dentry, rc);
 		return rc;
 	}
 
@@ -418,8 +409,8 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 	if (IS_ERR(lower_dentry)) {
 		rc = PTR_ERR(lower_dentry);
 		ecryptfs_printk(KERN_DEBUG, "%s: lookup_one_len() returned "
-				"[%d] on lower_dentry = [%s]\n", __func__, rc,
-				ecryptfs_dentry->d_name.name);
+				"[%d] on lower_dentry = [%pd]\n", __func__, rc,
+				ecryptfs_dentry);
 		goto out;
 	}
 	if (lower_dentry->d_inode)
@@ -1039,7 +1030,7 @@ ecryptfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 	}
 
 	rc = vfs_setxattr(lower_dentry, name, value, size, flags);
-	if (!rc)
+	if (!rc && dentry->d_inode)
 		fsstack_copy_attr_all(dentry->d_inode, lower_dentry->d_inode);
 out:
 	return rc;

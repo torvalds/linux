@@ -1037,8 +1037,8 @@ static inline u32 get_card_size(struct rtsx_chip *chip, unsigned int lun)
 	if ((get_lun_card(chip, lun) == SD_CARD) &&
 		(sd_card->sd_lock_status & SD_LOCKED))
 		return 0;
-	else
-		return chip->capacity[lun];
+
+	return chip->capacity[lun];
 #else
 	return chip->capacity[lun];
 #endif

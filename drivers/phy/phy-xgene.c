@@ -1738,7 +1738,6 @@ static struct platform_driver xgene_phy_driver = {
 	.probe = xgene_phy_probe,
 	.driver = {
 		   .name = "xgene-phy",
-		   .owner = THIS_MODULE,
 		   .of_match_table = xgene_phy_of_match,
 	},
 };

@@ -324,14 +324,61 @@ struct aty128_meminfo {
 };
 
 /* various memory configurations */
-static const struct aty128_meminfo sdr_128   =
-	{ 4, 4, 3, 3, 1, 3, 1, 16, 30, 16, "128-bit SDR SGRAM (1:1)" };
-static const struct aty128_meminfo sdr_64    =
-	{ 4, 8, 3, 3, 1, 3, 1, 17, 46, 17, "64-bit SDR SGRAM (1:1)" };
-static const struct aty128_meminfo sdr_sgram =
-	{ 4, 4, 1, 2, 1, 2, 1, 16, 24, 16, "64-bit SDR SGRAM (2:1)" };
-static const struct aty128_meminfo ddr_sgram =
-	{ 4, 4, 3, 3, 2, 3, 1, 16, 31, 16, "64-bit DDR SGRAM" };
+static const struct aty128_meminfo sdr_128 = {
+	.ML = 4,
+	.MB = 4,
+	.Trcd = 3,
+	.Trp = 3,
+	.Twr = 1,
+	.CL = 3,
+	.Tr2w = 1,
+	.LoopLatency = 16,
+	.DspOn = 30,
+	.Rloop = 16,
+	.name = "128-bit SDR SGRAM (1:1)",
+};
+
+static const struct aty128_meminfo sdr_64 = {
+	.ML = 4,
+	.MB = 8,
+	.Trcd = 3,
+	.Trp = 3,
+	.Twr = 1,
+	.CL = 3,
+	.Tr2w = 1,
+	.LoopLatency = 17,
+	.DspOn = 46,
+	.Rloop = 17,
+	.name = "64-bit SDR SGRAM (1:1)",
+};
+
+static const struct aty128_meminfo sdr_sgram = {
+	.ML = 4,
+	.MB = 4,
+	.Trcd = 1,
+	.Trp = 2,
+	.Twr = 1,
+	.CL = 2,
+	.Tr2w = 1,
+	.LoopLatency = 16,
+	.DspOn = 24,
+	.Rloop = 16,
+	.name = "64-bit SDR SGRAM (2:1)",
+};
+
+static const struct aty128_meminfo ddr_sgram = {
+	.ML = 4,
+	.MB = 4,
+	.Trcd = 3,
+	.Trp = 3,
+	.Twr = 2,
+	.CL = 3,
+	.Tr2w = 1,
+	.LoopLatency = 16,
+	.DspOn = 31,
+	.Rloop = 16,
+	.name = "64-bit DDR SGRAM",
+};
 
 static struct fb_fix_screeninfo aty128fb_fix = {
 	.id		= "ATY Rage128",

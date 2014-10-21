@@ -2675,6 +2675,7 @@ static int igb_set_eee(struct net_device *netdev,
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	struct ethtool_eee eee_curr;
+	bool adv1g_eee = true, adv100m_eee = true;
 	s32 ret_val;
 
 	if ((hw->mac.type < e1000_i350) ||
@@ -2701,12 +2702,14 @@ static int igb_set_eee(struct net_device *netdev,
 			return -EINVAL;
 		}
 
-		if (edata->advertised &
-		    ~(ADVERTISE_100_FULL | ADVERTISE_1000_FULL)) {
+		if (!edata->advertised || (edata->advertised &
+		    ~(ADVERTISE_100_FULL | ADVERTISE_1000_FULL))) {
 			dev_err(&adapter->pdev->dev,
-				"EEE Advertisement supports only 100Tx and or 100T full duplex\n");
+				"EEE Advertisement supports only 100Tx and/or 100T full duplex\n");
 			return -EINVAL;
 		}
+		adv100m_eee = !!(edata->advertised & ADVERTISE_100_FULL);
+		adv1g_eee = !!(edata->advertised & ADVERTISE_1000_FULL);
 
 	} else if (!edata->eee_enabled) {
 		dev_err(&adapter->pdev->dev,
@@ -2718,16 +2721,23 @@ static int igb_set_eee(struct net_device *netdev,
 	if (hw->dev_spec._82575.eee_disable != !edata->eee_enabled) {
 		hw->dev_spec._82575.eee_disable = !edata->eee_enabled;
 		adapter->flags |= IGB_FLAG_EEE;
-		if (hw->mac.type == e1000_i350)
-			igb_set_eee_i350(hw);
-		else
-			igb_set_eee_i354(hw);
 
 		/* reset link */
 		if (netif_running(netdev))
 			igb_reinit_locked(adapter);
 		else
 			igb_reset(adapter);
+	}
+
+	if (hw->mac.type == e1000_i354)
+		ret_val = igb_set_eee_i354(hw, adv1g_eee, adv100m_eee);
+	else
+		ret_val = igb_set_eee_i350(hw, adv1g_eee, adv100m_eee);
+
+	if (ret_val) {
+		dev_err(&adapter->pdev->dev,
+			"Problem setting EEE advertisement options\n");
+		return -EINVAL;
 	}
 
 	return 0;

@@ -410,7 +410,7 @@
 /include/ "qoriq-gpio-3.dtsi"
 /include/ "qoriq-usb2-mph-0.dtsi"
 	usb0: usb@210000 {
-		compatible = "fsl-usb2-mph-v2.4", "fsl-usb2-mph";
+		compatible = "fsl-usb2-mph-v2.5", "fsl-usb2-mph";
 		fsl,iommu-parent = <&pamu1>;
 		fsl,liodn-reg = <&guts 0x520>; /* USB1LIODNR */
 		phy_type = "utmi";
@@ -418,7 +418,7 @@
 	};
 /include/ "qoriq-usb2-dr-0.dtsi"
 	usb1: usb@211000 {
-		compatible = "fsl-usb2-dr-v2.4", "fsl-usb2-dr";
+		compatible = "fsl-usb2-dr-v2.5", "fsl-usb2-dr";
 		fsl,iommu-parent = <&pamu1>;
 		fsl,liodn-reg = <&guts 0x524>; /* USB1LIODNR */
 		dr_mode = "host";

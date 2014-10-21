@@ -178,9 +178,8 @@ int	xfs_check_nostate_extents(struct xfs_ifork *ifp, xfs_extnum_t idx,
 		xfs_extnum_t num);
 uint	xfs_default_attroffset(struct xfs_inode *ip);
 int	xfs_bmap_shift_extents(struct xfs_trans *tp, struct xfs_inode *ip,
-		int *done, xfs_fileoff_t start_fsb,
-		xfs_fileoff_t offset_shift_fsb, xfs_extnum_t *current_ext,
-		xfs_fsblock_t *firstblock, struct xfs_bmap_free	*flist,
-		int num_exts);
+		xfs_fileoff_t start_fsb, xfs_fileoff_t offset_shift_fsb,
+		int *done, xfs_fileoff_t *next_fsb, xfs_fsblock_t *firstblock,
+		struct xfs_bmap_free *flist, int num_exts);
 
 #endif	/* __XFS_BMAP_H__ */

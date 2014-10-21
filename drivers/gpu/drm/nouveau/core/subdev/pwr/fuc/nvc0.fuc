@@ -23,6 +23,7 @@
  */
 
 #define NVKM_PPWR_CHIPSET GF100
+#define HW_TICKS_PER_US 203 // should be 202.5
 
 //#define NVKM_FALCON_PC24
 //#define NVKM_FALCON_UNSHIFTED_IO
@@ -34,6 +35,7 @@
 .section #nvc0_pwr_data
 #define INCLUDE_PROC
 #include "kernel.fuc"
+#include "arith.fuc"
 #include "host.fuc"
 #include "memx.fuc"
 #include "perf.fuc"
@@ -44,6 +46,7 @@
 
 #define INCLUDE_DATA
 #include "kernel.fuc"
+#include "arith.fuc"
 #include "host.fuc"
 #include "memx.fuc"
 #include "perf.fuc"
@@ -56,6 +59,7 @@
 .section #nvc0_pwr_code
 #define INCLUDE_CODE
 #include "kernel.fuc"
+#include "arith.fuc"
 #include "host.fuc"
 #include "memx.fuc"
 #include "perf.fuc"

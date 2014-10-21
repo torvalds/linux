@@ -44,7 +44,6 @@ struct key_type key_type_rxrpc = {
 	.preparse	= rxrpc_preparse,
 	.free_preparse	= rxrpc_free_preparse,
 	.instantiate	= generic_key_instantiate,
-	.match		= user_match,
 	.destroy	= rxrpc_destroy,
 	.describe	= rxrpc_describe,
 	.read		= rxrpc_read,
@@ -61,7 +60,6 @@ struct key_type key_type_rxrpc_s = {
 	.preparse	= rxrpc_preparse_s,
 	.free_preparse	= rxrpc_free_preparse_s,
 	.instantiate	= generic_key_instantiate,
-	.match		= user_match,
 	.destroy	= rxrpc_destroy_s,
 	.describe	= rxrpc_describe,
 };

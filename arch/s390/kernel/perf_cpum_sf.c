@@ -562,7 +562,7 @@ static DEFINE_MUTEX(pmc_reserve_mutex);
 static void setup_pmc_cpu(void *flags)
 {
 	int err;
-	struct cpu_hw_sf *cpusf = &__get_cpu_var(cpu_hw_sf);
+	struct cpu_hw_sf *cpusf = this_cpu_ptr(&cpu_hw_sf);
 
 	err = 0;
 	switch (*((int *) flags)) {
@@ -849,7 +849,7 @@ static int cpumsf_pmu_event_init(struct perf_event *event)
 
 static void cpumsf_pmu_enable(struct pmu *pmu)
 {
-	struct cpu_hw_sf *cpuhw = &__get_cpu_var(cpu_hw_sf);
+	struct cpu_hw_sf *cpuhw = this_cpu_ptr(&cpu_hw_sf);
 	struct hw_perf_event *hwc;
 	int err;
 
@@ -898,7 +898,7 @@ static void cpumsf_pmu_enable(struct pmu *pmu)
 
 static void cpumsf_pmu_disable(struct pmu *pmu)
 {
-	struct cpu_hw_sf *cpuhw = &__get_cpu_var(cpu_hw_sf);
+	struct cpu_hw_sf *cpuhw = this_cpu_ptr(&cpu_hw_sf);
 	struct hws_lsctl_request_block inactive;
 	struct hws_qsi_info_block si;
 	int err;
@@ -1306,7 +1306,7 @@ static void cpumsf_pmu_read(struct perf_event *event)
  */
 static void cpumsf_pmu_start(struct perf_event *event, int flags)
 {
-	struct cpu_hw_sf *cpuhw = &__get_cpu_var(cpu_hw_sf);
+	struct cpu_hw_sf *cpuhw = this_cpu_ptr(&cpu_hw_sf);
 
 	if (WARN_ON_ONCE(!(event->hw.state & PERF_HES_STOPPED)))
 		return;
@@ -1327,7 +1327,7 @@ static void cpumsf_pmu_start(struct perf_event *event, int flags)
  */
 static void cpumsf_pmu_stop(struct perf_event *event, int flags)
 {
-	struct cpu_hw_sf *cpuhw = &__get_cpu_var(cpu_hw_sf);
+	struct cpu_hw_sf *cpuhw = this_cpu_ptr(&cpu_hw_sf);
 
 	if (event->hw.state & PERF_HES_STOPPED)
 		return;
@@ -1346,7 +1346,7 @@ static void cpumsf_pmu_stop(struct perf_event *event, int flags)
 
 static int cpumsf_pmu_add(struct perf_event *event, int flags)
 {
-	struct cpu_hw_sf *cpuhw = &__get_cpu_var(cpu_hw_sf);
+	struct cpu_hw_sf *cpuhw = this_cpu_ptr(&cpu_hw_sf);
 	int err;
 
 	if (cpuhw->flags & PMU_F_IN_USE)
@@ -1397,7 +1397,7 @@ out:
 
 static void cpumsf_pmu_del(struct perf_event *event, int flags)
 {
-	struct cpu_hw_sf *cpuhw = &__get_cpu_var(cpu_hw_sf);
+	struct cpu_hw_sf *cpuhw = this_cpu_ptr(&cpu_hw_sf);
 
 	perf_pmu_disable(event->pmu);
 	cpumsf_pmu_stop(event, PERF_EF_UPDATE);
@@ -1470,7 +1470,7 @@ static void cpumf_measurement_alert(struct ext_code ext_code,
 	if (!(alert & CPU_MF_INT_SF_MASK))
 		return;
 	inc_irq_stat(IRQEXT_CMS);
-	cpuhw = &__get_cpu_var(cpu_hw_sf);
+	cpuhw = this_cpu_ptr(&cpu_hw_sf);
 
 	/* Measurement alerts are shared and might happen when the PMU
 	 * is not reserved.  Ignore these alerts in this case. */

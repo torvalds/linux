@@ -198,10 +198,9 @@ static int ccp_sha_setkey(struct crypto_ahash *tfm, const u8 *key,
 {
 	struct ccp_ctx *ctx = crypto_tfm_ctx(crypto_ahash_tfm(tfm));
 	struct crypto_shash *shash = ctx->u.sha.hmac_tfm;
-	struct {
-		struct shash_desc sdesc;
-		char ctx[crypto_shash_descsize(shash)];
-	} desc;
+
+	SHASH_DESC_ON_STACK(sdesc, shash);
+
 	unsigned int block_size = crypto_shash_blocksize(shash);
 	unsigned int digest_size = crypto_shash_digestsize(shash);
 	int i, ret;
@@ -216,11 +215,11 @@ static int ccp_sha_setkey(struct crypto_ahash *tfm, const u8 *key,
 
 	if (key_len > block_size) {
 		/* Must hash the input key */
-		desc.sdesc.tfm = shash;
-		desc.sdesc.flags = crypto_ahash_get_flags(tfm) &
+		sdesc->tfm = shash;
+		sdesc->flags = crypto_ahash_get_flags(tfm) &
 			CRYPTO_TFM_REQ_MAY_SLEEP;
 
-		ret = crypto_shash_digest(&desc.sdesc, key, key_len,
+		ret = crypto_shash_digest(sdesc, key, key_len,
 					  ctx->u.sha.key);
 		if (ret) {
 			crypto_ahash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);

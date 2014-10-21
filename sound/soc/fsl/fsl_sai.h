@@ -48,6 +48,7 @@
 /* SAI Transmit/Recieve Control Register */
 #define FSL_SAI_CSR_TERE	BIT(31)
 #define FSL_SAI_CSR_FR		BIT(25)
+#define FSL_SAI_CSR_SR		BIT(24)
 #define FSL_SAI_CSR_xF_SHIFT	16
 #define FSL_SAI_CSR_xF_W_SHIFT	18
 #define FSL_SAI_CSR_xF_MASK	(0x1f << FSL_SAI_CSR_xF_SHIFT)
@@ -131,13 +132,16 @@ struct fsl_sai {
 	struct clk *bus_clk;
 	struct clk *mclk_clk[FSL_SAI_MCLK_MAX];
 
-	bool big_endian_regs;
-	bool big_endian_data;
+	bool is_lsb_first;
 	bool is_dsp_mode;
 	bool sai_on_imx;
+	bool synchronous[2];
 
 	struct snd_dmaengine_dai_dma_data dma_params_rx;
 	struct snd_dmaengine_dai_dma_data dma_params_tx;
 };
+
+#define TX 1
+#define RX 0
 
 #endif /* __FSL_SAI_H */

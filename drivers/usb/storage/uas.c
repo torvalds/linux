@@ -2,7 +2,7 @@
  * USB Attached SCSI
  * Note that this is not the same as the USB Mass Storage driver
  *
- * Copyright Hans de Goede <hdegoede@redhat.com> for Red Hat, Inc. 2013
+ * Copyright Hans de Goede <hdegoede@redhat.com> for Red Hat, Inc. 2013 - 2014
  * Copyright Matthew Wilcox for Intel Corp, 2010
  * Copyright Sarah Sharp for Intel Corp, 2010
  *
@@ -28,20 +28,9 @@
 #include <scsi/scsi_tcq.h>
 
 #include "uas-detect.h"
+#include "scsiglue.h"
 
-/*
- * The r00-r01c specs define this version of the SENSE IU data structure.
- * It's still in use by several different firmware releases.
- */
-struct sense_iu_old {
-	__u8 iu_id;
-	__u8 rsvd1;
-	__be16 tag;
-	__be16 len;
-	__u8 status;
-	__u8 service_response;
-	__u8 sense[SCSI_SENSE_BUFFERSIZE];
-};
+#define MAX_CMNDS 256
 
 struct uas_dev_info {
 	struct usb_interface *intf;
@@ -49,18 +38,14 @@ struct uas_dev_info {
 	struct usb_anchor cmd_urbs;
 	struct usb_anchor sense_urbs;
 	struct usb_anchor data_urbs;
+	unsigned long flags;
 	int qdepth, resetting;
-	struct response_iu response;
 	unsigned cmd_pipe, status_pipe, data_in_pipe, data_out_pipe;
 	unsigned use_streams:1;
-	unsigned uas_sense_old:1;
-	unsigned running_task:1;
 	unsigned shutdown:1;
-	struct scsi_cmnd *cmnd;
+	struct scsi_cmnd *cmnd[MAX_CMNDS];
 	spinlock_t lock;
 	struct work_struct work;
-	struct list_head inflight_list;
-	struct list_head dead_list;
 };
 
 enum {
@@ -74,10 +59,8 @@ enum {
 	COMMAND_INFLIGHT        = (1 << 8),
 	DATA_IN_URB_INFLIGHT    = (1 << 9),
 	DATA_OUT_URB_INFLIGHT   = (1 << 10),
-	COMMAND_COMPLETED       = (1 << 11),
-	COMMAND_ABORTED         = (1 << 12),
-	UNLINK_DATA_URBS        = (1 << 13),
-	IS_IN_WORK_LIST         = (1 << 14),
+	COMMAND_ABORTED         = (1 << 11),
+	IS_IN_WORK_LIST         = (1 << 12),
 };
 
 /* Overrides scsi_pointer */
@@ -87,7 +70,6 @@ struct uas_cmd_info {
 	struct urb *cmd_urb;
 	struct urb *data_in_urb;
 	struct urb *data_out_urb;
-	struct list_head list;
 };
 
 /* I hate forward declarations, but I actually have a loop */
@@ -96,43 +78,29 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 static void uas_do_work(struct work_struct *work);
 static int uas_try_complete(struct scsi_cmnd *cmnd, const char *caller);
 static void uas_free_streams(struct uas_dev_info *devinfo);
-static void uas_log_cmd_state(struct scsi_cmnd *cmnd, const char *caller);
-
-/* Must be called with devinfo->lock held, will temporary unlock the lock */
-static void uas_unlink_data_urbs(struct uas_dev_info *devinfo,
-				 struct uas_cmd_info *cmdinfo,
-				 unsigned long *lock_flags)
-{
-	/*
-	 * The UNLINK_DATA_URBS flag makes sure uas_try_complete
-	 * (called by urb completion) doesn't release cmdinfo
-	 * underneath us.
-	 */
-	cmdinfo->state |= UNLINK_DATA_URBS;
-	spin_unlock_irqrestore(&devinfo->lock, *lock_flags);
-
-	if (cmdinfo->data_in_urb)
-		usb_unlink_urb(cmdinfo->data_in_urb);
-	if (cmdinfo->data_out_urb)
-		usb_unlink_urb(cmdinfo->data_out_urb);
-
-	spin_lock_irqsave(&devinfo->lock, *lock_flags);
-	cmdinfo->state &= ~UNLINK_DATA_URBS;
-}
+static void uas_log_cmd_state(struct scsi_cmnd *cmnd, const char *prefix,
+				int status);
 
 static void uas_do_work(struct work_struct *work)
 {
 	struct uas_dev_info *devinfo =
 		container_of(work, struct uas_dev_info, work);
 	struct uas_cmd_info *cmdinfo;
+	struct scsi_cmnd *cmnd;
 	unsigned long flags;
-	int err;
+	int i, err;
 
 	spin_lock_irqsave(&devinfo->lock, flags);
-	list_for_each_entry(cmdinfo, &devinfo->inflight_list, list) {
-		struct scsi_pointer *scp = (void *)cmdinfo;
-		struct scsi_cmnd *cmnd = container_of(scp, struct scsi_cmnd,
-						      SCp);
+
+	if (devinfo->resetting)
+		goto out;
+
+	for (i = 0; i < devinfo->qdepth; i++) {
+		if (!devinfo->cmnd[i])
+			continue;
+
+		cmnd = devinfo->cmnd[i];
+		cmdinfo = (void *)&cmnd->SCp;
 
 		if (!(cmdinfo->state & IS_IN_WORK_LIST))
 			continue;
@@ -143,35 +111,7 @@ static void uas_do_work(struct work_struct *work)
 		else
 			schedule_work(&devinfo->work);
 	}
-	spin_unlock_irqrestore(&devinfo->lock, flags);
-}
-
-static void uas_mark_cmd_dead(struct uas_dev_info *devinfo,
-			      struct uas_cmd_info *cmdinfo,
-			      int result, const char *caller)
-{
-	struct scsi_pointer *scp = (void *)cmdinfo;
-	struct scsi_cmnd *cmnd = container_of(scp, struct scsi_cmnd, SCp);
-
-	uas_log_cmd_state(cmnd, caller);
-	WARN_ON_ONCE(!spin_is_locked(&devinfo->lock));
-	WARN_ON_ONCE(cmdinfo->state & COMMAND_ABORTED);
-	cmdinfo->state |= COMMAND_ABORTED;
-	cmdinfo->state &= ~IS_IN_WORK_LIST;
-	cmnd->result = result << 16;
-	list_move_tail(&cmdinfo->list, &devinfo->dead_list);
-}
-
-static void uas_abort_inflight(struct uas_dev_info *devinfo, int result,
-			       const char *caller)
-{
-	struct uas_cmd_info *cmdinfo;
-	struct uas_cmd_info *temp;
-	unsigned long flags;
-
-	spin_lock_irqsave(&devinfo->lock, flags);
-	list_for_each_entry_safe(cmdinfo, temp, &devinfo->inflight_list, list)
-		uas_mark_cmd_dead(devinfo, cmdinfo, result, caller);
+out:
 	spin_unlock_irqrestore(&devinfo->lock, flags);
 }
 
@@ -181,31 +121,32 @@ static void uas_add_work(struct uas_cmd_info *cmdinfo)
 	struct scsi_cmnd *cmnd = container_of(scp, struct scsi_cmnd, SCp);
 	struct uas_dev_info *devinfo = cmnd->device->hostdata;
 
-	WARN_ON_ONCE(!spin_is_locked(&devinfo->lock));
+	lockdep_assert_held(&devinfo->lock);
 	cmdinfo->state |= IS_IN_WORK_LIST;
 	schedule_work(&devinfo->work);
 }
 
-static void uas_zap_dead(struct uas_dev_info *devinfo)
+static void uas_zap_pending(struct uas_dev_info *devinfo, int result)
 {
 	struct uas_cmd_info *cmdinfo;
-	struct uas_cmd_info *temp;
+	struct scsi_cmnd *cmnd;
 	unsigned long flags;
+	int i, err;
 
 	spin_lock_irqsave(&devinfo->lock, flags);
-	list_for_each_entry_safe(cmdinfo, temp, &devinfo->dead_list, list) {
-		struct scsi_pointer *scp = (void *)cmdinfo;
-		struct scsi_cmnd *cmnd = container_of(scp, struct scsi_cmnd,
-						      SCp);
-		uas_log_cmd_state(cmnd, __func__);
-		WARN_ON_ONCE(!(cmdinfo->state & COMMAND_ABORTED));
-		/* all urbs are killed, clear inflight bits */
-		cmdinfo->state &= ~(COMMAND_INFLIGHT |
-				    DATA_IN_URB_INFLIGHT |
-				    DATA_OUT_URB_INFLIGHT);
-		uas_try_complete(cmnd, __func__);
+	for (i = 0; i < devinfo->qdepth; i++) {
+		if (!devinfo->cmnd[i])
+			continue;
+
+		cmnd = devinfo->cmnd[i];
+		cmdinfo = (void *)&cmnd->SCp;
+		uas_log_cmd_state(cmnd, __func__, 0);
+		/* Sense urbs were killed, clear COMMAND_INFLIGHT manually */
+		cmdinfo->state &= ~COMMAND_INFLIGHT;
+		cmnd->result = result << 16;
+		err = uas_try_complete(cmnd, __func__);
+		WARN_ON(err != 0);
 	}
-	devinfo->running_task = 0;
 	spin_unlock_irqrestore(&devinfo->lock, flags);
 }
 
@@ -232,36 +173,30 @@ static void uas_sense(struct urb *urb, struct scsi_cmnd *cmnd)
 	cmnd->result = sense_iu->status;
 }
 
-static void uas_sense_old(struct urb *urb, struct scsi_cmnd *cmnd)
+/*
+ * scsi-tags go from 0 - (nr_tags - 1), uas tags need to match stream-ids,
+ * which go from 1 - nr_streams. And we use 1 for untagged commands.
+ */
+static int uas_get_tag(struct scsi_cmnd *cmnd)
 {
-	struct sense_iu_old *sense_iu = urb->transfer_buffer;
-	struct scsi_device *sdev = cmnd->device;
+	int tag;
 
-	if (urb->actual_length > 8) {
-		unsigned len = be16_to_cpup(&sense_iu->len) - 2;
-		if (len + 8 != urb->actual_length) {
-			int newlen = min(len + 8, urb->actual_length) - 8;
-			if (newlen < 0)
-				newlen = 0;
-			sdev_printk(KERN_INFO, sdev, "%s: urb length %d "
-				"disagrees with IU sense data length %d, "
-				"using %d bytes of sense data\n", __func__,
-					urb->actual_length, len, newlen);
-			len = newlen;
-		}
-		memcpy(cmnd->sense_buffer, sense_iu->sense, len);
-	}
+	if (blk_rq_tagged(cmnd->request))
+		tag = cmnd->request->tag + 2;
+	else
+		tag = 1;
 
-	cmnd->result = sense_iu->status;
+	return tag;
 }
 
-static void uas_log_cmd_state(struct scsi_cmnd *cmnd, const char *caller)
+static void uas_log_cmd_state(struct scsi_cmnd *cmnd, const char *prefix,
+			      int status)
 {
 	struct uas_cmd_info *ci = (void *)&cmnd->SCp;
 
-	scmd_printk(KERN_INFO, cmnd, "%s %p tag %d, inflight:"
-		    "%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
-		    caller, cmnd, cmnd->request->tag,
+	scmd_printk(KERN_INFO, cmnd,
+		    "%s %d tag %d inflight:%s%s%s%s%s%s%s%s%s%s%s%s ",
+		    prefix, status, uas_get_tag(cmnd),
 		    (ci->state & SUBMIT_STATUS_URB)     ? " s-st"  : "",
 		    (ci->state & ALLOC_DATA_IN_URB)     ? " a-in"  : "",
 		    (ci->state & SUBMIT_DATA_IN_URB)    ? " s-in"  : "",
@@ -272,10 +207,28 @@ static void uas_log_cmd_state(struct scsi_cmnd *cmnd, const char *caller)
 		    (ci->state & COMMAND_INFLIGHT)      ? " CMD"   : "",
 		    (ci->state & DATA_IN_URB_INFLIGHT)  ? " IN"    : "",
 		    (ci->state & DATA_OUT_URB_INFLIGHT) ? " OUT"   : "",
-		    (ci->state & COMMAND_COMPLETED)     ? " done"  : "",
 		    (ci->state & COMMAND_ABORTED)       ? " abort" : "",
-		    (ci->state & UNLINK_DATA_URBS)      ? " unlink": "",
 		    (ci->state & IS_IN_WORK_LIST)       ? " work"  : "");
+	scsi_print_command(cmnd);
+}
+
+static void uas_free_unsubmitted_urbs(struct scsi_cmnd *cmnd)
+{
+	struct uas_cmd_info *cmdinfo;
+
+	if (!cmnd)
+		return;
+
+	cmdinfo = (void *)&cmnd->SCp;
+
+	if (cmdinfo->state & SUBMIT_CMD_URB)
+		usb_free_urb(cmdinfo->cmd_urb);
+
+	/* data urbs may have never gotten their submit flag set */
+	if (!(cmdinfo->state & DATA_IN_URB_INFLIGHT))
+		usb_free_urb(cmdinfo->data_in_urb);
+	if (!(cmdinfo->state & DATA_OUT_URB_INFLIGHT))
+		usb_free_urb(cmdinfo->data_out_urb);
 }
 
 static int uas_try_complete(struct scsi_cmnd *cmnd, const char *caller)
@@ -283,19 +236,14 @@ static int uas_try_complete(struct scsi_cmnd *cmnd, const char *caller)
 	struct uas_cmd_info *cmdinfo = (void *)&cmnd->SCp;
 	struct uas_dev_info *devinfo = (void *)cmnd->device->hostdata;
 
-	WARN_ON_ONCE(!spin_is_locked(&devinfo->lock));
+	lockdep_assert_held(&devinfo->lock);
 	if (cmdinfo->state & (COMMAND_INFLIGHT |
 			      DATA_IN_URB_INFLIGHT |
 			      DATA_OUT_URB_INFLIGHT |
-			      UNLINK_DATA_URBS))
+			      COMMAND_ABORTED))
 		return -EBUSY;
-	WARN_ON_ONCE(cmdinfo->state & COMMAND_COMPLETED);
-	cmdinfo->state |= COMMAND_COMPLETED;
-	usb_free_urb(cmdinfo->data_in_urb);
-	usb_free_urb(cmdinfo->data_out_urb);
-	if (cmdinfo->state & COMMAND_ABORTED)
-		scmd_printk(KERN_INFO, cmnd, "abort completed\n");
-	list_del(&cmdinfo->list);
+	devinfo->cmnd[uas_get_tag(cmnd) - 1] = NULL;
+	uas_free_unsubmitted_urbs(cmnd);
 	cmnd->scsi_done(cmnd);
 	return 0;
 }
@@ -318,63 +266,48 @@ static void uas_stat_cmplt(struct urb *urb)
 	struct iu *iu = urb->transfer_buffer;
 	struct Scsi_Host *shost = urb->context;
 	struct uas_dev_info *devinfo = (struct uas_dev_info *)shost->hostdata;
+	struct urb *data_in_urb = NULL;
+	struct urb *data_out_urb = NULL;
 	struct scsi_cmnd *cmnd;
 	struct uas_cmd_info *cmdinfo;
 	unsigned long flags;
-	u16 tag;
+	unsigned int idx;
+
+	spin_lock_irqsave(&devinfo->lock, flags);
+
+	if (devinfo->resetting)
+		goto out;
 
 	if (urb->status) {
-		if (urb->status == -ENOENT) {
-			dev_err(&urb->dev->dev, "stat urb: killed, stream %d\n",
-				urb->stream_id);
-		} else {
+		if (urb->status != -ENOENT && urb->status != -ECONNRESET) {
 			dev_err(&urb->dev->dev, "stat urb: status %d\n",
 				urb->status);
 		}
-		usb_free_urb(urb);
-		return;
+		goto out;
 	}
 
-	if (devinfo->resetting) {
-		usb_free_urb(urb);
-		return;
+	idx = be16_to_cpup(&iu->tag) - 1;
+	if (idx >= MAX_CMNDS || !devinfo->cmnd[idx]) {
+		dev_err(&urb->dev->dev,
+			"stat urb: no pending cmd for tag %d\n", idx + 1);
+		goto out;
 	}
 
-	spin_lock_irqsave(&devinfo->lock, flags);
-	tag = be16_to_cpup(&iu->tag) - 1;
-	if (tag == 0)
-		cmnd = devinfo->cmnd;
-	else
-		cmnd = scsi_host_find_tag(shost, tag - 1);
-
-	if (!cmnd) {
-		if (iu->iu_id == IU_ID_RESPONSE) {
-			if (!devinfo->running_task)
-				dev_warn(&urb->dev->dev,
-				    "stat urb: recv unexpected response iu\n");
-			/* store results for uas_eh_task_mgmt() */
-			memcpy(&devinfo->response, iu, sizeof(devinfo->response));
-		}
-		usb_free_urb(urb);
-		spin_unlock_irqrestore(&devinfo->lock, flags);
-		return;
-	}
-
+	cmnd = devinfo->cmnd[idx];
 	cmdinfo = (void *)&cmnd->SCp;
+
+	if (!(cmdinfo->state & COMMAND_INFLIGHT)) {
+		uas_log_cmd_state(cmnd, "unexpected status cmplt", 0);
+		goto out;
+	}
+
 	switch (iu->iu_id) {
 	case IU_ID_STATUS:
-		if (devinfo->cmnd == cmnd)
-			devinfo->cmnd = NULL;
-
-		if (urb->actual_length < 16)
-			devinfo->uas_sense_old = 1;
-		if (devinfo->uas_sense_old)
-			uas_sense_old(urb, cmnd);
-		else
-			uas_sense(urb, cmnd);
+		uas_sense(urb, cmnd);
 		if (cmnd->result != 0) {
 			/* cancel data transfers on error */
-			uas_unlink_data_urbs(devinfo, cmdinfo, &flags);
+			data_in_urb = usb_get_urb(cmdinfo->data_in_urb);
+			data_out_urb = usb_get_urb(cmdinfo->data_out_urb);
 		}
 		cmdinfo->state &= ~COMMAND_INFLIGHT;
 		uas_try_complete(cmnd, __func__);
@@ -382,7 +315,7 @@ static void uas_stat_cmplt(struct urb *urb)
 	case IU_ID_READ_READY:
 		if (!cmdinfo->data_in_urb ||
 				(cmdinfo->state & DATA_IN_URB_INFLIGHT)) {
-			scmd_printk(KERN_ERR, cmnd, "unexpected read rdy\n");
+			uas_log_cmd_state(cmnd, "unexpected read rdy", 0);
 			break;
 		}
 		uas_xfer_data(urb, cmnd, SUBMIT_DATA_IN_URB);
@@ -390,17 +323,37 @@ static void uas_stat_cmplt(struct urb *urb)
 	case IU_ID_WRITE_READY:
 		if (!cmdinfo->data_out_urb ||
 				(cmdinfo->state & DATA_OUT_URB_INFLIGHT)) {
-			scmd_printk(KERN_ERR, cmnd, "unexpected write rdy\n");
+			uas_log_cmd_state(cmnd, "unexpected write rdy", 0);
 			break;
 		}
 		uas_xfer_data(urb, cmnd, SUBMIT_DATA_OUT_URB);
 		break;
+	case IU_ID_RESPONSE:
+		uas_log_cmd_state(cmnd, "unexpected response iu",
+				  ((struct response_iu *)iu)->response_code);
+		/* Error, cancel data transfers */
+		data_in_urb = usb_get_urb(cmdinfo->data_in_urb);
+		data_out_urb = usb_get_urb(cmdinfo->data_out_urb);
+		cmdinfo->state &= ~COMMAND_INFLIGHT;
+		cmnd->result = DID_ERROR << 16;
+		uas_try_complete(cmnd, __func__);
+		break;
 	default:
-		scmd_printk(KERN_ERR, cmnd,
-			"Bogus IU (%d) received on status pipe\n", iu->iu_id);
+		uas_log_cmd_state(cmnd, "bogus IU", iu->iu_id);
 	}
+out:
 	usb_free_urb(urb);
 	spin_unlock_irqrestore(&devinfo->lock, flags);
+
+	/* Unlinking of data urbs must be done without holding the lock */
+	if (data_in_urb) {
+		usb_unlink_urb(data_in_urb);
+		usb_put_urb(data_in_urb);
+	}
+	if (data_out_urb) {
+		usb_unlink_urb(data_out_urb);
+		usb_put_urb(data_out_urb);
+	}
 }
 
 static void uas_data_cmplt(struct urb *urb)
@@ -412,57 +365,69 @@ static void uas_data_cmplt(struct urb *urb)
 	unsigned long flags;
 
 	spin_lock_irqsave(&devinfo->lock, flags);
+
 	if (cmdinfo->data_in_urb == urb) {
 		sdb = scsi_in(cmnd);
 		cmdinfo->state &= ~DATA_IN_URB_INFLIGHT;
+		cmdinfo->data_in_urb = NULL;
 	} else if (cmdinfo->data_out_urb == urb) {
 		sdb = scsi_out(cmnd);
 		cmdinfo->state &= ~DATA_OUT_URB_INFLIGHT;
+		cmdinfo->data_out_urb = NULL;
 	}
 	if (sdb == NULL) {
 		WARN_ON_ONCE(1);
-	} else if (urb->status) {
-		if (urb->status != -ECONNRESET) {
-			uas_log_cmd_state(cmnd, __func__);
-			scmd_printk(KERN_ERR, cmnd,
-				"data cmplt err %d stream %d\n",
-				urb->status, urb->stream_id);
-		}
+		goto out;
+	}
+
+	if (devinfo->resetting)
+		goto out;
+
+	/* Data urbs should not complete before the cmd urb is submitted */
+	if (cmdinfo->state & SUBMIT_CMD_URB) {
+		uas_log_cmd_state(cmnd, "unexpected data cmplt", 0);
+		goto out;
+	}
+
+	if (urb->status) {
+		if (urb->status != -ENOENT && urb->status != -ECONNRESET)
+			uas_log_cmd_state(cmnd, "data cmplt err", urb->status);
 		/* error: no data transfered */
 		sdb->resid = sdb->length;
 	} else {
 		sdb->resid = sdb->length - urb->actual_length;
 	}
 	uas_try_complete(cmnd, __func__);
+out:
+	usb_free_urb(urb);
 	spin_unlock_irqrestore(&devinfo->lock, flags);
 }
 
 static void uas_cmd_cmplt(struct urb *urb)
 {
-	struct scsi_cmnd *cmnd = urb->context;
+	if (urb->status)
+		dev_err(&urb->dev->dev, "cmd cmplt err %d\n", urb->status);
 
-	if (urb->status) {
-		uas_log_cmd_state(cmnd, __func__);
-		scmd_printk(KERN_ERR, cmnd, "cmd cmplt err %d\n", urb->status);
-	}
 	usb_free_urb(urb);
 }
 
 static struct urb *uas_alloc_data_urb(struct uas_dev_info *devinfo, gfp_t gfp,
-				      unsigned int pipe, u16 stream_id,
 				      struct scsi_cmnd *cmnd,
 				      enum dma_data_direction dir)
 {
 	struct usb_device *udev = devinfo->udev;
+	struct uas_cmd_info *cmdinfo = (void *)&cmnd->SCp;
 	struct urb *urb = usb_alloc_urb(0, gfp);
 	struct scsi_data_buffer *sdb = (dir == DMA_FROM_DEVICE)
 		? scsi_in(cmnd) : scsi_out(cmnd);
+	unsigned int pipe = (dir == DMA_FROM_DEVICE)
+		? devinfo->data_in_pipe : devinfo->data_out_pipe;
 
 	if (!urb)
 		goto out;
 	usb_fill_bulk_urb(urb, udev, pipe, NULL, sdb->length,
 			  uas_data_cmplt, cmnd);
-	urb->stream_id = stream_id;
+	urb->stream_id = cmdinfo->stream;
 	urb->num_sgs = udev->bus->sg_tablesize ? sdb->table.nents : 0;
 	urb->sg = sdb->table.sgl;
  out:
@@ -470,9 +435,10 @@ static struct urb *uas_alloc_data_urb(struct uas_dev_info *devinfo, gfp_t gfp,
 }
 
 static struct urb *uas_alloc_sense_urb(struct uas_dev_info *devinfo, gfp_t gfp,
-				       struct Scsi_Host *shost, u16 stream_id)
+				       struct scsi_cmnd *cmnd)
 {
 	struct usb_device *udev = devinfo->udev;
+	struct uas_cmd_info *cmdinfo = (void *)&cmnd->SCp;
 	struct urb *urb = usb_alloc_urb(0, gfp);
 	struct sense_iu *iu;
 
@@ -484,8 +450,8 @@ static struct urb *uas_alloc_sense_urb(struct uas_dev_info *devinfo, gfp_t gfp,
 		goto free;
 
 	usb_fill_bulk_urb(urb, udev, devinfo->status_pipe, iu, sizeof(*iu),
-						uas_stat_cmplt, shost);
-	urb->stream_id = stream_id;
+			  uas_stat_cmplt, cmnd->device->host);
+	urb->stream_id = cmdinfo->stream;
 	urb->transfer_flags |= URB_FREE_BUFFER;
  out:
 	return urb;
@@ -515,17 +481,14 @@ static struct urb *uas_alloc_cmd_urb(struct uas_dev_info *devinfo, gfp_t gfp,
 		goto free;
 
 	iu->iu_id = IU_ID_COMMAND;
-	if (blk_rq_tagged(cmnd->request))
-		iu->tag = cpu_to_be16(cmnd->request->tag + 2);
-	else
-		iu->tag = cpu_to_be16(1);
+	iu->tag = cpu_to_be16(uas_get_tag(cmnd));
 	iu->prio_attr = UAS_SIMPLE_TAG;
 	iu->len = len;
 	int_to_scsilun(sdev->lun, &iu->lun);
 	memcpy(iu->cdb, cmnd->cmnd, cmnd->cmd_len);
 
 	usb_fill_bulk_urb(urb, udev, devinfo->cmd_pipe, iu, sizeof(*iu) + len,
-							uas_cmd_cmplt, cmnd);
+							uas_cmd_cmplt, NULL);
 	urb->transfer_flags |= URB_FREE_BUFFER;
  out:
 	return urb;
@@ -534,81 +497,26 @@ static struct urb *uas_alloc_cmd_urb(struct uas_dev_info *devinfo, gfp_t gfp,
 	return NULL;
 }
 
-static int uas_submit_task_urb(struct scsi_cmnd *cmnd, gfp_t gfp,
-			       u8 function, u16 stream_id)
-{
-	struct uas_dev_info *devinfo = (void *)cmnd->device->hostdata;
-	struct usb_device *udev = devinfo->udev;
-	struct urb *urb = usb_alloc_urb(0, gfp);
-	struct task_mgmt_iu *iu;
-	int err = -ENOMEM;
-
-	if (!urb)
-		goto err;
-
-	iu = kzalloc(sizeof(*iu), gfp);
-	if (!iu)
-		goto err;
-
-	iu->iu_id = IU_ID_TASK_MGMT;
-	iu->tag = cpu_to_be16(stream_id);
-	int_to_scsilun(cmnd->device->lun, &iu->lun);
-
-	iu->function = function;
-	switch (function) {
-	case TMF_ABORT_TASK:
-		if (blk_rq_tagged(cmnd->request))
-			iu->task_tag = cpu_to_be16(cmnd->request->tag + 2);
-		else
-			iu->task_tag = cpu_to_be16(1);
-		break;
-	}
-
-	usb_fill_bulk_urb(urb, udev, devinfo->cmd_pipe, iu, sizeof(*iu),
-			  uas_cmd_cmplt, cmnd);
-	urb->transfer_flags |= URB_FREE_BUFFER;
-
-	usb_anchor_urb(urb, &devinfo->cmd_urbs);
-	err = usb_submit_urb(urb, gfp);
-	if (err) {
-		usb_unanchor_urb(urb);
-		uas_log_cmd_state(cmnd, __func__);
-		scmd_printk(KERN_ERR, cmnd, "task submission err %d\n", err);
-		goto err;
-	}
-
-	return 0;
-
-err:
-	usb_free_urb(urb);
-	return err;
-}
-
 /*
  * Why should I request the Status IU before sending the Command IU?  Spec
  * says to, but also says the device may receive them in any order.  Seems
  * daft to me.
  */
 
-static struct urb *uas_submit_sense_urb(struct scsi_cmnd *cmnd,
-					gfp_t gfp, unsigned int stream)
+static struct urb *uas_submit_sense_urb(struct scsi_cmnd *cmnd, gfp_t gfp)
 {
-	struct Scsi_Host *shost = cmnd->device->host;
-	struct uas_dev_info *devinfo = (struct uas_dev_info *)shost->hostdata;
+	struct uas_dev_info *devinfo = cmnd->device->hostdata;
 	struct urb *urb;
 	int err;
 
-	urb = uas_alloc_sense_urb(devinfo, gfp, shost, stream);
+	urb = uas_alloc_sense_urb(devinfo, gfp, cmnd);
 	if (!urb)
 		return NULL;
 	usb_anchor_urb(urb, &devinfo->sense_urbs);
 	err = usb_submit_urb(urb, gfp);
 	if (err) {
 		usb_unanchor_urb(urb);
-		uas_log_cmd_state(cmnd, __func__);
-		shost_printk(KERN_INFO, shost,
-			     "sense urb submission error %d stream %d\n",
-			     err, stream);
+		uas_log_cmd_state(cmnd, "sense submit err", err);
 		usb_free_urb(urb);
 		return NULL;
 	}
@@ -622,9 +530,9 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 	struct urb *urb;
 	int err;
 
-	WARN_ON_ONCE(!spin_is_locked(&devinfo->lock));
+	lockdep_assert_held(&devinfo->lock);
 	if (cmdinfo->state & SUBMIT_STATUS_URB) {
-		urb = uas_submit_sense_urb(cmnd, gfp, cmdinfo->stream);
+		urb = uas_submit_sense_urb(cmnd, gfp);
 		if (!urb)
 			return SCSI_MLQUEUE_DEVICE_BUSY;
 		cmdinfo->state &= ~SUBMIT_STATUS_URB;
@@ -632,8 +540,7 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 
 	if (cmdinfo->state & ALLOC_DATA_IN_URB) {
 		cmdinfo->data_in_urb = uas_alloc_data_urb(devinfo, gfp,
-					devinfo->data_in_pipe, cmdinfo->stream,
-					cmnd, DMA_FROM_DEVICE);
+							cmnd, DMA_FROM_DEVICE);
 		if (!cmdinfo->data_in_urb)
 			return SCSI_MLQUEUE_DEVICE_BUSY;
 		cmdinfo->state &= ~ALLOC_DATA_IN_URB;
@@ -644,10 +551,7 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 		err = usb_submit_urb(cmdinfo->data_in_urb, gfp);
 		if (err) {
 			usb_unanchor_urb(cmdinfo->data_in_urb);
-			uas_log_cmd_state(cmnd, __func__);
-			scmd_printk(KERN_INFO, cmnd,
-				"data in urb submission error %d stream %d\n",
-				err, cmdinfo->data_in_urb->stream_id);
+			uas_log_cmd_state(cmnd, "data in submit err", err);
 			return SCSI_MLQUEUE_DEVICE_BUSY;
 		}
 		cmdinfo->state &= ~SUBMIT_DATA_IN_URB;
@@ -656,8 +560,7 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 
 	if (cmdinfo->state & ALLOC_DATA_OUT_URB) {
 		cmdinfo->data_out_urb = uas_alloc_data_urb(devinfo, gfp,
-					devinfo->data_out_pipe, cmdinfo->stream,
-					cmnd, DMA_TO_DEVICE);
+							cmnd, DMA_TO_DEVICE);
 		if (!cmdinfo->data_out_urb)
 			return SCSI_MLQUEUE_DEVICE_BUSY;
 		cmdinfo->state &= ~ALLOC_DATA_OUT_URB;
@@ -668,10 +571,7 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 		err = usb_submit_urb(cmdinfo->data_out_urb, gfp);
 		if (err) {
 			usb_unanchor_urb(cmdinfo->data_out_urb);
-			uas_log_cmd_state(cmnd, __func__);
-			scmd_printk(KERN_INFO, cmnd,
-				"data out urb submission error %d stream %d\n",
-				err, cmdinfo->data_out_urb->stream_id);
+			uas_log_cmd_state(cmnd, "data out submit err", err);
 			return SCSI_MLQUEUE_DEVICE_BUSY;
 		}
 		cmdinfo->state &= ~SUBMIT_DATA_OUT_URB;
@@ -690,9 +590,7 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 		err = usb_submit_urb(cmdinfo->cmd_urb, gfp);
 		if (err) {
 			usb_unanchor_urb(cmdinfo->cmd_urb);
-			uas_log_cmd_state(cmnd, __func__);
-			scmd_printk(KERN_INFO, cmnd,
-				    "cmd urb submission error %d\n", err);
+			uas_log_cmd_state(cmnd, "cmd submit err", err);
 			return SCSI_MLQUEUE_DEVICE_BUSY;
 		}
 		cmdinfo->cmd_urb = NULL;
@@ -710,9 +608,23 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 	struct uas_dev_info *devinfo = sdev->hostdata;
 	struct uas_cmd_info *cmdinfo = (void *)&cmnd->SCp;
 	unsigned long flags;
+	unsigned int stream;
 	int err;
 
 	BUILD_BUG_ON(sizeof(struct uas_cmd_info) > sizeof(struct scsi_pointer));
+
+	/* Re-check scsi_block_requests now that we've the host-lock */
+	if (cmnd->device->host->host_self_blocked)
+		return SCSI_MLQUEUE_DEVICE_BUSY;
+
+	if ((devinfo->flags & US_FL_NO_ATA_1X) &&
+			(cmnd->cmnd[0] == ATA_12 || cmnd->cmnd[0] == ATA_16)) {
+		memcpy(cmnd->sense_buffer, usb_stor_sense_invalidCDB,
+		       sizeof(usb_stor_sense_invalidCDB));
+		cmnd->result = SAM_STAT_CHECK_CONDITION;
+		cmnd->scsi_done(cmnd);
+		return 0;
+	}
 
 	spin_lock_irqsave(&devinfo->lock, flags);
 
@@ -723,24 +635,17 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 		return 0;
 	}
 
-	if (devinfo->cmnd) {
+	stream = uas_get_tag(cmnd);
+	if (devinfo->cmnd[stream - 1]) {
 		spin_unlock_irqrestore(&devinfo->lock, flags);
 		return SCSI_MLQUEUE_DEVICE_BUSY;
 	}
 
-	memset(cmdinfo, 0, sizeof(*cmdinfo));
-
-	if (blk_rq_tagged(cmnd->request)) {
-		cmdinfo->stream = cmnd->request->tag + 2;
-	} else {
-		devinfo->cmnd = cmnd;
-		cmdinfo->stream = 1;
-	}
-
 	cmnd->scsi_done = done;
 
-	cmdinfo->state = SUBMIT_STATUS_URB |
-			ALLOC_CMD_URB | SUBMIT_CMD_URB;
+	memset(cmdinfo, 0, sizeof(*cmdinfo));
+	cmdinfo->stream = stream;
+	cmdinfo->state = SUBMIT_STATUS_URB | ALLOC_CMD_URB | SUBMIT_CMD_URB;
 
 	switch (cmnd->sc_data_direction) {
 	case DMA_FROM_DEVICE:
@@ -769,123 +674,54 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 		uas_add_work(cmdinfo);
 	}
 
-	list_add_tail(&cmdinfo->list, &devinfo->inflight_list);
+	devinfo->cmnd[stream - 1] = cmnd;
 	spin_unlock_irqrestore(&devinfo->lock, flags);
 	return 0;
 }
 
 static DEF_SCSI_QCMD(uas_queuecommand)
 
-static int uas_eh_task_mgmt(struct scsi_cmnd *cmnd,
-			    const char *fname, u8 function)
-{
-	struct Scsi_Host *shost = cmnd->device->host;
-	struct uas_dev_info *devinfo = (struct uas_dev_info *)shost->hostdata;
-	u16 tag = devinfo->qdepth;
-	unsigned long flags;
-	struct urb *sense_urb;
-	int result = SUCCESS;
-
-	spin_lock_irqsave(&devinfo->lock, flags);
-
-	if (devinfo->resetting) {
-		spin_unlock_irqrestore(&devinfo->lock, flags);
-		return FAILED;
-	}
-
-	if (devinfo->running_task) {
-		shost_printk(KERN_INFO, shost,
-			     "%s: %s: error already running a task\n",
-			     __func__, fname);
-		spin_unlock_irqrestore(&devinfo->lock, flags);
-		return FAILED;
-	}
-
-	devinfo->running_task = 1;
-	memset(&devinfo->response, 0, sizeof(devinfo->response));
-	sense_urb = uas_submit_sense_urb(cmnd, GFP_ATOMIC,
-					 devinfo->use_streams ? tag : 0);
-	if (!sense_urb) {
-		shost_printk(KERN_INFO, shost,
-			     "%s: %s: submit sense urb failed\n",
-			     __func__, fname);
-		devinfo->running_task = 0;
-		spin_unlock_irqrestore(&devinfo->lock, flags);
-		return FAILED;
-	}
-	if (uas_submit_task_urb(cmnd, GFP_ATOMIC, function, tag)) {
-		shost_printk(KERN_INFO, shost,
-			     "%s: %s: submit task mgmt urb failed\n",
-			     __func__, fname);
-		devinfo->running_task = 0;
-		spin_unlock_irqrestore(&devinfo->lock, flags);
-		usb_kill_urb(sense_urb);
-		return FAILED;
-	}
-	spin_unlock_irqrestore(&devinfo->lock, flags);
-
-	if (usb_wait_anchor_empty_timeout(&devinfo->sense_urbs, 3000) == 0) {
-		/*
-		 * Note we deliberately do not clear running_task here. If we
-		 * allow new tasks to be submitted, there is no way to figure
-		 * out if a received response_iu is for the failed task or for
-		 * the new one. A bus-reset will eventually clear running_task.
-		 */
-		shost_printk(KERN_INFO, shost,
-			     "%s: %s timed out\n", __func__, fname);
-		return FAILED;
-	}
-
-	spin_lock_irqsave(&devinfo->lock, flags);
-	devinfo->running_task = 0;
-	if (be16_to_cpu(devinfo->response.tag) != tag) {
-		shost_printk(KERN_INFO, shost,
-			     "%s: %s failed (wrong tag %d/%d)\n", __func__,
-			     fname, be16_to_cpu(devinfo->response.tag), tag);
-		result = FAILED;
-	} else if (devinfo->response.response_code != RC_TMF_COMPLETE) {
-		shost_printk(KERN_INFO, shost,
-			     "%s: %s failed (rc 0x%x)\n", __func__,
-			     fname, devinfo->response.response_code);
-		result = FAILED;
-	}
-	spin_unlock_irqrestore(&devinfo->lock, flags);
-
-	return result;
-}
-
+/*
+ * For now we do not support actually sending an abort to the device, so
+ * this eh always fails. Still we must define it to make sure that we've
+ * dropped all references to the cmnd in question once this function exits.
+ */
 static int uas_eh_abort_handler(struct scsi_cmnd *cmnd)
 {
 	struct uas_cmd_info *cmdinfo = (void *)&cmnd->SCp;
 	struct uas_dev_info *devinfo = (void *)cmnd->device->hostdata;
+	struct urb *data_in_urb = NULL;
+	struct urb *data_out_urb = NULL;
 	unsigned long flags;
-	int ret;
 
 	spin_lock_irqsave(&devinfo->lock, flags);
 
-	if (devinfo->resetting) {
-		spin_unlock_irqrestore(&devinfo->lock, flags);
-		return FAILED;
+	uas_log_cmd_state(cmnd, __func__, 0);
+
+	/* Ensure that try_complete does not call scsi_done */
+	cmdinfo->state |= COMMAND_ABORTED;
+
+	/* Drop all refs to this cmnd, kill data urbs to break their ref */
+	devinfo->cmnd[uas_get_tag(cmnd) - 1] = NULL;
+	if (cmdinfo->state & DATA_IN_URB_INFLIGHT)
+		data_in_urb = usb_get_urb(cmdinfo->data_in_urb);
+	if (cmdinfo->state & DATA_OUT_URB_INFLIGHT)
+		data_out_urb = usb_get_urb(cmdinfo->data_out_urb);
+
+	uas_free_unsubmitted_urbs(cmnd);
+
+	spin_unlock_irqrestore(&devinfo->lock, flags);
+
+	if (data_in_urb) {
+		usb_kill_urb(data_in_urb);
+		usb_put_urb(data_in_urb);
+	}
+	if (data_out_urb) {
+		usb_kill_urb(data_out_urb);
+		usb_put_urb(data_out_urb);
 	}
 
-	uas_mark_cmd_dead(devinfo, cmdinfo, DID_ABORT, __func__);
-	if (cmdinfo->state & COMMAND_INFLIGHT) {
-		spin_unlock_irqrestore(&devinfo->lock, flags);
-		ret = uas_eh_task_mgmt(cmnd, "ABORT TASK", TMF_ABORT_TASK);
-	} else {
-		uas_unlink_data_urbs(devinfo, cmdinfo, &flags);
-		uas_try_complete(cmnd, __func__);
-		spin_unlock_irqrestore(&devinfo->lock, flags);
-		ret = SUCCESS;
-	}
-	return ret;
-}
-
-static int uas_eh_device_reset_handler(struct scsi_cmnd *cmnd)
-{
-	sdev_printk(KERN_INFO, cmnd->device, "%s\n", __func__);
-	return uas_eh_task_mgmt(cmnd, "LOGICAL UNIT RESET",
-				TMF_LOGICAL_UNIT_RESET);
+	return FAILED;
 }
 
 static int uas_eh_bus_reset_handler(struct scsi_cmnd *cmnd)
@@ -893,6 +729,7 @@ static int uas_eh_bus_reset_handler(struct scsi_cmnd *cmnd)
 	struct scsi_device *sdev = cmnd->device;
 	struct uas_dev_info *devinfo = sdev->hostdata;
 	struct usb_device *udev = devinfo->udev;
+	unsigned long flags;
 	int err;
 
 	err = usb_lock_device_for_reset(udev, devinfo->intf);
@@ -903,19 +740,27 @@ static int uas_eh_bus_reset_handler(struct scsi_cmnd *cmnd)
 	}
 
 	shost_printk(KERN_INFO, sdev->host, "%s start\n", __func__);
+
+	spin_lock_irqsave(&devinfo->lock, flags);
 	devinfo->resetting = 1;
-	uas_abort_inflight(devinfo, DID_RESET, __func__);
+	spin_unlock_irqrestore(&devinfo->lock, flags);
+
 	usb_kill_anchored_urbs(&devinfo->cmd_urbs);
 	usb_kill_anchored_urbs(&devinfo->sense_urbs);
 	usb_kill_anchored_urbs(&devinfo->data_urbs);
-	uas_zap_dead(devinfo);
+	uas_zap_pending(devinfo, DID_RESET);
+
 	err = usb_reset_device(udev);
+
+	spin_lock_irqsave(&devinfo->lock, flags);
 	devinfo->resetting = 0;
+	spin_unlock_irqrestore(&devinfo->lock, flags);
 
 	usb_unlock_device(udev);
 
 	if (err) {
-		shost_printk(KERN_INFO, sdev->host, "%s FAILED\n", __func__);
+		shost_printk(KERN_INFO, sdev->host, "%s FAILED err %d\n",
+			     __func__, err);
 		return FAILED;
 	}
 
@@ -950,6 +795,10 @@ static int uas_slave_alloc(struct scsi_device *sdev)
 static int uas_slave_configure(struct scsi_device *sdev)
 {
 	struct uas_dev_info *devinfo = sdev->hostdata;
+
+	if (devinfo->flags & US_FL_NO_REPORT_OPCODES)
+		sdev->no_report_opcodes = 1;
+
 	scsi_set_tag_type(sdev, MSG_ORDERED_TAG);
 	scsi_activate_tcq(sdev, devinfo->qdepth - 2);
 	return 0;
@@ -962,7 +811,6 @@ static struct scsi_host_template uas_host_template = {
 	.slave_alloc = uas_slave_alloc,
 	.slave_configure = uas_slave_configure,
 	.eh_abort_handler = uas_eh_abort_handler,
-	.eh_device_reset_handler = uas_eh_device_reset_handler,
 	.eh_bus_reset_handler = uas_eh_bus_reset_handler,
 	.can_queue = 65536,	/* Is there a limit on the _host_ ? */
 	.this_id = -1,
@@ -989,8 +837,6 @@ static struct usb_device_id uas_usb_ids[] = {
 #	include "unusual_uas.h"
 	{ USB_INTERFACE_INFO(USB_CLASS_MASS_STORAGE, USB_SC_SCSI, USB_PR_BULK) },
 	{ USB_INTERFACE_INFO(USB_CLASS_MASS_STORAGE, USB_SC_SCSI, USB_PR_UAS) },
-	/* 0xaa is a prototype device I happen to have access to */
-	{ USB_INTERFACE_INFO(USB_CLASS_MASS_STORAGE, USB_SC_SCSI, 0xaa) },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, uas_usb_ids);
@@ -1016,9 +862,6 @@ static int uas_configure_endpoints(struct uas_dev_info *devinfo)
 	struct usb_device *udev = devinfo->udev;
 	int r;
 
-	devinfo->uas_sense_old = 0;
-	devinfo->cmnd = NULL;
-
 	r = uas_find_endpoints(devinfo->intf->cur_altsetting, eps);
 	if (r)
 		return r;
@@ -1032,12 +875,12 @@ static int uas_configure_endpoints(struct uas_dev_info *devinfo)
 	devinfo->data_out_pipe = usb_sndbulkpipe(udev,
 					    usb_endpoint_num(&eps[3]->desc));
 
-	if (udev->speed != USB_SPEED_SUPER) {
+	if (udev->speed < USB_SPEED_SUPER) {
 		devinfo->qdepth = 32;
 		devinfo->use_streams = 0;
 	} else {
 		devinfo->qdepth = usb_alloc_streams(devinfo->intf, eps + 1,
-						    3, 256, GFP_NOIO);
+						    3, MAX_CMNDS, GFP_NOIO);
 		if (devinfo->qdepth < 0)
 			return devinfo->qdepth;
 		devinfo->use_streams = 1;
@@ -1085,15 +928,14 @@ static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	devinfo->intf = intf;
 	devinfo->udev = udev;
 	devinfo->resetting = 0;
-	devinfo->running_task = 0;
 	devinfo->shutdown = 0;
+	devinfo->flags = id->driver_info;
+	usb_stor_adjust_quirks(udev, &devinfo->flags);
 	init_usb_anchor(&devinfo->cmd_urbs);
 	init_usb_anchor(&devinfo->sense_urbs);
 	init_usb_anchor(&devinfo->data_urbs);
 	spin_lock_init(&devinfo->lock);
 	INIT_WORK(&devinfo->work, uas_do_work);
-	INIT_LIST_HEAD(&devinfo->inflight_list);
-	INIT_LIST_HEAD(&devinfo->dead_list);
 
 	result = uas_configure_endpoints(devinfo);
 	if (result)
@@ -1121,6 +963,54 @@ set_alt0:
 	return result;
 }
 
+static int uas_cmnd_list_empty(struct uas_dev_info *devinfo)
+{
+	unsigned long flags;
+	int i, r = 1;
+
+	spin_lock_irqsave(&devinfo->lock, flags);
+
+	for (i = 0; i < devinfo->qdepth; i++) {
+		if (devinfo->cmnd[i]) {
+			r = 0; /* Not empty */
+			break;
+		}
+	}
+
+	spin_unlock_irqrestore(&devinfo->lock, flags);
+
+	return r;
+}
+
+/*
+ * Wait for any pending cmnds to complete, on usb-2 sense_urbs may temporarily
+ * get empty while there still is more work to do due to sense-urbs completing
+ * with a READ/WRITE_READY iu code, so keep waiting until the list gets empty.
+ */
+static int uas_wait_for_pending_cmnds(struct uas_dev_info *devinfo)
+{
+	unsigned long start_time;
+	int r;
+
+	start_time = jiffies;
+	do {
+		flush_work(&devinfo->work);
+
+		r = usb_wait_anchor_empty_timeout(&devinfo->sense_urbs, 5000);
+		if (r == 0)
+			return -ETIME;
+
+		r = usb_wait_anchor_empty_timeout(&devinfo->data_urbs, 500);
+		if (r == 0)
+			return -ETIME;
+
+		if (time_after(jiffies, start_time + 5 * HZ))
+			return -ETIME;
+	} while (!uas_cmnd_list_empty(devinfo));
+
+	return 0;
+}
+
 static int uas_pre_reset(struct usb_interface *intf)
 {
 	struct Scsi_Host *shost = usb_get_intfdata(intf);
@@ -1135,10 +1025,9 @@ static int uas_pre_reset(struct usb_interface *intf)
 	scsi_block_requests(shost);
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
-	/* Wait for any pending requests to complete */
-	flush_work(&devinfo->work);
-	if (usb_wait_anchor_empty_timeout(&devinfo->sense_urbs, 5000) == 0) {
+	if (uas_wait_for_pending_cmnds(devinfo) != 0) {
 		shost_printk(KERN_ERR, shost, "%s: timed out\n", __func__);
+		scsi_unblock_requests(shost);
 		return 1;
 	}
 
@@ -1152,13 +1041,16 @@ static int uas_post_reset(struct usb_interface *intf)
 	struct Scsi_Host *shost = usb_get_intfdata(intf);
 	struct uas_dev_info *devinfo = (struct uas_dev_info *)shost->hostdata;
 	unsigned long flags;
+	int err;
 
 	if (devinfo->shutdown)
 		return 0;
 
-	if (uas_configure_endpoints(devinfo) != 0) {
+	err = uas_configure_endpoints(devinfo);
+	if (err) {
 		shost_printk(KERN_ERR, shost,
-			     "%s: alloc streams error after reset", __func__);
+			     "%s: alloc streams error %d after reset",
+			     __func__, err);
 		return 1;
 	}
 
@@ -1176,9 +1068,7 @@ static int uas_suspend(struct usb_interface *intf, pm_message_t message)
 	struct Scsi_Host *shost = usb_get_intfdata(intf);
 	struct uas_dev_info *devinfo = (struct uas_dev_info *)shost->hostdata;
 
-	/* Wait for any pending requests to complete */
-	flush_work(&devinfo->work);
-	if (usb_wait_anchor_empty_timeout(&devinfo->sense_urbs, 5000) == 0) {
+	if (uas_wait_for_pending_cmnds(devinfo) != 0) {
 		shost_printk(KERN_ERR, shost, "%s: timed out\n", __func__);
 		return -ETIME;
 	}
@@ -1196,10 +1086,13 @@ static int uas_reset_resume(struct usb_interface *intf)
 	struct Scsi_Host *shost = usb_get_intfdata(intf);
 	struct uas_dev_info *devinfo = (struct uas_dev_info *)shost->hostdata;
 	unsigned long flags;
+	int err;
 
-	if (uas_configure_endpoints(devinfo) != 0) {
+	err = uas_configure_endpoints(devinfo);
+	if (err) {
 		shost_printk(KERN_ERR, shost,
-			     "%s: alloc streams error after reset", __func__);
+			     "%s: alloc streams error %d after reset",
+			     __func__, err);
 		return -EIO;
 	}
 
@@ -1214,14 +1107,18 @@ static void uas_disconnect(struct usb_interface *intf)
 {
 	struct Scsi_Host *shost = usb_get_intfdata(intf);
 	struct uas_dev_info *devinfo = (struct uas_dev_info *)shost->hostdata;
+	unsigned long flags;
 
+	spin_lock_irqsave(&devinfo->lock, flags);
 	devinfo->resetting = 1;
+	spin_unlock_irqrestore(&devinfo->lock, flags);
+
 	cancel_work_sync(&devinfo->work);
-	uas_abort_inflight(devinfo, DID_NO_CONNECT, __func__);
 	usb_kill_anchored_urbs(&devinfo->cmd_urbs);
 	usb_kill_anchored_urbs(&devinfo->sense_urbs);
 	usb_kill_anchored_urbs(&devinfo->data_urbs);
-	uas_zap_dead(devinfo);
+	uas_zap_pending(devinfo, DID_NO_CONNECT);
+
 	scsi_remove_host(shost);
 	uas_free_streams(devinfo);
 	scsi_host_put(shost);

@@ -6,6 +6,7 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/pci_hotplug.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/cpumask.h>
@@ -485,7 +486,7 @@ void pci_read_bridge_bases(struct pci_bus *child)
 	}
 }
 
-static struct pci_bus *pci_alloc_bus(void)
+static struct pci_bus *pci_alloc_bus(struct pci_bus *parent)
 {
 	struct pci_bus *b;
 
@@ -500,6 +501,10 @@ static struct pci_bus *pci_alloc_bus(void)
 	INIT_LIST_HEAD(&b->resources);
 	b->max_bus_speed = PCI_SPEED_UNKNOWN;
 	b->cur_bus_speed = PCI_SPEED_UNKNOWN;
+#ifdef CONFIG_PCI_DOMAINS_GENERIC
+	if (parent)
+		b->domain_nr = parent->domain_nr;
+#endif
 	return b;
 }
 
@@ -671,7 +676,7 @@ static struct pci_bus *pci_alloc_child_bus(struct pci_bus *parent,
 	/*
 	 * Allocate a new bus, and inherit stuff from the parent..
 	 */
-	child = pci_alloc_bus();
+	child = pci_alloc_bus(parent);
 	if (!child)
 		return NULL;
 
@@ -740,6 +745,17 @@ struct pci_bus *pci_add_new_bus(struct pci_bus *parent, struct pci_dev *dev,
 }
 EXPORT_SYMBOL(pci_add_new_bus);
 
+static void pci_enable_crs(struct pci_dev *pdev)
+{
+	u16 root_cap = 0;
+
+	/* Enable CRS Software Visibility if supported */
+	pcie_capability_read_word(pdev, PCI_EXP_RTCAP, &root_cap);
+	if (root_cap & PCI_EXP_RTCAP_CRSVIS)
+		pcie_capability_set_word(pdev, PCI_EXP_RTCTL,
+					 PCI_EXP_RTCTL_CRSSVE);
+}
+
 /*
  * If it's a bridge, configure it and scan the bus behind it.
  * For CardBus bridges, we don't scan behind as the devices will
@@ -786,6 +802,8 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max, int pass)
 	pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &bctl);
 	pci_write_config_word(dev, PCI_BRIDGE_CONTROL,
 			      bctl & ~PCI_BRIDGE_CTL_MASTER_ABORT);
+
+	pci_enable_crs(dev);
 
 	if ((secondary || subordinate) && !pcibios_assign_all_busses() &&
 	    !is_cardbus && !broken) {
@@ -1226,6 +1244,137 @@ int pci_setup_device(struct pci_dev *dev)
 	return 0;
 }
 
+static struct hpp_type0 pci_default_type0 = {
+	.revision = 1,
+	.cache_line_size = 8,
+	.latency_timer = 0x40,
+	.enable_serr = 0,
+	.enable_perr = 0,
+};
+
+static void program_hpp_type0(struct pci_dev *dev, struct hpp_type0 *hpp)
+{
+	u16 pci_cmd, pci_bctl;
+
+	if (!hpp)
+		hpp = &pci_default_type0;
+
+	if (hpp->revision > 1) {
+		dev_warn(&dev->dev,
+			 "PCI settings rev %d not supported; using defaults\n",
+			 hpp->revision);
+		hpp = &pci_default_type0;
+	}
+
+	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, hpp->cache_line_size);
+	pci_write_config_byte(dev, PCI_LATENCY_TIMER, hpp->latency_timer);
+	pci_read_config_word(dev, PCI_COMMAND, &pci_cmd);
+	if (hpp->enable_serr)
+		pci_cmd |= PCI_COMMAND_SERR;
+	if (hpp->enable_perr)
+		pci_cmd |= PCI_COMMAND_PARITY;
+	pci_write_config_word(dev, PCI_COMMAND, pci_cmd);
+
+	/* Program bridge control value */
+	if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI) {
+		pci_write_config_byte(dev, PCI_SEC_LATENCY_TIMER,
+				      hpp->latency_timer);
+		pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &pci_bctl);
+		if (hpp->enable_serr)
+			pci_bctl |= PCI_BRIDGE_CTL_SERR;
+		if (hpp->enable_perr)
+			pci_bctl |= PCI_BRIDGE_CTL_PARITY;
+		pci_write_config_word(dev, PCI_BRIDGE_CONTROL, pci_bctl);
+	}
+}
+
+static void program_hpp_type1(struct pci_dev *dev, struct hpp_type1 *hpp)
+{
+	if (hpp)
+		dev_warn(&dev->dev, "PCI-X settings not supported\n");
+}
+
+static void program_hpp_type2(struct pci_dev *dev, struct hpp_type2 *hpp)
+{
+	int pos;
+	u32 reg32;
+
+	if (!hpp)
+		return;
+
+	if (hpp->revision > 1) {
+		dev_warn(&dev->dev, "PCIe settings rev %d not supported\n",
+			 hpp->revision);
+		return;
+	}
+
+	/*
+	 * Don't allow _HPX to change MPS or MRRS settings.  We manage
+	 * those to make sure they're consistent with the rest of the
+	 * platform.
+	 */
+	hpp->pci_exp_devctl_and |= PCI_EXP_DEVCTL_PAYLOAD |
+				    PCI_EXP_DEVCTL_READRQ;
+	hpp->pci_exp_devctl_or &= ~(PCI_EXP_DEVCTL_PAYLOAD |
+				    PCI_EXP_DEVCTL_READRQ);
+
+	/* Initialize Device Control Register */
+	pcie_capability_clear_and_set_word(dev, PCI_EXP_DEVCTL,
+			~hpp->pci_exp_devctl_and, hpp->pci_exp_devctl_or);
+
+	/* Initialize Link Control Register */
+	if (dev->subordinate)
+		pcie_capability_clear_and_set_word(dev, PCI_EXP_LNKCTL,
+			~hpp->pci_exp_lnkctl_and, hpp->pci_exp_lnkctl_or);
+
+	/* Find Advanced Error Reporting Enhanced Capability */
+	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
+	if (!pos)
+		return;
+
+	/* Initialize Uncorrectable Error Mask Register */
+	pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_MASK, &reg32);
+	reg32 = (reg32 & hpp->unc_err_mask_and) | hpp->unc_err_mask_or;
+	pci_write_config_dword(dev, pos + PCI_ERR_UNCOR_MASK, reg32);
+
+	/* Initialize Uncorrectable Error Severity Register */
+	pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_SEVER, &reg32);
+	reg32 = (reg32 & hpp->unc_err_sever_and) | hpp->unc_err_sever_or;
+	pci_write_config_dword(dev, pos + PCI_ERR_UNCOR_SEVER, reg32);
+
+	/* Initialize Correctable Error Mask Register */
+	pci_read_config_dword(dev, pos + PCI_ERR_COR_MASK, &reg32);
+	reg32 = (reg32 & hpp->cor_err_mask_and) | hpp->cor_err_mask_or;
+	pci_write_config_dword(dev, pos + PCI_ERR_COR_MASK, reg32);
+
+	/* Initialize Advanced Error Capabilities and Control Register */
+	pci_read_config_dword(dev, pos + PCI_ERR_CAP, &reg32);
+	reg32 = (reg32 & hpp->adv_err_cap_and) | hpp->adv_err_cap_or;
+	pci_write_config_dword(dev, pos + PCI_ERR_CAP, reg32);
+
+	/*
+	 * FIXME: The following two registers are not supported yet.
+	 *
+	 *   o Secondary Uncorrectable Error Severity Register
+	 *   o Secondary Uncorrectable Error Mask Register
+	 */
+}
+
+static void pci_configure_device(struct pci_dev *dev)
+{
+	struct hotplug_params hpp;
+	int ret;
+
+	memset(&hpp, 0, sizeof(hpp));
+	ret = pci_get_hp_params(dev, &hpp);
+	if (ret)
+		return;
+
+	program_hpp_type2(dev, hpp.t2);
+	program_hpp_type1(dev, hpp.t1);
+	program_hpp_type0(dev, hpp.t0);
+}
+
 static void pci_release_capabilities(struct pci_dev *dev)
 {
 	pci_vpd_release(dev);
@@ -1282,8 +1431,13 @@ bool pci_bus_read_dev_vendor_id(struct pci_bus *bus, int devfn, u32 *l,
 	    *l == 0x0000ffff || *l == 0xffff0000)
 		return false;
 
-	/* Configuration request Retry Status */
-	while (*l == 0xffff0001) {
+	/*
+	 * Configuration Request Retry Status.  Some root ports return the
+	 * actual device ID instead of the synthetic ID (0xFFFF) required
+	 * by the PCIe spec.  Ignore the device ID and only check for
+	 * (vendor id == 1).
+	 */
+	while ((*l & 0xffff) == 0x0001) {
 		if (!crs_timeout)
 			return false;
 
@@ -1362,6 +1516,8 @@ static void pci_init_capabilities(struct pci_dev *dev)
 void pci_device_add(struct pci_dev *dev, struct pci_bus *bus)
 {
 	int ret;
+
+	pci_configure_device(dev);
 
 	device_initialize(&dev->dev);
 	dev->dev.release = pci_release_dev;
@@ -1751,13 +1907,14 @@ struct pci_bus *pci_create_root_bus(struct device *parent, int bus,
 	char bus_addr[64];
 	char *fmt;
 
-	b = pci_alloc_bus();
+	b = pci_alloc_bus(NULL);
 	if (!b)
 		return NULL;
 
 	b->sysdata = sysdata;
 	b->ops = ops;
 	b->number = b->busn_res.start = bus;
+	pci_bus_assign_domain_nr(b, parent);
 	b2 = pci_find_bus(pci_domain_nr(b), bus);
 	if (b2) {
 		/* If we already got to this bus through a different bridge, ignore it */

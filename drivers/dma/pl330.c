@@ -1367,16 +1367,9 @@ static int pl330_submit_req(struct pl330_thread *thrd,
 	struct pl330_dmac *pl330 = thrd->dmac;
 	struct _xfer_spec xs;
 	unsigned long flags;
-	void __iomem *regs;
 	unsigned idx;
 	u32 ccr;
 	int ret = 0;
-
-	/* No Req or Unacquired Channel or DMAC */
-	if (!desc || !thrd || thrd->free)
-		return -EINVAL;
-
-	regs = thrd->dmac->base;
 
 	if (pl330->state == DYING
 		|| pl330->dmac_tbd.reset_chan & (1 << thrd->id)) {
@@ -2755,8 +2748,10 @@ probe_err3:
 		list_del(&pch->chan.device_node);
 
 		/* Flush the channel */
-		pl330_control(&pch->chan, DMA_TERMINATE_ALL, 0);
-		pl330_free_chan_resources(&pch->chan);
+		if (pch->thread) {
+			pl330_control(&pch->chan, DMA_TERMINATE_ALL, 0);
+			pl330_free_chan_resources(&pch->chan);
+		}
 	}
 probe_err2:
 	pl330_del(pl330);
@@ -2782,8 +2777,10 @@ static int pl330_remove(struct amba_device *adev)
 		list_del(&pch->chan.device_node);
 
 		/* Flush the channel */
-		pl330_control(&pch->chan, DMA_TERMINATE_ALL, 0);
-		pl330_free_chan_resources(&pch->chan);
+		if (pch->thread) {
+			pl330_control(&pch->chan, DMA_TERMINATE_ALL, 0);
+			pl330_free_chan_resources(&pch->chan);
+		}
 	}
 
 	pl330_del(pl330);

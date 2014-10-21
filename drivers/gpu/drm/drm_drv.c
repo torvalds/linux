@@ -35,32 +35,20 @@
 #include <drm/drmP.h>
 #include <drm/drm_core.h>
 #include "drm_legacy.h"
+#include "drm_internal.h"
 
 unsigned int drm_debug = 0;	/* 1 to enable debug output */
 EXPORT_SYMBOL(drm_debug);
-
-unsigned int drm_vblank_offdelay = 5000;    /* Default to 5000 msecs. */
-
-unsigned int drm_timestamp_precision = 20;  /* Default to 20 usecs. */
-
-/*
- * Default to use monotonic timestamps for wait-for-vblank and page-flip
- * complete events.
- */
-unsigned int drm_timestamp_monotonic = 1;
 
 MODULE_AUTHOR(CORE_AUTHOR);
 MODULE_DESCRIPTION(CORE_DESC);
 MODULE_LICENSE("GPL and additional rights");
 MODULE_PARM_DESC(debug, "Enable debug output");
-MODULE_PARM_DESC(vblankoffdelay, "Delay until vblank irq auto-disable [msecs]");
+MODULE_PARM_DESC(vblankoffdelay, "Delay until vblank irq auto-disable [msecs] (0: never disable, <0: disable immediately)");
 MODULE_PARM_DESC(timestamp_precision_usec, "Max. error on timestamps [usecs]");
 MODULE_PARM_DESC(timestamp_monotonic, "Use monotonic timestamps");
 
 module_param_named(debug, drm_debug, int, 0600);
-module_param_named(vblankoffdelay, drm_vblank_offdelay, int, 0600);
-module_param_named(timestamp_precision_usec, drm_timestamp_precision, int, 0600);
-module_param_named(timestamp_monotonic, drm_timestamp_monotonic, int, 0600);
 
 static DEFINE_SPINLOCK(drm_minor_lock);
 static struct idr drm_minors_idr;
@@ -68,22 +56,19 @@ static struct idr drm_minors_idr;
 struct class *drm_class;
 static struct dentry *drm_debugfs_root;
 
-int drm_err(const char *func, const char *format, ...)
+void drm_err(const char *func, const char *format, ...)
 {
 	struct va_format vaf;
 	va_list args;
-	int r;
 
 	va_start(args, format);
 
 	vaf.fmt = format;
 	vaf.va = &args;
 
-	r = printk(KERN_ERR "[" DRM_NAME ":%s] *ERROR* %pV", func, &vaf);
+	printk(KERN_ERR "[" DRM_NAME ":%s] *ERROR* %pV", func, &vaf);
 
 	va_end(args);
-
-	return r;
 }
 EXPORT_SYMBOL(drm_err);
 
@@ -101,6 +86,8 @@ void drm_ut_debug_printk(const char *function_name, const char *format, ...)
 	va_end(args);
 }
 EXPORT_SYMBOL(drm_ut_debug_printk);
+
+#define DRM_MAGIC_HASH_ORDER  4  /**< Size of key hash table. Must be power of 2. */
 
 struct drm_master *drm_master_create(struct drm_minor *minor)
 {
@@ -133,7 +120,6 @@ EXPORT_SYMBOL(drm_master_get);
 static void drm_master_destroy(struct kref *kref)
 {
 	struct drm_master *master = container_of(kref, struct drm_master, refcount);
-	struct drm_magic_entry *pt, *next;
 	struct drm_device *dev = master->minor->dev;
 	struct drm_map_list *r_list, *list_temp;
 
@@ -143,7 +129,7 @@ static void drm_master_destroy(struct kref *kref)
 
 	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head) {
 		if (r_list->master == master) {
-			drm_rmmap_locked(dev, r_list->map);
+			drm_legacy_rmmap_locked(dev, r_list->map);
 			r_list = NULL;
 		}
 	}
@@ -152,12 +138,6 @@ static void drm_master_destroy(struct kref *kref)
 		kfree(master->unique);
 		master->unique = NULL;
 		master->unique_len = 0;
-	}
-
-	list_for_each_entry_safe(pt, next, &master->magicfree, head) {
-		list_del(&pt->head);
-		drm_ht_remove_item(&master->magiclist, &pt->hash_item);
-		kfree(pt);
 	}
 
 	drm_ht_remove(&master->magiclist);
@@ -615,7 +595,7 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 		goto err_ht;
 	}
 
-	if (driver->driver_features & DRIVER_GEM) {
+	if (drm_core_check_feature(dev, DRIVER_GEM)) {
 		ret = drm_gem_init(dev);
 		if (ret) {
 			DRM_ERROR("Cannot initialize graphics execution manager (GEM)\n");
@@ -645,7 +625,7 @@ static void drm_dev_release(struct kref *ref)
 {
 	struct drm_device *dev = container_of(ref, struct drm_device, ref);
 
-	if (dev->driver->driver_features & DRIVER_GEM)
+	if (drm_core_check_feature(dev, DRIVER_GEM))
 		drm_gem_destroy(dev);
 
 	drm_legacy_ctxbitmap_cleanup(dev);
@@ -779,7 +759,7 @@ void drm_dev_unregister(struct drm_device *dev)
 	drm_vblank_cleanup(dev);
 
 	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head)
-		drm_rmmap(dev, r_list->map);
+		drm_legacy_rmmap(dev, r_list->map);
 
 	drm_minor_unregister(dev, DRM_MINOR_LEGACY);
 	drm_minor_unregister(dev, DRM_MINOR_RENDER);

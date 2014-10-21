@@ -147,7 +147,7 @@ OPTIONS
 -w::
 --column-widths=<width[,width...]>::
 	Force each column width to the provided list, for large terminal
-	readability.
+	readability.  0 means no limit (default behavior).
 
 -t::
 --field-separator=::
@@ -275,6 +275,9 @@ OPTIONS
 --demangle::
 	Demangle symbol names to human readable form. It's enabled by default,
 	disable with --no-demangle.
+
+--demangle-kernel::
+	Demangle kernel symbol names to human readable form (for C++ kernels).
 
 --mem-mode::
 	Use the data addresses of samples in addition to instruction addresses

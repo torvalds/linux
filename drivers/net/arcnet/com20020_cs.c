@@ -112,10 +112,6 @@ static void com20020_detach(struct pcmcia_device *p_dev);
 
 /*====================================================================*/
 
-struct com20020_dev {
-    struct net_device       *dev;
-};
-
 static int com20020_probe(struct pcmcia_device *p_dev)
 {
     struct com20020_dev *info;

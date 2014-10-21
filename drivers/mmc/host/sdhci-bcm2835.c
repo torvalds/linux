@@ -194,7 +194,6 @@ MODULE_DEVICE_TABLE(of, bcm2835_sdhci_of_match);
 static struct platform_driver bcm2835_sdhci_driver = {
 	.driver = {
 		.name = "sdhci-bcm2835",
-		.owner = THIS_MODULE,
 		.of_match_table = bcm2835_sdhci_of_match,
 		.pm = SDHCI_PLTFM_PMOPS,
 	},

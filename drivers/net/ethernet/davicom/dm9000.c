@@ -1613,9 +1613,6 @@ dm9000_probe(struct platform_device *pdev)
 
 	/* from this point we assume that we have found a DM9000 */
 
-	/* driver system function */
-	ether_setup(ndev);
-
 	ndev->netdev_ops	= &dm9000_netdev_ops;
 	ndev->watchdog_timeo	= msecs_to_jiffies(watchdog);
 	ndev->ethtool_ops	= &dm9000_ethtool_ops;

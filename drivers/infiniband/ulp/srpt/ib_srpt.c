@@ -3574,7 +3574,7 @@ static int srpt_parse_i_port_id(u8 i_port_id[16], const char *name)
 	int ret, rc;
 
 	p = name;
-	if (strnicmp(p, "0x", 2) == 0)
+	if (strncasecmp(p, "0x", 2) == 0)
 		p += 2;
 	ret = -EINVAL;
 	len = strlen(p);

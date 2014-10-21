@@ -122,6 +122,7 @@ config TIGON3
 config BNX2X
 	tristate "Broadcom NetXtremeII 10Gb support"
 	depends on PCI
+	select PTP_1588_CLOCK
 	select FW_LOADER
 	select ZLIB_INFLATE
 	select LIBCRC32C

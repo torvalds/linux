@@ -252,7 +252,7 @@ static void ccwreq_log_status(struct ccw_device *cdev, enum io_status status)
  */
 void ccw_request_handler(struct ccw_device *cdev)
 {
-	struct irb *irb = &__get_cpu_var(cio_irb);
+	struct irb *irb = this_cpu_ptr(&cio_irb);
 	struct ccw_request *req = &cdev->private->req;
 	enum io_status status;
 	int rc = -EOPNOTSUPP;

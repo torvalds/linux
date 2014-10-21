@@ -287,10 +287,13 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 			return -1;
 
 		if (mwifiex_band_to_radio_type(bss_desc->bss_band) ==
-						HostCmd_SCAN_RADIO_TYPE_BG)
+						HostCmd_SCAN_RADIO_TYPE_BG) {
 			config_bands = BAND_B | BAND_G | BAND_GN;
-		else
-			config_bands = BAND_A | BAND_AN | BAND_AAC;
+		} else {
+			config_bands = BAND_A | BAND_AN;
+			if (adapter->fw_bands & BAND_AAC)
+				config_bands |= BAND_AAC;
+		}
 
 		if (!((config_bands | adapter->fw_bands) & ~adapter->fw_bands))
 			adapter->config_bands = config_bands;
@@ -877,7 +880,7 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 			return -1;
 		}
 
-		if (adapter->fw_key_api_major_ver == FW_KEY_API_VER_MAJOR_V2) {
+		if (adapter->key_api_major_ver == KEY_API_VER_MAJOR_V2) {
 			memcpy(encrypt_key->key_material,
 			       wep_key->key_material, wep_key->key_length);
 			encrypt_key->key_len = wep_key->key_length;
@@ -903,7 +906,7 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 			memset(&priv->wep_key[index], 0,
 			       sizeof(struct mwifiex_wep_key));
 
-		if (adapter->fw_key_api_major_ver == FW_KEY_API_VER_MAJOR_V2)
+		if (adapter->key_api_major_ver == KEY_API_VER_MAJOR_V2)
 			enc_key = encrypt_key;
 		else
 			enc_key = NULL;

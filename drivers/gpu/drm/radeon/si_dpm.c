@@ -2916,7 +2916,6 @@ static void si_apply_state_adjust_rules(struct radeon_device *rdev,
 	bool disable_sclk_switching = false;
 	u32 mclk, sclk;
 	u16 vddc, vddci;
-	u32 max_sclk_vddc, max_mclk_vddci, max_mclk_vddc;
 	int i;
 
 	if ((rdev->pm.dpm.new_active_crtc_count > 1) ||
@@ -2947,29 +2946,6 @@ static void si_apply_state_adjust_rules(struct radeon_device *rdev,
 				ps->performance_levels[i].vddc = max_limits->vddc;
 			if (ps->performance_levels[i].vddci > max_limits->vddci)
 				ps->performance_levels[i].vddci = max_limits->vddci;
-		}
-	}
-
-	/* limit clocks to max supported clocks based on voltage dependency tables */
-	btc_get_max_clock_from_voltage_dependency_table(&rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk,
-							&max_sclk_vddc);
-	btc_get_max_clock_from_voltage_dependency_table(&rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk,
-							&max_mclk_vddci);
-	btc_get_max_clock_from_voltage_dependency_table(&rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk,
-							&max_mclk_vddc);
-
-	for (i = 0; i < ps->performance_level_count; i++) {
-		if (max_sclk_vddc) {
-			if (ps->performance_levels[i].sclk > max_sclk_vddc)
-				ps->performance_levels[i].sclk = max_sclk_vddc;
-		}
-		if (max_mclk_vddci) {
-			if (ps->performance_levels[i].mclk > max_mclk_vddci)
-				ps->performance_levels[i].mclk = max_mclk_vddci;
-		}
-		if (max_mclk_vddc) {
-			if (ps->performance_levels[i].mclk > max_mclk_vddc)
-				ps->performance_levels[i].mclk = max_mclk_vddc;
 		}
 	}
 

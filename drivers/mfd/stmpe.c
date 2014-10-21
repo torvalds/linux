@@ -249,7 +249,7 @@ int stmpe_set_altfunc(struct stmpe *stmpe, u32 pins, enum stmpe_block block)
 	int af_bits = variant->af_bits;
 	int numregs = DIV_ROUND_UP(stmpe->num_gpios * af_bits, 8);
 	int mask = (1 << af_bits) - 1;
-	u8 regs[numregs];
+	u8 regs[8];
 	int af, afperreg, ret;
 
 	if (!variant->get_altfunc)
@@ -854,7 +854,7 @@ static irqreturn_t stmpe_irq(int irq, void *data)
 	struct stmpe_variant_info *variant = stmpe->variant;
 	int num = DIV_ROUND_UP(variant->num_irqs, 8);
 	u8 israddr;
-	u8 isr[num];
+	u8 isr[3];
 	int ret;
 	int i;
 
@@ -1122,7 +1122,12 @@ static void stmpe_of_probe(struct stmpe_platform_data *pdata,
 	if (pdata->id < 0)
 		pdata->id = -1;
 
-	pdata->irq_trigger = IRQF_TRIGGER_NONE;
+	pdata->irq_gpio = of_get_named_gpio_flags(np, "irq-gpio", 0,
+				&pdata->irq_trigger);
+	if (gpio_is_valid(pdata->irq_gpio))
+		pdata->irq_over_gpio = 1;
+	else
+		pdata->irq_trigger = IRQF_TRIGGER_NONE;
 
 	of_property_read_u32(np, "st,autosleep-timeout",
 			&pdata->autosleep_timeout);

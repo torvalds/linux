@@ -531,7 +531,7 @@ To map a single region, you do:
 	size_t size = buffer->len;
 
 	dma_handle = dma_map_single(dev, addr, size, direction);
-	if (dma_mapping_error(dma_handle)) {
+	if (dma_mapping_error(dev, dma_handle)) {
 		/*
 		 * reduce current DMA mapping usage,
 		 * delay and try again later or
@@ -588,7 +588,7 @@ Specifically:
 	size_t size = buffer->len;
 
 	dma_handle = dma_map_page(dev, page, offset, size, direction);
-	if (dma_mapping_error(dma_handle)) {
+	if (dma_mapping_error(dev, dma_handle)) {
 		/*
 		 * reduce current DMA mapping usage,
 		 * delay and try again later or
@@ -689,7 +689,7 @@ to use the dma_sync_*() interfaces.
 		dma_addr_t mapping;
 
 		mapping = dma_map_single(cp->dev, buffer, len, DMA_FROM_DEVICE);
-		if (dma_mapping_error(dma_handle)) {
+		if (dma_mapping_error(cp->dev, dma_handle)) {
 			/*
 			 * reduce current DMA mapping usage,
 			 * delay and try again later or

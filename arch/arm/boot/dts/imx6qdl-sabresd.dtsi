@@ -54,6 +54,19 @@
 			gpio = <&gpio4 10 0>;
 			enable-active-high;
 		};
+
+		reg_pcie: regulator@3 {
+			compatible = "regulator-fixed";
+			reg = <3>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_pcie_reg>;
+			regulator-name = "MPCIE_3V3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio3 19 0>;
+			regulator-always-on;
+			enable-active-high;
+		};
 	};
 
 	gpio-keys {
@@ -314,15 +327,15 @@
 	imx6qdl-sabresd {
 		pinctrl_hog: hoggrp {
 			fsl,pins = <
-				MX6QDL_PAD_NANDF_D0__GPIO2_IO00 0x80000000
-				MX6QDL_PAD_NANDF_D1__GPIO2_IO01 0x80000000
-				MX6QDL_PAD_NANDF_D2__GPIO2_IO02 0x80000000
-				MX6QDL_PAD_NANDF_D3__GPIO2_IO03 0x80000000
+				MX6QDL_PAD_NANDF_D0__GPIO2_IO00 0x1b0b0
+				MX6QDL_PAD_NANDF_D1__GPIO2_IO01 0x1b0b0
+				MX6QDL_PAD_NANDF_D2__GPIO2_IO02 0x1b0b0
+				MX6QDL_PAD_NANDF_D3__GPIO2_IO03 0x1b0b0
 				MX6QDL_PAD_GPIO_0__CCM_CLKO1    0x130b0
-				MX6QDL_PAD_NANDF_CLE__GPIO6_IO07 0x80000000
-				MX6QDL_PAD_ENET_TXD1__GPIO1_IO29 0x80000000
-				MX6QDL_PAD_EIM_D22__GPIO3_IO22  0x80000000
-				MX6QDL_PAD_ENET_CRS_DV__GPIO1_IO25 0x80000000
+				MX6QDL_PAD_NANDF_CLE__GPIO6_IO07 0x1b0b0
+				MX6QDL_PAD_ENET_TXD1__GPIO1_IO29 0x1b0b0
+				MX6QDL_PAD_EIM_D22__GPIO3_IO22  0x1b0b0
+				MX6QDL_PAD_ENET_CRS_DV__GPIO1_IO25 0x1b0b0
 			>;
 		};
 
@@ -367,9 +380,9 @@
 
 		pinctrl_gpio_keys: gpio_keysgrp {
 			fsl,pins = <
-				MX6QDL_PAD_EIM_D29__GPIO3_IO29 0x80000000
-				MX6QDL_PAD_GPIO_4__GPIO1_IO04  0x80000000
-				MX6QDL_PAD_GPIO_5__GPIO1_IO05  0x80000000
+				MX6QDL_PAD_EIM_D29__GPIO3_IO29 0x1b0b0
+				MX6QDL_PAD_GPIO_4__GPIO1_IO04  0x1b0b0
+				MX6QDL_PAD_GPIO_5__GPIO1_IO05  0x1b0b0
 			>;
 		};
 
@@ -396,7 +409,13 @@
 
 		pinctrl_pcie: pciegrp {
 			fsl,pins = <
-				MX6QDL_PAD_GPIO_17__GPIO7_IO12	0x80000000
+				MX6QDL_PAD_GPIO_17__GPIO7_IO12	0x1b0b0
+			>;
+		};
+
+		pinctrl_pcie_reg: pciereggrp {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_D19__GPIO3_IO19	0x1b0b0
 			>;
 		};
 
@@ -468,7 +487,7 @@
 	gpio_leds {
 		pinctrl_gpio_leds: gpioledsgrp {
 			fsl,pins = <
-				MX6QDL_PAD_GPIO_2__GPIO1_IO02 0x80000000
+				MX6QDL_PAD_GPIO_2__GPIO1_IO02 0x1b0b0
 			>;
 		};
 	};

@@ -49,29 +49,53 @@ struct ovs_key_ipv4_tunnel {
 	u8   ipv4_ttl;
 } __packed __aligned(4); /* Minimize padding. */
 
-static inline void ovs_flow_tun_key_init(struct ovs_key_ipv4_tunnel *tun_key,
-					 const struct iphdr *iph, __be64 tun_id,
-					 __be16 tun_flags)
+struct ovs_tunnel_info {
+	struct ovs_key_ipv4_tunnel tunnel;
+	struct geneve_opt *options;
+	u8 options_len;
+};
+
+/* Store options at the end of the array if they are less than the
+ * maximum size. This allows us to get the benefits of variable length
+ * matching for small options.
+ */
+#define GENEVE_OPTS(flow_key, opt_len)	\
+	((struct geneve_opt *)((flow_key)->tun_opts + \
+			       FIELD_SIZEOF(struct sw_flow_key, tun_opts) - \
+			       opt_len))
+
+static inline void ovs_flow_tun_info_init(struct ovs_tunnel_info *tun_info,
+					  const struct iphdr *iph,
+					  __be64 tun_id, __be16 tun_flags,
+					  struct geneve_opt *opts,
+					  u8 opts_len)
 {
-	tun_key->tun_id = tun_id;
-	tun_key->ipv4_src = iph->saddr;
-	tun_key->ipv4_dst = iph->daddr;
-	tun_key->ipv4_tos = iph->tos;
-	tun_key->ipv4_ttl = iph->ttl;
-	tun_key->tun_flags = tun_flags;
+	tun_info->tunnel.tun_id = tun_id;
+	tun_info->tunnel.ipv4_src = iph->saddr;
+	tun_info->tunnel.ipv4_dst = iph->daddr;
+	tun_info->tunnel.ipv4_tos = iph->tos;
+	tun_info->tunnel.ipv4_ttl = iph->ttl;
+	tun_info->tunnel.tun_flags = tun_flags;
 
 	/* clear struct padding. */
-	memset((unsigned char *) tun_key + OVS_TUNNEL_KEY_SIZE, 0,
-	       sizeof(*tun_key) - OVS_TUNNEL_KEY_SIZE);
+	memset((unsigned char *)&tun_info->tunnel + OVS_TUNNEL_KEY_SIZE, 0,
+	       sizeof(tun_info->tunnel) - OVS_TUNNEL_KEY_SIZE);
+
+	tun_info->options = opts;
+	tun_info->options_len = opts_len;
 }
 
 struct sw_flow_key {
+	u8 tun_opts[255];
+	u8 tun_opts_len;
 	struct ovs_key_ipv4_tunnel tun_key;  /* Encapsulating tunnel key. */
 	struct {
 		u32	priority;	/* Packet QoS priority. */
 		u32	skb_mark;	/* SKB mark. */
 		u16	in_port;	/* Input switch port (or DP_MAX_PORTS). */
 	} __packed phy; /* Safe when right after 'tun_key'. */
+	u32 ovs_flow_hash;		/* Datapath computed hash value.  */
+	u32 recirc_id;			/* Recirculation ID.  */
 	struct {
 		u8     src[ETH_ALEN];	/* Ethernet source address. */
 		u8     dst[ETH_ALEN];	/* Ethernet destination address. */
@@ -187,6 +211,12 @@ void ovs_flow_stats_get(const struct sw_flow *, struct ovs_flow_stats *,
 void ovs_flow_stats_clear(struct sw_flow *);
 u64 ovs_flow_used_time(unsigned long flow_jiffies);
 
-int ovs_flow_extract(struct sk_buff *, u16 in_port, struct sw_flow_key *);
+int ovs_flow_key_update(struct sk_buff *skb, struct sw_flow_key *key);
+int ovs_flow_key_extract(struct ovs_tunnel_info *tun_info, struct sk_buff *skb,
+			 struct sw_flow_key *key);
+/* Extract key from packet coming from userspace. */
+int ovs_flow_key_extract_userspace(const struct nlattr *attr,
+				   struct sk_buff *skb,
+				   struct sw_flow_key *key);
 
 #endif /* flow.h */

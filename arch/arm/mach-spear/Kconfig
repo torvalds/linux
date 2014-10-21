@@ -4,7 +4,6 @@
 
 menuconfig PLAT_SPEAR
 	bool "ST SPEAr Family" if ARCH_MULTI_V7 || ARCH_MULTI_V5
-	default PLAT_SPEAR_SINGLE
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
 	select CLKSRC_MMIO
@@ -13,7 +12,7 @@ if PLAT_SPEAR
 
 config ARCH_SPEAR13XX
 	bool "ST SPEAr13xx"
-	depends on ARCH_MULTI_V7 || PLAT_SPEAR_SINGLE
+	depends on ARCH_MULTI_V7
 	select ARM_GIC
 	select GPIO_SPEAR_SPICS
 	select HAVE_ARM_SCU if SMP
@@ -44,7 +43,7 @@ endif #ARCH_SPEAR13XX
 
 config ARCH_SPEAR3XX
 	bool "ST SPEAr3xx"
-	depends on ARCH_MULTI_V5 || PLAT_SPEAR_SINGLE
+	depends on ARCH_MULTI_V5
 	depends on !ARCH_SPEAR13XX
 	select ARM_VIC
 	select PINCTRL
@@ -75,7 +74,7 @@ endif
 
 config ARCH_SPEAR6XX
 	bool "ST SPEAr6XX"
-	depends on ARCH_MULTI_V5 || PLAT_SPEAR_SINGLE
+	depends on ARCH_MULTI_V5
 	depends on !ARCH_SPEAR13XX
 	select ARM_VIC
 	help
@@ -88,7 +87,7 @@ config MACH_SPEAR600
 	  Supports ST SPEAr600 boards configured via the device-tree
 
 config ARCH_SPEAR_AUTO
-	def_bool PLAT_SPEAR_SINGLE
+	bool
 	depends on !ARCH_SPEAR13XX && !ARCH_SPEAR6XX
 	select ARCH_SPEAR3XX
 

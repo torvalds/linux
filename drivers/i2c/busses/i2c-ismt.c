@@ -81,7 +81,7 @@
 #define PCI_DEVICE_ID_INTEL_S1200_SMT1	0x0c5a
 #define PCI_DEVICE_ID_INTEL_AVOTON_SMT	0x1f15
 
-#define ISMT_DESC_ENTRIES	32	/* number of descriptor entries */
+#define ISMT_DESC_ENTRIES	2	/* number of descriptor entries */
 #define ISMT_MAX_RETRIES	3	/* number of SMBus retries to attempt */
 
 /* Hardware Descriptor Constants - Control Field */
