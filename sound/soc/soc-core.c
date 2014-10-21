@@ -2348,16 +2348,8 @@ int snd_soc_info_enum_double(struct snd_kcontrol *kcontrol,
 {
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = e->shift_l == e->shift_r ? 1 : 2;
-	uinfo->value.enumerated.items = e->items;
-
-	if (uinfo->value.enumerated.item >= e->items)
-		uinfo->value.enumerated.item = e->items - 1;
-	strlcpy(uinfo->value.enumerated.name,
-		e->texts[uinfo->value.enumerated.item],
-		sizeof(uinfo->value.enumerated.name));
-	return 0;
+	return snd_ctl_enum_info(uinfo, e->shift_l == e->shift_r ? 1 : 2,
+				 e->items, e->texts);
 }
 EXPORT_SYMBOL_GPL(snd_soc_info_enum_double);
 
