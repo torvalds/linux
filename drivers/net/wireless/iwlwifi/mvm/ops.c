@@ -524,7 +524,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 		mutex_lock(&mvm->mutex);
 		err = iwl_run_init_mvm_ucode(mvm, true);
-		iwl_trans_stop_device(trans);
+		if (!err || !iwlmvm_mod_params.init_dbg)
+			iwl_trans_stop_device(trans);
 		mutex_unlock(&mvm->mutex);
 		/* returns 0 if successful, 1 if success but in rfkill */
 		if (err < 0 && !iwlmvm_mod_params.init_dbg) {
