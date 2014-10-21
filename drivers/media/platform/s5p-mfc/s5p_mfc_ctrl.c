@@ -129,6 +129,25 @@ int s5p_mfc_release_firmware(struct s5p_mfc_dev *dev)
 	return 0;
 }
 
+int s5p_mfc_bus_reset(struct s5p_mfc_dev *dev)
+{
+	unsigned int status;
+	unsigned long timeout;
+
+	/* Reset */
+	mfc_write(dev, 0x1, S5P_FIMV_MFC_BUS_RESET_CTRL);
+	timeout = jiffies + msecs_to_jiffies(MFC_BW_TIMEOUT);
+	/* Check bus status */
+	do {
+		if (time_after(jiffies, timeout)) {
+			mfc_err("Timeout while resetting MFC.\n");
+			return -EIO;
+		}
+		status = mfc_read(dev, S5P_FIMV_MFC_BUS_RESET_CTRL);
+	} while ((status & 0x2) == 0);
+	return 0;
+}
+
 /* Reset the device */
 int s5p_mfc_reset(struct s5p_mfc_dev *dev)
 {
@@ -147,11 +166,15 @@ int s5p_mfc_reset(struct s5p_mfc_dev *dev)
 		for (i = 0; i < S5P_FIMV_REG_CLEAR_COUNT_V6; i++)
 			mfc_write(dev, 0, S5P_FIMV_REG_CLEAR_BEGIN_V6 + (i*4));
 
+		/* check bus reset control before reset */
+		if (dev->risc_on)
+			if (s5p_mfc_bus_reset(dev))
+				return -EIO;
 		/* Reset
 		 * set RISC_ON to 0 during power_on & wake_up.
 		 * V6 needs RISC_ON set to 0 during reset also.
 		 */
-		if ((!dev->risc_on) || (!IS_MFCV7(dev)))
+		if ((!dev->risc_on) || (!IS_MFCV7_PLUS(dev)))
 			mfc_write(dev, 0, S5P_FIMV_RISC_ON_V6);
 
 		mfc_write(dev, 0x1FFF, S5P_FIMV_MFC_RESET_V6);
