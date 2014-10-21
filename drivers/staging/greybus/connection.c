@@ -171,7 +171,7 @@ void gb_connection_destroy(struct gb_connection *connection)
 
 u16 gb_connection_operation_id(struct gb_connection *connection)
 {
-	return (u16)(atomic_inc_return(&connection->op_cycle) % U16_MAX);
+	return (u16)(atomic_inc_return(&connection->op_cycle) & (int)U16_MAX);
 }
 
 void gb_connection_err(struct gb_connection *connection, const char *fmt, ...)
