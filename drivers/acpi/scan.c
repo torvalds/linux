@@ -1470,7 +1470,7 @@ static void acpi_wakeup_gpe_init(struct acpi_device *device)
 	if (ACPI_FAILURE(status))
 		return;
 
-	wakeup->flags.run_wake = !!(event_status & ACPI_EVENT_FLAG_HANDLE);
+	wakeup->flags.run_wake = !!(event_status & ACPI_EVENT_FLAG_HAS_HANDLER);
 }
 
 static void acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
