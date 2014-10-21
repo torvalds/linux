@@ -1250,10 +1250,10 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 err:
 	if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
 		while ((buf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx)))
-			v4l2_m2m_buf_done(buf, VB2_BUF_STATE_DEQUEUED);
+			v4l2_m2m_buf_done(buf, VB2_BUF_STATE_QUEUED);
 	} else {
 		while ((buf = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx)))
-			v4l2_m2m_buf_done(buf, VB2_BUF_STATE_DEQUEUED);
+			v4l2_m2m_buf_done(buf, VB2_BUF_STATE_QUEUED);
 	}
 	return ret;
 }
