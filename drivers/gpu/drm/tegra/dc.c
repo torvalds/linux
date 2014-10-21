@@ -36,6 +36,26 @@ static inline struct tegra_plane *to_tegra_plane(struct drm_plane *plane)
 	return container_of(plane, struct tegra_plane, base);
 }
 
+static void tegra_dc_window_commit(struct tegra_dc *dc, unsigned int index)
+{
+	u32 value = WIN_A_ACT_REQ << index;
+
+	tegra_dc_writel(dc, value << 8, DC_CMD_STATE_CONTROL);
+	tegra_dc_writel(dc, value, DC_CMD_STATE_CONTROL);
+}
+
+static void tegra_dc_cursor_commit(struct tegra_dc *dc)
+{
+	tegra_dc_writel(dc, CURSOR_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
+	tegra_dc_writel(dc, CURSOR_ACT_REQ, DC_CMD_STATE_CONTROL);
+}
+
+static void tegra_dc_commit(struct tegra_dc *dc)
+{
+	tegra_dc_writel(dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
+	tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
+}
+
 static unsigned int tegra_dc_format(uint32_t format, uint32_t *swap)
 {
 	/* assume no swapping of fetched data */
@@ -307,8 +327,7 @@ static int tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 		break;
 	}
 
-	tegra_dc_writel(dc, WIN_A_UPDATE << index, DC_CMD_STATE_CONTROL);
-	tegra_dc_writel(dc, WIN_A_ACT_REQ << index, DC_CMD_STATE_CONTROL);
+	tegra_dc_window_commit(dc, index);
 
 	return 0;
 }
@@ -379,8 +398,7 @@ static int tegra_plane_disable(struct drm_plane *plane)
 	value &= ~WIN_ENABLE;
 	tegra_dc_writel(dc, value, DC_WIN_WIN_OPTIONS);
 
-	tegra_dc_writel(dc, WIN_A_UPDATE << p->index, DC_CMD_STATE_CONTROL);
-	tegra_dc_writel(dc, WIN_A_ACT_REQ << p->index, DC_CMD_STATE_CONTROL);
+	tegra_dc_window_commit(dc, p->index);
 
 	return 0;
 }
@@ -517,10 +535,8 @@ static int tegra_dc_set_base(struct tegra_dc *dc, int x, int y,
 	tegra_dc_writel(dc, h_offset, DC_WINBUF_ADDR_H_OFFSET);
 	tegra_dc_writel(dc, v_offset, DC_WINBUF_ADDR_V_OFFSET);
 
-	value = GENERAL_UPDATE | WIN_A_UPDATE;
-	tegra_dc_writel(dc, value, DC_CMD_STATE_CONTROL);
-
 	value = GENERAL_ACT_REQ | WIN_A_ACT_REQ;
+	tegra_dc_writel(dc, value << 8, DC_CMD_STATE_CONTROL);
 	tegra_dc_writel(dc, value, DC_CMD_STATE_CONTROL);
 
 	return 0;
@@ -625,11 +641,8 @@ static int tegra_dc_cursor_set2(struct drm_crtc *crtc, struct drm_file *file,
 		tegra_dc_writel(dc, value, DC_DISP_DISP_WIN_OPTIONS);
 	}
 
-	tegra_dc_writel(dc, CURSOR_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
-	tegra_dc_writel(dc, CURSOR_ACT_REQ, DC_CMD_STATE_CONTROL);
-
-	tegra_dc_writel(dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
-	tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
+	tegra_dc_cursor_commit(dc);
+	tegra_dc_commit(dc);
 
 	return 0;
 }
@@ -645,12 +658,9 @@ static int tegra_dc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	value = ((y & 0x3fff) << 16) | (x & 0x3fff);
 	tegra_dc_writel(dc, value, DC_DISP_CURSOR_POSITION);
 
-	tegra_dc_writel(dc, CURSOR_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
-	tegra_dc_writel(dc, CURSOR_ACT_REQ, DC_CMD_STATE_CONTROL);
-
+	tegra_dc_cursor_commit(dc);
 	/* XXX: only required on generations earlier than Tegra124? */
-	tegra_dc_writel(dc, GENERAL_ACT_REQ << 8, DC_CMD_STATE_CONTROL);
-	tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
+	tegra_dc_commit(dc);
 
 	return 0;
 }
@@ -939,15 +949,9 @@ static void tegra_crtc_prepare(struct drm_crtc *crtc)
 static void tegra_crtc_commit(struct drm_crtc *crtc)
 {
 	struct tegra_dc *dc = to_tegra_dc(crtc);
-	unsigned long value;
-
-	value = GENERAL_UPDATE | WIN_A_UPDATE;
-	tegra_dc_writel(dc, value, DC_CMD_STATE_CONTROL);
-
-	value = GENERAL_ACT_REQ | WIN_A_ACT_REQ;
-	tegra_dc_writel(dc, value, DC_CMD_STATE_CONTROL);
 
 	drm_vblank_post_modeset(crtc->dev, dc->pipe);
+	tegra_dc_commit(dc);
 }
 
 static void tegra_crtc_load_lut(struct drm_crtc *crtc)
