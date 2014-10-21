@@ -29,6 +29,8 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 	mg = &minstrel_mcs_groups[i];
 	if (mg->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
 		htmode = '4';
+	else if (mg->flags & IEEE80211_TX_RC_80_MHZ_WIDTH)
+		htmode = '8';
 	if (mg->flags & IEEE80211_TX_RC_SHORT_GI)
 		gimode = 'S';
 
@@ -41,9 +43,11 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 			continue;
 
 		if (i == MINSTREL_CCK_GROUP)
-			p += sprintf(p, "CCK/%cP   ", j < 4 ? 'L' : 'S');
+			p += sprintf(p, " CCK/%cP   ", j < 4 ? 'L' : 'S');
+		else if (i >= MINSTREL_VHT_GROUP_0)
+			p += sprintf(p, "VHT%c0/%cGI ", htmode, gimode);
 		else
-			p += sprintf(p, "HT%c0/%cGI ", htmode, gimode);
+			p += sprintf(p, " HT%c0/%cGI ", htmode, gimode);
 
 		*(p++) = (idx == mi->max_tp_rate[0]) ? 'A' : ' ';
 		*(p++) = (idx == mi->max_tp_rate[1]) ? 'B' : ' ';
@@ -53,9 +57,11 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 
 		if (i == MINSTREL_CCK_GROUP) {
 			int r = bitrates[j % 4];
-			p += sprintf(p, " %2u.%1uM", r / 10, r % 10);
+			p += sprintf(p, " %2u.%1uM ", r / 10, r % 10);
+		} else if (i >= MINSTREL_VHT_GROUP_0) {
+			p += sprintf(p, " MCS%-1u/%1u", j, mg->streams);
 		} else {
-			p += sprintf(p, " MCS%-2u", (mg->streams - 1) * 8 + j);
+			p += sprintf(p, " MCS%-2u ", (mg->streams - 1) * 8 + j);
 		}
 
 		tp = mr->cur_tp / 10;
@@ -94,18 +100,19 @@ minstrel_ht_stats_open(struct inode *inode, struct file *file)
 		return ret;
 	}
 
-	ms = kmalloc(8192, GFP_KERNEL);
+	ms = kmalloc(32768, GFP_KERNEL);
 	if (!ms)
 		return -ENOMEM;
 
 	file->private_data = ms;
 	p = ms->buf;
-	p += sprintf(p, "type           rate     tpt eprob *prob "
+	p += sprintf(p, " type           rate      tpt eprob *prob "
 			"ret  *ok(*cum)        ok(      cum)\n");
-
 
 	p = minstrel_ht_stats_dump(mi, MINSTREL_CCK_GROUP, p);
 	for (i = 0; i < MINSTREL_CCK_GROUP; i++)
+		p = minstrel_ht_stats_dump(mi, i, p);
+	for (i++; i < ARRAY_SIZE(mi->groups); i++)
 		p = minstrel_ht_stats_dump(mi, i, p);
 
 	p += sprintf(p, "\nTotal packet count::    ideal %d      "
@@ -117,7 +124,7 @@ minstrel_ht_stats_open(struct inode *inode, struct file *file)
 		MINSTREL_TRUNC(mi->avg_ampdu_len * 10) % 10);
 	ms->len = p - ms->buf;
 
-	WARN_ON(ms->len + sizeof(*ms) > 8192);
+	WARN_ON(ms->len + sizeof(*ms) > 32768);
 
 	return nonseekable_open(inode, file);
 }

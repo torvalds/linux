@@ -15,17 +15,30 @@
  */
 #define MINSTREL_MAX_STREAMS		3
 #define MINSTREL_HT_STREAM_GROUPS	4 /* BW(=2) * SGI(=2) */
+#ifdef CONFIG_MAC80211_RC_MINSTREL_VHT
+#define MINSTREL_VHT_STREAM_GROUPS	6 /* BW(=3) * SGI(=2) */
+#else
+#define MINSTREL_VHT_STREAM_GROUPS	0
+#endif
 
 #define MINSTREL_HT_GROUPS_NB	(MINSTREL_MAX_STREAMS *		\
 				 MINSTREL_HT_STREAM_GROUPS)
+#define MINSTREL_VHT_GROUPS_NB	(MINSTREL_MAX_STREAMS *		\
+				 MINSTREL_VHT_STREAM_GROUPS)
 #define MINSTREL_CCK_GROUPS_NB	1
 #define MINSTREL_GROUPS_NB	(MINSTREL_HT_GROUPS_NB +	\
+				 MINSTREL_VHT_GROUPS_NB +	\
 				 MINSTREL_CCK_GROUPS_NB)
 
 #define MINSTREL_HT_GROUP_0	0
 #define MINSTREL_CCK_GROUP	(MINSTREL_HT_GROUP_0 + MINSTREL_HT_GROUPS_NB)
+#define MINSTREL_VHT_GROUP_0	(MINSTREL_CCK_GROUP + 1)
 
-#define MCS_GROUP_RATES	8
+#ifdef CONFIG_MAC80211_RC_MINSTREL_VHT
+#define MCS_GROUP_RATES		10
+#else
+#define MCS_GROUP_RATES		8
+#endif
 
 struct mcs_group {
 	u32 flags;
@@ -40,7 +53,7 @@ struct minstrel_mcs_group_data {
 	u8 column;
 
 	/* bitfield of supported MCS rates of this group */
-	u8 supported;
+	u16 supported;
 
 	/* sorted rate set within a MCS group*/
 	u16 max_group_tp_rate[MAX_THR_RATES];
