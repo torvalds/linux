@@ -325,7 +325,7 @@ static void force_qs_rnp(struct rcu_state *rsp,
 				  unsigned long *maxj),
 			 bool *isidle, unsigned long *maxj);
 static void force_quiescent_state(struct rcu_state *rsp);
-static int rcu_pending(int cpu);
+static int rcu_pending(void);
 
 /*
  * Return the number of RCU-sched batches processed thus far for debug & stats.
@@ -2421,7 +2421,7 @@ void rcu_check_callbacks(int user)
 		rcu_bh_qs();
 	}
 	rcu_preempt_check_callbacks(smp_processor_id());
-	if (rcu_pending(smp_processor_id()))
+	if (rcu_pending())
 		invoke_rcu_core();
 	if (user)
 		rcu_note_voluntary_context_switch(current);
@@ -3144,12 +3144,12 @@ static int __rcu_pending(struct rcu_state *rsp, struct rcu_data *rdp)
  * by the current CPU, returning 1 if so.  This function is part of the
  * RCU implementation; it is -not- an exported member of the RCU API.
  */
-static int rcu_pending(int cpu)
+static int rcu_pending(void)
 {
 	struct rcu_state *rsp;
 
 	for_each_rcu_flavor(rsp)
-		if (__rcu_pending(rsp, per_cpu_ptr(rsp->rda, cpu)))
+		if (__rcu_pending(rsp, this_cpu_ptr(rsp->rda)))
 			return 1;
 	return 0;
 }
