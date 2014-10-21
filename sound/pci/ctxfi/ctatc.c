@@ -1145,7 +1145,6 @@ static int atc_release_resources(struct ct_atc *atc)
 	int i;
 	struct daio_mgr *daio_mgr = NULL;
 	struct dao *dao = NULL;
-	struct dai *dai = NULL;
 	struct daio *daio = NULL;
 	struct sum_mgr *sum_mgr = NULL;
 	struct src_mgr *src_mgr = NULL;
@@ -1172,9 +1171,6 @@ static int atc_release_resources(struct ct_atc *atc)
 				dao = container_of(daio, struct dao, daio);
 				dao->ops->clear_left_input(dao);
 				dao->ops->clear_right_input(dao);
-			} else {
-				dai = container_of(daio, struct dai, daio);
-				/* some thing to do for dai ... */
 			}
 			daio_mgr->put_daio(daio_mgr, daio);
 		}
