@@ -2789,6 +2789,11 @@ static inline void inode_has_no_xattr(struct inode *inode)
 		inode->i_flags |= S_NOSEC;
 }
 
+static inline bool is_root_inode(struct inode *inode)
+{
+	return inode == inode->i_sb->s_root->d_inode;
+}
+
 static inline bool dir_emit(struct dir_context *ctx,
 			    const char *name, int namelen,
 			    u64 ino, unsigned type)

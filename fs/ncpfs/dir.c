@@ -198,8 +198,8 @@ ncp_single_volume(struct ncp_server *server)
 
 static inline int ncp_is_server_root(struct inode *inode)
 {
-	return (!ncp_single_volume(NCP_SERVER(inode)) &&
-		inode == inode->i_sb->s_root->d_inode);
+	return !ncp_single_volume(NCP_SERVER(inode)) &&
+		is_root_inode(inode);
 }
 
 
