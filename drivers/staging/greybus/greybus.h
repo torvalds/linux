@@ -180,6 +180,7 @@ struct greybus_host_device {
 	struct rb_root connections;
 	struct ida cport_id_map;
 	spinlock_t cport_id_map_lock;
+	u8 device_id;
 
 	/* Private data for the host driver */
 	unsigned long hd_priv[0] __aligned(sizeof(s64));

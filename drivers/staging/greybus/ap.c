@@ -113,8 +113,13 @@ static void svc_management(struct svc_function_unipro_management *management,
 		return;
 	}
 
-	/* What?  An AP should not get this message */
-	dev_err(hd->parent, "Got an svc management message???\n");
+	switch (management->management_packet_type) {
+	case SVC_MANAGEMENT_AP_DEVICE_ID:
+		hd->device_id = management->ap_device_id.device_id;
+		break;
+	default:
+		dev_err(hd->parent, "Unhandled UniPro management message\n");
+	}
 }
 
 static void svc_hotplug(struct svc_function_hotplug *hotplug,
