@@ -925,37 +925,6 @@ static void ll_get_child_fid(struct inode * dir, struct qstr *name,
 	}
 }
 
-static int ll_rmdir_generic(struct inode *dir, struct dentry *dparent,
-			    struct dentry *dchild, struct qstr *name)
-{
-	struct ptlrpc_request *request = NULL;
-	struct md_op_data *op_data;
-	int rc;
-
-	CDEBUG(D_VFSTRACE, "VFS Op:name=%.*s,dir=%lu/%u(%p)\n",
-	       name->len, name->name, dir->i_ino, dir->i_generation, dir);
-
-	if (unlikely(ll_d_mountpoint(dparent, dchild, name)))
-		return -EBUSY;
-
-	op_data = ll_prep_md_op_data(NULL, dir, NULL, name->name, name->len,
-				     S_IFDIR, LUSTRE_OPC_ANY, NULL);
-	if (IS_ERR(op_data))
-		return PTR_ERR(op_data);
-
-	ll_get_child_fid(dir, name, &op_data->op_fid3);
-	op_data->op_fid2 = op_data->op_fid3;
-	rc = md_unlink(ll_i2sbi(dir)->ll_md_exp, op_data, &request);
-	ll_finish_md_op_data(op_data);
-	if (rc == 0) {
-		ll_update_times(request, dir);
-		ll_stats_ops_tally(ll_i2sbi(dir), LPROC_LL_RMDIR, 1);
-	}
-
-	ptlrpc_req_finished(request);
-	return rc;
-}
-
 /**
  * Remove dir entry
  **/
@@ -1171,7 +1140,34 @@ static int ll_mkdir(struct inode *dir, struct dentry *dentry, ll_umode_t mode)
 
 static int ll_rmdir(struct inode *dir, struct dentry *dentry)
 {
-	return ll_rmdir_generic(dir, NULL, dentry, &dentry->d_name);
+	struct ptlrpc_request *request = NULL;
+	struct md_op_data *op_data;
+	int rc;
+
+	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd,dir=%lu/%u(%p)\n",
+	       dentry, dir->i_ino, dir->i_generation, dir);
+
+	if (unlikely(ll_d_mountpoint(NULL, dentry, &dentry->d_name)))
+		return -EBUSY;
+
+	op_data = ll_prep_md_op_data(NULL, dir, NULL,
+				     dentry->d_name.name, 
+				     dentry->d_name.len,
+				     S_IFDIR, LUSTRE_OPC_ANY, NULL);
+	if (IS_ERR(op_data))
+		return PTR_ERR(op_data);
+
+	ll_get_child_fid(dir, &dentry->d_name, &op_data->op_fid3);
+	op_data->op_fid2 = op_data->op_fid3;
+	rc = md_unlink(ll_i2sbi(dir)->ll_md_exp, op_data, &request);
+	ll_finish_md_op_data(op_data);
+	if (rc == 0) {
+		ll_update_times(request, dir);
+		ll_stats_ops_tally(ll_i2sbi(dir), LPROC_LL_RMDIR, 1);
+	}
+
+	ptlrpc_req_finished(request);
+	return rc;
 }
 
 static int ll_symlink(struct inode *dir, struct dentry *dentry,
