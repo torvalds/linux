@@ -119,9 +119,8 @@ static void greybus_module_release(struct device *dev)
 {
 	struct gb_module *gmod = to_gb_module(dev);
 
-	kfree(gmod);
+	gb_module_destroy(gmod);
 }
-
 
 static struct device_type greybus_module_type = {
 	.name =		"greybus_module",
@@ -157,7 +156,7 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 	 */
 	if (!gb_manifest_parse(gmod, data, size)) {
 		dev_err(hd->parent, "manifest error\n");
-		goto error;
+		goto err_module;
 	}
 
 	/*
@@ -180,14 +179,14 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 
 	retval = device_add(&gmod->dev);
 	if (retval)
-		goto error;
+		goto err_device;
 
 	gb_module_interfaces_init(gmod);
-	return;
-error:
-	gb_module_destroy(gmod);
 
+	return;
+err_device:
 	put_device(&gmod->dev);
+err_module:
 	greybus_module_release(&gmod->dev);
 }
 

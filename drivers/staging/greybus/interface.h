@@ -23,5 +23,6 @@ struct gb_interface *gb_interface_create(struct gb_module *gmod, u8 module_id);
 void gb_interface_destroy(struct gb_interface *interface);
 
 int gb_interface_connections_init(struct gb_interface *interface);
+void gb_interface_connections_exit(struct gb_interface *interface);
 
 #endif /* __INTERFACE_H */

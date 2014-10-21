@@ -44,6 +44,15 @@ const struct greybus_module_id *gb_module_match_id(struct gb_module *gmod,
 	return NULL;
 }
 
+static void gb_module_interfaces_exit(struct gb_module *gmod)
+{
+	struct gb_interface *interface;
+	struct gb_interface *next;
+
+	list_for_each_entry_safe(interface, next, &gmod->interfaces, links)
+		gb_interface_destroy(interface);
+}
+
 /*
  * A Greybus module represents a user-replacable component on an Ara
  * phone.
@@ -62,7 +71,7 @@ struct gb_module *gb_module_create(struct greybus_host_device *hd, u8 module_id)
 		return NULL;
 
 	gmod->hd = hd;		/* XXX refcount? */
-	gmod->module_id = module_id;
+	gmod->module_id = module_id;	/* XXX check for dups */
 	INIT_LIST_HEAD(&gmod->interfaces);
 
 	spin_lock_irq(&gb_modules_lock);
@@ -80,14 +89,20 @@ void gb_module_destroy(struct gb_module *gmod)
 	if (WARN_ON(!gmod))
 		return;
 
-	kfree(gmod->product_string);
-	kfree(gmod->vendor_string);
-
 	spin_lock_irq(&gb_modules_lock);
 	list_del(&gmod->links);
 	spin_unlock_irq(&gb_modules_lock);
 
+	gb_module_interfaces_exit(gmod);
+	/* XXX Do something with gmod->gb_tty */
+
+	put_device(&gmod->dev);
+	/* kfree(gmod->dev->name); */
+
+	kfree(gmod->product_string);
+	kfree(gmod->vendor_string);
 	/* kref_put(module->hd); */
+
 
 	kfree(gmod);
 }

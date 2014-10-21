@@ -220,3 +220,27 @@ int gb_connection_init(struct gb_connection *connection)
 	}
 	return -ENXIO;
 }
+
+void gb_connection_exit(struct gb_connection *connection)
+{
+	switch (connection->protocol) {
+	case GREYBUS_PROTOCOL_I2C:
+		gb_i2c_device_exit(connection);
+		break;
+	case GREYBUS_PROTOCOL_GPIO:
+		gb_gpio_controller_exit(connection);
+		break;
+	case GREYBUS_PROTOCOL_BATTERY:
+		gb_battery_device_exit(connection);
+		break;
+	case GREYBUS_PROTOCOL_CONTROL:
+	case GREYBUS_PROTOCOL_AP:
+	case GREYBUS_PROTOCOL_UART:
+	case GREYBUS_PROTOCOL_HID:
+	case GREYBUS_PROTOCOL_VENDOR:
+	default:
+		gb_connection_err(connection, "unimplemented protocol %u",
+			(u32)connection->protocol);
+		break;
+	}
+}

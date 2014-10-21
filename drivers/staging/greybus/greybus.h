@@ -265,8 +265,13 @@ void gb_deregister_cport_complete(u16 cport_id);
 extern const struct attribute_group *greybus_module_groups[];
 
 int gb_i2c_device_init(struct gb_connection *connection);
+void gb_i2c_device_exit(struct gb_connection *connection);
+
 int gb_battery_device_init(struct gb_connection *connection);
+void gb_battery_device_exit(struct gb_connection *connection);
+
 int gb_gpio_controller_init(struct gb_connection *connection);
+void gb_gpio_controller_exit(struct gb_connection *connection);
 
 int gb_tty_init(void);
 void gb_tty_exit(void);

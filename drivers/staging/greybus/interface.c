@@ -54,6 +54,8 @@ void gb_interface_destroy(struct gb_interface *interface)
 	list_del(&interface->links);
 	spin_unlock_irq(&gb_interfaces_lock);
 
+	gb_interface_connections_exit(interface);
+
 	/* kref_put(gmod); */
 	kfree(interface);
 }
@@ -71,4 +73,16 @@ int gb_interface_connections_init(struct gb_interface *interface)
 	}
 
 	return ret;
+}
+
+void gb_interface_connections_exit(struct gb_interface *interface)
+{
+	struct gb_connection *connection;
+	struct gb_connection *next;
+
+	list_for_each_entry_safe(connection, next, &interface->connections,
+			interface_links) {
+		gb_connection_exit(connection);
+		gb_connection_destroy(connection);
+	}
 }
