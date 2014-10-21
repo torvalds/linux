@@ -909,20 +909,10 @@ out:
 	return err;
 }
 
-/* Try to find the child dentry by its name.
-   If found, put the result fid into @fid. */
-static void ll_get_child_fid(struct inode * dir, struct qstr *name,
-			     struct lu_fid *fid)
+static inline void ll_get_child_fid(struct dentry *child, struct lu_fid *fid)
 {
-	struct dentry *parent, *child;
-
-	parent = ll_d_hlist_entry(dir->i_dentry, struct dentry, d_u.d_alias);
-	child = d_lookup(parent, name);
-	if (child) {
-		if (child->d_inode)
-			*fid = *ll_inode2fid(child->d_inode);
-		dput(child);
-	}
+	if (child->d_inode)
+		*fid = *ll_inode2fid(child->d_inode);
 }
 
 /**
@@ -1057,7 +1047,7 @@ static int ll_unlink(struct inode * dir, struct dentry *dentry)
 	if (IS_ERR(op_data))
 		return PTR_ERR(op_data);
 
-	ll_get_child_fid(dir, &dentry->d_name, &op_data->op_fid3);
+	ll_get_child_fid(dentry, &op_data->op_fid3);
 	op_data->op_fid2 = op_data->op_fid3;
 	rc = md_unlink(ll_i2sbi(dir)->ll_md_exp, op_data, &request);
 	ll_finish_md_op_data(op_data);
@@ -1110,7 +1100,7 @@ static int ll_rmdir(struct inode *dir, struct dentry *dentry)
 	if (IS_ERR(op_data))
 		return PTR_ERR(op_data);
 
-	ll_get_child_fid(dir, &dentry->d_name, &op_data->op_fid3);
+	ll_get_child_fid(dentry, &op_data->op_fid3);
 	op_data->op_fid2 = op_data->op_fid3;
 	rc = md_unlink(ll_i2sbi(dir)->ll_md_exp, op_data, &request);
 	ll_finish_md_op_data(op_data);
@@ -1171,8 +1161,8 @@ static int ll_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (IS_ERR(op_data))
 		return PTR_ERR(op_data);
 
-	ll_get_child_fid(old_dir, &old_dentry->d_name, &op_data->op_fid3);
-	ll_get_child_fid(new_dir, &new_dentry->d_name, &op_data->op_fid4);
+	ll_get_child_fid(old_dentry, &op_data->op_fid3);
+	ll_get_child_fid(new_dentry, &op_data->op_fid4);
 	err = md_rename(sbi->ll_md_exp, op_data,
 			old_dentry->d_name.name,
 			old_dentry->d_name.len,
