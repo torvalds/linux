@@ -879,36 +879,6 @@ static int ll_create_nd(struct inode *dir, struct dentry *dentry,
 	return rc;
 }
 
-static int ll_link_generic(struct inode *src,  struct inode *dir,
-			   struct qstr *name, struct dentry *dchild)
-{
-	struct ll_sb_info *sbi = ll_i2sbi(dir);
-	struct ptlrpc_request *request = NULL;
-	struct md_op_data *op_data;
-	int err;
-
-	CDEBUG(D_VFSTRACE,
-	       "VFS Op: inode=%lu/%u(%p), dir=%lu/%u(%p), target=%.*s\n",
-	       src->i_ino, src->i_generation, src, dir->i_ino,
-	       dir->i_generation, dir, name->len, name->name);
-
-	op_data = ll_prep_md_op_data(NULL, src, dir, name->name, name->len,
-				     0, LUSTRE_OPC_ANY, NULL);
-	if (IS_ERR(op_data))
-		return PTR_ERR(op_data);
-
-	err = md_link(sbi->ll_md_exp, op_data, &request);
-	ll_finish_md_op_data(op_data);
-	if (err)
-		goto out;
-
-	ll_update_times(request, dir);
-	ll_stats_ops_tally(sbi, LPROC_LL_LINK, 1);
-out:
-	ptlrpc_req_finished(request);
-	return err;
-}
-
 static inline void ll_get_child_fid(struct dentry *child, struct lu_fid *fid)
 {
 	if (child->d_inode)
@@ -1134,8 +1104,33 @@ static int ll_symlink(struct inode *dir, struct dentry *dentry,
 static int ll_link(struct dentry *old_dentry, struct inode *dir,
 		   struct dentry *new_dentry)
 {
-	return ll_link_generic(old_dentry->d_inode, dir, &new_dentry->d_name,
-			       new_dentry);
+	struct inode *src = old_dentry->d_inode;
+	struct ll_sb_info *sbi = ll_i2sbi(dir);
+	struct ptlrpc_request *request = NULL;
+	struct md_op_data *op_data;
+	int err;
+
+	CDEBUG(D_VFSTRACE,
+	       "VFS Op: inode=%lu/%u(%p), dir=%lu/%u(%p), target=%pd\n",
+	       src->i_ino, src->i_generation, src, dir->i_ino,
+	       dir->i_generation, dir, new_dentry);
+
+	op_data = ll_prep_md_op_data(NULL, src, dir, new_dentry->d_name.name,
+				     new_dentry->d_name.len,
+				     0, LUSTRE_OPC_ANY, NULL);
+	if (IS_ERR(op_data))
+		return PTR_ERR(op_data);
+
+	err = md_link(sbi->ll_md_exp, op_data, &request);
+	ll_finish_md_op_data(op_data);
+	if (err)
+		goto out;
+
+	ll_update_times(request, dir);
+	ll_stats_ops_tally(sbi, LPROC_LL_LINK, 1);
+out:
+	ptlrpc_req_finished(request);
+	return err;
 }
 
 static int ll_rename(struct inode *old_dir, struct dentry *old_dentry,
