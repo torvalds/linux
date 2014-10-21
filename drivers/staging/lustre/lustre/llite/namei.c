@@ -927,26 +927,6 @@ out:
 	return err;
 }
 
-static int ll_mkdir_generic(struct inode *dir, struct qstr *name,
-			    int mode, struct dentry *dchild)
-
-{
-	int err;
-
-	CDEBUG(D_VFSTRACE, "VFS Op:name=%.*s,dir=%lu/%u(%p)\n",
-	       name->len, name->name, dir->i_ino, dir->i_generation, dir);
-
-	if (!IS_POSIXACL(dir) || !exp_connect_umask(ll_i2mdexp(dir)))
-		mode &= ~current_umask();
-	mode = (mode & (S_IRWXUGO|S_ISVTX)) | S_IFDIR;
-	err = ll_new_node(dir, name, NULL, mode, 0, dchild, LUSTRE_OPC_MKDIR);
-
-	if (!err)
-		ll_stats_ops_tally(ll_i2sbi(dir), LPROC_LL_MKDIR, 1);
-
-	return err;
-}
-
 /* Try to find the child dentry by its name.
    If found, put the result fid into @fid. */
 static void ll_get_child_fid(struct inode * dir, struct qstr *name,
@@ -1191,7 +1171,20 @@ static int ll_unlink(struct inode * dir, struct dentry *dentry)
 
 static int ll_mkdir(struct inode *dir, struct dentry *dentry, ll_umode_t mode)
 {
-	return ll_mkdir_generic(dir, &dentry->d_name, mode, dentry);
+	int err;
+
+	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd,dir=%lu/%u(%p)\n",
+	       dentry, dir->i_ino, dir->i_generation, dir);
+
+	if (!IS_POSIXACL(dir) || !exp_connect_umask(ll_i2mdexp(dir)))
+		mode &= ~current_umask();
+	mode = (mode & (S_IRWXUGO|S_ISVTX)) | S_IFDIR;
+	err = ll_new_node(dir, &dentry->d_name, NULL, mode, 0, dentry, LUSTRE_OPC_MKDIR);
+
+	if (!err)
+		ll_stats_ops_tally(ll_i2sbi(dir), LPROC_LL_MKDIR, 1);
+
+	return err;
 }
 
 static int ll_rmdir(struct inode *dir, struct dentry *dentry)
