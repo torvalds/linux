@@ -78,27 +78,24 @@ MLX4_EN_PARM_INT(inline_thold, MAX_INLINE,
 #define MAX_PFC_TX     0xff
 #define MAX_PFC_RX     0xff
 
-int en_print(const char *level, const struct mlx4_en_priv *priv,
-	     const char *format, ...)
+void en_print(const char *level, const struct mlx4_en_priv *priv,
+	      const char *format, ...)
 {
 	va_list args;
 	struct va_format vaf;
-	int i;
 
 	va_start(args, format);
 
 	vaf.fmt = format;
 	vaf.va = &args;
 	if (priv->registered)
-		i = printk("%s%s: %s: %pV",
-			   level, DRV_NAME, priv->dev->name, &vaf);
+		printk("%s%s: %s: %pV",
+		       level, DRV_NAME, priv->dev->name, &vaf);
 	else
-		i = printk("%s%s: %s: Port %d: %pV",
-			   level, DRV_NAME, dev_name(&priv->mdev->pdev->dev),
-			   priv->port, &vaf);
+		printk("%s%s: %s: Port %d: %pV",
+		       level, DRV_NAME, dev_name(&priv->mdev->pdev->dev),
+		       priv->port, &vaf);
 	va_end(args);
-
-	return i;
 }
 
 void mlx4_en_update_loopback_state(struct net_device *dev,

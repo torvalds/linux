@@ -1711,9 +1711,9 @@ sg_start_req(Sg_request *srp, unsigned char *cmd)
 	}
 
 	rq = blk_get_request(q, rw, GFP_ATOMIC);
-	if (!rq) {
+	if (IS_ERR(rq)) {
 		kfree(long_cmdp);
-		return -ENOMEM;
+		return PTR_ERR(rq);
 	}
 
 	blk_rq_set_block_pc(rq);

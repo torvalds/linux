@@ -150,6 +150,12 @@
 			};
 
 		};
+		edma0: edma@01c00000 {
+			compatible = "ti,edma3";
+			reg =	<0x0 0x10000>;
+			interrupts = <11 13 12>;
+			#dma-cells = <1>;
+		};
 		serial0: serial@1c42000 {
 			compatible = "ns16550a";
 			reg = <0x42000 0x100>;
@@ -269,6 +275,19 @@
 			ti,ngpio = <144>;
 			ti,davinci-gpio-unbanked = <0>;
 			status = "disabled";
+		};
+
+		mcasp0: mcasp@01d00000 {
+			compatible = "ti,da830-mcasp-audio";
+			reg = <0x100000 0x2000>,
+			      <0x102000 0x400000>;
+			reg-names = "mpu", "dat";
+			interrupts = <54>;
+			interrupt-names = "common";
+			status = "disabled";
+			dmas = <&edma0 1>,
+				<&edma0 0>;
+			dma-names = "tx", "rx";
 		};
 	};
 	nand_cs3@62000000 {

@@ -1229,26 +1229,7 @@ static struct usb_driver ath6kl_usb_driver = {
 	.disable_hub_initiated_lpm = 1,
 };
 
-static int ath6kl_usb_init(void)
-{
-	int ret;
-
-	ret = usb_register(&ath6kl_usb_driver);
-	if (ret) {
-		ath6kl_err("usb registration failed: %d\n", ret);
-		return ret;
-	}
-
-	return 0;
-}
-
-static void ath6kl_usb_exit(void)
-{
-	usb_deregister(&ath6kl_usb_driver);
-}
-
-module_init(ath6kl_usb_init);
-module_exit(ath6kl_usb_exit);
+module_usb_driver(ath6kl_usb_driver);
 
 MODULE_AUTHOR("Atheros Communications, Inc.");
 MODULE_DESCRIPTION("Driver support for Atheros AR600x USB devices");

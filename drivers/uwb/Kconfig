@@ -4,7 +4,6 @@
 
 menuconfig UWB
 	tristate "Ultra Wideband devices"
-	depends on PCI
 	default n
 	help
 	  UWB is a high-bandwidth, low-power, point-to-point radio

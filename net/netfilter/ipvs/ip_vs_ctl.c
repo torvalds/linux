@@ -574,8 +574,8 @@ bool ip_vs_has_real_service(struct net *net, int af, __u16 protocol,
  * Called under RCU lock.
  */
 static struct ip_vs_dest *
-ip_vs_lookup_dest(struct ip_vs_service *svc, const union nf_inet_addr *daddr,
-		  __be16 dport)
+ip_vs_lookup_dest(struct ip_vs_service *svc, int dest_af,
+		  const union nf_inet_addr *daddr, __be16 dport)
 {
 	struct ip_vs_dest *dest;
 
@@ -583,9 +583,9 @@ ip_vs_lookup_dest(struct ip_vs_service *svc, const union nf_inet_addr *daddr,
 	 * Find the destination for the given service
 	 */
 	list_for_each_entry_rcu(dest, &svc->destinations, n_list) {
-		if ((dest->af == svc->af)
-		    && ip_vs_addr_equal(svc->af, &dest->addr, daddr)
-		    && (dest->port == dport)) {
+		if ((dest->af == dest_af) &&
+		    ip_vs_addr_equal(dest_af, &dest->addr, daddr) &&
+		    (dest->port == dport)) {
 			/* HIT */
 			return dest;
 		}
@@ -602,7 +602,7 @@ ip_vs_lookup_dest(struct ip_vs_service *svc, const union nf_inet_addr *daddr,
  * on the backup.
  * Called under RCU lock, no refcnt is returned.
  */
-struct ip_vs_dest *ip_vs_find_dest(struct net  *net, int af,
+struct ip_vs_dest *ip_vs_find_dest(struct net  *net, int svc_af, int dest_af,
 				   const union nf_inet_addr *daddr,
 				   __be16 dport,
 				   const union nf_inet_addr *vaddr,
@@ -613,14 +613,14 @@ struct ip_vs_dest *ip_vs_find_dest(struct net  *net, int af,
 	struct ip_vs_service *svc;
 	__be16 port = dport;
 
-	svc = ip_vs_service_find(net, af, fwmark, protocol, vaddr, vport);
+	svc = ip_vs_service_find(net, svc_af, fwmark, protocol, vaddr, vport);
 	if (!svc)
 		return NULL;
 	if (fwmark && (flags & IP_VS_CONN_F_FWD_MASK) != IP_VS_CONN_F_MASQ)
 		port = 0;
-	dest = ip_vs_lookup_dest(svc, daddr, port);
+	dest = ip_vs_lookup_dest(svc, dest_af, daddr, port);
 	if (!dest)
-		dest = ip_vs_lookup_dest(svc, daddr, port ^ dport);
+		dest = ip_vs_lookup_dest(svc, dest_af, daddr, port ^ dport);
 	return dest;
 }
 
@@ -657,8 +657,8 @@ static void __ip_vs_dst_cache_reset(struct ip_vs_dest *dest)
  *  scheduling.
  */
 static struct ip_vs_dest *
-ip_vs_trash_get_dest(struct ip_vs_service *svc, const union nf_inet_addr *daddr,
-		     __be16 dport)
+ip_vs_trash_get_dest(struct ip_vs_service *svc, int dest_af,
+		     const union nf_inet_addr *daddr, __be16 dport)
 {
 	struct ip_vs_dest *dest;
 	struct netns_ipvs *ipvs = net_ipvs(svc->net);
@@ -671,11 +671,11 @@ ip_vs_trash_get_dest(struct ip_vs_service *svc, const union nf_inet_addr *daddr,
 		IP_VS_DBG_BUF(3, "Destination %u/%s:%u still in trash, "
 			      "dest->refcnt=%d\n",
 			      dest->vfwmark,
-			      IP_VS_DBG_ADDR(svc->af, &dest->addr),
+			      IP_VS_DBG_ADDR(dest->af, &dest->addr),
 			      ntohs(dest->port),
 			      atomic_read(&dest->refcnt));
-		if (dest->af == svc->af &&
-		    ip_vs_addr_equal(svc->af, &dest->addr, daddr) &&
+		if (dest->af == dest_af &&
+		    ip_vs_addr_equal(dest_af, &dest->addr, daddr) &&
 		    dest->port == dport &&
 		    dest->vfwmark == svc->fwmark &&
 		    dest->protocol == svc->protocol &&
@@ -779,6 +779,12 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 	struct ip_vs_scheduler *sched;
 	int conn_flags;
 
+	/* We cannot modify an address and change the address family */
+	BUG_ON(!add && udest->af != dest->af);
+
+	if (add && udest->af != svc->af)
+		ipvs->mixed_address_family_dests++;
+
 	/* set the weight and the flags */
 	atomic_set(&dest->weight, udest->weight);
 	conn_flags = udest->conn_flags & IP_VS_CONN_F_DEST_MASK;
@@ -816,6 +822,8 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 	dest->u_threshold = udest->u_threshold;
 	dest->l_threshold = udest->l_threshold;
 
+	dest->af = udest->af;
+
 	spin_lock_bh(&dest->dst_lock);
 	__ip_vs_dst_cache_reset(dest);
 	spin_unlock_bh(&dest->dst_lock);
@@ -847,7 +855,7 @@ ip_vs_new_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest,
 	EnterFunction(2);
 
 #ifdef CONFIG_IP_VS_IPV6
-	if (svc->af == AF_INET6) {
+	if (udest->af == AF_INET6) {
 		atype = ipv6_addr_type(&udest->addr.in6);
 		if ((!(atype & IPV6_ADDR_UNICAST) ||
 			atype & IPV6_ADDR_LINKLOCAL) &&
@@ -875,12 +883,12 @@ ip_vs_new_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest,
 		u64_stats_init(&ip_vs_dest_stats->syncp);
 	}
 
-	dest->af = svc->af;
+	dest->af = udest->af;
 	dest->protocol = svc->protocol;
 	dest->vaddr = svc->addr;
 	dest->vport = svc->port;
 	dest->vfwmark = svc->fwmark;
-	ip_vs_addr_copy(svc->af, &dest->addr, &udest->addr);
+	ip_vs_addr_copy(udest->af, &dest->addr, &udest->addr);
 	dest->port = udest->port;
 
 	atomic_set(&dest->activeconns, 0);
@@ -928,11 +936,11 @@ ip_vs_add_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 		return -ERANGE;
 	}
 
-	ip_vs_addr_copy(svc->af, &daddr, &udest->addr);
+	ip_vs_addr_copy(udest->af, &daddr, &udest->addr);
 
 	/* We use function that requires RCU lock */
 	rcu_read_lock();
-	dest = ip_vs_lookup_dest(svc, &daddr, dport);
+	dest = ip_vs_lookup_dest(svc, udest->af, &daddr, dport);
 	rcu_read_unlock();
 
 	if (dest != NULL) {
@@ -944,12 +952,12 @@ ip_vs_add_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 	 * Check if the dest already exists in the trash and
 	 * is from the same service
 	 */
-	dest = ip_vs_trash_get_dest(svc, &daddr, dport);
+	dest = ip_vs_trash_get_dest(svc, udest->af, &daddr, dport);
 
 	if (dest != NULL) {
 		IP_VS_DBG_BUF(3, "Get destination %s:%u from trash, "
 			      "dest->refcnt=%d, service %u/%s:%u\n",
-			      IP_VS_DBG_ADDR(svc->af, &daddr), ntohs(dport),
+			      IP_VS_DBG_ADDR(udest->af, &daddr), ntohs(dport),
 			      atomic_read(&dest->refcnt),
 			      dest->vfwmark,
 			      IP_VS_DBG_ADDR(svc->af, &dest->vaddr),
@@ -992,11 +1000,11 @@ ip_vs_edit_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 		return -ERANGE;
 	}
 
-	ip_vs_addr_copy(svc->af, &daddr, &udest->addr);
+	ip_vs_addr_copy(udest->af, &daddr, &udest->addr);
 
 	/* We use function that requires RCU lock */
 	rcu_read_lock();
-	dest = ip_vs_lookup_dest(svc, &daddr, dport);
+	dest = ip_vs_lookup_dest(svc, udest->af, &daddr, dport);
 	rcu_read_unlock();
 
 	if (dest == NULL) {
@@ -1055,6 +1063,9 @@ static void __ip_vs_unlink_dest(struct ip_vs_service *svc,
 	list_del_rcu(&dest->n_list);
 	svc->num_dests--;
 
+	if (dest->af != svc->af)
+		net_ipvs(svc->net)->mixed_address_family_dests--;
+
 	if (svcupd) {
 		struct ip_vs_scheduler *sched;
 
@@ -1078,7 +1089,7 @@ ip_vs_del_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 
 	/* We use function that requires RCU lock */
 	rcu_read_lock();
-	dest = ip_vs_lookup_dest(svc, &udest->addr, dport);
+	dest = ip_vs_lookup_dest(svc, udest->af, &udest->addr, dport);
 	rcu_read_unlock();
 
 	if (dest == NULL) {
@@ -2179,28 +2190,40 @@ static int ip_vs_set_timeout(struct net *net, struct ip_vs_timeout_user *u)
 	return 0;
 }
 
+#define CMDID(cmd)		(cmd - IP_VS_BASE_CTL)
 
-#define SET_CMDID(cmd)		(cmd - IP_VS_BASE_CTL)
-#define SERVICE_ARG_LEN		(sizeof(struct ip_vs_service_user))
-#define SVCDEST_ARG_LEN		(sizeof(struct ip_vs_service_user) +	\
-				 sizeof(struct ip_vs_dest_user))
-#define TIMEOUT_ARG_LEN		(sizeof(struct ip_vs_timeout_user))
-#define DAEMON_ARG_LEN		(sizeof(struct ip_vs_daemon_user))
-#define MAX_ARG_LEN		SVCDEST_ARG_LEN
-
-static const unsigned char set_arglen[SET_CMDID(IP_VS_SO_SET_MAX)+1] = {
-	[SET_CMDID(IP_VS_SO_SET_ADD)]		= SERVICE_ARG_LEN,
-	[SET_CMDID(IP_VS_SO_SET_EDIT)]		= SERVICE_ARG_LEN,
-	[SET_CMDID(IP_VS_SO_SET_DEL)]		= SERVICE_ARG_LEN,
-	[SET_CMDID(IP_VS_SO_SET_FLUSH)]		= 0,
-	[SET_CMDID(IP_VS_SO_SET_ADDDEST)]	= SVCDEST_ARG_LEN,
-	[SET_CMDID(IP_VS_SO_SET_DELDEST)]	= SVCDEST_ARG_LEN,
-	[SET_CMDID(IP_VS_SO_SET_EDITDEST)]	= SVCDEST_ARG_LEN,
-	[SET_CMDID(IP_VS_SO_SET_TIMEOUT)]	= TIMEOUT_ARG_LEN,
-	[SET_CMDID(IP_VS_SO_SET_STARTDAEMON)]	= DAEMON_ARG_LEN,
-	[SET_CMDID(IP_VS_SO_SET_STOPDAEMON)]	= DAEMON_ARG_LEN,
-	[SET_CMDID(IP_VS_SO_SET_ZERO)]		= SERVICE_ARG_LEN,
+struct ip_vs_svcdest_user {
+	struct ip_vs_service_user	s;
+	struct ip_vs_dest_user		d;
 };
+
+static const unsigned char set_arglen[CMDID(IP_VS_SO_SET_MAX) + 1] = {
+	[CMDID(IP_VS_SO_SET_ADD)]         = sizeof(struct ip_vs_service_user),
+	[CMDID(IP_VS_SO_SET_EDIT)]        = sizeof(struct ip_vs_service_user),
+	[CMDID(IP_VS_SO_SET_DEL)]         = sizeof(struct ip_vs_service_user),
+	[CMDID(IP_VS_SO_SET_ADDDEST)]     = sizeof(struct ip_vs_svcdest_user),
+	[CMDID(IP_VS_SO_SET_DELDEST)]     = sizeof(struct ip_vs_svcdest_user),
+	[CMDID(IP_VS_SO_SET_EDITDEST)]    = sizeof(struct ip_vs_svcdest_user),
+	[CMDID(IP_VS_SO_SET_TIMEOUT)]     = sizeof(struct ip_vs_timeout_user),
+	[CMDID(IP_VS_SO_SET_STARTDAEMON)] = sizeof(struct ip_vs_daemon_user),
+	[CMDID(IP_VS_SO_SET_STOPDAEMON)]  = sizeof(struct ip_vs_daemon_user),
+	[CMDID(IP_VS_SO_SET_ZERO)]        = sizeof(struct ip_vs_service_user),
+};
+
+union ip_vs_set_arglen {
+	struct ip_vs_service_user	field_IP_VS_SO_SET_ADD;
+	struct ip_vs_service_user	field_IP_VS_SO_SET_EDIT;
+	struct ip_vs_service_user	field_IP_VS_SO_SET_DEL;
+	struct ip_vs_svcdest_user	field_IP_VS_SO_SET_ADDDEST;
+	struct ip_vs_svcdest_user	field_IP_VS_SO_SET_DELDEST;
+	struct ip_vs_svcdest_user	field_IP_VS_SO_SET_EDITDEST;
+	struct ip_vs_timeout_user	field_IP_VS_SO_SET_TIMEOUT;
+	struct ip_vs_daemon_user	field_IP_VS_SO_SET_STARTDAEMON;
+	struct ip_vs_daemon_user	field_IP_VS_SO_SET_STOPDAEMON;
+	struct ip_vs_service_user	field_IP_VS_SO_SET_ZERO;
+};
+
+#define MAX_SET_ARGLEN	sizeof(union ip_vs_set_arglen)
 
 static void ip_vs_copy_usvc_compat(struct ip_vs_service_user_kern *usvc,
 				  struct ip_vs_service_user *usvc_compat)
@@ -2232,6 +2255,7 @@ static void ip_vs_copy_udest_compat(struct ip_vs_dest_user_kern *udest,
 	udest->weight		= udest_compat->weight;
 	udest->u_threshold	= udest_compat->u_threshold;
 	udest->l_threshold	= udest_compat->l_threshold;
+	udest->af		= AF_INET;
 }
 
 static int
@@ -2239,7 +2263,7 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 {
 	struct net *net = sock_net(sk);
 	int ret;
-	unsigned char arg[MAX_ARG_LEN];
+	unsigned char arg[MAX_SET_ARGLEN];
 	struct ip_vs_service_user *usvc_compat;
 	struct ip_vs_service_user_kern usvc;
 	struct ip_vs_service *svc;
@@ -2247,16 +2271,15 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 	struct ip_vs_dest_user_kern udest;
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
+	BUILD_BUG_ON(sizeof(arg) > 255);
 	if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
 	if (cmd < IP_VS_BASE_CTL || cmd > IP_VS_SO_SET_MAX)
 		return -EINVAL;
-	if (len < 0 || len >  MAX_ARG_LEN)
-		return -EINVAL;
-	if (len != set_arglen[SET_CMDID(cmd)]) {
-		pr_err("set_ctl: len %u != %u\n",
-		       len, set_arglen[SET_CMDID(cmd)]);
+	if (len != set_arglen[CMDID(cmd)]) {
+		IP_VS_DBG(1, "set_ctl: len %u != %u\n",
+			  len, set_arglen[CMDID(cmd)]);
 		return -EINVAL;
 	}
 
@@ -2469,6 +2492,12 @@ __ip_vs_get_dest_entries(struct net *net, const struct ip_vs_get_dests *get,
 			if (count >= get->num_dests)
 				break;
 
+			/* Cannot expose heterogeneous members via sockopt
+			 * interface
+			 */
+			if (dest->af != svc->af)
+				continue;
+
 			entry.addr = dest->addr.ip;
 			entry.port = dest->port;
 			entry.conn_flags = atomic_read(&dest->conn_flags);
@@ -2512,50 +2541,50 @@ __ip_vs_get_timeouts(struct net *net, struct ip_vs_timeout_user *u)
 #endif
 }
 
-
-#define GET_CMDID(cmd)		(cmd - IP_VS_BASE_CTL)
-#define GET_INFO_ARG_LEN	(sizeof(struct ip_vs_getinfo))
-#define GET_SERVICES_ARG_LEN	(sizeof(struct ip_vs_get_services))
-#define GET_SERVICE_ARG_LEN	(sizeof(struct ip_vs_service_entry))
-#define GET_DESTS_ARG_LEN	(sizeof(struct ip_vs_get_dests))
-#define GET_TIMEOUT_ARG_LEN	(sizeof(struct ip_vs_timeout_user))
-#define GET_DAEMON_ARG_LEN	(sizeof(struct ip_vs_daemon_user) * 2)
-
-static const unsigned char get_arglen[GET_CMDID(IP_VS_SO_GET_MAX)+1] = {
-	[GET_CMDID(IP_VS_SO_GET_VERSION)]	= 64,
-	[GET_CMDID(IP_VS_SO_GET_INFO)]		= GET_INFO_ARG_LEN,
-	[GET_CMDID(IP_VS_SO_GET_SERVICES)]	= GET_SERVICES_ARG_LEN,
-	[GET_CMDID(IP_VS_SO_GET_SERVICE)]	= GET_SERVICE_ARG_LEN,
-	[GET_CMDID(IP_VS_SO_GET_DESTS)]		= GET_DESTS_ARG_LEN,
-	[GET_CMDID(IP_VS_SO_GET_TIMEOUT)]	= GET_TIMEOUT_ARG_LEN,
-	[GET_CMDID(IP_VS_SO_GET_DAEMON)]	= GET_DAEMON_ARG_LEN,
+static const unsigned char get_arglen[CMDID(IP_VS_SO_GET_MAX) + 1] = {
+	[CMDID(IP_VS_SO_GET_VERSION)]  = 64,
+	[CMDID(IP_VS_SO_GET_INFO)]     = sizeof(struct ip_vs_getinfo),
+	[CMDID(IP_VS_SO_GET_SERVICES)] = sizeof(struct ip_vs_get_services),
+	[CMDID(IP_VS_SO_GET_SERVICE)]  = sizeof(struct ip_vs_service_entry),
+	[CMDID(IP_VS_SO_GET_DESTS)]    = sizeof(struct ip_vs_get_dests),
+	[CMDID(IP_VS_SO_GET_TIMEOUT)]  = sizeof(struct ip_vs_timeout_user),
+	[CMDID(IP_VS_SO_GET_DAEMON)]   = 2 * sizeof(struct ip_vs_daemon_user),
 };
+
+union ip_vs_get_arglen {
+	char				field_IP_VS_SO_GET_VERSION[64];
+	struct ip_vs_getinfo		field_IP_VS_SO_GET_INFO;
+	struct ip_vs_get_services	field_IP_VS_SO_GET_SERVICES;
+	struct ip_vs_service_entry	field_IP_VS_SO_GET_SERVICE;
+	struct ip_vs_get_dests		field_IP_VS_SO_GET_DESTS;
+	struct ip_vs_timeout_user	field_IP_VS_SO_GET_TIMEOUT;
+	struct ip_vs_daemon_user	field_IP_VS_SO_GET_DAEMON[2];
+};
+
+#define MAX_GET_ARGLEN	sizeof(union ip_vs_get_arglen)
 
 static int
 do_ip_vs_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 {
-	unsigned char arg[128];
+	unsigned char arg[MAX_GET_ARGLEN];
 	int ret = 0;
 	unsigned int copylen;
 	struct net *net = sock_net(sk);
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
 	BUG_ON(!net);
+	BUILD_BUG_ON(sizeof(arg) > 255);
 	if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
 	if (cmd < IP_VS_BASE_CTL || cmd > IP_VS_SO_GET_MAX)
 		return -EINVAL;
 
-	if (*len < get_arglen[GET_CMDID(cmd)]) {
-		pr_err("get_ctl: len %u < %u\n",
-		       *len, get_arglen[GET_CMDID(cmd)]);
+	copylen = get_arglen[CMDID(cmd)];
+	if (*len < (int) copylen) {
+		IP_VS_DBG(1, "get_ctl: len %d < %u\n", *len, copylen);
 		return -EINVAL;
 	}
-
-	copylen = get_arglen[GET_CMDID(cmd)];
-	if (copylen > 128)
-		return -EINVAL;
 
 	if (copy_from_user(arg, user, copylen) != 0)
 		return -EFAULT;
@@ -2766,6 +2795,7 @@ static const struct nla_policy ip_vs_dest_policy[IPVS_DEST_ATTR_MAX + 1] = {
 	[IPVS_DEST_ATTR_INACT_CONNS]	= { .type = NLA_U32 },
 	[IPVS_DEST_ATTR_PERSIST_CONNS]	= { .type = NLA_U32 },
 	[IPVS_DEST_ATTR_STATS]		= { .type = NLA_NESTED },
+	[IPVS_DEST_ATTR_ADDR_FAMILY]	= { .type = NLA_U16 },
 };
 
 static int ip_vs_genl_fill_stats(struct sk_buff *skb, int container_type,
@@ -3021,7 +3051,8 @@ static int ip_vs_genl_fill_dest(struct sk_buff *skb, struct ip_vs_dest *dest)
 	    nla_put_u32(skb, IPVS_DEST_ATTR_INACT_CONNS,
 			atomic_read(&dest->inactconns)) ||
 	    nla_put_u32(skb, IPVS_DEST_ATTR_PERSIST_CONNS,
-			atomic_read(&dest->persistconns)))
+			atomic_read(&dest->persistconns)) ||
+	    nla_put_u16(skb, IPVS_DEST_ATTR_ADDR_FAMILY, dest->af))
 		goto nla_put_failure;
 	if (ip_vs_genl_fill_stats(skb, IPVS_DEST_ATTR_STATS, &dest->stats))
 		goto nla_put_failure;
@@ -3102,6 +3133,7 @@ static int ip_vs_genl_parse_dest(struct ip_vs_dest_user_kern *udest,
 {
 	struct nlattr *attrs[IPVS_DEST_ATTR_MAX + 1];
 	struct nlattr *nla_addr, *nla_port;
+	struct nlattr *nla_addr_family;
 
 	/* Parse mandatory identifying destination fields first */
 	if (nla == NULL ||
@@ -3110,6 +3142,7 @@ static int ip_vs_genl_parse_dest(struct ip_vs_dest_user_kern *udest,
 
 	nla_addr	= attrs[IPVS_DEST_ATTR_ADDR];
 	nla_port	= attrs[IPVS_DEST_ATTR_PORT];
+	nla_addr_family	= attrs[IPVS_DEST_ATTR_ADDR_FAMILY];
 
 	if (!(nla_addr && nla_port))
 		return -EINVAL;
@@ -3118,6 +3151,11 @@ static int ip_vs_genl_parse_dest(struct ip_vs_dest_user_kern *udest,
 
 	nla_memcpy(&udest->addr, nla_addr, sizeof(udest->addr));
 	udest->port = nla_get_be16(nla_port);
+
+	if (nla_addr_family)
+		udest->af = nla_get_u16(nla_addr_family);
+	else
+		udest->af = 0;
 
 	/* If a full entry was requested, check for the additional fields */
 	if (full_entry) {
@@ -3221,6 +3259,12 @@ static int ip_vs_genl_new_daemon(struct net *net, struct nlattr **attrs)
 	if (!(attrs[IPVS_DAEMON_ATTR_STATE] &&
 	      attrs[IPVS_DAEMON_ATTR_MCAST_IFN] &&
 	      attrs[IPVS_DAEMON_ATTR_SYNC_ID]))
+		return -EINVAL;
+
+	/* The synchronization protocol is incompatible with mixed family
+	 * services
+	 */
+	if (net_ipvs(net)->mixed_address_family_dests > 0)
 		return -EINVAL;
 
 	return start_sync_thread(net,
@@ -3346,6 +3390,35 @@ static int ip_vs_genl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 					    need_full_dest);
 		if (ret)
 			goto out;
+
+		/* Old protocols did not allow the user to specify address
+		 * family, so we set it to zero instead.  We also didn't
+		 * allow heterogeneous pools in the old code, so it's safe
+		 * to assume that this will have the same address family as
+		 * the service.
+		 */
+		if (udest.af == 0)
+			udest.af = svc->af;
+
+		if (udest.af != svc->af) {
+			/* The synchronization protocol is incompatible
+			 * with mixed family services
+			 */
+			if (net_ipvs(net)->sync_state) {
+				ret = -EINVAL;
+				goto out;
+			}
+
+			/* Which connection types do we support? */
+			switch (udest.conn_flags) {
+			case IP_VS_CONN_F_TUNNEL:
+				/* We are able to forward this */
+				break;
+			default:
+				ret = -EINVAL;
+				goto out;
+			}
+		}
 	}
 
 	switch (cmd) {

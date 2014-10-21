@@ -131,8 +131,8 @@ typedef struct tagKnownBSS {
 
 	unsigned int	uClearCount;
 	unsigned int	uIELength;
-	QWORD           qwBSSTimestamp;
-	QWORD           qwLocalTSF;
+	u64 qwBSSTimestamp;
+	u64 qwLocalTSF;
 
 	CARD_PHY_TYPE   eNetworkTypeInUse;
 
@@ -233,7 +233,7 @@ bool
 BSSbInsertToBSSList(
 	void *hDeviceContext,
 	unsigned char *abyBSSIDAddr,
-	QWORD qwTimestamp,
+	__le64 qwTimestamp,
 	unsigned short wBeaconInterval,
 	unsigned short wCapInfo,
 	unsigned char byCurrChannel,
@@ -253,7 +253,7 @@ BSSbInsertToBSSList(
 bool
 BSSbUpdateToBSSList(
 	void *hDeviceContext,
-	QWORD qwTimestamp,
+	__le64 qwTimestamp,
 	unsigned short wBeaconInterval,
 	unsigned short wCapInfo,
 	unsigned char byCurrChannel,

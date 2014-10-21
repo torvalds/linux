@@ -38,6 +38,7 @@ struct auto_pin_cfg_item {
 	int type;
 	unsigned int is_headset_mic:1;
 	unsigned int is_headphone_mic:1; /* Mic-only in headphone jack */
+	unsigned int has_boost_on_pin:1;
 };
 
 struct auto_pin_cfg;

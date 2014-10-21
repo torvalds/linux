@@ -22,7 +22,7 @@
 
 void ath10k_bmi_start(struct ath10k *ar)
 {
-	ath10k_dbg(ATH10K_DBG_BMI, "bmi start\n");
+	ath10k_dbg(ar, ATH10K_DBG_BMI, "bmi start\n");
 
 	ar->bmi.done_sent = false;
 }
@@ -33,10 +33,10 @@ int ath10k_bmi_done(struct ath10k *ar)
 	u32 cmdlen = sizeof(cmd.id) + sizeof(cmd.done);
 	int ret;
 
-	ath10k_dbg(ATH10K_DBG_BMI, "bmi done\n");
+	ath10k_dbg(ar, ATH10K_DBG_BMI, "bmi done\n");
 
 	if (ar->bmi.done_sent) {
-		ath10k_dbg(ATH10K_DBG_BMI, "bmi skipped\n");
+		ath10k_dbg(ar, ATH10K_DBG_BMI, "bmi skipped\n");
 		return 0;
 	}
 
@@ -45,7 +45,7 @@ int ath10k_bmi_done(struct ath10k *ar)
 
 	ret = ath10k_hif_exchange_bmi_msg(ar, &cmd, cmdlen, NULL, NULL);
 	if (ret) {
-		ath10k_warn("unable to write to the device: %d\n", ret);
+		ath10k_warn(ar, "unable to write to the device: %d\n", ret);
 		return ret;
 	}
 
@@ -61,10 +61,10 @@ int ath10k_bmi_get_target_info(struct ath10k *ar,
 	u32 resplen = sizeof(resp.get_target_info);
 	int ret;
 
-	ath10k_dbg(ATH10K_DBG_BMI, "bmi get target info\n");
+	ath10k_dbg(ar, ATH10K_DBG_BMI, "bmi get target info\n");
 
 	if (ar->bmi.done_sent) {
-		ath10k_warn("BMI Get Target Info Command disallowed\n");
+		ath10k_warn(ar, "BMI Get Target Info Command disallowed\n");
 		return -EBUSY;
 	}
 
@@ -72,12 +72,12 @@ int ath10k_bmi_get_target_info(struct ath10k *ar,
 
 	ret = ath10k_hif_exchange_bmi_msg(ar, &cmd, cmdlen, &resp, &resplen);
 	if (ret) {
-		ath10k_warn("unable to get target info from device\n");
+		ath10k_warn(ar, "unable to get target info from device\n");
 		return ret;
 	}
 
 	if (resplen < sizeof(resp.get_target_info)) {
-		ath10k_warn("invalid get_target_info response length (%d)\n",
+		ath10k_warn(ar, "invalid get_target_info response length (%d)\n",
 			    resplen);
 		return -EIO;
 	}
@@ -97,11 +97,11 @@ int ath10k_bmi_read_memory(struct ath10k *ar,
 	u32 rxlen;
 	int ret;
 
-	ath10k_dbg(ATH10K_DBG_BMI, "bmi read address 0x%x length %d\n",
+	ath10k_dbg(ar, ATH10K_DBG_BMI, "bmi read address 0x%x length %d\n",
 		   address, length);
 
 	if (ar->bmi.done_sent) {
-		ath10k_warn("command disallowed\n");
+		ath10k_warn(ar, "command disallowed\n");
 		return -EBUSY;
 	}
 
@@ -115,7 +115,7 @@ int ath10k_bmi_read_memory(struct ath10k *ar,
 		ret = ath10k_hif_exchange_bmi_msg(ar, &cmd, cmdlen,
 						  &resp, &rxlen);
 		if (ret) {
-			ath10k_warn("unable to read from the device (%d)\n",
+			ath10k_warn(ar, "unable to read from the device (%d)\n",
 				    ret);
 			return ret;
 		}
@@ -137,11 +137,11 @@ int ath10k_bmi_write_memory(struct ath10k *ar,
 	u32 txlen;
 	int ret;
 
-	ath10k_dbg(ATH10K_DBG_BMI, "bmi write address 0x%x length %d\n",
+	ath10k_dbg(ar, ATH10K_DBG_BMI, "bmi write address 0x%x length %d\n",
 		   address, length);
 
 	if (ar->bmi.done_sent) {
-		ath10k_warn("command disallowed\n");
+		ath10k_warn(ar, "command disallowed\n");
 		return -EBUSY;
 	}
 
@@ -159,7 +159,7 @@ int ath10k_bmi_write_memory(struct ath10k *ar,
 		ret = ath10k_hif_exchange_bmi_msg(ar, &cmd, hdrlen + txlen,
 						  NULL, NULL);
 		if (ret) {
-			ath10k_warn("unable to write to the device (%d)\n",
+			ath10k_warn(ar, "unable to write to the device (%d)\n",
 				    ret);
 			return ret;
 		}
@@ -183,11 +183,11 @@ int ath10k_bmi_execute(struct ath10k *ar, u32 address, u32 param, u32 *result)
 	u32 resplen = sizeof(resp.execute);
 	int ret;
 
-	ath10k_dbg(ATH10K_DBG_BMI, "bmi execute address 0x%x param 0x%x\n",
+	ath10k_dbg(ar, ATH10K_DBG_BMI, "bmi execute address 0x%x param 0x%x\n",
 		   address, param);
 
 	if (ar->bmi.done_sent) {
-		ath10k_warn("command disallowed\n");
+		ath10k_warn(ar, "command disallowed\n");
 		return -EBUSY;
 	}
 
@@ -197,19 +197,19 @@ int ath10k_bmi_execute(struct ath10k *ar, u32 address, u32 param, u32 *result)
 
 	ret = ath10k_hif_exchange_bmi_msg(ar, &cmd, cmdlen, &resp, &resplen);
 	if (ret) {
-		ath10k_warn("unable to read from the device\n");
+		ath10k_warn(ar, "unable to read from the device\n");
 		return ret;
 	}
 
 	if (resplen < sizeof(resp.execute)) {
-		ath10k_warn("invalid execute response length (%d)\n",
+		ath10k_warn(ar, "invalid execute response length (%d)\n",
 			    resplen);
 		return -EIO;
 	}
 
 	*result = __le32_to_cpu(resp.execute.result);
 
-	ath10k_dbg(ATH10K_DBG_BMI, "bmi execute result 0x%x\n", *result);
+	ath10k_dbg(ar, ATH10K_DBG_BMI, "bmi execute result 0x%x\n", *result);
 
 	return 0;
 }
@@ -221,11 +221,11 @@ int ath10k_bmi_lz_data(struct ath10k *ar, const void *buffer, u32 length)
 	u32 txlen;
 	int ret;
 
-	ath10k_dbg(ATH10K_DBG_BMI, "bmi lz data buffer 0x%p length %d\n",
+	ath10k_dbg(ar, ATH10K_DBG_BMI, "bmi lz data buffer 0x%p length %d\n",
 		   buffer, length);
 
 	if (ar->bmi.done_sent) {
-		ath10k_warn("command disallowed\n");
+		ath10k_warn(ar, "command disallowed\n");
 		return -EBUSY;
 	}
 
@@ -241,7 +241,7 @@ int ath10k_bmi_lz_data(struct ath10k *ar, const void *buffer, u32 length)
 		ret = ath10k_hif_exchange_bmi_msg(ar, &cmd, hdrlen + txlen,
 						  NULL, NULL);
 		if (ret) {
-			ath10k_warn("unable to write to the device\n");
+			ath10k_warn(ar, "unable to write to the device\n");
 			return ret;
 		}
 
@@ -258,11 +258,11 @@ int ath10k_bmi_lz_stream_start(struct ath10k *ar, u32 address)
 	u32 cmdlen = sizeof(cmd.id) + sizeof(cmd.lz_start);
 	int ret;
 
-	ath10k_dbg(ATH10K_DBG_BMI, "bmi lz stream start address 0x%x\n",
+	ath10k_dbg(ar, ATH10K_DBG_BMI, "bmi lz stream start address 0x%x\n",
 		   address);
 
 	if (ar->bmi.done_sent) {
-		ath10k_warn("command disallowed\n");
+		ath10k_warn(ar, "command disallowed\n");
 		return -EBUSY;
 	}
 
@@ -271,7 +271,7 @@ int ath10k_bmi_lz_stream_start(struct ath10k *ar, u32 address)
 
 	ret = ath10k_hif_exchange_bmi_msg(ar, &cmd, cmdlen, NULL, NULL);
 	if (ret) {
-		ath10k_warn("unable to Start LZ Stream to the device\n");
+		ath10k_warn(ar, "unable to Start LZ Stream to the device\n");
 		return ret;
 	}
 
@@ -286,7 +286,7 @@ int ath10k_bmi_fast_download(struct ath10k *ar,
 	u32 trailer_len = length - head_len;
 	int ret;
 
-	ath10k_dbg(ATH10K_DBG_BMI,
+	ath10k_dbg(ar, ATH10K_DBG_BMI,
 		   "bmi fast download address 0x%x buffer 0x%p length %d\n",
 		   address, buffer, length);
 

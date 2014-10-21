@@ -171,13 +171,13 @@ ld-ifversion = $(shell [ $(call ld-version) $(1) $(2) ] && echo $(3))
 # Shorthand for $(Q)$(MAKE) -f scripts/Makefile.build obj=
 # Usage:
 # $(Q)$(MAKE) $(build)=dir
-build := -f $(if $(KBUILD_SRC),$(srctree)/)scripts/Makefile.build obj
+build := -f $(srctree)/scripts/Makefile.build obj
 
 ###
 # Shorthand for $(Q)$(MAKE) -f scripts/Makefile.modbuiltin obj=
 # Usage:
 # $(Q)$(MAKE) $(modbuiltin)=dir
-modbuiltin := -f $(if $(KBUILD_SRC),$(srctree)/)scripts/Makefile.modbuiltin obj
+modbuiltin := -f $(srctree)/scripts/Makefile.modbuiltin obj
 
 # Prefix -I with $(srctree) if it is not an absolute path.
 # skip if -I has no parameter

@@ -1829,7 +1829,17 @@ static int omap_hsmmc_disable_fclk(struct mmc_host *mmc)
 	return 0;
 }
 
-static const struct mmc_host_ops omap_hsmmc_ops = {
+static int omap_hsmmc_multi_io_quirk(struct mmc_card *card,
+				     unsigned int direction, int blk_size)
+{
+	/* This controller can't do multiblock reads due to hw bugs */
+	if (direction == MMC_DATA_READ)
+		return 1;
+
+	return blk_size;
+}
+
+static struct mmc_host_ops omap_hsmmc_ops = {
 	.enable = omap_hsmmc_enable_fclk,
 	.disable = omap_hsmmc_disable_fclk,
 	.post_req = omap_hsmmc_post_req,
@@ -2101,7 +2111,7 @@ static int omap_hsmmc_probe(struct platform_device *pdev)
 
 	if (host->pdata->controller_flags & OMAP_HSMMC_BROKEN_MULTIBLOCK_READ) {
 		dev_info(&pdev->dev, "multiblock reads disabled due to 35xx erratum 2.1.1.128; MMC read performance may suffer\n");
-		mmc->caps2 |= MMC_CAP2_NO_MULTI_READ;
+		omap_hsmmc_ops.multi_io_quirk = omap_hsmmc_multi_io_quirk;
 	}
 
 	pm_runtime_enable(host->dev);
@@ -2489,7 +2499,6 @@ static struct platform_driver omap_hsmmc_driver = {
 	.remove		= omap_hsmmc_remove,
 	.driver		= {
 		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
 		.pm = &omap_hsmmc_dev_pm_ops,
 		.of_match_table = of_match_ptr(omap_mmc_of_match),
 	},

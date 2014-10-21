@@ -517,6 +517,23 @@ static void ar9003_hw_spur_mitigate(struct ath_hw *ah,
 	ar9003_hw_spur_mitigate_ofdm(ah, chan);
 }
 
+static u32 ar9003_hw_compute_pll_control_soc(struct ath_hw *ah,
+					     struct ath9k_channel *chan)
+{
+	u32 pll;
+
+	pll = SM(0x5, AR_RTC_9300_SOC_PLL_REFDIV);
+
+	if (chan && IS_CHAN_HALF_RATE(chan))
+		pll |= SM(0x1, AR_RTC_9300_SOC_PLL_CLKSEL);
+	else if (chan && IS_CHAN_QUARTER_RATE(chan))
+		pll |= SM(0x2, AR_RTC_9300_SOC_PLL_CLKSEL);
+
+	pll |= SM(0x2c, AR_RTC_9300_SOC_PLL_DIV_INT);
+
+	return pll;
+}
+
 static u32 ar9003_hw_compute_pll_control(struct ath_hw *ah,
 					 struct ath9k_channel *chan)
 {
@@ -1781,7 +1798,12 @@ void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
 
 	priv_ops->rf_set_freq = ar9003_hw_set_channel;
 	priv_ops->spur_mitigate_freq = ar9003_hw_spur_mitigate;
-	priv_ops->compute_pll_control = ar9003_hw_compute_pll_control;
+
+	if (AR_SREV_9340(ah) || AR_SREV_9550(ah) || AR_SREV_9531(ah))
+		priv_ops->compute_pll_control = ar9003_hw_compute_pll_control_soc;
+	else
+		priv_ops->compute_pll_control = ar9003_hw_compute_pll_control;
+
 	priv_ops->set_channel_regs = ar9003_hw_set_channel_regs;
 	priv_ops->init_bb = ar9003_hw_init_bb;
 	priv_ops->process_ini = ar9003_hw_process_ini;

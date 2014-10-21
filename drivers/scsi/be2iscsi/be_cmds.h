@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2013 Emulex
+ * Copyright (C) 2005 - 2014 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -26,9 +26,9 @@
  * The commands are serviced by the ARM processor in the OneConnect's MPU.
  */
 struct be_sge {
-	u32 pa_lo;
-	u32 pa_hi;
-	u32 len;
+	__le32 pa_lo;
+	__le32 pa_hi;
+	__le32 len;
 };
 
 #define MCC_WRB_SGE_CNT_SHIFT 3	/* bits 3 - 7 of dword 0 */
@@ -118,6 +118,14 @@ struct be_mcc_compl {
 #define ASYNC_TRAILER_EVENT_CODE_SHIFT	8	/* bits 8 - 15 */
 #define ASYNC_TRAILER_EVENT_CODE_MASK	0xFF
 #define ASYNC_EVENT_CODE_LINK_STATE	0x1
+#define ASYNC_EVENT_CODE_ISCSI		0x4
+
+#define ASYNC_TRAILER_EVENT_TYPE_SHIFT	16	/* bits 16 - 23 */
+#define ASYNC_TRAILER_EVENT_TYPE_MASK	0xF
+#define ASYNC_EVENT_NEW_ISCSI_TGT_DISC	0x4
+#define ASYNC_EVENT_NEW_ISCSI_CONN	0x5
+#define ASYNC_EVENT_NEW_TCP_CONN	0x7
+
 struct be_async_event_trailer {
 	u32 code;
 };
@@ -624,11 +632,11 @@ static inline struct be_sge *nonembedded_sgl(struct be_mcc_wrb *wrb)
 /******************** Modify EQ Delay *******************/
 struct be_cmd_req_modify_eq_delay {
 	struct be_cmd_req_hdr hdr;
-	u32 num_eq;
+	__le32 num_eq;
 	struct {
-		u32 eq_id;
-		u32 phase;
-		u32 delay_multiplier;
+		__le32 eq_id;
+		__le32 phase;
+		__le32 delay_multiplier;
 	} delay[MAX_CPUS];
 } __packed;
 

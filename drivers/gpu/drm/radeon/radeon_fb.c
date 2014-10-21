@@ -189,7 +189,8 @@ out_unref:
 static int radeonfb_create(struct drm_fb_helper *helper,
 			   struct drm_fb_helper_surface_size *sizes)
 {
-	struct radeon_fbdev *rfbdev = (struct radeon_fbdev *)helper;
+	struct radeon_fbdev *rfbdev =
+		container_of(helper, struct radeon_fbdev, helper);
 	struct radeon_device *rdev = rfbdev->rdev;
 	struct fb_info *info;
 	struct drm_framebuffer *fb = NULL;

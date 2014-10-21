@@ -15,6 +15,8 @@ CONTENTS
  5. Tasks CPU affinity
    5.1 SCHED_DEADLINE and cpusets HOWTO
  6. Future plans
+ A. Test suite
+ B. Minimal main()
 
 
 0. WARNING
@@ -38,24 +40,25 @@ CONTENTS
 ==================
 
  SCHED_DEADLINE uses three parameters, named "runtime", "period", and
- "deadline" to schedule tasks. A SCHED_DEADLINE task is guaranteed to receive
+ "deadline", to schedule tasks. A SCHED_DEADLINE task should receive
  "runtime" microseconds of execution time every "period" microseconds, and
  these "runtime" microseconds are available within "deadline" microseconds
  from the beginning of the period.  In order to implement this behaviour,
  every time the task wakes up, the scheduler computes a "scheduling deadline"
  consistent with the guarantee (using the CBS[2,3] algorithm). Tasks are then
  scheduled using EDF[1] on these scheduling deadlines (the task with the
- smallest scheduling deadline is selected for execution). Notice that this
- guaranteed is respected if a proper "admission control" strategy (see Section
- "4. Bandwidth management") is used.
+ earliest scheduling deadline is selected for execution). Notice that the
+ task actually receives "runtime" time units within "deadline" if a proper
+ "admission control" strategy (see Section "4. Bandwidth management") is used
+ (clearly, if the system is overloaded this guarantee cannot be respected).
 
  Summing up, the CBS[2,3] algorithms assigns scheduling deadlines to tasks so
  that each task runs for at most its runtime every period, avoiding any
  interference between different tasks (bandwidth isolation), while the EDF[1]
- algorithm selects the task with the smallest scheduling deadline as the one
- to be executed first.  Thanks to this feature, also tasks that do not
- strictly comply with the "traditional" real-time task model (see Section 3)
- can effectively use the new policy.
+ algorithm selects the task with the earliest scheduling deadline as the one
+ to be executed next. Thanks to this feature, tasks that do not strictly comply
+ with the "traditional" real-time task model (see Section 3) can effectively
+ use the new policy.
 
  In more details, the CBS algorithm assigns scheduling deadlines to
  tasks in the following way:
@@ -64,45 +67,45 @@ CONTENTS
     "deadline", and "period" parameters;
 
   - The state of the task is described by a "scheduling deadline", and
-    a "current runtime". These two parameters are initially set to 0;
+    a "remaining runtime". These two parameters are initially set to 0;
 
   - When a SCHED_DEADLINE task wakes up (becomes ready for execution),
     the scheduler checks if
 
-                    current runtime                runtime
-         ---------------------------------- > ----------------
-         scheduling deadline - current time         period
+                 remaining runtime                  runtime
+        ----------------------------------    >    ---------
+        scheduling deadline - current time           period
 
     then, if the scheduling deadline is smaller than the current time, or
     this condition is verified, the scheduling deadline and the
-    current budget are re-initialised as
+    remaining runtime are re-initialised as
 
          scheduling deadline = current time + deadline
-         current runtime = runtime
+         remaining runtime = runtime
 
-    otherwise, the scheduling deadline and the current runtime are
+    otherwise, the scheduling deadline and the remaining runtime are
     left unchanged;
 
   - When a SCHED_DEADLINE task executes for an amount of time t, its
-    current runtime is decreased as
+    remaining runtime is decreased as
 
-         current runtime = current runtime - t
+         remaining runtime = remaining runtime - t
 
     (technically, the runtime is decreased at every tick, or when the
     task is descheduled / preempted);
 
-  - When the current runtime becomes less or equal than 0, the task is
+  - When the remaining runtime becomes less or equal than 0, the task is
     said to be "throttled" (also known as "depleted" in real-time literature)
     and cannot be scheduled until its scheduling deadline. The "replenishment
     time" for this task (see next item) is set to be equal to the current
     value of the scheduling deadline;
 
   - When the current time is equal to the replenishment time of a
-    throttled task, the scheduling deadline and the current runtime are
+    throttled task, the scheduling deadline and the remaining runtime are
     updated as
 
          scheduling deadline = scheduling deadline + period
-         current runtime = current runtime + runtime
+         remaining runtime = remaining runtime + runtime
 
 
 3. Scheduling Real-Time Tasks
@@ -134,6 +137,50 @@ CONTENTS
  A real-time task can be periodic with period P if r_{j+1} = r_j + P, or
  sporadic with minimum inter-arrival time P is r_{j+1} >= r_j + P. Finally,
  d_j = r_j + D, where D is the task's relative deadline.
+ The utilisation of a real-time task is defined as the ratio between its
+ WCET and its period (or minimum inter-arrival time), and represents
+ the fraction of CPU time needed to execute the task.
+
+ If the total utilisation sum_i(WCET_i/P_i) is larger than M (with M equal
+ to the number of CPUs), then the scheduler is unable to respect all the
+ deadlines.
+ Note that total utilisation is defined as the sum of the utilisations
+ WCET_i/P_i over all the real-time tasks in the system. When considering
+ multiple real-time tasks, the parameters of the i-th task are indicated
+ with the "_i" suffix.
+ Moreover, if the total utilisation is larger than M, then we risk starving
+ non- real-time tasks by real-time tasks.
+ If, instead, the total utilisation is smaller than M, then non real-time
+ tasks will not be starved and the system might be able to respect all the
+ deadlines.
+ As a matter of fact, in this case it is possible to provide an upper bound
+ for tardiness (defined as the maximum between 0 and the difference
+ between the finishing time of a job and its absolute deadline).
+ More precisely, it can be proven that using a global EDF scheduler the
+ maximum tardiness of each task is smaller or equal than
+	((M − 1) · WCET_max − WCET_min)/(M − (M − 2) · U_max) + WCET_max
+ where WCET_max = max_i{WCET_i} is the maximum WCET, WCET_min=min_i{WCET_i}
+ is the minimum WCET, and U_max = max_i{WCET_i/P_i} is the maximum utilisation.
+
+ If M=1 (uniprocessor system), or in case of partitioned scheduling (each
+ real-time task is statically assigned to one and only one CPU), it is
+ possible to formally check if all the deadlines are respected.
+ If D_i = P_i for all tasks, then EDF is able to respect all the deadlines
+ of all the tasks executing on a CPU if and only if the total utilisation
+ of the tasks running on such a CPU is smaller or equal than 1.
+ If D_i != P_i for some task, then it is possible to define the density of
+ a task as C_i/min{D_i,T_i}, and EDF is able to respect all the deadlines
+ of all the tasks running on a CPU if the sum sum_i C_i/min{D_i,T_i} of the
+ densities of the tasks running on such a CPU is smaller or equal than 1
+ (notice that this condition is only sufficient, and not necessary).
+
+ On multiprocessor systems with global EDF scheduling (non partitioned
+ systems), a sufficient test for schedulability can not be based on the
+ utilisations (it can be shown that task sets with utilisations slightly
+ larger than 1 can miss deadlines regardless of the number of CPUs M).
+ However, as previously stated, enforcing that the total utilisation is smaller
+ than M is enough to guarantee that non real-time tasks are not starved and
+ that the tardiness of real-time tasks has an upper bound.
 
  SCHED_DEADLINE can be used to schedule real-time tasks guaranteeing that
  the jobs' deadlines of a task are respected. In order to do this, a task
@@ -147,6 +194,8 @@ CONTENTS
  and the absolute deadlines (d_j) coincide, so a proper admission control
  allows to respect the jobs' absolute deadlines for this task (this is what is
  called "hard schedulability property" and is an extension of Lemma 1 of [2]).
+ Notice that if runtime > deadline the admission control will surely reject
+ this task, as it is not possible to respect its temporal constraints.
 
  References:
   1 - C. L. Liu and J. W. Layland. Scheduling algorithms for multiprogram-
@@ -156,46 +205,57 @@ CONTENTS
       Real-Time Systems. Proceedings of the 19th IEEE Real-time Systems
       Symposium, 1998. http://retis.sssup.it/~giorgio/paps/1998/rtss98-cbs.pdf
   3 - L. Abeni. Server Mechanisms for Multimedia Applications. ReTiS Lab
-      Technical Report. http://xoomer.virgilio.it/lucabe72/pubs/tr-98-01.ps
+      Technical Report. http://disi.unitn.it/~abeni/tr-98-01.pdf
 
 4. Bandwidth management
 =======================
 
- In order for the -deadline scheduling to be effective and useful, it is
- important to have some method to keep the allocation of the available CPU
- bandwidth to the tasks under control.
- This is usually called "admission control" and if it is not performed at all,
+ As previously mentioned, in order for -deadline scheduling to be
+ effective and useful (that is, to be able to provide "runtime" time units
+ within "deadline"), it is important to have some method to keep the allocation
+ of the available fractions of CPU time to the various tasks under control.
+ This is usually called "admission control" and if it is not performed, then
  no guarantee can be given on the actual scheduling of the -deadline tasks.
 
- Since when RT-throttling has been introduced each task group has a bandwidth
- associated, calculated as a certain amount of runtime over a period.
- Moreover, to make it possible to manipulate such bandwidth, readable/writable
- controls have been added to both procfs (for system wide settings) and cgroupfs
- (for per-group settings).
- Therefore, the same interface is being used for controlling the bandwidth
- distrubution to -deadline tasks.
+ As already stated in Section 3, a necessary condition to be respected to
+ correctly schedule a set of real-time tasks is that the total utilisation
+ is smaller than M. When talking about -deadline tasks, this requires that
+ the sum of the ratio between runtime and period for all tasks is smaller
+ than M. Notice that the ratio runtime/period is equivalent to the utilisation
+ of a "traditional" real-time task, and is also often referred to as
+ "bandwidth".
+ The interface used to control the CPU bandwidth that can be allocated
+ to -deadline tasks is similar to the one already used for -rt
+ tasks with real-time group scheduling (a.k.a. RT-throttling - see
+ Documentation/scheduler/sched-rt-group.txt), and is based on readable/
+ writable control files located in procfs (for system wide settings).
+ Notice that per-group settings (controlled through cgroupfs) are still not
+ defined for -deadline tasks, because more discussion is needed in order to
+ figure out how we want to manage SCHED_DEADLINE bandwidth at the task group
+ level.
 
- However, more discussion is needed in order to figure out how we want to manage
- SCHED_DEADLINE bandwidth at the task group level. Therefore, SCHED_DEADLINE
- uses (for now) a less sophisticated, but actually very sensible, mechanism to
- ensure that a certain utilization cap is not overcome per each root_domain.
-
- Another main difference between deadline bandwidth management and RT-throttling
+ A main difference between deadline bandwidth management and RT-throttling
  is that -deadline tasks have bandwidth on their own (while -rt ones don't!),
- and thus we don't need an higher level throttling mechanism to enforce the
- desired bandwidth.
+ and thus we don't need a higher level throttling mechanism to enforce the
+ desired bandwidth. In other words, this means that interface parameters are
+ only used at admission control time (i.e., when the user calls
+ sched_setattr()). Scheduling is then performed considering actual tasks'
+ parameters, so that CPU bandwidth is allocated to SCHED_DEADLINE tasks
+ respecting their needs in terms of granularity. Therefore, using this simple
+ interface we can put a cap on total utilization of -deadline tasks (i.e.,
+ \Sum (runtime_i / period_i) < global_dl_utilization_cap).
 
 4.1 System wide settings
 ------------------------
 
  The system wide settings are configured under the /proc virtual file system.
 
- For now the -rt knobs are used for dl admission control and the -deadline
- runtime is accounted against the -rt runtime. We realise that this isn't
- entirely desirable; however, it is better to have a small interface for now,
- and be able to change it easily later. The ideal situation (see 5.) is to run
- -rt tasks from a -deadline server; in which case the -rt bandwidth is a direct
- subset of dl_bw.
+ For now the -rt knobs are used for -deadline admission control and the
+ -deadline runtime is accounted against the -rt runtime. We realise that this
+ isn't entirely desirable; however, it is better to have a small interface for
+ now, and be able to change it easily later. The ideal situation (see 5.) is to
+ run -rt tasks from a -deadline server; in which case the -rt bandwidth is a
+ direct subset of dl_bw.
 
  This means that, for a root_domain comprising M CPUs, -deadline tasks
  can be created while the sum of their bandwidths stays below:
@@ -231,8 +291,16 @@ CONTENTS
  950000. With rt_period equal to 1000000, by default, it means that -deadline
  tasks can use at most 95%, multiplied by the number of CPUs that compose the
  root_domain, for each root_domain.
+ This means that non -deadline tasks will receive at least 5% of the CPU time,
+ and that -deadline tasks will receive their runtime with a guaranteed
+ worst-case delay respect to the "deadline" parameter. If "deadline" = "period"
+ and the cpuset mechanism is used to implement partitioned scheduling (see
+ Section 5), then this simple setting of the bandwidth management is able to
+ deterministically guarantee that -deadline tasks will receive their runtime
+ in a period.
 
- A -deadline task cannot fork.
+ Finally, notice that in order not to jeopardize the admission control a
+ -deadline task cannot fork.
 
 5. Tasks CPU affinity
 =====================
@@ -279,3 +347,179 @@ CONTENTS
  throttling patches [https://lkml.org/lkml/2010/2/23/239] but we still are in
  the preliminary phases of the merge and we really seek feedback that would
  help us decide on the direction it should take.
+
+Appendix A. Test suite
+======================
+
+ The SCHED_DEADLINE policy can be easily tested using two applications that
+ are part of a wider Linux Scheduler validation suite. The suite is
+ available as a GitHub repository: https://github.com/scheduler-tools.
+
+ The first testing application is called rt-app and can be used to
+ start multiple threads with specific parameters. rt-app supports
+ SCHED_{OTHER,FIFO,RR,DEADLINE} scheduling policies and their related
+ parameters (e.g., niceness, priority, runtime/deadline/period). rt-app
+ is a valuable tool, as it can be used to synthetically recreate certain
+ workloads (maybe mimicking real use-cases) and evaluate how the scheduler
+ behaves under such workloads. In this way, results are easily reproducible.
+ rt-app is available at: https://github.com/scheduler-tools/rt-app.
+
+ Thread parameters can be specified from the command line, with something like
+ this:
+
+  # rt-app -t 100000:10000:d -t 150000:20000:f:10 -D5
+
+ The above creates 2 threads. The first one, scheduled by SCHED_DEADLINE,
+ executes for 10ms every 100ms. The second one, scheduled at SCHED_FIFO
+ priority 10, executes for 20ms every 150ms. The test will run for a total
+ of 5 seconds.
+
+ More interestingly, configurations can be described with a json file that
+ can be passed as input to rt-app with something like this:
+
+  # rt-app my_config.json
+
+ The parameters that can be specified with the second method are a superset
+ of the command line options. Please refer to rt-app documentation for more
+ details (<rt-app-sources>/doc/*.json).
+
+ The second testing application is a modification of schedtool, called
+ schedtool-dl, which can be used to setup SCHED_DEADLINE parameters for a
+ certain pid/application. schedtool-dl is available at:
+ https://github.com/scheduler-tools/schedtool-dl.git.
+
+ The usage is straightforward:
+
+  # schedtool -E -t 10000000:100000000 -e ./my_cpuhog_app
+
+ With this, my_cpuhog_app is put to run inside a SCHED_DEADLINE reservation
+ of 10ms every 100ms (note that parameters are expressed in microseconds).
+ You can also use schedtool to create a reservation for an already running
+ application, given that you know its pid:
+
+  # schedtool -E -t 10000000:100000000 my_app_pid
+
+Appendix B. Minimal main()
+==========================
+
+ We provide in what follows a simple (ugly) self-contained code snippet
+ showing how SCHED_DEADLINE reservations can be created by a real-time
+ application developer.
+
+ #define _GNU_SOURCE
+ #include <unistd.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+ #include <time.h>
+ #include <linux/unistd.h>
+ #include <linux/kernel.h>
+ #include <linux/types.h>
+ #include <sys/syscall.h>
+ #include <pthread.h>
+
+ #define gettid() syscall(__NR_gettid)
+
+ #define SCHED_DEADLINE	6
+
+ /* XXX use the proper syscall numbers */
+ #ifdef __x86_64__
+ #define __NR_sched_setattr		314
+ #define __NR_sched_getattr		315
+ #endif
+
+ #ifdef __i386__
+ #define __NR_sched_setattr		351
+ #define __NR_sched_getattr		352
+ #endif
+
+ #ifdef __arm__
+ #define __NR_sched_setattr		380
+ #define __NR_sched_getattr		381
+ #endif
+
+ static volatile int done;
+
+ struct sched_attr {
+	__u32 size;
+
+	__u32 sched_policy;
+	__u64 sched_flags;
+
+	/* SCHED_NORMAL, SCHED_BATCH */
+	__s32 sched_nice;
+
+	/* SCHED_FIFO, SCHED_RR */
+	__u32 sched_priority;
+
+	/* SCHED_DEADLINE (nsec) */
+	__u64 sched_runtime;
+	__u64 sched_deadline;
+	__u64 sched_period;
+ };
+
+ int sched_setattr(pid_t pid,
+		  const struct sched_attr *attr,
+		  unsigned int flags)
+ {
+	return syscall(__NR_sched_setattr, pid, attr, flags);
+ }
+
+ int sched_getattr(pid_t pid,
+		  struct sched_attr *attr,
+		  unsigned int size,
+		  unsigned int flags)
+ {
+	return syscall(__NR_sched_getattr, pid, attr, size, flags);
+ }
+
+ void *run_deadline(void *data)
+ {
+	struct sched_attr attr;
+	int x = 0;
+	int ret;
+	unsigned int flags = 0;
+
+	printf("deadline thread started [%ld]\n", gettid());
+
+	attr.size = sizeof(attr);
+	attr.sched_flags = 0;
+	attr.sched_nice = 0;
+	attr.sched_priority = 0;
+
+	/* This creates a 10ms/30ms reservation */
+	attr.sched_policy = SCHED_DEADLINE;
+	attr.sched_runtime = 10 * 1000 * 1000;
+	attr.sched_period = attr.sched_deadline = 30 * 1000 * 1000;
+
+	ret = sched_setattr(0, &attr, flags);
+	if (ret < 0) {
+		done = 0;
+		perror("sched_setattr");
+		exit(-1);
+	}
+
+	while (!done) {
+		x++;
+	}
+
+	printf("deadline thread dies [%ld]\n", gettid());
+	return NULL;
+ }
+
+ int main (int argc, char **argv)
+ {
+	pthread_t thread;
+
+	printf("main thread [%ld]\n", gettid());
+
+	pthread_create(&thread, NULL, run_deadline, NULL);
+
+	sleep(10);
+
+	done = 1;
+	pthread_join(thread, NULL);
+
+	printf("main dies [%ld]\n", gettid());
+	return 0;
+ }

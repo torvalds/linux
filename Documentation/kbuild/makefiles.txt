@@ -174,7 +174,7 @@ more details, with real examples.
 
 --- 3.3 Loadable module goals - obj-m
 
-	$(obj-m) specify object files which are built as loadable
+	$(obj-m) specifies object files which are built as loadable
 	kernel modules.
 
 	A module may be built from one source file or several source
@@ -277,7 +277,7 @@ more details, with real examples.
 	down in the ext2 directory.
 	Kbuild only uses this information to decide that it needs to visit
 	the directory, it is the Makefile in the subdirectory that
-	specifies what is modules and what is built-in.
+	specifies what is modular and what is built-in.
 
 	It is good practice to use a CONFIG_ variable when assigning directory
 	names. This allows kbuild to totally skip the directory if the
@@ -403,7 +403,7 @@ more details, with real examples.
 	echoing information to user in a rule is often a good practice
 	but when execution "make -s" one does not expect to see any output
 	except for warnings/errors.
-	To support this kbuild define $(kecho) which will echo out the
+	To support this kbuild defines $(kecho) which will echo out the
 	text following $(kecho) to stdout except if "make -s" is used.
 
 	Example:
@@ -417,7 +417,7 @@ more details, with real examples.
 
 	The kernel may be built with several different versions of
 	$(CC), each supporting a unique set of features and options.
-	kbuild provide basic support to check for valid options for $(CC).
+	kbuild provides basic support to check for valid options for $(CC).
 	$(CC) is usually the gcc compiler, but other alternatives are
 	available.
 
@@ -456,8 +456,8 @@ more details, with real examples.
 	Note: as-instr-option uses KBUILD_AFLAGS for $(AS) options
 
     cc-option
-	cc-option is used to check if $(CC) supports a given option, and not
-	supported to use an optional second option.
+	cc-option is used to check if $(CC) supports a given option, and if
+	not supported to use an optional second option.
 
 	Example:
 		#arch/x86/Makefile
@@ -557,8 +557,8 @@ more details, with real examples.
 			false ; \
 		fi
 
-	In this example for a specific GCC version the build will error out explaining
-	to the user why it stops.
+	In this example for a specific GCC version the build will error out
+	explaining to the user why it stops.
 
     cc-cross-prefix
 	cc-cross-prefix is used to check if there exists a $(CC) in path with
@@ -656,7 +656,7 @@ Both possibilities are described in the following.
 	In the example above the executable is composed of the C++ file
 	qconf.cc - identified by $(qconf-cxxobjs).
 
-	If qconf is composed by a mixture of .c and .cc files, then an
+	If qconf is composed of a mixture of .c and .cc files, then an
 	additional line can be used to identify this.
 
 	Example:
@@ -733,7 +733,7 @@ Both possibilities are described in the following.
 		hostprogs-$(CONFIG_KALLSYMS) += kallsyms
 
 	Kbuild knows about both 'y' for built-in and 'm' for module.
-	So if a config symbol evaluate to 'm', kbuild will still build
+	So if a config symbol evaluates to 'm', kbuild will still build
 	the binary. In other words, Kbuild handles hostprogs-m exactly
 	like hostprogs-y. But only hostprogs-y is recommended to be used
 	when no CONFIG symbols are involved.
@@ -754,8 +754,8 @@ Additional files can be specified in kbuild makefiles by use of $(clean-files).
 		#drivers/pci/Makefile
 		clean-files := devlist.h classlist.h
 
-When executing "make clean", the two files "devlist.h classlist.h" will
-be deleted. Kbuild will assume files to be in same relative directory as the
+When executing "make clean", the two files "devlist.h classlist.h" will be
+deleted. Kbuild will assume files to be in the same relative directory as the
 Makefile except if an absolute path is specified (path starting with '/').
 
 To delete a directory hierarchy use:
@@ -786,7 +786,7 @@ is not sufficient this sometimes needs to be explicit.
 The above assignment instructs kbuild to descend down in the
 directory compressed/ when "make clean" is executed.
 
-To support the clean infrastructure in the Makefiles that builds the
+To support the clean infrastructure in the Makefiles that build the
 final bootimage there is an optional target named archclean:
 
 	Example:
@@ -818,17 +818,16 @@ a few targets.
 When kbuild executes, the following steps are followed (roughly):
 1) Configuration of the kernel => produce .config
 2) Store kernel version in include/linux/version.h
-3) Symlink include/asm to include/asm-$(ARCH)
-4) Updating all other prerequisites to the target prepare:
+3) Updating all other prerequisites to the target prepare:
    - Additional prerequisites are specified in arch/$(ARCH)/Makefile
-5) Recursively descend down in all directories listed in
+4) Recursively descend down in all directories listed in
    init-* core* drivers-* net-* libs-* and build all targets.
    - The values of the above variables are expanded in arch/$(ARCH)/Makefile.
-6) All object files are then linked and the resulting file vmlinux is
+5) All object files are then linked and the resulting file vmlinux is
    located at the root of the obj tree.
    The very first objects linked are listed in head-y, assigned by
    arch/$(ARCH)/Makefile.
-7) Finally, the architecture-specific part does any required post processing
+6) Finally, the architecture-specific part does any required post processing
    and builds the final bootimage.
    - This includes building boot records
    - Preparing initrd images and the like
@@ -927,7 +926,7 @@ When kbuild executes, the following steps are followed (roughly):
 
     KBUILD_AFLAGS_MODULE   Options for $(AS) when building modules
 
-	$(KBUILD_AFLAGS_MODULE) is used to add arch specific options that
+	$(KBUILD_AFLAGS_MODULE) is used to add arch-specific options that
 	are used for $(AS).
 	From commandline AFLAGS_MODULE shall be used (see kbuild.txt).
 
@@ -938,13 +937,13 @@ When kbuild executes, the following steps are followed (roughly):
 
     KBUILD_CFLAGS_MODULE   Options for $(CC) when building modules
 
-	$(KBUILD_CFLAGS_MODULE) is used to add arch specific options that
+	$(KBUILD_CFLAGS_MODULE) is used to add arch-specific options that
 	are used for $(CC).
 	From commandline CFLAGS_MODULE shall be used (see kbuild.txt).
 
     KBUILD_LDFLAGS_MODULE   Options for $(LD) when linking modules
 
-	$(KBUILD_LDFLAGS_MODULE) is used to add arch specific options
+	$(KBUILD_LDFLAGS_MODULE) is used to add arch-specific options
 	used when linking modules. This is often a linker script.
 	From commandline LDFLAGS_MODULE shall be used (see kbuild.txt).
 
@@ -1066,7 +1065,7 @@ When kbuild executes, the following steps are followed (roughly):
 
     extra-y
 
-	extra-y specify additional targets created in the current
+	extra-y specifies additional targets created in the current
 	directory, in addition to any targets specified by obj-*.
 
 	Listing all targets in extra-y is required for two purposes:
@@ -1093,7 +1092,7 @@ When kbuild executes, the following steps are followed (roughly):
 
 	Usage:
 		target: source(s) FORCE
-			$(call if_changed,ld/objcopy/gzip)
+			$(call if_changed,ld/objcopy/gzip/...)
 
 	When the rule is evaluated, it is checked to see if any files
 	need an update, or the command line has changed since the last
@@ -1111,7 +1110,7 @@ When kbuild executes, the following steps are followed (roughly):
 	significant; for instance, the below will fail (note the extra space
 	after the comma):
 		target: source(s) FORCE
-	#WRONG!#	$(call if_changed, ld/objcopy/gzip)
+	#WRONG!#	$(call if_changed, ld/objcopy/gzip/...)
 
     ld
 	Link target. Often, LDFLAGS_$@ is used to set specific options to ld.
@@ -1142,8 +1141,8 @@ When kbuild executes, the following steps are followed (roughly):
 		2) delete target during make clean
 
 	The ": %: %.o" part of the prerequisite is a shorthand that
-	free us from listing the setup.o and bootsect.o files.
-	Note: It is a common mistake to forget the "target :=" assignment,
+	frees us from listing the setup.o and bootsect.o files.
+	Note: It is a common mistake to forget the "targets :=" assignment,
 	      resulting in the target file being recompiled for no
 	      obvious reason.
 
@@ -1163,29 +1162,6 @@ When kbuild executes, the following steps are followed (roughly):
 		targets += $(dtb-y)
 		clean-files += *.dtb
 		DTC_FLAGS ?= -p 1024
-
-    dtc_cpp
-	This is just like dtc as describe above, except that the C pre-
-	processor is invoked upon the .dtsp file before compiling the result
-	with dtc.
-
-	In order for build dependencies to work, all files compiled using
-	dtc_cpp must use the C pre-processor's #include functionality and not
-	dtc's /include/ functionality.
-
-	Using the C pre-processor allows use of #define to create named
-	constants. In turn, the #defines will typically appear in a header
-	file, which may be shared with regular C code. Since the dtc language
-	represents a data structure rather than code in C syntax, similar
-	restrictions are placed on a header file included by a device tree
-	file as for a header file included by an assembly language file.
-	In particular, the C pre-processor is passed -x assembler-with-cpp,
-	which sets macro __ASSEMBLY__. __DTS__ is also set. These allow header
-	files to restrict their content to that compatible with device tree
-	source.
-
-	A central rule exists to create $(obj)/%.dtb from $(src)/%.dtsp;
-	architecture Makefiles do no need to explicitly write out that rule.
 
 --- 6.8 Custom kbuild commands
 
@@ -1237,11 +1213,11 @@ When kbuild executes, the following steps are followed (roughly):
 	When building the *.lds target, kbuild uses the variables:
 	KBUILD_CPPFLAGS	: Set in top-level Makefile
 	cppflags-y	: May be set in the kbuild makefile
-	CPPFLAGS_$(@F)  : Target specific flags.
+	CPPFLAGS_$(@F)  : Target-specific flags.
 	                  Note that the full filename is used in this
 	                  assignment.
 
-	The kbuild infrastructure for *lds file are used in several
+	The kbuild infrastructure for *lds files is used in several
 	architecture-specific files.
 
 --- 6.10 Generic header files
@@ -1254,11 +1230,11 @@ When kbuild executes, the following steps are followed (roughly):
 
 === 7 Kbuild syntax for exported headers
 
-The kernel include a set of headers that is exported to userspace.
+The kernel includes a set of headers that is exported to userspace.
 Many headers can be exported as-is but other headers require a
 minimal pre-processing before they are ready for user-space.
 The pre-processing does:
-- drop kernel specific annotations
+- drop kernel-specific annotations
 - drop include of compiler.h
 - drop all sections that are kernel internal (guarded by ifdef __KERNEL__)
 
@@ -1268,7 +1244,7 @@ See subsequent chapter for the syntax of the Kbuild file.
 
 	--- 7.1 header-y
 
-	header-y specify header files to be exported.
+	header-y specifies header files to be exported.
 
 		Example:
 			#include/linux/Kbuild
@@ -1278,7 +1254,7 @@ See subsequent chapter for the syntax of the Kbuild file.
 	The convention is to list one file per line and
 	preferably in alphabetic order.
 
-	header-y also specify which subdirectories to visit.
+	header-y also specifies which subdirectories to visit.
 	A subdirectory is identified by a trailing '/' which
 	can be seen in the example above for the usb subdirectory.
 
@@ -1296,9 +1272,9 @@ See subsequent chapter for the syntax of the Kbuild file.
 
 	--- 7.3 destination-y
 
-	When an architecture have a set of exported headers that needs to be
+	When an architecture has a set of exported headers that needs to be
 	exported to a different directory destination-y is used.
-	destination-y specify the destination directory for all exported
+	destination-y specifies the destination directory for all exported
 	headers in the file where it is present.
 
 		Example:
@@ -1391,9 +1367,9 @@ The top Makefile exports the following variables:
 
     INSTALL_MOD_STRIP
 
-	If this variable is specified, will cause modules to be stripped
+	If this variable is specified, it will cause modules to be stripped
 	after they are installed.  If INSTALL_MOD_STRIP is '1', then the
-	default option --strip-debug will be used.  Otherwise,
+	default option --strip-debug will be used.  Otherwise, the
 	INSTALL_MOD_STRIP value will be used as the option(s) to the strip
 	command.
 

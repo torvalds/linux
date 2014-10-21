@@ -71,6 +71,7 @@ static struct lirc_driver atir_driver;
 static struct pci_dev *do_pci_probe(void)
 {
 	struct pci_dev *my_dev;
+
 	my_dev = pci_get_device(PCI_VENDOR_ID_ATI,
 				PCI_DEVICE_ID_ATI_264VT, NULL);
 	if (my_dev) {
@@ -96,6 +97,7 @@ static int atir_add_to_buf(void *data, struct lirc_buffer *buf)
 {
 	unsigned char key;
 	int status;
+
 	status = poll_main();
 	key = (status >> 8) & 0xFF;
 	if (status & 0xFF) {
@@ -229,6 +231,7 @@ static void do_i2c_start(void)
 static void do_i2c_stop(void)
 {
 	unsigned char bits;
+
 	bits =  do_get_bits() & 0xFD;
 	do_set_bits(bits);
 	cycle_delay(1);
@@ -333,6 +336,7 @@ static unsigned char seems_rd_byte(void)
 static void do_set_bits(unsigned char new_bits)
 {
 	int reg_val;
+
 	reg_val = read_index(0x34);
 	if (new_bits & 2) {
 		reg_val &= 0xFFFFFFDF;
@@ -383,16 +387,15 @@ static unsigned char do_get_bits(void)
 static unsigned int read_index(unsigned char index)
 {
 	unsigned char __iomem *addr;
-	unsigned int value;
 	/*  addr = pci_addr_lin + DATA_PCI_OFF + ((index & 0xFF) << 2); */
 	addr = pci_addr_lin + ((index & 0xFF) << 2);
-	value = readl(addr);
-	return value;
+	return readl(addr);
 }
 
 static void write_index(unsigned char index, unsigned int reg_val)
 {
 	unsigned char __iomem *addr;
+
 	addr = pci_addr_lin + ((index & 0xFF) << 2);
 	writel(reg_val, addr);
 }

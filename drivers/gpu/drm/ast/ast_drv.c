@@ -199,6 +199,7 @@ static struct drm_driver driver = {
 
 	.load = ast_driver_load,
 	.unload = ast_driver_unload,
+	.set_busid = drm_pci_set_busid,
 
 	.fops = &ast_fops,
 	.name = DRIVER_NAME,

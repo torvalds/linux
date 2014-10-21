@@ -255,7 +255,7 @@ extern int cachefiles_remove_object_xattr(struct cachefiles_cache *cache,
 
 #define cachefiles_io_error(___cache, FMT, ...)		\
 do {							\
-	pr_err("I/O Error: " FMT, ##__VA_ARGS__);	\
+	pr_err("I/O Error: " FMT"\n", ##__VA_ARGS__);	\
 	fscache_io_error(&(___cache)->cache);		\
 	set_bit(CACHEFILES_DEAD, &(___cache)->flags);	\
 } while (0)

@@ -251,9 +251,7 @@ static void adp5588_gpio_remove(struct adp5588_kpad *kpad)
 			dev_warn(dev, "teardown failed %d\n", error);
 	}
 
-	error = gpiochip_remove(&kpad->gc);
-	if (error)
-		dev_warn(dev, "gpiochip_remove failed %d\n", error);
+	gpiochip_remove(&kpad->gc);
 }
 #else
 static inline int adp5588_gpio_add(struct adp5588_kpad *kpad)
@@ -589,6 +587,7 @@ static int adp5588_probe(struct i2c_client *client,
 
  err_free_irq:
 	free_irq(client->irq, kpad);
+	cancel_delayed_work_sync(&kpad->work);
  err_unreg_dev:
 	input_unregister_device(input);
 	input = NULL;

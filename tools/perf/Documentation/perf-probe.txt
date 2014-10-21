@@ -104,6 +104,9 @@ OPTIONS
 	Specify path to the executable or shared library file for user
 	space tracing. Can also be used with --funcs option.
 
+--demangle-kernel::
+	Demangle kernel symbols.
+
 In absence of -m/-x options, perf probe checks if the first argument after
 the options is an absolute path name. If its an absolute path, perf probe
 uses it as a target module/target user space binary to probe.

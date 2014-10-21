@@ -161,6 +161,12 @@ static inline long regs_return_value(struct pt_regs *regs)
 	return regs->gprs[2];
 }
 
+static inline void instruction_pointer_set(struct pt_regs *regs,
+					   unsigned long val)
+{
+	regs->psw.addr = val | PSW_ADDR_AMODE;
+}
+
 int regs_query_register_offset(const char *name);
 const char *regs_query_register_name(unsigned int offset);
 unsigned long regs_get_register(struct pt_regs *regs, unsigned int offset);

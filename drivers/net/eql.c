@@ -199,7 +199,7 @@ static void __init eql_setup(struct net_device *dev)
 
 	dev->type       	= ARPHRD_SLIP;
 	dev->tx_queue_len 	= 5;		/* Hands them off fast */
-	dev->priv_flags	       &= ~IFF_XMIT_DST_RELEASE;
+	netif_keep_dst(dev);
 }
 
 static int eql_open(struct net_device *dev)

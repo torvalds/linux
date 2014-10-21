@@ -45,6 +45,9 @@ void __of_detach_node_sysfs(struct device_node *np)
 {
 	struct property *pp;
 
+	if (!IS_ENABLED(CONFIG_SYSFS))
+		return;
+
 	BUG_ON(!of_node_is_initialized(np));
 	if (!of_kset)
 		return;

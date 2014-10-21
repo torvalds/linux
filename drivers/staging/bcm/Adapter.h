@@ -43,8 +43,10 @@ union u_ip_address {
 		ULONG ulIpv4Mask[MAX_IP_RANGE_LENGTH];
 	};
 	struct {
-		ULONG ulIpv6Addr[MAX_IP_RANGE_LENGTH * 4]; /* Source Ip Address Range */
-		ULONG ulIpv6Mask[MAX_IP_RANGE_LENGTH * 4]; /* Source Ip Mask Address Range */
+		/* Source Ip Address Range */
+		ULONG ulIpv6Addr[MAX_IP_RANGE_LENGTH * 4];
+		/* Source Ip Mask Address Range */
+		ULONG ulIpv6Mask[MAX_IP_RANGE_LENGTH * 4];
 	};
 	struct {
 		UCHAR ucIpv4Address[MAX_IP_RANGE_LENGTH * IP_LENGTH_OF_ADDRESS];
@@ -57,8 +59,10 @@ union u_ip_address {
 };
 
 struct bcm_hdr_suppression_contextinfo {
-	UCHAR ucaHdrSuppressionInBuf[MAX_PHS_LENGTHS]; /* Intermediate buffer to accumulate pkt Header for PHS */
-	UCHAR ucaHdrSuppressionOutBuf[MAX_PHS_LENGTHS + PHSI_LEN]; /* Intermediate buffer containing pkt Header after PHS */
+	/* Intermediate buffer to accumulate pkt Header for PHS */
+	UCHAR ucaHdrSuppressionInBuf[MAX_PHS_LENGTHS];
+	/* Intermediate buffer containing pkt Header after PHS */
+	UCHAR ucaHdrSuppressionOutBuf[MAX_PHS_LENGTHS + PHSI_LEN];
 };
 
 struct bcm_classifier_rule {
@@ -67,12 +71,14 @@ struct bcm_classifier_rule {
 	B_UINT16	uiClassifierRuleIndex;
 	bool		bUsed;
 	USHORT		usVCID_Value;
-	B_UINT8		u8ClassifierRulePriority; /* This field detemines the Classifier Priority */
+	/* This field detemines the Classifier Priority */
+	B_UINT8		u8ClassifierRulePriority;
 	union u_ip_address	stSrcIpAddress;
 	UCHAR		ucIPSourceAddressLength; /* Ip Source Address Length */
 
 	union u_ip_address	stDestIpAddress;
-	UCHAR		ucIPDestinationAddressLength; /* Ip Destination Address Length */
+	/* Ip Destination Address Length */
+	UCHAR		ucIPDestinationAddressLength;
 	UCHAR		ucIPTypeOfServiceLength; /* Type of service Length */
 	UCHAR		ucTosLow; /* Tos Low */
 	UCHAR		ucTosHigh; /* Tos High */
@@ -136,7 +142,8 @@ struct bcm_packet_info {
 
 	B_UINT8		u8QueueType; /* BE or rtPS */
 
-	UINT		uiMaxBucketSize; /* maximum size of the bucket for the queue */
+	/* maximum size of the bucket for the queue */
+	UINT		uiMaxBucketSize;
 	UINT		uiCurrentQueueDepthOnTarget;
 	UINT		uiCurrentBytesOnHost;
 	UINT		uiCurrentPacketsOnHost;
@@ -344,7 +351,8 @@ struct bcm_mini_adapter {
 	bool			bDPLLConfig;
 	UINT32			aTxPktSizeHist[MIBS_MAX_HIST_ENTRIES];
 	UINT32			aRxPktSizeHist[MIBS_MAX_HIST_ENTRIES];
-	struct bcm_fragmented_packet_info astFragmentedPktClassifierTable[MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES];
+	struct bcm_fragmented_packet_info
+		astFragmentedPktClassifierTable[MAX_FRAGMENTEDIP_CLASSIFICATION_ENTRIES];
 	atomic_t		uiMBupdate;
 	UINT32			PmuMode;
 	enum bcm_nvm_type	eNVMType;
@@ -355,7 +363,8 @@ struct bcm_mini_adapter {
 	UINT			uiNVMDSDSize;
 	UINT			uiVendorExtnFlag;
 	/* it will always represent chosen DSD at any point of time.
-	 * Generally it is Active DSD but in case of NVM RD/WR it might be different.
+	 * Generally it is Active DSD but in case of NVM RD/WR it
+	 * might be different.
 	 */
 	UINT			ulFlashCalStart;
 	ULONG			ulFlashControlSectionStart;
@@ -372,25 +381,33 @@ struct bcm_mini_adapter {
 	struct bcm_flash_cs_info *psFlashCSInfo;
 	struct bcm_flash2x_vendor_info *psFlash2xVendorInfo;
 	UINT			uiFlashBaseAdd; /* Flash start address */
-	UINT			uiActiveISOOffset; /* Active ISO offset chosen before f/w download */
+	/* Active ISO offset chosen before f/w download */
+	UINT			uiActiveISOOffset;
 	enum bcm_flash2x_section_val eActiveISO; /* Active ISO section val */
-	enum bcm_flash2x_section_val eActiveDSD; /* Active DSD val chosen before f/w download */
-	UINT			uiActiveDSDOffsetAtFwDld;  /* For accessing Active DSD chosen before f/w download */
+	/* Active DSD val chosen before f/w download */
+	enum bcm_flash2x_section_val eActiveDSD;
+	/* For accessing Active DSD chosen before f/w download */
+	UINT			uiActiveDSDOffsetAtFwDld;
 	UINT			uiFlashLayoutMajorVersion;
 	UINT			uiFlashLayoutMinorVersion;
 	bool			bAllDSDWriteAllow;
 	bool			bSigCorrupted;
-	/* this should be set who so ever want to change the Headers. after Write it should be reset immediately. */
+	/* this should be set who so ever want to change the Headers.
+	 * after Write it should be reset immediately.
+	 */
 	bool			bHeaderChangeAllowed;
 	int			SelectedChip;
 	bool			bEndPointHalted;
-	/* while bFlashRawRead will be true, Driver  ignore map lay out and consider flash as of without any map. */
+	/* while bFlashRawRead will be true, Driver
+	 * ignore map lay out and consider flash as of without any map.
+	 */
 	bool			bFlashRawRead;
 	bool			bPreparingForLowPowerMode;
 	bool			bDoSuspend;
 	UINT			syscfgBefFwDld;
 	bool			StopAllXaction;
-	UINT32			liTimeSinceLastNetEntry; /* Used to Support extended CAPI requirements from */
+	/* Used to Support extended CAPI requirements from */
+	UINT32			liTimeSinceLastNetEntry;
 	struct semaphore	LowPowerModeSync;
 	ULONG			liDrainCalculated;
 	UINT			gpioBitMap;

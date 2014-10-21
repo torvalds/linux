@@ -196,10 +196,10 @@ If specified the 'Weighted diff' column is displayed with value 'd' computed as:
 
   - period being the hist entry period value
 
-  - WEIGHT-A/WEIGHT-B being user suplied weights in the the '-c' option
+  - WEIGHT-A/WEIGHT-B being user supplied weights in the the '-c' option
     behind ':' separator like '-c wdiff:1,2'.
-    - WIEGHT-A being the weight of the data file
-    - WIEGHT-B being the weight of the baseline data file
+    - WEIGHT-A being the weight of the data file
+    - WEIGHT-B being the weight of the baseline data file
 
 SEE ALSO
 --------

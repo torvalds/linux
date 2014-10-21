@@ -294,7 +294,7 @@ MODULE_PARM_DESC(legacy_invert_outputs,
 
 static unsigned int ni_65xx_num_ports(struct comedi_device *dev)
 {
-	const struct ni_65xx_board *board = comedi_board(dev);
+	const struct ni_65xx_board *board = dev->board_ptr;
 
 	return board->num_dio_ports + board->num_di_ports + board->num_do_ports;
 }
@@ -548,10 +548,9 @@ static int ni_65xx_intr_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 3;
 
-	/* step 4: fix up any arguments */
+	/* Step 4: fix up any arguments */
 
-	if (err)
-		return 4;
+	/* Step 5: check channel list if it exists */
 
 	return 0;
 }
@@ -793,13 +792,9 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 
 static void ni_65xx_detach(struct comedi_device *dev)
 {
-	if (dev->mmio) {
+	if (dev->mmio)
 		writeb(0x00, dev->mmio + NI_65XX_CTRL_REG);
-		iounmap(dev->mmio);
-	}
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	comedi_pci_disable(dev);
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver ni_65xx_driver = {

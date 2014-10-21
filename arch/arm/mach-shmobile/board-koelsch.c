@@ -63,16 +63,15 @@ static struct rcar_du_encoder_data koelsch_du_encoders[] = {
 			.width_mm = 210,
 			.height_mm = 158,
 			.mode = {
-				.clock = 65000,
-				.hdisplay = 1024,
-				.hsync_start = 1048,
-				.hsync_end = 1184,
-				.htotal = 1344,
-				.vdisplay = 768,
-				.vsync_start = 771,
-				.vsync_end = 777,
-				.vtotal = 806,
-				.flags = 0,
+				.pixelclock = 65000000,
+				.hactive = 1024,
+				.hfront_porch = 20,
+				.hback_porch = 160,
+				.hsync_len = 136,
+				.vactive = 768,
+				.vfront_porch = 3,
+				.vback_porch = 29,
+				.vsync_len = 6,
 			},
 		},
 	},
@@ -331,7 +330,6 @@ SDHI_REGULATOR(2, RCAR_GP_PIN(7, 19), RCAR_GP_PIN(2, 26));
 static struct sh_mobile_sdhi_info sdhi0_info __initdata = {
 	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
 			  MMC_CAP_POWER_OFF_CARD,
-	.tmio_caps2	= MMC_CAP2_NO_MULTI_READ,
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT,
 };
 
@@ -344,7 +342,6 @@ static struct resource sdhi0_resources[] __initdata = {
 static struct sh_mobile_sdhi_info sdhi1_info __initdata = {
 	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
 			  MMC_CAP_POWER_OFF_CARD,
-	.tmio_caps2	= MMC_CAP2_NO_MULTI_READ,
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT,
 };
 
@@ -357,7 +354,6 @@ static struct resource sdhi1_resources[] __initdata = {
 static struct sh_mobile_sdhi_info sdhi2_info __initdata = {
 	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
 			  MMC_CAP_POWER_OFF_CARD,
-	.tmio_caps2	= MMC_CAP2_NO_MULTI_READ,
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT |
 			  TMIO_MMC_WRPROTECT_DISABLE,
 };

@@ -47,7 +47,7 @@ sub-node should be of the format as listed below.
 
  regulator-ramp-delay for BUCKs = [6250/12500/25000(default)/50000] uV/us
 
- BUCK[2/3/4/6] supports disabling ramp delay on hardware, so explictly
+ BUCK[2/3/4/6] supports disabling ramp delay on hardware, so explicitly
  regulator-ramp-delay = <0> can be used for them to disable ramp delay.
  In the absence of the regulator-ramp-delay property, the default ramp
  delay will be used.

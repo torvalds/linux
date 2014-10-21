@@ -347,9 +347,6 @@ void sptlrpc_conf_log_stop(const char *logname);
 void sptlrpc_conf_log_update_begin(const char *logname);
 void sptlrpc_conf_log_update_end(const char *logname);
 void sptlrpc_conf_client_adapt(struct obd_device *obd);
-int  sptlrpc_conf_target_get_rules(struct obd_device *obd,
-				   struct sptlrpc_rule_set *rset,
-				   int initial);
 void sptlrpc_target_choose_flavor(struct sptlrpc_rule_set *rset,
 				  enum lustre_sec_part from,
 				  lnet_nid_t nid,
@@ -885,7 +882,7 @@ enum sptlrpc_bulk_hash_alg {
 	BULK_HASH_ALG_MAX
 };
 
-const char * sptlrpc_get_hash_name(__u8 hash_alg);
+const char *sptlrpc_get_hash_name(__u8 hash_alg);
 __u8 sptlrpc_get_hash_alg(const char *algname);
 
 enum {
@@ -1060,7 +1057,7 @@ void sptlrpc_gc_del_sec(struct ptlrpc_sec *sec);
 void sptlrpc_gc_add_ctx(struct ptlrpc_cli_ctx *ctx);
 
 /* misc */
-const char * sec2target_str(struct ptlrpc_sec *sec);
+const char *sec2target_str(struct ptlrpc_sec *sec);
 /*
  * lprocfs
  */

@@ -150,14 +150,19 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	priv->port_stats.tx_chksum_offload = 0;
 	priv->port_stats.queue_stopped = 0;
 	priv->port_stats.wake_queue = 0;
+	priv->port_stats.tso_packets = 0;
+	priv->port_stats.xmit_more = 0;
 
 	for (i = 0; i < priv->tx_ring_num; i++) {
-		stats->tx_packets += priv->tx_ring[i]->packets;
-		stats->tx_bytes += priv->tx_ring[i]->bytes;
-		priv->port_stats.tx_chksum_offload += priv->tx_ring[i]->tx_csum;
-		priv->port_stats.queue_stopped +=
-			priv->tx_ring[i]->queue_stopped;
-		priv->port_stats.wake_queue += priv->tx_ring[i]->wake_queue;
+		const struct mlx4_en_tx_ring *ring = priv->tx_ring[i];
+
+		stats->tx_packets += ring->packets;
+		stats->tx_bytes += ring->bytes;
+		priv->port_stats.tx_chksum_offload += ring->tx_csum;
+		priv->port_stats.queue_stopped     += ring->queue_stopped;
+		priv->port_stats.wake_queue        += ring->wake_queue;
+		priv->port_stats.tso_packets       += ring->tso_packets;
+		priv->port_stats.xmit_more         += ring->xmit_more;
 	}
 
 	stats->rx_errors = be64_to_cpu(mlx4_en_stats->PCS) +

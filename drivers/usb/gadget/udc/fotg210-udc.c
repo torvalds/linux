@@ -70,7 +70,7 @@ static void fotg210_done(struct fotg210_ep *ep, struct fotg210_request *req,
 		req->req.status = status;
 
 	spin_unlock(&ep->fotg210->lock);
-	req->req.complete(&ep->ep, &req->req);
+	usb_gadget_giveback_request(&ep->ep, &req->req);
 	spin_lock(&ep->fotg210->lock);
 
 	if (ep->epnum) {

@@ -2325,7 +2325,7 @@ static int adv7604_log_status(struct v4l2_subdev *sd)
 	v4l2_info(sd, "HDCP keys read: %s%s\n",
 			(hdmi_read(sd, 0x04) & 0x20) ? "yes" : "no",
 			(hdmi_read(sd, 0x04) & 0x10) ? "ERROR" : "");
-	if (!is_hdmi(sd)) {
+	if (is_hdmi(sd)) {
 		bool audio_pll_locked = hdmi_read(sd, 0x04) & 0x01;
 		bool audio_sample_packet_detect = hdmi_read(sd, 0x18) & 0x01;
 		bool audio_mute = io_read(sd, 0x65) & 0x40;

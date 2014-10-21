@@ -58,7 +58,9 @@ enum {
 	TIPC_WAIT_PEER_LINKS_DOWN	= (1 << 1),
 	TIPC_WAIT_OWN_LINKS_DOWN	= (1 << 2),
 	TIPC_NOTIFY_NODE_DOWN		= (1 << 3),
-	TIPC_NOTIFY_NODE_UP		= (1 << 4)
+	TIPC_NOTIFY_NODE_UP		= (1 << 4),
+	TIPC_WAKEUP_USERS		= (1 << 5),
+	TIPC_WAKEUP_BCAST_USERS		= (1 << 6)
 };
 
 /**
@@ -115,6 +117,8 @@ struct tipc_node {
 	int working_links;
 	u32 signature;
 	struct list_head nsub;
+	struct sk_buff_head waiting_sks;
+	struct list_head conn_sks;
 	struct rcu_head rcu;
 };
 
@@ -133,6 +137,8 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space);
 int tipc_node_get_linkname(u32 bearer_id, u32 node, char *linkname, size_t len);
 void tipc_node_unlock(struct tipc_node *node);
+int tipc_node_add_conn(u32 dnode, u32 port, u32 peer_port);
+void tipc_node_remove_conn(u32 dnode, u32 port);
 
 static inline void tipc_node_lock(struct tipc_node *node)
 {

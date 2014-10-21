@@ -71,8 +71,7 @@ nouveau_vram_manager_del(struct ttm_mem_type_manager *man,
 static int
 nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 			 struct ttm_buffer_object *bo,
-			 struct ttm_placement *placement,
-			 uint32_t flags,
+			 const struct ttm_place *place,
 			 struct ttm_mem_reg *mem)
 {
 	struct nouveau_drm *drm = nouveau_bdev(man->bdev);
@@ -158,8 +157,7 @@ nouveau_gart_manager_del(struct ttm_mem_type_manager *man,
 static int
 nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 			 struct ttm_buffer_object *bo,
-			 struct ttm_placement *placement,
-			 uint32_t flags,
+			 const struct ttm_place *place,
 			 struct ttm_mem_reg *mem)
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
@@ -239,8 +237,7 @@ nv04_gart_manager_del(struct ttm_mem_type_manager *man, struct ttm_mem_reg *mem)
 static int
 nv04_gart_manager_new(struct ttm_mem_type_manager *man,
 		      struct ttm_buffer_object *bo,
-		      struct ttm_placement *placement,
-		      uint32_t flags,
+		      const struct ttm_place *place,
 		      struct ttm_mem_reg *mem)
 {
 	struct nouveau_mem *node;
@@ -284,7 +281,7 @@ nouveau_ttm_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct nouveau_drm *drm = nouveau_drm(file_priv->minor->dev);
 
 	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET))
-		return drm_mmap(filp, vma);
+		return -EINVAL;
 
 	return ttm_bo_mmap(filp, vma, &drm->ttm.bdev);
 }

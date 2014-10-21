@@ -96,15 +96,15 @@ bool radeon_semaphore_emit_wait(struct radeon_device *rdev, int ridx,
 }
 
 /**
- * radeon_semaphore_sync_to - use the semaphore to sync to a fence
+ * radeon_semaphore_sync_fence - use the semaphore to sync to a fence
  *
  * @semaphore: semaphore object to add fence to
  * @fence: fence to sync to
  *
  * Sync to the fence using this semaphore object
  */
-void radeon_semaphore_sync_to(struct radeon_semaphore *semaphore,
-			      struct radeon_fence *fence)
+void radeon_semaphore_sync_fence(struct radeon_semaphore *semaphore,
+				 struct radeon_fence *fence)
 {
         struct radeon_fence *other;
 
@@ -113,6 +113,53 @@ void radeon_semaphore_sync_to(struct radeon_semaphore *semaphore,
 
         other = semaphore->sync_to[fence->ring];
         semaphore->sync_to[fence->ring] = radeon_fence_later(fence, other);
+}
+
+/**
+ * radeon_semaphore_sync_to - use the semaphore to sync to a reservation object
+ *
+ * @sema: semaphore object to add fence from reservation object to
+ * @resv: reservation object with embedded fence
+ * @shared: true if we should onyl sync to the exclusive fence
+ *
+ * Sync to the fence using this semaphore object
+ */
+int radeon_semaphore_sync_resv(struct radeon_device *rdev,
+			       struct radeon_semaphore *sema,
+			       struct reservation_object *resv,
+			       bool shared)
+{
+	struct reservation_object_list *flist;
+	struct fence *f;
+	struct radeon_fence *fence;
+	unsigned i;
+	int r = 0;
+
+	/* always sync to the exclusive fence */
+	f = reservation_object_get_excl(resv);
+	fence = f ? to_radeon_fence(f) : NULL;
+	if (fence && fence->rdev == rdev)
+		radeon_semaphore_sync_fence(sema, fence);
+	else if (f)
+		r = fence_wait(f, true);
+
+	flist = reservation_object_get_list(resv);
+	if (shared || !flist || r)
+		return r;
+
+	for (i = 0; i < flist->shared_count; ++i) {
+		f = rcu_dereference_protected(flist->shared[i],
+					      reservation_object_held(resv));
+		fence = to_radeon_fence(f);
+		if (fence && fence->rdev == rdev)
+			radeon_semaphore_sync_fence(sema, fence);
+		else
+			r = fence_wait(f, true);
+
+		if (r)
+			break;
+	}
+	return r;
 }
 
 /**

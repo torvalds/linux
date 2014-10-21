@@ -476,6 +476,7 @@ static struct drm_driver driver = {
 	.unload = psb_driver_unload,
 	.lastclose = psb_driver_lastclose,
 	.preclose = psb_driver_preclose,
+	.set_busid = drm_pci_set_busid,
 
 	.num_ioctls = ARRAY_SIZE(psb_ioctls),
 	.device_is_agp = psb_driver_device_is_agp,

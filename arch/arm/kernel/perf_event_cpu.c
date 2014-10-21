@@ -76,21 +76,15 @@ static struct pmu_hw_events *cpu_pmu_get_cpu_events(void)
 
 static void cpu_pmu_enable_percpu_irq(void *data)
 {
-	struct arm_pmu *cpu_pmu = data;
-	struct platform_device *pmu_device = cpu_pmu->plat_device;
-	int irq = platform_get_irq(pmu_device, 0);
+	int irq = *(int *)data;
 
 	enable_percpu_irq(irq, IRQ_TYPE_NONE);
-	cpumask_set_cpu(smp_processor_id(), &cpu_pmu->active_irqs);
 }
 
 static void cpu_pmu_disable_percpu_irq(void *data)
 {
-	struct arm_pmu *cpu_pmu = data;
-	struct platform_device *pmu_device = cpu_pmu->plat_device;
-	int irq = platform_get_irq(pmu_device, 0);
+	int irq = *(int *)data;
 
-	cpumask_clear_cpu(smp_processor_id(), &cpu_pmu->active_irqs);
 	disable_percpu_irq(irq);
 }
 
@@ -103,7 +97,7 @@ static void cpu_pmu_free_irq(struct arm_pmu *cpu_pmu)
 
 	irq = platform_get_irq(pmu_device, 0);
 	if (irq >= 0 && irq_is_percpu(irq)) {
-		on_each_cpu(cpu_pmu_disable_percpu_irq, cpu_pmu, 1);
+		on_each_cpu(cpu_pmu_disable_percpu_irq, &irq, 1);
 		free_percpu_irq(irq, &percpu_pmu);
 	} else {
 		for (i = 0; i < irqs; ++i) {
@@ -138,7 +132,7 @@ static int cpu_pmu_request_irq(struct arm_pmu *cpu_pmu, irq_handler_t handler)
 				irq);
 			return err;
 		}
-		on_each_cpu(cpu_pmu_enable_percpu_irq, cpu_pmu, 1);
+		on_each_cpu(cpu_pmu_enable_percpu_irq, &irq, 1);
 	} else {
 		for (i = 0; i < irqs; ++i) {
 			err = 0;
@@ -152,8 +146,8 @@ static int cpu_pmu_request_irq(struct arm_pmu *cpu_pmu, irq_handler_t handler)
 			 * continue. Otherwise, continue without this interrupt.
 			 */
 			if (irq_set_affinity(irq, cpumask_of(i)) && irqs > 1) {
-				pr_warning("unable to set irq affinity (irq=%d, cpu=%u)\n",
-					    irq, i);
+				pr_warn("unable to set irq affinity (irq=%d, cpu=%u)\n",
+					irq, i);
 				continue;
 			}
 

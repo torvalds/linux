@@ -798,10 +798,8 @@ if (name##_node) {							\
 			mod_parse(src);
 			mod_parse(dvc);
 
-			if (playback)
-				of_node_put(playback);
-			if (capture)
-				of_node_put(capture);
+			of_node_put(playback);
+			of_node_put(capture);
 		}
 
 		dai_i++;

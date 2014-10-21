@@ -177,7 +177,7 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 
-	return sprintf(buf, "pci:v%08Xd%08Xsv%08Xsd%08Xbc%02Xsc%02Xi%02x\n",
+	return sprintf(buf, "pci:v%08Xd%08Xsv%08Xsd%08Xbc%02Xsc%02Xi%02X\n",
 		       pci_dev->vendor, pci_dev->device,
 		       pci_dev->subsystem_vendor, pci_dev->subsystem_device,
 		       (u8)(pci_dev->class >> 16), (u8)(pci_dev->class >> 8),
@@ -250,46 +250,45 @@ static ssize_t msi_bus_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
+	struct pci_bus *subordinate = pdev->subordinate;
 
-	if (!pdev->subordinate)
-		return 0;
-
-	return sprintf(buf, "%u\n",
-		       !(pdev->subordinate->bus_flags & PCI_BUS_FLAGS_NO_MSI));
+	return sprintf(buf, "%u\n", subordinate ?
+		       !(subordinate->bus_flags & PCI_BUS_FLAGS_NO_MSI)
+			   : !pdev->no_msi);
 }
 
 static ssize_t msi_bus_store(struct device *dev, struct device_attribute *attr,
 			     const char *buf, size_t count)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
+	struct pci_bus *subordinate = pdev->subordinate;
 	unsigned long val;
 
 	if (kstrtoul(buf, 0, &val) < 0)
 		return -EINVAL;
 
-	/*
-	 * Bad things may happen if the no_msi flag is changed
-	 * while drivers are loaded.
-	 */
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	/*
-	 * Maybe devices without subordinate buses shouldn't have this
-	 * attribute in the first place?
+	 * "no_msi" and "bus_flags" only affect what happens when a driver
+	 * requests MSI or MSI-X.  They don't affect any drivers that have
+	 * already requested MSI or MSI-X.
 	 */
-	if (!pdev->subordinate)
+	if (!subordinate) {
+		pdev->no_msi = !val;
+		dev_info(&pdev->dev, "MSI/MSI-X %s for future drivers\n",
+			 val ? "allowed" : "disallowed");
 		return count;
-
-	/* Is the flag going to change, or keep the value it already had? */
-	if (!(pdev->subordinate->bus_flags & PCI_BUS_FLAGS_NO_MSI) ^
-	    !!val) {
-		pdev->subordinate->bus_flags ^= PCI_BUS_FLAGS_NO_MSI;
-
-		dev_warn(&pdev->dev, "forced subordinate bus to%s support MSI, bad things could happen\n",
-			 val ? "" : " not");
 	}
 
+	if (val)
+		subordinate->bus_flags &= ~PCI_BUS_FLAGS_NO_MSI;
+	else
+		subordinate->bus_flags |= PCI_BUS_FLAGS_NO_MSI;
+
+	dev_info(&subordinate->dev, "MSI/MSI-X %s for future drivers of devices on this bus\n",
+		 val ? "allowed" : "disallowed");
 	return count;
 }
 static DEVICE_ATTR_RW(msi_bus);

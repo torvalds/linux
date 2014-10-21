@@ -47,7 +47,6 @@
 #include "../include/lustre_import.h"
 #include "../include/lustre_export.h"
 #include "../include/obd.h"
-#include "../include/obd_ost.h"
 #include "../include/obd_class.h"
 #include <linux/list.h>
 
@@ -317,7 +316,7 @@ int ptlrpc_recover_import(struct obd_import *imp, char *new_uuid, int async)
 		rc = -EINVAL;
 	spin_unlock(&imp->imp_lock);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	/* force import to be disconnected. */
 	ptlrpc_set_import_discon(imp, 0);
@@ -329,7 +328,7 @@ int ptlrpc_recover_import(struct obd_import *imp, char *new_uuid, int async)
 		obd_str2uuid(&uuid, new_uuid);
 		rc = import_set_conn_priority(imp, &uuid);
 		if (rc)
-			GOTO(out, rc);
+			goto out;
 	}
 
 	/* Check if reconnect is already in progress */
@@ -340,11 +339,11 @@ int ptlrpc_recover_import(struct obd_import *imp, char *new_uuid, int async)
 	}
 	spin_unlock(&imp->imp_lock);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	rc = ptlrpc_connect_import(imp);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 
 	if (!async) {
 		struct l_wait_info lwi;

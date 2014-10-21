@@ -1885,7 +1885,7 @@ osc_send_write_rpc(const struct lu_env *env, struct client_obd *cli,
 	struct osc_extent *ext;
 	struct osc_extent *tmp;
 	struct osc_extent *first = NULL;
-	obd_count page_count = 0;
+	u32 page_count = 0;
 	int srvlock = 0;
 	int rc = 0;
 

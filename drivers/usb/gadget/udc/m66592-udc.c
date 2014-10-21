@@ -729,7 +729,7 @@ __acquires(m66592->lock)
 		restart = 1;
 
 	spin_unlock(&ep->m66592->lock);
-	req->req.complete(&ep->ep, &req->req);
+	usb_gadget_giveback_request(&ep->ep, &req->req);
 	spin_lock(&ep->m66592->lock);
 
 	if (restart) {

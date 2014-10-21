@@ -625,7 +625,8 @@ static int qxl_fb_find_or_create_single(
 		struct drm_fb_helper *helper,
 		struct drm_fb_helper_surface_size *sizes)
 {
-	struct qxl_fbdev *qfbdev = (struct qxl_fbdev *)helper;
+	struct qxl_fbdev *qfbdev =
+		container_of(helper, struct qxl_fbdev, helper);
 	int new_fb = 0;
 	int ret;
 

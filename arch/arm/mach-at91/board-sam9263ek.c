@@ -50,7 +50,6 @@
 #include <mach/system_rev.h>
 
 #include "at91_aic.h"
-#include "at91_shdwc.h"
 #include "board.h"
 #include "sam9_smc.h"
 #include "generic.h"
@@ -439,6 +438,8 @@ static struct platform_device *devices[] __initdata = {
 
 static void __init ek_board_init(void)
 {
+	at91_register_devices();
+
 	/* Serial */
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
@@ -483,7 +484,7 @@ static void __init ek_board_init(void)
 
 MACHINE_START(AT91SAM9263EK, "Atmel AT91SAM9263-EK")
 	/* Maintainer: Atmel */
-	.init_time	= at91sam926x_pit_init,
+	.init_time	= at91_init_time,
 	.map_io		= at91_map_io,
 	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= ek_init_early,

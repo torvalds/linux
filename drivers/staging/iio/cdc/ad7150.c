@@ -143,19 +143,15 @@ static int ad7150_read_event_config(struct iio_dev *indio_dev,
 	case IIO_EV_TYPE_MAG_ADAPTIVE:
 		if (dir == IIO_EV_DIR_RISING)
 			return adaptive && (threshtype == 0x1);
-		else
-			return adaptive && (threshtype == 0x0);
+		return adaptive && (threshtype == 0x0);
 	case IIO_EV_TYPE_THRESH_ADAPTIVE:
 		if (dir == IIO_EV_DIR_RISING)
 			return adaptive && (threshtype == 0x3);
-		else
-			return adaptive && (threshtype == 0x2);
-
+		return adaptive && (threshtype == 0x2);
 	case IIO_EV_TYPE_THRESH:
 		if (dir == IIO_EV_DIR_RISING)
 			return !adaptive && (threshtype == 0x1);
-		else
-			return !adaptive && (threshtype == 0x0);
+		return !adaptive && (threshtype == 0x0);
 	default:
 		break;
 	}

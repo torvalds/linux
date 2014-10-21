@@ -64,7 +64,8 @@ config MVPP2
 
 config PXA168_ETH
 	tristate "Marvell pxa168 ethernet support"
-	depends on CPU_PXA168
+	depends on HAS_IOMEM && HAS_DMA
+	depends on CPU_PXA168 || ARCH_BERLIN || COMPILE_TEST
 	select PHYLIB
 	---help---
 	  This driver supports the pxa168 Ethernet ports.

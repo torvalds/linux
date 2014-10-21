@@ -145,7 +145,7 @@ static int tmp103_probe(struct i2c_client *client,
 	}
 
 	i2c_set_clientdata(client, regmap);
-	hwmon_dev = hwmon_device_register_with_groups(dev, client->name,
+	hwmon_dev = devm_hwmon_device_register_with_groups(dev, client->name,
 						      regmap, tmp103_groups);
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }

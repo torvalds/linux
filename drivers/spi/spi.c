@@ -35,6 +35,7 @@
 #include <linux/spi/spi.h>
 #include <linux/of_gpio.h>
 #include <linux/pm_runtime.h>
+#include <linux/pm_domain.h>
 #include <linux/export.h>
 #include <linux/sched/rt.h>
 #include <linux/delay.h>
@@ -264,10 +265,12 @@ static int spi_drv_probe(struct device *dev)
 	if (ret)
 		return ret;
 
-	acpi_dev_pm_attach(dev, true);
-	ret = sdrv->probe(to_spi_device(dev));
-	if (ret)
-		acpi_dev_pm_detach(dev, true);
+	ret = dev_pm_domain_attach(dev, true);
+	if (ret != -EPROBE_DEFER) {
+		ret = sdrv->probe(to_spi_device(dev));
+		if (ret)
+			dev_pm_domain_detach(dev, true);
+	}
 
 	return ret;
 }
@@ -278,7 +281,7 @@ static int spi_drv_remove(struct device *dev)
 	int ret;
 
 	ret = sdrv->remove(to_spi_device(dev));
-	acpi_dev_pm_detach(dev, true);
+	dev_pm_domain_detach(dev, true);
 
 	return ret;
 }
@@ -552,6 +555,9 @@ int spi_register_board_info(struct spi_board_info const *info, unsigned n)
 	struct boardinfo *bi;
 	int i;
 
+	if (!n)
+		return -EINVAL;
+
 	bi = kzalloc(n * sizeof(*bi), GFP_KERNEL);
 	if (!bi)
 		return -ENOMEM;
@@ -789,27 +795,35 @@ static int spi_transfer_one_message(struct spi_master *master,
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 		trace_spi_transfer_start(msg, xfer);
 
-		reinit_completion(&master->xfer_completion);
+		if (xfer->tx_buf || xfer->rx_buf) {
+			reinit_completion(&master->xfer_completion);
 
-		ret = master->transfer_one(master, msg->spi, xfer);
-		if (ret < 0) {
-			dev_err(&msg->spi->dev,
-				"SPI transfer failed: %d\n", ret);
-			goto out;
-		}
+			ret = master->transfer_one(master, msg->spi, xfer);
+			if (ret < 0) {
+				dev_err(&msg->spi->dev,
+					"SPI transfer failed: %d\n", ret);
+				goto out;
+			}
 
-		if (ret > 0) {
-			ret = 0;
-			ms = xfer->len * 8 * 1000 / xfer->speed_hz;
-			ms += ms + 100; /* some tolerance */
+			if (ret > 0) {
+				ret = 0;
+				ms = xfer->len * 8 * 1000 / xfer->speed_hz;
+				ms += ms + 100; /* some tolerance */
 
-			ms = wait_for_completion_timeout(&master->xfer_completion,
-							 msecs_to_jiffies(ms));
-		}
+				ms = wait_for_completion_timeout(&master->xfer_completion,
+								 msecs_to_jiffies(ms));
+			}
 
-		if (ms == 0) {
-			dev_err(&msg->spi->dev, "SPI transfer timed out\n");
-			msg->status = -ETIMEDOUT;
+			if (ms == 0) {
+				dev_err(&msg->spi->dev,
+					"SPI transfer timed out\n");
+				msg->status = -ETIMEDOUT;
+			}
+		} else {
+			if (xfer->len)
+				dev_err(&msg->spi->dev,
+					"Bufferless transfer has length %u\n",
+					xfer->len);
 		}
 
 		trace_spi_transfer_stop(msg, xfer);

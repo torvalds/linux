@@ -56,16 +56,8 @@ qla2100_intr_handler(int irq, void *dev_id)
 	vha = pci_get_drvdata(ha->pdev);
 	for (iter = 50; iter--; ) {
 		hccr = RD_REG_WORD(&reg->hccr);
-		/* Check for PCI disconnection */
-		if (hccr == 0xffff) {
-			/*
-			 * Schedule this on the default system workqueue so that
-			 * all the adapter workqueues and the DPC thread can be
-			 * shutdown cleanly.
-			 */
-			schedule_work(&ha->board_disable);
+		if (qla2x00_check_reg16_for_disconnect(vha, hccr))
 			break;
-		}
 		if (hccr & HCCR_RISC_PAUSE) {
 			if (pci_channel_offline(ha->pdev))
 				break;
@@ -121,19 +113,29 @@ qla2100_intr_handler(int irq, void *dev_id)
 }
 
 bool
-qla2x00_check_reg_for_disconnect(scsi_qla_host_t *vha, uint32_t reg)
+qla2x00_check_reg32_for_disconnect(scsi_qla_host_t *vha, uint32_t reg)
 {
 	/* Check for PCI disconnection */
 	if (reg == 0xffffffff) {
-		/*
-		 * Schedule this on the default system workqueue so that all the
-		 * adapter workqueues and the DPC thread can be shutdown
-		 * cleanly.
-		 */
-		schedule_work(&vha->hw->board_disable);
+		if (!test_and_set_bit(PFLG_DISCONNECTED, &vha->pci_flags) &&
+		    !test_bit(PFLG_DRIVER_REMOVING, &vha->pci_flags) &&
+		    !test_bit(PFLG_DRIVER_PROBING, &vha->pci_flags)) {
+			/*
+			 * Schedule this (only once) on the default system
+			 * workqueue so that all the adapter workqueues and the
+			 * DPC thread can be shutdown cleanly.
+			 */
+			schedule_work(&vha->hw->board_disable);
+		}
 		return true;
 	} else
 		return false;
+}
+
+bool
+qla2x00_check_reg16_for_disconnect(scsi_qla_host_t *vha, uint16_t reg)
+{
+	return qla2x00_check_reg32_for_disconnect(vha, 0xffff0000 | reg);
 }
 
 /**
@@ -174,7 +176,7 @@ qla2300_intr_handler(int irq, void *dev_id)
 	vha = pci_get_drvdata(ha->pdev);
 	for (iter = 50; iter--; ) {
 		stat = RD_REG_DWORD(&reg->u.isp2300.host_status);
-		if (qla2x00_check_reg_for_disconnect(vha, stat))
+		if (qla2x00_check_reg32_for_disconnect(vha, stat))
 			break;
 		if (stat & HSR_RISC_PAUSED) {
 			if (unlikely(pci_channel_offline(ha->pdev)))
@@ -573,8 +575,9 @@ qla2x00_async_event(scsi_qla_host_t *vha, struct rsp_que *rsp, uint16_t *mb)
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	struct device_reg_24xx __iomem *reg24 = &ha->iobase->isp24;
 	struct device_reg_82xx __iomem *reg82 = &ha->iobase->isp82;
-	uint32_t	rscn_entry, host_pid;
+	uint32_t	rscn_entry, host_pid, tmp_pid;
 	unsigned long	flags;
+	fc_port_t	*fcport = NULL;
 
 	/* Setup to process RIO completion. */
 	handle_cnt = 0;
@@ -730,7 +733,7 @@ skip_rio:
 		else
 			ha->link_data_rate = mb[1];
 
-		ql_dbg(ql_dbg_async, vha, 0x500a,
+		ql_log(ql_log_info, vha, 0x500a,
 		    "LOOP UP detected (%s Gbps).\n",
 		    qla2x00_get_link_speed_str(ha, ha->link_data_rate));
 
@@ -743,13 +746,23 @@ skip_rio:
 			? RD_REG_WORD(&reg24->mailbox4) : 0;
 		mbx = (IS_P3P_TYPE(ha)) ? RD_REG_WORD(&reg82->mailbox_out[4])
 			: mbx;
-		ql_dbg(ql_dbg_async, vha, 0x500b,
+		ql_log(ql_log_info, vha, 0x500b,
 		    "LOOP DOWN detected (%x %x %x %x).\n",
 		    mb[1], mb[2], mb[3], mbx);
 
 		if (atomic_read(&vha->loop_state) != LOOP_DOWN) {
 			atomic_set(&vha->loop_state, LOOP_DOWN);
 			atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
+			/*
+			 * In case of loop down, restore WWPN from
+			 * NVRAM in case of FA-WWPN capable ISP
+			 */
+			if (ha->flags.fawwpn_enabled) {
+				void *wwpn = ha->init_cb->port_name;
+
+				memcpy(vha->port_name, wwpn, WWN_SIZE);
+			}
+
 			vha->device_flags |= DFLG_NO_CABLE;
 			qla2x00_mark_all_devices_lost(vha, 1);
 		}
@@ -908,7 +921,8 @@ skip_rio:
 		 * it.  Otherwise ignore it and Wait for RSCN to come in.
 		 */
 		atomic_set(&vha->loop_down_timer, 0);
-		if (mb[1] != 0xffff || (mb[2] != 0x6 && mb[2] != 0x4)) {
+		if (atomic_read(&vha->loop_state) != LOOP_DOWN &&
+		    atomic_read(&vha->loop_state) != LOOP_DEAD) {
 			ql_dbg(ql_dbg_async, vha, 0x5011,
 			    "Asynchronous PORT UPDATE ignored %04x/%04x/%04x.\n",
 			    mb[1], mb[2], mb[3]);
@@ -920,9 +934,6 @@ skip_rio:
 		ql_dbg(ql_dbg_async, vha, 0x5012,
 		    "Port database changed %04x %04x %04x.\n",
 		    mb[1], mb[2], mb[3]);
-		ql_log(ql_log_warn, vha, 0x505f,
-		    "Link is operational (%s Gbps).\n",
-		    qla2x00_get_link_speed_str(ha, ha->link_data_rate));
 
 		/*
 		 * Mark all devices as missing so we will login again.
@@ -968,6 +979,20 @@ skip_rio:
 		/* Skip RSCNs for virtual ports on the same physical port */
 		if (qla2x00_is_a_vp_did(vha, rscn_entry))
 			break;
+
+		/*
+		 * Search for the rport related to this RSCN entry and mark it
+		 * as lost.
+		 */
+		list_for_each_entry(fcport, &vha->vp_fcports, list) {
+			if (atomic_read(&fcport->state) != FCS_ONLINE)
+				continue;
+			tmp_pid = fcport->d_id.b24;
+			if (fcport->d_id.b24 == rscn_entry) {
+				qla2x00_mark_device_lost(vha, fcport, 0, 0);
+				break;
+			}
+		}
 
 		atomic_set(&vha->loop_down_timer, 0);
 		vha->flags.management_server_logged_in = 0;
@@ -1084,6 +1109,14 @@ skip_rio:
 		mb[6] = RD_REG_WORD(&reg24->mailbox6);
 		mb[7] = RD_REG_WORD(&reg24->mailbox7);
 		qla83xx_handle_8200_aen(vha, mb);
+		break;
+
+	case MBA_DPORT_DIAGNOSTICS:
+		ql_dbg(ql_dbg_async, vha, 0x5052,
+		    "D-Port Diagnostics: %04x %04x=%s\n", mb[0], mb[1],
+		    mb[1] == 0 ? "start" :
+		    mb[1] == 1 ? "done (ok)" :
+		    mb[1] == 2 ? "done (error)" : "other");
 		break;
 
 	default:
@@ -1975,6 +2008,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 	int logit = 1;
 	int res = 0;
 	uint16_t state_flags = 0;
+	uint16_t retry_delay = 0;
 
 	sts = (sts_entry_t *) pkt;
 	sts24 = (struct sts_entry_24xx *) pkt;
@@ -2068,6 +2102,9 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		host_to_fcp_swap(sts24->data, sizeof(sts24->data));
 		ox_id = le16_to_cpu(sts24->ox_id);
 		par_sense_len = sizeof(sts24->data);
+		/* Valid values of the retry delay timer are 0x1-0xffef */
+		if (sts24->retry_delay > 0 && sts24->retry_delay < 0xfff1)
+			retry_delay = sts24->retry_delay;
 	} else {
 		if (scsi_status & SS_SENSE_LEN_VALID)
 			sense_len = le16_to_cpu(sts->req_sense_length);
@@ -2100,6 +2137,14 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 	if (IS_FWI2_CAPABLE(ha) && comp_status == CS_COMPLETE &&
 	    scsi_status & SS_RESIDUAL_OVER)
 		comp_status = CS_DATA_OVERRUN;
+
+	/*
+	 * Check retry_delay_timer value if we receive a busy or
+	 * queue full.
+	 */
+	if (lscsi_status == SAM_STAT_TASK_SET_FULL ||
+	    lscsi_status == SAM_STAT_BUSY)
+		qla2x00_set_retry_delay_timestamp(fcport, retry_delay);
 
 	/*
 	 * Based on Host and scsi status generate status code for Linux
@@ -2633,7 +2678,7 @@ qla24xx_intr_handler(int irq, void *dev_id)
 	vha = pci_get_drvdata(ha->pdev);
 	for (iter = 50; iter--; ) {
 		stat = RD_REG_DWORD(&reg->host_status);
-		if (qla2x00_check_reg_for_disconnect(vha, stat))
+		if (qla2x00_check_reg32_for_disconnect(vha, stat))
 			break;
 		if (stat & HSRX_RISC_PAUSED) {
 			if (unlikely(pci_channel_offline(ha->pdev)))
@@ -2723,7 +2768,7 @@ qla24xx_msix_rsp_q(int irq, void *dev_id)
 	 * we process the response queue.
 	 */
 	stat = RD_REG_DWORD(&reg->host_status);
-	if (qla2x00_check_reg_for_disconnect(vha, stat))
+	if (qla2x00_check_reg32_for_disconnect(vha, stat))
 		goto out;
 	qla24xx_process_response_queue(vha, rsp);
 	if (!ha->flags.disable_msix_handshake) {
@@ -2763,7 +2808,7 @@ qla25xx_msix_rsp_q(int irq, void *dev_id)
 		hccr = RD_REG_DWORD_RELAXED(&reg->hccr);
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	}
-	if (qla2x00_check_reg_for_disconnect(vha, hccr))
+	if (qla2x00_check_reg32_for_disconnect(vha, hccr))
 		goto out;
 	queue_work_on((int) (rsp->id - 1), ha->wq, &rsp->q_work);
 
@@ -2798,7 +2843,7 @@ qla24xx_msix_default(int irq, void *dev_id)
 	vha = pci_get_drvdata(ha->pdev);
 	do {
 		stat = RD_REG_DWORD(&reg->host_status);
-		if (qla2x00_check_reg_for_disconnect(vha, stat))
+		if (qla2x00_check_reg32_for_disconnect(vha, stat))
 			break;
 		if (stat & HSRX_RISC_PAUSED) {
 			if (unlikely(pci_channel_offline(ha->pdev)))
@@ -2923,27 +2968,22 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 	for (i = 0; i < ha->msix_count; i++)
 		entries[i].entry = i;
 
-	ret = pci_enable_msix(ha->pdev, entries, ha->msix_count);
-	if (ret) {
-		if (ret < MIN_MSIX_COUNT)
-			goto msix_failed;
-
+	ret = pci_enable_msix_range(ha->pdev,
+				    entries, MIN_MSIX_COUNT, ha->msix_count);
+	if (ret < 0) {
+		ql_log(ql_log_fatal, vha, 0x00c7,
+		    "MSI-X: Failed to enable support, "
+		    "giving   up -- %d/%d.\n",
+		    ha->msix_count, ret);
+		goto msix_out;
+	} else if (ret < ha->msix_count) {
 		ql_log(ql_log_warn, vha, 0x00c6,
 		    "MSI-X: Failed to enable support "
 		    "-- %d/%d\n Retry with %d vectors.\n",
 		    ha->msix_count, ret, ret);
-		ha->msix_count = ret;
-		ret = pci_enable_msix(ha->pdev, entries, ha->msix_count);
-		if (ret) {
-msix_failed:
-			ql_log(ql_log_fatal, vha, 0x00c7,
-			    "MSI-X: Failed to enable support, "
-			    "giving   up -- %d/%d.\n",
-			    ha->msix_count, ret);
-			goto msix_out;
-		}
-		ha->max_rsp_queues = ha->msix_count - 1;
 	}
+	ha->msix_count = ret;
+	ha->max_rsp_queues = ha->msix_count - 1;
 	ha->msix_entries = kzalloc(sizeof(struct qla_msix_entry) *
 				ha->msix_count, GFP_KERNEL);
 	if (!ha->msix_entries) {
@@ -3103,10 +3143,11 @@ skip_msi:
 	}
 
 clear_risc_ints:
+	if (IS_FWI2_CAPABLE(ha) || IS_QLAFX00(ha))
+		goto fail;
 
 	spin_lock_irq(&ha->hardware_lock);
-	if (!IS_FWI2_CAPABLE(ha))
-		WRT_REG_WORD(&reg->isp.semaphore, 0);
+	WRT_REG_WORD(&reg->isp.semaphore, 0);
 	spin_unlock_irq(&ha->hardware_lock);
 
 fail:

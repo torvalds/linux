@@ -231,6 +231,16 @@
 #define cpu_has_clo_clz	cpu_has_mips_r
 #endif
 
+/*
+ * MIPS32 R2, MIPS64 R2, Loongson 3A and Octeon have WSBH.
+ * MIPS64 R2, Loongson 3A and Octeon have WSBH, DSBH and DSHD.
+ * This indicates the availability of WSBH and in case of 64 bit CPUs also
+ * DSBH and DSHD.
+ */
+#ifndef cpu_has_wsbh
+#define cpu_has_wsbh		cpu_has_mips_r2
+#endif
+
 #ifndef cpu_has_dsp
 #define cpu_has_dsp		(cpu_data[0].ases & MIPS_ASE_DSP)
 #endif

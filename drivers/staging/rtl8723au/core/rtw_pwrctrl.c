@@ -23,7 +23,7 @@
 #include <rtl8723a_bt_intf.h>
 #include <usb_ops_linux.h>
 
-void ips_enter23a(struct rtw_adapter * padapter)
+void ips_enter23a(struct rtw_adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 
@@ -53,7 +53,7 @@ void ips_enter23a(struct rtw_adapter * padapter)
 	up(&pwrpriv->lock);
 }
 
-int ips_leave23a(struct rtw_adapter * padapter)
+int ips_leave23a(struct rtw_adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
@@ -146,7 +146,7 @@ exit:
 	return ret;
 }
 
-void rtw_ps_processor23a(struct rtw_adapter*padapter)
+void rtw_ps_processor23a(struct rtw_adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -246,7 +246,7 @@ void rtw_set_rpwm23a(struct rtw_adapter *padapter, u8 pslv)
 	pwrpriv->cpwm = pslv;
 }
 
-static bool PS_RDY_CHECK(struct rtw_adapter * padapter)
+static bool PS_RDY_CHECK(struct rtw_adapter *padapter)
 {
 	unsigned long delta_time;
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;

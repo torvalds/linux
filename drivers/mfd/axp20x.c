@@ -140,15 +140,6 @@ static const struct regmap_irq_chip axp20x_regmap_irq_chip = {
 	.init_ack_masked	= true,
 };
 
-static const char * const axp20x_supplies[] = {
-	"acin",
-	"vin2",
-	"vin3",
-	"ldo24in",
-	"ldo3in",
-	"ldo5in",
-};
-
 static struct mfd_cell axp20x_cells[] = {
 	{
 		.name			= "axp20x-pek",
@@ -156,8 +147,6 @@ static struct mfd_cell axp20x_cells[] = {
 		.resources		= axp20x_pek_resources,
 	}, {
 		.name			= "axp20x-regulator",
-		.parent_supplies	= axp20x_supplies,
-		.num_parent_supplies	= ARRAY_SIZE(axp20x_supplies),
 	},
 };
 

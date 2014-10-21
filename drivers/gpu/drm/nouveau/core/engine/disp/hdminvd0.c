@@ -75,8 +75,5 @@ nvd0_hdmi_ctrl(NV50_DISP_MTHD_V1)
 
 	/* HDMI_CTRL */
 	nv_mask(priv, 0x616798 + hoff, 0x401f007f, ctrl);
-
-	/* NFI, audio doesn't work without it though.. */
-	nv_mask(priv, 0x616548 + hoff, 0x00000070, 0x00000000);
 	return 0;
 }

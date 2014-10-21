@@ -74,20 +74,22 @@ void __init gic_dist_config(void __iomem *base, int gic_irqs,
 	 * Set all global interrupts to be level triggered, active low.
 	 */
 	for (i = 32; i < gic_irqs; i += 16)
-		writel_relaxed(0, base + GIC_DIST_CONFIG + i / 4);
+		writel_relaxed(GICD_INT_ACTLOW_LVLTRIG,
+					base + GIC_DIST_CONFIG + i / 4);
 
 	/*
 	 * Set priority on all global interrupts.
 	 */
 	for (i = 32; i < gic_irqs; i += 4)
-		writel_relaxed(0xa0a0a0a0, base + GIC_DIST_PRI + i);
+		writel_relaxed(GICD_INT_DEF_PRI_X4, base + GIC_DIST_PRI + i);
 
 	/*
 	 * Disable all interrupts.  Leave the PPI and SGIs alone
 	 * as they are enabled by redistributor registers.
 	 */
 	for (i = 32; i < gic_irqs; i += 32)
-		writel_relaxed(0xffffffff, base + GIC_DIST_ENABLE_CLEAR + i / 8);
+		writel_relaxed(GICD_INT_EN_CLR_X32,
+					base + GIC_DIST_ENABLE_CLEAR + i / 8);
 
 	if (sync_access)
 		sync_access();
@@ -101,14 +103,15 @@ void gic_cpu_config(void __iomem *base, void (*sync_access)(void))
 	 * Deal with the banked PPI and SGI interrupts - disable all
 	 * PPI interrupts, ensure all SGI interrupts are enabled.
 	 */
-	writel_relaxed(0xffff0000, base + GIC_DIST_ENABLE_CLEAR);
-	writel_relaxed(0x0000ffff, base + GIC_DIST_ENABLE_SET);
+	writel_relaxed(GICD_INT_EN_CLR_PPI, base + GIC_DIST_ENABLE_CLEAR);
+	writel_relaxed(GICD_INT_EN_SET_SGI, base + GIC_DIST_ENABLE_SET);
 
 	/*
 	 * Set priority on PPI and SGI interrupts
 	 */
 	for (i = 0; i < 32; i += 4)
-		writel_relaxed(0xa0a0a0a0, base + GIC_DIST_PRI + i * 4 / 4);
+		writel_relaxed(GICD_INT_DEF_PRI_X4,
+					base + GIC_DIST_PRI + i * 4 / 4);
 
 	if (sync_access)
 		sync_access();

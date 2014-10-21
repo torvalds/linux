@@ -23,7 +23,7 @@
 
 /* These functions provide the necessary setup for the mv64x60 drivers. */
 
-static struct of_device_id __initdata of_mv64x60_devices[] = {
+static const struct of_device_id of_mv64x60_devices[] __initconst = {
 	{ .compatible = "marvell,mv64306-devctrl", },
 	{}
 };

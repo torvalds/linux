@@ -194,10 +194,10 @@ static int proc_keys_show(struct seq_file *m, void *v)
 		.index_key.type		= key->type,
 		.index_key.description	= key->description,
 		.cred			= current_cred(),
-		.match			= lookup_user_key_possessed,
-		.match_data		= key,
-		.flags			= (KEYRING_SEARCH_NO_STATE_CHECK |
-					   KEYRING_SEARCH_LOOKUP_DIRECT),
+		.match_data.cmp		= lookup_user_key_possessed,
+		.match_data.raw_data	= key,
+		.match_data.lookup_type	= KEYRING_SEARCH_LOOKUP_DIRECT,
+		.flags			= KEYRING_SEARCH_NO_STATE_CHECK,
 	};
 
 	key_ref = make_key_ref(key, 0);

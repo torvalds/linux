@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2000-2013 LSI Corporation.
+ * Copyright (c) 2000-2014 LSI Corporation.
  *
  *
  *          Name:  mpi2_cnfg.h
  *         Title:  MPI Configuration messages and pages
  * Creation Date:  November 10, 2006
  *
- *   mpi2_cnfg.h Version:  02.00.24
+ *   mpi2_cnfg.h Version:  02.00.26
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *       prefix are for use only on MPI v2.5 products, and must not be used
@@ -160,6 +160,11 @@
  * 12-20-12  02.00.24  Marked MPI2_SASIOUNIT1_CONTROL_CLEAR_AFFILIATION as
  *                     obsolete for MPI v2.5 and later.
  *                     Added some defines for 12G SAS speeds.
+ * 04-09-13  02.00.25  Added MPI2_IOUNITPAGE1_ATA_SECURITY_FREEZE_LOCK.
+ *                     Fixed MPI2_IOUNITPAGE5_DMA_CAP_MASK_MAX_REQUESTS to
+ *                     match the specification.
+ * 08-19-13  02.00.26  Added reserved words to MPI2_CONFIG_PAGE_IO_UNIT_7 for
+ *			future use.
  * --------------------------------------------------------------------------
  */
 
@@ -792,6 +797,7 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_1 {
 #define MPI2_IOUNITPAGE1_PAGEVERSION                    (0x04)
 
 /*IO Unit Page 1 Flags defines */
+#define MPI2_IOUNITPAGE1_ATA_SECURITY_FREEZE_LOCK       (0x00004000)
 #define MPI25_IOUNITPAGE1_NEW_DEVICE_FAST_PATH_DISABLE  (0x00002000)
 #define MPI25_IOUNITPAGE1_DISABLE_FAST_PATH             (0x00001000)
 #define MPI2_IOUNITPAGE1_ENABLE_HOST_BASED_DISCOVERY    (0x00000800)
@@ -870,7 +876,7 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_5 {
 #define MPI2_IOUNITPAGE5_PAGEVERSION                    (0x00)
 
 /*defines for IO Unit Page 5 DmaEngineCapabilities field */
-#define MPI2_IOUNITPAGE5_DMA_CAP_MASK_MAX_REQUESTS      (0xFF00)
+#define MPI2_IOUNITPAGE5_DMA_CAP_MASK_MAX_REQUESTS      (0xFFFF0000)
 #define MPI2_IOUNITPAGE5_DMA_CAP_SHIFT_MAX_REQUESTS     (16)
 
 #define MPI2_IOUNITPAGE5_DMA_CAP_EEDP                   (0x0008)
@@ -920,11 +926,15 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_7 {
 	U8
 		BoardTemperatureUnits;                  /*0x16 */
 	U8                      Reserved3;              /*0x17 */
+	U32			Reserved4;		/* 0x18 */
+	U32			Reserved5;		/* 0x1C */
+	U32			Reserved6;		/* 0x20 */
+	U32			Reserved7;		/* 0x24 */
 } MPI2_CONFIG_PAGE_IO_UNIT_7,
 	*PTR_MPI2_CONFIG_PAGE_IO_UNIT_7,
 	Mpi2IOUnitPage7_t, *pMpi2IOUnitPage7_t;
 
-#define MPI2_IOUNITPAGE7_PAGEVERSION                    (0x02)
+#define MPI2_IOUNITPAGE7_PAGEVERSION			(0x04)
 
 /*defines for IO Unit Page 7 CurrentPowerMode and PreviousPowerMode fields */
 #define MPI25_IOUNITPAGE7_PM_INIT_MASK              (0xC0)

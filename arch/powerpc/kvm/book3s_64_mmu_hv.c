@@ -1002,11 +1002,11 @@ static int kvm_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
 	return ret;
 }
 
-int kvm_age_hva_hv(struct kvm *kvm, unsigned long hva)
+int kvm_age_hva_hv(struct kvm *kvm, unsigned long start, unsigned long end)
 {
 	if (!kvm->arch.using_mmu_notifiers)
 		return 0;
-	return kvm_handle_hva(kvm, hva, kvm_age_rmapp);
+	return kvm_handle_hva_range(kvm, start, end, kvm_age_rmapp);
 }
 
 static int kvm_test_age_rmapp(struct kvm *kvm, unsigned long *rmapp,

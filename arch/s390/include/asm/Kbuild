@@ -2,6 +2,7 @@
 
 generic-y += clkdev.h
 generic-y += hash.h
+generic-y += irq_work.h
 generic-y += mcs_spinlock.h
 generic-y += preempt.h
 generic-y += scatterlist.h

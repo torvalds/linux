@@ -138,7 +138,7 @@ struct dynamic_pwr_sav {
 	int		    Rssi_val_min;
 
 	u8		initialize;
-	u32		Reg874,RegC70,Reg85C,RegA74;
+	u32		Reg874, RegC70, Reg85C, RegA74;
 };
 
 struct false_alarm_stats {

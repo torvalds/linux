@@ -120,7 +120,6 @@
 #include "xgbe.h"
 #include "xgbe-common.h"
 
-
 static int xgbe_dcb_ieee_getets(struct net_device *netdev,
 				struct ieee_ets *ets)
 {

@@ -95,6 +95,16 @@ config GPIO_WATCHDOG
 	  If you say yes here you get support for watchdog device
 	  controlled through GPIO-line.
 
+config MENF21BMC_WATCHDOG
+	tristate "MEN 14F021P00 BMC Watchdog"
+	depends on MFD_MENF21BMC
+	select WATCHDOG_CORE
+	help
+	  Say Y here to include support for the MEN 14F021P00 BMC Watchdog.
+
+	  This driver can also be built as a module. If so the module
+	  will be called menf21bmc_wdt.
+
 config WM831X_WATCHDOG
 	tristate "WM831x watchdog"
 	depends on MFD_WM831X
@@ -301,7 +311,7 @@ config DAVINCI_WATCHDOG
 
 config ORION_WATCHDOG
 	tristate "Orion watchdog"
-	depends on ARCH_ORION5X || ARCH_KIRKWOOD || ARCH_DOVE || MACH_DOVE || ARCH_MVEBU
+	depends on ARCH_ORION5X || ARCH_DOVE || MACH_DOVE || ARCH_MVEBU
 	select WATCHDOG_CORE
 	help
 	  Say Y here if to include support for the watchdog timer

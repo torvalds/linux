@@ -578,31 +578,34 @@ static enum hrtimer_restart qdisc_watchdog(struct hrtimer *timer)
 	struct qdisc_watchdog *wd = container_of(timer, struct qdisc_watchdog,
 						 timer);
 
+	rcu_read_lock();
 	qdisc_unthrottled(wd->qdisc);
 	__netif_schedule(qdisc_root(wd->qdisc));
+	rcu_read_unlock();
 
 	return HRTIMER_NORESTART;
 }
 
 void qdisc_watchdog_init(struct qdisc_watchdog *wd, struct Qdisc *qdisc)
 {
-	hrtimer_init(&wd->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+	hrtimer_init(&wd->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_PINNED);
 	wd->timer.function = qdisc_watchdog;
 	wd->qdisc = qdisc;
 }
 EXPORT_SYMBOL(qdisc_watchdog_init);
 
-void qdisc_watchdog_schedule_ns(struct qdisc_watchdog *wd, u64 expires)
+void qdisc_watchdog_schedule_ns(struct qdisc_watchdog *wd, u64 expires, bool throttle)
 {
 	if (test_bit(__QDISC_STATE_DEACTIVATED,
 		     &qdisc_root_sleeping(wd->qdisc)->state))
 		return;
 
-	qdisc_throttled(wd->qdisc);
+	if (throttle)
+		qdisc_throttled(wd->qdisc);
 
 	hrtimer_start(&wd->timer,
 		      ns_to_ktime(expires),
-		      HRTIMER_MODE_ABS);
+		      HRTIMER_MODE_ABS_PINNED);
 }
 EXPORT_SYMBOL(qdisc_watchdog_schedule_ns);
 
@@ -763,7 +766,7 @@ void qdisc_tree_decrease_qlen(struct Qdisc *sch, unsigned int n)
 			cops->put(sch, cl);
 		}
 		sch->q.qlen -= n;
-		sch->qstats.drops += drops;
+		__qdisc_qstats_drop(sch, drops);
 	}
 }
 EXPORT_SYMBOL(qdisc_tree_decrease_qlen);
@@ -942,6 +945,17 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 	sch->handle = handle;
 
 	if (!ops->init || (err = ops->init(sch, tca[TCA_OPTIONS])) == 0) {
+		if (qdisc_is_percpu_stats(sch)) {
+			sch->cpu_bstats =
+				alloc_percpu(struct gnet_stats_basic_cpu);
+			if (!sch->cpu_bstats)
+				goto err_out4;
+
+			sch->cpu_qstats = alloc_percpu(struct gnet_stats_queue);
+			if (!sch->cpu_qstats)
+				goto err_out4;
+		}
+
 		if (tca[TCA_STAB]) {
 			stab = qdisc_get_stab(tca[TCA_STAB]);
 			if (IS_ERR(stab)) {
@@ -964,8 +978,11 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 			else
 				root_lock = qdisc_lock(sch);
 
-			err = gen_new_estimator(&sch->bstats, &sch->rate_est,
-						root_lock, tca[TCA_RATE]);
+			err = gen_new_estimator(&sch->bstats,
+						sch->cpu_bstats,
+						&sch->rate_est,
+						root_lock,
+						tca[TCA_RATE]);
 			if (err)
 				goto err_out4;
 		}
@@ -984,6 +1001,8 @@ err_out:
 	return NULL;
 
 err_out4:
+	free_percpu(sch->cpu_bstats);
+	free_percpu(sch->cpu_qstats);
 	/*
 	 * Any broken qdiscs that would require a ops->reset() here?
 	 * The qdisc was never in action so it shouldn't be necessary.
@@ -1022,9 +1041,11 @@ static int qdisc_change(struct Qdisc *sch, struct nlattr **tca)
 		   because change can't be undone. */
 		if (sch->flags & TCQ_F_MQROOT)
 			goto out;
-		gen_replace_estimator(&sch->bstats, &sch->rate_est,
-					    qdisc_root_sleeping_lock(sch),
-					    tca[TCA_RATE]);
+		gen_replace_estimator(&sch->bstats,
+				      sch->cpu_bstats,
+				      &sch->rate_est,
+				      qdisc_root_sleeping_lock(sch),
+				      tca[TCA_RATE]);
 	}
 out:
 	return 0;
@@ -1299,11 +1320,14 @@ graft:
 static int tc_fill_qdisc(struct sk_buff *skb, struct Qdisc *q, u32 clid,
 			 u32 portid, u32 seq, u16 flags, int event)
 {
+	struct gnet_stats_basic_cpu __percpu *cpu_bstats = NULL;
+	struct gnet_stats_queue __percpu *cpu_qstats = NULL;
 	struct tcmsg *tcm;
 	struct nlmsghdr  *nlh;
 	unsigned char *b = skb_tail_pointer(skb);
 	struct gnet_dump d;
 	struct qdisc_size_table *stab;
+	__u32 qlen;
 
 	cond_resched();
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*tcm), flags);
@@ -1321,7 +1345,7 @@ static int tc_fill_qdisc(struct sk_buff *skb, struct Qdisc *q, u32 clid,
 		goto nla_put_failure;
 	if (q->ops->dump && q->ops->dump(q, skb) < 0)
 		goto nla_put_failure;
-	q->qstats.qlen = q->q.qlen;
+	qlen = q->q.qlen;
 
 	stab = rtnl_dereference(q->stab);
 	if (stab && qdisc_dump_stab(skb, stab) < 0)
@@ -1334,9 +1358,14 @@ static int tc_fill_qdisc(struct sk_buff *skb, struct Qdisc *q, u32 clid,
 	if (q->ops->dump_stats && q->ops->dump_stats(q, &d) < 0)
 		goto nla_put_failure;
 
-	if (gnet_stats_copy_basic(&d, &q->bstats) < 0 ||
+	if (qdisc_is_percpu_stats(q)) {
+		cpu_bstats = q->cpu_bstats;
+		cpu_qstats = q->cpu_qstats;
+	}
+
+	if (gnet_stats_copy_basic(&d, cpu_bstats, &q->bstats) < 0 ||
 	    gnet_stats_copy_rate_est(&d, &q->bstats, &q->rate_est) < 0 ||
-	    gnet_stats_copy_queue(&d, &q->qstats) < 0)
+	    gnet_stats_copy_queue(&d, cpu_qstats, &q->qstats, qlen) < 0)
 		goto nla_put_failure;
 
 	if (gnet_stats_finish_copy(&d) < 0)
@@ -1781,7 +1810,7 @@ int tc_classify_compat(struct sk_buff *skb, const struct tcf_proto *tp,
 	__be16 protocol = skb->protocol;
 	int err;
 
-	for (; tp; tp = tp->next) {
+	for (; tp; tp = rcu_dereference_bh(tp->next)) {
 		if (tp->protocol != protocol &&
 		    tp->protocol != htons(ETH_P_ALL))
 			continue;
@@ -1833,15 +1862,15 @@ void tcf_destroy(struct tcf_proto *tp)
 {
 	tp->ops->destroy(tp);
 	module_put(tp->ops->owner);
-	kfree(tp);
+	kfree_rcu(tp, rcu);
 }
 
-void tcf_destroy_chain(struct tcf_proto **fl)
+void tcf_destroy_chain(struct tcf_proto __rcu **fl)
 {
 	struct tcf_proto *tp;
 
-	while ((tp = *fl) != NULL) {
-		*fl = tp->next;
+	while ((tp = rtnl_dereference(*fl)) != NULL) {
+		RCU_INIT_POINTER(*fl, tp->next);
 		tcf_destroy(tp);
 	}
 }

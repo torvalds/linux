@@ -102,7 +102,7 @@ EXPORT_SYMBOL_GPL(arch_pick_mmap_layout);
  * You really shouldn't be using read() or write() on /dev/mem.  This might go
  * away in the future.
  */
-int valid_phys_addr_range(unsigned long addr, size_t size)
+int valid_phys_addr_range(phys_addr_t addr, size_t size)
 {
 	if (addr < PHYS_OFFSET)
 		return 0;

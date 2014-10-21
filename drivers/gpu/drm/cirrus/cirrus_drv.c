@@ -128,6 +128,7 @@ static struct drm_driver driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM,
 	.load = cirrus_driver_load,
 	.unload = cirrus_driver_unload,
+	.set_busid = drm_pci_set_busid,
 	.fops = &cirrus_driver_fops,
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,

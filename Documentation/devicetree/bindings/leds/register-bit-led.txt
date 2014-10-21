@@ -1,0 +1,99 @@
+Device Tree Bindings for Register Bit LEDs
+
+Register bit leds are used with syscon multifunctional devices
+where single bits in a certain register can turn on/off a
+single LED. The register bit LEDs appear as children to the
+syscon device, with the proper compatible string. For the
+syscon bindings see:
+Documentation/devicetree/bindings/mfd/syscon.txt
+
+Each LED is represented as a sub-node of the syscon device. Each
+node's name represents the name of the corresponding LED.
+
+LED sub-node properties:
+
+Required properties:
+- compatible : must be "register-bit-led"
+- offset : register offset to the register controlling this LED
+- mask : bit mask for the bit controlling this LED in the register
+  typically 0x01, 0x02, 0x04 ...
+
+Optional properties:
+- label : (optional)
+  see Documentation/devicetree/bindings/leds/common.txt
+- linux,default-trigger : (optional)
+  see Documentation/devicetree/bindings/leds/common.txt
+- default-state: (optional) The initial state of the LED. Valid
+  values are "on", "off", and "keep". If the LED is already on or off
+  and the default-state property is set the to same value, then no
+  glitch should be produced where the LED momentarily turns off (or
+  on). The "keep" setting will keep the LED at whatever its current
+  state is, without producing a glitch.  The default is off if this
+  property is not present.
+
+Example:
+
+syscon: syscon@10000000 {
+	compatible = "arm,realview-pb1176-syscon", "syscon";
+	reg = <0x10000000 0x1000>;
+
+	led@08.0 {
+		compatible = "register-bit-led";
+		offset = <0x08>;
+		mask = <0x01>;
+		label = "versatile:0";
+		linux,default-trigger = "heartbeat";
+		default-state = "on";
+	};
+	led@08.1 {
+		compatible = "register-bit-led";
+		offset = <0x08>;
+		mask = <0x02>;
+		label = "versatile:1";
+		linux,default-trigger = "mmc0";
+		default-state = "off";
+	};
+	led@08.2 {
+		compatible = "register-bit-led";
+		offset = <0x08>;
+		mask = <0x04>;
+		label = "versatile:2";
+		linux,default-trigger = "cpu0";
+		default-state = "off";
+	};
+	led@08.3 {
+		compatible = "register-bit-led";
+		offset = <0x08>;
+		mask = <0x08>;
+		label = "versatile:3";
+		default-state = "off";
+	};
+	led@08.4 {
+		compatible = "register-bit-led";
+		offset = <0x08>;
+		mask = <0x10>;
+		label = "versatile:4";
+		default-state = "off";
+	};
+	led@08.5 {
+		compatible = "register-bit-led";
+		offset = <0x08>;
+		mask = <0x20>;
+		label = "versatile:5";
+		default-state = "off";
+	};
+	led@08.6 {
+		compatible = "register-bit-led";
+		offset = <0x08>;
+		mask = <0x40>;
+		label = "versatile:6";
+		default-state = "off";
+	};
+	led@08.7 {
+		compatible = "register-bit-led";
+		offset = <0x08>;
+		mask = <0x80>;
+		label = "versatile:7";
+		default-state = "off";
+	};
+};

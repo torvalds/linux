@@ -1,3 +1,6 @@
+config ARCH_OMAP
+	bool
+
 if ARCH_OMAP
 
 menu "TI OMAP Common Features"

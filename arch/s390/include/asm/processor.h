@@ -13,9 +13,11 @@
 
 #define CIF_MCCK_PENDING	0	/* machine check handling is pending */
 #define CIF_ASCE		1	/* user asce needs fixup / uaccess */
+#define CIF_NOHZ_DELAY		2	/* delay HZ disable for a tick */
 
 #define _CIF_MCCK_PENDING	(1<<CIF_MCCK_PENDING)
 #define _CIF_ASCE		(1<<CIF_ASCE)
+#define _CIF_NOHZ_DELAY		(1<<CIF_NOHZ_DELAY)
 
 
 #ifndef __ASSEMBLY__
@@ -42,6 +44,8 @@ static inline int test_cpu_flag(int flag)
 {
 	return !!(S390_lowcore.cpu_flags & (1U << flag));
 }
+
+#define arch_needs_cpu() test_cpu_flag(CIF_NOHZ_DELAY)
 
 /*
  * Default implementation of macro that returns current
@@ -113,6 +117,7 @@ struct thread_struct {
 	int ri_signum;
 #ifdef CONFIG_64BIT
 	unsigned char trap_tdb[256];	/* Transaction abort diagnose block */
+	__vector128 *vxrs;		/* Vector register save area */
 #endif
 };
 
@@ -285,7 +290,12 @@ static inline unsigned long __rewind_psw(psw_t psw, unsigned long ilc)
 	return (psw.addr - ilc) & mask;
 #endif
 }
- 
+
+/*
+ * Function to stop a processor until the next interrupt occurs
+ */
+void enabled_wait(void);
+
 /*
  * Function to drop a processor into disabled wait state
  */

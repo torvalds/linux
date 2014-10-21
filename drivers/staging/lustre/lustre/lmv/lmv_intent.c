@@ -41,7 +41,7 @@
 #include <asm/div64.h>
 #include <linux/seq_file.h>
 #include <linux/namei.h>
-#include "../include/linux/lustre_intent.h"
+#include "../include/lustre_intent.h"
 #include "../include/obd_support.h"
 #include "../include/lustre/lustre_idl.h"
 #include "../include/lustre_lib.h"
@@ -94,12 +94,16 @@ static int lmv_intent_remote(struct obd_export *exp, void *lmm,
 	LASSERT(fid_is_sane(&body->fid1));
 
 	tgt = lmv_find_target(lmv, &body->fid1);
-	if (IS_ERR(tgt))
-		GOTO(out, rc = PTR_ERR(tgt));
+	if (IS_ERR(tgt)) {
+		rc = PTR_ERR(tgt);
+		goto out;
+	}
 
 	OBD_ALLOC_PTR(op_data);
-	if (op_data == NULL)
-		GOTO(out, rc = -ENOMEM);
+	if (op_data == NULL) {
+		rc = -ENOMEM;
+		goto out;
+	}
 
 	op_data->op_fid1 = body->fid1;
 	/* Sent the parent FID to the remote MDT */
@@ -121,7 +125,7 @@ static int lmv_intent_remote(struct obd_export *exp, void *lmm,
 	rc = md_intent_lock(tgt->ltd_exp, op_data, lmm, lmmsize, it,
 			    flags, &req, cb_blocking, extra_lock_flags);
 	if (rc)
-		GOTO(out_free_op_data, rc);
+		goto out_free_op_data;
 
 	/*
 	 * LLite needs LOOKUP lock to track dentry revocation in order to

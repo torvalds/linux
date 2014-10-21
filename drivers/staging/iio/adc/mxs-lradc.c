@@ -365,56 +365,49 @@ static u32 mxs_lradc_plate_mask(struct mxs_lradc *lradc)
 {
 	if (lradc->soc == IMX23_LRADC)
 		return LRADC_CTRL0_MX23_PLATE_MASK;
-	else
-		return LRADC_CTRL0_MX28_PLATE_MASK;
+	return LRADC_CTRL0_MX28_PLATE_MASK;
 }
 
 static u32 mxs_lradc_irq_en_mask(struct mxs_lradc *lradc)
 {
 	if (lradc->soc == IMX23_LRADC)
 		return LRADC_CTRL1_MX23_LRADC_IRQ_EN_MASK;
-	else
-		return LRADC_CTRL1_MX28_LRADC_IRQ_EN_MASK;
+	return LRADC_CTRL1_MX28_LRADC_IRQ_EN_MASK;
 }
 
 static u32 mxs_lradc_irq_mask(struct mxs_lradc *lradc)
 {
 	if (lradc->soc == IMX23_LRADC)
 		return LRADC_CTRL1_MX23_LRADC_IRQ_MASK;
-	else
-		return LRADC_CTRL1_MX28_LRADC_IRQ_MASK;
+	return LRADC_CTRL1_MX28_LRADC_IRQ_MASK;
 }
 
 static u32 mxs_lradc_touch_detect_bit(struct mxs_lradc *lradc)
 {
 	if (lradc->soc == IMX23_LRADC)
 		return LRADC_CTRL0_MX23_TOUCH_DETECT_ENABLE;
-	else
-		return LRADC_CTRL0_MX28_TOUCH_DETECT_ENABLE;
+	return LRADC_CTRL0_MX28_TOUCH_DETECT_ENABLE;
 }
 
 static u32 mxs_lradc_drive_x_plate(struct mxs_lradc *lradc)
 {
 	if (lradc->soc == IMX23_LRADC)
 		return LRADC_CTRL0_MX23_XP | LRADC_CTRL0_MX23_XM;
-	else
-		return LRADC_CTRL0_MX28_XPPSW | LRADC_CTRL0_MX28_XNNSW;
+	return LRADC_CTRL0_MX28_XPPSW | LRADC_CTRL0_MX28_XNNSW;
 }
 
 static u32 mxs_lradc_drive_y_plate(struct mxs_lradc *lradc)
 {
 	if (lradc->soc == IMX23_LRADC)
 		return LRADC_CTRL0_MX23_YP | LRADC_CTRL0_MX23_YM;
-	else
-		return LRADC_CTRL0_MX28_YPPSW | LRADC_CTRL0_MX28_YNNSW;
+	return LRADC_CTRL0_MX28_YPPSW | LRADC_CTRL0_MX28_YNNSW;
 }
 
 static u32 mxs_lradc_drive_pressure(struct mxs_lradc *lradc)
 {
 	if (lradc->soc == IMX23_LRADC)
 		return LRADC_CTRL0_MX23_YP | LRADC_CTRL0_MX23_XM;
-	else
-		return LRADC_CTRL0_MX28_YPPSW | LRADC_CTRL0_MX28_XNNSW;
+	return LRADC_CTRL0_MX28_YPPSW | LRADC_CTRL0_MX28_XNNSW;
 }
 
 static bool mxs_lradc_check_touch_event(struct mxs_lradc *lradc)
@@ -1280,7 +1273,7 @@ static int mxs_lradc_buffer_preenable(struct iio_dev *iio)
 	if (!ret)
 		return -EBUSY;
 
-	lradc->buffer = kmalloc(len * sizeof(*lradc->buffer), GFP_KERNEL);
+	lradc->buffer = kmalloc_array(len, sizeof(*lradc->buffer), GFP_KERNEL);
 	if (!lradc->buffer) {
 		ret = -ENOMEM;
 		goto err_mem;
@@ -1427,6 +1420,7 @@ static int mxs_lradc_hw_init(struct mxs_lradc *lradc)
 		(LRADC_DELAY_TIMER_PER << LRADC_DELAY_DELAY_OFFSET);
 
 	int ret = stmp_reset_block(lradc->base);
+
 	if (ret)
 		return ret;
 

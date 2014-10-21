@@ -117,7 +117,6 @@
 #include "xgbe.h"
 #include "xgbe-common.h"
 
-
 static void xgbe_unmap_skb(struct xgbe_prv_data *, struct xgbe_ring_data *);
 
 static void xgbe_free_ring(struct xgbe_prv_data *pdata,
@@ -524,11 +523,8 @@ static void xgbe_realloc_skb(struct xgbe_channel *channel)
 
 		/* Allocate skb & assign to each rdesc */
 		skb = dev_alloc_skb(pdata->rx_buf_size);
-		if (skb == NULL) {
-			netdev_alert(pdata->netdev,
-				     "failed to allocate skb\n");
+		if (skb == NULL)
 			break;
-		}
 		skb_dma = dma_map_single(pdata->dev, skb->data,
 					 pdata->rx_buf_size, DMA_FROM_DEVICE);
 		if (dma_mapping_error(pdata->dev, skb_dma)) {

@@ -24,6 +24,7 @@ enum nv_subdev_type {
 	 * been created, and are allowed to assume any subdevs in the
 	 * list above them exist and have been initialised.
 	 */
+	NVDEV_SUBDEV_FUSE,
 	NVDEV_SUBDEV_MXM,
 	NVDEV_SUBDEV_MC,
 	NVDEV_SUBDEV_BUS,

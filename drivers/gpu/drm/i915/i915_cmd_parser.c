@@ -709,11 +709,13 @@ int i915_cmd_parser_init_ring(struct intel_engine_cs *ring)
 	BUG_ON(!validate_cmds_sorted(ring, cmd_tables, cmd_table_count));
 	BUG_ON(!validate_regs_sorted(ring));
 
-	ret = init_hash_table(ring, cmd_tables, cmd_table_count);
-	if (ret) {
-		DRM_ERROR("CMD: cmd_parser_init failed!\n");
-		fini_hash_table(ring);
-		return ret;
+	if (hash_empty(ring->cmd_hash)) {
+		ret = init_hash_table(ring, cmd_tables, cmd_table_count);
+		if (ret) {
+			DRM_ERROR("CMD: cmd_parser_init failed!\n");
+			fini_hash_table(ring);
+			return ret;
+		}
 	}
 
 	ring->needs_cmd_parser = true;
@@ -842,8 +844,6 @@ finish:
  */
 bool i915_needs_cmd_parser(struct intel_engine_cs *ring)
 {
-	struct drm_i915_private *dev_priv = ring->dev->dev_private;
-
 	if (!ring->needs_cmd_parser)
 		return false;
 
@@ -852,7 +852,7 @@ bool i915_needs_cmd_parser(struct intel_engine_cs *ring)
 	 * disabled. That will cause all of the parser's PPGTT checks to
 	 * fail. For now, disable parsing when PPGTT is off.
 	 */
-	if (!dev_priv->mm.aliasing_ppgtt)
+	if (USES_PPGTT(ring->dev))
 		return false;
 
 	return (i915.enable_cmd_parser == 1);

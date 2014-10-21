@@ -592,7 +592,7 @@ static int grow_gnttab_list(unsigned int more_frames)
 	return 0;
 
 grow_nomem:
-	for ( ; i >= nr_glist_frames; i--)
+	while (i-- > nr_glist_frames)
 		free_page((unsigned long) gnttab_list[i]);
 	return -ENOMEM;
 }

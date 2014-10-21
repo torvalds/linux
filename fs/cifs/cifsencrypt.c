@@ -431,7 +431,7 @@ find_domain_name(struct cifs_ses *ses, const struct nls_table *nls_cp)
 						return -ENOMEM;
 				cifs_from_utf16(ses->domainName,
 					(__le16 *)blobptr, attrsize, attrsize,
-					nls_cp, false);
+					nls_cp, NO_MAP_UNI_RSVD);
 				break;
 			}
 		}

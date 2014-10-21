@@ -146,7 +146,6 @@ ENDPROC(cpu_v7_set_pte_ext)
 	mov	\tmp, \ttbr1, lsr #(32 - ARCH_PGD_SHIFT)	@ upper bits
 	mov	\ttbr1, \ttbr1, lsl #ARCH_PGD_SHIFT		@ lower bits
 	addls	\ttbr1, \ttbr1, #TTBR1_OFFSET
-	adcls	\tmp, \tmp, #0
 	mcrr	p15, 1, \ttbr1, \tmp, c2			@ load TTBR1
 	mov	\tmp, \ttbr0, lsr #(32 - ARCH_PGD_SHIFT)	@ upper bits
 	mov	\ttbr0, \ttbr0, lsl #ARCH_PGD_SHIFT		@ lower bits
@@ -158,9 +157,9 @@ ENDPROC(cpu_v7_set_pte_ext)
 	 *  TFR   EV X F   IHD LR    S
 	 * .EEE ..EE PUI. .TAT 4RVI ZWRS BLDP WCAM
 	 * rxxx rrxx xxx0 0101 xxxx xxxx x111 xxxx < forced
-	 *   11    0 110    1  0011 1100 .111 1101 < we want
+	 *   11    0 110    0  0011 1100 .111 1101 < we want
 	 */
 	.align	2
 	.type	v7_crval, #object
 v7_crval:
-	crval	clear=0x0120c302, mmuset=0x30c23c7d, ucset=0x00c01c7c
+	crval	clear=0x0122c302, mmuset=0x30c03c7d, ucset=0x00c01c7c

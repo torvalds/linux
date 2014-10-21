@@ -86,6 +86,8 @@ static inline char *nic_name(struct pci_dev *pdev)
 
 #define BE_MAX_JUMBO_FRAME_SIZE	9018
 #define BE_MIN_MTU		256
+#define BE_MAX_MTU              (BE_MAX_JUMBO_FRAME_SIZE -	\
+				 (ETH_HLEN + ETH_FCS_LEN))
 
 #define BE_NUM_VLANS_SUPPORTED	64
 #define BE_MAX_EQD		128u
@@ -112,7 +114,6 @@ static inline char *nic_name(struct pci_dev *pdev)
 #define MAX_ROCE_EQS		5
 #define MAX_MSIX_VECTORS	32
 #define MIN_MSIX_VECTORS	1
-#define BE_TX_BUDGET		256
 #define BE_NAPI_WEIGHT		64
 #define MAX_RX_POST		BE_NAPI_WEIGHT /* Frags posted at a time */
 #define RX_FRAGS_REFILL_WM	(RX_Q_LEN - MAX_RX_POST)
@@ -198,7 +199,6 @@ struct be_eq_obj {
 
 	u8 idx;			/* array index */
 	u8 msix_idx;
-	u16 tx_budget;
 	u16 spurious_intr;
 	struct napi_struct napi;
 	struct be_adapter *adapter;
@@ -248,6 +248,13 @@ struct be_tx_stats {
 	ulong tx_jiffies;
 	u32 tx_stops;
 	u32 tx_drv_drops;	/* pkts dropped by driver */
+	/* the error counters are described in be_ethtool.c */
+	u32 tx_hdr_parse_err;
+	u32 tx_dma_err;
+	u32 tx_tso_err;
+	u32 tx_spoof_check_err;
+	u32 tx_qinq_err;
+	u32 tx_internal_parity_err;
 	struct u64_stats_sync sync;
 	struct u64_stats_sync sync_compl;
 };
@@ -316,6 +323,7 @@ struct be_rx_obj {
 struct be_drv_stats {
 	u32 be_on_die_temperature;
 	u32 eth_red_drops;
+	u32 dma_map_errors;
 	u32 rx_drops_no_pbuf;
 	u32 rx_drops_no_txpb;
 	u32 rx_drops_no_erx_descr;
@@ -399,9 +407,9 @@ struct phy_info {
 	u16 auto_speeds_supported;
 	u16 fixed_speeds_supported;
 	int link_speed;
-	u32 dac_cable_len;
 	u32 advertising;
 	u32 supported;
+	u8 cable_type;
 };
 
 struct be_resources {
@@ -613,6 +621,10 @@ extern const struct ethtool_ops be_ethtool_ops;
 	for (i = eqo->idx, rxo = &adapter->rx_obj[i]; i < adapter->num_rx_qs;\
 		 i += adapter->num_evt_qs, rxo += adapter->num_evt_qs)
 
+#define for_all_tx_queues_on_eq(adapter, eqo, txo, i)			\
+	for (i = eqo->idx, txo = &adapter->tx_obj[i]; i < adapter->num_tx_qs;\
+		i += adapter->num_evt_qs, txo += adapter->num_evt_qs)
+
 #define is_mcc_eqo(eqo)			(eqo->idx == 0)
 #define mcc_eqo(adapter)		(&adapter->eq_obj[0])
 
@@ -660,6 +672,18 @@ static inline u32 amap_get(void *ptr, u32 dw_offset, u32 mask, u32 offset)
 			offsetof(_struct, field)/32,			\
 			amap_mask(sizeof(((_struct *)0)->field)),	\
 			AMAP_BIT_OFFSET(_struct, field))
+
+#define GET_RX_COMPL_V0_BITS(field, ptr)				\
+		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, field, ptr)
+
+#define GET_RX_COMPL_V1_BITS(field, ptr)				\
+		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, field, ptr)
+
+#define GET_TX_COMPL_BITS(field, ptr)					\
+		AMAP_GET_BITS(struct amap_eth_tx_compl, field, ptr)
+
+#define SET_TX_WRB_HDR_BITS(field, ptr, val)				\
+		AMAP_SET_BITS(struct amap_eth_hdr_wrb, field, ptr, val)
 
 #define be_dws_cpu_to_le(wrb, len)	swap_dws(wrb, len)
 #define be_dws_le_to_cpu(wrb, len)	swap_dws(wrb, len)

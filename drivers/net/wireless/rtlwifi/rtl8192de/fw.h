@@ -132,18 +132,6 @@ struct rtl92d_firmware_header {
 	u32 rsvd5;
 };
 
-enum rtl8192d_h2c_cmd {
-	H2C_AP_OFFLOAD = 0,
-	H2C_SETPWRMODE = 1,
-	H2C_JOINBSSRPT = 2,
-	H2C_RSVDPAGE = 3,
-	H2C_RSSI_REPORT = 5,
-	H2C_RA_MASK = 6,
-	H2C_MAC_MODE_SEL = 9,
-	H2C_PWRM = 15,
-	MAX_H2CCMD
-};
-
 int rtl92d_download_fw(struct ieee80211_hw *hw);
 void rtl92d_fill_h2c_cmd(struct ieee80211_hw *hw, u8 element_id,
 			 u32 cmd_len, u8 *p_cmdbuffer);

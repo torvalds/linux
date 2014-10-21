@@ -577,20 +577,4 @@ static inline struct i2c_adapter *of_find_i2c_adapter_by_node(struct device_node
 }
 #endif /* CONFIG_OF */
 
-#ifdef CONFIG_ACPI
-void acpi_i2c_register_devices(struct i2c_adapter *adap);
-#else
-static inline void acpi_i2c_register_devices(struct i2c_adapter *adap) { }
-#endif /* CONFIG_ACPI */
-
-#ifdef CONFIG_ACPI_I2C_OPREGION
-int acpi_i2c_install_space_handler(struct i2c_adapter *adapter);
-void acpi_i2c_remove_space_handler(struct i2c_adapter *adapter);
-#else
-static inline void acpi_i2c_remove_space_handler(struct i2c_adapter *adapter)
-{ }
-static inline int acpi_i2c_install_space_handler(struct i2c_adapter *adapter)
-{ return 0; }
-#endif /* CONFIG_ACPI_I2C_OPREGION */
-
 #endif /* _LINUX_I2C_H */

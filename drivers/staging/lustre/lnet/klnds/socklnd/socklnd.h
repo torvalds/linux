@@ -93,8 +93,7 @@ typedef struct				  /* in-use interface */
 	char		ksni_name[IFNAMSIZ];	/* interface name */
 } ksock_interface_t;
 
-typedef struct
-{
+typedef struct {
 	/* "stuck" socket timeout (seconds) */
 	int	      *ksnd_timeout;
 	/* # scheduler threads in each pool while starting */
@@ -126,8 +125,7 @@ typedef struct
 	int	      *ksnd_zc_recv_min_nfrags; /* minimum # of fragments to enable ZC receive */
 } ksock_tunables_t;
 
-typedef struct
-{
+typedef struct {
 	__u64		  ksnn_incarnation;	/* my epoch */
 	spinlock_t	  ksnn_lock;		/* serialise */
 	struct list_head	  ksnn_list;		/* chain on global list */
@@ -142,8 +140,7 @@ typedef struct
 /** reserved thread for accepting & creating new connd */
 #define SOCKNAL_CONND_RESV     1
 
-typedef struct
-{
+typedef struct {
 	int			ksnd_init;	/* initialisation state */
 	int			ksnd_nnets;	/* # networks set up */
 	struct list_head		ksnd_nets;	/* list of nets */
@@ -257,8 +254,7 @@ typedef union {
 #define SOCKNAL_RX_LNET_PAYLOAD 5	       /* reading lnet payload (to deliver here) */
 #define SOCKNAL_RX_SLOP	 6	       /* skipping body */
 
-typedef struct ksock_conn
-{
+typedef struct ksock_conn {
 	struct ksock_peer  *ksnc_peer;	 /* owning peer */
 	struct ksock_route *ksnc_route;	/* owning route */
 	struct list_head	  ksnc_list;	 /* stash on peer's conn list */
@@ -313,8 +309,7 @@ typedef struct ksock_conn
 	unsigned long	    ksnc_tx_last_post;  /* time stamp of the last posted TX */
 } ksock_conn_t;
 
-typedef struct ksock_route
-{
+typedef struct ksock_route {
 	struct list_head	    ksnr_list;	/* chain on peer route list */
 	struct list_head	    ksnr_connd_list;  /* chain on ksnr_connd_routes */
 	struct ksock_peer    *ksnr_peer;	/* owning peer */
@@ -334,8 +329,7 @@ typedef struct ksock_route
 
 #define SOCKNAL_KEEPALIVE_PING	  1       /* cookie for keepalive ping */
 
-typedef struct ksock_peer
-{
+typedef struct ksock_peer {
 	struct list_head	    ksnp_list;	/* stash on global peer list */
 	unsigned long	    ksnp_last_alive;  /* when (in jiffies) I was last alive */
 	lnet_process_id_t     ksnp_id;       /* who's on the other end(s) */
@@ -358,8 +352,7 @@ typedef struct ksock_peer
 	__u32		 ksnp_passive_ips[LNET_MAX_INTERFACES]; /* preferred local interfaces */
 } ksock_peer_t;
 
-typedef struct ksock_connreq
-{
+typedef struct ksock_connreq {
 	struct list_head	    ksncr_list;     /* stash on ksnd_connd_connreqs */
 	lnet_ni_t	    *ksncr_ni;       /* chosen NI */
 	struct socket	 *ksncr_sock;     /* accepted socket */
@@ -372,8 +365,7 @@ extern ksock_tunables_t ksocknal_tunables;
 #define SOCKNAL_MATCH_YES       1	/* TX matches type of connection */
 #define SOCKNAL_MATCH_MAY       2	/* TX can be sent on the connection, but not preferred */
 
-typedef struct ksock_proto
-{
+typedef struct ksock_proto {
 	int	   pro_version;					      /* version number of protocol */
 	int	 (*pro_send_hello)(ksock_conn_t *, ksock_hello_msg_t *);     /* handshake function */
 	int	 (*pro_recv_hello)(ksock_conn_t *, ksock_hello_msg_t *, int);/* handshake function */

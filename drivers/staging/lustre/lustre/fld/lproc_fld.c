@@ -49,7 +49,6 @@
 #include "../include/obd.h"
 #include "../include/obd_class.h"
 #include "../include/dt_object.h"
-#include "../include/md_object.h"
 #include "../include/obd_support.h"
 #include "../include/lustre_req_layout.h"
 #include "../include/lustre_fld.h"

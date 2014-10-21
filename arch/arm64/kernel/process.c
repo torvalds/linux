@@ -57,36 +57,10 @@ unsigned long __stack_chk_guard __read_mostly;
 EXPORT_SYMBOL(__stack_chk_guard);
 #endif
 
-static void setup_restart(void)
-{
-	/*
-	 * Tell the mm system that we are going to reboot -
-	 * we may need it to insert some 1:1 mappings so that
-	 * soft boot works.
-	 */
-	setup_mm_for_reboot();
-
-	/* Clean and invalidate caches */
-	flush_cache_all();
-
-	/* Turn D-cache off */
-	cpu_cache_off();
-
-	/* Push out any further dirty data, and ensure cache is empty */
-	flush_cache_all();
-}
-
 void soft_restart(unsigned long addr)
 {
-	typedef void (*phys_reset_t)(unsigned long);
-	phys_reset_t phys_reset;
-
-	setup_restart();
-
-	/* Switch to the identity mapping */
-	phys_reset = (phys_reset_t)virt_to_phys(cpu_reset);
-	phys_reset(addr);
-
+	setup_mm_for_reboot();
+	cpu_soft_restart(virt_to_phys(cpu_reset), addr);
 	/* Should never get here */
 	BUG();
 }
@@ -98,7 +72,6 @@ void (*pm_power_off)(void);
 EXPORT_SYMBOL_GPL(pm_power_off);
 
 void (*arm_pm_restart)(enum reboot_mode reboot_mode, const char *cmd);
-EXPORT_SYMBOL_GPL(arm_pm_restart);
 
 /*
  * This is our default idle handler.
@@ -180,6 +153,8 @@ void machine_restart(char *cmd)
 	/* Now call the architecture specific reboot code. */
 	if (arm_pm_restart)
 		arm_pm_restart(reboot_mode, cmd);
+	else
+		do_kernel_restart(cmd);
 
 	/*
 	 * Whoops - the architecture was unable to reboot.

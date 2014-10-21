@@ -32,7 +32,7 @@ int tcp_init_cgroup(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
 		res_parent = &parent_cg->memory_allocated;
 
 	res_counter_init(&cg_proto->memory_allocated, res_parent);
-	percpu_counter_init(&cg_proto->sockets_allocated, 0);
+	percpu_counter_init(&cg_proto->sockets_allocated, 0, GFP_KERNEL);
 
 	return 0;
 }

@@ -364,8 +364,9 @@ static void exynos5440_pinmux_setup(struct pinctrl_dev *pctldev, unsigned select
 }
 
 /* enable a specified pinmux by writing to registers */
-static int exynos5440_pinmux_enable(struct pinctrl_dev *pctldev, unsigned selector,
-					unsigned group)
+static int exynos5440_pinmux_set_mux(struct pinctrl_dev *pctldev,
+				     unsigned selector,
+				     unsigned group)
 {
 	exynos5440_pinmux_setup(pctldev, selector, group, true);
 	return 0;
@@ -387,7 +388,7 @@ static const struct pinmux_ops exynos5440_pinmux_ops = {
 	.get_functions_count	= exynos5440_get_functions_count,
 	.get_function_name	= exynos5440_pinmux_get_fname,
 	.get_function_groups	= exynos5440_pinmux_get_groups,
-	.enable			= exynos5440_pinmux_enable,
+	.set_mux		= exynos5440_pinmux_set_mux,
 	.gpio_set_direction	= exynos5440_pinmux_gpio_set_direction,
 };
 
@@ -873,11 +874,7 @@ static int exynos5440_gpiolib_register(struct platform_device *pdev,
 static int exynos5440_gpiolib_unregister(struct platform_device *pdev,
 				struct exynos5440_pinctrl_priv_data *priv)
 {
-	int ret = gpiochip_remove(priv->gc);
-	if (ret) {
-		dev_err(&pdev->dev, "gpio chip remove failed\n");
-		return ret;
-	}
+	gpiochip_remove(priv->gc);
 	return 0;
 }
 

@@ -681,7 +681,7 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 			       unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	static const struct jr3_pci_board *board = NULL;
+	static const struct jr3_pci_board *board;
 	struct jr3_pci_dev_private *devpriv;
 	struct jr3_pci_subdev_private *spriv;
 	struct comedi_subdevice *s;

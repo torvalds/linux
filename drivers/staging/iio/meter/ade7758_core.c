@@ -302,6 +302,7 @@ static int ade7758_reset(struct device *dev)
 {
 	int ret;
 	u8 val;
+
 	ade7758_spi_read_reg_8(dev,
 			ADE7758_OPMODE,
 			&val);
@@ -418,6 +419,7 @@ int ade7758_set_irq(struct device *dev, bool enable)
 {
 	int ret;
 	u32 irqen;
+
 	ret = ade7758_spi_read_reg_24(dev, ADE7758_MASK, &irqen);
 	if (ret)
 		goto error_ret;
@@ -441,6 +443,7 @@ static int ade7758_stop_device(struct device *dev)
 {
 	int ret;
 	u8 val;
+
 	ade7758_spi_read_reg_8(dev,
 			ADE7758_OPMODE,
 			&val);
@@ -483,6 +486,7 @@ static ssize_t ade7758_read_frequency(struct device *dev,
 	int ret, len = 0;
 	u8 t;
 	int sps;
+
 	ret = ade7758_spi_read_reg_8(dev,
 			ADE7758_WAVMODE,
 			&t);

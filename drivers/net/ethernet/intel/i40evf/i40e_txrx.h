@@ -121,6 +121,7 @@ enum i40e_dyn_idx_t {
 /* Tx Descriptors needed, worst case */
 #define TXD_USE_COUNT(S) DIV_ROUND_UP((S), I40E_MAX_DATA_PER_TXD)
 #define DESC_NEEDED (MAX_SKB_FRAGS + 4)
+#define I40E_MIN_DESC_PENDING	4
 
 #define I40E_TX_FLAGS_CSUM		(u32)(1)
 #define I40E_TX_FLAGS_HW_VLAN		(u32)(1 << 1)

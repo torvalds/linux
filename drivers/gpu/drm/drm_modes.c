@@ -1259,6 +1259,7 @@ drm_mode_create_from_cmdline_mode(struct drm_device *dev,
 	if (!mode)
 		return NULL;
 
+	mode->type |= DRM_MODE_TYPE_USERDEF;
 	drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
 	return mode;
 }

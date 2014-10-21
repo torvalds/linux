@@ -180,15 +180,17 @@ static int nft_hash_init(const struct nft_set *set,
 static void nft_hash_destroy(const struct nft_set *set)
 {
 	const struct rhashtable *priv = nft_set_priv(set);
-	const struct bucket_table *tbl;
+	const struct bucket_table *tbl = priv->tbl;
 	struct nft_hash_elem *he, *next;
 	unsigned int i;
 
-	tbl = rht_dereference(priv->tbl, priv);
-	for (i = 0; i < tbl->size; i++)
-		rht_for_each_entry_safe(he, next, tbl->buckets[i], priv, node)
+	for (i = 0; i < tbl->size; i++) {
+		for (he = rht_entry(tbl->buckets[i], struct nft_hash_elem, node);
+		     he != NULL; he = next) {
+			next = rht_entry(he->node.next, struct nft_hash_elem, node);
 			nft_hash_elem_destroy(set, he);
-
+		}
+	}
 	rhashtable_destroy(priv);
 }
 

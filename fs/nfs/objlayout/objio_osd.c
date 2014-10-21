@@ -60,52 +60,6 @@ objio_free_deviceid_node(struct nfs4_deviceid_node *d)
 	kfree(de);
 }
 
-static struct objio_dev_ent *_dev_list_find(const struct nfs_server *nfss,
-	const struct nfs4_deviceid *d_id)
-{
-	struct nfs4_deviceid_node *d;
-	struct objio_dev_ent *de;
-
-	d = nfs4_find_get_deviceid(nfss->pnfs_curr_ld, nfss->nfs_client, d_id);
-	if (!d)
-		return NULL;
-
-	de = container_of(d, struct objio_dev_ent, id_node);
-	return de;
-}
-
-static struct objio_dev_ent *
-_dev_list_add(const struct nfs_server *nfss,
-	const struct nfs4_deviceid *d_id, struct osd_dev *od,
-	gfp_t gfp_flags)
-{
-	struct nfs4_deviceid_node *d;
-	struct objio_dev_ent *de = kzalloc(sizeof(*de), gfp_flags);
-	struct objio_dev_ent *n;
-
-	if (!de) {
-		dprintk("%s: -ENOMEM od=%p\n", __func__, od);
-		return NULL;
-	}
-
-	dprintk("%s: Adding od=%p\n", __func__, od);
-	nfs4_init_deviceid_node(&de->id_node,
-				nfss->pnfs_curr_ld,
-				nfss->nfs_client,
-				d_id);
-	de->od.od = od;
-
-	d = nfs4_insert_deviceid_node(&de->id_node);
-	n = container_of(d, struct objio_dev_ent, id_node);
-	if (n != de) {
-		dprintk("%s: Race with other n->od=%p\n", __func__, n->od.od);
-		objio_free_deviceid_node(&de->id_node);
-		de = n;
-	}
-
-	return de;
-}
-
 struct objio_segment {
 	struct pnfs_layout_segment lseg;
 
@@ -130,29 +84,24 @@ struct objio_state {
 
 /* Send and wait for a get_device_info of devices in the layout,
    then look them up with the osd_initiator library */
-static int objio_devices_lookup(struct pnfs_layout_hdr *pnfslay,
-	struct objio_segment *objio_seg, unsigned c, struct nfs4_deviceid *d_id,
-	gfp_t gfp_flags)
+struct nfs4_deviceid_node *
+objio_alloc_deviceid_node(struct nfs_server *server, struct pnfs_device *pdev,
+			gfp_t gfp_flags)
 {
 	struct pnfs_osd_deviceaddr *deviceaddr;
-	struct objio_dev_ent *ode;
+	struct objio_dev_ent *ode = NULL;
 	struct osd_dev *od;
 	struct osd_dev_info odi;
 	bool retry_flag = true;
+	__be32 *p;
 	int err;
 
-	ode = _dev_list_find(NFS_SERVER(pnfslay->plh_inode), d_id);
-	if (ode) {
-		objio_seg->oc.ods[c] = &ode->od; /* must use container_of */
-		return 0;
-	}
+	deviceaddr = kzalloc(sizeof(*deviceaddr), gfp_flags);
+	if (!deviceaddr)
+		return NULL;
 
-	err = objlayout_get_deviceinfo(pnfslay, d_id, &deviceaddr, gfp_flags);
-	if (unlikely(err)) {
-		dprintk("%s: objlayout_get_deviceinfo dev(%llx:%llx) =>%d\n",
-			__func__, _DEVID_LO(d_id), _DEVID_HI(d_id), err);
-		return err;
-	}
+	p = page_address(pdev->pages[0]);
+	pnfs_osd_xdr_decode_deviceaddr(deviceaddr, p);
 
 	odi.systemid_len = deviceaddr->oda_systemid.len;
 	if (odi.systemid_len > sizeof(odi.systemid)) {
@@ -188,14 +137,24 @@ retry_lookup:
 		goto out;
 	}
 
-	ode = _dev_list_add(NFS_SERVER(pnfslay->plh_inode), d_id, od,
-			    gfp_flags);
-	objio_seg->oc.ods[c] = &ode->od; /* must use container_of */
 	dprintk("Adding new dev_id(%llx:%llx)\n",
-		_DEVID_LO(d_id), _DEVID_HI(d_id));
+		_DEVID_LO(&pdev->dev_id), _DEVID_HI(&pdev->dev_id));
+
+	ode = kzalloc(sizeof(*ode), gfp_flags);
+	if (!ode) {
+		dprintk("%s: -ENOMEM od=%p\n", __func__, od);
+		goto out;
+	}
+
+	nfs4_init_deviceid_node(&ode->id_node, server, &pdev->dev_id);
+	kfree(deviceaddr);
+
+	ode->od.od = od;
+	return &ode->id_node;
+
 out:
-	objlayout_put_deviceinfo(deviceaddr);
-	return err;
+	kfree(deviceaddr);
+	return NULL;
 }
 
 static void copy_single_comp(struct ore_components *oc, unsigned c,
@@ -254,6 +213,7 @@ int objio_alloc_lseg(struct pnfs_layout_segment **outp,
 	struct xdr_stream *xdr,
 	gfp_t gfp_flags)
 {
+	struct nfs_server *server = NFS_SERVER(pnfslay->plh_inode);
 	struct objio_segment *objio_seg;
 	struct pnfs_osd_xdr_decode_layout_iter iter;
 	struct pnfs_osd_layout layout;
@@ -283,13 +243,21 @@ int objio_alloc_lseg(struct pnfs_layout_segment **outp,
 	objio_seg->oc.first_dev = layout.olo_comps_index;
 	cur_comp = 0;
 	while (pnfs_osd_xdr_decode_layout_comp(&src_comp, &iter, xdr, &err)) {
+		struct nfs4_deviceid_node *d;
+		struct objio_dev_ent *ode;
+
 		copy_single_comp(&objio_seg->oc, cur_comp, &src_comp);
-		err = objio_devices_lookup(pnfslay, objio_seg, cur_comp,
-					   &src_comp.oc_object_id.oid_device_id,
-					   gfp_flags);
-		if (err)
+
+		d = nfs4_find_get_deviceid(server,
+				&src_comp.oc_object_id.oid_device_id,
+				pnfslay->plh_lc_cred, gfp_flags);
+		if (!d) {
+			err = -ENXIO;
 			goto err;
-		++cur_comp;
+		}
+
+		ode = container_of(d, struct objio_dev_ent, id_node);
+		objio_seg->oc.ods[cur_comp++] = &ode->od;
 	}
 	/* pnfs_osd_xdr_decode_layout_comp returns false on error */
 	if (unlikely(err))
@@ -653,6 +621,7 @@ static struct pnfs_layoutdriver_type objlayout_type = {
 	.flags                   = PNFS_LAYOUTRET_ON_SETATTR |
 				   PNFS_LAYOUTRET_ON_ERROR,
 
+	.max_deviceinfo_size	 = PAGE_SIZE,
 	.owner		       	 = THIS_MODULE,
 	.alloc_layout_hdr        = objlayout_alloc_layout_hdr,
 	.free_layout_hdr         = objlayout_free_layout_hdr,

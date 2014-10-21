@@ -118,6 +118,8 @@ __setup("norandmaps", disable_randmaps);
 unsigned long zero_pfn __read_mostly;
 unsigned long highest_memmap_pfn __read_mostly;
 
+EXPORT_SYMBOL(zero_pfn);
+
 /*
  * CONFIG_MMU architectures set up ZERO_PAGE in their paging_init()
  */
@@ -1125,7 +1127,7 @@ again:
 						addr) != page->index) {
 				pte_t ptfile = pgoff_to_pte(page->index);
 				if (pte_soft_dirty(ptent))
-					pte_file_mksoft_dirty(ptfile);
+					ptfile = pte_file_mksoft_dirty(ptfile);
 				set_pte_at(mm, addr, pte, ptfile);
 			}
 			if (PageAnon(page))
@@ -2051,7 +2053,8 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	old_page = vm_normal_page(vma, address, orig_pte);
 	if (!old_page) {
 		/*
-		 * VM_MIXEDMAP !pfn_valid() case
+		 * VM_MIXEDMAP !pfn_valid() case, or VM_SOFTDIRTY clear on a
+		 * VM_PFNMAP VMA.
 		 *
 		 * We should not cow pages in a shared writeable mapping.
 		 * Just mark the pages writable as we can't do any dirty

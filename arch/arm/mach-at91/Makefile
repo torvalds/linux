@@ -2,15 +2,10 @@
 # Makefile for the linux kernel.
 #
 
-obj-y		:= irq.o gpio.o setup.o sysirq_mask.o
-obj-m		:=
-obj-n		:=
-obj-		:=
+obj-y		:= gpio.o setup.o sysirq_mask.o
 
+obj-$(CONFIG_OLD_IRQ_AT91)	+= irq.o
 obj-$(CONFIG_OLD_CLK_AT91)	+= clock.o
-obj-$(CONFIG_AT91_SAM9_ALT_RESET) += at91sam9_alt_reset.o
-obj-$(CONFIG_AT91_SAM9G45_RESET) += at91sam9g45_reset.o
-obj-$(CONFIG_AT91_SAM9_TIME)	+= at91sam926x_time.o
 obj-$(CONFIG_SOC_AT91SAM9)	+= sam9_smc.o
 
 # CPU-specific support
@@ -23,6 +18,7 @@ obj-$(CONFIG_SOC_AT91SAM9N12)	+= at91sam9n12.o
 obj-$(CONFIG_SOC_AT91SAM9X5)	+= at91sam9x5.o
 obj-$(CONFIG_SOC_AT91SAM9RL)	+= at91sam9rl.o
 obj-$(CONFIG_SOC_SAMA5D3)	+= sama5d3.o
+obj-$(CONFIG_SOC_SAMA5D4)	+= sama5d4.o
 
 obj-$(CONFIG_ARCH_AT91RM9200)	+= at91rm9200_devices.o
 obj-$(CONFIG_ARCH_AT91SAM9260)	+= at91sam9260_devices.o
@@ -46,7 +42,6 @@ obj-$(CONFIG_MACH_ECBAT91)	+= board-ecbat91.o
 obj-$(CONFIG_MACH_YL9200)	+= board-yl-9200.o
 obj-$(CONFIG_MACH_CPUAT91)	+= board-cpuat91.o
 obj-$(CONFIG_MACH_ECO920)	+= board-eco920.o
-obj-$(CONFIG_MACH_RSI_EWS)	+= board-rsi-ews.o
 
 # AT91SAM9260 board-specific support
 obj-$(CONFIG_MACH_AT91SAM9260EK) += board-sam9260ek.o
@@ -69,7 +64,6 @@ obj-$(CONFIG_MACH_AT91SAM9RLEK)	+= board-sam9rlek.o
 # AT91SAM9G20 board-specific support
 obj-$(CONFIG_MACH_AT91SAM9G20EK) += board-sam9g20ek.o
 obj-$(CONFIG_MACH_CPU9G20)	+= board-cpu9krea.o
-obj-$(CONFIG_MACH_ACMENETUSFOXG20) += board-foxg20.o
 obj-$(CONFIG_MACH_STAMP9G20)	+= board-stamp9g20.o
 obj-$(CONFIG_MACH_PORTUXG20)	+= board-stamp9g20.o
 obj-$(CONFIG_MACH_PCONTROL_G20)	+= board-pcontrol-g20.o board-stamp9g20.o

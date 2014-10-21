@@ -46,6 +46,7 @@ static inline unsigned int xtfpga_spi_read32(const struct xtfpga_spi *spi,
 static inline void xtfpga_spi_wait_busy(struct xtfpga_spi *xspi)
 {
 	unsigned i;
+
 	for (i = 0; xtfpga_spi_read32(xspi, XTFPGA_SPI_BUSY) &&
 	     i < BUSY_WAIT_US; ++i)
 		udelay(1);

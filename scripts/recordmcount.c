@@ -388,10 +388,6 @@ do_file(char const *const fname)
 				"unrecognized ET_REL file: %s\n", fname);
 			fail_file();
 		}
-		if (w2(ehdr->e_machine) == EM_S390) {
-			reltype = R_390_32;
-			mcount_adjust_32 = -4;
-		}
 		if (w2(ehdr->e_machine) == EM_MIPS) {
 			reltype = R_MIPS_32;
 			is_fake_mcount32 = MIPS32_is_fake_mcount;

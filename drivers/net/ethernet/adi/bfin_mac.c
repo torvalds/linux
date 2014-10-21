@@ -1692,9 +1692,6 @@ static int bfin_mac_probe(struct platform_device *pdev)
 	lp->vlan1_mask = ETH_P_8021Q | mii_bus_data->vlan1_mask;
 	lp->vlan2_mask = ETH_P_8021Q | mii_bus_data->vlan2_mask;
 
-	/* Fill in the fields of the device structure with ethernet values. */
-	ether_setup(ndev);
-
 	ndev->netdev_ops = &bfin_mac_netdev_ops;
 	ndev->ethtool_ops = &bfin_mac_ethtool_ops;
 

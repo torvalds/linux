@@ -466,6 +466,7 @@ static inline void __sync_cache_range_r(volatile void *p, size_t size)
  */
 #define v7_exit_coherency_flush(level) \
 	asm volatile( \
+	".arch	armv7-a \n\t" \
 	"stmfd	sp!, {fp, ip} \n\t" \
 	"mrc	p15, 0, r0, c1, c0, 0	@ get SCTLR \n\t" \
 	"bic	r0, r0, #"__stringify(CR_C)" \n\t" \

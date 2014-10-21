@@ -916,7 +916,7 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 		break;
 	case rf_sleep:
 	case rf_off:
-		value8 = rtl8723au_read8(Adapter, REG_SPS0_CTRL) ;
+		value8 = rtl8723au_read8(Adapter, REG_SPS0_CTRL);
 		if (IS_81xxC_VENDOR_UMC_B_CUT(pHalData->VersionID))
 			value8 &= ~BIT(0);
 		else
@@ -989,7 +989,7 @@ static void phy_SsPwrSwitch92CU(struct rtw_adapter *Adapter,
 				mdelay(10);
 
 				/*  Set BB reset at first */
-				value8 = 0 ;
+				value8 = 0;
 				value8 |= (FEN_USBD | FEN_USBA |
 					   FEN_BB_GLB_RSTn);
 				/* 0x16 */
@@ -1217,26 +1217,6 @@ static void _ReadLEDSetting(struct rtw_adapter *Adapter, u8 *PROMContent,
 	pledpriv->LedStrategy = HW_LED;
 }
 
-static void Hal_EfuseParsePIDVID_8723AU(struct rtw_adapter *pAdapter,
-					u8 *hwinfo, bool AutoLoadFail)
-{
-	struct hal_data_8723a *pHalData = GET_HAL_DATA(pAdapter);
-
-	if (AutoLoadFail) {
-		pHalData->EEPROMVID = 0;
-		pHalData->EEPROMPID = 0;
-	} else {
-		/*  VID, PID */
-		pHalData->EEPROMVID =
-			le16_to_cpu(*(u16 *)&hwinfo[EEPROM_VID_8723AU]);
-		pHalData->EEPROMPID =
-			le16_to_cpu(*(u16 *)&hwinfo[EEPROM_PID_8723AU]);
-	}
-
-	MSG_8723A("EEPROM VID = 0x%4x\n", pHalData->EEPROMVID);
-	MSG_8723A("EEPROM PID = 0x%4x\n", pHalData->EEPROMPID);
-}
-
 static void Hal_EfuseParseMACAddr_8723AU(struct rtw_adapter *padapter,
 					 u8 *hwinfo, bool AutoLoadFail)
 {
@@ -1269,8 +1249,6 @@ static void readAdapterInfo(struct rtw_adapter *padapter)
 
 	Hal_InitPGData(padapter, hwinfo);
 	Hal_EfuseParseIDCode(padapter, hwinfo);
-	Hal_EfuseParsePIDVID_8723AU(padapter, hwinfo,
-				    pEEPROM->bautoload_fail_flag);
 	Hal_EfuseParseEEPROMVer(padapter, hwinfo,
 				pEEPROM->bautoload_fail_flag);
 	Hal_EfuseParseMACAddr_8723AU(padapter, hwinfo,

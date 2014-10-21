@@ -91,7 +91,7 @@ struct svc_xprt_class svc_rdma_class = {
 	.xcl_name = "rdma",
 	.xcl_owner = THIS_MODULE,
 	.xcl_ops = &svc_rdma_ops,
-	.xcl_max_payload = RPCSVC_MAXPAYLOAD_TCP,
+	.xcl_max_payload = RPCSVC_MAXPAYLOAD_RDMA,
 	.xcl_ident = XPRT_TRANSPORT_RDMA,
 };
 

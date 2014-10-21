@@ -95,6 +95,26 @@ TRACE_EVENT(kvm_ioapic_set_irq,
 		  __entry->coalesced ? " (coalesced)" : "")
 );
 
+TRACE_EVENT(kvm_ioapic_delayed_eoi_inj,
+	    TP_PROTO(__u64 e),
+	    TP_ARGS(e),
+
+	TP_STRUCT__entry(
+		__field(	__u64,		e		)
+	),
+
+	TP_fast_assign(
+		__entry->e		= e;
+	),
+
+	TP_printk("dst %x vec=%u (%s|%s|%s%s)",
+		  (u8)(__entry->e >> 56), (u8)__entry->e,
+		  __print_symbolic((__entry->e >> 8 & 0x7), kvm_deliver_mode),
+		  (__entry->e & (1<<11)) ? "logical" : "physical",
+		  (__entry->e & (1<<15)) ? "level" : "edge",
+		  (__entry->e & (1<<16)) ? "|masked" : "")
+);
+
 TRACE_EVENT(kvm_msi_set_irq,
 	    TP_PROTO(__u64 address, __u64 data),
 	    TP_ARGS(address, data),
@@ -205,24 +225,26 @@ TRACE_EVENT(kvm_fpu,
 );
 
 TRACE_EVENT(kvm_age_page,
-	TP_PROTO(ulong hva, struct kvm_memory_slot *slot, int ref),
-	TP_ARGS(hva, slot, ref),
+	TP_PROTO(ulong gfn, int level, struct kvm_memory_slot *slot, int ref),
+	TP_ARGS(gfn, level, slot, ref),
 
 	TP_STRUCT__entry(
 		__field(	u64,	hva		)
 		__field(	u64,	gfn		)
+		__field(	u8,	level		)
 		__field(	u8,	referenced	)
 	),
 
 	TP_fast_assign(
-		__entry->hva		= hva;
-		__entry->gfn		=
-		  slot->base_gfn + ((hva - slot->userspace_addr) >> PAGE_SHIFT);
+		__entry->gfn		= gfn;
+		__entry->level		= level;
+		__entry->hva		= ((gfn - slot->base_gfn) <<
+					    PAGE_SHIFT) + slot->userspace_addr;
 		__entry->referenced	= ref;
 	),
 
-	TP_printk("hva %llx gfn %llx %s",
-		  __entry->hva, __entry->gfn,
+	TP_printk("hva %llx gfn %llx level %u %s",
+		  __entry->hva, __entry->gfn, __entry->level,
 		  __entry->referenced ? "YOUNG" : "OLD")
 );
 

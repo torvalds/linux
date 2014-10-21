@@ -101,7 +101,7 @@ static void __gen7_gt_force_wake_mt_get(struct drm_i915_private *dev_priv,
 {
 	u32 forcewake_ack;
 
-	if (IS_HASWELL(dev_priv->dev) || IS_GEN8(dev_priv->dev))
+	if (IS_HASWELL(dev_priv->dev) || IS_BROADWELL(dev_priv->dev))
 		forcewake_ack = FORCEWAKE_ACK_HSW;
 	else
 		forcewake_ack = FORCEWAKE_MT_ACK;
@@ -334,7 +334,7 @@ void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore)
 	else if (IS_GEN6(dev) || IS_GEN7(dev))
 		__gen6_gt_force_wake_reset(dev_priv);
 
-	if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev) || IS_GEN8(dev))
+	if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev) || IS_BROADWELL(dev))
 		__gen7_gt_force_wake_mt_reset(dev_priv);
 
 	if (restore) { /* If reset with a user forcewake, try to restore */
@@ -838,7 +838,7 @@ void intel_uncore_init(struct drm_device *dev)
 	if (IS_VALLEYVIEW(dev)) {
 		dev_priv->uncore.funcs.force_wake_get = __vlv_force_wake_get;
 		dev_priv->uncore.funcs.force_wake_put = __vlv_force_wake_put;
-	} else if (IS_HASWELL(dev) || IS_GEN8(dev)) {
+	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		dev_priv->uncore.funcs.force_wake_get = __gen7_gt_force_wake_mt_get;
 		dev_priv->uncore.funcs.force_wake_put = __gen7_gt_force_wake_mt_put;
 	} else if (IS_IVYBRIDGE(dev)) {

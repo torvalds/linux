@@ -102,13 +102,11 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 	fe->dpcm[stream].runtime = fe_substream->runtime;
 
 	ret = dpcm_path_get(fe, stream, &list);
-	if (ret < 0) {
-		mutex_unlock(&fe->card->mutex);
+	if (ret < 0)
 		goto fe_err;
-	} else if (ret == 0) {
+	else if (ret == 0)
 		dev_dbg(fe->dev, "ASoC: %s no valid %s route\n",
 			fe->dai_link->name, stream ? "capture" : "playback");
-	}
 
 	/* calculate valid and active FE <-> BE dpcms */
 	dpcm_process_paths(fe, stream, &list, 1);

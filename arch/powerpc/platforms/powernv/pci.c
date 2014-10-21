@@ -46,29 +46,21 @@
 //#define cfg_dbg(fmt...)	printk(fmt)
 
 #ifdef CONFIG_PCI_MSI
-static int pnv_msi_check_device(struct pci_dev* pdev, int nvec, int type)
-{
-	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
-	struct pnv_phb *phb = hose->private_data;
-	struct pci_dn *pdn = pci_get_pdn(pdev);
-
-	if (pdn && pdn->force_32bit_msi && !phb->msi32_support)
-		return -ENODEV;
-
-	return (phb && phb->msi_bmp.bitmap) ? 0 : -ENODEV;
-}
-
 static int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 {
 	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
 	struct pnv_phb *phb = hose->private_data;
+	struct pci_dn *pdn = pci_get_pdn(pdev);
 	struct msi_desc *entry;
 	struct msi_msg msg;
 	int hwirq;
 	unsigned int virq;
 	int rc;
 
-	if (WARN_ON(!phb))
+	if (WARN_ON(!phb) || !phb->msi_bmp.bitmap)
+		return -ENODEV;
+
+	if (pdn && pdn->force_32bit_msi && !phb->msi32_support)
 		return -ENODEV;
 
 	list_for_each_entry(entry, &pdev->msi_list, list) {
@@ -761,6 +753,17 @@ int pnv_pci_dma_set_mask(struct pci_dev *pdev, u64 dma_mask)
 	return __dma_set_mask(&pdev->dev, dma_mask);
 }
 
+u64 pnv_pci_dma_get_required_mask(struct pci_dev *pdev)
+{
+	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
+	struct pnv_phb *phb = hose->private_data;
+
+	if (phb && phb->dma_get_required_mask)
+		return phb->dma_get_required_mask(phb, pdev);
+
+	return __dma_get_required_mask(&pdev->dev);
+}
+
 void pnv_pci_shutdown(void)
 {
 	struct pci_controller *hose;
@@ -860,7 +863,6 @@ void __init pnv_pci_init(void)
 
 	/* Configure MSIs */
 #ifdef CONFIG_PCI_MSI
-	ppc_md.msi_check_device = pnv_msi_check_device;
 	ppc_md.setup_msi_irqs = pnv_setup_msi_irqs;
 	ppc_md.teardown_msi_irqs = pnv_teardown_msi_irqs;
 #endif

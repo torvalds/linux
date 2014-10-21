@@ -185,7 +185,7 @@ static int ni_tio_cmd_setup(struct comedi_subdevice *s)
 	}
 	if (set_gate_source)
 		retval = ni_tio_set_gate_src(counter, 0, gate_source);
-	if (cmd->flags & TRIG_WAKE_EOS) {
+	if (cmd->flags & CMDF_WAKE_EOS) {
 		ni_tio_set_bits(counter, NITIO_INT_ENA_REG(cidx),
 				GI_GATE_INTERRUPT_ENABLE(cidx),
 				GI_GATE_INTERRUPT_ENABLE(cidx));
@@ -286,10 +286,9 @@ int ni_tio_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 3;
 
-	/* step 4: fix up any arguments */
+	/* Step 4: fix up any arguments */
 
-	if (err)
-		return 4;
+	/* Step 5: check channel list if it exists */
 
 	return 0;
 }

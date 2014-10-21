@@ -258,8 +258,7 @@ static void s3c_hsudc_complete_request(struct s3c_hsudc_ep *hsep,
 
 	hsep->stopped = 1;
 	spin_unlock(&hsudc->lock);
-	if (hsreq->req.complete != NULL)
-		hsreq->req.complete(&hsep->ep, &hsreq->req);
+	usb_gadget_giveback_request(&hsep->ep, &hsreq->req);
 	spin_lock(&hsudc->lock);
 	hsep->stopped = stopped;
 }

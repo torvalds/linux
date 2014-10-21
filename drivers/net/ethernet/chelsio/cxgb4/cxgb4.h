@@ -431,6 +431,7 @@ struct sge_fl {                     /* SGE free-buffer queue state */
 	struct rx_sw_desc *sdesc;   /* address of SW Rx descriptor ring */
 	__be64 *desc;               /* address of HW Rx descriptor ring */
 	dma_addr_t addr;            /* bus address of HW ring start */
+	u64 udb;                    /* BAR2 offset of User Doorbell area */
 };
 
 /* A packet gather list */
@@ -451,6 +452,7 @@ struct sge_rspq {                   /* state for an SGE response queue */
 	u8 gen;                     /* current generation bit */
 	u8 intr_params;             /* interrupt holdoff parameters */
 	u8 next_intr_params;        /* holdoff params for next interrupt */
+	u8 adaptive_rx;
 	u8 pktcnt_idx;              /* interrupt packet threshold */
 	u8 uld;                     /* ULD handling this queue */
 	u8 idx;                     /* queue index within its group */
@@ -459,6 +461,7 @@ struct sge_rspq {                   /* state for an SGE response queue */
 	u16 abs_id;                 /* absolute SGE id for the response q */
 	__be64 *desc;               /* address of HW response ring */
 	dma_addr_t phys_addr;       /* physical address of the ring */
+	u64 udb;                    /* BAR2 offset of User Doorbell area */
 	unsigned int iqe_len;       /* entry size */
 	unsigned int size;          /* capacity of response queue */
 	struct adapter *adap;
@@ -516,7 +519,7 @@ struct sge_txq {
 	int db_disabled;
 	unsigned short db_pidx;
 	unsigned short db_pidx_inc;
-	u64 udb;
+	u64 udb;                    /* BAR2 offset of User Doorbell area */
 };
 
 struct sge_eth_txq {                /* state for an SGE Ethernet Tx queue */
@@ -965,7 +968,7 @@ void t4_intr_enable(struct adapter *adapter);
 void t4_intr_disable(struct adapter *adapter);
 int t4_slow_intr_handler(struct adapter *adapter);
 
-int t4_wait_dev_ready(struct adapter *adap);
+int t4_wait_dev_ready(void __iomem *regs);
 int t4_link_start(struct adapter *adap, unsigned int mbox, unsigned int port,
 		  struct link_config *lc);
 int t4_restart_aneg(struct adapter *adap, unsigned int mbox, unsigned int port);
@@ -983,6 +986,8 @@ static inline int t4_memory_write(struct adapter *adap, int mtype, u32 addr,
 int t4_seeprom_wp(struct adapter *adapter, bool enable);
 int get_vpd_params(struct adapter *adapter, struct vpd_params *p);
 int t4_load_fw(struct adapter *adapter, const u8 *fw_data, unsigned int size);
+int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
+		  const u8 *fw_data, unsigned int size, int force);
 unsigned int t4_flash_cfg_addr(struct adapter *adapter);
 int t4_get_fw_version(struct adapter *adapter, u32 *vers);
 int t4_get_tp_version(struct adapter *adapter, u32 *vers);

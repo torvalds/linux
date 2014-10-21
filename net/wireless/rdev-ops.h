@@ -915,4 +915,35 @@ rdev_set_ap_chanwidth(struct cfg80211_registered_device *rdev,
 	return ret;
 }
 
+static inline int
+rdev_add_tx_ts(struct cfg80211_registered_device *rdev,
+	       struct net_device *dev, u8 tsid, const u8 *peer,
+	       u8 user_prio, u16 admitted_time)
+{
+	int ret = -EOPNOTSUPP;
+
+	trace_rdev_add_tx_ts(&rdev->wiphy, dev, tsid, peer,
+			     user_prio, admitted_time);
+	if (rdev->ops->add_tx_ts)
+		ret = rdev->ops->add_tx_ts(&rdev->wiphy, dev, tsid, peer,
+					   user_prio, admitted_time);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+
+	return ret;
+}
+
+static inline int
+rdev_del_tx_ts(struct cfg80211_registered_device *rdev,
+	       struct net_device *dev, u8 tsid, const u8 *peer)
+{
+	int ret = -EOPNOTSUPP;
+
+	trace_rdev_del_tx_ts(&rdev->wiphy, dev, tsid, peer);
+	if (rdev->ops->del_tx_ts)
+		ret = rdev->ops->del_tx_ts(&rdev->wiphy, dev, tsid, peer);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+
+	return ret;
+}
+
 #endif /* __CFG80211_RDEV_OPS */

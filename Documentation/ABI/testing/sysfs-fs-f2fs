@@ -44,6 +44,13 @@ Description:
 		 Controls the FS utilization condition for the in-place-update
 		 policies.
 
+What:		/sys/fs/f2fs/<disk>/min_fsync_blocks
+Date:		September 2014
+Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:
+		 Controls the dirty page count condition for the in-place-update
+		 policies.
+
 What:		/sys/fs/f2fs/<disk>/max_small_discards
 Date:		November 2013
 Contact:	"Jaegeuk Kim" <jaegeuk.kim@samsung.com>

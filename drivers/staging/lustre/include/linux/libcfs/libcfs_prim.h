@@ -83,6 +83,5 @@ static inline void cfs_memory_pressure_restore(int old)
 		memory_pressure_set();
 	else
 		memory_pressure_clr();
-	return;
 }
 #endif

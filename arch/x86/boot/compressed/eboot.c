@@ -19,7 +19,10 @@
 
 static efi_system_table_t *sys_table;
 
-struct efi_config *efi_early;
+static struct efi_config *efi_early;
+
+#define efi_call_early(f, ...)						\
+	efi_early->call(efi_early->f, __VA_ARGS__);
 
 #define BOOT_SERVICES(bits)						\
 static void setup_boot_services##bits(struct efi_config *c)		\
@@ -265,20 +268,24 @@ void efi_char16_printk(efi_system_table_t *table, efi_char16_t *str)
 
 		offset = offsetof(typeof(*out), output_string);
 		output_string = efi_early->text_output + offset;
+		out = (typeof(out))(unsigned long)efi_early->text_output;
 		func = (u64 *)output_string;
 
-		efi_early->call(*func, efi_early->text_output, str);
+		efi_early->call(*func, out, str);
 	} else {
 		struct efi_simple_text_output_protocol_32 *out;
 		u32 *func;
 
 		offset = offsetof(typeof(*out), output_string);
 		output_string = efi_early->text_output + offset;
+		out = (typeof(out))(unsigned long)efi_early->text_output;
 		func = (u32 *)output_string;
 
-		efi_early->call(*func, efi_early->text_output, str);
+		efi_early->call(*func, out, str);
 	}
 }
+
+#include "../../../../drivers/firmware/efi/libstub/efi-stub-helper.c"
 
 static void find_bits(unsigned long mask, u8 *pos, u8 *size)
 {
@@ -360,7 +367,7 @@ free_struct:
 	return status;
 }
 
-static efi_status_t
+static void
 setup_efi_pci32(struct boot_params *params, void **pci_handle,
 		unsigned long size)
 {
@@ -403,8 +410,6 @@ setup_efi_pci32(struct boot_params *params, void **pci_handle,
 		data = (struct setup_data *)rom;
 
 	}
-
-	return status;
 }
 
 static efi_status_t
@@ -463,7 +468,7 @@ free_struct:
 
 }
 
-static efi_status_t
+static void
 setup_efi_pci64(struct boot_params *params, void **pci_handle,
 		unsigned long size)
 {
@@ -506,11 +511,18 @@ setup_efi_pci64(struct boot_params *params, void **pci_handle,
 		data = (struct setup_data *)rom;
 
 	}
-
-	return status;
 }
 
-static efi_status_t setup_efi_pci(struct boot_params *params)
+/*
+ * There's no way to return an informative status from this function,
+ * because any analysis (and printing of error messages) needs to be
+ * done directly at the EFI function call-site.
+ *
+ * For example, EFI_INVALID_PARAMETER could indicate a bug or maybe we
+ * just didn't find any PCI devices, but there's no way to tell outside
+ * the context of the call.
+ */
+static void setup_efi_pci(struct boot_params *params)
 {
 	efi_status_t status;
 	void **pci_handle = NULL;
@@ -527,7 +539,7 @@ static efi_status_t setup_efi_pci(struct boot_params *params)
 					size, (void **)&pci_handle);
 
 		if (status != EFI_SUCCESS)
-			return status;
+			return;
 
 		status = efi_call_early(locate_handle,
 					EFI_LOCATE_BY_PROTOCOL, &pci_proto,
@@ -538,13 +550,12 @@ static efi_status_t setup_efi_pci(struct boot_params *params)
 		goto free_handle;
 
 	if (efi_early->is64)
-		status = setup_efi_pci64(params, pci_handle, size);
+		setup_efi_pci64(params, pci_handle, size);
 	else
-		status = setup_efi_pci32(params, pci_handle, size);
+		setup_efi_pci32(params, pci_handle, size);
 
 free_handle:
 	efi_call_early(free_pool, pci_handle);
-	return status;
 }
 
 static void
@@ -1380,10 +1391,7 @@ struct boot_params *efi_main(struct efi_config *c,
 
 	setup_graphics(boot_params);
 
-	status = setup_efi_pci(boot_params);
-	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table, "setup_efi_pci() failed!\n");
-	}
+	setup_efi_pci(boot_params);
 
 	status = efi_call_early(allocate_pool, EFI_LOADER_DATA,
 				sizeof(*gdt), (void **)&gdt);

@@ -54,7 +54,6 @@ static void print_prot(struct seq_file *m, unsigned int pr, int level)
 		return;
 	}
 	seq_printf(m, "%s", pr & _PAGE_PROTECT ? "RO " : "RW ");
-	seq_printf(m, "%s", pr & _PAGE_CO ? "CO " : "   ");
 	seq_putc(m, '\n');
 }
 
@@ -129,7 +128,7 @@ static void walk_pte_level(struct seq_file *m, struct pg_state *st,
 }
 
 #ifdef CONFIG_64BIT
-#define _PMD_PROT_MASK (_SEGMENT_ENTRY_PROTECT | _SEGMENT_ENTRY_CO)
+#define _PMD_PROT_MASK _SEGMENT_ENTRY_PROTECT
 #else
 #define _PMD_PROT_MASK 0
 #endif
@@ -157,7 +156,7 @@ static void walk_pmd_level(struct seq_file *m, struct pg_state *st,
 }
 
 #ifdef CONFIG_64BIT
-#define _PUD_PROT_MASK (_REGION3_ENTRY_RO | _REGION3_ENTRY_CO)
+#define _PUD_PROT_MASK _REGION3_ENTRY_RO
 #else
 #define _PUD_PROT_MASK 0
 #endif

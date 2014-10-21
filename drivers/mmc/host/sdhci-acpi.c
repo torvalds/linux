@@ -67,6 +67,8 @@ struct sdhci_acpi_slot {
 	unsigned int	caps2;
 	mmc_pm_flag_t	pm_caps;
 	unsigned int	flags;
+	int (*probe_slot)(struct platform_device *, const char *, const char *);
+	int (*remove_slot)(struct platform_device *);
 };
 
 struct sdhci_acpi_host {
@@ -122,13 +124,67 @@ static const struct sdhci_acpi_chip sdhci_acpi_chip_int = {
 	.ops = &sdhci_acpi_ops_int,
 };
 
+static int sdhci_acpi_emmc_probe_slot(struct platform_device *pdev,
+				      const char *hid, const char *uid)
+{
+	struct sdhci_acpi_host *c = platform_get_drvdata(pdev);
+	struct sdhci_host *host;
+
+	if (!c || !c->host)
+		return 0;
+
+	host = c->host;
+
+	/* Platform specific code during emmc proble slot goes here */
+
+	if (hid && uid && !strcmp(hid, "80860F14") && !strcmp(uid, "1") &&
+	    sdhci_readl(host, SDHCI_CAPABILITIES) == 0x446cc8b2 &&
+	    sdhci_readl(host, SDHCI_CAPABILITIES_1) == 0x00000807)
+		host->timeout_clk = 1000; /* 1000 kHz i.e. 1 MHz */
+
+	return 0;
+}
+
+static int sdhci_acpi_sdio_probe_slot(struct platform_device *pdev,
+				      const char *hid, const char *uid)
+{
+	struct sdhci_acpi_host *c = platform_get_drvdata(pdev);
+	struct sdhci_host *host;
+
+	if (!c || !c->host)
+		return 0;
+
+	host = c->host;
+
+	/* Platform specific code during emmc proble slot goes here */
+
+	return 0;
+}
+
+static int sdhci_acpi_sd_probe_slot(struct platform_device *pdev,
+				    const char *hid, const char *uid)
+{
+	struct sdhci_acpi_host *c = platform_get_drvdata(pdev);
+	struct sdhci_host *host;
+
+	if (!c || !c->host || !c->slot)
+		return 0;
+
+	host = c->host;
+
+	/* Platform specific code during emmc proble slot goes here */
+
+	return 0;
+}
+
 static const struct sdhci_acpi_slot sdhci_acpi_slot_int_emmc = {
 	.chip    = &sdhci_acpi_chip_int,
 	.caps    = MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE |
 		   MMC_CAP_HW_RESET | MMC_CAP_1_8V_DDR,
 	.caps2   = MMC_CAP2_HC_ERASE_SZ,
 	.flags   = SDHCI_ACPI_RUNTIME_PM,
-	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
+	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN | SDHCI_QUIRK2_STOP_WITH_TC,
+	.probe_slot	= sdhci_acpi_emmc_probe_slot,
 };
 
 static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sdio = {
@@ -137,12 +193,15 @@ static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sdio = {
 	.caps    = MMC_CAP_NONREMOVABLE | MMC_CAP_POWER_OFF_CARD,
 	.flags   = SDHCI_ACPI_RUNTIME_PM,
 	.pm_caps = MMC_PM_KEEP_POWER,
+	.probe_slot	= sdhci_acpi_sdio_probe_slot,
 };
 
 static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sd = {
 	.flags   = SDHCI_ACPI_SD_CD | SDHCI_ACPI_SD_CD_OVERRIDE_LEVEL |
 		   SDHCI_ACPI_RUNTIME_PM,
-	.quirks2 = SDHCI_QUIRK2_CARD_ON_NEEDS_BUS_ON,
+	.quirks2 = SDHCI_QUIRK2_CARD_ON_NEEDS_BUS_ON |
+		   SDHCI_QUIRK2_STOP_WITH_TC,
+	.probe_slot	= sdhci_acpi_sd_probe_slot,
 };
 
 struct sdhci_acpi_uid_slot {
@@ -156,6 +215,7 @@ static const struct sdhci_acpi_uid_slot sdhci_acpi_uids[] = {
 	{ "80860F14" , "3" , &sdhci_acpi_slot_int_sd   },
 	{ "80860F16" , NULL, &sdhci_acpi_slot_int_sd   },
 	{ "INT33BB"  , "2" , &sdhci_acpi_slot_int_sdio },
+	{ "INT33BB"  , "3" , &sdhci_acpi_slot_int_sd },
 	{ "INT33C6"  , NULL, &sdhci_acpi_slot_int_sdio },
 	{ "INT3436"  , NULL, &sdhci_acpi_slot_int_sdio },
 	{ "PNP0D40"  },
@@ -173,8 +233,8 @@ static const struct acpi_device_id sdhci_acpi_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, sdhci_acpi_ids);
 
-static const struct sdhci_acpi_slot *sdhci_acpi_get_slot_by_ids(const char *hid,
-								const char *uid)
+static const struct sdhci_acpi_slot *sdhci_acpi_get_slot(const char *hid,
+							 const char *uid)
 {
 	const struct sdhci_acpi_uid_slot *u;
 
@@ -189,24 +249,6 @@ static const struct sdhci_acpi_slot *sdhci_acpi_get_slot_by_ids(const char *hid,
 	return NULL;
 }
 
-static const struct sdhci_acpi_slot *sdhci_acpi_get_slot(acpi_handle handle,
-							 const char *hid)
-{
-	const struct sdhci_acpi_slot *slot;
-	struct acpi_device_info *info;
-	const char *uid = NULL;
-	acpi_status status;
-
-	status = acpi_get_object_info(handle, &info);
-	if (!ACPI_FAILURE(status) && (info->valid & ACPI_VALID_UID))
-		uid = info->unique_id.string;
-
-	slot = sdhci_acpi_get_slot_by_ids(hid, uid);
-
-	kfree(info);
-	return slot;
-}
-
 static int sdhci_acpi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -217,6 +259,7 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 	struct resource *iomem;
 	resource_size_t len;
 	const char *hid;
+	const char *uid;
 	int err;
 
 	if (acpi_bus_get_device(handle, &device))
@@ -226,6 +269,7 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	hid = acpi_device_hid(device);
+	uid = device->pnp.unique_id;
 
 	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!iomem)
@@ -244,7 +288,7 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 
 	c = sdhci_priv(host);
 	c->host = host;
-	c->slot = sdhci_acpi_get_slot(handle, hid);
+	c->slot = sdhci_acpi_get_slot(hid, uid);
 	c->pdev = pdev;
 	c->use_runtime_pm = sdhci_acpi_flag(c, SDHCI_ACPI_RUNTIME_PM);
 
@@ -277,6 +321,11 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 	}
 
 	if (c->slot) {
+		if (c->slot->probe_slot) {
+			err = c->slot->probe_slot(pdev, hid, uid);
+			if (err)
+				goto err_free;
+		}
 		if (c->slot->chip) {
 			host->ops            = c->slot->chip->ops;
 			host->quirks        |= c->slot->chip->quirks;
@@ -297,7 +346,7 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 	if (sdhci_acpi_flag(c, SDHCI_ACPI_SD_CD)) {
 		bool v = sdhci_acpi_flag(c, SDHCI_ACPI_SD_CD_OVERRIDE_LEVEL);
 
-		if (mmc_gpiod_request_cd(host->mmc, NULL, 0, v, 0)) {
+		if (mmc_gpiod_request_cd(host->mmc, NULL, 0, v, 0, NULL)) {
 			dev_warn(dev, "failed to setup card detect gpio\n");
 			c->use_runtime_pm = false;
 		}
@@ -333,6 +382,9 @@ static int sdhci_acpi_remove(struct platform_device *pdev)
 		pm_runtime_disable(dev);
 		pm_runtime_put_noidle(dev);
 	}
+
+	if (c->slot && c->slot->remove_slot)
+		c->slot->remove_slot(pdev);
 
 	dead = (sdhci_readl(c->host, SDHCI_INT_STATUS) == ~0);
 	sdhci_remove_host(c->host, dead);
@@ -385,20 +437,13 @@ static int sdhci_acpi_runtime_idle(struct device *dev)
 	return 0;
 }
 
-#else
-
-#define sdhci_acpi_runtime_suspend	NULL
-#define sdhci_acpi_runtime_resume	NULL
-#define sdhci_acpi_runtime_idle		NULL
-
 #endif
 
 static const struct dev_pm_ops sdhci_acpi_pm_ops = {
 	.suspend		= sdhci_acpi_suspend,
 	.resume			= sdhci_acpi_resume,
-	.runtime_suspend	= sdhci_acpi_runtime_suspend,
-	.runtime_resume		= sdhci_acpi_runtime_resume,
-	.runtime_idle		= sdhci_acpi_runtime_idle,
+	SET_RUNTIME_PM_OPS(sdhci_acpi_runtime_suspend,
+			sdhci_acpi_runtime_resume, sdhci_acpi_runtime_idle)
 };
 
 static struct platform_driver sdhci_acpi_driver = {

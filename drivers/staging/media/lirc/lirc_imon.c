@@ -490,7 +490,6 @@ static void usb_tx_callback(struct urb *urb)
  */
 static int ir_open(void *data)
 {
-	int retval = 0;
 	struct imon_context *context;
 
 	/* prevent races with disconnect */
@@ -507,7 +506,7 @@ static int ir_open(void *data)
 	dev_info(context->driver->dev, "IR port opened\n");
 
 	mutex_unlock(&driver_lock);
-	return retval;
+	return 0;
 }
 
 /**
@@ -616,8 +615,8 @@ static void imon_incoming_packet(struct imon_context *context,
 		return;
 
 	if (len != 8) {
-		dev_warn(dev, "imon %s: invalid incoming packet "
-			 "size (len = %d, intf%d)\n", __func__, len, intf);
+		dev_warn(dev, "imon %s: invalid incoming packet size (len = %d, intf%d)\n",
+			__func__, len, intf);
 		return;
 	}
 
@@ -926,9 +925,8 @@ static int imon_probe(struct usb_interface *interface,
 		}
 	}
 
-	dev_info(dev, "iMON device (%04x:%04x, intf%d) on "
-		 "usb<%d:%d> initialized\n", vendor, product, ifnum,
-		 usbdev->bus->busnum, usbdev->devnum);
+	dev_info(dev, "iMON device (%04x:%04x, intf%d) on usb<%d:%d> initialized\n",
+		vendor, product, ifnum, usbdev->bus->busnum, usbdev->devnum);
 
 unlock:
 	mutex_unlock(&context->ctx_lock);
@@ -1022,7 +1020,6 @@ static int imon_suspend(struct usb_interface *intf, pm_message_t message)
 
 static int imon_resume(struct usb_interface *intf)
 {
-	int rc = 0;
 	struct imon_context *context = usb_get_intfdata(intf);
 
 	usb_fill_int_urb(context->rx_urb, context->usbdev,
@@ -1032,9 +1029,7 @@ static int imon_resume(struct usb_interface *intf)
 		usb_rx_callback, context,
 		context->rx_endpoint->bInterval);
 
-	rc = usb_submit_urb(context->rx_urb, GFP_ATOMIC);
-
-	return rc;
+	return usb_submit_urb(context->rx_urb, GFP_ATOMIC);
 }
 
 module_usb_driver(imon_driver);

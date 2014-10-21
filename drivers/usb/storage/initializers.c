@@ -52,7 +52,7 @@ int usb_stor_euscsi_init(struct us_data *us)
 	us->iobuf[0] = 0x1;
 	result = usb_stor_control_msg(us, us->send_ctrl_pipe,
 			0x0C, USB_RECIP_INTERFACE | USB_TYPE_VENDOR,
-			0x01, 0x0, us->iobuf, 0x1, 5000);
+			0x01, 0x0, us->iobuf, 0x1, USB_CTRL_SET_TIMEOUT);
 	usb_stor_dbg(us, "-- result is %d\n", result);
 
 	return 0;

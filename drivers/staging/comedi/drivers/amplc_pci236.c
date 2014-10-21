@@ -119,18 +119,11 @@ static int pci236_auto_attach(struct comedi_device *dev,
 					 IRQF_SHARED);
 }
 
-static void pci236_detach(struct comedi_device *dev)
-{
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	comedi_pci_disable(dev);
-}
-
 static struct comedi_driver amplc_pci236_driver = {
 	.driver_name = "amplc_pci236",
 	.module = THIS_MODULE,
 	.auto_attach = pci236_auto_attach,
-	.detach = pci236_detach,
+	.detach = comedi_pci_detach,
 };
 
 static const struct pci_device_id pci236_pci_table[] = {

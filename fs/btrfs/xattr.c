@@ -237,7 +237,7 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	 * first xattr that we find and walk forward
 	 */
 	key.objectid = btrfs_ino(inode);
-	btrfs_set_key_type(&key, BTRFS_XATTR_ITEM_KEY);
+	key.type = BTRFS_XATTR_ITEM_KEY;
 	key.offset = 0;
 
 	path = btrfs_alloc_path();
@@ -273,7 +273,7 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 		/* check to make sure this item is what we want */
 		if (found_key.objectid != key.objectid)
 			break;
-		if (btrfs_key_type(&found_key) != BTRFS_XATTR_ITEM_KEY)
+		if (found_key.type != BTRFS_XATTR_ITEM_KEY)
 			break;
 
 		di = btrfs_item_ptr(leaf, slot, struct btrfs_dir_item);

@@ -16,6 +16,8 @@
 #ifndef __CHANNEL_H__
 #define __CHANNEL_H__
 
+#include <linux/types.h>
+#include <linux/io.h>
 #include <linux/uuid.h>
 
 /*
@@ -29,8 +31,6 @@
  * files of similar abbreviated content
  */
 #define __SUPERVISOR_CHANNEL_H__
-
-#include "commontypes.h"
 
 #define SIGNATURE_16(A, B) ((A) | (B<<8))
 #define SIGNATURE_32(A, B, C, D) \
@@ -49,6 +49,37 @@
 #endif
 
 #define ULTRA_CHANNEL_PROTOCOL_SIGNATURE  SIGNATURE_32('E', 'C', 'N', 'L')
+
+#define CHANNEL_GUID_MISMATCH(chType, chName, field, expected, actual, fil, \
+			      lin, logCtx)				\
+	do {								\
+		pr_err("Channel mismatch on channel=%s(%pUL) field=%s expected=%pUL actual=%pUL @%s:%d\n", \
+		       chName, &chType, field,	\
+		       &expected, &actual, \
+		       fil, lin);					\
+	} while (0)
+#define CHANNEL_U32_MISMATCH(chType, chName, field, expected, actual, fil, \
+			     lin, logCtx)				\
+	do {								\
+		pr_err("Channel mismatch on channel=%s(%pUL) field=%s expected=0x%-8.8lx actual=0x%-8.8lx @%s:%d\n", \
+		       chName, &chType, field,	\
+		       (unsigned long)expected, (unsigned long)actual,	\
+		       fil, lin);					\
+	} while (0)
+
+#define CHANNEL_U64_MISMATCH(chType, chName, field, expected, actual, fil, \
+			     lin, logCtx)				\
+	do {								\
+		pr_err("Channel mismatch on channel=%s(%pUL) field=%s expected=0x%-8.8Lx actual=0x%-8.8Lx @%s:%d\n", \
+		       chName, &chType, field,	\
+		       (unsigned long long)expected,			\
+		       (unsigned long long)actual,			\
+		       fil, lin);					\
+	} while (0)
+
+#define UltraLogEvent(logCtx, EventId, Severity, SubsystemMask, pFunctionName, \
+		      LineNumber, Str, args...)				\
+	pr_info(Str, ## args)
 
 typedef enum {
 	CHANNELSRV_UNINITIALIZED = 0,	/* channel is in an undefined state */
@@ -157,7 +188,7 @@ ULTRA_CHANNELCLI_STRING(u32 v)
 			      PathName_Last_N_Nodes(__FILE__, 4), __LINE__); \
 		writel(newstate, &((CHANNEL_HEADER __iomem *) \
 				   (pChan))->CliStateOS);		\
-		MEMORYBARRIER;						\
+		mb(); /* required for channel synch */			\
 	} while (0)
 
 #define ULTRA_CHANNEL_CLIENT_ACQUIRE_OS(pChan, chanId, logCtx)	\
@@ -316,17 +347,21 @@ ULTRA_check_channel_client(void __iomem *pChannel,
 			   u64 expectedSignature,
 			   char *fileName, int lineNumber, void *logCtx)
 {
-	if (uuid_le_cmp(expectedTypeGuid, NULL_UUID_LE) != 0)
+	if (uuid_le_cmp(expectedTypeGuid, NULL_UUID_LE) != 0) {
+		uuid_le guid;
+
+		memcpy_fromio(&guid,
+			      &((CHANNEL_HEADER __iomem *)(pChannel))->Type,
+			      sizeof(guid));
 		/* caller wants us to verify type GUID */
-		if (uuid_le_cmp((((CHANNEL_HEADER __iomem *)(pChannel))->Type),
-			   expectedTypeGuid) != 0) {
+		if (uuid_le_cmp(guid, expectedTypeGuid) != 0) {
 			CHANNEL_GUID_MISMATCH(expectedTypeGuid, channelName,
 					      "type", expectedTypeGuid,
-					      ((CHANNEL_HEADER __iomem *)
-					       (pChannel))->Type, fileName,
+					      guid, fileName,
 					      lineNumber, logCtx);
 			return 0;
 		}
+	}
 	if (expectedMinBytes > 0)	/* caller wants us to verify
 					 * channel size */
 		if (readq(&((CHANNEL_HEADER __iomem *)
@@ -399,6 +434,7 @@ PathName_Last_N_Nodes(u8 *s, unsigned int n)
 {
 	u8 *p = s;
 	unsigned int node_count = 0;
+
 	while (*p != '\0') {
 		if ((*p == '/') || (*p == '\\'))
 			node_count++;
@@ -458,7 +494,7 @@ ULTRA_channel_client_acquire_os(void __iomem *pChannel, u8 *chanId,
 			      CHANNELCLI_OWNED,
 			      PathName_Last_N_Nodes((u8 *) file, 4), line);
 		writel(CHANNELCLI_OWNED, &pChan->CliStateOS);
-		MEMORYBARRIER;
+		mb(); /* required for channel synch */
 	}
 	if (readl(&pChan->CliStateOS) == CHANNELCLI_OWNED) {
 		if (readb(&pChan->CliErrorOS) != 0) {
@@ -502,7 +538,7 @@ ULTRA_channel_client_acquire_os(void __iomem *pChannel, u8 *chanId,
 		return 0;
 	}
 	writel(CHANNELCLI_BUSY, &pChan->CliStateOS);
-	MEMORYBARRIER;
+	mb(); /* required for channel synch */
 	if (readl(&pChan->CliStateBoot) == CHANNELCLI_BUSY) {
 		if ((readb(&pChan->CliErrorOS)
 		     & ULTRA_CLIERROROS_THROTTLEMSG_BUSY) == 0) {
@@ -521,7 +557,7 @@ ULTRA_channel_client_acquire_os(void __iomem *pChannel, u8 *chanId,
 		}
 		/* reset busy */
 		writel(CHANNELCLI_ATTACHED, &pChan->CliStateOS);
-		MEMORYBARRIER;
+		mb(); /* required for channel synch */
 		return 0;
 	}
 	if (readb(&pChan->CliErrorOS) != 0) {
@@ -542,6 +578,7 @@ ULTRA_channel_client_release_os(void __iomem *pChannel, u8 *chanId,
 				void *logCtx, char *file, int line, char *func)
 {
 	CHANNEL_HEADER __iomem *pChan = pChannel;
+
 	if (readb(&pChan->CliErrorOS) != 0) {
 		/* we are in an error msg throttling state; come out of it */
 		UltraLogEvent(logCtx, CHANNELSTATE_DIAG_EVENTID_TRANSITOK,

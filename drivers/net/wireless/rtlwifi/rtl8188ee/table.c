@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -30,7 +26,6 @@
  *****************************************************************************/
 
 #include "table.h"
-
 u32 RTL8188EEPHY_REG_1TARRAY[] = {
 		0x800, 0x80040000,
 		0x804, 0x00000003,
@@ -640,4 +635,5 @@ u32 RTL8188EEAGCTAB_1TARRAY[] = {
 		0xC78, 0x407D0001,
 		0xC78, 0x407E0001,
 		0xC78, 0x407F0001,
+
 };

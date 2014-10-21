@@ -1310,8 +1310,8 @@ static int vortex_probe1(struct device *gendev, void __iomem *ioaddr, int irq,
 		pr_cont(", IRQ %d\n", dev->irq);
 	/* Tell them about an invalid IRQ. */
 	if (dev->irq <= 0 || dev->irq >= nr_irqs)
-		pr_warning(" *** Warning: IRQ %d is unlikely to work! ***\n",
-			   dev->irq);
+		pr_warn(" *** Warning: IRQ %d is unlikely to work! ***\n",
+			dev->irq);
 
 	step = (window_read8(vp, 4, Wn4_NetDiag) & 0x1e) >> 1;
 	if (print_info) {
@@ -1425,7 +1425,7 @@ static int vortex_probe1(struct device *gendev, void __iomem *ioaddr, int irq,
 		}
 		mii_preamble_required--;
 		if (phy_idx == 0) {
-			pr_warning("  ***WARNING*** No MII transceivers found!\n");
+			pr_warn("  ***WARNING*** No MII transceivers found!\n");
 			vp->phys[0] = 24;
 		} else {
 			vp->advertising = mdio_read(dev, vp->phys[0], MII_ADVERTISE);
@@ -1566,8 +1566,7 @@ vortex_up(struct net_device *dev)
 			pci_restore_state(VORTEX_PCI(vp));
 		err = pci_enable_device(VORTEX_PCI(vp));
 		if (err) {
-			pr_warning("%s: Could not enable device\n",
-				dev->name);
+			pr_warn("%s: Could not enable device\n", dev->name);
 			goto err_out;
 		}
 	}
@@ -2007,8 +2006,8 @@ vortex_error(struct net_device *dev, int status)
 		/* This occurs when we have the wrong media type! */
 		if (DoneDidThat == 0  &&
 			ioread16(ioaddr + EL3_STATUS) & StatsFull) {
-			pr_warning("%s: Updating statistics failed, disabling "
-				   "stats as an interrupt source.\n", dev->name);
+			pr_warn("%s: Updating statistics failed, disabling stats as an interrupt source\n",
+				dev->name);
 			iowrite16(SetIntrEnb |
 				  (window_read16(vp, 5, 10) & ~StatsFull),
 				  ioaddr + EL3_CMD);
@@ -2129,6 +2128,7 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int entry = vp->cur_tx % TX_RING_SIZE;
 	struct boom_tx_desc *prev_entry = &vp->tx_ring[(vp->cur_tx-1) % TX_RING_SIZE];
 	unsigned long flags;
+	dma_addr_t dma_addr;
 
 	if (vortex_debug > 6) {
 		pr_debug("boomerang_start_xmit()\n");
@@ -2147,8 +2147,8 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (vp->cur_tx - vp->dirty_tx >= TX_RING_SIZE) {
 		if (vortex_debug > 0)
-			pr_warning("%s: BUG! Tx Ring full, refusing to send buffer.\n",
-				   dev->name);
+			pr_warn("%s: BUG! Tx Ring full, refusing to send buffer\n",
+				dev->name);
 		netif_stop_queue(dev);
 		return NETDEV_TX_BUSY;
 	}
@@ -2163,24 +2163,48 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			vp->tx_ring[entry].status = cpu_to_le32(skb->len | TxIntrUploaded | AddTCPChksum | AddUDPChksum);
 
 	if (!skb_shinfo(skb)->nr_frags) {
-		vp->tx_ring[entry].frag[0].addr = cpu_to_le32(pci_map_single(VORTEX_PCI(vp), skb->data,
-										skb->len, PCI_DMA_TODEVICE));
+		dma_addr = pci_map_single(VORTEX_PCI(vp), skb->data, skb->len,
+					  PCI_DMA_TODEVICE);
+		if (dma_mapping_error(&VORTEX_PCI(vp)->dev, dma_addr))
+			goto out_dma_err;
+
+		vp->tx_ring[entry].frag[0].addr = cpu_to_le32(dma_addr);
 		vp->tx_ring[entry].frag[0].length = cpu_to_le32(skb->len | LAST_FRAG);
 	} else {
 		int i;
 
-		vp->tx_ring[entry].frag[0].addr = cpu_to_le32(pci_map_single(VORTEX_PCI(vp), skb->data,
-										skb_headlen(skb), PCI_DMA_TODEVICE));
+		dma_addr = pci_map_single(VORTEX_PCI(vp), skb->data,
+					  skb_headlen(skb), PCI_DMA_TODEVICE);
+		if (dma_mapping_error(&VORTEX_PCI(vp)->dev, dma_addr))
+			goto out_dma_err;
+
+		vp->tx_ring[entry].frag[0].addr = cpu_to_le32(dma_addr);
 		vp->tx_ring[entry].frag[0].length = cpu_to_le32(skb_headlen(skb));
 
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
+			dma_addr = skb_frag_dma_map(&VORTEX_PCI(vp)->dev, frag,
+						    0,
+						    frag->size,
+						    DMA_TO_DEVICE);
+			if (dma_mapping_error(&VORTEX_PCI(vp)->dev, dma_addr)) {
+				for(i = i-1; i >= 0; i--)
+					dma_unmap_page(&VORTEX_PCI(vp)->dev,
+						       le32_to_cpu(vp->tx_ring[entry].frag[i+1].addr),
+						       le32_to_cpu(vp->tx_ring[entry].frag[i+1].length),
+						       DMA_TO_DEVICE);
+
+				pci_unmap_single(VORTEX_PCI(vp),
+						 le32_to_cpu(vp->tx_ring[entry].frag[0].addr),
+						 le32_to_cpu(vp->tx_ring[entry].frag[0].length),
+						 PCI_DMA_TODEVICE);
+
+				goto out_dma_err;
+			}
+
 			vp->tx_ring[entry].frag[i+1].addr =
-					cpu_to_le32(skb_frag_dma_map(
-						&VORTEX_PCI(vp)->dev,
-						frag,
-						frag->page_offset, frag->size, DMA_TO_DEVICE));
+						cpu_to_le32(dma_addr);
 
 			if (i == skb_shinfo(skb)->nr_frags-1)
 					vp->tx_ring[entry].frag[i+1].length = cpu_to_le32(skb_frag_size(frag)|LAST_FRAG);
@@ -2189,7 +2213,10 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 #else
-	vp->tx_ring[entry].addr = cpu_to_le32(pci_map_single(VORTEX_PCI(vp), skb->data, skb->len, PCI_DMA_TODEVICE));
+	dma_addr = pci_map_single(VORTEX_PCI(vp), skb->data, skb->len, PCI_DMA_TODEVICE);
+	if (dma_mapping_error(&VORTEX_PCI(vp)->dev, dma_addr))
+		goto out_dma_err;
+	vp->tx_ring[entry].addr = cpu_to_le32(dma_addr);
 	vp->tx_ring[entry].length = cpu_to_le32(skb->len | LAST_FRAG);
 	vp->tx_ring[entry].status = cpu_to_le32(skb->len | TxIntrUploaded);
 #endif
@@ -2217,7 +2244,11 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_tx_timestamp(skb);
 	iowrite16(DownUnstall, ioaddr + EL3_CMD);
 	spin_unlock_irqrestore(&vp->lock, flags);
+out:
 	return NETDEV_TX_OK;
+out_dma_err:
+	dev_err(&VORTEX_PCI(vp)->dev, "Error mapping dma buffer\n");
+	goto out;
 }
 
 /* The interrupt handler does all of the Rx thread work and cleans up
@@ -2311,7 +2342,7 @@ vortex_interrupt(int irq, void *dev_id)
 		}
 
 		if (--work_done < 0) {
-			pr_warning("%s: Too much work in interrupt, status %4.4x.\n",
+			pr_warn("%s: Too much work in interrupt, status %4.4x\n",
 				dev->name, status);
 			/* Disable all pending interrupts. */
 			do {
@@ -2444,7 +2475,7 @@ boomerang_interrupt(int irq, void *dev_id)
 			vortex_error(dev, status);
 
 		if (--work_done < 0) {
-			pr_warning("%s: Too much work in interrupt, status %4.4x.\n",
+			pr_warn("%s: Too much work in interrupt, status %4.4x\n",
 				dev->name, status);
 			/* Disable all pending interrupts. */
 			do {
@@ -2620,7 +2651,8 @@ boomerang_rx(struct net_device *dev)
 			if (skb == NULL) {
 				static unsigned long last_jif;
 				if (time_after(jiffies, last_jif + 10 * HZ)) {
-					pr_warning("%s: memory shortage\n", dev->name);
+					pr_warn("%s: memory shortage\n",
+						dev->name);
 					last_jif = jiffies;
 				}
 				if ((vp->cur_rx - vp->dirty_rx) == RX_RING_SIZE)
@@ -2719,7 +2751,8 @@ vortex_close(struct net_device *dev)
 	if (vp->rx_csumhits &&
 	    (vp->drv_flags & HAS_HWCKSM) == 0 &&
 	    (vp->card_idx >= MAX_UNITS || hw_checksums[vp->card_idx] == -1)) {
-		pr_warning("%s supports hardware checksums, and we're not using them!\n", dev->name);
+		pr_warn("%s supports hardware checksums, and we're not using them!\n",
+			dev->name);
 	}
 #endif
 

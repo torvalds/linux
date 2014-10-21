@@ -45,33 +45,29 @@ static int radeon_benchmark_do_move(struct radeon_device *rdev, unsigned size,
 	for (i = 0; i < n; i++) {
 		switch (flag) {
 		case RADEON_BENCHMARK_COPY_DMA:
-			r = radeon_copy_dma(rdev, saddr, daddr,
-					    size / RADEON_GPU_PAGE_SIZE,
-					    &fence);
+			fence = radeon_copy_dma(rdev, saddr, daddr,
+						size / RADEON_GPU_PAGE_SIZE,
+						NULL);
 			break;
 		case RADEON_BENCHMARK_COPY_BLIT:
-			r = radeon_copy_blit(rdev, saddr, daddr,
-					     size / RADEON_GPU_PAGE_SIZE,
-					     &fence);
+			fence = radeon_copy_blit(rdev, saddr, daddr,
+						 size / RADEON_GPU_PAGE_SIZE,
+						 NULL);
 			break;
 		default:
 			DRM_ERROR("Unknown copy method\n");
-			r = -EINVAL;
+			return -EINVAL;
 		}
-		if (r)
-			goto exit_do_move;
+		if (IS_ERR(fence))
+			return PTR_ERR(fence);
+
 		r = radeon_fence_wait(fence, false);
-		if (r)
-			goto exit_do_move;
 		radeon_fence_unref(&fence);
+		if (r)
+			return r;
 	}
 	end_jiffies = jiffies;
-	r = jiffies_to_msecs(end_jiffies - start_jiffies);
-
-exit_do_move:
-	if (fence)
-		radeon_fence_unref(&fence);
-	return r;
+	return jiffies_to_msecs(end_jiffies - start_jiffies);
 }
 
 
@@ -97,7 +93,7 @@ static void radeon_benchmark_move(struct radeon_device *rdev, unsigned size,
 	int time;
 
 	n = RADEON_BENCHMARK_ITERATIONS;
-	r = radeon_bo_create(rdev, size, PAGE_SIZE, true, sdomain, 0, NULL, &sobj);
+	r = radeon_bo_create(rdev, size, PAGE_SIZE, true, sdomain, 0, NULL, NULL, &sobj);
 	if (r) {
 		goto out_cleanup;
 	}
@@ -109,7 +105,7 @@ static void radeon_benchmark_move(struct radeon_device *rdev, unsigned size,
 	if (r) {
 		goto out_cleanup;
 	}
-	r = radeon_bo_create(rdev, size, PAGE_SIZE, true, ddomain, 0, NULL, &dobj);
+	r = radeon_bo_create(rdev, size, PAGE_SIZE, true, ddomain, 0, NULL, NULL, &dobj);
 	if (r) {
 		goto out_cleanup;
 	}

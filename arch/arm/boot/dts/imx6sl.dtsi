@@ -226,11 +226,14 @@
 				};
 
 				ssi1: ssi@02028000 {
+					#sound-dai-cells = <0>;
 					compatible = "fsl,imx6sl-ssi",
 							"fsl,imx51-ssi";
 					reg = <0x02028000 0x4000>;
 					interrupts = <0 46 IRQ_TYPE_LEVEL_HIGH>;
-					clocks = <&clks IMX6SL_CLK_SSI1>;
+					clocks = <&clks IMX6SL_CLK_SSI1_IPG>,
+						 <&clks IMX6SL_CLK_SSI1>;
+					clock-names = "ipg", "baud";
 					dmas = <&sdma 37 1 0>,
 					       <&sdma 38 1 0>;
 					dma-names = "rx", "tx";
@@ -239,11 +242,14 @@
 				};
 
 				ssi2: ssi@0202c000 {
+					#sound-dai-cells = <0>;
 					compatible = "fsl,imx6sl-ssi",
 							"fsl,imx51-ssi";
 					reg = <0x0202c000 0x4000>;
 					interrupts = <0 47 IRQ_TYPE_LEVEL_HIGH>;
-					clocks = <&clks IMX6SL_CLK_SSI2>;
+					clocks = <&clks IMX6SL_CLK_SSI2_IPG>,
+						 <&clks IMX6SL_CLK_SSI2>;
+					clock-names = "ipg", "baud";
 					dmas = <&sdma 41 1 0>,
 					       <&sdma 42 1 0>;
 					dma-names = "rx", "tx";
@@ -252,11 +258,14 @@
 				};
 
 				ssi3: ssi@02030000 {
+					#sound-dai-cells = <0>;
 					compatible = "fsl,imx6sl-ssi",
 							"fsl,imx51-ssi";
 					reg = <0x02030000 0x4000>;
 					interrupts = <0 48 IRQ_TYPE_LEVEL_HIGH>;
-					clocks = <&clks IMX6SL_CLK_SSI3>;
+					clocks = <&clks IMX6SL_CLK_SSI3_IPG>,
+						 <&clks IMX6SL_CLK_SSI3>;
+					clock-names = "ipg", "baud";
 					dmas = <&sdma 45 1 0>,
 					       <&sdma 46 1 0>;
 					dma-names = "rx", "tx";
@@ -529,6 +538,14 @@
 				};
 			};
 
+			tempmon: tempmon {
+				compatible = "fsl,imx6q-tempmon";
+				interrupts = <0 49 IRQ_TYPE_LEVEL_HIGH>;
+				fsl,tempmon = <&anatop>;
+				fsl,tempmon-data = <&ocotp>;
+				clocks = <&clks IMX6SL_CLK_PLL3_USB_OTG>;
+			};
+
 			usbphy1: usbphy@020c9000 {
 				compatible = "fsl,imx6sl-usbphy", "fsl,imx23-usbphy";
 				reg = <0x020c9000 0x1000>;
@@ -627,8 +644,14 @@
 			};
 
 			lcdif: lcdif@020f8000 {
+				compatible = "fsl,imx6sl-lcdif", "fsl,imx28-lcdif";
 				reg = <0x020f8000 0x4000>;
 				interrupts = <0 39 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX6SL_CLK_LCDIF_PIX>,
+					 <&clks IMX6SL_CLK_LCDIF_AXI>,
+					 <&clks IMX6SL_CLK_DUMMY>;
+				clock-names = "pix", "axi", "disp_axi";
+				status = "disabled";
 			};
 
 			dcp: dcp@020fc000 {
@@ -784,7 +807,7 @@
 			};
 
 			ocotp: ocotp@021bc000 {
-				compatible = "fsl,imx6sl-ocotp";
+				compatible = "fsl,imx6sl-ocotp", "syscon";
 				reg = <0x021bc000 0x4000>;
 			};
 

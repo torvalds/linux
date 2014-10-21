@@ -760,7 +760,7 @@ static int ocfs2_write_zero_page(struct inode *inode, u64 abs_from,
 	struct address_space *mapping = inode->i_mapping;
 	struct page *page;
 	unsigned long index = abs_from >> PAGE_CACHE_SHIFT;
-	handle_t *handle = NULL;
+	handle_t *handle;
 	int ret = 0;
 	unsigned zero_from, zero_to, block_start, block_end;
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
@@ -769,11 +769,17 @@ static int ocfs2_write_zero_page(struct inode *inode, u64 abs_from,
 	BUG_ON(abs_to > (((u64)index + 1) << PAGE_CACHE_SHIFT));
 	BUG_ON(abs_from & (inode->i_blkbits - 1));
 
+	handle = ocfs2_zero_start_ordered_transaction(inode, di_bh);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		goto out;
+	}
+
 	page = find_or_create_page(mapping, index, GFP_NOFS);
 	if (!page) {
 		ret = -ENOMEM;
 		mlog_errno(ret);
-		goto out;
+		goto out_commit_trans;
 	}
 
 	/* Get the offsets within the page that we want to zero */
@@ -805,15 +811,6 @@ static int ocfs2_write_zero_page(struct inode *inode, u64 abs_from,
 			goto out_unlock;
 		}
 
-		if (!handle) {
-			handle = ocfs2_zero_start_ordered_transaction(inode,
-								      di_bh);
-			if (IS_ERR(handle)) {
-				ret = PTR_ERR(handle);
-				handle = NULL;
-				break;
-			}
-		}
 
 		/* must not update i_size! */
 		ret = block_commit_write(page, block_start + 1,
@@ -824,27 +821,29 @@ static int ocfs2_write_zero_page(struct inode *inode, u64 abs_from,
 			ret = 0;
 	}
 
+	/*
+	 * fs-writeback will release the dirty pages without page lock
+	 * whose offset are over inode size, the release happens at
+	 * block_write_full_page().
+	 */
+	i_size_write(inode, abs_to);
+	inode->i_blocks = ocfs2_inode_sector_count(inode);
+	di->i_size = cpu_to_le64((u64)i_size_read(inode));
+	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	di->i_mtime = di->i_ctime = cpu_to_le64(inode->i_mtime.tv_sec);
+	di->i_ctime_nsec = cpu_to_le32(inode->i_mtime.tv_nsec);
+	di->i_mtime_nsec = di->i_ctime_nsec;
 	if (handle) {
-		/*
-		 * fs-writeback will release the dirty pages without page lock
-		 * whose offset are over inode size, the release happens at
-		 * block_write_full_page().
-		 */
-		i_size_write(inode, abs_to);
-		inode->i_blocks = ocfs2_inode_sector_count(inode);
-		di->i_size = cpu_to_le64((u64)i_size_read(inode));
-		inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-		di->i_mtime = di->i_ctime = cpu_to_le64(inode->i_mtime.tv_sec);
-		di->i_ctime_nsec = cpu_to_le32(inode->i_mtime.tv_nsec);
-		di->i_mtime_nsec = di->i_ctime_nsec;
 		ocfs2_journal_dirty(handle, di_bh);
 		ocfs2_update_inode_fsync_trans(handle, inode, 1);
-		ocfs2_commit_trans(OCFS2_SB(inode->i_sb), handle);
 	}
 
 out_unlock:
 	unlock_page(page);
 	page_cache_release(page);
+out_commit_trans:
+	if (handle)
+		ocfs2_commit_trans(OCFS2_SB(inode->i_sb), handle);
 out:
 	return ret;
 }
@@ -1253,7 +1252,7 @@ bail:
 	brelse(bh);
 
 	/* Release quota pointers in case we acquired them */
-	for (qtype = 0; qtype < MAXQUOTAS; qtype++)
+	for (qtype = 0; qtype < OCFS2_MAXQUOTAS; qtype++)
 		dqput(transfer_to[qtype]);
 
 	if (!status && attr->ia_valid & ATTR_MODE) {

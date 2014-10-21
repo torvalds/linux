@@ -24,7 +24,7 @@
  * This structure holds data needed for the intelligent <--> nonintelligent
  * DPA translation
  */
- struct ni_info {
+struct ni_info {
 	int board;
 	int channel;
 	int dtr;

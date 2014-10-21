@@ -110,10 +110,13 @@
  *
  *	@ TESTCASE_START
  *	bl	__kprobes_test_case_start
- *	@ start of inline data...
+ *	.pushsection .rodata
+ *	"10:
  *	.ascii "mov r0, r7"	@ text title for test case
  *	.byte	0
- *	.align	2, 0
+ *	.popsection
+ *	@ start of inline data...
+ *	.word	10b		@ pointer to title in .rodata section
  *
  *	@ TEST_ARG_REG
  *	.byte	ARG_TYPE_REG
@@ -971,7 +974,7 @@ void __naked __kprobes_test_case_start(void)
 	__asm__ __volatile__ (
 		"stmdb	sp!, {r4-r11}				\n\t"
 		"sub	sp, sp, #"__stringify(TEST_MEMORY_SIZE)"\n\t"
-		"bic	r0, lr, #1  @ r0 = inline title string	\n\t"
+		"bic	r0, lr, #1  @ r0 = inline data		\n\t"
 		"mov	r1, sp					\n\t"
 		"bl	kprobes_test_case_start			\n\t"
 		"bx	r0					\n\t"
@@ -1349,15 +1352,14 @@ static unsigned long next_instruction(unsigned long pc)
 	return pc + 4;
 }
 
-static uintptr_t __used kprobes_test_case_start(const char *title, void *stack)
+static uintptr_t __used kprobes_test_case_start(const char **title, void *stack)
 {
 	struct test_arg *args;
 	struct test_arg_end *end_arg;
 	unsigned long test_code;
 
-	args = (struct test_arg *)PTR_ALIGN(title + strlen(title) + 1, 4);
-
-	current_title = title;
+	current_title = *title++;
+	args = (struct test_arg *)title;
 	current_args = args;
 	current_stack = stack;
 
