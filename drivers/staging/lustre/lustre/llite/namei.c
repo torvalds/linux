@@ -54,27 +54,6 @@
 static int ll_create_it(struct inode *, struct dentry *,
 			int, struct lookup_intent *);
 
-/*
- * Check if we have something mounted at the named dchild.
- * In such a case there would always be dentry present.
- */
-static int ll_d_mountpoint(struct dentry *dparent, struct dentry *dchild,
-			   struct qstr *name)
-{
-	int mounted = 0;
-
-	if (unlikely(dchild)) {
-		mounted = d_mountpoint(dchild);
-	} else if (dparent) {
-		dchild = d_lookup(dparent, name);
-		if (dchild) {
-			mounted = d_mountpoint(dchild);
-			dput(dchild);
-		}
-	}
-	return mounted;
-}
-
 /* called from iget5_locked->find_inode() under inode_hash_lock spinlock */
 static int ll_test_inode(struct inode *inode, void *opaque)
 {
@@ -1003,13 +982,6 @@ static int ll_unlink(struct inode * dir, struct dentry *dentry)
 	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd,dir=%lu/%u(%p)\n",
 	       dentry, dir->i_ino, dir->i_generation, dir);
 
-	/*
-	 * XXX: unlink bind mountpoint maybe call to here,
-	 * just check it as vfs_unlink does.
-	 */
-	if (unlikely(ll_d_mountpoint(NULL, dentry, &dentry->d_name)))
-		return -EBUSY;
-
 	op_data = ll_prep_md_op_data(NULL, dir, NULL,
 				     dentry->d_name.name,
 				     dentry->d_name.len,
@@ -1059,9 +1031,6 @@ static int ll_rmdir(struct inode *dir, struct dentry *dentry)
 
 	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd,dir=%lu/%u(%p)\n",
 	       dentry, dir->i_ino, dir->i_generation, dir);
-
-	if (unlikely(ll_d_mountpoint(NULL, dentry, &dentry->d_name)))
-		return -EBUSY;
 
 	op_data = ll_prep_md_op_data(NULL, dir, NULL,
 				     dentry->d_name.name, 
@@ -1146,10 +1115,6 @@ static int ll_rename(struct inode *old_dir, struct dentry *old_dentry,
 	       "tgt_dir=%lu/%u(%p)\n", old_dentry,
 	       old_dir->i_ino, old_dir->i_generation, old_dir, new_dentry,
 	       new_dir->i_ino, new_dir->i_generation, new_dir);
-
-	if (unlikely(ll_d_mountpoint(NULL, old_dentry, &old_dentry->d_name) ||
-	    ll_d_mountpoint(NULL, new_dentry, &new_dentry->d_name)))
-		return -EBUSY;
 
 	op_data = ll_prep_md_op_data(NULL, old_dir, new_dir, NULL, 0, 0,
 				     LUSTRE_OPC_ANY, NULL);
