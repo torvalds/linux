@@ -12,6 +12,10 @@ Required properties:
   * for "marvell,armada-380-sdhci", two register areas. The first one
     for the SDHCI registers themselves, and the second one for the
     AXI/Mbus bridge registers of the SDHCI unit.
+- clocks: Array of clocks required for SDHCI; requires at least one for
+    I/O clock.
+- clock-names: Array of names corresponding to clocks property; shall be
+    "io" for I/O clock and "core" for optional core clock.
 
 Optional properties:
 - mrvl,clk-delay-cycles: Specify a number of cycles to delay for tuning.
@@ -23,6 +27,8 @@ sdhci@d4280800 {
 	reg = <0xd4280800 0x800>;
 	bus-width = <8>;
 	interrupts = <27>;
+	clocks = <&chip CLKID_SDIO1XIN>, <&chip CLKID_SDIO1>;
+	clock-names = "io", "core";
 	non-removable;
 	mrvl,clk-delay-cycles = <31>;
 };
@@ -32,5 +38,6 @@ sdhci@d8000 {
 	reg = <0xd8000 0x1000>, <0xdc000 0x100>;
 	interrupts = <0 25 0x4>;
 	clocks = <&gateclk 17>;
+	clock-names = "io";
 	mrvl,clk-delay-cycles = <0x1F>;
 };
