@@ -318,10 +318,9 @@ static void amd_threshold_interrupt(void)
 
 log:
 	mce_setup(&m);
-	rdmsrl(MSR_IA32_MCG_STATUS, m.mcgstatus);
-	rdmsrl(address, m.misc);
 	rdmsrl(MSR_IA32_MCx_STATUS(bank), m.status);
-	m.bank = K8_MCE_THRESHOLD_BASE + bank * NR_BLOCKS + block;
+	m.misc = ((u64)high << 32) | low;
+	m.bank = bank;
 	mce_log(&m);
 
 	wrmsrl(MSR_IA32_MCx_STATUS(bank), 0);
