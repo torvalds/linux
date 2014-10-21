@@ -70,6 +70,8 @@ enum {
 
 	LOCAL_INV_WR_ID_MASK	= 1,
 	FAST_REG_WR_ID_MASK	= 2,
+
+	SRP_LAST_WR_ID		= 0xfffffffcU,
 };
 
 enum srp_target_state {

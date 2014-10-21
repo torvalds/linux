@@ -453,6 +453,41 @@ static struct srp_fr_pool *srp_alloc_fr_pool(struct srp_target_port *target)
 				  dev->max_pages_per_mr);
 }
 
+/**
+ * srp_destroy_qp() - destroy an RDMA queue pair
+ * @ch: SRP RDMA channel.
+ *
+ * Change a queue pair into the error state and wait until all receive
+ * completions have been processed before destroying it. This avoids that
+ * the receive completion handler can access the queue pair while it is
+ * being destroyed.
+ */
+static void srp_destroy_qp(struct srp_rdma_ch *ch)
+{
+	struct srp_target_port *target = ch->target;
+	static struct ib_qp_attr attr = { .qp_state = IB_QPS_ERR };
+	static struct ib_recv_wr wr = { .wr_id = SRP_LAST_WR_ID };
+	struct ib_recv_wr *bad_wr;
+	int ret;
+
+	/* Destroying a QP and reusing ch->done is only safe if not connected */
+	WARN_ON_ONCE(target->connected);
+
+	ret = ib_modify_qp(ch->qp, &attr, IB_QP_STATE);
+	WARN_ONCE(ret, "ib_cm_init_qp_attr() returned %d\n", ret);
+	if (ret)
+		goto out;
+
+	init_completion(&ch->done);
+	ret = ib_post_recv(ch->qp, &wr, &bad_wr);
+	WARN_ONCE(ret, "ib_post_recv() returned %d\n", ret);
+	if (ret == 0)
+		wait_for_completion(&ch->done);
+
+out:
+	ib_destroy_qp(ch->qp);
+}
+
 static int srp_create_ch_ib(struct srp_rdma_ch *ch)
 {
 	struct srp_target_port *target = ch->target;
@@ -469,8 +504,9 @@ static int srp_create_ch_ib(struct srp_rdma_ch *ch)
 	if (!init_attr)
 		return -ENOMEM;
 
+	/* + 1 for SRP_LAST_WR_ID */
 	recv_cq = ib_create_cq(dev->dev, srp_recv_completion, NULL, ch,
-			       target->queue_size, ch->comp_vector);
+			       target->queue_size + 1, ch->comp_vector);
 	if (IS_ERR(recv_cq)) {
 		ret = PTR_ERR(recv_cq);
 		goto err;
@@ -487,7 +523,7 @@ static int srp_create_ch_ib(struct srp_rdma_ch *ch)
 
 	init_attr->event_handler       = srp_qp_event;
 	init_attr->cap.max_send_wr     = m * target->queue_size;
-	init_attr->cap.max_recv_wr     = target->queue_size;
+	init_attr->cap.max_recv_wr     = target->queue_size + 1;
 	init_attr->cap.max_recv_sge    = 1;
 	init_attr->cap.max_send_sge    = 1;
 	init_attr->sq_sig_type         = IB_SIGNAL_REQ_WR;
@@ -530,7 +566,7 @@ static int srp_create_ch_ib(struct srp_rdma_ch *ch)
 	}
 
 	if (ch->qp)
-		ib_destroy_qp(ch->qp);
+		srp_destroy_qp(ch);
 	if (ch->recv_cq)
 		ib_destroy_cq(ch->recv_cq);
 	if (ch->send_cq)
@@ -586,7 +622,7 @@ static void srp_free_ch_ib(struct srp_target_port *target,
 		if (ch->fmr_pool)
 			ib_destroy_fmr_pool(ch->fmr_pool);
 	}
-	ib_destroy_qp(ch->qp);
+	srp_destroy_qp(ch);
 	ib_destroy_cq(ch->send_cq);
 	ib_destroy_cq(ch->recv_cq);
 
@@ -1883,8 +1919,15 @@ static void srp_tl_err_work(struct work_struct *work)
 }
 
 static void srp_handle_qp_err(u64 wr_id, enum ib_wc_status wc_status,
-			      bool send_err, struct srp_target_port *target)
+			      bool send_err, struct srp_rdma_ch *ch)
 {
+	struct srp_target_port *target = ch->target;
+
+	if (wr_id == SRP_LAST_WR_ID) {
+		complete(&ch->done);
+		return;
+	}
+
 	if (target->connected && !target->qp_in_error) {
 		if (wr_id & LOCAL_INV_WR_ID_MASK) {
 			shost_printk(KERN_ERR, target->scsi_host, PFX
@@ -1915,8 +1958,7 @@ static void srp_recv_completion(struct ib_cq *cq, void *ch_ptr)
 		if (likely(wc.status == IB_WC_SUCCESS)) {
 			srp_handle_recv(ch, &wc);
 		} else {
-			srp_handle_qp_err(wc.wr_id, wc.status, false,
-					  ch->target);
+			srp_handle_qp_err(wc.wr_id, wc.status, false, ch);
 		}
 	}
 }
@@ -1932,8 +1974,7 @@ static void srp_send_completion(struct ib_cq *cq, void *ch_ptr)
 			iu = (struct srp_iu *) (uintptr_t) wc.wr_id;
 			list_add(&iu->list, &ch->free_tx);
 		} else {
-			srp_handle_qp_err(wc.wr_id, wc.status, true,
-					  ch->target);
+			srp_handle_qp_err(wc.wr_id, wc.status, true, ch);
 		}
 	}
 }
