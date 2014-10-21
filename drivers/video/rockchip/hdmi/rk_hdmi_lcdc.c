@@ -624,13 +624,13 @@ int hdmi_init_video_para(struct hdmi *hdmi_drv, struct hdmi_video_para *video)
 		video->color_depth = HDMI_COLOR_DEPTH_10BIT;
 	else
 		video->color_depth = HDMI_COLOR_DEPTH_8BIT;
-
+/*
 	if (hdmi_drv->edid.ycbcr444)
 		video->output_color = VIDEO_OUTPUT_YCBCR444;
 	else if (hdmi_drv->edid.ycbcr422)
 		video->output_color = VIDEO_OUTPUT_YCBCR422;
 	else
-		video->output_color = VIDEO_OUTPUT_RGB444;
+*/		video->output_color = VIDEO_OUTPUT_RGB444;
 
 	/*For DVI, output RGB */
 	if (hdmi_drv->edid.sink_hdmi == 0)
