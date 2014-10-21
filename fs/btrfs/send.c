@@ -5507,6 +5507,51 @@ out:
 	return ret;
 }
 
+/*
+ * If orphan cleanup did remove any orphans from a root, it means the tree
+ * was modified and therefore the commit root is not the same as the current
+ * root anymore. This is a problem, because send uses the commit root and
+ * therefore can see inode items that don't exist in the current root anymore,
+ * and for example make calls to btrfs_iget, which will do tree lookups based
+ * on the current root and not on the commit root. Those lookups will fail,
+ * returning a -ESTALE error, and making send fail with that error. So make
+ * sure a send does not see any orphans we have just removed, and that it will
+ * see the same inodes regardless of whether a transaction commit happened
+ * before it started (meaning that the commit root will be the same as the
+ * current root) or not.
+ */
+static int ensure_commit_roots_uptodate(struct send_ctx *sctx)
+{
+	int i;
+	struct btrfs_trans_handle *trans = NULL;
+
+again:
+	if (sctx->parent_root &&
+	    sctx->parent_root->node != sctx->parent_root->commit_root)
+		goto commit_trans;
+
+	for (i = 0; i < sctx->clone_roots_cnt; i++)
+		if (sctx->clone_roots[i].root->node !=
+		    sctx->clone_roots[i].root->commit_root)
+			goto commit_trans;
+
+	if (trans)
+		return btrfs_end_transaction(trans, sctx->send_root);
+
+	return 0;
+
+commit_trans:
+	/* Use any root, all fs roots will get their commit roots updated. */
+	if (!trans) {
+		trans = btrfs_join_transaction(sctx->send_root);
+		if (IS_ERR(trans))
+			return PTR_ERR(trans);
+		goto again;
+	}
+
+	return btrfs_commit_transaction(trans, sctx->send_root);
+}
+
 static void btrfs_root_dec_send_in_progress(struct btrfs_root* root)
 {
 	spin_lock(&root->root_item_lock);
@@ -5727,6 +5772,10 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 			sizeof(*sctx->clone_roots), __clone_root_cmp_sort,
 			NULL);
 	sort_clone_roots = 1;
+
+	ret = ensure_commit_roots_uptodate(sctx);
+	if (ret)
+		goto out;
 
 	current->journal_info = BTRFS_SEND_TRANS_STUB;
 	ret = send_subvol(sctx);
