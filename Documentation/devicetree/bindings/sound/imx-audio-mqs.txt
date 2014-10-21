@@ -1,0 +1,18 @@
+Freescale i.MX audio complex with mqs codec
+
+Required properties:
+- compatible : "fsl,imx-audio-mqs"
+- model : The user-visible name of this sound complex
+- cpu-dai : The phandle of the i.MX sai controller
+- audio-codec : The phandle of the mqs audio codec
+
+Example:
+
+sound-mqs {
+	compatible = "fsl,imx6sx-sdb-mqs",
+			"fsl,imx-audio-mqs";
+	model = "mqs-audio";
+	cpu-dai = <&sai1>;
+	audio-codec = <&mqs>;
+};
+
