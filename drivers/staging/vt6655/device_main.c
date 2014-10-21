@@ -932,7 +932,7 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 	dev->irq                = pcid->irq;
 	dev->netdev_ops         = &device_netdev_ops;
 
-	dev->wireless_handlers = (struct iw_handler_def *)&iwctl_handler_def;
+	dev->wireless_handlers = &iwctl_handler_def;
 
 	rc = register_netdev(dev);
 	if (rc) {
