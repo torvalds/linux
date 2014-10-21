@@ -862,7 +862,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		case 0x28b: map_key_clear(KEY_FORWARDMAIL);	break;
 		case 0x28c: map_key_clear(KEY_SEND);		break;
 
-		default:    goto ignore;
+		default: map_key_clear(KEY_UNKNOWN);
 		}
 		break;
 
