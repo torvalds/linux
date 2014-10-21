@@ -1,5 +1,5 @@
 /*
- * at91sam9x5_macb0.dtsi - Device Tree Include file for AT91SAM9x5 SoC with 1
+ * at91sam9x5_can.dtsi - Device Tree Include file for AT91SAM9x5 SoC with 1
  * Ethernet interface.
  *
  * Copyright (C) 2013 Boris BREZILLON <b.brezillon@overkiz.com>
@@ -20,10 +20,10 @@
 						reg = <29>;
 					};
 
-                                        can1_clk: can1_clk {
-                                                #clock-cells = <0>;
-                                                reg = <30>;
-                                        };
+					can1_clk: can1_clk {
+						#clock-cells = <0>;
+						reg = <30>;
+					};
 				};
 			};
 		};
