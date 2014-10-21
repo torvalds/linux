@@ -24,6 +24,7 @@
 
 &fb {
 	rockchip,disp-mode = <ONE_DUAL>;
+	rockchip,uboot-logo-on = <1>;
 };
 
 &rk_screen {

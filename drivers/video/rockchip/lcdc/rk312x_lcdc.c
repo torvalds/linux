@@ -1653,12 +1653,42 @@ static int rk312x_lcdc_ovl_mgr(struct rk_lcdc_driver *dev_drv, int swap,
 	return ovl;
 }
 
+static int rk312x_lcdc_get_backlight_device(struct rk_lcdc_driver *dev_drv)
+{
+	struct lcdc_device *lcdc_dev = container_of(dev_drv,
+						    struct lcdc_device, driver);
+	struct device_node *backlight;
+
+	if (lcdc_dev->backlight)
+		return 0;
+
+	backlight = of_parse_phandle(lcdc_dev->dev->of_node,
+				     "backlight", 0);
+	if (backlight) {
+		lcdc_dev->backlight = of_find_backlight_by_node(backlight);
+		if (!lcdc_dev->backlight)
+			dev_info(lcdc_dev->dev, "No find backlight device\n");
+	} else {
+		dev_info(lcdc_dev->dev, "No find backlight device node\n");
+	}
+
+	return 0;
+}
+
 static int rk312x_lcdc_early_suspend(struct rk_lcdc_driver *dev_drv)
 {
 	struct lcdc_device *lcdc_dev = container_of(dev_drv,
 						    struct lcdc_device, driver);
 	if (dev_drv->suspend_flag)
 		return 0;
+
+	/* close the backlight */
+	rk312x_lcdc_get_backlight_device(dev_drv);
+	if (lcdc_dev->backlight) {
+		lcdc_dev->backlight->props.fb_blank = FB_BLANK_POWERDOWN;
+		backlight_update_status(lcdc_dev->backlight);
+	}
+
 	dev_drv->suspend_flag = 1;
 	flush_kthread_worker(&dev_drv->update_regs_worker);
 
@@ -2329,18 +2359,8 @@ static int rk312x_lcdc_dsp_black(struct rk_lcdc_driver *dev_drv, int enable)
 {
 	struct lcdc_device *lcdc_dev = container_of(dev_drv,
 						    struct lcdc_device, driver);
-	struct device_node *backlight;
 
-	if (!lcdc_dev->backlight) {
-		backlight = of_parse_phandle(lcdc_dev->dev->of_node,
-					     "backlight", 0);
-		if (backlight) {
-			lcdc_dev->backlight =
-					of_find_backlight_by_node(backlight);
-			if (!lcdc_dev->backlight)
-				dev_info(lcdc_dev->dev, "No find backlight device\n");
-		}
-	}
+	rk312x_lcdc_get_backlight_device(dev_drv);
 
 	if (enable) {
 		/* close the backlight */
