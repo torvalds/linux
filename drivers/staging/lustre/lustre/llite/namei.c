@@ -879,24 +879,6 @@ static int ll_create_nd(struct inode *dir, struct dentry *dentry,
 	return rc;
 }
 
-static int ll_symlink_generic(struct inode *dir, struct qstr *name,
-			      const char *tgt, struct dentry *dchild)
-{
-	int err;
-
-	CDEBUG(D_VFSTRACE, "VFS Op:name=%.*s,dir=%lu/%u(%p),target=%.*s\n",
-	       name->len, name->name, dir->i_ino, dir->i_generation,
-	       dir, 3000, tgt);
-
-	err = ll_new_node(dir, name, (char *)tgt, S_IFLNK | S_IRWXUGO,
-			  0, dchild, LUSTRE_OPC_SYMLINK);
-
-	if (!err)
-		ll_stats_ops_tally(ll_i2sbi(dir), LPROC_LL_SYMLINK, 1);
-
-	return err;
-}
-
 static int ll_link_generic(struct inode *src,  struct inode *dir,
 			   struct qstr *name, struct dentry *dchild)
 {
@@ -1195,7 +1177,19 @@ static int ll_rmdir(struct inode *dir, struct dentry *dentry)
 static int ll_symlink(struct inode *dir, struct dentry *dentry,
 		      const char *oldname)
 {
-	return ll_symlink_generic(dir, &dentry->d_name, oldname, dentry);
+	int err;
+
+	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd,dir=%lu/%u(%p),target=%.*s\n",
+	       dentry, dir->i_ino, dir->i_generation,
+	       dir, 3000, oldname);
+
+	err = ll_new_node(dir, &dentry->d_name, oldname, S_IFLNK | S_IRWXUGO,
+			0, dentry, LUSTRE_OPC_SYMLINK);
+
+	if (!err)
+		ll_stats_ops_tally(ll_i2sbi(dir), LPROC_LL_SYMLINK, 1);
+
+	return err;
 }
 
 static int ll_link(struct dentry *old_dentry, struct inode *dir,
