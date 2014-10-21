@@ -1005,7 +1005,7 @@ static int tegra_dc_show_regs(struct seq_file *s, void *data)
 	struct tegra_dc *dc = node->info_ent->data;
 
 #define DUMP_REG(name)						\
-	seq_printf(s, "%-40s %#05x %08lx\n", #name, name,	\
+	seq_printf(s, "%-40s %#05x %08x\n", #name, name,	\
 		   tegra_dc_readl(dc, name))
 
 	DUMP_REG(DC_CMD_GENERAL_INCR_SYNCPT);

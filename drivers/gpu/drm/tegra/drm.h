@@ -139,16 +139,15 @@ static inline struct tegra_dc *to_tegra_dc(struct drm_crtc *crtc)
 	return crtc ? container_of(crtc, struct tegra_dc, base) : NULL;
 }
 
-static inline void tegra_dc_writel(struct tegra_dc *dc, unsigned long value,
-				   unsigned long reg)
+static inline void tegra_dc_writel(struct tegra_dc *dc, u32 value,
+				   unsigned long offset)
 {
-	writel(value, dc->regs + (reg << 2));
+	writel(value, dc->regs + (offset << 2));
 }
 
-static inline unsigned long tegra_dc_readl(struct tegra_dc *dc,
-					   unsigned long reg)
+static inline u32 tegra_dc_readl(struct tegra_dc *dc, unsigned long offset)
 {
-	return readl(dc->regs + (reg << 2));
+	return readl(dc->regs + (offset << 2));
 }
 
 struct tegra_dc_window {
