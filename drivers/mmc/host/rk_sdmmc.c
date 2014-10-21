@@ -614,7 +614,9 @@ static void dw_mci_edmac_start_dma(struct dw_mci *host, unsigned int sg_len)
         struct dma_slave_config slave_config;
         struct dma_async_tx_descriptor *desc = NULL;
         struct scatterlist *sgl = host->data->sg;
+        const u32 mszs[] = {1, 4, 8, 16, 32, 64, 128, 256};
         u32 sg_elems = host->data->sg_len;
+        u32 fifoth_val, mburst;
         int ret = 0;
 
         /* Set external dma config: burst size, burst width*/
@@ -624,7 +626,11 @@ static void dw_mci_edmac_start_dma(struct dw_mci *host, unsigned int sg_len)
         slave_config.src_addr_width = slave_config.dst_addr_width;
 
         /* Match FIFO dma burst MSIZE with external dma config*/
-        slave_config.dst_maxburst = ((host->fifoth_val) >> 28) && 0x7;
+        fifoth_val = mci_readl(host, FIFOTH);
+        mburst = mszs[(fifoth_val >> 28) && 0x7];
+
+        /* edmac limit burst to 16 */
+        slave_config.dst_maxburst = (mburst > 16) ? 16 : mburst;
         slave_config.src_maxburst = slave_config.dst_maxburst;
 
         if(host->data->flags & MMC_DATA_WRITE){
@@ -837,6 +843,7 @@ static void dw_mci_adjust_fifoth(struct dw_mci *host, struct mmc_data *data)
 done:
 	fifoth_val = SDMMC_SET_FIFOTH(msize, rx_wmark, tx_wmark);
 	mci_writel(host, FIFOTH, fifoth_val);
+
 #endif
 }
 
@@ -4274,5 +4281,5 @@ MODULE_DESCRIPTION("Rockchip specific DW Multimedia Card Interface driver");
 MODULE_AUTHOR("NXP Semiconductor VietNam");
 MODULE_AUTHOR("Imagination Technologies Ltd");
 MODULE_AUTHOR("Shawn Lin <lintao@rock-chips.com>");
-MODULE_AUTHOR("Rockchip Electronics£¬Bangwang Xie < xbw@rock-chips.com> ");
+MODULE_AUTHOR("Bangwang Xie <xbw@rock-chips.com>");
 MODULE_LICENSE("GPL v2");
