@@ -1589,7 +1589,7 @@ static int si4713_probe(struct i2c_client *client,
 	sdev->sd.ctrl_handler = hdl;
 
 	if (client->irq) {
-		rval = request_irq(client->irq,
+		rval = devm_request_irq(&client->dev, client->irq,
 			si4713_handler, IRQF_TRIGGER_FALLING,
 			client->name, sdev);
 		if (rval < 0) {
@@ -1604,14 +1604,11 @@ static int si4713_probe(struct i2c_client *client,
 	rval = si4713_initialize(sdev);
 	if (rval < 0) {
 		v4l2_err(&sdev->sd, "Failed to probe device information.\n");
-		goto free_irq;
+		goto free_ctrls;
 	}
 
 	return 0;
 
-free_irq:
-	if (client->irq)
-		free_irq(client->irq, sdev);
 free_ctrls:
 	v4l2_ctrl_handler_free(hdl);
 exit:
@@ -1626,9 +1623,6 @@ static int si4713_remove(struct i2c_client *client)
 
 	if (sdev->power_state)
 		si4713_set_power_state(sdev, POWER_DOWN);
-
-	if (client->irq > 0)
-		free_irq(client->irq, sdev);
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
