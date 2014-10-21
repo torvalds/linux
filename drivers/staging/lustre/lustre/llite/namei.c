@@ -819,14 +819,14 @@ err_exit:
 	return err;
 }
 
-static int ll_mknod_generic(struct inode *dir, struct qstr *name, int mode,
-			    unsigned rdev, struct dentry *dchild)
+static int ll_mknod(struct inode *dir, struct dentry *dchild,
+		    umode_t mode, dev_t rdev)
 {
 	int err;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:name=%.*s,dir=%lu/%u(%p) mode %o dev %x\n",
-	       name->len, name->name, dir->i_ino, dir->i_generation, dir,
-	       mode, rdev);
+	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd,dir=%lu/%u(%p) mode %o dev %x\n",
+	       dchild, dir->i_ino, dir->i_generation, dir,
+	       mode, old_encode_dev(rdev));
 
 	if (!IS_POSIXACL(dir) || !exp_connect_umask(ll_i2mdexp(dir)))
 		mode &= ~current_umask();
@@ -839,7 +839,8 @@ static int ll_mknod_generic(struct inode *dir, struct qstr *name, int mode,
 	case S_IFBLK:
 	case S_IFIFO:
 	case S_IFSOCK:
-		err = ll_new_node(dir, name, NULL, mode, rdev, dchild,
+		err = ll_new_node(dir, &dchild->d_name, NULL, mode,
+				  old_encode_dev(rdev), dchild,
 				  LUSTRE_OPC_MKNOD);
 		break;
 	case S_IFDIR:
@@ -868,7 +869,7 @@ static int ll_create_nd(struct inode *dir, struct dentry *dentry,
 	       dentry, dir->i_ino,
 	       dir->i_generation, dir, mode, want_excl);
 
-	rc = ll_mknod_generic(dir, &dentry->d_name, mode, 0, dentry);
+	rc = ll_mknod(dir, dentry, mode, 0);
 
 	ll_stats_ops_tally(ll_i2sbi(dir), LPROC_LL_CREATE, 1);
 
@@ -1181,13 +1182,6 @@ static int ll_rename_generic(struct inode *src, struct dentry *src_dparent,
 	ptlrpc_req_finished(request);
 
 	return err;
-}
-
-static int ll_mknod(struct inode *dir, struct dentry *dchild, ll_umode_t mode,
-		    dev_t rdev)
-{
-	return ll_mknod_generic(dir, &dchild->d_name, mode,
-				old_encode_dev(rdev), dchild);
 }
 
 static int ll_unlink(struct inode * dir, struct dentry *dentry)
