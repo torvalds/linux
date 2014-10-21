@@ -260,7 +260,7 @@ static inline int rcu_preempt_depth(void)
 void rcu_init(void);
 void rcu_sched_qs(void);
 void rcu_bh_qs(void);
-void rcu_check_callbacks(int cpu, int user);
+void rcu_check_callbacks(int user);
 struct notifier_block;
 void rcu_idle_enter(void);
 void rcu_idle_exit(void);

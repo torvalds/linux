@@ -2388,7 +2388,7 @@ static void rcu_do_batch(struct rcu_state *rsp, struct rcu_data *rdp)
  * invoked from the scheduling-clock interrupt.  If rcu_pending returns
  * false, there is no point in invoking rcu_check_callbacks().
  */
-void rcu_check_callbacks(int cpu, int user)
+void rcu_check_callbacks(int user)
 {
 	trace_rcu_utilization(TPS("Start scheduler-tick"));
 	increment_cpu_stall_ticks();
@@ -2420,8 +2420,8 @@ void rcu_check_callbacks(int cpu, int user)
 
 		rcu_bh_qs();
 	}
-	rcu_preempt_check_callbacks(cpu);
-	if (rcu_pending(cpu))
+	rcu_preempt_check_callbacks(smp_processor_id());
+	if (rcu_pending(smp_processor_id()))
 		invoke_rcu_core();
 	if (user)
 		rcu_note_voluntary_context_switch(current);
