@@ -3,6 +3,7 @@
  *  NFC Controller (NFCC) and a Device Host (DH).
  *
  *  Copyright (C) 2011 Texas Instruments, Inc.
+ *  Copyright (C) 2014 Marvell International Ltd.
  *
  *  Written by Ilan Elias <ilane@ti.com>
  *
@@ -196,18 +197,24 @@ static void nci_set_config_req(struct nci_dev *ndev, unsigned long opt)
 	nci_send_cmd(ndev, NCI_OP_CORE_SET_CONFIG_CMD, (3 + param->len), &cmd);
 }
 
+struct nci_rf_discover_param {
+	__u32	im_protocols;
+	__u32	tm_protocols;
+};
+
 static void nci_rf_discover_req(struct nci_dev *ndev, unsigned long opt)
 {
+	struct nci_rf_discover_param *param =
+		(struct nci_rf_discover_param *)opt;
 	struct nci_rf_disc_cmd cmd;
-	__u32 protocols = opt;
 
 	cmd.num_disc_configs = 0;
 
 	if ((cmd.num_disc_configs < NCI_MAX_NUM_RF_CONFIGS) &&
-	    (protocols & NFC_PROTO_JEWEL_MASK ||
-	     protocols & NFC_PROTO_MIFARE_MASK ||
-	     protocols & NFC_PROTO_ISO14443_MASK ||
-	     protocols & NFC_PROTO_NFC_DEP_MASK)) {
+	    (param->im_protocols & NFC_PROTO_JEWEL_MASK ||
+	     param->im_protocols & NFC_PROTO_MIFARE_MASK ||
+	     param->im_protocols & NFC_PROTO_ISO14443_MASK ||
+	     param->im_protocols & NFC_PROTO_NFC_DEP_MASK)) {
 		cmd.disc_configs[cmd.num_disc_configs].rf_tech_and_mode =
 			NCI_NFC_A_PASSIVE_POLL_MODE;
 		cmd.disc_configs[cmd.num_disc_configs].frequency = 1;
@@ -215,7 +222,7 @@ static void nci_rf_discover_req(struct nci_dev *ndev, unsigned long opt)
 	}
 
 	if ((cmd.num_disc_configs < NCI_MAX_NUM_RF_CONFIGS) &&
-	    (protocols & NFC_PROTO_ISO14443_B_MASK)) {
+	    (param->im_protocols & NFC_PROTO_ISO14443_B_MASK)) {
 		cmd.disc_configs[cmd.num_disc_configs].rf_tech_and_mode =
 			NCI_NFC_B_PASSIVE_POLL_MODE;
 		cmd.disc_configs[cmd.num_disc_configs].frequency = 1;
@@ -223,8 +230,8 @@ static void nci_rf_discover_req(struct nci_dev *ndev, unsigned long opt)
 	}
 
 	if ((cmd.num_disc_configs < NCI_MAX_NUM_RF_CONFIGS) &&
-	    (protocols & NFC_PROTO_FELICA_MASK ||
-	     protocols & NFC_PROTO_NFC_DEP_MASK)) {
+	    (param->im_protocols & NFC_PROTO_FELICA_MASK ||
+	     param->im_protocols & NFC_PROTO_NFC_DEP_MASK)) {
 		cmd.disc_configs[cmd.num_disc_configs].rf_tech_and_mode =
 			NCI_NFC_F_PASSIVE_POLL_MODE;
 		cmd.disc_configs[cmd.num_disc_configs].frequency = 1;
@@ -232,9 +239,21 @@ static void nci_rf_discover_req(struct nci_dev *ndev, unsigned long opt)
 	}
 
 	if ((cmd.num_disc_configs < NCI_MAX_NUM_RF_CONFIGS) &&
-	    (protocols & NFC_PROTO_ISO15693_MASK)) {
+	    (param->im_protocols & NFC_PROTO_ISO15693_MASK)) {
 		cmd.disc_configs[cmd.num_disc_configs].rf_tech_and_mode =
 			NCI_NFC_V_PASSIVE_POLL_MODE;
+		cmd.disc_configs[cmd.num_disc_configs].frequency = 1;
+		cmd.num_disc_configs++;
+	}
+
+	if ((cmd.num_disc_configs < NCI_MAX_NUM_RF_CONFIGS - 1) &&
+	    (param->tm_protocols & NFC_PROTO_NFC_DEP_MASK)) {
+		cmd.disc_configs[cmd.num_disc_configs].rf_tech_and_mode =
+			NCI_NFC_A_PASSIVE_LISTEN_MODE;
+		cmd.disc_configs[cmd.num_disc_configs].frequency = 1;
+		cmd.num_disc_configs++;
+		cmd.disc_configs[cmd.num_disc_configs].rf_tech_and_mode =
+			NCI_NFC_F_PASSIVE_LISTEN_MODE;
 		cmd.disc_configs[cmd.num_disc_configs].frequency = 1;
 		cmd.num_disc_configs++;
 	}
@@ -459,6 +478,7 @@ static int nci_start_poll(struct nfc_dev *nfc_dev,
 			  __u32 im_protocols, __u32 tm_protocols)
 {
 	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
+	struct nci_rf_discover_param param;
 	int rc;
 
 	if ((atomic_read(&ndev->state) == NCI_DISCOVERY) ||
@@ -490,7 +510,9 @@ static int nci_start_poll(struct nfc_dev *nfc_dev,
 		}
 	}
 
-	rc = nci_request(ndev, nci_rf_discover_req, im_protocols,
+	param.im_protocols = im_protocols;
+	param.tm_protocols = tm_protocols;
+	rc = nci_request(ndev, nci_rf_discover_req, (unsigned long)&param,
 			 msecs_to_jiffies(NCI_RF_DISC_TIMEOUT));
 
 	if (!rc)
