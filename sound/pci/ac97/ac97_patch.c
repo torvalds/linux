@@ -33,7 +33,8 @@
 static struct snd_kcontrol *snd_ac97_find_mixer_ctl(struct snd_ac97 *ac97,
 						    const char *name);
 static int snd_ac97_add_vmaster(struct snd_ac97 *ac97, char *name,
-				const unsigned int *tlv, const char **slaves);
+				const unsigned int *tlv,
+				const char * const *slaves);
 
 /*
  *  Chip specific initialization
@@ -3196,7 +3197,9 @@ static int cm9761_spdif_out_source_put(struct snd_kcontrol *kcontrol, struct snd
 				    ucontrol->value.enumerated.item[0] == 1 ? 0x2 : 0);
 }
 
-static const char *cm9761_dac_clock[] = { "AC-Link", "SPDIF-In", "Both" };
+static const char * const cm9761_dac_clock[] = {
+	"AC-Link", "SPDIF-In", "Both"
+};
 static const struct ac97_enum cm9761_dac_clock_enum =
 	AC97_ENUM_SINGLE(AC97_CM9761_SPDIF_CTRL, 9, 3, cm9761_dac_clock);
 
@@ -3310,7 +3313,9 @@ static int patch_cm9761(struct snd_ac97 *ac97)
 #define AC97_CM9780_MULTI_CHAN	0x66
 #define AC97_CM9780_SPDIF	0x6c
 
-static const char *cm9780_ch_select[] = { "Front", "Side", "Center/LFE", "Rear" };
+static const char * const cm9780_ch_select[] = {
+	"Front", "Side", "Center/LFE", "Rear"
+};
 static const struct ac97_enum cm9780_ch_select_enum =
 	AC97_ENUM_SINGLE(AC97_CM9780_MULTI_CHAN, 6, 4, cm9780_ch_select);
 static const struct snd_kcontrol_new cm9780_controls[] = {
@@ -3356,7 +3361,7 @@ AC97_SINGLE("Downmix LFE and Center to Front", 0x5a, 12, 1, 0),
 AC97_SINGLE("Downmix Surround to Front", 0x5a, 11, 1, 0),
 };
 
-static const char *slave_vols_vt1616[] = {
+static const char * const slave_vols_vt1616[] = {
 	"Front Playback Volume",
 	"Surround Playback Volume",
 	"Center Playback Volume",
@@ -3364,7 +3369,7 @@ static const char *slave_vols_vt1616[] = {
 	NULL
 };
 
-static const char *slave_sws_vt1616[] = {
+static const char * const slave_sws_vt1616[] = {
 	"Front Playback Switch",
 	"Surround Playback Switch",
 	"Center Playback Switch",
@@ -3385,10 +3390,11 @@ static struct snd_kcontrol *snd_ac97_find_mixer_ctl(struct snd_ac97 *ac97,
 
 /* create a virtual master control and add slaves */
 static int snd_ac97_add_vmaster(struct snd_ac97 *ac97, char *name,
-				const unsigned int *tlv, const char **slaves)
+				const unsigned int *tlv,
+				const char * const *slaves)
 {
 	struct snd_kcontrol *kctl;
-	const char **s;
+	const char * const *s;
 	int err;
 
 	kctl = snd_ctl_make_virtual_master(name, tlv);
@@ -3612,7 +3618,7 @@ static int patch_vt1617a(struct snd_ac97 * ac97)
 struct vt1618_uaj_item {
 	unsigned short mask;
 	unsigned short shift;
-	const char *items[4];
+	const char * const items[4];
 };
 
 /* This list reflects the vt1618 docs for Vendor Defined Register 0x60. */
