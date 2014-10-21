@@ -34,6 +34,10 @@
 		serial3 = &uart4;
 		serial4 = &uart5;
 		serial5 = &uart6;
+		serial6 = &uart7;
+		serial7 = &uart8;
+		serial8 = &uart9;
+		serial9 = &uart10;
 		ethernet0 = &cpsw_emac0;
 		ethernet1 = &cpsw_emac1;
 	};
