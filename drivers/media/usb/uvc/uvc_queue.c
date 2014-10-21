@@ -42,6 +42,28 @@ uvc_queue_to_stream(struct uvc_video_queue *queue)
 	return container_of(queue, struct uvc_streaming, queue);
 }
 
+/*
+ * Return all queued buffers to videobuf2 in the requested state.
+ *
+ * This function must be called with the queue spinlock held.
+ */
+static void uvc_queue_return_buffers(struct uvc_video_queue *queue,
+			       enum uvc_buffer_state state)
+{
+	enum vb2_buffer_state vb2_state = state == UVC_BUF_STATE_ERROR
+					? VB2_BUF_STATE_ERROR
+					: VB2_BUF_STATE_QUEUED;
+
+	while (!list_empty(&queue->irqqueue)) {
+		struct uvc_buffer *buf = list_first_entry(&queue->irqqueue,
+							  struct uvc_buffer,
+							  queue);
+		list_del(&buf->queue);
+		buf->state = state;
+		vb2_buffer_done(&buf->buf, vb2_state);
+	}
+}
+
 /* -----------------------------------------------------------------------------
  * videobuf2 queue operations
  */
@@ -139,10 +161,20 @@ static int uvc_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct uvc_video_queue *queue = vb2_get_drv_priv(vq);
 	struct uvc_streaming *stream = uvc_queue_to_stream(queue);
+	unsigned long flags;
+	int ret;
 
 	queue->buf_used = 0;
 
-	return uvc_video_enable(stream, 1);
+	ret = uvc_video_enable(stream, 1);
+	if (ret == 0)
+		return 0;
+
+	spin_lock_irqsave(&queue->irqlock, flags);
+	uvc_queue_return_buffers(queue, UVC_BUF_STATE_QUEUED);
+	spin_unlock_irqrestore(&queue->irqlock, flags);
+
+	return ret;
 }
 
 static void uvc_stop_streaming(struct vb2_queue *vq)
@@ -154,7 +186,7 @@ static void uvc_stop_streaming(struct vb2_queue *vq)
 	uvc_video_enable(stream, 0);
 
 	spin_lock_irqsave(&queue->irqlock, flags);
-	INIT_LIST_HEAD(&queue->irqqueue);
+	uvc_queue_return_buffers(queue, UVC_BUF_STATE_ERROR);
 	spin_unlock_irqrestore(&queue->irqlock, flags);
 }
 
@@ -353,17 +385,10 @@ int uvc_queue_allocated(struct uvc_video_queue *queue)
  */
 void uvc_queue_cancel(struct uvc_video_queue *queue, int disconnect)
 {
-	struct uvc_buffer *buf;
 	unsigned long flags;
 
 	spin_lock_irqsave(&queue->irqlock, flags);
-	while (!list_empty(&queue->irqqueue)) {
-		buf = list_first_entry(&queue->irqqueue, struct uvc_buffer,
-				       queue);
-		list_del(&buf->queue);
-		buf->state = UVC_BUF_STATE_ERROR;
-		vb2_buffer_done(&buf->buf, VB2_BUF_STATE_ERROR);
-	}
+	uvc_queue_return_buffers(queue, UVC_BUF_STATE_ERROR);
 	/* This must be protected by the irqlock spinlock to avoid race
 	 * conditions between uvc_buffer_queue and the disconnection event that
 	 * could result in an interruptible wait in uvc_dequeue_buffer. Do not
