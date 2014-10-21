@@ -135,6 +135,29 @@ static void uvc_wait_finish(struct vb2_queue *vq)
 	mutex_lock(&queue->mutex);
 }
 
+static int uvc_start_streaming(struct vb2_queue *vq, unsigned int count)
+{
+	struct uvc_video_queue *queue = vb2_get_drv_priv(vq);
+	struct uvc_streaming *stream = uvc_queue_to_stream(queue);
+
+	queue->buf_used = 0;
+
+	return uvc_video_enable(stream, 1);
+}
+
+static void uvc_stop_streaming(struct vb2_queue *vq)
+{
+	struct uvc_video_queue *queue = vb2_get_drv_priv(vq);
+	struct uvc_streaming *stream = uvc_queue_to_stream(queue);
+	unsigned long flags;
+
+	uvc_video_enable(stream, 0);
+
+	spin_lock_irqsave(&queue->irqlock, flags);
+	INIT_LIST_HEAD(&queue->irqqueue);
+	spin_unlock_irqrestore(&queue->irqlock, flags);
+}
+
 static struct vb2_ops uvc_queue_qops = {
 	.queue_setup = uvc_queue_setup,
 	.buf_prepare = uvc_buffer_prepare,
@@ -142,6 +165,8 @@ static struct vb2_ops uvc_queue_qops = {
 	.buf_finish = uvc_buffer_finish,
 	.wait_prepare = uvc_wait_prepare,
 	.wait_finish = uvc_wait_finish,
+	.start_streaming = uvc_start_streaming,
+	.stop_streaming = uvc_stop_streaming,
 };
 
 int uvc_queue_init(struct uvc_video_queue *queue, enum v4l2_buf_type type,
@@ -310,27 +335,15 @@ int uvc_queue_allocated(struct uvc_video_queue *queue)
  */
 int uvc_queue_enable(struct uvc_video_queue *queue, int enable)
 {
-	unsigned long flags;
 	int ret;
 
 	mutex_lock(&queue->mutex);
-	if (enable) {
+
+	if (enable)
 		ret = vb2_streamon(&queue->queue, queue->queue.type);
-		if (ret < 0)
-			goto done;
-
-		queue->buf_used = 0;
-	} else {
+	else
 		ret = vb2_streamoff(&queue->queue, queue->queue.type);
-		if (ret < 0)
-			goto done;
 
-		spin_lock_irqsave(&queue->irqlock, flags);
-		INIT_LIST_HEAD(&queue->irqqueue);
-		spin_unlock_irqrestore(&queue->irqlock, flags);
-	}
-
-done:
 	mutex_unlock(&queue->mutex);
 	return ret;
 }
