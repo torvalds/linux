@@ -42,8 +42,7 @@ static int fine_mode;
 
 static int is_fine_dirmode(void)
 {
-	return (((LOCAL_HUB_L(NI_STATUS_REV_ID) & NSRI_REGIONSIZE_MASK)
-		>> NSRI_REGIONSIZE_SHFT) & REGIONSIZE_FINE);
+	return ((LOCAL_HUB_L(NI_STATUS_REV_ID) & NSRI_REGIONSIZE_MASK) >> NSRI_REGIONSIZE_SHFT) & REGIONSIZE_FINE;
 }
 
 static hubreg_t get_region(cnodeid_t cnode)
@@ -288,7 +287,7 @@ static unsigned long __init slot_psize_compute(cnodeid_t node, int slot)
 	if (size <= 128) {
 		if (slot % 4 == 0) {
 			size <<= 20;		/* size in bytes */
-			return(size >> PAGE_SHIFT);
+			return size >> PAGE_SHIFT;
 		} else
 			return 0;
 	} else {

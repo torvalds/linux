@@ -98,7 +98,7 @@ unsigned int gic_get_timer_pending(void)
 
 	GICWRITE(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR), 0);
 	GICREAD(GIC_REG(VPE_OTHER, GIC_VPE_PEND), vpe_pending);
-	return (vpe_pending & GIC_VPE_PEND_TIMER_MSK);
+	return vpe_pending & GIC_VPE_PEND_TIMER_MSK;
 }
 
 void gic_bind_eic_interrupt(int irq, int set)

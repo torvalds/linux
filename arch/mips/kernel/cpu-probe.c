@@ -140,7 +140,7 @@ static inline unsigned long cpu_get_fpu_id(void)
  */
 static inline int __cpu_has_fpu(void)
 {
-	return ((cpu_get_fpu_id() & FPIR_IMP_MASK) != FPIR_IMP_NONE);
+	return (cpu_get_fpu_id() & FPIR_IMP_MASK) != FPIR_IMP_NONE;
 }
 
 static inline unsigned long cpu_get_msa_id(void)
