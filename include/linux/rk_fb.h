@@ -238,6 +238,11 @@ typedef enum {
 	SCREEN_UNPREPARE_DDR_CHANGE,
 } screen_status;
 
+enum {
+	DISPLAY_POLICY_SDK = 0,
+	DISPLAY_POLICY_BOX,
+};
+
 struct rk_fb_rgb {
 	struct fb_bitfield red;
 	struct fb_bitfield green;
@@ -620,6 +625,7 @@ struct rk_fb_par {
 
 struct rk_fb {
 	int disp_mode;
+	int disp_policy;
 	struct rk29fb_info *mach_info;
 	struct fb_info *fb[RK_MAX_FB_SUPPORT*2];
 	int num_fb;

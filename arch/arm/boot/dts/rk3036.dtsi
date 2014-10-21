@@ -596,6 +596,7 @@
 	fb: fb{
 		compatible = "rockchip,rk-fb";
 		rockchip,disp-mode = <NO_DUAL>;
+		rockchip,disp-policy = <1>;
 	};
 
 	rk_screen: rk_screen{

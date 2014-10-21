@@ -449,7 +449,7 @@ char *get_format_string(enum data_format format, char *fmt)
 		strcpy(fmt, "XBGR888");
 		break;
 	case ABGR888:
-		strcpy(fmt, "XBGR888");
+		strcpy(fmt, "ABGR888");
 		break;
 	default:
 		strcpy(fmt, "invalid");
@@ -1538,6 +1538,7 @@ void rk_fb_free_dma_buf(struct rk_lcdc_driver *dev_drv,
 		index_buf = area_data->index_buf;
 #if defined(CONFIG_ROCKCHIP_IOMMU)
 		if (dev_drv->iommu_enabled) {
+			if (rk_fb->disp_policy != DISPLAY_POLICY_BOX)
 			ion_unmap_iommu(dev_drv->dev, rk_fb->ion_client,
 					area_data->ion_handle);
 			freed_addr[freed_index++] = area_data->smem_start;
@@ -1737,11 +1738,13 @@ static void rk_fb_update_win(struct rk_lcdc_driver *dev_drv,
 		win->g_alpha_val = reg_win_data->g_alpha_val;
 		for (i = 0; i < RK_WIN_MAX_AREA; i++) {
 			if (reg_win_data->reg_area_data[i].smem_start > 0) {
-				win->area[i].ion_hdl =
+				if (inf->disp_policy != DISPLAY_POLICY_BOX)
+					win->area[i].ion_hdl =
 					reg_win_data->reg_area_data[i].ion_handle;
 				win->area[i].smem_start =
 					reg_win_data->reg_area_data[i].smem_start;
-                                if (inf->disp_mode == DUAL) {
+                                if (inf->disp_mode == DUAL ||
+                                    inf->disp_policy == DISPLAY_POLICY_BOX) {
 				        win->area[i].xpos =
 				                reg_win_data->reg_area_data[i].xpos;
 				        win->area[i].ypos =
@@ -1838,6 +1841,9 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 		win = dev_drv->win[i];
 		win_data = rk_fb_get_win_data(regs, i);
 		if (win_data) {
+			if (rk_fb->disp_policy == DISPLAY_POLICY_BOX &&
+			     win_data->data_format == YUV420)
+				continue;
 			rk_fb_update_win(dev_drv, win, win_data);
 			win->state = 1;
 			dev_drv->ops->set_par(dev_drv, i);
@@ -1854,7 +1860,8 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 		}
 	}
 	dev_drv->ops->ovl_mgr(dev_drv, 0, 1);
-
+	if (rk_fb->disp_policy == DISPLAY_POLICY_BOX)
+		dev_drv->ops->cfg_done(dev_drv);
 	if ((rk_fb->disp_mode == DUAL)
 	    && (hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
 	    && hdmi_switch_complete) {
@@ -1904,17 +1911,26 @@ ext_win_exit:
 		wait_for_vsync = false;
 		for (i = 0; i < dev_drv->lcdc_win_num; i++) {
 			if (dev_drv->win[i]->state == 1) {
-				u32 new_start =
-				    dev_drv->win[i]->area[0].smem_start +
-				    dev_drv->win[i]->area[0].y_offset;
-				u32 reg_start = dsp_addr[i];
+				if (rk_fb->disp_policy == DISPLAY_POLICY_BOX &&
+				    (dev_drv->win[i]->format == YUV420 ||
+				     !strcmp(dev_drv->win[i]->name, "hwc"))) {
+					continue;
+				} else {
+					u32 new_start =
+					    dev_drv->win[i]->area[0].smem_start +
+					    dev_drv->win[i]->area[0].y_offset;
+					u32 reg_start = dsp_addr[i];
 
-				if (unlikely(new_start != reg_start)) {
-					wait_for_vsync = true;
-					dev_info(dev_drv->dev,
-					       "win%d:new_addr:0x%08x cur_addr:0x%08x--%d\n",
-					       i, new_start, reg_start, 101 - count);
-					break;
+					if (rk_fb->disp_policy == DISPLAY_POLICY_BOX &&
+					    new_start==0x0)
+						continue;
+					if (unlikely(new_start != reg_start)) {
+						wait_for_vsync = true;
+						dev_info(dev_drv->dev,
+						       "win%d:new_addr:0x%08x cur_addr:0x%08x--%d\n",
+						       i, new_start, reg_start, 101 - count);
+						break;
+					}
 				}
 			}
 		}
@@ -2103,9 +2119,12 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 		reg_win_data->win_id = -1;
 	}
 
-        rk_fb_get_prmry_screen(&primary_screen);
+	rk_fb_get_prmry_screen(&primary_screen);
 	for (i = 0; i < reg_win_data->area_num; i++) {
-		rk_fb_check_config_var(&win_par->area_par[i], &primary_screen);
+		if (rk_fb->disp_policy == DISPLAY_POLICY_BOX)
+			rk_fb_check_config_var(&win_par->area_par[i], screen);
+		else
+			rk_fb_check_config_var(&win_par->area_par[i], &primary_screen);
 		/* visiable pos in panel */
 		reg_win_data->reg_area_data[i].xpos = win_par->area_par[i].xpos;
 		reg_win_data->reg_area_data[i].ypos = win_par->area_par[i].ypos;
@@ -4044,6 +4063,11 @@ static int rk_fb_probe(struct platform_device *pdev)
 	} else {
 		dev_err(&pdev->dev, "no disp-mode node found!");
 		return -ENODEV;
+	}
+	
+	if (!of_property_read_u32(np, "rockchip,disp-policy", &mode)) {
+		rk_fb->disp_policy = mode;
+		pr_info("fb disp policy is %s\n", rk_fb->disp_policy ? "box":"sdk");
 	}
 
 	if (!of_property_read_u32(np, "rockchip,uboot-logo-on", &uboot_logo_on))
