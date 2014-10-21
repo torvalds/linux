@@ -588,20 +588,7 @@ static void bcm_uart_set_termios(struct uart_port *port,
  */
 static int bcm_uart_request_port(struct uart_port *port)
 {
-	unsigned int size;
-
-	size = UART_REG_SIZE;
-	if (!request_mem_region(port->mapbase, size, "bcm63xx")) {
-		dev_err(port->dev, "Memory region busy\n");
-		return -EBUSY;
-	}
-
-	port->membase = ioremap(port->mapbase, size);
-	if (!port->membase) {
-		dev_err(port->dev, "Unable to map registers\n");
-		release_mem_region(port->mapbase, size);
-		return -EBUSY;
-	}
+	/* UARTs always present */
 	return 0;
 }
 
@@ -610,8 +597,7 @@ static int bcm_uart_request_port(struct uart_port *port)
  */
 static void bcm_uart_release_port(struct uart_port *port)
 {
-	release_mem_region(port->mapbase, UART_REG_SIZE);
-	iounmap(port->membase);
+	/* Nothing to release ... */
 }
 
 /*
@@ -833,12 +819,19 @@ static int bcm_uart_probe(struct platform_device *pdev)
 	if (pdev->id < 0 || pdev->id >= BCM63XX_NR_UARTS)
 		return -EINVAL;
 
-	if (ports[pdev->id].membase)
+	port = &ports[pdev->id];
+	if (port->membase)
 		return -EBUSY;
+	memset(port, 0, sizeof(*port));
 
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res_mem)
 		return -ENODEV;
+
+	port->mapbase = res_mem->start;
+	port->membase = devm_ioremap_resource(&pdev->dev, res_mem);
+	if (IS_ERR(port->membase))
+		return PTR_ERR(port->membase);
 
 	res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res_irq)
@@ -849,10 +842,7 @@ static int bcm_uart_probe(struct platform_device *pdev)
 	if (IS_ERR(clk))
 		return -ENODEV;
 
-	port = &ports[pdev->id];
-	memset(port, 0, sizeof(*port));
 	port->iotype = UPIO_MEM;
-	port->mapbase = res_mem->start;
 	port->irq = res_irq->start;
 	port->ops = &bcm_uart_ops;
 	port->flags = UPF_BOOT_AUTOCONF;
