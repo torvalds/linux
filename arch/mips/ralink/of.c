@@ -74,19 +74,9 @@ void __init plat_mem_setup(void)
 
 static int __init plat_of_setup(void)
 {
-	static struct of_device_id of_ids[3];
-	int len = sizeof(of_ids[0].compatible);
+	__dt_register_buses(soc_info.compatible, "palmbus");
 
-	if (!of_have_populated_dt())
-		panic("device tree not present");
-
-	strlcpy(of_ids[0].compatible, soc_info.compatible, len);
-	strlcpy(of_ids[1].compatible, "palmbus", len);
-
-	if (of_platform_populate(NULL, of_ids, NULL, NULL))
-		panic("failed to populate DT");
-
-	/* make sure ithat the reset controller is setup early */
+	/* make sure that the reset controller is setup early */
 	ralink_rst_init();
 
 	return 0;
