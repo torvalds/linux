@@ -65,6 +65,12 @@
 			0x284 (PIN_INPUT_SLEW | MUX_MODE0) /* usb2_drvvbus */
 		>;
 	};
+
+	tps65917_pins_default: tps65917_pins_default {
+		pinctrl-single,pins = <
+			0x424 (PIN_INPUT_PULLUP | MUX_MODE1) /* wakeup3.sys_nirq1 */
+		>;
+	};
 };
 
 &i2c1 {
@@ -76,6 +82,9 @@
 	tps65917: tps65917@58 {
 		compatible = "ti,tps65917";
 		reg = <0x58>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&tps65917_pins_default>;
 
 		interrupts = <GIC_SPI 2 IRQ_TYPE_NONE>;  /* IRQ_SYS_1N */
 		interrupt-parent = <&gic>;
