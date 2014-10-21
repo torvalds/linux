@@ -3341,7 +3341,6 @@ static struct platform_driver mmcc_apq8084_driver = {
 	.remove		= mmcc_apq8084_remove,
 	.driver		= {
 		.name	= "mmcc-apq8084",
-		.owner	= THIS_MODULE,
 		.of_match_table = mmcc_apq8084_match_table,
 	},
 };

@@ -59,10 +59,6 @@ static int uas_use_uas_driver(struct usb_interface *intf,
 	unsigned long flags = id->driver_info;
 	int r, alt;
 
-	usb_stor_adjust_quirks(udev, &flags);
-
-	if (flags & US_FL_IGNORE_UAS)
-		return 0;
 
 	alt = uas_find_uas_alt_setting(intf);
 	if (alt < 0)
@@ -71,6 +67,29 @@ static int uas_use_uas_driver(struct usb_interface *intf,
 	r = uas_find_endpoints(&intf->altsetting[alt], eps);
 	if (r < 0)
 		return 0;
+
+	/*
+	 * ASM1051 and older ASM1053 devices have the same usb-id, and UAS is
+	 * broken on the ASM1051, use the number of streams to differentiate.
+	 * New ASM1053-s also support 32 streams, but have a different prod-id.
+	 */
+	if (le16_to_cpu(udev->descriptor.idVendor) == 0x174c &&
+			le16_to_cpu(udev->descriptor.idProduct) == 0x55aa) {
+		if (udev->speed < USB_SPEED_SUPER) {
+			/* No streams info, assume ASM1051 */
+			flags |= US_FL_IGNORE_UAS;
+		} else if (usb_ss_max_streams(&eps[1]->ss_ep_comp) == 32) {
+			flags |= US_FL_IGNORE_UAS;
+		}
+	}
+
+	usb_stor_adjust_quirks(udev, &flags);
+
+	if (flags & US_FL_IGNORE_UAS) {
+		dev_warn(&udev->dev,
+			"UAS is blacklisted for this device, using usb-storage instead\n");
+		return 0;
+	}
 
 	if (udev->bus->sg_tablesize == 0) {
 		dev_warn(&udev->dev,

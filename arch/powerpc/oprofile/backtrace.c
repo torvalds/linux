@@ -12,6 +12,7 @@
 #include <asm/processor.h>
 #include <asm/uaccess.h>
 #include <asm/compat.h>
+#include <asm/oprofile_impl.h>
 
 #define STACK_SP(STACK)		*(STACK)
 

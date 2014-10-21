@@ -7,6 +7,7 @@
 #include <linux/nfsacl.h>
 
 #include "internal.h"
+#include "nfs3_fs.h"
 
 #define NFSDBG_FACILITY	NFSDBG_PROC
 
@@ -129,7 +130,10 @@ static int __nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
 		.rpc_argp	= &args,
 		.rpc_resp	= &fattr,
 	};
-	int status;
+	int status = 0;
+
+	if (acl == NULL && (!S_ISDIR(inode->i_mode) || dfacl == NULL))
+		goto out;
 
 	status = -EOPNOTSUPP;
 	if (!nfs_server_capable(inode, NFS_CAP_ACLS))

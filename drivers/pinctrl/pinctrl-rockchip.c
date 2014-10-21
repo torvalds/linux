@@ -438,7 +438,7 @@ static int rockchip_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 	int reg, ret, mask;
 	unsigned long flags;
 	u8 bit;
-	u32 data;
+	u32 data, rmask;
 
 	if (iomux_num > 3)
 		return -EINVAL;
@@ -478,8 +478,9 @@ static int rockchip_set_mux(struct rockchip_pin_bank *bank, int pin, int mux)
 	spin_lock_irqsave(&bank->slock, flags);
 
 	data = (mask << (bit + 16));
+	rmask = data | (data >> 16);
 	data |= (mux & mask) << bit;
-	ret = regmap_write(regmap, reg, data);
+	ret = regmap_update_bits(regmap, reg, rmask, data);
 
 	spin_unlock_irqrestore(&bank->slock, flags);
 
@@ -634,7 +635,7 @@ static int rk3288_set_drive(struct rockchip_pin_bank *bank, int pin_num,
 	struct regmap *regmap;
 	unsigned long flags;
 	int reg, ret, i;
-	u32 data;
+	u32 data, rmask;
 	u8 bit;
 
 	rk3288_calc_drv_reg_and_bit(bank, pin_num, &regmap, &reg, &bit);
@@ -657,9 +658,10 @@ static int rk3288_set_drive(struct rockchip_pin_bank *bank, int pin_num,
 
 	/* enable the write to the equivalent lower bits */
 	data = ((1 << RK3288_DRV_BITS_PER_PIN) - 1) << (bit + 16);
+	rmask = data | (data >> 16);
 	data |= (ret << bit);
 
-	ret = regmap_write(regmap, reg, data);
+	ret = regmap_update_bits(regmap, reg, rmask, data);
 	spin_unlock_irqrestore(&bank->slock, flags);
 
 	return ret;
@@ -722,7 +724,7 @@ static int rockchip_set_pull(struct rockchip_pin_bank *bank,
 	int reg, ret;
 	unsigned long flags;
 	u8 bit;
-	u32 data;
+	u32 data, rmask;
 
 	dev_dbg(info->dev, "setting pull of GPIO%d-%d to %d\n",
 		 bank->bank_num, pin_num, pull);
@@ -750,6 +752,7 @@ static int rockchip_set_pull(struct rockchip_pin_bank *bank,
 
 		/* enable the write to the equivalent lower bits */
 		data = ((1 << RK3188_PULL_BITS_PER_PIN) - 1) << (bit + 16);
+		rmask = data | (data >> 16);
 
 		switch (pull) {
 		case PIN_CONFIG_BIAS_DISABLE:
@@ -770,7 +773,7 @@ static int rockchip_set_pull(struct rockchip_pin_bank *bank,
 			return -EINVAL;
 		}
 
-		ret = regmap_write(regmap, reg, data);
+		ret = regmap_update_bits(regmap, reg, rmask, data);
 
 		spin_unlock_irqrestore(&bank->slock, flags);
 		break;
@@ -813,8 +816,8 @@ static int rockchip_pmx_get_groups(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int rockchip_pmx_enable(struct pinctrl_dev *pctldev, unsigned selector,
-							    unsigned group)
+static int rockchip_pmx_set(struct pinctrl_dev *pctldev, unsigned selector,
+			    unsigned group)
 {
 	struct rockchip_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
 	const unsigned int *pins = info->groups[group].pins;
@@ -889,7 +892,7 @@ static const struct pinmux_ops rockchip_pmx_ops = {
 	.get_functions_count	= rockchip_pmx_get_funcs_count,
 	.get_function_name	= rockchip_pmx_get_func_name,
 	.get_function_groups	= rockchip_pmx_get_groups,
-	.enable			= rockchip_pmx_enable,
+	.set_mux		= rockchip_pmx_set,
 	.gpio_set_direction	= rockchip_pmx_gpio_set_direction,
 };
 

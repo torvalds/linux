@@ -586,17 +586,12 @@ isert_connect_request(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 	init_completion(&isert_conn->conn_wait);
 	init_completion(&isert_conn->conn_wait_comp_err);
 	kref_init(&isert_conn->conn_kref);
-	kref_get(&isert_conn->conn_kref);
 	mutex_init(&isert_conn->conn_mutex);
 	spin_lock_init(&isert_conn->conn_lock);
 	INIT_LIST_HEAD(&isert_conn->conn_fr_pool);
 
 	cma_id->context = isert_conn;
 	isert_conn->conn_cm_id = cma_id;
-	isert_conn->responder_resources = event->param.conn.responder_resources;
-	isert_conn->initiator_depth = event->param.conn.initiator_depth;
-	pr_debug("Using responder_resources: %u initiator_depth: %u\n",
-		 isert_conn->responder_resources, isert_conn->initiator_depth);
 
 	isert_conn->login_buf = kzalloc(ISCSI_DEF_MAX_RECV_SEG_LEN +
 					ISER_RX_LOGIN_SIZE, GFP_KERNEL);
@@ -642,6 +637,12 @@ isert_connect_request(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 		ret = PTR_ERR(device);
 		goto out_rsp_dma_map;
 	}
+
+	/* Set max inflight RDMA READ requests */
+	isert_conn->initiator_depth = min_t(u8,
+				event->param.conn.initiator_depth,
+				device->dev_attr.max_qp_init_rd_atom);
+	pr_debug("Using initiator_depth: %u\n", isert_conn->initiator_depth);
 
 	isert_conn->conn_device = device;
 	isert_conn->conn_pd = ib_alloc_pd(isert_conn->conn_device->ib_device);
@@ -746,7 +747,9 @@ isert_connect_release(struct isert_conn *isert_conn)
 static void
 isert_connected_handler(struct rdma_cm_id *cma_id)
 {
-	return;
+	struct isert_conn *isert_conn = cma_id->context;
+
+	kref_get(&isert_conn->conn_kref);
 }
 
 static void
@@ -798,7 +801,6 @@ isert_disconnect_work(struct work_struct *work)
 
 wake_up:
 	complete(&isert_conn->conn_wait);
-	isert_put_conn(isert_conn);
 }
 
 static void
@@ -2607,58 +2609,45 @@ isert_fast_reg_mr(struct isert_conn *isert_conn,
 	return ret;
 }
 
-static inline enum ib_t10_dif_type
-se2ib_prot_type(enum target_prot_type prot_type)
+static inline void
+isert_set_dif_domain(struct se_cmd *se_cmd, struct ib_sig_attrs *sig_attrs,
+		     struct ib_sig_domain *domain)
 {
-	switch (prot_type) {
-	case TARGET_DIF_TYPE0_PROT:
-		return IB_T10DIF_NONE;
-	case TARGET_DIF_TYPE1_PROT:
-		return IB_T10DIF_TYPE1;
-	case TARGET_DIF_TYPE2_PROT:
-		return IB_T10DIF_TYPE2;
-	case TARGET_DIF_TYPE3_PROT:
-		return IB_T10DIF_TYPE3;
-	default:
-		return IB_T10DIF_NONE;
-	}
-}
+	domain->sig_type = IB_SIG_TYPE_T10_DIF;
+	domain->sig.dif.bg_type = IB_T10DIF_CRC;
+	domain->sig.dif.pi_interval = se_cmd->se_dev->dev_attrib.block_size;
+	domain->sig.dif.ref_tag = se_cmd->reftag_seed;
+	/*
+	 * At the moment we hard code those, but if in the future
+	 * the target core would like to use it, we will take it
+	 * from se_cmd.
+	 */
+	domain->sig.dif.apptag_check_mask = 0xffff;
+	domain->sig.dif.app_escape = true;
+	domain->sig.dif.ref_escape = true;
+	if (se_cmd->prot_type == TARGET_DIF_TYPE1_PROT ||
+	    se_cmd->prot_type == TARGET_DIF_TYPE2_PROT)
+		domain->sig.dif.ref_remap = true;
+};
 
 static int
 isert_set_sig_attrs(struct se_cmd *se_cmd, struct ib_sig_attrs *sig_attrs)
 {
-	enum ib_t10_dif_type ib_prot_type = se2ib_prot_type(se_cmd->prot_type);
-
-	sig_attrs->mem.sig_type = IB_SIG_TYPE_T10_DIF;
-	sig_attrs->wire.sig_type = IB_SIG_TYPE_T10_DIF;
-	sig_attrs->mem.sig.dif.pi_interval =
-				se_cmd->se_dev->dev_attrib.block_size;
-	sig_attrs->wire.sig.dif.pi_interval =
-				se_cmd->se_dev->dev_attrib.block_size;
-
 	switch (se_cmd->prot_op) {
 	case TARGET_PROT_DIN_INSERT:
 	case TARGET_PROT_DOUT_STRIP:
-		sig_attrs->mem.sig.dif.type = IB_T10DIF_NONE;
-		sig_attrs->wire.sig.dif.type = ib_prot_type;
-		sig_attrs->wire.sig.dif.bg_type = IB_T10DIF_CRC;
-		sig_attrs->wire.sig.dif.ref_tag = se_cmd->reftag_seed;
+		sig_attrs->mem.sig_type = IB_SIG_TYPE_NONE;
+		isert_set_dif_domain(se_cmd, sig_attrs, &sig_attrs->wire);
 		break;
 	case TARGET_PROT_DOUT_INSERT:
 	case TARGET_PROT_DIN_STRIP:
-		sig_attrs->mem.sig.dif.type = ib_prot_type;
-		sig_attrs->mem.sig.dif.bg_type = IB_T10DIF_CRC;
-		sig_attrs->mem.sig.dif.ref_tag = se_cmd->reftag_seed;
-		sig_attrs->wire.sig.dif.type = IB_T10DIF_NONE;
+		sig_attrs->wire.sig_type = IB_SIG_TYPE_NONE;
+		isert_set_dif_domain(se_cmd, sig_attrs, &sig_attrs->mem);
 		break;
 	case TARGET_PROT_DIN_PASS:
 	case TARGET_PROT_DOUT_PASS:
-		sig_attrs->mem.sig.dif.type = ib_prot_type;
-		sig_attrs->mem.sig.dif.bg_type = IB_T10DIF_CRC;
-		sig_attrs->mem.sig.dif.ref_tag = se_cmd->reftag_seed;
-		sig_attrs->wire.sig.dif.type = ib_prot_type;
-		sig_attrs->wire.sig.dif.bg_type = IB_T10DIF_CRC;
-		sig_attrs->wire.sig.dif.ref_tag = se_cmd->reftag_seed;
+		isert_set_dif_domain(se_cmd, sig_attrs, &sig_attrs->wire);
+		isert_set_dif_domain(se_cmd, sig_attrs, &sig_attrs->mem);
 		break;
 	default:
 		pr_err("Unsupported PI operation %d\n", se_cmd->prot_op);
@@ -3067,7 +3056,6 @@ isert_rdma_accept(struct isert_conn *isert_conn)
 	int ret;
 
 	memset(&cp, 0, sizeof(struct rdma_conn_param));
-	cp.responder_resources = isert_conn->responder_resources;
 	cp.initiator_depth = isert_conn->initiator_depth;
 	cp.retry_count = 7;
 	cp.rnr_retry_count = 7;
@@ -3215,7 +3203,7 @@ static void isert_wait_conn(struct iscsi_conn *conn)
 	pr_debug("isert_wait_conn: Starting \n");
 
 	mutex_lock(&isert_conn->conn_mutex);
-	if (isert_conn->conn_cm_id) {
+	if (isert_conn->conn_cm_id && !isert_conn->disconnect) {
 		pr_debug("Calling rdma_disconnect from isert_wait_conn\n");
 		rdma_disconnect(isert_conn->conn_cm_id);
 	}
@@ -3234,6 +3222,7 @@ static void isert_wait_conn(struct iscsi_conn *conn)
 	wait_for_completion(&isert_conn->conn_wait_comp_err);
 
 	wait_for_completion(&isert_conn->conn_wait);
+	isert_put_conn(isert_conn);
 }
 
 static void isert_free_conn(struct iscsi_conn *conn)

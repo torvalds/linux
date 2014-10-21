@@ -217,7 +217,7 @@ void hugetlb_cgroup_uncharge_page(int idx, unsigned long nr_pages,
 
 	if (hugetlb_cgroup_disabled())
 		return;
-	VM_BUG_ON(!spin_is_locked(&hugetlb_lock));
+	lockdep_assert_held(&hugetlb_lock);
 	h_cg = hugetlb_cgroup_from_page(page);
 	if (unlikely(!h_cg))
 		return;

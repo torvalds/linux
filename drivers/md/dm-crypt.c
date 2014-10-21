@@ -526,29 +526,26 @@ static int crypt_iv_lmk_one(struct crypt_config *cc, u8 *iv,
 			    u8 *data)
 {
 	struct iv_lmk_private *lmk = &cc->iv_gen_private.lmk;
-	struct {
-		struct shash_desc desc;
-		char ctx[crypto_shash_descsize(lmk->hash_tfm)];
-	} sdesc;
+	SHASH_DESC_ON_STACK(desc, lmk->hash_tfm);
 	struct md5_state md5state;
 	__le32 buf[4];
 	int i, r;
 
-	sdesc.desc.tfm = lmk->hash_tfm;
-	sdesc.desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+	desc->tfm = lmk->hash_tfm;
+	desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
-	r = crypto_shash_init(&sdesc.desc);
+	r = crypto_shash_init(desc);
 	if (r)
 		return r;
 
 	if (lmk->seed) {
-		r = crypto_shash_update(&sdesc.desc, lmk->seed, LMK_SEED_SIZE);
+		r = crypto_shash_update(desc, lmk->seed, LMK_SEED_SIZE);
 		if (r)
 			return r;
 	}
 
 	/* Sector is always 512B, block size 16, add data of blocks 1-31 */
-	r = crypto_shash_update(&sdesc.desc, data + 16, 16 * 31);
+	r = crypto_shash_update(desc, data + 16, 16 * 31);
 	if (r)
 		return r;
 
@@ -557,12 +554,12 @@ static int crypt_iv_lmk_one(struct crypt_config *cc, u8 *iv,
 	buf[1] = cpu_to_le32((((u64)dmreq->iv_sector >> 32) & 0x00FFFFFF) | 0x80000000);
 	buf[2] = cpu_to_le32(4024);
 	buf[3] = 0;
-	r = crypto_shash_update(&sdesc.desc, (u8 *)buf, sizeof(buf));
+	r = crypto_shash_update(desc, (u8 *)buf, sizeof(buf));
 	if (r)
 		return r;
 
 	/* No MD5 padding here */
-	r = crypto_shash_export(&sdesc.desc, &md5state);
+	r = crypto_shash_export(desc, &md5state);
 	if (r)
 		return r;
 
@@ -679,10 +676,7 @@ static int crypt_iv_tcw_whitening(struct crypt_config *cc,
 	struct iv_tcw_private *tcw = &cc->iv_gen_private.tcw;
 	u64 sector = cpu_to_le64((u64)dmreq->iv_sector);
 	u8 buf[TCW_WHITENING_SIZE];
-	struct {
-		struct shash_desc desc;
-		char ctx[crypto_shash_descsize(tcw->crc32_tfm)];
-	} sdesc;
+	SHASH_DESC_ON_STACK(desc, tcw->crc32_tfm);
 	int i, r;
 
 	/* xor whitening with sector number */
@@ -691,16 +685,16 @@ static int crypt_iv_tcw_whitening(struct crypt_config *cc,
 	crypto_xor(&buf[8], (u8 *)&sector, 8);
 
 	/* calculate crc32 for every 32bit part and xor it */
-	sdesc.desc.tfm = tcw->crc32_tfm;
-	sdesc.desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+	desc->tfm = tcw->crc32_tfm;
+	desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 	for (i = 0; i < 4; i++) {
-		r = crypto_shash_init(&sdesc.desc);
+		r = crypto_shash_init(desc);
 		if (r)
 			goto out;
-		r = crypto_shash_update(&sdesc.desc, &buf[i * 4], 4);
+		r = crypto_shash_update(desc, &buf[i * 4], 4);
 		if (r)
 			goto out;
-		r = crypto_shash_final(&sdesc.desc, &buf[i * 4]);
+		r = crypto_shash_final(desc, &buf[i * 4]);
 		if (r)
 			goto out;
 	}
@@ -1688,6 +1682,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	unsigned int key_size, opt_params;
 	unsigned long long tmpll;
 	int ret;
+	size_t iv_size_padding;
 	struct dm_arg_set as;
 	const char *opt_string;
 	char dummy;
@@ -1724,20 +1719,32 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	cc->dmreq_start = sizeof(struct ablkcipher_request);
 	cc->dmreq_start += crypto_ablkcipher_reqsize(any_tfm(cc));
-	cc->dmreq_start = ALIGN(cc->dmreq_start, crypto_tfm_ctx_alignment());
-	cc->dmreq_start += crypto_ablkcipher_alignmask(any_tfm(cc)) &
-			   ~(crypto_tfm_ctx_alignment() - 1);
+	cc->dmreq_start = ALIGN(cc->dmreq_start, __alignof__(struct dm_crypt_request));
+
+	if (crypto_ablkcipher_alignmask(any_tfm(cc)) < CRYPTO_MINALIGN) {
+		/* Allocate the padding exactly */
+		iv_size_padding = -(cc->dmreq_start + sizeof(struct dm_crypt_request))
+				& crypto_ablkcipher_alignmask(any_tfm(cc));
+	} else {
+		/*
+		 * If the cipher requires greater alignment than kmalloc
+		 * alignment, we don't know the exact position of the
+		 * initialization vector. We must assume worst case.
+		 */
+		iv_size_padding = crypto_ablkcipher_alignmask(any_tfm(cc));
+	}
 
 	cc->req_pool = mempool_create_kmalloc_pool(MIN_IOS, cc->dmreq_start +
-			sizeof(struct dm_crypt_request) + cc->iv_size);
+			sizeof(struct dm_crypt_request) + iv_size_padding + cc->iv_size);
 	if (!cc->req_pool) {
 		ti->error = "Cannot allocate crypt request mempool";
 		goto bad;
 	}
 
 	cc->per_bio_data_size = ti->per_bio_data_size =
-				sizeof(struct dm_crypt_io) + cc->dmreq_start +
-				sizeof(struct dm_crypt_request) + cc->iv_size;
+		ALIGN(sizeof(struct dm_crypt_io) + cc->dmreq_start +
+		      sizeof(struct dm_crypt_request) + iv_size_padding + cc->iv_size,
+		      ARCH_KMALLOC_MINALIGN);
 
 	cc->page_pool = mempool_create_page_pool(MIN_POOL_PAGES, 0);
 	if (!cc->page_pool) {

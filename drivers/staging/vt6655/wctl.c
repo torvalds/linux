@@ -105,7 +105,8 @@ bool WCTLbIsDuplicate(PSCache pCache, PS802_11Header pMACHeader)
  * Return Value: index number in Defragment Database
  *
  */
-unsigned int WCTLuSearchDFCB(PSDevice pDevice, PS802_11Header pMACHeader)
+unsigned int WCTLuSearchDFCB(struct vnt_private *pDevice,
+			     PS802_11Header pMACHeader)
 {
 	unsigned int ii;
 
@@ -133,7 +134,7 @@ unsigned int WCTLuSearchDFCB(PSDevice pDevice, PS802_11Header pMACHeader)
  * Return Value: index number in Defragment Database
  *
  */
-unsigned int WCTLuInsertDFCB(PSDevice pDevice, PS802_11Header pMACHeader)
+unsigned int WCTLuInsertDFCB(struct vnt_private *pDevice, PS802_11Header pMACHeader)
 {
 	unsigned int ii;
 
@@ -169,7 +170,8 @@ unsigned int WCTLuInsertDFCB(PSDevice pDevice, PS802_11Header pMACHeader)
  * Return Value: true if it is valid fragment packet and we have resource to defragment; otherwise false
  *
  */
-bool WCTLbHandleFragment(PSDevice pDevice, PS802_11Header pMACHeader, unsigned int cbFrameLength, bool bWEP, bool bExtIV)
+bool WCTLbHandleFragment(struct vnt_private *pDevice, PS802_11Header pMACHeader,
+			 unsigned int cbFrameLength, bool bWEP, bool bExtIV)
 {
 	unsigned int uHeaderSize;
 

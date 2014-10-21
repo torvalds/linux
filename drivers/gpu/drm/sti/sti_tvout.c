@@ -591,8 +591,8 @@ static int sti_tvout_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	tvout->regs = devm_ioremap_nocache(dev, res->start, resource_size(res));
-	if (IS_ERR(tvout->regs))
-		return PTR_ERR(tvout->regs);
+	if (!tvout->regs)
+		return -ENOMEM;
 
 	/* get reset resources */
 	tvout->reset = devm_reset_control_get(dev, "tvout");
@@ -624,7 +624,7 @@ static int sti_tvout_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id tvout_of_match[] = {
+static const struct of_device_id tvout_of_match[] = {
 	{ .compatible = "st,stih416-tvout", },
 	{ .compatible = "st,stih407-tvout", },
 	{ /* end node */ }

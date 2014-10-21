@@ -26,6 +26,7 @@
 #include <linux/dlm.h>
 #include <linux/dlm_plock.h>
 #include <linux/aio.h>
+#include <linux/delay.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -913,26 +914,6 @@ out_uninit:
 #ifdef CONFIG_GFS2_FS_LOCKING_DLM
 
 /**
- * gfs2_setlease - acquire/release a file lease
- * @file: the file pointer
- * @arg: lease type
- * @fl: file lock
- *
- * We don't currently have a way to enforce a lease across the whole
- * cluster; until we do, disable leases (by just returning -EINVAL),
- * unless the administrator has requested purely local locking.
- *
- * Locking: called under i_lock
- *
- * Returns: errno
- */
-
-static int gfs2_setlease(struct file *file, long arg, struct file_lock **fl)
-{
-	return -EINVAL;
-}
-
-/**
  * gfs2_lock - acquire/release a posix lock on a file
  * @file: the file pointer
  * @cmd: either modify or retrieve lock state, possibly wait
@@ -979,9 +960,10 @@ static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 	unsigned int state;
 	int flags;
 	int error = 0;
+	int sleeptime;
 
 	state = (fl->fl_type == F_WRLCK) ? LM_ST_EXCLUSIVE : LM_ST_SHARED;
-	flags = (IS_SETLKW(cmd) ? 0 : LM_FLAG_TRY) | GL_EXACT;
+	flags = (IS_SETLKW(cmd) ? 0 : LM_FLAG_TRY_1CB) | GL_EXACT;
 
 	mutex_lock(&fp->f_fl_mutex);
 
@@ -1001,7 +983,14 @@ static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 		gfs2_holder_init(gl, state, flags, fl_gh);
 		gfs2_glock_put(gl);
 	}
-	error = gfs2_glock_nq(fl_gh);
+	for (sleeptime = 1; sleeptime <= 4; sleeptime <<= 1) {
+		error = gfs2_glock_nq(fl_gh);
+		if (error != GLR_TRYFAILED)
+			break;
+		fl_gh->gh_flags = LM_FLAG_TRY | GL_EXACT;
+		fl_gh->gh_error = 0;
+		msleep(sleeptime);
+	}
 	if (error) {
 		gfs2_holder_uninit(fl_gh);
 		if (error == GLR_TRYFAILED)
@@ -1024,7 +1013,7 @@ static void do_unflock(struct file *file, struct file_lock *fl)
 	mutex_lock(&fp->f_fl_mutex);
 	flock_lock_file_wait(file, fl);
 	if (fl_gh->gh_gl) {
-		gfs2_glock_dq_wait(fl_gh);
+		gfs2_glock_dq(fl_gh);
 		gfs2_holder_uninit(fl_gh);
 	}
 	mutex_unlock(&fp->f_fl_mutex);
@@ -1069,7 +1058,7 @@ const struct file_operations gfs2_file_fops = {
 	.flock		= gfs2_flock,
 	.splice_read	= generic_file_splice_read,
 	.splice_write	= iter_file_splice_write,
-	.setlease	= gfs2_setlease,
+	.setlease	= simple_nosetlease,
 	.fallocate	= gfs2_fallocate,
 };
 

@@ -149,15 +149,14 @@ static int hmac_sha256(u8 *key, u8 ksize, char *plaintext, u8 psize, u8 *output)
 	if (ret) {
 		BT_DBG("crypto_ahash_setkey failed: err %d", ret);
 	} else {
-		struct {
-			struct shash_desc shash;
-			char ctx[crypto_shash_descsize(tfm)];
-		} desc;
+		char desc[sizeof(struct shash_desc) +
+			crypto_shash_descsize(tfm)] CRYPTO_MINALIGN_ATTR;
+		struct shash_desc *shash = (struct shash_desc *)desc;
 
-		desc.shash.tfm = tfm;
-		desc.shash.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+		shash->tfm = tfm;
+		shash->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
-		ret = crypto_shash_digest(&desc.shash, plaintext, psize,
+		ret = crypto_shash_digest(shash, plaintext, psize,
 					  output);
 	}
 

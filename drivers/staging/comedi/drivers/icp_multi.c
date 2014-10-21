@@ -107,7 +107,6 @@ static const char range_codes_analog[] = { 0x00, 0x20, 0x10, 0x30 };
 */
 
 struct icp_multi_private {
-	char valid;		/*  card is usable */
 	unsigned int AdcCmdStatus;	/*  ADC Command/Status register */
 	unsigned int DacCmdStatus;	/*  DAC Command/Status register */
 	unsigned int IntEnable;	/*  Interrupt Enable register */
@@ -116,7 +115,6 @@ struct icp_multi_private {
 	unsigned char act_chanlist_len;	/*  len of scanlist */
 	unsigned char act_chanlist_pos;	/*  actual position in MUX list */
 	unsigned int *ai_chanlist;	/*  actaul chanlist */
-	unsigned short ao_data[4];	/*  data output buffer */
 	unsigned int do_data;	/*  Remember digital output data */
 };
 
@@ -240,14 +238,15 @@ static int icp_multi_ao_eoc(struct comedi_device *dev,
 	return -EBUSY;
 }
 
-static int icp_multi_insn_write_ao(struct comedi_device *dev,
+static int icp_multi_ao_insn_write(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn,
 				   unsigned int *data)
 {
 	struct icp_multi_private *devpriv = dev->private;
-	int n, chan, range;
-	int ret;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
+	int i;
 
 	/*  Disable D/A conversion ready interrupt */
 	devpriv->IntEnable &= ~DAC_READY;
@@ -256,10 +255,6 @@ static int icp_multi_insn_write_ao(struct comedi_device *dev,
 	/*  Clear interrupt status */
 	devpriv->IntStatus |= DAC_READY;
 	writew(devpriv->IntStatus, dev->mmio + ICP_MULTI_INT_STAT);
-
-	/*  Get channel number and range */
-	chan = CR_CHAN(insn->chanspec);
-	range = CR_RANGE(insn->chanspec);
 
 	/*  Set up range and channel data */
 	/*  Bit 4 = 1 : Bipolar */
@@ -272,7 +267,10 @@ static int icp_multi_insn_write_ao(struct comedi_device *dev,
 
 	writew(devpriv->DacCmdStatus, dev->mmio + ICP_MULTI_DAC_CSR);
 
-	for (n = 0; n < insn->n; n++) {
+	for (i = 0; i < insn->n; i++) {
+		unsigned int val = data[i];
+		int ret;
+
 		/*  Wait for analogue output data register to be
 		 *  ready for new data, or get fed up waiting */
 		ret = comedi_timeout(dev, s, insn, icp_multi_ao_eoc, 0);
@@ -287,42 +285,20 @@ static int icp_multi_insn_write_ao(struct comedi_device *dev,
 			writew(devpriv->IntStatus,
 			       dev->mmio + ICP_MULTI_INT_STAT);
 
-			/*  Clear data received */
-			devpriv->ao_data[chan] = 0;
-
 			return ret;
 		}
 
-		/*  Write data to analogue output data register */
-		writew(data[n], dev->mmio + ICP_MULTI_AO);
+		writew(val, dev->mmio + ICP_MULTI_AO);
 
 		/*  Set DAC_ST bit to write the data to selected channel */
 		devpriv->DacCmdStatus |= DAC_ST;
 		writew(devpriv->DacCmdStatus, dev->mmio + ICP_MULTI_DAC_CSR);
 		devpriv->DacCmdStatus &= ~DAC_ST;
 
-		/*  Save analogue output data */
-		devpriv->ao_data[chan] = data[n];
+		s->readback[chan] = val;
 	}
 
-	return n;
-}
-
-static int icp_multi_insn_read_ao(struct comedi_device *dev,
-				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
-{
-	struct icp_multi_private *devpriv = dev->private;
-	int n, chan;
-
-	/*  Get channel number */
-	chan = CR_CHAN(insn->chanspec);
-
-	/*  Read analogue outputs */
-	for (n = 0; n < insn->n; n++)
-		data[n] = devpriv->ao_data[chan];
-
-	return n;
+	return insn->n;
 }
 
 static int icp_multi_insn_bits_di(struct comedi_device *dev,
@@ -518,8 +494,12 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 	s->maxdata = 0x0fff;
 	s->len_chanlist = 4;
 	s->range_table = &range_analog;
-	s->insn_write = icp_multi_insn_write_ao;
-	s->insn_read = icp_multi_insn_read_ao;
+	s->insn_write = icp_multi_ao_insn_write;
+	s->insn_read = comedi_readback_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	s = &dev->subdevices[2];
 	s->type = COMEDI_SUBD_DI;
@@ -549,23 +529,14 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 	s->insn_read = icp_multi_insn_read_ctr;
 	s->insn_write = icp_multi_insn_write_ctr;
 
-	devpriv->valid = 1;
-
 	return 0;
 }
 
 static void icp_multi_detach(struct comedi_device *dev)
 {
-	struct icp_multi_private *devpriv = dev->private;
-
-	if (devpriv)
-		if (devpriv->valid)
-			icp_multi_reset(dev);
-	if (dev->irq)
-		free_irq(dev->irq, dev);
 	if (dev->mmio)
-		iounmap(dev->mmio);
-	comedi_pci_disable(dev);
+		icp_multi_reset(dev);
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver icp_multi_driver = {

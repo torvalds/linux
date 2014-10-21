@@ -127,7 +127,7 @@ config SECCOMP
 
 endmenu
 
-menu "Advanced setup"
+menu "Kernel features"
 
 config ADVANCED_OPTIONS
 	bool "Prompt for advanced kernel configuration options"
@@ -248,9 +248,9 @@ config MICROBLAZE_64K_PAGES
 
 endchoice
 
-endmenu
-
 source "mm/Kconfig"
+
+endmenu
 
 menu "Executable file formats"
 

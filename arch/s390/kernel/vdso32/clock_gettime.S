@@ -21,19 +21,21 @@ __kernel_clock_gettime:
 	.cfi_startproc
 	basr	%r5,0
 0:	al	%r5,21f-0b(%r5)			/* get &_vdso_data */
-	chi	%r2,__CLOCK_REALTIME
+	chi	%r2,__CLOCK_REALTIME_COARSE
 	je	10f
+	chi	%r2,__CLOCK_REALTIME
+	je	11f
+	chi	%r2,__CLOCK_MONOTONIC_COARSE
+	je	9f
 	chi	%r2,__CLOCK_MONOTONIC
 	jne	19f
 
 	/* CLOCK_MONOTONIC */
-	ltr	%r3,%r3
-	jz	9f				/* tp == NULL */
 1:	l	%r4,__VDSO_UPD_COUNT+4(%r5)	/* load update counter */
 	tml	%r4,0x0001			/* pending update ? loop */
 	jnz	1b
-	stck	24(%r15)			/* Store TOD clock */
-	lm	%r0,%r1,24(%r15)
+	stcke	24(%r15)			/* Store TOD clock */
+	lm	%r0,%r1,25(%r15)
 	s	%r0,__VDSO_XTIME_STAMP(%r5)	/* TOD - cycle_last */
 	sl	%r1,__VDSO_XTIME_STAMP+4(%r5)
 	brc	3,2f
@@ -67,17 +69,35 @@ __kernel_clock_gettime:
 	j	6b
 8:	st	%r2,0(%r3)			/* store tp->tv_sec */
 	st	%r1,4(%r3)			/* store tp->tv_nsec */
-9:	lhi	%r2,0
+	lhi	%r2,0
 	br	%r14
 
+	/* CLOCK_MONOTONIC_COARSE */
+9:	l	%r4,__VDSO_UPD_COUNT+4(%r5)	/* load update counter */
+	tml	%r4,0x0001			/* pending update ? loop */
+	jnz	9b
+	l	%r2,__VDSO_WTOM_CRS_SEC+4(%r5)
+	l	%r1,__VDSO_WTOM_CRS_NSEC+4(%r5)
+	cl	%r4,__VDSO_UPD_COUNT+4(%r5)	/* check update counter */
+	jne	9b
+	j	8b
+
+	/* CLOCK_REALTIME_COARSE */
+10:	l	%r4,__VDSO_UPD_COUNT+4(%r5)	/* load update counter */
+	tml	%r4,0x0001			/* pending update ? loop */
+	jnz	10b
+	l	%r2,__VDSO_XTIME_CRS_SEC+4(%r5)
+	l	%r1,__VDSO_XTIME_CRS_NSEC+4(%r5)
+	cl	%r4,__VDSO_UPD_COUNT+4(%r5)	/* check update counter */
+	jne	10b
+	j	17f
+
 	/* CLOCK_REALTIME */
-10:	ltr	%r3,%r3				/* tp == NULL */
-	jz	18f
 11:	l	%r4,__VDSO_UPD_COUNT+4(%r5)	/* load update counter */
 	tml	%r4,0x0001			/* pending update ? loop */
 	jnz	11b
-	stck	24(%r15)			/* Store TOD clock */
-	lm	%r0,%r1,24(%r15)
+	stcke	24(%r15)			/* Store TOD clock */
+	lm	%r0,%r1,25(%r15)
 	s	%r0,__VDSO_XTIME_STAMP(%r5)	/* TOD - cycle_last */
 	sl	%r1,__VDSO_XTIME_STAMP+4(%r5)
 	brc	3,12f
@@ -111,7 +131,7 @@ __kernel_clock_gettime:
 	j	15b
 17:	st	%r2,0(%r3)			/* store tp->tv_sec */
 	st	%r1,4(%r3)			/* store tp->tv_nsec */
-18:	lhi	%r2,0
+	lhi	%r2,0
 	br	%r14
 
 	/* Fallback to system call */

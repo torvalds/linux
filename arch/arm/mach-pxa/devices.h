@@ -27,6 +27,9 @@ extern struct platform_device pxa25x_device_assp;
 extern struct platform_device pxa27x_device_ssp1;
 extern struct platform_device pxa27x_device_ssp2;
 extern struct platform_device pxa27x_device_ssp3;
+extern struct platform_device pxa3xx_device_ssp1;
+extern struct platform_device pxa3xx_device_ssp2;
+extern struct platform_device pxa3xx_device_ssp3;
 extern struct platform_device pxa3xx_device_ssp4;
 
 extern struct platform_device pxa25x_device_pwm0;

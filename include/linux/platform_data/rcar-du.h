@@ -14,7 +14,7 @@
 #ifndef __RCAR_DU_H__
 #define __RCAR_DU_H__
 
-#include <drm/drm_mode.h>
+#include <video/videomode.h>
 
 enum rcar_du_output {
 	RCAR_DU_OUTPUT_DPAD0,
@@ -35,7 +35,7 @@ enum rcar_du_encoder_type {
 struct rcar_du_panel_data {
 	unsigned int width_mm;		/* Panel width in mm */
 	unsigned int height_mm;		/* Panel height in mm */
-	struct drm_mode_modeinfo mode;
+	struct videomode mode;
 };
 
 struct rcar_du_connector_lvds_data {

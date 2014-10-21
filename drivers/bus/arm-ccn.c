@@ -57,6 +57,7 @@
 #define CCN_DT_PMCCNTRSR		0x0190
 #define CCN_DT_PMOVSR			0x0198
 #define CCN_DT_PMOVSR_CLR		0x01a0
+#define CCN_DT_PMOVSR_CLR__MASK				0x1f
 #define CCN_DT_PMCR			0x01a8
 #define CCN_DT_PMCR__OVFL_INTR_EN			(1 << 6)
 #define CCN_DT_PMCR__PMU_EN				(1 << 0)
@@ -586,6 +587,30 @@ static int arm_ccn_pmu_type_eq(u32 a, u32 b)
 	return 0;
 }
 
+static void arm_ccn_pmu_event_destroy(struct perf_event *event)
+{
+	struct arm_ccn *ccn = pmu_to_arm_ccn(event->pmu);
+	struct hw_perf_event *hw = &event->hw;
+
+	if (hw->idx == CCN_IDX_PMU_CYCLE_COUNTER) {
+		clear_bit(CCN_IDX_PMU_CYCLE_COUNTER, ccn->dt.pmu_counters_mask);
+	} else {
+		struct arm_ccn_component *source =
+				ccn->dt.pmu_counters[hw->idx].source;
+
+		if (CCN_CONFIG_TYPE(event->attr.config) == CCN_TYPE_XP &&
+				CCN_CONFIG_EVENT(event->attr.config) ==
+				CCN_EVENT_WATCHPOINT)
+			clear_bit(hw->config_base, source->xp.dt_cmp_mask);
+		else
+			clear_bit(hw->config_base, source->pmu_events_mask);
+		clear_bit(hw->idx, ccn->dt.pmu_counters_mask);
+	}
+
+	ccn->dt.pmu_counters[hw->idx].source = NULL;
+	ccn->dt.pmu_counters[hw->idx].event = NULL;
+}
+
 static int arm_ccn_pmu_event_init(struct perf_event *event)
 {
 	struct arm_ccn *ccn;
@@ -599,6 +624,7 @@ static int arm_ccn_pmu_event_init(struct perf_event *event)
 		return -ENOENT;
 
 	ccn = pmu_to_arm_ccn(event->pmu);
+	event->destroy = arm_ccn_pmu_event_destroy;
 
 	if (hw->sample_period) {
 		dev_warn(ccn->dev, "Sampling not supported!\n");
@@ -662,7 +688,7 @@ static int arm_ccn_pmu_event_init(struct perf_event *event)
 		}
 		if (e->num_vcs && vc >= e->num_vcs) {
 			dev_warn(ccn->dev, "Invalid vc %d for node/XP %d!\n",
-					port, node_xp);
+					vc, node_xp);
 			return -EINVAL;
 		}
 		valid = 1;
@@ -729,30 +755,6 @@ static int arm_ccn_pmu_event_init(struct perf_event *event)
 	ccn->dt.pmu_counters[hw->idx].event = event;
 
 	return 0;
-}
-
-static void arm_ccn_pmu_event_free(struct perf_event *event)
-{
-	struct arm_ccn *ccn = pmu_to_arm_ccn(event->pmu);
-	struct hw_perf_event *hw = &event->hw;
-
-	if (hw->idx == CCN_IDX_PMU_CYCLE_COUNTER) {
-		clear_bit(CCN_IDX_PMU_CYCLE_COUNTER, ccn->dt.pmu_counters_mask);
-	} else {
-		struct arm_ccn_component *source =
-				ccn->dt.pmu_counters[hw->idx].source;
-
-		if (CCN_CONFIG_TYPE(event->attr.config) == CCN_TYPE_XP &&
-				CCN_CONFIG_EVENT(event->attr.config) ==
-				CCN_EVENT_WATCHPOINT)
-			clear_bit(hw->config_base, source->xp.dt_cmp_mask);
-		else
-			clear_bit(hw->config_base, source->pmu_events_mask);
-		clear_bit(hw->idx, ccn->dt.pmu_counters_mask);
-	}
-
-	ccn->dt.pmu_counters[hw->idx].source = NULL;
-	ccn->dt.pmu_counters[hw->idx].event = NULL;
 }
 
 static u64 arm_ccn_pmu_read_counter(struct arm_ccn *ccn, int idx)
@@ -1027,8 +1029,6 @@ static int arm_ccn_pmu_event_add(struct perf_event *event, int flags)
 static void arm_ccn_pmu_event_del(struct perf_event *event, int flags)
 {
 	arm_ccn_pmu_event_stop(event, PERF_EF_UPDATE);
-
-	arm_ccn_pmu_event_free(event);
 }
 
 static void arm_ccn_pmu_event_read(struct perf_event *event)
@@ -1052,7 +1052,8 @@ static irqreturn_t arm_ccn_pmu_overflow_handler(struct arm_ccn_dt *dt)
 		struct perf_event *event = dt->pmu_counters[idx].event;
 		int overflowed = pmovsr & BIT(idx);
 
-		WARN_ON_ONCE(overflowed && !event);
+		WARN_ON_ONCE(overflowed && !event &&
+				idx != CCN_IDX_PMU_CYCLE_COUNTER);
 
 		if (!event || !overflowed)
 			continue;
@@ -1088,6 +1089,7 @@ static int arm_ccn_pmu_init(struct arm_ccn *ccn)
 	/* Initialize DT subsystem */
 	ccn->dt.base = ccn->base + CCN_REGION_SIZE;
 	spin_lock_init(&ccn->dt.config_lock);
+	writel(CCN_DT_PMOVSR_CLR__MASK, ccn->dt.base + CCN_DT_PMOVSR_CLR);
 	writel(CCN_DT_CTL__DT_EN, ccn->dt.base + CCN_DT_CTL);
 	writel(CCN_DT_PMCR__OVFL_INTR_EN | CCN_DT_PMCR__PMU_EN,
 			ccn->dt.base + CCN_DT_PMCR);

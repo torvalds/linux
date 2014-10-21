@@ -31,6 +31,7 @@
  * Definitions taken from spice-protocol, plus kernel driver specific bits.
  */
 
+#include <linux/fence.h>
 #include <linux/workqueue.h>
 #include <linux/firmware.h>
 #include <linux/platform_device.h>
@@ -41,6 +42,8 @@
 #include <ttm/ttm_bo_driver.h>
 #include <ttm/ttm_placement.h>
 #include <ttm/ttm_module.h>
+
+#include <drm/drm_gem.h>
 
 /* just for ttm_validate_buffer */
 #include <ttm/ttm_execbuf_util.h>
@@ -95,31 +98,24 @@ enum {
 	QXL_INTERRUPT_IO_CMD |\
 	QXL_INTERRUPT_CLIENT_MONITORS_CONFIG)
 
-struct qxl_fence {
-	struct qxl_device *qdev;
-	uint32_t num_active_releases;
-	uint32_t *release_ids;
-	struct radix_tree_root tree;
-};
-
 struct qxl_bo {
 	/* Protected by gem.mutex */
 	struct list_head		list;
 	/* Protected by tbo.reserved */
-	u32				placements[3];
+	struct ttm_place		placements[3];
 	struct ttm_placement		placement;
 	struct ttm_buffer_object	tbo;
 	struct ttm_bo_kmap_obj		kmap;
 	unsigned			pin_count;
 	void				*kptr;
 	int                             type;
+
 	/* Constant after initialization */
 	struct drm_gem_object		gem_base;
 	bool is_primary; /* is this now a primary surface */
 	bool hw_surf_alloc;
 	struct qxl_surface surf;
 	uint32_t surface_id;
-	struct qxl_fence fence; /* per bo fence  - list of releases */
 	struct qxl_release *surf_create;
 };
 #define gem_to_qxl_bo(gobj) container_of((gobj), struct qxl_bo, gem_base)
@@ -191,6 +187,8 @@ enum {
  * spice-protocol/qxl_dev.h */
 #define QXL_MAX_RES 96
 struct qxl_release {
+	struct fence base;
+
 	int id;
 	int type;
 	uint32_t release_offset;
@@ -284,7 +282,9 @@ struct qxl_device {
 	uint8_t		slot_gen_bits;
 	uint64_t	va_slot_mask;
 
+	spinlock_t	release_lock;
 	struct idr	release_idr;
+	uint32_t	release_seqno;
 	spinlock_t release_idr_lock;
 	struct mutex	async_io_mutex;
 	unsigned int last_sent_io_cmd;
@@ -532,6 +532,18 @@ int qxl_garbage_collect(struct qxl_device *qdev);
 int qxl_debugfs_init(struct drm_minor *minor);
 void qxl_debugfs_takedown(struct drm_minor *minor);
 
+/* qxl_prime.c */
+int qxl_gem_prime_pin(struct drm_gem_object *obj);
+void qxl_gem_prime_unpin(struct drm_gem_object *obj);
+struct sg_table *qxl_gem_prime_get_sg_table(struct drm_gem_object *obj);
+struct drm_gem_object *qxl_gem_prime_import_sg_table(
+	struct drm_device *dev, struct dma_buf_attachment *attach,
+	struct sg_table *sgt);
+void *qxl_gem_prime_vmap(struct drm_gem_object *obj);
+void qxl_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
+int qxl_gem_prime_mmap(struct drm_gem_object *obj,
+				struct vm_area_struct *vma);
+
 /* qxl_irq.c */
 int qxl_irq_init(struct qxl_device *qdev);
 irqreturn_t qxl_irq_handler(int irq, void *arg);
@@ -560,11 +572,5 @@ struct qxl_drv_surface *
 qxl_surface_lookup(struct drm_device *dev, int surface_id);
 void qxl_surface_evict(struct qxl_device *qdev, struct qxl_bo *surf, bool freeing);
 int qxl_update_surface(struct qxl_device *qdev, struct qxl_bo *surf);
-
-/* qxl_fence.c */
-void qxl_fence_add_release_locked(struct qxl_fence *qfence, uint32_t rel_id);
-int qxl_fence_remove_release(struct qxl_fence *qfence, uint32_t rel_id);
-int qxl_fence_init(struct qxl_device *qdev, struct qxl_fence *qfence);
-void qxl_fence_fini(struct qxl_fence *qfence);
 
 #endif

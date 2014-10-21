@@ -296,73 +296,73 @@ static struct resource da9055_ld05_6_resource = {
 
 static const struct mfd_cell da9055_devs[] = {
 	{
-		.of_compatible = "dialog,da9055-gpio",
+		.of_compatible = "dlg,da9055-gpio",
 		.name = "da9055-gpio",
 	},
 	{
-		.of_compatible = "dialog,da9055-regulator",
+		.of_compatible = "dlg,da9055-regulator",
 		.name = "da9055-regulator",
 		.id = 1,
 	},
 	{
-		.of_compatible = "dialog,da9055-regulator",
+		.of_compatible = "dlg,da9055-regulator",
 		.name = "da9055-regulator",
 		.id = 2,
 	},
 	{
-		.of_compatible = "dialog,da9055-regulator",
+		.of_compatible = "dlg,da9055-regulator",
 		.name = "da9055-regulator",
 		.id = 3,
 	},
 	{
-		.of_compatible = "dialog,da9055-regulator",
+		.of_compatible = "dlg,da9055-regulator",
 		.name = "da9055-regulator",
 		.id = 4,
 	},
 	{
-		.of_compatible = "dialog,da9055-regulator",
+		.of_compatible = "dlg,da9055-regulator",
 		.name = "da9055-regulator",
 		.id = 5,
 	},
 	{
-		.of_compatible = "dialog,da9055-regulator",
+		.of_compatible = "dlg,da9055-regulator",
 		.name = "da9055-regulator",
 		.id = 6,
 	},
 	{
-		.of_compatible = "dialog,da9055-regulator",
+		.of_compatible = "dlg,da9055-regulator",
 		.name = "da9055-regulator",
 		.id = 7,
 		.resources = &da9055_ld05_6_resource,
 		.num_resources = 1,
 	},
 	{
-		.of_compatible = "dialog,da9055-regulator",
+		.of_compatible = "dlg,da9055-regulator",
 		.name = "da9055-regulator",
 		.resources = &da9055_ld05_6_resource,
 		.num_resources = 1,
 		.id = 8,
 	},
 	{
-		.of_compatible = "dialog,da9055-onkey",
+		.of_compatible = "dlg,da9055-onkey",
 		.name = "da9055-onkey",
 		.resources = &da9055_onkey_resource,
 		.num_resources = 1,
 	},
 	{
-		.of_compatible = "dialog,da9055-rtc",
+		.of_compatible = "dlg,da9055-rtc",
 		.name = "da9055-rtc",
 		.resources = da9055_rtc_resource,
 		.num_resources = ARRAY_SIZE(da9055_rtc_resource),
 	},
 	{
-		.of_compatible = "dialog,da9055-hwmon",
+		.of_compatible = "dlg,da9055-hwmon",
 		.name = "da9055-hwmon",
 		.resources = &da9055_hwmon_resource,
 		.num_resources = 1,
 	},
 	{
-		.of_compatible = "dialog,da9055-watchdog",
+		.of_compatible = "dlg,da9055-watchdog",
 		.name = "da9055-watchdog",
 	},
 };

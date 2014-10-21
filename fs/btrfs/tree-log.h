@@ -28,6 +28,7 @@
 struct btrfs_log_ctx {
 	int log_ret;
 	int log_transid;
+	int io_err;
 	struct list_head list;
 };
 
@@ -35,6 +36,7 @@ static inline void btrfs_init_log_ctx(struct btrfs_log_ctx *ctx)
 {
 	ctx->log_ret = 0;
 	ctx->log_transid = 0;
+	ctx->io_err = 0;
 	INIT_LIST_HEAD(&ctx->list);
 }
 
@@ -59,6 +61,8 @@ int btrfs_free_log_root_tree(struct btrfs_trans_handle *trans,
 int btrfs_recover_log_trees(struct btrfs_root *tree_root);
 int btrfs_log_dentry_safe(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root, struct dentry *dentry,
+			  const loff_t start,
+			  const loff_t end,
 			  struct btrfs_log_ctx *ctx);
 int btrfs_del_dir_entries_in_log(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root,

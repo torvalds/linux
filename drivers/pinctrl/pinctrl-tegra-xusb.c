@@ -281,9 +281,9 @@ static int tegra_xusb_padctl_get_function_groups(struct pinctrl_dev *pinctrl,
 	return 0;
 }
 
-static int tegra_xusb_padctl_pinmux_enable(struct pinctrl_dev *pinctrl,
-					   unsigned int function,
-					   unsigned int group)
+static int tegra_xusb_padctl_pinmux_set(struct pinctrl_dev *pinctrl,
+					unsigned int function,
+					unsigned int group)
 {
 	struct tegra_xusb_padctl *padctl = pinctrl_dev_get_drvdata(pinctrl);
 	const struct tegra_xusb_padctl_lane *lane;
@@ -311,7 +311,7 @@ static const struct pinmux_ops tegra_xusb_padctl_pinmux_ops = {
 	.get_functions_count = tegra_xusb_padctl_get_functions_count,
 	.get_function_name = tegra_xusb_padctl_get_function_name,
 	.get_function_groups = tegra_xusb_padctl_get_function_groups,
-	.enable = tegra_xusb_padctl_pinmux_enable,
+	.set_mux = tegra_xusb_padctl_pinmux_set,
 };
 
 static int tegra_xusb_padctl_pinconf_group_get(struct pinctrl_dev *pinctrl,
@@ -680,7 +680,7 @@ static struct phy *tegra_xusb_padctl_xlate(struct device *dev,
 	if (args->args_count <= 0)
 		return ERR_PTR(-EINVAL);
 
-	if (index > ARRAY_SIZE(padctl->phys))
+	if (index >= ARRAY_SIZE(padctl->phys))
 		return ERR_PTR(-EINVAL);
 
 	return padctl->phys[index];
@@ -930,7 +930,8 @@ static int tegra_xusb_padctl_probe(struct platform_device *pdev)
 
 	padctl->provider = devm_of_phy_provider_register(&pdev->dev,
 							 tegra_xusb_padctl_xlate);
-	if (err < 0) {
+	if (IS_ERR(padctl->provider)) {
+		err = PTR_ERR(padctl->provider);
 		dev_err(&pdev->dev, "failed to register PHYs: %d\n", err);
 		goto unregister;
 	}

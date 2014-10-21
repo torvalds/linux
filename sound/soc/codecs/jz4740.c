@@ -293,41 +293,13 @@ static int jz4740_codec_dev_probe(struct snd_soc_codec *codec)
 	regmap_update_bits(jz4740_codec->regmap, JZ4740_REG_CODEC_1,
 			JZ4740_CODEC_1_SW2_ENABLE, JZ4740_CODEC_1_SW2_ENABLE);
 
-	jz4740_codec_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
 	return 0;
 }
-
-static int jz4740_codec_dev_remove(struct snd_soc_codec *codec)
-{
-	jz4740_codec_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
-#ifdef CONFIG_PM_SLEEP
-
-static int jz4740_codec_suspend(struct snd_soc_codec *codec)
-{
-	return jz4740_codec_set_bias_level(codec, SND_SOC_BIAS_OFF);
-}
-
-static int jz4740_codec_resume(struct snd_soc_codec *codec)
-{
-	return jz4740_codec_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-}
-
-#else
-#define jz4740_codec_suspend NULL
-#define jz4740_codec_resume NULL
-#endif
 
 static struct snd_soc_codec_driver soc_codec_dev_jz4740_codec = {
 	.probe = jz4740_codec_dev_probe,
-	.remove = jz4740_codec_dev_remove,
-	.suspend = jz4740_codec_suspend,
-	.resume = jz4740_codec_resume,
 	.set_bias_level = jz4740_codec_set_bias_level,
+	.suspend_bias_off = true,
 
 	.controls = jz4740_codec_controls,
 	.num_controls = ARRAY_SIZE(jz4740_codec_controls),

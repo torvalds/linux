@@ -181,11 +181,9 @@ int lx_level_peaks(struct lx6464es *chip, int is_capture, int channels,
 
 /* interrupt handling */
 irqreturn_t lx_interrupt(int irq, void *dev_id);
+irqreturn_t lx_threaded_irq(int irq, void *dev_id);
 void lx_irq_enable(struct lx6464es *chip);
 void lx_irq_disable(struct lx6464es *chip);
-
-void lx_tasklet_capture(unsigned long data);
-void lx_tasklet_playback(unsigned long data);
 
 
 /* Stream Format Header Defines (for LIN and IEEE754) */

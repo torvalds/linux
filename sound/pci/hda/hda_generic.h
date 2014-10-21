@@ -12,12 +12,6 @@
 #ifndef __SOUND_HDA_GENERIC_H
 #define __SOUND_HDA_GENERIC_H
 
-/* unsol event tags */
-enum {
-	HDA_GEN_HP_EVENT = 1, HDA_GEN_FRONT_EVENT, HDA_GEN_MIC_EVENT,
-	HDA_GEN_LAST_EVENT = HDA_GEN_MIC_EVENT
-};
-
 /* table entry for multi-io paths */
 struct hda_multi_io {
 	hda_nid_t pin;		/* multi-io widget pin NID */
@@ -231,6 +225,7 @@ struct hda_gen_spec {
 	unsigned int add_stereo_mix_input:1; /* add aamix as a capture src */
 	unsigned int add_jack_modes:1; /* add i/o jack mode enum ctls */
 	unsigned int power_down_unused:1; /* power down unused widgets */
+	unsigned int dac_min_mute:1; /* minimal = mute for DACs */
 
 	/* other internal flags */
 	unsigned int no_analog:1; /* digital I/O only */
@@ -289,11 +284,11 @@ struct hda_gen_spec {
 
 	/* automute / autoswitch hooks */
 	void (*hp_automute_hook)(struct hda_codec *codec,
-				 struct hda_jack_tbl *tbl);
+				 struct hda_jack_callback *cb);
 	void (*line_automute_hook)(struct hda_codec *codec,
-				   struct hda_jack_tbl *tbl);
+				   struct hda_jack_callback *cb);
 	void (*mic_autoswitch_hook)(struct hda_codec *codec,
-				    struct hda_jack_tbl *tbl);
+				    struct hda_jack_callback *cb);
 };
 
 int snd_hda_gen_spec_init(struct hda_gen_spec *spec);
@@ -325,11 +320,11 @@ int snd_hda_gen_build_pcms(struct hda_codec *codec);
 
 /* standard jack event callbacks */
 void snd_hda_gen_hp_automute(struct hda_codec *codec,
-			     struct hda_jack_tbl *jack);
+			     struct hda_jack_callback *jack);
 void snd_hda_gen_line_automute(struct hda_codec *codec,
-			       struct hda_jack_tbl *jack);
+			       struct hda_jack_callback *jack);
 void snd_hda_gen_mic_autoswitch(struct hda_codec *codec,
-				struct hda_jack_tbl *jack);
+				struct hda_jack_callback *jack);
 void snd_hda_gen_update_outputs(struct hda_codec *codec);
 
 #ifdef CONFIG_PM

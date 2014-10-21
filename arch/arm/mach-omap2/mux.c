@@ -814,7 +814,7 @@ int __init omap_mux_late_init(void)
 			"hwmod_io", omap_mux_late_init);
 
 	if (ret)
-		pr_warning("mux: Failed to setup hwmod io irq %d\n", ret);
+		pr_warn("mux: Failed to setup hwmod io irq %d\n", ret);
 
 	return 0;
 }

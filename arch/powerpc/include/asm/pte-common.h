@@ -98,6 +98,11 @@ extern unsigned long bad_call_to_PMD_PAGE_SIZE(void);
 			 _PAGE_USER | _PAGE_ACCESSED | \
 			 _PAGE_RW | _PAGE_HWWRITE | _PAGE_DIRTY | _PAGE_EXEC)
 
+#ifdef CONFIG_NUMA_BALANCING
+/* Mask of bits that distinguish present and numa ptes */
+#define _PAGE_NUMA_MASK (_PAGE_NUMA|_PAGE_PRESENT)
+#endif
+
 /*
  * We define 2 sets of base prot bits, one for basic pages (ie,
  * cacheable kernel and user pages) and one for non cacheable

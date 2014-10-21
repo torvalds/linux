@@ -1694,7 +1694,7 @@ static int pxa_camera_pdata_from_dt(struct device *dev,
 		break;
 	default:
 		break;
-	};
+	}
 
 	if (ep.bus.parallel.flags & V4L2_MBUS_MASTER)
 		pcdev->platform_flags |= PXA_CAMERA_MASTER;

@@ -40,7 +40,7 @@
 #include "../include/lustre_mdc.h"
 #include "../include/lustre_mds.h"
 
-#if defined (CONFIG_PROC_FS)
+#if defined CONFIG_PROC_FS
 void lprocfs_mdc_init_vars(struct lprocfs_static_vars *lvars);
 #else
 static inline void lprocfs_mdc_init_vars(struct lprocfs_static_vars *lvars)
@@ -108,7 +108,7 @@ int mdc_resource_get_unused(struct obd_export *exp, const struct lu_fid *fid,
 int mdc_fid_alloc(struct obd_export *exp, struct lu_fid *fid,
 		  struct md_op_data *op_data);
 
-int mdc_open(struct obd_export *exp, obd_id ino, int type, int flags,
+int mdc_open(struct obd_export *exp, u64 ino, int type, int flags,
 	     struct lov_mds_md *lmm, int lmm_size, struct lustre_handle *fh,
 	     struct ptlrpc_request **);
 

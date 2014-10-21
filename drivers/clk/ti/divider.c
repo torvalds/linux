@@ -211,10 +211,15 @@ static long ti_clk_divider_round_rate(struct clk_hw *hw, unsigned long rate,
 static int ti_clk_divider_set_rate(struct clk_hw *hw, unsigned long rate,
 				   unsigned long parent_rate)
 {
-	struct clk_divider *divider = to_clk_divider(hw);
+	struct clk_divider *divider;
 	unsigned int div, value;
 	unsigned long flags = 0;
 	u32 val;
+
+	if (!hw || !rate)
+		return -EINVAL;
+
+	divider = to_clk_divider(hw);
 
 	div = DIV_ROUND_UP(parent_rate, rate);
 	value = _get_val(divider, div);
@@ -295,8 +300,8 @@ static struct clk *_register_divider(struct device *dev, const char *name,
 	return clk;
 }
 
-static struct clk_div_table
-__init *ti_clk_get_div_table(struct device_node *node)
+static struct clk_div_table *
+__init ti_clk_get_div_table(struct device_node *node)
 {
 	struct clk_div_table *table;
 	const __be32 *divspec;

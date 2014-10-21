@@ -8,16 +8,10 @@
  * under  the terms of  the GNU General  Public License as published by the
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/err.h>
 #include <linux/i2c.h>
-#include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
@@ -26,7 +20,8 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/extcon.h>
-#include <linux/extcon/sm5502.h>
+
+#include "extcon-sm5502.h"
 
 #define	DELAY_MS_DEFAULT		17000	/* unit: millisecond */
 
@@ -300,7 +295,7 @@ static unsigned int sm5502_muic_get_cable_type(struct sm5502_muic_info *info)
 	 * If ADC is SM5502_MUIC_ADC_GROUND(0x0), external cable hasn't
 	 * connected with to MUIC device.
 	 */
-	cable_type &= SM5502_REG_ADC_MASK;
+	cable_type = adc & SM5502_REG_ADC_MASK;
 	if (cable_type == SM5502_MUIC_ADC_GROUND)
 		return SM5502_MUIC_ADC_GROUND;
 
@@ -395,7 +390,7 @@ static int sm5502_muic_cable_handler(struct sm5502_muic_info *info,
 	/* Get the type of attached or detached cable */
 	if (attached)
 		cable_type = sm5502_muic_get_cable_type(info);
-	else if (!attached)
+	else
 		cable_type = prev_cable_type;
 	prev_cable_type = cable_type;
 
@@ -457,8 +452,6 @@ static void sm5502_muic_irq_work(struct work_struct *work)
 		dev_err(info->dev, "failed to handle MUIC interrupt\n");
 
 	mutex_unlock(&info->mutex);
-
-	return;
 }
 
 /*
@@ -617,8 +610,9 @@ static int sm5022_muic_i2c_probe(struct i2c_client *i2c,
 						IRQF_NO_SUSPEND,
 						muic_irq->name, info);
 		if (ret) {
-			dev_err(info->dev, "failed: irq request (IRQ: %d,"
-				" error :%d)\n", muic_irq->irq, ret);
+			dev_err(info->dev,
+				"failed: irq request (IRQ: %d, error :%d)\n",
+				muic_irq->irq, ret);
 			return ret;
 		}
 	}

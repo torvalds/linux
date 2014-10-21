@@ -81,8 +81,8 @@
 			clock-names = "system-clk", "rtc-clk";
 		};
 
-		gic: interrupt-controller@10212000 {
-			compatible = "arm,cortex-a15-gic";
+		gic: interrupt-controller@10211000 {
+			compatible = "arm,cortex-a7-gic";
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			reg = <0x10211000 0x1000>,

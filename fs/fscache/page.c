@@ -44,6 +44,19 @@ void __fscache_wait_on_page_write(struct fscache_cookie *cookie, struct page *pa
 EXPORT_SYMBOL(__fscache_wait_on_page_write);
 
 /*
+ * wait for a page to finish being written to the cache. Put a timeout here
+ * since we might be called recursively via parent fs.
+ */
+static
+bool release_page_wait_timeout(struct fscache_cookie *cookie, struct page *page)
+{
+	wait_queue_head_t *wq = bit_waitqueue(&cookie->flags, 0);
+
+	return wait_event_timeout(*wq, !__fscache_check_page_write(cookie, page),
+				  HZ);
+}
+
+/*
  * decide whether a page can be released, possibly by cancelling a store to it
  * - we're allowed to sleep if __GFP_WAIT is flagged
  */
@@ -115,7 +128,10 @@ page_busy:
 	}
 
 	fscache_stat(&fscache_n_store_vmscan_wait);
-	__fscache_wait_on_page_write(cookie, page);
+	if (!release_page_wait_timeout(cookie, page))
+		_debug("fscache writeout timeout page: %p{%lx}",
+			page, page->index);
+
 	gfp &= ~__GFP_WAIT;
 	goto try_again;
 }
@@ -182,7 +198,7 @@ int __fscache_attr_changed(struct fscache_cookie *cookie)
 {
 	struct fscache_operation *op;
 	struct fscache_object *object;
-	bool wake_cookie;
+	bool wake_cookie = false;
 
 	_enter("%p", cookie);
 
@@ -212,15 +228,16 @@ int __fscache_attr_changed(struct fscache_cookie *cookie)
 
 	__fscache_use_cookie(cookie);
 	if (fscache_submit_exclusive_op(object, op) < 0)
-		goto nobufs;
+		goto nobufs_dec;
 	spin_unlock(&cookie->lock);
 	fscache_stat(&fscache_n_attr_changed_ok);
 	fscache_put_operation(op);
 	_leave(" = 0");
 	return 0;
 
-nobufs:
+nobufs_dec:
 	wake_cookie = __fscache_unuse_cookie(cookie);
+nobufs:
 	spin_unlock(&cookie->lock);
 	kfree(op);
 	if (wake_cookie)

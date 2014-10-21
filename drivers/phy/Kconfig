@@ -41,12 +41,19 @@ config PHY_MVEBU_SATA
 config PHY_MIPHY365X
 	tristate "STMicroelectronics MIPHY365X PHY driver for STiH41x series"
 	depends on ARCH_STI
-	depends on GENERIC_PHY
 	depends on HAS_IOMEM
 	depends on OF
+	select GENERIC_PHY
 	help
 	  Enable this to support the miphy transceiver (for SATA/PCIE)
 	  that is part of STMicroelectronics STiH41x SoC series.
+
+config PHY_RCAR_GEN2
+	tristate "Renesas R-Car generation 2 USB PHY driver"
+	depends on ARCH_SHMOBILE
+	depends on GENERIC_PHY
+	help
+	  Support for USB PHY found on Renesas R-Car generation 2 SoCs.
 
 config OMAP_CONTROL_PHY
 	tristate "OMAP CONTROL PHY Driver"
@@ -214,12 +221,14 @@ config PHY_QCOM_IPQ806X_SATA
 config PHY_ST_SPEAR1310_MIPHY
 	tristate "ST SPEAR1310-MIPHY driver"
 	select GENERIC_PHY
+	depends on MACH_SPEAR1310 || COMPILE_TEST
 	help
 	  Support for ST SPEAr1310 MIPHY which can be used for PCIe and SATA.
 
 config PHY_ST_SPEAR1340_MIPHY
 	tristate "ST SPEAR1340-MIPHY driver"
 	select GENERIC_PHY
+	depends on MACH_SPEAR1340 || COMPILE_TEST
 	help
 	  Support for ST SPEAr1340 MIPHY which can be used for PCIe and SATA.
 
@@ -229,5 +238,22 @@ config PHY_XGENE
 	select GENERIC_PHY
 	help
 	  This option enables support for APM X-Gene SoC multi-purpose PHY.
+
+config PHY_STIH407_USB
+	tristate "STMicroelectronics USB2 picoPHY driver for STiH407 family"
+	depends on RESET_CONTROLLER
+	depends on ARCH_STI || COMPILE_TEST
+	select GENERIC_PHY
+	help
+	  Enable this support to enable the picoPHY device used by USB2
+	  and USB3 controllers on STMicroelectronics STiH407 SoC families.
+
+config PHY_STIH41X_USB
+	tristate "STMicroelectronics USB2 PHY driver for STiH41x series"
+	depends on ARCH_STI
+	select GENERIC_PHY
+	help
+	  Enable this to support the USB transceiver that is part of
+	  STMicroelectronics STiH41x SoC series.
 
 endmenu

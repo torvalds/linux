@@ -243,7 +243,8 @@ enum dwc2_transaction_type {
  * @ntd:                Actual number of transfer descriptors in a list
  * @dw_align_buf:       Used instead of original buffer if its physical address
  *                      is not dword-aligned
- * @dw_align_buf_dma:   DMA address for align_buf
+ * @dw_align_buf_size:  Size of dw_align_buf
+ * @dw_align_buf_dma:   DMA address for dw_align_buf
  * @qtd_list:           List of QTDs for this QH
  * @channel:            Host channel currently processing transfers for this QH
  * @qh_list_entry:      Entry for QH in either the periodic or non-periodic
@@ -276,6 +277,7 @@ struct dwc2_qh {
 	u16 start_split_frame;
 	u16 ntd;
 	u8 *dw_align_buf;
+	int dw_align_buf_size;
 	dma_addr_t dw_align_buf_dma;
 	struct list_head qtd_list;
 	struct dwc2_host_chan *channel;

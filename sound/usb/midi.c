@@ -64,7 +64,7 @@
 /* #define DUMP_PACKETS */
 
 /*
- * how long to wait after some USB errors, so that khubd can disconnect() us
+ * how long to wait after some USB errors, so that hub_wq can disconnect() us
  * without too many spurious errors
  */
 #define ERROR_DELAY_JIFFIES (HZ / 10)
@@ -1506,6 +1506,12 @@ static struct port_info {
 	PORT_INFO(vendor, product, num, name, 0, \
 		  SNDRV_SEQ_PORT_TYPE_MIDI_GENERIC | \
 		  SNDRV_SEQ_PORT_TYPE_HARDWARE)
+#define GM_SYNTH_PORT(vendor, product, num, name, voices) \
+	PORT_INFO(vendor, product, num, name, voices, \
+		  SNDRV_SEQ_PORT_TYPE_MIDI_GENERIC | \
+		  SNDRV_SEQ_PORT_TYPE_MIDI_GM | \
+		  SNDRV_SEQ_PORT_TYPE_HARDWARE | \
+		  SNDRV_SEQ_PORT_TYPE_SYNTHESIZER)
 #define ROLAND_SYNTH_PORT(vendor, product, num, name, voices) \
 	PORT_INFO(vendor, product, num, name, voices, \
 		  SNDRV_SEQ_PORT_TYPE_MIDI_GENERIC | \
@@ -1525,6 +1531,11 @@ static struct port_info {
 		  SNDRV_SEQ_PORT_TYPE_MIDI_MT32 | \
 		  SNDRV_SEQ_PORT_TYPE_HARDWARE | \
 		  SNDRV_SEQ_PORT_TYPE_SYNTHESIZER)
+	/* Yamaha MOTIF XF */
+	GM_SYNTH_PORT(0x0499, 0x105c, 0, "%s Tone Generator", 128),
+	CONTROL_PORT(0x0499, 0x105c, 1, "%s Remote Control"),
+	EXTERNAL_PORT(0x0499, 0x105c, 2, "%s Thru"),
+	CONTROL_PORT(0x0499, 0x105c, 3, "%s Editor"),
 	/* Roland UA-100 */
 	CONTROL_PORT(0x0582, 0x0000, 2, "%s Control"),
 	/* Roland SC-8850 */

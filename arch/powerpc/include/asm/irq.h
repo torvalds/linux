@@ -31,11 +31,6 @@ extern atomic_t ppc_n_lost_interrupts;
 
 extern irq_hw_number_t virq_to_hw(unsigned int virq);
 
-/**
- * irq_early_init - Init irq remapping subsystem
- */
-extern void irq_early_init(void);
-
 static __inline__ int irq_canonicalize(int irq)
 {
 	return irq;

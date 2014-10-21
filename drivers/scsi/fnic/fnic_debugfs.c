@@ -210,7 +210,7 @@ static ssize_t fnic_trace_ctrl_write(struct file *filp,
 	else if (*trace_type == fc_trc_flag->fc_clear)
 		fnic_fc_trace_cleared = val;
 	else
-		pr_err("fnic: cannot write to any debufs file\n");
+		pr_err("fnic: cannot write to any debugfs file\n");
 
 	(*ppos)++;
 

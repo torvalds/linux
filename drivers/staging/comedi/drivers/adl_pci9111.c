@@ -139,8 +139,6 @@ struct pci9111_private_data {
 	unsigned int chunk_counter;
 	unsigned int chunk_num_samples;
 
-	int ao_readback;
-
 	unsigned int div1;
 	unsigned int div2;
 
@@ -643,29 +641,15 @@ static int pci9111_ao_insn_write(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	struct pci9111_private_data *dev_private = dev->private;
-	unsigned int val = 0;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int val = s->readback[chan];
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
 		val = data[i];
 		outw(val, dev->iobase + PCI9111_AO_REG);
 	}
-	dev_private->ao_readback = val;
-
-	return insn->n;
-}
-
-static int pci9111_ao_insn_read(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn,
-				unsigned int *data)
-{
-	struct pci9111_private_data *dev_private = dev->private;
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = dev_private->ao_readback;
+	s->readback[chan] = val;
 
 	return insn->n;
 }
@@ -768,7 +752,11 @@ static int pci9111_auto_attach(struct comedi_device *dev,
 	s->len_chanlist	= 1;
 	s->range_table	= &range_bipolar10;
 	s->insn_write	= pci9111_ao_insn_write;
-	s->insn_read	= pci9111_ao_insn_read;
+	s->insn_read	= comedi_readback_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	s = &dev->subdevices[2];
 	s->type		= COMEDI_SUBD_DI;
@@ -793,9 +781,7 @@ static void pci9111_detach(struct comedi_device *dev)
 {
 	if (dev->iobase)
 		pci9111_reset(dev);
-	if (dev->irq != 0)
-		free_irq(dev->irq, dev);
-	comedi_pci_disable(dev);
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver adl_pci9111_driver = {

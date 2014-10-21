@@ -26,6 +26,7 @@
 #include <linux/gpio.h>
 
 /* pinmux function number for pin as gpio output line */
+#define FUNC_INPUT	0x0
 #define FUNC_OUTPUT	0x1
 
 /**

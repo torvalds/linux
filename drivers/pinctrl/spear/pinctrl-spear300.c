@@ -646,7 +646,7 @@ static struct spear_function *spear300_functions[] = {
 	&gpio1_function,
 };
 
-static struct of_device_id spear300_pinctrl_of_match[] = {
+static const struct of_device_id spear300_pinctrl_of_match[] = {
 	{
 		.compatible = "st,spear300-pinmux",
 	},

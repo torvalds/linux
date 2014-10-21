@@ -37,8 +37,6 @@
 #include "t4_regs.h"
 #include "t4fw_api.h"
 
-static int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
-			 const u8 *fw_data, unsigned int size, int force);
 /**
  *	t4_wait_op_done_val - wait until an operation is completed
  *	@adapter: the adapter performing the operation
@@ -165,6 +163,34 @@ void t4_hw_pci_read_cfg4(struct adapter *adap, int reg, u32 *val)
 	 * read-modify-write via t4_set_reg_field().)
 	 */
 	t4_write_reg(adap, PCIE_CFG_SPACE_REQ, 0);
+}
+
+/*
+ * t4_report_fw_error - report firmware error
+ * @adap: the adapter
+ *
+ * The adapter firmware can indicate error conditions to the host.
+ * If the firmware has indicated an error, print out the reason for
+ * the firmware error.
+ */
+static void t4_report_fw_error(struct adapter *adap)
+{
+	static const char *const reason[] = {
+		"Crash",                        /* PCIE_FW_EVAL_CRASH */
+		"During Device Preparation",    /* PCIE_FW_EVAL_PREP */
+		"During Device Configuration",  /* PCIE_FW_EVAL_CONF */
+		"During Device Initialization", /* PCIE_FW_EVAL_INIT */
+		"Unexpected Event",             /* PCIE_FW_EVAL_UNEXPECTEDEVENT */
+		"Insufficient Airflow",         /* PCIE_FW_EVAL_OVERHEAT */
+		"Device Shutdown",              /* PCIE_FW_EVAL_DEVICESHUTDOWN */
+		"Reserved",                     /* reserved */
+	};
+	u32 pcie_fw;
+
+	pcie_fw = t4_read_reg(adap, MA_PCIE_FW);
+	if (pcie_fw & FW_PCIE_FW_ERR)
+		dev_err(adap->pdev_dev, "Firmware reports adapter error: %s\n",
+			reason[FW_PCIE_FW_EVAL_GET(pcie_fw)]);
 }
 
 /*
@@ -300,6 +326,7 @@ int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 	dump_mbox(adap, mbox, data_reg);
 	dev_err(adap->pdev_dev, "command %#x in mailbox %d timed out\n",
 		*(const u8 *)cmd, mbox);
+	t4_report_fw_error(adap);
 	return -ETIMEDOUT;
 }
 
@@ -566,6 +593,7 @@ int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr,
 #define VPD_BASE           0x400
 #define VPD_BASE_OLD       0
 #define VPD_LEN            1024
+#define CHELSIO_VPD_UNIQUE_ID 0x82
 
 /**
  *	t4_seeprom_wp - enable/disable EEPROM write protection
@@ -603,7 +631,14 @@ int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	ret = pci_read_vpd(adapter->pdev, VPD_BASE, sizeof(u32), vpd);
 	if (ret < 0)
 		goto out;
-	addr = *vpd == 0x82 ? VPD_BASE : VPD_BASE_OLD;
+
+	/* The VPD shall have a unique identifier specified by the PCI SIG.
+	 * For chelsio adapters, the identifier is 0x82. The first byte of a VPD
+	 * shall be CHELSIO_VPD_UNIQUE_ID (0x82). The VPD programming software
+	 * is expected to automatically put this entry at the
+	 * beginning of the VPD.
+	 */
+	addr = *vpd == CHELSIO_VPD_UNIQUE_ID ? VPD_BASE : VPD_BASE_OLD;
 
 	ret = pci_read_vpd(adapter->pdev, addr, VPD_LEN, vpd);
 	if (ret < 0)
@@ -667,6 +702,7 @@ int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	i = pci_vpd_info_field_size(vpd + sn - PCI_VPD_INFO_FLD_HDR_SIZE);
 	memcpy(p->sn, vpd + sn, min(i, SERNUM_LEN));
 	strim(p->sn);
+	i = pci_vpd_info_field_size(vpd + pn - PCI_VPD_INFO_FLD_HDR_SIZE);
 	memcpy(p->pn, vpd + pn, min(i, PN_LEN));
 	strim(p->pn);
 
@@ -1061,6 +1097,9 @@ static int t4_flash_erase_sectors(struct adapter *adapter, int start, int end)
 {
 	int ret = 0;
 
+	if (end >= adapter->params.sf_nsec)
+		return -EINVAL;
+
 	while (start <= end) {
 		if ((ret = sf1_write(adapter, 1, 0, 1, SF_WR_ENABLE)) != 0 ||
 		    (ret = sf1_write(adapter, 4, 0, 1,
@@ -1394,15 +1433,18 @@ static void pcie_intr_handler(struct adapter *adapter)
 
 	int fat;
 
-	fat = t4_handle_intr_status(adapter,
-				    PCIE_CORE_UTL_SYSTEM_BUS_AGENT_STATUS,
-				    sysbus_intr_info) +
-	      t4_handle_intr_status(adapter,
-				    PCIE_CORE_UTL_PCI_EXPRESS_PORT_STATUS,
-				    pcie_port_intr_info) +
-	      t4_handle_intr_status(adapter, PCIE_INT_CAUSE,
-				    is_t4(adapter->params.chip) ?
-				    pcie_intr_info : t5_pcie_intr_info);
+	if (is_t4(adapter->params.chip))
+		fat = t4_handle_intr_status(adapter,
+					    PCIE_CORE_UTL_SYSTEM_BUS_AGENT_STATUS,
+					    sysbus_intr_info) +
+			t4_handle_intr_status(adapter,
+					      PCIE_CORE_UTL_PCI_EXPRESS_PORT_STATUS,
+					      pcie_port_intr_info) +
+			t4_handle_intr_status(adapter, PCIE_INT_CAUSE,
+					      pcie_intr_info);
+	else
+		fat = t4_handle_intr_status(adapter, PCIE_INT_CAUSE,
+					    t5_pcie_intr_info);
 
 	if (fat)
 		t4_fatal_err(adapter);
@@ -1520,6 +1562,9 @@ static void cim_intr_handler(struct adapter *adapter)
 	};
 
 	int fat;
+
+	if (t4_read_reg(adapter, MA_PCIE_FW) & FW_PCIE_FW_ERR)
+		t4_report_fw_error(adapter);
 
 	fat = t4_handle_intr_status(adapter, CIM_HOST_INT_CAUSE,
 				    cim_intr_info) +
@@ -1768,10 +1813,16 @@ static void ma_intr_handler(struct adapter *adap)
 {
 	u32 v, status = t4_read_reg(adap, MA_INT_CAUSE);
 
-	if (status & MEM_PERR_INT_CAUSE)
+	if (status & MEM_PERR_INT_CAUSE) {
 		dev_alert(adap->pdev_dev,
 			  "MA parity error, parity status %#x\n",
 			  t4_read_reg(adap, MA_PARITY_ERROR_STATUS));
+		if (is_t5(adap->params.chip))
+			dev_alert(adap->pdev_dev,
+				  "MA parity error, parity status %#x\n",
+				  t4_read_reg(adap,
+					      MA_PARITY_ERROR_STATUS2));
+	}
 	if (status & MEM_WRAP_INT_CAUSE) {
 		v = t4_read_reg(adap, MA_INT_WRAP_STATUS);
 		dev_alert(adap->pdev_dev, "MA address wrap-around error by "
@@ -2733,12 +2784,16 @@ retry:
 	/*
 	 * Issue the HELLO command to the firmware.  If it's not successful
 	 * but indicates that we got a "busy" or "timeout" condition, retry
-	 * the HELLO until we exhaust our retry limit.
+	 * the HELLO until we exhaust our retry limit.  If we do exceed our
+	 * retry limit, check to see if the firmware left us any error
+	 * information and report that if so.
 	 */
 	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
 	if (ret < 0) {
 		if ((ret == -EBUSY || ret == -ETIMEDOUT) && retries-- > 0)
 			goto retry;
+		if (t4_read_reg(adap, MA_PCIE_FW) & FW_PCIE_FW_ERR)
+			t4_report_fw_error(adap);
 		return ret;
 	}
 
@@ -3019,8 +3074,8 @@ static int t4_fw_restart(struct adapter *adap, unsigned int mbox, int reset)
  *	positive errno indicates that the adapter is ~probably~ intact, a
  *	negative errno indicates that things are looking bad ...
  */
-static int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
-			 const u8 *fw_data, unsigned int size, int force)
+int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
+		  const u8 *fw_data, unsigned int size, int force)
 {
 	const struct fw_hdr *fw_hdr = (const struct fw_hdr *)fw_data;
 	int reset, ret;
@@ -3742,6 +3797,7 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 			lc->link_ok = link_ok;
 			lc->speed = speed;
 			lc->fc = fc;
+			lc->supported = be16_to_cpu(p->u.info.pcap);
 			t4_os_link_changed(adap, port, link_ok);
 		}
 		if (mod != pi->mod_type) {
@@ -3787,16 +3843,35 @@ static void init_link_config(struct link_config *lc, unsigned int caps)
 	}
 }
 
-int t4_wait_dev_ready(struct adapter *adap)
+#define CIM_PF_NOACCESS 0xeeeeeeee
+
+int t4_wait_dev_ready(void __iomem *regs)
 {
-	if (t4_read_reg(adap, PL_WHOAMI) != 0xffffffff)
+	u32 whoami;
+
+	whoami = readl(regs + PL_WHOAMI);
+	if (whoami != 0xffffffff && whoami != CIM_PF_NOACCESS)
 		return 0;
+
 	msleep(500);
-	return t4_read_reg(adap, PL_WHOAMI) != 0xffffffff ? 0 : -EIO;
+	whoami = readl(regs + PL_WHOAMI);
+	return (whoami != 0xffffffff && whoami != CIM_PF_NOACCESS ? 0 : -EIO);
 }
+
+struct flash_desc {
+	u32 vendor_and_model_id;
+	u32 size_mb;
+};
 
 static int get_flash_params(struct adapter *adap)
 {
+	/* Table for non-Numonix supported flash parts.  Numonix parts are left
+	 * to the preexisting code.  All flash parts have 64KB sectors.
+	 */
+	static struct flash_desc supported_flash[] = {
+		{ 0x150201, 4 << 20 },       /* Spansion 4MB S25FL032P */
+	};
+
 	int ret;
 	u32 info;
 
@@ -3806,6 +3881,14 @@ static int get_flash_params(struct adapter *adap)
 	t4_write_reg(adap, SF_OP, 0);                    /* unlock SF */
 	if (ret)
 		return ret;
+
+	for (ret = 0; ret < ARRAY_SIZE(supported_flash); ++ret)
+		if (supported_flash[ret].vendor_and_model_id == info) {
+			adap->params.sf_size = supported_flash[ret].size_mb;
+			adap->params.sf_nsec =
+				adap->params.sf_size / SF_SEC_SIZE;
+			return 0;
+		}
 
 	if ((info & 0xff) != 0x20)             /* not a Numonix flash */
 		return -EINVAL;
@@ -3819,6 +3902,10 @@ static int get_flash_params(struct adapter *adap)
 	adap->params.sf_size = 1 << info;
 	adap->params.sf_fw_start =
 		t4_read_reg(adap, CIM_BOOT_CFG) & BOOTADDR_MASK;
+
+	if (adap->params.sf_size < FLASH_MIN_SIZE)
+		dev_warn(adap->pdev_dev, "WARNING!!! FLASH size %#x < %#x!!!\n",
+			 adap->params.sf_size, FLASH_MIN_SIZE);
 	return 0;
 }
 
@@ -3836,10 +3923,6 @@ int t4_prep_adapter(struct adapter *adapter)
 	int ret, ver;
 	uint16_t device_id;
 	u32 pl_rev;
-
-	ret = t4_wait_dev_ready(adapter);
-	if (ret < 0)
-		return ret;
 
 	get_pci_mode(adapter, &adapter->params.pci);
 	pl_rev = G_REV(t4_read_reg(adapter, PL_REV));

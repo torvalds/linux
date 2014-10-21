@@ -298,3 +298,18 @@ config SERIAL_8250_RT288X
 	  If you have a Ralink RT288x/RT305x SoC based board and want to use the
 	  serial port, say Y to this option. The driver can handle up to 2 serial
 	  ports. If unsure, say N.
+
+config SERIAL_8250_FINTEK
+	tristate "Support for Fintek F81216A LPC to 4 UART"
+	depends on SERIAL_8250 && PNP
+	help
+	  Selecting this option will add support for the Fintek F81216A
+	  LPC to 4 UART. This device has some RS485 functionality not available
+	  through the PNP driver. If unsure, say N.
+
+config SERIAL_8250_MT6577
+	bool "Mediatek serial port support"
+	depends on SERIAL_8250 && ARCH_MEDIATEK
+	help
+	  If you have a Mediatek based board and want to use the
+	  serial port, say Y to this option. If unsure, say N.

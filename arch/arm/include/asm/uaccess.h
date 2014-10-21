@@ -107,8 +107,11 @@ static inline void set_fs(mm_segment_t fs)
 extern int __get_user_1(void *);
 extern int __get_user_2(void *);
 extern int __get_user_4(void *);
-extern int __get_user_lo8(void *);
+extern int __get_user_32t_8(void *);
 extern int __get_user_8(void *);
+extern int __get_user_64t_1(void *);
+extern int __get_user_64t_2(void *);
+extern int __get_user_64t_4(void *);
 
 #define __GUP_CLOBBER_1	"lr", "cc"
 #ifdef CONFIG_CPU_USE_DOMAINS
@@ -117,7 +120,7 @@ extern int __get_user_8(void *);
 #define __GUP_CLOBBER_2 "lr", "cc"
 #endif
 #define __GUP_CLOBBER_4	"lr", "cc"
-#define __GUP_CLOBBER_lo8 "lr", "cc"
+#define __GUP_CLOBBER_32t_8 "lr", "cc"
 #define __GUP_CLOBBER_8	"lr", "cc"
 
 #define __get_user_x(__r2,__p,__e,__l,__s)				\
@@ -131,11 +134,29 @@ extern int __get_user_8(void *);
 
 /* narrowing a double-word get into a single 32bit word register: */
 #ifdef __ARMEB__
-#define __get_user_xb(__r2, __p, __e, __l, __s)				\
-	__get_user_x(__r2, __p, __e, __l, lo8)
+#define __get_user_x_32t(__r2, __p, __e, __l, __s)				\
+	__get_user_x(__r2, __p, __e, __l, 32t_8)
 #else
-#define __get_user_xb __get_user_x
+#define __get_user_x_32t __get_user_x
 #endif
+
+/*
+ * storing result into proper least significant word of 64bit target var,
+ * different only for big endian case where 64 bit __r2 lsw is r3:
+ */
+#ifdef __ARMEB__
+#define __get_user_x_64t(__r2, __p, __e, __l, __s)		        \
+	   __asm__ __volatile__ (					\
+		__asmeq("%0", "r0") __asmeq("%1", "r2")			\
+		__asmeq("%3", "r1")					\
+		"bl	__get_user_64t_" #__s				\
+		: "=&r" (__e), "=r" (__r2)				\
+		: "0" (__p), "r" (__l)					\
+		: __GUP_CLOBBER_##__s)
+#else
+#define __get_user_x_64t __get_user_x
+#endif
+
 
 #define __get_user_check(x,p)							\
 	({								\
@@ -146,17 +167,26 @@ extern int __get_user_8(void *);
 		register int __e asm("r0");				\
 		switch (sizeof(*(__p))) {				\
 		case 1:							\
-			__get_user_x(__r2, __p, __e, __l, 1);		\
+			if (sizeof((x)) >= 8)				\
+				__get_user_x_64t(__r2, __p, __e, __l, 1); \
+			else						\
+				__get_user_x(__r2, __p, __e, __l, 1);	\
 			break;						\
 		case 2:							\
-			__get_user_x(__r2, __p, __e, __l, 2);		\
+			if (sizeof((x)) >= 8)				\
+				__get_user_x_64t(__r2, __p, __e, __l, 2); \
+			else						\
+				__get_user_x(__r2, __p, __e, __l, 2);	\
 			break;						\
 		case 4:							\
-			__get_user_x(__r2, __p, __e, __l, 4);		\
+			if (sizeof((x)) >= 8)				\
+				__get_user_x_64t(__r2, __p, __e, __l, 4); \
+			else						\
+				__get_user_x(__r2, __p, __e, __l, 4);	\
 			break;						\
 		case 8:							\
 			if (sizeof((x)) < 8)				\
-				__get_user_xb(__r2, __p, __e, __l, 4);	\
+				__get_user_x_32t(__r2, __p, __e, __l, 4); \
 			else						\
 				__get_user_x(__r2, __p, __e, __l, 8);	\
 			break;						\

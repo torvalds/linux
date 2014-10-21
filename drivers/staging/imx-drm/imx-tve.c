@@ -133,6 +133,7 @@ static void tve_lock(void *__tve)
 __acquires(&tve->lock)
 {
 	struct imx_tve *tve = __tve;
+
 	spin_lock(&tve->lock);
 }
 
@@ -140,6 +141,7 @@ static void tve_unlock(void *__tve)
 __releases(&tve->lock)
 {
 	struct imx_tve *tve = __tve;
+
 	spin_unlock(&tve->lock);
 }
 
@@ -430,8 +432,7 @@ static long clk_tve_di_round_rate(struct clk_hw *hw, unsigned long rate,
 		return *prate / 4;
 	else if (div >= 2)
 		return *prate / 2;
-	else
-		return *prate;
+	return *prate;
 }
 
 static int clk_tve_di_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -536,7 +537,7 @@ static struct regmap_config tve_regmap_config = {
 	.max_register = 0xdc,
 };
 
-static const char *imx_tve_modes[] = {
+static const char * const imx_tve_modes[] = {
 	[TVE_MODE_TVOUT]  = "tvout",
 	[TVE_MODE_VGA] = "vga",
 };

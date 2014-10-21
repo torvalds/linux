@@ -17,7 +17,8 @@
 
 #include <linux/string.h>
 #include <linux/slab.h>
-#include <commontypes.h>
+#include <linux/types.h>
+#include <linux/uuid.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include "uniklog.h"
@@ -74,7 +75,7 @@ EXPORT_SYMBOL_GPL(uisutil_add_proc_line_ex);
 
 int
 uisctrl_register_req_handler(int type, void *fptr,
-			     ULTRA_VBUS_DEVICEINFO *chipset_DriverInfo)
+			     ULTRA_VBUS_DEVICEINFO *chipset_driver_info)
 {
 	LOGINF("type = %d, fptr = 0x%p.\n", type, fptr);
 
@@ -95,8 +96,8 @@ uisctrl_register_req_handler(int type, void *fptr,
 		LOGERR("invalid type %d.\n", type);
 		return 0;
 	}
-	if (chipset_DriverInfo)
-		BusDeviceInfo_Init(chipset_DriverInfo, "chipset", "uislib",
+	if (chipset_driver_info)
+		bus_device_info_init(chipset_driver_info, "chipset", "uislib",
 				   VERSION, NULL);
 
 	return 1;
@@ -117,6 +118,7 @@ uisctrl_register_req_handler_ex(uuid_le switchTypeGuid,
 {
 	ReqHandlerInfo_t *pReqHandlerInfo;
 	int rc = 0;		/* assume failure */
+
 	LOGINF("type=%pUL, controlfunc=0x%p.\n",
 	       &switchTypeGuid, controlfunc);
 	if (!controlfunc) {
@@ -148,7 +150,7 @@ uisctrl_register_req_handler_ex(uuid_le switchTypeGuid,
 Away:
 	if (rc) {
 		if (chipset_DriverInfo)
-			BusDeviceInfo_Init(chipset_DriverInfo, "chipset",
+			bus_device_info_init(chipset_DriverInfo, "chipset",
 					   "uislib", VERSION, NULL);
 	} else
 		LOGERR("failed to register type %pUL.\n", &switchTypeGuid);
@@ -161,6 +163,7 @@ int
 uisctrl_unregister_req_handler_ex(uuid_le switchTypeGuid)
 {
 	int rc = 0;		/* assume failure */
+
 	LOGINF("type=%pUL.\n", &switchTypeGuid);
 	if (ReqHandlerDel(switchTypeGuid) < 0) {
 		LOGERR("failed to remove %pUL from server list\n",
@@ -226,38 +229,41 @@ uisutil_copy_fragsinfo_from_skb(unsigned char *calling_ctx, void *skb_in,
 		offset += size;
 		count++;
 	}
-	if (numfrags) {
-		if ((count + numfrags) > frags_max) {
-			LOGERR("**** FAILED %s frags array too small: max:%d count+nr_frags:%d\n",
-			     calling_ctx, frags_max, count + numfrags);
+	if (!numfrags)
+		goto dolist;
+
+	if ((count + numfrags) > frags_max) {
+		LOGERR("**** FAILED %s frags array too small: max:%d count+nr_frags:%d\n",
+		     calling_ctx, frags_max, count + numfrags);
+		return -1;	/* failure */
+	}
+
+	for (ii = 0; ii < numfrags; ii++) {
+		count = add_physinfo_entries(page_to_pfn(
+				skb_frag_page(&skb_shinfo(skb)->frags[ii])),
+					skb_shinfo(skb)->frags[ii].
+					page_offset,
+					skb_shinfo(skb)->frags[ii].
+					size, count, frags_max,
+					frags);
+		if (count == 0) {
+			LOGERR("**** FAILED to add physinfo entries\n");
 			return -1;	/* failure */
 		}
-
-		for (ii = 0; ii < numfrags; ii++) {
-			count = add_physinfo_entries(page_to_pfn(skb_frag_page(&skb_shinfo(skb)->frags[ii])),	/* pfn */
-						     skb_shinfo(skb)->frags[ii].
-						     page_offset,
-						     skb_shinfo(skb)->frags[ii].
-						     size, count, frags_max,
-						     frags);
-			if (count == 0) {
-				LOGERR("**** FAILED to add physinfo entries\n");
-				return -1;	/* failure */
-			}
-		}
 	}
-	if (skb_shinfo(skb)->frag_list) {
+
+dolist: if (skb_shinfo(skb)->frag_list) {
 		struct sk_buff *skbinlist;
 		int c;
+
 		for (skbinlist = skb_shinfo(skb)->frag_list; skbinlist;
 		     skbinlist = skbinlist->next) {
 
 			c = uisutil_copy_fragsinfo_from_skb("recursive",
-							    skbinlist,
-							    skbinlist->len -
-							    skbinlist->data_len,
-							    frags_max - count,
-							    &frags[count]);
+				skbinlist,
+				skbinlist->len - skbinlist->data_len,
+				frags_max - count,
+				&frags[count]);
 			if (c == -1) {
 				LOGERR("**** FAILED recursive call failed\n");
 				return -1;
@@ -306,6 +312,7 @@ ReqHandlerFind(uuid_le switchTypeGuid)
 {
 	struct list_head *lelt, *tmp;
 	ReqHandlerInfo_t *entry = NULL;
+
 	spin_lock(&ReqHandlerInfo_list_lock);
 	list_for_each_safe(lelt, tmp, &ReqHandlerInfo_list) {
 		entry = list_entry(lelt, ReqHandlerInfo_t, list_link);
@@ -324,6 +331,7 @@ ReqHandlerDel(uuid_le switchTypeGuid)
 	struct list_head *lelt, *tmp;
 	ReqHandlerInfo_t *entry = NULL;
 	int rc = -1;
+
 	spin_lock(&ReqHandlerInfo_list_lock);
 	list_for_each_safe(lelt, tmp, &ReqHandlerInfo_list) {
 		entry = list_entry(lelt, ReqHandlerInfo_t, list_link);

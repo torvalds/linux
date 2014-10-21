@@ -437,10 +437,6 @@
 #define PLL_RESUME			BIT05		/* RW */
 #define PLL_LOCK			BIT04		/* R */
 
-#ifdef CONFIG_MACH_EMGR
-#define PLL_RST				BIT02		/* RW */
-#endif
-
 #define EPC_RST				BIT00		/* RW */
 
 /*------- (0x1014) USBF_EPTEST Register */

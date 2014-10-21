@@ -43,16 +43,22 @@ process(PROC_MEMX, #memx_init, #memx_recv)
 */	.b32 func
 
 memx_func_head:
-handler(ENTER , 0x0001, 0x0000, #memx_func_enter)
+handler(ENTER , 0x0000, 0x0000, #memx_func_enter)
 memx_func_next:
 handler(LEAVE , 0x0000, 0x0000, #memx_func_leave)
 handler(WR32  , 0x0000, 0x0002, #memx_func_wr32)
 handler(WAIT  , 0x0004, 0x0000, #memx_func_wait)
 handler(DELAY , 0x0001, 0x0000, #memx_func_delay)
+handler(VBLANK, 0x0001, 0x0000, #memx_func_wait_vblank)
 memx_func_tail:
 
 .equ #memx_func_size #memx_func_next - #memx_func_head
 .equ #memx_func_num (#memx_func_tail - #memx_func_head) / #memx_func_size
+
+memx_ts_start:
+.b32 0
+memx_ts_end:
+.b32 0
 
 memx_data_head:
 .skip 0x0800
@@ -67,19 +73,44 @@ memx_data_tail:
 //
 // $r15 - current (memx)
 // $r4  - packet length
-//	+00: bitmask of heads to wait for vblank on
 // $r3  - opcode desciption
 // $r0  - zero
 memx_func_enter:
+#if NVKM_PPWR_CHIPSET == GT215
+	movw $r8 0x1610
+	nv_rd32($r7, $r8)
+	imm32($r6, 0xfffffffc)
+	and $r7 $r6
+	movw $r6 0x2
+	or $r7 $r6
+	nv_wr32($r8, $r7)
+#else
+	movw $r6 0x001620
+	imm32($r7, ~0x00000aa2);
+	nv_rd32($r8, $r6)
+	and $r8 $r7
+	nv_wr32($r6, $r8)
+
+	imm32($r7, ~0x00000001)
+	nv_rd32($r8, $r6)
+	and $r8 $r7
+	nv_wr32($r6, $r8)
+
+	movw $r6 0x0026f0
+	nv_rd32($r8, $r6)
+	and $r8 $r7
+	nv_wr32($r6, $r8)
+#endif
+
 	mov $r6 NV_PPWR_OUTPUT_SET_FB_PAUSE
 	nv_iowr(NV_PPWR_OUTPUT_SET, $r6)
 	memx_func_enter_wait:
 		nv_iord($r6, NV_PPWR_OUTPUT)
 		and $r6 NV_PPWR_OUTPUT_FB_PAUSE
 		bra z #memx_func_enter_wait
-	//XXX: TODO
-	ld b32 $r6 D[$r1 + 0x00]
-	add b32 $r1 0x04
+
+	nv_iord($r6, NV_PPWR_TIMER_LOW)
+	st b32 D[$r0 + #memx_ts_start] $r6
 	ret
 
 // description
@@ -89,13 +120,92 @@ memx_func_enter:
 // $r3  - opcode desciption
 // $r0  - zero
 memx_func_leave:
+	nv_iord($r6, NV_PPWR_TIMER_LOW)
+	st b32 D[$r0 + #memx_ts_end] $r6
+
 	mov $r6 NV_PPWR_OUTPUT_CLR_FB_PAUSE
 	nv_iowr(NV_PPWR_OUTPUT_CLR, $r6)
 	memx_func_leave_wait:
 		nv_iord($r6, NV_PPWR_OUTPUT)
 		and $r6 NV_PPWR_OUTPUT_FB_PAUSE
 		bra nz #memx_func_leave_wait
+
+#if NVKM_PPWR_CHIPSET == GT215
+	movw $r8 0x1610
+	nv_rd32($r7, $r8)
+	imm32($r6, 0xffffffcc)
+	and $r7 $r6
+	nv_wr32($r8, $r7)
+#else
+	movw $r6 0x0026f0
+	imm32($r7, 0x00000001)
+	nv_rd32($r8, $r6)
+	or $r8 $r7
+	nv_wr32($r6, $r8)
+
+	movw $r6 0x001620
+	nv_rd32($r8, $r6)
+	or $r8 $r7
+	nv_wr32($r6, $r8)
+
+	imm32($r7, 0x00000aa2);
+	nv_rd32($r8, $r6)
+	or $r8 $r7
+	nv_wr32($r6, $r8)
+#endif
 	ret
+
+#if NVKM_PPWR_CHIPSET < GF119
+// description
+//
+// $r15 - current (memx)
+// $r4  - packet length
+//	+00: head to wait for vblank on
+// $r3  - opcode desciption
+// $r0  - zero
+memx_func_wait_vblank:
+	ld b32 $r6 D[$r1 + 0x00]
+	cmp b32 $r6 0x0
+	bra z #memx_func_wait_vblank_head0
+	cmp b32 $r6 0x1
+	bra z #memx_func_wait_vblank_head1
+	bra #memx_func_wait_vblank_fini
+
+	memx_func_wait_vblank_head1:
+	movw $r7 0x20
+	bra #memx_func_wait_vblank_0
+
+	memx_func_wait_vblank_head0:
+	movw $r7 0x8
+
+	memx_func_wait_vblank_0:
+		nv_iord($r6, NV_PPWR_INPUT)
+		and $r6 $r7
+		bra nz #memx_func_wait_vblank_0
+
+	memx_func_wait_vblank_1:
+		nv_iord($r6, NV_PPWR_INPUT)
+		and $r6 $r7
+		bra z #memx_func_wait_vblank_1
+
+	memx_func_wait_vblank_fini:
+	add b32 $r1 0x4
+	ret
+
+#else
+
+// XXX: currently no-op
+//
+// $r15 - current (memx)
+// $r4  - packet length
+//	+00: head to wait for vblank on
+// $r3  - opcode desciption
+// $r0  - zero
+memx_func_wait_vblank:
+	add b32 $r1 0x4
+	ret
+
+#endif
 
 // description
 //
@@ -160,14 +270,17 @@ memx_exec:
 	push $r13
 	mov b32 $r1 $r12
 	mov b32 $r2 $r11
+
 	memx_exec_next:
-		// fetch the packet header, and locate opcode info
+		// fetch the packet header
 		ld b32 $r3 D[$r1]
 		add b32 $r1 4
-		shr b32 $r4 $r3 16
-		mulu $r3 #memx_func_size
+		extr $r4 $r3 16:31
+		extr $r3 $r3 0:15
 
 		// execute the opcode handler
+		sub b32 $r3 1
+		mulu $r3 #memx_func_size
 		ld b32 $r5 D[$r3 + #memx_func_head + #memx_func]
 		call $r5
 
@@ -176,6 +289,10 @@ memx_exec:
 		bra l #memx_exec_next
 
 	// send completion reply
+	ld b32 $r11 D[$r0 + #memx_ts_start]
+	ld b32 $r12 D[$r0 + #memx_ts_end]
+	sub b32 $r12 $r11
+	nv_iord($r11, NV_PPWR_INPUT)
 	pop $r13
 	pop $r14
 	call(send)

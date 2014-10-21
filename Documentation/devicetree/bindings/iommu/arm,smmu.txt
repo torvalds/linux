@@ -14,6 +14,7 @@ conditions.
                         "arm,smmu-v1"
                         "arm,smmu-v2"
                         "arm,mmu-400"
+                        "arm,mmu-401"
                         "arm,mmu-500"
 
                   depending on the particular implementation and/or the

@@ -130,16 +130,15 @@ enum {
  */
 
 struct nfs4_lock_state {
-	struct list_head		ls_locks;   /* Other lock stateids */
-	struct nfs4_state *		ls_state;   /* Pointer to open state */
+	struct list_head	ls_locks;	/* Other lock stateids */
+	struct nfs4_state *	ls_state;	/* Pointer to open state */
 #define NFS_LOCK_INITIALIZED 0
 #define NFS_LOCK_LOST        1
-	unsigned long			ls_flags;
+	unsigned long		ls_flags;
 	struct nfs_seqid_counter	ls_seqid;
-	nfs4_stateid			ls_stateid;
-	atomic_t			ls_count;
-	fl_owner_t			ls_owner;
-	struct work_struct		ls_release;
+	nfs4_stateid		ls_stateid;
+	atomic_t		ls_count;
+	fl_owner_t		ls_owner;
 };
 
 /* bits for nfs4_state->flags */
@@ -227,6 +226,9 @@ int nfs4_replace_transport(struct nfs_server *server,
 				const struct nfs4_fs_locations *locations);
 
 /* nfs4proc.c */
+extern int nfs4_call_sync(struct rpc_clnt *, struct nfs_server *,
+			  struct rpc_message *, struct nfs4_sequence_args *,
+			  struct nfs4_sequence_res *, int);
 extern int nfs4_proc_setclientid(struct nfs_client *, u32, unsigned short, struct rpc_cred *, struct nfs4_setclientid_res *);
 extern int nfs4_proc_setclientid_confirm(struct nfs_client *, struct nfs4_setclientid_res *arg, struct rpc_cred *);
 extern int nfs4_proc_get_rootfh(struct nfs_server *, struct nfs_fh *, struct nfs_fsinfo *, bool);

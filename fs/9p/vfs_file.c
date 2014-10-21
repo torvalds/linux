@@ -301,8 +301,8 @@ static int v9fs_file_lock_dotl(struct file *filp, int cmd, struct file_lock *fl)
 	struct inode *inode = file_inode(filp);
 	int ret = -ENOLCK;
 
-	p9_debug(P9_DEBUG_VFS, "filp: %p cmd:%d lock: %p name: %s\n",
-		 filp, cmd, fl, filp->f_path.dentry->d_name.name);
+	p9_debug(P9_DEBUG_VFS, "filp: %p cmd:%d lock: %p name: %pD\n",
+		 filp, cmd, fl, filp);
 
 	/* No mandatory locks */
 	if (__mandatory_lock(inode) && fl->fl_type != F_UNLCK)
@@ -337,8 +337,8 @@ static int v9fs_file_flock_dotl(struct file *filp, int cmd,
 	struct inode *inode = file_inode(filp);
 	int ret = -ENOLCK;
 
-	p9_debug(P9_DEBUG_VFS, "filp: %p cmd:%d lock: %p name: %s\n",
-		 filp, cmd, fl, filp->f_path.dentry->d_name.name);
+	p9_debug(P9_DEBUG_VFS, "filp: %p cmd:%d lock: %p name: %pD\n",
+		 filp, cmd, fl, filp);
 
 	/* No mandatory locks */
 	if (__mandatory_lock(inode) && fl->fl_type != F_UNLCK)

@@ -120,8 +120,8 @@ uint r8712_alloc_io_queue(struct _adapter *adapter)
 	INIT_LIST_HEAD(&pio_queue->pending);
 	spin_lock_init(&pio_queue->lock);
 	pio_queue->pallocated_free_ioreqs_buf = kmalloc(NUM_IOREQ *
-							(sizeof(struct io_req)) + 4,
-							GFP_ATOMIC);
+						(sizeof(struct io_req)) + 4,
+						GFP_ATOMIC);
 	if ((pio_queue->pallocated_free_ioreqs_buf) == NULL)
 		goto alloc_io_queue_fail;
 	memset(pio_queue->pallocated_free_ioreqs_buf, 0,

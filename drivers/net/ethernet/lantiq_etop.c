@@ -633,7 +633,6 @@ ltq_etop_init(struct net_device *dev)
 	int err;
 	bool random_mac = false;
 
-	ether_setup(dev);
 	dev->watchdog_timeo = 10 * HZ;
 	err = ltq_etop_hw_init(dev);
 	if (err)

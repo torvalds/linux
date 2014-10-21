@@ -22,7 +22,6 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/freezer.h>
-#include <linux/workqueue.h>
 #include "async-thread.h"
 #include "ctree.h"
 
@@ -55,13 +54,45 @@ struct btrfs_workqueue {
 	struct __btrfs_workqueue *high;
 };
 
-static inline struct __btrfs_workqueue
-*__btrfs_alloc_workqueue(const char *name, int flags, int max_active,
+static void normal_work_helper(struct btrfs_work *work);
+
+#define BTRFS_WORK_HELPER(name)					\
+void btrfs_##name(struct work_struct *arg)				\
+{									\
+	struct btrfs_work *work = container_of(arg, struct btrfs_work,	\
+					       normal_work);		\
+	normal_work_helper(work);					\
+}
+
+BTRFS_WORK_HELPER(worker_helper);
+BTRFS_WORK_HELPER(delalloc_helper);
+BTRFS_WORK_HELPER(flush_delalloc_helper);
+BTRFS_WORK_HELPER(cache_helper);
+BTRFS_WORK_HELPER(submit_helper);
+BTRFS_WORK_HELPER(fixup_helper);
+BTRFS_WORK_HELPER(endio_helper);
+BTRFS_WORK_HELPER(endio_meta_helper);
+BTRFS_WORK_HELPER(endio_meta_write_helper);
+BTRFS_WORK_HELPER(endio_raid56_helper);
+BTRFS_WORK_HELPER(endio_repair_helper);
+BTRFS_WORK_HELPER(rmw_helper);
+BTRFS_WORK_HELPER(endio_write_helper);
+BTRFS_WORK_HELPER(freespace_write_helper);
+BTRFS_WORK_HELPER(delayed_meta_helper);
+BTRFS_WORK_HELPER(readahead_helper);
+BTRFS_WORK_HELPER(qgroup_rescan_helper);
+BTRFS_WORK_HELPER(extent_refs_helper);
+BTRFS_WORK_HELPER(scrub_helper);
+BTRFS_WORK_HELPER(scrubwrc_helper);
+BTRFS_WORK_HELPER(scrubnc_helper);
+
+static struct __btrfs_workqueue *
+__btrfs_alloc_workqueue(const char *name, int flags, int max_active,
 			 int thresh)
 {
 	struct __btrfs_workqueue *ret = kzalloc(sizeof(*ret), GFP_NOFS);
 
-	if (unlikely(!ret))
+	if (!ret)
 		return NULL;
 
 	ret->max_active = max_active;
@@ -85,7 +116,7 @@ static inline struct __btrfs_workqueue
 		ret->normal_wq = alloc_workqueue("%s-%s", flags,
 						 ret->max_active, "btrfs",
 						 name);
-	if (unlikely(!ret->normal_wq)) {
+	if (!ret->normal_wq) {
 		kfree(ret);
 		return NULL;
 	}
@@ -107,12 +138,12 @@ struct btrfs_workqueue *btrfs_alloc_workqueue(const char *name,
 {
 	struct btrfs_workqueue *ret = kzalloc(sizeof(*ret), GFP_NOFS);
 
-	if (unlikely(!ret))
+	if (!ret)
 		return NULL;
 
 	ret->normal = __btrfs_alloc_workqueue(name, flags & ~WQ_HIGHPRI,
 					      max_active, thresh);
-	if (unlikely(!ret->normal)) {
+	if (!ret->normal) {
 		kfree(ret);
 		return NULL;
 	}
@@ -120,7 +151,7 @@ struct btrfs_workqueue *btrfs_alloc_workqueue(const char *name,
 	if (flags & WQ_HIGHPRI) {
 		ret->high = __btrfs_alloc_workqueue(name, flags, max_active,
 						    thresh);
-		if (unlikely(!ret->high)) {
+		if (!ret->high) {
 			__btrfs_destroy_workqueue(ret->normal);
 			kfree(ret);
 			return NULL;
@@ -232,13 +263,11 @@ static void run_ordered_work(struct __btrfs_workqueue *wq)
 	spin_unlock_irqrestore(lock, flags);
 }
 
-static void normal_work_helper(struct work_struct *arg)
+static void normal_work_helper(struct btrfs_work *work)
 {
-	struct btrfs_work *work;
 	struct __btrfs_workqueue *wq;
 	int need_order = 0;
 
-	work = container_of(arg, struct btrfs_work, normal_work);
 	/*
 	 * We should not touch things inside work in the following cases:
 	 * 1) after work->func() if it has no ordered_free
@@ -262,7 +291,7 @@ static void normal_work_helper(struct work_struct *arg)
 		trace_btrfs_all_work_done(work);
 }
 
-void btrfs_init_work(struct btrfs_work *work,
+void btrfs_init_work(struct btrfs_work *work, btrfs_work_func_t uniq_func,
 		     btrfs_func_t func,
 		     btrfs_func_t ordered_func,
 		     btrfs_func_t ordered_free)
@@ -270,7 +299,7 @@ void btrfs_init_work(struct btrfs_work *work,
 	work->func = func;
 	work->ordered_func = ordered_func;
 	work->ordered_free = ordered_free;
-	INIT_WORK(&work->normal_work, normal_work_helper);
+	INIT_WORK(&work->normal_work, uniq_func);
 	INIT_LIST_HEAD(&work->ordered_list);
 	work->flags = 0;
 }

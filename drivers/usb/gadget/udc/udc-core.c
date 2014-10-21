@@ -27,6 +27,7 @@
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/usb.h>
 
 /**
  * struct usb_udc - describes one usb device controller
@@ -106,11 +107,42 @@ EXPORT_SYMBOL_GPL(usb_gadget_unmap_request);
 
 /* ------------------------------------------------------------------------- */
 
+/**
+ * usb_gadget_giveback_request - give the request back to the gadget layer
+ * Context: in_interrupt()
+ *
+ * This is called by device controller drivers in order to return the
+ * completed request back to the gadget layer.
+ */
+void usb_gadget_giveback_request(struct usb_ep *ep,
+		struct usb_request *req)
+{
+	if (likely(req->status == 0))
+		usb_led_activity(USB_LED_EVENT_GADGET);
+
+	req->complete(ep, req);
+}
+EXPORT_SYMBOL_GPL(usb_gadget_giveback_request);
+
+/* ------------------------------------------------------------------------- */
+
 static void usb_gadget_state_work(struct work_struct *work)
 {
 	struct usb_gadget	*gadget = work_to_gadget(work);
+	struct usb_udc		*udc = NULL;
 
-	sysfs_notify(&gadget->dev.kobj, NULL, "state");
+	mutex_lock(&udc_lock);
+	list_for_each_entry(udc, &udc_list, list)
+		if (udc->gadget == gadget)
+			goto found;
+	mutex_unlock(&udc_lock);
+
+	return;
+
+found:
+	mutex_unlock(&udc_lock);
+
+	sysfs_notify(&udc->dev.kobj, NULL, "state");
 }
 
 void usb_gadget_set_state(struct usb_gadget *gadget,
@@ -122,6 +154,23 @@ void usb_gadget_set_state(struct usb_gadget *gadget,
 EXPORT_SYMBOL_GPL(usb_gadget_set_state);
 
 /* ------------------------------------------------------------------------- */
+
+/**
+ * usb_gadget_udc_reset - notifies the udc core that bus reset occurs
+ * @gadget: The gadget which bus reset occurs
+ * @driver: The gadget driver we want to notify
+ *
+ * If the udc driver has bus reset handler, it needs to call this when the bus
+ * reset occurs, it notifies the gadget driver that the bus reset occurs as
+ * well as updates gadget state.
+ */
+void usb_gadget_udc_reset(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver)
+{
+	driver->reset(gadget);
+	usb_gadget_set_state(gadget, USB_STATE_DEFAULT);
+}
+EXPORT_SYMBOL_GPL(usb_gadget_udc_reset);
 
 /**
  * usb_gadget_udc_start - tells usb device controller to start up

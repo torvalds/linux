@@ -253,6 +253,7 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  *	the device whose settings are being modified.
  * @transfer: adds a message to the controller's transfer queue.
  * @cleanup: frees controller-specific state
+ * @can_dma: determine whether this master supports DMA
  * @queued: whether this master is providing an internal message queue
  * @kworker: thread struct for message pump
  * @kworker_task: pointer to task for message pump kworker thread
@@ -262,6 +263,7 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  * @cur_msg: the currently in-flight message
  * @cur_msg_prepared: spi_prepare_message was called for the currently
  *                    in-flight message
+ * @cur_msg_mapped: message has been mapped for DMA
  * @xfer_completion: used by core transfer_one_message()
  * @busy: message pump is busy
  * @running: message pump is running
@@ -299,6 +301,10 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  * @cs_gpios: Array of GPIOs to use as chip select lines; one per CS
  *	number. Any individual value may be -ENOENT for CS lines that
  *	are not GPIOs (driven by the SPI controller itself).
+ * @dma_tx: DMA transmit channel
+ * @dma_rx: DMA receive channel
+ * @dummy_rx: dummy receive buffer for full-duplex devices
+ * @dummy_tx: dummy transmit buffer for full-duplex devices
  *
  * Each SPI master controller can communicate with one or more @spi_device
  * children.  These make a small bus, sharing MOSI, MISO and SCK signals
@@ -632,6 +638,7 @@ struct spi_transfer {
  *	addresses for each transfer buffer
  * @complete: called to report transaction completions
  * @context: the argument to complete() when it's called
+ * @frame_length: the total number of bytes in the message
  * @actual_length: the total number of bytes that were transferred in all
  *	successful segments
  * @status: zero for success, else negative errno

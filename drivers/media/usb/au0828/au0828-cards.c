@@ -46,6 +46,8 @@ struct au0828_board au0828_boards[] = {
 		.name	= "Hauppauge HVR850",
 		.tuner_type = TUNER_XC5000,
 		.tuner_addr = 0x61,
+		.has_ir_i2c = 1,
+		.has_analog = 1,
 		.i2c_clk_divider = AU0828_I2C_CLK_250KHZ,
 		.input = {
 			{
@@ -72,12 +74,7 @@ struct au0828_board au0828_boards[] = {
 		.tuner_type = TUNER_XC5000,
 		.tuner_addr = 0x61,
 		.has_ir_i2c = 1,
-		/* The au0828 hardware i2c implementation does not properly
-		   support the xc5000's i2c clock stretching.  So we need to
-		   lower the clock frequency enough where the 15us clock
-		   stretch fits inside of a normal clock cycle, or else the
-		   au0828 fails to set the STOP bit.  A 30 KHz clock puts the
-		   clock pulse width at 18us */
+		.has_analog = 1,
 		.i2c_clk_divider = AU0828_I2C_CLK_250KHZ,
 		.input = {
 			{
@@ -101,20 +98,20 @@ struct au0828_board au0828_boards[] = {
 	},
 	[AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL] = {
 		.name	= "Hauppauge HVR950Q rev xxF8",
-		.tuner_type = UNSET,
-		.tuner_addr = ADDR_UNSET,
+		.tuner_type = TUNER_XC5000,
+		.tuner_addr = 0x61,
 		.i2c_clk_divider = AU0828_I2C_CLK_250KHZ,
 	},
 	[AU0828_BOARD_DVICO_FUSIONHDTV7] = {
 		.name	= "DViCO FusionHDTV USB",
-		.tuner_type = UNSET,
-		.tuner_addr = ADDR_UNSET,
+		.tuner_type = TUNER_XC5000,
+		.tuner_addr = 0x61,
 		.i2c_clk_divider = AU0828_I2C_CLK_250KHZ,
 	},
 	[AU0828_BOARD_HAUPPAUGE_WOODBURY] = {
 		.name = "Hauppauge Woodbury",
-		.tuner_type = UNSET,
-		.tuner_addr = ADDR_UNSET,
+		.tuner_type = TUNER_NXP_TDA18271,
+		.tuner_addr = 0x60,
 		.i2c_clk_divider = AU0828_I2C_CLK_250KHZ,
 	},
 };
@@ -142,8 +139,7 @@ int au0828_tuner_callback(void *priv, int component, int command, int arg)
 			mdelay(10);
 			return 0;
 		} else {
-			printk(KERN_ERR
-				"%s(): Unknown command.\n", __func__);
+			pr_err("%s(): Unknown command.\n", __func__);
 			return -EINVAL;
 		}
 		break;
@@ -177,12 +173,12 @@ static void hauppauge_eeprom(struct au0828_dev *dev, u8 *eeprom_data)
 	case 72500: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM */
 		break;
 	default:
-		printk(KERN_WARNING "%s: warning: "
-		       "unknown hauppauge model #%d\n", __func__, tv.model);
+		pr_warn("%s: warning: unknown hauppauge model #%d\n",
+			__func__, tv.model);
 		break;
 	}
 
-	printk(KERN_INFO "%s: hauppauge eeprom: model=%d\n",
+	pr_info("%s: hauppauge eeprom: model=%d\n",
 	       __func__, tv.model);
 }
 
@@ -228,16 +224,16 @@ void au0828_card_analog_fe_setup(struct au0828_dev *dev)
 		sd = v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
 				"au8522", 0x8e >> 1, NULL);
 		if (sd == NULL)
-			printk(KERN_ERR "analog subdev registration failed\n");
+			pr_err("analog subdev registration failed\n");
 	}
 
 	/* Setup tuners */
-	if (dev->board.tuner_type != TUNER_ABSENT) {
+	if (dev->board.tuner_type != TUNER_ABSENT && dev->board.has_analog) {
 		/* Load the tuner module, which does the attach */
 		sd = v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
 				"tuner", dev->board.tuner_addr, NULL);
 		if (sd == NULL)
-			printk(KERN_ERR "tuner subdev registration fail\n");
+			pr_err("tuner subdev registration fail\n");
 
 		tun_setup.mode_mask      = mode_mask;
 		tun_setup.type           = dev->board.tuner_type;

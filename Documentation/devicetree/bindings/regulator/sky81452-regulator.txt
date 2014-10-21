@@ -1,0 +1,16 @@
+SKY81452 voltage regulator
+
+Required properties:
+- any required generic properties defined in regulator.txt
+
+Optional properties:
+- any available generic properties defined in regulator.txt
+
+Example:
+
+	regulator {
+		/* generic regulator properties */
+		regulator-name = "touch_en";
+		regulator-min-microvolt = <4500000>;
+		regulator-max-microvolt = <8000000>;
+	};

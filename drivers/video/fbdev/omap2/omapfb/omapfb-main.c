@@ -273,16 +273,16 @@ static struct omapfb_colormode omapfb_colormodes[] = {
 	},
 };
 
+static bool cmp_component(struct fb_bitfield *f1, struct fb_bitfield *f2)
+{
+	return f1->length == f2->length &&
+		f1->offset == f2->offset &&
+		f1->msb_right == f2->msb_right;
+}
+
 static bool cmp_var_to_colormode(struct fb_var_screeninfo *var,
 		struct omapfb_colormode *color)
 {
-	bool cmp_component(struct fb_bitfield *f1, struct fb_bitfield *f2)
-	{
-		return f1->length == f2->length &&
-			f1->offset == f2->offset &&
-			f1->msb_right == f2->msb_right;
-	}
-
 	if (var->bits_per_pixel == 0 ||
 			var->red.length == 0 ||
 			var->blue.length == 0 ||

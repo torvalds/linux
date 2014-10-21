@@ -116,6 +116,7 @@ static int do_pd_setup(struct fs_enet_private *fep)
 }
 
 #define SCC_NAPI_RX_EVENT_MSK	(SCCE_ENET_RXF | SCCE_ENET_RXB)
+#define SCC_NAPI_TX_EVENT_MSK	(SCCE_ENET_TXB)
 #define SCC_RX_EVENT		(SCCE_ENET_RXF)
 #define SCC_TX_EVENT		(SCCE_ENET_TXB)
 #define SCC_ERR_EVENT_MSK	(SCCE_ENET_TXE | SCCE_ENET_BSY)
@@ -130,6 +131,7 @@ static int setup_data(struct net_device *dev)
 	fep->scc.htlo = 0;
 
 	fep->ev_napi_rx = SCC_NAPI_RX_EVENT_MSK;
+	fep->ev_napi_tx = SCC_NAPI_TX_EVENT_MSK;
 	fep->ev_rx = SCC_RX_EVENT;
 	fep->ev_tx = SCC_TX_EVENT | SCCE_ENET_TXE;
 	fep->ev_err = SCC_ERR_EVENT_MSK;
@@ -398,6 +400,30 @@ static void napi_disable_rx(struct net_device *dev)
 	C16(sccp, scc_sccm, SCC_NAPI_RX_EVENT_MSK);
 }
 
+static void napi_clear_tx_event(struct net_device *dev)
+{
+	struct fs_enet_private *fep = netdev_priv(dev);
+	scc_t __iomem *sccp = fep->scc.sccp;
+
+	W16(sccp, scc_scce, SCC_NAPI_TX_EVENT_MSK);
+}
+
+static void napi_enable_tx(struct net_device *dev)
+{
+	struct fs_enet_private *fep = netdev_priv(dev);
+	scc_t __iomem *sccp = fep->scc.sccp;
+
+	S16(sccp, scc_sccm, SCC_NAPI_TX_EVENT_MSK);
+}
+
+static void napi_disable_tx(struct net_device *dev)
+{
+	struct fs_enet_private *fep = netdev_priv(dev);
+	scc_t __iomem *sccp = fep->scc.sccp;
+
+	C16(sccp, scc_sccm, SCC_NAPI_TX_EVENT_MSK);
+}
+
 static void rx_bd_done(struct net_device *dev)
 {
 	/* nothing */
@@ -471,6 +497,9 @@ const struct fs_ops fs_scc_ops = {
 	.napi_clear_rx_event	= napi_clear_rx_event,
 	.napi_enable_rx		= napi_enable_rx,
 	.napi_disable_rx	= napi_disable_rx,
+	.napi_clear_tx_event	= napi_clear_tx_event,
+	.napi_enable_tx		= napi_enable_tx,
+	.napi_disable_tx	= napi_disable_tx,
 	.rx_bd_done		= rx_bd_done,
 	.tx_kickstart		= tx_kickstart,
 	.get_int_events		= get_int_events,

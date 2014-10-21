@@ -21,17 +21,8 @@
 #ifndef _V4L2_DV_TIMINGS_H
 #define _V4L2_DV_TIMINGS_H
 
-#if __GNUC__ < 4 || (__GNUC__ == 4 && (__GNUC_MINOR__ < 6))
-/* Sadly gcc versions older than 4.6 have a bug in how they initialize
-   anonymous unions where they require additional curly brackets.
-   This violates the C1x standard. This workaround adds the curly brackets
-   if needed. */
 #define V4L2_INIT_BT_TIMINGS(_width, args...) \
 	{ .bt = { _width , ## args } }
-#else
-#define V4L2_INIT_BT_TIMINGS(_width, args...) \
-	.bt = { _width , ## args }
-#endif
 
 /* CEA-861-E timings (i.e. standard HDTV timings) */
 

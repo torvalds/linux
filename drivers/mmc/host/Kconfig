@@ -14,6 +14,17 @@ config MMC_ARMMMCI
 
 	  If unsure, say N.
 
+config MMC_QCOM_DML
+	tristate "Qualcomm Data Mover for SD Card Controller"
+	depends on MMC_ARMMMCI && QCOM_BAM_DMA
+	default y
+	help
+	  This selects the Qualcomm Data Mover lite/local on SD Card controller.
+	  This option will enable the dma to work correctly, if you are using
+	  Qcom SOCs and MMC, you would probably need this option to get DMA working.
+
+	  if unsure, say N.
+
 config MMC_PXA
 	tristate "Intel PXA25x/26x/27x Multimedia Card Interface support"
 	depends on ARCH_PXA
@@ -568,7 +579,8 @@ config SDH_BFIN_MISSING_CMD_PULLUP_WORKAROUND
 
 config MMC_DW
 	tristate "Synopsys DesignWare Memory Card Interface"
-	depends on ARC || ARM
+	depends on HAS_DMA
+	depends on ARC || ARM || MIPS || COMPILE_TEST
 	help
 	  This selects support for the Synopsys DesignWare Mobile Storage IP
 	  block, this provides host support for SD and MMC interfaces, in both
@@ -625,6 +637,15 @@ config MMC_DW_PCI
 	  If you have a controller with this interface, say Y or M here.
 
 	  If unsure, say N.
+
+config MMC_DW_ROCKCHIP
+	tristate "Rockchip specific extensions for Synopsys DW Memory Card Interface"
+	depends on MMC_DW && ARCH_ROCKCHIP
+	select MMC_DW_PLTFM
+	help
+	  This selects support for Rockchip SoC specific extensions to the
+	  Synopsys DesignWare Memory Card Interface driver. Select this option
+	  for platforms based on RK3066, RK3188 and RK3288 SoC's.
 
 config MMC_SH_MMCIF
 	tristate "SuperH Internal MMCIF support"

@@ -15,11 +15,13 @@
 
 bool f2fs_may_inline(struct inode *inode)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	block_t nr_blocks;
 	loff_t i_size;
 
-	if (!test_opt(sbi, INLINE_DATA))
+	if (!test_opt(F2FS_I_SB(inode), INLINE_DATA))
+		return false;
+
+	if (f2fs_is_atomic_file(inode))
 		return false;
 
 	nr_blocks = F2FS_I(inode)->i_xattr_nid ? 3 : 2;
@@ -35,7 +37,6 @@ bool f2fs_may_inline(struct inode *inode)
 
 int f2fs_read_inline_data(struct inode *inode, struct page *page)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct page *ipage;
 	void *src_addr, *dst_addr;
 
@@ -44,7 +45,7 @@ int f2fs_read_inline_data(struct inode *inode, struct page *page)
 		goto out;
 	}
 
-	ipage = get_node_page(sbi, inode->i_ino);
+	ipage = get_node_page(F2FS_I_SB(inode), inode->i_ino);
 	if (IS_ERR(ipage)) {
 		unlock_page(page);
 		return PTR_ERR(ipage);
@@ -68,12 +69,12 @@ out:
 
 static int __f2fs_convert_inline_data(struct inode *inode, struct page *page)
 {
-	int err;
+	int err = 0;
 	struct page *ipage;
 	struct dnode_of_data dn;
 	void *src_addr, *dst_addr;
 	block_t new_blk_addr;
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct f2fs_io_info fio = {
 		.type = DATA,
 		.rw = WRITE_SYNC | REQ_PRIO,
@@ -85,6 +86,10 @@ static int __f2fs_convert_inline_data(struct inode *inode, struct page *page)
 		err = PTR_ERR(ipage);
 		goto out;
 	}
+
+	/* someone else converted inline_data already */
+	if (!f2fs_has_inline_data(inode))
+		goto out;
 
 	/*
 	 * i_addr[0] is not used for inline data,
@@ -124,9 +129,10 @@ out:
 	return err;
 }
 
-int f2fs_convert_inline_data(struct inode *inode, pgoff_t to_size)
+int f2fs_convert_inline_data(struct inode *inode, pgoff_t to_size,
+						struct page *page)
 {
-	struct page *page;
+	struct page *new_page = page;
 	int err;
 
 	if (!f2fs_has_inline_data(inode))
@@ -134,17 +140,20 @@ int f2fs_convert_inline_data(struct inode *inode, pgoff_t to_size)
 	else if (to_size <= MAX_INLINE_DATA)
 		return 0;
 
-	page = grab_cache_page(inode->i_mapping, 0);
-	if (!page)
-		return -ENOMEM;
+	if (!page || page->index != 0) {
+		new_page = grab_cache_page(inode->i_mapping, 0);
+		if (!new_page)
+			return -ENOMEM;
+	}
 
-	err = __f2fs_convert_inline_data(inode, page);
-	f2fs_put_page(page, 1);
+	err = __f2fs_convert_inline_data(inode, new_page);
+	if (!page || page->index != 0)
+		f2fs_put_page(new_page, 1);
 	return err;
 }
 
 int f2fs_write_inline_data(struct inode *inode,
-			   struct page *page, unsigned size)
+				struct page *page, unsigned size)
 {
 	void *src_addr, *dst_addr;
 	struct page *ipage;
@@ -181,13 +190,12 @@ int f2fs_write_inline_data(struct inode *inode,
 
 void truncate_inline_data(struct inode *inode, u64 from)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct page *ipage;
 
 	if (from >= MAX_INLINE_DATA)
 		return;
 
-	ipage = get_node_page(sbi, inode->i_ino);
+	ipage = get_node_page(F2FS_I_SB(inode), inode->i_ino);
 	if (IS_ERR(ipage))
 		return;
 
@@ -199,9 +207,9 @@ void truncate_inline_data(struct inode *inode, u64 from)
 	f2fs_put_page(ipage, 1);
 }
 
-int recover_inline_data(struct inode *inode, struct page *npage)
+bool recover_inline_data(struct inode *inode, struct page *npage)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct f2fs_inode *ri = NULL;
 	void *src_addr, *dst_addr;
 	struct page *ipage;
@@ -218,10 +226,10 @@ int recover_inline_data(struct inode *inode, struct page *npage)
 		ri = F2FS_INODE(npage);
 
 	if (f2fs_has_inline_data(inode) &&
-			ri && ri->i_inline & F2FS_INLINE_DATA) {
+			ri && (ri->i_inline & F2FS_INLINE_DATA)) {
 process_inline:
 		ipage = get_node_page(sbi, inode->i_ino);
-		f2fs_bug_on(IS_ERR(ipage));
+		f2fs_bug_on(sbi, IS_ERR(ipage));
 
 		f2fs_wait_on_page_writeback(ipage, NODE);
 
@@ -230,22 +238,22 @@ process_inline:
 		memcpy(dst_addr, src_addr, MAX_INLINE_DATA);
 		update_inode(inode, ipage);
 		f2fs_put_page(ipage, 1);
-		return -1;
+		return true;
 	}
 
 	if (f2fs_has_inline_data(inode)) {
 		ipage = get_node_page(sbi, inode->i_ino);
-		f2fs_bug_on(IS_ERR(ipage));
+		f2fs_bug_on(sbi, IS_ERR(ipage));
 		f2fs_wait_on_page_writeback(ipage, NODE);
 		zero_user_segment(ipage, INLINE_DATA_OFFSET,
 				 INLINE_DATA_OFFSET + MAX_INLINE_DATA);
 		clear_inode_flag(F2FS_I(inode), FI_INLINE_DATA);
 		update_inode(inode, ipage);
 		f2fs_put_page(ipage, 1);
-	} else if (ri && ri->i_inline & F2FS_INLINE_DATA) {
-		truncate_blocks(inode, 0);
+	} else if (ri && (ri->i_inline & F2FS_INLINE_DATA)) {
+		truncate_blocks(inode, 0, false);
 		set_inode_flag(F2FS_I(inode), FI_INLINE_DATA);
 		goto process_inline;
 	}
-	return 0;
+	return false;
 }

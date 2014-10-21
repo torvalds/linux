@@ -20,6 +20,7 @@
 #define PLL_GPLL		4
 #define CORE_PERI		5
 #define CORE_L2C		6
+#define ARMCLK			7
 
 /* sclk gates (special clocks) */
 #define SCLK_UART0		64

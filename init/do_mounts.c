@@ -182,7 +182,8 @@ done:
 /*
  *	Convert a name into device number.  We accept the following variants:
  *
- *	1) device number in hexadecimal	represents itself
+ *	1) <hex_major><hex_minor> device number in hexadecimal represents itself
+ *         no leading 0x, for example b302.
  *	2) /dev/nfs represents Root_NFS (0xff)
  *	3) /dev/<disk_name> represents the device number of disk
  *	4) /dev/<disk_name><decimal> represents the device number
@@ -539,6 +540,12 @@ void __init prepare_namespace(void)
 {
 	int is_floppy;
 
+	if (root_delay) {
+		printk(KERN_INFO "Waiting %d sec before mounting root device...\n",
+		       root_delay);
+		ssleep(root_delay);
+	}
+
 	/*
 	 * wait for the known devices to complete their probing
 	 *
@@ -564,12 +571,6 @@ void __init prepare_namespace(void)
 
 	if (initrd_load())
 		goto out;
-
-	if (root_delay) {
-		pr_info("Waiting %d sec before mounting root device...\n",
-			root_delay);
-		ssleep(root_delay);
-	}
 
 	/* wait for any asynchronous scanning to complete */
 	if ((ROOT_DEV == 0) && root_wait) {

@@ -36,6 +36,7 @@
 #include <linux/export.h>
 #include <drm/drmP.h>
 #include <drm/drm_edid.h>
+#include "drm_internal.h"
 
 #if defined(CONFIG_DEBUG_FS)
 
@@ -49,9 +50,7 @@ static const struct drm_info_list drm_debugfs_list[] = {
 	{"clients", drm_clients_info, 0},
 	{"bufs", drm_bufs_info, 0},
 	{"gem_names", drm_gem_name_info, DRIVER_GEM},
-#if DRM_DEBUG_CODE
 	{"vma", drm_vma_info, 0},
-#endif
 };
 #define DRM_DEBUGFS_ENTRIES ARRAY_SIZE(drm_debugfs_list)
 

@@ -186,10 +186,8 @@ static int dwc3_alloc_event_buffers(struct dwc3 *dwc, unsigned length)
 
 	dwc->ev_buffs = devm_kzalloc(dwc->dev, sizeof(*dwc->ev_buffs) * num,
 			GFP_KERNEL);
-	if (!dwc->ev_buffs) {
-		dev_err(dwc->dev, "can't allocate event buffers array\n");
+	if (!dwc->ev_buffs)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < num; i++) {
 		struct dwc3_event_buffer	*evt;
@@ -639,10 +637,9 @@ static int dwc3_probe(struct platform_device *pdev)
 	void			*mem;
 
 	mem = devm_kzalloc(dev, sizeof(*dwc) + DWC3_ALIGN_MASK, GFP_KERNEL);
-	if (!mem) {
-		dev_err(dev, "not enough memory\n");
+	if (!mem)
 		return -ENOMEM;
-	}
+
 	dwc = PTR_ALIGN(mem, DWC3_ALIGN_MASK + 1);
 	dwc->mem = mem;
 	dwc->dev = dev;
@@ -799,19 +796,20 @@ static int dwc3_remove(struct platform_device *pdev)
 {
 	struct dwc3	*dwc = platform_get_drvdata(pdev);
 
+	dwc3_debugfs_exit(dwc);
+	dwc3_core_exit_mode(dwc);
+	dwc3_event_buffers_cleanup(dwc);
+	dwc3_free_event_buffers(dwc);
+
 	usb_phy_set_suspend(dwc->usb2_phy, 1);
 	usb_phy_set_suspend(dwc->usb3_phy, 1);
 	phy_power_off(dwc->usb2_generic_phy);
 	phy_power_off(dwc->usb3_generic_phy);
 
+	dwc3_core_exit(dwc);
+
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	dwc3_debugfs_exit(dwc);
-	dwc3_core_exit_mode(dwc);
-	dwc3_event_buffers_cleanup(dwc);
-	dwc3_free_event_buffers(dwc);
-	dwc3_core_exit(dwc);
 
 	return 0;
 }

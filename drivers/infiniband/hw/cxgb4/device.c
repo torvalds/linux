@@ -60,7 +60,7 @@ int c4iw_wr_log = 0;
 module_param(c4iw_wr_log, int, 0444);
 MODULE_PARM_DESC(c4iw_wr_log, "Enables logging of work request timing data.");
 
-int c4iw_wr_log_size_order = 12;
+static int c4iw_wr_log_size_order = 12;
 module_param(c4iw_wr_log_size_order, int, 0444);
 MODULE_PARM_DESC(c4iw_wr_log_size_order,
 		 "Number of entries (log2) in the work request timing log.");

@@ -44,7 +44,7 @@
 struct dm_dev_internal {
 	struct list_head list;
 	atomic_t count;
-	struct dm_dev dm_dev;
+	struct dm_dev *dm_dev;
 };
 
 struct dm_table;
@@ -188,6 +188,9 @@ int dm_cancel_deferred_remove(struct mapped_device *md);
 int dm_request_based(struct mapped_device *md);
 sector_t dm_get_size(struct mapped_device *md);
 struct request_queue *dm_get_md_queue(struct mapped_device *md);
+int dm_get_table_device(struct mapped_device *md, dev_t dev, fmode_t mode,
+			struct dm_dev **result);
+void dm_put_table_device(struct mapped_device *md, struct dm_dev *d);
 struct dm_stats *dm_get_stats(struct mapped_device *md);
 
 int dm_kobject_uevent(struct mapped_device *md, enum kobject_action action,

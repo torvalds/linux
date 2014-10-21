@@ -64,7 +64,9 @@ bool kexec_in_progress = false;
 char __weak kexec_purgatory[0];
 size_t __weak kexec_purgatory_size = 0;
 
+#ifdef CONFIG_KEXEC_FILE
 static int kexec_calculate_store_digests(struct kimage *image);
+#endif
 
 /* Location of the reserved area for the crash kernel */
 struct resource crashk_res = {
@@ -341,6 +343,7 @@ out_free_image:
 	return ret;
 }
 
+#ifdef CONFIG_KEXEC_FILE
 static int copy_file_from_fd(int fd, void **buf, unsigned long *buf_len)
 {
 	struct fd f = fdget(fd);
@@ -612,6 +615,9 @@ out_free_image:
 	kfree(image);
 	return ret;
 }
+#else /* CONFIG_KEXEC_FILE */
+static inline void kimage_file_post_load_cleanup(struct kimage *image) { }
+#endif /* CONFIG_KEXEC_FILE */
 
 static int kimage_is_destination_range(struct kimage *image,
 					unsigned long start,
@@ -1375,6 +1381,7 @@ COMPAT_SYSCALL_DEFINE4(kexec_load, compat_ulong_t, entry,
 }
 #endif
 
+#ifdef CONFIG_KEXEC_FILE
 SYSCALL_DEFINE5(kexec_file_load, int, kernel_fd, int, initrd_fd,
 		unsigned long, cmdline_len, const char __user *, cmdline_ptr,
 		unsigned long, flags)
@@ -1450,6 +1457,8 @@ out:
 	kimage_free(image);
 	return ret;
 }
+
+#endif /* CONFIG_KEXEC_FILE */
 
 void crash_kexec(struct pt_regs *regs)
 {
@@ -1750,7 +1759,6 @@ static __initdata char *suffix_tbl[] = {
  */
 static int __init parse_crashkernel_suffix(char *cmdline,
 					   unsigned long long	*crash_size,
-					   unsigned long long	*crash_base,
 					   const char *suffix)
 {
 	char *cur = cmdline;
@@ -1839,7 +1847,7 @@ static int __init __parse_crashkernel(char *cmdline,
 
 	if (suffix)
 		return parse_crashkernel_suffix(ck_cmdline, crash_size,
-				crash_base, suffix);
+				suffix);
 	/*
 	 * if the commandline contains a ':', then that's the extended
 	 * syntax -- if not, it must be the classic syntax
@@ -2006,22 +2014,7 @@ static int __init crash_save_vmcoreinfo_init(void)
 
 subsys_initcall(crash_save_vmcoreinfo_init);
 
-static int __kexec_add_segment(struct kimage *image, char *buf,
-			       unsigned long bufsz, unsigned long mem,
-			       unsigned long memsz)
-{
-	struct kexec_segment *ksegment;
-
-	ksegment = &image->segment[image->nr_segments];
-	ksegment->kbuf = buf;
-	ksegment->bufsz = bufsz;
-	ksegment->mem = mem;
-	ksegment->memsz = memsz;
-	image->nr_segments++;
-
-	return 0;
-}
-
+#ifdef CONFIG_KEXEC_FILE
 static int locate_mem_hole_top_down(unsigned long start, unsigned long end,
 				    struct kexec_buf *kbuf)
 {
@@ -2054,8 +2047,7 @@ static int locate_mem_hole_top_down(unsigned long start, unsigned long end,
 	} while (1);
 
 	/* If we are here, we found a suitable memory range */
-	__kexec_add_segment(image, kbuf->buffer, kbuf->bufsz, temp_start,
-			    kbuf->memsz);
+	kbuf->mem = temp_start;
 
 	/* Success, stop navigating through remaining System RAM ranges */
 	return 1;
@@ -2089,8 +2081,7 @@ static int locate_mem_hole_bottom_up(unsigned long start, unsigned long end,
 	} while (1);
 
 	/* If we are here, we found a suitable memory range */
-	__kexec_add_segment(image, kbuf->buffer, kbuf->bufsz, temp_start,
-			    kbuf->memsz);
+	kbuf->mem = temp_start;
 
 	/* Success, stop navigating through remaining System RAM ranges */
 	return 1;
@@ -2177,7 +2168,12 @@ int kexec_add_buffer(struct kimage *image, char *buffer, unsigned long bufsz,
 	}
 
 	/* Found a suitable memory range */
-	ksegment = &image->segment[image->nr_segments - 1];
+	ksegment = &image->segment[image->nr_segments];
+	ksegment->kbuf = kbuf->buffer;
+	ksegment->bufsz = kbuf->bufsz;
+	ksegment->mem = kbuf->mem;
+	ksegment->memsz = kbuf->memsz;
+	image->nr_segments++;
 	*load_addr = ksegment->mem;
 	return 0;
 }
@@ -2682,6 +2678,7 @@ int kexec_purgatory_get_set_symbol(struct kimage *image, const char *name,
 
 	return 0;
 }
+#endif /* CONFIG_KEXEC_FILE */
 
 /*
  * Move into place and start executing a preloaded standalone

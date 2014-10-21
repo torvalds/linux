@@ -36,7 +36,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
-
+#include <linux/fsldma.h>
 #include "dmaengine.h"
 #include "fsldma.h"
 
@@ -366,6 +366,20 @@ static void fsl_chan_toggle_ext_start(struct fsldma_chan *chan, int enable)
 	else
 		chan->feature &= ~FSL_DMA_CHAN_START_EXT;
 }
+
+int fsl_dma_external_start(struct dma_chan *dchan, int enable)
+{
+	struct fsldma_chan *chan;
+
+	if (!dchan)
+		return -EINVAL;
+
+	chan = to_fsl_chan(dchan);
+
+	fsl_chan_toggle_ext_start(chan, enable);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(fsl_dma_external_start);
 
 static void append_ld_queue(struct fsldma_chan *chan, struct fsl_desc_sw *desc)
 {
@@ -996,15 +1010,6 @@ static int fsl_dma_device_control(struct dma_chan *dchan,
 			size = config->src_addr_width * config->src_maxburst;
 
 		chan->set_request_count(chan, size);
-		return 0;
-
-	case FSLDMA_EXTERNAL_START:
-
-		/* make sure the channel supports external start */
-		if (!chan->toggle_ext_start)
-			return -ENXIO;
-
-		chan->toggle_ext_start(chan, arg);
 		return 0;
 
 	default:

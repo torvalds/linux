@@ -1434,6 +1434,10 @@ static int cfi_amdstd_otp_walk(struct mtd_info *mtd, loff_t from, size_t len,
 
 				mutex_lock(&chip->mutex);
 				ret = get_chip(map, chip, base, FL_LOCKING);
+				if (ret) {
+					mutex_unlock(&chip->mutex);
+					return ret;
+				}
 
 				/* Enter lock register command */
 				cfi_send_gen_cmd(0xAA, cfi->addr_unlock1,
@@ -2029,6 +2033,8 @@ static int cfi_amdstd_panic_wait(struct map_info *map, struct flchip *chip,
 
 			udelay(1);
 		}
+
+		retries--;
 	}
 
 	/* the chip never became ready */

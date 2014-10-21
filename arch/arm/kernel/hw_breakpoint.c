@@ -113,8 +113,8 @@ static u32 read_wb_reg(int n)
 	GEN_READ_WB_REG_CASES(ARM_OP2_WVR, val);
 	GEN_READ_WB_REG_CASES(ARM_OP2_WCR, val);
 	default:
-		pr_warning("attempt to read from unknown breakpoint "
-				"register %d\n", n);
+		pr_warn("attempt to read from unknown breakpoint register %d\n",
+			n);
 	}
 
 	return val;
@@ -128,8 +128,8 @@ static void write_wb_reg(int n, u32 val)
 	GEN_WRITE_WB_REG_CASES(ARM_OP2_WVR, val);
 	GEN_WRITE_WB_REG_CASES(ARM_OP2_WCR, val);
 	default:
-		pr_warning("attempt to write to unknown breakpoint "
-				"register %d\n", n);
+		pr_warn("attempt to write to unknown breakpoint register %d\n",
+			n);
 	}
 	isb();
 }
@@ -292,7 +292,7 @@ int hw_breakpoint_slots(int type)
 	case TYPE_DATA:
 		return get_num_wrps();
 	default:
-		pr_warning("unknown slot type: %d\n", type);
+		pr_warn("unknown slot type: %d\n", type);
 		return 0;
 	}
 }
@@ -365,7 +365,7 @@ int arch_install_hw_breakpoint(struct perf_event *bp)
 	}
 
 	if (i == max_slots) {
-		pr_warning("Can't find any breakpoint slot\n");
+		pr_warn("Can't find any breakpoint slot\n");
 		return -EBUSY;
 	}
 
@@ -417,7 +417,7 @@ void arch_uninstall_hw_breakpoint(struct perf_event *bp)
 	}
 
 	if (i == max_slots) {
-		pr_warning("Can't find any breakpoint slot\n");
+		pr_warn("Can't find any breakpoint slot\n");
 		return;
 	}
 
@@ -894,8 +894,8 @@ static int debug_reg_trap(struct pt_regs *regs, unsigned int instr)
 {
 	int cpu = smp_processor_id();
 
-	pr_warning("Debug register access (0x%x) caused undefined instruction on CPU %d\n",
-		   instr, cpu);
+	pr_warn("Debug register access (0x%x) caused undefined instruction on CPU %d\n",
+		instr, cpu);
 
 	/* Set the error flag for this CPU and skip the faulting instruction. */
 	cpumask_set_cpu(cpu, &debug_err_mask);

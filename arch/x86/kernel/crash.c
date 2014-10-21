@@ -182,8 +182,7 @@ void native_machine_crash_shutdown(struct pt_regs *regs)
 	crash_save_cpu(regs, safe_smp_processor_id());
 }
 
-#ifdef CONFIG_X86_64
-
+#ifdef CONFIG_KEXEC_FILE
 static int get_nr_ram_ranges_callback(unsigned long start_pfn,
 				unsigned long nr_pfn, void *arg)
 {
@@ -238,7 +237,7 @@ static void fill_up_crash_elf_data(struct crash_elf_data *ced,
 	ced->max_nr_ranges++;
 
 	/* If crashk_low_res is not 0, another range split possible */
-	if (crashk_low_res.end != 0)
+	if (crashk_low_res.end)
 		ced->max_nr_ranges++;
 }
 
@@ -336,9 +335,11 @@ static int elf_header_exclude_ranges(struct crash_elf_data *ced,
 	if (ret)
 		return ret;
 
-	ret = exclude_mem_range(cmem, crashk_low_res.start, crashk_low_res.end);
-	if (ret)
-		return ret;
+	if (crashk_low_res.end) {
+		ret = exclude_mem_range(cmem, crashk_low_res.start, crashk_low_res.end);
+		if (ret)
+			return ret;
+	}
 
 	/* Exclude GART region */
 	if (ced->gart_end) {
@@ -696,5 +697,4 @@ int crash_load_segments(struct kimage *image)
 
 	return ret;
 }
-
-#endif /* CONFIG_X86_64 */
+#endif /* CONFIG_KEXEC_FILE */

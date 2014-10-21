@@ -1636,7 +1636,7 @@ int brcmf_fws_hdrpull(struct brcmf_pub *drvr, int ifidx, s16 signal_len,
 	if (!signal_len)
 		return 0;
 	/* if flow control disabled, skip to packet data and leave */
-	if (!fws->fw_signals) {
+	if ((!fws) || (!fws->fw_signals)) {
 		skb_pull(skb, signal_len);
 		return 0;
 	}

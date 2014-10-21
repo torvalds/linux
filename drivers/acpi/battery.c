@@ -534,20 +534,6 @@ static int acpi_battery_get_state(struct acpi_battery *battery)
 			" invalid.\n");
 	}
 
-	/*
-	 * When fully charged, some batteries wrongly report
-	 * capacity_now = design_capacity instead of = full_charge_capacity
-	 */
-	if (battery->capacity_now > battery->full_charge_capacity
-	    && battery->full_charge_capacity != ACPI_BATTERY_VALUE_UNKNOWN) {
-		if (battery->capacity_now != battery->design_capacity)
-			printk_once(KERN_WARNING FW_BUG
-				"battery: reported current charge level (%d) "
-				"is higher than reported maximum charge level (%d).\n",
-				battery->capacity_now, battery->full_charge_capacity);
-		battery->capacity_now = battery->full_charge_capacity;
-	}
-
 	if (test_bit(ACPI_BATTERY_QUIRK_PERCENTAGE_CAPACITY, &battery->flags)
 	    && battery->capacity_now >= 0 && battery->capacity_now <= 100)
 		battery->capacity_now = (battery->capacity_now *
@@ -709,7 +695,7 @@ static void acpi_battery_quirks(struct acpi_battery *battery)
 	if (battery->power_unit && dmi_name_in_vendors("LENOVO")) {
 		const char *s;
 		s = dmi_get_system_info(DMI_PRODUCT_VERSION);
-		if (s && !strnicmp(s, "ThinkPad", 8)) {
+		if (s && !strncasecmp(s, "ThinkPad", 8)) {
 			dmi_walk(find_battery, battery);
 			if (test_bit(ACPI_BATTERY_QUIRK_THINKPAD_MAH,
 				     &battery->flags) &&

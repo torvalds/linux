@@ -26,21 +26,27 @@
 #ifndef __RTL8723BE_PHY_H__
 #define __RTL8723BE_PHY_H__
 
-/*It must always set to 4, otherwise read efuse table secquence will be wrong.*/
+/* MAX_TX_COUNT must always set to 4, otherwise read efuse table sequence
+ * will be wrong.
+ */
 #define MAX_TX_COUNT		4
 #define	TX_1S			0
 #define	TX_2S			1
+#define	TX_3S			2
+#define	TX_4S			3
 
 #define	MAX_POWER_INDEX		0x3F
 
 #define MAX_PRECMD_CNT			16
 #define MAX_RFDEPENDCMD_CNT		16
-#define MAX_POSTCMD_CNT		16
+#define MAX_POSTCMD_CNT			16
 
 #define MAX_DOZE_WAITING_TIMES_9x	64
 
 #define RT_CANNOT_IO(hw)		false
 #define HIGHPOWER_RADIOA_ARRAYLEN	22
+
+#define TARGET_CHNL_NUM_2G_5G		59
 
 #define IQK_ADDA_REG_NUM		16
 #define IQK_BB_REG_NUM			9
@@ -83,104 +89,19 @@
 
 #define RTL92C_MAX_PATH_NUM			2
 
-enum hw90_block_e {
-	HW90_BLOCK_MAC = 0,
-	HW90_BLOCK_PHY0 = 1,
-	HW90_BLOCK_PHY1 = 2,
-	HW90_BLOCK_RF = 3,
-	HW90_BLOCK_MAXIMUM = 4,
-};
-
 enum baseband_config_type {
 	BASEBAND_CONFIG_PHY_REG = 0,
 	BASEBAND_CONFIG_AGC_TAB = 1,
 };
 
-enum ra_offset_area {
-	RA_OFFSET_LEGACY_OFDM1,
-	RA_OFFSET_LEGACY_OFDM2,
-	RA_OFFSET_HT_OFDM1,
-	RA_OFFSET_HT_OFDM2,
-	RA_OFFSET_HT_OFDM3,
-	RA_OFFSET_HT_OFDM4,
-	RA_OFFSET_HT_CCK,
-};
-
-enum antenna_path {
-	ANTENNA_NONE,
-	ANTENNA_D,
-	ANTENNA_C,
-	ANTENNA_CD,
-	ANTENNA_B,
-	ANTENNA_BD,
-	ANTENNA_BC,
-	ANTENNA_BCD,
-	ANTENNA_A,
-	ANTENNA_AD,
-	ANTENNA_AC,
-	ANTENNA_ACD,
-	ANTENNA_AB,
-	ANTENNA_ABD,
-	ANTENNA_ABC,
-	ANTENNA_ABCD
-};
-
-struct r_antenna_select_ofdm {
-	u32 r_tx_antenna:4;
-	u32 r_ant_l:4;
-	u32 r_ant_non_ht:4;
-	u32 r_ant_ht1:4;
-	u32 r_ant_ht2:4;
-	u32 r_ant_ht_s1:4;
-	u32 r_ant_non_ht_s1:4;
-	u32 ofdm_txsc:2;
-	u32 reserved:2;
-};
-
-struct r_antenna_select_cck {
-	u8 r_cckrx_enable_2:2;
-	u8 r_cckrx_enable:2;
-	u8 r_ccktx_enable:4;
-};
-
-
-struct efuse_contents {
-	u8 mac_addr[ETH_ALEN];
-	u8 cck_tx_power_idx[6];
-	u8 ht40_1s_tx_power_idx[6];
-	u8 ht40_2s_tx_power_idx_diff[3];
-	u8 ht20_tx_power_idx_diff[3];
-	u8 ofdm_tx_power_idx_diff[3];
-	u8 ht40_max_power_offset[3];
-	u8 ht20_max_power_offset[3];
-	u8 channel_plan;
-	u8 thermal_meter;
-	u8 rf_option[5];
-	u8 version;
-	u8 oem_id;
-	u8 regulatory;
-};
-
-struct tx_power_struct {
-	u8 cck[RTL92C_MAX_PATH_NUM][CHANNEL_MAX_NUMBER];
-	u8 ht40_1s[RTL92C_MAX_PATH_NUM][CHANNEL_MAX_NUMBER];
-	u8 ht40_2s[RTL92C_MAX_PATH_NUM][CHANNEL_MAX_NUMBER];
-	u8 ht20_diff[RTL92C_MAX_PATH_NUM][CHANNEL_MAX_NUMBER];
-	u8 legacy_ht_diff[RTL92C_MAX_PATH_NUM][CHANNEL_MAX_NUMBER];
-	u8 legacy_ht_txpowerdiff;
-	u8 groupht20[RTL92C_MAX_PATH_NUM][CHANNEL_MAX_NUMBER];
-	u8 groupht40[RTL92C_MAX_PATH_NUM][CHANNEL_MAX_NUMBER];
-	u8 pwrgroup_cnt;
-	u32 mcs_original_offset[4][16];
-};
-
-enum _ANT_DIV_TYPE {
-	NO_ANTDIV				= 0xFF,
-	CG_TRX_HW_ANTDIV		= 0x01,
-	CGCS_RX_HW_ANTDIV		= 0x02,
+enum ant_div_type {
+	NO_ANTDIV		= 0xFF,
+	CG_TRX_HW_ANTDIV	= 0x01,
+	CGCS_RX_HW_ANTDIV	= 0x02,
 	FIXED_HW_ANTDIV         = 0x03,
-	CG_TRX_SMART_ANTDIV		= 0x04,
-	CGCS_RX_SW_ANTDIV		= 0x05,
+	CG_TRX_SMART_ANTDIV	= 0x04,
+	CGCS_RX_SW_ANTDIV	= 0x05,
+
 };
 
 u32 rtl8723be_phy_query_rf_reg(struct ieee80211_hw *hw,
@@ -206,7 +127,6 @@ void rtl8723be_phy_sw_chnl_callback(struct ieee80211_hw *hw);
 u8 rtl8723be_phy_sw_chnl(struct ieee80211_hw *hw);
 void rtl8723be_phy_iq_calibrate(struct ieee80211_hw *hw,
 				bool b_recovery);
-void rtl23b_phy_ap_calibrate(struct ieee80211_hw *hw, char delta);
 void rtl8723be_phy_lc_calibrate(struct ieee80211_hw *hw);
 void rtl8723be_phy_set_rfpath_switch(struct ieee80211_hw *hw, bool bmain);
 bool rtl8723be_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,

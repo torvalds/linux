@@ -58,10 +58,12 @@
 	};
 
 	am43xx_pinmux: pinmux@44e10800 {
-		compatible = "pinctrl-single";
+		compatible = "ti,am437-padconf", "pinctrl-single";
 		reg = <0x44e10800 0x31c>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		#interrupt-cells = <1>;
+		interrupt-controller;
 		pinctrl-single,register-width = <32>;
 		pinctrl-single,function-mask = <0xffffffff>;
 	};
@@ -168,6 +170,10 @@
 			ti,hwmods = "mailbox";
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <8>;
+			mbox_wkupm3: wkup_m3 {
+				ti,mbox-tx = <0 0 0>;
+				ti,mbox-rx = <0 0 3>;
+			};
 		};
 
 		timer1: timer@44e31000 {
@@ -804,7 +810,7 @@
 
 			usb1: usb@48390000 {
 				compatible = "synopsys,dwc3";
-				reg = <0x48390000 0x17000>;
+				reg = <0x48390000 0x10000>;
 				interrupts = <GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>;
 				phys = <&usb2_phy1>;
 				phy-names = "usb2-phy";
@@ -826,7 +832,7 @@
 
 			usb2: usb@483d0000 {
 				compatible = "synopsys,dwc3";
-				reg = <0x483d0000 0x17000>;
+				reg = <0x483d0000 0x10000>;
 				interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
 				phys = <&usb2_phy2>;
 				phy-names = "usb2-phy";
@@ -884,6 +890,11 @@
 				clocks = <&disp_clk>;
 				clock-names = "fck";
 			};
+		};
+
+		ocmcram: ocmcram@40300000 {
+			compatible = "mmio-sram";
+			reg = <0x40300000 0x40000>; /* 256k */
 		};
 	};
 };

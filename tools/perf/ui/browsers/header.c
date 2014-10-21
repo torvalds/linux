@@ -1,6 +1,7 @@
 #include "util/cache.h"
 #include "util/debug.h"
 #include "ui/browser.h"
+#include "ui/keysyms.h"
 #include "ui/ui.h"
 #include "ui/util.h"
 #include "ui/libslang.h"

@@ -99,5 +99,5 @@ int  tipc_bclink_set_queue_limits(u32 limit);
 void tipc_bcbearer_sort(struct tipc_node_map *nm_ptr, u32 node, bool action);
 uint  tipc_bclink_get_mtu(void);
 int tipc_bclink_xmit(struct sk_buff *buf);
-
+void tipc_bclink_wakeup_users(void);
 #endif

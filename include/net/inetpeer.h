@@ -61,7 +61,6 @@ struct inet_peer {
 struct inet_peer_base {
 	struct inet_peer __rcu	*root;
 	seqlock_t		lock;
-	u32			flush_seq;
 	int			total;
 };
 

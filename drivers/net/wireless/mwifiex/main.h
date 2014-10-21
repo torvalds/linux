@@ -58,6 +58,9 @@ enum {
 #define MAX_TX_PENDING      100
 #define LOW_TX_PENDING      80
 
+#define HIGH_RX_PENDING     50
+#define LOW_RX_PENDING      20
+
 #define MWIFIEX_UPLD_SIZE               (2312)
 
 #define MAX_EVENT_SIZE                  2048
@@ -84,16 +87,11 @@ enum {
 #define MWIFIEX_PASSIVE_SCAN_CHAN_TIME	110
 #define MWIFIEX_ACTIVE_SCAN_CHAN_TIME	30
 #define MWIFIEX_SPECIFIC_SCAN_CHAN_TIME	30
+#define MWIFIEX_DEF_SCAN_CHAN_GAP_TIME  50
 
 #define SCAN_RSSI(RSSI)					(0x100 - ((u8)(RSSI)))
 
 #define MWIFIEX_MAX_TOTAL_SCAN_TIME	(MWIFIEX_TIMER_10S - MWIFIEX_TIMER_1S)
-
-#define MWIFIEX_MAX_SCAN_DELAY_CNT			50
-#define MWIFIEX_MAX_EMPTY_TX_Q_CNT			10
-#define MWIFIEX_SCAN_DELAY_MSEC				20
-
-#define MWIFIEX_MIN_TX_PENDING_TO_CANCEL_SCAN		2
 
 #define RSN_GTK_OUI_OFFSET				2
 
@@ -415,6 +413,7 @@ struct mwifiex_roc_cfg {
 #define FW_DUMP_MAX_NAME_LEN		8
 #define FW_DUMP_HOST_READY		0xEE
 #define FW_DUMP_DONE			0xFF
+#define FW_DUMP_READ_DONE		0xFE
 
 struct memory_type_mapping {
 	u8 mem_name[FW_DUMP_MAX_NAME_LEN];
@@ -547,7 +546,6 @@ struct mwifiex_private {
 	u8 nick_name[16];
 	u16 current_key_index;
 	struct semaphore async_sem;
-	u8 report_scan_result;
 	struct cfg80211_scan_request *scan_request;
 	u8 cfg_bssid[6];
 	struct wps wps;
@@ -561,7 +559,6 @@ struct mwifiex_private {
 	u16 proberesp_idx;
 	u16 assocresp_idx;
 	u16 rsn_idx;
-	struct timer_list scan_delay_timer;
 	u8 ap_11n_enabled;
 	u8 ap_11ac_enabled;
 	u32 mgmt_frame_mask;
@@ -721,6 +718,12 @@ struct mwifiex_adapter {
 	atomic_t cmd_pending;
 	struct workqueue_struct *workqueue;
 	struct work_struct main_work;
+	struct workqueue_struct *rx_workqueue;
+	struct work_struct rx_work;
+	bool rx_work_enabled;
+	bool rx_processing;
+	bool delay_main_work;
+	bool rx_locked;
 	struct mwifiex_bss_prio_tbl bss_prio_tbl[MWIFIEX_MAX_BSS_NUM];
 	/* spin lock for init/shutdown */
 	spinlock_t mwifiex_lock;
@@ -761,6 +764,8 @@ struct mwifiex_adapter {
 	struct list_head scan_pending_q;
 	/* spin lock for scan_pending_q */
 	spinlock_t scan_pending_q_lock;
+	/* spin lock for RX processing routine */
+	spinlock_t rx_proc_lock;
 	struct sk_buff_head usb_rx_data_q;
 	u32 scan_processing;
 	u16 region_code;
@@ -770,6 +775,7 @@ struct mwifiex_adapter {
 	u16 specific_scan_time;
 	u16 active_scan_time;
 	u16 passive_scan_time;
+	u16 scan_chan_gap_time;
 	u8 fw_bands;
 	u8 adhoc_start_band;
 	u8 config_bands;
@@ -815,8 +821,6 @@ struct mwifiex_adapter {
 	spinlock_t queue_lock;		/* lock for tx queues */
 	u8 country_code[IEEE80211_COUNTRY_STRING_LEN];
 	u16 max_mgmt_ie_index;
-	u8 scan_delay_cnt;
-	u8 empty_tx_q_cnt;
 	const struct firmware *cal_data;
 	struct device_node *dt_node;
 
@@ -828,17 +832,18 @@ struct mwifiex_adapter {
 	u32 usr_dot_11ac_dev_cap_a;
 	u32 usr_dot_11ac_mcs_support;
 
-	atomic_t is_tx_received;
 	atomic_t pending_bridged_pkts;
 	struct semaphore *card_sem;
 	bool ext_scan;
 	u8 fw_api_ver;
-	u8 fw_key_api_major_ver, fw_key_api_minor_ver;
+	u8 key_api_major_ver, key_api_minor_ver;
 	struct work_struct iface_work;
 	unsigned long iface_work_flags;
 	struct memory_type_mapping *mem_type_mapping_tbl;
 	u8 num_mem_types;
 	u8 curr_mem_idx;
+	bool scan_chan_gap_enabled;
+	struct sk_buff_head rx_data_q;
 };
 
 int mwifiex_init_lock_list(struct mwifiex_adapter *adapter);
@@ -1139,6 +1144,25 @@ mwifiex_11h_get_csa_closed_channel(struct mwifiex_private *priv)
 	return priv->csa_chan;
 }
 
+static inline u8 mwifiex_is_any_intf_active(struct mwifiex_private *priv)
+{
+	struct mwifiex_private *priv_num;
+	int i;
+
+	for (i = 0; i < priv->adapter->priv_num; i++) {
+		priv_num = priv->adapter->priv[i];
+		if (priv_num) {
+			if ((GET_BSS_ROLE(priv_num) == MWIFIEX_BSS_ROLE_UAP &&
+			     priv_num->bss_started) ||
+			    (GET_BSS_ROLE(priv_num) == MWIFIEX_BSS_ROLE_STA &&
+			     priv_num->media_connected))
+				return 1;
+		}
+	}
+
+	return 0;
+}
+
 int mwifiex_init_shutdown_fw(struct mwifiex_private *priv,
 			     u32 func_init_shutdown);
 int mwifiex_add_card(void *, struct semaphore *, struct mwifiex_if_ops *, u8);
@@ -1274,6 +1298,7 @@ void mwifiex_disable_all_tdls_links(struct mwifiex_private *priv);
 bool mwifiex_is_bss_in_11ac_mode(struct mwifiex_private *priv);
 u8 mwifiex_get_center_freq_index(struct mwifiex_private *priv, u8 band,
 				 u32 pri_chan, u8 chan_bw);
+int mwifiex_init_channel_scan_gap(struct mwifiex_adapter *adapter);
 
 #ifdef CONFIG_DEBUG_FS
 void mwifiex_debugfs_init(void);

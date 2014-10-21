@@ -42,6 +42,7 @@
 struct tegra_max98090 {
 	struct tegra_asoc_utils_data util_data;
 	int gpio_hp_det;
+	int gpio_mic_det;
 };
 
 static int tegra_max98090_asoc_hw_params(struct snd_pcm_substream *substream,
@@ -112,6 +113,22 @@ static struct snd_soc_jack_gpio tegra_max98090_hp_jack_gpio = {
 	.invert = 1,
 };
 
+static struct snd_soc_jack tegra_max98090_mic_jack;
+
+static struct snd_soc_jack_pin tegra_max98090_mic_jack_pins[] = {
+	{
+		.pin = "Mic Jack",
+		.mask = SND_JACK_MICROPHONE,
+	},
+};
+
+static struct snd_soc_jack_gpio tegra_max98090_mic_jack_gpio = {
+	.name = "Mic detection",
+	.report = SND_JACK_MICROPHONE,
+	.debounce_time = 150,
+	.invert = 1,
+};
+
 static const struct snd_soc_dapm_widget tegra_max98090_dapm_widgets[] = {
 	SND_SOC_DAPM_HP("Headphones", NULL),
 	SND_SOC_DAPM_SPK("Speakers", NULL),
@@ -141,6 +158,19 @@ static int tegra_max98090_asoc_init(struct snd_soc_pcm_runtime *rtd)
 					&tegra_max98090_hp_jack_gpio);
 	}
 
+	if (gpio_is_valid(machine->gpio_mic_det)) {
+		snd_soc_jack_new(codec, "Mic Jack", SND_JACK_MICROPHONE,
+				 &tegra_max98090_mic_jack);
+		snd_soc_jack_add_pins(&tegra_max98090_mic_jack,
+				      ARRAY_SIZE(tegra_max98090_mic_jack_pins),
+				      tegra_max98090_mic_jack_pins);
+
+		tegra_max98090_mic_jack_gpio.gpio = machine->gpio_mic_det;
+		snd_soc_jack_add_gpios(&tegra_max98090_mic_jack,
+				       1,
+				       &tegra_max98090_mic_jack_gpio);
+	}
+
 	return 0;
 }
 
@@ -151,6 +181,11 @@ static int tegra_max98090_card_remove(struct snd_soc_card *card)
 	if (gpio_is_valid(machine->gpio_hp_det)) {
 		snd_soc_jack_free_gpios(&tegra_max98090_hp_jack, 1,
 					&tegra_max98090_hp_jack_gpio);
+	}
+
+	if (gpio_is_valid(machine->gpio_mic_det)) {
+		snd_soc_jack_free_gpios(&tegra_max98090_mic_jack, 1,
+					&tegra_max98090_mic_jack_gpio);
 	}
 
 	return 0;
@@ -199,6 +234,11 @@ static int tegra_max98090_probe(struct platform_device *pdev)
 
 	machine->gpio_hp_det = of_get_named_gpio(np, "nvidia,hp-det-gpios", 0);
 	if (machine->gpio_hp_det == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+
+	machine->gpio_mic_det =
+			of_get_named_gpio(np, "nvidia,mic-det-gpios", 0);
+	if (machine->gpio_mic_det == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 
 	ret = snd_soc_of_parse_card_name(card, "nvidia,model");

@@ -393,7 +393,7 @@ static int v9fs_vfs_mkdir_dotl(struct inode *dir,
 	struct dentry *dir_dentry;
 	struct posix_acl *dacl = NULL, *pacl = NULL;
 
-	p9_debug(P9_DEBUG_VFS, "name %s\n", dentry->d_name.name);
+	p9_debug(P9_DEBUG_VFS, "name %pd\n", dentry);
 	err = 0;
 	v9ses = v9fs_inode2v9ses(dir);
 
@@ -767,8 +767,8 @@ v9fs_vfs_link_dotl(struct dentry *old_dentry, struct inode *dir,
 	struct p9_fid *dfid, *oldfid;
 	struct v9fs_session_info *v9ses;
 
-	p9_debug(P9_DEBUG_VFS, "dir ino: %lu, old_name: %s, new_name: %s\n",
-		 dir->i_ino, old_dentry->d_name.name, dentry->d_name.name);
+	p9_debug(P9_DEBUG_VFS, "dir ino: %lu, old_name: %pd, new_name: %pd\n",
+		 dir->i_ino, old_dentry, dentry);
 
 	v9ses = v9fs_inode2v9ses(dir);
 	dir_dentry = dentry->d_parent;
@@ -917,7 +917,7 @@ v9fs_vfs_follow_link_dotl(struct dentry *dentry, struct nameidata *nd)
 	char *link = __getname();
 	char *target;
 
-	p9_debug(P9_DEBUG_VFS, "%s\n", dentry->d_name.name);
+	p9_debug(P9_DEBUG_VFS, "%pd\n", dentry);
 
 	if (!link) {
 		link = ERR_PTR(-ENOMEM);

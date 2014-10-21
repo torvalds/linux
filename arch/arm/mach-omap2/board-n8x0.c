@@ -33,6 +33,7 @@
 #include "mmc.h"
 #include "soc.h"
 #include "gpmc-onenand.h"
+#include "common-board-devices.h"
 
 #define TUSB6010_ASYNC_CS	1
 #define TUSB6010_SYNC_CS	4
@@ -568,27 +569,12 @@ static int n8x0_menelaus_late_init(struct device *dev)
 }
 #endif
 
-static struct menelaus_platform_data n8x0_menelaus_platform_data __initdata = {
+struct menelaus_platform_data n8x0_menelaus_platform_data __initdata = {
 	.late_init = n8x0_menelaus_late_init,
 };
 
-static struct i2c_board_info __initdata n8x0_i2c_board_info_1[] __initdata = {
-	{
-		I2C_BOARD_INFO("menelaus", 0x72),
-		.irq = 7 + OMAP_INTC_START,
-		.platform_data = &n8x0_menelaus_platform_data,
-	},
-};
-
-static struct aic3x_pdata n810_aic33_data __initdata = {
+struct aic3x_pdata n810_aic33_data __initdata = {
 	.gpio_reset = 118,
-};
-
-static struct i2c_board_info n810_i2c_board_info_2[] __initdata = {
-	{
-		I2C_BOARD_INFO("tlv320aic3x", 0x18),
-		.platform_data = &n810_aic33_data,
-	},
 };
 
 static int __init n8x0_late_initcall(void)
@@ -612,11 +598,5 @@ void * __init n8x0_legacy_init(void)
 	board_check_revision();
 	spi_register_board_info(n800_spi_board_info,
 				ARRAY_SIZE(n800_spi_board_info));
-	i2c_register_board_info(0, n8x0_i2c_board_info_1,
-				ARRAY_SIZE(n8x0_i2c_board_info_1));
-	if (board_is_n810())
-		i2c_register_board_info(1, n810_i2c_board_info_2,
-					ARRAY_SIZE(n810_i2c_board_info_2));
-
 	return &mmc1_data;
 }

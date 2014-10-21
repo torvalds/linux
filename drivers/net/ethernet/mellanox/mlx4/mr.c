@@ -298,6 +298,7 @@ static int mlx4_HW2SW_MPT(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox
 			    MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
 }
 
+/* Must protect against concurrent access */
 int mlx4_mr_hw_get_mpt(struct mlx4_dev *dev, struct mlx4_mr *mmr,
 		       struct mlx4_mpt_entry ***mpt_entry)
 {
@@ -305,13 +306,10 @@ int mlx4_mr_hw_get_mpt(struct mlx4_dev *dev, struct mlx4_mr *mmr,
 	int key = key_to_hw_index(mmr->key) & (dev->caps.num_mpts - 1);
 	struct mlx4_cmd_mailbox *mailbox = NULL;
 
-	/* Make sure that at this point we have single-threaded access only */
-
 	if (mmr->enabled != MLX4_MPT_EN_HW)
 		return -EINVAL;
 
 	err = mlx4_HW2SW_MPT(dev, NULL, key);
-
 	if (err) {
 		mlx4_warn(dev, "HW2SW_MPT failed (%d).", err);
 		mlx4_warn(dev, "Most likely the MR has MWs bound to it.\n");
@@ -333,7 +331,6 @@ int mlx4_mr_hw_get_mpt(struct mlx4_dev *dev, struct mlx4_mr *mmr,
 				   0, MLX4_CMD_QUERY_MPT,
 				   MLX4_CMD_TIME_CLASS_B,
 				   MLX4_CMD_WRAPPED);
-
 		if (err)
 			goto free_mailbox;
 
@@ -378,9 +375,10 @@ int mlx4_mr_hw_write_mpt(struct mlx4_dev *dev, struct mlx4_mr *mmr,
 		err = mlx4_SW2HW_MPT(dev, mailbox, key);
 	}
 
-	mmr->pd = be32_to_cpu((*mpt_entry)->pd_flags) & MLX4_MPT_PD_MASK;
-	if (!err)
+	if (!err) {
+		mmr->pd = be32_to_cpu((*mpt_entry)->pd_flags) & MLX4_MPT_PD_MASK;
 		mmr->enabled = MLX4_MPT_EN_HW;
+	}
 	return err;
 }
 EXPORT_SYMBOL_GPL(mlx4_mr_hw_write_mpt);
@@ -400,11 +398,12 @@ EXPORT_SYMBOL_GPL(mlx4_mr_hw_put_mpt);
 int mlx4_mr_hw_change_pd(struct mlx4_dev *dev, struct mlx4_mpt_entry *mpt_entry,
 			 u32 pdn)
 {
-	u32 pd_flags = be32_to_cpu(mpt_entry->pd_flags);
+	u32 pd_flags = be32_to_cpu(mpt_entry->pd_flags) & ~MLX4_MPT_PD_MASK;
 	/* The wrapper function will put the slave's id here */
 	if (mlx4_is_mfunc(dev))
 		pd_flags &= ~MLX4_MPT_PD_VF_MASK;
-	mpt_entry->pd_flags = cpu_to_be32((pd_flags &  ~MLX4_MPT_PD_MASK) |
+
+	mpt_entry->pd_flags = cpu_to_be32(pd_flags |
 					  (pdn & MLX4_MPT_PD_MASK)
 					  | MLX4_MPT_PD_FLAG_EN_INV);
 	return 0;
@@ -600,14 +599,18 @@ int mlx4_mr_rereg_mem_write(struct mlx4_dev *dev, struct mlx4_mr *mr,
 {
 	int err;
 
-	mpt_entry->start       = cpu_to_be64(mr->iova);
-	mpt_entry->length      = cpu_to_be64(mr->size);
-	mpt_entry->entity_size = cpu_to_be32(mr->mtt.page_shift);
+	mpt_entry->start       = cpu_to_be64(iova);
+	mpt_entry->length      = cpu_to_be64(size);
+	mpt_entry->entity_size = cpu_to_be32(page_shift);
 
 	err = mlx4_mtt_init(dev, npages, page_shift, &mr->mtt);
 	if (err)
 		return err;
 
+	mpt_entry->pd_flags &= cpu_to_be32(MLX4_MPT_PD_MASK |
+					   MLX4_MPT_PD_FLAG_EN_INV);
+	mpt_entry->flags    &= cpu_to_be32(MLX4_MPT_FLAG_FREE |
+					   MLX4_MPT_FLAG_SW_OWNS);
 	if (mr->mtt.order < 0) {
 		mpt_entry->flags |= cpu_to_be32(MLX4_MPT_FLAG_PHYSICAL);
 		mpt_entry->mtt_addr = 0;
@@ -616,6 +619,14 @@ int mlx4_mr_rereg_mem_write(struct mlx4_dev *dev, struct mlx4_mr *mr,
 						  &mr->mtt));
 		if (mr->mtt.page_shift == 0)
 			mpt_entry->mtt_sz    = cpu_to_be32(1 << mr->mtt.order);
+	}
+	if (mr->mtt.order >= 0 && mr->mtt.page_shift == 0) {
+		/* fast register MR in free state */
+		mpt_entry->flags    |= cpu_to_be32(MLX4_MPT_FLAG_FREE);
+		mpt_entry->pd_flags |= cpu_to_be32(MLX4_MPT_PD_FLAG_FAST_REG |
+						   MLX4_MPT_PD_FLAG_RAE);
+	} else {
+		mpt_entry->flags    |= cpu_to_be32(MLX4_MPT_FLAG_SW_OWNS);
 	}
 	mr->enabled = MLX4_MPT_EN_SW;
 

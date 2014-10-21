@@ -1252,6 +1252,7 @@ static int nfs_server_list_open(struct inode *inode, struct file *file)
  * set up the iterator to start reading from the server list and return the first item
  */
 static void *nfs_server_list_start(struct seq_file *m, loff_t *_pos)
+				__acquires(&nn->nfs_client_lock)
 {
 	struct nfs_net *nn = net_generic(seq_file_net(m), nfs_net_id);
 
@@ -1274,6 +1275,7 @@ static void *nfs_server_list_next(struct seq_file *p, void *v, loff_t *pos)
  * clean up after reading from the transports list
  */
 static void nfs_server_list_stop(struct seq_file *p, void *v)
+				__releases(&nn->nfs_client_lock)
 {
 	struct nfs_net *nn = net_generic(seq_file_net(p), nfs_net_id);
 
@@ -1318,7 +1320,7 @@ static int nfs_server_list_show(struct seq_file *m, void *v)
  */
 static int nfs_volume_list_open(struct inode *inode, struct file *file)
 {
-	return seq_open_net(inode, file, &nfs_server_list_ops,
+	return seq_open_net(inode, file, &nfs_volume_list_ops,
 			   sizeof(struct seq_net_private));
 }
 
@@ -1326,6 +1328,7 @@ static int nfs_volume_list_open(struct inode *inode, struct file *file)
  * set up the iterator to start reading from the volume list and return the first item
  */
 static void *nfs_volume_list_start(struct seq_file *m, loff_t *_pos)
+				__acquires(&nn->nfs_client_lock)
 {
 	struct nfs_net *nn = net_generic(seq_file_net(m), nfs_net_id);
 
@@ -1348,6 +1351,7 @@ static void *nfs_volume_list_next(struct seq_file *p, void *v, loff_t *pos)
  * clean up after reading from the transports list
  */
 static void nfs_volume_list_stop(struct seq_file *p, void *v)
+				__releases(&nn->nfs_client_lock)
 {
 	struct nfs_net *nn = net_generic(seq_file_net(p), nfs_net_id);
 
@@ -1412,24 +1416,18 @@ int nfs_fs_proc_net_init(struct net *net)
 	p = proc_create("volumes", S_IFREG|S_IRUGO,
 			nn->proc_nfsfs, &nfs_volume_list_fops);
 	if (!p)
-		goto error_2;
+		goto error_1;
 	return 0;
 
-error_2:
-	remove_proc_entry("servers", nn->proc_nfsfs);
 error_1:
-	remove_proc_entry("fs/nfsfs", NULL);
+	remove_proc_subtree("nfsfs", net->proc_net);
 error_0:
 	return -ENOMEM;
 }
 
 void nfs_fs_proc_net_exit(struct net *net)
 {
-	struct nfs_net *nn = net_generic(net, nfs_net_id);
-
-	remove_proc_entry("volumes", nn->proc_nfsfs);
-	remove_proc_entry("servers", nn->proc_nfsfs);
-	remove_proc_entry("fs/nfsfs", NULL);
+	remove_proc_subtree("nfsfs", net->proc_net);
 }
 
 /*

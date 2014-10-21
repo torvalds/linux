@@ -1220,6 +1220,9 @@ static int lpc_eth_open(struct net_device *ndev)
 
 	__lpc_eth_clock_enable(pldat, true);
 
+	/* Suspended PHY makes LPC ethernet core block, so resume now */
+	phy_resume(pldat->phy_dev);
+
 	/* Reset and initialize */
 	__lpc_eth_reset(pldat);
 	__lpc_eth_init(pldat);
@@ -1373,9 +1376,6 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "error requesting interrupt.\n");
 		goto err_out_iounmap;
 	}
-
-	/* Fill in the fields of the device structure with ethernet values. */
-	ether_setup(ndev);
 
 	/* Setup driver functions */
 	ndev->netdev_ops = &lpc_netdev_ops;

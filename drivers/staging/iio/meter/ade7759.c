@@ -217,6 +217,7 @@ static int ade7759_reset(struct device *dev)
 {
 	int ret;
 	u16 val;
+
 	ade7759_spi_read_reg_16(dev,
 			ADE7759_MODE,
 			&val);
@@ -280,6 +281,7 @@ static int ade7759_set_irq(struct device *dev, bool enable)
 {
 	int ret;
 	u8 irqen;
+
 	ret = ade7759_spi_read_reg_8(dev, ADE7759_IRQEN, &irqen);
 	if (ret)
 		goto error_ret;
@@ -340,6 +342,7 @@ static ssize_t ade7759_read_frequency(struct device *dev,
 	int ret;
 	u16 t;
 	int sps;
+
 	ret = ade7759_spi_read_reg_16(dev,
 			ADE7759_MODE,
 			&t);

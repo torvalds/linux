@@ -54,3 +54,14 @@ config OPENVSWITCH_VXLAN
 	  Say N to exclude this support and reduce the binary size.
 
 	  If unsure, say Y.
+
+config OPENVSWITCH_GENEVE
+	bool "Open vSwitch Geneve tunneling support"
+	depends on INET
+	depends on OPENVSWITCH
+	depends on GENEVE && !(OPENVSWITCH=y && GENEVE=m)
+	default y
+	---help---
+	  If you say Y here, then the Open vSwitch will be able create geneve vport.
+
+	  Say N to exclude this support and reduce the binary size.

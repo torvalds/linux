@@ -59,12 +59,21 @@ static void bcm47xx_machine_restart(char *command)
 	switch (bcm47xx_bus_type) {
 #ifdef CONFIG_BCM47XX_SSB
 	case BCM47XX_BUS_TYPE_SSB:
-		ssb_watchdog_timer_set(&bcm47xx_bus.ssb, 3);
+		if (bcm47xx_bus.ssb.chip_id == 0x4785)
+			write_c0_diag4(1 << 22);
+		ssb_watchdog_timer_set(&bcm47xx_bus.ssb, 1);
+		if (bcm47xx_bus.ssb.chip_id == 0x4785) {
+			__asm__ __volatile__(
+				".set\tmips3\n\t"
+				"sync\n\t"
+				"wait\n\t"
+				".set\tmips0");
+		}
 		break;
 #endif
 #ifdef CONFIG_BCM47XX_BCMA
 	case BCM47XX_BUS_TYPE_BCMA:
-		bcma_chipco_watchdog_timer_set(&bcm47xx_bus.bcma.bus.drv_cc, 3);
+		bcma_chipco_watchdog_timer_set(&bcm47xx_bus.bcma.bus.drv_cc, 1);
 		break;
 #endif
 	}
@@ -201,6 +210,10 @@ static void __init bcm47xx_register_bcma(void)
 		pr_warn("bcm47xx: someone else already registered a bcma SPROM callback handler (err %d)\n", err);
 
 	err = bcma_host_soc_register(&bcm47xx_bus.bcma);
+	if (err)
+		panic("Failed to register BCMA bus (err %d)", err);
+
+	err = bcma_host_soc_init(&bcm47xx_bus.bcma);
 	if (err)
 		panic("Failed to initialize BCMA bus (err %d)", err);
 

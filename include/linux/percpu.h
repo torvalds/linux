@@ -48,9 +48,9 @@
  * intelligent way to determine this would be nice.
  */
 #if BITS_PER_LONG > 32
-#define PERCPU_DYNAMIC_RESERVE		(20 << 10)
+#define PERCPU_DYNAMIC_RESERVE		(28 << 10)
 #else
-#define PERCPU_DYNAMIC_RESERVE		(12 << 10)
+#define PERCPU_DYNAMIC_RESERVE		(20 << 10)
 #endif
 
 extern void *pcpu_base_addr;
@@ -122,11 +122,16 @@ extern void __init setup_per_cpu_areas(void);
 #endif
 extern void __init percpu_init_late(void);
 
+extern void __percpu *__alloc_percpu_gfp(size_t size, size_t align, gfp_t gfp);
 extern void __percpu *__alloc_percpu(size_t size, size_t align);
 extern void free_percpu(void __percpu *__pdata);
 extern phys_addr_t per_cpu_ptr_to_phys(void *addr);
 
-#define alloc_percpu(type)	\
-	(typeof(type) __percpu *)__alloc_percpu(sizeof(type), __alignof__(type))
+#define alloc_percpu_gfp(type, gfp)					\
+	(typeof(type) __percpu *)__alloc_percpu_gfp(sizeof(type),	\
+						__alignof__(type), gfp)
+#define alloc_percpu(type)						\
+	(typeof(type) __percpu *)__alloc_percpu(sizeof(type),		\
+						__alignof__(type))
 
 #endif /* __LINUX_PERCPU_H */

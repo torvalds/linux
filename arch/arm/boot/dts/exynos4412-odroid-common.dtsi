@@ -54,17 +54,13 @@
 		status = "okay";
 
 		num-slots = <1>;
-		supports-highspeed;
 		broken-cd;
 		card-detect-delay = <200>;
 		samsung,dw-mshc-ciu-div = <3>;
 		samsung,dw-mshc-sdr-timing = <2 3>;
 		samsung,dw-mshc-ddr-timing = <1 2>;
-
-		slot@0 {
-			reg = <0>;
-			bus-width = <8>;
-		};
+		bus-width = <8>;
+		cap-mmc-highspeed;
 	};
 
 	watchdog@10060000 {
@@ -134,6 +130,8 @@
 	i2c@13860000 {
 		pinctrl-0 = <&i2c0_bus>;
 		pinctrl-names = "default";
+		samsung,i2c-sda-delay = <100>;
+		samsung,i2c-max-bus-freq = <400000>;
 		status = "okay";
 
 		usb3503: usb3503@08 {
@@ -148,6 +146,10 @@
 
 		max77686: pmic@09 {
 			compatible = "maxim,max77686";
+			interrupt-parent = <&gpx3>;
+			interrupts = <2 0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&max77686_irq>;
 			reg = <0x09>;
 			#clock-cells = <1>;
 
@@ -367,5 +369,12 @@
 	gpio_power_key: power_key {
 		samsung,pins = "gpx1-3";
 		samsung,pin-pud = <0>;
+	};
+
+	max77686_irq: max77686-irq {
+		samsung,pins = "gpx3-2";
+		samsung,pin-function = <0>;
+		samsung,pin-pud = <0>;
+		samsung,pin-drv = <0>;
 	};
 };

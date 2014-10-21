@@ -1208,7 +1208,10 @@ int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		lso->ipid_ofst = cpu_to_be16(0);
 		lso->mss = cpu_to_be16(ssi->gso_size);
 		lso->seqno_offset = cpu_to_be32(0);
-		lso->len = cpu_to_be32(skb->len);
+		if (is_t4(adapter->params.chip))
+			lso->len = cpu_to_be32(skb->len);
+		else
+			lso->len = cpu_to_be32(LSO_T5_XFER_SIZE(skb->len));
 
 		/*
 		 * Set up TX Packet CPL pointer, control word and perform
@@ -2250,7 +2253,8 @@ int t4vf_sge_alloc_eth_txq(struct adapter *adapter, struct sge_eth_txq *txq,
 	cmd.alloc_to_len16 = cpu_to_be32(FW_EQ_ETH_CMD_ALLOC |
 					 FW_EQ_ETH_CMD_EQSTART |
 					 FW_LEN16(cmd));
-	cmd.viid_pkd = cpu_to_be32(FW_EQ_ETH_CMD_VIID(pi->viid));
+	cmd.viid_pkd = cpu_to_be32(FW_EQ_ETH_CMD_AUTOEQUEQE |
+				   FW_EQ_ETH_CMD_VIID(pi->viid));
 	cmd.fetchszm_to_iqid =
 		cpu_to_be32(FW_EQ_ETH_CMD_HOSTFCMODE(SGE_HOSTFCMODE_STPG) |
 			    FW_EQ_ETH_CMD_PCIECHN(pi->port_id) |

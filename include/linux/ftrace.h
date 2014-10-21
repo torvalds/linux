@@ -56,6 +56,8 @@ struct ftrace_ops;
 typedef void (*ftrace_func_t)(unsigned long ip, unsigned long parent_ip,
 			      struct ftrace_ops *op, struct pt_regs *regs);
 
+ftrace_func_t ftrace_ops_get_func(struct ftrace_ops *ops);
+
 /*
  * FTRACE_OPS_FL_* bits denote the state of ftrace_ops struct and are
  * set in the flags member.
@@ -89,6 +91,9 @@ typedef void (*ftrace_func_t)(unsigned long ip, unsigned long parent_ip,
  * INITIALIZED - The ftrace_ops has already been initialized (first use time
  *            register_ftrace_function() is called, it will initialized the ops)
  * DELETED - The ops are being deleted, do not let them be registered again.
+ * ADDING  - The ops is in the process of being added.
+ * REMOVING - The ops is in the process of being removed.
+ * MODIFYING - The ops is in the process of changing its filter functions.
  */
 enum {
 	FTRACE_OPS_FL_ENABLED			= 1 << 0,
@@ -100,7 +105,19 @@ enum {
 	FTRACE_OPS_FL_STUB			= 1 << 6,
 	FTRACE_OPS_FL_INITIALIZED		= 1 << 7,
 	FTRACE_OPS_FL_DELETED			= 1 << 8,
+	FTRACE_OPS_FL_ADDING			= 1 << 9,
+	FTRACE_OPS_FL_REMOVING			= 1 << 10,
+	FTRACE_OPS_FL_MODIFYING			= 1 << 11,
 };
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+/* The hash used to know what functions callbacks trace */
+struct ftrace_ops_hash {
+	struct ftrace_hash		*notrace_hash;
+	struct ftrace_hash		*filter_hash;
+	struct mutex			regex_lock;
+};
+#endif
 
 /*
  * Note, ftrace_ops can be referenced outside of RCU protection.
@@ -121,10 +138,9 @@ struct ftrace_ops {
 	int __percpu			*disabled;
 #ifdef CONFIG_DYNAMIC_FTRACE
 	int				nr_trampolines;
-	struct ftrace_hash		*notrace_hash;
-	struct ftrace_hash		*filter_hash;
-	struct ftrace_hash		*tramp_hash;
-	struct mutex			regex_lock;
+	struct ftrace_ops_hash		local_hash;
+	struct ftrace_ops_hash		*func_hash;
+	struct ftrace_ops_hash		old_hash;
 	unsigned long			trampoline;
 #endif
 };

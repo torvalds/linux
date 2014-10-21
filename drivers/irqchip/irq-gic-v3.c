@@ -16,6 +16,7 @@
  */
 
 #include <linux/cpu.h>
+#include <linux/cpu_pm.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/of.h>
@@ -36,7 +37,7 @@
 struct gic_chip_data {
 	void __iomem		*dist_base;
 	void __iomem		**redist_base;
-	void __percpu __iomem	**rdist;
+	void __iomem * __percpu	*rdist;
 	struct irq_domain	*domain;
 	u64			redist_stride;
 	u32			redist_regions;
@@ -104,7 +105,7 @@ static void gic_redist_wait_for_rwp(void)
 }
 
 /* Low level accessors */
-static u64 gic_read_iar(void)
+static u64 __maybe_unused gic_read_iar(void)
 {
 	u64 irqstat;
 
@@ -112,24 +113,24 @@ static u64 gic_read_iar(void)
 	return irqstat;
 }
 
-static void gic_write_pmr(u64 val)
+static void __maybe_unused gic_write_pmr(u64 val)
 {
 	asm volatile("msr_s " __stringify(ICC_PMR_EL1) ", %0" : : "r" (val));
 }
 
-static void gic_write_ctlr(u64 val)
+static void __maybe_unused gic_write_ctlr(u64 val)
 {
 	asm volatile("msr_s " __stringify(ICC_CTLR_EL1) ", %0" : : "r" (val));
 	isb();
 }
 
-static void gic_write_grpen1(u64 val)
+static void __maybe_unused gic_write_grpen1(u64 val)
 {
 	asm volatile("msr_s " __stringify(ICC_GRPEN1_EL1) ", %0" : : "r" (val));
 	isb();
 }
 
-static void gic_write_sgi1r(u64 val)
+static void __maybe_unused gic_write_sgi1r(u64 val)
 {
 	asm volatile("msr_s " __stringify(ICC_SGI1R_EL1) ", %0" : : "r" (val));
 }
@@ -155,7 +156,7 @@ static void gic_enable_sre(void)
 		pr_err("GIC: unable to set SRE (disabled at EL2), panic ahead\n");
 }
 
-static void gic_enable_redist(void)
+static void gic_enable_redist(bool enable)
 {
 	void __iomem *rbase;
 	u32 count = 1000000;	/* 1s! */
@@ -163,20 +164,30 @@ static void gic_enable_redist(void)
 
 	rbase = gic_data_rdist_rd_base();
 
-	/* Wake up this CPU redistributor */
 	val = readl_relaxed(rbase + GICR_WAKER);
-	val &= ~GICR_WAKER_ProcessorSleep;
+	if (enable)
+		/* Wake up this CPU redistributor */
+		val &= ~GICR_WAKER_ProcessorSleep;
+	else
+		val |= GICR_WAKER_ProcessorSleep;
 	writel_relaxed(val, rbase + GICR_WAKER);
 
-	while (readl_relaxed(rbase + GICR_WAKER) & GICR_WAKER_ChildrenAsleep) {
-		count--;
-		if (!count) {
-			pr_err_ratelimited("redist didn't wake up...\n");
-			return;
-		}
+	if (!enable) {		/* Check that GICR_WAKER is writeable */
+		val = readl_relaxed(rbase + GICR_WAKER);
+		if (!(val & GICR_WAKER_ProcessorSleep))
+			return;	/* No PM support in this redistributor */
+	}
+
+	while (count--) {
+		val = readl_relaxed(rbase + GICR_WAKER);
+		if (enable ^ (val & GICR_WAKER_ChildrenAsleep))
+			break;
 		cpu_relax();
 		udelay(1);
 	};
+	if (!count)
+		pr_err_ratelimited("redistributor failed to %s...\n",
+				   enable ? "wakeup" : "sleep");
 }
 
 /*
@@ -198,19 +209,6 @@ static void gic_poke_irq(struct irq_data *d, u32 offset)
 
 	writel_relaxed(mask, base + offset + (gic_irq(d) / 32) * 4);
 	rwp_wait();
-}
-
-static int gic_peek_irq(struct irq_data *d, u32 offset)
-{
-	u32 mask = 1 << (gic_irq(d) % 32);
-	void __iomem *base;
-
-	if (gic_irq_in_rdist(d))
-		base = gic_data_rdist_sgi_base();
-	else
-		base = gic_data.dist_base;
-
-	return !!(readl_relaxed(base + offset + (gic_irq(d) / 32) * 4) & mask);
 }
 
 static void gic_mask_irq(struct irq_data *d)
@@ -274,14 +272,13 @@ static asmlinkage void __exception_irq_entry gic_handle_irq(struct pt_regs *regs
 		irqnr = gic_read_iar();
 
 		if (likely(irqnr > 15 && irqnr < 1020)) {
-			u64 irq = irq_find_mapping(gic_data.domain, irqnr);
-			if (likely(irq)) {
-				handle_IRQ(irq, regs);
-				continue;
+			int err;
+			err = handle_domain_irq(gic_data.domain, irqnr, regs);
+			if (err) {
+				WARN_ONCE(true, "Unexpected SPI received!\n");
+				gic_write_eoir(irqnr);
 			}
-
-			WARN_ONCE(true, "Unexpected SPI received!\n");
-			gic_write_eoir(irqnr);
+			continue;
 		}
 		if (irqnr < 16) {
 			gic_write_eoir(irqnr);
@@ -373,20 +370,8 @@ static int gic_populate_rdist(void)
 	return -ENODEV;
 }
 
-static void gic_cpu_init(void)
+static void gic_cpu_sys_reg_init(void)
 {
-	void __iomem *rbase;
-
-	/* Register ourselves with the rest of the world */
-	if (gic_populate_rdist())
-		return;
-
-	gic_enable_redist();
-
-	rbase = gic_data_rdist_sgi_base();
-
-	gic_cpu_config(rbase, gic_redist_wait_for_rwp);
-
 	/* Enable system registers */
 	gic_enable_sre();
 
@@ -400,7 +385,38 @@ static void gic_cpu_init(void)
 	gic_write_grpen1(1);
 }
 
+static void gic_cpu_init(void)
+{
+	void __iomem *rbase;
+
+	/* Register ourselves with the rest of the world */
+	if (gic_populate_rdist())
+		return;
+
+	gic_enable_redist(true);
+
+	rbase = gic_data_rdist_sgi_base();
+
+	gic_cpu_config(rbase, gic_redist_wait_for_rwp);
+
+	/* initialise system registers */
+	gic_cpu_sys_reg_init();
+}
+
 #ifdef CONFIG_SMP
+static int gic_peek_irq(struct irq_data *d, u32 offset)
+{
+	u32 mask = 1 << (gic_irq(d) % 32);
+	void __iomem *base;
+
+	if (gic_irq_in_rdist(d))
+		base = gic_data_rdist_sgi_base();
+	else
+		base = gic_data.dist_base;
+
+	return !!(readl_relaxed(base + offset + (gic_irq(d) / 32) * 4) & mask);
+}
+
 static int gic_secondary_init(struct notifier_block *nfb,
 			      unsigned long action, void *hcpu)
 {
@@ -532,6 +548,33 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 #define gic_set_affinity	NULL
 #define gic_smp_init()		do { } while(0)
 #endif
+
+#ifdef CONFIG_CPU_PM
+static int gic_cpu_pm_notifier(struct notifier_block *self,
+			       unsigned long cmd, void *v)
+{
+	if (cmd == CPU_PM_EXIT) {
+		gic_enable_redist(true);
+		gic_cpu_sys_reg_init();
+	} else if (cmd == CPU_PM_ENTER) {
+		gic_write_grpen1(0);
+		gic_enable_redist(false);
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block gic_cpu_pm_notifier_block = {
+	.notifier_call = gic_cpu_pm_notifier,
+};
+
+static void gic_cpu_pm_init(void)
+{
+	cpu_pm_register_notifier(&gic_cpu_pm_notifier_block);
+}
+
+#else
+static inline void gic_cpu_pm_init(void) { }
+#endif /* CONFIG_CPU_PM */
 
 static struct irq_chip gic_chip = {
 	.name			= "GICv3",
@@ -672,6 +715,7 @@ static int __init gic_of_init(struct device_node *node, struct device_node *pare
 	gic_smp_init();
 	gic_dist_init();
 	gic_cpu_init();
+	gic_cpu_pm_init();
 
 	return 0;
 

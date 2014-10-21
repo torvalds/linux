@@ -815,13 +815,6 @@ int adau17x1_add_routes(struct snd_soc_codec *codec)
 }
 EXPORT_SYMBOL_GPL(adau17x1_add_routes);
 
-int adau17x1_suspend(struct snd_soc_codec *codec)
-{
-	codec->driver->set_bias_level(codec, SND_SOC_BIAS_OFF);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(adau17x1_suspend);
-
 int adau17x1_resume(struct snd_soc_codec *codec)
 {
 	struct adau *adau = snd_soc_codec_get_drvdata(codec);
@@ -829,7 +822,6 @@ int adau17x1_resume(struct snd_soc_codec *codec)
 	if (adau->switch_mode)
 		adau->switch_mode(codec->dev);
 
-	codec->driver->set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	regcache_sync(adau->regmap);
 
 	return 0;

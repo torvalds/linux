@@ -249,7 +249,7 @@ config MTD_CFI_FLAGADM
 
 config MTD_SOLUTIONENGINE
 	tristate "CFI Flash device mapped on Hitachi SolutionEngine"
-	depends on SUPERH && SOLUTION_ENGINE && MTD_CFI && MTD_REDBOOT_PARTS
+	depends on SOLUTION_ENGINE && MTD_CFI && MTD_REDBOOT_PARTS
 	help
 	  This enables access to the flash chips on the Hitachi SolutionEngine and
 	  similar boards. Say 'Y' if you are building a kernel for such a board.

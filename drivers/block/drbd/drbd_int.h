@@ -61,8 +61,6 @@
 # define __must_hold(x)
 #endif
 
-#define __no_warn(lock, stmt) do { __acquire(lock); stmt; __release(lock); } while (0)
-
 /* module parameter, defined in drbd_main.c */
 extern unsigned int minor_count;
 extern bool disable_sendpage;
@@ -1483,7 +1481,7 @@ extern int drbd_khelper(struct drbd_device *device, char *cmd);
 
 /* drbd_worker.c */
 /* bi_end_io handlers */
-extern void drbd_md_io_complete(struct bio *bio, int error);
+extern void drbd_md_endio(struct bio *bio, int error);
 extern void drbd_peer_request_endio(struct bio *bio, int error);
 extern void drbd_request_endio(struct bio *bio, int error);
 extern int drbd_worker(struct drbd_thread *thi);
@@ -2100,16 +2098,19 @@ static inline bool is_sync_state(enum drbd_conns connection_state)
 
 /**
  * get_ldev() - Increase the ref count on device->ldev. Returns 0 if there is no ldev
- * @M:		DRBD device.
+ * @_device:		DRBD device.
+ * @_min_state:		Minimum device state required for success.
  *
  * You have to call put_ldev() when finished working with device->ldev.
  */
-#define get_ldev(M) __cond_lock(local, _get_ldev_if_state(M,D_INCONSISTENT))
-#define get_ldev_if_state(M,MINS) __cond_lock(local, _get_ldev_if_state(M,MINS))
+#define get_ldev_if_state(_device, _min_state)				\
+	(_get_ldev_if_state((_device), (_min_state)) ?			\
+	 ({ __acquire(x); true; }) : false)
+#define get_ldev(_device) get_ldev_if_state(_device, D_INCONSISTENT)
 
 static inline void put_ldev(struct drbd_device *device)
 {
-	enum drbd_disk_state ds = device->state.disk;
+	enum drbd_disk_state disk_state = device->state.disk;
 	/* We must check the state *before* the atomic_dec becomes visible,
 	 * or we have a theoretical race where someone hitting zero,
 	 * while state still D_FAILED, will then see D_DISKLESS in the
@@ -2122,10 +2123,10 @@ static inline void put_ldev(struct drbd_device *device)
 	__release(local);
 	D_ASSERT(device, i >= 0);
 	if (i == 0) {
-		if (ds == D_DISKLESS)
+		if (disk_state == D_DISKLESS)
 			/* even internal references gone, safe to destroy */
 			drbd_device_post_work(device, DESTROY_DISK);
-		if (ds == D_FAILED)
+		if (disk_state == D_FAILED)
 			/* all application IO references gone. */
 			if (!test_and_set_bit(GOING_DISKLESS, &device->flags))
 				drbd_device_post_work(device, GO_DISKLESS);

@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/smp.h>
+#include <linux/types.h>
 
 #include <asm/cacheflush.h>
 #include <asm/cpu_ops.h>
@@ -65,12 +66,21 @@ static int smp_spin_table_cpu_init(struct device_node *dn, unsigned int cpu)
 
 static int smp_spin_table_cpu_prepare(unsigned int cpu)
 {
-	void **release_addr;
+	__le64 __iomem *release_addr;
 
 	if (!cpu_release_addr[cpu])
 		return -ENODEV;
 
-	release_addr = __va(cpu_release_addr[cpu]);
+	/*
+	 * The cpu-release-addr may or may not be inside the linear mapping.
+	 * As ioremap_cache will either give us a new mapping or reuse the
+	 * existing linear mapping, we can use it to cover both cases. In
+	 * either case the memory will be MT_NORMAL.
+	 */
+	release_addr = ioremap_cache(cpu_release_addr[cpu],
+				     sizeof(*release_addr));
+	if (!release_addr)
+		return -ENOMEM;
 
 	/*
 	 * We write the release address as LE regardless of the native
@@ -79,14 +89,16 @@ static int smp_spin_table_cpu_prepare(unsigned int cpu)
 	 * boot-loader's endianess before jumping. This is mandated by
 	 * the boot protocol.
 	 */
-	release_addr[0] = (void *) cpu_to_le64(__pa(secondary_holding_pen));
-
-	__flush_dcache_area(release_addr, sizeof(release_addr[0]));
+	writeq_relaxed(__pa(secondary_holding_pen), release_addr);
+	__flush_dcache_area((__force void *)release_addr,
+			    sizeof(*release_addr));
 
 	/*
 	 * Send an event to wake up the secondary CPU.
 	 */
 	sev();
+
+	iounmap(release_addr);
 
 	return 0;
 }

@@ -346,12 +346,10 @@ static int vmw_bo_to_validate_list(struct vmw_sw_context *sw_context,
 		++sw_context->cur_val_buf;
 		val_buf = &vval_buf->base;
 		val_buf->bo = ttm_bo_reference(bo);
-		val_buf->reserved = false;
+		val_buf->shared = false;
 		list_add_tail(&val_buf->head, &sw_context->validate_nodes);
 		vval_buf->validate_as_mob = validate_as_mob;
 	}
-
-	sw_context->fence_flags |= DRM_VMW_FENCE_FLAG_EXEC;
 
 	if (p_val_node)
 		*p_val_node = val_node;
@@ -450,11 +448,11 @@ static int vmw_cmd_res_reloc_add(struct vmw_private *dev_priv,
 					  res,
 					  id_loc - sw_context->buf_start);
 	if (unlikely(ret != 0))
-		goto out_err;
+		return ret;
 
 	ret = vmw_resource_val_add(sw_context, res, &node);
 	if (unlikely(ret != 0))
-		goto out_err;
+		return ret;
 
 	if (res_type == vmw_res_context && dev_priv->has_mob &&
 	    node->first_usage) {
@@ -468,13 +466,13 @@ static int vmw_cmd_res_reloc_add(struct vmw_private *dev_priv,
 
 		ret = vmw_resource_context_res_add(dev_priv, sw_context, res);
 		if (unlikely(ret != 0))
-			goto out_err;
+			return ret;
 		node->staged_bindings =
 			kzalloc(sizeof(*node->staged_bindings), GFP_KERNEL);
 		if (node->staged_bindings == NULL) {
 			DRM_ERROR("Failed to allocate context binding "
 				  "information.\n");
-			goto out_err;
+			return -ENOMEM;
 		}
 		INIT_LIST_HEAD(&node->staged_bindings->list);
 	}
@@ -482,8 +480,7 @@ static int vmw_cmd_res_reloc_add(struct vmw_private *dev_priv,
 	if (p_val)
 		*p_val = node;
 
-out_err:
-	return ret;
+	return 0;
 }
 
 
@@ -2338,13 +2335,9 @@ int vmw_execbuf_fence_commands(struct drm_file *file_priv,
 
 	if (p_handle != NULL)
 		ret = vmw_user_fence_create(file_priv, dev_priv->fman,
-					    sequence,
-					    DRM_VMW_FENCE_FLAG_EXEC,
-					    p_fence, p_handle);
+					    sequence, p_fence, p_handle);
 	else
-		ret = vmw_fence_create(dev_priv->fman, sequence,
-				       DRM_VMW_FENCE_FLAG_EXEC,
-				       p_fence);
+		ret = vmw_fence_create(dev_priv->fman, sequence, p_fence);
 
 	if (unlikely(ret != 0 && !synced)) {
 		(void) vmw_fallback_wait(dev_priv, false, false,
@@ -2396,7 +2389,7 @@ vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
 		BUG_ON(fence == NULL);
 
 		fence_rep.handle = fence_handle;
-		fence_rep.seqno = fence->seqno;
+		fence_rep.seqno = fence->base.seqno;
 		vmw_update_seqno(dev_priv, &dev_priv->fifo);
 		fence_rep.passed_seqno = dev_priv->last_read_seqno;
 	}
@@ -2417,8 +2410,7 @@ vmw_execbuf_copy_fence_user(struct vmw_private *dev_priv,
 		ttm_ref_object_base_unref(vmw_fp->tfile,
 					  fence_handle, TTM_REF_USAGE);
 		DRM_ERROR("Fence copy error. Syncing.\n");
-		(void) vmw_fence_obj_wait(fence, fence->signal_mask,
-					  false, false,
+		(void) vmw_fence_obj_wait(fence, false, false,
 					  VMW_FENCE_WAIT_TIMEOUT);
 	}
 }
@@ -2470,7 +2462,6 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	sw_context->fp = vmw_fpriv(file_priv);
 	sw_context->cur_reloc = 0;
 	sw_context->cur_val_buf = 0;
-	sw_context->fence_flags = 0;
 	INIT_LIST_HEAD(&sw_context->resource_list);
 	sw_context->cur_query_bo = dev_priv->pinned_bo;
 	sw_context->last_query_ctx = NULL;
@@ -2496,7 +2487,7 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	if (unlikely(ret != 0))
 		goto out_err_nores;
 
-	ret = ttm_eu_reserve_buffers(&ticket, &sw_context->validate_nodes);
+	ret = ttm_eu_reserve_buffers(&ticket, &sw_context->validate_nodes, true);
 	if (unlikely(ret != 0))
 		goto out_err;
 
@@ -2679,15 +2670,14 @@ void __vmw_execbuf_release_pinned_bo(struct vmw_private *dev_priv,
 	INIT_LIST_HEAD(&validate_list);
 
 	pinned_val.bo = ttm_bo_reference(dev_priv->pinned_bo);
+	pinned_val.shared = false;
 	list_add_tail(&pinned_val.head, &validate_list);
 
 	query_val.bo = ttm_bo_reference(dev_priv->dummy_query_bo);
+	query_val.shared = false;
 	list_add_tail(&query_val.head, &validate_list);
 
-	do {
-		ret = ttm_eu_reserve_buffers(&ticket, &validate_list);
-	} while (ret == -ERESTARTSYS);
-
+	ret = ttm_eu_reserve_buffers(&ticket, &validate_list, false);
 	if (unlikely(ret != 0)) {
 		vmw_execbuf_unpin_panic(dev_priv);
 		goto out_no_reserve;

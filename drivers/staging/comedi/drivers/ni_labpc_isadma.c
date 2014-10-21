@@ -152,7 +152,7 @@ static void handle_isa_dma(struct comedi_device *dev)
 
 void labpc_handle_dma_status(struct comedi_device *dev)
 {
-	const struct labpc_boardinfo *board = comedi_board(dev);
+	const struct labpc_boardinfo *board = dev->board_ptr;
 	struct labpc_private *devpriv = dev->private;
 
 	/*

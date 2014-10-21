@@ -841,7 +841,7 @@ struct ioc_data_version {
 				version. Dirty caches are left unchanged. */
 
 #ifndef offsetof
-# define offsetof(typ,memb)     ((unsigned long)((char *)&(((typ *)0)->memb)))
+# define offsetof(typ, memb)     ((unsigned long)((char *)&(((typ *)0)->memb)))
 #endif
 
 #define dot_lustre_name ".lustre"
@@ -997,12 +997,25 @@ static inline void *hur_data(struct hsm_user_request *hur)
 	return &(hur->hur_user_item[hur->hur_request.hr_itemcount]);
 }
 
-/** Compute the current length of the provided hsm_user_request. */
-static inline int hur_len(struct hsm_user_request *hur)
+/**
+ * Compute the current length of the provided hsm_user_request.  This returns -1
+ * instead of an errno because ssize_t is defined to be only [ -1, SSIZE_MAX ]
+ *
+ * return -1 on bounds check error.
+ */
+static inline ssize_t hur_len(struct hsm_user_request *hur)
 {
-	return offsetof(struct hsm_user_request,
-			hur_user_item[hur->hur_request.hr_itemcount]) +
-		hur->hur_request.hr_data_len;
+	__u64	size;
+
+	/* can't overflow a __u64 since hr_itemcount is only __u32 */
+	size = offsetof(struct hsm_user_request, hur_user_item[0]) +
+		(__u64)hur->hur_request.hr_itemcount *
+		sizeof(hur->hur_user_item[0]) + hur->hur_request.hr_data_len;
+
+	if (size != (ssize_t)size)
+		return -1;
+
+	return size;
 }
 
 /****** HSM RPCs to copytool *****/
@@ -1061,8 +1074,7 @@ static inline char *hai_dump_data_field(struct hsm_action_item *hai,
 	ptr = buffer;
 	sz = len;
 	data_len = hai->hai_len - sizeof(*hai);
-	for (i = 0 ; (i < data_len) && (sz > 0) ; i++)
-	{
+	for (i = 0 ; (i < data_len) && (sz > 0) ; i++) {
 		int cnt;
 
 		cnt = snprintf(ptr, sz, "%.2X",
@@ -1098,7 +1110,7 @@ static inline int cfs_size_round (int val)
 #endif
 
 /* Return pointer to first hai in action list */
-static inline struct hsm_action_item * hai_zero(struct hsm_action_list *hal)
+static inline struct hsm_action_item *hai_zero(struct hsm_action_list *hal)
 {
 	return (struct hsm_action_item *)(hal->hal_fsname +
 					  cfs_size_round(strlen(hal-> \
@@ -1106,7 +1118,7 @@ static inline struct hsm_action_item * hai_zero(struct hsm_action_list *hal)
 							 + 1));
 }
 /* Return pointer to next hai */
-static inline struct hsm_action_item * hai_next(struct hsm_action_item *hai)
+static inline struct hsm_action_item *hai_next(struct hsm_action_item *hai)
 {
 	return (struct hsm_action_item *)((char *)hai +
 					  cfs_size_round(hai->hai_len));

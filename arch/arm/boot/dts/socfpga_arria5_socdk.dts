@@ -37,13 +37,6 @@
 		*/
 		ethernet0 = &gmac1;
 	};
-
-	aliases {
-		/* this allow the ethaddr uboot environmnet variable contents
-		 * to be added to the gmac1 device tree blob.
-		 */
-		ethernet0 = &gmac1;
-	};
 };
 
 &gmac1 {

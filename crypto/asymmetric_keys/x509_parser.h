@@ -19,8 +19,9 @@ struct x509_certificate {
 	struct public_key_signature sig;	/* Signature parameters */
 	char		*issuer;		/* Name of certificate issuer */
 	char		*subject;		/* Name of certificate subject */
-	char		*fingerprint;		/* Key fingerprint as hex */
-	char		*authority;		/* Authority key fingerprint as hex */
+	struct asymmetric_key_id *id;		/* Serial number + issuer */
+	struct asymmetric_key_id *skid;		/* Subject + subjectKeyId (optional) */
+	struct asymmetric_key_id *authority;	/* Authority key identifier (optional) */
 	struct tm	valid_from;
 	struct tm	valid_to;
 	const void	*tbs;			/* Signed data */
@@ -33,10 +34,13 @@ struct x509_certificate {
 	const void	*raw_issuer;		/* Raw issuer name in ASN.1 */
 	const void	*raw_subject;		/* Raw subject name in ASN.1 */
 	unsigned	raw_subject_size;
+	unsigned	raw_skid_size;
+	const void	*raw_skid;		/* Raw subjectKeyId in ASN.1 */
 	unsigned	index;
 	bool		seen;			/* Infinite recursion prevention */
 	bool		verified;
 	bool		trusted;
+	bool		unsupported_crypto;	/* T if can't be verified due to missing crypto */
 };
 
 /*

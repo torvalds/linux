@@ -25,13 +25,12 @@ TABLE OF CONTENTS.
 
 3. DESIGN
 
-	- load Xilinx FPGA bitstream format[1] firmware image file using 
+	- load Xilinx FPGA bitstream format[1] firmware image file using
 	  kernel firmware framework, request_firmware()
 	- program the Xilinx FPGA using SelectMAP (parallel) mode [2]
 	- FPGA prgram is done by gpio based bit-banging, as an example
 	- platform independent file: gs_fpgaboot.c
 	- platform dependent file: io.c
-	
 
 4. HOW TO USE
 

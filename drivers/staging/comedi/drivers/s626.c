@@ -78,7 +78,6 @@ struct s626_buffer_dma {
 
 struct s626_private {
 	uint8_t ai_cmd_running;		/* ai_cmd is running */
-	uint8_t ai_continuous;		/* continuous acquisition */
 	int ai_sample_count;		/* number of samples to acquire */
 	unsigned int ai_sample_timer;	/* time between samples in
 					 * units of the timer */
@@ -98,7 +97,6 @@ struct s626_private {
 	uint8_t trim_setpoint[12];	/* images of TrimDAC setpoints */
 	uint32_t i2c_adrs;		/* I2C device address for onboard EEPROM
 					 * (board rev dependent) */
-	unsigned int ao_readback[S626_DAC_CHANNELS];
 };
 
 /* Counter overflow/index event flag masks for RDMISC2. */
@@ -1399,7 +1397,6 @@ static void s626_check_dio_interrupts(struct comedi_device *dev)
 	uint8_t group;
 
 	for (group = 0; group < S626_DIO_BANKS; group++) {
-		irqbit = 0;
 		/* read interrupt type */
 		irqbit = s626_debi_read(dev, S626_LP_RDCAPFLG(group));
 
@@ -1504,19 +1501,20 @@ static bool s626_handle_eos_interrupt(struct comedi_device *dev)
 	/* end of scan occurs */
 	async->events |= COMEDI_CB_EOS;
 
-	if (!devpriv->ai_continuous)
+	if (cmd->stop_src == TRIG_COUNT) {
 		devpriv->ai_sample_count--;
-	if (devpriv->ai_sample_count <= 0) {
-		devpriv->ai_cmd_running = 0;
+		if (devpriv->ai_sample_count <= 0) {
+			devpriv->ai_cmd_running = 0;
 
-		/* Stop RPS program */
-		s626_mc_disable(dev, S626_MC1_ERPS1, S626_P_MC1);
+			/* Stop RPS program */
+			s626_mc_disable(dev, S626_MC1_ERPS1, S626_P_MC1);
 
-		/* send end of acquisition */
-		async->events |= COMEDI_CB_EOA;
+			/* send end of acquisition */
+			async->events |= COMEDI_CB_EOA;
 
-		/* disable master interrupt */
-		finished = true;
+			/* disable master interrupt */
+			finished = true;
+		}
 	}
 
 	if (devpriv->ai_cmd_running && cmd->scan_begin_src == TRIG_EXT)
@@ -1969,15 +1967,15 @@ static int s626_ns_to_timer(unsigned int *nanosec, unsigned int flags)
 
 	base = 500;		/* 2MHz internal clock */
 
-	switch (flags & TRIG_ROUND_MASK) {
-	case TRIG_ROUND_NEAREST:
+	switch (flags & CMDF_ROUND_MASK) {
+	case CMDF_ROUND_NEAREST:
 	default:
 		divider = (*nanosec + base / 2) / base;
 		break;
-	case TRIG_ROUND_DOWN:
+	case CMDF_ROUND_DOWN:
 		divider = (*nanosec) / base;
 		break;
-	case TRIG_ROUND_UP:
+	case CMDF_ROUND_UP:
 		divider = (*nanosec + base - 1) / base;
 		break;
 	}
@@ -2104,18 +2102,7 @@ static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		break;
 	}
 
-	switch (cmd->stop_src) {
-	case TRIG_COUNT:
-		/* data arrives as one packet */
-		devpriv->ai_sample_count = cmd->stop_arg;
-		devpriv->ai_continuous = 0;
-		break;
-	case TRIG_NONE:
-		/* continuous acquisition */
-		devpriv->ai_continuous = 1;
-		devpriv->ai_sample_count = 1;
-		break;
-	}
+	devpriv->ai_sample_count = cmd->stop_arg;
 
 	s626_reset_adc(dev, ppl);
 
@@ -2221,7 +2208,7 @@ static int s626_ai_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT)
-		err |= cfc_check_trigger_arg_max(&cmd->stop_arg, 0x00ffffff);
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
 	else	/* TRIG_NONE */
 		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
@@ -2269,38 +2256,28 @@ static int s626_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-static int s626_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			 struct comedi_insn *insn, unsigned int *data)
+static int s626_ao_insn_write(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn,
+			      unsigned int *data)
 {
-	struct s626_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	int i;
-	int ret;
-	uint16_t chan = CR_CHAN(insn->chanspec);
-	int16_t dacdata;
 
 	for (i = 0; i < insn->n; i++) {
-		dacdata = (int16_t) data[i];
-		devpriv->ao_readback[CR_CHAN(insn->chanspec)] = data[i];
+		int16_t dacdata = (int16_t)data[i];
+		int ret;
+
 		dacdata -= (0x1fff);
 
 		ret = s626_set_dac(dev, chan, dacdata);
 		if (ret)
 			return ret;
+
+		s->readback[chan] = data[i];
 	}
 
-	return i;
-}
-
-static int s626_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			 struct comedi_insn *insn, unsigned int *data)
-{
-	struct s626_private *devpriv = dev->private;
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[CR_CHAN(insn->chanspec)];
-
-	return i;
+	return insn->n;
 }
 
 /* *************** DIGITAL I/O FUNCTIONS *************** */
@@ -2457,26 +2434,6 @@ static void s626_write_misc2(struct comedi_device *dev, uint16_t new_image)
 	s626_debi_write(dev, S626_LP_MISC1, S626_MISC1_WDISABLE);
 }
 
-static void s626_close_dma_b(struct comedi_device *dev,
-			     struct s626_buffer_dma *pdma, size_t bsize)
-{
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	void *vbptr;
-	dma_addr_t vpptr;
-
-	if (pdma == NULL)
-		return;
-
-	/* find the matching allocation from the board struct */
-	vbptr = pdma->logical_base;
-	vpptr = pdma->physical_base;
-	if (vbptr) {
-		pci_free_consistent(pcidev, bsize, vbptr, vpptr);
-		pdma->logical_base = NULL;
-		pdma->physical_base = 0;
-	}
-}
-
 static void s626_counters_init(struct comedi_device *dev)
 {
 	int chan;
@@ -2525,6 +2482,24 @@ static int s626_allocate_dma_buffers(struct comedi_device *dev)
 	devpriv->rps_buf.physical_base = appdma;
 
 	return 0;
+}
+
+static void s626_free_dma_buffers(struct comedi_device *dev)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	struct s626_private *devpriv = dev->private;
+
+	if (!devpriv)
+		return;
+
+	if (devpriv->rps_buf.logical_base)
+		pci_free_consistent(pcidev, S626_DMABUF_SIZE,
+				    devpriv->rps_buf.logical_base,
+				    devpriv->rps_buf.physical_base);
+	if (devpriv->ana_buf.logical_base)
+		pci_free_consistent(pcidev, S626_DMABUF_SIZE,
+				    devpriv->ana_buf.logical_base,
+				    devpriv->ana_buf.physical_base);
 }
 
 static int s626_initialize(struct comedi_device *dev)
@@ -2844,8 +2819,12 @@ static int s626_auto_attach(struct comedi_device *dev,
 	s->n_chan	= S626_DAC_CHANNELS;
 	s->maxdata	= 0x3fff;
 	s->range_table	= &range_bipolar10;
-	s->insn_write	= s626_ao_winsn;
-	s->insn_read	= s626_ao_rinsn;
+	s->insn_write	= s626_ao_insn_write;
+	s->insn_read	= comedi_readback_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	s = &dev->subdevices[2];
 	/* digital I/O subdevice */
@@ -2923,19 +2902,10 @@ static void s626_detach(struct comedi_device *dev)
 			/* Close all interfaces on 7146 device */
 			writel(S626_MC1_SHUTDOWN, dev->mmio + S626_P_MC1);
 			writel(S626_ACON1_BASE, dev->mmio + S626_P_ACON1);
-
-			s626_close_dma_b(dev, &devpriv->rps_buf,
-					 S626_DMABUF_SIZE);
-			s626_close_dma_b(dev, &devpriv->ana_buf,
-					 S626_DMABUF_SIZE);
 		}
-
-		if (dev->irq)
-			free_irq(dev->irq, dev);
-		if (dev->mmio)
-			iounmap(dev->mmio);
 	}
-	comedi_pci_disable(dev);
+	comedi_pci_detach(dev);
+	s626_free_dma_buffers(dev);
 }
 
 static struct comedi_driver s626_driver = {

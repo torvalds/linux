@@ -96,7 +96,7 @@ static bool ux500_configure_channel(struct dma_channel *channel,
 	struct musb *musb = ux500_channel->controller->private_data;
 
 	dev_dbg(musb->controller,
-		"packet_sz=%d, mode=%d, dma_addr=0x%llu, len=%d is_tx=%d\n",
+		"packet_sz=%d, mode=%d, dma_addr=0x%llx, len=%d is_tx=%d\n",
 		packet_sz, mode, (unsigned long long) dma_addr,
 		len, ux500_channel->is_tx);
 

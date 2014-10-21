@@ -728,6 +728,44 @@ static struct phy_device *connect_local_phy(struct net_device *dev)
 	return phydev;
 }
 
+static int altera_tse_phy_get_addr_mdio_create(struct net_device *dev)
+{
+	struct altera_tse_private *priv = netdev_priv(dev);
+	struct device_node *np = priv->device->of_node;
+	int ret = 0;
+
+	priv->phy_iface = of_get_phy_mode(np);
+
+	/* Avoid get phy addr and create mdio if no phy is present */
+	if (!priv->phy_iface)
+		return 0;
+
+	/* try to get PHY address from device tree, use PHY autodetection if
+	 * no valid address is given
+	 */
+
+	if (of_property_read_u32(priv->device->of_node, "phy-addr",
+			 &priv->phy_addr)) {
+		priv->phy_addr = POLL_PHY;
+	}
+
+	if (!((priv->phy_addr == POLL_PHY) ||
+		  ((priv->phy_addr >= 0) && (priv->phy_addr < PHY_MAX_ADDR)))) {
+		netdev_err(dev, "invalid phy-addr specified %d\n",
+			priv->phy_addr);
+		return -ENODEV;
+	}
+
+	/* Create/attach to MDIO bus */
+	ret = altera_tse_mdio_create(dev,
+					 atomic_add_return(1, &instance_count));
+
+	if (ret)
+		return -ENODEV;
+
+	return 0;
+}
+
 /* Initialize driver's PHY state, and attach to the PHY
  */
 static int init_phy(struct net_device *dev)
@@ -735,6 +773,10 @@ static int init_phy(struct net_device *dev)
 	struct altera_tse_private *priv = netdev_priv(dev);
 	struct phy_device *phydev;
 	struct device_node *phynode;
+
+	/* Avoid init phy in case of no phy present */
+	if (!priv->phy_iface)
+		return 0;
 
 	priv->oldlink = 0;
 	priv->oldspeed = 0;
@@ -1231,7 +1273,6 @@ static int altera_tse_probe(struct platform_device *pdev)
 	struct resource *dma_res;
 	struct altera_tse_private *priv;
 	const unsigned char *macaddr;
-	struct device_node *np = pdev->dev.of_node;
 	void __iomem *descmap;
 	const struct of_device_id *of_id = NULL;
 
@@ -1408,32 +1449,13 @@ static int altera_tse_probe(struct platform_device *pdev)
 	else
 		eth_hw_addr_random(ndev);
 
-	priv->phy_iface = of_get_phy_mode(np);
-
-	/* try to get PHY address from device tree, use PHY autodetection if
-	 * no valid address is given
-	 */
-	if (of_property_read_u32(pdev->dev.of_node, "phy-addr",
-				 &priv->phy_addr)) {
-		priv->phy_addr = POLL_PHY;
-	}
-
-	if (!((priv->phy_addr == POLL_PHY) ||
-	      ((priv->phy_addr >= 0) && (priv->phy_addr < PHY_MAX_ADDR)))) {
-		dev_err(&pdev->dev, "invalid phy-addr specified %d\n",
-			priv->phy_addr);
-		goto err_free_netdev;
-	}
-
-	/* Create/attach to MDIO bus */
-	ret = altera_tse_mdio_create(ndev,
-				     atomic_add_return(1, &instance_count));
+	/* get phy addr and create mdio */
+	ret = altera_tse_phy_get_addr_mdio_create(ndev);
 
 	if (ret)
 		goto err_free_netdev;
 
 	/* initialize netdev */
-	ether_setup(ndev);
 	ndev->mem_start = control_port->start;
 	ndev->mem_end = control_port->end;
 	ndev->netdev_ops = &altera_tse_netdev_ops;

@@ -57,18 +57,21 @@ void copy_user_page(void *to, void *from, unsigned long vaddr, struct page *topa
 typedef struct { unsigned long pte; } pte_t;
 typedef struct { unsigned long iopte; } iopte_t;
 typedef struct { unsigned long pmd; } pmd_t;
+typedef struct { unsigned long pud; } pud_t;
 typedef struct { unsigned long pgd; } pgd_t;
 typedef struct { unsigned long pgprot; } pgprot_t;
 
 #define pte_val(x)	((x).pte)
 #define iopte_val(x)	((x).iopte)
 #define pmd_val(x)      ((x).pmd)
+#define pud_val(x)      ((x).pud)
 #define pgd_val(x)	((x).pgd)
 #define pgprot_val(x)	((x).pgprot)
 
 #define __pte(x)	((pte_t) { (x) } )
 #define __iopte(x)	((iopte_t) { (x) } )
 #define __pmd(x)        ((pmd_t) { (x) } )
+#define __pud(x)        ((pud_t) { (x) } )
 #define __pgd(x)	((pgd_t) { (x) } )
 #define __pgprot(x)	((pgprot_t) { (x) } )
 
@@ -77,18 +80,21 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 typedef unsigned long pte_t;
 typedef unsigned long iopte_t;
 typedef unsigned long pmd_t;
+typedef unsigned long pud_t;
 typedef unsigned long pgd_t;
 typedef unsigned long pgprot_t;
 
 #define pte_val(x)	(x)
 #define iopte_val(x)	(x)
 #define pmd_val(x)      (x)
+#define pud_val(x)      (x)
 #define pgd_val(x)	(x)
 #define pgprot_val(x)	(x)
 
 #define __pte(x)	(x)
 #define __iopte(x)	(x)
 #define __pmd(x)        (x)
+#define __pud(x)        (x)
 #define __pgd(x)	(x)
 #define __pgprot(x)	(x)
 
@@ -96,21 +102,14 @@ typedef unsigned long pgprot_t;
 
 typedef pte_t *pgtable_t;
 
-/* These two values define the virtual address space range in which we
- * must forbid 64-bit user processes from making mappings.  It used to
- * represent precisely the virtual address space hole present in most
- * early sparc64 chips including UltraSPARC-I.  But now it also is
- * further constrained by the limits of our page tables, which is
- * 43-bits of virtual address.
- */
-#define SPARC64_VA_HOLE_TOP	_AC(0xfffffc0000000000,UL)
-#define SPARC64_VA_HOLE_BOTTOM	_AC(0x0000040000000000,UL)
+extern unsigned long sparc64_va_hole_top;
+extern unsigned long sparc64_va_hole_bottom;
 
 /* The next two defines specify the actual exclusion region we
  * enforce, wherein we use a 4GB red zone on each side of the VA hole.
  */
-#define VA_EXCLUDE_START (SPARC64_VA_HOLE_BOTTOM - (1UL << 32UL))
-#define VA_EXCLUDE_END   (SPARC64_VA_HOLE_TOP + (1UL << 32UL))
+#define VA_EXCLUDE_START (sparc64_va_hole_bottom - (1UL << 32UL))
+#define VA_EXCLUDE_END   (sparc64_va_hole_top + (1UL << 32UL))
 
 #define TASK_UNMAPPED_BASE	(test_thread_flag(TIF_32BIT) ? \
 				 _AC(0x0000000070000000,UL) : \
@@ -118,20 +117,16 @@ typedef pte_t *pgtable_t;
 
 #include <asm-generic/memory_model.h>
 
-#define PAGE_OFFSET_BY_BITS(X)	(-(_AC(1,UL) << (X)))
 extern unsigned long PAGE_OFFSET;
 
 #endif /* !(__ASSEMBLY__) */
 
-/* The maximum number of physical memory address bits we support, this
- * is used to size various tables used to manage kernel TLB misses and
- * also the sparsemem code.
+/* The maximum number of physical memory address bits we support.  The
+ * largest value we can support is whatever "KPGD_SHIFT + KPTE_BITS"
+ * evaluates to.
  */
-#define MAX_PHYS_ADDRESS_BITS	47
+#define MAX_PHYS_ADDRESS_BITS	53
 
-/* These two shift counts are used when indexing sparc64_valid_addr_bitmap
- * and kpte_linear_bitmap.
- */
 #define ILOG2_4MB		22
 #define ILOG2_256MB		28
 

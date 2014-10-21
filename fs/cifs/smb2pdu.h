@@ -352,6 +352,8 @@ struct smb2_tree_disconnect_rsp {
 #define FILE_ATTRIBUTE_OFFLINE			0x00001000
 #define FILE_ATTRIBUTE_NOT_CONTENT_INDEXED	0x00002000
 #define FILE_ATTRIBUTE_ENCRYPTED		0x00004000
+#define FILE_ATTRIBUTE_INTEGRITY_STREAM		0x00008000
+#define FILE_ATTRIBUTE_NO_SCRUB_DATA		0x00020000
 
 /* Oplock levels */
 #define SMB2_OPLOCK_LEVEL_NONE		0x00
@@ -571,6 +573,12 @@ struct copychunk_ioctl {
 	__le64 TargetOffset;
 	__le32 Length; /* how many bytes to copy */
 	__u32 Reserved2;
+} __packed;
+
+/* this goes in the ioctl buffer when doing FSCTL_SET_ZERO_DATA */
+struct file_zero_data_information {
+	__le64	FileOffset;
+	__le64	BeyondFinalZero;
 } __packed;
 
 struct copychunk_ioctl_rsp {

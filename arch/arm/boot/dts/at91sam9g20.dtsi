@@ -22,6 +22,10 @@
 				compatible = "atmel,at91sam9g20-i2c";
 			};
 
+			ssc0: ssc@fffbc000 {
+				compatible = "atmel,at91sam9rl-ssc";
+			};
+
 			adc0: adc@fffe0000 {
 				atmel,adc-startup-time = <40>;
 			};
@@ -40,6 +44,7 @@
 				};
 
 				pllb: pllbck {
+					compatible = "atmel,at91sam9g20-clk-pllb";
 					atmel,clk-input-range = <2000000 32000000>;
 					atmel,pll-clk-output-ranges = <30000000 100000000 0 0>;
 				};

@@ -23,6 +23,12 @@ struct nvbios_therm_sensor {
 	struct nvbios_therm_threshold thrs_shutdown;
 };
 
+enum nvbios_therm_fan_type {
+	NVBIOS_THERM_FAN_UNK = 0,
+	NVBIOS_THERM_FAN_TOGGLE = 1,
+	NVBIOS_THERM_FAN_PWM = 2,
+};
+
 /* no vbios have more than 6 */
 #define NOUVEAU_TEMP_FAN_TRIP_MAX 10
 struct nouveau_therm_trip_point {
@@ -38,7 +44,9 @@ enum nvbios_therm_fan_mode {
 };
 
 struct nvbios_therm_fan {
-	u16 pwm_freq;
+	enum nvbios_therm_fan_type type;
+
+	u32 pwm_freq;
 
 	u8 min_duty;
 	u8 max_duty;

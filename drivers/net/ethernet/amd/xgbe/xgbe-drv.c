@@ -126,7 +126,6 @@
 #include "xgbe.h"
 #include "xgbe-common.h"
 
-
 static int xgbe_poll(struct napi_struct *, int);
 static void xgbe_set_rx_mode(struct net_device *);
 
@@ -360,6 +359,8 @@ void xgbe_get_all_hw_features(struct xgbe_prv_data *pdata)
 	mac_hfr2 = XGMAC_IOREAD(pdata, MAC_HWF2R);
 
 	memset(hw_feat, 0, sizeof(*hw_feat));
+
+	hw_feat->version = XGMAC_IOREAD(pdata, MAC_VR);
 
 	/* Hardware feature register 0 */
 	hw_feat->gmii        = XGMAC_GET_BITS(mac_hfr0, MAC_HWF0R, GMIISEL);

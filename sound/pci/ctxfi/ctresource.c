@@ -134,7 +134,8 @@ static struct rsc_ops rsc_generic_ops = {
 	.next_conj	= rsc_next_conj,
 };
 
-int rsc_init(struct rsc *rsc, u32 idx, enum RSCTYP type, u32 msr, void *hw)
+int
+rsc_init(struct rsc *rsc, u32 idx, enum RSCTYP type, u32 msr, struct hw *hw)
 {
 	int err = 0;
 
@@ -151,25 +152,24 @@ int rsc_init(struct rsc *rsc, u32 idx, enum RSCTYP type, u32 msr, void *hw)
 
 	switch (type) {
 	case SRC:
-		err = ((struct hw *)hw)->src_rsc_get_ctrl_blk(&rsc->ctrl_blk);
+		err = hw->src_rsc_get_ctrl_blk(&rsc->ctrl_blk);
 		break;
 	case AMIXER:
-		err = ((struct hw *)hw)->
-				amixer_rsc_get_ctrl_blk(&rsc->ctrl_blk);
+		err = hw->amixer_rsc_get_ctrl_blk(&rsc->ctrl_blk);
 		break;
 	case SRCIMP:
 	case SUM:
 	case DAIO:
 		break;
 	default:
-		printk(KERN_ERR
-		       "ctxfi: Invalid resource type value %d!\n", type);
+		dev_err(((struct hw *)hw)->card->dev,
+			"Invalid resource type value %d!\n", type);
 		return -EINVAL;
 	}
 
 	if (err) {
-		printk(KERN_ERR
-		       "ctxfi: Failed to get resource control block!\n");
+		dev_err(((struct hw *)hw)->card->dev,
+			"Failed to get resource control block!\n");
 		return err;
 	}
 
@@ -181,19 +181,18 @@ int rsc_uninit(struct rsc *rsc)
 	if ((NULL != rsc->hw) && (NULL != rsc->ctrl_blk)) {
 		switch (rsc->type) {
 		case SRC:
-			((struct hw *)rsc->hw)->
-				src_rsc_put_ctrl_blk(rsc->ctrl_blk);
+			rsc->hw->src_rsc_put_ctrl_blk(rsc->ctrl_blk);
 			break;
 		case AMIXER:
-			((struct hw *)rsc->hw)->
-				amixer_rsc_put_ctrl_blk(rsc->ctrl_blk);
+			rsc->hw->amixer_rsc_put_ctrl_blk(rsc->ctrl_blk);
 			break;
 		case SUM:
 		case DAIO:
 			break;
 		default:
-			printk(KERN_ERR "ctxfi: "
-			       "Invalid resource type value %d!\n", rsc->type);
+			dev_err(((struct hw *)rsc->hw)->card->dev,
+				"Invalid resource type value %d!\n",
+				rsc->type);
 			break;
 		}
 
@@ -208,10 +207,9 @@ int rsc_uninit(struct rsc *rsc)
 }
 
 int rsc_mgr_init(struct rsc_mgr *mgr, enum RSCTYP type,
-		 unsigned int amount, void *hw_obj)
+		 unsigned int amount, struct hw *hw)
 {
 	int err = 0;
-	struct hw *hw = hw_obj;
 
 	mgr->type = NUM_RSCTYP;
 
@@ -235,15 +233,15 @@ int rsc_mgr_init(struct rsc_mgr *mgr, enum RSCTYP type,
 	case SUM:
 		break;
 	default:
-		printk(KERN_ERR
-		       "ctxfi: Invalid resource type value %d!\n", type);
+		dev_err(hw->card->dev,
+			"Invalid resource type value %d!\n", type);
 		err = -EINVAL;
 		goto error;
 	}
 
 	if (err) {
-		printk(KERN_ERR
-		       "ctxfi: Failed to get manager control block!\n");
+		dev_err(hw->card->dev,
+			"Failed to get manager control block!\n");
 		goto error;
 	}
 
@@ -268,26 +266,23 @@ int rsc_mgr_uninit(struct rsc_mgr *mgr)
 	if ((NULL != mgr->hw) && (NULL != mgr->ctrl_blk)) {
 		switch (mgr->type) {
 		case SRC:
-			((struct hw *)mgr->hw)->
-				src_mgr_put_ctrl_blk(mgr->ctrl_blk);
+			mgr->hw->src_mgr_put_ctrl_blk(mgr->ctrl_blk);
 			break;
 		case SRCIMP:
-			((struct hw *)mgr->hw)->
-				srcimp_mgr_put_ctrl_blk(mgr->ctrl_blk);
+			mgr->hw->srcimp_mgr_put_ctrl_blk(mgr->ctrl_blk);
 			break;
 		case AMIXER:
-			((struct hw *)mgr->hw)->
-				amixer_mgr_put_ctrl_blk(mgr->ctrl_blk);
+			mgr->hw->amixer_mgr_put_ctrl_blk(mgr->ctrl_blk);
 			break;
 		case DAIO:
-			((struct hw *)mgr->hw)->
-				daio_mgr_put_ctrl_blk(mgr->ctrl_blk);
+			mgr->hw->daio_mgr_put_ctrl_blk(mgr->ctrl_blk);
 			break;
 		case SUM:
 			break;
 		default:
-			printk(KERN_ERR "ctxfi: "
-			       "Invalid resource type value %d!\n", mgr->type);
+			dev_err(((struct hw *)mgr->hw)->card->dev,
+				"Invalid resource type value %d!\n",
+				mgr->type);
 			break;
 		}
 

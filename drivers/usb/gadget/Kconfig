@@ -181,6 +181,15 @@ config USB_F_MASS_STORAGE
 config USB_F_FS
 	tristate
 
+config USB_F_UAC1
+	tristate
+
+config USB_F_UAC2
+	tristate
+
+config USB_F_UVC
+	tristate
+
 choice
 	tristate "USB Gadget Drivers"
 	default USB_ETH

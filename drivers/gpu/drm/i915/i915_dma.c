@@ -28,9 +28,11 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/async.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_legacy.h>
 #include "intel_drv.h"
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
@@ -196,7 +198,7 @@ static int i915_initialize(struct drm_device *dev, drm_i915_init_t *init)
 	struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
 	int ret;
 
-	master_priv->sarea = drm_getsarea(dev);
+	master_priv->sarea = drm_legacy_getsarea(dev);
 	if (master_priv->sarea) {
 		master_priv->sarea_priv = (drm_i915_sarea_t *)
 			((u8 *)master_priv->sarea->handle + init->sarea_priv_offset);
@@ -999,7 +1001,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = HAS_WT(dev);
 		break;
 	case I915_PARAM_HAS_ALIASING_PPGTT:
-		value = dev_priv->mm.aliasing_ppgtt || USES_FULL_PPGTT(dev);
+		value = USES_PPGTT(dev);
 		break;
 	case I915_PARAM_HAS_WAIT_TIMEOUT:
 		value = 1;
@@ -1336,11 +1338,16 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	intel_power_domains_init_hw(dev_priv);
 
+	/*
+	 * We enable some interrupt sources in our postinstall hooks, so mark
+	 * interrupts as enabled _before_ actually enabling them to avoid
+	 * special cases in our ordering checks.
+	 */
+	dev_priv->pm._irqs_disabled = false;
+
 	ret = drm_irq_install(dev, dev->pdev->irq);
 	if (ret)
 		goto cleanup_gem_stolen;
-
-	dev_priv->pm._irqs_disabled = false;
 
 	/* Important: The output setup functions called by modeset_init need
 	 * working irqs for e.g. gmbus and dp aux transfers. */
@@ -1349,8 +1356,6 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	ret = i915_gem_init(dev);
 	if (ret)
 		goto cleanup_irq;
-
-	INIT_WORK(&dev_priv->console_resume_work, intel_console_resume);
 
 	intel_modeset_gem_init(dev);
 
@@ -1377,7 +1382,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	 * scanning against hotplug events. Hence do this first and ignore the
 	 * tiny window where we will loose hotplug notifactions.
 	 */
-	intel_fbdev_initial_config(dev);
+	async_schedule(intel_fbdev_initial_config, dev_priv);
 
 	drm_kms_helper_poll_init(dev);
 
@@ -1388,7 +1393,6 @@ cleanup_gem:
 	i915_gem_cleanup_ringbuffer(dev);
 	i915_gem_context_fini(dev);
 	mutex_unlock(&dev->struct_mutex);
-	WARN_ON(dev_priv->mm.aliasing_ppgtt);
 cleanup_irq:
 	drm_irq_uninstall(dev);
 cleanup_gem_stolen:
@@ -1531,10 +1535,10 @@ static void intel_device_info_runtime_init(struct drm_device *dev)
 	info = (struct intel_device_info *)&dev_priv->info;
 
 	if (IS_VALLEYVIEW(dev))
-		for_each_pipe(pipe)
+		for_each_pipe(dev_priv, pipe)
 			info->num_sprites[pipe] = 2;
 	else
-		for_each_pipe(pipe)
+		for_each_pipe(dev_priv, pipe)
 			info->num_sprites[pipe] = 1;
 
 	if (i915.disable_display) {
@@ -1603,9 +1607,10 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	dev->dev_private = dev_priv;
 	dev_priv->dev = dev;
 
-	/* copy initial configuration to dev_priv->info */
+	/* Setup the write-once "constant" device info */
 	device_info = (struct intel_device_info *)&dev_priv->info;
-	*device_info = *info;
+	memcpy(device_info, info, sizeof(dev_priv->info));
+	device_info->device_id = dev->pdev->device;
 
 	spin_lock_init(&dev_priv->irq_lock);
 	spin_lock_init(&dev_priv->gpu_error.lock);
@@ -1817,7 +1822,7 @@ out_mtrrfree:
 	arch_phys_wc_del(dev_priv->gtt.mtrr);
 	io_mapping_free(dev_priv->gtt.mappable);
 out_gtt:
-	dev_priv->gtt.base.cleanup(&dev_priv->gtt.base);
+	i915_global_gtt_cleanup(dev);
 out_regs:
 	intel_uncore_fini(dev);
 	pci_iounmap(dev->pdev, dev_priv->regs);
@@ -1864,7 +1869,6 @@ int i915_driver_unload(struct drm_device *dev)
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		intel_fbdev_fini(dev);
 		intel_modeset_cleanup(dev);
-		cancel_work_sync(&dev_priv->console_resume_work);
 
 		/*
 		 * free the memory space allocated for the child device
@@ -1897,15 +1901,12 @@ int i915_driver_unload(struct drm_device *dev)
 		mutex_lock(&dev->struct_mutex);
 		i915_gem_cleanup_ringbuffer(dev);
 		i915_gem_context_fini(dev);
-		WARN_ON(dev_priv->mm.aliasing_ppgtt);
 		mutex_unlock(&dev->struct_mutex);
 		i915_gem_cleanup_stolen(dev);
 
 		if (!I915_NEED_GFX_HWS(dev))
 			i915_free_hws(dev);
 	}
-
-	WARN_ON(!list_empty(&dev_priv->vm_list));
 
 	drm_vblank_cleanup(dev);
 
@@ -1916,7 +1917,7 @@ int i915_driver_unload(struct drm_device *dev)
 	destroy_workqueue(dev_priv->wq);
 	pm_qos_remove_request(&dev_priv->pm_qos);
 
-	dev_priv->gtt.base.cleanup(&dev_priv->gtt.base);
+	i915_global_gtt_cleanup(dev);
 
 	intel_uncore_fini(dev);
 	if (dev_priv->regs != NULL)
@@ -1981,6 +1982,9 @@ void i915_driver_preclose(struct drm_device *dev, struct drm_file *file)
 	i915_gem_context_close(dev, file);
 	i915_gem_release(dev, file);
 	mutex_unlock(&dev->struct_mutex);
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		intel_modeset_preclose(dev, file);
 }
 
 void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)

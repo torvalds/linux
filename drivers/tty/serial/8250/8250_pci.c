@@ -25,6 +25,9 @@
 #include <asm/byteorder.h>
 #include <asm/io.h>
 
+#include <linux/dmaengine.h>
+#include <linux/platform_data/dma-dw.h>
+
 #include "8250.h"
 
 /*
@@ -1349,14 +1352,14 @@ ce4100_serial_setup(struct serial_private *priv,
 #define PCI_DEVICE_ID_INTEL_BYT_UART1	0x0f0a
 #define PCI_DEVICE_ID_INTEL_BYT_UART2	0x0f0c
 
+#define PCI_DEVICE_ID_INTEL_BSW_UART1	0x228a
+#define PCI_DEVICE_ID_INTEL_BSW_UART2	0x228c
+
 #define BYT_PRV_CLK			0x800
 #define BYT_PRV_CLK_EN			(1 << 0)
 #define BYT_PRV_CLK_M_VAL_SHIFT		1
 #define BYT_PRV_CLK_N_VAL_SHIFT		16
 #define BYT_PRV_CLK_UPDATE		(1 << 31)
-
-#define BYT_GENERAL_REG			0x808
-#define BYT_GENERAL_DIS_RTS_N_OVERRIDE	(1 << 3)
 
 #define BYT_TX_OVF_INT			0x820
 #define BYT_TX_OVF_INT_MASK		(1 << 1)
@@ -1412,22 +1415,18 @@ byt_set_termios(struct uart_port *p, struct ktermios *termios,
 	reg |= BYT_PRV_CLK_EN | BYT_PRV_CLK_UPDATE;
 	writel(reg, p->membase + BYT_PRV_CLK);
 
-	/*
-	 * If auto-handshake mechanism is not enabled,
-	 * disable rts_n override
-	 */
-	reg = readl(p->membase + BYT_GENERAL_REG);
-	reg &= ~BYT_GENERAL_DIS_RTS_N_OVERRIDE;
-	if (termios->c_cflag & CRTSCTS)
-		reg |= BYT_GENERAL_DIS_RTS_N_OVERRIDE;
-	writel(reg, p->membase + BYT_GENERAL_REG);
-
 	serial8250_do_set_termios(p, termios, old);
 }
 
 static bool byt_dma_filter(struct dma_chan *chan, void *param)
 {
-	return chan->chan_id == *(int *)param;
+	struct dw_dma_slave *dws = param;
+
+	if (dws->dma_dev != chan->device->dev)
+		return false;
+
+	chan->private = dws;
+	return true;
 }
 
 static int
@@ -1435,35 +1434,57 @@ byt_serial_setup(struct serial_private *priv,
 		 const struct pciserial_board *board,
 		 struct uart_8250_port *port, int idx)
 {
+	struct pci_dev *pdev = priv->dev;
+	struct device *dev = port->port.dev;
 	struct uart_8250_dma *dma;
+	struct dw_dma_slave *tx_param, *rx_param;
+	struct pci_dev *dma_dev;
 	int ret;
 
-	dma = devm_kzalloc(port->port.dev, sizeof(*dma), GFP_KERNEL);
+	dma = devm_kzalloc(dev, sizeof(*dma), GFP_KERNEL);
 	if (!dma)
 		return -ENOMEM;
 
-	switch (priv->dev->device) {
+	tx_param = devm_kzalloc(dev, sizeof(*tx_param), GFP_KERNEL);
+	if (!tx_param)
+		return -ENOMEM;
+
+	rx_param = devm_kzalloc(dev, sizeof(*rx_param), GFP_KERNEL);
+	if (!rx_param)
+		return -ENOMEM;
+
+	switch (pdev->device) {
 	case PCI_DEVICE_ID_INTEL_BYT_UART1:
-		dma->rx_chan_id = 3;
-		dma->tx_chan_id = 2;
+	case PCI_DEVICE_ID_INTEL_BSW_UART1:
+		rx_param->src_id = 3;
+		tx_param->dst_id = 2;
 		break;
 	case PCI_DEVICE_ID_INTEL_BYT_UART2:
-		dma->rx_chan_id = 5;
-		dma->tx_chan_id = 4;
+	case PCI_DEVICE_ID_INTEL_BSW_UART2:
+		rx_param->src_id = 5;
+		tx_param->dst_id = 4;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	dma->rxconf.slave_id = dma->rx_chan_id;
+	rx_param->src_master = 1;
+	rx_param->dst_master = 0;
+
 	dma->rxconf.src_maxburst = 16;
 
-	dma->txconf.slave_id = dma->tx_chan_id;
+	tx_param->src_master = 1;
+	tx_param->dst_master = 0;
+
 	dma->txconf.dst_maxburst = 16;
 
+	dma_dev = pci_get_slot(pdev->bus, PCI_DEVFN(PCI_SLOT(pdev->devfn), 0));
+	rx_param->dma_dev = &dma_dev->dev;
+	tx_param->dma_dev = &dma_dev->dev;
+
 	dma->fn = byt_dma_filter;
-	dma->rx_param = &dma->rx_chan_id;
-	dma->tx_param = &dma->tx_chan_id;
+	dma->rx_param = rx_param;
+	dma->tx_param = tx_param;
 
 	ret = pci_default_setup(priv, board, port, idx);
 	port->port.iotype = UPIO_MEM;
@@ -1788,6 +1809,7 @@ pci_wch_ch353_setup(struct serial_private *priv,
 #define PCI_DEVICE_ID_COMMTECH_4222PCIE	0x0022
 #define PCI_DEVICE_ID_BROADCOM_TRUMANAGE 0x160a
 #define PCI_DEVICE_ID_AMCC_ADDIDATA_APCI7800 0x818e
+#define PCI_DEVICE_ID_INTEL_QRK_UART	0x0936
 
 #define PCI_VENDOR_ID_SUNIX		0x1fd4
 #define PCI_DEVICE_ID_SUNIX_1999	0x1999
@@ -1894,6 +1916,27 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 	{
 		.vendor		= PCI_VENDOR_ID_INTEL,
 		.device		= PCI_DEVICE_ID_INTEL_BYT_UART2,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.setup		= byt_serial_setup,
+	},
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_QRK_UART,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.setup		= pci_default_setup,
+	},
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_BSW_UART1,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.setup		= byt_serial_setup,
+	},
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_BSW_UART2,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.setup		= byt_serial_setup,
@@ -2740,6 +2783,7 @@ enum pci_board_num_t {
 	pbn_ADDIDATA_PCIe_8_3906250,
 	pbn_ce4100_1_115200,
 	pbn_byt,
+	pbn_qrk,
 	pbn_omegapci,
 	pbn_NETMOS9900_2s_115200,
 	pbn_brcm_trumanage,
@@ -3489,6 +3533,12 @@ static struct pciserial_board pci_boards[] = {
 		.base_baud	= 2764800,
 		.uart_offset	= 0x80,
 		.reg_shift      = 2,
+	},
+	[pbn_qrk] = {
+		.flags		= FL_BASE0,
+		.num_ports	= 1,
+		.base_baud	= 2764800,
+		.reg_shift	= 2,
 	},
 	[pbn_omegapci] = {
 		.flags		= FL_BASE0,
@@ -5190,7 +5240,21 @@ static struct pci_device_id serial_pci_tbl[] = {
 		PCI_ANY_ID,  PCI_ANY_ID,
 		PCI_CLASS_COMMUNICATION_SERIAL << 8, 0xff0000,
 		pbn_byt },
+	{	PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BSW_UART1,
+		PCI_ANY_ID,  PCI_ANY_ID,
+		PCI_CLASS_COMMUNICATION_SERIAL << 8, 0xff0000,
+		pbn_byt },
+	{	PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_BSW_UART2,
+		PCI_ANY_ID,  PCI_ANY_ID,
+		PCI_CLASS_COMMUNICATION_SERIAL << 8, 0xff0000,
+		pbn_byt },
 
+	/*
+	 * Intel Quark x1000
+	 */
+	{	PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_QRK_UART,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_qrk },
 	/*
 	 * Cronyx Omega PCI
 	 */

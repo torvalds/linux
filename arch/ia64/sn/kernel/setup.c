@@ -629,7 +629,7 @@ void sn_cpu_init(void)
 
 	cnode = nasid_to_cnodeid(nasid);
 
-	sn_nodepda = nodepdaindr[cnode];
+	__this_cpu_write(__sn_nodepda, nodepdaindr[cnode]);
 
 	pda->led_address =
 	    (typeof(pda->led_address)) (LED0 + (slice << LED_CPU_SHIFT));

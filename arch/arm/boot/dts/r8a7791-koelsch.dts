@@ -275,11 +275,6 @@
 		renesas,function = "msiof0";
 	};
 
-	i2c6_pins: i2c6 {
-		renesas,groups = "i2c6";
-		renesas,function = "i2c6";
-	};
-
 	usb0_pins: usb0 {
 		renesas,groups = "usb0";
 		renesas,function = "usb0";
@@ -288,6 +283,11 @@
 	usb1_pins: usb1 {
 		renesas,groups = "usb1";
 		renesas,function = "usb1";
+	};
+
+	vin1_pins: vin1 {
+		renesas,groups = "vin1_data8", "vin1_clk";
+		renesas,function = "vin1";
 	};
 };
 
@@ -305,6 +305,10 @@
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
 		micrel,led-mode = <1>;
 	};
+};
+
+&cmt0 {
+	status = "ok";
 };
 
 &sata0 {
@@ -412,6 +416,19 @@
 	status = "okay";
 	clock-frequency = <400000>;
 
+	composite-in@20 {
+		compatible = "adi,adv7180";
+		reg = <0x20>;
+		remote = <&vin1>;
+
+		port {
+			adv7180: endpoint {
+				bus-width = <8>;
+				remote-endpoint = <&vin1ep>;
+			};
+		};
+	};
+
 	eeprom@50 {
 		compatible = "renesas,24c02";
 		reg = <0x50>;
@@ -420,13 +437,11 @@
 };
 
 &i2c6 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c6_pins>;
 	status = "okay";
 	clock-frequency = <100000>;
 
 	vdd_dvfs: regulator@68 {
-		compatible = "diasemi,da9210";
+		compatible = "dlg,da9210";
 		reg = <0x68>;
 
 		regulator-min-microvolt = <1000000>;
@@ -458,4 +473,21 @@
 
 &cpu0 {
 	cpu0-supply = <&vdd_dvfs>;
+};
+
+/* composite video input */
+&vin1 {
+	status = "ok";
+	pinctrl-0 = <&vin1_pins>;
+	pinctrl-names = "default";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		vin1ep: endpoint {
+			remote-endpoint = <&adv7180>;
+			bus-width = <8>;
+		};
+	};
 };

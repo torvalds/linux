@@ -32,7 +32,7 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	struct f2fs_stat_info *si = F2FS_STAT(sbi);
 	int i;
 
-	/* valid check of the segment numbers */
+	/* validation check of the segment numbers */
 	si->hit_ext = sbi->read_hit_ext;
 	si->total_ext = sbi->total_hit_ext;
 	si->ndirty_node = get_pages(sbi, F2FS_DIRTY_NODES);
@@ -93,7 +93,7 @@ static void update_sit_info(struct f2fs_sb_info *sbi)
 	total_vblocks = 0;
 	blks_per_sec = sbi->segs_per_sec * (1 << sbi->log_blocks_per_seg);
 	hblks_per_sec = blks_per_sec / 2;
-	for (segno = 0; segno < TOTAL_SEGS(sbi); segno += sbi->segs_per_sec) {
+	for (segno = 0; segno < MAIN_SEGS(sbi); segno += sbi->segs_per_sec) {
 		vblocks = get_valid_blocks(sbi, segno, sbi->segs_per_sec);
 		dist = abs(vblocks - hblks_per_sec);
 		bimodal += dist * dist;
@@ -103,7 +103,7 @@ static void update_sit_info(struct f2fs_sb_info *sbi)
 			ndirty++;
 		}
 	}
-	dist = TOTAL_SECS(sbi) * hblks_per_sec * hblks_per_sec / 100;
+	dist = MAIN_SECS(sbi) * hblks_per_sec * hblks_per_sec / 100;
 	si->bimodal = bimodal / dist;
 	if (si->dirty_count)
 		si->avg_vblocks = total_vblocks / ndirty;
@@ -131,17 +131,17 @@ static void update_mem_info(struct f2fs_sb_info *sbi)
 
 	/* build sit */
 	si->base_mem += sizeof(struct sit_info);
-	si->base_mem += TOTAL_SEGS(sbi) * sizeof(struct seg_entry);
-	si->base_mem += f2fs_bitmap_size(TOTAL_SEGS(sbi));
-	si->base_mem += 2 * SIT_VBLOCK_MAP_SIZE * TOTAL_SEGS(sbi);
+	si->base_mem += MAIN_SEGS(sbi) * sizeof(struct seg_entry);
+	si->base_mem += f2fs_bitmap_size(MAIN_SEGS(sbi));
+	si->base_mem += 2 * SIT_VBLOCK_MAP_SIZE * MAIN_SEGS(sbi);
 	if (sbi->segs_per_sec > 1)
-		si->base_mem += TOTAL_SECS(sbi) * sizeof(struct sec_entry);
+		si->base_mem += MAIN_SECS(sbi) * sizeof(struct sec_entry);
 	si->base_mem += __bitmap_size(sbi, SIT_BITMAP);
 
 	/* build free segmap */
 	si->base_mem += sizeof(struct free_segmap_info);
-	si->base_mem += f2fs_bitmap_size(TOTAL_SEGS(sbi));
-	si->base_mem += f2fs_bitmap_size(TOTAL_SECS(sbi));
+	si->base_mem += f2fs_bitmap_size(MAIN_SEGS(sbi));
+	si->base_mem += f2fs_bitmap_size(MAIN_SECS(sbi));
 
 	/* build curseg */
 	si->base_mem += sizeof(struct curseg_info) * NR_CURSEG_TYPE;
@@ -149,10 +149,10 @@ static void update_mem_info(struct f2fs_sb_info *sbi)
 
 	/* build dirty segmap */
 	si->base_mem += sizeof(struct dirty_seglist_info);
-	si->base_mem += NR_DIRTY_TYPE * f2fs_bitmap_size(TOTAL_SEGS(sbi));
-	si->base_mem += f2fs_bitmap_size(TOTAL_SECS(sbi));
+	si->base_mem += NR_DIRTY_TYPE * f2fs_bitmap_size(MAIN_SEGS(sbi));
+	si->base_mem += f2fs_bitmap_size(MAIN_SECS(sbi));
 
-	/* buld nm */
+	/* build nm */
 	si->base_mem += sizeof(struct f2fs_nm_info);
 	si->base_mem += __bitmap_size(sbi, NAT_BITMAP);
 

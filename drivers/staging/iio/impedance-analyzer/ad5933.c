@@ -193,6 +193,7 @@ static int ad5933_cmd(struct ad5933_state *st, unsigned char cmd)
 static int ad5933_reset(struct ad5933_state *st)
 {
 	unsigned char dat = st->ctrl_lb | AD5933_CTRL_RESET;
+
 	return ad5933_i2c_write(st->client,
 			AD5933_REG_CONTROL_LB, 1, &dat);
 }
@@ -220,7 +221,7 @@ static int ad5933_set_freq(struct ad5933_state *st,
 {
 	unsigned long long freqreg;
 	union {
-		u32 d32;
+		__be32 d32;
 		u8 d8[4];
 	} dat;
 
@@ -244,7 +245,7 @@ static int ad5933_set_freq(struct ad5933_state *st,
 
 static int ad5933_setup(struct ad5933_state *st)
 {
-	unsigned short dat;
+	__be16 dat;
 	int ret;
 
 	ret = ad5933_reset(st);
@@ -297,7 +298,7 @@ static ssize_t ad5933_show_frequency(struct device *dev,
 	int ret;
 	unsigned long long freqreg;
 	union {
-		u32 d32;
+		__be32 d32;
 		u8 d8[4];
 	} dat;
 
@@ -402,7 +403,7 @@ static ssize_t ad5933_store(struct device *dev,
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	u16 val;
 	int i, ret = 0;
-	unsigned short dat;
+	__be16 dat;
 
 	if (this_attr->address != AD5933_IN_PGA_GAIN) {
 		ret = kstrtou16(buf, 10, &val);
@@ -521,7 +522,7 @@ static int ad5933_read_raw(struct iio_dev *indio_dev,
 			   long m)
 {
 	struct ad5933_state *st = iio_priv(indio_dev);
-	unsigned short dat;
+	__be16 dat;
 	int ret = -EINVAL;
 
 	mutex_lock(&indio_dev->mlock);

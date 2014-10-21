@@ -79,49 +79,30 @@ I/O port base address can be found in the output of 'lspci -v'.
 #include "comedi_fc.h"
 #include "8255.h"
 
-#define _8255_SIZE	4
-
-#define _8255_DATA	0
-#define _8255_CR	3
-
-#define CR_C_LO_IO	0x01
-#define CR_B_IO		0x02
-#define CR_B_MODE	0x04
-#define CR_C_HI_IO	0x08
-#define CR_A_IO		0x10
-#define CR_A_MODE(a)	((a)<<5)
-#define CR_CW		0x80
-
 struct subdev_8255_private {
-	unsigned long iobase;
-	int (*io)(int, int, int, unsigned long);
+	unsigned long regbase;
+	int (*io)(struct comedi_device *, int, int, int, unsigned long);
 };
 
-static int subdev_8255_io(int dir, int port, int data, unsigned long iobase)
+static int subdev_8255_io(struct comedi_device *dev,
+			  int dir, int port, int data, unsigned long regbase)
 {
 	if (dir) {
-		outb(data, iobase + port);
+		outb(data, dev->iobase + regbase + port);
 		return 0;
 	}
-	return inb(iobase + port);
+	return inb(dev->iobase + regbase + port);
 }
 
-void subdev_8255_interrupt(struct comedi_device *dev,
-			   struct comedi_subdevice *s)
+static int subdev_8255_mmio(struct comedi_device *dev,
+			    int dir, int port, int data, unsigned long regbase)
 {
-	struct subdev_8255_private *spriv = s->private;
-	unsigned long iobase = spriv->iobase;
-	unsigned short d;
-
-	d = spriv->io(0, _8255_DATA, 0, iobase);
-	d |= (spriv->io(0, _8255_DATA + 1, 0, iobase) << 8);
-
-	comedi_buf_put(s, d);
-	s->async->events |= COMEDI_CB_EOS;
-
-	comedi_event(dev, s);
+	if (dir) {
+		writeb(data, dev->mmio + regbase + port);
+		return 0;
+	}
+	return readb(dev->mmio + regbase + port);
 }
-EXPORT_SYMBOL_GPL(subdev_8255_interrupt);
 
 static int subdev_8255_insn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
@@ -129,25 +110,26 @@ static int subdev_8255_insn(struct comedi_device *dev,
 			    unsigned int *data)
 {
 	struct subdev_8255_private *spriv = s->private;
-	unsigned long iobase = spriv->iobase;
+	unsigned long regbase = spriv->regbase;
 	unsigned int mask;
 	unsigned int v;
 
 	mask = comedi_dio_update_state(s, data);
 	if (mask) {
 		if (mask & 0xff)
-			spriv->io(1, _8255_DATA, s->state & 0xff, iobase);
+			spriv->io(dev, 1, I8255_DATA_A_REG,
+				  s->state & 0xff, regbase);
 		if (mask & 0xff00)
-			spriv->io(1, _8255_DATA + 1, (s->state >> 8) & 0xff,
-				  iobase);
+			spriv->io(dev, 1, I8255_DATA_B_REG,
+				  (s->state >> 8) & 0xff, regbase);
 		if (mask & 0xff0000)
-			spriv->io(1, _8255_DATA + 2, (s->state >> 16) & 0xff,
-				  iobase);
+			spriv->io(dev, 1, I8255_DATA_C_REG,
+				  (s->state >> 16) & 0xff, regbase);
 	}
 
-	v = spriv->io(0, _8255_DATA, 0, iobase);
-	v |= (spriv->io(0, _8255_DATA + 1, 0, iobase) << 8);
-	v |= (spriv->io(0, _8255_DATA + 2, 0, iobase) << 16);
+	v = spriv->io(dev, 0, I8255_DATA_A_REG, 0, regbase);
+	v |= (spriv->io(dev, 0, I8255_DATA_B_REG, 0, regbase) << 8);
+	v |= (spriv->io(dev, 0, I8255_DATA_C_REG, 0, regbase) << 16);
 
 	data[1] = v;
 
@@ -158,21 +140,21 @@ static void subdev_8255_do_config(struct comedi_device *dev,
 				  struct comedi_subdevice *s)
 {
 	struct subdev_8255_private *spriv = s->private;
-	unsigned long iobase = spriv->iobase;
+	unsigned long regbase = spriv->regbase;
 	int config;
 
-	config = CR_CW;
+	config = I8255_CTRL_CW;
 	/* 1 in io_bits indicates output, 1 in config indicates input */
 	if (!(s->io_bits & 0x0000ff))
-		config |= CR_A_IO;
+		config |= I8255_CTRL_A_IO;
 	if (!(s->io_bits & 0x00ff00))
-		config |= CR_B_IO;
+		config |= I8255_CTRL_B_IO;
 	if (!(s->io_bits & 0x0f0000))
-		config |= CR_C_LO_IO;
+		config |= I8255_CTRL_C_LO_IO;
 	if (!(s->io_bits & 0xf00000))
-		config |= CR_C_HI_IO;
+		config |= I8255_CTRL_C_HI_IO;
 
-	spriv->io(1, _8255_CR, config, iobase);
+	spriv->io(dev, 1, I8255_CTRL_REG, config, regbase);
 }
 
 static int subdev_8255_insn_config(struct comedi_device *dev,
@@ -202,67 +184,12 @@ static int subdev_8255_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int subdev_8255_cmdtest(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_cmd *cmd)
-{
-	int err = 0;
-
-	/* Step 1 : check if triggers are trivially valid */
-
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
-	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_FOLLOW);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_NONE);
-
-	if (err)
-		return 1;
-
-	/* Step 2a : make sure trigger sources are unique */
-	/* Step 2b : and mutually compatible */
-
-	if (err)
-		return 2;
-
-	/* Step 3: check if arguments are trivially valid */
-
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
-	err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
-
-	if (err)
-		return 3;
-
-	/* step 4 */
-
-	if (err)
-		return 4;
-
-	return 0;
-}
-
-static int subdev_8255_cmd(struct comedi_device *dev,
-			   struct comedi_subdevice *s)
-{
-	/* FIXME */
-
-	return 0;
-}
-
-static int subdev_8255_cancel(struct comedi_device *dev,
-			      struct comedi_subdevice *s)
-{
-	/* FIXME */
-
-	return 0;
-}
-
-int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
-		     int (*io)(int, int, int, unsigned long),
-		     unsigned long iobase)
+static int __subdev_8255_init(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      int (*io)(struct comedi_device *,
+					int, int, int, unsigned long),
+			      unsigned long regbase,
+			      bool is_mmio)
 {
 	struct subdev_8255_private *spriv;
 
@@ -270,8 +197,13 @@ int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
 	if (!spriv)
 		return -ENOMEM;
 
-	spriv->iobase	= iobase;
-	spriv->io	= io ? io : subdev_8255_io;
+	if (io)
+		spriv->io = io;
+	else if (is_mmio)
+		spriv->io = subdev_8255_mmio;
+	else
+		spriv->io = subdev_8255_io;
+	spriv->regbase	= regbase;
 
 	s->type		= COMEDI_SUBD_DIO;
 	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
@@ -285,27 +217,24 @@ int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	return 0;
 }
+
+int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
+		     int (*io)(struct comedi_device *,
+			       int, int, int, unsigned long),
+		     unsigned long regbase)
+{
+	return __subdev_8255_init(dev, s, io, regbase, false);
+}
 EXPORT_SYMBOL_GPL(subdev_8255_init);
 
-int subdev_8255_init_irq(struct comedi_device *dev, struct comedi_subdevice *s,
-			 int (*io)(int, int, int, unsigned long),
-			 unsigned long iobase)
+int subdev_8255_mm_init(struct comedi_device *dev, struct comedi_subdevice *s,
+			int (*io)(struct comedi_device *,
+				  int, int, int, unsigned long),
+			unsigned long regbase)
 {
-	int ret;
-
-	ret = subdev_8255_init(dev, s, io, iobase);
-	if (ret)
-		return ret;
-
-	s->len_chanlist	= 1;
-	s->do_cmdtest	= subdev_8255_cmdtest;
-	s->do_cmd	= subdev_8255_cmd;
-	s->cancel	= subdev_8255_cancel;
-
-	return 0;
+	return __subdev_8255_init(dev, s, io, regbase, true);
 }
-EXPORT_SYMBOL_GPL(subdev_8255_init_irq);
-
+EXPORT_SYMBOL_GPL(subdev_8255_mm_init);
 /*
 
    Start of the 8255 standalone device
@@ -316,8 +245,8 @@ static int dev_8255_attach(struct comedi_device *dev,
 			   struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
-	int ret;
 	unsigned long iobase;
+	int ret;
 	int i;
 
 	for (i = 0; i < COMEDI_NDEVCONFOPTS; i++) {
@@ -338,7 +267,14 @@ static int dev_8255_attach(struct comedi_device *dev,
 		s = &dev->subdevices[i];
 		iobase = it->options[i];
 
-		ret = __comedi_request_region(dev, iobase, _8255_SIZE);
+		/*
+		 * __comedi_request_region() does not set dev->iobase.
+		 *
+		 * For 8255 devices that are manually attached using
+		 * comedi_config, the 'iobase' is the actual I/O port
+		 * base address of the chip.
+		 */
+		ret = __comedi_request_region(dev, iobase, I8255_SIZE);
 		if (ret) {
 			s->type = COMEDI_SUBD_UNUSED;
 		} else {
@@ -361,7 +297,7 @@ static void dev_8255_detach(struct comedi_device *dev)
 		s = &dev->subdevices[i];
 		if (s->type != COMEDI_SUBD_UNUSED) {
 			spriv = s->private;
-			release_region(spriv->iobase, _8255_SIZE);
+			release_region(spriv->regbase, I8255_SIZE);
 		}
 	}
 }

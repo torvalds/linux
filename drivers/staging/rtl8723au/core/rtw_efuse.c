@@ -156,9 +156,7 @@ ReadEFuseByte23a(struct rtw_adapter *Adapter, u16 _offset, u8 *pbuf)
 	/* Check bit 32 read-ready */
 	retry = 0;
 	value32 = rtl8723au_read32(Adapter, EFUSE_CTRL);
-	/* while(!(((value32 >> 24) & 0xff) & 0x80)  && (retry<10)) */
-	while(!(((value32 >> 24) & 0xff) & 0x80)  && (retry<10000))
-	{
+	while (!((value32 >> 24) & 0x80) && retry < 10000) {
 		value32 = rtl8723au_read32(Adapter, EFUSE_CTRL);
 		retry++;
 	}
@@ -285,8 +283,7 @@ EFUSE_Read1Byte23a(struct rtw_adapter *Adapter, u16 Address)
 				 TYPE_EFUSE_REAL_CONTENT_LEN,
 				 (void *)&contentLen);
 
-	if (Address < contentLen)	/* E-fuse 512Byte */
-	{
+	if (Address < contentLen) { /* E-fuse 512Byte */
 		/* Write E-fuse Register address bit0~7 */
 		temp = Address & 0xFF;
 		rtl8723au_write8(Adapter, EFUSE_CTRL+1, temp);
@@ -302,12 +299,10 @@ EFUSE_Read1Byte23a(struct rtw_adapter *Adapter, u16 Address)
 
 		/* Wait Write-ready (0x30[31]= 1) */
 		Bytetemp = rtl8723au_read8(Adapter, EFUSE_CTRL+3);
-		while(!(Bytetemp & 0x80))
-		{
+		while (!(Bytetemp & 0x80)) {
 			Bytetemp = rtl8723au_read8(Adapter, EFUSE_CTRL+3);
 			k++;
-			if (k == 1000)
-			{
+			if (k == 1000) {
 				k = 0;
 				break;
 			}
@@ -357,8 +352,7 @@ EFUSE_Write1Byte(
 				 TYPE_EFUSE_REAL_CONTENT_LEN,
 				 (void *)&contentLen);
 
-	if (Address < contentLen)	/* E-fuse 512Byte */
-	{
+	if (Address < contentLen) { /* E-fuse 512Byte */
 		rtl8723au_write8(Adapter, EFUSE_CTRL, Value);
 
 		/* Write E-fuse Register address bit0~7 */
@@ -377,12 +371,10 @@ EFUSE_Write1Byte(
 
 		/* Wait Write-ready (0x30[31]= 0) */
 		Bytetemp = rtl8723au_read8(Adapter, EFUSE_CTRL+3);
-		while(Bytetemp & 0x80)
-		{
+		while (Bytetemp & 0x80) {
 			Bytetemp = rtl8723au_read8(Adapter, EFUSE_CTRL+3);
 			k++;
-			if (k == 100)
-			{
+			if (k == 100) {
 				k = 0;
 				break;
 			}
@@ -472,23 +464,19 @@ efuse_WordEnableDataRead23a(u8	word_en,
 			 u8	*sourdata,
 			 u8	*targetdata)
 {
-	if (!(word_en&BIT(0)))
-	{
+	if (!(word_en&BIT(0))) {
 		targetdata[0] = sourdata[0];
 		targetdata[1] = sourdata[1];
 	}
-	if (!(word_en&BIT(1)))
-	{
+	if (!(word_en&BIT(1))) {
 		targetdata[2] = sourdata[2];
 		targetdata[3] = sourdata[3];
 	}
-	if (!(word_en&BIT(2)))
-	{
+	if (!(word_en&BIT(2))) {
 		targetdata[4] = sourdata[4];
 		targetdata[5] = sourdata[5];
 	}
-	if (!(word_en&BIT(3)))
-	{
+	if (!(word_en&BIT(3))) {
 		targetdata[6] = sourdata[6];
 		targetdata[7] = sourdata[7];
 	}
@@ -743,7 +731,7 @@ EFUSE_ShadowRead23a(
 	struct rtw_adapter *	pAdapter,
 	u8		Type,
 	u16		Offset,
-	u32		*Value	)
+	u32		*Value)
 {
 	if (Type == 1)
 		efuse_ShadowRead1Byte(pAdapter, Offset, (u8 *)Value);

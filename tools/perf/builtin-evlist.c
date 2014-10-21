@@ -28,7 +28,7 @@ static int __cmd_evlist(const char *file_name, struct perf_attr_details *details
 
 	session = perf_session__new(&file, 0, NULL);
 	if (session == NULL)
-		return -ENOMEM;
+		return -1;
 
 	evlist__for_each(session->evlist, pos)
 		perf_evsel__fprintf(pos, details, stdout);

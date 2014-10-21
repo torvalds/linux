@@ -29,7 +29,7 @@
 EXPORT_TRACEPOINT_SYMBOL(fence_annotate_wait_on);
 EXPORT_TRACEPOINT_SYMBOL(fence_emit);
 
-/**
+/*
  * fence context counter: each execution context should have its own
  * fence context, this allows checking if fences belong to the same
  * context or not. One device can have multiple separate contexts,

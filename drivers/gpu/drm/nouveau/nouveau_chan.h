@@ -47,4 +47,6 @@ int  nouveau_channel_new(struct nouveau_drm *, struct nvif_device *,
 void nouveau_channel_del(struct nouveau_channel **);
 int  nouveau_channel_idle(struct nouveau_channel *);
 
+extern int nouveau_vram_pushbuf;
+
 #endif

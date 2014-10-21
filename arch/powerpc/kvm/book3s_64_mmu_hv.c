@@ -62,10 +62,10 @@ long kvmppc_alloc_hpt(struct kvm *kvm, u32 *htab_orderp)
 	}
 
 	kvm->arch.hpt_cma_alloc = 0;
-	page = kvm_alloc_hpt(1 << (order - PAGE_SHIFT));
+	page = kvm_alloc_hpt(1ul << (order - PAGE_SHIFT));
 	if (page) {
 		hpt = (unsigned long)pfn_to_kaddr(page_to_pfn(page));
-		memset((void *)hpt, 0, (1 << order));
+		memset((void *)hpt, 0, (1ul << order));
 		kvm->arch.hpt_cma_alloc = 1;
 	}
 
@@ -1002,11 +1002,11 @@ static int kvm_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
 	return ret;
 }
 
-int kvm_age_hva_hv(struct kvm *kvm, unsigned long hva)
+int kvm_age_hva_hv(struct kvm *kvm, unsigned long start, unsigned long end)
 {
 	if (!kvm->arch.using_mmu_notifiers)
 		return 0;
-	return kvm_handle_hva(kvm, hva, kvm_age_rmapp);
+	return kvm_handle_hva_range(kvm, start, end, kvm_age_rmapp);
 }
 
 static int kvm_test_age_rmapp(struct kvm *kvm, unsigned long *rmapp,

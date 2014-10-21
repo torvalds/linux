@@ -52,7 +52,7 @@ module_param(reglog, bool, 0600);
 #define reglog 0
 #endif
 
-static char *vram;
+static char *vram = "16m";
 MODULE_PARM_DESC(vram, "Configure VRAM size (for devices without IOMMU/GPUMMU");
 module_param(vram, charp, 0);
 
@@ -280,7 +280,7 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 	dev->mode_config.max_height = 2048;
 	dev->mode_config.funcs = &mode_config_funcs;
 
-	ret = drm_vblank_init(dev, 1);
+	ret = drm_vblank_init(dev, priv->num_crtcs);
 	if (ret < 0) {
 		dev_err(dev->dev, "failed to initialize vblank\n");
 		goto fail;
@@ -315,39 +315,12 @@ static void load_gpu(struct drm_device *dev)
 {
 	static DEFINE_MUTEX(init_lock);
 	struct msm_drm_private *priv = dev->dev_private;
-	struct msm_gpu *gpu;
 
 	mutex_lock(&init_lock);
 
-	if (priv->gpu)
-		goto out;
+	if (!priv->gpu)
+		priv->gpu = adreno_load_gpu(dev);
 
-	gpu = a3xx_gpu_init(dev);
-	if (IS_ERR(gpu)) {
-		dev_warn(dev->dev, "failed to load a3xx gpu\n");
-		gpu = NULL;
-		/* not fatal */
-	}
-
-	if (gpu) {
-		int ret;
-		mutex_lock(&dev->struct_mutex);
-		gpu->funcs->pm_resume(gpu);
-		mutex_unlock(&dev->struct_mutex);
-		ret = gpu->funcs->hw_init(gpu);
-		if (ret) {
-			dev_err(dev->dev, "gpu hw init failed: %d\n", ret);
-			gpu->funcs->destroy(gpu);
-			gpu = NULL;
-		} else {
-			/* give inactive pm a chance to kick in: */
-			msm_gpu_retire(gpu);
-		}
-	}
-
-	priv->gpu = gpu;
-
-out:
 	mutex_unlock(&init_lock);
 }
 
@@ -836,6 +809,7 @@ static struct drm_driver msm_driver = {
 	.open               = msm_open,
 	.preclose           = msm_preclose,
 	.lastclose          = msm_lastclose,
+	.set_busid          = drm_platform_set_busid,
 	.irq_handler        = msm_irq,
 	.irq_preinstall     = msm_irq_preinstall,
 	.irq_postinstall    = msm_irq_postinstall,
@@ -974,12 +948,11 @@ static int msm_pdev_probe(struct platform_device *pdev)
 
 	for (i = 0; i < ARRAY_SIZE(devnames); i++) {
 		struct device *dev;
-		int ret;
 
 		dev = bus_find_device_by_name(&platform_bus_type,
 				NULL, devnames[i]);
 		if (!dev) {
-			dev_info(master, "still waiting for %s\n", devnames[i]);
+			dev_info(&pdev->dev, "still waiting for %s\n", devnames[i]);
 			return -EPROBE_DEFER;
 		}
 
@@ -1026,7 +999,7 @@ static int __init msm_drm_register(void)
 {
 	DBG("init");
 	hdmi_register();
-	a3xx_register();
+	adreno_register();
 	return platform_driver_register(&msm_platform_driver);
 }
 
@@ -1035,7 +1008,7 @@ static void __exit msm_drm_unregister(void)
 	DBG("fini");
 	platform_driver_unregister(&msm_platform_driver);
 	hdmi_unregister();
-	a3xx_unregister();
+	adreno_unregister();
 }
 
 module_init(msm_drm_register);

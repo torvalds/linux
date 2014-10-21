@@ -425,6 +425,20 @@ fault through the slow path.
 Since only 19 bits are used to store generation-number on mmio spte, all
 pages are zapped when there is an overflow.
 
+Unfortunately, a single memory access might access kvm_memslots(kvm) multiple
+times, the last one happening when the generation number is retrieved and
+stored into the MMIO spte.  Thus, the MMIO spte might be created based on
+out-of-date information, but with an up-to-date generation number.
+
+To avoid this, the generation number is incremented again after synchronize_srcu
+returns; thus, the low bit of kvm_memslots(kvm)->generation is only 1 during a
+memslot update, while some SRCU readers might be using the old copy.  We do not
+want to use an MMIO sptes created with an odd generation number, and we can do
+this without losing a bit in the MMIO spte.  The low bit of the generation
+is not stored in MMIO spte, and presumed zero when it is extracted out of the
+spte.  If KVM is unlucky and creates an MMIO spte while the low bit is 1,
+the next access to the spte will always be a cache miss.
+
 
 Further reading
 ===============

@@ -596,6 +596,38 @@ acpi_status acpi_enable_all_runtime_gpes(void)
 
 ACPI_EXPORT_SYMBOL(acpi_enable_all_runtime_gpes)
 
+/******************************************************************************
+ *
+ * FUNCTION:    acpi_enable_all_wakeup_gpes
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Enable all "wakeup" GPEs and disable all of the other GPEs, in
+ *              all GPE blocks.
+ *
+ ******************************************************************************/
+
+acpi_status acpi_enable_all_wakeup_gpes(void)
+{
+	acpi_status status;
+
+	ACPI_FUNCTION_TRACE(acpi_enable_all_wakeup_gpes);
+
+	status = acpi_ut_acquire_mutex(ACPI_MTX_EVENTS);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	status = acpi_hw_enable_all_wakeup_gpes();
+	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
+
+	return_ACPI_STATUS(status);
+}
+
+ACPI_EXPORT_SYMBOL(acpi_enable_all_wakeup_gpes)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_install_gpe_block

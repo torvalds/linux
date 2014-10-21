@@ -781,13 +781,13 @@ struct fsl_ifc_regs {
 		__be32 amask;
 		u32 res4[0x2];
 	} amask_cs[FSL_IFC_BANK_COUNT];
-	u32 res5[0x17];
+	u32 res5[0x18];
 	struct {
-		__be32 csor_ext;
 		__be32 csor;
+		__be32 csor_ext;
 		u32 res6;
 	} csor_cs[FSL_IFC_BANK_COUNT];
-	u32 res7[0x19];
+	u32 res7[0x18];
 	struct {
 		__be32 ftim[4];
 		u32 res8[0x8];

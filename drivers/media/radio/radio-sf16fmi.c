@@ -56,7 +56,7 @@ struct fmi
 
 static struct fmi fmi_card;
 static struct pnp_dev *dev;
-bool pnp_attached;
+static bool pnp_attached;
 
 #define RSF16_MINFREQ (87U * 16000)
 #define RSF16_MAXFREQ (108U * 16000)
@@ -285,7 +285,7 @@ static int __init fmi_init(void)
 				io = isapnp_fmi_probe();
 				if (io < 0)
 					continue;
-				pnp_attached = 1;
+				pnp_attached = true;
 			}
 			if (!request_region(io, 2, "radio-sf16fmi")) {
 				if (pnp_attached)
@@ -349,7 +349,7 @@ static int __init fmi_init(void)
 	mutex_init(&fmi->lock);
 
 	/* mute card and set default frequency */
-	fmi->mute = 1;
+	fmi->mute = true;
 	fmi->curfreq = RSF16_MINFREQ;
 	fmi_set_freq(fmi);
 
