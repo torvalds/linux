@@ -3,6 +3,7 @@
  *  NFC Controller (NFCC) and a Device Host (DH).
  *
  *  Copyright (C) 2011 Texas Instruments, Inc.
+ *  Copyright (C) 2014 Marvell International Ltd.
  *
  *  Written by Ilan Elias <ilane@ti.com>
  *
@@ -223,7 +224,17 @@ static void nci_add_rx_data_frag(struct nci_dev *ndev,
 	}
 
 exit:
-	nci_data_exchange_complete(ndev, skb, err);
+	if (ndev->nfc_dev->rf_mode == NFC_RF_INITIATOR) {
+		nci_data_exchange_complete(ndev, skb, err);
+	} else if (ndev->nfc_dev->rf_mode == NFC_RF_TARGET) {
+		/* Data received in Target mode, forward to nfc core */
+		err = nfc_tm_data_received(ndev->nfc_dev, skb);
+		if (err)
+			pr_err("unable to handle received data\n");
+	} else {
+		pr_err("rf mode unknown\n");
+		kfree_skb(skb);
+	}
 }
 
 /* Rx Data packet */
