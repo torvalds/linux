@@ -76,11 +76,11 @@ static inline int local_sid_setup_one(struct id *entry)
 	unsigned long sid;
 	int ret = -1;
 
-	sid = ++(__get_cpu_var(pcpu_last_used_sid));
+	sid = __this_cpu_inc_return(pcpu_last_used_sid);
 	if (sid < NUM_TIDS) {
-		__get_cpu_var(pcpu_sids).entry[sid] = entry;
+		__this_cpu_write(pcpu_sids)entry[sid], entry);
 		entry->val = sid;
-		entry->pentry = &__get_cpu_var(pcpu_sids).entry[sid];
+		entry->pentry = this_cpu_ptr(&pcpu_sids.entry[sid]);
 		ret = sid;
 	}
 
@@ -108,8 +108,8 @@ static inline int local_sid_setup_one(struct id *entry)
 static inline int local_sid_lookup(struct id *entry)
 {
 	if (entry && entry->val != 0 &&
-	    __get_cpu_var(pcpu_sids).entry[entry->val] == entry &&
-	    entry->pentry == &__get_cpu_var(pcpu_sids).entry[entry->val])
+	    __this_cpu_read(pcpu_sids.entry[entry->val]) == entry &&
+	    entry->pentry == this_cpu_ptr(&pcpu_sids.entry[entry->val]))
 		return entry->val;
 	return -1;
 }
@@ -117,8 +117,8 @@ static inline int local_sid_lookup(struct id *entry)
 /* Invalidate all id mappings on local core -- call with preempt disabled */
 static inline void local_sid_destroy_all(void)
 {
-	__get_cpu_var(pcpu_last_used_sid) = 0;
-	memset(&__get_cpu_var(pcpu_sids), 0, sizeof(__get_cpu_var(pcpu_sids)));
+	__this_cpu_write(pcpu_last_used_sid, 0);
+	memset(this_cpu_ptr(&pcpu_sids), 0, sizeof(pcpu_sids));
 }
 
 static void *kvmppc_e500_id_table_alloc(struct kvmppc_vcpu_e500 *vcpu_e500)
