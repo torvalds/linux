@@ -205,8 +205,8 @@ void uvc_queue_release(struct uvc_video_queue *queue)
  * V4L2 queue operations
  */
 
-int uvc_alloc_buffers(struct uvc_video_queue *queue,
-		      struct v4l2_requestbuffers *rb)
+int uvc_request_buffers(struct uvc_video_queue *queue,
+			struct v4l2_requestbuffers *rb)
 {
 	int ret;
 
