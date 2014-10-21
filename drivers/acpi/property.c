@@ -76,6 +76,42 @@ static bool acpi_properties_format_valid(const union acpi_object *properties)
 	return true;
 }
 
+static void acpi_init_of_compatible(struct acpi_device *adev)
+{
+	const union acpi_object *of_compatible;
+	struct acpi_hardware_id *hwid;
+	bool acpi_of = false;
+	int ret;
+
+	/*
+	 * Check if the special PRP0001 ACPI ID is present and in that
+	 * case we fill in Device Tree compatible properties for this
+	 * device.
+	 */
+	list_for_each_entry(hwid, &adev->pnp.ids, list) {
+		if (!strcmp(hwid->id, "PRP0001")) {
+			acpi_of = true;
+			break;
+		}
+	}
+
+	if (!acpi_of)
+		return;
+
+	ret = acpi_dev_get_property_array(adev, "compatible", ACPI_TYPE_STRING,
+					  &of_compatible);
+	if (ret) {
+		ret = acpi_dev_get_property(adev, "compatible",
+					    ACPI_TYPE_STRING, &of_compatible);
+		if (ret) {
+			acpi_handle_warn(adev->handle,
+					 "PRP0001 requires compatible property\n");
+			return;
+		}
+	}
+	adev->data.of_compatible = of_compatible;
+}
+
 void acpi_init_properties(struct acpi_device *adev)
 {
 	struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER };
@@ -119,6 +155,8 @@ void acpi_init_properties(struct acpi_device *adev)
 
 		adev->data.pointer = buf.pointer;
 		adev->data.properties = properties;
+
+		acpi_init_of_compatible(adev);
 		return;
 	}
 
@@ -130,6 +168,7 @@ void acpi_init_properties(struct acpi_device *adev)
 void acpi_free_properties(struct acpi_device *adev)
 {
 	ACPI_FREE((void *)adev->data.pointer);
+	adev->data.of_compatible = NULL;
 	adev->data.pointer = NULL;
 	adev->data.properties = NULL;
 }
