@@ -2038,7 +2038,8 @@ static int __uvc_resume(struct usb_interface *intf, int reset)
 		if (stream->intf == intf) {
 			ret = uvc_video_resume(stream, reset);
 			if (ret < 0)
-				uvc_queue_enable(&stream->queue, 0);
+				uvc_queue_streamoff(&stream->queue,
+						    stream->queue.queue.type);
 			return ret;
 		}
 	}

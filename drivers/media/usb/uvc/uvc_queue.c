@@ -263,6 +263,28 @@ int uvc_dequeue_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *buf,
 	return ret;
 }
 
+int uvc_queue_streamon(struct uvc_video_queue *queue, enum v4l2_buf_type type)
+{
+	int ret;
+
+	mutex_lock(&queue->mutex);
+	ret = vb2_streamon(&queue->queue, type);
+	mutex_unlock(&queue->mutex);
+
+	return ret;
+}
+
+int uvc_queue_streamoff(struct uvc_video_queue *queue, enum v4l2_buf_type type)
+{
+	int ret;
+
+	mutex_lock(&queue->mutex);
+	ret = vb2_streamoff(&queue->queue, type);
+	mutex_unlock(&queue->mutex);
+
+	return ret;
+}
+
 int uvc_queue_mmap(struct uvc_video_queue *queue, struct vm_area_struct *vma)
 {
 	int ret;
@@ -315,37 +337,6 @@ int uvc_queue_allocated(struct uvc_video_queue *queue)
 	mutex_unlock(&queue->mutex);
 
 	return allocated;
-}
-
-/*
- * Enable or disable the video buffers queue.
- *
- * The queue must be enabled before starting video acquisition and must be
- * disabled after stopping it. This ensures that the video buffers queue
- * state can be properly initialized before buffers are accessed from the
- * interrupt handler.
- *
- * Enabling the video queue returns -EBUSY if the queue is already enabled.
- *
- * Disabling the video queue cancels the queue and removes all buffers from
- * the main queue.
- *
- * This function can't be called from interrupt context. Use
- * uvc_queue_cancel() instead.
- */
-int uvc_queue_enable(struct uvc_video_queue *queue, int enable)
-{
-	int ret;
-
-	mutex_lock(&queue->mutex);
-
-	if (enable)
-		ret = vb2_streamon(&queue->queue, queue->queue.type);
-	else
-		ret = vb2_streamoff(&queue->queue, queue->queue.type);
-
-	mutex_unlock(&queue->mutex);
-	return ret;
 }
 
 /*
