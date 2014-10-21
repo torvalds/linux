@@ -614,6 +614,7 @@ static void dw_mci_edmac_start_dma(struct dw_mci *host, unsigned int sg_len)
         struct dma_slave_config slave_config;
         struct dma_async_tx_descriptor *desc = NULL;
         struct scatterlist *sgl = host->data->sg;
+        const u32 mszs[] = {1, 4, 8, 16, 32, 64, 128, 256};
         u32 sg_elems = host->data->sg_len;
         int ret = 0;
 
@@ -624,7 +625,9 @@ static void dw_mci_edmac_start_dma(struct dw_mci *host, unsigned int sg_len)
         slave_config.src_addr_width = slave_config.dst_addr_width;
 
         /* Match FIFO dma burst MSIZE with external dma config*/
-        slave_config.dst_maxburst = ((host->fifoth_val) >> 28) && 0x7;
+        slave_config.dst_maxburst = mszs[((host->fifoth_val) >> 28) && 0x7];
+        if ((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO))
+                slave_config.dst_maxburst /= mszs[((host->fifoth_val) >> 28) && 0x7];
         slave_config.src_maxburst = slave_config.dst_maxburst;
 
         if(host->data->flags & MMC_DATA_WRITE){
