@@ -309,7 +309,9 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 	pltfm_host = sdhci_priv(host);
 	pltfm_host->priv = pxa;
 
-	pxa->clk_io = devm_clk_get(dev, NULL);
+	pxa->clk_io = devm_clk_get(dev, "io");
+	if (IS_ERR(pxa->clk_io))
+		pxa->clk_io = devm_clk_get(dev, NULL);
 	if (IS_ERR(pxa->clk_io)) {
 		dev_err(dev, "failed to get io clock\n");
 		ret = PTR_ERR(pxa->clk_io);
