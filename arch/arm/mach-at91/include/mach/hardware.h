@@ -24,9 +24,6 @@
 /* sama5d4 */
 #define AT91_BASE_DBGU2	0xfc069000
 
-#if defined(CONFIG_ARCH_AT91X40)
-#include <mach/at91x40.h>
-#else
 #include <mach/at91rm9200.h>
 #include <mach/at91sam9260.h>
 #include <mach/at91sam9261.h>
@@ -50,8 +47,6 @@
  * and map the same memory space
  */
 #define AT91_BASE_SYS	0xffffc000
-
-#endif
 
 /*
  * On sama5d4 there is no system controller, we map some needed peripherals
