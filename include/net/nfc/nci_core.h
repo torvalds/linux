@@ -4,6 +4,7 @@
  *
  *  Copyright (C) 2011 Texas Instruments, Inc.
  *  Copyright (C) 2013 Intel Corporation. All rights reserved.
+ *  Copyright (C) 2014 Marvell International Ltd.
  *
  *  Written by Ilan Elias <ilane@ti.com>
  *
@@ -49,6 +50,8 @@ enum nci_state {
 	NCI_W4_ALL_DISCOVERIES,
 	NCI_W4_HOST_SELECT,
 	NCI_POLL_ACTIVE,
+	NCI_LISTEN_ACTIVE,
+	NCI_LISTEN_SLEEP,
 };
 
 /* NCI timeouts */
