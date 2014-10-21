@@ -707,7 +707,7 @@ static int bdw_init_workarounds(struct intel_engine_cs *ring)
 	 * update the number of dwords required based on the
 	 * actual number of workarounds applied
 	 */
-	ret = intel_ring_begin(ring, 24);
+	ret = intel_ring_begin(ring, 18);
 	if (ret)
 		return ret;
 
@@ -722,19 +722,8 @@ static int bdw_init_workarounds(struct intel_engine_cs *ring)
 	intel_ring_emit_wa(ring, GEN7_ROW_CHICKEN2,
 			   _MASKED_BIT_ENABLE(DOP_CLOCK_GATING_DISABLE));
 
-	/*
-	 * This GEN8_CENTROID_PIXEL_OPT_DIS W/A is only needed for
-	 * pre-production hardware
-	 */
 	intel_ring_emit_wa(ring, HALF_SLICE_CHICKEN3,
-			   _MASKED_BIT_ENABLE(GEN8_CENTROID_PIXEL_OPT_DIS
-					      | GEN8_SAMPLER_POWER_BYPASS_DIS));
-
-	intel_ring_emit_wa(ring, GEN7_HALF_SLICE_CHICKEN1,
-			   _MASKED_BIT_ENABLE(GEN7_SINGLE_SUBSCAN_DISPATCH_ENABLE));
-
-	intel_ring_emit_wa(ring, COMMON_SLICE_CHICKEN2,
-			   _MASKED_BIT_ENABLE(GEN8_CSC2_SBE_VUE_CACHE_CONSERVATIVE));
+			   _MASKED_BIT_ENABLE(GEN8_SAMPLER_POWER_BYPASS_DIS));
 
 	/* Use Force Non-Coherent whenever executing a 3D context. This is a
 	 * workaround for for a possible hang in the unlikely event a TLB

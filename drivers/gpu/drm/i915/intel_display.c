@@ -73,9 +73,6 @@ static const uint32_t intel_cursor_formats[] = {
 	DRM_FORMAT_ARGB8888,
 };
 
-#define DIV_ROUND_CLOSEST_ULL(ll, d)	\
-({ unsigned long long _tmp = (ll)+(d)/2; do_div(_tmp, d); _tmp; })
-
 static void intel_crtc_update_cursor(struct drm_crtc *crtc, bool on);
 
 static void i9xx_crtc_clock_get(struct intel_crtc *crtc,
@@ -4265,6 +4262,11 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 
 	intel_set_pipe_timings(intel_crtc);
 
+	if (intel_crtc->config.cpu_transcoder != TRANSCODER_EDP) {
+		I915_WRITE(PIPE_MULT(intel_crtc->config.cpu_transcoder),
+			   intel_crtc->config.pixel_multiplier - 1);
+	}
+
 	if (intel_crtc->config.has_pch_encoder) {
 		intel_cpu_transcoder_set_m_n(intel_crtc,
 				     &intel_crtc->config.fdi_m_n, NULL);
@@ -7937,7 +7939,12 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 		pipe_config->ips_enabled = hsw_crtc_supports_ips(crtc) &&
 			(I915_READ(IPS_CTL) & IPS_ENABLE);
 
-	pipe_config->pixel_multiplier = 1;
+	if (pipe_config->cpu_transcoder != TRANSCODER_EDP) {
+		pipe_config->pixel_multiplier =
+			I915_READ(PIPE_MULT(pipe_config->cpu_transcoder)) + 1;
+	} else {
+		pipe_config->pixel_multiplier = 1;
+	}
 
 	return true;
 }
@@ -9772,9 +9779,6 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	struct intel_unpin_work *work;
 	struct intel_engine_cs *ring;
 	int ret;
-
-	//trigger software GT busyness calculation
-	gen8_flip_interrupt(dev);
 
 	/*
 	 * drm_mode_page_flip_ioctl() should already catch this, but double
@@ -12223,27 +12227,36 @@ static void intel_setup_outputs(struct drm_device *dev)
 		if (I915_READ(PCH_DP_D) & DP_DETECTED)
 			intel_dp_init(dev, PCH_DP_D, PORT_D);
 	} else if (IS_VALLEYVIEW(dev)) {
-		if (I915_READ(VLV_DISPLAY_BASE + GEN4_HDMIB) & SDVO_DETECTED) {
+		/*
+		 * The DP_DETECTED bit is the latched state of the DDC
+		 * SDA pin at boot. However since eDP doesn't require DDC
+		 * (no way to plug in a DP->HDMI dongle) the DDC pins for
+		 * eDP ports may have been muxed to an alternate function.
+		 * Thus we can't rely on the DP_DETECTED bit alone to detect
+		 * eDP ports. Consult the VBT as well as DP_DETECTED to
+		 * detect eDP ports.
+		 */
+		if (I915_READ(VLV_DISPLAY_BASE + GEN4_HDMIB) & SDVO_DETECTED)
 			intel_hdmi_init(dev, VLV_DISPLAY_BASE + GEN4_HDMIB,
 					PORT_B);
-			if (I915_READ(VLV_DISPLAY_BASE + DP_B) & DP_DETECTED)
-				intel_dp_init(dev, VLV_DISPLAY_BASE + DP_B, PORT_B);
-		}
+		if (I915_READ(VLV_DISPLAY_BASE + DP_B) & DP_DETECTED ||
+		    intel_dp_is_edp(dev, PORT_B))
+			intel_dp_init(dev, VLV_DISPLAY_BASE + DP_B, PORT_B);
 
-		if (I915_READ(VLV_DISPLAY_BASE + GEN4_HDMIC) & SDVO_DETECTED) {
+		if (I915_READ(VLV_DISPLAY_BASE + GEN4_HDMIC) & SDVO_DETECTED)
 			intel_hdmi_init(dev, VLV_DISPLAY_BASE + GEN4_HDMIC,
 					PORT_C);
-			if (I915_READ(VLV_DISPLAY_BASE + DP_C) & DP_DETECTED)
-				intel_dp_init(dev, VLV_DISPLAY_BASE + DP_C, PORT_C);
-		}
+		if (I915_READ(VLV_DISPLAY_BASE + DP_C) & DP_DETECTED ||
+		    intel_dp_is_edp(dev, PORT_C))
+			intel_dp_init(dev, VLV_DISPLAY_BASE + DP_C, PORT_C);
 
 		if (IS_CHERRYVIEW(dev)) {
-			if (I915_READ(VLV_DISPLAY_BASE + CHV_HDMID) & SDVO_DETECTED) {
+			if (I915_READ(VLV_DISPLAY_BASE + CHV_HDMID) & SDVO_DETECTED)
 				intel_hdmi_init(dev, VLV_DISPLAY_BASE + CHV_HDMID,
 						PORT_D);
-				if (I915_READ(VLV_DISPLAY_BASE + DP_D) & DP_DETECTED)
-					intel_dp_init(dev, VLV_DISPLAY_BASE + DP_D, PORT_D);
-			}
+			/* eDP not supported on port D, so don't check VBT */
+			if (I915_READ(VLV_DISPLAY_BASE + DP_D) & DP_DETECTED)
+				intel_dp_init(dev, VLV_DISPLAY_BASE + DP_D, PORT_D);
 		}
 
 		intel_dsi_init(dev);
