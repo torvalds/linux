@@ -681,7 +681,10 @@ static void nci_rf_deactivate_ntf_packet(struct nci_dev *ndev,
 		nci_data_exchange_complete(ndev, NULL, -EIO);
 
 	nci_clear_target_list(ndev);
-	atomic_set(&ndev->state, NCI_IDLE);
+	if (ntf->type == NCI_DEACTIVATE_TYPE_DISCOVERY)
+		atomic_set(&ndev->state, NCI_DISCOVERY);
+	else
+		atomic_set(&ndev->state, NCI_IDLE);
 	nci_req_complete(ndev, NCI_STATUS_OK);
 }
 
