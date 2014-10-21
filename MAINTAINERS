@@ -6617,6 +6617,9 @@ L:	devicetree@vger.kernel.org
 S:	Maintained
 F:	arch/arm/boot/dts/*omap*
 F:	arch/arm/boot/dts/*am3*
+F:	arch/arm/boot/dts/*am4*
+F:	arch/arm/boot/dts/*am5*
+F:	arch/arm/boot/dts/*dra7*
 
 OMAP CLOCK FRAMEWORK SUPPORT
 M:	Paul Walmsley <paul@pwsan.com>
