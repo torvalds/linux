@@ -287,6 +287,7 @@ struct ath10k_vif {
 	u8 force_sgi;
 	bool use_cts_prot;
 	int num_legacy_stations;
+	int txpower;
 };
 
 struct ath10k_vif_iter {
