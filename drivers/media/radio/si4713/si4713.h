@@ -190,8 +190,6 @@
 #define MIN_ACOMP_THRESHOLD		(-40)
 #define MAX_ACOMP_GAIN			20
 
-#define SI4713_NUM_SUPPLIES		2
-
 /*
  * si4713_device - private data
  */
@@ -236,8 +234,8 @@ struct si4713_device {
 		struct v4l2_ctrl *tune_ant_cap;
 	};
 	struct completion work;
-	unsigned supplies;
-	struct regulator_bulk_data supply_data[SI4713_NUM_SUPPLIES];
+	struct regulator *vdd;
+	struct regulator *vio;
 	int gpio_reset;
 	u32 power_state;
 	u32 rds_enabled;

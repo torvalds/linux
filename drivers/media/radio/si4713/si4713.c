@@ -23,6 +23,7 @@
 
 #include <linux/completion.h>
 #include <linux/delay.h>
+#include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
@@ -366,13 +367,22 @@ static int si4713_powerup(struct si4713_device *sdev)
 	if (sdev->power_state)
 		return 0;
 
-	if (sdev->supplies) {
-		err = regulator_bulk_enable(sdev->supplies, sdev->supply_data);
+	if (sdev->vdd) {
+		err = regulator_enable(sdev->vdd);
 		if (err) {
-			v4l2_err(&sdev->sd, "Failed to enable supplies: %d\n", err);
+			v4l2_err(&sdev->sd, "Failed to enable vdd: %d\n", err);
 			return err;
 		}
 	}
+
+	if (sdev->vio) {
+		err = regulator_enable(sdev->vio);
+		if (err) {
+			v4l2_err(&sdev->sd, "Failed to enable vio: %d\n", err);
+			return err;
+		}
+	}
+
 	if (gpio_is_valid(sdev->gpio_reset)) {
 		udelay(50);
 		gpio_set_value(sdev->gpio_reset, 1);
@@ -399,11 +409,18 @@ static int si4713_powerup(struct si4713_device *sdev)
 	}
 	if (gpio_is_valid(sdev->gpio_reset))
 		gpio_set_value(sdev->gpio_reset, 0);
-	if (sdev->supplies) {
-		err = regulator_bulk_disable(sdev->supplies, sdev->supply_data);
+
+
+	if (sdev->vdd) {
+		err = regulator_disable(sdev->vdd);
 		if (err)
-			v4l2_err(&sdev->sd,
-				 "Failed to disable supplies: %d\n", err);
+			v4l2_err(&sdev->sd, "Failed to disable vdd: %d\n", err);
+	}
+
+	if (sdev->vio) {
+		err = regulator_disable(sdev->vio);
+		if (err)
+			v4l2_err(&sdev->sd, "Failed to disable vio: %d\n", err);
 	}
 
 	return err;
@@ -432,12 +449,21 @@ static int si4713_powerdown(struct si4713_device *sdev)
 		v4l2_dbg(1, debug, &sdev->sd, "Device in reset mode\n");
 		if (gpio_is_valid(sdev->gpio_reset))
 			gpio_set_value(sdev->gpio_reset, 0);
-		if (sdev->supplies) {
-			err = regulator_bulk_disable(sdev->supplies,
-						     sdev->supply_data);
-			if (err)
+
+		if (sdev->vdd) {
+			err = regulator_disable(sdev->vdd);
+			if (err) {
 				v4l2_err(&sdev->sd,
-					 "Failed to disable supplies: %d\n", err);
+					"Failed to disable vdd: %d\n", err);
+			}
+		}
+
+		if (sdev->vio) {
+			err = regulator_disable(sdev->vio);
+			if (err) {
+				v4l2_err(&sdev->sd,
+					"Failed to disable vio: %d\n", err);
+			}
 		}
 		sdev->power_state = POWER_OFF;
 	}
@@ -1422,7 +1448,7 @@ static int si4713_probe(struct i2c_client *client,
 	struct si4713_device *sdev;
 	struct si4713_platform_data *pdata = client->dev.platform_data;
 	struct v4l2_ctrl_handler *hdl;
-	int rval, i;
+	int rval;
 
 	sdev = kzalloc(sizeof(*sdev), GFP_KERNEL);
 	if (!sdev) {
@@ -1441,17 +1467,26 @@ static int si4713_probe(struct i2c_client *client,
 		}
 		sdev->gpio_reset = pdata->gpio_reset;
 		gpio_direction_output(sdev->gpio_reset, 0);
-		sdev->supplies = pdata->supplies;
 	}
 
-	for (i = 0; i < sdev->supplies; i++)
-		sdev->supply_data[i].supply = pdata->supply_names[i];
+	sdev->vdd = devm_regulator_get_optional(&client->dev, "vdd");
+	if (IS_ERR(sdev->vdd)) {
+		rval = PTR_ERR(sdev->vdd);
+		if (rval == -EPROBE_DEFER)
+			goto exit;
 
-	rval = regulator_bulk_get(&client->dev, sdev->supplies,
-				  sdev->supply_data);
-	if (rval) {
-		dev_err(&client->dev, "Cannot get regulators: %d\n", rval);
-		goto free_gpio;
+		dev_dbg(&client->dev, "no vdd regulator found: %d\n", rval);
+		sdev->vdd = NULL;
+	}
+
+	sdev->vio = devm_regulator_get_optional(&client->dev, "vio");
+	if (IS_ERR(sdev->vio)) {
+		rval = PTR_ERR(sdev->vio);
+		if (rval == -EPROBE_DEFER)
+			goto exit;
+
+		dev_dbg(&client->dev, "no vio regulator found: %d\n", rval);
+		sdev->vio = NULL;
 	}
 
 	v4l2_i2c_subdev_init(&sdev->sd, client, &si4713_subdev_ops);
@@ -1559,7 +1594,7 @@ static int si4713_probe(struct i2c_client *client,
 			client->name, sdev);
 		if (rval < 0) {
 			v4l2_err(&sdev->sd, "Could not request IRQ\n");
-			goto put_reg;
+			goto free_ctrls;
 		}
 		v4l2_dbg(1, debug, &sdev->sd, "IRQ requested.\n");
 	} else {
@@ -1579,9 +1614,6 @@ free_irq:
 		free_irq(client->irq, sdev);
 free_ctrls:
 	v4l2_ctrl_handler_free(hdl);
-put_reg:
-	regulator_bulk_free(sdev->supplies, sdev->supply_data);
-free_gpio:
 	if (gpio_is_valid(sdev->gpio_reset))
 		gpio_free(sdev->gpio_reset);
 free_sdev:
@@ -1604,7 +1636,6 @@ static int si4713_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	regulator_bulk_free(sdev->supplies, sdev->supply_data);
 	if (gpio_is_valid(sdev->gpio_reset))
 		gpio_free(sdev->gpio_reset);
 	kfree(sdev);
