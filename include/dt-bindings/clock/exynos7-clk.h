@@ -30,7 +30,14 @@
 /* PERIC0 */
 #define PCLK_UART0			1
 #define SCLK_UART0			2
-#define PERIC0_NR_CLK			3
+#define PCLK_HSI2C0			3
+#define PCLK_HSI2C1			4
+#define PCLK_HSI2C4			5
+#define PCLK_HSI2C5			6
+#define PCLK_HSI2C9			7
+#define PCLK_HSI2C10			8
+#define PCLK_HSI2C11			9
+#define PERIC0_NR_CLK			10
 
 /* PERIC1 */
 #define PCLK_UART1			1
@@ -39,7 +46,12 @@
 #define SCLK_UART1			4
 #define SCLK_UART2			5
 #define SCLK_UART3			6
-#define PERIC1_NR_CLK			7
+#define PCLK_HSI2C2			7
+#define PCLK_HSI2C3			8
+#define PCLK_HSI2C6			9
+#define PCLK_HSI2C7			10
+#define PCLK_HSI2C8			11
+#define PERIC1_NR_CLK			12
 
 /* PERIS */
 #define PCLK_CHIPID			1
