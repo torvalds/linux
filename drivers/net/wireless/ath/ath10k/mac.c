@@ -1060,51 +1060,45 @@ static int ath10k_mac_vif_setup_ps(struct ath10k_vif *arvif)
 /* Station management */
 /**********************/
 
+static u32 ath10k_peer_assoc_h_listen_intval(struct ath10k *ar,
+					     struct ieee80211_vif *vif)
+{
+	/* Some firmware revisions have unstable STA powersave when listen
+	 * interval is set too high (e.g. 5). The symptoms are firmware doesn't
+	 * generate NullFunc frames properly even if buffered frames have been
+	 * indicated in Beacon TIM. Firmware would seldom wake up to pull
+	 * buffered frames. Often pinging the device from AP would simply fail.
+	 *
+	 * As a workaround set it to 1.
+	 */
+	if (vif->type == NL80211_IFTYPE_STATION)
+		return 1;
+
+	return ar->hw->conf.listen_interval;
+}
+
 static void ath10k_peer_assoc_h_basic(struct ath10k *ar,
-				      struct ath10k_vif *arvif,
+				      struct ieee80211_vif *vif,
 				      struct ieee80211_sta *sta,
-				      struct ieee80211_bss_conf *bss_conf,
 				      struct wmi_peer_assoc_complete_arg *arg)
 {
+	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
+
 	lockdep_assert_held(&ar->conf_mutex);
 
 	ether_addr_copy(arg->addr, sta->addr);
 	arg->vdev_id = arvif->vdev_id;
 	arg->peer_aid = sta->aid;
 	arg->peer_flags |= WMI_PEER_AUTH;
-
-	if (arvif->vdev_type == WMI_VDEV_TYPE_STA)
-		/*
-		 * Seems FW have problems with Power Save in STA
-		 * mode when we setup this parameter to high (eg. 5).
-		 * Often we see that FW don't send NULL (with clean P flags)
-		 * frame even there is info about buffered frames in beacons.
-		 * Sometimes we have to wait more than 10 seconds before FW
-		 * will wakeup. Often sending one ping from AP to our device
-		 * just fail (more than 50%).
-		 *
-		 * Seems setting this FW parameter to 1 couse FW
-		 * will check every beacon and will wakup immediately
-		 * after detection buffered data.
-		 */
-		arg->peer_listen_intval = 1;
-	else
-		arg->peer_listen_intval = ar->hw->conf.listen_interval;
-
+	arg->peer_listen_intval = ath10k_peer_assoc_h_listen_intval(ar, vif);
 	arg->peer_num_spatial_streams = 1;
-
-	/*
-	 * The assoc capabilities are available only in managed mode.
-	 */
-	if (arvif->vdev_type == WMI_VDEV_TYPE_STA && bss_conf)
-		arg->peer_caps = bss_conf->assoc_capability;
+	arg->peer_caps = vif->bss_conf.assoc_capability;
 }
 
 static void ath10k_peer_assoc_h_crypto(struct ath10k *ar,
-				       struct ath10k_vif *arvif,
+				       struct ieee80211_vif *vif,
 				       struct wmi_peer_assoc_complete_arg *arg)
 {
-	struct ieee80211_vif *vif = arvif->vif;
 	struct ieee80211_bss_conf *info = &vif->bss_conf;
 	struct cfg80211_bss *bss;
 	const u8 *rsnie = NULL;
@@ -1361,11 +1355,12 @@ static void ath10k_peer_assoc_h_vht(struct ath10k *ar,
 }
 
 static void ath10k_peer_assoc_h_qos(struct ath10k *ar,
-				    struct ath10k_vif *arvif,
+				    struct ieee80211_vif *vif,
 				    struct ieee80211_sta *sta,
-				    struct ieee80211_bss_conf *bss_conf,
 				    struct wmi_peer_assoc_complete_arg *arg)
 {
+	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
+
 	switch (arvif->vdev_type) {
 	case WMI_VDEV_TYPE_AP:
 		if (sta->wme)
@@ -1377,7 +1372,7 @@ static void ath10k_peer_assoc_h_qos(struct ath10k *ar,
 		}
 		break;
 	case WMI_VDEV_TYPE_STA:
-		if (bss_conf->qos)
+		if (vif->bss_conf.qos)
 			arg->peer_flags |= WMI_PEER_QOS;
 		break;
 	default:
@@ -1386,7 +1381,7 @@ static void ath10k_peer_assoc_h_qos(struct ath10k *ar,
 }
 
 static void ath10k_peer_assoc_h_phymode(struct ath10k *ar,
-					struct ath10k_vif *arvif,
+					struct ieee80211_vif *vif,
 					struct ieee80211_sta *sta,
 					struct wmi_peer_assoc_complete_arg *arg)
 {
@@ -1437,22 +1432,21 @@ static void ath10k_peer_assoc_h_phymode(struct ath10k *ar,
 }
 
 static int ath10k_peer_assoc_prepare(struct ath10k *ar,
-				     struct ath10k_vif *arvif,
+				     struct ieee80211_vif *vif,
 				     struct ieee80211_sta *sta,
-				     struct ieee80211_bss_conf *bss_conf,
 				     struct wmi_peer_assoc_complete_arg *arg)
 {
 	lockdep_assert_held(&ar->conf_mutex);
 
 	memset(arg, 0, sizeof(*arg));
 
-	ath10k_peer_assoc_h_basic(ar, arvif, sta, bss_conf, arg);
-	ath10k_peer_assoc_h_crypto(ar, arvif, arg);
+	ath10k_peer_assoc_h_basic(ar, vif, sta, arg);
+	ath10k_peer_assoc_h_crypto(ar, vif, arg);
 	ath10k_peer_assoc_h_rates(ar, sta, arg);
 	ath10k_peer_assoc_h_ht(ar, sta, arg);
 	ath10k_peer_assoc_h_vht(ar, sta, arg);
-	ath10k_peer_assoc_h_qos(ar, arvif, sta, bss_conf, arg);
-	ath10k_peer_assoc_h_phymode(ar, arvif, sta, arg);
+	ath10k_peer_assoc_h_qos(ar, vif, sta, arg);
+	ath10k_peer_assoc_h_phymode(ar, vif, sta, arg);
 
 	return 0;
 }
@@ -1512,8 +1506,7 @@ static void ath10k_bss_assoc(struct ieee80211_hw *hw,
 	 * before calling ath10k_setup_peer_smps() which might sleep. */
 	ht_cap = ap_sta->ht_cap;
 
-	ret = ath10k_peer_assoc_prepare(ar, arvif, ap_sta,
-					bss_conf, &peer_arg);
+	ret = ath10k_peer_assoc_prepare(ar, vif, ap_sta, &peer_arg);
 	if (ret) {
 		ath10k_warn(ar, "failed to prepare peer assoc for %pM vdev %i: %d\n",
 			    bss_conf->bssid, arvif->vdev_id, ret);
@@ -1596,15 +1589,18 @@ static void ath10k_bss_disassoc(struct ieee80211_hw *hw,
 	arvif->is_up = false;
 }
 
-static int ath10k_station_assoc(struct ath10k *ar, struct ath10k_vif *arvif,
-				struct ieee80211_sta *sta, bool reassoc)
+static int ath10k_station_assoc(struct ath10k *ar,
+				struct ieee80211_vif *vif,
+				struct ieee80211_sta *sta,
+				bool reassoc)
 {
+	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
 	struct wmi_peer_assoc_complete_arg peer_arg;
 	int ret = 0;
 
 	lockdep_assert_held(&ar->conf_mutex);
 
-	ret = ath10k_peer_assoc_prepare(ar, arvif, sta, NULL, &peer_arg);
+	ret = ath10k_peer_assoc_prepare(ar, vif, sta, &peer_arg);
 	if (ret) {
 		ath10k_warn(ar, "failed to prepare WMI peer assoc for %pM vdev %i: %i\n",
 			    sta->addr, arvif->vdev_id, ret);
@@ -1653,9 +1649,11 @@ static int ath10k_station_assoc(struct ath10k *ar, struct ath10k_vif *arvif,
 	return ret;
 }
 
-static int ath10k_station_disassoc(struct ath10k *ar, struct ath10k_vif *arvif,
+static int ath10k_station_disassoc(struct ath10k *ar,
+				   struct ieee80211_vif *vif,
 				   struct ieee80211_sta *sta)
 {
+	struct ath10k_vif *arvif = ath10k_vif_to_arvif(vif);
 	int ret = 0;
 
 	lockdep_assert_held(&ar->conf_mutex);
@@ -3497,7 +3495,7 @@ static void ath10k_sta_rc_update_wk(struct work_struct *wk)
 		ath10k_dbg(ar, ATH10K_DBG_MAC, "mac update sta %pM supp rates\n",
 			   sta->addr);
 
-		err = ath10k_station_assoc(ar, arvif, sta, true);
+		err = ath10k_station_assoc(ar, arvif->vif, sta, true);
 		if (err)
 			ath10k_warn(ar, "failed to reassociate station: %pM\n",
 				    sta->addr);
@@ -3583,7 +3581,7 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 		ath10k_dbg(ar, ATH10K_DBG_MAC, "mac sta %pM associated\n",
 			   sta->addr);
 
-		ret = ath10k_station_assoc(ar, arvif, sta, false);
+		ret = ath10k_station_assoc(ar, vif, sta, false);
 		if (ret)
 			ath10k_warn(ar, "failed to associate station %pM for vdev %i: %i\n",
 				    sta->addr, arvif->vdev_id, ret);
@@ -3597,7 +3595,7 @@ static int ath10k_sta_state(struct ieee80211_hw *hw,
 		ath10k_dbg(ar, ATH10K_DBG_MAC, "mac sta %pM disassociated\n",
 			   sta->addr);
 
-		ret = ath10k_station_disassoc(ar, arvif, sta);
+		ret = ath10k_station_disassoc(ar, vif, sta);
 		if (ret)
 			ath10k_warn(ar, "failed to disassociate station: %pM vdev %i: %i\n",
 				    sta->addr, arvif->vdev_id, ret);
