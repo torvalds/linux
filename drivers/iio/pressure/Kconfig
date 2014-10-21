@@ -5,6 +5,17 @@
 
 menu "Pressure sensors"
 
+config BMP280
+	tristate "Bosch Sensortec BMP280 pressure sensor driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	 Say yes here to build support for Bosch Sensortec BMP280
+	 pressure and temperature sensor.
+
+	 To compile this driver as a module, choose M here: the module
+	 will be called bmp280.
+
 config HID_SENSOR_PRESS
 	depends on HID_SENSOR_HUB
 	select IIO_BUFFER
