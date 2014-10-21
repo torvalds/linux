@@ -2448,9 +2448,15 @@ static int iwl_mvm_roc(struct ieee80211_hw *hw,
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
-		/* Use aux roc framework (HS20) */
-		ret = iwl_mvm_send_aux_roc_cmd(mvm, channel,
-					       vif, duration);
+		if (mvm->fw->ucode_capa.capa[0] &
+		    IWL_UCODE_TLV_CAPA_HOTSPOT_SUPPORT) {
+			/* Use aux roc framework (HS20) */
+			ret = iwl_mvm_send_aux_roc_cmd(mvm, channel,
+						       vif, duration);
+			goto out_unlock;
+		}
+		IWL_ERR(mvm, "hotspot not supported\n");
+		ret = -EINVAL;
 		goto out_unlock;
 	case NL80211_IFTYPE_P2P_DEVICE:
 		/* handle below */
