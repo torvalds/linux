@@ -59,7 +59,6 @@
 #define SDCE_MISC_INT_EN	(1<<1)
 
 struct sdhci_pxa {
-	u8	clk_enable;
 	u8	power_mode;
 };
 
