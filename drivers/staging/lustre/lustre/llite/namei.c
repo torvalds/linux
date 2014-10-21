@@ -775,9 +775,9 @@ static void ll_update_times(struct ptlrpc_request *request,
 		LTIME_S(inode->i_ctime) = body->ctime;
 }
 
-static int ll_new_node(struct inode *dir, struct qstr *name,
+static int ll_new_node(struct inode *dir, struct dentry *dentry,
 		       const char *tgt, int mode, int rdev,
-		       struct dentry *dchild, __u32 opc)
+		       __u32 opc)
 {
 	struct ptlrpc_request *request = NULL;
 	struct md_op_data *op_data;
@@ -789,8 +789,10 @@ static int ll_new_node(struct inode *dir, struct qstr *name,
 	if (unlikely(tgt != NULL))
 		tgt_len = strlen(tgt) + 1;
 
-	op_data = ll_prep_md_op_data(NULL, dir, NULL, name->name,
-				     name->len, 0, opc, NULL);
+	op_data = ll_prep_md_op_data(NULL, dir, NULL,
+				     dentry->d_name.name,
+				     dentry->d_name.len,
+				     0, opc, NULL);
 	if (IS_ERR(op_data)) {
 		err = PTR_ERR(op_data);
 		goto err_exit;
@@ -806,13 +808,11 @@ static int ll_new_node(struct inode *dir, struct qstr *name,
 
 	ll_update_times(request, dir);
 
-	if (dchild) {
-		err = ll_prep_inode(&inode, request, dchild->d_sb, NULL);
-		if (err)
-			goto err_exit;
+	err = ll_prep_inode(&inode, request, dir->i_sb, NULL);
+	if (err)
+		goto err_exit;
 
-		d_instantiate(dchild, inode);
-	}
+	d_instantiate(dentry, inode);
 err_exit:
 	ptlrpc_req_finished(request);
 
@@ -839,8 +839,8 @@ static int ll_mknod(struct inode *dir, struct dentry *dchild,
 	case S_IFBLK:
 	case S_IFIFO:
 	case S_IFSOCK:
-		err = ll_new_node(dir, &dchild->d_name, NULL, mode,
-				  old_encode_dev(rdev), dchild,
+		err = ll_new_node(dir, dchild, NULL, mode,
+				  old_encode_dev(rdev),
 				  LUSTRE_OPC_MKNOD);
 		break;
 	case S_IFDIR:
@@ -1161,7 +1161,7 @@ static int ll_mkdir(struct inode *dir, struct dentry *dentry, ll_umode_t mode)
 	if (!IS_POSIXACL(dir) || !exp_connect_umask(ll_i2mdexp(dir)))
 		mode &= ~current_umask();
 	mode = (mode & (S_IRWXUGO|S_ISVTX)) | S_IFDIR;
-	err = ll_new_node(dir, &dentry->d_name, NULL, mode, 0, dentry, LUSTRE_OPC_MKDIR);
+	err = ll_new_node(dir, dentry, NULL, mode, 0, LUSTRE_OPC_MKDIR);
 
 	if (!err)
 		ll_stats_ops_tally(ll_i2sbi(dir), LPROC_LL_MKDIR, 1);
@@ -1183,8 +1183,8 @@ static int ll_symlink(struct inode *dir, struct dentry *dentry,
 	       dentry, dir->i_ino, dir->i_generation,
 	       dir, 3000, oldname);
 
-	err = ll_new_node(dir, &dentry->d_name, oldname, S_IFLNK | S_IRWXUGO,
-			0, dentry, LUSTRE_OPC_SYMLINK);
+	err = ll_new_node(dir, dentry, oldname, S_IFLNK | S_IRWXUGO,
+			0, LUSTRE_OPC_SYMLINK);
 
 	if (!err)
 		ll_stats_ops_tally(ll_i2sbi(dir), LPROC_LL_SYMLINK, 1);
