@@ -33,12 +33,6 @@ config ARCH_AT91SAM9263
 	select AT91_USE_OLD_CLK
 	select OLD_IRQ_AT91
 
-config ARCH_AT91SAM9RL
-	bool "AT91SAM9RL"
-	select SOC_AT91SAM9RL
-	select AT91_USE_OLD_CLK
-	select OLD_IRQ_AT91
-
 endchoice
 
 config ARCH_AT91SAM9G20
@@ -276,19 +270,6 @@ config MACH_AT91SAM9263EK
 	help
 	  Select this if you are using Atmel's AT91SAM9263-EK Evaluation Kit.
 	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=4057>
-
-endif
-
-# ----------------------------------------------------------
-
-if ARCH_AT91SAM9RL
-
-comment "AT91SAM9RL Board Type"
-
-config MACH_AT91SAM9RLEK
-	bool "Atmel AT91SAM9RL-EK Evaluation Kit"
-	help
-	  Select this if you are using Atmel's AT91SAM9RL-EK Evaluation Kit.
 
 endif
 
