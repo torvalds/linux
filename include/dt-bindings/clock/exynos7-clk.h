@@ -27,6 +27,17 @@
 #define CLK_SCLK_UART3			6
 #define TOP0_NR_CLK			7
 
+/* TOP1 */
+#define DOUT_ACLK_FSYS1_200		1
+#define DOUT_ACLK_FSYS0_200		2
+#define DOUT_SCLK_MMC2			3
+#define DOUT_SCLK_MMC1			4
+#define DOUT_SCLK_MMC0			5
+#define CLK_SCLK_MMC2			6
+#define CLK_SCLK_MMC1			7
+#define CLK_SCLK_MMC0			8
+#define TOP1_NR_CLK			9
+
 /* PERIC0 */
 #define PCLK_UART0			1
 #define SCLK_UART0			2
@@ -57,5 +68,14 @@
 #define PCLK_CHIPID			1
 #define SCLK_CHIPID			2
 #define PERIS_NR_CLK			3
+
+/* FSYS0 */
+#define ACLK_MMC2			1
+#define FSYS0_NR_CLK			2
+
+/* FSYS1 */
+#define ACLK_MMC1			1
+#define ACLK_MMC0			2
+#define FSYS1_NR_CLK			3
 
 #endif /* _DT_BINDINGS_CLOCK_EXYNOS7_H */
