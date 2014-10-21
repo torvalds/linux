@@ -1404,11 +1404,6 @@ static int __init bcm281xx_pinctrl_probe(struct platform_device *pdev)
 
 	/* So far We can assume there is only 1 bank of registers */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "Missing MEM resource\n");
-		return -ENODEV;
-	}
-
 	pdata->reg_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(pdata->reg_base)) {
 		dev_err(&pdev->dev, "Failed to ioremap MEM resource\n");
