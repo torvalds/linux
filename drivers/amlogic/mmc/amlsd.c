@@ -720,6 +720,16 @@ int of_amlsd_init(struct amlsd_platform* pdata)
             CHECK_RET(ret);
         }
 	}
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+	if(pdata->gpio_volsw) {
+        ret = amlogic_gpio_request_one(pdata->gpio_volsw, GPIOF_OUT_INIT_LOW, MODULE_NAME);
+        CHECK_RET(ret);
+        if (ret == 0) {
+            ret = amlogic_gpio_direction_output(pdata->gpio_volsw, 0, MODULE_NAME); // output low default 3.3V
+            CHECK_RET(ret);
+        }
+    }
+#endif
 
 	// if(pdata->port == MESON_SDIO_PORT_A)
 		// wifi_setup_dt();
@@ -1256,6 +1266,40 @@ int aml_check_unsupport_cmd(struct mmc_host* mmc, struct mmc_request* mrq)
 
 int aml_sd_voltage_switch (struct amlsd_platform* pdata, char signal_voltage)
 {
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+    char *str;
+    int delay_ms = 0;
+    int volsw = 0;
+    int ret=0;
+
+    switch (signal_voltage) {
+        case MMC_SIGNAL_VOLTAGE_180:
+            delay_ms = 10;
+            volsw = 1;
+            str = "1.80 V";
+            if (!mmc_host_uhs(pdata->mmc)) {
+                sdhc_err("switch to 1.8V for a non-uhs device.\n");
+            }
+            break;
+        case MMC_SIGNAL_VOLTAGE_330:
+            delay_ms = 20;
+            volsw = 0;
+            str = "3.30 V";
+            break;
+        default:
+            str = "invalid";
+            break;
+    }
+
+	if(pdata->gpio_volsw) {
+        ret = amlogic_set_value(pdata->gpio_volsw, volsw, MODULE_NAME);
+        CHECK_RET(ret);
+        printk("%s[%d] : Switched to voltage -> %s\n",__func__,__LINE__,str);
+	}
+    pdata->signal_voltage = signal_voltage;
+    mdelay(delay_ms); // wait for voltage to be stable
+#else
+
 #if ((defined CONFIG_ARCH_MESON8))
 #ifdef CONFIG_AMLOGIC_BOARD_HAS_PMU
     int vol = LDO4DAC_REG_3_3_V;
@@ -1307,7 +1351,7 @@ int aml_sd_voltage_switch (struct amlsd_platform* pdata, char signal_voltage)
     }
 #endif
 #endif
-
+#endif
     return 0;
 }
 

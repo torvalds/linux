@@ -181,6 +181,7 @@ int amlsd_get_platform_data(struct platform_device* pdev,
         SD_PARSE_GPIO_NUM_PROP(child, "jtag_pin", str, pdata->jtag_pin);
 		SD_PARSE_U32_PROP(child, "card_type", prop, pdata->card_type);
         SD_PARSE_GPIO_NUM_PROP(child, "gpio_dat3", str, pdata->gpio_dat3);
+        SD_PARSE_GPIO_NUM_PROP(child, "gpio_volsw", str, pdata->gpio_volsw);
 
 		pdata->port_init = of_amlsd_init;
 		pdata->pwr_pre = of_amlsd_pwr_prepare;
