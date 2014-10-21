@@ -1031,47 +1031,6 @@ out:
 	return rc;
 }
 
-/* ll_unlink_generic() doesn't update the inode with the new link count.
- * Instead, ll_ddelete() and ll_d_iput() will update it based upon if there
- * is any lock existing. They will recycle dentries and inodes based upon locks
- * too. b=20433 */
-static int ll_unlink_generic(struct inode *dir, struct dentry *dparent,
-			     struct dentry *dchild, struct qstr *name)
-{
-	struct ptlrpc_request *request = NULL;
-	struct md_op_data *op_data;
-	int rc;
-	CDEBUG(D_VFSTRACE, "VFS Op:name=%.*s,dir=%lu/%u(%p)\n",
-	       name->len, name->name, dir->i_ino, dir->i_generation, dir);
-
-	/*
-	 * XXX: unlink bind mountpoint maybe call to here,
-	 * just check it as vfs_unlink does.
-	 */
-	if (unlikely(ll_d_mountpoint(dparent, dchild, name)))
-		return -EBUSY;
-
-	op_data = ll_prep_md_op_data(NULL, dir, NULL, name->name,
-				     name->len, 0, LUSTRE_OPC_ANY, NULL);
-	if (IS_ERR(op_data))
-		return PTR_ERR(op_data);
-
-	ll_get_child_fid(dir, name, &op_data->op_fid3);
-	op_data->op_fid2 = op_data->op_fid3;
-	rc = md_unlink(ll_i2sbi(dir)->ll_md_exp, op_data, &request);
-	ll_finish_md_op_data(op_data);
-	if (rc)
-		goto out;
-
-	ll_update_times(request, dir);
-	ll_stats_ops_tally(ll_i2sbi(dir), LPROC_LL_UNLINK, 1);
-
-	rc = ll_objects_destroy(request, dir);
- out:
-	ptlrpc_req_finished(request);
-	return rc;
-}
-
 static int ll_rename_generic(struct inode *src, struct dentry *src_dparent,
 			     struct dentry *src_dchild, struct qstr *src_name,
 			     struct inode *tgt, struct dentry *tgt_dparent,
@@ -1115,9 +1074,46 @@ static int ll_rename_generic(struct inode *src, struct dentry *src_dparent,
 	return err;
 }
 
+/* ll_unlink() doesn't update the inode with the new link count.
+ * Instead, ll_ddelete() and ll_d_iput() will update it based upon if there
+ * is any lock existing. They will recycle dentries and inodes based upon locks
+ * too. b=20433 */
 static int ll_unlink(struct inode * dir, struct dentry *dentry)
 {
-	return ll_unlink_generic(dir, NULL, dentry, &dentry->d_name);
+	struct ptlrpc_request *request = NULL;
+	struct md_op_data *op_data;
+	int rc;
+	CDEBUG(D_VFSTRACE, "VFS Op:name=%pd,dir=%lu/%u(%p)\n",
+	       dentry, dir->i_ino, dir->i_generation, dir);
+
+	/*
+	 * XXX: unlink bind mountpoint maybe call to here,
+	 * just check it as vfs_unlink does.
+	 */
+	if (unlikely(ll_d_mountpoint(NULL, dentry, &dentry->d_name)))
+		return -EBUSY;
+
+	op_data = ll_prep_md_op_data(NULL, dir, NULL,
+				     dentry->d_name.name,
+				     dentry->d_name.len,
+				     0, LUSTRE_OPC_ANY, NULL);
+	if (IS_ERR(op_data))
+		return PTR_ERR(op_data);
+
+	ll_get_child_fid(dir, &dentry->d_name, &op_data->op_fid3);
+	op_data->op_fid2 = op_data->op_fid3;
+	rc = md_unlink(ll_i2sbi(dir)->ll_md_exp, op_data, &request);
+	ll_finish_md_op_data(op_data);
+	if (rc)
+		goto out;
+
+	ll_update_times(request, dir);
+	ll_stats_ops_tally(ll_i2sbi(dir), LPROC_LL_UNLINK, 1);
+
+	rc = ll_objects_destroy(request, dir);
+ out:
+	ptlrpc_req_finished(request);
+	return rc;
 }
 
 static int ll_mkdir(struct inode *dir, struct dentry *dentry, ll_umode_t mode)
