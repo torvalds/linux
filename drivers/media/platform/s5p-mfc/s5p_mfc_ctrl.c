@@ -468,7 +468,6 @@ int s5p_mfc_open_mfc_inst(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx)
 	}
 
 	set_work_bit_irqsave(ctx);
-	s5p_mfc_clean_ctx_int_flags(ctx);
 	s5p_mfc_hw_call_void(dev->mfc_ops, try_run, dev);
 	if (s5p_mfc_wait_for_done_ctx(ctx,
 		S5P_MFC_R2H_CMD_OPEN_INSTANCE_RET, 0)) {
@@ -494,7 +493,6 @@ void s5p_mfc_close_mfc_inst(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx)
 {
 	ctx->state = MFCINST_RETURN_INST;
 	set_work_bit_irqsave(ctx);
-	s5p_mfc_clean_ctx_int_flags(ctx);
 	s5p_mfc_hw_call_void(dev->mfc_ops, try_run, dev);
 	/* Wait until instance is returned or timeout occurred */
 	if (s5p_mfc_wait_for_done_ctx(ctx,
