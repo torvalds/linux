@@ -1262,6 +1262,10 @@ static int rockchip_pinctrl_register(struct platform_device *pdev,
 		}
 	}
 
+	ret = rockchip_pinctrl_parse_dt(pdev, info);
+	if (ret)
+		return ret;
+
 	info->pctl_dev = pinctrl_register(ctrldesc, &pdev->dev, info);
 	if (!info->pctl_dev) {
 		dev_err(&pdev->dev, "could not register pinctrl driver\n");
@@ -1277,12 +1281,6 @@ static int rockchip_pinctrl_register(struct platform_device *pdev,
 		pin_bank->grange.npins = pin_bank->gpio_chip.ngpio;
 		pin_bank->grange.gc = &pin_bank->gpio_chip;
 		pinctrl_add_gpio_range(info->pctl_dev, &pin_bank->grange);
-	}
-
-	ret = rockchip_pinctrl_parse_dt(pdev, info);
-	if (ret) {
-		pinctrl_unregister(info->pctl_dev);
-		return ret;
 	}
 
 	return 0;
