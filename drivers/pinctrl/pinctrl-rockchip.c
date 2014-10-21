@@ -1563,6 +1563,7 @@ static int rockchip_interrupts_register(struct platform_device *pdev,
 		gc->chip_types[0].chip.irq_unmask = irq_gc_mask_set_bit;
 		gc->chip_types[0].chip.irq_set_wake = irq_gc_set_wake;
 		gc->chip_types[0].chip.irq_set_type = rockchip_irq_set_type;
+		gc->wake_enabled = IRQ_MSK(bank->nr_pins);
 
 		irq_set_handler_data(bank->irq, bank);
 		irq_set_chained_handler(bank->irq, rockchip_irq_demux);
