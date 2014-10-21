@@ -237,8 +237,6 @@ struct s5p_mfc_variant {
 
 /**
  * struct s5p_mfc_priv_buf - represents internal used buffer
- * @alloc:		allocation-specific context for each buffer
- *			(videobuf2 allocator)
  * @ofs:		offset of each buffer, will be used for MFC
  * @virt:		kernel virtual address, only valid when the
  *			buffer accessed by driver
@@ -246,7 +244,6 @@ struct s5p_mfc_variant {
  * @size:		size of the buffer
  */
 struct s5p_mfc_priv_buf {
-	void		*alloc;
 	unsigned long	ofs;
 	void		*virt;
 	dma_addr_t	dma;
