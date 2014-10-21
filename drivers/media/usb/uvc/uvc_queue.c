@@ -194,6 +194,13 @@ int uvc_queue_init(struct uvc_video_queue *queue, enum v4l2_buf_type type,
 	return 0;
 }
 
+void uvc_queue_release(struct uvc_video_queue *queue)
+{
+	mutex_lock(&queue->mutex);
+	vb2_queue_release(&queue->queue);
+	mutex_unlock(&queue->mutex);
+}
+
 /* -----------------------------------------------------------------------------
  * V4L2 queue operations
  */
@@ -208,13 +215,6 @@ int uvc_alloc_buffers(struct uvc_video_queue *queue,
 	mutex_unlock(&queue->mutex);
 
 	return ret ? ret : rb->count;
-}
-
-void uvc_free_buffers(struct uvc_video_queue *queue)
-{
-	mutex_lock(&queue->mutex);
-	vb2_queue_release(&queue->queue);
-	mutex_unlock(&queue->mutex);
 }
 
 int uvc_query_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *buf)

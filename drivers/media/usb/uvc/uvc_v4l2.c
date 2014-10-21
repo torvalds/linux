@@ -530,10 +530,8 @@ static int uvc_v4l2_release(struct file *file)
 	uvc_trace(UVC_TRACE_CALLS, "uvc_v4l2_release\n");
 
 	/* Only free resources if this is a privileged handle. */
-	if (uvc_has_privileges(handle)) {
-		uvc_queue_enable(&stream->queue, 0);
-		uvc_free_buffers(&stream->queue);
-	}
+	if (uvc_has_privileges(handle))
+		uvc_queue_release(&stream->queue);
 
 	/* Release the file handle. */
 	uvc_dismiss_privileges(handle);
