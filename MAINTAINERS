@@ -6830,7 +6830,7 @@ S:	Orphan
 F:	drivers/net/wireless/orinoco/
 
 OSD LIBRARY and FILESYSTEM
-M:	Boaz Harrosh <bharrosh@panasas.com>
+M:	Boaz Harrosh <ooo@electrozaur.com>
 M:	Benny Halevy <bhalevy@primarydata.com>
 L:	osd-dev@open-osd.org
 W:	http://open-osd.org
