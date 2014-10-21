@@ -2420,7 +2420,7 @@ void rcu_check_callbacks(int user)
 
 		rcu_bh_qs();
 	}
-	rcu_preempt_check_callbacks(smp_processor_id());
+	rcu_preempt_check_callbacks();
 	if (rcu_pending())
 		invoke_rcu_core();
 	if (user)
