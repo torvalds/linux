@@ -1,6 +1,6 @@
 config USB_DWC2
 	bool "DesignWare USB2 DRD Core Support"
-	depends on USB
+	depends on USB || USB_GADGET
 	help
 	  Say Y here if your system has a Dual Role Hi-Speed USB
 	  controller based on the DesignWare HSOTG IP Core.
