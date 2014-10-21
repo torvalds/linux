@@ -824,7 +824,8 @@ static int bcm_uart_probe(struct platform_device *pdev)
 	if (!res_irq)
 		return -ENODEV;
 
-	clk = clk_get(&pdev->dev, "periph");
+	clk = pdev->dev.of_node ? of_clk_get(pdev->dev.of_node, 0) :
+				  clk_get(&pdev->dev, "periph");
 	if (IS_ERR(clk))
 		return -ENODEV;
 
