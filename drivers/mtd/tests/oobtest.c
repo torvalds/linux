@@ -115,6 +115,26 @@ static int write_whole_device(void)
 	return 0;
 }
 
+/* Display the address, offset and data bytes at comparison failure */
+static int memcmpshow(loff_t addr, const void *cs, const void *ct, size_t count)
+{
+	const unsigned char *su1, *su2;
+	int res;
+	int ret = 0;
+	size_t i = 0;
+
+	for (su1 = cs, su2 = ct; 0 < count; ++su1, ++su2, count--, i++) {
+		res = *su1 ^ *su2;
+		if (res) {
+			pr_info("error @addr[0x%lx:0x%x] 0x%x -> 0x%x diff 0x%x\n",
+				(unsigned long)addr, i, *su1, *su2, res);
+			ret = 1;
+		}
+	}
+
+	return ret;
+}
+
 static int verify_eraseblock(int ebnum)
 {
 	int i;
@@ -139,8 +159,9 @@ static int verify_eraseblock(int ebnum)
 			errcnt += 1;
 			return err ? err : -1;
 		}
-		if (memcmp(readbuf, writebuf + (use_len_max * i) + use_offset,
-			   use_len)) {
+		if (memcmpshow(addr, readbuf,
+			       writebuf + (use_len_max * i) + use_offset,
+			       use_len)) {
 			pr_err("error: verify failed at %#llx\n",
 			       (long long)addr);
 			errcnt += 1;
@@ -167,9 +188,9 @@ static int verify_eraseblock(int ebnum)
 				errcnt += 1;
 				return err ? err : -1;
 			}
-			if (memcmp(readbuf + use_offset,
-				   writebuf + (use_len_max * i) + use_offset,
-				   use_len)) {
+			if (memcmpshow(addr, readbuf + use_offset,
+				       writebuf + (use_len_max * i) + use_offset,
+				       use_len)) {
 				pr_err("error: verify failed at %#llx\n",
 						(long long)addr);
 				errcnt += 1;
@@ -233,7 +254,7 @@ static int verify_eraseblock_in_one_go(int ebnum)
 		errcnt += 1;
 		return err ? err : -1;
 	}
-	if (memcmp(readbuf, writebuf, len)) {
+	if (memcmpshow(addr, readbuf, writebuf, len)) {
 		pr_err("error: verify failed at %#llx\n",
 		       (long long)addr);
 		errcnt += 1;
@@ -610,7 +631,8 @@ static int __init mtd_oobtest_init(void)
 		err = mtd_read_oob(mtd, addr, &ops);
 		if (err)
 			goto out;
-		if (memcmp(readbuf, writebuf, mtd->ecclayout->oobavail * 2)) {
+		if (memcmpshow(addr, readbuf, writebuf,
+			       mtd->ecclayout->oobavail * 2)) {
 			pr_err("error: verify failed at %#llx\n",
 			       (long long)addr);
 			errcnt += 1;
