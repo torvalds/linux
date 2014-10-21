@@ -203,21 +203,4 @@ nv_memcmp(void *obj, u32 addr, const char *str, u32 len)
 	return 0;
 }
 
-#include <core/handle.h>
-
-static inline int
-nouveau_object_new(struct nouveau_object *client, u32 parent, u32 handle,
-		   u16 oclass, void *data, u32 size,
-		   struct nouveau_object **pobject)
-{
-	return nouveau_handle_new(client, parent, handle, oclass,
-				  data, size, pobject);
-}
-
-static inline int
-nouveau_object_del(struct nouveau_object *client, u32 parent, u32 handle)
-{
-	return nouveau_handle_del(client, parent, handle);
-}
-
 #endif
