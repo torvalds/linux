@@ -1031,49 +1031,6 @@ out:
 	return rc;
 }
 
-static int ll_rename_generic(struct inode *src, struct dentry *src_dparent,
-			     struct dentry *src_dchild, struct qstr *src_name,
-			     struct inode *tgt, struct dentry *tgt_dparent,
-			     struct dentry *tgt_dchild, struct qstr *tgt_name)
-{
-	struct ptlrpc_request *request = NULL;
-	struct ll_sb_info *sbi = ll_i2sbi(src);
-	struct md_op_data *op_data;
-	int err;
-
-	CDEBUG(D_VFSTRACE,
-	       "VFS Op:oldname=%.*s,src_dir=%lu/%u(%p),newname=%.*s,"
-	       "tgt_dir=%lu/%u(%p)\n", src_name->len, src_name->name,
-	       src->i_ino, src->i_generation, src, tgt_name->len,
-	       tgt_name->name, tgt->i_ino, tgt->i_generation, tgt);
-
-	if (unlikely(ll_d_mountpoint(src_dparent, src_dchild, src_name) ||
-	    ll_d_mountpoint(tgt_dparent, tgt_dchild, tgt_name)))
-		return -EBUSY;
-
-	op_data = ll_prep_md_op_data(NULL, src, tgt, NULL, 0, 0,
-				     LUSTRE_OPC_ANY, NULL);
-	if (IS_ERR(op_data))
-		return PTR_ERR(op_data);
-
-	ll_get_child_fid(src, src_name, &op_data->op_fid3);
-	ll_get_child_fid(tgt, tgt_name, &op_data->op_fid4);
-	err = md_rename(sbi->ll_md_exp, op_data,
-			src_name->name, src_name->len,
-			tgt_name->name, tgt_name->len, &request);
-	ll_finish_md_op_data(op_data);
-	if (!err) {
-		ll_update_times(request, src);
-		ll_update_times(request, tgt);
-		ll_stats_ops_tally(sbi, LPROC_LL_RENAME, 1);
-		err = ll_objects_destroy(request, src);
-	}
-
-	ptlrpc_req_finished(request);
-
-	return err;
-}
-
 /* ll_unlink() doesn't update the inode with the new link count.
  * Instead, ll_ddelete() and ll_d_iput() will update it based upon if there
  * is any lock existing. They will recycle dentries and inodes based upon locks
@@ -1194,14 +1151,44 @@ static int ll_link(struct dentry *old_dentry, struct inode *dir,
 static int ll_rename(struct inode *old_dir, struct dentry *old_dentry,
 		     struct inode *new_dir, struct dentry *new_dentry)
 {
+	struct ptlrpc_request *request = NULL;
+	struct ll_sb_info *sbi = ll_i2sbi(old_dir);
+	struct md_op_data *op_data;
 	int err;
-	err = ll_rename_generic(old_dir, NULL,
-				 old_dentry, &old_dentry->d_name,
-				 new_dir, NULL, new_dentry,
-				 &new_dentry->d_name);
+
+	CDEBUG(D_VFSTRACE,
+	       "VFS Op:oldname=%pd,src_dir=%lu/%u(%p),newname=%pd,"
+	       "tgt_dir=%lu/%u(%p)\n", old_dentry,
+	       old_dir->i_ino, old_dir->i_generation, old_dir, new_dentry,
+	       new_dir->i_ino, new_dir->i_generation, new_dir);
+
+	if (unlikely(ll_d_mountpoint(NULL, old_dentry, &old_dentry->d_name) ||
+	    ll_d_mountpoint(NULL, new_dentry, &new_dentry->d_name)))
+		return -EBUSY;
+
+	op_data = ll_prep_md_op_data(NULL, old_dir, new_dir, NULL, 0, 0,
+				     LUSTRE_OPC_ANY, NULL);
+	if (IS_ERR(op_data))
+		return PTR_ERR(op_data);
+
+	ll_get_child_fid(old_dir, &old_dentry->d_name, &op_data->op_fid3);
+	ll_get_child_fid(new_dir, &new_dentry->d_name, &op_data->op_fid4);
+	err = md_rename(sbi->ll_md_exp, op_data,
+			old_dentry->d_name.name,
+			old_dentry->d_name.len,
+			new_dentry->d_name.name,
+			new_dentry->d_name.len, &request);
+	ll_finish_md_op_data(op_data);
 	if (!err) {
-			d_move(old_dentry, new_dentry);
+		ll_update_times(request, old_dir);
+		ll_update_times(request, new_dir);
+		ll_stats_ops_tally(sbi, LPROC_LL_RENAME, 1);
+		err = ll_objects_destroy(request, old_dir);
 	}
+
+	ptlrpc_req_finished(request);
+	if (!err)
+		d_move(old_dentry, new_dentry);
 	return err;
 }
 
