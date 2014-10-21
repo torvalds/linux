@@ -213,7 +213,7 @@
 
 &fb {
 	rockchip,disp-mode = <NO_DUAL>;
-	rockchip,disp-policy = <1>;
+	rockchip,disp-policy = <DISPLAY_POLICY_BOX>;
 	rockchip,uboot-logo-on = <1>;
 };
 
