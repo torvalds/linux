@@ -1451,51 +1451,6 @@ static int atmel_spi_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-#ifdef CONFIG_PM_SLEEP
-static int atmel_spi_suspend(struct device *dev)
-{
-	struct spi_master	*master = dev_get_drvdata(dev);
-	struct atmel_spi	*as = spi_master_get_devdata(master);
-	int ret;
-
-	/* Stop the queue running */
-	ret = spi_master_suspend(master);
-	if (ret) {
-		dev_warn(dev, "cannot suspend master\n");
-		return ret;
-	}
-
-	if (!pm_runtime_suspended(dev)) {
-		clk_disable_unprepare(as->clk);
-		pinctrl_pm_select_sleep_state(dev);
-	}
-
-	return 0;
-}
-
-static int atmel_spi_resume(struct device *dev)
-{
-	struct spi_master	*master = dev_get_drvdata(dev);
-	struct atmel_spi	*as = spi_master_get_devdata(master);
-	int ret;
-
-	if (!pm_runtime_suspended(dev)) {
-		pinctrl_pm_select_default_state(dev);
-		ret = clk_prepare_enable(as->clk);
-		if (ret)
-			return ret;
-	}
-
-	/* Start the queue running */
-	ret = spi_master_resume(master);
-	if (ret)
-		dev_err(dev, "problem starting queue (%d)\n", ret);
-
-	return ret;
-}
-#endif
-
-#ifdef CONFIG_PM_RUNTIME
 static int atmel_spi_runtime_suspend(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
@@ -1516,7 +1471,43 @@ static int atmel_spi_runtime_resume(struct device *dev)
 
 	return clk_prepare_enable(as->clk);
 }
-#endif
+
+static int atmel_spi_suspend(struct device *dev)
+{
+	struct spi_master *master = dev_get_drvdata(dev);
+	int ret;
+
+	/* Stop the queue running */
+	ret = spi_master_suspend(master);
+	if (ret) {
+		dev_warn(dev, "cannot suspend master\n");
+		return ret;
+	}
+
+	if (!pm_runtime_suspended(dev))
+		atmel_spi_runtime_suspend(dev);
+
+	return 0;
+}
+
+static int atmel_spi_resume(struct device *dev)
+{
+	struct spi_master *master = dev_get_drvdata(dev);
+	int ret;
+
+	if (!pm_runtime_suspended(dev)) {
+		ret = atmel_spi_runtime_resume(dev);
+		if (ret)
+			return ret;
+	}
+
+	/* Start the queue running */
+	ret = spi_master_resume(master);
+	if (ret)
+		dev_err(dev, "problem starting queue (%d)\n", ret);
+
+	return ret;
+}
 
 static const struct dev_pm_ops atmel_spi_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(atmel_spi_suspend, atmel_spi_resume)
