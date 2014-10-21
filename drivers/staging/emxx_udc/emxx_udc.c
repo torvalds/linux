@@ -2722,8 +2722,7 @@ static void nbu2ss_ep_free_request(
 	if (_req != NULL) {
 		req = container_of(_req, struct nbu2ss_req, req);
 
-		if (req != NULL)
-			kfree(req);
+		kfree(req);
 	}
 }
 
