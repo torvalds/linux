@@ -330,7 +330,7 @@ int make_empty_inline_dir(struct inode *inode, struct inode *parent,
 	return 0;
 }
 
-int f2fs_convert_inline_dir(struct inode *dir, struct page *ipage,
+static int f2fs_convert_inline_dir(struct inode *dir, struct page *ipage,
 				struct f2fs_inline_dentry *inline_dentry)
 {
 	struct page *page;
