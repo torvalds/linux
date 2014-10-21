@@ -110,6 +110,7 @@
 
 /* NCI Configuration Parameter Tags */
 #define NCI_PN_ATR_REQ_GEN_BYTES				0x29
+#define NCI_LN_ATR_RES_GEN_BYTES				0x61
 #define NCI_LA_SEL_INFO						0x32
 #define NCI_LF_PROTOCOL_TYPE					0x50
 #define NCI_LF_CON_BITR_F					0x54
