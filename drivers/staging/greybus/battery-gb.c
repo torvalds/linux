@@ -139,6 +139,7 @@ static int battery_operation(struct gb_battery *gb, int type,
 	}
 out:
 	gb_operation_destroy(operation);
+	kfree(local_response);
 
 	return ret;
 }
