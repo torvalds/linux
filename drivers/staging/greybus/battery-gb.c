@@ -125,6 +125,7 @@ int gb_battery_device_init(struct gb_connection *connection)
 		return -ENOMEM;
 
 	gb->connection = connection;	// FIXME refcount!
+	connection->private = gb;
 
 	b = &gb->bat;
 	// FIXME - get a better (i.e. unique) name
