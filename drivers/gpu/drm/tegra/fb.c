@@ -360,7 +360,7 @@ static void tegra_fbdev_exit(struct tegra_fbdev *fbdev)
 
 	if (fbdev->fb) {
 		drm_framebuffer_unregister_private(&fbdev->fb->base);
-		tegra_fb_destroy(&fbdev->fb->base);
+		drm_framebuffer_remove(&fbdev->fb->base);
 	}
 
 	drm_fb_helper_fini(&fbdev->base);
