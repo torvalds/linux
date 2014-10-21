@@ -1512,10 +1512,10 @@ static void rcu_prepare_kthreads(int cpu)
  * any flavor of RCU.
  */
 #ifndef CONFIG_RCU_NOCB_CPU_ALL
-int rcu_needs_cpu(int cpu, unsigned long *delta_jiffies)
+int rcu_needs_cpu(unsigned long *delta_jiffies)
 {
 	*delta_jiffies = ULONG_MAX;
-	return rcu_cpu_has_callbacks(cpu, NULL);
+	return rcu_cpu_has_callbacks(NULL);
 }
 #endif /* #ifndef CONFIG_RCU_NOCB_CPU_ALL */
 
@@ -1624,15 +1624,15 @@ static bool __maybe_unused rcu_try_advance_all_cbs(void)
  * The caller must have disabled interrupts.
  */
 #ifndef CONFIG_RCU_NOCB_CPU_ALL
-int rcu_needs_cpu(int cpu, unsigned long *dj)
+int rcu_needs_cpu(unsigned long *dj)
 {
-	struct rcu_dynticks *rdtp = &per_cpu(rcu_dynticks, cpu);
+	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
 
 	/* Snapshot to detect later posting of non-lazy callback. */
 	rdtp->nonlazy_posted_snap = rdtp->nonlazy_posted;
 
 	/* If no callbacks, RCU doesn't need the CPU. */
-	if (!rcu_cpu_has_callbacks(cpu, &rdtp->all_lazy)) {
+	if (!rcu_cpu_has_callbacks(&rdtp->all_lazy)) {
 		*dj = ULONG_MAX;
 		return 0;
 	}
@@ -1679,7 +1679,7 @@ static void rcu_prepare_for_idle(int cpu)
 	/* Handle nohz enablement switches conservatively. */
 	tne = ACCESS_ONCE(tick_nohz_active);
 	if (tne != rdtp->tick_nohz_enabled_snap) {
-		if (rcu_cpu_has_callbacks(cpu, NULL))
+		if (rcu_cpu_has_callbacks(NULL))
 			invoke_rcu_core(); /* force nohz to see update. */
 		rdtp->tick_nohz_enabled_snap = tne;
 		return;

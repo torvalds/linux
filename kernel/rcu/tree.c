@@ -3159,7 +3159,7 @@ static int rcu_pending(void)
  * non-NULL, store an indication of whether all callbacks are lazy.
  * (If there are no callbacks, all of them are deemed to be lazy.)
  */
-static int __maybe_unused rcu_cpu_has_callbacks(int cpu, bool *all_lazy)
+static int __maybe_unused rcu_cpu_has_callbacks(bool *all_lazy)
 {
 	bool al = true;
 	bool hc = false;
@@ -3167,7 +3167,7 @@ static int __maybe_unused rcu_cpu_has_callbacks(int cpu, bool *all_lazy)
 	struct rcu_state *rsp;
 
 	for_each_rcu_flavor(rsp) {
-		rdp = per_cpu_ptr(rsp->rda, cpu);
+		rdp = this_cpu_ptr(rsp->rda);
 		if (!rdp->nxtlist)
 			continue;
 		hc = true;
