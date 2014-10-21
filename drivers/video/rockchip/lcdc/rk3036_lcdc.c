@@ -145,7 +145,7 @@ static int rk3036_lcdc_enable_irq(struct rk_lcdc_driver *dev_drv)
 	lcdc_msk_reg(lcdc_dev, INT_STATUS, mask, val);
 	return 0;
 }
-
+/*
 static int rk3036_lcdc_disable_irq(struct lcdc_device *lcdc_dev)
 {
 	u32 mask, val;
@@ -161,7 +161,7 @@ static int rk3036_lcdc_disable_irq(struct lcdc_device *lcdc_dev)
 	}
 	mdelay(1);
 	return 0;
-}
+}*/
 
 static void rk_lcdc_read_reg_defalut_cfg(struct lcdc_device
 					     *lcdc_dev)
@@ -187,11 +187,14 @@ static int rk3036_lcdc_alpha_cfg(struct lcdc_device *lcdc_dev)
 				(win0_format == ABGR888)) ? 1 : 0;
 	int win1_alpha_en = ((win1_format == ARGB888) ||
 				(win1_format == ABGR888)) ? 1 : 0;
+	int atv_layer_cnt = lcdc_dev->driver.win[0]->state +
+			lcdc_dev->driver.win[1]->state;
 	u32 *_pv = (u32 *)lcdc_dev->regsbak;
 
 	_pv += (DSP_CTRL0 >> 2);
 	win0_top = ((*_pv) & (m_WIN0_TOP)) >> 8;
-	if (win0_top && (lcdc_dev->atv_layer_cnt >= 2) && (win0_alpha_en)) {
+
+	if (win0_top && (atv_layer_cnt >= 2) && (win0_alpha_en)) {
 		mask =  m_WIN0_ALPHA_EN | m_WIN1_ALPHA_EN |
 			m_WIN1_PREMUL_SCALE;
 		val = v_WIN0_ALPHA_EN(1) | v_WIN1_ALPHA_EN(0) |
@@ -203,7 +206,7 @@ static int rk3036_lcdc_alpha_cfg(struct lcdc_device *lcdc_dev)
 		val = v_WIN0_ALPHA_MODE(1) | v_PREMUL_ALPHA_ENABLE(1) |
 			v_ALPHA_MODE_SEL1(0);
 		lcdc_msk_reg(lcdc_dev, DSP_CTRL0, mask, val);
-	} else if ((!win0_top) && (lcdc_dev->atv_layer_cnt >= 2) &&
+	} else if ((!win0_top) && (atv_layer_cnt >= 2) &&
 		   (win1_alpha_en)) {
 		mask =  m_WIN0_ALPHA_EN | m_WIN1_ALPHA_EN |
 			m_WIN1_PREMUL_SCALE;
@@ -365,7 +368,7 @@ static void lcdc_layer_enable(struct lcdc_device *lcdc_dev,
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
 }
-
+/*
 static int rk3036_lcdc_reg_update(struct rk_lcdc_driver *dev_drv)
 {
 	struct lcdc_device *lcdc_dev =
@@ -385,7 +388,6 @@ static int rk3036_lcdc_reg_update(struct rk_lcdc_driver *dev_drv)
 		lcdc_cfg_done(lcdc_dev);
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
-	/* if (dev_drv->wait_fs) { */
 	if (0) {
 		spin_lock_irqsave(&dev_drv->cpl_lock, flags);
 		init_completion(&dev_drv->frame_done);
@@ -403,7 +405,7 @@ static int rk3036_lcdc_reg_update(struct rk_lcdc_driver *dev_drv)
 	DBG(2, "%s for lcdc%d\n", __func__, lcdc_dev->id);
 	return 0;
 }
-
+*/
 static void rk3036_lcdc_reg_restore(struct lcdc_device *lcdc_dev)
 {
 	memcpy((u8 *)lcdc_dev->regs, (u8 *)lcdc_dev->regsbak, 0xe0);
@@ -427,7 +429,7 @@ static void rk3036_lcdc_mmu_en(struct rk_lcdc_driver *dev_drv)
 }
 
 static int rk3036_lcdc_set_hwc_lut(struct rk_lcdc_driver *dev_drv,
-			int *hwc_lut, int mode)
+				   int *hwc_lut, int mode)
 {
 	int i = 0;
 	int __iomem *c;
@@ -750,6 +752,7 @@ static int rk3036_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 		dev_err(lcdc_dev->dev, "invalid win id:%d\n", win_id);
 
 	/*when all layer closed,disable clk */
+/*
 	if ((!open) && (!lcdc_dev->atv_layer_cnt)) {
 		rk3036_lcdc_disable_irq(lcdc_dev);
 		rk3036_lcdc_reg_update(dev_drv);
@@ -761,7 +764,7 @@ static int rk3036_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 		#endif
 		rk3036_lcdc_clk_disable(lcdc_dev);
 	}
-
+*/
 	return 0;
 }
 
@@ -1007,13 +1010,23 @@ static int rk3036_lcdc_ovl_mgr(struct rk_lcdc_driver *dev_drv, int swap,
 {
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
-	int ovl;
+	struct rk_lcdc_win *win0 = lcdc_dev->driver.win[0];
+	struct rk_lcdc_win *win1 = lcdc_dev->driver.win[1];
+	int ovl, needswap = 0;
 
+	if (!swap) {
+		if (win0->z_order > win1->z_order)
+			needswap = 1;
+		else
+			needswap = 0;
+	} else {
+		needswap = swap;
+	}
 	spin_lock(&lcdc_dev->reg_lock);
 	if (lcdc_dev->clk_on) {
 		if (set) {
 			lcdc_msk_reg(lcdc_dev, DSP_CTRL0, m_WIN0_TOP,
-				     v_WIN0_TOP(swap));
+				     v_WIN0_TOP(needswap));
 			ovl = swap;
 		} else {
 			ovl = lcdc_read_bit(lcdc_dev, DSP_CTRL0, m_WIN0_TOP);
@@ -1122,8 +1135,11 @@ static int rk3036_lcdc_blank(struct rk_lcdc_driver *dev_drv,
 
 static int rk3036_lcdc_cfg_done(struct rk_lcdc_driver *dev_drv)
 {
-	struct lcdc_device *lcdc_dev = container_of(dev_drv,
-					struct lcdc_device, driver);
+	struct lcdc_device *lcdc_dev =
+	    container_of(dev_drv, struct lcdc_device, driver);
+	int i;
+	unsigned int mask, val;
+	struct rk_lcdc_win *win = NULL;
 
 	spin_lock(&lcdc_dev->reg_lock);
 	if (lcdc_dev->clk_on) {
@@ -1146,9 +1162,36 @@ static int rk3036_lcdc_cfg_done(struct rk_lcdc_driver *dev_drv)
 			}
 		}
 		#endif
-
 		lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_LCDC_STANDBY,
 			     v_LCDC_STANDBY(lcdc_dev->standby));
+		for (i = 0; i < ARRAY_SIZE(lcdc_win); i++) {
+			win = dev_drv->win[i];
+			if ((win->state == 0) && (win->last_state == 1)) {
+				switch (win->id) {
+				case 0:
+					mask =  m_WIN0_EN;
+					val  =  v_WIN0_EN(0);
+					lcdc_msk_reg(lcdc_dev, SYS_CTRL,
+						     mask, val);
+					break;
+				case 1:
+					mask =  m_WIN1_EN;
+					val  =  v_WIN1_EN(0);
+					lcdc_msk_reg(lcdc_dev, SYS_CTRL,
+						     mask, val);
+					break;
+				case 2:
+					mask =  m_HWC_EN;
+					val  =  v_HWC_EN(0);
+					lcdc_msk_reg(lcdc_dev, SYS_CTRL,
+						     mask, val);
+					break;
+				default:
+					break;
+				}
+			}
+			win->last_state = win->state;
+		}
 		lcdc_cfg_done(lcdc_dev);
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
@@ -1329,12 +1372,27 @@ static int rk3036_lcdc_set_overscan(struct rk_lcdc_driver *dev_drv,
 
 static int rk3036_fb_win_remap(struct rk_lcdc_driver *dev_drv, u16 order)
 {
+	struct rk_lcdc_win_area area;
+	int fb2_win_id, fb1_win_id, fb0_win_id;
+
 	mutex_lock(&dev_drv->fb_win_id_mutex);
 	if (order == FB_DEFAULT_ORDER)
-		order = FB0_WIN1_FB1_WIN0_FB2_WIN2;
-	dev_drv->fb2_win_id = order / 100;
-	dev_drv->fb1_win_id = (order / 10) % 10;
-	dev_drv->fb0_win_id = order % 10;
+		order = FB0_WIN0_FB1_WIN1_FB2_WIN2;
+
+	fb2_win_id = order / 100;
+	fb1_win_id = (order / 10) % 10;
+	fb0_win_id = order % 10;
+
+	if (fb0_win_id != dev_drv->fb0_win_id) {
+		area = dev_drv->win[(int)dev_drv->fb0_win_id]->area[0];
+		dev_drv->win[(int)dev_drv->fb0_win_id]->area[0] =
+			dev_drv->win[fb0_win_id]->area[0];
+		dev_drv->win[fb0_win_id]->area[0] = area;
+		dev_drv->fb0_win_id = fb0_win_id;
+	}
+	dev_drv->fb1_win_id = fb1_win_id;
+	dev_drv->fb2_win_id = fb2_win_id;
+
 	mutex_unlock(&dev_drv->fb_win_id_mutex);
 
 	return 0;

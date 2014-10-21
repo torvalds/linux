@@ -28,7 +28,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <asm/div64.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/rockchip/cpu.h>
 #include <linux/rockchip/iomap.h>
 #include <linux/rockchip/grf.h>
@@ -184,7 +184,7 @@ static int rk312x_lcdc_enable_irq(struct rk_lcdc_driver *dev_drv)
 
 	return 0;
 }
-
+/*
 static int rk312x_lcdc_disable_irq(struct lcdc_device *lcdc_dev)
 {
 	u32 mask, val;
@@ -209,7 +209,7 @@ static int rk312x_lcdc_disable_irq(struct lcdc_device *lcdc_dev)
 	}
 	mdelay(1);
 	return 0;
-}
+}*/
 
 
 static int win0_set_addr(struct lcdc_device *lcdc_dev, u32 addr)
@@ -237,7 +237,7 @@ static int win1_set_addr(struct lcdc_device *lcdc_dev, u32 addr)
 }
 
 int rk312x_lcdc_direct_set_win_addr(struct rk_lcdc_driver *dev_drv,
-				   int win_id, u32 addr)
+				    int win_id, u32 addr)
 {
 	struct lcdc_device *lcdc_dev = container_of(dev_drv,
 				struct lcdc_device, driver);
@@ -292,11 +292,13 @@ static int rk312x_lcdc_alpha_cfg(struct lcdc_device *lcdc_dev)
 				(win0_format == ABGR888)) ? 1 : 0;
 	int win1_alpha_en = ((win1_format == ARGB888) ||
 				(win1_format == ABGR888)) ? 1 : 0;
+	int atv_layer_cnt = lcdc_dev->driver.win[0]->state +
+			lcdc_dev->driver.win[1]->state;
 	u32 *_pv = (u32 *)lcdc_dev->regsbak;
 
 	_pv += (DSP_CTRL0 >> 2);
 	win0_top = ((*_pv) & (m_WIN0_TOP)) >> 8;
-	if (win0_top && (lcdc_dev->atv_layer_cnt >= 2) && (win0_alpha_en)) {
+	if (win0_top && (atv_layer_cnt >= 2) && (win0_alpha_en)) {
 		mask =  m_WIN0_ALPHA_EN | m_WIN1_ALPHA_EN;
 		val = v_WIN0_ALPHA_EN(1) | v_WIN1_ALPHA_EN(0);
 		lcdc_msk_reg(lcdc_dev, ALPHA_CTRL, mask, val);
@@ -312,7 +314,7 @@ static int rk312x_lcdc_alpha_cfg(struct lcdc_device *lcdc_dev)
 		mask = m_BG_COLOR;
 		val = v_BG_COLOR(0x000000);
 		lcdc_msk_reg(lcdc_dev, DSP_CTRL1, mask, val);
-	} else if ((!win0_top) && (lcdc_dev->atv_layer_cnt >= 2) &&
+	} else if ((!win0_top) && (atv_layer_cnt >= 2) &&
 				(win1_alpha_en)) {
 		mask =  m_WIN0_ALPHA_EN | m_WIN1_ALPHA_EN;
 		val = v_WIN0_ALPHA_EN(0) | v_WIN1_ALPHA_EN(1);
@@ -542,7 +544,7 @@ static void lcdc_layer_enable(struct lcdc_device *lcdc_dev, unsigned int win_id,
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
 }
-
+/*
 static int rk312x_lcdc_reg_update(struct rk_lcdc_driver *dev_drv)
 {
 	struct lcdc_device *lcdc_dev =
@@ -551,7 +553,6 @@ static int rk312x_lcdc_reg_update(struct rk_lcdc_driver *dev_drv)
 	struct rk_lcdc_win *win1 = lcdc_dev->driver.win[1];
 	int timeout;
 	unsigned long flags;
-
 	spin_lock(&lcdc_dev->reg_lock);
 	if (likely(lcdc_dev->clk_on)) {
 		lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_LCDC_STANDBY,
@@ -560,9 +561,10 @@ static int rk312x_lcdc_reg_update(struct rk_lcdc_driver *dev_drv)
 		lcdc_layer_update_regs(lcdc_dev, win1);
 		rk312x_lcdc_alpha_cfg(lcdc_dev);
 		lcdc_cfg_done(lcdc_dev);
+
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
-	/*if (dev_drv->wait_fs) {*/
+	//if (dev_drv->wait_fs) {
 	if (0) {
 		spin_lock_irqsave(&dev_drv->cpl_lock, flags);
 		init_completion(&dev_drv->frame_done);
@@ -579,7 +581,8 @@ static int rk312x_lcdc_reg_update(struct rk_lcdc_driver *dev_drv)
 	}
 	DBG(2, "%s for lcdc%d\n", __func__, lcdc_dev->id);
 	return 0;
-}
+
+}*/
 
 static void rk312x_lcdc_reg_restore(struct lcdc_device *lcdc_dev)
 {
@@ -1057,7 +1060,8 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 
 	spin_lock(&lcdc_dev->reg_lock);
 	if (likely(lcdc_dev->clk_on)) {
-		lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_LCDC_STANDBY, v_LCDC_STANDBY(1));
+		lcdc_msk_reg(lcdc_dev, SYS_CTRL,
+			     m_LCDC_STANDBY, v_LCDC_STANDBY(1));
 		lcdc_cfg_done(lcdc_dev);
 		mdelay(50);
 		/* Select output color domain */
@@ -1392,7 +1396,7 @@ static int rk312x_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 		dev_err(lcdc_dev->dev, "invalid win id:%d\n", win_id);
 
 	/* when all layer closed,disable clk */
-	if ((!open) && (!lcdc_dev->atv_layer_cnt)) {
+/*	if ((!open) && (!lcdc_dev->atv_layer_cnt)) {
 		rk312x_lcdc_disable_irq(lcdc_dev);
 		rk312x_lcdc_reg_update(dev_drv);
 #if defined(CONFIG_ROCKCHIP_IOMMU)
@@ -1403,7 +1407,7 @@ static int rk312x_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 #endif
 		rk312x_lcdc_clk_disable(lcdc_dev);
 		rockchip_clear_system_status(SYS_STATUS_LCDC0);
-	}
+	}*/
 	return 0;
 }
 
@@ -1765,6 +1769,10 @@ static int rk312x_lcdc_cfg_done(struct rk_lcdc_driver *dev_drv)
 {
 	struct lcdc_device *lcdc_dev = container_of(dev_drv,
 						    struct lcdc_device, driver);
+	int i;
+	unsigned int mask, val;
+	struct rk_lcdc_win *win = NULL;
+
 	spin_lock(&lcdc_dev->reg_lock);
 	if (lcdc_dev->clk_on) {
 	#if defined(CONFIG_ROCKCHIP_IOMMU)
@@ -1792,6 +1800,34 @@ static int rk312x_lcdc_cfg_done(struct rk_lcdc_driver *dev_drv)
 		}
 	}
 	#endif
+		for (i = 0; i < ARRAY_SIZE(lcdc_win); i++) {
+			win = dev_drv->win[i];
+			if ((win->state == 0) && (win->last_state == 1)) {
+				switch (win->id) {
+				case 0:
+					mask =  m_WIN0_EN;
+					val  =  v_WIN0_EN(0);
+					lcdc_msk_reg(lcdc_dev, SYS_CTRL,
+						     mask, val);
+					break;
+				case 1:
+					mask =  m_WIN1_EN;
+					val  =  v_WIN1_EN(0);
+					lcdc_msk_reg(lcdc_dev, SYS_CTRL,
+						     mask, val);
+					break;
+				case 2:
+					mask =  m_HWC_EN;
+					val  =  v_HWC_EN(0);
+					lcdc_msk_reg(lcdc_dev, SYS_CTRL,
+						     mask, val);
+					break;
+				default:
+					break;
+				}
+			}
+			win->last_state = win->state;
+		}
 		lcdc_cfg_done(lcdc_dev);
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
