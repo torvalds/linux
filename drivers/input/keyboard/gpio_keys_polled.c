@@ -23,6 +23,7 @@
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/gpio_keys.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -51,15 +52,14 @@ static void gpio_keys_polled_check_state(struct input_dev *input,
 	int state;
 
 	if (bdata->can_sleep)
-		state = !!gpio_get_value_cansleep(button->gpio);
+		state = !!gpiod_get_value_cansleep(button->gpiod);
 	else
-		state = !!gpio_get_value(button->gpio);
+		state = !!gpiod_get_value(button->gpiod);
 
 	if (state != bdata->last_state) {
 		unsigned int type = button->type ?: EV_KEY;
 
-		input_event(input, type, button->code,
-			    !!(state ^ button->active_low));
+		input_event(input, type, button->code, state);
 		input_sync(input);
 		bdata->count = 0;
 		bdata->last_state = state;
@@ -259,7 +259,6 @@ static int gpio_keys_polled_probe(struct platform_device *pdev)
 	for (i = 0; i < pdata->nbuttons; i++) {
 		struct gpio_keys_button *button = &pdata->buttons[i];
 		struct gpio_keys_button_data *bdata = &bdev->data[i];
-		unsigned int gpio = button->gpio;
 		unsigned int type = button->type ?: EV_KEY;
 
 		if (button->wakeup) {
@@ -267,15 +266,31 @@ static int gpio_keys_polled_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 
-		error = devm_gpio_request_one(&pdev->dev, gpio, GPIOF_IN,
-					      button->desc ? : DRV_NAME);
-		if (error) {
-			dev_err(dev, "unable to claim gpio %u, err=%d\n",
-				gpio, error);
-			return error;
+		/*
+		 * Legacy GPIO number so request the GPIO here and
+		 * convert it to descriptor.
+		 */
+		if (!button->gpiod && gpio_is_valid(button->gpio)) {
+			unsigned flags = 0;
+
+			if (button->active_low)
+				flags |= GPIOF_ACTIVE_LOW;
+
+			error = devm_gpio_request_one(&pdev->dev, button->gpio,
+					flags, button->desc ? : DRV_NAME);
+			if (error) {
+				dev_err(dev, "unable to claim gpio %u, err=%d\n",
+					button->gpio, error);
+				return error;
+			}
+
+			button->gpiod = gpio_to_desc(button->gpio);
 		}
 
-		bdata->can_sleep = gpio_cansleep(gpio);
+		if (IS_ERR(button->gpiod))
+			return PTR_ERR(button->gpiod);
+
+		bdata->can_sleep = gpiod_cansleep(button->gpiod);
 		bdata->last_state = -1;
 		bdata->threshold = DIV_ROUND_UP(button->debounce_interval,
 						pdata->poll_interval);
