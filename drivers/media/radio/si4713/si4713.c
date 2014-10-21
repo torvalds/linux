@@ -383,9 +383,9 @@ static int si4713_powerup(struct si4713_device *sdev)
 		}
 	}
 
-	if (gpio_is_valid(sdev->gpio_reset)) {
+	if (!IS_ERR(sdev->gpio_reset)) {
 		udelay(50);
-		gpio_set_value(sdev->gpio_reset, 1);
+		gpiod_set_value(sdev->gpio_reset, 1);
 	}
 
 	if (client->irq)
@@ -407,8 +407,8 @@ static int si4713_powerup(struct si4713_device *sdev)
 						SI4713_STC_INT | SI4713_CTS);
 		return err;
 	}
-	if (gpio_is_valid(sdev->gpio_reset))
-		gpio_set_value(sdev->gpio_reset, 0);
+	if (!IS_ERR(sdev->gpio_reset))
+		gpiod_set_value(sdev->gpio_reset, 0);
 
 
 	if (sdev->vdd) {
@@ -447,8 +447,8 @@ static int si4713_powerdown(struct si4713_device *sdev)
 		v4l2_dbg(1, debug, &sdev->sd, "Power down response: 0x%02x\n",
 				resp[0]);
 		v4l2_dbg(1, debug, &sdev->sd, "Device in reset mode\n");
-		if (gpio_is_valid(sdev->gpio_reset))
-			gpio_set_value(sdev->gpio_reset, 0);
+		if (!IS_ERR(sdev->gpio_reset))
+			gpiod_set_value(sdev->gpio_reset, 0);
 
 		if (sdev->vdd) {
 			err = regulator_disable(sdev->vdd);
@@ -1446,7 +1446,6 @@ static int si4713_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct si4713_device *sdev;
-	struct si4713_platform_data *pdata = client->dev.platform_data;
 	struct v4l2_ctrl_handler *hdl;
 	int rval;
 
@@ -1457,16 +1456,17 @@ static int si4713_probe(struct i2c_client *client,
 		goto exit;
 	}
 
-	sdev->gpio_reset = -1;
-	if (pdata && gpio_is_valid(pdata->gpio_reset)) {
-		rval = gpio_request(pdata->gpio_reset, "si4713 reset");
-		if (rval) {
-			dev_err(&client->dev,
-				"Failed to request gpio: %d\n", rval);
-			goto free_sdev;
-		}
-		sdev->gpio_reset = pdata->gpio_reset;
-		gpio_direction_output(sdev->gpio_reset, 0);
+	sdev->gpio_reset = devm_gpiod_get(&client->dev, "reset");
+	if (!IS_ERR(sdev->gpio_reset)) {
+		gpiod_direction_output(sdev->gpio_reset, 0);
+	} else if (PTR_ERR(sdev->gpio_reset) == -ENOENT) {
+		dev_dbg(&client->dev, "No reset GPIO assigned\n");
+	} else if (PTR_ERR(sdev->gpio_reset) == -ENOSYS) {
+		dev_dbg(&client->dev, "No reset GPIO support\n");
+	} else {
+		rval = PTR_ERR(sdev->gpio_reset);
+		dev_err(&client->dev, "Failed to request gpio: %d\n", rval);
+		goto free_sdev;
 	}
 
 	sdev->vdd = devm_regulator_get_optional(&client->dev, "vdd");
@@ -1614,8 +1614,6 @@ free_irq:
 		free_irq(client->irq, sdev);
 free_ctrls:
 	v4l2_ctrl_handler_free(hdl);
-	if (gpio_is_valid(sdev->gpio_reset))
-		gpio_free(sdev->gpio_reset);
 free_sdev:
 	kfree(sdev);
 exit:
@@ -1636,8 +1634,6 @@ static int si4713_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	if (gpio_is_valid(sdev->gpio_reset))
-		gpio_free(sdev->gpio_reset);
 	kfree(sdev);
 
 	return 0;

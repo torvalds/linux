@@ -16,6 +16,7 @@
 #define SI4713_I2C_H
 
 #include <linux/regulator/consumer.h>
+#include <linux/gpio/consumer.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-ctrls.h>
 #include <media/si4713.h>
@@ -236,7 +237,7 @@ struct si4713_device {
 	struct completion work;
 	struct regulator *vdd;
 	struct regulator *vio;
-	int gpio_reset;
+	struct gpio_desc *gpio_reset;
 	u32 power_state;
 	u32 rds_enabled;
 	u32 frequency;
