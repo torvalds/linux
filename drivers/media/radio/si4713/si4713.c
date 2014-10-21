@@ -1449,7 +1449,7 @@ static int si4713_probe(struct i2c_client *client,
 	struct v4l2_ctrl_handler *hdl;
 	int rval;
 
-	sdev = kzalloc(sizeof(*sdev), GFP_KERNEL);
+	sdev = devm_kzalloc(&client->dev, sizeof(*sdev), GFP_KERNEL);
 	if (!sdev) {
 		dev_err(&client->dev, "Failed to alloc video device.\n");
 		rval = -ENOMEM;
@@ -1466,7 +1466,7 @@ static int si4713_probe(struct i2c_client *client,
 	} else {
 		rval = PTR_ERR(sdev->gpio_reset);
 		dev_err(&client->dev, "Failed to request gpio: %d\n", rval);
-		goto free_sdev;
+		goto exit;
 	}
 
 	sdev->vdd = devm_regulator_get_optional(&client->dev, "vdd");
@@ -1614,8 +1614,6 @@ free_irq:
 		free_irq(client->irq, sdev);
 free_ctrls:
 	v4l2_ctrl_handler_free(hdl);
-free_sdev:
-	kfree(sdev);
 exit:
 	return rval;
 }
@@ -1634,7 +1632,6 @@ static int si4713_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	kfree(sdev);
 
 	return 0;
 }
