@@ -181,10 +181,35 @@ static int get_tech(struct gb_battery *gb)
 		return retval;
 
 	/*
-	 * We have a one-to-one mapping of tech types to power_supply
-	 * status, so just return that value.
+	 * Map greybus values to power_supply values.  Hopefully these are
+	 * "identical" which should allow gcc to optomize the code away to
+	 * nothing.
 	 */
 	technology = le32_to_cpu(tech_request.technology);
+	switch (technology) {
+	case GB_BATTERY_TECH_NiMH:
+		technology = POWER_SUPPLY_TECHNOLOGY_NiMH;
+		break;
+	case GB_BATTERY_TECH_LION:
+		technology = POWER_SUPPLY_TECHNOLOGY_LION;
+		break;
+	case GB_BATTERY_TECH_LIPO:
+		technology = POWER_SUPPLY_TECHNOLOGY_LIPO;
+		break;
+	case GB_BATTERY_TECH_LiFe:
+		technology = POWER_SUPPLY_TECHNOLOGY_LiFe;
+		break;
+	case GB_BATTERY_TECH_NiCd:
+		technology = POWER_SUPPLY_TECHNOLOGY_NiCd;
+		break;
+	case GB_BATTERY_TECH_LiMn:
+		technology = POWER_SUPPLY_TECHNOLOGY_LiMn;
+		break;
+	case GB_BATTERY_TECH_UNKNOWN:
+	default:
+		technology = POWER_SUPPLY_TECHNOLOGY_UNKNOWN;
+		break;
+	}
 	return technology;
 }
 
@@ -200,10 +225,29 @@ static int get_status(struct gb_battery *gb)
 		return retval;
 
 	/*
-	 * We have a one-to-one mapping of battery status to power_supply
-	 * status, so just return that value.
+	 * Map greybus values to power_supply values.  Hopefully these are
+	 * "identical" which should allow gcc to optomize the code away to
+	 * nothing.
 	 */
 	battery_status = le16_to_cpu(status_request.battery_status);
+	switch (battery_status) {
+	case GB_BATTERY_STATUS_CHARGING:
+		battery_status = POWER_SUPPLY_STATUS_CHARGING;
+		break;
+	case GB_BATTERY_STATUS_DISCHARGING:
+		battery_status = POWER_SUPPLY_STATUS_DISCHARGING;
+		break;
+	case GB_BATTERY_STATUS_NOT_CHARGING:
+		battery_status = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		break;
+	case GB_BATTERY_STATUS_FULL:
+		battery_status = POWER_SUPPLY_STATUS_FULL;
+		break;
+	case GB_BATTERY_STATUS_UNKNOWN:
+	default:
+		battery_status = POWER_SUPPLY_STATUS_UNKNOWN;
+		break;
+	}
 	return battery_status;
 }
 
