@@ -52,6 +52,7 @@ int rt5677_spi_write(u8 *txbuf, size_t len)
 
 	return status;
 }
+EXPORT_SYMBOL_GPL(rt5677_spi_write);
 
 /**
  * rt5677_spi_burst_write - Write data to SPI by rt5677 dsp memory address.
@@ -107,6 +108,7 @@ int rt5677_spi_burst_write(u32 addr, const struct firmware *fw)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(rt5677_spi_burst_write);
 
 static int rt5677_spi_probe(struct spi_device *spi)
 {
