@@ -474,6 +474,29 @@ static int nci_set_local_general_bytes(struct nfc_dev *nfc_dev)
 			   msecs_to_jiffies(NCI_SET_CONFIG_TIMEOUT));
 }
 
+static int nci_set_listen_parameters(struct nfc_dev *nfc_dev)
+{
+	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
+	int rc;
+	__u8 val;
+
+	val = NCI_LA_SEL_INFO_NFC_DEP_MASK;
+
+	rc = nci_set_config(ndev, NCI_LA_SEL_INFO, 1, &val);
+	if (rc)
+		return rc;
+
+	val = NCI_LF_PROTOCOL_TYPE_NFC_DEP_MASK;
+
+	rc = nci_set_config(ndev, NCI_LF_PROTOCOL_TYPE, 1, &val);
+	if (rc)
+		return rc;
+
+	val = NCI_LF_CON_BITR_F_212 | NCI_LF_CON_BITR_F_424;
+
+	return nci_set_config(ndev, NCI_LF_CON_BITR_F, 1, &val);
+}
+
 static int nci_start_poll(struct nfc_dev *nfc_dev,
 			  __u32 im_protocols, __u32 tm_protocols)
 {
@@ -508,6 +531,12 @@ static int nci_start_poll(struct nfc_dev *nfc_dev,
 			pr_err("failed to set local general bytes\n");
 			return rc;
 		}
+	}
+
+	if (tm_protocols & NFC_PROTO_NFC_DEP_MASK) {
+		rc = nci_set_listen_parameters(nfc_dev);
+		if (rc)
+			pr_err("failed to set listen parameters\n");
 	}
 
 	param.im_protocols = im_protocols;

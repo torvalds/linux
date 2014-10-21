@@ -106,6 +106,16 @@
 
 /* NCI Configuration Parameter Tags */
 #define NCI_PN_ATR_REQ_GEN_BYTES				0x29
+#define NCI_LA_SEL_INFO						0x32
+#define NCI_LF_PROTOCOL_TYPE					0x50
+#define NCI_LF_CON_BITR_F					0x54
+
+/* NCI Configuration Parameters masks */
+#define NCI_LA_SEL_INFO_ISO_DEP_MASK				0x20
+#define NCI_LA_SEL_INFO_NFC_DEP_MASK				0x40
+#define NCI_LF_PROTOCOL_TYPE_NFC_DEP_MASK			0x02
+#define NCI_LF_CON_BITR_F_212					0x02
+#define NCI_LF_CON_BITR_F_424					0x04
 
 /* NCI Reset types */
 #define NCI_RESET_TYPE_KEEP_CONFIG				0x00
