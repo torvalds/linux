@@ -264,7 +264,7 @@ int ll_md_blocking_ast(struct ldlm_lock *lock, struct ldlm_lock_desc *desc,
 
 		if ((bits & (MDS_INODELOCK_LOOKUP | MDS_INODELOCK_PERM)) &&
 		    inode->i_sb->s_root != NULL &&
-		    inode != inode->i_sb->s_root->d_inode)
+		    is_root_inode(inode))
 			ll_invalidate_aliases(inode);
 
 		iput(inode);

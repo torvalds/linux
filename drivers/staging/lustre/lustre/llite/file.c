@@ -341,8 +341,7 @@ int ll_file_release(struct inode *inode, struct file *file)
 	       inode->i_generation, inode);
 
 #ifdef CONFIG_FS_POSIX_ACL
-	if (sbi->ll_flags & LL_SBI_RMT_CLIENT &&
-	    inode == inode->i_sb->s_root->d_inode) {
+	if (sbi->ll_flags & LL_SBI_RMT_CLIENT && is_root_inode(inode)) {
 		struct ll_file_data *fd = LUSTRE_FPRIVATE(file);
 
 		LASSERT(fd != NULL);
@@ -354,7 +353,7 @@ int ll_file_release(struct inode *inode, struct file *file)
 	}
 #endif
 
-	if (inode->i_sb->s_root != file->f_dentry)
+	if (!is_root_inode(inode))
 		ll_stats_ops_tally(sbi, LPROC_LL_RELEASE, 1);
 	fd = LUSTRE_FPRIVATE(file);
 	LASSERT(fd != NULL);
@@ -366,7 +365,7 @@ int ll_file_release(struct inode *inode, struct file *file)
 	    lli->lli_opendir_pid != 0)
 		ll_stop_statahead(inode, lli->lli_opendir_key);
 
-	if (inode->i_sb->s_root == file->f_dentry) {
+	if (is_root_inode(inode)) {
 		LUSTRE_FPRIVATE(file) = NULL;
 		ll_file_data_put(fd);
 		return 0;
@@ -562,7 +561,7 @@ int ll_file_open(struct inode *inode, struct file *file)
 		spin_unlock(&lli->lli_sa_lock);
 	}
 
-	if (inode->i_sb->s_root == file->f_dentry) {
+	if (is_root_inode(inode)) {
 		LUSTRE_FPRIVATE(file) = fd;
 		return 0;
 	}
@@ -1636,7 +1635,7 @@ int ll_release_openhandle(struct inode *inode, struct lookup_intent *it)
 	LASSERT(inode);
 
 	/* Root ? Do nothing. */
-	if (inode->i_sb->s_root->d_inode == inode)
+	if (is_root_inode(inode))
 		return 0;
 
 	/* No open handle to close? Move away */
@@ -3108,7 +3107,7 @@ int ll_inode_permission(struct inode *inode, int mask)
        /* as root inode are NOT getting validated in lookup operation,
 	* need to do it before permission check. */
 
-	if (inode == inode->i_sb->s_root->d_inode) {
+	if (is_root_inode(inode)) {
 		rc = __ll_inode_revalidate(inode->i_sb->s_root,
 					   MDS_INODELOCK_LOOKUP);
 		if (rc)

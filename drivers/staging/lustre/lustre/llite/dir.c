@@ -1389,7 +1389,7 @@ lmv_out_free:
 				return -EFAULT;
 		}
 
-		if (inode->i_sb->s_root == file->f_dentry)
+		if (is_root_inode(inode))
 			set_default = 1;
 
 		/* in v1 and v3 cases lumv1 points to data */
@@ -1780,8 +1780,7 @@ out_quotactl:
 		return ll_flush_ctx(inode);
 #ifdef CONFIG_FS_POSIX_ACL
 	case LL_IOC_RMTACL: {
-	    if (sbi->ll_flags & LL_SBI_RMT_CLIENT &&
-		inode == inode->i_sb->s_root->d_inode) {
+	    if (sbi->ll_flags & LL_SBI_RMT_CLIENT && is_root_inode(inode)) {
 		struct ll_file_data *fd = LUSTRE_FPRIVATE(file);
 
 		LASSERT(fd != NULL);
