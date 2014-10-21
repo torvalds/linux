@@ -156,7 +156,7 @@ static void rcu_preempt_qs(void)
  *
  * Caller must disable preemption.
  */
-static void rcu_preempt_note_context_switch(int cpu)
+static void rcu_preempt_note_context_switch(void)
 {
 	struct task_struct *t = current;
 	unsigned long flags;
@@ -167,7 +167,7 @@ static void rcu_preempt_note_context_switch(int cpu)
 	    !t->rcu_read_unlock_special.b.blocked) {
 
 		/* Possibly blocking in an RCU read-side critical section. */
-		rdp = per_cpu_ptr(rcu_preempt_state.rda, cpu);
+		rdp = this_cpu_ptr(rcu_preempt_state.rda);
 		rnp = rdp->mynode;
 		raw_spin_lock_irqsave(&rnp->lock, flags);
 		smp_mb__after_unlock_lock();
@@ -945,7 +945,7 @@ EXPORT_SYMBOL_GPL(rcu_batches_completed);
  * Because preemptible RCU does not exist, we never have to check for
  * CPUs being in quiescent states.
  */
-static void rcu_preempt_note_context_switch(int cpu)
+static void rcu_preempt_note_context_switch(void)
 {
 }
 

@@ -286,11 +286,11 @@ static void rcu_momentary_dyntick_idle(void)
  * and requires special handling for preemptible RCU.
  * The caller must have disabled preemption.
  */
-void rcu_note_context_switch(int cpu)
+void rcu_note_context_switch(void)
 {
 	trace_rcu_utilization(TPS("Start context switch"));
 	rcu_sched_qs();
-	rcu_preempt_note_context_switch(cpu);
+	rcu_preempt_note_context_switch();
 	if (unlikely(raw_cpu_read(rcu_sched_qs_mask)))
 		rcu_momentary_dyntick_idle();
 	trace_rcu_utilization(TPS("End context switch"));
