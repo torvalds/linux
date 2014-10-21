@@ -717,6 +717,18 @@ static int nci_transceive(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	return rc;
 }
 
+static int nci_tm_send(struct nfc_dev *nfc_dev, struct sk_buff *skb)
+{
+	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
+	int rc;
+
+	rc = nci_send_data(ndev, NCI_STATIC_RF_CONN_ID, skb);
+	if (rc)
+		pr_err("unable to send data\n");
+
+	return rc;
+}
+
 static int nci_enable_se(struct nfc_dev *nfc_dev, u32 se_idx)
 {
 	return 0;
@@ -742,6 +754,7 @@ static struct nfc_ops nci_nfc_ops = {
 	.activate_target = nci_activate_target,
 	.deactivate_target = nci_deactivate_target,
 	.im_transceive = nci_transceive,
+	.tm_send = nci_tm_send,
 	.enable_se = nci_enable_se,
 	.disable_se = nci_disable_se,
 	.discover_se = nci_discover_se,
