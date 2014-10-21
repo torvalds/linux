@@ -198,11 +198,8 @@ static int mmc_get_ext_csd(struct mmc_card *card, u8 **new_ext_csd)
 	 * raw block in mmc_card.
 	 */
 	ext_csd = kmalloc(512, GFP_KERNEL);
-	if (!ext_csd) {
-		pr_err("%s: could not allocate a buffer to "
-			"receive the ext_csd.\n", mmc_hostname(card->host));
+	if (!ext_csd)
 		return -ENOMEM;
-	}
 
 	err = mmc_send_ext_csd(card, ext_csd);
 	if (err) {
