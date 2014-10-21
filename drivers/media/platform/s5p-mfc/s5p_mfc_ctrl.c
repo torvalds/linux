@@ -353,6 +353,58 @@ int s5p_mfc_sleep(struct s5p_mfc_dev *dev)
 	return ret;
 }
 
+static int s5p_mfc_v8_wait_wakeup(struct s5p_mfc_dev *dev)
+{
+	int ret;
+
+	/* Release reset signal to the RISC */
+	dev->risc_on = 1;
+	mfc_write(dev, 0x1, S5P_FIMV_RISC_ON_V6);
+
+	if (s5p_mfc_wait_for_done_dev(dev, S5P_MFC_R2H_CMD_FW_STATUS_RET)) {
+		mfc_err("Failed to reset MFCV8\n");
+		return -EIO;
+	}
+	mfc_debug(2, "Write command to wakeup MFCV8\n");
+	ret = s5p_mfc_hw_call(dev->mfc_cmds, wakeup_cmd, dev);
+	if (ret) {
+		mfc_err("Failed to send command to MFCV8 - timeout\n");
+		return ret;
+	}
+
+	if (s5p_mfc_wait_for_done_dev(dev, S5P_MFC_R2H_CMD_WAKEUP_RET)) {
+		mfc_err("Failed to wakeup MFC\n");
+		return -EIO;
+	}
+	return ret;
+}
+
+static int s5p_mfc_wait_wakeup(struct s5p_mfc_dev *dev)
+{
+	int ret;
+
+	/* Send MFC wakeup command */
+	ret = s5p_mfc_hw_call(dev->mfc_cmds, wakeup_cmd, dev);
+	if (ret) {
+		mfc_err("Failed to send command to MFC - timeout\n");
+		return ret;
+	}
+
+	/* Release reset signal to the RISC */
+	if (IS_MFCV6_PLUS(dev)) {
+		dev->risc_on = 1;
+		mfc_write(dev, 0x1, S5P_FIMV_RISC_ON_V6);
+	} else {
+		mfc_write(dev, 0x3ff, S5P_FIMV_SW_RESET);
+	}
+
+	if (s5p_mfc_wait_for_done_dev(dev, S5P_MFC_R2H_CMD_WAKEUP_RET)) {
+		mfc_err("Failed to wakeup MFC\n");
+		return -EIO;
+	}
+	return ret;
+}
+
 int s5p_mfc_wakeup(struct s5p_mfc_dev *dev)
 {
 	int ret;
@@ -365,6 +417,7 @@ int s5p_mfc_wakeup(struct s5p_mfc_dev *dev)
 	ret = s5p_mfc_reset(dev);
 	if (ret) {
 		mfc_err("Failed to reset MFC - timeout\n");
+		s5p_mfc_clock_off();
 		return ret;
 	}
 	mfc_debug(2, "Done MFC reset..\n");
@@ -373,25 +426,16 @@ int s5p_mfc_wakeup(struct s5p_mfc_dev *dev)
 	/* 2. Initialize registers of channel I/F */
 	s5p_mfc_clear_cmds(dev);
 	s5p_mfc_clean_dev_int_flags(dev);
-	/* 3. Initialize firmware */
-	ret = s5p_mfc_hw_call(dev->mfc_cmds, wakeup_cmd, dev);
-	if (ret) {
-		mfc_err("Failed to send command to MFC - timeout\n");
-		return ret;
-	}
-	/* 4. Release reset signal to the RISC */
-	if (IS_MFCV6_PLUS(dev)) {
-		dev->risc_on = 1;
-		mfc_write(dev, 0x1, S5P_FIMV_RISC_ON_V6);
-	}
+	/* 3. Send MFC wakeup command and wait for completion*/
+	if (IS_MFCV8(dev))
+		ret = s5p_mfc_v8_wait_wakeup(dev);
 	else
-		mfc_write(dev, 0x3ff, S5P_FIMV_SW_RESET);
-	mfc_debug(2, "Ok, now will write a command to wakeup the system\n");
-	if (s5p_mfc_wait_for_done_dev(dev, S5P_MFC_R2H_CMD_WAKEUP_RET)) {
-		mfc_err("Failed to load firmware\n");
-		return -EIO;
-	}
+		ret = s5p_mfc_wait_wakeup(dev);
+
 	s5p_mfc_clock_off();
+	if (ret)
+		return ret;
+
 	dev->int_cond = 0;
 	if (dev->int_err != 0 || dev->int_type !=
 						S5P_MFC_R2H_CMD_WAKEUP_RET) {
