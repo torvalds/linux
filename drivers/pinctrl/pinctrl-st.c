@@ -914,8 +914,8 @@ static struct st_pio_control *st_get_pio_control(
 	return &bank->pc;
 }
 
-static int st_pmx_enable(struct pinctrl_dev *pctldev, unsigned fselector,
-		unsigned group)
+static int st_pmx_set_mux(struct pinctrl_dev *pctldev, unsigned fselector,
+			unsigned group)
 {
 	struct st_pinctrl *info = pinctrl_dev_get_drvdata(pctldev);
 	struct st_pinconf *conf = info->groups[group].pin_conf;
@@ -951,7 +951,7 @@ static struct pinmux_ops st_pmxops = {
 	.get_functions_count	= st_pmx_get_funcs_count,
 	.get_function_name	= st_pmx_get_fname,
 	.get_function_groups	= st_pmx_get_groups,
-	.enable			= st_pmx_enable,
+	.set_mux		= st_pmx_set_mux,
 	.gpio_set_direction	= st_pmx_set_gpio_direction,
 };
 
@@ -1517,6 +1517,7 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 					   0, handle_simple_irq,
 					   IRQ_TYPE_LEVEL_LOW);
 		if (err) {
+			gpiochip_remove(&bank->gpio_chip);
 			dev_info(dev, "could not add irqchip\n");
 			return err;
 		}

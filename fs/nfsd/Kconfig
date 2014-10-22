@@ -71,6 +71,7 @@ config NFSD_V4
 	select FS_POSIX_ACL
 	select SUNRPC_GSS
 	select CRYPTO
+	select GRACE_PERIOD
 	help
 	  This option enables support in your system's NFS server for
 	  version 4 of the NFS protocol (RFC 3530).
@@ -93,9 +94,6 @@ config NFSD_V4_SECURITY_LABEL
 
 	If you do not wish to enable fine-grained security labels SELinux or
 	Smack policies on NFSv4 files, say N.
-
-	WARNING: there is still a chance of backwards-incompatible protocol changes.
-	For now we recommend "Y" only for developers and testers.
 
 config NFSD_FAULT_INJECTION
 	bool "NFS server manual fault injection"

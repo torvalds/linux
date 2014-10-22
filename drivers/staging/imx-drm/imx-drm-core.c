@@ -87,6 +87,8 @@ static int imx_drm_driver_unload(struct drm_device *drm)
 	drm_vblank_cleanup(drm);
 	drm_mode_config_cleanup(drm);
 
+	platform_set_drvdata(drm->platformdev, NULL);
+
 	return 0;
 }
 
@@ -427,6 +429,7 @@ static uint32_t imx_drm_find_crtc_mask(struct imx_drm_device *imxdrm,
 
 	for (i = 0; i < MAX_CRTC; i++) {
 		struct imx_drm_crtc *imx_drm_crtc = imxdrm->crtc[i];
+
 		if (imx_drm_crtc && imx_drm_crtc->port == port)
 			return drm_crtc_mask(imx_drm_crtc->crtc);
 	}
@@ -438,6 +441,7 @@ static struct device_node *imx_drm_of_get_next_endpoint(
 		const struct device_node *parent, struct device_node *prev)
 {
 	struct device_node *node = of_graph_get_next_endpoint(parent, prev);
+
 	of_node_put(prev);
 	return node;
 }
@@ -471,8 +475,7 @@ int imx_drm_encoder_parse_of(struct drm_device *drm,
 		crtc_mask |= mask;
 	}
 
-	if (ep)
-		of_node_put(ep);
+	of_node_put(ep);
 	if (i == 0)
 		return -ENOENT;
 
@@ -528,6 +531,7 @@ static struct drm_driver imx_drm_driver = {
 	.unload			= imx_drm_driver_unload,
 	.lastclose		= imx_drm_driver_lastclose,
 	.preclose		= imx_drm_driver_preclose,
+	.set_busid		= drm_platform_set_busid,
 	.gem_free_object	= drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.dumb_create		= drm_gem_cma_dumb_create,
@@ -647,6 +651,36 @@ static int imx_drm_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int imx_drm_suspend(struct device *dev)
+{
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
+
+	/* The drm_dev is NULL before .load hook is called */
+	if (drm_dev == NULL)
+		return 0;
+
+	drm_kms_helper_poll_disable(drm_dev);
+
+	return 0;
+}
+
+static int imx_drm_resume(struct device *dev)
+{
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
+
+	if (drm_dev == NULL)
+		return 0;
+
+	drm_helper_resume_force_mode(drm_dev);
+	drm_kms_helper_poll_enable(drm_dev);
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(imx_drm_pm_ops, imx_drm_suspend, imx_drm_resume);
+
 static const struct of_device_id imx_drm_dt_ids[] = {
 	{ .compatible = "fsl,imx-display-subsystem", },
 	{ /* sentinel */ },
@@ -659,6 +693,7 @@ static struct platform_driver imx_drm_pdrv = {
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "imx-drm",
+		.pm	= &imx_drm_pm_ops,
 		.of_match_table = imx_drm_dt_ids,
 	},
 };

@@ -48,13 +48,13 @@ struct uisqueue_info {
 	u64 non_empty_wakeup_cnt;
 
 	struct {
-		SIGNAL_QUEUE_HEADER Reserved1;	/*  */
-		SIGNAL_QUEUE_HEADER Reserved2;	/*  */
+		SIGNAL_QUEUE_HEADER reserved1;	/*  */
+		SIGNAL_QUEUE_HEADER reserved2;	/*  */
 	} safe_uis_queue;
 	unsigned int (*send_int_if_needed)(struct uisqueue_info *info,
 					   unsigned int whichcqueue,
-					   unsigned char issueInterruptIfEmpty,
-					   u64 interruptHandle,
+					   unsigned char issue_irq_if_empty,
+					   u64 irq_handle,
 					   unsigned char io_termination);
 };
 
@@ -76,25 +76,19 @@ struct uisqueue_info {
 		".previous\n"                   \
 		"661:\n\tlock; "
 
-unsigned long long uisqueue_InterlockedOr(unsigned long long __iomem *Target,
-					  unsigned long long Set);
-unsigned long long uisqueue_InterlockedAnd(unsigned long long __iomem *Target,
-					   unsigned long long Set);
-
-unsigned int uisqueue_send_int_if_needed(struct uisqueue_info *pqueueinfo,
-					 unsigned int whichqueue,
-					 unsigned char issueInterruptIfEmpty,
-					 u64 interruptHandle,
-					 unsigned char io_termination);
+unsigned long long uisqueue_interlocked_or(unsigned long long __iomem *tgt,
+					   unsigned long long set);
+unsigned long long uisqueue_interlocked_and(unsigned long long __iomem *tgt,
+					    unsigned long long set);
 
 int uisqueue_put_cmdrsp_with_lock_client(struct uisqueue_info *queueinfo,
 					 struct uiscmdrsp *cmdrsp,
 					 unsigned int queue,
 					 void *insertlock,
-					 unsigned char issueInterruptIfEmpty,
-					 u64 interruptHandle,
+					 unsigned char issue_irq_if_empty,
+					 u64 irq_handle,
 					 char oktowait,
-					 u8 *channelId);
+					 u8 *channel_id);
 
 /* uisqueue_get_cmdrsp gets the cmdrsp entry at the head of the queue
  * and copies it to the area pointed by cmdrsp param.
@@ -135,17 +129,17 @@ struct extport_info {
 
 struct device_info {
 	void __iomem *chanptr;
-	u64 channelAddr;
-	u64 channelBytes;
-	uuid_le channelTypeGuid;
-	uuid_le devInstGuid;
+	u64 channel_addr;
+	u64 channel_bytes;
+	uuid_le channel_uuid;
+	uuid_le instance_uuid;
 	struct InterruptInfo intr;
 	struct switch_info *swtch;
 	char devid[30];		/* "vbus<busno>:dev<devno>" */
 	u16 polling;
 	struct semaphore interrupt_callback_lock;
-	u32 busNo;
-	u32 devNo;
+	u32 bus_no;
+	u32 dev_no;
 	int (*interrupt)(void *);
 	void *interrupt_context;
 	void *private_data;
@@ -176,8 +170,8 @@ struct bus_info {
 				 * by IOVM; 0 otherwise... */
 };
 
-#define DEDICATED_SWITCH(pSwitch) ((pSwitch->extPortCount == 1) &&	\
-				   (pSwitch->intPortCount == 1))
+#define DEDICATED_SWITCH(s) ((s->extPortCount == 1) &&	\
+			     (s->intPortCount == 1))
 
 struct sn_list_entry {
 	struct uisscsi_dest pdest;	/* scsi bus, target, lun for
@@ -189,7 +183,7 @@ struct sn_list_entry {
 	struct sn_list_entry *next;
 };
 
-struct networkPolicy {
+struct network_policy {
 	u32 promiscuous:1;
 	u32 macassign:1;
 	u32 peerforwarding:1;
@@ -229,10 +223,10 @@ typedef enum {
 
 struct add_virt_iopart {
 	void *chanptr;		/* pointer to data channel */
-	u64 guestHandle;	/* used to convert guest physical
+	u64 guest_handle;	/* used to convert guest physical
 				 * address to real physical address
 				 * for DMA, for ex. */
-	u64 recvBusInterruptHandle;	/* used to register to receive
+	u64 recv_bus_irq_handle;	/* used to register to receive
 					 * bus level interrupts. */
 	struct InterruptInfo intr;	/* contains recv & send
 					 * interrupt info */
@@ -247,12 +241,12 @@ struct add_virt_iopart {
 					 * switch to which the vnic is
 					 * connected */
 
-	u8 useG2GCopy;		/* Used to determine if a virtual HBA
+	u8 use_g2g_copy;	/* Used to determine if a virtual HBA
 				 * needs to use G2G copy. */
-	u8 Filler[7];
+	u8 filler[7];
 
-	u32 busNo;
-	u32 devNo;
+	u32 bus_no;
+	u32 dev_no;
 	char *params;
 	ulong params_bytes;
 
@@ -265,21 +259,21 @@ struct add_vdisk_iopart {
 	struct uisscsi_dest pdest;    /* scsi bus, target, lun for phys disk */
 	u8 sernum[MAX_SERIAL_NUM];    /* serial num of physical disk */
 	u32 serlen;		      /* length of serial num */
-	u32 busNo;
-	u32 devNo;
+	u32 bus_no;
+	u32 dev_no;
 };
 
 struct del_vdisk_iopart {
 	void *chanptr;		     /* pointer to data channel */
 	struct uisscsi_dest vdest;   /* scsi bus, target, lun for virt disk */
-	u32 busNo;
-	u32 devNo;
+	u32 bus_no;
+	u32 dev_no;
 };
 
 struct del_virt_iopart {
 	void *chanptr;		     /* pointer to data channel */
-	u32 busNo;
-	u32 devNo;
+	u32 bus_no;
+	u32 dev_no;
 };
 
 struct det_virt_iopart {	     /* detach internal port */
@@ -322,7 +316,7 @@ struct io_msgs {
 		struct det_virt_iopart det_intport;
 		struct add_switch_iopart add_switch;
 		struct del_switch_iopart del_switch;
-		struct extport_info *extPort;	/* for attach or detach
+		struct extport_info *ext_port;	/* for attach or detach
 						 * pnic/generic delete all
 						 * vhbas/allvnics need no
 						 * parameters */
@@ -362,7 +356,7 @@ struct add_vbus_guestpart {
 };
 
 struct del_vbus_guestpart {
-	u32 busNo;		/* bus number to be deleted */
+	u32 bus_no;		/* bus number to be deleted */
 	/* once we start using the bus's channel, add can dump busNo
 	* into the channel header and then delete will need only one
 	* parameter, chanptr. */
@@ -370,9 +364,9 @@ struct del_vbus_guestpart {
 
 struct add_virt_guestpart {
 	void __iomem *chanptr;		/* pointer to data channel */
-	u32 busNo;		/* bus number for the operation */
-	u32 deviceNo;		/* number of device on the bus */
-	uuid_le devInstGuid;	/* instance guid for device */
+	u32 bus_no;		/* bus number for the operation */
+	u32 device_no;		/* number of device on the bus */
+	uuid_le instance_uuid;	/* instance guid for device */
 	struct InterruptInfo intr;	/* recv/send interrupt info */
 	/* recvInterruptHandle contains info needed in order to
 	 * register to receive interrupts on the data channel.
@@ -395,8 +389,8 @@ struct del_virt_guestpart {
 };
 
 struct init_chipset_guestpart {
-	u32 busCount;		/* indicates the max number of busses */
-	u32 switchCount;	/* indicates the max number of switches */
+	u32 bus_count;		/* indicates the max number of busses */
+	u32 switch_count;	/* indicates the max number of switches */
 };
 
 struct guest_msgs {
@@ -422,20 +416,5 @@ struct guest_msgs {
 	struct init_chipset_guestpart init_chipset;
 
 };
-
-#ifndef __xg
-#define __xg(x) ((volatile long *)(x))
-#endif
-
-/*
-*  Below code is a copy of Linux kernel's cmpxchg function located at
-*  this place
-*  http://tcsxeon:8080/source/xref/00trunk-AppOS-linux/include/asm-x86/cmpxchg_64.h#84
-*  Reason for creating our own version of cmpxchg along with
-*  UISLIB_LOCK_PREFIX is to make the operation atomic even for non SMP
-*  guests.
-*/
-
-#define uislibcmpxchg64(p, o, n, s) cmpxchg(p, o, n)
 
 #endif				/* __UISQUEUE_H__ */

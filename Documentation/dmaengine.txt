@@ -98,7 +98,7 @@ The slave DMA usage consists of following steps:
 		unsigned long flags);
 
    The peripheral driver is expected to have mapped the scatterlist for
-   the DMA operation prior to calling device_prep_slave_sg, and must
+   the DMA operation prior to calling dmaengine_prep_slave_sg(), and must
    keep the scatterlist mapped until the DMA operation has completed.
    The scatterlist must be mapped using the DMA struct device.
    If a mapping needs to be synchronized later, dma_sync_*_for_*() must be
@@ -195,5 +195,5 @@ Further APIs:
    Note:
 	Not all DMA engine drivers can return reliable information for
 	a running DMA channel.  It is recommended that DMA engine users
-	pause or stop (via dmaengine_terminate_all) the channel before
+	pause or stop (via dmaengine_terminate_all()) the channel before
 	using this API.

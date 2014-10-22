@@ -43,7 +43,7 @@ struct extended_sigtable {
 #define DWSIZE			(sizeof(u32))
 
 #define get_totalsize(mc) \
-	(((struct microcode_intel *)mc)->hdr.totalsize ? \
+	(((struct microcode_intel *)mc)->hdr.datasize ? \
 	 ((struct microcode_intel *)mc)->hdr.totalsize : \
 	 DEFAULT_UCODE_TOTALSIZE)
 

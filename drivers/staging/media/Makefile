@@ -1,4 +1,3 @@
-obj-$(CONFIG_DVB_AS102)		+= as102/
 obj-$(CONFIG_I2C_BCM2048)	+= bcm2048/
 obj-$(CONFIG_DVB_CXD2099)	+= cxd2099/
 obj-$(CONFIG_LIRC_STAGING)	+= lirc/

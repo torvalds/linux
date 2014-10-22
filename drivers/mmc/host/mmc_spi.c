@@ -1436,6 +1436,7 @@ static int mmc_spi_probe(struct spi_device *spi)
 					     host->pdata->cd_debounce);
 		if (status != 0)
 			goto fail_add_host;
+		mmc_gpiod_request_cd_irq(mmc);
 	}
 
 	if (host->pdata && host->pdata->flags & MMC_SPI_USE_RO_GPIO) {

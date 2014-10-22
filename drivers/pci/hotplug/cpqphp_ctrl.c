@@ -705,9 +705,8 @@ static struct pci_resource *get_max_resource(struct pci_resource **head, u32 siz
 		if (temp == max) {
 			*head = max->next;
 		} else {
-			while (temp && temp->next != max) {
+			while (temp && temp->next != max)
 				temp = temp->next;
-			}
 
 			if (temp)
 				temp->next = max->next;
@@ -903,9 +902,8 @@ irqreturn_t cpqhp_ctrl_intr(int IRQ, void *data)
 	/*
 	 * Check to see if it was our interrupt
 	 */
-	if (!(misc & 0x000C)) {
+	if (!(misc & 0x000C))
 		return IRQ_NONE;
-	}
 
 	if (misc & 0x0004) {
 		/*
@@ -1143,7 +1141,7 @@ static u8 set_controller_speed(struct controller *ctrl, u8 adapter_speed, u8 hp_
 	/* We don't allow freq/mode changes if we find another adapter running
 	 * in another slot on this controller
 	 */
-	for(slot = ctrl->slot; slot; slot = slot->next) {
+	for (slot = ctrl->slot; slot; slot = slot->next) {
 		if (slot->device == (hp_slot + ctrl->slot_device_offset))
 			continue;
 		if (!slot->hotplug_slot || !slot->hotplug_slot->info)
@@ -1193,7 +1191,7 @@ static u8 set_controller_speed(struct controller *ctrl, u8 adapter_speed, u8 hp_
 
 	reg16 = readw(ctrl->hpc_reg + NEXT_CURR_FREQ);
 	reg16 &= ~0x000F;
-	switch(adapter_speed) {
+	switch (adapter_speed) {
 		case(PCI_SPEED_133MHz_PCIX):
 			reg = 0x75;
 			reg16 |= 0xB;
@@ -2006,9 +2004,8 @@ int cpqhp_process_SI(struct controller *ctrl, struct pci_func *func)
 	/* Check to see if the interlock is closed */
 	tempdword = readl(ctrl->hpc_reg + INT_INPUT_CLEAR);
 
-	if (tempdword & (0x01 << hp_slot)) {
+	if (tempdword & (0x01 << hp_slot))
 		return 1;
-	}
 
 	if (func->is_a_board) {
 		rc = board_replaced(func, ctrl);
@@ -2070,9 +2067,8 @@ int cpqhp_process_SI(struct controller *ctrl, struct pci_func *func)
 		}
 	}
 
-	if (rc) {
+	if (rc)
 		dbg("%s: rc = %d\n", __func__, rc);
-	}
 
 	if (p_slot)
 		update_slot_info(ctrl, p_slot);
@@ -2095,9 +2091,8 @@ int cpqhp_process_SS(struct controller *ctrl, struct pci_func *func)
 	device = func->device;
 	func = cpqhp_slot_find(ctrl->bus, device, index++);
 	p_slot = cpqhp_find_slot(ctrl, device);
-	if (p_slot) {
+	if (p_slot)
 		physical_slot = p_slot->number;
-	}
 
 	/* Make sure there are no video controllers here */
 	while (func && !rc) {

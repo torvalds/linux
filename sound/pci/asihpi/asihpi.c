@@ -1625,18 +1625,7 @@ static const char * const asihpi_aesebu_format_names[] = {
 static int snd_asihpi_aesebu_format_info(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_info *uinfo)
 {
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 3;
-
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item =
-			uinfo->value.enumerated.items - 1;
-
-	strcpy(uinfo->value.enumerated.name,
-		asihpi_aesebu_format_names[uinfo->value.enumerated.item]);
-
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 3, asihpi_aesebu_format_names);
 }
 
 static int snd_asihpi_aesebu_format_get(struct snd_kcontrol *kcontrol,
@@ -1863,22 +1852,7 @@ static int snd_asihpi_tuner_band_info(struct snd_kcontrol *kcontrol,
 	if (num_bands < 0)
 		return num_bands;
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = num_bands;
-
-	if (num_bands > 0) {
-		if (uinfo->value.enumerated.item >=
-					uinfo->value.enumerated.items)
-			uinfo->value.enumerated.item =
-				uinfo->value.enumerated.items - 1;
-
-		strcpy(uinfo->value.enumerated.name,
-			asihpi_tuner_band_names[
-				tuner_bands[uinfo->value.enumerated.item]]);
-
-	}
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, num_bands, asihpi_tuner_band_names);
 }
 
 static int snd_asihpi_tuner_band_get(struct snd_kcontrol *kcontrol,
@@ -2253,7 +2227,7 @@ static int snd_asihpi_cmode_info(struct snd_kcontrol *kcontrol,
 	u32 h_control = kcontrol->private_value;
 	u16 mode;
 	int i;
-	u16 mode_map[6];
+	const char *mapped_names[6];
 	int valid_modes = 0;
 
 	/* HPI channel mode values can be from 1 to 6
@@ -2262,24 +2236,14 @@ static int snd_asihpi_cmode_info(struct snd_kcontrol *kcontrol,
 	for (i = 0; i < HPI_CHANNEL_MODE_LAST; i++)
 		if (!hpi_channel_mode_query_mode(
 			h_control, i, &mode)) {
-			mode_map[valid_modes] = mode;
+			mapped_names[valid_modes] = mode_names[mode];
 			valid_modes++;
 			}
 
 	if (!valid_modes)
 		return -EINVAL;
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = valid_modes;
-
-	if (uinfo->value.enumerated.item >= valid_modes)
-		uinfo->value.enumerated.item = valid_modes - 1;
-
-	strcpy(uinfo->value.enumerated.name,
-	       mode_names[mode_map[uinfo->value.enumerated.item]]);
-
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, valid_modes, mapped_names);
 }
 
 static int snd_asihpi_cmode_get(struct snd_kcontrol *kcontrol,

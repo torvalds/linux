@@ -96,6 +96,10 @@ static const struct nla_policy bond_policy[IFLA_BOND_MAX + 1] = {
 	[IFLA_BOND_AD_INFO]		= { .type = NLA_NESTED },
 };
 
+static const struct nla_policy bond_slave_policy[IFLA_BOND_SLAVE_MAX + 1] = {
+	[IFLA_BOND_SLAVE_QUEUE_ID]	= { .type = NLA_U16 },
+};
+
 static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
 {
 	if (tb[IFLA_ADDRESS]) {
@@ -104,6 +108,33 @@ static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
 		if (!is_valid_ether_addr(nla_data(tb[IFLA_ADDRESS])))
 			return -EADDRNOTAVAIL;
 	}
+	return 0;
+}
+
+static int bond_slave_changelink(struct net_device *bond_dev,
+				 struct net_device *slave_dev,
+				 struct nlattr *tb[], struct nlattr *data[])
+{
+	struct bonding *bond = netdev_priv(bond_dev);
+	struct bond_opt_value newval;
+	int err;
+
+	if (!data)
+		return 0;
+
+	if (data[IFLA_BOND_SLAVE_QUEUE_ID]) {
+		u16 queue_id = nla_get_u16(data[IFLA_BOND_SLAVE_QUEUE_ID]);
+		char queue_id_str[IFNAMSIZ + 7];
+
+		/* queue_id option setting expects slave_name:queue_id */
+		snprintf(queue_id_str, sizeof(queue_id_str), "%s:%u\n",
+			 slave_dev->name, queue_id);
+		bond_opt_initstr(&newval, queue_id_str);
+		err = __bond_opt_set(bond, BOND_OPT_QUEUE_ID, &newval);
+		if (err)
+			return err;
+	}
+
 	return 0;
 }
 
@@ -412,6 +443,7 @@ static int bond_fill_info(struct sk_buff *skb,
 	unsigned int packets_per_slave;
 	int ifindex, i, targets_added;
 	struct nlattr *targets;
+	struct slave *primary;
 
 	if (nla_put_u8(skb, IFLA_BOND_MODE, BOND_MODE(bond)))
 		goto nla_put_failure;
@@ -461,9 +493,9 @@ static int bond_fill_info(struct sk_buff *skb,
 			bond->params.arp_all_targets))
 		goto nla_put_failure;
 
-	if (bond->primary_slave &&
-	    nla_put_u32(skb, IFLA_BOND_PRIMARY,
-			bond->primary_slave->dev->ifindex))
+	primary = rtnl_dereference(bond->primary_slave);
+	if (primary &&
+	    nla_put_u32(skb, IFLA_BOND_PRIMARY, primary->dev->ifindex))
 		goto nla_put_failure;
 
 	if (nla_put_u8(skb, IFLA_BOND_PRIMARY_RESELECT,
@@ -562,6 +594,9 @@ struct rtnl_link_ops bond_link_ops __read_mostly = {
 	.get_num_tx_queues	= bond_get_num_tx_queues,
 	.get_num_rx_queues	= bond_get_num_tx_queues, /* Use the same number
 							     as for TX queues */
+	.slave_maxtype		= IFLA_BOND_SLAVE_MAX,
+	.slave_policy		= bond_slave_policy,
+	.slave_changelink	= bond_slave_changelink,
 	.get_slave_size		= bond_get_slave_size,
 	.fill_slave_info	= bond_fill_slave_info,
 };

@@ -36,7 +36,7 @@
 
 #include <linux/atomic.h>
 
-#ifdef CONFIG_BRIDGE_NETFILTER
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 #include "../bridge/br_private.h"
 #endif
 
@@ -429,7 +429,7 @@ __build_packet_message(struct nfnl_log_net *log,
 		goto nla_put_failure;
 
 	if (indev) {
-#ifndef CONFIG_BRIDGE_NETFILTER
+#if !IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 		if (nla_put_be32(inst->skb, NFULA_IFINDEX_INDEV,
 				 htonl(indev->ifindex)))
 			goto nla_put_failure;
@@ -460,7 +460,7 @@ __build_packet_message(struct nfnl_log_net *log,
 	}
 
 	if (outdev) {
-#ifndef CONFIG_BRIDGE_NETFILTER
+#if !IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 		if (nla_put_be32(inst->skb, NFULA_IFINDEX_OUTDEV,
 				 htonl(outdev->ifindex)))
 			goto nla_put_failure;
@@ -640,7 +640,7 @@ nfulnl_log_packet(struct net *net,
 		+ nla_total_size(sizeof(struct nfulnl_msg_packet_hdr))
 		+ nla_total_size(sizeof(u_int32_t))	/* ifindex */
 		+ nla_total_size(sizeof(u_int32_t))	/* ifindex */
-#ifdef CONFIG_BRIDGE_NETFILTER
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 		+ nla_total_size(sizeof(u_int32_t))	/* ifindex */
 		+ nla_total_size(sizeof(u_int32_t))	/* ifindex */
 #endif

@@ -229,19 +229,11 @@ static struct dwc2_qh *dwc2_hcd_qh_create(struct dwc2_hsotg *hsotg,
  */
 void dwc2_hcd_qh_free(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 {
-	u32 buf_size;
-
-	if (hsotg->core_params->dma_desc_enable > 0) {
+	if (hsotg->core_params->dma_desc_enable > 0)
 		dwc2_hcd_qh_free_ddma(hsotg, qh);
-	} else if (qh->dw_align_buf) {
-		if (qh->ep_type == USB_ENDPOINT_XFER_ISOC)
-			buf_size = 4096;
-		else
-			buf_size = hsotg->core_params->max_transfer_size;
-		dma_free_coherent(hsotg->dev, buf_size, qh->dw_align_buf,
-				  qh->dw_align_buf_dma);
-	}
-
+	else if (qh->dw_align_buf)
+		dma_free_coherent(hsotg->dev, qh->dw_align_buf_size,
+				  qh->dw_align_buf, qh->dw_align_buf_dma);
 	kfree(qh);
 }
 

@@ -36,8 +36,11 @@
 #include "reg.h"
 #include "def.h"
 #include "phy.h"
+#include "../rtl8192c/phy_common.h"
 #include "mac.h"
 #include "dm.h"
+#include "../rtl8192c/dm_common.h"
+#include "../rtl8192c/fw_common.h"
 #include "hw.h"
 #include "../rtl8192ce/hw.h"
 #include "trx.h"
@@ -180,7 +183,7 @@ static void _rtl92cu_read_txpower_info_from_hwpg(struct ieee80211_hw *hw,
 				eprom_chnl_txpwr_ht40_2sdf[rf_path][i]);
 	for (rf_path = 0; rf_path < 2; rf_path++) {
 		for (i = 0; i < 14; i++) {
-			index = _rtl92c_get_chnl_group((u8) i);
+			index = rtl92c_get_chnl_group((u8)i);
 			rtlefuse->txpwrlevel_cck[rf_path][i] =
 			    rtlefuse->eeprom_chnlarea_txpwr_cck[rf_path][index];
 			rtlefuse->txpwrlevel_ht40_1s[rf_path][i] =
@@ -222,7 +225,7 @@ static void _rtl92cu_read_txpower_info_from_hwpg(struct ieee80211_hw *hw,
 	}
 	for (rf_path = 0; rf_path < 2; rf_path++) {
 		for (i = 0; i < 14; i++) {
-			index = _rtl92c_get_chnl_group((u8) i);
+			index = rtl92c_get_chnl_group((u8)i);
 			if (rf_path == RF90_PATH_A) {
 				rtlefuse->pwrgroup_ht20[rf_path][i] =
 				    (rtlefuse->eeprom_pwrlimit_ht20[index]
@@ -249,7 +252,7 @@ static void _rtl92cu_read_txpower_info_from_hwpg(struct ieee80211_hw *hw,
 		}
 	}
 	for (i = 0; i < 14; i++) {
-		index = _rtl92c_get_chnl_group((u8) i);
+		index = rtl92c_get_chnl_group((u8)i);
 		if (!autoload_fail)
 			tempval = hwinfo[EEPROM_TXPOWERHT20DIFF + index];
 		else
@@ -261,7 +264,7 @@ static void _rtl92cu_read_txpower_info_from_hwpg(struct ieee80211_hw *hw,
 			rtlefuse->txpwr_ht20diff[RF90_PATH_A][i] |= 0xF0;
 		if (rtlefuse->txpwr_ht20diff[RF90_PATH_B][i] & BIT(3))
 			rtlefuse->txpwr_ht20diff[RF90_PATH_B][i] |= 0xF0;
-		index = _rtl92c_get_chnl_group((u8) i);
+		index = rtl92c_get_chnl_group((u8)i);
 		if (!autoload_fail)
 			tempval = hwinfo[EEPROM_TXPOWER_OFDMDIFF + index];
 		else
@@ -1169,13 +1172,13 @@ n. LEDCFG 0x4C[15:0] = 0x8080
 	/* 1. Disable GPIO[7:0] */
 	rtl_write_word(rtlpriv, REG_GPIO_PIN_CTRL+2, 0x0000);
 	value32 = rtl_read_dword(rtlpriv, REG_GPIO_PIN_CTRL) & 0xFFFF00FF;
-	value8 = (u8) (value32&0x000000FF);
+	value8 = (u8)(value32&0x000000FF);
 	value32 |= ((value8<<8) | 0x00FF0000);
 	rtl_write_dword(rtlpriv, REG_GPIO_PIN_CTRL, value32);
 	/* 2. Disable GPIO[10:8] */
 	rtl_write_byte(rtlpriv, REG_GPIO_MUXCFG+3, 0x00);
 	value16 = rtl_read_word(rtlpriv, REG_GPIO_MUXCFG+2) & 0xFF0F;
-	value8 = (u8) (value16&0x000F);
+	value8 = (u8)(value16&0x000F);
 	value16 |= ((value8<<4) | 0x0780);
 	rtl_write_word(rtlpriv, REG_GPIO_PIN_CTRL+2, value16);
 	/* 3. Disable LED0 & 1 */
@@ -1245,7 +1248,7 @@ static void _rtl92cu_set_bcn_ctrl_reg(struct ieee80211_hw *hw,
 
 	rtlusb->reg_bcn_ctrl_val |= set_bits;
 	rtlusb->reg_bcn_ctrl_val &= ~clear_bits;
-	rtl_write_byte(rtlpriv, REG_BCN_CTRL, (u8) rtlusb->reg_bcn_ctrl_val);
+	rtl_write_byte(rtlpriv, REG_BCN_CTRL, (u8)rtlusb->reg_bcn_ctrl_val);
 }
 
 static void _rtl92cu_stop_tx_beacon(struct ieee80211_hw *hw)

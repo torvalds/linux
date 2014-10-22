@@ -132,11 +132,15 @@
 			};
 		};
 
+		cm: syscon@44e10000 {
+			compatible = "ti,am33xx-controlmodule", "syscon";
+			reg = <0x44e10000 0x800>;
+		};
+
 		intc: interrupt-controller@48200000 {
-			compatible = "ti,omap2-intc";
+			compatible = "ti,am33xx-intc";
 			interrupt-controller;
 			#interrupt-cells = <1>;
-			ti,intc-size = <128>;
 			reg = <0x48200000 0x1000>;
 		};
 
@@ -354,6 +358,10 @@
 			ti,hwmods = "mailbox";
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <8>;
+			mbox_wkupm3: wkup_m3 {
+				ti,mbox-tx = <0 0 0>;
+				ti,mbox-rx = <0 0 3>;
+			};
 		};
 
 		timer1: timer@44e31000 {
@@ -696,6 +704,7 @@
 			 */
 			interrupts = <40 41 42 43>;
 			ranges;
+			syscon = <&cm>;
 			status = "disabled";
 
 			davinci_mdio: mdio@4a101000 {
@@ -726,9 +735,8 @@
 		};
 
 		ocmcram: ocmcram@40300000 {
-			compatible = "ti,am3352-ocmcram";
-			reg = <0x40300000 0x10000>;
-			ti,hwmods = "ocmcram";
+			compatible = "mmio-sram";
+			reg = <0x40300000 0x10000>; /* 64k */
 		};
 
 		wkup_m3: wkup_m3@44d00000 {

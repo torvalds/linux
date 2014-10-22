@@ -237,11 +237,33 @@ for a pixel lie next to each other in memory.</para>
 	    <entry>g<subscript>4</subscript></entry>
 	    <entry>g<subscript>3</subscript></entry>
 	  </row>
-	  <row id="V4L2-PIX-FMT-RGB555X">
-	    <entry><constant>V4L2_PIX_FMT_RGB555X</constant></entry>
-	    <entry>'RGBQ'</entry>
+	  <row id="V4L2-PIX-FMT-ARGB555X">
+	    <entry><constant>V4L2_PIX_FMT_ARGB555X</constant></entry>
+	    <entry>'AR15' | (1 &lt;&lt; 31)</entry>
 	    <entry></entry>
 	    <entry>a</entry>
+	    <entry>r<subscript>4</subscript></entry>
+	    <entry>r<subscript>3</subscript></entry>
+	    <entry>r<subscript>2</subscript></entry>
+	    <entry>r<subscript>1</subscript></entry>
+	    <entry>r<subscript>0</subscript></entry>
+	    <entry>g<subscript>4</subscript></entry>
+	    <entry>g<subscript>3</subscript></entry>
+	    <entry></entry>
+	    <entry>g<subscript>2</subscript></entry>
+	    <entry>g<subscript>1</subscript></entry>
+	    <entry>g<subscript>0</subscript></entry>
+	    <entry>b<subscript>4</subscript></entry>
+	    <entry>b<subscript>3</subscript></entry>
+	    <entry>b<subscript>2</subscript></entry>
+	    <entry>b<subscript>1</subscript></entry>
+	    <entry>b<subscript>0</subscript></entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-XRGB555X">
+	    <entry><constant>V4L2_PIX_FMT_XRGB555X</constant></entry>
+	    <entry>'XR15' | (1 &lt;&lt; 31)</entry>
+	    <entry></entry>
+	    <entry>-</entry>
 	    <entry>r<subscript>4</subscript></entry>
 	    <entry>r<subscript>3</subscript></entry>
 	    <entry>r<subscript>2</subscript></entry>
@@ -464,7 +486,7 @@ for a pixel lie next to each other in memory.</para>
 	  </row>
 	  <row id="V4L2-PIX-FMT-ARGB32">
 	    <entry><constant>V4L2_PIX_FMT_ARGB32</constant></entry>
-	    <entry>'AX24'</entry>
+	    <entry>'BA24'</entry>
 	    <entry></entry>
 	    <entry>a<subscript>7</subscript></entry>
 	    <entry>a<subscript>6</subscript></entry>
@@ -799,6 +821,28 @@ image</title>
 	    <entry>r<subscript>0</subscript></entry>
 	    <entry>g<subscript>4</subscript></entry>
 	    <entry>g<subscript>3</subscript></entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-RGB555X">
+	    <entry><constant>V4L2_PIX_FMT_RGB555X</constant></entry>
+	    <entry>'RGBQ'</entry>
+	    <entry></entry>
+	    <entry>a</entry>
+	    <entry>r<subscript>4</subscript></entry>
+	    <entry>r<subscript>3</subscript></entry>
+	    <entry>r<subscript>2</subscript></entry>
+	    <entry>r<subscript>1</subscript></entry>
+	    <entry>r<subscript>0</subscript></entry>
+	    <entry>g<subscript>4</subscript></entry>
+	    <entry>g<subscript>3</subscript></entry>
+	    <entry></entry>
+	    <entry>g<subscript>2</subscript></entry>
+	    <entry>g<subscript>1</subscript></entry>
+	    <entry>g<subscript>0</subscript></entry>
+	    <entry>b<subscript>4</subscript></entry>
+	    <entry>b<subscript>3</subscript></entry>
+	    <entry>b<subscript>2</subscript></entry>
+	    <entry>b<subscript>1</subscript></entry>
+	    <entry>b<subscript>0</subscript></entry>
 	  </row>
 	  <row id="V4L2-PIX-FMT-BGR32">
 	    <entry><constant>V4L2_PIX_FMT_BGR32</constant></entry>

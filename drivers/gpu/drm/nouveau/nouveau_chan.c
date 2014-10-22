@@ -36,7 +36,7 @@
 #include "nouveau_abi16.h"
 
 MODULE_PARM_DESC(vram_pushbuf, "Create DMA push buffers in VRAM");
-static int nouveau_vram_pushbuf;
+int nouveau_vram_pushbuf;
 module_param_named(vram_pushbuf, nouveau_vram_pushbuf, int, 0400);
 
 int
@@ -106,7 +106,7 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 	if (nouveau_vram_pushbuf)
 		target = TTM_PL_FLAG_VRAM;
 
-	ret = nouveau_bo_new(drm->dev, size, 0, target, 0, 0, NULL,
+	ret = nouveau_bo_new(drm->dev, size, 0, target, 0, 0, NULL, NULL,
 			    &chan->push.buffer);
 	if (ret == 0) {
 		ret = nouveau_bo_pin(chan->push.buffer, target);

@@ -27,6 +27,8 @@
 #include <xen/interface/platform.h>
 #include <xen/xen.h>
 
+#include <asm/page.h>
+
 #include <asm/xen/hypercall.h>
 
 #define INIT_EFI_OP(name) \

@@ -697,29 +697,45 @@ static void *dwc2_hc_init_xfer(struct dwc2_hsotg *hsotg,
 }
 
 static int dwc2_hc_setup_align_buf(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
-				   struct dwc2_host_chan *chan, void *bufptr)
+				   struct dwc2_host_chan *chan,
+				   struct dwc2_hcd_urb *urb, void *bufptr)
 {
 	u32 buf_size;
-
-	if (chan->ep_type != USB_ENDPOINT_XFER_ISOC)
-		buf_size = hsotg->core_params->max_transfer_size;
-	else
-		buf_size = 4096;
+	struct urb *usb_urb;
+	struct usb_hcd *hcd;
 
 	if (!qh->dw_align_buf) {
+		if (chan->ep_type != USB_ENDPOINT_XFER_ISOC)
+			buf_size = hsotg->core_params->max_transfer_size;
+		else
+			/* 3072 = 3 max-size Isoc packets */
+			buf_size = 3072;
+
 		qh->dw_align_buf = dma_alloc_coherent(hsotg->dev, buf_size,
 						      &qh->dw_align_buf_dma,
 						      GFP_ATOMIC);
 		if (!qh->dw_align_buf)
 			return -ENOMEM;
+		qh->dw_align_buf_size = buf_size;
 	}
 
-	if (!chan->ep_is_in && chan->xfer_len) {
-		dma_sync_single_for_cpu(hsotg->dev, chan->xfer_dma, buf_size,
-					DMA_TO_DEVICE);
-		memcpy(qh->dw_align_buf, bufptr, chan->xfer_len);
-		dma_sync_single_for_device(hsotg->dev, chan->xfer_dma, buf_size,
-					   DMA_TO_DEVICE);
+	if (chan->xfer_len) {
+		dev_vdbg(hsotg->dev, "%s(): non-aligned buffer\n", __func__);
+		usb_urb = urb->priv;
+
+		if (usb_urb) {
+			if (usb_urb->transfer_flags &
+			    (URB_SETUP_MAP_SINGLE | URB_DMA_MAP_SG |
+			     URB_DMA_MAP_PAGE | URB_DMA_MAP_SINGLE)) {
+				hcd = dwc2_hsotg_to_hcd(hsotg);
+				usb_hcd_unmap_urb_for_dma(hcd, usb_urb);
+			}
+			if (!chan->ep_is_in)
+				memcpy(qh->dw_align_buf, bufptr,
+				       chan->xfer_len);
+		} else {
+			dev_warn(hsotg->dev, "no URB in dwc2_urb\n");
+		}
 	}
 
 	chan->align_buf = qh->dw_align_buf_dma;
@@ -828,7 +844,7 @@ static int dwc2_assign_and_init_hc(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 	/* Non DWORD-aligned buffer case */
 	if (bufptr) {
 		dev_vdbg(hsotg->dev, "Non-aligned buffer\n");
-		if (dwc2_hc_setup_align_buf(hsotg, qh, chan, bufptr)) {
+		if (dwc2_hc_setup_align_buf(hsotg, qh, chan, urb, bufptr)) {
 			dev_err(hsotg->dev,
 				"%s: Failed to allocate memory to handle non-dword aligned buffer\n",
 				__func__);

@@ -3,6 +3,7 @@
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 1997-2000 David A. Schleef <ds@schleef.org>
+ * Copyright (C) 2002 Frank Mori Hess <fmhess@users.sourceforge.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -509,3 +510,68 @@ void comedi_buf_memcpy_from(struct comedi_subdevice *s, unsigned int offset,
 	}
 }
 EXPORT_SYMBOL_GPL(comedi_buf_memcpy_from);
+
+/**
+ * comedi_write_array_to_buffer - write data to comedi buffer
+ * @s: comedi_subdevice struct
+ * @data: destination
+ * @num_bytes: number of bytes to write
+ *
+ * Writes up to num_bytes bytes of data to the comedi buffer associated with
+ * the subdevice, marks it as written and updates the acquisition scan
+ * progress.
+ *
+ * Returns the amount of data written in bytes.
+ */
+unsigned int comedi_write_array_to_buffer(struct comedi_subdevice *s,
+					  const void *data,
+					  unsigned int num_bytes)
+{
+	struct comedi_async *async = s->async;
+	unsigned int retval;
+
+	if (num_bytes == 0)
+		return 0;
+
+	retval = comedi_buf_write_alloc(s, num_bytes);
+	if (retval != num_bytes) {
+		dev_warn(s->device->class_dev, "buffer overrun\n");
+		async->events |= COMEDI_CB_OVERFLOW;
+		return 0;
+	}
+
+	comedi_buf_memcpy_to(s, 0, data, num_bytes);
+	comedi_buf_write_free(s, num_bytes);
+	comedi_inc_scan_progress(s, num_bytes);
+	async->events |= COMEDI_CB_BLOCK;
+
+	return num_bytes;
+}
+EXPORT_SYMBOL_GPL(comedi_write_array_to_buffer);
+
+/**
+ * comedi_read_array_from_buffer - read data from comedi buffer
+ * @s: comedi_subdevice struct
+ * @data: destination
+ * @num_bytes: number of bytes to read
+ *
+ * Reads up to num_bytes bytes of data from the comedi buffer associated with
+ * the subdevice, marks it as read and updates the acquisition scan progress.
+ *
+ * Returns the amount of data read in bytes.
+ */
+unsigned int comedi_read_array_from_buffer(struct comedi_subdevice *s,
+					   void *data, unsigned int num_bytes)
+{
+	if (num_bytes == 0)
+		return 0;
+
+	num_bytes = comedi_buf_read_alloc(s, num_bytes);
+	comedi_buf_memcpy_from(s, 0, data, num_bytes);
+	comedi_buf_read_free(s, num_bytes);
+	comedi_inc_scan_progress(s, num_bytes);
+	s->async->events |= COMEDI_CB_BLOCK;
+
+	return num_bytes;
+}
+EXPORT_SYMBOL_GPL(comedi_read_array_from_buffer);

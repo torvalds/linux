@@ -38,13 +38,11 @@
 #include "wpactl.h"
 #include "rf.h"
 
-static int msglevel = MSG_LEVEL_INFO;
-
 #ifdef WPA_SM_Transtatus
 SWPAResult wpa_Result;
 #endif
 
-int private_ioctl(PSDevice pDevice, struct ifreq *rq)
+int private_ioctl(struct vnt_private *pDevice, struct ifreq *rq)
 {
 	PSCmdRequest	pReq = (PSCmdRequest)rq;
 	PSMgmtObject	pMgmt = pDevice->pMgmt;
@@ -74,7 +72,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 
 	switch (pReq->wCmdCode) {
 	case WLAN_CMD_BSS_SCAN:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "WLAN_CMD_BSS_SCAN..begin\n");
+		pr_debug("WLAN_CMD_BSS_SCAN..begin\n");
 		if (copy_from_user(&sScanCmd, pReq->data, sizeof(SCmdScan))) {
 			result = -EFAULT;
 			break;
@@ -175,27 +173,27 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 		memcpy(pMgmt->abyDesireSSID, pItemSSID, pItemSSID->len + WLAN_IEHDR_LEN);
 		if (sJoinCmd.wBSSType == ADHOC) {
 			pMgmt->eConfigMode = WMAC_CONFIG_IBSS_STA;
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "ioct set to adhoc mode\n");
+			pr_debug("ioct set to adhoc mode\n");
 		} else {
 			pMgmt->eConfigMode = WMAC_CONFIG_ESS_STA;
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "ioct set to STA mode\n");
+			pr_debug("ioct set to STA mode\n");
 		}
 		if (sJoinCmd.bPSEnable == true) {
 			pDevice->ePSMode = WMAC_POWER_FAST;
 			pMgmt->wListenInterval = 2;
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Power Saving On\n");
+			pr_debug("Power Saving On\n");
 		} else {
 			pDevice->ePSMode = WMAC_POWER_CAM;
 			pMgmt->wListenInterval = 1;
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Power Saving Off\n");
+			pr_debug("Power Saving Off\n");
 		}
 
 		if (sJoinCmd.bShareKeyAuth == true) {
 			pMgmt->bShareKeyAlgorithm = true;
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Share Key\n");
+			pr_debug("Share Key\n");
 		} else {
 			pMgmt->bShareKeyAlgorithm = false;
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Open System\n");
+			pr_debug("Open System\n");
 		}
 		pDevice->uChannel = sJoinCmd.uChannel;
 		netif_stop_queue(pDevice->dev);
@@ -207,7 +205,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 		break;
 
 	case WLAN_CMD_SET_WEP:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "WLAN_CMD_SET_WEP Key.\n");
+		pr_debug("WLAN_CMD_SET_WEP Key\n");
 		memset(&sWEPCmd, 0, sizeof(SCmdSetWEP));
 		if (copy_from_user(&sWEPCmd, pReq->data, sizeof(SCmdSetWEP))) {
 			result = -EFAULT;
@@ -217,7 +215,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 			pDevice->bEncryptionEnable = false;
 			pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
 			MACvDisableDefaultKey(pDevice->PortOffset);
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "WEP function disable.\n");
+			pr_debug("WEP function disable\n");
 			break;
 		}
 
@@ -247,7 +245,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 	case WLAN_CMD_GET_LINK: {
 		SCmdLinkStatus sLinkStatus;
 
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "WLAN_CMD_GET_LINK status.\n");
+		pr_debug("WLAN_CMD_GET_LINK status\n");
 
 		memset(&sLinkStatus, 0, sizeof(sLinkStatus));
 
@@ -268,7 +266,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 			memcpy(sLinkStatus.abySSID, pItemSSID->abySSID, pItemSSID->len);
 			memcpy(sLinkStatus.abyBSSID, pMgmt->abyCurrBSSID, WLAN_BSSID_LEN);
 			sLinkStatus.uLinkRate = pMgmt->sNodeDBTable[0].wTxDataRate;
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " Link Success!\n");
+			pr_debug(" Link Success!\n");
 		} else {
 			sLinkStatus.bLink = false;
 			sLinkStatus.uLinkRate = 0;
@@ -364,7 +362,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 		break;
 
 	case WLAN_CMD_STOP_MAC:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "WLAN_CMD_STOP_MAC\n");
+		pr_debug("WLAN_CMD_STOP_MAC\n");
 		netif_stop_queue(pDevice->dev);
 
 		spin_lock_irq(&pDevice->lock);
@@ -383,7 +381,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 		break;
 
 	case WLAN_CMD_START_MAC:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "WLAN_CMD_START_MAC\n");
+		pr_debug("WLAN_CMD_START_MAC\n");
 
 		if (pDevice->bMACSuspend == true) {
 			if (pDevice->bRadioOff == true)
@@ -396,7 +394,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 		break;
 
 	case WLAN_CMD_SET_HOSTAPD:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "WLAN_CMD_SET_HOSTAPD\n");
+		pr_debug("WLAN_CMD_SET_HOSTAPD\n");
 
 		if (copy_from_user(&sValue, pReq->data, sizeof(SCmdValue))) {
 			result = -EFAULT;
@@ -404,23 +402,23 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 		}
 		if (sValue.dwValue == 1) {
 			if (vt6655_hostap_set_hostapd(pDevice, 1, 1) == 0) {
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Enable HOSTAP\n");
+				pr_debug("Enable HOSTAP\n");
 			} else {
 				result = -EFAULT;
 				break;
 			}
 		} else {
 			vt6655_hostap_set_hostapd(pDevice, 0, 1);
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Disable HOSTAP\n");
+			pr_debug("Disable HOSTAP\n");
 		}
 		break;
 
 	case WLAN_CMD_SET_HOSTAPD_STA:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "WLAN_CMD_SET_HOSTAPD_STA\n");
+		pr_debug("WLAN_CMD_SET_HOSTAPD_STA\n");
 		break;
 
 	case WLAN_CMD_SET_802_1X:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "WLAN_CMD_SET_802_1X\n");
+		pr_debug("WLAN_CMD_SET_802_1X\n");
 		if (copy_from_user(&sValue, pReq->data, sizeof(SCmdValue))) {
 			result = -EFAULT;
 			break;
@@ -428,15 +426,15 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 
 		if (sValue.dwValue == 1) {
 			pDevice->bEnable8021x = true;
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Enable 802.1x\n");
+			pr_debug("Enable 802.1x\n");
 		} else {
 			pDevice->bEnable8021x = false;
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Disable 802.1x\n");
+			pr_debug("Disable 802.1x\n");
 		}
 		break;
 
 	case WLAN_CMD_SET_HOST_WEP:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "WLAN_CMD_SET_HOST_WEP\n");
+		pr_debug("WLAN_CMD_SET_HOST_WEP\n");
 		if (copy_from_user(&sValue, pReq->data, sizeof(SCmdValue))) {
 			result = -EFAULT;
 			break;
@@ -444,32 +442,32 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 
 		if (sValue.dwValue == 1) {
 			pDevice->bEnableHostWEP = true;
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Enable HostWEP\n");
+			pr_debug("Enable HostWEP\n");
 		} else {
 			pDevice->bEnableHostWEP = false;
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Disable HostWEP\n");
+			pr_debug("Disable HostWEP\n");
 		}
 		break;
 
 	case WLAN_CMD_SET_WPA:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "WLAN_CMD_SET_WPA\n");
+		pr_debug("WLAN_CMD_SET_WPA\n");
 
 		if (copy_from_user(&sValue, pReq->data, sizeof(SCmdValue))) {
 			result = -EFAULT;
 			break;
 		}
 		if (sValue.dwValue == 1) {
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "up wpadev\n");
+			pr_debug("up wpadev\n");
 			eth_hw_addr_inherit(pDevice->wpadev, pDevice->dev);
 			pDevice->bWPADEVUp = true;
 		} else {
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "close wpadev\n");
+			pr_debug("close wpadev\n");
 			pDevice->bWPADEVUp = false;
 		}
 		break;
 
 	case WLAN_CMD_AP_START:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "WLAN_CMD_AP_START\n");
+		pr_debug("WLAN_CMD_AP_START\n");
 		if (pDevice->bRadioOff == true) {
 			CARDbRadioPowerOn(pDevice);
 			vMgrTimerInit(pDevice);
@@ -483,9 +481,9 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 
 		if (sStartAPCmd.wBSSType == AP) {
 			pMgmt->eConfigMode = WMAC_CONFIG_AP;
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "ioct set to AP mode\n");
+			pr_debug("ioct set to AP mode\n");
 		} else {
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "ioct BSS type not set to AP mode\n");
+			pr_debug("ioct BSS type not set to AP mode\n");
 			result = -EFAULT;
 			break;
 		}
@@ -513,10 +511,10 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 
 		if (sStartAPCmd.bShareKeyAuth == true) {
 			pMgmt->bShareKeyAlgorithm = true;
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Share Key\n");
+			pr_debug("Share Key\n");
 		} else {
 			pMgmt->bShareKeyAlgorithm = false;
-			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Open System\n");
+			pr_debug("Open System\n");
 		}
 		memcpy(pMgmt->abyIBSSSuppRates, abySuppRates, 6);
 
@@ -540,8 +538,8 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 			pMgmt->abyIBSSSuppRates[3] |= BIT7;
 		}
 
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Support Rate= %*ph\n",
-			4, pMgmt->abyIBSSSuppRates + 2);
+		pr_debug("Support Rate= %*ph\n",
+			 4, pMgmt->abyIBSSSuppRates + 2);
 
 		netif_stop_queue(pDevice->dev);
 		spin_lock_irq(&pDevice->lock);
@@ -597,12 +595,12 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 				pNodeList->sNodeList[jj].byKeyIndex = pNode->byKeyIndex;
 				pNodeList->sNodeList[jj].wWepKeyLength = pNode->uWepKeyLength;
 				memcpy(&(pNodeList->sNodeList[jj].abyWepKey[0]), &(pNode->abyWepKey[0]), WEP_KEYMAXLEN);
-				DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "key= %2.2X:%2.2X:%2.2X:%2.2X:%2.2X\n",
-					pNodeList->sNodeList[jj].abyWepKey[0],
-					pNodeList->sNodeList[jj].abyWepKey[1],
-					pNodeList->sNodeList[jj].abyWepKey[2],
-					pNodeList->sNodeList[jj].abyWepKey[3],
-					pNodeList->sNodeList[jj].abyWepKey[4]);
+				pr_debug("key= %2.2X:%2.2X:%2.2X:%2.2X:%2.2X\n",
+					 pNodeList->sNodeList[jj].abyWepKey[0],
+					 pNodeList->sNodeList[jj].abyWepKey[1],
+					 pNodeList->sNodeList[jj].abyWepKey[2],
+					 pNodeList->sNodeList[jj].abyWepKey[3],
+					 pNodeList->sNodeList[jj].abyWepKey[4]);
 				pNodeList->sNodeList[jj].bIsInFallback = pNode->bIsInFallback;
 				pNodeList->sNodeList[jj].uTxFailures = pNode->uTxFailures;
 				pNodeList->sNodeList[jj].uTxAttempts = pNode->uTxAttempts;
@@ -653,7 +651,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 #endif
 
 	default:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Private command not support..\n");
+		pr_debug("Private command not support..\n");
 	}
 
 	return result;

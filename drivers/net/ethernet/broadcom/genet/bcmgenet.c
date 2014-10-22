@@ -191,8 +191,9 @@ enum dma_reg {
 	DMA_STATUS,
 	DMA_SCB_BURST_SIZE,
 	DMA_ARB_CTRL,
-	DMA_PRIORITY,
-	DMA_RING_PRIORITY,
+	DMA_PRIORITY_0,
+	DMA_PRIORITY_1,
+	DMA_PRIORITY_2,
 };
 
 static const u8 bcmgenet_dma_regs_v3plus[] = {
@@ -201,8 +202,9 @@ static const u8 bcmgenet_dma_regs_v3plus[] = {
 	[DMA_STATUS]		= 0x08,
 	[DMA_SCB_BURST_SIZE]	= 0x0C,
 	[DMA_ARB_CTRL]		= 0x2C,
-	[DMA_PRIORITY]		= 0x30,
-	[DMA_RING_PRIORITY]	= 0x38,
+	[DMA_PRIORITY_0]	= 0x30,
+	[DMA_PRIORITY_1]	= 0x34,
+	[DMA_PRIORITY_2]	= 0x38,
 };
 
 static const u8 bcmgenet_dma_regs_v2[] = {
@@ -211,8 +213,9 @@ static const u8 bcmgenet_dma_regs_v2[] = {
 	[DMA_STATUS]		= 0x08,
 	[DMA_SCB_BURST_SIZE]	= 0x0C,
 	[DMA_ARB_CTRL]		= 0x30,
-	[DMA_PRIORITY]		= 0x34,
-	[DMA_RING_PRIORITY]	= 0x3C,
+	[DMA_PRIORITY_0]	= 0x34,
+	[DMA_PRIORITY_1]	= 0x38,
+	[DMA_PRIORITY_2]	= 0x3C,
 };
 
 static const u8 bcmgenet_dma_regs_v1[] = {
@@ -220,8 +223,9 @@ static const u8 bcmgenet_dma_regs_v1[] = {
 	[DMA_STATUS]		= 0x04,
 	[DMA_SCB_BURST_SIZE]	= 0x0C,
 	[DMA_ARB_CTRL]		= 0x30,
-	[DMA_PRIORITY]		= 0x34,
-	[DMA_RING_PRIORITY]	= 0x3C,
+	[DMA_PRIORITY_0]	= 0x34,
+	[DMA_PRIORITY_1]	= 0x38,
+	[DMA_PRIORITY_2]	= 0x3C,
 };
 
 /* Set at runtime once bcmgenet version is known */
@@ -1054,7 +1058,8 @@ static int bcmgenet_xmit_frag(struct net_device *dev,
 /* Reallocate the SKB to put enough headroom in front of it and insert
  * the transmit checksum offsets in the descriptors
  */
-static int bcmgenet_put_tx_csum(struct net_device *dev, struct sk_buff *skb)
+static struct sk_buff *bcmgenet_put_tx_csum(struct net_device *dev,
+					    struct sk_buff *skb)
 {
 	struct status_64 *status = NULL;
 	struct sk_buff *new_skb;
@@ -1072,7 +1077,7 @@ static int bcmgenet_put_tx_csum(struct net_device *dev, struct sk_buff *skb)
 		if (!new_skb) {
 			dev->stats.tx_errors++;
 			dev->stats.tx_dropped++;
-			return -ENOMEM;
+			return NULL;
 		}
 		skb = new_skb;
 	}
@@ -1090,7 +1095,7 @@ static int bcmgenet_put_tx_csum(struct net_device *dev, struct sk_buff *skb)
 			ip_proto = ipv6_hdr(skb)->nexthdr;
 			break;
 		default:
-			return 0;
+			return skb;
 		}
 
 		offset = skb_checksum_start_offset(skb) - sizeof(*status);
@@ -1111,7 +1116,7 @@ static int bcmgenet_put_tx_csum(struct net_device *dev, struct sk_buff *skb)
 		status->tx_csum_info = tx_csum_info;
 	}
 
-	return 0;
+	return skb;
 }
 
 static netdev_tx_t bcmgenet_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -1158,8 +1163,8 @@ static netdev_tx_t bcmgenet_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* set the SKB transmit checksum */
 	if (priv->desc_64b_en) {
-		ret = bcmgenet_put_tx_csum(dev, skb);
-		if (ret) {
+		skb = bcmgenet_put_tx_csum(dev, skb);
+		if (!skb) {
 			ret = NETDEV_TX_OK;
 			goto out;
 		}
@@ -1280,11 +1285,6 @@ static unsigned int bcmgenet_desc_rx(struct bcmgenet_priv *priv,
 		cb = &priv->rx_cbs[priv->rx_read_ptr];
 		skb = cb->skb;
 
-		rxpktprocessed++;
-
-		priv->rx_read_ptr++;
-		priv->rx_read_ptr &= (priv->num_rx_bds - 1);
-
 		/* We do not have a backing SKB, so we do not have a
 		 * corresponding DMA mapping for this incoming packet since
 		 * bcmgenet_rx_refill always either has both skb and mapping or
@@ -1399,6 +1399,10 @@ refill:
 		err = bcmgenet_rx_refill(priv, cb);
 		if (err)
 			netif_err(priv, rx_err, dev, "Rx refill failed\n");
+
+		rxpktprocessed++;
+		priv->rx_read_ptr++;
+		priv->rx_read_ptr &= (priv->num_rx_bds - 1);
 	}
 
 	return rxpktprocessed;
@@ -1695,7 +1699,8 @@ static void bcmgenet_init_multiq(struct net_device *dev)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	unsigned int i, dma_enable;
-	u32 reg, dma_ctrl, ring_cfg = 0, dma_priority = 0;
+	u32 reg, dma_ctrl, ring_cfg = 0;
+	u32 dma_priority[3] = {0, 0, 0};
 
 	if (!netif_is_multiqueue(dev)) {
 		netdev_warn(dev, "called with non multi queue aware HW\n");
@@ -1720,21 +1725,24 @@ static void bcmgenet_init_multiq(struct net_device *dev)
 
 		/* Configure ring as descriptor ring and setup priority */
 		ring_cfg |= 1 << i;
-		dma_priority |= ((GENET_Q0_PRIORITY + i) <<
-				(GENET_MAX_MQ_CNT + 1) * i);
 		dma_ctrl |= 1 << (i + DMA_RING_BUF_EN_SHIFT);
+
+		dma_priority[DMA_PRIO_REG_INDEX(i)] |=
+			((GENET_Q0_PRIORITY + i) << DMA_PRIO_REG_SHIFT(i));
 	}
+
+	/* Set ring 16 priority and program the hardware registers */
+	dma_priority[DMA_PRIO_REG_INDEX(DESC_INDEX)] |=
+		((GENET_Q0_PRIORITY + priv->hw_params->tx_queues) <<
+		 DMA_PRIO_REG_SHIFT(DESC_INDEX));
+	bcmgenet_tdma_writel(priv, dma_priority[0], DMA_PRIORITY_0);
+	bcmgenet_tdma_writel(priv, dma_priority[1], DMA_PRIORITY_1);
+	bcmgenet_tdma_writel(priv, dma_priority[2], DMA_PRIORITY_2);
 
 	/* Enable rings */
 	reg = bcmgenet_tdma_readl(priv, DMA_RING_CFG);
 	reg |= ring_cfg;
 	bcmgenet_tdma_writel(priv, reg, DMA_RING_CFG);
-
-	/* Use configured rings priority and set ring #16 priority */
-	reg = bcmgenet_tdma_readl(priv, DMA_RING_PRIORITY);
-	reg |= ((GENET_Q0_PRIORITY + priv->hw_params->tx_queues) << 20);
-	reg |= dma_priority;
-	bcmgenet_tdma_writel(priv, reg, DMA_PRIORITY);
 
 	/* Configure ring as descriptor ring and re-enable DMA if enabled */
 	reg = bcmgenet_tdma_readl(priv, DMA_CTRL);
@@ -2017,19 +2025,6 @@ static void bcmgenet_set_hw_addr(struct bcmgenet_priv *priv,
 	bcmgenet_umac_writel(priv, (addr[4] << 8) | addr[5], UMAC_MAC1);
 }
 
-static int bcmgenet_wol_resume(struct bcmgenet_priv *priv)
-{
-	/* From WOL-enabled suspend, switch to regular clock */
-	if (priv->wolopts)
-		clk_disable_unprepare(priv->clk_wol);
-
-	phy_init_hw(priv->phydev);
-	/* Speed settings must be restored */
-	bcmgenet_mii_config(priv->dev);
-
-	return 0;
-}
-
 /* Returns a reusable dma control register value */
 static u32 bcmgenet_dma_disable(struct bcmgenet_priv *priv)
 {
@@ -2174,9 +2169,10 @@ static void bcmgenet_netif_stop(struct net_device *dev)
 	 */
 	cancel_work_sync(&priv->bcmgenet_irq_work);
 
-	priv->old_pause = -1;
 	priv->old_link = -1;
+	priv->old_speed = -1;
 	priv->old_duplex = -1;
+	priv->old_pause = -1;
 }
 
 static int bcmgenet_close(struct net_device *dev)
@@ -2439,6 +2435,13 @@ static void bcmgenet_set_hw_params(struct bcmgenet_priv *priv)
 	dev_info(&priv->pdev->dev, "GENET " GENET_VER_FMT,
 		 major, (reg >> 16) & 0x0f, reg & 0xffff);
 
+	/* Store the integrated PHY revision for the MDIO probing function
+	 * to pass this information to the PHY driver. The PHY driver expects
+	 * to find the PHY major revision in bits 15:8 while the GENET register
+	 * stores that information in bits 7:0, account for that.
+	 */
+	priv->gphy_rev = (reg & 0xffff) << 8;
+
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
 	if (!(params->flags & GENET_HAS_40BITS))
 		pr_warn("GENET does not support 40-bits PA\n");
@@ -2676,9 +2679,13 @@ static int bcmgenet_resume(struct device *d)
 	if (ret)
 		goto out_clk_disable;
 
-	ret = bcmgenet_wol_resume(priv);
-	if (ret)
-		goto out_clk_disable;
+	/* From WOL-enabled suspend, switch to regular clock */
+	if (priv->wolopts)
+		clk_disable_unprepare(priv->clk_wol);
+
+	phy_init_hw(priv->phydev);
+	/* Speed settings must be restored */
+	bcmgenet_mii_config(priv->dev);
 
 	/* disable ethernet MAC while updating its registers */
 	umac_enable_set(priv, CMD_TX_EN | CMD_RX_EN, false);

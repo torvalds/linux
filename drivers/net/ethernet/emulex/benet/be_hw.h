@@ -315,6 +315,18 @@ struct be_eth_hdr_wrb {
 	u32 dw[4];
 };
 
+/********* Tx Compl Status Encoding *********/
+#define BE_TX_COMP_HDR_PARSE_ERR	0x2
+#define BE_TX_COMP_NDMA_ERR		0x3
+#define BE_TX_COMP_ACL_ERR		0x5
+
+#define LANCER_TX_COMP_LSO_ERR			0x1
+#define LANCER_TX_COMP_HSW_DROP_MAC_ERR		0x3
+#define LANCER_TX_COMP_HSW_DROP_VLAN_ERR	0x5
+#define LANCER_TX_COMP_QINQ_ERR			0x7
+#define LANCER_TX_COMP_PARITY_ERR		0xb
+#define LANCER_TX_COMP_DMA_ERR			0xd
+
 /* TX Compl Queue Descriptor */
 
 /* Pseudo amap definition for eth_tx_compl in which each bit of the

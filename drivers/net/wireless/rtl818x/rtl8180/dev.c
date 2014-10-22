@@ -189,6 +189,9 @@ static const int rtl8187se_queues_map[RTL8187SE_NR_TX_QUEUES] = {5, 4, 3, 2, 7};
 
 static const int rtl8180_queues_map[RTL8180_NR_TX_QUEUES] = {4, 7};
 
+/* LNA gain table for rtl8187se */
+static const u8 rtl8187se_lna_gain[4] = {02, 17, 29, 39};
+
 void rtl8180_write_phy(struct ieee80211_hw *dev, u8 addr, u32 data)
 {
 	struct rtl8180_priv *priv = dev->priv;
@@ -210,13 +213,14 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 	struct rtl8180_priv *priv = dev->priv;
 	struct rtl818x_rx_cmd_desc *cmd_desc;
 	unsigned int count = 32;
-	u8 agc, sq, signal = 1;
+	u8 agc, sq;
+	s8 signal = 1;
 	dma_addr_t mapping;
 
 	while (count--) {
 		void *entry = priv->rx_ring + priv->rx_idx * priv->rx_ring_sz;
 		struct sk_buff *skb = priv->rx_buf[priv->rx_idx];
-		u32 flags, flags2;
+		u32 flags, flags2, flags3 = 0;
 		u64 tsft;
 
 		if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8187SE) {
@@ -229,6 +233,7 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 			 * the ownership flag
 			 */
 			rmb();
+			flags3 = le32_to_cpu(desc->flags3);
 			flags2 = le32_to_cpu(desc->flags2);
 			tsft = le64_to_cpu(desc->tsft);
 		} else {
@@ -287,8 +292,21 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 				signal = priv->rf->calc_rssi(agc, sq);
 				break;
 			case RTL818X_CHIP_FAMILY_RTL8187SE:
-				/* TODO: rtl8187se rssi */
-				signal = 10;
+				/* OFDM measure reported by HW is signed,
+				 * in 0.5dBm unit, with zero centered @ -41dBm
+				 * input signal.
+				 */
+				if (rx_status.rate_idx > 3) {
+					signal = (s8)((flags3 >> 16) & 0xff);
+					signal = signal / 2 - 41;
+				} else {
+					int idx, bb;
+
+					idx = (agc & 0x60) >> 5;
+					bb = (agc & 0x1F) * 2;
+					/* bias + BB gain + LNA gain */
+					signal = 4 - bb - rtl8187se_lna_gain[idx];
+				}
 				break;
 			}
 			rx_status.signal = signal;
@@ -724,35 +742,49 @@ static void rtl8180_int_disable(struct ieee80211_hw *dev)
 }
 
 static void rtl8180_conf_basic_rates(struct ieee80211_hw *dev,
-			    u32 rates_mask)
+			    u32 basic_mask)
 {
 	struct rtl8180_priv *priv = dev->priv;
-
-	u8 max, min;
 	u16 reg;
+	u32 resp_mask;
+	u8 basic_max;
+	u8 resp_max, resp_min;
 
-	max = fls(rates_mask) - 1;
-	min = ffs(rates_mask) - 1;
+	resp_mask = basic_mask;
+	/* IEEE80211 says the response rate should be equal to the highest basic
+	 * rate that is not faster than received frame. But it says also that if
+	 * the basic rate set does not contains any rate for the current
+	 * modulation class then mandatory rate set must be used for that
+	 * modulation class. Eventually add OFDM mandatory rates..
+	 */
+	if ((resp_mask & 0xf) == resp_mask)
+		resp_mask |= 0x150; /* 6, 12, 24Mbps */
 
 	switch (priv->chip_family) {
 
 	case RTL818X_CHIP_FAMILY_RTL8180:
 		/* in 8180 this is NOT a BITMAP */
+		basic_max = fls(basic_mask) - 1;
 		reg = rtl818x_ioread16(priv, &priv->map->BRSR);
 		reg &= ~3;
-		reg |= max;
+		reg |= basic_max;
 		rtl818x_iowrite16(priv, &priv->map->BRSR, reg);
 		break;
 
 	case RTL818X_CHIP_FAMILY_RTL8185:
+		resp_max = fls(resp_mask) - 1;
+		resp_min = ffs(resp_mask) - 1;
 		/* in 8185 this is a BITMAP */
-		rtl818x_iowrite16(priv, &priv->map->BRSR, rates_mask);
-		rtl818x_iowrite8(priv, &priv->map->RESP_RATE, (max << 4) | min);
+		rtl818x_iowrite16(priv, &priv->map->BRSR, basic_mask);
+		rtl818x_iowrite8(priv, &priv->map->RESP_RATE, (resp_max << 4) |
+				resp_min);
 		break;
 
 	case RTL818X_CHIP_FAMILY_RTL8187SE:
-		/* in 8187se this is a BITMAP */
-		rtl818x_iowrite16(priv, &priv->map->BRSR_8187SE, rates_mask);
+		/* in 8187se this is a BITMAP. BRSR reg actually sets
+		 * response rates.
+		 */
+		rtl818x_iowrite16(priv, &priv->map->BRSR_8187SE, resp_mask);
 		break;
 	}
 }
@@ -1835,7 +1867,7 @@ static int rtl8180_probe(struct pci_dev *pdev,
 		pci_try_set_mwi(pdev);
 	}
 
-	if (priv->chip_family == RTL818X_CHIP_FAMILY_RTL8185)
+	if (priv->chip_family != RTL818X_CHIP_FAMILY_RTL8180)
 		dev->flags |= IEEE80211_HW_SIGNAL_DBM;
 	else
 		dev->flags |= IEEE80211_HW_SIGNAL_UNSPEC;

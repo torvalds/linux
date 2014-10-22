@@ -125,7 +125,7 @@ static DEFINE_MUTEX(ccdc_lock);
 /* ccdc configuration */
 static struct ccdc_config *ccdc_cfg;
 
-const struct vpfe_standard vpfe_standards[] = {
+static const struct vpfe_standard vpfe_standards[] = {
 	{V4L2_STD_525_60, 720, 480, {11, 10}, 1},
 	{V4L2_STD_625_50, 720, 576, {54, 59}, 1},
 };
@@ -442,11 +442,10 @@ static int vpfe_config_image_format(struct vpfe_device *vpfe_dev,
 		return ret;
 
 	/* Update the values of sizeimage and bytesperline */
-	if (!ret) {
-		pix->bytesperline = ccdc_dev->hw_ops.get_line_length();
-		pix->sizeimage = pix->bytesperline * pix->height;
-	}
-	return ret;
+	pix->bytesperline = ccdc_dev->hw_ops.get_line_length();
+	pix->sizeimage = pix->bytesperline * pix->height;
+
+	return 0;
 }
 
 static int vpfe_initialize_device(struct vpfe_device *vpfe_dev)
@@ -943,12 +942,11 @@ static int vpfe_g_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *fmt)
 {
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
-	int ret = 0;
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_g_fmt_vid_cap\n");
 	/* Fill in the information about format */
 	*fmt = vpfe_dev->fmt;
-	return ret;
+	return 0;
 }
 
 static int vpfe_enum_fmt_vid_cap(struct file *file, void  *priv,
@@ -1914,7 +1912,7 @@ static int vpfe_probe(struct platform_device *pdev)
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev,
 		"trying to register vpfe device.\n");
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev,
-		"video_dev=%x\n", (int)&vpfe_dev->video_dev);
+		"video_dev=%p\n", &vpfe_dev->video_dev);
 	vpfe_dev->fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	ret = video_register_device(vpfe_dev->video_dev,
 				    VFL_TYPE_GRABBER, -1);

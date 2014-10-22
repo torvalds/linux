@@ -527,6 +527,7 @@ static unsigned long seg_base(struct x86_emulate_ctxt *ctxt, int seg)
 static int emulate_exception(struct x86_emulate_ctxt *ctxt, int vec,
 			     u32 error, bool valid)
 {
+	WARN_ON(vec > 0x1f);
 	ctxt->exception.vector = vec;
 	ctxt->exception.error_code = error;
 	ctxt->exception.error_code_valid = valid;
@@ -1468,7 +1469,7 @@ static int __load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 		return ret;
 
 	err_code = selector & 0xfffc;
-	err_vec = GP_VECTOR;
+	err_vec = in_task_switch ? TS_VECTOR : GP_VECTOR;
 
 	/* can't load system descriptor into segment selector */
 	if (seg <= VCPU_SREG_GS && !seg_desc.s)
@@ -1503,6 +1504,15 @@ static int __load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 			if (rpl > cpl || dpl != cpl)
 				goto exception;
 		}
+		/* in long-mode d/b must be clear if l is set */
+		if (seg_desc.d && seg_desc.l) {
+			u64 efer = 0;
+
+			ctxt->ops->get_msr(ctxt, MSR_EFER, &efer);
+			if (efer & EFER_LMA)
+				goto exception;
+		}
+
 		/* CS(RPL) <- CPL */
 		selector = (selector & 0xfffc) | cpl;
 		break;
@@ -1549,8 +1559,7 @@ load:
 	ctxt->ops->set_segment(ctxt, selector, &seg_desc, base3, seg);
 	return X86EMUL_CONTINUE;
 exception:
-	emulate_exception(ctxt, err_vec, err_code, true);
-	return X86EMUL_PROPAGATE_FAULT;
+	return emulate_exception(ctxt, err_vec, err_code, true);
 }
 
 static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
@@ -2723,8 +2732,7 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 	if (!next_tss_desc.p ||
 	    ((desc_limit < 0x67 && (next_tss_desc.type & 8)) ||
 	     desc_limit < 0x2b)) {
-		emulate_ts(ctxt, tss_selector & 0xfffc);
-		return X86EMUL_PROPAGATE_FAULT;
+		return emulate_ts(ctxt, tss_selector & 0xfffc);
 	}
 
 	if (reason == TASK_SWITCH_IRET || reason == TASK_SWITCH_JMP) {
@@ -3016,7 +3024,7 @@ static int em_movbe(struct x86_emulate_ctxt *ctxt)
 		ctxt->dst.val = swab64(ctxt->src.val);
 		break;
 	default:
-		return X86EMUL_PROPAGATE_FAULT;
+		BUG();
 	}
 	return X86EMUL_CONTINUE;
 }
@@ -3140,12 +3148,8 @@ static int em_clts(struct x86_emulate_ctxt *ctxt)
 
 static int em_vmcall(struct x86_emulate_ctxt *ctxt)
 {
-	int rc;
+	int rc = ctxt->ops->fix_hypercall(ctxt);
 
-	if (ctxt->modrm_mod != 3 || ctxt->modrm_rm != 1)
-		return X86EMUL_UNHANDLEABLE;
-
-	rc = ctxt->ops->fix_hypercall(ctxt);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
@@ -3563,6 +3567,12 @@ static int check_perm_out(struct x86_emulate_ctxt *ctxt)
 		F2bv(((_f) | DstReg | SrcMem | ModRM) & ~Lock, _e),	\
 		F2bv(((_f) & ~Lock) | DstAcc | SrcImm, _e)
 
+static const struct opcode group7_rm0[] = {
+	N,
+	I(SrcNone | Priv | EmulateOnUD,	em_vmcall),
+	N, N, N, N, N, N,
+};
+
 static const struct opcode group7_rm1[] = {
 	DI(SrcNone | Priv, monitor),
 	DI(SrcNone | Priv, mwait),
@@ -3656,7 +3666,7 @@ static const struct group_dual group7 = { {
 	II(SrcMem16 | Mov | Priv,		em_lmsw, lmsw),
 	II(SrcMem | ByteOp | Priv | NoAccess,	em_invlpg, invlpg),
 }, {
-	I(SrcNone | Priv | EmulateOnUD,	em_vmcall),
+	EXT(0, group7_rm0),
 	EXT(0, group7_rm1),
 	N, EXT(0, group7_rm3),
 	II(SrcNone | DstMem | Mov,		em_smsw, smsw), N,
@@ -3687,12 +3697,16 @@ static const struct gprefix pfx_0f_6f_0f_7f = {
 	I(Mmx, em_mov), I(Sse | Aligned, em_mov), N, I(Sse | Unaligned, em_mov),
 };
 
-static const struct gprefix pfx_vmovntpx = {
-	I(0, em_mov), N, N, N,
+static const struct gprefix pfx_0f_2b = {
+	I(0, em_mov), I(0, em_mov), N, N,
 };
 
 static const struct gprefix pfx_0f_28_0f_29 = {
 	I(Aligned, em_mov), I(Aligned, em_mov), N, N,
+};
+
+static const struct gprefix pfx_0f_e7 = {
+	N, I(Sse, em_mov), N, N,
 };
 
 static const struct escape escape_d9 = { {
@@ -3901,7 +3915,7 @@ static const struct opcode twobyte_table[256] = {
 	N, N, N, N,
 	GP(ModRM | DstReg | SrcMem | Mov | Sse, &pfx_0f_28_0f_29),
 	GP(ModRM | DstMem | SrcReg | Mov | Sse, &pfx_0f_28_0f_29),
-	N, GP(ModRM | DstMem | SrcReg | Sse | Mov | Aligned, &pfx_vmovntpx),
+	N, GP(ModRM | DstMem | SrcReg | Mov | Sse, &pfx_0f_2b),
 	N, N, N, N,
 	/* 0x30 - 0x3F */
 	II(ImplicitOps | Priv, em_wrmsr, wrmsr),
@@ -3965,7 +3979,8 @@ static const struct opcode twobyte_table[256] = {
 	/* 0xD0 - 0xDF */
 	N, N, N, N, N, N, N, N, N, N, N, N, N, N, N, N,
 	/* 0xE0 - 0xEF */
-	N, N, N, N, N, N, N, N, N, N, N, N, N, N, N, N,
+	N, N, N, N, N, N, N, GP(SrcReg | DstMem | ModRM | Mov, &pfx_0f_e7),
+	N, N, N, N, N, N, N, N,
 	/* 0xF0 - 0xFF */
 	N, N, N, N, N, N, N, N, N, N, N, N, N, N, N, N
 };
@@ -4829,8 +4844,10 @@ writeback:
 	ctxt->eip = ctxt->_eip;
 
 done:
-	if (rc == X86EMUL_PROPAGATE_FAULT)
+	if (rc == X86EMUL_PROPAGATE_FAULT) {
+		WARN_ON(ctxt->exception.vector > 0x1f);
 		ctxt->have_exception = true;
+	}
 	if (rc == X86EMUL_INTERCEPTED)
 		return EMULATION_INTERCEPTED;
 

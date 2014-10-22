@@ -394,9 +394,9 @@ int solo_osd_print(struct solo_enc_dev *solo_enc);
 
 /* EEPROM commands */
 unsigned int solo_eeprom_ewen(struct solo_dev *solo_dev, int w_en);
-unsigned short solo_eeprom_read(struct solo_dev *solo_dev, int loc);
+__be16 solo_eeprom_read(struct solo_dev *solo_dev, int loc);
 int solo_eeprom_write(struct solo_dev *solo_dev, int loc,
-		      unsigned short data);
+		      __be16 data);
 
 /* JPEG Qp functions */
 void solo_s_jpeg_qp(struct solo_dev *solo_dev, unsigned int ch,

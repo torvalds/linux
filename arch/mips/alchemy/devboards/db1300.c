@@ -21,6 +21,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/platform_device.h>
 #include <linux/smsc911x.h>
+#include <linux/wm97xx.h>
 
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/au1100_mmc.h>
@@ -711,6 +712,46 @@ static struct platform_device db1300_lcd_dev = {
 
 /**********************************************************************/
 
+static void db1300_wm97xx_irqen(struct wm97xx *wm, int enable)
+{
+	if (enable)
+		enable_irq(DB1300_AC97_PEN_INT);
+	else
+		disable_irq_nosync(DB1300_AC97_PEN_INT);
+}
+
+static struct wm97xx_mach_ops db1300_wm97xx_ops = {
+	.irq_enable	= db1300_wm97xx_irqen,
+	.irq_gpio	= WM97XX_GPIO_3,
+};
+
+static int db1300_wm97xx_probe(struct platform_device *pdev)
+{
+	struct wm97xx *wm = platform_get_drvdata(pdev);
+
+	/* external pendown indicator */
+	wm97xx_config_gpio(wm, WM97XX_GPIO_13, WM97XX_GPIO_IN,
+			   WM97XX_GPIO_POL_LOW, WM97XX_GPIO_STICKY,
+			   WM97XX_GPIO_WAKE);
+
+	/* internal "virtual" pendown gpio */
+	wm97xx_config_gpio(wm, WM97XX_GPIO_3, WM97XX_GPIO_OUT,
+			   WM97XX_GPIO_POL_LOW, WM97XX_GPIO_NOTSTICKY,
+			   WM97XX_GPIO_NOWAKE);
+
+	wm->pen_irq = DB1300_AC97_PEN_INT;
+
+	return wm97xx_register_mach_ops(wm, &db1300_wm97xx_ops);
+}
+
+static struct platform_driver db1300_wm97xx_driver = {
+	.driver.name	= "wm97xx-touch",
+	.driver.owner	= THIS_MODULE,
+	.probe		= db1300_wm97xx_probe,
+};
+
+/**********************************************************************/
+
 static struct platform_device *db1300_dev[] __initdata = {
 	&db1300_eth_dev,
 	&db1300_i2c_dev,
@@ -755,6 +796,9 @@ int __init db1300_dev_setup(void)
 	i2c_register_board_info(0, db1300_i2c_devs,
 				ARRAY_SIZE(db1300_i2c_devs));
 
+	if (platform_driver_register(&db1300_wm97xx_driver))
+		pr_warn("DB1300: failed to init touch pen irq support!\n");
+
 	/* Audio PSC clock is supplied by codecs (PSC1, 2) */
 	__raw_writel(PSC_SEL_CLK_SERCLK,
 	    (void __iomem *)KSEG1ADDR(AU1300_PSC1_PHYS_ADDR) + PSC_SEL_OFFSET);
@@ -762,9 +806,10 @@ int __init db1300_dev_setup(void)
 	__raw_writel(PSC_SEL_CLK_SERCLK,
 	    (void __iomem *)KSEG1ADDR(AU1300_PSC2_PHYS_ADDR) + PSC_SEL_OFFSET);
 	wmb();
-	/* I2C uses internal 48MHz EXTCLK1 */
+	/* I2C driver wants 50MHz, get as close as possible */
 	c = clk_get(NULL, "psc3_intclk");
 	if (!IS_ERR(c)) {
+		clk_set_rate(c, 50000000);
 		clk_prepare_enable(c);
 		clk_put(c);
 	}

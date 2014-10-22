@@ -1450,6 +1450,7 @@ static const struct usb_gadget_driver configfs_driver_template = {
 	.unbind         = configfs_composite_unbind,
 
 	.setup          = composite_setup,
+	.reset          = composite_disconnect,
 	.disconnect     = composite_disconnect,
 
 	.max_speed	= USB_SPEED_SUPER,

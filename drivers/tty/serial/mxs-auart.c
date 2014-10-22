@@ -408,7 +408,7 @@ static void mxs_auart_set_mctrl(struct uart_port *u, unsigned mctrl)
 
 	ctrl &= ~(AUART_CTRL2_RTSEN | AUART_CTRL2_RTS);
 	if (mctrl & TIOCM_RTS) {
-		if (tty_port_cts_enabled(&u->state->port))
+		if (uart_cts_enabled(u))
 			ctrl |= AUART_CTRL2_RTSEN;
 		else
 			ctrl |= AUART_CTRL2_RTS;

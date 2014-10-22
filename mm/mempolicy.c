@@ -123,25 +123,23 @@ static struct mempolicy default_policy = {
 
 static struct mempolicy preferred_node_policy[MAX_NUMNODES];
 
-static struct mempolicy *get_task_policy(struct task_struct *p)
+struct mempolicy *get_task_policy(struct task_struct *p)
 {
 	struct mempolicy *pol = p->mempolicy;
+	int node;
 
-	if (!pol) {
-		int node = numa_node_id();
+	if (pol)
+		return pol;
 
-		if (node != NUMA_NO_NODE) {
-			pol = &preferred_node_policy[node];
-			/*
-			 * preferred_node_policy is not initialised early in
-			 * boot
-			 */
-			if (!pol->mode)
-				pol = NULL;
-		}
+	node = numa_node_id();
+	if (node != NUMA_NO_NODE) {
+		pol = &preferred_node_policy[node];
+		/* preferred_node_policy is not initialised early in boot */
+		if (pol->mode)
+			return pol;
 	}
 
-	return pol;
+	return &default_policy;
 }
 
 static const struct mempolicy_operations {
@@ -683,7 +681,9 @@ queue_pages_range(struct mm_struct *mm, unsigned long start, unsigned long end,
 		}
 
 		if (flags & MPOL_MF_LAZY) {
-			change_prot_numa(vma, start, endvma);
+			/* Similar to task_numa_work, skip inaccessible VMAs */
+			if (vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))
+				change_prot_numa(vma, start, endvma);
 			goto next;
 		}
 
@@ -804,7 +804,6 @@ static long do_set_mempolicy(unsigned short mode, unsigned short flags,
 			     nodemask_t *nodes)
 {
 	struct mempolicy *new, *old;
-	struct mm_struct *mm = current->mm;
 	NODEMASK_SCRATCH(scratch);
 	int ret;
 
@@ -816,20 +815,11 @@ static long do_set_mempolicy(unsigned short mode, unsigned short flags,
 		ret = PTR_ERR(new);
 		goto out;
 	}
-	/*
-	 * prevent changing our mempolicy while show_numa_maps()
-	 * is using it.
-	 * Note:  do_set_mempolicy() can be called at init time
-	 * with no 'mm'.
-	 */
-	if (mm)
-		down_write(&mm->mmap_sem);
+
 	task_lock(current);
 	ret = mpol_set_nodemask(new, nodes, scratch);
 	if (ret) {
 		task_unlock(current);
-		if (mm)
-			up_write(&mm->mmap_sem);
 		mpol_put(new);
 		goto out;
 	}
@@ -839,9 +829,6 @@ static long do_set_mempolicy(unsigned short mode, unsigned short flags,
 	    nodes_weight(new->v.nodes))
 		current->il_next = first_node(new->v.nodes);
 	task_unlock(current);
-	if (mm)
-		up_write(&mm->mmap_sem);
-
 	mpol_put(old);
 	ret = 0;
 out:
@@ -1605,32 +1592,14 @@ COMPAT_SYSCALL_DEFINE6(mbind, compat_ulong_t, start, compat_ulong_t, len,
 
 #endif
 
-/*
- * get_vma_policy(@task, @vma, @addr)
- * @task: task for fallback if vma policy == default
- * @vma: virtual memory area whose policy is sought
- * @addr: address in @vma for shared policy lookup
- *
- * Returns effective policy for a VMA at specified address.
- * Falls back to @task or system default policy, as necessary.
- * Current or other task's task mempolicy and non-shared vma policies must be
- * protected by task_lock(task) by the caller.
- * Shared policies [those marked as MPOL_F_SHARED] require an extra reference
- * count--added by the get_policy() vm_op, as appropriate--to protect against
- * freeing by another task.  It is the caller's responsibility to free the
- * extra reference for shared policies.
- */
-struct mempolicy *get_vma_policy(struct task_struct *task,
-		struct vm_area_struct *vma, unsigned long addr)
+struct mempolicy *__get_vma_policy(struct vm_area_struct *vma,
+						unsigned long addr)
 {
-	struct mempolicy *pol = get_task_policy(task);
+	struct mempolicy *pol = NULL;
 
 	if (vma) {
 		if (vma->vm_ops && vma->vm_ops->get_policy) {
-			struct mempolicy *vpol = vma->vm_ops->get_policy(vma,
-									addr);
-			if (vpol)
-				pol = vpol;
+			pol = vma->vm_ops->get_policy(vma, addr);
 		} else if (vma->vm_policy) {
 			pol = vma->vm_policy;
 
@@ -1644,31 +1613,51 @@ struct mempolicy *get_vma_policy(struct task_struct *task,
 				mpol_get(pol);
 		}
 	}
-	if (!pol)
-		pol = &default_policy;
+
 	return pol;
 }
 
-bool vma_policy_mof(struct task_struct *task, struct vm_area_struct *vma)
+/*
+ * get_vma_policy(@vma, @addr)
+ * @vma: virtual memory area whose policy is sought
+ * @addr: address in @vma for shared policy lookup
+ *
+ * Returns effective policy for a VMA at specified address.
+ * Falls back to current->mempolicy or system default policy, as necessary.
+ * Shared policies [those marked as MPOL_F_SHARED] require an extra reference
+ * count--added by the get_policy() vm_op, as appropriate--to protect against
+ * freeing by another task.  It is the caller's responsibility to free the
+ * extra reference for shared policies.
+ */
+static struct mempolicy *get_vma_policy(struct vm_area_struct *vma,
+						unsigned long addr)
 {
-	struct mempolicy *pol = get_task_policy(task);
-	if (vma) {
-		if (vma->vm_ops && vma->vm_ops->get_policy) {
-			bool ret = false;
-
-			pol = vma->vm_ops->get_policy(vma, vma->vm_start);
-			if (pol && (pol->flags & MPOL_F_MOF))
-				ret = true;
-			mpol_cond_put(pol);
-
-			return ret;
-		} else if (vma->vm_policy) {
-			pol = vma->vm_policy;
-		}
-	}
+	struct mempolicy *pol = __get_vma_policy(vma, addr);
 
 	if (!pol)
-		return default_policy.flags & MPOL_F_MOF;
+		pol = get_task_policy(current);
+
+	return pol;
+}
+
+bool vma_policy_mof(struct vm_area_struct *vma)
+{
+	struct mempolicy *pol;
+
+	if (vma->vm_ops && vma->vm_ops->get_policy) {
+		bool ret = false;
+
+		pol = vma->vm_ops->get_policy(vma, vma->vm_start);
+		if (pol && (pol->flags & MPOL_F_MOF))
+			ret = true;
+		mpol_cond_put(pol);
+
+		return ret;
+	}
+
+	pol = vma->vm_policy;
+	if (!pol)
+		pol = get_task_policy(current);
 
 	return pol->flags & MPOL_F_MOF;
 }
@@ -1874,7 +1863,7 @@ struct zonelist *huge_zonelist(struct vm_area_struct *vma, unsigned long addr,
 {
 	struct zonelist *zl;
 
-	*mpol = get_vma_policy(current, vma, addr);
+	*mpol = get_vma_policy(vma, addr);
 	*nodemask = NULL;	/* assume !MPOL_BIND */
 
 	if (unlikely((*mpol)->mode == MPOL_INTERLEAVE)) {
@@ -2029,7 +2018,7 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
 	unsigned int cpuset_mems_cookie;
 
 retry_cpuset:
-	pol = get_vma_policy(current, vma, addr);
+	pol = get_vma_policy(vma, addr);
 	cpuset_mems_cookie = read_mems_allowed_begin();
 
 	if (unlikely(pol->mode == MPOL_INTERLEAVE)) {
@@ -2046,8 +2035,7 @@ retry_cpuset:
 	page = __alloc_pages_nodemask(gfp, order,
 				      policy_zonelist(gfp, pol, node),
 				      policy_nodemask(gfp, pol));
-	if (unlikely(mpol_needs_cond_ref(pol)))
-		__mpol_put(pol);
+	mpol_cond_put(pol);
 	if (unlikely(!page && read_mems_allowed_retry(cpuset_mems_cookie)))
 		goto retry_cpuset;
 	return page;
@@ -2074,12 +2062,12 @@ retry_cpuset:
  */
 struct page *alloc_pages_current(gfp_t gfp, unsigned order)
 {
-	struct mempolicy *pol = get_task_policy(current);
+	struct mempolicy *pol = &default_policy;
 	struct page *page;
 	unsigned int cpuset_mems_cookie;
 
-	if (!pol || in_interrupt() || (gfp & __GFP_THISNODE))
-		pol = &default_policy;
+	if (!in_interrupt() && !(gfp & __GFP_THISNODE))
+		pol = get_task_policy(current);
 
 retry_cpuset:
 	cpuset_mems_cookie = read_mems_allowed_begin();
@@ -2296,7 +2284,7 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long 
 
 	BUG_ON(!vma);
 
-	pol = get_vma_policy(current, vma, addr);
+	pol = get_vma_policy(vma, addr);
 	if (!(pol->flags & MPOL_F_MOF))
 		goto out;
 

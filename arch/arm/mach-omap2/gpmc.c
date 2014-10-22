@@ -1243,7 +1243,7 @@ int gpmc_cs_program_settings(int cs, struct gpmc_settings *p)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id gpmc_dt_ids[] = {
+static const struct of_device_id gpmc_dt_ids[] = {
 	{ .compatible = "ti,omap2420-gpmc" },
 	{ .compatible = "ti,omap2430-gpmc" },
 	{ .compatible = "ti,omap3430-gpmc" },	/* omap3430 & omap3630 */
@@ -1439,6 +1439,8 @@ static int gpmc_probe_nand_child(struct platform_device *pdev,
 				gpmc_nand_data->xfer_type = val;
 				break;
 			}
+
+	gpmc_nand_data->flash_bbt = of_get_nand_on_flash_bbt(child);
 
 	val = of_get_nand_bus_width(child);
 	if (val == 16)

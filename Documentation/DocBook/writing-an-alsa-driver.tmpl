@@ -3658,6 +3658,29 @@ struct _snd_pcm_runtime {
         </para>
 
         <para>
+	  The above callback can be simplified with a helper function,
+	  <function>snd_ctl_enum_info</function>.  The final code
+	  looks like below.
+	  (You can pass ARRAY_SIZE(texts) instead of 4 in the third
+	   argument; it's a matter of taste.)
+
+          <informalexample>
+            <programlisting>
+<![CDATA[
+  static int snd_myctl_enum_info(struct snd_kcontrol *kcontrol,
+                          struct snd_ctl_elem_info *uinfo)
+  {
+          static char *texts[4] = {
+                  "First", "Second", "Third", "Fourth"
+          };
+          return snd_ctl_enum_info(uinfo, 1, 4, texts);
+  }
+]]>
+            </programlisting>
+          </informalexample>
+        </para>
+
+        <para>
 	  Some common info callbacks are available for your convenience:
 	<function>snd_ctl_boolean_mono_info()</function> and
 	<function>snd_ctl_boolean_stereo_info()</function>.

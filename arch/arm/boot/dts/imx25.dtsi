@@ -239,6 +239,7 @@
 			};
 
 			ssi2: ssi@50014000 {
+				#sound-dai-cells = <0>;
 				compatible = "fsl,imx25-ssi", "fsl,imx21-ssi";
 				reg = <0x50014000 0x4000>;
 				interrupts = <11>;
@@ -274,6 +275,7 @@
 			};
 
 			ssi1: ssi@50034000 {
+				#sound-dai-cells = <0>;
 				compatible = "fsl,imx25-ssi", "fsl,imx21-ssi";
 				reg = <0x50034000 0x4000>;
 				interrupts = <12>;
@@ -453,7 +455,7 @@
 			};
 
 			sdma: sdma@53fd4000 {
-				compatible = "fsl,imx25-sdma", "fsl,imx35-sdma";
+				compatible = "fsl,imx25-sdma";
 				reg = <0x53fd4000 0x4000>;
 				clocks = <&clks 112>, <&clks 68>;
 				clock-names = "ipg", "ahb";

@@ -1591,6 +1591,7 @@ struct xfrm_policy *xfrm_policy_bysel_ctx(struct net *net, u32 mark,
 struct xfrm_policy *xfrm_policy_byid(struct net *net, u32 mark, u8, int dir,
 				     u32 id, int delete, int *err);
 int xfrm_policy_flush(struct net *net, u8 type, bool task_valid);
+void xfrm_policy_hash_rebuild(struct net *net);
 u32 xfrm_get_acqseq(void);
 int verify_spi_info(u8 proto, u32 min, u32 max);
 int xfrm_alloc_spi(struct xfrm_state *x, u32 minspi, u32 maxspi);

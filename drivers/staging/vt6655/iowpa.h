@@ -75,7 +75,7 @@ struct viawget_wpa_param {
 			u8 bssid[6];
 			u8 ssid[32];
 			u8 ssid_len;
-			u8 *wpa_ie;
+			u8 __user *wpa_ie;
 			u16 wpa_ie_len;
 			int pairwise_suite;
 			int group_suite;
@@ -102,7 +102,7 @@ struct viawget_wpa_param {
 
 		struct {
 			u16 scan_count;
-			u8 *buf;
+			u8 __user *buf;
 		} scan_results;
 
 	} u;

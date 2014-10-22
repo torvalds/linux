@@ -777,6 +777,7 @@ extern void atombios_digital_setup(struct drm_encoder *encoder, int action);
 extern int atombios_get_encoder_mode(struct drm_encoder *encoder);
 extern bool atombios_set_edp_panel_power(struct drm_connector *connector, int action);
 extern void radeon_encoder_set_active_device(struct drm_encoder *encoder);
+extern bool radeon_encoder_is_digital(struct drm_encoder *encoder);
 
 extern void radeon_crtc_load_lut(struct drm_crtc *crtc);
 extern int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,

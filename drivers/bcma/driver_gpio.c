@@ -76,7 +76,7 @@ static void bcma_gpio_free(struct gpio_chip *chip, unsigned gpio)
 	bcma_chipco_gpio_pullup(cc, 1 << gpio, 0);
 }
 
-#if IS_BUILTIN(CONFIG_BCMA_HOST_SOC)
+#if IS_BUILTIN(CONFIG_BCM47XX)
 static int bcma_gpio_to_irq(struct gpio_chip *chip, unsigned gpio)
 {
 	struct bcma_drv_cc *cc = bcma_gpio_get_cc(chip);
@@ -215,8 +215,12 @@ int bcma_gpio_init(struct bcma_drv_cc *cc)
 	chip->set		= bcma_gpio_set_value;
 	chip->direction_input	= bcma_gpio_direction_input;
 	chip->direction_output	= bcma_gpio_direction_output;
-#if IS_BUILTIN(CONFIG_BCMA_HOST_SOC)
+#if IS_BUILTIN(CONFIG_BCM47XX)
 	chip->to_irq		= bcma_gpio_to_irq;
+#endif
+#if IS_BUILTIN(CONFIG_OF)
+	if (cc->core->bus->hosttype == BCMA_HOSTTYPE_SOC)
+		chip->of_node	= cc->core->dev.of_node;
 #endif
 	switch (cc->core->bus->chipinfo.id) {
 	case BCMA_CHIP_ID_BCM5357:
@@ -251,5 +255,6 @@ int bcma_gpio_init(struct bcma_drv_cc *cc)
 int bcma_gpio_unregister(struct bcma_drv_cc *cc)
 {
 	bcma_gpio_irq_domain_exit(cc);
-	return gpiochip_remove(&cc->gpio);
+	gpiochip_remove(&cc->gpio);
+	return 0;
 }

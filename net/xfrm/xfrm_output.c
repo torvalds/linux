@@ -166,11 +166,7 @@ static int xfrm_output_gso(struct sk_buff *skb)
 		err = xfrm_output2(segs);
 
 		if (unlikely(err)) {
-			while ((segs = nskb)) {
-				nskb = segs->next;
-				segs->next = NULL;
-				kfree_skb(segs);
-			}
+			kfree_skb_list(nskb);
 			return err;
 		}
 

@@ -16,9 +16,9 @@
 #include <linux/kmemleak.h>
 #include <linux/range.h>
 #include <linux/memblock.h>
+#include <linux/bug.h>
+#include <linux/io.h>
 
-#include <asm/bug.h>
-#include <asm/io.h>
 #include <asm/processor.h>
 
 #include "internal.h"

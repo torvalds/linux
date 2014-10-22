@@ -13,12 +13,12 @@
 #include "common.h"
 #include "pm-rmobile.h"
 
-#ifdef CONFIG_PM
+#if defined(CONFIG_PM) && !defined(CONFIG_ARCH_MULTIPLATFORM)
 static int r8a7740_pd_a4s_suspend(void)
 {
 	/*
 	 * The A4S domain contains the CPU core and therefore it should
-	 * only be turned off if the CPU is in use.
+	 * only be turned off if the CPU is not in use.
 	 */
 	return -EBUSY;
 }
@@ -34,22 +34,20 @@ static int r8a7740_pd_a3sp_suspend(void)
 
 static struct rmobile_pm_domain r8a7740_pm_domains[] = {
 	{
+		.genpd.name	= "A4LC",
+		.bit_shift	= 1,
+	}, {
 		.genpd.name	= "A4S",
 		.bit_shift	= 10,
 		.gov		= &pm_domain_always_on_gov,
 		.no_debug	= true,
 		.suspend	= r8a7740_pd_a4s_suspend,
-	},
-	{
+	}, {
 		.genpd.name	= "A3SP",
 		.bit_shift	= 11,
 		.gov		= &pm_domain_always_on_gov,
 		.no_debug	= true,
 		.suspend	= r8a7740_pd_a3sp_suspend,
-	},
-	{
-		.genpd.name	= "A4LC",
-		.bit_shift	= 1,
 	},
 };
 
@@ -58,8 +56,7 @@ void __init r8a7740_init_pm_domains(void)
 	rmobile_init_domains(r8a7740_pm_domains, ARRAY_SIZE(r8a7740_pm_domains));
 	pm_genpd_add_subdomain_names("A4S", "A3SP");
 }
-
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM && !CONFIG_ARCH_MULTIPLATFORM */
 
 #ifdef CONFIG_SUSPEND
 static int r8a7740_enter_suspend(suspend_state_t suspend_state)

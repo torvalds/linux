@@ -19,13 +19,14 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "au0828.h"
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/io.h>
 
-#include "au0828.h"
 #include "media/tuner.h"
 #include <media/v4l2-common.h>
 
@@ -340,7 +341,7 @@ static struct i2c_algorithm au0828_i2c_algo_template = {
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_adapter au0828_i2c_adap_template = {
-	.name              = DRIVER_NAME,
+	.name              = KBUILD_MODNAME,
 	.owner             = THIS_MODULE,
 	.algo              = &au0828_i2c_algo_template,
 };
@@ -365,7 +366,7 @@ static void do_i2c_scan(char *name, struct i2c_client *c)
 		rc = i2c_master_recv(c, &buf, 0);
 		if (rc < 0)
 			continue;
-		printk(KERN_INFO "%s: i2c scan: found device @ 0x%x  [%s]\n",
+		pr_info("%s: i2c scan: found device @ 0x%x  [%s]\n",
 		       name, i << 1, i2c_devs[i] ? i2c_devs[i] : "???");
 	}
 }
@@ -381,7 +382,7 @@ int au0828_i2c_register(struct au0828_dev *dev)
 
 	dev->i2c_adap.dev.parent = &dev->usbdev->dev;
 
-	strlcpy(dev->i2c_adap.name, DRIVER_NAME,
+	strlcpy(dev->i2c_adap.name, KBUILD_MODNAME,
 		sizeof(dev->i2c_adap.name));
 
 	dev->i2c_adap.algo = &dev->i2c_algo;
@@ -396,11 +397,11 @@ int au0828_i2c_register(struct au0828_dev *dev)
 	dev->i2c_client.adapter = &dev->i2c_adap;
 
 	if (0 == dev->i2c_rc) {
-		printk(KERN_INFO "%s: i2c bus registered\n", DRIVER_NAME);
+		pr_info("i2c bus registered\n");
 		if (i2c_scan)
-			do_i2c_scan(DRIVER_NAME, &dev->i2c_client);
+			do_i2c_scan(KBUILD_MODNAME, &dev->i2c_client);
 	} else
-		printk(KERN_INFO "%s: i2c bus register FAILED\n", DRIVER_NAME);
+		pr_info("i2c bus register FAILED\n");
 
 	return dev->i2c_rc;
 }

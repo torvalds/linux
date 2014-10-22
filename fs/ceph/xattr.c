@@ -1,4 +1,5 @@
 #include <linux/ceph/ceph_debug.h>
+#include <linux/ceph/pagelist.h>
 
 #include "super.h"
 #include "mds_client.h"
@@ -284,8 +285,7 @@ static size_t ceph_vxattrs_name_size(struct ceph_vxattr *vxattrs)
 		return ceph_dir_vxattrs_name_size;
 	if (vxattrs == ceph_file_vxattrs)
 		return ceph_file_vxattrs_name_size;
-	BUG();
-
+	BUG_ON(vxattrs);
 	return 0;
 }
 
@@ -736,24 +736,20 @@ ssize_t __ceph_getxattr(struct inode *inode, const char *name, void *value,
 	dout("getxattr %p ver=%lld index_ver=%lld\n", inode,
 	     ci->i_xattrs.version, ci->i_xattrs.index_version);
 
-	if (__ceph_caps_issued_mask(ci, CEPH_CAP_XATTR_SHARED, 1) &&
-	    (ci->i_xattrs.index_version >= ci->i_xattrs.version)) {
-		goto get_xattr;
-	} else {
+	if (ci->i_xattrs.version == 0 ||
+	    !__ceph_caps_issued_mask(ci, CEPH_CAP_XATTR_SHARED, 1)) {
 		spin_unlock(&ci->i_ceph_lock);
 		/* get xattrs from mds (if we don't already have them) */
-		err = ceph_do_getattr(inode, CEPH_STAT_CAP_XATTR);
+		err = ceph_do_getattr(inode, CEPH_STAT_CAP_XATTR, true);
 		if (err)
 			return err;
+		spin_lock(&ci->i_ceph_lock);
 	}
-
-	spin_lock(&ci->i_ceph_lock);
 
 	err = __build_xattrs(inode);
 	if (err < 0)
 		goto out;
 
-get_xattr:
 	err = -ENODATA;  /* == ENOATTR */
 	xattr = __get_xattr(ci, name);
 	if (!xattr)
@@ -798,23 +794,18 @@ ssize_t ceph_listxattr(struct dentry *dentry, char *names, size_t size)
 	dout("listxattr %p ver=%lld index_ver=%lld\n", inode,
 	     ci->i_xattrs.version, ci->i_xattrs.index_version);
 
-	if (__ceph_caps_issued_mask(ci, CEPH_CAP_XATTR_SHARED, 1) &&
-	    (ci->i_xattrs.index_version >= ci->i_xattrs.version)) {
-		goto list_xattr;
-	} else {
+	if (ci->i_xattrs.version == 0 ||
+	    !__ceph_caps_issued_mask(ci, CEPH_CAP_XATTR_SHARED, 1)) {
 		spin_unlock(&ci->i_ceph_lock);
-		err = ceph_do_getattr(inode, CEPH_STAT_CAP_XATTR);
+		err = ceph_do_getattr(inode, CEPH_STAT_CAP_XATTR, true);
 		if (err)
 			return err;
+		spin_lock(&ci->i_ceph_lock);
 	}
-
-	spin_lock(&ci->i_ceph_lock);
 
 	err = __build_xattrs(inode);
 	if (err < 0)
 		goto out;
-
-list_xattr:
 	/*
 	 * Start with virtual dir xattr names (if any) (including
 	 * terminating '\0' characters for each).
@@ -860,34 +851,24 @@ static int ceph_sync_setxattr(struct dentry *dentry, const char *name,
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_mds_request *req;
 	struct ceph_mds_client *mdsc = fsc->mdsc;
+	struct ceph_pagelist *pagelist = NULL;
 	int err;
-	int i, nr_pages;
-	struct page **pages = NULL;
-	void *kaddr;
 
-	/* copy value into some pages */
-	nr_pages = calc_pages_for(0, size);
-	if (nr_pages) {
-		pages = kmalloc(sizeof(pages[0])*nr_pages, GFP_NOFS);
-		if (!pages)
+	if (value) {
+		/* copy value into pagelist */
+		pagelist = kmalloc(sizeof(*pagelist), GFP_NOFS);
+		if (!pagelist)
 			return -ENOMEM;
-		err = -ENOMEM;
-		for (i = 0; i < nr_pages; i++) {
-			pages[i] = __page_cache_alloc(GFP_NOFS);
-			if (!pages[i]) {
-				nr_pages = i;
-				goto out;
-			}
-			kaddr = kmap(pages[i]);
-			memcpy(kaddr, value + i*PAGE_CACHE_SIZE,
-			       min(PAGE_CACHE_SIZE, size-i*PAGE_CACHE_SIZE));
-		}
+
+		ceph_pagelist_init(pagelist);
+		err = ceph_pagelist_append(pagelist, value, size);
+		if (err)
+			goto out;
+	} else {
+		flags |= CEPH_XATTR_REMOVE;
 	}
 
 	dout("setxattr value=%.*s\n", (int)size, value);
-
-	if (!value)
-		flags |= CEPH_XATTR_REMOVE;
 
 	/* do request */
 	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_SETXATTR,
@@ -903,9 +884,8 @@ static int ceph_sync_setxattr(struct dentry *dentry, const char *name,
 	req->r_args.setxattr.flags = cpu_to_le32(flags);
 	req->r_path2 = kstrdup(name, GFP_NOFS);
 
-	req->r_pages = pages;
-	req->r_num_pages = nr_pages;
-	req->r_data_len = size;
+	req->r_pagelist = pagelist;
+	pagelist = NULL;
 
 	dout("xattr.ver (before): %lld\n", ci->i_xattrs.version);
 	err = ceph_mdsc_do_request(mdsc, NULL, req);
@@ -913,11 +893,8 @@ static int ceph_sync_setxattr(struct dentry *dentry, const char *name,
 	dout("xattr.ver (after): %lld\n", ci->i_xattrs.version);
 
 out:
-	if (pages) {
-		for (i = 0; i < nr_pages; i++)
-			__free_page(pages[i]);
-		kfree(pages);
-	}
+	if (pagelist)
+		ceph_pagelist_release(pagelist);
 	return err;
 }
 
@@ -968,7 +945,7 @@ int __ceph_setxattr(struct dentry *dentry, const char *name,
 retry:
 	issued = __ceph_caps_issued(ci, NULL);
 	dout("setxattr %p issued %s\n", inode, ceph_cap_string(issued));
-	if (!(issued & CEPH_CAP_XATTR_EXCL))
+	if (ci->i_xattrs.version == 0 || !(issued & CEPH_CAP_XATTR_EXCL))
 		goto do_sync;
 	__build_xattrs(inode);
 
@@ -1077,7 +1054,7 @@ retry:
 	issued = __ceph_caps_issued(ci, NULL);
 	dout("removexattr %p issued %s\n", inode, ceph_cap_string(issued));
 
-	if (!(issued & CEPH_CAP_XATTR_EXCL))
+	if (ci->i_xattrs.version == 0 || !(issued & CEPH_CAP_XATTR_EXCL))
 		goto do_sync;
 	__build_xattrs(inode);
 

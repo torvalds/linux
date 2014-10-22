@@ -22,6 +22,9 @@ config AD7606_IFACE_PARALLEL
 	  Say yes here to include parallel interface support on the AD7606
 	  ADC driver.
 
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7606_iface_parallel.
+
 config AD7606_IFACE_SPI
 	tristate "spi interface support"
 	depends on AD7606
@@ -29,6 +32,9 @@ config AD7606_IFACE_SPI
 	help
 	  Say yes here to include parallel interface support on the AD7606
 	  ADC driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7606_iface_spi.
 
 config AD7780
 	tristate "Analog Devices AD7780 and similar ADCs driver"
@@ -107,4 +113,6 @@ config SPEAR_ADC
 	  Say yes here to build support for the integrated ADC inside the
 	  ST SPEAr SoC. Provides direct access via sysfs.
 
+	  To compile this driver as a module, choose M here: the
+	  module will be called spear_adc.
 endmenu

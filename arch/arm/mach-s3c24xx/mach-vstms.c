@@ -165,5 +165,4 @@ MACHINE_START(VSTMS, "VSTMS")
 	.init_machine	= vstms_init,
 	.map_io		= vstms_map_io,
 	.init_time	= vstms_init_time,
-	.restart	= s3c2412_restart,
 MACHINE_END

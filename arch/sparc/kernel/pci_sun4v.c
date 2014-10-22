@@ -48,7 +48,7 @@ static int iommu_batch_initialized;
 /* Interrupts must be disabled.  */
 static inline void iommu_batch_start(struct device *dev, unsigned long prot, unsigned long entry)
 {
-	struct iommu_batch *p = &__get_cpu_var(iommu_batch);
+	struct iommu_batch *p = this_cpu_ptr(&iommu_batch);
 
 	p->dev		= dev;
 	p->prot		= prot;
@@ -94,7 +94,7 @@ static long iommu_batch_flush(struct iommu_batch *p)
 
 static inline void iommu_batch_new_entry(unsigned long entry)
 {
-	struct iommu_batch *p = &__get_cpu_var(iommu_batch);
+	struct iommu_batch *p = this_cpu_ptr(&iommu_batch);
 
 	if (p->entry + p->npages == entry)
 		return;
@@ -106,7 +106,7 @@ static inline void iommu_batch_new_entry(unsigned long entry)
 /* Interrupts must be disabled.  */
 static inline long iommu_batch_add(u64 phys_page)
 {
-	struct iommu_batch *p = &__get_cpu_var(iommu_batch);
+	struct iommu_batch *p = this_cpu_ptr(&iommu_batch);
 
 	BUG_ON(p->npages >= PGLIST_NENTS);
 
@@ -120,7 +120,7 @@ static inline long iommu_batch_add(u64 phys_page)
 /* Interrupts must be disabled.  */
 static inline long iommu_batch_end(void)
 {
-	struct iommu_batch *p = &__get_cpu_var(iommu_batch);
+	struct iommu_batch *p = this_cpu_ptr(&iommu_batch);
 
 	BUG_ON(p->npages >= PGLIST_NENTS);
 

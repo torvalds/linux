@@ -918,17 +918,11 @@ static int snd_sonicvibes_pcm(struct sonicvibes *sonic, int device,
 
 static int snd_sonicvibes_info_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[7] = {
+	static const char * const texts[7] = {
 		"CD", "PCM", "Aux1", "Line", "Aux0", "Mic", "Mix"
 	};
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 2;
-	uinfo->value.enumerated.items = 7;
-	if (uinfo->value.enumerated.item >= 7)
-		uinfo->value.enumerated.item = 6;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 2, 7, texts);
 }
 
 static int snd_sonicvibes_get_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)

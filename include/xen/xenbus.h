@@ -86,6 +86,7 @@ struct xenbus_device_id
 
 /* A xenbus driver. */
 struct xenbus_driver {
+	const char *name;       /* defaults to ids[0].devicetype */
 	const struct xenbus_device_id *ids;
 	int (*probe)(struct xenbus_device *dev,
 		     const struct xenbus_device_id *id);
@@ -100,20 +101,22 @@ struct xenbus_driver {
 	int (*is_ready)(struct xenbus_device *dev);
 };
 
-#define DEFINE_XENBUS_DRIVER(var, drvname, methods...)		\
-struct xenbus_driver var ## _driver = {				\
-	.driver.name = drvname + 0 ?: var ## _ids->devicetype,	\
-	.driver.owner = THIS_MODULE,				\
-	.ids = var ## _ids, ## methods				\
-}
-
 static inline struct xenbus_driver *to_xenbus_driver(struct device_driver *drv)
 {
 	return container_of(drv, struct xenbus_driver, driver);
 }
 
-int __must_check xenbus_register_frontend(struct xenbus_driver *);
-int __must_check xenbus_register_backend(struct xenbus_driver *);
+int __must_check __xenbus_register_frontend(struct xenbus_driver *drv,
+					    struct module *owner,
+					    const char *mod_name);
+int __must_check __xenbus_register_backend(struct xenbus_driver *drv,
+					   struct module *owner,
+					   const char *mod_name);
+
+#define xenbus_register_frontend(drv) \
+	__xenbus_register_frontend(drv, THIS_MODULE, KBUILD_MODNAME);
+#define xenbus_register_backend(drv) \
+	__xenbus_register_backend(drv, THIS_MODULE, KBUILD_MODNAME);
 
 void xenbus_unregister_driver(struct xenbus_driver *drv);
 

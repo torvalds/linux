@@ -38,6 +38,8 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/vga_switcheroo.h>
+#include <drm/drm_gem.h>
+
 #include "drm_crtc_helper.h"
 /*
  * KMS wrapper.
@@ -114,6 +116,9 @@ int radeon_gem_object_open(struct drm_gem_object *obj,
 				struct drm_file *file_priv);
 void radeon_gem_object_close(struct drm_gem_object *obj,
 				struct drm_file *file_priv);
+struct dma_buf *radeon_gem_prime_export(struct drm_device *dev,
+					struct drm_gem_object *gobj,
+					int flags);
 extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc,
 				      unsigned int flags,
 				      int *vpos, int *hpos, ktime_t *stime,
@@ -130,7 +135,7 @@ int radeon_mode_dumb_create(struct drm_file *file_priv,
 			    struct drm_mode_create_dumb *args);
 struct sg_table *radeon_gem_prime_get_sg_table(struct drm_gem_object *obj);
 struct drm_gem_object *radeon_gem_prime_import_sg_table(struct drm_device *dev,
-							size_t size,
+							struct dma_buf_attachment *,
 							struct sg_table *sg);
 int radeon_gem_prime_pin(struct drm_gem_object *obj);
 void radeon_gem_prime_unpin(struct drm_gem_object *obj);
@@ -309,7 +314,7 @@ static const struct file_operations radeon_driver_old_fops = {
 	.open = drm_open,
 	.release = drm_release,
 	.unlocked_ioctl = drm_ioctl,
-	.mmap = drm_mmap,
+	.mmap = drm_legacy_mmap,
 	.poll = drm_poll,
 	.read = drm_read,
 #ifdef CONFIG_COMPAT
@@ -329,6 +334,7 @@ static struct drm_driver driver_old = {
 	.preclose = radeon_driver_preclose,
 	.postclose = radeon_driver_postclose,
 	.lastclose = radeon_driver_lastclose,
+	.set_busid = drm_pci_set_busid,
 	.unload = radeon_driver_unload,
 	.suspend = radeon_suspend,
 	.resume = radeon_resume,
@@ -553,6 +559,7 @@ static struct drm_driver kms_driver = {
 	.preclose = radeon_driver_preclose_kms,
 	.postclose = radeon_driver_postclose_kms,
 	.lastclose = radeon_driver_lastclose_kms,
+	.set_busid = drm_pci_set_busid,
 	.unload = radeon_driver_unload_kms,
 	.get_vblank_counter = radeon_get_vblank_counter_kms,
 	.enable_vblank = radeon_enable_vblank_kms,
@@ -578,7 +585,7 @@ static struct drm_driver kms_driver = {
 
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
-	.gem_prime_export = drm_gem_prime_export,
+	.gem_prime_export = radeon_gem_prime_export,
 	.gem_prime_import = drm_gem_prime_import,
 	.gem_prime_pin = radeon_gem_prime_pin,
 	.gem_prime_unpin = radeon_gem_prime_unpin,

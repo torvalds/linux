@@ -128,7 +128,6 @@
 #include "xgbe.h"
 #include "xgbe-common.h"
 
-
 MODULE_AUTHOR("Tom Lendacky <thomas.lendacky@amd.com>");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(XGBE_DRV_VERSION);

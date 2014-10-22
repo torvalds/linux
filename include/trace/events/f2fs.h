@@ -69,6 +69,12 @@
 		{ GC_GREEDY,	"Greedy" },				\
 		{ GC_CB,	"Cost-Benefit" })
 
+#define show_cpreason(type)						\
+	__print_symbolic(type,						\
+		{ CP_UMOUNT,	"Umount" },				\
+		{ CP_SYNC,	"Sync" },				\
+		{ CP_DISCARD,	"Discard" })
+
 struct victim_sel_policy;
 
 DECLARE_EVENT_CLASS(f2fs__inode,
@@ -944,25 +950,25 @@ TRACE_EVENT(f2fs_submit_page_mbio,
 
 TRACE_EVENT(f2fs_write_checkpoint,
 
-	TP_PROTO(struct super_block *sb, bool is_umount, char *msg),
+	TP_PROTO(struct super_block *sb, int reason, char *msg),
 
-	TP_ARGS(sb, is_umount, msg),
+	TP_ARGS(sb, reason, msg),
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
-		__field(bool,	is_umount)
+		__field(int,	reason)
 		__field(char *,	msg)
 	),
 
 	TP_fast_assign(
 		__entry->dev		= sb->s_dev;
-		__entry->is_umount	= is_umount;
+		__entry->reason		= reason;
 		__entry->msg		= msg;
 	),
 
 	TP_printk("dev = (%d,%d), checkpoint for %s, state = %s",
 		show_dev(__entry),
-		__entry->is_umount ? "clean umount" : "consistency",
+		show_cpreason(__entry->reason),
 		__entry->msg)
 );
 

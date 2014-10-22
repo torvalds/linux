@@ -43,6 +43,10 @@
 	clock-frequency = <48000000>;
 };
 
+&mtu2 {
+	status = "ok";
+};
+
 &i2c2 {
 	status = "okay";
 	clock-frequency = <400000>;

@@ -62,9 +62,11 @@
 
 #include <linux/export.h>
 #include <linux/moduleparam.h>
+#include <linux/vmalloc.h>
 
 #include <linux/seq_file.h>
 #include <linux/list.h>
+#include <linux/vmalloc.h>
 #include "debug.h"
 #include "ath5k.h"
 #include "reg.h"
@@ -894,6 +896,100 @@ static const struct file_operations fops_queue = {
 	.llseek = default_llseek,
 };
 
+/* debugfs: eeprom */
+
+struct eeprom_private {
+	u16 *buf;
+	int len;
+};
+
+static int open_file_eeprom(struct inode *inode, struct file *file)
+{
+	struct eeprom_private *ep;
+	struct ath5k_hw *ah = inode->i_private;
+	bool res;
+	int i, ret;
+	u32 eesize;
+	u16 val, *buf;
+
+	/* Get eeprom size */
+
+	res = ath5k_hw_nvram_read(ah, AR5K_EEPROM_SIZE_UPPER, &val);
+	if (!res)
+		return -EACCES;
+
+	if (val == 0) {
+		eesize = AR5K_EEPROM_INFO_MAX + AR5K_EEPROM_INFO_BASE;
+	} else {
+		eesize = (val & AR5K_EEPROM_SIZE_UPPER_MASK) <<
+			AR5K_EEPROM_SIZE_ENDLOC_SHIFT;
+		ath5k_hw_nvram_read(ah, AR5K_EEPROM_SIZE_LOWER, &val);
+		eesize = eesize | val;
+	}
+
+	if (eesize > 4096)
+		return -EINVAL;
+
+	/* Create buffer and read in eeprom */
+
+	buf = vmalloc(eesize);
+	if (!buf) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	for (i = 0; i < eesize; ++i) {
+		AR5K_EEPROM_READ(i, val);
+		buf[i] = val;
+	}
+
+	/* Create private struct and assign to file */
+
+	ep = kmalloc(sizeof(*ep), GFP_KERNEL);
+	if (!ep) {
+		ret = -ENOMEM;
+		goto freebuf;
+	}
+
+	ep->buf = buf;
+	ep->len = i;
+
+	file->private_data = (void *)ep;
+
+	return 0;
+
+freebuf:
+	vfree(buf);
+err:
+	return ret;
+
+}
+
+static ssize_t read_file_eeprom(struct file *file, char __user *user_buf,
+				   size_t count, loff_t *ppos)
+{
+	struct eeprom_private *ep = file->private_data;
+
+	return simple_read_from_buffer(user_buf, count, ppos, ep->buf, ep->len);
+}
+
+static int release_file_eeprom(struct inode *inode, struct file *file)
+{
+	struct eeprom_private *ep = file->private_data;
+
+	vfree(ep->buf);
+	kfree(ep);
+
+	return 0;
+}
+
+static const struct file_operations fops_eeprom = {
+	.open = open_file_eeprom,
+	.read = read_file_eeprom,
+	.release = release_file_eeprom,
+	.owner = THIS_MODULE,
+};
+
 
 void
 ath5k_debug_init_device(struct ath5k_hw *ah)
@@ -920,6 +1016,8 @@ ath5k_debug_init_device(struct ath5k_hw *ah)
 			    &fops_antenna);
 
 	debugfs_create_file("misc", S_IRUSR, phydir, ah, &fops_misc);
+
+	debugfs_create_file("eeprom", S_IRUSR, phydir, ah, &fops_eeprom);
 
 	debugfs_create_file("frameerrors", S_IWUSR | S_IRUSR, phydir, ah,
 			    &fops_frameerrors);

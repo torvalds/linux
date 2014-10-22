@@ -43,4 +43,15 @@ config ARM64_RANDOMIZE_TEXT_OFFSET
 	  of TEXT_OFFSET and platforms must not require a specific
 	  value.
 
+config DEBUG_SET_MODULE_RONX
+        bool "Set loadable kernel module data as NX and text as RO"
+        depends on MODULES
+        help
+          This option helps catch unintended modifications to loadable
+          kernel module's text and read-only data. It also prevents execution
+          of module data. Such protection may interfere with run-time code
+          patching and dynamic kernel tracing - and they might also protect
+          against certain classes of kernel exploits.
+          If in doubt, say "N".
+
 endmenu

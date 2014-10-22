@@ -280,8 +280,8 @@ static int camif_prepare_addr(struct camif_vp *vp, struct vb2_buffer *vb,
 		return -EINVAL;
 	}
 
-	pr_debug("DMA address: y: %#x  cb: %#x cr: %#x\n",
-		 paddr->y, paddr->cb, paddr->cr);
+	pr_debug("DMA address: y: %pad  cb: %pad cr: %pad\n",
+		 &paddr->y, &paddr->cb, &paddr->cr);
 
 	return 0;
 }

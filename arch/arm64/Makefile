@@ -30,8 +30,6 @@ AS		+= -EL
 LD		+= -EL
 endif
 
-comma = ,
-
 CHECKFLAGS	+= -D__aarch64__
 
 # Default value
@@ -47,6 +45,7 @@ endif
 export	TEXT_OFFSET GZFLAGS
 
 core-y		+= arch/arm64/kernel/ arch/arm64/mm/
+core-$(CONFIG_NET) += arch/arm64/net/
 core-$(CONFIG_KVM) += arch/arm64/kvm/
 core-$(CONFIG_XEN) += arch/arm64/xen/
 core-$(CONFIG_CRYPTO) += arch/arm64/crypto/

@@ -204,7 +204,7 @@
 			};
 
 			ssc0: ssc@fffc0000 {
-				compatible = "atmel,at91rm9200-ssc";
+				compatible = "atmel,at91sam9rl-ssc";
 				reg = <0xfffc0000 0x4000>;
 				interrupts = <14 IRQ_TYPE_LEVEL_HIGH 5>;
 				pinctrl-names = "default";
@@ -213,7 +213,7 @@
 			};
 
 			ssc1: ssc@fffc4000 {
-				compatible = "atmel,at91rm9200-ssc";
+				compatible = "atmel,at91sam9rl-ssc";
 				reg = <0xfffc4000 0x4000>;
 				interrupts = <15 IRQ_TYPE_LEVEL_HIGH 5>;
 				pinctrl-names = "default";

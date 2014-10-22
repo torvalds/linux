@@ -64,7 +64,7 @@
 /* #define DUMP_PACKETS */
 
 /*
- * how long to wait after some USB errors, so that khubd can disconnect() us
+ * how long to wait after some USB errors, so that hub_wq can disconnect() us
  * without too many spurious errors
  */
 #define ERROR_DELAY_JIFFIES (HZ / 10)

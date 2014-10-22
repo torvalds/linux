@@ -686,7 +686,7 @@ void bpf_jit_compile(struct bpf_prog *fp)
 		((u64 *)image)[0] = (u64)code_base;
 		((u64 *)image)[1] = local_paca->kernel_toc;
 		fp->bpf_func = (void *)image;
-		fp->jited = 1;
+		fp->jited = true;
 	}
 out:
 	kfree(addrs);
@@ -697,5 +697,6 @@ void bpf_jit_free(struct bpf_prog *fp)
 {
 	if (fp->jited)
 		module_free(NULL, fp->bpf_func);
-	kfree(fp);
+
+	bpf_prog_unlock_free(fp);
 }

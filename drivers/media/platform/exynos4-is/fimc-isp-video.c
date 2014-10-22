@@ -219,9 +219,9 @@ static void isp_video_capture_buffer_queue(struct vb2_buffer *vb)
 							ivb->dma_addr[i];
 
 			isp_dbg(2, &video->ve.vdev,
-				"dma_buf %d (%d/%d/%d) addr: %#x\n",
-				buf_index, ivb->index, i, vb->v4l2_buf.index,
-				ivb->dma_addr[i]);
+				"dma_buf %pad (%d/%d/%d) addr: %pad\n",
+				&buf_index, ivb->index, i, vb->v4l2_buf.index,
+				&ivb->dma_addr[i]);
 		}
 
 		if (++video->buf_count < video->reqbufs_count)
@@ -313,7 +313,6 @@ static int isp_video_release(struct file *file)
 	struct fimc_is_video *ivc = &isp->video_capture;
 	struct media_entity *entity = &ivc->ve.vdev.entity;
 	struct media_device *mdev = entity->parent;
-	int ret = 0;
 
 	mutex_lock(&isp->video_lock);
 
@@ -335,7 +334,7 @@ static int isp_video_release(struct file *file)
 	pm_runtime_put(&isp->pdev->dev);
 	mutex_unlock(&isp->video_lock);
 
-	return ret;
+	return 0;
 }
 
 static const struct v4l2_file_operations isp_video_fops = {

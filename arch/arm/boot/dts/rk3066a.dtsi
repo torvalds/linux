@@ -179,6 +179,27 @@
 			bias-disable;
 		};
 
+		emmc {
+			emmc_clk: emmc-clk {
+				rockchip,pins = <RK_GPIO3 31 RK_FUNC_2 &pcfg_pull_default>;
+			};
+
+			emmc_cmd: emmc-cmd {
+				rockchip,pins = <RK_GPIO4 9 RK_FUNC_2 &pcfg_pull_default>;
+			};
+
+			emmc_rst: emmc-rst {
+				rockchip,pins = <RK_GPIO4 10 RK_FUNC_2 &pcfg_pull_default>;
+			};
+
+			/*
+			 * The data pins are shared between nandc and emmc and
+			 * not accessible through pinctrl. Also they should've
+			 * been already set correctly by firmware, as
+			 * flash/emmc is the boot-device.
+			 */
+		};
+
 		i2c0 {
 			i2c0_xfer: i2c0-xfer {
 				rockchip,pins = <RK_GPIO2 28 RK_FUNC_1 &pcfg_pull_none>,
@@ -235,6 +256,42 @@
 		pwm3 {
 			pwm3_out: pwm3-out {
 				rockchip,pins = <RK_GPIO0 31 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		spi0 {
+			spi0_clk: spi0-clk {
+				rockchip,pins = <RK_GPIO1 5 RK_FUNC_2 &pcfg_pull_default>;
+			};
+			spi0_cs0: spi0-cs0 {
+				rockchip,pins = <RK_GPIO1 4 RK_FUNC_2 &pcfg_pull_default>;
+			};
+			spi0_tx: spi0-tx {
+				rockchip,pins = <RK_GPIO1 7 RK_FUNC_2 &pcfg_pull_default>;
+			};
+			spi0_rx: spi0-rx {
+				rockchip,pins = <RK_GPIO1 6 RK_FUNC_2 &pcfg_pull_default>;
+			};
+			spi0_cs1: spi0-cs1 {
+				rockchip,pins = <RK_GPIO4 15 RK_FUNC_1 &pcfg_pull_default>;
+			};
+		};
+
+		spi1 {
+			spi1_clk: spi1-clk {
+				rockchip,pins = <RK_GPIO2 19 RK_FUNC_2 &pcfg_pull_default>;
+			};
+			spi1_cs0: spi1-cs0 {
+				rockchip,pins = <RK_GPIO2 20 RK_FUNC_2 &pcfg_pull_default>;
+			};
+			spi1_rx: spi1-rx {
+				rockchip,pins = <RK_GPIO2 22 RK_FUNC_2 &pcfg_pull_default>;
+			};
+			spi1_tx: spi1-tx {
+				rockchip,pins = <RK_GPIO2 21 RK_FUNC_2 &pcfg_pull_default>;
+			};
+			spi1_cs1: spi1-cs1 {
+				rockchip,pins = <RK_GPIO2 23 RK_FUNC_2 &pcfg_pull_default>;
 			};
 		};
 
@@ -404,6 +461,16 @@
 &pwm3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pwm3_out>;
+};
+
+&spi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0_clk &spi0_tx &spi0_rx &spi0_cs0>;
+};
+
+&spi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi1_clk &spi1_tx &spi1_rx &spi1_cs0>;
 };
 
 &uart0 {

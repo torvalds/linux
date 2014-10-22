@@ -1862,6 +1862,18 @@ extern void usb_unregister_notify(struct notifier_block *nb);
 /* debugfs stuff */
 extern struct dentry *usb_debug_root;
 
+/* LED triggers */
+enum usb_led_event {
+	USB_LED_EVENT_HOST = 0,
+	USB_LED_EVENT_GADGET = 1,
+};
+
+#ifdef CONFIG_USB_LED_TRIG
+extern void usb_led_activity(enum usb_led_event ev);
+#else
+static inline void usb_led_activity(enum usb_led_event ev) {}
+#endif
+
 #endif  /* __KERNEL__ */
 
 #endif

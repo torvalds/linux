@@ -102,6 +102,19 @@ config SCLP_ASYNC
 	  want for inform other people about your kernel panics,
 	  need this feature and intend to run your kernel in LPAR.
 
+config HMC_DRV
+	def_tristate m
+	prompt "Support for file transfers from HMC drive CD/DVD-ROM"
+	depends on 64BIT
+	select CRC16
+	help
+	  This option enables support for file transfers from a Hardware
+	  Management Console (HMC) drive CD/DVD-ROM. It is available as a
+	  module, called 'hmcdrv', and also as kernel built-in. There is one
+	  optional parameter for this module: cachesize=N, which modifies the
+	  transfer cache size from it's default value 0.5MB to N bytes. If N
+	  is zero, then no caching is performed.
+
 config S390_TAPE
 	def_tristate m
 	prompt "S/390 tape device support"

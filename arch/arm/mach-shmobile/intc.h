@@ -287,4 +287,9 @@ static struct intc_desc p ## _desc __initdata = {			\
 			     p ## _sense_registers, NULL),		\
 }
 
+/* INTCS */
+#define INTCS_VECT_BASE		0x3400
+#define INTCS_VECT(n, vect)	INTC_VECT((n), INTCS_VECT_BASE + (vect))
+#define intcs_evt2irq(evt)	evt2irq(INTCS_VECT_BASE + (evt))
+
 #endif  /* __ASM_MACH_INTC_H */

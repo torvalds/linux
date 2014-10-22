@@ -62,6 +62,7 @@ uisthread_stop(struct uisthread_info *thrinfo)
 {
 	int ret;
 	int stopped = 0;
+
 	if (thrinfo->id == 0)
 		return;		/* thread not running */
 

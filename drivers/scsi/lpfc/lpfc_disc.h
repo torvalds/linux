@@ -78,7 +78,8 @@ struct lpfc_nodelist {
 	struct list_head nlp_listp;
 	struct lpfc_name nlp_portname;
 	struct lpfc_name nlp_nodename;
-	uint32_t         nlp_flag;		/* entry  flags */
+	uint32_t         nlp_flag;		/* entry flags */
+	uint32_t         nlp_add_flag;		/* additional flags */
 	uint32_t         nlp_DID;		/* FC D_ID of entry */
 	uint32_t         nlp_last_elscmd;	/* Last ELS cmd sent */
 	uint16_t         nlp_type;
@@ -156,6 +157,9 @@ struct lpfc_node_rrq {
 #define NLP_SC_REQ         0x20000000	/* Target requires authentication */
 #define NLP_FIRSTBURST     0x40000000	/* Target supports FirstBurst */
 #define NLP_RPI_REGISTERED 0x80000000	/* nlp_rpi is valid */
+
+/* Defines for nlp_add_flag (uint32) */
+#define NLP_IN_DEV_LOSS  0x00000001	/* Dev Loss processing in progress */
 
 /* ndlp usage management macros */
 #define NLP_CHK_NODE_ACT(ndlp)		(((ndlp)->nlp_usg_map \

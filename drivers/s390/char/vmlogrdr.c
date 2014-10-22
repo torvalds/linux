@@ -338,7 +338,6 @@ static int vmlogrdr_open (struct inode *inode, struct file *filp)
 
 	/* set the file options */
 	filp->private_data = logptr;
-	filp->f_op = &vmlogrdr_fops;
 
 	/* start recording for this service*/
 	if (logptr->autorecording) {

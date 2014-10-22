@@ -17,6 +17,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/of_irq.h>
 
 #include "soc.h"
 #include "common.h"
@@ -673,6 +674,11 @@ int __init omap3xxx_prm_init(void)
 	return prm_register(&omap3xxx_prm_ll_data);
 }
 
+static struct of_device_id omap3_prm_dt_match_table[] = {
+	{ .compatible = "ti,omap3-prm" },
+	{ }
+};
+
 static int omap3xxx_prm_late_init(void)
 {
 	int ret;
@@ -686,6 +692,18 @@ static int omap3xxx_prm_late_init(void)
 	else
 		omap3_prcm_irq_setup.reconfigure_io_chain =
 			omap3430_pre_es3_1_reconfigure_io_chain;
+
+	if (of_have_populated_dt()) {
+		struct device_node *np;
+		int irq_num;
+
+		np = of_find_matching_node(NULL, omap3_prm_dt_match_table);
+		if (np) {
+			irq_num = of_irq_get(np, 0);
+			if (irq_num >= 0)
+				omap3_prcm_irq_setup.irq = irq_num;
+		}
+	}
 
 	omap3xxx_prm_enable_io_wakeup();
 	ret = omap_prcm_register_chain_handler(&omap3_prcm_irq_setup);

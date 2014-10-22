@@ -90,8 +90,8 @@ static inline void i8253_cascade_ns_to_timer(int i8253_osc_base,
 		}
 	}
 
-	switch (flags & TRIG_ROUND_MASK) {
-	case TRIG_ROUND_NEAREST:
+	switch (flags & CMDF_ROUND_MASK) {
+	case CMDF_ROUND_NEAREST:
 	default:
 		ns_high = div1_lub * div2_lub * i8253_osc_base;
 		ns_low = div1_glb * div2_glb * i8253_osc_base;
@@ -103,11 +103,11 @@ static inline void i8253_cascade_ns_to_timer(int i8253_osc_base,
 			div2 = div2_glb;
 		}
 		break;
-	case TRIG_ROUND_UP:
+	case CMDF_ROUND_UP:
 		div1 = div1_lub;
 		div2 = div2_lub;
 		break;
-	case TRIG_ROUND_DOWN:
+	case CMDF_ROUND_DOWN:
 		div1 = div1_glb;
 		div2 = div2_glb;
 		break;

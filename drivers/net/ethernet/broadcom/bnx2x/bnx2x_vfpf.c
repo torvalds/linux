@@ -583,7 +583,6 @@ int bnx2x_vfpf_setup_q(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	flags |= VFPF_QUEUE_FLG_STATS;
 	flags |= VFPF_QUEUE_FLG_CACHE_ALIGN;
 	flags |= VFPF_QUEUE_FLG_VLAN;
-	DP(NETIF_MSG_IFUP, "vlan removal enabled\n");
 
 	/* Common */
 	req->vf_qid = fp_idx;
@@ -950,14 +949,6 @@ static void storm_memset_vf_mbx_valid(struct bnx2x *bp, u16 abs_fid)
 		   CSTORM_VF_PF_CHANNEL_VALID_OFFSET(abs_fid);
 
 	REG_WR8(bp, addr, 1);
-}
-
-static inline void bnx2x_set_vf_mbxs_valid(struct bnx2x *bp)
-{
-	int i;
-
-	for_each_vf(bp, i)
-		storm_memset_vf_mbx_valid(bp, bnx2x_vf(bp, i, abs_vfid));
 }
 
 /* enable vf_pf mailbox (aka vf-pf-channel) */

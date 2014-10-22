@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,6 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -73,16 +75,20 @@
 #include "fw-api-coex.h"
 #include "fw-api-scan.h"
 
-/* maximal number of Tx queues in any platform */
-#define IWL_MVM_MAX_QUEUES	20
-
 /* Tx queue numbers */
 enum {
 	IWL_MVM_OFFCHANNEL_QUEUE = 8,
 	IWL_MVM_CMD_QUEUE = 9,
 };
 
-#define IWL_MVM_CMD_FIFO	7
+enum iwl_mvm_tx_fifo {
+	IWL_MVM_TX_FIFO_BK = 0,
+	IWL_MVM_TX_FIFO_BE,
+	IWL_MVM_TX_FIFO_VI,
+	IWL_MVM_TX_FIFO_VO,
+	IWL_MVM_TX_FIFO_MCAST = 5,
+	IWL_MVM_TX_FIFO_CMD = 7,
+};
 
 #define IWL_MVM_STATION_COUNT	16
 
@@ -109,6 +115,9 @@ enum {
 	TX_CMD = 0x1c,
 	TXPATH_FLUSH = 0x1e,
 	MGMT_MCAST_KEY = 0x1f,
+
+	/* scheduler config */
+	SCD_QUEUE_CFG = 0x1d,
 
 	/* global key */
 	WEP_KEY = 0x20,
@@ -184,6 +193,8 @@ enum {
 	REPLY_RX_MPDU_CMD = 0xc1,
 	BA_NOTIF = 0xc5,
 
+	MARKER_CMD = 0xcb,
+
 	/* BT Coex */
 	BT_COEX_PRIO_TABLE = 0xcc,
 	BT_COEX_PROT_ENV = 0xcd,
@@ -196,6 +207,10 @@ enum {
 
 	REPLY_SF_CFG_CMD = 0xd1,
 	REPLY_BEACON_FILTERING_CMD = 0xd2,
+
+	/* DTS measurements */
+	CMD_DTS_MEASUREMENT_TRIGGER = 0xdc,
+	DTS_MEASUREMENT_NOTIFICATION = 0xdd,
 
 	REPLY_DEBUG_CMD = 0xf0,
 	DEBUG_LOG_MSG = 0xf7,
@@ -542,7 +557,7 @@ enum iwl_time_event_type {
 	TE_WIDI_TX_SYNC,
 
 	/* Channel Switch NoA */
-	TE_P2P_GO_CSA_NOA,
+	TE_CHANNEL_SWITCH_PERIOD,
 
 	TE_MAX
 }; /* MAC_EVENT_TYPE_API_E_VER_1 */
@@ -1307,6 +1322,38 @@ struct iwl_bcast_filter_cmd {
 	struct iwl_fw_bcast_mac macs[NUM_MAC_INDEX_DRIVER];
 } __packed; /* BCAST_FILTERING_HCMD_API_S_VER_1 */
 
+/*
+ * enum iwl_mvm_marker_id - maker ids
+ *
+ * The ids for different type of markers to insert into the usniffer logs
+ */
+enum iwl_mvm_marker_id {
+	MARKER_ID_TX_FRAME_LATENCY = 1,
+}; /* MARKER_ID_API_E_VER_1 */
+
+/**
+ * struct iwl_mvm_marker - mark info into the usniffer logs
+ *
+ * (MARKER_CMD = 0xcb)
+ *
+ * Mark the UTC time stamp into the usniffer logs together with additional
+ * metadata, so the usniffer output can be parsed.
+ * In the command response the ucode will return the GP2 time.
+ *
+ * @dw_len: The amount of dwords following this byte including this byte.
+ * @marker_id: A unique marker id (iwl_mvm_marker_id).
+ * @reserved: reserved.
+ * @timestamp: in milliseconds since 1970-01-01 00:00:00 UTC
+ * @metadata: additional meta data that will be written to the unsiffer log
+ */
+struct iwl_mvm_marker {
+	u8 dwLen;
+	u8 markerId;
+	__le16 reserved;
+	__le64 timestamp;
+	__le32 metadata[0];
+} __packed; /* MARKER_API_S_VER_1 */
+
 struct mvm_statistics_dbg {
 	__le32 burst_check;
 	__le32 burst_count;
@@ -1561,6 +1608,8 @@ enum iwl_sf_scenario {
 
 #define SF_LONG_DELAY_AGING_TIMER 1000000	/* 1 Sec */
 
+#define SF_CFG_DUMMY_NOTIF_OFF	BIT(16)
+
 /**
  * Smart Fifo configuration command.
  * @state: smart fifo state, types listed in enum %iwl_sf_sate.
@@ -1575,5 +1624,90 @@ struct iwl_sf_cfg_cmd {
 	__le32 long_delay_timeouts[SF_NUM_SCENARIO][SF_NUM_TIMEOUT_TYPES];
 	__le32 full_on_timeouts[SF_NUM_SCENARIO][SF_NUM_TIMEOUT_TYPES];
 } __packed; /* SF_CFG_API_S_VER_2 */
+
+/* DTS measurements */
+
+enum iwl_dts_measurement_flags {
+	DTS_TRIGGER_CMD_FLAGS_TEMP	= BIT(0),
+	DTS_TRIGGER_CMD_FLAGS_VOLT	= BIT(1),
+};
+
+/**
+ * iwl_dts_measurement_cmd - request DTS temperature and/or voltage measurements
+ *
+ * @flags: indicates which measurements we want as specified in &enum
+ *	   iwl_dts_measurement_flags
+ */
+struct iwl_dts_measurement_cmd {
+	__le32 flags;
+} __packed; /* TEMPERATURE_MEASUREMENT_TRIGGER_CMD_S */
+
+/**
+ * iwl_dts_measurement_notif - notification received with the measurements
+ *
+ * @temp: the measured temperature
+ * @voltage: the measured voltage
+ */
+struct iwl_dts_measurement_notif {
+	__le32 temp;
+	__le32 voltage;
+} __packed; /* TEMPERATURE_MEASUREMENT_TRIGGER_NTFY_S */
+
+/**
+ * enum iwl_scd_control - scheduler config command control flags
+ * @IWL_SCD_CONTROL_RM_TID: remove TID from this queue
+ * @IWL_SCD_CONTROL_SET_SSN: use the SSN and program it into HW
+ */
+enum iwl_scd_control {
+	IWL_SCD_CONTROL_RM_TID	= BIT(4),
+	IWL_SCD_CONTROL_SET_SSN	= BIT(5),
+};
+
+/**
+ * enum iwl_scd_flags - scheduler config command flags
+ * @IWL_SCD_FLAGS_SHARE_TID: multiple TIDs map to this queue
+ * @IWL_SCD_FLAGS_SHARE_RA: multiple RAs map to this queue
+ * @IWL_SCD_FLAGS_DQA_ENABLED: DQA is enabled
+ */
+enum iwl_scd_flags {
+	IWL_SCD_FLAGS_SHARE_TID		= BIT(0),
+	IWL_SCD_FLAGS_SHARE_RA		= BIT(1),
+	IWL_SCD_FLAGS_DQA_ENABLED	= BIT(2),
+};
+
+#define IWL_SCDQ_INVALID_STA	0xff
+
+/**
+ * struct iwl_scd_txq_cfg_cmd - New txq hw scheduler config command
+ * @token:	dialog token addba - unused legacy
+ * @sta_id:	station id 4-bit
+ * @tid:	TID 0..7
+ * @scd_queue:	TFD queue num 0 .. 31
+ * @enable:	1 queue enable, 0 queue disable
+ * @aggregate:	1 aggregated queue, 0 otherwise
+ * @tx_fifo:	tx fifo num 0..7
+ * @window:	up to 64
+ * @ssn:	starting seq num 12-bit
+ * @control:	command control flags
+ * @flags:	flags - see &enum iwl_scd_flags
+ *
+ * Note that every time the command is sent, all parameters must
+ * be filled with the exception of
+ *  - the SSN, which is only used with @IWL_SCD_CONTROL_SET_SSN
+ *  - the window, which is only relevant when starting aggregation
+ */
+struct iwl_scd_txq_cfg_cmd {
+	u8 token;
+	u8 sta_id;
+	u8 tid;
+	u8 scd_queue;
+	u8 enable;
+	u8 aggregate;
+	u8 tx_fifo;
+	u8 window;
+	__le16 ssn;
+	u8 control;
+	u8 flags;
+} __packed;
 
 #endif /* __fw_api_h__ */

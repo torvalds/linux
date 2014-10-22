@@ -515,6 +515,10 @@ struct hv_context {
 	 * per-cpu list of the channels based on their CPU affinity.
 	 */
 	struct list_head percpu_list[NR_CPUS];
+	/*
+	 * buffer to post messages to the host.
+	 */
+	void *post_msg_page[NR_CPUS];
 };
 
 extern struct hv_context hv_context;

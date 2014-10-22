@@ -803,8 +803,7 @@ static void wbsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 		default:
 #ifdef CONFIG_MMC_DEBUG
-			pr_warning("%s: Data command %d is not "
-				"supported by this controller.\n",
+			pr_warn("%s: Data command %d is not supported by this controller\n",
 				mmc_hostname(host->mmc), cmd->opcode);
 #endif
 			cmd->error = -EINVAL;
@@ -1429,8 +1428,8 @@ free:
 	free_dma(dma);
 
 err:
-	pr_warning(DRIVER_NAME ": Unable to allocate DMA %d. "
-		"Falling back on FIFO.\n", dma);
+	pr_warn(DRIVER_NAME ": Unable to allocate DMA %d - falling back on FIFO\n",
+		dma);
 }
 
 static void wbsd_release_dma(struct wbsd_host *host)
@@ -1664,9 +1663,7 @@ static int wbsd_init(struct device *dev, int base, int irq, int dma,
 	ret = wbsd_scan(host);
 	if (ret) {
 		if (pnp && (ret == -ENODEV)) {
-			pr_warning(DRIVER_NAME
-				": Unable to confirm device presence. You may "
-				"experience lock-ups.\n");
+			pr_warn(DRIVER_NAME ": Unable to confirm device presence - you may experience lock-ups\n");
 		} else {
 			wbsd_free_mmc(dev);
 			return ret;
@@ -1688,10 +1685,7 @@ static int wbsd_init(struct device *dev, int base, int irq, int dma,
 	 */
 	if (pnp) {
 		if ((host->config != 0) && !wbsd_chip_validate(host)) {
-			pr_warning(DRIVER_NAME
-				": PnP active but chip not configured! "
-				"You probably have a buggy BIOS. "
-				"Configuring chip manually.\n");
+			pr_warn(DRIVER_NAME ": PnP active but chip not configured! You probably have a buggy BIOS. Configuring chip manually.\n");
 			wbsd_chip_config(host);
 		}
 	} else
@@ -1884,10 +1878,7 @@ static int wbsd_pnp_resume(struct pnp_dev *pnp_dev)
 	 */
 	if (host->config != 0) {
 		if (!wbsd_chip_validate(host)) {
-			pr_warning(DRIVER_NAME
-				": PnP active but chip not configured! "
-				"You probably have a buggy BIOS. "
-				"Configuring chip manually.\n");
+			pr_warn(DRIVER_NAME ": PnP active but chip not configured! You probably have a buggy BIOS. Configuring chip manually.\n");
 			wbsd_chip_config(host);
 		}
 	}

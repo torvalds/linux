@@ -884,7 +884,7 @@ EXPORT_SYMBOL(bitmap_bitremap);
  * read it, you're overqualified for your current job.)
  *
  * In other words, @orig is mapped onto (surjectively) @dst,
- * using the the map { <n, m> | the n-th bit of @relmap is the
+ * using the map { <n, m> | the n-th bit of @relmap is the
  * m-th set bit of @relmap }.
  *
  * Any set bits in @orig above bit number W, where W is the
@@ -932,7 +932,7 @@ EXPORT_SYMBOL(bitmap_bitremap);
  *
  *  Further lets say we use the following code, invoking
  *  bitmap_fold() then bitmap_onto, as suggested above to
- *  avoid the possitility of an empty @dst result:
+ *  avoid the possibility of an empty @dst result:
  *
  *	unsigned long *tmp;	// a temporary bitmap's bits
  *

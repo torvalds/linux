@@ -66,6 +66,7 @@ int speakup_set_selection(struct tty_struct *tty)
 	if (ps > pe) {
 		/* make sel_start <= sel_end */
 		int tmp = ps;
+
 		ps = pe;
 		pe = tmp;
 	}

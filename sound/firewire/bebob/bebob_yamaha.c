@@ -28,7 +28,7 @@
  * reccomend users to close ffado-mixer at 192.0kHz if mixer is needless.
  */
 
-static char *const clk_src_labels[] = {SND_BEBOB_CLOCK_INTERNAL, "SPDIF"};
+static const char *const clk_src_labels[] = {SND_BEBOB_CLOCK_INTERNAL, "SPDIF"};
 static int
 clk_src_get(struct snd_bebob *bebob, unsigned int *id)
 {

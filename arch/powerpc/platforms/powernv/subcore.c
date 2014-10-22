@@ -24,6 +24,7 @@
 #include <asm/smp.h>
 
 #include "subcore.h"
+#include "powernv.h"
 
 
 /*

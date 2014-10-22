@@ -23,6 +23,7 @@ struct pkcs7_signed_info {
 	struct x509_certificate *signer; /* Signing certificate (in msg->certs) */
 	unsigned index;
 	bool trusted;
+	bool unsupported_crypto;	/* T if not usable due to missing crypto */
 
 	/* Message digest - the digest of the Content Data (or NULL) */
 	const void	*msgdigest;
@@ -33,10 +34,7 @@ struct pkcs7_signed_info {
 	const void	*authattrs;
 
 	/* Issuing cert serial number and issuer's name */
-	const void	*raw_serial;
-	unsigned	raw_serial_size;
-	unsigned	raw_issuer_size;
-	const void	*raw_issuer;
+	struct asymmetric_key_id *signing_cert_id;
 
 	/* Message signature.
 	 *

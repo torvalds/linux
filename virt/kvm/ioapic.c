@@ -405,6 +405,26 @@ void kvm_ioapic_clear_all(struct kvm_ioapic *ioapic, int irq_source_id)
 	spin_unlock(&ioapic->lock);
 }
 
+static void kvm_ioapic_eoi_inject_work(struct work_struct *work)
+{
+	int i;
+	struct kvm_ioapic *ioapic = container_of(work, struct kvm_ioapic,
+						 eoi_inject.work);
+	spin_lock(&ioapic->lock);
+	for (i = 0; i < IOAPIC_NUM_PINS; i++) {
+		union kvm_ioapic_redirect_entry *ent = &ioapic->redirtbl[i];
+
+		if (ent->fields.trig_mode != IOAPIC_LEVEL_TRIG)
+			continue;
+
+		if (ioapic->irr & (1 << i) && !ent->fields.remote_irr)
+			ioapic_service(ioapic, i, false);
+	}
+	spin_unlock(&ioapic->lock);
+}
+
+#define IOAPIC_SUCCESSIVE_IRQ_MAX_COUNT 10000
+
 static void __kvm_ioapic_update_eoi(struct kvm_vcpu *vcpu,
 			struct kvm_ioapic *ioapic, int vector, int trigger_mode)
 {
@@ -435,8 +455,26 @@ static void __kvm_ioapic_update_eoi(struct kvm_vcpu *vcpu,
 
 		ASSERT(ent->fields.trig_mode == IOAPIC_LEVEL_TRIG);
 		ent->fields.remote_irr = 0;
-		if (ioapic->irr & (1 << i))
-			ioapic_service(ioapic, i, false);
+		if (!ent->fields.mask && (ioapic->irr & (1 << i))) {
+			++ioapic->irq_eoi[i];
+			if (ioapic->irq_eoi[i] == IOAPIC_SUCCESSIVE_IRQ_MAX_COUNT) {
+				/*
+				 * Real hardware does not deliver the interrupt
+				 * immediately during eoi broadcast, and this
+				 * lets a buggy guest make slow progress
+				 * even if it does not correctly handle a
+				 * level-triggered interrupt.  Emulate this
+				 * behavior if we detect an interrupt storm.
+				 */
+				schedule_delayed_work(&ioapic->eoi_inject, HZ / 100);
+				ioapic->irq_eoi[i] = 0;
+				trace_kvm_ioapic_delayed_eoi_inj(ent->bits);
+			} else {
+				ioapic_service(ioapic, i, false);
+			}
+		} else {
+			ioapic->irq_eoi[i] = 0;
+		}
 	}
 }
 
@@ -565,12 +603,14 @@ static void kvm_ioapic_reset(struct kvm_ioapic *ioapic)
 {
 	int i;
 
+	cancel_delayed_work_sync(&ioapic->eoi_inject);
 	for (i = 0; i < IOAPIC_NUM_PINS; i++)
 		ioapic->redirtbl[i].fields.mask = 1;
 	ioapic->base_address = IOAPIC_DEFAULT_BASE_ADDRESS;
 	ioapic->ioregsel = 0;
 	ioapic->irr = 0;
 	ioapic->id = 0;
+	memset(ioapic->irq_eoi, 0x00, IOAPIC_NUM_PINS);
 	rtc_irq_eoi_tracking_reset(ioapic);
 	update_handled_vectors(ioapic);
 }
@@ -589,6 +629,7 @@ int kvm_ioapic_init(struct kvm *kvm)
 	if (!ioapic)
 		return -ENOMEM;
 	spin_lock_init(&ioapic->lock);
+	INIT_DELAYED_WORK(&ioapic->eoi_inject, kvm_ioapic_eoi_inject_work);
 	kvm->arch.vioapic = ioapic;
 	kvm_ioapic_reset(ioapic);
 	kvm_iodevice_init(&ioapic->dev, &ioapic_mmio_ops);
@@ -609,6 +650,7 @@ void kvm_ioapic_destroy(struct kvm *kvm)
 {
 	struct kvm_ioapic *ioapic = kvm->arch.vioapic;
 
+	cancel_delayed_work_sync(&ioapic->eoi_inject);
 	if (ioapic) {
 		kvm_io_bus_unregister_dev(kvm, KVM_MMIO_BUS, &ioapic->dev);
 		kvm->arch.vioapic = NULL;

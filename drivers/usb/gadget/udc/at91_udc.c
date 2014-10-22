@@ -267,7 +267,7 @@ static void done(struct at91_ep *ep, struct at91_request *req, int status)
 
 	ep->stopped = 1;
 	spin_unlock(&udc->lock);
-	req->req.complete(&ep->ep, &req->req);
+	usb_gadget_giveback_request(&ep->ep, &req->req);
 	spin_lock(&udc->lock);
 	ep->stopped = stopped;
 

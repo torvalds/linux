@@ -39,6 +39,7 @@ static struct dentry *lowpan_control_debugfs;
 
 struct skb_cb {
 	struct in6_addr addr;
+	struct in6_addr gw;
 	struct l2cap_chan *chan;
 	int status;
 };
@@ -152,6 +153,54 @@ static inline struct lowpan_peer *peer_lookup_conn(struct lowpan_dev *dev,
 
 	list_for_each_entry_safe(peer, tmp, &dev->peers, list) {
 		if (peer->chan->conn == conn)
+			return peer;
+	}
+
+	return NULL;
+}
+
+static inline struct lowpan_peer *peer_lookup_dst(struct lowpan_dev *dev,
+						  struct in6_addr *daddr,
+						  struct sk_buff *skb)
+{
+	struct lowpan_peer *peer, *tmp;
+	struct in6_addr *nexthop;
+	struct rt6_info *rt = (struct rt6_info *)skb_dst(skb);
+	int count = atomic_read(&dev->peer_count);
+
+	BT_DBG("peers %d addr %pI6c rt %p", count, daddr, rt);
+
+	/* If we have multiple 6lowpan peers, then check where we should
+	 * send the packet. If only one peer exists, then we can send the
+	 * packet right away.
+	 */
+	if (count == 1)
+		return list_first_entry(&dev->peers, struct lowpan_peer,
+					list);
+
+	if (!rt) {
+		nexthop = &lowpan_cb(skb)->gw;
+
+		if (ipv6_addr_any(nexthop))
+			return NULL;
+	} else {
+		nexthop = rt6_nexthop(rt);
+
+		/* We need to remember the address because it is needed
+		 * by bt_xmit() when sending the packet. In bt_xmit(), the
+		 * destination routing info is not set.
+		 */
+		memcpy(&lowpan_cb(skb)->gw, nexthop, sizeof(struct in6_addr));
+	}
+
+	BT_DBG("gw %pI6c", nexthop);
+
+	list_for_each_entry_safe(peer, tmp, &dev->peers, list) {
+		BT_DBG("dst addr %pMR dst type %d ip %pI6c",
+		       &peer->chan->dst, peer->chan->dst_type,
+		       &peer->peer_addr);
+
+		if (!ipv6_addr_cmp(&peer->peer_addr, nexthop))
 			return peer;
 	}
 
@@ -377,58 +426,85 @@ static void convert_dest_bdaddr(struct in6_addr *ip6_daddr,
 	*addr_type = get_addr_type_from_eui64(addr->b[5]);
 }
 
-static int header_create(struct sk_buff *skb, struct net_device *netdev,
-		         unsigned short type, const void *_daddr,
-		         const void *_saddr, unsigned int len)
+static int setup_header(struct sk_buff *skb, struct net_device *netdev,
+			bdaddr_t *peer_addr, u8 *peer_addr_type)
 {
-	struct ipv6hdr *hdr;
+	struct in6_addr ipv6_daddr;
 	struct lowpan_dev *dev;
 	struct lowpan_peer *peer;
 	bdaddr_t addr, *any = BDADDR_ANY;
-	u8 *saddr, *daddr = any->b;
-	u8 addr_type;
-
-	if (type != ETH_P_IPV6)
-		return -EINVAL;
-
-	hdr = ipv6_hdr(skb);
+	u8 *daddr = any->b;
+	int err, status = 0;
 
 	dev = lowpan_dev(netdev);
 
-	if (ipv6_addr_is_multicast(&hdr->daddr)) {
-		memcpy(&lowpan_cb(skb)->addr, &hdr->daddr,
-		       sizeof(struct in6_addr));
+	memcpy(&ipv6_daddr, &lowpan_cb(skb)->addr, sizeof(ipv6_daddr));
+
+	if (ipv6_addr_is_multicast(&ipv6_daddr)) {
 		lowpan_cb(skb)->chan = NULL;
 	} else {
 		unsigned long flags;
+		u8 addr_type;
 
 		/* Get destination BT device from skb.
 		 * If there is no such peer then discard the packet.
 		 */
-		convert_dest_bdaddr(&hdr->daddr, &addr, &addr_type);
+		convert_dest_bdaddr(&ipv6_daddr, &addr, &addr_type);
 
 		BT_DBG("dest addr %pMR type %d IP %pI6c", &addr,
-		       addr_type, &hdr->daddr);
+		       addr_type, &ipv6_daddr);
 
 		read_lock_irqsave(&devices_lock, flags);
 		peer = peer_lookup_ba(dev, &addr, addr_type);
 		read_unlock_irqrestore(&devices_lock, flags);
 
 		if (!peer) {
-			BT_DBG("no such peer %pMR found", &addr);
-			return -ENOENT;
+			/* The packet might be sent to 6lowpan interface
+			 * because of routing (either via default route
+			 * or user set route) so get peer according to
+			 * the destination address.
+			 */
+			read_lock_irqsave(&devices_lock, flags);
+			peer = peer_lookup_dst(dev, &ipv6_daddr, skb);
+			read_unlock_irqrestore(&devices_lock, flags);
+			if (!peer) {
+				BT_DBG("no such peer %pMR found", &addr);
+				return -ENOENT;
+			}
 		}
 
 		daddr = peer->eui64_addr;
-
-		memcpy(&lowpan_cb(skb)->addr, &hdr->daddr,
-		       sizeof(struct in6_addr));
+		*peer_addr = addr;
+		*peer_addr_type = addr_type;
 		lowpan_cb(skb)->chan = peer->chan;
+
+		status = 1;
 	}
 
-	saddr = dev->netdev->dev_addr;
+	lowpan_header_compress(skb, netdev, ETH_P_IPV6, daddr,
+			       dev->netdev->dev_addr, skb->len);
 
-	return lowpan_header_compress(skb, netdev, type, daddr, saddr, len);
+	err = dev_hard_header(skb, netdev, ETH_P_IPV6, NULL, NULL, 0);
+	if (err < 0)
+		return err;
+
+	return status;
+}
+
+static int header_create(struct sk_buff *skb, struct net_device *netdev,
+			 unsigned short type, const void *_daddr,
+			 const void *_saddr, unsigned int len)
+{
+	struct ipv6hdr *hdr;
+
+	if (type != ETH_P_IPV6)
+		return -EINVAL;
+
+	hdr = ipv6_hdr(skb);
+
+	memcpy(&lowpan_cb(skb)->addr, &hdr->daddr, sizeof(struct in6_addr));
+
+	return 0;
 }
 
 /* Packet to BT LE device */
@@ -470,11 +546,12 @@ static int send_pkt(struct l2cap_chan *chan, struct sk_buff *skb,
 	return err;
 }
 
-static void send_mcast_pkt(struct sk_buff *skb, struct net_device *netdev)
+static int send_mcast_pkt(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct sk_buff *local_skb;
 	struct lowpan_dev *entry, *tmp;
 	unsigned long flags;
+	int err = 0;
 
 	read_lock_irqsave(&devices_lock, flags);
 
@@ -488,55 +565,77 @@ static void send_mcast_pkt(struct sk_buff *skb, struct net_device *netdev)
 		dev = lowpan_dev(entry->netdev);
 
 		list_for_each_entry_safe(pentry, ptmp, &dev->peers, list) {
+			int ret;
+
 			local_skb = skb_clone(skb, GFP_ATOMIC);
 
-			send_pkt(pentry->chan, local_skb, netdev);
+			BT_DBG("xmit %s to %pMR type %d IP %pI6c chan %p",
+			       netdev->name,
+			       &pentry->chan->dst, pentry->chan->dst_type,
+			       &pentry->peer_addr, pentry->chan);
+			ret = send_pkt(pentry->chan, local_skb, netdev);
+			if (ret < 0)
+				err = ret;
 
 			kfree_skb(local_skb);
 		}
 	}
 
 	read_unlock_irqrestore(&devices_lock, flags);
+
+	return err;
 }
 
 static netdev_tx_t bt_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	int err = 0;
-	struct lowpan_dev *dev;
-	struct lowpan_peer *peer;
 	bdaddr_t addr;
 	u8 addr_type;
+	struct sk_buff *tmpskb;
 
-	if (ipv6_addr_is_multicast(&lowpan_cb(skb)->addr)) {
-		/* We need to send the packet to every device
-		 * behind this interface.
-		 */
-		send_mcast_pkt(skb, netdev);
-	} else {
-		unsigned long flags;
-
-		convert_dest_bdaddr(&lowpan_cb(skb)->addr, &addr, &addr_type);
-		dev = lowpan_dev(netdev);
-
-		read_lock_irqsave(&devices_lock, flags);
-		peer = peer_lookup_ba(dev, &addr, addr_type);
-		read_unlock_irqrestore(&devices_lock, flags);
-
-		BT_DBG("xmit %s to %pMR type %d IP %pI6c peer %p",
-		       netdev->name, &addr, addr_type,
-		       &lowpan_cb(skb)->addr, peer);
-
-		if (peer && peer->chan)
-			err = send_pkt(peer->chan, skb, netdev);
-		else
-			err = -ENOENT;
+	/* We must take a copy of the skb before we modify/replace the ipv6
+	 * header as the header could be used elsewhere
+	 */
+	tmpskb = skb_unshare(skb, GFP_ATOMIC);
+	if (!tmpskb) {
+		kfree_skb(skb);
+		return NET_XMIT_DROP;
 	}
+	skb = tmpskb;
+
+	/* Return values from setup_header()
+	 *  <0 - error, packet is dropped
+	 *   0 - this is a multicast packet
+	 *   1 - this is unicast packet
+	 */
+	err = setup_header(skb, netdev, &addr, &addr_type);
+	if (err < 0) {
+		kfree_skb(skb);
+		return NET_XMIT_DROP;
+	}
+
+	if (err) {
+		if (lowpan_cb(skb)->chan) {
+			BT_DBG("xmit %s to %pMR type %d IP %pI6c chan %p",
+			       netdev->name, &addr, addr_type,
+			       &lowpan_cb(skb)->addr, lowpan_cb(skb)->chan);
+			err = send_pkt(lowpan_cb(skb)->chan, skb, netdev);
+		} else {
+			err = -ENOENT;
+		}
+	} else {
+		/* We need to send the packet to every device behind this
+		 * interface.
+		 */
+		err = send_mcast_pkt(skb, netdev);
+	}
+
 	dev_kfree_skb(skb);
 
 	if (err)
 		BT_DBG("ERROR: xmit failed (%d)", err);
 
-	return (err < 0) ? NET_XMIT_DROP : err;
+	return err < 0 ? NET_XMIT_DROP : err;
 }
 
 static const struct net_device_ops netdev_ops = {
@@ -556,7 +655,8 @@ static void netdev_setup(struct net_device *dev)
 	dev->needed_tailroom	= 0;
 	dev->mtu		= IPV6_MIN_MTU;
 	dev->tx_queue_len	= 0;
-	dev->flags		= IFF_RUNNING | IFF_POINTOPOINT;
+	dev->flags		= IFF_RUNNING | IFF_POINTOPOINT |
+				  IFF_MULTICAST;
 	dev->watchdog_timeo	= 0;
 
 	dev->netdev_ops		= &netdev_ops;
@@ -671,6 +771,14 @@ static struct l2cap_chan *chan_open(struct l2cap_chan *pchan)
 	return chan;
 }
 
+static void set_ip_addr_bits(u8 addr_type, u8 *addr)
+{
+	if (addr_type == BDADDR_LE_PUBLIC)
+		*addr |= 0x02;
+	else
+		*addr &= ~0x02;
+}
+
 static struct l2cap_chan *add_peer_chan(struct l2cap_chan *chan,
 					struct lowpan_dev *dev)
 {
@@ -692,6 +800,11 @@ static struct l2cap_chan *add_peer_chan(struct l2cap_chan *chan,
 
 	memcpy(&peer->eui64_addr, (u8 *)&peer->peer_addr.s6_addr + 8,
 	       EUI64_ADDR_LEN);
+
+	/* IPv6 address needs to have the U/L bit set properly so toggle
+	 * it back here.
+	 */
+	set_ip_addr_bits(chan->dst_type, (u8 *)&peer->peer_addr.s6_addr + 8);
 
 	write_lock_irqsave(&devices_lock, flags);
 	INIT_LIST_HEAD(&peer->list);
@@ -772,16 +885,16 @@ static inline void chan_ready_cb(struct l2cap_chan *chan)
 	ifup(dev->netdev);
 }
 
-static inline struct l2cap_chan *chan_new_conn_cb(struct l2cap_chan *chan)
+static inline struct l2cap_chan *chan_new_conn_cb(struct l2cap_chan *pchan)
 {
-	struct l2cap_chan *pchan;
+	struct l2cap_chan *chan;
 
-	pchan = chan_open(chan);
-	pchan->ops = chan->ops;
+	chan = chan_open(pchan);
+	chan->ops = pchan->ops;
 
 	BT_DBG("chan %p pchan %p", chan, pchan);
 
-	return pchan;
+	return chan;
 }
 
 static void delete_netdev(struct work_struct *work)
@@ -876,6 +989,9 @@ static void chan_suspend_cb(struct l2cap_chan *chan)
 
 	BT_DBG("chan %p conn %p skb %p", chan, chan->conn, skb);
 
+	if (!skb)
+		return;
+
 	lowpan_cb(skb)->status = -EAGAIN;
 }
 
@@ -885,12 +1001,15 @@ static void chan_resume_cb(struct l2cap_chan *chan)
 
 	BT_DBG("chan %p conn %p skb %p", chan, chan->conn, skb);
 
+	if (!skb)
+		return;
+
 	lowpan_cb(skb)->status = 0;
 }
 
 static long chan_get_sndtimeo_cb(struct l2cap_chan *chan)
 {
-	return msecs_to_jiffies(1000);
+	return L2CAP_CONN_TIMEOUT;
 }
 
 static const struct l2cap_ops bt_6lowpan_chan_ops = {

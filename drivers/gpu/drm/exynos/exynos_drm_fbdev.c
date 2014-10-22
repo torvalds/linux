@@ -123,6 +123,7 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 
 	fbi->screen_base = buffer->kvaddr + offset;
 	fbi->screen_size = size;
+	fbi->fix.smem_len = size;
 
 	return 0;
 }
@@ -352,9 +353,6 @@ void exynos_drm_fbdev_fini(struct drm_device *dev)
 		return;
 
 	fbdev = to_exynos_fbdev(private->fb_helper);
-
-	if (fbdev->exynos_gem_obj)
-		exynos_drm_gem_destroy(fbdev->exynos_gem_obj);
 
 	exynos_drm_fbdev_destroy(dev, private->fb_helper);
 	kfree(fbdev);

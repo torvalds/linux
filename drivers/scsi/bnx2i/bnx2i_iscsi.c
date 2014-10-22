@@ -2235,6 +2235,9 @@ static umode_t bnx2i_attr_is_visible(int param_type, int param)
 		case ISCSI_PARAM_TGT_RESET_TMO:
 		case ISCSI_PARAM_IFACE_NAME:
 		case ISCSI_PARAM_INITIATOR_NAME:
+		case ISCSI_PARAM_BOOT_ROOT:
+		case ISCSI_PARAM_BOOT_NIC:
+		case ISCSI_PARAM_BOOT_TARGET:
 			return S_IRUGO;
 		default:
 			return 0;

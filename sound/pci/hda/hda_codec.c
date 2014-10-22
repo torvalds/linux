@@ -2927,16 +2927,8 @@ static int vmaster_mute_mode_info(struct snd_kcontrol *kcontrol,
 	static const char * const texts[] = {
 		"On", "Off", "Follow Master"
 	};
-	unsigned int index;
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 3;
-	index = uinfo->value.enumerated.item;
-	if (index >= 3)
-		index = 2;
-	strcpy(uinfo->value.enumerated.name, texts[index]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 3, texts);
 }
 
 static int vmaster_mute_mode_get(struct snd_kcontrol *kcontrol,
@@ -5195,14 +5187,7 @@ int snd_hda_enum_helper_info(struct snd_kcontrol *kcontrol,
 		texts = texts_default;
 	}
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = num_items;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name,
-	       texts[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, num_items, texts);
 }
 EXPORT_SYMBOL_GPL(snd_hda_enum_helper_info);
 

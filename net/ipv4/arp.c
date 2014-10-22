@@ -953,10 +953,11 @@ static int arp_rcv(struct sk_buff *skb, struct net_device *dev,
 {
 	const struct arphdr *arp;
 
+	/* do not tweak dropwatch on an ARP we will ignore */
 	if (dev->flags & IFF_NOARP ||
 	    skb->pkt_type == PACKET_OTHERHOST ||
 	    skb->pkt_type == PACKET_LOOPBACK)
-		goto freeskb;
+		goto consumeskb;
 
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (!skb)
@@ -974,6 +975,9 @@ static int arp_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	return NF_HOOK(NFPROTO_ARP, NF_ARP_IN, skb, dev, NULL, arp_process);
 
+consumeskb:
+	consume_skb(skb);
+	return 0;
 freeskb:
 	kfree_skb(skb);
 out_of_mem:

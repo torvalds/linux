@@ -24,6 +24,7 @@
 #include <linux/inetdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/reciprocal_div.h>
+#include <linux/if_link.h>
 
 #include "bond_3ad.h"
 #include "bond_alb.h"
@@ -83,7 +84,7 @@
  * @pos:	current slave
  * @iter:	list_head * iterator
  *
- * Caller must hold bond->lock
+ * Caller must hold RTNL
  */
 #define bond_for_each_slave(bond, pos, iter) \
 	netdev_for_each_lower_private((bond)->dev, pos, iter)
@@ -175,6 +176,13 @@ struct slave {
 	struct netpoll *np;
 #endif
 	struct kobject kobj;
+	struct rtnl_link_stats64 slave_stats;
+};
+
+struct bond_up_slave {
+	unsigned int	count;
+	struct rcu_head rcu;
+	struct slave	*arr[0];
 };
 
 /*
@@ -184,24 +192,26 @@ struct slave {
 
 /*
  * Here are the locking policies for the two bonding locks:
- *
- * 1) Get bond->lock when reading/writing slave list.
- * 2) Get bond->curr_slave_lock when reading/writing bond->curr_active_slave.
- *    (It is unnecessary when the write-lock is put with bond->lock.)
- * 3) When we lock with bond->curr_slave_lock, we must lock with bond->lock
- *    beforehand.
+ * Get rcu_read_lock when reading or RTNL when writing slave list.
  */
 struct bonding {
 	struct   net_device *dev; /* first - useful for panic debug */
 	struct   slave __rcu *curr_active_slave;
 	struct   slave __rcu *current_arp_slave;
-	struct   slave *primary_slave;
+	struct   slave __rcu *primary_slave;
+	struct   bond_up_slave __rcu *slave_arr; /* Array of usable slaves */
 	bool     force_primary;
 	s32      slave_cnt; /* never change this value outside the attach/detach wrappers */
 	int     (*recv_probe)(const struct sk_buff *, struct bonding *,
 			      struct slave *);
-	rwlock_t lock;
-	rwlock_t curr_slave_lock;
+	/* mode_lock is used for mode-specific locking needs, currently used by:
+	 * 3ad mode (4) - protect against running bond_3ad_unbind_slave() and
+	 *                bond_3ad_state_machine_handler() concurrently and also
+	 *                the access to the state machine shared variables.
+	 * TLB mode (5) - to sync the use and modifications of its hash table
+	 * ALB mode (6) - to sync the use and modifications of its hash table
+	 */
+	spinlock_t mode_lock;
 	u8	 send_peer_notif;
 	u8       igmp_retrans;
 #ifdef CONFIG_PROC_FS
@@ -219,10 +229,12 @@ struct bonding {
 	struct   delayed_work alb_work;
 	struct   delayed_work ad_work;
 	struct   delayed_work mcast_work;
+	struct   delayed_work slave_arr_work;
 #ifdef CONFIG_DEBUG_FS
 	/* debugging support via debugfs */
 	struct	 dentry *debug_dir;
 #endif /* CONFIG_DEBUG_FS */
+	struct rtnl_link_stats64 bond_stats;
 };
 
 #define bond_slave_get_rcu(dev) \
@@ -230,10 +242,6 @@ struct bonding {
 
 #define bond_slave_get_rtnl(dev) \
 	((struct slave *) rtnl_dereference(dev->rx_handler_data))
-
-#define bond_deref_active_protected(bond)				   \
-	rcu_dereference_protected(bond->curr_active_slave,		   \
-				  lockdep_is_held(&bond->curr_slave_lock))
 
 struct bond_vlan_tag {
 	__be16		vlan_proto;
@@ -272,6 +280,13 @@ static inline bool bond_is_nondyn_tlb(const struct bonding *bond)
 {
 	return (BOND_MODE(bond) == BOND_MODE_TLB)  &&
 	       (bond->params.tlb_dynamic_lb == 0);
+}
+
+static inline bool bond_mode_uses_xmit_hash(const struct bonding *bond)
+{
+	return (BOND_MODE(bond) == BOND_MODE_8023AD ||
+		BOND_MODE(bond) == BOND_MODE_XOR ||
+		bond_is_nondyn_tlb(bond));
 }
 
 static inline bool bond_mode_uses_arp(int mode)
@@ -527,6 +542,8 @@ const char *bond_slave_link_status(s8 link);
 struct bond_vlan_tag *bond_verify_device_path(struct net_device *start_dev,
 					      struct net_device *end_dev,
 					      int level);
+int bond_update_slave_arr(struct bonding *bond, struct slave *skipslave);
+void bond_slave_arr_work_rearm(struct bonding *bond, unsigned long delay);
 
 #ifdef CONFIG_PROC_FS
 void bond_create_proc_entry(struct bonding *bond);

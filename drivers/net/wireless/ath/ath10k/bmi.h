@@ -177,7 +177,6 @@ struct bmi_target_info {
 	u32 type;
 };
 
-
 /* in msec */
 #define BMI_COMMUNICATION_TIMEOUT_HZ (1*HZ)
 

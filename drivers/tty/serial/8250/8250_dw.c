@@ -216,10 +216,7 @@ out:
 
 static bool dw8250_dma_filter(struct dma_chan *chan, void *param)
 {
-	struct dw8250_data *data = param;
-
-	return chan->chan_id == data->dma.tx_chan_id ||
-	       chan->chan_id == data->dma.rx_chan_id;
+	return false;
 }
 
 static void dw8250_setup_port(struct uart_8250_port *up)
@@ -399,8 +396,6 @@ static int dw8250_probe(struct platform_device *pdev)
 	if (!IS_ERR(data->rst))
 		reset_control_deassert(data->rst);
 
-	data->dma.rx_chan_id = -1;
-	data->dma.tx_chan_id = -1;
 	data->dma.rx_param = data;
 	data->dma.tx_param = data;
 	data->dma.fn = dw8250_dma_filter;

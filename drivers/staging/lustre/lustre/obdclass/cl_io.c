@@ -126,7 +126,7 @@ void cl_io_fini(const struct lu_env *env, struct cl_io *io)
 		info->clt_current_io = NULL;
 
 	/* sanity check for layout change */
-	switch(io->ci_type) {
+	switch (io->ci_type) {
 	case CIT_READ:
 	case CIT_WRITE:
 		break;
@@ -1452,12 +1452,13 @@ struct cl_req *cl_req_alloc(const struct lu_env *env, struct cl_page *page,
 	if (req != NULL) {
 		int result;
 
+		req->crq_type = crt;
+		INIT_LIST_HEAD(&req->crq_pages);
+		INIT_LIST_HEAD(&req->crq_layers);
+
 		OBD_ALLOC(req->crq_o, nr_objects * sizeof(req->crq_o[0]));
 		if (req->crq_o != NULL) {
 			req->crq_nrobjs = nr_objects;
-			req->crq_type = crt;
-			INIT_LIST_HEAD(&req->crq_pages);
-			INIT_LIST_HEAD(&req->crq_layers);
 			result = cl_req_init(env, req, page);
 		} else
 			result = -ENOMEM;
@@ -1559,7 +1560,7 @@ EXPORT_SYMBOL(cl_req_prep);
  * for the same request.
  */
 void cl_req_attr_set(const struct lu_env *env, struct cl_req *req,
-		     struct cl_req_attr *attr, obd_valid flags)
+		     struct cl_req_attr *attr, u64 flags)
 {
 	const struct cl_req_slice *slice;
 	struct cl_page	    *page;

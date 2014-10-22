@@ -437,19 +437,9 @@ static void snd_audigy2nx_proc_read(struct snd_info_entry *entry,
 static int snd_emu0204_ch_switch_info(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_info *uinfo)
 {
-	static const char *texts[2] = {"1/2",
-				       "3/4"
-	};
+	static const char * const texts[2] = {"1/2", "3/4"};
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 2;
-	if (uinfo->value.enumerated.item > 1)
-		uinfo->value.enumerated.item = 1;
-	strcpy(uinfo->value.enumerated.name,
-		texts[uinfo->value.enumerated.item]);
-
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, ARRAY_SIZE(texts), texts);
 }
 
 static int snd_emu0204_ch_switch_get(struct snd_kcontrol *kcontrol,
@@ -735,25 +725,12 @@ struct snd_ftu_eff_switch_priv_val {
 static int snd_ftu_eff_switch_info(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_info *uinfo)
 {
-	static const char *texts[8] = {"Room 1",
-				       "Room 2",
-				       "Room 3",
-				       "Hall 1",
-				       "Hall 2",
-				       "Plate",
-				       "Delay",
-				       "Echo"
+	static const char *const texts[8] = {
+		"Room 1", "Room 2", "Room 3", "Hall 1",
+		"Hall 2", "Plate", "Delay", "Echo"
 	};
 
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 8;
-	if (uinfo->value.enumerated.item > 7)
-		uinfo->value.enumerated.item = 7;
-	strcpy(uinfo->value.enumerated.name,
-		texts[uinfo->value.enumerated.item]);
-
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, ARRAY_SIZE(texts), texts);
 }
 
 static int snd_ftu_eff_switch_get(struct snd_kcontrol *kctl,

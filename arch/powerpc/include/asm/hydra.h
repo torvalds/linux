@@ -95,7 +95,6 @@ extern volatile struct Hydra __iomem *Hydra;
 #define HYDRA_INT_SPARE		19
 
 extern int hydra_init(void);
-extern void macio_adb_init(void);
 
 #endif /* __KERNEL__ */
 

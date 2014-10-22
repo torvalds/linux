@@ -618,6 +618,7 @@ static netdev_tx_t ip6gre_xmit2(struct sk_buff *skb,
 	int err = -1;
 	u8 proto;
 	struct sk_buff *new_skb;
+	__be16 protocol;
 
 	if (dev->type == ARPHRD_ETHER)
 		IPCB(skb)->flags = 0;
@@ -734,8 +735,9 @@ static netdev_tx_t ip6gre_xmit2(struct sk_buff *skb,
 	ipv6h->daddr = fl6->daddr;
 
 	((__be16 *)(ipv6h + 1))[0] = tunnel->parms.o_flags;
-	((__be16 *)(ipv6h + 1))[1] = (dev->type == ARPHRD_ETHER) ?
-				   htons(ETH_P_TEB) : skb->protocol;
+	protocol = (dev->type == ARPHRD_ETHER) ?
+		    htons(ETH_P_TEB) : skb->protocol;
+	((__be16 *)(ipv6h + 1))[1] = protocol;
 
 	if (tunnel->parms.o_flags&(GRE_KEY|GRE_CSUM|GRE_SEQ)) {
 		__be32 *ptr = (__be32 *)(((u8 *)ipv6h) + tunnel->hlen - 4);
@@ -755,6 +757,8 @@ static netdev_tx_t ip6gre_xmit2(struct sk_buff *skb,
 				skb->len - sizeof(struct ipv6hdr));
 		}
 	}
+
+	skb_set_inner_protocol(skb, protocol);
 
 	ip6tunnel_xmit(skb, dev);
 	if (ndst)
@@ -782,7 +786,7 @@ static inline int ip6gre_xmit_ipv4(struct sk_buff *skb, struct net_device *dev)
 		encap_limit = t->parms.encap_limit;
 
 	memcpy(&fl6, &t->fl.u.ip6, sizeof(fl6));
-	fl6.flowi6_proto = IPPROTO_IPIP;
+	fl6.flowi6_proto = IPPROTO_GRE;
 
 	dsfield = ipv4_get_dsfield(iph);
 
@@ -832,7 +836,7 @@ static inline int ip6gre_xmit_ipv6(struct sk_buff *skb, struct net_device *dev)
 		encap_limit = t->parms.encap_limit;
 
 	memcpy(&fl6, &t->fl.u.ip6, sizeof(fl6));
-	fl6.flowi6_proto = IPPROTO_IPV6;
+	fl6.flowi6_proto = IPPROTO_GRE;
 
 	dsfield = ipv6_get_dsfield(ipv6h);
 	if (t->parms.flags & IP6_TNL_F_USE_ORIG_TCLASS)
@@ -1238,7 +1242,7 @@ static void ip6gre_tunnel_setup(struct net_device *dev)
 	dev->flags |= IFF_NOARP;
 	dev->iflink = 0;
 	dev->addr_len = sizeof(struct in6_addr);
-	dev->priv_flags &= ~IFF_XMIT_DST_RELEASE;
+	netif_keep_dst(dev);
 }
 
 static int ip6gre_tunnel_init(struct net_device *dev)

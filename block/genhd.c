@@ -1545,7 +1545,7 @@ void disk_flush_events(struct gendisk *disk, unsigned int mask)
 /**
  * disk_clear_events - synchronously check, clear and return pending events
  * @disk: disk to fetch and clear events from
- * @mask: mask of events to be fetched and clearted
+ * @mask: mask of events to be fetched and cleared
  *
  * Disk events are synchronously checked and pending events in @mask
  * are cleared and returned.  This ignores the block count.

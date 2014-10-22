@@ -481,7 +481,6 @@ static int vml_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	default:
 		err = -ENODEV;
 		goto out_err_1;
-		break;
 	}
 
 	info = &vinfo->info;

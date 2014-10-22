@@ -345,10 +345,14 @@
 				};
 			};
 
-			ramc: ramc@ffffe200 {
+			ramc0: ramc@ffffe200 {
 				compatible = "atmel,at91sam9260-sdramc";
-				reg = <0xffffe200 0x200
-				       0xffffe800 0x200>;
+				reg = <0xffffe200 0x200>;
+			};
+
+			ramc1: ramc@ffffe800 {
+				compatible = "atmel,at91sam9260-sdramc";
+				reg = <0xffffe800 0x200>;
 			};
 
 			pit: timer@fffffd30 {
@@ -834,6 +838,7 @@
 				compatible = "atmel,hsmci";
 				reg = <0xfff80000 0x600>;
 				interrupts = <10 IRQ_TYPE_LEVEL_HIGH 0>;
+				pinctrl-names = "default";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&mci0_clk>;
@@ -845,6 +850,7 @@
 				compatible = "atmel,hsmci";
 				reg = <0xfff84000 0x600>;
 				interrupts = <11 IRQ_TYPE_LEVEL_HIGH 0>;
+				pinctrl-names = "default";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&mci1_clk>;

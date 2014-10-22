@@ -5,6 +5,7 @@
 #include <linux/stddef.h>
 #include <linux/poison.h>
 #include <linux/const.h>
+#include <linux/kernel.h>
 
 /*
  * Simple doubly linked list implementation.

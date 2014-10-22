@@ -286,7 +286,7 @@ static void prrn_work_fn(struct work_struct *work)
 
 static DECLARE_WORK(prrn_work, prrn_work_fn);
 
-void prrn_schedule_update(u32 scope)
+static void prrn_schedule_update(u32 scope)
 {
 	flush_work(&prrn_work);
 	prrn_update_scope = scope;

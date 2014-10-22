@@ -171,6 +171,7 @@ struct iwl_base_params {
 
 /*
  * @stbc: support Tx STBC and 1*SS Rx STBC
+ * @ldpc: support Tx/Rx with LDPC
  * @use_rts_for_aggregation: use rts/cts protection for HT traffic
  * @ht40_bands: bitmap of bands (using %IEEE80211_BAND_*) that support HT40
  */
@@ -178,6 +179,7 @@ struct iwl_ht_params {
 	enum ieee80211_smps_mode smps_mode;
 	const bool ht_greenfield_support; /* if used set to true */
 	const bool stbc;
+	const bool ldpc;
 	bool use_rts_for_aggregation;
 	u8 ht40_bands;
 };
@@ -228,6 +230,7 @@ struct iwl_pwr_tx_backoff {
  * @max_data_size: The maximal length of the fw data section
  * @valid_tx_ant: valid transmit antenna
  * @valid_rx_ant: valid receive antenna
+ * @non_shared_ant: the antenna that is for WiFi only
  * @nvm_ver: NVM version
  * @nvm_calib_ver: NVM calibration version
  * @lib: pointer to the lib ops
@@ -260,6 +263,7 @@ struct iwl_cfg {
 	const u32 max_inst_size;
 	u8   valid_tx_ant;
 	u8   valid_rx_ant;
+	u8   non_shared_ant;
 	bool bt_shared_single_ant;
 	u16  nvm_ver;
 	u16  nvm_calib_ver;
@@ -280,6 +284,7 @@ struct iwl_cfg {
 	bool no_power_up_nic_in_init;
 	const char *default_nvm_file;
 	unsigned int max_rx_agg_size;
+	bool disable_dummy_notification;
 };
 
 /*
@@ -341,6 +346,7 @@ extern const struct iwl_cfg iwl3165_2ac_cfg;
 extern const struct iwl_cfg iwl7265_2ac_cfg;
 extern const struct iwl_cfg iwl7265_2n_cfg;
 extern const struct iwl_cfg iwl7265_n_cfg;
+extern const struct iwl_cfg iwl8260_2n_cfg;
 extern const struct iwl_cfg iwl8260_2ac_cfg;
 extern const struct iwl_cfg iwl8260_2ac_sdio_cfg;
 #endif /* CONFIG_IWLMVM */

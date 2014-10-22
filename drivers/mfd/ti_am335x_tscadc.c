@@ -53,11 +53,11 @@ void am335x_tsc_se_set_cache(struct ti_tscadc_dev *tsadc, u32 val)
 	unsigned long flags;
 
 	spin_lock_irqsave(&tsadc->reg_lock, flags);
-	tsadc->reg_se_cache = val;
+	tsadc->reg_se_cache |= val;
 	if (tsadc->adc_waiting)
 		wake_up(&tsadc->reg_se_wait);
 	else if (!tsadc->adc_in_use)
-		tscadc_writel(tsadc, REG_SE, val);
+		tscadc_writel(tsadc, REG_SE, tsadc->reg_se_cache);
 
 	spin_unlock_irqrestore(&tsadc->reg_lock, flags);
 }
@@ -96,6 +96,7 @@ static void am335x_tscadc_need_adc(struct ti_tscadc_dev *tsadc)
 void am335x_tsc_se_set_once(struct ti_tscadc_dev *tsadc, u32 val)
 {
 	spin_lock_irq(&tsadc->reg_lock);
+	tsadc->reg_se_cache |= val;
 	am335x_tscadc_need_adc(tsadc);
 
 	tscadc_writel(tsadc, REG_SE, val);
@@ -241,18 +242,20 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	tscadc_writel(tscadc, REG_CLKDIV, tscadc->clk_div);
 
 	/* Set the control register bits */
-	ctrl = CNTRLREG_STEPCONFIGWRT |
-			CNTRLREG_STEPID;
-	if (tsc_wires > 0)
-		ctrl |= CNTRLREG_4WIRE | CNTRLREG_TSCENB;
+	ctrl = CNTRLREG_STEPCONFIGWRT |	CNTRLREG_STEPID;
 	tscadc_writel(tscadc, REG_CTRL, ctrl);
 
 	/* Set register bits for Idle Config Mode */
-	if (tsc_wires > 0)
+	if (tsc_wires > 0) {
+		tscadc->tsc_wires = tsc_wires;
+		if (tsc_wires == 5)
+			ctrl |= CNTRLREG_5WIRE | CNTRLREG_TSCENB;
+		else
+			ctrl |= CNTRLREG_4WIRE | CNTRLREG_TSCENB;
 		tscadc_idle_config(tscadc);
+	}
 
 	/* Enable the TSC module enable bit */
-	ctrl = tscadc_readl(tscadc, REG_CTRL);
 	ctrl |= CNTRLREG_TSCSSENB;
 	tscadc_writel(tscadc, REG_CTRL, ctrl);
 
@@ -324,21 +327,23 @@ static int tscadc_suspend(struct device *dev)
 static int tscadc_resume(struct device *dev)
 {
 	struct ti_tscadc_dev	*tscadc_dev = dev_get_drvdata(dev);
-	unsigned int restore, ctrl;
+	u32 ctrl;
 
 	pm_runtime_get_sync(dev);
 
 	/* context restore */
 	ctrl = CNTRLREG_STEPCONFIGWRT |	CNTRLREG_STEPID;
-	if (tscadc_dev->tsc_cell != -1)
-		ctrl |= CNTRLREG_TSCENB | CNTRLREG_4WIRE;
 	tscadc_writel(tscadc_dev, REG_CTRL, ctrl);
 
-	if (tscadc_dev->tsc_cell != -1)
+	if (tscadc_dev->tsc_cell != -1) {
+		if (tscadc_dev->tsc_wires == 5)
+			ctrl |= CNTRLREG_5WIRE | CNTRLREG_TSCENB;
+		else
+			ctrl |= CNTRLREG_4WIRE | CNTRLREG_TSCENB;
 		tscadc_idle_config(tscadc_dev);
-	restore = tscadc_readl(tscadc_dev, REG_CTRL);
-	tscadc_writel(tscadc_dev, REG_CTRL,
-			(restore | CNTRLREG_TSCSSENB));
+	}
+	ctrl |= CNTRLREG_TSCSSENB;
+	tscadc_writel(tscadc_dev, REG_CTRL, ctrl);
 
 	tscadc_writel(tscadc_dev, REG_CLKDIV, tscadc_dev->clk_div);
 

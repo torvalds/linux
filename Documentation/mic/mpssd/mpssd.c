@@ -41,6 +41,7 @@
 #include "mpssd.h"
 #include <linux/mic_ioctl.h>
 #include <linux/mic_common.h>
+#include <tools/endian.h>
 
 static void init_mic(struct mic_info *mic);
 
@@ -1476,9 +1477,9 @@ set_cmdline(struct mic_info *mic)
 
 	len = snprintf(buffer, PATH_MAX,
 		"clocksource=tsc highres=off nohz=off ");
-	len += snprintf(buffer + len, PATH_MAX,
+	len += snprintf(buffer + len, PATH_MAX - len,
 		"cpufreq_on;corec6_off;pc3_off;pc6_off ");
-	len += snprintf(buffer + len, PATH_MAX,
+	len += snprintf(buffer + len, PATH_MAX - len,
 		"ifcfg=static;address,172.31.%d.1;netmask,255.255.255.0",
 		mic->id);
 

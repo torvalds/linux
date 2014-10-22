@@ -113,10 +113,8 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
 	int			ret;
 
 	exynos = devm_kzalloc(dev, sizeof(*exynos), GFP_KERNEL);
-	if (!exynos) {
-		dev_err(dev, "not enough memory\n");
+	if (!exynos)
 		return -ENOMEM;
-	}
 
 	/*
 	 * Right now device-tree probed devices don't get dma_mask set.

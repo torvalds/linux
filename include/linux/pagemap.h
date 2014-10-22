@@ -24,8 +24,7 @@ enum mapping_flags {
 	AS_ENOSPC	= __GFP_BITS_SHIFT + 1,	/* ENOSPC on async write */
 	AS_MM_ALL_LOCKS	= __GFP_BITS_SHIFT + 2,	/* under mm_take_all_locks() */
 	AS_UNEVICTABLE	= __GFP_BITS_SHIFT + 3,	/* e.g., ramdisk, SHM_LOCK */
-	AS_BALLOON_MAP  = __GFP_BITS_SHIFT + 4, /* balloon page special map */
-	AS_EXITING	= __GFP_BITS_SHIFT + 5, /* final truncate in progress */
+	AS_EXITING	= __GFP_BITS_SHIFT + 4, /* final truncate in progress */
 };
 
 static inline void mapping_set_error(struct address_space *mapping, int error)
@@ -55,21 +54,6 @@ static inline int mapping_unevictable(struct address_space *mapping)
 	return !!mapping;
 }
 
-static inline void mapping_set_balloon(struct address_space *mapping)
-{
-	set_bit(AS_BALLOON_MAP, &mapping->flags);
-}
-
-static inline void mapping_clear_balloon(struct address_space *mapping)
-{
-	clear_bit(AS_BALLOON_MAP, &mapping->flags);
-}
-
-static inline int mapping_balloon(struct address_space *mapping)
-{
-	return mapping && test_bit(AS_BALLOON_MAP, &mapping->flags);
-}
-
 static inline void mapping_set_exiting(struct address_space *mapping)
 {
 	set_bit(AS_EXITING, &mapping->flags);
@@ -96,7 +80,7 @@ static inline void mapping_set_gfp_mask(struct address_space *m, gfp_t mask)
 }
 
 /*
- * The page cache can done in larger chunks than
+ * The page cache can be done in larger chunks than
  * one page, because it allows for more efficient
  * throughput (it can then be mapped into user
  * space in smaller chunks for same flexibility).
@@ -496,18 +480,26 @@ static inline int lock_page_or_retry(struct page *page, struct mm_struct *mm,
 }
 
 /*
- * This is exported only for wait_on_page_locked/wait_on_page_writeback.
- * Never use this directly!
+ * This is exported only for wait_on_page_locked/wait_on_page_writeback,
+ * and for filesystems which need to wait on PG_private.
  */
 extern void wait_on_page_bit(struct page *page, int bit_nr);
 
 extern int wait_on_page_bit_killable(struct page *page, int bit_nr);
+extern int wait_on_page_bit_killable_timeout(struct page *page,
+					     int bit_nr, unsigned long timeout);
 
 static inline int wait_on_page_locked_killable(struct page *page)
 {
 	if (PageLocked(page))
 		return wait_on_page_bit_killable(page, PG_locked);
 	return 0;
+}
+
+extern wait_queue_head_t *page_waitqueue(struct page *page);
+static inline void wake_up_page(struct page *page, int bit)
+{
+	__wake_up_bit(page_waitqueue(page), &page->flags, bit);
 }
 
 /* 

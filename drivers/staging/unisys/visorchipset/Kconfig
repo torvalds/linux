@@ -4,7 +4,7 @@
 
 config UNISYS_VISORCHIPSET
 	tristate "Unisys visorchipset driver"
-	depends on UNISYSSPAR && UNISYS_VISORUTIL && UNISYS_VISORCHANNEL
+	depends on UNISYSSPAR && UNISYS_VISORUTIL && UNISYS_VISORCHANNEL && HAS_IOMEM
 	---help---
 	If you say Y here, you will enable the Unisys visorchipset driver.
 

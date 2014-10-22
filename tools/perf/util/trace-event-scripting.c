@@ -30,6 +30,11 @@
 
 struct scripting_context *scripting_context;
 
+static int flush_script_unsupported(void)
+{
+	return 0;
+}
+
 static int stop_script_unsupported(void)
 {
 	return 0;
@@ -74,6 +79,7 @@ static int python_generate_script_unsupported(struct pevent *pevent
 struct scripting_ops python_scripting_unsupported_ops = {
 	.name = "Python",
 	.start_script = python_start_script_unsupported,
+	.flush_script = flush_script_unsupported,
 	.stop_script = stop_script_unsupported,
 	.process_event = process_event_unsupported,
 	.generate_script = python_generate_script_unsupported,
@@ -137,6 +143,7 @@ static int perl_generate_script_unsupported(struct pevent *pevent
 struct scripting_ops perl_scripting_unsupported_ops = {
 	.name = "Perl",
 	.start_script = perl_start_script_unsupported,
+	.flush_script = flush_script_unsupported,
 	.stop_script = stop_script_unsupported,
 	.process_event = process_event_unsupported,
 	.generate_script = perl_generate_script_unsupported,

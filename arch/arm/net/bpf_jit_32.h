@@ -114,6 +114,20 @@
 
 #define ARM_INST_UMULL		0x00800090
 
+/*
+ * Use a suitable undefined instruction to use for ARM/Thumb2 faulting.
+ * We need to be careful not to conflict with those used by other modules
+ * (BUG, kprobes, etc) and the register_undef_hook() system.
+ *
+ * The ARM architecture reference manual guarantees that the following
+ * instruction space will produce an undefined instruction exception on
+ * all CPUs:
+ *
+ * ARM:   xxxx 0111 1111 xxxx xxxx xxxx 1111 xxxx	ARMv7-AR, section A5.4
+ * Thumb: 1101 1110 xxxx xxxx				ARMv7-M, section A5.2.6
+ */
+#define ARM_INST_UDF		0xe7fddef1
+
 /* register */
 #define _AL3_R(op, rd, rn, rm)	((op ## _R) | (rd) << 12 | (rn) << 16 | (rm))
 /* immediate */

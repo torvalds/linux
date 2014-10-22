@@ -979,7 +979,7 @@ static int ene_transmit(struct rc_dev *rdev, unsigned *buf, unsigned n)
 	dev->tx_reg = 0;
 	dev->tx_done = 0;
 	dev->tx_sample = 0;
-	dev->tx_sample_pulse = 0;
+	dev->tx_sample_pulse = false;
 
 	dbg("TX: %d samples", dev->tx_len);
 

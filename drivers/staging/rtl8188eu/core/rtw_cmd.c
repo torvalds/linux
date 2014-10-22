@@ -69,7 +69,7 @@ exit:
 	return _SUCCESS;
 }
 
-struct	cmd_obj	* rtw_dequeue_cmd(struct __queue *queue)
+struct	cmd_obj	*rtw_dequeue_cmd(struct __queue *queue)
 {
 	unsigned long irqL;
 	struct cmd_obj *obj;
@@ -98,6 +98,7 @@ static int rtw_cmd_filter(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
 	    (!pcmdpriv->padapter->registrypriv.usbss_enable)) {
 		if (cmd_obj->cmdcode == GEN_CMD_CODE(_Set_Drv_Extra)) {
 			struct drvextra_cmd_parm	*pdrvextra_cmd_parm = (struct drvextra_cmd_parm	*)cmd_obj->parmbuf;
+
 			if (pdrvextra_cmd_parm->ec_id == POWER_SAVING_CTRL_WK_CID)
 				bAllow = true;
 		}
@@ -296,6 +297,7 @@ u8 rtw_sitesurvey_cmd(struct adapter  *padapter, struct ndis_802_11_ssid *ssid, 
 	/* prepare ssid list */
 	if (ssid) {
 		int i;
+
 		for (i = 0; i < ssid_num && i < RTW_SSID_SCAN_AMOUNT; i++) {
 			if (ssid[i].SsidLength) {
 				memcpy(&psurveyPara->ssid[i], &ssid[i], sizeof(struct ndis_802_11_ssid));
@@ -307,6 +309,7 @@ u8 rtw_sitesurvey_cmd(struct adapter  *padapter, struct ndis_802_11_ssid *ssid, 
 	/* prepare channel list */
 	if (ch) {
 		int i;
+
 		for (i = 0; i < ch_num && i < RTW_CHANNEL_SCAN_AMOUNT; i++) {
 			if (ch[i].hw_value && !(ch[i].flags & RTW_IEEE80211_CHAN_DISABLED)) {
 				memcpy(&psurveyPara->ch[i], &ch[i], sizeof(struct rtw_ieee80211_channel));

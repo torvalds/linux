@@ -149,8 +149,8 @@ static void omap24xxcam_dmahw_transfer_chain(void __iomem *base, int dmach,
 			 */
 			omap24xxcam_dmahw_transfer_start(base, dmach);
 			break;
-		} else
-			ch = (ch + 1) % NUM_CAMDMA_CHANNELS;
+		}
+		ch = (ch + 1) % NUM_CAMDMA_CHANNELS;
 	}
 }
 
@@ -332,15 +332,14 @@ void omap24xxcam_dma_isr(struct omap24xxcam_dma *dma)
 			spin_unlock(&dma->lock);
 			omap24xxcam_dma_stop(dma, csr);
 			return;
-		} else {
-			callback = dma->ch_state[dmach].callback;
-			arg = dma->ch_state[dmach].arg;
-			dma->free_dmach++;
-			if (callback) {
-				spin_unlock(&dma->lock);
-				(*callback) (dma, csr, arg);
-				spin_lock(&dma->lock);
-			}
+		}
+		callback = dma->ch_state[dmach].callback;
+		arg = dma->ch_state[dmach].arg;
+		dma->free_dmach++;
+		if (callback) {
+			spin_unlock(&dma->lock);
+			(*callback) (dma, csr, arg);
+			spin_lock(&dma->lock);
 		}
 	}
 
@@ -475,17 +474,14 @@ void omap24xxcam_sgdma_process(struct omap24xxcam_sgdma *sgdma)
 				/* DMA start failed */
 				spin_unlock_irqrestore(&sgdma->lock, flags);
 				return;
-			} else {
-				unsigned long expires;
-				/* DMA start was successful */
-				sg_state->next_sglist++;
-				sg_state->bytes_read += len;
-				sg_state->queued_sglist++;
-
-				/* We start the reset timer */
-				expires = jiffies + HZ;
-				mod_timer(&sgdma->reset_timer, expires);
 			}
+			/* DMA start was successful */
+			sg_state->next_sglist++;
+			sg_state->bytes_read += len;
+			sg_state->queued_sglist++;
+
+			/* We start the reset timer */
+			mod_timer(&sgdma->reset_timer, jiffies + HZ);
 		}
 		queued_sgdma--;
 		sgslot = (sgslot + 1) % NUM_SG_DMA;
@@ -563,6 +559,7 @@ void omap24xxcam_sgdma_sync(struct omap24xxcam_sgdma *sgdma)
 			/* This DMA transfer was in progress, so abort it. */
 			sgdma_callback_t callback = sg_state->callback;
 			void *arg = sg_state->arg;
+
 			sgdma->free_sgdma++;
 			if (callback) {
 				/* leave interrupts masked */

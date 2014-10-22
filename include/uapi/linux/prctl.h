@@ -1,6 +1,8 @@
 #ifndef _LINUX_PRCTL_H
 #define _LINUX_PRCTL_H
 
+#include <linux/types.h>
+
 /* Values to pass as first argument to prctl() */
 
 #define PR_SET_PDEATHSIG  1  /* Second arg is a signal */
@@ -119,6 +121,31 @@
 # define PR_SET_MM_ENV_END		11
 # define PR_SET_MM_AUXV			12
 # define PR_SET_MM_EXE_FILE		13
+# define PR_SET_MM_MAP			14
+# define PR_SET_MM_MAP_SIZE		15
+
+/*
+ * This structure provides new memory descriptor
+ * map which mostly modifies /proc/pid/stat[m]
+ * output for a task. This mostly done in a
+ * sake of checkpoint/restore functionality.
+ */
+struct prctl_mm_map {
+	__u64	start_code;		/* code section bounds */
+	__u64	end_code;
+	__u64	start_data;		/* data section bounds */
+	__u64	end_data;
+	__u64	start_brk;		/* heap for brk() syscall */
+	__u64	brk;
+	__u64	start_stack;		/* stack starts at */
+	__u64	arg_start;		/* command line arguments bounds */
+	__u64	arg_end;
+	__u64	env_start;		/* environment variables bounds */
+	__u64	env_end;
+	__u64	*auxv;			/* auxiliary vector */
+	__u32	auxv_size;		/* vector size */
+	__u32	exe_fd;			/* /proc/$pid/exe link file */
+};
 
 /*
  * Set specific pid that is allowed to ptrace the current task.

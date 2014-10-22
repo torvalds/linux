@@ -4633,7 +4633,7 @@ il4965_store_tx_power(struct device *d, struct device_attribute *attr,
 	else {
 		ret = il_set_tx_power(il, val, false);
 		if (ret)
-			IL_ERR("failed setting tx power (0x%d).\n", ret);
+			IL_ERR("failed setting tx power (0x%08x).\n", ret);
 		else
 			ret = count;
 	}
@@ -5757,9 +5757,8 @@ il4965_mac_setup_register(struct il_priv *il, u32 max_probe_length)
 	    IEEE80211_HW_REPORTS_TX_ACK_STATUS | IEEE80211_HW_SUPPORTS_PS |
 	    IEEE80211_HW_SUPPORTS_DYNAMIC_PS;
 	if (il->cfg->sku & IL_SKU_N)
-		hw->flags |=
-		    IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
-		    IEEE80211_HW_SUPPORTS_STATIC_SMPS;
+		hw->wiphy->features |= NL80211_FEATURE_DYNAMIC_SMPS |
+				       NL80211_FEATURE_STATIC_SMPS;
 
 	hw->sta_data_size = sizeof(struct il_station_priv);
 	hw->vif_data_size = sizeof(struct il_vif_priv);

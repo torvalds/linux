@@ -21,6 +21,14 @@
 #include <linux/serial_reg.h>
 #include <linux/time.h>
 
+enum bcma_boot_dev {
+	BCMA_BOOT_DEV_UNK = 0,
+	BCMA_BOOT_DEV_ROM,
+	BCMA_BOOT_DEV_PARALLEL,
+	BCMA_BOOT_DEV_SERIAL,
+	BCMA_BOOT_DEV_NAND,
+};
+
 static const char * const part_probes[] = { "bcm47xxpart", NULL };
 
 static struct physmap_flash_data bcma_pflash_data = {
@@ -229,11 +237,51 @@ u32 bcma_cpu_clock(struct bcma_drv_mips *mcore)
 }
 EXPORT_SYMBOL(bcma_cpu_clock);
 
+static enum bcma_boot_dev bcma_boot_dev(struct bcma_bus *bus)
+{
+	struct bcma_drv_cc *cc = &bus->drv_cc;
+	u8 cc_rev = cc->core->id.rev;
+
+	if (cc_rev == 42) {
+		struct bcma_device *core;
+
+		core = bcma_find_core(bus, BCMA_CORE_NS_ROM);
+		if (core) {
+			switch (bcma_aread32(core, BCMA_IOST) &
+				BCMA_NS_ROM_IOST_BOOT_DEV_MASK) {
+			case BCMA_NS_ROM_IOST_BOOT_DEV_NOR:
+				return BCMA_BOOT_DEV_SERIAL;
+			case BCMA_NS_ROM_IOST_BOOT_DEV_NAND:
+				return BCMA_BOOT_DEV_NAND;
+			case BCMA_NS_ROM_IOST_BOOT_DEV_ROM:
+			default:
+				return BCMA_BOOT_DEV_ROM;
+			}
+		}
+	} else {
+		if (cc_rev == 38) {
+			if (cc->status & BCMA_CC_CHIPST_5357_NAND_BOOT)
+				return BCMA_BOOT_DEV_NAND;
+			else if (cc->status & BIT(5))
+				return BCMA_BOOT_DEV_ROM;
+		}
+
+		if ((cc->capabilities & BCMA_CC_CAP_FLASHT) ==
+		    BCMA_CC_FLASHT_PARA)
+			return BCMA_BOOT_DEV_PARALLEL;
+		else
+			return BCMA_BOOT_DEV_SERIAL;
+	}
+
+	return BCMA_BOOT_DEV_SERIAL;
+}
+
 static void bcma_core_mips_flash_detect(struct bcma_drv_mips *mcore)
 {
 	struct bcma_bus *bus = mcore->core->bus;
 	struct bcma_drv_cc *cc = &bus->drv_cc;
 	struct bcma_pflash *pflash = &cc->pflash;
+	enum bcma_boot_dev boot_dev;
 
 	switch (cc->capabilities & BCMA_CC_CAP_FLASHT) {
 	case BCMA_CC_FLASHT_STSER:
@@ -268,6 +316,20 @@ static void bcma_core_mips_flash_detect(struct bcma_drv_mips *mcore)
 			bcma_debug(bus, "Found NAND flash\n");
 			bcma_nflash_init(cc);
 		}
+	}
+
+	/* Determine flash type this SoC boots from */
+	boot_dev = bcma_boot_dev(bus);
+	switch (boot_dev) {
+	case BCMA_BOOT_DEV_PARALLEL:
+	case BCMA_BOOT_DEV_SERIAL:
+		/* TODO: Init NVRAM using BCMA_SOC_FLASH2 window */
+		break;
+	case BCMA_BOOT_DEV_NAND:
+		/* TODO: Init NVRAM using BCMA_SOC_FLASH1 window */
+		break;
+	default:
+		break;
 	}
 }
 

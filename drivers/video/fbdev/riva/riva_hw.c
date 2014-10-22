@@ -430,7 +430,6 @@ static char nv3_arb(nv3_fifo_info * res_info, nv3_sim_state * state,  nv3_arb_in
     int mmisses, gmisses, vmisses, eburst_size, mburst_size;
     int refresh_cycle;
 
-    refresh_cycle = 0;
     refresh_cycle = 2*(state->mclk_khz/state->pclk_khz) + 5;
     mmisses = 2;
     if (state->mem_aligned) gmisses = 2;

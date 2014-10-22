@@ -148,7 +148,6 @@ static int fintek_hw_detect(struct fintek_dev *fintek)
 	u8 vendor_major, vendor_minor;
 	u8 portsel, ir_class;
 	u16 vendor, chip;
-	int ret = 0;
 
 	fintek_config_mode_enable(fintek);
 
@@ -208,7 +207,7 @@ static int fintek_hw_detect(struct fintek_dev *fintek)
 
 	spin_unlock_irqrestore(&fintek->fintek_lock, flags);
 
-	return ret;
+	return 0;
 }
 
 static void fintek_cir_ldev_init(struct fintek_dev *fintek)
@@ -644,7 +643,6 @@ static int fintek_suspend(struct pnp_dev *pdev, pm_message_t state)
 
 static int fintek_resume(struct pnp_dev *pdev)
 {
-	int ret = 0;
 	struct fintek_dev *fintek = pnp_get_drvdata(pdev);
 
 	fit_dbg("%s called", __func__);
@@ -661,7 +659,7 @@ static int fintek_resume(struct pnp_dev *pdev)
 
 	fintek_cir_regs_init(fintek);
 
-	return ret;
+	return 0;
 }
 
 static void fintek_shutdown(struct pnp_dev *pdev)

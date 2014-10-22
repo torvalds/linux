@@ -44,8 +44,6 @@
 #include "wctl.h"
 #include "baseband.h"
 
-/*---------------------  Static Definitions -------------------------*/
-static int msglevel = MSG_LEVEL_INFO;
 /*---------------------  Static Classes  ----------------------------*/
 
 /*---------------------  Static Variables  --------------------------*/
@@ -190,75 +188,101 @@ void STAvUpdateRDStatCounter(PSStatCounter pStatistic,
 		if (byRSR & RSR_CRCOK)
 			pStatistic->CustomStat.ullRsr11MCRCOk++;
 
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "11M: ALL[%d], OK[%d]:[%02x]\n", (int)pStatistic->CustomStat.ullRsr11M, (int)pStatistic->CustomStat.ullRsr11MCRCOk, byRSR);
+		pr_debug("11M: ALL[%d], OK[%d]:[%02x]\n",
+			 (int)pStatistic->CustomStat.ullRsr11M,
+			 (int)pStatistic->CustomStat.ullRsr11MCRCOk, byRSR);
 	} else if (byRxRate == 11) {
 		pStatistic->CustomStat.ullRsr5M++;
 		if (byRSR & RSR_CRCOK)
 			pStatistic->CustomStat.ullRsr5MCRCOk++;
 
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " 5M: ALL[%d], OK[%d]:[%02x]\n", (int)pStatistic->CustomStat.ullRsr5M, (int)pStatistic->CustomStat.ullRsr5MCRCOk, byRSR);
+		pr_debug(" 5M: ALL[%d], OK[%d]:[%02x]\n",
+			 (int)pStatistic->CustomStat.ullRsr5M,
+			 (int)pStatistic->CustomStat.ullRsr5MCRCOk, byRSR);
 	} else if (byRxRate == 4) {
 		pStatistic->CustomStat.ullRsr2M++;
 		if (byRSR & RSR_CRCOK)
 			pStatistic->CustomStat.ullRsr2MCRCOk++;
 
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " 2M: ALL[%d], OK[%d]:[%02x]\n", (int)pStatistic->CustomStat.ullRsr2M, (int)pStatistic->CustomStat.ullRsr2MCRCOk, byRSR);
+		pr_debug(" 2M: ALL[%d], OK[%d]:[%02x]\n",
+			 (int)pStatistic->CustomStat.ullRsr2M,
+			 (int)pStatistic->CustomStat.ullRsr2MCRCOk, byRSR);
 	} else if (byRxRate == 2) {
 		pStatistic->CustomStat.ullRsr1M++;
 		if (byRSR & RSR_CRCOK)
 			pStatistic->CustomStat.ullRsr1MCRCOk++;
 
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " 1M: ALL[%d], OK[%d]:[%02x]\n", (int)pStatistic->CustomStat.ullRsr1M, (int)pStatistic->CustomStat.ullRsr1MCRCOk, byRSR);
+		pr_debug(" 1M: ALL[%d], OK[%d]:[%02x]\n",
+			 (int)pStatistic->CustomStat.ullRsr1M,
+			 (int)pStatistic->CustomStat.ullRsr1MCRCOk, byRSR);
 	} else if (byRxRate == 12) {
 		pStatistic->CustomStat.ullRsr6M++;
 		if (byRSR & RSR_CRCOK)
 			pStatistic->CustomStat.ullRsr6MCRCOk++;
 
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " 6M: ALL[%d], OK[%d]\n", (int)pStatistic->CustomStat.ullRsr6M, (int)pStatistic->CustomStat.ullRsr6MCRCOk);
+		pr_debug(" 6M: ALL[%d], OK[%d]\n",
+			 (int)pStatistic->CustomStat.ullRsr6M,
+			 (int)pStatistic->CustomStat.ullRsr6MCRCOk);
 	} else if (byRxRate == 18) {
 		pStatistic->CustomStat.ullRsr9M++;
 		if (byRSR & RSR_CRCOK)
 			pStatistic->CustomStat.ullRsr9MCRCOk++;
 
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " 9M: ALL[%d], OK[%d]\n", (int)pStatistic->CustomStat.ullRsr9M, (int)pStatistic->CustomStat.ullRsr9MCRCOk);
+		pr_debug(" 9M: ALL[%d], OK[%d]\n",
+			 (int)pStatistic->CustomStat.ullRsr9M,
+			 (int)pStatistic->CustomStat.ullRsr9MCRCOk);
 	} else if (byRxRate == 24) {
 		pStatistic->CustomStat.ullRsr12M++;
 		if (byRSR & RSR_CRCOK)
 			pStatistic->CustomStat.ullRsr12MCRCOk++;
 
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "12M: ALL[%d], OK[%d]\n", (int)pStatistic->CustomStat.ullRsr12M, (int)pStatistic->CustomStat.ullRsr12MCRCOk);
+		pr_debug("12M: ALL[%d], OK[%d]\n",
+			 (int)pStatistic->CustomStat.ullRsr12M,
+			 (int)pStatistic->CustomStat.ullRsr12MCRCOk);
 	} else if (byRxRate == 36) {
 		pStatistic->CustomStat.ullRsr18M++;
 		if (byRSR & RSR_CRCOK)
 			pStatistic->CustomStat.ullRsr18MCRCOk++;
 
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "18M: ALL[%d], OK[%d]\n", (int)pStatistic->CustomStat.ullRsr18M, (int)pStatistic->CustomStat.ullRsr18MCRCOk);
+		pr_debug("18M: ALL[%d], OK[%d]\n",
+			 (int)pStatistic->CustomStat.ullRsr18M,
+			 (int)pStatistic->CustomStat.ullRsr18MCRCOk);
 	} else if (byRxRate == 48) {
 		pStatistic->CustomStat.ullRsr24M++;
 		if (byRSR & RSR_CRCOK)
 			pStatistic->CustomStat.ullRsr24MCRCOk++;
 
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "24M: ALL[%d], OK[%d]\n", (int)pStatistic->CustomStat.ullRsr24M, (int)pStatistic->CustomStat.ullRsr24MCRCOk);
+		pr_debug("24M: ALL[%d], OK[%d]\n",
+			 (int)pStatistic->CustomStat.ullRsr24M,
+			 (int)pStatistic->CustomStat.ullRsr24MCRCOk);
 	} else if (byRxRate == 72) {
 		pStatistic->CustomStat.ullRsr36M++;
 		if (byRSR & RSR_CRCOK)
 			pStatistic->CustomStat.ullRsr36MCRCOk++;
 
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "36M: ALL[%d], OK[%d]\n", (int)pStatistic->CustomStat.ullRsr36M, (int)pStatistic->CustomStat.ullRsr36MCRCOk);
+		pr_debug("36M: ALL[%d], OK[%d]\n",
+			 (int)pStatistic->CustomStat.ullRsr36M,
+			 (int)pStatistic->CustomStat.ullRsr36MCRCOk);
 	} else if (byRxRate == 96) {
 		pStatistic->CustomStat.ullRsr48M++;
 		if (byRSR & RSR_CRCOK)
 			pStatistic->CustomStat.ullRsr48MCRCOk++;
 
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "48M: ALL[%d], OK[%d]\n", (int)pStatistic->CustomStat.ullRsr48M, (int)pStatistic->CustomStat.ullRsr48MCRCOk);
+		pr_debug("48M: ALL[%d], OK[%d]\n",
+			 (int)pStatistic->CustomStat.ullRsr48M,
+			 (int)pStatistic->CustomStat.ullRsr48MCRCOk);
 	} else if (byRxRate == 108) {
 		pStatistic->CustomStat.ullRsr54M++;
 		if (byRSR & RSR_CRCOK)
 			pStatistic->CustomStat.ullRsr54MCRCOk++;
 
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "54M: ALL[%d], OK[%d]\n", (int)pStatistic->CustomStat.ullRsr54M, (int)pStatistic->CustomStat.ullRsr54MCRCOk);
+		pr_debug("54M: ALL[%d], OK[%d]\n",
+			 (int)pStatistic->CustomStat.ullRsr54M,
+			 (int)pStatistic->CustomStat.ullRsr54MCRCOk);
 	} else {
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Unknown: Total[%d], CRCOK[%d]\n", (int)pStatistic->dwRsrRxPacket+1, (int)pStatistic->dwRsrCRCOk);
+		pr_debug("Unknown: Total[%d], CRCOK[%d]\n",
+			 (int)pStatistic->dwRsrRxPacket+1,
+			 (int)pStatistic->dwRsrCRCOk);
 	}
 
 	if (byRSR & RSR_BSSIDOK)

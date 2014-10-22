@@ -173,6 +173,7 @@ struct irq_data {
  * IRQD_IRQ_DISABLED		- Disabled state of the interrupt
  * IRQD_IRQ_MASKED		- Masked state of the interrupt
  * IRQD_IRQ_INPROGRESS		- In progress state of the interrupt
+ * IRQD_WAKEUP_ARMED		- Wakeup mode armed
  */
 enum {
 	IRQD_TRIGGER_MASK		= 0xf,
@@ -186,6 +187,7 @@ enum {
 	IRQD_IRQ_DISABLED		= (1 << 16),
 	IRQD_IRQ_MASKED			= (1 << 17),
 	IRQD_IRQ_INPROGRESS		= (1 << 18),
+	IRQD_WAKEUP_ARMED		= (1 << 19),
 };
 
 static inline bool irqd_is_setaffinity_pending(struct irq_data *d)
@@ -256,6 +258,12 @@ static inline bool irqd_irq_inprogress(struct irq_data *d)
 {
 	return d->state_use_accessors & IRQD_IRQ_INPROGRESS;
 }
+
+static inline bool irqd_is_wakeup_armed(struct irq_data *d)
+{
+	return d->state_use_accessors & IRQD_WAKEUP_ARMED;
+}
+
 
 /*
  * Functions for chained handlers which can be enabled/disabled by the

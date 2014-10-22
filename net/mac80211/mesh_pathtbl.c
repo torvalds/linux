@@ -729,7 +729,7 @@ void mesh_plink_broken(struct sta_info *sta)
 	tbl = rcu_dereference(mesh_paths);
 	for_each_mesh_entry(tbl, node, i) {
 		mpath = node->mpath;
-		if (rcu_dereference(mpath->next_hop) == sta &&
+		if (rcu_access_pointer(mpath->next_hop) == sta &&
 		    mpath->flags & MESH_PATH_ACTIVE &&
 		    !(mpath->flags & MESH_PATH_FIXED)) {
 			spin_lock_bh(&mpath->state_lock);
@@ -794,7 +794,7 @@ void mesh_path_flush_by_nexthop(struct sta_info *sta)
 	tbl = resize_dereference_mesh_paths();
 	for_each_mesh_entry(tbl, node, i) {
 		mpath = node->mpath;
-		if (rcu_dereference(mpath->next_hop) == sta) {
+		if (rcu_access_pointer(mpath->next_hop) == sta) {
 			spin_lock(&tbl->hashwlock[i]);
 			__mesh_path_del(tbl, node);
 			spin_unlock(&tbl->hashwlock[i]);

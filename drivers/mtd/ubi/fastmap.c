@@ -24,7 +24,8 @@ size_t ubi_calc_fm_size(struct ubi_device *ubi)
 {
 	size_t size;
 
-	size = sizeof(struct ubi_fm_hdr) + \
+	size = sizeof(struct ubi_fm_sb) + \
+		sizeof(struct ubi_fm_hdr) + \
 		sizeof(struct ubi_fm_scan_pool) + \
 		sizeof(struct ubi_fm_scan_pool) + \
 		(ubi->peb_count * sizeof(struct ubi_fm_ec)) + \
@@ -330,6 +331,7 @@ static int process_pool_aeb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		av = tmp_av;
 	else {
 		ubi_err("orphaned volume in fastmap pool!");
+		kmem_cache_free(ai->aeb_slab_cache, new_aeb);
 		return UBI_BAD_FASTMAP;
 	}
 

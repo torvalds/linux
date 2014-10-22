@@ -197,7 +197,7 @@ static int __init mpc885ads_probe(void)
 	return of_flat_dt_is_compatible(root, "fsl,mpc885ads");
 }
 
-static struct of_device_id __initdata of_bus_ids[] = {
+static const struct of_device_id of_bus_ids[] __initconst = {
 	{ .name = "soc", },
 	{ .name = "cpm", },
 	{ .name = "localbus", },

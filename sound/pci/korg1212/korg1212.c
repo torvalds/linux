@@ -444,9 +444,9 @@ static char *stateName[] = {
 	"Invalid"
 };
 
-static char *clockSourceTypeName[] = { "ADAT", "S/PDIF", "local" };
+static const char * const clockSourceTypeName[] = { "ADAT", "S/PDIF", "local" };
 
-static char *clockSourceName[] = {
+static const char * const clockSourceName[] = {
 	"ADAT at 44.1 kHz",
 	"ADAT at 48 kHz",
 	"S/PDIF at 44.1 kHz",
@@ -455,7 +455,7 @@ static char *clockSourceName[] = {
 	"local clock at 48 kHz"
 };
 
-static char *channelName[] = {
+static const char * const channelName[] = {
 	"ADAT-1",
 	"ADAT-2",
 	"ADAT-3",
@@ -1844,14 +1844,9 @@ static int snd_korg1212_control_volume_put(struct snd_kcontrol *kcontrol,
 static int snd_korg1212_control_route_info(struct snd_kcontrol *kcontrol,
 					   struct snd_ctl_elem_info *uinfo)
 {
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = (kcontrol->private_value >= 8) ? 2 : 1;
-	uinfo->value.enumerated.items = kAudioChannels;
-	if (uinfo->value.enumerated.item > kAudioChannels-1) {
-		uinfo->value.enumerated.item = kAudioChannels-1;
-	}
-	strcpy(uinfo->value.enumerated.name, channelName[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo,
+				 (kcontrol->private_value >= 8) ? 2 : 1,
+				 kAudioChannels, channelName);
 }
 
 static int snd_korg1212_control_route_get(struct snd_kcontrol *kcontrol,
@@ -1961,14 +1956,7 @@ static int snd_korg1212_control_put(struct snd_kcontrol *kcontrol,
 static int snd_korg1212_control_sync_info(struct snd_kcontrol *kcontrol,
 					  struct snd_ctl_elem_info *uinfo)
 {
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 3;
-	if (uinfo->value.enumerated.item > 2) {
-		uinfo->value.enumerated.item = 2;
-	}
-	strcpy(uinfo->value.enumerated.name, clockSourceTypeName[uinfo->value.enumerated.item]);
-	return 0;
+	return snd_ctl_enum_info(uinfo, 1, 3, clockSourceTypeName);
 }
 
 static int snd_korg1212_control_sync_get(struct snd_kcontrol *kcontrol,

@@ -513,6 +513,8 @@ ssize_t __kernel_write(struct file *file, const char *buf, size_t count, loff_t 
 	return ret;
 }
 
+EXPORT_SYMBOL(__kernel_write);
+
 ssize_t vfs_write(struct file *file, const char __user *buf, size_t count, loff_t *pos)
 {
 	ssize_t ret;

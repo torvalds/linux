@@ -99,6 +99,7 @@
 #include <linux/slab.h>
 #include <net/tcp_states.h>
 #include <linux/skbuff.h>
+#include <linux/netdevice.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <net/net_namespace.h>
@@ -224,7 +225,7 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 		remaining = (high - low) + 1;
 
 		rand = prandom_u32();
-		first = (((u64)rand * remaining) >> 32) + low;
+		first = reciprocal_scale(rand, remaining) + low;
 		/*
 		 * force rand to be an odd multiple of UDP_HTABLE_SIZE
 		 */
@@ -448,7 +449,7 @@ begin:
 			}
 		} else if (score == badness && reuseport) {
 			matches++;
-			if (((u64)hash * matches) >> 32 == 0)
+			if (reciprocal_scale(hash, matches) == 0)
 				result = sk;
 			hash = next_pseudo_random32(hash);
 		}
@@ -529,7 +530,7 @@ begin:
 			}
 		} else if (score == badness && reuseport) {
 			matches++;
-			if (((u64)hash * matches) >> 32 == 0)
+			if (reciprocal_scale(hash, matches) == 0)
 				result = sk;
 			hash = next_pseudo_random32(hash);
 		}
@@ -1787,6 +1788,10 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 	if (sk != NULL) {
 		int ret;
 
+		if (udp_sk(sk)->convert_csum && uh->check && !IS_UDPLITE(sk))
+			skb_checksum_try_convert(skb, IPPROTO_UDP, uh->check,
+						 inet_compute_pseudo);
+
 		ret = udp_queue_rcv_skb(sk, skb);
 		sock_put(sk);
 
@@ -1967,7 +1972,7 @@ void udp_v4_early_demux(struct sk_buff *skb)
 		return;
 
 	skb->sk = sk;
-	skb->destructor = sock_edemux;
+	skb->destructor = sock_efree;
 	dst = sk->sk_rx_dst;
 
 	if (dst)

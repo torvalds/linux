@@ -97,7 +97,7 @@ static unsigned long
 clk_pll_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 {
 	struct clk_pll *pll = to_clk_pll(hw);
-	u32 l, m, n;
+	u32 l, m, n, config;
 	unsigned long rate;
 	u64 tmp;
 
@@ -116,13 +116,79 @@ clk_pll_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 		do_div(tmp, n);
 		rate += tmp;
 	}
+	if (pll->post_div_width) {
+		regmap_read(pll->clkr.regmap, pll->config_reg, &config);
+		config >>= pll->post_div_shift;
+		config &= BIT(pll->post_div_width) - 1;
+		rate /= config + 1;
+	}
+
 	return rate;
+}
+
+static const
+struct pll_freq_tbl *find_freq(const struct pll_freq_tbl *f, unsigned long rate)
+{
+	if (!f)
+		return NULL;
+
+	for (; f->freq; f++)
+		if (rate <= f->freq)
+			return f;
+
+	return NULL;
+}
+
+static long
+clk_pll_determine_rate(struct clk_hw *hw, unsigned long rate,
+		       unsigned long *p_rate, struct clk **p)
+{
+	struct clk_pll *pll = to_clk_pll(hw);
+	const struct pll_freq_tbl *f;
+
+	f = find_freq(pll->freq_tbl, rate);
+	if (!f)
+		return clk_pll_recalc_rate(hw, *p_rate);
+
+	return f->freq;
+}
+
+static int
+clk_pll_set_rate(struct clk_hw *hw, unsigned long rate, unsigned long p_rate)
+{
+	struct clk_pll *pll = to_clk_pll(hw);
+	const struct pll_freq_tbl *f;
+	bool enabled;
+	u32 mode;
+	u32 enable_mask = PLL_OUTCTRL | PLL_BYPASSNL | PLL_RESET_N;
+
+	f = find_freq(pll->freq_tbl, rate);
+	if (!f)
+		return -EINVAL;
+
+	regmap_read(pll->clkr.regmap, pll->mode_reg, &mode);
+	enabled = (mode & enable_mask) == enable_mask;
+
+	if (enabled)
+		clk_pll_disable(hw);
+
+	regmap_update_bits(pll->clkr.regmap, pll->l_reg, 0x3ff, f->l);
+	regmap_update_bits(pll->clkr.regmap, pll->m_reg, 0x7ffff, f->m);
+	regmap_update_bits(pll->clkr.regmap, pll->n_reg, 0x7ffff, f->n);
+	regmap_write(pll->clkr.regmap, pll->config_reg, f->ibits);
+
+	if (enabled)
+		clk_pll_enable(hw);
+
+	return 0;
 }
 
 const struct clk_ops clk_pll_ops = {
 	.enable = clk_pll_enable,
 	.disable = clk_pll_disable,
 	.recalc_rate = clk_pll_recalc_rate,
+	.determine_rate = clk_pll_determine_rate,
+	.set_rate = clk_pll_set_rate,
 };
 EXPORT_SYMBOL_GPL(clk_pll_ops);
 

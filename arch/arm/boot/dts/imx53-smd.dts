@@ -265,7 +265,7 @@
 	};
 
 	pmic: dialog@48 {
-		compatible = "dialog,da9053", "dialog,da9052";
+		compatible = "dlg,da9053", "dlg,da9052";
 		reg = <0x48>;
 	};
 };

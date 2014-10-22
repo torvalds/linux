@@ -34,6 +34,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <errno.h>
+#include <tools/endian.h>
 
 struct hdr {
 	uint32_t magic1;
@@ -77,7 +78,7 @@ struct hdr {
 
 #define ROUND_UP(x)	((x + ALIGN - 1) & ~(ALIGN - 1))
 
-ssize_t do_read(int fd, void *buf, size_t count)
+static ssize_t do_read(int fd, void *buf, size_t count)
 {
 	size_t offset = 0;
 	ssize_t l;
@@ -98,7 +99,7 @@ ssize_t do_read(int fd, void *buf, size_t count)
 	return offset;
 }
 
-ssize_t do_write(int fd, const void *buf, size_t count)
+static ssize_t do_write(int fd, const void *buf, size_t count)
 {
 	size_t offset = 0;
 	ssize_t l;
@@ -117,7 +118,7 @@ ssize_t do_write(int fd, const void *buf, size_t count)
 	return offset;
 }
 
-ssize_t write_zero(int fd, size_t len)
+static ssize_t write_zero(int fd, size_t len)
 {
 	size_t i = len;
 

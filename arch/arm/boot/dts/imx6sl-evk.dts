@@ -20,6 +20,13 @@
 		reg = <0x80000000 0x40000000>;
 	};
 
+	backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm1 0 5000000>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <6>;
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -73,6 +80,14 @@
 			regulator-min-microvolt = <4325000>;
 			regulator-max-microvolt = <4325000>;
 			regulator-boot-on;
+		};
+
+		reg_lcd_3v3: regulator@4 {
+			compatible = "regulator-fixed";
+			reg = <4>;
+			regulator-name = "lcd-3v3";
+			gpio = <&gpio4 3 0>;
+			enable-active-high;
 		};
 	};
 
@@ -329,12 +344,6 @@
 			>;
 		};
 
-		pinctrl_led: ledgrp {
-			fsl,pins = <
-				MX6SL_PAD_HSIC_STROBE__GPIO3_IO20 0x17059
-			>;
-		};
-
 		pinctrl_kpp: kppgrp {
 			fsl,pins = <
 				MX6SL_PAD_KEY_ROW0__KEY_ROW0    0x1b010
@@ -343,6 +352,51 @@
 				MX6SL_PAD_KEY_COL0__KEY_COL0    0x110b0
 				MX6SL_PAD_KEY_COL1__KEY_COL1    0x110b0
 				MX6SL_PAD_KEY_COL2__KEY_COL2    0x110b0
+			>;
+		};
+
+		pinctrl_lcd: lcdgrp {
+			fsl,pins = <
+				MX6SL_PAD_LCD_DAT0__LCD_DATA00 0x1b0b0
+				MX6SL_PAD_LCD_DAT1__LCD_DATA01 0x1b0b0
+				MX6SL_PAD_LCD_DAT2__LCD_DATA02 0x1b0b0
+				MX6SL_PAD_LCD_DAT3__LCD_DATA03 0x1b0b0
+				MX6SL_PAD_LCD_DAT4__LCD_DATA04 0x1b0b0
+				MX6SL_PAD_LCD_DAT5__LCD_DATA05 0x1b0b0
+				MX6SL_PAD_LCD_DAT6__LCD_DATA06 0x1b0b0
+				MX6SL_PAD_LCD_DAT7__LCD_DATA07 0x1b0b0
+				MX6SL_PAD_LCD_DAT8__LCD_DATA08 0x1b0b0
+				MX6SL_PAD_LCD_DAT9__LCD_DATA09 0x1b0b0
+				MX6SL_PAD_LCD_DAT10__LCD_DATA10 0x1b0b0
+				MX6SL_PAD_LCD_DAT11__LCD_DATA11 0x1b0b0
+				MX6SL_PAD_LCD_DAT12__LCD_DATA12 0x1b0b0
+				MX6SL_PAD_LCD_DAT13__LCD_DATA13 0x1b0b0
+				MX6SL_PAD_LCD_DAT14__LCD_DATA14 0x1b0b0
+				MX6SL_PAD_LCD_DAT15__LCD_DATA15 0x1b0b0
+				MX6SL_PAD_LCD_DAT16__LCD_DATA16 0x1b0b0
+				MX6SL_PAD_LCD_DAT17__LCD_DATA17 0x1b0b0
+				MX6SL_PAD_LCD_DAT18__LCD_DATA18 0x1b0b0
+				MX6SL_PAD_LCD_DAT19__LCD_DATA19 0x1b0b0
+				MX6SL_PAD_LCD_DAT20__LCD_DATA20 0x1b0b0
+				MX6SL_PAD_LCD_DAT21__LCD_DATA21 0x1b0b0
+				MX6SL_PAD_LCD_DAT22__LCD_DATA22 0x1b0b0
+				MX6SL_PAD_LCD_DAT23__LCD_DATA23 0x1b0b0
+				MX6SL_PAD_LCD_CLK__LCD_CLK 0x1b0b0
+				MX6SL_PAD_LCD_ENABLE__LCD_ENABLE 0x1b0b0
+				MX6SL_PAD_LCD_HSYNC__LCD_HSYNC 0x1b0b0
+				MX6SL_PAD_LCD_VSYNC__LCD_VSYNC 0x1b0b0
+			>;
+		};
+
+		pinctrl_led: ledgrp {
+			fsl,pins = <
+				MX6SL_PAD_HSIC_STROBE__GPIO3_IO20 0x17059
+			>;
+		};
+
+		pinctrl_pwm1: pwmgrp {
+			fsl,pins = <
+				MX6SL_PAD_PWM1__PWM1_OUT 0x110b0
 			>;
 		};
 
@@ -485,6 +539,44 @@
 			MATRIX_KEY(0x2, 0x0, KEY_VOLUMEDOWN) /* ROW2, COL0 */
 			MATRIX_KEY(0x2, 0x1, KEY_VOLUMEUP)   /* ROW2, COL1 */
 	>;
+	status = "okay";
+};
+
+&lcdif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_lcd>;
+	lcd-supply = <&reg_lcd_3v3>;
+	display = <&display0>;
+	status = "okay";
+
+	display0: display0 {
+		bits-per-pixel = <32>;
+		bus-width = <24>;
+
+		display-timings {
+			native-mode = <&timing0>;
+			timing0: timing0 {
+				clock-frequency = <33500000>;
+				hactive = <800>;
+				vactive = <480>;
+				hback-porch = <89>;
+				hfront-porch = <164>;
+				vback-porch = <23>;
+				vfront-porch = <10>;
+				hsync-len = <10>;
+				vsync-len = <10>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <1>;
+				pixelclk-active = <0>;
+			};
+		};
+	};
+};
+
+&pwm1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm1>;
 	status = "okay";
 };
 

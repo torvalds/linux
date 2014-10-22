@@ -947,7 +947,7 @@
  * 32-bit 8xx:
  *	- SPRG0 scratch for exception vectors
  *	- SPRG1 scratch for exception vectors
- *	- SPRG2 apparently unused but initialized
+ *	- SPRG2 scratch for exception vectors
  *
  */
 #ifdef CONFIG_PPC64
@@ -1057,6 +1057,7 @@
 #ifdef CONFIG_8xx
 #define SPRN_SPRG_SCRATCH0	SPRN_SPRG0
 #define SPRN_SPRG_SCRATCH1	SPRN_SPRG1
+#define SPRN_SPRG_SCRATCH2	SPRN_SPRG2
 #endif
 
 

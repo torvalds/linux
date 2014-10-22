@@ -17,6 +17,9 @@
 
 #include "ocfs2.h"
 
+/* Number of quota types we support */
+#define OCFS2_MAXQUOTAS 2
+
 /*
  * In-memory structures
  */
@@ -39,7 +42,7 @@ struct ocfs2_recovery_chunk {
 };
 
 struct ocfs2_quota_recovery {
-	struct list_head r_list[MAXQUOTAS];	/* List of chunks to recover */
+	struct list_head r_list[OCFS2_MAXQUOTAS];	/* List of chunks to recover */
 };
 
 /* In-memory structure with quota header information */

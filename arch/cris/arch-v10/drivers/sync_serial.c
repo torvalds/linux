@@ -1086,7 +1086,6 @@ static ssize_t sync_serial_write(struct file *file, const char *buf,
 	}
 	local_irq_restore(flags);
 	schedule();
-	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&port->out_wait_q, &wait);
 	if (signal_pending(current))
 		return -EINTR;
