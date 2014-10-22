@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
-#include <asm/errno.h>
+#include <linux/errno.h>
 #include <net/llc_if.h>
 #include <net/llc_sap.h>
 #include <net/llc_s_ev.h>
