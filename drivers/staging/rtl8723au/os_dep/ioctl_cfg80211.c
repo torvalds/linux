@@ -850,7 +850,6 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, u8 key_index,
 					    dot11PrivacyAlgrthm;
 				}
 			}
-		} else if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE)) {	/* adhoc mode */
 		}
 	}
 
