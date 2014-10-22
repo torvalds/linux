@@ -1943,15 +1943,16 @@ static ssize_t
 lcs_portno_store (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
         struct lcs_card *card;
-	int value, rc;
+	int rc;
+	s16 value;
 
 	card = dev_get_drvdata(dev);
 
         if (!card)
                 return 0;
 
-	rc = sscanf(buf, "%d", &value);
-	if (rc != 1)
+	rc = kstrtos16(buf, 0, &value);
+	if (rc)
 		return -EINVAL;
         /* TODO: sanity checks */
         card->portno = value;
@@ -2007,8 +2008,8 @@ lcs_timeout_store (struct device *dev, struct device_attribute *attr, const char
         if (!card)
                 return 0;
 
-	rc = sscanf(buf, "%u", &value);
-	if (rc != 1)
+	rc = kstrtouint(buf, 0, &value);
+	if (rc)
 		return -EINVAL;
         /* TODO: sanity checks */
         card->lancmd_timeout = value;
