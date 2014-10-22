@@ -86,7 +86,7 @@ static u32 rtl871x_open_fw(struct _adapter *padapter, const u8 **ppmappedfw)
 			(int)padapter->fw->size);
 		return 0;
 	}
-	*ppmappedfw = (u8 *)((*praw)->data);
+	*ppmappedfw = (*praw)->data;
 	return (*praw)->size;
 }
 
