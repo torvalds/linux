@@ -419,6 +419,8 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	vif->queues = NULL;
 	vif->num_queues = 0;
 
+	spin_lock_init(&vif->lock);
+
 	dev->netdev_ops	= &xenvif_netdev_ops;
 	dev->hw_features = NETIF_F_SG |
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
@@ -505,7 +507,6 @@ void xenvif_carrier_on(struct xenvif *vif)
 		dev_set_mtu(vif->dev, ETH_DATA_LEN);
 	netdev_update_features(vif->dev);
 	set_bit(VIF_STATUS_CONNECTED, &vif->status);
-	netif_carrier_on(vif->dev);
 	if (netif_running(vif->dev))
 		xenvif_up(vif);
 	rtnl_unlock();
@@ -564,6 +565,8 @@ int xenvif_connect(struct xenvif_queue *queue, unsigned long tx_ring_ref,
 		queue->rx_irq = err;
 		disable_irq(queue->rx_irq);
 	}
+
+	queue->stalled = true;
 
 	task = kthread_create(xenvif_kthread_guest_rx,
 			      (void *)queue, "%s-guest-rx", queue->name);

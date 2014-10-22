@@ -62,6 +62,13 @@ unsigned int rx_drain_timeout_msecs = 10000;
 module_param(rx_drain_timeout_msecs, uint, 0444);
 unsigned int rx_drain_timeout_jiffies;
 
+/* The length of time before the frontend is considered unresponsive
+ * because it isn't providing Rx slots.
+ */
+static unsigned int rx_stall_timeout_msecs = 60000;
+module_param(rx_stall_timeout_msecs, uint, 0444);
+static unsigned int rx_stall_timeout_jiffies;
+
 unsigned int xenvif_max_queues;
 module_param_named(max_queues, xenvif_max_queues, uint, 0644);
 MODULE_PARM_DESC(max_queues,
@@ -648,6 +655,8 @@ static void xenvif_rx_action(struct xenvif_queue *queue)
 		RING_IDX old_req_cons;
 		RING_IDX ring_slots_used;
 		int i;
+
+		queue->last_rx_time = jiffies;
 
 		/* We need a cheap worse case estimate for the number of
 		 * slots we'll use.
@@ -1972,10 +1981,67 @@ err:
 	return err;
 }
 
+static void xenvif_queue_carrier_off(struct xenvif_queue *queue)
+{
+	struct xenvif *vif = queue->vif;
+
+	queue->stalled = true;
+
+	/* At least one queue has stalled? Disable the carrier. */
+	spin_lock(&vif->lock);
+	if (vif->stalled_queues++ == 0) {
+		netdev_info(vif->dev, "Guest Rx stalled");
+		netif_carrier_off(vif->dev);
+	}
+	spin_unlock(&vif->lock);
+}
+
+static void xenvif_queue_carrier_on(struct xenvif_queue *queue)
+{
+	struct xenvif *vif = queue->vif;
+
+	queue->last_rx_time = jiffies; /* Reset Rx stall detection. */
+	queue->stalled = false;
+
+	/* All queues are ready? Enable the carrier. */
+	spin_lock(&vif->lock);
+	if (--vif->stalled_queues == 0) {
+		netdev_info(vif->dev, "Guest Rx ready");
+		netif_carrier_on(vif->dev);
+	}
+	spin_unlock(&vif->lock);
+}
+
+static bool xenvif_rx_queue_stalled(struct xenvif_queue *queue)
+{
+	RING_IDX prod, cons;
+
+	prod = queue->rx.sring->req_prod;
+	cons = queue->rx.req_cons;
+
+	return !queue->stalled
+		&& prod - cons < XEN_NETBK_RX_SLOTS_MAX
+		&& time_after(jiffies,
+			      queue->last_rx_time + rx_stall_timeout_jiffies);
+}
+
+static bool xenvif_rx_queue_ready(struct xenvif_queue *queue)
+{
+	RING_IDX prod, cons;
+
+	prod = queue->rx.sring->req_prod;
+	cons = queue->rx.req_cons;
+
+	return queue->stalled
+		&& prod - cons >= XEN_NETBK_RX_SLOTS_MAX;
+}
+
 static bool xenvif_have_rx_work(struct xenvif_queue *queue)
 {
 	return (!skb_queue_empty(&queue->rx_queue)
 		&& xenvif_rx_ring_slots_available(queue, XEN_NETBK_RX_SLOTS_MAX))
+		|| xenvif_rx_queue_stalled(queue)
+		|| xenvif_rx_queue_ready(queue)
 		|| kthread_should_stop()
 		|| queue->vif->disabled;
 }
@@ -2050,6 +2116,15 @@ int xenvif_kthread_guest_rx(void *data)
 		if (!skb_queue_empty(&queue->rx_queue))
 			xenvif_rx_action(queue);
 
+		/* If the guest hasn't provided any Rx slots for a
+		 * while it's probably not responsive, drop the
+		 * carrier so packets are dropped earlier.
+		 */
+		if (xenvif_rx_queue_stalled(queue))
+			xenvif_queue_carrier_off(queue);
+		else if (xenvif_rx_queue_ready(queue))
+			xenvif_queue_carrier_on(queue);
+
 		/* Queued packets may have foreign pages from other
 		 * domains.  These cannot be queued indefinitely as
 		 * this would starve guests of grant refs and transmit
@@ -2120,6 +2195,7 @@ static int __init netback_init(void)
 		goto failed_init;
 
 	rx_drain_timeout_jiffies = msecs_to_jiffies(rx_drain_timeout_msecs);
+	rx_stall_timeout_jiffies = msecs_to_jiffies(rx_stall_timeout_msecs);
 
 #ifdef CONFIG_DEBUG_FS
 	xen_netback_dbg_root = debugfs_create_dir("xen-netback", NULL);

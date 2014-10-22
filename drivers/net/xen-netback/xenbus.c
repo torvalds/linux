@@ -711,6 +711,7 @@ static void connect(struct backend_info *be)
 	be->vif->queues = vzalloc(requested_num_queues *
 				  sizeof(struct xenvif_queue));
 	be->vif->num_queues = requested_num_queues;
+	be->vif->stalled_queues = requested_num_queues;
 
 	for (queue_index = 0; queue_index < requested_num_queues; ++queue_index) {
 		queue = &be->vif->queues[queue_index];

@@ -179,6 +179,8 @@ struct xenvif_queue { /* Per-queue data for xenvif */
 
 	unsigned int rx_queue_max;
 	unsigned int rx_queue_len;
+	unsigned long last_rx_time;
+	bool stalled;
 
 	struct gnttab_copy grant_copy_op[MAX_GRANT_COPY_OPS];
 
@@ -232,6 +234,9 @@ struct xenvif {
 	/* Queues */
 	struct xenvif_queue *queues;
 	unsigned int num_queues; /* active queues, resource allocated */
+	unsigned int stalled_queues;
+
+	spinlock_t lock;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *xenvif_dbg_root;
