@@ -73,8 +73,7 @@ fail:
 
 static void __disable_clocks(struct msm_iommu_drvdata *drvdata)
 {
-	if (drvdata->clk)
-		clk_disable(drvdata->clk);
+	clk_disable(drvdata->clk);
 	clk_disable(drvdata->pclk);
 }
 

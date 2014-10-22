@@ -224,8 +224,7 @@ static int msm_iommu_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, drvdata);
 
-	if (iommu_clk)
-		clk_disable(iommu_clk);
+	clk_disable(iommu_clk);
 
 	clk_disable(iommu_pclk);
 
@@ -323,8 +322,7 @@ static int msm_iommu_ctx_probe(struct platform_device *pdev)
 		SET_NSCFG(drvdata->base, mid, 3);
 	}
 
-	if (drvdata->clk)
-		clk_disable(drvdata->clk);
+	clk_disable(drvdata->clk);
 	clk_disable(drvdata->pclk);
 
 	dev_info(&pdev->dev, "context %s using bank %d\n", c->name, c->num);
