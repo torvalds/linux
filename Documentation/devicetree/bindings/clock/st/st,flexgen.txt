@@ -11,7 +11,7 @@ Please find an example below:
 
     Clockgen block diagram
     -------------------------------------------------------------------
-   |                     Flexgen stucture                              |
+   |                     Flexgen structure                             |
    |                  ---------------------------------------------    |
    |                 |    -------       --------       --------    |   |
 clk_sysin            |   |       |     |        |     |        |   |   |
