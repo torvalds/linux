@@ -84,21 +84,8 @@
  *
  ******************************************************************************/
 
-/*
- * module name, copyright, version, etc.
- */
 #define DRV_DESCRIPTION	"Intel(R) Wireless WiFi driver for Linux"
-
-#ifdef CONFIG_IWLWIFI_DEBUG
-#define VD "d"
-#else
-#define VD
-#endif
-
-#define DRV_VERSION     IWLWIFI_VERSION VD
-
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
-MODULE_VERSION(DRV_VERSION);
 MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
 MODULE_LICENSE("GPL");
 
@@ -1492,7 +1479,7 @@ static int __init iwl_drv_init(void)
 	for (i = 0; i < ARRAY_SIZE(iwlwifi_opmode_table); i++)
 		INIT_LIST_HEAD(&iwlwifi_opmode_table[i].drv);
 
-	pr_info(DRV_DESCRIPTION ", " DRV_VERSION "\n");
+	pr_info(DRV_DESCRIPTION "\n");
 	pr_info(DRV_COPYRIGHT "\n");
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS

@@ -84,15 +84,8 @@
 #include "time-event.h"
 #include "iwl-fw-error-dump.h"
 
-/*
- * module name, copyright, version, etc.
- */
 #define DRV_DESCRIPTION	"The new Intel(R) wireless AGN driver for Linux"
-
-#define DRV_VERSION     IWLWIFI_VERSION
-
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
-MODULE_VERSION(DRV_VERSION);
 MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
 MODULE_LICENSE("GPL");
 

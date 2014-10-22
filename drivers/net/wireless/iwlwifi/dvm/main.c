@@ -64,22 +64,8 @@
  *
  ******************************************************************************/
 
-/*
- * module name, copyright, version, etc.
- */
 #define DRV_DESCRIPTION	"Intel(R) Wireless WiFi Link AGN driver for Linux"
-
-#ifdef CONFIG_IWLWIFI_DEBUG
-#define VD "d"
-#else
-#define VD
-#endif
-
-#define DRV_VERSION     IWLWIFI_VERSION VD
-
-
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
-MODULE_VERSION(DRV_VERSION);
 MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
 MODULE_LICENSE("GPL");
 
