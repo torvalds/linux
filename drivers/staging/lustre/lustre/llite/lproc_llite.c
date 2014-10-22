@@ -813,7 +813,7 @@ LPROC_SEQ_FOPS(ll_xattr_cache);
 
 static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 	{ "uuid",	  &ll_sb_uuid_fops,	  NULL, 0 },
-	//{ "mntpt_path",   ll_rd_path,	     0, 0 },
+	/* { "mntpt_path",   ll_rd_path,	     0, 0 }, */
 	{ "fstype",       &ll_fstype_fops,	  NULL, 0 },
 	{ "site",	  &ll_site_stats_fops,    NULL, 0 },
 	{ "blocksize",    &ll_blksize_fops,	  NULL, 0 },
@@ -823,7 +823,7 @@ static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 	{ "filestotal",   &ll_filestotal_fops,    NULL, 0 },
 	{ "filesfree",    &ll_filesfree_fops,	  NULL, 0 },
 	{ "client_type",  &ll_client_type_fops,   NULL, 0 },
-	//{ "filegroups",   lprocfs_rd_filegroups,  0, 0 },
+	/* { "filegroups",   lprocfs_rd_filegroups,  0, 0 }, */
 	{ "max_read_ahead_mb", &ll_max_readahead_mb_fops, NULL },
 	{ "max_read_ahead_per_file_mb", &ll_max_readahead_per_file_mb_fops,
 		NULL },

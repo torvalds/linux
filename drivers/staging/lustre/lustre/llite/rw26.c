@@ -535,7 +535,7 @@ const struct address_space_operations ll_aops = {
 #else
 const struct address_space_operations_ext ll_aops = {
 	.orig_aops.readpage       = ll_readpage,
-//	.orig_aops.readpages      = ll_readpages,
+/*	.orig_aops.readpages      = ll_readpages, */
 	.orig_aops.direct_IO      = ll_direct_IO_26,
 	.orig_aops.writepage      = ll_writepage,
 	.orig_aops.writepages     = ll_writepages,
