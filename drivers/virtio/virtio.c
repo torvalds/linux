@@ -160,6 +160,7 @@ static int virtio_dev_probe(struct device *_d)
 	struct virtio_device *dev = dev_to_virtio(_d);
 	struct virtio_driver *drv = drv_to_virtio(dev->dev.driver);
 	u64 device_features;
+	unsigned status;
 
 	/* We have a driver! */
 	add_status(dev, VIRTIO_CONFIG_S_DRIVER);
@@ -183,18 +184,32 @@ static int virtio_dev_probe(struct device *_d)
 
 	dev->config->finalize_features(dev);
 
-	err = drv->probe(dev);
-	if (err)
-		add_status(dev, VIRTIO_CONFIG_S_FAILED);
-	else {
-		add_status(dev, VIRTIO_CONFIG_S_DRIVER_OK);
-		if (drv->scan)
-			drv->scan(dev);
-
-		virtio_config_enable(dev);
+	if (virtio_has_feature(dev, VIRTIO_F_VERSION_1)) {
+		add_status(dev, VIRTIO_CONFIG_S_FEATURES_OK);
+		status = dev->config->get_status(dev);
+		if (!(status & VIRTIO_CONFIG_S_FEATURES_OK)) {
+			dev_err(_d, "virtio: device refuses features: %x\n",
+			       status);
+			err = -ENODEV;
+			goto err;
+		}
 	}
 
+	err = drv->probe(dev);
+	if (err)
+		goto err;
+
+	add_status(dev, VIRTIO_CONFIG_S_DRIVER_OK);
+	if (drv->scan)
+		drv->scan(dev);
+
+	virtio_config_enable(dev);
+
+	return 0;
+err:
+	add_status(dev, VIRTIO_CONFIG_S_FAILED);
 	return err;
+
 }
 
 static int virtio_dev_remove(struct device *_d)
