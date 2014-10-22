@@ -1514,8 +1514,8 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 			if (rdev->wiphy.flags & WIPHY_FLAG_HAS_CHANNEL_SWITCH)
 				CMD(channel_switch, CHANNEL_SWITCH);
 			CMD(set_qos_map, SET_QOS_MAP);
-			if (rdev->wiphy.flags &
-					WIPHY_FLAG_SUPPORTS_WMM_ADMISSION)
+			if (rdev->wiphy.features &
+					NL80211_FEATURE_SUPPORTS_WMM_ADMISSION)
 				CMD(add_tx_ts, ADD_TX_TS);
 		}
 		/* add into the if now */
@@ -9557,7 +9557,7 @@ static int nl80211_add_tx_ts(struct sk_buff *skb, struct genl_info *info)
 	u16 admitted_time = 0;
 	int err;
 
-	if (!(rdev->wiphy.flags & WIPHY_FLAG_SUPPORTS_WMM_ADMISSION))
+	if (!(rdev->wiphy.features & NL80211_FEATURE_SUPPORTS_WMM_ADMISSION))
 		return -EOPNOTSUPP;
 
 	if (!info->attrs[NL80211_ATTR_TSID] || !info->attrs[NL80211_ATTR_MAC] ||
@@ -9573,12 +9573,10 @@ static int nl80211_add_tx_ts(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 
 	/* WMM uses TIDs 0-7 even for TSPEC */
-	if (tsid < IEEE80211_FIRST_TSPEC_TSID) {
-		if (!(rdev->wiphy.flags & WIPHY_FLAG_SUPPORTS_WMM_ADMISSION))
-			return -EINVAL;
-	} else {
+	if (tsid >= IEEE80211_FIRST_TSPEC_TSID) {
 		/* TODO: handle 802.11 TSPEC/admission control
-		 * need more attributes for that (e.g. BA session requirement)
+		 * need more attributes for that (e.g. BA session requirement);
+		 * change the WMM adminssion test above to allow both then
 		 */
 		return -EINVAL;
 	}

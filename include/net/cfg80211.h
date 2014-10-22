@@ -2646,13 +2646,9 @@ struct cfg80211_ops {
  * @WIPHY_FLAG_SUPPORTS_5_10_MHZ: Device supports 5 MHz and 10 MHz channels.
  * @WIPHY_FLAG_HAS_CHANNEL_SWITCH: Device supports channel switch in
  *	beaconing mode (AP, IBSS, Mesh, ...).
- * @WIPHY_FLAG_SUPPORTS_WMM_ADMISSION: the device supports setting up WMM
- *	TSPEC sessions (TID aka TSID 0-7) with the NL80211_CMD_ADD_TX_TS
- *	command. Standard IEEE 802.11 TSPEC setup is not yet supported, it
- *	needs to be able to handle Block-Ack agreements and other things.
  */
 enum wiphy_flags {
-	WIPHY_FLAG_SUPPORTS_WMM_ADMISSION	= BIT(0),
+	/* use hole at 0 */
 	/* use hole at 1 */
 	/* use hole at 2 */
 	WIPHY_FLAG_NETNS_OK			= BIT(3),
