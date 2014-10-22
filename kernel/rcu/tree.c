@@ -531,7 +531,7 @@ static void rcu_eqs_enter_common(long long oldval, bool user)
 		rdp = this_cpu_ptr(rsp->rda);
 		do_nocb_deferred_wakeup(rdp);
 	}
-	rcu_prepare_for_idle(smp_processor_id());
+	rcu_prepare_for_idle();
 	/* CPUs seeing atomic_inc() must see prior RCU read-side crit sects */
 	smp_mb__before_atomic();  /* See above. */
 	atomic_inc(&rdtp->dynticks);
