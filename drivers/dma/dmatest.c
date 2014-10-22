@@ -349,14 +349,14 @@ static void dbg_result(const char *err, unsigned int n, unsigned int src_off,
 		       unsigned long data)
 {
 	pr_debug("%s: result #%u: '%s' with src_off=0x%x dst_off=0x%x len=0x%x (%lu)\n",
-		   current->comm, n, err, src_off, dst_off, len, data);
+		 current->comm, n, err, src_off, dst_off, len, data);
 }
 
-#define verbose_result(err, n, src_off, dst_off, len, data) ({ \
-	if (verbose) \
-		result(err, n, src_off, dst_off, len, data); \
-	else \
-		dbg_result(err, n, src_off, dst_off, len, data); \
+#define verbose_result(err, n, src_off, dst_off, len, data) ({	\
+	if (verbose)						\
+		result(err, n, src_off, dst_off, len, data);	\
+	else							\
+		dbg_result(err, n, src_off, dst_off, len, data);\
 })
 
 static unsigned long long dmatest_persec(s64 runtime, unsigned int val)
