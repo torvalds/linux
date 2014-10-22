@@ -592,9 +592,9 @@ EXPORT_SYMBOL(of_get_parent);
  *	of_get_next_parent - Iterate to a node's parent
  *	@node:	Node to get parent of
  *
- * 	This is like of_get_parent() except that it drops the
- * 	refcount on the passed node, making it suitable for iterating
- * 	through a node's parents.
+ *	This is like of_get_parent() except that it drops the
+ *	refcount on the passed node, making it suitable for iterating
+ *	through a node's parents.
  *
  *	Returns a node pointer with refcount incremented, use
  *	of_node_put() on it when done.
@@ -1531,15 +1531,15 @@ EXPORT_SYMBOL(of_parse_phandle);
  * Example:
  *
  * phandle1: node1 {
- * 	#list-cells = <2>;
+ *	#list-cells = <2>;
  * }
  *
  * phandle2: node2 {
- * 	#list-cells = <1>;
+ *	#list-cells = <1>;
  * }
  *
  * node3 {
- * 	list = <&phandle1 1 2 &phandle2 3>;
+ *	list = <&phandle1 1 2 &phandle2 3>;
  * }
  *
  * To get a device_node of the `node2' node you may call this:
@@ -1580,7 +1580,7 @@ EXPORT_SYMBOL(of_parse_phandle_with_args);
  * }
  *
  * node3 {
- * 	list = <&phandle1 0 2 &phandle2 2 3>;
+ *	list = <&phandle1 0 2 &phandle2 2 3>;
  * }
  *
  * To get a device_node of the `node2' node you may call this:
