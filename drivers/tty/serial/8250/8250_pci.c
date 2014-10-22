@@ -1080,12 +1080,12 @@ pci_omegapci_setup(struct serial_private *priv,
 static int
 pci_brcm_trumanage_setup(struct serial_private *priv,
 			 const struct pciserial_board *board,
-			 struct uart_8250_port *port, int idx)
+			 struct uart_port *port, int idx)
 {
 	int ret = pci_default_setup(priv, board, port, idx);
 
-	port->port.type = PORT_BRCM_TRUMANAGE;
-	port->port.flags = (port->port.flags | UPF_FIXED_PORT | UPF_FIXED_TYPE);
+	port->type = PORT_BRCM_TRUMANAGE;
+	port->flags = (port->flags | UPF_FIXED_PORT | UPF_FIXED_TYPE);
 	return ret;
 }
 
