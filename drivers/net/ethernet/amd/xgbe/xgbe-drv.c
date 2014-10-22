@@ -1465,7 +1465,7 @@ static int xgbe_set_features(struct net_device *netdev,
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 	struct xgbe_hw_if *hw_if = &pdata->hw_if;
-	unsigned int rxcsum, rxvlan, rxvlan_filter;
+	netdev_features_t rxcsum, rxvlan, rxvlan_filter;
 
 	rxcsum = pdata->netdev_features & NETIF_F_RXCSUM;
 	rxvlan = pdata->netdev_features & NETIF_F_HW_VLAN_CTAG_RX;
@@ -1598,7 +1598,8 @@ static int xgbe_rx_poll(struct xgbe_channel *channel, int budget)
 	struct skb_shared_hwtstamps *hwtstamps;
 	unsigned int incomplete, error, context_next, context;
 	unsigned int len, put_len, max_len;
-	int received = 0;
+	unsigned int received = 0;
+	int packet_count = 0;
 
 	DBGPR("-->xgbe_rx_poll: budget=%d\n", budget);
 
@@ -1608,7 +1609,7 @@ static int xgbe_rx_poll(struct xgbe_channel *channel, int budget)
 
 	rdata = XGBE_GET_DESC_DATA(ring, ring->cur);
 	packet = &ring->packet_data;
-	while (received < budget) {
+	while (packet_count < budget) {
 		DBGPR("  cur = %d\n", ring->cur);
 
 		/* First time in loop see if we need to restore state */
@@ -1662,7 +1663,7 @@ read_again:
 			if (packet->errors)
 				DBGPR("Error in received packet\n");
 			dev_kfree_skb(skb);
-			continue;
+			goto next_packet;
 		}
 
 		if (!context) {
@@ -1677,7 +1678,7 @@ read_again:
 					}
 
 					dev_kfree_skb(skb);
-					continue;
+					goto next_packet;
 				}
 				memcpy(skb_tail_pointer(skb), rdata->skb->data,
 				       put_len);
@@ -1694,7 +1695,7 @@ read_again:
 
 		/* Stray Context Descriptor? */
 		if (!skb)
-			continue;
+			goto next_packet;
 
 		/* Be sure we don't exceed the configured MTU */
 		max_len = netdev->mtu + ETH_HLEN;
@@ -1705,7 +1706,7 @@ read_again:
 		if (skb->len > max_len) {
 			DBGPR("packet length exceeds configured MTU\n");
 			dev_kfree_skb(skb);
-			continue;
+			goto next_packet;
 		}
 
 #ifdef XGMAC_ENABLE_RX_PKT_DUMP
@@ -1739,6 +1740,9 @@ read_again:
 
 		netdev->last_rx = jiffies;
 		napi_gro_receive(&pdata->napi, skb);
+
+next_packet:
+		packet_count++;
 	}
 
 	/* Check if we need to save state before leaving */
@@ -1752,9 +1756,9 @@ read_again:
 		rdata->state.error = error;
 	}
 
-	DBGPR("<--xgbe_rx_poll: received = %d\n", received);
+	DBGPR("<--xgbe_rx_poll: packet_count = %d\n", packet_count);
 
-	return received;
+	return packet_count;
 }
 
 static int xgbe_poll(struct napi_struct *napi, int budget)
