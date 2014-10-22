@@ -197,9 +197,6 @@ extern void omap_iotlb_cr_to_e(struct cr_regs *cr, struct iotlb_entry *e);
 extern int
 omap_iopgtable_store_entry(struct omap_iommu *obj, struct iotlb_entry *e);
 
-extern void omap_iommu_save_ctx(struct device *dev);
-extern void omap_iommu_restore_ctx(struct device *dev);
-
 extern int omap_foreach_iommu_device(void *data,
 				int (*fn)(struct device *, void *));
 
