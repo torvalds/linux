@@ -181,8 +181,6 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 	if (retval)
 		goto err_device;
 
-	gb_module_interfaces_init(gmod);
-
 	return;
 err_device:
 	put_device(&gmod->dev);

@@ -126,7 +126,7 @@ static void svc_management(struct svc_function_unipro_management *management,
 			   int payload_length, struct greybus_host_device *hd)
 {
 	struct gb_module *module;
-	struct gb_interface *interface;
+	int ret;
 
 	if (payload_length != sizeof(struct svc_function_unipro_management)) {
 		dev_err(hd->parent,
@@ -143,15 +143,14 @@ static void svc_management(struct svc_function_unipro_management *management,
 				management->link_up.module_id);
 			return;
 		}
-		interface = gb_interface_find(module,
-					      management->link_up.interface_id);
-		if (!interface) {
-			dev_err(hd->parent, "Interface ID %d not found\n",
+		ret = gb_module_interface_init(module,
+				management->link_up.interface_id,
+				management->link_up.device_id);
+		if (ret)
+			dev_err(hd->parent, "error %d initializing"
+				"module %hhu interface %hhu\n",
+				ret, management->link_up.module_id,
 				management->link_up.interface_id);
-			return;
-		}
-		interface->device_id = management->link_up.device_id;
-		(void)svc_set_route_send(interface, hd);
 		break;
 	case SVC_MANAGEMENT_AP_DEVICE_ID:
 		hd->device_id = management->ap_device_id.device_id;

@@ -118,15 +118,25 @@ struct gb_module *gb_module_find(struct greybus_host_device *hd, u8 module_id)
 	return NULL;
 }
 
-void gb_module_interfaces_init(struct gb_module *gmod)
+int
+gb_module_interface_init(struct gb_module *gmod, u8 interface_id, u8 device_id)
 {
 	struct gb_interface *interface;
-	int ret = 0;
+	int ret;
 
-	list_for_each_entry(interface, &gmod->interfaces, links) {
-		ret = gb_interface_connections_init(interface);
-		if (ret)
-			dev_err(gmod->hd->parent,
-				"module interface init error %d\n", ret);
+	interface = gb_interface_find(gmod, interface_id);
+	if (!interface) {
+		dev_err(gmod->hd->parent, "module %hhu not found\n",
+			interface_id);
+		return -ENOENT;
 	}
+	ret = gb_interface_connections_init(interface);
+	if (ret) {
+		dev_err(gmod->hd->parent, "module interface init error %d\n",
+			ret);
+		return ret;
+	}
+	interface->device_id = device_id;
+
+	return svc_set_route_send(interface, gmod->hd);
 }
