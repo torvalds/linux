@@ -51,8 +51,10 @@ config ARCH_BCM_5301X
 	  different SoC or with the older BCM47XX and BCM53XX based
 	  network SoC using a MIPS CPU, they are supported by arch/mips/bcm47xx
 
+comment "KONA architected SoCs"
+
 config ARCH_BCM_MOBILE
-	bool "Broadcom Mobile SoC Support" if ARCH_MULTI_V7
+	bool
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_775420
@@ -61,16 +63,13 @@ config ARCH_BCM_MOBILE
 	select TICK_ONESHOT
 	select HAVE_ARM_ARCH_TIMER
 	select PINCTRL
+	select ARCH_BCM_MOBILE_SMP if SMP
 	help
 	  This enables support for systems based on Broadcom mobile SoCs.
 
-if ARCH_BCM_MOBILE
-
-menu "Broadcom Mobile SoC Selection"
-
 config ARCH_BCM_281XX
 	bool "Broadcom BCM281XX SoC family"
-	default y
+	select ARCH_BCM_MOBILE
 	select HAVE_SMP
 	help
 	  Enable support for the BCM281XX family, which includes
@@ -79,7 +78,7 @@ config ARCH_BCM_281XX
 
 config ARCH_BCM_21664
 	bool "Broadcom BCM21664 SoC family"
-	default y
+	select ARCH_BCM_MOBILE
 	select HAVE_SMP
 	help
 	  Enable support for the BCM21664 family, which includes
@@ -87,29 +86,24 @@ config ARCH_BCM_21664
 
 config ARCH_BCM_MOBILE_L2_CACHE
 	bool "Broadcom mobile SoC level 2 cache support"
-	depends on (ARCH_BCM_281XX || ARCH_BCM_21664)
+	depends on ARCH_BCM_MOBILE
 	default y
 	select CACHE_L2X0
 	select ARCH_BCM_MOBILE_SMC
 
 config ARCH_BCM_MOBILE_SMC
 	bool
-	depends on ARCH_BCM_281XX || ARCH_BCM_21664
+	depends on ARCH_BCM_MOBILE
 
 config ARCH_BCM_MOBILE_SMP
-	bool "Broadcom mobile SoC SMP support"
-	depends on (ARCH_BCM_281XX || ARCH_BCM_21664) && SMP
-	default y
+	bool
+	depends on ARCH_BCM_MOBILE
 	select HAVE_ARM_SCU
 	select ARM_ERRATA_764369
 	help
 	  SMP support for the BCM281XX and BCM21664 SoC families.
 	  Provided as an option so SMP support for SoCs of this type
 	  can be disabled for an SMP-enabled kernel.
-
-endmenu
-
-endif
 
 comment "Other Architectures"
 
