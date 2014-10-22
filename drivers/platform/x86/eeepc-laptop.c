@@ -1005,15 +1005,19 @@ static int eeepc_get_fan_rpm(void)
 	return high << 8 | low;
 }
 
+#define EEEPC_EC_FAN_CTRL_BIT	0x02
+#define EEEPC_FAN_CTRL_MANUAL	1
+#define EEEPC_FAN_CTRL_AUTO	2
+
 static int eeepc_get_fan_ctrl(void)
 {
 	u8 value = 0;
 
 	ec_read(EEEPC_EC_FAN_CTRL, &value);
-	if (value & 0x02)
-		return 1; /* manual */
+	if (value & EEEPC_EC_FAN_CTRL_BIT)
+		return EEEPC_FAN_CTRL_MANUAL;
 	else
-		return 2; /* automatic */
+		return EEEPC_FAN_CTRL_AUTO;
 }
 
 static void eeepc_set_fan_ctrl(int manual)
@@ -1021,10 +1025,10 @@ static void eeepc_set_fan_ctrl(int manual)
 	u8 value = 0;
 
 	ec_read(EEEPC_EC_FAN_CTRL, &value);
-	if (manual == 1)
-		value |= 0x02;
+	if (manual == EEEPC_FAN_CTRL_MANUAL)
+		value |= EEEPC_EC_FAN_CTRL_BIT;
 	else
-		value &= ~0x02;
+		value &= ~EEEPC_EC_FAN_CTRL_BIT;
 	ec_write(EEEPC_EC_FAN_CTRL, value);
 }
 
