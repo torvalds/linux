@@ -282,10 +282,9 @@ static void usbduxsub_ai_handle_urb(struct comedi_device *dev,
 				val ^= ((s->maxdata + 1) >> 1);
 
 			/* transfer data */
-			if (!comedi_buf_put(s, val))
+			if (!comedi_buf_write_samples(s, &val, 1))
 				return;
 		}
-		async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
 	}
 
 	/* if command is still running, resubmit urb */
