@@ -130,13 +130,21 @@ gb_module_interface_init(struct gb_module *gmod, u8 interface_id, u8 device_id)
 			interface_id);
 		return -ENOENT;
 	}
+
+	ret = svc_set_route_send(interface, gmod->hd);
+	if (ret) {
+		dev_err(gmod->hd->parent, "failed to set route (%d)\n", ret);
+		return ret;
+	}
+
 	ret = gb_interface_connections_init(interface);
 	if (ret) {
 		dev_err(gmod->hd->parent, "module interface init error %d\n",
 			ret);
+		/* XXX clear route */
 		return ret;
 	}
 	interface->device_id = device_id;
 
-	return svc_set_route_send(interface, gmod->hd);
+	return 0;
 }
