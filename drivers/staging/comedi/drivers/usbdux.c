@@ -413,7 +413,7 @@ static void usbduxsub_ao_handle_urb(struct comedi_device *dev,
 			unsigned int chan = CR_CHAN(cmd->chanlist[i]);
 			unsigned short val;
 
-			if (!comedi_buf_get(s, &val)) {
+			if (!comedi_buf_read_samples(s, &val, 1)) {
 				dev_err(dev->class_dev, "buffer underflow\n");
 				async->events |= COMEDI_CB_OVERFLOW;
 				return;
@@ -425,7 +425,6 @@ static void usbduxsub_ao_handle_urb(struct comedi_device *dev,
 			*datap++ = chan << 6;
 			s->readback[chan] = val;
 		}
-		async->events |= COMEDI_CB_BLOCK;
 	}
 
 	/* if command is still running, resubmit urb for BULK transfer */
