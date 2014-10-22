@@ -770,7 +770,8 @@ static void pci1710_handle_every_sample(struct comedi_device *dev,
 			break;
 		}
 
-		comedi_buf_put(s, val & s->maxdata);
+		val &= s->maxdata;
+		comedi_buf_write_samples(s, &val, 1);
 
 		s->async->cur_chan++;
 		if (s->async->cur_chan >= cmd->chanlist_len)
@@ -814,7 +815,8 @@ static int move_block_from_fifo(struct comedi_device *dev,
 			return ret;
 		}
 
-		comedi_buf_put(s, val & s->maxdata);
+		val &= s->maxdata;
+		comedi_buf_write_samples(s, &val, 1);
 
 		s->async->cur_chan++;
 		if (s->async->cur_chan >= cmd->chanlist_len) {
