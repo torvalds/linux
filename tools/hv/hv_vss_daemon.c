@@ -36,6 +36,7 @@
 #include <linux/hyperv.h>
 #include <linux/netlink.h>
 #include <syslog.h>
+#include <getopt.h>
 
 static struct sockaddr_nl addr;
 
@@ -155,7 +156,15 @@ static int netlink_send(int fd, struct cn_msg *msg)
 	return sendmsg(fd, &message, 0);
 }
 
-int main(void)
+void print_usage(char *argv[])
+{
+	fprintf(stderr, "Usage: %s [options]\n"
+		"Options are:\n"
+		"  -n, --no-daemon        stay in foreground, don't daemonize\n"
+		"  -h, --help             print this help\n", argv[0]);
+}
+
+int main(int argc, char *argv[])
 {
 	int fd, len, nl_group;
 	int error;
@@ -167,8 +176,28 @@ int main(void)
 	struct hv_vss_msg *vss_msg;
 	char *vss_recv_buffer;
 	size_t vss_recv_buffer_len;
+	int daemonize = 1, long_index = 0, opt;
 
-	if (daemon(1, 0))
+	static struct option long_options[] = {
+		{"help",	no_argument,	   0,  'h' },
+		{"no-daemon",	no_argument,	   0,  'n' },
+		{0,		0,		   0,  0   }
+	};
+
+	while ((opt = getopt_long(argc, argv, "hn", long_options,
+				  &long_index)) != -1) {
+		switch (opt) {
+		case 'n':
+			daemonize = 0;
+			break;
+		case 'h':
+		default:
+			print_usage(argv);
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	if (daemonize && daemon(1, 0))
 		return 1;
 
 	openlog("Hyper-V VSS", 0, LOG_USER);
