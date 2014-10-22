@@ -501,7 +501,7 @@ static irqreturn_t dmm32at_isr(int irq, void *d)
 
 			/* invert sign bit to make range unsigned */
 			samp = ((msb ^ 0x0080) << 8) + lsb;
-			comedi_buf_put(s, samp);
+			comedi_buf_write_samples(s, &samp, 1);
 		}
 
 		if (devpriv->ai_scans_left != 0xffffffff) {	/* TRIG_COUNT */
