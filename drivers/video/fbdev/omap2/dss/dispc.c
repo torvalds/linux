@@ -3028,7 +3028,7 @@ static void dispc_mgr_get_lcd_divisor(enum omap_channel channel, int *lck_div,
 
 unsigned long dispc_fclk_rate(void)
 {
-	struct platform_device *dsidev;
+	struct dss_pll *pll;
 	unsigned long r = 0;
 
 	switch (dss_get_dispc_clk_source()) {
@@ -3036,12 +3036,12 @@ unsigned long dispc_fclk_rate(void)
 		r = dss_get_dispc_clk_rate();
 		break;
 	case OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC:
-		dsidev = dsi_get_dsidev_from_id(0);
-		r = dsi_get_pll_hsdiv_dispc_rate(dsidev);
+		pll = dss_pll_find("dsi0");
+		r = pll->cinfo.clkout[0];
 		break;
 	case OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC:
-		dsidev = dsi_get_dsidev_from_id(1);
-		r = dsi_get_pll_hsdiv_dispc_rate(dsidev);
+		pll = dss_pll_find("dsi1");
+		r = pll->cinfo.clkout[0];
 		break;
 	default:
 		BUG();
@@ -3053,7 +3053,7 @@ unsigned long dispc_fclk_rate(void)
 
 unsigned long dispc_mgr_lclk_rate(enum omap_channel channel)
 {
-	struct platform_device *dsidev;
+	struct dss_pll *pll;
 	int lcd;
 	unsigned long r;
 	u32 l;
@@ -3068,12 +3068,12 @@ unsigned long dispc_mgr_lclk_rate(enum omap_channel channel)
 			r = dss_get_dispc_clk_rate();
 			break;
 		case OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC:
-			dsidev = dsi_get_dsidev_from_id(0);
-			r = dsi_get_pll_hsdiv_dispc_rate(dsidev);
+			pll = dss_pll_find("dsi0");
+			r = pll->cinfo.clkout[0];
 			break;
 		case OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC:
-			dsidev = dsi_get_dsidev_from_id(1);
-			r = dsi_get_pll_hsdiv_dispc_rate(dsidev);
+			pll = dss_pll_find("dsi1");
+			r = pll->cinfo.clkout[0];
 			break;
 		default:
 			BUG();
