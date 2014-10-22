@@ -2005,7 +2005,7 @@ sub get_version {
     # get the release name
     return if ($have_version);
     doprint "$make kernelrelease ... ";
-    $version = `$make kernelrelease | tail -1`;
+    $version = `$make -s kernelrelease`;
     chomp($version);
     doprint "$version\n";
     $have_version = 1;
