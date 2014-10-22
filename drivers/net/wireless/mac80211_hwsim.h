@@ -114,6 +114,7 @@ enum {
  * @HWSIM_ATTR_DESTROY_RADIO_ON_CLOSE: used with the %HWSIM_CMD_CREATE_RADIO
  *	command to force radio removal when process that created the radio dies
  * @HWSIM_ATTR_RADIO_NAME: Name of radio, e.g. phy666
+ * @HWSIM_ATTR_NO_VIF:  Do not create vif (wlanX) when creating radio.
  * @__HWSIM_ATTR_MAX: enum limit
  */
 
@@ -137,6 +138,7 @@ enum {
 	HWSIM_ATTR_USE_CHANCTX,
 	HWSIM_ATTR_DESTROY_RADIO_ON_CLOSE,
 	HWSIM_ATTR_RADIO_NAME,
+	HWSIM_ATTR_NO_VIF,
 	__HWSIM_ATTR_MAX,
 };
 #define HWSIM_ATTR_MAX (__HWSIM_ATTR_MAX - 1)
