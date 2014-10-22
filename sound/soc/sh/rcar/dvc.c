@@ -12,7 +12,7 @@
 
 #define RSND_DVC_NAME_SIZE	16
 #define RSND_DVC_VOLUME_MAX	100
-#define RSND_DVC_VOLUME_NUM	2
+#define RSND_DVC_CHANNELS	2
 
 #define DVC_NAME "dvc"
 
@@ -20,8 +20,8 @@ struct rsnd_dvc {
 	struct rsnd_dvc_platform_info *info; /* rcar_snd.h */
 	struct rsnd_mod mod;
 	struct clk *clk;
-	u8 volume[RSND_DVC_VOLUME_NUM];
-	u8 mute[RSND_DVC_VOLUME_NUM];
+	u8 volume[RSND_DVC_CHANNELS];
+	u8 mute[RSND_DVC_CHANNELS];
 };
 
 #define rsnd_mod_to_dvc(_mod)	\
@@ -37,11 +37,11 @@ static void rsnd_dvc_volume_update(struct rsnd_mod *mod)
 {
 	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(mod);
 	u32 max = (0x00800000 - 1);
-	u32 vol[RSND_DVC_VOLUME_NUM];
+	u32 vol[RSND_DVC_CHANNELS];
 	u32 mute = 0;
 	int i;
 
-	for (i = 0; i < RSND_DVC_VOLUME_NUM; i++) {
+	for (i = 0; i < RSND_DVC_CHANNELS; i++) {
 		vol[i] = max / RSND_DVC_VOLUME_MAX * dvc->volume[i];
 		mute |= (!!dvc->mute[i]) << i;
 	}
@@ -150,7 +150,7 @@ static int rsnd_dvc_volume_info(struct snd_kcontrol *kctrl,
 	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(mod);
 	u8 *val = (u8 *)kctrl->private_value;
 
-	uinfo->count = RSND_DVC_VOLUME_NUM;
+	uinfo->count = RSND_DVC_CHANNELS;
 	uinfo->value.integer.min = 0;
 
 	if (val == dvc->volume) {
@@ -170,7 +170,7 @@ static int rsnd_dvc_volume_get(struct snd_kcontrol *kctrl,
 	u8 *val = (u8 *)kctrl->private_value;
 	int i;
 
-	for (i = 0; i < RSND_DVC_VOLUME_NUM; i++)
+	for (i = 0; i < RSND_DVC_CHANNELS; i++)
 		ucontrol->value.integer.value[i] = val[i];
 
 	return 0;
@@ -183,7 +183,7 @@ static int rsnd_dvc_volume_put(struct snd_kcontrol *kctrl,
 	u8 *val = (u8 *)kctrl->private_value;
 	int i, change = 0;
 
-	for (i = 0; i < RSND_DVC_VOLUME_NUM; i++) {
+	for (i = 0; i < RSND_DVC_CHANNELS; i++) {
 		change |= (ucontrol->value.integer.value[i] != val[i]);
 		val[i] = ucontrol->value.integer.value[i];
 	}
