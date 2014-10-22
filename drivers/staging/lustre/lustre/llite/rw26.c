@@ -183,7 +183,7 @@ static int ll_set_page_dirty(struct page *vmpage)
 	return __set_page_dirty_nobuffers(vmpage);
 }
 
-#define MAX_DIRECTIO_SIZE 2*1024*1024*1024UL
+#define MAX_DIRECTIO_SIZE (2*1024*1024*1024UL)
 
 static inline int ll_get_user_pages(int rw, unsigned long user_addr,
 				    size_t size, struct page ***pages,
