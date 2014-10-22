@@ -575,3 +575,30 @@ unsigned int comedi_read_array_from_buffer(struct comedi_subdevice *s,
 	return num_bytes;
 }
 EXPORT_SYMBOL_GPL(comedi_read_array_from_buffer);
+
+/**
+ * comedi_buf_read_samples - read sample data from comedi buffer
+ * @s: comedi_subdevice struct
+ * @data: destination
+ * @nsamples: maximum number of samples to read
+ *
+ * Reads up to nsamples from the comedi buffer associated with the subdevice,
+ * marks it as read and updates the acquisition scan progress.
+ *
+ * Returns the amount of data read in bytes.
+ */
+unsigned int comedi_buf_read_samples(struct comedi_subdevice *s,
+				     void *data, unsigned int nsamples)
+{
+	unsigned int max_samples;
+	unsigned int nbytes;
+
+	max_samples = s->async->prealloc_bufsz / bytes_per_sample(s);
+	if (nsamples > max_samples)
+		nsamples = max_samples;
+
+	nbytes = nsamples * bytes_per_sample(s);
+
+	return comedi_read_array_from_buffer(s, data, nbytes);
+}
+EXPORT_SYMBOL_GPL(comedi_buf_read_samples);
