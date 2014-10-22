@@ -442,8 +442,9 @@ int comedi_buf_put(struct comedi_subdevice *s, unsigned short x)
 }
 EXPORT_SYMBOL_GPL(comedi_buf_put);
 
-void comedi_buf_memcpy_to(struct comedi_subdevice *s, unsigned int offset,
-			  const void *data, unsigned int num_bytes)
+static void comedi_buf_memcpy_to(struct comedi_subdevice *s,
+				 unsigned int offset,
+				 const void *data, unsigned int num_bytes)
 {
 	struct comedi_async *async = s->async;
 	unsigned int write_ptr = async->buf_write_ptr + offset;
@@ -467,7 +468,6 @@ void comedi_buf_memcpy_to(struct comedi_subdevice *s, unsigned int offset,
 		write_ptr = 0;
 	}
 }
-EXPORT_SYMBOL_GPL(comedi_buf_memcpy_to);
 
 static void comedi_buf_memcpy_from(struct comedi_subdevice *s,
 				   unsigned int offset,
