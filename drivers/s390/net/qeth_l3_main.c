@@ -55,12 +55,12 @@ static int qeth_l3_isxdigit(char *buf)
 	return 1;
 }
 
-void qeth_l3_ipaddr4_to_string(const __u8 *addr, char *buf)
+static void qeth_l3_ipaddr4_to_string(const __u8 *addr, char *buf)
 {
 	sprintf(buf, "%i.%i.%i.%i", addr[0], addr[1], addr[2], addr[3]);
 }
 
-int qeth_l3_string_to_ipaddr4(const char *buf, __u8 *addr)
+static int qeth_l3_string_to_ipaddr4(const char *buf, __u8 *addr)
 {
 	int count = 0, rc = 0;
 	unsigned int in[4];
@@ -78,12 +78,12 @@ int qeth_l3_string_to_ipaddr4(const char *buf, __u8 *addr)
 	return 0;
 }
 
-void qeth_l3_ipaddr6_to_string(const __u8 *addr, char *buf)
+static void qeth_l3_ipaddr6_to_string(const __u8 *addr, char *buf)
 {
 	sprintf(buf, "%pI6", addr);
 }
 
-int qeth_l3_string_to_ipaddr6(const char *buf, __u8 *addr)
+static int qeth_l3_string_to_ipaddr6(const char *buf, __u8 *addr)
 {
 	const char *end, *end_tmp, *start;
 	__u16 *in;
