@@ -30,12 +30,6 @@ static inline unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *s,
 	return comedi_write_array_to_buffer(s, data, num_bytes);
 }
 
-static inline unsigned int cfc_write_to_buffer(struct comedi_subdevice *s,
-					       unsigned short data)
-{
-	return comedi_write_array_to_buffer(s, &data, sizeof(data));
-};
-
 /**
  * cfc_check_trigger_src() - trivially validate a comedi_cmd trigger source
  * @src: pointer to the trigger source to validate
