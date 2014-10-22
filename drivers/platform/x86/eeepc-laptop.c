@@ -819,11 +819,15 @@ static int eeepc_new_rfkill(struct eeepc_laptop *eeepc,
 	return 0;
 }
 
+static char EEEPC_RFKILL_NODE_1[] = "\\_SB.PCI0.P0P5";
+static char EEEPC_RFKILL_NODE_2[] = "\\_SB.PCI0.P0P6";
+static char EEEPC_RFKILL_NODE_3[] = "\\_SB.PCI0.P0P7";
+
 static void eeepc_rfkill_exit(struct eeepc_laptop *eeepc)
 {
-	eeepc_unregister_rfkill_notifier(eeepc, "\\_SB.PCI0.P0P5");
-	eeepc_unregister_rfkill_notifier(eeepc, "\\_SB.PCI0.P0P6");
-	eeepc_unregister_rfkill_notifier(eeepc, "\\_SB.PCI0.P0P7");
+	eeepc_unregister_rfkill_notifier(eeepc, EEEPC_RFKILL_NODE_1);
+	eeepc_unregister_rfkill_notifier(eeepc, EEEPC_RFKILL_NODE_2);
+	eeepc_unregister_rfkill_notifier(eeepc, EEEPC_RFKILL_NODE_3);
 	if (eeepc->wlan_rfkill) {
 		rfkill_unregister(eeepc->wlan_rfkill);
 		rfkill_destroy(eeepc->wlan_rfkill);
@@ -895,9 +899,9 @@ static int eeepc_rfkill_init(struct eeepc_laptop *eeepc)
 	if (result == -EBUSY)
 		result = 0;
 
-	eeepc_register_rfkill_notifier(eeepc, "\\_SB.PCI0.P0P5");
-	eeepc_register_rfkill_notifier(eeepc, "\\_SB.PCI0.P0P6");
-	eeepc_register_rfkill_notifier(eeepc, "\\_SB.PCI0.P0P7");
+	eeepc_register_rfkill_notifier(eeepc, EEEPC_RFKILL_NODE_1);
+	eeepc_register_rfkill_notifier(eeepc, EEEPC_RFKILL_NODE_2);
+	eeepc_register_rfkill_notifier(eeepc, EEEPC_RFKILL_NODE_3);
 
 exit:
 	if (result && result != -ENODEV)
@@ -933,9 +937,9 @@ static int eeepc_hotk_restore(struct device *device)
 
 	/* Refresh both wlan rfkill state and pci hotplug */
 	if (eeepc->wlan_rfkill) {
-		eeepc_rfkill_hotplug_update(eeepc, "\\_SB.PCI0.P0P5");
-		eeepc_rfkill_hotplug_update(eeepc, "\\_SB.PCI0.P0P6");
-		eeepc_rfkill_hotplug_update(eeepc, "\\_SB.PCI0.P0P7");
+		eeepc_rfkill_hotplug_update(eeepc, EEEPC_RFKILL_NODE_1);
+		eeepc_rfkill_hotplug_update(eeepc, EEEPC_RFKILL_NODE_2);
+		eeepc_rfkill_hotplug_update(eeepc, EEEPC_RFKILL_NODE_3);
 	}
 
 	if (eeepc->bluetooth_rfkill)
