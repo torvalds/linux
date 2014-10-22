@@ -680,15 +680,16 @@ static int intel_ring_workarounds_emit(struct intel_engine_cs *ring)
 	if (ret)
 		return ret;
 
-	ret = intel_ring_begin(ring, w->count * 3);
+	ret = intel_ring_begin(ring, (w->count * 2 + 2));
 	if (ret)
 		return ret;
 
+	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(w->count));
 	for (i = 0; i < w->count; i++) {
-		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
 		intel_ring_emit(ring, w->reg[i].addr);
 		intel_ring_emit(ring, w->reg[i].value);
 	}
+	intel_ring_emit(ring, MI_NOOP);
 
 	intel_ring_advance(ring);
 
