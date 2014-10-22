@@ -234,6 +234,9 @@ int ll_setxattr(struct dentry *dentry, const char *name,
 		struct lov_user_md *lump = (struct lov_user_md *)value;
 		int rc = 0;
 
+		if (size != 0 && size < sizeof(struct lov_user_md))
+			return -EINVAL;
+
 		/* Attributes that are saved via getxattr will always have
 		 * the stripe_offset as 0.  Instead, the MDS should be
 		 * allowed to pick the starting OST index.   b=17846 */
