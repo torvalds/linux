@@ -441,8 +441,6 @@ unsigned int comedi_buf_read_n_available(struct comedi_subdevice *s);
 unsigned int comedi_buf_read_alloc(struct comedi_subdevice *s, unsigned int n);
 unsigned int comedi_buf_read_free(struct comedi_subdevice *s, unsigned int n);
 
-int comedi_buf_put(struct comedi_subdevice *s, unsigned short x);
-
 unsigned int comedi_write_array_to_buffer(struct comedi_subdevice *s,
 					  const void *data,
 					  unsigned int num_bytes);
