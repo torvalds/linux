@@ -4005,6 +4005,19 @@ done:
 	return ret;
 }
 
+/**
+ * drm_mode_connector_set_path_property - set tile property on connector
+ * @connector: connector to set property on.
+ * @path: path to use for property.
+ *
+ * This creates a property to expose to userspace to specify a
+ * connector path. This is mainly used for DisplayPort MST where
+ * connectors have a topology and we want to allow userspace to give
+ * them more meaningful names.
+ *
+ * Returns:
+ * Zero on success, errno on failure.
+ */
 int drm_mode_connector_set_path_property(struct drm_connector *connector,
 					 char *path)
 {
