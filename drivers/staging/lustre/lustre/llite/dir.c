@@ -163,7 +163,7 @@ static int ll_dir_filler(void *_hash, struct page *page0)
 
 	LASSERT(max_pages > 0 && max_pages <= MD_MAX_BRW_PAGES);
 
-	page_pool = kzalloc(sizeof(page) * max_pages, GFP_NOFS);
+	page_pool = kcalloc(max_pages, sizeof(page), GFP_NOFS);
 	if (page_pool) {
 		page_pool[0] = page0;
 	} else {

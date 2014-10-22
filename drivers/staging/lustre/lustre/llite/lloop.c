@@ -793,11 +793,11 @@ static int __init lloop_init(void)
 	if (ll_iocontrol_magic == NULL)
 		goto out_mem1;
 
-	loop_dev = kzalloc(max_loop * sizeof(*loop_dev), GFP_KERNEL);
+	loop_dev = kcalloc(max_loop, sizeof(*loop_dev), GFP_KERNEL);
 	if (!loop_dev)
 		goto out_mem1;
 
-	disks = kzalloc(max_loop * sizeof(*disks), GFP_KERNEL);
+	disks = kcalloc(max_loop, sizeof(*disks), GFP_KERNEL);
 	if (!disks)
 		goto out_mem2;
 
