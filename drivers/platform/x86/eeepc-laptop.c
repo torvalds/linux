@@ -917,7 +917,7 @@ static int eeepc_hotk_thaw(struct device *device)
 	struct eeepc_laptop *eeepc = dev_get_drvdata(device);
 
 	if (eeepc->wlan_rfkill) {
-		bool wlan;
+		int wlan;
 
 		/*
 		 * Work around bios bug - acpi _PTS turns off the wireless led
@@ -925,7 +925,8 @@ static int eeepc_hotk_thaw(struct device *device)
 		 * we should kick it ourselves in case hibernation is aborted.
 		 */
 		wlan = get_acpi(eeepc, CM_ASL_WLAN);
-		set_acpi(eeepc, CM_ASL_WLAN, wlan);
+		if (wlan >= 0)
+			set_acpi(eeepc, CM_ASL_WLAN, wlan);
 	}
 
 	return 0;
