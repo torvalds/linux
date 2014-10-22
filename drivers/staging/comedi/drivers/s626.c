@@ -1493,8 +1493,7 @@ static bool s626_handle_eos_interrupt(struct comedi_device *dev)
 		tempdata = s626_ai_reg_to_uint(*readaddr);
 		readaddr++;
 
-		/* put data into read buffer */
-		cfc_write_to_buffer(s, tempdata);
+		comedi_buf_write_samples(s, &tempdata, 1);
 	}
 
 	/* end of scan occurs */
