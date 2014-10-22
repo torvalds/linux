@@ -528,6 +528,37 @@ unsigned int comedi_write_array_to_buffer(struct comedi_subdevice *s,
 EXPORT_SYMBOL_GPL(comedi_write_array_to_buffer);
 
 /**
+ * comedi_buf_write_samples - write sample data to comedi buffer
+ * @s: comedi_subdevice struct
+ * @data: samples
+ * @nsamples: number of samples
+ *
+ * Writes nsamples to the comedi buffer associated with the subdevice, marks
+ * it as written and updates the acquisition scan progress.
+ *
+ * Returns the amount of data written in bytes.
+ */
+unsigned int comedi_buf_write_samples(struct comedi_subdevice *s,
+				      const void *data, unsigned int nsamples)
+{
+	unsigned int max_samples;
+	unsigned int nbytes;
+
+	/* make sure there is enought room in the buffer for all the samples */
+	max_samples = comedi_buf_write_n_available(s) / bytes_per_sample(s);
+	if (nsamples > max_samples) {
+		dev_warn(s->device->class_dev, "buffer overrun\n");
+		s->async->events |= COMEDI_CB_OVERFLOW;
+		return 0;
+	}
+
+	nbytes = nsamples * bytes_per_sample(s);
+
+	return comedi_write_array_to_buffer(s, data, nbytes);
+}
+EXPORT_SYMBOL_GPL(comedi_buf_write_samples);
+
+/**
  * comedi_buf_read_samples - read sample data from comedi buffer
  * @s: comedi_subdevice struct
  * @data: destination

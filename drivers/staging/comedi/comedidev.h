@@ -446,6 +446,8 @@ int comedi_buf_put(struct comedi_subdevice *s, unsigned short x);
 unsigned int comedi_write_array_to_buffer(struct comedi_subdevice *s,
 					  const void *data,
 					  unsigned int num_bytes);
+unsigned int comedi_buf_write_samples(struct comedi_subdevice *s,
+				      const void *data, unsigned int nsamples);
 unsigned int comedi_buf_read_samples(struct comedi_subdevice *s,
 				     void *data, unsigned int nsamples);
 
