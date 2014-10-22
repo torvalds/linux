@@ -113,6 +113,7 @@ enum {
  *	single channel is supported
  * @HWSIM_ATTR_DESTROY_RADIO_ON_CLOSE: used with the %HWSIM_CMD_CREATE_RADIO
  *	command to force radio removal when process that created the radio dies
+ * @HWSIM_ATTR_RADIO_NAME: Name of radio, e.g. phy666
  * @__HWSIM_ATTR_MAX: enum limit
  */
 
@@ -135,6 +136,7 @@ enum {
 	HWSIM_ATTR_SUPPORT_P2P_DEVICE,
 	HWSIM_ATTR_USE_CHANCTX,
 	HWSIM_ATTR_DESTROY_RADIO_ON_CLOSE,
+	HWSIM_ATTR_RADIO_NAME,
 	__HWSIM_ATTR_MAX,
 };
 #define HWSIM_ATTR_MAX (__HWSIM_ATTR_MAX - 1)

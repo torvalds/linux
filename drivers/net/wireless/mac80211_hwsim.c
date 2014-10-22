@@ -2544,16 +2544,27 @@ static int hwsim_create_radio_nl(struct sk_buff *msg, struct genl_info *info)
 static int hwsim_destroy_radio_nl(struct sk_buff *msg, struct genl_info *info)
 {
 	struct mac80211_hwsim_data *data;
-	int idx;
+	s64 idx = -1;
+	const char *hwname = NULL;
 
-	if (!info->attrs[HWSIM_ATTR_RADIO_ID])
+	if (info->attrs[HWSIM_ATTR_RADIO_ID])
+		idx = nla_get_u32(info->attrs[HWSIM_ATTR_RADIO_ID]);
+	else if (info->attrs[HWSIM_ATTR_RADIO_NAME])
+		hwname = (void *)nla_data(info->attrs[HWSIM_ATTR_RADIO_NAME]);
+	else
 		return -EINVAL;
-	idx = nla_get_u32(info->attrs[HWSIM_ATTR_RADIO_ID]);
 
 	spin_lock_bh(&hwsim_radio_lock);
 	list_for_each_entry(data, &hwsim_radios, list) {
-		if (data->idx != idx)
-			continue;
+		if (idx >= 0) {
+			if (data->idx != idx)
+				continue;
+		} else {
+			if (hwname &&
+			    strcmp(hwname, wiphy_name(data->hw->wiphy)))
+				continue;
+		}
+
 		list_del(&data->list);
 		spin_unlock_bh(&hwsim_radio_lock);
 		mac80211_hwsim_destroy_radio(data);
