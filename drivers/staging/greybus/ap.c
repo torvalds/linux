@@ -136,6 +136,9 @@ static void svc_management(struct svc_function_unipro_management *management,
 	}
 
 	switch (management->management_packet_type) {
+	case SVC_MANAGEMENT_AP_ID:
+		hd->device_id = management->ap_id.device_id;
+		break;
 	case SVC_MANAGEMENT_LINK_UP:
 		module = gb_module_find(hd, management->link_up.module_id);
 		if (!module) {
@@ -151,9 +154,6 @@ static void svc_management(struct svc_function_unipro_management *management,
 				"module %hhu interface %hhu\n",
 				ret, management->link_up.module_id,
 				management->link_up.interface_id);
-		break;
-	case SVC_MANAGEMENT_AP_DEVICE_ID:
-		hd->device_id = management->ap_device_id.device_id;
 		break;
 	default:
 		dev_err(hd->parent, "Unhandled UniPro management message\n");

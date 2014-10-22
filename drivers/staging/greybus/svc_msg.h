@@ -56,22 +56,23 @@ struct svc_function_unipro_link_up {
 	__u8	device_id;
 };
 
-struct svc_function_ap_device_id {
+struct svc_function_ap_id {
+	__u8	module_id;
 	__u8	device_id;
 };
 
 enum svc_function_management_event {
-	SVC_MANAGEMENT_SET_ROUTE	= 0x00,
+	SVC_MANAGEMENT_AP_ID		= 0x00,
 	SVC_MANAGEMENT_LINK_UP		= 0x01,
-	SVC_MANAGEMENT_AP_DEVICE_ID	= 0x02,
+	SVC_MANAGEMENT_SET_ROUTE	= 0x02,
 };
 
 struct svc_function_unipro_management {
 	__u8	management_packet_type;	/* enum svc_function_management_event */
 	union {
-		struct svc_function_unipro_set_route	set_route;
+		struct svc_function_ap_id		ap_id;
 		struct svc_function_unipro_link_up	link_up;
-		struct svc_function_ap_device_id	ap_device_id;
+		struct svc_function_unipro_set_route	set_route;
 	};
 };
 
