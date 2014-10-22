@@ -541,6 +541,7 @@ static void das16_interrupt(struct comedi_device *dev)
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned long spin_flags;
 	unsigned long dma_flags;
+	unsigned int nsamples;
 	int num_bytes, residue;
 	int buffer_index;
 
@@ -583,8 +584,9 @@ static void das16_interrupt(struct comedi_device *dev)
 
 	spin_unlock_irqrestore(&dev->spinlock, spin_flags);
 
-	cfc_write_array_to_buffer(s,
-				  devpriv->dma_buffer[buffer_index], num_bytes);
+	nsamples = num_bytes / bytes_per_sample(s);
+	comedi_buf_write_samples(s, devpriv->dma_buffer[buffer_index],
+				 nsamples);
 
 	comedi_handle_events(dev, s);
 }
