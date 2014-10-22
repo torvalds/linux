@@ -521,8 +521,6 @@ static bool pcl818_ai_next_chan(struct comedi_device *dev,
 	struct pcl818_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	s->async->events |= COMEDI_CB_BLOCK;
-
 	devpriv->act_chanlist_pos++;
 	if (devpriv->act_chanlist_pos >= devpriv->act_chanlist_len)
 		devpriv->act_chanlist_pos = 0;
@@ -560,7 +558,7 @@ static void pcl818_handle_eoc(struct comedi_device *dev,
 	if (pcl818_ai_dropout(dev, s, chan))
 		return;
 
-	comedi_buf_put(s, val);
+	comedi_buf_write_samples(s, &val, 1);
 
 	pcl818_ai_next_chan(dev, s);
 }
@@ -589,7 +587,7 @@ static void pcl818_handle_dma(struct comedi_device *dev,
 		if (pcl818_ai_dropout(dev, s, chan))
 			break;
 
-		comedi_buf_put(s, val);
+		comedi_buf_write_samples(s, &val, 1);
 
 		if (!pcl818_ai_next_chan(dev, s))
 			break;
@@ -630,7 +628,7 @@ static void pcl818_handle_fifo(struct comedi_device *dev,
 		if (pcl818_ai_dropout(dev, s, chan))
 			break;
 
-		comedi_buf_put(s, val);
+		comedi_buf_write_samples(s, &val, 1);
 
 		if (!pcl818_ai_next_chan(dev, s))
 			break;
