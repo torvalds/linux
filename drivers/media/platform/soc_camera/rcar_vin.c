@@ -130,6 +130,7 @@
 #define VNDMR2_VPS		(1 << 30)
 #define VNDMR2_HPS		(1 << 29)
 #define VNDMR2_FTEV		(1 << 17)
+#define VNDMR2_VLV(n)		((n & 0xf) << 12)
 
 #define VIN_MAX_WIDTH		2048
 #define VIN_MAX_HEIGHT		2048
@@ -1243,7 +1244,7 @@ static int rcar_vin_set_bus_param(struct soc_camera_device *icd)
 	if (ret < 0 && ret != -ENOIOCTLCMD)
 		return ret;
 
-	val = priv->field == V4L2_FIELD_NONE ? VNDMR2_FTEV : 0;
+	val = VNDMR2_FTEV | VNDMR2_VLV(1);
 	if (!(common_flags & V4L2_MBUS_VSYNC_ACTIVE_LOW))
 		val |= VNDMR2_VPS;
 	if (!(common_flags & V4L2_MBUS_HSYNC_ACTIVE_LOW))
