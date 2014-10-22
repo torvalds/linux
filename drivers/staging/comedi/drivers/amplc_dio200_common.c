@@ -267,14 +267,8 @@ static void dio200_read_scan_intr(struct comedi_device *dev,
 		if (triggered & (1U << ch))
 			val |= (1U << n);
 	}
-	/* Write the scan to the buffer. */
-	if (comedi_buf_put(s, val)) {
-		s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
-	} else {
-		/* Error!  Stop acquisition.  */
-		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW;
-		dev_err(dev->class_dev, "buffer overflow\n");
-	}
+
+	comedi_buf_write_samples(s, &val, 1);
 
 	/* Check for end of acquisition. */
 	if (cmd->stop_src == TRIG_COUNT) {
@@ -463,7 +457,7 @@ static int dio200_subdev_intr_init(struct comedi_device *dev,
 		dio200_write8(dev, subpriv->ofs, 0);
 
 	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE | SDF_CMD_READ;
+	s->subdev_flags = SDF_READABLE | SDF_CMD_READ | SDF_PACKED;
 	if (board->has_int_sce) {
 		s->n_chan = DIO200_MAX_ISNS;
 		s->len_chanlist = DIO200_MAX_ISNS;
