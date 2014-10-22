@@ -100,6 +100,69 @@ enum dss_writeback_channel {
 	DSS_WB_LCD3_MGR =	7,
 };
 
+struct dss_pll;
+
+#define DSS_PLL_MAX_HSDIVS 4
+
+/*
+ * Type-A PLLs: clkout[]/mX[] refer to hsdiv outputs m4, m5, m6, m7.
+ * Type-B PLLs: clkout[0] refers to m2.
+ */
+struct dss_pll_clock_info {
+	/* rates that we get with dividers below */
+	unsigned long fint;
+	unsigned long clkdco;
+	unsigned long clkout[DSS_PLL_MAX_HSDIVS];
+
+	/* dividers */
+	u16 n;
+	u16 m;
+	u32 mf;
+	u16 mX[DSS_PLL_MAX_HSDIVS];
+	u16 sd;
+};
+
+struct dss_pll_ops {
+	int (*enable)(struct dss_pll *pll);
+	void (*disable)(struct dss_pll *pll);
+	int (*set_config)(struct dss_pll *pll,
+		const struct dss_pll_clock_info *cinfo);
+};
+
+struct dss_pll_hw {
+	unsigned n_max;
+	unsigned m_min;
+	unsigned m_max;
+	unsigned mX_max;
+
+	unsigned long fint_min, fint_max;
+	unsigned long clkdco_min, clkdco_low, clkdco_max;
+
+	u8 n_msb, n_lsb;
+	u8 m_msb, m_lsb;
+	u8 mX_msb[DSS_PLL_MAX_HSDIVS], mX_lsb[DSS_PLL_MAX_HSDIVS];
+
+	bool has_stopmode;
+	bool has_freqsel;
+	bool has_selfreqdco;
+	bool has_refsel;
+};
+
+struct dss_pll {
+	const char *name;
+
+	struct clk *clkin;
+	struct regulator *regulator;
+
+	void __iomem *base;
+
+	const struct dss_pll_hw *hw;
+
+	const struct dss_pll_ops *ops;
+
+	struct dss_pll_clock_info cinfo;
+};
+
 struct dispc_clock_info {
 	/* rates that we get with dividers below */
 	unsigned long lck;
@@ -434,5 +497,30 @@ static inline void dss_collect_irq_stats(u32 irqstatus, unsigned *irq_arr)
 	}
 }
 #endif
+
+/* PLL */
+typedef bool (*dss_pll_calc_func)(int n, int m, unsigned long fint,
+		unsigned long clkdco, void *data);
+typedef bool (*dss_hsdiv_calc_func)(int m_dispc, unsigned long dispc,
+		void *data);
+
+int dss_pll_register(struct dss_pll *pll);
+void dss_pll_unregister(struct dss_pll *pll);
+struct dss_pll *dss_pll_find(const char *name);
+int dss_pll_enable(struct dss_pll *pll);
+void dss_pll_disable(struct dss_pll *pll);
+int dss_pll_set_config(struct dss_pll *pll,
+		const struct dss_pll_clock_info *cinfo);
+
+bool dss_pll_hsdiv_calc(const struct dss_pll *pll, unsigned long clkdco,
+		unsigned long out_min, unsigned long out_max,
+		dss_hsdiv_calc_func func, void *data);
+bool dss_pll_calc(const struct dss_pll *pll, unsigned long clkin,
+		unsigned long pll_min, unsigned long pll_max,
+		dss_pll_calc_func func, void *data);
+int dss_pll_write_config_type_a(struct dss_pll *pll,
+		const struct dss_pll_clock_info *cinfo);
+int dss_pll_write_config_type_b(struct dss_pll *pll,
+		const struct dss_pll_clock_info *cinfo);
 
 #endif
