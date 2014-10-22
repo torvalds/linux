@@ -43,6 +43,9 @@
 #define XENVIF_QUEUE_LENGTH 32
 #define XENVIF_NAPI_WEIGHT  64
 
+/* Number of bytes allowed on the internal guest Rx queue. */
+#define XENVIF_RX_QUEUE_BYTES (XEN_NETIF_RX_RING_SIZE/2 * PAGE_SIZE)
+
 /* This function is used to set SKBTX_DEV_ZEROCOPY as well as
  * increasing the inflight counter. We need to increase the inflight
  * counter because core driver calls into xenvif_zerocopy_callback
@@ -63,7 +66,8 @@ void xenvif_skb_zerocopy_complete(struct xenvif_queue *queue)
 int xenvif_schedulable(struct xenvif *vif)
 {
 	return netif_running(vif->dev) &&
-		test_bit(VIF_STATUS_CONNECTED, &vif->status);
+		test_bit(VIF_STATUS_CONNECTED, &vif->status) &&
+		!vif->disabled;
 }
 
 static irqreturn_t xenvif_tx_interrupt(int irq, void *dev_id)
@@ -104,16 +108,7 @@ int xenvif_poll(struct napi_struct *napi, int budget)
 static irqreturn_t xenvif_rx_interrupt(int irq, void *dev_id)
 {
 	struct xenvif_queue *queue = dev_id;
-	struct netdev_queue *net_queue =
-		netdev_get_tx_queue(queue->vif->dev, queue->id);
 
-	/* QUEUE_STATUS_RX_PURGE_EVENT is only set if either QDisc was off OR
-	 * the carrier went down and this queue was previously blocked
-	 */
-	if (unlikely(netif_tx_queue_stopped(net_queue) ||
-		     (!netif_carrier_ok(queue->vif->dev) &&
-		      test_bit(QUEUE_STATUS_RX_STALLED, &queue->status))))
-		set_bit(QUEUE_STATUS_RX_PURGE_EVENT, &queue->status);
 	xenvif_kick_thread(queue);
 
 	return IRQ_HANDLED;
@@ -141,24 +136,13 @@ void xenvif_wake_queue(struct xenvif_queue *queue)
 	netif_tx_wake_queue(netdev_get_tx_queue(dev, id));
 }
 
-/* Callback to wake the queue's thread and turn the carrier off on timeout */
-static void xenvif_rx_stalled(unsigned long data)
-{
-	struct xenvif_queue *queue = (struct xenvif_queue *)data;
-
-	if (xenvif_queue_stopped(queue)) {
-		set_bit(QUEUE_STATUS_RX_PURGE_EVENT, &queue->status);
-		xenvif_kick_thread(queue);
-	}
-}
-
 static int xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct xenvif *vif = netdev_priv(dev);
 	struct xenvif_queue *queue = NULL;
 	unsigned int num_queues = vif->num_queues;
 	u16 index;
-	int min_slots_needed;
+	struct xenvif_rx_cb *cb;
 
 	BUG_ON(skb->dev != dev);
 
@@ -181,30 +165,10 @@ static int xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	    !xenvif_schedulable(vif))
 		goto drop;
 
-	/* At best we'll need one slot for the header and one for each
-	 * frag.
-	 */
-	min_slots_needed = 1 + skb_shinfo(skb)->nr_frags;
+	cb = XENVIF_RX_CB(skb);
+	cb->expires = jiffies + rx_drain_timeout_jiffies;
 
-	/* If the skb is GSO then we'll also need an extra slot for the
-	 * metadata.
-	 */
-	if (skb_is_gso(skb))
-		min_slots_needed++;
-
-	/* If the skb can't possibly fit in the remaining slots
-	 * then turn off the queue to give the ring a chance to
-	 * drain.
-	 */
-	if (!xenvif_rx_ring_slots_available(queue, min_slots_needed)) {
-		queue->rx_stalled.function = xenvif_rx_stalled;
-		queue->rx_stalled.data = (unsigned long)queue;
-		netif_tx_stop_queue(netdev_get_tx_queue(dev, queue->id));
-		mod_timer(&queue->rx_stalled,
-			  jiffies + rx_drain_timeout_jiffies);
-	}
-
-	skb_queue_tail(&queue->rx_queue, skb);
+	xenvif_rx_queue_tail(queue, skb);
 	xenvif_kick_thread(queue);
 
 	return NETDEV_TX_OK;
@@ -498,6 +462,8 @@ int xenvif_init_queue(struct xenvif_queue *queue)
 	init_timer(&queue->credit_timeout);
 	queue->credit_window_start = get_jiffies_64();
 
+	queue->rx_queue_max = XENVIF_RX_QUEUE_BYTES;
+
 	skb_queue_head_init(&queue->rx_queue);
 	skb_queue_head_init(&queue->tx_queue);
 
@@ -528,8 +494,6 @@ int xenvif_init_queue(struct xenvif_queue *queue)
 			  .desc = i };
 		queue->grant_tx_handle[i] = NETBACK_INVALID_HANDLE;
 	}
-
-	init_timer(&queue->rx_stalled);
 
 	return 0;
 }
@@ -664,7 +628,6 @@ void xenvif_disconnect(struct xenvif *vif)
 		netif_napi_del(&queue->napi);
 
 		if (queue->task) {
-			del_timer_sync(&queue->rx_stalled);
 			kthread_stop(queue->task);
 			queue->task = NULL;
 		}

@@ -52,6 +52,7 @@ static int xenvif_read_io_ring(struct seq_file *m, void *v)
 	struct xenvif_queue *queue = m->private;
 	struct xen_netif_tx_back_ring *tx_ring = &queue->tx;
 	struct xen_netif_rx_back_ring *rx_ring = &queue->rx;
+	struct netdev_queue *dev_queue;
 
 	if (tx_ring->sring) {
 		struct xen_netif_tx_sring *sring = tx_ring->sring;
@@ -111,6 +112,13 @@ static int xenvif_read_io_ring(struct seq_file *m, void *v)
 		   queue->remaining_credit,
 		   queue->credit_timeout.expires,
 		   jiffies);
+
+	dev_queue = netdev_get_tx_queue(queue->vif->dev, queue->id);
+
+	seq_printf(m, "\nRx internal queue: len %u max %u pkts %u %s\n",
+		   queue->rx_queue_len, queue->rx_queue_max,
+		   skb_queue_len(&queue->rx_queue),
+		   netif_tx_queue_stopped(dev_queue) ? "stopped" : "running");
 
 	return 0;
 }
