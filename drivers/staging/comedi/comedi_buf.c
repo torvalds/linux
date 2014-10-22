@@ -549,19 +549,9 @@ unsigned int comedi_write_array_to_buffer(struct comedi_subdevice *s,
 }
 EXPORT_SYMBOL_GPL(comedi_write_array_to_buffer);
 
-/**
- * comedi_read_array_from_buffer - read data from comedi buffer
- * @s: comedi_subdevice struct
- * @data: destination
- * @num_bytes: number of bytes to read
- *
- * Reads up to num_bytes bytes of data from the comedi buffer associated with
- * the subdevice, marks it as read and updates the acquisition scan progress.
- *
- * Returns the amount of data read in bytes.
- */
-unsigned int comedi_read_array_from_buffer(struct comedi_subdevice *s,
-					   void *data, unsigned int num_bytes)
+static unsigned int comedi_read_array_from_buffer(struct comedi_subdevice *s,
+						  void *data,
+						  unsigned int num_bytes)
 {
 	if (num_bytes == 0)
 		return 0;
@@ -574,7 +564,6 @@ unsigned int comedi_read_array_from_buffer(struct comedi_subdevice *s,
 
 	return num_bytes;
 }
-EXPORT_SYMBOL_GPL(comedi_read_array_from_buffer);
 
 /**
  * comedi_buf_read_samples - read sample data from comedi buffer
