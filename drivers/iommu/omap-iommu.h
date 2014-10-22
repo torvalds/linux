@@ -10,6 +10,9 @@
  * published by the Free Software Foundation.
  */
 
+#ifndef _OMAP_IOMMU_H
+#define _OMAP_IOMMU_H
+
 #if defined(CONFIG_ARCH_OMAP1)
 #error "iommu for this processor not implemented yet"
 #endif
@@ -92,7 +95,6 @@ struct iommu_functions {
 	ssize_t (*dump_ctx)(struct omap_iommu *obj, char *buf, ssize_t len);
 };
 
-#ifdef CONFIG_IOMMU_API
 /**
  * dev_to_omap_iommu() - retrieves an omap iommu object from a user device
  * @dev: iommu client device
@@ -103,7 +105,6 @@ static inline struct omap_iommu *dev_to_omap_iommu(struct device *dev)
 
 	return arch_data->iommu_dev;
 }
-#endif
 
 /*
  * MMU Register offsets
@@ -220,3 +221,5 @@ static inline void iommu_write_reg(struct omap_iommu *obj, u32 val, size_t offs)
 {
 	__raw_writel(val, obj->regbase + offs);
 }
+
+#endif /* _OMAP_IOMMU_H */
