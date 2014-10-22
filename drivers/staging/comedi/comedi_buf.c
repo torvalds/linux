@@ -474,31 +474,6 @@ static void comedi_buf_memcpy_from(struct comedi_subdevice *s,
 	}
 }
 
-static unsigned int comedi_write_array_to_buffer(struct comedi_subdevice *s,
-						 const void *data,
-						 unsigned int num_bytes)
-{
-	struct comedi_async *async = s->async;
-	unsigned int retval;
-
-	if (num_bytes == 0)
-		return 0;
-
-	retval = comedi_buf_write_alloc(s, num_bytes);
-	if (retval != num_bytes) {
-		dev_warn(s->device->class_dev, "buffer overrun\n");
-		async->events |= COMEDI_CB_OVERFLOW;
-		return 0;
-	}
-
-	comedi_buf_memcpy_to(s, data, num_bytes);
-	comedi_buf_write_free(s, num_bytes);
-	comedi_inc_scan_progress(s, num_bytes);
-	async->events |= COMEDI_CB_BLOCK;
-
-	return num_bytes;
-}
-
 /**
  * comedi_buf_write_samples - write sample data to comedi buffer
  * @s: comedi_subdevice struct
@@ -524,9 +499,16 @@ unsigned int comedi_buf_write_samples(struct comedi_subdevice *s,
 		return 0;
 	}
 
-	nbytes = nsamples * bytes_per_sample(s);
+	if (nsamples == 0)
+		return 0;
 
-	return comedi_write_array_to_buffer(s, data, nbytes);
+	nbytes = comedi_buf_write_alloc(s, nsamples * bytes_per_sample(s));
+	comedi_buf_memcpy_to(s, data, nbytes);
+	comedi_buf_write_free(s, nbytes);
+	comedi_inc_scan_progress(s, nbytes);
+	s->async->events |= COMEDI_CB_BLOCK;
+
+	return nbytes;
 }
 EXPORT_SYMBOL_GPL(comedi_buf_write_samples);
 
