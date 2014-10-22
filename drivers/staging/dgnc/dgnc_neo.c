@@ -1217,7 +1217,6 @@ static void neo_copy_data_from_uart_to_queue(struct channel_t *ch)
 
 		/* Copy data from uart to the queue */
 		memcpy_fromio(ch->ch_rqueue + head, &ch->ch_neo_uart->txrxburst, n);
-		dgnc_sniff_nowait_nolock(ch, "UART READ", ch->ch_rqueue + head, n);
 
 		/*
 		 * Since RX_FIFO_DATA_ERROR was 0, we are guarenteed
@@ -1303,7 +1302,6 @@ static void neo_copy_data_from_uart_to_queue(struct channel_t *ch)
 
 		memcpy_fromio(ch->ch_rqueue + head, &ch->ch_neo_uart->txrxburst, 1);
 		ch->ch_equeue[head] = (unsigned char) linestatus;
-		dgnc_sniff_nowait_nolock(ch, "UART READ", ch->ch_rqueue + head, 1);
 
 		/* Ditch any remaining linestatus value. */
 		linestatus = 0;
@@ -1556,7 +1554,6 @@ static void neo_copy_data_from_queue_to_uart(struct channel_t *ch)
 		}
 
 		memcpy_toio(&ch->ch_neo_uart->txrxburst, ch->ch_wqueue + tail, s);
-		dgnc_sniff_nowait_nolock(ch, "UART WRITE", ch->ch_wqueue + tail, s);
 
 		/* Add and flip queue if needed */
 		tail = (tail + s) & WQUEUEMASK;

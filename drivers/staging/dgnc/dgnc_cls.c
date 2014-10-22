@@ -918,8 +918,6 @@ static void cls_copy_data_from_uart_to_queue(struct channel_t *ch)
 		ch->ch_equeue[head] = linestatus & (UART_LSR_BI | UART_LSR_PE
 								 | UART_LSR_FE);
 		ch->ch_rqueue[head] = readb(&ch->ch_cls_uart->txrx);
-		dgnc_sniff_nowait_nolock(ch, "UART READ",
-						 ch->ch_rqueue + head, 1);
 
 		qleft--;
 
@@ -1086,8 +1084,6 @@ static void cls_copy_data_from_queue_to_uart(struct channel_t *ch)
 			ch->ch_tun.un_flags |= (UN_EMPTY);
 		}
 		writeb(ch->ch_wqueue[ch->ch_w_tail], &ch->ch_cls_uart->txrx);
-		dgnc_sniff_nowait_nolock(ch, "UART WRITE",
-					    ch->ch_wqueue + ch->ch_w_tail, 1);
 		ch->ch_w_tail++;
 		ch->ch_w_tail &= WQUEUEMASK;
 		ch->ch_txcount++;

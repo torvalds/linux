@@ -37,6 +37,4 @@ void	dgnc_carrier(struct channel_t *ch);
 void	dgnc_wakeup_writes(struct channel_t *ch);
 void	dgnc_check_queue_flow_control(struct channel_t *ch);
 
-void	dgnc_sniff_nowait_nolock(struct channel_t *ch, unsigned char *text, unsigned char *buf, int nbuf);
-
 #endif

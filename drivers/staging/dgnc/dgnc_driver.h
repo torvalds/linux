@@ -123,8 +123,6 @@
 #define   _POSIX_VDISABLE '\0'
 #endif
 
-#define SNIFF_MAX	65536		/* Sniff buffer size (2^n) */
-#define SNIFF_MASK	(SNIFF_MAX - 1)	/* Sniff wrap mask */
 
 /*
  * All the possible states the driver can be while being loaded.
@@ -331,13 +329,6 @@ struct un_t {
 #define CH_FORCED_STOP  0x20000		/* Output is forcibly stopped	*/
 #define CH_FORCED_STOPI 0x40000		/* Input is forcibly stopped	*/
 
-/*
- * Definitions for ch_sniff_flags
- */
-#define SNIFF_OPEN	0x1
-#define SNIFF_WAIT_DATA	0x2
-#define SNIFF_WAIT_SPACE 0x4
-
 
 /* Our Read/Error/Write queue sizes */
 #define RQUEUEMASK	0x1FFF		/* 8 K - 1 */
@@ -431,11 +422,6 @@ struct channel_t {
 	struct proc_dir_entry *proc_entry_pointer;
 	struct dgnc_proc_entry *dgnc_channel_table;
 
-	uint ch_sniff_in;
-	uint ch_sniff_out;
-	char *ch_sniff_buf;		/* Sniff buffer for proc */
-	ulong ch_sniff_flags;		/* Channel flags		*/
-	wait_queue_head_t ch_sniff_wait;
 };
 
 /*
