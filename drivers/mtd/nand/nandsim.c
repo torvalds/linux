@@ -87,10 +87,6 @@
 #define CONFIG_NANDSIM_MAX_PARTS  32
 #endif
 
-static uint first_id_byte  = CONFIG_NANDSIM_FIRST_ID_BYTE;
-static uint second_id_byte = CONFIG_NANDSIM_SECOND_ID_BYTE;
-static uint third_id_byte  = CONFIG_NANDSIM_THIRD_ID_BYTE;
-static uint fourth_id_byte = CONFIG_NANDSIM_FOURTH_ID_BYTE;
 static uint access_delay   = CONFIG_NANDSIM_ACCESS_DELAY;
 static uint programm_delay = CONFIG_NANDSIM_PROGRAMM_DELAY;
 static uint erase_delay    = CONFIG_NANDSIM_ERASE_DELAY;
@@ -111,11 +107,19 @@ static unsigned int overridesize = 0;
 static char *cache_file = NULL;
 static unsigned int bbt;
 static unsigned int bch;
+static u_char id_bytes[8] = {
+	[0] = CONFIG_NANDSIM_FIRST_ID_BYTE,
+	[1] = CONFIG_NANDSIM_SECOND_ID_BYTE,
+	[2] = CONFIG_NANDSIM_THIRD_ID_BYTE,
+	[3] = CONFIG_NANDSIM_FOURTH_ID_BYTE,
+	[4 ... 7] = 0xFF,
+};
 
-module_param(first_id_byte,  uint, 0400);
-module_param(second_id_byte, uint, 0400);
-module_param(third_id_byte,  uint, 0400);
-module_param(fourth_id_byte, uint, 0400);
+module_param_array(id_bytes, byte, NULL, 0400);
+module_param_named(first_id_byte, id_bytes[0], byte, 0400);
+module_param_named(second_id_byte, id_bytes[1], byte, 0400);
+module_param_named(third_id_byte, id_bytes[2], byte, 0400);
+module_param_named(fourth_id_byte, id_bytes[3], byte, 0400);
 module_param(access_delay,   uint, 0400);
 module_param(programm_delay, uint, 0400);
 module_param(erase_delay,    uint, 0400);
@@ -136,10 +140,11 @@ module_param(cache_file,     charp, 0400);
 module_param(bbt,	     uint, 0400);
 module_param(bch,	     uint, 0400);
 
-MODULE_PARM_DESC(first_id_byte,  "The first byte returned by NAND Flash 'read ID' command (manufacturer ID)");
-MODULE_PARM_DESC(second_id_byte, "The second byte returned by NAND Flash 'read ID' command (chip ID)");
-MODULE_PARM_DESC(third_id_byte,  "The third byte returned by NAND Flash 'read ID' command");
-MODULE_PARM_DESC(fourth_id_byte, "The fourth byte returned by NAND Flash 'read ID' command");
+MODULE_PARM_DESC(id_bytes,       "The ID bytes returned by NAND Flash 'read ID' command");
+MODULE_PARM_DESC(first_id_byte,  "The first byte returned by NAND Flash 'read ID' command (manufacturer ID) (obsolete)");
+MODULE_PARM_DESC(second_id_byte, "The second byte returned by NAND Flash 'read ID' command (chip ID) (obsolete)");
+MODULE_PARM_DESC(third_id_byte,  "The third byte returned by NAND Flash 'read ID' command (obsolete)");
+MODULE_PARM_DESC(fourth_id_byte, "The fourth byte returned by NAND Flash 'read ID' command (obsolete)");
 MODULE_PARM_DESC(access_delay,   "Initial page access delay (microseconds)");
 MODULE_PARM_DESC(programm_delay, "Page programm delay (microseconds");
 MODULE_PARM_DESC(erase_delay,    "Sector erase delay (milliseconds)");
@@ -304,7 +309,7 @@ struct nandsim {
 	unsigned int nbparts;
 
 	uint busw;              /* flash chip bus width (8 or 16) */
-	u_char ids[4];          /* chip's ID bytes */
+	u_char ids[8];          /* chip's ID bytes */
 	uint32_t options;       /* chip's characteristic bits */
 	uint32_t state;         /* current chip state */
 	uint32_t nxstate;       /* next expected state */
@@ -2279,17 +2284,18 @@ static int __init ns_init_module(void)
 	 * Perform minimum nandsim structure initialization to handle
 	 * the initial ID read command correctly
 	 */
-	if (third_id_byte != 0xFF || fourth_id_byte != 0xFF)
+	if (id_bytes[6] != 0xFF || id_bytes[7] != 0xFF)
+		nand->geom.idbytes = 8;
+	else if (id_bytes[4] != 0xFF || id_bytes[5] != 0xFF)
+		nand->geom.idbytes = 6;
+	else if (id_bytes[2] != 0xFF || id_bytes[3] != 0xFF)
 		nand->geom.idbytes = 4;
 	else
 		nand->geom.idbytes = 2;
 	nand->regs.status = NS_STATUS_OK(nand);
 	nand->nxstate = STATE_UNKNOWN;
 	nand->options |= OPT_PAGE512; /* temporary value */
-	nand->ids[0] = first_id_byte;
-	nand->ids[1] = second_id_byte;
-	nand->ids[2] = third_id_byte;
-	nand->ids[3] = fourth_id_byte;
+	memcpy(nand->ids, id_bytes, sizeof(nand->ids));
 	if (bus_width == 16) {
 		nand->busw = 16;
 		chip->options |= NAND_BUSWIDTH_16;
