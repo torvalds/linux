@@ -244,12 +244,15 @@ vpbe_buffer_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 
 	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev, "vpbe_buffer_setup\n");
 
+	if (fmt && fmt->fmt.pix.sizeimage < layer->pix_fmt.sizeimage)
+		return -EINVAL;
+
 	/* Store number of buffers allocated in numbuffer member */
-	if (*nbuffers < VPBE_DEFAULT_NUM_BUFS)
-		*nbuffers = layer->numbuffers = VPBE_DEFAULT_NUM_BUFS;
+	if (vq->num_buffers + *nbuffers < VPBE_DEFAULT_NUM_BUFS)
+		*nbuffers = VPBE_DEFAULT_NUM_BUFS - vq->num_buffers;
 
 	*nplanes = 1;
-	sizes[0] = layer->pix_fmt.sizeimage;
+	sizes[0] = fmt ? fmt->fmt.pix.sizeimage : layer->pix_fmt.sizeimage;
 	alloc_ctxs[0] = layer->alloc_ctx;
 
 	return 0;
@@ -1241,6 +1244,7 @@ static const struct v4l2_ioctl_ops vpbe_ioctl_ops = {
 	.vidioc_try_fmt_vid_out  = vpbe_display_try_fmt,
 
 	.vidioc_reqbufs		 = vb2_ioctl_reqbufs,
+	.vidioc_create_bufs	 = vb2_ioctl_create_bufs,
 	.vidioc_querybuf	 = vb2_ioctl_querybuf,
 	.vidioc_qbuf		 = vb2_ioctl_qbuf,
 	.vidioc_dqbuf		 = vb2_ioctl_dqbuf,

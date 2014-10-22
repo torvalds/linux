@@ -70,8 +70,6 @@ struct vpbe_disp_buffer {
 
 /* vpbe display object structure */
 struct vpbe_layer {
-	/* number of buffers in fbuffers */
-	unsigned int numbuffers;
 	/* Pointer to the vpbe_display */
 	struct vpbe_display *disp_dev;
 	/* Pointer pointing to current v4l2_buffer */
