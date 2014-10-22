@@ -509,8 +509,8 @@ static struct pcie_host_ops exynos_pcie_host_ops = {
 	.host_init = exynos_pcie_host_init,
 };
 
-static int __init add_pcie_port(struct pcie_port *pp,
-				struct platform_device *pdev)
+static int __init exynos_add_pcie_port(struct pcie_port *pp,
+				       struct platform_device *pdev)
 {
 	int ret;
 
@@ -615,7 +615,7 @@ static int __init exynos_pcie_probe(struct platform_device *pdev)
 		goto fail_bus_clk;
 	}
 
-	ret = add_pcie_port(pp, pdev);
+	ret = exynos_add_pcie_port(pp, pdev);
 	if (ret < 0)
 		goto fail_bus_clk;
 
@@ -656,11 +656,11 @@ static struct platform_driver exynos_pcie_driver = {
 
 /* Exynos PCIe driver does not allow module unload */
 
-static int __init pcie_init(void)
+static int __init exynos_pcie_init(void)
 {
 	return platform_driver_probe(&exynos_pcie_driver, exynos_pcie_probe);
 }
-subsys_initcall(pcie_init);
+subsys_initcall(exynos_pcie_init);
 
 MODULE_AUTHOR("Jingoo Han <jg1.han@samsung.com>");
 MODULE_DESCRIPTION("Samsung PCIe host controller driver");
