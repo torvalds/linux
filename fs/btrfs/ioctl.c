@@ -5296,7 +5296,7 @@ long btrfs_ioctl(struct file *file, unsigned int
 		ret = btrfs_start_delalloc_roots(root->fs_info, 0, -1);
 		if (ret)
 			return ret;
-		ret = btrfs_sync_fs(file->f_dentry->d_sb, 1);
+		ret = btrfs_sync_fs(file_inode(file)->i_sb, 1);
 		/*
 		 * The transaction thread may want to do more work,
 		 * namely it pokes the cleaner ktread that will start
