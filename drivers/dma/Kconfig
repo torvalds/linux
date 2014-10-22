@@ -107,6 +107,13 @@ config AT_HDMAC
 	help
 	  Support the Atmel AHB DMA controller.
 
+config AT_XDMAC
+	tristate "Atmel XDMA support"
+	depends on (ARCH_AT91 || COMPILE_TEST)
+	select DMA_ENGINE
+	help
+	  Support the Atmel XDMA controller.
+
 config FSL_DMA
 	tristate "Freescale Elo series DMA support"
 	depends on FSL_SOC
