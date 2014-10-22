@@ -192,6 +192,21 @@ int snd_pcm_info_user(struct snd_pcm_substream *substream,
 	return err;
 }
 
+static bool hw_support_mmap(struct snd_pcm_substream *substream)
+{
+	if (!(substream->runtime->hw.info & SNDRV_PCM_INFO_MMAP))
+		return false;
+	/* check architectures that return -EINVAL from dma_mmap_coherent() */
+	/* FIXME: this should be some global flag */
+#if defined(CONFIG_C6X) || defined(CONFIG_FRV) || defined(CONFIG_MN10300) ||\
+	defined(CONFIG_PARISC) || defined(CONFIG_XTENSA)
+	if (!substream->ops->mmap &&
+	    substream->dma_buffer.dev.type == SNDRV_DMA_TYPE_DEV)
+		return false;
+#endif
+	return true;
+}
+
 #undef RULES_DEBUG
 
 #ifdef RULES_DEBUG
@@ -369,8 +384,12 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 	}
 
 	hw = &substream->runtime->hw;
-	if (!params->info)
+	if (!params->info) {
 		params->info = hw->info & ~SNDRV_PCM_INFO_FIFO_IN_FRAMES;
+		if (!hw_support_mmap(substream))
+			params->info &= ~(SNDRV_PCM_INFO_MMAP |
+					  SNDRV_PCM_INFO_MMAP_VALID);
+	}
 	if (!params->fifo_size) {
 		m = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
 		i = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
@@ -2069,7 +2088,7 @@ int snd_pcm_hw_constraints_complete(struct snd_pcm_substream *substream)
 		mask |= 1 << SNDRV_PCM_ACCESS_RW_INTERLEAVED;
         if (hw->info & SNDRV_PCM_INFO_NONINTERLEAVED)
 		mask |= 1 << SNDRV_PCM_ACCESS_RW_NONINTERLEAVED;
-	if (hw->info & SNDRV_PCM_INFO_MMAP) {
+	if (hw_support_mmap(substream)) {
 		if (hw->info & SNDRV_PCM_INFO_INTERLEAVED)
 			mask |= 1 << SNDRV_PCM_ACCESS_MMAP_INTERLEAVED;
 		if (hw->info & SNDRV_PCM_INFO_NONINTERLEAVED)
