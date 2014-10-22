@@ -106,6 +106,9 @@ static void svc_handshake(struct svc_function_handshake *handshake,
 static void svc_management(struct svc_function_unipro_management *management,
 			   int payload_length, struct greybus_host_device *hd)
 {
+	struct gb_module *module;
+	struct gb_interface *interface;
+
 	if (payload_length != sizeof(struct svc_function_unipro_management)) {
 		dev_err(hd->parent,
 			"Illegal size of svc management message %d\n",
@@ -114,6 +117,22 @@ static void svc_management(struct svc_function_unipro_management *management,
 	}
 
 	switch (management->management_packet_type) {
+	case SVC_MANAGEMENT_LINK_UP:
+		module = gb_module_find(hd, management->link_up.module_id);
+		if (!module) {
+			dev_err(hd->parent, "Module ID %d not found\n",
+				management->link_up.module_id);
+			return;
+		}
+		interface = gb_interface_find(module,
+					      management->link_up.interface_id);
+		if (!interface) {
+			dev_err(hd->parent, "Interface ID %d not found\n",
+				management->link_up.interface_id);
+			return;
+		}
+		interface->device_id = management->link_up.device_id;
+		break;
 	case SVC_MANAGEMENT_AP_DEVICE_ID:
 		hd->device_id = management->ap_device_id.device_id;
 		break;

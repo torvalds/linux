@@ -55,6 +55,8 @@ struct svc_function_unipro_set_route {
 };
 
 struct svc_function_unipro_link_up {
+	__u8	module_id;
+	__u8	interface_id;
 	__u8	device_id;
 };
 
