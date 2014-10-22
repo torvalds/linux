@@ -13,6 +13,14 @@
 
 #include "greybus.h"
 
+enum gb_connection_state {
+	GB_CONNECTION_STATE_INVALID	= 0,
+	GB_CONNECTION_STATE_DISABLED	= 1,
+	GB_CONNECTION_STATE_ENABLED	= 2,
+	GB_CONNECTION_STATE_ERROR	= 3,
+	GB_CONNECTION_STATE_DESTROYING	= 4,
+};
+
 struct gb_connection {
 	struct greybus_host_device	*hd;
 	struct gb_interface		*interface;
@@ -22,6 +30,7 @@ struct gb_connection {
 	struct rb_node			hd_node;
 	struct list_head		interface_links;
 	enum greybus_protocol		protocol;
+	enum gb_connection_state	state;
 
 	struct list_head		operations;
 	struct rb_root			pending;	/* awaiting reponse */

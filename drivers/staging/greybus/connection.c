@@ -143,6 +143,7 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 	connection->interface = interface;	/* XXX refcount? */
 	connection->interface_cport_id = cport_id;
 	connection->protocol = protocol;
+	connection->state = GB_CONNECTION_STATE_DISABLED;
 
 	spin_lock_irq(&gb_connections_lock);
 	_gb_hd_connection_insert(hd, connection);
@@ -217,13 +218,20 @@ void gb_connection_err(struct gb_connection *connection, const char *fmt, ...)
  */
 int gb_connection_init(struct gb_connection *connection)
 {
+	int ret;
+
+	/* Need to enable the connection to initialize it */
+	connection->state = GB_CONNECTION_STATE_ENABLED;
 	switch (connection->protocol) {
 	case GREYBUS_PROTOCOL_I2C:
-		return gb_i2c_device_init(connection);
+		ret = gb_i2c_device_init(connection);
+		break;
 	case GREYBUS_PROTOCOL_GPIO:
-		return gb_gpio_controller_init(connection);
+		ret = gb_gpio_controller_init(connection);
+		break;
 	case GREYBUS_PROTOCOL_BATTERY:
-		return gb_battery_device_init(connection);
+		ret = gb_battery_device_init(connection);
+		break;
 	case GREYBUS_PROTOCOL_CONTROL:
 	case GREYBUS_PROTOCOL_AP:
 	case GREYBUS_PROTOCOL_UART:
@@ -233,13 +241,20 @@ int gb_connection_init(struct gb_connection *connection)
 	default:
 		gb_connection_err(connection, "unimplemented protocol %u",
 			(u32)connection->protocol);
+		ret = -ENXIO;
 		break;
 	}
-	return -ENXIO;
+
+	if (ret)
+		connection->state = GB_CONNECTION_STATE_ERROR;
+
+	return ret;
 }
 
 void gb_connection_exit(struct gb_connection *connection)
 {
+	connection->state = GB_CONNECTION_STATE_DESTROYING;
+
 	switch (connection->protocol) {
 	case GREYBUS_PROTOCOL_I2C:
 		gb_i2c_device_exit(connection);

@@ -417,6 +417,9 @@ int gb_operation_request_send(struct gb_operation *operation,
 {
 	int ret;
 
+	if (operation->connection->state != GB_CONNECTION_STATE_ENABLED)
+		return -ENOTCONN;
+
 	/*
 	 * XXX
 	 * I think the order of operations is going to be
@@ -460,6 +463,9 @@ void gb_connection_operation_recv(struct gb_connection *connection,
 	struct gb_operation *operation;
 	struct gbuf *gbuf;
 	u16 msg_size;
+
+	if (connection->state != GB_CONNECTION_STATE_ENABLED)
+		return;
 
 	if (size > GB_OPERATION_MESSAGE_SIZE_MAX) {
 		gb_connection_err(connection, "message too big");
