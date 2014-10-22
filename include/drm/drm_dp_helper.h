@@ -404,26 +404,6 @@
 #define MODE_I2C_READ	4
 #define MODE_I2C_STOP	8
 
-/**
- * struct i2c_algo_dp_aux_data - driver interface structure for i2c over dp
- * 				 aux algorithm
- * @running: set by the algo indicating whether an i2c is ongoing or whether
- * 	     the i2c bus is quiescent
- * @address: i2c target address for the currently ongoing transfer
- * @aux_ch: driver callback to transfer a single byte of the i2c payload
- */
-struct i2c_algo_dp_aux_data {
-	bool running;
-	u16 address;
-	int (*aux_ch) (struct i2c_adapter *adapter,
-		       int mode, uint8_t write_byte,
-		       uint8_t *read_byte);
-};
-
-int
-i2c_dp_aux_add_bus(struct i2c_adapter *adapter);
-
-
 #define DP_LINK_STATUS_SIZE	   6
 bool drm_dp_channel_eq_ok(const u8 link_status[DP_LINK_STATUS_SIZE],
 			  int lane_count);
