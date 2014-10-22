@@ -423,6 +423,7 @@ header-y += virtio_blk.h
 header-y += virtio_config.h
 header-y += virtio_console.h
 header-y += virtio_ids.h
+header-y += virtio_types.h
 header-y += virtio_net.h
 header-y += virtio_pci.h
 header-y += virtio_ring.h
