@@ -249,19 +249,17 @@ static void usbduxfast_ai_handle_urb(struct comedi_device *dev,
 		devpriv->ignore--;
 	} else {
 		unsigned int nbytes = urb->actual_length;
+		unsigned int nsamples = nbytes / bytes_per_sample(s);
 
 		if (cmd->stop_src == TRIG_COUNT) {
-			unsigned int nsamples = nbytes / bytes_per_sample(s);
-
 			if (devpriv->ai_sample_count < nsamples) {
 				nsamples = devpriv->ai_sample_count;
 				async->events |= COMEDI_CB_EOA;
 			}
 			devpriv->ai_sample_count -= nsamples;
-			nbytes = nsamples * bytes_per_sample(s);
 		}
 
-		cfc_write_array_to_buffer(s, urb->transfer_buffer, nbytes);
+		comedi_buf_write_samples(s, urb->transfer_buffer, nsamples);
 	}
 
 	/* if command is still running, resubmit urb for BULK transfer */
