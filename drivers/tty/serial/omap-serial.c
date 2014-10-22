@@ -46,7 +46,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 
-#define OMAP_MAX_HSUART_PORTS	6
+#define OMAP_MAX_HSUART_PORTS	10
 
 #define UART_BUILD_REVISION(x, y)	(((x) << 8) | (y))
 
@@ -1690,6 +1690,13 @@ static int serial_omap_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get alias/pdev id, errno %d\n",
 								up->port.line);
 		ret = -ENODEV;
+		goto err_port_line;
+	}
+
+	if (up->port.line >= OMAP_MAX_HSUART_PORTS) {
+		dev_err(&pdev->dev, "uart ID %d >  MAX %d.\n", up->port.line,
+			OMAP_MAX_HSUART_PORTS);
+		ret = -ENXIO;
 		goto err_port_line;
 	}
 
