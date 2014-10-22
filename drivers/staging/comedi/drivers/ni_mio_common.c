@@ -1226,44 +1226,42 @@ static void ni_ai_fifo_read(struct comedi_device *dev,
 {
 	struct ni_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
+	u32 dl;
+	unsigned short data;
 	int i;
 
 	if (devpriv->is_611x) {
-		unsigned short data[2];
-		u32 dl;
-
 		for (i = 0; i < n / 2; i++) {
 			dl = ni_readl(dev, ADC_FIFO_Data_611x);
 			/* This may get the hi/lo data in the wrong order */
-			data[0] = (dl >> 16) & 0xffff;
-			data[1] = dl & 0xffff;
-			cfc_write_array_to_buffer(s, data, sizeof(data));
+			data = (dl >> 16) & 0xffff;
+			comedi_buf_write_samples(s, &data, 1);
+			data = dl & 0xffff;
+			comedi_buf_write_samples(s, &data, 1);
 		}
 		/* Check if there's a single sample stuck in the FIFO */
 		if (n % 2) {
 			dl = ni_readl(dev, ADC_FIFO_Data_611x);
-			data[0] = dl & 0xffff;
-			cfc_write_to_buffer(s, data[0]);
+			data = dl & 0xffff;
+			comedi_buf_write_samples(s, &data, 1);
 		}
 	} else if (devpriv->is_6143) {
-		unsigned short data[2];
-		u32 dl;
-
 		/*  This just reads the FIFO assuming the data is present, no checks on the FIFO status are performed */
 		for (i = 0; i < n / 2; i++) {
 			dl = ni_readl(dev, AIFIFO_Data_6143);
 
-			data[0] = (dl >> 16) & 0xffff;
-			data[1] = dl & 0xffff;
-			cfc_write_array_to_buffer(s, data, sizeof(data));
+			data = (dl >> 16) & 0xffff;
+			comedi_buf_write_samples(s, &data, 1);
+			data = dl & 0xffff;
+			comedi_buf_write_samples(s, &data, 1);
 		}
 		if (n % 2) {
 			/* Assume there is a single sample stuck in the FIFO */
 			/* Get stranded sample into FIFO */
 			ni_writel(dev, 0x01, AIFIFO_Control_6143);
 			dl = ni_readl(dev, AIFIFO_Data_6143);
-			data[0] = (dl >> 16) & 0xffff;
-			cfc_write_to_buffer(s, data[0]);
+			data = (dl >> 16) & 0xffff;
+			comedi_buf_write_samples(s, &data, 1);
 		}
 	} else {
 		if (n > sizeof(devpriv->ai_fifo_buffer) /
@@ -1277,9 +1275,7 @@ static void ni_ai_fifo_read(struct comedi_device *dev,
 			devpriv->ai_fifo_buffer[i] =
 			    ni_readw(dev, ADC_FIFO_Data_Register);
 		}
-		cfc_write_array_to_buffer(s, devpriv->ai_fifo_buffer,
-					  n *
-					  sizeof(devpriv->ai_fifo_buffer[0]));
+		comedi_buf_write_samples(s, devpriv->ai_fifo_buffer, n);
 	}
 }
 
@@ -1302,8 +1298,8 @@ static void ni_handle_fifo_dregs(struct comedi_device *dev)
 {
 	struct ni_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
-	unsigned short data[2];
 	u32 dl;
+	unsigned short data;
 	unsigned short fifo_empty;
 	int i;
 
@@ -1313,9 +1309,10 @@ static void ni_handle_fifo_dregs(struct comedi_device *dev)
 			dl = ni_readl(dev, ADC_FIFO_Data_611x);
 
 			/* This may get the hi/lo data in the wrong order */
-			data[0] = (dl >> 16);
-			data[1] = (dl & 0xffff);
-			cfc_write_array_to_buffer(s, data, sizeof(data));
+			data = dl >> 16;
+			comedi_buf_write_samples(s, &data, 1);
+			data = dl & 0xffff;
+			comedi_buf_write_samples(s, &data, 1);
 		}
 	} else if (devpriv->is_6143) {
 		i = 0;
@@ -1323,9 +1320,10 @@ static void ni_handle_fifo_dregs(struct comedi_device *dev)
 			dl = ni_readl(dev, AIFIFO_Data_6143);
 
 			/* This may get the hi/lo data in the wrong order */
-			data[0] = (dl >> 16);
-			data[1] = (dl & 0xffff);
-			cfc_write_array_to_buffer(s, data, sizeof(data));
+			data = dl >> 16;
+			comedi_buf_write_samples(s, &data, 1);
+			data = dl & 0xffff;
+			comedi_buf_write_samples(s, &data, 1);
 			i += 2;
 		}
 		/*  Check if stranded sample is present */
@@ -1333,8 +1331,8 @@ static void ni_handle_fifo_dregs(struct comedi_device *dev)
 			/* Get stranded sample into FIFO */
 			ni_writel(dev, 0x01, AIFIFO_Control_6143);
 			dl = ni_readl(dev, AIFIFO_Data_6143);
-			data[0] = (dl >> 16) & 0xffff;
-			cfc_write_to_buffer(s, data[0]);
+			data = (dl >> 16) & 0xffff;
+			comedi_buf_write_samples(s, &data, 1);
 		}
 
 	} else {
@@ -1353,10 +1351,7 @@ static void ni_handle_fifo_dregs(struct comedi_device *dev)
 				devpriv->ai_fifo_buffer[i] =
 				    ni_readw(dev, ADC_FIFO_Data_Register);
 			}
-			cfc_write_array_to_buffer(s, devpriv->ai_fifo_buffer,
-						  i *
-						  sizeof(devpriv->
-							 ai_fifo_buffer[0]));
+			comedi_buf_write_samples(s, devpriv->ai_fifo_buffer, i);
 		}
 	}
 }
@@ -1375,7 +1370,7 @@ static void get_last_sample_611x(struct comedi_device *dev)
 	if (ni_readb(dev, XXX_Status) & 0x80) {
 		dl = ni_readl(dev, ADC_FIFO_Data_611x);
 		data = (dl & 0xffff);
-		cfc_write_to_buffer(s, data);
+		comedi_buf_write_samples(s, &data, 1);
 	}
 }
 
@@ -1397,7 +1392,7 @@ static void get_last_sample_6143(struct comedi_device *dev)
 
 		/* This may get the hi/lo data in the wrong order */
 		data = (dl >> 16) & 0xffff;
-		cfc_write_to_buffer(s, data);
+		comedi_buf_write_samples(s, &data, 1);
 	}
 }
 
