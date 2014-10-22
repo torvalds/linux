@@ -980,18 +980,28 @@ static struct platform_driver platform_driver = {
 #define EEEPC_EC_SFB0      0xD0
 #define EEEPC_EC_FAN_CTRL  (EEEPC_EC_SFB0 + 3) /* Byte containing SF25  */
 
+static inline int eeepc_pwm_to_lmsensors(int value)
+{
+	return value * 255 / 100;
+}
+
+static inline int eeepc_lmsensors_to_pwm(int value)
+{
+	value = clamp_val(value, 0, 255);
+	return value * 100 / 255;
+}
+
 static int eeepc_get_fan_pwm(void)
 {
 	u8 value = 0;
 
 	ec_read(EEEPC_EC_FAN_PWM, &value);
-	return value * 255 / 100;
+	return eeepc_pwm_to_lmsensors(value);
 }
 
 static void eeepc_set_fan_pwm(int value)
 {
-	value = clamp_val(value, 0, 255);
-	value = value * 100 / 255;
+	value = eeepc_lmsensors_to_pwm(value);
 	ec_write(EEEPC_EC_FAN_PWM, value);
 }
 
