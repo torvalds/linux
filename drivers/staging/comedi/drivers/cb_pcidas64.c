@@ -2689,9 +2689,10 @@ static void pio_drain_ai_fifo_16(struct comedi_device *dev)
 		}
 
 		for (i = 0; i < num_samples; i++) {
-			cfc_write_to_buffer(s,
-					    readw(devpriv->main_iobase +
-						  ADC_FIFO_REG));
+			unsigned short val;
+
+			val = readw(devpriv->main_iobase + ADC_FIFO_REG);
+			comedi_buf_write_samples(s, &val, 1);
 		}
 
 	} while (read_segment != write_segment);
@@ -2722,11 +2723,15 @@ static void pio_drain_ai_fifo_32(struct comedi_device *dev)
 
 	}
 	for (i = 0; read_code != write_code && i < max_transfer;) {
+		unsigned short val;
+
 		fifo_data = readl(dev->mmio + ADC_FIFO_REG);
-		cfc_write_to_buffer(s, fifo_data & 0xffff);
+		val = fifo_data & 0xffff;
+		comedi_buf_write_samples(s, &val, 1);
 		i++;
 		if (i < max_transfer) {
-			cfc_write_to_buffer(s, (fifo_data >> 16) & 0xffff);
+			val = (fifo_data >> 16) & 0xffff;
+			comedi_buf_write_samples(s, &val, 1);
 			i++;
 		}
 		read_code = readw(devpriv->main_iobase + ADC_READ_PNTR_REG) &
@@ -2778,10 +2783,9 @@ static void drain_dma_buffers(struct comedi_device *dev, unsigned int channel)
 				num_samples = devpriv->ai_count;
 			devpriv->ai_count -= num_samples;
 		}
-		cfc_write_array_to_buffer(dev->read_subdev,
-					  devpriv->ai_buffer[devpriv->
-							     ai_dma_index],
-					  num_samples * sizeof(uint16_t));
+		comedi_buf_write_samples(dev->read_subdev,
+				devpriv->ai_buffer[devpriv->ai_dma_index],
+				num_samples);
 		devpriv->ai_dma_index = (devpriv->ai_dma_index + 1) %
 					ai_dma_ring_count(thisboard);
 	}
