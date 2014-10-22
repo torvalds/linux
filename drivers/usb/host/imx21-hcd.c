@@ -1174,11 +1174,11 @@ static int imx21_hc_urb_enqueue(struct usb_hcd *hcd,
 
 	dev_vdbg(imx21->dev,
 		"enqueue urb=%p ep=%p len=%d "
-		"buffer=%p dma=%08X setupBuf=%p setupDma=%08X\n",
+		"buffer=%p dma=%pad setupBuf=%p setupDma=%pad\n",
 		urb, ep,
 		urb->transfer_buffer_length,
-		urb->transfer_buffer, urb->transfer_dma,
-		urb->setup_packet, urb->setup_dma);
+		urb->transfer_buffer, &urb->transfer_dma,
+		urb->setup_packet, &urb->setup_dma);
 
 	if (usb_pipeisoc(urb->pipe))
 		return imx21_hc_urb_enqueue_isoc(hcd, ep, urb, mem_flags);
