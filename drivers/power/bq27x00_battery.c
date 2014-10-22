@@ -497,10 +497,11 @@ static void bq27x00_update(struct bq27x00_device_info *di)
 			di->charge_design_full = bq27x00_battery_read_ilmd(di);
 	}
 
-	if (memcmp(&di->cache, &cache, sizeof(cache)) != 0) {
-		di->cache = cache;
+	if (di->cache.capacity != cache.capacity)
 		power_supply_changed(&di->bat);
-	}
+
+	if (memcmp(&di->cache, &cache, sizeof(cache)) != 0)
+		di->cache = cache;
 
 	di->last_update = jiffies;
 }
