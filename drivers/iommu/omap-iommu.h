@@ -33,7 +33,6 @@ struct omap_iommu {
 	void		*isr_priv;
 	struct iommu_domain *domain;
 
-	unsigned int	refcount;
 	spinlock_t	iommu_lock;	/* global for this whole object */
 
 	/*
