@@ -123,6 +123,7 @@
 			local-mac-address = [00 00 00 00 00 00];
 			#address-cells = <1>;
 			#size-cells = <0>;
+			phy-connection-type = "mii";
 			phy-handle = <&ethphy0>;
 			status = "disabled";
 
