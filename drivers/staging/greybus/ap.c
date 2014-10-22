@@ -100,24 +100,26 @@ static void svc_handshake(struct svc_function_handshake *handshake,
 	svc_msg->handshake.version_major = GREYBUS_VERSION_MAJOR;
 	svc_msg->handshake.version_minor = GREYBUS_VERSION_MINOR;
 	svc_msg->handshake.handshake_type = SVC_HANDSHAKE_AP_HELLO;
-	svc_msg_send(svc_msg, hd);
+
+	(void)svc_msg_send(svc_msg, hd);
 }
 
-static void svc_set_route_send(struct gb_interface *interface,
+int svc_set_route_send(struct gb_interface *interface,
 			       struct greybus_host_device *hd)
 {
 	struct svc_msg *svc_msg;
 
 	svc_msg = svc_msg_alloc(SVC_FUNCTION_UNIPRO_NETWORK_MANAGEMENT);
 	if (!svc_msg)
-		return;
+		return -ENOMEM;
 
 	svc_msg->header.function_id = SVC_FUNCTION_UNIPRO_NETWORK_MANAGEMENT;
 	svc_msg->header.message_type = SVC_MSG_DATA;
 	svc_msg->header.payload_length =
 		cpu_to_le16(sizeof(struct svc_function_unipro_set_route));
 	svc_msg->management.set_route.device_id = interface->device_id;
-	svc_msg_send(svc_msg, hd);
+
+	return svc_msg_send(svc_msg, hd);
 }
 
 static void svc_management(struct svc_function_unipro_management *management,
@@ -149,7 +151,7 @@ static void svc_management(struct svc_function_unipro_management *management,
 			return;
 		}
 		interface->device_id = management->link_up.device_id;
-		svc_set_route_send(interface, hd);
+		(void)svc_set_route_send(interface, hd);
 		break;
 	case SVC_MANAGEMENT_AP_DEVICE_ID:
 		hd->device_id = management->ap_device_id.device_id;
