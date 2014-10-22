@@ -2119,11 +2119,13 @@ static int __exit docg3_release(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
 static struct of_device_id docg3_dt_ids[] = {
 	{ .compatible = "m-systems,diskonchip-g3" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, docg3_dt_ids);
+#endif
 
 static struct platform_driver g3_driver = {
 	.driver		= {
