@@ -1206,6 +1206,7 @@ static void _omap_iommu_detach_dev(struct omap_iommu_domain *omap_domain,
 
 	omap_domain->iommu_dev = arch_data->iommu_dev = NULL;
 	omap_domain->dev = NULL;
+	oiommu->domain = NULL;
 }
 
 static void omap_iommu_detach_dev(struct iommu_domain *domain,
