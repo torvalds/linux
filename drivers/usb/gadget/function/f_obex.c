@@ -397,7 +397,6 @@ static int obex_bind(struct usb_configuration *c, struct usb_function *f)
 	return 0;
 
 fail:
-	usb_free_all_descriptors(f);
 	/* we might as well release our claims on endpoints */
 	if (obex->port.out)
 		obex->port.out->driver_data = NULL;

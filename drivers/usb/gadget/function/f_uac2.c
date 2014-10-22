@@ -1084,7 +1084,7 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 	prm->rbuf = kzalloc(prm->max_psize * USB_XFERS, GFP_KERNEL);
 	if (!prm->rbuf) {
 		prm->max_psize = 0;
-		goto err;
+		goto err_free_descs;
 	}
 
 	prm = &agdev->uac2.p_prm;
@@ -1092,17 +1092,19 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 	prm->rbuf = kzalloc(prm->max_psize * USB_XFERS, GFP_KERNEL);
 	if (!prm->rbuf) {
 		prm->max_psize = 0;
-		goto err;
+		goto err_free_descs;
 	}
 
 	ret = alsa_uac2_init(agdev);
 	if (ret)
-		goto err;
+		goto err_free_descs;
 	return 0;
+
+err_free_descs:
+	usb_free_all_descriptors(fn);
 err:
 	kfree(agdev->uac2.p_prm.rbuf);
 	kfree(agdev->uac2.c_prm.rbuf);
-	usb_free_all_descriptors(fn);
 	if (agdev->in_ep)
 		agdev->in_ep->driver_data = NULL;
 	if (agdev->out_ep)
