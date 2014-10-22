@@ -1359,8 +1359,7 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 		}
 		insw(devpriv->adc_fifo + ADCDATA, devpriv->ai_buffer,
 		     num_samples);
-		cfc_write_array_to_buffer(s, devpriv->ai_buffer,
-					  num_samples * sizeof(short));
+		comedi_buf_write_samples(s, devpriv->ai_buffer, num_samples);
 		devpriv->count -= num_samples;
 		if (cmd->stop_src == TRIG_COUNT && devpriv->count == 0)
 			async->events |= COMEDI_CB_EOA;
@@ -1372,11 +1371,14 @@ static irqreturn_t cb_pcidas_interrupt(int irq, void *d)
 		/*  else if fifo not empty */
 	} else if (status & (ADNEI | EOBI)) {
 		for (i = 0; i < timeout; i++) {
+			unsigned short val;
+
 			/*  break if fifo is empty */
 			if ((ADNE & inw(devpriv->control_status +
 					INT_ADCFIFO)) == 0)
 				break;
-			cfc_write_to_buffer(s, inw(devpriv->adc_fifo));
+			val = inw(devpriv->adc_fifo);
+			comedi_buf_write_samples(s, &val, 1);
 			if (cmd->stop_src == TRIG_COUNT &&
 			    --devpriv->count == 0) {
 				/* end of acquisition */
