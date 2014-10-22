@@ -30,17 +30,6 @@ static DEFINE_MUTEX(iommu_debug_lock);
 
 static struct dentry *iommu_debug_root;
 
-static ssize_t debug_read_ver(struct file *file, char __user *userbuf,
-			      size_t count, loff_t *ppos)
-{
-	u32 ver = omap_iommu_arch_version();
-	char buf[MAXCOLUMN], *p = buf;
-
-	p += sprintf(p, "H/W version: %d.%d\n", (ver >> 4) & 0xf , ver & 0xf);
-
-	return simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
-}
-
 static ssize_t debug_read_regs(struct file *file, char __user *userbuf,
 			       size_t count, loff_t *ppos)
 {
@@ -228,7 +217,6 @@ static ssize_t debug_read_pagetable(struct file *file, char __user *userbuf,
 		.llseek = generic_file_llseek,				\
 	};
 
-DEBUG_FOPS_RO(ver);
 DEBUG_FOPS_RO(regs);
 DEBUG_FOPS_RO(tlb);
 DEBUG_FOPS(pagetable);
@@ -273,7 +261,6 @@ static int iommu_debug_register(struct device *dev, void *data)
 	if (!d)
 		goto nomem;
 
-	DEBUG_ADD_FILE_RO(ver);
 	DEBUG_ADD_FILE_RO(regs);
 	DEBUG_ADD_FILE_RO(tlb);
 	DEBUG_ADD_FILE(pagetable);
