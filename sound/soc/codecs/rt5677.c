@@ -4014,7 +4014,7 @@ static struct regmap_irq_chip rt5677_irq_chip = {
 	.mask_invert = 1,
 };
 
-int rt5677_irq_init(struct i2c_client *i2c)
+static int rt5677_irq_init(struct i2c_client *i2c)
 {
 	int ret;
 	struct rt5677_priv *rt5677 = i2c_get_clientdata(i2c);
@@ -4041,7 +4041,7 @@ int rt5677_irq_init(struct i2c_client *i2c)
 	return 0;
 }
 
-void rt5677_irq_exit(struct i2c_client *i2c)
+static void rt5677_irq_exit(struct i2c_client *i2c)
 {
 	struct rt5677_priv *rt5677 = i2c_get_clientdata(i2c);
 
