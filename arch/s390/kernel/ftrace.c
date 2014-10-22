@@ -152,8 +152,7 @@ device_initcall(ftrace_plt_init);
  * Hook the return address and push it in the stack of return addresses
  * in current thread info.
  */
-unsigned long __kprobes prepare_ftrace_return(unsigned long parent,
-					      unsigned long ip)
+unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip)
 {
 	struct ftrace_graph_ent trace;
 
@@ -171,6 +170,7 @@ unsigned long __kprobes prepare_ftrace_return(unsigned long parent,
 out:
 	return parent;
 }
+NOKPROBE_SYMBOL(prepare_ftrace_return);
 
 /*
  * Patch the kernel code at ftrace_graph_caller location. The instruction

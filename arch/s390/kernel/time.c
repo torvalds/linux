@@ -61,10 +61,11 @@ static DEFINE_PER_CPU(struct clock_event_device, comparators);
 /*
  * Scheduler clock - returns current time in nanosec units.
  */
-unsigned long long notrace __kprobes sched_clock(void)
+unsigned long long notrace sched_clock(void)
 {
 	return tod_to_ns(get_tod_clock_monotonic());
 }
+NOKPROBE_SYMBOL(sched_clock);
 
 /*
  * Monotonic_clock - returns # of nanoseconds passed since time_init()

@@ -19,7 +19,7 @@
 
 static DEFINE_PER_CPU(struct s390_idle_data, s390_idle);
 
-void __kprobes enabled_wait(void)
+void enabled_wait(void)
 {
 	struct s390_idle_data *idle = this_cpu_ptr(&s390_idle);
 	unsigned long long idle_time;
@@ -46,6 +46,7 @@ void __kprobes enabled_wait(void)
 	smp_wmb();
 	idle->sequence++;
 }
+NOKPROBE_SYMBOL(enabled_wait);
 
 static ssize_t show_idle_count(struct device *dev,
 				struct device_attribute *attr, char *buf)

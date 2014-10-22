@@ -87,16 +87,16 @@ void do_report_trap(struct pt_regs *regs, int si_signo, int si_code, char *str)
         }
 }
 
-static void __kprobes do_trap(struct pt_regs *regs, int si_signo, int si_code,
-			      char *str)
+static void do_trap(struct pt_regs *regs, int si_signo, int si_code, char *str)
 {
 	if (notify_die(DIE_TRAP, str, regs, 0,
 		       regs->int_code, si_signo) == NOTIFY_STOP)
 		return;
 	do_report_trap(regs, si_signo, si_code, str);
 }
+NOKPROBE_SYMBOL(do_trap);
 
-void __kprobes do_per_trap(struct pt_regs *regs)
+void do_per_trap(struct pt_regs *regs)
 {
 	siginfo_t info;
 
@@ -111,6 +111,7 @@ void __kprobes do_per_trap(struct pt_regs *regs)
 		(void __force __user *) current->thread.per_event.address;
 	force_sig_info(SIGTRAP, &info, current);
 }
+NOKPROBE_SYMBOL(do_per_trap);
 
 void default_trap_handler(struct pt_regs *regs)
 {
@@ -179,7 +180,7 @@ static inline void do_fp_trap(struct pt_regs *regs, int fpc)
 	do_trap(regs, SIGFPE, si_code, "floating point exception");
 }
 
-void __kprobes illegal_op(struct pt_regs *regs)
+void illegal_op(struct pt_regs *regs)
 {
 	siginfo_t info;
         __u8 opcode[6];
@@ -252,7 +253,7 @@ void __kprobes illegal_op(struct pt_regs *regs)
 	if (signal)
 		do_trap(regs, signal, ILL_ILLOPC, "illegal operation");
 }
-
+NOKPROBE_SYMBOL(illegal_op);
 
 #ifdef CONFIG_MATHEMU
 void specification_exception(struct pt_regs *regs)
@@ -469,7 +470,7 @@ void space_switch_exception(struct pt_regs *regs)
 	do_trap(regs, SIGILL, ILL_PRVOPC, "space switch event");
 }
 
-void __kprobes kernel_stack_overflow(struct pt_regs * regs)
+void kernel_stack_overflow(struct pt_regs *regs)
 {
 	bust_spinlocks(1);
 	printk("Kernel stack overflow.\n");
@@ -477,6 +478,7 @@ void __kprobes kernel_stack_overflow(struct pt_regs * regs)
 	bust_spinlocks(0);
 	panic("Corrupt kernel stack, can't continue.");
 }
+NOKPROBE_SYMBOL(kernel_stack_overflow);
 
 void __init trap_init(void)
 {

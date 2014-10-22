@@ -61,7 +61,7 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 	return sf->gprs[8];
 }
 
-extern void __kprobes kernel_thread_starter(void);
+extern void kernel_thread_starter(void);
 
 /*
  * Free current thread data structures etc..
