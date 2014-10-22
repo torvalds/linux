@@ -237,7 +237,7 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 		dpnt = devpriv->dma_buffer[i];
 		/*  convert from 2's complement to unsigned coding */
 		dpnt ^= 0x8000;
-		cfc_write_to_buffer(s, dpnt);
+		comedi_buf_write_samples(s, &dpnt, 1);
 		if (cmd->stop_src == TRIG_COUNT) {
 			if (--devpriv->count == 0) {	/* end of acquisition */
 				async->events |= COMEDI_CB_EOA;
@@ -252,8 +252,6 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 		enable_dma(devpriv->dma);
 	}
 	release_dma_lock(flags);
-
-	async->events |= COMEDI_CB_BLOCK;
 
 	comedi_handle_events(dev, s);
 
