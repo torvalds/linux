@@ -39,6 +39,7 @@ enum parse_opt_option_flags {
 	PARSE_OPT_HIDDEN  = 8,
 	PARSE_OPT_LASTARG_DEFAULT = 16,
 	PARSE_OPT_DISABLED = 32,
+	PARSE_OPT_EXCLUSIVE = 64,
 };
 
 struct option;
@@ -174,6 +175,7 @@ struct parse_opt_ctx_t {
 	const char **out;
 	int argc, cpidx;
 	const char *opt;
+	const struct option *excl_opt;
 	int flags;
 };
 
