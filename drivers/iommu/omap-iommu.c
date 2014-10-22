@@ -138,15 +138,6 @@ void omap_iommu_restore_ctx(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(omap_iommu_restore_ctx);
 
-/**
- * omap_iommu_arch_version - Return running iommu arch version
- **/
-u32 omap_iommu_arch_version(void)
-{
-	return arch_iommu->version;
-}
-EXPORT_SYMBOL_GPL(omap_iommu_arch_version);
-
 static int iommu_enable(struct omap_iommu *obj)
 {
 	int err;

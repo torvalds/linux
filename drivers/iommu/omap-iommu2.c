@@ -297,8 +297,6 @@ static void omap2_cr_to_e(struct cr_regs *cr, struct iotlb_entry *e)
 }
 
 static const struct iommu_functions omap2_iommu_ops = {
-	.version	= IOMMU_ARCH_VERSION,
-
 	.enable		= omap2_iommu_enable,
 	.disable	= omap2_iommu_disable,
 	.set_twl	= omap2_iommu_set_twl,

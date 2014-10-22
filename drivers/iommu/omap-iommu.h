@@ -70,8 +70,6 @@ struct cr_regs {
 
 /* architecture specific functions */
 struct iommu_functions {
-	unsigned long	version;
-
 	int (*enable)(struct omap_iommu *obj);
 	void (*disable)(struct omap_iommu *obj);
 	void (*set_twl)(struct omap_iommu *obj, bool on);
@@ -191,8 +189,6 @@ static inline struct omap_iommu *dev_to_omap_iommu(struct device *dev)
 /*
  * global functions
  */
-extern u32 omap_iommu_arch_version(void);
-
 extern void omap_iotlb_cr_to_e(struct cr_regs *cr, struct iotlb_entry *e);
 
 extern int
