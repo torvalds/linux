@@ -48,10 +48,7 @@ struct svc_function_handshake {
 };
 
 struct svc_function_unipro_set_route {
-	__u8	source_device_id;
-	__u8	source_cport_id;	/* bottom 8 bits */
-	__u8	destination_device_id;
-	__u8	destination_cport_id;	/* bottom 8 bits */
+	__u8	device_id;
 };
 
 struct svc_function_unipro_link_up {
