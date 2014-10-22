@@ -201,19 +201,6 @@ static void svc_hotplug(struct svc_function_hotplug *hotplug,
 	}
 }
 
-static void svc_ddb(struct svc_function_ddb *ddb,
-		    int payload_length, struct greybus_host_device *hd)
-{
-	/*
-	 * Need to properly validate payload_length once we start
-	 * to handle ddb messages, but for now, we don't, so no need to check
-	 * anything.
-	 */
-
-	/* What?  An AP should not get this message */
-	dev_err(hd->parent, "Got an svc DDB message???\n");
-}
-
 static void svc_power(struct svc_function_power *power,
 		      int payload_length, struct greybus_host_device *hd)
 {
@@ -314,9 +301,6 @@ static void ap_process_event(struct work_struct *work)
 		break;
 	case SVC_FUNCTION_HOTPLUG:
 		svc_hotplug(&svc_msg->hotplug, payload_length, hd);
-		break;
-	case SVC_FUNCTION_DDB:
-		svc_ddb(&svc_msg->ddb, payload_length, hd);
 		break;
 	case SVC_FUNCTION_POWER:
 		svc_power(&svc_msg->power, payload_length, hd);

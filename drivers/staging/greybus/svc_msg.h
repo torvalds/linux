@@ -18,10 +18,9 @@ enum svc_function_id {
 	SVC_FUNCTION_HANDSHAKE			= 0x00,
 	SVC_FUNCTION_UNIPRO_NETWORK_MANAGEMENT	= 0x01,
 	SVC_FUNCTION_HOTPLUG			= 0x02,
-	SVC_FUNCTION_DDB			= 0x03,
-	SVC_FUNCTION_POWER			= 0x04,
-	SVC_FUNCTION_EPM			= 0x05,
-	SVC_FUNCTION_SUSPEND			= 0x06,
+	SVC_FUNCTION_POWER			= 0x03,
+	SVC_FUNCTION_EPM			= 0x04,
+	SVC_FUNCTION_SUSPEND			= 0x05,
 };
 
 enum svc_msg_type {
@@ -92,37 +91,6 @@ struct svc_function_hotplug {
 	__u8	data[0];
 };
 
-enum svc_function_ddb_type {
-	SVC_DDB_GET		= 0x00,
-	SVC_DDB_RESPONSE	= 0x01,
-};
-
-/* XXX
- * Will only the first interface block in a module be responsible
- * for this?  If a module has two interface blocks, will both supply
- * the same information, or will it be partitioned?  For now assume
- * it's a per-module thing.
- */
-struct svc_function_ddb_get {
-	__u8	module_id;
-	__u8	message_id;
-};
-
-struct svc_function_ddb_response {
-	__u8	module_id;
-	__u8	message_id;
-	__le16	descriptor_length;
-	__u8	ddb[0];
-};
-
-struct svc_function_ddb {
-	__u8	ddb_type;	/* enum svc_function_ddb_type */
-	union {
-		struct svc_function_ddb_get		ddb_get;
-		struct svc_function_ddb_response	ddb_response;
-	};
-};
-
 enum svc_function_power_type {
 	SVC_POWER_BATTERY_STATUS		= 0x00,
 	SVC_POWER_BATTERY_STATUS_REQUEST	= 0x01,
@@ -187,7 +155,6 @@ struct svc_msg {
 		struct svc_function_handshake		handshake;
 		struct svc_function_unipro_management	management;
 		struct svc_function_hotplug		hotplug;
-		struct svc_function_ddb			ddb;
 		struct svc_function_power		power;
 		struct svc_function_epm			epm;
 		struct svc_function_suspend		suspend;
