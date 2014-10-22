@@ -2053,6 +2053,7 @@ static void pci230_handle_ai(struct comedi_device *dev,
 	unsigned int i;
 	unsigned int todo;
 	unsigned int fifoamount;
+	unsigned short val;
 
 	/* Determine number of samples to read. */
 	if (cmd->stop_src != TRIG_COUNT) {
@@ -2099,12 +2100,10 @@ static void pci230_handle_ai(struct comedi_device *dev,
 				fifoamount = 1;
 			}
 		}
-		/* Read sample and store in Comedi's circular buffer. */
-		if (comedi_buf_put(s, pci230_ai_read(dev)) == 0) {
-			events |= COMEDI_CB_ERROR | COMEDI_CB_OVERFLOW;
-			dev_err(dev->class_dev, "AI buffer overflow\n");
-			break;
-		}
+
+		val = pci230_ai_read(dev);
+		comedi_buf_write_samples(s, &val, 1);
+
 		fifoamount--;
 		devpriv->ai_scan_pos++;
 		if (devpriv->ai_scan_pos == scanlen) {
@@ -2117,9 +2116,6 @@ static void pci230_handle_ai(struct comedi_device *dev,
 	if (cmd->stop_src == TRIG_COUNT && devpriv->ai_scan_count == 0) {
 		/* End of acquisition. */
 		events |= COMEDI_CB_EOA;
-	} else {
-		/* More samples required, tell Comedi to block. */
-		events |= COMEDI_CB_BLOCK;
 	}
 	async->events |= events;
 	if (!(async->events & COMEDI_CB_CANCEL_MASK)) {
