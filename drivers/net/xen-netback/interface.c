@@ -60,16 +60,6 @@ void xenvif_skb_zerocopy_complete(struct xenvif_queue *queue)
 	atomic_dec(&queue->inflight_packets);
 }
 
-static inline void xenvif_stop_queue(struct xenvif_queue *queue)
-{
-	struct net_device *dev = queue->vif->dev;
-
-	if (!queue->vif->can_queue)
-		return;
-
-	netif_tx_stop_queue(netdev_get_tx_queue(dev, queue->id));
-}
-
 int xenvif_schedulable(struct xenvif *vif)
 {
 	return netif_running(vif->dev) &&
@@ -209,7 +199,7 @@ static int xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!xenvif_rx_ring_slots_available(queue, min_slots_needed)) {
 		queue->rx_stalled.function = xenvif_rx_stalled;
 		queue->rx_stalled.data = (unsigned long)queue;
-		xenvif_stop_queue(queue);
+		netif_tx_stop_queue(netdev_get_tx_queue(dev, queue->id));
 		mod_timer(&queue->rx_stalled,
 			  jiffies + rx_drain_timeout_jiffies);
 	}

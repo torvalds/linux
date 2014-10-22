@@ -228,9 +228,6 @@ struct xenvif {
 	u8 ip_csum:1;
 	u8 ipv6_csum:1;
 
-	/* Internal feature information. */
-	u8 can_queue:1;	    /* can queue packets for receiver? */
-
 	/* Is this interface disabled? True when backend discovers
 	 * frontend is rogue.
 	 */
@@ -271,8 +268,6 @@ int xenvif_xenbus_init(void);
 void xenvif_xenbus_fini(void);
 
 int xenvif_schedulable(struct xenvif *vif);
-
-int xenvif_must_stop_queue(struct xenvif_queue *queue);
 
 int xenvif_queue_stopped(struct xenvif_queue *queue);
 void xenvif_wake_queue(struct xenvif_queue *queue);

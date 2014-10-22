@@ -873,15 +873,10 @@ static int read_xenbus_vif_flags(struct backend_info *be)
 	if (!rx_copy)
 		return -EOPNOTSUPP;
 
-	if (vif->dev->tx_queue_len != 0) {
-		if (xenbus_scanf(XBT_NIL, dev->otherend,
-				 "feature-rx-notify", "%d", &val) < 0)
-			val = 0;
-		if (val)
-			vif->can_queue = 1;
-		else
-			/* Must be non-zero for pfifo_fast to work. */
-			vif->dev->tx_queue_len = 1;
+	if (xenbus_scanf(XBT_NIL, dev->otherend,
+			 "feature-rx-notify", "%d", &val) < 0 || val == 0) {
+		xenbus_dev_fatal(dev, -EINVAL, "feature-rx-notify is mandatory");
+		return -EINVAL;
 	}
 
 	if (xenbus_scanf(XBT_NIL, dev->otherend, "feature-sg",
