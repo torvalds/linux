@@ -197,6 +197,9 @@ struct tx_desc {
 struct pxa168_eth_private {
 	int port_num;		/* User Ethernet port number    */
 	int phy_addr;
+	int phy_speed;
+	int phy_duplex;
+	phy_interface_t phy_intf;
 
 	int rx_resource_err;	/* Rx ring resource error flag */
 
@@ -1394,19 +1397,17 @@ static void phy_init(struct pxa168_eth_private *pep)
 {
 	struct phy_device *phy = pep->phy;
 
-	phy_attach(pep->dev, dev_name(&phy->dev), PHY_INTERFACE_MODE_MII);
+	phy_attach(pep->dev, dev_name(&phy->dev), pep->phy_intf);
 
-	if (pep->pd && pep->pd->speed != 0) {
+	phy->speed = pep->phy_speed;
+	phy->duplex = pep->phy_duplex;
+	phy->autoneg = AUTONEG_ENABLE;
+	phy->supported &= PHY_BASIC_FEATURES;
+	phy->advertising = phy->supported | ADVERTISED_Autoneg;
+
+	if (pep->phy_speed != 0) {
 		phy->autoneg = AUTONEG_DISABLE;
 		phy->advertising = 0;
-		phy->speed = pep->pd->speed;
-		phy->duplex = pep->pd->duplex;
-	} else {
-		phy->autoneg = AUTONEG_ENABLE;
-		phy->speed = 0;
-		phy->duplex = 0;
-		phy->supported &= PHY_BASIC_FEATURES;
-		phy->advertising = phy->supported | ADVERTISED_Autoneg;
 	}
 
 	phy_start_aneg(phy);
@@ -1415,9 +1416,6 @@ static void phy_init(struct pxa168_eth_private *pep)
 static int ethernet_phy_setup(struct net_device *dev)
 {
 	struct pxa168_eth_private *pep = netdev_priv(dev);
-
-	if (pep->pd && pep->pd->init)
-		pep->pd->init();
 
 	pep->phy = phy_scan(pep, pep->phy_addr & 0x1f);
 	if (pep->phy != NULL)
@@ -1552,13 +1550,23 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 
 		pep->port_num = pep->pd->port_number;
 		pep->phy_addr = pep->pd->phy_addr;
+		pep->phy_speed = pep->pd->speed;
+		pep->phy_duplex = pep->pd->duplex;
+		pep->phy_intf = pep->pd->intf;
+
+		if (pep->pd->init)
+			pep->pd->init();
 	} else if (pdev->dev.of_node) {
 		of_property_read_u32(pdev->dev.of_node, "port-id",
 				     &pep->port_num);
 
 		np = of_parse_phandle(pdev->dev.of_node, "phy-handle", 0);
-		if (np)
-			of_property_read_u32(np, "reg", &pep->phy_addr);
+		if (!np) {
+			dev_err(&pdev->dev, "missing phy-handle\n");
+			return -EINVAL;
+		}
+		of_property_read_u32(np, "reg", &pep->phy_addr);
+		pep->phy_intf = of_get_phy_mode(pdev->dev.of_node);
 	}
 
 	/* Hardware supports only 3 ports */
