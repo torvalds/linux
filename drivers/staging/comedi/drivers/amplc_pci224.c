@@ -514,14 +514,13 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 {
 	struct pci224_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int bytes_per_scan = comedi_bytes_per_scan(s);
 	unsigned int num_scans;
 	unsigned int room;
 	unsigned short dacstat;
 	unsigned int i, n;
 
 	/* Determine number of scans available in buffer. */
-	num_scans = comedi_buf_read_n_available(s) / bytes_per_scan;
+	num_scans = comedi_buf_read_n_available(s) / comedi_bytes_per_scan(s);
 	if (cmd->stop_src == TRIG_COUNT) {
 		/* Fixed number of scans. */
 		if (num_scans > devpriv->ao_stop_count)
@@ -568,8 +567,8 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev,
 
 	/* Process scans. */
 	for (n = 0; n < num_scans; n++) {
-		cfc_read_array_from_buffer(s, &devpriv->ao_scan_vals[0],
-					   bytes_per_scan);
+		comedi_buf_read_samples(s, &devpriv->ao_scan_vals[0],
+					cmd->chanlist_len);
 		for (i = 0; i < cmd->chanlist_len; i++) {
 			outw(devpriv->ao_scan_vals[devpriv->ao_scan_order[i]],
 			     dev->iobase + PCI224_DACDATA);
