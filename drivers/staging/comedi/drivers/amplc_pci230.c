@@ -1075,26 +1075,25 @@ static void pci230_handle_ao_nofifo(struct comedi_device *dev,
 				    struct comedi_subdevice *s)
 {
 	struct pci230_private *devpriv = dev->private;
-	unsigned short data;
-	int i, ret;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
+	unsigned short data;
+	int i;
 
 	if (cmd->stop_src == TRIG_COUNT && devpriv->ao_scan_count == 0)
 		return;
+
 	for (i = 0; i < cmd->chanlist_len; i++) {
 		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
 
-		/* Read sample from Comedi's circular buffer. */
-		ret = comedi_buf_get(s, &data);
-		if (ret == 0) {
-			s->async->events |= COMEDI_CB_OVERFLOW;
+		if (!comedi_buf_read_samples(s, &data, 1)) {
+			async->events |= COMEDI_CB_OVERFLOW;
 			return;
 		}
 		pci230_ao_write_nofifo(dev, data, chan);
 		s->readback[chan] = data;
 	}
-	async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
+
 	if (cmd->stop_src == TRIG_COUNT) {
 		devpriv->ao_scan_count--;
 		if (devpriv->ao_scan_count == 0) {
@@ -1171,12 +1170,12 @@ static bool pci230_handle_ao_fifo(struct comedi_device *dev,
 				unsigned int chan = CR_CHAN(cmd->chanlist[i]);
 				unsigned short datum;
 
-				comedi_buf_get(s, &datum);
+				comedi_buf_read_samples(s, &datum, 1);
 				pci230_ao_write_fifo(dev, datum, chan);
 				s->readback[chan] = datum;
 			}
 		}
-		events |= COMEDI_CB_EOS | COMEDI_CB_BLOCK;
+
 		if (cmd->stop_src == TRIG_COUNT) {
 			devpriv->ao_scan_count -= num_scans;
 			if (devpriv->ao_scan_count == 0) {
