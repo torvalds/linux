@@ -44,7 +44,6 @@
 #include <linux/iio/driver.h>
 #include <linux/iio/consumer.h>
 
-#include <asm/system_misc.h>
 #ifdef CONFIG_EARLYSUSPEND
 /* kernel/power/earlysuspend.c */
 extern suspend_state_t get_suspend_state(void);
@@ -104,8 +103,6 @@ int    gVoltageCnt = 3400;
 int    gDoubleVoltageCnt = 6800;
 unsigned long gSecondsCnt = 0;
 char gDischargeFlag[4] = {"on "};
-
-int pwr_hold;
 
 #if 1
 #define BATT_MAX_VOL_VALUE	4250/*Full  charge volatge*/
@@ -246,37 +243,6 @@ static  bool batt_gpio_is_valid(int number)
 {
 	return number > 0 && number < 256;
 }
-
-static void v86_pm_power_off(void)
-{
-
-   bool isCharging = false; 
-   	if (batt_gpio_is_valid(gBatteryData->pdata->dc_det_pin)){
-	       	if (gpio_get_value (gBatteryData->pdata->dc_det_pin) == gBatteryData->pdata->dc_det_level){
-				isCharging = 1;
-			}else{
-				isCharging = 0;
-			}
-	}
-   //gpio_direction_output(pwr_hold, GPIO_LOW);
-   printk("xhh ========= v86_pm_power_off \n"); 
-   gpio_request(pwr_hold, NULL);
-   //mdelay(500);
-      if(isCharging)
-   {
-   	printk("xhh ========= isCharging \n");
-      arm_pm_restart('h', "charge");	  
-   }
-   else
-   {
-   	printk("xhh ========= power off \n");
-   	gpio_direction_output(pwr_hold, RK30_GPIO_LOW);
-	  gpio_set_value(pwr_hold,RK30_GPIO_LOW);	
-   } 
-   while(1);
-
-}
-
 #ifdef  BATTERY_APK
 //#define BAT_ADC_TABLE_LEN               11
 static ssize_t bat_param_read(struct device *dev,struct device_attribute *attr, char *buf)
@@ -2210,10 +2176,6 @@ rk30_adc_battery_platform_data *data)
 	if (batt_gpio_is_valid(data->charge_ok_pin))
 		data->charge_ok_level = (flags & OF_GPIO_ACTIVE_LOW)
 		? RK30_GPIO_LOW : RK30_GPIO_HIGH;
-		pwr_hold = of_get_named_gpio_flags(node, "pwr_hold", 0,
-						    &flags);
-	if (pwr_hold == -EPROBE_DEFER)
-		printk("%s  pwr_hold error\n",__func__);
 
 	ret = of_property_read_u32(node, "is_dc_charge", &value);
 	if (ret < 0) {
@@ -2325,12 +2287,7 @@ static int rk30_adc_battery_probe(struct platform_device *pdev)
 	memset(data->adc_samples, 0, sizeof(int)*(NUM_VOLTAGE_SAMPLE + 2));
 
 	 //register adc for battery sample
-
-	if (!pm_power_off) {
-		pm_power_off = v86_pm_power_off;
-	}	
 	data->wq = create_singlethread_workqueue("adc_battd");
-	    
 	 //variable init
 	/*data->client  = client;*/
 	data->adc_val = rk_adc_battery_iio_read(data->pdata);

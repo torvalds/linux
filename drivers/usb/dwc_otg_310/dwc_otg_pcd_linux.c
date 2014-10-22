@@ -1529,12 +1529,12 @@ static void dwc_otg_pcd_check_vbus_work(struct work_struct *work)
 	} else if (pldata->get_status(USB_STATUS_BVABLID)) {
 		/* if usb not connect before ,then start connect */
 		if (_pcd->vbus_status == USB_BC_TYPE_DISCNT) {
-			printk("*****************vbus detect*******************\n");
-			/* if( pldata->bc_detect_cb != NULL ) */
-			/* 	pldata->bc_detect_cb(_pcd->vbus_status */
-			/*			     = usb_battery_charger_detect(1)); */
-			/* else */
-			_pcd->vbus_status = USB_BC_TYPE_SDP;
+			printk("***************vbus detect*****************\n");
+			if( pldata->bc_detect_cb != NULL )
+			 	pldata->bc_detect_cb(_pcd->vbus_status =
+			 		usb_battery_charger_detect(1));
+			else
+				_pcd->vbus_status = USB_BC_TYPE_SDP;
 			if (_pcd->conn_en) {
 				goto connect;
 			} else if (pldata->phy_status == USB_PHY_ENABLED) {
@@ -1545,7 +1545,7 @@ static void dwc_otg_pcd_check_vbus_work(struct work_struct *work)
 			}
 		} else if ((_pcd->conn_en) && (_pcd->conn_status >= 0)
 			   && (_pcd->conn_status < 2)) {
-			printk("****************soft reconnect******************\n");
+			printk("**************soft reconnect**************\n");
 			goto connect;
 		} else if (_pcd->conn_status == 2) {
 			/* release pcd->wake_lock if fail to connect,
@@ -1554,12 +1554,10 @@ static void dwc_otg_pcd_check_vbus_work(struct work_struct *work)
 			dwc_otg_msc_unlock(_pcd);
 			_pcd->conn_status++;
 			if (pldata->bc_detect_cb != NULL) {
-				rk_usb_charger_status = USB_BC_TYPE_DCP;
 				pldata->bc_detect_cb(_pcd->vbus_status =
 						     USB_BC_TYPE_DCP);
 			} else {
 				_pcd->vbus_status = USB_BC_TYPE_DCP;
-				rk_usb_charger_status = USB_BC_TYPE_DCP;
 			}
 			/* fail to connect, suspend usb phy and disable clk */
 			if (pldata->phy_status == USB_PHY_ENABLED) {
@@ -1571,7 +1569,7 @@ static void dwc_otg_pcd_check_vbus_work(struct work_struct *work)
 	} else {
 		if (pldata->bc_detect_cb != NULL)
 			pldata->bc_detect_cb(_pcd->vbus_status =
-					     USB_BC_TYPE_DISCNT);
+					     usb_battery_charger_detect(0));
 		else
 			_pcd->vbus_status = USB_BC_TYPE_DISCNT;
 
@@ -1666,7 +1664,7 @@ static void dwc_otg_pcd_work_init(dwc_otg_pcd_t *pcd,
 			/* usb phy bypass to uart mode */
 			pldata->dwc_otg_uart_mode(pldata, PHY_UART_MODE);
 		}
-		schedule_delayed_work(&pcd->check_vbus_work, (HZ << 4));
+		schedule_delayed_work(&pcd->check_vbus_work, (HZ << 3));
 	}
 	else if (pldata->dwc_otg_uart_mode != NULL)
 		/* host mode,enter usb phy mode */

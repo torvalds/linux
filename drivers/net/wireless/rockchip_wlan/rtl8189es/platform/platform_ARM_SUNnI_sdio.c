@@ -70,8 +70,6 @@ int platform_wifi_power_on(void)
 		sdc_id = val.val;
 		DBG_871X("----- %s sdc_id: %d, mod_sel: %d\n", __FUNCTION__, sdc_id, mod_sel);
 
-		wifi_pm_power(0);
-		mdelay(50);
 #if defined(CONFIG_PLATFORM_ARM_SUN6I) || defined(CONFIG_PLATFORM_ARM_SUN7I)
 		sw_mci_rescan_card(sdc_id, 1);
 #elif defined(CONFIG_PLATFORM_ARM_SUN8I)

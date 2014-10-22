@@ -503,6 +503,7 @@ struct lcdc_device {
 	u32 pixclock;
 
 	u32 standby;			/*1:standby,0:work*/
+	u32 iommu_status;
 };
 
 static inline

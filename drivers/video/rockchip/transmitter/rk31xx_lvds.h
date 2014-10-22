@@ -102,7 +102,10 @@ enum {
 struct rk_lvds_device {
 	struct device 		*dev;
 	void __iomem  		*regbase;
+	void __iomem		*ctrl_reg;
 	struct clk    		*pclk;  /*phb clk*/
+	struct clk    		*ctrl_pclk;	/* mipi ctrl pclk*/
+	struct clk    		*ctrl_hclk;	/* mipi ctrl hclk*/
 	struct rk_screen	screen;
 	bool			clk_on;
         bool                    sys_state;
@@ -130,6 +133,14 @@ static inline int lvds_msk_reg(struct rk_lvds_device *lvds, u32 offset,
 static inline u32 lvds_readl(struct rk_lvds_device *lvds, u32 offset)
 {
 	return readl_relaxed(lvds->regbase + offset);
+}
+
+static inline u32 lvds_phy_lockon(struct rk_lvds_device *lvds)
+{
+	u32 val = 0;
+
+	val = readl_relaxed(lvds->ctrl_reg);
+	return (val & 0x01);
 }
 
 #endif

@@ -13,9 +13,9 @@ Major Change History:
 	2011-08-12 Page            Create.	
 
 --*/
+#include "Mp_Precomp.h"
 
-
-#include "../odm_precomp.h"
+#include "../phydm_precomp.h"
 
 
 #if (RATE_ADAPTIVE_SUPPORT == 1)
@@ -565,6 +565,7 @@ odm_ARFBRefresh_8188E(
 #if POWER_TRAINING_ACTIVE == 1
 static void 
 odm_PTTryState_8188E(
+	IN	PDM_ODM_T		pDM_Odm,
 	IN 	PODM_RA_INFO_T 	pRaInfo
 	)
 {
@@ -621,6 +622,17 @@ odm_PTTryState_8188E(
 		pRaInfo->RAstage=0;
 	}
 	pRaInfo->PTPreRate=pRaInfo->DecisionRate;
+
+#if(DM_ODM_SUPPORT_TYPE & (ODM_WIN|ODM_CE))
+	// Disable power training when noisy environment
+	if(pDM_Odm->bDisablePowerTraining)
+	{
+		ODM_RT_TRACE(pDM_Odm,ODM_COMP_RA_MASK, ODM_DBG_LOUD,("odm_PTTryState_8188E(): Disable power training when noisy environment\n"));
+		pRaInfo->PTStage = 0;
+		pRaInfo->RAstage = 0;
+		pRaInfo->PTStopCount = 0;
+	}
+#endif
 }
 
 static void 
@@ -703,10 +715,12 @@ ODM_RASupport_Init(
 		//I Cut: FALSE(FW RA); Ohterwise: TRUE(Driver RA)
 		pDM_Odm->RaSupport88E = (pDM_Odm->Adapter->RASupport == TRUE);
 #elif (DM_ODM_SUPPORT_TYPE == ODM_CE)
-		if(pDM_Odm->CutVersion == ODM_CUT_I)//I Cut use FW RA
-			pDM_Odm->RaSupport88E = FALSE;
-		else
-			pDM_Odm->RaSupport88E = TRUE;
+		{	
+			PADAPTER 		Adapter = pDM_Odm->Adapter;
+			HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
+			pDM_Odm->RaSupport88E = (TRUE == pHalData->fw_ractrl)?FALSE:TRUE;
+			
+		}
 #endif
 	}
 }
@@ -1037,12 +1051,11 @@ ODM_RA_TxRPT2Handle_8188E(
 
 	do
 	{
-		if(MacId >= ASSOCIATE_ENTRY_NUM)
-			valid = 0;
-		else if(MacId >= 32)
-			valid = (1<<(MacId-32)) & MacIDValidEntry1;
-		else
+		valid = 0;
+		if(MacId < 32)
 			valid = (1<<MacId) & MacIDValidEntry0;
+		else if(MacId < 64)
+			valid = (1<<(MacId-32)) & MacIDValidEntry1;
 
 		if(valid)
 		{
@@ -1081,7 +1094,7 @@ ODM_RA_TxRPT2Handle_8188E(
 						odm_RateDecision_8188E(pDM_Odm,pRAInfo);
 					}
 					else if(pRAInfo->RAstage==5){  // Power training try state
-						odm_PTTryState_8188E(pRAInfo);
+						odm_PTTryState_8188E(pDM_Odm, pRAInfo);
 					}
 					else {// RAstage==6
 						odm_PTDecision_8188E(pRAInfo);

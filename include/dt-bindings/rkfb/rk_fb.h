@@ -59,6 +59,9 @@
 #define FB0_WIN1_FB1_WIN0_FB2_WIN2	201
 #define FB0_WIN0_FB1_WIN1_FB2_WIN2_FB3_WIN3	3210
 
+#define DISPLAY_POLICY_SDK	0
+#define DISPLAY_POLICY_BOX	1
+
 /*      	lvds connect config       
  *                                        
  *          	LVDS_8BIT_1    LVDS_8BIT_2     LVDS_8BIT_3     LVDS_6BIT

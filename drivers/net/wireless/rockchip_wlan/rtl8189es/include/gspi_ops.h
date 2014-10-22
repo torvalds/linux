@@ -156,6 +156,7 @@ void rtl8188es_set_hal_ops(PADAPTER padapter);
 #define set_hal_ops rtl8188es_set_hal_ops
 #endif
 extern void spi_set_chip_endian(PADAPTER padapter);
+extern unsigned int spi_write8_endian(ADAPTER *Adapter, unsigned int addr, unsigned int buf, u32 big);
 extern void spi_set_intf_ops(_adapter *padapter,struct _io_ops *pops);
 extern void spi_set_chip_endian(PADAPTER padapter);
 extern void InitInterrupt8723ASdio(PADAPTER padapter);
@@ -164,9 +165,6 @@ extern void EnableInterrupt8723ASdio(PADAPTER padapter);
 extern void DisableInterrupt8723ASdio(PADAPTER padapter);
 extern void spi_int_hdl(PADAPTER padapter);
 extern u8 HalQueryTxBufferStatus8723ASdio(PADAPTER padapter);
-extern void InitInterrupt8188ESdio(PADAPTER padapter);
-extern void EnableInterrupt8188ESdio(PADAPTER padapter);
-extern void DisableInterrupt8188ESdio(PADAPTER padapter);
 #ifdef CONFIG_RTL8723B
 extern void InitInterrupt8723BSdio(PADAPTER padapter);
 extern void InitSysInterrupt8723BSdio(PADAPTER padapter);
@@ -174,5 +172,19 @@ extern void EnableInterrupt8723BSdio(PADAPTER padapter);
 extern void DisableInterrupt8723BSdio(PADAPTER padapter);
 extern u8 HalQueryTxBufferStatus8723BSdio(PADAPTER padapter);
 #endif
+
+#ifdef CONFIG_RTL8188E
+extern void InitInterrupt8188EGspi(PADAPTER padapter);
+extern void EnableInterrupt8188EGspi(PADAPTER padapter);
+extern void DisableInterrupt8188EGspi(PADAPTER padapter);
+extern void UpdateInterruptMask8188EGspi(PADAPTER padapter, u32 AddMSR, u32 RemoveMSR);
+extern u8 HalQueryTxBufferStatus8189EGspi(PADAPTER padapter);
+extern u8 HalQueryTxOQTBufferStatus8189EGspi(PADAPTER padapter);
+extern void ClearInterrupt8188EGspi(PADAPTER padapter);
+extern u8 CheckIPSStatus(PADAPTER padapter);
+#endif // CONFIG_RTL8188E
+#if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
+extern u8 RecvOnePkt(PADAPTER padapter, u32 size);
+#endif // CONFIG_WOWLAN
 
 #endif //__GSPI_OPS_H__

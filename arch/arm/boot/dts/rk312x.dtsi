@@ -288,7 +288,7 @@
 			<&clk_tsp &clk_gpll_div2>, <&clk_nandc &clk_gpll_div2>,
 			<&clk_mac_pll &clk_cpll>;
 		rockchip,clocks-init-rate =
-			<&clk_core 816000000>, <&clk_gpll 594000000>,
+			<&clk_core 600000000>, <&clk_gpll 594000000>,
 	 		<&clk_cpll 400000000>, <&aclk_cpu 300000000>,
 			<&hclk_cpu_pre 150000000>, <&pclk_cpu_pre 75000000>,
 			<&aclk_peri 300000000>, <&hclk_peri_pre 150000000>,
@@ -546,9 +546,10 @@
 		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		pinctrl-names = "default", "idle";
+		pinctrl-names = "default", "idle", "udbg";
 		pinctrl-0 = <&sdmmc0_clk &sdmmc0_cmd  &sdmmc0_dectn &sdmmc0_bus4>;
 		pinctrl-1 = <&sdmmc0_gpio>;
+		pinctrl-2 = <&uart2_xfer>;
 		clocks = <&clk_sdmmc0>, <&clk_gates5 10>;
 		clock-names = "clk_mmc", "hclk_mmc";
 		dmas = <&pdma 10>;
@@ -590,9 +591,9 @@
 		num-cs = <2>;
 		clocks =<&clk_spi0>, <&clk_gates7 12>;
 		clock-names = "spi","pclk_spi0";
-		//dmas = <&pdma 8>, <&pdma 9>;
-		//#dma-cells = <2>;
-		//dma-names = "tx", "rx";
+		dmas = <&pdma 8>, <&pdma 9>;
+		#dma-cells = <2>;
+		dma-names = "tx", "rx";
 		status = "disabled";
 	};
 
@@ -661,6 +662,7 @@
 		pinctrl-0 = <&pwm3_pin>;
 		clocks = <&clk_gates7 10>;
 		clock-names = "pclk_pwm";
+		remote_pwm_id = <3>;
 		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 		status = "okay";
 	};
@@ -727,9 +729,10 @@
 
 	lvds: lvds@20038000 {
 		compatible = "rockchip,rk31xx-lvds";
-		reg = <0x20038000 0x4000>;
-		clocks = <&clk_gates5 0>;
-		clock-names = "pclk_lvds";
+		reg = <0x20038000 0x4000>, <0x101100b0 0x01>;
+		reg-names = "mipi_lvds_phy", "mipi_lvds_ctl";
+		clocks = <&clk_gates5 0>, <&clk_gates9 6>, <&clk_gates9 5>;
+		clock-names = "pclk_lvds", "pclk_lvds_ctl", "hclk_vio_h2p";
 		status = "disabled";
 	};
 
@@ -915,11 +918,12 @@
 		#size-cells = <0>;
 
 		ion_cma: rockchip,ion-heap@1 { /* CMA HEAP */
-			compatible = "rockchip,ion-reserve";
+			compatible = "rockchip,ion-heap";
 			rockchip,ion_heap = <1>;
 			reg = <0x00000000 0x800000>; /* 8MB */
 		};
 		rockchip,ion-heap@3 { /* VMALLOC HEAP */
+			compatible = "rockchip,ion-heap";
 			rockchip,ion_heap = <3>;
 		};
 	};

@@ -273,13 +273,16 @@ int (*ddr_change_freq)(uint32_t nMHz) = NULL;
 long (*ddr_round_rate)(uint32_t nMHz) = NULL;
 void (*ddr_set_auto_self_refresh)(bool en) = NULL;
 
-extern int __init rockchip_ion_find_reserve_mem(unsigned long node,
+extern struct ion_platform_data ion_pdata;
+extern void __init ion_reserve(struct ion_platform_data *data);
+extern int __init rockchip_ion_find_heap(unsigned long node,
 				const char *uname, int depth, void *data);
 void __init rockchip_ion_reserve(void)
 {
 #ifdef CONFIG_ION_ROCKCHIP
 	printk("%s\n", __func__);
-	of_scan_flat_dt(rockchip_ion_find_reserve_mem, NULL);
+	of_scan_flat_dt(rockchip_ion_find_heap, (void*)&ion_pdata);
+	ion_reserve(&ion_pdata);
 #endif
 }
 

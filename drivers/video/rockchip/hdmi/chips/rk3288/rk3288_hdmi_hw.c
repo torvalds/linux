@@ -2,6 +2,19 @@
 #include <linux/interrupt.h>
 #include "rk3288_hdmi_hw.h"
 
+static unsigned int rk3288_hdmi_support_vic[] = {
+	HDMI_720X480P_60HZ_VIC,
+	HDMI_720X576P_50HZ_VIC,
+	HDMI_1280X720P_50HZ_VIC,
+	HDMI_1280X720P_60HZ_VIC,
+	HDMI_1920X1080P_50HZ_VIC,
+	HDMI_1920X1080P_60HZ_VIC,
+	HDMI_3840X2160P_24HZ_VIC,
+	HDMI_3840X2160P_25HZ_VIC,
+	HDMI_3840X2160P_30HZ_VIC,
+	HDMI_3840X2160P_50HZ_VIC,
+	HDMI_3840X2160P_60HZ_VIC
+};
 static const struct phy_mpll_config_tab PHY_MPLL_TABLE[] = {	/* opmode: 0:HDMI1.4     1:HDMI2.0 */
 /*      pixclock    pixrepet        colordepth	    prepdiv  tmdsmhl opmode  fbdiv2  fbdiv1  ref_cntrl nctrl propctrl intctrl gmpctrl */
 	{27000000,	0,	HDMI_COLOR_DEPTH_8BIT,	0,	0,	0,	2,	3,	0,	3,	7,	0,	3},
@@ -1334,6 +1347,8 @@ int rk3288_hdmi_initial(struct hdmi *hdmi_drv)
 	hdmi_drv->config_audio = rk3288_hdmi_config_audio;
 	hdmi_drv->detect_hotplug = rk3288_hdmi_detect_hotplug;
 	hdmi_drv->read_edid = rk3288_hdmi_read_edid;
+	hdmi_drv->support_vic = rk3288_hdmi_support_vic;
+	hdmi_drv->support_vic_num = ARRAY_SIZE(rk3288_hdmi_support_vic);
 
 	rk3288_hdmi_reset(hdmi_drv);
 

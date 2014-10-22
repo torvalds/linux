@@ -783,8 +783,8 @@ s32 PHY_MACConfig8188E(PADAPTER Adapter)
 {
 	int		rtStatus = _SUCCESS;
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
-	s8			*pszMACRegFile;
-	s8			sz8188EMACRegFile[] = RTL8188E_PHY_MACREG;
+	s8		*pszMACRegFile;
+	s8		sz8188EMACRegFile[] = RTL8188E_PHY_MACREG;
 	u16		val=0;
 
 	pszMACRegFile = sz8188EMACRegFile;
@@ -933,7 +933,7 @@ storePwrIndexDiffRateOffset(
 		//printk("MCSTxPowerLevelOriginalOffset[%d][6]-TxAGC_A_CCK1_Mcs32 = 0x%x\n", pHalData->pwrGroupCnt,
 		//	pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][6]);
 	}
-	if(RegAddr == rTxAGC_B_CCK11_A_CCK2_11 && BitMask == 0xffffff00)
+	if(RegAddr == rTxAGC_B_CCK11_A_CCK2_11 && BitMask == bMaskH3Bytes)
 	{
 		pHalData->MCSTxPowerLevelOriginalOffset[pHalData->pwrGroupCnt][7] = Data;
 		//printk("MCSTxPowerLevelOriginalOffset[%d][7]-TxAGC_B_CCK11_A_CCK2_11 = 0x%x\n", pHalData->pwrGroupCnt,
@@ -1691,28 +1691,18 @@ phy_SpurCalibration_8188E(
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
 	
-	if(pHalData->CurrentChannelBW == CHANNEL_WIDTH_20 && pHalData->CurrentChannel == 13){
+	//DbgPrint("===> phy_SpurCalibration_8188E  CurrentChannelBW = %d, CurrentChannel = %d\n", pHalData->CurrentChannelBW, pHalData->CurrentChannel);
+	if(pHalData->CurrentChannelBW == CHANNEL_WIDTH_20 &&( pHalData->CurrentChannel == 13 || pHalData->CurrentChannel == 14)){
 		PHY_SetBBReg(Adapter, rOFDM0_RxDSP, BIT(9), 0x1);                     	//enable notch filter
-		PHY_SetBBReg(Adapter, rOFDM0_RxDSP, BIT(28)|BIT(27)|BIT(26)|BIT(25)|BIT(24), 0xb);
-		PHY_SetBBReg(Adapter, rOFDM1_CFOTracking, BIT(28), 0x1);			 //enable CSI Mask
-		PHY_SetBBReg(Adapter, rOFDM1_csi_fix_mask1, BIT(26)|BIT(25), 0x3);	 //Fix CSI Mask Tone
-		PHY_SetBBReg(Adapter, rOFDM1_csi_fix_mask2, BIT(26)|BIT(25), 0x0); 
+		PHY_SetBBReg(Adapter, rOFDM1_IntfDet, BIT(8)|BIT(7)|BIT(6), 0x2);	//intf_TH
 	}
 	else if(pHalData->CurrentChannelBW == CHANNEL_WIDTH_40 && pHalData->CurrentChannel == 11){
-		if(Adapter->registrypriv.notch_filter == 0)
-			PHY_SetBBReg(Adapter, rOFDM0_RxDSP, BIT9, 0x0);                     		//disable notch filter
-		PHY_SetBBReg(Adapter, rOFDM0_RxDSP, BIT(28)|BIT(27)|BIT(26)|BIT(25)|BIT(24), 0x1f);
-		PHY_SetBBReg(Adapter, rOFDM1_CFOTracking, BIT(28), 0x1);			 //enable CSI Mask
-		PHY_SetBBReg(Adapter, rOFDM1_csi_fix_mask1, BIT(26)|BIT(25), 0x0); 
-		PHY_SetBBReg(Adapter, rOFDM1_csi_fix_mask2, BIT(26)|BIT(25), 0x3); 	//Fix CSI Mask Tone
+		PHY_SetBBReg(Adapter, rOFDM0_RxDSP, BIT(9), 0x1);                     	//enable notch filter
+		PHY_SetBBReg(Adapter, rOFDM1_IntfDet, BIT(8)|BIT(7)|BIT(6), 0x2);	//intf_TH
 	}
 	else{
 		if(Adapter->registrypriv.notch_filter == 0)
-			PHY_SetBBReg(Adapter, rOFDM0_RxDSP, BIT9, 0x0);                     		//disable notch filter
-		PHY_SetBBReg(Adapter, rOFDM0_RxDSP, BIT(28)|BIT(27)|BIT(26)|BIT(25)|BIT(24), 0x1f);
-		PHY_SetBBReg(Adapter, rOFDM1_CFOTracking, BIT(28), 0x0);		 	//disable CSI Mask
-		PHY_SetBBReg(Adapter, rOFDM1_csi_fix_mask1, BIT(26)|BIT(25), 0x0); 
-		PHY_SetBBReg(Adapter, rOFDM1_csi_fix_mask2, BIT(26)|BIT(25), 0x0); 
+			PHY_SetBBReg(Adapter, rOFDM0_RxDSP, BIT(9), 0x0);	//disable notch filter
 	}
 }
 
@@ -1950,8 +1940,10 @@ PHY_SetBWMode8188E(
 	#else
 		_PHY_SetBWMode88E(Adapter);
 	#endif
-		if (IS_VENDOR_8188E_I_CUT_SERIES(Adapter)&& IS_HARDWARE_TYPE_8188ES(Adapter))
+	#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI)
+		if(IS_VENDOR_8188E_I_CUT_SERIES(Adapter))
 			phy_SpurCalibration_8188E( Adapter);
+	#endif
 	}
 	else
 	{
@@ -2053,8 +2045,11 @@ PHY_SwChnl8188E(	// Call after initialization
 		_PHY_SwChnl8188E(Adapter, channel);
 		#endif
 
-		if (IS_VENDOR_8188E_I_CUT_SERIES(Adapter)&& IS_HARDWARE_TYPE_8188ES(Adapter))
+		#if defined(CONFIG_USB_HCI) || defined(CONFIG_SDIO_HCI)
+		if(IS_VENDOR_8188E_I_CUT_SERIES(Adapter))
 			phy_SpurCalibration_8188E( Adapter);
+		#endif
+
 		
 
 		if(bResult)

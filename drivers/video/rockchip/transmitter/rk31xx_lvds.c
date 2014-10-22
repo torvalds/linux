@@ -42,8 +42,20 @@ static int rk31xx_lvds_clk_init(struct rk_lvds_device *lvds)
 {
         lvds->pclk = devm_clk_get(lvds->dev, "pclk_lvds");
 	if (IS_ERR(lvds->pclk)) {
-		dev_err(lvds->dev, "get clk failed\n");
+		dev_err(lvds->dev, "get pclk failed\n");
 		return PTR_ERR(lvds->pclk);
+	}
+
+	lvds->ctrl_pclk = devm_clk_get(lvds->dev, "pclk_lvds_ctl");
+	if (IS_ERR(lvds->ctrl_pclk)) {
+		dev_err(lvds->dev, "get ctrl pclk failed\n");
+		return PTR_ERR(lvds->ctrl_pclk);
+	}
+
+	lvds->ctrl_hclk = devm_clk_get(lvds->dev, "hclk_vio_h2p");
+	if (IS_ERR(lvds->ctrl_hclk)) {
+		dev_err(lvds->dev, "get ctrl hclk failed\n");
+		return PTR_ERR(lvds->ctrl_hclk);
 	}
 
 	return 0;	
@@ -53,6 +65,8 @@ static int rk31xx_lvds_clk_enable(struct rk_lvds_device *lvds)
 {
 	if (!lvds->clk_on) {
 		clk_prepare_enable(lvds->pclk);
+		clk_prepare_enable(lvds->ctrl_pclk);
+		clk_prepare_enable(lvds->ctrl_hclk);
 		lvds->clk_on = true;
 	}
 
@@ -63,6 +77,8 @@ static int rk31xx_lvds_clk_disable(struct rk_lvds_device *lvds)
 {
 	if (lvds->clk_on) {
 		clk_disable_unprepare(lvds->pclk);
+		clk_disable_unprepare(lvds->ctrl_hclk);
+		clk_disable_unprepare(lvds->ctrl_pclk);
 		lvds->clk_on = false;
 	}
 
@@ -79,6 +95,11 @@ static int rk31xx_lvds_pwr_on(void)
 	                     m_SYNC_RST | m_LDO_PWR_DOWN | m_PLL_PWR_DOWN,
 	                     v_SYNC_RST(0) | v_LDO_PWR_DOWN(0) | v_PLL_PWR_DOWN(0));
 
+		/* enable lvds lane and power on pll */
+		lvds_writel(lvds, MIPIPHY_REGEB,
+			    v_LANE0_EN(1) | v_LANE1_EN(1) | v_LANE2_EN(1) |
+			    v_LANE3_EN(1) | v_LANECLK_EN(1) | v_PLL_PWR_OFF(0));
+
 	        /* enable lvds */
 	        lvds_msk_reg(lvds, MIPIPHY_REGE3,
 	                     m_MIPI_EN | m_LVDS_EN | m_TTL_EN,
@@ -94,6 +115,11 @@ static int rk31xx_lvds_pwr_on(void)
 static int rk31xx_lvds_pwr_off(void)
 {
         struct rk_lvds_device *lvds = rk31xx_lvds;
+
+	/* disable lvds lane and power off pll */
+	lvds_writel(lvds, MIPIPHY_REGEB,
+		    v_LANE0_EN(0) | v_LANE1_EN(0) | v_LANE2_EN(0) |
+		    v_LANE3_EN(0) | v_LANECLK_EN(0) | v_PLL_PWR_OFF(1));
 
 	/* power down lvds pll and bandgap */
 	lvds_msk_reg(lvds, MIPIPHY_REG1,
@@ -137,6 +163,7 @@ static void rk31xx_output_lvds(struct rk_lvds_device *lvds,
                                struct rk_screen *screen)
 {
 	u32 val = 0;
+	u32 delay_times = 20;
 
         /* if LVDS transmitter source from VOP, vop_dclk need get invert
          * set iomux in dts pinctrl
@@ -149,30 +176,38 @@ static void rk31xx_output_lvds(struct rk_lvds_device *lvds,
         val |= v_MIPIPHY_LANE0_EN(1) | v_MIPIDPI_FORCEX_EN(1);
 	grf_writel(val, RK312X_GRF_LVDS_CON0);
 
-        /* enable lvds lane */
-        val = v_LANE0_EN(1) | v_LANE1_EN(1) | v_LANE2_EN(1) | v_LANE3_EN(1) |
-                v_LANECLK_EN(1) | v_PLL_PWR_OFF(0);
-	lvds_writel(lvds, MIPIPHY_REGEB, val);
+	/* digital internal disable */
+	lvds_msk_reg(lvds, MIPIPHY_REGE1, m_DIG_INTER_EN, v_DIG_INTER_EN(0));
 
         /* set pll prediv and fbdiv */
 	lvds_writel(lvds, MIPIPHY_REG3, v_PREDIV(2) | v_FBDIV_MSB(0));
 	lvds_writel(lvds, MIPIPHY_REG4, v_FBDIV_LSB(28));
 
-        lvds_writel(lvds, MIPIPHY_REGE8, 0xfc);
+	lvds_writel(lvds, MIPIPHY_REGE8, 0xfc);
 
         /* set lvds mode and reset phy config */
 	lvds_msk_reg(lvds, MIPIPHY_REGE0,
                      m_MSB_SEL | m_DIG_INTER_RST,
                      v_MSB_SEL(1) | v_DIG_INTER_RST(1));
 
+	/* power on pll and enable lane */
+	rk31xx_lvds_pwr_on();
+
+	/* delay for waitting pll lock on */
+	while (delay_times--) {
+		if (lvds_phy_lockon(lvds)) {
+			msleep(1);
+			break;
+		}
+		udelay(100);
+	}
+	/* digital internal enable */
         lvds_msk_reg(lvds, MIPIPHY_REGE1, m_DIG_INTER_EN, v_DIG_INTER_EN(1));
 
 #if 0
         lvds_writel(lvds, MIPIPHY_REGE2, 0xa0); /* timing */
         lvds_writel(lvds, MIPIPHY_REGE7, 0xfc); /* phase */
 #endif
-
-        rk31xx_lvds_pwr_on();
 
 }
 
@@ -310,11 +345,19 @@ static int rk31xx_lvds_probe(struct platform_device *pdev)
         }
 
         /* lvds regs on MIPIPHY_REG */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mipi_lvds_phy");
 	lvds->regbase = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(lvds->regbase)) {
-		dev_err(&pdev->dev, "ioremap reg failed\n");
+		dev_err(&pdev->dev, "ioremap mipi-lvds phy reg failed\n");
 		return PTR_ERR(lvds->regbase);
+	}
+
+	/* pll lock on status reg that is MIPICTRL Register */
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mipi_lvds_ctl");
+	lvds->ctrl_reg = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(lvds->ctrl_reg)) {
+		dev_err(&pdev->dev, "ioremap mipi-lvds ctl reg failed\n");
+		return PTR_ERR(lvds->ctrl_reg);
 	}
 
 	ret = rk31xx_lvds_clk_init(lvds);

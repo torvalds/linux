@@ -396,7 +396,9 @@ static void send_stop_cmd(struct dw_mci *host, struct mmc_data *data)
 static void dw_mci_stop_dma(struct dw_mci *host)
 {
 	if (host->using_dma) {
-		host->dma_ops->stop(host);
+	        /* Fixme: No need to terminate edma, may cause flush op */
+	        if(!(cpu_is_rk3036() || cpu_is_rk312x()))
+		        host->dma_ops->stop(host);
 		host->dma_ops->cleanup(host);
 	}
 
@@ -612,7 +614,9 @@ static void dw_mci_edmac_start_dma(struct dw_mci *host, unsigned int sg_len)
         struct dma_slave_config slave_config;
         struct dma_async_tx_descriptor *desc = NULL;
         struct scatterlist *sgl = host->data->sg;
+        const u32 mszs[] = {1, 4, 8, 16, 32, 64, 128, 256};
         u32 sg_elems = host->data->sg_len;
+        u32 fifoth_val, mburst;
         int ret = 0;
 
         /* Set external dma config: burst size, burst width*/
@@ -622,7 +626,11 @@ static void dw_mci_edmac_start_dma(struct dw_mci *host, unsigned int sg_len)
         slave_config.src_addr_width = slave_config.dst_addr_width;
 
         /* Match FIFO dma burst MSIZE with external dma config*/
-        slave_config.dst_maxburst = ((host->fifoth_val) >> 28) && 0x7;
+        fifoth_val = mci_readl(host, FIFOTH);
+        mburst = mszs[(fifoth_val >> 28) & 0x7];
+
+        /* edmac limit burst to 16 */
+        slave_config.dst_maxburst = (mburst > 16) ? 16 : mburst;
         slave_config.src_maxburst = slave_config.dst_maxburst;
 
         if(host->data->flags & MMC_DATA_WRITE){
@@ -835,6 +843,7 @@ static void dw_mci_adjust_fifoth(struct dw_mci *host, struct mmc_data *data)
 done:
 	fifoth_val = SDMMC_SET_FIFOTH(msize, rx_wmark, tx_wmark);
 	mci_writel(host, FIFOTH, fifoth_val);
+
 #endif
 }
 
@@ -883,7 +892,9 @@ static int dw_mci_submit_data_dma(struct dw_mci *host, struct mmc_data *data)
 
 	sg_len = dw_mci_pre_dma_transfer(host, data, 0);
 	if (sg_len < 0) {
-		host->dma_ops->stop(host);
+	        /* Fixme: No need terminate edma, may cause flush op */
+	        if(!(cpu_is_rk3036() || cpu_is_rk312x()))
+		        host->dma_ops->stop(host);
 		return sg_len;
 	}
 
@@ -1194,7 +1205,7 @@ static void dw_mci_wait_unbusy(struct dw_mci *host)
                                 if((host->cmd->arg & (0x1 << 31)) == 1) /* secure erase */
                                         se_flag = 0x1;
 
-                                if (((this_card->ext_csd.erase_group_def) & 0x1) == 1) ;
+                                if (((this_card->ext_csd.erase_group_def) & 0x1) == 1)
                                         se_flag ? (timeout = (this_card->ext_csd.hc_erase_timeout) *
                                                         300000 * (this_card->ext_csd.sec_erase_mult)) :
                                                         (timeout = (this_card->ext_csd.hc_erase_timeout) * 300000);
@@ -2953,13 +2964,34 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 		int present;
 
 		present = dw_mci_get_cd(mmc);
-		dw_mci_ctrl_all_reset(host);
+
+                /* Stop edma when rountine card triggered */
+                if(cpu_is_rk3036() || cpu_is_rk312x())
+		        if(host->dma_ops && host->dma_ops->stop)
+		                host->dma_ops->stop(host);
+
+                /* Card insert, switch data line to uart function, and vice verse.
+                 * ONLY audi chip need switched by software, using udbg tag in dts!
+                 */
+                if (!(IS_ERR(host->pins_udbg)) && !(IS_ERR(host->pins_default))) {
+                         if (present) {
+                                if (pinctrl_select_state(host->pinctrl, host->pins_default) < 0)
+                                        dev_err(host->dev, "%s: Udbg pinctrl setting failed!\n",
+                                                mmc_hostname(host->mmc));
+                         } else {
+                                if (pinctrl_select_state(host->pinctrl, host->pins_udbg) < 0)
+                                        dev_err(host->dev, "%s: Default pinctrl setting failed!\n",
+                                                mmc_hostname(host->mmc));
+                        }
+                }
+
 		while (present != slot->last_detect_state) {
 			dev_dbg(&slot->mmc->class_dev, "card %s\n",
 				present ? "inserted" : "removed");
 			MMC_DBG_BOOT_FUNC(mmc, "  The card is %s.  ===!!!!!!==[%s]\n",
 				present ? "inserted" : "removed.", mmc_hostname(mmc));
 	
+			dw_mci_ctrl_all_reset(host);
 			rk_send_wakeup_key();//wake up system
 			spin_lock_bh(&host->lock);
 
@@ -3251,6 +3283,64 @@ static void dw_mci_of_get_cd_gpio(struct device *dev, u8 slot,
 }
 #endif /* CONFIG_OF */
 
+/* @host: dw_mci host prvdata
+ * Init pinctrl for each platform. Usually we assign
+ * "defalut" tag for functional usage, "idle" tag for gpio
+ * state and "udbg" tag for uart_dbg if any.
+ */
+static void dw_mci_init_pinctrl(struct dw_mci *host)
+{
+        /* Fixme: DON'T TOUCH EMMC SETTING! */
+        if (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC)
+                return;
+
+        /* Get pinctrl for DTS */
+        host->pinctrl = devm_pinctrl_get(host->dev);
+        if (IS_ERR(host->pinctrl)) {
+                dev_err(host->dev, "%s: No pinctrl used!\n",
+                        mmc_hostname(host->mmc));
+                return;
+        }
+
+        /* Lookup idle state */
+        host->pins_idle = pinctrl_lookup_state(host->pinctrl,
+                                                PINCTRL_STATE_IDLE);
+        if (IS_ERR(host->pins_idle)) {
+                dev_err(host->dev, "%s: No idle tag found!\n",
+                        mmc_hostname(host->mmc));
+        } else {
+                if (pinctrl_select_state(host->pinctrl, host->pins_idle) < 0)
+                        dev_err(host->dev, "%s: Idle pinctrl setting failed!\n",
+                                mmc_hostname(host->mmc));
+        }
+
+        /* Lookup default state */
+        host->pins_default = pinctrl_lookup_state(host->pinctrl,
+                                                        PINCTRL_STATE_DEFAULT);
+        if (IS_ERR(host->pins_default)) {
+                dev_err(host->dev, "%s: No default pinctrl found!\n",
+                        mmc_hostname(host->mmc));
+        } else {
+                if (pinctrl_select_state(host->pinctrl, host->pins_default) < 0)
+                        dev_err(host->dev, "%s:  Default pinctrl setting failed!\n",
+                                mmc_hostname(host->mmc));
+        }
+
+        /* Sd card data0/1 may be used for uart_dbg, so were data2/3 for Jtag */
+        if ((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)) {
+                host->pins_udbg = pinctrl_lookup_state(host->pinctrl, "udbg");
+                if (IS_ERR(host->pins_udbg)) {
+                        dev_warn(host->dev, "%s: No udbg pinctrl found!\n",
+                                        mmc_hostname(host->mmc));
+                } else {
+                        if (pinctrl_select_state(host->pinctrl, host->pins_udbg) < 0)
+                                dev_err(host->dev, "%s: Udbg pinctrl setting failed!\n",
+                                        mmc_hostname(host->mmc));
+                }
+        }
+}
+
+
 static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 {
 	struct mmc_host *mmc;
@@ -3454,42 +3544,11 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
         if (mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO)
                 clear_bit(DW_MMC_CARD_PRESENT, &slot->flags);
 
+        dw_mci_init_pinctrl(host);
         ret = mmc_add_host(mmc);
         if (ret)
                 goto err_setup_bus;
 
-        /* Pinctrl set default iomux state to fucntion port.
-         * Fixme: DON'T TOUCH EMMC SETTING!
-         */
-        if(!(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC))
-        {
-                host->pinctrl = devm_pinctrl_get(host->dev);
-                if(IS_ERR(host->pinctrl)){
-                        printk("%s: Warning : No pinctrl used!\n",mmc_hostname(host->mmc));
-                }else{
-                        host->pins_idle= pinctrl_lookup_state(host->pinctrl,PINCTRL_STATE_IDLE);
-                        if(IS_ERR(host->pins_default)){
-                                printk("%s: Warning : No IDLE pinctrl matched!\n", mmc_hostname(host->mmc));
-                        }
-                        else
-                        { 
-                                if(pinctrl_select_state(host->pinctrl, host->pins_idle) < 0)
-                                        printk("%s: Warning :  Idle pinctrl setting failed!\n", mmc_hostname(host->mmc));  
-                        }
-        
-                        host->pins_default = pinctrl_lookup_state(host->pinctrl,PINCTRL_STATE_DEFAULT);
-                        if(IS_ERR(host->pins_default)){
-                                printk("%s: Warning : No default pinctrl matched!\n", mmc_hostname(host->mmc));
-                        }
-                        else
-                        {
-                                if(pinctrl_select_state(host->pinctrl, host->pins_default) < 0)
-                                        printk("%s: Warning :  Default pinctrl setting failed!\n", mmc_hostname(host->mmc));
-                        }
-                }
-        }
-    
-    
 #if defined(CONFIG_DEBUG_FS)
 	dw_mci_init_debugfs(slot);
 #endif
@@ -4087,17 +4146,9 @@ int dw_mci_suspend(struct dw_mci *host)
         /*only for sdmmc controller*/
         if (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD) {
                 host->mmc->rescan_disable = 1;
-                if (!(cpu_is_rk312x() || cpu_is_rk3036())) {
-                        if (cancel_delayed_work_sync(&host->mmc->detect))
-			        wake_unlock(&host->mmc->detect_wake_lock);
-                } else {
-                        /* we find dpm suspend timeout for mmc cancel this work sync way,
-                           actually just workaround this for low end platform with
-                           gpio-debounce detect method.
-                        */
-                        if (cancel_delayed_work(&host->mmc->detect))
-                                wake_unlock(&host->mmc->detect_wake_lock);
-                }
+
+                if(cancel_delayed_work(&host->mmc->detect))
+                        wake_unlock(&host->mmc->detect_wake_lock);
 
                 disable_irq(host->irq);
                 if (pinctrl_select_state(host->pinctrl, host->pins_idle) < 0)
@@ -4230,5 +4281,5 @@ MODULE_DESCRIPTION("Rockchip specific DW Multimedia Card Interface driver");
 MODULE_AUTHOR("NXP Semiconductor VietNam");
 MODULE_AUTHOR("Imagination Technologies Ltd");
 MODULE_AUTHOR("Shawn Lin <lintao@rock-chips.com>");
-MODULE_AUTHOR("Rockchip Electronics£¬Bangwang Xie < xbw@rock-chips.com> ");
+MODULE_AUTHOR("Bangwang Xie <xbw@rock-chips.com>");
 MODULE_LICENSE("GPL v2");

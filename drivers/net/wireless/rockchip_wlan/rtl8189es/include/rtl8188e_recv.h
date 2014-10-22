@@ -109,7 +109,7 @@ typedef struct rxreport_8188e
 } RXREPORT, *PRXREPORT;
 
 
-#ifdef CONFIG_SDIO_HCI
+#if defined (CONFIG_SDIO_HCI)||defined(CONFIG_GSPI_HCI)
 s32 rtl8188es_init_recv_priv(PADAPTER padapter);
 void rtl8188es_free_recv_priv(PADAPTER padapter);
 void rtl8188es_recv_hdl(PADAPTER padapter, struct recv_buf *precvbuf);

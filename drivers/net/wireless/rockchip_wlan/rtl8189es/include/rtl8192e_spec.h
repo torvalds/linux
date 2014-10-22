@@ -35,6 +35,8 @@
 //	0x0000h ~ 0x00FFh	System Configuration
 //
 //-----------------------------------------------------
+#define REG_SYS_SWR_CTRL1_8192E		0x0010	// 1 Byte        
+#define REG_SYS_SWR_CTRL2_8192E		0x0014	// 1 Byte      
 #define REG_AFE_CTRL1_8192E			0x0024
 #define REG_AFE_CTRL2_8192E			0x0028
 #define REG_AFE_CTRL3_8192E			0x002c
@@ -79,6 +81,8 @@
 //	0x0200h ~ 0x027Fh	TXDMA Configuration
 //
 //-----------------------------------------------------
+#define REG_DWBCN0_CTRL             0x0208
+#define REG_DWBCN1_CTRL             0x0228
 
 //-----------------------------------------------------
 //
@@ -98,7 +102,62 @@
 //	0x0300h ~ 0x03FFh	PCIe
 //
 //-----------------------------------------------------
-#define	REG_PCIE_MULTIFET_CTRL_8192E	0x036A	//PCIE Multi-Fethc Control
+#define	REG_PCIE_CTRL_REG_8192E			0x0300
+#define	REG_INT_MIG_8192E					0x0304	// Interrupt Migration 
+#define	REG_BCNQ_TXBD_DESA_8192E		0x0308	// TX Beacon Descriptor Address
+#define	REG_MGQ_TXBD_DESA_8192E			0x0310	// TX Manage Queue Descriptor Address
+#define	REG_VOQ_TXBD_DESA_8192E			0x0318	// TX VO Queue Descriptor Address
+#define	REG_VIQ_TXBD_DESA_8192E			0x0320	// TX VI Queue Descriptor Address
+#define	REG_BEQ_TXBD_DESA_8192E			0x0328	// TX BE Queue Descriptor Address
+#define	REG_BKQ_TXBD_DESA_8192E			0x0330	// TX BK Queue Descriptor Address
+#define	REG_RXQ_RXBD_DESA_8192E			0x0338	// RX Queue	Descriptor Address
+#define 	REG_HI0Q_TXBD_DESA_8192E			0x0340
+#define 	REG_HI1Q_TXBD_DESA_8192E			0x0348
+#define 	REG_HI2Q_TXBD_DESA_8192E			0x0350
+#define 	REG_HI3Q_TXBD_DESA_8192E			0x0358
+#define	REG_HI4Q_TXBD_DESA_8192E			0x0360
+#define 	REG_HI5Q_TXBD_DESA_8192E			0x0368
+#define 	REG_HI6Q_TXBD_DESA_8192E			0x0370
+#define 	REG_HI7Q_TXBD_DESA_8192E			0x0378
+#define	REG_MGQ_TXBD_NUM_8192E			0x0380
+#define	REG_RX_RXBD_NUM_8192E			0x0382
+#define	REG_VOQ_TXBD_NUM_8192E			0x0384
+#define	REG_VIQ_TXBD_NUM_8192E			0x0386
+#define	REG_BEQ_TXBD_NUM_8192E			0x0388
+#define	REG_BKQ_TXBD_NUM_8192E			0x038A
+#define	REG_HI0Q_TXBD_NUM_8192E			0x038C
+#define	REG_HI1Q_TXBD_NUM_8192E			0x038E
+#define	REG_HI2Q_TXBD_NUM_8192E			0x0390
+#define	REG_HI3Q_TXBD_NUM_8192E			0x0392
+#define	REG_HI4Q_TXBD_NUM_8192E			0x0394
+#define	REG_HI5Q_TXBD_NUM_8192E			0x0396
+#define	REG_HI6Q_TXBD_NUM_8192E			0x0398
+#define	REG_HI7Q_TXBD_NUM_8192E			0x039A
+#define	REG_TSFTIMER_HCI_8192E			0x039C
+
+//Read Write Point
+#define	REG_VOQ_TXBD_IDX_8192E			0x03A0
+#define	REG_VIQ_TXBD_IDX_8192E			0x03A4
+#define	REG_BEQ_TXBD_IDX_8192E			0x03A8
+#define	REG_BKQ_TXBD_IDX_8192E			0x03AC
+#define	REG_MGQ_TXBD_IDX_8192E			0x03B0
+#define	REG_RXQ_TXBD_IDX_8192E			0x03B4
+#define	REG_HI0Q_TXBD_IDX_8192E			0x03B8
+#define	REG_HI1Q_TXBD_IDX_8192E			0x03BC
+#define	REG_HI2Q_TXBD_IDX_8192E			0x03C0
+#define	REG_HI3Q_TXBD_IDX_8192E			0x03C4
+#define	REG_HI4Q_TXBD_IDX_8192E			0x03C8
+#define	REG_HI5Q_TXBD_IDX_8192E			0x03CC
+#define	REG_HI6Q_TXBD_IDX_8192E			0x03D0
+#define	REG_HI7Q_TXBD_IDX_8192E			0x03D4
+
+#define	REG_PCIE_HCPWM_8192EE			0x03D8 // ??????
+#define	REG_PCIE_HRPWM_8192EE			0x03DC	//PCIe RPWM // ??????
+#define	REG_DBI_WDATA_V1_8192E			0x03E8
+#define	REG_DBI_RDATA_V1_8192E			0x03EC
+#define	REG_DBI_FLAG_V1_8192E				0x03F0
+#define 	REG_MDIO_V1_8192E					0x3F4
+#define 	REG_PCIE_MIX_CFG_8192E				0x3F8
 
 //-----------------------------------------------------
 //
@@ -106,14 +165,22 @@
 //
 //-----------------------------------------------------
 #define REG_TXBF_CTRL_8192E				0x042C
+#define REG_ARFR0_8192E					0x0444
 #define REG_ARFR1_8192E					0x044C
 #define REG_CCK_CHECK_8192E				0x0454
 #define REG_AMPDU_MAX_TIME_8192E			0x0456
 #define REG_BCNQ1_BDNY_8192E				0x0457
 
 #define REG_AMPDU_MAX_LENGTH_8192E	0x0458
+#define REG_WMAC_LBK_BUF_HD_8192E			0x045D
 #define REG_NDPA_OPT_CTRL_8192E		0x045F
 #define REG_DATA_SC_8192E				0x0483
+#ifdef CONFIG_WOWLAN
+#define REG_TXPKTBUF_IV_LOW             0x0484
+#define REG_TXPKTBUF_IV_HIGH            0x0488
+#endif
+#define REG_ARFR2_8192E					0x048C
+#define REG_ARFR3_8192E					0x0494
 #define REG_TXRPT_START_OFFSET			0x04AC
 #define REG_AMPDU_BURST_MODE_8192E	0x04BC
 #define REG_HT_SINGLE_AMPDU_8192E		0x04C7
@@ -246,8 +313,12 @@
 #define	AcmHw_ViqStatus_8192E			BIT(6)
 #define	AcmHw_BeqStatus_8192E			BIT(7)
 
+//========================================================
+// General definitions
+//========================================================
 
-
+#define MACID_NUM_8192E 128
+#define CAM_ENTRY_NUM_8192E 64
 
 #endif //__RTL8192E_SPEC_H__
 

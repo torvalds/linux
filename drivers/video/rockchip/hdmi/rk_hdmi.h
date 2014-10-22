@@ -364,7 +364,6 @@ struct hdmi {
 	int tmdsclk;		/* TDMS Clock frequency */
 	int pixclock;		/* Pixel Clcok frequency */
 	int uboot_logo;
-	int uboot_vic;
 
 	struct list_head pwrlist_head;
 
@@ -391,6 +390,8 @@ struct hdmi {
 	void (*cec_set_device_pa)(int);
 	int (*cec_enumerate)(void);
 	struct rk_hdmi_drv_ops *ops;
+	unsigned int *support_vic;
+	int support_vic_num;
 };
 
 #define hdmi_err(dev, format, arg...)		\

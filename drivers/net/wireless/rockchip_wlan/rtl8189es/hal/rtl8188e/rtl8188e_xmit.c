@@ -287,4 +287,21 @@ void UpdateEarlyModeInfo8188E(struct xmit_priv *pxmitpriv,struct xmit_buf *pxmit
 }
 #endif
 
+void rtl8188e_cal_txdesc_chksum(struct tx_desc *ptxdesc)
+{
+	u16	*usPtr = (u16*)ptxdesc;
+	u32 count = 16;		// (32 bytes / 2 bytes per XOR) => 16 times
+	u32 index;
+	u16 checksum = 0;
+
+
+	// Clear first
+	ptxdesc->txdw7 &= cpu_to_le32(0xffff0000);
+
+	for (index = 0; index < count; index++) {
+		checksum ^= le16_to_cpu(*(usPtr + index));
+	}
+
+	ptxdesc->txdw7 |= cpu_to_le32(checksum & 0x0000ffff);
+}
 

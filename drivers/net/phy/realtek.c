@@ -23,7 +23,7 @@
 #define RTL821x_INER_INIT	0x6400
 #define RTL821x_INSR		0x13
 
-#define	RTL8211E_INER_LINK_STAT	0x10
+#define	RTL8211E_INER_LINK_STAT	0x400
 
 MODULE_DESCRIPTION("Realtek PHY driver");
 MODULE_AUTHOR("Johnson Leung");
@@ -61,6 +61,7 @@ static int rtl8211e_config_intr(struct phy_device *phydev)
 	else
 		err = phy_write(phydev, RTL821x_INER, 0);
 
+	phy_read(phydev, RTL821x_INSR);
 	return err;
 }
 

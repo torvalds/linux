@@ -22,19 +22,25 @@
 
 #if defined(CONFIG_USB_HCI)
 
+#ifndef MAX_RECVBUF_SZ
 #ifdef PLATFORM_OS_CE
 #define MAX_RECVBUF_SZ (8192+1024) // 8K+1k
 #else
 	#ifdef CONFIG_MINIMAL_MEMORY_USAGE
 		#define MAX_RECVBUF_SZ (4000) // about 4K
 	#else
+		#ifdef CONFIG_PLATFORM_MSTAR
+			#define MAX_RECVBUF_SZ (8192) // 8K
+		#else
 		#define MAX_RECVBUF_SZ (32768) // 32k
+		#endif
 		//#define MAX_RECVBUF_SZ (20480) //20K
 		//#define MAX_RECVBUF_SZ (10240) //10K 
 		//#define MAX_RECVBUF_SZ (16384) //  16k - 92E RX BUF :16K
 		//#define MAX_RECVBUF_SZ (8192+1024) // 8K+1k		
 	#endif
 #endif
+#endif //!MAX_RECVBUF_SZ
 
 #elif defined(CONFIG_PCI_HCI)
 //#ifndef CONFIG_MINIMAL_MEMORY_USAGE
@@ -55,7 +61,28 @@
 #define Rx_Smooth_Factor (20)
 
 //=============
+// [1] Rx Buffer Descriptor (for PCIE) buffer descriptor architecture
+//DWORD 0
+#define SET_RX_BUFFER_DESC_DATA_LENGTH_92E(__pRxStatusDesc, __Value)		SET_BITS_TO_LE_4BYTE( __pRxStatusDesc, 0, 14, __Value)
+#define SET_RX_BUFFER_DESC_LS_92E(__pRxStatusDesc,__Value)	SET_BITS_TO_LE_4BYTE( __pRxStatusDesc, 15, 1, __Value)
+#define SET_RX_BUFFER_DESC_FS_92E(__pRxStatusDesc, __Value)		SET_BITS_TO_LE_4BYTE( __pRxStatusDesc, 16, 1, __Value)
+#define SET_RX_BUFFER_DESC_TOTAL_LENGTH_92E(__pRxStatusDesc, __Value)		SET_BITS_TO_LE_4BYTE( __pRxStatusDesc, 16, 15, __Value)
 
+#define GET_RX_BUFFER_DESC_OWN_92E(__pRxStatusDesc)		LE_BITS_TO_4BYTE( __pRxStatusDesc, 31, 1)
+#define GET_RX_BUFFER_DESC_LS_92E(__pRxStatusDesc)		LE_BITS_TO_4BYTE( __pRxStatusDesc, 15, 1)
+#define GET_RX_BUFFER_DESC_FS_92E(__pRxStatusDesc)		LE_BITS_TO_4BYTE( __pRxStatusDesc, 16, 1)
+#define GET_RX_BUFFER_DESC_TOTAL_LENGTH_92E(__pRxStatusDesc)		LE_BITS_TO_4BYTE( __pRxStatusDesc, 16, 15)
+
+
+//DWORD 1
+#define SET_RX_BUFFER_PHYSICAL_LOW_92E(__pRxStatusDesc, __Value)		SET_BITS_TO_LE_4BYTE( __pRxStatusDesc+4, 0, 32, __Value)
+#define GET_RX_BUFFER_PHYSICAL_LOW_92E(__pRxStatusDesc)		LE_BITS_TO_4BYTE( __pRxStatusDesc+4, 0, 32)
+
+//DWORD 2
+#define SET_RX_BUFFER_PHYSICAL_HIGH_92E(__pRxStatusDesc, __Value)		SET_BITS_TO_LE_4BYTE( __pRxStatusDesc+8, 0, 32, __Value)
+
+//=============
+// [2] Rx Descriptor
 //DWORD 0
 #define GET_RX_STATUS_DESC_PKT_LEN_92E(__pRxStatusDesc)			LE_BITS_TO_4BYTE( __pRxStatusDesc, 0, 14)
 #define GET_RX_STATUS_DESC_CRC32_92E(__pRxStatusDesc)			LE_BITS_TO_4BYTE( __pRxStatusDesc, 14, 1)
@@ -67,6 +94,12 @@
 #define GET_RX_STATUS_DESC_PHY_STATUS_92E(__pRxStatusDesc)		LE_BITS_TO_4BYTE( __pRxStatusDesc, 26, 1)
 #define GET_RX_STATUS_DESC_SWDEC_92E(__pRxStatusDesc)			LE_BITS_TO_4BYTE( __pRxStatusDesc, 27, 1)
 #define GET_RX_STATUS_DESC_EOR_92E(__pRxStatusDesc)				LE_BITS_TO_4BYTE( __pRxStatusDesc, 30, 1)
+#define GET_RX_STATUS_DESC_OWN_92E(__pRxStatusDesc)				LE_BITS_TO_4BYTE( __pRxStatusDesc, 31, 1)
+
+
+#define SET_RX_STATUS_DESC_PKT_LEN_92E(__pRxStatusDesc, __Value)		SET_BITS_TO_LE_4BYTE( __pRxStatusDesc, 0, 14, __Value)
+#define SET_RX_STATUS_DESC_EOR_92E(__pRxStatusDesc, __Value)		SET_BITS_TO_LE_4BYTE( __pRxStatusDesc, 30, 1, __Value)
+#define SET_RX_STATUS_DESC_OWN_92E(__pRxStatusDesc, __Value)		SET_BITS_TO_LE_4BYTE( __pRxStatusDesc, 31, 1, __Value)
 
 //DWORD 1
 #define GET_RX_STATUS_DESC_MACID_92E(__pRxDesc) 					LE_BITS_TO_4BYTE(__pRxDesc+4, 0, 7)
@@ -116,13 +149,11 @@
 #define GET_RX_STATUS_DESC_BUFF_ADDR_92E(__pRxDesc) 		LE_BITS_TO_4BYTE(__pRxDesc+24, 0, 32)
 #define GET_RX_STATUS_DESC_BUFF_ADDR64_92E(__pRxDesc) 		LE_BITS_TO_4BYTE(__pRxDesc+28, 0, 32)
 
-#define SET_RX_STATUS_DESC_BUFF_ADDR_92E(__pRxDesc, __Value) 	SET_BITS_TO_LE_4BYTE(__pRxDesc+24, 0, 32, __Value)
-
 
 #ifdef CONFIG_SDIO_HCI
-s32 rtl8812s_init_recv_priv(PADAPTER padapter);
-void rtl8812s_free_recv_priv(PADAPTER padapter);
-void rtl8812s_recv_hdl(PADAPTER padapter, struct recv_buf *precvbuf);
+s32 rtl8192es_init_recv_priv(PADAPTER padapter);
+void rtl8192es_free_recv_priv(PADAPTER padapter);
+void rtl8192es_recv_hdl(PADAPTER padapter, struct recv_buf *precvbuf);
 #endif
 
 #ifdef CONFIG_USB_HCI

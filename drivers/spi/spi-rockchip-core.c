@@ -569,7 +569,7 @@ static void pump_transfers(unsigned long data)
 	u32 speed = 0;
 	u32 cr0 = 0;	
 	u16 dma_ctrl = 0;
-
+	int i = 0;
 
 	/* Get current state information */
 	message = dws->cur_msg;
@@ -747,27 +747,38 @@ static void pump_transfers(unsigned long data)
 		/* setup DMA related registers */
 		if(dws->dma_mapped)
 		{
+			dws->dmatdlr = dws->n_bytes;
+			dws->dmardlr = dws->n_bytes - 1;
+			for(i=dws->n_bytes; i<=dws->fifo_len / 4; i++)
+			{
+				if((dws->len / dws->n_bytes) % i == 0)
+				dws->dmatdlr = i;
+			}
+
 			/* Set the interrupt mask, for poll mode just diable all int */
 			spi_mask_intr(dws, 0xff);		
 			if(dws->tx)
 			{
 				dma_ctrl |= SPI_DMACR_TX_ENABLE;		
-				dw_writew(dws, SPIM_DMATDLR, 8);
+				dw_writew(dws, SPIM_DMATDLR, dws->dmatdlr);
 				dw_writew(dws, SPIM_CTRLR1, dws->len-1);	
 			}
+
+			dws->dmardlr = (dws->dmatdlr != dws->n_bytes)?(dws->dmatdlr-1):(dws->n_bytes-1);
 			
 			if (dws->rx)
 			{
 				dma_ctrl |= SPI_DMACR_RX_ENABLE;	
-				dw_writew(dws, SPIM_DMARDLR, 0);			
-				dw_writew(dws, SPIM_CTRLR1, dws->len-1);	
+				dw_writew(dws, SPIM_DMARDLR, dws->dmardlr);
+				dw_writew(dws, SPIM_CTRLR1, dws->len-1);
 			}
 			dw_writew(dws, SPIM_DMACR, dma_ctrl);
 
-			DBG_SPI("%s:dma_ctrl=0x%x\n",__func__,dw_readw(dws, SPIM_DMACR));
+			DBG_SPI("%s:dma_ctrl=0x%x,dmatdlr=%d,dmardlr=%d\n",__func__,dw_readw(dws, SPIM_DMACR),dws->dmatdlr, dws->dmardlr);
 			
 		}
-		
+
+		if((!dws->dma_mapped) || (dws->dma_mapped && dws->tx))
 		spi_enable_chip(dws, 1);
 
 		DBG_SPI("%s:ctrl0=0x%x\n",__func__,dw_readw(dws, SPIM_CTRLR0));

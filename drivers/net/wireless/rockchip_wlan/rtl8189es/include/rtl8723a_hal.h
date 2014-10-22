@@ -22,11 +22,7 @@
 
 
 //#include "hal_com.h"
-#if 1
 #include "hal_data.h"
-#else
-#include "../hal/OUTSRC/odm_precomp.h"
-#endif
 
 #include "rtl8723a_spec.h"
 #include "rtl8723a_pg.h"
@@ -155,13 +151,6 @@ typedef struct _RT_FIRMWARE_8723A {
 	u8			szFwBuffer[FW_8723A_SIZE];
 #endif
 	u32			ulFwLength;
-
-#ifdef CONFIG_EMBEDDED_FWIMG
-	u8*			szBTFwBuffer;
-#else
-	u8			szBTFwBuffer[FW_8723A_SIZE];
-#endif
-	u32			ulBTFwLength;
 } RT_FIRMWARE_8723A, *PRT_FIRMWARE_8723A;
 
 //
@@ -448,6 +437,7 @@ void Hal_InitChannelPlan(PADAPTER padapter);
 void rtl8723a_set_hal_ops(struct hal_ops *pHalFunc);
 void SetHwReg8723A(PADAPTER padapter, u8 variable, u8 *val);
 void GetHwReg8723A(PADAPTER padapter, u8 variable, u8 *val);
+u8 GetHalDefVar8723A(PADAPTER Adapter, HAL_DEF_VARIABLE eVariable, PVOID pValue);
 #ifdef CONFIG_BT_COEXIST
 void rtl8723a_SingleDualAntennaDetection(PADAPTER padapter);
 #endif

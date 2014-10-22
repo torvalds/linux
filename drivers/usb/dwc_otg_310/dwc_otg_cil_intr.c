@@ -109,8 +109,8 @@ int32_t dwc_otg_handle_otg_intr(dwc_otg_core_if_t *core_if)
 				dctl.d32);
 		dwc_otg_disable_global_interrupts(core_if);
 		core_if->otg_dev->pcd->vbus_status = USB_BC_TYPE_DISCNT;
-		DWC_PRINTF
-		    ("********session end ,soft disconnect************************\n");
+
+		DWC_PRINTF("********session end ,soft disconnect***********\n");
 
 		gotgctl.d32 = DWC_READ_REG32(&global_regs->gotgctl);
 

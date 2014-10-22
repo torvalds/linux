@@ -22,25 +22,16 @@
 #ifndef __INC_MP_MAC_HW_IMG_8188E_H
 #define __INC_MP_MAC_HW_IMG_8188E_H
 
-//static BOOLEAN CheckCondition(const u4Byte Condition, const u4Byte Hex);
 
 /******************************************************************************
 *                           MAC_REG.TXT
 ******************************************************************************/
 
-HAL_STATUS
+void
 ODM_ReadAndConfig_MP_8188E_MAC_REG( // TC: Test Chip, MP: MP Chip
 	IN   PDM_ODM_T  pDM_Odm
 );
-
-/******************************************************************************
-*                           MAC_REG_ICUT.TXT
-******************************************************************************/
-
-HAL_STATUS
-ODM_ReadAndConfig_MP_8188E_MAC_REG_ICUT( // TC: Test Chip, MP: MP Chip
-	IN   PDM_ODM_T  pDM_Odm
-);
+u4Byte ODM_GetVersion_MP_8188E_MAC_REG(void);
 
 #endif
 #endif // end of HWIMG_SUPPORT

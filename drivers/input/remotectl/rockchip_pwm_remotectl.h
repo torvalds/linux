@@ -3,14 +3,21 @@
 #define __RKXX_PWM_REMOTECTL_H__
 #include <linux/input.h>
 
+#define MAX_NUM_KEYS  60
+
 /* PWM0 registers  */
 #define PWM_REG_CNTR                    0x00  /* Counter Register */
 #define PWM_REG_HPR		                  0x04  /* Period Register */
 #define PWM_REG_LPR                     0x08  /* Duty Cycle Register */
 #define PWM_REG_CTRL                    0x0c  /* Control Register */
-#define PWM_REG_INTSTS                  0x10  /* Interrupt Status Refister */
-#define PWM_REG_INT_EN                  0x14  /* Interrupt Enable Refister */
-
+#define PWM3_REG_INTSTS                 0x10  /* Interrupt Status Refister For Pwm3*/
+#define PWM2_REG_INTSTS                 0x20  /* Interrupt Status Refister For Pwm2*/
+#define PWM1_REG_INTSTS                 0x30  /* Interrupt Status Refister For Pwm1*/
+#define PWM0_REG_INTSTS                 0x40  /* Interrupt Status Refister For Pwm0*/
+#define PWM3_REG_INT_EN                 0x14  /* Interrupt Enable Refister For Pwm3*/
+#define PWM2_REG_INT_EN                 0x24  /* Interrupt Enable Refister For Pwm2*/
+#define PWM1_REG_INT_EN                 0x34  /* Interrupt Enable Refister For Pwm1*/
+#define PWM0_REG_INT_EN                 0x44  /* Interrupt Enable Refister For Pwm0*/
 
 /*REG_CTRL bits definitions*/
 #define PWM_ENABLE			            (1 << 0)

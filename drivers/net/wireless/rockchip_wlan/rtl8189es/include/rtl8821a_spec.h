@@ -42,6 +42,7 @@
 //-----------------------------------------------------
 //	0x0100h ~ 0x01FFh	MACTOP General Configuration
 //-----------------------------------------------------
+#define REG_WOWLAN_WAKE_REASON          REG_MCUTST_WOWLAN
 
 //-----------------------------------------------------
 //	0x0200h ~ 0x027Fh	TXDMA Configuration
@@ -92,6 +93,12 @@
 //       Regsiter Bit and Content definition
 //============================================================
 
+//========================================================
+// General definitions
+//========================================================
 
-#endif // __RTL8821A_SPEC_H__
+#define MACID_NUM_8821A 128
+#define CAM_ENTRY_NUM_8821A 64
+
+#endif /* __RTL8821A_SPEC_H__ */
 

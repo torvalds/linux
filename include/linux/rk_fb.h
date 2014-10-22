@@ -341,7 +341,6 @@ struct rk_lcdc_win_area{
 struct rk_lcdc_win {
 	char name[5];
 	int id;
-	u32 logicalstate;
 	bool state;		/*on or off*/
 	bool last_state;		/*on or off*/
 	u32 pseudo_pal[16];
@@ -441,6 +440,7 @@ struct rk_lcdc_drv_ops {
 	int (*cfg_done) (struct rk_lcdc_driver *dev_drv);
 	int (*set_overscan) (struct rk_lcdc_driver *dev_drv,
 			     struct overscan *overscan);
+	int (*dsp_black) (struct rk_lcdc_driver *dev_drv, int enable);
 };
 
 struct rk_fb_area_par {
@@ -592,6 +592,22 @@ struct rk_lcdc_driver {
 	struct overscan overscan;
 	struct rk_lcdc_bcsh bcsh;
 	int *hwc_lut;
+	int uboot_logo;
+};
+
+struct rk_fb_par {
+	int id;
+	u32 state;
+
+	unsigned long fb_phy_base;	/* Start of fb address (physical address) */
+	char __iomem *fb_virt_base;	/* Start of fb address (virt address) */
+	u32 fb_size;
+	struct rk_lcdc_driver *lcdc_drv;
+
+#if defined(CONFIG_ION_ROCKCHIP)
+	struct ion_handle *ion_hdl;
+#endif
+	u32 reserved[2];
 };
 
 /*disp_mode: dual display mode
@@ -604,12 +620,10 @@ struct rk_lcdc_driver {
 
 struct rk_fb {
 	int disp_mode;
+	int disp_policy;
 	struct rk29fb_info *mach_info;
 	struct fb_info *fb[RK_MAX_FB_SUPPORT*2];
 	int num_fb;
-	unsigned long fb_phy_base;		/* Start of fb address */
-	unsigned long ext_fb_phy_base;		/* Start of extend fb address */
-						/* (physical address) */
 	struct rk_lcdc_driver *lcdc_dev_drv[RK30_MAX_LCDC_SUPPORT];
 	int num_lcdc;
 

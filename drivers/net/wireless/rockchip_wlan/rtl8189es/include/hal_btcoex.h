@@ -30,6 +30,7 @@ typedef struct _BT_COEXIST
 	u8 btTotalAntNum;
 	u8 btChipType;
 	u8 bInitlized;
+	u8 btAntisolation;
 } BT_COEXIST, *PBT_COEXIST;
 
 void DBG_BT_INFO(u8 *dbgmsg);
@@ -39,11 +40,14 @@ u8 hal_btcoex_IsBtExist(PADAPTER padapter);
 u8 hal_btcoex_IsBtDisabled(PADAPTER);
 void hal_btcoex_SetChipType(PADAPTER padapter, u8 chipType);
 u8 hal_btcoex_GetChipType(PADAPTER padapter);
-void hal_btcoex_SetPgAntNum(PADAPTER padapter, u8 antNum, BOOLEAN antInverse);
+void hal_btcoex_SetPgAntNum(PADAPTER padapter, u8 antNum);
 u8 hal_btcoex_GetPgAntNum(PADAPTER padapter);
+void hal_btcoex_SetSingleAntPath(PADAPTER padapter, u8 singleAntPath);
 
 u8 hal_btcoex_Initialize(PADAPTER padapter);
-void hal_btcoex_InitHwConfig(PADAPTER padapter);
+void hal_btcoex_PowerOnSetting(PADAPTER padapter);
+void hal_btcoex_PreLoadFirmware(PADAPTER padapter);
+void hal_btcoex_InitHwConfig(PADAPTER padapter, u8 bWifiOnly);
 
 void hal_btcoex_IpsNotify(PADAPTER padapter, u8 type);
 void hal_btcoex_LpsNotify(PADAPTER padapter, u8 type);
@@ -55,7 +59,7 @@ void hal_btcoex_IQKNotify(PADAPTER padapter, u8 state);
 void hal_btcoex_BtInfoNotify(PADAPTER padapter, u8 length, u8 *tmpBuf);
 void hal_btcoex_SuspendNotify(PADAPTER padapter, u8 state);
 void hal_btcoex_HaltNotify(PADAPTER padapter);
-void hal_btcoex_SwitchGntBt(PADAPTER padapter);
+void hal_btcoex_SwitchBtTRxMask(PADAPTER padapter);
 
 void hal_btcoex_Hanlder(PADAPTER padapter);
 
@@ -74,6 +78,10 @@ void hal_btcoex_SetDBG(PADAPTER, u32 *pDbgModule);
 u32 hal_btcoex_GetDBG(PADAPTER, u8 *pStrBuf, u32 bufSize);
 u8 hal_btcoex_IncreaseScanDeviceNum(PADAPTER);
 u8 hal_btcoex_IsBtLinkExist(PADAPTER);
-
+void hal_btcoex_SetAntIsolationType(PADAPTER padapter, u8 anttype);
+#ifdef CONFIG_LOAD_PHY_PARA_FROM_FILE
+int hal_btcoex_AntIsolationConfig_ParaFile(IN PADAPTER	Adapter,IN char* pFileName);
+int hal_btcoex_ParseAntIsolationConfigFile(PADAPTER Adapter, char*	buffer);
+#endif // CONFIG_LOAD_PHY_PARA_FROM_FILE
 #endif // !__HAL_BTCOEX_H__
 

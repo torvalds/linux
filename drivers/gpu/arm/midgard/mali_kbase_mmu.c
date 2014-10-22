@@ -1308,7 +1308,7 @@ void kbase_mmu_interrupt(kbase_device *kbdev, u32 irq_stat)
 
 		/* remove the queued PFs from the mask */
 		new_mask &= ~((1UL << as_no) | (1UL << (as_no + num_as)));
-
+		kbdev->kbase_group_error++;
 		/* queue work pending for this AS */
 		KBASE_DEBUG_ASSERT(0 == object_is_on_stack(&as->work_pagefault));
 		INIT_WORK(&as->work_pagefault, page_fault_worker);

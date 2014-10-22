@@ -268,10 +268,15 @@ static void _rtw_reg_apply_radar_flags(struct wiphy *wiphy)
 		if (!_rtw_is_radar_freq(ch->center_freq))
 			continue;
 #ifdef CONFIG_DFS
-		if (!(ch->flags & IEEE80211_CHAN_DISABLED))
-			ch->flags |= IEEE80211_CHAN_RADAR |
-			    IEEE80211_CHAN_NO_IBSS;
-#endif
+		if (!(ch->flags & IEEE80211_CHAN_DISABLED)) {
+			ch->flags |= IEEE80211_CHAN_RADAR;
+			#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,14,0))
+			ch->flags |= (IEEE80211_CHAN_NO_IBSS|IEEE80211_CHAN_PASSIVE_SCAN);
+			#else
+			ch->flags |= IEEE80211_CHAN_NO_IR;
+			#endif
+		}
+#endif //CONFIG_DFS
 
 #if 0
 		/*
@@ -354,12 +359,19 @@ static void _rtw_reg_apply_flags(struct wiphy *wiphy)
 			    rtw_ieee80211_channel_to_frequency(channel,
 							       IEEE80211_BAND_5GHZ);
 
+
 		ch = ieee80211_get_channel(wiphy, freq);
 		if (ch) {
-			if (channel_set[i].ScanType == SCAN_PASSIVE)
-				ch->flags = IEEE80211_CHAN_PASSIVE_SCAN;
-			else
+			if (channel_set[i].ScanType == SCAN_PASSIVE) {
+				#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,14,0))
+				ch->flags = (IEEE80211_CHAN_NO_IBSS|IEEE80211_CHAN_PASSIVE_SCAN);
+				#else
+				ch->flags = IEEE80211_CHAN_NO_IR;
+				#endif
+			}
+			else {
 				ch->flags = 0;
+			}
 		}
 	}
 
@@ -474,20 +486,52 @@ static const struct ieee80211_regdomain *_rtw_regdomain_select(struct
 #endif
 }
 
-static int _rtw_regd_init_wiphy(struct rtw_regulatory *reg,
-				struct wiphy *wiphy,
-				void (*reg_notifier) (struct wiphy * wiphy,
-						     struct regulatory_request *
-						     request))
+void _rtw_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
+{
+	struct rtw_regulatory *reg = NULL;
+
+	DBG_8192C("%s\n", __func__);
+
+	_rtw_reg_notifier_apply(wiphy, request, reg);
+}
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,9,0))
+int rtw_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
+#else
+void rtw_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
+#endif
+{
+	_rtw_reg_notifier(wiphy, request);
+	#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,9,0))
+	return 0;
+	#endif
+}
+
+void rtw_reg_notify_by_driver(_adapter *adapter)
+{
+	if ((adapter->rtw_wdev != NULL) && (adapter->rtw_wdev->wiphy)) {
+		struct regulatory_request request;
+		request.initiator = NL80211_REGDOM_SET_BY_DRIVER;
+		rtw_reg_notifier(adapter->rtw_wdev->wiphy, &request);
+	}
+}
+
+static void _rtw_regd_init_wiphy(struct rtw_regulatory *reg, struct wiphy *wiphy)
 {
 	const struct ieee80211_regdomain *regd;
 
-	wiphy->reg_notifier = reg_notifier;
+	wiphy->reg_notifier = rtw_reg_notifier;
 
+	#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,14,0))
 	wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
 	wiphy->flags &= ~WIPHY_FLAG_STRICT_REGULATORY;
 	wiphy->flags &= ~WIPHY_FLAG_DISABLE_BEACON_HINTS;
-
+	#else
+	wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG;
+	wiphy->regulatory_flags &= ~REGULATORY_STRICT_REG;
+	wiphy->regulatory_flags &= ~REGULATORY_DISABLE_BEACON_HINTS;
+	#endif
+	
 	regd = _rtw_regdomain_select(reg);
 	wiphy_apply_custom_regulatory(wiphy, regd);
 
@@ -495,7 +539,6 @@ static int _rtw_regd_init_wiphy(struct rtw_regulatory *reg,
 	_rtw_reg_apply_flags(wiphy);
 	_rtw_reg_apply_radar_flags(wiphy);
 	_rtw_reg_apply_world_flags(wiphy, NL80211_REGDOM_SET_BY_DRIVER, reg);
-	return 0;
 }
 
 static struct country_code_to_enum_rd *_rtw_regd_find_country(u16 countrycode)
@@ -509,11 +552,8 @@ static struct country_code_to_enum_rd *_rtw_regd_find_country(u16 countrycode)
 	return NULL;
 }
 
-int rtw_regd_init(_adapter * padapter,
-		  void (*reg_notifier) (struct wiphy * wiphy,
-				       struct regulatory_request * request))
+int rtw_regd_init(_adapter * padapter)
 {
-	//struct registry_priv  *registrypriv = &padapter->registrypriv;
 	struct wiphy *wiphy = padapter->rtw_wdev->wiphy;
 
 #if 0
@@ -531,17 +571,9 @@ int rtw_regd_init(_adapter * padapter,
 		  __func__, rtw_regd->alpha2[0], rtw_regd->alpha2[1]);
 #endif
 
-	_rtw_regd_init_wiphy(NULL, wiphy, reg_notifier);
+	_rtw_regd_init_wiphy(NULL, wiphy);
 
 	return 0;
 }
-
-void rtw_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
-{
-	struct rtw_regulatory *reg = NULL;
-
-	DBG_8192C("%s\n", __func__);
-
-	_rtw_reg_notifier_apply(wiphy, request, reg);
-}
 #endif //CONFIG_IOCTL_CFG80211
+

@@ -206,15 +206,17 @@ struct dw_mci {
 	/* Workaround flags */
 	u32			quirks;
 	bool	    irq_state;
-	u32                     svi_flags; /*switch voltage interrupt flags*/
+	u32                     svi_flags; /* Switch voltage interrupt flags */
 	struct regulator	*vmmc;	/* Power regulator */
 	unsigned long		irq_flags; /* IRQ flags */
 	int			irq;
-	u32         cmd_rto;     /*cmd response timeout hold times*/
-	struct pinctrl *pinctrl; /*Pinctrl state*/
-	struct pinctrl_state	*pins_default;
-	struct pinctrl_state	*pins_idle;
-	struct pinctrl_state    *pins_sleep;
+	u32         cmd_rto;     /* Cmd response timeout hold times */
+	struct pinctrl *pinctrl;
+
+	/* Pinctrl state */
+	struct pinctrl_state	*pins_default; /* Function port */
+	struct pinctrl_state	*pins_idle;    /* Gpio port */
+	struct pinctrl_state    *pins_udbg;    /* uart_dbg port */
 };
 
 /* DMA ops for Internal/External DMAC interface */

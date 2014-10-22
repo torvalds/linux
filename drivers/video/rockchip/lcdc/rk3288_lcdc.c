@@ -289,16 +289,20 @@ static void lcdc_read_reg_defalut_cfg(struct lcdc_device *lcdc_dev)
 	struct rk_lcdc_win *win0 = lcdc_dev->driver.win[0];
 
 	spin_lock(&lcdc_dev->reg_lock);
-	for (reg = 0; reg < 0x1a0; reg+= 4) {
+	for (reg = 0; reg < FRC_LOWER11_1; reg += 4) {
 		val = lcdc_readl(lcdc_dev, reg);
 		switch (reg) {
 			case WIN0_ACT_INFO:
-				win0->area[0].xact = (val & m_WIN0_ACT_WIDTH)+1;
-				win0->area[0].yact = ((val & m_WIN0_ACT_HEIGHT)>>16)+1;
+				win0->area[0].xact =
+					(val & m_WIN0_ACT_WIDTH) + 1;
+				win0->area[0].yact =
+					((val & m_WIN0_ACT_HEIGHT) >> 16) + 1;
 				break;
 			case WIN0_DSP_INFO:
-				win0->area[0].xsize = (val & m_WIN0_DSP_WIDTH) + 1;
-				win0->area[0].ysize = ((val & m_WIN0_DSP_HEIGHT) >> 16) + 1;
+				win0->area[0].xsize =
+					(val & m_WIN0_DSP_WIDTH) + 1;
+				win0->area[0].ysize =
+					((val & m_WIN0_DSP_HEIGHT) >> 16) + 1;
 				break;
 			case WIN0_DSP_ST:
 				st_x = val & m_WIN0_DSP_XST;

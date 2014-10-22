@@ -79,7 +79,7 @@ struct esp_sip {
         u8 * rx_aggr_lastpkt_ptr;
 #endif
 
-        spinlock_t rx_lock;
+	struct mutex rx_mtx; 
         struct sk_buff_head rxq;
 #ifndef RX_SYNC
         struct work_struct rx_process_work;

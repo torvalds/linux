@@ -1014,11 +1014,12 @@
 #define		bMaskByte1		0xff00
 #define		bMaskByte2		0xff0000
 #define		bMaskByte3		0xff000000
-#define		bMaskHWord		0xffff0000
+#define		bMaskHWord	0xffff0000
 #define		bMaskLWord		0x0000ffff
-#define		bMaskDWord		0xffffffff
-#define		bMaskH4Bits		0xf0000000	
-#define 	bMaskOFDM_D		0xffc00000
+#define		bMaskDWord	0xffffffff
+#define		bMaskH4Bits		0xf0000000
+#define		bMaskH3Bytes	0xffffff00
+#define 		bMaskOFDM_D	0xffc00000
 #define		bMaskCCK		0x3f3f3f3f
 #define		bMask12Bits		0xfff
 

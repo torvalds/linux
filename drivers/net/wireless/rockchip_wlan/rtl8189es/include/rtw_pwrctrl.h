@@ -63,7 +63,8 @@ enum Power_Mgnt
 
 #ifdef CONFIG_PNO_SUPPORT
 #define MAX_PNO_LIST_COUNT 16
-#define MAX_SCAN_LIST_COUNT 14 //2.4G only
+#define MAX_SCAN_LIST_COUNT 14	//2.4G only
+#define MAX_HIDDEN_AP 8		//8 hidden AP
 #endif
 
 /*
@@ -205,13 +206,15 @@ typedef enum _PS_DENY_REASON
 typedef struct pno_nlo_info
 {
 	u32 fast_scan_period;				//Fast scan period
-	u32	ssid_num;				//number of entry
+	u8	ssid_num;				//number of entry
+	u8	hidden_ssid_num;
 	u32	slow_scan_period;			//slow scan period
 	u32	fast_scan_iterations;			//Fast scan iterations
 	u8	ssid_length[MAX_PNO_LIST_COUNT];	//SSID Length Array
 	u8	ssid_cipher_info[MAX_PNO_LIST_COUNT];	//Cipher information for security
 	u8	ssid_channel_info[MAX_PNO_LIST_COUNT];	//channel information
-}pno_nlo_info_t;	
+	u8	loc_probe_req[MAX_HIDDEN_AP];		//loc_probeReq
+}pno_nlo_info_t;
 
 typedef struct pno_ssid {
 	u32		SSID_len;
@@ -316,14 +319,17 @@ struct pwrctrl_priv
 	u8		wowlan_wake_reason;
 	u8		wowlan_ap_mode;
 	u8		wowlan_mode;
+	u8		wowlan_p2p_mode;
+	u8		wowlan_pno_enable;
 #ifdef CONFIG_WOWLAN
 	u8		wowlan_pattern;
 	u8		wowlan_magic;
 	u8		wowlan_unicast;
 	u8		wowlan_pattern_idx;
-	u8		wowlan_pno_enable;
+	u8		wowlan_from_cmd;
 #ifdef CONFIG_PNO_SUPPORT
 	u8		pno_in_resume;
+	u8		pno_inited;
 	pno_nlo_info_t	*pnlo_info;
 	pno_scan_info_t	*pscan_info;
 	pno_ssid_list_t	*pno_ssid_list;
@@ -402,8 +408,6 @@ extern void cpwm_int_hdl(PADAPTER padapter, struct reportpwrstate_parm *preportp
 extern void LPS_Leave_check(PADAPTER padapter);
 #endif
 
-extern void rtw_set_ps_mode(PADAPTER padapter, u8 ps_mode, u8 smart_ps, u8 bcn_ant_mode, const char *msg);
-extern void rtw_set_rpwm(_adapter * padapter, u8 val8);
 extern void LeaveAllPowerSaveMode(PADAPTER Adapter);
 extern void LeaveAllPowerSaveModeDirect(PADAPTER Adapter);
 #ifdef CONFIG_IPS
@@ -429,7 +433,10 @@ int rtw_fw_ps_state(PADAPTER padapter);
 s32 LPS_RF_ON_check(PADAPTER padapter, u32 delay_ms);
 void LPS_Enter(PADAPTER padapter, const char *msg);
 void LPS_Leave(PADAPTER padapter, const char *msg);
-void	traffic_check_for_leave_lps(PADAPTER padapter, u8 tx, u32 tx_packets);
+void traffic_check_for_leave_lps(PADAPTER padapter, u8 tx, u32 tx_packets);
+void rtw_set_ps_mode(PADAPTER padapter, u8 ps_mode, u8 smart_ps, u8 bcn_ant_mode, const char *msg);
+void rtw_set_fw_in_ips_mode(PADAPTER padapter, u8 enable);
+void rtw_set_rpwm(_adapter * padapter, u8 val8);
 #endif
 
 #ifdef CONFIG_RESUME_IN_WORKQUEUE

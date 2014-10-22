@@ -45,6 +45,7 @@
 //Android expect dbm as the rx signal strength unit
 #define CONFIG_SIGNAL_DISPLAY_DBM
 #endif
+
 /*
 #if defined(CONFIG_HAS_EARLYSUSPEND) && defined (CONFIG_RESUME_IN_WORKQUEUE)
 	#warning "You have CONFIG_HAS_EARLYSUSPEND enabled in your system, we disable CONFIG_RESUME_IN_WORKQUEUE automatically"
@@ -56,6 +57,7 @@
 	#undef CONFIG_RESUME_IN_WORKQUEUE
 #endif
 */
+
 #ifdef CONFIG_RESUME_IN_WORKQUEUE //this can be removed, because there is no case for this...
 	#if !defined( CONFIG_WAKELOCK) && !defined(CONFIG_ANDROID_POWER)
 	#error "enable CONFIG_RESUME_IN_WORKQUEUE without CONFIG_WAKELOCK or CONFIG_ANDROID_POWER will suffer from the danger of wifi's unfunctionality..."
@@ -74,6 +76,33 @@
 #endif
 
 #define DYNAMIC_CAMID_ALLOC
+
+#ifndef CONFIG_RTW_HIQ_FILTER
+	#define CONFIG_RTW_HIQ_FILTER 1
+#endif
+
+#ifndef CONFIG_RTW_ADAPTIVITY_EN
+	#define CONFIG_RTW_ADAPTIVITY_EN 0
+#endif
+
+#ifndef CONFIG_RTW_ADAPTIVITY_MODE
+	#define CONFIG_RTW_ADAPTIVITY_MODE 0
+#endif
+
+#ifndef CONFIG_RTW_NHM_EN
+	#define CONFIG_RTW_NHM_EN 0
+#endif
+
+#ifndef CONFIG_RTW_AMPLIFIER_TYPE_2G
+	#define CONFIG_RTW_AMPLIFIER_TYPE_2G 0
+#endif
+
+#ifndef CONFIG_RTW_AMPLIFIER_TYPE_5G
+	#define CONFIG_RTW_AMPLIFIER_TYPE_5G 0
+#endif
+
+#define MACID_NUM_SW_LIMIT 32
+#define CAM_ENTRY_NUM_SW_LIMIT 32
 
 //#include <rtl871x_byteorder.h>
 

@@ -30,6 +30,8 @@
 #include <linux/of_platform.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/rockchip/cpu.h>
+#include <linux/rockchip/cru.h>
 #include <asm/cacheflush.h>
 #include "iep_drv.h"
 #if defined(CONFIG_IEP_MMU)
@@ -82,7 +84,7 @@ static void iep_reg_deinit(struct iep_reg *reg)
     // release memory region attach to this registers table.
     if (iep_service.iommu_dev) {
         list_for_each_entry_safe(mem_region, n, &reg->mem_region_list, reg_lnk) {
-            ion_unmap_iommu(iep_service.iommu_dev, iep_service.ion_client, mem_region->hdl);
+            /*ion_unmap_iommu(iep_service.iommu_dev, iep_service.ion_client, mem_region->hdl);*/
             ion_free(iep_service.ion_client, mem_region->hdl);
             list_del_init(&mem_region->reg_lnk);
             kfree(mem_region);
@@ -826,6 +828,33 @@ static inline void platform_set_sysmmu(struct device *iommu, struct device *dev)
 {
 }
 #endif
+
+static int iep_sysmmu_fault_handler(struct device *dev,
+			     enum rk_iommu_inttype itype,
+			     unsigned long pgtable_base,
+			     unsigned long fault_addr, unsigned int status)
+{
+	struct iep_reg *reg = list_entry(iep_service.running.next,
+					 struct iep_reg, status_link);
+	if (reg != NULL) {
+		struct iep_mem_region *mem, *n;
+		int i = 0;
+		pr_info("iep, fault addr 0x%08x\n", (u32)fault_addr);
+		list_for_each_entry_safe(mem, n,
+					 &reg->mem_region_list,
+					 reg_lnk) {
+			pr_info("iep, mem region [%02d] 0x%08x %ld\n",
+				i, (u32)mem->iova, mem->len);
+			i++;
+		}
+
+		pr_alert("iep, page fault occur\n");
+
+		iep_del_running_list();
+	}
+
+	return 0;
+}
 #endif
 
 #if defined(CONFIG_IEP_IOMMU)
@@ -943,6 +972,8 @@ static int iep_drv_probe(struct platform_device *pdev)
             platform_set_sysmmu(mmu_dev, &pdev->dev);
             rockchip_iovmm_activate(&pdev->dev);
         }
+
+	rockchip_iovmm_set_fault_handler(&pdev->dev, iep_sysmmu_fault_handler);
 
         iep_service.iommu_dev = &pdev->dev;
         iep_power_off();

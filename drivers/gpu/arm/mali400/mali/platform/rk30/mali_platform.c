@@ -106,6 +106,8 @@ void mali_clk_set_rate(struct dvfs_node *clk, u32 value)
 }
 
 static struct kobject *mali400_utility_object;
+static struct kobject *rk_gpu;
+
 static u32 get_mali_dvfs_status(void)
 {
 	return maliDvfsStatus.currentStep;
@@ -209,6 +211,9 @@ static mali_bool mali400_utility_sysfs_init(void)
 	if (mali400_utility_object == NULL) {
 		return -1;
 	}
+	rk_gpu = kobject_create_and_add("rk_gpu", NULL);
+	if (!rk_gpu)
+		return -1;
 	ret = sysfs_create_file(mali400_utility_object, &dev_attr_utility.attr);
 	if (ret) {
 		return -1;
@@ -219,9 +224,9 @@ static mali_bool mali400_utility_sysfs_init(void)
 	}
 	ret = sysfs_create_file(mali400_utility_object, &dev_attr_sampling_timeout.attr);
 	if(ret){
-		return -1;	
+		return -1;
 	}
-	ret = sysfs_create_file(mali400_utility_object, &dev_attr_error_count.attr);
+	ret = sysfs_create_file(rk_gpu, &dev_attr_error_count.attr);
 	if(ret){
 		return -1;
 	}

@@ -69,7 +69,7 @@ static struct cpufreq_frequency_table *freq_table = default_freq_table;
 #define CPUFREQ_PRIVATE                 0x100
 static unsigned int no_cpufreq_access = 0;
 static unsigned int suspend_freq = 816 * 1000;
-static unsigned int suspend_volt = 1000000; // 1V
+static unsigned int suspend_volt = 1100000;
 static unsigned int low_battery_freq = 600 * 1000;
 static unsigned int low_battery_capacity = 5; // 5%
 static bool is_booting = true;
@@ -414,10 +414,21 @@ static int cpufreq_reboot_notifier_event(struct notifier_block *this, unsigned l
 #endif
 int rockchip_cpufreq_reboot_limit_freq(void)
 {
+	struct regulator *regulator;
+	int volt = 0;
+	u32 rate;
+
 	dvfs_disable_temp_limit();
 	dvfs_clk_enable_limit(clk_cpu_dvfs_node, 1000*suspend_freq, 1000*suspend_freq);
-	printk("cpufreq: reboot set core rate=%lu, volt=%d\n", dvfs_clk_get_rate(clk_cpu_dvfs_node), 
-		regulator_get_voltage(clk_cpu_dvfs_node->vd->regulator));
+
+	rate = dvfs_clk_get_rate(clk_cpu_dvfs_node);
+	regulator = dvfs_get_regulator("vdd_arm");
+	if (regulator)
+		volt = regulator_get_voltage(regulator);
+	else
+		pr_info("cpufreq: get arm regulator failed\n");
+	pr_info("cpufreq: reboot set core rate=%lu, volt=%d\n",
+		dvfs_clk_get_rate(clk_cpu_dvfs_node), volt);
 
 	return 0;
 }

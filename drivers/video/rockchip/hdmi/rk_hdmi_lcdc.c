@@ -377,6 +377,22 @@ static int hdmi_videomode_compare(const struct fb_videomode *mode1,
 	}
 	return -1;
 }
+int hdmi_check_support_videomode(int vic)
+{
+	int i, support = 0;
+	if (m_hdmi_drv->support_vic_num == 0)
+		return 1;
+
+	for (i=0; i<m_hdmi_drv->support_vic_num; i++) {
+		if (m_hdmi_drv->support_vic[i] == vic) {
+			support = 1;
+			break;
+		}
+	}
+	if(i >= m_hdmi_drv->support_vic_num)
+		support = 0;
+	return support;
+}
 
 /**
  * hdmi_add_videomode: adds videomode entry to modelist
@@ -396,7 +412,8 @@ int hdmi_add_videomode(const struct fb_videomode *mode, struct list_head *head)
 	for (i = 0; i < ARRAY_SIZE(hdmi_mode); i++) {
 		m = (struct fb_videomode *)&hdmi_mode[i];
 		if (fb_mode_is_equal(m, mode)) {
-			found = 1;
+			if(hdmi_check_support_videomode(m->flag))
+				found = 1;
 			break;
 		}
 	}
@@ -607,13 +624,13 @@ int hdmi_init_video_para(struct hdmi *hdmi_drv, struct hdmi_video_para *video)
 		video->color_depth = HDMI_COLOR_DEPTH_10BIT;
 	else
 		video->color_depth = HDMI_COLOR_DEPTH_8BIT;
-
+/*
 	if (hdmi_drv->edid.ycbcr444)
 		video->output_color = VIDEO_OUTPUT_YCBCR444;
 	else if (hdmi_drv->edid.ycbcr422)
 		video->output_color = VIDEO_OUTPUT_YCBCR422;
 	else
-		video->output_color = VIDEO_OUTPUT_RGB444;
+*/		video->output_color = VIDEO_OUTPUT_RGB444;
 
 	/*For DVI, output RGB */
 	if (hdmi_drv->edid.sink_hdmi == 0)

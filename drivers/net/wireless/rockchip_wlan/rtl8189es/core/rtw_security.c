@@ -307,9 +307,9 @@ _func_enter_;
 
 			}
 			
-		}
-		
-		WEP_SW_ENC_CNT_INC(psecuritypriv, pattrib->ra);					
+		}		
+
+		WEP_SW_ENC_CNT_INC(psecuritypriv, pattrib->ra);
 	}
 	
 _func_exit_;						
@@ -360,7 +360,6 @@ _func_enter_;
 		}
 
 		WEP_SW_DEC_CNT_INC(psecuritypriv, prxattrib->ra);
-
 	}
 	
 _func_exit_;		
@@ -1764,7 +1763,7 @@ _func_enter_;
 
 				}
 			}
-			
+
 			AES_SW_ENC_CNT_INC(psecuritypriv, pattrib->ra);
 		}
 /*
@@ -1773,7 +1772,7 @@ _func_enter_;
 			DBG_871X("%s, psta==NUL\n", __func__);
 			res=_FAIL;
 		}
-*/						
+*/
 	}
 
 
@@ -2089,7 +2088,7 @@ _func_enter_;
 				static u32 start = 0;
 				static u32 no_gkey_bc_cnt = 0;
 				static u32 no_gkey_mc_cnt = 0;
-		
+
 				//DBG_871X("rx bc/mc packets, to perform sw rtw_aes_decrypt\n");
 				//prwskey = psecuritypriv->dot118021XGrpKey[psecuritypriv->dot118021XGrpKeyid].skey;
 				if(psecuritypriv->binstallGrpkey==_FALSE)
@@ -2166,7 +2165,6 @@ _func_enter_;
 			res= aes_decipher(prwskey,prxattrib->hdrlen,pframe, length);
 
 			AES_SW_DEC_CNT_INC(psecuritypriv, prxattrib->ra);
-
 		}
 		else{
 			RT_TRACE(_module_rtl871x_security_c_,_drv_err_,("rtw_aes_decrypt: stainfo==NULL!!!\n"));

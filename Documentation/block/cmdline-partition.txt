@@ -1,0 +1,39 @@
+Embedded device command line partition
+=====================================================================
+
+Read block device partition table from command line.
+The partition used for fixed block device (eMMC) embedded device.
+It is no MBR, save storage space. Bootloader can be easily accessed
+by absolute address of data on the block device.
+Users can easily change the partition.
+
+The format for the command line is just like mtdparts:
+
+blkdevparts=<blkdev-def>[;<blkdev-def>]
+  <blkdev-def> := <blkdev-id>:<partdef>[,<partdef>]
+    <partdef> := <size>[@<offset>](part-name)
+
+<blkdev-id>
+    block device disk name, embedded device used fixed block device,
+    it's disk name also fixed. such as: mmcblk0, mmcblk1, mmcblk0boot0.
+
+<size>
+    partition size, in bytes, such as: 512, 1m, 1G.
+
+<offset>
+    partition start address, in bytes.
+
+(part-name)
+    partition name, kernel send uevent with "PARTNAME". application can create
+    a link to block device partition with the name "PARTNAME".
+    user space application can access partition by partition name.
+
+Example:
+    eMMC disk name is "mmcblk0" and "mmcblk0boot0"
+
+  bootargs:
+    'blkdevparts=mmcblk0:1G(data0),1G(data1),-;mmcblk0boot0:1m(boot),-(kernel)'
+
+  dmesg:
+    mmcblk0: p1(data0) p2(data1) p3()
+    mmcblk0boot0: p1(boot) p2(kernel)

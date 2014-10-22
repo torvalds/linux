@@ -35,6 +35,7 @@
 #include <linux/sched/rt.h>
 #include <../drivers/staging/android/fiq_debugger/fiq_debugger.h>
 #include <linux/irqchip/arm-gic.h>
+#include <linux/clk.h>
 #include "rk_fiq_debugger.h"
 
 #define UART_USR	0x1f	/* In: UART Status Register */
@@ -310,16 +311,18 @@ static int __init rk_fiq_debugger_init(void) {
 	struct device_node *np;
 	unsigned int i, id, serial_id, ok = 0;
 	u32 irq, signal_irq = 0, wake_irq = 0;
+	struct clk *clk;
+	struct clk *pclk;
 
 	np = of_find_matching_node(NULL, ids);
 
 	if (!np) {
-		printk("fiq-debugger is missing in device tree!\n");
+		pr_err("fiq-debugger is missing in device tree!\n");
 		return -ENODEV;
 	}
 
 	if (!of_device_is_available(np)) {
-		printk("fiq-debugger is disabled in device tree\n");
+		pr_err("fiq-debugger is disabled in device tree\n");
 		return -ENODEV;
 	}
 
@@ -334,7 +337,7 @@ static int __init rk_fiq_debugger_init(void) {
 	if (of_property_read_u32(np, "rockchip,wake-irq", &wake_irq)) {
 		wake_irq = -1;
 	}
-	
+
 	np = NULL;
 	for (i = 0; i < 5; i++) {
 		np = of_find_node_by_name(np, "serial");
@@ -348,6 +351,16 @@ static int __init rk_fiq_debugger_init(void) {
 	}
 	if (!ok)
 		return -EINVAL;
+
+	pclk = of_clk_get_by_name(np, "pclk_uart");
+	clk = of_clk_get_by_name(np, "sclk_uart");
+	if (unlikely(IS_ERR(clk)) || unlikely(IS_ERR(pclk))) {
+		pr_err("fiq-debugger get clock fail\n");
+		return -EINVAL;
+	}
+
+	clk_prepare_enable(clk);
+	clk_prepare_enable(pclk);
 
 	irq = irq_of_parse_and_map(np, 0);
 	if (!irq)

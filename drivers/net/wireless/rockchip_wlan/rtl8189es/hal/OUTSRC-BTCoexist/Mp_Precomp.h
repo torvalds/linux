@@ -52,5 +52,6 @@
 #include "HalBtc8812a2Ant.h"
 #include "HalBtc8821a1Ant.h"
 #include "HalBtc8821a2Ant.h"
+#include "HalBtc8821aCsr2Ant.h"
 
 #endif // __MP_PRECOMP_H__

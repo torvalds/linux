@@ -64,6 +64,9 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/unistd.h>
+#ifdef CONFIG_ARCH_ROCKCHIP
+#include <asm/system_misc.h>
+#endif
 
 #ifndef SET_UNALIGN_CTL
 # define SET_UNALIGN_CTL(a,b)	(-EINVAL)
@@ -450,6 +453,9 @@ void kernel_power_off(void)
 	printk(KERN_EMERG "Power down.\n");
 	kmsg_dump(KMSG_DUMP_POWEROFF);
 	machine_power_off();
+#ifdef CONFIG_ARCH_ROCKCHIP
+	arm_pm_restart('h', "charge");
+#endif
 }
 EXPORT_SYMBOL_GPL(kernel_power_off);
 

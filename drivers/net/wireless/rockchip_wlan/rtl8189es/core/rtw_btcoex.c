@@ -28,9 +28,19 @@ void rtw_btcoex_Initialize(PADAPTER padapter)
 	hal_btcoex_Initialize(padapter);
 }
 
-void rtw_btcoex_HAL_Initialize(PADAPTER padapter)
+void rtw_btcoex_PowerOnSetting(PADAPTER padapter)
 {
-	hal_btcoex_InitHwConfig(padapter);
+	hal_btcoex_PowerOnSetting(padapter);
+}
+
+void rtw_btcoex_PreLoadFirmware(PADAPTER padapter)
+{
+	hal_btcoex_PreLoadFirmware(padapter);
+}
+
+void rtw_btcoex_HAL_Initialize(PADAPTER padapter, u8 bWifiOnly)
+{
+	hal_btcoex_InitHwConfig(padapter, bWifiOnly);
 }
 
 void rtw_btcoex_IpsNotify(PADAPTER padapter, u8 type)
@@ -150,9 +160,9 @@ void rtw_btcoex_HaltNotify(PADAPTER padapter)
 	hal_btcoex_HaltNotify(padapter);
 }
 
-void rtw_btcoex_SwitchGntBt(PADAPTER padapter)
+void rtw_btcoex_SwitchBtTRxMask(PADAPTER padapter)
 {
-	hal_btcoex_SwitchGntBt(padapter);	
+	hal_btcoex_SwitchBtTRxMask(padapter);	
 }
 
 void rtw_btcoex_Switch(PADAPTER padapter, u8 enable)
@@ -240,14 +250,19 @@ void rtw_btcoex_SetChipType(PADAPTER padapter, u8 chipType)
 	hal_btcoex_SetChipType(padapter, chipType);
 }
 
-void rtw_btcoex_SetPGAntNum(PADAPTER padapter, u8 antNum, u8 antInverse)
+void rtw_btcoex_SetPGAntNum(PADAPTER padapter, u8 antNum)
 {
-	hal_btcoex_SetPgAntNum(padapter, antNum, antInverse);
+	hal_btcoex_SetPgAntNum(padapter, antNum);
 }
 
 u8 rtw_btcoex_GetPGAntNum(PADAPTER padapter)
 {
 	return hal_btcoex_GetPgAntNum(padapter);
+}
+
+void rtw_btcoex_SetSingleAntPath(PADAPTER padapter, u8 singleAntPath)
+{
+	hal_btcoex_SetSingleAntPath(padapter, singleAntPath);
 }
 
 u32 rtw_btcoex_GetRaMask(PADAPTER padapter)
@@ -291,15 +306,53 @@ u8 rtw_btcoex_IsBtLinkExist(PADAPTER padapter)
 void rtw_btcoex_RejectApAggregatedPacket(PADAPTER padapter, u8 enable)
 {
 	struct mlme_ext_info *pmlmeinfo;
-	struct sta_info *psta;
 
 	pmlmeinfo = &padapter->mlmeextpriv.mlmext_info;
-	psta = rtw_get_stainfo(&padapter->stapriv, get_bssid(&padapter->mlmepriv));
 
 	if (_TRUE == enable)
 	{
+		struct sta_info *psta = NULL;
+
 		pmlmeinfo->bAcceptAddbaReq = _FALSE;
-		send_delba(padapter, 0, psta->hwaddr);
+
+		if ((pmlmeinfo->state & 0x03) == WIFI_FW_STATION_STATE) {
+			psta = rtw_get_stainfo(&padapter->stapriv, get_bssid(&padapter->mlmepriv));
+			if (psta)
+				send_delba(padapter, 0, psta->hwaddr);
+		} else if ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE) {
+			_irqL irqL;
+			_list *phead, *plist;
+			u8 peer_num = 0;
+			char peers[NUM_STA];
+			struct sta_priv *pstapriv = &padapter->stapriv;
+			int i;
+
+			_enter_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+
+			phead = &pstapriv->asoc_list;
+			plist = get_next(phead);
+
+			while ((rtw_end_of_queue_search(phead, plist)) == _FALSE) {
+				int stainfo_offset;
+				
+				psta = LIST_CONTAINOR(plist, struct sta_info, asoc_list);
+				plist = get_next(plist);
+
+				stainfo_offset = rtw_stainfo_offset(pstapriv, psta);
+				if (stainfo_offset_valid(stainfo_offset))
+					peers[peer_num++] = stainfo_offset;
+			}
+	
+			_exit_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+
+			if (peer_num) {
+				for (i = 0; i < peer_num; i++) {
+					psta = rtw_get_stainfo_by_offset(pstapriv, peers[i]);
+					if (psta)
+						send_delba(padapter, 0, psta->hwaddr);
+				}
+			}
+		}
 	}
 	else
 	{

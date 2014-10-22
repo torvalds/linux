@@ -59,6 +59,7 @@
 #define REG_PKTBUF_DBG_ADDR 			(REG_PKTBUF_DBG_CTRL)
 #define REG_RXPKTBUF_DBG				(REG_PKTBUF_DBG_CTRL+2)
 #define REG_TXPKTBUF_DBG				(REG_PKTBUF_DBG_CTRL+3)
+#define REG_WOWLAN_WAKE_REASON          REG_MCUTST_WOWLAN
 
 #define REG_RSVD3_8812					0x0168
 #define REG_C2HEVT_CMD_SEQ_88XX		0x01A1
@@ -122,6 +123,10 @@
 #define REG_TXPKTBUF_WMAC_LBK_BF_HD_8812	0x045D
 #define REG_NDPA_OPT_CTRL_8812		0x045F
 #define REG_DATA_SC_8812				0x0483
+#ifdef CONFIG_WOWLAN
+#define REG_TXPKTBUF_IV_LOW             0x0484
+#define REG_TXPKTBUF_IV_HIGH            0x0488
+#endif
 #define REG_ARFR2_8812					0x048C
 #define REG_ARFR3_8812					0x0494
 #define REG_TXRPT_START_OFFSET		0x04AC
@@ -244,9 +249,16 @@
 #define	AcmHw_ViqStatus_8812			BIT(6)
 #define	AcmHw_BeqStatus_8812			BIT(7)
 
-#endif //__RTL8188E_SPEC_H__
+//========================================================
+// General definitions
+//========================================================
+
+#define MACID_NUM_8812A 128
+#define CAM_ENTRY_NUM_8812A 64
+
+#endif /* __RTL8812A_SPEC_H__ */
 
 #ifdef CONFIG_RTL8821A
 #include "rtl8821a_spec.h"
-#endif // CONFIG_RTL8821A
+#endif /* CONFIG_RTL8821A */
 

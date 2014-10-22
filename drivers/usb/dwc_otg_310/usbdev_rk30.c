@@ -158,7 +158,7 @@ struct dwc_otg_platform_data usb20otg_pdata_rk3188 = {
 #ifdef CONFIG_RK_USB_UART
 	.dwc_otg_uart_mode = dwc_otg_uart_mode,
 #endif
-	.bc_detect_cb = usb20otg_battery_charger_detect_cb,
+	.bc_detect_cb = rk_battery_charger_detect_cb,
 };
 
 #endif

@@ -127,7 +127,7 @@ static int  __init start_charge_logo_display(void)
 
 	if(val_status.intval == POWER_SUPPLY_STATUS_CHARGING)
 	{
-		if (((rockchip_boot_mode() == BOOT_MODE_NORMAL) ||(rockchip_boot_mode() == BOOT_MODE_CHARGE)) && (val_capacity.intval <= pwr_on_thrsd))  
+		if (((rockchip_boot_mode() == BOOT_MODE_NORMAL) || (rockchip_boot_mode() == BOOT_MODE_CHARGE)) || (val_capacity.intval <= pwr_on_thrsd))
 	    {			
 			add_bootmode_charger_to_cmdline();
 			printk("power in charge mode %d %d  %d\n\n",rockchip_boot_mode(),val_capacity.intval,pwr_on_thrsd);
@@ -137,5 +137,5 @@ static int  __init start_charge_logo_display(void)
 	return 0;
 } 
 
-module_init(start_charge_logo_display);
+late_initcall(start_charge_logo_display);
 #endif

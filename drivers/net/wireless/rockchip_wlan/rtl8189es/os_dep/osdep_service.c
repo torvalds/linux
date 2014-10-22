@@ -751,7 +751,7 @@ inline void *dbg_rtw_usb_buffer_alloc(struct usb_device *dev, size_t size, dma_a
 	void *p;
 
 	if(match_mstat_sniff_rules(flags, size))
-		DBG_871X("DBG_MEM_ALLOC %s:%d %s(%d)\n", func, line, __FUNCTION__, size);
+		DBG_871X("DBG_MEM_ALLOC %s:%d %s(%zu)\n", func, line, __FUNCTION__, size);
 
 	p = _rtw_usb_buffer_alloc(dev, size, dma);
 	
@@ -768,7 +768,7 @@ inline void dbg_rtw_usb_buffer_free(struct usb_device *dev, size_t size, void *a
 {
 
 	if(match_mstat_sniff_rules(flags, size))
-		DBG_871X("DBG_MEM_ALLOC %s:%d %s(%d)\n", func, line, __FUNCTION__, size);
+		DBG_871X("DBG_MEM_ALLOC %s:%d %s(%zu)\n", func, line, __FUNCTION__, size);
 
 	_rtw_usb_buffer_free(dev, size, addr, dma);
 
@@ -782,7 +782,7 @@ inline void dbg_rtw_usb_buffer_free(struct usb_device *dev, size_t size, void *a
 
 #endif /* defined(DBG_MEM_ALLOC) */
 
-void* rtw_malloc2d(int h, int w, int size)
+void* rtw_malloc2d(int h, int w, size_t size)
 {
 	int j;
 
@@ -1404,7 +1404,12 @@ void rtw_msleep_os(int ms)
 {
 
 #ifdef PLATFORM_LINUX
-
+	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36))
+	if (ms < 20) {
+		unsigned long us = ms * 1000UL;
+		usleep_range(us, us + 1000UL);
+	} else
+	#endif
   	msleep((unsigned int)ms);
 
 #endif	
@@ -1423,16 +1428,19 @@ void rtw_msleep_os(int ms)
 }
 void rtw_usleep_os(int us)
 {
-
 #ifdef PLATFORM_LINUX
-  	
-      // msleep((unsigned int)us);
-      if ( 1 < (us/1000) )
-                msleep(1);
+
+	// msleep((unsigned int)us);
+	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36))
+	usleep_range(us, us + 1);	
+	#else
+	if ( 1 < (us/1000) )
+      		msleep(1);
       else
 		msleep( (us/1000) + 1);
+	#endif
+#endif
 
-#endif	
 #ifdef PLATFORM_FREEBSD
 	//Delay for delay microseconds 
 	DELAY(us);
@@ -1562,7 +1570,6 @@ void rtw_yield_os()
 #define RTW_SUSPEND_TRAFFIC_LOCK_NAME "rtw_wifi_traffic"
 #define RTW_SUSPEND_RESUME_LOCK_NAME "rtw_wifi_resume"
 #define RTW_RESUME_SCAN_LOCK_NAME "rtw_wifi_scan"
-#define RTW_AP_CONNECTION_LOCK_NAME "rtw_ap_connection"
 #ifdef CONFIG_WAKELOCK
 static struct wake_lock rtw_suspend_lock;
 static struct wake_lock rtw_suspend_ext_lock;
@@ -1570,7 +1577,6 @@ static struct wake_lock rtw_suspend_rx_lock;
 static struct wake_lock rtw_suspend_traffic_lock;
 static struct wake_lock rtw_suspend_resume_lock;
 static struct wake_lock rtw_resume_scan_lock;
-static struct wake_lock rtw_ap_connection_lock;
 #elif defined(CONFIG_ANDROID_POWER)
 static android_suspend_lock_t rtw_suspend_lock ={
 	.name = RTW_SUSPEND_LOCK_NAME
@@ -1590,9 +1596,6 @@ static android_suspend_lock_t rtw_suspend_resume_lock ={
 static android_suspend_lock_t rtw_resume_scan_lock ={
 	.name = RTW_RESUME_SCAN_LOCK_NAME
 };
-static android_suspend_lock_t rtw_ap_connection_lock ={
-	.name = RTW_AP_CONNECTION_LOCK_NAME
-};
 #endif
 
 inline void rtw_suspend_lock_init()
@@ -1604,7 +1607,6 @@ inline void rtw_suspend_lock_init()
 	wake_lock_init(&rtw_suspend_traffic_lock, WAKE_LOCK_SUSPEND, RTW_SUSPEND_TRAFFIC_LOCK_NAME);
 	wake_lock_init(&rtw_suspend_resume_lock, WAKE_LOCK_SUSPEND, RTW_SUSPEND_RESUME_LOCK_NAME);
 	wake_lock_init(&rtw_resume_scan_lock, WAKE_LOCK_SUSPEND, RTW_RESUME_SCAN_LOCK_NAME);
-	wake_lock_init(&rtw_ap_connection_lock, WAKE_LOCK_SUSPEND, RTW_AP_CONNECTION_LOCK_NAME);
 	#elif defined(CONFIG_ANDROID_POWER)
 	android_init_suspend_lock(&rtw_suspend_lock);
 	android_init_suspend_lock(&rtw_suspend_ext_lock);
@@ -1612,7 +1614,6 @@ inline void rtw_suspend_lock_init()
 	android_init_suspend_lock(&rtw_suspend_traffic_lock);
 	android_init_suspend_lock(&rtw_suspend_resume_lock);
 	android_init_suspend_lock(&rtw_resume_scan_lock);
-	android_init_suspend_lock(&rtw_ap_connection_lock);
 	#endif
 }
 
@@ -1625,7 +1626,6 @@ inline void rtw_suspend_lock_uninit()
 	wake_lock_destroy(&rtw_suspend_traffic_lock);
 	wake_lock_destroy(&rtw_suspend_resume_lock);
 	wake_lock_destroy(&rtw_resume_scan_lock);
-	wake_lock_destroy(&rtw_ap_connection_lock);
 	#elif defined(CONFIG_ANDROID_POWER)
 	android_uninit_suspend_lock(&rtw_suspend_lock);
 	android_uninit_suspend_lock(&rtw_suspend_ext_lock);
@@ -1633,7 +1633,6 @@ inline void rtw_suspend_lock_uninit()
 	android_uninit_suspend_lock(&rtw_suspend_traffic_lock);
 	android_uninit_suspend_lock(&rtw_suspend_resume_lock);
 	android_uninit_suspend_lock(&rtw_resume_scan_lock);
-	android_uninit_suspend_lock(&rtw_ap_connection_lock);
 	#endif
 }
 
@@ -1737,32 +1736,6 @@ inline void rtw_lock_resume_scan_timeout(u32 timeout_ms)
 	android_lock_suspend_auto_expire(&rtw_resume_scan_lock, rtw_ms_to_systime(timeout_ms));
 	#endif
 	//DBG_871X("resume scan lock:%d\n", timeout_ms);
-}
-
-inline void rtw_ap_connection_lock_suspend(void)
-{
-	#ifdef CONFIG_WAKELOCK
-	wake_lock(&rtw_ap_connection_lock);
-	#elif defined(CONFIG_ANDROID_POWER)
-	android_lock_suspend(&rtw_ap_connection_lock);
-	#endif
-
-	#if  defined(CONFIG_WAKELOCK) || defined(CONFIG_ANDROID_POWER)
-	//DBG_871X("####%s: suspend_lock_count:%d####\n", __FUNCTION__, rtw_suspend_lock.stat.count);
-	#endif
-}
-
-inline void rtw_ap_connection_unlock_suspend(void)
-{
-	#ifdef CONFIG_WAKELOCK
-	wake_unlock(&rtw_ap_connection_lock);
-	#elif defined(CONFIG_ANDROID_POWER)
-	android_unlock_suspend(&rtw_ap_connection_lock);
-	#endif
-
-	#if  defined(CONFIG_WAKELOCK) || defined(CONFIG_ANDROID_POWER)
-	//DBG_871X("####%s: suspend_lock_count:%d####\n", __FUNCTION__, rtw_suspend_lock.stat.count);
-	#endif
 }
 
 inline void ATOMIC_SET(ATOMIC_T *v, int i)
@@ -2345,6 +2318,10 @@ inline u32 rtw_random32(void)
 #ifdef PLATFORM_LINUX
 	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,8,0))
 	return prandom_u32();
+	#elif (LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18))
+	u32 random_int;
+	get_random_bytes( &random_int , 4 );
+	return random_int;
 	#else
 	return random32();
 	#endif
