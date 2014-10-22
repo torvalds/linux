@@ -52,6 +52,9 @@ struct gb_module *gb_module_create(struct greybus_host_device *hd,
 					u8 module_id);
 void gb_module_destroy(struct gb_module *module);
 
+struct gb_module *gb_module_find(struct greybus_host_device *hd,
+				u8 module_id);
+
 void gb_module_interfaces_init(struct gb_module *gmod);
 
 #endif /* __MODULE_H */

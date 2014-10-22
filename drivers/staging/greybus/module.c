@@ -107,6 +107,17 @@ void gb_module_destroy(struct gb_module *gmod)
 	kfree(gmod);
 }
 
+struct gb_module *gb_module_find(struct greybus_host_device *hd, u8 module_id)
+{
+	struct gb_module *module;
+
+	list_for_each_entry(module, &hd->modules, links)
+		if (module->module_id == module_id)
+			return module;
+
+	return NULL;
+}
+
 void gb_module_interfaces_init(struct gb_module *gmod)
 {
 	struct gb_interface *interface;
