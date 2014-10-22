@@ -677,25 +677,6 @@ static const struct of_device_id omap_prcm_dt_match_table[] = {
 	{ }
 };
 
-static struct clk_hw_omap memmap_dummy_ck = {
-	.flags = MEMMAP_ADDRESSING,
-};
-
-static u32 prm_clk_readl(void __iomem *reg)
-{
-	return omap2_clk_readl(&memmap_dummy_ck, reg);
-}
-
-static void prm_clk_writel(u32 val, void __iomem *reg)
-{
-	omap2_clk_writel(val, &memmap_dummy_ck, reg);
-}
-
-static struct ti_clk_ll_ops omap_clk_ll_ops = {
-	.clk_readl = prm_clk_readl,
-	.clk_writel = prm_clk_writel,
-};
-
 /**
  * omap_prcm_init - low level init for the PRCM drivers
  *
@@ -708,8 +689,7 @@ int __init omap_prcm_init(void)
 	void __iomem *mem;
 	const struct of_device_id *match;
 	const struct omap_prcm_init_data *data;
-
-	ti_clk_ll_ops = &omap_clk_ll_ops;
+	int ret;
 
 	for_each_matching_node_and_match(np, omap_prcm_dt_match_table, &match) {
 		data = match->data;
@@ -718,8 +698,9 @@ int __init omap_prcm_init(void)
 		if (!mem)
 			return -ENOMEM;
 
-		clk_memmaps[data->index] = mem;
-		ti_dt_clk_init_provider(np, data->index);
+		ret = omap2_clk_provider_init(np, data->index, mem);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -727,11 +708,10 @@ int __init omap_prcm_init(void)
 
 void __init omap3_prcm_legacy_iomaps_init(void)
 {
-	ti_clk_ll_ops = &omap_clk_ll_ops;
-
-	clk_memmaps[TI_CLKM_CM] = cm_base + OMAP3430_IVA2_MOD;
-	clk_memmaps[TI_CLKM_PRM] = prm_base + OMAP3430_IVA2_MOD;
-	clk_memmaps[TI_CLKM_SCRM] = omap_ctrl_base_get();
+	omap2_clk_legacy_provider_init(TI_CLKM_CM, cm_base + OMAP3430_IVA2_MOD);
+	omap2_clk_legacy_provider_init(TI_CLKM_PRM,
+				       prm_base + OMAP3430_IVA2_MOD);
+	omap2_clk_legacy_provider_init(TI_CLKM_SCRM, omap_ctrl_base_get());
 }
 
 static int __init prm_late_init(void)
