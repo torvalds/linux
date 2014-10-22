@@ -466,15 +466,11 @@ static void comedi_buf_memcpy_to(struct comedi_subdevice *s,
 }
 
 static void comedi_buf_memcpy_from(struct comedi_subdevice *s,
-				   unsigned int offset,
 				   void *dest, unsigned int nbytes)
 {
 	void *src;
 	struct comedi_async *async = s->async;
-	unsigned int read_ptr = async->buf_read_ptr + offset;
-
-	if (read_ptr >= async->prealloc_bufsz)
-		read_ptr %= async->prealloc_bufsz;
+	unsigned int read_ptr = async->buf_read_ptr;
 
 	while (nbytes) {
 		unsigned int block_size;
@@ -557,7 +553,7 @@ unsigned int comedi_buf_read_samples(struct comedi_subdevice *s,
 		return 0;
 
 	nbytes = comedi_buf_read_alloc(s, nsamples * bytes_per_sample(s));
-	comedi_buf_memcpy_from(s, 0, data, nbytes);
+	comedi_buf_memcpy_from(s, data, nbytes);
 	comedi_buf_read_free(s, nbytes);
 	comedi_inc_scan_progress(s, nbytes);
 	s->async->events |= COMEDI_CB_BLOCK;
