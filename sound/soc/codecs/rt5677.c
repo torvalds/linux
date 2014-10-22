@@ -1834,6 +1834,93 @@ static SOC_ENUM_SINGLE_DECL(
 static const struct snd_kcontrol_new rt5677_if4_adc_mux =
 	SOC_DAPM_ENUM("IF4 ADC Source", rt5677_if4_adc_enum);
 
+/* TDM IF1/2 ADC Data Selection */ /* MX-3B MX-40 [7:6][5:4][3:2][1:0] */
+static const char * const rt5677_if12_adc_swap_src[] = {
+	"L/R", "R/L", "L/L", "R/R"
+};
+
+static SOC_ENUM_SINGLE_DECL(
+	rt5677_if1_adc1_swap_enum, RT5677_TDM1_CTRL1,
+	RT5677_IF1_ADC1_SWAP_SFT, rt5677_if12_adc_swap_src);
+
+static const struct snd_kcontrol_new rt5677_if1_adc1_swap_mux =
+	SOC_DAPM_ENUM("IF1 ADC1 Swap Source", rt5677_if1_adc1_swap_enum);
+
+static SOC_ENUM_SINGLE_DECL(
+	rt5677_if1_adc2_swap_enum, RT5677_TDM1_CTRL1,
+	RT5677_IF1_ADC2_SWAP_SFT, rt5677_if12_adc_swap_src);
+
+static const struct snd_kcontrol_new rt5677_if1_adc2_swap_mux =
+	SOC_DAPM_ENUM("IF1 ADC2 Swap Source", rt5677_if1_adc2_swap_enum);
+
+static SOC_ENUM_SINGLE_DECL(
+	rt5677_if1_adc3_swap_enum, RT5677_TDM1_CTRL1,
+	RT5677_IF1_ADC3_SWAP_SFT, rt5677_if12_adc_swap_src);
+
+static const struct snd_kcontrol_new rt5677_if1_adc3_swap_mux =
+	SOC_DAPM_ENUM("IF1 ADC3 Swap Source", rt5677_if1_adc3_swap_enum);
+
+static SOC_ENUM_SINGLE_DECL(
+	rt5677_if1_adc4_swap_enum, RT5677_TDM1_CTRL1,
+	RT5677_IF1_ADC4_SWAP_SFT, rt5677_if12_adc_swap_src);
+
+static const struct snd_kcontrol_new rt5677_if1_adc4_swap_mux =
+	SOC_DAPM_ENUM("IF1 ADC4 Swap Source", rt5677_if1_adc4_swap_enum);
+
+static SOC_ENUM_SINGLE_DECL(
+	rt5677_if2_adc1_swap_enum, RT5677_TDM2_CTRL1,
+	RT5677_IF1_ADC2_SWAP_SFT, rt5677_if12_adc_swap_src);
+
+static const struct snd_kcontrol_new rt5677_if2_adc1_swap_mux =
+	SOC_DAPM_ENUM("IF1 ADC2 Swap Source", rt5677_if2_adc1_swap_enum);
+
+static SOC_ENUM_SINGLE_DECL(
+	rt5677_if2_adc2_swap_enum, RT5677_TDM2_CTRL1,
+	RT5677_IF2_ADC2_SWAP_SFT, rt5677_if12_adc_swap_src);
+
+static const struct snd_kcontrol_new rt5677_if2_adc2_swap_mux =
+	SOC_DAPM_ENUM("IF2 ADC2 Swap Source", rt5677_if2_adc2_swap_enum);
+
+static SOC_ENUM_SINGLE_DECL(
+	rt5677_if2_adc3_swap_enum, RT5677_TDM2_CTRL1,
+	RT5677_IF2_ADC3_SWAP_SFT, rt5677_if12_adc_swap_src);
+
+static const struct snd_kcontrol_new rt5677_if2_adc3_swap_mux =
+	SOC_DAPM_ENUM("IF2 ADC3 Swap Source", rt5677_if2_adc3_swap_enum);
+
+static SOC_ENUM_SINGLE_DECL(
+	rt5677_if2_adc4_swap_enum, RT5677_TDM2_CTRL1,
+	RT5677_IF2_ADC4_SWAP_SFT, rt5677_if12_adc_swap_src);
+
+static const struct snd_kcontrol_new rt5677_if2_adc4_swap_mux =
+	SOC_DAPM_ENUM("IF2 ADC4 Swap Source", rt5677_if2_adc4_swap_enum);
+
+/* TDM IF1 ADC Data Selection */ /* MX-3C  [2:0] */
+static const char * const rt5677_if1_adc_tdm_swap_src[] = {
+	"1/2/3/4", "2/1/3/4", "2/3/1/4", "4/1/2/3", "1/3/2/4", "1/4/2/3",
+	"3/1/2/4", "3/4/1/2"
+};
+
+static SOC_ENUM_SINGLE_DECL(
+	rt5677_if1_adc_tdm_swap_enum, RT5677_TDM1_CTRL2,
+	RT5677_IF1_ADC_CTRL_SFT, rt5677_if1_adc_tdm_swap_src);
+
+static const struct snd_kcontrol_new rt5677_if1_adc_tdm_swap_mux =
+	SOC_DAPM_ENUM("IF1 ADC TDM Swap Source", rt5677_if1_adc_tdm_swap_enum);
+
+/* TDM IF2 ADC Data Selection */ /* MX-41[2:0] */
+static const char * const rt5677_if2_adc_tdm_swap_src[] = {
+	"1/2/3/4", "2/1/3/4", "3/1/2/4", "4/1/2/3", "1/3/2/4", "1/4/2/3",
+	"2/3/1/4", "3/4/1/2"
+};
+
+static SOC_ENUM_SINGLE_DECL(
+	rt5677_if2_adc_tdm_swap_enum, RT5677_TDM2_CTRL2,
+	RT5677_IF2_ADC_CTRL_SFT, rt5677_if2_adc_tdm_swap_src);
+
+static const struct snd_kcontrol_new rt5677_if2_adc_tdm_swap_mux =
+	SOC_DAPM_ENUM("IF2 ADC TDM Swap Source", rt5677_if2_adc_tdm_swap_enum);
+
 static int rt5677_bst1_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
@@ -1936,6 +2023,52 @@ static int rt5677_set_micbias1_event(struct snd_soc_dapm_widget *w,
 		regmap_update_bits(rt5677->regmap, RT5677_PWR_ANLG2,
 			RT5677_PWR_CLK_MB1 | RT5677_PWR_PP_MB1 |
 			RT5677_PWR_CLK_MB, 0);
+		break;
+
+	default:
+		return 0;
+	}
+
+	return 0;
+}
+
+static int rt5677_if1_adc_tdm_event(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+	struct rt5677_priv *rt5677 = snd_soc_codec_get_drvdata(codec);
+	unsigned int value;
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		regmap_read(rt5677->regmap, RT5677_TDM1_CTRL2, &value);
+		if (value & RT5677_IF1_ADC_CTRL_MASK)
+			regmap_update_bits(rt5677->regmap, RT5677_TDM1_CTRL1,
+				RT5677_IF1_ADC_MODE_MASK,
+				RT5677_IF1_ADC_MODE_TDM);
+		break;
+
+	default:
+		return 0;
+	}
+
+	return 0;
+}
+
+static int rt5677_if2_adc_tdm_event(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+	struct rt5677_priv *rt5677 = snd_soc_codec_get_drvdata(codec);
+	unsigned int value;
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		regmap_read(rt5677->regmap, RT5677_TDM2_CTRL2, &value);
+		if (value & RT5677_IF2_ADC_CTRL_MASK)
+			regmap_update_bits(rt5677->regmap, RT5677_TDM2_CTRL1,
+				RT5677_IF2_ADC_MODE_MASK,
+				RT5677_IF2_ADC_MODE_TDM);
 		break;
 
 	default:
@@ -2104,10 +2237,8 @@ static const struct snd_soc_dapm_widget rt5677_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("Stereo4 ADC MIX", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("Sto2 ADC LR MIX", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("Mono ADC MIX", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("IF1_ADC1", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("IF1_ADC2", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("IF1_ADC3", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("IF1_ADC4", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("IF1 ADC", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("IF2 ADC", SND_SOC_NOPM, 0, 0, NULL, 0),
 
 	/* DSP */
 	SND_SOC_DAPM_MUX("IB9 Mux", SND_SOC_NOPM, 0, 0,
@@ -2230,6 +2361,17 @@ static const struct snd_soc_dapm_widget rt5677_dapm_widgets[] = {
 			&rt5677_if1_adc3_mux),
 	SND_SOC_DAPM_MUX("IF1 ADC4 Mux", SND_SOC_NOPM, 0, 0,
 			&rt5677_if1_adc4_mux),
+	SND_SOC_DAPM_MUX("IF1 ADC1 Swap Mux", SND_SOC_NOPM, 0, 0,
+			&rt5677_if1_adc1_swap_mux),
+	SND_SOC_DAPM_MUX("IF1 ADC2 Swap Mux", SND_SOC_NOPM, 0, 0,
+			&rt5677_if1_adc2_swap_mux),
+	SND_SOC_DAPM_MUX("IF1 ADC3 Swap Mux", SND_SOC_NOPM, 0, 0,
+			&rt5677_if1_adc3_swap_mux),
+	SND_SOC_DAPM_MUX("IF1 ADC4 Swap Mux", SND_SOC_NOPM, 0, 0,
+			&rt5677_if1_adc4_swap_mux),
+	SND_SOC_DAPM_MUX_E("IF1 ADC TDM Swap Mux", SND_SOC_NOPM, 0, 0,
+			&rt5677_if1_adc_tdm_swap_mux, rt5677_if1_adc_tdm_event,
+			SND_SOC_DAPM_PRE_PMU),
 	SND_SOC_DAPM_MUX("IF2 ADC1 Mux", SND_SOC_NOPM, 0, 0,
 			&rt5677_if2_adc1_mux),
 	SND_SOC_DAPM_MUX("IF2 ADC2 Mux", SND_SOC_NOPM, 0, 0,
@@ -2238,6 +2380,17 @@ static const struct snd_soc_dapm_widget rt5677_dapm_widgets[] = {
 			&rt5677_if2_adc3_mux),
 	SND_SOC_DAPM_MUX("IF2 ADC4 Mux", SND_SOC_NOPM, 0, 0,
 			&rt5677_if2_adc4_mux),
+	SND_SOC_DAPM_MUX("IF2 ADC1 Swap Mux", SND_SOC_NOPM, 0, 0,
+			&rt5677_if2_adc1_swap_mux),
+	SND_SOC_DAPM_MUX("IF2 ADC2 Swap Mux", SND_SOC_NOPM, 0, 0,
+			&rt5677_if2_adc2_swap_mux),
+	SND_SOC_DAPM_MUX("IF2 ADC3 Swap Mux", SND_SOC_NOPM, 0, 0,
+			&rt5677_if2_adc3_swap_mux),
+	SND_SOC_DAPM_MUX("IF2 ADC4 Swap Mux", SND_SOC_NOPM, 0, 0,
+			&rt5677_if2_adc4_swap_mux),
+	SND_SOC_DAPM_MUX_E("IF2 ADC TDM Swap Mux", SND_SOC_NOPM, 0, 0,
+			&rt5677_if2_adc_tdm_swap_mux, rt5677_if2_adc_tdm_event,
+			SND_SOC_DAPM_PRE_PMU),
 	SND_SOC_DAPM_MUX("IF3 ADC Mux", SND_SOC_NOPM, 0, 0,
 			&rt5677_if3_adc_mux),
 	SND_SOC_DAPM_MUX("IF4 ADC Mux", SND_SOC_NOPM, 0, 0,
@@ -2621,11 +2774,42 @@ static const struct snd_soc_dapm_route rt5677_dapm_routes[] = {
 	{ "IF1 ADC4 Mux", "OB67", "OB67" },
 	{ "IF1 ADC4 Mux", "OB01", "OB01 Bypass Mux" },
 
+	{ "IF1 ADC1 Swap Mux", "L/R", "IF1 ADC1 Mux" },
+	{ "IF1 ADC1 Swap Mux", "R/L", "IF1 ADC1 Mux" },
+	{ "IF1 ADC1 Swap Mux", "L/L", "IF1 ADC1 Mux" },
+	{ "IF1 ADC1 Swap Mux", "R/R", "IF1 ADC1 Mux" },
+
+	{ "IF1 ADC2 Swap Mux", "L/R", "IF1 ADC2 Mux" },
+	{ "IF1 ADC2 Swap Mux", "R/L", "IF1 ADC2 Mux" },
+	{ "IF1 ADC2 Swap Mux", "L/L", "IF1 ADC2 Mux" },
+	{ "IF1 ADC2 Swap Mux", "R/R", "IF1 ADC2 Mux" },
+
+	{ "IF1 ADC3 Swap Mux", "L/R", "IF1 ADC3 Mux" },
+	{ "IF1 ADC3 Swap Mux", "R/L", "IF1 ADC3 Mux" },
+	{ "IF1 ADC3 Swap Mux", "L/L", "IF1 ADC3 Mux" },
+	{ "IF1 ADC3 Swap Mux", "R/R", "IF1 ADC3 Mux" },
+
+	{ "IF1 ADC4 Swap Mux", "L/R", "IF1 ADC4 Mux" },
+	{ "IF1 ADC4 Swap Mux", "R/L", "IF1 ADC4 Mux" },
+	{ "IF1 ADC4 Swap Mux", "L/L", "IF1 ADC4 Mux" },
+	{ "IF1 ADC4 Swap Mux", "R/R", "IF1 ADC4 Mux" },
+
+	{ "IF1 ADC", NULL, "IF1 ADC1 Swap Mux" },
+	{ "IF1 ADC", NULL, "IF1 ADC2 Swap Mux" },
+	{ "IF1 ADC", NULL, "IF1 ADC3 Swap Mux" },
+	{ "IF1 ADC", NULL, "IF1 ADC4 Swap Mux" },
+
+	{ "IF1 ADC TDM Swap Mux", "1/2/3/4", "IF1 ADC" },
+	{ "IF1 ADC TDM Swap Mux", "2/1/3/4", "IF1 ADC" },
+	{ "IF1 ADC TDM Swap Mux", "2/3/1/4", "IF1 ADC" },
+	{ "IF1 ADC TDM Swap Mux", "4/1/2/3", "IF1 ADC" },
+	{ "IF1 ADC TDM Swap Mux", "1/3/2/4", "IF1 ADC" },
+	{ "IF1 ADC TDM Swap Mux", "1/4/2/3", "IF1 ADC" },
+	{ "IF1 ADC TDM Swap Mux", "3/1/2/4", "IF1 ADC" },
+	{ "IF1 ADC TDM Swap Mux", "3/4/1/2", "IF1 ADC" },
+
 	{ "AIF1TX", NULL, "I2S1" },
-	{ "AIF1TX", NULL, "IF1 ADC1 Mux" },
-	{ "AIF1TX", NULL, "IF1 ADC2 Mux" },
-	{ "AIF1TX", NULL, "IF1 ADC3 Mux" },
-	{ "AIF1TX", NULL, "IF1 ADC4 Mux" },
+	{ "AIF1TX", NULL, "IF1 ADC TDM Swap Mux" },
 
 	{ "IF2 ADC1 Mux", "STO1 ADC MIX", "Stereo1 ADC MIX" },
 	{ "IF2 ADC1 Mux", "OB01", "OB01 Bypass Mux" },
@@ -2642,11 +2826,42 @@ static const struct snd_soc_dapm_route rt5677_dapm_routes[] = {
 	{ "IF2 ADC4 Mux", "OB67", "OB67" },
 	{ "IF2 ADC4 Mux", "OB01", "OB01 Bypass Mux" },
 
+	{ "IF2 ADC1 Swap Mux", "L/R", "IF2 ADC1 Mux" },
+	{ "IF2 ADC1 Swap Mux", "R/L", "IF2 ADC1 Mux" },
+	{ "IF2 ADC1 Swap Mux", "L/L", "IF2 ADC1 Mux" },
+	{ "IF2 ADC1 Swap Mux", "R/R", "IF2 ADC1 Mux" },
+
+	{ "IF2 ADC2 Swap Mux", "L/R", "IF2 ADC2 Mux" },
+	{ "IF2 ADC2 Swap Mux", "R/L", "IF2 ADC2 Mux" },
+	{ "IF2 ADC2 Swap Mux", "L/L", "IF2 ADC2 Mux" },
+	{ "IF2 ADC2 Swap Mux", "R/R", "IF2 ADC2 Mux" },
+
+	{ "IF2 ADC3 Swap Mux", "L/R", "IF2 ADC3 Mux" },
+	{ "IF2 ADC3 Swap Mux", "R/L", "IF2 ADC3 Mux" },
+	{ "IF2 ADC3 Swap Mux", "L/L", "IF2 ADC3 Mux" },
+	{ "IF2 ADC3 Swap Mux", "R/R", "IF2 ADC3 Mux" },
+
+	{ "IF2 ADC4 Swap Mux", "L/R", "IF2 ADC4 Mux" },
+	{ "IF2 ADC4 Swap Mux", "R/L", "IF2 ADC4 Mux" },
+	{ "IF2 ADC4 Swap Mux", "L/L", "IF2 ADC4 Mux" },
+	{ "IF2 ADC4 Swap Mux", "R/R", "IF2 ADC4 Mux" },
+
+	{ "IF2 ADC", NULL, "IF2 ADC1 Swap Mux" },
+	{ "IF2 ADC", NULL, "IF2 ADC2 Swap Mux" },
+	{ "IF2 ADC", NULL, "IF2 ADC3 Swap Mux" },
+	{ "IF2 ADC", NULL, "IF2 ADC4 Swap Mux" },
+
+	{ "IF2 ADC TDM Swap Mux", "1/2/3/4", "IF2 ADC" },
+	{ "IF2 ADC TDM Swap Mux", "2/1/3/4", "IF2 ADC" },
+	{ "IF2 ADC TDM Swap Mux", "3/1/2/4", "IF2 ADC" },
+	{ "IF2 ADC TDM Swap Mux", "4/1/2/3", "IF2 ADC" },
+	{ "IF2 ADC TDM Swap Mux", "1/3/2/4", "IF2 ADC" },
+	{ "IF2 ADC TDM Swap Mux", "1/4/2/3", "IF2 ADC" },
+	{ "IF2 ADC TDM Swap Mux", "2/3/1/4", "IF2 ADC" },
+	{ "IF2 ADC TDM Swap Mux", "3/4/1/2", "IF2 ADC" },
+
 	{ "AIF2TX", NULL, "I2S2" },
-	{ "AIF2TX", NULL, "IF2 ADC1 Mux" },
-	{ "AIF2TX", NULL, "IF2 ADC2 Mux" },
-	{ "AIF2TX", NULL, "IF2 ADC3 Mux" },
-	{ "AIF2TX", NULL, "IF2 ADC4 Mux" },
+	{ "AIF2TX", NULL, "IF2 ADC TDM Swap Mux" },
 
 	{ "IF3 ADC Mux", "STO1 ADC MIX", "Stereo1 ADC MIX" },
 	{ "IF3 ADC Mux", "STO2 ADC MIX", "Stereo2 ADC MIX" },

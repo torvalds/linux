@@ -799,7 +799,21 @@
 #define RT5677_PDM2_I2C_EXE			(0x1 << 1)
 #define RT5677_PDM2_I2C_BUSY			(0x1 << 0)
 
-/* MX3C TDM1 control 1 (0x3c) */
+/* MX3B TDM1 control 1 (0x3b) */
+#define RT5677_IF1_ADC_MODE_MASK		(0x1 << 12)
+#define RT5677_IF1_ADC_MODE_SFT			12
+#define RT5677_IF1_ADC_MODE_I2S			(0x0 << 12)
+#define RT5677_IF1_ADC_MODE_TDM			(0x1 << 12)
+#define RT5677_IF1_ADC1_SWAP_MASK		(0x3 << 6)
+#define RT5677_IF1_ADC1_SWAP_SFT		6
+#define RT5677_IF1_ADC2_SWAP_MASK		(0x3 << 4)
+#define RT5677_IF1_ADC2_SWAP_SFT		4
+#define RT5677_IF1_ADC3_SWAP_MASK		(0x3 << 2)
+#define RT5677_IF1_ADC3_SWAP_SFT		2
+#define RT5677_IF1_ADC4_SWAP_MASK		(0x3 << 0)
+#define RT5677_IF1_ADC4_SWAP_SFT		0
+
+/* MX3C TDM1 control 2 (0x3c) */
 #define RT5677_IF1_ADC4_MASK			(0x3 << 10)
 #define RT5677_IF1_ADC4_SFT			10
 #define RT5677_IF1_ADC3_MASK			(0x3 << 8)
@@ -808,8 +822,24 @@
 #define RT5677_IF1_ADC2_SFT			6
 #define RT5677_IF1_ADC1_MASK			(0x3 << 4)
 #define RT5677_IF1_ADC1_SFT			4
+#define RT5677_IF1_ADC_CTRL_MASK		(0x7 << 0)
+#define RT5677_IF1_ADC_CTRL_SFT			0
 
-/* MX41 TDM2 control 1 (0x41) */
+/* MX40 TDM2 control 1 (0x40) */
+#define RT5677_IF2_ADC_MODE_MASK		(0x1 << 12)
+#define RT5677_IF2_ADC_MODE_SFT			12
+#define RT5677_IF2_ADC_MODE_I2S			(0x0 << 12)
+#define RT5677_IF2_ADC_MODE_TDM			(0x1 << 12)
+#define RT5677_IF2_ADC1_SWAP_MASK		(0x3 << 6)
+#define RT5677_IF2_ADC1_SWAP_SFT		6
+#define RT5677_IF2_ADC2_SWAP_MASK		(0x3 << 4)
+#define RT5677_IF2_ADC2_SWAP_SFT		4
+#define RT5677_IF2_ADC3_SWAP_MASK		(0x3 << 2)
+#define RT5677_IF2_ADC3_SWAP_SFT		2
+#define RT5677_IF2_ADC4_SWAP_MASK		(0x3 << 0)
+#define RT5677_IF2_ADC4_SWAP_SFT		0
+
+/* MX41 TDM2 control 2 (0x41) */
 #define RT5677_IF2_ADC4_MASK			(0x3 << 10)
 #define RT5677_IF2_ADC4_SFT			10
 #define RT5677_IF2_ADC3_MASK			(0x3 << 8)
@@ -818,6 +848,8 @@
 #define RT5677_IF2_ADC2_SFT			6
 #define RT5677_IF2_ADC1_MASK			(0x3 << 4)
 #define RT5677_IF2_ADC1_SFT			4
+#define RT5677_IF2_ADC_CTRL_MASK		(0x7 << 0)
+#define RT5677_IF2_ADC_CTRL_SFT			0
 
 /* Digital Microphone Control 1 (0x50) */
 #define RT5677_DMIC_1_EN_MASK			(0x1 << 15)
