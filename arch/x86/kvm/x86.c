@@ -666,6 +666,12 @@ int __kvm_set_xcr(struct kvm_vcpu *vcpu, u32 index, u64 xcr)
 	if ((!(xcr0 & XSTATE_BNDREGS)) != (!(xcr0 & XSTATE_BNDCSR)))
 		return 1;
 
+	if (xcr0 & XSTATE_AVX512) {
+		if (!(xcr0 & XSTATE_YMM))
+			return 1;
+		if ((xcr0 & XSTATE_AVX512) != XSTATE_AVX512)
+			return 1;
+	}
 	kvm_put_guest_xcr0(vcpu);
 	vcpu->arch.xcr0 = xcr0;
 

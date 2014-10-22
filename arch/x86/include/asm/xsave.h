@@ -16,6 +16,7 @@
 #define XSTATE_Hi16_ZMM		0x80
 
 #define XSTATE_FPSSE	(XSTATE_FP | XSTATE_SSE)
+#define XSTATE_AVX512	(XSTATE_OPMASK | XSTATE_ZMM_Hi256 | XSTATE_Hi16_ZMM)
 /* Bit 63 of XCR0 is reserved for future expansion */
 #define XSTATE_EXTEND_MASK	(~(XSTATE_FPSSE | (1ULL << 63)))
 
