@@ -221,7 +221,7 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 			data |= inb(dev->iobase + DAQP_FIFO) << 8;
 			data ^= 0x8000;
 
-			comedi_buf_put(s, data);
+			comedi_buf_write_samples(s, &data, 1);
 
 			/* If there's a limit, decrement it
 			 * and stop conversion if zero
@@ -244,8 +244,6 @@ static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 				 "loop_limit reached in daqp_interrupt()\n");
 			s->async->events |= COMEDI_CB_EOA | COMEDI_CB_ERROR;
 		}
-
-		s->async->events |= COMEDI_CB_BLOCK;
 
 		comedi_handle_events(dev, s);
 	}
