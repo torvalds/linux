@@ -724,7 +724,7 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 	long ret = 0;
 
 	/* Do the secure computing check first. */
-	secure_computing(regs->gprs[2]);
+	secure_computing_strict(regs->gprs[2]);
 
 	/*
 	 * The sysc_tracesys code in entry.S stored the system
