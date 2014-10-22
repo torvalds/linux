@@ -13,6 +13,7 @@
 #include <linux/device.h>
 #include <linux/cdev.h>
 #include <linux/iio/types.h>
+#include <linux/of.h>
 /* IIO TODO LIST */
 /*
  * Provide means of adjusting timer accuracy.
@@ -326,6 +327,11 @@ struct iio_dev;
  * @update_scan_mode:	function to configure device and scan buffer when
  *			channels have changed
  * @debugfs_reg_access:	function to read or write register value of device
+ * @of_xlate:		function pointer to obtain channel specifier index.
+ *			When #iio-cells is greater than '0', the driver could
+ *			provide a custom of_xlate function that reads the
+ *			*args* and returns the appropriate index in registered
+ *			IIO channels array.
  **/
 struct iio_info {
 	struct module			*driver_module;
@@ -385,6 +391,8 @@ struct iio_info {
 	int (*debugfs_reg_access)(struct iio_dev *indio_dev,
 				  unsigned reg, unsigned writeval,
 				  unsigned *readval);
+	int (*of_xlate)(struct iio_dev *indio_dev,
+			const struct of_phandle_args *iiospec);
 };
 
 /**
