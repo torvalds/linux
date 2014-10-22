@@ -26,8 +26,6 @@
 /*
  * omap2 architecture specific register bit definitions
  */
-#define IOMMU_ARCH_VERSION	0x00000011
-
 /* IRQSTATUS & IRQENABLE */
 #define MMU_IRQ_MULTIHITFAULT	(1 << 4)
 #define MMU_IRQ_TABLEWALKFAULT	(1 << 3)
@@ -268,8 +266,6 @@ static void omap2_iommu_save_ctx(struct omap_iommu *obj)
 		p[i] = iommu_read_reg(obj, i * sizeof(u32));
 		dev_dbg(obj->dev, "%s\t[%02d] %08x\n", __func__, i, p[i]);
 	}
-
-	BUG_ON(p[0] != IOMMU_ARCH_VERSION);
 }
 
 static void omap2_iommu_restore_ctx(struct omap_iommu *obj)
@@ -281,8 +277,6 @@ static void omap2_iommu_restore_ctx(struct omap_iommu *obj)
 		iommu_write_reg(obj, p[i], i * sizeof(u32));
 		dev_dbg(obj->dev, "%s\t[%02d] %08x\n", __func__, i, p[i]);
 	}
-
-	BUG_ON(p[0] != IOMMU_ARCH_VERSION);
 }
 
 static void omap2_cr_to_e(struct cr_regs *cr, struct iotlb_entry *e)
