@@ -242,8 +242,6 @@ void greybus_deregister(struct greybus_driver *driver);
 
 int greybus_disabled(void);
 
-void greybus_remove_device(struct gb_module *gmod);
-
 /* Internal functions to gb module, move to internal .h file eventually. */
 
 void gb_add_module(struct greybus_host_device *hd, u8 module_id,

@@ -190,6 +190,13 @@ err_module:
 	greybus_module_release(&gmod->dev);
 }
 
+static void gb_delete_module(struct gb_module *gmod)
+{
+	/* FIXME - tear down interfaces first */
+
+	device_del(&gmod->dev);
+}
+
 void gb_remove_module(struct greybus_host_device *hd, u8 module_id)
 {
 	struct gb_module *gmod;
@@ -202,15 +209,18 @@ void gb_remove_module(struct greybus_host_device *hd, u8 module_id)
 		}
 
 	if (found)
-		greybus_remove_device(gmod);
+		gb_delete_module(gmod);
 	else
 		dev_err(hd->parent, "module id %d remove error\n", module_id);
 }
 
-void greybus_remove_device(struct gb_module *gmod)
+static void gb_remove_modules(struct greybus_host_device *hd)
 {
-	device_del(&gmod->dev);
-	put_device(&gmod->dev);
+	struct gb_module *gmod, *temp;
+
+	list_for_each_entry_safe(gmod, temp, &hd->modules, links) {
+		gb_delete_module(gmod);
+	}
 }
 
 static DEFINE_MUTEX(hd_mutex);
@@ -248,6 +258,7 @@ EXPORT_SYMBOL_GPL(greybus_create_hd);
 
 void greybus_remove_hd(struct greybus_host_device *hd)
 {
+	gb_remove_modules(hd);
 	kref_put_mutex(&hd->kref, free_hd, &hd_mutex);
 }
 EXPORT_SYMBOL_GPL(greybus_remove_hd);
