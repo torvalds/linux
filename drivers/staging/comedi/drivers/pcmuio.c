@@ -336,10 +336,7 @@ static void pcmuio_handle_intr_subdev(struct comedi_device *dev,
 			val |= (1 << i);
 	}
 
-	/* Write the scan to the buffer. */
-	if (comedi_buf_put(s, val) &&
-	    comedi_buf_put(s, val >> 16))
-		s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
+	comedi_buf_write_samples(s, &val, 1);
 
 	/* Check for end of acquisition. */
 	if (cmd->stop_src == TRIG_COUNT) {
@@ -604,7 +601,8 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		if ((i == 0 && dev->irq) || (i == 2 && devpriv->irq2)) {
 			/* setup the interrupt subdevice */
 			dev->read_subdev = s;
-			s->subdev_flags	|= SDF_CMD_READ;
+			s->subdev_flags	|= SDF_CMD_READ | SDF_LSAMPL |
+					   SDF_PACKED;
 			s->len_chanlist	= s->n_chan;
 			s->cancel	= pcmuio_cancel;
 			s->do_cmd	= pcmuio_cmd;
