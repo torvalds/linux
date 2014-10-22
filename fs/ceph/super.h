@@ -256,6 +256,7 @@ struct ceph_inode_info {
 	u32 i_time_warp_seq;
 
 	unsigned i_ceph_flags;
+	int i_ordered_count;
 	atomic_t i_release_count;
 	atomic_t i_complete_count;
 
@@ -434,14 +435,19 @@ static inline struct inode *ceph_find_inode(struct super_block *sb,
 /*
  * Ceph inode.
  */
-#define CEPH_I_NODELAY   4  /* do not delay cap release */
-#define CEPH_I_FLUSH     8  /* do not delay flush of dirty metadata */
-#define CEPH_I_NOFLUSH  16  /* do not flush dirty caps */
+#define CEPH_I_DIR_ORDERED	1  /* dentries in dir are ordered */
+#define CEPH_I_NODELAY		4  /* do not delay cap release */
+#define CEPH_I_FLUSH		8  /* do not delay flush of dirty metadata */
+#define CEPH_I_NOFLUSH		16 /* do not flush dirty caps */
 
 static inline void __ceph_dir_set_complete(struct ceph_inode_info *ci,
-					   int release_count)
+					   int release_count, int ordered_count)
 {
 	atomic_set(&ci->i_complete_count, release_count);
+	if (ci->i_ordered_count == ordered_count)
+		ci->i_ceph_flags |= CEPH_I_DIR_ORDERED;
+	else
+		ci->i_ceph_flags &= ~CEPH_I_DIR_ORDERED;
 }
 
 static inline void __ceph_dir_clear_complete(struct ceph_inode_info *ci)
@@ -455,16 +461,35 @@ static inline bool __ceph_dir_is_complete(struct ceph_inode_info *ci)
 		atomic_read(&ci->i_release_count);
 }
 
+static inline bool __ceph_dir_is_complete_ordered(struct ceph_inode_info *ci)
+{
+	return __ceph_dir_is_complete(ci) &&
+		(ci->i_ceph_flags & CEPH_I_DIR_ORDERED);
+}
+
 static inline void ceph_dir_clear_complete(struct inode *inode)
 {
 	__ceph_dir_clear_complete(ceph_inode(inode));
 }
 
-static inline bool ceph_dir_is_complete(struct inode *inode)
+static inline void ceph_dir_clear_ordered(struct inode *inode)
 {
-	return __ceph_dir_is_complete(ceph_inode(inode));
+	struct ceph_inode_info *ci = ceph_inode(inode);
+	spin_lock(&ci->i_ceph_lock);
+	ci->i_ordered_count++;
+	ci->i_ceph_flags &= ~CEPH_I_DIR_ORDERED;
+	spin_unlock(&ci->i_ceph_lock);
 }
 
+static inline bool ceph_dir_is_complete_ordered(struct inode *inode)
+{
+	struct ceph_inode_info *ci = ceph_inode(inode);
+	bool ret;
+	spin_lock(&ci->i_ceph_lock);
+	ret = __ceph_dir_is_complete_ordered(ci);
+	spin_unlock(&ci->i_ceph_lock);
+	return ret;
+}
 
 /* find a specific frag @f */
 extern struct ceph_inode_frag *__ceph_find_frag(struct ceph_inode_info *ci,
@@ -580,6 +605,7 @@ struct ceph_file_info {
 	char *last_name;       /* last entry in previous chunk */
 	struct dentry *dentry; /* next dentry (for dcache readdir) */
 	int dir_release_count;
+	int dir_ordered_count;
 
 	/* used for -o dirstat read() on directory thing */
 	char *dir_info;
