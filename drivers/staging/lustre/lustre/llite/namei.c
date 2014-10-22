@@ -948,7 +948,7 @@ static int ll_mkdir_generic(struct inode *dir, struct qstr *name,
 
 /* Try to find the child dentry by its name.
    If found, put the result fid into @fid. */
-static void ll_get_child_fid(struct inode * dir, struct qstr *name,
+static void ll_get_child_fid(struct inode *dir, struct qstr *name,
 			     struct lu_fid *fid)
 {
 	struct dentry *parent, *child;
@@ -1190,7 +1190,7 @@ static int ll_mknod(struct inode *dir, struct dentry *dchild, ll_umode_t mode,
 				old_encode_dev(rdev), dchild);
 }
 
-static int ll_unlink(struct inode * dir, struct dentry *dentry)
+static int ll_unlink(struct inode *dir, struct dentry *dentry)
 {
 	return ll_unlink_generic(dir, NULL, dentry, &dentry->d_name);
 }
