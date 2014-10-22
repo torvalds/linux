@@ -1603,7 +1603,7 @@ int dsi_pll_set_clock_div(struct platform_device *dsidev,
 	} else if (dss_has_feature(FEAT_DSI_PLL_SELFREQDCO)) {
 		f = cinfo->clkin4ddr < 1000000000 ? 0x2 : 0x4;
 
-		l = FLD_MOD(l, f, 4, 1);	/* PLL_SELFREQDCO */
+		l = FLD_MOD(l, f, 3, 1);	/* PLL_SELFREQDCO */
 	}
 
 	l = FLD_MOD(l, 1, 13, 13);		/* DSI_PLL_REFEN */
