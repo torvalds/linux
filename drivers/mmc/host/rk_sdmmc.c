@@ -627,7 +627,7 @@ static void dw_mci_edmac_start_dma(struct dw_mci *host, unsigned int sg_len)
 
         /* Match FIFO dma burst MSIZE with external dma config*/
         fifoth_val = mci_readl(host, FIFOTH);
-        mburst = mszs[(fifoth_val >> 28) && 0x7];
+        mburst = mszs[(fifoth_val >> 28) & 0x7];
 
         /* edmac limit burst to 16 */
         slave_config.dst_maxburst = (mburst > 16) ? 16 : mburst;
