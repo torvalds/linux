@@ -190,13 +190,8 @@ static inline struct omap_iommu *dev_to_omap_iommu(struct device *dev)
 /*
  * global functions
  */
-extern void omap_iotlb_cr_to_e(struct cr_regs *cr, struct iotlb_entry *e);
-
 extern int
 omap_iopgtable_store_entry(struct omap_iommu *obj, struct iotlb_entry *e);
-
-extern int omap_foreach_iommu_device(void *data,
-				int (*fn)(struct device *, void *));
 
 #ifdef CONFIG_OMAP_IOMMU_DEBUG
 extern ssize_t

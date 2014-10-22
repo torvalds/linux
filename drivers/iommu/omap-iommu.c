@@ -203,20 +203,6 @@ static void iommu_disable(struct omap_iommu *obj)
 /*
  *	TLB operations
  */
-void omap_iotlb_cr_to_e(struct cr_regs *cr, struct iotlb_entry *e)
-{
-	BUG_ON(!cr || !e);
-
-	e->da		= cr->cam & MMU_CAM_VATAG_MASK;
-	e->pa		= cr->ram & MMU_RAM_PADDR_MASK;
-	e->valid	= cr->cam & MMU_CAM_V;
-	e->pgsz		= cr->cam & MMU_CAM_PGSZ_MASK;
-	e->endian	= cr->ram & MMU_RAM_ENDIAN_MASK;
-	e->elsz		= cr->ram & MMU_RAM_ELSZ_MASK;
-	e->mixed	= cr->ram & MMU_RAM_MIXED;
-}
-EXPORT_SYMBOL_GPL(omap_iotlb_cr_to_e);
-
 static inline int iotlb_cr_valid(struct cr_regs *cr)
 {
 	if (!cr)
@@ -594,13 +580,6 @@ size_t omap_dump_tlb_entries(struct omap_iommu *obj, char *buf, ssize_t bytes)
 	return p - buf;
 }
 EXPORT_SYMBOL_GPL(omap_dump_tlb_entries);
-
-int omap_foreach_iommu_device(void *data, int (*fn)(struct device *, void *))
-{
-	return driver_for_each_device(&omap_iommu_driver.driver,
-				      NULL, data, fn);
-}
-EXPORT_SYMBOL_GPL(omap_foreach_iommu_device);
 
 #endif /* CONFIG_OMAP_IOMMU_DEBUG */
 
