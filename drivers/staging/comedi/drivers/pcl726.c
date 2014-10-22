@@ -235,8 +235,7 @@ static irqreturn_t pcl726_interrupt(int irq, void *d)
 	if (devpriv->cmd_running) {
 		pcl726_intr_cancel(dev, s);
 
-		comedi_buf_put(s, 0);
-		s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
+		comedi_buf_write_samples(s, &s->state, 1);
 		comedi_handle_events(dev, s);
 	}
 
