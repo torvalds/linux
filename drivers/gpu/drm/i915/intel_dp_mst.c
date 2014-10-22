@@ -278,20 +278,12 @@ static int intel_dp_mst_get_ddc_modes(struct drm_connector *connector)
 }
 
 static enum drm_connector_status
-intel_mst_port_dp_detect(struct drm_connector *connector)
+intel_dp_mst_detect(struct drm_connector *connector, bool force)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct intel_dp *intel_dp = intel_connector->mst_port;
 
 	return drm_dp_mst_detect_port(&intel_dp->mst_mgr, intel_connector->port);
-}
-
-static enum drm_connector_status
-intel_dp_mst_detect(struct drm_connector *connector, bool force)
-{
-	enum drm_connector_status status;
-	status = intel_mst_port_dp_detect(connector);
-	return status;
 }
 
 static int
