@@ -562,8 +562,10 @@ ieee80211_tdls_prep_mgmt_packet(struct wiphy *wiphy, struct net_device *dev,
 	/* infer the initiator if we can, to support old userspace */
 	switch (action_code) {
 	case WLAN_TDLS_SETUP_REQUEST:
-		if (sta)
+		if (sta) {
 			set_sta_flag(sta, WLAN_STA_TDLS_INITIATOR);
+			sta->sta.tdls_initiator = false;
+		}
 		/* fall-through */
 	case WLAN_TDLS_SETUP_CONFIRM:
 	case WLAN_TDLS_DISCOVERY_REQUEST:
@@ -575,8 +577,10 @@ ieee80211_tdls_prep_mgmt_packet(struct wiphy *wiphy, struct net_device *dev,
 		 * Make the last packet sent take effect for the initiator
 		 * value.
 		 */
-		if (sta)
+		if (sta) {
 			clear_sta_flag(sta, WLAN_STA_TDLS_INITIATOR);
+			sta->sta.tdls_initiator = true;
+		}
 		/* fall-through */
 	case WLAN_PUB_ACTION_TDLS_DISCOVER_RES:
 		initiator = false;

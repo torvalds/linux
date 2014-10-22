@@ -1427,6 +1427,8 @@ struct ieee80211_sta_rates {
  * @smps_mode: current SMPS mode (off, static or dynamic)
  * @rates: rate control selection table
  * @tdls: indicates whether the STA is a TDLS peer
+ * @tdls_initiator: indicates the STA is an initiator of the TDLS link. Only
+ *	valid if the STA is a TDLS peer in the first place.
  */
 struct ieee80211_sta {
 	u32 supp_rates[IEEE80211_NUM_BANDS];
@@ -1442,6 +1444,7 @@ struct ieee80211_sta {
 	enum ieee80211_smps_mode smps_mode;
 	struct ieee80211_sta_rates __rcu *rates;
 	bool tdls;
+	bool tdls_initiator;
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));
