@@ -1313,18 +1313,13 @@ static int apci3120_interrupt_handle_eos(struct comedi_device *dev)
 {
 	struct apci3120_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
-	int n_chan, i;
-	int err = 1;
+	unsigned short val;
+	int i;
 
-	n_chan = devpriv->ui_AiNbrofChannels;
-
-	for (i = 0; i < n_chan; i++)
-		err &= comedi_buf_put(s, inw(dev->iobase + 0));
-
-	s->async->events |= COMEDI_CB_EOS;
-
-	if (err == 0)
-		s->async->events |= COMEDI_CB_OVERFLOW;
+	for (i = 0; i < devpriv->ui_AiNbrofChannels; i++) {
+		val = inw(dev->iobase + 0);
+		comedi_buf_write_samples(s, &val, 1);
+	}
 
 	return 0;
 }
