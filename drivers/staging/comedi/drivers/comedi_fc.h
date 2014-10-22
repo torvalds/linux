@@ -23,13 +23,6 @@
 
 #include "../comedidev.h"
 
-static inline unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *s,
-						     const void *data,
-						     unsigned int num_bytes)
-{
-	return comedi_write_array_to_buffer(s, data, num_bytes);
-}
-
 /**
  * cfc_check_trigger_src() - trivially validate a comedi_cmd trigger source
  * @src: pointer to the trigger source to validate
