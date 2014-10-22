@@ -491,6 +491,7 @@ static void dt282x_ai_dma_interrupt(struct comedi_device *dev,
 	int cur_dma = devpriv->current_dma_index;
 	void *ptr = devpriv->dma[cur_dma].buf;
 	int size = devpriv->dma[cur_dma].size;
+	unsigned int nsamples = size / bytes_per_sample(s);
 	int ret;
 
 	outw(devpriv->supcsr | DT2821_SUPCSR_CLRDMADNE,
@@ -501,13 +502,11 @@ static void dt282x_ai_dma_interrupt(struct comedi_device *dev,
 	devpriv->current_dma_index = 1 - cur_dma;
 
 	dt282x_munge(dev, s, ptr, size);
-	ret = cfc_write_array_to_buffer(s, ptr, size);
-	if (ret != size) {
-		s->async->events |= COMEDI_CB_OVERFLOW;
+	ret = comedi_buf_write_samples(s, ptr, nsamples);
+	if (ret != size)
 		return;
-	}
 
-	devpriv->nread -= size / 2;
+	devpriv->nread -= nsamples;
 	if (devpriv->nread < 0) {
 		dev_info(dev->class_dev, "nread off by one\n");
 		devpriv->nread = 0;
@@ -566,7 +565,6 @@ static irqreturn_t dt282x_interrupt(int irq, void *d)
 	}
 #if 0
 	if (adcsr & DT2821_ADCSR_ADDONE) {
-		int ret;
 		unsigned short data;
 
 		data = inw(dev->iobase + DT2821_ADDAT_REG);
@@ -574,10 +572,7 @@ static irqreturn_t dt282x_interrupt(int irq, void *d)
 		if (devpriv->ad_2scomp)
 			data = comedi_offset_munge(s, data);
 
-		ret = comedi_buf_put(s, data);
-
-		if (ret == 0)
-			s->async->events |= COMEDI_CB_OVERFLOW;
+		comedi_buf_write_samples(s, &data, 1);
 
 		devpriv->nread--;
 		if (!devpriv->nread) {
