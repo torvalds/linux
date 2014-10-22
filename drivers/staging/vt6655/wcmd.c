@@ -665,7 +665,8 @@ vCommandTimer(
 			add_timer(&pDevice->sTimerTxData);
 
 		} else if (pMgmt->eCurrState < WMAC_STATE_ASSOCPENDING) {
-			printk("WLAN_ASSOCIATE_WAIT:Association Fail???\n");
+			netdev_err(pDevice->dev,
+				   "WLAN_ASSOCIATE_WAIT:Association Fail???\n");
 		} else if (pDevice->byLinkWaitCount <= 4) {    //mike add:wait another 2 sec if associated_frame delay!
 			pDevice->byLinkWaitCount++;
 			pr_debug("WLAN_ASSOCIATE_WAIT:wait %d times!!\n", pDevice->byLinkWaitCount);
