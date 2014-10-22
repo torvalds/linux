@@ -48,4 +48,7 @@ extern int cp0_compare_irq;
 extern int cp0_compare_irq_shift;
 extern int cp0_perfcount_irq;
 
+void arch_trigger_all_cpu_backtrace(bool);
+#define arch_trigger_all_cpu_backtrace arch_trigger_all_cpu_backtrace
+
 #endif /* _ASM_IRQ_H */

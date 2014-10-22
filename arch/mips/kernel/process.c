@@ -42,6 +42,7 @@
 #include <asm/isadep.h>
 #include <asm/inst.h>
 #include <asm/stacktrace.h>
+#include <asm/irq_regs.h>
 
 #ifdef CONFIG_HOTPLUG_CPU
 void arch_cpu_idle_dead(void)
@@ -531,4 +532,21 @@ unsigned long arch_align_stack(unsigned long sp)
 		sp -= get_random_int() & ~PAGE_MASK;
 
 	return sp & ALMASK;
+}
+
+static void arch_dump_stack(void *info)
+{
+	struct pt_regs *regs;
+
+	regs = get_irq_regs();
+
+	if (regs)
+		show_regs(regs);
+
+	dump_stack();
+}
+
+void arch_trigger_all_cpu_backtrace(bool include_self)
+{
+	smp_call_function(arch_dump_stack, NULL, 1);
 }
