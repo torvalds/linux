@@ -256,7 +256,7 @@ static int iommu_debug_register(struct device *dev, void *data)
 		goto nomem;
 	parent = d;
 
-	d = debugfs_create_u8("nr_tlb_entries", 400, parent,
+	d = debugfs_create_u8("nr_tlb_entries", 0400, parent,
 			      (u8 *)&obj->nr_tlb_entries);
 	if (!d)
 		goto nomem;
