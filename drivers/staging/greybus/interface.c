@@ -60,6 +60,18 @@ void gb_interface_destroy(struct gb_interface *interface)
 	kfree(interface);
 }
 
+struct gb_interface *gb_interface_find(struct gb_module *module,
+				      u8 interface_id)
+{
+	struct gb_interface *interface;
+
+	list_for_each_entry(interface, &module->interfaces, links)
+		if (interface->id == interface_id)
+			return interface;
+
+	return NULL;
+}
+
 int gb_interface_connections_init(struct gb_interface *interface)
 {
 	struct gb_connection *connection;
