@@ -549,22 +549,6 @@ unsigned int comedi_write_array_to_buffer(struct comedi_subdevice *s,
 }
 EXPORT_SYMBOL_GPL(comedi_write_array_to_buffer);
 
-static unsigned int comedi_read_array_from_buffer(struct comedi_subdevice *s,
-						  void *data,
-						  unsigned int num_bytes)
-{
-	if (num_bytes == 0)
-		return 0;
-
-	num_bytes = comedi_buf_read_alloc(s, num_bytes);
-	comedi_buf_memcpy_from(s, 0, data, num_bytes);
-	comedi_buf_read_free(s, num_bytes);
-	comedi_inc_scan_progress(s, num_bytes);
-	s->async->events |= COMEDI_CB_BLOCK;
-
-	return num_bytes;
-}
-
 /**
  * comedi_buf_read_samples - read sample data from comedi buffer
  * @s: comedi_subdevice struct
@@ -587,7 +571,15 @@ unsigned int comedi_buf_read_samples(struct comedi_subdevice *s,
 		nsamples = max_samples;
 
 	nbytes = nsamples * bytes_per_sample(s);
+	if (nbytes == 0)
+		return 0;
 
-	return comedi_read_array_from_buffer(s, data, nbytes);
+	nbytes = comedi_buf_read_alloc(s, nbytes);
+	comedi_buf_memcpy_from(s, 0, data, nbytes);
+	comedi_buf_read_free(s, nbytes);
+	comedi_inc_scan_progress(s, nbytes);
+	s->async->events |= COMEDI_CB_BLOCK;
+
+	return nbytes;
 }
 EXPORT_SYMBOL_GPL(comedi_buf_read_samples);
