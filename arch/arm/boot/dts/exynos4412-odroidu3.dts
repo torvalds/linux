@@ -123,6 +123,7 @@
 			regulator-max-microvolt = <2850000>;
 			regulator-always-on;
 			regulator-boot-on;
+			LDO22-supply = <&reg_sysvdd>;
 		};
 
 		/* On the Odroid-U2/U3 this buck regulator supplies the LAN9730 block. */
@@ -131,6 +132,7 @@
 			regulator-name = "input_lan9730_3.3V";
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
+			BUCK8-supply = <&reg_sysvdd &reg_p3v3>;
 		};
 	};
 };
