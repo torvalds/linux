@@ -469,8 +469,9 @@ void comedi_buf_memcpy_to(struct comedi_subdevice *s, unsigned int offset,
 }
 EXPORT_SYMBOL_GPL(comedi_buf_memcpy_to);
 
-void comedi_buf_memcpy_from(struct comedi_subdevice *s, unsigned int offset,
-			    void *dest, unsigned int nbytes)
+static void comedi_buf_memcpy_from(struct comedi_subdevice *s,
+				   unsigned int offset,
+				   void *dest, unsigned int nbytes)
 {
 	void *src;
 	struct comedi_async *async = s->async;
@@ -495,7 +496,6 @@ void comedi_buf_memcpy_from(struct comedi_subdevice *s, unsigned int offset,
 		read_ptr = 0;
 	}
 }
-EXPORT_SYMBOL_GPL(comedi_buf_memcpy_from);
 
 /**
  * comedi_write_array_to_buffer - write data to comedi buffer
