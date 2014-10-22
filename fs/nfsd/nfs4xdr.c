@@ -1886,7 +1886,7 @@ static __be32 nfsd4_encode_path(struct xdr_stream *xdr,
 			goto out_free;
 		}
 		p = xdr_encode_opaque(p, dentry->d_name.name, len);
-		dprintk("/%s", dentry->d_name.name);
+		dprintk("/%pd", dentry);
 		spin_unlock(&dentry->d_lock);
 		dput(dentry);
 		ncomponents--;

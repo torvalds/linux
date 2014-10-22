@@ -168,8 +168,8 @@ more:
 		    ceph_ino(dentry->d_inode) != CEPH_INO_CEPH &&
 		    fpos_cmp(ctx->pos, di->offset) <= 0)
 			break;
-		dout(" skipping %p %.*s at %llu (%llu)%s%s\n", dentry,
-		     dentry->d_name.len, dentry->d_name.name, di->offset,
+		dout(" skipping %p %pd at %llu (%llu)%s%s\n", dentry,
+		     dentry, di->offset,
 		     ctx->pos, d_unhashed(dentry) ? " unhashed" : "",
 		     !dentry->d_inode ? " null" : "");
 		spin_unlock(&dentry->d_lock);
@@ -190,8 +190,8 @@ more:
 		goto out;
 	}
 
-	dout(" %llu (%llu) dentry %p %.*s %p\n", di->offset, ctx->pos,
-	     dentry, dentry->d_name.len, dentry->d_name.name, dentry->d_inode);
+	dout(" %llu (%llu) dentry %p %pd %p\n", di->offset, ctx->pos,
+	     dentry, dentry, dentry->d_inode);
 	if (!dir_emit(ctx, dentry->d_name.name,
 		      dentry->d_name.len,
 		      ceph_translate_ino(dentry->d_sb, dentry->d_inode->i_ino),
@@ -538,8 +538,8 @@ int ceph_handle_snapdir(struct ceph_mds_request *req,
 	    strcmp(dentry->d_name.name,
 		   fsc->mount_options->snapdir_name) == 0) {
 		struct inode *inode = ceph_get_snapdir(parent);
-		dout("ENOENT on snapdir %p '%.*s', linking to snapdir %p\n",
-		     dentry, dentry->d_name.len, dentry->d_name.name, inode);
+		dout("ENOENT on snapdir %p '%pd', linking to snapdir %p\n",
+		     dentry, dentry, inode);
 		BUG_ON(!d_unhashed(dentry));
 		d_add(dentry, inode);
 		err = 0;
@@ -603,8 +603,8 @@ static struct dentry *ceph_lookup(struct inode *dir, struct dentry *dentry,
 	int op;
 	int err;
 
-	dout("lookup %p dentry %p '%.*s'\n",
-	     dir, dentry, dentry->d_name.len, dentry->d_name.name);
+	dout("lookup %p dentry %p '%pd'\n",
+	     dir, dentry, dentry);
 
 	if (dentry->d_name.len > NAME_MAX)
 		return ERR_PTR(-ENAMETOOLONG);
@@ -774,8 +774,8 @@ static int ceph_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	if (ceph_snap(dir) == CEPH_SNAPDIR) {
 		/* mkdir .snap/foo is a MKSNAP */
 		op = CEPH_MDS_OP_MKSNAP;
-		dout("mksnap dir %p snap '%.*s' dn %p\n", dir,
-		     dentry->d_name.len, dentry->d_name.name, dentry);
+		dout("mksnap dir %p snap '%pd' dn %p\n", dir,
+		     dentry, dentry);
 	} else if (ceph_snap(dir) == CEPH_NOSNAP) {
 		dout("mkdir dir %p dn %p mode 0%ho\n", dir, dentry, mode);
 		op = CEPH_MDS_OP_MKDIR;
@@ -888,8 +888,7 @@ static int ceph_unlink(struct inode *dir, struct dentry *dentry)
 
 	if (ceph_snap(dir) == CEPH_SNAPDIR) {
 		/* rmdir .snap/foo is RMSNAP */
-		dout("rmsnap dir %p '%.*s' dn %p\n", dir, dentry->d_name.len,
-		     dentry->d_name.name, dentry);
+		dout("rmsnap dir %p '%pd' dn %p\n", dir, dentry, dentry);
 		op = CEPH_MDS_OP_RMSNAP;
 	} else if (ceph_snap(dir) == CEPH_NOSNAP) {
 		dout("unlink/rmdir dir %p dn %p inode %p\n",
@@ -1063,16 +1062,15 @@ static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
-	dout("d_revalidate %p '%.*s' inode %p offset %lld\n", dentry,
-	     dentry->d_name.len, dentry->d_name.name, dentry->d_inode,
-	     ceph_dentry(dentry)->offset);
+	dout("d_revalidate %p '%pd' inode %p offset %lld\n", dentry,
+	     dentry, dentry->d_inode, ceph_dentry(dentry)->offset);
 
 	dir = ceph_get_dentry_parent_inode(dentry);
 
 	/* always trust cached snapped dentries, snapdir dentry */
 	if (ceph_snap(dir) != CEPH_NOSNAP) {
-		dout("d_revalidate %p '%.*s' inode %p is SNAPPED\n", dentry,
-		     dentry->d_name.len, dentry->d_name.name, dentry->d_inode);
+		dout("d_revalidate %p '%pd' inode %p is SNAPPED\n", dentry,
+		     dentry, dentry->d_inode);
 		valid = 1;
 	} else if (dentry->d_inode &&
 		   ceph_snap(dentry->d_inode) == CEPH_SNAPDIR) {
@@ -1265,8 +1263,7 @@ void ceph_dentry_lru_add(struct dentry *dn)
 	struct ceph_dentry_info *di = ceph_dentry(dn);
 	struct ceph_mds_client *mdsc;
 
-	dout("dentry_lru_add %p %p '%.*s'\n", di, dn,
-	     dn->d_name.len, dn->d_name.name);
+	dout("dentry_lru_add %p %p '%pd'\n", di, dn, dn);
 	mdsc = ceph_sb_to_client(dn->d_sb)->mdsc;
 	spin_lock(&mdsc->dentry_lru_lock);
 	list_add_tail(&di->lru, &mdsc->dentry_lru);
@@ -1279,8 +1276,8 @@ void ceph_dentry_lru_touch(struct dentry *dn)
 	struct ceph_dentry_info *di = ceph_dentry(dn);
 	struct ceph_mds_client *mdsc;
 
-	dout("dentry_lru_touch %p %p '%.*s' (offset %lld)\n", di, dn,
-	     dn->d_name.len, dn->d_name.name, di->offset);
+	dout("dentry_lru_touch %p %p '%pd' (offset %lld)\n", di, dn, dn,
+	     di->offset);
 	mdsc = ceph_sb_to_client(dn->d_sb)->mdsc;
 	spin_lock(&mdsc->dentry_lru_lock);
 	list_move_tail(&di->lru, &mdsc->dentry_lru);
@@ -1292,8 +1289,7 @@ void ceph_dentry_lru_del(struct dentry *dn)
 	struct ceph_dentry_info *di = ceph_dentry(dn);
 	struct ceph_mds_client *mdsc;
 
-	dout("dentry_lru_del %p %p '%.*s'\n", di, dn,
-	     dn->d_name.len, dn->d_name.name);
+	dout("dentry_lru_del %p %p '%pd'\n", di, dn, dn);
 	mdsc = ceph_sb_to_client(dn->d_sb)->mdsc;
 	spin_lock(&mdsc->dentry_lru_lock);
 	list_del_init(&di->lru);

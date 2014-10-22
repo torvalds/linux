@@ -238,8 +238,8 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 	struct ceph_acls_info acls = {};
 	int err;
 
-	dout("atomic_open %p dentry %p '%.*s' %s flags %d mode 0%o\n",
-	     dir, dentry, dentry->d_name.len, dentry->d_name.name,
+	dout("atomic_open %p dentry %p '%pd' %s flags %d mode 0%o\n",
+	     dir, dentry, dentry,
 	     d_unhashed(dentry) ? "unhashed" : "hashed", flags, mode);
 
 	if (dentry->d_name.len > NAME_MAX)

@@ -133,7 +133,7 @@ out:
 static int
 nfs_closedir(struct inode *inode, struct file *filp)
 {
-	put_nfs_open_dir_context(filp->f_path.dentry->d_inode, filp->private_data);
+	put_nfs_open_dir_context(file_inode(filp), filp->private_data);
 	return 0;
 }
 

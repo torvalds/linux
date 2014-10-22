@@ -688,8 +688,8 @@ int afs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	struct afs_vnode *vnode = AFS_FS_I(dentry->d_inode);
 	int ret;
 
-	_enter("{%x:%u},{n=%s},%d",
-	       vnode->fid.vid, vnode->fid.vnode, dentry->d_name.name,
+	_enter("{%x:%u},{n=%pd},%d",
+	       vnode->fid.vid, vnode->fid.vnode, dentry,
 	       datasync);
 
 	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);

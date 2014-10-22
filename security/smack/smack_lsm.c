@@ -166,9 +166,9 @@ static int smk_bu_file(struct file *file, int mode, int rc)
 		return rc;
 
 	smk_bu_mode(mode, acc);
-	pr_info("Smack Bringup: (%s %s %s) file=(%s %ld %s) %s\n",
+	pr_info("Smack Bringup: (%s %s %s) file=(%s %ld %pD) %s\n",
 		sskp->smk_known, (char *)file->f_security, acc,
-		inode->i_sb->s_id, inode->i_ino, file->f_dentry->d_name.name,
+		inode->i_sb->s_id, inode->i_ino, file,
 		current->comm);
 	return 0;
 }
@@ -189,9 +189,9 @@ static int smk_bu_credfile(const struct cred *cred, struct file *file,
 		return rc;
 
 	smk_bu_mode(mode, acc);
-	pr_info("Smack Bringup: (%s %s %s) file=(%s %ld %s) %s\n",
+	pr_info("Smack Bringup: (%s %s %s) file=(%s %ld %pD) %s\n",
 		sskp->smk_known, smk_of_inode(inode)->smk_known, acc,
-		inode->i_sb->s_id, inode->i_ino, file->f_dentry->d_name.name,
+		inode->i_sb->s_id, inode->i_ino, file,
 		current->comm);
 	return 0;
 }

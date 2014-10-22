@@ -210,9 +210,9 @@ fill_with_dentries(struct dir_context *ctx, const char *name, int namelen,
 	} else if (!dentry->d_inode) {
 		/* A directory entry exists, but no file? */
 		reiserfs_error(dentry->d_sb, "xattr-20003",
-			       "Corrupted directory: xattr %s listed but "
-			       "not found for file %s.\n",
-			       dentry->d_name.name, dbuf->xadir->d_name.name);
+			       "Corrupted directory: xattr %pd listed but "
+			       "not found for file %pd.\n",
+			       dentry, dbuf->xadir);
 		dput(dentry);
 		return -EIO;
 	}
