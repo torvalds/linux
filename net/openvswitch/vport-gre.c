@@ -29,6 +29,7 @@
 #include <linux/jhash.h>
 #include <linux/list.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/workqueue.h>
 #include <linux/rculist.h>
 #include <net/route.h>
@@ -44,6 +45,8 @@
 
 #include "datapath.h"
 #include "vport.h"
+
+static struct vport_ops ovs_gre_vport_ops;
 
 /* Returns the least-significant 32 bits of a __be64. */
 static __be32 be64_get_low32(__be64 x)
@@ -281,10 +284,28 @@ static void gre_tnl_destroy(struct vport *vport)
 	gre_exit();
 }
 
-const struct vport_ops ovs_gre_vport_ops = {
+static struct vport_ops ovs_gre_vport_ops = {
 	.type		= OVS_VPORT_TYPE_GRE,
 	.create		= gre_create,
 	.destroy	= gre_tnl_destroy,
 	.get_name	= gre_get_name,
 	.send		= gre_tnl_send,
+	.owner		= THIS_MODULE,
 };
+
+static int __init ovs_gre_tnl_init(void)
+{
+	return ovs_vport_ops_register(&ovs_gre_vport_ops);
+}
+
+static void __exit ovs_gre_tnl_exit(void)
+{
+	ovs_vport_ops_unregister(&ovs_gre_vport_ops);
+}
+
+module_init(ovs_gre_tnl_init);
+module_exit(ovs_gre_tnl_exit);
+
+MODULE_DESCRIPTION("OVS: GRE switching port");
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("vport-type-3");

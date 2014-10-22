@@ -17,6 +17,7 @@
 #include <linux/rculist.h>
 #include <linux/udp.h>
 #include <linux/if_vlan.h>
+#include <linux/module.h>
 
 #include <net/geneve.h>
 #include <net/icmp.h>
@@ -27,6 +28,8 @@
 
 #include "datapath.h"
 #include "vport.h"
+
+static struct vport_ops ovs_geneve_vport_ops;
 
 /**
  * struct geneve_port - Keeps track of open UDP ports
@@ -225,11 +228,29 @@ static const char *geneve_get_name(const struct vport *vport)
 	return geneve_port->name;
 }
 
-const struct vport_ops ovs_geneve_vport_ops = {
+static struct vport_ops ovs_geneve_vport_ops = {
 	.type		= OVS_VPORT_TYPE_GENEVE,
 	.create		= geneve_tnl_create,
 	.destroy	= geneve_tnl_destroy,
 	.get_name	= geneve_get_name,
 	.get_options	= geneve_get_options,
 	.send		= geneve_tnl_send,
+	.owner          = THIS_MODULE,
 };
+
+static int __init ovs_geneve_tnl_init(void)
+{
+	return ovs_vport_ops_register(&ovs_geneve_vport_ops);
+}
+
+static void __exit ovs_geneve_tnl_exit(void)
+{
+	ovs_vport_ops_unregister(&ovs_geneve_vport_ops);
+}
+
+module_init(ovs_geneve_tnl_init);
+module_exit(ovs_geneve_tnl_exit);
+
+MODULE_DESCRIPTION("OVS: Geneve swiching port");
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("vport-type-5");
