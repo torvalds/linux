@@ -184,18 +184,6 @@ struct hdmi_config {
 	enum hdmi_core_hdmi_dvi hdmi_dvi_mode;
 };
 
-/* HDMI PLL structure */
-struct hdmi_pll_info {
-	u16 regn;
-	u16 regm;
-	u32 regmf;
-	u16 regm2;
-	u16 regsd;
-
-	unsigned long clkdco;
-	unsigned long clkout;
-};
-
 struct hdmi_audio_format {
 	enum hdmi_stereo_channels		stereo_channels;
 	u8					active_chnnls_msk;
@@ -246,11 +234,11 @@ struct hdmi_wp_data {
 };
 
 struct hdmi_pll_data {
+	struct dss_pll pll;
+
 	void __iomem *base;
 
 	struct hdmi_wp_data *wp;
-
-	struct hdmi_pll_info info;
 };
 
 struct hdmi_phy_data {
@@ -314,14 +302,12 @@ void hdmi_wp_init_vid_fmt_timings(struct hdmi_video_format *video_fmt,
 int hdmi_wp_init(struct platform_device *pdev, struct hdmi_wp_data *wp);
 
 /* HDMI PLL funcs */
-int hdmi_pll_enable(struct hdmi_pll_data *pll);
-void hdmi_pll_disable(struct hdmi_pll_data *pll);
-int hdmi_pll_set_config(struct hdmi_pll_data *pll);
 void hdmi_pll_dump(struct hdmi_pll_data *pll, struct seq_file *s);
-void hdmi_pll_compute(struct hdmi_pll_data *pll, unsigned long clkin,
-	unsigned long target_tmds);
+void hdmi_pll_compute(struct hdmi_pll_data *pll,
+	unsigned long target_tmds, struct dss_pll_clock_info *pi);
 int hdmi_pll_init(struct platform_device *pdev, struct hdmi_pll_data *pll,
 	struct hdmi_wp_data *wp);
+void hdmi_pll_uninit(struct hdmi_pll_data *hpll);
 
 /* HDMI PHY funcs */
 int hdmi_phy_configure(struct hdmi_phy_data *phy, unsigned long hfbitclk,
