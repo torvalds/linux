@@ -22,16 +22,19 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 	unsigned int j, tp, prob, eprob;
 	char htmode = '2';
 	char gimode = 'L';
+	u32 gflags;
 
 	if (!mi->groups[i].supported)
 		return p;
 
 	mg = &minstrel_mcs_groups[i];
-	if (mg->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
+	gflags = mg->flags;
+
+	if (gflags & IEEE80211_TX_RC_40_MHZ_WIDTH)
 		htmode = '4';
-	else if (mg->flags & IEEE80211_TX_RC_80_MHZ_WIDTH)
+	else if (gflags & IEEE80211_TX_RC_80_MHZ_WIDTH)
 		htmode = '8';
-	if (mg->flags & IEEE80211_TX_RC_SHORT_GI)
+	if (gflags & IEEE80211_TX_RC_SHORT_GI)
 		gimode = 'S';
 
 	for (j = 0; j < MCS_GROUP_RATES; j++) {
@@ -42,12 +45,12 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 		if (!(mi->groups[i].supported & BIT(j)))
 			continue;
 
-		if (i == MINSTREL_CCK_GROUP)
-			p += sprintf(p, " CCK/%cP   ", j < 4 ? 'L' : 'S');
-		else if (i >= MINSTREL_VHT_GROUP_0)
+		if (gflags & IEEE80211_TX_RC_MCS)
+			p += sprintf(p, " HT%c0/%cGI ", htmode, gimode);
+		else if (gflags & IEEE80211_TX_RC_VHT_MCS)
 			p += sprintf(p, "VHT%c0/%cGI ", htmode, gimode);
 		else
-			p += sprintf(p, " HT%c0/%cGI ", htmode, gimode);
+			p += sprintf(p, " CCK/%cP   ", j < 4 ? 'L' : 'S');
 
 		*(p++) = (idx == mi->max_tp_rate[0]) ? 'A' : ' ';
 		*(p++) = (idx == mi->max_tp_rate[1]) ? 'B' : ' ';
@@ -55,13 +58,14 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 		*(p++) = (idx == mi->max_tp_rate[3]) ? 'D' : ' ';
 		*(p++) = (idx == mi->max_prob_rate) ? 'P' : ' ';
 
-		if (i == MINSTREL_CCK_GROUP) {
-			int r = bitrates[j % 4];
-			p += sprintf(p, " %2u.%1uM ", r / 10, r % 10);
-		} else if (i >= MINSTREL_VHT_GROUP_0) {
+		if (gflags & IEEE80211_TX_RC_MCS) {
+			p += sprintf(p, " MCS%-2u ", (mg->streams - 1) * 8 + j);
+		} else if (gflags & IEEE80211_TX_RC_VHT_MCS) {
 			p += sprintf(p, " MCS%-1u/%1u", j, mg->streams);
 		} else {
-			p += sprintf(p, " MCS%-2u ", (mg->streams - 1) * 8 + j);
+			int r = bitrates[j % 4];
+
+			p += sprintf(p, " %2u.%1uM ", r / 10, r % 10);
 		}
 
 		tp = mr->cur_tp / 10;
