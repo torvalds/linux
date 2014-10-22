@@ -356,10 +356,7 @@ static void pcmmio_handle_dio_intr(struct comedi_device *dev,
 			val |= (1 << i);
 	}
 
-	/* Write the scan to the buffer. */
-	if (comedi_buf_put(s, val) &&
-	    comedi_buf_put(s, val >> 16))
-		s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
+	comedi_buf_write_samples(s, &val, 1);
 
 	/* Check for end of acquisition. */
 	if (cmd->stop_src == TRIG_COUNT && devpriv->stop_count > 0) {
@@ -764,7 +761,7 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_config	= pcmmio_dio_insn_config;
 	if (dev->irq) {
 		dev->read_subdev = s;
-		s->subdev_flags	|= SDF_CMD_READ;
+		s->subdev_flags	|= SDF_CMD_READ | SDF_LSAMPL | SDF_PACKED;
 		s->len_chanlist	= s->n_chan;
 		s->cancel	= pcmmio_cancel;
 		s->do_cmd	= pcmmio_cmd;
