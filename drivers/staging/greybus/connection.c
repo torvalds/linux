@@ -162,12 +162,19 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
  */
 void gb_connection_destroy(struct gb_connection *connection)
 {
+	struct gb_operation *operation;
+	struct gb_operation *next;
+
 	if (WARN_ON(!connection))
 		return;
 
 	/* XXX Need to wait for any outstanding requests to complete */
 	WARN_ON(!list_empty(&connection->operations));
 
+	list_for_each_entry_safe(operation, next, &connection->operations,
+					links) {
+		gb_operation_cancel(operation);
+	}
 	spin_lock_irq(&gb_connections_lock);
 	list_del(&connection->interface_links);
 	_gb_hd_connection_remove(connection);

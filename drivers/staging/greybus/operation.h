@@ -55,6 +55,7 @@ struct gb_operation {
 	struct gbuf		*request;
 	struct gbuf		*response;
 	u16			id;
+	bool			canceled;
 
 	u8			result;
 	struct work_struct	recv_work;
@@ -81,6 +82,7 @@ int gb_operation_request_send(struct gb_operation *operation,
 				gb_operation_callback callback);
 int gb_operation_response_send(struct gb_operation *operation);
 
+void gb_operation_cancel(struct gb_operation *operation);
 int gb_operation_wait(struct gb_operation *operation);
 void gb_operation_complete(struct gb_operation *operation);
 

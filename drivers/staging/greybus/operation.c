@@ -501,6 +501,24 @@ void gb_connection_operation_recv(struct gb_connection *connection,
 	queue_work(gb_operation_recv_workqueue, &operation->recv_work);
 }
 
+/*
+ * Cancel an operation.
+ */
+void gb_operation_cancel(struct gb_operation *operation)
+{
+	int ret;
+
+	operation->canceled = true;
+	ret = greybus_kill_gbuf(operation->request);
+	if (ret)
+		pr_warn("error %d killing request gbuf\n", ret);
+	if (operation->response) {
+		ret = greybus_kill_gbuf(operation->response);
+		if (ret)
+			pr_warn("error %d killing response gbuf\n", ret);
+	}
+}
+
 int gb_operation_init(void)
 {
 	gb_operation_cache = kmem_cache_create("gb_operation_cache",
