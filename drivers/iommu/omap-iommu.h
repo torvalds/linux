@@ -30,6 +30,7 @@ struct omap_iommu {
 	void __iomem	*regbase;
 	struct device	*dev;
 	struct iommu_domain *domain;
+	struct dentry	*debug_dir;
 
 	spinlock_t	iommu_lock;	/* global for this whole object */
 
@@ -197,10 +198,24 @@ omap_iopgtable_store_entry(struct omap_iommu *obj, struct iotlb_entry *e);
 extern int omap_foreach_iommu_device(void *data,
 				int (*fn)(struct device *, void *));
 
+#ifdef CONFIG_OMAP_IOMMU_DEBUG
 extern ssize_t
 omap_iommu_dump_ctx(struct omap_iommu *obj, char *buf, ssize_t len);
 extern size_t
 omap_dump_tlb_entries(struct omap_iommu *obj, char *buf, ssize_t len);
+
+void omap_iommu_debugfs_init(void);
+void omap_iommu_debugfs_exit(void);
+
+void omap_iommu_debugfs_add(struct omap_iommu *obj);
+void omap_iommu_debugfs_remove(struct omap_iommu *obj);
+#else
+static inline void omap_iommu_debugfs_init(void) { }
+static inline void omap_iommu_debugfs_exit(void) { }
+
+static inline void omap_iommu_debugfs_add(struct omap_iommu *obj) { }
+static inline void omap_iommu_debugfs_remove(struct omap_iommu *obj) { }
+#endif
 
 /*
  * register accessors

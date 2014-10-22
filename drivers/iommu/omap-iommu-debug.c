@@ -10,15 +10,11 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/module.h>
 #include <linux/err.h>
-#include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
-#include <linux/platform_device.h>
 #include <linux/debugfs.h>
-#include <linux/omap-iommu.h>
 #include <linux/platform_data/iommu-omap.h>
 
 #include "omap-iopgtable.h"
@@ -31,8 +27,7 @@ static struct dentry *iommu_debug_root;
 static ssize_t debug_read_regs(struct file *file, char __user *userbuf,
 			       size_t count, loff_t *ppos)
 {
-	struct device *dev = file->private_data;
-	struct omap_iommu *obj = dev_to_omap_iommu(dev);
+	struct omap_iommu *obj = file->private_data;
 	char *p, *buf;
 	ssize_t bytes;
 
@@ -55,8 +50,7 @@ static ssize_t debug_read_regs(struct file *file, char __user *userbuf,
 static ssize_t debug_read_tlb(struct file *file, char __user *userbuf,
 			      size_t count, loff_t *ppos)
 {
-	struct device *dev = file->private_data;
-	struct omap_iommu *obj = dev_to_omap_iommu(dev);
+	struct omap_iommu *obj = file->private_data;
 	char *p, *buf;
 	ssize_t bytes, rest;
 
@@ -141,8 +135,7 @@ out:
 static ssize_t debug_read_pagetable(struct file *file, char __user *userbuf,
 				    size_t count, loff_t *ppos)
 {
-	struct device *dev = file->private_data;
-	struct omap_iommu *obj = dev_to_omap_iommu(dev);
+	struct omap_iommu *obj = file->private_data;
 	char *p, *buf;
 	size_t bytes;
 
@@ -181,93 +174,56 @@ DEBUG_FOPS_RO(pagetable);
 #define __DEBUG_ADD_FILE(attr, mode)					\
 	{								\
 		struct dentry *dent;					\
-		dent = debugfs_create_file(#attr, mode, parent,		\
-					   dev, &debug_##attr##_fops);	\
+		dent = debugfs_create_file(#attr, mode, obj->debug_dir,	\
+					   obj, &debug_##attr##_fops);	\
 		if (!dent)						\
-			return -ENOMEM;					\
+			goto err;					\
 	}
 
 #define DEBUG_ADD_FILE_RO(name) __DEBUG_ADD_FILE(name, 0400)
 
-static int iommu_debug_register(struct device *dev, void *data)
+void omap_iommu_debugfs_add(struct omap_iommu *obj)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct omap_iommu *obj = platform_get_drvdata(pdev);
-	struct omap_iommu_arch_data *arch_data;
-	struct dentry *d, *parent;
+	struct dentry *d;
 
-	if (!obj || !obj->dev)
-		return -EINVAL;
+	if (!iommu_debug_root)
+		return;
 
-	arch_data = kzalloc(sizeof(*arch_data), GFP_KERNEL);
-	if (!arch_data)
-		return -ENOMEM;
+	obj->debug_dir = debugfs_create_dir(obj->name, iommu_debug_root);
+	if (!obj->debug_dir)
+		return;
 
-	arch_data->iommu_dev = obj;
-
-	dev->archdata.iommu = arch_data;
-
-	d = debugfs_create_dir(obj->name, iommu_debug_root);
-	if (!d)
-		goto nomem;
-	parent = d;
-
-	d = debugfs_create_u8("nr_tlb_entries", 0400, parent,
+	d = debugfs_create_u8("nr_tlb_entries", 0400, obj->debug_dir,
 			      (u8 *)&obj->nr_tlb_entries);
 	if (!d)
-		goto nomem;
+		return;
 
 	DEBUG_ADD_FILE_RO(regs);
 	DEBUG_ADD_FILE_RO(tlb);
 	DEBUG_ADD_FILE_RO(pagetable);
 
-	return 0;
+	return;
 
-nomem:
-	kfree(arch_data);
-	return -ENOMEM;
+err:
+	debugfs_remove_recursive(obj->debug_dir);
 }
 
-static int iommu_debug_unregister(struct device *dev, void *data)
+void omap_iommu_debugfs_remove(struct omap_iommu *obj)
 {
-	if (!dev->archdata.iommu)
-		return 0;
+	if (!obj->debug_dir)
+		return;
 
-	kfree(dev->archdata.iommu);
-
-	dev->archdata.iommu = NULL;
-
-	return 0;
+	debugfs_remove_recursive(obj->debug_dir);
 }
 
-static int __init iommu_debug_init(void)
+void __init omap_iommu_debugfs_init(void)
 {
-	struct dentry *d;
-	int err;
-
-	d = debugfs_create_dir("iommu", NULL);
-	if (!d)
-		return -ENOMEM;
-	iommu_debug_root = d;
-
-	err = omap_foreach_iommu_device(d, iommu_debug_register);
-	if (err)
-		goto err_out;
-	return 0;
-
-err_out:
-	debugfs_remove_recursive(iommu_debug_root);
-	return err;
+	iommu_debug_root = debugfs_create_dir("omap_iommu", NULL);
+	if (!iommu_debug_root)
+		pr_err("can't create debugfs dir\n");
 }
-module_init(iommu_debug_init)
 
-static void __exit iommu_debugfs_exit(void)
+void __exit omap_iommu_debugfs_exit(void)
 {
-	debugfs_remove_recursive(iommu_debug_root);
-	omap_foreach_iommu_device(NULL, iommu_debug_unregister);
+	debugfs_remove(iommu_debug_root);
 }
-module_exit(iommu_debugfs_exit)
-
-MODULE_DESCRIPTION("omap iommu: debugfs interface");
-MODULE_AUTHOR("Hiroshi DOYU <Hiroshi.DOYU@nokia.com>");
-MODULE_LICENSE("GPL v2");

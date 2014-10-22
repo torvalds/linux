@@ -144,13 +144,13 @@ config OMAP_IOMMU
 	select IOMMU_API
 
 config OMAP_IOMMU_DEBUG
-       tristate "Export OMAP IOMMU internals in DebugFS"
-       depends on OMAP_IOMMU && DEBUG_FS
-       help
-         Select this to see extensive information about
-         the internal state of OMAP IOMMU in debugfs.
+	bool "Export OMAP IOMMU internals in DebugFS"
+	depends on OMAP_IOMMU && DEBUG_FS
+	---help---
+	  Select this to see extensive information about
+	  the internal state of OMAP IOMMU in debugfs.
 
-         Say N unless you know you need this.
+	  Say N unless you know you need this.
 
 config TEGRA_IOMMU_GART
 	bool "Tegra GART IOMMU Support"

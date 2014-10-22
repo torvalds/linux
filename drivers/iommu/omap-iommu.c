@@ -472,7 +472,7 @@ static void flush_iotlb_all(struct omap_iommu *obj)
 	pm_runtime_put_sync(obj->dev);
 }
 
-#if defined(CONFIG_OMAP_IOMMU_DEBUG) || defined(CONFIG_OMAP_IOMMU_DEBUG_MODULE)
+#ifdef CONFIG_OMAP_IOMMU_DEBUG
 
 #define pr_reg(name)							\
 	do {								\
@@ -602,7 +602,7 @@ int omap_foreach_iommu_device(void *data, int (*fn)(struct device *, void *))
 }
 EXPORT_SYMBOL_GPL(omap_foreach_iommu_device);
 
-#endif /* CONFIG_OMAP_IOMMU_DEBUG_MODULE */
+#endif /* CONFIG_OMAP_IOMMU_DEBUG */
 
 /*
  *	H/W pagetable operations
@@ -1077,6 +1077,8 @@ static int omap_iommu_probe(struct platform_device *pdev)
 	pm_runtime_irq_safe(obj->dev);
 	pm_runtime_enable(obj->dev);
 
+	omap_iommu_debugfs_add(obj);
+
 	dev_info(&pdev->dev, "%s registered\n", obj->name);
 	return 0;
 }
@@ -1086,6 +1088,7 @@ static int omap_iommu_remove(struct platform_device *pdev)
 	struct omap_iommu *obj = platform_get_drvdata(pdev);
 
 	iopgtable_clear_entry_all(obj);
+	omap_iommu_debugfs_remove(obj);
 
 	pm_runtime_disable(obj->dev);
 
@@ -1403,6 +1406,8 @@ static int __init omap_iommu_init(void)
 
 	bus_set_iommu(&platform_bus_type, &omap_iommu_ops);
 
+	omap_iommu_debugfs_init();
+
 	return platform_driver_register(&omap_iommu_driver);
 }
 /* must be ready before omap3isp is probed */
@@ -1413,6 +1418,8 @@ static void __exit omap_iommu_exit(void)
 	kmem_cache_destroy(iopte_cachep);
 
 	platform_driver_unregister(&omap_iommu_driver);
+
+	omap_iommu_debugfs_exit();
 }
 module_exit(omap_iommu_exit);
 
