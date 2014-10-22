@@ -58,9 +58,9 @@ since spindles tend to have good bandwidth. The io_tracker counts
 contiguous I/Os to try to spot when the io is in one of these sequential
 modes.
 
-Internally the mq policy maintains a promotion threshold variable.  If
-the hit count of a block not in the cache goes above this threshold it
-gets promoted to the cache.  The read, write and discard promote adjustment
+Internally the mq policy determines a promotion threshold.  If the hit
+count of a block not in the cache goes above this threshold it gets
+promoted to the cache.  The read, write and discard promote adjustment
 tunables allow you to tweak the promotion threshold by adding a small
 value based on the io type.  They default to 4, 8 and 1 respectively.
 If you're trying to quickly warm a new cache device you may wish to
