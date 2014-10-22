@@ -4193,6 +4193,22 @@ void ieee80211_iterate_active_interfaces_rtnl(struct ieee80211_hw *hw,
 					      void *data);
 
 /**
+ * ieee80211_iterate_stations_atomic - iterate stations
+ *
+ * This function iterates over all stations associated with a given
+ * hardware that are currently uploaded to the driver and calls the callback
+ * function for them.
+ * This function requires the iterator callback function to be atomic,
+ *
+ * @hw: the hardware struct of which the interfaces should be iterated over
+ * @iterator: the iterator function to call, cannot sleep
+ * @data: first argument of the iterator function
+ */
+void ieee80211_iterate_stations_atomic(struct ieee80211_hw *hw,
+				       void (*iterator)(void *data,
+						struct ieee80211_sta *sta),
+				       void *data);
+/**
  * ieee80211_queue_work - add work onto the mac80211 workqueue
  *
  * Drivers and mac80211 use this to add work onto the mac80211 workqueue.

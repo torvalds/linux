@@ -693,6 +693,34 @@ void ieee80211_iterate_active_interfaces_rtnl(
 }
 EXPORT_SYMBOL_GPL(ieee80211_iterate_active_interfaces_rtnl);
 
+static void __iterate_stations(struct ieee80211_local *local,
+			       void (*iterator)(void *data,
+						struct ieee80211_sta *sta),
+			       void *data)
+{
+	struct sta_info *sta;
+
+	list_for_each_entry_rcu(sta, &local->sta_list, list) {
+		if (!sta->uploaded)
+			continue;
+
+		iterator(data, &sta->sta);
+	}
+}
+
+void ieee80211_iterate_stations_atomic(struct ieee80211_hw *hw,
+			void (*iterator)(void *data,
+					 struct ieee80211_sta *sta),
+			void *data)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+
+	rcu_read_lock();
+	__iterate_stations(local, iterator, data);
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL_GPL(ieee80211_iterate_stations_atomic);
+
 struct ieee80211_vif *wdev_to_ieee80211_vif(struct wireless_dev *wdev)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
