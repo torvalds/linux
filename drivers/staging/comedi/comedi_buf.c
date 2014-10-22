@@ -442,20 +442,6 @@ int comedi_buf_put(struct comedi_subdevice *s, unsigned short x)
 }
 EXPORT_SYMBOL_GPL(comedi_buf_put);
 
-int comedi_buf_get(struct comedi_subdevice *s, unsigned short *x)
-{
-	struct comedi_async *async = s->async;
-	unsigned int n = comedi_buf_read_n_available(s);
-
-	if (n < sizeof(short))
-		return 0;
-	comedi_buf_read_alloc(s, sizeof(short));
-	*x = *(unsigned short *)(async->prealloc_buf + async->buf_read_ptr);
-	comedi_buf_read_free(s, sizeof(short));
-	return 1;
-}
-EXPORT_SYMBOL_GPL(comedi_buf_get);
-
 void comedi_buf_memcpy_to(struct comedi_subdevice *s, unsigned int offset,
 			  const void *data, unsigned int num_bytes)
 {
