@@ -74,7 +74,7 @@ typedef struct {
 extern ext_acl_xattr_header *
 lustre_posix_acl_xattr_2ext(posix_acl_xattr_header *header, int size);
 extern int
-lustre_posix_acl_xattr_filter(posix_acl_xattr_header *header, int size,
+lustre_posix_acl_xattr_filter(posix_acl_xattr_header *header, size_t size,
 			      posix_acl_xattr_header **out);
 extern void
 lustre_posix_acl_xattr_free(posix_acl_xattr_header *header, int size);
