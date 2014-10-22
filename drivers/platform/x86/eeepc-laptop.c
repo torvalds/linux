@@ -417,8 +417,7 @@ static ssize_t cpufv_disabled_store(struct device *dev,
 	switch (value) {
 	case 0:
 		if (eeepc->cpufv_disabled)
-			pr_warn("cpufv enabled (not officially supported "
-				"on this model)\n");
+			pr_warn("cpufv enabled (not officially supported on this model)\n");
 		eeepc->cpufv_disabled = false;
 		return count;
 	case 1:
@@ -604,12 +603,10 @@ static void eeepc_rfkill_hotplug(struct eeepc_laptop *eeepc, acpi_handle handle)
 	absent = (l == 0xffffffff);
 
 	if (blocked != absent) {
-		pr_warn("BIOS says wireless lan is %s, "
-			"but the pci device is %s\n",
+		pr_warn("BIOS says wireless lan is %s, but the pci device is %s\n",
 			blocked ? "blocked" : "unblocked",
 			absent ? "absent" : "present");
-		pr_warn("skipped wireless hotplug as probably "
-			"inappropriate for this model\n");
+		pr_warn("skipped wireless hotplug as probably inappropriate for this model\n");
 		goto out_put_dev;
 	}
 
@@ -1295,8 +1292,8 @@ static void eeepc_dmi_check(struct eeepc_laptop *eeepc)
 	 */
 	if (strcmp(model, "701") == 0 || strcmp(model, "702") == 0) {
 		eeepc->cpufv_disabled = true;
-		pr_info("model %s does not officially support setting cpu "
-			"speed\n", model);
+		pr_info("model %s does not officially support setting cpu speed\n",
+			model);
 		pr_info("cpufv disabled to avoid instability\n");
 	}
 
@@ -1322,8 +1319,8 @@ static void cmsg_quirk(struct eeepc_laptop *eeepc, int cm, const char *name)
 	   Check if cm_getv[cm] works and, if yes, assume cm should be set. */
 	if (!(eeepc->cm_supported & (1 << cm))
 	    && !read_acpi_int(eeepc->handle, cm_getv[cm], &dummy)) {
-		pr_info("%s (%x) not reported by BIOS,"
-			" enabling anyway\n", name, 1 << cm);
+		pr_info("%s (%x) not reported by BIOS, enabling anyway\n",
+			name, 1 << cm);
 		eeepc->cm_supported |= 1 << cm;
 	}
 }
