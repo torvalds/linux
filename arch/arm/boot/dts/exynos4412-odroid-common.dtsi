@@ -286,6 +286,14 @@
 					regulator-max-microvolt = <1000000>;
 				};
 
+				ldo9_reg: ldo@9 {
+					regulator-compatible = "LDO9";
+					regulator-name = "vt_core_1.0V";
+					regulator-min-microvolt = <1000000>;
+					regulator-max-microvolt = <1000000>;
+					regulator-always-on;
+				};
+
 				/* This regulator also supplies the TMU block. */
 				ldo10_reg: ldo@10 {
 					regulator-compatible = "LDO10";
@@ -347,6 +355,28 @@
 					regulator-boot-on;
 				};
 
+				ldo17_reg: ldo@17 {
+					regulator-compatible = "LDO17";
+					regulator-name = "vddq_cam_1.8V";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+				};
+
+				ldo18_reg: ldo@18 {
+					regulator-compatible = "LDO18";
+					regulator-name = "vddq_isp_1.8V";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					regulator-always-on;
+				};
+
+				ldo19_reg: ldo@19 {
+					regulator-compatible = "LDO19";
+					regulator-name = "vt_cam_1.8V";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+				};
+
 				/* Supply for IO of eMMC. */
 				ldo20_reg: ldo@20 {
 					regulator-compatible = "LDO20";
@@ -365,6 +395,20 @@
 					regulator-boot-on;
 				};
 
+				ldo23_reg: ldo@23 {
+					regulator-compatible = "LDO23";
+					regulator-name = "vdd_touch_2.8V";
+					regulator-min-microvolt = <2800000>;
+					regulator-max-microvolt = <2800000>;
+				};
+
+				ldo24_reg: ldo@24 {
+					regulator-compatible = "LDO24";
+					regulator-name = "vdd_touchled_3.3V";
+					regulator-min-microvolt = <3300000>;
+					regulator-max-microvolt = <3300000>;
+				};
+
 				ldo25_reg: ldo@25 {
 					regulator-compatible = "LDO25";
 					regulator-name = "vddq_lcd_1.8V";
@@ -372,6 +416,13 @@
 					regulator-max-microvolt = <1800000>;
 					regulator-always-on;
 					regulator-boot-on;
+				};
+
+				ldo26_reg: ldo@26 {
+					regulator-compatible = "LDO26";
+					regulator-name = "vdd_motor_3.0V";
+					regulator-min-microvolt = <3000000>;
+					regulator-max-microvolt = <3000000>;
 				};
 
 				buck1_reg: buck@1 {
@@ -436,6 +487,14 @@
 					regulator-name = "input_ldo_2.0V";
 					regulator-min-microvolt = <2000000>;
 					regulator-max-microvolt = <2000000>;
+					regulator-always-on;
+				};
+
+				buck9_reg: buck@9 {
+					regulator-compatible = "BUCK9";
+					regulator-name = "io_1.2V";
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
 					regulator-always-on;
 				};
 			};
