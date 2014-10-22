@@ -564,13 +564,11 @@ static inline int armv7_pmnc_counter_has_overflowed(u32 pmnc, int idx)
 	return pmnc & BIT(ARMV7_IDX_TO_COUNTER(idx));
 }
 
-static inline int armv7_pmnc_select_counter(int idx)
+static inline void armv7_pmnc_select_counter(int idx)
 {
 	u32 counter = ARMV7_IDX_TO_COUNTER(idx);
 	asm volatile("mcr p15, 0, %0, c9, c12, 5" : : "r" (counter));
 	isb();
-
-	return idx;
 }
 
 static inline u32 armv7pmu_read_counter(struct perf_event *event)
@@ -580,13 +578,15 @@ static inline u32 armv7pmu_read_counter(struct perf_event *event)
 	int idx = hwc->idx;
 	u32 value = 0;
 
-	if (!armv7_pmnc_counter_valid(cpu_pmu, idx))
+	if (!armv7_pmnc_counter_valid(cpu_pmu, idx)) {
 		pr_err("CPU%u reading wrong counter %d\n",
 			smp_processor_id(), idx);
-	else if (idx == ARMV7_IDX_CYCLE_COUNTER)
+	} else if (idx == ARMV7_IDX_CYCLE_COUNTER) {
 		asm volatile("mrc p15, 0, %0, c9, c13, 0" : "=r" (value));
-	else if (armv7_pmnc_select_counter(idx) == idx)
+	} else {
+		armv7_pmnc_select_counter(idx);
 		asm volatile("mrc p15, 0, %0, c9, c13, 2" : "=r" (value));
+	}
 
 	return value;
 }
@@ -597,45 +597,43 @@ static inline void armv7pmu_write_counter(struct perf_event *event, u32 value)
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
 
-	if (!armv7_pmnc_counter_valid(cpu_pmu, idx))
+	if (!armv7_pmnc_counter_valid(cpu_pmu, idx)) {
 		pr_err("CPU%u writing wrong counter %d\n",
 			smp_processor_id(), idx);
-	else if (idx == ARMV7_IDX_CYCLE_COUNTER)
+	} else if (idx == ARMV7_IDX_CYCLE_COUNTER) {
 		asm volatile("mcr p15, 0, %0, c9, c13, 0" : : "r" (value));
-	else if (armv7_pmnc_select_counter(idx) == idx)
+	} else {
+		armv7_pmnc_select_counter(idx);
 		asm volatile("mcr p15, 0, %0, c9, c13, 2" : : "r" (value));
+	}
 }
 
 static inline void armv7_pmnc_write_evtsel(int idx, u32 val)
 {
-	if (armv7_pmnc_select_counter(idx) == idx) {
-		val &= ARMV7_EVTYPE_MASK;
-		asm volatile("mcr p15, 0, %0, c9, c13, 1" : : "r" (val));
-	}
+	armv7_pmnc_select_counter(idx);
+	val &= ARMV7_EVTYPE_MASK;
+	asm volatile("mcr p15, 0, %0, c9, c13, 1" : : "r" (val));
 }
 
-static inline int armv7_pmnc_enable_counter(int idx)
+static inline void armv7_pmnc_enable_counter(int idx)
 {
 	u32 counter = ARMV7_IDX_TO_COUNTER(idx);
 	asm volatile("mcr p15, 0, %0, c9, c12, 1" : : "r" (BIT(counter)));
-	return idx;
 }
 
-static inline int armv7_pmnc_disable_counter(int idx)
+static inline void armv7_pmnc_disable_counter(int idx)
 {
 	u32 counter = ARMV7_IDX_TO_COUNTER(idx);
 	asm volatile("mcr p15, 0, %0, c9, c12, 2" : : "r" (BIT(counter)));
-	return idx;
 }
 
-static inline int armv7_pmnc_enable_intens(int idx)
+static inline void armv7_pmnc_enable_intens(int idx)
 {
 	u32 counter = ARMV7_IDX_TO_COUNTER(idx);
 	asm volatile("mcr p15, 0, %0, c9, c14, 1" : : "r" (BIT(counter)));
-	return idx;
 }
 
-static inline int armv7_pmnc_disable_intens(int idx)
+static inline void armv7_pmnc_disable_intens(int idx)
 {
 	u32 counter = ARMV7_IDX_TO_COUNTER(idx);
 	asm volatile("mcr p15, 0, %0, c9, c14, 2" : : "r" (BIT(counter)));
@@ -643,8 +641,6 @@ static inline int armv7_pmnc_disable_intens(int idx)
 	/* Clear the overflow flag in case an interrupt is pending. */
 	asm volatile("mcr p15, 0, %0, c9, c12, 3" : : "r" (BIT(counter)));
 	isb();
-
-	return idx;
 }
 
 static inline u32 armv7_pmnc_getreset_flags(void)
