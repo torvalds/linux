@@ -580,59 +580,60 @@ static void eeepc_rfkill_hotplug(struct eeepc_laptop *eeepc, acpi_handle handle)
 	mutex_lock(&eeepc->hotplug_lock);
 	pci_lock_rescan_remove();
 
-	if (eeepc->hotplug_slot) {
-		port = acpi_get_pci_dev(handle);
-		if (!port) {
-			pr_warning("Unable to find port\n");
-			goto out_unlock;
-		}
+	if (!eeepc->hotplug_slot)
+		goto out_unlock;
 
-		bus = port->subordinate;
-
-		if (!bus) {
-			pr_warn("Unable to find PCI bus 1?\n");
-			goto out_put_dev;
-		}
-
-		if (pci_bus_read_config_dword(bus, 0, PCI_VENDOR_ID, &l)) {
-			pr_err("Unable to read PCI config space?\n");
-			goto out_put_dev;
-		}
-
-		absent = (l == 0xffffffff);
-
-		if (blocked != absent) {
-			pr_warn("BIOS says wireless lan is %s, "
-				"but the pci device is %s\n",
-				blocked ? "blocked" : "unblocked",
-				absent ? "absent" : "present");
-			pr_warn("skipped wireless hotplug as probably "
-				"inappropriate for this model\n");
-			goto out_put_dev;
-		}
-
-		if (!blocked) {
-			dev = pci_get_slot(bus, 0);
-			if (dev) {
-				/* Device already present */
-				pci_dev_put(dev);
-				goto out_put_dev;
-			}
-			dev = pci_scan_single_device(bus, 0);
-			if (dev) {
-				pci_bus_assign_resources(bus);
-				pci_bus_add_device(dev);
-			}
-		} else {
-			dev = pci_get_slot(bus, 0);
-			if (dev) {
-				pci_stop_and_remove_bus_device(dev);
-				pci_dev_put(dev);
-			}
-		}
-out_put_dev:
-		pci_dev_put(port);
+	port = acpi_get_pci_dev(handle);
+	if (!port) {
+		pr_warning("Unable to find port\n");
+		goto out_unlock;
 	}
+
+	bus = port->subordinate;
+
+	if (!bus) {
+		pr_warn("Unable to find PCI bus 1?\n");
+		goto out_put_dev;
+	}
+
+	if (pci_bus_read_config_dword(bus, 0, PCI_VENDOR_ID, &l)) {
+		pr_err("Unable to read PCI config space?\n");
+		goto out_put_dev;
+	}
+
+	absent = (l == 0xffffffff);
+
+	if (blocked != absent) {
+		pr_warn("BIOS says wireless lan is %s, "
+			"but the pci device is %s\n",
+			blocked ? "blocked" : "unblocked",
+			absent ? "absent" : "present");
+		pr_warn("skipped wireless hotplug as probably "
+			"inappropriate for this model\n");
+		goto out_put_dev;
+	}
+
+	if (!blocked) {
+		dev = pci_get_slot(bus, 0);
+		if (dev) {
+			/* Device already present */
+			pci_dev_put(dev);
+			goto out_put_dev;
+		}
+		dev = pci_scan_single_device(bus, 0);
+		if (dev) {
+			pci_bus_assign_resources(bus);
+			pci_bus_add_device(dev);
+		}
+	} else {
+		dev = pci_get_slot(bus, 0);
+		if (dev) {
+			pci_stop_and_remove_bus_device(dev);
+			pci_dev_put(dev);
+		}
+	}
+out_put_dev:
+	pci_dev_put(port);
 
 out_unlock:
 	pci_unlock_rescan_remove();
