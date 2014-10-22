@@ -315,7 +315,7 @@ static void dt3k_ai_empty_fifo(struct comedi_device *dev,
 
 	for (i = 0; i < count; i++) {
 		data = readw(dev->mmio + DPR_ADC_buffer + rear);
-		comedi_buf_put(s, data);
+		comedi_buf_write_samples(s, &data, 1);
 		rear++;
 		if (rear >= AI_FIFO_DEPTH)
 			rear = 0;
@@ -351,10 +351,8 @@ static irqreturn_t dt3k_interrupt(int irq, void *d)
 
 	status = readw(dev->mmio + DPR_Intr_Flag);
 
-	if (status & DT3000_ADFULL) {
+	if (status & DT3000_ADFULL)
 		dt3k_ai_empty_fifo(dev, s);
-		s->async->events |= COMEDI_CB_BLOCK;
-	}
 
 	if (status & (DT3000_ADSWERR | DT3000_ADHWERR))
 		s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
