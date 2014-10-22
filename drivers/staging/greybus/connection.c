@@ -102,6 +102,15 @@ static void gb_connection_hd_cport_id_free(struct gb_connection *connection)
 	connection->hd_cport_id = CPORT_ID_BAD;
 }
 
+static void connection_timeout(struct work_struct *work)
+{
+	struct gb_connection *connection;
+
+	connection =
+		container_of(work, struct gb_connection, timeout_work.work);
+	printk("timeout!\n");
+}
+
 /*
  * Set up a Greybus connection, representing the bidirectional link
  * between a CPort on a (local) Greybus host device and a CPort on
@@ -143,6 +152,7 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 	INIT_LIST_HEAD(&connection->operations);
 	connection->pending = RB_ROOT;
 	atomic_set(&connection->op_cycle, 0);
+	INIT_DELAYED_WORK(&connection->timeout_work, connection_timeout);
 
 	return connection;
 }

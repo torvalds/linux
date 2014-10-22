@@ -19,6 +19,8 @@
  */
 #define GB_OPERATION_TYPE_RESPONSE	0x80
 
+#define CONNECTION_TIMEOUT_DEFAULT	1000	/* milliseconds */
+
 /*
  * XXX This needs to be coordinated with host driver parameters
  */
@@ -62,6 +64,8 @@ static void gb_operation_insert(struct gb_operation *operation)
 	struct rb_node **link = &root->rb_node;
 	struct rb_node *above = NULL;
 	struct gb_operation_msg_hdr *header;
+	unsigned long timeout;
+	bool start_timer;
 	__le16 wire_id;
 
 	/*
@@ -76,6 +80,16 @@ static void gb_operation_insert(struct gb_operation *operation)
 	/* OK, insert the operation into its connection's tree */
 	spin_lock_irq(&gb_operations_lock);
 
+	/*
+	 * We impose a time limit for requests to complete.  If
+	 * there are no requests pending there is no need for a
+	 * timer.  So if this will be the only one in flight we'll
+	 * need to start the timer.  Otherwise we just update the
+	 * existing one to give this request a full timeout period
+	 * to complete.
+	 */
+	start_timer = RB_EMPTY_ROOT(root);
+
 	while (*link) {
 		struct gb_operation *other;
 
@@ -89,15 +103,31 @@ static void gb_operation_insert(struct gb_operation *operation)
 	}
 	rb_link_node(node, above, link);
 	rb_insert_color(node, root);
-
 	spin_unlock_irq(&gb_operations_lock);
+
+	timeout = msecs_to_jiffies(CONNECTION_TIMEOUT_DEFAULT);
+	if (start_timer)
+		schedule_delayed_work(&connection->timeout_work, timeout);
+	else
+		mod_delayed_work(system_wq, &connection->timeout_work, timeout);
 }
 
 static void gb_operation_remove(struct gb_operation *operation)
 {
+	struct gb_connection *connection = operation->connection;
+	bool last_pending;
+
 	spin_lock_irq(&gb_operations_lock);
-	rb_erase(&operation->node, &operation->connection->pending);
+	rb_erase(&operation->node, &connection->pending);
+	last_pending = RB_EMPTY_ROOT(&connection->pending);
 	spin_unlock_irq(&gb_operations_lock);
+
+	/*
+	 * If there are no more pending requests, we can stop the
+	 * timeout timer.
+	 */
+	if (last_pending)
+		cancel_delayed_work(&connection->timeout_work);
 }
 
 static struct gb_operation *
