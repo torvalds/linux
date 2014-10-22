@@ -1172,7 +1172,7 @@ static void v_APCI3120_InterruptDmaMoveBlock16bit(struct comedi_device *dev,
 	s->async->cur_chan += num_samples;
 	s->async->cur_chan %= cmd->scan_end_arg;
 
-	cfc_write_array_to_buffer(s, dma_buffer, num_samples * sizeof(short));
+	comedi_buf_write_samples(s, dma_buffer, num_samples);
 }
 
 /*
