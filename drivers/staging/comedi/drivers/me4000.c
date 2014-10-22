@@ -1092,8 +1092,6 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 		} else if ((tmp & ME4000_AI_STATUS_BIT_FF_DATA)
 			   && !(tmp & ME4000_AI_STATUS_BIT_HF_DATA)
 			   && (tmp & ME4000_AI_STATUS_BIT_EF_DATA)) {
-			s->async->events |= COMEDI_CB_BLOCK;
-
 			c = ME4000_AI_FIFO_COUNT / 2;
 		} else {
 			dev_err(dev->class_dev,
@@ -1119,7 +1117,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 			lval = inl(dev->iobase + ME4000_AI_DATA_REG) & 0xFFFF;
 			lval ^= 0x8000;
 
-			if (!comedi_buf_put(s, lval)) {
+			if (!comedi_buf_write_samples(s, &lval, 1)) {
 				/*
 				 * Buffer overflow, so stop conversion
 				 * and disable all interrupts
@@ -1128,11 +1126,6 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 				tmp &= ~(ME4000_AI_CTRL_BIT_HF_IRQ |
 					 ME4000_AI_CTRL_BIT_SC_IRQ);
 				outl(tmp, dev->iobase + ME4000_AI_CTRL_REG);
-
-				s->async->events |= COMEDI_CB_OVERFLOW;
-
-				dev_err(dev->class_dev, "Buffer overflow\n");
-
 				break;
 			}
 		}
@@ -1146,7 +1139,7 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 
 	if (inl(dev->iobase + ME4000_IRQ_STATUS_REG) &
 	    ME4000_IRQ_STATUS_BIT_SC) {
-		s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOA;
+		s->async->events |= COMEDI_CB_EOA;
 
 		/*
 		 * Acquisition is complete, so stop
@@ -1164,11 +1157,8 @@ static irqreturn_t me4000_ai_isr(int irq, void *dev_id)
 			lval = inl(dev->iobase + ME4000_AI_DATA_REG) & 0xFFFF;
 			lval ^= 0x8000;
 
-			if (!comedi_buf_put(s, lval)) {
-				dev_err(dev->class_dev, "Buffer overflow\n");
-				s->async->events |= COMEDI_CB_OVERFLOW;
+			if (!comedi_buf_write_samples(s, &lval, 1))
 				break;
-			}
 		}
 
 		/* Work is done, so reset the interrupt */
