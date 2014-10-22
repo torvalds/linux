@@ -30,7 +30,6 @@ struct omap_iommu {
 	const char	*name;
 	void __iomem	*regbase;
 	struct device	*dev;
-	void		*isr_priv;
 	struct iommu_domain *domain;
 
 	spinlock_t	iommu_lock;	/* global for this whole object */
