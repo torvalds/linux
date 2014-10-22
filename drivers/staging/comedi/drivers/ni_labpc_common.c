@@ -818,7 +818,7 @@ static int labpc_drain_fifo(struct comedi_device *dev)
 			devpriv->count--;
 		}
 		data = labpc_read_adc_fifo(dev);
-		cfc_write_to_buffer(dev->read_subdev, data);
+		comedi_buf_write_samples(dev->read_subdev, &data, 1);
 		devpriv->stat1 = devpriv->read_byte(dev, STAT1_REG);
 	}
 	if (i == timeout) {
