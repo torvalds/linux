@@ -802,8 +802,10 @@ rndis_bind(struct usb_configuration *c, struct usb_function *f)
 
 	if (rndis->manufacturer && rndis->vendorID &&
 			rndis_set_param_vendor(rndis->config, rndis->vendorID,
-					       rndis->manufacturer))
+					       rndis->manufacturer)) {
+		status = -EINVAL;
 		goto fail_free_descs;
+	}
 
 	/* NOTE:  all that is done without knowing or caring about
 	 * the network link ... which is unavailable to this code
