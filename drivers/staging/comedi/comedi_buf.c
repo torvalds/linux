@@ -566,15 +566,15 @@ unsigned int comedi_buf_read_samples(struct comedi_subdevice *s,
 	unsigned int max_samples;
 	unsigned int nbytes;
 
-	max_samples = s->async->prealloc_bufsz / bytes_per_sample(s);
+	/* clamp nsamples to the number of full samples available */
+	max_samples = comedi_buf_read_n_available(s) / bytes_per_sample(s);
 	if (nsamples > max_samples)
 		nsamples = max_samples;
 
-	nbytes = nsamples * bytes_per_sample(s);
-	if (nbytes == 0)
+	if (nsamples == 0)
 		return 0;
 
-	nbytes = comedi_buf_read_alloc(s, nbytes);
+	nbytes = comedi_buf_read_alloc(s, nsamples * bytes_per_sample(s));
 	comedi_buf_memcpy_from(s, 0, data, nbytes);
 	comedi_buf_read_free(s, nbytes);
 	comedi_inc_scan_progress(s, nbytes);
