@@ -443,14 +443,10 @@ int comedi_buf_put(struct comedi_subdevice *s, unsigned short x)
 EXPORT_SYMBOL_GPL(comedi_buf_put);
 
 static void comedi_buf_memcpy_to(struct comedi_subdevice *s,
-				 unsigned int offset,
 				 const void *data, unsigned int num_bytes)
 {
 	struct comedi_async *async = s->async;
-	unsigned int write_ptr = async->buf_write_ptr + offset;
-
-	if (write_ptr >= async->prealloc_bufsz)
-		write_ptr %= async->prealloc_bufsz;
+	unsigned int write_ptr = async->buf_write_ptr;
 
 	while (num_bytes) {
 		unsigned int block_size;
@@ -526,7 +522,7 @@ unsigned int comedi_write_array_to_buffer(struct comedi_subdevice *s,
 		return 0;
 	}
 
-	comedi_buf_memcpy_to(s, 0, data, num_bytes);
+	comedi_buf_memcpy_to(s, data, num_bytes);
 	comedi_buf_write_free(s, num_bytes);
 	comedi_inc_scan_progress(s, num_bytes);
 	async->events |= COMEDI_CB_BLOCK;
