@@ -4134,7 +4134,7 @@ static int qeth_setadp_promisc_mode_cb(struct qeth_card *card,
 
 	qeth_default_setadapterparms_cb(card, reply, (unsigned long)cmd);
 	if (cmd->hdr.return_code) {
-		QETH_CARD_TEXT_(card, 4, "prmrc%2.2x", cmd->hdr.return_code);
+		QETH_CARD_TEXT_(card, 4, "prmrc%x", cmd->hdr.return_code);
 		setparms->data.mode = SET_PROMISC_MODE_OFF;
 	}
 	card->info.promisc_mode = setparms->data.mode;
@@ -4501,13 +4501,13 @@ static int qeth_snmp_command_cb(struct qeth_card *card,
 	snmp = &cmd->data.setadapterparms.data.snmp;
 
 	if (cmd->hdr.return_code) {
-		QETH_CARD_TEXT_(card, 4, "scer1%i", cmd->hdr.return_code);
+		QETH_CARD_TEXT_(card, 4, "scer1%x", cmd->hdr.return_code);
 		return 0;
 	}
 	if (cmd->data.setadapterparms.hdr.return_code) {
 		cmd->hdr.return_code =
 			cmd->data.setadapterparms.hdr.return_code;
-		QETH_CARD_TEXT_(card, 4, "scer2%i", cmd->hdr.return_code);
+		QETH_CARD_TEXT_(card, 4, "scer2%x", cmd->hdr.return_code);
 		return 0;
 	}
 	data_len = *((__u16 *)QETH_IPA_PDU_LEN_PDU1(data));

@@ -2502,7 +2502,7 @@ static int qeth_l3_arp_query(struct qeth_card *card, char __user *udata)
 			rc = -EFAULT;
 			goto free_and_out;
 		}
-		QETH_CARD_TEXT_(card, 4, "qacts");
+		QETH_CARD_TEXT(card, 4, "qacts");
 	}
 free_and_out:
 	kfree(qinfo.udata);
