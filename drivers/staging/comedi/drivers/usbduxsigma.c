@@ -245,8 +245,7 @@ static void usbduxsigma_ai_handle_urb(struct comedi_device *dev,
 			val &= 0x00ffffff;	/* strip status byte */
 			val ^= 0x00800000;	/* convert to unsigned */
 
-			if (!cfc_write_array_to_buffer(s, &val,
-						       sizeof(uint32_t)))
+			if (!comedi_buf_write_samples(s, &val, 1))
 				return;
 		}
 	}
