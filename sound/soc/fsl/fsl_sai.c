@@ -504,6 +504,13 @@ static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 					   FSL_SAI_CSR_FR, FSL_SAI_CSR_FR);
 			regmap_update_bits(sai->regmap, FSL_SAI_RCSR,
 					   FSL_SAI_CSR_FR, FSL_SAI_CSR_FR);
+
+			/* Software Reset for both Tx and Rx */
+			regmap_write(sai->regmap, FSL_SAI_TCSR, FSL_SAI_CSR_SR);
+			regmap_write(sai->regmap, FSL_SAI_RCSR, FSL_SAI_CSR_SR);
+			/* Clear SR bit to finish the reset */
+			regmap_write(sai->regmap, FSL_SAI_TCSR, 0);
+			regmap_write(sai->regmap, FSL_SAI_RCSR, 0);
 		}
 		break;
 	default:
