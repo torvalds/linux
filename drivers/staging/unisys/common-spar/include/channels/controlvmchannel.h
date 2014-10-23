@@ -235,10 +235,10 @@ struct controlvm_packet_device_configure  {
 	u32 dev_no;	      /**< bus-relative (0..n-1) device number */
 } ;	/* for CONTROLVM_DEVICE_CONFIGURE */
 
-typedef struct _CONTROLVM_MESSAGE_DEVICE_CREATE  {
-	struct controlvm_message_header Header;
-	struct controlvm_packet_device_create Packet;
-} CONTROLVM_MESSAGE_DEVICE_CREATE;	/* total 128 bytes */
+struct controlvm_message_device_create {
+	struct controlvm_message_header header;
+	struct controlvm_packet_device_create packet;
+};	/* total 128 bytes */
 
 typedef struct _CONTROLVM_MESSAGE_DEVICE_CONFIGURE  {
 	struct controlvm_message_header Header;
