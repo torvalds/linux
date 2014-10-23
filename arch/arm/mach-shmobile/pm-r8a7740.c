@@ -14,10 +14,10 @@
 #include "pm-rmobile.h"
 
 #if defined(CONFIG_PM) && !defined(CONFIG_ARCH_MULTIPLATFORM)
-static int r8a7740_pd_a4s_suspend(void)
+static int r8a7740_pd_a3sm_suspend(void)
 {
 	/*
-	 * The A4S domain contains the CPU core and therefore it should
+	 * The A3SM domain contains the CPU core and therefore it should
 	 * only be turned off if the CPU is not in use.
 	 */
 	return -EBUSY;
@@ -63,15 +63,18 @@ static struct rmobile_pm_domain r8a7740_pm_domains[] = {
 	}, {
 		.genpd.name	= "A4S",
 		.bit_shift	= 10,
-		.gov		= &pm_domain_always_on_gov,
 		.no_debug	= true,
-		.suspend	= r8a7740_pd_a4s_suspend,
 	}, {
 		.genpd.name	= "A3SP",
 		.bit_shift	= 11,
 		.gov		= &pm_domain_always_on_gov,
 		.no_debug	= true,
 		.suspend	= r8a7740_pd_a3sp_suspend,
+	}, {
+		.genpd.name	= "A3SM",
+		.bit_shift	= 12,
+		.gov		= &pm_domain_always_on_gov,
+		.suspend	= r8a7740_pd_a3sm_suspend,
 	}, {
 		.genpd.name	= "A3SG",
 		.bit_shift	= 13,
@@ -86,6 +89,7 @@ void __init r8a7740_init_pm_domains(void)
 	rmobile_init_domains(r8a7740_pm_domains, ARRAY_SIZE(r8a7740_pm_domains));
 	pm_genpd_add_subdomain_names("A4R", "A3RV");
 	pm_genpd_add_subdomain_names("A4S", "A3SP");
+	pm_genpd_add_subdomain_names("A4S", "A3SM");
 	pm_genpd_add_subdomain_names("A4S", "A3SG");
 }
 #endif /* CONFIG_PM && !CONFIG_ARCH_MULTIPLATFORM */
