@@ -1464,13 +1464,12 @@ static int unwind_entry(struct unwind_entry *entry, void *arg)
 				       entry->map, entry->sym);
 }
 
-int machine__resolve_callchain(struct machine *machine,
-			       struct perf_evsel *evsel,
-			       struct thread *thread,
-			       struct perf_sample *sample,
-			       struct symbol **parent,
-			       struct addr_location *root_al,
-			       int max_stack)
+int thread__resolve_callchain(struct thread *thread,
+			      struct perf_evsel *evsel,
+			      struct perf_sample *sample,
+			      struct symbol **parent,
+			      struct addr_location *root_al,
+			      int max_stack)
 {
 	int ret = thread__resolve_callchain_sample(thread, sample->callchain,
 						   parent, root_al, max_stack);
@@ -1487,7 +1486,7 @@ int machine__resolve_callchain(struct machine *machine,
 	    (!sample->user_stack.size))
 		return 0;
 
-	return unwind__get_entries(unwind_entry, &callchain_cursor, machine,
+	return unwind__get_entries(unwind_entry, &callchain_cursor, thread->mg->machine,
 				   thread, sample, max_stack);
 
 }

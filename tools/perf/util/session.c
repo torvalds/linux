@@ -1417,9 +1417,9 @@ void perf_evsel__print_ip(struct perf_evsel *evsel, struct perf_sample *sample,
 	if (symbol_conf.use_callchain && sample->callchain) {
 		struct addr_location node_al;
 
-		if (machine__resolve_callchain(al->machine, evsel, al->thread,
-					       sample, NULL, NULL,
-					       PERF_MAX_STACK_DEPTH) != 0) {
+		if (thread__resolve_callchain(al->thread, evsel,
+					      sample, NULL, NULL,
+					      PERF_MAX_STACK_DEPTH) != 0) {
 			if (verbose)
 				error("Failed to resolve callchain. Skipping\n");
 			return;
