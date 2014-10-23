@@ -61,23 +61,23 @@
 #define ULTRA_VSWITCH_CHANNEL_PROTOCOL_VERSIONID 1
 
 #define ULTRA_VHBA_CHANNEL_OK_CLIENT(pChannel, logCtx)			\
-	(ULTRA_check_channel_client(pChannel, UltraVhbaChannelProtocolGuid, \
+	(ULTRA_check_channel_client(pChannel, spar_vhba_channel_protocol_uuid, \
 				    "vhba", MIN_IO_CHANNEL_SIZE,	\
 				    ULTRA_VHBA_CHANNEL_PROTOCOL_VERSIONID, \
 				    ULTRA_VHBA_CHANNEL_PROTOCOL_SIGNATURE, \
 				    __FILE__, __LINE__, logCtx))
 #define ULTRA_VHBA_CHANNEL_OK_SERVER(actualBytes, logCtx)		\
-	(ULTRA_check_channel_server(UltraVhbaChannelProtocolGuid,	\
+	(ULTRA_check_channel_server(spar_vhba_channel_protocol_uuid,	\
 				    "vhba", MIN_IO_CHANNEL_SIZE, actualBytes, \
 				    __FILE__, __LINE__, logCtx))
 #define ULTRA_VNIC_CHANNEL_OK_CLIENT(pChannel, logCtx)			\
-	(ULTRA_check_channel_client(pChannel, UltraVnicChannelProtocolGuid, \
+	(ULTRA_check_channel_client(pChannel, spar_vnic_channel_protocol_uuid, \
 				    "vnic", MIN_IO_CHANNEL_SIZE,	\
 				    ULTRA_VNIC_CHANNEL_PROTOCOL_VERSIONID, \
 				    ULTRA_VNIC_CHANNEL_PROTOCOL_SIGNATURE, \
 				    __FILE__, __LINE__, logCtx))
 #define ULTRA_VNIC_CHANNEL_OK_SERVER(actualBytes, logCtx)		\
-	(ULTRA_check_channel_server(UltraVnicChannelProtocolGuid,	\
+	(ULTRA_check_channel_server(spar_vnic_channel_protocol_uuid,	\
 				    "vnic", MIN_IO_CHANNEL_SIZE, actualBytes, \
 				    __FILE__, __LINE__, logCtx))
 #define ULTRA_VSWITCH_CHANNEL_OK_CLIENT(pChannel, logCtx)		\
@@ -807,7 +807,7 @@ static inline int ULTRA_VHBA_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
 	x->ChannelHeader.SrvState = CHANNELSRV_UNINITIALIZED;
 	x->ChannelHeader.HeaderSize = sizeof(x->ChannelHeader);
 	x->ChannelHeader.Size = COVER(bytes, 4096);
-	x->ChannelHeader.Type = UltraVhbaChannelProtocolGuid;
+	x->ChannelHeader.Type = spar_vhba_channel_protocol_uuid;
 	x->ChannelHeader.ZoneGuid = NULL_UUID_LE;
 	x->vhba.wwnn = *wwnn;
 	x->vhba.max = *max;
@@ -843,7 +843,7 @@ static inline int ULTRA_VNIC_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
 	x->ChannelHeader.SrvState = CHANNELSRV_UNINITIALIZED;
 	x->ChannelHeader.HeaderSize = sizeof(x->ChannelHeader);
 	x->ChannelHeader.Size = COVER(bytes, 4096);
-	x->ChannelHeader.Type = UltraVnicChannelProtocolGuid;
+	x->ChannelHeader.Type = spar_vnic_channel_protocol_uuid;
 	x->ChannelHeader.ZoneGuid = NULL_UUID_LE;
 	memcpy(x->vnic.macaddr, macaddr, MAX_MACADDR_LEN);
 	x->vnic.num_rcv_bufs = num_rcv_bufs;

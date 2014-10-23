@@ -80,7 +80,7 @@ static CONTROLVM_MESSAGE_HEADER g_DiagMsgHdr;
 static CONTROLVM_MESSAGE_HEADER g_ChipSetMsgHdr;
 static CONTROLVM_MESSAGE_HEADER g_DelDumpMsgHdr;
 static const uuid_le UltraDiagPoolChannelProtocolGuid =
-	ULTRA_DIAG_POOL_CHANNEL_PROTOCOL_GUID;
+	SPAR_DIAG_POOL_CHANNEL_PROTOCOL_UUID;
 /* 0xffffff is an invalid Bus/Device number */
 static ulong g_diagpoolBusNo = 0xffffff;
 static ulong g_diagpoolDevNo = 0xffffff;
@@ -90,8 +90,10 @@ static CONTROLVM_MESSAGE_PACKET g_DeviceChangeStatePacket;
  * "visorhackbus")
  */
 #define FOR_VISORHACKBUS(channel_type_guid) \
-	(((uuid_le_cmp(channel_type_guid, UltraVnicChannelProtocolGuid) == 0)\
-	|| (uuid_le_cmp(channel_type_guid, UltraVhbaChannelProtocolGuid) == 0)))
+	(((uuid_le_cmp(channel_type_guid,\
+		       spar_vnic_channel_protocol_uuid) == 0)\
+	|| (uuid_le_cmp(channel_type_guid,\
+			spar_vhba_channel_protocol_uuid) == 0)))
 #define FOR_VISORBUS(channel_type_guid) (!(FOR_VISORHACKBUS(channel_type_guid)))
 
 #define is_diagpool_channel(channel_type_guid) \

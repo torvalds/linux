@@ -443,7 +443,7 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 				struct guest_msgs cmd;
 
 				if (!uuid_le_cmp(dev->channel_uuid,
-				     UltraVhbaChannelProtocolGuid)) {
+				     spar_vhba_channel_protocol_uuid)) {
 					wait_for_valid_guid(&((CHANNEL_HEADER
 							      __iomem *) (dev->
 								  chanptr))->
@@ -468,7 +468,7 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 					cmd.add_vhba.intr = dev->intr;
 				} else
 				    if (!uuid_le_cmp(dev->channel_uuid,
-					 UltraVnicChannelProtocolGuid)) {
+					 spar_vnic_channel_protocol_uuid)) {
 					wait_for_valid_guid(&((CHANNEL_HEADER
 							      __iomem *) (dev->
 								  chanptr))->
@@ -585,11 +585,11 @@ pause_device(CONTROLVM_MESSAGE *msg)
 		 * guest_msgs struct to callback
 		 */
 		if (!uuid_le_cmp(dev->channel_uuid,
-				UltraVhbaChannelProtocolGuid)) {
+				spar_vhba_channel_protocol_uuid)) {
 			cmd.msgtype = GUEST_PAUSE_VHBA;
 			cmd.pause_vhba.chanptr = dev->chanptr;
 		} else if (!uuid_le_cmp(dev->channel_uuid,
-					UltraVnicChannelProtocolGuid)) {
+					spar_vnic_channel_protocol_uuid)) {
 			cmd.msgtype = GUEST_PAUSE_VNIC;
 			cmd.pause_vnic.chanptr = dev->chanptr;
 		} else {
@@ -654,11 +654,11 @@ resume_device(CONTROLVM_MESSAGE *msg)
 	 */
 	if (retval == CONTROLVM_RESP_SUCCESS) {
 		if (!uuid_le_cmp(dev->channel_uuid,
-				 UltraVhbaChannelProtocolGuid)) {
+				 spar_vhba_channel_protocol_uuid)) {
 			cmd.msgtype = GUEST_RESUME_VHBA;
 			cmd.resume_vhba.chanptr = dev->chanptr;
 		} else if (!uuid_le_cmp(dev->channel_uuid,
-					UltraVnicChannelProtocolGuid)) {
+					spar_vnic_channel_protocol_uuid)) {
 			cmd.msgtype = GUEST_RESUME_VNIC;
 			cmd.resume_vnic.chanptr = dev->chanptr;
 		} else {
@@ -724,11 +724,11 @@ destroy_device(CONTROLVM_MESSAGE *msg, char *buf)
 		 * guest_msgs struct to callback
 		 */
 		if (!uuid_le_cmp(dev->channel_uuid,
-				 UltraVhbaChannelProtocolGuid)) {
+				 spar_vhba_channel_protocol_uuid)) {
 			cmd.msgtype = GUEST_DEL_VHBA;
 			cmd.del_vhba.chanptr = dev->chanptr;
 		} else if (!uuid_le_cmp(dev->channel_uuid,
-					UltraVnicChannelProtocolGuid)) {
+					spar_vnic_channel_protocol_uuid)) {
 			cmd.msgtype = GUEST_DEL_VNIC;
 			cmd.del_vnic.chanptr = dev->chanptr;
 		} else {
@@ -960,7 +960,7 @@ uislib_client_inject_add_vhba(u32 bus_no, u32 dev_no,
 		return 0;
 	}
 	msg.cmd.createDevice.channelBytes = chan_bytes;
-	msg.cmd.createDevice.dataTypeGuid = UltraVhbaChannelProtocolGuid;
+	msg.cmd.createDevice.dataTypeGuid = spar_vhba_channel_protocol_uuid;
 	if (create_device(&msg, NULL) != CONTROLVM_RESP_SUCCESS) {
 		LOGERR("VHBA create_device failed.\n");
 		POSTCODE_LINUX_4(VHBA_CREATE_FAILURE_PC, dev_no, bus_no,
@@ -1019,7 +1019,7 @@ uislib_client_inject_add_vnic(u32 bus_no, u32 dev_no,
 		return 0;
 	}
 	msg.cmd.createDevice.channelBytes = chan_bytes;
-	msg.cmd.createDevice.dataTypeGuid = UltraVnicChannelProtocolGuid;
+	msg.cmd.createDevice.dataTypeGuid = spar_vnic_channel_protocol_uuid;
 	if (create_device(&msg, NULL) != CONTROLVM_RESP_SUCCESS) {
 		LOGERR("VNIC create_device failed.\n");
 		POSTCODE_LINUX_4(VNIC_CREATE_FAILURE_PC, dev_no, bus_no,
@@ -1109,7 +1109,7 @@ uislib_client_add_vnic(u32 busNo)
 	memset(&msg.cmd.createDevice.intr, 0, sizeof(struct irq_info));
 	msg.cmd.createDevice.channelAddr = PhysicalDataChan;
 	msg.cmd.createDevice.channelBytes = MIN_IO_CHANNEL_SIZE;
-	msg.cmd.createDevice.dataTypeGuid = UltraVnicChannelProtocolGuid;
+	msg.cmd.createDevice.dataTypeGuid = spar_vnic_channel_protocol_uuid;
 	if (create_device(&msg, NULL) != CONTROLVM_RESP_SUCCESS) {
 		LOGERR("client create_device failed");
 		goto AwayCleanup;
