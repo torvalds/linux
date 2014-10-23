@@ -16,6 +16,8 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/netfilter_bridge.h>
+#include <linux/neighbour.h>
+#include <net/arp.h>
 #include <linux/export.h>
 #include <linux/rculist.h>
 #include "br_private.h"
@@ -55,6 +57,60 @@ static int br_pass_frame_up(struct sk_buff *skb)
 
 	return NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_IN, skb, indev, NULL,
 		       netif_receive_skb);
+}
+
+static void br_do_proxy_arp(struct sk_buff *skb, struct net_bridge *br,
+			    u16 vid)
+{
+	struct net_device *dev = br->dev;
+	struct neighbour *n;
+	struct arphdr *parp;
+	u8 *arpptr, *sha;
+	__be32 sip, tip;
+
+	if (dev->flags & IFF_NOARP)
+		return;
+
+	if (!pskb_may_pull(skb, arp_hdr_len(dev))) {
+		dev->stats.tx_dropped++;
+		return;
+	}
+	parp = arp_hdr(skb);
+
+	if (parp->ar_pro != htons(ETH_P_IP) ||
+	    parp->ar_op != htons(ARPOP_REQUEST) ||
+	    parp->ar_hln != dev->addr_len ||
+	    parp->ar_pln != 4)
+		return;
+
+	arpptr = (u8 *)parp + sizeof(struct arphdr);
+	sha = arpptr;
+	arpptr += dev->addr_len;	/* sha */
+	memcpy(&sip, arpptr, sizeof(sip));
+	arpptr += sizeof(sip);
+	arpptr += dev->addr_len;	/* tha */
+	memcpy(&tip, arpptr, sizeof(tip));
+
+	if (ipv4_is_loopback(tip) ||
+	    ipv4_is_multicast(tip))
+		return;
+
+	n = neigh_lookup(&arp_tbl, &tip, dev);
+	if (n) {
+		struct net_bridge_fdb_entry *f;
+
+		if (!(n->nud_state & NUD_VALID)) {
+			neigh_release(n);
+			return;
+		}
+
+		f = __br_fdb_get(br, n->ha, vid);
+		if (f)
+			arp_send(ARPOP_REPLY, ETH_P_ARP, sip, skb->dev, tip,
+				 sha, n->ha, sha);
+
+		neigh_release(n);
+	}
 }
 
 /* note: already called with rcu_read_lock */
@@ -98,6 +154,10 @@ int br_handle_frame_finish(struct sk_buff *skb)
 	dst = NULL;
 
 	if (is_broadcast_ether_addr(dest)) {
+		if (p->flags & BR_PROXYARP &&
+		    skb->protocol == htons(ETH_P_ARP))
+			br_do_proxy_arp(skb, br, vid);
+
 		skb2 = skb;
 		unicast = false;
 	} else if (is_multicast_ether_addr(dest)) {

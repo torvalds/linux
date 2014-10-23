@@ -172,6 +172,7 @@ struct net_bridge_port
 #define BR_FLOOD		0x00000040
 #define BR_AUTO_MASK (BR_FLOOD | BR_LEARNING)
 #define BR_PROMISC		0x00000080
+#define BR_PROXYARP		0x00000100
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	struct bridge_mcast_own_query	ip4_own_query;
