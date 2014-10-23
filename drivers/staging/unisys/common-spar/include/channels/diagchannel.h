@@ -344,7 +344,7 @@ enum diag_cause {
 #define CAUSE_FILE_XFER_SEVERITY_PRINT \
 	(CAUSE_FILE_XFER | DIAG_SEVERITY_PRINT)
 
-/* Structure: DIAG_CHANNEL_PROTOCOL_HEADER
+/* Structure: diag_channel_protocol_header
  *
  * Purpose: Contains attributes that make up the header specific to the
  * DIAG_CHANNEL area.
@@ -362,12 +362,12 @@ enum diag_cause {
  *			whether events are logged.  Any event's severity for a
  *			particular subsystem below this level will be discarded.
  */
-typedef struct _DIAG_CHANNEL_PROTOCOL_HEADER  {
-	volatile u32 DiagLock;
-	u8 IsChannelInitialized;
-	u8 Reserved[3];
-	u8 SubsystemSeverityFilter[64];
-} DIAG_CHANNEL_PROTOCOL_HEADER;
+struct diag_channel_protocol_header {
+	u32 diag_lock;
+	u8 channel_initialized;
+	u8 reserved[3];
+	u8 subsystem_severity_filter[64];
+};
 
 /* The Diagram for the Diagnostic Channel: */
 /* ----------------------- */
@@ -375,7 +375,7 @@ typedef struct _DIAG_CHANNEL_PROTOCOL_HEADER  {
 /* ----------------------- */
 /* | Signal Queue Header   |	Defined by SIGNAL_QUEUE_HEADER */
 /* ----------------------- */
-/* | DiagChannel Header    |	Defined by DIAG_CHANNEL_PROTOCOL_HEADER */
+/* | DiagChannel Header    |	Defined by diag_channel_protocol_header */
 /* ----------------------- */
 /* | Channel Event Info    |	Defined by diag_channel_event*MAX_EVENTS */
 /* ----------------------- */
@@ -387,7 +387,8 @@ typedef struct _DIAG_CHANNEL_PROTOCOL_HEADER  {
 #define DIAG_CH_QUEUE_HEADER_SIZE (sizeof(struct signal_queue_header))
 #define DIAG_CH_PROTOCOL_HEADER_OFFSET \
 	(DIAG_CH_QUEUE_HEADER_OFFSET + DIAG_CH_QUEUE_HEADER_SIZE)
-#define DIAG_CH_PROTOCOL_HEADER_SIZE (sizeof(DIAG_CHANNEL_PROTOCOL_HEADER))
+#define DIAG_CH_PROTOCOL_HEADER_SIZE \
+	(sizeof(struct diag_channel_protocol_header))
 #define DIAG_CH_EVENT_OFFSET \
 	(DIAG_CH_PROTOCOL_HEADER_OFFSET + DIAG_CH_PROTOCOL_HEADER_SIZE)
 #define DIAG_CH_SIZE (4096 * 1024)
@@ -409,7 +410,7 @@ typedef struct _DIAG_CHANNEL_PROTOCOL_HEADER  {
  * store event.
  *
  * DiagChannelHeader: Diagnostic channel header info (see
- * DIAG_CHANNEL_PROTOCOL_HEADER comments).
+ * diag_channel_protocol_header comments).
  *
  * Events: Area where diagnostic events (up to MAX_EVENTS) are written.
  *
@@ -418,7 +419,7 @@ typedef struct _DIAG_CHANNEL_PROTOCOL_HEADER  {
 typedef struct _ULTRA_DIAG_CHANNEL_PROTOCOL  {
 	struct channel_header CommonChannelHeader;
 	struct signal_queue_header QueueHeader;
-	DIAG_CHANNEL_PROTOCOL_HEADER DiagChannelHeader;
+	struct diag_channel_protocol_header DiagChannelHeader;
 	struct diag_channel_event Events[(DIAG_CH_SIZE - DIAG_CH_EVENT_OFFSET) /
 				   sizeof(struct diag_channel_event)];
 }
