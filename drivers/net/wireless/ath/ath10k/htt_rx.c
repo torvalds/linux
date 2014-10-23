@@ -291,6 +291,15 @@ static inline struct sk_buff *ath10k_htt_rx_netbuf_pop(struct ath10k_htt *htt)
 	htt->rx_ring.sw_rd_idx.msdu_payld = idx;
 	htt->rx_ring.fill_cnt--;
 
+	dma_unmap_single(htt->ar->dev,
+			 ATH10K_SKB_CB(msdu)->paddr,
+			 msdu->len + skb_tailroom(msdu),
+			 DMA_FROM_DEVICE);
+	ath10k_dbg_dump(ar, ATH10K_DBG_HTT_DUMP, NULL, "htt rx netbuf pop: ",
+			msdu->data, msdu->len + skb_tailroom(msdu));
+	trace_ath10k_htt_rx_pop_msdu(ar, msdu->data, msdu->len +
+				     skb_tailroom(msdu));
+
 	return msdu;
 }
 
@@ -328,16 +337,6 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 	msdu = *head_msdu = ath10k_htt_rx_netbuf_pop(htt);
 	while (msdu) {
 		int last_msdu, msdu_len_invalid, msdu_chained;
-
-		dma_unmap_single(htt->ar->dev,
-				 ATH10K_SKB_CB(msdu)->paddr,
-				 msdu->len + skb_tailroom(msdu),
-				 DMA_FROM_DEVICE);
-
-		ath10k_dbg_dump(ar, ATH10K_DBG_HTT_DUMP, NULL, "htt rx pop: ",
-				msdu->data, msdu->len + skb_tailroom(msdu));
-		trace_ath10k_htt_rx_pop_msdu(ar, msdu->data, msdu->len +
-					     skb_tailroom(msdu));
 
 		rx_desc = (struct htt_rx_desc *)msdu->data;
 
@@ -428,17 +427,6 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 		/* FIXME: Do chained buffers include htt_rx_desc or not? */
 		while (msdu_chained--) {
 			struct sk_buff *next = ath10k_htt_rx_netbuf_pop(htt);
-
-			dma_unmap_single(htt->ar->dev,
-					 ATH10K_SKB_CB(next)->paddr,
-					 next->len + skb_tailroom(next),
-					 DMA_FROM_DEVICE);
-
-			ath10k_dbg_dump(ar, ATH10K_DBG_HTT_DUMP, NULL,
-					"htt rx chained: ", next->data,
-					next->len + skb_tailroom(next));
-			trace_ath10k_htt_rx_pop_msdu(ar, msdu->data, msdu->len +
-						     skb_tailroom(msdu));
 
 			skb_trim(next, 0);
 			skb_put(next, min(msdu_len, HTT_RX_BUF_SIZE));
