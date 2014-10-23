@@ -204,7 +204,7 @@ typedef enum { NET_RCV_POST = 0,	/* submit buffer to hold receiving
 #endif				/* MAX_MACADDR_LEN */
 
 #define ETH_IS_LOCALLY_ADMINISTERED(Address) \
-	(((u8 *) (Address))[0] & ((u8) 0x02))
+	(((u8 *)(Address))[0] & ((u8) 0x02))
 #define NIC_VENDOR_ID 0x0008000B
 
 /* various types of scsi task mgmt commands  */
@@ -368,16 +368,16 @@ struct uiscmdrsp_scsi {
 	do {								\
 		memset(buf, 0,						\
 		       MINNUM(len,					\
-			      (unsigned int) NO_DISK_INQUIRY_RESULT_LEN)); \
-		buf[2] = (u8) SCSI_SPC2_VER;				\
+			      (unsigned int)NO_DISK_INQUIRY_RESULT_LEN)); \
+		buf[2] = (u8)SCSI_SPC2_VER;				\
 		if (lun == 0) {						\
-			buf[0] = (u8) lun0notpresent;			\
-			buf[3] = (u8) DEV_HISUPPORT;			\
+			buf[0] = (u8)lun0notpresent;			\
+			buf[3] = (u8)DEV_HISUPPORT;			\
 		} else							\
-			buf[0] = (u8) notpresent;			\
-		buf[4] = (u8) (						\
+			buf[0] = (u8)notpresent;			\
+		buf[4] = (u8)(						\
 			MINNUM(len,					\
-			       (unsigned int) NO_DISK_INQUIRY_RESULT_LEN) - 5);	\
+			       (unsigned int)NO_DISK_INQUIRY_RESULT_LEN) - 5);\
 		if (len >= NO_DISK_INQUIRY_RESULT_LEN) {		\
 			buf[8] = 'D';					\
 			buf[9] = 'E';					\
@@ -762,9 +762,9 @@ typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
 				offsetof(type, clientString);		\
 			memcpy(chan->clientString, clientStr,		\
 			       MINNUM(clientStrLen,			\
-				      (u32) (MAX_CLIENTSTRING_LEN - 1))); \
+				      (u32)(MAX_CLIENTSTRING_LEN - 1))); \
 			chan->clientString[MINNUM(clientStrLen,		\
-						  (u32) (MAX_CLIENTSTRING_LEN \
+						  (u32)(MAX_CLIENTSTRING_LEN \
 							 - 1))]		\
 				= '\0';					\
 		}							\
@@ -888,8 +888,8 @@ add_physinfo_entries(u32 inp_pfn,	/* input - specifies the pfn to be used
 		if (index >= max_pi_arr_entries)
 			return 0;
 		pi_arr[index].pi_pfn = inp_pfn;
-		pi_arr[index].pi_off = (u16) inp_off;
-		pi_arr[index].pi_len = (u16) inp_len;
+		pi_arr[index].pi_off = (u16)inp_off;
+		pi_arr[index].pi_len = (u16)inp_len;
 		    return index + 1;
 	}
 
@@ -907,7 +907,7 @@ add_physinfo_entries(u32 inp_pfn,	/* input - specifies the pfn to be used
 		else {
 			pi_arr[index + i].pi_off = 0;
 			pi_arr[index + i].pi_len =
-			    (u16) MINNUM(len, (u32) PI_PAGE_SIZE);
+			    (u16)MINNUM(len, (u32)PI_PAGE_SIZE);
 		}
 	}
 	return index + i;
