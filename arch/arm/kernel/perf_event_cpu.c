@@ -299,13 +299,13 @@ static int cpu_pmu_device_probe(struct platform_device *pdev)
 	int ret = -ENODEV;
 
 	if (cpu_pmu) {
-		pr_info("attempt to register multiple PMU devices!");
+		pr_info("attempt to register multiple PMU devices!\n");
 		return -ENOSPC;
 	}
 
 	pmu = kzalloc(sizeof(struct arm_pmu), GFP_KERNEL);
 	if (!pmu) {
-		pr_info("failed to allocate PMU device!");
+		pr_info("failed to allocate PMU device!\n");
 		return -ENOMEM;
 	}
 
@@ -320,7 +320,7 @@ static int cpu_pmu_device_probe(struct platform_device *pdev)
 	}
 
 	if (ret) {
-		pr_info("failed to probe PMU!");
+		pr_info("failed to probe PMU!\n");
 		goto out_free;
 	}
 
@@ -331,7 +331,7 @@ static int cpu_pmu_device_probe(struct platform_device *pdev)
 		return 0;
 
 out_free:
-	pr_info("failed to register PMU devices!");
+	pr_info("failed to register PMU devices!\n");
 	kfree(pmu);
 	return ret;
 }
