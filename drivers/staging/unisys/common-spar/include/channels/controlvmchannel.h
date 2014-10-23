@@ -52,11 +52,6 @@ static const uuid_le spar_controlvm_channel_protocol_uuid =
 				   sizeof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL), \
 				   ULTRA_CONTROLVM_CHANNEL_PROTOCOL_VERSIONID, \
 				   ULTRA_CONTROLVM_CHANNEL_PROTOCOL_SIGNATURE))
-#define ULTRA_CONTROLVM_CHANNEL_OK_SERVER(actualBytes)        \
-	(spar_check_channel_server(spar_controlvm_channel_protocol_uuid,\
-				    "controlvm",			\
-				    sizeof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL), \
-				    actualBytes))
 
 #define MY_DEVICE_INDEX 0
 #define MAX_MACDATA_LEN 8 /* number of bytes for MAC address in config packet */
