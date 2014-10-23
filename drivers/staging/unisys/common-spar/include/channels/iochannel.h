@@ -508,7 +508,7 @@ struct net_pkt_rcvpost {
 	    * to be describable */
 	    struct phys_info frag;	/* physical page information for the
 					 * single fragment 2K rcv buf */
-	    u64 UniqueNum;		/* This is used to make sure that
+	    u64 unique_num;		/* This is used to make sure that
 					 * receive posts are returned to  */
 	    /* the Adapter which sent them origonally. */
 };
