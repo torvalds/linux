@@ -2380,7 +2380,7 @@ visorchipset_init(void)
 		    visorchannel_create_with_lock
 		    (addr,
 		     sizeof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL),
-		     UltraControlvmChannelProtocolGuid);
+		     spar_controlvm_channel_protocol_uuid);
 		if (SPAR_CONTROLVM_CHANNEL_OK_CLIENT(
 				visorchannel_get_header(ControlVm_channel))) {
 			LOGINF("Channel %s (ControlVm) discovered",

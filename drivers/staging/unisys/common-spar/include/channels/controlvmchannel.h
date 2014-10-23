@@ -27,12 +27,12 @@ enum { INVALID_GUEST_FIRMWARE, SAMPLE_GUEST_FIRMWARE,
 };
 
 /* {2B3C2D10-7EF5-4ad8-B966-3448B7386B3D} */
-#define ULTRA_CONTROLVM_CHANNEL_PROTOCOL_GUID	\
+#define SPAR_CONTROLVM_CHANNEL_PROTOCOL_UUID	\
 		UUID_LE(0x2b3c2d10, 0x7ef5, 0x4ad8, \
 				0xb9, 0x66, 0x34, 0x48, 0xb7, 0x38, 0x6b, 0x3d)
 
-static const uuid_le UltraControlvmChannelProtocolGuid =
-	ULTRA_CONTROLVM_CHANNEL_PROTOCOL_GUID;
+static const uuid_le spar_controlvm_channel_protocol_uuid =
+	SPAR_CONTROLVM_CHANNEL_PROTOCOL_UUID;
 
 #define ULTRA_CONTROLVM_CHANNEL_PROTOCOL_SIGNATURE \
 	ULTRA_CHANNEL_PROTOCOL_SIGNATURE
@@ -47,13 +47,13 @@ static const uuid_le UltraControlvmChannelProtocolGuid =
 
 #define SPAR_CONTROLVM_CHANNEL_OK_CLIENT(pChannel)           \
 	(spar_check_channel_client(pChannel, \
-				   UltraControlvmChannelProtocolGuid, \
+				   spar_controlvm_channel_protocol_uuid, \
 				   "controlvm", \
 				   sizeof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL), \
 				   ULTRA_CONTROLVM_CHANNEL_PROTOCOL_VERSIONID, \
 				   ULTRA_CONTROLVM_CHANNEL_PROTOCOL_SIGNATURE))
 #define ULTRA_CONTROLVM_CHANNEL_OK_SERVER(actualBytes)        \
-	(spar_check_channel_server(UltraControlvmChannelProtocolGuid,	\
+	(spar_check_channel_server(spar_controlvm_channel_protocol_uuid,\
 				    "controlvm",			\
 				    sizeof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL), \
 				    actualBytes))
