@@ -810,10 +810,13 @@ int i915_resume(struct drm_device *dev)
 
 static int i915_resume_legacy(struct drm_device *dev)
 {
-	i915_resume_early(dev);
-	i915_resume(dev);
+	int ret;
 
-	return 0;
+	ret = i915_resume_early(dev);
+	if (ret)
+		return ret;
+
+	return i915_resume(dev);
 }
 
 /**
