@@ -738,7 +738,8 @@ forward_vdiskmgmt_command(VDISK_MGMT_TYPES vdiskcmdtype,
 /*****************************************************/
 
 static int
-forward_taskmgmt_command(TASK_MGMT_TYPES tasktype, struct scsi_device *scsidev)
+forward_taskmgmt_command(enum task_mgmt_types tasktype,
+			 struct scsi_device *scsidev)
 {
 	struct uiscmdrsp *cmdrsp;
 	struct virthba_info *virthbainfo =

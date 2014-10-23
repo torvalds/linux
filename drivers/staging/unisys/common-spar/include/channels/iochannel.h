@@ -196,10 +196,12 @@ enum net_types {
 #define NIC_VENDOR_ID 0x0008000B
 
 /* various types of scsi task mgmt commands  */
-typedef enum { TASK_MGMT_ABORT_TASK =
-	    1, TASK_MGMT_BUS_RESET, TASK_MGMT_LUN_RESET,
-	    TASK_MGMT_TARGET_RESET,
-} TASK_MGMT_TYPES;
+enum task_mgmt_types {
+	TASK_MGMT_ABORT_TASK = 1,
+	TASK_MGMT_BUS_RESET,
+	TASK_MGMT_LUN_RESET,
+	TASK_MGMT_TARGET_RESET,
+};
 
 /* various types of vdisk mgmt commands  */
 typedef enum { VDISK_MGMT_ACQUIRE = 1, VDISK_MGMT_RELEASE,
@@ -551,7 +553,7 @@ struct uiscmdrsp_net {
 };
 
 struct uiscmdrsp_scsitaskmgmt {
-	TASK_MGMT_TYPES tasktype;
+	enum task_mgmt_types tasktype;
 
 	    /* the type of task */
 	struct uisscsi_dest vdest;
