@@ -277,6 +277,21 @@ config IR_WINBOND_CIR
 	   To compile this driver as a module, choose M here: the module will
 	   be called winbond_cir.
 
+config IR_IGORPLUGUSB
+	tristate "IgorPlug-USB IR Receiver"
+	depends on USB_ARCH_HAS_HCD
+	depends on RC_CORE
+	select USB
+	---help---
+	   Say Y here if you want to use the IgorPlug-USB IR Receiver by
+	   Igor Cesko. This device is included on the Fit-PC2.
+
+	   Note that this device can only record bursts of 36 IR pulses and
+	   spaces, which is not enough for the NEC, Sanyo and RC-6 protocol.
+
+	   To compile this driver as a module, choose M here: the module will
+	   be called igorplugusb.
+
 config IR_IGUANA
 	tristate "IguanaWorks USB IR Transceiver"
 	depends on USB_ARCH_HAS_HCD

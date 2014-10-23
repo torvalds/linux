@@ -4695,6 +4695,12 @@ F:	net/mac802154/
 F:	drivers/net/ieee802154/
 F:	Documentation/networking/ieee802154.txt
 
+IGORPLUG-USB IR RECEIVER
+M:	Sean Young <sean@mess.org>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/rc/igorplugusb.c
+
 IGUANAWORKS USB IR TRANSCEIVER
 M:	Sean Young <sean@mess.org>
 L:	linux-media@vger.kernel.org
