@@ -44,8 +44,6 @@ broken.
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/list.h>
-#include <linux/spinlock.h>
 
 #include "../comedidev.h"
 
@@ -53,10 +51,7 @@ broken.
 #include "8253.h"
 #include "plx9052.h"
 
-#if 0
-/* file removed due to GPL incompatibility */
-#include "me4000_fw.h"
-#endif
+#define ME4000_FIRMWARE		"me4000_firmware.bin"
 
 /*
  * ME4000 Register map and bit defines
@@ -333,26 +328,19 @@ static const struct comedi_lrange me4000_ai_range = {
 	}
 };
 
-#define FIRMWARE_NOT_AVAILABLE 1
-#if FIRMWARE_NOT_AVAILABLE
-extern unsigned char *xilinx_firm;
-#endif
-
-static int xilinx_download(struct comedi_device *dev)
+static int me4000_xilinx_download(struct comedi_device *dev,
+				  const u8 *data, size_t size,
+				  unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct me4000_info *info = dev->private;
 	unsigned long xilinx_iobase = pci_resource_start(pcidev, 5);
-	u32 value = 0;
-	wait_queue_head_t queue;
-	int idx = 0;
-	int size = 0;
-	unsigned int intcsr;
+	unsigned int file_length;
+	unsigned int val;
+	unsigned int i;
 
 	if (!xilinx_iobase)
 		return -ENODEV;
-
-	init_waitqueue_head(&queue);
 
 	/*
 	 * Set PLX local interrupt 2 polarity to high.
@@ -361,61 +349,58 @@ static int xilinx_download(struct comedi_device *dev)
 	outl(PLX9052_INTCSR_LI2POL, info->plx_regbase + PLX9052_INTCSR);
 
 	/* Set /CS and /WRITE of the Xilinx */
-	value = inl(info->plx_regbase + PLX9052_CNTRL);
-	value |= PLX9052_CNTRL_UIO2_DATA;
-	outl(value, info->plx_regbase + PLX9052_CNTRL);
+	val = inl(info->plx_regbase + PLX9052_CNTRL);
+	val |= PLX9052_CNTRL_UIO2_DATA;
+	outl(val, info->plx_regbase + PLX9052_CNTRL);
 
 	/* Init Xilinx with CS1 */
 	inb(xilinx_iobase + 0xC8);
 
 	/* Wait until /INIT pin is set */
 	udelay(20);
-	intcsr = inl(info->plx_regbase + PLX9052_INTCSR);
-	if (!(intcsr & PLX9052_INTCSR_LI2STAT)) {
+	val = inl(info->plx_regbase + PLX9052_INTCSR);
+	if (!(val & PLX9052_INTCSR_LI2STAT)) {
 		dev_err(dev->class_dev, "Can't init Xilinx\n");
 		return -EIO;
 	}
 
 	/* Reset /CS and /WRITE of the Xilinx */
-	value = inl(info->plx_regbase + PLX9052_CNTRL);
-	value &= ~PLX9052_CNTRL_UIO2_DATA;
-	outl(value, info->plx_regbase + PLX9052_CNTRL);
-	if (FIRMWARE_NOT_AVAILABLE) {
-		dev_err(dev->class_dev,
-			"xilinx firmware unavailable due to licensing, aborting");
-		return -EIO;
-	} else {
-		/* Download Xilinx firmware */
-		size = (xilinx_firm[0] << 24) + (xilinx_firm[1] << 16) +
-		    (xilinx_firm[2] << 8) + xilinx_firm[3];
+	val = inl(info->plx_regbase + PLX9052_CNTRL);
+	val &= ~PLX9052_CNTRL_UIO2_DATA;
+	outl(val, info->plx_regbase + PLX9052_CNTRL);
+
+	/* Download Xilinx firmware */
+	file_length = (((unsigned int)data[0] & 0xff) << 24) +
+		      (((unsigned int)data[1] & 0xff) << 16) +
+		      (((unsigned int)data[2] & 0xff) << 8) +
+		      ((unsigned int)data[3] & 0xff);
+	udelay(10);
+
+	for (i = 0; i < file_length; i++) {
+		outb(data[16 + i], xilinx_iobase);
 		udelay(10);
 
-		for (idx = 0; idx < size; idx++) {
-			outb(xilinx_firm[16 + idx], xilinx_iobase);
-			udelay(10);
-
-			/* Check if BUSY flag is low */
-			if (inl(info->plx_regbase + PLX9052_CNTRL) & PLX9052_CNTRL_UIO1_DATA) {
-				dev_err(dev->class_dev,
-					"Xilinx is still busy (idx = %d)\n",
-					idx);
-				return -EIO;
-			}
+		/* Check if BUSY flag is low */
+		val = inl(info->plx_regbase + PLX9052_CNTRL);
+		if (val & PLX9052_CNTRL_UIO1_DATA) {
+			dev_err(dev->class_dev,
+				"Xilinx is still busy (i = %d)\n", i);
+			return -EIO;
 		}
 	}
 
 	/* If done flag is high download was successful */
-	if (inl(info->plx_regbase + PLX9052_CNTRL) & PLX9052_CNTRL_UIO0_DATA) {
-	} else {
+	val = inl(info->plx_regbase + PLX9052_CNTRL);
+	if (!(val & PLX9052_CNTRL_UIO0_DATA)) {
 		dev_err(dev->class_dev, "DONE flag is not set\n");
 		dev_err(dev->class_dev, "Download not successful\n");
 		return -EIO;
 	}
 
 	/* Set /CS and /WRITE */
-	value = inl(info->plx_regbase + PLX9052_CNTRL);
-	value |= PLX9052_CNTRL_UIO2_DATA;
-	outl(value, info->plx_regbase + PLX9052_CNTRL);
+	val = inl(info->plx_regbase + PLX9052_CNTRL);
+	val |= PLX9052_CNTRL_UIO2_DATA;
+	outl(val, info->plx_regbase + PLX9052_CNTRL);
 
 	return 0;
 }
@@ -1386,8 +1371,9 @@ static int me4000_auto_attach(struct comedi_device *dev,
 	if (!info->plx_regbase || !dev->iobase || !info->timer_regbase)
 		return -ENODEV;
 
-	result = xilinx_download(dev);
-	if (result)
+	result = comedi_load_firmware(dev, &pcidev->dev, ME4000_FIRMWARE,
+				      me4000_xilinx_download, 0);
+	if (result < 0)
 		return result;
 
 	me4000_reset(dev);
@@ -1550,3 +1536,4 @@ module_comedi_pci_driver(me4000_driver, me4000_pci_driver);
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(ME4000_FIRMWARE);
