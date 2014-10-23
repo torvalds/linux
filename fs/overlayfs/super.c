@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/statfs.h>
+#include <linux/seq_file.h>
 #include "overlayfs.h"
 
 MODULE_AUTHOR("Miklos Szeredi <miklos@szeredi.hu>");
@@ -25,12 +26,20 @@ MODULE_LICENSE("GPL");
 
 #define OVERLAYFS_SUPER_MAGIC 0x794c764f
 
+struct ovl_config {
+	char *lowerdir;
+	char *upperdir;
+	char *workdir;
+};
+
 /* private information held for overlayfs's superblock */
 struct ovl_fs {
 	struct vfsmount *upper_mnt;
 	struct vfsmount *lower_mnt;
 	struct dentry *workdir;
 	long lower_namelen;
+	/* pathnames of lower and upper dirs, for show_options */
+	struct ovl_config config;
 };
 
 struct ovl_dir_cache;
@@ -384,6 +393,9 @@ static void ovl_put_super(struct super_block *sb)
 	mntput(ufs->upper_mnt);
 	mntput(ufs->lower_mnt);
 
+	kfree(ufs->config.lowerdir);
+	kfree(ufs->config.upperdir);
+	kfree(ufs->config.workdir);
 	kfree(ufs);
 }
 
@@ -413,15 +425,27 @@ static int ovl_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return err;
 }
 
+/**
+ * ovl_show_options
+ *
+ * Prints the mount options for a given superblock.
+ * Returns zero; does not fail.
+ */
+static int ovl_show_options(struct seq_file *m, struct dentry *dentry)
+{
+	struct super_block *sb = dentry->d_sb;
+	struct ovl_fs *ufs = sb->s_fs_info;
+
+	seq_printf(m, ",lowerdir=%s", ufs->config.lowerdir);
+	seq_printf(m, ",upperdir=%s", ufs->config.upperdir);
+	seq_printf(m, ",workdir=%s", ufs->config.workdir);
+	return 0;
+}
+
 static const struct super_operations ovl_super_operations = {
 	.put_super	= ovl_put_super,
 	.statfs		= ovl_statfs,
-};
-
-struct ovl_config {
-	char *lowerdir;
-	char *upperdir;
-	char *workdir;
+	.show_options	= ovl_show_options,
 };
 
 enum {
@@ -441,10 +465,6 @@ static const match_table_t ovl_tokens = {
 static int ovl_parse_opt(char *opt, struct ovl_config *config)
 {
 	char *p;
-
-	config->upperdir = NULL;
-	config->lowerdir = NULL;
-	config->workdir = NULL;
 
 	while ((p = strsep(&opt, ",")) != NULL) {
 		int token;
@@ -586,39 +606,40 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	struct dentry *root_dentry;
 	struct ovl_entry *oe;
 	struct ovl_fs *ufs;
-	struct ovl_config config;
 	struct kstatfs statfs;
 	int err;
 
-	err = ovl_parse_opt((char *) data, &config);
-	if (err)
+	err = -ENOMEM;
+	ufs = kzalloc(sizeof(struct ovl_fs), GFP_KERNEL);
+	if (!ufs)
 		goto out;
+
+	err = ovl_parse_opt((char *) data, &ufs->config);
+	if (err)
+		goto out_free_config;
 
 	/* FIXME: workdir is not needed for a R/O mount */
 	err = -EINVAL;
-	if (!config.upperdir || !config.lowerdir || !config.workdir) {
+	if (!ufs->config.upperdir || !ufs->config.lowerdir ||
+	    !ufs->config.workdir) {
 		pr_err("overlayfs: missing upperdir or lowerdir or workdir\n");
 		goto out_free_config;
 	}
 
 	err = -ENOMEM;
-	ufs = kmalloc(sizeof(struct ovl_fs), GFP_KERNEL);
-	if (!ufs)
-		goto out_free_config;
-
 	oe = ovl_alloc_entry();
 	if (oe == NULL)
-		goto out_free_ufs;
+		goto out_free_config;
 
-	err = ovl_mount_dir(config.upperdir, &upperpath);
+	err = ovl_mount_dir(ufs->config.upperdir, &upperpath);
 	if (err)
 		goto out_free_oe;
 
-	err = ovl_mount_dir(config.lowerdir, &lowerpath);
+	err = ovl_mount_dir(ufs->config.lowerdir, &lowerpath);
 	if (err)
 		goto out_put_upperpath;
 
-	err = ovl_mount_dir(config.workdir, &workpath);
+	err = ovl_mount_dir(ufs->config.workdir, &workpath);
 	if (err)
 		goto out_put_lowerpath;
 
@@ -674,7 +695,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	err = PTR_ERR(ufs->workdir);
 	if (IS_ERR(ufs->workdir)) {
 		pr_err("overlayfs: failed to create directory %s/%s\n",
-		       config.workdir, OVL_WORKDIR_NAME);
+		       ufs->config.workdir, OVL_WORKDIR_NAME);
 		goto out_put_lower_mnt;
 	}
 
@@ -729,12 +750,11 @@ out_put_upperpath:
 	path_put(&upperpath);
 out_free_oe:
 	kfree(oe);
-out_free_ufs:
-	kfree(ufs);
 out_free_config:
-	kfree(config.lowerdir);
-	kfree(config.upperdir);
-	kfree(config.workdir);
+	kfree(ufs->config.lowerdir);
+	kfree(ufs->config.upperdir);
+	kfree(ufs->config.workdir);
+	kfree(ufs);
 out:
 	return err;
 }
