@@ -16,17 +16,21 @@
 #include <linux/parser.h>
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/statfs.h>
 #include "overlayfs.h"
 
 MODULE_AUTHOR("Miklos Szeredi <miklos@szeredi.hu>");
 MODULE_DESCRIPTION("Overlay filesystem");
 MODULE_LICENSE("GPL");
 
+#define OVERLAYFS_SUPER_MAGIC 0x794c764f
+
 /* private information held for overlayfs's superblock */
 struct ovl_fs {
 	struct vfsmount *upper_mnt;
 	struct vfsmount *lower_mnt;
 	struct dentry *workdir;
+	long lower_namelen;
 };
 
 struct ovl_dir_cache;
@@ -383,8 +387,35 @@ static void ovl_put_super(struct super_block *sb)
 	kfree(ufs);
 }
 
+/**
+ * ovl_statfs
+ * @sb: The overlayfs super block
+ * @buf: The struct kstatfs to fill in with stats
+ *
+ * Get the filesystem statistics.  As writes always target the upper layer
+ * filesystem pass the statfs to the same filesystem.
+ */
+static int ovl_statfs(struct dentry *dentry, struct kstatfs *buf)
+{
+	struct ovl_fs *ofs = dentry->d_sb->s_fs_info;
+	struct dentry *root_dentry = dentry->d_sb->s_root;
+	struct path path;
+	int err;
+
+	ovl_path_upper(root_dentry, &path);
+
+	err = vfs_statfs(&path, buf);
+	if (!err) {
+		buf->f_namelen = max(buf->f_namelen, ofs->lower_namelen);
+		buf->f_type = OVERLAYFS_SUPER_MAGIC;
+	}
+
+	return err;
+}
+
 static const struct super_operations ovl_super_operations = {
 	.put_super	= ovl_put_super,
+	.statfs		= ovl_statfs,
 };
 
 struct ovl_config {
@@ -556,6 +587,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	struct ovl_entry *oe;
 	struct ovl_fs *ufs;
 	struct ovl_config config;
+	struct kstatfs statfs;
 	int err;
 
 	err = ovl_parse_opt((char *) data, &config);
@@ -617,6 +649,13 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		goto out_put_workpath;
 	}
 
+	err = vfs_statfs(&lowerpath, &statfs);
+	if (err) {
+		pr_err("overlayfs: statfs failed on lowerpath\n");
+		goto out_put_workpath;
+	}
+	ufs->lower_namelen = statfs.f_namelen;
+
 	ufs->upper_mnt = clone_private_mount(&upperpath);
 	err = PTR_ERR(ufs->upper_mnt);
 	if (IS_ERR(ufs->upper_mnt)) {
@@ -669,6 +708,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 	root_dentry->d_fsdata = oe;
 
+	sb->s_magic = OVERLAYFS_SUPER_MAGIC;
 	sb->s_op = &ovl_super_operations;
 	sb->s_root = root_dentry;
 	sb->s_fs_info = ufs;
