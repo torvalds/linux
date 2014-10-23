@@ -252,7 +252,7 @@ enum diag_severity {
 
 /* The Dell PDiag uses this new mechanism to stash DSET .zip onto the
  * 'diagnostic' virtual disk.  */
-typedef enum  {
+enum diag_cause {
 	DIAG_CAUSE_UNKNOWN = 0,
 	DIAG_CAUSE_UNKNOWN_DEBUG = DIAG_CAUSE_UNKNOWN + 1,	/* 1 */
 	DIAG_CAUSE_DEBUG = DIAG_CAUSE_UNKNOWN_DEBUG + 1,	/* 2 */
@@ -264,7 +264,7 @@ typedef enum  {
 	DIAG_CAUSE_INTERNAL_ERROR = DIAG_CAUSE_INVALID_REQUEST + 1, /* 8 */
 	DIAG_CAUSE_FILE_XFER = DIAG_CAUSE_INTERNAL_ERROR + 1,	/* 9 */
 	DIAG_CAUSE_ENUM_END = DIAG_CAUSE_FILE_XFER	/* 9 */
-} DIAG_CAUSE;
+};
 
 /* Event Cause category defined into the byte 2 of Severity */
 #define CAUSE_DEBUG (DIAG_CAUSE_DEBUG << CAUSE_SHIFT_AMT)
