@@ -141,19 +141,27 @@ static int lowpan_give_skb_to_devices(struct sk_buff *skb,
 	struct sk_buff *skb_cp;
 	int stat = NET_RX_SUCCESS;
 
+	skb->protocol = htons(ETH_P_IPV6);
+	skb->pkt_type = PACKET_HOST;
+
 	rcu_read_lock();
 	list_for_each_entry_rcu(entry, &lowpan_devices, list)
 		if (lowpan_dev_info(entry->ldev)->real_dev == skb->dev) {
 			skb_cp = skb_copy(skb, GFP_ATOMIC);
 			if (!skb_cp) {
-				stat = -ENOMEM;
-				break;
+				kfree_skb(skb);
+				rcu_read_unlock();
+				return NET_RX_DROP;
 			}
 
 			skb_cp->dev = entry->ldev;
 			stat = netif_rx(skb_cp);
+			if (stat == NET_RX_DROP)
+				break;
 		}
 	rcu_read_unlock();
+
+	consume_skb(skb);
 
 	return stat;
 }
@@ -190,8 +198,7 @@ static int process_data(struct sk_buff *skb, const struct ieee802154_hdr *hdr)
 
 	return lowpan_process_data(skb, skb->dev, sap, sa.addr_type,
 				   IEEE802154_ADDR_LEN, dap, da.addr_type,
-				   IEEE802154_ADDR_LEN, iphc0, iphc1,
-				   lowpan_give_skb_to_devices);
+				   IEEE802154_ADDR_LEN, iphc0, iphc1);
 
 drop:
 	kfree_skb(skb);
@@ -528,44 +535,48 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	/* check that it's our buffer */
 	if (skb->data[0] == LOWPAN_DISPATCH_IPV6) {
-		skb->protocol = htons(ETH_P_IPV6);
-		skb->pkt_type = PACKET_HOST;
-
 		/* Pull off the 1-byte of 6lowpan header. */
 		skb_pull(skb, 1);
-
-		ret = lowpan_give_skb_to_devices(skb, NULL);
-		if (ret == NET_RX_DROP)
-			goto drop;
+		return lowpan_give_skb_to_devices(skb, NULL);
 	} else {
 		switch (skb->data[0] & 0xe0) {
 		case LOWPAN_DISPATCH_IPHC:	/* ipv6 datagram */
 			ret = process_data(skb, &hdr);
 			if (ret == NET_RX_DROP)
 				goto drop;
-			break;
+
+			return lowpan_give_skb_to_devices(skb, NULL);
 		case LOWPAN_DISPATCH_FRAG1:	/* first fragment header */
 			ret = lowpan_frag_rcv(skb, LOWPAN_DISPATCH_FRAG1);
 			if (ret == 1) {
 				ret = process_data(skb, &hdr);
 				if (ret == NET_RX_DROP)
 					goto drop;
+
+				return lowpan_give_skb_to_devices(skb, NULL);
+			} else if (ret == -1) {
+				return NET_RX_DROP;
+			} else {
+				return NET_RX_SUCCESS;
 			}
-			break;
 		case LOWPAN_DISPATCH_FRAGN:	/* next fragments headers */
 			ret = lowpan_frag_rcv(skb, LOWPAN_DISPATCH_FRAGN);
 			if (ret == 1) {
 				ret = process_data(skb, &hdr);
 				if (ret == NET_RX_DROP)
 					goto drop;
+
+				return lowpan_give_skb_to_devices(skb, NULL);
+			} else if (ret == -1) {
+				return NET_RX_DROP;
+			} else {
+				return NET_RX_SUCCESS;
 			}
-			break;
 		default:
 			break;
 		}
 	}
 
-	return NET_RX_SUCCESS;
 drop_skb:
 	kfree_skb(skb);
 drop:

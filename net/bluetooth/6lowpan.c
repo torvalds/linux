@@ -252,7 +252,7 @@ static int give_skb_to_upper(struct sk_buff *skb, struct net_device *dev)
 
 	skb_cp = skb_copy(skb, GFP_ATOMIC);
 	if (!skb_cp)
-		return -ENOMEM;
+		return NET_RX_DROP;
 
 	return netif_rx(skb_cp);
 }
@@ -290,7 +290,7 @@ static int process_data(struct sk_buff *skb, struct net_device *netdev,
 	return lowpan_process_data(skb, netdev,
 				   saddr, IEEE802154_ADDR_LONG, EUI64_ADDR_LEN,
 				   daddr, IEEE802154_ADDR_LONG, EUI64_ADDR_LEN,
-				   iphc0, iphc1, give_skb_to_upper);
+				   iphc0, iphc1);
 
 drop:
 	kfree_skb(skb);
@@ -349,6 +349,16 @@ static int recv_pkt(struct sk_buff *skb, struct net_device *dev,
 			ret = process_data(local_skb, dev, chan);
 			if (ret != NET_RX_SUCCESS)
 				goto drop;
+
+			local_skb->protocol = htons(ETH_P_IPV6);
+			local_skb->pkt_type = PACKET_HOST;
+			local_skb->dev = dev;
+
+			if (give_skb_to_upper(local_skb, dev)
+					!= NET_RX_SUCCESS) {
+				kfree_skb(local_skb);
+				goto drop;
+			}
 
 			dev->stats.rx_bytes += skb->len;
 			dev->stats.rx_packets++;
