@@ -550,8 +550,8 @@ unsigned char spar_signal_remove(struct channel_header __iomem *ch, u32 queue,
 * Return value:
 * # of signals copied.
 */
-unsigned int SignalRemoveAll(struct channel_header *pChannel, u32 Queue,
-			     void *pSignal);
+unsigned int spar_signal_remove_all(struct channel_header *ch, u32 queue,
+				    void *sig);
 
 /*
 * Routine Description:

@@ -156,14 +156,14 @@ EXPORT_SYMBOL_GPL(spar_signal_remove);
  * Return value:
  * # of signals copied.
  */
-unsigned int
-SignalRemoveAll(struct channel_header *pChannel, u32 Queue, void *pSignal)
+unsigned int spar_signal_remove_all(struct channel_header *ch, u32 queue,
+				    void *sig)
 {
 	void *psource;
-	unsigned int head, tail, signalCount = 0;
+	unsigned int head, tail, count = 0;
 	struct signal_queue_header *pqhdr =
-	    (struct signal_queue_header *) ((char *) pChannel +
-				    pChannel->ch_space_offset) + Queue;
+	    (struct signal_queue_header *) ((char *) ch +
+				    ch->ch_space_offset) + queue;
 
 	/* capture current head and tail */
 	head = pqhdr->head;
@@ -183,17 +183,17 @@ SignalRemoveAll(struct channel_header *pChannel, u32 Queue, void *pSignal)
 		psource =
 		    (char *) pqhdr + pqhdr->sig_base_offset +
 		    (tail * pqhdr->signal_size);
-		memcpy((char *) pSignal + (pqhdr->signal_size * signalCount),
+		memcpy((char *) sig + (pqhdr->signal_size * count),
 		       psource, pqhdr->signal_size);
 
 		mb(); /* channel synch */
 		pqhdr->tail = tail;
 
-		signalCount++;
+		count++;
 		pqhdr->num_received++;
 	}
 
-	return signalCount;
+	return count;
 }
 
 /*
