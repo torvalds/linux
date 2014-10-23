@@ -155,9 +155,9 @@ visorchipset_mmap(struct file *file, struct vm_area_struct *vma)
 			return -ENXIO;
 		}
 		visorchannel_read(*PControlVm_channel,
-				  offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
-					   gpControlChannel), &addr,
-				  sizeof(addr));
+			offsetof(struct spar_controlvm_channel_protocol,
+				 gp_control_channel),
+			&addr, sizeof(addr));
 		if (addr == 0) {
 			ERRDRV("%s control channel address is 0", __func__);
 			return -ENXIO;

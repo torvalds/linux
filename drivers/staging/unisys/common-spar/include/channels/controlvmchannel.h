@@ -47,11 +47,11 @@ static const uuid_le spar_controlvm_channel_protocol_uuid =
 
 #define SPAR_CONTROLVM_CHANNEL_OK_CLIENT(ch)           \
 	spar_check_channel_client(ch, \
-				  spar_controlvm_channel_protocol_uuid, \
-				  "controlvm", \
-				  sizeof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL), \
-				  ULTRA_CONTROLVM_CHANNEL_PROTOCOL_VERSIONID, \
-				  ULTRA_CONTROLVM_CHANNEL_PROTOCOL_SIGNATURE)
+		spar_controlvm_channel_protocol_uuid, \
+		"controlvm", \
+		sizeof(struct spar_controlvm_channel_protocol), \
+		ULTRA_CONTROLVM_CHANNEL_PROTOCOL_VERSIONID, \
+		ULTRA_CONTROLVM_CHANNEL_PROTOCOL_SIGNATURE)
 
 #define MY_DEVICE_INDEX 0
 #define MAX_MACDATA_LEN 8 /* number of bytes for MAC address in config packet */
@@ -360,127 +360,127 @@ struct guest_devices  {
 	u32 pad;
 };
 
-typedef struct _ULTRA_CONTROLVM_CHANNEL_PROTOCOL  {
-	 struct channel_header Header;
-	 GUEST_PHYSICAL_ADDRESS gpControlVm;	/* guest physical address of
+struct spar_controlvm_channel_protocol {
+	 struct channel_header header;
+	 GUEST_PHYSICAL_ADDRESS gp_controlvm;	/* guest physical address of
 						 * this channel */
-	 GUEST_PHYSICAL_ADDRESS gpPartitionTables; /* guest physical address of
-						    * partition tables */
-	 GUEST_PHYSICAL_ADDRESS gpDiagGuest;	/* guest physical address of
+	 GUEST_PHYSICAL_ADDRESS gp_partition_tables;/* guest physical address of
+						     * partition tables */
+	 GUEST_PHYSICAL_ADDRESS gp_diag_guest;	/* guest physical address of
 						 * diagnostic channel */
-	 GUEST_PHYSICAL_ADDRESS gpBootRomDisk;	/* guest phys addr of (read
+	 GUEST_PHYSICAL_ADDRESS gp_boot_romdisk;/* guest phys addr of (read
 						 * only) Boot ROM disk */
-	 GUEST_PHYSICAL_ADDRESS gpBootRamDisk;	/* guest phys addr of writable
+	 GUEST_PHYSICAL_ADDRESS gp_boot_ramdisk;/* guest phys addr of writable
 						 * Boot RAM disk */
-	 GUEST_PHYSICAL_ADDRESS gpAcpiTable;	/* guest phys addr of acpi
+	 GUEST_PHYSICAL_ADDRESS gp_acpi_table;	/* guest phys addr of acpi
 						 * table */
-	 GUEST_PHYSICAL_ADDRESS gpControlChannel; /* guest phys addr of control
-						   * channel */
-	 GUEST_PHYSICAL_ADDRESS gpDiagRomDisk;	/* guest phys addr of diagnostic
+	 GUEST_PHYSICAL_ADDRESS gp_control_channel;/* guest phys addr of control
+						    * channel */
+	 GUEST_PHYSICAL_ADDRESS gp_diag_romdisk;/* guest phys addr of diagnostic
 						 * ROM disk */
-	 GUEST_PHYSICAL_ADDRESS gpNvram;	/* guest phys addr of NVRAM
+	 GUEST_PHYSICAL_ADDRESS gp_nvram;	/* guest phys addr of NVRAM
 						 * channel */
-	 u64 RequestPayloadOffset;	/* Offset to request payload area */
-	 u64 EventPayloadOffset;	/* Offset to event payload area */
-	 u32 RequestPayloadBytes;	/* Bytes available in request payload
+	 u64 request_payload_offset;	/* Offset to request payload area */
+	 u64 event_payload_offset;	/* Offset to event payload area */
+	 u32 request_payload_bytes;	/* Bytes available in request payload
 					 * area */
-	 u32 EventPayloadBytes;	/* Bytes available in event payload area */
-	 u32 ControlChannelBytes;
-	 u32 NvramChannelBytes;	/* Bytes in PartitionNvram segment */
-	 u32 MessageBytes;	/* sizeof(CONTROLVM_MESSAGE) */
-	 u32 MessageCount;	/* CONTROLVM_MESSAGE_MAX */
-	 GUEST_PHYSICAL_ADDRESS gpSmbiosTable;	/* guest phys addr of SMBIOS
+	 u32 event_payload_bytes;/* Bytes available in event payload area */
+	 u32 control_channel_bytes;
+	 u32 nvram_channel_bytes;	/* Bytes in PartitionNvram segment */
+	 u32 message_bytes;	/* sizeof(CONTROLVM_MESSAGE) */
+	 u32 message_count;	/* CONTROLVM_MESSAGE_MAX */
+	 GUEST_PHYSICAL_ADDRESS gp_smbios_table;/* guest phys addr of SMBIOS
 						 * tables */
-	 GUEST_PHYSICAL_ADDRESS gpPhysicalSmbiosTable;	/* guest phys addr of
-							 * SMBIOS table  */
+	 GUEST_PHYSICAL_ADDRESS gp_physical_smbios_table;/* guest phys addr of
+							  * SMBIOS table  */
 	 /* ULTRA_MAX_GUESTS_PER_SERVICE */
-	 struct guest_devices gpObsoleteGuestDevices[16];
+	 struct guest_devices gp_obsolete_guest_devices[16];
 
 	 /* guest physical address of EFI firmware image base  */
-	 GUEST_PHYSICAL_ADDRESS VirtualGuestFirmwareImageBase;
+	 GUEST_PHYSICAL_ADDRESS virtual_guest_firmware_image_base;
 
 	 /* guest physical address of EFI firmware entry point  */
-	 GUEST_PHYSICAL_ADDRESS VirtualGuestFirmwareEntryPoint;
+	 GUEST_PHYSICAL_ADDRESS virtual_guest_firmware_entry_point;
 
 	 /* guest EFI firmware image size  */
-	 u64 VirtualGuestFirmwareImageSize;
+	 u64 virtual_guest_firmware_image_size;
 
 	 /* GPA = 1MB where EFI firmware image is copied to  */
-	 GUEST_PHYSICAL_ADDRESS VirtualGuestFirmwareBootBase;
-	 GUEST_PHYSICAL_ADDRESS VirtualGuestImageBase;
-	 GUEST_PHYSICAL_ADDRESS VirtualGuestImageSize;
-	 u64 PrototypeControlChannelOffset;
-	 GUEST_PHYSICAL_ADDRESS VirtualGuestPartitionHandle;
+	 GUEST_PHYSICAL_ADDRESS virtual_guest_firmware_boot_base;
+	 GUEST_PHYSICAL_ADDRESS virtual_guest_image_base;
+	 GUEST_PHYSICAL_ADDRESS virtual_guest_image_size;
+	 u64 prototype_control_channel_offset;
+	 GUEST_PHYSICAL_ADDRESS virtual_guest_partition_handle;
 
-	 u16 RestoreAction;	/* Restore Action field to restore the guest
+	 u16 restore_action;	/* Restore Action field to restore the guest
 				 * partition */
-	u16 DumpAction;		/* For Windows guests it shows if the visordisk
+	u16 dump_action;	/* For Windows guests it shows if the visordisk
 				 * is running in dump mode */
-	u16 NvramFailCount;
-	u16 SavedCrashMsgCount;	/* = CONTROLVM_CRASHMSG_MAX */
-	u32 SavedCrashMsgOffset;	/* Offset to request payload area needed
+	u16 nvram_fail_count;
+	u16 saved_crash_message_count;	/* = CONTROLVM_CRASHMSG_MAX */
+	u32 saved_crash_message_offset;	/* Offset to request payload area needed
 					 * for crash dump */
-	u32 InstallationError;	/* Type of error encountered during
+	u32 installation_error;	/* Type of error encountered during
 				 * installation */
-	u32 InstallationTextId;	/* Id of string to display */
-	u16 InstallationRemainingSteps;	/* Number of remaining installation
-					 * steps (for progress bars) */
-	u8 ToolAction;		/* ULTRA_TOOL_ACTIONS Installation Action
+	u32 installation_text_id;	/* Id of string to display */
+	u16 installation_remaining_steps;/* Number of remaining installation
+					  * steps (for progress bars) */
+	u8 tool_action;		/* ULTRA_TOOL_ACTIONS Installation Action
 				 * field */
-	u8 Reserved;		/* alignment */
-	struct efi_spar_indication EfiSparIndication;
-	struct efi_spar_indication EfiSparIndicationSupported;
-	u32 SPReserved;
-	u8 Reserved2[28];	/* Force signals to begin on 128-byte cache
+	u8 reserved;		/* alignment */
+	struct efi_spar_indication efi_spar_ind;
+	struct efi_spar_indication efi_spar_ind_supported;
+	u32 sp_reserved;
+	u8 reserved2[28];	/* Force signals to begin on 128-byte cache
 				 * line */
-	struct signal_queue_header RequestQueue;/* Service or guest partition
-						 * uses this queue to send
-						 * requests to Control */
-	struct signal_queue_header ResponseQueue;/* Control uses this queue to
-						 * respond to service or guest
-						 * partition requests */
-	struct signal_queue_header EventQueue;	/* Control uses this queue to
+	struct signal_queue_header request_queue;/* Service or guest partition
+						  * uses this queue to send
+						  * requests to Control */
+	struct signal_queue_header response_queue;/* Control uses this queue to
+						   * respond to service or guest
+						   * partition requests */
+	struct signal_queue_header event_queue;	/* Control uses this queue to
 						 * send events to service or
 						 * guest partition */
-	struct signal_queue_header EventAckQueue;/* Service or guest partition
-						 * uses this queue to ack
-						 * Control events */
+	struct signal_queue_header event_ack_queue;/* Service or guest partition
+						    * uses this queue to ack
+						    * Control events */
 
 	 /* Request fixed-size message pool - does not include payload */
-	 struct controlvm_message RequestMsg[CONTROLVM_MESSAGE_MAX];
+	 struct controlvm_message request_msg[CONTROLVM_MESSAGE_MAX];
 
 	 /* Response fixed-size message pool - does not include payload */
-	 struct controlvm_message ResponseMsg[CONTROLVM_MESSAGE_MAX];
+	 struct controlvm_message response_msg[CONTROLVM_MESSAGE_MAX];
 
 	 /* Event fixed-size message pool - does not include payload */
-	 struct controlvm_message EventMsg[CONTROLVM_MESSAGE_MAX];
+	 struct controlvm_message event_msg[CONTROLVM_MESSAGE_MAX];
 
 	 /* Ack fixed-size message pool - does not include payload */
-	 struct controlvm_message EventAckMsg[CONTROLVM_MESSAGE_MAX];
+	 struct controlvm_message event_ack_msg[CONTROLVM_MESSAGE_MAX];
 
 	 /* Message stored during IOVM creation to be reused after crash */
-	 struct controlvm_message SavedCrashMsg[CONTROLVM_CRASHMSG_MAX];
-} ULTRA_CONTROLVM_CHANNEL_PROTOCOL;
+	 struct controlvm_message saved_crash_msg[CONTROLVM_CRASHMSG_MAX];
+};
 
 /* Offsets for VM channel attributes... */
 #define VM_CH_REQ_QUEUE_OFFSET \
-	offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL, RequestQueue)
+	offsetof(struct spar_controlvm_channel_protocol, request_queue)
 #define VM_CH_RESP_QUEUE_OFFSET \
-	offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL, ResponseQueue)
+	offsetof(struct spar_controlvm_channel_protocol, response_queue)
 #define VM_CH_EVENT_QUEUE_OFFSET \
-	offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL, EventQueue)
+	offsetof(struct spar_controlvm_channel_protocol, event_queue)
 #define VM_CH_ACK_QUEUE_OFFSET \
-	offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL, EventAckQueue)
+	offsetof(struct spar_controlvm_channel_protocol, event_ack_queue)
 #define VM_CH_REQ_MSG_OFFSET \
-	offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL, RequestMsg)
+	offsetof(struct spar_controlvm_channel_protocol, request_msg)
 #define VM_CH_RESP_MSG_OFFSET \
-	offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL, ResponseMsg)
+	offsetof(struct spar_controlvm_channel_protocol, response_msg)
 #define VM_CH_EVENT_MSG_OFFSET \
-	offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL, EventMsg)
+	offsetof(struct spar_controlvm_channel_protocol, event_msg)
 #define VM_CH_ACK_MSG_OFFSET \
-	offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL, EventAckMsg)
+	offsetof(struct spar_controlvm_channel_protocol, event_ack_msg)
 #define VM_CH_CRASH_MSG_OFFSET \
-	offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL, SavedCrashMsg)
+	offsetof(struct spar_controlvm_channel_protocol, saved_crash_msg)
 
 /* The following header will be located at the beginning of PayloadVmOffset for
  *  various ControlVm commands. The receiver of a ControlVm command with a

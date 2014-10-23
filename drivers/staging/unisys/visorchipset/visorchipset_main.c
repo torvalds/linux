@@ -360,8 +360,8 @@ static ssize_t toolaction_show(struct device *dev,
 	u8 toolAction;
 
 	visorchannel_read(ControlVm_channel,
-		offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
-			   ToolAction), &toolAction, sizeof(u8));
+		offsetof(struct spar_controlvm_channel_protocol,
+			   tool_action), &toolAction, sizeof(u8));
 	return scnprintf(buf, PAGE_SIZE, "%u\n", toolAction);
 }
 
@@ -376,7 +376,7 @@ static ssize_t toolaction_store(struct device *dev,
 		return -EINVAL;
 
 	ret = visorchannel_write(ControlVm_channel,
-		offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL, ToolAction),
+		offsetof(struct spar_controlvm_channel_protocol, tool_action),
 		&toolAction, sizeof(u8));
 
 	if (ret)
@@ -391,8 +391,8 @@ static ssize_t boottotool_show(struct device *dev,
 	struct efi_spar_indication efiSparIndication;
 
 	visorchannel_read(ControlVm_channel,
-		offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
-			EfiSparIndication), &efiSparIndication,
+		offsetof(struct spar_controlvm_channel_protocol,
+			efi_spar_ind), &efiSparIndication,
 		sizeof(struct efi_spar_indication));
 	return scnprintf(buf, PAGE_SIZE, "%u\n",
 			efiSparIndication.boot_to_tool);
@@ -410,8 +410,8 @@ static ssize_t boottotool_store(struct device *dev,
 
 	efiSparIndication.boot_to_tool = val;
 	ret = visorchannel_write(ControlVm_channel,
-			offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
-				EfiSparIndication),
+			offsetof(struct spar_controlvm_channel_protocol,
+				efi_spar_ind),
 			&(efiSparIndication),
 		sizeof(struct efi_spar_indication));
 
@@ -426,7 +426,7 @@ static ssize_t error_show(struct device *dev, struct device_attribute *attr,
 	u32 error;
 
 	visorchannel_read(ControlVm_channel, offsetof(
-		ULTRA_CONTROLVM_CHANNEL_PROTOCOL, InstallationError),
+		struct spar_controlvm_channel_protocol, installation_error),
 		&error, sizeof(u32));
 	return scnprintf(buf, PAGE_SIZE, "%i\n", error);
 }
@@ -441,8 +441,8 @@ static ssize_t error_store(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	ret = visorchannel_write(ControlVm_channel,
-			offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
-				InstallationError),
+			offsetof(struct spar_controlvm_channel_protocol,
+				installation_error),
 			&error, sizeof(u32));
 	if (ret)
 		return ret;
@@ -455,7 +455,7 @@ static ssize_t textid_show(struct device *dev, struct device_attribute *attr,
 	u32 textId;
 
 	visorchannel_read(ControlVm_channel, offsetof(
-		ULTRA_CONTROLVM_CHANNEL_PROTOCOL, InstallationTextId),
+		struct spar_controlvm_channel_protocol, installation_text_id),
 		&textId, sizeof(u32));
 	return scnprintf(buf, PAGE_SIZE, "%i\n", textId);
 }
@@ -470,8 +470,8 @@ static ssize_t textid_store(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	ret = visorchannel_write(ControlVm_channel,
-			offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
-				InstallationTextId),
+			offsetof(struct spar_controlvm_channel_protocol,
+				installation_text_id),
 			&textId, sizeof(u32));
 	if (ret)
 		return ret;
@@ -485,8 +485,8 @@ static ssize_t remaining_steps_show(struct device *dev,
 	u16 remainingSteps;
 
 	visorchannel_read(ControlVm_channel,
-		offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
-			InstallationRemainingSteps),
+		offsetof(struct spar_controlvm_channel_protocol,
+			installation_remaining_steps),
 		&remainingSteps,
 		sizeof(u16));
 	return scnprintf(buf, PAGE_SIZE, "%hu\n", remainingSteps);
@@ -502,8 +502,8 @@ static ssize_t remaining_steps_store(struct device *dev,
 		return -EINVAL;
 
 	ret = visorchannel_write(ControlVm_channel,
-			offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
-				InstallationRemainingSteps),
+			offsetof(struct spar_controlvm_channel_protocol,
+				installation_remaining_steps),
 			&remainingSteps, sizeof(u16));
 	if (ret)
 		return ret;
@@ -767,8 +767,8 @@ visorchipset_save_message(struct controlvm_message *msg, CRASH_OBJ_TYPE type)
 
 	/* get saved message count */
 	if (visorchannel_read(ControlVm_channel,
-			      offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
-				       SavedCrashMsgCount),
+			      offsetof(struct spar_controlvm_channel_protocol,
+				       saved_crash_message_count),
 			      &localSavedCrashMsgCount, sizeof(u16)) < 0) {
 		LOGERR("failed to get Saved Message Count");
 		POSTCODE_LINUX_2(CRASH_DEV_CTRL_RD_FAILURE_PC,
@@ -787,8 +787,8 @@ visorchipset_save_message(struct controlvm_message *msg, CRASH_OBJ_TYPE type)
 
 	/* get saved crash message offset */
 	if (visorchannel_read(ControlVm_channel,
-			      offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
-				       SavedCrashMsgOffset),
+			      offsetof(struct spar_controlvm_channel_protocol,
+				       saved_crash_message_offset),
 			      &localSavedCrashMsgOffset, sizeof(u32)) < 0) {
 		LOGERR("failed to get Saved Message Offset");
 		POSTCODE_LINUX_2(CRASH_DEV_CTRL_RD_FAILURE_PC,
@@ -1389,7 +1389,7 @@ initialize_controlvm_payload_info(HOSTADDRESS phys_addr, u64 offset, u32 bytes,
 	}
 	memset(info, 0, sizeof(CONTROLVM_PAYLOAD_INFO));
 	if ((offset == 0) || (bytes == 0)) {
-		LOGERR("CONTROLVM_PAYLOAD_INIT Failed: RequestPayloadOffset=%llu RequestPayloadBytes=%llu!",
+		LOGERR("CONTROLVM_PAYLOAD_INIT Failed: request_payload_offset=%llu request_payload_bytes=%llu!",
 		     (u64) offset, (u64) bytes);
 		rc = -CONTROLVM_RESP_ERROR_PAYLOAD_INVALID;
 		goto Away;
@@ -1436,8 +1436,8 @@ initialize_controlvm_payload(void)
 	u32 payloadBytes = 0;
 
 	if (visorchannel_read(ControlVm_channel,
-			      offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
-				       RequestPayloadOffset),
+			      offsetof(struct spar_controlvm_channel_protocol,
+				       request_payload_offset),
 			      &payloadOffset, sizeof(payloadOffset)) < 0) {
 		LOGERR("CONTROLVM_PAYLOAD_INIT Failed to read controlvm channel!");
 		POSTCODE_LINUX_2(CONTROLVM_INIT_FAILURE_PC,
@@ -1445,8 +1445,8 @@ initialize_controlvm_payload(void)
 		return;
 	}
 	if (visorchannel_read(ControlVm_channel,
-			      offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
-				       RequestPayloadBytes),
+			      offsetof(struct spar_controlvm_channel_protocol,
+				       request_payload_bytes),
 			      &payloadBytes, sizeof(payloadBytes)) < 0) {
 		LOGERR("CONTROLVM_PAYLOAD_INIT Failed to read controlvm channel!");
 		POSTCODE_LINUX_2(CONTROLVM_INIT_FAILURE_PC,
@@ -2068,8 +2068,8 @@ setup_crash_devices_work_queue(struct work_struct *work)
 
 	/* get saved message count */
 	if (visorchannel_read(ControlVm_channel,
-			      offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
-				       SavedCrashMsgCount),
+			      offsetof(struct spar_controlvm_channel_protocol,
+				       saved_crash_message_count),
 			      &localSavedCrashMsgCount, sizeof(u16)) < 0) {
 		LOGERR("failed to get Saved Message Count");
 		POSTCODE_LINUX_2(CRASH_DEV_CTRL_RD_FAILURE_PC,
@@ -2088,8 +2088,8 @@ setup_crash_devices_work_queue(struct work_struct *work)
 
 	/* get saved crash message offset */
 	if (visorchannel_read(ControlVm_channel,
-			      offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
-				       SavedCrashMsgOffset),
+			      offsetof(struct spar_controlvm_channel_protocol,
+				       saved_crash_message_offset),
 			      &localSavedCrashMsgOffset, sizeof(u32)) < 0) {
 		LOGERR("failed to get Saved Message Offset");
 		POSTCODE_LINUX_2(CRASH_DEV_CTRL_RD_FAILURE_PC,
@@ -2385,7 +2385,7 @@ visorchipset_init(void)
 		ControlVm_channel =
 		    visorchannel_create_with_lock
 		    (addr,
-		     sizeof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL),
+		     sizeof(struct spar_controlvm_channel_protocol),
 		     spar_controlvm_channel_protocol_uuid);
 		if (SPAR_CONTROLVM_CHANNEL_OK_CLIENT(
 				visorchannel_get_header(ControlVm_channel))) {

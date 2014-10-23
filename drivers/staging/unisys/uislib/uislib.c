@@ -1564,8 +1564,8 @@ uislib_mod_init(void)
 	       (ulong) sizeof(struct uiscmdrsp_net));
 	LOGINF("sizeof(CONTROLVM_MESSAGE):%lu bytes\n",
 	       (ulong) sizeof(struct controlvm_message));
-	LOGINF("sizeof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL):%lu bytes\n",
-	       (ulong) sizeof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL));
+	LOGINF("sizeof(struct spar_controlvm_channel_protocol):%lu bytes\n",
+	       (ulong) sizeof(struct spar_controlvm_channel_protocol));
 	LOGINF("sizeof(CHANNEL_HEADER):%lu bytes\n",
 	       (ulong) sizeof(struct channel_header));
 	LOGINF("sizeof(ULTRA_IO_CHANNEL_PROTOCOL):%lu bytes\n",
