@@ -888,6 +888,7 @@ static int dwc_otg_driver_probe(
 	int dma_config = USB_DMA_BURST_DEFAULT;
 	int gpio_work_mask =1;
 	int gpio_vbus_power_pin = -1;
+	int gpio_hub_reset = -1;
 	int charger_detect = 0;
 	int host_only_core = 0;
 	int pmu_apply_power = 0;
@@ -971,6 +972,19 @@ static int dwc_otg_driver_probe(
 					gpio_work_mask = of_read_ulong(prop,1);	
 			}
 
+#if defined(CONFIG_MACH_MESON8B_ODROIDC)
+			gpio_name = of_get_property(of_node, "gpio-hub-rst", NULL);
+			if(gpio_name)
+			{
+				gpio_hub_reset= amlogic_gpio_name_map_num(gpio_name);
+                amlogic_gpio_request(gpio_hub_reset,VBUS_POWER_GPIO_OWNER);
+                amlogic_gpio_direction_output(gpio_hub_reset,0,VBUS_POWER_GPIO_OWNER);
+				mdelay(20);
+                amlogic_set_value(gpio_hub_reset, 1, VBUS_POWER_GPIO_OWNER);
+				mdelay(20);
+                amlogic_gpio_free(gpio_hub_reset, VBUS_POWER_GPIO_OWNER);
+			}
+#endif
 			prop = of_get_property(of_node, "host-only-core", NULL);
 			if(prop)
 				host_only_core = of_read_ulong(prop,1);
