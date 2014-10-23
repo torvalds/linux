@@ -43,13 +43,13 @@ static const uuid_le spar_vbus_channel_protocol_uuid =
 * increment this. */
 #define SPAR_VBUS_CHANNEL_PROTOCOL_VERSIONID 1
 
-#define SPAR_VBUS_CHANNEL_OK_CLIENT(pChannel, logCtx)       \
-	(spar_check_channel_client(pChannel,				\
-				   spar_vbus_channel_protocol_uuid,	\
-				   "vbus",				\
-				   sizeof(struct ultra_vbus_channel_protocol),\
-				   SPAR_VBUS_CHANNEL_PROTOCOL_VERSIONID, \
-				   SPAR_VBUS_CHANNEL_PROTOCOL_SIGNATURE)) \
+#define SPAR_VBUS_CHANNEL_OK_CLIENT(ch)       \
+	spar_check_channel_client(ch,				\
+				  spar_vbus_channel_protocol_uuid,	\
+				  "vbus",				\
+				  sizeof(struct ultra_vbus_channel_protocol),\
+				  SPAR_VBUS_CHANNEL_PROTOCOL_VERSIONID, \
+				  SPAR_VBUS_CHANNEL_PROTOCOL_SIGNATURE)
 
 #define ULTRA_VBUS_CHANNEL_OK_SERVER(actualBytes)    \
 	(spar_check_channel_server(spar_vbus_channel_protocol_uuid,	\

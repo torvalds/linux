@@ -142,7 +142,7 @@ init_vbus_channel(u64 channelAddr, u32 channelBytes)
 		rc = NULL;
 		goto Away;
 	}
-	if (!SPAR_VBUS_CHANNEL_OK_CLIENT(pChan, NULL)) {
+	if (!SPAR_VBUS_CHANNEL_OK_CLIENT(pChan)) {
 		ERRDRV("%s channel cannot be used", __func__);
 		uislib_iounmap(pChan);
 		rc = NULL;
