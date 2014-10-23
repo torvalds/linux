@@ -276,16 +276,16 @@ static int gen_pci_parse_map_cfg_windows(struct gen_pci *pci)
 		return err;
 	}
 
-	pci->cfg.win = devm_kcalloc(dev, resource_size(&pci->cfg.bus_range),
-				    sizeof(*pci->cfg.win), GFP_KERNEL);
-	if (!pci->cfg.win)
-		return -ENOMEM;
-
 	/* Limit the bus-range to fit within reg */
 	bus_max = pci->cfg.bus_range.start +
 		  (resource_size(&pci->cfg.res) >> pci->cfg.ops->bus_shift) - 1;
 	pci->cfg.bus_range.end = min_t(resource_size_t, pci->cfg.bus_range.end,
 				       bus_max);
+
+	pci->cfg.win = devm_kcalloc(dev, resource_size(&pci->cfg.bus_range),
+				    sizeof(*pci->cfg.win), GFP_KERNEL);
+	if (!pci->cfg.win)
+		return -ENOMEM;
 
 	/* Map our Configuration Space windows */
 	if (!devm_request_mem_region(dev, pci->cfg.res.start,
