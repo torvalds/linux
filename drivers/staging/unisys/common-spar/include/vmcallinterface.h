@@ -33,7 +33,7 @@
 
 /* define subsystem number for AppOS, used in uislib driver  */
 #define MDS_APPOS 0x4000000000000000L	/* subsystem = 62 - AppOS */
-typedef enum {		/* VMCALL identification tuples  */
+enum vmcall_monitor_interface_method_tuple { /* VMCALL identification tuples  */
 	    /* Note: when a new VMCALL is added:
 	     * - the 1st 2 hex digits correspond to one of the
 	     *   VMCALL_MONITOR_INTERFACE types and
@@ -66,7 +66,7 @@ typedef enum {		/* VMCALL identification tuples  */
 						 * ULTRA_SERVICE_CAPABILITY_TIME
 						 * capable guest to make
 						 * VMCALL */
-} VMCALL_MONITOR_INTERFACE_METHOD_TUPLE;
+};
 
 #define VMCALL_SUCCESS 0
 #define VMCALL_SUCCESSFUL(result)	(result == 0)
