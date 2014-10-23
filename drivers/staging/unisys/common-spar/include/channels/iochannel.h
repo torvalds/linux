@@ -523,8 +523,8 @@ struct net_pkt_rcv {
 						 * that must be chained; */
 	/* each entry is a receive buffer provided by NET_RCV_POST. */
 	/* NOTE: first rcvbuf in the chain will also be provided in net.buf. */
-	u64 UniqueNum;
-	u32 RcvsDroppedDelta;
+	u64 unique_num;
+	u32 rcvs_dropped_delta;
 };
 
 struct net_pkt_enbdis {
