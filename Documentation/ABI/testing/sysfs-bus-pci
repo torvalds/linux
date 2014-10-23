@@ -281,3 +281,16 @@ Description:
 		opt-out of driver binding using a driver_override name such as
 		"none".  Only a single driver may be specified in the override,
 		there is no support for parsing delimiters.
+
+What:		/sys/bus/pci/devices/.../numa_node
+Date:		Oct 2014
+Contact:	Prarit Bhargava <prarit@redhat.com>
+Description:
+		This file contains the NUMA node to which the PCI device is
+		attached, or -1 if the node is unknown.  The initial value
+		comes from an ACPI _PXM method or a similar firmware
+		source.  If that is missing or incorrect, this file can be
+		written to override the node.  In that case, please report
+		a firmware bug to the system vendor.  Writing to this file
+		taints the kernel with TAINT_FIRMWARE_WORKAROUND, which
+		reduces the supportability of your system.
