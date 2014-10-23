@@ -1,5 +1,6 @@
 config ARCH_SHMOBILE
 	bool
+	select ZONE_DMA if ARM_LPAE
 
 config PM_RCAR
 	bool
