@@ -81,7 +81,7 @@ do_locked_client_insert(struct uisqueue_info *queueinfo,
 	u8 rc = 0;
 
 	spin_lock_irqsave(lock, flags);
-	if (!ULTRA_CHANNEL_CLIENT_ACQUIRE_OS(queueinfo->chan, channelId, NULL))
+	if (!spar_channel_client_acquire_os(queueinfo->chan, channelId))
 		goto unlock;
 	if (visor_signal_insert(queueinfo->chan, whichqueue, pSignal)) {
 		queueinfo->packets_sent++;

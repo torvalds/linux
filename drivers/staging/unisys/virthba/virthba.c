@@ -1276,8 +1276,8 @@ drain_queue(struct virthba_info *virthbainfo, struct chaninfo *dc,
 
 	while (1) {
 		spin_lock_irqsave(&virthbainfo->chinfo.insertlock, flags);
-		if (!ULTRA_CHANNEL_CLIENT_ACQUIRE_OS(dc->queueinfo->chan,
-						     "vhba", NULL)) {
+		if (!spar_channel_client_acquire_os(dc->queueinfo->chan,
+						     "vhba")) {
 			spin_unlock_irqrestore(&virthbainfo->chinfo.insertlock,
 					       flags);
 			virthbainfo->acquire_failed_cnt++;
