@@ -1230,7 +1230,6 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 	struct ath10k *ar = htt->ar;
 	struct ieee80211_rx_status *rx_status = &htt->rx_status;
 	struct htt_rx_indication_mpdu_range *mpdu_ranges;
-	struct htt_rx_desc *rxd;
 	enum htt_rx_mpdu_status status;
 	struct ieee80211_hdr *hdr;
 	int num_mpdu_ranges;
@@ -1300,10 +1299,6 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 				ath10k_htt_rx_free_msdu_chain(msdu_head);
 				continue;
 			}
-
-			rxd = container_of((void *)msdu_head->data,
-					   struct htt_rx_desc,
-					   msdu_payload);
 
 			if (!ath10k_htt_rx_amsdu_allowed(htt, msdu_head,
 							 status,
