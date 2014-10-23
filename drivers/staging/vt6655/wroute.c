@@ -94,7 +94,7 @@ bool ROUTEbRelay(struct vnt_private *pDevice, unsigned char *pbySkbData,
 	if (pDevice->bEncryptionEnable == true) {
 		bNeedEncryption = true;
 
-		// get group key
+		/* get group key */
 		pbyBSSID = pDevice->abyBroadcastAddr;
 		if (KeybGetTransmitKey(&(pDevice->sKey), pbyBSSID,
 		    GROUP_KEY, &pTransmitKey) == false) {
@@ -159,7 +159,7 @@ bool ROUTEbRelay(struct vnt_private *pDevice, unsigned char *pbySkbData,
 			    &cbHeaderSize);
 
 	if (MACbIsRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_PS)) {
-		// Disable PS
+		/* Disable PS */
 		MACbPSWakeup(pDevice->PortOffset);
 	}
 
@@ -167,7 +167,7 @@ bool ROUTEbRelay(struct vnt_private *pDevice, unsigned char *pbySkbData,
 
 	pLastTD = pHeadTD;
 	for (ii = 0; ii < uMACfragNum; ii++) {
-		// Poll Transmit the adapter
+		/* Poll Transmit the adapter */
 		wmb();
 		pHeadTD->m_td0TD0.f1Owner = OWNED_BY_NIC;
 		wmb();
