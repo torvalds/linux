@@ -230,7 +230,9 @@ VF_FEATURE_TESTS =			\
 	bionic				\
 	liberty				\
 	liberty-z			\
-	cplus-demangle
+	cplus-demangle			\
+	compile-32			\
+	compile-x32
 
 # Set FEATURE_CHECK_(C|LD)FLAGS-all for all CORE_FEATURE_TESTS features.
 # If in the future we need per-feature checks/flags for features not
@@ -620,6 +622,27 @@ endif
 
 ifdef HAVE_KVM_STAT_SUPPORT
     CFLAGS += -DHAVE_KVM_STAT_SUPPORT
+endif
+
+ifeq (${IS_64_BIT}, 1)
+  ifndef NO_PERF_READ_VDSO32
+    $(call feature_check,compile-32)
+    ifneq ($(feature-compile-32), 1)
+      NO_PERF_READ_VDSO32 := 1
+    endif
+  endif
+  ifneq (${IS_X86_64}, 1)
+    NO_PERF_READ_VDSOX32 := 1
+  endif
+  ifndef NO_PERF_READ_VDSOX32
+    $(call feature_check,compile-x32)
+    ifneq ($(feature-compile-x32), 1)
+      NO_PERF_READ_VDSOX32 := 1
+    endif
+  endif
+else
+  NO_PERF_READ_VDSO32 := 1
+  NO_PERF_READ_VDSOX32 := 1
 endif
 
 # Among the variables below, these:

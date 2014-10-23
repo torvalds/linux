@@ -27,7 +27,9 @@ FILES=					\
 	test-libunwind-debug-frame.bin	\
 	test-stackprotector-all.bin	\
 	test-timerfd.bin		\
-	test-libdw-dwarf-unwind.bin
+	test-libdw-dwarf-unwind.bin	\
+	test-compile-32.bin		\
+	test-compile-x32.bin
 
 CC := $(CROSS_COMPILE)gcc -MD
 PKG_CONFIG := $(CROSS_COMPILE)pkg-config
@@ -130,6 +132,12 @@ test-libdw-dwarf-unwind.bin:
 
 test-sync-compare-and-swap.bin:
 	$(BUILD) -Werror
+
+test-compile-32.bin:
+	$(CC) -m32 -o $(OUTPUT)$@ test-compile.c
+
+test-compile-x32.bin:
+	$(CC) -mx32 -o $(OUTPUT)$@ test-compile.c
 
 -include *.d
 

@@ -15,6 +15,12 @@
 #include "linux/string.h"
 #include "debug.h"
 
+/*
+ * Include definition of find_vdso_map() also used in perf-read-vdso.c for
+ * building perf-read-vdso32 and perf-read-vdsox32.
+ */
+#include "find-vdso-map.c"
+
 #define VDSO__TEMP_FILE_NAME "/tmp/perf-vdso.so-XXXXXX"
 
 struct vdso_file {
@@ -38,37 +44,6 @@ static struct vdso_info *vdso_info__new(void)
 	};
 
 	return memdup(&vdso_info_init, sizeof(vdso_info_init));
-}
-
-static int find_vdso_map(void **start, void **end)
-{
-	FILE *maps;
-	char line[128];
-	int found = 0;
-
-	maps = fopen("/proc/self/maps", "r");
-	if (!maps) {
-		pr_err("vdso: cannot open maps\n");
-		return -1;
-	}
-
-	while (!found && fgets(line, sizeof(line), maps)) {
-		int m = -1;
-
-		/* We care only about private r-x mappings. */
-		if (2 != sscanf(line, "%p-%p r-xp %*x %*x:%*x %*u %n",
-				start, end, &m))
-			continue;
-		if (m < 0)
-			continue;
-
-		if (!strncmp(&line[m], VDSO__MAP_NAME,
-			     sizeof(VDSO__MAP_NAME) - 1))
-			found = 1;
-	}
-
-	fclose(maps);
-	return !found;
 }
 
 static char *get_file(struct vdso_file *vdso_file)
