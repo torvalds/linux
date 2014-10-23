@@ -70,6 +70,7 @@ enum channel_clientstate {
 	CHANNELCLI_OWNED = 5	/* "no worries" state - client can
 				 * access channel anytime */
 };
+
 static inline const u8 *
 ULTRA_CHANNELCLI_STRING(u32 v)
 {
