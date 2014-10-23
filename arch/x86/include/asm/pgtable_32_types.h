@@ -43,7 +43,7 @@ extern bool __vmalloc_start_set; /* set once high_memory is set */
 #ifdef CONFIG_HIGHMEM
 # define VMALLOC_END	(PKMAP_BASE - 2 * PAGE_SIZE)
 #else
-# define VMALLOC_END	(FIXADDR_START - 2 * PAGE_SIZE)
+# define VMALLOC_END	(FIXADDR_BOOT_START - 2 * PAGE_SIZE)
 #endif
 
 #define MODULES_VADDR	VMALLOC_START
