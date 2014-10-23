@@ -162,10 +162,8 @@ static int ufshcd_populate_vreg(struct device *dev, const char *name,
 	}
 
 	vreg = devm_kzalloc(dev, sizeof(*vreg), GFP_KERNEL);
-	if (!vreg) {
-		dev_err(dev, "No memory for %s regulator\n", name);
-		goto out;
-	}
+	if (!vreg)
+		return -ENOMEM;
 
 	vreg->name = kstrdup(name, GFP_KERNEL);
 
