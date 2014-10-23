@@ -202,7 +202,8 @@ struct diag_channel_event {
 * they are valid for controlling the amount of event data.  This enum is also
 * defined in DotNet\sParFramework\ControlFramework\ControlFramework.cs.  If a
 * change is made to this enum, they should also be reflected in that file.  */
-typedef enum  { DIAG_SEVERITY_ENUM_BEGIN = 0,
+enum diag_severity {
+		DIAG_SEVERITY_ENUM_BEGIN = 0,
 		DIAG_SEVERITY_OVERRIDE = DIAG_SEVERITY_ENUM_BEGIN,
 		DIAG_SEVERITY_VERBOSE = DIAG_SEVERITY_OVERRIDE,	/* 0 */
 		DIAG_SEVERITY_INFO = DIAG_SEVERITY_VERBOSE + 1,	/* 1 */
@@ -213,7 +214,7 @@ typedef enum  { DIAG_SEVERITY_ENUM_BEGIN = 0,
 		DIAG_SEVERITY_ENUM_END = DIAG_SEVERITY_SHUTOFF,	/* 5 */
 		DIAG_SEVERITY_NONFATAL_ERR = DIAG_SEVERITY_ERR,
 		DIAG_SEVERITY_FATAL_ERR = DIAG_SEVERITY_PRINT
-} DIAG_SEVERITY;
+};
 
 /* Event Cause enums
 *
