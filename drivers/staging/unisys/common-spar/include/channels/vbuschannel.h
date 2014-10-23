@@ -58,23 +58,23 @@ static const uuid_le spar_vbus_channel_protocol_uuid =
 				   actual_bytes))
 
 #pragma pack(push, 1)		/* both GCC and VC now allow this pragma */
-typedef struct _ULTRA_VBUS_HEADERINFO {
-	u32 structBytes;	/* size of this struct in bytes */
-	u32 deviceInfoStructBytes;	/* sizeof(ULTRA_VBUS_DEVICEINFO) */
-	u32 devInfoCount;	/* num of items in DevInfo member */
+struct spar_vbus_headerinfo {
+	u32 struct_bytes;	/* size of this struct in bytes */
+	u32 device_info_struct_bytes;	/* sizeof(ULTRA_VBUS_DEVICEINFO) */
+	u32 dev_info_count;	/* num of items in DevInfo member */
 	/* (this is the allocated size) */
-	u32 chpInfoByteOffset;	/* byte offset from beginning of this struct */
+	u32 chp_info_offset;	/* byte offset from beginning of this struct */
 	/* to the ChpInfo struct (below) */
-	u32 busInfoByteOffset;	/* byte offset from beginning of this struct */
+	u32 bus_info_offset;	/* byte offset from beginning of this struct */
 	/* to the BusInfo struct (below) */
-	u32 devInfoByteOffset;	/* byte offset from beginning of this struct */
+	u32 dev_info_offset;	/* byte offset from beginning of this struct */
 	/* to the DevInfo array (below) */
 	u8 reserved[104];
-} ULTRA_VBUS_HEADERINFO;
+};
 
 struct ultra_vbus_channel_protocol {
 	struct channel_header ChannelHeader;	/* initialized by server */
-	ULTRA_VBUS_HEADERINFO HdrInfo;	/* initialized by server */
+	struct spar_vbus_headerinfo HdrInfo;	/* initialized by server */
 	/* the remainder of this channel is filled in by the client */
 	struct ultra_vbus_deviceinfo ChpInfo;
 	/* describes client chipset device and driver */
