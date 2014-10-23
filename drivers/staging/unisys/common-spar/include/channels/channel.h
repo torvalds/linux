@@ -114,12 +114,12 @@ ULTRA_CHANNELCLI_STRING(u32 v)
 	  (((o) == CHANNELCLI_BUSY) && ((n) == CHANNELCLI_OWNED)) || (0)) \
 	 ? (1) : (0))
 
-#define ULTRA_CHANNEL_CLIENT_CHK_TRANSITION(old, new, chanId, logCtx,	\
+#define SPAR_CHANNEL_CLIENT_CHK_TRANSITION(old, new, id, log,	\
 					    file, line)			\
 	do {								\
 		if (!ULTRA_VALID_CHANNELCLI_TRANSITION(old, new))	\
 			pr_info("%s Channel StateTransition INVALID! (%s) %s(%d)-->%s(%d) @%s:%d\n", \
-				chanId, "CliState<x>",		\
+				id, "CliState<x>",		\
 				ULTRA_CHANNELCLI_STRING(old),	\
 				old,				\
 				ULTRA_CHANNELCLI_STRING(new),	\
@@ -131,7 +131,7 @@ ULTRA_CHANNELCLI_STRING(u32 v)
 #define ULTRA_CHANNEL_CLIENT_TRANSITION(pChan, chanId,			\
 					newstate, logCtx)		\
 	do {								\
-		ULTRA_CHANNEL_CLIENT_CHK_TRANSITION(			\
+		SPAR_CHANNEL_CLIENT_CHK_TRANSITION(			\
 			readl(&(((struct channel_header __iomem *) \
 				 (pChan))->cli_state_os)),		\
 			newstate,					\
