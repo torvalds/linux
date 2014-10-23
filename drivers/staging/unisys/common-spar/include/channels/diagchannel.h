@@ -62,14 +62,14 @@ static const uuid_le spar_diag_channel_protocol_uuid =
 	(spar_check_channel_client(ch,\
 				   spar_diag_channel_protocol_uuid,\
 				   "diag",\
-				   sizeof(ULTRA_DIAG_CHANNEL_PROTOCOL),\
+				   sizeof(struct spar_diag_channel_protocol),\
 				   ULTRA_DIAG_CHANNEL_PROTOCOL_VERSIONID,\
 				   ULTRA_DIAG_CHANNEL_PROTOCOL_SIGNATURE))
 
 #define SPAR_DIAG_CHANNEL_OK_SERVER(bytes)\
 	(spar_check_channel_server(spar_diag_channel_protocol_uuid,\
 				   "diag",\
-				   sizeof(ULTRA_DIAG_CHANNEL_PROTOCOL),\
+				   sizeof(struct spar_diag_channel_protocol),\
 				   bytes))
 
 #define MAX_MODULE_NAME_SIZE 128	/* Maximum length of module name... */
@@ -398,7 +398,7 @@ struct diag_channel_protocol_header {
 #define DIAG_CH_LRG_SIZE (2 * DIAG_CH_SIZE)	/* 8 MB */
 
 /*
- * Structure: ULTRA_DIAG_CHANNEL_PROTOCOL
+ * Structure: spar_diag_channel_protocol
  *
  * Purpose: Contains attributes that make up the DIAG_CHANNEL memory.
  *
@@ -416,13 +416,12 @@ struct diag_channel_protocol_header {
  *
  *Reserved: Reserved area to allow for correct channel size padding.
 */
-typedef struct _ULTRA_DIAG_CHANNEL_PROTOCOL  {
-	struct channel_header CommonChannelHeader;
-	struct signal_queue_header QueueHeader;
-	struct diag_channel_protocol_header DiagChannelHeader;
-	struct diag_channel_event Events[(DIAG_CH_SIZE - DIAG_CH_EVENT_OFFSET) /
+struct spar_diag_channel_protocol  {
+	struct channel_header common_channel_header;
+	struct signal_queue_header queue_header;
+	struct diag_channel_protocol_header diag_channel_header;
+	struct diag_channel_event events[(DIAG_CH_SIZE - DIAG_CH_EVENT_OFFSET) /
 				   sizeof(struct diag_channel_event)];
-}
-ULTRA_DIAG_CHANNEL_PROTOCOL;
+};
 
 #endif
