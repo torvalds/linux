@@ -337,8 +337,8 @@ static int recv_pkt(struct sk_buff *skb, struct net_device *dev,
 		dev->stats.rx_bytes += skb->len;
 		dev->stats.rx_packets++;
 
-		kfree_skb(local_skb);
-		kfree_skb(skb);
+		consume_skb(local_skb);
+		consume_skb(skb);
 	} else {
 		switch (skb->data[0] & 0xe0) {
 		case LOWPAN_DISPATCH_IPHC:	/* ipv6 datagram */
@@ -363,7 +363,8 @@ static int recv_pkt(struct sk_buff *skb, struct net_device *dev,
 			dev->stats.rx_bytes += skb->len;
 			dev->stats.rx_packets++;
 
-			kfree_skb(skb);
+			consume_skb(local_skb);
+			consume_skb(skb);
 			break;
 		default:
 			break;
