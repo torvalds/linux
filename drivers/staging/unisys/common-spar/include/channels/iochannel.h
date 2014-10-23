@@ -594,7 +594,7 @@ struct uiscmdrsp_scsitaskmgmt {
 /* Note that the vHba pointer is not used by the Client/Guest side. */
 struct uiscmdrsp_disknotify {
 	u8 add;		/* 0-remove, 1-add */
-	void *vHba;		/* Pointer to vhba_info for channel info to
+	void *v_hba;		/* Pointer to vhba_info for channel info to
 				 * route msg */
 	u32 channel, id, lun;	/* SCSI Path of Disk to added or removed */
 };

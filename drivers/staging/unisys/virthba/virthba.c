@@ -1310,7 +1310,7 @@ drain_queue(struct virthba_info *virthbainfo, struct chaninfo *dc,
 			 * a Client/Guest Partition. Let's be
 			 * safe and set it to NULL now.  Do
 			 * not use it here! */
-			cmdrsp->disknotify.vHba = NULL;
+			cmdrsp->disknotify.v_hba = NULL;
 			process_disk_notify(shost, cmdrsp);
 		} else if (cmdrsp->cmdtype == CMD_VDISKMGMT_TYPE) {
 			if (!del_scsipending_entry(virthbainfo,
