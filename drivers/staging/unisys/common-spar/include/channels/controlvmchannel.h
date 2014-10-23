@@ -342,20 +342,20 @@ struct controlvm_message {
 	struct controlvm_message_packet cmd;
 };
 
-typedef struct _DEVICE_MAP  {
-	GUEST_PHYSICAL_ADDRESS DeviceChannelAddress;
-	u64 DeviceChannelSize;
-	u32 CA_Index;
-	u32 Reserved;		/* natural alignment */
-	u64 Reserved2;		/* Align structure on 32-byte boundary */
-} DEVICE_MAP;
+struct device_map {
+	GUEST_PHYSICAL_ADDRESS device_channel_address;
+	u64 device_channel_size;
+	u32 ca_index;
+	u32 reserved;		/* natural alignment */
+	u64 reserved2;		/* Align structure on 32-byte boundary */
+};
 
 typedef struct _GUEST_DEVICES  {
-	DEVICE_MAP VideoChannel;
-	DEVICE_MAP KeyboardChannel;
-	DEVICE_MAP NetworkChannel;
-	DEVICE_MAP StorageChannel;
-	DEVICE_MAP ConsoleChannel;
+	struct device_map VideoChannel;
+	struct device_map KeyboardChannel;
+	struct device_map NetworkChannel;
+	struct device_map StorageChannel;
+	struct device_map ConsoleChannel;
 	u32 PartitionIndex;
 	u32 Pad;
 } GUEST_DEVICES;
