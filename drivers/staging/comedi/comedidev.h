@@ -413,12 +413,67 @@ static inline unsigned int comedi_offset_munge(struct comedi_subdevice *s,
 	return val ^ s->maxdata ^ (s->maxdata >> 1);
 }
 
-static inline unsigned int bytes_per_sample(const struct comedi_subdevice *subd)
+/**
+ * comedi_bytes_per_sample - determine subdevice sample size
+ * @s:		comedi_subdevice struct
+ *
+ * The sample size will be 4 (sizeof int) or 2 (sizeof short) depending on
+ * whether the SDF_LSAMPL subdevice flag is set or not.
+ *
+ * Returns the subdevice sample size.
+ */
+static inline unsigned int comedi_bytes_per_sample(struct comedi_subdevice *s)
 {
-	if (subd->subdev_flags & SDF_LSAMPL)
-		return sizeof(unsigned int);
+	return s->subdev_flags & SDF_LSAMPL ? sizeof(int) : sizeof(short);
+}
 
-	return sizeof(short);
+/* to be removed */
+static inline unsigned int bytes_per_sample(struct comedi_subdevice *s)
+{
+	return comedi_bytes_per_sample(s);
+}
+
+/**
+ * comedi_sample_shift - determine log2 of subdevice sample size
+ * @s:		comedi_subdevice struct
+ *
+ * The sample size will be 4 (sizeof int) or 2 (sizeof short) depending on
+ * whether the SDF_LSAMPL subdevice flag is set or not.  The log2 of the
+ * sample size will be 2 or 1 and can be used as the right operand of a
+ * bit-shift operator to multiply or divide something by the sample size.
+ *
+ * Returns log2 of the subdevice sample size.
+ */
+static inline unsigned int comedi_sample_shift(struct comedi_subdevice *s)
+{
+	return s->subdev_flags & SDF_LSAMPL ? 2 : 1;
+}
+
+/**
+ * comedi_bytes_to_samples - converts a number of bytes to a number of samples
+ * @s:		comedi_subdevice struct
+ * @nbytes:	number of bytes
+ *
+ * Returns the number of bytes divided by the subdevice sample size.
+ */
+static inline unsigned int comedi_bytes_to_samples(struct comedi_subdevice *s,
+						   unsigned int nbytes)
+{
+	return nbytes >> comedi_sample_shift(s);
+}
+
+/**
+ * comedi_samples_to_bytes - converts a number of samples to a number of bytes
+ * @s:		comedi_subdevice struct
+ * @nsamples:	number of samples
+ *
+ * Returns the number of samples multiplied by the subdevice sample size.
+ * Does not check for arithmetic overflow.
+ */
+static inline unsigned int comedi_samples_to_bytes(struct comedi_subdevice *s,
+						   unsigned int nsamples)
+{
+	return nsamples << comedi_sample_shift(s);
 }
 
 /*
