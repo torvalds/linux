@@ -495,6 +495,12 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS;
 	}
 
+	if (mvm->fw->ucode_capa.capa[0] &
+	    IWL_UCODE_TLV_CAPA_TDLS_CHANNEL_SWITCH) {
+		IWL_DEBUG_TDLS(mvm, "TDLS channel switch supported\n");
+		hw->wiphy->features |= NL80211_FEATURE_TDLS_CHANNEL_SWITCH;
+	}
+
 	ret = ieee80211_register_hw(mvm->hw);
 	if (ret)
 		iwl_mvm_leds_exit(mvm);
@@ -3210,6 +3216,10 @@ const struct ieee80211_ops iwl_mvm_hw_ops = {
 	.set_tim = iwl_mvm_set_tim,
 
 	.channel_switch_beacon = iwl_mvm_channel_switch_beacon,
+
+	.tdls_channel_switch = iwl_mvm_tdls_channel_switch,
+	.tdls_cancel_channel_switch = iwl_mvm_tdls_cancel_channel_switch,
+	.tdls_recv_channel_switch = iwl_mvm_tdls_recv_channel_switch,
 
 	CFG80211_TESTMODE_CMD(iwl_mvm_mac_testmode_cmd)
 

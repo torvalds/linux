@@ -519,6 +519,13 @@ enum {
 #define IWL_MVM_DEBUG_SET_TEMPERATURE_MIN -100
 #define IWL_MVM_DEBUG_SET_TEMPERATURE_MAX 200
 
+enum iwl_mvm_tdls_cs_state {
+	IWL_MVM_TDLS_SW_IDLE = 0,
+	IWL_MVM_TDLS_SW_REQ_SENT,
+	IWL_MVM_TDLS_SW_REQ_RCVD,
+	IWL_MVM_TDLS_SW_ACTIVE,
+};
+
 struct iwl_mvm {
 	/* for logger access */
 	struct device *dev;
@@ -740,6 +747,28 @@ struct iwl_mvm {
 	u32 ap_last_beacon_gp2;
 
 	u8 low_latency_agg_frame_limit;
+
+	/* TDLS channel switch data */
+	struct {
+		struct delayed_work dwork;
+		enum iwl_mvm_tdls_cs_state state;
+
+		/*
+		 * Current cs sta - might be different from periodic cs peer
+		 * station. Value is meaningless when the cs-state is idle.
+		 */
+		u8 cur_sta_id;
+
+		/* TDLS periodic channel-switch peer */
+		struct {
+			u8 sta_id;
+			u8 op_class;
+			bool initiator; /* are we the link initiator */
+			struct cfg80211_chan_def chandef;
+			struct sk_buff *skb; /* ch sw template */
+			u32 ch_sw_tm_ie;
+		} peer;
+	} tdls_cs;
 };
 
 /* Extract MVM priv from op_mode and _hw */
@@ -1258,6 +1287,20 @@ void iwl_mvm_recalc_tdls_state(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			       bool sta_added);
 void iwl_mvm_mac_mgd_protect_tdls_discover(struct ieee80211_hw *hw,
 					   struct ieee80211_vif *vif);
+int iwl_mvm_tdls_channel_switch(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				struct ieee80211_sta *sta, u8 oper_class,
+				struct cfg80211_chan_def *chandef,
+				struct sk_buff *tmpl_skb, u32 ch_sw_tm_ie);
+void iwl_mvm_tdls_recv_channel_switch(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      struct ieee80211_tdls_ch_sw_params *params);
+void iwl_mvm_tdls_cancel_channel_switch(struct ieee80211_hw *hw,
+					struct ieee80211_vif *vif,
+					struct ieee80211_sta *sta);
+int iwl_mvm_rx_tdls_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
+			  struct iwl_device_cmd *cmd);
+void iwl_mvm_tdls_ch_switch_work(struct work_struct *work);
 
 struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm);
 

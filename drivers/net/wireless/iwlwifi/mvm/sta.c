@@ -504,6 +504,15 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 	}
 
 	/*
+	 * This shouldn't happen - the TDLS channel switch should be canceled
+	 * before the STA is removed.
+	 */
+	if (WARN_ON_ONCE(mvm->tdls_cs.peer.sta_id == mvm_sta->sta_id)) {
+		mvm->tdls_cs.peer.sta_id = IWL_MVM_STATION_COUNT;
+		cancel_delayed_work(&mvm->tdls_cs.dwork);
+	}
+
+	/*
 	 * Make sure that the tx response code sees the station as -EBUSY and
 	 * calls the drain worker.
 	 */
