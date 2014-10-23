@@ -28,12 +28,10 @@
 #include <linux/err.h>
 #include <linux/hrtimer.h>
 #include <linux/switch.h>
-#include <linux/input.h>
 #include <linux/debugfs.h>
 #include <linux/wakelock.h>
-#include <asm/gpio.h>
+#include <linux/gpio.h>
 #include <asm/atomic.h>
-#include <asm/mach-types.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>

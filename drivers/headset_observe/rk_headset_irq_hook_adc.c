@@ -26,7 +26,6 @@
 #include <linux/err.h>
 #include <linux/hrtimer.h>
 #include <linux/switch.h>
-#include <linux/input.h>
 #include <linux/debugfs.h>
 #include <linux/wakelock.h>
 #include <linux/pm.h>
@@ -35,10 +34,9 @@
 #include <linux/iio/consumer.h>
 #include <linux/adc.h>
 #include <linux/wakelock.h>
+#include <linux/gpio.h>
 
-#include <asm/gpio.h>
 #include <asm/atomic.h>
-#include <asm/mach-types.h>
 
 #include "rk_headset.h"
 
