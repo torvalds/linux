@@ -76,12 +76,12 @@ enum vmcall_monitor_interface_method_tuple { /* VMCALL identification tuples  */
 	__unisys_vmcall_gnuc(tuple, reg_ebx, reg_ecx)
 #define unisys_extended_vmcall(tuple, reg_ebx, reg_ecx, reg_edx) \
 	__unisys_extended_vmcall_gnuc(tuple, reg_ebx, reg_ecx, reg_edx)
-#define ISSUE_IO_VMCALL(InterfaceMethod, param, result) \
-	(result = unisys_vmcall(InterfaceMethod, (param) & 0xFFFFFFFF,	\
+#define ISSUE_IO_VMCALL(method, param, result) \
+	(result = unisys_vmcall(method, (param) & 0xFFFFFFFF,	\
 				(param) >> 32))
-#define ISSUE_IO_EXTENDED_VMCALL(InterfaceMethod, param1, param2,	\
+#define ISSUE_IO_EXTENDED_VMCALL(method, param1, param2,	\
 				 param3, result)			\
-	(result = unisys_extended_vmcall(InterfaceMethod, param1,	\
+	(result = unisys_extended_vmcall(method, param1,	\
 					 param2, param3))
 
     /* The following uses VMCALL_POST_CODE_LOGEVENT interface but is currently
