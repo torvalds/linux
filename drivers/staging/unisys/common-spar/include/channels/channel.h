@@ -289,86 +289,62 @@ struct signal_queue_header {
  * is used to pass the EFI_DIAG_CAPTURE_PROTOCOL needed to log messages.
  */
 static inline int
-ULTRA_check_channel_client(void __iomem *pChannel,
-			   uuid_le expectedTypeGuid,
-			   char *channelName,
-			   u64 expectedMinBytes,
-			   u32 expectedVersionId,
-			   u64 expectedSignature,
-			   char *fileName, int lineNumber, void *logCtx)
+spar_check_channel_client(void __iomem *ch,
+			  uuid_le expected_uuid,
+			  char *chname,
+			  u64 expected_min_bytes,
+			  u32 expected_version,
+			  u64 expected_signature)
 {
-	if (uuid_le_cmp(expectedTypeGuid, NULL_UUID_LE) != 0) {
+	if (uuid_le_cmp(expected_uuid, NULL_UUID_LE) != 0) {
 		uuid_le guid;
 
 		memcpy_fromio(&guid,
-			&((struct channel_header __iomem *)(pChannel))->chtype,
-			sizeof(guid));
+			      &((struct channel_header __iomem *)(ch))->chtype,
+			      sizeof(guid));
 		/* caller wants us to verify type GUID */
-		if (uuid_le_cmp(guid, expectedTypeGuid) != 0) {
+		if (uuid_le_cmp(guid, expected_uuid) != 0) {
 			pr_err("Channel mismatch on channel=%s(%pUL) field=type expected=%pUL actual=%pUL\n",
-			       channelName, &expectedTypeGuid,
-			       &expectedTypeGuid, &guid);
+			       chname, &expected_uuid,
+			       &expected_uuid, &guid);
 			return 0;
 		}
 	}
-	if (expectedMinBytes > 0) {	/* caller wants us to verify
+	if (expected_min_bytes > 0) {	/* caller wants us to verify
 					 * channel size */
 		unsigned long long bytes =
 				readq(&((struct channel_header __iomem *)
-					(pChannel))->size);
-		if (bytes < expectedMinBytes) {
+					(ch))->size);
+		if (bytes < expected_min_bytes) {
 			pr_err("Channel mismatch on channel=%s(%pUL) field=size expected=0x%-8.8Lx actual=0x%-8.8Lx\n",
-			       channelName, &expectedTypeGuid,
-			       (unsigned long long)expectedMinBytes, bytes);
+			       chname, &expected_uuid,
+			       (unsigned long long)expected_min_bytes, bytes);
 			return 0;
 		}
 	}
-	if (expectedVersionId > 0) {	/* caller wants us to verify
+	if (expected_version > 0) {	/* caller wants us to verify
 					 * channel version */
 		unsigned long ver = readl(&((struct channel_header __iomem *)
-				    (pChannel))->version_id);
-		if (ver != expectedVersionId) {
+				    (ch))->version_id);
+		if (ver != expected_version) {
 			pr_err("Channel mismatch on channel=%s(%pUL) field=version expected=0x%-8.8lx actual=0x%-8.8lx\n",
-			       channelName, &expectedTypeGuid,
-			       (unsigned long)expectedVersionId, ver);
+			       chname, &expected_uuid,
+			       (unsigned long)expected_version, ver);
 			return 0;
 		}
 	}
-	if (expectedSignature > 0) {	/* caller wants us to verify
+	if (expected_signature > 0) {	/* caller wants us to verify
 					 * channel signature */
 		unsigned long long sig =
 				readq(&((struct channel_header __iomem *)
-					(pChannel))->signature);
-		if (sig != expectedSignature) {
+					(ch))->signature);
+		if (sig != expected_signature) {
 			pr_err("Channel mismatch on channel=%s(%pUL) field=signature expected=0x%-8.8llx actual=0x%-8.8llx\n",
-			       channelName, &expectedTypeGuid,
-			       expectedSignature, sig);
+			       chname, &expected_uuid,
+			       expected_signature, sig);
 			return 0;
 		}
 	}
-	return 1;
-}
-
-/* Generic function useful for validating any type of channel when it is about
- * to be initialized by the server of the channel.
- * Note that <logCtx> is only needed for callers in the EFI environment, and
- * is used to pass the EFI_DIAG_CAPTURE_PROTOCOL needed to log messages.
- */
-static inline int
-ULTRA_check_channel_server(uuid_le typeGuid,
-			   char *channelName,
-			   u64 expectedMinBytes,
-			   u64 actualBytes,
-			   char *fileName, int lineNumber, void *logCtx)
-{
-	if (expectedMinBytes > 0)	/* caller wants us to verify
-					 * channel size */
-		if (actualBytes < expectedMinBytes) {
-			pr_err("Channel mismatch on channel=%s(%pUL) field=size expected=0x%-8.8llx actual=0x%-8.8llx\n",
-			       channelName, &typeGuid, expectedMinBytes,
-			       actualBytes);
-			return 0;
-		}
 	return 1;
 }
 
@@ -530,8 +506,8 @@ spar_channel_client_release_os(void __iomem *ch, u8 *id)
 * full.
 */
 
-unsigned char visor_signal_insert(struct channel_header __iomem *pChannel,
-				  u32 Queue, void *pSignal);
+unsigned char spar_signal_insert(struct channel_header __iomem *ch, u32 queue,
+				 void *sig);
 
 /*
 * Routine Description:

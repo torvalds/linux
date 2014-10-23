@@ -2382,9 +2382,8 @@ visorchipset_init(void)
 		    (addr,
 		     sizeof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL),
 		     UltraControlvmChannelProtocolGuid);
-		if (ULTRA_CONTROLVM_CHANNEL_OK_CLIENT
-			 (visorchannel_get_header(ControlVm_channel),
-			  NULL)) {
+		if (SPAR_CONTROLVM_CHANNEL_OK_CLIENT(
+				visorchannel_get_header(ControlVm_channel))) {
 			LOGINF("Channel %s (ControlVm) discovered",
 			       visorchannel_id(ControlVm_channel, s));
 			initialize_controlvm_payload();

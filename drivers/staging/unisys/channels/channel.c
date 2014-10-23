@@ -43,17 +43,16 @@
  * Return value:
  * 1 if the insertion succeeds, 0 if the queue was full.
  */
-unsigned char
-visor_signal_insert(struct channel_header __iomem *pChannel, u32 Queue,
-		    void *pSignal)
+unsigned char spar_signal_insert(struct channel_header __iomem *ch, u32 queue,
+				 void *sig)
 {
 	void __iomem *psignal;
 	unsigned int head, tail, nof;
 
 	struct signal_queue_header __iomem *pqhdr =
 	    (struct signal_queue_header __iomem *)
-		((char __iomem *) pChannel + readq(&pChannel->ch_space_offset))
-		+ Queue;
+		((char __iomem *) ch + readq(&ch->ch_space_offset))
+		+ queue;
 
 	/* capture current head and tail */
 	head = readl(&pqhdr->head);
@@ -74,7 +73,7 @@ visor_signal_insert(struct channel_header __iomem *pChannel, u32 Queue,
 	 */
 	psignal = (char __iomem *)pqhdr + readq(&pqhdr->sig_base_offset) +
 		(head * readl(&pqhdr->signal_size));
-	memcpy_toio(psignal, pSignal, readl(&pqhdr->signal_size));
+	memcpy_toio(psignal, sig, readl(&pqhdr->signal_size));
 
 	mb(); /* channel synch */
 	writel(head, &pqhdr->head);
@@ -82,7 +81,7 @@ visor_signal_insert(struct channel_header __iomem *pChannel, u32 Queue,
 	writeq(readq(&pqhdr->num_sent) + 1, &pqhdr->num_sent);
 	return 1;
 }
-EXPORT_SYMBOL_GPL(visor_signal_insert);
+EXPORT_SYMBOL_GPL(spar_signal_insert);
 
 /*
  * Routine Description:

@@ -45,19 +45,13 @@ static const uuid_le UltraControlvmChannelProtocolGuid =
 * channel struct withOUT needing to increment this. */
 #define ULTRA_CONTROLVM_CHANNEL_PROTOCOL_VERSIONID  1
 
-#define ULTRA_CONTROLVM_CHANNEL_OK_CLIENT(pChannel, logCtx)           \
-	(ULTRA_check_channel_client(pChannel, \
-		UltraControlvmChannelProtocolGuid, \
-		"controlvm", \
-		sizeof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL), \
-		ULTRA_CONTROLVM_CHANNEL_PROTOCOL_VERSIONID, \
-		ULTRA_CONTROLVM_CHANNEL_PROTOCOL_SIGNATURE, \
-		__FILE__, __LINE__, logCtx))
-#define ULTRA_CONTROLVM_CHANNEL_OK_SERVER(actualBytes, logCtx)        \
-	(ULTRA_check_channel_server(UltraControlvmChannelProtocolGuid,	\
-				    "controlvm",			\
-				    sizeof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL), \
-				    actualBytes, __FILE__, __LINE__, logCtx))
+#define SPAR_CONTROLVM_CHANNEL_OK_CLIENT(pChannel)           \
+	(spar_check_channel_client(pChannel, \
+				   UltraControlvmChannelProtocolGuid, \
+				   "controlvm", \
+				   sizeof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL), \
+				   ULTRA_CONTROLVM_CHANNEL_PROTOCOL_VERSIONID, \
+				   ULTRA_CONTROLVM_CHANNEL_PROTOCOL_SIGNATURE))
 
 #define MY_DEVICE_INDEX 0
 #define MAX_MACDATA_LEN 8 /* number of bytes for MAC address in config packet */

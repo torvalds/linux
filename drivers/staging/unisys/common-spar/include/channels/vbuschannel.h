@@ -43,22 +43,13 @@ static const uuid_le UltraVbusChannelProtocolGuid =
 * increment this. */
 #define ULTRA_VBUS_CHANNEL_PROTOCOL_VERSIONID 1
 
-#define ULTRA_VBUS_CHANNEL_OK_CLIENT(pChannel, logCtx)       \
-	(ULTRA_check_channel_client(pChannel,				\
-				    UltraVbusChannelProtocolGuid,	\
-				    "vbus",				\
-				    sizeof(struct ultra_vbus_channel_protocol),\
+#define SPAR_VBUS_CHANNEL_OK_CLIENT(pChannel, logCtx)       \
+	(spar_check_channel_client(pChannel,				\
+				   UltraVbusChannelProtocolGuid,	\
+				   "vbus",				\
+				   sizeof(struct ultra_vbus_channel_protocol),\
 				    ULTRA_VBUS_CHANNEL_PROTOCOL_VERSIONID, \
-				    ULTRA_VBUS_CHANNEL_PROTOCOL_SIGNATURE, \
-				    __FILE__, __LINE__, logCtx))
-
-#define ULTRA_VBUS_CHANNEL_OK_SERVER(actualBytes, logCtx)    \
-	(ULTRA_check_channel_server(UltraVbusChannelProtocolGuid,	\
-				    "vbus",				\
-				    sizeof(struct ultra_vbus_channel_protocol),\
-				    actualBytes,			\
-				    __FILE__, __LINE__, logCtx))
-
+				    ULTRA_VBUS_CHANNEL_PROTOCOL_SIGNATURE)) \
 
 #pragma pack(push, 1)		/* both GCC and VC now allow this pragma */
 typedef struct _ULTRA_VBUS_HEADERINFO {

@@ -49,7 +49,7 @@ SignalInsert_withLock(struct channel_header __iomem *pChannel, u32 Queue,
 	unsigned long flags;
 
 	spin_lock_irqsave(lock, flags);
-	result = visor_signal_insert(pChannel, Queue, pSignal);
+	result = spar_signal_insert(pChannel, Queue, pSignal);
 	spin_unlock_irqrestore(lock, flags);
 	return result;
 }

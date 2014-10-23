@@ -142,7 +142,7 @@ init_vbus_channel(u64 channelAddr, u32 channelBytes)
 		rc = NULL;
 		goto Away;
 	}
-	if (!ULTRA_VBUS_CHANNEL_OK_CLIENT(pChan, NULL)) {
+	if (!SPAR_VBUS_CHANNEL_OK_CLIENT(pChan, NULL)) {
 		ERRDRV("%s channel cannot be used", __func__);
 		uislib_iounmap(pChan);
 		rc = NULL;
@@ -449,7 +449,7 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 							__iomem *) (dev->
 								  chanptr))->
 							    chtype);
-					if (!ULTRA_VHBA_CHANNEL_OK_CLIENT
+					if (!SPAR_VHBA_CHANNEL_OK_CLIENT
 					    (dev->chanptr, NULL)) {
 						LOGERR("CONTROLVM_DEVICE_CREATE Failed:[CLIENT]VHBA dev %d chan invalid.",
 						     devNo);
@@ -475,7 +475,7 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 							__iomem *) (dev->
 								  chanptr))->
 							    chtype);
-					if (!ULTRA_VNIC_CHANNEL_OK_CLIENT
+					if (!SPAR_VNIC_CHANNEL_OK_CLIENT
 					    (dev->chanptr, NULL)) {
 						LOGERR("CONTROLVM_DEVICE_CREATE Failed: VNIC[CLIENT] dev %d chan invalid.",
 						     devNo);
