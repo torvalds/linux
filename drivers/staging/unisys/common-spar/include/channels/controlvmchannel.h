@@ -169,53 +169,51 @@ enum ultra_chipset_feature {
  *  queue.  Commands are easily distinguished from responses by
  *  looking at the flags.response field.
  */
-typedef struct _CONTROLVM_MESSAGE_HEADER  {
-	u32 Id;		/* See control_vm_id. */
+struct controlvm_message_header  {
+	u32 id;		/* See CONTROLVM_ID. */
 	/* For requests, indicates the message type. */
 	/* For responses, indicates the type of message we are responding to. */
 
-	u32 MessageSize;	/* Includes size of this struct + size
+	u32 message_size;	/* Includes size of this struct + size
 				 * of message */
-	u32 SegmentIndex;	/* Index of segment containing Vm
+	u32 segment_index;	/* Index of segment containing Vm
 				 * message/information */
-	u32 CompletionStatus;	/* Error status code or result of
+	u32 completion_status;	/* Error status code or result of
 				 * message completion */
 	struct  {
 		u32 failed:1;		   /**< =1 in a response to * signify
 					    * failure */
-		u32 responseExpected:1;   /**< =1 in all messages that expect a
+		u32 response_expected:1;   /**< =1 in all messages that expect a
 					   * response (Control ignores this
 					   * bit) */
 		u32 server:1;		   /**< =1 in all bus & device-related
 					    * messages where the message
 					    * receiver is to act as the bus or
 					    * device server */
-		u32 testMessage:1;	   /**< =1 for testing use only
+		u32 test_message:1;	   /**< =1 for testing use only
 					    * (Control and Command ignore this
 					    * bit) */
-		u32 partialCompletion:1;  /**< =1 if there are forthcoming
+		u32 partial_completion:1;  /**< =1 if there are forthcoming
 					   * responses/acks associated
 					   * with this message */
 		u32 preserve:1;	       /**< =1 this is to let us know to
 					* preserve channel contents
 					* (for running guests)*/
-		u32 writerInDiag:1;	/**< =1 the DiagWriter is active in the
+		u32 writer_in_diag:1;	/**< =1 the DiagWriter is active in the
 					 * Diagnostic Partition*/
-
-		    /* remaining bits in this 32-bit word are available */
-	} Flags;
-	u32 Reserved;		/* Natural alignment */
-	u64 MessageHandle;	/* Identifies the particular message instance,
+	} flags;
+	u32 reserved;		/* Natural alignment */
+	u64 message_handle;	/* Identifies the particular message instance,
 				 * and is used to match particular */
 	/* request instances with the corresponding response instance. */
-	u64 PayloadVmOffset;	/* Offset of payload area from start of this
+	u64 payload_vm_offset;	/* Offset of payload area from start of this
 				 * instance of ControlVm segment */
-	u32 PayloadMaxBytes;	/* Maximum bytes allocated in payload
+	u32 payload_max_bytes;	/* Maximum bytes allocated in payload
 				 * area of ControlVm segment */
-	u32 PayloadBytes;	/* Actual number of bytes of payload
+	u32 payload_bytes;	/* Actual number of bytes of payload
 				 * area to copy between IO/Command; */
 	/* if non-zero, there is a payload to copy. */
-} CONTROLVM_MESSAGE_HEADER;
+};
 
 typedef struct _CONTROLVM_PACKET_DEVICE_CREATE  {
 	u32 busNo;	   /**< bus # (0..n-1) from the msg receiver's
@@ -241,12 +239,12 @@ typedef struct _CONTROLVM_PACKET_DEVICE_CONFIGURE  {
 } CONTROLVM_PACKET_DEVICE_CONFIGURE;	/* for CONTROLVM_DEVICE_CONFIGURE */
 
 typedef struct _CONTROLVM_MESSAGE_DEVICE_CREATE  {
-	CONTROLVM_MESSAGE_HEADER Header;
+	struct controlvm_message_header Header;
 	CONTROLVM_PACKET_DEVICE_CREATE Packet;
 } CONTROLVM_MESSAGE_DEVICE_CREATE;	/* total 128 bytes */
 
 typedef struct _CONTROLVM_MESSAGE_DEVICE_CONFIGURE  {
-	CONTROLVM_MESSAGE_HEADER Header;
+	struct controlvm_message_header Header;
 	CONTROLVM_PACKET_DEVICE_CONFIGURE Packet;
 } CONTROLVM_MESSAGE_DEVICE_CONFIGURE;	/* total 56 bytes */
 
@@ -343,7 +341,7 @@ struct controlvm_message_packet  {
 
 /* All messages in any ControlVm queue have this layout. */
 typedef struct _CONTROLVM_MESSAGE  {
-	CONTROLVM_MESSAGE_HEADER hdr;
+	struct controlvm_message_header hdr;
 	struct controlvm_message_packet cmd;
 } CONTROLVM_MESSAGE;
 

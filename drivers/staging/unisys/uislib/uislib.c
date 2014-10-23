@@ -124,9 +124,9 @@ static void
 init_msg_header(CONTROLVM_MESSAGE *msg, u32 id, uint rsp, uint svr)
 {
 	memset(msg, 0, sizeof(CONTROLVM_MESSAGE));
-	msg->hdr.Id = id;
-	msg->hdr.Flags.responseExpected = rsp;
-	msg->hdr.Flags.server = svr;
+	msg->hdr.id = id;
+	msg->hdr.flags.response_expected = rsp;
+	msg->hdr.flags.server = svr;
 }
 
 static __iomem void *
@@ -188,7 +188,7 @@ create_bus(CONTROLVM_MESSAGE *msg, char *buf)
 	/* Currently by default, the bus Number is the GuestHandle.
 	 * Configure Bus message can override this.
 	 */
-	if (msg->hdr.Flags.testMessage) {
+	if (msg->hdr.flags.test_message) {
 		/* This implies we're the IOVM so set guest handle to 0... */
 		bus->guest_handle = 0;
 		bus->bus_no = busNo;
@@ -229,7 +229,7 @@ create_bus(CONTROLVM_MESSAGE *msg, char *buf)
 				      msg->cmd.create_bus.channel_bytes);
 	}
 	/* the msg is bound for virtpci; send guest_msgs struct to callback */
-	if (!msg->hdr.Flags.server) {
+	if (!msg->hdr.flags.server) {
 		struct guest_msgs cmd;
 
 		cmd.msgtype = GUEST_ADD_VBUS;
@@ -309,7 +309,7 @@ destroy_bus(CONTROLVM_MESSAGE *msg, char *buf)
 	}
 	read_unlock(&BusListLock);
 
-	if (msg->hdr.Flags.server)
+	if (msg->hdr.flags.server)
 		goto remove;
 
 	/* client messages require us to call the virtpci callback associated
@@ -376,7 +376,7 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 	sema_init(&dev->interrupt_callback_lock, 1);	/* unlocked */
 	sprintf(dev->devid, "vbus%u:dev%u", (unsigned) busNo, (unsigned) devNo);
 	/* map the channel memory for the device. */
-	if (msg->hdr.Flags.testMessage)
+	if (msg->hdr.flags.test_message)
 		dev->chanptr = (void __iomem *)__va(dev->channel_addr);
 	else {
 		pReqHandler = req_handler_find(dev->channel_uuid);
@@ -439,7 +439,7 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 			/* the msg is bound for virtpci; send
 			 * guest_msgs struct to callback
 			 */
-			if (!msg->hdr.Flags.server) {
+			if (!msg->hdr.flags.server) {
 				struct guest_msgs cmd;
 
 				if (!uuid_le_cmp(dev->channel_uuid,
@@ -534,7 +534,7 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 	result = CONTROLVM_RESP_ERROR_BUS_INVALID;
 
 Away:
-	if (!msg->hdr.Flags.testMessage) {
+	if (!msg->hdr.flags.test_message) {
 		uislib_iounmap(dev->chanptr);
 		dev->chanptr = NULL;
 	}
@@ -758,7 +758,7 @@ destroy_device(CONTROLVM_MESSAGE *msg, char *buf)
 			uislib_disable_channel_interrupts(busNo, devNo);
 		}
 		/* unmap the channel memory for the device. */
-		if (!msg->hdr.Flags.testMessage) {
+		if (!msg->hdr.flags.test_message) {
 			LOGINF("destroy_device, doing iounmap");
 			uislib_iounmap(dev->chanptr);
 		}
@@ -779,12 +779,12 @@ init_chipset(CONTROLVM_MESSAGE *msg, char *buf)
 
 	/* We need to make sure we have our functions registered
 	* before processing messages.  If we are a test vehicle the
-	* testMessage for init_chipset will be set.  We can ignore the
+	* test_message for init_chipset will be set.  We can ignore the
 	* waits for the callbacks, since this will be manually entered
-	* from a user.  If no testMessage is set, we will wait for the
+	* from a user.  If no test_message is set, we will wait for the
 	* functions.
 	*/
-	if (!msg->hdr.Flags.testMessage)
+	if (!msg->hdr.flags.test_message)
 		WAIT_ON_CALLBACK(virt_control_chan_func);
 
 	chipset_inited = 1;
@@ -944,7 +944,7 @@ uislib_client_inject_add_vhba(u32 bus_no, u32 dev_no,
 		/* signify that the physical channel address does NOT
 		 * need to be ioremap()ed
 		 */
-		msg.hdr.Flags.testMessage = 1;
+		msg.hdr.flags.test_message = 1;
 	msg.cmd.create_device.busNo = bus_no;
 	msg.cmd.create_device.devNo = dev_no;
 	msg.cmd.create_device.devInstGuid = inst_uuid;
@@ -1003,7 +1003,7 @@ uislib_client_inject_add_vnic(u32 bus_no, u32 dev_no,
 		/* signify that the physical channel address does NOT
 		 * need to be ioremap()ed
 		 */
-		msg.hdr.Flags.testMessage = 1;
+		msg.hdr.flags.test_message = 1;
 	msg.cmd.create_device.busNo = bus_no;
 	msg.cmd.create_device.devNo = dev_no;
 	msg.cmd.create_device.devInstGuid = inst_uuid;
@@ -1092,7 +1092,7 @@ uislib_client_add_vnic(u32 busNo)
 	CONTROLVM_MESSAGE msg;
 
 	init_msg_header(&msg, CONTROLVM_BUS_CREATE, 0, 0);
-	msg.hdr.Flags.testMessage = 1;
+	msg.hdr.flags.test_message = 1;
 	msg.cmd.create_bus.bus_no = busNo;
 	msg.cmd.create_bus.dev_count = 4;
 	msg.cmd.create_bus.channel_addr = 0;
@@ -1104,7 +1104,7 @@ uislib_client_add_vnic(u32 busNo)
 	busCreated = TRUE;
 
 	init_msg_header(&msg, CONTROLVM_DEVICE_CREATE, 0, 0);
-	msg.hdr.Flags.testMessage = 1;
+	msg.hdr.flags.test_message = 1;
 	msg.cmd.create_device.busNo = busNo;
 	msg.cmd.create_device.devNo = devNo;
 	msg.cmd.create_device.devInstGuid = NULL_UUID_LE;
@@ -1122,7 +1122,7 @@ uislib_client_add_vnic(u32 busNo)
 AwayCleanup:
 	if (busCreated) {
 		init_msg_header(&msg, CONTROLVM_BUS_DESTROY, 0, 0);
-		msg.hdr.Flags.testMessage = 1;
+		msg.hdr.flags.test_message = 1;
 		msg.cmd.destroy_bus.bus_no = busNo;
 		if (destroy_bus(&msg, NULL) != CONTROLVM_RESP_SUCCESS)
 			LOGERR("client destroy_bus failed.\n");
@@ -1140,7 +1140,7 @@ uislib_client_delete_vnic(u32 busNo)
 	CONTROLVM_MESSAGE msg;
 
 	init_msg_header(&msg, CONTROLVM_DEVICE_DESTROY, 0, 0);
-	msg.hdr.Flags.testMessage = 1;
+	msg.hdr.flags.test_message = 1;
 	msg.cmd.destroy_device.bus_no = busNo;
 	msg.cmd.destroy_device.dev_no = devNo;
 	if (destroy_device(&msg, NULL) != CONTROLVM_RESP_SUCCESS) {
@@ -1149,7 +1149,7 @@ uislib_client_delete_vnic(u32 busNo)
 	}
 
 	init_msg_header(&msg, CONTROLVM_BUS_DESTROY, 0, 0);
-	msg.hdr.Flags.testMessage = 1;
+	msg.hdr.flags.test_message = 1;
 	msg.cmd.destroy_bus.bus_no = busNo;
 	if (destroy_bus(&msg, NULL) != CONTROLVM_RESP_SUCCESS)
 		LOGERR("client destroy_bus failed.\n");

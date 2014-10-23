@@ -86,7 +86,7 @@ typedef struct {
 	u64 Reserved2;
 	u32 switchNo;		/* when devState.attached==1 */
 	u32 internalPortNo;	/* when devState.attached==1 */
-	CONTROLVM_MESSAGE_HEADER pendingMsgHdr;	/* CONTROLVM_MESSAGE */
+	struct controlvm_message_header pendingMsgHdr;	/* CONTROLVM_MESSAGE */
 	/** For private use by the bus driver */
 	void *bus_driver_context;
 
@@ -139,7 +139,7 @@ typedef struct {
 		/* Add new fields above. */
 		/* Remaining bits in this 32-bit word are unused. */
 	} flags;
-	CONTROLVM_MESSAGE_HEADER pendingMsgHdr;	/* CONTROLVM MsgHdr */
+	struct controlvm_message_header pendingMsgHdr;	/* CONTROLVM MsgHdr */
 	/** For private use by the bus driver */
 	void *bus_driver_context;
 	u64 devNo;
@@ -172,7 +172,7 @@ typedef struct {
 	u32 Reserved2;		/* control_vm_id */
 	struct device dev;
 	BOOL dev_exists;
-	CONTROLVM_MESSAGE_HEADER pendingMsgHdr;
+	struct controlvm_message_header pendingMsgHdr;
 
 } VISORCHIPSET_SWITCH_INFO;
 
@@ -195,7 +195,7 @@ typedef struct {
 	u32 Reserved2;		/* control_vm_id */
 	struct device dev;
 	BOOL dev_exists;
-	CONTROLVM_MESSAGE_HEADER pendingMsgHdr;
+	struct controlvm_message_header pendingMsgHdr;
 
 } VISORCHIPSET_EXTERNALPORT_INFO;
 
@@ -209,8 +209,8 @@ typedef struct {
 	u32 busNo;		/* valid only when state.attached == 1 */
 	u32 devNo;		/* valid only when state.attached == 1 */
 	u64 Reserved1;
-	u32 Reserved2;		/* control_vm_id */
-	CONTROLVM_MESSAGE_HEADER pendingMsgHdr;
+	u32 Reserved2;		/* CONTROLVM_ID */
+	struct controlvm_message_header pendingMsgHdr;
 	MYPROCOBJECT *procObject;
 
 } VISORCHIPSET_INTERNALPORT_INFO;
