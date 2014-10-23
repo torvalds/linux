@@ -235,8 +235,6 @@ enum diag_severity {
 * If a change is made to this enum, they should also be reflected in that
 * file.  */
 
-
-
 /* A cause value "DIAG_CAUSE_FILE_XFER" together with a severity value of
 * "DIAG_SEVERITY_PRINT" (=4), is used for transferring text or binary file to
 * the Diag partition. This cause-severity combination will be used by Logger
