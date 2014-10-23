@@ -670,11 +670,9 @@ int i915_suspend(struct drm_device *dev, pm_message_t state)
 	if (error)
 		return error;
 
-	if (state.event == PM_EVENT_SUSPEND) {
-		/* Shut down the device */
-		pci_disable_device(dev->pdev);
-		pci_set_power_state(dev->pdev, PCI_D3hot);
-	}
+	/* Shut down the device */
+	pci_disable_device(dev->pdev);
+	pci_set_power_state(dev->pdev, PCI_D3hot);
 
 	return 0;
 }
