@@ -121,9 +121,9 @@ static const struct file_operations debugfs_info_fops = {
 };
 
 static void
-init_msg_header(CONTROLVM_MESSAGE *msg, u32 id, uint rsp, uint svr)
+init_msg_header(struct controlvm_message *msg, u32 id, uint rsp, uint svr)
 {
-	memset(msg, 0, sizeof(CONTROLVM_MESSAGE));
+	memset(msg, 0, sizeof(struct controlvm_message));
 	msg->hdr.id = id;
 	msg->hdr.flags.response_expected = rsp;
 	msg->hdr.flags.server = svr;
@@ -154,7 +154,7 @@ Away:
 }
 
 static int
-create_bus(CONTROLVM_MESSAGE *msg, char *buf)
+create_bus(struct controlvm_message *msg, char *buf)
 {
 	u32 busNo, deviceCount;
 	struct bus_info *tmp, *bus;
@@ -272,7 +272,7 @@ create_bus(CONTROLVM_MESSAGE *msg, char *buf)
 }
 
 static int
-destroy_bus(CONTROLVM_MESSAGE *msg, char *buf)
+destroy_bus(struct controlvm_message *msg, char *buf)
 {
 	int i;
 	struct bus_info *bus, *prev = NULL;
@@ -345,7 +345,7 @@ remove:
 }
 
 static int
-create_device(CONTROLVM_MESSAGE *msg, char *buf)
+create_device(struct controlvm_message *msg, char *buf)
 {
 	struct device_info *dev;
 	struct bus_info *bus;
@@ -544,7 +544,7 @@ Away:
 }
 
 static int
-pause_device(CONTROLVM_MESSAGE *msg)
+pause_device(struct controlvm_message *msg)
 {
 	u32 busNo, devNo;
 	struct bus_info *bus;
@@ -612,7 +612,7 @@ pause_device(CONTROLVM_MESSAGE *msg)
 }
 
 static int
-resume_device(CONTROLVM_MESSAGE *msg)
+resume_device(struct controlvm_message *msg)
 {
 	u32 busNo, devNo;
 	struct bus_info *bus;
@@ -681,7 +681,7 @@ resume_device(CONTROLVM_MESSAGE *msg)
 }
 
 static int
-destroy_device(CONTROLVM_MESSAGE *msg, char *buf)
+destroy_device(struct controlvm_message *msg, char *buf)
 {
 	u32 busNo, devNo;
 	struct bus_info *bus;
@@ -769,7 +769,7 @@ destroy_device(CONTROLVM_MESSAGE *msg, char *buf)
 }
 
 static int
-init_chipset(CONTROLVM_MESSAGE *msg, char *buf)
+init_chipset(struct controlvm_message *msg, char *buf)
 {
 	POSTCODE_LINUX_2(CHIPSET_INIT_ENTRY_PC, POSTCODE_SEVERITY_INFO);
 
@@ -796,7 +796,7 @@ init_chipset(CONTROLVM_MESSAGE *msg, char *buf)
 static int
 delete_bus_glue(u32 busNo)
 {
-	CONTROLVM_MESSAGE msg;
+	struct controlvm_message msg;
 
 	init_msg_header(&msg, CONTROLVM_BUS_DESTROY, 0, 0);
 	msg.cmd.destroy_bus.bus_no = busNo;
@@ -810,7 +810,7 @@ delete_bus_glue(u32 busNo)
 static int
 delete_device_glue(u32 busNo, u32 devNo)
 {
-	CONTROLVM_MESSAGE msg;
+	struct controlvm_message msg;
 
 	init_msg_header(&msg, CONTROLVM_DEVICE_DESTROY, 0, 0);
 	msg.cmd.destroy_device.bus_no = busNo;
@@ -827,7 +827,7 @@ int
 uislib_client_inject_add_bus(u32 bus_no, uuid_le inst_uuid,
 			     u64 channel_addr, ulong n_channel_bytes)
 {
-	CONTROLVM_MESSAGE msg;
+	struct controlvm_message msg;
 
 	LOGINF("enter busNo=0x%x\n", bus_no);
 	/* step 0: init the chipset */
@@ -885,7 +885,7 @@ EXPORT_SYMBOL_GPL(uislib_client_inject_del_bus);
 int
 uislib_client_inject_pause_vhba(u32 bus_no, u32 dev_no)
 {
-	CONTROLVM_MESSAGE msg;
+	struct controlvm_message msg;
 	int rc;
 
 	init_msg_header(&msg, CONTROLVM_DEVICE_CHANGESTATE, 0, 0);
@@ -905,7 +905,7 @@ EXPORT_SYMBOL_GPL(uislib_client_inject_pause_vhba);
 int
 uislib_client_inject_resume_vhba(u32 bus_no, u32 dev_no)
 {
-	CONTROLVM_MESSAGE msg;
+	struct controlvm_message msg;
 	int rc;
 
 	init_msg_header(&msg, CONTROLVM_DEVICE_CHANGESTATE, 0, 0);
@@ -929,7 +929,7 @@ uislib_client_inject_add_vhba(u32 bus_no, u32 dev_no,
 			      int is_test_addr, uuid_le inst_uuid,
 			      struct irq_info *intr)
 {
-	CONTROLVM_MESSAGE msg;
+	struct controlvm_message msg;
 
 	LOGINF(" enter busNo=0x%x devNo=0x%x\n", bus_no, dev_no);
 	/* chipset init'ed with bus bus has been previously created -
@@ -988,7 +988,7 @@ uislib_client_inject_add_vnic(u32 bus_no, u32 dev_no,
 			      int is_test_addr, uuid_le inst_uuid,
 			      struct irq_info *intr)
 {
-	CONTROLVM_MESSAGE msg;
+	struct controlvm_message msg;
 
 	LOGINF(" enter busNo=0x%x devNo=0x%x\n", bus_no, dev_no);
 	/* chipset init'ed with bus bus has been previously created -
@@ -1038,7 +1038,7 @@ EXPORT_SYMBOL_GPL(uislib_client_inject_add_vnic);
 int
 uislib_client_inject_pause_vnic(u32 bus_no, u32 dev_no)
 {
-	CONTROLVM_MESSAGE msg;
+	struct controlvm_message msg;
 	int rc;
 
 	init_msg_header(&msg, CONTROLVM_DEVICE_CHANGESTATE, 0, 0);
@@ -1058,7 +1058,7 @@ EXPORT_SYMBOL_GPL(uislib_client_inject_pause_vnic);
 int
 uislib_client_inject_resume_vnic(u32 bus_no, u32 dev_no)
 {
-	CONTROLVM_MESSAGE msg;
+	struct controlvm_message msg;
 	int rc;
 
 	init_msg_header(&msg, CONTROLVM_DEVICE_CHANGESTATE, 0, 0);
@@ -1089,7 +1089,7 @@ uislib_client_add_vnic(u32 busNo)
 	BOOL busCreated = FALSE;
 	int devNo = 0;		/* Default to 0, since only one device
 				 * will be created for this bus... */
-	CONTROLVM_MESSAGE msg;
+	struct controlvm_message msg;
 
 	init_msg_header(&msg, CONTROLVM_BUS_CREATE, 0, 0);
 	msg.hdr.flags.test_message = 1;
@@ -1137,7 +1137,7 @@ uislib_client_delete_vnic(u32 busNo)
 {
 	int devNo = 0;		/* Default to 0, since only one device
 				 * will be created for this bus... */
-	CONTROLVM_MESSAGE msg;
+	struct controlvm_message msg;
 
 	init_msg_header(&msg, CONTROLVM_DEVICE_DESTROY, 0, 0);
 	msg.hdr.flags.test_message = 1;
@@ -1563,7 +1563,7 @@ uislib_mod_init(void)
 	LOGINF("sizeof(uiscmdrsp_net):%lu\n",
 	       (ulong) sizeof(struct uiscmdrsp_net));
 	LOGINF("sizeof(CONTROLVM_MESSAGE):%lu bytes\n",
-	       (ulong) sizeof(CONTROLVM_MESSAGE));
+	       (ulong) sizeof(struct controlvm_message));
 	LOGINF("sizeof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL):%lu bytes\n",
 	       (ulong) sizeof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL));
 	LOGINF("sizeof(CHANNEL_HEADER):%lu bytes\n",

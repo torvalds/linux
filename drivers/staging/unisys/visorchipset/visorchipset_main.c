@@ -72,7 +72,7 @@ static struct workqueue_struct *Periodic_controlvm_workqueue;
 static DEFINE_SEMAPHORE(NotifierLock);
 
 typedef struct {
-	CONTROLVM_MESSAGE message;
+	struct controlvm_message message;
 	unsigned int crc;
 } MESSAGE_ENVELOPE;
 
@@ -136,7 +136,7 @@ static LIVEDUMP_INFO LiveDump_info;
  * this scenario, we simply stash the controlvm message, then attempt to
  * process it again the next time controlvm_periodic_work() runs.
  */
-static CONTROLVM_MESSAGE ControlVm_Pending_Msg;
+static struct controlvm_message ControlVm_Pending_Msg;
 static BOOL ControlVm_Pending_Msg_Valid = FALSE;
 
 /* Pool of struct putfile_buffer_entry, for keeping track of pending (incoming)
@@ -220,7 +220,7 @@ struct parahotplug_request {
 	struct list_head list;
 	int id;
 	unsigned long expiration;
-	CONTROLVM_MESSAGE msg;
+	struct controlvm_message msg;
 };
 
 static LIST_HEAD(Parahotplug_request_list);
@@ -654,7 +654,7 @@ cleanup_controlvm_structures(void)
 }
 
 static void
-chipset_init(CONTROLVM_MESSAGE *inmsg)
+chipset_init(struct controlvm_message *inmsg)
 {
 	static int chipset_inited;
 	enum ultra_chipset_feature features = 0;
@@ -687,10 +687,10 @@ Away:
 }
 
 static void
-controlvm_init_response(CONTROLVM_MESSAGE *msg,
+controlvm_init_response(struct controlvm_message *msg,
 			struct controlvm_message_header *msgHdr, int response)
 {
-	memset(msg, 0, sizeof(CONTROLVM_MESSAGE));
+	memset(msg, 0, sizeof(struct controlvm_message));
 	memcpy(&msg->hdr, msgHdr, sizeof(struct controlvm_message_header));
 	msg->hdr.payload_bytes = 0;
 	msg->hdr.payload_vm_offset = 0;
@@ -704,7 +704,7 @@ controlvm_init_response(CONTROLVM_MESSAGE *msg,
 static void
 controlvm_respond(struct controlvm_message_header *msgHdr, int response)
 {
-	CONTROLVM_MESSAGE outmsg;
+	struct controlvm_message outmsg;
 
 	controlvm_init_response(&outmsg, msgHdr, response);
 	/* For DiagPool channel DEVICE_CHANGESTATE, we need to send
@@ -732,7 +732,7 @@ controlvm_respond_chipset_init(struct controlvm_message_header *msgHdr,
 			       int response,
 			       enum ultra_chipset_feature features)
 {
-	CONTROLVM_MESSAGE outmsg;
+	struct controlvm_message outmsg;
 
 	controlvm_init_response(&outmsg, msgHdr, response);
 	outmsg.cmd.init_chipset.features = features;
@@ -747,7 +747,7 @@ static void controlvm_respond_physdev_changestate(
 		struct controlvm_message_header *msgHdr, int response,
 		struct spar_segment_state state)
 {
-	CONTROLVM_MESSAGE outmsg;
+	struct controlvm_message outmsg;
 
 	controlvm_init_response(&outmsg, msgHdr, response);
 	outmsg.cmd.device_change_state.state = state;
@@ -760,7 +760,7 @@ static void controlvm_respond_physdev_changestate(
 }
 
 void
-visorchipset_save_message(CONTROLVM_MESSAGE *msg, CRASH_OBJ_TYPE type)
+visorchipset_save_message(struct controlvm_message *msg, CRASH_OBJ_TYPE type)
 {
 	u32 localSavedCrashMsgOffset;
 	u16 localSavedCrashMsgCount;
@@ -799,7 +799,8 @@ visorchipset_save_message(CONTROLVM_MESSAGE *msg, CRASH_OBJ_TYPE type)
 	if (type == CRASH_bus) {
 		if (visorchannel_write(ControlVm_channel,
 				       localSavedCrashMsgOffset,
-				       msg, sizeof(CONTROLVM_MESSAGE)) < 0) {
+				       msg,
+				       sizeof(struct controlvm_message)) < 0) {
 			LOGERR("SAVE_MSG_BUS_FAILURE: Failed to write CrashCreateBusMsg!");
 			POSTCODE_LINUX_2(SAVE_MSG_BUS_FAILURE_PC,
 					 POSTCODE_SEVERITY_ERR);
@@ -808,8 +809,8 @@ visorchipset_save_message(CONTROLVM_MESSAGE *msg, CRASH_OBJ_TYPE type)
 	} else {
 		if (visorchannel_write(ControlVm_channel,
 				       localSavedCrashMsgOffset +
-				       sizeof(CONTROLVM_MESSAGE), msg,
-				       sizeof(CONTROLVM_MESSAGE)) < 0) {
+				       sizeof(struct controlvm_message), msg,
+				       sizeof(struct controlvm_message)) < 0) {
 			LOGERR("SAVE_MSG_DEV_FAILURE: Failed to write CrashCreateDevMsg!");
 			POSTCODE_LINUX_2(SAVE_MSG_DEV_FAILURE_PC,
 					 POSTCODE_SEVERITY_ERR);
@@ -864,7 +865,7 @@ device_changestate_responder(enum controlvm_id cmdId,
 			     struct spar_segment_state responseState)
 {
 	VISORCHIPSET_DEVICE_INFO *p = NULL;
-	CONTROLVM_MESSAGE outmsg;
+	struct controlvm_message outmsg;
 
 	p = finddevice(&DevInfoList, busNo, devNo);
 	if (!p) {
@@ -1095,7 +1096,7 @@ device_epilog(u32 busNo, u32 devNo, struct spar_segment_state state, u32 cmd,
 }
 
 static void
-bus_create(CONTROLVM_MESSAGE *inmsg)
+bus_create(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	ulong busNo = cmd->create_bus.bus_no;
@@ -1149,7 +1150,7 @@ Away:
 }
 
 static void
-bus_destroy(CONTROLVM_MESSAGE *inmsg)
+bus_destroy(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	ulong busNo = cmd->destroy_bus.bus_no;
@@ -1175,7 +1176,7 @@ Away:
 }
 
 static void
-bus_configure(CONTROLVM_MESSAGE *inmsg, PARSER_CONTEXT *parser_ctx)
+bus_configure(struct controlvm_message *inmsg, PARSER_CONTEXT *parser_ctx)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	ulong busNo = cmd->configure_bus.bus_no;
@@ -1226,7 +1227,7 @@ Away:
 }
 
 static void
-my_device_create(CONTROLVM_MESSAGE *inmsg)
+my_device_create(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	ulong busNo = cmd->create_device.bus_no;
@@ -1304,7 +1305,7 @@ Away:
 }
 
 static void
-my_device_changestate(CONTROLVM_MESSAGE *inmsg)
+my_device_changestate(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	ulong busNo = cmd->device_change_state.bus_no;
@@ -1338,7 +1339,7 @@ Away:
 }
 
 static void
-my_device_destroy(CONTROLVM_MESSAGE *inmsg)
+my_device_destroy(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	ulong busNo = cmd->destroy_device.bus_no;
@@ -1536,7 +1537,7 @@ chipset_notready(struct controlvm_message_header *msgHdr)
  * CONTROLVM_QUEUE_EVENT queue in the controlvm channel.
  */
 static BOOL
-read_controlvm_event(CONTROLVM_MESSAGE *msg)
+read_controlvm_event(struct controlvm_message *msg)
 {
 	if (visorchannel_signalremove(ControlVm_channel,
 				      CONTROLVM_QUEUE_EVENT, msg)) {
@@ -1593,7 +1594,7 @@ parahotplug_next_expiration(void)
  * CONTROLVM_MESSAGE that we can stick on a list
  */
 static struct parahotplug_request *
-parahotplug_request_create(CONTROLVM_MESSAGE *msg)
+parahotplug_request_create(struct controlvm_message *msg)
 {
 	struct parahotplug_request *req =
 	    kmalloc(sizeof(struct parahotplug_request),
@@ -1723,7 +1724,7 @@ parahotplug_request_complete(int id, u16 active)
  * Enables or disables a PCI device by kicking off a udev script
  */
 static void
-parahotplug_process_message(CONTROLVM_MESSAGE *inmsg)
+parahotplug_process_message(struct controlvm_message *inmsg)
 {
 	struct parahotplug_request *req;
 
@@ -1775,14 +1776,14 @@ parahotplug_process_message(CONTROLVM_MESSAGE *inmsg)
  *            either successfully or with an error.
  */
 static BOOL
-handle_command(CONTROLVM_MESSAGE inmsg, HOSTADDRESS channel_addr)
+handle_command(struct controlvm_message inmsg, HOSTADDRESS channel_addr)
 {
 	struct controlvm_message_packet *cmd = &inmsg.cmd;
 	u64 parametersAddr = 0;
 	u32 parametersBytes = 0;
 	PARSER_CONTEXT *parser_ctx = NULL;
 	BOOL isLocalAddr = FALSE;
-	CONTROLVM_MESSAGE ackmsg;
+	struct controlvm_message ackmsg;
 
 	/* create parsing context if necessary */
 	isLocalAddr = (inmsg.hdr.flags.test_message == 1);
@@ -1931,7 +1932,7 @@ static void
 controlvm_periodic_work(struct work_struct *work)
 {
 	VISORCHIPSET_CHANNEL_INFO chanInfo;
-	CONTROLVM_MESSAGE inmsg;
+	struct controlvm_message inmsg;
 	BOOL gotACommand = FALSE;
 	BOOL handle_command_failed = FALSE;
 	static u64 Poll_Count;
@@ -2040,9 +2041,9 @@ static void
 setup_crash_devices_work_queue(struct work_struct *work)
 {
 
-	CONTROLVM_MESSAGE localCrashCreateBusMsg;
-	CONTROLVM_MESSAGE localCrashCreateDevMsg;
-	CONTROLVM_MESSAGE msg;
+	struct controlvm_message localCrashCreateBusMsg;
+	struct controlvm_message localCrashCreateDevMsg;
+	struct controlvm_message msg;
 	u32 localSavedCrashMsgOffset;
 	u16 localSavedCrashMsgCount;
 
@@ -2100,7 +2101,7 @@ setup_crash_devices_work_queue(struct work_struct *work)
 	if (visorchannel_read(ControlVm_channel,
 			      localSavedCrashMsgOffset,
 			      &localCrashCreateBusMsg,
-			      sizeof(CONTROLVM_MESSAGE)) < 0) {
+			      sizeof(struct controlvm_message)) < 0) {
 		LOGERR("CRASH_DEV_RD_BUS_FAIULRE: Failed to read CrashCreateBusMsg!");
 		POSTCODE_LINUX_2(CRASH_DEV_RD_BUS_FAIULRE_PC,
 				 POSTCODE_SEVERITY_ERR);
@@ -2110,9 +2111,9 @@ setup_crash_devices_work_queue(struct work_struct *work)
 	/* read create device message for storage device */
 	if (visorchannel_read(ControlVm_channel,
 			      localSavedCrashMsgOffset +
-			      sizeof(CONTROLVM_MESSAGE),
+			      sizeof(struct controlvm_message),
 			      &localCrashCreateDevMsg,
-			      sizeof(CONTROLVM_MESSAGE)) < 0) {
+			      sizeof(struct controlvm_message)) < 0) {
 		LOGERR("CRASH_DEV_RD_DEV_FAIULRE: Failed to read CrashCreateDevMsg!");
 		POSTCODE_LINUX_2(CRASH_DEV_RD_DEV_FAIULRE_PC,
 				 POSTCODE_SEVERITY_ERR);

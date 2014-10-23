@@ -267,7 +267,7 @@ visorchipset_register_busdev_server(VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers,
 				    VISORCHIPSET_BUSDEV_RESPONDERS *responders,
 				    struct ultra_vbus_deviceinfo *driverInfo);
 
-typedef void (*SPARREPORTEVENT_COMPLETE_FUNC) (CONTROLVM_MESSAGE *msg,
+typedef void (*SPARREPORTEVENT_COMPLETE_FUNC) (struct controlvm_message *msg,
 					       int status);
 
 void visorchipset_device_pause_response(ulong busNo, ulong devNo, int response);
@@ -285,9 +285,10 @@ BOOL visorchipset_set_device_context(ulong busNo, ulong devNo, void *context);
 int visorchipset_chipset_ready(void);
 int visorchipset_chipset_selftest(void);
 int visorchipset_chipset_notready(void);
-void visorchipset_controlvm_respond_reportEvent(CONTROLVM_MESSAGE *msg,
+void visorchipset_controlvm_respond_reportEvent(struct controlvm_message *msg,
 						void *payload);
-void visorchipset_save_message(CONTROLVM_MESSAGE *msg, CRASH_OBJ_TYPE type);
+void visorchipset_save_message(struct controlvm_message *msg,
+			       CRASH_OBJ_TYPE type);
 void *visorchipset_cache_alloc(struct kmem_cache *pool,
 			       BOOL ok_to_block, char *fn, int ln);
 void visorchipset_cache_free(struct kmem_cache *pool, void *p,
