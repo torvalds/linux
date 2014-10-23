@@ -116,7 +116,6 @@ void cxgb4_dcb_state_fsm(struct net_device *dev,
 			/* we're going to use Host DCB */
 			dcb->state = CXGB4_DCB_STATE_HOST;
 			dcb->supported = CXGB4_DCBX_HOST_SUPPORT;
-			dcb->enabled = 1;
 			break;
 		}
 
@@ -385,6 +384,12 @@ static u8 cxgb4_getstate(struct net_device *dev)
 static u8 cxgb4_setstate(struct net_device *dev, u8 enabled)
 {
 	struct port_info *pi = netdev2pinfo(dev);
+
+	/* If DCBx is host-managed, dcb is enabled by outside lldp agents */
+	if (pi->dcb.state == CXGB4_DCB_STATE_HOST) {
+		pi->dcb.enabled = enabled;
+		return 0;
+	}
 
 	/* Firmware doesn't provide any mechanism to control the DCB state.
 	 */
