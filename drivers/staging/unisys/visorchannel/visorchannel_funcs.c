@@ -89,10 +89,10 @@ visorchannel_create_guts(HOSTADDRESS physaddr, ulong channelBytes,
 	}
 	if (channelBytes == 0)
 		/* we had better be a CLIENT of this channel */
-		channelBytes = (ulong) p->chan_hdr.Size;
+		channelBytes = (ulong) p->chan_hdr.size;
 	if (uuid_le_cmp(guid, NULL_UUID_LE) == 0)
 		/* we had better be a CLIENT of this channel */
-		guid = p->chan_hdr.Type;
+		guid = p->chan_hdr.chtype;
 	if (visor_memregion_resize(p->memregion, channelBytes) < 0) {
 		ERRDRV("visor_memregion_resize failed: (status=0)\n");
 		rc = NULL;
@@ -194,14 +194,14 @@ EXPORT_SYMBOL_GPL(visorchannel_id);
 char *
 visorchannel_zoneid(VISORCHANNEL *channel, char *s)
 {
-	return visorchannel_uuid_id(&channel->chan_hdr.ZoneGuid, s);
+	return visorchannel_uuid_id(&channel->chan_hdr.zone_uuid, s);
 }
 EXPORT_SYMBOL_GPL(visorchannel_zoneid);
 
 HOSTADDRESS
 visorchannel_get_clientpartition(VISORCHANNEL *channel)
 {
-	return channel->chan_hdr.PartitionHandle;
+	return channel->chan_hdr.partition_handle;
 }
 EXPORT_SYMBOL_GPL(visorchannel_get_clientpartition);
 
@@ -295,7 +295,7 @@ EXPORT_SYMBOL_GPL(visorchannel_get_header);
  *  channel header
  */
 #define SIG_QUEUE_OFFSET(chan_hdr, q) \
-	((chan_hdr)->oChannelSpace + ((q) * sizeof(SIGNAL_QUEUE_HEADER)))
+	((chan_hdr)->ch_space_offset + ((q) * sizeof(SIGNAL_QUEUE_HEADER)))
 
 /** Return offset of a specific queue entry (data) from the beginning of a
  *  channel header
@@ -320,7 +320,7 @@ sig_read_header(VISORCHANNEL *channel, u32 queue,
 {
 	BOOL rc = FALSE;
 
-	if (channel->chan_hdr.oChannelSpace < sizeof(struct channel_header)) {
+	if (channel->chan_hdr.ch_space_offset < sizeof(struct channel_header)) {
 		ERRDRV("oChannelSpace too small: (status=%d)\n", rc);
 		goto Away;
 	}
@@ -591,38 +591,38 @@ visorchannel_debug(VISORCHANNEL *channel, int nQueues,
 		} else
 			return;
 	}
-	nbytes = (ulong) (phdr->Size);
+	nbytes = (ulong) (phdr->size);
 	seq_printf(seq, "--- Begin channel @0x%-16.16Lx for 0x%lx bytes (region=0x%lx bytes) ---\n",
 		   addr + off, nbytes, nbytes_region);
-	seq_printf(seq, "Type            = %pUL\n", &phdr->Type);
-	seq_printf(seq, "ZoneGuid        = %pUL\n", &phdr->ZoneGuid);
+	seq_printf(seq, "Type            = %pUL\n", &phdr->chtype);
+	seq_printf(seq, "ZoneGuid        = %pUL\n", &phdr->zone_uuid);
 	seq_printf(seq, "Signature       = 0x%-16.16Lx\n",
-		   (long long) phdr->Signature);
-	seq_printf(seq, "LegacyState     = %lu\n", (ulong) phdr->LegacyState);
-	seq_printf(seq, "SrvState        = %lu\n", (ulong) phdr->SrvState);
-	seq_printf(seq, "CliStateBoot    = %lu\n", (ulong) phdr->CliStateBoot);
-	seq_printf(seq, "CliStateOS      = %lu\n", (ulong) phdr->CliStateOS);
-	seq_printf(seq, "HeaderSize      = %lu\n", (ulong) phdr->HeaderSize);
-	seq_printf(seq, "Size            = %llu\n", (long long) phdr->Size);
+		   (long long) phdr->signature);
+	seq_printf(seq, "LegacyState     = %lu\n", (ulong)phdr->legacy_state);
+	seq_printf(seq, "SrvState        = %lu\n", (ulong)phdr->srv_state);
+	seq_printf(seq, "CliStateBoot    = %lu\n", (ulong)phdr->cli_state_boot);
+	seq_printf(seq, "CliStateOS      = %lu\n", (ulong)phdr->cli_state_os);
+	seq_printf(seq, "HeaderSize      = %lu\n", (ulong)phdr->header_size);
+	seq_printf(seq, "Size            = %llu\n", (long long)phdr->size);
 	seq_printf(seq, "Features        = 0x%-16.16llx\n",
-		   (long long) phdr->Features);
+		   (long long) phdr->features);
 	seq_printf(seq, "PartitionHandle = 0x%-16.16llx\n",
-		   (long long) phdr->PartitionHandle);
+		   (long long) phdr->partition_handle);
 	seq_printf(seq, "Handle          = 0x%-16.16llx\n",
-		   (long long) phdr->Handle);
-	seq_printf(seq, "VersionId       = %lu\n", (ulong) phdr->VersionId);
+		   (long long) phdr->handle);
+	seq_printf(seq, "VersionId       = %lu\n", (ulong) phdr->version_id);
 	seq_printf(seq, "oChannelSpace   = %llu\n",
-		   (long long) phdr->oChannelSpace);
-	if ((phdr->oChannelSpace == 0) || (errcode < 0))
+		   (long long) phdr->ch_space_offset);
+	if ((phdr->ch_space_offset == 0) || (errcode < 0))
 		;
 	else
 		for (i = 0; i < nQueues; i++) {
 			SIGNAL_QUEUE_HEADER q;
 
 			errcode = visorchannel_read(channel,
-						    off + phdr->oChannelSpace +
-						    (i * sizeof(q)),
-						    &q, sizeof(q));
+					off + phdr->ch_space_offset +
+						(i * sizeof(q)),
+					&q, sizeof(q));
 			if (errcode < 0) {
 				seq_printf(seq,
 					   "failed to read signal queue #%d from channel @0x%-16.16Lx errcode=%d\n",

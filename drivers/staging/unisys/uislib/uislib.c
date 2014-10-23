@@ -448,7 +448,7 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 						struct channel_header
 							__iomem *) (dev->
 								  chanptr))->
-							    Type);
+							    chtype);
 					if (!ULTRA_VHBA_CHANNEL_OK_CLIENT
 					    (dev->chanptr, NULL)) {
 						LOGERR("CONTROLVM_DEVICE_CREATE Failed:[CLIENT]VHBA dev %d chan invalid.",
@@ -474,7 +474,7 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 						struct channel_header
 							__iomem *) (dev->
 								  chanptr))->
-							    Type);
+							    chtype);
 					if (!ULTRA_VNIC_CHANNEL_OK_CLIENT
 					    (dev->chanptr, NULL)) {
 						LOGERR("CONTROLVM_DEVICE_CREATE Failed: VNIC[CLIENT] dev %d chan invalid.",

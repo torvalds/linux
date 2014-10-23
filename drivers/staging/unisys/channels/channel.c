@@ -52,7 +52,7 @@ visor_signal_insert(struct channel_header __iomem *pChannel, u32 Queue,
 
 	SIGNAL_QUEUE_HEADER __iomem *pqhdr =
 	    (SIGNAL_QUEUE_HEADER __iomem *)
-		((char __iomem *) pChannel + readq(&pChannel->oChannelSpace))
+		((char __iomem *) pChannel + readq(&pChannel->ch_space_offset))
 		+ Queue;
 
 	/* capture current head and tail */
@@ -110,7 +110,7 @@ visor_signal_remove(struct channel_header __iomem *pChannel, u32 Queue,
 	unsigned int head, tail;
 	SIGNAL_QUEUE_HEADER __iomem *pqhdr =
 	    (SIGNAL_QUEUE_HEADER __iomem *) ((char __iomem *) pChannel +
-				    readq(&pChannel->oChannelSpace)) + Queue;
+				    readq(&pChannel->ch_space_offset)) + Queue;
 
 	/* capture current head and tail */
 	head = readl(&pqhdr->Head);
@@ -165,7 +165,7 @@ SignalRemoveAll(struct channel_header *pChannel, u32 Queue, void *pSignal)
 	unsigned int head, tail, signalCount = 0;
 	pSIGNAL_QUEUE_HEADER pqhdr =
 	    (pSIGNAL_QUEUE_HEADER) ((char *) pChannel +
-				    pChannel->oChannelSpace) + Queue;
+				    pChannel->ch_space_offset) + Queue;
 
 	/* capture current head and tail */
 	head = pqhdr->Head;
@@ -214,7 +214,7 @@ visor_signalqueue_empty(struct channel_header __iomem *pChannel, u32 Queue)
 {
 	SIGNAL_QUEUE_HEADER __iomem *pqhdr =
 	    (SIGNAL_QUEUE_HEADER __iomem *) ((char __iomem *) pChannel +
-				    readq(&pChannel->oChannelSpace)) + Queue;
+				    readq(&pChannel->ch_space_offset)) + Queue;
 	return readl(&pqhdr->Head) == readl(&pqhdr->Tail);
 }
 EXPORT_SYMBOL_GPL(visor_signalqueue_empty);

@@ -429,9 +429,9 @@ virthba_ISR(int irq, void *dev_id)
 		return IRQ_NONE;
 	virthbainfo->interrupts_rcvd++;
 	pChannelHeader = virthbainfo->chinfo.queueinfo->chan;
-	if (((readq(&pChannelHeader->Features)
+	if (((readq(&pChannelHeader->features)
 	      & ULTRA_IO_IOVM_IS_OK_WITH_DRIVER_DISABLING_INTS) != 0)
-	    && ((readq(&pChannelHeader->Features) &
+	    && ((readq(&pChannelHeader->features) &
 		 ULTRA_IO_DRIVER_DISABLES_INTS) !=
 		0)) {
 		virthbainfo->interrupts_disabled++;
@@ -444,7 +444,7 @@ virthba_ISR(int irq, void *dev_id)
 	}
 	pqhdr = (SIGNAL_QUEUE_HEADER __iomem *)
 		((char __iomem *) pChannelHeader +
-		 readq(&pChannelHeader->oChannelSpace)) + IOCHAN_FROM_IOPART;
+		 readq(&pChannelHeader->ch_space_offset)) + IOCHAN_FROM_IOPART;
 	writeq(readq(&pqhdr->NumInterruptsReceived) + 1,
 	       &pqhdr->NumInterruptsReceived);
 	atomic_set(&virthbainfo->interrupt_rcvd, 1);
@@ -578,9 +578,9 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	INIT_WORK(&virthbainfo->serverdown_completion,
 		  virthba_serverdown_complete);
 
-	writeq(readq(&virthbainfo->chinfo.queueinfo->chan->Features) |
+	writeq(readq(&virthbainfo->chinfo.queueinfo->chan->features) |
 	       ULTRA_IO_CHANNEL_IS_POLLING,
-	       &virthbainfo->chinfo.queueinfo->chan->Features);
+	       &virthbainfo->chinfo.queueinfo->chan->features);
 	/* start thread that will receive scsicmnd responses */
 	DBGINF("starting rsp thread -- queueinfo: 0x%p, threadinfo: 0x%p.\n",
 	       virthbainfo->chinfo.queueinfo, &virthbainfo->chinfo.threadinfo);
@@ -588,7 +588,7 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	pChannelHeader = virthbainfo->chinfo.queueinfo->chan;
 	pqhdr = (SIGNAL_QUEUE_HEADER __iomem *)
 		((char __iomem *)pChannelHeader +
-		 readq(&pChannelHeader->oChannelSpace)) + IOCHAN_FROM_IOPART;
+		 readq(&pChannelHeader->ch_space_offset)) + IOCHAN_FROM_IOPART;
 	virthbainfo->flags_addr = &pqhdr->FeatureFlags;
 
 	if (!uisthread_start(&virthbainfo->chinfo.threadinfo,
@@ -622,7 +622,7 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 		POSTCODE_LINUX_2(VHBA_PROBE_FAILURE_PC, POSTCODE_SEVERITY_ERR);
 	} else {
 		u64 __iomem *Features_addr =
-		    &virthbainfo->chinfo.queueinfo->chan->Features;
+		    &virthbainfo->chinfo.queueinfo->chan->features;
 		LOGERR("request_irq(%d) uislib_virthba_ISR request succeeded\n",
 		       virthbainfo->interrupt_vector);
 		mask = ~(ULTRA_IO_CHANNEL_IS_POLLING |
@@ -1453,7 +1453,7 @@ static ssize_t enable_ints_write(struct file *file,
 		if (VirtHbasOpen[i].virthbainfo != NULL) {
 			virthbainfo = VirtHbasOpen[i].virthbainfo;
 			Features_addr =
-				&virthbainfo->chinfo.queueinfo->chan->Features;
+				&virthbainfo->chinfo.queueinfo->chan->features;
 			if (new_value == 1) {
 				mask = ~(ULTRA_IO_CHANNEL_IS_POLLING |
 					 ULTRA_IO_DRIVER_DISABLES_INTS);

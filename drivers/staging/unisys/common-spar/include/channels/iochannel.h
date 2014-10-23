@@ -750,29 +750,29 @@ typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
 #define QSIZEFROMBYTES(bytes) (QSLOTSFROMBYTES(bytes)*SIZEOF_CMDRSP)
 #define SignalQInit(x)						\
 	do {							\
-		x->cmdQ.Size = QSIZEFROMBYTES(x->ChannelHeader.Size);	\
+		x->cmdQ.Size = QSIZEFROMBYTES(x->ChannelHeader.size);	\
 		x->cmdQ.oSignalBase = SIZEOF_PROTOCOL -			\
 			offsetof(ULTRA_IO_CHANNEL_PROTOCOL, cmdQ);	\
 		x->cmdQ.SignalSize = SIZEOF_CMDRSP;			\
 		x->cmdQ.MaxSignalSlots =				\
-			QSLOTSFROMBYTES(x->ChannelHeader.Size);		\
+			QSLOTSFROMBYTES(x->ChannelHeader.size);		\
 		x->cmdQ.MaxSignals = x->cmdQ.MaxSignalSlots - 1;	\
-		x->rspQ.Size = QSIZEFROMBYTES(x->ChannelHeader.Size);	\
+		x->rspQ.Size = QSIZEFROMBYTES(x->ChannelHeader.size);	\
 		x->rspQ.oSignalBase =					\
 			(SIZEOF_PROTOCOL + x->cmdQ.Size) -		\
 			offsetof(ULTRA_IO_CHANNEL_PROTOCOL, rspQ);	\
 		x->rspQ.SignalSize = SIZEOF_CMDRSP;			\
 		x->rspQ.MaxSignalSlots =				\
-			QSLOTSFROMBYTES(x->ChannelHeader.Size);		\
+			QSLOTSFROMBYTES(x->ChannelHeader.size);		\
 		x->rspQ.MaxSignals = x->rspQ.MaxSignalSlots - 1;	\
-		x->ChannelHeader.oChannelSpace =			\
+		x->ChannelHeader.ch_space_offset =			\
 			offsetof(ULTRA_IO_CHANNEL_PROTOCOL, cmdQ);	\
 	} while (0)
 
 #define INIT_CLIENTSTRING(chan, type, clientStr, clientStrLen)	\
 	do {								\
 		if (clientStr) {					\
-			chan->ChannelHeader.oClientString =		\
+			chan->ChannelHeader.cli_str_offset =		\
 				offsetof(type, clientString);		\
 			memcpy(chan->clientString, clientStr,		\
 			       MINNUM(clientStrLen,			\
@@ -802,13 +802,13 @@ static inline int ULTRA_VHBA_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
 					      unsigned char *clientStr,
 					      u32 clientStrLen, u64 bytes)  {
 	memset(x, 0, sizeof(ULTRA_IO_CHANNEL_PROTOCOL));
-	x->ChannelHeader.VersionId = ULTRA_VHBA_CHANNEL_PROTOCOL_VERSIONID;
-	x->ChannelHeader.Signature = ULTRA_VHBA_CHANNEL_PROTOCOL_SIGNATURE;
-	x->ChannelHeader.SrvState = CHANNELSRV_UNINITIALIZED;
-	x->ChannelHeader.HeaderSize = sizeof(x->ChannelHeader);
-	x->ChannelHeader.Size = COVER(bytes, 4096);
-	x->ChannelHeader.Type = spar_vhba_channel_protocol_uuid;
-	x->ChannelHeader.ZoneGuid = NULL_UUID_LE;
+	x->ChannelHeader.version_id = ULTRA_VHBA_CHANNEL_PROTOCOL_VERSIONID;
+	x->ChannelHeader.signature = ULTRA_VHBA_CHANNEL_PROTOCOL_SIGNATURE;
+	x->ChannelHeader.srv_state = CHANNELSRV_UNINITIALIZED;
+	x->ChannelHeader.header_size = sizeof(x->ChannelHeader);
+	x->ChannelHeader.size = COVER(bytes, 4096);
+	x->ChannelHeader.chtype = spar_vhba_channel_protocol_uuid;
+	x->ChannelHeader.zone_uuid = NULL_UUID_LE;
 	x->vhba.wwnn = *wwnn;
 	x->vhba.max = *max;
 	INIT_CLIENTSTRING(x, ULTRA_IO_CHANNEL_PROTOCOL, clientStr,
@@ -838,13 +838,13 @@ static inline int ULTRA_VNIC_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
 						 u32 clientStrLen,
 						 u64 bytes)  {
 	memset(x, 0, sizeof(ULTRA_IO_CHANNEL_PROTOCOL));
-	x->ChannelHeader.VersionId = ULTRA_VNIC_CHANNEL_PROTOCOL_VERSIONID;
-	x->ChannelHeader.Signature = ULTRA_VNIC_CHANNEL_PROTOCOL_SIGNATURE;
-	x->ChannelHeader.SrvState = CHANNELSRV_UNINITIALIZED;
-	x->ChannelHeader.HeaderSize = sizeof(x->ChannelHeader);
-	x->ChannelHeader.Size = COVER(bytes, 4096);
-	x->ChannelHeader.Type = spar_vnic_channel_protocol_uuid;
-	x->ChannelHeader.ZoneGuid = NULL_UUID_LE;
+	x->ChannelHeader.version_id = ULTRA_VNIC_CHANNEL_PROTOCOL_VERSIONID;
+	x->ChannelHeader.signature = ULTRA_VNIC_CHANNEL_PROTOCOL_SIGNATURE;
+	x->ChannelHeader.srv_state = CHANNELSRV_UNINITIALIZED;
+	x->ChannelHeader.header_size = sizeof(x->ChannelHeader);
+	x->ChannelHeader.size = COVER(bytes, 4096);
+	x->ChannelHeader.chtype = spar_vnic_channel_protocol_uuid;
+	x->ChannelHeader.zone_uuid = NULL_UUID_LE;
 	memcpy(x->vnic.macaddr, macaddr, MAX_MACADDR_LEN);
 	x->vnic.num_rcv_bufs = num_rcv_bufs;
 	x->vnic.mtu = mtu;
