@@ -483,31 +483,29 @@ struct spar_controlvm_channel_protocol {
 	offsetof(struct spar_controlvm_channel_protocol, saved_crash_msg)
 
 /* The following header will be located at the beginning of PayloadVmOffset for
- *  various ControlVm commands. The receiver of a ControlVm command with a
- *  PayloadVmOffset will dereference this address and then use ConnectionOffset,
- *  InitiatorOffset, and TargetOffset to get the location of UTF-8 formatted
- *  strings that can be parsed to obtain command-specific information. The value
- *  of TotalLength should equal PayloadBytes.  The format of the strings at
- *  PayloadVmOffset will take different forms depending on the message.  See the
- *  following Wiki page for more information:
- *  https://ustr-linux-1.na.uis.unisys.com/spar/index.php/ControlVm_Parameters_Area
+ * various ControlVm commands. The receiver of a ControlVm command with a
+ * PayloadVmOffset will dereference this address and then use connection_offset,
+ * initiator_offset, and target_offset to get the location of UTF-8 formatted
+ * strings that can be parsed to obtain command-specific information. The value
+ * of total_length should equal PayloadBytes. The format of the strings at
+ * PayloadVmOffset will take different forms depending on the message.
  */
-typedef struct _ULTRA_CONTROLVM_PARAMETERS_HEADER  {
-	u32 TotalLength;
-	u32 HeaderLength;
-	u32 ConnectionOffset;
-	u32 ConnectionLength;
-	u32 InitiatorOffset;
-	u32 InitiatorLength;
-	u32 TargetOffset;
-	u32 TargetLength;
-	u32 ClientOffset;
-	u32 ClientLength;
-	u32 NameOffset;
-	u32 NameLength;
-	uuid_le Id;
-	u32 Revision;
-	u32 Reserved;		/* Natural alignment */
-} ULTRA_CONTROLVM_PARAMETERS_HEADER;
+struct spar_controlvm_parameters_header {
+	u32 total_length;
+	u32 header_length;
+	u32 connection_offset;
+	u32 connection_length;
+	u32 initiator_offset;
+	u32 initiator_length;
+	u32 target_offset;
+	u32 target_length;
+	u32 client_offset;
+	u32 client_length;
+	u32 name_offset;
+	u32 name_length;
+	uuid_le id;
+	u32 revision;
+	u32 reserved;		/* Natural alignment */
+};
 
 #endif				/* __CONTROLVMCHANNEL_H__ */
