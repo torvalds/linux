@@ -1548,6 +1548,7 @@ static const struct dev_pm_ops i915_pm_ops = {
 	.thaw_early = i915_pm_resume_early,
 	.thaw = i915_pm_resume,
 	.poweroff = i915_pm_suspend,
+	.poweroff_late = i915_pm_suspend_late,
 	.restore_early = i915_pm_resume_early,
 	.restore = i915_pm_resume,
 	.runtime_suspend = intel_runtime_suspend,
