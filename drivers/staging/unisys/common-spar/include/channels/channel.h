@@ -564,7 +564,7 @@ unsigned int SignalRemoveAll(struct channel_header *pChannel, u32 Queue,
 * Return value:
 * 1 if the signal queue is empty, 0 otherwise.
 */
-unsigned char visor_signalqueue_empty(struct channel_header __iomem *pChannel,
-				      u32 Queue);
+unsigned char spar_signalqueue_empty(struct channel_header __iomem *ch,
+				     u32 queue);
 
 #endif

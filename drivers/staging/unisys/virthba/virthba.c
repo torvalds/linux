@@ -438,7 +438,7 @@ virthba_ISR(int irq, void *dev_id)
 		mask = ~ULTRA_CHANNEL_ENABLE_INTS;
 		rc1 = uisqueue_interlocked_and(virthbainfo->flags_addr, mask);
 	}
-	if (visor_signalqueue_empty(pChannelHeader, IOCHAN_FROM_IOPART)) {
+	if (spar_signalqueue_empty(pChannelHeader, IOCHAN_FROM_IOPART)) {
 		virthbainfo->interrupts_notme++;
 		return IRQ_NONE;
 	}

@@ -207,13 +207,13 @@ SignalRemoveAll(struct channel_header *pChannel, u32 Queue, void *pSignal)
  * Return value:
  * 1 if the signal queue is empty, 0 otherwise.
  */
-unsigned char
-visor_signalqueue_empty(struct channel_header __iomem *pChannel, u32 Queue)
+unsigned char spar_signalqueue_empty(struct channel_header __iomem *ch,
+				     u32 queue)
 {
 	struct signal_queue_header __iomem *pqhdr =
-	    (struct signal_queue_header __iomem *) ((char __iomem *) pChannel +
-				    readq(&pChannel->ch_space_offset)) + Queue;
+	    (struct signal_queue_header __iomem *) ((char __iomem *) ch +
+				    readq(&ch->ch_space_offset)) + queue;
 	return readl(&pqhdr->head) == readl(&pqhdr->tail);
 }
-EXPORT_SYMBOL_GPL(visor_signalqueue_empty);
+EXPORT_SYMBOL_GPL(spar_signalqueue_empty);
 
