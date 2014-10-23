@@ -289,12 +289,11 @@ static int  goodix_read_version(struct rk_ts_data *ts, char **version)
 	char *version_data;
 	char *p;
 
-	*version = (char *)vmalloc(18);
+	*version = (char *)vzalloc(18);
 	version_data = *version;
 	if(!version_data)
 		return -ENOMEM;
 	p = version_data;
-	memset(version_data, 0, sizeof(version_data));
 	version_data[0]=240;	
 	ret=goodix_i2c_read_bytes(ts->client,version_data, 17);
 	if (ret < 0) 
