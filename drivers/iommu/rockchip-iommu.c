@@ -487,8 +487,12 @@ static bool iommu_reset(void __iomem *base, const char *dbgname)
 
 static inline void pgtable_flush(void *vastart, void *vaend)
 {
+#ifdef CONFIG_ARM
 	dmac_flush_range(vastart, vaend);
 	outer_flush_range(virt_to_phys(vastart), virt_to_phys(vaend));
+#elif defined(CONFIG_ARM64)
+	__dma_flush_range(vastart, vaend);
+#endif
 }
 
 static void set_fault_handler(struct iommu_drvdata *data,
