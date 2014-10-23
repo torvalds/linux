@@ -630,6 +630,25 @@ static int i915_drm_freeze(struct drm_device *dev)
 	return 0;
 }
 
+static int i915_drm_suspend_late(struct drm_device *drm_dev)
+{
+	struct drm_i915_private *dev_priv = drm_dev->dev_private;
+	int ret;
+
+	ret = intel_suspend_complete(dev_priv);
+
+	if (ret) {
+		DRM_ERROR("Suspend complete failed: %d\n", ret);
+
+		return ret;
+	}
+
+	pci_disable_device(drm_dev->pdev);
+	pci_set_power_state(drm_dev->pdev, PCI_D3hot);
+
+	return 0;
+}
+
 int i915_suspend(struct drm_device *dev, pm_message_t state)
 {
 	int error;
@@ -955,8 +974,6 @@ static int i915_pm_suspend_late(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	struct drm_i915_private *dev_priv = drm_dev->dev_private;
-	int ret;
 
 	/*
 	 * We have a suspedn ordering issue with the snd-hda driver also
@@ -970,16 +987,7 @@ static int i915_pm_suspend_late(struct device *dev)
 	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-	ret = intel_suspend_complete(dev_priv);
-
-	if (ret)
-		DRM_ERROR("Suspend complete failed: %d\n", ret);
-	else {
-		pci_disable_device(pdev);
-		pci_set_power_state(pdev, PCI_D3hot);
-	}
-
-	return ret;
+	return i915_drm_suspend_late(drm_dev);
 }
 
 static int i915_pm_resume_early(struct device *dev)
