@@ -1236,6 +1236,7 @@ static void __init eva_init(void)
 		{ "A4LC", &hdmi_lcdc_device },
 		{ "A4MP", &hdmi_device },
 		{ "A4MP", &fsi_device },
+		{ "A4R",  &ceu0_device },
 		{ "A4S",  &sh_eth_device },
 		{ "A3SP", &pwm_device },
 		{ "A3SP", &sdhi0_device },

@@ -55,6 +55,9 @@ static struct rmobile_pm_domain r8a7740_pm_domains[] = {
 		.gov		= &pm_domain_always_on_gov,
 		.suspend	= r8a7740_pd_d4_suspend,
 	}, {
+		.genpd.name	= "A4R",
+		.bit_shift	= 5,
+	}, {
 		.genpd.name	= "A3RV",
 		.bit_shift	= 6,
 	}, {
@@ -78,6 +81,7 @@ static struct rmobile_pm_domain r8a7740_pm_domains[] = {
 void __init r8a7740_init_pm_domains(void)
 {
 	rmobile_init_domains(r8a7740_pm_domains, ARRAY_SIZE(r8a7740_pm_domains));
+	pm_genpd_add_subdomain_names("A4R", "A3RV");
 	pm_genpd_add_subdomain_names("A4S", "A3SP");
 	pm_genpd_add_subdomain_names("A4S", "A3SG");
 }
