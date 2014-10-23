@@ -535,6 +535,29 @@ static const struct panel_desc foxlink_fl500wvr00_a0t = {
 	},
 };
 
+static const struct drm_display_mode hannstar_hsd070pww1_mode = {
+	.clock = 71100,
+	.hdisplay = 1280,
+	.hsync_start = 1280 + 1,
+	.hsync_end = 1280 + 1 + 158,
+	.htotal = 1280 + 1 + 158 + 1,
+	.vdisplay = 800,
+	.vsync_start = 800 + 1,
+	.vsync_end = 800 + 1 + 21,
+	.vtotal = 800 + 1 + 21 + 1,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc hannstar_hsd070pww1 = {
+	.modes = &hannstar_hsd070pww1_mode,
+	.num_modes = 1,
+	.bpc = 6,
+	.size = {
+		.width = 151,
+		.height = 94,
+	},
+};
+
 static const struct drm_display_mode innolux_n116bge_mode = {
 	.clock = 71000,
 	.hdisplay = 1366,
@@ -659,6 +682,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "foxlink,fl500wvr00-a0t",
 		.data = &foxlink_fl500wvr00_a0t,
+	}, {
+		.compatible = "hannstar,hsd070pww1",
+		.data = &hannstar_hsd070pww1,
 	}, {
 		.compatible = "innolux,n116bge",
 		.data = &innolux_n116bge,
