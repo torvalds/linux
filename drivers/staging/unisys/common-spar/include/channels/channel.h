@@ -269,18 +269,18 @@ struct signal_queue_header {
 
 #pragma pack(pop)
 
-#define SignalInit(chan, QHDRFLD, QDATAFLD, QDATATYPE, ver, typ)	\
+#define spar_signal_init(chan, QHDRFLD, QDATAFLD, QDATATYPE, ver, typ)	\
 	do {								\
 		memset(&chan->QHDRFLD, 0, sizeof(chan->QHDRFLD));	\
-		chan->QHDRFLD.VersionId = ver;				\
-		chan->QHDRFLD.Type = typ;				\
-		chan->QHDRFLD.Size = sizeof(chan->QDATAFLD);		\
-		chan->QHDRFLD.SignalSize = sizeof(QDATATYPE);		\
-		chan->QHDRFLD.oSignalBase = (u64)(chan->QDATAFLD)-	\
+		chan->QHDRFLD.version = ver;				\
+		chan->QHDRFLD.chtype = typ;				\
+		chan->QHDRFLD.size = sizeof(chan->QDATAFLD);		\
+		chan->QHDRFLD.signal_size = sizeof(QDATATYPE);		\
+		chan->QHDRFLD.sig_base_offset = (u64)(chan->QDATAFLD)-	\
 			(u64)(&chan->QHDRFLD);				\
-		chan->QHDRFLD.MaxSignalSlots =				\
+		chan->QHDRFLD.max_slots =				\
 			sizeof(chan->QDATAFLD)/sizeof(QDATATYPE);	\
-		chan->QHDRFLD.MaxSignals = chan->QHDRFLD.MaxSignalSlots-1; \
+		chan->QHDRFLD.max_signals = chan->QHDRFLD.max_slots-1;	\
 	} while (0)
 
 /* Generic function useful for validating any type of channel when it is
