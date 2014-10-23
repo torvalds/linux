@@ -37,12 +37,12 @@
 #include "channel.h"
 
 /* {EEA7A573-DB82-447c-8716-EFBEAAAE4858} */
-#define ULTRA_DIAG_CHANNEL_PROTOCOL_GUID \
+#define SPAR_DIAG_CHANNEL_PROTOCOL_UUID \
 		UUID_LE(0xeea7a573, 0xdb82, 0x447c, \
 				0x87, 0x16, 0xef, 0xbe, 0xaa, 0xae, 0x48, 0x58)
 
-static const uuid_le UltraDiagChannelProtocolGuid =
-	ULTRA_DIAG_CHANNEL_PROTOCOL_GUID;
+static const uuid_le spar_diag_channel_protocol_uuid =
+	SPAR_DIAG_CHANNEL_PROTOCOL_UUID;
 
 /* {E850F968-3263-4484-8CA5-2A35D087A5A8} */
 #define ULTRA_DIAG_ROOT_CHANNEL_PROTOCOL_GUID \
@@ -60,13 +60,13 @@ static const uuid_le UltraDiagChannelProtocolGuid =
 
 #define ULTRA_DIAG_CHANNEL_OK_CLIENT(pChannel, logCtx)			\
 	(spar_check_channel_client(pChannel,				\
-				    UltraDiagChannelProtocolGuid,	\
+				    spar_diag_channel_protocol_uuid,	\
 				    "diag",				\
 				    sizeof(ULTRA_DIAG_CHANNEL_PROTOCOL), \
 				    ULTRA_DIAG_CHANNEL_PROTOCOL_VERSIONID, \
 				    ULTRA_DIAG_CHANNEL_PROTOCOL_SIGNATURE))
 #define ULTRA_DIAG_CHANNEL_OK_SERVER(actualBytes)		\
-	(spar_check_channel_server(UltraDiagChannelProtocolGuid,	\
+	(spar_check_channel_server(spar_diag_channel_protocol_uuid,	\
 				   "diag",				\
 				   sizeof(ULTRA_DIAG_CHANNEL_PROTOCOL), \
 				    actualBytes))
