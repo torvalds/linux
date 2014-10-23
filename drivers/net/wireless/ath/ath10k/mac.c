@@ -3872,7 +3872,7 @@ static int ath10k_set_frag_threshold(struct ieee80211_hw *hw, u32 value)
 		ath10k_dbg(ar, ATH10K_DBG_MAC, "mac vdev %d fragmentation threshold %d\n",
 			   arvif->vdev_id, value);
 
-		ret = ath10k_mac_set_rts(arvif, value);
+		ret = ath10k_mac_set_frag(arvif, value);
 		if (ret) {
 			ath10k_warn(ar, "failed to set fragmentation threshold for vdev %d: %d\n",
 				    arvif->vdev_id, ret);
