@@ -87,7 +87,7 @@ do_locked_client_insert(struct uisqueue_info *queueinfo,
 		queueinfo->packets_sent++;
 		rc = 1;
 	}
-	ULTRA_CHANNEL_CLIENT_RELEASE_OS(queueinfo->chan, channelId, NULL);
+	spar_channel_client_release_os(queueinfo->chan, channelId);
 unlock:
 	spin_unlock_irqrestore((spinlock_t *)lock, flags);
 	return rc;

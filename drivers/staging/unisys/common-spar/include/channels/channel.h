@@ -149,10 +149,6 @@ ULTRA_CHANNELCLI_STRING(u32 v)
 		mb(); /* required for channel synch */			\
 	} while (0)
 
-#define ULTRA_CHANNEL_CLIENT_RELEASE_OS(pChan, chanId, logCtx)	\
-	ULTRA_channel_client_release_os(pChan, chanId, logCtx,	\
-		(char *)__FILE__, __LINE__, (char *)__func__)
-
 /* Values for ULTRA_CHANNEL_PROTOCOL.CliErrorBoot: */
 /* throttling invalid boot channel statetransition error due to client
  * disabled */
@@ -494,29 +490,25 @@ spar_channel_client_acquire_os(void __iomem *ch, u8 *id)
 }
 
 static inline void
-ULTRA_channel_client_release_os(void __iomem *pChannel, u8 *chanId,
-				void *logCtx, char *file, int line, char *func)
+spar_channel_client_release_os(void __iomem *ch, u8 *id)
 {
-	struct channel_header __iomem *pChan = pChannel;
+	struct channel_header __iomem *hdr = ch;
 
-	if (readb(&pChan->cli_error_os) != 0) {
+	if (readb(&hdr->cli_error_os) != 0) {
 		/* we are in an error msg throttling state; come out of it */
-		pr_info("%s Channel OS client error state cleared @%s:%d\n",
-			chanId, pathname_last_n_nodes((u8 *) file, 4),
-			line);
-		writeb(0, &pChan->cli_error_os);
+		pr_info("%s Channel OS client error state cleared\n", id);
+		writeb(0, &hdr->cli_error_os);
 	}
-	if (readl(&pChan->cli_state_os) == CHANNELCLI_OWNED)
+	if (readl(&hdr->cli_state_os) == CHANNELCLI_OWNED)
 		return;
-	if (readl(&pChan->cli_state_os) != CHANNELCLI_BUSY) {
-		pr_info("%s Channel StateTransition INVALID! - release failed because OS client NOT BUSY (state=%s(%d)) @%s:%d\n",
-			chanId, ULTRA_CHANNELCLI_STRING(
-					readl(&pChan->cli_state_os)),
-			readl(&pChan->cli_state_os),
-			pathname_last_n_nodes((u8 *) file, 4), line);
+	if (readl(&hdr->cli_state_os) != CHANNELCLI_BUSY) {
+		pr_info("%s Channel StateTransition INVALID! - release failed because OS client NOT BUSY (state=%s(%d))\n",
+			id, ULTRA_CHANNELCLI_STRING(
+					readl(&hdr->cli_state_os)),
+			readl(&hdr->cli_state_os));
 		/* return; */
 	}
-	writel(CHANNELCLI_ATTACHED, &pChan->cli_state_os); /* release busy */
+	writel(CHANNELCLI_ATTACHED, &hdr->cli_state_os); /* release busy */
 }
 
 /*

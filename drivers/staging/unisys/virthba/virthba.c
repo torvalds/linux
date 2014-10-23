@@ -1285,8 +1285,7 @@ drain_queue(struct virthba_info *virthbainfo, struct chaninfo *dc,
 		}
 		qrslt = uisqueue_get_cmdrsp(dc->queueinfo, cmdrsp,
 					    IOCHAN_FROM_IOPART);
-		ULTRA_CHANNEL_CLIENT_RELEASE_OS(dc->queueinfo->chan,
-						"vhba", NULL);
+		spar_channel_client_release_os(dc->queueinfo->chan, "vhba");
 		spin_unlock_irqrestore(&virthbainfo->chinfo.insertlock, flags);
 		if (qrslt == 0)
 			break;
