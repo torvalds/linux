@@ -177,7 +177,7 @@ int WAIT_FOR_IO_CHANNEL(ULTRA_IO_CHANNEL_PROTOCOL __iomem  *chanptr)
 
 	while (count > 0) {
 
-		if (ULTRA_CHANNEL_SERVER_READY(&chanptr->ChannelHeader))
+		if (SPAR_CHANNEL_SERVER_READY(&chanptr->ChannelHeader))
 			return 1;
 		UIS_THREAD_WAIT_SEC(1);
 		count--;

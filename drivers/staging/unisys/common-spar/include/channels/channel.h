@@ -93,9 +93,8 @@ ULTRA_CHANNELCLI_STRING(u32 v)
 	return (const u8 *)("?");
 }
 
-#define ULTRA_CHANNELSRV_IS_READY(x)     ((x) == CHANNELSRV_READY)
-#define ULTRA_CHANNEL_SERVER_READY(pChannel) \
-	(ULTRA_CHANNELSRV_IS_READY(readl(&(pChannel)->srv_state)))
+#define SPAR_CHANNEL_SERVER_READY(ch) \
+	(readl(&(ch)->srv_state) == CHANNELSRV_READY)
 
 #define ULTRA_VALID_CHANNELCLI_TRANSITION(o, n)				\
 	(((((o) == CHANNELCLI_DETACHED) && ((n) == CHANNELCLI_DISABLED)) || \
