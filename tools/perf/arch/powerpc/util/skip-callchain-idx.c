@@ -232,8 +232,7 @@ out:
  *	index:	of callchain entry that needs to be ignored (if any)
  *	-1	if no entry needs to be ignored or in case of errors
  */
-int arch_skip_callchain_idx(struct machine *machine, struct thread *thread,
-				struct ip_callchain *chain)
+int arch_skip_callchain_idx(struct thread *thread, struct ip_callchain *chain)
 {
 	struct addr_location al;
 	struct dso *dso = NULL;
@@ -246,7 +245,7 @@ int arch_skip_callchain_idx(struct machine *machine, struct thread *thread,
 
 	ip = chain->ips[2];
 
-	thread__find_addr_location(thread, machine, PERF_RECORD_MISC_USER,
+	thread__find_addr_location(thread, PERF_RECORD_MISC_USER,
 			MAP__FUNCTION, ip, &al);
 
 	if (al.map)
