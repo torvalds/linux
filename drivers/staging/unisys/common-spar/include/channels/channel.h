@@ -133,21 +133,21 @@ ULTRA_CHANNELCLI_STRING(u32 v)
 					newstate, logCtx)		\
 	do {								\
 		ULTRA_CHANNEL_CLIENT_CHK_TRANSITION(			\
-			readl(&(((CHANNEL_HEADER __iomem *) \
+			readl(&(((struct channel_header __iomem *) \
 				 (pChan))->CliStateOS)),		\
 			newstate,					\
 			chanId, logCtx, __FILE__, __LINE__);		\
 			pr_info("%s Channel StateTransition (%s) %s(%d)-->%s(%d) @%s:%d\n", \
 				chanId, "CliStateOS",			\
 				ULTRA_CHANNELCLI_STRING( \
-				      readl(&((CHANNEL_HEADER __iomem *) \
+				      readl(&((struct channel_header __iomem *)\
 					      (pChan))->CliStateOS)),	\
-				readl(&((CHANNEL_HEADER __iomem *) \
+				readl(&((struct channel_header __iomem *) \
 				      (pChan))->CliStateOS),		\
 				ULTRA_CHANNELCLI_STRING(newstate),	\
 				newstate,				\
 				PathName_Last_N_Nodes(__FILE__, 4), __LINE__); \
-		writel(newstate, &((CHANNEL_HEADER __iomem *) \
+		writel(newstate, &((struct channel_header __iomem *) \
 				   (pChan))->CliStateOS);		\
 		mb(); /* required for channel synch */			\
 	} while (0)
@@ -200,18 +200,18 @@ ULTRA_CHANNELCLI_STRING(u32 v)
 
 #pragma pack(push, 1)		/* both GCC and VC now allow this pragma */
 /* Common Channel Header */
-typedef struct _CHANNEL_HEADER {
+struct channel_header {
 	u64 Signature;		/* Signature */
 	u32 LegacyState;	/* DEPRECATED - being replaced by */
 	/* /              SrvState, CliStateBoot, and CliStateOS below */
-	u32 HeaderSize;		/* sizeof(CHANNEL_HEADER) */
+	u32 HeaderSize;		/* sizeof(struct channel_header) */
 	u64 Size;		/* Total size of this channel in bytes */
 	u64 Features;		/* Flags to modify behavior */
 	uuid_le Type;		/* Channel type: data, bus, control, etc. */
 	u64 PartitionHandle;	/* ID of guest partition */
 	u64 Handle;		/* Device number of this channel in client */
 	u64 oChannelSpace;	/* Offset in bytes to channel specific area */
-	u32 VersionId;		/* CHANNEL_HEADER Version ID */
+	u32 VersionId;		/* struct channel_header Version ID */
 	u32 PartitionIndex;	/* Index of guest partition */
 	uuid_le ZoneGuid;		/* Guid of Channel's zone */
 	u32 oClientString;	/* offset from channel header to
@@ -238,7 +238,7 @@ typedef struct _CHANNEL_HEADER {
 	u8 Filler[1];		/* Pad out to 128 byte cacheline */
 	/* Please add all new single-byte values below here */
 	u8 RecoverChannel;
-} CHANNEL_HEADER, *pCHANNEL_HEADER, ULTRA_CHANNEL_PROTOCOL;
+};
 
 #define ULTRA_CHANNEL_ENABLE_INTS (0x1ULL << 0)
 
@@ -312,7 +312,8 @@ ULTRA_check_channel_client(void __iomem *pChannel,
 		uuid_le guid;
 
 		memcpy_fromio(&guid,
-			      &((CHANNEL_HEADER __iomem *)(pChannel))->Type,
+			      &((struct channel_header __iomem *)
+					(pChannel))->Type,
 			      sizeof(guid));
 		/* caller wants us to verify type GUID */
 		if (uuid_le_cmp(guid, expectedTypeGuid) != 0) {
@@ -324,8 +325,9 @@ ULTRA_check_channel_client(void __iomem *pChannel,
 	}
 	if (expectedMinBytes > 0) {	/* caller wants us to verify
 					 * channel size */
-		unsigned long long bytes = readq(&((CHANNEL_HEADER __iomem *)
-						(pChannel))->Size);
+		unsigned long long bytes =
+				readq(&((struct channel_header __iomem *)
+					(pChannel))->Size);
 		if (bytes < expectedMinBytes) {
 			pr_err("Channel mismatch on channel=%s(%pUL) field=size expected=0x%-8.8Lx actual=0x%-8.8Lx\n",
 			       channelName, &expectedTypeGuid,
@@ -335,7 +337,7 @@ ULTRA_check_channel_client(void __iomem *pChannel,
 	}
 	if (expectedVersionId > 0) {	/* caller wants us to verify
 					 * channel version */
-		unsigned long ver = readl(&((CHANNEL_HEADER __iomem *)
+		unsigned long ver = readl(&((struct channel_header __iomem *)
 				    (pChannel))->VersionId);
 		if (ver != expectedVersionId) {
 			pr_err("Channel mismatch on channel=%s(%pUL) field=version expected=0x%-8.8lx actual=0x%-8.8lx\n",
@@ -346,8 +348,9 @@ ULTRA_check_channel_client(void __iomem *pChannel,
 	}
 	if (expectedSignature > 0) {	/* caller wants us to verify
 					 * channel signature */
-		unsigned long long sig = readq(&((CHANNEL_HEADER __iomem *)
-					 (pChannel))->Signature);
+		unsigned long long sig =
+				readq(&((struct channel_header __iomem *)
+					(pChannel))->Signature);
 		if (sig != expectedSignature) {
 			pr_err("Channel mismatch on channel=%s(%pUL) field=signature expected=0x%-8.8llx actual=0x%-8.8llx\n",
 			       channelName, &expectedTypeGuid,
@@ -416,7 +419,7 @@ static inline int
 ULTRA_channel_client_acquire_os(void __iomem *pChannel, u8 *chanId,
 				void *logCtx, char *file, int line, char *func)
 {
-	CHANNEL_HEADER __iomem *pChan = pChannel;
+	struct channel_header __iomem *pChan = pChannel;
 
 	if (readl(&pChan->CliStateOS) == CHANNELCLI_DISABLED) {
 		if ((readb(&pChan->CliErrorOS)
@@ -511,7 +514,7 @@ static inline void
 ULTRA_channel_client_release_os(void __iomem *pChannel, u8 *chanId,
 				void *logCtx, char *file, int line, char *func)
 {
-	CHANNEL_HEADER __iomem *pChan = pChannel;
+	struct channel_header __iomem *pChan = pChannel;
 
 	if (readb(&pChan->CliErrorOS) != 0) {
 		/* we are in an error msg throttling state; come out of it */
@@ -552,8 +555,8 @@ ULTRA_channel_client_release_os(void __iomem *pChannel, u8 *chanId,
 * full.
 */
 
-unsigned char visor_signal_insert(CHANNEL_HEADER __iomem *pChannel, u32 Queue,
-				  void *pSignal);
+unsigned char visor_signal_insert(struct channel_header __iomem *pChannel,
+				  u32 Queue, void *pSignal);
 
 /*
 * Routine Description:
@@ -574,8 +577,8 @@ unsigned char visor_signal_insert(CHANNEL_HEADER __iomem *pChannel, u32 Queue,
 * empty.
 */
 
-unsigned char visor_signal_remove(CHANNEL_HEADER __iomem *pChannel, u32 Queue,
-				  void *pSignal);
+unsigned char visor_signal_remove(struct channel_header __iomem *pChannel,
+				  u32 Queue, void *pSignal);
 
 /*
 * Routine Description:
@@ -596,7 +599,7 @@ unsigned char visor_signal_remove(CHANNEL_HEADER __iomem *pChannel, u32 Queue,
 * Return value:
 * # of signals copied.
 */
-unsigned int SignalRemoveAll(pCHANNEL_HEADER pChannel, u32 Queue,
+unsigned int SignalRemoveAll(struct channel_header *pChannel, u32 Queue,
 			     void *pSignal);
 
 /*
@@ -610,7 +613,7 @@ unsigned int SignalRemoveAll(pCHANNEL_HEADER pChannel, u32 Queue,
 * Return value:
 * 1 if the signal queue is empty, 0 otherwise.
 */
-unsigned char visor_signalqueue_empty(CHANNEL_HEADER __iomem *pChannel,
+unsigned char visor_signalqueue_empty(struct channel_header __iomem *pChannel,
 				      u32 Queue);
 
 #endif

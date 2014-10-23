@@ -30,7 +30,7 @@
 
 struct VISORCHANNEL_Tag {
 	MEMREGION *memregion;	/* from visor_memregion_create() */
-	CHANNEL_HEADER chan_hdr;
+	struct channel_header chan_hdr;
 	uuid_le guid;
 	ulong size;
 	BOOL needs_lock;
@@ -70,19 +70,19 @@ visorchannel_create_guts(HOSTADDRESS physaddr, ulong channelBytes,
 	/* prepare chan_hdr (abstraction to read/write channel memory) */
 	if (parent == NULL)
 		p->memregion =
-		    visor_memregion_create(physaddr, sizeof(CHANNEL_HEADER));
+		    visor_memregion_create(physaddr,
+					   sizeof(struct channel_header));
 	else
 		p->memregion =
 		    visor_memregion_create_overlapped(parent->memregion,
-						      off,
-						      sizeof(CHANNEL_HEADER));
+				off, sizeof(struct channel_header));
 	if (p->memregion == NULL) {
 		ERRDRV("visor_memregion_create failed failed: (status=0)\n");
 		rc = NULL;
 		goto Away;
 	}
 	if (visor_memregion_read(p->memregion, 0, &p->chan_hdr,
-				 sizeof(CHANNEL_HEADER)) < 0) {
+				 sizeof(struct channel_header)) < 0) {
 		ERRDRV("visor_memregion_read failed: (status=0)\n");
 		rc = NULL;
 		goto Away;
@@ -225,8 +225,11 @@ visorchannel_read(VISORCHANNEL *channel, ulong offset,
 {
 	int rc = visor_memregion_read(channel->memregion, offset,
 				      local, nbytes);
-	if ((rc >= 0) && (offset == 0) && (nbytes >= sizeof(CHANNEL_HEADER)))
-		memcpy(&channel->chan_hdr, local, sizeof(CHANNEL_HEADER));
+	if ((rc >= 0) && (offset == 0) &&
+	   (nbytes >= sizeof(struct channel_header))) {
+		memcpy(&channel->chan_hdr, local,
+		       sizeof(struct channel_header));
+	}
 	return rc;
 }
 EXPORT_SYMBOL_GPL(visorchannel_read);
@@ -235,8 +238,9 @@ int
 visorchannel_write(VISORCHANNEL *channel, ulong offset,
 		   void *local, ulong nbytes)
 {
-	if (offset == 0 && nbytes >= sizeof(CHANNEL_HEADER))
-		memcpy(&channel->chan_hdr, local, sizeof(CHANNEL_HEADER));
+	if (offset == 0 && nbytes >= sizeof(struct channel_header))
+		memcpy(&channel->chan_hdr, local,
+		       sizeof(struct channel_header));
 	return visor_memregion_write(channel->memregion, offset, local, nbytes);
 }
 EXPORT_SYMBOL_GPL(visorchannel_write);
@@ -316,7 +320,7 @@ sig_read_header(VISORCHANNEL *channel, u32 queue,
 {
 	BOOL rc = FALSE;
 
-	if (channel->chan_hdr.oChannelSpace < sizeof(CHANNEL_HEADER)) {
+	if (channel->chan_hdr.oChannelSpace < sizeof(struct channel_header)) {
 		ERRDRV("oChannelSpace too small: (status=%d)\n", rc);
 		goto Away;
 	}
@@ -559,8 +563,8 @@ visorchannel_debug(VISORCHANNEL *channel, int nQueues,
 	HOSTADDRESS addr = 0;
 	ulong nbytes = 0, nbytes_region = 0;
 	MEMREGION *memregion = NULL;
-	CHANNEL_HEADER hdr;
-	CHANNEL_HEADER *phdr = &hdr;
+	struct channel_header hdr;
+	struct channel_header *phdr = &hdr;
 	int i = 0;
 	int errcode = 0;
 
@@ -576,7 +580,7 @@ visorchannel_debug(VISORCHANNEL *channel, int nQueues,
 	addr = visor_memregion_get_physaddr(memregion);
 	nbytes_region = visor_memregion_get_nbytes(memregion);
 	errcode = visorchannel_read(channel, off,
-				    phdr, sizeof(CHANNEL_HEADER));
+				    phdr, sizeof(struct channel_header));
 	if (errcode < 0) {
 		seq_printf(seq,
 			   "Read of channel header failed with errcode=%d)\n",

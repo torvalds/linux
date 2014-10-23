@@ -470,7 +470,7 @@ typedef struct _GUEST_DEVICES  {
 } GUEST_DEVICES;
 
 typedef struct _ULTRA_CONTROLVM_CHANNEL_PROTOCOL  {
-	 CHANNEL_HEADER Header;
+	 struct channel_header Header;
 	 GUEST_PHYSICAL_ADDRESS gpControlVm;	/* guest physical address of
 						 * this channel */
 	 GUEST_PHYSICAL_ADDRESS gpPartitionTables; /* guest physical address of

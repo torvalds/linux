@@ -383,7 +383,7 @@ typedef struct _DIAG_CHANNEL_PROTOCOL_HEADER  {
 /* ----------------------- */
 
 /* Offsets/sizes for diagnostic channel attributes... */
-#define DIAG_CH_QUEUE_HEADER_OFFSET (sizeof(ULTRA_CHANNEL_PROTOCOL))
+#define DIAG_CH_QUEUE_HEADER_OFFSET (sizeof(struct channel_header))
 #define DIAG_CH_QUEUE_HEADER_SIZE (sizeof(SIGNAL_QUEUE_HEADER))
 #define DIAG_CH_PROTOCOL_HEADER_OFFSET \
 	(DIAG_CH_QUEUE_HEADER_OFFSET + DIAG_CH_QUEUE_HEADER_SIZE)
@@ -416,7 +416,7 @@ typedef struct _DIAG_CHANNEL_PROTOCOL_HEADER  {
  *Reserved: Reserved area to allow for correct channel size padding.
 */
 typedef struct _ULTRA_DIAG_CHANNEL_PROTOCOL  {
-	ULTRA_CHANNEL_PROTOCOL CommonChannelHeader;
+	struct channel_header CommonChannelHeader;
 	SIGNAL_QUEUE_HEADER QueueHeader;
 	DIAG_CHANNEL_PROTOCOL_HEADER DiagChannelHeader;
 	DIAG_CHANNEL_EVENT Events[(DIAG_CH_SIZE - DIAG_CH_EVENT_OFFSET) /

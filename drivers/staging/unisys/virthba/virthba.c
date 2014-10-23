@@ -420,7 +420,7 @@ static irqreturn_t
 virthba_ISR(int irq, void *dev_id)
 {
 	struct virthba_info *virthbainfo = (struct virthba_info *) dev_id;
-	CHANNEL_HEADER __iomem *pChannelHeader;
+	struct channel_header __iomem *pChannelHeader;
 	SIGNAL_QUEUE_HEADER __iomem *pqhdr;
 	u64 mask;
 	unsigned long long rc1;
@@ -461,7 +461,7 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	int rsp;
 	int i;
 	irq_handler_t handler = virthba_ISR;
-	CHANNEL_HEADER __iomem *pChannelHeader;
+	struct channel_header __iomem *pChannelHeader;
 	SIGNAL_QUEUE_HEADER __iomem *pqhdr;
 	u64 mask;
 

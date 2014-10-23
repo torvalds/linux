@@ -685,7 +685,7 @@ struct uiscmdrsp {
 * this header there is a large region of memory which contains the command and
 * response queues as specified in cmdQ and rspQ SIGNAL_QUEUE_HEADERS. */
 typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
-	CHANNEL_HEADER ChannelHeader;
+	struct channel_header ChannelHeader;
 	SIGNAL_QUEUE_HEADER cmdQ;
 	SIGNAL_QUEUE_HEADER rspQ;
 	union {

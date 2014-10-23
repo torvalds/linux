@@ -114,7 +114,7 @@ typedef struct {
 /* Manages the request payload in the controlvm channel */
 static CONTROLVM_PAYLOAD_INFO ControlVm_payload_info;
 
-static pCHANNEL_HEADER Test_Vnic_channel;
+static struct channel_header *Test_Vnic_channel;
 
 typedef struct {
 	CONTROLVM_MESSAGE_HEADER Dumpcapture_header;

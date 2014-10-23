@@ -195,7 +195,7 @@ static int write_vbus_chpInfo(struct ultra_vbus_channel_protocol *chan,
 		LOGERR("vbus channel not present");
 		return -1;
 	}
-	off = sizeof(ULTRA_CHANNEL_PROTOCOL) + chan->HdrInfo.chpInfoByteOffset;
+	off = sizeof(struct channel_header) + chan->HdrInfo.chpInfoByteOffset;
 	if (chan->HdrInfo.chpInfoByteOffset == 0) {
 		LOGERR("vbus channel not used, because chpInfoByteOffset == 0");
 		return -1;
@@ -214,7 +214,7 @@ static int write_vbus_busInfo(struct ultra_vbus_channel_protocol *chan,
 		LOGERR("vbus channel not present");
 		return -1;
 	}
-	off = sizeof(ULTRA_CHANNEL_PROTOCOL) + chan->HdrInfo.busInfoByteOffset;
+	off = sizeof(struct channel_header) + chan->HdrInfo.busInfoByteOffset;
 	if (chan->HdrInfo.busInfoByteOffset == 0) {
 		LOGERR("vbus channel not used, because busInfoByteOffset == 0");
 		return -1;
@@ -237,7 +237,7 @@ write_vbus_devInfo(struct ultra_vbus_channel_protocol *chan,
 		return -1;
 	}
 	off =
-	    (sizeof(ULTRA_CHANNEL_PROTOCOL) +
+	    (sizeof(struct channel_header) +
 	     chan->HdrInfo.devInfoByteOffset) +
 	    (chan->HdrInfo.deviceInfoStructBytes * devix);
 	if (chan->HdrInfo.devInfoByteOffset == 0) {

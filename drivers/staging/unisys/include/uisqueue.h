@@ -34,7 +34,7 @@
 #include "controlvmcompletionstatus.h"
 
 struct uisqueue_info {
-	CHANNEL_HEADER __iomem *chan;
+	struct channel_header __iomem *chan;
 	/* channel containing queues in which scsi commands &
 	 * responses are queued
 	 */

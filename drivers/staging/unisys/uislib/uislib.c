@@ -444,8 +444,9 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 
 				if (!uuid_le_cmp(dev->channel_uuid,
 				     spar_vhba_channel_protocol_uuid)) {
-					wait_for_valid_guid(&((CHANNEL_HEADER
-							      __iomem *) (dev->
+					wait_for_valid_guid(&((
+						struct channel_header
+							__iomem *) (dev->
 								  chanptr))->
 							    Type);
 					if (!ULTRA_VHBA_CHANNEL_OK_CLIENT
@@ -469,8 +470,9 @@ create_device(CONTROLVM_MESSAGE *msg, char *buf)
 				} else
 				    if (!uuid_le_cmp(dev->channel_uuid,
 					 spar_vnic_channel_protocol_uuid)) {
-					wait_for_valid_guid(&((CHANNEL_HEADER
-							      __iomem *) (dev->
+					wait_for_valid_guid(&((
+						struct channel_header
+							__iomem *) (dev->
 								  chanptr))->
 							    Type);
 					if (!ULTRA_VNIC_CHANNEL_OK_CLIENT
@@ -1565,7 +1567,7 @@ uislib_mod_init(void)
 	LOGINF("sizeof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL):%lu bytes\n",
 	       (ulong) sizeof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL));
 	LOGINF("sizeof(CHANNEL_HEADER):%lu bytes\n",
-	       (ulong) sizeof(CHANNEL_HEADER));
+	       (ulong) sizeof(struct channel_header));
 	LOGINF("sizeof(ULTRA_IO_CHANNEL_PROTOCOL):%lu bytes\n",
 	       (ulong) sizeof(ULTRA_IO_CHANNEL_PROTOCOL));
 	LOGINF("SIZEOF_CMDRSP:%lu bytes\n", SIZEOF_CMDRSP);
