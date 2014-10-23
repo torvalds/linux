@@ -357,6 +357,7 @@ struct omap_hdmi {
 
 	struct platform_device *audio_pdev;
 	void (*audio_abort_cb)(struct device *dev);
+	int wp_idlemode;
 };
 
 #endif

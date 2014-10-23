@@ -607,6 +607,10 @@ static int hdmi_audio_start(struct device *dev)
 	WARN_ON(!hdmi_mode_has_audio(&hd->cfg));
 	WARN_ON(!hd->display_enabled);
 
+	/* No-idle while playing audio, store the old value */
+	hd->wp_idlemode = REG_GET(hdmi.wp.base, HDMI_WP_SYSCONFIG, 3, 2);
+	REG_FLD_MOD(hdmi.wp.base, HDMI_WP_SYSCONFIG, 1, 3, 2);
+
 	hdmi_wp_audio_enable(&hd->wp, true);
 	hdmi_wp_audio_core_req_enable(&hd->wp, true);
 
@@ -622,6 +626,9 @@ static void hdmi_audio_stop(struct device *dev)
 
 	hdmi_wp_audio_core_req_enable(&hd->wp, false);
 	hdmi_wp_audio_enable(&hd->wp, false);
+
+	/* Playback stopped, restore original idlemode */
+	REG_FLD_MOD(hdmi.wp.base, HDMI_WP_SYSCONFIG, hd->wp_idlemode, 3, 2);
 }
 
 static int hdmi_audio_config(struct device *dev,
