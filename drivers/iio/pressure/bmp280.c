@@ -239,7 +239,7 @@ static u32 bmp280_compensate_press(struct bmp280_data *data,
 		return 0;
 
 	p = ((((s64) 1048576 - adc_press) << 31) - var2) * 3125;
-	do_div(p, var1);
+	p = div64_s64(p, var1);
 	var1 = (((s64) comp->dig_p9) * (p >> 13) * (p >> 13)) >> 25;
 	var2 = (((s64) comp->dig_p8) * p) >> 19;
 	p = ((p + var1 + var2) >> 8) + (((s64) comp->dig_p7) << 4);
