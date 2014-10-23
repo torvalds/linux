@@ -151,8 +151,9 @@
 						 * SCSI Host value */
 
 /* various types of network packets that can be sent in cmdrsp */
-typedef enum { NET_RCV_POST = 0,	/* submit buffer to hold receiving
-					 * incoming packet */
+enum net_types {
+	NET_RCV_POST = 0,	/* submit buffer to hold receiving
+				 * incoming packet */
 	/* virtnic -> uisnic */
 	NET_RCV,		/* incoming packet received */
 	/* uisnic -> virtpci */
@@ -174,7 +175,7 @@ typedef enum { NET_RCV_POST = 0,	/* submit buffer to hold receiving
 				 * its MAC addr */
 	NET_MACADDR_ACK,	/* MAC address  */
 
-} NET_TYPES;
+};
 
 #define		ETH_HEADER_SIZE 14	/* size of ethernet header */
 
@@ -534,7 +535,7 @@ struct net_pkt_macaddr {
 
 /* cmd rsp packet used for VNIC network traffic  */
 struct uiscmdrsp_net {
-	NET_TYPES type;
+	enum net_types type;
 	void *buf;
 	union {
 		struct net_pkt_xmt xmt;	/* used for NET_XMIT */
