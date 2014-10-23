@@ -157,7 +157,7 @@ vbuschannel_devinfo_to_string(struct ultra_vbus_deviceinfo *devinfo,
 	int nsrc, x, i, pad;
 	int chars = 0;
 
-	psrc = &(devinfo->devtype[0]);
+	psrc = &devinfo->devtype[0];
 	nsrc = sizeof(devinfo->devtype);
 	if (vbuschannel_sanitize_buffer(NULL, 0, psrc, nsrc) <= 0)
 		return 0;
@@ -187,7 +187,7 @@ vbuschannel_devinfo_to_string(struct ultra_vbus_deviceinfo *devinfo,
 	VBUSCHANNEL_ADDACHAR(' ', p, remain, chars);
 
 	/* emit driver name */
-	psrc = &(devinfo->drvname[0]);
+	psrc = &devinfo->drvname[0];
 	nsrc = sizeof(devinfo->drvname);
 	x = vbuschannel_sanitize_buffer(p, remain, psrc, nsrc);
 	p += x;
@@ -199,7 +199,7 @@ vbuschannel_devinfo_to_string(struct ultra_vbus_deviceinfo *devinfo,
 	VBUSCHANNEL_ADDACHAR(' ', p, remain, chars);
 
 	/* emit strings */
-	psrc = &(devinfo->infostrs[0]);
+	psrc = &devinfo->infostrs[0];
 	nsrc = sizeof(devinfo->infostrs);
 	x = vbuschannel_sanitize_buffer(p, remain, psrc, nsrc);
 	p += x;
