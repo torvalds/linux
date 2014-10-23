@@ -45,7 +45,7 @@ static struct rk_partition *newpart(char *s,
 		/* No sense support partition less than 8B */
 		if (size < ((PAGE_SIZE) >> 9))
 		{
-			printk(KERN_ERR ERRP "partition size too small (%llx)\n", size);
+			printk(KERN_ERR ERRP "partition size too small (%llx)\n", (u64)size);
 			return NULL;
 		}
 	}
@@ -320,9 +320,9 @@ int rkpart_partition(struct parsed_partitions *state)
 		strcpy(state->parts[i+1].info.volname, parts[i].name);
                 printk(KERN_INFO "%10s: 0x%09llx -- 0x%09llx (%llu MB)\n", 
 				parts[i].name,
-				parts[i].from * 512,
-				(parts[i].from + parts[i].size) * 512,
-				parts[i].size / 2048);
+				(u64)parts[i].from * 512,
+				(u64)(parts[i].from + parts[i].size) * 512,
+				(u64)parts[i].size / 2048);
 	}
 
 	rkpart_bootmode_fixup();
