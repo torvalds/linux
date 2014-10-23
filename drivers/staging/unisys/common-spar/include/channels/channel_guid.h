@@ -43,7 +43,6 @@ static const uuid_le spar_vnic_channel_protocol_uuid =
 				0x85, 0x30, 0x44, 0x45, 0x53, 0x54, 0x42, 0x00)
 static const uuid_le spar_siovm_uuid = SPAR_SIOVM_UUID;
 
-
 /* Used in visornoop/visornoop_main.c
  * {5b52c5ac-e5f5-4d42-8dff-429eaecd221f}
  */
@@ -60,5 +59,3 @@ static const uuid_le spar_controldirector_channel_protocol_uuid =
 #define SPAR_DIAG_POOL_CHANNEL_PROTOCOL_UUID				\
 		UUID_LE(0xb4e79625, 0xaede, 0x4eaa, \
 				0x9e, 0x11, 0xd3, 0xed, 0xdc, 0xd4, 0x50, 0x4c)
-
-
