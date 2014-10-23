@@ -55,7 +55,7 @@ enum channel_serverstate {
 	CHANNELSRV_READY = 1	/* channel has been initialized by server */
 };
 
-typedef enum {
+enum channel_clientstate {
 	CHANNELCLI_DETACHED = 0,
 	CHANNELCLI_DISABLED = 1,	/* client can see channel but is NOT
 					 * allowed to use it unless given TBD
@@ -69,7 +69,7 @@ typedef enum {
 				 * using channel */
 	CHANNELCLI_OWNED = 5	/* "no worries" state - client can
 				 * access channel anytime */
-} CHANNEL_CLIENTSTATE;
+};
 static inline const u8 *
 ULTRA_CHANNELCLI_STRING(u32 v)
 {
