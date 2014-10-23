@@ -528,8 +528,8 @@ unsigned char spar_signal_insert(struct channel_header __iomem *ch, u32 queue,
 * empty.
 */
 
-unsigned char visor_signal_remove(struct channel_header __iomem *pChannel,
-				  u32 Queue, void *pSignal);
+unsigned char spar_signal_remove(struct channel_header __iomem *ch, u32 queue,
+				 void *sig);
 
 /*
 * Routine Description:

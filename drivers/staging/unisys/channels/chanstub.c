@@ -61,7 +61,7 @@ SignalRemove_withLock(struct channel_header __iomem *pChannel, u32 Queue,
 	unsigned char result;
 
 	spin_lock(lock);
-	result = visor_signal_remove(pChannel, Queue, pSignal);
+	result = spar_signal_remove(pChannel, Queue, pSignal);
 	spin_unlock(lock);
 	return result;
 }

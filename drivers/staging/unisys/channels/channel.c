@@ -102,14 +102,13 @@ EXPORT_SYMBOL_GPL(spar_signal_insert);
  * 1 if the removal succeeds, 0 if the queue was empty.
  */
 unsigned char
-visor_signal_remove(struct channel_header __iomem *pChannel, u32 Queue,
-		    void *pSignal)
+spar_signal_remove(struct channel_header __iomem *ch, u32 queue, void *sig)
 {
 	void __iomem *psource;
 	unsigned int head, tail;
 	struct signal_queue_header __iomem *pqhdr =
-	    (struct signal_queue_header __iomem *) ((char __iomem *) pChannel +
-				    readq(&pChannel->ch_space_offset)) + Queue;
+	    (struct signal_queue_header __iomem *) ((char __iomem *) ch +
+				    readq(&ch->ch_space_offset)) + queue;
 
 	/* capture current head and tail */
 	head = readl(&pqhdr->head);
@@ -127,7 +126,7 @@ visor_signal_remove(struct channel_header __iomem *pChannel, u32 Queue,
 	/* copy signal from tail location to the area pointed to by pSignal */
 	psource = (char __iomem *) pqhdr + readq(&pqhdr->sig_base_offset) +
 		(tail * readl(&pqhdr->signal_size));
-	memcpy_fromio(pSignal, psource, readl(&pqhdr->signal_size));
+	memcpy_fromio(sig, psource, readl(&pqhdr->signal_size));
 
 	mb(); /* channel synch */
 	writel(tail, &pqhdr->tail);
@@ -136,7 +135,7 @@ visor_signal_remove(struct channel_header __iomem *pChannel, u32 Queue,
 	       &pqhdr->num_received);
 	return 1;
 }
-EXPORT_SYMBOL_GPL(visor_signal_remove);
+EXPORT_SYMBOL_GPL(spar_signal_remove);
 
 /*
  * Routine Description:

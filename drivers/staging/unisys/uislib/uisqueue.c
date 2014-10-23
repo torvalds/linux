@@ -125,7 +125,7 @@ int
 uisqueue_get_cmdrsp(struct uisqueue_info *queueinfo,
 		    void *cmdrsp, unsigned int whichqueue)
 {
-	if (!visor_signal_remove(queueinfo->chan, whichqueue, cmdrsp))
+	if (!spar_signal_remove(queueinfo->chan, whichqueue, cmdrsp))
 		return 0;
 
 	queueinfo->packets_received++;
