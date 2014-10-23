@@ -673,22 +673,6 @@ int i915_suspend(struct drm_device *dev, pm_message_t state)
 	return i915_drm_suspend_late(dev);
 }
 
-static int i915_drm_thaw_early(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret;
-
-	ret = intel_resume_prepare(dev_priv, false);
-	if (ret)
-		DRM_ERROR("Resume prepare failed: %d,Continuing resume\n", ret);
-
-	intel_uncore_early_sanitize(dev, true);
-	intel_uncore_sanitize(dev);
-	intel_power_domains_init_hw(dev_priv);
-
-	return ret;
-}
-
 static int __i915_drm_thaw(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -757,13 +741,11 @@ static int __i915_drm_thaw(struct drm_device *dev)
 	return 0;
 }
 
-static int i915_drm_thaw(struct drm_device *dev)
-{
-	return __i915_drm_thaw(dev);
-}
-
 static int i915_resume_early(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
+
 	/*
 	 * We have a resume ordering issue with the snd-hda driver also
 	 * requiring our device to be power up. Due to the lack of a
@@ -778,7 +760,15 @@ static int i915_resume_early(struct drm_device *dev)
 
 	pci_set_master(dev->pdev);
 
-	return i915_drm_thaw_early(dev);
+	ret = intel_resume_prepare(dev_priv, false);
+	if (ret)
+		DRM_ERROR("Resume prepare failed: %d,Continuing resume\n", ret);
+
+	intel_uncore_early_sanitize(dev, true);
+	intel_uncore_sanitize(dev);
+	intel_power_domains_init_hw(dev_priv);
+
+	return ret;
 }
 
 static int i915_drm_resume(struct drm_device *dev)
@@ -997,66 +987,6 @@ static int i915_pm_resume(struct device *dev)
 		return 0;
 
 	return i915_drm_resume(drm_dev);
-}
-
-static int i915_pm_freeze(struct device *dev)
-{
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-
-	if (!drm_dev || !drm_dev->dev_private) {
-		dev_err(dev, "DRM not initialized, aborting suspend.\n");
-		return -ENODEV;
-	}
-
-	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF)
-		return 0;
-
-	return i915_drm_freeze(drm_dev);
-}
-
-static int i915_pm_freeze_late(struct device *dev)
-{
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-
-	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF)
-		return 0;
-
-	return i915_drm_suspend_late(drm_dev);
-}
-
-static int i915_pm_thaw_early(struct device *dev)
-{
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-
-	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF)
-		return 0;
-
-	return i915_resume_early(drm_dev);
-}
-
-static int i915_pm_thaw(struct device *dev)
-{
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-
-	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF)
-		return 0;
-
-	return i915_drm_thaw(drm_dev);
-}
-
-static int i915_pm_poweroff(struct device *dev)
-{
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-
-	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF)
-		return 0;
-
-	return i915_drm_freeze(drm_dev);
 }
 
 static int hsw_suspend_complete(struct drm_i915_private *dev_priv)
@@ -1618,11 +1548,11 @@ static const struct dev_pm_ops i915_pm_ops = {
 	.suspend_late = i915_pm_suspend_late,
 	.resume_early = i915_pm_resume_early,
 	.resume = i915_pm_resume,
-	.freeze = i915_pm_freeze,
-	.freeze_late = i915_pm_freeze_late,
-	.thaw_early = i915_pm_thaw_early,
-	.thaw = i915_pm_thaw,
-	.poweroff = i915_pm_poweroff,
+	.freeze = i915_pm_suspend,
+	.freeze_late = i915_pm_suspend_late,
+	.thaw_early = i915_pm_resume_early,
+	.thaw = i915_pm_resume,
+	.poweroff = i915_pm_suspend,
 	.restore_early = i915_pm_resume_early,
 	.restore = i915_pm_resume,
 	.runtime_suspend = intel_runtime_suspend,
