@@ -750,21 +750,21 @@ typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
 #define QSIZEFROMBYTES(bytes) (QSLOTSFROMBYTES(bytes)*SIZEOF_CMDRSP)
 #define SignalQInit(x)						\
 	do {							\
-		x->cmdQ.Size = QSIZEFROMBYTES(x->ChannelHeader.size);	\
-		x->cmdQ.oSignalBase = SIZEOF_PROTOCOL -			\
+		x->cmdQ.size = QSIZEFROMBYTES(x->ChannelHeader.size);	\
+		x->cmdQ.sig_base_offset = SIZEOF_PROTOCOL -		\
 			offsetof(ULTRA_IO_CHANNEL_PROTOCOL, cmdQ);	\
-		x->cmdQ.SignalSize = SIZEOF_CMDRSP;			\
-		x->cmdQ.MaxSignalSlots =				\
+		x->cmdQ.signal_size = SIZEOF_CMDRSP;			\
+		x->cmdQ.max_slots =				\
 			QSLOTSFROMBYTES(x->ChannelHeader.size);		\
-		x->cmdQ.MaxSignals = x->cmdQ.MaxSignalSlots - 1;	\
-		x->rspQ.Size = QSIZEFROMBYTES(x->ChannelHeader.size);	\
-		x->rspQ.oSignalBase =					\
-			(SIZEOF_PROTOCOL + x->cmdQ.Size) -		\
+		x->cmdQ.max_signals = x->cmdQ.max_slots - 1;	\
+		x->rspQ.size = QSIZEFROMBYTES(x->ChannelHeader.size);	\
+		x->rspQ.sig_base_offset =				\
+			(SIZEOF_PROTOCOL + x->cmdQ.size) -		\
 			offsetof(ULTRA_IO_CHANNEL_PROTOCOL, rspQ);	\
-		x->rspQ.SignalSize = SIZEOF_CMDRSP;			\
-		x->rspQ.MaxSignalSlots =				\
+		x->rspQ.signal_size = SIZEOF_CMDRSP;			\
+		x->rspQ.max_slots =				\
 			QSLOTSFROMBYTES(x->ChannelHeader.size);		\
-		x->rspQ.MaxSignals = x->rspQ.MaxSignalSlots - 1;	\
+		x->rspQ.max_signals = x->rspQ.max_slots - 1;	\
 		x->ChannelHeader.ch_space_offset =			\
 			offsetof(ULTRA_IO_CHANNEL_PROTOCOL, cmdQ);	\
 	} while (0)
@@ -814,12 +814,12 @@ static inline int ULTRA_VHBA_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
 	INIT_CLIENTSTRING(x, ULTRA_IO_CHANNEL_PROTOCOL, clientStr,
 			  clientStrLen);
 	SignalQInit(x);
-	if ((x->cmdQ.MaxSignalSlots > MAX_NUMSIGNALS) ||
-	     (x->rspQ.MaxSignalSlots > MAX_NUMSIGNALS)) {
+	if ((x->cmdQ.max_slots > MAX_NUMSIGNALS) ||
+	     (x->rspQ.max_slots > MAX_NUMSIGNALS)) {
 		return 0;
 	}
-	if ((x->cmdQ.MaxSignalSlots < MIN_NUMSIGNALS) ||
-	     (x->rspQ.MaxSignalSlots < MIN_NUMSIGNALS)) {
+	if ((x->cmdQ.max_slots < MIN_NUMSIGNALS) ||
+	     (x->rspQ.max_slots < MIN_NUMSIGNALS)) {
 		return 0;
 	}
 	return 1;
@@ -852,12 +852,12 @@ static inline int ULTRA_VNIC_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
 	INIT_CLIENTSTRING(x, ULTRA_IO_CHANNEL_PROTOCOL, clientStr,
 			   clientStrLen);
 	SignalQInit(x);
-	if ((x->cmdQ.MaxSignalSlots > MAX_NUMSIGNALS) ||
-	     (x->rspQ.MaxSignalSlots > MAX_NUMSIGNALS)) {
+	if ((x->cmdQ.max_slots > MAX_NUMSIGNALS) ||
+	     (x->rspQ.max_slots > MAX_NUMSIGNALS)) {
 		return 0;
 	}
-	if ((x->cmdQ.MaxSignalSlots < MIN_NUMSIGNALS) ||
-	     (x->rspQ.MaxSignalSlots < MIN_NUMSIGNALS)) {
+	if ((x->cmdQ.max_slots < MIN_NUMSIGNALS) ||
+	     (x->rspQ.max_slots < MIN_NUMSIGNALS)) {
 		return 0;
 	}
 	return 1;

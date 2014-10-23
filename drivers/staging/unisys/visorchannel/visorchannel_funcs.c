@@ -302,8 +302,8 @@ EXPORT_SYMBOL_GPL(visorchannel_get_header);
  *  channel header
  */
 #define SIG_DATA_OFFSET(chan_hdr, q, sig_hdr, slot) \
-	(SIG_QUEUE_OFFSET(chan_hdr, q) + (sig_hdr)->oSignalBase + \
-	    ((slot) * (sig_hdr)->SignalSize))
+	(SIG_QUEUE_OFFSET(chan_hdr, q) + (sig_hdr)->sig_base_offset + \
+	    ((slot) * (sig_hdr)->signal_size))
 
 /** Write the contents of a specific field within a SIGNAL_QUEUE_HEADER back
  *  into host memory
@@ -353,13 +353,13 @@ sig_do_data(VISORCHANNEL *channel, u32 queue,
 	if (is_write) {
 		if (visor_memregion_write(channel->memregion,
 					  signal_data_offset,
-					  data, sig_hdr->SignalSize) < 0) {
+					  data, sig_hdr->signal_size) < 0) {
 			ERRDRV("visor_memregion_write of signal data failed: (status=%d)\n", rc);
 			goto Away;
 		}
 	} else {
 		if (visor_memregion_read(channel->memregion, signal_data_offset,
-					 data, sig_hdr->SignalSize) < 0) {
+					 data, sig_hdr->signal_size) < 0) {
 			ERRDRV("visor_memregion_read of signal data failed: (status=%d)\n", rc);
 			goto Away;
 		}
@@ -388,18 +388,18 @@ safe_sig_queue_validate(struct signal_queue_header *psafe_sqh,
 			struct signal_queue_header *punsafe_sqh,
 			u32 *phead, u32 *ptail)
 {
-	if ((*phead >= psafe_sqh->MaxSignalSlots)
-	    || (*ptail >= psafe_sqh->MaxSignalSlots)) {
+	if ((*phead >= psafe_sqh->max_slots)
+	    || (*ptail >= psafe_sqh->max_slots)) {
 		/* Choose 0 or max, maybe based on current tail value */
 		*phead = 0;
 		*ptail = 0;
 
 		/* Sync with client as necessary */
-		punsafe_sqh->Head = *phead;
-		punsafe_sqh->Tail = *ptail;
+		punsafe_sqh->head = *phead;
+		punsafe_sqh->tail = *ptail;
 
 		ERRDRV("safe_sig_queue_validate: head = 0x%x, tail = 0x%x, MaxSlots = 0x%x",
-		     *phead, *ptail, psafe_sqh->MaxSignalSlots);
+		     *phead, *ptail, psafe_sqh->max_slots);
 		return 0;
 	}
 	return 1;
@@ -418,27 +418,27 @@ visorchannel_signalremove(VISORCHANNEL *channel, u32 queue, void *msg)
 		rc = FALSE;
 		goto Away;
 	}
-	if (sig_hdr.Head == sig_hdr.Tail) {
+	if (sig_hdr.head == sig_hdr.tail) {
 		rc = FALSE;	/* no signals to remove */
 		goto Away;
 	}
-	sig_hdr.Tail = (sig_hdr.Tail + 1) % sig_hdr.MaxSignalSlots;
-	if (!sig_read_data(channel, queue, &sig_hdr, sig_hdr.Tail, msg)) {
+	sig_hdr.tail = (sig_hdr.tail + 1) % sig_hdr.max_slots;
+	if (!sig_read_data(channel, queue, &sig_hdr, sig_hdr.tail, msg)) {
 		ERRDRV("sig_read_data failed: (status=%d)\n", rc);
 		goto Away;
 	}
-	sig_hdr.NumSignalsReceived++;
+	sig_hdr.num_received++;
 
 	/* For each data field in SIGNAL_QUEUE_HEADER that was modified,
 	 * update host memory.
 	 */
 	mb(); /* required for channel synch */
-	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, Tail)) {
+	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, tail)) {
 		ERRDRV("visor_memregion_write of Tail failed: (status=%d)\n",
 		       rc);
 		goto Away;
 	}
-	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, NumSignalsReceived)) {
+	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, num_received)) {
 		ERRDRV("visor_memregion_write of NumSignalsReceived failed: (status=%d)\n", rc);
 		goto Away;
 	}
@@ -465,10 +465,10 @@ visorchannel_signalinsert(VISORCHANNEL *channel, u32 queue, void *msg)
 		goto Away;
 	}
 
-	sig_hdr.Head = ((sig_hdr.Head + 1) % sig_hdr.MaxSignalSlots);
-	if (sig_hdr.Head == sig_hdr.Tail) {
-		sig_hdr.NumOverflows++;
-		if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, NumOverflows)) {
+	sig_hdr.head = ((sig_hdr.head + 1) % sig_hdr.max_slots);
+	if (sig_hdr.head == sig_hdr.tail) {
+		sig_hdr.num_overflows++;
+		if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, num_overflows)) {
 			ERRDRV("visor_memregion_write of NumOverflows failed: (status=%d)\n", rc);
 			goto Away;
 		}
@@ -476,22 +476,22 @@ visorchannel_signalinsert(VISORCHANNEL *channel, u32 queue, void *msg)
 		goto Away;
 	}
 
-	if (!sig_write_data(channel, queue, &sig_hdr, sig_hdr.Head, msg)) {
+	if (!sig_write_data(channel, queue, &sig_hdr, sig_hdr.head, msg)) {
 		ERRDRV("sig_write_data failed: (status=%d)\n", rc);
 		goto Away;
 	}
-	sig_hdr.NumSignalsSent++;
+	sig_hdr.num_sent++;
 
 	/* For each data field in SIGNAL_QUEUE_HEADER that was modified,
 	 * update host memory.
 	 */
 	mb(); /* required for channel synch */
-	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, Head)) {
+	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, head)) {
 		ERRDRV("visor_memregion_write of Head failed: (status=%d)\n",
 		       rc);
 		goto Away;
 	}
-	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, NumSignalsSent)) {
+	if (!SIG_WRITE_FIELD(channel, queue, &sig_hdr, num_sent)) {
 		ERRDRV("visor_memregion_write of NumSignalsSent failed: (status=%d)\n", rc);
 		goto Away;
 	}
@@ -514,12 +514,12 @@ visorchannel_signalqueue_slots_avail(VISORCHANNEL *channel, u32 queue)
 
 	if (!sig_read_header(channel, queue, &sig_hdr))
 		return 0;
-	head = sig_hdr.Head;
-	tail = sig_hdr.Tail;
+	head = sig_hdr.head;
+	tail = sig_hdr.tail;
 	if (head < tail)
-		head = head + sig_hdr.MaxSignalSlots;
+		head = head + sig_hdr.max_slots;
 	slots_used = (head - tail);
-	slots_avail = sig_hdr.MaxSignals - slots_used;
+	slots_avail = sig_hdr.max_signals - slots_used;
 	return (int) slots_avail;
 }
 EXPORT_SYMBOL_GPL(visorchannel_signalqueue_slots_avail);
@@ -531,7 +531,7 @@ visorchannel_signalqueue_max_slots(VISORCHANNEL *channel, u32 queue)
 
 	if (!sig_read_header(channel, queue, &sig_hdr))
 		return 0;
-	return (int) sig_hdr.MaxSignals;
+	return (int) sig_hdr.max_signals;
 }
 EXPORT_SYMBOL_GPL(visorchannel_signalqueue_max_slots);
 
@@ -539,24 +539,24 @@ static void
 sigqueue_debug(struct signal_queue_header *q, int which, struct seq_file *seq)
 {
 	seq_printf(seq, "Signal Queue #%d\n", which);
-	seq_printf(seq, "   VersionId          = %lu\n", (ulong) q->VersionId);
-	seq_printf(seq, "   Type               = %lu\n", (ulong) q->Type);
+	seq_printf(seq, "   VersionId          = %lu\n", (ulong)q->version);
+	seq_printf(seq, "   Type               = %lu\n", (ulong)q->chtype);
 	seq_printf(seq, "   oSignalBase        = %llu\n",
-		   (long long) q->oSignalBase);
-	seq_printf(seq, "   SignalSize         = %lu\n", (ulong) q->SignalSize);
+		   (long long)q->sig_base_offset);
+	seq_printf(seq, "   SignalSize         = %lu\n", (ulong)q->signal_size);
 	seq_printf(seq, "   MaxSignalSlots     = %lu\n",
-		   (ulong) q->MaxSignalSlots);
-	seq_printf(seq, "   MaxSignals         = %lu\n", (ulong) q->MaxSignals);
+		   (ulong)q->max_slots);
+	seq_printf(seq, "   MaxSignals         = %lu\n", (ulong)q->max_signals);
 	seq_printf(seq, "   FeatureFlags       = %-16.16Lx\n",
-		   (long long) q->FeatureFlags);
+		   (long long)q->features);
 	seq_printf(seq, "   NumSignalsSent     = %llu\n",
-		   (long long) q->NumSignalsSent);
+		   (long long)q->num_sent);
 	seq_printf(seq, "   NumSignalsReceived = %llu\n",
-		   (long long) q->NumSignalsReceived);
+		   (long long)q->num_received);
 	seq_printf(seq, "   NumOverflows       = %llu\n",
-		   (long long) q->NumOverflows);
-	seq_printf(seq, "   Head               = %lu\n", (ulong) q->Head);
-	seq_printf(seq, "   Tail               = %lu\n", (ulong) q->Tail);
+		   (long long)q->num_overflows);
+	seq_printf(seq, "   Head               = %lu\n", (ulong)q->head);
+	seq_printf(seq, "   Tail               = %lu\n", (ulong)q->tail);
 }
 
 void

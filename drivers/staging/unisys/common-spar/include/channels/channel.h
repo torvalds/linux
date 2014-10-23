@@ -234,37 +234,37 @@ struct channel_header {
 /* Subheader for the Signal Type variation of the Common Channel */
 struct signal_queue_header {
 	/* 1st cache line */
-	u32 VersionId;		/* SIGNAL_QUEUE_HEADER Version ID */
-	u32 Type;		/* Queue type: storage, network */
-	u64 Size;		/* Total size of this queue in bytes */
-	u64 oSignalBase;	/* Offset to signal queue area */
-	u64 FeatureFlags;	/* Flags to modify behavior */
-	u64 NumSignalsSent;	/* Total # of signals placed in this queue */
-	u64 NumOverflows;	/* Total # of inserts failed due to
+	u32 version;		/* SIGNAL_QUEUE_HEADER Version ID */
+	u32 chtype;		/* Queue type: storage, network */
+	u64 size;		/* Total size of this queue in bytes */
+	u64 sig_base_offset;	/* Offset to signal queue area */
+	u64 features;		/* Flags to modify behavior */
+	u64 num_sent;		/* Total # of signals placed in this queue */
+	u64 num_overflows;	/* Total # of inserts failed due to
 				 * full queue */
-	u32 SignalSize;		/* Total size of a signal for this queue */
-	u32 MaxSignalSlots;	/* Max # of slots in queue, 1 slot is
+	u32 signal_size;	/* Total size of a signal for this queue */
+	u32 max_slots;		/* Max # of slots in queue, 1 slot is
 				 * always empty */
-	u32 MaxSignals;		/* Max # of signals in queue
+	u32 max_signals;	/* Max # of signals in queue
 				 * (MaxSignalSlots-1) */
-	u32 Head;		/* Queue head signal # */
+	u32 head;		/* Queue head signal # */
 	/* 2nd cache line */
-	u64 NumSignalsReceived;	/* Total # of signals removed from this queue */
-	u32 Tail;		/* Queue tail signal # (on separate
+	u64 num_received;	/* Total # of signals removed from this queue */
+	u32 tail;		/* Queue tail signal # (on separate
 				 * cache line) */
-	u32 Reserved1;		/* Reserved field */
-	u64 Reserved2;		/* Resrved field */
-	u64 ClientQueue;
-	u64 NumInterruptsReceived;	/* Total # of Interrupts received.  This
+	u32 reserved1;		/* Reserved field */
+	u64 reserved2;		/* Reserved field */
+	u64 client_queue;
+	u64 num_irq_received;	/* Total # of Interrupts received.  This
 					 * is incremented by the ISR in the
 					 * guest windows driver */
-	u64 NumEmptyCnt;	/* Number of times that visor_signal_remove
+	u64 num_empty;		/* Number of times that visor_signal_remove
 				 * is called and returned Empty
 				 * Status. */
-	u32 ErrorFlags;		/* Error bits set during SignalReinit
+	u32 errorflags;		/* Error bits set during SignalReinit
 				 * to denote trouble with client's
 				 * fields */
-	u8 Filler[12];		/* Pad out to 64 byte cacheline */
+	u8 filler[12];		/* Pad out to 64 byte cacheline */
 };
 
 #pragma pack(pop)
