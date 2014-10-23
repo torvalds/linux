@@ -1143,9 +1143,9 @@ do_scsi_linuxstat(struct uiscmdrsp *cmdrsp, struct scsi_cmnd *scsicmd)
 			       scsicmd, cmdrsp->scsi.cmnd[0],
 			       scsidev->host->host_no, scsidev->id,
 			       scsidev->channel, scsidev->lun,
-			       cmdrsp->scsi.linuxstat, sd->Valid, sd->SenseKey,
-			       sd->AdditionalSenseCode,
-			       sd->AdditionalSenseCodeQualifier);
+			       cmdrsp->scsi.linuxstat, sd->valid, sd->sense_key,
+			       sd->additional_sense_code,
+			       sd->additional_sense_code_qualifier);
 			if (atomic_read(&vdisk->error_count) ==
 			    VIRTHBA_ERROR_COUNT) {
 				LOGERR("Throtling SCSICMD errors disk <%d:%d:%d:%llu>\n",
