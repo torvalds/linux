@@ -476,7 +476,7 @@ create_device(struct controlvm_message *msg, char *buf)
 								  chanptr))->
 							    chtype);
 					if (!SPAR_VNIC_CHANNEL_OK_CLIENT
-					    (dev->chanptr, NULL)) {
+					    (dev->chanptr)) {
 						LOGERR("CONTROLVM_DEVICE_CREATE Failed: VNIC[CLIENT] dev %d chan invalid.",
 						     devNo);
 						POSTCODE_LINUX_4
