@@ -674,7 +674,7 @@ virthba_remove(struct virtpci_dev *virtpcidev)
 }
 
 static int
-forward_vdiskmgmt_command(VDISK_MGMT_TYPES vdiskcmdtype,
+forward_vdiskmgmt_command(enum vdisk_mgmt_types vdiskcmdtype,
 			  struct Scsi_Host *scsihost,
 			  struct uisscsi_dest *vdest)
 {

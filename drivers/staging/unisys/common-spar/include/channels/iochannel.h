@@ -204,8 +204,10 @@ enum task_mgmt_types {
 };
 
 /* various types of vdisk mgmt commands  */
-typedef enum { VDISK_MGMT_ACQUIRE = 1, VDISK_MGMT_RELEASE,
-} VDISK_MGMT_TYPES;
+enum vdisk_mgmt_types {
+	VDISK_MGMT_ACQUIRE = 1,
+	VDISK_MGMT_RELEASE,
+};
 
 /* this is used in the vdest field  */
 #define VDEST_ALL 0xFFFF
@@ -600,7 +602,7 @@ struct uiscmdrsp_disknotify {
 /* The following is used by virthba/vSCSI to send the Acquire/Release commands
 * to the IOVM.  */
 struct uiscmdrsp_vdiskmgmt {
-	VDISK_MGMT_TYPES vdisktype;
+	enum vdisk_mgmt_types vdisktype;
 
 	    /* the type of task */
 	struct uisscsi_dest vdest;
