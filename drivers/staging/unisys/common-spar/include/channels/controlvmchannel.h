@@ -127,7 +127,7 @@ struct irq_info {
 	 /**< specifies interrupt handle. It is used to retrieve the
 	  *   corresponding interrupt pin from Monitor; and the
 	  *   interrupt pin is used to connect to the corresponding
-	  *   intrrupt.  Used by IOPart-GP only. */
+	  *   interrupt.  Used by IOPart-GP only. */
 	u64 recv_irq_handle;
 
 	 /**< specifies interrupt vector. It, interrupt pin, and shared are
