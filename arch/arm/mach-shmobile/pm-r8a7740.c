@@ -32,6 +32,16 @@ static int r8a7740_pd_a3sp_suspend(void)
 	return console_suspend_enabled ? 0 : -EBUSY;
 }
 
+static int r8a7740_pd_d4_suspend(void)
+{
+	/*
+	 * The D4 domain contains the Coresight-ETM hardware block and
+	 * therefore it should only be turned off if the debug module is
+	 * not in use.
+	 */
+	return -EBUSY;
+}
+
 static struct rmobile_pm_domain r8a7740_pm_domains[] = {
 	{
 		.genpd.name	= "A4LC",
@@ -39,6 +49,11 @@ static struct rmobile_pm_domain r8a7740_pm_domains[] = {
 	}, {
 		.genpd.name	= "A4MP",
 		.bit_shift	= 2,
+	}, {
+		.genpd.name	= "D4",
+		.bit_shift	= 3,
+		.gov		= &pm_domain_always_on_gov,
+		.suspend	= r8a7740_pd_d4_suspend,
 	}, {
 		.genpd.name	= "A3RV",
 		.bit_shift	= 6,
