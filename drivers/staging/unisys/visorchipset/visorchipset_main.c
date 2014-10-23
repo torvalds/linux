@@ -1229,8 +1229,8 @@ static void
 my_device_create(CONTROLVM_MESSAGE *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
-	ulong busNo = cmd->create_device.busNo;
-	ulong devNo = cmd->create_device.devNo;
+	ulong busNo = cmd->create_device.bus_no;
+	ulong devNo = cmd->create_device.dev_no;
 	VISORCHIPSET_DEVICE_INFO *pDevInfo = NULL;
 	VISORCHIPSET_BUS_INFO *pBusInfo = NULL;
 	int rc = CONTROLVM_RESP_SUCCESS;
@@ -1274,7 +1274,7 @@ my_device_create(CONTROLVM_MESSAGE *inmsg)
 	INIT_LIST_HEAD(&pDevInfo->entry);
 	pDevInfo->busNo = busNo;
 	pDevInfo->devNo = devNo;
-	pDevInfo->devInstGuid = cmd->create_device.devInstGuid;
+	pDevInfo->devInstGuid = cmd->create_device.dev_inst_uuid;
 	POSTCODE_LINUX_4(DEVICE_CREATE_ENTRY_PC, devNo, busNo,
 			 POSTCODE_SEVERITY_INFO);
 
@@ -1282,9 +1282,9 @@ my_device_create(CONTROLVM_MESSAGE *inmsg)
 		pDevInfo->chanInfo.addrType = ADDRTYPE_localTest;
 	else
 		pDevInfo->chanInfo.addrType = ADDRTYPE_localPhysical;
-	pDevInfo->chanInfo.channelAddr = cmd->create_device.channelAddr;
-	pDevInfo->chanInfo.nChannelBytes = cmd->create_device.channelBytes;
-	pDevInfo->chanInfo.channelTypeGuid = cmd->create_device.dataTypeGuid;
+	pDevInfo->chanInfo.channelAddr = cmd->create_device.channel_addr;
+	pDevInfo->chanInfo.nChannelBytes = cmd->create_device.channel_bytes;
+	pDevInfo->chanInfo.channelTypeGuid = cmd->create_device.data_type_uuid;
 	pDevInfo->chanInfo.intr = cmd->create_device.intr;
 	list_add(&pDevInfo->entry, &DevInfoList);
 	POSTCODE_LINUX_4(DEVICE_CREATE_EXIT_PC, devNo, busNo,
@@ -1848,8 +1848,8 @@ handle_command(CONTROLVM_MESSAGE inmsg, HOSTADDRESS channel_addr)
 		break;
 	case CONTROLVM_DEVICE_CREATE:
 		LOGINF("DEVICE_CREATE(%lu,%lu)",
-		       (ulong) cmd->create_device.busNo,
-		       (ulong) cmd->create_device.devNo);
+		       (ulong) cmd->create_device.bus_no,
+		       (ulong) cmd->create_device.dev_no);
 		my_device_create(&inmsg);
 		break;
 	case CONTROLVM_DEVICE_CHANGESTATE:
@@ -2130,7 +2130,7 @@ setup_crash_devices_work_queue(struct work_struct *work)
 	}
 
 	/* reuse create device message for storage device */
-	if (localCrashCreateDevMsg.cmd.create_device.channelAddr != 0)
+	if (localCrashCreateDevMsg.cmd.create_device.channel_addr != 0)
 		my_device_create(&localCrashCreateDevMsg);
 	else {
 		LOGERR("CrashCreateDevMsg is null, no dump will be taken");

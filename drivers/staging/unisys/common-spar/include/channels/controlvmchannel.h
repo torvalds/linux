@@ -215,20 +215,17 @@ struct controlvm_message_header  {
 	/* if non-zero, there is a payload to copy. */
 };
 
-typedef struct _CONTROLVM_PACKET_DEVICE_CREATE  {
-	u32 busNo;	   /**< bus # (0..n-1) from the msg receiver's
-			    * perspective */
-
-	    /* Control uses header SegmentIndex field to access bus number... */
-	u32 devNo;	   /**< bus-relative (0..n-1) device number */
-	u64 channelAddr;  /**< Guest physical address of the channel, which
-			*   can be dereferenced by the receiver
-			*   of this ControlVm command */
-	u64 channelBytes; /**< specifies size of the channel in bytes */
-	uuid_le dataTypeGuid;/**< specifies format of data in channel */
-	uuid_le devInstGuid; /**< instance guid for the device */
-	struct irq_info intr; /**< specifies interrupt information */
-} CONTROLVM_PACKET_DEVICE_CREATE;	/* for CONTROLVM_DEVICE_CREATE */
+struct controlvm_packet_device_create  {
+	u32 bus_no;	/* bus # (0..n-1) from the msg receiver's end */
+	u32 dev_no;	/* bus-relative (0..n-1) device number */
+	u64 channel_addr;	/* Guest physical address of the channel, which
+				 * can be dereferenced by the receiver of this
+				 * ControlVm command */
+	u64 channel_bytes;	/* specifies size of the channel in bytes */
+	uuid_le data_type_uuid;	/* specifies format of data in channel */
+	uuid_le dev_inst_uuid;	/* instance guid for the device */
+	struct irq_info intr;	/* specifies interrupt information */
+};	/* for CONTROLVM_DEVICE_CREATE */
 
 typedef struct _CONTROLVM_PACKET_DEVICE_CONFIGURE  {
 	u32 busNo;	      /**< bus # (0..n-1) from the msg
@@ -240,7 +237,7 @@ typedef struct _CONTROLVM_PACKET_DEVICE_CONFIGURE  {
 
 typedef struct _CONTROLVM_MESSAGE_DEVICE_CREATE  {
 	struct controlvm_message_header Header;
-	CONTROLVM_PACKET_DEVICE_CREATE Packet;
+	struct controlvm_packet_device_create Packet;
 } CONTROLVM_MESSAGE_DEVICE_CREATE;	/* total 128 bytes */
 
 typedef struct _CONTROLVM_MESSAGE_DEVICE_CONFIGURE  {
@@ -285,7 +282,7 @@ struct controlvm_message_packet  {
 				 * sendBusInterruptHandle is kept in CP. */
 		} configure_bus;	/* for CONTROLVM_BUS_CONFIGURE */
 		/* for CONTROLVM_DEVICE_CREATE */
-		CONTROLVM_PACKET_DEVICE_CREATE create_device;
+		struct controlvm_packet_device_create create_device;
 		struct  {
 			u32 bus_no;	/* bus # (0..n-1) from the msg
 					 * receiver's perspective */
