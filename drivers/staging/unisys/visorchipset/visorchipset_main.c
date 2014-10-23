@@ -817,7 +817,7 @@ visorchipset_save_message(CONTROLVM_MESSAGE *msg, CRASH_OBJ_TYPE type)
 EXPORT_SYMBOL_GPL(visorchipset_save_message);
 
 static void
-bus_responder(enum control_vm_id cmdId, ulong busNo, int response)
+bus_responder(enum controlvm_id cmdId, ulong busNo, int response)
 {
 	VISORCHIPSET_BUS_INFO *p = NULL;
 	BOOL need_clear = FALSE;
@@ -856,7 +856,7 @@ bus_responder(enum control_vm_id cmdId, ulong busNo, int response)
 }
 
 static void
-device_changestate_responder(enum control_vm_id cmdId,
+device_changestate_responder(enum controlvm_id cmdId,
 			     ulong busNo, ulong devNo, int response,
 			     struct spar_segment_state responseState)
 {
@@ -893,7 +893,8 @@ device_changestate_responder(enum control_vm_id cmdId,
 }
 
 static void
-device_responder(enum control_vm_id cmdId, ulong busNo, ulong devNo, int response)
+device_responder(enum controlvm_id cmdId, ulong busNo, ulong devNo,
+		 int response)
 {
 	VISORCHIPSET_DEVICE_INFO *p = NULL;
 	BOOL need_clear = FALSE;

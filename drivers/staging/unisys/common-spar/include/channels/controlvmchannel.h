@@ -82,7 +82,7 @@ static const uuid_le spar_controlvm_channel_protocol_uuid =
  *  - issued on the EventQueue queue (q #2) in the ControlVm channel
  *  - responded to on the EventAckQueue queue (q #3) in the ControlVm channel
  */
-enum control_vm_id {
+enum controlvm_id {
 	CONTROLVM_INVALID = 0,
 	/* SWITCH commands required Parameter: SwitchNumber  */
 	/* BUS commands required Parameter: BusNumber  */
