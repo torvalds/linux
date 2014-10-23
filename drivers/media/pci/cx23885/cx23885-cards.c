@@ -684,6 +684,10 @@ struct cx23885_board cx23885_boards[] = {
 		.name		= "DVBSky T980C",
 		.portb		= CX23885_MPEG_DVB,
 	},
+	[CX23885_BOARD_DVBSKY_S950C] = {
+		.name		= "DVBSky S950C",
+		.portb		= CX23885_MPEG_DVB,
+	},
 };
 const unsigned int cx23885_bcount = ARRAY_SIZE(cx23885_boards);
 
@@ -947,6 +951,10 @@ struct cx23885_subid cx23885_subids[] = {
 		.subvendor = 0x4254,
 		.subdevice = 0x980c,
 		.card      = CX23885_BOARD_DVBSKY_T980C,
+	}, {
+		.subvendor = 0x4254,
+		.subdevice = 0x950c,
+		.card      = CX23885_BOARD_DVBSKY_S950C,
 	},
 };
 const unsigned int cx23885_idcount = ARRAY_SIZE(cx23885_subids);
@@ -1550,6 +1558,7 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		cx23885_gpio_set(dev, GPIO_2 | GPIO_11);
 		break;
 	case CX23885_BOARD_DVBSKY_T980C:
+	case CX23885_BOARD_DVBSKY_S950C:
 		/*
 		 * GPIO-0 INTA from CiMax, input
 		 * GPIO-1 reset CiMax, output, high active
@@ -1859,6 +1868,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_DVBWORLD_2005:
 	case CX23885_BOARD_PROF_8000:
 	case CX23885_BOARD_DVBSKY_T980C:
+	case CX23885_BOARD_DVBSKY_S950C:
 		ts1->gen_ctrl_val  = 0x5; /* Parallel */
 		ts1->ts_clk_en_val = 0x1; /* Enable TS_CLK */
 		ts1->src_sel_val   = CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO;
@@ -1978,6 +1988,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_TBS_6981:
 	case CX23885_BOARD_DVBSKY_T9580:
 	case CX23885_BOARD_DVBSKY_T980C:
+	case CX23885_BOARD_DVBSKY_S950C:
 		dev->sd_cx25840 = v4l2_i2c_new_subdev(&dev->v4l2_dev,
 				&dev->i2c_bus[2].i2c_adap,
 				"cx25840", 0x88 >> 1, NULL);
