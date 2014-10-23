@@ -823,6 +823,22 @@ __gen4_write(64)
 #undef REG_WRITE_FOOTER
 #undef REG_WRITE_HEADER
 
+#define ASSIGN_WRITE_MMIO_VFUNCS(x) \
+do { \
+	dev_priv->uncore.funcs.mmio_writeb = x##_write8; \
+	dev_priv->uncore.funcs.mmio_writew = x##_write16; \
+	dev_priv->uncore.funcs.mmio_writel = x##_write32; \
+	dev_priv->uncore.funcs.mmio_writeq = x##_write64; \
+} while (0)
+
+#define ASSIGN_READ_MMIO_VFUNCS(x) \
+do { \
+	dev_priv->uncore.funcs.mmio_readb = x##_read8; \
+	dev_priv->uncore.funcs.mmio_readw = x##_read16; \
+	dev_priv->uncore.funcs.mmio_readl = x##_read32; \
+	dev_priv->uncore.funcs.mmio_readq = x##_read64; \
+} while (0)
+
 void intel_uncore_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -879,76 +895,42 @@ void intel_uncore_init(struct drm_device *dev)
 	switch (INTEL_INFO(dev)->gen) {
 	default:
 		if (IS_CHERRYVIEW(dev)) {
-			dev_priv->uncore.funcs.mmio_writeb  = chv_write8;
-			dev_priv->uncore.funcs.mmio_writew  = chv_write16;
-			dev_priv->uncore.funcs.mmio_writel  = chv_write32;
-			dev_priv->uncore.funcs.mmio_writeq  = chv_write64;
-			dev_priv->uncore.funcs.mmio_readb  = chv_read8;
-			dev_priv->uncore.funcs.mmio_readw  = chv_read16;
-			dev_priv->uncore.funcs.mmio_readl  = chv_read32;
-			dev_priv->uncore.funcs.mmio_readq  = chv_read64;
+			ASSIGN_WRITE_MMIO_VFUNCS(chv);
+			ASSIGN_READ_MMIO_VFUNCS(chv);
 
 		} else {
-			dev_priv->uncore.funcs.mmio_writeb  = gen8_write8;
-			dev_priv->uncore.funcs.mmio_writew  = gen8_write16;
-			dev_priv->uncore.funcs.mmio_writel  = gen8_write32;
-			dev_priv->uncore.funcs.mmio_writeq  = gen8_write64;
-			dev_priv->uncore.funcs.mmio_readb  = gen6_read8;
-			dev_priv->uncore.funcs.mmio_readw  = gen6_read16;
-			dev_priv->uncore.funcs.mmio_readl  = gen6_read32;
-			dev_priv->uncore.funcs.mmio_readq  = gen6_read64;
+			ASSIGN_WRITE_MMIO_VFUNCS(gen8);
+			ASSIGN_READ_MMIO_VFUNCS(gen6);
 		}
 		break;
 	case 7:
 	case 6:
 		if (IS_HASWELL(dev)) {
-			dev_priv->uncore.funcs.mmio_writeb  = hsw_write8;
-			dev_priv->uncore.funcs.mmio_writew  = hsw_write16;
-			dev_priv->uncore.funcs.mmio_writel  = hsw_write32;
-			dev_priv->uncore.funcs.mmio_writeq  = hsw_write64;
+			ASSIGN_WRITE_MMIO_VFUNCS(hsw);
 		} else {
-			dev_priv->uncore.funcs.mmio_writeb  = gen6_write8;
-			dev_priv->uncore.funcs.mmio_writew  = gen6_write16;
-			dev_priv->uncore.funcs.mmio_writel  = gen6_write32;
-			dev_priv->uncore.funcs.mmio_writeq  = gen6_write64;
+			ASSIGN_WRITE_MMIO_VFUNCS(gen6);
 		}
 
 		if (IS_VALLEYVIEW(dev)) {
-			dev_priv->uncore.funcs.mmio_readb  = vlv_read8;
-			dev_priv->uncore.funcs.mmio_readw  = vlv_read16;
-			dev_priv->uncore.funcs.mmio_readl  = vlv_read32;
-			dev_priv->uncore.funcs.mmio_readq  = vlv_read64;
+			ASSIGN_READ_MMIO_VFUNCS(vlv);
 		} else {
-			dev_priv->uncore.funcs.mmio_readb  = gen6_read8;
-			dev_priv->uncore.funcs.mmio_readw  = gen6_read16;
-			dev_priv->uncore.funcs.mmio_readl  = gen6_read32;
-			dev_priv->uncore.funcs.mmio_readq  = gen6_read64;
+			ASSIGN_READ_MMIO_VFUNCS(gen6);
 		}
 		break;
 	case 5:
-		dev_priv->uncore.funcs.mmio_writeb  = gen5_write8;
-		dev_priv->uncore.funcs.mmio_writew  = gen5_write16;
-		dev_priv->uncore.funcs.mmio_writel  = gen5_write32;
-		dev_priv->uncore.funcs.mmio_writeq  = gen5_write64;
-		dev_priv->uncore.funcs.mmio_readb  = gen5_read8;
-		dev_priv->uncore.funcs.mmio_readw  = gen5_read16;
-		dev_priv->uncore.funcs.mmio_readl  = gen5_read32;
-		dev_priv->uncore.funcs.mmio_readq  = gen5_read64;
+		ASSIGN_WRITE_MMIO_VFUNCS(gen5);
+		ASSIGN_READ_MMIO_VFUNCS(gen5);
 		break;
 	case 4:
 	case 3:
 	case 2:
-		dev_priv->uncore.funcs.mmio_writeb  = gen4_write8;
-		dev_priv->uncore.funcs.mmio_writew  = gen4_write16;
-		dev_priv->uncore.funcs.mmio_writel  = gen4_write32;
-		dev_priv->uncore.funcs.mmio_writeq  = gen4_write64;
-		dev_priv->uncore.funcs.mmio_readb  = gen4_read8;
-		dev_priv->uncore.funcs.mmio_readw  = gen4_read16;
-		dev_priv->uncore.funcs.mmio_readl  = gen4_read32;
-		dev_priv->uncore.funcs.mmio_readq  = gen4_read64;
+		ASSIGN_WRITE_MMIO_VFUNCS(gen4);
+		ASSIGN_READ_MMIO_VFUNCS(gen4);
 		break;
 	}
 }
+#undef ASSIGN_WRITE_MMIO_VFUNCS
+#undef ASSIGN_READ_MMIO_VFUNCS
 
 void intel_uncore_fini(struct drm_device *dev)
 {
