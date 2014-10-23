@@ -15,8 +15,6 @@
 
 #define DRVNAME "sead3-led"
 
-static struct platform_device *pdev;
-
 static void sead3_pled_set(struct led_classdev *led_cdev,
 		enum led_brightness value)
 {
@@ -75,26 +73,11 @@ static struct platform_driver sead3_led_driver = {
 
 static int __init sead3_led_init(void)
 {
-	int ret;
-
-	ret = platform_driver_register(&sead3_led_driver);
-	if (ret < 0)
-		goto out;
-
-	pdev = platform_device_register_simple(DRVNAME, -1, NULL, 0);
-	if (IS_ERR(pdev)) {
-		ret = PTR_ERR(pdev);
-		platform_driver_unregister(&sead3_led_driver);
-		goto out;
-	}
-
-out:
-	return ret;
+	return platform_driver_register(&sead3_led_driver);
 }
 
 static void __exit sead3_led_exit(void)
 {
-	platform_device_unregister(pdev);
 	platform_driver_unregister(&sead3_led_driver);
 }
 

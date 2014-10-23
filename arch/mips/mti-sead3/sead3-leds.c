@@ -70,10 +70,20 @@ static struct platform_device fled_device = {
 	.resource		= fled_resources
 };
 
-static int __init led_init(void)
+static struct platform_device sead3_led_device = {
+        .name   = "sead3-led",
+        .id     = -1,
+};
+
+struct platform_device *sead3_led_devices[] = {
+	&pled_device,
+	&fled_device,
+	&sead3_led_device,
+};
+
+static int __init sead3_led_init(void)
 {
-	platform_device_register(&pled_device);
-	return platform_device_register(&fled_device);
+	return platform_add_devices(sead3_led_devices, ARRAY_SIZE(sead3_led_devices));
 }
 
-device_initcall(led_init);
+device_initcall(sead3_led_init);
