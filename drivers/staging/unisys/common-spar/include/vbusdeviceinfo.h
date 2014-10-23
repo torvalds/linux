@@ -118,7 +118,7 @@ vbuschannel_itoa(char *p, int remain, int num)
 	}
 	/* form a backwards decimal ascii string in <s> */
 	while (num > 0) {
-		if (digits >= (int) sizeof(s))
+		if (digits >= (int)sizeof(s))
 			return 0;
 		s[digits++] = (num % 10) + '0';
 		num = num / 10;
