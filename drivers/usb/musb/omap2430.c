@@ -162,7 +162,8 @@ static void omap2430_musb_set_vbus(struct musb *musb, int is_on)
 			 * Wait for the musb to set as A device to enable the
 			 * VBUS
 			 */
-			while (musb_readb(musb->mregs, MUSB_DEVCTL) & 0x80) {
+			while (musb_readb(musb->mregs, MUSB_DEVCTL) &
+			       MUSB_DEVCTL_BDEVICE) {
 
 				mdelay(5);
 				cpu_relax();
