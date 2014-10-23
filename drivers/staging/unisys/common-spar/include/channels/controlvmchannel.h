@@ -150,69 +150,6 @@ struct pci_id {
 	u8 reserved[3];	/* Natural alignment purposes */
 };
 
-struct PciConfigHdr {
-	u16 VendorId;
-	u16 SubSysVendor;
-	u16 DeviceId;
-	u16 SubSysDevice;
-	u32 ClassCode;
-	u32 Reserved;		/* Natural alignment purposes */
-};
-
-struct ScsiId {
-	u32 Bus;
-	u32 Target;
-	u32 Lun;
-	u32 Host; /* Command should ignore this for *
-		   * DiskArrival/RemovalEvents */
-};
-
-struct WWID {
-	u32 wwid1;
-	u32 wwid2;
-};
-
-struct virtDiskInfo  {
-	u32 switchNo;		/* defined by SWITCH_CREATE */
-	u32 externalPortNo;	/* 0 for SAS RAID provided (external)
-				 * virtual disks, 1 for virtual disk
-				 * images, 2 for gold disk images */
-	u16 VirtualDiskIndex;	/* Index of disk descriptor in the
-				 * VirtualDisk segment associated with
-				 * externalPortNo */
-	u16 Reserved1;
-	u32 Reserved2;
-};
-
-typedef enum {
-	CONTROLVM_ACTION_NONE = 0,
-	CONTROLVM_ACTION_SET_RESTORE = 0x05E7,
-	CONTROLVM_ACTION_CLEAR_RESTORE = 0x0C18,
-	CONTROLVM_ACTION_RESTORING = 0x08E5,
-	CONTROLVM_ACTION_RESTORE_BUSY = 0x0999,
-	CONTROLVM_ACTION_CLEAR_NVRAM = 0xB01
-} CONTROLVM_ACTION;
-
-typedef enum _ULTRA_TOOL_ACTIONS {
-	    /* enumeration that defines intended action  */
-	    ULTRA_TOOL_ACTION_NONE = 0,	/* normal boot of boot disk */
-	ULTRA_TOOL_ACTION_INSTALL = 1,	/* install source disk(s) to boot
-					 * disk */
-	ULTRA_TOOL_ACTION_CAPTURE = 2,	/* capture boot disk to target disk(s)
-					 * as 'gold image' */
-	ULTRA_TOOL_ACTION_REPAIR = 3,	/* use source disk(s) to repair
-					 * installation on boot disk */
-	ULTRA_TOOL_ACTION_CLEAN = 4,	/* 'scrub' virtual disk before
-					 * releasing back to storage pool */
-	ULTRA_TOOL_ACTION_UPGRADE = 5,	/* upgrade to use content of images
-					 * referenced from newer blueprint */
-	ULTRA_TOOL_ACTION_DIAG = 6,	/* use tool to invoke diagnostic script
-					 * provided by blueprint */
-	ULTRA_TOOL_ACTION_FAILED = 7,	/* used when tool fails installation
-					   and cannot continue */
-	ULTRA_TOOL_ACTION_COUNT = 8
-} ULTRA_TOOL_ACTIONS;
-
 typedef struct _ULTRA_EFI_SPAR_INDICATION  {
 	u64 BootToFirmwareUI:1;	/* Bit 0: Stop in uefi ui */
 	u64 ClearNvram:1;	/* Bit 1: Clear NVRAM */
