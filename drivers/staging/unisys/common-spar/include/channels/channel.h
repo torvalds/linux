@@ -232,7 +232,7 @@ struct channel_header {
 #define ULTRA_CHANNEL_ENABLE_INTS (0x1ULL << 0)
 
 /* Subheader for the Signal Type variation of the Common Channel */
-typedef struct _SIGNAL_QUEUE_HEADER {
+struct signal_queue_header {
 	/* 1st cache line */
 	u32 VersionId;		/* SIGNAL_QUEUE_HEADER Version ID */
 	u32 Type;		/* Queue type: storage, network */
@@ -265,7 +265,7 @@ typedef struct _SIGNAL_QUEUE_HEADER {
 				 * to denote trouble with client's
 				 * fields */
 	u8 Filler[12];		/* Pad out to 64 byte cacheline */
-} SIGNAL_QUEUE_HEADER, *pSIGNAL_QUEUE_HEADER;
+};
 
 #pragma pack(pop)
 

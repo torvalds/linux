@@ -686,8 +686,8 @@ struct uiscmdrsp {
 * response queues as specified in cmdQ and rspQ SIGNAL_QUEUE_HEADERS. */
 typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
 	struct channel_header ChannelHeader;
-	SIGNAL_QUEUE_HEADER cmdQ;
-	SIGNAL_QUEUE_HEADER rspQ;
+	struct signal_queue_header cmdQ;
+	struct signal_queue_header rspQ;
 	union {
 		struct {
 			struct vhba_wwnn wwnn;	/* 8 bytes */

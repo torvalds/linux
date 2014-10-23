@@ -542,16 +542,16 @@ typedef struct _ULTRA_CONTROLVM_CHANNEL_PROTOCOL  {
 	u32 SPReserved;
 	u8 Reserved2[28];	/* Force signals to begin on 128-byte cache
 				 * line */
-	SIGNAL_QUEUE_HEADER RequestQueue;	/* Service or guest partition
+	struct signal_queue_header RequestQueue;/* Service or guest partition
 						 * uses this queue to send
 						 * requests to Control */
-	SIGNAL_QUEUE_HEADER ResponseQueue;	/* Control uses this queue to
+	struct signal_queue_header ResponseQueue;/* Control uses this queue to
 						 * respond to service or guest
 						 * partition requests */
-	SIGNAL_QUEUE_HEADER EventQueue;		/* Control uses this queue to
+	struct signal_queue_header EventQueue;	/* Control uses this queue to
 						 * send events to service or
 						 * guest partition */
-	SIGNAL_QUEUE_HEADER EventAckQueue;	/* Service or guest partition
+	struct signal_queue_header EventAckQueue;/* Service or guest partition
 						 * uses this queue to ack
 						 * Control events */
 

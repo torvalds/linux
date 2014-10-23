@@ -421,7 +421,7 @@ virthba_ISR(int irq, void *dev_id)
 {
 	struct virthba_info *virthbainfo = (struct virthba_info *) dev_id;
 	struct channel_header __iomem *pChannelHeader;
-	SIGNAL_QUEUE_HEADER __iomem *pqhdr;
+	struct signal_queue_header __iomem *pqhdr;
 	u64 mask;
 	unsigned long long rc1;
 
@@ -442,7 +442,7 @@ virthba_ISR(int irq, void *dev_id)
 		virthbainfo->interrupts_notme++;
 		return IRQ_NONE;
 	}
-	pqhdr = (SIGNAL_QUEUE_HEADER __iomem *)
+	pqhdr = (struct signal_queue_header __iomem *)
 		((char __iomem *) pChannelHeader +
 		 readq(&pChannelHeader->ch_space_offset)) + IOCHAN_FROM_IOPART;
 	writeq(readq(&pqhdr->NumInterruptsReceived) + 1,
@@ -462,7 +462,7 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	int i;
 	irq_handler_t handler = virthba_ISR;
 	struct channel_header __iomem *pChannelHeader;
-	SIGNAL_QUEUE_HEADER __iomem *pqhdr;
+	struct signal_queue_header __iomem *pqhdr;
 	u64 mask;
 
 	LOGVER("entering virthba_probe...\n");
@@ -586,7 +586,7 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	       virthbainfo->chinfo.queueinfo, &virthbainfo->chinfo.threadinfo);
 
 	pChannelHeader = virthbainfo->chinfo.queueinfo->chan;
-	pqhdr = (SIGNAL_QUEUE_HEADER __iomem *)
+	pqhdr = (struct signal_queue_header __iomem *)
 		((char __iomem *)pChannelHeader +
 		 readq(&pChannelHeader->ch_space_offset)) + IOCHAN_FROM_IOPART;
 	virthbainfo->flags_addr = &pqhdr->FeatureFlags;

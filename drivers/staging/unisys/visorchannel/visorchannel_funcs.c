@@ -38,10 +38,10 @@ struct VISORCHANNEL_Tag {
 	spinlock_t remove_lock;
 
 	struct {
-		SIGNAL_QUEUE_HEADER req_queue;
-		SIGNAL_QUEUE_HEADER rsp_queue;
-		SIGNAL_QUEUE_HEADER event_queue;
-		SIGNAL_QUEUE_HEADER ack_queue;
+		struct signal_queue_header req_queue;
+		struct signal_queue_header rsp_queue;
+		struct signal_queue_header event_queue;
+		struct signal_queue_header ack_queue;
 	} safe_uis_queue;
 };
 
@@ -295,7 +295,8 @@ EXPORT_SYMBOL_GPL(visorchannel_get_header);
  *  channel header
  */
 #define SIG_QUEUE_OFFSET(chan_hdr, q) \
-	((chan_hdr)->ch_space_offset + ((q) * sizeof(SIGNAL_QUEUE_HEADER)))
+	((chan_hdr)->ch_space_offset + \
+	 ((q) * sizeof(struct signal_queue_header)))
 
 /** Return offset of a specific queue entry (data) from the beginning of a
  *  channel header
@@ -310,13 +311,13 @@ EXPORT_SYMBOL_GPL(visorchannel_get_header);
 #define SIG_WRITE_FIELD(channel, queue, sig_hdr, FIELD)			\
 	(visor_memregion_write(channel->memregion,			\
 			       SIG_QUEUE_OFFSET(&channel->chan_hdr, queue)+ \
-			       offsetof(SIGNAL_QUEUE_HEADER, FIELD),	\
+			       offsetof(struct signal_queue_header, FIELD),\
 			       &((sig_hdr)->FIELD),			\
 			       sizeof((sig_hdr)->FIELD)) >= 0)
 
 static BOOL
 sig_read_header(VISORCHANNEL *channel, u32 queue,
-		SIGNAL_QUEUE_HEADER *sig_hdr)
+		struct signal_queue_header *sig_hdr)
 {
 	BOOL rc = FALSE;
 
@@ -329,7 +330,8 @@ sig_read_header(VISORCHANNEL *channel, u32 queue,
 
 	if (visor_memregion_read(channel->memregion,
 				 SIG_QUEUE_OFFSET(&channel->chan_hdr, queue),
-				 sig_hdr, sizeof(SIGNAL_QUEUE_HEADER)) < 0) {
+				 sig_hdr,
+				 sizeof(struct signal_queue_header)) < 0) {
 		ERRDRV("queue=%d SIG_QUEUE_OFFSET=%d",
 		       queue, (int)SIG_QUEUE_OFFSET(&channel->chan_hdr, queue));
 		ERRDRV("visor_memregion_read of signal queue failed: (status=%d)\n", rc);
@@ -342,7 +344,8 @@ Away:
 
 static BOOL
 sig_do_data(VISORCHANNEL *channel, u32 queue,
-	    SIGNAL_QUEUE_HEADER *sig_hdr, u32 slot, void *data, BOOL is_write)
+	    struct signal_queue_header *sig_hdr, u32 slot, void *data,
+	    BOOL is_write)
 {
 	BOOL rc = FALSE;
 	int signal_data_offset = SIG_DATA_OFFSET(&channel->chan_hdr, queue,
@@ -368,21 +371,21 @@ Away:
 
 static inline BOOL
 sig_read_data(VISORCHANNEL *channel, u32 queue,
-	      SIGNAL_QUEUE_HEADER *sig_hdr, u32 slot, void *data)
+	      struct signal_queue_header *sig_hdr, u32 slot, void *data)
 {
 	return sig_do_data(channel, queue, sig_hdr, slot, data, FALSE);
 }
 
 static inline BOOL
 sig_write_data(VISORCHANNEL *channel, u32 queue,
-	       SIGNAL_QUEUE_HEADER *sig_hdr, u32 slot, void *data)
+	       struct signal_queue_header *sig_hdr, u32 slot, void *data)
 {
 	return sig_do_data(channel, queue, sig_hdr, slot, data, TRUE);
 }
 
 static inline unsigned char
-safe_sig_queue_validate(pSIGNAL_QUEUE_HEADER psafe_sqh,
-			pSIGNAL_QUEUE_HEADER punsafe_sqh,
+safe_sig_queue_validate(struct signal_queue_header *psafe_sqh,
+			struct signal_queue_header *punsafe_sqh,
 			u32 *phead, u32 *ptail)
 {
 	if ((*phead >= psafe_sqh->MaxSignalSlots)
@@ -406,7 +409,7 @@ BOOL
 visorchannel_signalremove(VISORCHANNEL *channel, u32 queue, void *msg)
 {
 	BOOL rc = FALSE;
-	SIGNAL_QUEUE_HEADER sig_hdr;
+	struct signal_queue_header sig_hdr;
 
 	if (channel->needs_lock)
 		spin_lock(&channel->remove_lock);
@@ -452,7 +455,7 @@ BOOL
 visorchannel_signalinsert(VISORCHANNEL *channel, u32 queue, void *msg)
 {
 	BOOL rc = FALSE;
-	SIGNAL_QUEUE_HEADER sig_hdr;
+	struct signal_queue_header sig_hdr;
 
 	if (channel->needs_lock)
 		spin_lock(&channel->insert_lock);
@@ -505,7 +508,7 @@ EXPORT_SYMBOL_GPL(visorchannel_signalinsert);
 int
 visorchannel_signalqueue_slots_avail(VISORCHANNEL *channel, u32 queue)
 {
-	SIGNAL_QUEUE_HEADER sig_hdr;
+	struct signal_queue_header sig_hdr;
 	u32 slots_avail, slots_used;
 	u32 head, tail;
 
@@ -524,7 +527,7 @@ EXPORT_SYMBOL_GPL(visorchannel_signalqueue_slots_avail);
 int
 visorchannel_signalqueue_max_slots(VISORCHANNEL *channel, u32 queue)
 {
-	SIGNAL_QUEUE_HEADER sig_hdr;
+	struct signal_queue_header sig_hdr;
 
 	if (!sig_read_header(channel, queue, &sig_hdr))
 		return 0;
@@ -533,7 +536,7 @@ visorchannel_signalqueue_max_slots(VISORCHANNEL *channel, u32 queue)
 EXPORT_SYMBOL_GPL(visorchannel_signalqueue_max_slots);
 
 static void
-sigqueue_debug(SIGNAL_QUEUE_HEADER *q, int which, struct seq_file *seq)
+sigqueue_debug(struct signal_queue_header *q, int which, struct seq_file *seq)
 {
 	seq_printf(seq, "Signal Queue #%d\n", which);
 	seq_printf(seq, "   VersionId          = %lu\n", (ulong) q->VersionId);
@@ -617,7 +620,7 @@ visorchannel_debug(VISORCHANNEL *channel, int nQueues,
 		;
 	else
 		for (i = 0; i < nQueues; i++) {
-			SIGNAL_QUEUE_HEADER q;
+			struct signal_queue_header q;
 
 			errcode = visorchannel_read(channel,
 					off + phdr->ch_space_offset +
