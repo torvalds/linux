@@ -1437,7 +1437,7 @@ void rtw_dynamic_check_timer_handlder(void *function_context)
 	struct registry_priv *pregistrypriv = &adapter->registrypriv;
 
 	if (!adapter)
-		goto exit;
+		return;
 	if (!adapter->hw_init_completed)
 		goto exit;
 	if ((adapter->bDriverStopped) || (adapter->bSurpriseRemoved))
