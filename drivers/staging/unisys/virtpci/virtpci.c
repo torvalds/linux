@@ -1009,9 +1009,9 @@ static int virtpci_device_add(struct device *parentbus, int devtype,
 	 * queues can begin at any time after device_register().
 	 */
 	pDev = &virtpcidev->generic_dev;
-	ULTRA_CHANNEL_CLIENT_TRANSITION(addparams->chanptr,
-					BUS_ID(pDev),
-					CHANNELCLI_ATTACHED, NULL);
+	SPAR_CHANNEL_CLIENT_TRANSITION(addparams->chanptr,
+				       BUS_ID(pDev),
+				       CHANNELCLI_ATTACHED, NULL);
 
 	/* don't register until device has been added to
 	* list. Otherwise, a device_unregister from this function can
@@ -1032,9 +1032,9 @@ static int virtpci_device_add(struct device *parentbus, int devtype,
 	if (ret) {
 		LOGERR("device_register returned %d\n", ret);
 		pDev = &virtpcidev->generic_dev;
-		ULTRA_CHANNEL_CLIENT_TRANSITION(addparams->chanptr,
-						BUS_ID(pDev),
-						CHANNELCLI_DETACHED, NULL);
+		SPAR_CHANNEL_CLIENT_TRANSITION(addparams->chanptr,
+					       BUS_ID(pDev),
+					       CHANNELCLI_DETACHED, NULL);
 		/* remove virtpcidev, the one we just added, from the list */
 		write_lock_irqsave(&VpcidevListLock, flags);
 		for (tmpvpcidev = VpcidevListHead, prev = NULL;

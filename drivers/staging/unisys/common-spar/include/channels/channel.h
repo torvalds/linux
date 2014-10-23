@@ -128,26 +128,24 @@ ULTRA_CHANNELCLI_STRING(u32 v)
 				line);				\
 	} while (0)
 
-#define ULTRA_CHANNEL_CLIENT_TRANSITION(pChan, chanId,			\
-					newstate, logCtx)		\
+#define SPAR_CHANNEL_CLIENT_TRANSITION(ch, id, newstate, log)		\
 	do {								\
 		SPAR_CHANNEL_CLIENT_CHK_TRANSITION(			\
-			readl(&(((struct channel_header __iomem *) \
-				 (pChan))->cli_state_os)),		\
-			newstate,					\
-			chanId, logCtx, __FILE__, __LINE__);		\
+			readl(&(((struct channel_header __iomem *)\
+				 (ch))->cli_state_os)),		\
+			newstate, id, log, __FILE__, __LINE__);		\
 			pr_info("%s Channel StateTransition (%s) %s(%d)-->%s(%d) @%s:%d\n", \
-				chanId, "CliStateOS",			\
+				id, "CliStateOS",			\
 				ULTRA_CHANNELCLI_STRING( \
 				      readl(&((struct channel_header __iomem *)\
-					      (pChan))->cli_state_os)),	\
-				readl(&((struct channel_header __iomem *) \
-				      (pChan))->cli_state_os),		\
+					      (ch))->cli_state_os)),	\
+				readl(&((struct channel_header __iomem *)\
+				      (ch))->cli_state_os),		\
 				ULTRA_CHANNELCLI_STRING(newstate),	\
 				newstate,				\
 				pathname_last_n_nodes(__FILE__, 4), __LINE__); \
-		writel(newstate, &((struct channel_header __iomem *) \
-				   (pChan))->cli_state_os);		\
+		writel(newstate, &((struct channel_header __iomem *)\
+				   (ch))->cli_state_os);		\
 		mb(); /* required for channel synch */			\
 	} while (0)
 

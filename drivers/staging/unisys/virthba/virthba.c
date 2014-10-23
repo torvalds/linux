@@ -1498,9 +1498,9 @@ virthba_serverup(struct virtpci_dev *virtpcidev)
 	/* Must transition channel to ATTACHED state BEFORE we
 	 * can start using the device again
 	 */
-	ULTRA_CHANNEL_CLIENT_TRANSITION(virthbainfo->chinfo.queueinfo->chan,
-					dev_name(&virtpcidev->generic_dev),
-					CHANNELCLI_ATTACHED, NULL);
+	SPAR_CHANNEL_CLIENT_TRANSITION(virthbainfo->chinfo.queueinfo->chan,
+				       dev_name(&virtpcidev->generic_dev),
+				       CHANNELCLI_ATTACHED, NULL);
 
 	/* Start Processing the IOVM Response Queue Again */
 	if (!uisthread_start(&virthbainfo->chinfo.threadinfo,
