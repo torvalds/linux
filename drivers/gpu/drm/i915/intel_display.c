@@ -8343,6 +8343,9 @@ static void i9xx_update_cursor(struct drm_crtc *crtc, u32 base)
 			cntl |= CURSOR_PIPE_CSC_ENABLE;
 	}
 
+	if (to_intel_plane(crtc->cursor)->rotation == BIT(DRM_ROTATE_180))
+		cntl |= CURSOR_ROTATE_180;
+
 	if (intel_crtc->cursor_cntl != cntl) {
 		I915_WRITE(CURCNTR(pipe), cntl);
 		POSTING_READ(CURCNTR(pipe));
@@ -8399,6 +8402,13 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 		return;
 
 	I915_WRITE(CURPOS(pipe), pos);
+
+	/* ILK+ do this automagically */
+	if (HAS_GMCH_DISPLAY(dev) &&
+		to_intel_plane(crtc->cursor)->rotation == BIT(DRM_ROTATE_180)) {
+		base += (intel_crtc->cursor_height *
+			intel_crtc->cursor_width - 1) * 4;
+	}
 
 	if (IS_845G(dev) || IS_I865G(dev))
 		i845_update_cursor(crtc, base);
@@ -12010,6 +12020,7 @@ static const struct drm_plane_funcs intel_cursor_plane_funcs = {
 	.update_plane = intel_cursor_plane_update,
 	.disable_plane = intel_cursor_plane_disable,
 	.destroy = intel_plane_destroy,
+	.set_property = intel_plane_set_property,
 };
 
 static struct drm_plane *intel_cursor_plane_create(struct drm_device *dev,
@@ -12025,12 +12036,26 @@ static struct drm_plane *intel_cursor_plane_create(struct drm_device *dev,
 	cursor->max_downscale = 1;
 	cursor->pipe = pipe;
 	cursor->plane = pipe;
+	cursor->rotation = BIT(DRM_ROTATE_0);
 
 	drm_universal_plane_init(dev, &cursor->base, 0,
 				 &intel_cursor_plane_funcs,
 				 intel_cursor_formats,
 				 ARRAY_SIZE(intel_cursor_formats),
 				 DRM_PLANE_TYPE_CURSOR);
+
+	if (INTEL_INFO(dev)->gen >= 4) {
+		if (!dev->mode_config.rotation_property)
+			dev->mode_config.rotation_property =
+				drm_mode_create_rotation_property(dev,
+							BIT(DRM_ROTATE_0) |
+							BIT(DRM_ROTATE_180));
+		if (dev->mode_config.rotation_property)
+			drm_object_attach_property(&cursor->base.base,
+				dev->mode_config.rotation_property,
+				cursor->rotation);
+	}
+
 	return &cursor->base;
 }
 

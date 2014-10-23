@@ -4208,6 +4208,7 @@ enum punit_power_well {
 #define   MCURSOR_PIPE_A	0x00
 #define   MCURSOR_PIPE_B	(1 << 28)
 #define   MCURSOR_GAMMA_ENABLE  (1 << 26)
+#define   CURSOR_ROTATE_180	(1<<15)
 #define   CURSOR_TRICKLE_FEED_DISABLE	(1 << 14)
 #define _CURABASE		0x70084
 #define _CURAPOS		0x70088
