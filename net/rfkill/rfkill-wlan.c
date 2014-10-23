@@ -20,7 +20,6 @@
 #include <linux/rfkill.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <asm/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/delay.h>
 #include <linux/rfkill-wlan.h>
