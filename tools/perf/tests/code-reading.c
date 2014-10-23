@@ -133,8 +133,7 @@ static int read_via_objdump(const char *filename, u64 addr, void *buf,
 }
 
 static int read_object_code(u64 addr, size_t len, u8 cpumode,
-			    struct thread *thread, struct machine *machine,
-			    struct state *state)
+			    struct thread *thread, struct state *state)
 {
 	struct addr_location al;
 	unsigned char buf1[BUFSZ];
@@ -169,8 +168,8 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 		len = al.map->end - addr;
 
 	/* Read the object code using perf */
-	ret_len = dso__data_read_offset(al.map->dso, machine, al.addr, buf1,
-					len);
+	ret_len = dso__data_read_offset(al.map->dso, thread->mg->machine,
+					al.addr, buf1, len);
 	if (ret_len != len) {
 		pr_debug("dso__data_read_offset failed\n");
 		return -1;
@@ -263,8 +262,7 @@ static int process_sample_event(struct machine *machine,
 
 	cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
-	return read_object_code(sample.ip, READLEN, cpumode, thread, machine,
-				state);
+	return read_object_code(sample.ip, READLEN, cpumode, thread, state);
 }
 
 static int process_event(struct machine *machine, struct perf_evlist *evlist,
