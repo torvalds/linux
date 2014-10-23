@@ -160,14 +160,42 @@ static int cpu_pmu_request_irq(struct arm_pmu *cpu_pmu, irq_handler_t handler)
 	return 0;
 }
 
+/*
+ * PMU hardware loses all context when a CPU goes offline.
+ * When a CPU is hotplugged back in, since some hardware registers are
+ * UNKNOWN at reset, the PMU must be explicitly reset to avoid reading
+ * junk values out of them.
+ */
+static int cpu_pmu_notify(struct notifier_block *b, unsigned long action,
+			  void *hcpu)
+{
+	struct arm_pmu *pmu = container_of(b, struct arm_pmu, hotplug_nb);
+
+	if ((action & ~CPU_TASKS_FROZEN) != CPU_STARTING)
+		return NOTIFY_DONE;
+
+	if (pmu->reset)
+		pmu->reset(pmu);
+	else
+		return NOTIFY_DONE;
+
+	return NOTIFY_OK;
+}
+
 static int cpu_pmu_init(struct arm_pmu *cpu_pmu)
 {
+	int err;
 	int cpu;
 	struct pmu_hw_events __percpu *cpu_hw_events;
 
 	cpu_hw_events = alloc_percpu(struct pmu_hw_events);
 	if (!cpu_hw_events)
 		return -ENOMEM;
+
+	cpu_pmu->hotplug_nb.notifier_call = cpu_pmu_notify;
+	err = register_cpu_notifier(&cpu_pmu->hotplug_nb);
+	if (err)
+		goto out_hw_events;
 
 	for_each_possible_cpu(cpu) {
 		struct pmu_hw_events *events = per_cpu_ptr(cpu_hw_events, cpu);
@@ -188,36 +216,17 @@ static int cpu_pmu_init(struct arm_pmu *cpu_pmu)
 		cpu_pmu->pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
 
 	return 0;
+
+out_hw_events:
+	free_percpu(cpu_hw_events);
+	return err;
 }
 
 static void cpu_pmu_destroy(struct arm_pmu *cpu_pmu)
 {
+	unregister_cpu_notifier(&cpu_pmu->hotplug_nb);
 	free_percpu(cpu_pmu->hw_events);
 }
-
-/*
- * PMU hardware loses all context when a CPU goes offline.
- * When a CPU is hotplugged back in, since some hardware registers are
- * UNKNOWN at reset, the PMU must be explicitly reset to avoid reading
- * junk values out of them.
- */
-static int cpu_pmu_notify(struct notifier_block *b, unsigned long action,
-			  void *hcpu)
-{
-	if ((action & ~CPU_TASKS_FROZEN) != CPU_STARTING)
-		return NOTIFY_DONE;
-
-	if (cpu_pmu && cpu_pmu->reset)
-		cpu_pmu->reset(cpu_pmu);
-	else
-		return NOTIFY_DONE;
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block cpu_pmu_hotplug_notifier = {
-	.notifier_call = cpu_pmu_notify,
-};
 
 /*
  * PMU platform driver and devicetree bindings.
@@ -344,16 +353,6 @@ static struct platform_driver cpu_pmu_driver = {
 
 static int __init register_pmu_driver(void)
 {
-	int err;
-
-	err = register_cpu_notifier(&cpu_pmu_hotplug_notifier);
-	if (err)
-		return err;
-
-	err = platform_driver_register(&cpu_pmu_driver);
-	if (err)
-		unregister_cpu_notifier(&cpu_pmu_hotplug_notifier);
-
-	return err;
+	return platform_driver_register(&cpu_pmu_driver);
 }
 device_initcall(register_pmu_driver);
