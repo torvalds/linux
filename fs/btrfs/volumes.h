@@ -393,6 +393,10 @@ int btrfs_account_dev_extents_size(struct btrfs_device *device, u64 start,
 int btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 		    u64 logical, u64 *length,
 		    struct btrfs_bio **bbio_ret, int mirror_num);
+int btrfs_map_sblock(struct btrfs_fs_info *fs_info, int rw,
+		     u64 logical, u64 *length,
+		     struct btrfs_bio **bbio_ret, int mirror_num,
+		     u64 **raid_map_ret);
 int btrfs_rmap_block(struct btrfs_mapping_tree *map_tree,
 		     u64 chunk_start, u64 physical, u64 devid,
 		     u64 **logical, int *naddrs, int *stripe_len);

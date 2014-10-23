@@ -5161,7 +5161,9 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 				BTRFS_BLOCK_GROUP_RAID6)) {
 		u64 tmp;
 
-		if (raid_map_ret && ((rw & REQ_WRITE) || mirror_num > 1)) {
+		if (raid_map_ret &&
+		    ((rw & (REQ_WRITE | REQ_GET_READ_MIRRORS)) ||
+		     mirror_num > 1)) {
 			int i, rot;
 
 			/* push stripe_nr back to the start of the full stripe */
@@ -5438,6 +5440,16 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 {
 	return __btrfs_map_block(fs_info, rw, logical, length, bbio_ret,
 				 mirror_num, NULL);
+}
+
+/* For Scrub/replace */
+int btrfs_map_sblock(struct btrfs_fs_info *fs_info, int rw,
+		     u64 logical, u64 *length,
+		     struct btrfs_bio **bbio_ret, int mirror_num,
+		     u64 **raid_map_ret)
+{
+	return __btrfs_map_block(fs_info, rw, logical, length, bbio_ret,
+				 mirror_num, raid_map_ret);
 }
 
 int btrfs_rmap_block(struct btrfs_mapping_tree *map_tree,
@@ -5809,7 +5821,7 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 		} else {
 			ret = raid56_parity_recover(root, bio, bbio,
 						    raid_map, map_length,
-						    mirror_num);
+						    mirror_num, 0);
 		}
 		/*
 		 * FIXME, replace dosen't support raid56 yet, please fix

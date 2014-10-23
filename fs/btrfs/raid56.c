@@ -58,6 +58,15 @@
  */
 #define RBIO_CACHE_READY_BIT	3
 
+/*
+ * bbio and raid_map is managed by the caller, so we shouldn't free
+ * them here. And besides that, all rbios with this flag should not
+ * be cached, because we need raid_map to check the rbios' stripe
+ * is the same or not, but it is very likely that the caller has
+ * free raid_map, so don't cache those rbios.
+ */
+#define RBIO_HOLD_BBIO_MAP_BIT	4
+
 #define RBIO_CACHE_SIZE 1024
 
 struct btrfs_raid_bio {
@@ -799,6 +808,21 @@ done_nolock:
 		remove_rbio_from_cache(rbio);
 }
 
+static inline void
+__free_bbio_and_raid_map(struct btrfs_bio *bbio, u64 *raid_map, int need)
+{
+	if (need) {
+		kfree(raid_map);
+		kfree(bbio);
+	}
+}
+
+static inline void free_bbio_and_raid_map(struct btrfs_raid_bio *rbio)
+{
+	__free_bbio_and_raid_map(rbio->bbio, rbio->raid_map,
+			!test_bit(RBIO_HOLD_BBIO_MAP_BIT, &rbio->flags));
+}
+
 static void __free_raid_bio(struct btrfs_raid_bio *rbio)
 {
 	int i;
@@ -817,8 +841,9 @@ static void __free_raid_bio(struct btrfs_raid_bio *rbio)
 			rbio->stripe_pages[i] = NULL;
 		}
 	}
-	kfree(rbio->raid_map);
-	kfree(rbio->bbio);
+
+	free_bbio_and_raid_map(rbio);
+
 	kfree(rbio);
 }
 
@@ -933,11 +958,8 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_root *root,
 
 	rbio = kzalloc(sizeof(*rbio) + num_pages * sizeof(struct page *) * 2,
 			GFP_NOFS);
-	if (!rbio) {
-		kfree(raid_map);
-		kfree(bbio);
+	if (!rbio)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	bio_list_init(&rbio->bio_list);
 	INIT_LIST_HEAD(&rbio->plug_list);
@@ -1692,8 +1714,10 @@ int raid56_parity_write(struct btrfs_root *root, struct bio *bio,
 	struct blk_plug_cb *cb;
 
 	rbio = alloc_rbio(root, bbio, raid_map, stripe_len);
-	if (IS_ERR(rbio))
+	if (IS_ERR(rbio)) {
+		__free_bbio_and_raid_map(bbio, raid_map, 1);
 		return PTR_ERR(rbio);
+	}
 	bio_list_add(&rbio->bio_list, bio);
 	rbio->bio_list_bytes = bio->bi_iter.bi_size;
 
@@ -1888,7 +1912,8 @@ cleanup:
 cleanup_io:
 
 	if (rbio->read_rebuild) {
-		if (err == 0)
+		if (err == 0 &&
+		    !test_bit(RBIO_HOLD_BBIO_MAP_BIT, &rbio->flags))
 			cache_rbio_pages(rbio);
 		else
 			clear_bit(RBIO_CACHE_READY_BIT, &rbio->flags);
@@ -2038,15 +2063,19 @@ cleanup:
  */
 int raid56_parity_recover(struct btrfs_root *root, struct bio *bio,
 			  struct btrfs_bio *bbio, u64 *raid_map,
-			  u64 stripe_len, int mirror_num)
+			  u64 stripe_len, int mirror_num, int hold_bbio)
 {
 	struct btrfs_raid_bio *rbio;
 	int ret;
 
 	rbio = alloc_rbio(root, bbio, raid_map, stripe_len);
-	if (IS_ERR(rbio))
+	if (IS_ERR(rbio)) {
+		__free_bbio_and_raid_map(bbio, raid_map, !hold_bbio);
 		return PTR_ERR(rbio);
+	}
 
+	if (hold_bbio)
+		set_bit(RBIO_HOLD_BBIO_MAP_BIT, &rbio->flags);
 	rbio->read_rebuild = 1;
 	bio_list_add(&rbio->bio_list, bio);
 	rbio->bio_list_bytes = bio->bi_iter.bi_size;
@@ -2054,8 +2083,7 @@ int raid56_parity_recover(struct btrfs_root *root, struct bio *bio,
 	rbio->faila = find_logical_bio_stripe(rbio, bio);
 	if (rbio->faila == -1) {
 		BUG();
-		kfree(raid_map);
-		kfree(bbio);
+		__free_bbio_and_raid_map(bbio, raid_map, !hold_bbio);
 		kfree(rbio);
 		return -EIO;
 	}

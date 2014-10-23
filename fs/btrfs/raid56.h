@@ -41,7 +41,7 @@ static inline int nr_data_stripes(struct map_lookup *map)
 
 int raid56_parity_recover(struct btrfs_root *root, struct bio *bio,
 				 struct btrfs_bio *bbio, u64 *raid_map,
-				 u64 stripe_len, int mirror_num);
+				 u64 stripe_len, int mirror_num, int hold_bbio);
 int raid56_parity_write(struct btrfs_root *root, struct bio *bio,
 			       struct btrfs_bio *bbio, u64 *raid_map,
 			       u64 stripe_len);
