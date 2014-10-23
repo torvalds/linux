@@ -184,14 +184,6 @@ void *ceph_kvmalloc(size_t size, gfp_t flags)
 	return __vmalloc(size, flags | __GFP_HIGHMEM, PAGE_KERNEL);
 }
 
-void ceph_kvfree(const void *ptr)
-{
-	if (is_vmalloc_addr(ptr))
-		vfree(ptr);
-	else
-		kfree(ptr);
-}
-
 
 static int parse_fsid(const char *str, struct ceph_fsid *fsid)
 {

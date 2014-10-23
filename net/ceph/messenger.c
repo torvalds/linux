@@ -3288,7 +3288,7 @@ static int ceph_con_in_msg_alloc(struct ceph_connection *con, int *skip)
 static void ceph_msg_free(struct ceph_msg *m)
 {
 	dout("%s %p\n", __func__, m);
-	ceph_kvfree(m->front.iov_base);
+	kvfree(m->front.iov_base);
 	kmem_cache_free(ceph_msg_cache, m);
 }
 
