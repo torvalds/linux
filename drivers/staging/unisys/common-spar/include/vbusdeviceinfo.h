@@ -63,8 +63,9 @@ vbuschannel_sanitize_buffer(char *p, int remain, char *src, int srcmax)
 					p++;
 					remain--;
 					chars++;
-				} else if (p == NULL)
+				} else if (p == NULL) {
 					chars++;
+				}
 				nonprintable_streak = 0;
 			}
 			if (remain > 0) {
@@ -72,10 +73,12 @@ vbuschannel_sanitize_buffer(char *p, int remain, char *src, int srcmax)
 				p++;
 				remain--;
 				chars++;
-			} else if (p == NULL)
+			} else if (p == NULL) {
 				chars++;
-		} else
+			}
+		} else {
 			nonprintable_streak = 1;
+		}
 		src++;
 		srcmax--;
 	}
