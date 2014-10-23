@@ -430,7 +430,7 @@ static int iwl_pcie_apm_stop_master(struct iwl_trans *trans)
 	ret = iwl_poll_bit(trans, CSR_RESET,
 			   CSR_RESET_REG_FLAG_MASTER_DISABLED,
 			   CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
-	if (ret)
+	if (ret < 0)
 		IWL_WARN(trans, "Master Disable Timed Out, 100 usec\n");
 
 	IWL_DEBUG_INFO(trans, "stop master\n");
@@ -546,7 +546,7 @@ static int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 		msleep(25);
 	}
 
-	IWL_DEBUG_INFO(trans, "got NIC after %d iterations\n", iter);
+	IWL_ERR(trans, "Couldn't prepare the card\n");
 
 	return ret;
 }
@@ -1045,7 +1045,7 @@ static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 			   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
 			   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
 			   25000);
-	if (ret) {
+	if (ret < 0) {
 		IWL_ERR(trans, "Failed to resume the device (mac ready)\n");
 		return ret;
 	}
