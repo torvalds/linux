@@ -1669,6 +1669,8 @@ int cx23885_ir_init(struct cx23885_dev *dev)
 	case CX23885_BOARD_TBS_6980:
 	case CX23885_BOARD_TBS_6981:
 	case CX23885_BOARD_DVBSKY_T9580:
+	case CX23885_BOARD_DVBSKY_T980C:
+	case CX23885_BOARD_DVBSKY_S950C:
 		if (!enable_885_ir)
 			break;
 		dev->sd_ir = cx23885_find_hw(dev, CX23885_HW_AV_CORE);
@@ -1716,6 +1718,8 @@ void cx23885_ir_fini(struct cx23885_dev *dev)
 	case CX23885_BOARD_TBS_6980:
 	case CX23885_BOARD_TBS_6981:
 	case CX23885_BOARD_DVBSKY_T9580:
+	case CX23885_BOARD_DVBSKY_T980C:
+	case CX23885_BOARD_DVBSKY_S950C:
 		cx23885_irq_remove(dev, PCI_MSK_AV_CORE);
 		/* sd_ir is a duplicate pointer to the AV Core, just clear it */
 		dev->sd_ir = NULL;
@@ -1764,6 +1768,8 @@ void cx23885_ir_pci_int_enable(struct cx23885_dev *dev)
 	case CX23885_BOARD_TBS_6980:
 	case CX23885_BOARD_TBS_6981:
 	case CX23885_BOARD_DVBSKY_T9580:
+	case CX23885_BOARD_DVBSKY_T980C:
+	case CX23885_BOARD_DVBSKY_S950C:
 		if (dev->sd_ir)
 			cx23885_irq_add_enable(dev, PCI_MSK_AV_CORE);
 		break;
