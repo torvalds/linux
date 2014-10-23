@@ -291,9 +291,6 @@ static inline struct sk_buff *ath10k_htt_rx_netbuf_pop(struct ath10k_htt *htt)
 	htt->rx_ring.sw_rd_idx.msdu_payld = idx;
 	htt->rx_ring.fill_cnt--;
 
-	trace_ath10k_htt_rx_pop_msdu(ar, msdu->data, msdu->len +
-				     skb_tailroom(msdu));
-
 	return msdu;
 }
 
@@ -339,6 +336,8 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 
 		ath10k_dbg_dump(ar, ATH10K_DBG_HTT_DUMP, NULL, "htt rx pop: ",
 				msdu->data, msdu->len + skb_tailroom(msdu));
+		trace_ath10k_htt_rx_pop_msdu(ar, msdu->data, msdu->len +
+					     skb_tailroom(msdu));
 
 		rx_desc = (struct htt_rx_desc *)msdu->data;
 
@@ -438,6 +437,8 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 			ath10k_dbg_dump(ar, ATH10K_DBG_HTT_DUMP, NULL,
 					"htt rx chained: ", next->data,
 					next->len + skb_tailroom(next));
+			trace_ath10k_htt_rx_pop_msdu(ar, msdu->data, msdu->len +
+						     skb_tailroom(msdu));
 
 			skb_trim(next, 0);
 			skb_put(next, min(msdu_len, HTT_RX_BUF_SIZE));
