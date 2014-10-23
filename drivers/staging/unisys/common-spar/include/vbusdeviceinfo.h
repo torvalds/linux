@@ -151,7 +151,7 @@ vbuschannel_itoa(char *p, int remain, int num)
  */
 static inline int
 vbuschannel_devinfo_to_string(struct ultra_vbus_deviceinfo *devinfo,
-				  char *p, int remain, int devix)
+			      char *p, int remain, int devix)
 {
 	char *psrc;
 	int nsrc, x, i, pad;
