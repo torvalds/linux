@@ -1921,8 +1921,10 @@ ext_win_exit:
 					    dev_drv->win[i]->area[0].y_offset;
 					u32 reg_start = dsp_addr[i];
 
-					if (rk_fb->disp_policy == DISPLAY_POLICY_BOX &&
-					    new_start==0x0)
+					if ((rk_fb->disp_policy ==
+					     DISPLAY_POLICY_BOX) &&
+					    (new_start == 0x0 ||
+					     dev_drv->suspend_flag))
 						continue;
 					if (unlikely(new_start != reg_start)) {
 						wait_for_vsync = true;
