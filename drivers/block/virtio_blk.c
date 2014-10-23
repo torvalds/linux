@@ -332,7 +332,8 @@ static ssize_t virtblk_serial_show(struct device *dev,
 
 	return err;
 }
-DEVICE_ATTR(serial, S_IRUGO, virtblk_serial_show, NULL);
+
+static DEVICE_ATTR(serial, S_IRUGO, virtblk_serial_show, NULL);
 
 static void virtblk_config_changed_work(struct work_struct *work)
 {
