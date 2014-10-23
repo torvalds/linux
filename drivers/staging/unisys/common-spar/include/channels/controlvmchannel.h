@@ -350,15 +350,15 @@ struct device_map {
 	u64 reserved2;		/* Align structure on 32-byte boundary */
 };
 
-typedef struct _GUEST_DEVICES  {
-	struct device_map VideoChannel;
-	struct device_map KeyboardChannel;
-	struct device_map NetworkChannel;
-	struct device_map StorageChannel;
-	struct device_map ConsoleChannel;
-	u32 PartitionIndex;
-	u32 Pad;
-} GUEST_DEVICES;
+struct guest_devices  {
+	struct device_map video_channel;
+	struct device_map keyboard_channel;
+	struct device_map network_channel;
+	struct device_map storage_channel;
+	struct device_map console_channel;
+	u32 partition_index;
+	u32 pad;
+};
 
 typedef struct _ULTRA_CONTROLVM_CHANNEL_PROTOCOL  {
 	 struct channel_header Header;
@@ -394,7 +394,7 @@ typedef struct _ULTRA_CONTROLVM_CHANNEL_PROTOCOL  {
 	 GUEST_PHYSICAL_ADDRESS gpPhysicalSmbiosTable;	/* guest phys addr of
 							 * SMBIOS table  */
 	 /* ULTRA_MAX_GUESTS_PER_SERVICE */
-	 GUEST_DEVICES gpObsoleteGuestDevices[16];
+	 struct guest_devices gpObsoleteGuestDevices[16];
 
 	 /* guest physical address of EFI firmware image base  */
 	 GUEST_PHYSICAL_ADDRESS VirtualGuestFirmwareImageBase;
