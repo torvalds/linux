@@ -84,7 +84,7 @@ static const uuid_le UltraDiagPoolChannelProtocolGuid =
 /* 0xffffff is an invalid Bus/Device number */
 static ulong g_diagpoolBusNo = 0xffffff;
 static ulong g_diagpoolDevNo = 0xffffff;
-static CONTROLVM_MESSAGE_PACKET g_DeviceChangeStatePacket;
+static struct controlvm_message_packet g_DeviceChangeStatePacket;
 
 /* Only VNIC and VHBA channels are sent to visorclientbus (aka
  * "visorhackbus")
@@ -670,7 +670,7 @@ chipset_init(CONTROLVM_MESSAGE *inmsg)
 	/* Set features to indicate we support parahotplug (if Command
 	 * also supports it). */
 	features =
-	    inmsg->cmd.initChipset.
+	    inmsg->cmd.init_chipset.
 	    features & ULTRA_CHIPSET_FEATURE_PARA_HOTPLUG;
 
 	/* Set the "reply" bit so Command knows this is a
@@ -708,9 +708,9 @@ controlvm_respond(CONTROLVM_MESSAGE_HEADER *msgHdr, int response)
 	/* For DiagPool channel DEVICE_CHANGESTATE, we need to send
 	* back the deviceChangeState structure in the packet. */
 	if (msgHdr->Id == CONTROLVM_DEVICE_CHANGESTATE
-	    && g_DeviceChangeStatePacket.deviceChangeState.busNo ==
+	    && g_DeviceChangeStatePacket.device_change_state.bus_no ==
 	    g_diagpoolBusNo
-	    && g_DeviceChangeStatePacket.deviceChangeState.devNo ==
+	    && g_DeviceChangeStatePacket.device_change_state.dev_no ==
 	    g_diagpoolDevNo)
 		outmsg.cmd = g_DeviceChangeStatePacket;
 	if (outmsg.hdr.Flags.testMessage == 1) {
@@ -732,7 +732,7 @@ controlvm_respond_chipset_init(CONTROLVM_MESSAGE_HEADER *msgHdr, int response,
 	CONTROLVM_MESSAGE outmsg;
 
 	controlvm_init_response(&outmsg, msgHdr, response);
-	outmsg.cmd.initChipset.features = features;
+	outmsg.cmd.init_chipset.features = features;
 	if (!visorchannel_signalinsert(ControlVm_channel,
 				       CONTROLVM_QUEUE_REQUEST, &outmsg)) {
 		LOGERR("signalinsert failed!");
@@ -747,8 +747,8 @@ controlvm_respond_physdev_changestate(CONTROLVM_MESSAGE_HEADER *msgHdr,
 	CONTROLVM_MESSAGE outmsg;
 
 	controlvm_init_response(&outmsg, msgHdr, response);
-	outmsg.cmd.deviceChangeState.state = state;
-	outmsg.cmd.deviceChangeState.flags.physicalDevice = 1;
+	outmsg.cmd.device_change_state.state = state;
+	outmsg.cmd.device_change_state.flags.phys_device = 1;
 	if (!visorchannel_signalinsert(ControlVm_channel,
 				       CONTROLVM_QUEUE_REQUEST, &outmsg)) {
 		LOGERR("signalinsert failed!");
@@ -879,9 +879,9 @@ device_changestate_responder(enum controlvm_id cmdId,
 
 	controlvm_init_response(&outmsg, &p->pendingMsgHdr, response);
 
-	outmsg.cmd.deviceChangeState.busNo = busNo;
-	outmsg.cmd.deviceChangeState.devNo = devNo;
-	outmsg.cmd.deviceChangeState.state = responseState;
+	outmsg.cmd.device_change_state.bus_no = busNo;
+	outmsg.cmd.device_change_state.dev_no = devNo;
+	outmsg.cmd.device_change_state.state = responseState;
 
 	if (!visorchannel_signalinsert(ControlVm_channel,
 				       CONTROLVM_QUEUE_REQUEST, &outmsg)) {
@@ -1094,8 +1094,8 @@ device_epilog(u32 busNo, u32 devNo, struct spar_segment_state state, u32 cmd,
 static void
 bus_create(CONTROLVM_MESSAGE *inmsg)
 {
-	CONTROLVM_MESSAGE_PACKET *cmd = &inmsg->cmd;
-	ulong busNo = cmd->createBus.busNo;
+	struct controlvm_message_packet *cmd = &inmsg->cmd;
+	ulong busNo = cmd->create_bus.bus_no;
 	int rc = CONTROLVM_RESP_SUCCESS;
 	VISORCHIPSET_BUS_INFO *pBusInfo = NULL;
 
@@ -1121,7 +1121,7 @@ bus_create(CONTROLVM_MESSAGE *inmsg)
 
 	INIT_LIST_HEAD(&pBusInfo->entry);
 	pBusInfo->busNo = busNo;
-	pBusInfo->devNo = cmd->createBus.deviceCount;
+	pBusInfo->devNo = cmd->create_bus.dev_count;
 
 	POSTCODE_LINUX_3(BUS_CREATE_ENTRY_PC, busNo, POSTCODE_SEVERITY_INFO);
 
@@ -1131,10 +1131,10 @@ bus_create(CONTROLVM_MESSAGE *inmsg)
 		pBusInfo->chanInfo.addrType = ADDRTYPE_localPhysical;
 
 	pBusInfo->flags.server = inmsg->hdr.Flags.server;
-	pBusInfo->chanInfo.channelAddr = cmd->createBus.channelAddr;
-	pBusInfo->chanInfo.nChannelBytes = cmd->createBus.channelBytes;
-	pBusInfo->chanInfo.channelTypeGuid = cmd->createBus.busDataTypeGuid;
-	pBusInfo->chanInfo.channelInstGuid = cmd->createBus.busInstGuid;
+	pBusInfo->chanInfo.channelAddr = cmd->create_bus.channel_addr;
+	pBusInfo->chanInfo.nChannelBytes = cmd->create_bus.channel_bytes;
+	pBusInfo->chanInfo.channelTypeGuid = cmd->create_bus.bus_data_type_uuid;
+	pBusInfo->chanInfo.channelInstGuid = cmd->create_bus.bus_inst_uuid;
 
 	list_add(&pBusInfo->entry, &BusInfoList);
 
@@ -1148,8 +1148,8 @@ Away:
 static void
 bus_destroy(CONTROLVM_MESSAGE *inmsg)
 {
-	CONTROLVM_MESSAGE_PACKET *cmd = &inmsg->cmd;
-	ulong busNo = cmd->destroyBus.busNo;
+	struct controlvm_message_packet *cmd = &inmsg->cmd;
+	ulong busNo = cmd->destroy_bus.bus_no;
 	VISORCHIPSET_BUS_INFO *pBusInfo;
 	int rc = CONTROLVM_RESP_SUCCESS;
 
@@ -1174,13 +1174,13 @@ Away:
 static void
 bus_configure(CONTROLVM_MESSAGE *inmsg, PARSER_CONTEXT *parser_ctx)
 {
-	CONTROLVM_MESSAGE_PACKET *cmd = &inmsg->cmd;
-	ulong busNo = cmd->configureBus.busNo;
+	struct controlvm_message_packet *cmd = &inmsg->cmd;
+	ulong busNo = cmd->configure_bus.bus_no;
 	VISORCHIPSET_BUS_INFO *pBusInfo = NULL;
 	int rc = CONTROLVM_RESP_SUCCESS;
 	char s[99];
 
-	busNo = cmd->configureBus.busNo;
+	busNo = cmd->configure_bus.bus_no;
 	POSTCODE_LINUX_3(BUS_CONFIGURE_ENTRY_PC, busNo, POSTCODE_SEVERITY_INFO);
 
 	pBusInfo = findbus(&BusInfoList, busNo);
@@ -1210,7 +1210,7 @@ bus_configure(CONTROLVM_MESSAGE *inmsg, PARSER_CONTEXT *parser_ctx)
 		goto Away;
 	}
 
-	pBusInfo->partitionHandle = cmd->configureBus.guestHandle;
+	pBusInfo->partitionHandle = cmd->configure_bus.guest_handle;
 	pBusInfo->partitionGuid = parser_id_get(parser_ctx);
 	parser_param_start(parser_ctx, PARSERSTRING_NAME);
 	pBusInfo->name = parser_string_get(parser_ctx);
@@ -1225,9 +1225,9 @@ Away:
 static void
 my_device_create(CONTROLVM_MESSAGE *inmsg)
 {
-	CONTROLVM_MESSAGE_PACKET *cmd = &inmsg->cmd;
-	ulong busNo = cmd->createDevice.busNo;
-	ulong devNo = cmd->createDevice.devNo;
+	struct controlvm_message_packet *cmd = &inmsg->cmd;
+	ulong busNo = cmd->create_device.busNo;
+	ulong devNo = cmd->create_device.devNo;
 	VISORCHIPSET_DEVICE_INFO *pDevInfo = NULL;
 	VISORCHIPSET_BUS_INFO *pBusInfo = NULL;
 	int rc = CONTROLVM_RESP_SUCCESS;
@@ -1271,7 +1271,7 @@ my_device_create(CONTROLVM_MESSAGE *inmsg)
 	INIT_LIST_HEAD(&pDevInfo->entry);
 	pDevInfo->busNo = busNo;
 	pDevInfo->devNo = devNo;
-	pDevInfo->devInstGuid = cmd->createDevice.devInstGuid;
+	pDevInfo->devInstGuid = cmd->create_device.devInstGuid;
 	POSTCODE_LINUX_4(DEVICE_CREATE_ENTRY_PC, devNo, busNo,
 			 POSTCODE_SEVERITY_INFO);
 
@@ -1279,10 +1279,10 @@ my_device_create(CONTROLVM_MESSAGE *inmsg)
 		pDevInfo->chanInfo.addrType = ADDRTYPE_localTest;
 	else
 		pDevInfo->chanInfo.addrType = ADDRTYPE_localPhysical;
-	pDevInfo->chanInfo.channelAddr = cmd->createDevice.channelAddr;
-	pDevInfo->chanInfo.nChannelBytes = cmd->createDevice.channelBytes;
-	pDevInfo->chanInfo.channelTypeGuid = cmd->createDevice.dataTypeGuid;
-	pDevInfo->chanInfo.intr = cmd->createDevice.intr;
+	pDevInfo->chanInfo.channelAddr = cmd->create_device.channelAddr;
+	pDevInfo->chanInfo.nChannelBytes = cmd->create_device.channelBytes;
+	pDevInfo->chanInfo.channelTypeGuid = cmd->create_device.dataTypeGuid;
+	pDevInfo->chanInfo.intr = cmd->create_device.intr;
 	list_add(&pDevInfo->entry, &DevInfoList);
 	POSTCODE_LINUX_4(DEVICE_CREATE_EXIT_PC, devNo, busNo,
 			 POSTCODE_SEVERITY_INFO);
@@ -1303,10 +1303,10 @@ Away:
 static void
 my_device_changestate(CONTROLVM_MESSAGE *inmsg)
 {
-	CONTROLVM_MESSAGE_PACKET *cmd = &inmsg->cmd;
-	ulong busNo = cmd->deviceChangeState.busNo;
-	ulong devNo = cmd->deviceChangeState.devNo;
-	struct spar_segment_state state = cmd->deviceChangeState.state;
+	struct controlvm_message_packet *cmd = &inmsg->cmd;
+	ulong busNo = cmd->device_change_state.bus_no;
+	ulong devNo = cmd->device_change_state.dev_no;
+	struct spar_segment_state state = cmd->device_change_state.state;
 	VISORCHIPSET_DEVICE_INFO *pDevInfo = NULL;
 	int rc = CONTROLVM_RESP_SUCCESS;
 
@@ -1337,9 +1337,9 @@ Away:
 static void
 my_device_destroy(CONTROLVM_MESSAGE *inmsg)
 {
-	CONTROLVM_MESSAGE_PACKET *cmd = &inmsg->cmd;
-	ulong busNo = cmd->destroyDevice.busNo;
-	ulong devNo = cmd->destroyDevice.devNo;
+	struct controlvm_message_packet *cmd = &inmsg->cmd;
+	ulong busNo = cmd->destroy_device.bus_no;
+	ulong devNo = cmd->destroy_device.dev_no;
 	VISORCHIPSET_DEVICE_INFO *pDevInfo = NULL;
 	int rc = CONTROLVM_RESP_SUCCESS;
 
@@ -1621,7 +1621,7 @@ parahotplug_request_destroy(struct parahotplug_request *req)
 static void
 parahotplug_request_kickoff(struct parahotplug_request *req)
 {
-	CONTROLVM_MESSAGE_PACKET *cmd = &req->msg.cmd;
+	struct controlvm_message_packet *cmd = &req->msg.cmd;
 	char env_cmd[40], env_id[40], env_state[40], env_bus[40], env_dev[40],
 	    env_func[40];
 	char *envp[] = {
@@ -1631,18 +1631,19 @@ parahotplug_request_kickoff(struct parahotplug_request *req)
 	sprintf(env_cmd, "SPAR_PARAHOTPLUG=1");
 	sprintf(env_id, "SPAR_PARAHOTPLUG_ID=%d", req->id);
 	sprintf(env_state, "SPAR_PARAHOTPLUG_STATE=%d",
-		cmd->deviceChangeState.state.active);
+		cmd->device_change_state.state.active);
 	sprintf(env_bus, "SPAR_PARAHOTPLUG_BUS=%d",
-		cmd->deviceChangeState.busNo);
+		cmd->device_change_state.bus_no);
 	sprintf(env_dev, "SPAR_PARAHOTPLUG_DEVICE=%d",
-		cmd->deviceChangeState.devNo >> 3);
+		cmd->device_change_state.dev_no >> 3);
 	sprintf(env_func, "SPAR_PARAHOTPLUG_FUNCTION=%d",
-		cmd->deviceChangeState.devNo & 0x7);
+		cmd->device_change_state.dev_no & 0x7);
 
 	LOGINF("parahotplug_request_kickoff: state=%d, bdf=%d/%d/%d, id=%u\n",
-	       cmd->deviceChangeState.state.active,
-	       cmd->deviceChangeState.busNo, cmd->deviceChangeState.devNo >> 3,
-	       cmd->deviceChangeState.devNo & 7, req->id);
+	       cmd->device_change_state.state.active,
+	       cmd->device_change_state.bus_no,
+	       cmd->device_change_state.dev_no >> 3,
+	       cmd->device_change_state.dev_no & 7, req->id);
 
 	kobject_uevent_env(&Visorchipset_platform_device.dev.kobj, KOBJ_CHANGE,
 			   envp);
@@ -1669,7 +1670,7 @@ parahotplug_process_list(void)
 				controlvm_respond_physdev_changestate(
 					&req->msg.hdr,
 					CONTROLVM_RESP_ERROR_DEVICE_UDEV_TIMEOUT,
-					req->msg.cmd.deviceChangeState.state);
+					req->msg.cmd.device_change_state.state);
 			parahotplug_request_destroy(req);
 		}
 	}
@@ -1700,11 +1701,11 @@ parahotplug_request_complete(int id, u16 active)
 			 */
 			list_del(pos);
 			spin_unlock(&Parahotplug_request_list_lock);
-			req->msg.cmd.deviceChangeState.state.active = active;
+			req->msg.cmd.device_change_state.state.active = active;
 			if (req->msg.hdr.Flags.responseExpected)
 				controlvm_respond_physdev_changestate(
 					&req->msg.hdr, CONTROLVM_RESP_SUCCESS,
-					req->msg.cmd.deviceChangeState.state);
+					req->msg.cmd.device_change_state.state);
 			parahotplug_request_destroy(req);
 			return 0;
 		}
@@ -1729,7 +1730,7 @@ parahotplug_process_message(CONTROLVM_MESSAGE *inmsg)
 		return;
 	}
 
-	if (inmsg->cmd.deviceChangeState.state.active) {
+	if (inmsg->cmd.device_change_state.state.active) {
 		/* For enable messages, just respond with success
 		* right away.  This is a bit of a hack, but there are
 		* issues with the early enable messages we get (with
@@ -1741,9 +1742,8 @@ parahotplug_process_message(CONTROLVM_MESSAGE *inmsg)
 		*/
 		parahotplug_request_kickoff(req);
 		controlvm_respond_physdev_changestate(&inmsg->hdr,
-						      CONTROLVM_RESP_SUCCESS,
-						      inmsg->cmd.
-						      deviceChangeState.state);
+				CONTROLVM_RESP_SUCCESS, inmsg->cmd.
+				device_change_state.state);
 		parahotplug_request_destroy(req);
 	} else {
 		/* For disable messages, add the request to the
@@ -1773,7 +1773,7 @@ parahotplug_process_message(CONTROLVM_MESSAGE *inmsg)
 static BOOL
 handle_command(CONTROLVM_MESSAGE inmsg, HOSTADDRESS channel_addr)
 {
-	CONTROLVM_MESSAGE_PACKET *cmd = &inmsg.cmd;
+	struct controlvm_message_packet *cmd = &inmsg.cmd;
 	u64 parametersAddr = 0;
 	u32 parametersBytes = 0;
 	PARSER_CONTEXT *parser_ctx = NULL;
@@ -1824,42 +1824,42 @@ handle_command(CONTROLVM_MESSAGE inmsg, HOSTADDRESS channel_addr)
 	switch (inmsg.hdr.Id) {
 	case CONTROLVM_CHIPSET_INIT:
 		LOGINF("CHIPSET_INIT(#busses=%lu,#switches=%lu)",
-		       (ulong) inmsg.cmd.initChipset.busCount,
-		       (ulong) inmsg.cmd.initChipset.switchCount);
+		       (ulong) inmsg.cmd.init_chipset.bus_count,
+		       (ulong) inmsg.cmd.init_chipset.switch_count);
 		chipset_init(&inmsg);
 		break;
 	case CONTROLVM_BUS_CREATE:
 		LOGINF("BUS_CREATE(%lu,#devs=%lu)",
-		       (ulong) cmd->createBus.busNo,
-		       (ulong) cmd->createBus.deviceCount);
+		       (ulong) cmd->create_bus.bus_no,
+		       (ulong) cmd->create_bus.dev_count);
 		bus_create(&inmsg);
 		break;
 	case CONTROLVM_BUS_DESTROY:
-		LOGINF("BUS_DESTROY(%lu)", (ulong) cmd->destroyBus.busNo);
+		LOGINF("BUS_DESTROY(%lu)", (ulong) cmd->destroy_bus.bus_no);
 		bus_destroy(&inmsg);
 		break;
 	case CONTROLVM_BUS_CONFIGURE:
-		LOGINF("BUS_CONFIGURE(%lu)", (ulong) cmd->configureBus.busNo);
+		LOGINF("BUS_CONFIGURE(%lu)", (ulong) cmd->configure_bus.bus_no);
 		bus_configure(&inmsg, parser_ctx);
 		break;
 	case CONTROLVM_DEVICE_CREATE:
 		LOGINF("DEVICE_CREATE(%lu,%lu)",
-		       (ulong) cmd->createDevice.busNo,
-		       (ulong) cmd->createDevice.devNo);
+		       (ulong) cmd->create_device.busNo,
+		       (ulong) cmd->create_device.devNo);
 		my_device_create(&inmsg);
 		break;
 	case CONTROLVM_DEVICE_CHANGESTATE:
-		if (cmd->deviceChangeState.flags.physicalDevice) {
+		if (cmd->device_change_state.flags.phys_device) {
 			LOGINF("DEVICE_CHANGESTATE for physical device (%lu,%lu, active=%lu)",
-			     (ulong) cmd->deviceChangeState.busNo,
-			     (ulong) cmd->deviceChangeState.devNo,
-			     (ulong) cmd->deviceChangeState.state.active);
+			     (ulong) cmd->device_change_state.bus_no,
+			     (ulong) cmd->device_change_state.dev_no,
+			     (ulong) cmd->device_change_state.state.active);
 			parahotplug_process_message(&inmsg);
 		} else {
 			LOGINF("DEVICE_CHANGESTATE for virtual device (%lu,%lu, state.Alive=0x%lx)",
-			     (ulong) cmd->deviceChangeState.busNo,
-			     (ulong) cmd->deviceChangeState.devNo,
-			     (ulong) cmd->deviceChangeState.state.alive);
+			     (ulong) cmd->device_change_state.bus_no,
+			     (ulong) cmd->device_change_state.dev_no,
+			     (ulong) cmd->device_change_state.state.alive);
 			/* save the hdr and cmd structures for later use */
 			/* when sending back the response to Command */
 			my_device_changestate(&inmsg);
@@ -1870,14 +1870,14 @@ handle_command(CONTROLVM_MESSAGE inmsg, HOSTADDRESS channel_addr)
 		break;
 	case CONTROLVM_DEVICE_DESTROY:
 		LOGINF("DEVICE_DESTROY(%lu,%lu)",
-		       (ulong) cmd->destroyDevice.busNo,
-		       (ulong) cmd->destroyDevice.devNo);
+		       (ulong) cmd->destroy_device.bus_no,
+		       (ulong) cmd->destroy_device.dev_no);
 		my_device_destroy(&inmsg);
 		break;
 	case CONTROLVM_DEVICE_CONFIGURE:
 		LOGINF("DEVICE_CONFIGURE(%lu,%lu)",
-		       (ulong) cmd->configureDevice.busNo,
-		       (ulong) cmd->configureDevice.devNo);
+		       (ulong) cmd->configure_device.busNo,
+		       (ulong) cmd->configure_device.devNo);
 		/* no op for now, just send a respond that we passed */
 		if (inmsg.hdr.Flags.responseExpected)
 			controlvm_respond(&inmsg.hdr, CONTROLVM_RESP_SUCCESS);
@@ -2056,8 +2056,8 @@ setup_crash_devices_work_queue(struct work_struct *work)
 
 	/* send init chipset msg */
 	msg.hdr.Id = CONTROLVM_CHIPSET_INIT;
-	msg.cmd.initChipset.busCount = 23;
-	msg.cmd.initChipset.switchCount = 0;
+	msg.cmd.init_chipset.bus_count = 23;
+	msg.cmd.init_chipset.switch_count = 0;
 
 	chipset_init(&msg);
 
@@ -2116,7 +2116,7 @@ setup_crash_devices_work_queue(struct work_struct *work)
 	}
 
 	/* reuse IOVM create bus message */
-	if (localCrashCreateBusMsg.cmd.createBus.channelAddr != 0)
+	if (localCrashCreateBusMsg.cmd.create_bus.channel_addr != 0)
 		bus_create(&localCrashCreateBusMsg);
 	else {
 		LOGERR("CrashCreateBusMsg is null, no dump will be taken");
@@ -2126,7 +2126,7 @@ setup_crash_devices_work_queue(struct work_struct *work)
 	}
 
 	/* reuse create device message for storage device */
-	if (localCrashCreateDevMsg.cmd.createDevice.channelAddr != 0)
+	if (localCrashCreateDevMsg.cmd.create_device.channelAddr != 0)
 		my_device_create(&localCrashCreateDevMsg);
 	else {
 		LOGERR("CrashCreateDevMsg is null, no dump will be taken");

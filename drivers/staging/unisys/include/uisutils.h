@@ -155,7 +155,8 @@ u64 uislib_storage_channel(int client_id);
 #endif
 int uislib_get_owned_pdest(struct uisscsi_dest *pdest);
 
-int uislib_send_event(enum controlvm_id id, CONTROLVM_MESSAGE_PACKET *event);
+int uislib_send_event(enum controlvm_id id,
+		      struct controlvm_message_packet *event);
 
 /* structure used by vhba & vnic to keep track of queue & thread info */
 struct chaninfo {

@@ -251,135 +251,100 @@ typedef struct _CONTROLVM_MESSAGE_DEVICE_CONFIGURE  {
 } CONTROLVM_MESSAGE_DEVICE_CONFIGURE;	/* total 56 bytes */
 
 /* This is the format for a message in any ControlVm queue. */
-typedef struct _CONTROLVM_MESSAGE_PACKET  {
+struct controlvm_message_packet  {
 	union  {
-
-		/* BEGIN Request messages */
 		struct  {
-			u32 busNo;	      /*< bus # (0..n-1) from the msg
-					       * receiver's perspective */
-
-	    /* Control uses header SegmentIndex field to access bus number... */
-			u32 deviceCount;      /*< indicates the max number of
-					       * devices on this bus */
-			u64 channelAddr;     /*< Guest physical address of the
-					      *   channel, which can be
-					      *   dereferenced by the receiver
-					      *   of this ControlVm command */
-			u64 channelBytes;    /*< size of the channel in bytes */
-			uuid_le busDataTypeGuid;/*< indicates format of data in
-						    bus channel */
-			uuid_le busInstGuid;    /*< instance guid for the bus */
-		} createBus;	/* for CONTROLVM_BUS_CREATE */
+			u32 bus_no;	/* bus # (0..n-1) from the msg
+					 * receiver's perspective */
+			u32 dev_count;	/* indicates the max number of
+					 * devices on this bus */
+			u64 channel_addr;	/* Guest physical address of
+						 * the channel, which can be
+						 * dereferenced by the receiver
+						 * of this ControlVm command */
+			u64 channel_bytes;	/* size of the channel */
+			uuid_le bus_data_type_uuid;	/* indicates format of
+							 * data in bus channel*/
+			uuid_le bus_inst_uuid;	/* instance uuid for the bus */
+		} create_bus;	/* for CONTROLVM_BUS_CREATE */
 		struct  {
-			u32 busNo;	      /*< bus # (0..n-1) from the msg
-					       * receiver's perspective */
-
-	    /* Control uses header SegmentIndex field to access bus number... */
+			u32 bus_no;	/* bus # (0..n-1) from the msg
+					 * receiver's perspective */
 			u32 reserved;	/* Natural alignment purposes */
-		} destroyBus;	/* for CONTROLVM_BUS_DESTROY */
+		} destroy_bus;	/* for CONTROLVM_BUS_DESTROY */
 		struct  {
-			u32 busNo;		    /*< bus # (0..n-1) from the
-						     * msg receiver's
-						     * perspective */
-
-	    /* Control uses header SegmentIndex field to access bus number... */
-			u32 reserved1;		    /* for alignment purposes */
-			u64 guestHandle;	    /* This is used to convert
-					 *  guest physical address to real
-					 *  physical address for DMA, for ex. */
-			u64 recvBusInterruptHandle;/*< specifies interrupt
-					 *   info. It is used by SP to register
-					 *   to receive interrupts from the CP.
-					 *   This interrupt is used for bus
-					 *   level notifications.  The
-					 *   corresponding
-					 *   sendBusInterruptHandle is kept in
-					 *   CP. */
-		} configureBus;	/* for CONTROLVM_BUS_CONFIGURE */
-
+			u32 bus_no;	/* bus # (0..n-1) from the receiver's
+					 * perspective */
+			u32 reserved1;	/* for alignment purposes */
+			u64 guest_handle;	/* This is used to convert
+						 * guest physical address to
+						 * physical address */
+			u64 recv_bus_irq_handle;
+				/* specifies interrupt info. It is used by SP
+				 * to register to receive interrupts from the
+				 * CP. This interrupt is used for bus level
+				 * notifications.  The corresponding
+				 * sendBusInterruptHandle is kept in CP. */
+		} configure_bus;	/* for CONTROLVM_BUS_CONFIGURE */
 		/* for CONTROLVM_DEVICE_CREATE */
-		CONTROLVM_PACKET_DEVICE_CREATE createDevice;
+		CONTROLVM_PACKET_DEVICE_CREATE create_device;
 		struct  {
-			u32 busNo;	      /*< bus # (0..n-1) from the msg
-					       * receiver's perspective */
-
-	    /* Control uses header SegmentIndex field to access bus number... */
-			u32 devNo;	      /*< bus-relative (0..n-1) device
-					       * number */
-		} destroyDevice;	/* for CONTROLVM_DEVICE_DESTROY */
-
+			u32 bus_no;	/* bus # (0..n-1) from the msg
+					 * receiver's perspective */
+			u32 dev_no;	/* bus-relative (0..n-1) device # */
+		} destroy_device;	/* for CONTROLVM_DEVICE_DESTROY */
 		/* for CONTROLVM_DEVICE_CONFIGURE */
-		CONTROLVM_PACKET_DEVICE_CONFIGURE configureDevice;
+		CONTROLVM_PACKET_DEVICE_CONFIGURE configure_device;
 		struct  {
-			u32 busNo;	      /*< bus # (0..n-1) from the msg
-					       * receiver's perspective */
-
-	    /* Control uses header SegmentIndex field to access bus number... */
-			u32 devNo;	      /*< bus-relative (0..n-1) device
-					       * number */
-		} reconfigureDevice;	/* for CONTROLVM_DEVICE_RECONFIGURE */
+			u32 bus_no;	/* bus # (0..n-1) from the msg
+					 * receiver's perspective */
+			u32 dev_no;	/* bus-relative (0..n-1) device # */
+		} reconfigure_device;	/* for CONTROLVM_DEVICE_RECONFIGURE */
 		struct  {
-			u32 busNo;
+			u32 bus_no;
 			struct spar_segment_state state;
 			u8 reserved[2];	/* Natural alignment purposes */
-		} busChangeState;	/* for CONTROLVM_BUS_CHANGESTATE */
+		} bus_change_state;	/* for CONTROLVM_BUS_CHANGESTATE */
 		struct  {
-			u32 busNo;
-			u32 devNo;
+			u32 bus_no;
+			u32 dev_no;
 			struct spar_segment_state state;
 			struct  {
-				u32 physicalDevice:1;	/* =1 if message is for
+				u32 phys_device:1;	/* =1 if message is for
 							 * a physical device */
-			/* remaining bits in this 32-bit word are available */
 			} flags;
 			u8 reserved[2];	/* Natural alignment purposes */
-		} deviceChangeState;	/* for CONTROLVM_DEVICE_CHANGESTATE */
+		} device_change_state;	/* for CONTROLVM_DEVICE_CHANGESTATE */
 		struct  {
-			u32 busNo;
-			u32 devNo;
+			u32 bus_no;
+			u32 dev_no;
 			struct spar_segment_state state;
 			u8 reserved[6];	/* Natural alignment purposes */
-		} deviceChangeStateEvent; /* for CONTROLVM_DEVICE_CHANGESTATE_EVENT */
+		} device_change_state_event;
+			/* for CONTROLVM_DEVICE_CHANGESTATE_EVENT */
 		struct  {
-			u32 busCount; /*< indicates the max number of busses */
-			u32 switchCount; /*< indicates the max number of
-					  *   switches (applicable for service
-					  *   partition only) */
+			u32 bus_count;	/* indicates the max number of busses */
+			u32 switch_count; /* indicates the max number of
+					   * switches if a service partition */
 			enum ultra_chipset_feature features;
-			u32 platformNumber;	/* Platform Number */
-		} initChipset;	/* for CONTROLVM_CHIPSET_INIT */
+			u32 platform_number;	/* Platform Number */
+		} init_chipset;	/* for CONTROLVM_CHIPSET_INIT */
 		struct  {
-			u32 Options; /*< reserved */
-			u32 Test;    /*< bit 0 set to run embedded selftest */
-		} chipsetSelftest;	/* for CONTROLVM_CHIPSET_SELFTEST */
-
-		    /* END Request messages */
-
-		    /* BEGIN Response messages */
-
-		    /* END Response messages */
-
-		    /* BEGIN Event messages */
-
-		    /* END Event messages */
-
-		    /* BEGIN Ack messages */
-
-		    /* END Ack messages */
-		u64 addr;	    /*< a physical address of something, that
-				     *   can be dereferenced by the receiver of
-				     *   this ControlVm command (depends on
-				     *   command id) */
-		u64 handle;	    /*< a handle of something (depends on
-				     * command id) */
+			u32 options;	/* reserved */
+			u32 test;	/* bit 0 set to run embedded selftest */
+		} chipset_selftest;	/* for CONTROLVM_CHIPSET_SELFTEST */
+		u64 addr;	/* a physical address of something, that can be
+				 * dereferenced by the receiver of this
+				 * ControlVm command (depends on command id) */
+		u64 handle;	/* a handle of something (depends on command
+				 * id) */
 	};
-} CONTROLVM_MESSAGE_PACKET;
+};
 
 /* All messages in any ControlVm queue have this layout. */
 typedef struct _CONTROLVM_MESSAGE  {
 	CONTROLVM_MESSAGE_HEADER hdr;
-	CONTROLVM_MESSAGE_PACKET cmd;
+	struct controlvm_message_packet cmd;
 } CONTROLVM_MESSAGE;
 
 typedef struct _DEVICE_MAP  {
