@@ -588,41 +588,47 @@ static int ath10k_htt_rx_crypto_param_len(struct ath10k *ar,
 					  enum htt_rx_mpdu_encrypt_type type)
 {
 	switch (type) {
-	case HTT_RX_MPDU_ENCRYPT_WEP40:
-	case HTT_RX_MPDU_ENCRYPT_WEP104:
-		return 4;
-	case HTT_RX_MPDU_ENCRYPT_TKIP_WITHOUT_MIC:
-	case HTT_RX_MPDU_ENCRYPT_WEP128: /* not tested */
-	case HTT_RX_MPDU_ENCRYPT_TKIP_WPA:
-	case HTT_RX_MPDU_ENCRYPT_WAPI: /* not tested */
-	case HTT_RX_MPDU_ENCRYPT_AES_CCM_WPA2:
-		return 8;
 	case HTT_RX_MPDU_ENCRYPT_NONE:
 		return 0;
+	case HTT_RX_MPDU_ENCRYPT_WEP40:
+	case HTT_RX_MPDU_ENCRYPT_WEP104:
+		return IEEE80211_WEP_IV_LEN;
+	case HTT_RX_MPDU_ENCRYPT_TKIP_WITHOUT_MIC:
+	case HTT_RX_MPDU_ENCRYPT_TKIP_WPA:
+		return IEEE80211_TKIP_IV_LEN;
+	case HTT_RX_MPDU_ENCRYPT_AES_CCM_WPA2:
+		return IEEE80211_CCMP_HDR_LEN;
+	case HTT_RX_MPDU_ENCRYPT_WEP128:
+	case HTT_RX_MPDU_ENCRYPT_WAPI:
+		break;
 	}
 
-	ath10k_warn(ar, "unknown encryption type %d\n", type);
+	ath10k_warn(ar, "unsupported encryption type %d\n", type);
 	return 0;
 }
+
+#define MICHAEL_MIC_LEN 8
 
 static int ath10k_htt_rx_crypto_tail_len(struct ath10k *ar,
 					 enum htt_rx_mpdu_encrypt_type type)
 {
 	switch (type) {
 	case HTT_RX_MPDU_ENCRYPT_NONE:
+		return 0;
 	case HTT_RX_MPDU_ENCRYPT_WEP40:
 	case HTT_RX_MPDU_ENCRYPT_WEP104:
-	case HTT_RX_MPDU_ENCRYPT_WEP128:
-	case HTT_RX_MPDU_ENCRYPT_WAPI:
-		return 0;
+		return IEEE80211_WEP_ICV_LEN;
 	case HTT_RX_MPDU_ENCRYPT_TKIP_WITHOUT_MIC:
 	case HTT_RX_MPDU_ENCRYPT_TKIP_WPA:
-		return 4;
+		return IEEE80211_TKIP_ICV_LEN;
 	case HTT_RX_MPDU_ENCRYPT_AES_CCM_WPA2:
-		return 8;
+		return IEEE80211_CCMP_MIC_LEN;
+	case HTT_RX_MPDU_ENCRYPT_WEP128:
+	case HTT_RX_MPDU_ENCRYPT_WAPI:
+		break;
 	}
 
-	ath10k_warn(ar, "unknown encryption type %d\n", type);
+	ath10k_warn(ar, "unsupported encryption type %d\n", type);
 	return 0;
 }
 
@@ -1427,7 +1433,7 @@ static void ath10k_htt_rx_frag_handler(struct ath10k_htt *htt,
 	/* last fragment of TKIP frags has MIC */
 	if (!ieee80211_has_morefrags(hdr->frame_control) &&
 	    enctype == HTT_RX_MPDU_ENCRYPT_TKIP_WPA)
-		trim += 8;
+		trim += MICHAEL_MIC_LEN;
 
 	if (trim > msdu_head->len) {
 		ath10k_warn(ar, "htt rx fragment: trailer longer than the frame itself? drop\n");
