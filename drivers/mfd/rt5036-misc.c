@@ -25,6 +25,7 @@
 
 #include <linux/mfd/rt5036/rt5036.h>
 #include <linux/mfd/rt5036/rt5036-misc.h>
+#include <asm/system_misc.h>
 
 static struct i2c_client *g_shdn;
 
@@ -71,9 +72,17 @@ EXPORT_SYMBOL(rt5036_vin_exist);
 static bool rt_pm_off;
 void rt5036_chip_shutdown(void)
 {
-	if (g_shdn) {
-		rt5036_set_bits(g_shdn, RT5036_REG_MISC3, RT5036_CHIPSHDN_MASK);
-		rt5036_clr_bits(g_shdn, RT5036_REG_MISC3, RT5036_CHIPSHDN_MASK);
+	pr_info("%s\n", __func__);
+	if (rt5036_vin_exist()) {
+		arm_pm_restart('h', "charge");
+	} else {
+		if (g_shdn) {
+			pr_info("chip enter shutdown process\n");
+			rt5036_set_bits(g_shdn, RT5036_REG_MISC3,
+					RT5036_CHIPSHDN_MASK);
+			rt5036_clr_bits(g_shdn, RT5036_REG_MISC3,
+					RT5036_CHIPSHDN_MASK);
+		}
 	}
 }
 EXPORT_SYMBOL(rt5036_chip_shutdown);
