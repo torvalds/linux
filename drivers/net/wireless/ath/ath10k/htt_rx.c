@@ -1171,7 +1171,6 @@ static int ath10k_unchain_msdu(struct sk_buff *msdu_head)
 
 static bool ath10k_htt_rx_amsdu_allowed(struct ath10k_htt *htt,
 					struct sk_buff *head,
-					enum htt_rx_mpdu_status status,
 					bool channel_set,
 					u32 attention)
 {
@@ -1200,16 +1199,6 @@ static bool ath10k_htt_rx_amsdu_allowed(struct ath10k_htt *htt,
 		return false;
 	}
 
-	if (status != HTT_RX_IND_MPDU_STATUS_OK &&
-	    status != HTT_RX_IND_MPDU_STATUS_TKIP_MIC_ERR &&
-	    status != HTT_RX_IND_MPDU_STATUS_ERR_INV_PEER &&
-	    !htt->ar->monitor_started) {
-		ath10k_dbg(ar, ATH10K_DBG_HTT,
-			   "htt rx ignoring frame w/ status %d\n",
-			   status);
-		return false;
-	}
-
 	if (test_bit(ATH10K_CAC_RUNNING, &htt->ar->dev_flags)) {
 		ath10k_dbg(ar, ATH10K_DBG_HTT,
 			   "htt rx CAC running\n");
@@ -1225,7 +1214,6 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 	struct ath10k *ar = htt->ar;
 	struct ieee80211_rx_status *rx_status = &htt->rx_status;
 	struct htt_rx_indication_mpdu_range *mpdu_ranges;
-	enum htt_rx_mpdu_status status;
 	struct ieee80211_hdr *hdr;
 	int num_mpdu_ranges;
 	u32 attention;
@@ -1273,8 +1261,6 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 				num_mpdu_ranges));
 
 	for (i = 0; i < num_mpdu_ranges; i++) {
-		status = mpdu_ranges[i].mpdu_range_status;
-
 		for (j = 0; j < mpdu_ranges[i].mpdu_count; j++) {
 			struct sk_buff *msdu_head, *msdu_tail;
 
@@ -1296,7 +1282,6 @@ static void ath10k_htt_rx_handler(struct ath10k_htt *htt,
 			}
 
 			if (!ath10k_htt_rx_amsdu_allowed(htt, msdu_head,
-							 status,
 							 channel_set,
 							 attention)) {
 				ath10k_htt_rx_free_msdu_chain(msdu_head);
