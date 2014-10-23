@@ -150,13 +150,13 @@ struct pci_id {
 	u8 reserved[3];	/* Natural alignment purposes */
 };
 
-typedef struct _ULTRA_EFI_SPAR_INDICATION  {
+struct efi_spar_indication  {
 	u64 BootToFirmwareUI:1;	/* Bit 0: Stop in uefi ui */
 	u64 ClearNvram:1;	/* Bit 1: Clear NVRAM */
 	u64 ClearCmos:1;	/* Bit 2: Clear CMOS */
 	u64 BootToTool:1;	/* Bit 3: Run install tool */
 	/* remaining bits are available */
-} ULTRA_EFI_SPAR_INDICATION;
+};
 
 typedef enum {
 	ULTRA_CHIPSET_FEATURE_REPLY = 0x00000001,
@@ -468,8 +468,8 @@ typedef struct _ULTRA_CONTROLVM_CHANNEL_PROTOCOL  {
 	u8 ToolAction;		/* ULTRA_TOOL_ACTIONS Installation Action
 				 * field */
 	u8 Reserved;		/* alignment */
-	ULTRA_EFI_SPAR_INDICATION EfiSparIndication;
-	ULTRA_EFI_SPAR_INDICATION EfiSparIndicationSupported;
+	struct efi_spar_indication EfiSparIndication;
+	struct efi_spar_indication EfiSparIndicationSupported;
 	u32 SPReserved;
 	u8 Reserved2[28];	/* Force signals to begin on 128-byte cache
 				 * line */
