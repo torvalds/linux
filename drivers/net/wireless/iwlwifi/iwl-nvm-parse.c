@@ -396,7 +396,7 @@ static void iwl_init_vht_hw_capab(const struct iwl_cfg *cfg,
 
 static void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
 			    struct iwl_nvm_data *data,
-			    const __le16 *ch_section, bool enable_vht,
+			    const __le16 *ch_section,
 			    u8 tx_chains, u8 rx_chains, bool lar_supported)
 {
 	int n_channels;
@@ -430,7 +430,7 @@ static void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
 					  IEEE80211_BAND_5GHZ);
 	iwl_init_ht_hw_capab(cfg, data, &sband->ht_cap, IEEE80211_BAND_5GHZ,
 			     tx_chains, rx_chains);
-	if (enable_vht)
+	if (data->sku_cap_11ac_enable)
 		iwl_init_vht_hw_capab(cfg, data, &sband->vht_cap,
 				      tx_chains, rx_chains);
 
@@ -632,9 +632,10 @@ iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 	data->sku_cap_band_24GHz_enable = sku & NVM_SKU_CAP_BAND_24GHZ;
 	data->sku_cap_band_52GHz_enable = sku & NVM_SKU_CAP_BAND_52GHZ;
 	data->sku_cap_11n_enable = sku & NVM_SKU_CAP_11N_ENABLE;
-	data->sku_cap_11ac_enable = sku & NVM_SKU_CAP_11AC_ENABLE;
 	if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_ALL)
 		data->sku_cap_11n_enable = false;
+	data->sku_cap_11ac_enable = data->sku_cap_11n_enable &&
+				    (sku & NVM_SKU_CAP_11AC_ENABLE);
 
 	data->n_hw_addrs = iwl_get_n_hw_addrs(cfg, nvm_sw);
 
@@ -655,8 +656,7 @@ iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 		iwl_set_hw_address(cfg, data, nvm_hw);
 
 		iwl_init_sbands(dev, cfg, data, nvm_sw,
-				sku & NVM_SKU_CAP_11AC_ENABLE, tx_chains,
-				rx_chains, lar_fw_supported);
+				tx_chains, rx_chains, lar_fw_supported);
 	} else {
 		lar_config = le16_to_cpup(regulatory +
 					  NVM_LAR_OFFSET_FAMILY_8000);
@@ -668,9 +668,8 @@ iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 					       nvm_hw);
 
 		iwl_init_sbands(dev, cfg, data, regulatory,
-				sku & NVM_SKU_CAP_11AC_ENABLE, tx_chains,
-				rx_chains, lar_fw_supported &&
-				data->lar_enabled);
+				tx_chains, rx_chains,
+				lar_fw_supported && data->lar_enabled);
 	}
 
 	data->calib_version = 255;
