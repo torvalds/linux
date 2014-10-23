@@ -275,9 +275,11 @@ opaque_hashval(const void *ptr, int nbytes)
 	return x;
 }
 
-static void nfsd4_free_file(struct nfs4_file *f)
+static void nfsd4_free_file_rcu(struct rcu_head *rcu)
 {
-	kmem_cache_free(file_slab, f);
+	struct nfs4_file *fp = container_of(rcu, struct nfs4_file, fi_rcu);
+
+	kmem_cache_free(file_slab, fp);
 }
 
 static inline void
@@ -286,9 +288,10 @@ put_nfs4_file(struct nfs4_file *fi)
 	might_lock(&state_lock);
 
 	if (atomic_dec_and_lock(&fi->fi_ref, &state_lock)) {
-		hlist_del(&fi->fi_hash);
+		hlist_del_rcu(&fi->fi_hash);
 		spin_unlock(&state_lock);
-		nfsd4_free_file(fi);
+		WARN_ON_ONCE(!list_empty(&fi->fi_delegations));
+		call_rcu(&fi->fi_rcu, nfsd4_free_file_rcu);
 	}
 }
 
@@ -3057,10 +3060,9 @@ static struct nfs4_file *nfsd4_alloc_file(void)
 }
 
 /* OPEN Share state helper functions */
-static void nfsd4_init_file(struct nfs4_file *fp, struct knfsd_fh *fh)
+static void nfsd4_init_file(struct knfsd_fh *fh, unsigned int hashval,
+				struct nfs4_file *fp)
 {
-	unsigned int hashval = file_hashval(fh);
-
 	lockdep_assert_held(&state_lock);
 
 	atomic_set(&fp->fi_ref, 1);
@@ -3073,7 +3075,7 @@ static void nfsd4_init_file(struct nfs4_file *fp, struct knfsd_fh *fh)
 	fp->fi_share_deny = 0;
 	memset(fp->fi_fds, 0, sizeof(fp->fi_fds));
 	memset(fp->fi_access, 0, sizeof(fp->fi_access));
-	hlist_add_head(&fp->fi_hash, &file_hashtbl[hashval]);
+	hlist_add_head_rcu(&fp->fi_hash, &file_hashtbl[hashval]);
 }
 
 void
@@ -3294,17 +3296,14 @@ move_to_close_lru(struct nfs4_ol_stateid *s, struct net *net)
 
 /* search file_hashtbl[] for file */
 static struct nfs4_file *
-find_file_locked(struct knfsd_fh *fh)
+find_file_locked(struct knfsd_fh *fh, unsigned int hashval)
 {
-	unsigned int hashval = file_hashval(fh);
 	struct nfs4_file *fp;
 
-	lockdep_assert_held(&state_lock);
-
-	hlist_for_each_entry(fp, &file_hashtbl[hashval], fi_hash) {
+	hlist_for_each_entry_rcu(fp, &file_hashtbl[hashval], fi_hash) {
 		if (nfsd_fh_match(&fp->fi_fhandle, fh)) {
-			get_nfs4_file(fp);
-			return fp;
+			if (atomic_inc_not_zero(&fp->fi_ref))
+				return fp;
 		}
 	}
 	return NULL;
@@ -3314,10 +3313,11 @@ static struct nfs4_file *
 find_file(struct knfsd_fh *fh)
 {
 	struct nfs4_file *fp;
+	unsigned int hashval = file_hashval(fh);
 
-	spin_lock(&state_lock);
-	fp = find_file_locked(fh);
-	spin_unlock(&state_lock);
+	rcu_read_lock();
+	fp = find_file_locked(fh, hashval);
+	rcu_read_unlock();
 	return fp;
 }
 
@@ -3325,11 +3325,18 @@ static struct nfs4_file *
 find_or_add_file(struct nfs4_file *new, struct knfsd_fh *fh)
 {
 	struct nfs4_file *fp;
+	unsigned int hashval = file_hashval(fh);
+
+	rcu_read_lock();
+	fp = find_file_locked(fh, hashval);
+	rcu_read_unlock();
+	if (fp)
+		return fp;
 
 	spin_lock(&state_lock);
-	fp = find_file_locked(fh);
-	if (fp == NULL) {
-		nfsd4_init_file(new, fh);
+	fp = find_file_locked(fh, hashval);
+	if (likely(fp == NULL)) {
+		nfsd4_init_file(fh, hashval, new);
 		fp = new;
 	}
 	spin_unlock(&state_lock);
@@ -4127,7 +4134,7 @@ void nfsd4_cleanup_open_state(struct nfsd4_compound_state *cstate,
 		nfs4_put_stateowner(so);
 	}
 	if (open->op_file)
-		nfsd4_free_file(open->op_file);
+		kmem_cache_free(file_slab, open->op_file);
 	if (open->op_stp)
 		nfs4_put_stid(&open->op_stp->st_stid);
 }

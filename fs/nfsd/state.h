@@ -477,7 +477,10 @@ struct nfs4_file {
 	spinlock_t		fi_lock;
 	struct hlist_node       fi_hash;	/* hash on fi_fhandle */
 	struct list_head        fi_stateids;
-	struct list_head	fi_delegations;
+	union {
+		struct list_head	fi_delegations;
+		struct rcu_head		fi_rcu;
+	};
 	/* One each for O_RDONLY, O_WRONLY, O_RDWR: */
 	struct file *		fi_fds[3];
 	/*
