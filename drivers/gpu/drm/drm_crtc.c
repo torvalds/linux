@@ -766,7 +766,6 @@ static void drm_mode_remove(struct drm_connector *connector,
 /**
  * drm_connector_get_cmdline_mode - reads the user's cmdline mode
  * @connector: connector to quwery
- * @mode: returned mode
  *
  * The kernel supports per-connector configration of its consoles through
  * use of the video= parameter. This function parses that option and
