@@ -689,12 +689,11 @@ static int i915_drm_thaw_early(struct drm_device *dev)
 	return ret;
 }
 
-static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
+static int __i915_drm_thaw(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET) &&
-	    restore_gtt_mappings) {
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		mutex_lock(&dev->struct_mutex);
 		i915_gem_restore_gtt_mappings(dev);
 		mutex_unlock(&dev->struct_mutex);
@@ -761,7 +760,7 @@ static int i915_drm_thaw(struct drm_device *dev)
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		i915_check_and_clear_faults(dev);
 
-	return __i915_drm_thaw(dev, true);
+	return __i915_drm_thaw(dev);
 }
 
 static int i915_resume_early(struct drm_device *dev)
@@ -785,15 +784,9 @@ static int i915_resume_early(struct drm_device *dev)
 
 static int i915_drm_resume(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
-	/*
-	 * Platforms with opregion should have sane BIOS, older ones (gen3 and
-	 * earlier) need to restore the GTT mappings since the BIOS might clear
-	 * all our scratch PTEs.
-	 */
-	ret = __i915_drm_thaw(dev, !dev_priv->opregion.header);
+	ret = __i915_drm_thaw(dev);
 	if (ret)
 		return ret;
 
