@@ -428,6 +428,15 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 		while (msdu_chained--) {
 			struct sk_buff *next = ath10k_htt_rx_netbuf_pop(htt);
 
+			if (!next) {
+				ath10k_warn(ar, "failed to pop chained msdu\n");
+				ath10k_htt_rx_free_msdu_chain(*head_msdu);
+				*head_msdu = NULL;
+				msdu = NULL;
+				htt->rx_confused = true;
+				break;
+			}
+
 			skb_trim(next, 0);
 			skb_put(next, min(msdu_len, HTT_RX_BUF_SIZE));
 			msdu_len -= next->len;
