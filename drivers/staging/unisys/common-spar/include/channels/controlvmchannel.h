@@ -122,23 +122,23 @@ struct irq_info {
 	  *   interrupt.  Currently this is used by IOPart-SP to wake
 	  *   up GP when Data Channel transitions from empty to
 	  *   non-empty.*/
-	u64 sendInterruptHandle;
+	u64 send_irq_handle;
 
 	 /**< specifies interrupt handle. It is used to retrieve the
 	  *   corresponding interrupt pin from Monitor; and the
 	  *   interrupt pin is used to connect to the corresponding
 	  *   intrrupt.  Used by IOPart-GP only. */
-	u64 recvInterruptHandle;
+	u64 recv_irq_handle;
 
 	 /**< specifies interrupt vector. It, interrupt pin, and shared are
 	  *   used to connect to the corresponding interrupt.  Used by
 	  *   IOPart-GP only. */
-	u32 recvInterruptVector;
+	u32 recv_irq_vector;
 
     /**< specifies if the recvInterrupt is shared.  It, interrupt pin
      *   and vector are used to connect to 0 = not shared; 1 = shared.
      *   the corresponding interrupt.  Used by IOPart-GP only. */
-	u8 recvInterruptShared;
+	u8 recv_irq_shared;
 	u8 reserved[3];	/* Natural alignment purposes */
 };
 

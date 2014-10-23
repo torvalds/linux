@@ -603,16 +603,16 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 		return -ENODEV;
 	}
 	LOGINF("sendInterruptHandle=0x%16llX",
-	       virthbainfo->intr.sendInterruptHandle);
+	       virthbainfo->intr.send_irq_handle);
 	LOGINF("recvInterruptHandle=0x%16llX",
-	       virthbainfo->intr.recvInterruptHandle);
+	       virthbainfo->intr.recv_irq_handle);
 	LOGINF("recvInterruptVector=0x%8X",
-	       virthbainfo->intr.recvInterruptVector);
+	       virthbainfo->intr.recv_irq_vector);
 	LOGINF("recvInterruptShared=0x%2X",
-	       virthbainfo->intr.recvInterruptShared);
+	       virthbainfo->intr.recv_irq_shared);
 	LOGINF("scsihost.hostt->name=%s", scsihost->hostt->name);
 	virthbainfo->interrupt_vector =
-	    virthbainfo->intr.recvInterruptHandle & INTERRUPT_VECTOR_MASK;
+	    virthbainfo->intr.recv_irq_handle & INTERRUPT_VECTOR_MASK;
 	rsp = request_irq(virthbainfo->interrupt_vector, handler, IRQF_SHARED,
 			  scsihost->hostt->name, virthbainfo);
 	if (rsp != 0) {
