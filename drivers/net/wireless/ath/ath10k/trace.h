@@ -281,33 +281,6 @@ TRACE_EVENT(ath10k_htt_pktlog,
 	 )
 );
 
-TRACE_EVENT(ath10k_htt_rx_desc,
-	    TP_PROTO(struct ath10k *ar, void *rxdesc, u16 len),
-
-	TP_ARGS(ar, rxdesc, len),
-
-	TP_STRUCT__entry(
-		__string(device, dev_name(ar->dev))
-		__string(driver, dev_driver_string(ar->dev))
-		__field(u16, len)
-		__dynamic_array(u8, rxdesc, len)
-	),
-
-	TP_fast_assign(
-		__assign_str(device, dev_name(ar->dev));
-		__assign_str(driver, dev_driver_string(ar->dev));
-		__entry->len = len;
-		memcpy(__get_dynamic_array(rxdesc), rxdesc, len);
-	),
-
-	TP_printk(
-		"%s %s len %hu",
-		__get_str(driver),
-		__get_str(device),
-		__entry->len
-	 )
-);
-
 TRACE_EVENT(ath10k_htt_tx,
 	    TP_PROTO(struct ath10k *ar, u16 msdu_id, u16 msdu_len,
 		     u8 vdev_id, u8 tid),
@@ -411,6 +384,11 @@ DEFINE_EVENT(ath10k_data_event, ath10k_wmi_mgmt_tx,
 );
 
 DEFINE_EVENT(ath10k_data_event, ath10k_wmi_bcn_tx,
+	     TP_PROTO(struct ath10k *ar, void *data, size_t len),
+	     TP_ARGS(ar, data, len)
+);
+
+DEFINE_EVENT(ath10k_data_event, ath10k_htt_rx_desc,
 	     TP_PROTO(struct ath10k *ar, void *data, size_t len),
 	     TP_ARGS(ar, data, len)
 );
