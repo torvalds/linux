@@ -587,43 +587,6 @@ static int aml_rtc_write_time(struct device *dev, struct rtc_time *tm)
       return 0;
 }
 
-static int aml_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
-{
-	alarm_data_t alarm_data;
-	unsigned long alarm_secs, cur_secs;
-	struct rtc_time cur_time;
-	int ret;
-	struct aml_rtc_priv *priv;
-
-	priv = dev_get_drvdata(dev);
-	//rtc_tm_to_time(&alarm->time, &secs);
-	
-	if (alarm->enabled) {
-		alarm_data.level = 0;
-		ret = rtc_tm_to_time(&alarm->time, &alarm_secs);
-		if (ret)
-			return ret;
-		aml_rtc_read_time(dev, &cur_time);
-		ret = rtc_tm_to_time(&cur_time, &cur_secs);
-		if(alarm_secs >= cur_secs) {
-			/*3 seconds later then we real wanted, 
-			  we do not need the alarm very acurate.*/
-			alarm_data.alarm_sec = alarm_secs - cur_secs + 3; 
-		} else
-			alarm_data.alarm_sec =  0;
-
-		rtc_set_alarm_aml(dev, &alarm_data);
-	} else {
-#if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6	
-		ser_access_write(RTC_GPO_COUNTER_ADDR,0x500000);
-#else	
-    	ser_access_write(RTC_GPO_COUNTER_ADDR,0x100000);
-#endif    	
-		queue_work(priv->rtc_work_queue, &priv->work);
-	}
-	return 0;
-}
-
 #define AUTO_RESUME_INTERVAL 8
 static int aml_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 {
@@ -678,7 +641,6 @@ static ssize_t show_rtc_reg(struct class *class,
 static const struct rtc_class_ops aml_rtc_ops ={
 	.read_time = aml_rtc_read_time,
 	.set_time = aml_rtc_write_time,
-	.set_alarm = aml_rtc_set_alarm,
 };
 
 static struct class_attribute rtc_class_attrs[] = {
