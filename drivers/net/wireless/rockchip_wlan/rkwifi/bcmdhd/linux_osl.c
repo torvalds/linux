@@ -16,6 +16,7 @@
 #include <bcmutils.h>
 #include <linux/delay.h>
 #include <pcicfg.h>
+#include <asm-generic/pci-dma-compat.h>
 
 
 
