@@ -23,6 +23,7 @@ struct thread {
 	bool			dead; /* if set thread has exited */
 	struct list_head	comm_list;
 	int			comm_len;
+	u64			db_id;
 
 	void			*priv;
 };
