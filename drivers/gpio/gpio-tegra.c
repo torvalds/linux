@@ -233,7 +233,7 @@ static int tegra_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 		return -EINVAL;
 	}
 
-	ret = gpio_lock_as_irq(&tegra_gpio_chip, gpio);
+	ret = gpiochip_lock_as_irq(&tegra_gpio_chip, gpio);
 	if (ret) {
 		dev_err(dev, "unable to lock Tegra GPIO %d as IRQ\n", gpio);
 		return ret;
@@ -263,7 +263,7 @@ static void tegra_gpio_irq_shutdown(struct irq_data *d)
 {
 	int gpio = d->hwirq;
 
-	gpio_unlock_as_irq(&tegra_gpio_chip, gpio);
+	gpiochip_unlock_as_irq(&tegra_gpio_chip, gpio);
 }
 
 static void tegra_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)

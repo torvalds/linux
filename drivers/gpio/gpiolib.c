@@ -495,7 +495,7 @@ static int gpiochip_irq_reqres(struct irq_data *d)
 {
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
 
-	if (gpio_lock_as_irq(chip, d->hwirq)) {
+	if (gpiochip_lock_as_irq(chip, d->hwirq)) {
 		chip_err(chip,
 			"unable to lock HW IRQ %lu for IRQ\n",
 			d->hwirq);
@@ -508,7 +508,7 @@ static void gpiochip_irq_relres(struct irq_data *d)
 {
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
 
-	gpio_unlock_as_irq(chip, d->hwirq);
+	gpiochip_unlock_as_irq(chip, d->hwirq);
 }
 
 static int gpiochip_to_irq(struct gpio_chip *chip, unsigned offset)
@@ -1332,14 +1332,14 @@ int gpiod_to_irq(const struct gpio_desc *desc)
 EXPORT_SYMBOL_GPL(gpiod_to_irq);
 
 /**
- * gpio_lock_as_irq() - lock a GPIO to be used as IRQ
+ * gpiochip_lock_as_irq() - lock a GPIO to be used as IRQ
  * @chip: the chip the GPIO to lock belongs to
  * @offset: the offset of the GPIO to lock as IRQ
  *
  * This is used directly by GPIO drivers that want to lock down
  * a certain GPIO line to be used for IRQs.
  */
-int gpio_lock_as_irq(struct gpio_chip *chip, unsigned int offset)
+int gpiochip_lock_as_irq(struct gpio_chip *chip, unsigned int offset)
 {
 	if (offset >= chip->ngpio)
 		return -EINVAL;
@@ -1354,24 +1354,24 @@ int gpio_lock_as_irq(struct gpio_chip *chip, unsigned int offset)
 	set_bit(FLAG_USED_AS_IRQ, &chip->desc[offset].flags);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(gpio_lock_as_irq);
+EXPORT_SYMBOL_GPL(gpiochip_lock_as_irq);
 
 /**
- * gpio_unlock_as_irq() - unlock a GPIO used as IRQ
+ * gpiochip_unlock_as_irq() - unlock a GPIO used as IRQ
  * @chip: the chip the GPIO to lock belongs to
  * @offset: the offset of the GPIO to lock as IRQ
  *
  * This is used directly by GPIO drivers that want to indicate
  * that a certain GPIO is no longer used exclusively for IRQ.
  */
-void gpio_unlock_as_irq(struct gpio_chip *chip, unsigned int offset)
+void gpiochip_unlock_as_irq(struct gpio_chip *chip, unsigned int offset)
 {
 	if (offset >= chip->ngpio)
 		return;
 
 	clear_bit(FLAG_USED_AS_IRQ, &chip->desc[offset].flags);
 }
-EXPORT_SYMBOL_GPL(gpio_unlock_as_irq);
+EXPORT_SYMBOL_GPL(gpiochip_unlock_as_irq);
 
 /**
  * gpiod_get_raw_value_cansleep() - return a gpio's raw value
