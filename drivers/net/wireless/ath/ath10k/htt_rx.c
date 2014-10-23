@@ -497,6 +497,8 @@ int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
 	size_t size;
 	struct timer_list *timer = &htt->rx_ring.refill_retry_timer;
 
+	htt->rx_confused = false;
+
 	htt->rx_ring.size = ath10k_htt_rx_ring_size(htt);
 	if (!is_power_of_2(htt->rx_ring.size)) {
 		ath10k_warn(ar, "htt rx ring size is not power of 2\n");
