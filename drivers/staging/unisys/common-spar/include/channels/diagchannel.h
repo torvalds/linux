@@ -120,7 +120,7 @@ struct diag_efi_time  {
 	u8 pad2;
 };
 
-typedef enum  {
+enum spar_component_types  {
 	 ULTRA_COMPONENT_GUEST = 0,
 	 ULTRA_COMPONENT_MONITOR = 0x01,
 	 ULTRA_COMPONENT_CCM = 0x02,	/* Common Control module */
@@ -145,7 +145,7 @@ typedef enum  {
 	 ULTRA_COMPONENT_PSERVICES = 0x17,
 	 ULTRA_COMPONENT_PDIAG = 0x18
 	 /* RESERVED 0x18 - 0x1F */
-} ULTRA_COMPONENT_TYPES;
+};
 
 /* Structure: DIAG_CHANNEL_EVENT Purpose: Contains attributes that make up an
  * event to be written to the DIAG_CHANNEL memory.  Attributes: EventId: Id of
