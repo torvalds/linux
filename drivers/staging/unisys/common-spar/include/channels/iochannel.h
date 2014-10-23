@@ -662,11 +662,11 @@ struct uiscmdrsp {
 
 /* This is just the header of the IO channel.  It is assumed that directly after
 * this header there is a large region of memory which contains the command and
-* response queues as specified in cmdQ and rspQ SIGNAL_QUEUE_HEADERS. */
-typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
-	struct channel_header ChannelHeader;
-	struct signal_queue_header cmdQ;
-	struct signal_queue_header rspQ;
+* response queues as specified in cmd_q and rsp_q SIGNAL_QUEUE_HEADERS. */
+struct spar_io_channel_protocol {
+	struct channel_header channel_header;
+	struct signal_queue_header cmd_q;
+	struct signal_queue_header rsp_q;
 	union {
 		struct {
 			struct vhba_wwnn wwnn;	/* 8 bytes */
@@ -676,14 +676,14 @@ typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
 			u8 macaddr[MAX_MACADDR_LEN];	/* 6 bytes */
 			u32 num_rcv_bufs;	/* 4 */
 			u32 mtu;	/* 4 */
-			uuid_le zoneGuid;	/* 16 */
+			uuid_le zone_uuid;	/* 16 */
 		} vnic;		/* total     30 */
 	};
 
 #define MAX_CLIENTSTRING_LEN 1024
-	 u8 clientString[MAX_CLIENTSTRING_LEN];	/* NULL terminated - so holds
+	 u8 client_string[MAX_CLIENTSTRING_LEN];/* NULL terminated - so holds
 						 * max - 1 bytes */
-} ULTRA_IO_CHANNEL_PROTOCOL;
+};
 
 #pragma pack(pop)
 /* ///////////// END PRAGMA PACK PUSH 1 /////////////////////////// */
@@ -712,13 +712,14 @@ typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
 * INLINE functions for initializing and accessing I/O data channels
 */
 
-#define NUMSIGNALS(x, q) (((ULTRA_IO_CHANNEL_PROTOCOL *)(x))->q.MaxSignalSlots)
-#define SIZEOF_PROTOCOL (COVER(sizeof(ULTRA_IO_CHANNEL_PROTOCOL), 64))
+#define NUMSIGNALS(x, q) \
+		(((struct spar_io_channel_protocol *)(x))->q.MaxSignalSlots)
+#define SIZEOF_PROTOCOL (COVER(sizeof(struct spar_io_channel_protocol), 64))
 #define SIZEOF_CMDRSP (COVER(sizeof(struct uiscmdrsp), 64))
 
 #define IO_CHANNEL_SIZE(x) COVER(SIZEOF_PROTOCOL + \
-				 (NUMSIGNALS(x, cmdQ) + \
-				  NUMSIGNALS(x, rspQ)) * SIZEOF_CMDRSP, 4096)
+				 (NUMSIGNALS(x, cmd_q) + \
+				  NUMSIGNALS(x, rsp_q)) * SIZEOF_CMDRSP, 4096)
 #define MIN_IO_CHANNEL_SIZE COVER(SIZEOF_PROTOCOL + \
 				  2 * MIN_NUMSIGNALS * SIZEOF_CMDRSP, 4096)
 #ifdef __GNUC__
@@ -728,34 +729,34 @@ typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
 #define QSIZEFROMBYTES(bytes) (QSLOTSFROMBYTES(bytes)*SIZEOF_CMDRSP)
 #define SignalQInit(x)						\
 	do {							\
-		x->cmdQ.size = QSIZEFROMBYTES(x->ChannelHeader.size);	\
-		x->cmdQ.sig_base_offset = SIZEOF_PROTOCOL -		\
-			offsetof(ULTRA_IO_CHANNEL_PROTOCOL, cmdQ);	\
-		x->cmdQ.signal_size = SIZEOF_CMDRSP;			\
-		x->cmdQ.max_slots =				\
-			QSLOTSFROMBYTES(x->ChannelHeader.size);		\
-		x->cmdQ.max_signals = x->cmdQ.max_slots - 1;	\
-		x->rspQ.size = QSIZEFROMBYTES(x->ChannelHeader.size);	\
-		x->rspQ.sig_base_offset =				\
-			(SIZEOF_PROTOCOL + x->cmdQ.size) -		\
-			offsetof(ULTRA_IO_CHANNEL_PROTOCOL, rspQ);	\
-		x->rspQ.signal_size = SIZEOF_CMDRSP;			\
-		x->rspQ.max_slots =				\
-			QSLOTSFROMBYTES(x->ChannelHeader.size);		\
-		x->rspQ.max_signals = x->rspQ.max_slots - 1;	\
-		x->ChannelHeader.ch_space_offset =			\
-			offsetof(ULTRA_IO_CHANNEL_PROTOCOL, cmdQ);	\
+		x->cmd_q.size = QSIZEFROMBYTES(x->channel_header.size);	\
+		x->cmd_q.sig_base_offset = SIZEOF_PROTOCOL -		\
+			offsetof(struct spar_io_channel_protocol, cmd_q);\
+		x->cmd_q.signal_size = SIZEOF_CMDRSP;			\
+		x->cmd_q.max_slots =				\
+			QSLOTSFROMBYTES(x->channel_header.size);	\
+		x->cmd_q.max_signals = x->cmd_q.max_slots - 1;	\
+		x->rsp_q.size = QSIZEFROMBYTES(x->channel_header.size);	\
+		x->rsp_q.sig_base_offset =				\
+			(SIZEOF_PROTOCOL + x->cmd_q.size) -		\
+			offsetof(struct spar_io_channel_protocol, rsp_q);\
+		x->rsp_q.signal_size = SIZEOF_CMDRSP;			\
+		x->rsp_q.max_slots =				\
+			QSLOTSFROMBYTES(x->channel_header.size);	\
+		x->rsp_q.max_signals = x->rsp_q.max_slots - 1;	\
+		x->channel_header.ch_space_offset =			\
+			offsetof(struct spar_io_channel_protocol, cmd_q);\
 	} while (0)
 
 #define INIT_CLIENTSTRING(chan, type, clientStr, clientStrLen)	\
 	do {								\
 		if (clientStr) {					\
-			chan->ChannelHeader.cli_str_offset =		\
-				offsetof(type, clientString);		\
-			memcpy(chan->clientString, clientStr,		\
+			chan->channel_header.cli_str_offset =		\
+				offsetof(type, client_string);		\
+			memcpy(chan->client_string, clientStr,		\
 			       MINNUM(clientStrLen,			\
 				      (u32)(MAX_CLIENTSTRING_LEN - 1))); \
-			chan->clientString[MINNUM(clientStrLen,		\
+			chan->client_string[MINNUM(clientStrLen,	\
 						  (u32)(MAX_CLIENTSTRING_LEN \
 							 - 1))]		\
 				= '\0';					\
@@ -773,68 +774,68 @@ typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
 	ULTRA_CHANNEL_SERVER_TRANSITION(x, chanId, SrvState, \
 					CHANNELSRV_UNINITIALIZED, logCtx)
 
-static inline int ULTRA_VHBA_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
+static inline int ULTRA_VHBA_init_channel(struct spar_io_channel_protocol *x,
 					      struct vhba_wwnn *wwnn,
 					      struct vhba_config_max *max,
 					      unsigned char *clientStr,
 					      u32 clientStrLen, u64 bytes)  {
-	memset(x, 0, sizeof(ULTRA_IO_CHANNEL_PROTOCOL));
-	x->ChannelHeader.version_id = ULTRA_VHBA_CHANNEL_PROTOCOL_VERSIONID;
-	x->ChannelHeader.signature = ULTRA_VHBA_CHANNEL_PROTOCOL_SIGNATURE;
-	x->ChannelHeader.srv_state = CHANNELSRV_UNINITIALIZED;
-	x->ChannelHeader.header_size = sizeof(x->ChannelHeader);
-	x->ChannelHeader.size = COVER(bytes, 4096);
-	x->ChannelHeader.chtype = spar_vhba_channel_protocol_uuid;
-	x->ChannelHeader.zone_uuid = NULL_UUID_LE;
+	memset(x, 0, sizeof(struct spar_io_channel_protocol));
+	x->channel_header.version_id = ULTRA_VHBA_CHANNEL_PROTOCOL_VERSIONID;
+	x->channel_header.signature = ULTRA_VHBA_CHANNEL_PROTOCOL_SIGNATURE;
+	x->channel_header.srv_state = CHANNELSRV_UNINITIALIZED;
+	x->channel_header.header_size = sizeof(x->channel_header);
+	x->channel_header.size = COVER(bytes, 4096);
+	x->channel_header.chtype = spar_vhba_channel_protocol_uuid;
+	x->channel_header.zone_uuid = NULL_UUID_LE;
 	x->vhba.wwnn = *wwnn;
 	x->vhba.max = *max;
-	INIT_CLIENTSTRING(x, ULTRA_IO_CHANNEL_PROTOCOL, clientStr,
+	INIT_CLIENTSTRING(x, struct spar_io_channel_protocol, clientStr,
 			  clientStrLen);
 	SignalQInit(x);
-	if ((x->cmdQ.max_slots > MAX_NUMSIGNALS) ||
-	     (x->rspQ.max_slots > MAX_NUMSIGNALS)) {
+	if ((x->cmd_q.max_slots > MAX_NUMSIGNALS) ||
+	     (x->rsp_q.max_slots > MAX_NUMSIGNALS)) {
 		return 0;
 	}
-	if ((x->cmdQ.max_slots < MIN_NUMSIGNALS) ||
-	     (x->rspQ.max_slots < MIN_NUMSIGNALS)) {
+	if ((x->cmd_q.max_slots < MIN_NUMSIGNALS) ||
+	     (x->rsp_q.max_slots < MIN_NUMSIGNALS)) {
 		return 0;
 	}
 	return 1;
 }
 
-static inline void ULTRA_VHBA_set_max(ULTRA_IO_CHANNEL_PROTOCOL *x,
+static inline void ULTRA_VHBA_set_max(struct spar_io_channel_protocol *x,
 				      struct vhba_config_max *max)  {
 	x->vhba.max = *max;
 }
 
-static inline int ULTRA_VNIC_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
+static inline int ULTRA_VNIC_init_channel(struct spar_io_channel_protocol *x,
 						 unsigned char *macaddr,
 						 u32 num_rcv_bufs, u32 mtu,
 						 uuid_le zoneGuid,
 						 unsigned char *clientStr,
 						 u32 clientStrLen,
 						 u64 bytes)  {
-	memset(x, 0, sizeof(ULTRA_IO_CHANNEL_PROTOCOL));
-	x->ChannelHeader.version_id = ULTRA_VNIC_CHANNEL_PROTOCOL_VERSIONID;
-	x->ChannelHeader.signature = ULTRA_VNIC_CHANNEL_PROTOCOL_SIGNATURE;
-	x->ChannelHeader.srv_state = CHANNELSRV_UNINITIALIZED;
-	x->ChannelHeader.header_size = sizeof(x->ChannelHeader);
-	x->ChannelHeader.size = COVER(bytes, 4096);
-	x->ChannelHeader.chtype = spar_vnic_channel_protocol_uuid;
-	x->ChannelHeader.zone_uuid = NULL_UUID_LE;
+	memset(x, 0, sizeof(struct spar_io_channel_protocol));
+	x->channel_header.version_id = ULTRA_VNIC_CHANNEL_PROTOCOL_VERSIONID;
+	x->channel_header.signature = ULTRA_VNIC_CHANNEL_PROTOCOL_SIGNATURE;
+	x->channel_header.srv_state = CHANNELSRV_UNINITIALIZED;
+	x->channel_header.header_size = sizeof(x->channel_header);
+	x->channel_header.size = COVER(bytes, 4096);
+	x->channel_header.chtype = spar_vnic_channel_protocol_uuid;
+	x->channel_header.zone_uuid = NULL_UUID_LE;
 	memcpy(x->vnic.macaddr, macaddr, MAX_MACADDR_LEN);
 	x->vnic.num_rcv_bufs = num_rcv_bufs;
 	x->vnic.mtu = mtu;
-	x->vnic.zoneGuid = zoneGuid;
-	INIT_CLIENTSTRING(x, ULTRA_IO_CHANNEL_PROTOCOL, clientStr,
+	x->vnic.zone_uuid = zoneGuid;
+	INIT_CLIENTSTRING(x, struct spar_io_channel_protocol, clientStr,
 			   clientStrLen);
 	SignalQInit(x);
-	if ((x->cmdQ.max_slots > MAX_NUMSIGNALS) ||
-	     (x->rspQ.max_slots > MAX_NUMSIGNALS)) {
+	if ((x->cmd_q.max_slots > MAX_NUMSIGNALS) ||
+	     (x->rsp_q.max_slots > MAX_NUMSIGNALS)) {
 		return 0;
 	}
-	if ((x->cmdQ.max_slots < MIN_NUMSIGNALS) ||
-	     (x->rspQ.max_slots < MIN_NUMSIGNALS)) {
+	if ((x->cmd_q.max_slots < MIN_NUMSIGNALS) ||
+	     (x->rsp_q.max_slots < MIN_NUMSIGNALS)) {
 		return 0;
 	}
 	return 1;

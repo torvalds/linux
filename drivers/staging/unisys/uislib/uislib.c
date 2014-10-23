@@ -1568,8 +1568,8 @@ uislib_mod_init(void)
 	       (ulong) sizeof(struct spar_controlvm_channel_protocol));
 	LOGINF("sizeof(CHANNEL_HEADER):%lu bytes\n",
 	       (ulong) sizeof(struct channel_header));
-	LOGINF("sizeof(ULTRA_IO_CHANNEL_PROTOCOL):%lu bytes\n",
-	       (ulong) sizeof(ULTRA_IO_CHANNEL_PROTOCOL));
+	LOGINF("sizeof(struct spar_io_channel_protocol):%lu bytes\n",
+	       (ulong) sizeof(struct spar_io_channel_protocol));
 	LOGINF("SIZEOF_CMDRSP:%lu bytes\n", SIZEOF_CMDRSP);
 	LOGINF("SIZEOF_PROTOCOL:%lu bytes\n", SIZEOF_PROTOCOL);
 

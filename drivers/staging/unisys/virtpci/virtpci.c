@@ -171,13 +171,13 @@ struct virtpci_busdev {
 /*****************************************************/
 
 static inline
-int WAIT_FOR_IO_CHANNEL(ULTRA_IO_CHANNEL_PROTOCOL __iomem  *chanptr)
+int WAIT_FOR_IO_CHANNEL(struct spar_io_channel_protocol __iomem  *chanptr)
 {
 	int count = 120;
 
 	while (count > 0) {
 
-		if (SPAR_CHANNEL_SERVER_READY(&chanptr->ChannelHeader))
+		if (SPAR_CHANNEL_SERVER_READY(&chanptr->channel_header))
 			return 1;
 		UIS_THREAD_WAIT_SEC(1);
 		count--;
@@ -293,11 +293,11 @@ static int add_vbus(struct add_vbus_guestpart *addparams)
  */
 #define GET_SCSIADAPINFO_FROM_CHANPTR(chanptr) {			\
 	memcpy_fromio(&scsi.wwnn,					\
-		      &((ULTRA_IO_CHANNEL_PROTOCOL __iomem *)		\
+		      &((struct spar_io_channel_protocol __iomem *)	\
 			chanptr)->vhba.wwnn,				\
 		      sizeof(struct vhba_wwnn));			\
 	memcpy_fromio(&scsi.max,					\
-		      &((ULTRA_IO_CHANNEL_PROTOCOL __iomem *)		\
+		      &((struct spar_io_channel_protocol __iomem *)	\
 			chanptr)->vhba.max,				\
 		      sizeof(struct vhba_config_max));			\
 	}
@@ -325,7 +325,7 @@ static int add_vhba(struct add_virt_guestpart *addparams)
 
 	POSTCODE_LINUX_2(VPCI_CREATE_ENTRY_PC, POSTCODE_SEVERITY_INFO);
 	if (!WAIT_FOR_IO_CHANNEL
-	    ((ULTRA_IO_CHANNEL_PROTOCOL __iomem *) addparams->chanptr)) {
+	    ((struct spar_io_channel_protocol __iomem *) addparams->chanptr)) {
 		LOGERR("Timed out.  Channel not ready\n");
 		POSTCODE_LINUX_2(VPCI_CREATE_FAILURE_PC, POSTCODE_SEVERITY_ERR);
 		return 0;
@@ -355,17 +355,17 @@ static int add_vhba(struct add_virt_guestpart *addparams)
  */
 #define GET_NETADAPINFO_FROM_CHANPTR(chanptr) {				\
 		memcpy_fromio(net.mac_addr,				\
-		       ((ULTRA_IO_CHANNEL_PROTOCOL __iomem *)		\
+		       ((struct spar_io_channel_protocol __iomem *)	\
 			chanptr)->vnic.macaddr,				\
 		       MAX_MACADDR_LEN);				\
 		net.num_rcv_bufs =					\
-			readl(&((ULTRA_IO_CHANNEL_PROTOCOL __iomem *)	\
+			readl(&((struct spar_io_channel_protocol __iomem *)\
 				chanptr)->vnic.num_rcv_bufs);		\
-		net.mtu = readl(&((ULTRA_IO_CHANNEL_PROTOCOL __iomem *) \
+		net.mtu = readl(&((struct spar_io_channel_protocol __iomem *) \
 				  chanptr)->vnic.mtu);			\
 		memcpy_fromio(&net.zoneGuid, \
-			      &((ULTRA_IO_CHANNEL_PROTOCOL __iomem *)	\
-				chanptr)->vnic.zoneGuid,		\
+			      &((struct spar_io_channel_protocol __iomem *)\
+				chanptr)->vnic.zone_uuid,		\
 			      sizeof(uuid_le));				\
 }
 
@@ -382,7 +382,7 @@ add_vnic(struct add_virt_guestpart *addparams)
 
 	POSTCODE_LINUX_2(VPCI_CREATE_ENTRY_PC, POSTCODE_SEVERITY_INFO);
 	if (!WAIT_FOR_IO_CHANNEL
-	    ((ULTRA_IO_CHANNEL_PROTOCOL __iomem *) addparams->chanptr)) {
+	    ((struct spar_io_channel_protocol __iomem *) addparams->chanptr)) {
 		LOGERR("Timed out, channel not ready\n");
 		POSTCODE_LINUX_2(VPCI_CREATE_FAILURE_PC, POSTCODE_SEVERITY_ERR);
 		return 0;
@@ -905,7 +905,7 @@ static int virtpci_device_add(struct device *parentbus, int devtype,
 	struct virtpci_dev *tmpvpcidev = NULL, *prev;
 	unsigned long flags;
 	int ret;
-	ULTRA_IO_CHANNEL_PROTOCOL __iomem *pIoChan = NULL;
+	struct spar_io_channel_protocol __iomem *pIoChan = NULL;
 	struct device *pDev;
 
 	LOGINF("virtpci_device_add parentbus:%p chanptr:%p\n", parentbus,
@@ -946,7 +946,7 @@ static int virtpci_device_add(struct device *parentbus, int devtype,
 	virtpcidev->queueinfo.send_int_if_needed = NULL;
 
 	/* Set up safe queue... */
-	pIoChan = (ULTRA_IO_CHANNEL_PROTOCOL __iomem *)
+	pIoChan = (struct spar_io_channel_protocol __iomem *)
 		virtpcidev->queueinfo.chan;
 
 	virtpcidev->intr = addparams->intr;
