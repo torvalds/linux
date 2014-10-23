@@ -240,10 +240,10 @@ struct controlvm_message_device_create {
 	struct controlvm_packet_device_create packet;
 };	/* total 128 bytes */
 
-typedef struct _CONTROLVM_MESSAGE_DEVICE_CONFIGURE  {
-	struct controlvm_message_header Header;
-	struct controlvm_packet_device_configure Packet;
-} CONTROLVM_MESSAGE_DEVICE_CONFIGURE;	/* total 56 bytes */
+struct controlvm_message_device_configure  {
+	struct controlvm_message_header header;
+	struct controlvm_packet_device_configure packet;
+};	/* total 56 bytes */
 
 /* This is the format for a message in any ControlVm queue. */
 struct controlvm_message_packet  {
