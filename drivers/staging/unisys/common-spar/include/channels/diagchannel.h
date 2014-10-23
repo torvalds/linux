@@ -66,11 +66,12 @@ static const uuid_le spar_diag_channel_protocol_uuid =
 				   ULTRA_DIAG_CHANNEL_PROTOCOL_VERSIONID,\
 				   ULTRA_DIAG_CHANNEL_PROTOCOL_SIGNATURE))
 
-#define ULTRA_DIAG_CHANNEL_OK_SERVER(actualBytes)		\
-	(spar_check_channel_server(spar_diag_channel_protocol_uuid,	\
-				   "diag",				\
-				   sizeof(ULTRA_DIAG_CHANNEL_PROTOCOL), \
-				    actualBytes))
+#define SPAR_DIAG_CHANNEL_OK_SERVER(bytes)\
+	(spar_check_channel_server(spar_diag_channel_protocol_uuid,\
+				   "diag",\
+				   sizeof(ULTRA_DIAG_CHANNEL_PROTOCOL),\
+				   bytes))
+
 #define MAX_MODULE_NAME_SIZE 128	/* Maximum length of module name... */
 #define MAX_ADDITIONAL_INFO_SIZE 256	/* Maximum length of any additional info
 					 * accompanying event... */
