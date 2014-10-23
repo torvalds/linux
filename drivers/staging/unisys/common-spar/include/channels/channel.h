@@ -76,21 +76,21 @@ ULTRA_CHANNELCLI_STRING(u32 v)
 {
 	switch (v) {
 	case CHANNELCLI_DETACHED:
-		return (const u8 *) ("DETACHED");
+		return (const u8 *)("DETACHED");
 	case CHANNELCLI_DISABLED:
-		return (const u8 *) ("DISABLED");
+		return (const u8 *)("DISABLED");
 	case CHANNELCLI_ATTACHING:
-		return (const u8 *) ("ATTACHING");
+		return (const u8 *)("ATTACHING");
 	case CHANNELCLI_ATTACHED:
-		return (const u8 *) ("ATTACHED");
+		return (const u8 *)("ATTACHED");
 	case CHANNELCLI_BUSY:
-		return (const u8 *) ("BUSY");
+		return (const u8 *)("BUSY");
 	case CHANNELCLI_OWNED:
-		return (const u8 *) ("OWNED");
+		return (const u8 *)("OWNED");
 	default:
 		break;
 	}
-	return (const u8 *) ("?");
+	return (const u8 *)("?");
 }
 
 #define ULTRA_CHANNELSRV_IS_READY(x)     ((x) == CHANNELSRV_READY)
