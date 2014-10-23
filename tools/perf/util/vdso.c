@@ -255,6 +255,16 @@ static int vdso__dso_findnew_compat(struct machine *machine,
 	enum dso_type dso_type;
 
 	dso_type = machine__thread_dso_type(machine, thread);
+
+#ifndef HAVE_PERF_READ_VDSO32
+	if (dso_type == DSO__TYPE_32BIT)
+		return 0;
+#endif
+#ifndef HAVE_PERF_READ_VDSOX32
+	if (dso_type == DSO__TYPE_X32BIT)
+		return 0;
+#endif
+
 	switch (dso_type) {
 	case DSO__TYPE_32BIT:
 		*dso = vdso__findnew_compat(machine, &vdso_info->vdso32);

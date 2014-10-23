@@ -627,7 +627,9 @@ endif
 ifeq (${IS_64_BIT}, 1)
   ifndef NO_PERF_READ_VDSO32
     $(call feature_check,compile-32)
-    ifneq ($(feature-compile-32), 1)
+    ifeq ($(feature-compile-32), 1)
+      CFLAGS += -DHAVE_PERF_READ_VDSO32
+    else
       NO_PERF_READ_VDSO32 := 1
     endif
   endif
@@ -636,7 +638,9 @@ ifeq (${IS_64_BIT}, 1)
   endif
   ifndef NO_PERF_READ_VDSOX32
     $(call feature_check,compile-x32)
-    ifneq ($(feature-compile-x32), 1)
+    ifeq ($(feature-compile-x32), 1)
+      CFLAGS += -DHAVE_PERF_READ_VDSOX32
+    else
       NO_PERF_READ_VDSOX32 := 1
     endif
   endif
