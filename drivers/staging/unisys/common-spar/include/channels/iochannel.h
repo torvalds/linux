@@ -8,7 +8,6 @@
 * this file.  Note: Everything is OS-independent because this file is
 * used by Windows, Linux and possible EFI drivers.  */
 
-
 /*
 * Communication flow between the IOPart and GuestPart uses the channel headers
 * channel state.  The following states are currently being used:
@@ -88,7 +87,6 @@
 /*
 * Everything necessary to handle SCSI & NIC traffic between Guest Partition and
 * IO Partition is defined below.  */
-
 
 /*
 * Defines and enums.
@@ -235,7 +233,6 @@ typedef enum { VDISK_MGMT_ACQUIRE = 1, VDISK_MGMT_RELEASE,
 
 /*
  * structs with pragma pack  */
-
 
 /* ///////////// BEGIN PRAGMA PACK PUSH 1 ///////////////////////// */
 /* ///////////// ONLY STRUCT TYPE SHOULD BE BELOW */
@@ -404,11 +401,9 @@ struct uiscmdrsp_scsi {
 		}							\
 	} while (0)
 
-
 /*
 * Struct & Defines to support sense information.
 */
-
 
 /* The following struct is returned in sensebuf field in uiscmdrsp_scsi.  It is
 * initialized in exactly the manner that is recommended in Windows (hence the
@@ -478,7 +473,6 @@ struct net_pkt_xmt {
 						 * each fragment */
 	char ethhdr[ETH_HEADER_SIZE];	/* the ethernet header  */
 	struct {
-
 		    /* these are needed for csum at uisnic end */
 		u8 valid;	/* 1 = rest of this struct is valid - else
 				 * ignore */
@@ -528,7 +522,6 @@ struct net_pkt_rcvpost {
 };
 
 struct net_pkt_rcv {
-
 	/* the number of receive buffers that can be chained  */
 	/* is based on max mtu and size of each rcv buf */
 	u32 rcv_done_len;	/* length of received data */
@@ -727,7 +720,6 @@ typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
 * INLINE functions for initializing and accessing I/O data channels
 */
 
-
 #define NUMSIGNALS(x, q) (((ULTRA_IO_CHANNEL_PROTOCOL *)(x))->q.MaxSignalSlots)
 #define SIZEOF_PROTOCOL (COVER(sizeof(ULTRA_IO_CHANNEL_PROTOCOL), 64))
 #define SIZEOF_CMDRSP (COVER(sizeof(struct uiscmdrsp), 64))
@@ -780,7 +772,6 @@ typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
 			if (clientStrLen > 0)				\
 				return 0;				\
 	} while (0)
-
 
 #define ULTRA_IO_CHANNEL_SERVER_READY(x, chanId, logCtx) \
 	ULTRA_CHANNEL_SERVER_TRANSITION(x, chanId, SrvState, CHANNELSRV_READY, \
@@ -864,7 +855,6 @@ static inline int ULTRA_VNIC_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
 * pfn-off-size entires.
 */
 
-
 /* we deal with 4K page sizes when we it comes to passing page information
  * between */
 /* Guest and IOPartition. */
@@ -894,7 +884,6 @@ add_physinfo_entries(u32 inp_pfn,	/* input - specifies the pfn to be used
 
 	firstlen = PI_PAGE_SIZE - inp_off;
 	if (inp_len <= firstlen) {
-
 		/* the input entry spans only one page - add as is */
 		if (index >= max_pi_arr_entries)
 			return 0;
@@ -920,7 +909,6 @@ add_physinfo_entries(u32 inp_pfn,	/* input - specifies the pfn to be used
 			pi_arr[index + i].pi_len =
 			    (u16) MINNUM(len, (u32) PI_PAGE_SIZE);
 		}
-
 	}
 	return index + i;
 }
