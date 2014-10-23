@@ -1355,6 +1355,8 @@ static void ath10k_htt_rx_frag_handler(struct ath10k_htt *htt,
 				      &attention);
 	spin_unlock_bh(&htt->rx_ring.lock);
 
+	tasklet_schedule(&htt->rx_replenish_task);
+
 	ath10k_dbg(ar, ATH10K_DBG_HTT_DUMP, "htt rx frag ahead\n");
 
 	if (ret) {
