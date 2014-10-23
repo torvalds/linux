@@ -59,8 +59,8 @@
 #define ULTRA_VNIC_CHANNEL_PROTOCOL_VERSIONID 2
 #define ULTRA_VSWITCH_CHANNEL_PROTOCOL_VERSIONID 1
 
-#define SPAR_VHBA_CHANNEL_OK_CLIENT(pChannel, logCtx)			\
-	(spar_check_channel_client(pChannel, spar_vhba_channel_protocol_uuid, \
+#define SPAR_VHBA_CHANNEL_OK_CLIENT(ch)			\
+	(spar_check_channel_client(ch, spar_vhba_channel_protocol_uuid, \
 				   "vhba", MIN_IO_CHANNEL_SIZE,	\
 				   ULTRA_VHBA_CHANNEL_PROTOCOL_VERSIONID, \
 				   ULTRA_VHBA_CHANNEL_PROTOCOL_SIGNATURE))

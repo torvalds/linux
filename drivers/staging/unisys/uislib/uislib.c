@@ -450,7 +450,7 @@ create_device(struct controlvm_message *msg, char *buf)
 								  chanptr))->
 							    chtype);
 					if (!SPAR_VHBA_CHANNEL_OK_CLIENT
-					    (dev->chanptr, NULL)) {
+					    (dev->chanptr)) {
 						LOGERR("CONTROLVM_DEVICE_CREATE Failed:[CLIENT]VHBA dev %d chan invalid.",
 						     devNo);
 						POSTCODE_LINUX_4
