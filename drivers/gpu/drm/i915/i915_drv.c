@@ -1019,12 +1019,11 @@ static int i915_pm_freeze_late(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	struct drm_i915_private *dev_priv = drm_dev->dev_private;
 
 	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-	return intel_suspend_complete(dev_priv);
+	return i915_drm_suspend_late(drm_dev);
 }
 
 static int i915_pm_thaw_early(struct device *dev)
@@ -1035,7 +1034,7 @@ static int i915_pm_thaw_early(struct device *dev)
 	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-	return i915_drm_thaw_early(drm_dev);
+	return i915_resume_early(drm_dev);
 }
 
 static int i915_pm_thaw(struct device *dev)
