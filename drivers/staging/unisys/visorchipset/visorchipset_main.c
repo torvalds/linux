@@ -347,7 +347,7 @@ static struct platform_device Visorchipset_platform_device = {
 static void controlvm_respond(CONTROLVM_MESSAGE_HEADER *msgHdr, int response);
 static void controlvm_respond_chipset_init(CONTROLVM_MESSAGE_HEADER *msgHdr,
 					   int response,
-					   ULTRA_CHIPSET_FEATURE features);
+					   enum ultra_chipset_feature features);
 static void controlvm_respond_physdev_changestate(CONTROLVM_MESSAGE_HEADER *
 		msgHdr, int response, struct spar_segment_state state);
 
@@ -655,7 +655,7 @@ static void
 chipset_init(CONTROLVM_MESSAGE *inmsg)
 {
 	static int chipset_inited;
-	ULTRA_CHIPSET_FEATURE features = 0;
+	enum ultra_chipset_feature features = 0;
 	int rc = CONTROLVM_RESP_SUCCESS;
 
 	POSTCODE_LINUX_2(CHIPSET_INIT_ENTRY_PC, POSTCODE_SEVERITY_INFO);
@@ -727,7 +727,7 @@ controlvm_respond(CONTROLVM_MESSAGE_HEADER *msgHdr, int response)
 
 static void
 controlvm_respond_chipset_init(CONTROLVM_MESSAGE_HEADER *msgHdr, int response,
-			       ULTRA_CHIPSET_FEATURE features)
+			       enum ultra_chipset_feature features)
 {
 	CONTROLVM_MESSAGE outmsg;
 

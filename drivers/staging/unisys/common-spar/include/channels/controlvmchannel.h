@@ -158,11 +158,11 @@ struct efi_spar_indication  {
 	/* remaining bits are available */
 };
 
-typedef enum {
+enum ultra_chipset_feature {
 	ULTRA_CHIPSET_FEATURE_REPLY = 0x00000001,
 	ULTRA_CHIPSET_FEATURE_PARA_HOTPLUG = 0x00000002,
 	ULTRA_CHIPSET_FEATURE_PCIVBUS = 0x00000004
-} ULTRA_CHIPSET_FEATURE;
+};
 
 /** This is the common structure that is at the beginning of every
  *  ControlVm message (both commands and responses) in any ControlVm
@@ -346,7 +346,7 @@ typedef struct _CONTROLVM_MESSAGE_PACKET  {
 			u32 switchCount; /*< indicates the max number of
 					  *   switches (applicable for service
 					  *   partition only) */
-			ULTRA_CHIPSET_FEATURE features;
+			enum ultra_chipset_feature features;
 			u32 platformNumber;	/* Platform Number */
 		} initChipset;	/* for CONTROLVM_CHIPSET_INIT */
 		struct  {
