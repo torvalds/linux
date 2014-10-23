@@ -583,10 +583,10 @@ static void incoming_packet(struct sasem_context *context,
 	}
 
 	if (debug) {
-		printk(KERN_INFO "Incoming data: ");
+		pr_info("Incoming data: ");
 		for (i = 0; i < 8; ++i)
-			printk(KERN_CONT "%02x ", buf[i]);
-		printk(KERN_CONT "\n");
+			pr_cont("%02x ", buf[i]);
+		pr_cont("\n");
 	}
 
 	/*
