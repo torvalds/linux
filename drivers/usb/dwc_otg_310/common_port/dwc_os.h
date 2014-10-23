@@ -61,7 +61,6 @@ extern "C" {
 # endif
 # include <linux/errno.h>
 # include <stdarg.h>
-# include <asm/system.h>
 #endif
 
 #if defined(DWC_FREEBSD) || defined(DWC_NETBSD)
