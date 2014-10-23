@@ -177,6 +177,13 @@
 #define SPBFCR_RXRST		0x40	/* Receive Buffer Data Reset */
 #define SPBFCR_TXTRG_MASK	0x30	/* Transmit Buffer Data Triggering Number */
 #define SPBFCR_RXTRG_MASK	0x07	/* Receive Buffer Data Triggering Number */
+/* QSPI on R-Car Gen2 */
+#define SPBFCR_TXTRG_1B		0x00	/* 31 bytes (1 byte available) */
+#define SPBFCR_TXTRG_32B	0x30	/* 0 byte (32 bytes available) */
+#define SPBFCR_RXTRG_1B		0x00	/* 1 byte (31 bytes available) */
+#define SPBFCR_RXTRG_32B	0x07	/* 32 bytes (0 byte available) */
+
+#define QSPI_BUFFER_SIZE        32u
 
 struct rspi_data {
 	void __iomem *addr;
@@ -364,6 +371,52 @@ static int qspi_set_config_register(struct rspi_data *rspi, int access_size)
 	rspi_write8(rspi, SPCR_SPE | SPCR_MSTR, RSPI_SPCR);
 
 	return 0;
+}
+
+static void qspi_update(const struct rspi_data *rspi, u8 mask, u8 val, u8 reg)
+{
+	u8 data;
+
+	data = rspi_read8(rspi, reg);
+	data &= ~mask;
+	data |= (val & mask);
+	rspi_write8(rspi, data, reg);
+}
+
+static int qspi_set_send_trigger(struct rspi_data *rspi, unsigned int len)
+{
+	unsigned int n;
+
+	n = min(len, QSPI_BUFFER_SIZE);
+
+	if (len >= QSPI_BUFFER_SIZE) {
+		/* sets triggering number to 32 bytes */
+		qspi_update(rspi, SPBFCR_TXTRG_MASK,
+			     SPBFCR_TXTRG_32B, QSPI_SPBFCR);
+	} else {
+		/* sets triggering number to 1 byte */
+		qspi_update(rspi, SPBFCR_TXTRG_MASK,
+			     SPBFCR_TXTRG_1B, QSPI_SPBFCR);
+	}
+
+	return n;
+}
+
+static void qspi_set_receive_trigger(struct rspi_data *rspi, unsigned int len)
+{
+	unsigned int n;
+
+	n = min(len, QSPI_BUFFER_SIZE);
+
+	if (len >= QSPI_BUFFER_SIZE) {
+		/* sets triggering number to 32 bytes */
+		qspi_update(rspi, SPBFCR_RXTRG_MASK,
+			     SPBFCR_RXTRG_32B, QSPI_SPBFCR);
+	} else {
+		/* sets triggering number to 1 byte */
+		qspi_update(rspi, SPBFCR_RXTRG_MASK,
+			     SPBFCR_RXTRG_1B, QSPI_SPBFCR);
+	}
 }
 
 #define set_config_register(spi, n) spi->ops->set_config_register(spi, n)
@@ -609,18 +662,28 @@ static bool rspi_can_dma(struct spi_master *master, struct spi_device *spi,
 	return __rspi_can_dma(rspi, xfer);
 }
 
+static int rspi_dma_check_then_transfer(struct rspi_data *rspi,
+					 struct spi_transfer *xfer)
+{
+	if (rspi->master->can_dma && __rspi_can_dma(rspi, xfer)) {
+		/* rx_buf can be NULL on RSPI on SH in TX-only Mode */
+		int ret = rspi_dma_transfer(rspi, &xfer->tx_sg,
+					xfer->rx_buf ? &xfer->rx_sg : NULL);
+		if (ret != -EAGAIN)
+			return 0;
+	}
+
+	return -EAGAIN;
+}
+
 static int rspi_common_transfer(struct rspi_data *rspi,
 				struct spi_transfer *xfer)
 {
 	int ret;
 
-	if (rspi->master->can_dma && __rspi_can_dma(rspi, xfer)) {
-		/* rx_buf can be NULL on RSPI on SH in TX-only Mode */
-		ret = rspi_dma_transfer(rspi, &xfer->tx_sg,
-					xfer->rx_buf ? &xfer->rx_sg : NULL);
-		if (ret != -EAGAIN)
-			return ret;
-	}
+	ret = rspi_dma_check_then_transfer(rspi, xfer);
+	if (ret != -EAGAIN)
+		return ret;
 
 	ret = rspi_pio_transfer(rspi, xfer->tx_buf, xfer->rx_buf, xfer->len);
 	if (ret < 0)
@@ -661,12 +724,59 @@ static int rspi_rz_transfer_one(struct spi_master *master,
 	return rspi_common_transfer(rspi, xfer);
 }
 
+static int qspi_trigger_transfer_out_int(struct rspi_data *rspi, const u8 *tx,
+					u8 *rx, unsigned int len)
+{
+	unsigned int i, n, ret;
+	int error;
+
+	while (len > 0) {
+		n = qspi_set_send_trigger(rspi, len);
+		qspi_set_receive_trigger(rspi, len);
+		if (n == QSPI_BUFFER_SIZE) {
+			error = rspi_wait_for_tx_empty(rspi);
+			if (error < 0) {
+				dev_err(&rspi->master->dev, "transmit timeout\n");
+				return error;
+			}
+			for (i = 0; i < n; i++)
+				rspi_write_data(rspi, *tx++);
+
+			error = rspi_wait_for_rx_full(rspi);
+			if (error < 0) {
+				dev_err(&rspi->master->dev, "receive timeout\n");
+				return error;
+			}
+			for (i = 0; i < n; i++)
+				*rx++ = rspi_read_data(rspi);
+		} else {
+			ret = rspi_pio_transfer(rspi, tx, rx, n);
+			if (ret < 0)
+				return ret;
+		}
+		len -= n;
+	}
+
+	return 0;
+}
+
 static int qspi_transfer_out_in(struct rspi_data *rspi,
 				struct spi_transfer *xfer)
 {
+	int ret;
+
 	qspi_receive_init(rspi);
 
-	return rspi_common_transfer(rspi, xfer);
+	ret = rspi_dma_check_then_transfer(rspi, xfer);
+	if (ret != -EAGAIN)
+		return ret;
+
+	ret = qspi_trigger_transfer_out_int(rspi, xfer->tx_buf,
+					    xfer->rx_buf, xfer->len);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 static int qspi_transfer_out(struct rspi_data *rspi, struct spi_transfer *xfer)
