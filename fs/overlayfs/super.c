@@ -677,6 +677,15 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	}
 	ufs->lower_namelen = statfs.f_namelen;
 
+	sb->s_stack_depth = max(upperpath.mnt->mnt_sb->s_stack_depth,
+				lowerpath.mnt->mnt_sb->s_stack_depth) + 1;
+
+	err = -EINVAL;
+	if (sb->s_stack_depth > FILESYSTEM_MAX_STACK_DEPTH) {
+		pr_err("overlayfs: maximum fs stacking depth exceeded\n");
+		goto out_put_workpath;
+	}
+
 	ufs->upper_mnt = clone_private_mount(&upperpath);
 	err = PTR_ERR(ufs->upper_mnt);
 	if (IS_ERR(ufs->upper_mnt)) {
