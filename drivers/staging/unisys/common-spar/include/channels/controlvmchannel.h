@@ -45,13 +45,13 @@ static const uuid_le spar_controlvm_channel_protocol_uuid =
 * channel struct withOUT needing to increment this. */
 #define ULTRA_CONTROLVM_CHANNEL_PROTOCOL_VERSIONID  1
 
-#define SPAR_CONTROLVM_CHANNEL_OK_CLIENT(pChannel)           \
-	(spar_check_channel_client(pChannel, \
-				   spar_controlvm_channel_protocol_uuid, \
-				   "controlvm", \
-				   sizeof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL), \
-				   ULTRA_CONTROLVM_CHANNEL_PROTOCOL_VERSIONID, \
-				   ULTRA_CONTROLVM_CHANNEL_PROTOCOL_SIGNATURE))
+#define SPAR_CONTROLVM_CHANNEL_OK_CLIENT(ch)           \
+	spar_check_channel_client(ch, \
+				  spar_controlvm_channel_protocol_uuid, \
+				  "controlvm", \
+				  sizeof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL), \
+				  ULTRA_CONTROLVM_CHANNEL_PROTOCOL_VERSIONID, \
+				  ULTRA_CONTROLVM_CHANNEL_PROTOCOL_SIGNATURE)
 
 #define MY_DEVICE_INDEX 0
 #define MAX_MACDATA_LEN 8 /* number of bytes for MAC address in config packet */
