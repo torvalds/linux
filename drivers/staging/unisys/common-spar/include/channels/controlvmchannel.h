@@ -151,10 +151,10 @@ struct pci_id {
 };
 
 struct efi_spar_indication  {
-	u64 BootToFirmwareUI:1;	/* Bit 0: Stop in uefi ui */
-	u64 ClearNvram:1;	/* Bit 1: Clear NVRAM */
-	u64 ClearCmos:1;	/* Bit 2: Clear CMOS */
-	u64 BootToTool:1;	/* Bit 3: Run install tool */
+	u64 boot_to_fw_ui:1;	/* Bit 0: Stop in uefi ui */
+	u64 clear_nvram:1;	/* Bit 1: Clear NVRAM */
+	u64 clear_cmos:1;	/* Bit 2: Clear CMOS */
+	u64 boot_to_tool:1;	/* Bit 3: Run install tool */
 	/* remaining bits are available */
 };
 

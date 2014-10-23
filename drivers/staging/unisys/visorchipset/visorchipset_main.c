@@ -393,7 +393,7 @@ static ssize_t boottotool_show(struct device *dev,
 			EfiSparIndication), &efiSparIndication,
 		sizeof(struct efi_spar_indication));
 	return scnprintf(buf, PAGE_SIZE, "%u\n",
-			efiSparIndication.BootToTool);
+			efiSparIndication.boot_to_tool);
 }
 
 static ssize_t boottotool_store(struct device *dev,
@@ -406,7 +406,7 @@ static ssize_t boottotool_store(struct device *dev,
 	if (kstrtoint(buf, 10, &val) != 0)
 		return -EINVAL;
 
-	efiSparIndication.BootToTool = val;
+	efiSparIndication.boot_to_tool = val;
 	ret = visorchannel_write(ControlVm_channel,
 			offsetof(ULTRA_CONTROLVM_CHANNEL_PROTOCOL,
 				EfiSparIndication),
