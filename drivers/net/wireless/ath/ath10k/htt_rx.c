@@ -1200,8 +1200,7 @@ static bool ath10k_htt_rx_amsdu_allowed(struct ath10k_htt *htt,
 	}
 
 	/* Skip mgmt frames while we handle this in WMI */
-	if (status == HTT_RX_IND_MPDU_STATUS_MGMT_CTRL ||
-	    attention & RX_ATTENTION_FLAGS_MGMT_TYPE) {
+	if (attention & RX_ATTENTION_FLAGS_MGMT_TYPE) {
 		ath10k_dbg(ar, ATH10K_DBG_HTT, "htt rx mgmt ctrl\n");
 		return false;
 	}
