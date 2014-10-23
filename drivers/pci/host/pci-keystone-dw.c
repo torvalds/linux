@@ -201,7 +201,7 @@ static int ks_dw_pcie_msi_map(struct irq_domain *domain, unsigned int irq,
 	return 0;
 }
 
-const struct irq_domain_ops ks_dw_pcie_msi_domain_ops = {
+static const struct irq_domain_ops ks_dw_pcie_msi_domain_ops = {
 	.map = ks_dw_pcie_msi_map,
 };
 
