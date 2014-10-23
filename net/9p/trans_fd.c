@@ -1013,7 +1013,6 @@ p9_fd_create(struct p9_client *client, const char *addr, char *args)
 {
 	int err;
 	struct p9_fd_opts opts;
-	struct p9_trans_fd *p;
 
 	parse_opts(args, &opts);
 
@@ -1026,7 +1025,6 @@ p9_fd_create(struct p9_client *client, const char *addr, char *args)
 	if (err < 0)
 		return err;
 
-	p = (struct p9_trans_fd *) client->trans;
 	p9_conn_create(client);
 
 	return 0;
