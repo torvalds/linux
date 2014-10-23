@@ -757,9 +757,6 @@ static int __i915_drm_thaw(struct drm_device *dev)
 
 static int i915_drm_thaw(struct drm_device *dev)
 {
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		i915_check_and_clear_faults(dev);
-
 	return __i915_drm_thaw(dev);
 }
 

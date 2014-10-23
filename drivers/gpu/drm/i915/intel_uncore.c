@@ -360,7 +360,8 @@ void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore)
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
-void intel_uncore_early_sanitize(struct drm_device *dev, bool restore_forcewake)
+static void __intel_uncore_early_sanitize(struct drm_device *dev,
+					  bool restore_forcewake)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
@@ -384,6 +385,12 @@ void intel_uncore_early_sanitize(struct drm_device *dev, bool restore_forcewake)
 				   __raw_i915_read32(dev_priv, GTFIFODBG));
 
 	intel_uncore_forcewake_reset(dev, restore_forcewake);
+}
+
+void intel_uncore_early_sanitize(struct drm_device *dev, bool restore_forcewake)
+{
+	__intel_uncore_early_sanitize(dev, restore_forcewake);
+	i915_check_and_clear_faults(dev);
 }
 
 void intel_uncore_sanitize(struct drm_device *dev)
@@ -846,7 +853,7 @@ void intel_uncore_init(struct drm_device *dev)
 	setup_timer(&dev_priv->uncore.force_wake_timer,
 		    gen6_force_wake_timer, (unsigned long)dev_priv);
 
-	intel_uncore_early_sanitize(dev, false);
+	__intel_uncore_early_sanitize(dev, false);
 
 	if (IS_VALLEYVIEW(dev)) {
 		dev_priv->uncore.funcs.force_wake_get = __vlv_force_wake_get;
@@ -928,6 +935,8 @@ void intel_uncore_init(struct drm_device *dev)
 		ASSIGN_READ_MMIO_VFUNCS(gen4);
 		break;
 	}
+
+	i915_check_and_clear_faults(dev);
 }
 #undef ASSIGN_WRITE_MMIO_VFUNCS
 #undef ASSIGN_READ_MMIO_VFUNCS
