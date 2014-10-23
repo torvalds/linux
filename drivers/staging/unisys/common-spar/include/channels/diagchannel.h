@@ -106,19 +106,19 @@ static const uuid_le spar_diag_channel_protocol_uuid =
 /* Copied from EFI's EFI_TIME struct in efidef.h.  EFI headers are not allowed
 * in some of the Supervisor areas, such as Monitor, so it has been "ported" here
 * for use in diagnostic event timestamps... */
-typedef struct _DIAG_EFI_TIME  {
-	u16 Year;		/* 1998 - 20XX */
-	u8 Month;		/* 1 - 12 */
-	u8 Day;			/* 1 - 31 */
-	u8 Hour;		/* 0 - 23 */
-	u8 Minute;		/* 0 - 59 */
-	u8 Second;		/* 0 - 59 */
-	u8 Pad1;
-	u32 Nanosecond;	/* 0 - 999, 999, 999 */
-	s16 TimeZone;		/* -1440 to 1440 or 2047 */
-	u8 Daylight;
-	u8 Pad2;
-} DIAG_EFI_TIME;
+struct diag_efi_time  {
+	u16 year;		/* 1998 - 20XX */
+	u8 month;		/* 1 - 12 */
+	u8 day;			/* 1 - 31 */
+	u8 hour;		/* 0 - 23 */
+	u8 minute;		/* 0 - 59 */
+	u8 second;		/* 0 - 59 */
+	u8 pad1;
+	u32 nanosecond;	/* 0 - 999, 999, 999 */
+	s16 timezone;		/* -1440 to 1440 or 2047 */
+	u8 daylight;
+	u8 pad2;
+};
 
 typedef enum  {
 	 ULTRA_COMPONENT_GUEST = 0,
@@ -161,7 +161,7 @@ typedef struct _DIAG_CHANNEL_EVENT  {
 	u32 Severity;
 	u8 ModuleName[MAX_MODULE_NAME_SIZE];
 	u32 LineNumber;
-	DIAG_EFI_TIME Timestamp;	/* Size = 16 bytes */
+	struct diag_efi_time Timestamp;	/* Size = 16 bytes */
 	u32 PartitionNumber;	/* Filled in by Diag Switch as pool blocks are
 				 * filled */
 	u16 VirtualProcessorNumber;
