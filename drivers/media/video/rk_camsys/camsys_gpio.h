@@ -1,8 +1,7 @@
 #ifndef __RKCAMSYS_GPIO_H__
 #define __RKCAMSYS_GPIO_H__
 
-//#include <mach/gpio.h>
-#include <asm/gpio.h>
+#include <linux/gpio.h>
 #if defined(CONFIG_ARCH_ROCKCHIP)
 #define RK30_PIN0_PA0 (0)
 #define NUM_GROUP 	(32)

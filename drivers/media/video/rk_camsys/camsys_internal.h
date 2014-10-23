@@ -28,6 +28,7 @@
 #include <linux/mutex.h>
 #include <linux/regulator/machine.h>
 #include <linux/log2.h>
+#include <linux/gpio.h>
 //#include <mach/io.h>
 //#include <mach/gpio.h>
 //#include <mach/iomux.h>
@@ -36,8 +37,6 @@
 #include <linux/rockchip/iomap.h>
 #include <linux/rockchip/grf.h>
 
-#include <asm/gpio.h>
-#include <asm/system.h>	
 #include <asm/uaccess.h>
 
 #include <linux/of.h>

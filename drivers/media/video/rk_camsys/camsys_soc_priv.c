@@ -5,6 +5,7 @@
 
 static camsys_soc_priv_t* camsys_soc_p;
 
+#ifdef CONFIG_ARM
 #include "camsys_soc_rk3288.c"
 
 static int camsys_rk3288_cfg (camsys_soc_cfg_t cfg_cmd, void* cfg_para)
@@ -62,6 +63,7 @@ static int camsys_rk3288_cfg (camsys_soc_cfg_t cfg_cmd, void* cfg_para)
 
 
 }
+#endif
 
 camsys_soc_priv_t* camsys_soc_get(void)
 {
@@ -81,8 +83,10 @@ int camsys_soc_init(void)
     }
 
     if (soc_is_rk3288()) {
+#ifdef CONFIG_ARM
         strlcpy(camsys_soc_p->name,"camsys_rk3288",31);
         camsys_soc_p->soc_cfg = camsys_rk3288_cfg;
+#endif
     } else {
         camsys_err("camsys isn't support soc: 0x%lx!",rockchip_soc_id);
         goto fail;
