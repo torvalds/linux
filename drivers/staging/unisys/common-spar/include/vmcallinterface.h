@@ -107,7 +107,6 @@ struct phys_info {
 
 #pragma pack(pop)
 /* ///////////// END PRAGMA PACK PUSH 1 /////////////////////////// */
-typedef struct phys_info IO_DATA_STRUCTURE;
 
 /* ///////////// BEGIN PRAGMA PACK PUSH 1 ///////////////////////// */
 /* ///////////// ONLY STRUCT TYPE SHOULD BE BELOW */
