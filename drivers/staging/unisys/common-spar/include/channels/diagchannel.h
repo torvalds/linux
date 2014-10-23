@@ -147,7 +147,7 @@ enum spar_component_types  {
 	 /* RESERVED 0x18 - 0x1F */
 };
 
-/* Structure: DIAG_CHANNEL_EVENT Purpose: Contains attributes that make up an
+/* Structure: diag_channel_event Purpose: Contains attributes that make up an
  * event to be written to the DIAG_CHANNEL memory.  Attributes: EventId: Id of
  * the diagnostic event to write to memory.  Severity: Severity of the event
  * (Error, Info, etc).  ModuleName: Module/file name where event originated.
@@ -156,40 +156,40 @@ enum spar_component_types  {
  * Reserved: Padding to align structure on a 64-byte cache line boundary.
  * AdditionalInfo: Array of characters for additional event info (may be
  * empty).  */
-typedef struct _DIAG_CHANNEL_EVENT  {
-	u32 EventId;
-	u32 Severity;
-	u8 ModuleName[MAX_MODULE_NAME_SIZE];
-	u32 LineNumber;
-	struct diag_efi_time Timestamp;	/* Size = 16 bytes */
-	u32 PartitionNumber;	/* Filled in by Diag Switch as pool blocks are
+struct diag_channel_event {
+	u32 event_id;
+	u32 severity;
+	u8 module_name[MAX_MODULE_NAME_SIZE];
+	u32 line_number;
+	struct diag_efi_time timestamp;	/* Size = 16 bytes */
+	u32 partition_number;	/* Filled in by Diag Switch as pool blocks are
 				 * filled */
-	u16 VirtualProcessorNumber;
-	u16 LogicalProcessorNumber;
-	u8 ComponentType;	/* ULTRA_COMPONENT_TYPES */
-	u8 Subsystem;
-	u16 Reserved0;		/* pad to u64 alignment */
-	u32 BlockNumber;	/* filled in by DiagSwitch as pool blocks are
+	u16 vcpu_number;
+	u16 lcpu_number;
+	u8 component_type;	/* ULTRA_COMPONENT_TYPES */
+	u8 subsystem;
+	u16 reserved0;		/* pad to u64 alignment */
+	u32 block_no;		/* filled in by DiagSwitch as pool blocks are
 				 * filled */
-	u32 BlockNumberHigh;
-	u32 EventNumber;	/* filled in by DiagSwitch as pool blocks are
+	u32 block_no_high;
+	u32 event_no;		/* filled in by DiagSwitch as pool blocks are
 				 * filled */
-	u32 EventNumberHigh;
+	u32 event_no_high;
 
-	/* The BlockNumber and EventNumber fields are set only by DiagSwitch
+	/* The block_no and event_no fields are set only by DiagSwitch
 	 * and referenced only by WinDiagDisplay formatting tool as
 	 * additional diagnostic information.  Other tools including
 	 * WinDiagDisplay currently ignore these 'Reserved' bytes. */
-	u8 Reserved[8];
-	u8 AdditionalInfo[MAX_ADDITIONAL_INFO_SIZE];
+	u8 reserved[8];
+	u8 additional_info[MAX_ADDITIONAL_INFO_SIZE];
 
-	/* NOTE: Changesto DIAG_CHANNEL_EVENT generally need to be reflected in
+	/* NOTE: Changes to diag_channel_event generally need to be reflected in
 	 * existing copies *
 	 * - for AppOS at
 	 * GuestLinux/visordiag_early/supervisor_diagchannel.h *
 	 * - for WinDiagDisplay at
 	 * EFI/Ultra/Tools/WinDiagDisplay/WinDiagDisplay/diagstruct.h */
-} DIAG_CHANNEL_EVENT;
+};
 
 /* Levels of severity for diagnostic events, in order from lowest severity to
 * highest (i.e. fatal errors are the most severe, and should always be logged,
@@ -240,14 +240,14 @@ typedef enum  { DIAG_SEVERITY_ENUM_BEGIN = 0,
 * "DIAG_SEVERITY_PRINT" (=4), is used for transferring text or binary file to
 * the Diag partition. This cause-severity combination will be used by Logger
 * DiagSwitch to segregate events into block types. The files are transferred in
-* 256 byte chunks maximum, in the AdditionalInfo field of the DIAG_CHANNEL_EVENT
+* 256 byte chunks maximum, in the AdditionalInfo field of the diag_channel_event
 * structure. In the file transfer mode, some event fields will have different
 * meaning: EventId specifies the file offset, severity specifies the block type,
 * ModuleName specifies the filename, LineNumber specifies the number of valid
 * data bytes in an event and AdditionalInfo contains up to 256 bytes of data. */
 
 /* The Diag DiagWriter appends event blocks to events.raw as today, and for data
- * blocks uses DIAG_CHANNEL_EVENT
+ * blocks uses diag_channel_event
  * PartitionNumber to extract and append 'AdditionalInfo' to filename (specified
  * by ModuleName). */
 
@@ -378,7 +378,7 @@ typedef struct _DIAG_CHANNEL_PROTOCOL_HEADER  {
 /* ----------------------- */
 /* | DiagChannel Header    |	Defined by DIAG_CHANNEL_PROTOCOL_HEADER */
 /* ----------------------- */
-/* | Channel Event Info    |	Defined by (DIAG_CHANNEL_EVENT * MAX_EVENTS) */
+/* | Channel Event Info    |	Defined by diag_channel_event*MAX_EVENTS */
 /* ----------------------- */
 /* | Reserved              |	Reserved (pad out to 4MB) */
 /* ----------------------- */
@@ -420,8 +420,8 @@ typedef struct _ULTRA_DIAG_CHANNEL_PROTOCOL  {
 	struct channel_header CommonChannelHeader;
 	struct signal_queue_header QueueHeader;
 	DIAG_CHANNEL_PROTOCOL_HEADER DiagChannelHeader;
-	DIAG_CHANNEL_EVENT Events[(DIAG_CH_SIZE - DIAG_CH_EVENT_OFFSET) /
-				   sizeof(DIAG_CHANNEL_EVENT)];
+	struct diag_channel_event Events[(DIAG_CH_SIZE - DIAG_CH_EVENT_OFFSET) /
+				   sizeof(struct diag_channel_event)];
 }
 ULTRA_DIAG_CHANNEL_PROTOCOL;
 
