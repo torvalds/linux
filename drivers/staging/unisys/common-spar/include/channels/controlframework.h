@@ -28,14 +28,14 @@
 #include <linux/types.h>
 #include "channel.h"
 
-#define ULTRA_MEMORY_COUNT_Ki 1024
+#define ULTRA_MEMORY_COUNT_KI 1024
 
 /* Scale order 0 is one 32-bit (4-byte) word (in 64 or 128-bit
  * architecture potentially 64 or 128-bit word) */
 #define ULTRA_MEMORY_PAGE_WORD 4
 
 /* Define Ki scale page to be traditional 4KB page */
-#define ULTRA_MEMORY_PAGE_Ki (ULTRA_MEMORY_PAGE_WORD * ULTRA_MEMORY_COUNT_Ki)
+#define ULTRA_MEMORY_PAGE_KI (ULTRA_MEMORY_PAGE_WORD * ULTRA_MEMORY_COUNT_KI)
 struct spar_segment_state  {
 	u16 enabled:1;		/* Bit 0: May enter other states */
 	u16 active:1;		/* Bit 1: Assigned to active partition */
