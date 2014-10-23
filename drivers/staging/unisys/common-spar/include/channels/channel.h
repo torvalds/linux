@@ -398,8 +398,8 @@ spar_channel_client_acquire_os(void __iomem *ch, u8 *id)
 		}
 		return 0;
 	}
-	if ((readl(&hdr->cli_state_os) != CHANNELCLI_OWNED)
-	    && (readl(&hdr->cli_state_boot) == CHANNELCLI_DISABLED)) {
+	if ((readl(&hdr->cli_state_os) != CHANNELCLI_OWNED) &&
+	    (readl(&hdr->cli_state_boot) == CHANNELCLI_DISABLED)) {
 		/* Our competitor is DISABLED, so we can transition to OWNED */
 		pr_info("%s Channel StateTransition (%s) %s(%d)-->%s(%d)\n",
 			id, "cli_state_os",
