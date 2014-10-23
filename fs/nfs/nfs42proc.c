@@ -50,7 +50,7 @@ loff_t nfs42_proc_llseek(struct file *filep, loff_t offset, int whence)
 	struct nfs_server *server = NFS_SERVER(inode);
 	int status;
 
-	if (!(server->caps & NFS_CAP_SEEK))
+	if (!nfs_server_capable(inode, NFS_CAP_SEEK))
 		return -ENOTSUPP;
 
 	status = nfs42_set_rw_stateid(&args.sa_stateid, filep, FMODE_READ);
