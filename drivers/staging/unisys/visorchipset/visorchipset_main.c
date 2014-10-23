@@ -1031,8 +1031,9 @@ device_epilog(u32 busNo, u32 devNo, struct spar_segment_state state, u32 cmd,
 			break;
 		case CONTROLVM_DEVICE_CHANGESTATE:
 			/* ServerReady / ServerRunning / SegmentStateRunning */
-			if (state.alive == SegmentStateRunning.alive &&
-			    state.operating == SegmentStateRunning.operating) {
+			if (state.alive == segment_state_running.alive &&
+			    state.operating ==
+				segment_state_running.operating) {
 				if (notifiers->device_resume) {
 					(*notifiers->device_resume) (busNo,
 								     devNo);
@@ -1040,9 +1041,9 @@ device_epilog(u32 busNo, u32 devNo, struct spar_segment_state state, u32 cmd,
 				}
 			}
 			/* ServerNotReady / ServerLost / SegmentStateStandby */
-			else if (state.alive == SegmentStateStandby.alive &&
+			else if (state.alive == segment_state_standby.alive &&
 				 state.operating ==
-				 SegmentStateStandby.operating) {
+				 segment_state_standby.operating) {
 				/* technically this is standby case
 				 * where server is lost
 				 */
@@ -1051,9 +1052,9 @@ device_epilog(u32 busNo, u32 devNo, struct spar_segment_state state, u32 cmd,
 								    devNo);
 					notified = TRUE;
 				}
-			} else if (state.alive == SegmentStatePaused.alive &&
+			} else if (state.alive == segment_state_paused.alive &&
 				   state.operating ==
-				   SegmentStatePaused.operating) {
+				   segment_state_paused.operating) {
 				/* this is lite pause where channel is
 				 * still valid just 'pause' of it
 				 */
@@ -1292,7 +1293,7 @@ Away:
 		LOGINF("CONTROLVM_DEVICE_CREATE for DiagPool channel: busNo=%lu, devNo=%lu",
 		     g_diagpoolBusNo, g_diagpoolDevNo);
 	}
-	device_epilog(busNo, devNo, SegmentStateRunning,
+	device_epilog(busNo, devNo, segment_state_running,
 		      CONTROLVM_DEVICE_CREATE, &inmsg->hdr, rc,
 		      inmsg->hdr.Flags.responseExpected == 1,
 		      FOR_VISORBUS(pDevInfo->chanInfo.channelTypeGuid));
@@ -1356,7 +1357,7 @@ my_device_destroy(CONTROLVM_MESSAGE *inmsg)
 
 Away:
 	if ((rc >= CONTROLVM_RESP_SUCCESS) && pDevInfo)
-		device_epilog(busNo, devNo, SegmentStateRunning,
+		device_epilog(busNo, devNo, segment_state_running,
 			      CONTROLVM_DEVICE_DESTROY, &inmsg->hdr, rc,
 			      inmsg->hdr.Flags.responseExpected == 1,
 			      FOR_VISORBUS(pDevInfo->chanInfo.channelTypeGuid));
@@ -2174,7 +2175,7 @@ visorchipset_device_pause_response(ulong busNo, ulong devNo, int response)
 
 	device_changestate_responder(CONTROLVM_DEVICE_CHANGESTATE,
 				     busNo, devNo, response,
-				     SegmentStateStandby);
+				     segment_state_standby);
 }
 EXPORT_SYMBOL_GPL(visorchipset_device_pause_response);
 
@@ -2183,7 +2184,7 @@ device_resume_response(ulong busNo, ulong devNo, int response)
 {
 	device_changestate_responder(CONTROLVM_DEVICE_CHANGESTATE,
 				     busNo, devNo, response,
-				     SegmentStateRunning);
+				     segment_state_running);
 }
 
 BOOL

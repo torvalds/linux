@@ -891,7 +891,7 @@ uislib_client_inject_pause_vhba(u32 bus_no, u32 dev_no)
 	init_msg_header(&msg, CONTROLVM_DEVICE_CHANGESTATE, 0, 0);
 	msg.cmd.deviceChangeState.busNo = bus_no;
 	msg.cmd.deviceChangeState.devNo = dev_no;
-	msg.cmd.deviceChangeState.state = SegmentStateStandby;
+	msg.cmd.deviceChangeState.state = segment_state_standby;
 	rc = pause_device(&msg);
 	if (rc != CONTROLVM_RESP_SUCCESS) {
 		LOGERR("VHBA pause_device failed. busNo=0x%x devNo=0x%x\n",
@@ -911,7 +911,7 @@ uislib_client_inject_resume_vhba(u32 bus_no, u32 dev_no)
 	init_msg_header(&msg, CONTROLVM_DEVICE_CHANGESTATE, 0, 0);
 	msg.cmd.deviceChangeState.busNo = bus_no;
 	msg.cmd.deviceChangeState.devNo = dev_no;
-	msg.cmd.deviceChangeState.state = SegmentStateRunning;
+	msg.cmd.deviceChangeState.state = segment_state_running;
 	rc = resume_device(&msg);
 	if (rc != CONTROLVM_RESP_SUCCESS) {
 		LOGERR("VHBA resume_device failed. busNo=0x%x devNo=0x%x\n",
@@ -1044,7 +1044,7 @@ uislib_client_inject_pause_vnic(u32 bus_no, u32 dev_no)
 	init_msg_header(&msg, CONTROLVM_DEVICE_CHANGESTATE, 0, 0);
 	msg.cmd.deviceChangeState.busNo = bus_no;
 	msg.cmd.deviceChangeState.devNo = dev_no;
-	msg.cmd.deviceChangeState.state = SegmentStateStandby;
+	msg.cmd.deviceChangeState.state = segment_state_standby;
 	rc = pause_device(&msg);
 	if (rc != CONTROLVM_RESP_SUCCESS) {
 		LOGERR("VNIC pause_device failed. busNo=0x%x devNo=0x%x\n",
@@ -1064,7 +1064,7 @@ uislib_client_inject_resume_vnic(u32 bus_no, u32 dev_no)
 	init_msg_header(&msg, CONTROLVM_DEVICE_CHANGESTATE, 0, 0);
 	msg.cmd.deviceChangeState.busNo = bus_no;
 	msg.cmd.deviceChangeState.devNo = dev_no;
-	msg.cmd.deviceChangeState.state = SegmentStateRunning;
+	msg.cmd.deviceChangeState.state = segment_state_running;
 	rc = resume_device(&msg);
 	if (rc != CONTROLVM_RESP_SUCCESS) {
 		LOGERR("VNIC resume_device failed. busNo=0x%x devNo=0x%x\n",

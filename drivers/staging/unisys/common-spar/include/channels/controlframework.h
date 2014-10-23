@@ -55,15 +55,15 @@ struct spar_segment_state  {
 	 * which is non-compliant */
 };
 
-static const struct spar_segment_state SegmentStateRunning = {
+static const struct spar_segment_state segment_state_running = {
 	1, 1, 1, 0, 1, 1, 1, 1
 };
 
-static const struct spar_segment_state SegmentStatePaused = {
+static const struct spar_segment_state segment_state_paused = {
 	1, 1, 1, 0, 1, 1, 1, 0
 };
 
-static const struct spar_segment_state SegmentStateStandby = {
+static const struct spar_segment_state segment_state_standby = {
 	1, 1, 0, 0, 1, 1, 1, 0
 };
 
