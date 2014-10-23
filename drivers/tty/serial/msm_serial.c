@@ -1044,17 +1044,22 @@ static int msm_serial_probe(struct platform_device *pdev)
 	struct resource *resource;
 	struct uart_port *port;
 	const struct of_device_id *id;
-	int irq;
+	int irq, line;
 
 	if (pdev->id == -1)
 		pdev->id = atomic_inc_return(&msm_uart_next_id) - 1;
 
-	if (unlikely(pdev->id < 0 || pdev->id >= UART_NR))
+	if (pdev->dev.of_node)
+		line = of_alias_get_id(pdev->dev.of_node, "serial");
+	else
+		line = pdev->id;
+
+	if (unlikely(line < 0 || line >= UART_NR))
 		return -ENXIO;
 
-	dev_info(&pdev->dev, "msm_serial: detected port #%d\n", pdev->id);
+	dev_info(&pdev->dev, "msm_serial: detected port #%d\n", line);
 
-	port = get_port_from_line(pdev->id);
+	port = get_port_from_line(line);
 	port->dev = &pdev->dev;
 	msm_port = UART_TO_MSM(port);
 
