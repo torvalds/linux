@@ -28,34 +28,34 @@
 #include "channel.h"
 
 /* {193b331b-c58f-11da-95a9-00e08161165f} */
-#define ULTRA_VBUS_CHANNEL_PROTOCOL_GUID \
+#define SPAR_VBUS_CHANNEL_PROTOCOL_UUID \
 		UUID_LE(0x193b331b, 0xc58f, 0x11da, \
 				0x95, 0xa9, 0x0, 0xe0, 0x81, 0x61, 0x16, 0x5f)
-static const uuid_le UltraVbusChannelProtocolGuid =
-	ULTRA_VBUS_CHANNEL_PROTOCOL_GUID;
+static const uuid_le spar_vbus_channel_protocol_uuid =
+	SPAR_VBUS_CHANNEL_PROTOCOL_UUID;
 
-#define ULTRA_VBUS_CHANNEL_PROTOCOL_SIGNATURE ULTRA_CHANNEL_PROTOCOL_SIGNATURE
+#define SPAR_VBUS_CHANNEL_PROTOCOL_SIGNATURE ULTRA_CHANNEL_PROTOCOL_SIGNATURE
 
 /* Must increment this whenever you insert or delete fields within this channel
 * struct.  Also increment whenever you change the meaning of fields within this
 * channel struct so as to break pre-existing software.  Note that you can
 * usually add fields to the END of the channel struct withOUT needing to
 * increment this. */
-#define ULTRA_VBUS_CHANNEL_PROTOCOL_VERSIONID 1
+#define SPAR_VBUS_CHANNEL_PROTOCOL_VERSIONID 1
 
 #define SPAR_VBUS_CHANNEL_OK_CLIENT(pChannel, logCtx)       \
 	(spar_check_channel_client(pChannel,				\
-				   UltraVbusChannelProtocolGuid,	\
+				   spar_vbus_channel_protocol_uuid,	\
 				   "vbus",				\
 				   sizeof(struct ultra_vbus_channel_protocol),\
-				    ULTRA_VBUS_CHANNEL_PROTOCOL_VERSIONID, \
-				    ULTRA_VBUS_CHANNEL_PROTOCOL_SIGNATURE)) \
+				   SPAR_VBUS_CHANNEL_PROTOCOL_VERSIONID, \
+				   SPAR_VBUS_CHANNEL_PROTOCOL_SIGNATURE)) \
 
 #define ULTRA_VBUS_CHANNEL_OK_SERVER(actualBytes)    \
-	(spar_check_channel_server(UltraVbusChannelProtocolGuid,	\
-				    "vbus",				\
-				    sizeof(struct ultra_vbus_channel_protocol),\
-				    actualBytes))
+	(spar_check_channel_server(spar_vbus_channel_protocol_uuid,	\
+				   "vbus",				\
+				   sizeof(struct ultra_vbus_channel_protocol),\
+				   actualBytes))
 
 #pragma pack(push, 1)		/* both GCC and VC now allow this pragma */
 typedef struct _ULTRA_VBUS_HEADERINFO {
