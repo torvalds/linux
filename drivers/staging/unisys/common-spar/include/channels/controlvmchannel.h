@@ -143,11 +143,11 @@ struct irq_info {
 };
 
 struct pci_id {
-	u16 Domain;
-	u8 Bus;
-	u8 Slot;
-	u8 Func;
-	u8 Reserved[3];	/* Natural alignment purposes */
+	u16 domain;
+	u8 bus;
+	u8 slot;
+	u8 func;
+	u8 reserved[3];	/* Natural alignment purposes */
 };
 
 struct PciConfigHdr {
