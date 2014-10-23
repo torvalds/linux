@@ -227,13 +227,13 @@ struct controlvm_packet_device_create  {
 	struct irq_info intr;	/* specifies interrupt information */
 };	/* for CONTROLVM_DEVICE_CREATE */
 
-typedef struct _CONTROLVM_PACKET_DEVICE_CONFIGURE  {
-	u32 busNo;	      /**< bus # (0..n-1) from the msg
+struct controlvm_packet_device_configure  {
+	u32 bus_no;	      /**< bus # (0..n-1) from the msg
 			       * receiver's perspective */
 
 	    /* Control uses header SegmentIndex field to access bus number... */
-	u32 devNo;	      /**< bus-relative (0..n-1) device number */
-} CONTROLVM_PACKET_DEVICE_CONFIGURE;	/* for CONTROLVM_DEVICE_CONFIGURE */
+	u32 dev_no;	      /**< bus-relative (0..n-1) device number */
+} ;	/* for CONTROLVM_DEVICE_CONFIGURE */
 
 typedef struct _CONTROLVM_MESSAGE_DEVICE_CREATE  {
 	struct controlvm_message_header Header;
@@ -242,7 +242,7 @@ typedef struct _CONTROLVM_MESSAGE_DEVICE_CREATE  {
 
 typedef struct _CONTROLVM_MESSAGE_DEVICE_CONFIGURE  {
 	struct controlvm_message_header Header;
-	CONTROLVM_PACKET_DEVICE_CONFIGURE Packet;
+	struct controlvm_packet_device_configure Packet;
 } CONTROLVM_MESSAGE_DEVICE_CONFIGURE;	/* total 56 bytes */
 
 /* This is the format for a message in any ControlVm queue. */
@@ -289,7 +289,7 @@ struct controlvm_message_packet  {
 			u32 dev_no;	/* bus-relative (0..n-1) device # */
 		} destroy_device;	/* for CONTROLVM_DEVICE_DESTROY */
 		/* for CONTROLVM_DEVICE_CONFIGURE */
-		CONTROLVM_PACKET_DEVICE_CONFIGURE configure_device;
+		struct controlvm_packet_device_configure configure_device;
 		struct  {
 			u32 bus_no;	/* bus # (0..n-1) from the msg
 					 * receiver's perspective */

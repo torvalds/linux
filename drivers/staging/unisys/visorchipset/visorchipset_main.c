@@ -1880,8 +1880,8 @@ handle_command(CONTROLVM_MESSAGE inmsg, HOSTADDRESS channel_addr)
 		break;
 	case CONTROLVM_DEVICE_CONFIGURE:
 		LOGINF("DEVICE_CONFIGURE(%lu,%lu)",
-		       (ulong) cmd->configure_device.busNo,
-		       (ulong) cmd->configure_device.devNo);
+		       (ulong) cmd->configure_device.bus_no,
+		       (ulong) cmd->configure_device.dev_no);
 		/* no op for now, just send a respond that we passed */
 		if (inmsg.hdr.flags.response_expected)
 			controlvm_respond(&inmsg.hdr, CONTROLVM_RESP_SUCCESS);
