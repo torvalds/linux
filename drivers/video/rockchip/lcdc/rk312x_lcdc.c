@@ -657,7 +657,8 @@ static int rk312x_lcdc_set_lut(struct rk_lcdc_driver *dev_drv)
 	return 0;
 }
 
-static int rk312x_lcdc_set_dclk(struct rk_lcdc_driver *dev_drv)
+static int rk312x_lcdc_set_dclk(struct rk_lcdc_driver *dev_drv,
+				    int reset_rate)
 {
 #ifdef CONFIG_RK_FPGA
 	return 0;
@@ -667,7 +668,8 @@ static int rk312x_lcdc_set_dclk(struct rk_lcdc_driver *dev_drv)
 	    container_of(dev_drv, struct lcdc_device, driver);
 	struct rk_screen *screen = dev_drv->cur_screen;
 
-	ret = clk_set_rate(lcdc_dev->dclk, screen->mode.pixclock);
+	if (reset_rate)
+		ret = clk_set_rate(lcdc_dev->dclk, screen->mode.pixclock);
 	if (ret)
 		dev_err(dev_drv->dev, "set lcdc%d dclk failed\n", lcdc_dev->id);
 	lcdc_dev->pixclock =
@@ -1335,7 +1337,7 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 		}
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
-	rk312x_lcdc_set_dclk(dev_drv);
+	rk312x_lcdc_set_dclk(dev_drv, 1);
 	lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_LCDC_STANDBY, v_LCDC_STANDBY(0));
 	lcdc_cfg_done(lcdc_dev);
 	if (dev_drv->trsm_ops && dev_drv->trsm_ops->enable)
@@ -1379,7 +1381,7 @@ static int rk312x_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 		/*if (dev_drv->iommu_enabled)
 			rk312x_lcdc_mmu_en(dev_drv);*/
 		if ((support_uboot_display() && (lcdc_dev->prop == PRMRY))) {
-			/*rk312x_lcdc_set_dclk(dev_drv);*/
+			rk312x_lcdc_set_dclk(dev_drv, 0);
 			rk312x_lcdc_enable_irq(dev_drv);
 		} else {
 			rk312x_load_screen(dev_drv, 1);
