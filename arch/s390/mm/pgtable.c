@@ -834,99 +834,6 @@ static inline void page_table_free_pgste(unsigned long *table)
 	__free_page(page);
 }
 
-static inline unsigned long page_table_reset_pte(struct mm_struct *mm, pmd_t *pmd,
-			unsigned long addr, unsigned long end, bool init_skey)
-{
-	pte_t *start_pte, *pte;
-	spinlock_t *ptl;
-	pgste_t pgste;
-
-	start_pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
-	pte = start_pte;
-	do {
-		pgste = pgste_get_lock(pte);
-		pgste_val(pgste) &= ~_PGSTE_GPS_USAGE_MASK;
-		if (init_skey) {
-			unsigned long address;
-
-			pgste_val(pgste) &= ~(PGSTE_ACC_BITS | PGSTE_FP_BIT |
-					      PGSTE_GR_BIT | PGSTE_GC_BIT);
-
-			/* skip invalid and not writable pages */
-			if (pte_val(*pte) & _PAGE_INVALID ||
-			    !(pte_val(*pte) & _PAGE_WRITE)) {
-				pgste_set_unlock(pte, pgste);
-				continue;
-			}
-
-			address = pte_val(*pte) & PAGE_MASK;
-			page_set_storage_key(address, PAGE_DEFAULT_KEY, 1);
-		}
-		pgste_set_unlock(pte, pgste);
-	} while (pte++, addr += PAGE_SIZE, addr != end);
-	pte_unmap_unlock(start_pte, ptl);
-
-	return addr;
-}
-
-static inline unsigned long page_table_reset_pmd(struct mm_struct *mm, pud_t *pud,
-			unsigned long addr, unsigned long end, bool init_skey)
-{
-	unsigned long next;
-	pmd_t *pmd;
-
-	pmd = pmd_offset(pud, addr);
-	do {
-		next = pmd_addr_end(addr, end);
-		if (pmd_none_or_clear_bad(pmd))
-			continue;
-		next = page_table_reset_pte(mm, pmd, addr, next, init_skey);
-	} while (pmd++, addr = next, addr != end);
-
-	return addr;
-}
-
-static inline unsigned long page_table_reset_pud(struct mm_struct *mm, pgd_t *pgd,
-			unsigned long addr, unsigned long end, bool init_skey)
-{
-	unsigned long next;
-	pud_t *pud;
-
-	pud = pud_offset(pgd, addr);
-	do {
-		next = pud_addr_end(addr, end);
-		if (pud_none_or_clear_bad(pud))
-			continue;
-		next = page_table_reset_pmd(mm, pud, addr, next, init_skey);
-	} while (pud++, addr = next, addr != end);
-
-	return addr;
-}
-
-void page_table_reset_pgste(struct mm_struct *mm, unsigned long start,
-			    unsigned long end, bool init_skey)
-{
-	unsigned long addr, next;
-	pgd_t *pgd;
-
-	down_write(&mm->mmap_sem);
-	if (init_skey && mm_use_skey(mm))
-		goto out_up;
-	addr = start;
-	pgd = pgd_offset(mm, addr);
-	do {
-		next = pgd_addr_end(addr, end);
-		if (pgd_none_or_clear_bad(pgd))
-			continue;
-		next = page_table_reset_pud(mm, pgd, addr, next, init_skey);
-	} while (pgd++, addr = next, addr != end);
-	if (init_skey)
-		current->mm->context.use_skey = 1;
-out_up:
-	up_write(&mm->mmap_sem);
-}
-EXPORT_SYMBOL(page_table_reset_pgste);
-
 int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 			  unsigned long key, bool nq)
 {
@@ -990,11 +897,6 @@ static inline int page_table_with_pgste(struct page *page)
 static inline unsigned long *page_table_alloc_pgste(struct mm_struct *mm)
 {
 	return NULL;
-}
-
-void page_table_reset_pgste(struct mm_struct *mm, unsigned long start,
-			    unsigned long end, bool init_skey)
-{
 }
 
 static inline void page_table_free_pgste(unsigned long *table)
@@ -1347,11 +1249,64 @@ EXPORT_SYMBOL_GPL(s390_enable_sie);
  * Enable storage key handling from now on and initialize the storage
  * keys with the default key.
  */
+static int __s390_enable_skey(pte_t *pte, unsigned long addr,
+			      unsigned long next, struct mm_walk *walk)
+{
+	unsigned long ptev;
+	pgste_t pgste;
+
+	pgste = pgste_get_lock(pte);
+	/* Clear storage key */
+	pgste_val(pgste) &= ~(PGSTE_ACC_BITS | PGSTE_FP_BIT |
+			      PGSTE_GR_BIT | PGSTE_GC_BIT);
+	ptev = pte_val(*pte);
+	if (!(ptev & _PAGE_INVALID) && (ptev & _PAGE_WRITE))
+		page_set_storage_key(ptev & PAGE_MASK, PAGE_DEFAULT_KEY, 1);
+	pgste_set_unlock(pte, pgste);
+	return 0;
+}
+
 void s390_enable_skey(void)
 {
-	page_table_reset_pgste(current->mm, 0, TASK_SIZE, true);
+	struct mm_walk walk = { .pte_entry = __s390_enable_skey };
+	struct mm_struct *mm = current->mm;
+
+	down_write(&mm->mmap_sem);
+	if (mm_use_skey(mm))
+		goto out_up;
+	walk.mm = mm;
+	walk_page_range(0, TASK_SIZE, &walk);
+	mm->context.use_skey = 1;
+
+out_up:
+	up_write(&mm->mmap_sem);
 }
 EXPORT_SYMBOL_GPL(s390_enable_skey);
+
+/*
+ * Reset CMMA state, make all pages stable again.
+ */
+static int __s390_reset_cmma(pte_t *pte, unsigned long addr,
+			     unsigned long next, struct mm_walk *walk)
+{
+	pgste_t pgste;
+
+	pgste = pgste_get_lock(pte);
+	pgste_val(pgste) &= ~_PGSTE_GPS_USAGE_MASK;
+	pgste_set_unlock(pte, pgste);
+	return 0;
+}
+
+void s390_reset_cmma(struct mm_struct *mm)
+{
+	struct mm_walk walk = { .pte_entry = __s390_reset_cmma };
+
+	down_write(&mm->mmap_sem);
+	walk.mm = mm;
+	walk_page_range(0, TASK_SIZE, &walk);
+	up_write(&mm->mmap_sem);
+}
+EXPORT_SYMBOL_GPL(s390_reset_cmma);
 
 /*
  * Test and reset if a guest page is dirty

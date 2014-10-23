@@ -1747,6 +1747,7 @@ extern int vmem_add_mapping(unsigned long start, unsigned long size);
 extern int vmem_remove_mapping(unsigned long start, unsigned long size);
 extern int s390_enable_sie(void);
 extern void s390_enable_skey(void);
+extern void s390_reset_cmma(struct mm_struct *mm);
 
 /*
  * No page table caches to initialise
