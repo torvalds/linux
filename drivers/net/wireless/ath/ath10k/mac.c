@@ -4040,6 +4040,9 @@ static int ath10k_get_survey(struct ieee80211_hw *hw, int idx,
 
 	survey->channel = &sband->channels[idx];
 
+	if (ar->rx_channel == survey->channel)
+		survey->filled |= SURVEY_INFO_IN_USE;
+
 exit:
 	mutex_unlock(&ar->conf_mutex);
 	return ret;
