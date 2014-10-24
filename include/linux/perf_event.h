@@ -202,6 +202,13 @@ struct pmu {
 	 */
 	int (*event_init)		(struct perf_event *event);
 
+	/*
+	 * Notification that the event was mapped or unmapped.  Called
+	 * in the context of the mapping task.
+	 */
+	void (*event_mapped)		(struct perf_event *event); /*optional*/
+	void (*event_unmapped)		(struct perf_event *event); /*optional*/
+
 #define PERF_EF_START	0x01		/* start the counter when adding    */
 #define PERF_EF_RELOAD	0x02		/* reload the counter when starting */
 #define PERF_EF_UPDATE	0x04		/* update the counter when stopping */

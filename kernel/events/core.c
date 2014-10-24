@@ -4293,6 +4293,9 @@ static void perf_mmap_open(struct vm_area_struct *vma)
 
 	atomic_inc(&event->mmap_count);
 	atomic_inc(&event->rb->mmap_count);
+
+	if (event->pmu->event_mapped)
+		event->pmu->event_mapped(event);
 }
 
 /*
@@ -4311,6 +4314,9 @@ static void perf_mmap_close(struct vm_area_struct *vma)
 	struct user_struct *mmap_user = rb->mmap_user;
 	int mmap_locked = rb->mmap_locked;
 	unsigned long size = perf_data_size(rb);
+
+	if (event->pmu->event_unmapped)
+		event->pmu->event_unmapped(event);
 
 	atomic_dec(&rb->mmap_count);
 
@@ -4512,6 +4518,9 @@ unlock:
 	 */
 	vma->vm_flags |= VM_DONTCOPY | VM_DONTEXPAND | VM_DONTDUMP;
 	vma->vm_ops = &perf_mmap_vmops;
+
+	if (event->pmu->event_mapped)
+		event->pmu->event_mapped(event);
 
 	return ret;
 }
