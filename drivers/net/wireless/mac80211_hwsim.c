@@ -2178,6 +2178,7 @@ static int mac80211_hwsim_create_radio(int channels, const char *reg_alpha2,
 		sband->ht_cap.ht_supported = true;
 		sband->ht_cap.cap = IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
 				    IEEE80211_HT_CAP_GRN_FLD |
+				    IEEE80211_HT_CAP_SGI_20 |
 				    IEEE80211_HT_CAP_SGI_40 |
 				    IEEE80211_HT_CAP_DSSSCCK40;
 		sband->ht_cap.ampdu_factor = 0x3;
