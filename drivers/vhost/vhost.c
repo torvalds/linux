@@ -33,8 +33,8 @@ enum {
 	VHOST_MEMORY_F_LOG = 0x1,
 };
 
-#define vhost_used_event(vq) ((u16 __user *)&vq->avail->ring[vq->num])
-#define vhost_avail_event(vq) ((u16 __user *)&vq->used->ring[vq->num])
+#define vhost_used_event(vq) ((__virtio16 __user *)&vq->avail->ring[vq->num])
+#define vhost_avail_event(vq) ((__virtio16 __user *)&vq->used->ring[vq->num])
 
 static void vhost_poll_func(struct file *file, wait_queue_head_t *wqh,
 			    poll_table *pt)
@@ -1001,7 +1001,7 @@ EXPORT_SYMBOL_GPL(vhost_log_write);
 static int vhost_update_used_flags(struct vhost_virtqueue *vq)
 {
 	void __user *used;
-	if (__put_user(vq->used_flags, &vq->used->flags) < 0)
+	if (__put_user(cpu_to_vhost16(vq, vq->used_flags), &vq->used->flags) < 0)
 		return -EFAULT;
 	if (unlikely(vq->log_used)) {
 		/* Make sure the flag is seen before log. */
@@ -1019,7 +1019,7 @@ static int vhost_update_used_flags(struct vhost_virtqueue *vq)
 
 static int vhost_update_avail_event(struct vhost_virtqueue *vq, u16 avail_event)
 {
-	if (__put_user(vq->avail_idx, vhost_avail_event(vq)))
+	if (__put_user(cpu_to_vhost16(vq, vq->avail_idx), vhost_avail_event(vq)))
 		return -EFAULT;
 	if (unlikely(vq->log_used)) {
 		void __user *used;
@@ -1038,7 +1038,7 @@ static int vhost_update_avail_event(struct vhost_virtqueue *vq, u16 avail_event)
 
 int vhost_init_used(struct vhost_virtqueue *vq)
 {
-	u16 last_used_idx;
+	__virtio16 last_used_idx;
 	int r;
 	if (!vq->private_data)
 		return 0;
@@ -1052,7 +1052,7 @@ int vhost_init_used(struct vhost_virtqueue *vq)
 	r = __get_user(last_used_idx, &vq->used->idx);
 	if (r)
 		return r;
-	vq->last_used_idx = last_used_idx;
+	vq->last_used_idx = vhost16_to_cpu(vq, last_used_idx);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vhost_init_used);
@@ -1094,16 +1094,16 @@ static int translate_desc(struct vhost_virtqueue *vq, u64 addr, u32 len,
 /* Each buffer in the virtqueues is actually a chain of descriptors.  This
  * function returns the next descriptor in the chain,
  * or -1U if we're at the end. */
-static unsigned next_desc(struct vring_desc *desc)
+static unsigned next_desc(struct vhost_virtqueue *vq, struct vring_desc *desc)
 {
 	unsigned int next;
 
 	/* If this descriptor says it doesn't chain, we're done. */
-	if (!(desc->flags & VRING_DESC_F_NEXT))
+	if (!(desc->flags & cpu_to_vhost16(vq, VRING_DESC_F_NEXT)))
 		return -1U;
 
 	/* Check they're not leading us off end of descriptors. */
-	next = desc->next;
+	next = vhost16_to_cpu(vq, desc->next);
 	/* Make sure compiler knows to grab that: we don't want it changing! */
 	/* We will use the result as an index in an array, so most
 	 * architectures only need a compiler barrier here. */
@@ -1120,18 +1120,19 @@ static int get_indirect(struct vhost_virtqueue *vq,
 {
 	struct vring_desc desc;
 	unsigned int i = 0, count, found = 0;
+	u32 len = vhost32_to_cpu(vq, indirect->len);
 	int ret;
 
 	/* Sanity check */
-	if (unlikely(indirect->len % sizeof desc)) {
+	if (unlikely(len % sizeof desc)) {
 		vq_err(vq, "Invalid length in indirect descriptor: "
 		       "len 0x%llx not multiple of 0x%zx\n",
-		       (unsigned long long)indirect->len,
+		       (unsigned long long)len,
 		       sizeof desc);
 		return -EINVAL;
 	}
 
-	ret = translate_desc(vq, indirect->addr, indirect->len, vq->indirect,
+	ret = translate_desc(vq, vhost64_to_cpu(vq, indirect->addr), len, vq->indirect,
 			     UIO_MAXIOV);
 	if (unlikely(ret < 0)) {
 		vq_err(vq, "Translation failure %d in indirect.\n", ret);
@@ -1142,7 +1143,7 @@ static int get_indirect(struct vhost_virtqueue *vq,
 	 * architectures only need a compiler barrier here. */
 	read_barrier_depends();
 
-	count = indirect->len / sizeof desc;
+	count = len / sizeof desc;
 	/* Buffers are chained via a 16 bit next field, so
 	 * we can have at most 2^16 of these. */
 	if (unlikely(count > USHRT_MAX + 1)) {
@@ -1162,16 +1163,17 @@ static int get_indirect(struct vhost_virtqueue *vq,
 		if (unlikely(memcpy_fromiovec((unsigned char *)&desc,
 					      vq->indirect, sizeof desc))) {
 			vq_err(vq, "Failed indirect descriptor: idx %d, %zx\n",
-			       i, (size_t)indirect->addr + i * sizeof desc);
+			       i, (size_t)vhost64_to_cpu(vq, indirect->addr) + i * sizeof desc);
 			return -EINVAL;
 		}
-		if (unlikely(desc.flags & VRING_DESC_F_INDIRECT)) {
+		if (unlikely(desc.flags & cpu_to_vhost16(vq, VRING_DESC_F_INDIRECT))) {
 			vq_err(vq, "Nested indirect descriptor: idx %d, %zx\n",
-			       i, (size_t)indirect->addr + i * sizeof desc);
+			       i, (size_t)vhost64_to_cpu(vq, indirect->addr) + i * sizeof desc);
 			return -EINVAL;
 		}
 
-		ret = translate_desc(vq, desc.addr, desc.len, iov + iov_count,
+		ret = translate_desc(vq, vhost64_to_cpu(vq, desc.addr),
+				     vhost32_to_cpu(vq, desc.len), iov + iov_count,
 				     iov_size - iov_count);
 		if (unlikely(ret < 0)) {
 			vq_err(vq, "Translation failure %d indirect idx %d\n",
@@ -1179,11 +1181,11 @@ static int get_indirect(struct vhost_virtqueue *vq,
 			return ret;
 		}
 		/* If this is an input descriptor, increment that count. */
-		if (desc.flags & VRING_DESC_F_WRITE) {
+		if (desc.flags & cpu_to_vhost16(vq, VRING_DESC_F_WRITE)) {
 			*in_num += ret;
 			if (unlikely(log)) {
-				log[*log_num].addr = desc.addr;
-				log[*log_num].len = desc.len;
+				log[*log_num].addr = vhost64_to_cpu(vq, desc.addr);
+				log[*log_num].len = vhost32_to_cpu(vq, desc.len);
 				++*log_num;
 			}
 		} else {
@@ -1196,7 +1198,7 @@ static int get_indirect(struct vhost_virtqueue *vq,
 			}
 			*out_num += ret;
 		}
-	} while ((i = next_desc(&desc)) != -1);
+	} while ((i = next_desc(vq, &desc)) != -1);
 	return 0;
 }
 
@@ -1216,15 +1218,18 @@ int vhost_get_vq_desc(struct vhost_virtqueue *vq,
 	struct vring_desc desc;
 	unsigned int i, head, found = 0;
 	u16 last_avail_idx;
+	__virtio16 avail_idx;
+	__virtio16 ring_head;
 	int ret;
 
 	/* Check it isn't doing very strange things with descriptor numbers. */
 	last_avail_idx = vq->last_avail_idx;
-	if (unlikely(__get_user(vq->avail_idx, &vq->avail->idx))) {
+	if (unlikely(__get_user(avail_idx, &vq->avail->idx))) {
 		vq_err(vq, "Failed to access avail idx at %p\n",
 		       &vq->avail->idx);
 		return -EFAULT;
 	}
+	vq->avail_idx = vhost16_to_cpu(vq, avail_idx);
 
 	if (unlikely((u16)(vq->avail_idx - last_avail_idx) > vq->num)) {
 		vq_err(vq, "Guest moved used index from %u to %u",
@@ -1241,13 +1246,15 @@ int vhost_get_vq_desc(struct vhost_virtqueue *vq,
 
 	/* Grab the next descriptor number they're advertising, and increment
 	 * the index we've seen. */
-	if (unlikely(__get_user(head,
+	if (unlikely(__get_user(ring_head,
 				&vq->avail->ring[last_avail_idx % vq->num]))) {
 		vq_err(vq, "Failed to read head: idx %d address %p\n",
 		       last_avail_idx,
 		       &vq->avail->ring[last_avail_idx % vq->num]);
 		return -EFAULT;
 	}
+
+	head = vhost16_to_cpu(vq, ring_head);
 
 	/* If their number is silly, that's an error. */
 	if (unlikely(head >= vq->num)) {
@@ -1281,7 +1288,7 @@ int vhost_get_vq_desc(struct vhost_virtqueue *vq,
 			       i, vq->desc + i);
 			return -EFAULT;
 		}
-		if (desc.flags & VRING_DESC_F_INDIRECT) {
+		if (desc.flags & cpu_to_vhost16(vq, VRING_DESC_F_INDIRECT)) {
 			ret = get_indirect(vq, iov, iov_size,
 					   out_num, in_num,
 					   log, log_num, &desc);
@@ -1293,20 +1300,21 @@ int vhost_get_vq_desc(struct vhost_virtqueue *vq,
 			continue;
 		}
 
-		ret = translate_desc(vq, desc.addr, desc.len, iov + iov_count,
+		ret = translate_desc(vq, vhost64_to_cpu(vq, desc.addr),
+				     vhost32_to_cpu(vq, desc.len), iov + iov_count,
 				     iov_size - iov_count);
 		if (unlikely(ret < 0)) {
 			vq_err(vq, "Translation failure %d descriptor idx %d\n",
 			       ret, i);
 			return ret;
 		}
-		if (desc.flags & VRING_DESC_F_WRITE) {
+		if (desc.flags & cpu_to_vhost16(vq, VRING_DESC_F_WRITE)) {
 			/* If this is an input descriptor,
 			 * increment that count. */
 			*in_num += ret;
 			if (unlikely(log)) {
-				log[*log_num].addr = desc.addr;
-				log[*log_num].len = desc.len;
+				log[*log_num].addr = vhost64_to_cpu(vq, desc.addr);
+				log[*log_num].len = vhost32_to_cpu(vq, desc.len);
 				++*log_num;
 			}
 		} else {
@@ -1319,7 +1327,7 @@ int vhost_get_vq_desc(struct vhost_virtqueue *vq,
 			}
 			*out_num += ret;
 		}
-	} while ((i = next_desc(&desc)) != -1);
+	} while ((i = next_desc(vq, &desc)) != -1);
 
 	/* On success, increment avail index. */
 	vq->last_avail_idx++;
@@ -1342,7 +1350,10 @@ EXPORT_SYMBOL_GPL(vhost_discard_vq_desc);
  * want to notify the guest, using eventfd. */
 int vhost_add_used(struct vhost_virtqueue *vq, unsigned int head, int len)
 {
-	struct vring_used_elem heads = { head, len };
+	struct vring_used_elem heads = {
+		cpu_to_vhost32(vq, head),
+		cpu_to_vhost32(vq, len)
+	};
 
 	return vhost_add_used_n(vq, &heads, 1);
 }
@@ -1411,7 +1422,7 @@ int vhost_add_used_n(struct vhost_virtqueue *vq, struct vring_used_elem *heads,
 
 	/* Make sure buffer is written before we update index. */
 	smp_wmb();
-	if (__put_user(vq->last_used_idx, &vq->used->idx)) {
+	if (__put_user(cpu_to_vhost16(vq, vq->last_used_idx), &vq->used->idx)) {
 		vq_err(vq, "Failed to increment used idx");
 		return -EFAULT;
 	}
@@ -1429,7 +1440,8 @@ EXPORT_SYMBOL_GPL(vhost_add_used_n);
 
 static bool vhost_notify(struct vhost_dev *dev, struct vhost_virtqueue *vq)
 {
-	__u16 old, new, event;
+	__u16 old, new;
+	__virtio16 event;
 	bool v;
 	/* Flush out used index updates. This is paired
 	 * with the barrier that the Guest executes when enabling
@@ -1441,12 +1453,12 @@ static bool vhost_notify(struct vhost_dev *dev, struct vhost_virtqueue *vq)
 		return true;
 
 	if (!vhost_has_feature(vq, VIRTIO_RING_F_EVENT_IDX)) {
-		__u16 flags;
+		__virtio16 flags;
 		if (__get_user(flags, &vq->avail->flags)) {
 			vq_err(vq, "Failed to get flags");
 			return true;
 		}
-		return !(flags & VRING_AVAIL_F_NO_INTERRUPT);
+		return !(flags & cpu_to_vhost16(vq, VRING_AVAIL_F_NO_INTERRUPT));
 	}
 	old = vq->signalled_used;
 	v = vq->signalled_used_valid;
@@ -1460,7 +1472,7 @@ static bool vhost_notify(struct vhost_dev *dev, struct vhost_virtqueue *vq)
 		vq_err(vq, "Failed to get used event idx");
 		return true;
 	}
-	return vring_need_event(event, new, old);
+	return vring_need_event(vhost16_to_cpu(vq, event), new, old);
 }
 
 /* This actually signals the guest, using eventfd. */
@@ -1495,7 +1507,7 @@ EXPORT_SYMBOL_GPL(vhost_add_used_and_signal_n);
 /* OK, now we need to know about added descriptors. */
 bool vhost_enable_notify(struct vhost_dev *dev, struct vhost_virtqueue *vq)
 {
-	u16 avail_idx;
+	__virtio16 avail_idx;
 	int r;
 
 	if (!(vq->used_flags & VRING_USED_F_NO_NOTIFY))
@@ -1526,7 +1538,7 @@ bool vhost_enable_notify(struct vhost_dev *dev, struct vhost_virtqueue *vq)
 		return false;
 	}
 
-	return avail_idx != vq->avail_idx;
+	return vhost16_to_cpu(vq, avail_idx) != vq->avail_idx;
 }
 EXPORT_SYMBOL_GPL(vhost_enable_notify);
 
