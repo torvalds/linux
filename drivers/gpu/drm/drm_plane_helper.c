@@ -127,6 +127,11 @@ int drm_plane_helper_check_update(struct drm_plane *plane,
 		return -ERANGE;
 	}
 
+	if (!fb) {
+		*visible = false;
+		return 0;
+	}
+
 	*visible = drm_rect_clip_scaled(src, dest, clip, hscale, vscale);
 	if (!*visible)
 		/*
