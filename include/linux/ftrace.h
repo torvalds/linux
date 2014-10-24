@@ -263,7 +263,9 @@ struct ftrace_func_command {
 int ftrace_arch_code_modify_prepare(void);
 int ftrace_arch_code_modify_post_process(void);
 
-void ftrace_bug(int err, unsigned long ip);
+struct dyn_ftrace;
+
+void ftrace_bug(int err, struct dyn_ftrace *rec);
 
 struct seq_file;
 

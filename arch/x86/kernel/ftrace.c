@@ -583,7 +583,7 @@ void ftrace_replace_code(int enable)
 
  remove_breakpoints:
 	pr_warn("Failed on %s (%d):\n", report, count);
-	ftrace_bug(ret, rec ? rec->ip : 0);
+	ftrace_bug(ret, rec);
 	for_ftrace_rec_iter(iter) {
 		rec = ftrace_rec_iter_record(iter);
 		/*

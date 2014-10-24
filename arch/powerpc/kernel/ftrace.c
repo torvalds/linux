@@ -449,7 +449,7 @@ void ftrace_replace_code(int enable)
 		rec = ftrace_rec_iter_record(iter);
 		ret = __ftrace_replace_code(rec, enable);
 		if (ret) {
-			ftrace_bug(ret, rec->ip);
+			ftrace_bug(ret, rec);
 			return;
 		}
 	}
