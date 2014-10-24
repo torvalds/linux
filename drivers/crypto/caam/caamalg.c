@@ -2185,7 +2185,8 @@ static struct aead_edesc *aead_giv_edesc_alloc(struct aead_givcrypt_request
 		assoc_nents = assoc_nents ? : 1;
 		src_nents = src_nents ? : 1;
 		sec4_sg_len += assoc_nents + 1 + src_nents;
-		if (likely(req->src == req->dst))
+		if (req->src == req->dst &&
+		    (src_nents || iv_dma + ivsize != sg_dma_address(req->src)))
 			contig &= ~GIV_DST_CONTIG;
 	}
 
