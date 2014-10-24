@@ -1407,38 +1407,68 @@ static const char * const hostbyte_table[]={
 "DID_PASSTHROUGH", "DID_SOFT_ERROR", "DID_IMM_RETRY", "DID_REQUEUE",
 "DID_TRANSPORT_DISRUPTED", "DID_TRANSPORT_FAILFAST", "DID_TARGET_FAILURE",
 "DID_NEXUS_FAILURE" };
-#define NUM_HOSTBYTE_STRS ARRAY_SIZE(hostbyte_table)
 
 static const char * const driverbyte_table[]={
 "DRIVER_OK", "DRIVER_BUSY", "DRIVER_SOFT",  "DRIVER_MEDIA", "DRIVER_ERROR",
 "DRIVER_INVALID", "DRIVER_TIMEOUT", "DRIVER_HARD", "DRIVER_SENSE"};
-#define NUM_DRIVERBYTE_STRS ARRAY_SIZE(driverbyte_table)
-
-void scsi_show_result(int result)
-{
-	int hb = host_byte(result);
-	int db = driver_byte(result);
-
-	printk("Result: hostbyte=%s driverbyte=%s\n",
-	       (hb < NUM_HOSTBYTE_STRS ? hostbyte_table[hb]     : "invalid"),
-	       (db < NUM_DRIVERBYTE_STRS ? driverbyte_table[db] : "invalid"));
-}
-
-#else
-
-void scsi_show_result(int result)
-{
-	printk("Result: hostbyte=0x%02x driverbyte=0x%02x\n",
-	       host_byte(result), driver_byte(result));
-}
 
 #endif
+
+const char *scsi_hostbyte_string(int result)
+{
+	const char *hb_string = NULL;
+#ifdef CONFIG_SCSI_CONSTANTS
+	int hb = host_byte(result);
+
+	if (hb < ARRAY_SIZE(hostbyte_table))
+		hb_string = hostbyte_table[hb];
+#endif
+	return hb_string;
+}
+EXPORT_SYMBOL(scsi_hostbyte_string);
+
+const char *scsi_driverbyte_string(int result)
+{
+	const char *db_string = NULL;
+#ifdef CONFIG_SCSI_CONSTANTS
+	int db = driver_byte(result);
+
+	if (db < ARRAY_SIZE(driverbyte_table))
+		db_string = driverbyte_table[db];
+#endif
+	return db_string;
+}
+EXPORT_SYMBOL(scsi_driverbyte_string);
+
+void scsi_show_result(int result)
+{
+	const char *hb_string = scsi_hostbyte_string(result);
+	const char *db_string = scsi_driverbyte_string(result);
+
+	if (hb_string || db_string)
+		printk("Result: hostbyte=%s driverbyte=%s\n",
+		       hb_string ? hb_string : "invalid",
+		       db_string ? db_string : "invalid");
+	else
+		printk("Result: hostbyte=0x%02x driverbyte=0x%02x\n",
+		       host_byte(result), driver_byte(result));
+}
 EXPORT_SYMBOL(scsi_show_result);
 
 
 void scsi_print_result(struct scsi_cmnd *cmd)
 {
-	scmd_printk(KERN_INFO, cmd, " ");
-	scsi_show_result(cmd->result);
+	const char *hb_string = scsi_hostbyte_string(cmd->result);
+	const char *db_string = scsi_driverbyte_string(cmd->result);
+
+	if (hb_string || db_string)
+		scmd_printk(KERN_INFO, cmd,
+			    "Result: hostbyte=%s driverbyte=%s",
+			    hb_string ? hb_string : "invalid",
+			    db_string ? db_string : "invalid");
+	else
+		scmd_printk(KERN_INFO, cmd,
+			    "Result: hostbyte=0x%02x driverbyte=0x%02x",
+			    host_byte(cmd->result), driver_byte(cmd->result));
 }
 EXPORT_SYMBOL(scsi_print_result);
