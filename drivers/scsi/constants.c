@@ -1436,26 +1436,21 @@ scsi_print_sense_hdr(const struct scsi_device *sdev, const char *name,
 EXPORT_SYMBOL(scsi_print_sense_hdr);
 
 static void
-scsi_decode_sense_buffer(const unsigned char *sense_buffer, int sense_len,
-		       struct scsi_sense_hdr *sshdr)
+scsi_dump_sense_buffer(const unsigned char *sense_buffer, int sense_len)
 {
-	int k, num, res;
+	int k, num;
 
-	res = scsi_normalize_sense(sense_buffer, sense_len, sshdr);
-	if (0 == res) {
-		/* this may be SCSI-1 sense data */
-		num = (sense_len < 32) ? sense_len : 32;
-		printk("Unrecognized sense data (in hex):");
-		for (k = 0; k < num; ++k) {
-			if (0 == (k % 16)) {
-				printk("\n");
-				printk(KERN_INFO "        ");
-			}
-			printk("%02x ", sense_buffer[k]);
+	num = (sense_len < 32) ? sense_len : 32;
+	printk("Unrecognized sense data (in hex):");
+	for (k = 0; k < num; ++k) {
+		if (0 == (k % 16)) {
+			printk("\n");
+			printk(KERN_INFO "        ");
 		}
-		printk("\n");
-		return;
+		printk("%02x ", sense_buffer[k]);
 	}
+	printk("\n");
+	return;
 }
 
 static void
@@ -1525,7 +1520,10 @@ void __scsi_print_sense(const struct scsi_device *sdev, const char *name,
 {
 	struct scsi_sense_hdr sshdr;
 
-	scsi_decode_sense_buffer(sense_buffer, sense_len, &sshdr);
+	if (!scsi_normalize_sense(sense_buffer, sense_len, &sshdr)) {
+		scsi_dump_sense_buffer(sense_buffer, sense_len);
+		return;
+	}
 	scsi_show_sense_hdr(sdev, name, &sshdr);
 	scsi_decode_sense_extras(sense_buffer, sense_len, &sshdr);
 	scsi_show_extd_sense(sdev, name, sshdr.asc, sshdr.ascq);
