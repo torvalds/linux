@@ -1,5 +1,5 @@
 config CRYPTO_SKEIN
-	bool "Skein digest algorithm"
+	tristate "Skein digest algorithm"
 	depends on (X86 || UML_X86) && 64BIT && CRYPTO
 	select CRYPTO_HASH
 	select CRYPTO_ALGAPI

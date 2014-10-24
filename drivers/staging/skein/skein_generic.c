@@ -16,6 +16,7 @@
  */
 #include <linux/types.h>
 #include <linux/init.h>
+#include <linux/module.h>
 #include <crypto/internal/hash.h>
 #include "skein_base.h"
 
@@ -139,6 +140,7 @@ static struct shash_alg alg256 = {
 		.cra_driver_name	=	"skein",
 		.cra_flags		=	CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize		=	SKEIN_256_BLOCK_BYTES,
+		.cra_module		=	THIS_MODULE,
 	}
 };
 
@@ -156,6 +158,7 @@ static struct shash_alg alg512 = {
 		.cra_driver_name	=	"skein",
 		.cra_flags		=	CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize		=	SKEIN_512_BLOCK_BYTES,
+		.cra_module		=	THIS_MODULE,
 	}
 };
 
@@ -173,6 +176,7 @@ static struct shash_alg alg1024 = {
 		.cra_driver_name	=	"skein",
 		.cra_flags		=	CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize		=	SKEIN_1024_BLOCK_BYTES,
+		.cra_module		=	THIS_MODULE,
 	}
 };
 
@@ -196,4 +200,17 @@ out:
 	return -1;
 }
 
-device_initcall(skein_generic_init);
+static void __exit skein_generic_fini(void)
+{
+	crypto_unregister_shash(&alg256);
+	crypto_unregister_shash(&alg512);
+	crypto_unregister_shash(&alg1024);
+}
+
+module_init(skein_generic_init);
+module_exit(skein_generic_fini);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Skein Hash Algorithm");
+
+MODULE_ALIAS("skein");
