@@ -157,8 +157,9 @@ scmd_eh_abort_handler(struct work_struct *work)
 		} else {
 			SCSI_LOG_ERROR_RECOVERY(3,
 				scmd_printk(KERN_INFO, scmd,
-					    "scmd %p abort failed, rtn %d\n",
-					    scmd, rtn));
+					    "scmd %p abort %s\n", scmd,
+					    (rtn == FAST_IO_FAIL) ?
+					    "not send" : "failed"));
 		}
 	}
 
@@ -869,7 +870,24 @@ static int scsi_try_bus_device_reset(struct scsi_cmnd *scmd)
 	return rtn;
 }
 
-static int scsi_try_to_abort_cmd(struct scsi_host_template *hostt, struct scsi_cmnd *scmd)
+/**
+ * scsi_try_to_abort_cmd - Ask host to abort a SCSI command
+ * @scmd:	SCSI cmd used to send a target reset
+ *
+ * Return value:
+ *	SUCCESS, FAILED, or FAST_IO_FAIL
+ *
+ * Notes:
+ *    SUCCESS does not necessarily indicate that the command
+ *    has been aborted; it only indicates that the LLDDs
+ *    has cleared all references to that command.
+ *    LLDDs should return FAILED only if an abort was required
+ *    but could not be executed. LLDDs should return FAST_IO_FAIL
+ *    if the device is temporarily unavailable (eg due to a
+ *    link down on FibreChannel)
+ */
+static int scsi_try_to_abort_cmd(struct scsi_host_template *hostt,
+				 struct scsi_cmnd *scmd)
 {
 	if (!hostt->eh_abort_handler)
 		return FAILED;
