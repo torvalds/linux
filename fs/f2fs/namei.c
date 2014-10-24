@@ -55,6 +55,8 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 		goto out;
 	}
 
+	if (f2fs_may_inline(inode))
+		set_inode_flag(F2FS_I(inode), FI_INLINE_DATA);
 	if (test_opt(sbi, INLINE_DENTRY) && S_ISDIR(inode->i_mode))
 		set_inode_flag(F2FS_I(inode), FI_INLINE_DENTRY);
 
@@ -133,6 +135,7 @@ static int f2fs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 
 	alloc_nid_done(sbi, ino);
 
+	stat_inc_inline_inode(inode);
 	d_instantiate(dentry, inode);
 	unlock_new_inode(inode);
 	return 0;

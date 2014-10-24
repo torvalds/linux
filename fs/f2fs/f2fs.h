@@ -1101,6 +1101,7 @@ enum {
 	FI_NEED_IPU,		/* used for ipu per file */
 	FI_ATOMIC_FILE,		/* indicate atomic file */
 	FI_VOLATILE_FILE,	/* indicate volatile file */
+	FI_DATA_EXIST,		/* indicate data exists */
 };
 
 static inline void set_inode_flag(struct f2fs_inode_info *fi, int flag)
@@ -1135,6 +1136,8 @@ static inline void get_inline_info(struct f2fs_inode_info *fi,
 		set_inode_flag(fi, FI_INLINE_DATA);
 	if (ri->i_inline & F2FS_INLINE_DENTRY)
 		set_inode_flag(fi, FI_INLINE_DENTRY);
+	if (ri->i_inline & F2FS_DATA_EXIST)
+		set_inode_flag(fi, FI_DATA_EXIST);
 }
 
 static inline void set_raw_inline(struct f2fs_inode_info *fi,
@@ -1148,6 +1151,8 @@ static inline void set_raw_inline(struct f2fs_inode_info *fi,
 		ri->i_inline |= F2FS_INLINE_DATA;
 	if (is_inode_flag_set(fi, FI_INLINE_DENTRY))
 		ri->i_inline |= F2FS_INLINE_DENTRY;
+	if (is_inode_flag_set(fi, FI_DATA_EXIST))
+		ri->i_inline |= F2FS_DATA_EXIST;
 }
 
 static inline int f2fs_has_inline_xattr(struct inode *inode)
@@ -1180,6 +1185,17 @@ static inline int inline_xattr_size(struct inode *inode)
 static inline int f2fs_has_inline_data(struct inode *inode)
 {
 	return is_inode_flag_set(F2FS_I(inode), FI_INLINE_DATA);
+}
+
+static inline void f2fs_clear_inline_inode(struct inode *inode)
+{
+	clear_inode_flag(F2FS_I(inode), FI_INLINE_DATA);
+	clear_inode_flag(F2FS_I(inode), FI_DATA_EXIST);
+}
+
+static inline int f2fs_exist_data(struct inode *inode)
+{
+	return is_inode_flag_set(F2FS_I(inode), FI_DATA_EXIST);
 }
 
 static inline bool f2fs_is_atomic_file(struct inode *inode)
@@ -1590,10 +1606,12 @@ extern const struct inode_operations f2fs_special_inode_operations;
  * inline.c
  */
 bool f2fs_may_inline(struct inode *);
+void read_inline_data(struct page *, struct page *);
 int f2fs_read_inline_data(struct inode *, struct page *);
-int f2fs_convert_inline_data(struct inode *, pgoff_t, struct page *);
-int f2fs_write_inline_data(struct inode *, struct page *, unsigned int);
-void truncate_inline_data(struct inode *, u64);
+int f2fs_convert_inline_page(struct dnode_of_data *, struct page *);
+int f2fs_convert_inline_inode(struct inode *);
+int f2fs_write_inline_data(struct inode *, struct page *);
+void truncate_inline_data(struct page *, u64);
 bool recover_inline_data(struct inode *, struct page *);
 struct f2fs_dir_entry *find_in_inline_dir(struct inode *, struct qstr *,
 							struct page **);

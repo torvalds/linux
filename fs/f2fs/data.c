@@ -737,14 +737,14 @@ int f2fs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 static int f2fs_read_data_page(struct file *file, struct page *page)
 {
 	struct inode *inode = page->mapping->host;
-	int ret;
+	int ret = -EAGAIN;
 
 	trace_f2fs_readpage(page, DATA);
 
 	/* If the file has inline data, try to read it directly */
 	if (f2fs_has_inline_data(inode))
 		ret = f2fs_read_inline_data(inode, page);
-	else
+	if (ret == -EAGAIN)
 		ret = mpage_readpage(page, get_data_block);
 
 	return ret;
@@ -856,10 +856,11 @@ write:
 	else if (has_not_enough_free_secs(sbi, 0))
 		goto redirty_out;
 
+	err = -EAGAIN;
 	f2fs_lock_op(sbi);
-	if (f2fs_has_inline_data(inode) || f2fs_may_inline(inode))
-		err = f2fs_write_inline_data(inode, page, offset);
-	else
+	if (f2fs_has_inline_data(inode))
+		err = f2fs_write_inline_data(inode, page);
+	if (err == -EAGAIN)
 		err = do_write_data_page(page, &fio);
 	f2fs_unlock_op(sbi);
 done:
@@ -957,23 +958,13 @@ static int f2fs_write_begin(struct file *file, struct address_space *mapping,
 
 	f2fs_balance_fs(sbi);
 repeat:
-	err = f2fs_convert_inline_data(inode, pos + len, NULL);
-	if (err)
-		goto fail;
-
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page) {
 		err = -ENOMEM;
 		goto fail;
 	}
 
-	/* to avoid latency during memory pressure */
-	unlock_page(page);
-
 	*pagep = page;
-
-	if (f2fs_has_inline_data(inode) && (pos + len) <= MAX_INLINE_DATA)
-		goto inline_data;
 
 	f2fs_lock_op(sbi);
 
@@ -982,31 +973,41 @@ repeat:
 	if (IS_ERR(ipage))
 		goto unlock_fail;
 
-	if (f2fs_has_inline_data(inode)) {
-		f2fs_put_page(ipage, 1);
-		f2fs_unlock_op(sbi);
-		f2fs_put_page(page, 0);
-		goto repeat;
-	}
+	set_new_dnode(&dn, inode, ipage, ipage, 0);
 
-	set_new_dnode(&dn, inode, ipage, NULL, 0);
+	if (f2fs_has_inline_data(inode)) {
+		if (pos + len <= MAX_INLINE_DATA) {
+			read_inline_data(page, ipage);
+			set_inode_flag(F2FS_I(inode), FI_DATA_EXIST);
+			sync_inode_page(&dn);
+			goto put_next;
+		} else if (page->index == 0) {
+			err = f2fs_convert_inline_page(&dn, page);
+			if (err)
+				goto unlock_fail;
+		} else {
+			struct page *p = grab_cache_page(inode->i_mapping, 0);
+			if (!p) {
+				err = -ENOMEM;
+				goto unlock_fail;
+			}
+			err = f2fs_convert_inline_page(&dn, p);
+			f2fs_put_page(p, 1);
+			if (err)
+				goto unlock_fail;
+		}
+	}
 	err = f2fs_reserve_block(&dn, index);
 	if (err)
 		goto unlock_fail;
+put_next:
 	f2fs_put_dnode(&dn);
 	f2fs_unlock_op(sbi);
 
-inline_data:
-	lock_page(page);
-	if (unlikely(page->mapping != mapping)) {
-		f2fs_put_page(page, 1);
-		goto repeat;
-	}
-
-	f2fs_wait_on_page_writeback(page, DATA);
-
 	if ((len == PAGE_CACHE_SIZE) || PageUptodate(page))
 		return 0;
+
+	f2fs_wait_on_page_writeback(page, DATA);
 
 	if ((pos & PAGE_CACHE_MASK) >= i_size_read(inode)) {
 		unsigned start = pos & (PAGE_CACHE_SIZE - 1);
@@ -1017,13 +1018,7 @@ inline_data:
 		goto out;
 	}
 
-	if (f2fs_has_inline_data(inode)) {
-		err = f2fs_read_inline_data(inode, page);
-		if (err) {
-			page_cache_release(page);
-			goto fail;
-		}
-	} else if (dn.data_blkaddr == NEW_ADDR) {
+	if (dn.data_blkaddr == NEW_ADDR) {
 		zero_user_segment(page, 0, PAGE_CACHE_SIZE);
 	} else {
 		err = f2fs_submit_page_bio(sbi, page, dn.data_blkaddr,
@@ -1049,7 +1044,7 @@ out:
 
 unlock_fail:
 	f2fs_unlock_op(sbi);
-	f2fs_put_page(page, 0);
+	f2fs_put_page(page, 1);
 fail:
 	f2fs_write_failed(mapping, pos + len);
 	return err;
@@ -1102,9 +1097,12 @@ static ssize_t f2fs_direct_IO(int rw, struct kiocb *iocb,
 	size_t count = iov_iter_count(iter);
 	int err;
 
-	/* Let buffer I/O handle the inline data case. */
-	if (f2fs_has_inline_data(inode))
-		return 0;
+	/* we don't need to use inline_data strictly */
+	if (f2fs_has_inline_data(inode)) {
+		err = f2fs_convert_inline_inode(inode);
+		if (err)
+			return err;
+	}
 
 	if (check_direct_IO(inode, rw, iter, offset))
 		return 0;
@@ -1170,9 +1168,12 @@ static sector_t f2fs_bmap(struct address_space *mapping, sector_t block)
 {
 	struct inode *inode = mapping->host;
 
-	if (f2fs_has_inline_data(inode))
-		return 0;
-
+	/* we don't need to use inline_data strictly */
+	if (f2fs_has_inline_data(inode)) {
+		int err = f2fs_convert_inline_inode(inode);
+		if (err)
+			return err;
+	}
 	return generic_block_bmap(mapping, block, get_data_block);
 }
 
