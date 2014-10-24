@@ -496,8 +496,7 @@ int gb_i2c_device_init(struct gb_connection *connection)
 	adapter->timeout = gb_i2c_dev->timeout_msec * HZ / 1000;
 	adapter->retries = gb_i2c_dev->retries;
 
-	/* XXX I think this parent device is wrong, but it uses existing code */
-	adapter->dev.parent = &connection->interface->gmod->dev;
+	adapter->dev.parent = &connection->dev;
 	snprintf(adapter->name, sizeof(adapter->name), "Greybus i2c adapter");
 	i2c_set_adapdata(adapter, gb_i2c_dev);
 
