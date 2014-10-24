@@ -314,8 +314,7 @@ static inline char *tape_name(struct scsi_tape *tape)
 }
 
 #define st_printk(prefix, t, fmt, a...) \
-	sdev_printk(prefix, (t)->device, "%s: " fmt, \
-		    tape_name(t), ##a)
+	sdev_prefix_printk(prefix, (t)->device, tape_name(t), fmt, ##a)
 #ifdef DEBUG
 #define DEBC_printk(t, fmt, a...) \
 	if (debugging) { st_printk(ST_DEB_MSG, t, fmt, ##a ); }

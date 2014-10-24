@@ -244,6 +244,15 @@ struct scsi_dh_data {
 #define sdev_dbg(sdev, fmt, a...) \
 	dev_dbg(&(sdev)->sdev_gendev, fmt, ##a)
 
+/*
+ * like scmd_printk, but the device name is passed in
+ * as a string pointer
+ */
+#define sdev_prefix_printk(l, sdev, p, fmt, a...)			\
+	(p) ?								\
+	sdev_printk(l, sdev, "[%s] " fmt, p, ##a) :			\
+	sdev_printk(l, sdev, fmt, ##a)
+
 #define scmd_printk(prefix, scmd, fmt, a...)				\
         (scmd)->request->rq_disk ?					\
 	sdev_printk(prefix, (scmd)->device, "[%s] " fmt,		\

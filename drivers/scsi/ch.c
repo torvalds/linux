@@ -85,8 +85,7 @@ static const char * vendor_labels[CH_TYPES-4] = {
 // module_param_string_array(vendor_labels, NULL, 0444);
 
 #define ch_printk(prefix, ch, fmt, a...) \
-	sdev_printk(prefix, (ch)->device, "[%s] " fmt, \
-		    (ch)->name, ##a)
+	sdev_prefix_printk(prefix, (ch)->device, (ch)->name, fmt, ##a)
 
 #define DPRINTK(fmt, arg...)						\
 do {									\
