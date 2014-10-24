@@ -75,7 +75,7 @@ struct ion_phys_data {
 
 struct ion_share_id_data {
 	int fd;
-	unsigned int id;
+	unsigned long id;
 };
 
 #define ION_IOC_ROCKCHIP_MAGIC 'R'

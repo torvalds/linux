@@ -49,7 +49,7 @@ struct ion_buffer *ion_handle_buffer(struct ion_handle *handle);
 struct ion_iommu_map {
 	unsigned long iova_addr;
 	struct rb_node node;
-	uint32_t key;
+	unsigned long key;
 	struct ion_buffer *buffer;
 	struct kref ref;
 	int mapped_size;
