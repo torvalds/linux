@@ -1415,10 +1415,6 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	return 1;
 
  rx_dropped:
-	if (rxb != NULL) {
-		kfree(rxb);
-		rxb = NULL;
-	}
 	ieee->stats.rx_dropped++;
 
 	/* Returning 0 indicates to caller that we have not handled the SKB--
