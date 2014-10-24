@@ -969,7 +969,7 @@ static ssize_t rk808_test_store(struct kobject *kobj, struct kobj_attribute *att
                                 const char *buf, size_t n)
 {
     u32 getdata[8];
-    u16 regAddr;
+    u8 regAddr;
     u8 data;
     char cmd;
     const char *buftmp = buf;
@@ -980,45 +980,32 @@ static ssize_t rk808_test_store(struct kobject *kobj, struct kobj_attribute *att
      * R regAddr(8Bit)
      * C gpio_name(poweron/powerhold/sleep/boot0/boot1) value(H/L)
      */
-        regAddr = (u16)(getdata[0] & 0xff);
-	 if (strncmp(buf, "start", 5) == 0) {
-        
+	sscanf(buftmp, "%c ", &cmd);
+	printk("------zhangqing: get cmd = %c\n", cmd);
+	switch (cmd) {
+	case 'w':
+		sscanf(buftmp, "%c %x %x ", &cmd, &getdata[0], &getdata[1]);
+		regAddr = (u8)(getdata[0] & 0xff);
+		data = (u8)(getdata[1] & 0xff);
+		printk("get value = %x\n", data);
 
-    } else if (strncmp(buf, "stop", 4== 0) ){
-    
-    } else{
-        sscanf(buftmp, "%c ", &cmd);
-        printk("------zhangqing: get cmd = %c\n", cmd);
-        switch(cmd) {
+		rk808_i2c_write(rk808, regAddr, 1, data);
+		rk808_i2c_read(rk808, regAddr, 1, &data);
+		printk("%x   %x\n", getdata[1], data);
+		break;
+	case 'r':
+		sscanf(buftmp, "%c %x ", &cmd, &getdata[0]);
+		printk("CMD : %c %x\n", cmd, getdata[0]);
 
-        case 'w':
-		sscanf(buftmp, "%c %x %x ", &cmd, &getdata[0],&getdata[1]);
-		 regAddr = (u16)(getdata[0] & 0xff);
-                data = (u8)(getdata[1] & 0xff);
-                printk("get value = %x\n", data);
-
-             rk808_i2c_write(rk808, regAddr, 1, data);
-	     rk808_i2c_read(rk808, regAddr, 1, &data);
-	     printk("%x   %x\n", getdata[1],data);
-
-            break;
-
-        case 'r':
-            sscanf(buftmp, "%c %x ", &cmd, &getdata[0]);
-            printk("CMD : %c %x\n", cmd, getdata[0]);
-
-            regAddr = (u16)(getdata[0] & 0xff);
-            rk808_i2c_read(rk808, regAddr, 1, &data);
-		printk("%x %x\n", getdata[0],data);
-
-            break;
-
-        default:
-            printk("Unknown command\n");
-            break;
-        }
-}
-    return n;
+		regAddr = (u8)(getdata[0] & 0xff);
+		rk808_i2c_read(rk808, regAddr, 1, &data);
+		printk("%x %x\n", getdata[0], data);
+		break;
+	default:
+		printk("Unknown command\n");
+		break;
+	}
+	return n;
 
 }
 static ssize_t rk808_test_show(struct kobject *kobj, struct kobj_attribute *attr,
