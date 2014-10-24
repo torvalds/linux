@@ -18,13 +18,13 @@
 #include "overlayfs.h"
 
 struct ovl_cache_entry {
-	const char *name;
 	unsigned int len;
 	unsigned int type;
 	u64 ino;
 	bool is_whiteout;
 	struct list_head l_node;
 	struct rb_node node;
+	char name[];
 };
 
 struct ovl_dir_cache {
@@ -82,13 +82,12 @@ static struct ovl_cache_entry *ovl_cache_entry_new(const char *name, int len,
 						   u64 ino, unsigned int d_type)
 {
 	struct ovl_cache_entry *p;
+	size_t size = offsetof(struct ovl_cache_entry, name[len + 1]);
 
-	p = kmalloc(sizeof(*p) + len + 1, GFP_KERNEL);
+	p = kmalloc(size, GFP_KERNEL);
 	if (p) {
-		char *name_copy = (char *) (p + 1);
-		memcpy(name_copy, name, len);
-		name_copy[len] = '\0';
-		p->name = name_copy;
+		memcpy(p->name, name, len);
+		p->name[len] = '\0';
 		p->len = len;
 		p->type = d_type;
 		p->ino = ino;
