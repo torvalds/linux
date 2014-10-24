@@ -24,6 +24,7 @@ enum gb_connection_state {
 struct gb_connection {
 	struct greybus_host_device	*hd;
 	struct gb_interface		*interface;
+	struct device			dev;
 	u16				hd_cport_id;
 	u16				interface_cport_id;
 
@@ -39,6 +40,7 @@ struct gb_connection {
 
 	void				*private;
 };
+#define to_gb_connection(d) container_of(d, struct gb_connection, dev)
 
 struct gb_connection *gb_connection_create(struct gb_interface *interface,
 				u16 cport_id, enum greybus_protocol protocol);

@@ -8,6 +8,35 @@
 
 #include "greybus.h"
 
+static ssize_t device_id_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
+{
+	struct gb_interface *interface = to_gb_interface(dev);
+
+	return sprintf(buf, "%d", interface->device_id);
+}
+static DEVICE_ATTR_RO(device_id);
+
+static struct attribute *interface_attrs[] = {
+	&dev_attr_device_id.attr,
+	NULL,
+};
+
+ATTRIBUTE_GROUPS(interface);
+
+static void gb_interface_release(struct device *dev)
+{
+	struct gb_interface *interface = to_gb_interface(dev);
+
+	kfree(interface);
+}
+
+static struct device_type greybus_interface_type = {
+	.name =		"greybus_interface",
+	.release =	gb_interface_release,
+};
+
+
 /* XXX This could be per-host device or per-module */
 static DEFINE_SPINLOCK(gb_interfaces_lock);
 
@@ -26,6 +55,7 @@ struct gb_interface *
 gb_interface_create(struct gb_module *gmod, u8 interface_id)
 {
 	struct gb_interface *interface;
+	int retval;
 
 	interface = kzalloc(sizeof(*interface), GFP_KERNEL);
 	if (!interface)
@@ -33,7 +63,24 @@ gb_interface_create(struct gb_module *gmod, u8 interface_id)
 
 	interface->gmod = gmod;		/* XXX refcount? */
 	interface->id = interface_id;
+	interface->device_id = 0xff;	/* Invalid device id to start with */
 	INIT_LIST_HEAD(&interface->connections);
+
+	/* Build up the interface device structures and register it with the
+	 * driver core */
+	interface->dev.parent = &gmod->dev;
+	interface->dev.driver = NULL;
+	interface->dev.bus = &greybus_bus_type;
+	interface->dev.type = &greybus_interface_type;
+	interface->dev.groups = interface_groups;
+	device_initialize(&interface->dev);
+	dev_set_name(&interface->dev, "%d:%d", gmod->module_id, interface_id);
+
+	retval = device_add(&interface->dev);
+	if (retval) {
+		kfree(interface);
+		return NULL;
+	}
 
 	spin_lock_irq(&gb_interfaces_lock);
 	list_add_tail(&interface->links, &gmod->interfaces);
@@ -45,19 +92,21 @@ gb_interface_create(struct gb_module *gmod, u8 interface_id)
 /*
  * Tear down a previously set up interface.
  */
-void gb_interface_destroy(struct gb_interface *interface)
+void gb_interface_destroy(struct gb_module *gmod)
 {
-	if (WARN_ON(!interface))
+	struct gb_interface *interface;
+	struct gb_interface *temp;
+
+	if (WARN_ON(!gmod))
 		return;
 
 	spin_lock_irq(&gb_interfaces_lock);
-	list_del(&interface->links);
+	list_for_each_entry_safe(interface, temp, &gmod->interfaces, links) {
+		list_del(&interface->links);
+		gb_interface_connections_exit(interface);
+		device_del(&interface->dev);
+	}
 	spin_unlock_irq(&gb_interfaces_lock);
-
-	gb_interface_connections_exit(interface);
-
-	/* kref_put(gmod); */
-	kfree(interface);
 }
 
 struct gb_interface *gb_interface_find(struct gb_module *module,
@@ -65,9 +114,13 @@ struct gb_interface *gb_interface_find(struct gb_module *module,
 {
 	struct gb_interface *interface;
 
+	spin_lock_irq(&gb_interfaces_lock);
 	list_for_each_entry(interface, &module->interfaces, links)
-		if (interface->id == interface_id)
+		if (interface->id == interface_id) {
+			spin_unlock_irq(&gb_interfaces_lock);
 			return interface;
+		}
+	spin_unlock_irq(&gb_interfaces_lock);
 
 	return NULL;
 }

@@ -111,6 +111,44 @@ static void connection_timeout(struct work_struct *work)
 	printk("timeout!\n");
 }
 
+static ssize_t state_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
+{
+	struct gb_connection *connection = to_gb_connection(dev);
+
+	return sprintf(buf, "%d", connection->state);
+}
+static DEVICE_ATTR_RO(state);
+
+static ssize_t protocol_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct gb_connection *connection = to_gb_connection(dev);
+
+	return sprintf(buf, "%d", connection->protocol);
+}
+static DEVICE_ATTR_RO(protocol);
+
+static struct attribute *connection_attrs[] = {
+	&dev_attr_state.attr,
+	&dev_attr_protocol.attr,
+	NULL,
+};
+
+ATTRIBUTE_GROUPS(connection);
+
+static void gb_connection_release(struct device *dev)
+{
+	struct gb_connection *connection = to_gb_connection(dev);
+
+	kfree(connection);
+}
+
+static struct device_type greybus_connection_type = {
+	.name =		"greybus_connection",
+	.release =	gb_connection_release,
+};
+
 /*
  * Set up a Greybus connection, representing the bidirectional link
  * between a CPort on a (local) Greybus host device and a CPort on
@@ -127,6 +165,7 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 {
 	struct gb_connection *connection;
 	struct greybus_host_device *hd;
+	int retval;
 
 	connection = kzalloc(sizeof(*connection), GFP_KERNEL);
 	if (!connection)
@@ -144,6 +183,21 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 	connection->interface_cport_id = cport_id;
 	connection->protocol = protocol;
 	connection->state = GB_CONNECTION_STATE_DISABLED;
+
+	connection->dev.parent = &interface->dev;
+	connection->dev.driver = NULL;
+	connection->dev.bus = &greybus_bus_type;
+	connection->dev.type = &greybus_connection_type;
+	connection->dev.groups = connection_groups;
+	device_initialize(&connection->dev);
+	dev_set_name(&connection->dev, "%s:%d",
+		     dev_name(&interface->dev), cport_id);
+
+	retval = device_add(&connection->dev);
+	if (retval) {
+		kfree(connection);
+		return NULL;
+	}
 
 	spin_lock_irq(&gb_connections_lock);
 	_gb_hd_connection_insert(hd, connection);
@@ -182,9 +236,8 @@ void gb_connection_destroy(struct gb_connection *connection)
 	spin_unlock_irq(&gb_connections_lock);
 
 	gb_connection_hd_cport_id_free(connection);
-	/* kref_put(connection->interface); */
-	/* kref_put(connection->hd); */
-	kfree(connection);
+
+	device_del(&connection->dev);
 }
 
 u16 gb_connection_operation_id(struct gb_connection *connection)

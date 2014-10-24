@@ -48,10 +48,14 @@ static int greybus_uevent(struct device *dev, struct kobj_uevent_env *env)
 	/* struct gb_module *gmod = to_gb_module(dev); */
 
 	/* FIXME - add some uevents here... */
+
+	/* FIXME - be sure to check the type to know how to handle modules and
+	 * interfaces differently */
+
 	return 0;
 }
 
-static struct bus_type greybus_bus_type = {
+struct bus_type greybus_bus_type = {
 	.name =		"greybus",
 	.match =	greybus_module_match,
 	.uevent =	greybus_uevent,
@@ -115,18 +119,6 @@ void greybus_deregister(struct greybus_driver *driver)
 EXPORT_SYMBOL_GPL(greybus_deregister);
 
 
-static void greybus_module_release(struct device *dev)
-{
-	struct gb_module *gmod = to_gb_module(dev);
-
-	gb_module_destroy(gmod);
-}
-
-static struct device_type greybus_module_type = {
-	.name =		"greybus_module",
-	.release =	greybus_module_release,
-};
-
 static const struct greybus_module_id fake_greybus_module_id = {
 	GREYBUS_DEVICE(0x42, 0x42)
 };
@@ -142,7 +134,6 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 		   u8 *data, int size)
 {
 	struct gb_module *gmod;
-	int retval;
 
 	gmod = gb_module_create(hd, module_id);
 	if (!gmod) {
@@ -168,31 +159,10 @@ void gb_add_module(struct greybus_host_device *hd, u8 module_id,
 	 * configuring the switch to allow them to communicate).
 	 */
 
-	gmod->dev.parent = hd->parent;
-	gmod->dev.driver = NULL;
-	gmod->dev.bus = &greybus_bus_type;
-	gmod->dev.type = &greybus_module_type;
-	gmod->dev.groups = greybus_module_groups;
-	gmod->dev.dma_mask = hd->parent->dma_mask;
-	device_initialize(&gmod->dev);
-	dev_set_name(&gmod->dev, "%d", module_id);
-
-	retval = device_add(&gmod->dev);
-	if (retval)
-		goto err_device;
-
 	return;
-err_device:
-	put_device(&gmod->dev);
+
 err_module:
-	greybus_module_release(&gmod->dev);
-}
-
-static void gb_delete_module(struct gb_module *gmod)
-{
-	/* FIXME - tear down interfaces first */
-
-	device_del(&gmod->dev);
+	gb_module_destroy(gmod);
 }
 
 void gb_remove_module(struct greybus_host_device *hd, u8 module_id)
@@ -207,7 +177,7 @@ void gb_remove_module(struct greybus_host_device *hd, u8 module_id)
 		}
 
 	if (found)
-		gb_delete_module(gmod);
+		gb_module_destroy(gmod);
 	else
 		dev_err(hd->parent, "module id %d remove error\n", module_id);
 }
@@ -217,7 +187,7 @@ static void gb_remove_modules(struct greybus_host_device *hd)
 	struct gb_module *gmod, *temp;
 
 	list_for_each_entry_safe(gmod, temp, &hd->modules, links) {
-		gb_delete_module(gmod);
+		gb_module_destroy(gmod);
 	}
 }
 
@@ -256,6 +226,8 @@ EXPORT_SYMBOL_GPL(greybus_create_hd);
 
 void greybus_remove_hd(struct greybus_host_device *hd)
 {
+	/* Tear down all modules that happen to be associated with this host
+	 * controller */
 	gb_remove_modules(hd);
 	kref_put_mutex(&hd->kref, free_hd, &hd_mutex);
 }

@@ -261,6 +261,7 @@ int gb_register_cport_complete(struct gb_module *gmod,
 			       void *context);
 void gb_deregister_cport_complete(u16 cport_id);
 
+extern struct bus_type greybus_bus_type;
 extern const struct attribute_group *greybus_module_groups[];
 
 int gb_i2c_device_init(struct gb_connection *connection);

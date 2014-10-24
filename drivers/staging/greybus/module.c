@@ -44,14 +44,17 @@ const struct greybus_module_id *gb_module_match_id(struct gb_module *gmod,
 	return NULL;
 }
 
-static void gb_module_interfaces_exit(struct gb_module *gmod)
+static void greybus_module_release(struct device *dev)
 {
-	struct gb_interface *interface;
-	struct gb_interface *next;
+	struct gb_module *gmod = to_gb_module(dev);
 
-	list_for_each_entry_safe(interface, next, &gmod->interfaces, links)
-		gb_interface_destroy(interface);
+	kfree(gmod);
 }
+
+static struct device_type greybus_module_type = {
+	.name =		"greybus_module",
+	.release =	greybus_module_release,
+};
 
 /*
  * A Greybus module represents a user-replacable component on an Ara
@@ -65,6 +68,7 @@ static void gb_module_interfaces_exit(struct gb_module *gmod)
 struct gb_module *gb_module_create(struct greybus_host_device *hd, u8 module_id)
 {
 	struct gb_module *gmod;
+	int retval;
 
 	gmod = kzalloc(sizeof(*gmod), GFP_KERNEL);
 	if (!gmod)
@@ -77,6 +81,21 @@ struct gb_module *gb_module_create(struct greybus_host_device *hd, u8 module_id)
 	spin_lock_irq(&gb_modules_lock);
 	list_add_tail(&gmod->links, &hd->modules);
 	spin_unlock_irq(&gb_modules_lock);
+
+	gmod->dev.parent = hd->parent;
+	gmod->dev.driver = NULL;
+	gmod->dev.bus = &greybus_bus_type;
+	gmod->dev.type = &greybus_module_type;
+	gmod->dev.groups = greybus_module_groups;
+	gmod->dev.dma_mask = hd->parent->dma_mask;
+	device_initialize(&gmod->dev);
+	dev_set_name(&gmod->dev, "%d", module_id);
+
+	retval = device_add(&gmod->dev);
+	if (retval) {
+		put_device(&gmod->dev);
+		return NULL;
+	}
 
 	return gmod;
 }
@@ -93,18 +112,15 @@ void gb_module_destroy(struct gb_module *gmod)
 	list_del(&gmod->links);
 	spin_unlock_irq(&gb_modules_lock);
 
-	gb_module_interfaces_exit(gmod);
 	/* XXX Do something with gmod->gb_tty */
 
-	put_device(&gmod->dev);
-	/* kfree(gmod->dev->name); */
+	gb_interface_destroy(gmod);
 
 	kfree(gmod->product_string);
 	kfree(gmod->vendor_string);
 	/* kref_put(module->hd); */
 
-
-	kfree(gmod);
+	device_del(&gmod->dev);
 }
 
 struct gb_module *gb_module_find(struct greybus_host_device *hd, u8 module_id)
