@@ -39,7 +39,7 @@ static const char i40e_driver_string[] =
 
 #define DRV_VERSION_MAJOR 1
 #define DRV_VERSION_MINOR 0
-#define DRV_VERSION_BUILD 11
+#define DRV_VERSION_BUILD 21
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -74,6 +74,7 @@ static const struct pci_device_id i40e_pci_tbl[] = {
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QSFP_A), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QSFP_B), 0},
 	{PCI_VDEVICE(INTEL, I40E_DEV_ID_QSFP_C), 0},
+	{PCI_VDEVICE(INTEL, I40E_DEV_ID_10G_BASE_T), 0},
 	/* required last entry */
 	{0, }
 };
@@ -812,7 +813,10 @@ static void i40e_update_vsi_stats(struct i40e_vsi *vsi)
 	struct i40e_eth_stats *oes;
 	struct i40e_eth_stats *es;     /* device's eth stats */
 	u32 tx_restart, tx_busy;
+	struct i40e_ring *p;
 	u32 rx_page, rx_buf;
+	u64 bytes, packets;
+	unsigned int start;
 	u64 rx_p, rx_b;
 	u64 tx_p, tx_b;
 	u16 q;
@@ -836,10 +840,6 @@ static void i40e_update_vsi_stats(struct i40e_vsi *vsi)
 	rx_buf = 0;
 	rcu_read_lock();
 	for (q = 0; q < vsi->num_queue_pairs; q++) {
-		struct i40e_ring *p;
-		u64 bytes, packets;
-		unsigned int start;
-
 		/* locate Tx ring */
 		p = ACCESS_ONCE(vsi->tx_rings[q]);
 
@@ -3440,7 +3440,7 @@ static int i40e_pf_txq_wait(struct i40e_pf *pf, int pf_q, bool enable)
 		if (enable == !!(tx_reg & I40E_QTX_ENA_QENA_STAT_MASK))
 			break;
 
-		udelay(10);
+		usleep_range(10, 20);
 	}
 	if (i >= I40E_QUEUE_WAIT_RETRY_LIMIT)
 		return -ETIMEDOUT;
@@ -3466,7 +3466,7 @@ static int i40e_vsi_control_tx(struct i40e_vsi *vsi, bool enable)
 		/* warn the TX unit of coming changes */
 		i40e_pre_tx_queue_cfg(&pf->hw, pf_q, enable);
 		if (!enable)
-			udelay(10);
+			usleep_range(10, 20);
 
 		for (j = 0; j < 50; j++) {
 			tx_reg = rd32(hw, I40E_QTX_ENA(pf_q));
@@ -3526,7 +3526,7 @@ static int i40e_pf_rxq_wait(struct i40e_pf *pf, int pf_q, bool enable)
 		if (enable == !!(rx_reg & I40E_QRX_ENA_QENA_STAT_MASK))
 			break;
 
-		udelay(10);
+		usleep_range(10, 20);
 	}
 	if (i >= I40E_QUEUE_WAIT_RETRY_LIMIT)
 		return -ETIMEDOUT;
@@ -4449,6 +4449,9 @@ static void i40e_print_link_message(struct i40e_vsi *vsi, bool isup)
 	case I40E_LINK_SPEED_1GB:
 		strlcpy(speed, "1000 Mbps", SPEED_SIZE);
 		break;
+	case I40E_LINK_SPEED_100MB:
+		strncpy(speed, "100 Mbps", SPEED_SIZE);
+		break;
 	default:
 		break;
 	}
@@ -4479,11 +4482,7 @@ static void i40e_print_link_message(struct i40e_vsi *vsi, bool isup)
 static int i40e_up_complete(struct i40e_vsi *vsi)
 {
 	struct i40e_pf *pf = vsi->back;
-	u8 set_fc_aq_fail = 0;
 	int err;
-
-	/* force flow control off */
-	i40e_set_fc(&pf->hw, &set_fc_aq_fail, true);
 
 	if (pf->flags & I40E_FLAG_MSIX_ENABLED)
 		i40e_vsi_configure_msix(vsi);
@@ -5354,10 +5353,14 @@ static void i40e_link_event(struct i40e_pf *pf)
 {
 	bool new_link, old_link;
 
-	new_link = (pf->hw.phy.link_info.link_info & I40E_AQ_LINK_UP);
-	old_link = (pf->hw.phy.link_info_old.link_info & I40E_AQ_LINK_UP);
+	/* set this to force the get_link_status call to refresh state */
+	pf->hw.phy.get_link_info = true;
 
-	if (new_link == old_link)
+	old_link = (pf->hw.phy.link_info_old.link_info & I40E_AQ_LINK_UP);
+	new_link = i40e_get_link_status(&pf->hw);
+
+	if (new_link == old_link &&
+	    new_link == netif_carrier_ok(pf->vsi[pf->lan_vsi]->netdev))
 		return;
 	if (!test_bit(__I40E_DOWN, &pf->vsi[pf->lan_vsi]->state))
 		i40e_print_link_message(pf->vsi[pf->lan_vsi], new_link);
@@ -5525,33 +5528,20 @@ static void i40e_handle_link_event(struct i40e_pf *pf,
 	memcpy(&pf->hw.phy.link_info_old, hw_link_info,
 	       sizeof(pf->hw.phy.link_info_old));
 
+	/* Do a new status request to re-enable LSE reporting
+	 * and load new status information into the hw struct
+	 * This completely ignores any state information
+	 * in the ARQ event info, instead choosing to always
+	 * issue the AQ update link status command.
+	 */
+	i40e_link_event(pf);
+
 	/* check for unqualified module, if link is down */
 	if ((status->link_info & I40E_AQ_MEDIA_AVAILABLE) &&
 	    (!(status->an_info & I40E_AQ_QUALIFIED_MODULE)) &&
 	    (!(status->link_info & I40E_AQ_LINK_UP)))
 		dev_err(&pf->pdev->dev,
 			"The driver failed to link because an unqualified module was detected.\n");
-
-	/* update link status */
-	hw_link_info->phy_type = (enum i40e_aq_phy_type)status->phy_type;
-	hw_link_info->link_speed = (enum i40e_aq_link_speed)status->link_speed;
-	hw_link_info->link_info = status->link_info;
-	hw_link_info->an_info = status->an_info;
-	hw_link_info->ext_info = status->ext_info;
-	hw_link_info->lse_enable =
-		le16_to_cpu(status->command_flags) &
-			    I40E_AQ_LSE_ENABLE;
-
-	/* process the event */
-	i40e_link_event(pf);
-
-	/* Do a new status request to re-enable LSE reporting
-	 * and load new status information into the hw struct,
-	 * then see if the status changed while processing the
-	 * initial event.
-	 */
-	i40e_update_link_info(&pf->hw, true);
-	i40e_link_event(pf);
 }
 
 /**
@@ -5967,6 +5957,7 @@ static void i40e_send_version(struct i40e_pf *pf)
 static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 {
 	struct i40e_hw *hw = &pf->hw;
+	u8 set_fc_aq_fail = 0;
 	i40e_status ret;
 	u32 v;
 
@@ -6038,6 +6029,20 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 	if (ret)
 		goto end_core_reset;
 
+	/* driver is only interested in link up/down and module qualification
+	 * reports from firmware
+	 */
+	ret = i40e_aq_set_phy_int_mask(&pf->hw,
+				       I40E_AQ_EVENT_LINK_UPDOWN |
+				       I40E_AQ_EVENT_MODULE_QUAL_FAIL, NULL);
+	if (ret)
+		dev_info(&pf->pdev->dev, "set phy mask fail, aq_err %d\n", ret);
+
+	/* make sure our flow control settings are restored */
+	ret = i40e_set_fc(&pf->hw, &set_fc_aq_fail, true);
+	if (ret)
+		dev_info(&pf->pdev->dev, "set fc fail, aq_err %d\n", ret);
+
 	/* Rebuild the VSIs and VEBs that existed before reset.
 	 * They are still in our local switch element arrays, so only
 	 * need to rebuild the switch model in the HW.
@@ -6090,6 +6095,13 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 				 "rebuild of Main VSI failed: %d\n", ret);
 			goto end_core_reset;
 		}
+	}
+
+	msleep(75);
+	ret = i40e_aq_set_link_restart_an(&pf->hw, true, NULL);
+	if (ret) {
+		dev_info(&pf->pdev->dev, "link restart failed, aq_err=%d\n",
+			 pf->hw.aq.asq_last_status);
 	}
 
 	/* reinit the misc interrupt */
@@ -6304,6 +6316,8 @@ static void i40e_service_task(struct work_struct *work)
 	i40e_sync_vxlan_filters_subtask(pf);
 #endif
 	i40e_clean_adminq_subtask(pf);
+
+	i40e_link_event(pf);
 
 	i40e_service_event_complete(pf);
 
@@ -8719,6 +8733,14 @@ static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit)
 	pf->fc_autoneg_status = ((pf->hw.phy.link_info.an_info &
 				  I40E_AQ_AN_COMPLETED) ? true : false);
 
+	/* fill in link information and enable LSE reporting */
+	i40e_update_link_info(&pf->hw, true);
+	i40e_link_event(pf);
+
+	/* Initialize user-specific link properties */
+	pf->fc_autoneg_status = ((pf->hw.phy.link_info.an_info &
+				  I40E_AQ_AN_COMPLETED) ? true : false);
+
 	i40e_ptp_init(pf);
 
 	return ret;
@@ -9156,6 +9178,22 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			i40e_vsi_open(pf->vsi[i]);
 			break;
 		}
+	}
+
+	/* driver is only interested in link up/down and module qualification
+	 * reports from firmware
+	 */
+	err = i40e_aq_set_phy_int_mask(&pf->hw,
+				       I40E_AQ_EVENT_LINK_UPDOWN |
+				       I40E_AQ_EVENT_MODULE_QUAL_FAIL, NULL);
+	if (err)
+		dev_info(&pf->pdev->dev, "set phy mask fail, aq_err %d\n", err);
+
+	msleep(75);
+	err = i40e_aq_set_link_restart_an(&pf->hw, true, NULL);
+	if (err) {
+		dev_info(&pf->pdev->dev, "link restart failed, aq_err=%d\n",
+			 pf->hw.aq.asq_last_status);
 	}
 
 	/* The main driver is (mostly) up and happy. We need to set this state
