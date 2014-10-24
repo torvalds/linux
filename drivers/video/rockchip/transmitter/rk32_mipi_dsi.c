@@ -877,10 +877,11 @@ static int rk32_mipi_dsi_host_init(struct dsi *dsi)
 	rk32_dsi_set_bits(dsi, 1000, lprx_to_cnt);
 	rk32_dsi_set_bits(dsi, 100, phy_stop_wait_time);
 
-	/*
-	rk32_dsi_set_bits(dsi, 0, outvact_lpcmd_time);
-	rk32_dsi_set_bits(dsi, 0, invact_lpcmd_time);
-	*/
+	/* enable send command in low power mode */
+	rk32_dsi_set_bits(dsi, 4, outvact_lpcmd_time);
+	rk32_dsi_set_bits(dsi, 4, invact_lpcmd_time);
+	rk32_dsi_set_bits(dsi, 1, lp_cmd_en);
+	
 	rk32_dsi_set_bits(dsi, 20, phy_hs2lp_time);
 	rk32_dsi_set_bits(dsi, 16, phy_lp2hs_time);
 	/*
@@ -899,6 +900,9 @@ static int rk32_mipi_dsi_host_init(struct dsi *dsi)
 	/* rk32_dsi_set_bits(dsi, 1, frame_bta_ack_en); */
 	rk32_dsi_set_bits(dsi, 1, phy_enableclk);
 	rk32_dsi_set_bits(dsi, 0, phy_tx_triggers);
+	
+	/* enable non-continued function */
+	rk32_dsi_set_bits(dsi, 1, auto_clklane_ctrl);
 	/*
 	rk32_dsi_set_bits(dsi, 1, phy_txexitulpslan);
 	rk32_dsi_set_bits(dsi, 1, phy_txexitulpsclk);
