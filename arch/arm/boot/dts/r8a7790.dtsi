@@ -1186,6 +1186,16 @@
 		status = "disabled";
 	};
 
+	xhci: usb@ee000000 {
+		compatible = "renesas,xhci-r8a7790";
+		reg = <0 0xee000000 0 0xc00>;
+		interrupts = <0 101 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp3_clks R8A7790_CLK_SSUSB>;
+		phys = <&usb2 1>;
+		phy-names = "usb";
+		status = "disabled";
+	};
+
 	pci0: pci@ee090000 {
 		compatible = "renesas,pci-r8a7790";
 		device_type = "pci";
