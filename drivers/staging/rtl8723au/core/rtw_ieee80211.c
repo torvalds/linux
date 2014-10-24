@@ -302,8 +302,7 @@ void rtw_set_supported_rate23a(u8 *SupportedRates, uint mode)
 
 	memset(SupportedRates, 0, NDIS_802_11_LENGTH_RATES_EX);
 
-	switch (mode)
-	{
+	switch (mode) {
 	case WIRELESS_11B:
 		memcpy(SupportedRates, WIFI_CCKRATES, IEEE80211_CCK_RATE_LEN);
 		break;
