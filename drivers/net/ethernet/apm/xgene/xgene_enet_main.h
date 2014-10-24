@@ -39,6 +39,9 @@
 #define NUM_PKT_BUF	64
 #define NUM_BUFPOOL	32
 
+#define PHY_POLL_LINK_ON	(10 * HZ)
+#define PHY_POLL_LINK_OFF	(PHY_POLL_LINK_ON / 5)
+
 /* software context of a descriptor ring */
 struct xgene_enet_desc_ring {
 	struct net_device *ndev;
@@ -76,6 +79,7 @@ struct xgene_mac_ops {
 	void (*tx_disable)(struct xgene_enet_pdata *pdata);
 	void (*rx_disable)(struct xgene_enet_pdata *pdata);
 	void (*set_mac_addr)(struct xgene_enet_pdata *pdata);
+	void (*link_state)(struct work_struct *work);
 };
 
 struct xgene_port_ops {
@@ -109,13 +113,19 @@ struct xgene_enet_pdata {
 	void __iomem *base_addr;
 	void __iomem *ring_csr_addr;
 	void __iomem *ring_cmd_addr;
-	u32 phy_addr;
 	int phy_mode;
 	enum xgene_enet_rm rm;
 	struct rtnl_link_stats64 stats;
 	struct xgene_mac_ops *mac_ops;
 	struct xgene_port_ops *port_ops;
 	struct delayed_work link_work;
+};
+
+struct xgene_indirect_ctl {
+	void __iomem *addr;
+	void __iomem *ctl;
+	void __iomem *cmd;
+	void __iomem *cmd_done;
 };
 
 /* Set the specified value into a bit-field defined by its starting position

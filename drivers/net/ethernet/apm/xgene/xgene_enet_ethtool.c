@@ -64,15 +64,24 @@ static int xgene_get_settings(struct net_device *ndev, struct ethtool_cmd *cmd)
 			return -ENODEV;
 
 		return phy_ethtool_gset(phydev, cmd);
+	} else if (pdata->phy_mode == PHY_INTERFACE_MODE_SGMII) {
+		cmd->supported = SUPPORTED_1000baseT_Full |
+				 SUPPORTED_Autoneg | SUPPORTED_MII;
+		cmd->advertising = cmd->supported;
+		ethtool_cmd_speed_set(cmd, SPEED_1000);
+		cmd->duplex = DUPLEX_FULL;
+		cmd->port = PORT_MII;
+		cmd->transceiver = XCVR_INTERNAL;
+		cmd->autoneg = AUTONEG_ENABLE;
+	} else {
+		cmd->supported = SUPPORTED_10000baseT_Full | SUPPORTED_FIBRE;
+		cmd->advertising = cmd->supported;
+		ethtool_cmd_speed_set(cmd, SPEED_10000);
+		cmd->duplex = DUPLEX_FULL;
+		cmd->port = PORT_FIBRE;
+		cmd->transceiver = XCVR_INTERNAL;
+		cmd->autoneg = AUTONEG_DISABLE;
 	}
-
-	cmd->supported = SUPPORTED_10000baseT_Full | SUPPORTED_FIBRE;
-	cmd->advertising = cmd->supported;
-	ethtool_cmd_speed_set(cmd, SPEED_10000);
-	cmd->duplex = DUPLEX_FULL;
-	cmd->port = PORT_FIBRE;
-	cmd->transceiver = XCVR_EXTERNAL;
-	cmd->autoneg = AUTONEG_DISABLE;
 
 	return 0;
 }

@@ -191,8 +191,7 @@ int kvm_assign_device(struct kvm *kvm,
 		return r;
 	}
 
-	noncoherent = !iommu_domain_has_cap(kvm->arch.iommu_domain,
-					    IOMMU_CAP_CACHE_COHERENCY);
+	noncoherent = !iommu_capable(&pci_bus_type, IOMMU_CAP_CACHE_COHERENCY);
 
 	/* Check if need to update IOMMU page table for guest memory */
 	if (noncoherent != kvm->arch.iommu_noncoherent) {
@@ -254,8 +253,7 @@ int kvm_iommu_map_guest(struct kvm *kvm)
 	}
 
 	if (!allow_unsafe_assigned_interrupts &&
-	    !iommu_domain_has_cap(kvm->arch.iommu_domain,
-				  IOMMU_CAP_INTR_REMAP)) {
+	    !iommu_capable(&pci_bus_type, IOMMU_CAP_INTR_REMAP)) {
 		printk(KERN_WARNING "%s: No interrupt remapping support,"
 		       " disallowing device assignment."
 		       " Re-enble with \"allow_unsafe_assigned_interrupts=1\""

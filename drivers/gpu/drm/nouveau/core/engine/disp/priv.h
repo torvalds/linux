@@ -40,7 +40,8 @@ int  _nouveau_disp_fini(struct nouveau_object *, bool);
 extern struct nouveau_oclass *nvkm_output_oclass;
 extern struct nouveau_oclass *nvkm_connector_oclass;
 
-int  nouveau_disp_vblank_ctor(void *data, u32 size, struct nvkm_notify *);
+int  nouveau_disp_vblank_ctor(struct nouveau_object *, void *data, u32 size,
+			      struct nvkm_notify *);
 void nouveau_disp_vblank(struct nouveau_disp *, int head);
 int  nouveau_disp_ntfy(struct nouveau_object *, u32, struct nvkm_event **);
 

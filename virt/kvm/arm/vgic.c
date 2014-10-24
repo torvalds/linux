@@ -145,6 +145,20 @@ static void vgic_free_bitmap(struct vgic_bitmap *b)
 	b->shared = NULL;
 }
 
+/*
+ * Call this function to convert a u64 value to an unsigned long * bitmask
+ * in a way that works on both 32-bit and 64-bit LE and BE platforms.
+ *
+ * Warning: Calling this function may modify *val.
+ */
+static unsigned long *u64_to_bitmask(u64 *val)
+{
+#if defined(CONFIG_CPU_BIG_ENDIAN) && BITS_PER_LONG == 32
+	*val = (*val >> 32) | (*val << 32);
+#endif
+	return (unsigned long *)val;
+}
+
 static u32 *vgic_bitmap_get_reg(struct vgic_bitmap *x,
 				int cpuid, u32 offset)
 {
@@ -1442,7 +1456,7 @@ static bool vgic_process_maintenance(struct kvm_vcpu *vcpu)
 		 * active bit.
 		 */
 		u64 eisr = vgic_get_eisr(vcpu);
-		unsigned long *eisr_ptr = (unsigned long *)&eisr;
+		unsigned long *eisr_ptr = u64_to_bitmask(&eisr);
 		int lr;
 
 		for_each_set_bit(lr, eisr_ptr, vgic->nr_lr) {
@@ -1505,7 +1519,7 @@ static void __kvm_vgic_sync_hwstate(struct kvm_vcpu *vcpu)
 
 	level_pending = vgic_process_maintenance(vcpu);
 	elrsr = vgic_get_elrsr(vcpu);
-	elrsr_ptr = (unsigned long *)&elrsr;
+	elrsr_ptr = u64_to_bitmask(&elrsr);
 
 	/* Clear mappings for empty LRs */
 	for_each_set_bit(lr, elrsr_ptr, vgic->nr_lr) {
@@ -1899,7 +1913,8 @@ int kvm_vgic_init(struct kvm *kvm)
 	}
 
 	ret = kvm_phys_addr_ioremap(kvm, kvm->arch.vgic.vgic_cpu_base,
-				    vgic->vcpu_base, KVM_VGIC_V2_CPU_SIZE);
+				    vgic->vcpu_base, KVM_VGIC_V2_CPU_SIZE,
+				    true);
 	if (ret) {
 		kvm_err("Unable to remap VGIC CPU to VCPU\n");
 		goto out;

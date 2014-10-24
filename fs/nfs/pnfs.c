@@ -361,22 +361,43 @@ pnfs_put_lseg(struct pnfs_layout_segment *lseg)
 }
 EXPORT_SYMBOL_GPL(pnfs_put_lseg);
 
-static void pnfs_put_lseg_async_work(struct work_struct *work)
+static void pnfs_free_lseg_async_work(struct work_struct *work)
 {
 	struct pnfs_layout_segment *lseg;
+	struct pnfs_layout_hdr *lo;
 
 	lseg = container_of(work, struct pnfs_layout_segment, pls_work);
+	lo = lseg->pls_layout;
 
-	pnfs_put_lseg(lseg);
+	pnfs_free_lseg(lseg);
+	pnfs_put_layout_hdr(lo);
+}
+
+static void pnfs_free_lseg_async(struct pnfs_layout_segment *lseg)
+{
+	INIT_WORK(&lseg->pls_work, pnfs_free_lseg_async_work);
+	schedule_work(&lseg->pls_work);
 }
 
 void
-pnfs_put_lseg_async(struct pnfs_layout_segment *lseg)
+pnfs_put_lseg_locked(struct pnfs_layout_segment *lseg)
 {
-	INIT_WORK(&lseg->pls_work, pnfs_put_lseg_async_work);
-	schedule_work(&lseg->pls_work);
+	if (!lseg)
+		return;
+
+	assert_spin_locked(&lseg->pls_layout->plh_inode->i_lock);
+
+	dprintk("%s: lseg %p ref %d valid %d\n", __func__, lseg,
+		atomic_read(&lseg->pls_refcount),
+		test_bit(NFS_LSEG_VALID, &lseg->pls_flags));
+	if (atomic_dec_and_test(&lseg->pls_refcount)) {
+		struct pnfs_layout_hdr *lo = lseg->pls_layout;
+		pnfs_get_layout_hdr(lo);
+		pnfs_layout_remove_lseg(lo, lseg);
+		pnfs_free_lseg_async(lseg);
+	}
 }
-EXPORT_SYMBOL_GPL(pnfs_put_lseg_async);
+EXPORT_SYMBOL_GPL(pnfs_put_lseg_locked);
 
 static u64
 end_offset(u64 start, u64 len)

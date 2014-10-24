@@ -80,7 +80,8 @@ static inline struct sock *__inet6_lookup(struct net *net,
 static inline struct sock *__inet6_lookup_skb(struct inet_hashinfo *hashinfo,
 					      struct sk_buff *skb,
 					      const __be16 sport,
-					      const __be16 dport)
+					      const __be16 dport,
+					      int iif)
 {
 	struct sock *sk = skb_steal_sock(skb);
 
@@ -90,7 +91,7 @@ static inline struct sock *__inet6_lookup_skb(struct inet_hashinfo *hashinfo,
 	return __inet6_lookup(dev_net(skb_dst(skb)->dev), hashinfo,
 			      &ipv6_hdr(skb)->saddr, sport,
 			      &ipv6_hdr(skb)->daddr, ntohs(dport),
-			      inet6_iif(skb));
+			      iif);
 }
 
 struct sock *inet6_lookup(struct net *net, struct inet_hashinfo *hashinfo,

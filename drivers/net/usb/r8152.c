@@ -3189,31 +3189,39 @@ static void r8153_init(struct r8152 *tp)
 static int rtl8152_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct r8152 *tp = usb_get_intfdata(intf);
+	struct net_device *netdev = tp->netdev;
+	int ret = 0;
 
 	mutex_lock(&tp->control);
 
-	if (PMSG_IS_AUTO(message))
-		set_bit(SELECTIVE_SUSPEND, &tp->flags);
-	else
-		netif_device_detach(tp->netdev);
+	if (PMSG_IS_AUTO(message)) {
+		if (netif_running(netdev) && work_busy(&tp->schedule.work)) {
+			ret = -EBUSY;
+			goto out1;
+		}
 
-	if (netif_running(tp->netdev)) {
+		set_bit(SELECTIVE_SUSPEND, &tp->flags);
+	} else {
+		netif_device_detach(netdev);
+	}
+
+	if (netif_running(netdev)) {
 		clear_bit(WORK_ENABLE, &tp->flags);
 		usb_kill_urb(tp->intr_urb);
-		cancel_delayed_work_sync(&tp->schedule);
 		tasklet_disable(&tp->tl);
 		if (test_bit(SELECTIVE_SUSPEND, &tp->flags)) {
 			rtl_stop_rx(tp);
 			rtl_runtime_suspend_enable(tp, true);
 		} else {
+			cancel_delayed_work_sync(&tp->schedule);
 			tp->rtl_ops.down(tp);
 		}
 		tasklet_enable(&tp->tl);
 	}
-
+out1:
 	mutex_unlock(&tp->control);
 
-	return 0;
+	return ret;
 }
 
 static int rtl8152_resume(struct usb_interface *intf)

@@ -1058,7 +1058,7 @@ static int sm_write(struct mtd_blktrans_dev *dev,
 {
 	struct sm_ftl *ftl = dev->priv;
 	struct ftl_zone *zone;
-	int error, zone_num, block, boffset;
+	int error = 0, zone_num, block, boffset;
 
 	BUG_ON(ftl->readonly);
 	sm_break_offset(ftl, sec_no << 9, &zone_num, &block, &boffset);

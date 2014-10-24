@@ -219,7 +219,7 @@ static void __init msm_timer_init(u32 dgt_hz, int sched_bits, int irq,
 		}
 
 		/* Immediately configure the timer on the boot CPU */
-		msm_local_timer_setup(__this_cpu_ptr(msm_evt));
+		msm_local_timer_setup(raw_cpu_ptr(msm_evt));
 	}
 
 err:

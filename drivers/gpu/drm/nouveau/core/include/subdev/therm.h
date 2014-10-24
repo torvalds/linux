@@ -78,5 +78,6 @@ extern struct nouveau_oclass nv50_therm_oclass;
 extern struct nouveau_oclass nv84_therm_oclass;
 extern struct nouveau_oclass nva3_therm_oclass;
 extern struct nouveau_oclass nvd0_therm_oclass;
+extern struct nouveau_oclass gm107_therm_oclass;
 
 #endif

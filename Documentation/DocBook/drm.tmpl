@@ -291,10 +291,9 @@ char *date;</synopsis>
       <title>Device Registration</title>
       <para>
         A number of functions are provided to help with device registration.
-        The functions deal with PCI, USB and platform devices, respectively.
+        The functions deal with PCI and platform devices, respectively.
       </para>
 !Edrivers/gpu/drm/drm_pci.c
-!Edrivers/gpu/drm/drm_usb.c
 !Edrivers/gpu/drm/drm_platform.c
       <para>
         New drivers that no longer rely on the services provided by the
@@ -3386,6 +3385,13 @@ void (*disable_vblank) (struct drm_device *dev, int crtc);</synopsis>
       by scheduling a timer. The delay is accessible through the vblankoffdelay
       module parameter or the <varname>drm_vblank_offdelay</varname> global
       variable and expressed in milliseconds. Its default value is 5000 ms.
+      Zero means never disable, and a negative value means disable immediately.
+      Drivers may override the behaviour by setting the
+      <structname>drm_device</structname>
+      <structfield>vblank_disable_immediate</structfield> flag, which when set
+      causes vblank interrupts to be disabled immediately regardless of the
+      drm_vblank_offdelay value. The flag should only be set if there's a
+      properly working hardware vblank counter present.
     </para>
     <para>
       When a vertical blanking interrupt occurs drivers only need to call the
@@ -3400,6 +3406,7 @@ void (*disable_vblank) (struct drm_device *dev, int crtc);</synopsis>
     <sect2>
       <title>Vertical Blanking and Interrupt Handling Functions Reference</title>
 !Edrivers/gpu/drm/drm_irq.c
+!Finclude/drm/drmP.h drm_crtc_vblank_waitqueue
     </sect2>
   </sect1>
 
@@ -3917,6 +3924,11 @@ int num_ioctls;</synopsis>
         <title>Batchbuffer Parsing</title>
 !Pdrivers/gpu/drm/i915/i915_cmd_parser.c batch buffer command parser
 !Idrivers/gpu/drm/i915/i915_cmd_parser.c
+      </sect2>
+      <sect2>
+        <title>Logical Rings, Logical Ring Contexts and Execlists</title>
+!Pdrivers/gpu/drm/i915/intel_lrc.c Logical Rings, Logical Ring Contexts and Execlists
+!Idrivers/gpu/drm/i915/intel_lrc.c
       </sect2>
     </sect1>
   </chapter>

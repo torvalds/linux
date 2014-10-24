@@ -7,8 +7,6 @@
 #include <linux/perf_event.h>
 #include <linux/types.h>
 #include "xyarray.h"
-#include "cgroup.h"
-#include "hist.h"
 #include "symbol.h"
 
 struct perf_counts_values {
@@ -43,6 +41,8 @@ struct perf_sample_id {
 	u64			period;
 };
 
+struct cgroup_sel;
+
 /** struct perf_evsel - event selector
  *
  * @name - Can be set to retain the original event name passed by the user,
@@ -66,7 +66,6 @@ struct perf_evsel {
 	struct perf_counts	*prev_raw_counts;
 	int			idx;
 	u32			ids;
-	struct hists		hists;
 	char			*name;
 	double			scale;
 	const char		*unit;
@@ -100,12 +99,15 @@ union u64_swap {
 	u32 val32[2];
 };
 
-#define hists_to_evsel(h) container_of(h, struct perf_evsel, hists)
-
 struct cpu_map;
+struct target;
 struct thread_map;
 struct perf_evlist;
 struct record_opts;
+
+int perf_evsel__object_config(size_t object_size,
+			      int (*init)(struct perf_evsel *evsel),
+			      void (*fini)(struct perf_evsel *evsel));
 
 struct perf_evsel *perf_evsel__new_idx(struct perf_event_attr *attr, int idx);
 
@@ -153,12 +155,9 @@ const char *perf_evsel__name(struct perf_evsel *evsel);
 const char *perf_evsel__group_name(struct perf_evsel *evsel);
 int perf_evsel__group_desc(struct perf_evsel *evsel, char *buf, size_t size);
 
-int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads);
 int perf_evsel__alloc_id(struct perf_evsel *evsel, int ncpus, int nthreads);
 int perf_evsel__alloc_counts(struct perf_evsel *evsel, int ncpus);
 void perf_evsel__reset_counts(struct perf_evsel *evsel, int ncpus);
-void perf_evsel__free_fd(struct perf_evsel *evsel);
-void perf_evsel__free_id(struct perf_evsel *evsel);
 void perf_evsel__free_counts(struct perf_evsel *evsel);
 void perf_evsel__close_fd(struct perf_evsel *evsel, int ncpus, int nthreads);
 
@@ -280,8 +279,6 @@ static inline int perf_evsel__read_scaled(struct perf_evsel *evsel,
 {
 	return __perf_evsel__read(evsel, ncpus, nthreads, true);
 }
-
-void hists__init(struct hists *hists);
 
 int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 			     struct perf_sample *sample);

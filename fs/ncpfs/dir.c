@@ -1178,9 +1178,6 @@ static int day_n[] =
 {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 0, 0, 0, 0};
 /* Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec */
 
-
-extern struct timezone sys_tz;
-
 static int utc2local(int time)
 {
 	return time - sys_tz.tz_minuteswest * 60;

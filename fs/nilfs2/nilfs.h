@@ -104,7 +104,7 @@ enum {
 					   constructor */
 	NILFS_I_COLLECTED,		/* All dirty blocks are collected */
 	NILFS_I_UPDATED,		/* The file has been written back */
-	NILFS_I_INODE_DIRTY,		/* write_inode is requested */
+	NILFS_I_INODE_SYNC,		/* dsync is not allowed for inode */
 	NILFS_I_BMAP,			/* has bmap and btnode_cache */
 	NILFS_I_GCINODE,		/* inode for GC, on memory only */
 };
@@ -273,7 +273,7 @@ struct inode *nilfs_iget(struct super_block *sb, struct nilfs_root *root,
 			 unsigned long ino);
 extern struct inode *nilfs_iget_for_gc(struct super_block *sb,
 				       unsigned long ino, __u64 cno);
-extern void nilfs_update_inode(struct inode *, struct buffer_head *);
+extern void nilfs_update_inode(struct inode *, struct buffer_head *, int);
 extern void nilfs_truncate(struct inode *);
 extern void nilfs_evict_inode(struct inode *);
 extern int nilfs_setattr(struct dentry *, struct iattr *);
@@ -282,10 +282,18 @@ int nilfs_permission(struct inode *inode, int mask);
 int nilfs_load_inode_block(struct inode *inode, struct buffer_head **pbh);
 extern int nilfs_inode_dirty(struct inode *);
 int nilfs_set_file_dirty(struct inode *inode, unsigned nr_dirty);
-extern int nilfs_mark_inode_dirty(struct inode *);
+extern int __nilfs_mark_inode_dirty(struct inode *, int);
 extern void nilfs_dirty_inode(struct inode *, int flags);
 int nilfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		 __u64 start, __u64 len);
+static inline int nilfs_mark_inode_dirty(struct inode *inode)
+{
+	return __nilfs_mark_inode_dirty(inode, I_DIRTY);
+}
+static inline int nilfs_mark_inode_dirty_sync(struct inode *inode)
+{
+	return __nilfs_mark_inode_dirty(inode, I_DIRTY_SYNC);
+}
 
 /* super.c */
 extern struct inode *nilfs_alloc_inode(struct super_block *);

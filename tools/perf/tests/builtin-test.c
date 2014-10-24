@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <string.h>
 #include "builtin.h"
+#include "hist.h"
 #include "intlist.h"
 #include "tests.h"
 #include "debug.h"
@@ -302,6 +303,10 @@ int cmd_test(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_END()
 	};
 	struct intlist *skiplist = NULL;
+        int ret = hists__init();
+
+        if (ret < 0)
+                return ret;
 
 	argc = parse_options(argc, argv, test_options, test_usage, 0);
 	if (argc >= 1 && !strcmp(argv[0], "list"))

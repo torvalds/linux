@@ -627,16 +627,16 @@ parse_edp(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 
 	switch (edp_link_params->preemphasis) {
 	case EDP_PREEMPHASIS_NONE:
-		dev_priv->vbt.edp_preemphasis = DP_TRAIN_PRE_EMPHASIS_0;
+		dev_priv->vbt.edp_preemphasis = DP_TRAIN_PRE_EMPH_LEVEL_0;
 		break;
 	case EDP_PREEMPHASIS_3_5dB:
-		dev_priv->vbt.edp_preemphasis = DP_TRAIN_PRE_EMPHASIS_3_5;
+		dev_priv->vbt.edp_preemphasis = DP_TRAIN_PRE_EMPH_LEVEL_1;
 		break;
 	case EDP_PREEMPHASIS_6dB:
-		dev_priv->vbt.edp_preemphasis = DP_TRAIN_PRE_EMPHASIS_6;
+		dev_priv->vbt.edp_preemphasis = DP_TRAIN_PRE_EMPH_LEVEL_2;
 		break;
 	case EDP_PREEMPHASIS_9_5dB:
-		dev_priv->vbt.edp_preemphasis = DP_TRAIN_PRE_EMPHASIS_9_5;
+		dev_priv->vbt.edp_preemphasis = DP_TRAIN_PRE_EMPH_LEVEL_3;
 		break;
 	default:
 		DRM_DEBUG_KMS("VBT has unknown eDP pre-emphasis value %u\n",
@@ -646,16 +646,16 @@ parse_edp(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 
 	switch (edp_link_params->vswing) {
 	case EDP_VSWING_0_4V:
-		dev_priv->vbt.edp_vswing = DP_TRAIN_VOLTAGE_SWING_400;
+		dev_priv->vbt.edp_vswing = DP_TRAIN_VOLTAGE_SWING_LEVEL_0;
 		break;
 	case EDP_VSWING_0_6V:
-		dev_priv->vbt.edp_vswing = DP_TRAIN_VOLTAGE_SWING_600;
+		dev_priv->vbt.edp_vswing = DP_TRAIN_VOLTAGE_SWING_LEVEL_1;
 		break;
 	case EDP_VSWING_0_8V:
-		dev_priv->vbt.edp_vswing = DP_TRAIN_VOLTAGE_SWING_800;
+		dev_priv->vbt.edp_vswing = DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
 		break;
 	case EDP_VSWING_1_2V:
-		dev_priv->vbt.edp_vswing = DP_TRAIN_VOLTAGE_SWING_1200;
+		dev_priv->vbt.edp_vswing = DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
 		break;
 	default:
 		DRM_DEBUG_KMS("VBT has unknown eDP voltage swing value %u\n",
@@ -976,12 +976,10 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	if (bdb->version >= 158) {
 		/* The VBT HDMI level shift values match the table we have. */
 		hdmi_level_shift = child->raw[7] & 0xF;
-		if (hdmi_level_shift < 0xC) {
-			DRM_DEBUG_KMS("VBT HDMI level shift for port %c: %d\n",
-				      port_name(port),
-				      hdmi_level_shift);
-			info->hdmi_level_shift = hdmi_level_shift;
-		}
+		DRM_DEBUG_KMS("VBT HDMI level shift for port %c: %d\n",
+			      port_name(port),
+			      hdmi_level_shift);
+		info->hdmi_level_shift = hdmi_level_shift;
 	}
 }
 
@@ -1114,8 +1112,7 @@ init_vbt_defaults(struct drm_i915_private *dev_priv)
 		struct ddi_vbt_port_info *info =
 			&dev_priv->vbt.ddi_port_info[port];
 
-		/* Recommended BSpec default: 800mV 0dB. */
-		info->hdmi_level_shift = 6;
+		info->hdmi_level_shift = HDMI_LEVEL_SHIFT_UNKNOWN;
 
 		info->supports_dvi = (port != PORT_A && port != PORT_E);
 		info->supports_hdmi = info->supports_dvi;

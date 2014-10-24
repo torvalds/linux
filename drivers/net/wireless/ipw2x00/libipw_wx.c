@@ -272,7 +272,6 @@ int libipw_wx_get_scan(struct libipw_device *ieee,
 	char *ev = extra;
 	char *stop = ev + wrqu->data.length;
 	int i = 0;
-	DECLARE_SSID_BUF(ssid);
 
 	LIBIPW_DEBUG_WX("Getting scan\n");
 
@@ -290,12 +289,10 @@ int libipw_wx_get_scan(struct libipw_device *ieee,
 			ev = libipw_translate_scan(ieee, ev, stop, network,
 						      info);
 		else {
-			LIBIPW_DEBUG_SCAN("Not showing network '%s ("
-					     "%pM)' due to age (%ums).\n",
-					     print_ssid(ssid, network->ssid,
-							 network->ssid_len),
-					     network->bssid,
-					     elapsed_jiffies_msecs(
+			LIBIPW_DEBUG_SCAN("Not showing network '%*pE (%pM)' due to age (%ums).\n",
+					  network->ssid_len, network->ssid,
+					  network->bssid,
+					  elapsed_jiffies_msecs(
 					               network->last_scanned));
 		}
 	}
@@ -322,7 +319,6 @@ int libipw_wx_set_encode(struct libipw_device *ieee,
 	int i, key, key_provided, len;
 	struct lib80211_crypt_data **crypt;
 	int host_crypto = ieee->host_encrypt || ieee->host_decrypt;
-	DECLARE_SSID_BUF(ssid);
 
 	LIBIPW_DEBUG_WX("SET_ENCODE\n");
 
@@ -417,8 +413,8 @@ int libipw_wx_set_encode(struct libipw_device *ieee,
 		if (len > erq->length)
 			memset(sec.keys[key] + erq->length, 0,
 			       len - erq->length);
-		LIBIPW_DEBUG_WX("Setting key %d to '%s' (%d:%d bytes)\n",
-				   key, print_ssid(ssid, sec.keys[key], len),
+		LIBIPW_DEBUG_WX("Setting key %d to '%*pE' (%d:%d bytes)\n",
+				   key, len, sec.keys[key],
 				   erq->length, len);
 		sec.key_sizes[key] = len;
 		if (*crypt)

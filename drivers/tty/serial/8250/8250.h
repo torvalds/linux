@@ -16,12 +16,12 @@
 #include <linux/dmaengine.h>
 
 struct uart_8250_dma {
+	/* Filter function */
 	dma_filter_fn		fn;
+
+	/* Parameter to the filter function */
 	void			*rx_param;
 	void			*tx_param;
-
-	int			rx_chan_id;
-	int			tx_chan_id;
 
 	struct dma_slave_config	rxconf;
 	struct dma_slave_config	txconf;

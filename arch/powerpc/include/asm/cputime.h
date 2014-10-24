@@ -58,10 +58,10 @@ static inline unsigned long cputime_to_jiffies(const cputime_t ct)
 static inline cputime_t cputime_to_scaled(const cputime_t ct)
 {
 	if (cpu_has_feature(CPU_FTR_SPURR) &&
-	    __get_cpu_var(cputime_last_delta))
+	    __this_cpu_read(cputime_last_delta))
 		return (__force u64) ct *
-			__get_cpu_var(cputime_scaled_last_delta) /
-			__get_cpu_var(cputime_last_delta);
+			__this_cpu_read(cputime_scaled_last_delta) /
+			__this_cpu_read(cputime_last_delta);
 	return ct;
 }
 

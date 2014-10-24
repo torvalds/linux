@@ -838,6 +838,7 @@ config LOG_BUF_SHIFT
 
 config LOG_CPU_MAX_BUF_SHIFT
 	int "CPU kernel log buffer size contribution (13 => 8 KB, 17 => 128KB)"
+	depends on SMP
 	range 0 21
 	default 12 if !BASE_SMALL
 	default 0 if BASE_SMALL

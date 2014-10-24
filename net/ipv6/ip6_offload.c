@@ -46,6 +46,7 @@ static int ipv6_gso_pull_exthdrs(struct sk_buff *skb, int proto)
 		if (unlikely(!pskb_may_pull(skb, len)))
 			break;
 
+		opth = (void *)skb->data;
 		proto = opth->nexthdr;
 		__skb_pull(skb, len);
 	}

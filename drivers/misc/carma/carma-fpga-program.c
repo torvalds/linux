@@ -16,6 +16,7 @@
 #include <linux/completion.h>
 #include <linux/miscdevice.h>
 #include <linux/dmaengine.h>
+#include <linux/fsldma.h>
 #include <linux/interrupt.h>
 #include <linux/highmem.h>
 #include <linux/kernel.h>
@@ -518,23 +519,22 @@ static noinline int fpga_program_dma(struct fpga_dev *priv)
 	config.direction = DMA_MEM_TO_DEV;
 	config.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	config.dst_maxburst = fpga_fifo_size(priv->regs) / 2 / 4;
-	ret = chan->device->device_control(chan, DMA_SLAVE_CONFIG,
-					   (unsigned long)&config);
+	ret = dmaengine_slave_config(chan, &config);
 	if (ret) {
 		dev_err(priv->dev, "DMA slave configuration failed\n");
 		goto out_dma_unmap;
 	}
 
-	ret = chan->device->device_control(chan, FSLDMA_EXTERNAL_START, 1);
+	ret = fsl_dma_external_start(chan, 1)
 	if (ret) {
 		dev_err(priv->dev, "DMA external control setup failed\n");
 		goto out_dma_unmap;
 	}
 
 	/* setup and submit the DMA transaction */
-	tx = chan->device->device_prep_dma_sg(chan,
-					      table.sgl, num_pages,
-					      vb->sglist, vb->sglen, 0);
+
+	tx = dmaengine_prep_dma_sg(chan, table.sgl, num_pages,
+			vb->sglist, vb->sglen, 0);
 	if (!tx) {
 		dev_err(priv->dev, "Unable to prep DMA transaction\n");
 		ret = -ENOMEM;

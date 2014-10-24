@@ -386,17 +386,14 @@ static int ima_calc_file_hash_tfm(struct file *file,
 	loff_t i_size, offset = 0;
 	char *rbuf;
 	int rc, read = 0;
-	struct {
-		struct shash_desc shash;
-		char ctx[crypto_shash_descsize(tfm)];
-	} desc;
+	SHASH_DESC_ON_STACK(shash, tfm);
 
-	desc.shash.tfm = tfm;
-	desc.shash.flags = 0;
+	shash->tfm = tfm;
+	shash->flags = 0;
 
 	hash->length = crypto_shash_digestsize(tfm);
 
-	rc = crypto_shash_init(&desc.shash);
+	rc = crypto_shash_init(shash);
 	if (rc != 0)
 		return rc;
 
@@ -426,7 +423,7 @@ static int ima_calc_file_hash_tfm(struct file *file,
 			break;
 		offset += rbuf_len;
 
-		rc = crypto_shash_update(&desc.shash, rbuf, rbuf_len);
+		rc = crypto_shash_update(shash, rbuf, rbuf_len);
 		if (rc)
 			break;
 	}
@@ -435,7 +432,7 @@ static int ima_calc_file_hash_tfm(struct file *file,
 	kfree(rbuf);
 out:
 	if (!rc)
-		rc = crypto_shash_final(&desc.shash, hash->digest);
+		rc = crypto_shash_final(shash, hash->digest);
 	return rc;
 }
 
@@ -493,18 +490,15 @@ static int ima_calc_field_array_hash_tfm(struct ima_field_data *field_data,
 					 struct ima_digest_data *hash,
 					 struct crypto_shash *tfm)
 {
-	struct {
-		struct shash_desc shash;
-		char ctx[crypto_shash_descsize(tfm)];
-	} desc;
+	SHASH_DESC_ON_STACK(shash, tfm);
 	int rc, i;
 
-	desc.shash.tfm = tfm;
-	desc.shash.flags = 0;
+	shash->tfm = tfm;
+	shash->flags = 0;
 
 	hash->length = crypto_shash_digestsize(tfm);
 
-	rc = crypto_shash_init(&desc.shash);
+	rc = crypto_shash_init(shash);
 	if (rc != 0)
 		return rc;
 
@@ -514,7 +508,7 @@ static int ima_calc_field_array_hash_tfm(struct ima_field_data *field_data,
 		u32 datalen = field_data[i].len;
 
 		if (strcmp(td->name, IMA_TEMPLATE_IMA_NAME) != 0) {
-			rc = crypto_shash_update(&desc.shash,
+			rc = crypto_shash_update(shash,
 						(const u8 *) &field_data[i].len,
 						sizeof(field_data[i].len));
 			if (rc)
@@ -524,13 +518,13 @@ static int ima_calc_field_array_hash_tfm(struct ima_field_data *field_data,
 			data_to_hash = buffer;
 			datalen = IMA_EVENT_NAME_LEN_MAX + 1;
 		}
-		rc = crypto_shash_update(&desc.shash, data_to_hash, datalen);
+		rc = crypto_shash_update(shash, data_to_hash, datalen);
 		if (rc)
 			break;
 	}
 
 	if (!rc)
-		rc = crypto_shash_final(&desc.shash, hash->digest);
+		rc = crypto_shash_final(shash, hash->digest);
 
 	return rc;
 }
@@ -571,15 +565,12 @@ static int __init ima_calc_boot_aggregate_tfm(char *digest,
 {
 	u8 pcr_i[TPM_DIGEST_SIZE];
 	int rc, i;
-	struct {
-		struct shash_desc shash;
-		char ctx[crypto_shash_descsize(tfm)];
-	} desc;
+	SHASH_DESC_ON_STACK(shash, tfm);
 
-	desc.shash.tfm = tfm;
-	desc.shash.flags = 0;
+	shash->tfm = tfm;
+	shash->flags = 0;
 
-	rc = crypto_shash_init(&desc.shash);
+	rc = crypto_shash_init(shash);
 	if (rc != 0)
 		return rc;
 
@@ -587,10 +578,10 @@ static int __init ima_calc_boot_aggregate_tfm(char *digest,
 	for (i = TPM_PCR0; i < TPM_PCR8; i++) {
 		ima_pcrread(i, pcr_i);
 		/* now accumulate with current aggregate */
-		rc = crypto_shash_update(&desc.shash, pcr_i, TPM_DIGEST_SIZE);
+		rc = crypto_shash_update(shash, pcr_i, TPM_DIGEST_SIZE);
 	}
 	if (!rc)
-		crypto_shash_final(&desc.shash, digest);
+		crypto_shash_final(shash, digest);
 	return rc;
 }
 

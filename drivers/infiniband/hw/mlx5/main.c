@@ -657,12 +657,12 @@ static int mlx5_ib_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vm
 			return -EINVAL;
 
 		idx = get_index(vma->vm_pgoff);
+		if (idx >= uuari->num_uars)
+			return -EINVAL;
+
 		pfn = uar_index2pfn(dev, uuari->uars[idx].index);
 		mlx5_ib_dbg(dev, "uar idx 0x%lx, pfn 0x%llx\n", idx,
 			    (unsigned long long)pfn);
-
-		if (idx >= uuari->num_uars)
-			return -EINVAL;
 
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 		if (io_remap_pfn_range(vma, vma->vm_start, pfn,
@@ -1425,8 +1425,8 @@ err_dealloc:
 static void mlx5_ib_remove(struct mlx5_core_dev *mdev, void *context)
 {
 	struct mlx5_ib_dev *dev = context;
-	destroy_umrc_res(dev);
 	ib_unregister_device(&dev->ib_dev);
+	destroy_umrc_res(dev);
 	destroy_dev_resources(&dev->devr);
 	free_comp_eqs(dev);
 	ib_dealloc_device(&dev->ib_dev);

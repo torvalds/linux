@@ -519,8 +519,8 @@ static void blk_release_queue(struct kobject *kobj)
 
 	if (q->mq_ops)
 		blk_mq_free_queue(q);
-
-	kfree(q->flush_rq);
+	else
+		blk_free_flush_queue(q->fq);
 
 	blk_trace_shutdown(q);
 

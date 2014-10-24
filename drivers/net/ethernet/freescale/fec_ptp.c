@@ -61,6 +61,24 @@
 #define FEC_T_INC_CORR_MASK             0x00007f00
 #define FEC_T_INC_CORR_OFFSET           8
 
+#define FEC_T_CTRL_PINPER		0x00000080
+#define FEC_T_TF0_MASK			0x00000001
+#define FEC_T_TF0_OFFSET		0
+#define FEC_T_TF1_MASK			0x00000002
+#define FEC_T_TF1_OFFSET		1
+#define FEC_T_TF2_MASK			0x00000004
+#define FEC_T_TF2_OFFSET		2
+#define FEC_T_TF3_MASK			0x00000008
+#define FEC_T_TF3_OFFSET		3
+#define FEC_T_TDRE_MASK			0x00000001
+#define FEC_T_TDRE_OFFSET		0
+#define FEC_T_TMODE_MASK		0x0000003C
+#define FEC_T_TMODE_OFFSET		2
+#define FEC_T_TIE_MASK			0x00000040
+#define FEC_T_TIE_OFFSET		6
+#define FEC_T_TF_MASK			0x00000080
+#define FEC_T_TF_OFFSET			7
+
 #define FEC_ATIME_CTRL		0x400
 #define FEC_ATIME		0x404
 #define FEC_ATIME_EVT_OFFSET	0x408
@@ -69,7 +87,143 @@
 #define FEC_ATIME_INC		0x414
 #define FEC_TS_TIMESTAMP	0x418
 
+#define FEC_TGSR		0x604
+#define FEC_TCSR(n)		(0x608 + n * 0x08)
+#define FEC_TCCR(n)		(0x60C + n * 0x08)
+#define MAX_TIMER_CHANNEL	3
+#define FEC_TMODE_TOGGLE	0x05
+#define FEC_HIGH_PULSE		0x0F
+
 #define FEC_CC_MULT	(1 << 31)
+#define FEC_COUNTER_PERIOD	(1 << 31)
+#define PPS_OUPUT_RELOAD_PERIOD	NSEC_PER_SEC
+#define FEC_CHANNLE_0		0
+#define DEFAULT_PPS_CHANNEL	FEC_CHANNLE_0
+
+/**
+ * fec_ptp_enable_pps
+ * @fep: the fec_enet_private structure handle
+ * @enable: enable the channel pps output
+ *
+ * This function enble the PPS ouput on the timer channel.
+ */
+static int fec_ptp_enable_pps(struct fec_enet_private *fep, uint enable)
+{
+	unsigned long flags;
+	u32 val, tempval;
+	int inc;
+	struct timespec ts;
+	u64 ns;
+	u32 remainder;
+	val = 0;
+
+	if (!(fep->hwts_tx_en || fep->hwts_rx_en)) {
+		dev_err(&fep->pdev->dev, "No ptp stack is running\n");
+		return -EINVAL;
+	}
+
+	if (fep->pps_enable == enable)
+		return 0;
+
+	fep->pps_channel = DEFAULT_PPS_CHANNEL;
+	fep->reload_period = PPS_OUPUT_RELOAD_PERIOD;
+	inc = fep->ptp_inc;
+
+	spin_lock_irqsave(&fep->tmreg_lock, flags);
+
+	if (enable) {
+		/* clear capture or output compare interrupt status if have.
+		 */
+		writel(FEC_T_TF_MASK, fep->hwp + FEC_TCSR(fep->pps_channel));
+
+		/* It is recommended to doulbe check the TMODE field in the
+		 * TCSR register to be cleared before the first compare counter
+		 * is written into TCCR register. Just add a double check.
+		 */
+		val = readl(fep->hwp + FEC_TCSR(fep->pps_channel));
+		do {
+			val &= ~(FEC_T_TMODE_MASK);
+			writel(val, fep->hwp + FEC_TCSR(fep->pps_channel));
+			val = readl(fep->hwp + FEC_TCSR(fep->pps_channel));
+		} while (val & FEC_T_TMODE_MASK);
+
+		/* Dummy read counter to update the counter */
+		timecounter_read(&fep->tc);
+		/* We want to find the first compare event in the next
+		 * second point. So we need to know what the ptp time
+		 * is now and how many nanoseconds is ahead to get next second.
+		 * The remaining nanosecond ahead before the next second would be
+		 * NSEC_PER_SEC - ts.tv_nsec. Add the remaining nanoseconds
+		 * to current timer would be next second.
+		 */
+		tempval = readl(fep->hwp + FEC_ATIME_CTRL);
+		tempval |= FEC_T_CTRL_CAPTURE;
+		writel(tempval, fep->hwp + FEC_ATIME_CTRL);
+
+		tempval = readl(fep->hwp + FEC_ATIME);
+		/* Convert the ptp local counter to 1588 timestamp */
+		ns = timecounter_cyc2time(&fep->tc, tempval);
+		ts.tv_sec = div_u64_rem(ns, 1000000000ULL, &remainder);
+		ts.tv_nsec = remainder;
+
+		/* The tempval is  less than 3 seconds, and  so val is less than
+		 * 4 seconds. No overflow for 32bit calculation.
+		 */
+		val = NSEC_PER_SEC - (u32)ts.tv_nsec + tempval;
+
+		/* Need to consider the situation that the current time is
+		 * very close to the second point, which means NSEC_PER_SEC
+		 * - ts.tv_nsec is close to be zero(For example 20ns); Since the timer
+		 * is still running when we calculate the first compare event, it is
+		 * possible that the remaining nanoseonds run out before the compare
+		 * counter is calculated and written into TCCR register. To avoid
+		 * this possibility, we will set the compare event to be the next
+		 * of next second. The current setting is 31-bit timer and wrap
+		 * around over 2 seconds. So it is okay to set the next of next
+		 * seond for the timer.
+		 */
+		val += NSEC_PER_SEC;
+
+		/* We add (2 * NSEC_PER_SEC - (u32)ts.tv_nsec) to current
+		 * ptp counter, which maybe cause 32-bit wrap. Since the
+		 * (NSEC_PER_SEC - (u32)ts.tv_nsec) is less than 2 second.
+		 * We can ensure the wrap will not cause issue. If the offset
+		 * is bigger than fep->cc.mask would be a error.
+		 */
+		val &= fep->cc.mask;
+		writel(val, fep->hwp + FEC_TCCR(fep->pps_channel));
+
+		/* Calculate the second the compare event timestamp */
+		fep->next_counter = (val + fep->reload_period) & fep->cc.mask;
+
+		/* * Enable compare event when overflow */
+		val = readl(fep->hwp + FEC_ATIME_CTRL);
+		val |= FEC_T_CTRL_PINPER;
+		writel(val, fep->hwp + FEC_ATIME_CTRL);
+
+		/* Compare channel setting. */
+		val = readl(fep->hwp + FEC_TCSR(fep->pps_channel));
+		val |= (1 << FEC_T_TF_OFFSET | 1 << FEC_T_TIE_OFFSET);
+		val &= ~(1 << FEC_T_TDRE_OFFSET);
+		val &= ~(FEC_T_TMODE_MASK);
+		val |= (FEC_HIGH_PULSE << FEC_T_TMODE_OFFSET);
+		writel(val, fep->hwp + FEC_TCSR(fep->pps_channel));
+
+		/* Write the second compare event timestamp and calculate
+		 * the third timestamp. Refer the TCCR register detail in the spec.
+		 */
+		writel(fep->next_counter, fep->hwp + FEC_TCCR(fep->pps_channel));
+		fep->next_counter = (fep->next_counter + fep->reload_period) & fep->cc.mask;
+	} else {
+		writel(0, fep->hwp + FEC_TCSR(fep->pps_channel));
+	}
+
+	fep->pps_enable = enable;
+	spin_unlock_irqrestore(&fep->tmreg_lock, flags);
+
+	return 0;
+}
+
 /**
  * fec_ptp_read - read raw cycle counter (to be used by time counter)
  * @cc: the cyclecounter structure
@@ -82,11 +236,16 @@ static cycle_t fec_ptp_read(const struct cyclecounter *cc)
 {
 	struct fec_enet_private *fep =
 		container_of(cc, struct fec_enet_private, cc);
+	const struct platform_device_id *id_entry =
+		platform_get_device_id(fep->pdev);
 	u32 tempval;
 
 	tempval = readl(fep->hwp + FEC_ATIME_CTRL);
 	tempval |= FEC_T_CTRL_CAPTURE;
 	writel(tempval, fep->hwp + FEC_ATIME_CTRL);
+
+	if (id_entry->driver_data & FEC_QUIRK_BUG_CAPTURE)
+		udelay(1);
 
 	return readl(fep->hwp + FEC_ATIME);
 }
@@ -113,14 +272,15 @@ void fec_ptp_start_cyclecounter(struct net_device *ndev)
 	/* 1ns counter */
 	writel(inc << FEC_T_INC_OFFSET, fep->hwp + FEC_ATIME_INC);
 
-	/* use free running count */
-	writel(0, fep->hwp + FEC_ATIME_EVT_PERIOD);
+	/* use 31-bit timer counter */
+	writel(FEC_COUNTER_PERIOD, fep->hwp + FEC_ATIME_EVT_PERIOD);
 
-	writel(FEC_T_CTRL_ENABLE, fep->hwp + FEC_ATIME_CTRL);
+	writel(FEC_T_CTRL_ENABLE | FEC_T_CTRL_PERIOD_RST,
+		fep->hwp + FEC_ATIME_CTRL);
 
 	memset(&fep->cc, 0, sizeof(fep->cc));
 	fep->cc.read = fec_ptp_read;
-	fep->cc.mask = CLOCKSOURCE_MASK(32);
+	fep->cc.mask = CLOCKSOURCE_MASK(31);
 	fep->cc.shift = 31;
 	fep->cc.mult = FEC_CC_MULT;
 
@@ -143,32 +303,59 @@ void fec_ptp_start_cyclecounter(struct net_device *ndev)
  */
 static int fec_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 {
-	u64 diff;
 	unsigned long flags;
 	int neg_adj = 0;
-	u32 mult = FEC_CC_MULT;
+	u32 i, tmp;
+	u32 corr_inc, corr_period;
+	u32 corr_ns;
+	u64 lhs, rhs;
 
 	struct fec_enet_private *fep =
 	    container_of(ptp, struct fec_enet_private, ptp_caps);
+
+	if (ppb == 0)
+		return 0;
 
 	if (ppb < 0) {
 		ppb = -ppb;
 		neg_adj = 1;
 	}
 
-	diff = mult;
-	diff *= ppb;
-	diff = div_u64(diff, 1000000000ULL);
+	/* In theory, corr_inc/corr_period = ppb/NSEC_PER_SEC;
+	 * Try to find the corr_inc  between 1 to fep->ptp_inc to
+	 * meet adjustment requirement.
+	 */
+	lhs = NSEC_PER_SEC;
+	rhs = (u64)ppb * (u64)fep->ptp_inc;
+	for (i = 1; i <= fep->ptp_inc; i++) {
+		if (lhs >= rhs) {
+			corr_inc = i;
+			corr_period = div_u64(lhs, rhs);
+			break;
+		}
+		lhs += NSEC_PER_SEC;
+	}
+	/* Not found? Set it to high value - double speed
+	 * correct in every clock step.
+	 */
+	if (i > fep->ptp_inc) {
+		corr_inc = fep->ptp_inc;
+		corr_period = 1;
+	}
+
+	if (neg_adj)
+		corr_ns = fep->ptp_inc - corr_inc;
+	else
+		corr_ns = fep->ptp_inc + corr_inc;
 
 	spin_lock_irqsave(&fep->tmreg_lock, flags);
-	/*
-	 * dummy read to set cycle_last in tc to now.
-	 * So use adjusted mult to calculate when next call
-	 * timercounter_read.
-	 */
-	timecounter_read(&fep->tc);
 
-	fep->cc.mult = neg_adj ? mult - diff : mult + diff;
+	tmp = readl(fep->hwp + FEC_ATIME_INC) & FEC_T_INC_MASK;
+	tmp |= corr_ns << FEC_T_INC_CORR_OFFSET;
+	writel(tmp, fep->hwp + FEC_ATIME_INC);
+	writel(corr_period, fep->hwp + FEC_ATIME_CORR);
+	/* dummy read to update the timer. */
+	timecounter_read(&fep->tc);
 
 	spin_unlock_irqrestore(&fep->tmreg_lock, flags);
 
@@ -188,11 +375,18 @@ static int fec_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	    container_of(ptp, struct fec_enet_private, ptp_caps);
 	unsigned long flags;
 	u64 now;
+	u32 counter;
 
 	spin_lock_irqsave(&fep->tmreg_lock, flags);
 
 	now = timecounter_read(&fep->tc);
 	now += delta;
+
+	/* Get the timer value based on adjusted timestamp.
+	 * Update the counter with the masked value.
+	 */
+	counter = now & fep->cc.mask;
+	writel(counter, fep->hwp + FEC_ATIME);
 
 	/* reset the timecounter */
 	timecounter_init(&fep->tc, &fep->cc, now);
@@ -244,6 +438,7 @@ static int fec_ptp_settime(struct ptp_clock_info *ptp,
 
 	u64 ns;
 	unsigned long flags;
+	u32 counter;
 
 	mutex_lock(&fep->ptp_clk_mutex);
 	/* Check the ptp clock */
@@ -254,8 +449,13 @@ static int fec_ptp_settime(struct ptp_clock_info *ptp,
 
 	ns = ts->tv_sec * 1000000000ULL;
 	ns += ts->tv_nsec;
+	/* Get the timer value based on timestamp.
+	 * Update the counter with the masked value.
+	 */
+	counter = ns & fep->cc.mask;
 
 	spin_lock_irqsave(&fep->tmreg_lock, flags);
+	writel(counter, fep->hwp + FEC_ATIME);
 	timecounter_init(&fep->tc, &fep->cc, ns);
 	spin_unlock_irqrestore(&fep->tmreg_lock, flags);
 	mutex_unlock(&fep->ptp_clk_mutex);
@@ -272,6 +472,15 @@ static int fec_ptp_settime(struct ptp_clock_info *ptp,
 static int fec_ptp_enable(struct ptp_clock_info *ptp,
 			  struct ptp_clock_request *rq, int on)
 {
+	struct fec_enet_private *fep =
+	    container_of(ptp, struct fec_enet_private, ptp_caps);
+	int ret = 0;
+
+	if (rq->type == PTP_CLK_REQ_PPS) {
+		ret = fec_ptp_enable_pps(fep, on);
+
+		return ret;
+	}
 	return -EOPNOTSUPP;
 }
 
@@ -386,7 +595,7 @@ void fec_ptp_init(struct platform_device *pdev)
 	fep->ptp_caps.n_ext_ts = 0;
 	fep->ptp_caps.n_per_out = 0;
 	fep->ptp_caps.n_pins = 0;
-	fep->ptp_caps.pps = 0;
+	fep->ptp_caps.pps = 1;
 	fep->ptp_caps.adjfreq = fec_ptp_adjfreq;
 	fep->ptp_caps.adjtime = fec_ptp_adjtime;
 	fep->ptp_caps.gettime = fec_ptp_gettime;
@@ -394,6 +603,7 @@ void fec_ptp_init(struct platform_device *pdev)
 	fep->ptp_caps.enable = fec_ptp_enable;
 
 	fep->cycle_speed = clk_get_rate(fep->clk_ptp);
+	fep->ptp_inc = NSEC_PER_SEC / fep->cycle_speed;
 
 	spin_lock_init(&fep->tmreg_lock);
 
@@ -408,4 +618,37 @@ void fec_ptp_init(struct platform_device *pdev)
 	}
 
 	schedule_delayed_work(&fep->time_keep, HZ);
+}
+
+/**
+ * fec_ptp_check_pps_event
+ * @fep: the fec_enet_private structure handle
+ *
+ * This function check the pps event and reload the timer compare counter.
+ */
+uint fec_ptp_check_pps_event(struct fec_enet_private *fep)
+{
+	u32 val;
+	u8 channel = fep->pps_channel;
+	struct ptp_clock_event event;
+
+	val = readl(fep->hwp + FEC_TCSR(channel));
+	if (val & FEC_T_TF_MASK) {
+		/* Write the next next compare(not the next according the spec)
+		 * value to the register
+		 */
+		writel(fep->next_counter, fep->hwp + FEC_TCCR(channel));
+		do {
+			writel(val, fep->hwp + FEC_TCSR(channel));
+		} while (readl(fep->hwp + FEC_TCSR(channel)) & FEC_T_TF_MASK);
+
+		/* Update the counter; */
+		fep->next_counter = (fep->next_counter + fep->reload_period) & fep->cc.mask;
+
+		event.type = PTP_CLOCK_PPS;
+		ptp_clock_event(fep->ptp_clock, &event);
+		return 1;
+	}
+
+	return 0;
 }

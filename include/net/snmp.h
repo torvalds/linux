@@ -164,7 +164,7 @@ struct linux_xfrm_mib {
 
 #define SNMP_ADD_STATS64_BH(mib, field, addend) 			\
 	do {								\
-		__typeof__(*mib) *ptr = __this_cpu_ptr(mib);		\
+		__typeof__(*mib) *ptr = raw_cpu_ptr(mib);		\
 		u64_stats_update_begin(&ptr->syncp);			\
 		ptr->mibs[field] += addend;				\
 		u64_stats_update_end(&ptr->syncp);			\
@@ -185,8 +185,8 @@ struct linux_xfrm_mib {
 #define SNMP_INC_STATS64(mib, field) SNMP_ADD_STATS64(mib, field, 1)
 #define SNMP_UPD_PO_STATS64_BH(mib, basefield, addend)			\
 	do {								\
-		__typeof__(*mib) *ptr;					\
-		ptr = __this_cpu_ptr(mib);				\
+		__typeof__(*mib) *ptr;				\
+		ptr = raw_cpu_ptr((mib));				\
 		u64_stats_update_begin(&ptr->syncp);			\
 		ptr->mibs[basefield##PKTS]++;				\
 		ptr->mibs[basefield##OCTETS] += addend;			\

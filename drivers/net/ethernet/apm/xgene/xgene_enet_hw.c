@@ -410,7 +410,6 @@ static void xgene_gmac_set_mac_addr(struct xgene_enet_pdata *pdata)
 	addr0 = (dev_addr[3] << 24) | (dev_addr[2] << 16) |
 		(dev_addr[1] << 8) | dev_addr[0];
 	addr1 = (dev_addr[5] << 24) | (dev_addr[4] << 16);
-	addr1 |= pdata->phy_addr & 0xFFFF;
 
 	xgene_enet_wr_mcx_mac(pdata, STATION_ADDR0_ADDR, addr0);
 	xgene_enet_wr_mcx_mac(pdata, STATION_ADDR1_ADDR, addr1);

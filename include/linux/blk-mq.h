@@ -4,6 +4,7 @@
 #include <linux/blkdev.h>
 
 struct blk_mq_tags;
+struct blk_flush_queue;
 
 struct blk_mq_cpu_notifier {
 	struct list_head list;
@@ -34,6 +35,7 @@ struct blk_mq_hw_ctx {
 
 	struct request_queue	*queue;
 	unsigned int		queue_num;
+	struct blk_flush_queue	*fq;
 
 	void			*driver_data;
 
@@ -77,14 +79,18 @@ struct blk_mq_tag_set {
 	struct list_head	tag_list;
 };
 
-typedef int (queue_rq_fn)(struct blk_mq_hw_ctx *, struct request *);
+typedef int (queue_rq_fn)(struct blk_mq_hw_ctx *, struct request *, bool);
 typedef struct blk_mq_hw_ctx *(map_queue_fn)(struct request_queue *, const int);
+typedef enum blk_eh_timer_return (timeout_fn)(struct request *, bool);
 typedef int (init_hctx_fn)(struct blk_mq_hw_ctx *, void *, unsigned int);
 typedef void (exit_hctx_fn)(struct blk_mq_hw_ctx *, unsigned int);
 typedef int (init_request_fn)(void *, struct request *, unsigned int,
 		unsigned int, unsigned int);
 typedef void (exit_request_fn)(void *, struct request *, unsigned int,
 		unsigned int);
+
+typedef void (busy_iter_fn)(struct blk_mq_hw_ctx *, struct request *, void *,
+		bool);
 
 struct blk_mq_ops {
 	/*
@@ -100,7 +106,7 @@ struct blk_mq_ops {
 	/*
 	 * Called on request timeout
 	 */
-	rq_timed_out_fn		*timeout;
+	timeout_fn		*timeout;
 
 	softirq_done_fn		*complete;
 
@@ -115,6 +121,10 @@ struct blk_mq_ops {
 	/*
 	 * Called for every command allocated by the block layer to allow
 	 * the driver to set up driver specific data.
+	 *
+	 * Tag greater than or equal to queue_depth is for setting up
+	 * flush request.
+	 *
 	 * Ditto for exit/teardown.
 	 */
 	init_request_fn		*init_request;
@@ -160,8 +170,9 @@ struct request *blk_mq_tag_to_rq(struct blk_mq_tags *tags, unsigned int tag);
 struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *, const int ctx_index);
 struct blk_mq_hw_ctx *blk_mq_alloc_single_hw_queue(struct blk_mq_tag_set *, unsigned int, int);
 
-void blk_mq_end_io(struct request *rq, int error);
-void __blk_mq_end_io(struct request *rq, int error);
+void blk_mq_start_request(struct request *rq);
+void blk_mq_end_request(struct request *rq, int error);
+void __blk_mq_end_request(struct request *rq, int error);
 
 void blk_mq_requeue_request(struct request *rq);
 void blk_mq_add_to_requeue_list(struct request *rq, bool at_head);
@@ -174,7 +185,8 @@ void blk_mq_stop_hw_queues(struct request_queue *q);
 void blk_mq_start_hw_queues(struct request_queue *q);
 void blk_mq_start_stopped_hw_queues(struct request_queue *q, bool async);
 void blk_mq_delay_queue(struct blk_mq_hw_ctx *hctx, unsigned long msecs);
-void blk_mq_tag_busy_iter(struct blk_mq_tags *tags, void (*fn)(void *data, unsigned long *), void *data);
+void blk_mq_tag_busy_iter(struct blk_mq_hw_ctx *hctx, busy_iter_fn *fn,
+		void *priv);
 
 /*
  * Driver command data is immediately after the request. So subtract request

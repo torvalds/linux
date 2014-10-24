@@ -12,9 +12,9 @@ The rules-ng-ng source files this header was generated from are:
 - /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml  (   1453 bytes, from 2013-03-31 16:51:27)
 - /home/robclark/src/freedreno/envytools/rnndb/adreno/a2xx.xml          (  32901 bytes, from 2014-06-02 15:21:30)
 - /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_common.xml (   9859 bytes, from 2014-06-02 15:21:30)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_pm4.xml    (  14477 bytes, from 2014-05-16 11:51:57)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a3xx.xml          (  58020 bytes, from 2014-06-25 12:57:16)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a4xx.xml          (  26602 bytes, from 2014-06-25 12:57:16)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_pm4.xml    (  14960 bytes, from 2014-07-27 17:22:13)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/a3xx.xml          (  58020 bytes, from 2014-08-01 12:22:48)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/a4xx.xml          (  41068 bytes, from 2014-08-01 12:22:48)
 
 Copyright (C) 2013-2014 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
@@ -163,12 +163,16 @@ enum adreno_pm4_type3_packets {
 	CP_INDIRECT_BUFFER_PFE = 63,
 	CP_SET_BIN = 76,
 	CP_TEST_TWO_MEMS = 113,
+	CP_REG_WR_NO_CTXT = 120,
+	CP_RECORD_PFP_TIMESTAMP = 17,
 	CP_WAIT_FOR_ME = 19,
 	CP_SET_DRAW_STATE = 67,
 	CP_DRAW_INDX_OFFSET = 56,
 	CP_DRAW_INDIRECT = 40,
 	CP_DRAW_INDX_INDIRECT = 41,
 	CP_DRAW_AUTO = 36,
+	CP_UNKNOWN_1A = 26,
+	CP_WIDE_REG_WRITE = 116,
 	IN_IB_PREFETCH_END = 23,
 	IN_SUBBLK_PREFETCH = 31,
 	IN_INSTR_PREFETCH = 32,

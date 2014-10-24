@@ -279,7 +279,7 @@ ENTRY(\name\()_processor_functions)
 
 	.if \suspend
 	.word	cpu_\name\()_suspend_size
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_ARM_CPU_SUSPEND
 	.word	cpu_\name\()_do_suspend
 	.word	cpu_\name\()_do_resume
 #else

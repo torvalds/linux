@@ -273,14 +273,17 @@ static void blend_setup(struct drm_crtc *crtc)
 	};
 	bool alpha[4]= { false, false, false, false };
 
+	/* Don't rely on value read back from hw, but instead use our
+	 * own shadowed value.  Possibly disable/reenable looses the
+	 * previous value and goes back to power-on default?
+	 */
+	mixer_cfg = mdp4_kms->mixer_cfg;
+
 	mdp4_write(mdp4_kms, REG_MDP4_OVLP_TRANSP_LOW0(ovlp), 0);
 	mdp4_write(mdp4_kms, REG_MDP4_OVLP_TRANSP_LOW1(ovlp), 0);
 	mdp4_write(mdp4_kms, REG_MDP4_OVLP_TRANSP_HIGH0(ovlp), 0);
 	mdp4_write(mdp4_kms, REG_MDP4_OVLP_TRANSP_HIGH1(ovlp), 0);
 
-	/* TODO single register for all CRTCs, so this won't work properly
-	 * when multiple CRTCs are active..
-	 */
 	for (i = 0; i < ARRAY_SIZE(mdp4_crtc->planes); i++) {
 		struct drm_plane *plane = mdp4_crtc->planes[i];
 		if (plane) {
@@ -291,7 +294,8 @@ static void blend_setup(struct drm_crtc *crtc)
 					to_mdp_format(msm_framebuffer_format(plane->fb));
 				alpha[idx-1] = format->alpha_enable;
 			}
-			mixer_cfg |= mixercfg(mdp4_crtc->mixer, pipe_id, stages[idx]);
+			mixer_cfg = mixercfg(mixer_cfg, mdp4_crtc->mixer,
+					pipe_id, stages[idx]);
 		}
 	}
 
@@ -320,6 +324,7 @@ static void blend_setup(struct drm_crtc *crtc)
 		mdp4_write(mdp4_kms, REG_MDP4_OVLP_STAGE_TRANSP_HIGH1(ovlp, i), 0);
 	}
 
+	mdp4_kms->mixer_cfg = mixer_cfg;
 	mdp4_write(mdp4_kms, REG_MDP4_LAYERMIXER_IN_CFG, mixer_cfg);
 }
 
@@ -672,7 +677,7 @@ void mdp4_crtc_set_config(struct drm_crtc *crtc, uint32_t config)
 }
 
 /* set interface for routing crtc->encoder: */
-void mdp4_crtc_set_intf(struct drm_crtc *crtc, enum mdp4_intf intf)
+void mdp4_crtc_set_intf(struct drm_crtc *crtc, enum mdp4_intf intf, int mixer)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 	struct mdp4_kms *mdp4_kms = get_kms(crtc);
@@ -698,14 +703,12 @@ void mdp4_crtc_set_intf(struct drm_crtc *crtc, enum mdp4_intf intf)
 	if (intf == INTF_DSI_VIDEO) {
 		intf_sel &= ~MDP4_DISP_INTF_SEL_DSI_CMD;
 		intf_sel |= MDP4_DISP_INTF_SEL_DSI_VIDEO;
-		mdp4_crtc->mixer = 0;
 	} else if (intf == INTF_DSI_CMD) {
 		intf_sel &= ~MDP4_DISP_INTF_SEL_DSI_VIDEO;
 		intf_sel |= MDP4_DISP_INTF_SEL_DSI_CMD;
-		mdp4_crtc->mixer = 0;
-	} else if (intf == INTF_LCDC_DTV){
-		mdp4_crtc->mixer = 1;
 	}
+
+	mdp4_crtc->mixer = mixer;
 
 	blend_setup(crtc);
 

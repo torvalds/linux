@@ -20,6 +20,9 @@ Required nodes:
 - default-mode: a videomode within the display with timing parameters
 	as specified below.
 
+Optional properties:
+- lcd-supply: Regulator for LCD supply voltage.
+
 Example:
 
 	fb0: fb@0x00500000 {

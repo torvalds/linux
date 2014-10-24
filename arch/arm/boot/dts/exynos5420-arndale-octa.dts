@@ -368,3 +368,7 @@
 		};
 	};
 };
+
+&usbdrd_dwc3_1 {
+	dr_mode = "host";
+};

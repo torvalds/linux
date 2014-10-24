@@ -338,7 +338,7 @@ static void gfar_init_tx_rx_base(struct gfar_private *priv)
 
 static void gfar_rx_buff_size_config(struct gfar_private *priv)
 {
-	int frame_size = priv->ndev->mtu + ETH_HLEN;
+	int frame_size = priv->ndev->mtu + ETH_HLEN + ETH_FCS_LEN;
 
 	/* set this when rx hw offload (TOE) functions are being used */
 	priv->uses_rxfcb = 0;

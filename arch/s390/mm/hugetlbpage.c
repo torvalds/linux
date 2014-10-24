@@ -88,7 +88,7 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 		pmd_val(pmd) &= ~_SEGMENT_ENTRY_ORIGIN;
 		pmd_val(pmd) |= pte_page(pte)[1].index;
 	} else
-		pmd_val(pmd) |= _SEGMENT_ENTRY_LARGE | _SEGMENT_ENTRY_CO;
+		pmd_val(pmd) |= _SEGMENT_ENTRY_LARGE;
 	*(pmd_t *) ptep = pmd;
 }
 

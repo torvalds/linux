@@ -96,13 +96,13 @@ static int ip_vs_ftp_get_addrport(char *data, char *data_limit,
 
 	if (data_limit - data < plen) {
 		/* check if there is partial match */
-		if (strnicmp(data, pattern, data_limit - data) == 0)
+		if (strncasecmp(data, pattern, data_limit - data) == 0)
 			return -1;
 		else
 			return 0;
 	}
 
-	if (strnicmp(data, pattern, plen) != 0) {
+	if (strncasecmp(data, pattern, plen) != 0) {
 		return 0;
 	}
 	s = data + plen;
@@ -354,7 +354,7 @@ static int ip_vs_ftp_in(struct ip_vs_app *app, struct ip_vs_conn *cp,
 	data_limit = skb_tail_pointer(skb);
 
 	while (data <= data_limit - 6) {
-		if (strnicmp(data, "PASV\r\n", 6) == 0) {
+		if (strncasecmp(data, "PASV\r\n", 6) == 0) {
 			/* Passive mode on */
 			IP_VS_DBG(7, "got PASV at %td of %td\n",
 				  data - data_start,

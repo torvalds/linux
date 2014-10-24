@@ -431,7 +431,7 @@ static inline int nlmsg_report(const struct nlmsghdr *nlh)
 /**
  * nlmsg_put - Add a new netlink message to an skb
  * @skb: socket buffer to store message in
- * @portid: netlink process id
+ * @portid: netlink PORTID of requesting application
  * @seq: sequence number of message
  * @type: message type
  * @payload: length of message payload

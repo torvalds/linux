@@ -532,17 +532,16 @@ int perf_session_queue_event(struct perf_session *s, union perf_event *event,
 			return -EINVAL;
 	}
 
-	new = ordered_events__new(oe, timestamp);
+	new = ordered_events__new(oe, timestamp, event);
 	if (!new) {
 		ordered_events__flush(s, tool, OE_FLUSH__HALF);
-		new = ordered_events__new(oe, timestamp);
+		new = ordered_events__new(oe, timestamp, event);
 	}
 
 	if (!new)
 		return -ENOMEM;
 
 	new->file_offset = file_offset;
-	new->event = event;
 	return 0;
 }
 
@@ -813,22 +812,6 @@ int perf_session__deliver_event(struct perf_session *session,
 	dump_event(session, event, file_offset, sample);
 
 	evsel = perf_evlist__id2evsel(session->evlist, sample->id);
-	if (evsel != NULL && event->header.type != PERF_RECORD_SAMPLE) {
-		/*
-		 * XXX We're leaving PERF_RECORD_SAMPLE unnacounted here
-		 * because the tools right now may apply filters, discarding
-		 * some of the samples. For consistency, in the future we
-		 * should have something like nr_filtered_samples and remove
-		 * the sample->period from total_sample_period, etc, KISS for
-		 * now tho.
-		 *
-		 * Also testing against NULL allows us to handle files without
-		 * attr.sample_id_all and/or without PERF_SAMPLE_ID. In the
-		 * future probably it'll be a good idea to restrict event
-		 * processing via perf_session to files with both set.
-		 */
-		hists__inc_nr_events(&evsel->hists, event->header.type);
-	}
 
 	machine = perf_session__find_machine_for_cpumode(session, event,
 							 sample);
@@ -1391,16 +1374,9 @@ size_t perf_session__fprintf_dsos_buildid(struct perf_session *session, FILE *fp
 
 size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp)
 {
-	struct perf_evsel *pos;
 	size_t ret = fprintf(fp, "Aggregated stats:\n");
 
 	ret += events_stats__fprintf(&session->stats, fp);
-
-	evlist__for_each(session->evlist, pos) {
-		ret += fprintf(fp, "%s stats:\n", perf_evsel__name(pos));
-		ret += events_stats__fprintf(&pos->hists.stats, fp);
-	}
-
 	return ret;
 }
 

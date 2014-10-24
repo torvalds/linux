@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2003-2014 STMicroelectronics (R&D) Limited
  * Author: Srinivas Kandagatla <srinivas.kandagatla@st.com>
- *
+ * Contributors: Giuseppe Cavallaro <peppe.cavallaro@st.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,45 +22,22 @@
 #include <linux/of.h>
 #include <linux/of_net.h>
 
+#define DWMAC_125MHZ	125000000
+#define DWMAC_50MHZ	50000000
+#define DWMAC_25MHZ	25000000
+#define DWMAC_2_5MHZ	2500000
+
+#define IS_PHY_IF_MODE_RGMII(iface)	(iface == PHY_INTERFACE_MODE_RGMII || \
+			iface == PHY_INTERFACE_MODE_RGMII_ID || \
+			iface == PHY_INTERFACE_MODE_RGMII_RXID || \
+			iface == PHY_INTERFACE_MODE_RGMII_TXID)
+
+#define IS_PHY_IF_MODE_GBIT(iface)	(IS_PHY_IF_MODE_RGMII(iface) || \
+					 iface == PHY_INTERFACE_MODE_GMII)
+
+/* STiH4xx register definitions (STiH415/STiH416/STiH407/STiH410 families) */
+
 /**
- *			STi GMAC glue logic.
- *			--------------------
- *
- *		 _
- *		|  \
- *	--------|0  \ ETH_SEL_INTERNAL_NOTEXT_PHYCLK
- * phyclk	|    |___________________________________________
- *		|    |	|			(phyclk-in)
- *	--------|1  /	|
- * int-clk	|_ /	|
- *			|	 _
- *			|	|  \
- *			|_______|1  \ ETH_SEL_TX_RETIME_CLK
- *				|    |___________________________
- *				|    |		(tx-retime-clk)
- *			 _______|0  /
- *			|	|_ /
- *		 _	|
- *		|  \	|
- *	--------|0  \	|
- * clk_125	|    |__|
- *		|    |	ETH_SEL_TXCLK_NOT_CLK125
- *	--------|1  /
- * txclk	|_ /
- *
- *
- * ETH_SEL_INTERNAL_NOTEXT_PHYCLK is valid only for RMII where PHY can
- * generate 50MHz clock or MAC can generate it.
- * This bit is configured by "st,ext-phyclk" property.
- *
- * ETH_SEL_TXCLK_NOT_CLK125 is only valid for gigabit modes, where the 125Mhz
- * clock either comes from clk-125 pin or txclk pin. This configuration is
- * totally driven by the board wiring. This bit is configured by
- * "st,tx-retime-src" property.
- *
- * TXCLK configuration is different for different phy interface modes
- * and changes according to link speed in modes like RGMII.
- *
  * Below table summarizes the clock requirement and clock sources for
  * supported phy interface modes with link speeds.
  * ________________________________________________
@@ -74,44 +51,58 @@
  * ------------------------------------------------
  *|	RGMII	|     125Mhz	 |	25Mhz	   |
  *|		|  clk-125/txclk |	clkgen     |
+ *|		|    clkgen	 |		   |
  * ------------------------------------------------
  *|	RMII	|	n/a	 |	25Mhz	   |
  *|		|		 |clkgen/phyclk-in |
  * ------------------------------------------------
  *
- * TX lines are always retimed with a clk, which can vary depending
- * on the board configuration. Below is the table of these bits
- * in eth configuration register depending on source of retime clk.
- *
- *---------------------------------------------------------------
- * src	 | tx_rt_clk	| int_not_ext_phyclk	| txclk_n_clk125|
- *---------------------------------------------------------------
- * txclk |	0	|	n/a		|	1	|
- *---------------------------------------------------------------
- * ck_125|	0	|	n/a		|	0	|
- *---------------------------------------------------------------
- * phyclk|	1	|	0		|	n/a	|
- *---------------------------------------------------------------
- * clkgen|	1	|	1		|	n/a	|
- *---------------------------------------------------------------
+ *	  Register Configuration
+ *-------------------------------
+ * src	 |BIT(8)| BIT(7)| BIT(6)|
+ *-------------------------------
+ * txclk |   0	|  n/a	|   1	|
+ *-------------------------------
+ * ck_125|   0	|  n/a	|   0	|
+ *-------------------------------
+ * phyclk|   1	|   0	|  n/a	|
+ *-------------------------------
+ * clkgen|   1	|   1	|  n/a	|
+ *-------------------------------
  */
 
- /* Register definition */
+#define STIH4XX_RETIME_SRC_MASK			GENMASK(8, 6)
+#define STIH4XX_ETH_SEL_TX_RETIME_CLK		BIT(8)
+#define STIH4XX_ETH_SEL_INTERNAL_NOTEXT_PHYCLK	BIT(7)
+#define STIH4XX_ETH_SEL_TXCLK_NOT_CLK125	BIT(6)
 
- /* 3 bits [8:6]
-  *  [6:6]      ETH_SEL_TXCLK_NOT_CLK125
-  *  [7:7]      ETH_SEL_INTERNAL_NOTEXT_PHYCLK
-  *  [8:8]      ETH_SEL_TX_RETIME_CLK
-  *
-  */
+/* STiD127 register definitions */
 
-#define TX_RETIME_SRC_MASK		GENMASK(8, 6)
-#define ETH_SEL_TX_RETIME_CLK		BIT(8)
-#define ETH_SEL_INTERNAL_NOTEXT_PHYCLK	BIT(7)
-#define ETH_SEL_TXCLK_NOT_CLK125	BIT(6)
+/**
+ *-----------------------
+ * src	 |BIT(6)| BIT(7)|
+ *-----------------------
+ * MII   |  1	|   n/a	|
+ *-----------------------
+ * RMII  |  n/a	|   1	|
+ * clkgen|	|	|
+ *-----------------------
+ * RMII  |  n/a	|   0	|
+ * phyclk|	|	|
+ *-----------------------
+ * RGMII |  1	|  n/a	|
+ * clkgen|	|	|
+ *-----------------------
+ */
 
-#define ENMII_MASK			GENMASK(5, 5)
-#define ENMII				BIT(5)
+#define STID127_RETIME_SRC_MASK			GENMASK(7, 6)
+#define STID127_ETH_SEL_INTERNAL_NOTEXT_PHYCLK	BIT(7)
+#define STID127_ETH_SEL_INTERNAL_NOTEXT_TXCLK	BIT(6)
+
+#define ENMII_MASK	GENMASK(5, 5)
+#define ENMII		BIT(5)
+#define EN_MASK		GENMASK(1, 1)
+#define EN		BIT(1)
 
 /**
  * 3 bits [4:2]
@@ -120,29 +111,23 @@
  *	010-SGMII
  *	100-RMII
 */
-#define MII_PHY_SEL_MASK		GENMASK(4, 2)
-#define ETH_PHY_SEL_RMII		BIT(4)
-#define ETH_PHY_SEL_SGMII		BIT(3)
-#define ETH_PHY_SEL_RGMII		BIT(2)
-#define ETH_PHY_SEL_GMII		0x0
-#define ETH_PHY_SEL_MII			0x0
-
-#define IS_PHY_IF_MODE_RGMII(iface)	(iface == PHY_INTERFACE_MODE_RGMII || \
-			iface == PHY_INTERFACE_MODE_RGMII_ID || \
-			iface == PHY_INTERFACE_MODE_RGMII_RXID || \
-			iface == PHY_INTERFACE_MODE_RGMII_TXID)
-
-#define IS_PHY_IF_MODE_GBIT(iface)	(IS_PHY_IF_MODE_RGMII(iface) || \
-			iface == PHY_INTERFACE_MODE_GMII)
+#define MII_PHY_SEL_MASK	GENMASK(4, 2)
+#define ETH_PHY_SEL_RMII	BIT(4)
+#define ETH_PHY_SEL_SGMII	BIT(3)
+#define ETH_PHY_SEL_RGMII	BIT(2)
+#define ETH_PHY_SEL_GMII	0x0
+#define ETH_PHY_SEL_MII		0x0
 
 struct sti_dwmac {
-	int interface;
-	bool ext_phyclk;
-	bool is_tx_retime_src_clk_125;
-	struct clk *clk;
-	int reg;
+	int interface;		/* MII interface */
+	bool ext_phyclk;	/* Clock from external PHY */
+	u32 tx_retime_src;	/* TXCLK Retiming*/
+	struct clk *clk;	/* PHY clock */
+	int ctrl_reg;		/* GMAC glue-logic control register */
+	int clk_sel_reg;	/* GMAC ext clk selection register */
 	struct device *dev;
 	struct regmap *regmap;
+	u32 speed;
 };
 
 static u32 phy_intf_sels[] = {
@@ -162,55 +147,124 @@ enum {
 	TX_RETIME_SRC_CLKGEN,
 };
 
-static const char *const tx_retime_srcs[] = {
-	[TX_RETIME_SRC_NA] = "",
-	[TX_RETIME_SRC_TXCLK] = "txclk",
-	[TX_RETIME_SRC_CLK_125] = "clk_125",
-	[TX_RETIME_SRC_PHYCLK] = "phyclk",
-	[TX_RETIME_SRC_CLKGEN] = "clkgen",
-};
-
-static u32 tx_retime_val[] = {
-	[TX_RETIME_SRC_TXCLK] = ETH_SEL_TXCLK_NOT_CLK125,
+static u32 stih4xx_tx_retime_val[] = {
+	[TX_RETIME_SRC_TXCLK] = STIH4XX_ETH_SEL_TXCLK_NOT_CLK125,
 	[TX_RETIME_SRC_CLK_125] = 0x0,
-	[TX_RETIME_SRC_PHYCLK] = ETH_SEL_TX_RETIME_CLK,
-	[TX_RETIME_SRC_CLKGEN] = ETH_SEL_TX_RETIME_CLK |
-	    ETH_SEL_INTERNAL_NOTEXT_PHYCLK,
+	[TX_RETIME_SRC_PHYCLK] = STIH4XX_ETH_SEL_TX_RETIME_CLK,
+	[TX_RETIME_SRC_CLKGEN] = STIH4XX_ETH_SEL_TX_RETIME_CLK
+				 | STIH4XX_ETH_SEL_INTERNAL_NOTEXT_PHYCLK,
 };
 
-static void setup_retime_src(struct sti_dwmac *dwmac, u32 spd)
+static void stih4xx_fix_retime_src(void *priv, u32 spd)
 {
-	u32 src = 0, freq = 0;
+	struct sti_dwmac *dwmac = priv;
+	u32 src = dwmac->tx_retime_src;
+	u32 reg = dwmac->ctrl_reg;
+	u32 freq = 0;
 
-	if (spd == SPEED_100) {
-		if (dwmac->interface == PHY_INTERFACE_MODE_MII ||
-		    dwmac->interface == PHY_INTERFACE_MODE_GMII) {
-			src = TX_RETIME_SRC_TXCLK;
-		} else if (dwmac->interface == PHY_INTERFACE_MODE_RMII) {
-			if (dwmac->ext_phyclk) {
-				src = TX_RETIME_SRC_PHYCLK;
-			} else {
-				src = TX_RETIME_SRC_CLKGEN;
-				freq = 50000000;
-			}
-
-		} else if (IS_PHY_IF_MODE_RGMII(dwmac->interface)) {
+	if (dwmac->interface == PHY_INTERFACE_MODE_MII) {
+		src = TX_RETIME_SRC_TXCLK;
+	} else if (dwmac->interface == PHY_INTERFACE_MODE_RMII) {
+		if (dwmac->ext_phyclk) {
+			src = TX_RETIME_SRC_PHYCLK;
+		} else {
 			src = TX_RETIME_SRC_CLKGEN;
-			freq = 25000000;
+			freq = DWMAC_50MHZ;
 		}
-
-		if (src == TX_RETIME_SRC_CLKGEN && dwmac->clk)
-			clk_set_rate(dwmac->clk, freq);
-
-	} else if (spd == SPEED_1000) {
-		if (dwmac->is_tx_retime_src_clk_125)
-			src = TX_RETIME_SRC_CLK_125;
-		else
-			src = TX_RETIME_SRC_TXCLK;
+	} else if (IS_PHY_IF_MODE_RGMII(dwmac->interface)) {
+		/* On GiGa clk source can be either ext or from clkgen */
+		if (spd == SPEED_1000) {
+			freq = DWMAC_125MHZ;
+		} else {
+			/* Switch to clkgen for these speeds */
+			src = TX_RETIME_SRC_CLKGEN;
+			if (spd == SPEED_100)
+				freq = DWMAC_25MHZ;
+			else if (spd == SPEED_10)
+				freq = DWMAC_2_5MHZ;
+		}
 	}
 
-	regmap_update_bits(dwmac->regmap, dwmac->reg,
-			   TX_RETIME_SRC_MASK, tx_retime_val[src]);
+	if (src == TX_RETIME_SRC_CLKGEN && dwmac->clk && freq)
+		clk_set_rate(dwmac->clk, freq);
+
+	regmap_update_bits(dwmac->regmap, reg, STIH4XX_RETIME_SRC_MASK,
+			   stih4xx_tx_retime_val[src]);
+}
+
+static void stid127_fix_retime_src(void *priv, u32 spd)
+{
+	struct sti_dwmac *dwmac = priv;
+	u32 reg = dwmac->ctrl_reg;
+	u32 freq = 0;
+	u32 val = 0;
+
+	if (dwmac->interface == PHY_INTERFACE_MODE_MII) {
+		val = STID127_ETH_SEL_INTERNAL_NOTEXT_TXCLK;
+	} else if (dwmac->interface == PHY_INTERFACE_MODE_RMII) {
+		if (!dwmac->ext_phyclk) {
+			val = STID127_ETH_SEL_INTERNAL_NOTEXT_PHYCLK;
+			freq = DWMAC_50MHZ;
+		}
+	} else if (IS_PHY_IF_MODE_RGMII(dwmac->interface)) {
+		val = STID127_ETH_SEL_INTERNAL_NOTEXT_TXCLK;
+		if (spd == SPEED_1000)
+			freq = DWMAC_125MHZ;
+		else if (spd == SPEED_100)
+			freq = DWMAC_25MHZ;
+		else if (spd == SPEED_10)
+			freq = DWMAC_2_5MHZ;
+	}
+
+	if (dwmac->clk && freq)
+		clk_set_rate(dwmac->clk, freq);
+
+	regmap_update_bits(dwmac->regmap, reg, STID127_RETIME_SRC_MASK, val);
+}
+
+static void sti_dwmac_ctrl_init(struct sti_dwmac *dwmac)
+{
+	struct regmap *regmap = dwmac->regmap;
+	int iface = dwmac->interface;
+	struct device *dev = dwmac->dev;
+	struct device_node *np = dev->of_node;
+	u32 reg = dwmac->ctrl_reg;
+	u32 val;
+
+	if (dwmac->clk)
+		clk_prepare_enable(dwmac->clk);
+
+	if (of_property_read_bool(np, "st,gmac_en"))
+		regmap_update_bits(regmap, reg, EN_MASK, EN);
+
+	regmap_update_bits(regmap, reg, MII_PHY_SEL_MASK, phy_intf_sels[iface]);
+
+	val = (iface == PHY_INTERFACE_MODE_REVMII) ? 0 : ENMII;
+	regmap_update_bits(regmap, reg, ENMII_MASK, val);
+}
+
+static int stix4xx_init(struct platform_device *pdev, void *priv)
+{
+	struct sti_dwmac *dwmac = priv;
+	u32 spd = dwmac->speed;
+
+	sti_dwmac_ctrl_init(dwmac);
+
+	stih4xx_fix_retime_src(priv, spd);
+
+	return 0;
+}
+
+static int stid127_init(struct platform_device *pdev, void *priv)
+{
+	struct sti_dwmac *dwmac = priv;
+	u32 spd = dwmac->speed;
+
+	sti_dwmac_ctrl_init(dwmac);
+
+	stid127_fix_retime_src(priv, spd);
+
+	return 0;
 }
 
 static void sti_dwmac_exit(struct platform_device *pdev, void *priv)
@@ -220,16 +274,6 @@ static void sti_dwmac_exit(struct platform_device *pdev, void *priv)
 	if (dwmac->clk)
 		clk_disable_unprepare(dwmac->clk);
 }
-
-static void sti_fix_mac_speed(void *priv, unsigned int spd)
-{
-	struct sti_dwmac *dwmac = priv;
-
-	setup_retime_src(dwmac, spd);
-
-	return;
-}
-
 static int sti_dwmac_parse_data(struct sti_dwmac *dwmac,
 				struct platform_device *pdev)
 {
@@ -245,6 +289,13 @@ static int sti_dwmac_parse_data(struct sti_dwmac *dwmac,
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "sti-ethconf");
 	if (!res)
 		return -ENODATA;
+	dwmac->ctrl_reg = res->start;
+
+	/* clk selection from extra syscfg register */
+	dwmac->clk_sel_reg = -ENXIO;
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "sti-clkconf");
+	if (res)
+		dwmac->clk_sel_reg = res->start;
 
 	regmap = syscon_regmap_lookup_by_phandle(np, "st,syscon");
 	if (IS_ERR(regmap))
@@ -253,53 +304,31 @@ static int sti_dwmac_parse_data(struct sti_dwmac *dwmac,
 	dwmac->dev = dev;
 	dwmac->interface = of_get_phy_mode(np);
 	dwmac->regmap = regmap;
-	dwmac->reg = res->start;
 	dwmac->ext_phyclk = of_property_read_bool(np, "st,ext-phyclk");
-	dwmac->is_tx_retime_src_clk_125 = false;
+	dwmac->tx_retime_src = TX_RETIME_SRC_NA;
+	dwmac->speed = SPEED_100;
 
 	if (IS_PHY_IF_MODE_GBIT(dwmac->interface)) {
 		const char *rs;
+		dwmac->tx_retime_src = TX_RETIME_SRC_CLKGEN;
 
 		err = of_property_read_string(np, "st,tx-retime-src", &rs);
-		if (err < 0) {
-			dev_err(dev, "st,tx-retime-src not specified\n");
-			return err;
-		}
+		if (err < 0)
+			dev_warn(dev, "Use internal clock source\n");
 
 		if (!strcasecmp(rs, "clk_125"))
-			dwmac->is_tx_retime_src_clk_125 = true;
+			dwmac->tx_retime_src = TX_RETIME_SRC_CLK_125;
+		else if (!strcasecmp(rs, "txclk"))
+			dwmac->tx_retime_src = TX_RETIME_SRC_TXCLK;
+
+		dwmac->speed = SPEED_1000;
 	}
 
 	dwmac->clk = devm_clk_get(dev, "sti-ethclk");
-
-	if (IS_ERR(dwmac->clk))
+	if (IS_ERR(dwmac->clk)) {
+		dev_warn(dev, "No phy clock provided...\n");
 		dwmac->clk = NULL;
-
-	return 0;
-}
-
-static int sti_dwmac_init(struct platform_device *pdev, void *priv)
-{
-	struct sti_dwmac *dwmac = priv;
-	struct regmap *regmap = dwmac->regmap;
-	int iface = dwmac->interface;
-	u32 reg = dwmac->reg;
-	u32 val, spd;
-
-	if (dwmac->clk)
-		clk_prepare_enable(dwmac->clk);
-
-	regmap_update_bits(regmap, reg, MII_PHY_SEL_MASK, phy_intf_sels[iface]);
-
-	val = (iface == PHY_INTERFACE_MODE_REVMII) ? 0 : ENMII;
-	regmap_update_bits(regmap, reg, ENMII_MASK, val);
-
-	if (IS_PHY_IF_MODE_GBIT(iface))
-		spd = SPEED_1000;
-	else
-		spd = SPEED_100;
-
-	setup_retime_src(dwmac, spd);
+	}
 
 	return 0;
 }
@@ -322,9 +351,16 @@ static void *sti_dwmac_setup(struct platform_device *pdev)
 	return dwmac;
 }
 
-const struct stmmac_of_data sti_gmac_data = {
-	.fix_mac_speed = sti_fix_mac_speed,
+const struct stmmac_of_data stih4xx_dwmac_data = {
+	.fix_mac_speed = stih4xx_fix_retime_src,
 	.setup = sti_dwmac_setup,
-	.init = sti_dwmac_init,
+	.init = stix4xx_init,
+	.exit = sti_dwmac_exit,
+};
+
+const struct stmmac_of_data stid127_dwmac_data = {
+	.fix_mac_speed = stid127_fix_retime_src,
+	.setup = sti_dwmac_setup,
+	.init = stid127_init,
 	.exit = sti_dwmac_exit,
 };

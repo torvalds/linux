@@ -42,7 +42,8 @@ STACK_SHIFT = PAGE_SHIFT + THREAD_ORDER
 STACK_SIZE  = 1 << STACK_SHIFT
 STACK_INIT = STACK_SIZE - STACK_FRAME_OVERHEAD - __PT_SIZE
 
-_TIF_WORK	= (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED)
+_TIF_WORK	= (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | \
+		   _TIF_UPROBE)
 _TIF_TRACE	= (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | _TIF_SECCOMP | \
 		   _TIF_SYSCALL_TRACEPOINT)
 _CIF_WORK	= (_CIF_MCCK_PENDING | _CIF_ASCE)
@@ -265,6 +266,10 @@ sysc_work:
 	jo	sysc_mcck_pending
 	tm	__TI_flags+7(%r12),_TIF_NEED_RESCHED
 	jo	sysc_reschedule
+#ifdef CONFIG_UPROBES
+	tm	__TI_flags+7(%r12),_TIF_UPROBE
+	jo	sysc_uprobe_notify
+#endif
 	tm	__PT_FLAGS+7(%r11),_PIF_PER_TRAP
 	jo	sysc_singlestep
 	tm	__TI_flags+7(%r12),_TIF_SIGPENDING
@@ -321,6 +326,16 @@ sysc_notify_resume:
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	larl	%r14,sysc_return
 	jg	do_notify_resume
+
+#
+# _TIF_UPROBE is set, call uprobe_notify_resume
+#
+#ifdef CONFIG_UPROBES
+sysc_uprobe_notify:
+	lgr	%r2,%r11		# pass pointer to pt_regs
+	larl	%r14,sysc_return
+	jg	uprobe_notify_resume
+#endif
 
 #
 # _PIF_PER_TRAP is set, call do_per_trap

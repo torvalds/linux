@@ -577,12 +577,13 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, umode_t mode,
 	struct cifs_io_parms io_parms;
 	char *full_path = NULL;
 	struct inode *newinode = NULL;
-	int oplock = 0;
+	__u32 oplock = 0;
 	struct cifs_fid fid;
 	struct cifs_open_parms oparms;
 	FILE_ALL_INFO *buf = NULL;
 	unsigned int bytes_written;
 	struct win_dev *pdev;
+	struct kvec iov[2];
 
 	if (!old_valid_dev(device_number))
 		return -EINVAL;
@@ -658,7 +659,11 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, umode_t mode,
 	oparms.fid = &fid;
 	oparms.reconnect = false;
 
-	rc = CIFS_open(xid, &oparms, &oplock, buf);
+	if (tcon->ses->server->oplocks)
+		oplock = REQ_OPLOCK;
+	else
+		oplock = 0;
+	rc = tcon->ses->server->ops->open(xid, &oparms, &oplock, buf);
 	if (rc)
 		goto mknod_out;
 
@@ -668,25 +673,26 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, umode_t mode,
 	 */
 
 	pdev = (struct win_dev *)buf;
-	io_parms.netfid = fid.netfid;
 	io_parms.pid = current->tgid;
 	io_parms.tcon = tcon;
 	io_parms.offset = 0;
 	io_parms.length = sizeof(struct win_dev);
+	iov[1].iov_base = buf;
+	iov[1].iov_len = sizeof(struct win_dev);
 	if (S_ISCHR(mode)) {
 		memcpy(pdev->type, "IntxCHR", 8);
 		pdev->major = cpu_to_le64(MAJOR(device_number));
 		pdev->minor = cpu_to_le64(MINOR(device_number));
-		rc = CIFSSMBWrite(xid, &io_parms, &bytes_written, (char *)pdev,
-				  NULL, 0);
+		rc = tcon->ses->server->ops->sync_write(xid, &fid, &io_parms,
+							&bytes_written, iov, 1);
 	} else if (S_ISBLK(mode)) {
 		memcpy(pdev->type, "IntxBLK", 8);
 		pdev->major = cpu_to_le64(MAJOR(device_number));
 		pdev->minor = cpu_to_le64(MINOR(device_number));
-		rc = CIFSSMBWrite(xid, &io_parms, &bytes_written, (char *)pdev,
-				  NULL, 0);
+		rc = tcon->ses->server->ops->sync_write(xid, &fid, &io_parms,
+							&bytes_written, iov, 1);
 	} /* else if (S_ISFIFO) */
-	CIFSSMBClose(xid, tcon, fid.netfid);
+	tcon->ses->server->ops->close(xid, tcon, &fid);
 	d_drop(direntry);
 
 	/* FIXME: add code here to set EAs */

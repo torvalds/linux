@@ -4,7 +4,8 @@
 #include <core/notify.h>
 
 struct nvkm_event_func {
-	int  (*ctor)(void *data, u32 size, struct nvkm_notify *);
+	int  (*ctor)(struct nouveau_object *, void *data, u32 size,
+		     struct nvkm_notify *);
 	void (*send)(void *data, u32 size, struct nvkm_notify *);
 	void (*init)(struct nvkm_event *, int type, int index);
 	void (*fini)(struct nvkm_event *, int type, int index);

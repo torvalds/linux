@@ -1670,8 +1670,6 @@ xfs_alloc_buftarg(
 	btp->bt_dev =  bdev->bd_dev;
 	btp->bt_bdev = bdev;
 	btp->bt_bdi = blk_get_backing_dev_info(bdev);
-	if (!btp->bt_bdi)
-		goto error;
 
 	if (xfs_setsize_buftarg_early(btp, bdev))
 		goto error;
