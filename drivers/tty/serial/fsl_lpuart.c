@@ -1862,6 +1862,20 @@ static int lpuart_suspend(struct device *dev)
 static int lpuart_resume(struct device *dev)
 {
 	struct lpuart_port *sport = dev_get_drvdata(dev);
+	unsigned long temp;
+
+	if (sport->lpuart32) {
+		lpuart32_setup_watermark(sport);
+		temp = lpuart32_read(sport->port.membase + UARTCTRL);
+		temp |= (UARTCTRL_RIE | UARTCTRL_TIE | UARTCTRL_RE |
+			 UARTCTRL_TE | UARTCTRL_ILIE);
+		lpuart32_write(temp, sport->port.membase + UARTCTRL);
+	} else {
+		lpuart_setup_watermark(sport);
+		temp = readb(sport->port.membase + UARTCR2);
+		temp |= (UARTCR2_RIE | UARTCR2_TIE | UARTCR2_RE | UARTCR2_TE);
+		writeb(temp, sport->port.membase + UARTCR2);
+	}
 
 	uart_resume_port(&lpuart_reg, &sport->port);
 
