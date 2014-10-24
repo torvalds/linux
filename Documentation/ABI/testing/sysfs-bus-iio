@@ -337,6 +337,10 @@ Description:
 		are listed in this attribute.
 
 What		/sys/bus/iio/devices/iio:deviceX/out_voltageY_hardwaregain
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_red_hardwaregain
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_green_hardwaregain
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_blue_hardwaregain
+What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_clear_hardwaregain
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
