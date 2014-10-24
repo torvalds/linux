@@ -344,43 +344,38 @@ err_out1:
 
 static int __init gs_fpgaboot_init(void)
 {
-	int err, r;
-
-	r = -1;
+	int err;
 
 	pr_info("FPGA DOWNLOAD --->\n");
 
 	pr_info("FPGA image file name: %s\n", file);
 
 	err = init_driver();
-	if (err != 0) {
+	if (err) {
 		pr_err("FPGA DRIVER INIT FAIL!!\n");
-		return r;
+		return err;
 	}
 
 	err = xl_init_io();
 	if (err) {
 		pr_err("GPIO INIT FAIL!!\n");
-		r = -1;
 		goto errout;
 	}
 
 	err = gs_fpgaboot();
 	if (err) {
 		pr_err("FPGA DOWNLOAD FAIL!!\n");
-		r = -1;
 		goto errout;
 	}
 
 	pr_info("FPGA DOWNLOAD DONE <---\n");
 
-	r = 0;
-	return r;
+	return 0;
 
 errout:
 	finish_driver();
 
-	return r;
+	return err;
 }
 
 static void __exit gs_fpgaboot_exit(void)
