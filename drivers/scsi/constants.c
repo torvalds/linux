@@ -433,41 +433,6 @@ void scsi_print_command(struct scsi_cmnd *cmd)
 }
 EXPORT_SYMBOL(scsi_print_command);
 
-/**
- *	scsi_print_status - print scsi status description
- *	@scsi_status: scsi status value
- *
- *	If the status is recognized, the description is printed.
- *	Otherwise "Unknown status" is output. No trailing space.
- *	If CONFIG_SCSI_CONSTANTS is not set, then print status in hex
- *	(e.g. "0x2" for Check Condition).
- **/
-void
-scsi_print_status(unsigned char scsi_status) {
-#ifdef CONFIG_SCSI_CONSTANTS
-	const char * ccp;
-
-	switch (scsi_status) {
-	case 0:    ccp = "Good"; break;
-	case 0x2:  ccp = "Check Condition"; break;
-	case 0x4:  ccp = "Condition Met"; break;
-	case 0x8:  ccp = "Busy"; break;
-	case 0x10: ccp = "Intermediate"; break;
-	case 0x14: ccp = "Intermediate-Condition Met"; break;
-	case 0x18: ccp = "Reservation Conflict"; break;
-	case 0x22: ccp = "Command Terminated"; break;	/* obsolete */
-	case 0x28: ccp = "Task set Full"; break;	/* was: Queue Full */
-	case 0x30: ccp = "ACA Active"; break;
-	case 0x40: ccp = "Task Aborted"; break;
-	default:   ccp = "Unknown status";
-	}
-	printk(KERN_INFO "%s", ccp);
-#else
-	printk(KERN_INFO "0x%0x", scsi_status);
-#endif
-}
-EXPORT_SYMBOL(scsi_print_status);
-
 #ifdef CONFIG_SCSI_CONSTANTS
 
 struct error_info {
