@@ -55,12 +55,14 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 		/*
 		 * Load the LDT, if the LDT is different.
 		 *
-		 * It's possible leave_mm(prev) has been called.  If so,
-		 * then prev->context.ldt could be out of sync with the
-		 * LDT descriptor or the LDT register.  This can only happen
-		 * if prev->context.ldt is non-null, since we never free
-		 * an LDT.  But LDTs can't be shared across mms, so
-		 * prev->context.ldt won't be equal to next->context.ldt.
+		 * It's possible that prev->context.ldt doesn't match
+		 * the LDT register.  This can happen if leave_mm(prev)
+		 * was called and then modify_ldt changed
+		 * prev->context.ldt but suppressed an IPI to this CPU.
+		 * In this case, prev->context.ldt != NULL, because we
+		 * never free an LDT while the mm still exists.  That
+		 * means that next->context.ldt != prev->context.ldt,
+		 * because mms never share an LDT.
 		 */
 		if (unlikely(prev->context.ldt != next->context.ldt))
 			load_LDT_nolock(&next->context);
