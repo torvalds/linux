@@ -2884,6 +2884,9 @@ static void alc283_shutup(struct hda_codec *codec)
 
 	alc_write_coef_idx(codec, 0x43, 0x9004);
 
+	/*depop hp during suspend*/
+	alc_write_coef_idx(codec, 0x06, 0x2100);
+
 	snd_hda_codec_write(codec, hp_pin, 0,
 			    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE);
 
@@ -5610,9 +5613,9 @@ static void alc662_led_gpio1_mute_hook(void *private_data, int enabled)
 	unsigned int oldval = spec->gpio_led;
 
 	if (enabled)
-		spec->gpio_led &= ~0x01;
-	else
 		spec->gpio_led |= 0x01;
+	else
+		spec->gpio_led &= ~0x01;
 	if (spec->gpio_led != oldval)
 		snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_DATA,
 				    spec->gpio_led);
