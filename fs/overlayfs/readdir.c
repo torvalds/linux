@@ -458,20 +458,27 @@ static int ovl_dir_fsync(struct file *file, loff_t start, loff_t end,
 	if (!od->is_upper && ovl_path_type(dentry) == OVL_PATH_MERGE) {
 		struct inode *inode = file_inode(file);
 
-		mutex_lock(&inode->i_mutex);
 		realfile = od->upperfile;
 		if (!realfile) {
 			struct path upperpath;
 
 			ovl_path_upper(dentry, &upperpath);
 			realfile = ovl_path_open(&upperpath, O_RDONLY);
-			if (IS_ERR(realfile)) {
-				mutex_unlock(&inode->i_mutex);
-				return PTR_ERR(realfile);
+			mutex_lock(&inode->i_mutex);
+			if (!od->upperfile) {
+				if (IS_ERR(realfile)) {
+					mutex_unlock(&inode->i_mutex);
+					return PTR_ERR(realfile);
+				}
+				od->upperfile = realfile;
+			} else {
+				/* somebody has beaten us to it */
+				if (!IS_ERR(realfile))
+					fput(realfile);
+				realfile = od->upperfile;
 			}
-			od->upperfile = realfile;
+			mutex_unlock(&inode->i_mutex);
 		}
-		mutex_unlock(&inode->i_mutex);
 	}
 
 	return vfs_fsync_range(realfile, start, end, datasync);
