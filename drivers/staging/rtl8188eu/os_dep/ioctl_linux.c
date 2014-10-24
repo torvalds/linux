@@ -2697,10 +2697,8 @@ static int rtw_set_wps_beacon(struct net_device *dev, struct ieee_param *param, 
 
 	ie_len = len-12-2;/*  12 = param header, 2:no packed */
 
-	if (pmlmepriv->wps_beacon_ie) {
-		kfree(pmlmepriv->wps_beacon_ie);
-		pmlmepriv->wps_beacon_ie = NULL;
-	}
+	kfree(pmlmepriv->wps_beacon_ie);
+	pmlmepriv->wps_beacon_ie = NULL;
 
 	if (ie_len > 0) {
 		pmlmepriv->wps_beacon_ie = rtw_malloc(ie_len);
@@ -2734,10 +2732,8 @@ static int rtw_set_wps_probe_resp(struct net_device *dev, struct ieee_param *par
 
 	ie_len = len-12-2;/*  12 = param header, 2:no packed */
 
-	if (pmlmepriv->wps_probe_resp_ie) {
-		kfree(pmlmepriv->wps_probe_resp_ie);
-		pmlmepriv->wps_probe_resp_ie = NULL;
-	}
+	kfree(pmlmepriv->wps_probe_resp_ie);
+	pmlmepriv->wps_probe_resp_ie = NULL;
 
 	if (ie_len > 0) {
 		pmlmepriv->wps_probe_resp_ie = rtw_malloc(ie_len);
@@ -2766,10 +2762,8 @@ static int rtw_set_wps_assoc_resp(struct net_device *dev, struct ieee_param *par
 
 	ie_len = len-12-2;/*  12 = param header, 2:no packed */
 
-	if (pmlmepriv->wps_assoc_resp_ie) {
-		kfree(pmlmepriv->wps_assoc_resp_ie);
-		pmlmepriv->wps_assoc_resp_ie = NULL;
-	}
+	kfree(pmlmepriv->wps_assoc_resp_ie);
+	pmlmepriv->wps_assoc_resp_ie = NULL;
 
 	if (ie_len > 0) {
 		pmlmepriv->wps_assoc_resp_ie = rtw_malloc(ie_len);
