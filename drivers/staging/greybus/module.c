@@ -70,6 +70,13 @@ struct gb_module *gb_module_create(struct greybus_host_device *hd, u8 module_id)
 	struct gb_module *gmod;
 	int retval;
 
+	gmod = gb_module_find(hd, module_id);
+	if (gmod) {
+		dev_err(hd->parent, "Duplicate module id %d will not be created\n",
+			module_id);
+		return NULL;
+	}
+
 	gmod = kzalloc(sizeof(*gmod), GFP_KERNEL);
 	if (!gmod)
 		return NULL;
