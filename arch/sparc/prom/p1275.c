@@ -20,7 +20,6 @@
 struct {
 	long prom_callback;			/* 0x00 */
 	void (*prom_cif_handler)(long *);	/* 0x08 */
-	unsigned long prom_cif_stack;		/* 0x10 */
 } p1275buf;
 
 extern void prom_world(int);
@@ -52,5 +51,4 @@ void p1275_cmd_direct(unsigned long *args)
 void prom_cif_init(void *cif_handler, void *cif_stack)
 {
 	p1275buf.prom_cif_handler = (void (*)(long *))cif_handler;
-	p1275buf.prom_cif_stack = (unsigned long)cif_stack;
 }
