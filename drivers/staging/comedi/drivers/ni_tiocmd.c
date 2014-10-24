@@ -371,9 +371,8 @@ static void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter,
 			  of gate interrupt via dma read/write
 			   and report bogus gate errors */
 			if (counter->counter_dev->variant !=
-			    ni_gpct_variant_660x) {
+			    ni_gpct_variant_660x)
 				*gate_error = 1;
-			}
 		}
 	}
 	if (gxx_status & GI_TC_ERROR(cidx)) {
