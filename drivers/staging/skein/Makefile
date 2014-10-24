@@ -1,7 +1,7 @@
 #
 # Makefile for the skein secure hash algorithm
 #
-obj-$(CONFIG_CRYPTO_SKEIN) += skein.o \
+obj-$(CONFIG_CRYPTO_SKEIN) += skein_base.o \
 			      skein_api.o \
 			      skein_block.o \
 			      threefish_block.o \

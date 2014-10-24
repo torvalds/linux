@@ -15,7 +15,7 @@
 ************************************************************************/
 
 #include <linux/string.h>
-#include "skein.h"
+#include "skein_base.h"
 #include "skein_block.h"
 
 #ifndef SKEIN_USE_ASM

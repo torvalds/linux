@@ -11,7 +11,8 @@
 #define  SKEIN_PORT_CODE /* instantiate any code in skein_port.h */
 
 #include <linux/string.h>       /* get the memcpy/memset functions */
-#include "skein.h" /* get the Skein API definitions   */
+#include <linux/export.h>
+#include "skein_base.h" /* get the Skein API definitions   */
 #include "skein_iv.h"    /* get precomputed IVs */
 #include "skein_block.h"
 
