@@ -518,12 +518,20 @@ again:
 	}
 
 	/*
-	 * We need to take care of a possible races here. In fact, the
-	 * task might have changed its scheduling policy to something
-	 * different from SCHED_DEADLINE or changed its reservation
-	 * parameters (through sched_setattr()).
+	 * We need to take care of several possible races here:
+	 *
+	 *   - the task might have changed its scheduling policy
+	 *     to something different than SCHED_DEADLINE
+	 *   - the task might have changed its reservation parameters
+	 *     (through sched_setattr())
+	 *   - the task might have been boosted by someone else and
+	 *     might be in the boosting/deboosting path
+	 *
+	 * In all this cases we bail out, as the task is already
+	 * in the runqueue or is going to be enqueued back anyway.
 	 */
-	if (!dl_task(p) || dl_se->dl_new)
+	if (!dl_task(p) || dl_se->dl_new ||
+	    dl_se->dl_boosted || !dl_se->dl_throttled)
 		goto unlock;
 
 	sched_clock_tick();
