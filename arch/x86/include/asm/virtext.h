@@ -19,6 +19,7 @@
 
 #include <asm/vmx.h>
 #include <asm/svm.h>
+#include <asm/tlbflush.h>
 
 /*
  * VMX functions:
@@ -40,7 +41,7 @@ static inline int cpu_has_vmx(void)
 static inline void cpu_vmxoff(void)
 {
 	asm volatile (ASM_VMX_VMXOFF : : : "cc");
-	write_cr4(read_cr4() & ~X86_CR4_VMXE);
+	cr4_clear_bits(X86_CR4_VMXE);
 }
 
 static inline int cpu_vmx_enabled(void)

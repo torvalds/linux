@@ -31,6 +31,7 @@
 #include <asm/nmi.h>
 #include <asm/smp.h>
 #include <asm/alternative.h>
+#include <asm/tlbflush.h>
 #include <asm/timer.h>
 #include <asm/desc.h>
 #include <asm/ldt.h>
@@ -1328,7 +1329,7 @@ x86_pmu_notifier(struct notifier_block *self, unsigned long action, void *hcpu)
 
 	case CPU_STARTING:
 		if (x86_pmu.attr_rdpmc)
-			set_in_cr4(X86_CR4_PCE);
+			cr4_set_bits(X86_CR4_PCE);
 		if (x86_pmu.cpu_starting)
 			x86_pmu.cpu_starting(cpu);
 		break;
@@ -1834,9 +1835,9 @@ static void change_rdpmc(void *info)
 	bool enable = !!(unsigned long)info;
 
 	if (enable)
-		set_in_cr4(X86_CR4_PCE);
+		cr4_set_bits(X86_CR4_PCE);
 	else
-		clear_in_cr4(X86_CR4_PCE);
+		cr4_clear_bits(X86_CR4_PCE);
 }
 
 static ssize_t set_attr_rdpmc(struct device *cdev,

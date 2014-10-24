@@ -15,6 +15,43 @@
 #define __flush_tlb_single(addr) __native_flush_tlb_single(addr)
 #endif
 
+/* Set in this cpu's CR4. */
+static inline void cr4_set_bits(unsigned long mask)
+{
+	unsigned long cr4;
+
+	cr4 = read_cr4();
+	cr4 |= mask;
+	write_cr4(cr4);
+}
+
+/* Clear in this cpu's CR4. */
+static inline void cr4_clear_bits(unsigned long mask)
+{
+	unsigned long cr4;
+
+	cr4 = read_cr4();
+	cr4 &= ~mask;
+	write_cr4(cr4);
+}
+
+/*
+ * Save some of cr4 feature set we're using (e.g.  Pentium 4MB
+ * enable and PPro Global page enable), so that any CPU's that boot
+ * up after us can get the correct flags.  This should only be used
+ * during boot on the boot cpu.
+ */
+extern unsigned long mmu_cr4_features;
+extern u32 *trampoline_cr4_features;
+
+static inline void cr4_set_bits_and_update_boot(unsigned long mask)
+{
+	mmu_cr4_features |= mask;
+	if (trampoline_cr4_features)
+		*trampoline_cr4_features = mmu_cr4_features;
+	cr4_set_bits(mask);
+}
+
 static inline void __native_flush_tlb(void)
 {
 	native_write_cr3(native_read_cr3());
