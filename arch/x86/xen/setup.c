@@ -595,6 +595,7 @@ char * __init xen_memory_setup(void)
 		rc = 0;
 	}
 	BUG_ON(rc);
+	BUG_ON(memmap.nr_entries == 0);
 
 	/*
 	 * Xen won't allow a 1:1 mapping to be created to UNUSABLE
