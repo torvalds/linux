@@ -319,9 +319,10 @@ static void svc_in_callback(struct urb *urb)
 	int retval;
 
 	if (status) {
-		if (status != -EAGAIN)
-			dev_err(dev, "urb svc in error %d (dropped)\n", status);
-		goto exit;
+		if (status == -EAGAIN)
+			goto exit;
+		dev_err(dev, "urb svc in error %d (dropped)\n", status);
+		return;
 	}
 
 	/* We have a message, create a new message structure, add it to the
@@ -346,10 +347,10 @@ static void cport_in_callback(struct urb *urb)
 	u8 *data;
 
 	if (status) {
-		if (status != -EAGAIN)
-			dev_err(dev, "urb cport in error %d (dropped)\n",
-				status);
-		goto exit;
+		if (status == -EAGAIN)
+			goto exit;
+		dev_err(dev, "urb cport in error %d (dropped)\n", status);
+		return;
 	}
 
 	/* The size has to be at least one, for the cport id */
