@@ -2586,9 +2586,13 @@ static void rcu_spawn_one_nocb_kthread(struct rcu_state *rsp, int cpu)
 			rdp->nocb_leader = rdp_spawn;
 			if (rdp_last && rdp != rdp_spawn)
 				rdp_last->nocb_next_follower = rdp;
-			rdp_last = rdp;
-			rdp = rdp->nocb_next_follower;
-			rdp_last->nocb_next_follower = NULL;
+			if (rdp == rdp_spawn) {
+				rdp = rdp->nocb_next_follower;
+			} else {
+				rdp_last = rdp;
+				rdp = rdp->nocb_next_follower;
+				rdp_last->nocb_next_follower = NULL;
+			}
 		} while (rdp);
 		rdp_spawn->nocb_next_follower = rdp_old_leader;
 	}
