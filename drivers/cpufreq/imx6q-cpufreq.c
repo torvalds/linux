@@ -6,6 +6,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/busfreq-imx.h>
 #include <linux/clk.h>
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
@@ -71,6 +72,12 @@ static int imx6q_set_target(struct cpufreq_policy *policy, unsigned int index)
 	dev_dbg(cpu_dev, "%u MHz, %ld mV --> %u MHz, %ld mV\n",
 		old_freq / 1000, volt_old / 1000,
 		new_freq / 1000, volt / 1000);
+	/*
+	 * CPU freq is increasing, so need to ensure
+	 * that bus frequency is increased too.
+	 */
+	if (old_freq == freq_table[0].frequency)
+		request_bus_freq(BUS_FREQ_HIGH);
 
 	/* scaling up?  scale voltage before frequency */
 	if (new_freq > old_freq) {
@@ -168,6 +175,12 @@ static int imx6q_set_target(struct cpufreq_policy *policy, unsigned int index)
 			}
 		}
 	}
+	/*
+	 * If CPU is dropped to the lowest level, release the need
+	 * for a high bus frequency.
+	 */
+	if (new_freq == freq_table[0].frequency)
+		release_bus_freq(BUS_FREQ_HIGH);
 
 	return 0;
 }
