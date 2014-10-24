@@ -337,7 +337,8 @@ struct sst_shim_regs64 {
  * struct intel_sst_drv - driver ops
  *
  * @sst_state : current sst device state
- * @pci_id : PCI device id loaded
+ * @dev_id : device identifier, pci_id for pci devices and acpi_id for acpi
+ * 	     devices
  * @shim : SST shim pointer
  * @mailbox : SST mailbox pointer
  * @iram : SST IRAM pointer
@@ -371,7 +372,7 @@ struct sst_shim_regs64 {
 struct intel_sst_drv {
 	int			sst_state;
 	int			irq_num;
-	unsigned int		pci_id;
+	unsigned int		dev_id;
 	void __iomem		*ddr;
 	void __iomem		*shim;
 	void __iomem		*mailbox;

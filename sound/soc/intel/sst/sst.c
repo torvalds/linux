@@ -167,7 +167,7 @@ static struct intel_sst_ops mrfld_ops = {
 int sst_driver_ops(struct intel_sst_drv *sst)
 {
 
-	switch (sst->pci_id) {
+	switch (sst->dev_id) {
 	case SST_MRFLD_PCI_ID:
 		sst->tstamp = SST_TIME_STAMP_MRFLD;
 		sst->ops = &mrfld_ops;
@@ -175,7 +175,7 @@ int sst_driver_ops(struct intel_sst_drv *sst)
 
 	default:
 		dev_err(sst->dev,
-			"SST Driver capablities missing for pci_id: %x", sst->pci_id);
+			"SST Driver capablities missing for dev_id: %x", sst->dev_id);
 		return -EINVAL;
 	};
 }
@@ -210,7 +210,7 @@ static int intel_sst_probe(struct pci_dev *pci,
 		return -ENOMEM;
 
 	sst_drv_ctx->dev = &pci->dev;
-	sst_drv_ctx->pci_id = pci->device;
+	sst_drv_ctx->dev_id = pci->device;
 	if (!sst_pdata)
 		return -EINVAL;
 
@@ -278,7 +278,7 @@ static int intel_sst_probe(struct pci_dev *pci,
 
 	/* map registers */
 	/* DDR base */
-	if (sst_drv_ctx->pci_id == SST_MRFLD_PCI_ID) {
+	if (sst_drv_ctx->dev_id == SST_MRFLD_PCI_ID) {
 		sst_drv_ctx->ddr_base = pci_resource_start(pci, 0);
 		/* check that the relocated IMR base matches with FW Binary */
 		ddr_base = relocate_imr_addr_mrfld(sst_drv_ctx->ddr_base);
@@ -357,7 +357,7 @@ static int intel_sst_probe(struct pci_dev *pci,
 	dev_dbg(sst_drv_ctx->dev, "Registered IRQ 0x%x\n", pci->irq);
 
 	/* default intr are unmasked so set this as masked */
-	if (sst_drv_ctx->pci_id == SST_MRFLD_PCI_ID)
+	if (sst_drv_ctx->dev_id == SST_MRFLD_PCI_ID)
 		sst_shim_write64(sst_drv_ctx->shim, SST_IMRX, 0xFFFF0038);
 
 	pci_set_drvdata(pci, sst_drv_ctx);

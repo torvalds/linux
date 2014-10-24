@@ -115,7 +115,7 @@ unsigned long long read_shim_data(struct intel_sst_drv *sst, int addr)
 {
 	unsigned long long val = 0;
 
-	switch (sst->pci_id) {
+	switch (sst->dev_id) {
 	case SST_MRFLD_PCI_ID:
 		val = sst_shim_read64(sst->shim, addr);
 		break;
@@ -126,7 +126,7 @@ unsigned long long read_shim_data(struct intel_sst_drv *sst, int addr)
 void write_shim_data(struct intel_sst_drv *sst, int addr,
 				unsigned long long data)
 {
-	switch (sst->pci_id) {
+	switch (sst->dev_id) {
 	case SST_MRFLD_PCI_ID:
 		sst_shim_write64(sst->shim, addr, (u64) data);
 		break;
