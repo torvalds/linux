@@ -136,12 +136,10 @@ static void gs_print_header(struct fpgaimage *fimage)
 static void gs_read_bitstream(struct fpgaimage *fimage)
 {
 	char *bitdata;
-	int size;
 	int offset;
 
 	offset = 0;
 	bitdata = (char *)fimage->fw_entry->data;
-	size = fimage->fw_entry->size;
 
 	readmagic_bitstream(bitdata, &offset);
 	readinfo_bitstream(bitdata, fimage->filename, &offset);
