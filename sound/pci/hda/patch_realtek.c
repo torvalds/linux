@@ -2675,7 +2675,7 @@ static void alc269_shutup(struct hda_codec *codec)
 
 static struct coef_fw alc282_coefs[] = {
 	WRITE_COEF(0x03, 0x0002), /* Power Down Control */
-	WRITE_COEF(0x05, 0x0700), /* FIFO and filter clock */
+	UPDATE_COEF(0x05, 0xff3f, 0x0700), /* FIFO and filter clock */
 	WRITE_COEF(0x07, 0x0200), /* DMIC control */
 	UPDATE_COEF(0x06, 0x00f0, 0), /* Analog clock */
 	UPDATE_COEF(0x08, 0xfffc, 0x0c2c), /* JD */
