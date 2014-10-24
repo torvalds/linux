@@ -1192,33 +1192,17 @@ intel_check_sprite_plane(struct drm_plane *plane,
 }
 
 static int
-intel_commit_sprite_plane(struct drm_plane *plane,
-			  struct intel_plane_state *state)
+intel_prepare_sprite_plane(struct drm_plane *plane,
+			   struct intel_plane_state *state)
 {
 	struct drm_device *dev = plane->dev;
 	struct drm_crtc *crtc = state->crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_plane *intel_plane = to_intel_plane(plane);
 	enum pipe pipe = intel_crtc->pipe;
 	struct drm_framebuffer *fb = state->fb;
-	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
-	struct drm_i915_gem_object *obj = intel_fb->obj;
-	struct drm_i915_gem_object *old_obj = intel_plane->obj;
-	int crtc_x, crtc_y;
-	unsigned int crtc_w, crtc_h;
-	uint32_t src_x, src_y, src_w, src_h;
-	struct drm_rect *dst = &state->dst;
-	const struct drm_rect *clip = &state->clip;
-	bool primary_enabled;
+	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
+	struct drm_i915_gem_object *old_obj = intel_fb_obj(plane->fb);
 	int ret;
-
-	/*
-	 * If the sprite is completely covering the primary plane,
-	 * we can disable the primary and save power.
-	 */
-	primary_enabled = !drm_rect_equals(dst, clip) || colorkey_enabled(intel_plane);
-	WARN_ON(!primary_enabled && !state->visible && intel_crtc->active);
-
 
 	if (old_obj != obj) {
 		mutex_lock(&dev->struct_mutex);
@@ -1237,6 +1221,36 @@ intel_commit_sprite_plane(struct drm_plane *plane,
 		if (ret)
 			return ret;
 	}
+
+	return 0;
+}
+
+static void
+intel_commit_sprite_plane(struct drm_plane *plane,
+			  struct intel_plane_state *state)
+{
+	struct drm_device *dev = plane->dev;
+	struct drm_crtc *crtc = state->crtc;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_plane *intel_plane = to_intel_plane(plane);
+	enum pipe pipe = intel_crtc->pipe;
+	struct drm_framebuffer *fb = state->fb;
+	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
+	struct drm_i915_gem_object *obj = intel_fb->obj;
+	struct drm_i915_gem_object *old_obj = intel_plane->obj;
+	int crtc_x, crtc_y;
+	unsigned int crtc_w, crtc_h;
+	uint32_t src_x, src_y, src_w, src_h;
+	struct drm_rect *dst = &state->dst;
+	const struct drm_rect *clip = &state->clip;
+	bool primary_enabled;
+
+	/*
+	 * If the sprite is completely covering the primary plane,
+	 * we can disable the primary and save power.
+	 */
+	primary_enabled = !drm_rect_equals(dst, clip) || colorkey_enabled(intel_plane);
+	WARN_ON(!primary_enabled && !state->visible && intel_crtc->active);
 
 	intel_plane->crtc_x = state->orig_dst.x1;
 	intel_plane->crtc_y = state->orig_dst.y1;
@@ -1298,8 +1312,6 @@ intel_commit_sprite_plane(struct drm_plane *plane,
 		intel_unpin_fb_obj(old_obj);
 		mutex_unlock(&dev->struct_mutex);
 	}
-
-	return 0;
 }
 
 static int
@@ -1339,7 +1351,12 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (ret)
 		return ret;
 
-	return intel_commit_sprite_plane(plane, &state);
+	ret = intel_prepare_sprite_plane(plane, &state);
+	if (ret)
+		return ret;
+
+	intel_commit_sprite_plane(plane, &state);
+	return 0;
 }
 
 static int
