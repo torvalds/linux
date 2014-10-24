@@ -485,8 +485,8 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 					    WQ_UNBOUND | WQ_MEM_RECLAIM,
 					   1, shost->host_no);
 	if (!shost->tmf_work_q) {
-		printk(KERN_WARNING "scsi%d: failed to create tmf workq\n",
-		       shost->host_no);
+		shost_printk(KERN_WARNING, shost,
+			     "failed to create tmf workq\n");
 		goto fail_kthread;
 	}
 	scsi_proc_hostdir_add(shost->hostt);
