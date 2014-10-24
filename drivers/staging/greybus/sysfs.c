@@ -74,27 +74,8 @@ static struct attribute *module_attrs[] = {
 	NULL,
 };
 
-static umode_t module_attrs_are_visible(struct kobject *kobj,
-					struct attribute *a, int n)
-{
-	struct gb_module *gmod = to_gb_module(kobj_to_dev(kobj));
-	umode_t mode = a->mode;
-
-	if (a == &dev_attr_module_vendor_string.attr && gmod->vendor_string)
-		return mode;
-	if (a == &dev_attr_module_product_string.attr && gmod->product_string)
-		return mode;
-	if (gmod->vendor || gmod->product || gmod->version)
-		return mode;
-	if (gmod->unique_id)
-		return mode;
-
-	return 0;
-}
-
 static struct attribute_group module_attr_grp = {
 	.attrs =	module_attrs,
-	.is_visible =	module_attrs_are_visible,
 };
 
 const struct attribute_group *greybus_module_groups[] = {
