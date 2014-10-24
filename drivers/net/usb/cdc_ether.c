@@ -76,6 +76,9 @@ static void usbnet_cdc_update_filter(struct usbnet *dev)
 	    USB_CDC_PACKET_TYPE_ALL_MULTICAST | USB_CDC_PACKET_TYPE_DIRECTED |
 	    USB_CDC_PACKET_TYPE_BROADCAST;
 
+	if (dev->net->flags & IFF_PROMISC)
+		cdc_filter |= USB_CDC_PACKET_TYPE_PROMISCUOUS;
+
 	/* FIXME cdc-ether has some multicast code too, though it complains
 	 * in routine cases.  info->ether describes the multicast support.
 	 * Implement that here, manipulating the cdc filter as needed.
@@ -496,6 +499,7 @@ static const struct driver_info	cdc_info = {
 	.bind =		usbnet_cdc_bind,
 	.unbind =	usbnet_cdc_unbind,
 	.status =	usbnet_cdc_status,
+	.set_rx_mode =	usbnet_cdc_update_filter,
 	.manage_power =	usbnet_manage_power,
 };
 
@@ -505,6 +509,7 @@ static const struct driver_info wwan_info = {
 	.bind =		usbnet_cdc_bind,
 	.unbind =	usbnet_cdc_unbind,
 	.status =	usbnet_cdc_status,
+	.set_rx_mode =	usbnet_cdc_update_filter,
 	.manage_power =	usbnet_manage_power,
 };
 
