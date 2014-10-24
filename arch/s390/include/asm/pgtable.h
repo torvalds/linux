@@ -1651,6 +1651,19 @@ static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm,
 	return pmd;
 }
 
+#define __HAVE_ARCH_PMDP_GET_AND_CLEAR_FULL
+static inline pmd_t pmdp_get_and_clear_full(struct mm_struct *mm,
+					    unsigned long address,
+					    pmd_t *pmdp, int full)
+{
+	pmd_t pmd = *pmdp;
+
+	if (!full)
+		pmdp_flush_lazy(mm, address, pmdp);
+	pmd_clear(pmdp);
+	return pmd;
+}
+
 #define __HAVE_ARCH_PMDP_CLEAR_FLUSH
 static inline pmd_t pmdp_clear_flush(struct vm_area_struct *vma,
 				     unsigned long address, pmd_t *pmdp)

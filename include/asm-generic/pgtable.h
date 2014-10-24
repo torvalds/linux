@@ -103,6 +103,17 @@ static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm,
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 #endif
 
+#ifndef __HAVE_ARCH_PMDP_GET_AND_CLEAR_FULL
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+static inline pmd_t pmdp_get_and_clear_full(struct mm_struct *mm,
+					    unsigned long address, pmd_t *pmdp,
+					    int full)
+{
+	return pmdp_get_and_clear(mm, address, pmdp);
+}
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+#endif
+
 #ifndef __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
 static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
 					    unsigned long address, pte_t *ptep,
