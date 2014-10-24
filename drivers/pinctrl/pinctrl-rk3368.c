@@ -561,23 +561,33 @@ static void rk3188_calc_pull_reg_and_bit(struct rockchip_pin_bank *bank,
 }
 
 #define RK3288_PULL_OFFSET		0x140
+#define RK3368_PULL_PMU_OFFSET 0x10
+#define RK3368_PULL_OFFSET		0x100
+
 static void rk3288_calc_pull_reg_and_bit(struct rockchip_pin_bank *bank,
 				    int pin_num, struct regmap **regmap,
 				    int *reg, u8 *bit)
 {
 	struct rockchip_pinctrl *info = bank->drvdata;
+	struct rockchip_pin_ctrl *ctrl = info->ctrl;
 
 	/* The first 24 pins of the first bank are located in PMU */
 	if (bank->bank_num == 0) {
 		*regmap = info->regmap_pmu;
-		*reg = RK3188_PULL_PMU_OFFSET;
+		if(ctrl->type == RK3288)
+			*reg = RK3188_PULL_PMU_OFFSET;
+		else if (ctrl->type == RK3368)
+			*reg = RK3368_PULL_PMU_OFFSET;
 
 		*reg += ((pin_num / RK3188_PULL_PINS_PER_REG) * 4);
 		*bit = pin_num % RK3188_PULL_PINS_PER_REG;
 		*bit *= RK3188_PULL_BITS_PER_PIN;
 	} else {
 		*regmap = info->regmap_base;
-		*reg = RK3288_PULL_OFFSET;
+		if(ctrl->type == RK3288)
+			*reg = RK3288_PULL_OFFSET;
+		else if (ctrl->type == RK3368)
+			*reg = RK3368_PULL_OFFSET;
 
 		/* correct the offset, as we're starting with the 2nd bank */
 		*reg -= 0x10;
@@ -588,37 +598,6 @@ static void rk3288_calc_pull_reg_and_bit(struct rockchip_pin_bank *bank,
 		*bit *= RK3188_PULL_BITS_PER_PIN;
 	}
 }
-
-#define RK3368_PULL_PMU_OFFSET 0x10
-#define RK3368_PULL_OFFSET		 0x100
-static void rk3368_calc_pull_reg_and_bit(struct rockchip_pin_bank *bank,
-				    int pin_num, struct regmap **regmap,
-				    int *reg, u8 *bit)
-{
-	struct rockchip_pinctrl *info = bank->drvdata;
-
-	/* The first 24 pins of the first bank are located in PMU */
-	if (bank->bank_num == 0) {
-		*regmap = info->regmap_pmu;
-		*reg = RK3368_PULL_PMU_OFFSET;
-
-		*reg += ((pin_num / RK3188_PULL_PINS_PER_REG) * 4);
-		*bit = pin_num % RK3188_PULL_PINS_PER_REG;
-		*bit *= RK3188_PULL_BITS_PER_PIN;
-	} else {
-		*regmap = info->regmap_base;
-		*reg = RK3368_PULL_OFFSET;
-
-		/* correct the offset, as we're starting with the 2nd bank */
-		*reg -= 0x10;
-		*reg += bank->bank_num * RK3188_PULL_BANK_STRIDE;
-		*reg += ((pin_num / RK3188_PULL_PINS_PER_REG) * 4);
-
-		*bit = (pin_num % RK3188_PULL_PINS_PER_REG);
-		*bit *= RK3188_PULL_BITS_PER_PIN;
-	}
-}
-
 
 #define RK3288_DRV_PMU_OFFSET		0x70
 #define RK3288_DRV_GRF_OFFSET		0x1c0
@@ -1747,7 +1726,7 @@ static int rockchip_gpio_irq_map(struct irq_domain *d, unsigned int irq,
 	return 0;
 }
 
-const struct irq_domain_ops rockchip_gpio_irq_ops = {
+static const struct irq_domain_ops rockchip_gpio_irq_ops = {
 	.map = rockchip_gpio_irq_map,
 	.xlate = irq_domain_xlate_twocell,
 };
@@ -1904,12 +1883,11 @@ static int rockchip_get_bank_data(struct rockchip_pin_bank *bank,
 
 	bank->irq = irq_of_parse_and_map(bank->of_node, 0);
 
-	//bank->clk = of_clk_get(bank->of_node, 0);
-	//if (IS_ERR(bank->clk))
-		//return PTR_ERR(bank->clk);
+	bank->clk = of_clk_get(bank->of_node, 0);
+	if (IS_ERR(bank->clk))
+		return PTR_ERR(bank->clk);
 
-	//return clk_prepare_enable(bank->clk);
-	return 0;
+	return clk_prepare_enable(bank->clk);
 }
 
 static const struct of_device_id rockchip_pinctrl_dt_match[];
@@ -2106,8 +2084,8 @@ static int rockchip_pinctrl_suspend(void)
 		bank->saved_wakeup = __raw_readl(bank->reg_base + GPIO_INTEN);
          	__raw_writel(bank->suspend_wakeup, bank->reg_base + GPIO_INTEN);
 
-		//if (!bank->suspend_wakeup)
-		//clk_disable_unprepare(bank->clk);
+		if (!bank->suspend_wakeup)
+		clk_disable_unprepare(bank->clk);
 		
 		//if(atomic_read(&info->bank_debug_flag) == (bank->bank_num + 1))	
 			//printk("%s:bank_num=%d, suspend_wakeup=0x%x\n"
@@ -2137,8 +2115,8 @@ static void rockchip_pinctrl_resume(void)
 			printk("%s:bank_num=%d,reg[0x%x+0x%x]=0x%x,bank_name=%s\n",__func__,bank->bank_num, bank->reg_base, i, value, bank->name);
 		}
 #endif		
-		//if (!bank->suspend_wakeup)
-		//clk_prepare_enable(bank->clk);
+		if (!bank->suspend_wakeup)
+		clk_prepare_enable(bank->clk);
 
 		/* keep enable for resume irq */
 		 isr = __raw_readl(bank->reg_base + GPIO_INT_STATUS);
@@ -2279,7 +2257,7 @@ static struct rockchip_pin_ctrl rk3368_pin_ctrl = {
 		.type			= RK3368,
 		.grf_mux_offset		= 0x0,
 		.pmu_mux_offset		= 0x0,
-		.pull_calc_reg		= rk3368_calc_pull_reg_and_bit,
+		.pull_calc_reg		= rk3288_calc_pull_reg_and_bit,
 };
 
 static const struct of_device_id rockchip_pinctrl_dt_match[] = {
