@@ -2085,8 +2085,7 @@ fas216_std_done(FAS216_Info *info, struct scsi_cmnd *SCpnt, unsigned int result)
 				SCpnt->result, info->scsi.SCp.ptr,
 				info->scsi.SCp.this_residual);
 			__scsi_print_command(SCpnt->cmnd);
-			SCpnt->result &= ~(255 << 16);
-			SCpnt->result |= DID_BAD_TARGET << 16;
+			set_host_byte(SCpnt, DID_ERROR);
 			goto request_sense;
 		}
 	}
