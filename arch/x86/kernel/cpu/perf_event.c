@@ -1915,7 +1915,8 @@ static struct pmu pmu = {
 	.flush_branch_stack	= x86_pmu_flush_branch_stack,
 };
 
-void arch_perf_update_userpage(struct perf_event_mmap_page *userpg, u64 now)
+void arch_perf_update_userpage(struct perf_event *event,
+			       struct perf_event_mmap_page *userpg, u64 now)
 {
 	struct cyc2ns_data *data;
 

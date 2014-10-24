@@ -4101,7 +4101,8 @@ unlock:
 	rcu_read_unlock();
 }
 
-void __weak arch_perf_update_userpage(struct perf_event_mmap_page *userpg, u64 now)
+void __weak arch_perf_update_userpage(
+	struct perf_event *event, struct perf_event_mmap_page *userpg, u64 now)
 {
 }
 
@@ -4151,7 +4152,7 @@ void perf_event_update_userpage(struct perf_event *event)
 	userpg->time_running = running +
 			atomic64_read(&event->child_total_time_running);
 
-	arch_perf_update_userpage(userpg, now);
+	arch_perf_update_userpage(event, userpg, now);
 
 	barrier();
 	++userpg->lock;
