@@ -68,7 +68,6 @@ static int apci1564_reset(struct comedi_device *dev)
 	outl(0x0, dev->iobase + APCI1564_COUNTER_CTRL_REG(0));
 	outl(0x0, dev->iobase + APCI1564_COUNTER_CTRL_REG(1));
 	outl(0x0, dev->iobase + APCI1564_COUNTER_CTRL_REG(2));
-	outl(0x0, dev->iobase + APCI1564_COUNTER_CTRL_REG(3));
 
 	return 0;
 }
@@ -434,9 +433,8 @@ static int apci1564_auto_attach(struct comedi_device *dev,
 	s = &dev->subdevices[3];
 	s->type		= COMEDI_SUBD_TIMER;
 	s->subdev_flags	= SDF_WRITEABLE;
-	s->n_chan	= 1;
+	s->n_chan	= 3;
 	s->maxdata	= 0;
-	s->len_chanlist	= 1;
 	s->range_table	= &range_digital;
 	s->insn_write	= apci1564_timer_write;
 	s->insn_read	= apci1564_timer_read;

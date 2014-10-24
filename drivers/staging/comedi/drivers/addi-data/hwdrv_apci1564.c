@@ -98,8 +98,6 @@ static int apci1564_timer_config(struct comedi_device *dev,
 			    APCI1564_COUNTER_IRQ_REG(1));
 			outl(0x0, dev->iobase +
 			    APCI1564_COUNTER_IRQ_REG(2));
-			outl(0x0, dev->iobase +
-			    APCI1564_COUNTER_IRQ_REG(3));
 		} else {
 			/* disable Timer interrupt */
 			outl(0x0, devpriv->amcc_iobase + APCI1564_TIMER_CTRL_REG);
