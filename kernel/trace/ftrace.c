@@ -1925,8 +1925,16 @@ ftrace_find_tramp_ops_curr(struct dyn_ftrace *rec)
 	 * when we are adding another op to the rec or removing the
 	 * current one. Thus, if the op is being added, we can
 	 * ignore it because it hasn't attached itself to the rec
-	 * yet. That means we just need to find the op that has a
-	 * trampoline and is not beeing added.
+	 * yet.
+	 *
+	 * If an ops is being modified (hooking to different functions)
+	 * then we don't care about the new functions that are being
+	 * added, just the old ones (that are probably being removed).
+	 *
+	 * If we are adding an ops to a function that already is using
+	 * a trampoline, it needs to be removed (trampolines are only
+	 * for single ops connected), then an ops that is not being
+	 * modified also needs to be checked.
 	 */
 	do_for_each_ftrace_op(op, ftrace_ops_list) {
 
@@ -1940,16 +1948,22 @@ ftrace_find_tramp_ops_curr(struct dyn_ftrace *rec)
 		if (op->flags & FTRACE_OPS_FL_ADDING)
 			continue;
 
-		/*
-		 * If the ops is not being added and has a trampoline,
-		 * then it must be the one that we want!
-		 */
-		if (hash_contains_ip(ip, op->func_hash))
-			return op;
 
-		/* If the ops is being modified, it may be in the old hash. */
+		/*
+		 * If the ops is being modified and is in the old
+		 * hash, then it is probably being removed from this
+		 * function.
+		 */
 		if ((op->flags & FTRACE_OPS_FL_MODIFYING) &&
 		    hash_contains_ip(ip, &op->old_hash))
+			return op;
+		/*
+		 * If the ops is not being added or modified, and it's
+		 * in its normal filter hash, then this must be the one
+		 * we want!
+		 */
+		if (!(op->flags & FTRACE_OPS_FL_MODIFYING) &&
+		    hash_contains_ip(ip, op->func_hash))
 			return op;
 
 	} while_for_each_ftrace_op(op);
