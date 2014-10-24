@@ -50,9 +50,13 @@
 #define MII_M1011_PHY_SCR		0x10
 #define MII_M1011_PHY_SCR_AUTO_CROSS	0x0060
 
+#define MII_M1145_PHY_EXT_SR		0x1b
 #define MII_M1145_PHY_EXT_CR		0x14
 #define MII_M1145_RGMII_RX_DELAY	0x0080
 #define MII_M1145_RGMII_TX_DELAY	0x0002
+#define MII_M1145_HWCFG_MODE_SGMII_NO_CLK	0x4
+#define MII_M1145_HWCFG_MODE_MASK		0xf
+#define MII_M1145_HWCFG_FIBER_COPPER_AUTO	0x8000
 
 #define MII_M1111_PHY_LED_CONTROL	0x18
 #define MII_M1111_PHY_LED_DIRECT	0x4100
@@ -558,6 +562,7 @@ static int m88e1149_config_init(struct phy_device *phydev)
 static int m88e1145_config_init(struct phy_device *phydev)
 {
 	int err;
+	int temp;
 
 	/* Take care of errata E0 & E1 */
 	err = phy_write(phydev, 0x1d, 0x001b);
@@ -612,6 +617,20 @@ static int m88e1145_config_init(struct phy_device *phydev)
 			if (err < 0)
 				return err;
 		}
+	}
+
+	if (phydev->interface == PHY_INTERFACE_MODE_SGMII) {
+		temp = phy_read(phydev, MII_M1145_PHY_EXT_SR);
+		if (temp < 0)
+			return temp;
+
+		temp &= ~(MII_M1145_HWCFG_MODE_MASK);
+		temp |= MII_M1145_HWCFG_MODE_SGMII_NO_CLK;
+		temp |= MII_M1145_HWCFG_FIBER_COPPER_AUTO;
+
+		err = phy_write(phydev, MII_M1145_PHY_EXT_SR, temp);
+		if (err < 0)
+			return err;
 	}
 
 	err = marvell_of_reg_init(phydev);
