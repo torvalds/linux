@@ -19,6 +19,7 @@
 #include <asm/archrandom.h>
 #include <asm/hypervisor.h>
 #include <asm/processor.h>
+#include <asm/tlbflush.h>
 #include <asm/debugreg.h>
 #include <asm/sections.h>
 #include <asm/vsyscall.h>
@@ -1292,6 +1293,12 @@ void cpu_init(void)
 	int i;
 
 	wait_for_master_cpu(cpu);
+
+	/*
+	 * Initialize the CR4 shadow before doing anything that could
+	 * try to read it.
+	 */
+	cr4_init_shadow();
 
 	/*
 	 * Load microcode on this cpu if a valid microcode is available.

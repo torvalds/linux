@@ -46,7 +46,7 @@ static inline void cpu_vmxoff(void)
 
 static inline int cpu_vmx_enabled(void)
 {
-	return read_cr4() & X86_CR4_VMXE;
+	return __read_cr4() & X86_CR4_VMXE;
 }
 
 /** Disable VMX if it is enabled on the current CPU
