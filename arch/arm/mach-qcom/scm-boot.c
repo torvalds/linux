@@ -24,11 +24,11 @@
 /*
  * Set the cold/warm boot address for one of the CPU cores.
  */
-int scm_set_boot_addr(phys_addr_t addr, int flags)
+int scm_set_boot_addr(u32 addr, int flags)
 {
 	struct {
 		unsigned int flags;
-		phys_addr_t  addr;
+		u32 addr;
 	} cmd;
 
 	cmd.addr = addr;
