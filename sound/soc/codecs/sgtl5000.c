@@ -1439,8 +1439,7 @@ static int sgtl5000_i2c_probe(struct i2c_client *client,
 	struct device_node *np = client->dev.of_node;
 	u32 value;
 
-	sgtl5000 = devm_kzalloc(&client->dev, sizeof(struct sgtl5000_priv),
-								GFP_KERNEL);
+	sgtl5000 = devm_kzalloc(&client->dev, sizeof(*sgtl5000), GFP_KERNEL);
 	if (!sgtl5000)
 		return -ENOMEM;
 
