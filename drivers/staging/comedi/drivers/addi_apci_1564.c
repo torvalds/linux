@@ -37,7 +37,6 @@ struct apci1564_private {
 	unsigned int mode2;		/* falling-edge/low level channels */
 	unsigned int ctrl;		/* interrupt mode OR (edge) . AND (level) */
 	unsigned char timer_select_mode;
-	unsigned char mode_select_register;
 	struct task_struct *tsk_current;
 };
 

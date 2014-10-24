@@ -75,6 +75,7 @@ static int apci1564_timer_config(struct comedi_device *dev,
 				 unsigned int *data)
 {
 	struct apci1564_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int ul_Command1 = 0;
 
 	devpriv->tsk_current = current;
@@ -115,19 +116,18 @@ static int apci1564_timer_config(struct comedi_device *dev,
 		outl(ul_Command1, devpriv->amcc_iobase + APCI1564_TIMER_CTRL_REG);
 	} else if (data[0] == ADDIDATA_COUNTER) {
 		devpriv->timer_select_mode = ADDIDATA_COUNTER;
-		devpriv->mode_select_register = data[5];
 
 		/* First Stop The Counter */
 		ul_Command1 = inl(dev->iobase +
-				 APCI1564_COUNTER_CTRL_REG(data[5] - 1));
+				 APCI1564_COUNTER_CTRL_REG(chan));
 		ul_Command1 = ul_Command1 & 0xFFFFF9FEUL;
 		/* Stop The Timer */
 		outl(ul_Command1, dev->iobase +
-					APCI1564_COUNTER_CTRL_REG(data[5] - 1));
+					APCI1564_COUNTER_CTRL_REG(chan));
 
 		/* Set the reload value */
 		outl(data[3], dev->iobase +
-					APCI1564_COUNTER_RELOAD_REG(data[5] - 1));
+					APCI1564_COUNTER_RELOAD_REG(chan));
 
 		/* Set the mode :             */
 		/* - Disable the hardware     */
@@ -141,17 +141,17 @@ static int apci1564_timer_config(struct comedi_device *dev,
 			(ul_Command1 & 0xFFFC19E2UL) | 0x80000UL |
 			(unsigned int) ((unsigned int) data[4] << 16UL);
 		outl(ul_Command1, dev->iobase +
-					APCI1564_COUNTER_CTRL_REG(data[5] - 1));
+					APCI1564_COUNTER_CTRL_REG(chan));
 
 		/*  Enable or Disable Interrupt */
 		ul_Command1 = (ul_Command1 & 0xFFFFF9FD) | (data[1] << 1);
 		outl(ul_Command1, dev->iobase +
-					APCI1564_COUNTER_CTRL_REG(data[5] - 1));
+					APCI1564_COUNTER_CTRL_REG(chan));
 
 		/* Set the Up/Down selection */
 		ul_Command1 = (ul_Command1 & 0xFFFBF9FFUL) | (data[6] << 18);
 		outl(ul_Command1, dev->iobase +
-					APCI1564_COUNTER_CTRL_REG(data[5] - 1));
+					APCI1564_COUNTER_CTRL_REG(chan));
 	} else {
 		dev_err(dev->class_dev, "Invalid subdevice.\n");
 	}
@@ -170,6 +170,7 @@ static int apci1564_timer_write(struct comedi_device *dev,
 				unsigned int *data)
 {
 	struct apci1564_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int ul_Command1 = 0;
 
 	if (devpriv->timer_select_mode == ADDIDATA_TIMER) {
@@ -189,7 +190,7 @@ static int apci1564_timer_write(struct comedi_device *dev,
 	} else if (devpriv->timer_select_mode == ADDIDATA_COUNTER) {
 		ul_Command1 =
 			inl(dev->iobase +
-			   APCI1564_COUNTER_CTRL_REG(devpriv->mode_select_register - 1));
+			   APCI1564_COUNTER_CTRL_REG(chan));
 		if (data[1] == 1) {
 			/* Start the Counter subdevice */
 			ul_Command1 = (ul_Command1 & 0xFFFFF9FFUL) | 0x1UL;
@@ -202,7 +203,7 @@ static int apci1564_timer_write(struct comedi_device *dev,
 			ul_Command1 = (ul_Command1 & 0xFFFFF9FFUL) | 0x400;
 		}
 		outl(ul_Command1, dev->iobase +
-		     APCI1564_COUNTER_CTRL_REG(devpriv->mode_select_register - 1));
+		     APCI1564_COUNTER_CTRL_REG(chan));
 	} else {
 		dev_err(dev->class_dev, "Invalid subdevice.\n");
 	}
@@ -218,6 +219,7 @@ static int apci1564_timer_read(struct comedi_device *dev,
 			       unsigned int *data)
 {
 	struct apci1564_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int ul_Command1 = 0;
 
 	if (devpriv->timer_select_mode == ADDIDATA_TIMER) {
@@ -230,10 +232,10 @@ static int apci1564_timer_read(struct comedi_device *dev,
 		/*  Read the Counter Actual Value. */
 		data[0] =
 			inl(dev->iobase +
-			    APCI1564_COUNTER_REG(devpriv->mode_select_register - 1));
+			    APCI1564_COUNTER_REG(chan));
 		ul_Command1 =
 			inl(dev->iobase +
-			    APCI1564_COUNTER_STATUS_REG(devpriv->mode_select_register - 1));
+			    APCI1564_COUNTER_STATUS_REG(chan));
 
 		/* Get the software trigger status */
 		data[1] = (unsigned char) ((ul_Command1 >> 1) & 1);
