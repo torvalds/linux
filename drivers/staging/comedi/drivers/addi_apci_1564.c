@@ -65,10 +65,10 @@ static int apci1564_reset(struct comedi_device *dev)
 	outl(0x0, devpriv->amcc_iobase + APCI1564_TIMER_RELOAD_REG);
 
 	/* Reset the counter registers */
-	outl(0x0, dev->iobase + APCI1564_COUNTER_CTRL_REG(APCI1564_COUNTER1));
-	outl(0x0, dev->iobase + APCI1564_COUNTER_CTRL_REG(APCI1564_COUNTER2));
-	outl(0x0, dev->iobase + APCI1564_COUNTER_CTRL_REG(APCI1564_COUNTER3));
-	outl(0x0, dev->iobase + APCI1564_COUNTER_CTRL_REG(APCI1564_COUNTER4));
+	outl(0x0, dev->iobase + APCI1564_COUNTER_CTRL_REG(0));
+	outl(0x0, dev->iobase + APCI1564_COUNTER_CTRL_REG(1));
+	outl(0x0, dev->iobase + APCI1564_COUNTER_CTRL_REG(2));
+	outl(0x0, dev->iobase + APCI1564_COUNTER_CTRL_REG(3));
 
 	return 0;
 }

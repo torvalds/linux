@@ -16,10 +16,6 @@
 #define ADDIDATA_TIMER					0
 #define ADDIDATA_COUNTER				1
 #define ADDIDATA_WATCHDOG				2
-#define APCI1564_COUNTER1				0
-#define APCI1564_COUNTER2				1
-#define APCI1564_COUNTER3				2
-#define APCI1564_COUNTER4				3
 
 /*
  * devpriv->amcc_iobase Register Map
@@ -97,13 +93,13 @@ static int apci1564_timer_config(struct comedi_device *dev,
 			outl(0x0, devpriv->amcc_iobase + APCI1564_DO_IRQ_REG);
 			outl(0x0, devpriv->amcc_iobase + APCI1564_WDOG_IRQ_REG);
 			outl(0x0, dev->iobase +
-			    APCI1564_COUNTER_IRQ_REG(APCI1564_COUNTER1));
+			    APCI1564_COUNTER_IRQ_REG(0));
 			outl(0x0, dev->iobase +
-			    APCI1564_COUNTER_IRQ_REG(APCI1564_COUNTER2));
+			    APCI1564_COUNTER_IRQ_REG(1));
 			outl(0x0, dev->iobase +
-			    APCI1564_COUNTER_IRQ_REG(APCI1564_COUNTER3));
+			    APCI1564_COUNTER_IRQ_REG(2));
 			outl(0x0, dev->iobase +
-			    APCI1564_COUNTER_IRQ_REG(APCI1564_COUNTER4));
+			    APCI1564_COUNTER_IRQ_REG(3));
 		} else {
 			/* disable Timer interrupt */
 			outl(0x0, devpriv->amcc_iobase + APCI1564_TIMER_CTRL_REG);
