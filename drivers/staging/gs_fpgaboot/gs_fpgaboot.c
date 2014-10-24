@@ -172,15 +172,15 @@ static int gs_read_image(struct fpgaimage *fimage)
 	return 0;
 }
 
-static int gs_load_image(struct fpgaimage *fimage, char *file)
+static int gs_load_image(struct fpgaimage *fimage, char *fw_file)
 {
 	int err;
 
-	pr_info("load fpgaimage %s\n", file);
+	pr_info("load fpgaimage %s\n", fw_file);
 
-	err = request_firmware(&fimage->fw_entry, file, &firmware_pdev->dev);
+	err = request_firmware(&fimage->fw_entry, fw_file, &firmware_pdev->dev);
 	if (err != 0) {
-		pr_err("firmware %s is missing, cannot continue.\n", file);
+		pr_err("firmware %s is missing, cannot continue.\n", fw_file);
 		return err;
 	}
 
