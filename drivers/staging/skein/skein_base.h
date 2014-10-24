@@ -28,6 +28,11 @@
 **
 ***************************************************************************/
 
+/*Skein digest sizes for crypto api*/
+#define SKEIN256_DIGEST_BIT_SIZE 256
+#define SKEIN512_DIGEST_BIT_SIZE 512
+#define SKEIN1024_DIGEST_BIT_SIZE 1024
+
 #ifndef rotl_64
 #define rotl_64(x, N)    (((x) << (N)) | ((x) >> (64-(N))))
 #endif

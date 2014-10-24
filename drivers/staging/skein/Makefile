@@ -5,4 +5,5 @@ obj-$(CONFIG_CRYPTO_SKEIN) += skein_base.o \
 			      skein_api.o \
 			      skein_block.o \
 			      threefish_block.o \
-			      threefish_api.o
+			      threefish_api.o \
+			      skein_generic.o
