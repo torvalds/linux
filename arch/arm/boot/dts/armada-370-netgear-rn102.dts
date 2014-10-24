@@ -35,7 +35,7 @@
 		pcie-controller {
 			status = "okay";
 
-			/* Connected to Marvell SATA controller */
+			/* Connected to Marvell 88SE9170 SATA controller */
 			pcie@1,0 {
 				/* Port 0, Lane 0 */
 				status = "okay";
@@ -53,8 +53,9 @@
 				status = "okay";
 			};
 
+			/* eSATA interface */
 			sata@a0000 {
-				nr-ports = <2>;
+				nr-ports = <1>;
 				status = "okay";
 			};
 
