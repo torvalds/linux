@@ -466,6 +466,12 @@
 	pinctrl-names = "default";
 };
 
+&xhci {
+	status = "okay";
+	pinctrl-0 = <&usb2_pins>;
+	pinctrl-names = "default";
+};
+
 &pci2 {
 	status = "okay";
 	pinctrl-0 = <&usb2_pins>;
