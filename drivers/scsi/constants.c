@@ -1440,19 +1440,54 @@ const char *scsi_driverbyte_string(int result)
 }
 EXPORT_SYMBOL(scsi_driverbyte_string);
 
-void scsi_print_result(struct scsi_cmnd *cmd)
+#ifdef CONFIG_SCSI_CONSTANTS
+#define scsi_mlreturn_name(result)	{ result, #result }
+static const struct value_name_pair scsi_mlreturn_arr[] = {
+	scsi_mlreturn_name(NEEDS_RETRY),
+	scsi_mlreturn_name(SUCCESS),
+	scsi_mlreturn_name(FAILED),
+	scsi_mlreturn_name(QUEUED),
+	scsi_mlreturn_name(SOFT_ERROR),
+	scsi_mlreturn_name(ADD_TO_MLQUEUE),
+	scsi_mlreturn_name(TIMEOUT_ERROR),
+	scsi_mlreturn_name(SCSI_RETURN_NOT_HANDLED),
+	scsi_mlreturn_name(FAST_IO_FAIL)
+};
+#endif
+
+const char *scsi_mlreturn_string(int result)
 {
+#ifdef CONFIG_SCSI_CONSTANTS
+	const struct value_name_pair *arr = scsi_mlreturn_arr;
+	int k;
+
+	for (k = 0; k < ARRAY_SIZE(scsi_mlreturn_arr); ++k, ++arr) {
+		if (result == arr->value)
+			return arr->name;
+	}
+#endif
+	return NULL;
+}
+EXPORT_SYMBOL(scsi_mlreturn_string);
+
+void scsi_print_result(struct scsi_cmnd *cmd, const char *msg, int disposition)
+{
+	const char *mlret_string = scsi_mlreturn_string(disposition);
 	const char *hb_string = scsi_hostbyte_string(cmd->result);
 	const char *db_string = scsi_driverbyte_string(cmd->result);
 
 	if (hb_string || db_string)
 		scmd_printk(KERN_INFO, cmd,
-			    "Result: hostbyte=%s driverbyte=%s",
+			    "%s%s Result: hostbyte=%s driverbyte=%s",
+			    msg ? msg : "",
+			    mlret_string ? mlret_string : "UNKNOWN",
 			    hb_string ? hb_string : "invalid",
 			    db_string ? db_string : "invalid");
 	else
 		scmd_printk(KERN_INFO, cmd,
-			    "Result: hostbyte=0x%02x driverbyte=0x%02x",
+			    "%s%s Result: hostbyte=0x%02x driverbyte=0x%02x",
+			    msg ? msg : "",
+			    mlret_string ? mlret_string : "UNKNOWN",
 			    host_byte(cmd->result), driver_byte(cmd->result));
 }
 EXPORT_SYMBOL(scsi_print_result);

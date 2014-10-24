@@ -832,7 +832,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	int error = 0;
 	struct scsi_sense_hdr sshdr;
 	bool sense_valid = false;
-	int sense_deferred = 0;
+	int sense_deferred = 0, level = 0;
 	enum {ACTION_FAIL, ACTION_REPREP, ACTION_RETRY,
 	      ACTION_DELAYED_RETRY} action;
 	unsigned long wait_for = (cmd->allowed + 1) * req->timeout;
@@ -1038,8 +1038,15 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	switch (action) {
 	case ACTION_FAIL:
 		/* Give up and fail the remainder of the request */
-		if (!(req->cmd_flags & REQ_QUIET)) {
-			scsi_print_result(cmd);
+		if (unlikely(scsi_logging_level))
+			level = SCSI_LOG_LEVEL(SCSI_LOG_MLQUEUE_SHIFT,
+					       SCSI_LOG_MLQUEUE_BITS);
+		/*
+		 * if logging is enabled the failure will be printed
+		 * in scsi_log_completion(), so avoid duplicate messages
+		 */
+		if (!level && !(req->cmd_flags & REQ_QUIET)) {
+			scsi_print_result(cmd, NULL, FAILED);
 			if (driver_byte(result) & DRIVER_SENSE)
 				scsi_print_sense(cmd);
 			scsi_print_command(cmd);
