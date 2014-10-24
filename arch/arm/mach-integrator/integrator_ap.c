@@ -35,7 +35,6 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/stat.h>
-#include <linux/sys_soc.h>
 #include <linux/termios.h>
 
 #include <asm/hardware/arm_timer.h>
@@ -288,10 +287,6 @@ static void __init ap_init_of(void)
 	unsigned long sc_dec;
 	struct device_node *syscon;
 	struct device_node *ebi;
-	struct device *parent;
-	struct soc_device *soc_dev;
-	struct soc_device_attribute *soc_dev_attr;
-	u32 ap_sc_id;
 	int i;
 
 	syscon = of_find_matching_node(NULL, ap_syscon_match);
@@ -310,28 +305,6 @@ static void __init ap_init_of(void)
 
 	of_platform_populate(NULL, of_default_bus_match_table,
 			ap_auxdata_lookup, NULL);
-
-	ap_sc_id = readl(ap_syscon_base);
-
-	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
-	if (!soc_dev_attr)
-		return;
-
-	soc_dev_attr->soc_id = "XVC";
-	soc_dev_attr->machine = "Integrator/AP";
-	soc_dev_attr->family = "Integrator";
-	soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%c",
-					   'A' + (ap_sc_id & 0x0f));
-
-	soc_dev = soc_device_register(soc_dev_attr);
-	if (IS_ERR(soc_dev)) {
-		kfree(soc_dev_attr->revision);
-		kfree(soc_dev_attr);
-		return;
-	}
-
-	parent = soc_device_to_device(soc_dev);
-	integrator_init_sysfs(parent, ap_sc_id);
 
 	sc_dec = readl(ap_syscon_base + INTEGRATOR_SC_DEC_OFFSET);
 	for (i = 0; i < 4; i++) {
