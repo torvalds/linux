@@ -204,20 +204,20 @@
 			default-state = "keep";
 		};
 
-		green-sata1-led {
-			label = "rn102:green:sata1";
+		blue-sata1-led {
+			label = "rn102:blue:sata1";
 			gpios = <&gpio0 15 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
 
-		green-sata2-led {
-			label = "rn102:green:sata2";
+		blue-sata2-led {
+			label = "rn102:blue:sata2";
 			gpios = <&gpio0 14 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
 
-		green-backup-led {
-			label = "rn102:green:backup";
+		blue-backup-led {
+			label = "rn102:blue:backup";
 			gpios = <&gpio1 24 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
