@@ -36,7 +36,7 @@ struct ovl_dir_cache {
 struct ovl_readdir_data {
 	struct dir_context ctx;
 	bool is_merge;
-	struct rb_root *root;
+	struct rb_root root;
 	struct list_head *list;
 	struct list_head *middle;
 	int count;
@@ -101,7 +101,7 @@ static int ovl_cache_entry_add_rb(struct ovl_readdir_data *rdd,
 				  const char *name, int len, u64 ino,
 				  unsigned int d_type)
 {
-	struct rb_node **newp = &rdd->root->rb_node;
+	struct rb_node **newp = &rdd->root.rb_node;
 	struct rb_node *parent = NULL;
 	struct ovl_cache_entry *p;
 
@@ -126,7 +126,7 @@ static int ovl_cache_entry_add_rb(struct ovl_readdir_data *rdd,
 
 	list_add_tail(&p->l_node, rdd->list);
 	rb_link_node(&p->node, parent, newp);
-	rb_insert_color(&p->node, rdd->root);
+	rb_insert_color(&p->node, &rdd->root);
 
 	return 0;
 }
@@ -137,7 +137,7 @@ static int ovl_fill_lower(struct ovl_readdir_data *rdd,
 {
 	struct ovl_cache_entry *p;
 
-	p = ovl_cache_entry_find(rdd->root, name, namelen);
+	p = ovl_cache_entry_find(&rdd->root, name, namelen);
 	if (p) {
 		list_move_tail(&p->l_node, rdd->middle);
 	} else {
@@ -277,12 +277,11 @@ static inline int ovl_dir_read_merged(struct path *upperpath,
 				      struct list_head *list)
 {
 	int err;
-	struct rb_root root = RB_ROOT;
 	struct list_head middle;
 	struct ovl_readdir_data rdd = {
 		.ctx.actor = ovl_fill_merge,
 		.list = list,
-		.root = &root,
+		.root = RB_ROOT,
 		.is_merge = false,
 	};
 
