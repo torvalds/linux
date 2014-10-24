@@ -125,7 +125,12 @@ static int fsl_asoc_card_hw_params(struct snd_pcm_substream *substream,
 	priv->sample_rate = params_rate(params);
 	priv->sample_format = params_format(params);
 
-	if (priv->card.set_bias_level)
+	/*
+	 * If codec-dai is DAI Master and all configurations are already in the
+	 * set_bias_level(), bypass the remaining settings in hw_params().
+	 * Note: (dai_fmt & CBM_CFM) includes CBM_CFM and CBM_CFS.
+	 */
+	if (priv->card.set_bias_level && priv->dai_fmt & SND_SOC_DAIFMT_CBM_CFM)
 		return 0;
 
 	/* Specific configurations of DAIs starts from here */
