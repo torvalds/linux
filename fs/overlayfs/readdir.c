@@ -38,7 +38,7 @@ struct ovl_readdir_data {
 	bool is_merge;
 	struct rb_root root;
 	struct list_head *list;
-	struct list_head *middle;
+	struct list_head middle;
 	int count;
 	int err;
 };
@@ -139,13 +139,13 @@ static int ovl_fill_lower(struct ovl_readdir_data *rdd,
 
 	p = ovl_cache_entry_find(&rdd->root, name, namelen);
 	if (p) {
-		list_move_tail(&p->l_node, rdd->middle);
+		list_move_tail(&p->l_node, &rdd->middle);
 	} else {
 		p = ovl_cache_entry_new(name, namelen, ino, d_type);
 		if (p == NULL)
 			rdd->err = -ENOMEM;
 		else
-			list_add_tail(&p->l_node, rdd->middle);
+			list_add_tail(&p->l_node, &rdd->middle);
 	}
 
 	return rdd->err;
@@ -277,7 +277,6 @@ static inline int ovl_dir_read_merged(struct path *upperpath,
 				      struct list_head *list)
 {
 	int err;
-	struct list_head middle;
 	struct ovl_readdir_data rdd = {
 		.ctx.actor = ovl_fill_merge,
 		.list = list,
@@ -301,11 +300,10 @@ static inline int ovl_dir_read_merged(struct path *upperpath,
 		 * Insert lowerpath entries before upperpath ones, this allows
 		 * offsets to be reasonably constant
 		 */
-		list_add(&middle, rdd.list);
-		rdd.middle = &middle;
+		list_add(&rdd.middle, rdd.list);
 		rdd.is_merge = true;
 		err = ovl_dir_read(lowerpath, &rdd);
-		list_del(&middle);
+		list_del(&rdd.middle);
 	}
 out:
 	return err;
