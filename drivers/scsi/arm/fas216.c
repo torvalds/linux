@@ -2424,7 +2424,7 @@ int fas216_eh_abort(struct scsi_cmnd *SCpnt)
 	info->stats.aborts += 1;
 
 	printk(KERN_WARNING "scsi%d: abort command ", info->host->host_no);
-	__scsi_print_command(SCpnt->cmnd);
+	__scsi_print_command(SCpnt->cmnd, SCpnt->cmd_len);
 
 	print_debug_list();
 	fas216_dumpstate(info);

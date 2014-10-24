@@ -320,25 +320,21 @@ static bool scsi_opcode_sa_name(int opcode, int service_action,
 	return true;
 }
 
-/* attempt to guess cdb length if cdb_len==0 . No trailing linefeed. */
-static void print_opcode_name(unsigned char * cdbp, int cdb_len)
+static void print_opcode_name(const unsigned char *cdbp, size_t cdb_len)
 {
-	int sa, len, cdb0;
+	int sa, cdb0;
 	const char *cdb_name = NULL, *sa_name = NULL;
 
 	cdb0 = cdbp[0];
 	if (cdb0 == VARIABLE_LENGTH_CMD) {
-		len = scsi_varlen_cdb_length(cdbp);
-		if (len < 10) {
-			printk("short variable length command, "
-			       "len=%d ext_len=%d", len, cdb_len);
+		if (cdb_len < 10) {
+			printk("short variable length command, len=%zu",
+			       cdb_len);
 			return;
 		}
 		sa = (cdbp[8] << 8) + cdbp[9];
-	} else {
+	} else
 		sa = cdbp[1] & 0x1f;
-		len = cdb_len;
-	}
 
 	if (!scsi_opcode_sa_name(cdb0, sa, &cdb_name, &sa_name)) {
 		if (cdb_name)
@@ -356,18 +352,17 @@ static void print_opcode_name(unsigned char * cdbp, int cdb_len)
 			printk("%s, sa=0x%x", cdb_name, sa);
 		else
 			printk("cdb[0]=0x%x, sa=0x%x", cdb0, sa);
-
-		if (cdb_len > 0 && len != cdb_len)
-			printk(", in_cdb_len=%d, ext_len=%d", len, cdb_len);
 	}
 }
 
-void __scsi_print_command(unsigned char *cdb)
+void __scsi_print_command(const unsigned char *cdb, size_t cdb_len)
 {
 	int k, len;
 
-	print_opcode_name(cdb, 0);
+	print_opcode_name(cdb, cdb_len);
 	len = scsi_command_size(cdb);
+	if (cdb_len < len)
+		len = cdb_len;
 	/* print out all bytes in cdb */
 	for (k = 0; k < len; ++k)
 		printk(" %02x", cdb[k]);

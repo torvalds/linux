@@ -257,14 +257,14 @@ int sr_do_ioctl(Scsi_CD *cd, struct packet_command *cgc)
 				/* sense: Invalid command operation code */
 				err = -EDRIVE_CANT_DO_THIS;
 #ifdef DEBUG
-			__scsi_print_command(cgc->cmd);
+			__scsi_print_command(cgc->cmd, CDROM_PACKET_SIZE);
 			scsi_print_sense_hdr(cd->device, cd->cdi.name, &sshdr);
 #endif
 			break;
 		default:
 			sr_printk(KERN_ERR, cd,
 				  "CDROM (ioctl) error, command: ");
-			__scsi_print_command(cgc->cmd);
+			__scsi_print_command(cgc->cmd, CDROM_PACKET_SIZE);
 			scsi_print_sense_hdr(cd->device, cd->cdi.name, &sshdr);
 			err = -EIO;
 		}

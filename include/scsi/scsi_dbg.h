@@ -6,7 +6,7 @@ struct scsi_device;
 struct scsi_sense_hdr;
 
 extern void scsi_print_command(struct scsi_cmnd *);
-extern void __scsi_print_command(unsigned char *);
+extern void __scsi_print_command(const unsigned char *, size_t);
 extern void scsi_show_extd_sense(const struct scsi_device *, const char *,
 				 unsigned char, unsigned char);
 extern void scsi_show_sense_hdr(const struct scsi_device *, const char *,
