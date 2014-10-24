@@ -1410,8 +1410,7 @@ static int validate_recv_data_frame(struct rtw_adapter *adapter,
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_info_,
 			 ("\n pattrib->encrypt =%d\n", pattrib->encrypt));
 
-		switch (pattrib->encrypt)
-		{
+		switch (pattrib->encrypt) {
 		case WLAN_CIPHER_SUITE_WEP40:
 		case WLAN_CIPHER_SUITE_WEP104:
 			pattrib->iv_len = IEEE80211_WEP_IV_LEN;
@@ -1510,8 +1509,7 @@ static int validate_recv_frame(struct rtw_adapter *adapter,
 	if (unlikely(bDumpRxPkt == 1))
 		dump_rx_pkt(skb, type, bDumpRxPkt);
 
-	switch (type)
-	{
+	switch (type) {
 	case IEEE80211_FTYPE_MGMT:
 		retval = validate_recv_mgnt_frame(adapter, precv_frame);
 		if (retval == _FAIL) {
@@ -2182,8 +2180,7 @@ int process_recv_indicatepkts(struct rtw_adapter *padapter,
 				return retval;
 			}
 		}
-	} else /* B/G mode */
-	{
+	} else { /* B/G mode */
 		retval = wlanhdr_to_ethhdr(prframe);
 		if (retval != _SUCCESS) {
 			RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,

@@ -681,8 +681,7 @@ void mgt_dispatcher23a(struct rtw_adapter *padapter,
 	}
 
 #ifdef CONFIG_8723AU_AP_MODE
-	switch (stype)
-	{
+	switch (stype) {
 	case IEEE80211_STYPE_AUTH:
 		if (check_fwstate(pmlmepriv, WIFI_AP_STATE))
 			ptable->func = &OnAuth23a;
@@ -2337,8 +2336,7 @@ static int update_hidden_ssid(u8 *ies, u32 ies_len, u8 hidden_ssid_mode)
 	   __func__, hidden_ssid_mode, ssid_ie, ssid_len_ori); */
 
 	if (ssid_ie && ssid_len_ori > 0) {
-		switch (hidden_ssid_mode)
-		{
+		switch (hidden_ssid_mode) {
 		case 1:
 			next_ie = ssid_ie + 2 + ssid_len_ori;
 			remain_len = 0;
@@ -4363,9 +4361,7 @@ static void start_create_ibss(struct rtw_adapter *padapter)
 			report_join_res23a(padapter, 1);
 			pmlmeinfo->state |= WIFI_FW_ASSOC_SUCCESS;
 		}
-	}
-	else
-	{
+	} else {
 		DBG_8723A("%s: invalid cap:%x\n", __func__, caps);
 		return;
 	}
@@ -4423,9 +4419,7 @@ static void start_clnt_join(struct rtw_adapter *padapter)
 		pmlmeinfo->state = MSR_ADHOC;
 
 		report_join_res23a(padapter, 1);
-	}
-	else
-	{
+	} else {
 		/* DBG_8723A("marc: invalid cap:%x\n", caps); */
 		return;
 	}
@@ -4489,16 +4483,12 @@ int receive_disconnect23a(struct rtw_adapter *padapter,
 
 	DBG_8723A("%s\n", __func__);
 
-	if ((pmlmeinfo->state&0x03) == MSR_INFRA)
-	{
-		if (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS)
-		{
+	if ((pmlmeinfo->state&0x03) == MSR_INFRA) {
+		if (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS) {
 			pmlmeinfo->state = MSR_NOLINK;
 			report_del_sta_event23a(padapter, MacAddr, reason);
 
-		}
-		else if (pmlmeinfo->state & WIFI_FW_LINKING_STATE)
-		{
+		} else if (pmlmeinfo->state & WIFI_FW_LINKING_STATE) {
 			pmlmeinfo->state = MSR_NOLINK;
 			report_join_res23a(padapter, -2);
 		}
@@ -5004,8 +4994,7 @@ void update_sta_info23a(struct rtw_adapter *padapter, struct sta_info *psta)
 	VCS_update23a(padapter, psta);
 
 	/* HT */
-	if (pmlmepriv->htpriv.ht_option)
-	{
+	if (pmlmepriv->htpriv.ht_option) {
 		psta->htpriv.ht_option = true;
 
 		psta->htpriv.ampdu_enable = pmlmepriv->htpriv.ampdu_enable;
@@ -5015,9 +5004,7 @@ void update_sta_info23a(struct rtw_adapter *padapter, struct sta_info *psta)
 
 		psta->qos_option = true;
 
-	}
-	else
-	{
+	} else {
 		psta->htpriv.ht_option = false;
 
 		psta->htpriv.ampdu_enable = false;
@@ -5059,12 +5046,10 @@ void mlmeext_joinbss_event_callback23a(struct rtw_adapter *padapter,
 		goto exit_mlmeext_joinbss_event_callback23a;
 	}
 
-	if ((pmlmeinfo->state&0x03) == MSR_ADHOC)
-	{
+	if ((pmlmeinfo->state&0x03) == MSR_ADHOC) {
 		/* for bc/mc */
 		psta_bmc = rtw_get_bcmc_stainfo23a(padapter);
-		if (psta_bmc)
-		{
+		if (psta_bmc) {
 			pmlmeinfo->FW_sta_info[psta_bmc->mac_id].psta = psta_bmc;
 			update_bmc_sta_support_rate23a(padapter, psta_bmc->mac_id);
 			Update_RA_Entry23a(padapter, psta_bmc);
@@ -5095,8 +5080,7 @@ void mlmeext_joinbss_event_callback23a(struct rtw_adapter *padapter,
 	set_channel_bwmode23a(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode);
 
 	psta = rtw_get_stainfo23a(pstapriv, cur_network->MacAddress);
-	if (psta) /* only for infra. mode */
-	{
+	if (psta) { /* only for infra. mode */
 		pmlmeinfo->FW_sta_info[psta->mac_id].psta = psta;
 
 		/* DBG_8723A("set_sta_rate23a\n"); */
@@ -5132,8 +5116,7 @@ void mlmeext_sta_add_event_callback23a(struct rtw_adapter *padapter,
 
 	if ((pmlmeinfo->state & 0x03) == MSR_ADHOC) {
 	/* adhoc master or sta_count>1 */
-		if (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS)
-		{
+		if (pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS) {
 			/* nothing to do */
 		} else { /* adhoc client */
 			/*  correcting TSF */

@@ -338,8 +338,7 @@ s32 LPS_RF_ON_check23a(struct rtw_adapter *padapter, u32 delay_ms)
 	start_time = jiffies;
 	end_time = start_time + msecs_to_jiffies(delay_ms);
 
-	while (1)
-	{
+	while (1) {
 		bAwake = rtl8723a_get_fwlps_rf_on(padapter);
 		if (bAwake == true)
 			break;
