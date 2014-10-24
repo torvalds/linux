@@ -12,6 +12,7 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/gpio-pxa.h>
+#include <linux/phy.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -158,6 +159,7 @@ struct pxa168_eth_platform_data gplugd_eth_platform_data = {
 	.port_number = 0,
 	.phy_addr    = 0,
 	.speed       = 0, /* Autonagotiation */
+	.intf        = PHY_INTERFACE_MODE_RMII,
 	.init        = gplugd_eth_init,
 };
 

@@ -13,6 +13,7 @@ struct pxa168_eth_platform_data {
 	 */
 	int	speed;		/* 0, SPEED_10, SPEED_100 */
 	int	duplex;		/* DUPLEX_HALF or DUPLEX_FULL */
+	phy_interface_t intf;
 
 	/*
 	 * Override default RX/TX queue sizes if nonzero.
