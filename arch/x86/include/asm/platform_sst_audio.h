@@ -102,6 +102,27 @@ struct sst_lib_dnld_info {
 	bool mod_ddr_dnld;
 };
 
+struct sst_res_info {
+	unsigned int shim_offset;
+	unsigned int shim_size;
+	unsigned int shim_phy_addr;
+	unsigned int ssp0_offset;
+	unsigned int ssp0_size;
+	unsigned int dma0_offset;
+	unsigned int dma0_size;
+	unsigned int dma1_offset;
+	unsigned int dma1_size;
+	unsigned int iram_offset;
+	unsigned int iram_size;
+	unsigned int dram_offset;
+	unsigned int dram_size;
+	unsigned int mbox_offset;
+	unsigned int mbox_size;
+	unsigned int acpi_lpe_res_index;
+	unsigned int acpi_ddr_index;
+	unsigned int acpi_ipc_irq_index;
+};
+
 struct sst_ipc_info {
 	int ipc_offset;
 	unsigned int mbox_recv_off;
@@ -110,7 +131,9 @@ struct sst_ipc_info {
 struct sst_platform_info {
 	const struct sst_info *probe_data;
 	const struct sst_ipc_info *ipc_info;
+	const struct sst_res_info *res_info;
 	const struct sst_lib_dnld_info *lib_info;
+	const char *platform;
 };
 int add_sst_platform_device(void);
 #endif
