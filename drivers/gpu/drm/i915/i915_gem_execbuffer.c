@@ -357,12 +357,9 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 	 * through the ppgtt for non_secure batchbuffers. */
 	if (unlikely(IS_GEN6(dev) &&
 	    reloc->write_domain == I915_GEM_DOMAIN_INSTRUCTION &&
-	    !target_i915_obj->has_global_gtt_mapping)) {
-		struct i915_vma *vma =
-			list_first_entry(&target_i915_obj->vma_list,
-					 typeof(*vma), vma_link);
-		vma->bind_vma(vma, target_i915_obj->cache_level, GLOBAL_BIND);
-	}
+	    !(target_vma->bound & GLOBAL_BIND)))
+		target_vma->bind_vma(target_vma, target_i915_obj->cache_level,
+				GLOBAL_BIND);
 
 	/* Validate that the target is in a valid r/w GPU domain */
 	if (unlikely(reloc->write_domain & (reloc->write_domain - 1))) {

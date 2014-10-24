@@ -1336,7 +1336,7 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 		 * Unfortunately above, we've just wiped out the mappings
 		 * without telling our object about it. So we need to fake it.
 		 */
-		obj->has_global_gtt_mapping = 0;
+		vma->bound &= ~GLOBAL_BIND;
 		vma->bind_vma(vma, obj->cache_level, GLOBAL_BIND);
 	}
 
@@ -1533,7 +1533,7 @@ static void i915_ggtt_bind_vma(struct i915_vma *vma,
 
 	BUG_ON(!i915_is_ggtt(vma->vm));
 	intel_gtt_insert_sg_entries(vma->obj->pages, entry, flags);
-	vma->obj->has_global_gtt_mapping = 1;
+	vma->bound = GLOBAL_BIND;
 }
 
 static void i915_ggtt_clear_range(struct i915_address_space *vm,
@@ -1552,7 +1552,7 @@ static void i915_ggtt_unbind_vma(struct i915_vma *vma)
 	const unsigned int size = vma->obj->base.size >> PAGE_SHIFT;
 
 	BUG_ON(!i915_is_ggtt(vma->vm));
-	vma->obj->has_global_gtt_mapping = 0;
+	vma->bound = 0;
 	intel_gtt_clear_range(first, size);
 }
 
@@ -1580,24 +1580,24 @@ static void ggtt_bind_vma(struct i915_vma *vma,
 	 * flags. At all other times, the GPU will use the aliasing PPGTT.
 	 */
 	if (!dev_priv->mm.aliasing_ppgtt || flags & GLOBAL_BIND) {
-		if (!obj->has_global_gtt_mapping ||
+		if (!(vma->bound & GLOBAL_BIND) ||
 		    (cache_level != obj->cache_level)) {
 			vma->vm->insert_entries(vma->vm, obj->pages,
 						vma->node.start,
 						cache_level, flags);
-			obj->has_global_gtt_mapping = 1;
+			vma->bound |= GLOBAL_BIND;
 		}
 	}
 
 	if (dev_priv->mm.aliasing_ppgtt &&
-	    (!obj->has_aliasing_ppgtt_mapping ||
+	    (!(vma->bound & LOCAL_BIND) ||
 	     (cache_level != obj->cache_level))) {
 		struct i915_hw_ppgtt *appgtt = dev_priv->mm.aliasing_ppgtt;
 		appgtt->base.insert_entries(&appgtt->base,
 					    vma->obj->pages,
 					    vma->node.start,
 					    cache_level, flags);
-		vma->obj->has_aliasing_ppgtt_mapping = 1;
+		vma->bound |= LOCAL_BIND;
 	}
 }
 
@@ -1607,21 +1607,21 @@ static void ggtt_unbind_vma(struct i915_vma *vma)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj = vma->obj;
 
-	if (obj->has_global_gtt_mapping) {
+	if (vma->bound & GLOBAL_BIND) {
 		vma->vm->clear_range(vma->vm,
 				     vma->node.start,
 				     obj->base.size,
 				     true);
-		obj->has_global_gtt_mapping = 0;
+		vma->bound &= ~GLOBAL_BIND;
 	}
 
-	if (obj->has_aliasing_ppgtt_mapping) {
+	if (vma->bound & LOCAL_BIND) {
 		struct i915_hw_ppgtt *appgtt = dev_priv->mm.aliasing_ppgtt;
 		appgtt->base.clear_range(&appgtt->base,
 					 vma->node.start,
 					 obj->base.size,
 					 true);
-		obj->has_aliasing_ppgtt_mapping = 0;
+		vma->bound &= ~LOCAL_BIND;
 	}
 }
 
@@ -1699,7 +1699,7 @@ int i915_gem_setup_global_gtt(struct drm_device *dev,
 			DRM_DEBUG_KMS("Reservation failed: %i\n", ret);
 			return ret;
 		}
-		obj->has_global_gtt_mapping = 1;
+		vma->bound |= GLOBAL_BIND;
 	}
 
 	dev_priv->gtt.base.start = start;

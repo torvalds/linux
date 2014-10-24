@@ -116,7 +116,7 @@ static const char *get_tiling_flag(struct drm_i915_gem_object *obj)
 
 static inline const char *get_global_flag(struct drm_i915_gem_object *obj)
 {
-	return obj->has_global_gtt_mapping ? "g" : " ";
+	return i915_gem_obj_to_ggtt(obj) ? "g" : " ";
 }
 
 static void

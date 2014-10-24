@@ -1856,8 +1856,6 @@ struct drm_i915_gem_object {
 	unsigned long gt_ro:1;
 	unsigned int cache_level:3;
 
-	unsigned int has_aliasing_ppgtt_mapping:1;
-	unsigned int has_global_gtt_mapping:1;
 	unsigned int has_dma_mapping:1;
 
 	unsigned int frontbuffer_bits:INTEL_FRONTBUFFER_BITS;

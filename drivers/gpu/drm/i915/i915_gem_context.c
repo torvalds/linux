@@ -522,6 +522,7 @@ static int do_switch(struct intel_engine_cs *ring,
 	struct intel_context *from = ring->last_context;
 	u32 hw_flags = 0;
 	bool uninitialized = false;
+	struct i915_vma *vma;
 	int ret, i;
 
 	if (from != NULL && ring == &dev_priv->ring[RCS]) {
@@ -571,11 +572,10 @@ static int do_switch(struct intel_engine_cs *ring,
 	if (ret)
 		goto unpin_out;
 
-	if (!to->legacy_hw_ctx.rcs_state->has_global_gtt_mapping) {
-		struct i915_vma *vma = i915_gem_obj_to_vma(to->legacy_hw_ctx.rcs_state,
-							   &dev_priv->gtt.base);
-		vma->bind_vma(vma, to->legacy_hw_ctx.rcs_state->cache_level, GLOBAL_BIND);
-	}
+	vma = i915_gem_obj_to_ggtt(to->legacy_hw_ctx.rcs_state);
+	if (!(vma->bound & GLOBAL_BIND))
+		vma->bind_vma(vma, to->legacy_hw_ctx.rcs_state->cache_level,
+				GLOBAL_BIND);
 
 	if (!to->legacy_hw_ctx.initialized || i915_gem_context_is_default(to))
 		hw_flags |= MI_RESTORE_INHIBIT;
