@@ -45,6 +45,8 @@ DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events) = {
 	.enabled = 1,
 };
 
+struct static_key rdpmc_always_available = STATIC_KEY_INIT_FALSE;
+
 u64 __read_mostly hw_cache_event_ids
 				[PERF_COUNT_HW_CACHE_MAX]
 				[PERF_COUNT_HW_CACHE_OP_MAX]
@@ -1870,10 +1872,27 @@ static ssize_t set_attr_rdpmc(struct device *cdev,
 	if (ret)
 		return ret;
 
+	if (val > 2)
+		return -EINVAL;
+
 	if (x86_pmu.attr_rdpmc_broken)
 		return -ENOTSUPP;
 
-	x86_pmu.attr_rdpmc = !!val;
+	if ((val == 2) != (x86_pmu.attr_rdpmc == 2)) {
+		/*
+		 * Changing into or out of always available, aka
+		 * perf-event-bypassing mode.  This path is extremely slow,
+		 * but only root can trigger it, so it's okay.
+		 */
+		if (val == 2)
+			static_key_slow_inc(&rdpmc_always_available);
+		else
+			static_key_slow_dec(&rdpmc_always_available);
+		on_each_cpu(refresh_pce, NULL, 1);
+	}
+
+	x86_pmu.attr_rdpmc = val;
+
 	return count;
 }
 
