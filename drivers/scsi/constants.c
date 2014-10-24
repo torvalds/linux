@@ -1292,18 +1292,19 @@ static const struct error_info additional[] =
 
 struct error_info2 {
 	unsigned char code1, code2_min, code2_max;
+	const char * str;
 	const char * fmt;
 };
 
 static const struct error_info2 additional2[] =
 {
-	{0x40, 0x00, 0x7f, "Ram failure (%x)"},
-	{0x40, 0x80, 0xff, "Diagnostic failure on component (%x)"},
-	{0x41, 0x00, 0xff, "Data path failure (%x)"},
-	{0x42, 0x00, 0xff, "Power-on or self-test failure (%x)"},
-	{0x4D, 0x00, 0xff, "Tagged overlapped commands (task tag %x)"},
-	{0x70, 0x00, 0xff, "Decompression exception short algorithm id of %x"},
-	{0, 0, 0, NULL}
+	{0x40, 0x00, 0x7f, "Ram failure", ""},
+	{0x40, 0x80, 0xff, "Diagnostic failure on component", ""},
+	{0x41, 0x00, 0xff, "Data path failure", ""},
+	{0x42, 0x00, 0xff, "Power-on or self-test failure", ""},
+	{0x4D, 0x00, 0xff, "Tagged overlapped commands", "task tag "},
+	{0x70, 0x00, 0xff, "Decompression exception", "short algorithm id of "},
+	{0, 0, 0, NULL, NULL}
 };
 
 /* description of the sense key values */
@@ -1349,7 +1350,8 @@ EXPORT_SYMBOL(scsi_sense_key_string);
  * This string may contain a "%x" and should be printed with ascq as arg.
  */
 const char *
-scsi_extd_sense_format(unsigned char asc, unsigned char ascq) {
+scsi_extd_sense_format(unsigned char asc, unsigned char ascq, const char **fmt)
+{
 #ifdef CONFIG_SCSI_CONSTANTS
 	int i;
 	unsigned short code = ((asc << 8) | ascq);
@@ -1360,8 +1362,10 @@ scsi_extd_sense_format(unsigned char asc, unsigned char ascq) {
 	for (i = 0; additional2[i].fmt; i++) {
 		if (additional2[i].code1 == asc &&
 		    ascq >= additional2[i].code2_min &&
-		    ascq <= additional2[i].code2_max)
-			return additional2[i].fmt;
+		    ascq <= additional2[i].code2_max) {
+			*fmt = additional2[i].fmt;
+			return additional2[i].str;
+		}
 	}
 #endif
 	return NULL;
@@ -1369,49 +1373,53 @@ scsi_extd_sense_format(unsigned char asc, unsigned char ascq) {
 EXPORT_SYMBOL(scsi_extd_sense_format);
 
 void
-scsi_show_extd_sense(unsigned char asc, unsigned char ascq)
+scsi_show_extd_sense(const struct scsi_device *sdev, const char *name,
+		     unsigned char asc, unsigned char ascq)
 {
-        const char *extd_sense_fmt = scsi_extd_sense_format(asc, ascq);
+	const char *extd_sense_fmt = NULL;
+	const char *extd_sense_str = scsi_extd_sense_format(asc, ascq,
+							    &extd_sense_fmt);
 
-	if (extd_sense_fmt) {
-		if (strstr(extd_sense_fmt, "%x")) {
-			printk("Add. Sense: ");
-			printk(extd_sense_fmt, ascq);
-		} else
-			printk("Add. Sense: %s", extd_sense_fmt);
-	} else {
-		if (asc >= 0x80)
-			printk("<<vendor>> ASC=0x%x ASCQ=0x%x", asc,
-			       ascq);
-		if (ascq >= 0x80)
-			printk("ASC=0x%x <<vendor>> ASCQ=0x%x", asc,
-			       ascq);
+	if (extd_sense_str) {
+		if (extd_sense_fmt)
+			sdev_prefix_printk(KERN_INFO, sdev, name,
+					   "Add. Sense: %s (%s%x)",
+					   extd_sense_str, extd_sense_fmt,
+					   ascq);
 		else
-			printk("ASC=0x%x ASCQ=0x%x", asc, ascq);
-	}
+			sdev_prefix_printk(KERN_INFO, sdev, name,
+					   "Add. Sense: %s", extd_sense_str);
 
-	printk("\n");
+	} else {
+		sdev_prefix_printk(KERN_INFO, sdev, name,
+				   "%sASC=0x%x %sASCQ=0x%x\n",
+				   asc >= 0x80 ? "<<vendor>> " : "", asc,
+				   ascq >= 0x80 ? "<<vendor>> " : "", ascq);
+	}
 }
 EXPORT_SYMBOL(scsi_show_extd_sense);
 
 void
-scsi_show_sense_hdr(struct scsi_sense_hdr *sshdr)
+scsi_show_sense_hdr(const struct scsi_device *sdev, const char *name,
+		    const struct scsi_sense_hdr *sshdr)
 {
 	const char *sense_txt;
 
 	sense_txt = scsi_sense_key_string(sshdr->sense_key);
 	if (sense_txt)
-		printk("Sense Key : %s ", sense_txt);
+		sdev_prefix_printk(KERN_INFO, sdev, name,
+				   "Sense Key : %s [%s]%s\n", sense_txt,
+				   scsi_sense_is_deferred(sshdr) ?
+				   "deferred" : "current",
+				   sshdr->response_code >= 0x72 ?
+				   " [descriptor]" : "");
 	else
-		printk("Sense Key : 0x%x ", sshdr->sense_key);
-
-	printk("%s", scsi_sense_is_deferred(sshdr) ? "[deferred] " :
-	       "[current] ");
-
-	if (sshdr->response_code >= 0x72)
-		printk("[descriptor]");
-
-	printk("\n");
+		sdev_prefix_printk(KERN_INFO, sdev, name,
+				   "Sense Key : 0x%x [%s]%s", sshdr->sense_key,
+				   scsi_sense_is_deferred(sshdr) ?
+				   "deferred" : "current",
+				   sshdr->response_code >= 0x72 ?
+				   " [descriptor]" : "");
 }
 EXPORT_SYMBOL(scsi_show_sense_hdr);
 
@@ -1419,12 +1427,11 @@ EXPORT_SYMBOL(scsi_show_sense_hdr);
  * Print normalized SCSI sense header with a prefix.
  */
 void
-scsi_print_sense_hdr(const char *name, struct scsi_sense_hdr *sshdr)
+scsi_print_sense_hdr(const struct scsi_device *sdev, const char *name,
+		     const struct scsi_sense_hdr *sshdr)
 {
-	printk(KERN_INFO "%s: ", name);
-	scsi_show_sense_hdr(sshdr);
-	printk(KERN_INFO "%s: ", name);
-	scsi_show_extd_sense(sshdr->asc, sshdr->ascq);
+	scsi_show_sense_hdr(sdev, name, sshdr);
+	scsi_show_extd_sense(sdev, name, sshdr->asc, sshdr->ascq);
 }
 EXPORT_SYMBOL(scsi_print_sense_hdr);
 
@@ -1513,33 +1520,26 @@ scsi_decode_sense_extras(const unsigned char *sense_buffer, int sense_len,
 }
 
 /* Normalize and print sense buffer with name prefix */
-void __scsi_print_sense(const char *name, const unsigned char *sense_buffer,
-			int sense_len)
+void __scsi_print_sense(const struct scsi_device *sdev, const char *name,
+			const unsigned char *sense_buffer, int sense_len)
 {
 	struct scsi_sense_hdr sshdr;
 
-	printk(KERN_INFO "%s: ", name);
 	scsi_decode_sense_buffer(sense_buffer, sense_len, &sshdr);
-	scsi_show_sense_hdr(&sshdr);
+	scsi_show_sense_hdr(sdev, name, &sshdr);
 	scsi_decode_sense_extras(sense_buffer, sense_len, &sshdr);
-	printk(KERN_INFO "%s: ", name);
-	scsi_show_extd_sense(sshdr.asc, sshdr.ascq);
+	scsi_show_extd_sense(sdev, name, sshdr.asc, sshdr.ascq);
 }
 EXPORT_SYMBOL(__scsi_print_sense);
 
 /* Normalize and print sense buffer in SCSI command */
-void scsi_print_sense(char *name, struct scsi_cmnd *cmd)
+void scsi_print_sense(const struct scsi_cmnd *cmd)
 {
-	struct scsi_sense_hdr sshdr;
+	struct gendisk *disk = cmd->request->rq_disk;
+	const char *disk_name = disk ? disk->disk_name : NULL;
 
-	scmd_printk(KERN_INFO, cmd, " ");
-	scsi_decode_sense_buffer(cmd->sense_buffer, SCSI_SENSE_BUFFERSIZE,
-				 &sshdr);
-	scsi_show_sense_hdr(&sshdr);
-	scsi_decode_sense_extras(cmd->sense_buffer, SCSI_SENSE_BUFFERSIZE,
-				 &sshdr);
-	scmd_printk(KERN_INFO, cmd, " ");
-	scsi_show_extd_sense(sshdr.asc, sshdr.ascq);
+	__scsi_print_sense(cmd->device, disk_name, cmd->sense_buffer,
+			   SCSI_SENSE_BUFFERSIZE);
 }
 EXPORT_SYMBOL(scsi_print_sense);
 

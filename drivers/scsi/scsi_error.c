@@ -1180,7 +1180,7 @@ int scsi_eh_get_sense(struct list_head *work_q,
 		SCSI_LOG_ERROR_RECOVERY(3, scmd_printk(KERN_INFO, scmd,
 			"sense requested for %p result %x\n",
 			scmd, scmd->result));
-		SCSI_LOG_ERROR_RECOVERY(3, scsi_print_sense("bh", scmd));
+		SCSI_LOG_ERROR_RECOVERY(3, scsi_print_sense(scmd));
 
 		rtn = scsi_decide_disposition(scmd);
 

@@ -602,7 +602,7 @@ NCR_700_scsi_done(struct NCR_700_Host_Parameters *hostdata,
 #ifdef NCR_700_DEBUG
 			printk(" ORIGINAL CMD %p RETURNED %d, new return is %d sense is\n",
 			       SCp, SCp->cmnd[7], result);
-			scsi_print_sense("53c700", SCp);
+			scsi_print_sense(SCp);
 
 #endif
 			dma_unmap_single(hostdata->dev, slot->dma_handle,

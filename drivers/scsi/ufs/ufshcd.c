@@ -4710,8 +4710,8 @@ static int ufshcd_set_dev_pwr_mode(struct ufs_hba *hba,
 			  "START_STOP failed for power mode: %d\n", pwr_mode);
 		scsi_show_result(ret);
 		if (driver_byte(ret) & DRIVER_SENSE) {
-			scsi_show_sense_hdr(&sshdr);
-			scsi_show_extd_sense(sshdr.asc, sshdr.ascq);
+			scsi_show_sense_hdr(sdp, NULL, &sshdr);
+			scsi_show_extd_sense(sdp, NULL, sshdr.asc, sshdr.ascq);
 		}
 	}
 

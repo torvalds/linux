@@ -912,7 +912,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		if ((sshdr.asc == 0x0) && (sshdr.ascq == 0x1d))
 			;
 		else if (!(req->cmd_flags & REQ_QUIET))
-			scsi_print_sense("", cmd);
+			scsi_print_sense(cmd);
 		result = 0;
 		/* BLOCK_PC may have set error */
 		error = 0;
@@ -1041,7 +1041,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		if (!(req->cmd_flags & REQ_QUIET)) {
 			scsi_print_result(cmd);
 			if (driver_byte(result) & DRIVER_SENSE)
-				scsi_print_sense("", cmd);
+				scsi_print_sense(cmd);
 			scsi_print_command(cmd);
 		}
 		if (!scsi_end_request(req, error, blk_rq_err_bytes(req), 0))

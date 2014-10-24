@@ -47,7 +47,7 @@ extern int scsi_normalize_sense(const u8 *sense_buffer, int sb_len,
 extern int scsi_command_normalize_sense(struct scsi_cmnd *cmd,
 		struct scsi_sense_hdr *sshdr);
 
-static inline int scsi_sense_is_deferred(struct scsi_sense_hdr *sshdr)
+static inline int scsi_sense_is_deferred(const struct scsi_sense_hdr *sshdr)
 {
 	return ((sshdr->response_code >= 0x70) && (sshdr->response_code & 1));
 }

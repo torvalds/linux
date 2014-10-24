@@ -126,7 +126,7 @@ static int ioctl_internal_command(struct scsi_device *sdev, char *cmd,
 			sdev_printk(KERN_INFO, sdev,
 				    "ioctl_internal_command return code = %x\n",
 				    result);
-			scsi_print_sense_hdr("   ", &sshdr);
+			scsi_print_sense_hdr(sdev, NULL, &sshdr);
 			break;
 		}
 	}
