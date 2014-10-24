@@ -1583,6 +1583,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	kmemleak=	[KNL] Boot-time kmemleak enable/disable
 			Valid arguments: on, off
 			Default: on
+			Built with CONFIG_DEBUG_KMEMLEAK_DEFAULT_OFF=y,
+			the default is off.
 
 	kmemcheck=	[X86] Boot-time kmemcheck enable/disable/one-shot mode
 			Valid arguments: 0, 1, 2
