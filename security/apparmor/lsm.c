@@ -669,6 +669,10 @@ enum profile_mode aa_g_profile_mode = APPARMOR_ENFORCE;
 module_param_call(mode, param_set_mode, param_get_mode,
 		  &aa_g_profile_mode, S_IRUSR | S_IWUSR);
 
+/* whether policy verification hashing is enabled */
+bool aa_g_hash_policy = CONFIG_SECURITY_APPARMOR_HASH_DEFAULT;
+module_param_named(hash_policy, aa_g_hash_policy, aabool, S_IRUSR | S_IWUSR);
+
 /* Debug mode */
 bool aa_g_debug;
 module_param_named(debug, aa_g_debug, aabool, S_IRUSR | S_IWUSR);
