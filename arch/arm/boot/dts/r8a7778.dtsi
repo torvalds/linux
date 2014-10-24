@@ -163,7 +163,7 @@
 	};
 
 	tmu0: timer@ffd80000 {
-		compatible = "renesas,tmu";
+		compatible = "renesas,tmu-r8a7778", "renesas,tmu";
 		reg = <0xffd80000 0x30>;
 		interrupts = <0 32 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 33 IRQ_TYPE_LEVEL_HIGH>,
@@ -175,7 +175,7 @@
 	};
 
 	tmu1: timer@ffd81000 {
-		compatible = "renesas,tmu";
+		compatible = "renesas,tmu-r8a7778", "renesas,tmu";
 		reg = <0xffd81000 0x30>;
 		interrupts = <0 36 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 37 IRQ_TYPE_LEVEL_HIGH>,
@@ -187,7 +187,7 @@
 	};
 
 	tmu2: timer@ffd82000 {
-		compatible = "renesas,tmu";
+		compatible = "renesas,tmu-r8a7778", "renesas,tmu";
 		reg = <0xffd82000 0x30>;
 		interrupts = <0 40 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 41 IRQ_TYPE_LEVEL_HIGH>,
