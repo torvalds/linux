@@ -248,7 +248,7 @@ int __init rockchip_ion_find_heap(unsigned long node, const char *uname,
 			heap->align = be32_to_cpu(prop[2]);
 	}
 
-	pr_info("ion heap(%s): base(%lx) size(%x) align(%lx)\n", heap->name,
+	pr_info("ion heap(%s): base(%lx) size(%zx) align(%lx)\n", heap->name,
 			heap->base, heap->size, heap->align);
 	return 0;
 }
