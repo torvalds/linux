@@ -686,7 +686,7 @@ static int gpio_msm_v1_probe(struct platform_device *pdev)
 	irq_set_chained_handler(irq1, msm_gpio_irq_handler);
 	irq_set_chained_handler(irq2, msm_gpio_irq_handler);
 	irq_set_irq_wake(irq1, 1);
-	irq_set_irq_wake(irq2, 2);
+	irq_set_irq_wake(irq2, 1);
 	return 0;
 }
 
