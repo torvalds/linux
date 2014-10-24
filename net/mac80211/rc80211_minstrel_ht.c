@@ -1193,7 +1193,7 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 		/* HT rate */
 		if (gflags & IEEE80211_TX_RC_MCS) {
 #ifdef CONFIG_MAC80211_RC_MINSTREL_VHT
-			if (minstrel_vht_only)
+			if (use_vht && minstrel_vht_only)
 				continue;
 #endif
 			mi->groups[i].supported = mcs->rx_mask[nss - 1];
