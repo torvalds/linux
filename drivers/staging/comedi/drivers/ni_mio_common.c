@@ -686,13 +686,12 @@ static inline void ni_set_ai_dma_channel(struct comedi_device *dev, int channel)
 {
 	unsigned bitfield;
 
-	if (channel >= 0) {
+	if (channel >= 0)
 		bitfield =
 		    (ni_stc_dma_channel_select_bitfield(channel) <<
 		     AI_DMA_Select_Shift) & AI_DMA_Select_Mask;
-	} else {
+	else
 		bitfield = 0;
-	}
 	ni_set_bitfield(dev, AI_AO_Select, AI_DMA_Select_Mask, bitfield);
 }
 
@@ -701,13 +700,12 @@ static inline void ni_set_ao_dma_channel(struct comedi_device *dev, int channel)
 {
 	unsigned bitfield;
 
-	if (channel >= 0) {
+	if (channel >= 0)
 		bitfield =
 		    (ni_stc_dma_channel_select_bitfield(channel) <<
 		     AO_DMA_Select_Shift) & AO_DMA_Select_Mask;
-	} else {
+	else
 		bitfield = 0;
-	}
 	ni_set_bitfield(dev, AI_AO_Select, AO_DMA_Select_Mask, bitfield);
 }
 
