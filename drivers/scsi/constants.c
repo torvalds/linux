@@ -29,6 +29,7 @@
 #define THIRD_PARTY_COPY_OUT 0x83
 #define THIRD_PARTY_COPY_IN 0x84
 
+#define VENDOR_SPECIFIC_CDB 0xc0
 
 struct sa_name_list {
 	int opcode;
@@ -266,7 +267,7 @@ static struct sa_name_list sa_names_arr[] = {
 };
 
 #else /* ifndef CONFIG_SCSI_CONSTANTS */
-static const char *cdb_byte0_names[];
+static const char *cdb_byte0_names[0];
 
 static struct sa_name_list sa_names_arr[] = {
 	{VARIABLE_LENGTH_CMD, NULL, 0},
@@ -286,11 +287,18 @@ static struct sa_name_list sa_names_arr[] = {
 #endif /* CONFIG_SCSI_CONSTANTS */
 
 static bool scsi_opcode_sa_name(int opcode, int service_action,
-				const char **sa_name)
+				const char **cdb_name, const char **sa_name)
 {
 	struct sa_name_list *sa_name_ptr;
 	const struct value_name_pair *arr = NULL;
 	int arr_sz, k;
+
+	*cdb_name = NULL;
+	if (opcode >= VENDOR_SPECIFIC_CDB)
+		return false;
+
+	if (opcode < ARRAY_SIZE(cdb_byte0_names))
+		*cdb_name = cdb_byte0_names[opcode];
 
 	for (sa_name_ptr = sa_names_arr; sa_name_ptr->arr; ++sa_name_ptr) {
 		if (sa_name_ptr->opcode == opcode) {
@@ -316,7 +324,7 @@ static bool scsi_opcode_sa_name(int opcode, int service_action,
 static void print_opcode_name(unsigned char * cdbp, int cdb_len)
 {
 	int sa, len, cdb0;
-	const char *name = NULL;
+	const char *cdb_name = NULL, *sa_name = NULL;
 
 	cdb0 = cdbp[0];
 	if (cdb0 == VARIABLE_LENGTH_CMD) {
@@ -332,21 +340,20 @@ static void print_opcode_name(unsigned char * cdbp, int cdb_len)
 		len = cdb_len;
 	}
 
-	if (!scsi_opcode_sa_name(cdb0, sa, &name)) {
-		if (cdb0 < 0xc0) {
-			if (ARRAY_SIZE(cdb_byte0_names) > 1) {
-				name = cdb_byte0_names[cdb0];
-				if (name)
-					printk("%s", name);
-				else
-					printk("cdb[0]=0x%x (reserved)", cdb0);
-			} else
-				printk("cdb[0]=0x%x", cdb0);
-		} else
+	if (!scsi_opcode_sa_name(cdb0, sa, &cdb_name, &sa_name)) {
+		if (cdb_name)
+			printk("%s", cdb_name);
+		else if (cdb0 >= VENDOR_SPECIFIC_CDB)
 			printk("cdb[0]=0x%x (vendor)", cdb0);
+		else if (cdb0 >= 0x60 && cdb0 < 0x7e)
+			printk("cdb[0]=0x%x (reserved)", cdb0);
+		else
+			printk("cdb[0]=0x%x", cdb0);
 	} else {
-		if (name)
-			printk("%s", name);
+		if (sa_name)
+			printk("%s", sa_name);
+		else if (cdb_name)
+			printk("%s, sa=0x%x", cdb_name, sa);
 		else
 			printk("cdb[0]=0x%x, sa=0x%x", cdb0, sa);
 
