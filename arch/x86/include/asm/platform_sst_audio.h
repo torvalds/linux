@@ -102,6 +102,11 @@ struct sst_lib_dnld_info {
 	bool mod_ddr_dnld;
 };
 
+struct sst_ipc_info {
+	int ipc_offset;
+	unsigned int mbox_recv_off;
+};
+
 struct sst_platform_info {
 	const struct sst_info *probe_data;
 	const struct sst_ipc_info *ipc_info;
