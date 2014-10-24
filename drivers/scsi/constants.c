@@ -1440,22 +1440,6 @@ const char *scsi_driverbyte_string(int result)
 }
 EXPORT_SYMBOL(scsi_driverbyte_string);
 
-void scsi_show_result(int result)
-{
-	const char *hb_string = scsi_hostbyte_string(result);
-	const char *db_string = scsi_driverbyte_string(result);
-
-	if (hb_string || db_string)
-		printk("Result: hostbyte=%s driverbyte=%s\n",
-		       hb_string ? hb_string : "invalid",
-		       db_string ? db_string : "invalid");
-	else
-		printk("Result: hostbyte=0x%02x driverbyte=0x%02x\n",
-		       host_byte(result), driver_byte(result));
-}
-EXPORT_SYMBOL(scsi_show_result);
-
-
 void scsi_print_result(struct scsi_cmnd *cmd)
 {
 	const char *hb_string = scsi_hostbyte_string(cmd->result);
