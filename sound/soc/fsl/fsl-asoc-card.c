@@ -51,6 +51,7 @@ struct codec_priv {
  * @sysclk_freq[2]: SYSCLK rates for set_sysclk()
  * @sysclk_dir[2]: SYSCLK directions for set_sysclk()
  * @sysclk_id[2]: SYSCLK ids for set_sysclk()
+ * @slot_width: Slot width of each frame
  *
  * Note: [1] for tx and [0] for rx
  */
@@ -58,6 +59,7 @@ struct cpu_priv {
 	unsigned long sysclk_freq[2];
 	u32 sysclk_dir[2];
 	u32 sysclk_id[2];
+	u32 slot_width;
 };
 
 /**
@@ -140,6 +142,15 @@ static int fsl_asoc_card_hw_params(struct snd_pcm_substream *substream,
 	if (ret) {
 		dev_err(dev, "failed to set sysclk for cpu dai\n");
 		return ret;
+	}
+
+	if (cpu_priv->slot_width) {
+		ret = snd_soc_dai_set_tdm_slot(rtd->cpu_dai, 0x3, 0x3, 2,
+					       cpu_priv->slot_width);
+		if (ret) {
+			dev_err(dev, "failed to set TDM slot for cpu dai\n");
+			return ret;
+		}
 	}
 
 	return 0;
@@ -453,6 +464,7 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		priv->cpu_priv.sysclk_freq[RX] = priv->codec_priv.mclk_freq;
 		priv->cpu_priv.sysclk_dir[TX] = SND_SOC_CLOCK_OUT;
 		priv->cpu_priv.sysclk_dir[RX] = SND_SOC_CLOCK_OUT;
+		priv->cpu_priv.slot_width = 32;
 		priv->dai_fmt |= SND_SOC_DAIFMT_CBS_CFS;
 	} else if (of_device_is_compatible(np, "fsl,imx-audio-sgtl5000")) {
 		priv->codec_priv.mclk_id = SGTL5000_SYSCLK;
