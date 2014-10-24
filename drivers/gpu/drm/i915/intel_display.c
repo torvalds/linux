@@ -11639,23 +11639,12 @@ intel_check_primary_plane(struct drm_plane *plane,
 	struct drm_rect *dest = &state->dst;
 	struct drm_rect *src = &state->src;
 	const struct drm_rect *clip = &state->clip;
-	int ret;
 
-	ret = drm_plane_helper_check_update(plane, crtc, fb,
-					    src, dest, clip,
-					    DRM_PLANE_HELPER_NO_SCALING,
-					    DRM_PLANE_HELPER_NO_SCALING,
-					    false, true, &state->visible);
-	if (ret)
-		return ret;
-
-	/* no fb bound */
-	if (state->visible && !fb) {
-		DRM_ERROR("No FB bound\n");
-		return -EINVAL;
-	}
-
-	return 0;
+	return drm_plane_helper_check_update(plane, crtc, fb,
+					     src, dest, clip,
+					     DRM_PLANE_HELPER_NO_SCALING,
+					     DRM_PLANE_HELPER_NO_SCALING,
+					     false, true, &state->visible);
 }
 
 static int
