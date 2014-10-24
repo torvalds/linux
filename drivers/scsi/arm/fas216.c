@@ -2423,13 +2423,10 @@ int fas216_eh_abort(struct scsi_cmnd *SCpnt)
 
 	info->stats.aborts += 1;
 
-	printk(KERN_WARNING "scsi%d: abort command ", info->host->host_no);
-	__scsi_print_command(SCpnt->cmnd, SCpnt->cmd_len);
+	scmd_printk(KERN_WARNING, SCpnt, "abort command\n");
 
 	print_debug_list();
 	fas216_dumpstate(info);
-
-	printk(KERN_WARNING "scsi%d: abort %p ", info->host->host_no, SCpnt);
 
 	switch (fas216_find_command(info, SCpnt)) {
 	/*
@@ -2438,7 +2435,7 @@ int fas216_eh_abort(struct scsi_cmnd *SCpnt)
 	 * target, or the busylun bit is not set.
 	 */
 	case res_success:
-		printk("success\n");
+		scmd_printk(KERN_WARNING, SCpnt, "abort %p success\n", SCpnt);
 		result = SUCCESS;
 		break;
 
@@ -2448,14 +2445,13 @@ int fas216_eh_abort(struct scsi_cmnd *SCpnt)
 	 * if the bus is free.
 	 */
 	case res_hw_abort:
-		
 
 	/*
 	 * We are unable to abort the command for some reason.
 	 */
 	default:
 	case res_failed:
-		printk("failed\n");
+		scmd_printk(KERN_WARNING, SCpnt, "abort %p failed\n", SCpnt);
 		break;
 	}
 

@@ -1906,9 +1906,7 @@ NCR_700_abort(struct scsi_cmnd * SCp)
 {
 	struct NCR_700_command_slot *slot;
 
-	scmd_printk(KERN_INFO, SCp,
-		"New error handler wants to abort command\n\t");
-	scsi_print_command(SCp);
+	scmd_printk(KERN_INFO, SCp, "abort command\n");
 
 	slot = (struct NCR_700_command_slot *)SCp->host_scribble;
 

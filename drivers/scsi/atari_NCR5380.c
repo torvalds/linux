@@ -2623,8 +2623,7 @@ int NCR5380_abort(Scsi_Cmnd *cmd)
 	Scsi_Cmnd *tmp, **prev;
 	unsigned long flags;
 
-	printk(KERN_NOTICE "scsi%d: aborting command\n", HOSTNO);
-	scsi_print_command(cmd);
+	scmd_printk(KERN_NOTICE, cmd, "aborting command\n");
 
 	NCR5380_print_status(instance);
 
