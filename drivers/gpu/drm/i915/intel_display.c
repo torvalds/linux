@@ -8544,9 +8544,9 @@ static int intel_crtc_cursor_set_obj(struct drm_crtc *crtc,
 		if (old_width != width)
 			intel_update_watermarks(crtc);
 		intel_crtc_update_cursor(crtc, intel_crtc->cursor_bo != NULL);
-	}
 
-	intel_frontbuffer_flip(dev, INTEL_FRONTBUFFER_CURSOR(pipe));
+		intel_frontbuffer_flip(dev, INTEL_FRONTBUFFER_CURSOR(pipe));
+	}
 
 	return 0;
 fail_unpin:
