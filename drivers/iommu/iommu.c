@@ -1124,6 +1124,31 @@ size_t iommu_unmap(struct iommu_domain *domain, unsigned long iova, size_t size)
 }
 EXPORT_SYMBOL_GPL(iommu_unmap);
 
+size_t default_iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
+			 struct scatterlist *sg, unsigned int nents, int prot)
+{
+	int ret;
+	size_t mapped = 0;
+	unsigned int i;
+	struct scatterlist *s;
+
+	for_each_sg(sg, s, nents, i) {
+		phys_addr_t phys = page_to_phys(sg_page(s));
+		size_t page_len = s->offset + s->length;
+
+		ret = iommu_map(domain, iova + mapped, phys, page_len, prot);
+		if (ret) {
+			/* undo mappings already done */
+			iommu_unmap(domain, iova, mapped);
+			mapped = 0;
+			break;
+		}
+		mapped += page_len;
+	}
+
+	return mapped;
+}
+EXPORT_SYMBOL_GPL(default_iommu_map_sg);
 
 int iommu_domain_window_enable(struct iommu_domain *domain, u32 wnd_nr,
 			       phys_addr_t paddr, u64 size, int prot)

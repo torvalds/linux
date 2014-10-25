@@ -22,6 +22,7 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/types.h>
+#include <linux/scatterlist.h>
 #include <trace/events/iommu.h>
 
 #define IOMMU_READ	(1 << 0)
@@ -97,6 +98,8 @@ enum iommu_attr {
  * @detach_dev: detach device from an iommu domain
  * @map: map a physically contiguous memory region to an iommu domain
  * @unmap: unmap a physically contiguous memory region from an iommu domain
+ * @map_sg: map a scatter-gather list of physically contiguous memory chunks
+ * to an iommu domain
  * @iova_to_phys: translate iova to physical address
  * @add_device: add device to iommu grouping
  * @remove_device: remove device from iommu grouping
@@ -114,6 +117,8 @@ struct iommu_ops {
 		   phys_addr_t paddr, size_t size, int prot);
 	size_t (*unmap)(struct iommu_domain *domain, unsigned long iova,
 		     size_t size);
+	size_t (*map_sg)(struct iommu_domain *domain, unsigned long iova,
+			 struct scatterlist *sg, unsigned int nents, int prot);
 	phys_addr_t (*iova_to_phys)(struct iommu_domain *domain, dma_addr_t iova);
 	int (*add_device)(struct device *dev);
 	void (*remove_device)(struct device *dev);
@@ -156,6 +161,9 @@ extern int iommu_map(struct iommu_domain *domain, unsigned long iova,
 		     phys_addr_t paddr, size_t size, int prot);
 extern size_t iommu_unmap(struct iommu_domain *domain, unsigned long iova,
 		       size_t size);
+extern size_t default_iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
+				struct scatterlist *sg,unsigned int nents,
+				int prot);
 extern phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain, dma_addr_t iova);
 extern void iommu_set_fault_handler(struct iommu_domain *domain,
 			iommu_fault_handler_t handler, void *token);
@@ -241,6 +249,13 @@ static inline int report_iommu_fault(struct iommu_domain *domain,
 	return ret;
 }
 
+static inline size_t iommu_map_sg(struct iommu_domain *domain,
+				  unsigned long iova, struct scatterlist *sg,
+				  unsigned int nents, int prot)
+{
+	return domain->ops->map_sg(domain, iova, sg, nents, prot);
+}
+
 #else /* CONFIG_IOMMU_API */
 
 struct iommu_ops {};
@@ -289,6 +304,13 @@ static inline int iommu_map(struct iommu_domain *domain, unsigned long iova,
 
 static inline int iommu_unmap(struct iommu_domain *domain, unsigned long iova,
 			      int gfp_order)
+{
+	return -ENODEV;
+}
+
+static inline size_t iommu_map_sg(struct iommu_domain *domain,
+				  unsigned long iova, struct scatterlist *sg,
+				  unsigned int nents, int prot)
 {
 	return -ENODEV;
 }
