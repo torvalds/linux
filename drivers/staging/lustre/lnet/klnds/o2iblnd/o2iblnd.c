@@ -3081,7 +3081,7 @@ kiblnd_startup (lnet_ni_t *ni)
 	LIBCFS_ALLOC(net, sizeof(*net));
 	ni->ni_data = net;
 	if (net == NULL)
-		goto failed;
+		goto net_failed;
 
 	do_gettimeofday(&tv);
 	net->ibn_incarnation = (((__u64)tv.tv_sec) * 1000000) + tv.tv_usec;
@@ -3147,6 +3147,7 @@ failed:
 	if (net->ibn_dev == NULL && ibdev != NULL)
 		kiblnd_destroy_dev(ibdev);
 
+net_failed:
 	kiblnd_shutdown(ni);
 
 	CDEBUG(D_NET, "kiblnd_startup failed\n");
