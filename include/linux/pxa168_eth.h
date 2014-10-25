@@ -4,6 +4,8 @@
 #ifndef __LINUX_PXA168_ETH_H
 #define __LINUX_PXA168_ETH_H
 
+#include <linux/phy.h>
+
 struct pxa168_eth_platform_data {
 	int	port_number;
 	int	phy_addr;
