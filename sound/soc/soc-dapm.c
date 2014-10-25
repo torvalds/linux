@@ -2194,6 +2194,27 @@ static int snd_soc_dapm_add_path(struct snd_soc_dapm_context *dapm,
 	struct snd_soc_dapm_path *path;
 	int ret;
 
+	if (wsink->is_supply && !wsource->is_supply) {
+		dev_err(dapm->dev,
+			"Connecting non-supply widget to supply widget is not supported (%s -> %s)\n",
+			wsource->name, wsink->name);
+		return -EINVAL;
+	}
+
+	if (connected && !wsource->is_supply) {
+		dev_err(dapm->dev,
+			"connected() callback only supported for supply widgets (%s -> %s)\n",
+			wsource->name, wsink->name);
+		return -EINVAL;
+	}
+
+	if (wsource->is_supply && control) {
+		dev_err(dapm->dev,
+			"Conditional paths are not supported for supply widgets (%s -> [%s] -> %s)\n",
+			wsource->name, control, wsink->name);
+		return -EINVAL;
+	}
+
 	path = kzalloc(sizeof(struct snd_soc_dapm_path), GFP_KERNEL);
 	if (!path)
 		return -ENOMEM;
