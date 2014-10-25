@@ -343,9 +343,9 @@ int ieee802154_register_hw(struct ieee802154_hw *hw)
 		local->phy->set_frame_retries = mac802154_set_frame_retries;
 	}
 
-	local->dev_workqueue =
+	local->workqueue =
 		create_singlethread_workqueue(wpan_phy_name(local->phy));
-	if (!local->dev_workqueue) {
+	if (!local->workqueue) {
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -370,7 +370,7 @@ int ieee802154_register_hw(struct ieee802154_hw *hw)
 	return 0;
 
 out_wq:
-	destroy_workqueue(local->dev_workqueue);
+	destroy_workqueue(local->workqueue);
 out:
 	return rc;
 }
@@ -381,8 +381,8 @@ void ieee802154_unregister_hw(struct ieee802154_hw *hw)
 	struct ieee802154_local *local = hw_to_local(hw);
 	struct ieee802154_sub_if_data *sdata, *next;
 
-	flush_workqueue(local->dev_workqueue);
-	destroy_workqueue(local->dev_workqueue);
+	flush_workqueue(local->workqueue);
+	destroy_workqueue(local->workqueue);
 
 	rtnl_lock();
 

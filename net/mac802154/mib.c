@@ -72,7 +72,7 @@ static void set_hw_addr_filt(struct net_device *dev, unsigned long changed)
 	INIT_WORK(&work->work, hw_addr_notify);
 	work->dev = dev;
 	work->changed = changed;
-	queue_work(sdata->local->dev_workqueue, &work->work);
+	queue_work(sdata->local->workqueue, &work->work);
 }
 
 void mac802154_dev_set_short_addr(struct net_device *dev, __le16 val)
@@ -205,7 +205,7 @@ void mac802154_dev_set_page_channel(struct net_device *dev, u8 page, u8 chan)
 
 		INIT_WORK(&work->work, phy_chan_notify);
 		work->dev = dev;
-		queue_work(sdata->local->dev_workqueue, &work->work);
+		queue_work(sdata->local->workqueue, &work->work);
 	} else {
 		mutex_unlock(&sdata->local->phy->pib_lock);
 	}

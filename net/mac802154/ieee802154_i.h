@@ -48,7 +48,7 @@ struct ieee802154_local {
 	/* This one is used for scanning and other jobs not to be interfered
 	 * with serial driver.
 	 */
-	struct workqueue_struct	*dev_workqueue;
+	struct workqueue_struct	*workqueue;
 
 	/* SoftMAC device is registered and running. One can add subinterfaces.
 	 * This flag should be modified under slaves_mtx and RTNL, so you can

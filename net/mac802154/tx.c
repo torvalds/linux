@@ -119,7 +119,7 @@ netdev_tx_t mac802154_tx(struct ieee802154_local *local, struct sk_buff *skb,
 	work->page = page;
 	work->chan = chan;
 
-	queue_work(local->dev_workqueue, &work->work);
+	queue_work(local->workqueue, &work->work);
 
 	return NETDEV_TX_OK;
 

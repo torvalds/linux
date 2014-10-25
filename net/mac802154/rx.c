@@ -105,6 +105,6 @@ ieee802154_rx_irqsafe(struct ieee802154_hw *hw, struct sk_buff *skb, u8 lqi)
 	work->hw = hw;
 	work->lqi = lqi;
 
-	queue_work(local->dev_workqueue, &work->work);
+	queue_work(local->workqueue, &work->work);
 }
 EXPORT_SYMBOL(ieee802154_rx_irqsafe);
