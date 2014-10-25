@@ -1925,12 +1925,31 @@ static inline void dapm_debugfs_cleanup(struct snd_soc_dapm_context *dapm)
 
 #endif
 
+/*
+ * soc_dapm_connect_path() - Connects or disconnects a path
+ * @path: The path to update
+ * @connect: The new connect state of the path. True if the path is connected,
+ *  false if it is disconneted.
+ * @reason: The reason why the path changed (for debugging only)
+ */
+static void soc_dapm_connect_path(struct snd_soc_dapm_path *path,
+	bool connect, const char *reason)
+{
+	if (path->connect == connect)
+		return;
+
+	path->connect = connect;
+	dapm_mark_dirty(path->source, reason);
+	dapm_mark_dirty(path->sink, reason);
+}
+
 /* test and update the power status of a mux widget */
 static int soc_dapm_mux_update_power(struct snd_soc_card *card,
 				 struct snd_kcontrol *kcontrol, int mux, struct soc_enum *e)
 {
 	struct snd_soc_dapm_path *path;
 	int found = 0;
+	bool connect;
 
 	lockdep_assert_held(&card->dapm_mutex);
 
@@ -1941,16 +1960,12 @@ static int soc_dapm_mux_update_power(struct snd_soc_card *card,
 
 		found = 1;
 		/* we now need to match the string in the enum to the path */
-		if (!(strcmp(path->name, e->texts[mux]))) {
-			path->connect = 1; /* new connection */
-			dapm_mark_dirty(path->source, "mux connection");
-		} else {
-			if (path->connect)
-				dapm_mark_dirty(path->source,
-						"mux disconnection");
-			path->connect = 0; /* old connection must be powered down */
-		}
-		dapm_mark_dirty(path->sink, "mux change");
+		if (!(strcmp(path->name, e->texts[mux])))
+			connect = true;
+		else
+			connect = false;
+
+		soc_dapm_connect_path(path, connect, "mux update");
 	}
 
 	if (found)
@@ -1989,9 +2004,7 @@ static int soc_dapm_mixer_update_power(struct snd_soc_card *card,
 	/* find dapm widget path assoc with kcontrol */
 	dapm_kcontrol_for_each_path(path, kcontrol) {
 		found = 1;
-		path->connect = connect;
-		dapm_mark_dirty(path->source, "mixer connection");
-		dapm_mark_dirty(path->sink, "mixer update");
+		soc_dapm_connect_path(path, connect, "mixer update");
 	}
 
 	if (found)
