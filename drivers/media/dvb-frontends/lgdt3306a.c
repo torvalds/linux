@@ -712,19 +712,19 @@ static int lgdt3306a_set_if(struct lgdt3306a_state *state,
 	default:
 	    lg_warn("IF=%d KHz is not supportted, 3250 assumed\n", if_freq_khz);
 		/* fallthrough */
-	case 3250:  /* 3.25Mhz */
+	case 3250: /* 3.25Mhz */
 		nco1 = 0x34;
 		nco2 = 0x00;
 		break;
-	case 3500:  /* 3.50Mhz */
+	case 3500: /* 3.50Mhz */
 		nco1 = 0x38;
 		nco2 = 0x00;
 		break;
-	case 4000:  /* 4.00Mhz */
+	case 4000: /* 4.00Mhz */
 		nco1 = 0x40;
 		nco2 = 0x00;
 		break;
-	case 5000:  /* 5.00Mhz */
+	case 5000: /* 5.00Mhz */
 		nco1 = 0x50;
 		nco2 = 0x00;
 		break;
@@ -1361,8 +1361,8 @@ static u32 log10_x1000(u32 x)
 
 static u32 lgdt3306a_calculate_snr_x100(struct lgdt3306a_state *state)
 {
-	u32 mse;  /* Mean-Square Error */
-	u32 pwr;  /* Constelation power */
+	u32 mse; /* Mean-Square Error */
+	u32 pwr; /* Constelation power */
 	u32 snr_x100;
 
 	mse = (read_reg(state, 0x00EC) << 8) |
@@ -1510,7 +1510,7 @@ static int lgdt3306a_read_signal_strength(struct dvb_frontend *fe,
 	 * Calculate some sort of "strength" from SNR
 	 */
 	struct lgdt3306a_state *state = fe->demodulator_priv;
-	u16 snr;  /* snr_x10 */
+	u16 snr; /* snr_x10 */
 	int ret;
 	u32 ref_snr; /* snr*100 */
 	u32 str;
@@ -1958,7 +1958,7 @@ static const short regtab[] = {
 	0x30AA, /* MPEGLOCK */
 };
 
-#define numDumpRegs  (sizeof(regtab)/sizeof(regtab[0]))
+#define numDumpRegs (sizeof(regtab)/sizeof(regtab[0]))
 static u8 regval1[numDumpRegs] = {0, };
 static u8 regval2[numDumpRegs] = {0, };
 
