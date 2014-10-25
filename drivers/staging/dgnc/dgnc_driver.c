@@ -56,7 +56,6 @@ MODULE_SUPPORTED_DEVICE("dgnc");
  * us to specify the variable type, name, initial value, and description.
  */
 PARM_INT(debug,		0x00,		0644,	"Driver debugging level");
-PARM_INT(rawreadok,	1,		0644,	"Bypass flip buffers on input");
 
 /**************************************************************************
  *
@@ -741,7 +740,6 @@ static void dgnc_init_globals(void)
 {
 	int i = 0;
 
-	dgnc_rawreadok		= rawreadok;
 	dgnc_debug		= debug;
 	dgnc_NumBoards		= 0;
 

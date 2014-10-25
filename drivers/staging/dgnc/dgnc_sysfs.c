@@ -80,23 +80,6 @@ static ssize_t dgnc_driver_debug_store(struct device_driver *ddp, const char *bu
 static DRIVER_ATTR(debug, (S_IRUSR | S_IWUSR), dgnc_driver_debug_show, dgnc_driver_debug_store);
 
 
-static ssize_t dgnc_driver_rawreadok_show(struct device_driver *ddp, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "0x%x\n", dgnc_rawreadok);
-}
-
-static ssize_t dgnc_driver_rawreadok_store(struct device_driver *ddp, const char *buf, size_t count)
-{
-	int ret;
-
-	ret = sscanf(buf, "0x%x\n", &dgnc_rawreadok);
-	if (ret != 1)
-		return -EINVAL;
-	return count;
-}
-static DRIVER_ATTR(rawreadok, (S_IRUSR | S_IWUSR), dgnc_driver_rawreadok_show, dgnc_driver_rawreadok_store);
-
-
 static ssize_t dgnc_driver_pollrate_show(struct device_driver *ddp, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%dms\n", dgnc_poll_tick);
@@ -123,7 +106,6 @@ void dgnc_create_driver_sysfiles(struct pci_driver *dgnc_driver)
 	rc |= driver_create_file(driverfs, &driver_attr_boards);
 	rc |= driver_create_file(driverfs, &driver_attr_maxboards);
 	rc |= driver_create_file(driverfs, &driver_attr_debug);
-	rc |= driver_create_file(driverfs, &driver_attr_rawreadok);
 	rc |= driver_create_file(driverfs, &driver_attr_pollrate);
 	if (rc)
 		printk(KERN_ERR "DGNC: sysfs driver_create_file failed!\n");
@@ -138,7 +120,6 @@ void dgnc_remove_driver_sysfiles(struct pci_driver *dgnc_driver)
 	driver_remove_file(driverfs, &driver_attr_boards);
 	driver_remove_file(driverfs, &driver_attr_maxboards);
 	driver_remove_file(driverfs, &driver_attr_debug);
-	driver_remove_file(driverfs, &driver_attr_rawreadok);
 	driver_remove_file(driverfs, &driver_attr_pollrate);
 }
 
