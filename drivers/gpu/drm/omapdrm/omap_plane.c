@@ -142,8 +142,8 @@ static void omap_plane_pre_apply(struct omap_drm_apply *apply)
 	DBG("%dx%d -> %dx%d (%d)", info->width, info->height,
 			info->out_width, info->out_height,
 			info->screen_width);
-	DBG("%d,%d %08x %08x", info->pos_x, info->pos_y,
-			info->paddr, info->p_uv_addr);
+	DBG("%d,%d %pad %pad", info->pos_x, info->pos_y,
+			&info->paddr, &info->p_uv_addr);
 
 	/* TODO: */
 	ilace = false;
@@ -308,16 +308,13 @@ void omap_plane_install_properties(struct drm_plane *plane,
 	if (priv->has_dmm) {
 		prop = priv->rotation_prop;
 		if (!prop) {
-			const struct drm_prop_enum_list props[] = {
-					{ DRM_ROTATE_0,   "rotate-0" },
-					{ DRM_ROTATE_90,  "rotate-90" },
-					{ DRM_ROTATE_180, "rotate-180" },
-					{ DRM_ROTATE_270, "rotate-270" },
-					{ DRM_REFLECT_X,  "reflect-x" },
-					{ DRM_REFLECT_Y,  "reflect-y" },
-			};
-			prop = drm_property_create_bitmask(dev, 0, "rotation",
-					props, ARRAY_SIZE(props));
+			prop = drm_mode_create_rotation_property(dev,
+								 BIT(DRM_ROTATE_0) |
+								 BIT(DRM_ROTATE_90) |
+								 BIT(DRM_ROTATE_180) |
+								 BIT(DRM_ROTATE_270) |
+								 BIT(DRM_REFLECT_X) |
+								 BIT(DRM_REFLECT_Y));
 			if (prop == NULL)
 				return;
 			priv->rotation_prop = prop;

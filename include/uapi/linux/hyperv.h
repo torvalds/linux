@@ -137,7 +137,7 @@ struct hv_do_fcopy {
 	__u64	offset;
 	__u32	size;
 	__u8	data[DATA_FRAGMENT];
-};
+} __attribute__((packed));
 
 /*
  * An implementation of HyperV key value pair (KVP) functionality for Linux.

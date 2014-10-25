@@ -263,8 +263,8 @@ static ssize_t adt7316_store_enabled(struct device *dev,
 
 	if (_adt7316_store_enabled(chip, enable) < 0)
 		return -EIO;
-	else
-		return len;
+
+	return len;
 }
 
 static IIO_DEVICE_ATTR(enabled, S_IRUGO | S_IWUSR,
@@ -325,8 +325,8 @@ static ssize_t adt7316_show_mode(struct device *dev,
 
 	if (chip->config2 & ADT7316_AD_SINGLE_CH_MODE)
 		return sprintf(buf, "single_channel\n");
-	else
-		return sprintf(buf, "round_robin\n");
+
+	return sprintf(buf, "round_robin\n");
 }
 
 static ssize_t adt7316_store_mode(struct device *dev,
@@ -385,18 +385,18 @@ static ssize_t adt7316_show_ad_channel(struct device *dev,
 		if (((chip->id & ID_FAMILY_MASK) == ID_ADT75XX) &&
 			(chip->config1 & ADT7516_SEL_AIN1_2_EX_TEMP_MASK) == 0)
 			return sprintf(buf, "2 - AIN1\n");
-		else
-			return sprintf(buf, "2 - External Temperature\n");
+
+		return sprintf(buf, "2 - External Temperature\n");
 	case ADT7516_AD_SINGLE_CH_AIN2:
 		if ((chip->config1 & ADT7516_SEL_AIN1_2_EX_TEMP_MASK) == 0)
 			return sprintf(buf, "3 - AIN2\n");
-		else
-			return sprintf(buf, "N/A\n");
+
+		return sprintf(buf, "N/A\n");
 	case ADT7516_AD_SINGLE_CH_AIN3:
 		if (chip->config1 & ADT7516_SEL_AIN3)
 			return sprintf(buf, "4 - AIN3\n");
-		else
-			return sprintf(buf, "N/A\n");
+
+		return sprintf(buf, "N/A\n");
 	case ADT7516_AD_SINGLE_CH_AIN4:
 		return sprintf(buf, "5 - AIN4\n");
 	default:
@@ -856,20 +856,19 @@ static ssize_t adt7316_show_DAC_update_mode(struct device *dev,
 
 	if (!(chip->config3 & ADT7316_DA_EN_VIA_DAC_LDCA))
 		return sprintf(buf, "manual\n");
-	else {
-		switch (chip->dac_config & ADT7316_DA_EN_MODE_MASK) {
-		case ADT7316_DA_EN_MODE_SINGLE:
-			return sprintf(buf,
-				"0 - auto at any MSB DAC writing\n");
-		case ADT7316_DA_EN_MODE_AB_CD:
-			return sprintf(buf,
-				"1 - auto at MSB DAC AB and CD writing\n");
-		case ADT7316_DA_EN_MODE_ABCD:
-			return sprintf(buf,
-				"2 - auto at MSB DAC ABCD writing\n");
-		default: /* ADT7316_DA_EN_MODE_LDAC */
-			return sprintf(buf, "3 - manual\n");
-		}
+
+	switch (chip->dac_config & ADT7316_DA_EN_MODE_MASK) {
+	case ADT7316_DA_EN_MODE_SINGLE:
+		return sprintf(buf,
+			"0 - auto at any MSB DAC writing\n");
+	case ADT7316_DA_EN_MODE_AB_CD:
+		return sprintf(buf,
+			"1 - auto at MSB DAC AB and CD writing\n");
+	case ADT7316_DA_EN_MODE_ABCD:
+		return sprintf(buf,
+			"2 - auto at MSB DAC ABCD writing\n");
+	default: /* ADT7316_DA_EN_MODE_LDAC */
+		return sprintf(buf, "3 - manual\n");
 	}
 }
 
@@ -1180,8 +1179,8 @@ static ssize_t adt7316_show_ad(struct adt7316_chip_info *chip,
 
 		if ((chip->id & ID_FAMILY_MASK) == ID_ADT75XX)
 			return sprintf(buf, "%d\n", data);
-		else
-			break;
+
+		break;
 	}
 
 	if (data & ADT7316_T_VALUE_SIGN) {
@@ -1648,8 +1647,8 @@ static ssize_t adt7316_show_bus_type(struct device *dev,
 
 	if (stat)
 		return sprintf(buf, "spi\n");
-	else
-		return sprintf(buf, "i2c\n");
+
+	return sprintf(buf, "i2c\n");
 }
 
 static IIO_DEVICE_ATTR(bus_type, S_IRUGO, adt7316_show_bus_type, NULL, 0);
@@ -2185,6 +2184,5 @@ int adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 EXPORT_SYMBOL(adt7316_probe);
 
 MODULE_AUTHOR("Sonic Zhang <sonic.zhang@analog.com>");
-MODULE_DESCRIPTION("Analog Devices ADT7316/7/8 and ADT7516/7/9 digital"
-			" temperature sensor, ADC and DAC driver");
+MODULE_DESCRIPTION("Analog Devices ADT7316/7/8 and ADT7516/7/9 digital temperature sensor, ADC and DAC driver");
 MODULE_LICENSE("GPL v2");

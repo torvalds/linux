@@ -435,7 +435,10 @@ static inline void finish_buffer(struct em28xx *dev,
 	em28xx_isocdbg("[%p/%d] wakeup\n", buf, buf->top_field);
 
 	buf->vb.v4l2_buf.sequence = dev->v4l2->field_count++;
-	buf->vb.v4l2_buf.field = V4L2_FIELD_INTERLACED;
+	if (dev->v4l2->progressive)
+		buf->vb.v4l2_buf.field = V4L2_FIELD_NONE;
+	else
+		buf->vb.v4l2_buf.field = V4L2_FIELD_INTERLACED;
 	v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
 
 	vb2_buffer_done(&buf->vb, VB2_BUF_STATE_DONE);
@@ -478,7 +481,7 @@ static void em28xx_copy_video(struct em28xx *dev,
 	lencopy = lencopy > remain ? remain : lencopy;
 
 	if ((char *)startwrite + lencopy > (char *)buf->vb_buf + buf->length) {
-		em28xx_isocdbg("Overflow of %zi bytes past buffer end (1)\n",
+		em28xx_isocdbg("Overflow of %zu bytes past buffer end (1)\n",
 			      ((char *)startwrite + lencopy) -
 			      ((char *)buf->vb_buf + buf->length));
 		remain = (char *)buf->vb_buf + buf->length -
@@ -504,7 +507,7 @@ static void em28xx_copy_video(struct em28xx *dev,
 
 		if ((char *)startwrite + lencopy > (char *)buf->vb_buf +
 		    buf->length) {
-			em28xx_isocdbg("Overflow of %zi bytes past buffer end"
+			em28xx_isocdbg("Overflow of %zu bytes past buffer end"
 				       "(2)\n",
 				       ((char *)startwrite + lencopy) -
 				       ((char *)buf->vb_buf + buf->length));
@@ -718,7 +721,7 @@ static inline void process_frame_data_em25xx(struct em28xx *dev,
 	struct em28xx_buffer    *buf = dev->usb_ctl.vid_buf;
 	struct em28xx_dmaqueue  *dmaq = &dev->vidq;
 	struct em28xx_v4l2      *v4l2 = dev->v4l2;
-	bool frame_end = 0;
+	bool frame_end = false;
 
 	/* Check for header */
 	/* NOTE: at least with bulk transfers, only the first packet
@@ -994,13 +997,16 @@ static void em28xx_stop_streaming(struct vb2_queue *vq)
 	}
 
 	spin_lock_irqsave(&dev->slock, flags);
+	if (dev->usb_ctl.vid_buf != NULL) {
+		vb2_buffer_done(&dev->usb_ctl.vid_buf->vb, VB2_BUF_STATE_ERROR);
+		dev->usb_ctl.vid_buf = NULL;
+	}
 	while (!list_empty(&vidq->active)) {
 		struct em28xx_buffer *buf;
 		buf = list_entry(vidq->active.next, struct em28xx_buffer, list);
 		list_del(&buf->list);
 		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
 	}
-	dev->usb_ctl.vid_buf = NULL;
 	spin_unlock_irqrestore(&dev->slock, flags);
 }
 
@@ -1021,13 +1027,16 @@ void em28xx_stop_vbi_streaming(struct vb2_queue *vq)
 	}
 
 	spin_lock_irqsave(&dev->slock, flags);
+	if (dev->usb_ctl.vbi_buf != NULL) {
+		vb2_buffer_done(&dev->usb_ctl.vbi_buf->vb, VB2_BUF_STATE_ERROR);
+		dev->usb_ctl.vbi_buf = NULL;
+	}
 	while (!list_empty(&vbiq->active)) {
 		struct em28xx_buffer *buf;
 		buf = list_entry(vbiq->active.next, struct em28xx_buffer, list);
 		list_del(&buf->list);
 		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
 	}
-	dev->usb_ctl.vbi_buf = NULL;
 	spin_unlock_irqrestore(&dev->slock, flags);
 }
 
@@ -1342,7 +1351,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	struct em28xx *dev = video_drvdata(file);
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 
-	if (v4l2->streaming_users > 0)
+	if (vb2_is_busy(&v4l2->vb_vidq))
 		return -EBUSY;
 
 	vidioc_try_fmt_vid_cap(file, priv, f);
@@ -1711,7 +1720,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	else
 		cap->device_caps = V4L2_CAP_READWRITE | V4L2_CAP_VBI_CAPTURE;
 
-	if (dev->audio_mode.has_audio)
+	if (dev->int_audio_type != EM28XX_INT_AUDIO_NONE)
 		cap->device_caps |= V4L2_CAP_AUDIO;
 
 	if (dev->tuner_type != TUNER_ABSENT)
@@ -1883,8 +1892,9 @@ static int em28xx_v4l2_open(struct file *filp)
 		return -EINVAL;
 	}
 
-	em28xx_videodbg("open dev=%s type=%s\n",
-			video_device_node_name(vdev), v4l2_type_names[fh_type]);
+	em28xx_videodbg("open dev=%s type=%s users=%d\n",
+			video_device_node_name(vdev), v4l2_type_names[fh_type],
+			v4l2->users);
 
 	if (mutex_lock_interruptible(&dev->lock))
 		return -ERESTARTSYS;
@@ -1897,9 +1907,7 @@ static int em28xx_v4l2_open(struct file *filp)
 		return ret;
 	}
 
-	if (v4l2_fh_is_singular_file(filp)) {
-		em28xx_videodbg("first opened filehandle, initializing device\n");
-
+	if (v4l2->users == 0) {
 		em28xx_set_mode(dev, EM28XX_ANALOG_MODE);
 
 		if (vdev->vfl_type != VFL_TYPE_RADIO)
@@ -1910,8 +1918,6 @@ static int em28xx_v4l2_open(struct file *filp)
 		 * of some i2c devices
 		 */
 		em28xx_wake_i2c(dev);
-	} else {
-		em28xx_videodbg("further filehandles are already opened\n");
 	}
 
 	if (vdev->vfl_type == VFL_TYPE_RADIO) {
@@ -1921,6 +1927,7 @@ static int em28xx_v4l2_open(struct file *filp)
 
 	kref_get(&dev->ref);
 	kref_get(&v4l2->ref);
+	v4l2->users++;
 
 	mutex_unlock(&dev->lock);
 
@@ -2027,11 +2034,12 @@ static int em28xx_v4l2_close(struct file *filp)
 	struct em28xx_v4l2    *v4l2 = dev->v4l2;
 	int              errCode;
 
+	em28xx_videodbg("users=%d\n", v4l2->users);
+
+	vb2_fop_release(filp);
 	mutex_lock(&dev->lock);
 
-	if (v4l2_fh_is_singular_file(filp)) {
-		em28xx_videodbg("last opened filehandle, shutting down device\n");
-
+	if (v4l2->users == 1) {
 		/* No sense to try to write to the device */
 		if (dev->disconnected)
 			goto exit;
@@ -2050,12 +2058,10 @@ static int em28xx_v4l2_close(struct file *filp)
 			em28xx_errdev("cannot change alternate number to "
 					"0 (error=%i)\n", errCode);
 		}
-	} else {
-		em28xx_videodbg("further opened filehandles left\n");
 	}
 
 exit:
-	vb2_fop_release(filp);
+	v4l2->users--;
 	kref_put(&v4l2->ref, em28xx_free_v4l2);
 	mutex_unlock(&dev->lock);
 	kref_put(&dev->ref, em28xx_free_device);
@@ -2299,7 +2305,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	v4l2->v4l2_dev.ctrl_handler = hdl;
 
 	if (dev->board.is_webcam)
-		v4l2->progressive = 1;
+		v4l2->progressive = true;
 
 	/*
 	 * Default format, used for tvp5150 or saa711x output formats
@@ -2505,7 +2511,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 		v4l2_disable_ioctl(v4l2->vdev, VIDIOC_G_FREQUENCY);
 		v4l2_disable_ioctl(v4l2->vdev, VIDIOC_S_FREQUENCY);
 	}
-	if (!dev->audio_mode.has_audio) {
+	if (dev->int_audio_type == EM28XX_INT_AUDIO_NONE) {
 		v4l2_disable_ioctl(v4l2->vdev, VIDIOC_G_AUDIO);
 		v4l2_disable_ioctl(v4l2->vdev, VIDIOC_S_AUDIO);
 	}
@@ -2535,7 +2541,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 			v4l2_disable_ioctl(v4l2->vbi_dev, VIDIOC_G_FREQUENCY);
 			v4l2_disable_ioctl(v4l2->vbi_dev, VIDIOC_S_FREQUENCY);
 		}
-		if (!dev->audio_mode.has_audio) {
+		if (dev->int_audio_type == EM28XX_INT_AUDIO_NONE) {
 			v4l2_disable_ioctl(v4l2->vbi_dev, VIDIOC_G_AUDIO);
 			v4l2_disable_ioctl(v4l2->vbi_dev, VIDIOC_S_AUDIO);
 		}

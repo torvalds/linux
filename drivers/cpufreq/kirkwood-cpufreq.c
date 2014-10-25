@@ -12,7 +12,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/clk.h>
-#include <linux/clk-provider.h>
 #include <linux/cpufreq.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
@@ -39,8 +38,7 @@ static struct priv
  * - cpu clk
  * - ddr clk
  *
- * The frequencies are set at runtime before registering this *
- * table.
+ * The frequencies are set at runtime before registering this table.
  */
 static struct cpufreq_frequency_table kirkwood_freq_table[] = {
 	{0, STATE_CPU_FREQ,	0}, /* CPU uses cpuclk */
@@ -50,9 +48,7 @@ static struct cpufreq_frequency_table kirkwood_freq_table[] = {
 
 static unsigned int kirkwood_cpufreq_get_cpu_frequency(unsigned int cpu)
 {
-	if (__clk_is_enabled(priv.powersave_clk))
-		return kirkwood_freq_table[1].frequency;
-	return kirkwood_freq_table[0].frequency;
+	return clk_get_rate(priv.powersave_clk) / 1000;
 }
 
 static int kirkwood_cpufreq_target(struct cpufreq_policy *policy,
@@ -70,10 +66,10 @@ static int kirkwood_cpufreq_target(struct cpufreq_policy *policy,
 
 	switch (state) {
 	case STATE_CPU_FREQ:
-		clk_disable(priv.powersave_clk);
+		clk_set_parent(priv.powersave_clk, priv.cpu_clk);
 		break;
 	case STATE_DDR_FREQ:
-		clk_enable(priv.powersave_clk);
+		clk_set_parent(priv.powersave_clk, priv.ddr_clk);
 		break;
 	}
 
@@ -150,7 +146,7 @@ static int kirkwood_cpufreq_probe(struct platform_device *pdev)
 		err = PTR_ERR(priv.powersave_clk);
 		goto out_ddr;
 	}
-	clk_prepare(priv.powersave_clk);
+	clk_prepare_enable(priv.powersave_clk);
 
 	of_node_put(np);
 	np = NULL;

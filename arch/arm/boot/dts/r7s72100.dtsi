@@ -144,6 +144,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <0>;
+			clock-frequency = <400000000>;
 		};
 	};
 
@@ -225,6 +226,16 @@
 			     <0 188 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp9_clks R7S72100_CLK_I2C3>;
 		clock-frequency = <100000>;
+		status = "disabled";
+	};
+
+	mtu2: timer@fcff0000 {
+		compatible = "renesas,mtu2-r7s72100", "renesas,mtu2";
+		reg = <0xfcff0000 0x400>;
+		interrupts = <0 107 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "tgi0a";
+		clocks = <&mstp3_clks R7S72100_CLK_MTU2>;
+		clock-names = "fck";
 		status = "disabled";
 	};
 

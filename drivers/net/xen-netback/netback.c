@@ -1525,10 +1525,12 @@ static int xenvif_handle_frag_list(struct xenvif_queue *queue, struct sk_buff *s
 	/* remove traces of mapped pages and frag_list */
 	skb_frag_list_init(skb);
 	uarg = skb_shinfo(skb)->destructor_arg;
+	/* increase inflight counter to offset decrement in callback */
+	atomic_inc(&queue->inflight_packets);
 	uarg->callback(uarg, true);
 	skb_shinfo(skb)->destructor_arg = NULL;
 
-	skb_shinfo(nskb)->tx_flags |= SKBTX_DEV_ZEROCOPY;
+	xenvif_skb_zerocopy_prepare(queue, nskb);
 	kfree_skb(nskb);
 
 	return 0;
@@ -1589,7 +1591,7 @@ static int xenvif_tx_submit(struct xenvif_queue *queue)
 				if (net_ratelimit())
 					netdev_err(queue->vif->dev,
 						   "Not enough memory to consolidate frag_list!\n");
-				skb_shinfo(skb)->tx_flags |= SKBTX_DEV_ZEROCOPY;
+				xenvif_skb_zerocopy_prepare(queue, skb);
 				kfree_skb(skb);
 				continue;
 			}
@@ -1609,7 +1611,7 @@ static int xenvif_tx_submit(struct xenvif_queue *queue)
 				   "Can't setup checksum in net_tx_action\n");
 			/* We have to set this flag to trigger the callback */
 			if (skb_shinfo(skb)->destructor_arg)
-				skb_shinfo(skb)->tx_flags |= SKBTX_DEV_ZEROCOPY;
+				xenvif_skb_zerocopy_prepare(queue, skb);
 			kfree_skb(skb);
 			continue;
 		}
@@ -1641,7 +1643,7 @@ static int xenvif_tx_submit(struct xenvif_queue *queue)
 		 * skb. E.g. the __pskb_pull_tail earlier can do such thing.
 		 */
 		if (skb_shinfo(skb)->destructor_arg) {
-			skb_shinfo(skb)->tx_flags |= SKBTX_DEV_ZEROCOPY;
+			xenvif_skb_zerocopy_prepare(queue, skb);
 			queue->stats.tx_zerocopy_sent++;
 		}
 
@@ -1681,6 +1683,7 @@ void xenvif_zerocopy_callback(struct ubuf_info *ubuf, bool zerocopy_success)
 		queue->stats.tx_zerocopy_success++;
 	else
 		queue->stats.tx_zerocopy_fail++;
+	xenvif_skb_zerocopy_complete(queue);
 }
 
 static inline void xenvif_tx_dealloc_action(struct xenvif_queue *queue)
@@ -2025,9 +2028,15 @@ int xenvif_kthread_guest_rx(void *data)
 		 * context so we defer it here, if this thread is
 		 * associated with queue 0.
 		 */
-		if (unlikely(queue->vif->disabled && queue->id == 0))
+		if (unlikely(queue->vif->disabled && queue->id == 0)) {
 			xenvif_carrier_off(queue->vif);
-		else if (unlikely(test_and_clear_bit(QUEUE_STATUS_RX_PURGE_EVENT,
+		} else if (unlikely(queue->vif->disabled)) {
+			/* kthread_stop() would be called upon this thread soon,
+			 * be a bit proactive
+			 */
+			skb_queue_purge(&queue->rx_queue);
+			queue->rx_last_skb_slots = 0;
+		} else if (unlikely(test_and_clear_bit(QUEUE_STATUS_RX_PURGE_EVENT,
 						     &queue->status))) {
 			xenvif_rx_purge_event(queue);
 		} else if (!netif_carrier_ok(queue->vif->dev)) {
@@ -2052,15 +2061,24 @@ int xenvif_kthread_guest_rx(void *data)
 	return 0;
 }
 
+static bool xenvif_dealloc_kthread_should_stop(struct xenvif_queue *queue)
+{
+	/* Dealloc thread must remain running until all inflight
+	 * packets complete.
+	 */
+	return kthread_should_stop() &&
+		!atomic_read(&queue->inflight_packets);
+}
+
 int xenvif_dealloc_kthread(void *data)
 {
 	struct xenvif_queue *queue = data;
 
-	while (!kthread_should_stop()) {
+	for (;;) {
 		wait_event_interruptible(queue->dealloc_wq,
 					 tx_dealloc_work_todo(queue) ||
-					 kthread_should_stop());
-		if (kthread_should_stop())
+					 xenvif_dealloc_kthread_should_stop(queue));
+		if (xenvif_dealloc_kthread_should_stop(queue))
 			break;
 
 		xenvif_tx_dealloc_action(queue);

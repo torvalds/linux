@@ -32,8 +32,8 @@
 #include "reg.h"
 #include "led.h"
 
-static void rtl88ee_init_led(struct ieee80211_hw *hw,
-			     struct rtl_led *pled, enum rtl_led_pin ledpin)
+static void _rtl88ee_init_led(struct ieee80211_hw *hw,
+			      struct rtl_led *pled, enum rtl_led_pin ledpin)
 {
 	pled->hw = hw;
 	pled->ledpin = ledpin;
@@ -46,23 +46,23 @@ void rtl88ee_sw_led_on(struct ieee80211_hw *hw, struct rtl_led *pled)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	RT_TRACE(rtlpriv, COMP_LED, DBG_LOUD,
-		 "LedAddr:%X ledpin =%d\n", REG_LEDCFG2, pled->ledpin);
+		 "LedAddr:%X ledpin=%d\n", REG_LEDCFG2, pled->ledpin);
 
 	switch (pled->ledpin) {
 	case LED_PIN_GPIO0:
 		break;
 	case LED_PIN_LED0:
 		ledcfg = rtl_read_byte(rtlpriv, REG_LEDCFG2);
-		rtl_write_byte(rtlpriv, REG_LEDCFG2,
-			       (ledcfg & 0xf0) | BIT(5) | BIT(6));
+		rtl_write_byte(rtlpriv,
+			       REG_LEDCFG2, (ledcfg & 0xf0) | BIT(5) | BIT(6));
 		break;
 	case LED_PIN_LED1:
 		ledcfg = rtl_read_byte(rtlpriv, REG_LEDCFG1);
 		rtl_write_byte(rtlpriv, REG_LEDCFG1, ledcfg & 0x10);
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case not processed\n");
+		RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
+			 "switch case not process\n");
 		break;
 	}
 	pled->ledon = true;
@@ -73,10 +73,9 @@ void rtl88ee_sw_led_off(struct ieee80211_hw *hw, struct rtl_led *pled)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
 	u8 ledcfg;
-	u8 val;
 
 	RT_TRACE(rtlpriv, COMP_LED, DBG_LOUD,
-		 "LedAddr:%X ledpin =%d\n", REG_LEDCFG2, pled->ledpin);
+		 "LedAddr:%X ledpin=%d\n", REG_LEDCFG2, pled->ledpin);
 
 	switch (pled->ledpin) {
 	case LED_PIN_GPIO0:
@@ -84,15 +83,15 @@ void rtl88ee_sw_led_off(struct ieee80211_hw *hw, struct rtl_led *pled)
 	case LED_PIN_LED0:
 		ledcfg = rtl_read_byte(rtlpriv, REG_LEDCFG2);
 		ledcfg &= 0xf0;
-		val = ledcfg | BIT(3) | BIT(5) | BIT(6);
-		if (pcipriv->ledctl.led_opendrain == true) {
-			rtl_write_byte(rtlpriv, REG_LEDCFG2, val);
+		if (pcipriv->ledctl.led_opendrain) {
+			rtl_write_byte(rtlpriv, REG_LEDCFG2,
+				       (ledcfg | BIT(3) | BIT(5) | BIT(6)));
 			ledcfg = rtl_read_byte(rtlpriv, REG_MAC_PINMUX_CFG);
-			val = ledcfg & 0xFE;
-			rtl_write_byte(rtlpriv, REG_MAC_PINMUX_CFG, val);
-		} else {
-			rtl_write_byte(rtlpriv, REG_LEDCFG2, val);
-		}
+			rtl_write_byte(rtlpriv, REG_MAC_PINMUX_CFG,
+				       (ledcfg & 0xFE));
+		} else
+			rtl_write_byte(rtlpriv, REG_LEDCFG2,
+				       (ledcfg | BIT(3) | BIT(5) | BIT(6)));
 		break;
 	case LED_PIN_LED1:
 		ledcfg = rtl_read_byte(rtlpriv, REG_LEDCFG1);
@@ -100,8 +99,8 @@ void rtl88ee_sw_led_off(struct ieee80211_hw *hw, struct rtl_led *pled)
 		rtl_write_byte(rtlpriv, REG_LEDCFG1, (ledcfg | BIT(3)));
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case not processed\n");
+		RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
+			 "switch case not process\n");
 		break;
 	}
 	pled->ledon = false;
@@ -110,17 +109,15 @@ void rtl88ee_sw_led_off(struct ieee80211_hw *hw, struct rtl_led *pled)
 void rtl88ee_init_sw_leds(struct ieee80211_hw *hw)
 {
 	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
-
-	rtl88ee_init_led(hw, &(pcipriv->ledctl.sw_led0), LED_PIN_LED0);
-	rtl88ee_init_led(hw, &(pcipriv->ledctl.sw_led1), LED_PIN_LED1);
+	_rtl88ee_init_led(hw, &pcipriv->ledctl.sw_led0, LED_PIN_LED0);
+	_rtl88ee_init_led(hw, &pcipriv->ledctl.sw_led1, LED_PIN_LED1);
 }
 
-static void rtl88ee_sw_led_control(struct ieee80211_hw *hw,
+static void _rtl88ee_sw_led_control(struct ieee80211_hw *hw,
 				    enum led_ctl_mode ledaction)
 {
 	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
 	struct rtl_led *pLed0 = &(pcipriv->ledctl.sw_led0);
-
 	switch (ledaction) {
 	case LED_CTL_POWER_ON:
 	case LED_CTL_LINK:
@@ -152,6 +149,6 @@ void rtl88ee_led_control(struct ieee80211_hw *hw,
 		return;
 	}
 	RT_TRACE(rtlpriv, COMP_LED, DBG_TRACE, "ledaction %d,\n",
-		 ledaction);
-	rtl88ee_sw_led_control(hw, ledaction);
+				ledaction);
+	_rtl88ee_sw_led_control(hw, ledaction);
 }

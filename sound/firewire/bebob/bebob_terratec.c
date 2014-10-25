@@ -17,10 +17,10 @@ phase88_rack_clk_src_get(struct snd_bebob *bebob, unsigned int *id)
 	unsigned int enable_ext, enable_word;
 	int err;
 
-	err = avc_audio_get_selector(bebob->unit, 0, 0, &enable_ext);
+	err = avc_audio_get_selector(bebob->unit, 0, 9, &enable_ext);
 	if (err < 0)
 		goto end;
-	err = avc_audio_get_selector(bebob->unit, 0, 0, &enable_word);
+	err = avc_audio_get_selector(bebob->unit, 0, 8, &enable_word);
 	if (err < 0)
 		goto end;
 

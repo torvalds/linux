@@ -545,12 +545,13 @@ static void delete_empty_dnode(struct inode *i, dnode_secno dno)
 			struct dnode *d1;
 			struct quad_buffer_head qbh1;
 			if (hpfs_sb(i->i_sb)->sb_chk)
-			    if (up != i->i_ino) {
-				hpfs_error(i->i_sb,
-					"bad pointer to fnode, dnode %08x, pointing to %08x, should be %08lx",
-					dno, up, (unsigned long)i->i_ino);
-				return;
-			    }
+				if (up != i->i_ino) {
+					hpfs_error(i->i_sb,
+						   "bad pointer to fnode, dnode %08x, pointing to %08x, should be %08lx",
+						   dno, up,
+						   (unsigned long)i->i_ino);
+					return;
+				}
 			if ((d1 = hpfs_map_dnode(i->i_sb, down, &qbh1))) {
 				d1->up = cpu_to_le32(up);
 				d1->root_dnode = 1;
@@ -1061,8 +1062,8 @@ struct hpfs_dirent *map_fnode_dirent(struct super_block *s, fnode_secno fno,
 		hpfs_brelse4(qbh);
 		if (hpfs_sb(s)->sb_chk)
 			if (hpfs_stop_cycles(s, dno, &c1, &c2, "map_fnode_dirent #1")) {
-			kfree(name2);
-			return NULL;
+				kfree(name2);
+				return NULL;
 		}
 		goto go_down;
 	}

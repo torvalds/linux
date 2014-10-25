@@ -241,6 +241,9 @@ typedef struct SISLANDS_SMC_STATETABLE SISLANDS_SMC_STATETABLE;
 #define SI_SMC_SOFT_REGISTER_non_ulv_pcie_link_width  0xF4
 #define SI_SMC_SOFT_REGISTER_tdr_is_about_to_happen   0xFC
 #define SI_SMC_SOFT_REGISTER_vr_hot_gpio              0x100
+#define SI_SMC_SOFT_REGISTER_svi_rework_plat_type     0x118
+#define SI_SMC_SOFT_REGISTER_svi_rework_gpio_id_svd   0x11c
+#define SI_SMC_SOFT_REGISTER_svi_rework_gpio_id_svc   0x120
 
 #define SMC_SISLANDS_LKGE_LUT_NUM_OF_TEMP_ENTRIES 16
 #define SMC_SISLANDS_LKGE_LUT_NUM_OF_VOLT_ENTRIES 32

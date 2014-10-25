@@ -17,6 +17,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <drm/drm_edid.h>
+
 #include "omap_drv.h"
 
 #include "drm_crtc.h"
@@ -89,6 +91,31 @@ static void omap_encoder_mode_set(struct drm_encoder *encoder,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
 {
+	struct drm_device *dev = encoder->dev;
+	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
+	struct omap_dss_device *dssdev = omap_encoder->dssdev;
+	struct drm_connector *connector;
+	bool hdmi_mode;
+	int r;
+
+	hdmi_mode = false;
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		if (connector->encoder == encoder) {
+			hdmi_mode = omap_connector_get_hdmi_mode(connector);
+			break;
+		}
+	}
+
+	if (dssdev->driver->set_hdmi_mode)
+		dssdev->driver->set_hdmi_mode(dssdev, hdmi_mode);
+
+	if (hdmi_mode && dssdev->driver->set_hdmi_infoframe) {
+		struct hdmi_avi_infoframe avi;
+
+		r = drm_hdmi_avi_infoframe_from_display_mode(&avi, adjusted_mode);
+		if (r == 0)
+			dssdev->driver->set_hdmi_infoframe(dssdev, &avi);
+	}
 }
 
 static void omap_encoder_prepare(struct drm_encoder *encoder)

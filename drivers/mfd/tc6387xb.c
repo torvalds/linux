@@ -147,11 +147,10 @@ static int tc6387xb_probe(struct platform_device *dev)
 	int irq, ret;
 
 	iomem = platform_get_resource(dev, IORESOURCE_MEM, 0);
-	if (!iomem) {
+	if (!iomem)
 		return -EINVAL;
-	}
 
-	tc6387xb = kzalloc(sizeof *tc6387xb, GFP_KERNEL);
+	tc6387xb = kzalloc(sizeof(*tc6387xb), GFP_KERNEL);
 	if (!tc6387xb)
 		return -ENOMEM;
 
@@ -189,7 +188,7 @@ static int tc6387xb_probe(struct platform_device *dev)
 	if (pdata && pdata->enable)
 		pdata->enable(dev);
 
-	printk(KERN_INFO "Toshiba tc6387xb initialised\n");
+	dev_info(&dev->dev, "Toshiba tc6387xb initialised\n");
 
 	ret = mfd_add_devices(&dev->dev, dev->id, tc6387xb_cells,
 			      ARRAY_SIZE(tc6387xb_cells), iomem, irq, NULL);

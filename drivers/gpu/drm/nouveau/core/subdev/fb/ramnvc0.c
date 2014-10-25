@@ -26,7 +26,7 @@
 #include <subdev/bios/pll.h>
 #include <subdev/bios/rammap.h>
 #include <subdev/bios/timing.h>
-#include <subdev/ltcg.h>
+#include <subdev/ltc.h>
 
 #include <subdev/clock.h>
 #include <subdev/clock/pll.h>
@@ -133,6 +133,7 @@ nvc0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 	struct nouveau_bios *bios = nouveau_bios(pfb);
 	struct nvc0_ram *ram = (void *)pfb->ram;
 	struct nvc0_ramfuc *fuc = &ram->fuc;
+	struct nvbios_ramcfg cfg;
 	u8  ver, cnt, len, strap;
 	struct {
 		u32 data;
@@ -145,7 +146,7 @@ nvc0_ram_calc(struct nouveau_fb *pfb, u32 freq)
 
 	/* lookup memory config data relevant to the target frequency */
 	rammap.data = nvbios_rammapEm(bios, freq / 1000, &ver, &rammap.size,
-				     &cnt, &ramcfg.size);
+				     &cnt, &ramcfg.size, &cfg);
 	if (!rammap.data || ver != 0x10 || rammap.size < 0x0e) {
 		nv_error(pfb, "invalid/missing rammap entry\n");
 		return -EINVAL;
@@ -425,7 +426,7 @@ extern const u8 nvc0_pte_storage_type_map[256];
 void
 nvc0_ram_put(struct nouveau_fb *pfb, struct nouveau_mem **pmem)
 {
-	struct nouveau_ltcg *ltcg = nouveau_ltcg(pfb);
+	struct nouveau_ltc *ltc = nouveau_ltc(pfb);
 	struct nouveau_mem *mem = *pmem;
 
 	*pmem = NULL;
@@ -434,7 +435,7 @@ nvc0_ram_put(struct nouveau_fb *pfb, struct nouveau_mem **pmem)
 
 	mutex_lock(&pfb->base.mutex);
 	if (mem->tag)
-		ltcg->tags_free(ltcg, &mem->tag);
+		ltc->tags_free(ltc, &mem->tag);
 	__nv50_ram_put(pfb, mem);
 	mutex_unlock(&pfb->base.mutex);
 
@@ -468,12 +469,12 @@ nvc0_ram_get(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
 
 	mutex_lock(&pfb->base.mutex);
 	if (comp) {
-		struct nouveau_ltcg *ltcg = nouveau_ltcg(pfb);
+		struct nouveau_ltc *ltc = nouveau_ltc(pfb);
 
 		/* compression only works with lpages */
 		if (align == (1 << (17 - 12))) {
 			int n = size >> 5;
-			ltcg->tags_alloc(ltcg, n, &mem->tag);
+			ltc->tags_alloc(ltc, n, &mem->tag);
 		}
 
 		if (unlikely(!mem->tag))
@@ -483,9 +484,9 @@ nvc0_ram_get(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
 
 	do {
 		if (back)
-			ret = nouveau_mm_tail(mm, 1, size, ncmin, align, &r);
+			ret = nouveau_mm_tail(mm, 0, 1, size, ncmin, align, &r);
 		else
-			ret = nouveau_mm_head(mm, 1, size, ncmin, align, &r);
+			ret = nouveau_mm_head(mm, 0, 1, size, ncmin, align, &r);
 		if (ret) {
 			mutex_unlock(&pfb->base.mutex);
 			pfb->ram->put(pfb, &mem);
@@ -554,15 +555,15 @@ nvc0_ram_create_(struct nouveau_object *parent, struct nouveau_object *engine,
 	} else {
 		/* otherwise, address lowest common amount from 0GiB */
 		ret = nouveau_mm_init(&pfb->vram, rsvd_head,
-				      (bsize << 8) * parts, 1);
+				      (bsize << 8) * parts - rsvd_head, 1);
 		if (ret)
 			return ret;
 
 		/* and the rest starting from (8GiB + common_size) */
 		offset = (0x0200000000ULL >> 12) + (bsize << 8);
-		length = (ram->size >> 12) - (bsize << 8) - rsvd_tail;
+		length = (ram->size >> 12) - ((bsize * parts) << 8) - rsvd_tail;
 
-		ret = nouveau_mm_init(&pfb->vram, offset, length, 0);
+		ret = nouveau_mm_init(&pfb->vram, offset, length, 1);
 		if (ret)
 			nouveau_mm_fini(&pfb->vram);
 	}

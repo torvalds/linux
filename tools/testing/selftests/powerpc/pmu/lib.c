@@ -5,10 +5,15 @@
 
 #define _GNU_SOURCE	/* For CPU_ZERO etc. */
 
+#include <elf.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <link.h>
 #include <sched.h>
 #include <setjmp.h>
 #include <stdlib.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 
 #include "utils.h"
@@ -177,8 +182,8 @@ struct addr_range libc, vdso;
 
 int parse_proc_maps(void)
 {
+	unsigned long start, end;
 	char execute, name[128];
-	uint64_t start, end;
 	FILE *f;
 	int rc;
 
@@ -249,4 +254,47 @@ out_close:
 	fclose(f);
 out:
 	return rc;
+}
+
+static char auxv[4096];
+
+void *get_auxv_entry(int type)
+{
+	ElfW(auxv_t) *p;
+	void *result;
+	ssize_t num;
+	int fd;
+
+	fd = open("/proc/self/auxv", O_RDONLY);
+	if (fd == -1) {
+		perror("open");
+		return NULL;
+	}
+
+	result = NULL;
+
+	num = read(fd, auxv, sizeof(auxv));
+	if (num < 0) {
+		perror("read");
+		goto out;
+	}
+
+	if (num > sizeof(auxv)) {
+		printf("Overflowed auxv buffer\n");
+		goto out;
+	}
+
+	p = (ElfW(auxv_t) *)auxv;
+
+	while (p->a_type != AT_NULL) {
+		if (p->a_type == type) {
+			result = (void *)p->a_un.a_val;
+			break;
+		}
+
+		p++;
+	}
+out:
+	close(fd);
+	return result;
 }

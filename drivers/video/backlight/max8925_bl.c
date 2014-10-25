@@ -197,7 +197,6 @@ static int max8925_backlight_probe(struct platform_device *pdev)
 static struct platform_driver max8925_backlight_driver = {
 	.driver		= {
 		.name	= "max8925-backlight",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= max8925_backlight_probe,
 };

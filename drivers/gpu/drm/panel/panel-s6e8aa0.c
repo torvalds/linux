@@ -120,7 +120,10 @@ struct s6e8aa0 {
 	int error;
 };
 
-#define panel_to_s6e8aa0(p) container_of(p, struct s6e8aa0, panel)
+static inline struct s6e8aa0 *panel_to_s6e8aa0(struct drm_panel *panel)
+{
+	return container_of(panel, struct s6e8aa0, panel);
+}
 
 static int s6e8aa0_clear_error(struct s6e8aa0 *ctx)
 {
@@ -133,14 +136,14 @@ static int s6e8aa0_clear_error(struct s6e8aa0 *ctx)
 static void s6e8aa0_dcs_write(struct s6e8aa0 *ctx, const void *data, size_t len)
 {
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
-	int ret;
+	ssize_t ret;
 
 	if (ctx->error < 0)
 		return;
 
-	ret = mipi_dsi_dcs_write(dsi, dsi->channel, data, len);
+	ret = mipi_dsi_dcs_write(dsi, data, len);
 	if (ret < 0) {
-		dev_err(ctx->dev, "error %d writing dcs seq: %*ph\n", ret, len,
+		dev_err(ctx->dev, "error %zd writing dcs seq: %*ph\n", ret, len,
 			data);
 		ctx->error = ret;
 	}
@@ -154,7 +157,7 @@ static int s6e8aa0_dcs_read(struct s6e8aa0 *ctx, u8 cmd, void *data, size_t len)
 	if (ctx->error < 0)
 		return ctx->error;
 
-	ret = mipi_dsi_dcs_read(dsi, dsi->channel, cmd, data, len);
+	ret = mipi_dsi_dcs_read(dsi, cmd, data, len);
 	if (ret < 0) {
 		dev_err(ctx->dev, "error %d reading dcs seq(%#x)\n", ret, cmd);
 		ctx->error = ret;
@@ -889,6 +892,11 @@ static int s6e8aa0_power_off(struct s6e8aa0 *ctx)
 
 static int s6e8aa0_disable(struct drm_panel *panel)
 {
+	return 0;
+}
+
+static int s6e8aa0_unprepare(struct drm_panel *panel)
+{
 	struct s6e8aa0 *ctx = panel_to_s6e8aa0(panel);
 
 	s6e8aa0_dcs_write_seq_static(ctx, MIPI_DCS_ENTER_SLEEP_MODE);
@@ -900,7 +908,7 @@ static int s6e8aa0_disable(struct drm_panel *panel)
 	return s6e8aa0_power_off(ctx);
 }
 
-static int s6e8aa0_enable(struct drm_panel *panel)
+static int s6e8aa0_prepare(struct drm_panel *panel)
 {
 	struct s6e8aa0 *ctx = panel_to_s6e8aa0(panel);
 	int ret;
@@ -913,9 +921,14 @@ static int s6e8aa0_enable(struct drm_panel *panel)
 	ret = ctx->error;
 
 	if (ret < 0)
-		s6e8aa0_disable(panel);
+		s6e8aa0_unprepare(panel);
 
 	return ret;
+}
+
+static int s6e8aa0_enable(struct drm_panel *panel)
+{
+	return 0;
 }
 
 static int s6e8aa0_get_modes(struct drm_panel *panel)
@@ -944,6 +957,8 @@ static int s6e8aa0_get_modes(struct drm_panel *panel)
 
 static const struct drm_panel_funcs s6e8aa0_drm_funcs = {
 	.disable = s6e8aa0_disable,
+	.unprepare = s6e8aa0_unprepare,
+	.prepare = s6e8aa0_prepare,
 	.enable = s6e8aa0_enable,
 	.get_modes = s6e8aa0_get_modes,
 };

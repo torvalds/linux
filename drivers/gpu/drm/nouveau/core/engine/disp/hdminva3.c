@@ -22,17 +22,38 @@
  * Authors: Ben Skeggs
  */
 
-#include <core/os.h>
-#include <core/class.h>
+#include <core/client.h>
+#include <nvif/unpack.h>
+#include <nvif/class.h>
 
 #include "nv50.h"
 
 int
-nva3_hdmi_ctrl(struct nv50_disp_priv *priv, int head, int or, u32 data)
+nva3_hdmi_ctrl(NV50_DISP_MTHD_V1)
 {
-	const u32 soff = (or * 0x800);
+	const u32 soff = outp->or * 0x800;
+	union {
+		struct nv50_disp_sor_hdmi_pwr_v0 v0;
+	} *args = data;
+	u32 ctrl;
+	int ret;
 
-	if (!(data & NV84_DISP_SOR_HDMI_PWR_STATE_ON)) {
+	nv_ioctl(object, "disp sor hdmi ctrl size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nv_ioctl(object, "disp sor hdmi ctrl vers %d state %d "
+				 "max_ac_packet %d rekey %d\n",
+			 args->v0.version, args->v0.state,
+			 args->v0.max_ac_packet, args->v0.rekey);
+		if (args->v0.max_ac_packet > 0x1f || args->v0.rekey > 0x7f)
+			return -EINVAL;
+		ctrl  = 0x40000000 * !!args->v0.state;
+		ctrl |= args->v0.max_ac_packet << 16;
+		ctrl |= args->v0.rekey;
+		ctrl |= 0x1f000000; /* ??? */
+	} else
+		return ret;
+
+	if (!(ctrl & 0x40000000)) {
 		nv_mask(priv, 0x61c5a4 + soff, 0x40000000, 0x00000000);
 		nv_mask(priv, 0x61c520 + soff, 0x00000001, 0x00000000);
 		nv_mask(priv, 0x61c500 + soff, 0x00000001, 0x00000000);
@@ -65,6 +86,6 @@ nva3_hdmi_ctrl(struct nv50_disp_priv *priv, int head, int or, u32 data)
 	nv_mask(priv, 0x61733c, 0x00100000, 0x00000000); /* !RESETF */
 
 	/* HDMI_CTRL */
-	nv_mask(priv, 0x61c5a4 + soff, 0x5f1f007f, data | 0x1f000000 /* ??? */);
+	nv_mask(priv, 0x61c5a4 + soff, 0x5f1f007f, ctrl);
 	return 0;
 }

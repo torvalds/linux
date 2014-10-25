@@ -593,8 +593,11 @@ static void rds_send_remove_from_sock(struct list_head *messages, int status)
 				sock_put(rds_rs_to_sk(rs));
 			}
 			rs = rm->m_rs;
-			sock_hold(rds_rs_to_sk(rs));
+			if (rs)
+				sock_hold(rds_rs_to_sk(rs));
 		}
+		if (!rs)
+			goto unlock_and_drop;
 		spin_lock(&rs->rs_lock);
 
 		if (test_and_clear_bit(RDS_MSG_ON_SOCK, &rm->m_flags)) {
@@ -638,9 +641,6 @@ unlock_and_drop:
  * queue. This means that in the TCP case, the message may not have been
  * assigned the m_ack_seq yet - but that's fine as long as tcp_is_acked
  * checks the RDS_MSG_HAS_ACK_SEQ bit.
- *
- * XXX It's not clear to me how this is safely serialized with socket
- * destruction.  Maybe it should bail if it sees SOCK_DEAD.
  */
 void rds_send_drop_acked(struct rds_connection *conn, u64 ack,
 			 is_acked_func is_acked)
@@ -711,6 +711,9 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 		 */
 		if (!test_and_clear_bit(RDS_MSG_ON_CONN, &rm->m_flags)) {
 			spin_unlock_irqrestore(&conn->c_lock, flags);
+			spin_lock_irqsave(&rm->m_rs_lock, flags);
+			rm->m_rs = NULL;
+			spin_unlock_irqrestore(&rm->m_rs_lock, flags);
 			continue;
 		}
 		list_del_init(&rm->m_conn_item);

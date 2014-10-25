@@ -68,6 +68,10 @@
 	};
 };
 
+&mmc0 {
+	cd-gpios = <&gpio1 18 0>;
+};
+
 &usb1 {
 	status = "okay";
 };

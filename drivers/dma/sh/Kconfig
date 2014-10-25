@@ -2,20 +2,38 @@
 # DMA engine configuration for sh
 #
 
+#
+# DMA Engine Helpers
+#
+
 config SH_DMAE_BASE
 	bool "Renesas SuperH DMA Engine support"
-	depends on (SUPERH && SH_DMA) || ARCH_SHMOBILE || COMPILE_TEST
+	depends on SUPERH || ARCH_SHMOBILE || COMPILE_TEST
+	depends on !SUPERH || SH_DMA
 	depends on !SH_DMA_API
 	default y
 	select DMA_ENGINE
 	help
 	  Enable support for the Renesas SuperH DMA controllers.
 
+#
+# DMA Controllers
+#
+
 config SH_DMAE
 	tristate "Renesas SuperH DMAC support"
 	depends on SH_DMAE_BASE
 	help
 	  Enable support for the Renesas SuperH DMA controllers.
+
+if SH_DMAE
+
+config SH_DMAE_R8A73A4
+	def_bool y
+	depends on ARCH_R8A73A4
+	depends on OF
+
+endif
 
 config SUDMAC
 	tristate "Renesas SUDMAC support"
@@ -34,7 +52,3 @@ config RCAR_AUDMAC_PP
 	depends on SH_DMAE_BASE
 	help
 	  Enable support for the Renesas R-Car Audio DMAC Peripheral Peripheral controllers.
-
-config SHDMA_R8A73A4
-	def_bool y
-	depends on ARCH_R8A73A4 && SH_DMAE != n

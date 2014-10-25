@@ -166,6 +166,7 @@ struct slave_connector {
 static void slave_connector_destroy(struct drm_connector *connector)
 {
 	struct slave_connector *slave_connector = to_slave_connector(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(slave_connector);
 }
@@ -261,7 +262,7 @@ static struct drm_connector *slave_connector_create(struct drm_device *dev,
 	if (ret)
 		goto fail;
 
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 
 	return connector;
 
@@ -295,17 +296,8 @@ static int slave_modeset_init(struct tilcdc_module *mod, struct drm_device *dev)
 	return 0;
 }
 
-static void slave_destroy(struct tilcdc_module *mod)
-{
-	struct slave_module *slave_mod = to_slave_module(mod);
-
-	tilcdc_module_cleanup(mod);
-	kfree(slave_mod);
-}
-
 static const struct tilcdc_module_ops slave_module_ops = {
 		.modeset_init = slave_modeset_init,
-		.destroy = slave_destroy,
 };
 
 /*
@@ -355,10 +347,13 @@ static int slave_probe(struct platform_device *pdev)
 	}
 
 	slave_mod = kzalloc(sizeof(*slave_mod), GFP_KERNEL);
-	if (!slave_mod)
-		return -ENOMEM;
+	if (!slave_mod) {
+		ret = -ENOMEM;
+		goto fail_adapter;
+	}
 
 	mod = &slave_mod->base;
+	pdev->dev.platform_data = mod;
 
 	mod->preferred_bpp = slave_info.bpp;
 
@@ -373,10 +368,20 @@ static int slave_probe(struct platform_device *pdev)
 	tilcdc_slave_probedefer(false);
 
 	return 0;
+
+fail_adapter:
+	i2c_put_adapter(slavei2c);
+	return ret;
 }
 
 static int slave_remove(struct platform_device *pdev)
 {
+	struct tilcdc_module *mod = dev_get_platdata(&pdev->dev);
+	struct slave_module *slave_mod = to_slave_module(mod);
+
+	tilcdc_module_cleanup(mod);
+	kfree(slave_mod);
+
 	return 0;
 }
 

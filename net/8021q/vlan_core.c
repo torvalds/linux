@@ -112,59 +112,6 @@ __be16 vlan_dev_vlan_proto(const struct net_device *dev)
 }
 EXPORT_SYMBOL(vlan_dev_vlan_proto);
 
-static struct sk_buff *vlan_reorder_header(struct sk_buff *skb)
-{
-	if (skb_cow(skb, skb_headroom(skb)) < 0) {
-		kfree_skb(skb);
-		return NULL;
-	}
-
-	memmove(skb->data - ETH_HLEN, skb->data - VLAN_ETH_HLEN, 2 * ETH_ALEN);
-	skb->mac_header += VLAN_HLEN;
-	return skb;
-}
-
-struct sk_buff *vlan_untag(struct sk_buff *skb)
-{
-	struct vlan_hdr *vhdr;
-	u16 vlan_tci;
-
-	if (unlikely(vlan_tx_tag_present(skb))) {
-		/* vlan_tci is already set-up so leave this for another time */
-		return skb;
-	}
-
-	skb = skb_share_check(skb, GFP_ATOMIC);
-	if (unlikely(!skb))
-		goto err_free;
-
-	if (unlikely(!pskb_may_pull(skb, VLAN_HLEN)))
-		goto err_free;
-
-	vhdr = (struct vlan_hdr *) skb->data;
-	vlan_tci = ntohs(vhdr->h_vlan_TCI);
-	__vlan_hwaccel_put_tag(skb, skb->protocol, vlan_tci);
-
-	skb_pull_rcsum(skb, VLAN_HLEN);
-	vlan_set_encap_proto(skb, vhdr);
-
-	skb = vlan_reorder_header(skb);
-	if (unlikely(!skb))
-		goto err_free;
-
-	skb_reset_network_header(skb);
-	skb_reset_transport_header(skb);
-	skb_reset_mac_len(skb);
-
-	return skb;
-
-err_free:
-	kfree_skb(skb);
-	return NULL;
-}
-EXPORT_SYMBOL(vlan_untag);
-
-
 /*
  * vlan info and vid list
  */

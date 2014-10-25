@@ -371,7 +371,7 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 	encoder->possible_crtcs = (1 << unit);
 	encoder->possible_clones = 0;
 
-	(void) drm_sysfs_connector_add(connector);
+	(void) drm_connector_register(connector);
 
 	drm_crtc_init(dev, crtc, &vmw_legacy_crtc_funcs);
 

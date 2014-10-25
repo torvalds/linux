@@ -91,6 +91,7 @@ EXPORT_SYMBOL(clk_put);
 
 int clk_set_rate(struct clk *clk, unsigned long rate)
 {
+	unsigned int rate_khz = rate / 1000;
 	struct cpufreq_frequency_table *pos;
 	int ret = 0;
 	int regval;
@@ -107,16 +108,16 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 		propagate_rate(clk);
 
 	cpufreq_for_each_valid_entry(pos, loongson2_clockmod_table)
-		if (rate == pos->frequency)
+		if (rate_khz == pos->frequency)
 			break;
-	if (rate != pos->frequency)
+	if (rate_khz != pos->frequency)
 		return -ENOTSUPP;
 
 	clk->rate = rate;
 
-	regval = LOONGSON_CHIPCFG0;
+	regval = LOONGSON_CHIPCFG(0);
 	regval = (regval & ~0x7) | (pos->driver_data - 1);
-	LOONGSON_CHIPCFG0 = regval;
+	LOONGSON_CHIPCFG(0) = regval;
 
 	return ret;
 }

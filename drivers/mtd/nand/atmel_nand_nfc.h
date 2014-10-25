@@ -37,6 +37,10 @@
 #define ATMEL_HSMC_NFC_SR	0x08		/* NFC Status Register */
 #define		NFC_SR_XFR_DONE		(1 << 16)
 #define		NFC_SR_CMD_DONE		(1 << 17)
+#define		NFC_SR_DTOE		(1 << 20)
+#define		NFC_SR_UNDEF		(1 << 21)
+#define		NFC_SR_AWB		(1 << 22)
+#define		NFC_SR_ASE		(1 << 23)
 #define		NFC_SR_RB_EDGE		(1 << 24)
 
 #define ATMEL_HSMC_NFC_IER	0x0c

@@ -17,7 +17,7 @@ static char off_buf[80];
 static char *reiserfs_cpu_offset(struct cpu_key *key)
 {
 	if (cpu_key_k_type(key) == TYPE_DIRENTRY)
-		sprintf(off_buf, "%Lu(%Lu)",
+		sprintf(off_buf, "%llu(%llu)",
 			(unsigned long long)
 			GET_HASH_VALUE(cpu_key_k_offset(key)),
 			(unsigned long long)
@@ -34,7 +34,7 @@ static char *le_offset(struct reiserfs_key *key)
 
 	version = le_key_version(key);
 	if (le_key_k_type(version, key) == TYPE_DIRENTRY)
-		sprintf(off_buf, "%Lu(%Lu)",
+		sprintf(off_buf, "%llu(%llu)",
 			(unsigned long long)
 			GET_HASH_VALUE(le_key_k_offset(version, key)),
 			(unsigned long long)

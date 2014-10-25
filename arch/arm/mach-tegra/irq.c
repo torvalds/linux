@@ -17,14 +17,14 @@
  *
  */
 
-#include <linux/kernel.h>
 #include <linux/cpu_pm.h>
 #include <linux/interrupt.h>
-#include <linux/irq.h>
 #include <linux/io.h>
-#include <linux/of.h>
-#include <linux/of_address.h>
 #include <linux/irqchip/arm-gic.h>
+#include <linux/irq.h>
+#include <linux/kernel.h>
+#include <linux/of_address.h>
+#include <linux/of.h>
 #include <linux/syscore_ops.h>
 
 #include "board.h"

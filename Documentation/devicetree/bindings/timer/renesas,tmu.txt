@@ -8,7 +8,10 @@ are independent. The TMU hardware supports up to three channels.
 
 Required Properties:
 
-  - compatible: must contain "renesas,tmu"
+  - compatible: must contain one or more of the following:
+    - "renesas,tmu-r8a7779" for the r8a7779 TMU
+    - "renesas,tmu" for any TMU.
+      This is a fallback for the above renesas,tmu-* entries
 
   - reg: base address and length of the registers block for the timer module.
 
@@ -27,7 +30,7 @@ Optional Properties:
 Example: R8A7779 (R-Car H1) TMU0 node
 
 	tmu0: timer@ffd80000 {
-		compatible = "renesas,tmu";
+		compatible = "renesas,tmu-r8a7779", "renesas,tmu";
 		reg = <0xffd80000 0x30>;
 		interrupts = <0 32 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 33 IRQ_TYPE_LEVEL_HIGH>,

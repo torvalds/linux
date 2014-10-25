@@ -116,6 +116,8 @@ struct intel_dsi {
 	u16 clk_hs_to_lp_count;
 
 	u16 init_count;
+	u32 pclk;
+	u16 burst_mode_ratio;
 
 	/* all delays in ms */
 	u16 backlight_off_delay;
@@ -132,6 +134,7 @@ static inline struct intel_dsi *enc_to_intel_dsi(struct drm_encoder *encoder)
 
 extern void vlv_enable_dsi_pll(struct intel_encoder *encoder);
 extern void vlv_disable_dsi_pll(struct intel_encoder *encoder);
+extern u32 vlv_get_dsi_pclk(struct intel_encoder *encoder, int pipe_bpp);
 
 extern struct intel_dsi_dev_ops vbt_generic_dsi_display_ops;
 

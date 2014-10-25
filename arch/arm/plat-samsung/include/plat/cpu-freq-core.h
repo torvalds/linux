@@ -140,7 +140,6 @@ struct s3c_cpufreq_config {
  *	any frequency changes. This is really only need by devices like the
  *	S3C2410 where there is no or limited divider between the PLL and the
  *	ARMCLK.
- * @resume_clocks: Update the clocks on resume.
  * @get_iotiming: Get the current IO timing data, mainly for use at start.
  * @set_iotiming: Update the IO timings from the cached copies calculated
  *	from the @calc_iotiming entry when changing the frequency.
@@ -168,8 +167,6 @@ struct s3c_cpufreq_info {
 	unsigned int		need_pll:1;
 
 	/* driver routines */
-
-	void		(*resume_clocks)(void);
 
 	int		(*get_iotiming)(struct s3c_cpufreq_config *cfg,
 					struct s3c_iotimings *timings);

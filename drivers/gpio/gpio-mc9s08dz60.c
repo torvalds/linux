@@ -118,7 +118,8 @@ static int mc9s08dz60_remove(struct i2c_client *client)
 
 	mc9s = i2c_get_clientdata(client);
 
-	return gpiochip_remove(&mc9s->chip);
+	gpiochip_remove(&mc9s->chip);
+	return 0;
 }
 
 static const struct i2c_device_id mc9s08dz60_id[] = {

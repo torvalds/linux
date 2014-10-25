@@ -352,26 +352,12 @@ static inline void rt_genid_bump_ipv4(struct net *net)
 	atomic_inc(&net->ipv4.rt_genid);
 }
 
-#if IS_ENABLED(CONFIG_IPV6)
-static inline int rt_genid_ipv6(struct net *net)
-{
-	return atomic_read(&net->ipv6.rt_genid);
-}
-
+extern void (*__fib6_flush_trees)(struct net *net);
 static inline void rt_genid_bump_ipv6(struct net *net)
 {
-	atomic_inc(&net->ipv6.rt_genid);
+	if (__fib6_flush_trees)
+		__fib6_flush_trees(net);
 }
-#else
-static inline int rt_genid_ipv6(struct net *net)
-{
-	return 0;
-}
-
-static inline void rt_genid_bump_ipv6(struct net *net)
-{
-}
-#endif
 
 #if IS_ENABLED(CONFIG_IEEE802154_6LOWPAN)
 static inline struct netns_ieee802154_lowpan *

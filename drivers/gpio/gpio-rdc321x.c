@@ -199,14 +199,11 @@ static int rdc321x_gpio_probe(struct platform_device *pdev)
 
 static int rdc321x_gpio_remove(struct platform_device *pdev)
 {
-	int ret;
 	struct rdc321x_gpio *rdc321x_gpio_dev = platform_get_drvdata(pdev);
 
-	ret = gpiochip_remove(&rdc321x_gpio_dev->chip);
-	if (ret)
-		dev_err(&pdev->dev, "failed to unregister chip\n");
+	gpiochip_remove(&rdc321x_gpio_dev->chip);
 
-	return ret;
+	return 0;
 }
 
 static struct platform_driver rdc321x_gpio_driver = {

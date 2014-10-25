@@ -21,6 +21,7 @@
 #include <linux/rcupdate.h>
 #include <linux/pid_namespace.h>
 #include <linux/user_namespace.h>
+#include <linux/shmem_fs.h>
 
 #include <asm/poll.h>
 #include <asm/siginfo.h>
@@ -97,26 +98,19 @@ static void f_modown(struct file *filp, struct pid *pid, enum pid_type type,
 	write_unlock_irq(&filp->f_owner.lock);
 }
 
-int __f_setown(struct file *filp, struct pid *pid, enum pid_type type,
+void __f_setown(struct file *filp, struct pid *pid, enum pid_type type,
 		int force)
 {
-	int err;
-
-	err = security_file_set_fowner(filp);
-	if (err)
-		return err;
-
+	security_file_set_fowner(filp);
 	f_modown(filp, pid, type, force);
-	return 0;
 }
 EXPORT_SYMBOL(__f_setown);
 
-int f_setown(struct file *filp, unsigned long arg, int force)
+void f_setown(struct file *filp, unsigned long arg, int force)
 {
 	enum pid_type type;
 	struct pid *pid;
 	int who = arg;
-	int result;
 	type = PIDTYPE_PID;
 	if (who < 0) {
 		type = PIDTYPE_PGID;
@@ -124,9 +118,8 @@ int f_setown(struct file *filp, unsigned long arg, int force)
 	}
 	rcu_read_lock();
 	pid = find_vpid(who);
-	result = __f_setown(filp, pid, type, force);
+	__f_setown(filp, pid, type, force);
 	rcu_read_unlock();
-	return result;
 }
 EXPORT_SYMBOL(f_setown);
 
@@ -180,7 +173,7 @@ static int f_setown_ex(struct file *filp, unsigned long arg)
 	if (owner.pid && !pid)
 		ret = -ESRCH;
 	else
-		ret = __f_setown(filp, pid, type, 1);
+		 __f_setown(filp, pid, type, 1);
 	rcu_read_unlock();
 
 	return ret;
@@ -301,7 +294,8 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		force_successful_syscall_return();
 		break;
 	case F_SETOWN:
-		err = f_setown(filp, arg, 1);
+		f_setown(filp, arg, 1);
+		err = 0;
 		break;
 	case F_GETOWN_EX:
 		err = f_getown_ex(filp, arg);
@@ -335,6 +329,10 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 	case F_SETPIPE_SZ:
 	case F_GETPIPE_SZ:
 		err = pipe_fcntl(filp, cmd, arg);
+		break;
+	case F_ADD_SEALS:
+	case F_GET_SEALS:
+		err = shmem_fcntl(filp, cmd, arg);
 		break;
 	default:
 		break;

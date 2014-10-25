@@ -234,8 +234,6 @@ static irqreturn_t vm_interrupt(int irq, void *opaque)
 {
 	struct virtio_mmio_device *vm_dev = opaque;
 	struct virtio_mmio_vq_info *info;
-	struct virtio_driver *vdrv = container_of(vm_dev->vdev.dev.driver,
-			struct virtio_driver, driver);
 	unsigned long status;
 	unsigned long flags;
 	irqreturn_t ret = IRQ_NONE;
@@ -244,9 +242,8 @@ static irqreturn_t vm_interrupt(int irq, void *opaque)
 	status = readl(vm_dev->base + VIRTIO_MMIO_INTERRUPT_STATUS);
 	writel(status, vm_dev->base + VIRTIO_MMIO_INTERRUPT_ACK);
 
-	if (unlikely(status & VIRTIO_MMIO_INT_CONFIG)
-			&& vdrv && vdrv->config_changed) {
-		vdrv->config_changed(&vm_dev->vdev);
+	if (unlikely(status & VIRTIO_MMIO_INT_CONFIG)) {
+		virtio_config_changed(&vm_dev->vdev);
 		ret = IRQ_HANDLED;
 	}
 

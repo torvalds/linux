@@ -222,10 +222,12 @@ static void dbgp_unbind(struct usb_gadget *gadget)
 {
 #ifdef CONFIG_USB_G_DBGP_SERIAL
 	kfree(dbgp.serial);
+	dbgp.serial = NULL;
 #endif
 	if (dbgp.req) {
 		kfree(dbgp.req->buf);
 		usb_ep_free_request(gadget->ep0, dbgp.req);
+		dbgp.req = NULL;
 	}
 
 	gadget->ep0->driver_data = NULL;
@@ -408,6 +410,7 @@ static __refdata struct usb_gadget_driver dbgp_driver = {
 	.bind = dbgp_bind,
 	.unbind = dbgp_unbind,
 	.setup = dbgp_setup,
+	.reset = dbgp_disconnect,
 	.disconnect = dbgp_disconnect,
 	.driver	= {
 		.owner = THIS_MODULE,

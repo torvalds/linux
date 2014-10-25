@@ -276,6 +276,22 @@ struct ib_uverbs_reg_mr_resp {
 	__u32 rkey;
 };
 
+struct ib_uverbs_rereg_mr {
+	__u64 response;
+	__u32 mr_handle;
+	__u32 flags;
+	__u64 start;
+	__u64 length;
+	__u64 hca_va;
+	__u32 pd_handle;
+	__u32 access_flags;
+};
+
+struct ib_uverbs_rereg_mr_resp {
+	__u32 lkey;
+	__u32 rkey;
+};
+
 struct ib_uverbs_dereg_mr {
 	__u32 mr_handle;
 };

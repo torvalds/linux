@@ -43,7 +43,7 @@ static void __udelay_disabled(unsigned long long usecs)
 	lockdep_off();
 	do {
 		set_clock_comparator(end);
-		vtime_stop_cpu();
+		enabled_wait();
 	} while (get_tod_clock_fast() < end);
 	lockdep_on();
 	__ctl_load(cr0, 0, 0);
@@ -62,7 +62,7 @@ static void __udelay_enabled(unsigned long long usecs)
 			clock_saved = local_tick_disable();
 			set_clock_comparator(end);
 		}
-		vtime_stop_cpu();
+		enabled_wait();
 		if (clock_saved)
 			local_tick_enable(clock_saved);
 	} while (get_tod_clock_fast() < end);

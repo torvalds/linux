@@ -403,8 +403,8 @@ static void ts78xx_fpga_supports(void)
 		/* enable devices if magic matches */
 		switch ((ts78xx_fpga.id >> 8) & 0xffffff) {
 		case TS7800_FPGA_MAGIC:
-			pr_warning("unrecognised FPGA revision 0x%.2x\n",
-					ts78xx_fpga.id & 0xff);
+			pr_warn("unrecognised FPGA revision 0x%.2x\n",
+				ts78xx_fpga.id & 0xff);
 			ts78xx_fpga.supports.ts_rtc.present = 1;
 			ts78xx_fpga.supports.ts_nand.present = 1;
 			ts78xx_fpga.supports.ts_rng.present = 1;

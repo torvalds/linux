@@ -433,7 +433,7 @@ static void musb_do_idle(unsigned long _musb)
 	if (!musb->is_active) {
 		u32	wakeups;
 
-		/* wait until khubd handles port change status */
+		/* wait until hub_wq handles port change status */
 		if (is_host_active(musb) && (musb->port1_status >> 16))
 			goto done;
 

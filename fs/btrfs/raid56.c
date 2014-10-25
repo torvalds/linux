@@ -912,7 +912,7 @@ static struct page *page_in_rbio(struct btrfs_raid_bio *rbio,
 static unsigned long rbio_nr_pages(unsigned long stripe_len, int nr_stripes)
 {
 	unsigned long nr = stripe_len * nr_stripes;
-	return (nr + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+	return DIV_ROUND_UP(nr, PAGE_CACHE_SIZE);
 }
 
 /*
@@ -1416,7 +1416,8 @@ cleanup:
 
 static void async_rmw_stripe(struct btrfs_raid_bio *rbio)
 {
-	btrfs_init_work(&rbio->work, rmw_work, NULL, NULL);
+	btrfs_init_work(&rbio->work, btrfs_rmw_helper,
+			rmw_work, NULL, NULL);
 
 	btrfs_queue_work(rbio->fs_info->rmw_workers,
 			 &rbio->work);
@@ -1424,7 +1425,8 @@ static void async_rmw_stripe(struct btrfs_raid_bio *rbio)
 
 static void async_read_rebuild(struct btrfs_raid_bio *rbio)
 {
-	btrfs_init_work(&rbio->work, read_rebuild_work, NULL, NULL);
+	btrfs_init_work(&rbio->work, btrfs_rmw_helper,
+			read_rebuild_work, NULL, NULL);
 
 	btrfs_queue_work(rbio->fs_info->rmw_workers,
 			 &rbio->work);
@@ -1440,7 +1442,7 @@ static int raid56_rmw_stripe(struct btrfs_raid_bio *rbio)
 	struct btrfs_bio *bbio = rbio->bbio;
 	struct bio_list bio_list;
 	int ret;
-	int nr_pages = (rbio->stripe_len + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+	int nr_pages = DIV_ROUND_UP(rbio->stripe_len, PAGE_CACHE_SIZE);
 	int pagenr;
 	int stripe;
 	struct bio *bio;
@@ -1665,7 +1667,8 @@ static void btrfs_raid_unplug(struct blk_plug_cb *cb, bool from_schedule)
 	plug = container_of(cb, struct btrfs_plug_cb, cb);
 
 	if (from_schedule) {
-		btrfs_init_work(&plug->work, unplug_work, NULL, NULL);
+		btrfs_init_work(&plug->work, btrfs_rmw_helper,
+				unplug_work, NULL, NULL);
 		btrfs_queue_work(plug->info->rmw_workers,
 				 &plug->work);
 		return;
@@ -1722,7 +1725,7 @@ static void __raid_recover_end_io(struct btrfs_raid_bio *rbio)
 	int pagenr, stripe;
 	void **pointers;
 	int faila = -1, failb = -1;
-	int nr_pages = (rbio->stripe_len + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+	int nr_pages = DIV_ROUND_UP(rbio->stripe_len, PAGE_CACHE_SIZE);
 	struct page *page;
 	int err;
 	int i;
@@ -1937,7 +1940,7 @@ static int __raid56_parity_recover(struct btrfs_raid_bio *rbio)
 	struct btrfs_bio *bbio = rbio->bbio;
 	struct bio_list bio_list;
 	int ret;
-	int nr_pages = (rbio->stripe_len + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+	int nr_pages = DIV_ROUND_UP(rbio->stripe_len, PAGE_CACHE_SIZE);
 	int pagenr;
 	int stripe;
 	struct bio *bio;

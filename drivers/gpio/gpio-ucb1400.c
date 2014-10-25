@@ -70,7 +70,7 @@ static int ucb1400_gpio_probe(struct platform_device *dev)
 	if (err)
 		goto err;
 
-	if (ucb && ucb->gpio_setup)
+	if (ucb->gpio_setup)
 		err = ucb->gpio_setup(&dev->dev, ucb->gc.ngpio);
 
 err:
@@ -89,7 +89,7 @@ static int ucb1400_gpio_remove(struct platform_device *dev)
 			return err;
 	}
 
-	err = gpiochip_remove(&ucb->gc);
+	gpiochip_remove(&ucb->gc);
 	return err;
 }
 

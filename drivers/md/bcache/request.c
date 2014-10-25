@@ -311,7 +311,8 @@ void bch_data_insert(struct closure *cl)
 {
 	struct data_insert_op *op = container_of(cl, struct data_insert_op, cl);
 
-	trace_bcache_write(op->bio, op->writeback, op->bypass);
+	trace_bcache_write(op->c, op->inode, op->bio,
+			   op->writeback, op->bypass);
 
 	bch_keylist_init(&op->insert_keys);
 	bio_get(op->bio);

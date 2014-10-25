@@ -397,7 +397,8 @@ static irqreturn_t pmu_handle_irq(int irq_num, void *dev)
 		hw_counter = &event->hw;
 
 		/* Did this counter overflow? */
-		if (!pmu_read_register(idx, CCI_PMU_OVRFLW) & CCI_PMU_OVRFLW_FLAG)
+		if (!(pmu_read_register(idx, CCI_PMU_OVRFLW) &
+		      CCI_PMU_OVRFLW_FLAG))
 			continue;
 
 		pmu_write_register(CCI_PMU_OVRFLW_FLAG, idx, CCI_PMU_OVRFLW);

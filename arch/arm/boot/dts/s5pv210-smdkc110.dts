@@ -1,0 +1,78 @@
+/*
+ * Samsung's S5PV210 SoC device tree source
+ *
+ * Copyright (c) 2013-2014 Samsung Electronics, Co. Ltd.
+ *
+ * Mateusz Krawczuk <m.krawczuk@partner.samsung.com>
+ * Tomasz Figa <t.figa@samsung.com>
+ *
+ * Board device tree source for YIC System SMDC110 board.
+ *
+ * NOTE: This file is completely based on original board file for mach-smdkc110
+ * available in Linux 3.15 and intends to provide equivalent level of hardware
+ * support. Due to lack of hardware, _no_ testing has been performed.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/dts-v1/;
+#include <dt-bindings/input/input.h>
+#include "s5pv210.dtsi"
+
+/ {
+	model = "YIC System SMDKC110 based on S5PC110";
+	compatible = "yic,smdkc110", "samsung,s5pv210";
+
+	chosen {
+		bootargs = "console=ttySAC0,115200n8 root=/dev/mmcblk0p1 rw rootwait ignore_loglevel earlyprintk";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x20000000 0x20000000>;
+	};
+};
+
+&xusbxti {
+	clock-frequency = <24000000>;
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&uart1 {
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+};
+
+&uart3 {
+	status = "okay";
+};
+
+&rtc {
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+
+	audio-codec@1b {
+		compatible = "wlf,wm8580";
+		reg = <0x1b>;
+	};
+
+	eeprom@50 {
+		compatible = "atmel,24c08";
+		reg = <0x50>;
+	};
+};
+
+&i2s0 {
+	status = "okay";
+};

@@ -1,0 +1,53 @@
+Device tree bindings for Microchip CAP1106, 6 channel capacitive touch sensor
+
+The node for this driver must be a child of a I2C controller node, as the
+device communication via I2C only.
+
+Required properties:
+
+	compatible:		Must be "microchip,cap1106"
+
+	reg:			The I2C slave address of the device.
+				Only 0x28 is valid.
+
+	interrupts:		Property describing the interrupt line the
+				device's ALERT#/CM_IRQ# pin is connected to.
+				The device only has one interrupt source.
+
+Optional properties:
+
+	autorepeat:		Enables the Linux input system's autorepeat
+				feature on the input device.
+
+	microchip,sensor-gain:	Defines the gain of the sensor circuitry. This
+				effectively controls the sensitivity, as a
+				smaller delta capacitance is required to
+				generate the same delta count values.
+				Valid values are 1, 2, 4, and 8.
+				By default, a gain of 1 is set.
+
+	linux,keycodes:		Specifies an array of numeric keycode values to
+				be used for the channels. If this property is
+				omitted, KEY_A, KEY_B, etc are used as
+				defaults. The array must have exactly six
+				entries.
+
+Example:
+
+i2c_controller {
+	cap1106@28 {
+		compatible = "microchip,cap1106";
+		interrupt-parent = <&gpio1>;
+		interrupts = <0 0>;
+		reg = <0x28>;
+		autorepeat;
+		microchip,sensor-gain = <2>;
+
+		linux,keycodes = <103		/* KEY_UP */
+				  106		/* KEY_RIGHT */
+				  108		/* KEY_DOWN */
+				  105		/* KEY_LEFT */
+				  109		/* KEY_PAGEDOWN */
+				  104>;		/* KEY_PAGEUP */
+	};
+}

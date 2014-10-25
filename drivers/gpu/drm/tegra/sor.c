@@ -11,7 +11,8 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
-#include <linux/tegra-powergate.h>
+
+#include <soc/tegra/pmc.h>
 
 #include <drm/drm_dp_helper.h>
 
@@ -516,7 +517,7 @@ static int tegra_output_sor_enable(struct tegra_output *output)
 		if (err < 0) {
 			dev_err(sor->dev, "failed to probe eDP link: %d\n",
 				err);
-			return err;
+			goto unlock;
 		}
 	}
 
@@ -525,7 +526,7 @@ static int tegra_output_sor_enable(struct tegra_output *output)
 		dev_err(sor->dev, "failed to set safe parent clock: %d\n", err);
 
 	memset(&config, 0, sizeof(config));
-	config.bits_per_pixel = 24; /* XXX: don't hardcode? */
+	config.bits_per_pixel = output->connector.display_info.bpc * 3;
 
 	err = tegra_sor_calc_config(sor, mode, &config, &link);
 	if (err < 0)
@@ -815,11 +816,21 @@ static int tegra_output_sor_enable(struct tegra_output *output)
 	 * configure panel (24bpp, vsync-, hsync-, DP-A protocol, complete
 	 * raster, associate with display controller)
 	 */
-	value = SOR_STATE_ASY_VSYNCPOL |
-		SOR_STATE_ASY_HSYNCPOL |
-		SOR_STATE_ASY_PROTOCOL_DP_A |
+	value = SOR_STATE_ASY_PROTOCOL_DP_A |
 		SOR_STATE_ASY_CRC_MODE_COMPLETE |
 		SOR_STATE_ASY_OWNER(dc->pipe + 1);
+
+	if (mode->flags & DRM_MODE_FLAG_PHSYNC)
+		value &= ~SOR_STATE_ASY_HSYNCPOL;
+
+	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+		value |= SOR_STATE_ASY_HSYNCPOL;
+
+	if (mode->flags & DRM_MODE_FLAG_PVSYNC)
+		value &= ~SOR_STATE_ASY_VSYNCPOL;
+
+	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
+		value |= SOR_STATE_ASY_VSYNCPOL;
 
 	switch (config.bits_per_pixel) {
 	case 24:
@@ -1455,6 +1466,7 @@ static const struct of_device_id tegra_sor_of_match[] = {
 	{ .compatible = "nvidia,tegra124-sor", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, tegra_sor_of_match);
 
 struct platform_driver tegra_sor_driver = {
 	.driver = {

@@ -409,11 +409,8 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 
 int sh_pfc_unregister_gpiochip(struct sh_pfc *pfc)
 {
-	int err;
-	int ret;
+	gpiochip_remove(&pfc->gpio->gpio_chip);
+	gpiochip_remove(&pfc->func->gpio_chip);
 
-	ret = gpiochip_remove(&pfc->gpio->gpio_chip);
-	err = gpiochip_remove(&pfc->func->gpio_chip);
-
-	return ret < 0 ? ret : err;
+	return 0;
 }

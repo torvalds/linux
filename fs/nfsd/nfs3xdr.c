@@ -120,10 +120,7 @@ decode_sattr3(__be32 *p, struct iattr *iap)
 
 		iap->ia_valid |= ATTR_SIZE;
 		p = xdr_decode_hyper(p, &newsize);
-		if (newsize <= NFS_OFFSET_MAX)
-			iap->ia_size = newsize;
-		else
-			iap->ia_size = NFS_OFFSET_MAX;
+		iap->ia_size = min_t(u64, newsize, NFS_OFFSET_MAX);
 	}
 	if ((tmp = ntohl(*p++)) == 1) {	/* set to server time */
 		iap->ia_valid |= ATTR_ATIME;
@@ -338,10 +335,8 @@ nfs3svc_decode_readargs(struct svc_rqst *rqstp, __be32 *p,
 		return 0;
 	p = xdr_decode_hyper(p, &args->offset);
 
-	len = args->count = ntohl(*p++);
-
-	if (len > max_blocksize)
-		len = max_blocksize;
+	args->count = ntohl(*p++);
+	len = min(args->count, max_blocksize);
 
 	/* set up the kvec */
 	v=0;
@@ -349,7 +344,7 @@ nfs3svc_decode_readargs(struct svc_rqst *rqstp, __be32 *p,
 		struct page *p = *(rqstp->rq_next_page++);
 
 		rqstp->rq_vec[v].iov_base = page_address(p);
-		rqstp->rq_vec[v].iov_len = len < PAGE_SIZE? len : PAGE_SIZE;
+		rqstp->rq_vec[v].iov_len = min_t(unsigned int, len, PAGE_SIZE);
 		len -= rqstp->rq_vec[v].iov_len;
 		v++;
 	}
@@ -484,9 +479,7 @@ nfs3svc_decode_symlinkargs(struct svc_rqst *rqstp, __be32 *p,
 	}
 	/* now copy next page if there is one */
 	if (len && !avail && rqstp->rq_arg.page_len) {
-		avail = rqstp->rq_arg.page_len;
-		if (avail > PAGE_SIZE)
-			avail = PAGE_SIZE;
+		avail = min_t(unsigned int, rqstp->rq_arg.page_len, PAGE_SIZE);
 		old = page_address(rqstp->rq_arg.pages[0]);
 	}
 	while (len && avail && *old) {
@@ -571,10 +564,7 @@ nfs3svc_decode_readdirargs(struct svc_rqst *rqstp, __be32 *p,
 	args->verf   = p; p += 2;
 	args->dircount = ~0;
 	args->count  = ntohl(*p++);
-
-	if (args->count > PAGE_SIZE)
-		args->count = PAGE_SIZE;
-
+	args->count  = min_t(u32, args->count, PAGE_SIZE);
 	args->buffer = page_address(*(rqstp->rq_next_page++));
 
 	return xdr_argsize_check(rqstp, p);
@@ -595,10 +585,7 @@ nfs3svc_decode_readdirplusargs(struct svc_rqst *rqstp, __be32 *p,
 	args->dircount = ntohl(*p++);
 	args->count    = ntohl(*p++);
 
-	len = (args->count > max_blocksize) ? max_blocksize :
-						  args->count;
-	args->count = len;
-
+	len = args->count = min(args->count, max_blocksize);
 	while (len > 0) {
 		struct page *p = *(rqstp->rq_next_page++);
 		if (!args->buffer)
@@ -913,8 +900,7 @@ encode_entry(struct readdir_cd *ccd, const char *name, int namlen,
 	 */
 
 	/* truncate filename if too long */
-	if (namlen > NFS3_MAXNAMLEN)
-		namlen = NFS3_MAXNAMLEN;
+	namlen = min(namlen, NFS3_MAXNAMLEN);
 
 	slen = XDR_QUADLEN(namlen);
 	elen = slen + NFS3_ENTRY_BAGGAGE

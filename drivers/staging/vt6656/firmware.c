@@ -103,10 +103,7 @@ int vnt_firmware_branch_to_sram(struct vnt_private *priv)
 					0x0000,
 					0,
 					NULL);
-	if (status != STATUS_SUCCESS)
-		return false;
-	else
-		return true;
+	return status == STATUS_SUCCESS;
 }
 
 int vnt_check_firmware_version(struct vnt_private *priv)

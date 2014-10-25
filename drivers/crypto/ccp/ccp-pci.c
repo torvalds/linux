@@ -320,7 +320,7 @@ static int ccp_pci_resume(struct pci_dev *pdev)
 }
 #endif
 
-static DEFINE_PCI_DEVICE_TABLE(ccp_pci_table) = {
+static const struct pci_device_id ccp_pci_table[] = {
 	{ PCI_VDEVICE(AMD, 0x1537), },
 	/* Last entry must be zero */
 	{ 0, }

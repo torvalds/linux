@@ -139,8 +139,6 @@ struct oz_app_hdr {
 /* Values for app_id.
  */
 #define OZ_APPID_USB				0x1
-#define OZ_APPID_UNUSED1			0x2
-#define OZ_APPID_UNUSED2			0x3
 #define OZ_APPID_SERIAL				0x4
 #define OZ_APPID_MAX				OZ_APPID_SERIAL
 #define OZ_NB_APPS				(OZ_APPID_MAX+1)

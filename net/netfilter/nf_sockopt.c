@@ -26,9 +26,7 @@ int nf_register_sockopt(struct nf_sockopt_ops *reg)
 	struct nf_sockopt_ops *ops;
 	int ret = 0;
 
-	if (mutex_lock_interruptible(&nf_sockopt_mutex) != 0)
-		return -EINTR;
-
+	mutex_lock(&nf_sockopt_mutex);
 	list_for_each_entry(ops, &nf_sockopts, list) {
 		if (ops->pf == reg->pf
 		    && (overlap(ops->set_optmin, ops->set_optmax,
@@ -65,9 +63,7 @@ static struct nf_sockopt_ops *nf_sockopt_find(struct sock *sk, u_int8_t pf,
 {
 	struct nf_sockopt_ops *ops;
 
-	if (mutex_lock_interruptible(&nf_sockopt_mutex) != 0)
-		return ERR_PTR(-EINTR);
-
+	mutex_lock(&nf_sockopt_mutex);
 	list_for_each_entry(ops, &nf_sockopts, list) {
 		if (ops->pf == pf) {
 			if (!try_module_get(ops->owner))

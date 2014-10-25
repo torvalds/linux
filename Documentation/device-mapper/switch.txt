@@ -106,6 +106,11 @@ which paths.
     The path number in the range 0 ... (<num_paths> - 1).
     Expressed in hexadecimal (WITHOUT any prefix like 0x).
 
+R<n>,<m>
+    This parameter allows repetitive patterns to be loaded quickly. <n> and <m>
+    are hexadecimal numbers. The last <n> mappings are repeated in the next <m>
+    slots.
+
 Status
 ======
 
@@ -124,3 +129,10 @@ Create a switch device with 64kB region size:
 Set mappings for the first 7 entries to point to devices switch0, switch1,
 switch2, switch0, switch1, switch2, switch1:
     dmsetup message switch 0 set_region_mappings 0:0 :1 :2 :0 :1 :2 :1
+
+Set repetitive mapping. This command:
+    dmsetup message switch 0 set_region_mappings 1000:1 :2 R2,10
+is equivalent to:
+    dmsetup message switch 0 set_region_mappings 1000:1 :2 :1 :2 :1 :2 :1 :2 \
+	:1 :2 :1 :2 :1 :2 :1 :2 :1 :2
+

@@ -35,6 +35,7 @@
 
 #include "common.h"
 #include "devices-imx25.h"
+#include "ehci.h"
 #include "eukrea-baseboards.h"
 #include "hardware.h"
 #include "iomux-mx25.h"

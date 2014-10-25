@@ -2,7 +2,7 @@
 
 Required properties:
 - compatible: Should be "atmel,<chip>-aic"
-  <chip> can be "at91rm9200" or "sama5d3"
+  <chip> can be "at91rm9200", "sama5d3" or "sama5d4"
 - interrupt-controller: Identifies the node as an interrupt controller.
 - interrupt-parent: For single AIC system, it is an empty property.
 - #interrupt-cells: The number of cells to define the interrupts. It should be 3.

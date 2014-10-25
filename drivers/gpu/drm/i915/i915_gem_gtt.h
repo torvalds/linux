@@ -34,6 +34,8 @@
 #ifndef __I915_GEM_GTT_H__
 #define __I915_GEM_GTT_H__
 
+struct drm_i915_file_private;
+
 typedef uint32_t gen6_gtt_pte_t;
 typedef uint64_t gen8_gtt_pte_t;
 typedef gen8_gtt_pte_t gen8_ppgtt_pde_t;
@@ -154,6 +156,7 @@ struct i915_vma {
 	void (*unbind_vma)(struct i915_vma *vma);
 	/* Map an object into an address space with the given cache flags. */
 #define GLOBAL_BIND (1<<0)
+#define PTE_READ_ONLY (1<<1)
 	void (*bind_vma)(struct i915_vma *vma,
 			 enum i915_cache_level cache_level,
 			 u32 flags);
@@ -197,7 +200,7 @@ struct i915_address_space {
 	/* FIXME: Need a more generic return type */
 	gen6_gtt_pte_t (*pte_encode)(dma_addr_t addr,
 				     enum i915_cache_level level,
-				     bool valid); /* Create a valid PTE */
+				     bool valid, u32 flags); /* Create a valid PTE */
 	void (*clear_range)(struct i915_address_space *vm,
 			    uint64_t start,
 			    uint64_t length,
@@ -205,7 +208,7 @@ struct i915_address_space {
 	void (*insert_entries)(struct i915_address_space *vm,
 			       struct sg_table *st,
 			       uint64_t start,
-			       enum i915_cache_level cache_level);
+			       enum i915_cache_level cache_level, u32 flags);
 	void (*cleanup)(struct i915_address_space *vm);
 };
 
@@ -257,22 +260,36 @@ struct i915_hw_ppgtt {
 		dma_addr_t *gen8_pt_dma_addr[4];
 	};
 
-	struct intel_context *ctx;
+	struct drm_i915_file_private *file_priv;
 
 	int (*enable)(struct i915_hw_ppgtt *ppgtt);
 	int (*switch_mm)(struct i915_hw_ppgtt *ppgtt,
-			 struct intel_engine_cs *ring,
-			 bool synchronous);
+			 struct intel_engine_cs *ring);
 	void (*debug_dump)(struct i915_hw_ppgtt *ppgtt, struct seq_file *m);
 };
 
 int i915_gem_gtt_init(struct drm_device *dev);
 void i915_gem_init_global_gtt(struct drm_device *dev);
-void i915_gem_setup_global_gtt(struct drm_device *dev, unsigned long start,
-			       unsigned long mappable_end, unsigned long end);
+int i915_gem_setup_global_gtt(struct drm_device *dev, unsigned long start,
+			      unsigned long mappable_end, unsigned long end);
+void i915_global_gtt_cleanup(struct drm_device *dev);
 
-bool intel_enable_ppgtt(struct drm_device *dev, bool full);
-int i915_gem_init_ppgtt(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt);
+
+int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt);
+int i915_ppgtt_init_hw(struct drm_device *dev);
+void i915_ppgtt_release(struct kref *kref);
+struct i915_hw_ppgtt *i915_ppgtt_create(struct drm_device *dev,
+					struct drm_i915_file_private *fpriv);
+static inline void i915_ppgtt_get(struct i915_hw_ppgtt *ppgtt)
+{
+	if (ppgtt)
+		kref_get(&ppgtt->ref);
+}
+static inline void i915_ppgtt_put(struct i915_hw_ppgtt *ppgtt)
+{
+	if (ppgtt)
+		kref_put(&ppgtt->ref, i915_ppgtt_release);
+}
 
 void i915_check_and_clear_faults(struct drm_device *dev);
 void i915_gem_suspend_gtt_mappings(struct drm_device *dev);

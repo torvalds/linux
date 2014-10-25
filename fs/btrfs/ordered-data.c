@@ -571,18 +571,6 @@ void btrfs_remove_ordered_extent(struct inode *inode,
 
 	trace_btrfs_ordered_extent_remove(inode, entry);
 
-	/*
-	 * we have no more ordered extents for this inode and
-	 * no dirty pages.  We can safely remove it from the
-	 * list of ordered extents
-	 */
-	if (RB_EMPTY_ROOT(&tree->tree) &&
-	    !mapping_tagged(inode->i_mapping, PAGECACHE_TAG_DIRTY)) {
-		spin_lock(&root->fs_info->ordered_root_lock);
-		list_del_init(&BTRFS_I(inode)->ordered_operations);
-		spin_unlock(&root->fs_info->ordered_root_lock);
-	}
-
 	if (!root->nr_ordered_extents) {
 		spin_lock(&root->fs_info->ordered_root_lock);
 		BUG_ON(list_empty(&root->ordered_root));
@@ -627,6 +615,7 @@ int btrfs_wait_ordered_extents(struct btrfs_root *root, int nr)
 		spin_unlock(&root->ordered_extent_lock);
 
 		btrfs_init_work(&ordered->flush_work,
+				btrfs_flush_delalloc_helper,
 				btrfs_run_ordered_extent_work, NULL, NULL);
 		list_add_tail(&ordered->work_list, &works);
 		btrfs_queue_work(root->fs_info->flush_workers,
@@ -684,81 +673,6 @@ void btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, int nr)
 	list_splice_tail(&splice, &fs_info->ordered_roots);
 	spin_unlock(&fs_info->ordered_root_lock);
 	mutex_unlock(&fs_info->ordered_operations_mutex);
-}
-
-/*
- * this is used during transaction commit to write all the inodes
- * added to the ordered operation list.  These files must be fully on
- * disk before the transaction commits.
- *
- * we have two modes here, one is to just start the IO via filemap_flush
- * and the other is to wait for all the io.  When we wait, we have an
- * extra check to make sure the ordered operation list really is empty
- * before we return
- */
-int btrfs_run_ordered_operations(struct btrfs_trans_handle *trans,
-				 struct btrfs_root *root, int wait)
-{
-	struct btrfs_inode *btrfs_inode;
-	struct inode *inode;
-	struct btrfs_transaction *cur_trans = trans->transaction;
-	struct list_head splice;
-	struct list_head works;
-	struct btrfs_delalloc_work *work, *next;
-	int ret = 0;
-
-	INIT_LIST_HEAD(&splice);
-	INIT_LIST_HEAD(&works);
-
-	mutex_lock(&root->fs_info->ordered_extent_flush_mutex);
-	spin_lock(&root->fs_info->ordered_root_lock);
-	list_splice_init(&cur_trans->ordered_operations, &splice);
-	while (!list_empty(&splice)) {
-		btrfs_inode = list_entry(splice.next, struct btrfs_inode,
-				   ordered_operations);
-		inode = &btrfs_inode->vfs_inode;
-
-		list_del_init(&btrfs_inode->ordered_operations);
-
-		/*
-		 * the inode may be getting freed (in sys_unlink path).
-		 */
-		inode = igrab(inode);
-		if (!inode)
-			continue;
-
-		if (!wait)
-			list_add_tail(&BTRFS_I(inode)->ordered_operations,
-				      &cur_trans->ordered_operations);
-		spin_unlock(&root->fs_info->ordered_root_lock);
-
-		work = btrfs_alloc_delalloc_work(inode, wait, 1);
-		if (!work) {
-			spin_lock(&root->fs_info->ordered_root_lock);
-			if (list_empty(&BTRFS_I(inode)->ordered_operations))
-				list_add_tail(&btrfs_inode->ordered_operations,
-					      &splice);
-			list_splice_tail(&splice,
-					 &cur_trans->ordered_operations);
-			spin_unlock(&root->fs_info->ordered_root_lock);
-			ret = -ENOMEM;
-			goto out;
-		}
-		list_add_tail(&work->list, &works);
-		btrfs_queue_work(root->fs_info->flush_workers,
-				 &work->work);
-
-		cond_resched();
-		spin_lock(&root->fs_info->ordered_root_lock);
-	}
-	spin_unlock(&root->fs_info->ordered_root_lock);
-out:
-	list_for_each_entry_safe(work, next, &works, list) {
-		list_del_init(&work->list);
-		btrfs_wait_and_free_delalloc_work(work);
-	}
-	mutex_unlock(&root->fs_info->ordered_extent_flush_mutex);
-	return ret;
 }
 
 /*
@@ -1118,42 +1032,6 @@ out:
 	spin_unlock_irq(&tree->lock);
 	btrfs_put_ordered_extent(ordered);
 	return index;
-}
-
-
-/*
- * add a given inode to the list of inodes that must be fully on
- * disk before a transaction commit finishes.
- *
- * This basically gives us the ext3 style data=ordered mode, and it is mostly
- * used to make sure renamed files are fully on disk.
- *
- * It is a noop if the inode is already fully on disk.
- *
- * If trans is not null, we'll do a friendly check for a transaction that
- * is already flushing things and force the IO down ourselves.
- */
-void btrfs_add_ordered_operation(struct btrfs_trans_handle *trans,
-				 struct btrfs_root *root, struct inode *inode)
-{
-	struct btrfs_transaction *cur_trans = trans->transaction;
-	u64 last_mod;
-
-	last_mod = max(BTRFS_I(inode)->generation, BTRFS_I(inode)->last_trans);
-
-	/*
-	 * if this file hasn't been changed since the last transaction
-	 * commit, we can safely return without doing anything
-	 */
-	if (last_mod <= root->fs_info->last_trans_committed)
-		return;
-
-	spin_lock(&root->fs_info->ordered_root_lock);
-	if (list_empty(&BTRFS_I(inode)->ordered_operations)) {
-		list_add_tail(&BTRFS_I(inode)->ordered_operations,
-			      &cur_trans->ordered_operations);
-	}
-	spin_unlock(&root->fs_info->ordered_root_lock);
 }
 
 int __init ordered_data_init(void)

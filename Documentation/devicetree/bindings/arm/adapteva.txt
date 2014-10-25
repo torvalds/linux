@@ -1,0 +1,7 @@
+Adapteva Platforms Device Tree Bindings
+---------------------------------------
+
+Parallella board
+
+Required root node properties:
+    - compatible = "adapteva,parallella";

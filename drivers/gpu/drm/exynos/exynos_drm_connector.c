@@ -117,20 +117,7 @@ static struct drm_encoder *exynos_drm_best_encoder(
 	struct drm_device *dev = connector->dev;
 	struct exynos_drm_connector *exynos_connector =
 					to_exynos_connector(connector);
-	struct drm_mode_object *obj;
-	struct drm_encoder *encoder;
-
-	obj = drm_mode_object_find(dev, exynos_connector->encoder_id,
-				   DRM_MODE_OBJECT_ENCODER);
-	if (!obj) {
-		DRM_DEBUG_KMS("Unknown ENCODER ID %d\n",
-				exynos_connector->encoder_id);
-		return NULL;
-	}
-
-	encoder = obj_to_encoder(obj);
-
-	return encoder;
+	return drm_encoder_find(dev, exynos_connector->encoder_id);
 }
 
 static struct drm_connector_helper_funcs exynos_connector_helper_funcs = {
@@ -185,7 +172,7 @@ static void exynos_drm_connector_destroy(struct drm_connector *connector)
 	struct exynos_drm_connector *exynos_connector =
 		to_exynos_connector(connector);
 
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(exynos_connector);
 }
@@ -230,7 +217,7 @@ struct drm_connector *exynos_drm_connector_create(struct drm_device *dev,
 	drm_connector_init(dev, connector, &exynos_connector_funcs, type);
 	drm_connector_helper_add(connector, &exynos_connector_helper_funcs);
 
-	err = drm_sysfs_connector_add(connector);
+	err = drm_connector_register(connector);
 	if (err)
 		goto err_connector;
 
@@ -250,7 +237,7 @@ struct drm_connector *exynos_drm_connector_create(struct drm_device *dev,
 	return connector;
 
 err_sysfs:
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 err_connector:
 	drm_connector_cleanup(connector);
 	kfree(exynos_connector);

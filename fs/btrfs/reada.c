@@ -347,7 +347,7 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 	if (!re)
 		return NULL;
 
-	blocksize = btrfs_level_size(root, level);
+	blocksize = root->nodesize;
 	re->logical = logical;
 	re->blocksize = blocksize;
 	re->top = *top;
@@ -798,7 +798,8 @@ static void reada_start_machine(struct btrfs_fs_info *fs_info)
 		/* FIXME we cannot handle this properly right now */
 		BUG();
 	}
-	btrfs_init_work(&rmw->work, reada_start_machine_worker, NULL, NULL);
+	btrfs_init_work(&rmw->work, btrfs_readahead_helper,
+			reada_start_machine_worker, NULL, NULL);
 	rmw->fs_info = fs_info;
 
 	btrfs_queue_work(fs_info->readahead_workers, &rmw->work);

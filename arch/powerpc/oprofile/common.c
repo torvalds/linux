@@ -205,9 +205,6 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 			ops->sync_stop = model->sync_stop;
 			break;
 #endif
-		case PPC_OPROFILE_RS64:
-			model = &op_model_rs64;
-			break;
 		case PPC_OPROFILE_POWER4:
 			model = &op_model_power4;
 			break;

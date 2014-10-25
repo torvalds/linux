@@ -118,7 +118,7 @@ static void apci2200_detach(struct comedi_device *dev)
 {
 	if (dev->iobase)
 		apci2200_reset(dev);
-	comedi_pci_disable(dev);
+	comedi_pci_detach(dev);
 }
 
 static struct comedi_driver apci2200_driver = {

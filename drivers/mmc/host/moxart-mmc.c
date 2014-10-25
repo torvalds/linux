@@ -13,7 +13,6 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -718,7 +717,6 @@ static struct platform_driver moxart_mmc_driver = {
 	.remove     = moxart_remove,
 	.driver     = {
 		.name		= "mmc-moxart",
-		.owner		= THIS_MODULE,
 		.of_match_table	= moxart_mmc_match,
 	},
 };

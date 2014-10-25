@@ -31,6 +31,8 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/sh_mmcif.h>
 #include <linux/mmc/sh_mobile_sdhi.h>
+#include <linux/mtd/partitions.h>
+#include <linux/mtd/mtd.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_data/camera-rcar.h>
 #include <linux/platform_data/gpio-rcar.h>
@@ -43,21 +45,22 @@
 #include <linux/regulator/gpio-regulator.h>
 #include <linux/regulator/machine.h>
 #include <linux/sh_eth.h>
-#include <linux/usb/phy.h>
-#include <linux/usb/renesas_usbhs.h>
-#include <mach/common.h>
-#include <mach/irqs.h>
-#include <mach/r8a7790.h>
-#include <media/soc_camera.h>
-#include <asm/mach-types.h>
-#include <asm/mach/arch.h>
-#include <linux/mtd/partitions.h>
-#include <linux/mtd/mtd.h>
 #include <linux/spi/flash.h>
 #include <linux/spi/rspi.h>
 #include <linux/spi/spi.h>
+#include <linux/usb/phy.h>
+#include <linux/usb/renesas_usbhs.h>
+
+#include <media/soc_camera.h>
+#include <asm/mach-types.h>
+#include <asm/mach/arch.h>
 #include <sound/rcar_snd.h>
 #include <sound/simple_card.h>
+
+#include "common.h"
+#include "irqs.h"
+#include "r8a7790.h"
+#include "rcar-gen2.h"
 
 /*
  * SSI-AK4643
@@ -96,16 +99,15 @@ static struct rcar_du_encoder_data lager_du_encoders[] = {
 			.width_mm = 210,
 			.height_mm = 158,
 			.mode = {
-				.clock = 65000,
-				.hdisplay = 1024,
-				.hsync_start = 1048,
-				.hsync_end = 1184,
-				.htotal = 1344,
-				.vdisplay = 768,
-				.vsync_start = 771,
-				.vsync_end = 777,
-				.vtotal = 806,
-				.flags = 0,
+				.pixelclock = 65000000,
+				.hactive = 1024,
+				.hfront_porch = 20,
+				.hback_porch = 160,
+				.hsync_len = 136,
+				.vactive = 768,
+				.vfront_porch = 3,
+				.vback_porch = 29,
+				.vsync_len = 6,
 			},
 		},
 	},
@@ -627,7 +629,6 @@ static void __init lager_add_rsnd_device(void)
 static struct sh_mobile_sdhi_info sdhi0_info __initdata = {
 	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
 			  MMC_CAP_POWER_OFF_CARD,
-	.tmio_caps2	= MMC_CAP2_NO_MULTI_READ,
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT |
 			  TMIO_MMC_WRPROTECT_DISABLE,
 };
@@ -641,7 +642,6 @@ static struct resource sdhi0_resources[] __initdata = {
 static struct sh_mobile_sdhi_info sdhi2_info __initdata = {
 	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
 			  MMC_CAP_POWER_OFF_CARD,
-	.tmio_caps2	= MMC_CAP2_NO_MULTI_READ,
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT |
 			  TMIO_MMC_WRPROTECT_DISABLE,
 };
@@ -880,9 +880,10 @@ static const char * const lager_boards_compat_dt[] __initconst = {
 
 DT_MACHINE_START(LAGER_DT, "lager")
 	.smp		= smp_ops(r8a7790_smp_ops),
-	.init_early	= r8a7790_init_early,
+	.init_early	= shmobile_init_delay,
 	.init_time	= rcar_gen2_timer_init,
 	.init_machine	= lager_init,
 	.init_late	= shmobile_init_late,
+	.reserve	= rcar_gen2_reserve,
 	.dt_compat	= lager_boards_compat_dt,
 MACHINE_END

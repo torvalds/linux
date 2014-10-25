@@ -21,8 +21,17 @@ enum nand_io {
 };
 
 enum omap_ecc {
-	/* 1-bit  ECC calculation by GPMC, Error detection by Software */
-	OMAP_ECC_HAM1_CODE_HW = 0,
+	/*
+	 * 1-bit ECC: calculation and correction by SW
+	 * ECC stored at end of spare area
+	 */
+	OMAP_ECC_HAM1_CODE_SW = 0,
+
+	/*
+	 * 1-bit ECC: calculation by GPMC, Error detection by Software
+	 * ECC layout compatible with ROM code layout
+	 */
+	OMAP_ECC_HAM1_CODE_HW,
 	/* 4-bit  ECC calculation by GPMC, Error detection by Software */
 	OMAP_ECC_BCH4_CODE_HW_DETECTION_SW,
 	/* 4-bit  ECC calculation by GPMC, Error detection by ELM */
@@ -62,6 +71,7 @@ struct omap_nand_platform_data {
 	struct mtd_partition	*parts;
 	int			nr_parts;
 	bool			dev_ready;
+	bool			flash_bbt;
 	enum nand_io		xfer_type;
 	int			devsize;
 	enum omap_ecc           ecc_opt;

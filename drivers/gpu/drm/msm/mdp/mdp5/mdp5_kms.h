@@ -21,6 +21,24 @@
 #include "msm_drv.h"
 #include "msm_kms.h"
 #include "mdp/mdp_kms.h"
+/* dynamic offsets used by mdp5.xml.h (initialized in mdp5_kms.c) */
+#define MDP5_MAX_BASES		8
+struct mdp5_sub_block {
+	int	count;
+	uint32_t base[MDP5_MAX_BASES];
+};
+struct mdp5_config {
+	char  *name;
+	struct mdp5_sub_block ctl;
+	struct mdp5_sub_block pipe_vig;
+	struct mdp5_sub_block pipe_rgb;
+	struct mdp5_sub_block pipe_dma;
+	struct mdp5_sub_block lm;
+	struct mdp5_sub_block dspp;
+	struct mdp5_sub_block ad;
+	struct mdp5_sub_block intf;
+};
+extern const struct mdp5_config *mdp5_cfg;
 #include "mdp5.xml.h"
 #include "mdp5_smp.h"
 
@@ -30,6 +48,7 @@ struct mdp5_kms {
 	struct drm_device *dev;
 
 	int rev;
+	const struct mdp5_config *hw_cfg;
 
 	/* mapper-id used to request GEM buffer mapped for scanout: */
 	int id;
@@ -82,6 +101,7 @@ static inline const char *pipe2name(enum mdp5_pipe pipe)
 		NAME(VIG0), NAME(VIG1), NAME(VIG2),
 		NAME(RGB0), NAME(RGB1), NAME(RGB2),
 		NAME(DMA0), NAME(DMA1),
+		NAME(VIG3), NAME(RGB3),
 #undef NAME
 	};
 	return names[pipe];
@@ -98,6 +118,8 @@ static inline uint32_t pipe2flush(enum mdp5_pipe pipe)
 	case SSPP_RGB2: return MDP5_CTL_FLUSH_RGB2;
 	case SSPP_DMA0: return MDP5_CTL_FLUSH_DMA0;
 	case SSPP_DMA1: return MDP5_CTL_FLUSH_DMA1;
+	case SSPP_VIG3: return MDP5_CTL_FLUSH_VIG3;
+	case SSPP_RGB3: return MDP5_CTL_FLUSH_RGB3;
 	default:        return 0;
 	}
 }
@@ -108,6 +130,7 @@ static inline int pipe2nclients(enum mdp5_pipe pipe)
 	case SSPP_RGB0:
 	case SSPP_RGB1:
 	case SSPP_RGB2:
+	case SSPP_RGB3:
 		return 1;
 	default:
 		return 3;
@@ -126,6 +149,8 @@ static inline enum mdp5_client_id pipe2client(enum mdp5_pipe pipe, int plane)
 	case SSPP_RGB2: return CID_RGB2;
 	case SSPP_DMA0: return CID_DMA0_Y + plane;
 	case SSPP_DMA1: return CID_DMA1_Y + plane;
+	case SSPP_VIG3: return CID_VIG3_Y + plane;
+	case SSPP_RGB3: return CID_RGB3;
 	default:        return CID_UNUSED;
 	}
 }

@@ -82,6 +82,7 @@ static struct drm_driver bochs_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET,
 	.load			= bochs_load,
 	.unload			= bochs_unload,
+	.set_busid		= drm_pci_set_busid,
 	.fops			= &bochs_fops,
 	.name			= "bochs-drm",
 	.desc			= "bochs dispi vga interface (qemu stdvga)",
@@ -97,6 +98,7 @@ static struct drm_driver bochs_driver = {
 /* ---------------------------------------------------------------------- */
 /* pm interface                                                           */
 
+#ifdef CONFIG_PM_SLEEP
 static int bochs_pm_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -131,6 +133,7 @@ static int bochs_pm_resume(struct device *dev)
 	drm_kms_helper_poll_enable(drm_dev);
 	return 0;
 }
+#endif
 
 static const struct dev_pm_ops bochs_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(bochs_pm_suspend,
@@ -175,7 +178,7 @@ static void bochs_pci_remove(struct pci_dev *pdev)
 	drm_put_dev(dev);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(bochs_pci_tbl) = {
+static const struct pci_device_id bochs_pci_tbl[] = {
 	{
 		.vendor      = 0x1234,
 		.device      = 0x1111,

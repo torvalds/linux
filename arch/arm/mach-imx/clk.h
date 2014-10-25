@@ -6,6 +6,8 @@
 
 extern spinlock_t imx_ccm_lock;
 
+void imx_check_clocks(struct clk *clks[], unsigned int count);
+
 extern void imx_cscmr1_fixup(u32 *val);
 
 struct clk *imx_clk_pllv1(const char *name, const char *parent,
@@ -33,6 +35,9 @@ struct clk *clk_register_gate2(struct device *dev, const char *name,
 
 struct clk * imx_obtain_fixed_clock(
 			const char *name, unsigned long rate);
+
+struct clk *imx_clk_gate_exclusive(const char *name, const char *parent,
+	 void __iomem *reg, u8 shift, u32 exclusive_mask);
 
 static inline struct clk *imx_clk_gate2(const char *name, const char *parent,
 		void __iomem *reg, u8 shift)
@@ -93,6 +98,13 @@ static inline struct clk *imx_clk_gate(const char *name, const char *parent,
 {
 	return clk_register_gate(NULL, name, parent, CLK_SET_RATE_PARENT, reg,
 			shift, 0, &imx_ccm_lock);
+}
+
+static inline struct clk *imx_clk_gate_dis(const char *name, const char *parent,
+		void __iomem *reg, u8 shift)
+{
+	return clk_register_gate(NULL, name, parent, CLK_SET_RATE_PARENT, reg,
+			shift, CLK_GATE_SET_TO_DISABLE, &imx_ccm_lock);
 }
 
 static inline struct clk *imx_clk_mux(const char *name, void __iomem *reg,

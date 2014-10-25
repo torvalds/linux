@@ -1077,7 +1077,7 @@ struct hdspm {
 };
 
 
-static DEFINE_PCI_DEVICE_TABLE(snd_hdspm_ids) = {
+static const struct pci_device_id snd_hdspm_ids[] = {
 	{
 	 .vendor = PCI_VENDOR_ID_XILINX,
 	 .device = PCI_DEVICE_ID_XILINX_HAMMERFALL_DSP_MADI,

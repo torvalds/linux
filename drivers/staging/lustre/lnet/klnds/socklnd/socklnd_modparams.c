@@ -33,7 +33,7 @@ static int peer_credits = 8;
 module_param(peer_credits, int, 0444);
 MODULE_PARM_DESC(peer_credits, "# concurrent sends to 1 peer");
 
-static int peer_buffer_credits = 0;
+static int peer_buffer_credits;
 module_param(peer_buffer_credits, int, 0444);
 MODULE_PARM_DESC(peer_buffer_credits, "# per-peer router buffer credits");
 
@@ -85,7 +85,7 @@ static int rx_buffer_size = DEFAULT_BUFFER_SIZE;
 module_param(rx_buffer_size, int, 0644);
 MODULE_PARM_DESC(rx_buffer_size, "socket rx buffer size (0 for system default)");
 
-static int nagle = 0;
+static int nagle;
 module_param(nagle, int, 0644);
 MODULE_PARM_DESC(nagle, "enable NAGLE?");
 
@@ -110,11 +110,11 @@ static int keepalive_intvl = 5;
 module_param(keepalive_intvl, int, 0644);
 MODULE_PARM_DESC(keepalive_intvl, "seconds between probes");
 
-static int enable_csum = 0;
+static int enable_csum;
 module_param(enable_csum, int, 0644);
 MODULE_PARM_DESC(enable_csum, "enable check sum");
 
-static int inject_csum_error = 0;
+static int inject_csum_error;
 module_param(inject_csum_error, int, 0644);
 MODULE_PARM_DESC(inject_csum_error, "set non-zero to inject a checksum error");
 
@@ -126,7 +126,7 @@ static unsigned int zc_min_payload = (16 << 10);
 module_param(zc_min_payload, int, 0644);
 MODULE_PARM_DESC(zc_min_payload, "minimum payload size to zero copy");
 
-static unsigned int zc_recv = 0;
+static unsigned int zc_recv;
 module_param(zc_recv, int, 0644);
 MODULE_PARM_DESC(zc_recv, "enable ZC recv for Chelsio driver");
 

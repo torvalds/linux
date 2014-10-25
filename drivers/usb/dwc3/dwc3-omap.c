@@ -425,7 +425,7 @@ static void dwc3_omap_set_utmi_mode(struct dwc3_omap *omap)
 
 static int dwc3_omap_extcon_register(struct dwc3_omap *omap)
 {
-	u32			ret;
+	int			ret;
 	struct device_node	*node = omap->dev->of_node;
 	struct extcon_dev	*edev;
 
@@ -481,10 +481,8 @@ static int dwc3_omap_probe(struct platform_device *pdev)
 	}
 
 	omap = devm_kzalloc(dev, sizeof(*omap), GFP_KERNEL);
-	if (!omap) {
-		dev_err(dev, "not enough memory\n");
+	if (!omap)
 		return -ENOMEM;
-	}
 
 	platform_set_drvdata(pdev, omap);
 
@@ -576,9 +574,9 @@ static int dwc3_omap_remove(struct platform_device *pdev)
 	if (omap->extcon_id_dev.edev)
 		extcon_unregister_interest(&omap->extcon_id_dev);
 	dwc3_omap_disable_irqs(omap);
+	device_for_each_child(&pdev->dev, NULL, dwc3_omap_remove_core);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	device_for_each_child(&pdev->dev, NULL, dwc3_omap_remove_core);
 
 	return 0;
 }

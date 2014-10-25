@@ -75,7 +75,6 @@ config KVM_BOOK3S_64
 config KVM_BOOK3S_64_HV
 	tristate "KVM support for POWER7 and PPC970 using hypervisor mode in host"
 	depends on KVM_BOOK3S_64
-	depends on !CPU_LITTLE_ENDIAN
 	select KVM_BOOK3S_HV_POSSIBLE
 	select MMU_NOTIFIER
 	select CMA
@@ -113,23 +112,9 @@ config KVM_BOOK3S_64_PR
 config KVM_BOOKE_HV
 	bool
 
-config KVM_440
-	bool "KVM support for PowerPC 440 processors"
-	depends on 44x
-	select KVM
-	select KVM_MMIO
-	---help---
-	  Support running unmodified 440 guest kernels in virtual machines on
-	  440 host processors.
-
-	  This module provides access to the hardware capabilities through
-	  a character device node named /dev/kvm.
-
-	  If unsure, say N.
-
 config KVM_EXIT_TIMING
 	bool "Detailed exit timing"
-	depends on KVM_440 || KVM_E500V2 || KVM_E500MC
+	depends on KVM_E500V2 || KVM_E500MC
 	---help---
 	  Calculate elapsed time for every exit/enter cycle. A per-vcpu
 	  report is available in debugfs kvm/vm#_vcpu#_timing.
@@ -173,6 +158,7 @@ config KVM_MPIC
 	bool "KVM in-kernel MPIC emulation"
 	depends on KVM && E500
 	select HAVE_KVM_IRQCHIP
+	select HAVE_KVM_IRQFD
 	select HAVE_KVM_IRQ_ROUTING
 	select HAVE_KVM_MSI
 	help
@@ -184,6 +170,8 @@ config KVM_MPIC
 config KVM_XICS
 	bool "KVM in-kernel XICS emulation"
 	depends on KVM_BOOK3S_64 && !KVM_MPIC
+	select HAVE_KVM_IRQCHIP
+	select HAVE_KVM_IRQFD
 	---help---
 	  Include support for the XICS (eXternal Interrupt Controller
 	  Specification) interrupt controller architecture used on

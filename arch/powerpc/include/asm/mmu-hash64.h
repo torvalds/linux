@@ -25,26 +25,6 @@
 #include <asm/processor.h>
 
 /*
- * Segment table
- */
-
-#define STE_ESID_V	0x80
-#define STE_ESID_KS	0x20
-#define STE_ESID_KP	0x10
-#define STE_ESID_N	0x08
-
-#define STE_VSID_SHIFT	12
-
-/* Location of cpu0's segment table */
-#define STAB0_PAGE	0x8
-#define STAB0_OFFSET	(STAB0_PAGE << 12)
-#define STAB0_PHYS_ADDR	(STAB0_OFFSET + PHYSICAL_START)
-
-#ifndef __ASSEMBLY__
-extern char initial_stab[];
-#endif /* ! __ASSEMBLY */
-
-/*
  * SLB
  */
 
@@ -210,6 +190,13 @@ static inline unsigned int mmu_psize_to_shift(unsigned int mmu_psize)
 
 #ifndef __ASSEMBLY__
 
+static inline int slb_vsid_shift(int ssize)
+{
+	if (ssize == MMU_SEGSIZE_256M)
+		return SLB_VSID_SHIFT;
+	return SLB_VSID_SHIFT_1T;
+}
+
 static inline int segment_shift(int ssize)
 {
 	if (ssize == MMU_SEGSIZE_256M)
@@ -337,6 +324,7 @@ extern int __hash_page_64K(unsigned long ea, unsigned long access,
 			   unsigned int local, int ssize);
 struct mm_struct;
 unsigned int hash_page_do_lazy_icache(unsigned int pp, pte_t pte, int trap);
+extern int hash_page_mm(struct mm_struct *mm, unsigned long ea, unsigned long access, unsigned long trap);
 extern int hash_page(unsigned long ea, unsigned long access, unsigned long trap);
 int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 		     pte_t *ptep, unsigned long trap, int local, int ssize,
@@ -362,6 +350,8 @@ extern void hash_failure_debug(unsigned long ea, unsigned long access,
 extern int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 			     unsigned long pstart, unsigned long prot,
 			     int psize, int ssize);
+int htab_remove_mapping(unsigned long vstart, unsigned long vend,
+			int psize, int ssize);
 extern void add_gpage(u64 addr, u64 page_size, unsigned long number_of_pages);
 extern void demote_segment_4k(struct mm_struct *mm, unsigned long addr);
 
@@ -370,10 +360,8 @@ extern void hpte_init_lpar(void);
 extern void hpte_init_beat(void);
 extern void hpte_init_beat_v3(void);
 
-extern void stabs_alloc(void);
 extern void slb_initialize(void);
 extern void slb_flush_and_rebolt(void);
-extern void stab_initialize(unsigned long stab);
 
 extern void slb_vmalloc_update(void);
 extern void slb_set_size(u16 size);

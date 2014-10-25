@@ -3,6 +3,8 @@ Device-Tree bindings for the NXP TDA998x HDMI transmitter
 Required properties;
   - compatible: must be "nxp,tda998x"
 
+  - reg: I2C address
+
 Optional properties:
   - interrupts: interrupt number and trigger type
 	default: polling

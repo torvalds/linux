@@ -40,8 +40,6 @@ extern int mp_bus_id_to_type[MAX_MP_BUSSES];
 extern DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
 
 extern unsigned int boot_cpu_physical_apicid;
-extern unsigned int max_physical_apicid;
-extern int mpc_default_type;
 extern unsigned long mp_lapic_addr;
 
 #ifdef CONFIG_X86_LOCAL_APIC
@@ -88,15 +86,6 @@ static inline void early_reserve_e820_mpc_new(void) { }
 #endif
 
 int generic_processor_info(int apicid, int version);
-#ifdef CONFIG_ACPI
-extern void mp_register_ioapic(int id, u32 address, u32 gsi_base);
-extern void mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger,
-				   u32 gsi);
-extern void mp_config_acpi_legacy_irqs(void);
-struct device;
-extern int mp_register_gsi(struct device *dev, u32 gsi, int edge_level,
-				 int active_high_low);
-#endif /* CONFIG_ACPI */
 
 #define PHYSID_ARRAY_SIZE	BITS_TO_LONGS(MAX_LOCAL_APIC)
 
@@ -160,9 +149,5 @@ static inline void physid_set_mask_of_physid(int physid, physid_mask_t *map)
 #define PHYSID_MASK_NONE	{ {[0 ... PHYSID_ARRAY_SIZE-1] = 0UL} }
 
 extern physid_mask_t phys_cpu_present_map;
-
-extern int generic_mps_oem_check(struct mpc_table *, char *, char *);
-
-extern int default_acpi_madt_oem_check(char *, char *);
 
 #endif /* _ASM_X86_MPSPEC_H */

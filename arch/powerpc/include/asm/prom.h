@@ -76,8 +76,6 @@ void of_parse_dma_window(struct device_node *dn, const __be32 *dma_window,
 			 unsigned long *busno, unsigned long *phys,
 			 unsigned long *size);
 
-extern void kdump_move_device_tree(void);
-
 extern void of_instantiate_rtc(void);
 
 extern int of_get_ibm_chip_id(struct device_node *np);

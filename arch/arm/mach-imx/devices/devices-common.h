@@ -176,22 +176,6 @@ struct platform_device *__init imx_add_imx_uart_1irq(
 		const struct imx_imx_uart_1irq_data *data,
 		const struct imxuart_platform_data *pdata);
 
-#include <linux/platform_data/usb-imx_udc.h>
-struct imx_imx_udc_data {
-	resource_size_t iobase;
-	resource_size_t iosize;
-	resource_size_t irq0;
-	resource_size_t irq1;
-	resource_size_t irq2;
-	resource_size_t irq3;
-	resource_size_t irq4;
-	resource_size_t irq5;
-	resource_size_t irq6;
-};
-struct platform_device *__init imx_add_imx_udc(
-		const struct imx_imx_udc_data *data,
-		const struct imxusb_platform_data *pdata);
-
 #include <linux/platform_data/video-mx3fb.h>
 #include <linux/platform_data/camera-mx3.h>
 struct imx_ipu_core_data {
@@ -207,16 +191,6 @@ struct platform_device *__init imx_alloc_mx3_camera(
 struct platform_device *__init imx_add_mx3_sdc_fb(
 		const struct imx_ipu_core_data *data,
 		struct mx3fb_platform_data *pdata);
-
-#include <linux/platform_data/camera-mx1.h>
-struct imx_mx1_camera_data {
-	resource_size_t iobase;
-	resource_size_t iosize;
-	resource_size_t irq;
-};
-struct platform_device *__init imx_add_mx1_camera(
-		const struct imx_mx1_camera_data *data,
-		const struct mx1_camera_pdata *pdata);
 
 #include <linux/platform_data/camera-mx2.h>
 struct imx_mx2_camera_data {

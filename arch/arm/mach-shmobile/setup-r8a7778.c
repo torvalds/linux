@@ -37,11 +37,13 @@
 #include <linux/usb/ehci_pdriver.h>
 #include <linux/usb/ohci_pdriver.h>
 #include <linux/dma-mapping.h>
-#include <mach/irqs.h>
-#include <mach/r8a7778.h>
-#include <mach/common.h>
+
 #include <asm/mach/arch.h>
 #include <asm/hardware/cache-l2x0.h>
+
+#include "common.h"
+#include "irqs.h"
+#include "r8a7778.h"
 
 /* SCIF */
 #define R8A7778_SCIF(index, baseaddr, irq)			\
@@ -291,12 +293,6 @@ void __init r8a7778_add_dt_devices(void)
 	}
 #endif
 
-	r8a7778_register_scif(0);
-	r8a7778_register_scif(1);
-	r8a7778_register_scif(2);
-	r8a7778_register_scif(3);
-	r8a7778_register_scif(4);
-	r8a7778_register_scif(5);
 	r8a7778_register_tmu(0);
 }
 
@@ -505,6 +501,12 @@ static void __init r8a7778_register_hpb_dmae(void)
 void __init r8a7778_add_standard_devices(void)
 {
 	r8a7778_add_dt_devices();
+	r8a7778_register_scif(0);
+	r8a7778_register_scif(1);
+	r8a7778_register_scif(2);
+	r8a7778_register_scif(3);
+	r8a7778_register_scif(4);
+	r8a7778_register_scif(5);
 	r8a7778_register_i2c(0);
 	r8a7778_register_i2c(1);
 	r8a7778_register_i2c(2);
@@ -518,6 +520,7 @@ void __init r8a7778_add_standard_devices(void)
 
 void __init r8a7778_init_late(void)
 {
+	shmobile_init_late();
 	platform_device_register_full(&ehci_info);
 	platform_device_register_full(&ohci_info);
 }
@@ -571,7 +574,7 @@ void __init r8a7778_init_irq_extpin(int irlm)
 
 void __init r8a7778_init_delay(void)
 {
-	shmobile_setup_delay(800, 1, 3); /* Cortex-A9 @ 800MHz */
+	shmobile_init_delay();
 }
 
 #ifdef CONFIG_USE_OF
@@ -607,8 +610,8 @@ static const char *r8a7778_compat_dt[] __initdata = {
 DT_MACHINE_START(R8A7778_DT, "Generic R8A7778 (Flattened Device Tree)")
 	.init_early	= r8a7778_init_delay,
 	.init_irq	= r8a7778_init_irq_dt,
+	.init_late	= shmobile_init_late,
 	.dt_compat	= r8a7778_compat_dt,
-	.init_late      = r8a7778_init_late,
 MACHINE_END
 
 #endif /* CONFIG_USE_OF */

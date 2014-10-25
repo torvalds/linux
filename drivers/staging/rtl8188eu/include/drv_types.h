@@ -141,15 +141,8 @@ struct registry_priv {
 
 #define MAX_CONTINUAL_URB_ERR		4
 
-struct rt_firmware {
-	u8			*szFwBuffer;
-	u32			ulFwLength;
-};
-
 struct dvobj_priv {
 	struct adapter *if1;
-	struct rt_firmware firmware;
-
 	/* For 92D, DMDP have 2 interface. */
 	u8	InterfaceNumber;
 	u8	NumInterfaces;

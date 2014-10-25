@@ -955,7 +955,7 @@ static inline void mmd_phy_indirect(struct mii_bus *bus, int prtad, int devad,
  * 3) Write reg 13 // MMD Data Command for MMD DEVAD
  * 3) Read  reg 14 // Read MMD data
  */
-static int phy_read_mmd_indirect(struct phy_device *phydev, int prtad,
+int phy_read_mmd_indirect(struct phy_device *phydev, int prtad,
 				 int devad, int addr)
 {
 	struct phy_driver *phydrv = phydev->drv;
@@ -971,6 +971,7 @@ static int phy_read_mmd_indirect(struct phy_device *phydev, int prtad,
 	}
 	return value;
 }
+EXPORT_SYMBOL(phy_read_mmd_indirect);
 
 /**
  * phy_write_mmd_indirect - writes data to the MMD registers
@@ -988,7 +989,7 @@ static int phy_read_mmd_indirect(struct phy_device *phydev, int prtad,
  * 3) Write reg 13 // MMD Data Command for MMD DEVAD
  * 3) Write reg 14 // Write MMD data
  */
-static void phy_write_mmd_indirect(struct phy_device *phydev, int prtad,
+void phy_write_mmd_indirect(struct phy_device *phydev, int prtad,
 				   int devad, int addr, u32 data)
 {
 	struct phy_driver *phydrv = phydev->drv;
@@ -1002,6 +1003,7 @@ static void phy_write_mmd_indirect(struct phy_device *phydev, int prtad,
 		phydrv->write_mmd_indirect(phydev, prtad, devad, addr, data);
 	}
 }
+EXPORT_SYMBOL(phy_write_mmd_indirect);
 
 /**
  * phy_init_eee - init and check the EEE feature
@@ -1017,12 +1019,14 @@ int phy_init_eee(struct phy_device *phydev, bool clk_stop_enable)
 {
 	/* According to 802.3az,the EEE is supported only in full duplex-mode.
 	 * Also EEE feature is active when core is operating with MII, GMII
-	 * or RGMII.
+	 * or RGMII. Internal PHYs are also allowed to proceed and should
+	 * return an error if they do not support EEE.
 	 */
 	if ((phydev->duplex == DUPLEX_FULL) &&
 	    ((phydev->interface == PHY_INTERFACE_MODE_MII) ||
 	    (phydev->interface == PHY_INTERFACE_MODE_GMII) ||
-	    (phydev->interface == PHY_INTERFACE_MODE_RGMII))) {
+	    (phydev->interface == PHY_INTERFACE_MODE_RGMII) ||
+	     phy_is_internal(phydev))) {
 		int eee_lp, eee_cap, eee_adv;
 		u32 lp, cap, adv;
 		int status;
@@ -1036,31 +1040,31 @@ int phy_init_eee(struct phy_device *phydev, bool clk_stop_enable)
 		/* First check if the EEE ability is supported */
 		eee_cap = phy_read_mmd_indirect(phydev, MDIO_PCS_EEE_ABLE,
 						MDIO_MMD_PCS, phydev->addr);
-		if (eee_cap < 0)
-			return eee_cap;
+		if (eee_cap <= 0)
+			goto eee_exit_err;
 
 		cap = mmd_eee_cap_to_ethtool_sup_t(eee_cap);
 		if (!cap)
-			return -EPROTONOSUPPORT;
+			goto eee_exit_err;
 
 		/* Check which link settings negotiated and verify it in
 		 * the EEE advertising registers.
 		 */
 		eee_lp = phy_read_mmd_indirect(phydev, MDIO_AN_EEE_LPABLE,
 					       MDIO_MMD_AN, phydev->addr);
-		if (eee_lp < 0)
-			return eee_lp;
+		if (eee_lp <= 0)
+			goto eee_exit_err;
 
 		eee_adv = phy_read_mmd_indirect(phydev, MDIO_AN_EEE_ADV,
 						MDIO_MMD_AN, phydev->addr);
-		if (eee_adv < 0)
-			return eee_adv;
+		if (eee_adv <= 0)
+			goto eee_exit_err;
 
 		adv = mmd_eee_adv_to_ethtool_adv_t(eee_adv);
 		lp = mmd_eee_adv_to_ethtool_adv_t(eee_lp);
 		idx = phy_find_setting(phydev->speed, phydev->duplex);
 		if (!(lp & adv & settings[idx].setting))
-			return -EPROTONOSUPPORT;
+			goto eee_exit_err;
 
 		if (clk_stop_enable) {
 			/* Configure the PHY to stop receiving xMII
@@ -1080,7 +1084,7 @@ int phy_init_eee(struct phy_device *phydev, bool clk_stop_enable)
 
 		return 0; /* EEE supported */
 	}
-
+eee_exit_err:
 	return -EPROTONOSUPPORT;
 }
 EXPORT_SYMBOL(phy_init_eee);

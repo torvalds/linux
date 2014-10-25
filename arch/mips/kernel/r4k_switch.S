@@ -64,8 +64,10 @@
 	/* Check whether we're saving scalar or vector context. */
 	bgtz	a3, 1f
 
-	/* Save 128b MSA vector context. */
+	/* Save 128b MSA vector context + scalar FP control & status. */
+	cfc1	t1, fcr31
 	msa_save_all	a0
+	sw	t1, THREAD_FCR31(a0)
 	b	2f
 
 1:	/* Save 32b/64b scalar FP context. */
@@ -141,6 +143,11 @@ LEAF(_restore_msa)
 	msa_restore_all	a0
 	jr	ra
 	END(_restore_msa)
+
+LEAF(_init_msa_upper)
+	msa_init_all_upper
+	jr	ra
+	END(_init_msa_upper)
 
 #endif
 

@@ -250,7 +250,7 @@ static int max8925_regulator_dt_init(struct platform_device *pdev,
 	struct device_node *nproot, *np;
 	int rcount;
 
-	nproot = of_node_get(pdev->dev.parent->of_node);
+	nproot = pdev->dev.parent->of_node;
 	if (!nproot)
 		return -ENODEV;
 	np = of_get_child_by_name(nproot, "regulators");

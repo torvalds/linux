@@ -3132,6 +3132,7 @@ void pm8001_mpi_set_nvmd_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 void
 pm8001_mpi_get_nvmd_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 {
+	struct fw_control_ex    *fw_control_context;
 	struct get_nvm_data_resp *pPayload =
 		(struct get_nvm_data_resp *)(piomb + 4);
 	u32 tag = le32_to_cpu(pPayload->tag);
@@ -3140,6 +3141,7 @@ pm8001_mpi_get_nvmd_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	u32 ir_tds_bn_dps_das_nvm =
 		le32_to_cpu(pPayload->ir_tda_bn_dps_das_nvm);
 	void *virt_addr = pm8001_ha->memoryMap.region[NVMD].virt_ptr;
+	fw_control_context = ccb->fw_control_context;
 
 	PM8001_MSG_DBG(pm8001_ha, pm8001_printk("Get nvm data complete!\n"));
 	if ((dlen_status & NVMD_STAT) != 0) {
@@ -3180,6 +3182,12 @@ pm8001_mpi_get_nvmd_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 			pm8001_printk("Get NVMD success, IR=0, dataLen=%d\n",
 			(dlen_status & NVMD_LEN) >> 24));
 	}
+	/* Though fw_control_context is freed below, usrAddr still needs
+	 * to be updated as this holds the response to the request function
+	 */
+	memcpy(fw_control_context->usrAddr,
+		pm8001_ha->memoryMap.region[NVMD].virt_ptr,
+		fw_control_context->len);
 	kfree(ccb->fw_control_context);
 	ccb->task = NULL;
 	ccb->ccb_tag = 0xFFFFFFFF;
@@ -4824,7 +4832,7 @@ int pm8001_chip_set_nvmd_req(struct pm8001_hba_info *pm8001_ha,
 	rc = pm8001_tag_alloc(pm8001_ha, &tag);
 	if (rc) {
 		kfree(fw_control_context);
-		return rc;
+		return -EBUSY;
 	}
 	ccb = &pm8001_ha->ccb_info[tag];
 	ccb->fw_control_context = fw_control_context;
@@ -4946,7 +4954,7 @@ pm8001_chip_fw_flash_update_req(struct pm8001_hba_info *pm8001_ha,
 	rc = pm8001_tag_alloc(pm8001_ha, &tag);
 	if (rc) {
 		kfree(fw_control_context);
-		return rc;
+		return -EBUSY;
 	}
 	ccb = &pm8001_ha->ccb_info[tag];
 	ccb->fw_control_context = fw_control_context;

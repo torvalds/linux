@@ -163,5 +163,11 @@ int drm_rect_calc_vscale_relaxed(struct drm_rect *src,
 				 struct drm_rect *dst,
 				 int min_vscale, int max_vscale);
 void drm_rect_debug_print(const struct drm_rect *r, bool fixed_point);
+void drm_rect_rotate(struct drm_rect *r,
+		     int width, int height,
+		     unsigned int rotation);
+void drm_rect_rotate_inv(struct drm_rect *r,
+			 int width, int height,
+			 unsigned int rotation);
 
 #endif

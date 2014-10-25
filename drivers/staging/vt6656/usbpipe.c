@@ -131,11 +131,10 @@ static void vnt_start_interrupt_urb_complete(struct urb *urb)
 	}
 
 	status = usb_submit_urb(priv->interrupt_urb, GFP_ATOMIC);
-	if (status) {
+	if (status)
 		dev_dbg(&priv->usb->dev, "Submit int URB failed %d\n", status);
-	} else {
+	else
 		priv->int_buf.in_use = true;
-	}
 }
 
 int vnt_start_interrupt_urb(struct vnt_private *priv)

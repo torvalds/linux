@@ -351,7 +351,7 @@ static void idma_free(struct snd_pcm *pcm)
 	if (!buf->area)
 		return;
 
-	iounmap(buf->area);
+	iounmap((void __iomem *)buf->area);
 
 	buf->area = NULL;
 	buf->addr = 0;
@@ -369,7 +369,7 @@ static int preallocate_idma_buffer(struct snd_pcm *pcm, int stream)
 	buf->dev.type = SNDRV_DMA_TYPE_CONTINUOUS;
 	buf->addr = idma.lp_tx_addr;
 	buf->bytes = idma_hardware.buffer_bytes_max;
-	buf->area = (unsigned char *)ioremap(buf->addr, buf->bytes);
+	buf->area = (unsigned char * __force)ioremap(buf->addr, buf->bytes);
 
 	return 0;
 }

@@ -318,6 +318,7 @@ static int uvc_v4l2_set_format(struct uvc_streaming *stream,
 	stream->ctrl = probe;
 	stream->cur_format = format;
 	stream->cur_frame = frame;
+	stream->frame_size = fmt->fmt.pix.sizeimage;
 
 done:
 	mutex_unlock(&stream->mutex);

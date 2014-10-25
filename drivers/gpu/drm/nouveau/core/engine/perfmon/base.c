@@ -22,8 +22,11 @@
  * Authors: Ben Skeggs
  */
 
+#include <core/client.h>
 #include <core/option.h>
-#include <core/class.h>
+#include <nvif/unpack.h>
+#include <nvif/class.h>
+#include <nvif/ioctl.h>
 
 #include <subdev/clock.h>
 
@@ -101,24 +104,28 @@ nouveau_perfsig_wrap(struct nouveau_perfmon *ppm, const char *name,
  * Perfmon object classes
  ******************************************************************************/
 static int
-nouveau_perfctr_query(struct nouveau_object *object, u32 mthd,
-		      void *data, u32 size)
+nouveau_perfctr_query(struct nouveau_object *object, void *data, u32 size)
 {
+	union {
+		struct nvif_perfctr_query_v0 v0;
+	} *args = data;
 	struct nouveau_device *device = nv_device(object);
 	struct nouveau_perfmon *ppm = (void *)object->engine;
 	struct nouveau_perfdom *dom = NULL, *chk;
-	struct nv_perfctr_query *args = data;
 	const bool all = nouveau_boolopt(device->cfgopt, "NvPmShowAll", false);
 	const bool raw = nouveau_boolopt(device->cfgopt, "NvPmUnnamed", all);
 	const char *name;
 	int tmp = 0, di, si;
-	char path[64];
+	int ret;
 
-	if (size < sizeof(*args))
-		return -EINVAL;
-
-	di = (args->iter & 0xff000000) >> 24;
-	si = (args->iter & 0x00ffffff) - 1;
+	nv_ioctl(object, "perfctr query size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nv_ioctl(object, "perfctr query vers %d iter %08x\n",
+			 args->v0.version, args->v0.iter);
+		di = (args->v0.iter & 0xff000000) >> 24;
+		si = (args->v0.iter & 0x00ffffff) - 1;
+	} else
+		return ret;
 
 	list_for_each_entry(chk, &ppm->domains, head) {
 		if (tmp++ == di) {
@@ -132,19 +139,17 @@ nouveau_perfctr_query(struct nouveau_object *object, u32 mthd,
 
 	if (si >= 0) {
 		if (raw || !(name = dom->signal[si].name)) {
-			snprintf(path, sizeof(path), "/%s/%02x", dom->name, si);
-			name = path;
+			snprintf(args->v0.name, sizeof(args->v0.name),
+				 "/%s/%02x", dom->name, si);
+		} else {
+			strncpy(args->v0.name, name, sizeof(args->v0.name));
 		}
-
-		if (args->name)
-			strncpy(args->name, name, args->size);
-		args->size = strlen(name) + 1;
 	}
 
 	do {
 		while (++si < dom->signal_nr) {
 			if (all || dom->signal[si].name) {
-				args->iter = (di << 24) | ++si;
+				args->v0.iter = (di << 24) | ++si;
 				return 0;
 			}
 		}
@@ -153,21 +158,26 @@ nouveau_perfctr_query(struct nouveau_object *object, u32 mthd,
 		dom = list_entry(dom->head.next, typeof(*dom), head);
 	} while (&dom->head != &ppm->domains);
 
-	args->iter = 0xffffffff;
+	args->v0.iter = 0xffffffff;
 	return 0;
 }
 
 static int
-nouveau_perfctr_sample(struct nouveau_object *object, u32 mthd,
-		       void *data, u32 size)
+nouveau_perfctr_sample(struct nouveau_object *object, void *data, u32 size)
 {
+	union {
+		struct nvif_perfctr_sample none;
+	} *args = data;
 	struct nouveau_perfmon *ppm = (void *)object->engine;
 	struct nouveau_perfctr *ctr, *tmp;
 	struct nouveau_perfdom *dom;
-	struct nv_perfctr_sample *args = data;
+	int ret;
 
-	if (size < sizeof(*args))
-		return -EINVAL;
+	nv_ioctl(object, "perfctr sample size %d\n", size);
+	if (nvif_unvers(args->none)) {
+		nv_ioctl(object, "perfctr sample\n");
+	} else
+		return ret;
 	ppm->sequence++;
 
 	list_for_each_entry(dom, &ppm->domains, head) {
@@ -206,20 +216,43 @@ nouveau_perfctr_sample(struct nouveau_object *object, u32 mthd,
 }
 
 static int
-nouveau_perfctr_read(struct nouveau_object *object, u32 mthd,
-		     void *data, u32 size)
+nouveau_perfctr_read(struct nouveau_object *object, void *data, u32 size)
 {
+	union {
+		struct nvif_perfctr_read_v0 v0;
+	} *args = data;
 	struct nouveau_perfctr *ctr = (void *)object;
-	struct nv_perfctr_read *args = data;
+	int ret;
 
-	if (size < sizeof(*args))
-		return -EINVAL;
+	nv_ioctl(object, "perfctr read size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nv_ioctl(object, "perfctr read vers %d\n", args->v0.version);
+	} else
+		return ret;
+
 	if (!ctr->clk)
 		return -EAGAIN;
 
-	args->clk = ctr->clk;
-	args->ctr = ctr->ctr;
+	args->v0.clk = ctr->clk;
+	args->v0.ctr = ctr->ctr;
 	return 0;
+}
+
+static int
+nouveau_perfctr_mthd(struct nouveau_object *object, u32 mthd,
+		     void *data, u32 size)
+{
+	switch (mthd) {
+	case NVIF_PERFCTR_V0_QUERY:
+		return nouveau_perfctr_query(object, data, size);
+	case NVIF_PERFCTR_V0_SAMPLE:
+		return nouveau_perfctr_sample(object, data, size);
+	case NVIF_PERFCTR_V0_READ:
+		return nouveau_perfctr_read(object, data, size);
+	default:
+		break;
+	}
+	return -EINVAL;
 }
 
 static void
@@ -237,19 +270,27 @@ nouveau_perfctr_ctor(struct nouveau_object *parent,
 		     struct nouveau_oclass *oclass, void *data, u32 size,
 		     struct nouveau_object **pobject)
 {
+	union {
+		struct nvif_perfctr_v0 v0;
+	} *args = data;
 	struct nouveau_perfmon *ppm = (void *)engine;
 	struct nouveau_perfdom *dom = NULL;
 	struct nouveau_perfsig *sig[4] = {};
 	struct nouveau_perfctr *ctr;
-	struct nv_perfctr_class *args = data;
 	int ret, i;
 
-	if (size < sizeof(*args))
-		return -EINVAL;
+	nv_ioctl(parent, "create perfctr size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nv_ioctl(parent, "create perfctr vers %d logic_op %04x\n",
+			 args->v0.version, args->v0.logic_op);
+	} else
+		return ret;
 
-	for (i = 0; i < ARRAY_SIZE(args->signal) && args->signal[i].name; i++) {
-		sig[i] = nouveau_perfsig_find(ppm, args->signal[i].name,
-					      args->signal[i].size, &dom);
+	for (i = 0; i < ARRAY_SIZE(args->v0.name) && args->v0.name[i][0]; i++) {
+		sig[i] = nouveau_perfsig_find(ppm, args->v0.name[i],
+					      strnlen(args->v0.name[i],
+					      sizeof(args->v0.name[i])),
+					      &dom);
 		if (!sig[i])
 			return -EINVAL;
 	}
@@ -260,7 +301,7 @@ nouveau_perfctr_ctor(struct nouveau_object *parent,
 		return ret;
 
 	ctr->slot = -1;
-	ctr->logic_op = args->logic_op;
+	ctr->logic_op = args->v0.logic_op;
 	ctr->signal[0] = sig[0];
 	ctr->signal[1] = sig[1];
 	ctr->signal[2] = sig[2];
@@ -276,21 +317,13 @@ nouveau_perfctr_ofuncs = {
 	.dtor = nouveau_perfctr_dtor,
 	.init = nouveau_object_init,
 	.fini = nouveau_object_fini,
-};
-
-static struct nouveau_omthds
-nouveau_perfctr_omthds[] = {
-	{ NV_PERFCTR_QUERY, NV_PERFCTR_QUERY, nouveau_perfctr_query },
-	{ NV_PERFCTR_SAMPLE, NV_PERFCTR_SAMPLE, nouveau_perfctr_sample },
-	{ NV_PERFCTR_READ, NV_PERFCTR_READ, nouveau_perfctr_read },
-	{}
+	.mthd = nouveau_perfctr_mthd,
 };
 
 struct nouveau_oclass
 nouveau_perfmon_sclass[] = {
-	{ .handle = NV_PERFCTR_CLASS,
+	{ .handle = NVIF_IOCTL_NEW_V0_PERFCTR,
 	  .ofuncs = &nouveau_perfctr_ofuncs,
-	  .omthds =  nouveau_perfctr_omthds,
 	},
 	{},
 };
@@ -303,6 +336,7 @@ nouveau_perfctx_dtor(struct nouveau_object *object)
 {
 	struct nouveau_perfmon *ppm = (void *)object->engine;
 	mutex_lock(&nv_subdev(ppm)->mutex);
+	nouveau_engctx_destroy(&ppm->context->base);
 	ppm->context = NULL;
 	mutex_unlock(&nv_subdev(ppm)->mutex);
 }

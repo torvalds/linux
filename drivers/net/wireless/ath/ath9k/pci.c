@@ -23,7 +23,7 @@
 #include <linux/module.h>
 #include "ath9k.h"
 
-static DEFINE_PCI_DEVICE_TABLE(ath_pci_id_table) = {
+static const struct pci_device_id ath_pci_id_table[] = {
 	{ PCI_VDEVICE(ATHEROS, 0x0023) }, /* PCI   */
 	{ PCI_VDEVICE(ATHEROS, 0x0024) }, /* PCI-E */
 	{ PCI_VDEVICE(ATHEROS, 0x0027) }, /* PCI   */

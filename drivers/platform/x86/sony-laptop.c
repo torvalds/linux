@@ -2389,7 +2389,7 @@ static int sony_nc_lid_resume_setup(struct platform_device *pd,
 		lid_ctl->attrs[LID_RESUME_S3].store = sony_nc_lid_resume_store;
 	}
 	for (i = 0; i < LID_RESUME_MAX &&
-			lid_ctl->attrs[LID_RESUME_S3].attr.name; i++) {
+			lid_ctl->attrs[i].attr.name; i++) {
 		result = device_create_file(&pd->dev, &lid_ctl->attrs[i]);
 		if (result)
 			goto liderror;

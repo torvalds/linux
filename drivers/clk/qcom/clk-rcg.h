@@ -103,8 +103,9 @@ extern const struct clk_ops clk_rcg_bypass_ops;
  * struct clk_dyn_rcg - root clock generator with glitch free mux
  *
  * @mux_sel_bit: bit to switch glitch free mux
- * @ns_reg: NS register
+ * @ns_reg: NS0 and NS1 register
  * @md_reg: MD0 and MD1 register
+ * @bank_reg: register to XOR @mux_sel_bit into to switch glitch free mux
  * @mn: mn counter (banked)
  * @s: source selector (banked)
  * @freq_tbl: frequency table
@@ -113,8 +114,9 @@ extern const struct clk_ops clk_rcg_bypass_ops;
  *
  */
 struct clk_dyn_rcg {
-	u32	ns_reg;
+	u32	ns_reg[2];
 	u32	md_reg[2];
+	u32	bank_reg;
 
 	u8	mux_sel_bit;
 

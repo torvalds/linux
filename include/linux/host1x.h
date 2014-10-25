@@ -164,12 +164,15 @@ int host1x_job_submit(struct host1x_job *job);
  */
 
 struct host1x_reloc {
-	struct host1x_bo *cmdbuf;
-	u32 cmdbuf_offset;
-	struct host1x_bo *target;
-	u32 target_offset;
-	u32 shift;
-	u32 pad;
+	struct {
+		struct host1x_bo *bo;
+		unsigned long offset;
+	} cmdbuf;
+	struct {
+		struct host1x_bo *bo;
+		unsigned long offset;
+	} target;
+	unsigned long shift;
 };
 
 struct host1x_job {

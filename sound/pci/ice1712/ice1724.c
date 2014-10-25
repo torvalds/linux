@@ -94,7 +94,7 @@ MODULE_PARM_DESC(model, "Use the given board model.");
 
 
 /* Both VT1720 and VT1724 have the same PCI IDs */
-static DEFINE_PCI_DEVICE_TABLE(snd_vt1724_ids) = {
+static const struct pci_device_id snd_vt1724_ids[] = {
 	{ PCI_VDEVICE(ICE, PCI_DEVICE_ID_VT1724), 0 },
 	{ 0, }
 };

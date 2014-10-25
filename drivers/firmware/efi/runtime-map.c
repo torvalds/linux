@@ -138,6 +138,27 @@ add_sysfs_runtime_map_entry(struct kobject *kobj, int nr)
 	return entry;
 }
 
+int efi_get_runtime_map_size(void)
+{
+	return nr_efi_runtime_map * efi_memdesc_size;
+}
+
+int efi_get_runtime_map_desc_size(void)
+{
+	return efi_memdesc_size;
+}
+
+int efi_runtime_map_copy(void *buf, size_t bufsz)
+{
+	size_t sz = efi_get_runtime_map_size();
+
+	if (sz > bufsz)
+		sz = bufsz;
+
+	memcpy(buf, efi_runtime_map, sz);
+	return 0;
+}
+
 void efi_runtime_map_setup(void *map, int nr_entries, u32 desc_size)
 {
 	efi_runtime_map = map;

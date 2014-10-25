@@ -29,6 +29,9 @@ struct nfs_net {
 #endif
 	spinlock_t nfs_client_lock;
 	struct timespec boot_time;
+#ifdef CONFIG_PROC_FS
+	struct proc_dir_entry *proc_nfsfs;
+#endif
 };
 
 extern int nfs_net_id;

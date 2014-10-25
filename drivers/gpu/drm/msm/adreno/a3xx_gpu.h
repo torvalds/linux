@@ -19,6 +19,11 @@
 #define __A3XX_GPU_H__
 
 #include "adreno_gpu.h"
+
+/* arrg, somehow fb.h is getting pulled in: */
+#undef ROP_COPY
+#undef ROP_XOR
+
 #include "a3xx.xml.h"
 
 struct a3xx_gpu {

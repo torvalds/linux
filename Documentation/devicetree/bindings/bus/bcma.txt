@@ -1,0 +1,32 @@
+Driver for ARM AXI Bus with Broadcom Plugins (bcma)
+
+Required properties:
+
+- compatible : brcm,bus-axi
+
+- reg : iomem address range of chipcommon core
+
+The cores on the AXI bus are automatically detected by bcma with the
+memory ranges they are using and they get registered afterwards.
+
+The top-level axi bus may contain children representing attached cores
+(devices). This is needed since some hardware details can't be auto
+detected (e.g. IRQ numbers). Also some of the cores may be responsible
+for extra things, e.g. ChipCommon providing access to the GPIO chip.
+
+Example:
+
+	axi@18000000 {
+		compatible = "brcm,bus-axi";
+		reg = <0x18000000 0x1000>;
+		ranges = <0x00000000 0x18000000 0x00100000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		chipcommon {
+			reg = <0x00000000 0x1000>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+	};

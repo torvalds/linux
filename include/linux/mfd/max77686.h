@@ -1,5 +1,5 @@
 /*
- * max77686.h - Driver for the Maxim 77686
+ * max77686.h - Driver for the Maxim 77686/802
  *
  *  Copyright (C) 2012 Samsung Electrnoics
  *  Chiwoong Byun <woong.byun@samsung.com>
@@ -71,6 +71,54 @@ enum max77686_regulators {
 	MAX77686_REG_MAX,
 };
 
+/* MAX77802 regulator IDs */
+enum max77802_regulators {
+	MAX77802_BUCK1 = 0,
+	MAX77802_BUCK2,
+	MAX77802_BUCK3,
+	MAX77802_BUCK4,
+	MAX77802_BUCK5,
+	MAX77802_BUCK6,
+	MAX77802_BUCK7,
+	MAX77802_BUCK8,
+	MAX77802_BUCK9,
+	MAX77802_BUCK10,
+	MAX77802_LDO1,
+	MAX77802_LDO2,
+	MAX77802_LDO3,
+	MAX77802_LDO4,
+	MAX77802_LDO5,
+	MAX77802_LDO6,
+	MAX77802_LDO7,
+	MAX77802_LDO8,
+	MAX77802_LDO9,
+	MAX77802_LDO10,
+	MAX77802_LDO11,
+	MAX77802_LDO12,
+	MAX77802_LDO13,
+	MAX77802_LDO14,
+	MAX77802_LDO15,
+	MAX77802_LDO17,
+	MAX77802_LDO18,
+	MAX77802_LDO19,
+	MAX77802_LDO20,
+	MAX77802_LDO21,
+	MAX77802_LDO23,
+	MAX77802_LDO24,
+	MAX77802_LDO25,
+	MAX77802_LDO26,
+	MAX77802_LDO27,
+	MAX77802_LDO28,
+	MAX77802_LDO29,
+	MAX77802_LDO30,
+	MAX77802_LDO32,
+	MAX77802_LDO33,
+	MAX77802_LDO34,
+	MAX77802_LDO35,
+
+	MAX77802_REG_MAX,
+};
+
 struct max77686_regulator_data {
 	int id;
 	struct regulator_init_data *initdata;
@@ -83,14 +131,19 @@ enum max77686_opmode {
 	MAX77686_OPMODE_STANDBY,
 };
 
+enum max77802_opmode {
+	MAX77802_OPMODE_OFF,
+	MAX77802_OPMODE_STANDBY,
+	MAX77802_OPMODE_LP,
+	MAX77802_OPMODE_NORMAL,
+};
+
 struct max77686_opmode_data {
 	int id;
 	int mode;
 };
 
 struct max77686_platform_data {
-	/* IRQ */
-	int irq_gpio;
 	int ono;
 	int wakeup;
 

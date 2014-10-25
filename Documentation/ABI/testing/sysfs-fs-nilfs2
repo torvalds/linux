@@ -1,0 +1,269 @@
+
+What:		/sys/fs/nilfs2/features/revision
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show current revision of NILFS file system driver.
+		This value informs about file system revision that
+		driver is ready to support.
+
+What:		/sys/fs/nilfs2/features/README
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Describe attributes of /sys/fs/nilfs2/features group.
+
+What:		/sys/fs/nilfs2/<device>/revision
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show NILFS file system revision on volume.
+		This value informs about metadata structures'
+		revision on mounted volume.
+
+What:		/sys/fs/nilfs2/<device>/blocksize
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show volume's block size in bytes.
+
+What:		/sys/fs/nilfs2/<device>/device_size
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show volume size in bytes.
+
+What:		/sys/fs/nilfs2/<device>/free_blocks
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show count of free blocks on volume.
+
+What:		/sys/fs/nilfs2/<device>/uuid
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show volume's UUID (Universally Unique Identifier).
+
+What:		/sys/fs/nilfs2/<device>/volume_name
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show volume's label.
+
+What:		/sys/fs/nilfs2/<device>/README
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Describe attributes of /sys/fs/nilfs2/<device> group.
+
+What:		/sys/fs/nilfs2/<device>/superblock/sb_write_time
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show last write time of super block in human-readable
+		format.
+
+What:		/sys/fs/nilfs2/<device>/superblock/sb_write_time_secs
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show last write time of super block in seconds.
+
+What:		/sys/fs/nilfs2/<device>/superblock/sb_write_count
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show current write count of super block.
+
+What:		/sys/fs/nilfs2/<device>/superblock/sb_update_frequency
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show/Set interval of periodical update of superblock
+		(in seconds).
+
+What:		/sys/fs/nilfs2/<device>/superblock/README
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Describe attributes of /sys/fs/nilfs2/<device>/superblock
+		group.
+
+What:		/sys/fs/nilfs2/<device>/segctor/last_pseg_block
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show start block number of the latest segment.
+
+What:		/sys/fs/nilfs2/<device>/segctor/last_seg_sequence
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show sequence value of the latest segment.
+
+What:		/sys/fs/nilfs2/<device>/segctor/last_seg_checkpoint
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show checkpoint number of the latest segment.
+
+What:		/sys/fs/nilfs2/<device>/segctor/current_seg_sequence
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show segment sequence counter.
+
+What:		/sys/fs/nilfs2/<device>/segctor/current_last_full_seg
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show index number of the latest full segment.
+
+What:		/sys/fs/nilfs2/<device>/segctor/next_full_seg
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show index number of the full segment index
+		to be used next.
+
+What:		/sys/fs/nilfs2/<device>/segctor/next_pseg_offset
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show offset of next partial segment in the current
+		full segment.
+
+What:		/sys/fs/nilfs2/<device>/segctor/next_checkpoint
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show next checkpoint number.
+
+What:		/sys/fs/nilfs2/<device>/segctor/last_seg_write_time
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show write time of the last segment in
+		human-readable format.
+
+What:		/sys/fs/nilfs2/<device>/segctor/last_seg_write_time_secs
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show write time of the last segment in seconds.
+
+What:		/sys/fs/nilfs2/<device>/segctor/last_nongc_write_time
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show write time of the last segment not for cleaner
+		operation in human-readable format.
+
+What:		/sys/fs/nilfs2/<device>/segctor/last_nongc_write_time_secs
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show write time of the last segment not for cleaner
+		operation in seconds.
+
+What:		/sys/fs/nilfs2/<device>/segctor/dirty_data_blocks_count
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show number of dirty data blocks.
+
+What:		/sys/fs/nilfs2/<device>/segctor/README
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Describe attributes of /sys/fs/nilfs2/<device>/segctor
+		group.
+
+What:		/sys/fs/nilfs2/<device>/segments/segments_number
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show number of segments on a volume.
+
+What:		/sys/fs/nilfs2/<device>/segments/blocks_per_segment
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show number of blocks in segment.
+
+What:		/sys/fs/nilfs2/<device>/segments/clean_segments
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show count of clean segments.
+
+What:		/sys/fs/nilfs2/<device>/segments/dirty_segments
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show count of dirty segments.
+
+What:		/sys/fs/nilfs2/<device>/segments/README
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Describe attributes of /sys/fs/nilfs2/<device>/segments
+		group.
+
+What:		/sys/fs/nilfs2/<device>/checkpoints/checkpoints_number
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show number of checkpoints on volume.
+
+What:		/sys/fs/nilfs2/<device>/checkpoints/snapshots_number
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show number of snapshots on volume.
+
+What:		/sys/fs/nilfs2/<device>/checkpoints/last_seg_checkpoint
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show checkpoint number of the latest segment.
+
+What:		/sys/fs/nilfs2/<device>/checkpoints/next_checkpoint
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show next checkpoint number.
+
+What:		/sys/fs/nilfs2/<device>/checkpoints/README
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Describe attributes of /sys/fs/nilfs2/<device>/checkpoints
+		group.
+
+What:		/sys/fs/nilfs2/<device>/mounted_snapshots/README
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Describe content of /sys/fs/nilfs2/<device>/mounted_snapshots
+		group.
+
+What:		/sys/fs/nilfs2/<device>/mounted_snapshots/<id>/inodes_count
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show number of inodes for snapshot.
+
+What:		/sys/fs/nilfs2/<device>/mounted_snapshots/<id>/blocks_count
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Show number of blocks for snapshot.
+
+What:		/sys/fs/nilfs2/<device>/mounted_snapshots/<id>/README
+Date:		April 2014
+Contact:	"Vyacheslav Dubeyko" <slava@dubeyko.com>
+Description:
+		Describe attributes of /sys/fs/nilfs2/<device>/mounted_snapshots/<id>
+		group.

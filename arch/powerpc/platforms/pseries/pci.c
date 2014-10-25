@@ -29,6 +29,7 @@
 #include <asm/pci-bridge.h>
 #include <asm/prom.h>
 #include <asm/ppc-pci.h>
+#include "pseries.h"
 
 #if 0
 void pcibios_name_device(struct pci_dev *dev)

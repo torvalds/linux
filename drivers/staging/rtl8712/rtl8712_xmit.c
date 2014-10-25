@@ -324,6 +324,7 @@ u8 r8712_append_mpdu_unit(struct xmit_buf *pxmitbuf,
 	padding_sz = (8 - (last_txcmdsz % 8));
 	if ((last_txcmdsz % 8) != 0) {
 		int i;
+
 		for (i = 0; i < padding_sz; i++)
 			*(pxmitframe->buf_addr+TXDESC_SIZE+last_txcmdsz+i) = 0;
 	}
@@ -554,6 +555,7 @@ static void update_txdesc(struct xmit_frame *pxmitframe, uint *pmem, int sz)
 		}
 		if (pattrib->pctrl == 1) { /* mp tx packets */
 			struct tx_desc *ptxdesc_mp;
+
 			ptxdesc_mp = &txdesc_mp;
 			/* offset 8 */
 			ptxdesc->txdw2 = cpu_to_le32(ptxdesc_mp->txdw2);
@@ -655,6 +657,7 @@ int r8712_xmitframe_complete(struct _adapter *padapter,
 		r8712_xmitframe_aggr_1st(pxmitbuf, pxmitframe);
 		if (p2ndxmitframe != NULL) {
 			u16 total_length;
+
 			total_length = r8712_xmitframe_aggr_next(
 				pxmitbuf, p2ndxmitframe);
 			do {

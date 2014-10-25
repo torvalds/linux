@@ -660,6 +660,7 @@ static void __init pci_v3_preinit(void)
 {
 	unsigned long flags;
 	unsigned int temp;
+	phys_addr_t io_address = pci_pio_to_address(io_mem.start);
 
 	pcibios_min_mem = 0x00100000;
 
@@ -701,7 +702,7 @@ static void __init pci_v3_preinit(void)
 	/*
 	 * Setup window 2 - PCI IO
 	 */
-	v3_writel(V3_LB_BASE2, v3_addr_to_lb_base2(io_mem.start) |
+	v3_writel(V3_LB_BASE2, v3_addr_to_lb_base2(io_address) |
 			V3_LB_BASE_ENABLE);
 	v3_writew(V3_LB_MAP2, v3_addr_to_lb_map2(0));
 
@@ -742,6 +743,7 @@ static void __init pci_v3_preinit(void)
 static void __init pci_v3_postinit(void)
 {
 	unsigned int pci_cmd;
+	phys_addr_t io_address = pci_pio_to_address(io_mem.start);
 
 	pci_cmd = PCI_COMMAND_MEMORY |
 		  PCI_COMMAND_MASTER | PCI_COMMAND_INVALIDATE;
@@ -758,7 +760,7 @@ static void __init pci_v3_postinit(void)
 		       "interrupt: %d\n", ret);
 #endif
 
-	register_isa_ports(non_mem.start, io_mem.start, 0);
+	register_isa_ports(non_mem.start, io_address, 0);
 }
 
 /*
@@ -867,33 +869,32 @@ static int __init pci_v3_probe(struct platform_device *pdev)
 
 	for_each_of_pci_range(&parser, &range) {
 		if (!range.flags) {
-			of_pci_range_to_resource(&range, np, &conf_mem);
+			ret = of_pci_range_to_resource(&range, np, &conf_mem);
 			conf_mem.name = "PCIv3 config";
 		}
 		if (range.flags & IORESOURCE_IO) {
-			of_pci_range_to_resource(&range, np, &io_mem);
+			ret = of_pci_range_to_resource(&range, np, &io_mem);
 			io_mem.name = "PCIv3 I/O";
 		}
 		if ((range.flags & IORESOURCE_MEM) &&
 			!(range.flags & IORESOURCE_PREFETCH)) {
 			non_mem_pci = range.pci_addr;
 			non_mem_pci_sz = range.size;
-			of_pci_range_to_resource(&range, np, &non_mem);
+			ret = of_pci_range_to_resource(&range, np, &non_mem);
 			non_mem.name = "PCIv3 non-prefetched mem";
 		}
 		if ((range.flags & IORESOURCE_MEM) &&
 			(range.flags & IORESOURCE_PREFETCH)) {
 			pre_mem_pci = range.pci_addr;
 			pre_mem_pci_sz = range.size;
-			of_pci_range_to_resource(&range, np, &pre_mem);
+			ret = of_pci_range_to_resource(&range, np, &pre_mem);
 			pre_mem.name = "PCIv3 prefetched mem";
 		}
-	}
 
-	if (!conf_mem.start || !io_mem.start ||
-	    !non_mem.start || !pre_mem.start) {
-		dev_err(&pdev->dev, "missing ranges in device node\n");
-		return -EINVAL;
+		if (ret < 0) {
+			dev_err(&pdev->dev, "missing ranges in device node\n");
+			return ret;
+		}
 	}
 
 	pci_v3.map_irq = of_irq_parse_and_map_pci;

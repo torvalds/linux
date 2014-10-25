@@ -32,7 +32,15 @@ struct omap_connector {
 	struct drm_connector base;
 	struct omap_dss_device *dssdev;
 	struct drm_encoder *encoder;
+	bool hdmi_mode;
 };
+
+bool omap_connector_get_hdmi_mode(struct drm_connector *connector)
+{
+	struct omap_connector *omap_connector = to_omap_connector(connector);
+
+	return omap_connector->hdmi_mode;
+}
 
 void copy_timings_omap_to_drm(struct drm_display_mode *mode,
 		struct omap_video_timings *timings)
@@ -130,7 +138,7 @@ static void omap_connector_destroy(struct drm_connector *connector)
 	struct omap_dss_device *dssdev = omap_connector->dssdev;
 
 	DBG("%s", omap_connector->dssdev->name);
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(omap_connector);
 
@@ -162,10 +170,14 @@ static int omap_connector_get_modes(struct drm_connector *connector)
 			drm_mode_connector_update_edid_property(
 					connector, edid);
 			n = drm_add_edid_modes(connector, edid);
+
+			omap_connector->hdmi_mode =
+				drm_detect_hdmi_monitor(edid);
 		} else {
 			drm_mode_connector_update_edid_property(
 					connector, NULL);
 		}
+
 		kfree(edid);
 	} else {
 		struct drm_display_mode *mode = drm_mode_create(dev);
@@ -307,7 +319,7 @@ struct drm_connector *omap_connector_init(struct drm_device *dev,
 	connector->interlace_allowed = 1;
 	connector->doublescan_allowed = 0;
 
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 
 	return connector;
 

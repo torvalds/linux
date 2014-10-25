@@ -1130,6 +1130,7 @@ static int cpmac_probe(struct platform_device *pdev)
 		strncpy(mdio_bus_id, "fixed-0", MII_BUS_ID_SIZE); /* fixed phys bus */
 		phy_id = pdev->id;
 	}
+	mdio_bus_id[sizeof(mdio_bus_id) - 1] = '\0';
 
 	dev = alloc_etherdev_mq(sizeof(*priv), CPMAC_QUEUES);
 	if (!dev)
@@ -1206,7 +1207,6 @@ static int cpmac_remove(struct platform_device *pdev)
 static struct platform_driver cpmac_driver = {
 	.driver = {
 		.name 	= "cpmac",
-		.owner 	= THIS_MODULE,
 	},
 	.probe 	= cpmac_probe,
 	.remove = cpmac_remove,

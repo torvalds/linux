@@ -25,11 +25,13 @@
 #include <linux/irq.h>
 #include <linux/input.h>
 #include <linux/of_platform.h>
-#include <mach/sh73a0.h>
-#include <mach/common.h>
+
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+
+#include "common.h"
+#include "sh73a0.h"
 
 static void __init kzm_init(void)
 {
@@ -49,8 +51,8 @@ static const char *kzm9g_boards_compat_dt[] __initdata = {
 DT_MACHINE_START(KZM9G_DT, "kzm9g-reference")
 	.smp		= smp_ops(sh73a0_smp_ops),
 	.map_io		= sh73a0_map_io,
-	.init_early	= sh73a0_init_delay,
-	.nr_irqs	= NR_IRQS_LEGACY,
+	.init_early	= shmobile_init_delay,
 	.init_machine	= kzm_init,
+	.init_late	= shmobile_init_late,
 	.dt_compat	= kzm9g_boards_compat_dt,
 MACHINE_END

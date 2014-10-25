@@ -6,7 +6,7 @@
 #include <linux/slab.h>
 #include "xattr.h"
 #include <linux/security.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static int
 security_get(struct dentry *dentry, const char *name, void *buffer, size_t size,

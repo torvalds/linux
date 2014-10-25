@@ -248,6 +248,7 @@ sint r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 		 * tx these packets and let LPS awake some time
 		 * to prevent DHCP protocol fail */
 		u8 tmp[24];
+
 		_r8712_pktfile_read(&pktfile, &tmp[0], 24);
 		pattrib->dhcp_pkt = 0;
 		if (pktfile.pkt_len > 282) {/*MINIMUM_DHCP_PACKET_SIZE)*/
@@ -481,6 +482,7 @@ static sint make_wlanhdr(struct _adapter *padapter , u8 *hdr,
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct qos_priv *pqospriv = &pmlmepriv->qospriv;
 	u16 *fctrl = &pwlanhdr->frame_ctl;
+
 	memset(hdr, 0, WLANHDR_OFFSET);
 	SetFrameSubType(fctrl, pattrib->subtype);
 	if (pattrib->subtype & WIFI_DATA_TYPE) {
@@ -491,7 +493,7 @@ static sint make_wlanhdr(struct _adapter *padapter , u8 *hdr,
 				ETH_ALEN);
 			memcpy(pwlanhdr->addr2, pattrib->src, ETH_ALEN);
 			memcpy(pwlanhdr->addr3, pattrib->dst, ETH_ALEN);
-		} else if ((check_fwstate(pmlmepriv, WIFI_AP_STATE) == true)) {
+		} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true) {
 			/* to_ds = 0, fr_ds = 1; */
 			SetFrDs(fctrl);
 			memcpy(pwlanhdr->addr1, pattrib->dst, ETH_ALEN);
@@ -525,8 +527,8 @@ static sint make_wlanhdr(struct _adapter *padapter , u8 *hdr,
 		/* Update Seq Num will be handled by f/w */
 		{
 			struct sta_info *psta;
-
 			sint bmcst = IS_MCAST(pattrib->ra);
+
 			if (pattrib->psta)
 				psta = pattrib->psta;
 			else {
@@ -953,8 +955,8 @@ static void alloc_hwxmits(struct _adapter *padapter)
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 
 	pxmitpriv->hwxmit_entry = HWXMIT_ENTRY;
-	pxmitpriv->hwxmits = kmalloc(sizeof(struct hw_xmit) * pxmitpriv->hwxmit_entry,
-				     GFP_ATOMIC);
+	pxmitpriv->hwxmits = kmalloc_array(pxmitpriv->hwxmit_entry,
+				sizeof(struct hw_xmit), GFP_ATOMIC);
 	if (pxmitpriv->hwxmits == NULL)
 		return;
 	hwxmits = pxmitpriv->hwxmits;

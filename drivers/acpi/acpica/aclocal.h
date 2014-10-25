@@ -254,6 +254,7 @@ struct acpi_create_field_info {
 	u32 field_bit_position;
 	u32 field_bit_length;
 	u16 resource_length;
+	u16 pin_number_index;
 	u8 field_flags;
 	u8 attribute;
 	u8 field_type;
@@ -412,8 +413,8 @@ struct acpi_gpe_handler_info {
 	acpi_gpe_handler address;	/* Address of handler, if any */
 	void *context;		/* Context to be passed to handler */
 	struct acpi_namespace_node *method_node;	/* Method node for this GPE level (saved) */
-	u8 original_flags;      /* Original (pre-handler) GPE info */
-	u8 originally_enabled;  /* True if GPE was originally enabled */
+	u8 original_flags;	/* Original (pre-handler) GPE info */
+	u8 originally_enabled;	/* True if GPE was originally enabled */
 };
 
 /* Notify info for implicit notify, multiple device objects */

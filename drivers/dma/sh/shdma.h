@@ -62,7 +62,7 @@ struct sh_dmae_desc {
 #define to_sh_dev(chan) container_of(chan->shdma_chan.dma_chan.device,\
 				     struct sh_dmae_device, shdma_dev.dma_dev)
 
-#ifdef CONFIG_SHDMA_R8A73A4
+#ifdef CONFIG_SH_DMAE_R8A73A4
 extern const struct sh_dmae_pdata r8a73a4_dma_pdata;
 #define r8a73a4_shdma_devid (&r8a73a4_dma_pdata)
 #else

@@ -72,7 +72,7 @@ xfs_initxattrs(
 	int			error = 0;
 
 	for (xattr = xattr_array; xattr->name != NULL; xattr++) {
-		error = -xfs_attr_set(ip, xattr->name, xattr->value,
+		error = xfs_attr_set(ip, xattr->name, xattr->value,
 				      xattr->value_len, ATTR_SECURE);
 		if (error < 0)
 			break;
@@ -93,7 +93,7 @@ xfs_init_security(
 	struct inode	*dir,
 	const struct qstr *qstr)
 {
-	return -security_inode_init_security(inode, dir, qstr,
+	return security_inode_init_security(inode, dir, qstr,
 					     &xfs_initxattrs, NULL);
 }
 
@@ -173,12 +173,12 @@ xfs_generic_create(
 
 #ifdef CONFIG_XFS_POSIX_ACL
 	if (default_acl) {
-		error = -xfs_set_acl(inode, default_acl, ACL_TYPE_DEFAULT);
+		error = xfs_set_acl(inode, default_acl, ACL_TYPE_DEFAULT);
 		if (error)
 			goto out_cleanup_inode;
 	}
 	if (acl) {
-		error = -xfs_set_acl(inode, acl, ACL_TYPE_ACCESS);
+		error = xfs_set_acl(inode, acl, ACL_TYPE_ACCESS);
 		if (error)
 			goto out_cleanup_inode;
 	}
@@ -194,7 +194,7 @@ xfs_generic_create(
 		posix_acl_release(default_acl);
 	if (acl)
 		posix_acl_release(acl);
-	return -error;
+	return error;
 
  out_cleanup_inode:
 	if (!tmpfile)
@@ -248,8 +248,8 @@ xfs_vn_lookup(
 	xfs_dentry_to_name(&name, dentry, 0);
 	error = xfs_lookup(XFS_I(dir), &name, &cip, NULL);
 	if (unlikely(error)) {
-		if (unlikely(error != ENOENT))
-			return ERR_PTR(-error);
+		if (unlikely(error != -ENOENT))
+			return ERR_PTR(error);
 		d_add(dentry, NULL);
 		return NULL;
 	}
@@ -275,8 +275,8 @@ xfs_vn_ci_lookup(
 	xfs_dentry_to_name(&xname, dentry, 0);
 	error = xfs_lookup(XFS_I(dir), &xname, &ip, &ci_name);
 	if (unlikely(error)) {
-		if (unlikely(error != ENOENT))
-			return ERR_PTR(-error);
+		if (unlikely(error != -ENOENT))
+			return ERR_PTR(error);
 		/*
 		 * call d_add(dentry, NULL) here when d_drop_negative_children
 		 * is called in xfs_vn_mknod (ie. allow negative dentries
@@ -311,7 +311,7 @@ xfs_vn_link(
 
 	error = xfs_link(XFS_I(dir), XFS_I(inode), &name);
 	if (unlikely(error))
-		return -error;
+		return error;
 
 	ihold(inode);
 	d_instantiate(dentry, inode);
@@ -328,7 +328,7 @@ xfs_vn_unlink(
 
 	xfs_dentry_to_name(&name, dentry, 0);
 
-	error = -xfs_remove(XFS_I(dir), &name, XFS_I(dentry->d_inode));
+	error = xfs_remove(XFS_I(dir), &name, XFS_I(dentry->d_inode));
 	if (error)
 		return error;
 
@@ -375,7 +375,7 @@ xfs_vn_symlink(
 	xfs_cleanup_inode(dir, inode, dentry);
 	iput(inode);
  out:
-	return -error;
+	return error;
 }
 
 STATIC int
@@ -392,8 +392,8 @@ xfs_vn_rename(
 	xfs_dentry_to_name(&oname, odentry, 0);
 	xfs_dentry_to_name(&nname, ndentry, odentry->d_inode->i_mode);
 
-	return -xfs_rename(XFS_I(odir), &oname, XFS_I(odentry->d_inode),
-			   XFS_I(ndir), &nname, new_inode ?
+	return xfs_rename(XFS_I(odir), &oname, XFS_I(odentry->d_inode),
+			  XFS_I(ndir), &nname, new_inode ?
 						XFS_I(new_inode) : NULL);
 }
 
@@ -414,7 +414,7 @@ xfs_vn_follow_link(
 	if (!link)
 		goto out_err;
 
-	error = -xfs_readlink(XFS_I(dentry->d_inode), link);
+	error = xfs_readlink(XFS_I(dentry->d_inode), link);
 	if (unlikely(error))
 		goto out_kfree;
 
@@ -441,7 +441,7 @@ xfs_vn_getattr(
 	trace_xfs_getattr(ip);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
-		return -XFS_ERROR(EIO);
+		return -EIO;
 
 	stat->size = XFS_ISIZE(ip);
 	stat->dev = inode->i_sb->s_dev;
@@ -546,14 +546,14 @@ xfs_setattr_nonsize(
 	/* If acls are being inherited, we already have this checked */
 	if (!(flags & XFS_ATTR_NOACL)) {
 		if (mp->m_flags & XFS_MOUNT_RDONLY)
-			return XFS_ERROR(EROFS);
+			return -EROFS;
 
 		if (XFS_FORCED_SHUTDOWN(mp))
-			return XFS_ERROR(EIO);
+			return -EIO;
 
-		error = -inode_change_ok(inode, iattr);
+		error = inode_change_ok(inode, iattr);
 		if (error)
-			return XFS_ERROR(error);
+			return error;
 	}
 
 	ASSERT((mask & ATTR_SIZE) == 0);
@@ -703,7 +703,7 @@ xfs_setattr_nonsize(
 	xfs_qm_dqrele(gdqp);
 
 	if (error)
-		return XFS_ERROR(error);
+		return error;
 
 	/*
 	 * XXX(hch): Updating the ACL entries is not atomic vs the i_mode
@@ -713,9 +713,9 @@ xfs_setattr_nonsize(
 	 * 	     Posix ACL code seems to care about this issue either.
 	 */
 	if ((mask & ATTR_MODE) && !(flags & XFS_ATTR_NOACL)) {
-		error = -posix_acl_chmod(inode, inode->i_mode);
+		error = posix_acl_chmod(inode, inode->i_mode);
 		if (error)
-			return XFS_ERROR(error);
+			return error;
 	}
 
 	return 0;
@@ -748,14 +748,14 @@ xfs_setattr_size(
 	trace_xfs_setattr(ip);
 
 	if (mp->m_flags & XFS_MOUNT_RDONLY)
-		return XFS_ERROR(EROFS);
+		return -EROFS;
 
 	if (XFS_FORCED_SHUTDOWN(mp))
-		return XFS_ERROR(EIO);
+		return -EIO;
 
-	error = -inode_change_ok(inode, iattr);
+	error = inode_change_ok(inode, iattr);
 	if (error)
-		return XFS_ERROR(error);
+		return error;
 
 	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
 	ASSERT(S_ISREG(ip->i_d.di_mode));
@@ -818,7 +818,7 @@ xfs_setattr_size(
 	 * care about here.
 	 */
 	if (oldsize != ip->i_d.di_size && newsize > ip->i_d.di_size) {
-		error = -filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
+		error = filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
 						      ip->i_d.di_size, newsize);
 		if (error)
 			return error;
@@ -844,10 +844,40 @@ xfs_setattr_size(
 	 * much we can do about this, except to hope that the caller sees ENOMEM
 	 * and retries the truncate operation.
 	 */
-	error = -block_truncate_page(inode->i_mapping, newsize, xfs_get_blocks);
+	error = block_truncate_page(inode->i_mapping, newsize, xfs_get_blocks);
 	if (error)
 		return error;
 	truncate_setsize(inode, newsize);
+
+	/*
+	 * The "we can't serialise against page faults" pain gets worse.
+	 *
+	 * If the file is mapped then we have to clean the page at the old EOF
+	 * when extending the file. Extending the file can expose changes the
+	 * underlying page mapping (e.g. from beyond EOF to a hole or
+	 * unwritten), and so on the next attempt to write to that page we need
+	 * to remap it for write. i.e. we need .page_mkwrite() to be called.
+	 * Hence we need to clean the page to clean the pte and so a new write
+	 * fault will be triggered appropriately.
+	 *
+	 * If we do it before we change the inode size, then we can race with a
+	 * page fault that maps the page with exactly the same problem. If we do
+	 * it after we change the file size, then a new page fault can come in
+	 * and allocate space before we've run the rest of the truncate
+	 * transaction. That's kinda grotesque, but it's better than have data
+	 * over a hole, and so that's the lesser evil that has been chosen here.
+	 *
+	 * The real solution, however, is to have some mechanism for locking out
+	 * page faults while a truncate is in progress.
+	 */
+	if (newsize > oldsize && mapping_mapped(VFS_I(ip)->i_mapping)) {
+		error = filemap_write_and_wait_range(
+				VFS_I(ip)->i_mapping,
+				round_down(oldsize, PAGE_CACHE_SIZE),
+				round_up(oldsize, PAGE_CACHE_SIZE) - 1);
+		if (error)
+			return error;
+	}
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_SETATTR_SIZE);
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_itruncate, 0, 0);
@@ -950,7 +980,7 @@ xfs_vn_setattr(
 		error = xfs_setattr_nonsize(ip, iattr, 0);
 	}
 
-	return -error;
+	return error;
 }
 
 STATIC int
@@ -970,7 +1000,7 @@ xfs_vn_update_time(
 	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_fsyncts, 0, 0);
 	if (error) {
 		xfs_trans_cancel(tp, 0);
-		return -error;
+		return error;
 	}
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
@@ -991,7 +1021,7 @@ xfs_vn_update_time(
 	}
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_TIMESTAMP);
-	return -xfs_trans_commit(tp, 0);
+	return xfs_trans_commit(tp, 0);
 }
 
 #define XFS_FIEMAP_FLAGS	(FIEMAP_FLAG_SYNC|FIEMAP_FLAG_XATTR)
@@ -1036,7 +1066,7 @@ xfs_fiemap_format(
 		*full = 1;	/* user array now full */
 	}
 
-	return -error;
+	return error;
 }
 
 STATIC int
@@ -1055,12 +1085,12 @@ xfs_vn_fiemap(
 		return error;
 
 	/* Set up bmap header for xfs internal routine */
-	bm.bmv_offset = BTOBB(start);
+	bm.bmv_offset = BTOBBT(start);
 	/* Special case for whole file */
 	if (length == FIEMAP_MAX_OFFSET)
 		bm.bmv_length = -1LL;
 	else
-		bm.bmv_length = BTOBB(length);
+		bm.bmv_length = BTOBB(start + length) - bm.bmv_offset;
 
 	/* We add one because in getbmap world count includes the header */
 	bm.bmv_count = !fieinfo->fi_extents_max ? MAXEXTNUM :
@@ -1075,7 +1105,7 @@ xfs_vn_fiemap(
 
 	error = xfs_getbmap(ip, &bm, xfs_fiemap_format, fieinfo);
 	if (error)
-		return -error;
+		return error;
 
 	return 0;
 }

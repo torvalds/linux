@@ -12,7 +12,7 @@
 
 
 #ifndef __FUSB300_UDC_H__
-#define __FUSB300_UDC_H_
+#define __FUSB300_UDC_H__
 
 #include <linux/kernel.h>
 

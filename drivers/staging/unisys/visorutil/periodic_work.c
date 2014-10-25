@@ -27,7 +27,7 @@
 
 
 
-struct PERIODIC_WORK_Tag {
+struct periodic_work {
 	rwlock_t lock;
 	struct delayed_work work;
 	void (*workfunc)(void *);
@@ -43,42 +43,41 @@ struct PERIODIC_WORK_Tag {
 
 static void periodic_work_func(struct work_struct *work)
 {
-	PERIODIC_WORK *periodic_work =
-		container_of(work, struct PERIODIC_WORK_Tag, work.work);
-	(*periodic_work->workfunc)(periodic_work->workfuncarg);
+	struct periodic_work *pw;
+
+	pw = container_of(work, struct periodic_work, work.work);
+	(*pw->workfunc)(pw->workfuncarg);
 }
 
 
 
-PERIODIC_WORK *visor_periodic_work_create(ulong jiffy_interval,
-					  struct workqueue_struct *workqueue,
-					  void (*workfunc)(void *),
-					  void *workfuncarg,
-					  const char *devnam)
+struct periodic_work *visor_periodic_work_create(ulong jiffy_interval,
+					struct workqueue_struct *workqueue,
+					void (*workfunc)(void *),
+					void *workfuncarg,
+					const char *devnam)
 {
-	PERIODIC_WORK *periodic_work = kzalloc(sizeof(PERIODIC_WORK),
-					       GFP_KERNEL | __GFP_NORETRY);
-	if (periodic_work == NULL) {
-		ERRDRV("periodic_work allocation failed ");
+	struct periodic_work *pw;
+
+	pw = kzalloc(sizeof(*pw), GFP_KERNEL | __GFP_NORETRY);
+	if (!pw)
 		return NULL;
-	}
-	rwlock_init(&periodic_work->lock);
-	periodic_work->jiffy_interval = jiffy_interval;
-	periodic_work->workqueue = workqueue;
-	periodic_work->workfunc = workfunc;
-	periodic_work->workfuncarg = workfuncarg;
-	periodic_work->devnam = devnam;
-	return periodic_work;
+
+	rwlock_init(&pw->lock);
+	pw->jiffy_interval = jiffy_interval;
+	pw->workqueue = workqueue;
+	pw->workfunc = workfunc;
+	pw->workfuncarg = workfuncarg;
+	pw->devnam = devnam;
+	return pw;
 }
 EXPORT_SYMBOL_GPL(visor_periodic_work_create);
 
 
 
-void visor_periodic_work_destroy(PERIODIC_WORK *periodic_work)
+void visor_periodic_work_destroy(struct periodic_work *pw)
 {
-	if (periodic_work == NULL)
-		return;
-	kfree(periodic_work);
+	kfree(pw);
 }
 EXPORT_SYMBOL_GPL(visor_periodic_work_destroy);
 
@@ -89,27 +88,26 @@ EXPORT_SYMBOL_GPL(visor_periodic_work_destroy);
  *  If this function returns FALSE, there was a failure and the
  *  periodic work is no longer scheduled
  */
-BOOL visor_periodic_work_nextperiod(PERIODIC_WORK *periodic_work)
+BOOL visor_periodic_work_nextperiod(struct periodic_work *pw)
 {
 	BOOL rc = FALSE;
 
-	write_lock(&periodic_work->lock);
-	if (periodic_work->want_to_stop) {
-		periodic_work->is_scheduled = FALSE;
-		periodic_work->want_to_stop = FALSE;
+	write_lock(&pw->lock);
+	if (pw->want_to_stop) {
+		pw->is_scheduled = FALSE;
+		pw->want_to_stop = FALSE;
 		rc = TRUE;  /* yes, TRUE; see visor_periodic_work_stop() */
-		goto Away;
-	} else if (queue_delayed_work(periodic_work->workqueue,
-				      &periodic_work->work,
-				      periodic_work->jiffy_interval) < 0) {
-		ERRDEV(periodic_work->devnam, "queue_delayed_work failed!");
-		periodic_work->is_scheduled = FALSE;
+		goto unlock;
+	} else if (queue_delayed_work(pw->workqueue, &pw->work,
+				      pw->jiffy_interval) < 0) {
+		ERRDEV(pw->devnam, "queue_delayed_work failed!");
+		pw->is_scheduled = FALSE;
 		rc = FALSE;
-		goto Away;
+		goto unlock;
 	}
 	rc = TRUE;
-Away:
-	write_unlock(&periodic_work->lock);
+unlock:
+	write_unlock(&pw->lock);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(visor_periodic_work_nextperiod);
@@ -120,34 +118,32 @@ EXPORT_SYMBOL_GPL(visor_periodic_work_nextperiod);
  *  If this function returns FALSE, then no work was started
  *  (either because it was already started, or because of a failure).
  */
-BOOL visor_periodic_work_start(PERIODIC_WORK *periodic_work)
+BOOL visor_periodic_work_start(struct periodic_work *pw)
 {
 	BOOL rc = FALSE;
 
-	write_lock(&periodic_work->lock);
-	if (periodic_work->is_scheduled) {
+	write_lock(&pw->lock);
+	if (pw->is_scheduled) {
 		rc = FALSE;
-		goto Away;
+		goto unlock;
 	}
-	if (periodic_work->want_to_stop) {
-		ERRDEV(periodic_work->devnam,
+	if (pw->want_to_stop) {
+		ERRDEV(pw->devnam,
 		       "dev_start_periodic_work failed!");
 		rc = FALSE;
-		goto Away;
+		goto unlock;
 	}
-	INIT_DELAYED_WORK(&periodic_work->work, &periodic_work_func);
-	if (queue_delayed_work(periodic_work->workqueue,
-			       &periodic_work->work,
-			       periodic_work->jiffy_interval) < 0) {
-		ERRDEV(periodic_work->devnam,
-		       "%s queue_delayed_work failed!", __func__);
+	INIT_DELAYED_WORK(&pw->work, &periodic_work_func);
+	if (queue_delayed_work(pw->workqueue, &pw->work,
+			       pw->jiffy_interval) < 0) {
+		ERRDEV(pw->devnam, "%s queue_delayed_work failed!", __func__);
 		rc = FALSE;
-		goto Away;
+		goto unlock;
 	}
-	periodic_work->is_scheduled = TRUE;
+	pw->is_scheduled = TRUE;
 	rc = TRUE;
-Away:
-	write_unlock(&periodic_work->lock);
+unlock:
+	write_unlock(&pw->lock);
 	return rc;
 
 }
@@ -190,21 +186,20 @@ EXPORT_SYMBOL_GPL(visor_periodic_work_start);
  *     this deadlock, you will get hung up in an infinite loop saying
  *     "waiting for delayed work...".
  */
-BOOL visor_periodic_work_stop(PERIODIC_WORK *periodic_work)
+BOOL visor_periodic_work_stop(struct periodic_work *pw)
 {
 	BOOL stopped_something = FALSE;
 
-	write_lock(&periodic_work->lock);
-	stopped_something = periodic_work->is_scheduled &&
-		(!periodic_work->want_to_stop);
-	while (periodic_work->is_scheduled) {
-		periodic_work->want_to_stop = TRUE;
-		if (cancel_delayed_work(&periodic_work->work)) {
+	write_lock(&pw->lock);
+	stopped_something = pw->is_scheduled && (!pw->want_to_stop);
+	while (pw->is_scheduled) {
+		pw->want_to_stop = TRUE;
+		if (cancel_delayed_work(&pw->work)) {
 			/* We get here if the delayed work was pending as
 			 * delayed work, but was NOT run.
 			 */
-			ASSERT(periodic_work->is_scheduled);
-			periodic_work->is_scheduled = FALSE;
+			ASSERT(pw->is_scheduled);
+			pw->is_scheduled = FALSE;
 		} else {
 			/* If we get here, either the delayed work:
 			 * - was run, OR,
@@ -216,9 +211,9 @@ BOOL visor_periodic_work_stop(PERIODIC_WORK *periodic_work)
 			 * explains the loop...
 			 */
 		}
-		if (periodic_work->is_scheduled) {
-			write_unlock(&periodic_work->lock);
-			WARNDEV(periodic_work->devnam,
+		if (pw->is_scheduled) {
+			write_unlock(&pw->lock);
+			WARNDEV(pw->devnam,
 				"waiting for delayed work...");
 			/* We rely on the delayed work function running here,
 			 * and eventually calling
@@ -227,11 +222,11 @@ BOOL visor_periodic_work_stop(PERIODIC_WORK *periodic_work)
 			 * subsequently clear is_scheduled.
 			 */
 			SLEEPJIFFIES(10);
-			write_lock(&periodic_work->lock);
+			write_lock(&pw->lock);
 		} else
-			periodic_work->want_to_stop = FALSE;
+			pw->want_to_stop = FALSE;
 	}
-	write_unlock(&periodic_work->lock);
+	write_unlock(&pw->lock);
 	return stopped_something;
 }
 EXPORT_SYMBOL_GPL(visor_periodic_work_stop);

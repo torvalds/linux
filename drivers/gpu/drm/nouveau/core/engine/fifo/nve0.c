@@ -28,7 +28,8 @@
 #include <core/gpuobj.h>
 #include <core/engctx.h>
 #include <core/event.h>
-#include <core/class.h>
+#include <nvif/unpack.h>
+#include <nvif/class.h>
 #include <core/enum.h>
 
 #include <subdev/timer.h>
@@ -216,46 +217,56 @@ nve0_fifo_chan_ctor(struct nouveau_object *parent,
 		    struct nouveau_oclass *oclass, void *data, u32 size,
 		    struct nouveau_object **pobject)
 {
+	union {
+		struct kepler_channel_gpfifo_a_v0 v0;
+	} *args = data;
 	struct nouveau_bar *bar = nouveau_bar(parent);
 	struct nve0_fifo_priv *priv = (void *)engine;
 	struct nve0_fifo_base *base = (void *)parent;
 	struct nve0_fifo_chan *chan;
-	struct nve0_channel_ind_class *args = data;
 	u64 usermem, ioffset, ilength;
 	int ret, i;
 
-	if (size < sizeof(*args))
-		return -EINVAL;
+	nv_ioctl(parent, "create channel gpfifo size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nv_ioctl(parent, "create channel gpfifo vers %d pushbuf %08x "
+				 "ioffset %016llx ilength %08x engine %08x\n",
+			 args->v0.version, args->v0.pushbuf, args->v0.ioffset,
+			 args->v0.ilength, args->v0.engine);
+	} else
+		return ret;
 
 	for (i = 0; i < FIFO_ENGINE_NR; i++) {
-		if (args->engine & (1 << i)) {
+		if (args->v0.engine & (1 << i)) {
 			if (nouveau_engine(parent, fifo_engine[i].subdev)) {
-				args->engine = (1 << i);
+				args->v0.engine = (1 << i);
 				break;
 			}
 		}
 	}
 
 	if (i == FIFO_ENGINE_NR) {
-		nv_error(priv, "unsupported engines 0x%08x\n", args->engine);
+		nv_error(priv, "unsupported engines 0x%08x\n", args->v0.engine);
 		return -ENODEV;
 	}
 
 	ret = nouveau_fifo_channel_create(parent, engine, oclass, 1,
 					  priv->user.bar.offset, 0x200,
-					  args->pushbuf,
+					  args->v0.pushbuf,
 					  fifo_engine[i].mask, &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
+
+	args->v0.chid = chan->base.chid;
 
 	nv_parent(chan)->context_attach = nve0_fifo_context_attach;
 	nv_parent(chan)->context_detach = nve0_fifo_context_detach;
 	chan->engine = i;
 
 	usermem = chan->base.chid * 0x200;
-	ioffset = args->ioffset;
-	ilength = order_base_2(args->ilength / 8);
+	ioffset = args->v0.ioffset;
+	ilength = order_base_2(args->v0.ilength / 8);
 
 	for (i = 0; i < 0x200; i += 4)
 		nv_wo32(priv->user.mem, usermem + i, 0x00000000);
@@ -325,13 +336,15 @@ nve0_fifo_ofuncs = {
 	.dtor = _nouveau_fifo_channel_dtor,
 	.init = nve0_fifo_chan_init,
 	.fini = nve0_fifo_chan_fini,
+	.map  = _nouveau_fifo_channel_map,
 	.rd32 = _nouveau_fifo_channel_rd32,
 	.wr32 = _nouveau_fifo_channel_wr32,
+	.ntfy = _nouveau_fifo_channel_ntfy
 };
 
 static struct nouveau_oclass
 nve0_fifo_sclass[] = {
-	{ NVE0_CHANNEL_IND_CLASS, &nve0_fifo_ofuncs },
+	{ KEPLER_CHANNEL_GPFIFO_A, &nve0_fifo_ofuncs },
 	{}
 };
 
@@ -769,7 +782,7 @@ nve0_fifo_intr_fault(struct nve0_fifo_priv *priv, int unit)
 	object = engctx;
 	while (object) {
 		switch (nv_mclass(object)) {
-		case NVE0_CHANNEL_IND_CLASS:
+		case KEPLER_CHANNEL_GPFIFO_A:
 			nve0_fifo_recover(priv, engine, (void *)object);
 			break;
 		}
@@ -859,7 +872,7 @@ nve0_fifo_intr_runlist(struct nve0_fifo_priv *priv)
 static void
 nve0_fifo_intr_engine(struct nve0_fifo_priv *priv)
 {
-	nouveau_event_trigger(priv->base.uevent, 1, 0);
+	nouveau_fifo_uevent(&priv->base);
 }
 
 static void
@@ -952,18 +965,25 @@ nve0_fifo_intr(struct nouveau_subdev *subdev)
 }
 
 static void
-nve0_fifo_uevent_enable(struct nouveau_event *event, int type, int index)
+nve0_fifo_uevent_init(struct nvkm_event *event, int type, int index)
 {
-	struct nve0_fifo_priv *priv = event->priv;
-	nv_mask(priv, 0x002140, 0x80000000, 0x80000000);
+	struct nouveau_fifo *fifo = container_of(event, typeof(*fifo), uevent);
+	nv_mask(fifo, 0x002140, 0x80000000, 0x80000000);
 }
 
 static void
-nve0_fifo_uevent_disable(struct nouveau_event *event, int type, int index)
+nve0_fifo_uevent_fini(struct nvkm_event *event, int type, int index)
 {
-	struct nve0_fifo_priv *priv = event->priv;
-	nv_mask(priv, 0x002140, 0x80000000, 0x00000000);
+	struct nouveau_fifo *fifo = container_of(event, typeof(*fifo), uevent);
+	nv_mask(fifo, 0x002140, 0x80000000, 0x00000000);
 }
+
+static const struct nvkm_event_func
+nve0_fifo_uevent_func = {
+	.ctor = nouveau_fifo_uevent_ctor,
+	.init = nve0_fifo_uevent_init,
+	.fini = nve0_fifo_uevent_fini,
+};
 
 int
 nve0_fifo_fini(struct nouveau_object *object, bool suspend)
@@ -1067,9 +1087,9 @@ nve0_fifo_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	priv->base.uevent->enable = nve0_fifo_uevent_enable;
-	priv->base.uevent->disable = nve0_fifo_uevent_disable;
-	priv->base.uevent->priv = priv;
+	ret = nvkm_event_init(&nve0_fifo_uevent_func, 1, 1, &priv->base.uevent);
+	if (ret)
+		return ret;
 
 	nv_subdev(priv)->unit = 0x00000100;
 	nv_subdev(priv)->intr = nve0_fifo_intr;

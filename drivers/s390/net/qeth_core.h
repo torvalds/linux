@@ -439,10 +439,10 @@ struct qeth_qdio_buffer {
 };
 
 struct qeth_qdio_q {
-	struct qdio_buffer qdio_bufs[QDIO_MAX_BUFFERS_PER_Q];
+	struct qdio_buffer *qdio_bufs[QDIO_MAX_BUFFERS_PER_Q];
 	struct qeth_qdio_buffer bufs[QDIO_MAX_BUFFERS_PER_Q];
 	int next_buf_to_init;
-} __attribute__ ((aligned(256)));
+};
 
 struct qeth_qdio_out_buffer {
 	struct qdio_buffer *buffer;
@@ -465,7 +465,7 @@ enum qeth_out_q_states {
 };
 
 struct qeth_qdio_out_q {
-	struct qdio_buffer qdio_bufs[QDIO_MAX_BUFFERS_PER_Q];
+	struct qdio_buffer *qdio_bufs[QDIO_MAX_BUFFERS_PER_Q];
 	struct qeth_qdio_out_buffer *bufs[QDIO_MAX_BUFFERS_PER_Q];
 	struct qdio_outbuf_state *bufstates; /* convenience pointer */
 	int queue_no;
@@ -483,7 +483,7 @@ struct qeth_qdio_out_q {
 	atomic_t used_buffers;
 	/* indicates whether PCI flag must be set (or if one is outstanding) */
 	atomic_t set_pci_flags_count;
-} __attribute__ ((aligned(256)));
+};
 
 struct qeth_qdio_info {
 	atomic_t state;
@@ -889,6 +889,7 @@ extern const struct attribute_group *qeth_generic_attr_groups[];
 extern const struct attribute_group *qeth_osn_attr_groups[];
 extern struct workqueue_struct *qeth_wq;
 
+int qeth_card_hw_is_reachable(struct qeth_card *);
 const char *qeth_get_cardname_short(struct qeth_card *);
 int qeth_realloc_buffer_pool(struct qeth_card *, int);
 int qeth_core_load_discipline(struct qeth_card *, enum qeth_discipline_id);

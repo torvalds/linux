@@ -96,6 +96,7 @@ struct hdmi_platform_config {
 
 	/* gpio's: */
 	int ddc_clk_gpio, ddc_data_gpio, hpd_gpio, mux_en_gpio, mux_sel_gpio;
+	int mux_lpm_gpio;
 
 	/* older devices had their own irq, mdp5+ it is shared w/ mdp: */
 	bool shared_irq;

@@ -389,7 +389,6 @@ static int layout_in_gaps(struct ubifs_info *c, int cnt)
 				ubifs_dump_lprops(c);
 			}
 			/* Try to commit anyway */
-			err = 0;
 			break;
 		}
 		p++;

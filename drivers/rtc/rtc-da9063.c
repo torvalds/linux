@@ -29,6 +29,8 @@
 #define YEARS_FROM_DA9063(year)		((year) + 100)
 #define MONTHS_FROM_DA9063(month)	((month) - 1)
 
+#define RTC_ALARM_DATA_LEN (DA9063_AD_REG_ALARM_Y - DA9063_AD_REG_ALARM_MI + 1)
+
 #define RTC_DATA_LEN	(DA9063_REG_COUNT_Y - DA9063_REG_COUNT_S + 1)
 #define RTC_SEC		0
 #define RTC_MIN		1
@@ -42,6 +44,10 @@ struct da9063_rtc {
 	struct da9063		*hw;
 	struct rtc_time		alarm_time;
 	bool			rtc_sync;
+	int			alarm_year;
+	int			alarm_start;
+	int			alarm_len;
+	int			data_start;
 };
 
 static void da9063_data_to_tm(u8 *data, struct rtc_time *tm)
@@ -83,7 +89,7 @@ static int da9063_rtc_stop_alarm(struct device *dev)
 {
 	struct da9063_rtc *rtc = dev_get_drvdata(dev);
 
-	return regmap_update_bits(rtc->hw->regmap, DA9063_REG_ALARM_Y,
+	return regmap_update_bits(rtc->hw->regmap, rtc->alarm_year,
 				  DA9063_ALARM_ON, 0);
 }
 
@@ -91,7 +97,7 @@ static int da9063_rtc_start_alarm(struct device *dev)
 {
 	struct da9063_rtc *rtc = dev_get_drvdata(dev);
 
-	return regmap_update_bits(rtc->hw->regmap, DA9063_REG_ALARM_Y,
+	return regmap_update_bits(rtc->hw->regmap, rtc->alarm_year,
 				  DA9063_ALARM_ON, DA9063_ALARM_ON);
 }
 
@@ -151,8 +157,9 @@ static int da9063_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	int ret;
 	unsigned int val;
 
-	ret = regmap_bulk_read(rtc->hw->regmap, DA9063_REG_ALARM_S,
-			       &data[RTC_SEC], RTC_DATA_LEN);
+	data[RTC_SEC] = 0;
+	ret = regmap_bulk_read(rtc->hw->regmap, rtc->alarm_start,
+			       &data[rtc->data_start], rtc->alarm_len);
 	if (ret < 0)
 		return ret;
 
@@ -186,14 +193,14 @@ static int da9063_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 		return ret;
 	}
 
-	ret = regmap_bulk_write(rtc->hw->regmap, DA9063_REG_ALARM_S,
-				data, RTC_DATA_LEN);
+	ret = regmap_bulk_write(rtc->hw->regmap, rtc->alarm_start,
+			       &data[rtc->data_start], rtc->alarm_len);
 	if (ret < 0) {
 		dev_err(dev, "Failed to write alarm: %d\n", ret);
 		return ret;
 	}
 
-	rtc->alarm_time = alrm->time;
+	da9063_data_to_tm(data, &rtc->alarm_time);
 
 	if (alrm->enabled) {
 		ret = da9063_rtc_start_alarm(dev);
@@ -218,7 +225,7 @@ static irqreturn_t da9063_alarm_event(int irq, void *data)
 {
 	struct da9063_rtc *rtc = data;
 
-	regmap_update_bits(rtc->hw->regmap, DA9063_REG_ALARM_Y,
+	regmap_update_bits(rtc->hw->regmap, rtc->alarm_year,
 			   DA9063_ALARM_ON, 0);
 
 	rtc->rtc_sync = true;
@@ -257,7 +264,23 @@ static int da9063_rtc_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	ret = regmap_update_bits(da9063->regmap, DA9063_REG_ALARM_S,
+	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
+	if (!rtc)
+		return -ENOMEM;
+
+	if (da9063->variant_code == PMIC_DA9063_AD) {
+		rtc->alarm_year = DA9063_AD_REG_ALARM_Y;
+		rtc->alarm_start = DA9063_AD_REG_ALARM_MI;
+		rtc->alarm_len = RTC_ALARM_DATA_LEN;
+		rtc->data_start = RTC_MIN;
+	} else {
+		rtc->alarm_year = DA9063_BB_REG_ALARM_Y;
+		rtc->alarm_start = DA9063_BB_REG_ALARM_S;
+		rtc->alarm_len = RTC_DATA_LEN;
+		rtc->data_start = RTC_SEC;
+	}
+
+	ret = regmap_update_bits(da9063->regmap, rtc->alarm_start,
 			DA9063_ALARM_STATUS_TICK | DA9063_ALARM_STATUS_ALARM,
 			0);
 	if (ret < 0) {
@@ -265,7 +288,7 @@ static int da9063_rtc_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	ret = regmap_update_bits(da9063->regmap, DA9063_REG_ALARM_S,
+	ret = regmap_update_bits(da9063->regmap, rtc->alarm_start,
 				 DA9063_ALARM_STATUS_ALARM,
 				 DA9063_ALARM_STATUS_ALARM);
 	if (ret < 0) {
@@ -273,24 +296,21 @@ static int da9063_rtc_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	ret = regmap_update_bits(da9063->regmap, DA9063_REG_ALARM_Y,
+	ret = regmap_update_bits(da9063->regmap, rtc->alarm_year,
 				 DA9063_TICK_ON, 0);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to disable TICKs\n");
 		goto err;
 	}
 
-	ret = regmap_bulk_read(da9063->regmap, DA9063_REG_ALARM_S,
-			       data, RTC_DATA_LEN);
+	data[RTC_SEC] = 0;
+	ret = regmap_bulk_read(da9063->regmap, rtc->alarm_start,
+			       &data[rtc->data_start], rtc->alarm_len);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to read initial alarm data: %d\n",
 			ret);
 		goto err;
 	}
-
-	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
-	if (!rtc)
-		return -ENOMEM;
 
 	platform_set_drvdata(pdev, rtc);
 

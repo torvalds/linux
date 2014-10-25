@@ -39,7 +39,7 @@ module_param(init_pcitm, int, 0);
  * driver_data
  * If you have an update for this please contact prism54-devel@prism54.org
  * The latest list can be found at http://wireless.kernel.org/en/users/Drivers/p54 */
-static DEFINE_PCI_DEVICE_TABLE(prism54_id_tbl) = {
+static const struct pci_device_id prism54_id_tbl[] = {
 	/* Intersil PRISM Duette/Prism GT Wireless LAN adapter */
 	{
 	 0x1260, 0x3890,

@@ -442,16 +442,13 @@ static inline int do_exception(struct pt_regs *regs, int access)
 	down_read(&mm->mmap_sem);
 
 #ifdef CONFIG_PGSTE
-	gmap = (struct gmap *)
-		((current->flags & PF_VCPU) ? S390_lowcore.gmap : 0);
+	gmap = (current->flags & PF_VCPU) ?
+		(struct gmap *) S390_lowcore.gmap : NULL;
 	if (gmap) {
-		address = __gmap_fault(address, gmap);
+		current->thread.gmap_addr = address;
+		address = __gmap_translate(gmap, address);
 		if (address == -EFAULT) {
 			fault = VM_FAULT_BADMAP;
-			goto out_up;
-		}
-		if (address == -ENOMEM) {
-			fault = VM_FAULT_OOM;
 			goto out_up;
 		}
 		if (gmap->pfault_enabled)
@@ -530,6 +527,20 @@ retry:
 			goto retry;
 		}
 	}
+#ifdef CONFIG_PGSTE
+	if (gmap) {
+		address =  __gmap_link(gmap, current->thread.gmap_addr,
+				       address);
+		if (address == -EFAULT) {
+			fault = VM_FAULT_BADMAP;
+			goto out_up;
+		}
+		if (address == -ENOMEM) {
+			fault = VM_FAULT_OOM;
+			goto out_up;
+		}
+	}
+#endif
 	fault = 0;
 out_up:
 	up_read(&mm->mmap_sem);

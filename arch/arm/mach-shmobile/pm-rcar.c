@@ -13,7 +13,7 @@
 #include <linux/mm.h>
 #include <linux/spinlock.h>
 #include <asm/io.h>
-#include <mach/pm-rcar.h>
+#include "pm-rcar.h"
 
 /* SYSC */
 #define SYSCSR 0x00
@@ -30,8 +30,6 @@
 
 #define SYSCISR_RETRIES 1000
 #define SYSCISR_DELAY_US 1
-
-#if defined(CONFIG_PM) || defined(CONFIG_SMP)
 
 static void __iomem *rcar_sysc_base;
 static DEFINE_SPINLOCK(rcar_sysc_lock); /* SMP CPUs + I/O devices */
@@ -137,5 +135,3 @@ void __iomem *rcar_sysc_init(phys_addr_t base)
 
 	return rcar_sysc_base;
 }
-
-#endif /* CONFIG_PM || CONFIG_SMP */

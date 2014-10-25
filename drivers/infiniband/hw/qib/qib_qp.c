@@ -1325,7 +1325,6 @@ int qib_qp_iter_next(struct qib_qp_iter *iter)
 	struct qib_qp *pqp = iter->qp;
 	struct qib_qp *qp;
 
-	rcu_read_lock();
 	for (; n < dev->qp_table_size; n++) {
 		if (pqp)
 			qp = rcu_dereference(pqp->next);
@@ -1333,18 +1332,11 @@ int qib_qp_iter_next(struct qib_qp_iter *iter)
 			qp = rcu_dereference(dev->qp_table[n]);
 		pqp = qp;
 		if (qp) {
-			if (iter->qp)
-				atomic_dec(&iter->qp->refcount);
-			atomic_inc(&qp->refcount);
-			rcu_read_unlock();
 			iter->qp = qp;
 			iter->n = n;
 			return 0;
 		}
 	}
-	rcu_read_unlock();
-	if (iter->qp)
-		atomic_dec(&iter->qp->refcount);
 	return ret;
 }
 

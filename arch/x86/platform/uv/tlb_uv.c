@@ -1479,7 +1479,7 @@ static ssize_t ptc_proc_write(struct file *file, const char __user *user,
 		return count;
 	}
 
-	if (strict_strtol(optstr, 10, &input_arg) < 0) {
+	if (kstrtol(optstr, 10, &input_arg) < 0) {
 		printk(KERN_DEBUG "%s is invalid\n", optstr);
 		return -EINVAL;
 	}

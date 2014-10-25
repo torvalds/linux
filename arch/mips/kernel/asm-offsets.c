@@ -234,6 +234,7 @@ void output_thread_fpu_defines(void)
 	       thread.fpu.fpr[31].val64[FPR_IDX(64, 0)]);
 
 	OFFSET(THREAD_FCR31, task_struct, thread.fpu.fcr31);
+	OFFSET(THREAD_MSA_CSR, task_struct, thread.fpu.msacsr);
 	BLANK();
 }
 

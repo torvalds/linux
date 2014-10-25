@@ -86,7 +86,8 @@ static int mxs_mmc_get_cd(struct mmc_host *mmc)
 	if (ret >= 0)
 		return ret;
 
-	present = !(readl(ssp->base + HW_SSP_STATUS(ssp)) &
+	present = mmc->caps & MMC_CAP_NEEDS_POLL ||
+		!(readl(ssp->base + HW_SSP_STATUS(ssp)) &
 			BM_SSP_STATUS_CARD_DETECT);
 
 	if (mmc->caps2 & MMC_CAP2_CD_ACTIVE_HIGH)
@@ -734,7 +735,6 @@ static struct platform_driver mxs_mmc_driver = {
 	.id_table	= mxs_ssp_ids,
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.owner	= THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm	= &mxs_mmc_pm_ops,
 #endif

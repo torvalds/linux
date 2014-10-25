@@ -153,9 +153,9 @@ int da9063_device_init(struct da9063 *da9063, unsigned int irq)
 		 "Device detected (chip-ID: 0x%02X, var-ID: 0x%02X)\n",
 		 model, variant_id);
 
-	if (variant_code != PMIC_DA9063_BB) {
-		dev_err(da9063->dev, "Unknown chip variant code: 0x%02X\n",
-				variant_code);
+	if (variant_code < PMIC_DA9063_BB && variant_code != PMIC_DA9063_AD) {
+		dev_err(da9063->dev,
+			"Cannot support variant code: 0x%02X\n", variant_code);
 		return -ENODEV;
 	}
 

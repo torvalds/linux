@@ -34,7 +34,7 @@ static void __init imx35_irq_init(void)
 	mx35_init_irq();
 }
 
-static const char *imx35_dt_board_compat[] __initconst = {
+static const char * const imx35_dt_board_compat[] __initconst = {
 	"fsl,imx35",
 	NULL
 };

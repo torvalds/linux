@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/perf_event.h>
 #include <asm/firmware.h>
+#include <asm/cputable.h>
 
 
 /*
@@ -266,6 +267,11 @@
 #define MMCRA_SDAR_MODE_TLB		(1ull << 42)
 #define MMCRA_IFM_SHIFT			30
 
+/* Bits in MMCR2 for POWER8 */
+#define MMCR2_FCS(pmc)			(1ull << (63 - (((pmc) - 1) * 9)))
+#define MMCR2_FCP(pmc)			(1ull << (62 - (((pmc) - 1) * 9)))
+#define MMCR2_FCH(pmc)			(1ull << (57 - (((pmc) - 1) * 9)))
+
 
 static inline bool event_is_fab_match(u64 event)
 {
@@ -393,9 +399,10 @@ static int power8_get_constraint(u64 event, unsigned long *maskp, unsigned long 
 }
 
 static int power8_compute_mmcr(u64 event[], int n_ev,
-			       unsigned int hwc[], unsigned long mmcr[])
+			       unsigned int hwc[], unsigned long mmcr[],
+			       struct perf_event *pevents[])
 {
-	unsigned long mmcra, mmcr1, unit, combine, psel, cache, val;
+	unsigned long mmcra, mmcr1, mmcr2, unit, combine, psel, cache, val;
 	unsigned int pmc, pmc_inuse;
 	int i;
 
@@ -410,7 +417,7 @@ static int power8_compute_mmcr(u64 event[], int n_ev,
 
 	/* In continous sampling mode, update SDAR on TLB miss */
 	mmcra = MMCRA_SDAR_MODE_TLB;
-	mmcr1 = 0;
+	mmcr1 = mmcr2 = 0;
 
 	/* Second pass: assign PMCs, set all MMCR1 fields */
 	for (i = 0; i < n_ev; ++i) {
@@ -472,6 +479,19 @@ static int power8_compute_mmcr(u64 event[], int n_ev,
 			mmcra |= val << MMCRA_IFM_SHIFT;
 		}
 
+		if (pevents[i]->attr.exclude_user)
+			mmcr2 |= MMCR2_FCP(pmc);
+
+		if (pevents[i]->attr.exclude_hv)
+			mmcr2 |= MMCR2_FCH(pmc);
+
+		if (pevents[i]->attr.exclude_kernel) {
+			if (cpu_has_feature(CPU_FTR_HVMODE))
+				mmcr2 |= MMCR2_FCH(pmc);
+			else
+				mmcr2 |= MMCR2_FCS(pmc);
+		}
+
 		hwc[i] = pmc - 1;
 	}
 
@@ -491,6 +511,7 @@ static int power8_compute_mmcr(u64 event[], int n_ev,
 
 	mmcr[1] = mmcr1;
 	mmcr[2] = mmcra;
+	mmcr[3] = mmcr2;
 
 	return 0;
 }

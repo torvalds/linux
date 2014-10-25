@@ -105,11 +105,6 @@ static int bd6107_backlight_update_status(struct backlight_device *backlight)
 	return 0;
 }
 
-static int bd6107_backlight_get_brightness(struct backlight_device *backlight)
-{
-	return backlight->props.brightness;
-}
-
 static int bd6107_backlight_check_fb(struct backlight_device *backlight,
 				       struct fb_info *info)
 {
@@ -121,7 +116,6 @@ static int bd6107_backlight_check_fb(struct backlight_device *backlight,
 static const struct backlight_ops bd6107_backlight_ops = {
 	.options	= BL_CORE_SUSPENDRESUME,
 	.update_status	= bd6107_backlight_update_status,
-	.get_brightness	= bd6107_backlight_get_brightness,
 	.check_fb	= bd6107_backlight_check_fb,
 };
 

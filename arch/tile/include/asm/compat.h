@@ -267,8 +267,7 @@ static inline int is_compat_task(void)
 	return current_thread_info()->status & TS_COMPAT;
 }
 
-extern int compat_setup_rt_frame(int sig, struct k_sigaction *ka,
-				 siginfo_t *info, sigset_t *set,
+extern int compat_setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 				 struct pt_regs *regs);
 
 /* Compat syscalls. */

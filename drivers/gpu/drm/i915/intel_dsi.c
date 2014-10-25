@@ -92,6 +92,9 @@ static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 	if (fixed_mode)
 		intel_fixed_panel_mode(fixed_mode, adjusted_mode);
 
+	/* DSI uses short packets for sync events, so clear mode flags for DSI */
+	adjusted_mode->flags = 0;
+
 	if (intel_dsi->dev.dev_ops->mode_fixup)
 		return intel_dsi->dev.dev_ops->mode_fixup(&intel_dsi->dev,
 							  mode, adjusted_mode);
@@ -152,6 +155,8 @@ static void intel_dsi_enable(struct intel_encoder *encoder)
 		if (intel_dsi->dev.dev_ops->enable)
 			intel_dsi->dev.dev_ops->enable(&intel_dsi->dev);
 
+		wait_for_dsi_fifo_empty(intel_dsi);
+
 		/* assert ip_tg_enable signal */
 		temp = I915_READ(MIPI_PORT_CTRL(pipe)) & ~LANE_CONFIGURATION_MASK;
 		temp = temp | intel_dsi->port_bits;
@@ -177,6 +182,10 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 	tmp |= DPLL_REFA_CLK_ENABLE_VLV;
 	I915_WRITE(DPLL(pipe), tmp);
 
+	/* update the hw state for DPLL */
+	intel_crtc->config.dpll_hw_state.dpll = DPLL_INTEGRATED_CLOCK_VLV |
+		DPLL_REFA_CLK_ENABLE_VLV;
+
 	tmp = I915_READ(DSPCLK_GATE_D);
 	tmp |= DPOUNIT_CLOCK_GATE_DISABLE;
 	I915_WRITE(DSPCLK_GATE_D, tmp);
@@ -191,6 +200,8 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder)
 
 	if (intel_dsi->dev.dev_ops->send_otp_cmds)
 		intel_dsi->dev.dev_ops->send_otp_cmds(&intel_dsi->dev);
+
+	wait_for_dsi_fifo_empty(intel_dsi);
 
 	/* Enable port in pre-enable phase itself because as per hw team
 	 * recommendation, port should be enabled befor plane & pipe */
@@ -232,6 +243,8 @@ static void intel_dsi_disable(struct intel_encoder *encoder)
 	DRM_DEBUG_KMS("\n");
 
 	if (is_vid_mode(intel_dsi)) {
+		wait_for_dsi_fifo_empty(intel_dsi);
+
 		/* de-assert ip_tg_enable signal */
 		temp = I915_READ(MIPI_PORT_CTRL(pipe));
 		I915_WRITE(MIPI_PORT_CTRL(pipe), temp & ~DPI_ENABLE);
@@ -246,8 +259,8 @@ static void intel_dsi_disable(struct intel_encoder *encoder)
 	temp = I915_READ(MIPI_CTRL(pipe));
 	temp &= ~ESCAPE_CLOCK_DIVIDER_MASK;
 	I915_WRITE(MIPI_CTRL(pipe), temp |
-			intel_dsi->escape_clk_div <<
-			ESCAPE_CLOCK_DIVIDER_SHIFT);
+		   intel_dsi->escape_clk_div <<
+		   ESCAPE_CLOCK_DIVIDER_SHIFT);
 
 	I915_WRITE(MIPI_EOT_DISABLE(pipe), CLOCKSTOP);
 
@@ -261,6 +274,8 @@ static void intel_dsi_disable(struct intel_encoder *encoder)
 	 * some next enable sequence send turn on packet error is observed */
 	if (intel_dsi->dev.dev_ops->disable)
 		intel_dsi->dev.dev_ops->disable(&intel_dsi->dev);
+
+	wait_for_dsi_fifo_empty(intel_dsi);
 }
 
 static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
@@ -282,7 +297,7 @@ static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
 	usleep_range(2000, 2500);
 
 	if (wait_for(((I915_READ(MIPI_PORT_CTRL(pipe)) & AFE_LATCHOUT)
-					== 0x00000), 30))
+		      == 0x00000), 30))
 		DRM_ERROR("DSI LP not going Low\n");
 
 	val = I915_READ(MIPI_PORT_CTRL(pipe));
@@ -351,9 +366,21 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 static void intel_dsi_get_config(struct intel_encoder *encoder,
 				 struct intel_crtc_config *pipe_config)
 {
+	u32 pclk;
 	DRM_DEBUG_KMS("\n");
 
-	/* XXX: read flags, set to adjusted_mode */
+	/*
+	 * DPLL_MD is not used in case of DSI, reading will get some default value
+	 * set dpll_md = 0
+	 */
+	pipe_config->dpll_hw_state.dpll_md = 0;
+
+	pclk = vlv_get_dsi_pclk(encoder, pipe_config->pipe_bpp);
+	if (!pclk)
+		return;
+
+	pipe_config->adjusted_mode.crtc_clock = pclk;
+	pipe_config->port_clock = pclk;
 }
 
 static enum drm_mode_status
@@ -396,9 +423,11 @@ static u16 txclkesc(u32 divider, unsigned int us)
 }
 
 /* return pixels in terms of txbyteclkhs */
-static u16 txbyteclkhs(u16 pixels, int bpp, int lane_count)
+static u16 txbyteclkhs(u16 pixels, int bpp, int lane_count,
+		       u16 burst_mode_ratio)
 {
-	return DIV_ROUND_UP(DIV_ROUND_UP(pixels * bpp, 8), lane_count);
+	return DIV_ROUND_UP(DIV_ROUND_UP(pixels * bpp * burst_mode_ratio,
+					 8 * 100), lane_count);
 }
 
 static void set_dsi_timings(struct drm_encoder *encoder,
@@ -424,10 +453,12 @@ static void set_dsi_timings(struct drm_encoder *encoder,
 	vbp = mode->vtotal - mode->vsync_end;
 
 	/* horizontal values are in terms of high speed byte clock */
-	hactive = txbyteclkhs(hactive, bpp, lane_count);
-	hfp = txbyteclkhs(hfp, bpp, lane_count);
-	hsync = txbyteclkhs(hsync, bpp, lane_count);
-	hbp = txbyteclkhs(hbp, bpp, lane_count);
+	hactive = txbyteclkhs(hactive, bpp, lane_count,
+			      intel_dsi->burst_mode_ratio);
+	hfp = txbyteclkhs(hfp, bpp, lane_count, intel_dsi->burst_mode_ratio);
+	hsync = txbyteclkhs(hsync, bpp, lane_count,
+			    intel_dsi->burst_mode_ratio);
+	hbp = txbyteclkhs(hbp, bpp, lane_count, intel_dsi->burst_mode_ratio);
 
 	I915_WRITE(MIPI_HACTIVE_AREA_COUNT(pipe), hactive);
 	I915_WRITE(MIPI_HFP_COUNT(pipe), hfp);
@@ -514,12 +545,14 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 	    intel_dsi->video_mode_format == VIDEO_MODE_BURST) {
 		I915_WRITE(MIPI_HS_TX_TIMEOUT(pipe),
 			   txbyteclkhs(adjusted_mode->htotal, bpp,
-				       intel_dsi->lane_count) + 1);
+				       intel_dsi->lane_count,
+				       intel_dsi->burst_mode_ratio) + 1);
 	} else {
 		I915_WRITE(MIPI_HS_TX_TIMEOUT(pipe),
 			   txbyteclkhs(adjusted_mode->vtotal *
 				       adjusted_mode->htotal,
-				       bpp, intel_dsi->lane_count) + 1);
+				       bpp, intel_dsi->lane_count,
+				       intel_dsi->burst_mode_ratio) + 1);
 	}
 	I915_WRITE(MIPI_LP_RX_TIMEOUT(pipe), intel_dsi->lp_rx_timeout);
 	I915_WRITE(MIPI_TURN_AROUND_TIMEOUT(pipe), intel_dsi->turn_arnd_val);
@@ -549,7 +582,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 	 * XXX: write MIPI_STOP_STATE_STALL?
 	 */
 	I915_WRITE(MIPI_HIGH_LOW_SWITCH_COUNT(pipe),
-						intel_dsi->hs_to_lp_count);
+		   intel_dsi->hs_to_lp_count);
 
 	/* XXX: low power clock equivalence in terms of byte clock. the number
 	 * of byte clocks occupied in one low power clock. based on txbyteclkhs
@@ -574,10 +607,10 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 		 * 64 like 1366 x 768. Enable RANDOM resolution support for such
 		 * panels by default */
 		I915_WRITE(MIPI_VIDEO_MODE_FORMAT(pipe),
-				intel_dsi->video_frmt_cfg_bits |
-				intel_dsi->video_mode_format |
-				IP_TG_CONFIG |
-				RANDOM_DPI_DISPLAY_RESOLUTION);
+			   intel_dsi->video_frmt_cfg_bits |
+			   intel_dsi->video_mode_format |
+			   IP_TG_CONFIG |
+			   RANDOM_DPI_DISPLAY_RESOLUTION);
 }
 
 static void intel_dsi_pre_pll_enable(struct intel_encoder *encoder)
@@ -658,7 +691,7 @@ static const struct drm_connector_funcs intel_dsi_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
 };
 
-bool intel_dsi_init(struct drm_device *dev)
+void intel_dsi_init(struct drm_device *dev)
 {
 	struct intel_dsi *intel_dsi;
 	struct intel_encoder *intel_encoder;
@@ -674,28 +707,28 @@ bool intel_dsi_init(struct drm_device *dev)
 
 	/* There is no detection method for MIPI so rely on VBT */
 	if (!dev_priv->vbt.has_mipi)
-		return false;
-
-	intel_dsi = kzalloc(sizeof(*intel_dsi), GFP_KERNEL);
-	if (!intel_dsi)
-		return false;
-
-	intel_connector = kzalloc(sizeof(*intel_connector), GFP_KERNEL);
-	if (!intel_connector) {
-		kfree(intel_dsi);
-		return false;
-	}
-
-	intel_encoder = &intel_dsi->base;
-	encoder = &intel_encoder->base;
-	intel_dsi->attached_connector = intel_connector;
+		return;
 
 	if (IS_VALLEYVIEW(dev)) {
 		dev_priv->mipi_mmio_base = VLV_MIPI_BASE;
 	} else {
 		DRM_ERROR("Unsupported Mipi device to reg base");
-		return false;
+		return;
 	}
+
+	intel_dsi = kzalloc(sizeof(*intel_dsi), GFP_KERNEL);
+	if (!intel_dsi)
+		return;
+
+	intel_connector = kzalloc(sizeof(*intel_connector), GFP_KERNEL);
+	if (!intel_connector) {
+		kfree(intel_dsi);
+		return;
+	}
+
+	intel_encoder = &intel_dsi->base;
+	encoder = &intel_encoder->base;
+	intel_dsi->attached_connector = intel_connector;
 
 	connector = &intel_connector->base;
 
@@ -743,7 +776,7 @@ bool intel_dsi_init(struct drm_device *dev)
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 
-	drm_sysfs_connector_add(connector);
+	drm_connector_register(connector);
 
 	fixed_mode = dsi->dev_ops->get_modes(&intel_dsi->dev);
 	if (!fixed_mode) {
@@ -754,12 +787,10 @@ bool intel_dsi_init(struct drm_device *dev)
 	fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
 	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
 
-	return true;
+	return;
 
 err:
 	drm_encoder_cleanup(&intel_encoder->base);
 	kfree(intel_dsi);
 	kfree(intel_connector);
-
-	return false;
 }

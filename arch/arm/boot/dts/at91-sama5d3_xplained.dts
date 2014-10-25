@@ -21,12 +21,14 @@
 		reg = <0x20000000 0x10000000>;
 	};
 
-	slow_xtal {
-		clock-frequency = <32768>;
-	};
+	clocks {
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
 
-	main_xtal {
-		clock-frequency = <12000000>;
+		main_xtal {
+			clock-frequency = <12000000>;
+		};
 	};
 
 	ahb {

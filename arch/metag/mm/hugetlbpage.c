@@ -173,7 +173,7 @@ new_search:
 				mm->context.part_huge = 0;
 			return addr;
 		}
-		if (vma && (vma->vm_flags & MAP_HUGETLB)) {
+		if (vma->vm_flags & MAP_HUGETLB) {
 			/* space after a huge vma in 2nd level page table? */
 			if (vma->vm_end & HUGEPT_MASK) {
 				after_huge = 1;

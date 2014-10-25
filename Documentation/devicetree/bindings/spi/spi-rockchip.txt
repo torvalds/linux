@@ -16,11 +16,15 @@ Required Properties:
 - clocks: Must contain an entry for each entry in clock-names.
 - clock-names: Shall be "spiclk" for the transfer-clock, and "apb_pclk" for
 			   the peripheral clock.
+- #address-cells: should be 1.
+- #size-cells: should be 0.
+
+Optional Properties:
+
 - dmas: DMA specifiers for tx and rx dma. See the DMA client binding,
 		Documentation/devicetree/bindings/dma/dma.txt
 - dma-names: DMA request names should include "tx" and "rx" if present.
-- #address-cells: should be 1.
-- #size-cells: should be 0.
+
 
 Example:
 

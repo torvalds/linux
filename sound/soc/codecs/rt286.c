@@ -51,7 +51,7 @@ static struct reg_default rt286_index_def[] = {
 	{ 0x04, 0xaf01 },
 	{ 0x08, 0x000d },
 	{ 0x09, 0xd810 },
-	{ 0x0a, 0x0060 },
+	{ 0x0a, 0x0120 },
 	{ 0x0b, 0x0000 },
 	{ 0x0d, 0x2800 },
 	{ 0x0f, 0x0000 },
@@ -60,7 +60,7 @@ static struct reg_default rt286_index_def[] = {
 	{ 0x33, 0x0208 },
 	{ 0x49, 0x0004 },
 	{ 0x4f, 0x50e9 },
-	{ 0x50, 0x2c00 },
+	{ 0x50, 0x2000 },
 	{ 0x63, 0x2902 },
 	{ 0x67, 0x1111 },
 	{ 0x68, 0x1016 },
@@ -104,7 +104,6 @@ static const struct reg_default rt286_reg[] = {
 	{ 0x02170700, 0x00000000 },
 	{ 0x02270100, 0x00000000 },
 	{ 0x02370100, 0x00000000 },
-	{ 0x02040000, 0x00004002 },
 	{ 0x01870700, 0x00000020 },
 	{ 0x00830000, 0x000000c3 },
 	{ 0x00930000, 0x000000c3 },
@@ -192,7 +191,6 @@ static int rt286_hw_write(void *context, unsigned int reg, unsigned int value)
 	/*handle index registers*/
 	if (reg <= 0xff) {
 		rt286_hw_write(client, RT286_COEF_INDEX, reg);
-		reg = RT286_PROC_COEF;
 		for (i = 0; i < INDEX_CACHE_SIZE; i++) {
 			if (reg == rt286->index_cache[i].reg) {
 				rt286->index_cache[i].def = value;
@@ -200,6 +198,7 @@ static int rt286_hw_write(void *context, unsigned int reg, unsigned int value)
 			}
 
 		}
+		reg = RT286_PROC_COEF;
 	}
 
 	data[0] = (reg >> 24) & 0xff;
@@ -270,6 +269,7 @@ static int rt286_hw_read(void *context, unsigned int reg, unsigned int *value)
 	return 0;
 }
 
+#ifdef CONFIG_PM
 static void rt286_index_sync(struct snd_soc_codec *codec)
 {
 	struct rt286_priv *rt286 = snd_soc_codec_get_drvdata(codec);
@@ -280,6 +280,7 @@ static void rt286_index_sync(struct snd_soc_codec *codec)
 				  rt286->index_cache[i].def);
 	}
 }
+#endif
 
 static int rt286_support_power_controls[] = {
 	RT286_DAC_OUT1,

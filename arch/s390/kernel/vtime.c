@@ -6,26 +6,17 @@
  */
 
 #include <linux/kernel_stat.h>
-#include <linux/notifier.h>
-#include <linux/kprobes.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/timex.h>
 #include <linux/types.h>
 #include <linux/time.h>
-#include <linux/cpu.h>
-#include <linux/smp.h>
 
-#include <asm/irq_regs.h>
 #include <asm/cputime.h>
 #include <asm/vtimer.h>
 #include <asm/vtime.h>
-#include <asm/irq.h>
-#include "entry.h"
 
 static void virt_timer_expire(void);
-
-DEFINE_PER_CPU(struct s390_idle_data, s390_idle);
 
 static LIST_HEAD(virt_timer_list);
 static DEFINE_SPINLOCK(virt_timer_lock);
@@ -151,49 +142,6 @@ EXPORT_SYMBOL_GPL(vtime_account_irq_enter);
 void vtime_account_system(struct task_struct *tsk)
 __attribute__((alias("vtime_account_irq_enter")));
 EXPORT_SYMBOL_GPL(vtime_account_system);
-
-void __kprobes vtime_stop_cpu(void)
-{
-	struct s390_idle_data *idle = &__get_cpu_var(s390_idle);
-	unsigned long long idle_time;
-	unsigned long psw_mask;
-
-	trace_hardirqs_on();
-
-	/* Wait for external, I/O or machine check interrupt. */
-	psw_mask = PSW_KERNEL_BITS | PSW_MASK_WAIT | PSW_MASK_DAT |
-		PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
-	idle->nohz_delay = 0;
-
-	/* Call the assembler magic in entry.S */
-	psw_idle(idle, psw_mask);
-
-	/* Account time spent with enabled wait psw loaded as idle time. */
-	idle->sequence++;
-	smp_wmb();
-	idle_time = idle->clock_idle_exit - idle->clock_idle_enter;
-	idle->clock_idle_enter = idle->clock_idle_exit = 0ULL;
-	idle->idle_time += idle_time;
-	idle->idle_count++;
-	account_idle_time(idle_time);
-	smp_wmb();
-	idle->sequence++;
-}
-
-cputime64_t s390_get_idle_time(int cpu)
-{
-	struct s390_idle_data *idle = &per_cpu(s390_idle, cpu);
-	unsigned long long now, idle_enter, idle_exit;
-	unsigned int sequence;
-
-	do {
-		now = get_tod_clock();
-		sequence = ACCESS_ONCE(idle->sequence);
-		idle_enter = ACCESS_ONCE(idle->clock_idle_enter);
-		idle_exit = ACCESS_ONCE(idle->clock_idle_exit);
-	} while ((sequence & 1) || (ACCESS_ONCE(idle->sequence) != sequence));
-	return idle_enter ? ((idle_exit ?: now) - idle_enter) : 0;
-}
 
 /*
  * Sorted add to a list. List is linear searched until first bigger
@@ -372,31 +320,8 @@ EXPORT_SYMBOL(del_virt_timer);
 /*
  * Start the virtual CPU timer on the current CPU.
  */
-void init_cpu_vtimer(void)
+void vtime_init(void)
 {
 	/* set initial cpu timer */
 	set_vtimer(VTIMER_MAX_SLICE);
-}
-
-static int s390_nohz_notify(struct notifier_block *self, unsigned long action,
-			    void *hcpu)
-{
-	struct s390_idle_data *idle;
-	long cpu = (long) hcpu;
-
-	idle = &per_cpu(s390_idle, cpu);
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_DYING:
-		idle->nohz_delay = 0;
-	default:
-		break;
-	}
-	return NOTIFY_OK;
-}
-
-void __init vtime_init(void)
-{
-	/* Enable cpu timer interrupts on the boot cpu. */
-	init_cpu_vtimer();
-	cpu_notifier(s390_nohz_notify, 0);
 }

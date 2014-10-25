@@ -22,50 +22,29 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/pwr.h>
-
+#include "priv.h"
 #include "fuc/nva3.fuc.h"
-
-struct nva3_pwr_priv {
-	struct nouveau_pwr base;
-};
 
 static int
 nva3_pwr_init(struct nouveau_object *object)
 {
-	struct nva3_pwr_priv *priv = (void *)object;
-	nv_mask(priv, 0x022210, 0x00000001, 0x00000000);
-	nv_mask(priv, 0x022210, 0x00000001, 0x00000001);
-	return nouveau_pwr_init(&priv->base);
+	struct nouveau_pwr *ppwr = (void *)object;
+	nv_mask(ppwr, 0x022210, 0x00000001, 0x00000000);
+	nv_mask(ppwr, 0x022210, 0x00000001, 0x00000001);
+	return nouveau_pwr_init(ppwr);
 }
 
-static int
-nva3_pwr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	      struct nouveau_oclass *oclass, void *data, u32 size,
-	      struct nouveau_object **pobject)
-{
-	struct nva3_pwr_priv *priv;
-	int ret;
-
-	ret = nouveau_pwr_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	priv->base.code.data = nva3_pwr_code;
-	priv->base.code.size = sizeof(nva3_pwr_code);
-	priv->base.data.data = nva3_pwr_data;
-	priv->base.data.size = sizeof(nva3_pwr_data);
-	return 0;
-}
-
-struct nouveau_oclass
-nva3_pwr_oclass = {
-	.handle = NV_SUBDEV(PWR, 0xa3),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nva3_pwr_ctor,
+struct nouveau_oclass *
+nva3_pwr_oclass = &(struct nvkm_pwr_impl) {
+	.base.handle = NV_SUBDEV(PWR, 0xa3),
+	.base.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = _nouveau_pwr_ctor,
 		.dtor = _nouveau_pwr_dtor,
 		.init = nva3_pwr_init,
 		.fini = _nouveau_pwr_fini,
 	},
-};
+	.code.data = nva3_pwr_code,
+	.code.size = sizeof(nva3_pwr_code),
+	.data.data = nva3_pwr_data,
+	.data.size = sizeof(nva3_pwr_data),
+}.base;

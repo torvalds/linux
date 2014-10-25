@@ -25,7 +25,8 @@
 #include <core/client.h>
 #include <core/engctx.h>
 #include <core/ramht.h>
-#include <core/class.h>
+#include <nvif/unpack.h>
+#include <nvif/class.h>
 
 #include <subdev/timer.h>
 #include <subdev/bar.h>
@@ -194,17 +195,24 @@ nv50_fifo_chan_ctor_dma(struct nouveau_object *parent,
 			struct nouveau_oclass *oclass, void *data, u32 size,
 			struct nouveau_object **pobject)
 {
+	union {
+		struct nv03_channel_dma_v0 v0;
+	} *args = data;
 	struct nouveau_bar *bar = nouveau_bar(parent);
 	struct nv50_fifo_base *base = (void *)parent;
 	struct nv50_fifo_chan *chan;
-	struct nv03_channel_dma_class *args = data;
 	int ret;
 
-	if (size < sizeof(*args))
-		return -EINVAL;
+	nv_ioctl(parent, "create channel dma size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nv_ioctl(parent, "create channel dma vers %d pushbuf %08x "
+				 "offset %016llx\n", args->v0.version,
+			 args->v0.pushbuf, args->v0.offset);
+	} else
+		return ret;
 
 	ret = nouveau_fifo_channel_create(parent, engine, oclass, 0, 0xc00000,
-					  0x2000, args->pushbuf,
+					  0x2000, args->v0.pushbuf,
 					  (1ULL << NVDEV_ENGINE_DMAOBJ) |
 					  (1ULL << NVDEV_ENGINE_SW) |
 					  (1ULL << NVDEV_ENGINE_GR) |
@@ -212,6 +220,8 @@ nv50_fifo_chan_ctor_dma(struct nouveau_object *parent,
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
+
+	args->v0.chid = chan->base.chid;
 
 	nv_parent(chan)->context_attach = nv50_fifo_context_attach;
 	nv_parent(chan)->context_detach = nv50_fifo_context_detach;
@@ -223,10 +233,10 @@ nv50_fifo_chan_ctor_dma(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
-	nv_wo32(base->ramfc, 0x08, lower_32_bits(args->offset));
-	nv_wo32(base->ramfc, 0x0c, upper_32_bits(args->offset));
-	nv_wo32(base->ramfc, 0x10, lower_32_bits(args->offset));
-	nv_wo32(base->ramfc, 0x14, upper_32_bits(args->offset));
+	nv_wo32(base->ramfc, 0x08, lower_32_bits(args->v0.offset));
+	nv_wo32(base->ramfc, 0x0c, upper_32_bits(args->v0.offset));
+	nv_wo32(base->ramfc, 0x10, lower_32_bits(args->v0.offset));
+	nv_wo32(base->ramfc, 0x14, upper_32_bits(args->v0.offset));
 	nv_wo32(base->ramfc, 0x3c, 0x003f6078);
 	nv_wo32(base->ramfc, 0x44, 0x01003fff);
 	nv_wo32(base->ramfc, 0x48, chan->base.pushgpu->node->offset >> 4);
@@ -247,18 +257,26 @@ nv50_fifo_chan_ctor_ind(struct nouveau_object *parent,
 			struct nouveau_oclass *oclass, void *data, u32 size,
 			struct nouveau_object **pobject)
 {
-	struct nv50_channel_ind_class *args = data;
+	union {
+		struct nv50_channel_gpfifo_v0 v0;
+	} *args = data;
 	struct nouveau_bar *bar = nouveau_bar(parent);
 	struct nv50_fifo_base *base = (void *)parent;
 	struct nv50_fifo_chan *chan;
 	u64 ioffset, ilength;
 	int ret;
 
-	if (size < sizeof(*args))
-		return -EINVAL;
+	nv_ioctl(parent, "create channel gpfifo size %d\n", size);
+	if (nvif_unpack(args->v0, 0, 0, false)) {
+		nv_ioctl(parent, "create channel gpfifo vers %d pushbuf %08x "
+				 "ioffset %016llx ilength %08x\n",
+			 args->v0.version, args->v0.pushbuf, args->v0.ioffset,
+			 args->v0.ilength);
+	} else
+		return ret;
 
 	ret = nouveau_fifo_channel_create(parent, engine, oclass, 0, 0xc00000,
-					  0x2000, args->pushbuf,
+					  0x2000, args->v0.pushbuf,
 					  (1ULL << NVDEV_ENGINE_DMAOBJ) |
 					  (1ULL << NVDEV_ENGINE_SW) |
 					  (1ULL << NVDEV_ENGINE_GR) |
@@ -266,6 +284,8 @@ nv50_fifo_chan_ctor_ind(struct nouveau_object *parent,
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
+
+	args->v0.chid = chan->base.chid;
 
 	nv_parent(chan)->context_attach = nv50_fifo_context_attach;
 	nv_parent(chan)->context_detach = nv50_fifo_context_detach;
@@ -277,8 +297,8 @@ nv50_fifo_chan_ctor_ind(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
-	ioffset = args->ioffset;
-	ilength = order_base_2(args->ilength / 8);
+	ioffset = args->v0.ioffset;
+	ilength = order_base_2(args->v0.ilength / 8);
 
 	nv_wo32(base->ramfc, 0x3c, 0x403f6078);
 	nv_wo32(base->ramfc, 0x44, 0x01003fff);
@@ -343,8 +363,10 @@ nv50_fifo_ofuncs_dma = {
 	.dtor = nv50_fifo_chan_dtor,
 	.init = nv50_fifo_chan_init,
 	.fini = nv50_fifo_chan_fini,
+	.map  = _nouveau_fifo_channel_map,
 	.rd32 = _nouveau_fifo_channel_rd32,
 	.wr32 = _nouveau_fifo_channel_wr32,
+	.ntfy = _nouveau_fifo_channel_ntfy
 };
 
 static struct nouveau_ofuncs
@@ -353,14 +375,16 @@ nv50_fifo_ofuncs_ind = {
 	.dtor = nv50_fifo_chan_dtor,
 	.init = nv50_fifo_chan_init,
 	.fini = nv50_fifo_chan_fini,
+	.map  = _nouveau_fifo_channel_map,
 	.rd32 = _nouveau_fifo_channel_rd32,
 	.wr32 = _nouveau_fifo_channel_wr32,
+	.ntfy = _nouveau_fifo_channel_ntfy
 };
 
 static struct nouveau_oclass
 nv50_fifo_sclass[] = {
-	{ NV50_CHANNEL_DMA_CLASS, &nv50_fifo_ofuncs_dma },
-	{ NV50_CHANNEL_IND_CLASS, &nv50_fifo_ofuncs_ind },
+	{ NV50_CHANNEL_DMA, &nv50_fifo_ofuncs_dma },
+	{ NV50_CHANNEL_GPFIFO, &nv50_fifo_ofuncs_ind },
 	{}
 };
 

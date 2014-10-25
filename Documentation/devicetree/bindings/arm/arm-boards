@@ -86,3 +86,9 @@ Interrupt controllers:
 	compatible = "arm,versatile-sic";
 	interrupt-controller;
 	#interrupt-cells = <1>;
+
+Required nodes:
+
+- core-module: the root node to the Versatile platforms must have
+  a core-module with regs and the compatible strings
+  "arm,core-module-versatile", "syscon"

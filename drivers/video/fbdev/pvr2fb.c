@@ -1001,7 +1001,7 @@ static int pvr2_get_param(const struct pvr2_params *p, const char *s, int val,
 
 	for (i = 0 ; i < size ; i++ ) {
 		if (s != NULL) {
-			if (!strnicmp(p[i].name, s, strlen(s)))
+			if (!strncasecmp(p[i].name, s, strlen(s)))
 				return p[i].val;
 		} else {
 			if (p[i].val == val)

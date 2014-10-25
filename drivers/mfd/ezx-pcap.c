@@ -62,7 +62,7 @@ static int ezx_pcap_putget(struct pcap_chip *pcap, u32 *data)
 	struct spi_message m;
 	int status;
 
-	memset(&t, 0, sizeof t);
+	memset(&t, 0, sizeof(t));
 	spi_message_init(&m);
 	t.len = sizeof(u32);
 	spi_message_add_tail(&t, &m);
@@ -211,7 +211,6 @@ static void pcap_irq_handler(unsigned int irq, struct irq_desc *desc)
 
 	desc->irq_data.chip->irq_ack(&desc->irq_data);
 	queue_work(pcap->workqueue, &pcap->isr_work);
-	return;
 }
 
 /* ADC */

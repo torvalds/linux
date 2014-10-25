@@ -58,7 +58,7 @@ static void chsc_subchannel_irq(struct subchannel *sch)
 {
 	struct chsc_private *private = dev_get_drvdata(&sch->dev);
 	struct chsc_request *request = private->request;
-	struct irb *irb = &__get_cpu_var(cio_irb);
+	struct irb *irb = this_cpu_ptr(&cio_irb);
 
 	CHSC_LOG(4, "irb");
 	CHSC_LOG_HEX(4, irb, sizeof(*irb));

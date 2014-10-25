@@ -1,0 +1,35 @@
+/*
+ * Marvell RD88F6181 Z0 stepping descrition
+ *
+ * Andrew Lunn <andrew@lunn.ch>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ *
+ * This file contains the definitions for the board using the Z0
+ * stepping of the SoC. The ethernet switch has a "wan" port.
+*/
+
+/dts-v1/;
+
+#include "kirkwood-rd88f6281.dtsi"
+
+/ {
+	model = "Marvell RD88f6281 Reference design, with Z0 SoC";
+	compatible = "marvell,rd88f6281-z0", "marvell,rd88f6281","marvell,kirkwood-88f6281", "marvell,kirkwood";
+
+	dsa@0 {
+		switch@0 {
+			reg = <0 0>;    /* MDIO address 0, switch 0 in tree */
+			port@4 {
+				reg = <4>;
+				label = "wan";
+			};
+		};
+	};
+};
+
+&eth1 {
+      status = "disabled";
+};

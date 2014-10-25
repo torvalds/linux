@@ -1028,7 +1028,7 @@ static int compal_probe(struct platform_device *pdev)
 		return err;
 
 	hwmon_dev = hwmon_device_register_with_groups(&pdev->dev,
-						      DRIVER_NAME, data,
+						      "compal", data,
 						      compal_hwmon_groups);
 	if (IS_ERR(hwmon_dev)) {
 		err = PTR_ERR(hwmon_dev);

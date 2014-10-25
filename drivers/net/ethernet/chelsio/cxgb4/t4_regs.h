@@ -72,11 +72,11 @@
 #define  PIDX_MASK   0x00003fffU
 #define  PIDX_SHIFT  0
 #define  PIDX(x)     ((x) << PIDX_SHIFT)
-#define  S_PIDX_T5   0
-#define  M_PIDX_T5   0x1fffU
-#define  PIDX_T5(x)  (((x) >> S_PIDX_T5) & M_PIDX_T5)
+#define  PIDX_SHIFT_T5   0
+#define  PIDX_T5(x)  ((x) << PIDX_SHIFT_T5)
 
 
+#define SGE_TIMERREGS	6
 #define SGE_PF_GTS 0x4
 #define  INGRESSQID_MASK   0xffff0000U
 #define  INGRESSQID_SHIFT  16
@@ -157,7 +157,26 @@
 #define  QUEUESPERPAGEPF0_MASK   0x0000000fU
 #define  QUEUESPERPAGEPF0_GET(x) ((x) & QUEUESPERPAGEPF0_MASK)
 
+#define QUEUESPERPAGEPF0    0
 #define QUEUESPERPAGEPF1    4
+
+/* T5 and later support a new BAR2-based doorbell mechanism for Egress Queues.
+ * The User Doorbells are each 128 bytes in length with a Simple Doorbell at
+ * offsets 8x and a Write Combining single 64-byte Egress Queue Unit
+ * (X_IDXSIZE_UNIT) Gather Buffer interface at offset 64.  For Ingress Queues,
+ * we have a Going To Sleep register at offsets 8x+4.
+ *
+ * As noted above, we have many instances of the Simple Doorbell and Going To
+ * Sleep registers at offsets 8x and 8x+4, respectively.  We want to use a
+ * non-64-byte aligned offset for the Simple Doorbell in order to attempt to
+ * avoid buffering of the writes to the Simple Doorbell and we want to use a
+ * non-contiguous offset for the Going To Sleep writes in order to avoid
+ * possible combining between them.
+ */
+#define SGE_UDB_SIZE            128
+#define SGE_UDB_KDOORBELL       8
+#define SGE_UDB_GTS             20
+#define SGE_UDB_WCDOORBELL      64
 
 #define SGE_INT_CAUSE1 0x1024
 #define SGE_INT_CAUSE2 0x1030
@@ -511,6 +530,7 @@
 #define  MEM_WRAP_CLIENT_NUM_GET(x) (((x) & MEM_WRAP_CLIENT_NUM_MASK) >> MEM_WRAP_CLIENT_NUM_SHIFT)
 #define MA_PCIE_FW 0x30b8
 #define MA_PARITY_ERROR_STATUS 0x77f4
+#define MA_PARITY_ERROR_STATUS2 0x7804
 
 #define MA_EXT_MEMORY1_BAR 0x7808
 #define EDC_0_BASE_ADDR 0x7900
@@ -959,6 +979,7 @@
 #define  TRCMULTIFILTER     0x00000001U
 
 #define MPS_TRC_RSS_CONTROL 0x9808
+#define MPS_T5_TRC_RSS_CONTROL 0xa00c
 #define  RSSCONTROL_MASK    0x00ff0000U
 #define  RSSCONTROL_SHIFT   16
 #define  RSSCONTROL(x)      ((x) << RSSCONTROL_SHIFT)

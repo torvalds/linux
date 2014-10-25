@@ -42,6 +42,7 @@
 #include "xfs_trace.h"
 #include "xfs_icache.h"
 #include "xfs_dinode.h"
+#include "xfs_sysfs.h"
 
 
 #ifdef HAVE_PERCPU_SB
@@ -76,7 +77,7 @@ xfs_uuid_mount(
 
 	if (uuid_is_nil(uuid)) {
 		xfs_warn(mp, "Filesystem has nil UUID - can't mount");
-		return XFS_ERROR(EINVAL);
+		return -EINVAL;
 	}
 
 	mutex_lock(&xfs_uuid_table_mutex);
@@ -104,7 +105,7 @@ xfs_uuid_mount(
  out_duplicate:
 	mutex_unlock(&xfs_uuid_table_mutex);
 	xfs_warn(mp, "Filesystem has duplicate UUID %pU - can't mount", uuid);
-	return XFS_ERROR(EINVAL);
+	return -EINVAL;
 }
 
 STATIC void
@@ -173,13 +174,9 @@ xfs_sb_validate_fsb_count(
 	ASSERT(PAGE_SHIFT >= sbp->sb_blocklog);
 	ASSERT(sbp->sb_blocklog >= BBSHIFT);
 
-#if XFS_BIG_BLKNOS     /* Limited by ULONG_MAX of page cache index */
+	/* Limited by ULONG_MAX of page cache index */
 	if (nblocks >> (PAGE_CACHE_SHIFT - sbp->sb_blocklog) > ULONG_MAX)
-		return EFBIG;
-#else                  /* Limited by UINT_MAX of sectors */
-	if (nblocks << (sbp->sb_blocklog - BBSHIFT) > UINT_MAX)
-		return EFBIG;
-#endif
+		return -EFBIG;
 	return 0;
 }
 
@@ -250,9 +247,9 @@ xfs_initialize_perag(
 		mp->m_flags &= ~XFS_MOUNT_32BITINODES;
 
 	if (mp->m_flags & XFS_MOUNT_32BITINODES)
-		index = xfs_set_inode32(mp);
+		index = xfs_set_inode32(mp, agcount);
 	else
-		index = xfs_set_inode64(mp);
+		index = xfs_set_inode64(mp, agcount);
 
 	if (maxagi)
 		*maxagi = index;
@@ -303,28 +300,21 @@ xfs_readsb(
 	 * access to the superblock.
 	 */
 reread:
-	bp = xfs_buf_read_uncached(mp->m_ddev_targp, XFS_SB_DADDR,
-				   BTOBB(sector_size), 0, buf_ops);
-	if (!bp) {
-		if (loud)
-			xfs_warn(mp, "SB buffer read failed");
-		return EIO;
-	}
-	if (bp->b_error) {
-		error = bp->b_error;
+	error = xfs_buf_read_uncached(mp->m_ddev_targp, XFS_SB_DADDR,
+				   BTOBB(sector_size), 0, &bp, buf_ops);
+	if (error) {
 		if (loud)
 			xfs_warn(mp, "SB validate failed with error %d.", error);
 		/* bad CRC means corrupted metadata */
-		if (error == EFSBADCRC)
-			error = EFSCORRUPTED;
-		goto release_buf;
+		if (error == -EFSBADCRC)
+			error = -EFSCORRUPTED;
+		return error;
 	}
 
 	/*
 	 * Initialize the mount structure from the superblock.
 	 */
 	xfs_sb_from_disk(sbp, XFS_BUF_TO_SBP(bp));
-	xfs_sb_quota_from_disk(sbp);
 
 	/*
 	 * If we haven't validated the superblock, do so now before we try
@@ -333,7 +323,7 @@ reread:
 	if (sbp->sb_magicnum != XFS_SB_MAGIC) {
 		if (loud)
 			xfs_warn(mp, "Invalid superblock magic number");
-		error = EINVAL;
+		error = -EINVAL;
 		goto release_buf;
 	}
 
@@ -344,7 +334,7 @@ reread:
 		if (loud)
 			xfs_warn(mp, "device supports %u byte sectors (not %u)",
 				sector_size, sbp->sb_sectsize);
-		error = ENOSYS;
+		error = -ENOSYS;
 		goto release_buf;
 	}
 
@@ -392,7 +382,7 @@ xfs_update_alignment(xfs_mount_t *mp)
 			xfs_warn(mp,
 		"alignment check failed: sunit/swidth vs. blocksize(%d)",
 				sbp->sb_blocksize);
-			return XFS_ERROR(EINVAL);
+			return -EINVAL;
 		} else {
 			/*
 			 * Convert the stripe unit and width to FSBs.
@@ -402,14 +392,14 @@ xfs_update_alignment(xfs_mount_t *mp)
 				xfs_warn(mp,
 			"alignment check failed: sunit/swidth vs. agsize(%d)",
 					 sbp->sb_agblocks);
-				return XFS_ERROR(EINVAL);
+				return -EINVAL;
 			} else if (mp->m_dalign) {
 				mp->m_swidth = XFS_BB_TO_FSBT(mp, mp->m_swidth);
 			} else {
 				xfs_warn(mp,
 			"alignment check failed: sunit(%d) less than bsize(%d)",
 					 mp->m_dalign, sbp->sb_blocksize);
-				return XFS_ERROR(EINVAL);
+				return -EINVAL;
 			}
 		}
 
@@ -429,7 +419,7 @@ xfs_update_alignment(xfs_mount_t *mp)
 		} else {
 			xfs_warn(mp,
 	"cannot change alignment: superblock does not support data alignment");
-			return XFS_ERROR(EINVAL);
+			return -EINVAL;
 		}
 	} else if ((mp->m_flags & XFS_MOUNT_NOALIGN) != XFS_MOUNT_NOALIGN &&
 		    xfs_sb_version_hasdalign(&mp->m_sb)) {
@@ -548,40 +538,43 @@ xfs_set_inoalignment(xfs_mount_t *mp)
  * Check that the data (and log if separate) is an ok size.
  */
 STATIC int
-xfs_check_sizes(xfs_mount_t *mp)
+xfs_check_sizes(
+	struct xfs_mount *mp)
 {
-	xfs_buf_t	*bp;
+	struct xfs_buf	*bp;
 	xfs_daddr_t	d;
+	int		error;
 
 	d = (xfs_daddr_t)XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks);
 	if (XFS_BB_TO_FSB(mp, d) != mp->m_sb.sb_dblocks) {
 		xfs_warn(mp, "filesystem size mismatch detected");
-		return XFS_ERROR(EFBIG);
+		return -EFBIG;
 	}
-	bp = xfs_buf_read_uncached(mp->m_ddev_targp,
+	error = xfs_buf_read_uncached(mp->m_ddev_targp,
 					d - XFS_FSS_TO_BB(mp, 1),
-					XFS_FSS_TO_BB(mp, 1), 0, NULL);
-	if (!bp) {
+					XFS_FSS_TO_BB(mp, 1), 0, &bp, NULL);
+	if (error) {
 		xfs_warn(mp, "last sector read failed");
-		return EIO;
+		return error;
 	}
 	xfs_buf_relse(bp);
 
-	if (mp->m_logdev_targp != mp->m_ddev_targp) {
-		d = (xfs_daddr_t)XFS_FSB_TO_BB(mp, mp->m_sb.sb_logblocks);
-		if (XFS_BB_TO_FSB(mp, d) != mp->m_sb.sb_logblocks) {
-			xfs_warn(mp, "log size mismatch detected");
-			return XFS_ERROR(EFBIG);
-		}
-		bp = xfs_buf_read_uncached(mp->m_logdev_targp,
-					d - XFS_FSB_TO_BB(mp, 1),
-					XFS_FSB_TO_BB(mp, 1), 0, NULL);
-		if (!bp) {
-			xfs_warn(mp, "log device read failed");
-			return EIO;
-		}
-		xfs_buf_relse(bp);
+	if (mp->m_logdev_targp == mp->m_ddev_targp)
+		return 0;
+
+	d = (xfs_daddr_t)XFS_FSB_TO_BB(mp, mp->m_sb.sb_logblocks);
+	if (XFS_BB_TO_FSB(mp, d) != mp->m_sb.sb_logblocks) {
+		xfs_warn(mp, "log size mismatch detected");
+		return -EFBIG;
 	}
+	error = xfs_buf_read_uncached(mp->m_logdev_targp,
+					d - XFS_FSB_TO_BB(mp, 1),
+					XFS_FSB_TO_BB(mp, 1), 0, &bp, NULL);
+	if (error) {
+		xfs_warn(mp, "log device read failed");
+		return error;
+	}
+	xfs_buf_relse(bp);
 	return 0;
 }
 
@@ -731,9 +724,13 @@ xfs_mountfs(
 
 	xfs_set_maxicount(mp);
 
-	error = xfs_uuid_mount(mp);
+	error = xfs_sysfs_init(&mp->m_kobj, &xfs_mp_ktype, NULL, mp->m_fsname);
 	if (error)
 		goto out;
+
+	error = xfs_uuid_mount(mp);
+	if (error)
+		goto out_remove_sysfs;
 
 	/*
 	 * Set the minimum read and write sizes
@@ -816,7 +813,7 @@ xfs_mountfs(
 	if (!sbp->sb_logblocks) {
 		xfs_warn(mp, "no log defined");
 		XFS_ERROR_REPORT("xfs_mountfs", XFS_ERRLEVEL_LOW, mp);
-		error = XFS_ERROR(EFSCORRUPTED);
+		error = -EFSCORRUPTED;
 		goto out_free_perag;
 	}
 
@@ -855,7 +852,7 @@ xfs_mountfs(
 	     !mp->m_sb.sb_inprogress) {
 		error = xfs_initialize_perag_data(mp, sbp->sb_agcount);
 		if (error)
-			goto out_fail_wait;
+			goto out_log_dealloc;
 	}
 
 	/*
@@ -876,7 +873,7 @@ xfs_mountfs(
 		xfs_iunlock(rip, XFS_ILOCK_EXCL);
 		XFS_ERROR_REPORT("xfs_mountfs_int(2)", XFS_ERRLEVEL_LOW,
 				 mp);
-		error = XFS_ERROR(EFSCORRUPTED);
+		error = -EFSCORRUPTED;
 		goto out_rele_rip;
 	}
 	mp->m_rootip = rip;	/* save it */
@@ -927,7 +924,7 @@ xfs_mountfs(
 			xfs_notice(mp, "resetting quota flags");
 			error = xfs_mount_reset_sbqflags(mp);
 			if (error)
-				return error;
+				goto out_rtunmount;
 		}
 	}
 
@@ -989,6 +986,8 @@ xfs_mountfs(
 	xfs_da_unmount(mp);
  out_remove_uuid:
 	xfs_uuid_unmount(mp);
+ out_remove_sysfs:
+	xfs_sysfs_del(&mp->m_kobj);
  out:
 	return error;
 }
@@ -1071,6 +1070,8 @@ xfs_unmountfs(
 	xfs_errortag_clearall(mp, 0);
 #endif
 	xfs_free_perag(mp);
+
+	xfs_sysfs_del(&mp->m_kobj);
 }
 
 int
@@ -1152,7 +1153,7 @@ xfs_mod_incore_sb_unlocked(
 		lcounter += delta;
 		if (lcounter < 0) {
 			ASSERT(0);
-			return XFS_ERROR(EINVAL);
+			return -EINVAL;
 		}
 		mp->m_sb.sb_icount = lcounter;
 		return 0;
@@ -1161,7 +1162,7 @@ xfs_mod_incore_sb_unlocked(
 		lcounter += delta;
 		if (lcounter < 0) {
 			ASSERT(0);
-			return XFS_ERROR(EINVAL);
+			return -EINVAL;
 		}
 		mp->m_sb.sb_ifree = lcounter;
 		return 0;
@@ -1191,7 +1192,7 @@ xfs_mod_incore_sb_unlocked(
 			 * blocks if were allowed to.
 			 */
 			if (!rsvd)
-				return XFS_ERROR(ENOSPC);
+				return -ENOSPC;
 
 			lcounter = (long long)mp->m_resblks_avail + delta;
 			if (lcounter >= 0) {
@@ -1202,7 +1203,7 @@ xfs_mod_incore_sb_unlocked(
 				"Filesystem \"%s\": reserve blocks depleted! "
 				"Consider increasing reserve pool size.",
 				mp->m_fsname);
-			return XFS_ERROR(ENOSPC);
+			return -ENOSPC;
 		}
 
 		mp->m_sb.sb_fdblocks = lcounter + XFS_ALLOC_SET_ASIDE(mp);
@@ -1211,7 +1212,7 @@ xfs_mod_incore_sb_unlocked(
 		lcounter = (long long)mp->m_sb.sb_frextents;
 		lcounter += delta;
 		if (lcounter < 0) {
-			return XFS_ERROR(ENOSPC);
+			return -ENOSPC;
 		}
 		mp->m_sb.sb_frextents = lcounter;
 		return 0;
@@ -1220,7 +1221,7 @@ xfs_mod_incore_sb_unlocked(
 		lcounter += delta;
 		if (lcounter < 0) {
 			ASSERT(0);
-			return XFS_ERROR(EINVAL);
+			return -EINVAL;
 		}
 		mp->m_sb.sb_dblocks = lcounter;
 		return 0;
@@ -1229,7 +1230,7 @@ xfs_mod_incore_sb_unlocked(
 		scounter += delta;
 		if (scounter < 0) {
 			ASSERT(0);
-			return XFS_ERROR(EINVAL);
+			return -EINVAL;
 		}
 		mp->m_sb.sb_agcount = scounter;
 		return 0;
@@ -1238,7 +1239,7 @@ xfs_mod_incore_sb_unlocked(
 		scounter += delta;
 		if (scounter < 0) {
 			ASSERT(0);
-			return XFS_ERROR(EINVAL);
+			return -EINVAL;
 		}
 		mp->m_sb.sb_imax_pct = scounter;
 		return 0;
@@ -1247,7 +1248,7 @@ xfs_mod_incore_sb_unlocked(
 		scounter += delta;
 		if (scounter < 0) {
 			ASSERT(0);
-			return XFS_ERROR(EINVAL);
+			return -EINVAL;
 		}
 		mp->m_sb.sb_rextsize = scounter;
 		return 0;
@@ -1256,7 +1257,7 @@ xfs_mod_incore_sb_unlocked(
 		scounter += delta;
 		if (scounter < 0) {
 			ASSERT(0);
-			return XFS_ERROR(EINVAL);
+			return -EINVAL;
 		}
 		mp->m_sb.sb_rbmblocks = scounter;
 		return 0;
@@ -1265,7 +1266,7 @@ xfs_mod_incore_sb_unlocked(
 		lcounter += delta;
 		if (lcounter < 0) {
 			ASSERT(0);
-			return XFS_ERROR(EINVAL);
+			return -EINVAL;
 		}
 		mp->m_sb.sb_rblocks = lcounter;
 		return 0;
@@ -1274,7 +1275,7 @@ xfs_mod_incore_sb_unlocked(
 		lcounter += delta;
 		if (lcounter < 0) {
 			ASSERT(0);
-			return XFS_ERROR(EINVAL);
+			return -EINVAL;
 		}
 		mp->m_sb.sb_rextents = lcounter;
 		return 0;
@@ -1283,13 +1284,13 @@ xfs_mod_incore_sb_unlocked(
 		scounter += delta;
 		if (scounter < 0) {
 			ASSERT(0);
-			return XFS_ERROR(EINVAL);
+			return -EINVAL;
 		}
 		mp->m_sb.sb_rextslog = scounter;
 		return 0;
 	default:
 		ASSERT(0);
-		return XFS_ERROR(EINVAL);
+		return -EINVAL;
 	}
 }
 
@@ -1452,7 +1453,7 @@ xfs_dev_is_read_only(
 	    (mp->m_rtdev_targp && xfs_readonly_buftarg(mp->m_rtdev_targp))) {
 		xfs_notice(mp, "%s required on read-only device.", message);
 		xfs_notice(mp, "write access unavailable, cannot proceed.");
-		return EROFS;
+		return -EROFS;
 	}
 	return 0;
 }
@@ -1995,7 +1996,7 @@ slow_path:
 	 * (e.g. lots of space just got freed). After that
 	 * we are done.
 	 */
-	if (ret != ENOSPC)
+	if (ret != -ENOSPC)
 		xfs_icsb_balance_counter(mp, field, 0);
 	xfs_icsb_unlock(mp);
 	return ret;

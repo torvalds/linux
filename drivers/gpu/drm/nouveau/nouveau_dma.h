@@ -58,31 +58,14 @@ enum {
 	FermiSw		= 5, /* DO NOT CHANGE (well.. 6/7 will work...) */
 };
 
-/* Object handles. */
+/* Object handles - for stuff that's doesn't use handle == oclass. */
 enum {
-	NvM2MF		= 0x80000001,
 	NvDmaFB		= 0x80000002,
 	NvDmaTT		= 0x80000003,
 	NvNotify0       = 0x80000006,
-	Nv2D		= 0x80000007,
-	NvCtxSurf2D	= 0x80000008,
-	NvRop		= 0x80000009,
-	NvImagePatt	= 0x8000000a,
-	NvClipRect	= 0x8000000b,
-	NvGdiRect	= 0x8000000c,
-	NvImageBlit	= 0x8000000d,
-	NvSw		= 0x8000000e,
 	NvSema		= 0x8000000f,
 	NvEvoSema0	= 0x80000010,
 	NvEvoSema1	= 0x80000011,
-	NvNotify1       = 0x80000012,
-
-	/* G80+ display objects */
-	NvEvoVRAM	= 0x01000000,
-	NvEvoFB16	= 0x01000001,
-	NvEvoFB32	= 0x01000002,
-	NvEvoVRAM_LP	= 0x01000003,
-	NvEvoSync	= 0xcafe0000
 };
 
 #define NV_MEMORY_TO_MEMORY_FORMAT                                    0x00000039
@@ -157,7 +140,7 @@ BEGIN_IMC0(struct nouveau_channel *chan, int subc, int mthd, u16 data)
 #define WRITE_PUT(val) do {                                                    \
 	mb();                                                   \
 	nouveau_bo_rd32(chan->push.buffer, 0);                                 \
-	nv_wo32(chan->object, chan->user_put, ((val) << 2) + chan->push.vma.offset);  \
+	nvif_wr32(chan, chan->user_put, ((val) << 2) + chan->push.vma.offset); \
 } while (0)
 
 static inline void

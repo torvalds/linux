@@ -133,7 +133,7 @@ nvc0_bar_init_vm(struct nvc0_bar_priv *priv, struct nvc0_bar_priv_vm *bar_vm,
 	return 0;
 }
 
-static int
+int
 nvc0_bar_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	      struct nouveau_oclass *oclass, void *data, u32 size,
 	      struct nouveau_object **pobject)
@@ -169,7 +169,7 @@ nvc0_bar_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
-static void
+void
 nvc0_bar_dtor(struct nouveau_object *object)
 {
 	struct nvc0_bar_priv *priv = (void *)object;
@@ -188,7 +188,7 @@ nvc0_bar_dtor(struct nouveau_object *object)
 	nouveau_bar_destroy(&priv->base);
 }
 
-static int
+int
 nvc0_bar_init(struct nouveau_object *object)
 {
 	struct nvc0_bar_priv *priv = (void *)object;
@@ -200,7 +200,6 @@ nvc0_bar_init(struct nouveau_object *object)
 
 	nv_mask(priv, 0x000200, 0x00000100, 0x00000000);
 	nv_mask(priv, 0x000200, 0x00000100, 0x00000100);
-	nv_mask(priv, 0x100c80, 0x00000001, 0x00000000);
 
 	nv_wr32(priv, 0x001704, 0x80000000 | priv->bar[1].mem->addr >> 12);
 	if (priv->bar[0].mem)

@@ -44,10 +44,6 @@
 #define FL512_AO_DATA_REG(x)		(0x04 + ((x) * 2))
 #define FL512_AO_TRIG_REG(x)		(0x04 + ((x) * 2))
 
-struct fl512_private {
-	unsigned short ao_readback[2];
-};
-
 static const struct comedi_lrange range_fl512 = {
 	4, {
 		BIP_RANGE(0.5),
@@ -92,9 +88,8 @@ static int fl512_ao_insn_write(struct comedi_device *dev,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	struct fl512_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int val = devpriv->ao_readback[chan];
+	unsigned int val = s->readback[chan];
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
@@ -105,39 +100,19 @@ static int fl512_ao_insn_write(struct comedi_device *dev,
 		outb((val >> 8) & 0xf, dev->iobase + FL512_AO_DATA_REG(chan));
 		inb(dev->iobase + FL512_AO_TRIG_REG(chan));
 	}
-	devpriv->ao_readback[chan] = val;
-
-	return insn->n;
-}
-
-static int fl512_ao_insn_read(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn,
-			      unsigned int *data)
-{
-	struct fl512_private *devpriv = dev->private;
-	unsigned int chan = CR_CHAN(insn->chanspec);
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->ao_readback[chan];
+	s->readback[chan] = val;
 
 	return insn->n;
 }
 
 static int fl512_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	struct fl512_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
 	ret = comedi_request_region(dev, it->options[0], 0x10);
 	if (ret)
 		return ret;
-
-	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
-	if (!devpriv)
-		return -ENOMEM;
 
 	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
@@ -160,7 +135,11 @@ static int fl512_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata	= 0x0fff;
 	s->range_table	= &range_fl512;
 	s->insn_write	= fl512_ao_insn_write;
-	s->insn_read	= fl512_ao_insn_read;
+	s->insn_read	= comedi_readback_insn_read;
+
+	ret = comedi_alloc_subdev_readback(s);
+	if (ret)
+		return ret;
 
 	return 0;
 }

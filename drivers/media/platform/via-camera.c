@@ -18,6 +18,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-image-sizes.h>
 #include <media/ov7670.h>
 #include <media/videobuf-dma-sg.h>
 #include <linux/delay.h>
@@ -47,14 +48,6 @@ MODULE_PARM_DESC(override_serial,
 		"The camera driver will normally refuse to load if "
 		"the XO 1.5 serial port is enabled.  Set this option "
 		"to force-enable the camera.");
-
-/*
- * Basic window sizes.
- */
-#define VGA_WIDTH	640
-#define VGA_HEIGHT	480
-#define QCIF_WIDTH	176
-#define	QCIF_HEIGHT	144
 
 /*
  * The structure describing our camera.
@@ -89,7 +82,7 @@ struct via_camera {
 	 * live in frame buffer memory, so we don't call them "DMA".
 	 */
 	unsigned int cb_offsets[3];	/* offsets into fb mem */
-	u8 *cb_addrs[3];		/* Kernel-space addresses */
+	u8 __iomem *cb_addrs[3];		/* Kernel-space addresses */
 	int n_cap_bufs;			/* How many are we using? */
 	int next_buf;
 	struct videobuf_queue vb_queue;
@@ -1283,7 +1276,7 @@ static bool viacam_serial_is_enabled(void)
 			VIACAM_SERIAL_CREG, &cbyte);
 	if ((cbyte & VIACAM_SERIAL_BIT) == 0)
 		return false; /* Not enabled */
-	if (override_serial == 0) {
+	if (!override_serial) {
 		printk(KERN_NOTICE "Via camera: serial port is enabled, " \
 				"refusing to load.\n");
 		printk(KERN_NOTICE "Specify override_serial=1 to force " \

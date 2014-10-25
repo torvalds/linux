@@ -34,6 +34,7 @@
 			compatible = "marvell,sheeva-v7";
 			reg = <0>;
 			clocks = <&cpuclk 0>;
+			clock-latency = <1000000>;
 		};
 
 		cpu@1 {
@@ -41,6 +42,7 @@
 			compatible = "marvell,sheeva-v7";
 			reg = <1>;
 			clocks = <&cpuclk 1>;
+			clock-latency = <1000000>;
 		};
 	};
 

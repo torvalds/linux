@@ -236,7 +236,7 @@ static void tc3589x_irq_unmap(struct irq_domain *d, unsigned int virq)
 static struct irq_domain_ops tc3589x_irq_ops = {
 	.map    = tc3589x_irq_map,
 	.unmap  = tc3589x_irq_unmap,
-	.xlate  = irq_domain_xlate_twocell,
+	.xlate  = irq_domain_xlate_onecell,
 };
 
 static int tc3589x_irq_init(struct tc3589x *tc3589x, struct device_node *np)

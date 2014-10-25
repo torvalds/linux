@@ -37,21 +37,16 @@
 #include <mach/regs-clock.h>
 #include <mach/regs-gpio.h>
 
-#include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/cpu-freq.h>
 #include <plat/devs.h>
 #include <plat/nand-core.h>
-#include <plat/pll.h>
 #include <plat/pm.h>
 #include <plat/regs-spi.h>
 
 #include "common.h"
 #include "regs-dsc.h"
 #include "s3c2412-power.h"
-
-#define S3C2412_SWRST			(S3C24XX_VA_CLKPWR + 0x30)
-#define S3C2412_SWRST_RESET		(0x533C2412)
 
 #ifndef CONFIG_CPU_S3C2412_ONLY
 void __iomem *s3c24xx_va_gpio2 = S3C24XX_VA_GPIO;
@@ -130,26 +125,6 @@ static void s3c2412_idle(void)
 	cpu_do_idle();
 }
 
-void s3c2412_restart(enum reboot_mode mode, const char *cmd)
-{
-	if (mode == REBOOT_SOFT)
-		soft_restart(0);
-
-	/* errata "Watch-dog/Software Reset Problem" specifies that
-	 * this reset must be done with the SYSCLK sourced from
-	 * EXTCLK instead of FOUT to avoid a glitch in the reset
-	 * mechanism.
-	 *
-	 * See the watchdog section of the S3C2412 manual for more
-	 * information on this fix.
-	 */
-
-	__raw_writel(0x00, S3C2412_CLKSRC);
-	__raw_writel(S3C2412_SWRST_RESET, S3C2412_SWRST);
-
-	mdelay(1);
-}
-
 /* s3c2412_map_io
  *
  * register the standard cpu IO areas, and any passed in from the
@@ -169,10 +144,6 @@ void __init s3c2412_map_io(void)
 	/* register our io-tables */
 
 	iotable_init(s3c2412_iodesc, ARRAY_SIZE(s3c2412_iodesc));
-}
-
-void __init_or_cpufreq s3c2412_setup_clocks(void)
-{
 }
 
 /* need to register the subsystem before we actually register the device, and

@@ -35,6 +35,11 @@ static inline int __sync_blockdev(struct block_device *bdev, int wait)
 #endif
 
 /*
+ * buffer.c
+ */
+extern void guard_bio_eod(int rw, struct bio *bio);
+
+/*
  * char_dev.c
  */
 extern void __init chrdev_init(void);
@@ -51,7 +56,7 @@ extern int vfs_path_lookup(struct dentry *, struct vfsmount *,
  * namespace.c
  */
 extern int copy_mount_options(const void __user *, unsigned long *);
-extern int copy_mount_string(const void __user *, char **);
+extern char *copy_mount_string(const void __user *);
 
 extern struct vfsmount *lookup_mnt(struct path *);
 extern int finish_automount(struct vfsmount *, struct path *);
@@ -131,7 +136,6 @@ extern long prune_dcache_sb(struct super_block *sb, unsigned long nr_to_scan,
 /*
  * read_write.c
  */
-extern ssize_t __kernel_write(struct file *, const char *, size_t, loff_t *);
 extern int rw_verify_area(int, struct file *, const loff_t *, size_t);
 
 /*
@@ -144,3 +148,9 @@ extern long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
  * pipe.c
  */
 extern const struct file_operations pipefifo_fops;
+
+/*
+ * fs_pin.c
+ */
+extern void sb_pin_kill(struct super_block *sb);
+extern void mnt_pin_kill(struct mount *m);

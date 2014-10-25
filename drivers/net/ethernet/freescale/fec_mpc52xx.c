@@ -1015,8 +1015,7 @@ mpc52xx_fec_remove(struct platform_device *op)
 
 	unregister_netdev(ndev);
 
-	if (priv->phy_node)
-		of_node_put(priv->phy_node);
+	of_node_put(priv->phy_node);
 	priv->phy_node = NULL;
 
 	irq_dispose_mapping(ndev->irq);

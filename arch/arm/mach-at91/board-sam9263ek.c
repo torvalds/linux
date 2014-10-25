@@ -32,6 +32,8 @@
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/leds.h>
+#include <linux/pwm.h>
+#include <linux/leds_pwm.h>
 
 #include <video/atmel_lcdc.h>
 
@@ -48,7 +50,6 @@
 #include <mach/system_rev.h>
 
 #include "at91_aic.h"
-#include "at91_shdwc.h"
 #include "board.h"
 #include "sam9_smc.h"
 #include "generic.h"
@@ -369,21 +370,47 @@ static struct gpio_led ek_leds[] = {
 		.name			= "ds3",
 		.gpio			= AT91_PIN_PB7,
 		.default_trigger	= "heartbeat",
+	},
+#if !IS_ENABLED(CONFIG_LEDS_PWM)
+	{
+		.name			= "ds1",
+		.gpio			= AT91_PIN_PB8,
+		.active_low		= 1,
+		.default_trigger	= "none",
 	}
+#endif
 };
 
 /*
  * PWM Leds
  */
-static struct gpio_led ek_pwm_led[] = {
-	/* For now only DS1 is PWM-driven (by pwm1) */
-	{
-		.name			= "ds1",
-		.gpio			= 1,	/* is PWM channel number */
-		.active_low		= 1,
-		.default_trigger	= "none",
-	}
+static struct pwm_lookup pwm_lookup[] = {
+	PWM_LOOKUP("at91sam9rl-pwm", 1, "leds_pwm", "ds1",
+		   5000, PWM_POLARITY_INVERSED),
 };
+
+#if IS_ENABLED(CONFIG_LEDS_PWM)
+static struct led_pwm pwm_leds[] = {
+	{
+		.name = "ds1",
+		.max_brightness = 255,
+	},
+};
+
+static struct led_pwm_platform_data pwm_data = {
+	.num_leds       = ARRAY_SIZE(pwm_leds),
+	.leds           = pwm_leds,
+};
+
+static struct platform_device leds_pwm = {
+	.name   = "leds_pwm",
+	.id     = -1,
+	.dev    = {
+		.platform_data = &pwm_data,
+	},
+};
+#endif
+
 
 /*
  * CAN
@@ -403,8 +430,16 @@ static struct at91_can_data ek_can_data = {
 	.transceiver_switch = sam9263ek_transceiver_switch,
 };
 
+static struct platform_device *devices[] __initdata = {
+#if IS_ENABLED(CONFIG_LEDS_PWM)
+	&leds_pwm,
+#endif
+};
+
 static void __init ek_board_init(void)
 {
+	at91_register_devices();
+
 	/* Serial */
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
@@ -437,14 +472,19 @@ static void __init ek_board_init(void)
 	at91_add_device_ac97(&ek_ac97_data);
 	/* LEDs */
 	at91_gpio_leds(ek_leds, ARRAY_SIZE(ek_leds));
-	at91_pwm_leds(ek_pwm_led, ARRAY_SIZE(ek_pwm_led));
+	pwm_add_table(pwm_lookup, ARRAY_SIZE(pwm_lookup));
+#if IS_ENABLED(CONFIG_LEDS_PWM)
+	at91_add_device_pwm(1 << AT91_PWM1);
+#endif
 	/* CAN */
 	at91_add_device_can(&ek_can_data);
+	/* Other platform devices */
+	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
 MACHINE_START(AT91SAM9263EK, "Atmel AT91SAM9263-EK")
 	/* Maintainer: Atmel */
-	.init_time	= at91sam926x_pit_init,
+	.init_time	= at91_init_time,
 	.map_io		= at91_map_io,
 	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= ek_init_early,

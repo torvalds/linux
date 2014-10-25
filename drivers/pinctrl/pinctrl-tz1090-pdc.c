@@ -547,8 +547,9 @@ static void tz1090_pdc_pinctrl_mux(struct tz1090_pdc_pmx *pmx,
 	__global_unlock2(flags);
 }
 
-static int tz1090_pdc_pinctrl_enable(struct pinctrl_dev *pctldev,
-				     unsigned int function, unsigned int group)
+static int tz1090_pdc_pinctrl_set_mux(struct pinctrl_dev *pctldev,
+				      unsigned int function,
+				      unsigned int group)
 {
 	struct tz1090_pdc_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
 	const struct tz1090_pdc_pingroup *grp = &tz1090_pdc_groups[group];
@@ -572,33 +573,6 @@ static int tz1090_pdc_pinctrl_enable(struct pinctrl_dev *pctldev,
 	tz1090_pdc_pinctrl_mux(pmx, grp);
 	spin_unlock(&pmx->lock);
 	return 0;
-}
-
-static void tz1090_pdc_pinctrl_disable(struct pinctrl_dev *pctldev,
-				       unsigned int function,
-				       unsigned int group)
-{
-	struct tz1090_pdc_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
-	const struct tz1090_pdc_pingroup *grp = &tz1090_pdc_groups[group];
-
-	dev_dbg(pctldev->dev, "%s(func=%u (%s), group=%u (%s))\n",
-		__func__,
-		function, tz1090_pdc_functions[function].name,
-		group, tz1090_pdc_groups[group].name);
-
-	/* is it even a mux? */
-	if (grp->drv)
-		return;
-
-	/* does this group even control the function? */
-	if (function != grp->func)
-		return;
-
-	/* record the pin being unmuxed and update mux bit */
-	spin_lock(&pmx->lock);
-	pmx->mux_en &= ~BIT(grp->pins[0]);
-	tz1090_pdc_pinctrl_mux(pmx, grp);
-	spin_unlock(&pmx->lock);
 }
 
 static const struct tz1090_pdc_pingroup *find_mux_group(
@@ -661,8 +635,7 @@ static struct pinmux_ops tz1090_pdc_pinmux_ops = {
 	.get_functions_count	= tz1090_pdc_pinctrl_get_funcs_count,
 	.get_function_name	= tz1090_pdc_pinctrl_get_func_name,
 	.get_function_groups	= tz1090_pdc_pinctrl_get_func_groups,
-	.enable			= tz1090_pdc_pinctrl_enable,
-	.disable		= tz1090_pdc_pinctrl_disable,
+	.set_mux		= tz1090_pdc_pinctrl_set_mux,
 	.gpio_request_enable	= tz1090_pdc_pinctrl_gpio_request_enable,
 	.gpio_disable_free	= tz1090_pdc_pinctrl_gpio_disable_free,
 };

@@ -31,7 +31,6 @@
 
 #include <linux/uuid.h>
 
-#include "commontypes.h"
 #include "vmcallinterface.h"
 
 #define _ULTRA_CONTROLVM_CHANNEL_INLINE_
@@ -711,24 +710,24 @@ typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
 /* ///////////// END PRAGMA PACK PUSH 1 /////////////////////////// */
 
 /* define offsets to members of struct uiscmdrsp */
-#define OFFSET_CMDTYPE OFFSETOF(struct uiscmdrsp, cmdtype)
-#define OFFSET_SCSI OFFSETOF(struct uiscmdrsp, scsi)
-#define OFFSET_NET OFFSETOF(struct uiscmdrsp, net)
-#define OFFSET_SCSITASKMGMT OFFSETOF(struct uiscmdrsp, scsitaskmgmt)
-#define OFFSET_NEXT OFFSETOF(struct uiscmdrsp, next)
+#define OFFSET_CMDTYPE offsetof(struct uiscmdrsp, cmdtype)
+#define OFFSET_SCSI offsetof(struct uiscmdrsp, scsi)
+#define OFFSET_NET offsetof(struct uiscmdrsp, net)
+#define OFFSET_SCSITASKMGMT offsetof(struct uiscmdrsp, scsitaskmgmt)
+#define OFFSET_NEXT offsetof(struct uiscmdrsp, next)
 
 /* define offsets to members of struct uiscmdrsp_net */
-#define OFFSET_TYPE OFFSETOF(struct uiscmdrsp_net, type)
-#define OFFSET_BUF OFFSETOF(struct uiscmdrsp_net, buf)
-#define OFFSET_XMT OFFSETOF(struct uiscmdrsp_net, xmt)
-#define OFFSET_XMT_DONE_RESULT OFFSETOF(struct uiscmdrsp_net, xmtdone)
-#define OFFSET_RCVPOST OFFSETOF(struct uiscmdrsp_net, rcvpost)
-#define OFFSET_RCV_DONE_LEN OFFSETOF(struct uiscmdrsp_net, rcv)
-#define OFFSET_ENBDIS OFFSETOF(struct uiscmdrsp_net, enbdis)
+#define OFFSET_TYPE offsetof(struct uiscmdrsp_net, type)
+#define OFFSET_BUF offsetof(struct uiscmdrsp_net, buf)
+#define OFFSET_XMT offsetof(struct uiscmdrsp_net, xmt)
+#define OFFSET_XMT_DONE_RESULT offsetof(struct uiscmdrsp_net, xmtdone)
+#define OFFSET_RCVPOST offsetof(struct uiscmdrsp_net, rcvpost)
+#define OFFSET_RCV_DONE_LEN offsetof(struct uiscmdrsp_net, rcv)
+#define OFFSET_ENBDIS offsetof(struct uiscmdrsp_net, enbdis)
 
 /* define offsets to members of struct net_pkt_rcvpost */
-#define OFFSET_TOTALLEN OFFSETOF(struct net_pkt_rcvpost, totallen)
-#define	OFFSET_FRAG OFFSETOF(struct net_pkt_rcvpost, frag)
+#define OFFSET_TOTALLEN offsetof(struct net_pkt_rcvpost, totallen)
+#define	OFFSET_FRAG offsetof(struct net_pkt_rcvpost, frag)
 
 /*
 * INLINE functions for initializing and accessing I/O data channels
@@ -753,7 +752,7 @@ typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
 	do {							\
 		x->cmdQ.Size = QSIZEFROMBYTES(x->ChannelHeader.Size);	\
 		x->cmdQ.oSignalBase = SIZEOF_PROTOCOL -			\
-			OFFSETOF(ULTRA_IO_CHANNEL_PROTOCOL, cmdQ);	\
+			offsetof(ULTRA_IO_CHANNEL_PROTOCOL, cmdQ);	\
 		x->cmdQ.SignalSize = SIZEOF_CMDRSP;			\
 		x->cmdQ.MaxSignalSlots =				\
 			QSLOTSFROMBYTES(x->ChannelHeader.Size);		\
@@ -761,21 +760,21 @@ typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
 		x->rspQ.Size = QSIZEFROMBYTES(x->ChannelHeader.Size);	\
 		x->rspQ.oSignalBase =					\
 			(SIZEOF_PROTOCOL + x->cmdQ.Size) -		\
-			OFFSETOF(ULTRA_IO_CHANNEL_PROTOCOL, rspQ);	\
+			offsetof(ULTRA_IO_CHANNEL_PROTOCOL, rspQ);	\
 		x->rspQ.SignalSize = SIZEOF_CMDRSP;			\
 		x->rspQ.MaxSignalSlots =				\
 			QSLOTSFROMBYTES(x->ChannelHeader.Size);		\
 		x->rspQ.MaxSignals = x->rspQ.MaxSignalSlots - 1;	\
 		x->ChannelHeader.oChannelSpace =			\
-			OFFSETOF(ULTRA_IO_CHANNEL_PROTOCOL, cmdQ);	\
+			offsetof(ULTRA_IO_CHANNEL_PROTOCOL, cmdQ);	\
 	} while (0)
 
 #define INIT_CLIENTSTRING(chan, type, clientStr, clientStrLen)	\
 	do {								\
 		if (clientStr) {					\
 			chan->ChannelHeader.oClientString =		\
-				OFFSETOF(type, clientString);		\
-			MEMCPY(chan->clientString, clientStr,		\
+				offsetof(type, clientString);		\
+			memcpy(chan->clientString, clientStr,		\
 			       MINNUM(clientStrLen,			\
 				      (u32) (MAX_CLIENTSTRING_LEN - 1))); \
 			chan->clientString[MINNUM(clientStrLen,		\
@@ -791,11 +790,11 @@ typedef struct _ULTRA_IO_CHANNEL_PROTOCOL {
 
 #define ULTRA_IO_CHANNEL_SERVER_READY(x, chanId, logCtx) \
 	ULTRA_CHANNEL_SERVER_TRANSITION(x, chanId, SrvState, CHANNELSRV_READY, \
-					logCtx);
+					logCtx)
 
 #define ULTRA_IO_CHANNEL_SERVER_NOTREADY(x, chanId, logCtx)	\
 	ULTRA_CHANNEL_SERVER_TRANSITION(x, chanId, SrvState, \
-					CHANNELSRV_UNINITIALIZED, logCtx);
+					CHANNELSRV_UNINITIALIZED, logCtx)
 
 static inline int ULTRA_VHBA_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
 					      struct vhba_wwnn *wwnn,
@@ -846,7 +845,7 @@ static inline int ULTRA_VNIC_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
 	x->ChannelHeader.Size = COVER(bytes, 4096);
 	x->ChannelHeader.Type = UltraVnicChannelProtocolGuid;
 	x->ChannelHeader.ZoneGuid = NULL_UUID_LE;
-	MEMCPY(x->vnic.macaddr, macaddr, MAX_MACADDR_LEN);
+	memcpy(x->vnic.macaddr, macaddr, MAX_MACADDR_LEN);
 	x->vnic.num_rcv_bufs = num_rcv_bufs;
 	x->vnic.mtu = mtu;
 	x->vnic.zoneGuid = zoneGuid;
@@ -882,7 +881,7 @@ static inline int ULTRA_VNIC_init_channel(ULTRA_IO_CHANNEL_PROTOCOL *x,
 /* returns next non-zero index on success or zero on failure (i.e. out of
  * room)
  */
-static INLINE  u16
+static inline  u16
 add_physinfo_entries(u32 inp_pfn,	/* input - specifies the pfn to be used
 					 * to add entries */
 		     u16 inp_off,	/* input - specifies the off to be used

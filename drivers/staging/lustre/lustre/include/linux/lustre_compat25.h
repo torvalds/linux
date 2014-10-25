@@ -39,7 +39,6 @@
 
 #include <linux/fs_struct.h>
 #include <linux/namei.h>
-#include "../../../include/linux/libcfs/linux/portals_compat25.h"
 
 #include "lustre_patchless_compat.h"
 
@@ -99,17 +98,19 @@ static inline void ll_set_fs_pwd(struct fs_struct *fs, struct vfsmount *mnt,
 #define FS_HAS_FIEMAP			(0)
 #endif
 
-#define ll_vfs_rmdir(dir,entry,mnt)	     vfs_rmdir(dir,entry)
-#define ll_vfs_mkdir(inode,dir,mnt,mode)	vfs_mkdir(inode,dir,mode)
-#define ll_vfs_link(old,mnt,dir,new,mnt1)       vfs_link(old,dir,new)
-#define ll_vfs_unlink(inode,entry,mnt)	  vfs_unlink(inode,entry)
-#define ll_vfs_mknod(dir,entry,mnt,mode,dev)    vfs_mknod(dir,entry,mode,dev)
-#define ll_security_inode_unlink(dir,entry,mnt) security_inode_unlink(dir,entry)
+#define ll_vfs_rmdir(dir, entry, mnt)	     vfs_rmdir(dir, entry)
+#define ll_vfs_mkdir(inode, dir, mnt, mode)	vfs_mkdir(inode, dir, mode)
+#define ll_vfs_link(old, mnt, dir, new, mnt1)       vfs_link(old, dir, new)
+#define ll_vfs_unlink(inode, entry, mnt)	  vfs_unlink(inode, entry)
+#define ll_vfs_mknod(dir, entry, mnt, mode, dev) \
+		     vfs_mknod(dir, entry, mode, dev)
+#define ll_security_inode_unlink(dir, entry, mnt) \
+				 security_inode_unlink(dir, entry)
 #define ll_vfs_rename(old, old_dir, mnt, new, new_dir, mnt1) \
 		vfs_rename(old, old_dir, new, new_dir, NULL, 0)
 
-#define cfs_bio_io_error(a,b)   bio_io_error((a))
-#define cfs_bio_endio(a,b,c)    bio_endio((a),(c))
+#define cfs_bio_io_error(a, b)   bio_io_error((a))
+#define cfs_bio_endio(a, b, c)    bio_endio((a), (c))
 
 #define cfs_fs_pwd(fs)       ((fs)->pwd.dentry)
 #define cfs_fs_mnt(fs)       ((fs)->pwd.mnt)

@@ -1,0 +1,11 @@
+*Device-Tree bindings for ST SW reset functionality
+
+Required properties:
+- compatible: should be "st,<chip>-restart".
+- st,syscfg: should be a phandle of the syscfg node.
+
+Example node:
+	restart {
+		compatible = "st,stih416-restart";
+		st,syscfg = <&syscfg_sbc>;
+	};

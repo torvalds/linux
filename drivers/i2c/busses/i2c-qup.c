@@ -633,13 +633,17 @@ static int qup_i2c_probe(struct platform_device *pdev)
 	 * associated with each byte written/received
 	 */
 	size = QUP_OUTPUT_BLOCK_SIZE(io_mode);
-	if (size >= ARRAY_SIZE(blk_sizes))
-		return -EIO;
+	if (size >= ARRAY_SIZE(blk_sizes)) {
+		ret = -EIO;
+		goto fail;
+	}
 	qup->out_blk_sz = blk_sizes[size] / 2;
 
 	size = QUP_INPUT_BLOCK_SIZE(io_mode);
-	if (size >= ARRAY_SIZE(blk_sizes))
-		return -EIO;
+	if (size >= ARRAY_SIZE(blk_sizes)) {
+		ret = -EIO;
+		goto fail;
+	}
 	qup->in_blk_sz = blk_sizes[size] / 2;
 
 	size = QUP_OUTPUT_FIFO_SIZE(io_mode);
@@ -670,16 +674,20 @@ static int qup_i2c_probe(struct platform_device *pdev)
 	qup->adap.dev.of_node = pdev->dev.of_node;
 	strlcpy(qup->adap.name, "QUP I2C adapter", sizeof(qup->adap.name));
 
-	ret = i2c_add_adapter(&qup->adap);
-	if (ret)
-		goto fail;
-
 	pm_runtime_set_autosuspend_delay(qup->dev, MSEC_PER_SEC);
 	pm_runtime_use_autosuspend(qup->dev);
 	pm_runtime_set_active(qup->dev);
 	pm_runtime_enable(qup->dev);
+
+	ret = i2c_add_adapter(&qup->adap);
+	if (ret)
+		goto fail_runtime;
+
 	return 0;
 
+fail_runtime:
+	pm_runtime_disable(qup->dev);
+	pm_runtime_set_suspended(qup->dev);
 fail:
 	qup_i2c_disable_clocks(qup);
 	return ret;

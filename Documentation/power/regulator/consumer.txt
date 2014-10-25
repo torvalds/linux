@@ -143,8 +143,9 @@ This will cause the core to recalculate the total load on the regulator (based
 on all its consumers) and change operating mode (if necessary and permitted)
 to best match the current operating load.
 
-The load_uA value can be determined from the consumers datasheet. e.g.most
-datasheets have tables showing the max current consumed in certain situations.
+The load_uA value can be determined from the consumer's datasheet. e.g. most
+datasheets have tables showing the maximum current consumed in certain
+situations.
 
 Most consumers will use indirect operating mode control since they have no
 knowledge of the regulator or whether the regulator is shared with other
@@ -173,7 +174,7 @@ Consumers can register interest in regulator events by calling :-
 int regulator_register_notifier(struct regulator *regulator,
 			      struct notifier_block *nb);
 
-Consumers can uregister interest by calling :-
+Consumers can unregister interest by calling :-
 
 int regulator_unregister_notifier(struct regulator *regulator,
 				struct notifier_block *nb);

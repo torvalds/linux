@@ -11,12 +11,16 @@
 #define PCI_DEVICE_ID_INTEL_BYT_SDIO	0x0f15
 #define PCI_DEVICE_ID_INTEL_BYT_SD	0x0f16
 #define PCI_DEVICE_ID_INTEL_BYT_EMMC2	0x0f50
+#define PCI_DEVICE_ID_INTEL_BSW_EMMC	0x2294
+#define PCI_DEVICE_ID_INTEL_BSW_SDIO	0x2295
+#define PCI_DEVICE_ID_INTEL_BSW_SD	0x2296
 #define PCI_DEVICE_ID_INTEL_MRFL_MMC	0x1190
 #define PCI_DEVICE_ID_INTEL_CLV_SDIO0	0x08f9
 #define PCI_DEVICE_ID_INTEL_CLV_SDIO1	0x08fa
 #define PCI_DEVICE_ID_INTEL_CLV_SDIO2	0x08fb
 #define PCI_DEVICE_ID_INTEL_CLV_EMMC0	0x08e5
 #define PCI_DEVICE_ID_INTEL_CLV_EMMC1	0x08e6
+#define PCI_DEVICE_ID_INTEL_QRK_SD	0x08A7
 
 /*
  * PCI registers
@@ -59,6 +63,10 @@ struct sdhci_pci_slot {
 	int			rst_n_gpio;
 	int			cd_gpio;
 	int			cd_irq;
+
+	char			*cd_con_id;
+	int			cd_idx;
+	bool			cd_override_level;
 
 	void (*hw_reset)(struct sdhci_host *host);
 };

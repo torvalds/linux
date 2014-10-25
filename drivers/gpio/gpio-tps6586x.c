@@ -137,7 +137,8 @@ static int tps6586x_gpio_remove(struct platform_device *pdev)
 {
 	struct tps6586x_gpio *tps6586x_gpio = platform_get_drvdata(pdev);
 
-	return gpiochip_remove(&tps6586x_gpio->gpio_chip);
+	gpiochip_remove(&tps6586x_gpio->gpio_chip);
+	return 0;
 }
 
 static struct platform_driver tps6586x_gpio_driver = {

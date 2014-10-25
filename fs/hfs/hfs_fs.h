@@ -242,8 +242,6 @@ extern int hfs_mac2asc(struct super_block *, char *, const struct hfs_name *);
 /* super.c */
 extern void hfs_mark_mdb_dirty(struct super_block *sb);
 
-extern struct timezone sys_tz;
-
 /*
  * There are two time systems.  Both are based on seconds since
  * a particular time/date.

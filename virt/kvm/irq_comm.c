@@ -160,9 +160,9 @@ static int kvm_set_msi_inatomic(struct kvm_kernel_irq_routing_entry *e,
  */
 int kvm_set_irq_inatomic(struct kvm *kvm, int irq_source_id, u32 irq, int level)
 {
+	struct kvm_kernel_irq_routing_entry entries[KVM_NR_IRQCHIPS];
 	struct kvm_kernel_irq_routing_entry *e;
 	int ret = -EINVAL;
-	struct kvm_irq_routing_table *irq_rt;
 	int idx;
 
 	trace_kvm_set_irq(irq, level, irq_source_id);
@@ -176,15 +176,13 @@ int kvm_set_irq_inatomic(struct kvm *kvm, int irq_source_id, u32 irq, int level)
 	 * which is limited to 1:1 GSI mapping.
 	 */
 	idx = srcu_read_lock(&kvm->irq_srcu);
-	irq_rt = srcu_dereference(kvm->irq_routing, &kvm->irq_srcu);
-	if (irq < irq_rt->nr_rt_entries)
-		hlist_for_each_entry(e, &irq_rt->map[irq], link) {
-			if (likely(e->type == KVM_IRQ_ROUTING_MSI))
-				ret = kvm_set_msi_inatomic(e, kvm);
-			else
-				ret = -EWOULDBLOCK;
-			break;
-		}
+	if (kvm_irq_map_gsi(kvm, entries, irq) > 0) {
+		e = &entries[0];
+		if (likely(e->type == KVM_IRQ_ROUTING_MSI))
+			ret = kvm_set_msi_inatomic(e, kvm);
+		else
+			ret = -EWOULDBLOCK;
+	}
 	srcu_read_unlock(&kvm->irq_srcu, idx);
 	return ret;
 }
@@ -264,7 +262,7 @@ void kvm_fire_mask_notifiers(struct kvm *kvm, unsigned irqchip, unsigned pin,
 	int idx, gsi;
 
 	idx = srcu_read_lock(&kvm->irq_srcu);
-	gsi = srcu_dereference(kvm->irq_routing, &kvm->irq_srcu)->chip[irqchip][pin];
+	gsi = kvm_irq_map_chip_pin(kvm, irqchip, pin);
 	if (gsi != -1)
 		hlist_for_each_entry_rcu(kimn, &kvm->mask_notifier_list, link)
 			if (kimn->irq == gsi)
@@ -272,8 +270,7 @@ void kvm_fire_mask_notifiers(struct kvm *kvm, unsigned irqchip, unsigned pin,
 	srcu_read_unlock(&kvm->irq_srcu, idx);
 }
 
-int kvm_set_routing_entry(struct kvm_irq_routing_table *rt,
-			  struct kvm_kernel_irq_routing_entry *e,
+int kvm_set_routing_entry(struct kvm_kernel_irq_routing_entry *e,
 			  const struct kvm_irq_routing_entry *ue)
 {
 	int r = -EINVAL;
@@ -304,7 +301,6 @@ int kvm_set_routing_entry(struct kvm_irq_routing_table *rt,
 		e->irqchip.pin = ue->u.irqchip.pin + delta;
 		if (e->irqchip.pin >= max_pin)
 			goto out;
-		rt->chip[ue->u.irqchip.irqchip][e->irqchip.pin] = ue->gsi;
 		break;
 	case KVM_IRQ_ROUTING_MSI:
 		e->set = kvm_set_msi;

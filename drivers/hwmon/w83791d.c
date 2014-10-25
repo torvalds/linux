@@ -1181,6 +1181,9 @@ static ssize_t store_vrm_reg(struct device *dev,
 	if (err)
 		return err;
 
+	if (val > 255)
+		return -EINVAL;
+
 	data->vrm = val;
 	return count;
 }

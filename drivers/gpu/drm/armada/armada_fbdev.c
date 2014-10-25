@@ -131,7 +131,7 @@ static int armada_fb_probe(struct drm_fb_helper *fbh,
 	return ret;
 }
 
-static struct drm_fb_helper_funcs armada_fb_helper_funcs = {
+static const struct drm_fb_helper_funcs armada_fb_helper_funcs = {
 	.gamma_set	= armada_drm_crtc_gamma_set,
 	.gamma_get	= armada_drm_crtc_gamma_get,
 	.fb_probe	= armada_fb_probe,
@@ -149,7 +149,7 @@ int armada_fbdev_init(struct drm_device *dev)
 
 	priv->fbdev = fbh;
 
-	fbh->funcs = &armada_fb_helper_funcs;
+	drm_fb_helper_prepare(dev, fbh, &armada_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(dev, fbh, 1, 1);
 	if (ret) {

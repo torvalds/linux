@@ -477,6 +477,4 @@ static void apci035_interrupt(int irq, void *d)
 		/*  send signal to the sample */
 		send_sig(SIGIO, devpriv->tsk_Current, 0);
 	}
-
-	return;
 }

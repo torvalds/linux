@@ -34,7 +34,7 @@
 #define ST21NFCA_RF_READER_CMD_PRESENCE_CHECK	0x30
 
 #define ST21NFCA_RF_READER_ISO15693_GATE	0x12
-#define ST21NFCA_RF_READER_ISO15693_INVENTORY 0x01
+#define ST21NFCA_RF_READER_ISO15693_INVENTORY	0x01
 
 /*
  * Reader gate for communication with contact-less cards using Type A
@@ -45,21 +45,42 @@
 #define ST21NFCA_RF_READER_14443_3_A_ATQA	0x03
 #define ST21NFCA_RF_READER_14443_3_A_SAK	0x04
 
+#define ST21NFCA_RF_READER_F_DATARATE		0x01
+#define ST21NFCA_RF_READER_F_DATARATE_106	0x01
+#define ST21NFCA_RF_READER_F_DATARATE_212	0x02
+#define ST21NFCA_RF_READER_F_DATARATE_424	0x04
+#define ST21NFCA_RF_READER_F_POL_REQ		0x02
+#define ST21NFCA_RF_READER_F_POL_REQ_DEFAULT	0xffff0000
+#define ST21NFCA_RF_READER_F_NFCID2		0x03
+#define ST21NFCA_RF_READER_F_NFCID1		0x04
+
+#define ST21NFCA_RF_CARD_F_MODE			0x01
+#define ST21NFCA_RF_CARD_F_NFCID2_LIST		0x04
+#define ST21NFCA_RF_CARD_F_NFCID1		0x05
+#define ST21NFCA_RF_CARD_F_SENS_RES		0x06
+#define ST21NFCA_RF_CARD_F_SEL_RES		0x07
+#define ST21NFCA_RF_CARD_F_DATARATE		0x08
+#define ST21NFCA_RF_CARD_F_DATARATE_212_424	0x01
+
 #define ST21NFCA_DEVICE_MGNT_GATE		0x01
 #define ST21NFCA_DEVICE_MGNT_PIPE		0x02
 
-#define ST21NFCA_DM_GETINFO         0x13
-#define ST21NFCA_DM_GETINFO_PIPE_LIST       0x02
-#define ST21NFCA_DM_GETINFO_PIPE_INFO       0x01
-#define ST21NFCA_DM_PIPE_CREATED        0x02
-#define ST21NFCA_DM_PIPE_OPEN           0x04
-#define ST21NFCA_DM_RF_ACTIVE           0x80
-#define ST21NFCA_DM_DISCONNECT		0x30
+#define ST21NFCA_DM_GETINFO			0x13
+#define ST21NFCA_DM_GETINFO_PIPE_LIST		0x02
+#define ST21NFCA_DM_GETINFO_PIPE_INFO		0x01
+#define ST21NFCA_DM_PIPE_CREATED		0x02
+#define ST21NFCA_DM_PIPE_OPEN			0x04
+#define ST21NFCA_DM_RF_ACTIVE			0x80
+#define ST21NFCA_DM_DISCONNECT			0x30
 
 #define ST21NFCA_DM_IS_PIPE_OPEN(p) \
 	((p & 0x0f) == (ST21NFCA_DM_PIPE_CREATED | ST21NFCA_DM_PIPE_OPEN))
 
-#define ST21NFCA_NFC_MODE	0x03	/* NFC_MODE parameter*/
+#define ST21NFCA_NFC_MODE			0x03	/* NFC_MODE parameter*/
+#define ST21NFCA_EVT_FIELD_ON			0x11
+#define ST21NFCA_EVT_CARD_DEACTIVATED		0x12
+#define ST21NFCA_EVT_CARD_ACTIVATED		0x13
+#define ST21NFCA_EVT_FIELD_OFF			0x14
 
 static DECLARE_BITMAP(dev_mask, ST21NFCA_NUM_DEVICES);
 
@@ -355,8 +376,8 @@ static int st21nfca_hci_start_poll(struct nfc_hci_dev *hdev,
 			if (r < 0)
 				return r;
 
-			pol_req =
-			    be32_to_cpu(ST21NFCA_RF_READER_F_POL_REQ_DEFAULT);
+			pol_req = be32_to_cpu((__force __be32)
+					ST21NFCA_RF_READER_F_POL_REQ_DEFAULT);
 			r = nfc_hci_set_param(hdev, ST21NFCA_RF_READER_F_GATE,
 					      ST21NFCA_RF_READER_F_POL_REQ,
 					      (u8 *) &pol_req, 4);
@@ -790,6 +811,7 @@ static int st21nfca_hci_check_presence(struct nfc_hci_dev *hdev,
 				       struct nfc_target *target)
 {
 	u8 fwi = 0x11;
+
 	switch (target->hci_reader_gate) {
 	case NFC_HCI_RF_READER_A_GATE:
 	case NFC_HCI_RF_READER_B_GATE:
@@ -839,20 +861,16 @@ static int st21nfca_hci_event_received(struct nfc_hci_dev *hdev, u8 gate,
 		if (gate == ST21NFCA_RF_CARD_F_GATE) {
 			r = st21nfca_tm_event_send_data(hdev, skb, gate);
 			if (r < 0)
-				goto exit;
+				return r;
 			return 0;
-		} else {
-			info->dep_info.curr_nfc_dep_pni = 0;
-			return 1;
 		}
-		break;
+		info->dep_info.curr_nfc_dep_pni = 0;
+		return 1;
 	default:
 		return 1;
 	}
 	kfree_skb(skb);
 	return 0;
-exit:
-	return r;
 }
 
 static struct nfc_hci_ops st21nfca_hci_ops = {
@@ -904,8 +922,11 @@ int st21nfca_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops,
 	 * persistent info to discriminate 2 identical chips
 	 */
 	dev_num = find_first_zero_bit(dev_mask, ST21NFCA_NUM_DEVICES);
+
 	if (dev_num >= ST21NFCA_NUM_DEVICES)
-		goto err_alloc_hdev;
+		return -ENODEV;
+
+	set_bit(dev_num, dev_mask);
 
 	scnprintf(init_data.session_id, sizeof(init_data.session_id), "%s%2x",
 		  "ST21AH", dev_num);

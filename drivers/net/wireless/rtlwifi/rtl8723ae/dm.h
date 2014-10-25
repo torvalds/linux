@@ -25,16 +25,22 @@
  *
  * Larry Finger <Larry.Finger@lwfinger.net>
  *
- ****************************************************************************
- */
+ *****************************************************************************/
 
 #ifndef	__RTL8723E_DM_H__
 #define __RTL8723E_DM_H__
 
+#define HAL_DM_DIG_DISABLE			BIT(0)
 #define HAL_DM_HIPWR_DISABLE			BIT(1)
+
+#define OFDM_TABLE_LENGTH			37
+#define CCK_TABLE_LENGTH			33
 
 #define OFDM_TABLE_SIZE				37
 #define CCK_TABLE_SIZE				33
+
+#define BW_AUTO_SWITCH_HIGH_LOW			25
+#define BW_AUTO_SWITCH_LOW_HIGH			30
 
 #define DM_DIG_THRESH_HIGH			40
 #define DM_DIG_THRESH_LOW			35
@@ -63,12 +69,18 @@
 #define DM_RATR_STA_MIDDLE			2
 #define DM_RATR_STA_LOW				3
 
+#define CTS2SELF_THVAL				30
+#define REGC38_TH				20
+
+#define WAIOTTHVAL				25
+
 #define TXHIGHPWRLEVEL_NORMAL			0
 #define TXHIGHPWRLEVEL_LEVEL1			1
 #define TXHIGHPWRLEVEL_LEVEL2			2
 #define TXHIGHPWRLEVEL_BT1			3
 #define TXHIGHPWRLEVEL_BT2			4
 
+#define DM_TYPE_BYFW				0
 #define DM_TYPE_BYDRIVER			1
 
 #define TX_POWER_NEAR_FIELD_THRESH_LVL2		74
@@ -82,6 +94,7 @@ struct swat_t {
 	long trying_threshold;
 	u8 cur_antenna;
 	u8 pre_antenna;
+
 };
 
 enum tag_dynamic_init_gain_operation_type_definition {
@@ -98,7 +111,7 @@ enum tag_dynamic_init_gain_operation_type_definition {
 enum tag_cck_packet_detection_threshold_type_definition {
 	CCK_PD_STAGE_LowRssi = 0,
 	CCK_PD_STAGE_HighRssi = 1,
-	CCK_FA_STAGE_Low = 2,
+	CCK_FA_STAGE_LOW = 2,
 	CCK_FA_STAGE_High = 3,
 	CCK_PD_STAGE_MAX = 4,
 };
@@ -138,17 +151,24 @@ enum dm_dig_connect_e {
 	DIG_CONNECT_MAX
 };
 
+#define BT_RSSI_STATE_NORMAL_POWER      BIT_OFFSET_LEN_MASK_32(0, 1)
+#define BT_RSSI_STATE_AMDPU_OFF         BIT_OFFSET_LEN_MASK_32(1, 1)
+#define BT_RSSI_STATE_SPECIAL_LOW       BIT_OFFSET_LEN_MASK_32(2, 1)
+#define BT_RSSI_STATE_BG_EDCA_LOW       BIT_OFFSET_LEN_MASK_32(3, 1)
+#define BT_RSSI_STATE_TXPOWER_LOW       BIT_OFFSET_LEN_MASK_32(4, 1)
 #define GET_UNDECORATED_AVERAGE_RSSI(_priv)     \
-	((((struct rtl_priv *)(_priv))->mac80211.opmode ==	\
-	NL80211_IFTYPE_ADHOC) ?  \
-	(((struct rtl_priv *)(_priv))->dm.entry_min_undec_sm_pwdb) \
-	: (((struct rtl_priv *)(_priv))->dm.undec_sm_pwdb))
+	( \
+	(((struct rtl_priv *)(_priv))->mac80211.opmode ==		\
+			     NL80211_IFTYPE_ADHOC) ?			\
+	(((struct rtl_priv *)(_priv))->dm.entry_min_undec_sm_pwdb) :	\
+	(((struct rtl_priv *)(_priv))->dm.undec_sm_pwdb)		\
+	)
 
-void rtl8723ae_dm_init(struct ieee80211_hw *hw);
-void rtl8723ae_dm_watchdog(struct ieee80211_hw *hw);
-void rtl8723ae_dm_write_dig(struct ieee80211_hw *hw);
-void rtl8723ae_dm_init_rate_adaptive_mask(struct ieee80211_hw *hw);
-void rtl8723ae_dm_rf_saving(struct ieee80211_hw *hw, u8 bforce_in_normal);
-void rtl8723ae_dm_bt_coexist(struct ieee80211_hw *hw);
-
+void rtl8723e_dm_init(struct ieee80211_hw *hw);
+void rtl8723e_dm_watchdog(struct ieee80211_hw *hw);
+void rtl8723e_dm_write_dig(struct ieee80211_hw *hw);
+void rtl8723e_dm_check_txpower_tracking(struct ieee80211_hw *hw);
+void rtl8723e_dm_init_rate_adaptive_mask(struct ieee80211_hw *hw);
+void rtl8723e_dm_rf_saving(struct ieee80211_hw *hw, u8 bforce_in_normal);
+void rtl8723e_dm_bt_coexist(struct ieee80211_hw *hw);
 #endif

@@ -44,7 +44,7 @@ static const struct addi_board apci3120_boardtypes[] = {
 static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	const struct addi_board *this_board = comedi_board(dev);
+	const struct addi_board *this_board = dev->board_ptr;
 
 	this_board->interrupt(irq, d);
 	return IRQ_RETVAL(1);
@@ -57,7 +57,7 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	const struct addi_board *this_board = NULL;
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
-	int ret, pages, i;
+	int ret, order, i;
 
 	if (context < ARRAY_SIZE(apci3120_boardtypes))
 		this_board = &apci3120_boardtypes[context];
@@ -88,28 +88,23 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 			dev->irq = pcidev->irq;
 	}
 
-	devpriv->us_UseDma = 1;
-
 	/* Allocate DMA buffers */
-	devpriv->b_DmaDoubleBuffer = 0;
 	for (i = 0; i < 2; i++) {
-		for (pages = 4; pages >= 0; pages--) {
+		for (order = 2; order >= 0; order--) {
 			devpriv->ul_DmaBufferVirtual[i] =
-				(void *) __get_free_pages(GFP_KERNEL, pages);
+			    dma_alloc_coherent(dev->hw_dev, PAGE_SIZE << order,
+					       &devpriv->ul_DmaBufferHw[i],
+					       GFP_KERNEL);
 
 			if (devpriv->ul_DmaBufferVirtual[i])
 				break;
 		}
-		if (devpriv->ul_DmaBufferVirtual[i]) {
-			devpriv->ui_DmaBufferPages[i] = pages;
-			devpriv->ui_DmaBufferSize[i] = PAGE_SIZE * pages;
-			devpriv->ul_DmaBufferHw[i] =
-				virt_to_bus((void *)devpriv->
-				ul_DmaBufferVirtual[i]);
-		}
+		if (!devpriv->ul_DmaBufferVirtual[i])
+			break;
+		devpriv->ui_DmaBufferSize[i] = PAGE_SIZE << order;
 	}
-	if (!devpriv->ul_DmaBufferVirtual[0])
-		devpriv->us_UseDma = 0;
+	if (devpriv->ul_DmaBufferVirtual[0])
+		devpriv->us_UseDma = 1;
 
 	if (devpriv->ul_DmaBufferVirtual[1])
 		devpriv->b_DmaDoubleBuffer = 1;
@@ -195,23 +190,22 @@ static void apci3120_detach(struct comedi_device *dev)
 {
 	struct addi_private *devpriv = dev->private;
 
+	if (dev->iobase)
+		apci3120_reset(dev);
+	comedi_pci_detach(dev);
 	if (devpriv) {
-		if (dev->iobase)
-			apci3120_reset(dev);
-		if (dev->irq)
-			free_irq(dev->irq, dev);
-		if (devpriv->ul_DmaBufferVirtual[0]) {
-			free_pages((unsigned long)devpriv->
-				ul_DmaBufferVirtual[0],
-				devpriv->ui_DmaBufferPages[0]);
-		}
-		if (devpriv->ul_DmaBufferVirtual[1]) {
-			free_pages((unsigned long)devpriv->
-				ul_DmaBufferVirtual[1],
-				devpriv->ui_DmaBufferPages[1]);
+		unsigned int i;
+
+		for (i = 0; i < 2; i++) {
+			if (devpriv->ul_DmaBufferVirtual[i]) {
+				dma_free_coherent(dev->hw_dev,
+						  devpriv->ui_DmaBufferSize[i],
+						  devpriv->
+						  ul_DmaBufferVirtual[i],
+						  devpriv->ul_DmaBufferHw[i]);
+			}
 		}
 	}
-	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver apci3120_driver = {

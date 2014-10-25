@@ -74,12 +74,9 @@ static inline int TEMP_FROM_REG(s16 reg)
 	return reg / 8 * 625 / 10;
 }
 
-static inline s16 TEMP_TO_REG(int val)
+static inline s16 TEMP_TO_REG(long val)
 {
-	if (val <= -60000)
-		return -60000 * 10 / 625 * 8;
-	if (val >= 160000)
-		return 160000 * 10 / 625 * 8;
+	val = clamp_val(val, -60000, 160000);
 	return val * 10 / 625 * 8;
 }
 
@@ -206,10 +203,12 @@ static ssize_t set_temp_hyst(struct device *dev,
 	if (err)
 		return err;
 
+	val = clamp_val(val, -120000, 220000);
 	mutex_lock(&data->update_lock);
-	data->temp[t_hyst] = TEMP_FROM_REG(data->temp[attr->index]) - val;
+	 data->temp[t_hyst] =
+		TEMP_TO_REG(TEMP_FROM_REG(data->temp[attr->index]) - val);
 	i2c_smbus_write_word_swapped(client, LM92_REG_TEMP_HYST,
-				     TEMP_TO_REG(data->temp[t_hyst]));
+				     data->temp[t_hyst]);
 	mutex_unlock(&data->update_lock);
 	return count;
 }

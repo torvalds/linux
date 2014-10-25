@@ -636,17 +636,7 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 	dma_cookie_t cookie;
 	int ret;
 
-	if (tx) {
-		ier_bits |= IER_TDREQE | IER_TDMAE;
-		dma_sync_single_for_device(p->master->dma_tx->device->dev,
-					   p->tx_dma_addr, len, DMA_TO_DEVICE);
-		desc_tx = dmaengine_prep_slave_single(p->master->dma_tx,
-					p->tx_dma_addr, len, DMA_TO_DEVICE,
-					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-		if (!desc_tx)
-			return -EAGAIN;
-	}
-
+	/* First prepare and submit the DMA request(s), as this may fail */
 	if (rx) {
 		ier_bits |= IER_RDREQE | IER_RDMAE;
 		desc_rx = dmaengine_prep_slave_single(p->master->dma_rx,
@@ -654,6 +644,38 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 		if (!desc_rx)
 			return -EAGAIN;
+
+		desc_rx->callback = sh_msiof_dma_complete;
+		desc_rx->callback_param = p;
+		cookie = dmaengine_submit(desc_rx);
+		if (dma_submit_error(cookie))
+			return cookie;
+	}
+
+	if (tx) {
+		ier_bits |= IER_TDREQE | IER_TDMAE;
+		dma_sync_single_for_device(p->master->dma_tx->device->dev,
+					   p->tx_dma_addr, len, DMA_TO_DEVICE);
+		desc_tx = dmaengine_prep_slave_single(p->master->dma_tx,
+					p->tx_dma_addr, len, DMA_TO_DEVICE,
+					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+		if (!desc_tx) {
+			ret = -EAGAIN;
+			goto no_dma_tx;
+		}
+
+		if (rx) {
+			/* No callback */
+			desc_tx->callback = NULL;
+		} else {
+			desc_tx->callback = sh_msiof_dma_complete;
+			desc_tx->callback_param = p;
+		}
+		cookie = dmaengine_submit(desc_tx);
+		if (dma_submit_error(cookie)) {
+			ret = cookie;
+			goto no_dma_tx;
+		}
 	}
 
 	/* 1 stage FIFO watermarks for DMA */
@@ -666,37 +688,16 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 
 	reinit_completion(&p->done);
 
-	if (rx) {
-		desc_rx->callback = sh_msiof_dma_complete;
-		desc_rx->callback_param = p;
-		cookie = dmaengine_submit(desc_rx);
-		if (dma_submit_error(cookie)) {
-			ret = cookie;
-			goto stop_ier;
-		}
+	/* Now start DMA */
+	if (rx)
 		dma_async_issue_pending(p->master->dma_rx);
-	}
-
-	if (tx) {
-		if (rx) {
-			/* No callback */
-			desc_tx->callback = NULL;
-		} else {
-			desc_tx->callback = sh_msiof_dma_complete;
-			desc_tx->callback_param = p;
-		}
-		cookie = dmaengine_submit(desc_tx);
-		if (dma_submit_error(cookie)) {
-			ret = cookie;
-			goto stop_rx;
-		}
+	if (tx)
 		dma_async_issue_pending(p->master->dma_tx);
-	}
 
 	ret = sh_msiof_spi_start(p, rx);
 	if (ret) {
 		dev_err(&p->pdev->dev, "failed to start hardware\n");
-		goto stop_tx;
+		goto stop_dma;
 	}
 
 	/* wait for tx fifo to be emptied / rx fifo to be filled */
@@ -726,13 +727,12 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 stop_reset:
 	sh_msiof_reset_str(p);
 	sh_msiof_spi_stop(p, rx);
-stop_tx:
+stop_dma:
 	if (tx)
 		dmaengine_terminate_all(p->master->dma_tx);
-stop_rx:
+no_dma_tx:
 	if (rx)
 		dmaengine_terminate_all(p->master->dma_rx);
-stop_ier:
 	sh_msiof_write(p, IER, 0);
 	return ret;
 }
@@ -928,6 +928,9 @@ static const struct of_device_id sh_msiof_match[] = {
 	{ .compatible = "renesas,sh-mobile-msiof", .data = &sh_data },
 	{ .compatible = "renesas,msiof-r8a7790",   .data = &r8a779x_data },
 	{ .compatible = "renesas,msiof-r8a7791",   .data = &r8a779x_data },
+	{ .compatible = "renesas,msiof-r8a7792",   .data = &r8a779x_data },
+	{ .compatible = "renesas,msiof-r8a7793",   .data = &r8a779x_data },
+	{ .compatible = "renesas,msiof-r8a7794",   .data = &r8a779x_data },
 	{},
 };
 MODULE_DEVICE_TABLE(of, sh_msiof_match);
@@ -972,20 +975,24 @@ static struct dma_chan *sh_msiof_request_dma_chan(struct device *dev,
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	chan = dma_request_channel(mask, shdma_chan_filter,
-				  (void *)(unsigned long)id);
+	chan = dma_request_slave_channel_compat(mask, shdma_chan_filter,
+				(void *)(unsigned long)id, dev,
+				dir == DMA_MEM_TO_DEV ? "tx" : "rx");
 	if (!chan) {
-		dev_warn(dev, "dma_request_channel failed\n");
+		dev_warn(dev, "dma_request_slave_channel_compat failed\n");
 		return NULL;
 	}
 
 	memset(&cfg, 0, sizeof(cfg));
 	cfg.slave_id = id;
 	cfg.direction = dir;
-	if (dir == DMA_MEM_TO_DEV)
+	if (dir == DMA_MEM_TO_DEV) {
 		cfg.dst_addr = port_addr;
-	else
+		cfg.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	} else {
 		cfg.src_addr = port_addr;
+		cfg.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	}
 
 	ret = dmaengine_slave_config(chan, &cfg);
 	if (ret) {
@@ -1002,12 +1009,22 @@ static int sh_msiof_request_dma(struct sh_msiof_spi_priv *p)
 	struct platform_device *pdev = p->pdev;
 	struct device *dev = &pdev->dev;
 	const struct sh_msiof_spi_info *info = dev_get_platdata(dev);
+	unsigned int dma_tx_id, dma_rx_id;
 	const struct resource *res;
 	struct spi_master *master;
 	struct device *tx_dev, *rx_dev;
 
-	if (!info || !info->dma_tx_id || !info->dma_rx_id)
-		return 0;	/* The driver assumes no error */
+	if (dev->of_node) {
+		/* In the OF case we will get the slave IDs from the DT */
+		dma_tx_id = 0;
+		dma_rx_id = 0;
+	} else if (info && info->dma_tx_id && info->dma_rx_id) {
+		dma_tx_id = info->dma_tx_id;
+		dma_rx_id = info->dma_rx_id;
+	} else {
+		/* The driver assumes no error */
+		return 0;
+	}
 
 	/* The DMA engine uses the second register set, if present */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
@@ -1016,13 +1033,13 @@ static int sh_msiof_request_dma(struct sh_msiof_spi_priv *p)
 
 	master = p->master;
 	master->dma_tx = sh_msiof_request_dma_chan(dev, DMA_MEM_TO_DEV,
-						   info->dma_tx_id,
+						   dma_tx_id,
 						   res->start + TFDR);
 	if (!master->dma_tx)
 		return -ENODEV;
 
 	master->dma_rx = sh_msiof_request_dma_chan(dev, DMA_DEV_TO_MEM,
-						   info->dma_rx_id,
+						   dma_rx_id,
 						   res->start + RFDR);
 	if (!master->dma_rx)
 		goto free_tx_chan;
@@ -1205,6 +1222,9 @@ static struct platform_device_id spi_driver_ids[] = {
 	{ "spi_sh_msiof",	(kernel_ulong_t)&sh_data },
 	{ "spi_r8a7790_msiof",	(kernel_ulong_t)&r8a779x_data },
 	{ "spi_r8a7791_msiof",	(kernel_ulong_t)&r8a779x_data },
+	{ "spi_r8a7792_msiof",	(kernel_ulong_t)&r8a779x_data },
+	{ "spi_r8a7793_msiof",	(kernel_ulong_t)&r8a779x_data },
+	{ "spi_r8a7794_msiof",	(kernel_ulong_t)&r8a779x_data },
 	{},
 };
 MODULE_DEVICE_TABLE(platform, spi_driver_ids);

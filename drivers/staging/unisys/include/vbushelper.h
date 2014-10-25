@@ -1,6 +1,6 @@
 /* vbushelper.h
  *
- * Copyright © 2011 - 2013 UNISYS CORPORATION
+ * Copyright (C) 2011 - 2013 UNISYS CORPORATION
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -25,20 +25,22 @@
 
 #define TARGET_HOSTNAME "linuxguest"
 
-static inline void
-BusDeviceInfo_Init(ULTRA_VBUS_DEVICEINFO *pBusDeviceInfo,
-		   const char *deviceType, const char *driverName,
-		   const char *ver, const char *verTag)
+static inline void bus_device_info_init(
+		ULTRA_VBUS_DEVICEINFO * bus_device_info_ptr,
+		const char *dev_type, const char *drv_name,
+		const char *ver, const char *ver_tag)
 {
-	memset(pBusDeviceInfo, 0, sizeof(ULTRA_VBUS_DEVICEINFO));
-	snprintf(pBusDeviceInfo->devType, sizeof(pBusDeviceInfo->devType),
-		 "%s", (deviceType) ? deviceType : "unknownType");
-	snprintf(pBusDeviceInfo->drvName, sizeof(pBusDeviceInfo->drvName),
-		 "%s", (driverName) ? driverName : "unknownDriver");
-	snprintf(pBusDeviceInfo->infoStrings,
-		 sizeof(pBusDeviceInfo->infoStrings), "%s\t%s\t%s",
+	memset(bus_device_info_ptr, 0, sizeof(ULTRA_VBUS_DEVICEINFO));
+	snprintf(bus_device_info_ptr->devType,
+		 sizeof(bus_device_info_ptr->devType),
+		 "%s", (dev_type) ? dev_type : "unknownType");
+	snprintf(bus_device_info_ptr->drvName,
+		 sizeof(bus_device_info_ptr->drvName),
+		 "%s", (drv_name) ? drv_name : "unknownDriver");
+	snprintf(bus_device_info_ptr->infoStrings,
+		 sizeof(bus_device_info_ptr->infoStrings), "%s\t%s\t%s",
 		 (ver) ? ver : "unknownVer",
-		 (verTag) ? verTag : "unknownVerTag",
+		 (ver_tag) ? ver_tag : "unknownVerTag",
 		 TARGET_HOSTNAME);
 }
 

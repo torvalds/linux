@@ -601,7 +601,7 @@ static struct dma_async_tx_descriptor *
 mmp_pdma_prep_dma_cyclic(struct dma_chan *dchan,
 			 dma_addr_t buf_addr, size_t len, size_t period_len,
 			 enum dma_transfer_direction direction,
-			 unsigned long flags, void *context)
+			 unsigned long flags)
 {
 	struct mmp_pdma_chan *chan;
 	struct mmp_pdma_desc_sw *first = NULL, *prev = NULL, *new;

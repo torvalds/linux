@@ -149,6 +149,7 @@ struct exynos_dp_device {
 	struct drm_device	*drm_dev;
 	struct drm_connector	connector;
 	struct drm_encoder	*encoder;
+	struct drm_panel	*panel;
 	struct clk		*clock;
 	unsigned int		irq;
 	void __iomem		*reg_base;
@@ -162,7 +163,7 @@ struct exynos_dp_device {
 	int			dpms_mode;
 	int			hpd_gpio;
 
-	struct exynos_drm_panel_info panel;
+	struct exynos_drm_panel_info priv;
 };
 
 /* exynos_dp_reg.c */

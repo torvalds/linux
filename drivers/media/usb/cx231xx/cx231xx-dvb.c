@@ -403,8 +403,6 @@ static int attach_xc5000(u8 addr, struct cx231xx *dev)
 
 int cx231xx_set_analog_freq(struct cx231xx *dev, u32 freq)
 {
-	int status = 0;
-
 	if ((dev->dvb != NULL) && (dev->dvb->frontend != NULL)) {
 
 		struct dvb_tuner_ops *dops = &dev->dvb->frontend->ops.tuner_ops;
@@ -423,7 +421,7 @@ int cx231xx_set_analog_freq(struct cx231xx *dev, u32 freq)
 
 	}
 
-	return status;
+	return 0;
 }
 
 int cx231xx_reset_analog_tuner(struct cx231xx *dev)
@@ -740,7 +738,7 @@ static int dvb_init(struct cx231xx *dev)
 			goto out_free;
 		}
 
-		dev->dvb->frontend->ops.i2c_gate_ctrl = 0;
+		dev->dvb->frontend->ops.i2c_gate_ctrl = NULL;
 
 		/* define general-purpose callback pointer */
 		dvb->frontend->callback = cx231xx_tuner_callback;
@@ -773,7 +771,7 @@ static int dvb_init(struct cx231xx *dev)
 			goto out_free;
 		}
 
-		dev->dvb->frontend->ops.i2c_gate_ctrl = 0;
+		dev->dvb->frontend->ops.i2c_gate_ctrl = NULL;
 
 		/* define general-purpose callback pointer */
 		dvb->frontend->callback = cx231xx_tuner_callback;

@@ -19,15 +19,15 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "au0828.h"
+
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/device.h>
-#include <linux/suspend.h>
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
 
-#include "au0828.h"
 #include "au8522.h"
 #include "xc5000.h"
 #include "mxl5007t.h"
@@ -121,13 +121,13 @@ static void urb_completion(struct urb *purb)
 		return;
 	}
 
-	if (dev->urb_streaming == 0) {
+	if (!dev->urb_streaming) {
 		dprintk(2, "%s: not streaming!\n", __func__);
 		return;
 	}
 
 	if (ptype != PIPE_BULK) {
-		printk(KERN_ERR "%s: Unsupported URB type %d\n",
+		pr_err("%s: Unsupported URB type %d\n",
 		       __func__, ptype);
 		return;
 	}
@@ -159,7 +159,10 @@ static int stop_urb_transfer(struct au0828_dev *dev)
 
 	dprintk(2, "%s()\n", __func__);
 
-	dev->urb_streaming = 0;
+	if (!dev->urb_streaming)
+		return 0;
+
+	dev->urb_streaming = false;
 	for (i = 0; i < URB_COUNT; i++) {
 		if (dev->urbs[i]) {
 			usb_kill_urb(dev->urbs[i]);
@@ -202,8 +205,7 @@ static int start_urb_transfer(struct au0828_dev *dev)
 		if (!purb->transfer_buffer) {
 			usb_free_urb(purb);
 			dev->urbs[i] = NULL;
-			printk(KERN_ERR
-			       "%s: failed big buffer allocation, err = %d\n",
+			pr_err("%s: failed big buffer allocation, err = %d\n",
 			       __func__, ret);
 			goto err;
 		}
@@ -224,13 +226,13 @@ static int start_urb_transfer(struct au0828_dev *dev)
 		ret = usb_submit_urb(dev->urbs[i], GFP_ATOMIC);
 		if (ret != 0) {
 			stop_urb_transfer(dev);
-			printk(KERN_ERR "%s: failed urb submission, "
-			       "err = %d\n", __func__, ret);
+			pr_err("%s: failed urb submission, err = %d\n",
+			       __func__, ret);
 			return ret;
 		}
 	}
 
-	dev->urb_streaming = 1;
+	dev->urb_streaming = true;
 	ret = 0;
 
 err:
@@ -268,7 +270,7 @@ static int au0828_dvb_start_feed(struct dvb_demux_feed *feed)
 	if (!demux->dmx.frontend)
 		return -EINVAL;
 
-	if (dvb) {
+	if (dvb->frontend) {
 		mutex_lock(&dvb->lock);
 		dvb->start_count++;
 		dprintk(1, "%s(), start_count: %d, stop_count: %d\n", __func__,
@@ -297,7 +299,7 @@ static int au0828_dvb_stop_feed(struct dvb_demux_feed *feed)
 
 	dprintk(1, "%s()\n", __func__);
 
-	if (dvb) {
+	if (dvb->frontend) {
 		cancel_work_sync(&dev->restart_streaming);
 
 		mutex_lock(&dvb->lock);
@@ -324,7 +326,7 @@ static void au0828_restart_dvb_streaming(struct work_struct *work)
 					      restart_streaming);
 	struct au0828_dvb *dvb = &dev->dvb;
 
-	if (dev->urb_streaming == 0)
+	if (!dev->urb_streaming)
 		return;
 
 	dprintk(1, "Restarting streaming...!\n");
@@ -393,9 +395,8 @@ static int dvb_register(struct au0828_dev *dev)
 			if (!dev->dig_transfer_buffer[i]) {
 				result = -ENOMEM;
 
-				printk(KERN_ERR
-				       "%s: failed buffer allocation (errno = %d)\n",
-				       DRIVER_NAME, result);
+				pr_err("failed buffer allocation (errno = %d)\n",
+				       result);
 				goto fail_adapter;
 			}
 		}
@@ -404,11 +405,12 @@ static int dvb_register(struct au0828_dev *dev)
 	INIT_WORK(&dev->restart_streaming, au0828_restart_dvb_streaming);
 
 	/* register adapter */
-	result = dvb_register_adapter(&dvb->adapter, DRIVER_NAME, THIS_MODULE,
+	result = dvb_register_adapter(&dvb->adapter,
+				      KBUILD_MODNAME, THIS_MODULE,
 				      &dev->usbdev->dev, adapter_nr);
 	if (result < 0) {
-		printk(KERN_ERR "%s: dvb_register_adapter failed "
-		       "(errno = %d)\n", DRIVER_NAME, result);
+		pr_err("dvb_register_adapter failed (errno = %d)\n",
+		       result);
 		goto fail_adapter;
 	}
 	dvb->adapter.priv = dev;
@@ -416,8 +418,8 @@ static int dvb_register(struct au0828_dev *dev)
 	/* register frontend */
 	result = dvb_register_frontend(&dvb->adapter, dvb->frontend);
 	if (result < 0) {
-		printk(KERN_ERR "%s: dvb_register_frontend failed "
-		       "(errno = %d)\n", DRIVER_NAME, result);
+		pr_err("dvb_register_frontend failed (errno = %d)\n",
+		       result);
 		goto fail_frontend;
 	}
 
@@ -436,8 +438,7 @@ static int dvb_register(struct au0828_dev *dev)
 	dvb->demux.stop_feed  = au0828_dvb_stop_feed;
 	result = dvb_dmx_init(&dvb->demux);
 	if (result < 0) {
-		printk(KERN_ERR "%s: dvb_dmx_init failed (errno = %d)\n",
-		       DRIVER_NAME, result);
+		pr_err("dvb_dmx_init failed (errno = %d)\n", result);
 		goto fail_dmx;
 	}
 
@@ -446,31 +447,29 @@ static int dvb_register(struct au0828_dev *dev)
 	dvb->dmxdev.capabilities = 0;
 	result = dvb_dmxdev_init(&dvb->dmxdev, &dvb->adapter);
 	if (result < 0) {
-		printk(KERN_ERR "%s: dvb_dmxdev_init failed (errno = %d)\n",
-		       DRIVER_NAME, result);
+		pr_err("dvb_dmxdev_init failed (errno = %d)\n", result);
 		goto fail_dmxdev;
 	}
 
 	dvb->fe_hw.source = DMX_FRONTEND_0;
 	result = dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->fe_hw);
 	if (result < 0) {
-		printk(KERN_ERR "%s: add_frontend failed "
-		       "(DMX_FRONTEND_0, errno = %d)\n", DRIVER_NAME, result);
+		pr_err("add_frontend failed (DMX_FRONTEND_0, errno = %d)\n",
+		       result);
 		goto fail_fe_hw;
 	}
 
 	dvb->fe_mem.source = DMX_MEMORY_FE;
 	result = dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->fe_mem);
 	if (result < 0) {
-		printk(KERN_ERR "%s: add_frontend failed "
-		       "(DMX_MEMORY_FE, errno = %d)\n", DRIVER_NAME, result);
+		pr_err("add_frontend failed (DMX_MEMORY_FE, errno = %d)\n",
+		       result);
 		goto fail_fe_mem;
 	}
 
 	result = dvb->demux.dmx.connect_frontend(&dvb->demux.dmx, &dvb->fe_hw);
 	if (result < 0) {
-		printk(KERN_ERR "%s: connect_frontend failed (errno = %d)\n",
-		       DRIVER_NAME, result);
+		pr_err("connect_frontend failed (errno = %d)\n", result);
 		goto fail_fe_conn;
 	}
 
@@ -530,8 +529,7 @@ void au0828_dvb_unregister(struct au0828_dev *dev)
 		for (i = 0; i < URB_COUNT; i++)
 			kfree(dev->dig_transfer_buffer[i]);
 	}
-
-
+	dvb->frontend = NULL;
 }
 
 /* All the DVB attach calls go here, this function get's modified
@@ -596,12 +594,11 @@ int au0828_dvb_register(struct au0828_dev *dev)
 		}
 		break;
 	default:
-		printk(KERN_WARNING "The frontend of your DVB/ATSC card "
-		       "isn't supported yet\n");
+		pr_warn("The frontend of your DVB/ATSC card isn't supported yet\n");
 		break;
 	}
 	if (NULL == dvb->frontend) {
-		printk(KERN_ERR "%s() Frontend initialization failed\n",
+		pr_err("%s() Frontend initialization failed\n",
 		       __func__);
 		return -1;
 	}
@@ -613,8 +610,49 @@ int au0828_dvb_register(struct au0828_dev *dev)
 	if (ret < 0) {
 		if (dvb->frontend->ops.release)
 			dvb->frontend->ops.release(dvb->frontend);
+		dvb->frontend = NULL;
 		return ret;
 	}
 
 	return 0;
+}
+
+void au0828_dvb_suspend(struct au0828_dev *dev)
+{
+	struct au0828_dvb *dvb = &dev->dvb;
+	int rc;
+
+	if (dvb->frontend) {
+		if (dev->urb_streaming) {
+			cancel_work_sync(&dev->restart_streaming);
+			/* Stop transport */
+			mutex_lock(&dvb->lock);
+			stop_urb_transfer(dev);
+			au0828_stop_transport(dev, 1);
+			mutex_unlock(&dvb->lock);
+			dev->need_urb_start = true;
+		}
+		/* suspend frontend - does tuner and fe to sleep */
+		rc = dvb_frontend_suspend(dvb->frontend);
+		pr_info("au0828_dvb_suspend(): Suspending DVB fe %d\n", rc);
+	}
+}
+
+void au0828_dvb_resume(struct au0828_dev *dev)
+{
+	struct au0828_dvb *dvb = &dev->dvb;
+	int rc;
+
+	if (dvb->frontend) {
+		/* resume frontend - does fe and tuner init */
+		rc = dvb_frontend_resume(dvb->frontend);
+		pr_info("au0828_dvb_resume(): Resuming DVB fe %d\n", rc);
+		if (dev->need_urb_start) {
+			/* Start transport */
+			mutex_lock(&dvb->lock);
+			au0828_start_transport(dev);
+			start_urb_transfer(dev);
+			mutex_unlock(&dvb->lock);
+		}
+	}
 }

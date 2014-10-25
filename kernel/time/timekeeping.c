@@ -338,10 +338,11 @@ EXPORT_SYMBOL_GPL(ktime_get_mono_fast_ns);
 
 static inline void update_vsyscall(struct timekeeper *tk)
 {
-	struct timespec xt;
+	struct timespec xt, wm;
 
 	xt = timespec64_to_timespec(tk_xtime(tk));
-	update_vsyscall_old(&xt, &tk->wall_to_monotonic, tk->tkr.clock, tk->tkr.mult,
+	wm = timespec64_to_timespec(tk->wall_to_monotonic);
+	update_vsyscall_old(&xt, &wm, tk->tkr.clock, tk->tkr.mult,
 			    tk->tkr.cycle_last);
 }
 
@@ -441,10 +442,11 @@ static void timekeeping_update(struct timekeeper *tk, unsigned int action)
 		tk->ntp_error = 0;
 		ntp_clear();
 	}
-	update_vsyscall(tk);
-	update_pvclock_gtod(tk, action & TK_CLOCK_WAS_SET);
 
 	tk_update_ktime_data(tk);
+
+	update_vsyscall(tk);
+	update_pvclock_gtod(tk, action & TK_CLOCK_WAS_SET);
 
 	if (action & TK_MIRROR)
 		memcpy(&shadow_timekeeper, &tk_core.timekeeper,

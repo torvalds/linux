@@ -30,6 +30,22 @@ typedef int (*bulkstat_one_pf)(struct xfs_mount	*mp,
 			       int		*ubused,
 			       int		*stat);
 
+struct xfs_bulkstat_agichunk {
+	xfs_ino_t	ac_lastino;	/* last inode returned */
+	char		__user **ac_ubuffer;/* pointer into user's buffer */
+	int		ac_ubleft;	/* bytes left in user's buffer */
+	int		ac_ubelem;	/* spaces used in user's buffer */
+};
+
+int
+xfs_bulkstat_ag_ichunk(
+	struct xfs_mount		*mp,
+	xfs_agnumber_t			agno,
+	struct xfs_inobt_rec_incore	*irbp,
+	bulkstat_one_pf			formatter,
+	size_t				statstruct_size,
+	struct xfs_bulkstat_agichunk	*acp);
+
 /*
  * Values for stat return value.
  */
@@ -49,13 +65,6 @@ xfs_bulkstat(
 	size_t		statstruct_size,/* sizeof struct that we're filling */
 	char		__user *ubuffer,/* buffer with inode stats */
 	int		*done);		/* 1 if there are more stats to get */
-
-int
-xfs_bulkstat_single(
-	xfs_mount_t		*mp,
-	xfs_ino_t		*lastinop,
-	char			__user *buffer,
-	int			*done);
 
 typedef int (*bulkstat_one_fmt_pf)(  /* used size in bytes or negative error */
 	void			__user *ubuffer, /* buffer to write to */

@@ -181,8 +181,7 @@ static void xen_restart(enum reboot_mode reboot_mode, const char *cmd)
 	struct sched_shutdown r = { .reason = SHUTDOWN_reboot };
 	int rc;
 	rc = HYPERVISOR_sched_op(SCHEDOP_shutdown, &r);
-	if (rc)
-		BUG();
+	BUG_ON(rc);
 }
 
 static void xen_power_off(void)
@@ -190,8 +189,7 @@ static void xen_power_off(void)
 	struct sched_shutdown r = { .reason = SHUTDOWN_poweroff };
 	int rc;
 	rc = HYPERVISOR_sched_op(SCHEDOP_shutdown, &r);
-	if (rc)
-		BUG();
+	BUG_ON(rc);
 }
 
 static int xen_cpu_notification(struct notifier_block *self,
@@ -262,6 +260,12 @@ static int __init xen_guest_init(void)
 	xen_domain_type = XEN_HVM_DOMAIN;
 
 	xen_setup_features();
+
+	if (!xen_feature(XENFEAT_grant_map_identity)) {
+		pr_warn("Please upgrade your Xen.\n"
+				"If your platform has any non-coherent DMA devices, they won't work properly.\n");
+	}
+
 	if (xen_feature(XENFEAT_dom0))
 		xen_start_info->flags |= SIF_INITDOMAIN|SIF_PRIVILEGED;
 	else

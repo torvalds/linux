@@ -31,7 +31,8 @@
 #include <sound/atmel-ac97c.h>
 #include <sound/memalloc.h>
 
-#include <linux/dw_dmac.h>
+#include <linux/platform_data/dma-dw.h>
+#include <linux/dma/dw.h>
 
 #include <mach/cpu.h>
 

@@ -23,7 +23,6 @@
  */
 
 #include <core/os.h>
-#include <core/class.h>
 #include <core/client.h>
 #include <core/handle.h>
 #include <core/engctx.h>

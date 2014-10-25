@@ -679,6 +679,7 @@ static int twl6040_probe(struct i2c_client *client,
 	if (twl6040->rev < 0) {
 		dev_err(&client->dev, "Failed to read revision register: %d\n",
 			twl6040->rev);
+		ret = twl6040->rev;
 		goto gpio_err;
 	}
 
@@ -700,7 +701,7 @@ static int twl6040_probe(struct i2c_client *client,
 	}
 
 	ret = regmap_add_irq_chip(twl6040->regmap, twl6040->irq, IRQF_ONESHOT,
-				  0, &twl6040_irq_chip,&twl6040->irq_data);
+				  0, &twl6040_irq_chip, &twl6040->irq_data);
 	if (ret < 0)
 		goto gpio_err;
 

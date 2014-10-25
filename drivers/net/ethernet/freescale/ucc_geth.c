@@ -3785,16 +3785,15 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 	ug_info->uf_info.irq = irq_of_parse_and_map(np, 0);
 
 	ug_info->phy_node = of_parse_phandle(np, "phy-handle", 0);
-	if (!ug_info->phy_node) {
-		/* In the case of a fixed PHY, the DT node associated
+	if (!ug_info->phy_node && of_phy_is_fixed_link(np)) {
+		/*
+		 * In the case of a fixed PHY, the DT node associated
 		 * to the PHY is the Ethernet MAC DT node.
 		 */
-		if (of_phy_is_fixed_link(np)) {
-			err = of_phy_register_fixed_link(np);
-			if (err)
-				return err;
-		}
-		ug_info->phy_node = np;
+		err = of_phy_register_fixed_link(np);
+		if (err)
+			return err;
+		ug_info->phy_node = of_node_get(np);
 	}
 
 	/* Find the TBI PHY node.  If it's not there, we don't support SGMII */
@@ -3862,8 +3861,11 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 	/* Create an ethernet device instance */
 	dev = alloc_etherdev(sizeof(*ugeth));
 
-	if (dev == NULL)
+	if (dev == NULL) {
+		of_node_put(ug_info->tbi_node);
+		of_node_put(ug_info->phy_node);
 		return -ENOMEM;
+	}
 
 	ugeth = netdev_priv(dev);
 	spin_lock_init(&ugeth->lock);
@@ -3897,6 +3899,8 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 			pr_err("%s: Cannot register net device, aborting\n",
 			       dev->name);
 		free_netdev(dev);
+		of_node_put(ug_info->tbi_node);
+		of_node_put(ug_info->phy_node);
 		return err;
 	}
 
@@ -3920,6 +3924,8 @@ static int ucc_geth_remove(struct platform_device* ofdev)
 	unregister_netdev(dev);
 	free_netdev(dev);
 	ucc_geth_memclean(ugeth);
+	of_node_put(ugeth->ug_info->tbi_node);
+	of_node_put(ugeth->ug_info->phy_node);
 
 	return 0;
 }

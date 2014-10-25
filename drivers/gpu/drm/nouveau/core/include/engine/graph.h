@@ -70,6 +70,7 @@ extern struct nouveau_oclass *nvd9_graph_oclass;
 extern struct nouveau_oclass *nve4_graph_oclass;
 extern struct nouveau_oclass *gk20a_graph_oclass;
 extern struct nouveau_oclass *nvf0_graph_oclass;
+extern struct nouveau_oclass *gk110b_graph_oclass;
 extern struct nouveau_oclass *nv108_graph_oclass;
 extern struct nouveau_oclass *gm107_graph_oclass;
 

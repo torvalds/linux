@@ -639,25 +639,35 @@ static int kvmppc_ps_one_in(struct kvm_vcpu *vcpu, bool rc,
 
 int kvmppc_emulate_paired_single(struct kvm_run *run, struct kvm_vcpu *vcpu)
 {
-	u32 inst = kvmppc_get_last_inst(vcpu);
+	u32 inst;
 	enum emulation_result emulated = EMULATE_DONE;
+	int ax_rd, ax_ra, ax_rb, ax_rc;
+	short full_d;
+	u64 *fpr_d, *fpr_a, *fpr_b, *fpr_c;
 
-	int ax_rd = inst_get_field(inst, 6, 10);
-	int ax_ra = inst_get_field(inst, 11, 15);
-	int ax_rb = inst_get_field(inst, 16, 20);
-	int ax_rc = inst_get_field(inst, 21, 25);
-	short full_d = inst_get_field(inst, 16, 31);
-
-	u64 *fpr_d = &VCPU_FPR(vcpu, ax_rd);
-	u64 *fpr_a = &VCPU_FPR(vcpu, ax_ra);
-	u64 *fpr_b = &VCPU_FPR(vcpu, ax_rb);
-	u64 *fpr_c = &VCPU_FPR(vcpu, ax_rc);
-
-	bool rcomp = (inst & 1) ? true : false;
-	u32 cr = kvmppc_get_cr(vcpu);
+	bool rcomp;
+	u32 cr;
 #ifdef DEBUG
 	int i;
 #endif
+
+	emulated = kvmppc_get_last_inst(vcpu, INST_GENERIC, &inst);
+	if (emulated != EMULATE_DONE)
+		return emulated;
+
+	ax_rd = inst_get_field(inst, 6, 10);
+	ax_ra = inst_get_field(inst, 11, 15);
+	ax_rb = inst_get_field(inst, 16, 20);
+	ax_rc = inst_get_field(inst, 21, 25);
+	full_d = inst_get_field(inst, 16, 31);
+
+	fpr_d = &VCPU_FPR(vcpu, ax_rd);
+	fpr_a = &VCPU_FPR(vcpu, ax_ra);
+	fpr_b = &VCPU_FPR(vcpu, ax_rb);
+	fpr_c = &VCPU_FPR(vcpu, ax_rc);
+
+	rcomp = (inst & 1) ? true : false;
+	cr = kvmppc_get_cr(vcpu);
 
 	if (!kvmppc_inst_is_paired_single(vcpu, inst))
 		return EMULATE_FAIL;

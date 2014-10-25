@@ -213,24 +213,37 @@ int ci_load_smc_ucode(struct radeon_device *rdev, u32 limit)
 	if (!rdev->smc_fw)
 		return -EINVAL;
 
-	switch (rdev->family) {
-	case CHIP_BONAIRE:
-		ucode_start_address = BONAIRE_SMC_UCODE_START;
-		ucode_size = BONAIRE_SMC_UCODE_SIZE;
-		break;
-	case CHIP_HAWAII:
-		ucode_start_address = HAWAII_SMC_UCODE_START;
-		ucode_size = HAWAII_SMC_UCODE_SIZE;
-		break;
-	default:
-		DRM_ERROR("unknown asic in smc ucode loader\n");
-		BUG();
+	if (rdev->new_fw) {
+		const struct smc_firmware_header_v1_0 *hdr =
+			(const struct smc_firmware_header_v1_0 *)rdev->smc_fw->data;
+
+		radeon_ucode_print_smc_hdr(&hdr->header);
+
+		ucode_start_address = le32_to_cpu(hdr->ucode_start_addr);
+		ucode_size = le32_to_cpu(hdr->header.ucode_size_bytes);
+		src = (const u8 *)
+			(rdev->smc_fw->data + le32_to_cpu(hdr->header.ucode_array_offset_bytes));
+	} else {
+		switch (rdev->family) {
+		case CHIP_BONAIRE:
+			ucode_start_address = BONAIRE_SMC_UCODE_START;
+			ucode_size = BONAIRE_SMC_UCODE_SIZE;
+			break;
+		case CHIP_HAWAII:
+			ucode_start_address = HAWAII_SMC_UCODE_START;
+			ucode_size = HAWAII_SMC_UCODE_SIZE;
+			break;
+		default:
+			DRM_ERROR("unknown asic in smc ucode loader\n");
+			BUG();
+		}
+
+		src = (const u8 *)rdev->smc_fw->data;
 	}
 
 	if (ucode_size & 3)
 		return -EINVAL;
 
-	src = (const u8 *)rdev->smc_fw->data;
 	spin_lock_irqsave(&rdev->smc_idx_lock, flags);
 	WREG32(SMC_IND_INDEX_0, ucode_start_address);
 	WREG32_P(SMC_IND_ACCESS_CNTL, AUTO_INCREMENT_IND_0, ~AUTO_INCREMENT_IND_0);

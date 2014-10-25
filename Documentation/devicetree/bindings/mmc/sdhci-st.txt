@@ -1,0 +1,33 @@
+* STMicroelectronics sdhci-st MMC/SD controller
+
+This file documents the differences between the core properties in
+Documentation/devicetree/bindings/mmc/mmc.txt and the properties
+used by the sdhci-st driver.
+
+Required properties:
+- compatible :  Must be "st,sdhci"
+- clock-names : Should be "mmc"
+                See: Documentation/devicetree/bindings/resource-names.txt
+- clocks :      Phandle of the clock used by the sdhci controler
+                See: Documentation/devicetree/bindings/clock/clock-bindings.txt
+
+Optional properties:
+- non-removable: non-removable slot
+                 See: Documentation/devicetree/bindings/mmc/mmc.txt
+- bus-width: Number of data lines
+                 See: Documentation/devicetree/bindings/mmc/mmc.txt
+
+Example:
+
+mmc0: sdhci@fe81e000 {
+	compatible	= "st,sdhci";
+	status		= "disabled";
+	reg		= <0xfe81e000 0x1000>;
+	interrupts	= <GIC_SPI 127 IRQ_TYPE_NONE>;
+	interrupt-names	= "mmcirq";
+	pinctrl-names	= "default";
+	pinctrl-0	= <&pinctrl_mmc0>;
+	clock-names	= "mmc";
+	clocks		= <&clk_s_a1_ls 1>;
+	bus-width       = <8>
+};

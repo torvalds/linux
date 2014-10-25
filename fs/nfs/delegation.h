@@ -59,6 +59,7 @@ bool nfs4_copy_delegation_stateid(nfs4_stateid *dst, struct inode *inode, fmode_
 
 void nfs_mark_delegation_referenced(struct nfs_delegation *delegation);
 int nfs4_have_delegation(struct inode *inode, fmode_t flags);
+int nfs4_check_delegation(struct inode *inode, fmode_t flags);
 
 #endif
 

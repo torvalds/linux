@@ -816,6 +816,11 @@ int snd_usb_caiaq_audio_init(struct snd_usb_caiaqdev *cdev)
 		return -EINVAL;
 	}
 
+	if (cdev->n_streams < 2) {
+		dev_err(dev, "bogus number of streams: %d\n", cdev->n_streams);
+		return -EINVAL;
+	}
+
 	ret = snd_pcm_new(cdev->chip.card, cdev->product_name, 0,
 			cdev->n_audio_out, cdev->n_audio_in, &cdev->pcm);
 

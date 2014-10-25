@@ -40,7 +40,6 @@
  */
 
 #define DEBUG_SUBSYSTEM S_CLASS
-#include "../include/obd_ost.h"
 #include "../include/obd_class.h"
 #include "../include/lprocfs_status.h"
 
@@ -184,7 +183,7 @@ int class_register_type(struct obd_ops *dt_ops, struct md_ops *md_ops,
 	if (type->typ_dt_ops == NULL ||
 	    type->typ_md_ops == NULL ||
 	    type->typ_name == NULL)
-		GOTO (failed, rc);
+		goto failed;
 
 	*(type->typ_dt_ops) = *dt_ops;
 	/* md_ops is optional */
@@ -198,14 +197,14 @@ int class_register_type(struct obd_ops *dt_ops, struct md_ops *md_ops,
 	if (IS_ERR(type->typ_procroot)) {
 		rc = PTR_ERR(type->typ_procroot);
 		type->typ_procroot = NULL;
-		GOTO (failed, rc);
+		goto failed;
 	}
 
 	if (ldt != NULL) {
 		type->typ_lu = ldt;
 		rc = lu_device_type_init(ldt);
 		if (rc != 0)
-			GOTO (failed, rc);
+			goto failed;
 	}
 
 	spin_lock(&obd_types_lock);
@@ -295,8 +294,10 @@ struct obd_device *class_newdev(const char *type_name, const char *name)
 	}
 
 	newdev = obd_device_alloc();
-	if (newdev == NULL)
-		GOTO(out_type, result = ERR_PTR(-ENOMEM));
+	if (newdev == NULL) {
+		result = ERR_PTR(-ENOMEM);
+		goto out_type;
+	}
 
 	LASSERT(newdev->obd_magic == OBD_DEVICE_MAGIC);
 
@@ -336,11 +337,12 @@ struct obd_device *class_newdev(const char *type_name, const char *name)
 	if (result == NULL && i >= class_devno_max()) {
 		CERROR("all %u OBD devices used, increase MAX_OBD_DEVICES\n",
 		       class_devno_max());
-		GOTO(out, result = ERR_PTR(-EOVERFLOW));
+		result = ERR_PTR(-EOVERFLOW);
+		goto out;
 	}
 
 	if (IS_ERR(result))
-		GOTO(out, result);
+		goto out;
 
 	CDEBUG(D_IOCTL, "Adding new device %s (%p)\n",
 	       result->obd_name, result);
@@ -656,26 +658,26 @@ int obd_init_caches(void)
 						 sizeof(struct obd_device),
 						 0, 0, NULL);
 	if (!obd_device_cachep)
-		GOTO(out, -ENOMEM);
+		goto out;
 
 	LASSERT(obdo_cachep == NULL);
 	obdo_cachep = kmem_cache_create("ll_obdo_cache", sizeof(struct obdo),
 					   0, 0, NULL);
 	if (!obdo_cachep)
-		GOTO(out, -ENOMEM);
+		goto out;
 
 	LASSERT(import_cachep == NULL);
 	import_cachep = kmem_cache_create("ll_import_cache",
 					     sizeof(struct obd_import),
 					     0, 0, NULL);
 	if (!import_cachep)
-		GOTO(out, -ENOMEM);
+		goto out;
 
 	LASSERT(capa_cachep == NULL);
 	capa_cachep = kmem_cache_create("capa_cache",
 					   sizeof(struct obd_capa), 0, 0, NULL);
 	if (!capa_cachep)
-		GOTO(out, -ENOMEM);
+		goto out;
 
 	return 0;
  out:
@@ -857,12 +859,16 @@ struct obd_export *class_new_export(struct obd_device *obd,
 
 	spin_lock(&obd->obd_dev_lock);
 	/* shouldn't happen, but might race */
-	if (obd->obd_stopping)
-		GOTO(exit_unlock, rc = -ENODEV);
+	if (obd->obd_stopping) {
+		rc = -ENODEV;
+		goto exit_unlock;
+	}
 
 	hash = cfs_hash_getref(obd->obd_uuid_hash);
-	if (hash == NULL)
-		GOTO(exit_unlock, rc = -ENODEV);
+	if (hash == NULL) {
+		rc = -ENODEV;
+		goto exit_unlock;
+	}
 	spin_unlock(&obd->obd_dev_lock);
 
 	if (!obd_uuid_equals(cluuid, &obd->obd_uuid)) {
@@ -870,14 +876,16 @@ struct obd_export *class_new_export(struct obd_device *obd,
 		if (rc != 0) {
 			LCONSOLE_WARN("%s: denying duplicate export for %s, %d\n",
 				      obd->obd_name, cluuid->uuid, rc);
-			GOTO(exit_err, rc = -EALREADY);
+			rc = -EALREADY;
+			goto exit_err;
 		}
 	}
 
 	spin_lock(&obd->obd_dev_lock);
 	if (obd->obd_stopping) {
 		cfs_hash_del(hash, cluuid, &export->exp_uuid_hash);
-		GOTO(exit_unlock, rc = -ENODEV);
+		rc = -ENODEV;
+		goto exit_unlock;
 	}
 
 	class_incref(obd, "export", export);
@@ -1187,7 +1195,7 @@ int class_disconnect(struct obd_export *export)
 	 * call extra class_export_puts(). */
 	if (already_disconnected) {
 		LASSERT(hlist_unhashed(&export->exp_nid_hash));
-		GOTO(no_disconn, already_disconnected);
+		goto no_disconn;
 	}
 
 	CDEBUG(D_IOCTL, "disconnect: cookie %#llx\n",
@@ -1425,7 +1433,8 @@ int obd_export_evict_by_nid(struct obd_device *obd, const char *nid)
 	cfs_hash_putref(nid_hash);
 
 	if (!exports_evicted)
-		CDEBUG(D_HA,"%s: can't disconnect NID '%s': no exports found\n",
+		CDEBUG(D_HA,
+		       "%s: can't disconnect NID '%s': no exports found\n",
 		       obd->obd_name, nid);
 	return exports_evicted;
 }

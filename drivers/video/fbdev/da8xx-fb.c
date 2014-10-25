@@ -419,7 +419,7 @@ static void lcd_cfg_horizontal_sync(int back_porch, int pulse_width,
 {
 	u32 reg;
 
-	reg = lcdc_read(LCD_RASTER_TIMING_0_REG) & 0xf;
+	reg = lcdc_read(LCD_RASTER_TIMING_0_REG) & 0x3ff;
 	reg |= (((back_porch-1) & 0xff) << 24)
 	    | (((front_porch-1) & 0xff) << 16)
 	    | (((pulse_width-1) & 0x3f) << 10);
@@ -1447,18 +1447,15 @@ static int fb_probe(struct platform_device *device)
 		da8xx_fb_fix.line_length - 1;
 
 	/* allocate palette buffer */
-	par->v_palette_base = dma_alloc_coherent(NULL,
-					       PALETTE_SIZE,
-					       (resource_size_t *)
-					       &par->p_palette_base,
-					       GFP_KERNEL | GFP_DMA);
+	par->v_palette_base = dma_zalloc_coherent(NULL, PALETTE_SIZE,
+						  (resource_size_t *)&par->p_palette_base,
+						  GFP_KERNEL | GFP_DMA);
 	if (!par->v_palette_base) {
 		dev_err(&device->dev,
 			"GLCD: kmalloc for palette buffer failed\n");
 		ret = -EINVAL;
 		goto err_release_fb_mem;
 	}
-	memset(par->v_palette_base, 0, PALETTE_SIZE);
 
 	par->irq = platform_get_irq(device, 0);
 	if (par->irq < 0) {

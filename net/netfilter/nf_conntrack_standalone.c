@@ -101,7 +101,7 @@ static void *ct_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	struct ct_iter_state *st = seq->private;
 
-	st->time_now = ktime_to_ns(ktime_get_real());
+	st->time_now = ktime_get_real_ns();
 	rcu_read_lock();
 	return ct_get_idx(seq, *pos);
 }

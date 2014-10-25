@@ -242,7 +242,7 @@ struct sonicvibes {
 #endif
 };
 
-static DEFINE_PCI_DEVICE_TABLE(snd_sonic_ids) = {
+static const struct pci_device_id snd_sonic_ids[] = {
 	{ PCI_VDEVICE(S3, 0xca00), 0, },
         { 0, }
 };

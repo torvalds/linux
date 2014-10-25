@@ -41,7 +41,7 @@ unsigned long ioremap_base;
 unsigned long ioremap_bot;
 EXPORT_SYMBOL(ioremap_bot);	/* aka VMALLOC_END */
 
-#if defined(CONFIG_6xx) || defined(CONFIG_POWER3)
+#ifdef CONFIG_6xx
 #define HAVE_BATS	1
 #endif
 

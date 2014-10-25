@@ -88,6 +88,11 @@
 #define DRM_MODE_SCALE_CENTER		2 /* Centered, no scaling */
 #define DRM_MODE_SCALE_ASPECT		3 /* Full screen, preserve aspect */
 
+/* Picture aspect ratio options */
+#define DRM_MODE_PICTURE_ASPECT_NONE	0
+#define DRM_MODE_PICTURE_ASPECT_4_3	1
+#define DRM_MODE_PICTURE_ASPECT_16_9	2
+
 /* Dithering mode options */
 #define DRM_MODE_DITHERING_OFF	0
 #define DRM_MODE_DITHERING_ON	1

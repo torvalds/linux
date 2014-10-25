@@ -228,6 +228,7 @@ void giveup_vsx(struct task_struct *tsk)
 	giveup_altivec_maybe_transactional(tsk);
 	__giveup_vsx(tsk);
 }
+EXPORT_SYMBOL(giveup_vsx);
 
 void flush_vsx_to_thread(struct task_struct *tsk)
 {
@@ -1095,6 +1096,23 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	return 0;
 }
 
+static void setup_ksp_vsid(struct task_struct *p, unsigned long sp)
+{
+#ifdef CONFIG_PPC_STD_MMU_64
+	unsigned long sp_vsid;
+	unsigned long llp = mmu_psize_defs[mmu_linear_psize].sllp;
+
+	if (mmu_has_feature(MMU_FTR_1T_SEGMENT))
+		sp_vsid = get_kernel_vsid(sp, MMU_SEGSIZE_1T)
+			<< SLB_VSID_SHIFT_1T;
+	else
+		sp_vsid = get_kernel_vsid(sp, MMU_SEGSIZE_256M)
+			<< SLB_VSID_SHIFT;
+	sp_vsid |= SLB_VSID_KERNEL | llp;
+	p->thread.ksp_vsid = sp_vsid;
+#endif
+}
+
 /*
  * Copy a thread..
  */
@@ -1174,21 +1192,8 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	p->thread.vr_save_area = NULL;
 #endif
 
-#ifdef CONFIG_PPC_STD_MMU_64
-	if (mmu_has_feature(MMU_FTR_SLB)) {
-		unsigned long sp_vsid;
-		unsigned long llp = mmu_psize_defs[mmu_linear_psize].sllp;
+	setup_ksp_vsid(p, sp);
 
-		if (mmu_has_feature(MMU_FTR_1T_SEGMENT))
-			sp_vsid = get_kernel_vsid(sp, MMU_SEGSIZE_1T)
-				<< SLB_VSID_SHIFT_1T;
-		else
-			sp_vsid = get_kernel_vsid(sp, MMU_SEGSIZE_256M)
-				<< SLB_VSID_SHIFT;
-		sp_vsid |= SLB_VSID_KERNEL | llp;
-		p->thread.ksp_vsid = sp_vsid;
-	}
-#endif /* CONFIG_PPC_STD_MMU_64 */
 #ifdef CONFIG_PPC64 
 	if (cpu_has_feature(CPU_FTR_DSCR)) {
 		p->thread.dscr_inherit = current->thread.dscr_inherit;
@@ -1312,6 +1317,7 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 	current->thread.tm_tfiar = 0;
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 }
+EXPORT_SYMBOL(start_thread);
 
 #define PR_FP_ALL_EXCEPT (PR_FP_EXC_DIV | PR_FP_EXC_OVF | PR_FP_EXC_UND \
 		| PR_FP_EXC_RES | PR_FP_EXC_INV)
@@ -1539,7 +1545,7 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 		tsk = current;
 	if (sp == 0) {
 		if (tsk == current)
-			asm("mr %0,1" : "=r" (sp));
+			sp = current_stack_pointer();
 		else
 			sp = tsk->thread.ksp;
 	}
@@ -1577,7 +1583,7 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 			struct pt_regs *regs = (struct pt_regs *)
 				(sp + STACK_FRAME_OVERHEAD);
 			lr = regs->link;
-			printk("--- Exception: %lx at %pS\n    LR = %pS\n",
+			printk("--- interrupt: %lx at %pS\n    LR = %pS\n",
 			       regs->trap, (void *)regs->nip, (void *)lr);
 			firstframe = 1;
 		}

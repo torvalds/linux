@@ -373,7 +373,6 @@ static struct tda18271_config kworld_ub435q_v2_config = {
 };
 
 static struct tda18212_config kworld_ub435q_v3_config = {
-	.i2c_address	= 0x60,
 	.if_atsc_vsb	= 3600,
 	.if_atsc_qam	= 3600,
 };
@@ -856,7 +855,9 @@ static const struct m88ds3103_config pctv_461e_m88ds3103_config = {
 	.clock = 27000000,
 	.i2c_wr_max = 33,
 	.clock_out = 0,
-	.ts_mode = M88DS3103_TS_PARALLEL_16,
+	.ts_mode = M88DS3103_TS_PARALLEL,
+	.ts_clk = 16000,
+	.ts_clk_pol = 1,
 	.agc = 0x99,
 };
 
@@ -1435,6 +1436,15 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		}
 		break;
 	case EM2874_BOARD_KWORLD_UB435Q_V3:
+	{
+		struct i2c_client *client;
+		struct i2c_adapter *adapter = &dev->i2c_adap[dev->def_i2c_bus];
+		struct i2c_board_info board_info = {
+			.type = "tda18212",
+			.addr = 0x60,
+			.platform_data = &kworld_ub435q_v3_config,
+		};
+
 		dvb->fe[0] = dvb_attach(lgdt3305_attach,
 					&em2874_lgdt3305_nogate_dev,
 					&dev->i2c_adap[dev->def_i2c_bus]);
@@ -1443,14 +1453,26 @@ static int em28xx_dvb_init(struct em28xx *dev)
 			goto out_free;
 		}
 
-		/* Attach the demodulator. */
-		if (!dvb_attach(tda18212_attach, dvb->fe[0],
-				&dev->i2c_adap[dev->def_i2c_bus],
-				&kworld_ub435q_v3_config)) {
-			result = -EINVAL;
+		/* attach tuner */
+		kworld_ub435q_v3_config.fe = dvb->fe[0];
+		request_module("tda18212");
+		client = i2c_new_device(adapter, &board_info);
+		if (client == NULL || client->dev.driver == NULL) {
+			dvb_frontend_detach(dvb->fe[0]);
+			result = -ENODEV;
 			goto out_free;
 		}
+
+		if (!try_module_get(client->dev.driver->owner)) {
+			i2c_unregister_device(client);
+			dvb_frontend_detach(dvb->fe[0]);
+			result = -ENODEV;
+			goto out_free;
+		}
+
+		dvb->i2c_client_tuner = client;
 		break;
+	}
 	case EM2874_BOARD_PCTV_HD_MINI_80E:
 		dvb->fe[0] = dvb_attach(drx39xxj_attach, &dev->i2c_adap[dev->def_i2c_bus]);
 		if (dvb->fe[0] != NULL) {
@@ -1533,6 +1555,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 			/* attach demod */
 			si2168_config.i2c_adapter = &adapter;
 			si2168_config.fe = &dvb->fe[0];
+			si2168_config.ts_mode = SI2168_TS_PARALLEL;
 			memset(&info, 0, sizeof(struct i2c_board_info));
 			strlcpy(info.type, "si2168", I2C_NAME_SIZE);
 			info.addr = 0x64;

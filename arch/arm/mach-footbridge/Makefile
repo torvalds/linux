@@ -5,9 +5,6 @@
 # Object file lists.
 
 obj-y			:= common.o dma.o isa-irq.o
-obj-m			:=
-obj-n			:=
-obj-			:=
 
 pci-y			+= dc21285.o
 pci-$(CONFIG_ARCH_CATS) += cats-pci.o

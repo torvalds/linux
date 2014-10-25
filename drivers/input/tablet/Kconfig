@@ -73,20 +73,14 @@ config TABLET_USB_KBTAB
 	  To compile this driver as a module, choose M here: the
 	  module will be called kbtab.
 
-config TABLET_USB_WACOM
-	tristate "Wacom Intuos/Graphire tablet support (USB)"
-	depends on USB_ARCH_HAS_HCD
-	select POWER_SUPPLY
-	select USB
-	select NEW_LEDS
-	select LEDS_CLASS
+config TABLET_SERIAL_WACOM4
+	tristate "Wacom protocol 4 serial tablet support"
+	select SERIO
 	help
-	  Say Y here if you want to use the USB version of the Wacom Intuos
-	  or Graphire tablet.  Make sure to say Y to "Mouse support"
-	  (CONFIG_INPUT_MOUSEDEV) and/or "Event interface support"
-	  (CONFIG_INPUT_EVDEV) as well.
+	  Say Y here if you want to use Wacom protocol 4 serial tablets.
+	  E.g. serial versions of the Cintiq, Graphire or Penpartner.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called wacom.
+	  module will be called wacom_serial4.
 
 endif

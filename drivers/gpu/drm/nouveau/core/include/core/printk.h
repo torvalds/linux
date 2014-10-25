@@ -21,6 +21,7 @@ nv_printk_(struct nouveau_object *, int, const char *, ...);
 #define nv_debug(o,f,a...) nv_printk((o), DEBUG, f, ##a)
 #define nv_trace(o,f,a...) nv_printk((o), TRACE, f, ##a)
 #define nv_spam(o,f,a...) nv_printk((o), SPAM, f, ##a)
+#define nv_ioctl(o,f,a...) nv_trace(nouveau_client(o), "ioctl: "f, ##a)
 
 #define nv_assert(f,a...) do {                                                 \
 	if (NV_DBG_FATAL <= CONFIG_NOUVEAU_DEBUG)                              \

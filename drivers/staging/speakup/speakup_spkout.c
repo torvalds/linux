@@ -131,6 +131,7 @@ static struct spk_synth synth_spkout = {
 static void synth_flush(struct spk_synth *synth)
 {
 	int timeout = SPK_XMITR_TIMEOUT;
+
 	while (spk_serial_tx_busy()) {
 		if (!--timeout)
 			break;

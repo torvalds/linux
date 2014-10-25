@@ -932,11 +932,11 @@ DEFINE_NFS4_IDMAP_EVENT(nfs4_map_gid_to_group);
 
 DECLARE_EVENT_CLASS(nfs4_read_event,
 		TP_PROTO(
-			const struct nfs_pgio_data *data,
+			const struct nfs_pgio_header *hdr,
 			int error
 		),
 
-		TP_ARGS(data, error),
+		TP_ARGS(hdr, error),
 
 		TP_STRUCT__entry(
 			__field(dev_t, dev)
@@ -948,12 +948,12 @@ DECLARE_EVENT_CLASS(nfs4_read_event,
 		),
 
 		TP_fast_assign(
-			const struct inode *inode = data->header->inode;
+			const struct inode *inode = hdr->inode;
 			__entry->dev = inode->i_sb->s_dev;
 			__entry->fileid = NFS_FILEID(inode);
 			__entry->fhandle = nfs_fhandle_hash(NFS_FH(inode));
-			__entry->offset = data->args.offset;
-			__entry->count = data->args.count;
+			__entry->offset = hdr->args.offset;
+			__entry->count = hdr->args.count;
 			__entry->error = error;
 		),
 
@@ -972,10 +972,10 @@ DECLARE_EVENT_CLASS(nfs4_read_event,
 #define DEFINE_NFS4_READ_EVENT(name) \
 	DEFINE_EVENT(nfs4_read_event, name, \
 			TP_PROTO( \
-				const struct nfs_pgio_data *data, \
+				const struct nfs_pgio_header *hdr, \
 				int error \
 			), \
-			TP_ARGS(data, error))
+			TP_ARGS(hdr, error))
 DEFINE_NFS4_READ_EVENT(nfs4_read);
 #ifdef CONFIG_NFS_V4_1
 DEFINE_NFS4_READ_EVENT(nfs4_pnfs_read);
@@ -983,11 +983,11 @@ DEFINE_NFS4_READ_EVENT(nfs4_pnfs_read);
 
 DECLARE_EVENT_CLASS(nfs4_write_event,
 		TP_PROTO(
-			const struct nfs_pgio_data *data,
+			const struct nfs_pgio_header *hdr,
 			int error
 		),
 
-		TP_ARGS(data, error),
+		TP_ARGS(hdr, error),
 
 		TP_STRUCT__entry(
 			__field(dev_t, dev)
@@ -999,12 +999,12 @@ DECLARE_EVENT_CLASS(nfs4_write_event,
 		),
 
 		TP_fast_assign(
-			const struct inode *inode = data->header->inode;
+			const struct inode *inode = hdr->inode;
 			__entry->dev = inode->i_sb->s_dev;
 			__entry->fileid = NFS_FILEID(inode);
 			__entry->fhandle = nfs_fhandle_hash(NFS_FH(inode));
-			__entry->offset = data->args.offset;
-			__entry->count = data->args.count;
+			__entry->offset = hdr->args.offset;
+			__entry->count = hdr->args.count;
 			__entry->error = error;
 		),
 
@@ -1024,10 +1024,10 @@ DECLARE_EVENT_CLASS(nfs4_write_event,
 #define DEFINE_NFS4_WRITE_EVENT(name) \
 	DEFINE_EVENT(nfs4_write_event, name, \
 			TP_PROTO( \
-				const struct nfs_pgio_data *data, \
+				const struct nfs_pgio_header *hdr, \
 				int error \
 			), \
-			TP_ARGS(data, error))
+			TP_ARGS(hdr, error))
 DEFINE_NFS4_WRITE_EVENT(nfs4_write);
 #ifdef CONFIG_NFS_V4_1
 DEFINE_NFS4_WRITE_EVENT(nfs4_pnfs_write);

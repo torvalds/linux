@@ -27,6 +27,7 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/pci.h>
+#include <linux/iommu.h>
 #include <linux/proc_fs.h>
 #include <linux/rbtree.h>
 #include <linux/reboot.h>
@@ -40,6 +41,7 @@
 #include <asm/eeh.h>
 #include <asm/eeh_event.h>
 #include <asm/io.h>
+#include <asm/iommu.h>
 #include <asm/machdep.h>
 #include <asm/ppc-pci.h>
 #include <asm/rtas.h>
@@ -108,11 +110,14 @@ struct eeh_ops *eeh_ops = NULL;
 /* Lock to avoid races due to multiple reports of an error */
 DEFINE_RAW_SPINLOCK(confirm_error_lock);
 
+/* Lock to protect passed flags */
+static DEFINE_MUTEX(eeh_dev_mutex);
+
 /* Buffer for reporting pci register dumps. Its here in BSS, and
  * not dynamically alloced, so that it ends up in RMO where RTAS
  * can access it.
  */
-#define EEH_PCI_REGS_LOG_LEN 4096
+#define EEH_PCI_REGS_LOG_LEN 8192
 static unsigned char pci_regs_buf[EEH_PCI_REGS_LOG_LEN];
 
 /*
@@ -137,27 +142,24 @@ static struct eeh_stats eeh_stats;
 static int __init eeh_setup(char *str)
 {
 	if (!strcmp(str, "off"))
-		eeh_subsystem_flags |= EEH_FORCE_DISABLED;
+		eeh_add_flag(EEH_FORCE_DISABLED);
 
 	return 1;
 }
 __setup("eeh=", eeh_setup);
 
-/**
- * eeh_gather_pci_data - Copy assorted PCI config space registers to buff
- * @edev: device to report data for
- * @buf: point to buffer in which to log
- * @len: amount of room in buffer
- *
- * This routine captures assorted PCI configuration space data,
- * and puts them into a buffer for RTAS error logging.
+/*
+ * This routine captures assorted PCI configuration space data
+ * for the indicated PCI device, and puts them into a buffer
+ * for RTAS error logging.
  */
-static size_t eeh_gather_pci_data(struct eeh_dev *edev, char * buf, size_t len)
+static size_t eeh_dump_dev_log(struct eeh_dev *edev, char *buf, size_t len)
 {
 	struct device_node *dn = eeh_dev_to_of_node(edev);
 	u32 cfg;
 	int cap, i;
-	int n = 0;
+	int n = 0, l = 0;
+	char buffer[128];
 
 	n += scnprintf(buf+n, len-n, "%s\n", dn->full_name);
 	pr_warn("EEH: of node=%s\n", dn->full_name);
@@ -202,8 +204,22 @@ static size_t eeh_gather_pci_data(struct eeh_dev *edev, char * buf, size_t len)
 		for (i=0; i<=8; i++) {
 			eeh_ops->read_config(dn, cap+4*i, 4, &cfg);
 			n += scnprintf(buf+n, len-n, "%02x:%x\n", 4*i, cfg);
-			pr_warn("EEH: PCI-E %02x: %08x\n", i, cfg);
+
+			if ((i % 4) == 0) {
+				if (i != 0)
+					pr_warn("%s\n", buffer);
+
+				l = scnprintf(buffer, sizeof(buffer),
+					      "EEH: PCI-E %02x: %08x ",
+					      4*i, cfg);
+			} else {
+				l += scnprintf(buffer+l, sizeof(buffer)-l,
+					       "%08x ", cfg);
+			}
+
 		}
+
+		pr_warn("%s\n", buffer);
 	}
 
 	/* If AER capable, dump it */
@@ -212,14 +228,47 @@ static size_t eeh_gather_pci_data(struct eeh_dev *edev, char * buf, size_t len)
 		n += scnprintf(buf+n, len-n, "pci-e AER:\n");
 		pr_warn("EEH: PCI-E AER capability register set follows:\n");
 
-		for (i=0; i<14; i++) {
+		for (i=0; i<=13; i++) {
 			eeh_ops->read_config(dn, cap+4*i, 4, &cfg);
 			n += scnprintf(buf+n, len-n, "%02x:%x\n", 4*i, cfg);
-			pr_warn("EEH: PCI-E AER %02x: %08x\n", i, cfg);
+
+			if ((i % 4) == 0) {
+				if (i != 0)
+					pr_warn("%s\n", buffer);
+
+				l = scnprintf(buffer, sizeof(buffer),
+					      "EEH: PCI-E AER %02x: %08x ",
+					      4*i, cfg);
+			} else {
+				l += scnprintf(buffer+l, sizeof(buffer)-l,
+					       "%08x ", cfg);
+			}
 		}
+
+		pr_warn("%s\n", buffer);
 	}
 
 	return n;
+}
+
+static void *eeh_dump_pe_log(void *data, void *flag)
+{
+	struct eeh_pe *pe = data;
+	struct eeh_dev *edev, *tmp;
+	size_t *plen = flag;
+
+	/* If the PE's config space is blocked, 0xFF's will be
+	 * returned. It's pointless to collect the log in this
+	 * case.
+	 */
+	if (pe->state & EEH_PE_CFG_BLOCKED)
+		return NULL;
+
+	eeh_pe_for_each_dev(pe, edev, tmp)
+		*plen += eeh_dump_dev_log(edev, pci_regs_buf + *plen,
+					  EEH_PCI_REGS_LOG_LEN - *plen);
+
+	return NULL;
 }
 
 /**
@@ -235,7 +284,6 @@ static size_t eeh_gather_pci_data(struct eeh_dev *edev, char * buf, size_t len)
 void eeh_slot_error_detail(struct eeh_pe *pe, int severity)
 {
 	size_t loglen = 0;
-	struct eeh_dev *edev, *tmp;
 
 	/*
 	 * When the PHB is fenced or dead, it's pointless to collect
@@ -247,16 +295,13 @@ void eeh_slot_error_detail(struct eeh_pe *pe, int severity)
 	 * 0xFF's is always returned from PCI config space.
 	 */
 	if (!(pe->type & EEH_PE_PHB)) {
-		if (eeh_probe_mode_devtree())
+		if (eeh_has_flag(EEH_ENABLE_IO_FOR_LOG))
 			eeh_pci_enable(pe, EEH_OPT_THAW_MMIO);
 		eeh_ops->configure_bridge(pe);
 		eeh_pe_restore_bars(pe);
 
 		pci_regs_buf[0] = 0;
-		eeh_pe_for_each_dev(pe, edev, tmp) {
-			loglen += eeh_gather_pci_data(edev, pci_regs_buf + loglen,
-						      EEH_PCI_REGS_LOG_LEN - loglen);
-		}
+		eeh_pe_traverse(pe, eeh_dump_pe_log, &loglen);
 	}
 
 	eeh_ops->get_log(pe, severity, pci_regs_buf, loglen);
@@ -298,14 +343,14 @@ static int eeh_phb_check_failure(struct eeh_pe *pe)
 	unsigned long flags;
 	int ret;
 
-	if (!eeh_probe_mode_dev())
+	if (!eeh_has_flag(EEH_PROBE_MODE_DEV))
 		return -EPERM;
 
 	/* Find the PHB PE */
 	phb_pe = eeh_phb_pe_get(pe->phb);
 	if (!phb_pe) {
-		pr_warning("%s Can't find PE for PHB#%d\n",
-			   __func__, pe->phb->global_number);
+		pr_warn("%s Can't find PE for PHB#%d\n",
+			__func__, pe->phb->global_number);
 		return -EEXIST;
 	}
 
@@ -377,7 +422,7 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	}
 	dn = eeh_dev_to_of_node(edev);
 	dev = eeh_dev_to_pci_dev(edev);
-	pe = edev->pe;
+	pe = eeh_dev_to_pe(edev);
 
 	/* Access to IO BARs might get this far and still not want checking. */
 	if (!pe) {
@@ -399,6 +444,14 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	ret = eeh_phb_check_failure(pe);
 	if (ret > 0)
 		return ret;
+
+	/*
+	 * If the PE isn't owned by us, we shouldn't check the
+	 * state. Instead, let the owner handle it if the PE has
+	 * been frozen.
+	 */
+	if (eeh_pe_passed(pe))
+		return 0;
 
 	/* If we already have a pending isolation event for this
 	 * slot, we know it's bad already, we don't need to check.
@@ -501,17 +554,16 @@ EXPORT_SYMBOL_GPL(eeh_dev_check_failure);
 
 /**
  * eeh_check_failure - Check if all 1's data is due to EEH slot freeze
- * @token: I/O token, should be address in the form 0xA....
- * @val: value, should be all 1's (XXX why do we need this arg??)
+ * @token: I/O address
  *
- * Check for an EEH failure at the given token address.  Call this
+ * Check for an EEH failure at the given I/O address. Call this
  * routine if the result of a read was all 0xff's and you want to
- * find out if this is due to an EEH slot freeze event.  This routine
+ * find out if this is due to an EEH slot freeze event. This routine
  * will query firmware for the EEH status.
  *
  * Note this routine is safe to call in an interrupt context.
  */
-unsigned long eeh_check_failure(const volatile void __iomem *token, unsigned long val)
+int eeh_check_failure(const volatile void __iomem *token)
 {
 	unsigned long addr;
 	struct eeh_dev *edev;
@@ -521,13 +573,11 @@ unsigned long eeh_check_failure(const volatile void __iomem *token, unsigned lon
 	edev = eeh_addr_cache_get_dev(addr);
 	if (!edev) {
 		eeh_stats.no_device++;
-		return val;
+		return 0;
 	}
 
-	eeh_dev_check_failure(edev);
-	return val;
+	return eeh_dev_check_failure(edev);
 }
-
 EXPORT_SYMBOL(eeh_check_failure);
 
 
@@ -541,25 +591,51 @@ EXPORT_SYMBOL(eeh_check_failure);
  */
 int eeh_pci_enable(struct eeh_pe *pe, int function)
 {
-	int rc, flags = (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
+	int active_flag, rc;
 
 	/*
 	 * pHyp doesn't allow to enable IO or DMA on unfrozen PE.
 	 * Also, it's pointless to enable them on unfrozen PE. So
-	 * we have the check here.
+	 * we have to check before enabling IO or DMA.
 	 */
-	if (function == EEH_OPT_THAW_MMIO ||
-	    function == EEH_OPT_THAW_DMA) {
+	switch (function) {
+	case EEH_OPT_THAW_MMIO:
+		active_flag = EEH_STATE_MMIO_ACTIVE;
+		break;
+	case EEH_OPT_THAW_DMA:
+		active_flag = EEH_STATE_DMA_ACTIVE;
+		break;
+	case EEH_OPT_DISABLE:
+	case EEH_OPT_ENABLE:
+	case EEH_OPT_FREEZE_PE:
+		active_flag = 0;
+		break;
+	default:
+		pr_warn("%s: Invalid function %d\n",
+			__func__, function);
+		return -EINVAL;
+	}
+
+	/*
+	 * Check if IO or DMA has been enabled before
+	 * enabling them.
+	 */
+	if (active_flag) {
 		rc = eeh_ops->get_state(pe, NULL);
 		if (rc < 0)
 			return rc;
 
-		/* Needn't to enable or already enabled */
-		if ((rc == EEH_STATE_NOT_SUPPORT) ||
-		    ((rc & flags) == flags))
+		/* Needn't enable it at all */
+		if (rc == EEH_STATE_NOT_SUPPORT)
+			return 0;
+
+		/* It's already enabled */
+		if (rc & active_flag)
 			return 0;
 	}
 
+
+	/* Issue the request */
 	rc = eeh_ops->set_option(pe, function);
 	if (rc)
 		pr_warn("%s: Unexpected state change %d on "
@@ -567,17 +643,17 @@ int eeh_pci_enable(struct eeh_pe *pe, int function)
 			__func__, function, pe->phb->global_number,
 			pe->addr, rc);
 
-	rc = eeh_ops->wait_state(pe, PCI_BUS_RESET_WAIT_MSEC);
-	if (rc <= 0)
-		return rc;
+	/* Check if the request is finished successfully */
+	if (active_flag) {
+		rc = eeh_ops->wait_state(pe, PCI_BUS_RESET_WAIT_MSEC);
+		if (rc <= 0)
+			return rc;
 
-	if ((function == EEH_OPT_THAW_MMIO) &&
-	    (rc & EEH_STATE_MMIO_ENABLED))
-		return 0;
+		if (rc & active_flag)
+			return 0;
 
-	if ((function == EEH_OPT_THAW_DMA) &&
-	    (rc & EEH_STATE_DMA_ENABLED))
-		return 0;
+		return -EIO;
+	}
 
 	return rc;
 }
@@ -593,7 +669,7 @@ int eeh_pci_enable(struct eeh_pe *pe, int function)
 int pcibios_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state state)
 {
 	struct eeh_dev *edev = pci_dev_to_eeh_dev(dev);
-	struct eeh_pe *pe = edev->pe;
+	struct eeh_pe *pe = eeh_dev_to_pe(edev);
 
 	if (!pe) {
 		pr_err("%s: No PE found on PCI device %s\n",
@@ -604,14 +680,18 @@ int pcibios_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state stat
 	switch (state) {
 	case pcie_deassert_reset:
 		eeh_ops->reset(pe, EEH_RESET_DEACTIVATE);
+		eeh_pe_state_clear(pe, EEH_PE_CFG_BLOCKED);
 		break;
 	case pcie_hot_reset:
+		eeh_pe_state_mark(pe, EEH_PE_CFG_BLOCKED);
 		eeh_ops->reset(pe, EEH_RESET_HOT);
 		break;
 	case pcie_warm_reset:
+		eeh_pe_state_mark(pe, EEH_PE_CFG_BLOCKED);
 		eeh_ops->reset(pe, EEH_RESET_FUNDAMENTAL);
 		break;
 	default:
+		eeh_pe_state_clear(pe, EEH_PE_CFG_BLOCKED);
 		return -EINVAL;
 	};
 
@@ -746,13 +826,13 @@ void eeh_save_bars(struct eeh_dev *edev)
 int __init eeh_ops_register(struct eeh_ops *ops)
 {
 	if (!ops->name) {
-		pr_warning("%s: Invalid EEH ops name for %p\n",
+		pr_warn("%s: Invalid EEH ops name for %p\n",
 			__func__, ops);
 		return -EINVAL;
 	}
 
 	if (eeh_ops && eeh_ops != ops) {
-		pr_warning("%s: EEH ops of platform %s already existing (%s)\n",
+		pr_warn("%s: EEH ops of platform %s already existing (%s)\n",
 			__func__, eeh_ops->name, ops->name);
 		return -EEXIST;
 	}
@@ -772,7 +852,7 @@ int __init eeh_ops_register(struct eeh_ops *ops)
 int __exit eeh_ops_unregister(const char *name)
 {
 	if (!name || !strlen(name)) {
-		pr_warning("%s: Invalid EEH ops name\n",
+		pr_warn("%s: Invalid EEH ops name\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -788,7 +868,7 @@ int __exit eeh_ops_unregister(const char *name)
 static int eeh_reboot_notifier(struct notifier_block *nb,
 			       unsigned long action, void *unused)
 {
-	eeh_set_enable(false);
+	eeh_clear_flag(EEH_ENABLED);
 	return NOTIFY_DONE;
 }
 
@@ -837,11 +917,11 @@ int eeh_init(void)
 
 	/* call platform initialization function */
 	if (!eeh_ops) {
-		pr_warning("%s: Platform EEH operation not found\n",
+		pr_warn("%s: Platform EEH operation not found\n",
 			__func__);
 		return -EEXIST;
 	} else if ((ret = eeh_ops->init())) {
-		pr_warning("%s: Failed to call platform init function (%d)\n",
+		pr_warn("%s: Failed to call platform init function (%d)\n",
 			__func__, ret);
 		return ret;
 	}
@@ -852,13 +932,13 @@ int eeh_init(void)
 		return ret;
 
 	/* Enable EEH for all adapters */
-	if (eeh_probe_mode_devtree()) {
+	if (eeh_has_flag(EEH_PROBE_MODE_DEVTREE)) {
 		list_for_each_entry_safe(hose, tmp,
 			&hose_list, list_node) {
 			phb = hose->dn;
 			traverse_pci_devices(phb, eeh_ops->of_probe, NULL);
 		}
-	} else if (eeh_probe_mode_dev()) {
+	} else if (eeh_has_flag(EEH_PROBE_MODE_DEV)) {
 		list_for_each_entry_safe(hose, tmp,
 			&hose_list, list_node)
 			pci_walk_bus(hose->bus, eeh_ops->dev_probe, NULL);
@@ -882,7 +962,7 @@ int eeh_init(void)
 	if (eeh_enabled())
 		pr_info("EEH: PCI Enhanced I/O Error Handling Enabled\n");
 	else
-		pr_warning("EEH: No capable adapters found\n");
+		pr_warn("EEH: No capable adapters found\n");
 
 	return ret;
 }
@@ -910,7 +990,7 @@ void eeh_add_device_early(struct device_node *dn)
 	 * would delay the probe until late stage because
 	 * the PCI device isn't available this moment.
 	 */
-	if (!eeh_probe_mode_devtree())
+	if (!eeh_has_flag(EEH_PROBE_MODE_DEVTREE))
 		return;
 
 	if (!of_node_to_eeh_dev(dn))
@@ -996,7 +1076,7 @@ void eeh_add_device_late(struct pci_dev *dev)
 	 * We have to do the EEH probe here because the PCI device
 	 * hasn't been created yet in the early stage.
 	 */
-	if (eeh_probe_mode_dev())
+	if (eeh_has_flag(EEH_PROBE_MODE_DEV))
 		eeh_ops->dev_probe(dev, NULL);
 
 	eeh_addr_cache_insert_dev(dev);
@@ -1100,6 +1180,404 @@ void eeh_remove_device(struct pci_dev *dev)
 	edev->mode &= ~EEH_DEV_SYSFS;
 }
 
+int eeh_unfreeze_pe(struct eeh_pe *pe, bool sw_state)
+{
+	int ret;
+
+	ret = eeh_pci_enable(pe, EEH_OPT_THAW_MMIO);
+	if (ret) {
+		pr_warn("%s: Failure %d enabling IO on PHB#%x-PE#%x\n",
+			__func__, ret, pe->phb->global_number, pe->addr);
+		return ret;
+	}
+
+	ret = eeh_pci_enable(pe, EEH_OPT_THAW_DMA);
+	if (ret) {
+		pr_warn("%s: Failure %d enabling DMA on PHB#%x-PE#%x\n",
+			__func__, ret, pe->phb->global_number, pe->addr);
+		return ret;
+	}
+
+	/* Clear software isolated state */
+	if (sw_state && (pe->state & EEH_PE_ISOLATED))
+		eeh_pe_state_clear(pe, EEH_PE_ISOLATED);
+
+	return ret;
+}
+
+
+static struct pci_device_id eeh_reset_ids[] = {
+	{ PCI_DEVICE(0x19a2, 0x0710) },	/* Emulex, BE     */
+	{ PCI_DEVICE(0x10df, 0xe220) },	/* Emulex, Lancer */
+	{ 0 }
+};
+
+static int eeh_pe_change_owner(struct eeh_pe *pe)
+{
+	struct eeh_dev *edev, *tmp;
+	struct pci_dev *pdev;
+	struct pci_device_id *id;
+	int flags, ret;
+
+	/* Check PE state */
+	flags = (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
+	ret = eeh_ops->get_state(pe, NULL);
+	if (ret < 0 || ret == EEH_STATE_NOT_SUPPORT)
+		return 0;
+
+	/* Unfrozen PE, nothing to do */
+	if ((ret & flags) == flags)
+		return 0;
+
+	/* Frozen PE, check if it needs PE level reset */
+	eeh_pe_for_each_dev(pe, edev, tmp) {
+		pdev = eeh_dev_to_pci_dev(edev);
+		if (!pdev)
+			continue;
+
+		for (id = &eeh_reset_ids[0]; id->vendor != 0; id++) {
+			if (id->vendor != PCI_ANY_ID &&
+			    id->vendor != pdev->vendor)
+				continue;
+			if (id->device != PCI_ANY_ID &&
+			    id->device != pdev->device)
+				continue;
+			if (id->subvendor != PCI_ANY_ID &&
+			    id->subvendor != pdev->subsystem_vendor)
+				continue;
+			if (id->subdevice != PCI_ANY_ID &&
+			    id->subdevice != pdev->subsystem_device)
+				continue;
+
+			goto reset;
+		}
+	}
+
+	return eeh_unfreeze_pe(pe, true);
+
+reset:
+	return eeh_pe_reset_and_recover(pe);
+}
+
+/**
+ * eeh_dev_open - Increase count of pass through devices for PE
+ * @pdev: PCI device
+ *
+ * Increase count of passed through devices for the indicated
+ * PE. In the result, the EEH errors detected on the PE won't be
+ * reported. The PE owner will be responsible for detection
+ * and recovery.
+ */
+int eeh_dev_open(struct pci_dev *pdev)
+{
+	struct eeh_dev *edev;
+	int ret = -ENODEV;
+
+	mutex_lock(&eeh_dev_mutex);
+
+	/* No PCI device ? */
+	if (!pdev)
+		goto out;
+
+	/* No EEH device or PE ? */
+	edev = pci_dev_to_eeh_dev(pdev);
+	if (!edev || !edev->pe)
+		goto out;
+
+	/*
+	 * The PE might have been put into frozen state, but we
+	 * didn't detect that yet. The passed through PCI devices
+	 * in frozen PE won't work properly. Clear the frozen state
+	 * in advance.
+	 */
+	ret = eeh_pe_change_owner(edev->pe);
+	if (ret)
+		goto out;
+
+	/* Increase PE's pass through count */
+	atomic_inc(&edev->pe->pass_dev_cnt);
+	mutex_unlock(&eeh_dev_mutex);
+
+	return 0;
+out:
+	mutex_unlock(&eeh_dev_mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(eeh_dev_open);
+
+/**
+ * eeh_dev_release - Decrease count of pass through devices for PE
+ * @pdev: PCI device
+ *
+ * Decrease count of pass through devices for the indicated PE. If
+ * there is no passed through device in PE, the EEH errors detected
+ * on the PE will be reported and handled as usual.
+ */
+void eeh_dev_release(struct pci_dev *pdev)
+{
+	struct eeh_dev *edev;
+
+	mutex_lock(&eeh_dev_mutex);
+
+	/* No PCI device ? */
+	if (!pdev)
+		goto out;
+
+	/* No EEH device ? */
+	edev = pci_dev_to_eeh_dev(pdev);
+	if (!edev || !edev->pe || !eeh_pe_passed(edev->pe))
+		goto out;
+
+	/* Decrease PE's pass through count */
+	atomic_dec(&edev->pe->pass_dev_cnt);
+	WARN_ON(atomic_read(&edev->pe->pass_dev_cnt) < 0);
+	eeh_pe_change_owner(edev->pe);
+out:
+	mutex_unlock(&eeh_dev_mutex);
+}
+EXPORT_SYMBOL(eeh_dev_release);
+
+#ifdef CONFIG_IOMMU_API
+
+static int dev_has_iommu_table(struct device *dev, void *data)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct pci_dev **ppdev = data;
+	struct iommu_table *tbl;
+
+	if (!dev)
+		return 0;
+
+	tbl = get_iommu_table_base(dev);
+	if (tbl && tbl->it_group) {
+		*ppdev = pdev;
+		return 1;
+	}
+
+	return 0;
+}
+
+/**
+ * eeh_iommu_group_to_pe - Convert IOMMU group to EEH PE
+ * @group: IOMMU group
+ *
+ * The routine is called to convert IOMMU group to EEH PE.
+ */
+struct eeh_pe *eeh_iommu_group_to_pe(struct iommu_group *group)
+{
+	struct pci_dev *pdev = NULL;
+	struct eeh_dev *edev;
+	int ret;
+
+	/* No IOMMU group ? */
+	if (!group)
+		return NULL;
+
+	ret = iommu_group_for_each_dev(group, &pdev, dev_has_iommu_table);
+	if (!ret || !pdev)
+		return NULL;
+
+	/* No EEH device or PE ? */
+	edev = pci_dev_to_eeh_dev(pdev);
+	if (!edev || !edev->pe)
+		return NULL;
+
+	return edev->pe;
+}
+EXPORT_SYMBOL_GPL(eeh_iommu_group_to_pe);
+
+#endif /* CONFIG_IOMMU_API */
+
+/**
+ * eeh_pe_set_option - Set options for the indicated PE
+ * @pe: EEH PE
+ * @option: requested option
+ *
+ * The routine is called to enable or disable EEH functionality
+ * on the indicated PE, to enable IO or DMA for the frozen PE.
+ */
+int eeh_pe_set_option(struct eeh_pe *pe, int option)
+{
+	int ret = 0;
+
+	/* Invalid PE ? */
+	if (!pe)
+		return -ENODEV;
+
+	/*
+	 * EEH functionality could possibly be disabled, just
+	 * return error for the case. And the EEH functinality
+	 * isn't expected to be disabled on one specific PE.
+	 */
+	switch (option) {
+	case EEH_OPT_ENABLE:
+		if (eeh_enabled()) {
+			ret = eeh_pe_change_owner(pe);
+			break;
+		}
+		ret = -EIO;
+		break;
+	case EEH_OPT_DISABLE:
+		break;
+	case EEH_OPT_THAW_MMIO:
+	case EEH_OPT_THAW_DMA:
+		if (!eeh_ops || !eeh_ops->set_option) {
+			ret = -ENOENT;
+			break;
+		}
+
+		ret = eeh_pci_enable(pe, option);
+		break;
+	default:
+		pr_debug("%s: Option %d out of range (%d, %d)\n",
+			__func__, option, EEH_OPT_DISABLE, EEH_OPT_THAW_DMA);
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(eeh_pe_set_option);
+
+/**
+ * eeh_pe_get_state - Retrieve PE's state
+ * @pe: EEH PE
+ *
+ * Retrieve the PE's state, which includes 3 aspects: enabled
+ * DMA, enabled IO and asserted reset.
+ */
+int eeh_pe_get_state(struct eeh_pe *pe)
+{
+	int result, ret = 0;
+	bool rst_active, dma_en, mmio_en;
+
+	/* Existing PE ? */
+	if (!pe)
+		return -ENODEV;
+
+	if (!eeh_ops || !eeh_ops->get_state)
+		return -ENOENT;
+
+	result = eeh_ops->get_state(pe, NULL);
+	rst_active = !!(result & EEH_STATE_RESET_ACTIVE);
+	dma_en = !!(result & EEH_STATE_DMA_ENABLED);
+	mmio_en = !!(result & EEH_STATE_MMIO_ENABLED);
+
+	if (rst_active)
+		ret = EEH_PE_STATE_RESET;
+	else if (dma_en && mmio_en)
+		ret = EEH_PE_STATE_NORMAL;
+	else if (!dma_en && !mmio_en)
+		ret = EEH_PE_STATE_STOPPED_IO_DMA;
+	else if (!dma_en && mmio_en)
+		ret = EEH_PE_STATE_STOPPED_DMA;
+	else
+		ret = EEH_PE_STATE_UNAVAIL;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(eeh_pe_get_state);
+
+static int eeh_pe_reenable_devices(struct eeh_pe *pe)
+{
+	struct eeh_dev *edev, *tmp;
+	struct pci_dev *pdev;
+	int ret = 0;
+
+	/* Restore config space */
+	eeh_pe_restore_bars(pe);
+
+	/*
+	 * Reenable PCI devices as the devices passed
+	 * through are always enabled before the reset.
+	 */
+	eeh_pe_for_each_dev(pe, edev, tmp) {
+		pdev = eeh_dev_to_pci_dev(edev);
+		if (!pdev)
+			continue;
+
+		ret = pci_reenable_device(pdev);
+		if (ret) {
+			pr_warn("%s: Failure %d reenabling %s\n",
+				__func__, ret, pci_name(pdev));
+			return ret;
+		}
+	}
+
+	/* The PE is still in frozen state */
+	return eeh_unfreeze_pe(pe, true);
+}
+
+/**
+ * eeh_pe_reset - Issue PE reset according to specified type
+ * @pe: EEH PE
+ * @option: reset type
+ *
+ * The routine is called to reset the specified PE with the
+ * indicated type, either fundamental reset or hot reset.
+ * PE reset is the most important part for error recovery.
+ */
+int eeh_pe_reset(struct eeh_pe *pe, int option)
+{
+	int ret = 0;
+
+	/* Invalid PE ? */
+	if (!pe)
+		return -ENODEV;
+
+	if (!eeh_ops || !eeh_ops->set_option || !eeh_ops->reset)
+		return -ENOENT;
+
+	switch (option) {
+	case EEH_RESET_DEACTIVATE:
+		ret = eeh_ops->reset(pe, option);
+		eeh_pe_state_clear(pe, EEH_PE_CFG_BLOCKED);
+		if (ret)
+			break;
+
+		ret = eeh_pe_reenable_devices(pe);
+		break;
+	case EEH_RESET_HOT:
+	case EEH_RESET_FUNDAMENTAL:
+		/*
+		 * Proactively freeze the PE to drop all MMIO access
+		 * during reset, which should be banned as it's always
+		 * cause recursive EEH error.
+		 */
+		eeh_ops->set_option(pe, EEH_OPT_FREEZE_PE);
+
+		eeh_pe_state_mark(pe, EEH_PE_CFG_BLOCKED);
+		ret = eeh_ops->reset(pe, option);
+		break;
+	default:
+		pr_debug("%s: Unsupported option %d\n",
+			__func__, option);
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(eeh_pe_reset);
+
+/**
+ * eeh_pe_configure - Configure PCI bridges after PE reset
+ * @pe: EEH PE
+ *
+ * The routine is called to restore the PCI config space for
+ * those PCI devices, especially PCI bridges affected by PE
+ * reset issued previously.
+ */
+int eeh_pe_configure(struct eeh_pe *pe)
+{
+	int ret = 0;
+
+	/* Invalid PE ? */
+	if (!pe)
+		return -ENODEV;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(eeh_pe_configure);
+
 static int proc_eeh_show(struct seq_file *m, void *v)
 {
 	if (!eeh_enabled()) {
@@ -1143,9 +1621,9 @@ static const struct file_operations proc_eeh_operations = {
 static int eeh_enable_dbgfs_set(void *data, u64 val)
 {
 	if (val)
-		eeh_subsystem_flags &= ~EEH_FORCE_DISABLED;
+		eeh_clear_flag(EEH_FORCE_DISABLED);
 	else
-		eeh_subsystem_flags |= EEH_FORCE_DISABLED;
+		eeh_add_flag(EEH_FORCE_DISABLED);
 
 	/* Notify the backend */
 	if (eeh_ops->post_init)

@@ -159,6 +159,7 @@ static int m88ds3103_wr_reg_val_tab(struct m88ds3103_priv *priv,
 {
 	int ret, i, j;
 	u8 buf[83];
+
 	dev_dbg(&priv->i2c->dev, "%s: tab_len=%d\n", __func__, tab_len);
 
 	if (tab_len > 83) {
@@ -247,8 +248,9 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 	u8 u8tmp, u8tmp1, u8tmp2;
 	u8 buf[2];
 	u16 u16tmp, divide_ratio;
-	u32 tuner_frequency, target_mclk, ts_clk;
+	u32 tuner_frequency, target_mclk;
 	s32 s32tmp;
+
 	dev_dbg(&priv->i2c->dev,
 			"%s: delivery_system=%d modulation=%d frequency=%d symbol_rate=%d inversion=%d pilot=%d rolloff=%d\n",
 			__func__, c->delivery_system,
@@ -316,9 +318,6 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 				target_mclk = 144000;
 			break;
 		case M88DS3103_TS_PARALLEL:
-		case M88DS3103_TS_PARALLEL_12:
-		case M88DS3103_TS_PARALLEL_16:
-		case M88DS3103_TS_PARALLEL_19_2:
 		case M88DS3103_TS_CI:
 			if (c->symbol_rate < 18000000)
 				target_mclk = 96000;
@@ -352,39 +351,26 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 	switch (priv->cfg->ts_mode) {
 	case M88DS3103_TS_SERIAL:
 		u8tmp1 = 0x00;
-		ts_clk = 0;
-		u8tmp = 0x46;
+		u8tmp = 0x06;
 		break;
 	case M88DS3103_TS_SERIAL_D7:
 		u8tmp1 = 0x20;
-		ts_clk = 0;
-		u8tmp = 0x46;
+		u8tmp = 0x06;
 		break;
 	case M88DS3103_TS_PARALLEL:
-		ts_clk = 24000;
-		u8tmp = 0x42;
-		break;
-	case M88DS3103_TS_PARALLEL_12:
-		ts_clk = 12000;
-		u8tmp = 0x42;
-		break;
-	case M88DS3103_TS_PARALLEL_16:
-		ts_clk = 16000;
-		u8tmp = 0x42;
-		break;
-	case M88DS3103_TS_PARALLEL_19_2:
-		ts_clk = 19200;
-		u8tmp = 0x42;
+		u8tmp = 0x02;
 		break;
 	case M88DS3103_TS_CI:
-		ts_clk = 6000;
-		u8tmp = 0x43;
+		u8tmp = 0x03;
 		break;
 	default:
 		dev_dbg(&priv->i2c->dev, "%s: invalid ts_mode\n", __func__);
 		ret = -EINVAL;
 		goto err;
 	}
+
+	if (priv->cfg->ts_clk_pol)
+		u8tmp |= 0x40;
 
 	/* TS mode */
 	ret = m88ds3103_wr_reg(priv, 0xfd, u8tmp);
@@ -399,8 +385,8 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 			goto err;
 	}
 
-	if (ts_clk) {
-		divide_ratio = DIV_ROUND_UP(target_mclk, ts_clk);
+	if (priv->cfg->ts_clk) {
+		divide_ratio = DIV_ROUND_UP(target_mclk, priv->cfg->ts_clk);
 		u8tmp1 = divide_ratio / 2;
 		u8tmp2 = DIV_ROUND_UP(divide_ratio, 2);
 	} else {
@@ -411,7 +397,7 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 
 	dev_dbg(&priv->i2c->dev,
 			"%s: target_mclk=%d ts_clk=%d divide_ratio=%d\n",
-			__func__, target_mclk, ts_clk, divide_ratio);
+			__func__, target_mclk, priv->cfg->ts_clk, divide_ratio);
 
 	u8tmp1--;
 	u8tmp2--;
@@ -536,6 +522,7 @@ static int m88ds3103_init(struct dvb_frontend *fe)
 	const struct firmware *fw = NULL;
 	u8 *fw_file = M88DS3103_FIRMWARE;
 	u8 u8tmp;
+
 	dev_dbg(&priv->i2c->dev, "%s:\n", __func__);
 
 	/* set cold state by default */
@@ -648,6 +635,7 @@ static int m88ds3103_sleep(struct dvb_frontend *fe)
 {
 	struct m88ds3103_priv *priv = fe->demodulator_priv;
 	int ret;
+
 	dev_dbg(&priv->i2c->dev, "%s:\n", __func__);
 
 	priv->delivery_system = SYS_UNDEFINED;
@@ -682,6 +670,7 @@ static int m88ds3103_get_frontend(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
 	u8 buf[3];
+
 	dev_dbg(&priv->i2c->dev, "%s:\n", __func__);
 
 	if (!priv->warm || !(priv->fe_status & FE_HAS_LOCK)) {
@@ -857,6 +846,7 @@ static int m88ds3103_read_snr(struct dvb_frontend *fe, u16 *snr)
 	u8 buf[3];
 	u16 noise, signal;
 	u32 noise_tot, signal_tot;
+
 	dev_dbg(&priv->i2c->dev, "%s:\n", __func__);
 	/* reports SNR in resolution of 0.1 dB */
 
@@ -933,6 +923,7 @@ static int m88ds3103_read_ber(struct dvb_frontend *fe, u32 *ber)
 	int ret;
 	unsigned int utmp;
 	u8 buf[3], u8tmp;
+
 	dev_dbg(&priv->i2c->dev, "%s:\n", __func__);
 
 	switch (c->delivery_system) {
@@ -1013,6 +1004,7 @@ static int m88ds3103_set_tone(struct dvb_frontend *fe,
 	struct m88ds3103_priv *priv = fe->demodulator_priv;
 	int ret;
 	u8 u8tmp, tone, reg_a1_mask;
+
 	dev_dbg(&priv->i2c->dev, "%s: fe_sec_tone_mode=%d\n", __func__,
 			fe_sec_tone_mode);
 
@@ -1053,12 +1045,64 @@ err:
 	return ret;
 }
 
+static int m88ds3103_set_voltage(struct dvb_frontend *fe,
+	fe_sec_voltage_t fe_sec_voltage)
+{
+	struct m88ds3103_priv *priv = fe->demodulator_priv;
+	int ret;
+	u8 u8tmp;
+	bool voltage_sel, voltage_dis;
+
+	dev_dbg(&priv->i2c->dev, "%s: fe_sec_voltage=%d\n", __func__,
+			fe_sec_voltage);
+
+	if (!priv->warm) {
+		ret = -EAGAIN;
+		goto err;
+	}
+
+	switch (fe_sec_voltage) {
+	case SEC_VOLTAGE_18:
+		voltage_sel = true;
+		voltage_dis = false;
+		break;
+	case SEC_VOLTAGE_13:
+		voltage_sel = false;
+		voltage_dis = false;
+		break;
+	case SEC_VOLTAGE_OFF:
+		voltage_sel = false;
+		voltage_dis = true;
+		break;
+	default:
+		dev_dbg(&priv->i2c->dev, "%s: invalid fe_sec_voltage\n",
+				__func__);
+		ret = -EINVAL;
+		goto err;
+	}
+
+	/* output pin polarity */
+	voltage_sel ^= priv->cfg->lnb_hv_pol;
+	voltage_dis ^= priv->cfg->lnb_en_pol;
+
+	u8tmp = voltage_dis << 1 | voltage_sel << 0;
+	ret = m88ds3103_wr_reg_mask(priv, 0xa2, u8tmp, 0x03);
+	if (ret)
+		goto err;
+
+	return 0;
+err:
+	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
+	return ret;
+}
+
 static int m88ds3103_diseqc_send_master_cmd(struct dvb_frontend *fe,
 		struct dvb_diseqc_master_cmd *diseqc_cmd)
 {
 	struct m88ds3103_priv *priv = fe->demodulator_priv;
 	int ret, i;
 	u8 u8tmp;
+
 	dev_dbg(&priv->i2c->dev, "%s: msg=%*ph\n", __func__,
 			diseqc_cmd->msg_len, diseqc_cmd->msg);
 
@@ -1130,6 +1174,7 @@ static int m88ds3103_diseqc_send_burst(struct dvb_frontend *fe,
 	struct m88ds3103_priv *priv = fe->demodulator_priv;
 	int ret, i;
 	u8 u8tmp, burst;
+
 	dev_dbg(&priv->i2c->dev, "%s: fe_sec_mini_cmd=%d\n", __func__,
 			fe_sec_mini_cmd);
 
@@ -1202,6 +1247,7 @@ static int m88ds3103_get_tune_settings(struct dvb_frontend *fe,
 static void m88ds3103_release(struct dvb_frontend *fe)
 {
 	struct m88ds3103_priv *priv = fe->demodulator_priv;
+
 	i2c_del_mux_adapter(priv->i2c_adapter);
 	kfree(priv);
 }
@@ -1370,6 +1416,7 @@ static struct dvb_frontend_ops m88ds3103_ops = {
 	.diseqc_send_burst = m88ds3103_diseqc_send_burst,
 
 	.set_tone = m88ds3103_set_tone,
+	.set_voltage = m88ds3103_set_voltage,
 };
 
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");

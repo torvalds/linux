@@ -106,6 +106,7 @@ static int mdp4_hw_init(struct msm_kms *kms)
 
 	if (mdp4_kms->rev >= 2)
 		mdp4_write(mdp4_kms, REG_MDP4_LAYERMIXER_IN_CFG_UPDATE_METHOD, 1);
+	mdp4_write(mdp4_kms, REG_MDP4_LAYERMIXER_IN_CFG, 0);
 
 	/* disable CSC matrix / YUV by default: */
 	mdp4_write(mdp4_kms, REG_MDP4_PIPE_OP_MODE(VG1), 0);
@@ -147,7 +148,7 @@ static void mdp4_destroy(struct msm_kms *kms)
 	if (mdp4_kms->blank_cursor_iova)
 		msm_gem_put_iova(mdp4_kms->blank_cursor_bo, mdp4_kms->id);
 	if (mdp4_kms->blank_cursor_bo)
-		drm_gem_object_unreference(mdp4_kms->blank_cursor_bo);
+		drm_gem_object_unreference_unlocked(mdp4_kms->blank_cursor_bo);
 	kfree(mdp4_kms);
 }
 
@@ -176,6 +177,8 @@ int mdp4_disable(struct mdp4_kms *mdp4_kms)
 	if (mdp4_kms->pclk)
 		clk_disable_unprepare(mdp4_kms->pclk);
 	clk_disable_unprepare(mdp4_kms->lut_clk);
+	if (mdp4_kms->axi_clk)
+		clk_disable_unprepare(mdp4_kms->axi_clk);
 
 	return 0;
 }
@@ -188,9 +191,33 @@ int mdp4_enable(struct mdp4_kms *mdp4_kms)
 	if (mdp4_kms->pclk)
 		clk_prepare_enable(mdp4_kms->pclk);
 	clk_prepare_enable(mdp4_kms->lut_clk);
+	if (mdp4_kms->axi_clk)
+		clk_prepare_enable(mdp4_kms->axi_clk);
 
 	return 0;
 }
+
+#ifdef CONFIG_OF
+static struct drm_panel *detect_panel(struct drm_device *dev, const char *name)
+{
+	struct device_node *n;
+	struct drm_panel *panel = NULL;
+
+	n = of_parse_phandle(dev->dev->of_node, name, 0);
+	if (n) {
+		panel = of_drm_find_panel(n);
+		if (!panel)
+			panel = ERR_PTR(-EPROBE_DEFER);
+	}
+
+	return panel;
+}
+#else
+static struct drm_panel *detect_panel(struct drm_device *dev, const char *name)
+{
+	// ??? maybe use a module param to specify which panel is attached?
+}
+#endif
 
 static int modeset_init(struct mdp4_kms *mdp4_kms)
 {
@@ -199,13 +226,10 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 	struct drm_plane *plane;
 	struct drm_crtc *crtc;
 	struct drm_encoder *encoder;
+	struct drm_connector *connector;
+	struct drm_panel *panel;
 	struct hdmi *hdmi;
 	int ret;
-
-	/*
-	 *  NOTE: this is a bit simplistic until we add support
-	 * for more than just RGB1->DMA_E->DTV->HDMI
-	 */
 
 	/* construct non-private planes: */
 	plane = mdp4_plane_init(dev, VG1, false);
@@ -224,7 +248,57 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 	}
 	priv->planes[priv->num_planes++] = plane;
 
-	/* the CRTCs get constructed with a private plane: */
+	/*
+	 * Setup the LCDC/LVDS path: RGB2 -> DMA_P -> LCDC -> LVDS:
+	 */
+
+	panel = detect_panel(dev, "qcom,lvds-panel");
+	if (IS_ERR(panel)) {
+		ret = PTR_ERR(panel);
+		dev_err(dev->dev, "failed to detect LVDS panel: %d\n", ret);
+		goto fail;
+	}
+
+	plane = mdp4_plane_init(dev, RGB2, true);
+	if (IS_ERR(plane)) {
+		dev_err(dev->dev, "failed to construct plane for RGB2\n");
+		ret = PTR_ERR(plane);
+		goto fail;
+	}
+
+	crtc  = mdp4_crtc_init(dev, plane, priv->num_crtcs, 0, DMA_P);
+	if (IS_ERR(crtc)) {
+		dev_err(dev->dev, "failed to construct crtc for DMA_P\n");
+		ret = PTR_ERR(crtc);
+		goto fail;
+	}
+
+	encoder = mdp4_lcdc_encoder_init(dev, panel);
+	if (IS_ERR(encoder)) {
+		dev_err(dev->dev, "failed to construct LCDC encoder\n");
+		ret = PTR_ERR(encoder);
+		goto fail;
+	}
+
+	/* LCDC can be hooked to DMA_P: */
+	encoder->possible_crtcs = 1 << priv->num_crtcs;
+
+	priv->crtcs[priv->num_crtcs++] = crtc;
+	priv->encoders[priv->num_encoders++] = encoder;
+
+	connector = mdp4_lvds_connector_init(dev, panel, encoder);
+	if (IS_ERR(connector)) {
+		ret = PTR_ERR(connector);
+		dev_err(dev->dev, "failed to initialize LVDS connector: %d\n", ret);
+		goto fail;
+	}
+
+	priv->connectors[priv->num_connectors++] = connector;
+
+	/*
+	 * Setup DTV/HDMI path: RGB1 -> DMA_E -> DTV -> HDMI:
+	 */
+
 	plane = mdp4_plane_init(dev, RGB1, true);
 	if (IS_ERR(plane)) {
 		dev_err(dev->dev, "failed to construct plane for RGB1\n");
@@ -238,7 +312,6 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 		ret = PTR_ERR(crtc);
 		goto fail;
 	}
-	priv->crtcs[priv->num_crtcs++] = crtc;
 
 	encoder = mdp4_dtv_encoder_init(dev);
 	if (IS_ERR(encoder)) {
@@ -246,7 +319,11 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 		ret = PTR_ERR(encoder);
 		goto fail;
 	}
-	encoder->possible_crtcs = 0x1;     /* DTV can be hooked to DMA_E */
+
+	/* DTV can be hooked to DMA_E: */
+	encoder->possible_crtcs = 1 << priv->num_crtcs;
+
+	priv->crtcs[priv->num_crtcs++] = crtc;
 	priv->encoders[priv->num_encoders++] = encoder;
 
 	hdmi = hdmi_init(dev, encoder);
@@ -294,15 +371,17 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
-	mdp4_kms->dsi_pll_vdda = devm_regulator_get(&pdev->dev, "dsi_pll_vdda");
+	mdp4_kms->dsi_pll_vdda =
+			devm_regulator_get_optional(&pdev->dev, "dsi_pll_vdda");
 	if (IS_ERR(mdp4_kms->dsi_pll_vdda))
 		mdp4_kms->dsi_pll_vdda = NULL;
 
-	mdp4_kms->dsi_pll_vddio = devm_regulator_get(&pdev->dev, "dsi_pll_vddio");
+	mdp4_kms->dsi_pll_vddio =
+			devm_regulator_get_optional(&pdev->dev, "dsi_pll_vddio");
 	if (IS_ERR(mdp4_kms->dsi_pll_vddio))
 		mdp4_kms->dsi_pll_vddio = NULL;
 
-	mdp4_kms->vdd = devm_regulator_get(&pdev->dev, "vdd");
+	mdp4_kms->vdd = devm_regulator_get_exclusive(&pdev->dev, "vdd");
 	if (IS_ERR(mdp4_kms->vdd))
 		mdp4_kms->vdd = NULL;
 
@@ -333,6 +412,13 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 		goto fail;
 	}
 
+	mdp4_kms->axi_clk = devm_clk_get(&pdev->dev, "mdp_axi_clk");
+	if (IS_ERR(mdp4_kms->axi_clk)) {
+		dev_err(dev->dev, "failed to get axi_clk\n");
+		ret = PTR_ERR(mdp4_kms->axi_clk);
+		goto fail;
+	}
+
 	clk_set_rate(mdp4_kms->clk, config->max_clk);
 	clk_set_rate(mdp4_kms->lut_clk, config->max_clk);
 
@@ -348,7 +434,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	mdelay(16);
 
 	if (config->iommu) {
-		mmu = msm_iommu_new(dev, config->iommu);
+		mmu = msm_iommu_new(&pdev->dev, config->iommu);
 		if (IS_ERR(mmu)) {
 			ret = PTR_ERR(mmu);
 			goto fail;
@@ -406,6 +492,8 @@ static struct mdp4_platform_config *mdp4_get_config(struct platform_device *dev)
 	static struct mdp4_platform_config config = {};
 #ifdef CONFIG_OF
 	/* TODO */
+	config.max_clk = 266667000;
+	config.iommu = iommu_domain_alloc(&platform_bus_type);
 #else
 	if (cpu_is_apq8064())
 		config.max_clk = 266667000;

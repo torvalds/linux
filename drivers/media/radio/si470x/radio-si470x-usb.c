@@ -607,9 +607,7 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	/* Set up interrupt endpoint information. */
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
 		endpoint = &iface_desc->endpoint[i].desc;
-		if (((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK) ==
-		 USB_DIR_IN) && ((endpoint->bmAttributes &
-		 USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_INT))
+		if (usb_endpoint_is_int_in(endpoint))
 			radio->int_in_endpoint = endpoint;
 	}
 	if (!radio->int_in_endpoint) {

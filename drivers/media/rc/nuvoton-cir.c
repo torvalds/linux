@@ -229,7 +229,6 @@ static int nvt_hw_detect(struct nvt_dev *nvt)
 {
 	unsigned long flags;
 	u8 chip_major, chip_minor;
-	int ret = 0;
 	char chip_id[12];
 	bool chip_unknown = false;
 
@@ -285,7 +284,7 @@ static int nvt_hw_detect(struct nvt_dev *nvt)
 	nvt->chip_minor = chip_minor;
 	spin_unlock_irqrestore(&nvt->nvt_lock, flags);
 
-	return ret;
+	return 0;
 }
 
 static void nvt_cir_ldev_init(struct nvt_dev *nvt)
@@ -1177,7 +1176,6 @@ static int nvt_suspend(struct pnp_dev *pdev, pm_message_t state)
 
 static int nvt_resume(struct pnp_dev *pdev)
 {
-	int ret = 0;
 	struct nvt_dev *nvt = pnp_get_drvdata(pdev);
 
 	nvt_dbg("%s called", __func__);
@@ -1195,7 +1193,7 @@ static int nvt_resume(struct pnp_dev *pdev)
 	nvt_cir_regs_init(nvt);
 	nvt_cir_wake_regs_init(nvt);
 
-	return ret;
+	return 0;
 }
 
 static void nvt_shutdown(struct pnp_dev *pdev)

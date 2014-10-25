@@ -10,7 +10,12 @@ Required properties:
 - pinctrl-names: must contain a "default" entry.
 - spi-num-chipselects : the number of the chipselect signals.
 - bus-num : the slave chip chipselect signal number.
-- big-endian : if DSPI modudle is big endian, the bool will be set in node.
+
+Optional property:
+- big-endian: If present the dspi device's registers are implemented
+  in big endian mode, otherwise in native mode(same with CPU), for more
+  detail please see: Documentation/devicetree/bindings/regmap/regmap.txt.
+
 Example:
 
 dspi0@4002c000 {

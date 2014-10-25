@@ -29,6 +29,15 @@
 #ifndef cpu_has_eva
 #define cpu_has_eva		(cpu_data[0].options & MIPS_CPU_EVA)
 #endif
+#ifndef cpu_has_htw
+#define cpu_has_htw		(cpu_data[0].options & MIPS_CPU_HTW)
+#endif
+#ifndef cpu_has_rixiex
+#define cpu_has_rixiex		(cpu_data[0].options & MIPS_CPU_RIXIEX)
+#endif
+#ifndef cpu_has_maar
+#define cpu_has_maar		(cpu_data[0].options & MIPS_CPU_MAAR)
+#endif
 
 /*
  * For the moment we don't consider R6000 and R8000 so we can assume that
@@ -220,6 +229,16 @@
  */
 #ifndef cpu_has_clo_clz
 #define cpu_has_clo_clz	cpu_has_mips_r
+#endif
+
+/*
+ * MIPS32 R2, MIPS64 R2, Loongson 3A and Octeon have WSBH.
+ * MIPS64 R2, Loongson 3A and Octeon have WSBH, DSBH and DSHD.
+ * This indicates the availability of WSBH and in case of 64 bit CPUs also
+ * DSBH and DSHD.
+ */
+#ifndef cpu_has_wsbh
+#define cpu_has_wsbh		cpu_has_mips_r2
 #endif
 
 #ifndef cpu_has_dsp

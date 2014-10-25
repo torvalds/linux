@@ -18,6 +18,15 @@
 
 #ifdef __KERNEL__
 
+/* Low-level stepping controls. */
+#define DBG_MDSCR_SS		(1 << 0)
+#define DBG_SPSR_SS		(1 << 21)
+
+/* MDSCR_EL1 enabling bits */
+#define DBG_MDSCR_KDE		(1 << 13)
+#define DBG_MDSCR_MDE		(1 << 15)
+#define DBG_MDSCR_MASK		~(DBG_MDSCR_KDE | DBG_MDSCR_MDE)
+
 #define	DBG_ESR_EVT(x)		(((x) >> 27) & 0x7)
 
 /* AArch64 */
@@ -39,11 +48,13 @@
 /*
  * #imm16 values used for BRK instruction generation
  * Allowed values for kgbd are 0x400 - 0x7ff
+ * 0x100: for triggering a fault on purpose (reserved)
  * 0x400: for dynamic BRK instruction
  * 0x401: for compile time BRK instruction
  */
-#define KGDB_DYN_DGB_BRK_IMM		0x400
-#define KDBG_COMPILED_DBG_BRK_IMM	0x401
+#define FAULT_BRK_IMM			0x100
+#define KGDB_DYN_DBG_BRK_IMM		0x400
+#define KGDB_COMPILED_DBG_BRK_IMM	0x401
 
 /*
  * BRK instruction encoding
@@ -52,31 +63,32 @@
 #define AARCH64_BREAK_MON	0xd4200000
 
 /*
+ * BRK instruction for provoking a fault on purpose
+ * Unlike kgdb, #imm16 value with unallocated handler is used for faulting.
+ */
+#define AARCH64_BREAK_FAULT	(AARCH64_BREAK_MON | (FAULT_BRK_IMM << 5))
+
+/*
  * Extract byte from BRK instruction
  */
-#define KGDB_DYN_DGB_BRK_INS_BYTE(x) \
+#define KGDB_DYN_DBG_BRK_INS_BYTE(x) \
 	((((AARCH64_BREAK_MON) & 0xffe0001f) >> (x * 8)) & 0xff)
 
 /*
  * Extract byte from BRK #imm16
  */
-#define KGBD_DYN_DGB_BRK_IMM_BYTE(x) \
-	(((((KGDB_DYN_DGB_BRK_IMM) & 0xffff) << 5) >> (x * 8)) & 0xff)
+#define KGBD_DYN_DBG_BRK_IMM_BYTE(x) \
+	(((((KGDB_DYN_DBG_BRK_IMM) & 0xffff) << 5) >> (x * 8)) & 0xff)
 
-#define KGDB_DYN_DGB_BRK_BYTE(x) \
-	(KGDB_DYN_DGB_BRK_INS_BYTE(x) | KGBD_DYN_DGB_BRK_IMM_BYTE(x))
+#define KGDB_DYN_DBG_BRK_BYTE(x) \
+	(KGDB_DYN_DBG_BRK_INS_BYTE(x) | KGBD_DYN_DBG_BRK_IMM_BYTE(x))
 
-#define  KGDB_DYN_BRK_INS_BYTE0  KGDB_DYN_DGB_BRK_BYTE(0)
-#define  KGDB_DYN_BRK_INS_BYTE1  KGDB_DYN_DGB_BRK_BYTE(1)
-#define  KGDB_DYN_BRK_INS_BYTE2  KGDB_DYN_DGB_BRK_BYTE(2)
-#define  KGDB_DYN_BRK_INS_BYTE3  KGDB_DYN_DGB_BRK_BYTE(3)
+#define  KGDB_DYN_BRK_INS_BYTE0  KGDB_DYN_DBG_BRK_BYTE(0)
+#define  KGDB_DYN_BRK_INS_BYTE1  KGDB_DYN_DBG_BRK_BYTE(1)
+#define  KGDB_DYN_BRK_INS_BYTE2  KGDB_DYN_DBG_BRK_BYTE(2)
+#define  KGDB_DYN_BRK_INS_BYTE3  KGDB_DYN_DBG_BRK_BYTE(3)
 
 #define CACHE_FLUSH_IS_SAFE		1
-
-enum debug_el {
-	DBG_ACTIVE_EL0 = 0,
-	DBG_ACTIVE_EL1,
-};
 
 /* AArch32 */
 #define DBG_ESR_EVT_BKPT	0x4
@@ -114,6 +126,11 @@ void register_break_hook(struct break_hook *hook);
 void unregister_break_hook(struct break_hook *hook);
 
 u8 debug_monitors_arch(void);
+
+enum debug_el {
+	DBG_ACTIVE_EL0 = 0,
+	DBG_ACTIVE_EL1,
+};
 
 void enable_debug_monitors(enum debug_el el);
 void disable_debug_monitors(enum debug_el el);

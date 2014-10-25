@@ -114,6 +114,24 @@ void omap2xxx_prm_dpll_reset(void)
 	omap2_prm_read_mod_reg(WKUP_MOD, OMAP2_RM_RSTCTRL);
 }
 
+/**
+ * omap2xxx_prm_clear_mod_irqs - clear wakeup status bits for a module
+ * @module: PRM module to clear wakeups from
+ * @regs: register offset to clear
+ * @wkst_mask: wakeup status mask to clear
+ *
+ * Clears wakeup status bits for a given module, so that the device can
+ * re-enter idle.
+ */
+void omap2xxx_prm_clear_mod_irqs(s16 module, u8 regs, u32 wkst_mask)
+{
+	u32 wkst;
+
+	wkst = omap2_prm_read_mod_reg(module, regs);
+	wkst &= wkst_mask;
+	omap2_prm_write_mod_reg(wkst, module, regs);
+}
+
 int omap2xxx_clkdm_sleep(struct clockdomain *clkdm)
 {
 	omap2_prm_set_mod_reg_bits(OMAP24XX_FORCESTATE_MASK,

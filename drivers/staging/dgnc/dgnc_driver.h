@@ -49,16 +49,14 @@
  * three lines, and the driver printk's will all automagically change.
  *
  * APR((fmt, args, ...));	Always prints message
- * DPR((fmt, args, ...));	Only prints if DGNC_TRACER is defined at
- *				  compile time and dgnc_debug!=0
  */
 #define	PROCSTR		"dgnc"			/* /proc entries	 */
 #define	DEVSTR		"/dev/dg/dgnc"		/* /dev entries		 */
 #define	DRVSTR		"dgnc"			/* Driver name string
 						 * displayed by APR	 */
-#define	APR(args)	do { PRINTF_TO_KMEM(args); printk(DRVSTR": "); printk args; \
+#define	APR(args)	do { printk(DRVSTR": "); printk args; \
 			   } while (0)
-#define	RAPR(args)	do { PRINTF_TO_KMEM(args); printk args; } while (0)
+#define	RAPR(args)	do { printk args; } while (0)
 
 #define TRC_TO_CONSOLE 1
 
@@ -90,28 +88,6 @@
 #define	DBG_INTR		(dgnc_debug & 0x8000)
 
 #define	DBG_CARR		(dgnc_debug & 0x10000)
-
-#define PRINTF_TO_KMEM(args)
-# define TRC(ARGS)
-# define DPR_INIT(ARGS)
-# define DPR_BASIC(ARGS)
-# define DPR_CORE(ARGS)
-# define DPR_OPEN(ARGS)
-# define DPR_CLOSE(ARGS)
-# define DPR_READ(ARGS)
-# define DPR_WRITE(ARGS)
-# define DPR_IOCTL(ARGS)
-# define DPR_PROC(ARGS)
-# define DPR_PARAM(ARGS)
-# define DPR_PSCAN(ARGS)
-# define DPR_EVENT(ARGS)
-# define DPR_DRAIN(ARGS)
-# define DPR_CARR(ARGS)
-# define DPR_MGMT(ARGS)
-# define DPR_INTR(ARGS)
-# define DPR_MSIGS(ARGS)
-
-# define DPR(args)
 
 /* Number of boards we support at once. */
 #define	MAXBOARDS	20
@@ -162,14 +138,6 @@
 #define SNIFF_MASK	(SNIFF_MAX - 1)	/* Sniff wrap mask */
 
 /*
- * Lock function/defines.
- * Makes spotting lock/unlock locations easier.
- */
-# define DGNC_SPINLOCK_INIT(x)		spin_lock_init(&(x))
-# define DGNC_LOCK(x, y)		spin_lock_irqsave(&(x), y)
-# define DGNC_UNLOCK(x, y)		spin_unlock_irqrestore(&(x), y)
-
-/*
  * All the possible states the driver can be while being loaded.
  */
 enum {
@@ -200,24 +168,24 @@ struct channel_t;
  * Per board operations structure				       *
  ************************************************************************/
 struct board_ops {
-	void (*tasklet) (unsigned long data);
-	irqreturn_t (*intr) (int irq, void *voidbrd);
-	void (*uart_init) (struct channel_t *ch);
-	void (*uart_off) (struct channel_t *ch);
-	int  (*drain) (struct tty_struct *tty, uint seconds);
-	void (*param) (struct tty_struct *tty);
-	void (*vpd) (struct dgnc_board *brd);
-	void (*assert_modem_signals) (struct channel_t *ch);
-	void (*flush_uart_write) (struct channel_t *ch);
-	void (*flush_uart_read) (struct channel_t *ch);
-	void (*disable_receiver) (struct channel_t *ch);
-	void (*enable_receiver) (struct channel_t *ch);
-	void (*send_break) (struct channel_t *ch, int);
-	void (*send_start_character) (struct channel_t *ch);
-	void (*send_stop_character) (struct channel_t *ch);
-	void (*copy_data_from_queue_to_uart) (struct channel_t *ch);
-	uint (*get_uart_bytes_left) (struct channel_t *ch);
-	void (*send_immediate_char) (struct channel_t *ch, unsigned char);
+	void (*tasklet)(unsigned long data);
+	irqreturn_t (*intr)(int irq, void *voidbrd);
+	void (*uart_init)(struct channel_t *ch);
+	void (*uart_off)(struct channel_t *ch);
+	int  (*drain)(struct tty_struct *tty, uint seconds);
+	void (*param)(struct tty_struct *tty);
+	void (*vpd)(struct dgnc_board *brd);
+	void (*assert_modem_signals)(struct channel_t *ch);
+	void (*flush_uart_write)(struct channel_t *ch);
+	void (*flush_uart_read)(struct channel_t *ch);
+	void (*disable_receiver)(struct channel_t *ch);
+	void (*enable_receiver)(struct channel_t *ch);
+	void (*send_break)(struct channel_t *ch, int);
+	void (*send_start_character)(struct channel_t *ch);
+	void (*send_stop_character)(struct channel_t *ch);
+	void (*copy_data_from_queue_to_uart)(struct channel_t *ch);
+	uint (*get_uart_bytes_left)(struct channel_t *ch);
+	void (*send_immediate_char)(struct channel_t *ch, unsigned char);
 };
 
 /************************************************************************
@@ -241,13 +209,13 @@ struct dgnc_board {
 	u16		device;		/* PCI device ID */
 	u16		subvendor;	/* PCI subsystem vendor ID */
 	u16		subdevice;	/* PCI subsystem device ID */
-	uchar		rev;		/* PCI revision ID */
+	unsigned char	rev;		/* PCI revision ID */
 	uint		pci_bus;	/* PCI bus value */
 	uint		pci_slot;	/* PCI slot value */
 	uint		maxports;	/* MAX ports this board can handle */
-	uchar		dvid;		/* Board specific device id */
-	uchar		vpd[128];	/* VPD of board, if found */
-	uchar		serial_num[20];	/* Serial number of board, if found in VPD */
+	unsigned char	dvid;		/* Board specific device id */
+	unsigned char	vpd[128];	/* VPD of board, if found */
+	unsigned char	serial_num[20];	/* Serial number of board, if found in VPD */
 
 	spinlock_t	bd_lock;	/* Used to protect board */
 
@@ -416,41 +384,41 @@ struct channel_t {
 	tcflag_t	ch_c_cflag;	/* channel cflags	       */
 	tcflag_t	ch_c_oflag;	/* channel oflags	       */
 	tcflag_t	ch_c_lflag;	/* channel lflags	       */
-	uchar		ch_stopc;	/* Stop character	       */
-	uchar		ch_startc;	/* Start character	      */
+	unsigned char	ch_stopc;	/* Stop character	       */
+	unsigned char	ch_startc;	/* Start character	      */
 
 	uint		ch_old_baud;	/* Cache of the current baud */
 	uint		ch_custom_speed;/* Custom baud, if set */
 
 	uint		ch_wopen;	/* Waiting for open process cnt */
 
-	uchar		ch_mostat;	/* FEP output modem status      */
-	uchar		ch_mistat;	/* FEP input modem status       */
+	unsigned char		ch_mostat;	/* FEP output modem status      */
+	unsigned char		ch_mistat;	/* FEP input modem status       */
 
 	struct neo_uart_struct __iomem *ch_neo_uart;	/* Pointer to the "mapped" UART struct */
 	struct cls_uart_struct __iomem *ch_cls_uart;	/* Pointer to the "mapped" UART struct */
 
-	uchar		ch_cached_lsr;	/* Cached value of the LSR register */
+	unsigned char	ch_cached_lsr;	/* Cached value of the LSR register */
 
-	uchar		*ch_rqueue;	/* Our read queue buffer - malloc'ed */
+	unsigned char	*ch_rqueue;	/* Our read queue buffer - malloc'ed */
 	ushort		ch_r_head;	/* Head location of the read queue */
 	ushort		ch_r_tail;	/* Tail location of the read queue */
 
-	uchar		*ch_equeue;	/* Our error queue buffer - malloc'ed */
+	unsigned char	*ch_equeue;	/* Our error queue buffer - malloc'ed */
 	ushort		ch_e_head;	/* Head location of the error queue */
 	ushort		ch_e_tail;	/* Tail location of the error queue */
 
-	uchar		*ch_wqueue;	/* Our write queue buffer - malloc'ed */
+	unsigned char	*ch_wqueue;	/* Our write queue buffer - malloc'ed */
 	ushort		ch_w_head;	/* Head location of the write queue */
 	ushort		ch_w_tail;	/* Tail location of the write queue */
 
 	ulong		ch_rxcount;	/* total of data received so far */
 	ulong		ch_txcount;	/* total of data transmitted so far */
 
-	uchar		ch_r_tlevel;	/* Receive Trigger level */
-	uchar		ch_t_tlevel;	/* Transmit Trigger level */
+	unsigned char		ch_r_tlevel;	/* Receive Trigger level */
+	unsigned char		ch_t_tlevel;	/* Transmit Trigger level */
 
-	uchar		ch_r_watermark;	/* Receive Watermark */
+	unsigned char		ch_r_watermark;	/* Receive Watermark */
 
 	ulong		ch_stop_sending_break;	/* Time we should STOP sending a break */
 
@@ -481,20 +449,9 @@ struct channel_t {
 	wait_queue_head_t ch_sniff_wait;
 };
 
-
-/*************************************************************************
- *
- * Prototypes for non-static functions used in more than one module
- *
- *************************************************************************/
-
-extern int		dgnc_ms_sleep(ulong ms);
-extern char		*dgnc_ioctl_name(int cmd);
-
 /*
  * Our Global Variables.
  */
-extern int		dgnc_driver_state;	/* The state of the driver	*/
 extern uint		dgnc_Major;		/* Our driver/mgmt major	*/
 extern int		dgnc_debug;		/* Debug variable		*/
 extern int		dgnc_rawreadok;		/* Set if user wants rawreads	*/
@@ -503,8 +460,6 @@ extern int		dgnc_trcbuf_size;	/* Size of the ringbuffer	*/
 extern spinlock_t	dgnc_global_lock;	/* Driver global spinlock	*/
 extern uint		dgnc_NumBoards;		/* Total number of boards	*/
 extern struct dgnc_board	*dgnc_Board[MAXBOARDS];	/* Array of board structs	*/
-extern ulong		dgnc_poll_counter;	/* Times the poller has run	*/
 extern char		*dgnc_state_text[];	/* Array of state text		*/
-extern char		*dgnc_driver_state_text[];/* Array of driver state text */
 
 #endif

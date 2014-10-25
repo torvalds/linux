@@ -2865,7 +2865,7 @@ static void wlc_lcnphy_idle_tssi_est(struct brcms_phy_pub *ppi)
 {
 	bool suspend, tx_gain_override_old;
 	struct lcnphy_txgains old_gains;
-	struct brcms_phy *pi = (struct brcms_phy *) ppi;
+	struct brcms_phy *pi = container_of(ppi, struct brcms_phy, pubpi_ro);
 	u16 idleTssi, idleTssi0_2C, idleTssi0_OB, idleTssi0_regvalue_OB,
 	    idleTssi0_regvalue_2C;
 	u16 SAVE_txpwrctrl = wlc_lcnphy_get_tx_pwr_ctrl(pi);
@@ -3084,7 +3084,7 @@ static void wlc_lcnphy_tx_pwr_ctrl_init(struct brcms_phy_pub *ppi)
 	s32 a1, b0, b1;
 	s32 tssi, pwr, maxtargetpwr, mintargetpwr;
 	bool suspend;
-	struct brcms_phy *pi = (struct brcms_phy *) ppi;
+	struct brcms_phy *pi = container_of(ppi, struct brcms_phy, pubpi_ro);
 
 	suspend = (0 == (bcma_read32(pi->d11core, D11REGOFFS(maccontrol)) &
 			 MCTL_EN_MAC));
@@ -4348,7 +4348,7 @@ void wlc_lcnphy_tx_power_adjustment(struct brcms_phy_pub *ppi)
 {
 	s8 index;
 	u16 index2;
-	struct brcms_phy *pi = (struct brcms_phy *) ppi;
+	struct brcms_phy *pi = container_of(ppi, struct brcms_phy, pubpi_ro);
 	struct brcms_phy_lcnphy *pi_lcn = pi->u.pi_lcnphy;
 	u16 SAVE_txpwrctrl = wlc_lcnphy_get_tx_pwr_ctrl(pi);
 	if (wlc_lcnphy_tempsense_based_pwr_ctrl_enabled(pi) &&

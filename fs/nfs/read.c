@@ -33,12 +33,12 @@ static const struct nfs_rw_ops nfs_rw_read_ops;
 
 static struct kmem_cache *nfs_rdata_cachep;
 
-static struct nfs_rw_header *nfs_readhdr_alloc(void)
+static struct nfs_pgio_header *nfs_readhdr_alloc(void)
 {
 	return kmem_cache_zalloc(nfs_rdata_cachep, GFP_KERNEL);
 }
 
-static void nfs_readhdr_free(struct nfs_rw_header *rhdr)
+static void nfs_readhdr_free(struct nfs_pgio_header *rhdr)
 {
 	kmem_cache_free(nfs_rdata_cachep, rhdr);
 }
@@ -115,12 +115,6 @@ static void nfs_readpage_release(struct nfs_page *req)
 
 		unlock_page(req->wb_page);
 	}
-
-	dprintk("NFS: read done (%s/%Lu %d@%Ld)\n",
-			req->wb_context->dentry->d_inode->i_sb->s_id,
-			(unsigned long long)NFS_FILEID(req->wb_context->dentry->d_inode),
-			req->wb_bytes,
-			(long long)req_offset(req));
 	nfs_release_request(req);
 }
 
@@ -172,14 +166,15 @@ out:
 	hdr->release(hdr);
 }
 
-static void nfs_initiate_read(struct nfs_pgio_data *data, struct rpc_message *msg,
+static void nfs_initiate_read(struct nfs_pgio_header *hdr,
+			      struct rpc_message *msg,
 			      struct rpc_task_setup *task_setup_data, int how)
 {
-	struct inode *inode = data->header->inode;
+	struct inode *inode = hdr->inode;
 	int swap_flags = IS_SWAPFILE(inode) ? NFS_RPC_SWAPFLAGS : 0;
 
 	task_setup_data->flags |= swap_flags;
-	NFS_PROTO(inode)->read_setup(data, msg);
+	NFS_PROTO(inode)->read_setup(hdr, msg);
 }
 
 static void
@@ -203,14 +198,15 @@ static const struct nfs_pgio_completion_ops nfs_async_read_completion_ops = {
  * This is the callback from RPC telling us whether a reply was
  * received or some error occurred (timeout or socket shutdown).
  */
-static int nfs_readpage_done(struct rpc_task *task, struct nfs_pgio_data *data,
+static int nfs_readpage_done(struct rpc_task *task,
+			     struct nfs_pgio_header *hdr,
 			     struct inode *inode)
 {
-	int status = NFS_PROTO(inode)->read_done(task, data);
+	int status = NFS_PROTO(inode)->read_done(task, hdr);
 	if (status != 0)
 		return status;
 
-	nfs_add_stats(inode, NFSIOS_SERVERREADBYTES, data->res.count);
+	nfs_add_stats(inode, NFSIOS_SERVERREADBYTES, hdr->res.count);
 
 	if (task->tk_status == -ESTALE) {
 		set_bit(NFS_INO_STALE, &NFS_I(inode)->flags);
@@ -219,34 +215,34 @@ static int nfs_readpage_done(struct rpc_task *task, struct nfs_pgio_data *data,
 	return 0;
 }
 
-static void nfs_readpage_retry(struct rpc_task *task, struct nfs_pgio_data *data)
+static void nfs_readpage_retry(struct rpc_task *task,
+			       struct nfs_pgio_header *hdr)
 {
-	struct nfs_pgio_args *argp = &data->args;
-	struct nfs_pgio_res  *resp = &data->res;
+	struct nfs_pgio_args *argp = &hdr->args;
+	struct nfs_pgio_res  *resp = &hdr->res;
 
 	/* This is a short read! */
-	nfs_inc_stats(data->header->inode, NFSIOS_SHORTREAD);
+	nfs_inc_stats(hdr->inode, NFSIOS_SHORTREAD);
 	/* Has the server at least made some progress? */
 	if (resp->count == 0) {
-		nfs_set_pgio_error(data->header, -EIO, argp->offset);
+		nfs_set_pgio_error(hdr, -EIO, argp->offset);
 		return;
 	}
-	/* Yes, so retry the read at the end of the data */
-	data->mds_offset += resp->count;
+	/* Yes, so retry the read at the end of the hdr */
+	hdr->mds_offset += resp->count;
 	argp->offset += resp->count;
 	argp->pgbase += resp->count;
 	argp->count -= resp->count;
 	rpc_restart_call_prepare(task);
 }
 
-static void nfs_readpage_result(struct rpc_task *task, struct nfs_pgio_data *data)
+static void nfs_readpage_result(struct rpc_task *task,
+				struct nfs_pgio_header *hdr)
 {
-	struct nfs_pgio_header *hdr = data->header;
-
-	if (data->res.eof) {
+	if (hdr->res.eof) {
 		loff_t bound;
 
-		bound = data->args.offset + data->res.count;
+		bound = hdr->args.offset + hdr->res.count;
 		spin_lock(&hdr->lock);
 		if (bound < hdr->io_start + hdr->good_bytes) {
 			set_bit(NFS_IOHDR_EOF, &hdr->flags);
@@ -254,8 +250,8 @@ static void nfs_readpage_result(struct rpc_task *task, struct nfs_pgio_data *dat
 			hdr->good_bytes = bound - hdr->io_start;
 		}
 		spin_unlock(&hdr->lock);
-	} else if (data->res.count != data->args.count)
-		nfs_readpage_retry(task, data);
+	} else if (hdr->res.count != hdr->args.count)
+		nfs_readpage_retry(task, hdr);
 }
 
 /*
@@ -404,7 +400,7 @@ out:
 int __init nfs_init_readpagecache(void)
 {
 	nfs_rdata_cachep = kmem_cache_create("nfs_read_data",
-					     sizeof(struct nfs_rw_header),
+					     sizeof(struct nfs_pgio_header),
 					     0, SLAB_HWCACHE_ALIGN,
 					     NULL);
 	if (nfs_rdata_cachep == NULL)

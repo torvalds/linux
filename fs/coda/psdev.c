@@ -40,7 +40,7 @@
 #include <linux/pid_namespace.h>
 #include <asm/io.h>
 #include <asm/poll.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/coda.h>
 #include <linux/coda_psdev.h>

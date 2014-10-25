@@ -466,7 +466,12 @@ smb2_verify_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 static inline void
 smb2_seq_num_into_buf(struct TCP_Server_Info *server, struct smb2_hdr *hdr)
 {
+	unsigned int i, num = le16_to_cpu(hdr->CreditCharge);
+
 	hdr->MessageId = get_next_mid64(server);
+	/* skip message numbers according to CreditCharge field */
+	for (i = 1; i < num; i++)
+		get_next_mid(server);
 }
 
 static struct mid_q_entry *

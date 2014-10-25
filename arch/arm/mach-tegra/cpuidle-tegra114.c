@@ -14,16 +14,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
+#include <asm/firmware.h>
+#include <linux/clockchips.h>
 #include <linux/cpuidle.h>
 #include <linux/cpu_pm.h>
-#include <linux/clockchips.h>
-#include <asm/firmware.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 
 #include <asm/cpuidle.h>
-#include <asm/suspend.h>
 #include <asm/smp_plat.h>
+#include <asm/suspend.h>
 
 #include "pm.h"
 #include "sleep.h"

@@ -606,25 +606,21 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	iommu = iommu_domain_alloc(&platform_bus_type);
 	if (iommu) {
 		dev_info(drm->dev, "%s: using IOMMU\n", name);
-		gpu->mmu = msm_iommu_new(drm, iommu);
+		gpu->mmu = msm_iommu_new(&pdev->dev, iommu);
 	} else {
 		dev_info(drm->dev, "%s: no IOMMU, fallback to VRAM carveout!\n", name);
 	}
 	gpu->id = msm_register_mmu(drm, gpu->mmu);
 
+
 	/* Create ringbuffer: */
+	mutex_lock(&drm->struct_mutex);
 	gpu->rb = msm_ringbuffer_new(gpu, ringsz);
+	mutex_unlock(&drm->struct_mutex);
 	if (IS_ERR(gpu->rb)) {
 		ret = PTR_ERR(gpu->rb);
 		gpu->rb = NULL;
 		dev_err(drm->dev, "could not create ringbuffer: %d\n", ret);
-		goto fail;
-	}
-
-	ret = msm_gem_get_iova_locked(gpu->rb->bo, gpu->id, &gpu->rb_iova);
-	if (ret) {
-		gpu->rb_iova = 0;
-		dev_err(drm->dev, "could not map ringbuffer: %d\n", ret);
 		goto fail;
 	}
 

@@ -277,7 +277,7 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 		if (fixup_exception(regs))  /* ILL_TRANS or UNALIGN_DATA */
 			return;
 		if (fault_num >= 0 &&
-		    fault_num < sizeof(int_name)/sizeof(int_name[0]) &&
+		    fault_num < ARRAY_SIZE(int_name) &&
 		    int_name[fault_num] != NULL)
 			name = int_name[fault_num];
 		else

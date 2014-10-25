@@ -73,6 +73,8 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 	 * "bash [libc] malloc" so total 9 entries will be in the tree.
 	 */
 	evlist__for_each(evlist, evsel) {
+		struct hists *hists = evsel__hists(evsel);
+
 		for (k = 0; k < ARRAY_SIZE(fake_common_samples); k++) {
 			const union perf_event event = {
 				.header = {
@@ -87,7 +89,7 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 							  &sample) < 0)
 				goto out;
 
-			he = __hists__add_entry(&evsel->hists, &al, NULL,
+			he = __hists__add_entry(hists, &al, NULL,
 						NULL, NULL, 1, 1, 0, true);
 			if (he == NULL)
 				goto out;
@@ -111,7 +113,7 @@ static int add_hist_entries(struct perf_evlist *evlist, struct machine *machine)
 							  &sample) < 0)
 				goto out;
 
-			he = __hists__add_entry(&evsel->hists, &al, NULL,
+			he = __hists__add_entry(hists, &al, NULL,
 						NULL, NULL, 1, 1, 0, true);
 			if (he == NULL)
 				goto out;
@@ -271,6 +273,7 @@ static int validate_link(struct hists *leader, struct hists *other)
 int test__hists_link(void)
 {
 	int err = -1;
+	struct hists *hists, *first_hists;
 	struct machines machines;
 	struct machine *machine = NULL;
 	struct perf_evsel *evsel, *first;
@@ -306,24 +309,28 @@ int test__hists_link(void)
 		goto out;
 
 	evlist__for_each(evlist, evsel) {
-		hists__collapse_resort(&evsel->hists, NULL);
+		hists = evsel__hists(evsel);
+		hists__collapse_resort(hists, NULL);
 
 		if (verbose > 2)
-			print_hists_in(&evsel->hists);
+			print_hists_in(hists);
 	}
 
 	first = perf_evlist__first(evlist);
 	evsel = perf_evlist__last(evlist);
 
+	first_hists = evsel__hists(first);
+	hists = evsel__hists(evsel);
+
 	/* match common entries */
-	hists__match(&first->hists, &evsel->hists);
-	err = validate_match(&first->hists, &evsel->hists);
+	hists__match(first_hists, hists);
+	err = validate_match(first_hists, hists);
 	if (err)
 		goto out;
 
 	/* link common and/or dummy entries */
-	hists__link(&first->hists, &evsel->hists);
-	err = validate_link(&first->hists, &evsel->hists);
+	hists__link(first_hists, hists);
+	err = validate_link(first_hists, hists);
 	if (err)
 		goto out;
 

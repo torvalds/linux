@@ -53,7 +53,7 @@ static int bochs_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	if (old_fb) {
 		bochs_fb = to_bochs_framebuffer(old_fb);
 		bo = gem_to_bochs_bo(bochs_fb->obj);
-		ret = ttm_bo_reserve(&bo->bo, true, false, false, 0);
+		ret = ttm_bo_reserve(&bo->bo, true, false, false, NULL);
 		if (ret) {
 			DRM_ERROR("failed to reserve old_fb bo\n");
 		} else {
@@ -67,7 +67,7 @@ static int bochs_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 
 	bochs_fb = to_bochs_framebuffer(crtc->primary->fb);
 	bo = gem_to_bochs_bo(bochs_fb->obj);
-	ret = ttm_bo_reserve(&bo->bo, true, false, false, 0);
+	ret = ttm_bo_reserve(&bo->bo, true, false, false, NULL);
 	if (ret)
 		return ret;
 
@@ -216,18 +216,9 @@ static struct drm_encoder *
 bochs_connector_best_encoder(struct drm_connector *connector)
 {
 	int enc_id = connector->encoder_ids[0];
-	struct drm_mode_object *obj;
-	struct drm_encoder *encoder;
-
 	/* pick the encoder ids */
-	if (enc_id) {
-		obj = drm_mode_object_find(connector->dev, enc_id,
-					   DRM_MODE_OBJECT_ENCODER);
-		if (!obj)
-			return NULL;
-		encoder = obj_to_encoder(obj);
-		return encoder;
-	}
+	if (enc_id)
+		return drm_encoder_find(connector->dev, enc_id);
 	return NULL;
 }
 
@@ -259,6 +250,7 @@ static void bochs_connector_init(struct drm_device *dev)
 			   DRM_MODE_CONNECTOR_VIRTUAL);
 	drm_connector_helper_add(connector,
 				 &bochs_connector_connector_helper_funcs);
+	drm_connector_register(connector);
 }
 
 

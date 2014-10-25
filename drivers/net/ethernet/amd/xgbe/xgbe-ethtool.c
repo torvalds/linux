@@ -121,7 +121,6 @@
 #include "xgbe.h"
 #include "xgbe-common.h"
 
-
 struct xgbe_stats {
 	char stat_string[ETH_GSTRING_LEN];
 	int stat_size;
@@ -173,6 +172,7 @@ static const struct xgbe_stats xgbe_gstring_stats[] = {
 	XGMAC_MMC_STAT("rx_watchdog_errors", rxwatchdogerror),
 	XGMAC_MMC_STAT("rx_pause_frames", rxpauseframes),
 };
+
 #define XGBE_STATS_COUNT	ARRAY_SIZE(xgbe_gstring_stats)
 
 static void xgbe_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
@@ -361,15 +361,16 @@ static void xgbe_get_drvinfo(struct net_device *netdev,
 			     struct ethtool_drvinfo *drvinfo)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+	struct xgbe_hw_features *hw_feat = &pdata->hw_feat;
 
 	strlcpy(drvinfo->driver, XGBE_DRV_NAME, sizeof(drvinfo->driver));
 	strlcpy(drvinfo->version, XGBE_DRV_VERSION, sizeof(drvinfo->version));
 	strlcpy(drvinfo->bus_info, dev_name(pdata->dev),
 		sizeof(drvinfo->bus_info));
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version), "%d.%d.%d",
-		 XGMAC_IOREAD_BITS(pdata, MAC_VR, USERVER),
-		 XGMAC_IOREAD_BITS(pdata, MAC_VR, DEVID),
-		 XGMAC_IOREAD_BITS(pdata, MAC_VR, SNPSVER));
+		 XGMAC_GET_BITS(hw_feat->version, MAC_VR, USERVER),
+		 XGMAC_GET_BITS(hw_feat->version, MAC_VR, DEVID),
+		 XGMAC_GET_BITS(hw_feat->version, MAC_VR, SNPSVER));
 	drvinfo->n_stats = XGBE_STATS_COUNT;
 }
 

@@ -174,7 +174,7 @@
 				status = "okay";
 
 				isl12057: isl12057@68 {
-					compatible = "isl,isl12057";
+					compatible = "isil,isl12057";
 					reg = <0x68>;
 				};
 
@@ -222,6 +222,10 @@
 				marvell,nand-keep-config;
 				marvell,nand-enable-arbiter;
 				nand-on-flash-bbt;
+
+				/* Use Hardware BCH ECC */
+				nand-ecc-strength = <4>;
+				nand-ecc-step-size = <512>;
 
 				partition@0 {
 					label = "u-boot";
