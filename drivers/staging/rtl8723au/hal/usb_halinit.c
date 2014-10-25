@@ -1485,7 +1485,6 @@ void rtl8723a_update_ramask(struct rtw_adapter *padapter,
 	}
 
 	/* mask &= 0x0fffffff; */
-	rate_bitmap = 0x0fffffff;
 	rate_bitmap = ODM_Get_Rate_Bitmap23a(pHalData, mac_id, mask,
 					     rssi_level);
 	DBG_8723A("%s => mac_id:%d, networkType:0x%02x, "

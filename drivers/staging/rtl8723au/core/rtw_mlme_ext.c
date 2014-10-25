@@ -2339,8 +2339,6 @@ static int update_hidden_ssid(u8 *ies, u32 ies_len, u8 hidden_ssid_mode)
 		switch (hidden_ssid_mode) {
 		case 1:
 			next_ie = ssid_ie + 2 + ssid_len_ori;
-			remain_len = 0;
-
 			remain_len = ies_len -(next_ie-ies);
 
 			ssid_ie[1] = 0;
