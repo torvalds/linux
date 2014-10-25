@@ -49,7 +49,7 @@ struct rx_work {
 static void
 mac802154_subif_rx(struct ieee802154_hw *hw, struct sk_buff *skb, u8 lqi)
 {
-	struct ieee802154_local *local = mac802154_to_priv(hw);
+	struct ieee802154_local *local = hw_to_local(hw);
 
 	mac_cb(skb)->lqi = lqi;
 	skb->protocol = htons(ETH_P_IEEE802154);
@@ -90,7 +90,7 @@ static void mac802154_rx_worker(struct work_struct *work)
 void
 ieee802154_rx_irqsafe(struct ieee802154_hw *hw, struct sk_buff *skb, u8 lqi)
 {
-	struct ieee802154_local *local = mac802154_to_priv(hw);
+	struct ieee802154_local *local = hw_to_local(hw);
 	struct rx_work *work;
 
 	if (!skb)

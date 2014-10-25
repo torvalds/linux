@@ -88,7 +88,7 @@ netdev_tx_t mac802154_tx(struct ieee802154_local *local, struct sk_buff *skb,
 		goto err_tx;
 	}
 
-	mac802154_monitors_rx(mac802154_to_priv(&local->hw), skb);
+	mac802154_monitors_rx(local, skb);
 
 	if (!(local->hw.flags & IEEE802154_HW_OMIT_CKSUM)) {
 		u16 crc = crc_ccitt(0, skb->data, skb->len);

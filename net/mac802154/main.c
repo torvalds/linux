@@ -289,7 +289,7 @@ EXPORT_SYMBOL(ieee802154_alloc_hw);
 
 void ieee802154_free_hw(struct ieee802154_hw *hw)
 {
-	struct ieee802154_local *local = mac802154_to_priv(hw);
+	struct ieee802154_local *local = hw_to_local(hw);
 
 	BUG_ON(!list_empty(&local->interfaces));
 
@@ -301,7 +301,7 @@ EXPORT_SYMBOL(ieee802154_free_hw);
 
 int ieee802154_register_hw(struct ieee802154_hw *hw)
 {
-	struct ieee802154_local *local = mac802154_to_priv(hw);
+	struct ieee802154_local *local = hw_to_local(hw);
 	int rc = -ENOSYS;
 
 	if (hw->flags & IEEE802154_HW_TXPOWER) {
@@ -381,7 +381,7 @@ EXPORT_SYMBOL(ieee802154_register_hw);
 
 void ieee802154_unregister_hw(struct ieee802154_hw *hw)
 {
-	struct ieee802154_local *local = mac802154_to_priv(hw);
+	struct ieee802154_local *local = hw_to_local(hw);
 	struct ieee802154_sub_if_data *sdata, *next;
 
 	flush_workqueue(local->dev_workqueue);
