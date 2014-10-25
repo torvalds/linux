@@ -36,6 +36,12 @@
 			#clock-cells = <0>;
 			clock-frequency = <2000000000>;
 		};
+		/* 25 MHz reference crystal */
+		refclk: oscillator {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <25000000>;
+		};
 	};
 
 	cpus {
@@ -366,13 +372,15 @@
 						      <&gic  GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
 						      <&mpic 5>,
 						      <&mpic 6>;
-				clocks = <&coreclk 0>;
+				clocks = <&coreclk 0>, <&refclk>;
+				clock-names = "nbclk", "fixed";
 			};
 
 			watchdog@20300 {
 				compatible = "marvell,armada-375-wdt";
 				reg = <0x20300 0x34>, <0x20704 0x4>, <0x18254 0x4>;
-				clocks = <&coreclk 0>;
+				clocks = <&coreclk 0>, <&refclk>;
+				clock-names = "nbclk", "fixed";
 			};
 
 			cpurst@20800 {
