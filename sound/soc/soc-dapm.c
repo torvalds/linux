@@ -159,6 +159,116 @@ static void dapm_mark_dirty(struct snd_soc_dapm_widget *w, const char *reason)
 	}
 }
 
+/*
+ * dapm_widget_invalidate_input_paths() - Invalidate the cached number of input
+ *  paths
+ * @w: The widget for which to invalidate the cached number of input paths
+ *
+ * The function resets the cached number of inputs for the specified widget and
+ * all widgets that can be reached via outgoing paths from the widget.
+ *
+ * This function must be called if the number of input paths for a widget might
+ * have changed. E.g. if the source state of a widget changes or a path is added
+ * or activated with the widget as the sink.
+ */
+static void dapm_widget_invalidate_input_paths(struct snd_soc_dapm_widget *w)
+{
+	struct snd_soc_dapm_widget *sink;
+	struct snd_soc_dapm_path *p;
+	LIST_HEAD(list);
+
+	dapm_assert_locked(w->dapm);
+
+	if (w->inputs == -1)
+		return;
+
+	w->inputs = -1;
+	list_add_tail(&w->work_list, &list);
+
+	list_for_each_entry(w, &list, work_list) {
+		list_for_each_entry(p, &w->sinks, list_source) {
+			if (p->is_supply || p->weak || !p->connect)
+				continue;
+			sink = p->sink;
+			if (sink->inputs != -1) {
+				sink->inputs = -1;
+				list_add_tail(&sink->work_list, &list);
+			}
+		}
+	}
+}
+
+/*
+ * dapm_widget_invalidate_output_paths() - Invalidate the cached number of
+ *  output paths
+ * @w: The widget for which to invalidate the cached number of output paths
+ *
+ * Resets the cached number of outputs for the specified widget and all widgets
+ * that can be reached via incoming paths from the widget.
+ *
+ * This function must be called if the number of output paths for a widget might
+ * have changed. E.g. if the sink state of a widget changes or a path is added
+ * or activated with the widget as the source.
+ */
+static void dapm_widget_invalidate_output_paths(struct snd_soc_dapm_widget *w)
+{
+	struct snd_soc_dapm_widget *source;
+	struct snd_soc_dapm_path *p;
+	LIST_HEAD(list);
+
+	dapm_assert_locked(w->dapm);
+
+	if (w->outputs == -1)
+		return;
+
+	w->outputs = -1;
+	list_add_tail(&w->work_list, &list);
+
+	list_for_each_entry(w, &list, work_list) {
+		list_for_each_entry(p, &w->sources, list_sink) {
+			if (p->is_supply || p->weak || !p->connect)
+				continue;
+			source = p->source;
+			if (source->outputs != -1) {
+				source->outputs = -1;
+				list_add_tail(&source->work_list, &list);
+			}
+		}
+	}
+}
+
+/*
+ * dapm_path_invalidate() - Invalidates the cached number of inputs and outputs
+ *  for the widgets connected to a path
+ * @p: The path to invalidate
+ *
+ * Resets the cached number of inputs for the sink of the path and the cached
+ * number of outputs for the source of the path.
+ *
+ * This function must be called when a path is added, removed or the connected
+ * state changes.
+ */
+static void dapm_path_invalidate(struct snd_soc_dapm_path *p)
+{
+	/*
+	 * Weak paths or supply paths do not influence the number of input or
+	 * output paths of their neighbors.
+	 */
+	if (p->weak || p->is_supply)
+		return;
+
+	/*
+	 * The number of connected endpoints is the sum of the number of
+	 * connected endpoints of all neighbors. If a node with 0 connected
+	 * endpoints is either connected or disconnected that sum won't change,
+	 * so there is no need to re-check the path.
+	 */
+	if (p->source->inputs != 0)
+		dapm_widget_invalidate_input_paths(p->sink);
+	if (p->sink->outputs != 0)
+		dapm_widget_invalidate_output_paths(p->source);
+}
+
 void dapm_mark_endpoints_dirty(struct snd_soc_card *card)
 {
 	struct snd_soc_dapm_widget *w;
@@ -166,8 +276,13 @@ void dapm_mark_endpoints_dirty(struct snd_soc_card *card)
 	mutex_lock(&card->dapm_mutex);
 
 	list_for_each_entry(w, &card->widgets, list) {
-		if (w->is_sink || w->is_source)
+		if (w->is_sink || w->is_source) {
 			dapm_mark_dirty(w, "Rechecking endpoints");
+			if (w->is_sink)
+				dapm_widget_invalidate_output_paths(w);
+			if (w->is_source)
+				dapm_widget_invalidate_input_paths(w);
+		}
 	}
 
 	mutex_unlock(&card->dapm_mutex);
@@ -379,8 +494,6 @@ static void dapm_reset(struct snd_soc_card *card)
 	list_for_each_entry(w, &card->widgets, list) {
 		w->new_power = w->power;
 		w->power_checked = false;
-		w->inputs = -1;
-		w->outputs = -1;
 	}
 }
 
@@ -931,10 +1044,19 @@ int snd_soc_dapm_dai_get_connected_widgets(struct snd_soc_dai *dai, int stream,
 	struct snd_soc_dapm_widget_list **list)
 {
 	struct snd_soc_card *card = dai->card;
+	struct snd_soc_dapm_widget *w;
 	int paths;
 
 	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
-	dapm_reset(card);
+
+	/*
+	 * For is_connected_{output,input}_ep fully discover the graph we need
+	 * to reset the cached number of inputs and outputs.
+	 */
+	list_for_each_entry(w, &card->widgets, list) {
+		w->inputs = -1;
+		w->outputs = -1;
+	}
 
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
 		paths = is_connected_output_ep(dai->playback_widget, list);
@@ -1846,6 +1968,7 @@ static void soc_dapm_connect_path(struct snd_soc_dapm_path *path,
 	path->connect = connect;
 	dapm_mark_dirty(path->source, reason);
 	dapm_mark_dirty(path->sink, reason);
+	dapm_path_invalidate(path);
 }
 
 /* test and update the power status of a mux widget */
@@ -2084,8 +2207,11 @@ static int snd_soc_dapm_set_pin(struct snd_soc_dapm_context *dapm,
 		return -EINVAL;
 	}
 
-	if (w->connected != status)
+	if (w->connected != status) {
 		dapm_mark_dirty(w, "pin configuration");
+		dapm_widget_invalidate_input_paths(w);
+		dapm_widget_invalidate_output_paths(w);
+	}
 
 	w->connected = status;
 	if (status == 0)
@@ -2267,6 +2393,9 @@ static int snd_soc_dapm_add_path(struct snd_soc_dapm_context *dapm,
 	dapm_mark_dirty(wsource, "Route added");
 	dapm_mark_dirty(wsink, "Route added");
 
+	if (dapm->card->instantiated && path->connect)
+		dapm_path_invalidate(path);
+
 	return 0;
 err:
 	kfree(path);
@@ -2390,6 +2519,8 @@ static int snd_soc_dapm_del_route(struct snd_soc_dapm_context *dapm,
 
 		dapm_mark_dirty(wsource, "Route removed");
 		dapm_mark_dirty(wsink, "Route removed");
+		if (path->connect)
+			dapm_path_invalidate(path);
 
 		dapm_free_path(path);
 
@@ -3007,6 +3138,9 @@ snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 	INIT_LIST_HEAD(&w->dirty);
 	list_add(&w->list, &dapm->card->widgets);
 
+	w->inputs = -1;
+	w->outputs = -1;
+
 	/* machine layer set ups unconnected pins and insertions */
 	w->connected = 1;
 	return w;
@@ -3355,10 +3489,13 @@ static void soc_dapm_dai_stream_event(struct snd_soc_dai *dai, int stream,
 			break;
 		}
 
-		if (w->id == snd_soc_dapm_dai_in)
+		if (w->id == snd_soc_dapm_dai_in) {
 			w->is_source = w->active;
-		else
+			dapm_widget_invalidate_input_paths(w);
+		} else {
 			w->is_sink = w->active;
+			dapm_widget_invalidate_output_paths(w);
+		}
 	}
 }
 
@@ -3485,7 +3622,15 @@ int snd_soc_dapm_force_enable_pin_unlocked(struct snd_soc_dapm_context *dapm,
 	}
 
 	dev_dbg(w->dapm->dev, "ASoC: force enable pin %s\n", pin);
-	w->connected = 1;
+	if (!w->connected) {
+		/*
+		 * w->force does not affect the number of input or output paths,
+		 * so we only have to recheck if w->connected is changed
+		 */
+		dapm_widget_invalidate_input_paths(w);
+		dapm_widget_invalidate_output_paths(w);
+		w->connected = 1;
+	}
 	w->force = 1;
 	dapm_mark_dirty(w, "force enable");
 

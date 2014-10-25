@@ -569,6 +569,7 @@ struct snd_soc_dapm_widget {
 	struct list_head sinks;
 
 	/* used during DAPM updates */
+	struct list_head work_list;
 	struct list_head power_list;
 	struct list_head dirty;
 	int inputs;
