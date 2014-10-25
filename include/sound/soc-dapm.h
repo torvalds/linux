@@ -435,7 +435,7 @@ void snd_soc_dapm_auto_nc_pins(struct snd_soc_card *card);
 unsigned int dapm_kcontrol_get_value(const struct snd_kcontrol *kcontrol);
 
 /* Mostly internal - should not normally be used */
-void dapm_mark_io_dirty(struct snd_soc_dapm_context *dapm);
+void dapm_mark_endpoints_dirty(struct snd_soc_card *card);
 
 /* dapm path query */
 int snd_soc_dapm_dai_get_connected_widgets(struct snd_soc_dai *dai, int stream,
