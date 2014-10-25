@@ -593,7 +593,7 @@ cc2520_filter(struct ieee802154_dev *dev,
 {
 	struct cc2520_private *priv = dev->priv;
 
-	if (changed & IEEE802515_AFILT_PANID_CHANGED) {
+	if (changed & IEEE802154_AFILT_PANID_CHANGED) {
 		u16 panid = le16_to_cpu(filt->pan_id);
 
 		dev_vdbg(&priv->spi->dev,
@@ -602,7 +602,7 @@ cc2520_filter(struct ieee802154_dev *dev,
 				 sizeof(panid), (u8 *)&panid);
 	}
 
-	if (changed & IEEE802515_AFILT_IEEEADDR_CHANGED) {
+	if (changed & IEEE802154_AFILT_IEEEADDR_CHANGED) {
 		dev_vdbg(&priv->spi->dev,
 			 "cc2520_filter called for IEEE addr\n");
 		cc2520_write_ram(priv, CC2520RAM_IEEEADDR,
@@ -610,7 +610,7 @@ cc2520_filter(struct ieee802154_dev *dev,
 				 (u8 *)&filt->ieee_addr);
 	}
 
-	if (changed & IEEE802515_AFILT_SADDR_CHANGED) {
+	if (changed & IEEE802154_AFILT_SADDR_CHANGED) {
 		u16 addr = le16_to_cpu(filt->short_addr);
 
 		dev_vdbg(&priv->spi->dev,
@@ -619,7 +619,7 @@ cc2520_filter(struct ieee802154_dev *dev,
 				 sizeof(addr), (u8 *)&addr);
 	}
 
-	if (changed & IEEE802515_AFILT_PANC_CHANGED) {
+	if (changed & IEEE802154_AFILT_PANC_CHANGED) {
 		dev_vdbg(&priv->spi->dev,
 			 "cc2520_filter called for panc change\n");
 		if (filt->pan_coord)
