@@ -45,6 +45,12 @@ config BT_6LOWPAN
 	help
 	  IPv6 compression over Bluetooth Low Energy.
 
+config BT_SELFTEST
+	bool "Run self-tests on boot"
+	depends on BT && DEBUG_KERNEL
+	help
+	  Run self-tests during boot. Currently limited to SMP.
+
 source "net/bluetooth/rfcomm/Kconfig"
 
 source "net/bluetooth/bnep/Kconfig"

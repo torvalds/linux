@@ -1743,3 +1743,36 @@ void smp_unregister(struct hci_dev *hdev)
 	hdev->smp_data = NULL;
 	l2cap_chan_put(chan);
 }
+
+#ifdef CONFIG_BT_SELFTEST
+
+static int __init run_selftests(struct crypto_blkcipher *tfm_aes)
+{
+	return 0;
+}
+
+static int __init test_smp(void)
+{
+	struct crypto_blkcipher *tfm_aes;
+	int err;
+
+	tfm_aes = crypto_alloc_blkcipher("ecb(aes)", 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(tfm_aes)) {
+		BT_ERR("Unable to create ECB crypto context");
+		return PTR_ERR(tfm_aes);
+	}
+
+	err = run_selftests(tfm_aes);
+	if (err < 0)
+		BT_ERR("Self tests failed");
+	else
+		BT_INFO("Self-tests passed");
+
+	crypto_free_blkcipher(tfm_aes);
+
+	return err;
+}
+
+module_init(test_smp);
+
+#endif /* CONFIG_BT_SELFTEST */
