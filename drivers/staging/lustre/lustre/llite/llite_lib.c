@@ -2169,7 +2169,13 @@ int ll_obd_statfs(struct inode *inode, void *arg)
 	__u32 flags;
 	int len = 0, rc;
 
-	if (!inode || !(sbi = ll_i2sbi(inode))) {
+	if (!inode) {
+		rc = -EINVAL;
+		goto out_statfs;
+	}
+
+	sbi = ll_i2sbi(inode);
+	if (!sbi) {
 		rc = -EINVAL;
 		goto out_statfs;
 	}
