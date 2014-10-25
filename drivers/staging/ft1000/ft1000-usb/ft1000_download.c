@@ -837,7 +837,7 @@ int scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 					if (word_length & 0x1)
 						word_length++;
 
-					word_length = (word_length / 2);
+					word_length = word_length / 2;
 
 					for (; word_length > 0; word_length--) {	/* In words */
 
@@ -871,7 +871,7 @@ int scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 					if (word_length & 0x1)
 						word_length++;
 
-					word_length = (word_length / 2);
+					word_length = word_length / 2;
 
 					for (; word_length > 0; word_length--) {	/* In words */
 
