@@ -75,7 +75,7 @@ static int mac802154_mlme_start_req(struct net_device *dev,
 
 static struct wpan_phy *mac802154_get_phy(const struct net_device *dev)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 

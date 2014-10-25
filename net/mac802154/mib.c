@@ -38,7 +38,7 @@ struct hw_addr_filt_notify_work {
 
 static struct ieee802154_local *mac802154_slave_get_priv(struct net_device *dev)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
@@ -62,7 +62,7 @@ static void hw_addr_notify(struct work_struct *work)
 
 static void set_hw_addr_filt(struct net_device *dev, unsigned long changed)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct hw_addr_filt_notify_work *work;
 
 	work = kzalloc(sizeof(*work), GFP_ATOMIC);
@@ -77,7 +77,7 @@ static void set_hw_addr_filt(struct net_device *dev, unsigned long changed)
 
 void mac802154_dev_set_short_addr(struct net_device *dev, __le16 val)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
@@ -94,7 +94,7 @@ void mac802154_dev_set_short_addr(struct net_device *dev, __le16 val)
 
 __le16 mac802154_dev_get_short_addr(const struct net_device *dev)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	__le16 ret;
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
@@ -108,7 +108,7 @@ __le16 mac802154_dev_get_short_addr(const struct net_device *dev)
 
 void mac802154_dev_set_ieee_addr(struct net_device *dev)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct ieee802154_local *local = sdata->local;
 
 	sdata->extended_addr = ieee802154_devaddr_from_raw(dev->dev_addr);
@@ -122,7 +122,7 @@ void mac802154_dev_set_ieee_addr(struct net_device *dev)
 
 __le16 mac802154_dev_get_pan_id(const struct net_device *dev)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	__le16 ret;
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
@@ -136,7 +136,7 @@ __le16 mac802154_dev_get_pan_id(const struct net_device *dev)
 
 void mac802154_dev_set_pan_id(struct net_device *dev, __le16 val)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
@@ -153,7 +153,7 @@ void mac802154_dev_set_pan_id(struct net_device *dev, __le16 val)
 
 u8 mac802154_dev_get_dsn(const struct net_device *dev)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
@@ -164,8 +164,9 @@ static void phy_chan_notify(struct work_struct *work)
 {
 	struct phy_chan_notify_work *nw = container_of(work,
 					  struct phy_chan_notify_work, work);
-	struct ieee802154_local *local = mac802154_slave_get_priv(nw->dev);
-	struct ieee802154_sub_if_data *sdata = netdev_priv(nw->dev);
+	struct net_device *dev = nw->dev;
+	struct ieee802154_local *local = mac802154_slave_get_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	int res;
 
 	mutex_lock(&sdata->local->phy->pib_lock);
@@ -183,7 +184,7 @@ static void phy_chan_notify(struct work_struct *work)
 
 void mac802154_dev_set_page_channel(struct net_device *dev, u8 page, u8 chan)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct phy_chan_notify_work *work;
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
@@ -214,7 +215,7 @@ void mac802154_dev_set_page_channel(struct net_device *dev, u8 page, u8 chan)
 int mac802154_get_params(struct net_device *dev,
 			 struct ieee802154_llsec_params *params)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	int res;
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
@@ -230,7 +231,7 @@ int mac802154_set_params(struct net_device *dev,
 			 const struct ieee802154_llsec_params *params,
 			 int changed)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	int res;
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
@@ -247,7 +248,7 @@ int mac802154_add_key(struct net_device *dev,
 		      const struct ieee802154_llsec_key_id *id,
 		      const struct ieee802154_llsec_key *key)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	int res;
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
@@ -262,7 +263,7 @@ int mac802154_add_key(struct net_device *dev,
 int mac802154_del_key(struct net_device *dev,
 		      const struct ieee802154_llsec_key_id *id)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	int res;
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
@@ -278,7 +279,7 @@ int mac802154_del_key(struct net_device *dev,
 int mac802154_add_dev(struct net_device *dev,
 		      const struct ieee802154_llsec_device *llsec_dev)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	int res;
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
@@ -292,7 +293,7 @@ int mac802154_add_dev(struct net_device *dev,
 
 int mac802154_del_dev(struct net_device *dev, __le64 dev_addr)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	int res;
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
@@ -309,7 +310,7 @@ int mac802154_add_devkey(struct net_device *dev,
 			 __le64 device_addr,
 			 const struct ieee802154_llsec_device_key *key)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	int res;
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
@@ -325,7 +326,7 @@ int mac802154_del_devkey(struct net_device *dev,
 			 __le64 device_addr,
 			 const struct ieee802154_llsec_device_key *key)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	int res;
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
@@ -341,7 +342,7 @@ int mac802154_del_devkey(struct net_device *dev,
 int mac802154_add_seclevel(struct net_device *dev,
 			   const struct ieee802154_llsec_seclevel *sl)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	int res;
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
@@ -356,7 +357,7 @@ int mac802154_add_seclevel(struct net_device *dev,
 int mac802154_del_seclevel(struct net_device *dev,
 			   const struct ieee802154_llsec_seclevel *sl)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	int res;
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
@@ -371,7 +372,7 @@ int mac802154_del_seclevel(struct net_device *dev,
 
 void mac802154_lock_table(struct net_device *dev)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
@@ -381,7 +382,7 @@ void mac802154_lock_table(struct net_device *dev)
 void mac802154_get_table(struct net_device *dev,
 			 struct ieee802154_llsec_table **t)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
@@ -390,7 +391,7 @@ void mac802154_get_table(struct net_device *dev,
 
 void mac802154_unlock_table(struct net_device *dev)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 

@@ -33,7 +33,7 @@
 
 static int mac802154_wpan_update_llsec(struct net_device *dev)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct ieee802154_mlme_ops *ops = ieee802154_mlme_ops(dev);
 	int rc = 0;
 
@@ -56,7 +56,7 @@ static int mac802154_wpan_update_llsec(struct net_device *dev)
 static int
 mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct sockaddr_ieee802154 *sa =
 		(struct sockaddr_ieee802154 *)&ifr->ifr_addr;
 	int err = -ENOIOCTLCMD;
@@ -123,7 +123,7 @@ static int mac802154_wpan_mac_addr(struct net_device *dev, void *p)
 int mac802154_set_mac_params(struct net_device *dev,
 			     const struct ieee802154_mac_params *params)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 
 	mutex_lock(&sdata->local->iflist_mtx);
 	sdata->mac_params = *params;
@@ -135,7 +135,7 @@ int mac802154_set_mac_params(struct net_device *dev,
 void mac802154_get_mac_params(struct net_device *dev,
 			      struct ieee802154_mac_params *params)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 
 	mutex_lock(&sdata->local->iflist_mtx);
 	*params = sdata->mac_params;
@@ -145,7 +145,7 @@ void mac802154_get_mac_params(struct net_device *dev,
 static int mac802154_wpan_open(struct net_device *dev)
 {
 	int rc;
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct wpan_phy *phy = sdata->local->phy;
 
 	rc = mac802154_slave_open(dev);
@@ -241,7 +241,7 @@ static int mac802154_header_create(struct sk_buff *skb,
 				   unsigned len)
 {
 	struct ieee802154_hdr hdr;
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct ieee802154_mac_cb *cb = mac_cb(skb);
 	int hlen;
 
@@ -314,7 +314,7 @@ mac802154_wpan_xmit(struct sk_buff *skb, struct net_device *dev)
 	u8 chan, page;
 	int rc;
 
-	sdata = netdev_priv(dev);
+	sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 
 	spin_lock_bh(&sdata->mib_lock);
 	chan = sdata->chan;
@@ -357,7 +357,7 @@ static const struct net_device_ops mac802154_wpan_ops = {
 
 static void mac802154_wpan_free(struct net_device *dev)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 
 	mac802154_llsec_destroy(&sdata->sec);
 
@@ -384,7 +384,7 @@ void mac802154_wpan_setup(struct net_device *dev)
 	dev->netdev_ops		= &mac802154_wpan_ops;
 	dev->ml_priv		= &mac802154_mlme_wpan;
 
-	sdata = netdev_priv(dev);
+	sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	sdata->type = IEEE802154_DEV_WPAN;
 
 	sdata->chan = MAC802154_CHAN_NONE;

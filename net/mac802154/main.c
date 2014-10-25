@@ -31,7 +31,7 @@
 
 int mac802154_slave_open(struct net_device *dev)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct ieee802154_sub_if_data *subif;
 	struct ieee802154_local *local = sdata->local;
 	int res = 0;
@@ -81,7 +81,7 @@ err:
 
 int mac802154_slave_close(struct net_device *dev)
 {
-	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct ieee802154_local *local = sdata->local;
 
 	ASSERT_RTNL();
@@ -101,13 +101,12 @@ int mac802154_slave_close(struct net_device *dev)
 static int
 mac802154_netdev_register(struct wpan_phy *phy, struct net_device *dev)
 {
-	struct ieee802154_sub_if_data *sdata;
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct ieee802154_local *local;
 	int err;
 
 	local = wpan_phy_priv(phy);
 
-	sdata = netdev_priv(dev);
 	sdata->dev = dev;
 	sdata->local = local;
 
@@ -138,11 +137,9 @@ mac802154_netdev_register(struct wpan_phy *phy, struct net_device *dev)
 static void
 mac802154_del_iface(struct wpan_phy *phy, struct net_device *dev)
 {
-	struct ieee802154_sub_if_data *sdata;
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 
 	ASSERT_RTNL();
-
-	sdata = netdev_priv(dev);
 
 	BUG_ON(sdata->local->phy != phy);
 

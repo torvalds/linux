@@ -107,6 +107,12 @@ hw_to_local(struct ieee802154_hw *hw)
 	return container_of(hw, struct ieee802154_local, hw);
 }
 
+static inline struct ieee802154_sub_if_data *
+IEEE802154_DEV_TO_SUB_IF(const struct net_device *dev)
+{
+	return netdev_priv(dev);
+}
+
 extern struct ieee802154_reduced_mlme_ops mac802154_mlme_reduced;
 extern struct ieee802154_mlme_ops mac802154_mlme_wpan;
 

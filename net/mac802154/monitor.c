@@ -36,7 +36,7 @@ static netdev_tx_t mac802154_monitor_xmit(struct sk_buff *skb,
 	struct ieee802154_sub_if_data *sdata;
 	u8 chan, page;
 
-	sdata = netdev_priv(dev);
+	sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 
 	/* FIXME: locking */
 	chan = sdata->local->phy->current_channel;
@@ -105,7 +105,7 @@ void mac802154_monitor_setup(struct net_device *dev)
 	dev->netdev_ops		= &mac802154_monitor_ops;
 	dev->ml_priv		= &mac802154_mlme_reduced;
 
-	sdata = netdev_priv(dev);
+	sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	sdata->type = IEEE802154_DEV_MONITOR;
 
 	sdata->chan = MAC802154_CHAN_NONE; /* not initialized */
