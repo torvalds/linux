@@ -738,8 +738,10 @@ static int dapm_new_mux(struct snd_soc_dapm_widget *w)
 	if (ret < 0)
 		return ret;
 
-	list_for_each_entry(path, &w->sources, list_sink)
-		dapm_kcontrol_add_path(w->kcontrols[0], path);
+	list_for_each_entry(path, &w->sources, list_sink) {
+		if (path->name)
+			dapm_kcontrol_add_path(w->kcontrols[0], path);
+	}
 
 	return 0;
 }
@@ -1955,9 +1957,6 @@ static int soc_dapm_mux_update_power(struct snd_soc_card *card,
 
 	/* find dapm widget path assoc with kcontrol */
 	dapm_kcontrol_for_each_path(path, kcontrol) {
-		if (!path->name || !e->texts[mux])
-			continue;
-
 		found = 1;
 		/* we now need to match the string in the enum to the path */
 		if (!(strcmp(path->name, e->texts[mux])))
