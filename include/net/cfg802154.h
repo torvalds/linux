@@ -14,8 +14,8 @@
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
  */
 
-#ifndef WPAN_PHY_H
-#define WPAN_PHY_H
+#ifndef __NET_CFG802154_H
+#define __NET_CFG802154_H
 
 #include <linux/netdevice.h>
 #include <linux/mutex.h>
@@ -99,4 +99,5 @@ static inline const char *wpan_phy_name(struct wpan_phy *phy)
 {
 	return dev_name(&phy->dev);
 }
-#endif
+
+#endif /* __NET_CFG802154_H */

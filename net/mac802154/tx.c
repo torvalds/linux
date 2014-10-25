@@ -23,7 +23,7 @@
 
 #include <net/ieee802154_netdev.h>
 #include <net/mac802154.h>
-#include <net/wpan-phy.h>
+#include <net/cfg802154.h>
 
 #include "ieee802154_i.h"
 

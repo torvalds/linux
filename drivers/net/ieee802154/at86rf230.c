@@ -32,7 +32,7 @@
 
 #include <net/ieee802154.h>
 #include <net/mac802154.h>
-#include <net/wpan-phy.h>
+#include <net/cfg802154.h>
 
 struct at86rf230_local;
 /* at86rf2xx chip depend data.

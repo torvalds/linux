@@ -18,7 +18,7 @@
 #include <linux/spi/spi.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
-#include <net/wpan-phy.h>
+#include <net/cfg802154.h>
 #include <net/mac802154.h>
 #include <net/ieee802154.h>
 

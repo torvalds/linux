@@ -25,7 +25,7 @@
 #include <net/mac802154.h>
 #include <net/ieee802154_netdev.h>
 #include <net/route.h>
-#include <net/wpan-phy.h>
+#include <net/cfg802154.h>
 
 #include "ieee802154_i.h"
 

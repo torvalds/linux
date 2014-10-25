@@ -23,7 +23,7 @@
 #include <linux/of_gpio.h>
 
 #include <net/mac802154.h>
-#include <net/wpan-phy.h>
+#include <net/cfg802154.h>
 #include <net/ieee802154.h>
 
 #define	SPI_COMMAND_BUFFER	3

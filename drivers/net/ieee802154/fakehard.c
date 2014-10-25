@@ -30,7 +30,7 @@
 #include <net/ieee802154_netdev.h>
 #include <net/ieee802154.h>
 #include <net/nl802154.h>
-#include <net/wpan-phy.h>
+#include <net/cfg802154.h>
 
 struct fakehard_priv {
 	struct wpan_phy *phy;

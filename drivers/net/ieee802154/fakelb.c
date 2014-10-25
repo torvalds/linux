@@ -25,7 +25,7 @@
 #include <linux/device.h>
 #include <linux/spinlock.h>
 #include <net/mac802154.h>
-#include <net/wpan-phy.h>
+#include <net/cfg802154.h>
 
 static int numlbs = 1;
 

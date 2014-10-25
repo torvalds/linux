@@ -17,7 +17,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 
-#include <net/wpan-phy.h>
+#include <net/cfg802154.h>
 
 #include "ieee802154.h"
 

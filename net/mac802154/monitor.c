@@ -25,7 +25,7 @@
 #include <net/ieee802154.h>
 #include <net/mac802154.h>
 #include <net/netlink.h>
-#include <net/wpan-phy.h>
+#include <net/cfg802154.h>
 #include <linux/nl802154.h>
 
 #include "ieee802154_i.h"
