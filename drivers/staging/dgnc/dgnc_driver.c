@@ -57,7 +57,6 @@ MODULE_SUPPORTED_DEVICE("dgnc");
  */
 PARM_INT(debug,		0x00,		0644,	"Driver debugging level");
 PARM_INT(rawreadok,	1,		0644,	"Bypass flip buffers on input");
-PARM_INT(trcbuf_size,	0x100000,	0644,	"Debugging trace buffer size.");
 
 /**************************************************************************
  *
@@ -743,7 +742,6 @@ static void dgnc_init_globals(void)
 	int i = 0;
 
 	dgnc_rawreadok		= rawreadok;
-	dgnc_trcbuf_size	= trcbuf_size;
 	dgnc_debug		= debug;
 	dgnc_NumBoards		= 0;
 
