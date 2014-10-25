@@ -191,6 +191,7 @@ struct i40evf_adapter {
 	struct i40e_q_vector *q_vector[MAX_MSIX_Q_VECTORS];
 	struct list_head vlan_filter_list;
 	char misc_vector_name[IFNAMSIZ + 9];
+	int num_active_queues;
 
 	/* TX */
 	struct i40e_ring *tx_rings[I40E_MAX_VSI_QP];
