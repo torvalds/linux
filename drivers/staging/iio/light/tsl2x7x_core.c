@@ -1040,8 +1040,8 @@ static ssize_t tsl2x7x_als_persistence_show(struct device *dev,
 	y = (TSL2X7X_MAX_TIMER_CNT - (u8)chip->tsl2x7x_settings.als_time) + 1;
 	z = y * TSL2X7X_MIN_ITIME;
 	filter_delay = z * (chip->tsl2x7x_settings.persistence & 0x0F);
-	y = (filter_delay / 1000);
-	z = (filter_delay % 1000);
+	y = filter_delay / 1000;
+	z = filter_delay % 1000;
 
 	return snprintf(buf, PAGE_SIZE, "%d.%03d\n", y, z);
 }
@@ -1086,8 +1086,8 @@ static ssize_t tsl2x7x_prox_persistence_show(struct device *dev,
 	y = (TSL2X7X_MAX_TIMER_CNT - (u8)chip->tsl2x7x_settings.prx_time) + 1;
 	z = y * TSL2X7X_MIN_ITIME;
 	filter_delay = z * ((chip->tsl2x7x_settings.persistence & 0xF0) >> 4);
-	y = (filter_delay / 1000);
-	z = (filter_delay % 1000);
+	y = filter_delay / 1000;
+	z = filter_delay % 1000;
 
 	return snprintf(buf, PAGE_SIZE, "%d.%03d\n", y, z);
 }
