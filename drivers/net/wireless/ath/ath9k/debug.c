@@ -863,6 +863,7 @@ static ssize_t read_file_reset(struct file *file, char __user *user_buf,
 		[RESET_TYPE_MAC_HANG] = "MAC Hang",
 		[RESET_TYPE_BEACON_STUCK] = "Stuck Beacon",
 		[RESET_TYPE_MCI] = "MCI Reset",
+		[RESET_TYPE_CALIBRATION] = "Calibration error",
 	};
 	char buf[512];
 	unsigned int len = 0;

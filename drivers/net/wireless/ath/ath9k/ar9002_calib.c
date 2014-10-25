@@ -657,14 +657,13 @@ static void ar9002_hw_olc_temp_compensation(struct ath_hw *ah)
 		ar9280_hw_olc_temp_compensation(ah);
 }
 
-static bool ar9002_hw_calibrate(struct ath_hw *ah,
-				struct ath9k_channel *chan,
-				u8 rxchainmask,
-				bool longcal)
+static int ar9002_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
+			       u8 rxchainmask, bool longcal)
 {
 	bool iscaldone = true;
 	struct ath9k_cal_list *currCal = ah->cal_list_curr;
 	bool nfcal, nfcal_pending = false;
+	int ret;
 
 	nfcal = !!(REG_READ(ah, AR_PHY_AGC_CONTROL) & AR_PHY_AGC_CONTROL_NF);
 	if (ah->caldata)
@@ -698,7 +697,9 @@ static bool ar9002_hw_calibrate(struct ath_hw *ah,
 			 * NF is slow time-variant, so it is OK to use a
 			 * historical value.
 			 */
-			ath9k_hw_loadnf(ah, ah->curchan);
+			ret = ath9k_hw_loadnf(ah, ah->curchan);
+			if (ret < 0)
+				return ret;
 		}
 
 		if (longcal) {

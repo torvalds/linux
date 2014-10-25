@@ -688,10 +688,8 @@ struct ath_hw_ops {
 				     bool power_off);
 	void (*rx_enable)(struct ath_hw *ah);
 	void (*set_desc_link)(void *ds, u32 link);
-	bool (*calibrate)(struct ath_hw *ah,
-			  struct ath9k_channel *chan,
-			  u8 rxchainmask,
-			  bool longcal);
+	int (*calibrate)(struct ath_hw *ah, struct ath9k_channel *chan,
+			 u8 rxchainmask, bool longcal);
 	bool (*get_isr)(struct ath_hw *ah, enum ath9k_int *masked,
 			u32 *sync_cause_p);
 	void (*set_txdesc)(struct ath_hw *ah, void *ds,
