@@ -145,7 +145,7 @@ static struct ll_cl_context *ll_cl_init(struct file *file,
 		 */
 		io->ci_lockreq = CILR_NEVER;
 
-		pos = (vmpage->index << PAGE_CACHE_SHIFT);
+		pos = vmpage->index << PAGE_CACHE_SHIFT;
 
 		/* Create a temp IO to serve write. */
 		result = cl_io_rw_init(env, io, CIT_WRITE, pos, PAGE_CACHE_SIZE);

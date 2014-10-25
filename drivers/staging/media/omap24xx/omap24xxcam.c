@@ -326,7 +326,7 @@ static int omap24xxcam_vbq_alloc_mmap_buffer(struct videobuf_buffer *vb)
 		dma->sglen++;
 		i++;
 
-		alloc_size = (PAGE_SIZE << order);
+		alloc_size = PAGE_SIZE << order;
 
 		/* clear pages before giving them to user space */
 		memset(page_address(page), 0, alloc_size);

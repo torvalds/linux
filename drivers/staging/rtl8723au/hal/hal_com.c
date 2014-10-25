@@ -463,7 +463,7 @@ void rtl8723a_set_ampdu_factor(struct rtw_adapter *padapter, u8 FactorToSet)
 		MaxAggNum = 0xF;
 
 	if (FactorToSet <= 3) {
-		FactorToSet = (1 << (FactorToSet + 2));
+		FactorToSet = 1 << (FactorToSet + 2);
 		if (FactorToSet > MaxAggNum)
 			FactorToSet = MaxAggNum;
 

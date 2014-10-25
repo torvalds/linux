@@ -265,7 +265,7 @@ static void ldlm_pool_recalc_slv(struct ldlm_pool *pl)
 	 * SLV. And the opposite, the more grant plan is over-consumed
 	 * (load time) the faster drops SLV.
 	 */
-	slv_factor = (grant_usage << LDLM_POOL_SLV_SHIFT);
+	slv_factor = grant_usage << LDLM_POOL_SLV_SHIFT;
 	do_div(slv_factor, limit);
 	slv = slv * slv_factor;
 	slv = dru(slv, LDLM_POOL_SLV_SHIFT, round_up);

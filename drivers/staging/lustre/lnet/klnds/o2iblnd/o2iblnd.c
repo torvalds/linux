@@ -2411,7 +2411,7 @@ kiblnd_hdev_setup_mrs(kib_hca_dev_t *hdev)
 		goto out;
 	}
 
-	mr_size = (1ULL << hdev->ibh_mr_shift);
+	mr_size = 1ULL << hdev->ibh_mr_shift;
 	mm_size = (unsigned long)high_memory - PAGE_OFFSET;
 
 	hdev->ibh_nmrs = (int)((mm_size + mr_size - 1) >> hdev->ibh_mr_shift);

@@ -633,7 +633,7 @@ resizer_calculate_normal_f_div_param(struct device *dev, int input_width,
 	if (!(val % 2)) {
 		h1 = val;
 	} else {
-		val = (input_width << 7);
+		val = input_width << 7;
 		val -= rsz >> 1;
 		val /= rsz << 1;
 		val <<= 1;

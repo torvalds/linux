@@ -2032,11 +2032,11 @@ static int oz_clear_port_feature(struct usb_hcd *hcd, u16 wvalue, u16 windex)
 		break;
 	case USB_PORT_FEAT_C_CONNECTION:
 		oz_dbg(HUB, "USB_PORT_FEAT_C_CONNECTION\n");
-		clear_bits = (USB_PORT_STAT_C_CONNECTION << 16);
+		clear_bits = USB_PORT_STAT_C_CONNECTION << 16;
 		break;
 	case USB_PORT_FEAT_C_ENABLE:
 		oz_dbg(HUB, "USB_PORT_FEAT_C_ENABLE\n");
-		clear_bits = (USB_PORT_STAT_C_ENABLE << 16);
+		clear_bits = USB_PORT_STAT_C_ENABLE << 16;
 		break;
 	case USB_PORT_FEAT_C_SUSPEND:
 		oz_dbg(HUB, "USB_PORT_FEAT_C_SUSPEND\n");
@@ -2046,7 +2046,7 @@ static int oz_clear_port_feature(struct usb_hcd *hcd, u16 wvalue, u16 windex)
 		break;
 	case USB_PORT_FEAT_C_RESET:
 		oz_dbg(HUB, "USB_PORT_FEAT_C_RESET\n");
-		clear_bits = (USB_PORT_FEAT_C_RESET << 16);
+		clear_bits = USB_PORT_FEAT_C_RESET << 16;
 		break;
 	case USB_PORT_FEAT_TEST:
 		oz_dbg(HUB, "USB_PORT_FEAT_TEST\n");

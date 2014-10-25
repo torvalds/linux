@@ -1673,7 +1673,7 @@ static void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			pRegToSet = RegToSet_Normal; /*  0xb972a841; */
 			FactorToSet = *((u8 *)val);
 			if (FactorToSet <= 3) {
-				FactorToSet = (1<<(FactorToSet + 2));
+				FactorToSet = 1 << (FactorToSet + 2);
 				if (FactorToSet > 0xf)
 					FactorToSet = 0xf;
 

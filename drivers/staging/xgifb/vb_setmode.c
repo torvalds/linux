@@ -4135,7 +4135,7 @@ static void XGI_SetGroup4(unsigned short ModeIdIndex,
 		tempax -= 1;
 
 		temp = (tempax & 0xFF00) >> 8;
-		temp = ((temp & 0x0003) << 4);
+		temp = (temp & 0x0003) << 4;
 		xgifb_reg_set(pVBInfo->Part4Port, 0x1E, temp);
 		temp = (tempax & 0x00FF);
 		xgifb_reg_set(pVBInfo->Part4Port, 0x1D, temp);

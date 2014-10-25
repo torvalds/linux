@@ -358,7 +358,7 @@ device_receive_frame(
 		if ((*pbyRsr & RSR_CRCOK) != 0)
 			pDevice->byBasicMap |= 0x01;
 
-		dwDuration = (FrameSize << 4);
+		dwDuration = FrameSize << 4;
 		dwDuration /= acbyRxRate[*pbyRxRate%MAX_RATE];
 		if (*pbyRxRate <= RATE_11M) {
 			if (*pbyRxSts & 0x01) {
