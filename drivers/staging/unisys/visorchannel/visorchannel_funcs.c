@@ -650,15 +650,17 @@ visorchannel_dump_section(VISORCHANNEL *chan, char *s,
 
 	fmtbufsize = 100 * COVQ(len, 16);
 	buf = kmalloc(len, GFP_KERNEL|__GFP_NORETRY);
+	if (!buf)
+		return;
 	fmtbuf = kmalloc(fmtbufsize, GFP_KERNEL|__GFP_NORETRY);
-	if (buf == NULL || fmtbuf == NULL)
-		goto Away;
+	if (!fmtbuf)
+		goto fmt_failed;
 
 	errcode = visorchannel_read(chan, off, buf, len);
 	if (errcode < 0) {
 		ERRDRV("%s failed to read %s from channel errcode=%d",
 		       s, __func__, errcode);
-		goto Away;
+		goto read_failed;
 	}
 	seq_printf(seq, "channel %s:\n", s);
 	tbuf = buf;
@@ -670,14 +672,9 @@ visorchannel_dump_section(VISORCHANNEL *chan, char *s,
 		len -= 16;
 	}
 
-Away:
-	if (buf != NULL) {
-		kfree(buf);
-		buf = NULL;
-	}
-	if (fmtbuf != NULL) {
-		kfree(fmtbuf);
-		fmtbuf = NULL;
-	}
+read_failed:
+	kfree(fmtbuf);
+fmt_failed:
+	kfree(buf);
 }
 EXPORT_SYMBOL_GPL(visorchannel_dump_section);
