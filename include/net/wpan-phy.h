@@ -65,7 +65,7 @@ struct wpan_phy {
 			       u8 retries);
 	int (*set_frame_retries)(struct wpan_phy *phy, s8 retries);
 
-	char priv[0] __attribute__((__aligned__(NETDEV_ALIGN)));
+	char priv[0] __aligned(NETDEV_ALIGN);
 };
 
 #define to_phy(_dev)	container_of(_dev, struct wpan_phy, dev)
