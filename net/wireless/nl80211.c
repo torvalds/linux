@@ -6038,7 +6038,6 @@ static int nl80211_channel_switch(struct sk_buff *skb, struct genl_info *info)
 	 * function is called under RTNL lock, so this should not be a problem.
 	 */
 	static struct nlattr *csa_attrs[NL80211_ATTR_MAX+1];
-	u8 radar_detect_width = 0;
 	int err;
 	bool need_new_beacon = false;
 	int len, i;
@@ -6174,10 +6173,8 @@ skip_beacons:
 	if (err < 0)
 		return err;
 
-	if (err > 0) {
-		radar_detect_width = BIT(params.chandef.width);
+	if (err > 0)
 		params.radar_required = true;
-	}
 
 	if (info->attrs[NL80211_ATTR_CH_SWITCH_BLOCK_TX])
 		params.block_tx = true;
