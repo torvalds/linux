@@ -41,7 +41,7 @@ struct xmit_work {
 static void mac802154_xmit_worker(struct work_struct *work)
 {
 	struct xmit_work *xw = container_of(work, struct xmit_work, work);
-	struct mac802154_sub_if_data *sdata;
+	struct ieee802154_sub_if_data *sdata;
 	int res;
 
 	mutex_lock(&xw->local->phy->pib_lock);
@@ -81,7 +81,7 @@ netdev_tx_t mac802154_tx(struct ieee802154_local *local, struct sk_buff *skb,
 			 u8 page, u8 chan)
 {
 	struct xmit_work *work;
-	struct mac802154_sub_if_data *sdata;
+	struct ieee802154_sub_if_data *sdata;
 
 	if (!(local->phy->channels_supported[page] & (1 << chan))) {
 		WARN_ON(1);

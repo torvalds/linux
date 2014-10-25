@@ -66,7 +66,7 @@ struct ieee802154_local {
  * Each ieee802154 device/transceiver may have several slaves and able
  * to be associated with several networks at the same time.
  */
-struct mac802154_sub_if_data {
+struct ieee802154_sub_if_data {
 	struct list_head list; /* the ieee802154_priv->slaves list */
 
 	struct ieee802154_local *hw;

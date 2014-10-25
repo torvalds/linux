@@ -33,14 +33,14 @@
 static netdev_tx_t mac802154_monitor_xmit(struct sk_buff *skb,
 					  struct net_device *dev)
 {
-	struct mac802154_sub_if_data *priv;
+	struct ieee802154_sub_if_data *sdata;
 	u8 chan, page;
 
-	priv = netdev_priv(dev);
+	sdata = netdev_priv(dev);
 
 	/* FIXME: locking */
-	chan = priv->hw->phy->current_channel;
-	page = priv->hw->phy->current_page;
+	chan = sdata->hw->phy->current_channel;
+	page = sdata->hw->phy->current_page;
 
 	if (chan == MAC802154_CHAN_NONE) /* not initialized */
 		return NETDEV_TX_OK;
@@ -53,14 +53,14 @@ static netdev_tx_t mac802154_monitor_xmit(struct sk_buff *skb,
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
 
-	return mac802154_tx(priv->hw, skb, page, chan);
+	return mac802154_tx(sdata->hw, skb, page, chan);
 }
 
 
 void mac802154_monitors_rx(struct ieee802154_local *local, struct sk_buff *skb)
 {
 	struct sk_buff *skb2;
-	struct mac802154_sub_if_data *sdata;
+	struct ieee802154_sub_if_data *sdata;
 	u16 crc = crc_ccitt(0, skb->data, skb->len);
 	u8 *data;
 
@@ -90,7 +90,7 @@ static const struct net_device_ops mac802154_monitor_ops = {
 
 void mac802154_monitor_setup(struct net_device *dev)
 {
-	struct mac802154_sub_if_data *priv;
+	struct ieee802154_sub_if_data *sdata;
 
 	dev->addr_len		= 0;
 	dev->hard_header_len	= 0;
@@ -105,9 +105,9 @@ void mac802154_monitor_setup(struct net_device *dev)
 	dev->netdev_ops		= &mac802154_monitor_ops;
 	dev->ml_priv		= &mac802154_mlme_reduced;
 
-	priv = netdev_priv(dev);
-	priv->type = IEEE802154_DEV_MONITOR;
+	sdata = netdev_priv(dev);
+	sdata->type = IEEE802154_DEV_MONITOR;
 
-	priv->chan = MAC802154_CHAN_NONE; /* not initialized */
-	priv->page = 0;
+	sdata->chan = MAC802154_CHAN_NONE; /* not initialized */
+	sdata->page = 0;
 }
