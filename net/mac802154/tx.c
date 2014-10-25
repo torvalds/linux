@@ -25,7 +25,7 @@
 #include <net/mac802154.h>
 #include <net/wpan-phy.h>
 
-#include "mac802154.h"
+#include "ieee802154_i.h"
 
 /* IEEE 802.15.4 transceivers can sleep during the xmit session, so process
  * packets through the workqueue.

@@ -28,7 +28,7 @@
 #include <net/wpan-phy.h>
 #include <linux/nl802154.h>
 
-#include "mac802154.h"
+#include "ieee802154_i.h"
 
 static netdev_tx_t mac802154_monitor_xmit(struct sk_buff *skb,
 					  struct net_device *dev)

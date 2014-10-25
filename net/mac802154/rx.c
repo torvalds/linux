@@ -26,7 +26,7 @@
 #include <net/mac802154.h>
 #include <net/ieee802154_netdev.h>
 
-#include "mac802154.h"
+#include "ieee802154_i.h"
 
 /* The IEEE 802.15.4 standard defines 4 MAC packet types:
  * - beacon frame

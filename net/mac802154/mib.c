@@ -23,7 +23,7 @@
 #include <net/ieee802154_netdev.h>
 #include <net/wpan-phy.h>
 
-#include "mac802154.h"
+#include "ieee802154_i.h"
 
 struct phy_chan_notify_work {
 	struct work_struct work;

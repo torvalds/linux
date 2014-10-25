@@ -27,7 +27,7 @@
 #include <net/mac802154.h>
 #include <net/nl802154.h>
 
-#include "mac802154.h"
+#include "ieee802154_i.h"
 
 static int mac802154_mlme_start_req(struct net_device *dev,
 				    struct ieee802154_addr *addr,

@@ -29,7 +29,7 @@
 #include <net/ieee802154.h>
 #include <net/wpan-phy.h>
 
-#include "mac802154.h"
+#include "ieee802154_i.h"
 
 static int mac802154_wpan_update_llsec(struct net_device *dev)
 {

@@ -27,7 +27,7 @@
 #include <net/route.h>
 #include <net/wpan-phy.h>
 
-#include "mac802154.h"
+#include "ieee802154_i.h"
 
 int mac802154_slave_open(struct net_device *dev)
 {

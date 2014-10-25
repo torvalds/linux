@@ -16,8 +16,8 @@
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
  * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
  */
-#ifndef MAC802154_H
-#define MAC802154_H
+#ifndef __IEEE802154_I_H
+#define __IEEE802154_I_H
 
 #include <linux/mutex.h>
 #include <net/mac802154.h>
@@ -165,4 +165,4 @@ void mac802154_get_table(struct net_device *dev,
 			 struct ieee802154_llsec_table **t);
 void mac802154_unlock_table(struct net_device *dev);
 
-#endif /* MAC802154_H */
+#endif /* __IEEE802154_I_H */
