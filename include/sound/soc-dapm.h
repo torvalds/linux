@@ -510,6 +510,7 @@ struct snd_soc_dapm_path {
 	u32 connect:1;	/* source and sink widgets are connected */
 	u32 walking:1;  /* path is in the process of being walked */
 	u32 weak:1;	/* path ignored for power management */
+	u32 is_supply:1;	/* At least one of the connected widgets is a supply */
 
 	int (*connected)(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink);
