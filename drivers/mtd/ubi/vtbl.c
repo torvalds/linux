@@ -30,9 +30,12 @@
  * eraseblock stores one volume table copy, i.e. LEB 0 and LEB 1 duplicate each
  * other. This redundancy guarantees robustness to unclean reboots. The volume
  * table is basically an array of volume table records. Each record contains
- * full information about the volume and protected by a CRC checksum.
+ * full information about the volume and protected by a CRC checksum. Note,
+ * nowadays we use the atomic LEB change operation when updating the volume
+ * table, so we do not really need 2 LEBs anymore, but we preserve the older
+ * design for the backward compatibility reasons.
  *
- * The volume table is changed, it is first changed in RAM. Then LEB 0 is
+ * When the volume table is changed, it is first changed in RAM. Then LEB 0 is
  * erased, and the updated volume table is written back to LEB 0. Then same for
  * LEB 1. This scheme guarantees recoverability from unclean reboots.
  *
@@ -96,12 +99,8 @@ int ubi_change_vtbl_record(struct ubi_device *ubi, int idx,
 
 	memcpy(&ubi->vtbl[idx], vtbl_rec, sizeof(struct ubi_vtbl_record));
 	for (i = 0; i < UBI_LAYOUT_VOLUME_EBS; i++) {
-		err = ubi_eba_unmap_leb(ubi, layout_vol, i);
-		if (err)
-			return err;
-
-		err = ubi_eba_write_leb(ubi, layout_vol, i, ubi->vtbl, 0,
-					ubi->vtbl_size);
+		err = ubi_eba_atomic_leb_change(ubi, layout_vol, i, ubi->vtbl,
+						ubi->vtbl_size);
 		if (err)
 			return err;
 	}
@@ -148,12 +147,8 @@ int ubi_vtbl_rename_volumes(struct ubi_device *ubi,
 
 	layout_vol = ubi->volumes[vol_id2idx(ubi, UBI_LAYOUT_VOLUME_ID)];
 	for (i = 0; i < UBI_LAYOUT_VOLUME_EBS; i++) {
-		err = ubi_eba_unmap_leb(ubi, layout_vol, i);
-		if (err)
-			return err;
-
-		err = ubi_eba_write_leb(ubi, layout_vol, i, ubi->vtbl, 0,
-					ubi->vtbl_size);
+		err = ubi_eba_atomic_leb_change(ubi, layout_vol, i, ubi->vtbl,
+						ubi->vtbl_size);
 		if (err)
 			return err;
 	}
