@@ -193,7 +193,7 @@
 /* Driver private information */
 struct cc2520_private {
 	struct spi_device *spi;		/* SPI device structure */
-	struct ieee802154_dev *dev;	/* IEEE-802.15.4 device */
+	struct ieee802154_hw *hw;	/* IEEE-802.15.4 device */
 	u8 *buf;			/* SPI TX/Rx data buffer */
 	struct mutex buffer_mutex;	/* SPI buffer mutex */
 	bool is_tx;			/* Flag for sync b/w Tx and Rx */
@@ -453,20 +453,20 @@ cc2520_read_rxfifo(struct cc2520_private *priv, u8 *data, u8 len, u8 *lqi)
 	return status;
 }
 
-static int cc2520_start(struct ieee802154_dev *dev)
+static int cc2520_start(struct ieee802154_hw *hw)
 {
-	return cc2520_cmd_strobe(dev->priv, CC2520_CMD_SRXON);
+	return cc2520_cmd_strobe(hw->priv, CC2520_CMD_SRXON);
 }
 
-static void cc2520_stop(struct ieee802154_dev *dev)
+static void cc2520_stop(struct ieee802154_hw *hw)
 {
-	cc2520_cmd_strobe(dev->priv, CC2520_CMD_SRFOFF);
+	cc2520_cmd_strobe(hw->priv, CC2520_CMD_SRFOFF);
 }
 
 static int
-cc2520_tx(struct ieee802154_dev *dev, struct sk_buff *skb)
+cc2520_tx(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
-	struct cc2520_private *priv = dev->priv;
+	struct cc2520_private *priv = hw->priv;
 	unsigned long flags;
 	int rc;
 	u8 status = 0;
@@ -536,7 +536,7 @@ static int cc2520_rx(struct cc2520_private *priv)
 
 	skb_trim(skb, skb->len - 2);
 
-	ieee802154_rx_irqsafe(priv->dev, skb, lqi);
+	ieee802154_rx_irqsafe(priv->hw, skb, lqi);
 
 	dev_vdbg(&priv->spi->dev, "RXFIFO: %x %x\n", len, lqi);
 
@@ -544,9 +544,9 @@ static int cc2520_rx(struct cc2520_private *priv)
 }
 
 static int
-cc2520_ed(struct ieee802154_dev *dev, u8 *level)
+cc2520_ed(struct ieee802154_hw *hw, u8 *level)
 {
-	struct cc2520_private *priv = dev->priv;
+	struct cc2520_private *priv = hw->priv;
 	u8 status = 0xff;
 	u8 rssi;
 	int ret;
@@ -569,9 +569,9 @@ cc2520_ed(struct ieee802154_dev *dev, u8 *level)
 }
 
 static int
-cc2520_set_channel(struct ieee802154_dev *dev, int page, int channel)
+cc2520_set_channel(struct ieee802154_hw *hw, int page, int channel)
 {
-	struct cc2520_private *priv = dev->priv;
+	struct cc2520_private *priv = hw->priv;
 	int ret;
 
 	might_sleep();
@@ -588,10 +588,10 @@ cc2520_set_channel(struct ieee802154_dev *dev, int page, int channel)
 }
 
 static int
-cc2520_filter(struct ieee802154_dev *dev,
+cc2520_filter(struct ieee802154_hw *hw,
 	      struct ieee802154_hw_addr_filt *filt, unsigned long changed)
 {
-	struct cc2520_private *priv = dev->priv;
+	struct cc2520_private *priv = hw->priv;
 
 	if (changed & IEEE802154_AFILT_PANID_CHANGED) {
 		u16 panid = le16_to_cpu(filt->pan_id);
@@ -645,27 +645,27 @@ static int cc2520_register(struct cc2520_private *priv)
 {
 	int ret = -ENOMEM;
 
-	priv->dev = ieee802154_alloc_device(sizeof(*priv), &cc2520_ops);
-	if (!priv->dev)
+	priv->hw = ieee802154_alloc_hw(sizeof(*priv), &cc2520_ops);
+	if (!priv->hw)
 		goto err_ret;
 
-	priv->dev->priv = priv;
-	priv->dev->parent = &priv->spi->dev;
-	priv->dev->extra_tx_headroom = 0;
+	priv->hw->priv = priv;
+	priv->hw->parent = &priv->spi->dev;
+	priv->hw->extra_tx_headroom = 0;
 
 	/* We do support only 2.4 Ghz */
-	priv->dev->phy->channels_supported[0] = 0x7FFF800;
-	priv->dev->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AACK;
+	priv->hw->phy->channels_supported[0] = 0x7FFF800;
+	priv->hw->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AACK;
 
 	dev_vdbg(&priv->spi->dev, "registered cc2520\n");
-	ret = ieee802154_register_device(priv->dev);
+	ret = ieee802154_register_hw(priv->hw);
 	if (ret)
 		goto err_free_device;
 
 	return 0;
 
 err_free_device:
-	ieee802154_free_device(priv->dev);
+	ieee802154_free_hw(priv->hw);
 err_ret:
 	return ret;
 }
@@ -1002,8 +1002,8 @@ static int cc2520_remove(struct spi_device *spi)
 	mutex_destroy(&priv->buffer_mutex);
 	flush_work(&priv->fifop_irqwork);
 
-	ieee802154_unregister_device(priv->dev);
-	ieee802154_free_device(priv->dev);
+	ieee802154_unregister_hw(priv->hw);
+	ieee802154_free_hw(priv->hw);
 
 	return 0;
 }

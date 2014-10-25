@@ -42,12 +42,12 @@
 struct rx_work {
 	struct sk_buff *skb;
 	struct work_struct work;
-	struct ieee802154_dev *dev;
+	struct ieee802154_hw *hw;
 	u8 lqi;
 };
 
 static void
-mac802154_subif_rx(struct ieee802154_dev *hw, struct sk_buff *skb, u8 lqi)
+mac802154_subif_rx(struct ieee802154_hw *hw, struct sk_buff *skb, u8 lqi)
 {
 	struct mac802154_priv *priv = mac802154_to_priv(hw);
 
@@ -83,14 +83,14 @@ static void mac802154_rx_worker(struct work_struct *work)
 {
 	struct rx_work *rw = container_of(work, struct rx_work, work);
 
-	mac802154_subif_rx(rw->dev, rw->skb, rw->lqi);
+	mac802154_subif_rx(rw->hw, rw->skb, rw->lqi);
 	kfree(rw);
 }
 
 void
-ieee802154_rx_irqsafe(struct ieee802154_dev *dev, struct sk_buff *skb, u8 lqi)
+ieee802154_rx_irqsafe(struct ieee802154_hw *hw, struct sk_buff *skb, u8 lqi)
 {
-	struct mac802154_priv *priv = mac802154_to_priv(dev);
+	struct mac802154_priv *priv = mac802154_to_priv(hw);
 	struct rx_work *work;
 
 	if (!skb)
@@ -102,7 +102,7 @@ ieee802154_rx_irqsafe(struct ieee802154_dev *dev, struct sk_buff *skb, u8 lqi)
 
 	INIT_WORK(&work->work, mac802154_rx_worker);
 	work->skb = skb;
-	work->dev = dev;
+	work->hw = hw;
 	work->lqi = lqi;
 
 	queue_work(priv->dev_workqueue, &work->work);

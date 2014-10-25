@@ -235,8 +235,8 @@ static int mac802154_set_frame_retries(struct wpan_phy *phy, s8 retries)
 	return priv->ops->set_frame_retries(&priv->hw, retries);
 }
 
-struct ieee802154_dev *
-ieee802154_alloc_device(size_t priv_data_len, struct ieee802154_ops *ops)
+struct ieee802154_hw *
+ieee802154_alloc_hw(size_t priv_data_len, struct ieee802154_ops *ops)
 {
 	struct wpan_phy *phy;
 	struct mac802154_priv *priv;
@@ -285,9 +285,9 @@ ieee802154_alloc_device(size_t priv_data_len, struct ieee802154_ops *ops)
 
 	return &priv->hw;
 }
-EXPORT_SYMBOL(ieee802154_alloc_device);
+EXPORT_SYMBOL(ieee802154_alloc_hw);
 
-void ieee802154_free_device(struct ieee802154_dev *hw)
+void ieee802154_free_hw(struct ieee802154_hw *hw)
 {
 	struct mac802154_priv *priv = mac802154_to_priv(hw);
 
@@ -297,49 +297,49 @@ void ieee802154_free_device(struct ieee802154_dev *hw)
 
 	wpan_phy_free(priv->phy);
 }
-EXPORT_SYMBOL(ieee802154_free_device);
+EXPORT_SYMBOL(ieee802154_free_hw);
 
-int ieee802154_register_device(struct ieee802154_dev *dev)
+int ieee802154_register_hw(struct ieee802154_hw *hw)
 {
-	struct mac802154_priv *priv = mac802154_to_priv(dev);
+	struct mac802154_priv *priv = mac802154_to_priv(hw);
 	int rc = -ENOSYS;
 
-	if (dev->flags & IEEE802154_HW_TXPOWER) {
+	if (hw->flags & IEEE802154_HW_TXPOWER) {
 		if (!priv->ops->set_txpower)
 			goto out;
 
 		priv->phy->set_txpower = mac802154_set_txpower;
 	}
 
-	if (dev->flags & IEEE802154_HW_LBT) {
+	if (hw->flags & IEEE802154_HW_LBT) {
 		if (!priv->ops->set_lbt)
 			goto out;
 
 		priv->phy->set_lbt = mac802154_set_lbt;
 	}
 
-	if (dev->flags & IEEE802154_HW_CCA_MODE) {
+	if (hw->flags & IEEE802154_HW_CCA_MODE) {
 		if (!priv->ops->set_cca_mode)
 			goto out;
 
 		priv->phy->set_cca_mode = mac802154_set_cca_mode;
 	}
 
-	if (dev->flags & IEEE802154_HW_CCA_ED_LEVEL) {
+	if (hw->flags & IEEE802154_HW_CCA_ED_LEVEL) {
 		if (!priv->ops->set_cca_ed_level)
 			goto out;
 
 		priv->phy->set_cca_ed_level = mac802154_set_cca_ed_level;
 	}
 
-	if (dev->flags & IEEE802154_HW_CSMA_PARAMS) {
+	if (hw->flags & IEEE802154_HW_CSMA_PARAMS) {
 		if (!priv->ops->set_csma_params)
 			goto out;
 
 		priv->phy->set_csma_params = mac802154_set_csma_params;
 	}
 
-	if (dev->flags & IEEE802154_HW_FRAME_RETRIES) {
+	if (hw->flags & IEEE802154_HW_FRAME_RETRIES) {
 		if (!priv->ops->set_frame_retries)
 			goto out;
 
@@ -377,11 +377,11 @@ out_wq:
 out:
 	return rc;
 }
-EXPORT_SYMBOL(ieee802154_register_device);
+EXPORT_SYMBOL(ieee802154_register_hw);
 
-void ieee802154_unregister_device(struct ieee802154_dev *dev)
+void ieee802154_unregister_hw(struct ieee802154_hw *hw)
 {
-	struct mac802154_priv *priv = mac802154_to_priv(dev);
+	struct mac802154_priv *priv = mac802154_to_priv(hw);
 	struct mac802154_sub_if_data *sdata, *next;
 
 	flush_workqueue(priv->dev_workqueue);
@@ -405,7 +405,7 @@ void ieee802154_unregister_device(struct ieee802154_dev *dev)
 
 	wpan_phy_unregister(priv->phy);
 }
-EXPORT_SYMBOL(ieee802154_unregister_device);
+EXPORT_SYMBOL(ieee802154_unregister_hw);
 
 MODULE_DESCRIPTION("IEEE 802.15.4 implementation");
 MODULE_LICENSE("GPL v2");

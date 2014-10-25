@@ -27,7 +27,7 @@
 
 /* mac802154 device private data */
 struct mac802154_priv {
-	struct ieee802154_dev hw;
+	struct ieee802154_hw hw;
 	struct ieee802154_ops *ops;
 
 	/* ieee802154 phy */

@@ -77,7 +77,7 @@ struct at86rf230_state_change {
 struct at86rf230_local {
 	struct spi_device *spi;
 
-	struct ieee802154_dev *dev;
+	struct ieee802154_hw *hw;
 	struct at86rf2xx_chip_data *data;
 	struct regmap *regmap;
 
@@ -808,7 +808,7 @@ at86rf230_rx(struct at86rf230_local *lp,
 	/* We do not put CRC into the frame */
 	skb_trim(skb, len - 2);
 
-	ieee802154_rx_irqsafe(lp->dev, skb, lqi);
+	ieee802154_rx_irqsafe(lp->hw, skb, lqi);
 }
 
 static void
@@ -969,9 +969,9 @@ at86rf230_xmit_tx_on(void *context)
 }
 
 static int
-at86rf230_xmit(struct ieee802154_dev *dev, struct sk_buff *skb)
+at86rf230_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
-	struct at86rf230_local *lp = dev->priv;
+	struct at86rf230_local *lp = hw->priv;
 	struct at86rf230_state_change *ctx = &lp->tx;
 
 	void (*tx_complete)(void *context) = at86rf230_write_frame;
@@ -1012,7 +1012,7 @@ at86rf230_xmit(struct ieee802154_dev *dev, struct sk_buff *skb)
 }
 
 static int
-at86rf230_ed(struct ieee802154_dev *dev, u8 *level)
+at86rf230_ed(struct ieee802154_hw *hw, u8 *level)
 {
 	might_sleep();
 	BUG_ON(!level);
@@ -1021,15 +1021,15 @@ at86rf230_ed(struct ieee802154_dev *dev, u8 *level)
 }
 
 static int
-at86rf230_start(struct ieee802154_dev *dev)
+at86rf230_start(struct ieee802154_hw *hw)
 {
-	return at86rf230_sync_state_change(dev->priv, STATE_RX_AACK_ON);
+	return at86rf230_sync_state_change(hw->priv, STATE_RX_AACK_ON);
 }
 
 static void
-at86rf230_stop(struct ieee802154_dev *dev)
+at86rf230_stop(struct ieee802154_hw *hw)
 {
-	at86rf230_sync_state_change(dev->priv, STATE_FORCE_TRX_OFF);
+	at86rf230_sync_state_change(hw->priv, STATE_FORCE_TRX_OFF);
 }
 
 static int
@@ -1064,15 +1064,15 @@ at86rf212_set_channel(struct at86rf230_local *lp, int page, int channel)
 }
 
 static int
-at86rf230_channel(struct ieee802154_dev *dev, int page, int channel)
+at86rf230_channel(struct ieee802154_hw *hw, int page, int channel)
 {
-	struct at86rf230_local *lp = dev->priv;
+	struct at86rf230_local *lp = hw->priv;
 	int rc;
 
 	might_sleep();
 
 	if (page < 0 || page > 31 ||
-	    !(lp->dev->phy->channels_supported[page] & BIT(channel))) {
+	    !(lp->hw->phy->channels_supported[page] & BIT(channel))) {
 		WARN_ON(1);
 		return -EINVAL;
 	}
@@ -1084,18 +1084,18 @@ at86rf230_channel(struct ieee802154_dev *dev, int page, int channel)
 	/* Wait for PLL */
 	usleep_range(lp->data->t_channel_switch,
 		     lp->data->t_channel_switch + 10);
-	dev->phy->current_channel = channel;
-	dev->phy->current_page = page;
+	hw->phy->current_channel = channel;
+	hw->phy->current_page = page;
 
 	return 0;
 }
 
 static int
-at86rf230_set_hw_addr_filt(struct ieee802154_dev *dev,
+at86rf230_set_hw_addr_filt(struct ieee802154_hw *hw,
 			   struct ieee802154_hw_addr_filt *filt,
 			   unsigned long changed)
 {
-	struct at86rf230_local *lp = dev->priv;
+	struct at86rf230_local *lp = hw->priv;
 
 	if (changed & IEEE802154_AFILT_SADDR_CHANGED) {
 		u16 addr = le16_to_cpu(filt->short_addr);
@@ -1138,9 +1138,9 @@ at86rf230_set_hw_addr_filt(struct ieee802154_dev *dev,
 }
 
 static int
-at86rf230_set_txpower(struct ieee802154_dev *dev, int db)
+at86rf230_set_txpower(struct ieee802154_hw *hw, int db)
 {
-	struct at86rf230_local *lp = dev->priv;
+	struct at86rf230_local *lp = hw->priv;
 
 	/* typical maximum output is 5dBm with RG_PHY_TX_PWR 0x60, lower five
 	 * bits decrease power in 1dB steps. 0x60 represents extra PA gain of
@@ -1157,17 +1157,17 @@ at86rf230_set_txpower(struct ieee802154_dev *dev, int db)
 }
 
 static int
-at86rf230_set_lbt(struct ieee802154_dev *dev, bool on)
+at86rf230_set_lbt(struct ieee802154_hw *hw, bool on)
 {
-	struct at86rf230_local *lp = dev->priv;
+	struct at86rf230_local *lp = hw->priv;
 
 	return at86rf230_write_subreg(lp, SR_CSMA_LBT_MODE, on);
 }
 
 static int
-at86rf230_set_cca_mode(struct ieee802154_dev *dev, u8 mode)
+at86rf230_set_cca_mode(struct ieee802154_hw *hw, u8 mode)
 {
-	struct at86rf230_local *lp = dev->priv;
+	struct at86rf230_local *lp = hw->priv;
 
 	return at86rf230_write_subreg(lp, SR_CCA_MODE, mode);
 }
@@ -1185,9 +1185,9 @@ at86rf23x_get_desens_steps(struct at86rf230_local *lp, s32 level)
 }
 
 static int
-at86rf230_set_cca_ed_level(struct ieee802154_dev *dev, s32 level)
+at86rf230_set_cca_ed_level(struct ieee802154_hw *hw, s32 level)
 {
-	struct at86rf230_local *lp = dev->priv;
+	struct at86rf230_local *lp = hw->priv;
 
 	if (level < lp->data->rssi_base_val || level > 30)
 		return -EINVAL;
@@ -1197,10 +1197,10 @@ at86rf230_set_cca_ed_level(struct ieee802154_dev *dev, s32 level)
 }
 
 static int
-at86rf230_set_csma_params(struct ieee802154_dev *dev, u8 min_be, u8 max_be,
+at86rf230_set_csma_params(struct ieee802154_hw *hw, u8 min_be, u8 max_be,
 			  u8 retries)
 {
-	struct at86rf230_local *lp = dev->priv;
+	struct at86rf230_local *lp = hw->priv;
 	int rc;
 
 	if (min_be > max_be || max_be > 8 || retries > 5)
@@ -1218,9 +1218,9 @@ at86rf230_set_csma_params(struct ieee802154_dev *dev, u8 min_be, u8 max_be,
 }
 
 static int
-at86rf230_set_frame_retries(struct ieee802154_dev *dev, s8 retries)
+at86rf230_set_frame_retries(struct ieee802154_hw *hw, s8 retries)
 {
-	struct at86rf230_local *lp = dev->priv;
+	struct at86rf230_local *lp = hw->priv;
 	int rc = 0;
 
 	if (retries < -1 || retries > 15)
@@ -1409,8 +1409,8 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 		return -EINVAL;
 	}
 
-	lp->dev->extra_tx_headroom = 0;
-	lp->dev->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AACK |
+	lp->hw->extra_tx_headroom = 0;
+	lp->hw->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AACK |
 			 IEEE802154_HW_TXPOWER | IEEE802154_HW_CSMA;
 
 	switch (part) {
@@ -1421,15 +1421,15 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 	case 3:
 		chip = "at86rf231";
 		lp->data = &at86rf231_data;
-		lp->dev->phy->channels_supported[0] = 0x7FFF800;
+		lp->hw->phy->channels_supported[0] = 0x7FFF800;
 		break;
 	case 7:
 		chip = "at86rf212";
 		if (version == 1) {
 			lp->data = &at86rf212_data;
-			lp->dev->flags |= IEEE802154_HW_LBT;
-			lp->dev->phy->channels_supported[0] = 0x00007FF;
-			lp->dev->phy->channels_supported[2] = 0x00007FF;
+			lp->hw->flags |= IEEE802154_HW_LBT;
+			lp->hw->phy->channels_supported[0] = 0x00007FF;
+			lp->hw->phy->channels_supported[2] = 0x00007FF;
 		} else {
 			rc = -ENOTSUPP;
 		}
@@ -1437,7 +1437,7 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 	case 11:
 		chip = "at86rf233";
 		lp->data = &at86rf233_data;
-		lp->dev->phy->channels_supported[0] = 0x7FFF800;
+		lp->hw->phy->channels_supported[0] = 0x7FFF800;
 		break;
 	default:
 		chip = "unkown";
@@ -1478,7 +1478,7 @@ at86rf230_setup_spi_messages(struct at86rf230_local *lp)
 static int at86rf230_probe(struct spi_device *spi)
 {
 	struct at86rf230_platform_data *pdata;
-	struct ieee802154_dev *dev;
+	struct ieee802154_hw *hw;
 	struct at86rf230_local *lp;
 	unsigned int status;
 	int rc, irq_type;
@@ -1517,14 +1517,14 @@ static int at86rf230_probe(struct spi_device *spi)
 		usleep_range(120, 240);
 	}
 
-	dev = ieee802154_alloc_device(sizeof(*lp), &at86rf230_ops);
-	if (!dev)
+	hw = ieee802154_alloc_hw(sizeof(*lp), &at86rf230_ops);
+	if (!hw)
 		return -ENOMEM;
 
-	lp = dev->priv;
-	lp->dev = dev;
+	lp = hw->priv;
+	lp->hw = hw;
 	lp->spi = spi;
-	dev->parent = &spi->dev;
+	hw->parent = &spi->dev;
 
 	lp->regmap = devm_regmap_init_spi(spi, &at86rf230_regmap_spi_config);
 	if (IS_ERR(lp->regmap)) {
@@ -1564,14 +1564,14 @@ static int at86rf230_probe(struct spi_device *spi)
 	if (rc)
 		goto free_dev;
 
-	rc = ieee802154_register_device(lp->dev);
+	rc = ieee802154_register_hw(lp->hw);
 	if (rc)
 		goto free_dev;
 
 	return rc;
 
 free_dev:
-	ieee802154_free_device(lp->dev);
+	ieee802154_free_hw(lp->hw);
 
 	return rc;
 }
@@ -1582,8 +1582,8 @@ static int at86rf230_remove(struct spi_device *spi)
 
 	/* mask all at86rf230 irq's */
 	at86rf230_write_subreg(lp, SR_IRQ_MASK, 0);
-	ieee802154_unregister_device(lp->dev);
-	ieee802154_free_device(lp->dev);
+	ieee802154_unregister_hw(lp->hw);
+	ieee802154_free_hw(lp->hw);
 	dev_dbg(&spi->dev, "unregistered at86rf230\n");
 
 	return 0;

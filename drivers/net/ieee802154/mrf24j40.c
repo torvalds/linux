@@ -79,7 +79,7 @@ enum mrf24j40_modules { MRF24J40, MRF24J40MA, MRF24J40MC };
 /* Device Private Data */
 struct mrf24j40 {
 	struct spi_device *spi;
-	struct ieee802154_dev *dev;
+	struct ieee802154_hw *hw;
 
 	struct mutex buffer_mutex; /* only used to protect buf */
 	struct completion tx_complete;
@@ -332,9 +332,9 @@ out:
 	return ret;
 }
 
-static int mrf24j40_tx(struct ieee802154_dev *dev, struct sk_buff *skb)
+static int mrf24j40_tx(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
-	struct mrf24j40 *devrec = dev->priv;
+	struct mrf24j40 *devrec = hw->priv;
 	u8 val;
 	int ret = 0;
 
@@ -383,7 +383,7 @@ err:
 	return ret;
 }
 
-static int mrf24j40_ed(struct ieee802154_dev *dev, u8 *level)
+static int mrf24j40_ed(struct ieee802154_hw *hw, u8 *level)
 {
 	/* TODO: */
 	pr_warn("mrf24j40: ed not implemented\n");
@@ -391,9 +391,9 @@ static int mrf24j40_ed(struct ieee802154_dev *dev, u8 *level)
 	return 0;
 }
 
-static int mrf24j40_start(struct ieee802154_dev *dev)
+static int mrf24j40_start(struct ieee802154_hw *hw)
 {
-	struct mrf24j40 *devrec = dev->priv;
+	struct mrf24j40 *devrec = hw->priv;
 	u8 val;
 	int ret;
 
@@ -408,9 +408,9 @@ static int mrf24j40_start(struct ieee802154_dev *dev)
 	return 0;
 }
 
-static void mrf24j40_stop(struct ieee802154_dev *dev)
+static void mrf24j40_stop(struct ieee802154_hw *hw)
 {
-	struct mrf24j40 *devrec = dev->priv;
+	struct mrf24j40 *devrec = hw->priv;
 	u8 val;
 	int ret;
 
@@ -423,10 +423,10 @@ static void mrf24j40_stop(struct ieee802154_dev *dev)
 	write_short_reg(devrec, REG_INTCON, val);
 }
 
-static int mrf24j40_set_channel(struct ieee802154_dev *dev,
+static int mrf24j40_set_channel(struct ieee802154_hw *hw,
 				int page, int channel)
 {
-	struct mrf24j40 *devrec = dev->priv;
+	struct mrf24j40 *devrec = hw->priv;
 	u8 val;
 	int ret;
 
@@ -454,11 +454,11 @@ static int mrf24j40_set_channel(struct ieee802154_dev *dev,
 	return 0;
 }
 
-static int mrf24j40_filter(struct ieee802154_dev *dev,
+static int mrf24j40_filter(struct ieee802154_hw *hw,
 			   struct ieee802154_hw_addr_filt *filt,
 			   unsigned long changed)
 {
-	struct mrf24j40 *devrec = dev->priv;
+	struct mrf24j40 *devrec = hw->priv;
 
 	dev_dbg(printdev(devrec), "filter\n");
 
@@ -564,7 +564,7 @@ static int mrf24j40_handle_rx(struct mrf24j40 *devrec)
 	/* TODO: Other drivers call ieee20154_rx_irqsafe() here (eg: cc2040,
 	 * also from a workqueue).  I think irqsafe is not necessary here.
 	 * Can someone confirm? */
-	ieee802154_rx_irqsafe(devrec->dev, skb, lqi);
+	ieee802154_rx_irqsafe(devrec->hw, skb, lqi);
 
 	dev_dbg(printdev(devrec), "RX Handled\n");
 
@@ -745,17 +745,17 @@ static int mrf24j40_probe(struct spi_device *spi)
 
 	/* Register with the 802154 subsystem */
 
-	devrec->dev = ieee802154_alloc_device(0, &mrf24j40_ops);
-	if (!devrec->dev)
+	devrec->hw = ieee802154_alloc_hw(0, &mrf24j40_ops);
+	if (!devrec->hw)
 		goto err_ret;
 
-	devrec->dev->priv = devrec;
-	devrec->dev->parent = &devrec->spi->dev;
-	devrec->dev->phy->channels_supported[0] = CHANNEL_MASK;
-	devrec->dev->flags = IEEE802154_HW_OMIT_CKSUM|IEEE802154_HW_AACK;
+	devrec->hw->priv = devrec;
+	devrec->hw->parent = &devrec->spi->dev;
+	devrec->hw->phy->channels_supported[0] = CHANNEL_MASK;
+	devrec->hw->flags = IEEE802154_HW_OMIT_CKSUM|IEEE802154_HW_AACK;
 
 	dev_dbg(printdev(devrec), "registered mrf24j40\n");
-	ret = ieee802154_register_device(devrec->dev);
+	ret = ieee802154_register_hw(devrec->hw);
 	if (ret)
 		goto err_register_device;
 
@@ -780,9 +780,9 @@ static int mrf24j40_probe(struct spi_device *spi)
 
 err_irq:
 err_hw_init:
-	ieee802154_unregister_device(devrec->dev);
+	ieee802154_unregister_hw(devrec->hw);
 err_register_device:
-	ieee802154_free_device(devrec->dev);
+	ieee802154_free_hw(devrec->hw);
 err_ret:
 	return ret;
 }
@@ -793,8 +793,8 @@ static int mrf24j40_remove(struct spi_device *spi)
 
 	dev_dbg(printdev(devrec), "remove\n");
 
-	ieee802154_unregister_device(devrec->dev);
-	ieee802154_free_device(devrec->dev);
+	ieee802154_unregister_hw(devrec->hw);
+	ieee802154_free_hw(devrec->hw);
 	/* TODO: Will ieee802154_free_device() wait until ->xmit() is
 	 * complete? */
 

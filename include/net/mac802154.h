@@ -52,7 +52,7 @@ struct ieee802154_hw_addr_filt {
 	u8	pan_coord;
 };
 
-struct ieee802154_dev {
+struct ieee802154_hw {
 	/* filled by the driver */
 	int	extra_tx_headroom;
 	u32	flags;
@@ -159,37 +159,37 @@ struct ieee802154_dev {
  */
 struct ieee802154_ops {
 	struct module	*owner;
-	int		(*start)(struct ieee802154_dev *dev);
-	void		(*stop)(struct ieee802154_dev *dev);
-	int		(*xmit)(struct ieee802154_dev *dev,
+	int		(*start)(struct ieee802154_hw *hw);
+	void		(*stop)(struct ieee802154_hw *hw);
+	int		(*xmit)(struct ieee802154_hw *hw,
 				struct sk_buff *skb);
-	int		(*ed)(struct ieee802154_dev *dev, u8 *level);
-	int		(*set_channel)(struct ieee802154_dev *dev,
+	int		(*ed)(struct ieee802154_hw *hw, u8 *level);
+	int		(*set_channel)(struct ieee802154_hw *hw,
 				       int page,
 				       int channel);
-	int		(*set_hw_addr_filt)(struct ieee802154_dev *dev,
-					  struct ieee802154_hw_addr_filt *filt,
+	int		(*set_hw_addr_filt)(struct ieee802154_hw *hw,
+					    struct ieee802154_hw_addr_filt *filt,
 					    unsigned long changed);
-	int		(*ieee_addr)(struct ieee802154_dev *dev, __le64 addr);
-	int		(*set_txpower)(struct ieee802154_dev *dev, int db);
-	int		(*set_lbt)(struct ieee802154_dev *dev, bool on);
-	int		(*set_cca_mode)(struct ieee802154_dev *dev, u8 mode);
-	int		(*set_cca_ed_level)(struct ieee802154_dev *dev,
+	int		(*ieee_addr)(struct ieee802154_hw *hw, __le64 addr);
+	int		(*set_txpower)(struct ieee802154_hw *hw, int db);
+	int		(*set_lbt)(struct ieee802154_hw *hw, bool on);
+	int		(*set_cca_mode)(struct ieee802154_hw *hw, u8 mode);
+	int		(*set_cca_ed_level)(struct ieee802154_hw *hw,
 					    s32 level);
-	int		(*set_csma_params)(struct ieee802154_dev *dev,
+	int		(*set_csma_params)(struct ieee802154_hw *hw,
 					   u8 min_be, u8 max_be, u8 retries);
-	int		(*set_frame_retries)(struct ieee802154_dev *dev,
+	int		(*set_frame_retries)(struct ieee802154_hw *hw,
 					     s8 retries);
 };
 
-/* Basic interface to register ieee802154 device */
-struct ieee802154_dev *
-ieee802154_alloc_device(size_t priv_data_len, struct ieee802154_ops *ops);
-void ieee802154_free_device(struct ieee802154_dev *dev);
-int ieee802154_register_device(struct ieee802154_dev *dev);
-void ieee802154_unregister_device(struct ieee802154_dev *dev);
+/* Basic interface to register ieee802154 hwice */
+struct ieee802154_hw *
+ieee802154_alloc_hw(size_t priv_data_len, struct ieee802154_ops *ops);
+void ieee802154_free_hw(struct ieee802154_hw *hw);
+int ieee802154_register_hw(struct ieee802154_hw *hw);
+void ieee802154_unregister_hw(struct ieee802154_hw *hw);
 
-void ieee802154_rx_irqsafe(struct ieee802154_dev *dev, struct sk_buff *skb,
+void ieee802154_rx_irqsafe(struct ieee802154_hw *hw, struct sk_buff *skb,
 			   u8 lqi);
 
 #endif /* NET_MAC802154_H */
