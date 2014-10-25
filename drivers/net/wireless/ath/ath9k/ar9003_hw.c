@@ -670,9 +670,6 @@ static void ar9003_tx_gain_table_mode5(struct ath_hw *ah)
 	if (AR_SREV_9485_11_OR_LATER(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar9485Modes_green_ob_db_tx_gain_1_1);
-	else if (AR_SREV_9340(ah))
-		INIT_INI_ARRAY(&ah->iniModesTxGain,
-			ar9340Modes_ub124_tx_gain_table_1p0);
 	else if (AR_SREV_9580(ah))
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar9580_1p0_type5_tx_gain_table);
