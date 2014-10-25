@@ -61,16 +61,6 @@ int mac802154_slave_open(struct net_device *dev)
 			goto err;
 	}
 
-	if (local->ops->ieee_addr) {
-		__le64 addr = ieee802154_devaddr_from_raw(dev->dev_addr);
-
-		res = local->ops->ieee_addr(&local->hw, addr);
-		WARN_ON(res);
-		if (res)
-			goto err;
-		mac802154_dev_set_ieee_addr(dev);
-	}
-
 	netif_start_queue(dev);
 	return 0;
 err:
