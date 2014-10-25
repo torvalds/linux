@@ -33,4 +33,4 @@
 
 int private_ioctl(struct vnt_private *, struct ifreq *rq);
 
-#endif // __IOCTL_H__
+#endif /* __IOCTL_H__ */
