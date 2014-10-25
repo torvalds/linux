@@ -31,7 +31,7 @@
 
 #define WPA_IE_LEN 64
 
-//WPA related
+/* WPA related */
 
 enum {
 	VIAWGET_SET_WPA = 1,
@@ -117,9 +117,9 @@ struct viawget_scan_result {
 	u16 wpa_ie_len;
 	u8 rsn_ie[WPA_IE_LEN];
 	u16 rsn_ie_len;
-	int freq; // MHz
-	int caps; // e.g. privacy
-	int qual; // signal quality
+	int freq; /* MHz */
+	int caps; /* e.g. privacy */
+	int qual; /* signal quality */
 	int noise;
 	int level;
 	int maxrate;
@@ -127,4 +127,4 @@ struct viawget_scan_result {
 
 #pragma pack()
 
-#endif //__IOWPA_H__
+#endif /* __IOWPA_H__ */
