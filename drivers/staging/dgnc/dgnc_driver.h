@@ -42,41 +42,12 @@
  *
  *************************************************************************/
 
-/* Driver identification, error and debugging statments */
+/* Driver identification and error statments */
 #define	PROCSTR		"dgnc"			/* /proc entries	 */
 #define	DEVSTR		"/dev/dg/dgnc"		/* /dev entries		 */
 #define	DRVSTR		"dgnc"			/* Driver name string	 */
 
 #define TRC_TO_CONSOLE 1
-
-/*
- * Debugging levels can be set using debug insmod variable
- * They can also be compiled out completely.
- */
-
-#define	DBG_INIT		(dgnc_debug & 0x01)
-#define	DBG_BASIC		(dgnc_debug & 0x02)
-#define	DBG_CORE		(dgnc_debug & 0x04)
-
-#define	DBG_OPEN		(dgnc_debug & 0x08)
-#define	DBG_CLOSE		(dgnc_debug & 0x10)
-#define	DBG_READ		(dgnc_debug & 0x20)
-#define	DBG_WRITE		(dgnc_debug & 0x40)
-
-#define	DBG_IOCTL		(dgnc_debug & 0x80)
-
-#define	DBG_PROC		(dgnc_debug & 0x100)
-#define	DBG_PARAM		(dgnc_debug & 0x200)
-#define	DBG_PSCAN		(dgnc_debug & 0x400)
-#define	DBG_EVENT		(dgnc_debug & 0x800)
-
-#define	DBG_DRAIN		(dgnc_debug & 0x1000)
-#define	DBG_MSIGS		(dgnc_debug & 0x2000)
-
-#define	DBG_MGMT		(dgnc_debug & 0x4000)
-#define	DBG_INTR		(dgnc_debug & 0x8000)
-
-#define	DBG_CARR		(dgnc_debug & 0x10000)
 
 /* Number of boards we support at once. */
 #define	MAXBOARDS	20
@@ -428,7 +399,6 @@ struct channel_t {
  * Our Global Variables.
  */
 extern uint		dgnc_Major;		/* Our driver/mgmt major	*/
-extern int		dgnc_debug;		/* Debug variable		*/
 extern int		dgnc_poll_tick;		/* Poll interval - 20 ms	*/
 extern spinlock_t	dgnc_global_lock;	/* Driver global spinlock	*/
 extern uint		dgnc_NumBoards;		/* Total number of boards	*/
