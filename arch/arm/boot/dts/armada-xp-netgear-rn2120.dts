@@ -137,6 +137,12 @@
 				};
 			};
 
+			/* Two rear eSATA ports */
+			sata@a0000 {
+				nr-ports = <2>;
+				status = "okay";
+			};
+
 			serial@12000 {
 				status = "okay";
 			};
