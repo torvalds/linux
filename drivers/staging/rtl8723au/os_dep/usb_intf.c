@@ -59,21 +59,6 @@ static struct usb_driver rtl8723a_usb_drv = {
 
 static struct usb_driver *usb_drv = &rtl8723a_usb_drv;
 
-static inline int RT_usb_endpoint_is_bulk_in(const struct usb_endpoint_descriptor *epd)
-{
-	return usb_endpoint_xfer_bulk(epd) && usb_endpoint_dir_in(epd);
-}
-
-static inline int RT_usb_endpoint_is_bulk_out(const struct usb_endpoint_descriptor *epd)
-{
-	return usb_endpoint_xfer_bulk(epd) && usb_endpoint_dir_out(epd);
-}
-
-static inline int RT_usb_endpoint_is_int_in(const struct usb_endpoint_descriptor *epd)
-{
-	return usb_endpoint_xfer_int(epd) && usb_endpoint_dir_in(epd);
-}
-
 static int rtw_init_intf_priv(struct dvobj_priv *dvobj)
 {
 	mutex_init(&dvobj->usb_vendor_req_mutex);
@@ -143,21 +128,21 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 				  le16_to_cpu(pendp_desc->wMaxPacketSize));
 			DBG_8723A("bInterval =%x\n", pendp_desc->bInterval);
 
-			if (RT_usb_endpoint_is_bulk_in(pendp_desc)) {
-				DBG_8723A("RT_usb_endpoint_is_bulk_in = %x\n",
+			if (usb_endpoint_is_bulk_in(pendp_desc)) {
+				DBG_8723A("usb_endpoint_is_bulk_in = %x\n",
 					  usb_endpoint_num(pendp_desc));
 				pdvobjpriv->RtInPipe[pdvobjpriv->RtNumInPipes] =
 					usb_endpoint_num(pendp_desc);
 				pdvobjpriv->RtNumInPipes++;
-			} else if (RT_usb_endpoint_is_int_in(pendp_desc)) {
-				DBG_8723A("RT_usb_endpoint_is_int_in = %x, Interval = %x\n",
+			} else if (usb_endpoint_is_int_in(pendp_desc)) {
+				DBG_8723A("usb_endpoint_is_int_in = %x, Interval = %x\n",
 					  usb_endpoint_num(pendp_desc),
 					  pendp_desc->bInterval);
 				pdvobjpriv->RtInPipe[pdvobjpriv->RtNumInPipes] =
 					usb_endpoint_num(pendp_desc);
 				pdvobjpriv->RtNumInPipes++;
-			} else if (RT_usb_endpoint_is_bulk_out(pendp_desc)) {
-				DBG_8723A("RT_usb_endpoint_is_bulk_out = %x\n",
+			} else if (usb_endpoint_is_bulk_out(pendp_desc)) {
+				DBG_8723A("usb_endpoint_is_bulk_out = %x\n",
 					  usb_endpoint_num(pendp_desc));
 				pdvobjpriv->RtOutPipe[pdvobjpriv->RtNumOutPipes] =
 					usb_endpoint_num(pendp_desc);
