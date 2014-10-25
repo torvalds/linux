@@ -39,4 +39,4 @@ device_receive_frame(
 	PSRxDesc pCurrRD
 );
 
-#endif // __RXTX_H__
+#endif /* __RXTX_H__ */
