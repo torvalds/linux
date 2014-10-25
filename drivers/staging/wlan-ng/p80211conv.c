@@ -107,7 +107,7 @@ int skb_ether_to_p80211(wlandevice_t *wlandev, u32 ethconv,
 			struct p80211_metawep *p80211_wep)
 {
 
-	u16 fc;
+	__le16 fc;
 	u16 proto;
 	struct wlan_ethhdr e_hdr;
 	struct wlan_llc *e_llc;
