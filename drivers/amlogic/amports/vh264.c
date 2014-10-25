@@ -795,7 +795,7 @@ static void vh264_set_params(void)
     if (timing_info_present_flag) {
         fixed_frame_rate_flag = seq_info & 0x40;
 
-        if (((num_units_in_tick * 120) >= time_scale && (!sync_outside)) && num_units_in_tick && time_scale) {
+        if (((num_units_in_tick * 120) >= time_scale && ((!sync_outside) || (!frame_dur))) && num_units_in_tick && time_scale) {
             if (use_idr_framerate || !frame_dur || !duration_from_pts_done || vh264_running) {
                 u32 frame_dur_es = div_u64(96000ULL * 2 * num_units_in_tick, time_scale);
 
@@ -806,6 +806,8 @@ static void vh264_set_params(void)
                 }
             }
         }
+    } else {
+        printk("H.264: timing_info not present\n");
     }
 
     if (aspect_ratio_info_present_flag) {
@@ -1088,10 +1090,14 @@ static void vh264_isr(void)
                                          close_to(frame_dur, RATE_25_FPS, RATE_CORRECTION_THRESHOLD))
                                          || (close_to(pts_duration, RATE_25_FPS, RATE_CORRECTION_THRESHOLD) &&
                                              close_to(frame_dur, RATE_24_FPS, RATE_CORRECTION_THRESHOLD))) {
+                                        printk("H.264: Correct frame duration from %d to duration based on PTS %d\n",
+                                                frame_dur, pts_duration);
                                         frame_dur = pts_duration;
                                         duration_from_pts_done = 1;
                                         //printk("used calculate frame rate,on frame_dur problem=%d\n",frame_dur);
                                     } else if (((frame_dur<96000/240) && (pts_duration>96000/240)) || !duration_on_correcting){//>if frameRate>240fps,I think have error,use calculate rate.
+                                        printk("H.264: Correct frame duration from %d to duration based on PTS %d\n",
+                                                frame_dur, pts_duration);
                                         frame_dur = pts_duration;
                                         //printk("used calculate frame rate,on frame_dur error=%d\n",frame_dur);
                                         duration_on_correcting=1;
@@ -1591,6 +1597,10 @@ static void vh264_local_init(void)
     sync_outside = ((u32)vh264_amstream_dec_info.param & 0x02) >> 1;
     use_idr_framerate = ((u32)vh264_amstream_dec_info.param & 0x04) >> 2;
     max_refer_buf = !(((u32)vh264_amstream_dec_info.param & 0x10) >> 4);
+
+    printk("H264 sysinfo: %dx%d duration=%d, pts_outside=%d, sync_outside=%d, use_idr_framerate=%d\n",
+            frame_width, frame_height, frame_dur, pts_outside, sync_outside, use_idr_framerate);
+
     if ((u32)vh264_amstream_dec_info.param & 0x08)
     {
         ucode_type = UCODE_IP_ONLY_PARAM ;
@@ -1847,11 +1857,21 @@ static void error_do_work(struct work_struct *work)
      * then we may call more than once on free_irq/deltimer/..and some other.
      */
     if (atomic_read(&vh264_active)) {
-        int blackout_policy = get_blackout_policy();
-        set_blackout_policy(0);
-        vh264_stop();
-        vh264_init();
-        set_blackout_policy(blackout_policy);
+        amvdec_stop();
+
+#ifdef CONFIG_POST_PROCESS_MANAGER
+        vh264_ppmgr_reset();
+#else
+        vf_light_unreg_provider(&vh264_vf_prov);
+
+        vh264_local_init();
+
+        vf_reg_provider(&vh264_vf_prov);
+#endif
+
+        vh264_prot_init();
+
+        amvdec_start();
     }
 
     mutex_unlock(&vh264_mutex);
