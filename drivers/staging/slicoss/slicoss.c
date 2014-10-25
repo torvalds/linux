@@ -1611,7 +1611,7 @@ static int slic_rcvqueue_init(struct adapter *adapter)
 	rcvq->size = SLIC_RCVQ_ENTRIES;
 	rcvq->errors = 0;
 	rcvq->count = 0;
-	i = (SLIC_RCVQ_ENTRIES / SLIC_RCVQ_FILLENTRIES);
+	i = SLIC_RCVQ_ENTRIES / SLIC_RCVQ_FILLENTRIES;
 	count = 0;
 	while (i) {
 		count += slic_rcvqueue_fill(adapter);
