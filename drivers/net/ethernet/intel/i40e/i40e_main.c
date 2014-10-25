@@ -5449,7 +5449,7 @@ static void i40e_check_hang_subtask(struct i40e_pf *pf)
 }
 
 /**
- * i40e_watchdog_subtask - Check and bring link up
+ * i40e_watchdog_subtask - periodic checks not using event driven response
  * @pf: board private structure
  **/
 static void i40e_watchdog_subtask(struct i40e_pf *pf)
@@ -5460,6 +5460,15 @@ static void i40e_watchdog_subtask(struct i40e_pf *pf)
 	if (test_bit(__I40E_DOWN, &pf->state) ||
 	    test_bit(__I40E_CONFIG_BUSY, &pf->state))
 		return;
+
+	/* make sure we don't do these things too often */
+	if (time_before(jiffies, (pf->service_timer_previous +
+				  pf->service_timer_period)))
+		return;
+	pf->service_timer_previous = jiffies;
+
+	i40e_check_hang_subtask(pf);
+	i40e_link_event(pf);
 
 	/* Update the stats for active netdevs so the network stack
 	 * can look at updated numbers whenever it cares to
@@ -6325,14 +6334,11 @@ static void i40e_service_task(struct work_struct *work)
 	i40e_vc_process_vflr_event(pf);
 	i40e_watchdog_subtask(pf);
 	i40e_fdir_reinit_subtask(pf);
-	i40e_check_hang_subtask(pf);
 	i40e_sync_filters_subtask(pf);
 #ifdef CONFIG_I40E_VXLAN
 	i40e_sync_vxlan_filters_subtask(pf);
 #endif
 	i40e_clean_adminq_subtask(pf);
-
-	i40e_link_event(pf);
 
 	i40e_service_event_complete(pf);
 
