@@ -2205,8 +2205,6 @@ static int dgnc_set_modem_info(struct tty_struct *tty, unsigned int command, uns
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
 		return ret;
 
-	ret = 0;
-
 	ret = get_user(arg, value);
 	if (ret)
 		return ret;
