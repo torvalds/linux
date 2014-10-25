@@ -1975,7 +1975,7 @@ static void lgdt3306a_DumpRegs(struct lgdt3306a_state *state)
 
 	if ((debug & DBG_DUMP) == 0)
 		return;
-	debug &= ~DBG_REG; /* supress DBG_REG during reg dump */
+	debug &= ~DBG_REG; /* suppress DBG_REG during reg dump */
 
 	lg_info("\n");
 
