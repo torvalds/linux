@@ -545,11 +545,10 @@ irqreturn_t ath_isr(int irq, void *dev)
 		sched = true;
 
 	/*
-	 * If a FATAL or RXORN interrupt is received, we have to reset the
-	 * chip immediately.
+	 * If a FATAL interrupt is received, we have to reset the chip
+	 * immediately.
 	 */
-	if ((status & ATH9K_INT_FATAL) || ((status & ATH9K_INT_RXORN) &&
-	    !(ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)))
+	if (status & ATH9K_INT_FATAL)
 		goto chip_reset;
 
 	if ((ah->config.hw_hang_checks & HW_BB_WATCHDOG) &&
