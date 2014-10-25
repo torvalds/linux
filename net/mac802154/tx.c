@@ -33,7 +33,7 @@
 struct xmit_work {
 	struct sk_buff *skb;
 	struct work_struct work;
-	struct mac802154_priv *priv;
+	struct ieee802154_local *local;
 	u8 chan;
 	u8 page;
 };
@@ -44,10 +44,10 @@ static void mac802154_xmit_worker(struct work_struct *work)
 	struct mac802154_sub_if_data *sdata;
 	int res;
 
-	mutex_lock(&xw->priv->phy->pib_lock);
-	if (xw->priv->phy->current_channel != xw->chan ||
-	    xw->priv->phy->current_page != xw->page) {
-		res = xw->priv->ops->set_channel(&xw->priv->hw,
+	mutex_lock(&xw->local->phy->pib_lock);
+	if (xw->local->phy->current_channel != xw->chan ||
+	    xw->local->phy->current_page != xw->page) {
+		res = xw->local->ops->set_channel(&xw->local->hw,
 						  xw->page,
 						  xw->chan);
 		if (res) {
@@ -55,20 +55,20 @@ static void mac802154_xmit_worker(struct work_struct *work)
 			goto out;
 		}
 
-		xw->priv->phy->current_channel = xw->chan;
-		xw->priv->phy->current_page = xw->page;
+		xw->local->phy->current_channel = xw->chan;
+		xw->local->phy->current_page = xw->page;
 	}
 
-	res = xw->priv->ops->xmit(&xw->priv->hw, xw->skb);
+	res = xw->local->ops->xmit(&xw->local->hw, xw->skb);
 	if (res)
 		pr_debug("transmission failed\n");
 
 out:
-	mutex_unlock(&xw->priv->phy->pib_lock);
+	mutex_unlock(&xw->local->phy->pib_lock);
 
 	/* Restart the netif queue on each sub_if_data object. */
 	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &xw->priv->slaves, list)
+	list_for_each_entry_rcu(sdata, &xw->local->slaves, list)
 		netif_wake_queue(sdata->dev);
 	rcu_read_unlock();
 
@@ -77,20 +77,20 @@ out:
 	kfree(xw);
 }
 
-netdev_tx_t mac802154_tx(struct mac802154_priv *priv, struct sk_buff *skb,
+netdev_tx_t mac802154_tx(struct ieee802154_local *local, struct sk_buff *skb,
 			 u8 page, u8 chan)
 {
 	struct xmit_work *work;
 	struct mac802154_sub_if_data *sdata;
 
-	if (!(priv->phy->channels_supported[page] & (1 << chan))) {
+	if (!(local->phy->channels_supported[page] & (1 << chan))) {
 		WARN_ON(1);
 		goto err_tx;
 	}
 
-	mac802154_monitors_rx(mac802154_to_priv(&priv->hw), skb);
+	mac802154_monitors_rx(mac802154_to_priv(&local->hw), skb);
 
-	if (!(priv->hw.flags & IEEE802154_HW_OMIT_CKSUM)) {
+	if (!(local->hw.flags & IEEE802154_HW_OMIT_CKSUM)) {
 		u16 crc = crc_ccitt(0, skb->data, skb->len);
 		u8 *data = skb_put(skb, 2);
 
@@ -98,7 +98,7 @@ netdev_tx_t mac802154_tx(struct mac802154_priv *priv, struct sk_buff *skb,
 		data[1] = crc >> 8;
 	}
 
-	if (skb_cow_head(skb, priv->hw.extra_tx_headroom))
+	if (skb_cow_head(skb, local->hw.extra_tx_headroom))
 		goto err_tx;
 
 	work = kzalloc(sizeof(*work), GFP_ATOMIC);
@@ -109,17 +109,17 @@ netdev_tx_t mac802154_tx(struct mac802154_priv *priv, struct sk_buff *skb,
 
 	/* Stop the netif queue on each sub_if_data object. */
 	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &priv->slaves, list)
+	list_for_each_entry_rcu(sdata, &local->slaves, list)
 		netif_stop_queue(sdata->dev);
 	rcu_read_unlock();
 
 	INIT_WORK(&work->work, mac802154_xmit_worker);
 	work->skb = skb;
-	work->priv = priv;
+	work->local = local;
 	work->page = page;
 	work->chan = chan;
 
-	queue_work(priv->dev_workqueue, &work->work);
+	queue_work(local->dev_workqueue, &work->work);
 
 	return NETDEV_TX_OK;
 

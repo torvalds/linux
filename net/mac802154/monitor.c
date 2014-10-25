@@ -57,7 +57,7 @@ static netdev_tx_t mac802154_monitor_xmit(struct sk_buff *skb,
 }
 
 
-void mac802154_monitors_rx(struct mac802154_priv *priv, struct sk_buff *skb)
+void mac802154_monitors_rx(struct ieee802154_local *local, struct sk_buff *skb)
 {
 	struct sk_buff *skb2;
 	struct mac802154_sub_if_data *sdata;
@@ -65,7 +65,7 @@ void mac802154_monitors_rx(struct mac802154_priv *priv, struct sk_buff *skb)
 	u8 *data;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &priv->slaves, list) {
+	list_for_each_entry_rcu(sdata, &local->slaves, list) {
 		if (sdata->type != IEEE802154_DEV_MONITOR ||
 		    !netif_running(sdata->dev))
 			continue;

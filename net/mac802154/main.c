@@ -33,7 +33,7 @@ int mac802154_slave_open(struct net_device *dev)
 {
 	struct mac802154_sub_if_data *priv = netdev_priv(dev);
 	struct mac802154_sub_if_data *subif;
-	struct mac802154_priv *ipriv = priv->hw;
+	struct ieee802154_local *local = priv->hw;
 	int res = 0;
 
 	ASSERT_RTNL();
@@ -54,17 +54,17 @@ int mac802154_slave_open(struct net_device *dev)
 	priv->running = true;
 	mutex_unlock(&priv->hw->slaves_mtx);
 
-	if (ipriv->open_count++ == 0) {
-		res = ipriv->ops->start(&ipriv->hw);
+	if (local->open_count++ == 0) {
+		res = local->ops->start(&local->hw);
 		WARN_ON(res);
 		if (res)
 			goto err;
 	}
 
-	if (ipriv->ops->ieee_addr) {
+	if (local->ops->ieee_addr) {
 		__le64 addr = ieee802154_devaddr_from_raw(dev->dev_addr);
 
-		res = ipriv->ops->ieee_addr(&ipriv->hw, addr);
+		res = local->ops->ieee_addr(&local->hw, addr);
 		WARN_ON(res);
 		if (res)
 			goto err;
@@ -82,7 +82,7 @@ err:
 int mac802154_slave_close(struct net_device *dev)
 {
 	struct mac802154_sub_if_data *priv = netdev_priv(dev);
-	struct mac802154_priv *ipriv = priv->hw;
+	struct ieee802154_local *local = priv->hw;
 
 	ASSERT_RTNL();
 
@@ -92,8 +92,8 @@ int mac802154_slave_close(struct net_device *dev)
 	priv->running = false;
 	mutex_unlock(&priv->hw->slaves_mtx);
 
-	if (!--ipriv->open_count)
-		ipriv->ops->stop(&ipriv->hw);
+	if (!--local->open_count)
+		local->ops->stop(&local->hw);
 
 	return 0;
 }
@@ -102,34 +102,34 @@ static int
 mac802154_netdev_register(struct wpan_phy *phy, struct net_device *dev)
 {
 	struct mac802154_sub_if_data *priv;
-	struct mac802154_priv *ipriv;
+	struct ieee802154_local *local;
 	int err;
 
-	ipriv = wpan_phy_priv(phy);
+	local = wpan_phy_priv(phy);
 
 	priv = netdev_priv(dev);
 	priv->dev = dev;
-	priv->hw = ipriv;
+	priv->hw = local;
 
-	dev->needed_headroom = ipriv->hw.extra_tx_headroom;
+	dev->needed_headroom = local->hw.extra_tx_headroom;
 
-	SET_NETDEV_DEV(dev, &ipriv->phy->dev);
+	SET_NETDEV_DEV(dev, &local->phy->dev);
 
-	mutex_lock(&ipriv->slaves_mtx);
-	if (!ipriv->running) {
-		mutex_unlock(&ipriv->slaves_mtx);
+	mutex_lock(&local->slaves_mtx);
+	if (!local->running) {
+		mutex_unlock(&local->slaves_mtx);
 		return -ENODEV;
 	}
-	mutex_unlock(&ipriv->slaves_mtx);
+	mutex_unlock(&local->slaves_mtx);
 
 	err = register_netdev(dev);
 	if (err < 0)
 		return err;
 
 	rtnl_lock();
-	mutex_lock(&ipriv->slaves_mtx);
-	list_add_tail_rcu(&priv->list, &ipriv->slaves);
-	mutex_unlock(&ipriv->slaves_mtx);
+	mutex_lock(&local->slaves_mtx);
+	list_add_tail_rcu(&priv->list, &local->slaves);
+	mutex_unlock(&local->slaves_mtx);
 	rtnl_unlock();
 
 	return 0;
@@ -194,52 +194,52 @@ err:
 
 static int mac802154_set_txpower(struct wpan_phy *phy, int db)
 {
-	struct mac802154_priv *priv = wpan_phy_priv(phy);
+	struct ieee802154_local *local = wpan_phy_priv(phy);
 
-	return priv->ops->set_txpower(&priv->hw, db);
+	return local->ops->set_txpower(&local->hw, db);
 }
 
 static int mac802154_set_lbt(struct wpan_phy *phy, bool on)
 {
-	struct mac802154_priv *priv = wpan_phy_priv(phy);
+	struct ieee802154_local *local = wpan_phy_priv(phy);
 
-	return priv->ops->set_lbt(&priv->hw, on);
+	return local->ops->set_lbt(&local->hw, on);
 }
 
 static int mac802154_set_cca_mode(struct wpan_phy *phy, u8 mode)
 {
-	struct mac802154_priv *priv = wpan_phy_priv(phy);
+	struct ieee802154_local *local = wpan_phy_priv(phy);
 
-	return priv->ops->set_cca_mode(&priv->hw, mode);
+	return local->ops->set_cca_mode(&local->hw, mode);
 }
 
 static int mac802154_set_cca_ed_level(struct wpan_phy *phy, s32 level)
 {
-	struct mac802154_priv *priv = wpan_phy_priv(phy);
+	struct ieee802154_local *local = wpan_phy_priv(phy);
 
-	return priv->ops->set_cca_ed_level(&priv->hw, level);
+	return local->ops->set_cca_ed_level(&local->hw, level);
 }
 
 static int mac802154_set_csma_params(struct wpan_phy *phy, u8 min_be,
 				     u8 max_be, u8 retries)
 {
-	struct mac802154_priv *priv = wpan_phy_priv(phy);
+	struct ieee802154_local *local = wpan_phy_priv(phy);
 
-	return priv->ops->set_csma_params(&priv->hw, min_be, max_be, retries);
+	return local->ops->set_csma_params(&local->hw, min_be, max_be, retries);
 }
 
 static int mac802154_set_frame_retries(struct wpan_phy *phy, s8 retries)
 {
-	struct mac802154_priv *priv = wpan_phy_priv(phy);
+	struct ieee802154_local *local = wpan_phy_priv(phy);
 
-	return priv->ops->set_frame_retries(&priv->hw, retries);
+	return local->ops->set_frame_retries(&local->hw, retries);
 }
 
 struct ieee802154_hw *
 ieee802154_alloc_hw(size_t priv_data_len, struct ieee802154_ops *ops)
 {
 	struct wpan_phy *phy;
-	struct mac802154_priv *priv;
+	struct ieee802154_local *local;
 	size_t priv_size;
 
 	if (!ops || !ops->xmit || !ops->ed || !ops->start ||
@@ -249,24 +249,24 @@ ieee802154_alloc_hw(size_t priv_data_len, struct ieee802154_ops *ops)
 	}
 
 	/* Ensure 32-byte alignment of our private data and hw private data.
-	 * We use the wpan_phy priv data for both our mac802154_priv and for
+	 * We use the wpan_phy priv data for both our ieee802154_local and for
 	 * the driver's private data
 	 *
 	 * in memory it'll be like this:
 	 *
-	 * +-----------------------+
-	 * | struct wpan_phy       |
-	 * +-----------------------+
-	 * | struct mac802154_priv |
-	 * +-----------------------+
-	 * | driver's private data |
-	 * +-----------------------+
+	 * +-------------------------+
+	 * | struct wpan_phy         |
+	 * +-------------------------+
+	 * | struct ieee802154_local |
+	 * +-------------------------+
+	 * | driver's private data   |
+	 * +-------------------------+
 	 *
 	 * Due to ieee802154 layer isn't aware of driver and MAC structures,
 	 * so lets align them here.
 	 */
 
-	priv_size = ALIGN(sizeof(*priv), NETDEV_ALIGN) + priv_data_len;
+	priv_size = ALIGN(sizeof(*local), NETDEV_ALIGN) + priv_data_len;
 
 	phy = wpan_phy_alloc(priv_size);
 	if (!phy) {
@@ -274,106 +274,106 @@ ieee802154_alloc_hw(size_t priv_data_len, struct ieee802154_ops *ops)
 		return NULL;
 	}
 
-	priv = wpan_phy_priv(phy);
-	priv->phy = phy;
-	priv->hw.phy = priv->phy;
-	priv->hw.priv = (char *)priv + ALIGN(sizeof(*priv), NETDEV_ALIGN);
-	priv->ops = ops;
+	local = wpan_phy_priv(phy);
+	local->phy = phy;
+	local->hw.phy = local->phy;
+	local->hw.priv = (char *)local + ALIGN(sizeof(*local), NETDEV_ALIGN);
+	local->ops = ops;
 
-	INIT_LIST_HEAD(&priv->slaves);
-	mutex_init(&priv->slaves_mtx);
+	INIT_LIST_HEAD(&local->slaves);
+	mutex_init(&local->slaves_mtx);
 
-	return &priv->hw;
+	return &local->hw;
 }
 EXPORT_SYMBOL(ieee802154_alloc_hw);
 
 void ieee802154_free_hw(struct ieee802154_hw *hw)
 {
-	struct mac802154_priv *priv = mac802154_to_priv(hw);
+	struct ieee802154_local *local = mac802154_to_priv(hw);
 
-	BUG_ON(!list_empty(&priv->slaves));
+	BUG_ON(!list_empty(&local->slaves));
 
-	mutex_destroy(&priv->slaves_mtx);
+	mutex_destroy(&local->slaves_mtx);
 
-	wpan_phy_free(priv->phy);
+	wpan_phy_free(local->phy);
 }
 EXPORT_SYMBOL(ieee802154_free_hw);
 
 int ieee802154_register_hw(struct ieee802154_hw *hw)
 {
-	struct mac802154_priv *priv = mac802154_to_priv(hw);
+	struct ieee802154_local *local = mac802154_to_priv(hw);
 	int rc = -ENOSYS;
 
 	if (hw->flags & IEEE802154_HW_TXPOWER) {
-		if (!priv->ops->set_txpower)
+		if (!local->ops->set_txpower)
 			goto out;
 
-		priv->phy->set_txpower = mac802154_set_txpower;
+		local->phy->set_txpower = mac802154_set_txpower;
 	}
 
 	if (hw->flags & IEEE802154_HW_LBT) {
-		if (!priv->ops->set_lbt)
+		if (!local->ops->set_lbt)
 			goto out;
 
-		priv->phy->set_lbt = mac802154_set_lbt;
+		local->phy->set_lbt = mac802154_set_lbt;
 	}
 
 	if (hw->flags & IEEE802154_HW_CCA_MODE) {
-		if (!priv->ops->set_cca_mode)
+		if (!local->ops->set_cca_mode)
 			goto out;
 
-		priv->phy->set_cca_mode = mac802154_set_cca_mode;
+		local->phy->set_cca_mode = mac802154_set_cca_mode;
 	}
 
 	if (hw->flags & IEEE802154_HW_CCA_ED_LEVEL) {
-		if (!priv->ops->set_cca_ed_level)
+		if (!local->ops->set_cca_ed_level)
 			goto out;
 
-		priv->phy->set_cca_ed_level = mac802154_set_cca_ed_level;
+		local->phy->set_cca_ed_level = mac802154_set_cca_ed_level;
 	}
 
 	if (hw->flags & IEEE802154_HW_CSMA_PARAMS) {
-		if (!priv->ops->set_csma_params)
+		if (!local->ops->set_csma_params)
 			goto out;
 
-		priv->phy->set_csma_params = mac802154_set_csma_params;
+		local->phy->set_csma_params = mac802154_set_csma_params;
 	}
 
 	if (hw->flags & IEEE802154_HW_FRAME_RETRIES) {
-		if (!priv->ops->set_frame_retries)
+		if (!local->ops->set_frame_retries)
 			goto out;
 
-		priv->phy->set_frame_retries = mac802154_set_frame_retries;
+		local->phy->set_frame_retries = mac802154_set_frame_retries;
 	}
 
-	priv->dev_workqueue =
-		create_singlethread_workqueue(wpan_phy_name(priv->phy));
-	if (!priv->dev_workqueue) {
+	local->dev_workqueue =
+		create_singlethread_workqueue(wpan_phy_name(local->phy));
+	if (!local->dev_workqueue) {
 		rc = -ENOMEM;
 		goto out;
 	}
 
-	wpan_phy_set_dev(priv->phy, priv->hw.parent);
+	wpan_phy_set_dev(local->phy, local->hw.parent);
 
-	priv->phy->add_iface = mac802154_add_iface;
-	priv->phy->del_iface = mac802154_del_iface;
+	local->phy->add_iface = mac802154_add_iface;
+	local->phy->del_iface = mac802154_del_iface;
 
-	rc = wpan_phy_register(priv->phy);
+	rc = wpan_phy_register(local->phy);
 	if (rc < 0)
 		goto out_wq;
 
 	rtnl_lock();
 
-	mutex_lock(&priv->slaves_mtx);
-	priv->running = MAC802154_DEVICE_RUN;
-	mutex_unlock(&priv->slaves_mtx);
+	mutex_lock(&local->slaves_mtx);
+	local->running = MAC802154_DEVICE_RUN;
+	mutex_unlock(&local->slaves_mtx);
 
 	rtnl_unlock();
 
 	return 0;
 
 out_wq:
-	destroy_workqueue(priv->dev_workqueue);
+	destroy_workqueue(local->dev_workqueue);
 out:
 	return rc;
 }
@@ -381,19 +381,19 @@ EXPORT_SYMBOL(ieee802154_register_hw);
 
 void ieee802154_unregister_hw(struct ieee802154_hw *hw)
 {
-	struct mac802154_priv *priv = mac802154_to_priv(hw);
+	struct ieee802154_local *local = mac802154_to_priv(hw);
 	struct mac802154_sub_if_data *sdata, *next;
 
-	flush_workqueue(priv->dev_workqueue);
-	destroy_workqueue(priv->dev_workqueue);
+	flush_workqueue(local->dev_workqueue);
+	destroy_workqueue(local->dev_workqueue);
 
 	rtnl_lock();
 
-	mutex_lock(&priv->slaves_mtx);
-	priv->running = MAC802154_DEVICE_STOPPED;
-	mutex_unlock(&priv->slaves_mtx);
+	mutex_lock(&local->slaves_mtx);
+	local->running = MAC802154_DEVICE_STOPPED;
+	mutex_unlock(&local->slaves_mtx);
 
-	list_for_each_entry_safe(sdata, next, &priv->slaves, list) {
+	list_for_each_entry_safe(sdata, next, &local->slaves, list) {
 		mutex_lock(&sdata->hw->slaves_mtx);
 		list_del(&sdata->list);
 		mutex_unlock(&sdata->hw->slaves_mtx);
@@ -403,7 +403,7 @@ void ieee802154_unregister_hw(struct ieee802154_hw *hw)
 
 	rtnl_unlock();
 
-	wpan_phy_unregister(priv->phy);
+	wpan_phy_unregister(local->phy);
 }
 EXPORT_SYMBOL(ieee802154_unregister_hw);
 

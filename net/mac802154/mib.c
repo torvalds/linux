@@ -36,7 +36,7 @@ struct hw_addr_filt_notify_work {
 	unsigned long changed;
 };
 
-static struct mac802154_priv *mac802154_slave_get_priv(struct net_device *dev)
+static struct ieee802154_local *mac802154_slave_get_priv(struct net_device *dev)
 {
 	struct mac802154_sub_if_data *priv = netdev_priv(dev);
 
@@ -49,12 +49,11 @@ static void hw_addr_notify(struct work_struct *work)
 {
 	struct hw_addr_filt_notify_work *nw = container_of(work,
 			struct hw_addr_filt_notify_work, work);
-	struct mac802154_priv *hw = mac802154_slave_get_priv(nw->dev);
+	struct ieee802154_local *local = mac802154_slave_get_priv(nw->dev);
 	int res;
 
-	res = hw->ops->set_hw_addr_filt(&hw->hw,
-					&hw->hw.hw_filt,
-					nw->changed);
+	res = local->ops->set_hw_addr_filt(&local->hw, &local->hw.hw_filt,
+					   nw->changed);
 	if (res)
 		pr_debug("failed changed mask %lx\n", nw->changed);
 
@@ -110,13 +109,13 @@ __le16 mac802154_dev_get_short_addr(const struct net_device *dev)
 void mac802154_dev_set_ieee_addr(struct net_device *dev)
 {
 	struct mac802154_sub_if_data *priv = netdev_priv(dev);
-	struct mac802154_priv *mac = priv->hw;
+	struct ieee802154_local *local = priv->hw;
 
 	priv->extended_addr = ieee802154_devaddr_from_raw(dev->dev_addr);
 
-	if (mac->ops->set_hw_addr_filt &&
-	    mac->hw.hw_filt.ieee_addr != priv->extended_addr) {
-		mac->hw.hw_filt.ieee_addr = priv->extended_addr;
+	if (local->ops->set_hw_addr_filt &&
+	    local->hw.hw_filt.ieee_addr != priv->extended_addr) {
+		local->hw.hw_filt.ieee_addr = priv->extended_addr;
 		set_hw_addr_filt(dev, IEEE802154_AFILT_IEEEADDR_CHANGED);
 	}
 }
@@ -165,12 +164,12 @@ static void phy_chan_notify(struct work_struct *work)
 {
 	struct phy_chan_notify_work *nw = container_of(work,
 					  struct phy_chan_notify_work, work);
-	struct mac802154_priv *hw = mac802154_slave_get_priv(nw->dev);
+	struct ieee802154_local *local = mac802154_slave_get_priv(nw->dev);
 	struct mac802154_sub_if_data *priv = netdev_priv(nw->dev);
 	int res;
 
 	mutex_lock(&priv->hw->phy->pib_lock);
-	res = hw->ops->set_channel(&hw->hw, priv->page, priv->chan);
+	res = local->ops->set_channel(&local->hw, priv->page, priv->chan);
 	if (res) {
 		pr_debug("set_channel failed\n");
 	} else {

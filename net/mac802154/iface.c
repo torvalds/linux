@@ -565,7 +565,7 @@ static int mac802154_parse_frame_start(struct sk_buff *skb,
 	return 0;
 }
 
-void mac802154_wpans_rx(struct mac802154_priv *priv, struct sk_buff *skb)
+void mac802154_wpans_rx(struct ieee802154_local *local, struct sk_buff *skb)
 {
 	int ret;
 	struct mac802154_sub_if_data *sdata;
@@ -579,7 +579,7 @@ void mac802154_wpans_rx(struct mac802154_priv *priv, struct sk_buff *skb)
 	}
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &priv->slaves, list) {
+	list_for_each_entry_rcu(sdata, &local->slaves, list) {
 		if (sdata->type != IEEE802154_DEV_WPAN ||
 		    !netif_running(sdata->dev))
 			continue;
