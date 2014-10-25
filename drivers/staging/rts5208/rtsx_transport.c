@@ -539,7 +539,7 @@ static int rtsx_transfer_sglist_adma(struct rtsx_chip *chip, u8 card,
 		if (i == buf_cnt / (HOST_SG_TBL_BUF_LEN / 8))
 			sg_cnt = buf_cnt % (HOST_SG_TBL_BUF_LEN / 8);
 		else
-			sg_cnt = (HOST_SG_TBL_BUF_LEN / 8);
+			sg_cnt = HOST_SG_TBL_BUF_LEN / 8;
 
 		chip->sgi = 0;
 		for (j = 0; j < sg_cnt; j++) {
