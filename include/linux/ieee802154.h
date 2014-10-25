@@ -20,8 +20,8 @@
  * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
  */
 
-#ifndef NET_IEEE802154_H
-#define NET_IEEE802154_H
+#ifndef LINUX_IEEE802154_H
+#define LINUX_IEEE802154_H
 
 #define IEEE802154_MTU			127
 
@@ -186,6 +186,4 @@ enum {
 };
 
 
-#endif
-
-
+#endif /* LINUX_IEEE802154_H */

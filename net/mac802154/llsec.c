@@ -17,7 +17,7 @@
 #include <linux/err.h>
 #include <linux/bug.h>
 #include <linux/completion.h>
-#include <net/ieee802154.h>
+#include <linux/ieee802154.h>
 #include <crypto/algapi.h>
 
 #include "ieee802154_i.h"

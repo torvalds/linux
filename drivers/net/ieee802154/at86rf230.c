@@ -29,8 +29,8 @@
 #include <linux/regmap.h>
 #include <linux/skbuff.h>
 #include <linux/of_gpio.h>
+#include <linux/ieee802154.h>
 
-#include <net/ieee802154.h>
 #include <net/mac802154.h>
 #include <net/cfg802154.h>
 

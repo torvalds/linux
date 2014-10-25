@@ -18,9 +18,9 @@
 #include <linux/spi/spi.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/ieee802154.h>
 #include <net/cfg802154.h>
 #include <net/mac802154.h>
-#include <net/ieee802154.h>
 
 /* MRF24J40 Short Address Registers */
 #define REG_RXMCR    0x00  /* Receive MAC control */
