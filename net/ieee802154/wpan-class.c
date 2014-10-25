@@ -33,7 +33,7 @@ static ssize_t name ## _show(struct device *dev,			\
 	mutex_unlock(&phy->pib_lock);					\
 	return ret;							\
 }									\
-static DEVICE_ATTR_RO(name);
+static DEVICE_ATTR_RO(name)
 
 #define MASTER_SHOW(field, format_string)				\
 	MASTER_SHOW_COMPLEX(field, format_string, phy->field)
