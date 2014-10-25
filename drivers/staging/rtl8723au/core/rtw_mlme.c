@@ -1532,7 +1532,8 @@ void rtw_set_scan_deny(struct rtw_adapter *adapter, u32 ms)
 }
 
 #if defined(IEEE80211_SCAN_RESULT_EXPIRE)
-#define RTW_SCAN_RESULT_EXPIRE IEEE80211_SCAN_RESULT_EXPIRE/HZ*1000 -1000 /* 3000 -1000 */
+#define RTW_SCAN_RESULT_EXPIRE  \
+	((IEEE80211_SCAN_RESULT_EXPIRE / (HZ*1000)) - 1000) /* 3000 -1000 */
 #else
 #define RTW_SCAN_RESULT_EXPIRE 2000
 #endif
