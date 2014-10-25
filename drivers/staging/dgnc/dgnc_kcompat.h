@@ -42,10 +42,5 @@
 #  define __chk_user_ptr(x) (void)0
 # endif
 
-#  define PARM_INT(VAR, INIT, PERM, DESC) \
-		static int VAR = INIT; \
-		int dgnc_##VAR; \
-		module_param(VAR, int, PERM); \
-		MODULE_PARM_DESC(VAR, DESC);
 
 #endif /* ! __DGNC_KCOMPAT_H */
