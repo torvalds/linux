@@ -375,9 +375,7 @@ bool is_channel_valid(unsigned int ChannelIndex)
 	bool bValid;
 
 	bValid = false;
-	/*
-	 * If Channel Index is invalid, return invalid
-	 */
+	/* If Channel Index is invalid, return invalid */
 	if ((ChannelIndex > CB_MAX_CHANNEL) ||
 	    (ChannelIndex == 0)) {
 		bValid = false;
@@ -450,7 +448,6 @@ void init_channel_table(void *pDeviceHandler)
 			}
 		} else {
 			for (ii = 0; ii < CHANNEL_MAX_24G; ii++) {
-				//2008-8-4 <add> by chester
 				if (ChannelRuleTab[pDevice->byZoneType].bChannelIdxList[ii] != 0) {
 					sChannelTbl[ii + 1].bValid = true;
 					pDevice->abyRegPwr[ii + 1] = pDevice->abyCCKDefaultPwr[ii + 1];
@@ -538,27 +535,25 @@ bool set_channel(void *pDeviceHandler, unsigned int uConnectionChannel)
 		   (pDevice->eCurrentPHYType == PHY_TYPE_11A)) {
 		CARDbSetPhyParameter(pDevice, PHY_TYPE_11G, 0, 0, NULL, NULL);
 	}
-	// clear NAV
+	/* clear NAV */
 	MACvRegBitsOn(pDevice->PortOffset, MAC_REG_MACCR, MACCR_CLRNAV);
 
-	//{{ RobertYu: 20041202
-	//// TX_PE will reserve 3 us for MAX2829 A mode only, it is for better TX throughput
+	/* TX_PE will reserve 3 us for MAX2829 A mode only, it is for better TX throughput */
 
 	if (pDevice->byRFType == RF_AIROHA7230)
 		RFbAL7230SelectChannelPostProcess(pDevice->PortOffset, pDevice->byCurrentCh, (unsigned char)uConnectionChannel);
-	//}} RobertYu
 
 	pDevice->byCurrentCh = (unsigned char)uConnectionChannel;
 	bResult &= RFbSelectChannel(pDevice->PortOffset, pDevice->byRFType, (unsigned char)uConnectionChannel);
 
-	// Init Synthesizer Table
+	/* Init Synthesizer Table */
 	if (pDevice->bEnablePSMode)
 		RFvWriteWakeProgSyn(pDevice->PortOffset, pDevice->byRFType, uConnectionChannel);
 
 	BBvSoftwareReset(pDevice->PortOffset);
 
 	if (pDevice->byLocalID > REV_ID_VT3253_B1) {
-		// set HW default power register
+		/* set HW default power register */
 		MACvSelectPage1(pDevice->PortOffset);
 		RFbSetPower(pDevice, RATE_1M, pDevice->byCurrentCh);
 		VNSvOutPortB(pDevice->PortOffset + MAC_REG_PWRCCK, pDevice->byCurPwr);
@@ -644,7 +639,7 @@ unsigned char set_support_channels(void *pDeviceHandler, unsigned char *pbyIEs)
 	pIE->len = 0;
 	pbyChTupple = pIE->abyChannelTuple;
 	byLen = 2;
-	// lower band
+	/* lower band */
 	byCount = 0;
 	if (ChannelRuleTab[pDevice->byZoneType].bChannelIdxList[28] == true) {
 		for (ii = 28; ii < 36; ii += 2) {
@@ -665,7 +660,7 @@ unsigned char set_support_channels(void *pDeviceHandler, unsigned char *pbyIEs)
 		*pbyChTupple++ = byCount;
 		byLen += 2;
 	}
-	// middle band
+	/* middle band */
 	byCount = 0;
 	if (ChannelRuleTab[pDevice->byZoneType].bChannelIdxList[36] == true) {
 		for (ii = 36; ii < 40; ii++) {
@@ -677,7 +672,7 @@ unsigned char set_support_channels(void *pDeviceHandler, unsigned char *pbyIEs)
 		*pbyChTupple++ = byCount;
 		byLen += 2;
 	}
-	// higher band
+	/* higher band */
 	byCount = 0;
 	if (ChannelRuleTab[pDevice->byZoneType].bChannelIdxList[40] == true) {
 		for (ii = 40; ii < 51; ii++) {
