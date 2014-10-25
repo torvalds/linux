@@ -39,20 +39,20 @@ int mac802154_slave_open(struct net_device *dev)
 	ASSERT_RTNL();
 
 	if (sdata->type == IEEE802154_DEV_WPAN) {
-		mutex_lock(&sdata->local->slaves_mtx);
-		list_for_each_entry(subif, &sdata->local->slaves, list) {
+		mutex_lock(&sdata->local->iflist_mtx);
+		list_for_each_entry(subif, &sdata->local->interfaces, list) {
 			if (subif != sdata && subif->type == sdata->type &&
 			    subif->running) {
-				mutex_unlock(&sdata->local->slaves_mtx);
+				mutex_unlock(&sdata->local->iflist_mtx);
 				return -EBUSY;
 			}
 		}
-		mutex_unlock(&sdata->local->slaves_mtx);
+		mutex_unlock(&sdata->local->iflist_mtx);
 	}
 
-	mutex_lock(&sdata->local->slaves_mtx);
+	mutex_lock(&sdata->local->iflist_mtx);
 	sdata->running = true;
-	mutex_unlock(&sdata->local->slaves_mtx);
+	mutex_unlock(&sdata->local->iflist_mtx);
 
 	if (local->open_count++ == 0) {
 		res = local->ops->start(&local->hw);
@@ -88,9 +88,9 @@ int mac802154_slave_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	mutex_lock(&sdata->local->slaves_mtx);
+	mutex_lock(&sdata->local->iflist_mtx);
 	sdata->running = false;
-	mutex_unlock(&sdata->local->slaves_mtx);
+	mutex_unlock(&sdata->local->iflist_mtx);
 
 	if (!--local->open_count)
 		local->ops->stop(&local->hw);
@@ -115,21 +115,21 @@ mac802154_netdev_register(struct wpan_phy *phy, struct net_device *dev)
 
 	SET_NETDEV_DEV(dev, &local->phy->dev);
 
-	mutex_lock(&local->slaves_mtx);
+	mutex_lock(&local->iflist_mtx);
 	if (!local->running) {
-		mutex_unlock(&local->slaves_mtx);
+		mutex_unlock(&local->iflist_mtx);
 		return -ENODEV;
 	}
-	mutex_unlock(&local->slaves_mtx);
+	mutex_unlock(&local->iflist_mtx);
 
 	err = register_netdev(dev);
 	if (err < 0)
 		return err;
 
 	rtnl_lock();
-	mutex_lock(&local->slaves_mtx);
-	list_add_tail_rcu(&sdata->list, &local->slaves);
-	mutex_unlock(&local->slaves_mtx);
+	mutex_lock(&local->iflist_mtx);
+	list_add_tail_rcu(&sdata->list, &local->interfaces);
+	mutex_unlock(&local->iflist_mtx);
 	rtnl_unlock();
 
 	return 0;
@@ -146,9 +146,9 @@ mac802154_del_iface(struct wpan_phy *phy, struct net_device *dev)
 
 	BUG_ON(sdata->local->phy != phy);
 
-	mutex_lock(&sdata->local->slaves_mtx);
+	mutex_lock(&sdata->local->iflist_mtx);
 	list_del_rcu(&sdata->list);
-	mutex_unlock(&sdata->local->slaves_mtx);
+	mutex_unlock(&sdata->local->iflist_mtx);
 
 	synchronize_rcu();
 	unregister_netdevice(sdata->dev);
@@ -280,8 +280,8 @@ ieee802154_alloc_hw(size_t priv_data_len, struct ieee802154_ops *ops)
 	local->hw.priv = (char *)local + ALIGN(sizeof(*local), NETDEV_ALIGN);
 	local->ops = ops;
 
-	INIT_LIST_HEAD(&local->slaves);
-	mutex_init(&local->slaves_mtx);
+	INIT_LIST_HEAD(&local->interfaces);
+	mutex_init(&local->iflist_mtx);
 
 	return &local->hw;
 }
@@ -291,9 +291,9 @@ void ieee802154_free_hw(struct ieee802154_hw *hw)
 {
 	struct ieee802154_local *local = mac802154_to_priv(hw);
 
-	BUG_ON(!list_empty(&local->slaves));
+	BUG_ON(!list_empty(&local->interfaces));
 
-	mutex_destroy(&local->slaves_mtx);
+	mutex_destroy(&local->iflist_mtx);
 
 	wpan_phy_free(local->phy);
 }
@@ -364,9 +364,9 @@ int ieee802154_register_hw(struct ieee802154_hw *hw)
 
 	rtnl_lock();
 
-	mutex_lock(&local->slaves_mtx);
+	mutex_lock(&local->iflist_mtx);
 	local->running = MAC802154_DEVICE_RUN;
-	mutex_unlock(&local->slaves_mtx);
+	mutex_unlock(&local->iflist_mtx);
 
 	rtnl_unlock();
 
@@ -389,14 +389,14 @@ void ieee802154_unregister_hw(struct ieee802154_hw *hw)
 
 	rtnl_lock();
 
-	mutex_lock(&local->slaves_mtx);
+	mutex_lock(&local->iflist_mtx);
 	local->running = MAC802154_DEVICE_STOPPED;
-	mutex_unlock(&local->slaves_mtx);
+	mutex_unlock(&local->iflist_mtx);
 
-	list_for_each_entry_safe(sdata, next, &local->slaves, list) {
-		mutex_lock(&sdata->local->slaves_mtx);
+	list_for_each_entry_safe(sdata, next, &local->interfaces, list) {
+		mutex_lock(&sdata->local->iflist_mtx);
 		list_del(&sdata->list);
-		mutex_unlock(&sdata->local->slaves_mtx);
+		mutex_unlock(&sdata->local->iflist_mtx);
 
 		unregister_netdevice(sdata->dev);
 	}

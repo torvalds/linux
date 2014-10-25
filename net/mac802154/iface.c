@@ -125,9 +125,9 @@ int mac802154_set_mac_params(struct net_device *dev,
 {
 	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
 
-	mutex_lock(&sdata->local->slaves_mtx);
+	mutex_lock(&sdata->local->iflist_mtx);
 	sdata->mac_params = *params;
-	mutex_unlock(&sdata->local->slaves_mtx);
+	mutex_unlock(&sdata->local->iflist_mtx);
 
 	return 0;
 }
@@ -137,9 +137,9 @@ void mac802154_get_mac_params(struct net_device *dev,
 {
 	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
 
-	mutex_lock(&sdata->local->slaves_mtx);
+	mutex_lock(&sdata->local->iflist_mtx);
 	*params = sdata->mac_params;
-	mutex_unlock(&sdata->local->slaves_mtx);
+	mutex_unlock(&sdata->local->iflist_mtx);
 }
 
 static int mac802154_wpan_open(struct net_device *dev)
@@ -580,7 +580,7 @@ void mac802154_wpans_rx(struct ieee802154_local *local, struct sk_buff *skb)
 	}
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &local->slaves, list) {
+	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		if (sdata->type != IEEE802154_DEV_WPAN ||
 		    !netif_running(sdata->dev))
 			continue;

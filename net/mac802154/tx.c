@@ -68,7 +68,7 @@ out:
 
 	/* Restart the netif queue on each sub_if_data object. */
 	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &xw->local->slaves, list)
+	list_for_each_entry_rcu(sdata, &xw->local->interfaces, list)
 		netif_wake_queue(sdata->dev);
 	rcu_read_unlock();
 
@@ -109,7 +109,7 @@ netdev_tx_t mac802154_tx(struct ieee802154_local *local, struct sk_buff *skb,
 
 	/* Stop the netif queue on each sub_if_data object. */
 	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &local->slaves, list)
+	list_for_each_entry_rcu(sdata, &local->interfaces, list)
 		netif_stop_queue(sdata->dev);
 	rcu_read_unlock();
 

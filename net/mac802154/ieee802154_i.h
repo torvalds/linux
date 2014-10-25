@@ -42,8 +42,8 @@ struct ieee802154_local {
 	 *
 	 * So atomic readers can use any of this protection methods.
 	 */
-	struct list_head	slaves;
-	struct mutex		slaves_mtx;
+	struct list_head	interfaces;
+	struct mutex		iflist_mtx;
 
 	/* This one is used for scanning and other jobs not to be interfered
 	 * with serial driver.

@@ -65,7 +65,7 @@ void mac802154_monitors_rx(struct ieee802154_local *local, struct sk_buff *skb)
 	u8 *data;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &local->slaves, list) {
+	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		if (sdata->type != IEEE802154_DEV_MONITOR ||
 		    !netif_running(sdata->dev))
 			continue;
