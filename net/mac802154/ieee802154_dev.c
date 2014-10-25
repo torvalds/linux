@@ -263,7 +263,7 @@ ieee802154_alloc_device(size_t priv_data_len, struct ieee802154_ops *ops)
 	 * +-----------------------+
 	 *
 	 * Due to ieee802154 layer isn't aware of driver and MAC structures,
-	 * so lets allign them here.
+	 * so lets align them here.
 	 */
 
 	priv_size = ALIGN(sizeof(*priv), NETDEV_ALIGN) + priv_data_len;
