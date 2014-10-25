@@ -362,6 +362,9 @@ static void ath9k_init_pcoem_platform(struct ath_softc *sc)
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	struct ath_common *common = ath9k_hw_common(ah);
 
+	if (!IS_ENABLED(CONFIG_ATH9K_PCOEM))
+		return;
+
 	if (common->bus_ops->ath_bus_type != ATH_PCI)
 		return;
 
