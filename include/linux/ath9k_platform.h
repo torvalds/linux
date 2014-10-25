@@ -31,6 +31,7 @@ struct ath9k_platform_data {
 	u32 gpio_mask;
 	u32 gpio_val;
 
+	bool endian_check;
 	bool is_clk_25mhz;
 	bool tx_gain_buffalo;
 
