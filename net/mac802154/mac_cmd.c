@@ -79,7 +79,7 @@ static struct wpan_phy *mac802154_get_phy(const struct net_device *dev)
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
-	return to_phy(get_device(&sdata->hw->phy->dev));
+	return to_phy(get_device(&sdata->local->phy->dev));
 }
 
 static struct ieee802154_llsec_ops mac802154_llsec_ops = {

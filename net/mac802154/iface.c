@@ -125,9 +125,9 @@ int mac802154_set_mac_params(struct net_device *dev,
 {
 	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
 
-	mutex_lock(&sdata->hw->slaves_mtx);
+	mutex_lock(&sdata->local->slaves_mtx);
 	sdata->mac_params = *params;
-	mutex_unlock(&sdata->hw->slaves_mtx);
+	mutex_unlock(&sdata->local->slaves_mtx);
 
 	return 0;
 }
@@ -137,16 +137,16 @@ void mac802154_get_mac_params(struct net_device *dev,
 {
 	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
 
-	mutex_lock(&sdata->hw->slaves_mtx);
+	mutex_lock(&sdata->local->slaves_mtx);
 	*params = sdata->mac_params;
-	mutex_unlock(&sdata->hw->slaves_mtx);
+	mutex_unlock(&sdata->local->slaves_mtx);
 }
 
 static int mac802154_wpan_open(struct net_device *dev)
 {
 	int rc;
 	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
-	struct wpan_phy *phy = sdata->hw->phy;
+	struct wpan_phy *phy = sdata->local->phy;
 
 	rc = mac802154_slave_open(dev);
 	if (rc < 0)
@@ -339,7 +339,7 @@ mac802154_wpan_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
 
-	return mac802154_tx(sdata->hw, skb, page, chan);
+	return mac802154_tx(sdata->local, skb, page, chan);
 }
 
 static struct header_ops mac802154_header_ops = {

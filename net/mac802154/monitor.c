@@ -39,8 +39,8 @@ static netdev_tx_t mac802154_monitor_xmit(struct sk_buff *skb,
 	sdata = netdev_priv(dev);
 
 	/* FIXME: locking */
-	chan = sdata->hw->phy->current_channel;
-	page = sdata->hw->phy->current_page;
+	chan = sdata->local->phy->current_channel;
+	page = sdata->local->phy->current_page;
 
 	if (chan == MAC802154_CHAN_NONE) /* not initialized */
 		return NETDEV_TX_OK;
@@ -53,7 +53,7 @@ static netdev_tx_t mac802154_monitor_xmit(struct sk_buff *skb,
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
 
-	return mac802154_tx(sdata->hw, skb, page, chan);
+	return mac802154_tx(sdata->local, skb, page, chan);
 }
 
 

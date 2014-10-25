@@ -42,7 +42,7 @@ static struct ieee802154_local *mac802154_slave_get_priv(struct net_device *dev)
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
-	return sdata->hw;
+	return sdata->local;
 }
 
 static void hw_addr_notify(struct work_struct *work)
@@ -72,7 +72,7 @@ static void set_hw_addr_filt(struct net_device *dev, unsigned long changed)
 	INIT_WORK(&work->work, hw_addr_notify);
 	work->dev = dev;
 	work->changed = changed;
-	queue_work(sdata->hw->dev_workqueue, &work->work);
+	queue_work(sdata->local->dev_workqueue, &work->work);
 }
 
 void mac802154_dev_set_short_addr(struct net_device *dev, __le16 val)
@@ -85,9 +85,9 @@ void mac802154_dev_set_short_addr(struct net_device *dev, __le16 val)
 	sdata->short_addr = val;
 	spin_unlock_bh(&sdata->mib_lock);
 
-	if ((sdata->hw->ops->set_hw_addr_filt) &&
-	    (sdata->hw->hw.hw_filt.short_addr != sdata->short_addr)) {
-		sdata->hw->hw.hw_filt.short_addr = sdata->short_addr;
+	if ((sdata->local->ops->set_hw_addr_filt) &&
+	    (sdata->local->hw.hw_filt.short_addr != sdata->short_addr)) {
+		sdata->local->hw.hw_filt.short_addr = sdata->short_addr;
 		set_hw_addr_filt(dev, IEEE802154_AFILT_SADDR_CHANGED);
 	}
 }
@@ -109,7 +109,7 @@ __le16 mac802154_dev_get_short_addr(const struct net_device *dev)
 void mac802154_dev_set_ieee_addr(struct net_device *dev)
 {
 	struct ieee802154_sub_if_data *sdata = netdev_priv(dev);
-	struct ieee802154_local *local = sdata->hw;
+	struct ieee802154_local *local = sdata->local;
 
 	sdata->extended_addr = ieee802154_devaddr_from_raw(dev->dev_addr);
 
@@ -144,9 +144,9 @@ void mac802154_dev_set_pan_id(struct net_device *dev, __le16 val)
 	sdata->pan_id = val;
 	spin_unlock_bh(&sdata->mib_lock);
 
-	if ((sdata->hw->ops->set_hw_addr_filt) &&
-	    (sdata->hw->hw.hw_filt.pan_id != sdata->pan_id)) {
-		sdata->hw->hw.hw_filt.pan_id = sdata->pan_id;
+	if ((sdata->local->ops->set_hw_addr_filt) &&
+	    (sdata->local->hw.hw_filt.pan_id != sdata->pan_id)) {
+		sdata->local->hw.hw_filt.pan_id = sdata->pan_id;
 		set_hw_addr_filt(dev, IEEE802154_AFILT_PANID_CHANGED);
 	}
 }
@@ -168,15 +168,15 @@ static void phy_chan_notify(struct work_struct *work)
 	struct ieee802154_sub_if_data *sdata = netdev_priv(nw->dev);
 	int res;
 
-	mutex_lock(&sdata->hw->phy->pib_lock);
+	mutex_lock(&sdata->local->phy->pib_lock);
 	res = local->ops->set_channel(&local->hw, sdata->page, sdata->chan);
 	if (res) {
 		pr_debug("set_channel failed\n");
 	} else {
-		sdata->hw->phy->current_channel = sdata->chan;
-		sdata->hw->phy->current_page = sdata->page;
+		sdata->local->phy->current_channel = sdata->chan;
+		sdata->local->phy->current_page = sdata->page;
 	}
-	mutex_unlock(&sdata->hw->phy->pib_lock);
+	mutex_unlock(&sdata->local->phy->pib_lock);
 
 	kfree(nw);
 }
@@ -193,10 +193,10 @@ void mac802154_dev_set_page_channel(struct net_device *dev, u8 page, u8 chan)
 	sdata->chan = chan;
 	spin_unlock_bh(&sdata->mib_lock);
 
-	mutex_lock(&sdata->hw->phy->pib_lock);
-	if (sdata->hw->phy->current_channel != sdata->chan ||
-	    sdata->hw->phy->current_page != sdata->page) {
-		mutex_unlock(&sdata->hw->phy->pib_lock);
+	mutex_lock(&sdata->local->phy->pib_lock);
+	if (sdata->local->phy->current_channel != sdata->chan ||
+	    sdata->local->phy->current_page != sdata->page) {
+		mutex_unlock(&sdata->local->phy->pib_lock);
 
 		work = kzalloc(sizeof(*work), GFP_ATOMIC);
 		if (!work)
@@ -204,9 +204,9 @@ void mac802154_dev_set_page_channel(struct net_device *dev, u8 page, u8 chan)
 
 		INIT_WORK(&work->work, phy_chan_notify);
 		work->dev = dev;
-		queue_work(sdata->hw->dev_workqueue, &work->work);
+		queue_work(sdata->local->dev_workqueue, &work->work);
 	} else {
-		mutex_unlock(&sdata->hw->phy->pib_lock);
+		mutex_unlock(&sdata->local->phy->pib_lock);
 	}
 }
 

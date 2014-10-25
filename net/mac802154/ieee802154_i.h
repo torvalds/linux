@@ -69,7 +69,7 @@ struct ieee802154_local {
 struct ieee802154_sub_if_data {
 	struct list_head list; /* the ieee802154_priv->slaves list */
 
-	struct ieee802154_local *hw;
+	struct ieee802154_local *local;
 	struct net_device *dev;
 
 	int type;
