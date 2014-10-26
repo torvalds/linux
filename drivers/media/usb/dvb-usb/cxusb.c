@@ -1438,6 +1438,12 @@ static int cxusb_tt_ct2_4400_attach(struct dvb_usb_adapter *adap)
 	si2168_config.i2c_adapter = &adapter;
 	si2168_config.fe = &adap->fe_adap[0].fe;
 	si2168_config.ts_mode = SI2168_TS_PARALLEL;
+
+	/* CT2-4400v2 TS gets corrupted without this */
+	if (d->udev->descriptor.idProduct ==
+		USB_PID_TECHNOTREND_TVSTICK_CT2_4400)
+		si2168_config.ts_mode |= 0x40;
+
 	memset(&info, 0, sizeof(struct i2c_board_info));
 	strlcpy(info.type, "si2168", I2C_NAME_SIZE);
 	info.addr = 0x64;
