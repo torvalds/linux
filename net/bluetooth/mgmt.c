@@ -3599,8 +3599,8 @@ static int add_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 		}
 
 		err = hci_add_remote_oob_data(hdev, &cp->addr.bdaddr,
-					      cp->hash, cp->rand,
-					      NULL, NULL);
+					      cp->addr.type, cp->hash,
+					      cp->rand, NULL, NULL);
 		if (err < 0)
 			status = MGMT_STATUS_FAILED;
 		else
@@ -3621,8 +3621,9 @@ static int add_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 		}
 
 		err = hci_add_remote_oob_data(hdev, &cp->addr.bdaddr,
-					      cp->hash192, cp->rand192,
-					      cp->hash256, cp->rand256);
+					      cp->addr.type, cp->hash192,
+					      cp->rand192, cp->hash256,
+					      cp->rand256);
 		if (err < 0)
 			status = MGMT_STATUS_FAILED;
 		else
@@ -3663,7 +3664,7 @@ static int remove_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 		goto done;
 	}
 
-	err = hci_remove_remote_oob_data(hdev, &cp->addr.bdaddr);
+	err = hci_remove_remote_oob_data(hdev, &cp->addr.bdaddr, cp->addr.type);
 	if (err < 0)
 		status = MGMT_STATUS_INVALID_PARAMS;
 	else

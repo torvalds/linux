@@ -140,6 +140,7 @@ struct link_key {
 struct oob_data {
 	struct list_head list;
 	bdaddr_t bdaddr;
+	u8 bdaddr_type;
 	u8 hash192[16];
 	u8 rand192[16];
 	u8 hash256[16];
@@ -942,11 +943,12 @@ void hci_smp_irks_clear(struct hci_dev *hdev);
 
 void hci_remote_oob_data_clear(struct hci_dev *hdev);
 struct oob_data *hci_find_remote_oob_data(struct hci_dev *hdev,
-					  bdaddr_t *bdaddr);
+					  bdaddr_t *bdaddr, u8 bdaddr_type);
 int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
-			    u8 *hash192, u8 *rand192,
+			    u8 bdaddr_type, u8 *hash192, u8 *rand192,
 			    u8 *hash256, u8 *rand256);
-int hci_remove_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr);
+int hci_remove_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
+			       u8 bdaddr_type);
 
 void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb);
 

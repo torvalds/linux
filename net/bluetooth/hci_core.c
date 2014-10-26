@@ -2160,7 +2160,7 @@ u32 hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
 
 	BT_DBG("cache %p, %pMR", cache, &data->bdaddr);
 
-	hci_remove_remote_oob_data(hdev, &data->bdaddr);
+	hci_remove_remote_oob_data(hdev, &data->bdaddr, BDADDR_BREDR);
 
 	if (!data->ssp_mode)
 		flags |= MGMT_DEV_FOUND_LEGACY_PAIRING;
@@ -3479,26 +3479,31 @@ static void hci_cmd_timeout(struct work_struct *work)
 }
 
 struct oob_data *hci_find_remote_oob_data(struct hci_dev *hdev,
-					  bdaddr_t *bdaddr)
+					  bdaddr_t *bdaddr, u8 bdaddr_type)
 {
 	struct oob_data *data;
 
-	list_for_each_entry(data, &hdev->remote_oob_data, list)
-		if (bacmp(bdaddr, &data->bdaddr) == 0)
-			return data;
+	list_for_each_entry(data, &hdev->remote_oob_data, list) {
+		if (bacmp(bdaddr, &data->bdaddr) != 0)
+			continue;
+		if (data->bdaddr_type != bdaddr_type)
+			continue;
+		return data;
+	}
 
 	return NULL;
 }
 
-int hci_remove_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr)
+int hci_remove_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
+			       u8 bdaddr_type)
 {
 	struct oob_data *data;
 
-	data = hci_find_remote_oob_data(hdev, bdaddr);
+	data = hci_find_remote_oob_data(hdev, bdaddr, bdaddr_type);
 	if (!data)
 		return -ENOENT;
 
-	BT_DBG("%s removing %pMR", hdev->name, bdaddr);
+	BT_DBG("%s removing %pMR (%u)", hdev->name, bdaddr, bdaddr_type);
 
 	list_del(&data->list);
 	kfree(data);
@@ -3517,18 +3522,19 @@ void hci_remote_oob_data_clear(struct hci_dev *hdev)
 }
 
 int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
-			    u8 *hash192, u8 *rand192,
+			    u8 bdaddr_type, u8 *hash192, u8 *rand192,
 			    u8 *hash256, u8 *rand256)
 {
 	struct oob_data *data;
 
-	data = hci_find_remote_oob_data(hdev, bdaddr);
+	data = hci_find_remote_oob_data(hdev, bdaddr, bdaddr_type);
 	if (!data) {
 		data = kmalloc(sizeof(*data), GFP_KERNEL);
 		if (!data)
 			return -ENOMEM;
 
 		bacpy(&data->bdaddr, bdaddr);
+		data->bdaddr_type = bdaddr_type;
 		list_add(&data->list, &hdev->remote_oob_data);
 	}
 

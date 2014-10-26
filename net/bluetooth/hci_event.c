@@ -3773,7 +3773,7 @@ static void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 		cp.authentication = conn->auth_type;
 
-		if (hci_find_remote_oob_data(hdev, &conn->dst) &&
+		if (hci_find_remote_oob_data(hdev, &conn->dst, BDADDR_BREDR) &&
 		    (conn->out || test_bit(HCI_CONN_REMOTE_OOB, &conn->flags)))
 			cp.oob_data = 0x01;
 		else
@@ -4028,7 +4028,7 @@ static void hci_remote_oob_data_request_evt(struct hci_dev *hdev,
 	if (!test_bit(HCI_MGMT, &hdev->dev_flags))
 		goto unlock;
 
-	data = hci_find_remote_oob_data(hdev, &ev->bdaddr);
+	data = hci_find_remote_oob_data(hdev, &ev->bdaddr, BDADDR_BREDR);
 	if (data) {
 		if (bredr_sc_enabled(hdev)) {
 			struct hci_cp_remote_oob_ext_data_reply cp;
