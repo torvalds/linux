@@ -37,9 +37,6 @@
 #define CIK_HPD_EOP_BYTES_LOG2 11
 #define CIK_HPD_EOP_BYTES (1U << CIK_HPD_EOP_BYTES_LOG2)
 
-static bool is_mem_initialized;
-
-static int init_memory(struct device_queue_manager *dqm);
 static int set_pasid_vmid_mapping(struct device_queue_manager *dqm,
 					unsigned int pasid, unsigned int vmid);
 
@@ -486,20 +483,6 @@ static uint32_t compute_sh_mem_bases_64bit(unsigned int top_address_nybble)
 			SHARED_BASE(top_address_nybble << 12);
 }
 
-static int init_memory(struct device_queue_manager *dqm)
-{
-	int i, retval;
-
-	for (i = 8; i < 16; i++)
-		set_pasid_vmid_mapping(dqm, 0, i);
-
-	retval = kfd2kgd->init_memory(dqm->dev->kgd);
-	if (retval == 0)
-		is_mem_initialized = true;
-	return retval;
-}
-
-
 static int init_pipelines(struct device_queue_manager *dqm,
 			unsigned int pipes_num, unsigned int first_pipe)
 {
@@ -560,10 +543,6 @@ static int init_scheduler(struct device_queue_manager *dqm)
 	pr_debug("kfd: In %s\n", __func__);
 
 	retval = init_pipelines(dqm, get_pipes_num(dqm), KFD_DQM_FIRST_PIPE);
-	if (retval != 0)
-		return retval;
-
-	retval = init_memory(dqm);
 
 	return retval;
 }
