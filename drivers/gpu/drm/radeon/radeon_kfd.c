@@ -34,20 +34,11 @@
 #define CIK_PIPE_PER_MEC	(4)
 
 struct kgd_mem {
-	struct radeon_sa_bo *sa_bo;
-	uint64_t gpu_addr;
-	void *ptr;
 	struct radeon_bo *bo;
+	uint64_t gpu_addr;
 	void *cpu_ptr;
 };
 
-static int init_sa_manager(struct kgd_dev *kgd, unsigned int size);
-static void fini_sa_manager(struct kgd_dev *kgd);
-
-static int allocate_mem(struct kgd_dev *kgd, size_t size, size_t alignment,
-		enum kgd_memory_pool pool, struct kgd_mem **mem);
-
-static void free_mem(struct kgd_dev *kgd, struct kgd_mem *mem);
 
 static int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
 			void **mem_obj, uint64_t *gpu_addr,
@@ -91,10 +82,6 @@ static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
 				unsigned int timeout);
 
 static const struct kfd2kgd_calls kfd2kgd = {
-	.init_sa_manager = init_sa_manager,
-	.fini_sa_manager = fini_sa_manager,
-	.allocate_mem = allocate_mem,
-	.free_mem = free_mem,
 	.init_gtt_mem_allocation = alloc_gtt_mem,
 	.free_gtt_mem = free_gtt_mem,
 	.get_vmem_size = get_vmem_size,
@@ -196,90 +183,6 @@ int radeon_kfd_resume(struct radeon_device *rdev)
 		r = kgd2kfd->resume(rdev->kfd);
 
 	return r;
-}
-
-static u32 pool_to_domain(enum kgd_memory_pool p)
-{
-	switch (p) {
-	case KGD_POOL_FRAMEBUFFER: return RADEON_GEM_DOMAIN_VRAM;
-	default: return RADEON_GEM_DOMAIN_GTT;
-	}
-}
-
-static int init_sa_manager(struct kgd_dev *kgd, unsigned int size)
-{
-	struct radeon_device *rdev = (struct radeon_device *)kgd;
-	int r;
-
-	BUG_ON(kgd == NULL);
-
-	r = radeon_sa_bo_manager_init(rdev, &rdev->kfd_bo,
-				      size,
-				      RADEON_GPU_PAGE_SIZE,
-				      RADEON_GEM_DOMAIN_GTT,
-				      RADEON_GEM_GTT_WC);
-
-	if (r)
-		return r;
-
-	r = radeon_sa_bo_manager_start(rdev, &rdev->kfd_bo);
-	if (r)
-		radeon_sa_bo_manager_fini(rdev, &rdev->kfd_bo);
-
-	return r;
-}
-
-static void fini_sa_manager(struct kgd_dev *kgd)
-{
-	struct radeon_device *rdev = (struct radeon_device *)kgd;
-
-	BUG_ON(kgd == NULL);
-
-	radeon_sa_bo_manager_suspend(rdev, &rdev->kfd_bo);
-	radeon_sa_bo_manager_fini(rdev, &rdev->kfd_bo);
-}
-
-static int allocate_mem(struct kgd_dev *kgd, size_t size, size_t alignment,
-		enum kgd_memory_pool pool, struct kgd_mem **mem)
-{
-	struct radeon_device *rdev = (struct radeon_device *)kgd;
-	u32 domain;
-	int r;
-
-	BUG_ON(kgd == NULL);
-
-	domain = pool_to_domain(pool);
-	if (domain != RADEON_GEM_DOMAIN_GTT) {
-		dev_err(rdev->dev,
-			"Only allowed to allocate gart memory for kfd\n");
-		return -EINVAL;
-	}
-
-	*mem = kmalloc(sizeof(struct kgd_mem), GFP_KERNEL);
-	if ((*mem) == NULL)
-		return -ENOMEM;
-
-	r = radeon_sa_bo_new(rdev, &rdev->kfd_bo, &(*mem)->sa_bo, size,
-				alignment);
-	if (r) {
-		dev_err(rdev->dev, "failed to get memory for kfd (%d)\n", r);
-		return r;
-	}
-
-	(*mem)->ptr = radeon_sa_bo_cpu_addr((*mem)->sa_bo);
-	(*mem)->gpu_addr = radeon_sa_bo_gpu_addr((*mem)->sa_bo);
-
-	return 0;
-}
-
-static void free_mem(struct kgd_dev *kgd, struct kgd_mem *mem)
-{
-	struct radeon_device *rdev = (struct radeon_device *)kgd;
-
-	BUG_ON(kgd == NULL);
-
-	radeon_sa_bo_free(rdev, &mem->sa_bo, NULL);
-	kfree(mem);
 }
 
 static int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
