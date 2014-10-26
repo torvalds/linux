@@ -403,7 +403,7 @@ ncp_dget_fpos(struct dentry *dentry, struct dentry *parent, unsigned long fpos)
 
 	/* If a pointer is invalid, we search the dentry. */
 	spin_lock(&parent->d_lock);
-	list_for_each_entry(dent, &parent->d_subdirs, d_u.d_child) {
+	list_for_each_entry(dent, &parent->d_subdirs, d_child) {
 		if ((unsigned long)dent->d_fsdata == fpos) {
 			if (dent->d_inode)
 				dget(dent);
