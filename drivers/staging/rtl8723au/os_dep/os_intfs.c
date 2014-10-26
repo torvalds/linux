@@ -175,7 +175,6 @@ static int netdev_close(struct net_device *pnetdev);
 static int loadparam(struct rtw_adapter *padapter,  struct net_device *pnetdev)
 {
 	struct registry_priv  *registry_par = &padapter->registrypriv;
-	int status = _SUCCESS;
 
 	GlobalDebugLevel23A = rtw_debug;
 	registry_par->chip_version = (u8)rtw_chip_version;
@@ -234,7 +233,7 @@ static int loadparam(struct rtw_adapter *padapter,  struct net_device *pnetdev)
 	snprintf(registry_par->if2name, 16, "%s", if2name);
 	registry_par->notch_filter = (u8)rtw_notch_filter;
 	registry_par->regulatory_tid = (u8)rtw_regulatory_id;
-	return status;
+	return _SUCCESS;
 }
 
 static int rtw_net_set_mac_address(struct net_device *pnetdev, void *p)
@@ -384,7 +383,6 @@ static int rtw_init_default_value(struct rtw_adapter *padapter)
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
-	int ret = _SUCCESS;
 
 	/* xmit_priv */
 	pxmitpriv->vcs = pregistrypriv->vcs_type;
@@ -423,7 +421,7 @@ static int rtw_init_default_value(struct rtw_adapter *padapter)
 	/* misc. */
 	padapter->bReadPortCancel = false;
 	padapter->bWritePortCancel = false;
-	return ret;
+	return _SUCCESS;
 }
 
 int rtw_reset_drv_sw23a(struct rtw_adapter *padapter)
