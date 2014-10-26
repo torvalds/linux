@@ -50,7 +50,7 @@ static void mac802154_xmit_worker(struct work_struct *work)
 	struct sk_buff *skb = cb->skb;
 	int res;
 
-	res = local->ops->xmit(&local->hw, skb);
+	res = local->ops->xmit_sync(&local->hw, skb);
 	if (res) {
 		pr_debug("transmission failed\n");
 		/* Restart the netif queue on each sub_if_data object. */
@@ -66,6 +66,7 @@ static netdev_tx_t
 mac802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 {
 	struct wpan_xmit_cb *cb = wpan_xmit_cb(skb);
+	int ret;
 
 	mac802154_monitors_rx(local, skb);
 
@@ -83,11 +84,20 @@ mac802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 	/* Stop the netif queue on each sub_if_data object. */
 	ieee802154_stop_queue(&local->hw);
 
-	INIT_WORK(&cb->work, mac802154_xmit_worker);
-	cb->skb = skb;
-	cb->local = local;
+	/* async is priority, otherwise sync is fallback */
+	if (local->ops->xmit_async) {
+		ret = local->ops->xmit_async(&local->hw, skb);
+		if (ret) {
+			ieee802154_wake_queue(&local->hw);
+			goto err_tx;
+		}
+	} else {
+		INIT_WORK(&cb->work, mac802154_xmit_worker);
+		cb->skb = skb;
+		cb->local = local;
 
-	queue_work(local->workqueue, &cb->work);
+		queue_work(local->workqueue, &cb->work);
+	}
 
 	return NETDEV_TX_OK;
 

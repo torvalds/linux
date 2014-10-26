@@ -581,7 +581,7 @@ out:
 
 static struct ieee802154_ops mrf24j40_ops = {
 	.owner = THIS_MODULE,
-	.xmit = mrf24j40_tx,
+	.xmit_sync = mrf24j40_tx,
 	.ed = mrf24j40_ed,
 	.start = mrf24j40_start,
 	.stop = mrf24j40_stop,

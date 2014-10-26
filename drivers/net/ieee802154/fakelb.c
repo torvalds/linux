@@ -131,7 +131,7 @@ fakelb_hw_stop(struct ieee802154_hw *hw) {
 
 static struct ieee802154_ops fakelb_ops = {
 	.owner = THIS_MODULE,
-	.xmit = fakelb_hw_xmit,
+	.xmit_sync = fakelb_hw_xmit,
 	.ed = fakelb_hw_ed,
 	.set_channel = fakelb_hw_channel,
 	.start = fakelb_hw_start,

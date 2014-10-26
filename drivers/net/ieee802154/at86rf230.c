@@ -1237,7 +1237,7 @@ at86rf230_set_frame_retries(struct ieee802154_hw *hw, s8 retries)
 
 static struct ieee802154_ops at86rf230_ops = {
 	.owner = THIS_MODULE,
-	.xmit = at86rf230_xmit,
+	.xmit_sync = at86rf230_xmit,
 	.ed = at86rf230_ed,
 	.set_channel = at86rf230_channel,
 	.start = at86rf230_start,

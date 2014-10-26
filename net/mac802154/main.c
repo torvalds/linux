@@ -229,8 +229,8 @@ ieee802154_alloc_hw(size_t priv_data_len, struct ieee802154_ops *ops)
 	struct ieee802154_local *local;
 	size_t priv_size;
 
-	if (!ops || !ops->xmit || !ops->ed || !ops->start ||
-	    !ops->stop || !ops->set_channel) {
+	if (!ops || !(ops->xmit_async || ops->xmit_sync) || !ops->ed ||
+	    !ops->start || !ops->stop || !ops->set_channel) {
 		pr_err("undefined IEEE802.15.4 device operations\n");
 		return NULL;
 	}

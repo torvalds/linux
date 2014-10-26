@@ -109,7 +109,16 @@ struct ieee802154_hw {
  * stop:  Handler that 802.15.4 module calls for device cleanup.
  *	  This function is called after the last interface is removed.
  *
- * xmit:  Handler that 802.15.4 module calls for each transmitted frame.
+ * xmit_sync:
+ *	  Handler that 802.15.4 module calls for each transmitted frame.
+ *	  skb cntains the buffer starting from the IEEE 802.15.4 header.
+ *	  The low-level driver should send the frame based on available
+ *	  configuration. This is called by a workqueue and useful for
+ *	  synchronous 802.15.4 drivers.
+ *	  This function should return zero or negative errno.
+ *
+ * xmit_async:
+ *	  Handler that 802.15.4 module calls for each transmitted frame.
  *	  skb cntains the buffer starting from the IEEE 802.15.4 header.
  *	  The low-level driver should send the frame based on available
  *	  configuration.
@@ -160,8 +169,10 @@ struct ieee802154_ops {
 	struct module	*owner;
 	int		(*start)(struct ieee802154_hw *hw);
 	void		(*stop)(struct ieee802154_hw *hw);
-	int		(*xmit)(struct ieee802154_hw *hw,
-				struct sk_buff *skb);
+	int		(*xmit_sync)(struct ieee802154_hw *hw,
+				     struct sk_buff *skb);
+	int		(*xmit_async)(struct ieee802154_hw *hw,
+				      struct sk_buff *skb);
 	int		(*ed)(struct ieee802154_hw *hw, u8 *level);
 	int		(*set_channel)(struct ieee802154_hw *hw,
 				       int page,
