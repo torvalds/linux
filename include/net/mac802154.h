@@ -117,6 +117,10 @@ struct ieee802154_hw {
  *	  synchronous 802.15.4 drivers.
  *	  This function should return zero or negative errno.
  *
+ *	  WARNING:
+ *	  This will be deprecated soon. We don't accept synced xmit callbacks
+ *	  drivers anymore.
+ *
  * xmit_async:
  *	  Handler that 802.15.4 module calls for each transmitted frame.
  *	  skb cntains the buffer starting from the IEEE 802.15.4 header.
