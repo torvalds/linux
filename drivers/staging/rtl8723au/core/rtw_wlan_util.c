@@ -1322,7 +1322,6 @@ unsigned char check_assoc_AP23a(u8 *pframe, uint len)
 				DBG_8723A("link to Artheros AP\n");
 				return HT_IOT_PEER_ATHEROS;
 			} else if (!memcmp(p + 2, BROADCOM_OUI1, 3) ||
-				   !memcmp(p + 2, BROADCOM_OUI2, 3) ||
 				   !memcmp(p + 2, BROADCOM_OUI2, 3)) {
 				DBG_8723A("link to Broadcom AP\n");
 				return HT_IOT_PEER_BROADCOM;
