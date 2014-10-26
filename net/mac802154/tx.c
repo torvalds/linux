@@ -84,11 +84,9 @@ mac802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 	mac802154_monitors_rx(local, skb);
 
 	if (!(local->hw.flags & IEEE802154_HW_OMIT_CKSUM)) {
-		u16 crc = crc_ccitt(0, skb->data, skb->len);
-		u8 *data = skb_put(skb, 2);
+		__le16 crc = cpu_to_le16(crc_ccitt(0, skb->data, skb->len));
 
-		data[0] = crc & 0xff;
-		data[1] = crc >> 8;
+		memcpy(skb_put(skb, 2), &crc, 2);
 	}
 
 	if (skb_cow_head(skb, local->hw.extra_tx_headroom))
