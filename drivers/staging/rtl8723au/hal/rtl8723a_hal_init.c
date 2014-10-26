@@ -1522,10 +1522,8 @@ static void _DisableAnalog(struct rtw_adapter *padapter, bool bWithoutHWSM)
 /*  HW Auto state machine */
 int CardDisableHWSM(struct rtw_adapter *padapter, u8 resetMCU)
 {
-	int rtStatus = _SUCCESS;
-
 	if (padapter->bSurpriseRemoved) {
-		return rtStatus;
+		return _SUCCESS;
 	}
 	/*  RF Off Sequence ==== */
 	_DisableRFAFEAndResetBB(padapter);
@@ -1542,18 +1540,14 @@ int CardDisableHWSM(struct rtw_adapter *padapter, u8 resetMCU)
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_,
 		 ("======> Card disable finished.\n"));
 
-	return rtStatus;
+	return _SUCCESS;
 }
 
 /*  without HW Auto state machine */
 int CardDisableWithoutHWSM(struct rtw_adapter *padapter)
 {
-	int rtStatus = _SUCCESS;
-
-	/* RT_TRACE(COMP_INIT, DBG_LOUD,
-	   ("======> Card Disable Without HWSM .\n")); */
 	if (padapter->bSurpriseRemoved) {
-		return rtStatus;
+		return _SUCCESS;
 	}
 
 	/*  RF Off Sequence ==== */
@@ -1573,7 +1567,7 @@ int CardDisableWithoutHWSM(struct rtw_adapter *padapter)
 
 	/* RT_TRACE(COMP_INIT, DBG_LOUD,
 	   ("<====== Card Disable Without HWSM .\n")); */
-	return rtStatus;
+	return _SUCCESS;
 }
 
 void Hal_InitPGData(struct rtw_adapter *padapter, u8 *PROMContent)

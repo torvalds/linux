@@ -1766,9 +1766,7 @@ bthci_CmdSetEventFilter(
 	struct packet_irp_hcicmd_data *pHciCmd
 	)
 {
-	enum hci_status status = HCI_STATUS_SUCCESS;
-
-	return status;
+	return HCI_STATUS_SUCCESS;
 }
 
 /* 7.3.14 */
@@ -2984,8 +2982,7 @@ bthci_CmdReadLinkQuality(
 
 static enum hci_status bthci_CmdReadRSSI(struct rtw_adapter *padapter)
 {
-	enum hci_status status = HCI_STATUS_SUCCESS;
-	return status;
+	return HCI_STATUS_SUCCESS;
 }
 
 static enum hci_status
@@ -2994,7 +2991,6 @@ bthci_CmdCreateLogicalLink(
 	struct packet_irp_hcicmd_data *pHciCmd
 	)
 {
-	enum hci_status status = HCI_STATUS_SUCCESS;
 	struct bt_30info *pBTInfo = GET_BT_INFO(padapter);
 	struct bt_dgb *pBtDbg = &pBTInfo->BtDbg;
 
@@ -3003,7 +2999,7 @@ bthci_CmdCreateLogicalLink(
 	bthci_BuildLogicalLink(padapter, pHciCmd,
 		HCI_CREATE_LOGICAL_LINK);
 
-	return status;
+	return HCI_STATUS_SUCCESS;
 }
 
 static enum hci_status
@@ -3012,7 +3008,6 @@ bthci_CmdAcceptLogicalLink(
 	struct packet_irp_hcicmd_data *pHciCmd
 	)
 {
-	enum hci_status status = HCI_STATUS_SUCCESS;
 	struct bt_30info *pBTInfo = GET_BT_INFO(padapter);
 	struct bt_dgb *pBtDbg = &pBTInfo->BtDbg;
 
@@ -3021,7 +3016,7 @@ bthci_CmdAcceptLogicalLink(
 	bthci_BuildLogicalLink(padapter, pHciCmd,
 		HCI_ACCEPT_LOGICAL_LINK);
 
-	return status;
+	return HCI_STATUS_SUCCESS;
 }
 
 static enum hci_status
@@ -4141,9 +4136,7 @@ static enum hci_status
 bthci_CmdHostNumberOfCompletedPackets(struct rtw_adapter *padapter,
 				      struct packet_irp_hcicmd_data *pHciCmd)
 {
-	enum hci_status status = HCI_STATUS_SUCCESS;
-
-	return status;
+	return HCI_STATUS_SUCCESS;
 }
 
 static enum hci_status
