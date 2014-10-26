@@ -25,7 +25,7 @@
 
 #define MN88472_FIRMWARE "dvb-demod-mn88472-02.fw"
 
-struct mn88472_state {
+struct mn88472_dev {
 	struct i2c_adapter *i2c;
 	const struct mn88472_config *cfg;
 	struct dvb_frontend fe;
