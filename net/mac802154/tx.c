@@ -51,11 +51,15 @@ static void mac802154_xmit_worker(struct work_struct *work)
 	int res;
 
 	res = local->ops->xmit(&local->hw, skb);
-	if (res)
+	if (res) {
 		pr_debug("transmission failed\n");
-
-	/* Restart the netif queue on each sub_if_data object. */
-	ieee802154_xmit_complete(&local->hw, skb);
+		/* Restart the netif queue on each sub_if_data object. */
+		ieee802154_wake_queue(&local->hw);
+		kfree_skb(skb);
+	} else {
+		/* Restart the netif queue on each sub_if_data object. */
+		ieee802154_xmit_complete(&local->hw, skb);
+	}
 }
 
 static netdev_tx_t
