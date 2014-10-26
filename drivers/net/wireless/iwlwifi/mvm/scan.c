@@ -270,7 +270,8 @@ static void iwl_mvm_scan_condition_iterator(void *data, u8 *mac,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	bool *global_bound = data;
 
-	if (mvmvif->phy_ctxt && mvmvif->phy_ctxt->id < MAX_PHYS)
+	if (vif->type != NL80211_IFTYPE_P2P_DEVICE && mvmvif->phy_ctxt &&
+	    mvmvif->phy_ctxt->id < MAX_PHYS)
 		*global_bound = true;
 }
 
