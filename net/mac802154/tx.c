@@ -49,12 +49,13 @@ static void mac802154_xmit_worker(struct work_struct *work)
 	struct wpan_xmit_cb *cb = container_of(work, struct wpan_xmit_cb, work);
 	struct ieee802154_local *local = cb->local;
 	struct sk_buff *skb = cb->skb;
+	struct net_device *dev = skb->dev;
 	int res;
 
 	rtnl_lock();
 
 	/* check if ifdown occurred while schedule */
-	if (!netif_running(skb->dev))
+	if (!netif_running(dev))
 		goto err_tx;
 
 	res = local->ops->xmit_sync(&local->hw, skb);
@@ -62,6 +63,9 @@ static void mac802154_xmit_worker(struct work_struct *work)
 		goto err_tx;
 
 	ieee802154_xmit_complete(&local->hw, skb);
+
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += skb->len;
 
 	rtnl_unlock();
 
@@ -72,13 +76,14 @@ err_tx:
 	ieee802154_wake_queue(&local->hw);
 	rtnl_unlock();
 	kfree_skb(skb);
-	netdev_dbg(skb->dev, "transmission failed\n");
+	netdev_dbg(dev, "transmission failed\n");
 }
 
 static netdev_tx_t
 mac802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 {
 	struct wpan_xmit_cb *cb = wpan_xmit_cb(skb);
+	struct net_device *dev = skb->dev;
 	int ret;
 
 	mac802154_monitors_rx(local, skb);
@@ -102,6 +107,9 @@ mac802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 			ieee802154_wake_queue(&local->hw);
 			goto err_tx;
 		}
+
+		dev->stats.tx_packets++;
+		dev->stats.tx_bytes += skb->len;
 	} else {
 		INIT_WORK(&cb->work, mac802154_xmit_worker);
 		cb->skb = skb;
@@ -122,8 +130,6 @@ netdev_tx_t mac802154_monitor_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 
 	skb->skb_iif = dev->ifindex;
-	dev->stats.tx_packets++;
-	dev->stats.tx_bytes += skb->len;
 
 	return mac802154_tx(sdata->local, skb);
 }
@@ -141,8 +147,6 @@ netdev_tx_t mac802154_wpan_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	skb->skb_iif = dev->ifindex;
-	dev->stats.tx_packets++;
-	dev->stats.tx_bytes += skb->len;
 
 	return mac802154_tx(sdata->local, skb);
 }
