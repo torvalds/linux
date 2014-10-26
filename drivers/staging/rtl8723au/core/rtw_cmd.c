@@ -1149,7 +1149,7 @@ static void rtw_chk_hi_queue_hdl(struct rtw_adapter *padapter)
 
 		val = rtl8723a_chk_hi_queue_empty(padapter);
 
-		while (val == false) {
+		while (!val) {
 			msleep(100);
 
 			cnt++;

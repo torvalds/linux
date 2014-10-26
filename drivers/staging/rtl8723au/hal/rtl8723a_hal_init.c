@@ -1945,13 +1945,13 @@ Hal_EfuseParseThermalMeter_8723A(struct rtw_adapter *padapter,
 	/*  */
 	/*  ThermalMeter from EEPROM */
 	/*  */
-	if (AutoloadFail == false)
+	if (!AutoloadFail)
 		pHalData->EEPROMThermalMeter =
 		    PROMContent[EEPROM_THERMAL_METER_8723A];
 	else
 		pHalData->EEPROMThermalMeter = EEPROM_Default_ThermalMeter;
 
-	if ((pHalData->EEPROMThermalMeter == 0xff) || (AutoloadFail == true)) {
+	if ((pHalData->EEPROMThermalMeter == 0xff) || AutoloadFail) {
 		pHalData->bAPKThermalMeterIgnore = true;
 		pHalData->EEPROMThermalMeter = EEPROM_Default_ThermalMeter;
 	}

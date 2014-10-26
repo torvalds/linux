@@ -159,7 +159,7 @@ void rtw_ps_processor23a(struct rtw_adapter *padapter)
 	if (pwrpriv->ips_mode_req == IPS_NONE)
 		goto exit;
 
-	if (rtw_pwr_unassociated_idle(padapter) == false)
+	if (!rtw_pwr_unassociated_idle(padapter))
 		goto exit;
 
 	if (pwrpriv->rf_pwrstate == rf_on &&

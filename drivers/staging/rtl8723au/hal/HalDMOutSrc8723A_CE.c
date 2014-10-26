@@ -612,7 +612,7 @@ static void _PHY_PathADDAOn(struct rtw_adapter *pAdapter, u32 *ADDAReg, bool isP
 	u32 i;
 
 	pathOn = isPathAOn ? 0x04db25a4 : 0x0b1b25a4;
-	if (false == is2T) {
+	if (!is2T) {
 		pathOn = 0x0bdb25a0;
 		PHY_SetBBReg(pAdapter, ADDAReg[0], bMaskDWord, 0x0b1b25a0);
 	} else {

@@ -866,7 +866,7 @@ int rtw_check_bcn_info23a(struct rtw_adapter *Adapter,
 	int pie_len, ssid_len, privacy;
 	const u8 *p, *ssid;
 
-	if (is_client_associated_to_ap23a(Adapter) == false)
+	if (!is_client_associated_to_ap23a(Adapter))
 		return _SUCCESS;
 
 	if (unlikely(!ieee80211_is_beacon(mgmt->frame_control))) {

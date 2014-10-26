@@ -3999,7 +3999,7 @@ int send_beacon23a(struct rtw_adapter *padapter)
 			yield();
 			bxmitok = rtl8723a_get_bcn_valid(padapter);
 			poll++;
-		} while ((poll % 10) != 0 && bxmitok == false &&
+		} while ((poll % 10) != 0 && !bxmitok &&
 			 !padapter->bSurpriseRemoved &&
 			 !padapter->bDriverStopped);
 

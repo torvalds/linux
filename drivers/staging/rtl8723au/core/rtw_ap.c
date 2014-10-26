@@ -1605,7 +1605,7 @@ u8 ap_free_sta23a(struct rtw_adapter *padapter, struct sta_info *psta, bool acti
 	if (!psta)
 		return beacon_updated;
 
-	if (active == true) {
+	if (active) {
 		/* tear down Rx AMPDU */
 		send_delba23a(padapter, 0, psta->hwaddr);/*  recipient */
 

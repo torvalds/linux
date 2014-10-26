@@ -480,7 +480,7 @@ static void _InitRFType(struct rtw_adapter *Adapter)
 
 	pHalData->rf_chip = RF_6052;
 
-	if (is92CU == false) {
+	if (!is92CU) {
 		pHalData->rf_type = RF_1T1R;
 		DBG_8723A("Set RF Chip ID to RF_6052 and RF type to 1T1R.\n");
 		return;
