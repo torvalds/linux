@@ -21,6 +21,7 @@
 #include <linux/if_arp.h>
 #include <linux/crc-ccitt.h>
 
+#include <net/rtnetlink.h>
 #include <net/ieee802154_netdev.h>
 #include <net/mac802154.h>
 #include <net/cfg802154.h>
@@ -50,16 +51,28 @@ static void mac802154_xmit_worker(struct work_struct *work)
 	struct sk_buff *skb = cb->skb;
 	int res;
 
+	rtnl_lock();
+
+	/* check if ifdown occurred while schedule */
+	if (!netif_running(skb->dev))
+		goto err_tx;
+
 	res = local->ops->xmit_sync(&local->hw, skb);
-	if (res) {
-		pr_debug("transmission failed\n");
-		/* Restart the netif queue on each sub_if_data object. */
-		ieee802154_wake_queue(&local->hw);
-		kfree_skb(skb);
-	} else {
-		/* Restart the netif queue on each sub_if_data object. */
-		ieee802154_xmit_complete(&local->hw, skb);
-	}
+	if (res)
+		goto err_tx;
+
+	ieee802154_xmit_complete(&local->hw, skb);
+
+	rtnl_unlock();
+
+	return;
+
+err_tx:
+	/* Restart the netif queue on each sub_if_data object. */
+	ieee802154_wake_queue(&local->hw);
+	rtnl_unlock();
+	kfree_skb(skb);
+	pr_debug("transmission failed\n");
 }
 
 static netdev_tx_t
