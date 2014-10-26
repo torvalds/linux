@@ -37,6 +37,8 @@ struct kgd_mem {
 	struct radeon_sa_bo *sa_bo;
 	uint64_t gpu_addr;
 	void *ptr;
+	struct radeon_bo *bo;
+	void *cpu_ptr;
 };
 
 static int init_sa_manager(struct kgd_dev *kgd, unsigned int size);
@@ -46,6 +48,12 @@ static int allocate_mem(struct kgd_dev *kgd, size_t size, size_t alignment,
 		enum kgd_memory_pool pool, struct kgd_mem **mem);
 
 static void free_mem(struct kgd_dev *kgd, struct kgd_mem *mem);
+
+static int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
+			void **mem_obj, uint64_t *gpu_addr,
+			void **cpu_ptr);
+
+static void free_gtt_mem(struct kgd_dev *kgd, void *mem_obj);
 
 static uint64_t get_vmem_size(struct kgd_dev *kgd);
 static uint64_t get_gpu_clock_counter(struct kgd_dev *kgd);
@@ -87,6 +95,8 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.fini_sa_manager = fini_sa_manager,
 	.allocate_mem = allocate_mem,
 	.free_mem = free_mem,
+	.init_gtt_mem_allocation = alloc_gtt_mem,
+	.free_gtt_mem = free_gtt_mem,
 	.get_vmem_size = get_vmem_size,
 	.get_gpu_clock_counter = get_gpu_clock_counter,
 	.get_max_engine_clock_in_mhz = get_max_engine_clock_in_mhz,
@@ -269,6 +279,81 @@ static void free_mem(struct kgd_dev *kgd, struct kgd_mem *mem)
 	BUG_ON(kgd == NULL);
 
 	radeon_sa_bo_free(rdev, &mem->sa_bo, NULL);
+	kfree(mem);
+}
+
+static int alloc_gtt_mem(struct kgd_dev *kgd, size_t size,
+			void **mem_obj, uint64_t *gpu_addr,
+			void **cpu_ptr)
+{
+	struct radeon_device *rdev = (struct radeon_device *)kgd;
+	struct kgd_mem **mem = (struct kgd_mem **) mem_obj;
+	int r;
+
+	BUG_ON(kgd == NULL);
+	BUG_ON(gpu_addr == NULL);
+	BUG_ON(cpu_ptr == NULL);
+
+	*mem = kmalloc(sizeof(struct kgd_mem), GFP_KERNEL);
+	if ((*mem) == NULL)
+		return -ENOMEM;
+
+	r = radeon_bo_create(rdev, size, PAGE_SIZE, true, RADEON_GEM_DOMAIN_GTT,
+				RADEON_GEM_GTT_WC, NULL, NULL, &(*mem)->bo);
+	if (r) {
+		dev_err(rdev->dev,
+			"failed to allocate BO for amdkfd (%d)\n", r);
+		return r;
+	}
+
+	/* map the buffer */
+	r = radeon_bo_reserve((*mem)->bo, true);
+	if (r) {
+		dev_err(rdev->dev, "(%d) failed to reserve bo for amdkfd\n", r);
+		goto allocate_mem_reserve_bo_failed;
+	}
+
+	r = radeon_bo_pin((*mem)->bo, RADEON_GEM_DOMAIN_GTT,
+				&(*mem)->gpu_addr);
+	if (r) {
+		dev_err(rdev->dev, "(%d) failed to pin bo for amdkfd\n", r);
+		goto allocate_mem_pin_bo_failed;
+	}
+	*gpu_addr = (*mem)->gpu_addr;
+
+	r = radeon_bo_kmap((*mem)->bo, &(*mem)->cpu_ptr);
+	if (r) {
+		dev_err(rdev->dev,
+			"(%d) failed to map bo to kernel for amdkfd\n", r);
+		goto allocate_mem_kmap_bo_failed;
+	}
+	*cpu_ptr = (*mem)->cpu_ptr;
+
+	radeon_bo_unreserve((*mem)->bo);
+
+	return 0;
+
+allocate_mem_kmap_bo_failed:
+	radeon_bo_unpin((*mem)->bo);
+allocate_mem_pin_bo_failed:
+	radeon_bo_unreserve((*mem)->bo);
+allocate_mem_reserve_bo_failed:
+	radeon_bo_unref(&(*mem)->bo);
+
+	return r;
+}
+
+static void free_gtt_mem(struct kgd_dev *kgd, void *mem_obj)
+{
+	struct kgd_mem *mem = (struct kgd_mem *) mem_obj;
+
+	BUG_ON(mem == NULL);
+
+	radeon_bo_reserve(mem->bo, true);
+	radeon_bo_kunmap(mem->bo);
+	radeon_bo_unpin(mem->bo);
+	radeon_bo_unreserve(mem->bo);
+	radeon_bo_unref(&(mem->bo));
 	kfree(mem);
 }
 
