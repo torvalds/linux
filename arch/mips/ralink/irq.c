@@ -20,14 +20,6 @@
 
 #include "common.h"
 
-/* INTC register offsets */
-#define INTC_REG_STATUS0	0x00
-#define INTC_REG_STATUS1	0x04
-#define INTC_REG_TYPE		0x20
-#define INTC_REG_RAW_STATUS	0x30
-#define INTC_REG_ENABLE		0x34
-#define INTC_REG_DISABLE	0x38
-
 #define INTC_INT_GLOBAL		BIT(31)
 
 #define RALINK_CPU_IRQ_INTC	(MIPS_CPU_IRQ_BASE + 2)
@@ -44,17 +36,36 @@
 
 #define RALINK_INTC_IRQ_PERFC   (RALINK_INTC_IRQ_BASE + 9)
 
+enum rt_intc_regs_enum {
+	INTC_REG_STATUS0 = 0,
+	INTC_REG_STATUS1,
+	INTC_REG_TYPE,
+	INTC_REG_RAW_STATUS,
+	INTC_REG_ENABLE,
+	INTC_REG_DISABLE,
+};
+
+static u32 rt_intc_regs[] = {
+	[INTC_REG_STATUS0] = 0x00,
+	[INTC_REG_STATUS1] = 0x04,
+	[INTC_REG_TYPE] = 0x20,
+	[INTC_REG_RAW_STATUS] = 0x30,
+	[INTC_REG_ENABLE] = 0x34,
+	[INTC_REG_DISABLE] = 0x38,
+};
+
 static void __iomem *rt_intc_membase;
+
 static int rt_perfcount_irq;
 
 static inline void rt_intc_w32(u32 val, unsigned reg)
 {
-	__raw_writel(val, rt_intc_membase + reg);
+	__raw_writel(val, rt_intc_membase + rt_intc_regs[reg]);
 }
 
 static inline u32 rt_intc_r32(unsigned reg)
 {
-	return __raw_readl(rt_intc_membase + reg);
+	return __raw_readl(rt_intc_membase + rt_intc_regs[reg]);
 }
 
 static void ralink_intc_irq_unmask(struct irq_data *d)
@@ -139,6 +150,10 @@ static int __init intc_of_init(struct device_node *node,
 	struct resource res;
 	struct irq_domain *domain;
 	int irq;
+
+	if (!of_property_read_u32_array(node, "ralink,intc-registers",
+					rt_intc_regs, 6))
+		pr_info("intc: using register map from devicetree\n");
 
 	irq = irq_of_parse_and_map(node, 0);
 	if (!irq)
