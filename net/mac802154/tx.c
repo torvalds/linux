@@ -34,8 +34,6 @@ struct wpan_xmit_cb {
 	struct sk_buff *skb;
 	struct work_struct work;
 	struct ieee802154_local *local;
-	u8 chan;
-	u8 page;
 };
 
 static inline struct wpan_xmit_cb *wpan_xmit_cb(const struct sk_buff *skb)
@@ -53,25 +51,9 @@ static void mac802154_xmit_worker(struct work_struct *work)
 	struct sk_buff *skb = cb->skb;
 	int res;
 
-	mutex_lock(&local->phy->pib_lock);
-	if (local->phy->current_channel != cb->chan ||
-	    local->phy->current_page != cb->page) {
-		res = local->ops->set_channel(&local->hw, cb->page, cb->chan);
-		if (res) {
-			pr_debug("set_channel failed\n");
-			goto out;
-		}
-
-		local->phy->current_channel = cb->chan;
-		local->phy->current_page = cb->page;
-	}
-
 	res = local->ops->xmit(&local->hw, skb);
 	if (res)
 		pr_debug("transmission failed\n");
-
-out:
-	mutex_unlock(&local->phy->pib_lock);
 
 	/* Restart the netif queue on each sub_if_data object. */
 	rcu_read_lock();
@@ -82,16 +64,11 @@ out:
 	dev_kfree_skb(skb);
 }
 
-static netdev_tx_t mac802154_tx(struct ieee802154_local *local,
-				struct sk_buff *skb, u8 page, u8 chan)
+static netdev_tx_t
+mac802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 {
 	struct ieee802154_sub_if_data *sdata;
 	struct wpan_xmit_cb *cb = wpan_xmit_cb(skb);
-
-	if (!(local->phy->channels_supported[page] & (1 << chan))) {
-		WARN_ON(1);
-		goto err_tx;
-	}
 
 	mac802154_monitors_rx(local, skb);
 
@@ -115,8 +92,6 @@ static netdev_tx_t mac802154_tx(struct ieee802154_local *local,
 	INIT_WORK(&cb->work, mac802154_xmit_worker);
 	cb->skb = skb;
 	cb->local = local;
-	cb->page = page;
-	cb->chan = chan;
 
 	queue_work(local->workqueue, &cb->work);
 
@@ -130,43 +105,18 @@ err_tx:
 netdev_tx_t mac802154_monitor_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-	u8 chan, page;
-
-	/* FIXME: locking */
-	chan = sdata->local->phy->current_channel;
-	page = sdata->local->phy->current_page;
-
-	if (chan == MAC802154_CHAN_NONE) /* not initialized */
-		return NETDEV_TX_OK;
-
-	if (WARN_ON(page >= WPAN_NUM_PAGES) ||
-	    WARN_ON(chan >= WPAN_NUM_CHANNELS))
-		return NETDEV_TX_OK;
 
 	skb->skb_iif = dev->ifindex;
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
 
-	return mac802154_tx(sdata->local, skb, page, chan);
+	return mac802154_tx(sdata->local, skb);
 }
 
 netdev_tx_t mac802154_wpan_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-	u8 chan, page;
 	int rc;
-
-	spin_lock_bh(&sdata->mib_lock);
-	chan = sdata->chan;
-	page = sdata->page;
-	spin_unlock_bh(&sdata->mib_lock);
-
-	if (chan == MAC802154_CHAN_NONE ||
-	    page >= WPAN_NUM_PAGES ||
-	    chan >= WPAN_NUM_CHANNELS) {
-		kfree_skb(skb);
-		return NETDEV_TX_OK;
-	}
 
 	rc = mac802154_llsec_encrypt(&sdata->sec, skb);
 	if (rc) {
@@ -179,5 +129,5 @@ netdev_tx_t mac802154_wpan_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
 
-	return mac802154_tx(sdata->local, skb, page, chan);
+	return mac802154_tx(sdata->local, skb);
 }

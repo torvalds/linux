@@ -113,8 +113,7 @@ struct ieee802154_hw {
  *	  skb cntains the buffer starting from the IEEE 802.15.4 header.
  *	  The low-level driver should send the frame based on available
  *	  configuration.
- *	  This function should return zero or negative errno. Called with
- *	  pib_lock held.
+ *	  This function should return zero or negative errno.
  *
  * ed:    Handler that 802.15.4 module calls for Energy Detection.
  *	  This function should place the value for detected energy
