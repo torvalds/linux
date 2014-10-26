@@ -600,8 +600,8 @@ static void imon_incoming_packet(struct imon_context *context,
 	if (debug) {
 		dev_info(dev, "raw packet: ");
 		for (i = 0; i < len; ++i)
-			printk("%02x ", buf[i]);
-		printk("\n");
+			dev_dbg(dev, "%02x ", buf[i]);
+		dev_dbg(dev, "\n");
 	}
 
 	/*
