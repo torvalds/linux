@@ -27,7 +27,7 @@
 
 struct mn88472_state {
 	struct i2c_adapter *i2c;
-	const struct mn88472_c_config *cfg;
+	const struct mn88472_config *cfg;
 	struct dvb_frontend fe;
 	fe_delivery_system_t delivery_system;
 	bool warm; /* FW running */

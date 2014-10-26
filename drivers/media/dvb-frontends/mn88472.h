@@ -19,7 +19,7 @@
 
 #include <linux/dvb/frontend.h>
 
-struct mn88472_c_config {
+struct mn88472_config {
 	/*
 	 * max bytes I2C client could write
 	 * Value must be set.
@@ -28,13 +28,13 @@ struct mn88472_c_config {
 };
 
 #if IS_ENABLED(CONFIG_DVB_MN88472)
-extern struct dvb_frontend *mn88472_attach_c(
-	const struct mn88472_c_config *cfg,
+extern struct dvb_frontend *mn88472_attach(
+	const struct mn88472_config *cfg,
 	struct i2c_adapter *i2c
 );
 #else
-static inline struct dvb_frontend *mn88472_attach_c(
-	const struct mn88472_c_config *cfg,
+static inline struct dvb_frontend *mn88472_attach(
+	const struct mn88472_config *cfg,
 	struct i2c_adapter *i2c
 )
 {

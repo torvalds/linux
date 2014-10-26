@@ -16,7 +16,7 @@
 
 #include "mn88472_priv.h"
 
-static struct dvb_frontend_ops mn88472_ops_c;
+static struct dvb_frontend_ops mn88472_ops;
 
 /* write multiple registers */
 static int mn88472_wregs(struct mn88472_state *s, u16 reg, const u8 *val, int len)
@@ -112,7 +112,7 @@ static int mn88472_get_tune_settings(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int mn88472_set_frontend_c(struct dvb_frontend *fe)
+static int mn88472_set_frontend(struct dvb_frontend *fe)
 {
 	struct mn88472_state *s = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
@@ -216,7 +216,7 @@ err:
 	return ret;
 }
 
-static int mn88472_read_status_c(struct dvb_frontend *fe, fe_status_t *status)
+static int mn88472_read_status(struct dvb_frontend *fe, fe_status_t *status)
 {
 	struct mn88472_state *s = fe->demodulator_priv;
 	int ret;
@@ -243,7 +243,7 @@ err:
 	return ret;
 }
 
-static int mn88472_init_c(struct dvb_frontend *fe)
+static int mn88472_init(struct dvb_frontend *fe)
 {
 	struct mn88472_state *s = fe->demodulator_priv;
 	int ret, len, remaining;
@@ -313,7 +313,7 @@ err:
 	return ret;
 }
 
-static int mn88472_sleep_c(struct dvb_frontend *fe)
+static int mn88472_sleep(struct dvb_frontend *fe)
 {
 	struct mn88472_state *s = fe->demodulator_priv;
 	int ret;
@@ -336,13 +336,13 @@ err:
 	return ret;
 }
 
-static void mn88472_release_c(struct dvb_frontend *fe)
+static void mn88472_release(struct dvb_frontend *fe)
 {
 	struct mn88472_state *s = fe->demodulator_priv;
 	kfree(s);
 }
 
-struct dvb_frontend *mn88472_attach_c(const struct mn88472_c_config *cfg,
+struct dvb_frontend *mn88472_attach(const struct mn88472_config *cfg,
 		struct i2c_adapter *i2c)
 {
 	int ret;
@@ -367,7 +367,7 @@ struct dvb_frontend *mn88472_attach_c(const struct mn88472_c_config *cfg,
 		goto err;
 
 	/* create dvb_frontend */
-	memcpy(&s->fe.ops, &mn88472_ops_c, sizeof(struct dvb_frontend_ops));
+	memcpy(&s->fe.ops, &mn88472_ops, sizeof(struct dvb_frontend_ops));
 	s->fe.demodulator_priv = s;
 
 	return &s->fe;
@@ -376,9 +376,9 @@ err:
 	kfree(s);
 	return NULL;
 }
-EXPORT_SYMBOL(mn88472_attach_c);
+EXPORT_SYMBOL(mn88472_attach);
 
-static struct dvb_frontend_ops mn88472_ops_c = {
+static struct dvb_frontend_ops mn88472_ops = {
 	.delsys = {SYS_DVBC_ANNEX_A},
 	.info = {
 		.name = "Panasonic MN88472",
@@ -403,18 +403,18 @@ static struct dvb_frontend_ops mn88472_ops_c = {
 			FE_CAN_MULTISTREAM
 	},
 
-	.release = mn88472_release_c,
+	.release = mn88472_release,
 
 	.get_tune_settings = mn88472_get_tune_settings,
 
-	.init = mn88472_init_c,
-	.sleep = mn88472_sleep_c,
+	.init = mn88472_init,
+	.sleep = mn88472_sleep,
 
-	.set_frontend = mn88472_set_frontend_c,
-/*	.get_frontend = mn88472_get_frontend_c, */
+	.set_frontend = mn88472_set_frontend,
+/*	.get_frontend = mn88472_get_frontend, */
 
-	.read_status = mn88472_read_status_c,
-/*	.read_snr = mn88472_read_snr_c, */
+	.read_status = mn88472_read_status,
+/*	.read_snr = mn88472_read_snr, */
 };
 
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
