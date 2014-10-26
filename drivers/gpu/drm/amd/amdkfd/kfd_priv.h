@@ -111,6 +111,13 @@ struct kfd_device_info {
 	uint16_t mqd_size_aligned;
 };
 
+struct kfd_mem_obj {
+	uint32_t range_start;
+	uint32_t range_end;
+	uint64_t gpu_addr;
+	uint32_t *cpu_ptr;
+};
+
 struct kfd_dev {
 	struct kgd_dev *kgd;
 
@@ -135,6 +142,14 @@ struct kfd_dev {
 					   */
 
 	struct kgd2kfd_shared_resources shared_resources;
+
+	void *gtt_mem;
+	uint64_t gtt_start_gpu_addr;
+	void *gtt_start_cpu_ptr;
+	void *gtt_sa_bitmap;
+	struct mutex gtt_sa_lock;
+	unsigned int gtt_sa_chunk_size;
+	unsigned int gtt_sa_num_of_chunks;
 
 	void *interrupt_ring;
 	size_t interrupt_ring_size;
@@ -162,12 +177,6 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 void kgd2kfd_device_exit(struct kfd_dev *kfd);
 
 extern const struct kfd2kgd_calls *kfd2kgd;
-
-struct kfd_mem_obj {
-	void *bo;
-	uint64_t gpu_addr;
-	uint32_t *cpu_ptr;
-};
 
 enum kfd_mempool {
 	KFD_MEMPOOL_SYSTEM_CACHEABLE = 1,
