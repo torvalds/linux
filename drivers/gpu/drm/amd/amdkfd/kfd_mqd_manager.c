@@ -52,11 +52,8 @@ static int init_mqd(struct mqd_manager *mm, void **mqd,
 
 	pr_debug("kfd: In func %s\n", __func__);
 
-	retval = kfd2kgd->allocate_mem(mm->dev->kgd,
-					sizeof(struct cik_mqd),
-					256,
-					KFD_MEMPOOL_SYSTEM_WRITECOMBINE,
-					(struct kgd_mem **) mqd_mem_obj);
+	retval = kfd_gtt_sa_allocate(mm->dev, sizeof(struct cik_mqd),
+					mqd_mem_obj);
 
 	if (retval != 0)
 		return -ENOMEM;
@@ -121,11 +118,9 @@ static int init_mqd_sdma(struct mqd_manager *mm, void **mqd,
 
 	BUG_ON(!mm || !mqd || !mqd_mem_obj);
 
-	retval = kfd2kgd->allocate_mem(mm->dev->kgd,
+	retval = kfd_gtt_sa_allocate(mm->dev,
 					sizeof(struct cik_sdma_rlc_registers),
-					256,
-					KFD_MEMPOOL_SYSTEM_WRITECOMBINE,
-					(struct kgd_mem **) mqd_mem_obj);
+					mqd_mem_obj);
 
 	if (retval != 0)
 		return -ENOMEM;
@@ -147,14 +142,14 @@ static void uninit_mqd(struct mqd_manager *mm, void *mqd,
 			struct kfd_mem_obj *mqd_mem_obj)
 {
 	BUG_ON(!mm || !mqd);
-	kfd2kgd->free_mem(mm->dev->kgd, (struct kgd_mem *) mqd_mem_obj);
+	kfd_gtt_sa_free(mm->dev, mqd_mem_obj);
 }
 
 static void uninit_mqd_sdma(struct mqd_manager *mm, void *mqd,
 				struct kfd_mem_obj *mqd_mem_obj)
 {
 	BUG_ON(!mm || !mqd);
-	kfd2kgd->free_mem(mm->dev->kgd, (struct kgd_mem *) mqd_mem_obj);
+	kfd_gtt_sa_free(mm->dev, mqd_mem_obj);
 }
 
 static int load_mqd(struct mqd_manager *mm, void *mqd, uint32_t pipe_id,
@@ -306,11 +301,8 @@ static int init_mqd_hiq(struct mqd_manager *mm, void **mqd,
 
 	pr_debug("kfd: In func %s\n", __func__);
 
-	retval = kfd2kgd->allocate_mem(mm->dev->kgd,
-					sizeof(struct cik_mqd),
-					256,
-					KFD_MEMPOOL_SYSTEM_WRITECOMBINE,
-					(struct kgd_mem **) mqd_mem_obj);
+	retval = kfd_gtt_sa_allocate(mm->dev, sizeof(struct cik_mqd),
+					mqd_mem_obj);
 
 	if (retval != 0)
 		return -ENOMEM;

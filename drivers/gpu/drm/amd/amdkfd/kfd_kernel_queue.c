@@ -72,11 +72,7 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	if (prop.doorbell_ptr == NULL)
 		goto err_get_kernel_doorbell;
 
-	retval = kfd2kgd->allocate_mem(dev->kgd,
-					queue_size,
-					PAGE_SIZE,
-					KFD_MEMPOOL_SYSTEM_WRITECOMBINE,
-					(struct kgd_mem **) &kq->pq);
+	retval = kfd_gtt_sa_allocate(dev, queue_size, &kq->pq);
 
 	if (retval != 0)
 		goto err_pq_allocate_vidmem;
@@ -84,11 +80,8 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	kq->pq_kernel_addr = kq->pq->cpu_ptr;
 	kq->pq_gpu_addr = kq->pq->gpu_addr;
 
-	retval = kfd2kgd->allocate_mem(dev->kgd,
-					sizeof(*kq->rptr_kernel),
-					32,
-					KFD_MEMPOOL_SYSTEM_WRITECOMBINE,
-					(struct kgd_mem **) &kq->rptr_mem);
+	retval = kfd_gtt_sa_allocate(dev, sizeof(*kq->rptr_kernel),
+					&kq->rptr_mem);
 
 	if (retval != 0)
 		goto err_rptr_allocate_vidmem;
@@ -96,11 +89,8 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	kq->rptr_kernel = kq->rptr_mem->cpu_ptr;
 	kq->rptr_gpu_addr = kq->rptr_mem->gpu_addr;
 
-	retval = kfd2kgd->allocate_mem(dev->kgd,
-					sizeof(*kq->wptr_kernel),
-					32,
-					KFD_MEMPOOL_SYSTEM_WRITECOMBINE,
-					(struct kgd_mem **) &kq->wptr_mem);
+	retval = kfd_gtt_sa_allocate(dev, sizeof(*kq->wptr_kernel),
+					&kq->wptr_mem);
 
 	if (retval != 0)
 		goto err_wptr_allocate_vidmem;
@@ -145,11 +135,8 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	} else {
 		/* allocate fence for DIQ */
 
-		retval = kfd2kgd->allocate_mem(dev->kgd,
-					sizeof(uint32_t),
-					32,
-					KFD_MEMPOOL_SYSTEM_WRITECOMBINE,
-					(struct kgd_mem **) &kq->fence_mem_obj);
+		retval = kfd_gtt_sa_allocate(dev, sizeof(uint32_t),
+						&kq->fence_mem_obj);
 
 		if (retval != 0)
 			goto err_alloc_fence;
@@ -165,11 +152,11 @@ err_alloc_fence:
 err_init_mqd:
 	uninit_queue(kq->queue);
 err_init_queue:
-	kfd2kgd->free_mem(dev->kgd, (struct kgd_mem *) kq->wptr_mem);
+	kfd_gtt_sa_free(dev, kq->wptr_mem);
 err_wptr_allocate_vidmem:
-	kfd2kgd->free_mem(dev->kgd, (struct kgd_mem *) kq->rptr_mem);
+	kfd_gtt_sa_free(dev, kq->rptr_mem);
 err_rptr_allocate_vidmem:
-	kfd2kgd->free_mem(dev->kgd, (struct kgd_mem *) kq->pq);
+	kfd_gtt_sa_free(dev, kq->pq);
 err_pq_allocate_vidmem:
 	pr_err("kfd: error init pq\n");
 	kfd_release_kernel_doorbell(dev, prop.doorbell_ptr);
@@ -190,10 +177,12 @@ static void uninitialize(struct kernel_queue *kq)
 					QUEUE_PREEMPT_DEFAULT_TIMEOUT_MS,
 					kq->queue->pipe,
 					kq->queue->queue);
+	else if (kq->queue->properties.type == KFD_QUEUE_TYPE_DIQ)
+		kfd_gtt_sa_free(kq->dev, kq->fence_mem_obj);
 
-	kfd2kgd->free_mem(kq->dev->kgd, (struct kgd_mem *) kq->rptr_mem);
-	kfd2kgd->free_mem(kq->dev->kgd, (struct kgd_mem *) kq->wptr_mem);
-	kfd2kgd->free_mem(kq->dev->kgd, (struct kgd_mem *) kq->pq);
+	kfd_gtt_sa_free(kq->dev, kq->rptr_mem);
+	kfd_gtt_sa_free(kq->dev, kq->wptr_mem);
+	kfd_gtt_sa_free(kq->dev, kq->pq);
 	kfd_release_kernel_doorbell(kq->dev,
 					kq->queue->properties.doorbell_ptr);
 	uninit_queue(kq->queue);
