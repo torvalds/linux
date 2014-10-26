@@ -30,33 +30,6 @@
 
 #include "ieee802154_i.h"
 
-static netdev_tx_t mac802154_monitor_xmit(struct sk_buff *skb,
-					  struct net_device *dev)
-{
-	struct ieee802154_sub_if_data *sdata;
-	u8 chan, page;
-
-	sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-
-	/* FIXME: locking */
-	chan = sdata->local->phy->current_channel;
-	page = sdata->local->phy->current_page;
-
-	if (chan == MAC802154_CHAN_NONE) /* not initialized */
-		return NETDEV_TX_OK;
-
-	if (WARN_ON(page >= WPAN_NUM_PAGES) ||
-	    WARN_ON(chan >= WPAN_NUM_CHANNELS))
-		return NETDEV_TX_OK;
-
-	skb->skb_iif = dev->ifindex;
-	dev->stats.tx_packets++;
-	dev->stats.tx_bytes += skb->len;
-
-	return mac802154_tx(sdata->local, skb, page, chan);
-}
-
-
 void mac802154_monitors_rx(struct ieee802154_local *local, struct sk_buff *skb)
 {
 	struct sk_buff *skb2;

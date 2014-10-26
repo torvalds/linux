@@ -307,41 +307,6 @@ mac802154_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 	return sizeof(*addr);
 }
 
-static netdev_tx_t
-mac802154_wpan_xmit(struct sk_buff *skb, struct net_device *dev)
-{
-	struct ieee802154_sub_if_data *sdata;
-	u8 chan, page;
-	int rc;
-
-	sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-
-	spin_lock_bh(&sdata->mib_lock);
-	chan = sdata->chan;
-	page = sdata->page;
-	spin_unlock_bh(&sdata->mib_lock);
-
-	if (chan == MAC802154_CHAN_NONE ||
-	    page >= WPAN_NUM_PAGES ||
-	    chan >= WPAN_NUM_CHANNELS) {
-		kfree_skb(skb);
-		return NETDEV_TX_OK;
-	}
-
-	rc = mac802154_llsec_encrypt(&sdata->sec, skb);
-	if (rc) {
-		pr_warn("encryption failed: %i\n", rc);
-		kfree_skb(skb);
-		return NETDEV_TX_OK;
-	}
-
-	skb->skb_iif = dev->ifindex;
-	dev->stats.tx_packets++;
-	dev->stats.tx_bytes += skb->len;
-
-	return mac802154_tx(sdata->local, skb, page, chan);
-}
-
 static struct header_ops mac802154_header_ops = {
 	.create		= mac802154_header_create,
 	.parse		= mac802154_header_parse,
