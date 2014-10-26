@@ -656,7 +656,7 @@ static void dgap_remove_one(struct pci_dev *dev)
  */
 static void dgap_cleanup_module(void)
 {
-	int i;
+	unsigned int i;
 	ulong lock_flags;
 
 	spin_lock_irqsave(&dgap_poll_lock, lock_flags);
@@ -691,7 +691,7 @@ static void dgap_cleanup_module(void)
  */
 static void dgap_cleanup_board(struct board_t *brd)
 {
-	int i;
+	unsigned int i;
 
 	if (!brd || brd->magic != DGAP_BOARD_MAGIC)
 		return;
@@ -1063,7 +1063,7 @@ static void dgap_unmap(struct board_t *brd)
 
 static void dgap_poll_handler(ulong dummy)
 {
-	int i;
+	unsigned int i;
 	struct board_t *brd;
 	unsigned long lock_flags;
 	ulong new_time;
@@ -1196,7 +1196,7 @@ static irqreturn_t dgap_intr(int irq, void *voidbrd)
  */
 static void dgap_init_globals(void)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < MAXBOARDS; i++)
 		dgap_board[i] = NULL;
@@ -1515,7 +1515,7 @@ static void dgap_tty_free(struct board_t *brd)
 static void dgap_cleanup_tty(struct board_t *brd)
 {
 	struct device *dev;
-	int i;
+	unsigned int i;
 
 	dgap_boards_by_major[brd->serial_driver->major] = NULL;
 	brd->dgap_serial_major = 0;
@@ -4121,7 +4121,7 @@ static void dgap_do_bios_load(struct board_t *brd, const u8 *ubios, int len)
 {
 	u8 __iomem *addr;
 	uint offset;
-	int i;
+	unsigned int i;
 
 	if (!brd || (brd->magic != DGAP_BOARD_MAGIC) || !brd->re_map_membase)
 		return;
@@ -4217,7 +4217,7 @@ static void dgap_do_fep_load(struct board_t *brd, const u8 *ufep, int len)
 		u8 string[100];
 		u8 __iomem *config;
 		u8 *xconfig;
-		int i = 0;
+		unsigned int i = 0;
 
 		xconfig = dgap_create_config_string(brd, string);
 
@@ -4293,7 +4293,7 @@ static void dgap_do_reset_board(struct board_t *brd)
 	u8 check;
 	u32 check1;
 	u32 check2;
-	int i;
+	unsigned int i;
 
 	if (!brd || (brd->magic != DGAP_BOARD_MAGIC) ||
 	    !brd->re_map_membase || !brd->re_map_port)
@@ -5630,7 +5630,7 @@ static ssize_t dgap_ports_state_show(struct device *p,
 {
 	struct board_t *bd;
 	int count = 0;
-	int i;
+	unsigned int i;
 
 	bd = dgap_verify_board(p);
 	if (!bd)
@@ -5651,7 +5651,7 @@ static ssize_t dgap_ports_baud_show(struct device *p,
 {
 	struct board_t *bd;
 	int count = 0;
-	int i;
+	unsigned int i;
 
 	bd = dgap_verify_board(p);
 	if (!bd)
@@ -5672,7 +5672,7 @@ static ssize_t dgap_ports_msignals_show(struct device *p,
 {
 	struct board_t *bd;
 	int count = 0;
-	int i;
+	unsigned int i;
 
 	bd = dgap_verify_board(p);
 	if (!bd)
@@ -5709,7 +5709,7 @@ static ssize_t dgap_ports_iflag_show(struct device *p,
 {
 	struct board_t *bd;
 	int count = 0;
-	int i;
+	unsigned int i;
 
 	bd = dgap_verify_board(p);
 	if (!bd)
@@ -5729,7 +5729,7 @@ static ssize_t dgap_ports_cflag_show(struct device *p,
 {
 	struct board_t *bd;
 	int count = 0;
-	int i;
+	unsigned int i;
 
 	bd = dgap_verify_board(p);
 	if (!bd)
@@ -5749,7 +5749,7 @@ static ssize_t dgap_ports_oflag_show(struct device *p,
 {
 	struct board_t *bd;
 	int count = 0;
-	int i;
+	unsigned int i;
 
 	bd = dgap_verify_board(p);
 	if (!bd)
@@ -5769,7 +5769,7 @@ static ssize_t dgap_ports_lflag_show(struct device *p,
 {
 	struct board_t *bd;
 	int count = 0;
-	int i;
+	unsigned int i;
 
 	bd = dgap_verify_board(p);
 	if (!bd)
@@ -5789,7 +5789,7 @@ static ssize_t dgap_ports_digi_flag_show(struct device *p,
 {
 	struct board_t *bd;
 	int count = 0;
-	int i;
+	unsigned int i;
 
 	bd = dgap_verify_board(p);
 	if (!bd)
@@ -5809,7 +5809,7 @@ static ssize_t dgap_ports_rxcount_show(struct device *p,
 {
 	struct board_t *bd;
 	int count = 0;
-	int i;
+	unsigned int i;
 
 	bd = dgap_verify_board(p);
 	if (!bd)
@@ -5829,7 +5829,7 @@ static ssize_t dgap_ports_txcount_show(struct device *p,
 {
 	struct board_t *bd;
 	int count = 0;
-	int i;
+	unsigned int i;
 
 	bd = dgap_verify_board(p);
 	if (!bd)
