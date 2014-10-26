@@ -47,7 +47,6 @@ static void mac802154_xmit_worker(struct work_struct *work)
 {
 	struct wpan_xmit_cb *cb = container_of(work, struct wpan_xmit_cb, work);
 	struct ieee802154_local *local = cb->local;
-	struct ieee802154_sub_if_data *sdata;
 	struct sk_buff *skb = cb->skb;
 	int res;
 
@@ -56,18 +55,12 @@ static void mac802154_xmit_worker(struct work_struct *work)
 		pr_debug("transmission failed\n");
 
 	/* Restart the netif queue on each sub_if_data object. */
-	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &local->interfaces, list)
-		netif_wake_queue(sdata->dev);
-	rcu_read_unlock();
-
-	dev_kfree_skb(skb);
+	ieee802154_xmit_complete(&local->hw, skb);
 }
 
 static netdev_tx_t
 mac802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 {
-	struct ieee802154_sub_if_data *sdata;
 	struct wpan_xmit_cb *cb = wpan_xmit_cb(skb);
 
 	mac802154_monitors_rx(local, skb);
@@ -84,10 +77,7 @@ mac802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 		goto err_tx;
 
 	/* Stop the netif queue on each sub_if_data object. */
-	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &local->interfaces, list)
-		netif_stop_queue(sdata->dev);
-	rcu_read_unlock();
+	ieee802154_stop_queue(&local->hw);
 
 	INIT_WORK(&cb->work, mac802154_xmit_worker);
 	cb->skb = skb;
