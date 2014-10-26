@@ -91,7 +91,6 @@ struct at86rf230_local {
 	bool is_tx;
 	/* spinlock for is_tx protection */
 	spinlock_t lock;
-	struct completion tx_complete;
 	struct sk_buff *tx_skb;
 	struct at86rf230_state_change tx;
 };
@@ -452,6 +451,7 @@ at86rf230_async_error_recover(void *context)
 	struct at86rf230_local *lp = ctx->lp;
 
 	at86rf230_async_state_change(lp, ctx, STATE_RX_AACK_ON, NULL, false);
+	ieee802154_wake_queue(lp->hw);
 }
 
 static void
@@ -715,9 +715,23 @@ at86rf230_tx_complete(void *context)
 {
 	struct at86rf230_state_change *ctx = context;
 	struct at86rf230_local *lp = ctx->lp;
+	struct sk_buff *skb = lp->tx_skb;
 
 	enable_irq(lp->spi->irq);
-	complete(&lp->tx_complete);
+
+	if (lp->max_frame_retries <= 0) {
+		/* Interfame spacing time, which is phy depend.
+		 * TODO
+		 * Move this handling in MAC 802.15.4 layer.
+		 * This is currently a workaround to avoid fragmenation issues.
+		 */
+		if (skb->len > 18)
+			udelay(lp->data->t_lifs);
+		else
+			udelay(lp->data->t_sifs);
+	}
+
+	ieee802154_xmit_complete(lp->hw, skb);
 }
 
 static void
@@ -975,7 +989,6 @@ at86rf230_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 	struct at86rf230_state_change *ctx = &lp->tx;
 
 	void (*tx_complete)(void *context) = at86rf230_write_frame;
-	int rc;
 
 	lp->tx_skb = skb;
 
@@ -987,26 +1000,6 @@ at86rf230_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 		tx_complete = at86rf230_xmit_tx_on;
 
 	at86rf230_async_state_change(lp, ctx, STATE_TX_ON, tx_complete, false);
-
-	rc = wait_for_completion_interruptible_timeout(&lp->tx_complete,
-						       msecs_to_jiffies(lp->data->t_tx_timeout));
-	if (!rc) {
-		at86rf230_async_error(lp, ctx, -ETIMEDOUT);
-		return -ETIMEDOUT;
-	}
-
-	if (lp->max_frame_retries > 0)
-		return 0;
-
-	/* Interfame spacing time, which is phy depend.
-	 * TODO
-	 * Move this handling in MAC 802.15.4 layer.
-	 * This is currently a workaround to avoid fragmenation issues.
-	 */
-	if (skb->len > 18)
-		usleep_range(lp->data->t_lifs, lp->data->t_lifs + 10);
-	else
-		usleep_range(lp->data->t_sifs, lp->data->t_sifs + 10);
 
 	return 0;
 }
@@ -1237,7 +1230,7 @@ at86rf230_set_frame_retries(struct ieee802154_hw *hw, s8 retries)
 
 static struct ieee802154_ops at86rf230_ops = {
 	.owner = THIS_MODULE,
-	.xmit_sync = at86rf230_xmit,
+	.xmit_async = at86rf230_xmit,
 	.ed = at86rf230_ed,
 	.set_channel = at86rf230_channel,
 	.start = at86rf230_start,
@@ -1541,7 +1534,6 @@ static int at86rf230_probe(struct spi_device *spi)
 		goto free_dev;
 
 	spin_lock_init(&lp->lock);
-	init_completion(&lp->tx_complete);
 	init_completion(&lp->state_complete);
 
 	spi_set_drvdata(spi, lp);
