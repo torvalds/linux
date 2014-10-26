@@ -122,6 +122,11 @@ struct kgd2kfd_calls {
  *
  * @free_mem: Frees a buffer that was allocated by amdkfd's sa manager
  *
+ * @init_gtt_mem_allocation: Allocate a buffer on the gart aperture.
+ * The buffer can be used for mqds, hpds, kernel queue, fence and runlists
+ *
+ * @free_gtt_mem: Frees a buffer that was allocated on the gart aperture
+ *
  * @get_vmem_size: Retrieves (physical) size of VRAM
  *
  * @get_gpu_clock_counter: Retrieves GPU clock counter
@@ -168,8 +173,12 @@ struct kfd2kgd_calls {
 	void (*fini_sa_manager)(struct kgd_dev *kgd);
 	int (*allocate_mem)(struct kgd_dev *kgd, size_t size, size_t alignment,
 			enum kgd_memory_pool pool, struct kgd_mem **mem);
+	int (*init_gtt_mem_allocation)(struct kgd_dev *kgd, size_t size,
+					void **mem_obj, uint64_t *gpu_addr,
+					void **cpu_ptr);
 
 	void (*free_mem)(struct kgd_dev *kgd, struct kgd_mem *mem);
+	void (*free_gtt_mem)(struct kgd_dev *kgd, void *mem_obj);
 
 	uint64_t (*get_vmem_size)(struct kgd_dev *kgd);
 	uint64_t (*get_gpu_clock_counter)(struct kgd_dev *kgd);
