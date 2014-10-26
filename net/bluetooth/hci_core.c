@@ -3517,7 +3517,8 @@ void hci_remote_oob_data_clear(struct hci_dev *hdev)
 }
 
 int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
-			    u8 *hash, u8 *rand)
+			    u8 *hash192, u8 *rand192,
+			    u8 *hash256, u8 *rand256)
 {
 	struct oob_data *data;
 
@@ -3531,38 +3532,21 @@ int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
 		list_add(&data->list, &hdev->remote_oob_data);
 	}
 
-	memcpy(data->hash192, hash, sizeof(data->hash192));
-	memcpy(data->rand192, rand, sizeof(data->rand192));
-
-	memset(data->hash256, 0, sizeof(data->hash256));
-	memset(data->rand256, 0, sizeof(data->rand256));
-
-	BT_DBG("%s for %pMR", hdev->name, bdaddr);
-
-	return 0;
-}
-
-int hci_add_remote_oob_ext_data(struct hci_dev *hdev, bdaddr_t *bdaddr,
-				u8 *hash192, u8 *rand192,
-				u8 *hash256, u8 *rand256)
-{
-	struct oob_data *data;
-
-	data = hci_find_remote_oob_data(hdev, bdaddr);
-	if (!data) {
-		data = kmalloc(sizeof(*data), GFP_KERNEL);
-		if (!data)
-			return -ENOMEM;
-
-		bacpy(&data->bdaddr, bdaddr);
-		list_add(&data->list, &hdev->remote_oob_data);
+	if (hash192 && rand192) {
+		memcpy(data->hash192, hash192, sizeof(data->hash192));
+		memcpy(data->rand192, rand192, sizeof(data->rand192));
+	} else {
+		memset(data->hash192, 0, sizeof(data->hash192));
+		memset(data->rand192, 0, sizeof(data->rand192));
 	}
 
-	memcpy(data->hash192, hash192, sizeof(data->hash192));
-	memcpy(data->rand192, rand192, sizeof(data->rand192));
-
-	memcpy(data->hash256, hash256, sizeof(data->hash256));
-	memcpy(data->rand256, rand256, sizeof(data->rand256));
+	if (hash256 && rand256) {
+		memcpy(data->hash256, hash256, sizeof(data->hash256));
+		memcpy(data->rand256, rand256, sizeof(data->rand256));
+	} else {
+		memset(data->hash256, 0, sizeof(data->hash256));
+		memset(data->rand256, 0, sizeof(data->rand256));
+	}
 
 	BT_DBG("%s for %pMR", hdev->name, bdaddr);
 
