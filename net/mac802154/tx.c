@@ -72,7 +72,7 @@ err_tx:
 	ieee802154_wake_queue(&local->hw);
 	rtnl_unlock();
 	kfree_skb(skb);
-	pr_debug("transmission failed\n");
+	netdev_dbg(skb->dev, "transmission failed\n");
 }
 
 static netdev_tx_t
@@ -137,7 +137,7 @@ netdev_tx_t mac802154_wpan_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	rc = mac802154_llsec_encrypt(&sdata->sec, skb);
 	if (rc) {
-		pr_warn("encryption failed: %i\n", rc);
+		netdev_warn(dev, "encryption failed: %i\n", rc);
 		kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
