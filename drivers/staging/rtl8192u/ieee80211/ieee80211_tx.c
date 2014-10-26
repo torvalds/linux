@@ -529,8 +529,7 @@ static void ieee80211_query_protectionmode(struct ieee80211_device *ieee,
 		}
 		}
 	// For test , CTS replace with RTS
-	if( 0 )
-	{
+	if (0) {
 		tcb_desc->bCTSEnable	= true;
 		tcb_desc->rts_rate = MGN_24M;
 		tcb_desc->bRTSEnable	= true;

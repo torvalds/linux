@@ -374,7 +374,7 @@ int ieee80211_wx_set_scan(struct ieee80211_device *ieee, struct iw_request_info 
 		goto out;
 	}
 
-	if ( ieee->state == IEEE80211_LINKED){
+	if (ieee->state == IEEE80211_LINKED) {
 		queue_work(ieee->wq, &ieee->wx_sync_scan_wq);
 		/* intentionally forget to up sem */
 		return 0;

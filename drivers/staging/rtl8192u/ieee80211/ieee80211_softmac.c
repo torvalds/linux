@@ -1043,10 +1043,9 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 	{
 		ccxrm_ie_len = 6+2;
 	}
-	if( beacon->BssCcxVerNumber >= 2 )
-	{
+	if (beacon->BssCcxVerNumber >= 2)
 		cxvernum_ie_len = 5+2;
-	}
+
 #ifdef THOMAS_TURBO
 	len = sizeof(struct ieee80211_assoc_request_frame)+ 2
 		+ beacon->ssid_len//essid tagged val
@@ -1118,8 +1117,7 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 	ieee80211_MFIE_Brate(ieee, &tag);
 	ieee80211_MFIE_Grate(ieee, &tag);
 	// For CCX 1 S13, CKIP. Added by Annie, 2006-08-14.
-	if( beacon->bCkipSupported )
-	{
+	if (beacon->bCkipSupported) {
 		static u8	AironetIeOui[] = {0x00, 0x01, 0x66}; // "4500-client"
 		u8	CcxAironetBuf[30];
 		OCTET_STRING	osCcxAironetIE;
@@ -1158,8 +1156,7 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 		tag += osCcxRmCap.Length;
 	}
 
-	if( beacon->BssCcxVerNumber >= 2 )
-	{
+	if (beacon->BssCcxVerNumber >= 2) {
 		u8			CcxVerNumBuf[] = {0x00, 0x40, 0x96, 0x03, 0x00};
 		OCTET_STRING	osCcxVerNum;
 		CcxVerNumBuf[4] = beacon->BssCcxVerNumber;

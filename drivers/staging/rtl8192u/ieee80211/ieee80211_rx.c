@@ -713,8 +713,8 @@ static void RxReorderIndicatePacket(struct ieee80211_device *ieee,
 	while(!list_empty(&pTS->RxPendingPktList)) {
 		IEEE80211_DEBUG(IEEE80211_DL_REORDER,"%s(): start RREORDER indicate\n",__func__);
 		pReorderEntry = (PRX_REORDER_ENTRY)list_entry(pTS->RxPendingPktList.prev,RX_REORDER_ENTRY,List);
-		if( SN_LESS(pReorderEntry->SeqNum, pTS->RxIndicateSeq) ||
-				SN_EQUAL(pReorderEntry->SeqNum, pTS->RxIndicateSeq))
+		if (SN_LESS(pReorderEntry->SeqNum, pTS->RxIndicateSeq) ||
+		    SN_EQUAL(pReorderEntry->SeqNum, pTS->RxIndicateSeq))
 		{
 			/* This protect buffer from overflow. */
 			if(index >= REORDER_WIN_SIZE) {
@@ -800,9 +800,8 @@ static u8 parse_subframe(struct sk_buff *skb,
 	// Null packet, don't indicate it to upper layer
 	ChkLength = LLCOffset;/* + (Frame_WEP(frame)!=0 ?Adapter->MgntInfo.SecurityInfo.EncryptionHeadOverhead:0);*/
 
-	if( skb->len <= ChkLength ) {
+	if (skb->len <= ChkLength)
 		return 0;
-	}
 
 	skb_pull(skb, LLCOffset);
 
@@ -1035,10 +1034,9 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		{
 
 		//	IEEE80211_DEBUG(IEEE80211_DL_REORDER,"%s(): pRxTS->RxLastFragNum is %d,frag is %d,pRxTS->RxLastSeqNum is %d,seq is %d\n",__func__,pRxTS->RxLastFragNum,frag,pRxTS->RxLastSeqNum,WLAN_GET_SEQ_SEQ(sc));
-			if(	(fc & (1<<11))  &&
-					(frag == pRxTS->RxLastFragNum) &&
-					(WLAN_GET_SEQ_SEQ(sc) == pRxTS->RxLastSeqNum)	)
-			{
+			if ((fc & (1<<11)) &&
+			    (frag == pRxTS->RxLastFragNum) &&
+			    (WLAN_GET_SEQ_SEQ(sc) == pRxTS->RxLastSeqNum)) {
 				goto rx_dropped;
 			}
 			else
@@ -2456,7 +2454,7 @@ static inline void ieee80211_process_probe_response(
 	//       then wireless adapter should do active scan from ch1~11 and
 	//       passive scan from ch12~14
 
-	if( !IsLegalChannel(ieee, network.channel) )
+	if (!IsLegalChannel(ieee, network.channel))
 		return;
 	if(ieee->bGlobalDomain)
 	{
@@ -2465,8 +2463,7 @@ static inline void ieee80211_process_probe_response(
 			// Case 1: Country code
 			if(IS_COUNTRY_IE_VALID(ieee) )
 			{
-				if( !IsLegalChannel(ieee, network.channel) )
-				{
+				if (!IsLegalChannel(ieee, network.channel)) {
 					printk("GetScanInfo(): For Country code, filter probe response at channel(%d).\n", network.channel);
 					return;
 				}
@@ -2487,8 +2484,7 @@ static inline void ieee80211_process_probe_response(
 			// Case 1: Country code
 			if(IS_COUNTRY_IE_VALID(ieee) )
 			{
-				if( !IsLegalChannel(ieee, network.channel) )
-				{
+				if (!IsLegalChannel(ieee, network.channel)) {
 					printk("GetScanInfo(): For Country code, filter beacon at channel(%d).\n",network.channel);
 					return;
 				}

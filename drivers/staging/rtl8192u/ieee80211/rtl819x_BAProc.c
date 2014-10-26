@@ -342,8 +342,7 @@ int ieee80211_rx_ADDBAReq(struct ieee80211_device *ieee, struct sk_buff *skb)
 	PSEQUENCE_CONTROL pBaStartSeqCtrl = NULL;
 	PRX_TS_RECORD	pTS = NULL;
 
-	if (skb->len < sizeof( struct ieee80211_hdr_3addr) + 9)
-	{
+	if (skb->len < sizeof(struct ieee80211_hdr_3addr) + 9) {
 		IEEE80211_DEBUG(IEEE80211_DL_ERR,
 				" Invalid skb len in BAREQ(%d / %zu)\n",
 				skb->len,
@@ -444,8 +443,7 @@ int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 	PBA_PARAM_SET		pBaParamSet = NULL;
 	u16			ReasonCode;
 
-	if (skb->len < sizeof( struct ieee80211_hdr_3addr) + 9)
-	{
+	if (skb->len < sizeof(struct ieee80211_hdr_3addr) + 9) {
 		IEEE80211_DEBUG(IEEE80211_DL_ERR,
 				" Invalid skb len in BARSP(%d / %zu)\n",
 				skb->len,
@@ -463,10 +461,9 @@ int ieee80211_rx_ADDBARsp(struct ieee80211_device *ieee, struct sk_buff *skb)
 
 	// Check the capability
 	// Since we can always receive A-MPDU, we just check if it is under HT mode.
-	if(     ieee->current_network.qos_data.active == 0  ||
-		ieee->pHTInfo->bCurrentHTSupport == false ||
-		ieee->pHTInfo->bCurrentAMPDUEnable == false )
-	{
+	if (ieee->current_network.qos_data.active == 0  ||
+	    ieee->pHTInfo->bCurrentHTSupport == false ||
+	    ieee->pHTInfo->bCurrentAMPDUEnable == false) {
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "reject to ADDBA_RSP as some capability is not ready(%d, %d, %d)\n",ieee->current_network.qos_data.active, ieee->pHTInfo->bCurrentHTSupport, ieee->pHTInfo->bCurrentAMPDUEnable);
 		ReasonCode = DELBA_REASON_UNKNOWN_BA;
 		goto OnADDBARsp_Reject;
@@ -577,8 +574,7 @@ int ieee80211_rx_DELBA(struct ieee80211_device *ieee, struct sk_buff *skb)
 	u16			*pReasonCode = NULL;
 	u8			*dst = NULL;
 
-	if (skb->len < sizeof( struct ieee80211_hdr_3addr) + 6)
-	{
+	if (skb->len < sizeof(struct ieee80211_hdr_3addr) + 6) {
 		IEEE80211_DEBUG(IEEE80211_DL_ERR,
 				" Invalid skb len in DELBA(%d / %zu)\n",
 				skb->len,
