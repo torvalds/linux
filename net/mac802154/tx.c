@@ -37,13 +37,7 @@ struct ieee802154_xmit_cb {
 	struct ieee802154_local *local;
 };
 
-static inline struct ieee802154_xmit_cb *
-ieee802154_xmit_cb(const struct sk_buff *skb)
-{
-	BUILD_BUG_ON(sizeof(skb->cb) < sizeof(struct ieee802154_xmit_cb));
-
-	return (struct ieee802154_xmit_cb *)skb->cb;
-}
+static struct ieee802154_xmit_cb ieee802154_xmit_cb;
 
 static void ieee802154_xmit_worker(struct work_struct *work)
 {
@@ -84,7 +78,6 @@ err_tx:
 static netdev_tx_t
 ieee802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 {
-	struct ieee802154_xmit_cb *cb = ieee802154_xmit_cb(skb);
 	struct net_device *dev = skb->dev;
 	int ret;
 
@@ -113,11 +106,11 @@ ieee802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 		dev->stats.tx_packets++;
 		dev->stats.tx_bytes += skb->len;
 	} else {
-		INIT_WORK(&cb->work, ieee802154_xmit_worker);
-		cb->skb = skb;
-		cb->local = local;
+		INIT_WORK(&ieee802154_xmit_cb.work, ieee802154_xmit_worker);
+		ieee802154_xmit_cb.skb = skb;
+		ieee802154_xmit_cb.local = local;
 
-		queue_work(local->workqueue, &cb->work);
+		queue_work(local->workqueue, &ieee802154_xmit_cb.work);
 	}
 
 	return NETDEV_TX_OK;
