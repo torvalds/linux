@@ -48,37 +48,38 @@ static inline struct wpan_xmit_cb *wpan_xmit_cb(const struct sk_buff *skb)
 static void mac802154_xmit_worker(struct work_struct *work)
 {
 	struct wpan_xmit_cb *cb = container_of(work, struct wpan_xmit_cb, work);
+	struct ieee802154_local *local = cb->local;
 	struct ieee802154_sub_if_data *sdata;
+	struct sk_buff *skb = cb->skb;
 	int res;
 
-	mutex_lock(&cb->local->phy->pib_lock);
-	if (cb->local->phy->current_channel != cb->chan ||
-	    cb->local->phy->current_page != cb->page) {
-		res = cb->local->ops->set_channel(&cb->local->hw, cb->page,
-						  cb->chan);
+	mutex_lock(&local->phy->pib_lock);
+	if (local->phy->current_channel != cb->chan ||
+	    local->phy->current_page != cb->page) {
+		res = local->ops->set_channel(&local->hw, cb->page, cb->chan);
 		if (res) {
 			pr_debug("set_channel failed\n");
 			goto out;
 		}
 
-		cb->local->phy->current_channel = cb->chan;
-		cb->local->phy->current_page = cb->page;
+		local->phy->current_channel = cb->chan;
+		local->phy->current_page = cb->page;
 	}
 
-	res = cb->local->ops->xmit(&cb->local->hw, cb->skb);
+	res = local->ops->xmit(&local->hw, skb);
 	if (res)
 		pr_debug("transmission failed\n");
 
 out:
-	mutex_unlock(&cb->local->phy->pib_lock);
+	mutex_unlock(&local->phy->pib_lock);
 
 	/* Restart the netif queue on each sub_if_data object. */
 	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &cb->local->interfaces, list)
+	list_for_each_entry_rcu(sdata, &local->interfaces, list)
 		netif_wake_queue(sdata->dev);
 	rcu_read_unlock();
 
-	dev_kfree_skb(cb->skb);
+	dev_kfree_skb(skb);
 }
 
 static netdev_tx_t mac802154_tx(struct ieee802154_local *local,
