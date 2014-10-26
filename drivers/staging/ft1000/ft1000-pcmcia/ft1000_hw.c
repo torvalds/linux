@@ -810,18 +810,18 @@ static void ft1000_send_cmd (struct net_device *dev, u16 *ptempbuffer, int size,
 	 */
 	spin_lock_irqsave(&info->dpram_lock, flags);
 
-    /* Make sure SLOWQ doorbell is clear */
-    tempword = ft1000_read_reg(dev, FT1000_REG_DOORBELL);
-    i=0;
-    while (tempword & FT1000_DB_DPRAM_TX) {
-        mdelay(10);
-        i++;
-        if (i==10) {
-            spin_unlock_irqrestore(&info->dpram_lock, flags);
-            return;
-        }
-        tempword = ft1000_read_reg(dev, FT1000_REG_DOORBELL);
-    }
+	/* Make sure SLOWQ doorbell is clear */
+	tempword = ft1000_read_reg(dev, FT1000_REG_DOORBELL);
+	i = 0;
+	while (tempword & FT1000_DB_DPRAM_TX) {
+		mdelay(10);
+		i++;
+		if (i == 10) {
+			spin_unlock_irqrestore(&info->dpram_lock, flags);
+			return;
+		}
+		tempword = ft1000_read_reg(dev, FT1000_REG_DOORBELL);
+	}
 
 	if (info->AsicID == ELECTRABUZZ_ID) {
 		ft1000_write_reg(dev, FT1000_REG_DPRAM_ADDR,
