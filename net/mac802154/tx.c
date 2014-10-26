@@ -31,22 +31,24 @@
 /* IEEE 802.15.4 transceivers can sleep during the xmit session, so process
  * packets through the workqueue.
  */
-struct wpan_xmit_cb {
+struct ieee802154_xmit_cb {
 	struct sk_buff *skb;
 	struct work_struct work;
 	struct ieee802154_local *local;
 };
 
-static inline struct wpan_xmit_cb *wpan_xmit_cb(const struct sk_buff *skb)
+static inline struct ieee802154_xmit_cb *
+ieee802154_xmit_cb(const struct sk_buff *skb)
 {
-	BUILD_BUG_ON(sizeof(skb->cb) < sizeof(struct wpan_xmit_cb));
+	BUILD_BUG_ON(sizeof(skb->cb) < sizeof(struct ieee802154_xmit_cb));
 
-	return (struct wpan_xmit_cb *)skb->cb;
+	return (struct ieee802154_xmit_cb *)skb->cb;
 }
 
-static void mac802154_xmit_worker(struct work_struct *work)
+static void ieee802154_xmit_worker(struct work_struct *work)
 {
-	struct wpan_xmit_cb *cb = container_of(work, struct wpan_xmit_cb, work);
+	struct ieee802154_xmit_cb *cb =
+		container_of(work, struct ieee802154_xmit_cb, work);
 	struct ieee802154_local *local = cb->local;
 	struct sk_buff *skb = cb->skb;
 	struct net_device *dev = skb->dev;
@@ -80,9 +82,9 @@ err_tx:
 }
 
 static netdev_tx_t
-mac802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
+ieee802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 {
-	struct wpan_xmit_cb *cb = wpan_xmit_cb(skb);
+	struct ieee802154_xmit_cb *cb = ieee802154_xmit_cb(skb);
 	struct net_device *dev = skb->dev;
 	int ret;
 
@@ -111,7 +113,7 @@ mac802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 		dev->stats.tx_packets++;
 		dev->stats.tx_bytes += skb->len;
 	} else {
-		INIT_WORK(&cb->work, mac802154_xmit_worker);
+		INIT_WORK(&cb->work, ieee802154_xmit_worker);
 		cb->skb = skb;
 		cb->local = local;
 
@@ -125,16 +127,18 @@ err_tx:
 	return NETDEV_TX_OK;
 }
 
-netdev_tx_t mac802154_monitor_xmit(struct sk_buff *skb, struct net_device *dev)
+netdev_tx_t
+ieee802154_monitor_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 
 	skb->skb_iif = dev->ifindex;
 
-	return mac802154_tx(sdata->local, skb);
+	return ieee802154_tx(sdata->local, skb);
 }
 
-netdev_tx_t mac802154_wpan_xmit(struct sk_buff *skb, struct net_device *dev)
+netdev_tx_t
+ieee802154_subif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	int rc;
@@ -148,5 +152,5 @@ netdev_tx_t mac802154_wpan_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	skb->skb_iif = dev->ifindex;
 
-	return mac802154_tx(sdata->local, skb);
+	return ieee802154_tx(sdata->local, skb);
 }

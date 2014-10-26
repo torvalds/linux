@@ -58,7 +58,7 @@ void mac802154_monitors_rx(struct ieee802154_local *local, struct sk_buff *skb)
 static const struct net_device_ops mac802154_monitor_ops = {
 	.ndo_open		= mac802154_slave_open,
 	.ndo_stop		= mac802154_slave_close,
-	.ndo_start_xmit		= mac802154_monitor_xmit,
+	.ndo_start_xmit		= ieee802154_monitor_start_xmit,
 };
 
 void mac802154_monitor_setup(struct net_device *dev)

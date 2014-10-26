@@ -121,11 +121,13 @@ int mac802154_slave_close(struct net_device *dev);
 
 void mac802154_monitors_rx(struct ieee802154_local *local, struct sk_buff *skb);
 void mac802154_monitor_setup(struct net_device *dev);
-netdev_tx_t mac802154_monitor_xmit(struct sk_buff *skb, struct net_device *dev);
+netdev_tx_t
+ieee802154_monitor_start_xmit(struct sk_buff *skb, struct net_device *dev);
 
 void mac802154_wpans_rx(struct ieee802154_local *local, struct sk_buff *skb);
 void mac802154_wpan_setup(struct net_device *dev);
-netdev_tx_t mac802154_wpan_xmit(struct sk_buff *skb, struct net_device *dev);
+netdev_tx_t
+ieee802154_subif_start_xmit(struct sk_buff *skb, struct net_device *dev);
 
 /* MIB callbacks */
 void mac802154_dev_set_short_addr(struct net_device *dev, __le16 val);

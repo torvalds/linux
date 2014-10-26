@@ -315,7 +315,7 @@ static struct header_ops mac802154_header_ops = {
 static const struct net_device_ops mac802154_wpan_ops = {
 	.ndo_open		= mac802154_wpan_open,
 	.ndo_stop		= mac802154_slave_close,
-	.ndo_start_xmit		= mac802154_wpan_xmit,
+	.ndo_start_xmit		= ieee802154_subif_start_xmit,
 	.ndo_do_ioctl		= mac802154_wpan_ioctl,
 	.ndo_set_mac_address	= mac802154_wpan_mac_addr,
 };
