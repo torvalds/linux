@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include "kfd_priv.h"
 #include "kfd_device_queue_manager.h"
+#include "kfd_pm4_headers.h"
 
 #define MQD_SIZE_ALIGNED 768
 
@@ -178,15 +179,30 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		max_num_of_queues_per_process *
 		kfd->device_info->mqd_size_aligned;
 
-	/* add another 512KB for all other allocations on gart */
+	/*
+	 * calculate max size of runlist packet.
+	 * There can be only 2 packets at once
+	 */
+	size += (max_num_of_processes * sizeof(struct pm4_map_process) +
+		max_num_of_processes * max_num_of_queues_per_process *
+		sizeof(struct pm4_map_queues) + sizeof(struct pm4_runlist)) * 2;
+
+	/* Add size of HIQ & DIQ */
+	size += KFD_KERNEL_QUEUE_SIZE * 2;
+
+	/* add another 512KB for all other allocations on gart (HPD, fences) */
 	size += 512 * 1024;
 
 	if (kfd2kgd->init_sa_manager(kfd->kgd, size)) {
 		dev_err(kfd_device,
-			"Error initializing sa manager for device (%x:%x)\n",
-			kfd->pdev->vendor, kfd->pdev->device);
+			"Could not allocate %d bytes for device (%x:%x)\n",
+			size, kfd->pdev->vendor, kfd->pdev->device);
 		goto out;
 	}
+
+	dev_info(kfd_device,
+		"Allocated %d bytes on gart for device(%x:%x)\n",
+		size, kfd->pdev->vendor, kfd->pdev->device);
 
 	kfd_doorbell_init(kfd);
 
