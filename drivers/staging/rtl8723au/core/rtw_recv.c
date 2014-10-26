@@ -1554,8 +1554,6 @@ static int wlanhdr_to_ethhdr (struct recv_frame *precvframe)
 	u16	eth_type, len, hdrlen;
 	u8	bsnaphdr;
 	u8	*psnap;
-
-	int ret = _SUCCESS;
 	struct rtw_adapter *adapter = precvframe->adapter;
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
 
@@ -1616,7 +1614,7 @@ static int wlanhdr_to_ethhdr (struct recv_frame *precvframe)
 	}
 
 
-	return ret;
+	return _SUCCESS;
 }
 
 /* perform defrag */

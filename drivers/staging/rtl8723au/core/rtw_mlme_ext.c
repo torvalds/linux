@@ -567,7 +567,6 @@ static u8 init_channel_set(struct rtw_adapter *padapter, u8 cplan,
 
 int init_mlme_ext_priv23a(struct rtw_adapter *padapter)
 {
-	int res = _SUCCESS;
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -594,7 +593,7 @@ int init_mlme_ext_priv23a(struct rtw_adapter *padapter)
 	pmlmeext->mlmeext_init = true;
 
 	pmlmeext->active_keep_alive_check = true;
-	return res;
+	return _SUCCESS;
 }
 
 void free_mlme_ext_priv23a (struct mlme_ext_priv *pmlmeext)

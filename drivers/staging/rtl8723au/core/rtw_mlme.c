@@ -50,7 +50,6 @@ static void rtw_init_mlme_timer(struct rtw_adapter *padapter)
 int rtw_init_mlme_priv23a(struct rtw_adapter *padapter)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	int res = _SUCCESS;
 
 	pmlmepriv->nic_hdl = padapter;
 
@@ -68,7 +67,7 @@ int rtw_init_mlme_priv23a(struct rtw_adapter *padapter)
 	rtw_clear_scan_deny(padapter);
 
 	rtw_init_mlme_timer(padapter);
-	return res;
+	return _SUCCESS;
 }
 
 #ifdef CONFIG_8723AU_AP_MODE
