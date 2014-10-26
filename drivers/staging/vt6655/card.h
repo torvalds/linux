@@ -33,19 +33,20 @@
 #include <linux/types.h>
 #include <linux/nl80211.h>
 
-//
-// Loopback mode
-//
-// LOBYTE is MAC LB mode, HIBYTE is MII LB mode
+/*
+ * Loopback mode
+ *
+ * LOBYTE is MAC LB mode, HIBYTE is MII LB mode
+ */
 #define CARD_LB_NONE            MAKEWORD(MAC_LB_NONE, 0)
-#define CARD_LB_MAC             MAKEWORD(MAC_LB_INTERNAL, 0)   // PHY must ISO, avoid MAC loopback packet go out
+#define CARD_LB_MAC             MAKEWORD(MAC_LB_INTERNAL, 0)   /* PHY must ISO, avoid MAC loopback packet go out */
 #define CARD_LB_PHY             MAKEWORD(MAC_LB_EXT, 0)
 
-#define DEFAULT_MSDU_LIFETIME           512  // ms
-#define DEFAULT_MSDU_LIFETIME_RES_64us  8000 // 64us
+#define DEFAULT_MSDU_LIFETIME           512  /* ms */
+#define DEFAULT_MSDU_LIFETIME_RES_64us  8000 /* 64us */
 
-#define DEFAULT_MGN_LIFETIME            8    // ms
-#define DEFAULT_MGN_LIFETIME_RES_64us   125  // 64us
+#define DEFAULT_MGN_LIFETIME            8    /* ms */
+#define DEFAULT_MGN_LIFETIME_RES_64us   125  /* 64us */
 
 #define CB_MAX_CHANNEL_24G      14
 #define CB_MAX_CHANNEL_5G       42
@@ -172,4 +173,4 @@ CARDbyGetTransmitPower(
 	struct vnt_private *
 );
 
-#endif // __CARD_H__
+#endif /* __CARD_H__ */
