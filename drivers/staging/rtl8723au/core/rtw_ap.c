@@ -636,7 +636,7 @@ static void start_bss_network(struct rtw_adapter *padapter, u8 *pbuf)
 
 	bcn_interval = (u16)pnetwork->beacon_interval;
 	cur_channel = pnetwork->DSConfig;
-	cur_bwmode = HT_CHANNEL_WIDTH_20;;
+	cur_bwmode = HT_CHANNEL_WIDTH_20;
 	cur_ch_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 
 	/* check if there is wps ie, */

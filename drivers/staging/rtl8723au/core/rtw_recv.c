@@ -1694,7 +1694,7 @@ struct recv_frame *recvframe_defrag(struct rtw_adapter *adapter,
 		skb_put(skb, pnfhdr->pkt->len);
 
 		prframe->attrib.icv_len = pnfhdr->attrib.icv_len;
-	};
+	}
 
 	/* free the defrag_q queue and return the prframe */
 	rtw_free_recvframe23a_queue(defrag_q);
