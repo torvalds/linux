@@ -3610,6 +3610,7 @@ static int add_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 				   status, &cp->addr, sizeof(cp->addr));
 	} else if (len == MGMT_ADD_REMOTE_OOB_EXT_DATA_SIZE) {
 		struct mgmt_cp_add_remote_oob_ext_data *cp = data;
+		u8 *rand192, *hash192;
 		u8 status;
 
 		if (cp->addr.type != BDADDR_BREDR) {
@@ -3620,10 +3621,17 @@ static int add_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 			goto unlock;
 		}
 
+		if (bdaddr_type_is_le(cp->addr.type)) {
+			rand192 = NULL;
+			hash192 = NULL;
+		} else {
+			rand192 = cp->rand192;
+			hash192 = cp->hash192;
+		}
+
 		err = hci_add_remote_oob_data(hdev, &cp->addr.bdaddr,
-					      cp->addr.type, cp->hash192,
-					      cp->rand192, cp->hash256,
-					      cp->rand256);
+					      cp->addr.type, hash192, rand192,
+					      cp->hash256, cp->rand256);
 		if (err < 0)
 			status = MGMT_STATUS_FAILED;
 		else
