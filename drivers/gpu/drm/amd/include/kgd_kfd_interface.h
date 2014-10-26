@@ -110,18 +110,6 @@ struct kgd2kfd_calls {
 /**
  * struct kfd2kgd_calls
  *
- * @init_sa_manager: Initialize an instance of the sa manager, used by
- * amdkfd for all system memory allocations that are mapped to the GART
- * address space
- *
- * @fini_sa_manager: Releases all memory allocations for amdkfd that are
- * handled by kgd sa manager
- *
- * @allocate_mem: Allocate a buffer from amdkfd's sa manager. The buffer can
- * be used for mqds, hpds, kernel queue, fence and runlists
- *
- * @free_mem: Frees a buffer that was allocated by amdkfd's sa manager
- *
  * @init_gtt_mem_allocation: Allocate a buffer on the gart aperture.
  * The buffer can be used for mqds, hpds, kernel queue, fence and runlists
  *
@@ -168,16 +156,10 @@ struct kgd2kfd_calls {
  *
  */
 struct kfd2kgd_calls {
-	/* Memory management. */
-	int (*init_sa_manager)(struct kgd_dev *kgd, unsigned int size);
-	void (*fini_sa_manager)(struct kgd_dev *kgd);
-	int (*allocate_mem)(struct kgd_dev *kgd, size_t size, size_t alignment,
-			enum kgd_memory_pool pool, struct kgd_mem **mem);
 	int (*init_gtt_mem_allocation)(struct kgd_dev *kgd, size_t size,
 					void **mem_obj, uint64_t *gpu_addr,
 					void **cpu_ptr);
 
-	void (*free_mem)(struct kgd_dev *kgd, struct kgd_mem *mem);
 	void (*free_gtt_mem)(struct kgd_dev *kgd, void *mem_obj);
 
 	uint64_t (*get_vmem_size)(struct kgd_dev *kgd);
