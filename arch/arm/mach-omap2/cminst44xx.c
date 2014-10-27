@@ -505,3 +505,16 @@ struct clkdm_ops am43xx_clkdm_operations = {
 	.clkdm_clk_enable	= omap4_clkdm_clk_enable,
 	.clkdm_clk_disable	= omap4_clkdm_clk_disable,
 };
+
+static struct cm_ll_data omap4xxx_cm_ll_data;
+
+int __init omap4_cm_init(void)
+{
+	return cm_register(&omap4xxx_cm_ll_data);
+}
+
+static void __exit omap4_cm_exit(void)
+{
+	cm_unregister(&omap4xxx_cm_ll_data);
+}
+__exitcall(omap4_cm_exit);

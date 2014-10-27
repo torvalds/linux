@@ -358,3 +358,16 @@ struct clkdm_ops am33xx_clkdm_operations = {
 	.clkdm_clk_enable	= am33xx_clkdm_clk_enable,
 	.clkdm_clk_disable	= am33xx_clkdm_clk_disable,
 };
+
+static struct cm_ll_data am33xx_cm_ll_data;
+
+int __init am33xx_cm_init(void)
+{
+	return cm_register(&am33xx_cm_ll_data);
+}
+
+static void __exit am33xx_cm_exit(void)
+{
+	cm_unregister(&am33xx_cm_ll_data);
+}
+__exitcall(am33xx_cm_exit);
