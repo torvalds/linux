@@ -426,6 +426,46 @@ nouveau_bo_unmap(struct nouveau_bo *nvbo)
 		ttm_bo_kunmap(&nvbo->kmap);
 }
 
+void
+nouveau_bo_sync_for_device(struct nouveau_bo *nvbo)
+{
+	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
+	struct nouveau_device *device = nvkm_device(&drm->device);
+	struct ttm_dma_tt *ttm_dma = (struct ttm_dma_tt *)nvbo->bo.ttm;
+	int i;
+
+	if (!ttm_dma)
+		return;
+
+	/* Don't waste time looping if the object is coherent */
+	if (nvbo->force_coherent)
+		return;
+
+	for (i = 0; i < ttm_dma->ttm.num_pages; i++)
+		dma_sync_single_for_device(nv_device_base(device),
+			ttm_dma->dma_address[i], PAGE_SIZE, DMA_TO_DEVICE);
+}
+
+void
+nouveau_bo_sync_for_cpu(struct nouveau_bo *nvbo)
+{
+	struct nouveau_drm *drm = nouveau_bdev(nvbo->bo.bdev);
+	struct nouveau_device *device = nvkm_device(&drm->device);
+	struct ttm_dma_tt *ttm_dma = (struct ttm_dma_tt *)nvbo->bo.ttm;
+	int i;
+
+	if (!ttm_dma)
+		return;
+
+	/* Don't waste time looping if the object is coherent */
+	if (nvbo->force_coherent)
+		return;
+
+	for (i = 0; i < ttm_dma->ttm.num_pages; i++)
+		dma_sync_single_for_cpu(nv_device_base(device),
+			ttm_dma->dma_address[i], PAGE_SIZE, DMA_FROM_DEVICE);
+}
+
 int
 nouveau_bo_validate(struct nouveau_bo *nvbo, bool interruptible,
 		    bool no_wait_gpu)
@@ -436,6 +476,8 @@ nouveau_bo_validate(struct nouveau_bo *nvbo, bool interruptible,
 			      interruptible, no_wait_gpu);
 	if (ret)
 		return ret;
+
+	nouveau_bo_sync_for_device(nvbo);
 
 	return 0;
 }

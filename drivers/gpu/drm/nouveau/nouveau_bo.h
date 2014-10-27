@@ -85,6 +85,8 @@ void nouveau_bo_wr32(struct nouveau_bo *, unsigned index, u32 val);
 void nouveau_bo_fence(struct nouveau_bo *, struct nouveau_fence *, bool exclusive);
 int  nouveau_bo_validate(struct nouveau_bo *, bool interruptible,
 			 bool no_wait_gpu);
+void nouveau_bo_sync_for_device(struct nouveau_bo *nvbo);
+void nouveau_bo_sync_for_cpu(struct nouveau_bo *nvbo);
 
 struct nouveau_vma *
 nouveau_bo_vma_find(struct nouveau_bo *, struct nouveau_vm *);
