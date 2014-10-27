@@ -466,7 +466,7 @@ static int gb_i2c_device_setup(struct gb_i2c_device *gb_i2c_dev)
 	return gb_i2c_timeout_operation(gb_i2c_dev, GB_I2C_TIMEOUT_DEFAULT);
 }
 
-int gb_i2c_device_init(struct gb_connection *connection)
+static int gb_i2c_connection_init(struct gb_connection *connection)
 {
 	struct gb_i2c_device *gb_i2c_dev;
 	struct i2c_adapter *adapter;
@@ -509,7 +509,7 @@ out_err:
 	return ret;
 }
 
-void gb_i2c_device_exit(struct gb_connection *connection)
+static void gb_i2c_connection_exit(struct gb_connection *connection)
 {
 	struct gb_i2c_device *gb_i2c_dev = connection->private;
 
@@ -517,6 +517,11 @@ void gb_i2c_device_exit(struct gb_connection *connection)
 	/* kref_put(gb_i2c_dev->connection) */
 	kfree(gb_i2c_dev);
 }
+
+struct gb_connection_handler gb_i2c_connection_handler = {
+	.connection_init	= gb_i2c_connection_init,
+	.connection_exit	= gb_i2c_connection_exit,
+};
 
 #if 0
 module_greybus_driver(i2c_gb_driver);

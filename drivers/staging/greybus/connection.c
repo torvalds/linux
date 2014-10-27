@@ -277,16 +277,16 @@ int gb_connection_init(struct gb_connection *connection)
 	connection->state = GB_CONNECTION_STATE_ENABLED;
 	switch (connection->protocol) {
 	case GREYBUS_PROTOCOL_I2C:
-		ret = gb_i2c_device_init(connection);
+		connection->handler = &gb_i2c_connection_handler;
 		break;
 	case GREYBUS_PROTOCOL_GPIO:
-		ret = gb_gpio_controller_init(connection);
+		connection->handler = &gb_gpio_connection_handler;
 		break;
 	case GREYBUS_PROTOCOL_BATTERY:
-		ret = gb_battery_device_init(connection);
+		connection->handler = &gb_battery_connection_handler;
 		break;
 	case GREYBUS_PROTOCOL_UART:
-		ret = gb_uart_device_init(connection);
+		connection->handler = &gb_uart_connection_handler;
 		break;
 	case GREYBUS_PROTOCOL_CONTROL:
 	case GREYBUS_PROTOCOL_AP:
@@ -308,28 +308,10 @@ int gb_connection_init(struct gb_connection *connection)
 
 void gb_connection_exit(struct gb_connection *connection)
 {
-	connection->state = GB_CONNECTION_STATE_DESTROYING;
-
-	switch (connection->protocol) {
-	case GREYBUS_PROTOCOL_I2C:
-		gb_i2c_device_exit(connection);
-		break;
-	case GREYBUS_PROTOCOL_GPIO:
-		gb_gpio_controller_exit(connection);
-		break;
-	case GREYBUS_PROTOCOL_BATTERY:
-		gb_battery_device_exit(connection);
-		break;
-	case GREYBUS_PROTOCOL_UART:
-		gb_uart_device_exit(connection);
-		break;
-	case GREYBUS_PROTOCOL_CONTROL:
-	case GREYBUS_PROTOCOL_AP:
-	case GREYBUS_PROTOCOL_HID:
-	case GREYBUS_PROTOCOL_VENDOR:
-	default:
-		gb_connection_err(connection, "unimplemented protocol %u",
-			(u32)connection->protocol);
-		break;
+	if (!connection->handler) {
+		gb_connection_err(connection, "uninitialized connection");
+		return;
 	}
+	connection->state = GB_CONNECTION_STATE_DESTROYING;
+	connection->handler->connection_exit(connection);
 }

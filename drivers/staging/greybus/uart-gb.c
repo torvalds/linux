@@ -390,7 +390,7 @@ static const struct tty_operations gb_ops = {
 };
 
 
-int gb_uart_device_init(struct gb_connection *connection)
+int gb_uart_connection_init(struct gb_connection *connection)
 {
 	struct gb_tty *gb_tty;
 	struct device *tty_dev;
@@ -444,7 +444,7 @@ error:
 	return retval;
 }
 
-void gb_uart_device_exit(struct gb_connection *connection)
+void gb_uart_connection_exit(struct gb_connection *connection)
 {
 	struct gb_tty *gb_tty = connection->private;
 	struct tty_struct *tty;
@@ -524,3 +524,8 @@ static void gb_tty_exit(void)
 	put_tty_driver(gb_tty_driver);
 	unregister_chrdev_region(MKDEV(major, minor), GB_NUM_MINORS);
 }
+
+struct gb_connection_handler gb_uart_connection_handler = {
+	.connection_init	= gb_uart_connection_init,
+	.connection_exit	= gb_uart_connection_exit,
+};

@@ -359,7 +359,7 @@ static enum power_supply_property battery_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 };
 
-int gb_battery_device_init(struct gb_connection *connection)
+static int gb_battery_connection_init(struct gb_connection *connection)
 {
 	struct gb_battery *gb;
 	struct power_supply *b;
@@ -397,13 +397,18 @@ int gb_battery_device_init(struct gb_connection *connection)
 	return 0;
 }
 
-void gb_battery_device_exit(struct gb_connection *connection)
+static void gb_battery_connection_exit(struct gb_connection *connection)
 {
 	struct gb_battery *gb = connection->private;
 
 	power_supply_unregister(&gb->bat);
 	kfree(gb);
 }
+
+struct gb_connection_handler gb_battery_connection_handler = {
+	.connection_init	= gb_battery_connection_init,
+	.connection_exit	= gb_battery_connection_exit,
+};
 
 void gb_battery_disconnect(struct gb_module *gmod)
 {
