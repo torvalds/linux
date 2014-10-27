@@ -775,11 +775,30 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 			WLAN_EID_QOS_CAPA,
 			WLAN_EID_RRM_ENABLED_CAPABILITIES,
 			WLAN_EID_MOBILITY_DOMAIN,
+			WLAN_EID_FAST_BSS_TRANSITION,	/* reassoc only */
+			WLAN_EID_RIC_DATA,		/* reassoc only */
 			WLAN_EID_SUPPORTED_REGULATORY_CLASSES,
 		};
-		noffset = ieee80211_ie_split(assoc_data->ie, assoc_data->ie_len,
-					     before_ht, ARRAY_SIZE(before_ht),
-					     offset);
+		static const u8 after_ric[] = {
+			WLAN_EID_SUPPORTED_REGULATORY_CLASSES,
+			WLAN_EID_HT_CAPABILITY,
+			WLAN_EID_BSS_COEX_2040,
+			WLAN_EID_EXT_CAPABILITY,
+			WLAN_EID_QOS_TRAFFIC_CAPA,
+			WLAN_EID_TIM_BCAST_REQ,
+			WLAN_EID_INTERWORKING,
+			/* 60GHz doesn't happen right now */
+			WLAN_EID_VHT_CAPABILITY,
+			WLAN_EID_OPMODE_NOTIF,
+		};
+
+		noffset = ieee80211_ie_split_ric(assoc_data->ie,
+						 assoc_data->ie_len,
+						 before_ht,
+						 ARRAY_SIZE(before_ht),
+						 after_ric,
+						 ARRAY_SIZE(after_ric),
+						 offset);
 		pos = skb_put(skb, noffset - offset);
 		memcpy(pos, assoc_data->ie + offset, noffset - offset);
 		offset = noffset;
@@ -813,6 +832,8 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 			WLAN_EID_TIM_BCAST_REQ,
 			WLAN_EID_INTERWORKING,
 		};
+
+		/* RIC already taken above, so no need to handle here anymore */
 		noffset = ieee80211_ie_split(assoc_data->ie, assoc_data->ie_len,
 					     before_vht, ARRAY_SIZE(before_vht),
 					     offset);
