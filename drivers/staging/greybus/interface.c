@@ -61,7 +61,7 @@ gb_interface_create(struct gb_module *gmod, u8 interface_id)
 	if (!interface)
 		return NULL;
 
-	interface->gmod = gmod;		/* XXX refcount? */
+	interface->gmod = gmod;
 	interface->id = interface_id;
 	interface->device_id = 0xff;	/* Invalid device id to start with */
 	INIT_LIST_HEAD(&interface->connections);

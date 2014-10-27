@@ -179,7 +179,7 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 		return NULL;
 	}
 
-	connection->interface = interface;	/* XXX refcount? */
+	connection->interface = interface;
 	connection->interface_cport_id = cport_id;
 	connection->protocol = protocol;
 	connection->state = GB_CONNECTION_STATE_DISABLED;

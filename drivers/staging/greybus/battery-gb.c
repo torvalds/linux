@@ -369,7 +369,7 @@ int gb_battery_device_init(struct gb_connection *connection)
 	if (!gb)
 		return -ENOMEM;
 
-	gb->connection = connection;	// FIXME refcount!
+	gb->connection = connection;
 	connection->private = gb;
 
 	/* Check the version */
