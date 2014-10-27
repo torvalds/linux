@@ -24,6 +24,7 @@
 
 #include "drmP.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "rv770d.h"
 #include "r600_dpm.h"
 #include "rv770_dpm.h"

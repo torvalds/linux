@@ -335,7 +335,8 @@ static int lp3944_configure(struct i2c_client *client,
 			}
 
 			/* to expose the default value to userspace */
-			led->ldev.brightness = led->status;
+			led->ldev.brightness =
+					(enum led_brightness) led->status;
 
 			/* Set the default led status */
 			err = lp3944_led_set(led, led->status);

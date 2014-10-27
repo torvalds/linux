@@ -19,12 +19,13 @@
 #define pr_fmt(fmt) "bpf_jit: " fmt
 
 #include <linux/filter.h>
-#include <linux/moduleloader.h>
 #include <linux/printk.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
+
 #include <asm/byteorder.h>
 #include <asm/cacheflush.h>
+#include <asm/debug-monitors.h>
 
 #include "bpf_jit.h"
 
@@ -119,6 +120,14 @@ static inline int bpf2a64_offset(int bpf_to, int bpf_from,
 	return to - from;
 }
 
+static void jit_fill_hole(void *area, unsigned int size)
+{
+	u32 *ptr;
+	/* We are guaranteed to have aligned memory. */
+	for (ptr = area; size >= sizeof(u32); size -= sizeof(u32))
+		*ptr++ = cpu_to_le32(AARCH64_BREAK_FAULT);
+}
+
 static inline int epilogue_offset(const struct jit_ctx *ctx)
 {
 	int to = ctx->offset[ctx->prog->len - 1];
@@ -196,6 +205,12 @@ static void build_epilogue(struct jit_ctx *ctx)
 	emit(A64_RET(A64_LR), ctx);
 }
 
+/* JITs an eBPF instruction.
+ * Returns:
+ * 0  - successfully JITed an 8-byte eBPF instruction.
+ * >0 - successfully JITed a 16-byte eBPF instruction.
+ * <0 - failed to JIT.
+ */
 static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 {
 	const u8 code = insn->code;
@@ -251,6 +266,18 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		emit(A64_UDIV(is64, tmp, dst, src), ctx);
 		emit(A64_MUL(is64, tmp, tmp, src), ctx);
 		emit(A64_SUB(is64, dst, dst, tmp), ctx);
+		break;
+	case BPF_ALU | BPF_LSH | BPF_X:
+	case BPF_ALU64 | BPF_LSH | BPF_X:
+		emit(A64_LSLV(is64, dst, dst, src), ctx);
+		break;
+	case BPF_ALU | BPF_RSH | BPF_X:
+	case BPF_ALU64 | BPF_RSH | BPF_X:
+		emit(A64_LSRV(is64, dst, dst, src), ctx);
+		break;
+	case BPF_ALU | BPF_ARSH | BPF_X:
+	case BPF_ALU64 | BPF_ARSH | BPF_X:
+		emit(A64_ASRV(is64, dst, dst, src), ctx);
 		break;
 	/* dst = -dst */
 	case BPF_ALU | BPF_NEG:
@@ -443,6 +470,27 @@ emit_cond_jmp:
 		emit(A64_B(jmp_offset), ctx);
 		break;
 
+	/* dst = imm64 */
+	case BPF_LD | BPF_IMM | BPF_DW:
+	{
+		const struct bpf_insn insn1 = insn[1];
+		u64 imm64;
+
+		if (insn1.code != 0 || insn1.src_reg != 0 ||
+		    insn1.dst_reg != 0 || insn1.off != 0) {
+			/* Note: verifier in BPF core must catch invalid
+			 * instructions.
+			 */
+			pr_err_once("Invalid BPF_LD_IMM64 instruction\n");
+			return -EINVAL;
+		}
+
+		imm64 = (u64)insn1.imm << 32 | imm;
+		emit_a64_mov_i64(dst, imm64, ctx);
+
+		return 1;
+	}
+
 	/* LDX: dst = *(size *)(src + off) */
 	case BPF_LDX | BPF_MEM | BPF_W:
 	case BPF_LDX | BPF_MEM | BPF_H:
@@ -594,6 +642,10 @@ static int build_body(struct jit_ctx *ctx)
 			ctx->offset[i] = ctx->idx;
 
 		ret = build_insn(insn, ctx);
+		if (ret > 0) {
+			i++;
+			continue;
+		}
 		if (ret)
 			return ret;
 	}
@@ -613,8 +665,10 @@ void bpf_jit_compile(struct bpf_prog *prog)
 
 void bpf_int_jit_compile(struct bpf_prog *prog)
 {
+	struct bpf_binary_header *header;
 	struct jit_ctx ctx;
 	int image_size;
+	u8 *image_ptr;
 
 	if (!bpf_jit_enable)
 		return;
@@ -636,23 +690,25 @@ void bpf_int_jit_compile(struct bpf_prog *prog)
 		goto out;
 
 	build_prologue(&ctx);
-
 	build_epilogue(&ctx);
 
 	/* Now we know the actual image size. */
 	image_size = sizeof(u32) * ctx.idx;
-	ctx.image = module_alloc(image_size);
-	if (unlikely(ctx.image == NULL))
+	header = bpf_jit_binary_alloc(image_size, &image_ptr,
+				      sizeof(u32), jit_fill_hole);
+	if (header == NULL)
 		goto out;
 
 	/* 2. Now, the actual pass. */
 
+	ctx.image = (u32 *)image_ptr;
 	ctx.idx = 0;
+
 	build_prologue(&ctx);
 
 	ctx.body_offset = ctx.idx;
 	if (build_body(&ctx)) {
-		module_free(NULL, ctx.image);
+		bpf_jit_binary_free(header);
 		goto out;
 	}
 
@@ -663,17 +719,25 @@ void bpf_int_jit_compile(struct bpf_prog *prog)
 		bpf_jit_dump(prog->len, image_size, 2, ctx.image);
 
 	bpf_flush_icache(ctx.image, ctx.image + ctx.idx);
-	prog->bpf_func = (void *)ctx.image;
-	prog->jited = 1;
 
+	set_memory_ro((unsigned long)header, header->pages);
+	prog->bpf_func = (void *)ctx.image;
+	prog->jited = true;
 out:
 	kfree(ctx.offset);
 }
 
 void bpf_jit_free(struct bpf_prog *prog)
 {
-	if (prog->jited)
-		module_free(NULL, prog->bpf_func);
+	unsigned long addr = (unsigned long)prog->bpf_func & PAGE_MASK;
+	struct bpf_binary_header *header = (void *)addr;
 
-	kfree(prog);
+	if (!prog->jited)
+		goto free_filter;
+
+	set_memory_rw(addr, header->pages);
+	bpf_jit_binary_free(header);
+
+free_filter:
+	bpf_prog_unlock_free(prog);
 }

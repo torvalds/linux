@@ -373,7 +373,7 @@ static int ioda_eeh_get_pe_state(struct eeh_pe *pe)
 	 * moving forward, we have to return operational
 	 * state during PE reset.
 	 */
-	if (pe->state & EEH_PE_RESET) {
+	if (pe->state & EEH_PE_CFG_BLOCKED) {
 		result = (EEH_STATE_MMIO_ACTIVE  |
 			  EEH_STATE_DMA_ACTIVE   |
 			  EEH_STATE_MMIO_ENABLED |

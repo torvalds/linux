@@ -2369,7 +2369,7 @@ TRACE_EVENT(ext4_es_lookup_extent_exit,
 		  show_extent_status(__entry->found ? __entry->status : 0))
 );
 
-TRACE_EVENT(ext4_es_shrink_enter,
+DECLARE_EVENT_CLASS(ext4__es_shrink_enter,
 	TP_PROTO(struct super_block *sb, int nr_to_scan, int cache_cnt),
 
 	TP_ARGS(sb, nr_to_scan, cache_cnt),
@@ -2391,26 +2391,38 @@ TRACE_EVENT(ext4_es_shrink_enter,
 		  __entry->nr_to_scan, __entry->cache_cnt)
 );
 
-TRACE_EVENT(ext4_es_shrink_exit,
-	TP_PROTO(struct super_block *sb, int shrunk_nr, int cache_cnt),
+DEFINE_EVENT(ext4__es_shrink_enter, ext4_es_shrink_count,
+	TP_PROTO(struct super_block *sb, int nr_to_scan, int cache_cnt),
 
-	TP_ARGS(sb, shrunk_nr, cache_cnt),
+	TP_ARGS(sb, nr_to_scan, cache_cnt)
+);
+
+DEFINE_EVENT(ext4__es_shrink_enter, ext4_es_shrink_scan_enter,
+	TP_PROTO(struct super_block *sb, int nr_to_scan, int cache_cnt),
+
+	TP_ARGS(sb, nr_to_scan, cache_cnt)
+);
+
+TRACE_EVENT(ext4_es_shrink_scan_exit,
+	TP_PROTO(struct super_block *sb, int nr_shrunk, int cache_cnt),
+
+	TP_ARGS(sb, nr_shrunk, cache_cnt),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,	dev			)
-		__field(	int,	shrunk_nr		)
+		__field(	int,	nr_shrunk		)
 		__field(	int,	cache_cnt		)
 	),
 
 	TP_fast_assign(
 		__entry->dev		= sb->s_dev;
-		__entry->shrunk_nr	= shrunk_nr;
+		__entry->nr_shrunk	= nr_shrunk;
 		__entry->cache_cnt	= cache_cnt;
 	),
 
-	TP_printk("dev %d,%d shrunk_nr %d cache_cnt %d",
+	TP_printk("dev %d,%d nr_shrunk %d cache_cnt %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->shrunk_nr, __entry->cache_cnt)
+		  __entry->nr_shrunk, __entry->cache_cnt)
 );
 
 TRACE_EVENT(ext4_collapse_range,
@@ -2436,6 +2448,37 @@ TRACE_EVENT(ext4_collapse_range,
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long) __entry->ino,
 		  __entry->offset, __entry->len)
+);
+
+TRACE_EVENT(ext4_es_shrink,
+	TP_PROTO(struct super_block *sb, int nr_shrunk, u64 scan_time,
+		 int skip_precached, int nr_skipped, int retried),
+
+	TP_ARGS(sb, nr_shrunk, scan_time, skip_precached, nr_skipped, retried),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,		dev		)
+		__field(	int,		nr_shrunk	)
+		__field(	unsigned long long, scan_time	)
+		__field(	int,		skip_precached	)
+		__field(	int,		nr_skipped	)
+		__field(	int,		retried		)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= sb->s_dev;
+		__entry->nr_shrunk	= nr_shrunk;
+		__entry->scan_time	= div_u64(scan_time, 1000);
+		__entry->skip_precached = skip_precached;
+		__entry->nr_skipped	= nr_skipped;
+		__entry->retried	= retried;
+	),
+
+	TP_printk("dev %d,%d nr_shrunk %d, scan_time %llu skip_precached %d "
+		  "nr_skipped %d retried %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->nr_shrunk,
+		  __entry->scan_time, __entry->skip_precached,
+		  __entry->nr_skipped, __entry->retried)
 );
 
 #endif /* _TRACE_EXT4_H */
