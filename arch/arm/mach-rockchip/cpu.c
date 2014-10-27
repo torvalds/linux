@@ -28,6 +28,10 @@ static ssize_t type_show(struct device *dev, struct device_attribute *attr, char
 	else
 		type = "";
 
+	if (rockchip_get_cpu_version())
+		return sprintf(buf, "%sv%lu\n", type,
+			       rockchip_get_cpu_version());
+
 	return sprintf(buf, "%s\n", type);
 }
 
