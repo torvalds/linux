@@ -98,6 +98,8 @@ static int am33xx_prm_assert_hardreset(u8 shift, u8 part, s16 inst,
  * am33xx_prm_deassert_hardreset - deassert a submodule hardreset line and
  * wait
  * @shift: register bit shift corresponding to the reset line to deassert
+ * @st_shift: reset status register bit shift corresponding to the reset line
+ * @part: PRM partition, not used for AM33xx
  * @inst: CM instance register offset (*_INST macro)
  * @rstctrl_reg: RM_RSTCTRL register address for this module
  * @rstst_reg: RM_RSTST register address for this module
@@ -111,8 +113,9 @@ static int am33xx_prm_assert_hardreset(u8 shift, u8 part, s16 inst,
  * -EINVAL upon an argument error, -EEXIST if the submodule was already out
  * of reset, or -EBUSY if the submodule did not exit reset promptly.
  */
-int am33xx_prm_deassert_hardreset(u8 shift, u8 st_shift, s16 inst,
-		u16 rstctrl_offs, u16 rstst_offs)
+static int am33xx_prm_deassert_hardreset(u8 shift, u8 st_shift, u8 part,
+					 s16 inst, u16 rstctrl_offs,
+					 u16 rstst_offs)
 {
 	int c;
 	u32 mask = 1 << st_shift;
@@ -347,6 +350,7 @@ struct pwrdm_ops am33xx_pwrdm_operations = {
 
 static struct prm_ll_data am33xx_prm_ll_data = {
 	.assert_hardreset		= am33xx_prm_assert_hardreset,
+	.deassert_hardreset		= am33xx_prm_deassert_hardreset,
 };
 
 int __init am33xx_prm_init(void)

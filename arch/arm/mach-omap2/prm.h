@@ -129,6 +129,7 @@ struct prm_reset_src_map {
  * @clear_context_loss_flags_old: ptr to the SoC PRM context loss flag clear fn
  * @late_init: ptr to the late init function
  * @assert_hardreset: ptr to the SoC PRM hardreset assert impl
+ * @deassert_hardreset: ptr to the SoC PRM hardreset deassert impl
  *
  * XXX @was_any_context_lost_old and @clear_context_loss_flags_old are
  * deprecated.
@@ -139,12 +140,18 @@ struct prm_ll_data {
 	void (*clear_context_loss_flags_old)(u8 part, s16 inst, u16 idx);
 	int (*late_init)(void);
 	int (*assert_hardreset)(u8 shift, u8 part, s16 prm_mod, u16 offset);
+	int (*deassert_hardreset)(u8 shift, u8 st_shift, u8 part, s16 prm_mod,
+				  u16 offset, u16 st_offset);
+	int (*is_hardreset_asserted)(u8 shift, u8 part, s16 prm_mod,
+				     u16 offset);
 };
 
 extern int prm_register(struct prm_ll_data *pld);
 extern int prm_unregister(struct prm_ll_data *pld);
 
 int omap_prm_assert_hardreset(u8 shift, u8 part, s16 prm_mod, u16 offset);
+int omap_prm_deassert_hardreset(u8 shift, u8 st_shift, u8 part, s16 prm_mod,
+				u16 offset, u16 st_offset);
 extern u32 prm_read_reset_sources(void);
 extern bool prm_was_any_context_lost_old(u8 part, s16 inst, u16 idx);
 extern void prm_clear_context_loss_flags_old(u8 part, s16 inst, u16 idx);

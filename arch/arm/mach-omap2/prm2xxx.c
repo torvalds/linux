@@ -213,6 +213,7 @@ struct pwrdm_ops omap2_pwrdm_operations = {
 static struct prm_ll_data omap2xxx_prm_ll_data = {
 	.read_reset_sources = &omap2xxx_prm_read_reset_sources,
 	.assert_hardreset = &omap2_prm_assert_hardreset,
+	.deassert_hardreset = &omap2_prm_deassert_hardreset,
 };
 
 int __init omap2xxx_prm_init(void)

@@ -148,8 +148,12 @@ int omap4_prminst_assert_hardreset(u8 shift, u8 part, s16 inst,
 /**
  * omap4_prminst_deassert_hardreset - deassert a submodule hardreset line and
  * wait
- * @rstctrl_reg: RM_RSTCTRL register address for this module
  * @shift: register bit shift corresponding to the reset line to deassert
+ * @st_shift: status bit offset, not used for OMAP4+
+ * @part: PRM partition
+ * @inst: PRM instance offset
+ * @rstctrl_offs: reset register offset
+ * @st_offs: reset status register offset, not used for OMAP4+
  *
  * Some IPs like dsp, ipu or iva contain processors that require an HW
  * reset line to be asserted / deasserted in order to fully enable the
@@ -160,8 +164,8 @@ int omap4_prminst_assert_hardreset(u8 shift, u8 part, s16 inst,
  * -EINVAL upon an argument error, -EEXIST if the submodule was already out
  * of reset, or -EBUSY if the submodule did not exit reset promptly.
  */
-int omap4_prminst_deassert_hardreset(u8 shift, u8 part, s16 inst,
-				     u16 rstctrl_offs)
+int omap4_prminst_deassert_hardreset(u8 shift, u8 st_shift, u8 part, s16 inst,
+				     u16 rstctrl_offs, u16 st_offs)
 {
 	int c;
 	u32 mask = 1 << shift;

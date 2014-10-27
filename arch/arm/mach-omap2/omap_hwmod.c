@@ -2932,9 +2932,8 @@ static int _omap2_assert_hardreset(struct omap_hwmod *oh,
 static int _omap2_deassert_hardreset(struct omap_hwmod *oh,
 				     struct omap_hwmod_rst_info *ohri)
 {
-	return omap2_prm_deassert_hardreset(oh->prcm.omap2.module_offs,
-					    ohri->rst_shift,
-					    ohri->st_shift);
+	return omap_prm_deassert_hardreset(ohri->rst_shift, ohri->st_shift, 0,
+					   oh->prcm.omap2.module_offs, 0, 0);
 }
 
 /**
@@ -3001,10 +3000,10 @@ static int _omap4_deassert_hardreset(struct omap_hwmod *oh,
 	if (ohri->st_shift)
 		pr_err("omap_hwmod: %s: %s: hwmod data error: OMAP4 does not support st_shift\n",
 		       oh->name, ohri->name);
-	return omap4_prminst_deassert_hardreset(ohri->rst_shift,
-				oh->clkdm->pwrdm.ptr->prcm_partition,
-				oh->clkdm->pwrdm.ptr->prcm_offs,
-				oh->prcm.omap4.rstctrl_offs);
+	return omap_prm_deassert_hardreset(ohri->rst_shift, 0,
+					   oh->clkdm->pwrdm.ptr->prcm_partition,
+					   oh->clkdm->pwrdm.ptr->prcm_offs,
+					   oh->prcm.omap4.rstctrl_offs, 0);
 }
 
 /**
@@ -3067,11 +3066,10 @@ static int _am33xx_assert_hardreset(struct omap_hwmod *oh,
 static int _am33xx_deassert_hardreset(struct omap_hwmod *oh,
 				     struct omap_hwmod_rst_info *ohri)
 {
-	return am33xx_prm_deassert_hardreset(ohri->rst_shift,
-				ohri->st_shift,
-				oh->clkdm->pwrdm.ptr->prcm_offs,
-				oh->prcm.omap4.rstctrl_offs,
-				oh->prcm.omap4.rstst_offs);
+	return omap_prm_deassert_hardreset(ohri->rst_shift, ohri->st_shift, 0,
+					   oh->clkdm->pwrdm.ptr->prcm_offs,
+					   oh->prcm.omap4.rstctrl_offs,
+					   oh->prcm.omap4.rstst_offs);
 }
 
 /**

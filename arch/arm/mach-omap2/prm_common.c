@@ -443,6 +443,30 @@ int omap_prm_assert_hardreset(u8 shift, u8 part, s16 prm_mod, u16 offset)
 }
 
 /**
+ * omap_prm_deassert_hardreset - deassert hardreset for an IP block
+ * @shift: register bit shift corresponding to the reset line
+ * @st_shift: reset status bit shift corresponding to the reset line
+ * @part: PRM partition
+ * @prm_mod: PRM submodule base or instance offset
+ * @offset: register offset
+ * @st_offset: status register offset
+ *
+ * Deasserts a hardware reset line for an IP block.
+ */
+int omap_prm_deassert_hardreset(u8 shift, u8 st_shift, u8 part, s16 prm_mod,
+				u16 offset, u16 st_offset)
+{
+	if (!prm_ll_data->deassert_hardreset) {
+		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+			  __func__);
+		return -EINVAL;
+	}
+
+	return prm_ll_data->deassert_hardreset(shift, st_shift, part, prm_mod,
+					       offset, st_offset);
+}
+
+/**
  * prm_register - register per-SoC low-level data with the PRM
  * @pld: low-level per-SoC OMAP PRM data & function pointers to register
  *
