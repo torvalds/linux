@@ -293,7 +293,7 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.transition_latency = transition_latency;
 
 	pd = cpufreq_get_driver_data();
-	if (pd && !pd->independent_clocks)
+	if (!pd || !pd->independent_clocks)
 		cpumask_setall(policy->cpus);
 
 	of_node_put(np);
