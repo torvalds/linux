@@ -158,6 +158,12 @@ nv_device_is_pci(struct nouveau_device *device)
 	return device->pdev != NULL;
 }
 
+static inline bool
+nv_device_is_cpu_coherent(struct nouveau_device *device)
+{
+	return (!IS_ENABLED(CONFIG_ARM) && nv_device_is_pci(device));
+}
+
 static inline struct device *
 nv_device_base(struct nouveau_device *device)
 {
