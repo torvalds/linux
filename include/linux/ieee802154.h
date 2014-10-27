@@ -23,7 +23,10 @@
 #ifndef LINUX_IEEE802154_H
 #define LINUX_IEEE802154_H
 
+#include <linux/types.h>
+
 #define IEEE802154_MTU			127
+#define IEEE802154_MIN_PSDU_LEN		5
 
 #define IEEE802154_FC_TYPE_BEACON	0x0	/* Frame is beacon */
 #define	IEEE802154_FC_TYPE_DATA		0x1	/* Frame is data */
@@ -185,5 +188,13 @@ enum {
 	IEEE802154_SCAN_IN_PROGRESS = 0xfc,
 };
 
+/**
+ * ieee802154_is_valid_psdu_len - check if psdu len is valid
+ * @len: psdu len with (MHR + payload + MFR)
+ */
+static inline bool ieee802154_is_valid_psdu_len(const u8 len)
+{
+	return (len >= IEEE802154_MIN_PSDU_LEN && len <= IEEE802154_MTU);
+}
 
 #endif /* LINUX_IEEE802154_H */
