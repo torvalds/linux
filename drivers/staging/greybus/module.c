@@ -82,7 +82,7 @@ struct gb_module *gb_module_create(struct greybus_host_device *hd, u8 module_id)
 		return NULL;
 
 	gmod->hd = hd;		/* XXX refcount? */
-	gmod->module_id = module_id;	/* XXX check for dups */
+	gmod->module_id = module_id;
 	INIT_LIST_HEAD(&gmod->interfaces);
 
 	spin_lock_irq(&gb_modules_lock);
