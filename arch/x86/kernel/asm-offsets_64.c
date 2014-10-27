@@ -48,7 +48,6 @@ int main(void)
 
 #define ENTRY(entry) OFFSET(pt_regs_ ## entry, pt_regs, entry)
 	ENTRY(bx);
-	ENTRY(bx);
 	ENTRY(cx);
 	ENTRY(dx);
 	ENTRY(sp);
