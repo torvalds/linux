@@ -33,7 +33,7 @@ static struct regulator_init_data dummy_initdata = {
 
 static struct regulator_ops dummy_ops;
 
-static struct regulator_desc dummy_desc = {
+static const struct regulator_desc dummy_desc = {
 	.name = "regulator-dummy",
 	.id = -1,
 	.type = REGULATOR_VOLTAGE,
