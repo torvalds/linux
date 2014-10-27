@@ -114,7 +114,14 @@ int mlx4_en_QUERY_PORT(struct mlx4_en_dev *mdev, u8 port)
 		state->link_speed = -1;
 		break;
 	}
-	state->transciver = qport_context->transceiver;
+
+	state->transceiver = qport_context->transceiver;
+
+	state->flags = 0; /* Reset and recalculate the port flags */
+	state->flags |= (qport_context->link_up & MLX4_EN_ANC_MASK) ?
+		MLX4_EN_PORT_ANC : 0;
+	state->flags |= (qport_context->autoneg & MLX4_EN_AUTONEG_MASK) ?
+		MLX4_EN_PORT_ANE : 0;
 
 out:
 	mlx4_free_cmd_mailbox(mdev->dev, mailbox);
