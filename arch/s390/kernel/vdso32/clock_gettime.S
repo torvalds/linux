@@ -19,6 +19,7 @@
 	.type  __kernel_clock_gettime,@function
 __kernel_clock_gettime:
 	.cfi_startproc
+	ahi	%r15,-16
 	basr	%r5,0
 0:	al	%r5,21f-0b(%r5)			/* get &_vdso_data */
 	chi	%r2,__CLOCK_REALTIME_COARSE
@@ -34,8 +35,8 @@ __kernel_clock_gettime:
 1:	l	%r4,__VDSO_UPD_COUNT+4(%r5)	/* load update counter */
 	tml	%r4,0x0001			/* pending update ? loop */
 	jnz	1b
-	stcke	24(%r15)			/* Store TOD clock */
-	lm	%r0,%r1,25(%r15)
+	stcke	0(%r15)				/* Store TOD clock */
+	lm	%r0,%r1,1(%r15)
 	s	%r0,__VDSO_XTIME_STAMP(%r5)	/* TOD - cycle_last */
 	sl	%r1,__VDSO_XTIME_STAMP+4(%r5)
 	brc	3,2f
@@ -70,6 +71,7 @@ __kernel_clock_gettime:
 8:	st	%r2,0(%r3)			/* store tp->tv_sec */
 	st	%r1,4(%r3)			/* store tp->tv_nsec */
 	lhi	%r2,0
+	ahi	%r15,16
 	br	%r14
 
 	/* CLOCK_MONOTONIC_COARSE */
@@ -96,8 +98,8 @@ __kernel_clock_gettime:
 11:	l	%r4,__VDSO_UPD_COUNT+4(%r5)	/* load update counter */
 	tml	%r4,0x0001			/* pending update ? loop */
 	jnz	11b
-	stcke	24(%r15)			/* Store TOD clock */
-	lm	%r0,%r1,25(%r15)
+	stcke	0(%r15)				/* Store TOD clock */
+	lm	%r0,%r1,1(%r15)
 	s	%r0,__VDSO_XTIME_STAMP(%r5)	/* TOD - cycle_last */
 	sl	%r1,__VDSO_XTIME_STAMP+4(%r5)
 	brc	3,12f
@@ -132,11 +134,13 @@ __kernel_clock_gettime:
 17:	st	%r2,0(%r3)			/* store tp->tv_sec */
 	st	%r1,4(%r3)			/* store tp->tv_nsec */
 	lhi	%r2,0
+	ahi	%r15,16
 	br	%r14
 
 	/* Fallback to system call */
 19:	lhi	%r1,__NR_clock_gettime
 	svc	0
+	ahi	%r15,16
 	br	%r14
 
 20:	.long	1000000000
