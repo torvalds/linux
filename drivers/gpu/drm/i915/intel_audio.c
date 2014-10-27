@@ -93,6 +93,25 @@ static bool intel_eld_uptodate(struct drm_connector *connector,
 	return true;
 }
 
+static void g4x_audio_codec_disable(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	uint32_t eldv, tmp;
+
+	DRM_DEBUG_KMS("Disable audio codec\n");
+
+	tmp = I915_READ(G4X_AUD_VID_DID);
+	if (tmp == INTEL_AUDIO_DEVBLC || tmp == INTEL_AUDIO_DEVCL)
+		eldv = G4X_ELDV_DEVCL_DEVBLC;
+	else
+		eldv = G4X_ELDV_DEVCTG;
+
+	/* Invalidate ELD */
+	tmp = I915_READ(G4X_AUD_CNTL_ST);
+	tmp &= ~eldv;
+	I915_WRITE(G4X_AUD_CNTL_ST, tmp);
+}
+
 static void g4x_audio_codec_enable(struct drm_connector *connector,
 				   struct intel_encoder *encoder,
 				   struct drm_display_mode *mode)
@@ -408,6 +427,7 @@ void intel_init_audio(struct drm_device *dev)
 
 	if (IS_G4X(dev)) {
 		dev_priv->display.audio_codec_enable = g4x_audio_codec_enable;
+		dev_priv->display.audio_codec_disable = g4x_audio_codec_disable;
 	} else if (IS_VALLEYVIEW(dev)) {
 		dev_priv->display.audio_codec_enable = ilk_audio_codec_enable;
 		dev_priv->display.audio_codec_disable = ilk_audio_codec_disable;
