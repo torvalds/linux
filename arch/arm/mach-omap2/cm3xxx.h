@@ -68,9 +68,6 @@
 
 #ifndef __ASSEMBLER__
 
-extern int omap3xxx_cm_split_idlest_reg(void __iomem *idlest_reg,
-					s16 *prcm_inst, u8 *idlest_reg_id);
-
 extern void omap3_cm_save_context(void);
 extern void omap3_cm_restore_context(void);
 extern void omap3_cm_save_scratchpad_contents(u32 *ptr);

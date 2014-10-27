@@ -118,8 +118,9 @@ static int omap3xxx_cm_wait_module_ready(u8 part, s16 prcm_mod, u16 idlest_id,
  * XXX This function is only needed until absolute register addresses are
  * removed from the OMAP struct clk records.
  */
-int omap3xxx_cm_split_idlest_reg(void __iomem *idlest_reg, s16 *prcm_inst,
-				 u8 *idlest_reg_id)
+static int omap3xxx_cm_split_idlest_reg(void __iomem *idlest_reg,
+					s16 *prcm_inst,
+					u8 *idlest_reg_id)
 {
 	unsigned long offs;
 	u8 idlest_offs;

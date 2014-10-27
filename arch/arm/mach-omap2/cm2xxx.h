@@ -56,8 +56,6 @@ extern void omap2xxx_cm_set_apll96_auto_low_power_stop(void);
 
 int omap2xxx_cm_wait_module_ready(u8 part, s16 prcm_mod, u16 idlest_id,
 				  u8 idlest_shift);
-extern int omap2xxx_cm_split_idlest_reg(void __iomem *idlest_reg,
-					s16 *prcm_inst, u8 *idlest_reg_id);
 extern int omap2xxx_cm_fclks_active(void);
 extern int omap2xxx_cm_mpu_retention_allowed(void);
 extern u32 omap2xxx_cm_get_core_clk_src(void);
