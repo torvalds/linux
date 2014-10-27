@@ -18,6 +18,15 @@
 
 static int debug_pci;
 
+#ifdef CONFIG_PCI_MSI
+struct msi_controller *pcibios_msi_controller(struct pci_dev *dev)
+{
+	struct pci_sys_data *sysdata = dev->bus->sysdata;
+
+	return sysdata->msi_ctrl;
+}
+#endif
+
 /*
  * We can't use pci_get_device() here since we are
  * called from interrupt context.
@@ -470,6 +479,9 @@ static void pcibios_init_hw(struct device *parent, struct hw_pci *hw,
 
 #ifdef CONFIG_PCI_DOMAINS
 		sys->domain  = hw->domain;
+#endif
+#ifdef CONFIG_PCI_MSI
+		sys->msi_ctrl = hw->msi_ctrl;
 #endif
 		sys->busnr   = busnr;
 		sys->swizzle = hw->swizzle;

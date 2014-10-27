@@ -22,6 +22,9 @@ struct hw_pci {
 #ifdef CONFIG_PCI_DOMAINS
 	int		domain;
 #endif
+#ifdef CONFIG_PCI_MSI
+	struct msi_controller *msi_ctrl;
+#endif
 	struct pci_ops	*ops;
 	int		nr_controllers;
 	void		**private_data;
@@ -46,6 +49,9 @@ struct hw_pci {
 struct pci_sys_data {
 #ifdef CONFIG_PCI_DOMAINS
 	int		domain;
+#endif
+#ifdef CONFIG_PCI_MSI
+	struct msi_controller *msi_ctrl;
 #endif
 	struct list_head node;
 	int		busnr;		/* primary bus number			*/
