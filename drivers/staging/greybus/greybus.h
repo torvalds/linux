@@ -278,9 +278,6 @@ void gb_gpio_controller_exit(struct gb_connection *connection);
 int gb_uart_device_init(struct gb_connection *connection);
 void gb_uart_device_exit(struct gb_connection *connection);
 
-int gb_tty_init(void);
-void gb_tty_exit(void);
-
 int svc_set_route_send(struct gb_interface *interface,
 			       struct greybus_host_device *hd);
 

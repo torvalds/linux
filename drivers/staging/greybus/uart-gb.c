@@ -59,6 +59,10 @@ static const struct greybus_module_id id_table[] = {
 static struct tty_driver *gb_tty_driver;
 static DEFINE_IDR(tty_minors);
 static DEFINE_MUTEX(table_lock);
+static atomic_t reference_count = ATOMIC_INIT(0);
+
+static int gb_tty_init(void);
+static void gb_tty_exit(void);
 
 static struct gb_tty *get_gb_by_minor(unsigned minor)
 {
@@ -393,6 +397,15 @@ int gb_uart_device_init(struct gb_connection *connection)
 	int retval;
 	int minor;
 
+	/* First time here, initialize the tty structures */
+	if (atomic_inc_return(&reference_count) == 1) {
+		retval = gb_tty_init();
+		if (retval) {
+			atomic_dec(&reference_count);
+			return retval;
+		}
+	}
+
 	gb_tty = kzalloc(sizeof(*gb_tty), GFP_KERNEL);
 	if (!gb_tty)
 		return -ENOMEM;
@@ -460,9 +473,13 @@ void gb_uart_device_exit(struct gb_connection *connection)
 	tty_port_put(&gb_tty->port);
 
 	kfree(gb_tty);
+
+	/* If last device is gone, tear down the tty structures */
+	if (atomic_dec_return(&reference_count) == 0)
+		gb_tty_exit();
 }
 
-int __init gb_tty_init(void)
+static int gb_tty_init(void)
 {
 	int retval = 0;
 
@@ -490,40 +507,20 @@ int __init gb_tty_init(void)
 		goto fail_put_gb_tty;
 	}
 
-#if 0
-	retval = greybus_register(&tty_gb_driver);
-	if (retval) {
-		pr_err("Can not register greybus driver.\n");
-		goto fail_unregister_gb_tty;
-	}
-#endif
-
 	return 0;
 
-/* fail_unregister_gb_tty: */
-	tty_unregister_driver(gb_tty_driver);
 fail_put_gb_tty:
 	put_tty_driver(gb_tty_driver);
 fail_unregister_dev:
 	return retval;
 }
 
-void __exit gb_tty_exit(void)
+static void gb_tty_exit(void)
 {
 	int major = MAJOR(gb_tty_driver->major);
 	int minor = gb_tty_driver->minor_start;
 
-#if 0
-	greybus_deregister(&tty_gb_driver);
-#endif
 	tty_unregister_driver(gb_tty_driver);
 	put_tty_driver(gb_tty_driver);
 	unregister_chrdev_region(MKDEV(major, minor), GB_NUM_MINORS);
 }
-
-#if 0
-module_init(gb_tty_init);
-module_exit(gb_tty_exit);
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Greg Kroah-Hartman <gregkh@linuxfoundation.org>");
-#endif

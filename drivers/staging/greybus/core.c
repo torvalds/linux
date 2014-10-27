@@ -282,16 +282,7 @@ static int __init gb_init(void)
 		goto error_operation;
 	}
 
-	retval = gb_tty_init();
-	if (retval) {
-		pr_err("gb_tty_init failed\n");
-		goto error_tty;
-	}
-
 	return 0;
-
-error_tty:
-	gb_operation_exit();
 
 error_operation:
 	gb_gbuf_exit();
@@ -310,7 +301,6 @@ error_bus:
 
 static void __exit gb_exit(void)
 {
-	gb_tty_exit();
 	gb_operation_exit();
 	gb_gbuf_exit();
 	gb_ap_exit();
