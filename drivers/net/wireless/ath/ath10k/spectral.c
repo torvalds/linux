@@ -56,14 +56,14 @@ static uint8_t get_max_exp(s8 max_index, u16 max_magnitude, size_t bin_len,
 }
 
 int ath10k_spectral_process_fft(struct ath10k *ar,
-				struct wmi_single_phyerr_rx_event *event,
-				struct phyerr_fft_report *fftr,
+				const struct wmi_phyerr *phyerr,
+				const struct phyerr_fft_report *fftr,
 				size_t bin_len, u64 tsf)
 {
 	struct fft_sample_ath10k *fft_sample;
 	u8 buf[sizeof(*fft_sample) + SPECTRAL_ATH10K_MAX_NUM_BINS];
 	u16 freq1, freq2, total_gain_db, base_pwr_db, length, peak_mag;
-	u32 reg0, reg1, nf_list1, nf_list2;
+	u32 reg0, reg1;
 	u8 chain_idx, *bins;
 	int dc_pos;
 
@@ -82,7 +82,7 @@ int ath10k_spectral_process_fft(struct ath10k *ar,
 	/* TODO: there might be a reason why the hardware reports 20/40/80 MHz,
 	 * but the results/plots suggest that its actually 22/44/88 MHz.
 	 */
-	switch (event->hdr.chan_width_mhz) {
+	switch (phyerr->chan_width_mhz) {
 	case 20:
 		fft_sample->chan_width_mhz = 22;
 		break;
@@ -101,7 +101,7 @@ int ath10k_spectral_process_fft(struct ath10k *ar,
 		fft_sample->chan_width_mhz = 88;
 		break;
 	default:
-		fft_sample->chan_width_mhz = event->hdr.chan_width_mhz;
+		fft_sample->chan_width_mhz = phyerr->chan_width_mhz;
 	}
 
 	fft_sample->relpwr_db = MS(reg1, SEARCH_FFT_REPORT_REG1_RELPWR_DB);
@@ -110,36 +110,22 @@ int ath10k_spectral_process_fft(struct ath10k *ar,
 	peak_mag = MS(reg1, SEARCH_FFT_REPORT_REG1_PEAK_MAG);
 	fft_sample->max_magnitude = __cpu_to_be16(peak_mag);
 	fft_sample->max_index = MS(reg0, SEARCH_FFT_REPORT_REG0_PEAK_SIDX);
-	fft_sample->rssi = event->hdr.rssi_combined;
+	fft_sample->rssi = phyerr->rssi_combined;
 
 	total_gain_db = MS(reg0, SEARCH_FFT_REPORT_REG0_TOTAL_GAIN_DB);
 	base_pwr_db = MS(reg0, SEARCH_FFT_REPORT_REG0_BASE_PWR_DB);
 	fft_sample->total_gain_db = __cpu_to_be16(total_gain_db);
 	fft_sample->base_pwr_db = __cpu_to_be16(base_pwr_db);
 
-	freq1 = __le16_to_cpu(event->hdr.freq1);
-	freq2 = __le16_to_cpu(event->hdr.freq2);
+	freq1 = __le16_to_cpu(phyerr->freq1);
+	freq2 = __le16_to_cpu(phyerr->freq2);
 	fft_sample->freq1 = __cpu_to_be16(freq1);
 	fft_sample->freq2 = __cpu_to_be16(freq2);
 
-	nf_list1 = __le32_to_cpu(event->hdr.nf_list_1);
-	nf_list2 = __le32_to_cpu(event->hdr.nf_list_2);
 	chain_idx = MS(reg0, SEARCH_FFT_REPORT_REG0_FFT_CHN_IDX);
 
-	switch (chain_idx) {
-	case 0:
-		fft_sample->noise = __cpu_to_be16(nf_list1 & 0xffffu);
-		break;
-	case 1:
-		fft_sample->noise = __cpu_to_be16((nf_list1 >> 16) & 0xffffu);
-		break;
-	case 2:
-		fft_sample->noise = __cpu_to_be16(nf_list2 & 0xffffu);
-		break;
-	case 3:
-		fft_sample->noise = __cpu_to_be16((nf_list2 >> 16) & 0xffffu);
-		break;
-	}
+	fft_sample->noise = __cpu_to_be16(
+			__le16_to_cpu(phyerr->nf_chains[chain_idx]));
 
 	bins = (u8 *)fftr;
 	bins += sizeof(*fftr);

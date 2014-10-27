@@ -50,10 +50,10 @@ enum ATH6K_DEBUG_MASK {
 };
 
 extern unsigned int debug_mask;
-__printf(2, 3) int ath6kl_printk(const char *level, const char *fmt, ...);
-__printf(1, 2) int ath6kl_info(const char *fmt, ...);
-__printf(1, 2) int ath6kl_err(const char *fmt, ...);
-__printf(1, 2) int ath6kl_warn(const char *fmt, ...);
+__printf(2, 3) void ath6kl_printk(const char *level, const char *fmt, ...);
+__printf(1, 2) void ath6kl_info(const char *fmt, ...);
+__printf(1, 2) void ath6kl_err(const char *fmt, ...);
+__printf(1, 2) void ath6kl_warn(const char *fmt, ...);
 
 enum ath6kl_war {
 	ATH6KL_WAR_INVALID_RATE,
@@ -81,10 +81,9 @@ int ath6kl_debug_init_fs(struct ath6kl *ar);
 void ath6kl_debug_cleanup(struct ath6kl *ar);
 
 #else
-static inline int ath6kl_dbg(enum ATH6K_DEBUG_MASK dbg_mask,
-			     const char *fmt, ...)
+static inline void ath6kl_dbg(enum ATH6K_DEBUG_MASK dbg_mask,
+			      const char *fmt, ...)
 {
-	return 0;
 }
 
 static inline void ath6kl_dbg_dump(enum ATH6K_DEBUG_MASK mask,

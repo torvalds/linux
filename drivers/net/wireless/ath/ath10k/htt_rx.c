@@ -291,6 +291,9 @@ static inline struct sk_buff *ath10k_htt_rx_netbuf_pop(struct ath10k_htt *htt)
 	htt->rx_ring.sw_rd_idx.msdu_payld = idx;
 	htt->rx_ring.fill_cnt--;
 
+	trace_ath10k_htt_rx_pop_msdu(ar, msdu->data, msdu->len +
+				     skb_tailroom(msdu));
+
 	return msdu;
 }
 
@@ -316,6 +319,7 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 	int msdu_len, msdu_chaining = 0;
 	struct sk_buff *msdu, *next;
 	struct htt_rx_desc *rx_desc;
+	u32 tsf;
 
 	lockdep_assert_held(&htt->rx_ring.lock);
 
@@ -447,6 +451,9 @@ static int ath10k_htt_rx_amsdu_pop(struct ath10k_htt *htt,
 		last_msdu = __le32_to_cpu(rx_desc->msdu_end.info0) &
 				RX_MSDU_END_INFO0_LAST_MSDU;
 
+		tsf = __le32_to_cpu(rx_desc->ppdu_end.tsf_timestamp);
+		trace_ath10k_htt_rx_desc(ar, tsf, &rx_desc->attention,
+					 sizeof(*rx_desc) - sizeof(u32));
 		if (last_msdu) {
 			msdu->next = NULL;
 			break;
@@ -1674,6 +1681,15 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 	case HTT_T2H_MSG_TYPE_RX_DELBA:
 		ath10k_htt_rx_delba(ar, resp);
 		break;
+	case HTT_T2H_MSG_TYPE_PKTLOG: {
+		struct ath10k_pktlog_hdr *hdr =
+			(struct ath10k_pktlog_hdr *)resp->pktlog_msg.payload;
+
+		trace_ath10k_htt_pktlog(ar, resp->pktlog_msg.payload,
+					sizeof(*hdr) +
+					__le16_to_cpu(hdr->size));
+		break;
+	}
 	case HTT_T2H_MSG_TYPE_RX_FLUSH: {
 		/* Ignore this event because mac80211 takes care of Rx
 		 * aggregation reordering.
@@ -1681,8 +1697,8 @@ void ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	}
 	default:
-		ath10k_dbg(ar, ATH10K_DBG_HTT, "htt event (%d) not handled\n",
-			   resp->hdr.msg_type);
+		ath10k_warn(ar, "htt event (%d) not handled\n",
+			    resp->hdr.msg_type);
 		ath10k_dbg_dump(ar, ATH10K_DBG_HTT_DUMP, NULL, "htt event: ",
 				skb->data, skb->len);
 		break;
