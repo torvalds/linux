@@ -991,7 +991,6 @@ static int imx_uart_dma_init(struct imx_port *sport)
 
 	sport->rx_buf = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!sport->rx_buf) {
-		dev_err(dev, "cannot alloc DMA buffer.\n");
 		ret = -ENOMEM;
 		goto err;
 	}
