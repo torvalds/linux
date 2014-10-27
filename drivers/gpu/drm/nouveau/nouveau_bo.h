@@ -13,6 +13,7 @@ struct nouveau_bo {
 	u32 valid_domains;
 	struct ttm_place placements[3];
 	struct ttm_place busy_placements[3];
+	bool force_coherent;
 	struct ttm_bo_kmap_obj kmap;
 	struct list_head head;
 
