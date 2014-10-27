@@ -228,6 +228,15 @@ static int process_finished_round(struct perf_tool *tool,
 				  union perf_event *event,
 				  struct perf_session *session);
 
+static int process_id_index_stub(struct perf_tool *tool __maybe_unused,
+				 union perf_event *event __maybe_unused,
+				 struct perf_session *perf_session
+				 __maybe_unused)
+{
+	dump_printf(": unhandled!\n");
+	return 0;
+}
+
 void perf_tool__fill_defaults(struct perf_tool *tool)
 {
 	if (tool->sample == NULL)
@@ -262,6 +271,8 @@ void perf_tool__fill_defaults(struct perf_tool *tool)
 		else
 			tool->finished_round = process_finished_round_stub;
 	}
+	if (tool->id_index == NULL)
+		tool->id_index = process_id_index_stub;
 }
  
 static void swap_sample_id_all(union perf_event *event, void *data)
@@ -460,6 +471,7 @@ static perf_event__swap_op perf_event__swap_ops[] = {
 	[PERF_RECORD_HEADER_EVENT_TYPE]	  = perf_event__event_type_swap,
 	[PERF_RECORD_HEADER_TRACING_DATA] = perf_event__tracing_data_swap,
 	[PERF_RECORD_HEADER_BUILD_ID]	  = NULL,
+	[PERF_RECORD_ID_INDEX]		  = perf_event__all64_swap,
 	[PERF_RECORD_HEADER_MAX]	  = NULL,
 };
 
@@ -888,6 +900,8 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 		return tool->build_id(tool, event, session);
 	case PERF_RECORD_FINISHED_ROUND:
 		return tool->finished_round(tool, event, session);
+	case PERF_RECORD_ID_INDEX:
+		return tool->id_index(tool, event, session);
 	default:
 		return -EINVAL;
 	}
@@ -1592,5 +1606,113 @@ int __perf_session__set_tracepoints_handlers(struct perf_session *session,
 
 	err = 0;
 out:
+	return err;
+}
+
+int perf_event__process_id_index(struct perf_tool *tool __maybe_unused,
+				 union perf_event *event,
+				 struct perf_session *session)
+{
+	struct perf_evlist *evlist = session->evlist;
+	struct id_index_event *ie = &event->id_index;
+	size_t i, nr, max_nr;
+
+	max_nr = (ie->header.size - sizeof(struct id_index_event)) /
+		 sizeof(struct id_index_entry);
+	nr = ie->nr;
+	if (nr > max_nr)
+		return -EINVAL;
+
+	if (dump_trace)
+		fprintf(stdout, " nr: %zu\n", nr);
+
+	for (i = 0; i < nr; i++) {
+		struct id_index_entry *e = &ie->entries[i];
+		struct perf_sample_id *sid;
+
+		if (dump_trace) {
+			fprintf(stdout,	" ... id: %"PRIu64, e->id);
+			fprintf(stdout,	"  idx: %"PRIu64, e->idx);
+			fprintf(stdout,	"  cpu: %"PRId64, e->cpu);
+			fprintf(stdout,	"  tid: %"PRId64"\n", e->tid);
+		}
+
+		sid = perf_evlist__id2sid(evlist, e->id);
+		if (!sid)
+			return -ENOENT;
+		sid->idx = e->idx;
+		sid->cpu = e->cpu;
+		sid->tid = e->tid;
+	}
+	return 0;
+}
+
+int perf_event__synthesize_id_index(struct perf_tool *tool,
+				    perf_event__handler_t process,
+				    struct perf_evlist *evlist,
+				    struct machine *machine)
+{
+	union perf_event *ev;
+	struct perf_evsel *evsel;
+	size_t nr = 0, i = 0, sz, max_nr, n;
+	int err;
+
+	pr_debug2("Synthesizing id index\n");
+
+	max_nr = (UINT16_MAX - sizeof(struct id_index_event)) /
+		 sizeof(struct id_index_entry);
+
+	list_for_each_entry(evsel, &evlist->entries, node)
+		nr += evsel->ids;
+
+	n = nr > max_nr ? max_nr : nr;
+	sz = sizeof(struct id_index_event) + n * sizeof(struct id_index_entry);
+	ev = zalloc(sz);
+	if (!ev)
+		return -ENOMEM;
+
+	ev->id_index.header.type = PERF_RECORD_ID_INDEX;
+	ev->id_index.header.size = sz;
+	ev->id_index.nr = n;
+
+	list_for_each_entry(evsel, &evlist->entries, node) {
+		u32 j;
+
+		for (j = 0; j < evsel->ids; j++) {
+			struct id_index_entry *e;
+			struct perf_sample_id *sid;
+
+			if (i >= n) {
+				err = process(tool, ev, NULL, machine);
+				if (err)
+					goto out_err;
+				nr -= n;
+				i = 0;
+			}
+
+			e = &ev->id_index.entries[i++];
+
+			e->id = evsel->id[j];
+
+			sid = perf_evlist__id2sid(evlist, e->id);
+			if (!sid) {
+				free(ev);
+				return -ENOENT;
+			}
+
+			e->idx = sid->idx;
+			e->cpu = sid->cpu;
+			e->tid = sid->tid;
+		}
+	}
+
+	sz = sizeof(struct id_index_event) + nr * sizeof(struct id_index_entry);
+	ev->id_index.header.size = sz;
+	ev->id_index.nr = nr;
+
+	err = process(tool, ev, NULL, machine);
+out_err:
+	free(ev);
+
 	return err;
 }
