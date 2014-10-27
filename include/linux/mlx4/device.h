@@ -379,6 +379,13 @@ enum {
 #define MSTR_SM_CHANGE_MASK (MLX4_EQ_PORT_INFO_MSTR_SM_SL_CHANGE_MASK | \
 			     MLX4_EQ_PORT_INFO_MSTR_SM_LID_CHANGE_MASK)
 
+enum mlx4_module_id {
+	MLX4_MODULE_ID_SFP              = 0x3,
+	MLX4_MODULE_ID_QSFP             = 0xC,
+	MLX4_MODULE_ID_QSFP_PLUS        = 0xD,
+	MLX4_MODULE_ID_QSFP28           = 0x11,
+};
+
 static inline u64 mlx4_fw_ver(u64 major, u64 minor, u64 subminor)
 {
 	return (major << 32) | (minor << 16) | subminor;
@@ -798,6 +805,26 @@ struct mlx4_init_port_param {
 	u64			node_guid;
 	u64			si_guid;
 };
+
+#define MAD_IFC_DATA_SZ 192
+/* MAD IFC Mailbox */
+struct mlx4_mad_ifc {
+	u8	base_version;
+	u8	mgmt_class;
+	u8	class_version;
+	u8	method;
+	__be16	status;
+	__be16	class_specific;
+	__be64	tid;
+	__be16	attr_id;
+	__be16	resv;
+	__be32	attr_mod;
+	__be64	mkey;
+	__be16	dr_slid;
+	__be16	dr_dlid;
+	u8	reserved[28];
+	u8	data[MAD_IFC_DATA_SZ];
+} __packed;
 
 #define mlx4_foreach_port(port, dev, type)				\
 	for ((port) = 1; (port) <= (dev)->caps.num_ports; (port)++)	\
@@ -1282,6 +1309,9 @@ void mlx4_mr_rereg_mem_cleanup(struct mlx4_dev *dev, struct mlx4_mr *mr);
 int mlx4_mr_rereg_mem_write(struct mlx4_dev *dev, struct mlx4_mr *mr,
 			    u64 iova, u64 size, int npages,
 			    int page_shift, struct mlx4_mpt_entry *mpt_entry);
+
+int mlx4_get_module_info(struct mlx4_dev *dev, u8 port,
+			 u16 offset, u16 size, u8 *data);
 
 /* Returns true if running in low memory profile (kdump kernel) */
 static inline bool mlx4_low_memory_profile(void)
