@@ -127,7 +127,7 @@ menu "Platform selection"
 config ARCH_ROCKCHIP
 	bool "Rockchip SoCs"
 	select PINCTRL
-	select PINCTRL_ROCKCHIP
+	select PINCTRL_RK3368
 	select ARCH_REQUIRE_GPIOLIB
 
 config ARCH_VEXPRESS
