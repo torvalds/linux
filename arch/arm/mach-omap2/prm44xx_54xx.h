@@ -26,10 +26,6 @@
 /* Function prototypes */
 #ifndef __ASSEMBLER__
 
-extern u32 omap4_prm_read_inst_reg(s16 inst, u16 idx);
-extern void omap4_prm_write_inst_reg(u32 val, s16 inst, u16 idx);
-extern u32 omap4_prm_rmw_inst_reg_bits(u32 mask, u32 bits, s16 inst, s16 idx);
-
 /* OMAP4/OMAP5-specific VP functions */
 u32 omap4_prm_vp_check_txdone(u8 vp_id);
 void omap4_prm_vp_clear_txdone(u8 vp_id);
