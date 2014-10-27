@@ -408,10 +408,6 @@ static int mp_register_gsi(struct device *dev, u32 gsi, int trigger,
 	if (acpi_irq_model != ACPI_IRQ_MODEL_IOAPIC)
 		return gsi;
 
-	/* Don't set up the ACPI SCI because it's already set up */
-	if (acpi_gbl_FADT.sci_interrupt == gsi)
-		return mp_map_gsi_to_irq(gsi, IOAPIC_MAP_ALLOC);
-
 	trigger = trigger == ACPI_EDGE_SENSITIVE ? 0 : 1;
 	polarity = polarity == ACPI_ACTIVE_HIGH ? 0 : 1;
 	node = dev ? dev_to_node(dev) : NUMA_NO_NODE;
@@ -424,7 +420,8 @@ static int mp_register_gsi(struct device *dev, u32 gsi, int trigger,
 	if (irq < 0)
 		return irq;
 
-	if (enable_update_mptable)
+	/* Don't set up the ACPI SCI because it's already set up */
+	if (enable_update_mptable && acpi_gbl_FADT.sci_interrupt != gsi)
 		mp_config_acpi_gsi(dev, gsi, trigger, polarity);
 
 	return irq;
@@ -435,9 +432,6 @@ static void mp_unregister_gsi(u32 gsi)
 	int irq;
 
 	if (acpi_irq_model != ACPI_IRQ_MODEL_IOAPIC)
-		return;
-
-	if (acpi_gbl_FADT.sci_interrupt == gsi)
 		return;
 
 	irq = mp_map_gsi_to_irq(gsi, 0);
