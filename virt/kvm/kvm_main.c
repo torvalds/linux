@@ -760,7 +760,7 @@ static struct kvm_memslots *install_new_memslots(struct kvm *kvm,
  *
  * Discontiguous memory is allowed, mostly for framebuffers.
  *
- * Must be called holding mmap_sem for write.
+ * Must be called holding kvm->slots_lock for write.
  */
 int __kvm_set_memory_region(struct kvm *kvm,
 			    struct kvm_userspace_memory_region *mem)
