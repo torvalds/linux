@@ -9,8 +9,7 @@
 #include <linux/reboot.h>
 
 #include "common.h"
-#include "prm-regbits-33xx.h"
-#include "prm33xx.h"
+#include "prm.h"
 
 /**
  * am3xx_restart - trigger a software restart of the SoC
@@ -24,5 +23,5 @@ void am33xx_restart(enum reboot_mode mode, const char *cmd)
 {
 	/* TODO: Handle mode and cmd if necessary */
 
-	am33xx_prm_global_warm_sw_reset();
+	omap_prm_reset_system();
 }

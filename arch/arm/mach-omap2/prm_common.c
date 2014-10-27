@@ -503,6 +503,25 @@ void omap_prm_reconfigure_io_chain(void)
 }
 
 /**
+ * omap_prm_reset_system - trigger global SW reset
+ *
+ * Triggers SoC specific global warm reset to reboot the device.
+ */
+void omap_prm_reset_system(void)
+{
+	if (!prm_ll_data->reset_system) {
+		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+			  __func__);
+		return;
+	}
+
+	prm_ll_data->reset_system();
+
+	while (1)
+		cpu_relax();
+}
+
+/**
  * prm_register - register per-SoC low-level data with the PRM
  * @pld: low-level per-SoC OMAP PRM data & function pointers to register
  *

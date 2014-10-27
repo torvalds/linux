@@ -136,7 +136,7 @@ u32 omap3_prm_vcvp_rmw(u32 mask, u32 bits, u8 offset)
  * recommended way to restart the SoC, considering Errata i520.  No
  * return value.
  */
-void omap3xxx_prm_dpll3_reset(void)
+static void omap3xxx_prm_dpll3_reset(void)
 {
 	omap2_prm_set_mod_reg_bits(OMAP_RST_DPLL3_MASK, OMAP3430_GR_MOD,
 				   OMAP2_RM_RSTCTRL);
@@ -663,6 +663,7 @@ static struct prm_ll_data omap3xxx_prm_ll_data = {
 	.assert_hardreset = &omap2_prm_assert_hardreset,
 	.deassert_hardreset = &omap2_prm_deassert_hardreset,
 	.is_hardreset_asserted = &omap2_prm_is_hardreset_asserted,
+	.reset_system = &omap3xxx_prm_dpll3_reset,
 };
 
 int __init omap3xxx_prm_init(void)
