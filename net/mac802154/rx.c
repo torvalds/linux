@@ -19,7 +19,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/workqueue.h>
 #include <linux/netdevice.h>
 #include <linux/crc-ccitt.h>
 
@@ -28,30 +27,11 @@
 
 #include "ieee802154_i.h"
 
-/* The IEEE 802.15.4 standard defines 4 MAC packet types:
- * - beacon frame
- * - MAC command frame
- * - acknowledgement frame
- * - data frame
- *
- * and only the data frame should be pushed to the upper layers, other types
- * are just internal MAC layer management information. So only data packets
- * are going to be sent to the networking queue, all other will be processed
- * right here by using the device workqueue.
- */
-struct rx_work {
-	struct sk_buff *skb;
-	struct work_struct work;
-	struct ieee802154_hw *hw;
-	u8 lqi;
-};
-
 static void
-mac802154_subif_rx(struct ieee802154_hw *hw, struct sk_buff *skb, u8 lqi)
+mac802154_subif_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
 	struct ieee802154_local *local = hw_to_local(hw);
 
-	mac_cb(skb)->lqi = lqi;
 	skb->protocol = htons(ETH_P_IEEE802154);
 	skb_reset_mac_header(skb);
 
@@ -79,32 +59,20 @@ fail:
 	kfree_skb(skb);
 }
 
-static void mac802154_rx_worker(struct work_struct *work)
+void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
-	struct rx_work *rw = container_of(work, struct rx_work, work);
-
-	mac802154_subif_rx(rw->hw, rw->skb, rw->lqi);
-	kfree(rw);
+	mac802154_subif_rx(hw, skb);
 }
+EXPORT_SYMBOL(ieee802154_rx);
 
 void
 ieee802154_rx_irqsafe(struct ieee802154_hw *hw, struct sk_buff *skb, u8 lqi)
 {
 	struct ieee802154_local *local = hw_to_local(hw);
-	struct rx_work *work;
 
-	if (!skb)
-		return;
-
-	work = kzalloc(sizeof(*work), GFP_ATOMIC);
-	if (!work)
-		return;
-
-	INIT_WORK(&work->work, mac802154_rx_worker);
-	work->skb = skb;
-	work->hw = hw;
-	work->lqi = lqi;
-
-	queue_work(local->workqueue, &work->work);
+	mac_cb(skb)->lqi = lqi;
+	skb->pkt_type = IEEE802154_RX_MSG;
+	skb_queue_tail(&local->skb_queue, skb);
+	tasklet_schedule(&local->tasklet);
 }
 EXPORT_SYMBOL(ieee802154_rx_irqsafe);

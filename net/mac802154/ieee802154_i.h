@@ -55,10 +55,17 @@ struct ieee802154_local {
 	 * read them using any of protection methods.
 	 */
 	bool running;
+
+	struct tasklet_struct tasklet;
+	struct sk_buff_head skb_queue;
 };
 
 #define	MAC802154_DEVICE_STOPPED	0x00
 #define MAC802154_DEVICE_RUN		0x01
+
+enum {
+	IEEE802154_RX_MSG        = 1,
+};
 
 /* Slave interface definition.
  *

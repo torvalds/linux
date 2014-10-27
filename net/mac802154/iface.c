@@ -376,7 +376,7 @@ void mac802154_wpan_setup(struct net_device *dev)
 
 static int mac802154_process_data(struct net_device *dev, struct sk_buff *skb)
 {
-	return netif_rx_ni(skb);
+	return netif_receive_skb(skb);
 }
 
 static int

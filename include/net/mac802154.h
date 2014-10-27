@@ -202,6 +202,7 @@ void ieee802154_free_hw(struct ieee802154_hw *hw);
 int ieee802154_register_hw(struct ieee802154_hw *hw);
 void ieee802154_unregister_hw(struct ieee802154_hw *hw);
 
+void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb);
 void ieee802154_rx_irqsafe(struct ieee802154_hw *hw, struct sk_buff *skb,
 			   u8 lqi);
 
