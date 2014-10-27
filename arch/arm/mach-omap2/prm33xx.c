@@ -73,6 +73,7 @@ int am33xx_prm_is_hardreset_asserted(u8 shift, s16 inst, u16 rstctrl_offs)
 /**
  * am33xx_prm_assert_hardreset - assert the HW reset line of a submodule
  * @shift: register bit shift corresponding to the reset line to assert
+ * @part: CM partition, ignored for AM33xx
  * @inst: CM instance register offset (*_INST macro)
  * @rstctrl_reg: RM_RSTCTRL register address for this module
  *
@@ -83,7 +84,8 @@ int am33xx_prm_is_hardreset_asserted(u8 shift, s16 inst, u16 rstctrl_offs)
  * place the submodule into reset.  Returns 0 upon success or -EINVAL
  * upon an argument error.
  */
-int am33xx_prm_assert_hardreset(u8 shift, s16 inst, u16 rstctrl_offs)
+static int am33xx_prm_assert_hardreset(u8 shift, u8 part, s16 inst,
+				       u16 rstctrl_offs)
 {
 	u32 mask = 1 << shift;
 
@@ -343,7 +345,9 @@ struct pwrdm_ops am33xx_pwrdm_operations = {
 	.pwrdm_has_voltdm		= am33xx_check_vcvp,
 };
 
-static struct prm_ll_data am33xx_prm_ll_data;
+static struct prm_ll_data am33xx_prm_ll_data = {
+	.assert_hardreset		= am33xx_prm_assert_hardreset,
+};
 
 int __init am33xx_prm_init(void)
 {

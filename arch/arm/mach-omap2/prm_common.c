@@ -423,6 +423,26 @@ void prm_clear_context_loss_flags_old(u8 part, s16 inst, u16 idx)
 }
 
 /**
+ * omap_prm_assert_hardreset - assert hardreset for an IP block
+ * @shift: register bit shift corresponding to the reset line
+ * @part: PRM partition
+ * @prm_mod: PRM submodule base or instance offset
+ * @offset: register offset
+ *
+ * Asserts a hardware reset line for an IP block.
+ */
+int omap_prm_assert_hardreset(u8 shift, u8 part, s16 prm_mod, u16 offset)
+{
+	if (!prm_ll_data->assert_hardreset) {
+		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+			  __func__);
+		return -EINVAL;
+	}
+
+	return prm_ll_data->assert_hardreset(shift, part, prm_mod, offset);
+}
+
+/**
  * prm_register - register per-SoC low-level data with the PRM
  * @pld: low-level per-SoC OMAP PRM data & function pointers to register
  *

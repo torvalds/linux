@@ -688,6 +688,7 @@ static struct prm_ll_data omap44xx_prm_ll_data = {
 	.was_any_context_lost_old = &omap44xx_prm_was_any_context_lost_old,
 	.clear_context_loss_flags_old = &omap44xx_prm_clear_context_loss_flags_old,
 	.late_init = &omap44xx_prm_late_init,
+	.assert_hardreset	= omap4_prminst_assert_hardreset,
 };
 
 int __init omap44xx_prm_init(void)

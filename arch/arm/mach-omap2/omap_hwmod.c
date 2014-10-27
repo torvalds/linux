@@ -2914,8 +2914,8 @@ static int _omap4_wait_target_ready(struct omap_hwmod *oh)
 static int _omap2_assert_hardreset(struct omap_hwmod *oh,
 				   struct omap_hwmod_rst_info *ohri)
 {
-	return omap2_prm_assert_hardreset(oh->prcm.omap2.module_offs,
-					  ohri->rst_shift);
+	return omap_prm_assert_hardreset(ohri->rst_shift, 0,
+					 oh->prcm.omap2.module_offs, 0);
 }
 
 /**
@@ -2974,10 +2974,10 @@ static int _omap4_assert_hardreset(struct omap_hwmod *oh,
 	if (!oh->clkdm)
 		return -EINVAL;
 
-	return omap4_prminst_assert_hardreset(ohri->rst_shift,
-				oh->clkdm->pwrdm.ptr->prcm_partition,
-				oh->clkdm->pwrdm.ptr->prcm_offs,
-				oh->prcm.omap4.rstctrl_offs);
+	return omap_prm_assert_hardreset(ohri->rst_shift,
+					 oh->clkdm->pwrdm.ptr->prcm_partition,
+					 oh->clkdm->pwrdm.ptr->prcm_offs,
+					 oh->prcm.omap4.rstctrl_offs);
 }
 
 /**
@@ -3047,9 +3047,9 @@ static int _am33xx_assert_hardreset(struct omap_hwmod *oh,
 				   struct omap_hwmod_rst_info *ohri)
 
 {
-	return am33xx_prm_assert_hardreset(ohri->rst_shift,
-				oh->clkdm->pwrdm.ptr->prcm_offs,
-				oh->prcm.omap4.rstctrl_offs);
+	return omap_prm_assert_hardreset(ohri->rst_shift, 0,
+					 oh->clkdm->pwrdm.ptr->prcm_offs,
+					 oh->prcm.omap4.rstctrl_offs);
 }
 
 /**
