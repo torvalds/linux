@@ -179,7 +179,7 @@ static int max77802_set_suspend_mode(struct regulator_dev *rdev,
 	 * If the regulator has been disabled for suspend
 	 * then is invalid to try setting a suspend mode.
 	 */
-	if (!max77802->opmode[id] == MAX77802_OFF_PWRREQ) {
+	if (max77802->opmode[id] == MAX77802_OFF_PWRREQ) {
 		dev_warn(&rdev->dev, "%s: is disabled, mode: 0x%x not set\n",
 			 rdev->desc->name, mode);
 		return 0;
