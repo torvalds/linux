@@ -231,6 +231,7 @@ struct drm_bridge;
  * @restore: restore CRTC state
  * @reset: reset CRTC after state has been invalidated (e.g. resume)
  * @cursor_set: setup the cursor
+ * @cursor_set2: setup the cursor with hotspot, superseeds @cursor_set if set
  * @cursor_move: move the cursor
  * @gamma_set: specify color ramp for CRTC
  * @destroy: deinit and free object
@@ -292,11 +293,14 @@ struct drm_crtc_funcs {
 /**
  * struct drm_crtc - central CRTC control structure
  * @dev: parent DRM device
+ * @port: OF node used by drm_of_find_possible_crtcs()
  * @head: list management
  * @mutex: per-CRTC locking
  * @base: base KMS object for ID tracking etc.
  * @primary: primary plane for this CRTC
  * @cursor: cursor plane for this CRTC
+ * @cursor_x: current x position of the cursor, used for universal cursor planes
+ * @cursor_y: current y position of the cursor, used for universal cursor planes
  * @enabled: is this CRTC enabled?
  * @mode: current mode timings
  * @hwmode: mode timings as programmed to hw regs
@@ -309,10 +313,12 @@ struct drm_crtc_funcs {
  * @gamma_size: size of gamma ramp
  * @gamma_store: gamma ramp values
  * @framedur_ns: precise frame timing
- * @framedur_ns: precise line timing
+ * @linedur_ns: precise line timing
  * @pixeldur_ns: precise pixel timing
  * @helper_private: mid-layer private data
  * @properties: property tracking for this CRTC
+ * @acquire_ctx: per-CRTC implicit acquire context used by atomic drivers for
+ * 	legacy ioctls
  *
  * Each CRTC may have one or more connectors associated with it.  This structure
  * allows the CRTC to be controlled.
@@ -483,6 +489,7 @@ struct drm_encoder {
  * @connector_type_id: index into connector type enum
  * @interlace_allowed: can this connector handle interlaced modes?
  * @doublescan_allowed: can this connector handle doublescan?
+ * @stereo_allowed: can this connector handle stereo modes?
  * @modes: modes available on this connector (from fill_modes() + user)
  * @status: one of the drm_connector_status enums (connected, not, or unknown)
  * @probed_modes: list of modes derived directly from the display
@@ -490,10 +497,13 @@ struct drm_encoder {
  * @funcs: connector control functions
  * @edid_blob_ptr: DRM property containing EDID if present
  * @properties: property tracking for this connector
+ * @path_blob_ptr: DRM blob property data for the DP MST path property
  * @polled: a %DRM_CONNECTOR_POLL_<foo> value for core driven polling
  * @dpms: current dpms state
  * @helper_private: mid-layer private data
+ * @cmdline_mode: mode line parsed from the kernel cmdline for this connector
  * @force: a %DRM_FORCE_<foo> state for forced mode sets
+ * @override_edid: has the EDID been overwritten through debugfs for testing?
  * @encoder_ids: valid encoders for this connector
  * @encoder: encoder driving this connector, if any
  * @eld: EDID-like data, if present
@@ -503,6 +513,8 @@ struct drm_encoder {
  * @video_latency: video latency info from ELD, if found
  * @audio_latency: audio latency info from ELD, if found
  * @null_edid_counter: track sinks that give us all zeros for the EDID
+ * @bad_edid_counter: track sinks that give us an EDID with invalid checksum
+ * @debugfs_entry: debugfs directory for this connector
  *
  * Each connector may be connected to one or more CRTCs, or may be clonable by
  * another connector if they can share a CRTC.  Each connector also has a specific
@@ -570,6 +582,7 @@ struct drm_connector {
  * @update_plane: update the plane configuration
  * @disable_plane: shut down the plane
  * @destroy: clean up plane resources
+ * @reset: reset plane after state has been invalidated (e.g. resume)
  * @set_property: called when a property is changed
  */
 struct drm_plane_funcs {
@@ -603,6 +616,8 @@ enum drm_plane_type {
  * @format_count: number of formats supported
  * @crtc: currently bound CRTC
  * @fb: currently bound fb
+ * @old_fb: Temporary tracking of the old fb while a modeset is ongoing. Used by
+ * 	drm_mode_set_config_internal() to implement correct refcounting.
  * @funcs: helper functions
  * @properties: property tracking for this plane
  * @type: type of plane (overlay, primary, cursor)
@@ -620,8 +635,6 @@ struct drm_plane {
 	struct drm_crtc *crtc;
 	struct drm_framebuffer *fb;
 
-	/* Temporary tracking of the old fb while a modeset is ongoing. Used
-	 * by drm_mode_set_config_internal to implement correct refcounting. */
 	struct drm_framebuffer *old_fb;
 
 	const struct drm_plane_funcs *funcs;
@@ -675,7 +688,6 @@ struct drm_bridge {
 
 /**
  * struct drm_mode_set - new values for a CRTC config change
- * @head: list management
  * @fb: framebuffer to use for new config
  * @crtc: CRTC whose configuration we're about to change
  * @mode: mode timings to use
@@ -717,10 +729,11 @@ struct drm_mode_config_funcs {
 };
 
 /**
- * drm_mode_group - group of mode setting resources for potential sub-grouping
+ * struct drm_mode_group - group of mode setting resources for potential sub-grouping
  * @num_crtcs: CRTC count
  * @num_encoders: encoder count
  * @num_connectors: connector count
+ * @num_bridges: bridge count
  * @id_list: list of KMS object IDs in this group
  *
  * Currently this simply tracks the global mode setting state.  But in the
@@ -740,10 +753,14 @@ struct drm_mode_group {
 };
 
 /**
- * drm_mode_config - Mode configuration control structure
+ * struct drm_mode_config - Mode configuration control structure
  * @mutex: mutex protecting KMS related lists and structures
+ * @connection_mutex: ww mutex protecting connector state and routing
+ * @acquire_ctx: global implicit acquire context used by atomic drivers for
+ * 	legacy ioctls
  * @idr_mutex: mutex for KMS ID allocation and management
  * @crtc_idr: main KMS ID tracking object
+ * @fb_lock: mutex to protect fb state and lists
  * @num_fb: number of fbs available
  * @fb_list: list of framebuffers available
  * @num_connector: number of connectors on this device
@@ -752,17 +769,28 @@ struct drm_mode_group {
  * @bridge_list: list of bridge objects
  * @num_encoder: number of encoders on this device
  * @encoder_list: list of encoder objects
+ * @num_overlay_plane: number of overlay planes on this device
+ * @num_total_plane: number of universal (i.e. with primary/curso) planes on this device
+ * @plane_list: list of plane objects
  * @num_crtc: number of CRTCs on this device
  * @crtc_list: list of CRTC objects
+ * @property_list: list of property objects
  * @min_width: minimum pixel width on this device
  * @min_height: minimum pixel height on this device
  * @max_width: maximum pixel width on this device
  * @max_height: maximum pixel height on this device
  * @funcs: core driver provided mode setting functions
  * @fb_base: base address of the framebuffer
- * @poll_enabled: track polling status for this device
+ * @poll_enabled: track polling support for this device
+ * @poll_running: track polling status for this device
  * @output_poll_work: delayed work for polling in process context
+ * @property_blob_list: list of all the blob property objects
  * @*_property: core property tracking
+ * @preferred_depth: preferred RBG pixel depth, used by fb helpers
+ * @prefer_shadow: hint to userspace to prefer shadow-fb rendering
+ * @async_page_flip: does this device support async flips on the primary plane?
+ * @cursor_width: hint to userspace for max cursor width
+ * @cursor_height: hint to userspace for max cursor height
  *
  * Core mode resource tracking structure.  All CRTC, encoders, and connectors
  * enumerated by the driver are added here, as are global properties.  Some
@@ -776,14 +804,7 @@ struct drm_mode_config {
 	struct idr crtc_idr; /* use this idr for all IDs, fb, crtc, connector, modes - just makes life easier */
 	/* this is limited to one for now */
 
-
-	/**
-	 * fb_lock - mutex to protect fb state
-	 *
-	 * Besides the global fb list his also protects the fbs list in the
-	 * file_priv
-	 */
-	struct mutex fb_lock;
+	struct mutex fb_lock; /* proctects global and per-file fb lists */
 	int num_fb;
 	struct list_head fb_list;
 
