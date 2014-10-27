@@ -42,6 +42,9 @@ struct ipxhdr {
 	struct ipx_address	ipx_source __packed;
 };
 
+/* From af_ipx.c */
+extern int sysctl_ipx_pprop_broadcasting;
+
 static __inline__ struct ipxhdr *ipx_hdr(struct sk_buff *skb)
 {
 	return (struct ipxhdr *)skb_transport_header(skb);
