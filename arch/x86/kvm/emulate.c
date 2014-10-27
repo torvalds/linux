@@ -574,12 +574,14 @@ static inline int assign_eip_far(struct x86_emulate_ctxt *ctxt, ulong dst,
 	case 4:
 		ctxt->_eip = (u32)dst;
 		break;
+#ifdef CONFIG_X86_64
 	case 8:
 		if ((cs_l && is_noncanonical_address(dst)) ||
-		    (!cs_l && (dst & ~(u32)-1)))
+		    (!cs_l && (dst >> 32) != 0))
 			return emulate_gp(ctxt, 0);
 		ctxt->_eip = dst;
 		break;
+#endif
 	default:
 		WARN(1, "unsupported eip assignment size\n");
 	}
@@ -2035,7 +2037,7 @@ static int em_jmp_far(struct x86_emulate_ctxt *ctxt)
 
 	rc = assign_eip_far(ctxt, ctxt->src.val, new_desc.l);
 	if (rc != X86EMUL_CONTINUE) {
-		WARN_ON(!ctxt->mode != X86EMUL_MODE_PROT64);
+		WARN_ON(ctxt->mode != X86EMUL_MODE_PROT64);
 		/* assigning eip failed; restore the old cs */
 		ops->set_segment(ctxt, old_sel, &old_desc, 0, VCPU_SREG_CS);
 		return rc;
@@ -2132,7 +2134,7 @@ static int em_ret_far(struct x86_emulate_ctxt *ctxt)
 		return rc;
 	rc = assign_eip_far(ctxt, eip, new_desc.l);
 	if (rc != X86EMUL_CONTINUE) {
-		WARN_ON(!ctxt->mode != X86EMUL_MODE_PROT64);
+		WARN_ON(ctxt->mode != X86EMUL_MODE_PROT64);
 		ops->set_segment(ctxt, old_cs, &old_desc, 0, VCPU_SREG_CS);
 	}
 	return rc;
