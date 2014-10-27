@@ -321,7 +321,7 @@ void setup_vector_irq(int cpu)
 
 int apic_retrigger_irq(struct irq_data *data)
 {
-	struct irq_cfg *cfg = data->chip_data;
+	struct irq_cfg *cfg = irqd_cfg(data);
 	unsigned long flags;
 	int cpu;
 
@@ -335,7 +335,7 @@ int apic_retrigger_irq(struct irq_data *data)
 
 void apic_ack_edge(struct irq_data *data)
 {
-	irq_complete_move(data->chip_data);
+	irq_complete_move(irqd_cfg(data));
 	irq_move_irq(data);
 	ack_APIC_irq();
 }
@@ -348,7 +348,7 @@ void apic_ack_edge(struct irq_data *data)
 int apic_set_affinity(struct irq_data *data, const struct cpumask *mask,
 		      unsigned int *dest_id)
 {
-	struct irq_cfg *cfg = data->chip_data;
+	struct irq_cfg *cfg = irqd_cfg(data);
 	unsigned int irq = data->irq;
 	int err;
 
