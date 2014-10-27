@@ -29,7 +29,6 @@ struct gb_gpio_controller {
 	struct gb_gpio_line	*lines;
 
 	struct gpio_chip	chip;
-	struct gpio_chip	*gpio;
 };
 #define gpio_chip_to_gb_gpio_controller(chip) \
 	container_of(chip, struct gb_gpio_controller, chip)
