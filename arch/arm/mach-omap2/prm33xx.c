@@ -28,19 +28,19 @@
 #define AM33XX_RST_GLOBAL_WARM_SW_MASK		(1 << 0)
 
 /* Read a register in a PRM instance */
-u32 am33xx_prm_read_reg(s16 inst, u16 idx)
+static u32 am33xx_prm_read_reg(s16 inst, u16 idx)
 {
 	return readl_relaxed(prm_base + inst + idx);
 }
 
 /* Write into a register in a PRM instance */
-void am33xx_prm_write_reg(u32 val, s16 inst, u16 idx)
+static void am33xx_prm_write_reg(u32 val, s16 inst, u16 idx)
 {
 	writel_relaxed(val, prm_base + inst + idx);
 }
 
 /* Read-modify-write a register in PRM. Caller must lock */
-u32 am33xx_prm_rmw_reg_bits(u32 mask, u32 bits, s16 inst, s16 idx)
+static u32 am33xx_prm_rmw_reg_bits(u32 mask, u32 bits, s16 inst, s16 idx)
 {
 	u32 v;
 
