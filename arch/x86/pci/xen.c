@@ -427,6 +427,7 @@ int __init pci_xen_init(void)
 	x86_msi.teardown_msi_irqs = xen_teardown_msi_irqs;
 	x86_msi.msi_mask_irq = xen_nop_msi_mask_irq;
 	x86_msi.msix_mask_irq = xen_nop_msix_mask_irq;
+	pci_msi_ignore_mask = 1;
 #endif
 	return 0;
 }
@@ -508,6 +509,7 @@ int __init pci_xen_initial_domain(void)
 	x86_msi.restore_msi_irqs = xen_initdom_restore_msi_irqs;
 	x86_msi.msi_mask_irq = xen_nop_msi_mask_irq;
 	x86_msi.msix_mask_irq = xen_nop_msix_mask_irq;
+	pci_msi_ignore_mask = 1;
 #endif
 	xen_setup_acpi_sci();
 	__acpi_register_gsi = acpi_register_gsi_xen;

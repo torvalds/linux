@@ -10,6 +10,7 @@ struct msi_msg {
 	u32	data;		/* 16 bits of msi message data */
 };
 
+extern int pci_msi_ignore_mask;
 /* Helper functions */
 struct irq_data;
 struct msi_desc;
