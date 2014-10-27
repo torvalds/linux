@@ -23,8 +23,6 @@
 #ifndef __ARCH_ARM_MACH_OMAP2_CM1_7XX_H
 #define __ARCH_ARM_MACH_OMAP2_CM1_7XX_H
 
-#include "cm_44xx_54xx.h"
-
 /* CM1 base address */
 #define DRA7XX_CM_CORE_AON_BASE		0x4a005000
 
