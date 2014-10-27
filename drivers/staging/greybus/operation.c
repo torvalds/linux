@@ -19,7 +19,7 @@
  */
 #define GB_OPERATION_TYPE_RESPONSE	0x80
 
-#define CONNECTION_TIMEOUT_DEFAULT	1000	/* milliseconds */
+#define OPERATION_TIMEOUT_DEFAULT	1000	/* milliseconds */
 
 /*
  * XXX This needs to be coordinated with host driver parameters
@@ -105,29 +105,25 @@ static void gb_operation_insert(struct gb_operation *operation)
 	rb_insert_color(node, root);
 	spin_unlock_irq(&gb_operations_lock);
 
-	timeout = msecs_to_jiffies(CONNECTION_TIMEOUT_DEFAULT);
+	timeout = msecs_to_jiffies(OPERATION_TIMEOUT_DEFAULT);
 	if (start_timer)
-		schedule_delayed_work(&connection->timeout_work, timeout);
+		schedule_delayed_work(&operation->timeout_work, timeout);
 	else
-		mod_delayed_work(system_wq, &connection->timeout_work, timeout);
+		mod_delayed_work(system_wq, &operation->timeout_work, timeout);
 }
 
 static void gb_operation_remove(struct gb_operation *operation)
 {
 	struct gb_connection *connection = operation->connection;
-	bool last_pending;
 
+	/* Shut down our timeout timer */
+	cancel_delayed_work(&operation->timeout_work);
+
+	/* Take us off of the list of pending operations */
 	spin_lock_irq(&gb_operations_lock);
 	rb_erase(&operation->node, &connection->pending);
-	last_pending = RB_EMPTY_ROOT(&connection->pending);
 	spin_unlock_irq(&gb_operations_lock);
 
-	/*
-	 * If there are no more pending requests, we can stop the
-	 * timeout timer.
-	 */
-	if (last_pending)
-		cancel_delayed_work(&connection->timeout_work);
 }
 
 static struct gb_operation *
@@ -159,7 +155,7 @@ gb_operation_find(struct gb_connection *connection, u16 id)
  * any waiters.  Otherwise we assume calling the completion is enough
  * and nobody else will be waiting.
  */
-void gb_operation_complete(struct gb_operation *operation)
+static void gb_operation_complete(struct gb_operation *operation)
 {
 	if (operation->callback)
 		operation->callback(operation);
@@ -245,6 +241,24 @@ static void gb_operation_recv_work(struct work_struct *recv_work)
 		greybus_gbuf_finished(operation->request);
 	else
 		greybus_gbuf_finished(operation->response);
+}
+
+/*
+ * Timeout call for the operation.
+ *
+ * If this fires, something went wrong, so mark the result as timed out, and
+ * run the completion handler, which (hopefully) should clean up the operation
+ * properly.
+ */
+static void operation_timeout(struct work_struct *work)
+{
+	struct gb_operation *operation;
+
+	operation = container_of(work, struct gb_operation, timeout_work.work);
+	printk("timeout!\n");
+
+	operation->result = GB_OP_TIMEOUT;
+	gb_operation_complete(operation);
 }
 
 /*
@@ -376,6 +390,7 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 	INIT_WORK(&operation->recv_work, gb_operation_recv_work);
 	operation->callback = NULL;	/* set at submit time */
 	init_completion(&operation->completion);
+	INIT_DELAYED_WORK(&operation->timeout_work, operation_timeout);
 
 	spin_lock_irq(&gb_operations_lock);
 	list_add_tail(&operation->links, &connection->operations);

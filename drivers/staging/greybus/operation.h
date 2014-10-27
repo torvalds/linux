@@ -18,6 +18,7 @@ enum gb_operation_status {
 	GB_OP_INTERRUPTED	= 3,
 	GB_OP_RETRY		= 4,
 	GB_OP_PROTOCOL_BAD	= 5,
+	GB_OP_TIMEOUT		= 0xff,
 };
 
 /*
@@ -61,6 +62,7 @@ struct gb_operation {
 	struct work_struct	recv_work;
 	gb_operation_callback	callback;	/* If asynchronous */
 	struct completion	completion;	/* Used if no callback */
+	struct delayed_work	timeout_work;
 
 	struct list_head	links;		/* connection->operations */
 	struct rb_node		node;		/* connection->pending */
@@ -84,7 +86,6 @@ int gb_operation_response_send(struct gb_operation *operation);
 
 void gb_operation_cancel(struct gb_operation *operation);
 int gb_operation_wait(struct gb_operation *operation);
-void gb_operation_complete(struct gb_operation *operation);
 
 int gb_operation_init(void);
 void gb_operation_exit(void);

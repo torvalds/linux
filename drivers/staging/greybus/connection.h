@@ -36,7 +36,6 @@ struct gb_connection {
 	struct list_head		operations;
 	struct rb_root			pending;	/* awaiting reponse */
 	atomic_t			op_cycle;
-	struct delayed_work		timeout_work;
 
 	void				*private;
 };
