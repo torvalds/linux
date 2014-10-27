@@ -24,14 +24,16 @@
 /**
  * omap2_prm_is_hardreset_asserted - read the HW reset line state of
  * submodules contained in the hwmod module
- * @prm_mod: PRM submodule base (e.g. CORE_MOD)
  * @shift: register bit shift corresponding to the reset line to check
+ * @part: PRM partition, ignored for OMAP2
+ * @prm_mod: PRM submodule base (e.g. CORE_MOD)
+ * @offset: register offset, ignored for OMAP2
  *
  * Returns 1 if the (sub)module hardreset line is currently asserted,
  * 0 if the (sub)module hardreset line is not currently asserted, or
  * -EINVAL if called while running on a non-OMAP2/3 chip.
  */
-int omap2_prm_is_hardreset_asserted(s16 prm_mod, u8 shift)
+int omap2_prm_is_hardreset_asserted(u8 shift, u8 part, s16 prm_mod, u16 offset)
 {
 	return omap2_prm_read_mod_bits_shift(prm_mod, OMAP2_RM_RSTCTRL,
 				       (1 << shift));

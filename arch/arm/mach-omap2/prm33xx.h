@@ -122,8 +122,6 @@ extern u32 am33xx_prm_read_reg(s16 inst, u16 idx);
 extern void am33xx_prm_write_reg(u32 val, s16 inst, u16 idx);
 extern u32 am33xx_prm_rmw_reg_bits(u32 mask, u32 bits, s16 inst, s16 idx);
 extern void am33xx_prm_global_warm_sw_reset(void);
-extern int am33xx_prm_is_hardreset_asserted(u8 shift, s16 inst,
-		u16 rstctrl_offs);
 int am33xx_prm_init(void);
 
 #endif /* ASSEMBLER */

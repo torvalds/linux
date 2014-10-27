@@ -52,6 +52,7 @@ u32 am33xx_prm_rmw_reg_bits(u32 mask, u32 bits, s16 inst, s16 idx)
  * am33xx_prm_is_hardreset_asserted - read the HW reset line state of
  * submodules contained in the hwmod module
  * @shift: register bit shift corresponding to the reset line to check
+ * @part: PRM partition, ignored for AM33xx
  * @inst: CM instance register offset (*_INST macro)
  * @rstctrl_offs: RM_RSTCTRL register address offset for this module
  *
@@ -59,7 +60,8 @@ u32 am33xx_prm_rmw_reg_bits(u32 mask, u32 bits, s16 inst, s16 idx)
  * 0 if the (sub)module hardreset line is not currently asserted, or
  * -EINVAL upon parameter error.
  */
-int am33xx_prm_is_hardreset_asserted(u8 shift, s16 inst, u16 rstctrl_offs)
+static int am33xx_prm_is_hardreset_asserted(u8 shift, u8 part, s16 inst,
+					    u16 rstctrl_offs)
 {
 	u32 v;
 
@@ -121,7 +123,7 @@ static int am33xx_prm_deassert_hardreset(u8 shift, u8 st_shift, u8 part,
 	u32 mask = 1 << st_shift;
 
 	/* Check the current status to avoid  de-asserting the line twice */
-	if (am33xx_prm_is_hardreset_asserted(shift, inst, rstctrl_offs) == 0)
+	if (am33xx_prm_is_hardreset_asserted(shift, 0, inst, rstctrl_offs) == 0)
 		return -EEXIST;
 
 	/* Clear the reset status by writing 1 to the status bit */
@@ -133,7 +135,7 @@ static int am33xx_prm_deassert_hardreset(u8 shift, u8 st_shift, u8 part,
 	am33xx_prm_rmw_reg_bits(mask, 0, inst, rstctrl_offs);
 
 	/* wait the status to be set */
-	omap_test_timeout(am33xx_prm_is_hardreset_asserted(st_shift, inst,
+	omap_test_timeout(am33xx_prm_is_hardreset_asserted(st_shift, 0, inst,
 							   rstst_offs),
 			  MAX_MODULE_HARDRESET_WAIT, c);
 
@@ -351,6 +353,7 @@ struct pwrdm_ops am33xx_pwrdm_operations = {
 static struct prm_ll_data am33xx_prm_ll_data = {
 	.assert_hardreset		= am33xx_prm_assert_hardreset,
 	.deassert_hardreset		= am33xx_prm_deassert_hardreset,
+	.is_hardreset_asserted		= am33xx_prm_is_hardreset_asserted,
 };
 
 int __init am33xx_prm_init(void)

@@ -690,6 +690,7 @@ static struct prm_ll_data omap44xx_prm_ll_data = {
 	.late_init = &omap44xx_prm_late_init,
 	.assert_hardreset	= omap4_prminst_assert_hardreset,
 	.deassert_hardreset	= omap4_prminst_deassert_hardreset,
+	.is_hardreset_asserted	= omap4_prminst_is_hardreset_asserted,
 };
 
 int __init omap44xx_prm_init(void)
