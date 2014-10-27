@@ -2315,8 +2315,8 @@ ok:
 			else
 				stored_lft = 0;
 			if (!update_lft && !create && stored_lft) {
-				const u32 minimum_lft = min(
-					stored_lft, (u32)MIN_VALID_LIFETIME);
+				const u32 minimum_lft = min_t(u32,
+					stored_lft, MIN_VALID_LIFETIME);
 				valid_lft = max(valid_lft, minimum_lft);
 
 				/* RFC4862 Section 5.5.3e:
