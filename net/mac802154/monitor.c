@@ -18,9 +18,7 @@
  */
 
 #include <linux/netdevice.h>
-#include <linux/skbuff.h>
 #include <linux/if_arp.h>
-#include <linux/crc-ccitt.h>
 #include <linux/ieee802154.h>
 
 #include <net/mac802154.h>
@@ -29,31 +27,6 @@
 #include <linux/nl802154.h>
 
 #include "ieee802154_i.h"
-
-void mac802154_monitors_rx(struct ieee802154_local *local, struct sk_buff *skb)
-{
-	struct sk_buff *skb2;
-	struct ieee802154_sub_if_data *sdata;
-	u16 crc = crc_ccitt(0, skb->data, skb->len);
-	u8 *data;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		if (sdata->type != IEEE802154_DEV_MONITOR ||
-		    !netif_running(sdata->dev))
-			continue;
-
-		skb2 = skb_clone(skb, GFP_ATOMIC);
-		skb2->dev = sdata->dev;
-		skb2->pkt_type = PACKET_HOST;
-		data = skb_put(skb2, 2);
-		data[0] = crc & 0xff;
-		data[1] = crc >> 8;
-
-		netif_rx_ni(skb2);
-	}
-	rcu_read_unlock();
-}
 
 static const struct net_device_ops mac802154_monitor_ops = {
 	.ndo_open		= mac802154_slave_open,
