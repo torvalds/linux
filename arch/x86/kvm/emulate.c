@@ -711,9 +711,9 @@ static int __linearize(struct x86_emulate_ctxt *ctxt,
 	return X86EMUL_CONTINUE;
 bad:
 	if (addr.seg == VCPU_SREG_SS)
-		return emulate_ss(ctxt, sel);
+		return emulate_ss(ctxt, 0);
 	else
-		return emulate_gp(ctxt, sel);
+		return emulate_gp(ctxt, 0);
 }
 
 static int linearize(struct x86_emulate_ctxt *ctxt,
