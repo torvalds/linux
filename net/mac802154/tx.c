@@ -20,6 +20,7 @@
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
 #include <linux/crc-ccitt.h>
+#include <asm/unaligned.h>
 
 #include <net/rtnetlink.h>
 #include <net/ieee802154_netdev.h>
@@ -84,9 +85,9 @@ ieee802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 	mac802154_monitors_rx(local, skb);
 
 	if (!(local->hw.flags & IEEE802154_HW_OMIT_CKSUM)) {
-		__le16 crc = cpu_to_le16(crc_ccitt(0, skb->data, skb->len));
+		u16 crc = crc_ccitt(0, skb->data, skb->len);
 
-		memcpy(skb_put(skb, 2), &crc, 2);
+		put_unaligned_le16(crc, skb_put(skb, 2));
 	}
 
 	if (skb_cow_head(skb, local->hw.extra_tx_headroom))
