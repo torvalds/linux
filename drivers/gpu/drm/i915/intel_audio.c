@@ -28,7 +28,7 @@
 #include "intel_drv.h"
 #include "i915_drv.h"
 
-static struct {
+static const struct {
 	int clock;
 	u32 config;
 } hdmi_audio_clock[] = {
