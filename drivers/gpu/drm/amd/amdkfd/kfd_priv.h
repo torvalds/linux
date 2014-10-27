@@ -518,6 +518,13 @@ unsigned int kfd_queue_id_to_doorbell(struct kfd_dev *kfd,
 					struct kfd_process *process,
 					unsigned int queue_id);
 
+/* GTT Sub-Allocator */
+
+int kfd_gtt_sa_allocate(struct kfd_dev *kfd, unsigned int size,
+			struct kfd_mem_obj **mem_obj);
+
+int kfd_gtt_sa_free(struct kfd_dev *kfd, struct kfd_mem_obj *mem_obj);
+
 extern struct device *kfd_device;
 
 /* Topology */

@@ -67,6 +67,10 @@ static const struct kfd_deviceid supported_devices[] = {
 	{ 0x131D, &kaveri_device_info },	/* Kaveri */
 };
 
+static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
+				unsigned int chunk_size);
+static void kfd_gtt_sa_fini(struct kfd_dev *kfd);
+
 static const struct kfd_device_info *lookup_device_info(unsigned short did)
 {
 	size_t i;
@@ -306,4 +310,186 @@ void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry)
 
 		spin_unlock(&kfd->interrupt_lock);
 	}
+}
+
+static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
+				unsigned int chunk_size)
+{
+	unsigned int num_of_bits;
+
+	BUG_ON(!kfd);
+	BUG_ON(!kfd->gtt_mem);
+	BUG_ON(buf_size < chunk_size);
+	BUG_ON(buf_size == 0);
+	BUG_ON(chunk_size == 0);
+
+	kfd->gtt_sa_chunk_size = chunk_size;
+	kfd->gtt_sa_num_of_chunks = buf_size / chunk_size;
+
+	num_of_bits = kfd->gtt_sa_num_of_chunks / BITS_PER_BYTE;
+	BUG_ON(num_of_bits == 0);
+
+	kfd->gtt_sa_bitmap = kzalloc(num_of_bits, GFP_KERNEL);
+
+	if (!kfd->gtt_sa_bitmap)
+		return -ENOMEM;
+
+	pr_debug("kfd: gtt_sa_num_of_chunks = %d, gtt_sa_bitmap = %p\n",
+			kfd->gtt_sa_num_of_chunks, kfd->gtt_sa_bitmap);
+
+	mutex_init(&kfd->gtt_sa_lock);
+
+	return 0;
+
+}
+
+static void kfd_gtt_sa_fini(struct kfd_dev *kfd)
+{
+	mutex_destroy(&kfd->gtt_sa_lock);
+	kfree(kfd->gtt_sa_bitmap);
+}
+
+static inline uint64_t kfd_gtt_sa_calc_gpu_addr(uint64_t start_addr,
+						unsigned int bit_num,
+						unsigned int chunk_size)
+{
+	return start_addr + bit_num * chunk_size;
+}
+
+static inline uint32_t *kfd_gtt_sa_calc_cpu_addr(void *start_addr,
+						unsigned int bit_num,
+						unsigned int chunk_size)
+{
+	return (uint32_t *) ((uint64_t) start_addr + bit_num * chunk_size);
+}
+
+int kfd_gtt_sa_allocate(struct kfd_dev *kfd, unsigned int size,
+			struct kfd_mem_obj **mem_obj)
+{
+	unsigned int found, start_search, cur_size;
+
+	BUG_ON(!kfd);
+
+	if (size == 0)
+		return -EINVAL;
+
+	if (size > kfd->gtt_sa_num_of_chunks * kfd->gtt_sa_chunk_size)
+		return -ENOMEM;
+
+	*mem_obj = kmalloc(sizeof(struct kfd_mem_obj), GFP_KERNEL);
+	if ((*mem_obj) == NULL)
+		return -ENOMEM;
+
+	pr_debug("kfd: allocated mem_obj = %p for size = %d\n", *mem_obj, size);
+
+	start_search = 0;
+
+	mutex_lock(&kfd->gtt_sa_lock);
+
+kfd_gtt_restart_search:
+	/* Find the first chunk that is free */
+	found = find_next_zero_bit(kfd->gtt_sa_bitmap,
+					kfd->gtt_sa_num_of_chunks,
+					start_search);
+
+	pr_debug("kfd: found = %d\n", found);
+
+	/* If there wasn't any free chunk, bail out */
+	if (found == kfd->gtt_sa_num_of_chunks)
+		goto kfd_gtt_no_free_chunk;
+
+	/* Update fields of mem_obj */
+	(*mem_obj)->range_start = found;
+	(*mem_obj)->range_end = found;
+	(*mem_obj)->gpu_addr = kfd_gtt_sa_calc_gpu_addr(
+					kfd->gtt_start_gpu_addr,
+					found,
+					kfd->gtt_sa_chunk_size);
+	(*mem_obj)->cpu_ptr = kfd_gtt_sa_calc_cpu_addr(
+					kfd->gtt_start_cpu_ptr,
+					found,
+					kfd->gtt_sa_chunk_size);
+
+	pr_debug("kfd: gpu_addr = %p, cpu_addr = %p\n",
+			(uint64_t *) (*mem_obj)->gpu_addr, (*mem_obj)->cpu_ptr);
+
+	/* If we need only one chunk, mark it as allocated and get out */
+	if (size <= kfd->gtt_sa_chunk_size) {
+		pr_debug("kfd: single bit\n");
+		set_bit(found, kfd->gtt_sa_bitmap);
+		goto kfd_gtt_out;
+	}
+
+	/* Otherwise, try to see if we have enough contiguous chunks */
+	cur_size = size - kfd->gtt_sa_chunk_size;
+	do {
+		(*mem_obj)->range_end =
+			find_next_zero_bit(kfd->gtt_sa_bitmap,
+					kfd->gtt_sa_num_of_chunks, ++found);
+		/*
+		 * If next free chunk is not contiguous than we need to
+		 * restart our search from the last free chunk we found (which
+		 * wasn't contiguous to the previous ones
+		 */
+		if ((*mem_obj)->range_end != found) {
+			start_search = found;
+			goto kfd_gtt_restart_search;
+		}
+
+		/*
+		 * If we reached end of buffer, bail out with error
+		 */
+		if (found == kfd->gtt_sa_num_of_chunks)
+			goto kfd_gtt_no_free_chunk;
+
+		/* Check if we don't need another chunk */
+		if (cur_size <= kfd->gtt_sa_chunk_size)
+			cur_size = 0;
+		else
+			cur_size -= kfd->gtt_sa_chunk_size;
+
+	} while (cur_size > 0);
+
+	pr_debug("kfd: range_start = %d, range_end = %d\n",
+		(*mem_obj)->range_start, (*mem_obj)->range_end);
+
+	/* Mark the chunks as allocated */
+	for (found = (*mem_obj)->range_start;
+		found <= (*mem_obj)->range_end;
+		found++)
+		set_bit(found, kfd->gtt_sa_bitmap);
+
+kfd_gtt_out:
+	mutex_unlock(&kfd->gtt_sa_lock);
+	return 0;
+
+kfd_gtt_no_free_chunk:
+	pr_debug("kfd: allocation failed with mem_obj = %p\n", mem_obj);
+	mutex_unlock(&kfd->gtt_sa_lock);
+	kfree(mem_obj);
+	return -ENOMEM;
+}
+
+int kfd_gtt_sa_free(struct kfd_dev *kfd, struct kfd_mem_obj *mem_obj)
+{
+	unsigned int bit;
+
+	BUG_ON(!kfd);
+	BUG_ON(!mem_obj);
+
+	pr_debug("kfd: free mem_obj = %p, range_start = %d, range_end = %d\n",
+			mem_obj, mem_obj->range_start, mem_obj->range_end);
+
+	mutex_lock(&kfd->gtt_sa_lock);
+
+	/* Mark the chunks as free */
+	for (bit = mem_obj->range_start;
+		bit <= mem_obj->range_end;
+		bit++)
+		clear_bit(bit, kfd->gtt_sa_bitmap);
+
+	mutex_unlock(&kfd->gtt_sa_lock);
+
+	kfree(mem_obj);
+	return 0;
 }
