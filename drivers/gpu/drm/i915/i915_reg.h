@@ -6011,57 +6011,58 @@ enum punit_power_well {
 #define   GEN8_CENTROID_PIXEL_OPT_DIS	(1<<8)
 #define   GEN8_SAMPLER_POWER_BYPASS_DIS	(1<<1)
 
+/* Audio */
 #define G4X_AUD_VID_DID			(dev_priv->info.display_mmio_offset + 0x62020)
-#define INTEL_AUDIO_DEVCL		0x808629FB
-#define INTEL_AUDIO_DEVBLC		0x80862801
-#define INTEL_AUDIO_DEVCTG		0x80862802
+#define   INTEL_AUDIO_DEVCL		0x808629FB
+#define   INTEL_AUDIO_DEVBLC		0x80862801
+#define   INTEL_AUDIO_DEVCTG		0x80862802
 
 #define G4X_AUD_CNTL_ST			0x620B4
-#define G4X_ELDV_DEVCL_DEVBLC		(1 << 13)
-#define G4X_ELDV_DEVCTG			(1 << 14)
-#define G4X_ELD_ADDR			(0xf << 5)
-#define G4X_ELD_ACK			(1 << 4)
+#define   G4X_ELDV_DEVCL_DEVBLC		(1 << 13)
+#define   G4X_ELDV_DEVCTG		(1 << 14)
+#define   G4X_ELD_ADDR_MASK		(0xf << 5)
+#define   G4X_ELD_ACK			(1 << 4)
 #define G4X_HDMIW_HDMIEDID		0x6210C
 
-#define IBX_HDMIW_HDMIEDID_A		0xE2050
-#define IBX_HDMIW_HDMIEDID_B		0xE2150
+#define _IBX_HDMIW_HDMIEDID_A		0xE2050
+#define _IBX_HDMIW_HDMIEDID_B		0xE2150
 #define IBX_HDMIW_HDMIEDID(pipe) _PIPE(pipe, \
-					IBX_HDMIW_HDMIEDID_A, \
-					IBX_HDMIW_HDMIEDID_B)
-#define IBX_AUD_CNTL_ST_A		0xE20B4
-#define IBX_AUD_CNTL_ST_B		0xE21B4
+					_IBX_HDMIW_HDMIEDID_A, \
+					_IBX_HDMIW_HDMIEDID_B)
+#define _IBX_AUD_CNTL_ST_A		0xE20B4
+#define _IBX_AUD_CNTL_ST_B		0xE21B4
 #define IBX_AUD_CNTL_ST(pipe) _PIPE(pipe, \
-					IBX_AUD_CNTL_ST_A, \
-					IBX_AUD_CNTL_ST_B)
-#define IBX_ELD_BUFFER_SIZE		(0x1f << 10)
-#define IBX_ELD_ADDRESS			(0x1f << 5)
-#define IBX_ELD_ACK			(1 << 4)
+					_IBX_AUD_CNTL_ST_A, \
+					_IBX_AUD_CNTL_ST_B)
+#define   IBX_ELD_BUFFER_SIZE_MASK	(0x1f << 10)
+#define   IBX_ELD_ADDRESS_MASK		(0x1f << 5)
+#define   IBX_ELD_ACK			(1 << 4)
 #define IBX_AUD_CNTL_ST2		0xE20C0
-#define IBX_ELD_VALIDB			(1 << 0)
-#define IBX_CP_READYB			(1 << 1)
+#define   IBX_ELD_VALIDB		(1 << 0)
+#define   IBX_CP_READYB			(1 << 1)
 
-#define CPT_HDMIW_HDMIEDID_A		0xE5050
-#define CPT_HDMIW_HDMIEDID_B		0xE5150
+#define _CPT_HDMIW_HDMIEDID_A		0xE5050
+#define _CPT_HDMIW_HDMIEDID_B		0xE5150
 #define CPT_HDMIW_HDMIEDID(pipe) _PIPE(pipe, \
-					CPT_HDMIW_HDMIEDID_A, \
-					CPT_HDMIW_HDMIEDID_B)
-#define CPT_AUD_CNTL_ST_A		0xE50B4
-#define CPT_AUD_CNTL_ST_B		0xE51B4
+					_CPT_HDMIW_HDMIEDID_A, \
+					_CPT_HDMIW_HDMIEDID_B)
+#define _CPT_AUD_CNTL_ST_A		0xE50B4
+#define _CPT_AUD_CNTL_ST_B		0xE51B4
 #define CPT_AUD_CNTL_ST(pipe) _PIPE(pipe, \
-					CPT_AUD_CNTL_ST_A, \
-					CPT_AUD_CNTL_ST_B)
+					_CPT_AUD_CNTL_ST_A, \
+					_CPT_AUD_CNTL_ST_B)
 #define CPT_AUD_CNTRL_ST2		0xE50C0
 
-#define VLV_HDMIW_HDMIEDID_A		(VLV_DISPLAY_BASE + 0x62050)
-#define VLV_HDMIW_HDMIEDID_B		(VLV_DISPLAY_BASE + 0x62150)
+#define _VLV_HDMIW_HDMIEDID_A		(VLV_DISPLAY_BASE + 0x62050)
+#define _VLV_HDMIW_HDMIEDID_B		(VLV_DISPLAY_BASE + 0x62150)
 #define VLV_HDMIW_HDMIEDID(pipe) _PIPE(pipe, \
-					VLV_HDMIW_HDMIEDID_A, \
-					VLV_HDMIW_HDMIEDID_B)
-#define VLV_AUD_CNTL_ST_A		(VLV_DISPLAY_BASE + 0x620B4)
-#define VLV_AUD_CNTL_ST_B		(VLV_DISPLAY_BASE + 0x621B4)
+					_VLV_HDMIW_HDMIEDID_A, \
+					_VLV_HDMIW_HDMIEDID_B)
+#define _VLV_AUD_CNTL_ST_A		(VLV_DISPLAY_BASE + 0x620B4)
+#define _VLV_AUD_CNTL_ST_B		(VLV_DISPLAY_BASE + 0x621B4)
 #define VLV_AUD_CNTL_ST(pipe) _PIPE(pipe, \
-					VLV_AUD_CNTL_ST_A, \
-					VLV_AUD_CNTL_ST_B)
+					_VLV_AUD_CNTL_ST_A, \
+					_VLV_AUD_CNTL_ST_B)
 #define VLV_AUD_CNTL_ST2		(VLV_DISPLAY_BASE + 0x620C0)
 
 /* These are the 4 32-bit write offset registers for each stream
@@ -6070,28 +6071,28 @@ enum punit_power_well {
  */
 #define GEN7_SO_WRITE_OFFSET(n)		(0x5280 + (n) * 4)
 
-#define IBX_AUD_CONFIG_A			0xe2000
-#define IBX_AUD_CONFIG_B			0xe2100
+#define _IBX_AUD_CONFIG_A		0xe2000
+#define _IBX_AUD_CONFIG_B		0xe2100
 #define IBX_AUD_CFG(pipe) _PIPE(pipe, \
-					IBX_AUD_CONFIG_A, \
-					IBX_AUD_CONFIG_B)
-#define CPT_AUD_CONFIG_A			0xe5000
-#define CPT_AUD_CONFIG_B			0xe5100
+					_IBX_AUD_CONFIG_A, \
+					_IBX_AUD_CONFIG_B)
+#define _CPT_AUD_CONFIG_A		0xe5000
+#define _CPT_AUD_CONFIG_B		0xe5100
 #define CPT_AUD_CFG(pipe) _PIPE(pipe, \
-					CPT_AUD_CONFIG_A, \
-					CPT_AUD_CONFIG_B)
-#define VLV_AUD_CONFIG_A		(VLV_DISPLAY_BASE + 0x62000)
-#define VLV_AUD_CONFIG_B		(VLV_DISPLAY_BASE + 0x62100)
+					_CPT_AUD_CONFIG_A, \
+					_CPT_AUD_CONFIG_B)
+#define _VLV_AUD_CONFIG_A		(VLV_DISPLAY_BASE + 0x62000)
+#define _VLV_AUD_CONFIG_B		(VLV_DISPLAY_BASE + 0x62100)
 #define VLV_AUD_CFG(pipe) _PIPE(pipe, \
-					VLV_AUD_CONFIG_A, \
-					VLV_AUD_CONFIG_B)
+					_VLV_AUD_CONFIG_A, \
+					_VLV_AUD_CONFIG_B)
 
 #define   AUD_CONFIG_N_VALUE_INDEX		(1 << 29)
 #define   AUD_CONFIG_N_PROG_ENABLE		(1 << 28)
 #define   AUD_CONFIG_UPPER_N_SHIFT		20
-#define   AUD_CONFIG_UPPER_N_VALUE		(0xff << 20)
+#define   AUD_CONFIG_UPPER_N_MASK		(0xff << 20)
 #define   AUD_CONFIG_LOWER_N_SHIFT		4
-#define   AUD_CONFIG_LOWER_N_VALUE		(0xfff << 4)
+#define   AUD_CONFIG_LOWER_N_MASK		(0xfff << 4)
 #define   AUD_CONFIG_PIXEL_CLOCK_HDMI_SHIFT	16
 #define   AUD_CONFIG_PIXEL_CLOCK_HDMI_MASK	(0xf << 16)
 #define   AUD_CONFIG_PIXEL_CLOCK_HDMI_25175	(0 << 16)
@@ -6107,40 +6108,40 @@ enum punit_power_well {
 #define   AUD_CONFIG_DISABLE_NCTS		(1 << 3)
 
 /* HSW Audio */
-#define   HSW_AUD_CONFIG_A		0x65000 /* Audio Configuration Transcoder A */
-#define   HSW_AUD_CONFIG_B		0x65100 /* Audio Configuration Transcoder B */
-#define   HSW_AUD_CFG(pipe) _PIPE(pipe, \
-					HSW_AUD_CONFIG_A, \
-					HSW_AUD_CONFIG_B)
+#define _HSW_AUD_CONFIG_A		0x65000
+#define _HSW_AUD_CONFIG_B		0x65100
+#define HSW_AUD_CFG(pipe) _PIPE(pipe, \
+					_HSW_AUD_CONFIG_A, \
+					_HSW_AUD_CONFIG_B)
 
-#define   HSW_AUD_MISC_CTRL_A		0x65010 /* Audio Misc Control Convert 1 */
-#define   HSW_AUD_MISC_CTRL_B		0x65110 /* Audio Misc Control Convert 2 */
-#define   HSW_AUD_MISC_CTRL(pipe) _PIPE(pipe, \
-					HSW_AUD_MISC_CTRL_A, \
-					HSW_AUD_MISC_CTRL_B)
+#define _HSW_AUD_MISC_CTRL_A		0x65010
+#define _HSW_AUD_MISC_CTRL_B		0x65110
+#define HSW_AUD_MISC_CTRL(pipe) _PIPE(pipe, \
+					_HSW_AUD_MISC_CTRL_A, \
+					_HSW_AUD_MISC_CTRL_B)
 
-#define   HSW_AUD_DIP_ELD_CTRL_ST_A	0x650b4 /* Audio DIP and ELD Control State Transcoder A */
-#define   HSW_AUD_DIP_ELD_CTRL_ST_B	0x651b4 /* Audio DIP and ELD Control State Transcoder B */
-#define   HSW_AUD_DIP_ELD_CTRL(pipe) _PIPE(pipe, \
-					HSW_AUD_DIP_ELD_CTRL_ST_A, \
-					HSW_AUD_DIP_ELD_CTRL_ST_B)
+#define _HSW_AUD_DIP_ELD_CTRL_ST_A	0x650b4
+#define _HSW_AUD_DIP_ELD_CTRL_ST_B	0x651b4
+#define HSW_AUD_DIP_ELD_CTRL(pipe) _PIPE(pipe, \
+					_HSW_AUD_DIP_ELD_CTRL_ST_A, \
+					_HSW_AUD_DIP_ELD_CTRL_ST_B)
 
 /* Audio Digital Converter */
-#define   HSW_AUD_DIG_CNVT_1		0x65080 /* Audio Converter 1 */
-#define   HSW_AUD_DIG_CNVT_2		0x65180 /* Audio Converter 1 */
-#define   AUD_DIG_CNVT(pipe) _PIPE(pipe, \
-					HSW_AUD_DIG_CNVT_1, \
-					HSW_AUD_DIG_CNVT_2)
-#define   DIP_PORT_SEL_MASK		0x3
+#define _HSW_AUD_DIG_CNVT_1		0x65080
+#define _HSW_AUD_DIG_CNVT_2		0x65180
+#define AUD_DIG_CNVT(pipe) _PIPE(pipe, \
+					_HSW_AUD_DIG_CNVT_1, \
+					_HSW_AUD_DIG_CNVT_2)
+#define DIP_PORT_SEL_MASK		0x3
 
-#define   HSW_AUD_EDID_DATA_A		0x65050
-#define   HSW_AUD_EDID_DATA_B		0x65150
-#define   HSW_AUD_EDID_DATA(pipe) _PIPE(pipe, \
-					HSW_AUD_EDID_DATA_A, \
-					HSW_AUD_EDID_DATA_B)
+#define _HSW_AUD_EDID_DATA_A		0x65050
+#define _HSW_AUD_EDID_DATA_B		0x65150
+#define HSW_AUD_EDID_DATA(pipe) _PIPE(pipe, \
+					_HSW_AUD_EDID_DATA_A, \
+					_HSW_AUD_EDID_DATA_B)
 
-#define   HSW_AUD_PIPE_CONV_CFG		0x6507c /* Audio pipe and converter configs */
-#define   HSW_AUD_PIN_ELD_CP_VLD	0x650c0 /* Audio ELD and CP Ready Status */
+#define HSW_AUD_PIPE_CONV_CFG		0x6507c
+#define HSW_AUD_PIN_ELD_CP_VLD		0x650c0
 #define   AUDIO_INACTIVE_C		(1<<11)
 #define   AUDIO_INACTIVE_B		(1<<7)
 #define   AUDIO_INACTIVE_A		(1<<3)

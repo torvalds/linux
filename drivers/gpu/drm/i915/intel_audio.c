@@ -111,12 +111,12 @@ static void g4x_audio_codec_enable(struct drm_connector *connector,
 
 	if (intel_eld_uptodate(connector,
 			       G4X_AUD_CNTL_ST, eldv,
-			       G4X_AUD_CNTL_ST, G4X_ELD_ADDR,
+			       G4X_AUD_CNTL_ST, G4X_ELD_ADDR_MASK,
 			       G4X_HDMIW_HDMIEDID))
 		return;
 
 	tmp = I915_READ(G4X_AUD_CNTL_ST);
-	tmp &= ~(eldv | G4X_ELD_ADDR);
+	tmp &= ~(eldv | G4X_ELD_ADDR_MASK);
 	len = (tmp >> 9) & 0x1f;		/* ELD buffer size */
 	I915_WRITE(G4X_AUD_CNTL_ST, tmp);
 
@@ -193,7 +193,7 @@ static void hsw_audio_codec_enable(struct drm_connector *connector,
 
 	if (intel_eld_uptodate(connector,
 			       aud_cntrl_st2, eldv,
-			       aud_cntl_st, IBX_ELD_ADDRESS,
+			       aud_cntl_st, IBX_ELD_ADDRESS_MASK,
 			       hdmiw_hdmiedid))
 		return;
 
@@ -202,7 +202,7 @@ static void hsw_audio_codec_enable(struct drm_connector *connector,
 	I915_WRITE(aud_cntrl_st2, tmp);
 
 	tmp = I915_READ(aud_cntl_st);
-	tmp &= ~IBX_ELD_ADDRESS;
+	tmp &= ~IBX_ELD_ADDRESS_MASK;
 	I915_WRITE(aud_cntl_st, tmp);
 	port = (tmp >> 29) & DIP_PORT_SEL_MASK;		/* DIP_Port_Select, 0x1 = PortB */
 	DRM_DEBUG_DRIVER("port num:%d\n", port);
@@ -287,7 +287,7 @@ static void ilk_audio_codec_enable(struct drm_connector *connector,
 
 	if (intel_eld_uptodate(connector,
 			       aud_cntrl_st2, eldv,
-			       aud_cntl_st, IBX_ELD_ADDRESS,
+			       aud_cntl_st, IBX_ELD_ADDRESS_MASK,
 			       hdmiw_hdmiedid))
 		return;
 
@@ -296,7 +296,7 @@ static void ilk_audio_codec_enable(struct drm_connector *connector,
 	I915_WRITE(aud_cntrl_st2, tmp);
 
 	tmp = I915_READ(aud_cntl_st);
-	tmp &= ~IBX_ELD_ADDRESS;
+	tmp &= ~IBX_ELD_ADDRESS_MASK;
 	I915_WRITE(aud_cntl_st, tmp);
 
 	len = min_t(int, eld[2], 21);	/* 84 bytes of hw ELD buffer */
