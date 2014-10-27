@@ -718,6 +718,13 @@ static int qeth_check_idx_response(struct qeth_card *card,
 	return 0;
 }
 
+static struct qeth_card *CARD_FROM_CDEV(struct ccw_device *cdev)
+{
+	struct qeth_card *card = dev_get_drvdata(&((struct ccwgroup_device *)
+		dev_get_drvdata(&cdev->dev))->dev);
+	return card;
+}
+
 static void qeth_setup_ccw(struct qeth_channel *channel, unsigned char *iob,
 		__u32 len)
 {
@@ -1431,6 +1438,7 @@ static void qeth_start_kernel_thread(struct work_struct *work)
 	}
 }
 
+static void qeth_buffer_reclaim_work(struct work_struct *);
 static int qeth_setup_card(struct qeth_card *card)
 {
 
@@ -3232,7 +3240,7 @@ int qeth_check_qdio_errors(struct qeth_card *card, struct qdio_buffer *buf,
 }
 EXPORT_SYMBOL_GPL(qeth_check_qdio_errors);
 
-void qeth_buffer_reclaim_work(struct work_struct *work)
+static void qeth_buffer_reclaim_work(struct work_struct *work)
 {
 	struct qeth_card *card = container_of(work, struct qeth_card,
 		buffer_reclaim_work.work);
@@ -4126,7 +4134,7 @@ static int qeth_setadp_promisc_mode_cb(struct qeth_card *card,
 
 	qeth_default_setadapterparms_cb(card, reply, (unsigned long)cmd);
 	if (cmd->hdr.return_code) {
-		QETH_CARD_TEXT_(card, 4, "prmrc%2.2x", cmd->hdr.return_code);
+		QETH_CARD_TEXT_(card, 4, "prmrc%x", cmd->hdr.return_code);
 		setparms->data.mode = SET_PROMISC_MODE_OFF;
 	}
 	card->info.promisc_mode = setparms->data.mode;
@@ -4493,13 +4501,13 @@ static int qeth_snmp_command_cb(struct qeth_card *card,
 	snmp = &cmd->data.setadapterparms.data.snmp;
 
 	if (cmd->hdr.return_code) {
-		QETH_CARD_TEXT_(card, 4, "scer1%i", cmd->hdr.return_code);
+		QETH_CARD_TEXT_(card, 4, "scer1%x", cmd->hdr.return_code);
 		return 0;
 	}
 	if (cmd->data.setadapterparms.hdr.return_code) {
 		cmd->hdr.return_code =
 			cmd->data.setadapterparms.hdr.return_code;
-		QETH_CARD_TEXT_(card, 4, "scer2%i", cmd->hdr.return_code);
+		QETH_CARD_TEXT_(card, 4, "scer2%x", cmd->hdr.return_code);
 		return 0;
 	}
 	data_len = *((__u16 *)QETH_IPA_PDU_LEN_PDU1(data));
@@ -4717,7 +4725,7 @@ static int qeth_query_card_info_cb(struct qeth_card *card,
 	return 0;
 }
 
-int qeth_query_card_info(struct qeth_card *card,
+static int qeth_query_card_info(struct qeth_card *card,
 				struct carrier_info *carrier_info)
 {
 	struct qeth_cmd_buffer *iob;
@@ -4730,7 +4738,6 @@ int qeth_query_card_info(struct qeth_card *card,
 	return qeth_send_ipa_cmd(card, iob, qeth_query_card_info_cb,
 					(void *)carrier_info);
 }
-EXPORT_SYMBOL_GPL(qeth_query_card_info);
 
 static inline int qeth_get_qdio_q_format(struct qeth_card *card)
 {
@@ -5111,6 +5118,11 @@ static inline int qeth_create_skb_frag(struct qeth_qdio_buffer *qethbuffer,
 
 
 	return 0;
+}
+
+static inline int qeth_is_last_sbale(struct qdio_buffer_element *sbale)
+{
+	return (sbale->eflags & SBAL_EFLAGS_LAST_ENTRY);
 }
 
 struct sk_buff *qeth_core_get_next_skb(struct qeth_card *card,

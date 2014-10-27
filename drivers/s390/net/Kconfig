@@ -71,7 +71,7 @@ config CLAW
 config QETH
 	def_tristate y
 	prompt "Gigabit Ethernet device support"
-	depends on CCW && NETDEVICES && IP_MULTICAST && QDIO
+	depends on CCW && NETDEVICES && IP_MULTICAST && QDIO && ETHERNET
 	help
 	  This driver supports the IBM System z OSA Express adapters
 	  in QDIO mode (all media types), HiperSockets interfaces and z/VM

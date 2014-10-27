@@ -44,8 +44,8 @@ static ssize_t ctcm_buffer_write(struct device *dev,
 		return -ENODEV;
 	}
 
-	rc = sscanf(buf, "%u", &bs1);
-	if (rc != 1)
+	rc = kstrtouint(buf, 0, &bs1);
+	if (rc)
 		goto einval;
 	if (bs1 > CTCM_BUFSIZE_LIMIT)
 					goto einval;
@@ -151,8 +151,8 @@ static ssize_t ctcm_proto_store(struct device *dev,
 
 	if (!priv)
 		return -ENODEV;
-	rc = sscanf(buf, "%d", &value);
-	if ((rc != 1) ||
+	rc = kstrtoint(buf, 0, &value);
+	if (rc ||
 	    !((value == CTCM_PROTO_S390)  ||
 	      (value == CTCM_PROTO_LINUX) ||
 	      (value == CTCM_PROTO_MPC) ||
