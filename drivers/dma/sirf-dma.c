@@ -834,6 +834,7 @@ static int sirfsoc_dma_runtime_resume(struct device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int sirfsoc_dma_pm_suspend(struct device *dev)
 {
 	struct sirfsoc_dma *sdma = dev_get_drvdata(dev);
@@ -915,6 +916,7 @@ static int sirfsoc_dma_pm_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static const struct dev_pm_ops sirfsoc_dma_pm_ops = {
 	SET_RUNTIME_PM_OPS(sirfsoc_dma_runtime_suspend, sirfsoc_dma_runtime_resume, NULL)
