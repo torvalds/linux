@@ -245,7 +245,7 @@ static void free_ioapic_saved_registers(int idx)
 	ioapics[idx].saved_registers = NULL;
 }
 
-int __init arch_early_irq_init(void)
+int __init arch_early_ioapic_init(void)
 {
 	struct irq_cfg *cfg;
 	int i, node = cpu_to_node(0);
@@ -2485,26 +2485,6 @@ unsigned int arch_dynirq_lower_bound(unsigned int from)
 	 * gsi_top if ioapic_dynirq_base hasn't been initialized yet.
 	 */
 	return ioapic_initialized ? ioapic_dynirq_base : gsi_top;
-}
-
-int __init arch_probe_nr_irqs(void)
-{
-	int nr;
-
-	if (nr_irqs > (NR_VECTORS * nr_cpu_ids))
-		nr_irqs = NR_VECTORS * nr_cpu_ids;
-
-	nr = (gsi_top + nr_legacy_irqs()) + 8 * nr_cpu_ids;
-#if defined(CONFIG_PCI_MSI) || defined(CONFIG_HT_IRQ)
-	/*
-	 * for MSI and HT dyn irq
-	 */
-	nr += gsi_top * 16;
-#endif
-	if (nr < nr_irqs)
-		nr_irqs = nr;
-
-	return 0;
 }
 
 #ifdef CONFIG_X86_32
