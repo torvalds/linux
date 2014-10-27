@@ -244,7 +244,7 @@ typedef enum ldlm_policy_res ldlm_policy_res_t;
 									    \
 		return lprocfs_rd_uint(m, &tmp);			    \
 	}								    \
-	struct __##var##__dummy_read {;} /* semicolon catcher */
+	struct __##var##__dummy_read {; } /* semicolon catcher */
 
 #define LDLM_POOL_PROC_WRITER(var, type)				    \
 	static int lprocfs_wr_##var(struct file *file, const char *buffer,  \
@@ -266,7 +266,7 @@ typedef enum ldlm_policy_res ldlm_policy_res_t;
 									    \
 		return rc;						    \
 	}								    \
-	struct __##var##__dummy_write {;} /* semicolon catcher */
+	struct __##var##__dummy_write {; } /* semicolon catcher */
 
 static inline int is_granted_or_cancelled(struct ldlm_lock *lock)
 {
