@@ -108,6 +108,7 @@ config ETRAX_AXISFLASHMAP
 	select MTD_JEDECPROBE
 	select MTD_BLOCK
 	select MTD_COMPLEX_MAPPINGS
+	select MTD_MTDRAM
 	help
 	  This option enables MTD mapping of flash devices.  Needed to use
 	  flash memories.  If unsure, say Y.
