@@ -21,9 +21,10 @@ struct ovl_cache_entry {
 	unsigned int len;
 	unsigned int type;
 	u64 ino;
-	bool is_whiteout;
 	struct list_head l_node;
 	struct rb_node node;
+	bool is_whiteout;
+	bool is_cursor;
 	char name[];
 };
 
@@ -251,7 +252,7 @@ static int ovl_dir_mark_whiteouts(struct dentry *dir,
 
 	mutex_lock(&dir->d_inode->i_mutex);
 	list_for_each_entry(p, rdd->list, l_node) {
-		if (!p->name)
+		if (p->is_cursor)
 			continue;
 
 		if (p->type != DT_CHR)
@@ -307,7 +308,6 @@ static inline int ovl_dir_read_merged(struct path *upperpath,
 	}
 out:
 	return err;
-
 }
 
 static void ovl_seek_cursor(struct ovl_dir_file *od, loff_t pos)
@@ -316,7 +316,7 @@ static void ovl_seek_cursor(struct ovl_dir_file *od, loff_t pos)
 	loff_t off = 0;
 
 	list_for_each_entry(p, &od->cache->entries, l_node) {
-		if (!p->name)
+		if (p->is_cursor)
 			continue;
 		if (off >= pos)
 			break;
@@ -389,7 +389,7 @@ static int ovl_iterate(struct file *file, struct dir_context *ctx)
 
 		p = list_entry(od->cursor.l_node.next, struct ovl_cache_entry, l_node);
 		/* Skip cursors */
-		if (p->name) {
+		if (!p->is_cursor) {
 			if (!p->is_whiteout) {
 				if (!dir_emit(ctx, p->name, p->len, p->ino, p->type))
 					break;
@@ -519,6 +519,7 @@ static int ovl_dir_open(struct inode *inode, struct file *file)
 	od->realfile = realfile;
 	od->is_real = (type != OVL_PATH_MERGE);
 	od->is_upper = (type != OVL_PATH_LOWER);
+	od->cursor.is_cursor = true;
 	file->private_data = od;
 
 	return 0;
