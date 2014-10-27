@@ -55,6 +55,7 @@ static struct {
 	bool show_funcs;
 	bool mod_events;
 	bool uprobes;
+	bool quiet;
 	int nevents;
 	struct perf_probe_event events[MAX_PROBES];
 	struct strlist *dellist;
@@ -315,6 +316,8 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	struct option options[] = {
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show parsed arguments, etc)"),
+	OPT_BOOLEAN('q', "quiet", &params.quiet,
+		    "be quiet (do not show any mesages)"),
 	OPT_BOOLEAN('l', "list", &params.list_events,
 		    "list up current probe events"),
 	OPT_CALLBACK('d', "del", NULL, "[GROUP:]EVENT", "delete a probe event.",
@@ -402,6 +405,14 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 			pr_err_with_code("  Error: Command Parse Error.", ret);
 			return ret;
 		}
+	}
+
+	if (params.quiet) {
+		if (verbose != 0) {
+			pr_err("  Error: -v and -q are exclusive.\n");
+			return -EINVAL;
+		}
+		verbose = -1;
 	}
 
 	if (params.max_probe_points == 0)
