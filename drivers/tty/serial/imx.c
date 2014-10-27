@@ -1937,11 +1937,8 @@ static struct platform_driver serial_imx_driver = {
 
 static int __init imx_serial_init(void)
 {
-	int ret;
+	int ret = uart_register_driver(&imx_reg);
 
-	pr_info("Serial: IMX driver\n");
-
-	ret = uart_register_driver(&imx_reg);
 	if (ret)
 		return ret;
 
