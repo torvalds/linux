@@ -32,6 +32,11 @@
 
 /* Static data */
 
+static void omap44xx_prm_read_pending_irqs(unsigned long *events);
+static void omap44xx_prm_ocp_barrier(void);
+static void omap44xx_prm_save_and_clear_irqen(u32 *saved_mask);
+static void omap44xx_prm_restore_irqen(u32 *saved_mask);
+
 static const struct omap_prcm_irq omap4_prcm_irqs[] = {
 	OMAP_PRCM_IRQ("io",     9,      1),
 };
@@ -207,7 +212,7 @@ static inline u32 _read_pending_irq_reg(u16 irqen_offs, u16 irqst_offs)
  * MPU IRQs, and store the result into the two u32s pointed to by @events.
  * No return value.
  */
-void omap44xx_prm_read_pending_irqs(unsigned long *events)
+static void omap44xx_prm_read_pending_irqs(unsigned long *events)
 {
 	events[0] = _read_pending_irq_reg(OMAP4_PRM_IRQENABLE_MPU_OFFSET,
 					  OMAP4_PRM_IRQSTATUS_MPU_OFFSET);
@@ -224,7 +229,7 @@ void omap44xx_prm_read_pending_irqs(unsigned long *events)
  * block, to avoid race conditions after acknowledging or clearing IRQ
  * bits.  No return value.
  */
-void omap44xx_prm_ocp_barrier(void)
+static void omap44xx_prm_ocp_barrier(void)
 {
 	omap4_prm_read_inst_reg(OMAP4430_PRM_OCP_SOCKET_INST,
 				OMAP4_REVISION_PRM_OFFSET);
@@ -241,7 +246,7 @@ void omap44xx_prm_ocp_barrier(void)
  * interrupts reaches the PRM before returning; otherwise, spurious
  * interrupts might occur.  No return value.
  */
-void omap44xx_prm_save_and_clear_irqen(u32 *saved_mask)
+static void omap44xx_prm_save_and_clear_irqen(u32 *saved_mask)
 {
 	saved_mask[0] =
 		omap4_prm_read_inst_reg(OMAP4430_PRM_OCP_SOCKET_INST,
@@ -270,7 +275,7 @@ void omap44xx_prm_save_and_clear_irqen(u32 *saved_mask)
  * No OCP barrier should be needed here; any pending PRM interrupts will fire
  * once the writes reach the PRM.  No return value.
  */
-void omap44xx_prm_restore_irqen(u32 *saved_mask)
+static void omap44xx_prm_restore_irqen(u32 *saved_mask)
 {
 	omap4_prm_write_inst_reg(saved_mask[0], OMAP4430_PRM_OCP_SOCKET_INST,
 				 OMAP4_PRM_IRQENABLE_MPU_OFFSET);

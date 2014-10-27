@@ -47,12 +47,6 @@ static inline void omap44xx_prm_reconfigure_io_chain(void)
 }
 #endif
 
-/* PRM interrupt-related functions */
-extern void omap44xx_prm_read_pending_irqs(unsigned long *events);
-extern void omap44xx_prm_ocp_barrier(void);
-extern void omap44xx_prm_save_and_clear_irqen(u32 *saved_mask);
-extern void omap44xx_prm_restore_irqen(u32 *saved_mask);
-
 extern int __init omap44xx_prm_init(void);
 extern u32 omap44xx_prm_get_reset_sources(void);
 
