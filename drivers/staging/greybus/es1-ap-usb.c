@@ -234,15 +234,14 @@ static int submit_gbuf(struct gbuf *gbuf, gfp_t gfp_mask)
 	return retval;
 }
 
-static int abort_gbuf(struct gbuf *gbuf)
+static void kill_gbuf(struct gbuf *gbuf)
 {
 	struct urb *urb = gbuf->hcd_data;
 
 	if (!urb)
-		return -EINVAL;
+		return;
 
 	usb_kill_urb(urb);
-	return 0;
 }
 
 static struct greybus_host_driver es1_driver = {
@@ -251,7 +250,7 @@ static struct greybus_host_driver es1_driver = {
 	.free_gbuf_data		= free_gbuf_data,
 	.submit_svc		= submit_svc,
 	.submit_gbuf		= submit_gbuf,
-	.abort_gbuf		= abort_gbuf,
+	.kill_gbuf		= kill_gbuf,
 };
 
 /* Common function to report consistent warnings based on URB status */

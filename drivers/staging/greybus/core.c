@@ -216,7 +216,7 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 	    (!driver->free_gbuf_data) ||
 	    (!driver->submit_svc) ||
 	    (!driver->submit_gbuf) ||
-	    (!driver->abort_gbuf)) {
+	    (!driver->kill_gbuf)) {
 		pr_err("Must implement all greybus_host_driver callbacks!\n");
 		return NULL;
 	}

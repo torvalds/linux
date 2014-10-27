@@ -104,14 +104,14 @@ int greybus_submit_gbuf(struct gbuf *gbuf, gfp_t gfp_mask)
 	return hd->driver->submit_gbuf(gbuf, gfp_mask);
 }
 
-int greybus_kill_gbuf(struct gbuf *gbuf)
+void greybus_kill_gbuf(struct gbuf *gbuf)
 {
 	struct greybus_host_device *hd = gbuf->connection->hd;
 
 	if (gbuf->status != -EINPROGRESS)
-		return -EINVAL;
+		return;
 
-	return hd->driver->abort_gbuf(gbuf);
+	hd->driver->kill_gbuf(gbuf);
 }
 
 #define MAX_CPORTS	1024

@@ -175,7 +175,7 @@ int gb_operation_wait(struct gb_operation *operation)
 	ret = wait_for_completion_interruptible(&operation->completion);
 	/* If interrupted, cancel the in-flight buffer */
 	if (ret < 0)
-		ret = greybus_kill_gbuf(operation->request);
+		greybus_kill_gbuf(operation->request);
 	return ret;
 
 }
@@ -519,17 +519,10 @@ void gb_connection_operation_recv(struct gb_connection *connection,
  */
 void gb_operation_cancel(struct gb_operation *operation)
 {
-	int ret;
-
 	operation->canceled = true;
-	ret = greybus_kill_gbuf(operation->request);
-	if (ret)
-		pr_warn("error %d killing request gbuf\n", ret);
-	if (operation->response) {
-		ret = greybus_kill_gbuf(operation->response);
-		if (ret)
-			pr_warn("error %d killing response gbuf\n", ret);
-	}
+	greybus_kill_gbuf(operation->request);
+	if (operation->response)
+		greybus_kill_gbuf(operation->response);
 }
 
 int gb_operation_init(void)
