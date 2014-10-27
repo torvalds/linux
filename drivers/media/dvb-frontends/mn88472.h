@@ -21,26 +21,18 @@
 
 struct mn88472_config {
 	/*
-	 * max bytes I2C client could write
-	 * Value must be set.
+	 * Max num of bytes given I2C adapter could write at once.
+	 * Default: none
 	 */
-	int i2c_wr_max;
-};
+	u16 i2c_wr_max;
 
-#if IS_ENABLED(CONFIG_DVB_MN88472)
-extern struct dvb_frontend *mn88472_attach(
-	const struct mn88472_config *cfg,
-	struct i2c_adapter *i2c
-);
-#else
-static inline struct dvb_frontend *mn88472_attach(
-	const struct mn88472_config *cfg,
-	struct i2c_adapter *i2c
-)
-{
-	dev_warn(&i2c->dev, "%s: driver disabled by Kconfig\n", __func__);
-	return NULL;
-}
-#endif
+
+	/* Everything after that is returned by the driver. */
+
+	/*
+	 * DVB frontend.
+	 */
+	struct dvb_frontend **fe;
+};
 
 #endif

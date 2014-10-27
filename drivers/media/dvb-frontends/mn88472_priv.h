@@ -19,16 +19,14 @@
 
 #include "dvb_frontend.h"
 #include "mn88472.h"
-#include "dvb_math.h"
 #include <linux/firmware.h>
-#include <linux/i2c-mux.h>
 
 #define MN88472_FIRMWARE "dvb-demod-mn88472-02.fw"
 
 struct mn88472_dev {
-	struct i2c_adapter *i2c;
-	const struct mn88472_config *cfg;
+	struct i2c_client *client[3];
 	struct dvb_frontend fe;
+	u16 i2c_wr_max;
 	fe_delivery_system_t delivery_system;
 	bool warm; /* FW running */
 };
