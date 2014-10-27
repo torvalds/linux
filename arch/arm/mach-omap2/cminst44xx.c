@@ -198,7 +198,7 @@ static void _clktrctrl_write(u8 c, u8 part, u16 inst, u16 cdoffs)
  * Returns true if the clockdomain referred to by (@part, @inst, @cdoffs)
  * is in hardware-supervised idle mode, or 0 otherwise.
  */
-bool omap4_cminst_is_clkdm_in_hwsup(u8 part, u16 inst, u16 cdoffs)
+static bool omap4_cminst_is_clkdm_in_hwsup(u8 part, u16 inst, u16 cdoffs)
 {
 	u32 v;
 
@@ -218,7 +218,7 @@ bool omap4_cminst_is_clkdm_in_hwsup(u8 part, u16 inst, u16 cdoffs)
  * Put a clockdomain referred to by (@part, @inst, @cdoffs) into
  * hardware-supervised idle mode.  No return value.
  */
-void omap4_cminst_clkdm_enable_hwsup(u8 part, u16 inst, u16 cdoffs)
+static void omap4_cminst_clkdm_enable_hwsup(u8 part, u16 inst, u16 cdoffs)
 {
 	_clktrctrl_write(OMAP34XX_CLKSTCTRL_ENABLE_AUTO, part, inst, cdoffs);
 }
@@ -233,7 +233,7 @@ void omap4_cminst_clkdm_enable_hwsup(u8 part, u16 inst, u16 cdoffs)
  * software-supervised idle mode, i.e., controlled manually by the
  * Linux OMAP clockdomain code.  No return value.
  */
-void omap4_cminst_clkdm_disable_hwsup(u8 part, u16 inst, u16 cdoffs)
+static void omap4_cminst_clkdm_disable_hwsup(u8 part, u16 inst, u16 cdoffs)
 {
 	_clktrctrl_write(OMAP34XX_CLKSTCTRL_DISABLE_AUTO, part, inst, cdoffs);
 }
@@ -247,7 +247,7 @@ void omap4_cminst_clkdm_disable_hwsup(u8 part, u16 inst, u16 cdoffs)
  * Take a clockdomain referred to by (@part, @inst, @cdoffs) out of idle,
  * waking it up.  No return value.
  */
-void omap4_cminst_clkdm_force_wakeup(u8 part, u16 inst, u16 cdoffs)
+static void omap4_cminst_clkdm_force_wakeup(u8 part, u16 inst, u16 cdoffs)
 {
 	_clktrctrl_write(OMAP34XX_CLKSTCTRL_FORCE_WAKEUP, part, inst, cdoffs);
 }
@@ -256,7 +256,7 @@ void omap4_cminst_clkdm_force_wakeup(u8 part, u16 inst, u16 cdoffs)
  *
  */
 
-void omap4_cminst_clkdm_force_sleep(u8 part, u16 inst, u16 cdoffs)
+static void omap4_cminst_clkdm_force_sleep(u8 part, u16 inst, u16 cdoffs)
 {
 	_clktrctrl_write(OMAP34XX_CLKSTCTRL_FORCE_SLEEP, part, inst, cdoffs);
 }

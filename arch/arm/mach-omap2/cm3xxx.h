@@ -68,13 +68,6 @@
 
 #ifndef __ASSEMBLER__
 
-extern void omap3xxx_cm_clkdm_enable_hwsup(s16 module, u32 mask);
-extern void omap3xxx_cm_clkdm_disable_hwsup(s16 module, u32 mask);
-extern void omap3xxx_cm_clkdm_force_sleep(s16 module, u32 mask);
-extern void omap3xxx_cm_clkdm_force_wakeup(s16 module, u32 mask);
-
-extern bool omap3xxx_cm_is_clkdm_in_hwsup(s16 module, u32 mask);
-
 extern int omap3xxx_cm_split_idlest_reg(void __iomem *idlest_reg,
 					s16 *prcm_inst, u8 *idlest_reg_id);
 

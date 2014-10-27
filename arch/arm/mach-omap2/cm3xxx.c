@@ -42,7 +42,7 @@ static void _write_clktrctrl(u8 c, s16 module, u32 mask)
 	omap2_cm_write_mod_reg(v, module, OMAP2_CM_CLKSTCTRL);
 }
 
-bool omap3xxx_cm_is_clkdm_in_hwsup(s16 module, u32 mask)
+static bool omap3xxx_cm_is_clkdm_in_hwsup(s16 module, u32 mask)
 {
 	u32 v;
 
@@ -53,22 +53,22 @@ bool omap3xxx_cm_is_clkdm_in_hwsup(s16 module, u32 mask)
 	return (v == OMAP34XX_CLKSTCTRL_ENABLE_AUTO) ? 1 : 0;
 }
 
-void omap3xxx_cm_clkdm_enable_hwsup(s16 module, u32 mask)
+static void omap3xxx_cm_clkdm_enable_hwsup(s16 module, u32 mask)
 {
 	_write_clktrctrl(OMAP34XX_CLKSTCTRL_ENABLE_AUTO, module, mask);
 }
 
-void omap3xxx_cm_clkdm_disable_hwsup(s16 module, u32 mask)
+static void omap3xxx_cm_clkdm_disable_hwsup(s16 module, u32 mask)
 {
 	_write_clktrctrl(OMAP34XX_CLKSTCTRL_DISABLE_AUTO, module, mask);
 }
 
-void omap3xxx_cm_clkdm_force_sleep(s16 module, u32 mask)
+static void omap3xxx_cm_clkdm_force_sleep(s16 module, u32 mask)
 {
 	_write_clktrctrl(OMAP34XX_CLKSTCTRL_FORCE_SLEEP, module, mask);
 }
 
-void omap3xxx_cm_clkdm_force_wakeup(s16 module, u32 mask)
+static void omap3xxx_cm_clkdm_force_wakeup(s16 module, u32 mask)
 {
 	_write_clktrctrl(OMAP34XX_CLKSTCTRL_FORCE_WAKEUP, module, mask);
 }

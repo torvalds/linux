@@ -374,11 +374,6 @@
 
 
 #ifndef __ASSEMBLER__
-bool am33xx_cm_is_clkdm_in_hwsup(u16 inst, u16 cdoffs);
-void am33xx_cm_clkdm_enable_hwsup(u16 inst, u16 cdoffs);
-void am33xx_cm_clkdm_disable_hwsup(u16 inst, u16 cdoffs);
-void am33xx_cm_clkdm_force_sleep(u16 inst, u16 cdoffs);
-void am33xx_cm_clkdm_force_wakeup(u16 inst, u16 cdoffs);
 int am33xx_cm_init(void);
 
 #if defined(CONFIG_SOC_AM33XX) || defined(CONFIG_SOC_AM43XX)

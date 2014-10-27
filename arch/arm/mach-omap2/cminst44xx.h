@@ -11,11 +11,6 @@
 #ifndef __ARCH_ASM_MACH_OMAP2_CMINST44XX_H
 #define __ARCH_ASM_MACH_OMAP2_CMINST44XX_H
 
-bool omap4_cminst_is_clkdm_in_hwsup(u8 part, u16 inst, u16 cdoffs);
-void omap4_cminst_clkdm_enable_hwsup(u8 part, u16 inst, u16 cdoffs);
-void omap4_cminst_clkdm_disable_hwsup(u8 part, u16 inst, u16 cdoffs);
-void omap4_cminst_clkdm_force_sleep(u8 part, u16 inst, u16 cdoffs);
-void omap4_cminst_clkdm_force_wakeup(u8 part, u16 inst, u16 cdoffs);
 extern void omap4_cminst_module_enable(u8 mode, u8 part, u16 inst, s16 cdoffs,
 				       u16 clkctrl_offs);
 extern void omap4_cminst_module_disable(u8 part, u16 inst, s16 cdoffs,
