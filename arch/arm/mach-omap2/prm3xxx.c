@@ -380,7 +380,7 @@ void __init omap3_prm_init_pm(bool has_uart4, bool has_iva)
  * The ST_IO_CHAIN bit does not exist in 3430 before es3.1. The only
  * thing we can do is toggle EN_IO bit for earlier omaps.
  */
-void omap3430_pre_es3_1_reconfigure_io_chain(void)
+static void omap3430_pre_es3_1_reconfigure_io_chain(void)
 {
 	omap2_prm_clear_mod_reg_bits(OMAP3430_EN_IO_MASK, WKUP_MOD,
 				     PM_WKEN);
@@ -398,7 +398,7 @@ void omap3430_pre_es3_1_reconfigure_io_chain(void)
  * deasserting WUCLKIN and clearing the ST_IO_CHAIN WKST bit.  No
  * return value. These registers are only available in 3430 es3.1 and later.
  */
-void omap3_prm_reconfigure_io_chain(void)
+static void omap3_prm_reconfigure_io_chain(void)
 {
 	int i = 0;
 
@@ -418,15 +418,6 @@ void omap3_prm_reconfigure_io_chain(void)
 				   PM_WKST);
 
 	omap2_prm_read_mod_reg(WKUP_MOD, PM_WKST);
-}
-
-/**
- * omap3xxx_prm_reconfigure_io_chain - reconfigure I/O chain
- */
-void omap3xxx_prm_reconfigure_io_chain(void)
-{
-	if (omap3_prcm_irq_setup.reconfigure_io_chain)
-		omap3_prcm_irq_setup.reconfigure_io_chain();
 }
 
 /**

@@ -157,6 +157,8 @@ extern u32 prm_read_reset_sources(void);
 extern bool prm_was_any_context_lost_old(u8 part, s16 inst, u16 idx);
 extern void prm_clear_context_loss_flags_old(u8 part, s16 inst, u16 idx);
 
+void omap_prm_reconfigure_io_chain(void);
+
 #endif
 
 

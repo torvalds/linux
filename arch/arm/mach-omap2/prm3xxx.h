@@ -144,14 +144,6 @@ extern u32 omap3_prm_vcvp_read(u8 offset);
 extern void omap3_prm_vcvp_write(u32 val, u8 offset);
 extern u32 omap3_prm_vcvp_rmw(u32 mask, u32 bits, u8 offset);
 
-#ifdef CONFIG_ARCH_OMAP3
-void omap3xxx_prm_reconfigure_io_chain(void);
-#else
-static inline void omap3xxx_prm_reconfigure_io_chain(void)
-{
-}
-#endif
-
 extern void omap3xxx_prm_dpll3_reset(void);
 
 extern int __init omap3xxx_prm_init(void);
