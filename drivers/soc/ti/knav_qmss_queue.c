@@ -785,7 +785,7 @@ void *knav_pool_create(const char *name,
 		dev_err(kdev->dev, "out of descs in region(%d) for pool(%s)\n",
 			region_id, name);
 		ret = -ENOMEM;
-		goto err;
+		goto err_unlock;
 	}
 
 	/* Region maintains a sorted (by region offset) list of pools
@@ -815,15 +815,16 @@ void *knav_pool_create(const char *name,
 		dev_err(kdev->dev, "pool(%s) create failed: fragmented desc pool in region(%d)\n",
 			name, region_id);
 		ret = -ENOMEM;
-		goto err;
+		goto err_unlock;
 	}
 
 	mutex_unlock(&knav_dev_lock);
 	kdesc_fill_pool(pool);
 	return pool;
 
-err:
+err_unlock:
 	mutex_unlock(&knav_dev_lock);
+err:
 	kfree(pool->name);
 	devm_kfree(kdev->dev, pool);
 	return ERR_PTR(ret);
