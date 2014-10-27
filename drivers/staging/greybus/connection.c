@@ -285,9 +285,11 @@ int gb_connection_init(struct gb_connection *connection)
 	case GREYBUS_PROTOCOL_BATTERY:
 		ret = gb_battery_device_init(connection);
 		break;
+	case GREYBUS_PROTOCOL_UART:
+		ret = gb_uart_device_init(connection);
+		break;
 	case GREYBUS_PROTOCOL_CONTROL:
 	case GREYBUS_PROTOCOL_AP:
-	case GREYBUS_PROTOCOL_UART:
 	case GREYBUS_PROTOCOL_HID:
 	case GREYBUS_PROTOCOL_LED:
 	case GREYBUS_PROTOCOL_VENDOR:
@@ -318,9 +320,11 @@ void gb_connection_exit(struct gb_connection *connection)
 	case GREYBUS_PROTOCOL_BATTERY:
 		gb_battery_device_exit(connection);
 		break;
+	case GREYBUS_PROTOCOL_UART:
+		gb_uart_device_exit(connection);
+		break;
 	case GREYBUS_PROTOCOL_CONTROL:
 	case GREYBUS_PROTOCOL_AP:
-	case GREYBUS_PROTOCOL_UART:
 	case GREYBUS_PROTOCOL_HID:
 	case GREYBUS_PROTOCOL_VENDOR:
 	default:

@@ -35,7 +35,7 @@
 
 struct gb_tty {
 	struct tty_port port;
-	struct gb_module *gmod;
+	struct gb_connection *connection;
 	u16 cport_id;
 	unsigned int minor;
 	unsigned char clocal;
@@ -386,8 +386,7 @@ static const struct tty_operations gb_ops = {
 };
 
 
-int gb_tty_probe(struct gb_module *gmod,
-		 const struct greybus_module_id *id)
+int gb_uart_device_init(struct gb_connection *connection)
 {
 	struct gb_tty *gb_tty;
 	struct device *tty_dev;
@@ -401,14 +400,14 @@ int gb_tty_probe(struct gb_module *gmod,
 	minor = alloc_minor(gb_tty);
 	if (minor < 0) {
 		if (minor == -ENOSPC) {
-			dev_err(&gmod->dev, "no more free minor numbers\n");
+			dev_err(&connection->dev, "no more free minor numbers\n");
 			return -ENODEV;
 		}
 		return minor;
 	}
 
 	gb_tty->minor = minor;
-	gb_tty->gmod = gmod;
+	gb_tty->connection = connection;
 	spin_lock_init(&gb_tty->write_lock);
 	spin_lock_init(&gb_tty->read_lock);
 	init_waitqueue_head(&gb_tty->wioctl);
@@ -416,10 +415,10 @@ int gb_tty_probe(struct gb_module *gmod,
 
 	/* FIXME - allocate gb buffers */
 
-	gmod->gb_tty = gb_tty;
+	connection->private = gb_tty;
 
 	tty_dev = tty_port_register_device(&gb_tty->port, gb_tty_driver, minor,
-					   &gmod->dev);
+					   &connection->dev);
 	if (IS_ERR(tty_dev)) {
 		retval = PTR_ERR(tty_dev);
 		goto error;
@@ -427,14 +426,14 @@ int gb_tty_probe(struct gb_module *gmod,
 
 	return 0;
 error:
-	gmod->gb_tty = NULL;
+	connection->private = NULL;
 	release_minor(gb_tty);
 	return retval;
 }
 
-void gb_tty_disconnect(struct gb_module *gmod)
+void gb_uart_device_exit(struct gb_connection *connection)
 {
-	struct gb_tty *gb_tty = gmod->gb_tty;
+	struct gb_tty *gb_tty = connection->private;
 	struct tty_struct *tty;
 
 	if (!gb_tty)
@@ -444,7 +443,7 @@ void gb_tty_disconnect(struct gb_module *gmod)
 	gb_tty->disconnected = true;
 
 	wake_up_all(&gb_tty->wioctl);
-	gmod->gb_tty = NULL;
+	connection->private = NULL;
 	mutex_unlock(&gb_tty->mutex);
 
 	tty = tty_port_tty_get(&gb_tty->port);
@@ -462,14 +461,6 @@ void gb_tty_disconnect(struct gb_module *gmod)
 
 	kfree(gb_tty);
 }
-
-#if 0
-static struct greybus_driver tty_gb_driver = {
-	.probe =	gb_tty_probe,
-	.disconnect =	gb_tty_disconnect,
-	.id_table =	id_table,
-};
-#endif
 
 int __init gb_tty_init(void)
 {
