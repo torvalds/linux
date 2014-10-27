@@ -122,6 +122,8 @@ static void g4x_audio_codec_enable(struct drm_connector *connector,
 	uint32_t tmp;
 	int len, i;
 
+	DRM_DEBUG_KMS("Enable audio codec, %u bytes ELD\n", eld[2]);
+
 	tmp = I915_READ(G4X_AUD_VID_DID);
 	if (tmp == INTEL_AUDIO_DEVBLC || tmp == INTEL_AUDIO_DEVCL)
 		eldv = G4X_ELDV_DEVCL_DEVBLC;
