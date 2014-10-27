@@ -98,6 +98,32 @@ int omap_cm_wait_module_ready(u8 part, s16 prcm_mod, u16 idlest_reg,
 }
 
 /**
+ * omap_cm_wait_module_idle - wait for a module to enter idle or standby
+ * @part: PRCM partition
+ * @prcm_mod: PRCM module offset
+ * @idlest_reg: CM_IDLESTx register
+ * @idlest_shift: shift of the bit in the CM_IDLEST* register to check
+ *
+ * Wait for the PRCM to indicate that the module identified by
+ * (@prcm_mod, @idlest_id, @idlest_shift) is no longer clocked.  Return
+ * 0 upon success, -EBUSY if the module doesn't enable in time, or
+ * -EINVAL if no per-SoC wait_module_idle() function pointer has been
+ * registered or if the idlest register is unknown on the SoC.
+ */
+int omap_cm_wait_module_idle(u8 part, s16 prcm_mod, u16 idlest_reg,
+			     u8 idlest_shift)
+{
+	if (!cm_ll_data->wait_module_idle) {
+		WARN_ONCE(1, "cm: %s: no low-level function defined\n",
+			  __func__);
+		return -EINVAL;
+	}
+
+	return cm_ll_data->wait_module_idle(part, prcm_mod, idlest_reg,
+					    idlest_shift);
+}
+
+/**
  * cm_register - register per-SoC low-level data with the CM
  * @cld: low-level per-SoC OMAP CM data & function pointers to register
  *

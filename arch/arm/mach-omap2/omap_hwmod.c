@@ -1026,9 +1026,9 @@ static int _omap4_wait_target_disable(struct omap_hwmod *oh)
 	if (oh->flags & HWMOD_NO_IDLEST)
 		return 0;
 
-	return omap4_cminst_wait_module_idle(oh->clkdm->prcm_partition,
-					     oh->clkdm->cm_inst,
-					     oh->prcm.omap4.clkctrl_offs);
+	return omap_cm_wait_module_idle(oh->clkdm->prcm_partition,
+					oh->clkdm->cm_inst,
+					oh->prcm.omap4.clkctrl_offs, 0);
 }
 
 /**
@@ -1051,8 +1051,8 @@ static int _am33xx_wait_target_disable(struct omap_hwmod *oh)
 	if (oh->flags & HWMOD_NO_IDLEST)
 		return 0;
 
-	return am33xx_cm_wait_module_idle(oh->clkdm->cm_inst,
-					     oh->prcm.omap4.clkctrl_offs);
+	return omap_cm_wait_module_idle(0, oh->clkdm->cm_inst,
+					oh->prcm.omap4.clkctrl_offs, 0);
 }
 
 /**

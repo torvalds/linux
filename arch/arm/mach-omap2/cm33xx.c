@@ -250,14 +250,17 @@ static int am33xx_cm_wait_module_ready(u8 part, s16 inst, u16 clkctrl_offs,
 /**
  * am33xx_cm_wait_module_idle - wait for a module to be in 'disabled'
  * state
+ * @part: CM partition, ignored for AM33xx
  * @inst: CM instance register offset (*_INST macro)
  * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
+ * @bit_shift: bit shift for the register, ignored for AM33xx
  *
  * Wait for the module IDLEST to be disabled. Some PRCM transition,
  * like reset assertion or parent clock de-activation must wait the
  * module to be fully disabled.
  */
-int am33xx_cm_wait_module_idle(u16 inst, u16 clkctrl_offs)
+static int am33xx_cm_wait_module_idle(u8 part, s16 inst, u16 clkctrl_offs,
+				      u8 bit_shift)
 {
 	int i = 0;
 
@@ -364,6 +367,7 @@ struct clkdm_ops am33xx_clkdm_operations = {
 
 static struct cm_ll_data am33xx_cm_ll_data = {
 	.wait_module_ready	= &am33xx_cm_wait_module_ready,
+	.wait_module_idle	= &am33xx_cm_wait_module_idle,
 };
 
 int __init am33xx_cm_init(void)

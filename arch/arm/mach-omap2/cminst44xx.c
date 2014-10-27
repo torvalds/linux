@@ -293,12 +293,14 @@ static int omap4_cminst_wait_module_ready(u8 part, s16 inst, u16 clkctrl_offs,
  * @part: PRCM partition ID that the CM_CLKCTRL register exists in
  * @inst: CM instance register offset (*_INST macro)
  * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
+ * @bit_shift: Bit shift for the register, ignored for OMAP4+
  *
  * Wait for the module IDLEST to be disabled. Some PRCM transition,
  * like reset assertion or parent clock de-activation must wait the
  * module to be fully disabled.
  */
-int omap4_cminst_wait_module_idle(u8 part, u16 inst, u16 clkctrl_offs)
+static int omap4_cminst_wait_module_idle(u8 part, s16 inst, u16 clkctrl_offs,
+					 u8 bit_shift)
 {
 	int i = 0;
 
@@ -510,6 +512,7 @@ struct clkdm_ops am43xx_clkdm_operations = {
 
 static struct cm_ll_data omap4xxx_cm_ll_data = {
 	.wait_module_ready	= &omap4_cminst_wait_module_ready,
+	.wait_module_idle	= &omap4_cminst_wait_module_idle,
 };
 
 int __init omap4_cm_init(void)
