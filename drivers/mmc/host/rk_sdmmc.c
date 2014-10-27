@@ -2965,11 +2965,6 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 
 		present = dw_mci_get_cd(mmc);
 
-                /* Stop edma when rountine card triggered */
-                if(cpu_is_rk3036() || cpu_is_rk312x())
-		        if(host->dma_ops && host->dma_ops->stop)
-		                host->dma_ops->stop(host);
-
                 /* Card insert, switch data line to uart function, and vice verse.
                  * ONLY audi chip need switched by software, using udbg tag in dts!
                  */
@@ -2992,6 +2987,10 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 				present ? "inserted" : "removed.", mmc_hostname(mmc));
 	
 			dw_mci_ctrl_all_reset(host);
+			/* Stop edma when rountine card triggered */
+			if(cpu_is_rk3036() || cpu_is_rk312x())
+				if(host->dma_ops && host->dma_ops->stop)
+					host->dma_ops->stop(host);
 			rk_send_wakeup_key();//wake up system
 			spin_lock_bh(&host->lock);
 
