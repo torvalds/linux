@@ -72,6 +72,7 @@ void musb_host_finish_resume(struct work_struct *work)
 	musb->xceiv->otg->state = OTG_STATE_A_HOST;
 
 	spin_unlock_irqrestore(&musb->lock, flags);
+	musb_host_resume_root_hub(musb);
 }
 
 void musb_port_suspend(struct musb *musb, bool do_suspend)

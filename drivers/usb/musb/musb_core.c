@@ -478,13 +478,10 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 						| MUSB_PORT_STAT_RESUME;
 				musb->rh_timer = jiffies
 						 + msecs_to_jiffies(20);
-				schedule_delayed_work(
-					&musb->finish_resume_work,
-					msecs_to_jiffies(20));
+				musb->need_finish_resume = 1;
 
 				musb->xceiv->otg->state = OTG_STATE_A_HOST;
 				musb->is_active = 1;
-				musb_host_resume_root_hub(musb);
 				break;
 			case OTG_STATE_B_WAIT_ACON:
 				musb->xceiv->otg->state = OTG_STATE_B_PERIPHERAL;
@@ -2319,6 +2316,11 @@ static int musb_resume(struct device *dev)
 	mask = MUSB_DEVCTL_BDEVICE | MUSB_DEVCTL_FSDEV | MUSB_DEVCTL_LSDEV;
 	if ((devctl & mask) != (musb->context.devctl & mask))
 		musb->port1_status = 0;
+	if (musb->need_finish_resume) {
+		musb->need_finish_resume = 0;
+		schedule_delayed_work(&musb->finish_resume_work,
+				      msecs_to_jiffies(20));
+	}
 	return 0;
 }
 
