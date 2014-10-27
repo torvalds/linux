@@ -208,6 +208,19 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 {
 	struct greybus_host_device *hd;
 
+	/*
+	 * Validate that the driver implements all of the callbacks
+	 * so that we don't have to every time we make them.
+	 */
+	if ((!driver->alloc_gbuf_data) ||
+	    (!driver->free_gbuf_data) ||
+	    (!driver->submit_svc) ||
+	    (!driver->submit_gbuf) ||
+	    (!driver->abort_gbuf)) {
+		pr_err("Must implement all greybus_host_driver callbacks!\n");
+		return NULL;
+	}
+
 	hd = kzalloc(sizeof(*hd) + driver->hd_priv_size, GFP_KERNEL);
 	if (!hd)
 		return NULL;
