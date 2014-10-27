@@ -160,8 +160,6 @@ static void haswell_write_eld(struct drm_connector *connector,
 	I915_WRITE(aud_cntrl_st2, tmp);
 	POSTING_READ(aud_cntrl_st2);
 
-	assert_pipe_disabled(dev_priv, pipe);
-
 	/* Set ELD valid state */
 	tmp = I915_READ(aud_cntrl_st2);
 	DRM_DEBUG_DRIVER("HDMI audio: pin eld vld status=0x%08x\n", tmp);

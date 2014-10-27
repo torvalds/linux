@@ -1120,15 +1120,6 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
 	int type = intel_encoder->type;
 
-	if (crtc->config.has_audio) {
-		DRM_DEBUG_DRIVER("Audio on pipe %c on DDI\n",
-				 pipe_name(crtc->pipe));
-
-		/* write eld */
-		DRM_DEBUG_DRIVER("DDI audio: write eld information\n");
-		intel_write_eld(intel_encoder);
-	}
-
 	if (type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 		intel_edp_panel_on(intel_dp);
@@ -1225,6 +1216,8 @@ static void intel_enable_ddi(struct intel_encoder *intel_encoder)
 
 	if (intel_crtc->config.has_audio) {
 		intel_display_power_get(dev_priv, POWER_DOMAIN_AUDIO);
+		intel_write_eld(intel_encoder);
+
 		tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
 		tmp |= ((AUDIO_OUTPUT_ENABLE_A | AUDIO_ELD_VALID_A) << (pipe * 4));
 		I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
