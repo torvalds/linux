@@ -2157,7 +2157,7 @@ static int mlx4_en_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 		return -ERANGE;
 	}
 
-	if (mlx4_en_timestamp_config(dev, config.tx_type, config.rx_filter)) {
+	if (mlx4_en_reset_config(dev, config, dev->features)) {
 		config.tx_type = HWTSTAMP_TX_OFF;
 		config.rx_filter = HWTSTAMP_FILTER_NONE;
 	}

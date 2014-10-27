@@ -835,6 +835,13 @@ void mlx4_en_cleanup_filters(struct mlx4_en_priv *priv);
 void mlx4_en_ex_selftest(struct net_device *dev, u32 *flags, u64 *buf);
 void mlx4_en_ptp_overflow_check(struct mlx4_en_dev *mdev);
 
+#define DEV_FEATURE_CHANGED(dev, new_features, feature) \
+	((dev->features & feature) ^ (new_features & feature))
+
+int mlx4_en_reset_config(struct net_device *dev,
+			 struct hwtstamp_config ts_config,
+			 netdev_features_t new_features);
+
 /*
  * Functions for time stamping
  */
@@ -844,9 +851,6 @@ void mlx4_en_fill_hwtstamps(struct mlx4_en_dev *mdev,
 			    u64 timestamp);
 void mlx4_en_init_timestamp(struct mlx4_en_dev *mdev);
 void mlx4_en_remove_timestamp(struct mlx4_en_dev *mdev);
-int mlx4_en_timestamp_config(struct net_device *dev,
-			     int tx_type,
-			     int rx_filter);
 
 /* Globals
  */
