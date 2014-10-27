@@ -65,9 +65,10 @@ enum hwsim_tx_control_flags {
  * kernel, uses:
  *	%HWSIM_ATTR_ADDR_TRANSMITTER, %HWSIM_ATTR_FLAGS,
  *	%HWSIM_ATTR_TX_INFO, %HWSIM_ATTR_SIGNAL, %HWSIM_ATTR_COOKIE
- * @HWSIM_CMD_CREATE_RADIO: create a new radio with the given parameters,
- *	returns the radio ID (>= 0) or negative on errors
- * @HWSIM_CMD_DESTROY_RADIO: destroy a radio
+ * @HWSIM_CMD_NEW_RADIO: create a new radio with the given parameters,
+ *	returns the radio ID (>= 0) or negative on errors, if successful
+ *	then multicast the result
+ * @HWSIM_CMD_DEL_RADIO: destroy a radio, reply is multicasted
  * @__HWSIM_CMD_MAX: enum limit
  */
 enum {
@@ -75,11 +76,14 @@ enum {
 	HWSIM_CMD_REGISTER,
 	HWSIM_CMD_FRAME,
 	HWSIM_CMD_TX_INFO_FRAME,
-	HWSIM_CMD_CREATE_RADIO,
-	HWSIM_CMD_DESTROY_RADIO,
+	HWSIM_CMD_NEW_RADIO,
+	HWSIM_CMD_DEL_RADIO,
 	__HWSIM_CMD_MAX,
 };
 #define HWSIM_CMD_MAX (_HWSIM_CMD_MAX - 1)
+
+#define HWSIM_CMD_CREATE_RADIO   HWSIM_CMD_NEW_RADIO
+#define HWSIM_CMD_DESTROY_RADIO  HWSIM_CMD_DEL_RADIO
 
 /**
  * enum hwsim_attrs - hwsim netlink attributes
