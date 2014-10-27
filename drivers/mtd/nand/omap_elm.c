@@ -115,7 +115,7 @@ int elm_config(struct device *dev, enum bch_ecc bch_type,
 
 	if (!info) {
 		dev_err(dev, "Unable to configure elm - device not probed?\n");
-		return -ENODEV;
+		return -EPROBE_DEFER;
 	}
 	/* ELM cannot detect ECC errors for chunks > 1KB */
 	if (ecc_step_size > ((ELM_ECC_SIZE + 1) / 2)) {
