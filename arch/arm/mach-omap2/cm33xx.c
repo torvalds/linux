@@ -277,13 +277,14 @@ static int am33xx_cm_wait_module_idle(u8 part, s16 inst, u16 clkctrl_offs,
 /**
  * am33xx_cm_module_enable - Enable the modulemode inside CLKCTRL
  * @mode: Module mode (SW or HW)
+ * @part: CM partition, ignored for AM33xx
  * @inst: CM instance register offset (*_INST macro)
- * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
  * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
  *
  * No return value.
  */
-void am33xx_cm_module_enable(u8 mode, u16 inst, s16 cdoffs, u16 clkctrl_offs)
+static void am33xx_cm_module_enable(u8 mode, u8 part, u16 inst,
+				    u16 clkctrl_offs)
 {
 	u32 v;
 
@@ -295,13 +296,13 @@ void am33xx_cm_module_enable(u8 mode, u16 inst, s16 cdoffs, u16 clkctrl_offs)
 
 /**
  * am33xx_cm_module_disable - Disable the module inside CLKCTRL
+ * @part: CM partition, ignored for AM33xx
  * @inst: CM instance register offset (*_INST macro)
- * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
  * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
  *
  * No return value.
  */
-void am33xx_cm_module_disable(u16 inst, s16 cdoffs, u16 clkctrl_offs)
+static void am33xx_cm_module_disable(u8 part, u16 inst, u16 clkctrl_offs)
 {
 	u32 v;
 
@@ -368,6 +369,8 @@ struct clkdm_ops am33xx_clkdm_operations = {
 static struct cm_ll_data am33xx_cm_ll_data = {
 	.wait_module_ready	= &am33xx_cm_wait_module_ready,
 	.wait_module_idle	= &am33xx_cm_wait_module_idle,
+	.module_enable		= &am33xx_cm_module_enable,
+	.module_disable		= &am33xx_cm_module_disable,
 };
 
 int __init am33xx_cm_init(void)

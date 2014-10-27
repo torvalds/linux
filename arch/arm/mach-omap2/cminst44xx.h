@@ -11,10 +11,6 @@
 #ifndef __ARCH_ASM_MACH_OMAP2_CMINST44XX_H
 #define __ARCH_ASM_MACH_OMAP2_CMINST44XX_H
 
-extern void omap4_cminst_module_enable(u8 mode, u8 part, u16 inst, s16 cdoffs,
-				       u16 clkctrl_offs);
-extern void omap4_cminst_module_disable(u8 part, u16 inst, s16 cdoffs,
-					u16 clkctrl_offs);
 /*
  * In an ideal world, we would not export these low-level functions,
  * but this will probably take some time to fix properly

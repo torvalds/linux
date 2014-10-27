@@ -979,11 +979,9 @@ static void _omap4_enable_module(struct omap_hwmod *oh)
 	pr_debug("omap_hwmod: %s: %s: %d\n",
 		 oh->name, __func__, oh->prcm.omap4.modulemode);
 
-	omap4_cminst_module_enable(oh->prcm.omap4.modulemode,
-				   oh->clkdm->prcm_partition,
-				   oh->clkdm->cm_inst,
-				   oh->clkdm->clkdm_offs,
-				   oh->prcm.omap4.clkctrl_offs);
+	omap_cm_module_enable(oh->prcm.omap4.modulemode,
+			      oh->clkdm->prcm_partition,
+			      oh->clkdm->cm_inst, oh->prcm.omap4.clkctrl_offs);
 }
 
 /**
@@ -1001,9 +999,8 @@ static void _am33xx_enable_module(struct omap_hwmod *oh)
 	pr_debug("omap_hwmod: %s: %s: %d\n",
 		 oh->name, __func__, oh->prcm.omap4.modulemode);
 
-	am33xx_cm_module_enable(oh->prcm.omap4.modulemode, oh->clkdm->cm_inst,
-				oh->clkdm->clkdm_offs,
-				oh->prcm.omap4.clkctrl_offs);
+	omap_cm_module_enable(oh->prcm.omap4.modulemode, 0, oh->clkdm->cm_inst,
+			      oh->prcm.omap4.clkctrl_offs);
 }
 
 /**
@@ -1857,10 +1854,8 @@ static int _omap4_disable_module(struct omap_hwmod *oh)
 
 	pr_debug("omap_hwmod: %s: %s\n", oh->name, __func__);
 
-	omap4_cminst_module_disable(oh->clkdm->prcm_partition,
-				    oh->clkdm->cm_inst,
-				    oh->clkdm->clkdm_offs,
-				    oh->prcm.omap4.clkctrl_offs);
+	omap_cm_module_disable(oh->clkdm->prcm_partition, oh->clkdm->cm_inst,
+			       oh->prcm.omap4.clkctrl_offs);
 
 	v = _omap4_wait_target_disable(oh);
 	if (v)
@@ -1889,8 +1884,8 @@ static int _am33xx_disable_module(struct omap_hwmod *oh)
 	if (_are_any_hardreset_lines_asserted(oh))
 		return 0;
 
-	am33xx_cm_module_disable(oh->clkdm->cm_inst, oh->clkdm->clkdm_offs,
-				 oh->prcm.omap4.clkctrl_offs);
+	omap_cm_module_disable(0, oh->clkdm->cm_inst,
+			       oh->prcm.omap4.clkctrl_offs);
 
 	v = _am33xx_wait_target_disable(oh);
 	if (v)

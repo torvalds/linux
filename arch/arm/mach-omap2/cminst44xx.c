@@ -319,13 +319,12 @@ static int omap4_cminst_wait_module_idle(u8 part, s16 inst, u16 clkctrl_offs,
  * @mode: Module mode (SW or HW)
  * @part: PRCM partition ID that the CM_CLKCTRL register exists in
  * @inst: CM instance register offset (*_INST macro)
- * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
  * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
  *
  * No return value.
  */
-void omap4_cminst_module_enable(u8 mode, u8 part, u16 inst, s16 cdoffs,
-			    u16 clkctrl_offs)
+static void omap4_cminst_module_enable(u8 mode, u8 part, u16 inst,
+				       u16 clkctrl_offs)
 {
 	u32 v;
 
@@ -339,13 +338,11 @@ void omap4_cminst_module_enable(u8 mode, u8 part, u16 inst, s16 cdoffs,
  * omap4_cminst_module_disable - Disable the module inside CLKCTRL
  * @part: PRCM partition ID that the CM_CLKCTRL register exists in
  * @inst: CM instance register offset (*_INST macro)
- * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
  * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
  *
  * No return value.
  */
-void omap4_cminst_module_disable(u8 part, u16 inst, s16 cdoffs,
-			     u16 clkctrl_offs)
+static void omap4_cminst_module_disable(u8 part, u16 inst, u16 clkctrl_offs)
 {
 	u32 v;
 
@@ -513,6 +510,8 @@ struct clkdm_ops am43xx_clkdm_operations = {
 static struct cm_ll_data omap4xxx_cm_ll_data = {
 	.wait_module_ready	= &omap4_cminst_wait_module_ready,
 	.wait_module_idle	= &omap4_cminst_wait_module_idle,
+	.module_enable		= &omap4_cminst_module_enable,
+	.module_disable		= &omap4_cminst_module_disable,
 };
 
 int __init omap4_cm_init(void)

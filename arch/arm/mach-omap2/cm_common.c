@@ -124,6 +124,51 @@ int omap_cm_wait_module_idle(u8 part, s16 prcm_mod, u16 idlest_reg,
 }
 
 /**
+ * omap_cm_module_enable - enable a module
+ * @mode: target mode for the module
+ * @part: PRCM partition
+ * @inst: PRCM instance
+ * @clkctrl_offs: CM_CLKCTRL register offset for the module
+ *
+ * Enables clocks for a module identified by (@part, @inst, @clkctrl_offs)
+ * making its IO space accessible. Return 0 upon success, -EINVAL if no
+ * per-SoC module_enable() function pointer has been registered.
+ */
+int omap_cm_module_enable(u8 mode, u8 part, u16 inst, u16 clkctrl_offs)
+{
+	if (!cm_ll_data->module_enable) {
+		WARN_ONCE(1, "cm: %s: no low-level function defined\n",
+			  __func__);
+		return -EINVAL;
+	}
+
+	cm_ll_data->module_enable(mode, part, inst, clkctrl_offs);
+	return 0;
+}
+
+/**
+ * omap_cm_module_disable - disable a module
+ * @part: PRCM partition
+ * @inst: PRCM instance
+ * @clkctrl_offs: CM_CLKCTRL register offset for the module
+ *
+ * Disables clocks for a module identified by (@part, @inst, @clkctrl_offs)
+ * makings its IO space inaccessible. Return 0 upon success, -EINVAL if
+ * no per-SoC module_disable() function pointer has been registered.
+ */
+int omap_cm_module_disable(u8 part, u16 inst, u16 clkctrl_offs)
+{
+	if (!cm_ll_data->module_disable) {
+		WARN_ONCE(1, "cm: %s: no low-level function defined\n",
+			  __func__);
+		return -EINVAL;
+	}
+
+	cm_ll_data->module_disable(part, inst, clkctrl_offs);
+	return 0;
+}
+
+/**
  * cm_register - register per-SoC low-level data with the CM
  * @cld: low-level per-SoC OMAP CM data & function pointers to register
  *
