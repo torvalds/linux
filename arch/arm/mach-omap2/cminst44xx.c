@@ -78,13 +78,12 @@ void omap_cm_base_init(void)
  * _clkctrl_idlest - read a CM_*_CLKCTRL register; mask & shift IDLEST bitfield
  * @part: PRCM partition ID that the CM_CLKCTRL register exists in
  * @inst: CM instance register offset (*_INST macro)
- * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
  * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
  *
  * Return the IDLEST bitfield of a CM_*_CLKCTRL register, shifted down to
  * bit 0.
  */
-static u32 _clkctrl_idlest(u8 part, u16 inst, s16 cdoffs, u16 clkctrl_offs)
+static u32 _clkctrl_idlest(u8 part, u16 inst, u16 clkctrl_offs)
 {
 	u32 v = omap4_cminst_read_inst_reg(part, inst, clkctrl_offs);
 	v &= OMAP4430_IDLEST_MASK;
@@ -96,17 +95,16 @@ static u32 _clkctrl_idlest(u8 part, u16 inst, s16 cdoffs, u16 clkctrl_offs)
  * _is_module_ready - can module registers be accessed without causing an abort?
  * @part: PRCM partition ID that the CM_CLKCTRL register exists in
  * @inst: CM instance register offset (*_INST macro)
- * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
  * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
  *
  * Returns true if the module's CM_*_CLKCTRL.IDLEST bitfield is either
  * *FUNCTIONAL or *INTERFACE_IDLE; false otherwise.
  */
-static bool _is_module_ready(u8 part, u16 inst, s16 cdoffs, u16 clkctrl_offs)
+static bool _is_module_ready(u8 part, u16 inst, u16 clkctrl_offs)
 {
 	u32 v;
 
-	v = _clkctrl_idlest(part, inst, cdoffs, clkctrl_offs);
+	v = _clkctrl_idlest(part, inst, clkctrl_offs);
 
 	return (v == CLKCTRL_IDLEST_FUNCTIONAL ||
 		v == CLKCTRL_IDLEST_INTERFACE_IDLE) ? true : false;
@@ -267,7 +265,6 @@ void omap4_cminst_clkdm_force_sleep(u8 part, u16 inst, u16 cdoffs)
  * omap4_cminst_wait_module_ready - wait for a module to be in 'func' state
  * @part: PRCM partition ID that the CM_CLKCTRL register exists in
  * @inst: CM instance register offset (*_INST macro)
- * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
  * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
  *
  * Wait for the module IDLEST to be functional. If the idle state is in any
@@ -275,15 +272,14 @@ void omap4_cminst_clkdm_force_sleep(u8 part, u16 inst, u16 cdoffs)
  * sysconfig cannot be accessed and will probably lead to an "imprecise
  * external abort"
  */
-int omap4_cminst_wait_module_ready(u8 part, u16 inst, s16 cdoffs,
-				   u16 clkctrl_offs)
+int omap4_cminst_wait_module_ready(u8 part, u16 inst, u16 clkctrl_offs)
 {
 	int i = 0;
 
 	if (!clkctrl_offs)
 		return 0;
 
-	omap_test_timeout(_is_module_ready(part, inst, cdoffs, clkctrl_offs),
+	omap_test_timeout(_is_module_ready(part, inst, clkctrl_offs),
 			  MAX_MODULE_READY_TIME, i);
 
 	return (i < MAX_MODULE_READY_TIME) ? 0 : -EBUSY;
@@ -294,21 +290,20 @@ int omap4_cminst_wait_module_ready(u8 part, u16 inst, s16 cdoffs,
  * state
  * @part: PRCM partition ID that the CM_CLKCTRL register exists in
  * @inst: CM instance register offset (*_INST macro)
- * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
  * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
  *
  * Wait for the module IDLEST to be disabled. Some PRCM transition,
  * like reset assertion or parent clock de-activation must wait the
  * module to be fully disabled.
  */
-int omap4_cminst_wait_module_idle(u8 part, u16 inst, s16 cdoffs, u16 clkctrl_offs)
+int omap4_cminst_wait_module_idle(u8 part, u16 inst, u16 clkctrl_offs)
 {
 	int i = 0;
 
 	if (!clkctrl_offs)
 		return 0;
 
-	omap_test_timeout((_clkctrl_idlest(part, inst, cdoffs, clkctrl_offs) ==
+	omap_test_timeout((_clkctrl_idlest(part, inst, clkctrl_offs) ==
 			   CLKCTRL_IDLEST_DISABLED),
 			  MAX_MODULE_DISABLE_TIME, i);
 

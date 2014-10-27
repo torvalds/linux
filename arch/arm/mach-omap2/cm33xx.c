@@ -96,13 +96,12 @@ static inline u32 am33xx_cm_read_reg_bits(u16 inst, s16 idx, u32 mask)
 /**
  * _clkctrl_idlest - read a CM_*_CLKCTRL register; mask & shift IDLEST bitfield
  * @inst: CM instance register offset (*_INST macro)
- * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
  * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
  *
  * Return the IDLEST bitfield of a CM_*_CLKCTRL register, shifted down to
  * bit 0.
  */
-static u32 _clkctrl_idlest(u16 inst, s16 cdoffs, u16 clkctrl_offs)
+static u32 _clkctrl_idlest(u16 inst, u16 clkctrl_offs)
 {
 	u32 v = am33xx_cm_read_reg(inst, clkctrl_offs);
 	v &= AM33XX_IDLEST_MASK;
@@ -113,17 +112,16 @@ static u32 _clkctrl_idlest(u16 inst, s16 cdoffs, u16 clkctrl_offs)
 /**
  * _is_module_ready - can module registers be accessed without causing an abort?
  * @inst: CM instance register offset (*_INST macro)
- * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
  * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
  *
  * Returns true if the module's CM_*_CLKCTRL.IDLEST bitfield is either
  * *FUNCTIONAL or *INTERFACE_IDLE; false otherwise.
  */
-static bool _is_module_ready(u16 inst, s16 cdoffs, u16 clkctrl_offs)
+static bool _is_module_ready(u16 inst, u16 clkctrl_offs)
 {
 	u32 v;
 
-	v = _clkctrl_idlest(inst, cdoffs, clkctrl_offs);
+	v = _clkctrl_idlest(inst, clkctrl_offs);
 
 	return (v == CLKCTRL_IDLEST_FUNCTIONAL ||
 		v == CLKCTRL_IDLEST_INTERFACE_IDLE) ? true : false;
@@ -229,7 +227,6 @@ void am33xx_cm_clkdm_force_wakeup(u16 inst, u16 cdoffs)
 /**
  * am33xx_cm_wait_module_ready - wait for a module to be in 'func' state
  * @inst: CM instance register offset (*_INST macro)
- * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
  * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
  *
  * Wait for the module IDLEST to be functional. If the idle state is in any
@@ -237,11 +234,11 @@ void am33xx_cm_clkdm_force_wakeup(u16 inst, u16 cdoffs)
  * sysconfig cannot be accessed and will probably lead to an "imprecise
  * external abort"
  */
-int am33xx_cm_wait_module_ready(u16 inst, s16 cdoffs, u16 clkctrl_offs)
+int am33xx_cm_wait_module_ready(u16 inst, u16 clkctrl_offs)
 {
 	int i = 0;
 
-	omap_test_timeout(_is_module_ready(inst, cdoffs, clkctrl_offs),
+	omap_test_timeout(_is_module_ready(inst, clkctrl_offs),
 			  MAX_MODULE_READY_TIME, i);
 
 	return (i < MAX_MODULE_READY_TIME) ? 0 : -EBUSY;
@@ -251,21 +248,20 @@ int am33xx_cm_wait_module_ready(u16 inst, s16 cdoffs, u16 clkctrl_offs)
  * am33xx_cm_wait_module_idle - wait for a module to be in 'disabled'
  * state
  * @inst: CM instance register offset (*_INST macro)
- * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
  * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
  *
  * Wait for the module IDLEST to be disabled. Some PRCM transition,
  * like reset assertion or parent clock de-activation must wait the
  * module to be fully disabled.
  */
-int am33xx_cm_wait_module_idle(u16 inst, s16 cdoffs, u16 clkctrl_offs)
+int am33xx_cm_wait_module_idle(u16 inst, u16 clkctrl_offs)
 {
 	int i = 0;
 
 	if (!clkctrl_offs)
 		return 0;
 
-	omap_test_timeout((_clkctrl_idlest(inst, cdoffs, clkctrl_offs) ==
+	omap_test_timeout((_clkctrl_idlest(inst, clkctrl_offs) ==
 				CLKCTRL_IDLEST_DISABLED),
 				MAX_MODULE_READY_TIME, i);
 

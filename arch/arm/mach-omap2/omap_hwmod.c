@@ -1028,7 +1028,6 @@ static int _omap4_wait_target_disable(struct omap_hwmod *oh)
 
 	return omap4_cminst_wait_module_idle(oh->clkdm->prcm_partition,
 					     oh->clkdm->cm_inst,
-					     oh->clkdm->clkdm_offs,
 					     oh->prcm.omap4.clkctrl_offs);
 }
 
@@ -1053,7 +1052,6 @@ static int _am33xx_wait_target_disable(struct omap_hwmod *oh)
 		return 0;
 
 	return am33xx_cm_wait_module_idle(oh->clkdm->cm_inst,
-					     oh->clkdm->clkdm_offs,
 					     oh->prcm.omap4.clkctrl_offs);
 }
 
@@ -2977,7 +2975,6 @@ static int _omap4_wait_target_ready(struct omap_hwmod *oh)
 
 	return omap4_cminst_wait_module_ready(oh->clkdm->prcm_partition,
 					      oh->clkdm->cm_inst,
-					      oh->clkdm->clkdm_offs,
 					      oh->prcm.omap4.clkctrl_offs);
 }
 
@@ -3004,7 +3001,6 @@ static int _am33xx_wait_target_ready(struct omap_hwmod *oh)
 	/* XXX check module SIDLEMODE, hardreset status */
 
 	return am33xx_cm_wait_module_ready(oh->clkdm->cm_inst,
-					      oh->clkdm->clkdm_offs,
 					      oh->prcm.omap4.clkctrl_offs);
 }
 
