@@ -127,6 +127,11 @@ extern volatile int session_done;
 
 #define session_done()	ACCESS_ONCE(session_done)
 
+int perf_session__deliver_synth_event(struct perf_session *session,
+				      union perf_event *event,
+				      struct perf_sample *sample,
+				      struct perf_tool *tool);
+
 int perf_event__process_id_index(struct perf_tool *tool,
 				 union perf_event *event,
 				 struct perf_session *session);
