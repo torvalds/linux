@@ -446,6 +446,7 @@ static int usbvision_v4l2_close(struct file *file)
 	if (usbvision->remove_pending) {
 		printk(KERN_INFO "%s: Final disconnect\n", __func__);
 		usbvision_release(usbvision);
+		return 0;
 	}
 	mutex_unlock(&usbvision->v4l2_lock);
 
@@ -1221,6 +1222,7 @@ static int usbvision_radio_close(struct file *file)
 	if (usbvision->remove_pending) {
 		printk(KERN_INFO "%s: Final disconnect\n", __func__);
 		usbvision_release(usbvision);
+		return err_code;
 	}
 
 	mutex_unlock(&usbvision->v4l2_lock);

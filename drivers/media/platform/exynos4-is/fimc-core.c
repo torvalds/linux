@@ -832,6 +832,7 @@ err:
 	return -ENXIO;
 }
 
+#if defined(CONFIG_PM_RUNTIME) || defined(CONFIG_PM_SLEEP)
 static int fimc_m2m_suspend(struct fimc_dev *fimc)
 {
 	unsigned long flags;
@@ -870,6 +871,7 @@ static int fimc_m2m_resume(struct fimc_dev *fimc)
 
 	return 0;
 }
+#endif /* CONFIG_PM_RUNTIME || CONFIG_PM_SLEEP */
 
 static const struct of_device_id fimc_of_match[];
 
