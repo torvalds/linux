@@ -205,7 +205,6 @@ mac802154_wpans_rx(struct ieee802154_local *local, struct sk_buff *skb)
 		return;
 	}
 
-	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		if (sdata->type != IEEE802154_DEV_WPAN ||
 		    !netif_running(sdata->dev))
@@ -215,7 +214,6 @@ mac802154_wpans_rx(struct ieee802154_local *local, struct sk_buff *skb)
 		skb = NULL;
 		break;
 	}
-	rcu_read_unlock();
 
 	if (skb)
 		kfree_skb(skb);
@@ -234,7 +232,6 @@ mac802154_monitors_rx(struct ieee802154_local *local, struct sk_buff *skb)
 	skb->pkt_type = PACKET_OTHERHOST;
 	skb->protocol = htons(ETH_P_IEEE802154);
 
-	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		if (sdata->type != IEEE802154_DEV_MONITOR ||
 		    !netif_running(sdata->dev))
@@ -249,7 +246,6 @@ mac802154_monitors_rx(struct ieee802154_local *local, struct sk_buff *skb)
 
 		netif_rx_ni(skb2);
 	}
-	rcu_read_unlock();
 }
 
 void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
@@ -273,8 +269,12 @@ void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 		skb_trim(skb, skb->len - 2); /* CRC */
 	}
 
+	rcu_read_lock();
+
 	mac802154_monitors_rx(local, skb);
 	mac802154_wpans_rx(local, skb);
+
+	rcu_read_unlock();
 
 	return;
 
