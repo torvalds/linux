@@ -641,11 +641,11 @@ static bool insn_aligned(struct x86_emulate_ctxt *ctxt, unsigned size)
 		return true;
 }
 
-static int __linearize(struct x86_emulate_ctxt *ctxt,
-		     struct segmented_address addr,
-		     unsigned *max_size, unsigned size,
-		     bool write, bool fetch,
-		     ulong *linear)
+static __always_inline int __linearize(struct x86_emulate_ctxt *ctxt,
+				       struct segmented_address addr,
+				       unsigned *max_size, unsigned size,
+				       bool write, bool fetch,
+				       ulong *linear)
 {
 	struct desc_struct desc;
 	bool usable;
