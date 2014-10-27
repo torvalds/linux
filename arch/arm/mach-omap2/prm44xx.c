@@ -652,11 +652,10 @@ static int omap4_pwrdm_wait_transition(struct powerdomain *pwrdm)
 
 static int omap4_check_vcvp(void)
 {
-	/* No VC/VP on dra7xx devices */
-	if (soc_is_dra7xx())
-		return 0;
+	if (prm_features & PRM_HAS_VOLTAGE)
+		return 1;
 
-	return 1;
+	return 0;
 }
 
 struct pwrdm_ops omap4_pwrdm_operations = {
@@ -695,6 +694,9 @@ int __init omap44xx_prm_init(void)
 {
 	if (cpu_is_omap44xx() || soc_is_omap54xx() || soc_is_dra7xx())
 		prm_features |= PRM_HAS_IO_WAKEUP;
+
+	if (!soc_is_dra7xx())
+		prm_features |= PRM_HAS_VOLTAGE;
 
 	return prm_register(&omap44xx_prm_ll_data);
 }
