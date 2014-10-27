@@ -58,8 +58,8 @@ struct virtpci_dev {
 						 * this device */
 	unsigned short vendor;	/* vendor id for device */
 	unsigned short device;	/* device id for device */
-	u32 busNo;		/* number of bus on which device exists */
-	u32 deviceNo;		/* device's number on the bus */
+	u32 bus_no;		/* number of bus on which device exists */
+	u32 device_no;		/* device's number on the bus */
 	struct irq_info intr;	/* interrupt info */
 	struct device generic_dev;	/* generic device */
 	union {

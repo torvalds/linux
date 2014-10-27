@@ -466,12 +466,12 @@ virthba_probe(struct virtpci_dev *virtpcidev, const struct pci_device_id *id)
 	u64 mask;
 
 	LOGVER("entering virthba_probe...\n");
-	LOGVER("virtpcidev busNo<<%d>>devNo<<%d>>", virtpcidev->busNo,
-	       virtpcidev->deviceNo);
+	LOGVER("virtpcidev bus_no<<%d>>devNo<<%d>>", virtpcidev->bus_no,
+	       virtpcidev->device_no);
 
 	LOGINF("entering virthba_probe...\n");
-	LOGINF("virtpcidev busNo<<%d>>devNo<<%d>>", virtpcidev->busNo,
-	       virtpcidev->deviceNo);
+	LOGINF("virtpcidev bus_no<<%d>>devNo<<%d>>", virtpcidev->bus_no,
+	       virtpcidev->device_no);
 	POSTCODE_LINUX_2(VHBA_PROBE_ENTRY_PC, POSTCODE_SEVERITY_INFO);
 	/* call scsi_host_alloc to register a scsi host adapter
 	 * instance - this virthba that has just been created is an
@@ -649,8 +649,8 @@ virthba_remove(struct virtpci_dev *virtpcidev)
 	struct Scsi_Host *scsihost =
 	    (struct Scsi_Host *) virtpcidev->scsi.scsihost;
 
-	LOGINF("virtpcidev busNo<<%d>>devNo<<%d>>", virtpcidev->busNo,
-	       virtpcidev->deviceNo);
+	LOGINF("virtpcidev bus_no<<%d>>devNo<<%d>>", virtpcidev->bus_no,
+	       virtpcidev->device_no);
 	virthbainfo = (struct virthba_info *) scsihost->hostdata;
 	if (virthbainfo->interrupt_vector != -1)
 		free_irq(virthbainfo->interrupt_vector, virthbainfo);
@@ -1482,8 +1482,8 @@ virthba_serverup(struct virtpci_dev *virtpcidev)
 	    (struct virthba_info *) ((struct Scsi_Host *) virtpcidev->scsi.
 				     scsihost)->hostdata;
 
-	DBGINF("virtpcidev busNo<<%d>>devNo<<%d>>", virtpcidev->busNo,
-	       virtpcidev->deviceNo);
+	DBGINF("virtpcidev bus_no<<%d>>devNo<<%d>>", virtpcidev->bus_no,
+	       virtpcidev->device_no);
 
 	if (!virthbainfo->serverdown) {
 		DBGINF("Server up message received while server is already up.\n");
@@ -1573,13 +1573,13 @@ virthba_serverdown_complete(struct work_struct *work)
 
 	virtpcidev = virthbainfo->virtpcidev;
 
-	DBGINF("virtpcidev busNo<<%d>>devNo<<%d>>", virtpcidev->busNo,
-	       virtpcidev->deviceNo);
+	DBGINF("virtpcidev bus_no<<%d>>devNo<<%d>>", virtpcidev->bus_no,
+	       virtpcidev->device_no);
 	virthbainfo->serverdown = true;
 	virthbainfo->serverchangingstate = false;
 	/* Return the ServerDown response to Command */
-	visorchipset_device_pause_response(virtpcidev->busNo,
-					   virtpcidev->deviceNo, 0);
+	visorchipset_device_pause_response(virtpcidev->bus_no,
+					   virtpcidev->device_no, 0);
 }
 
 /* As per VirtpciFunc returns 1 for success and 0 for failure */
@@ -1591,8 +1591,8 @@ virthba_serverdown(struct virtpci_dev *virtpcidev, u32 state)
 				     scsihost)->hostdata;
 
 	DBGINF("virthba_serverdown");
-	DBGINF("virtpcidev busNo<<%d>>devNo<<%d>>", virtpcidev->busNo,
-	       virtpcidev->deviceNo);
+	DBGINF("virtpcidev bus_no<<%d>>devNo<<%d>>", virtpcidev->bus_no,
+	       virtpcidev->device_no);
 
 	if (!virthbainfo->serverdown && !virthbainfo->serverchangingstate) {
 		virthbainfo->serverchangingstate = true;

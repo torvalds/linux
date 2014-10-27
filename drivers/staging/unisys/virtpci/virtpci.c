@@ -843,7 +843,7 @@ static int virtpci_device_probe(struct device *dev)
 		 */
 		error = virtpcidrv->probe(virtpcidev, id);
 		if (!error) {
-			fix_vbus_devInfo(dev, virtpcidev->deviceNo,
+			fix_vbus_devInfo(dev, virtpcidev->device_no,
 					 virtpcidev->device, virtpcidrv);
 			virtpcidev->mydriver = virtpcidrv;
 			POSTCODE_LINUX_2(VPCI_PROBE_EXIT_PC,
@@ -940,8 +940,8 @@ static int virtpci_device_add(struct device *parentbus, int devtype,
 		virtpcidev->net = *net;
 	}
 	virtpcidev->vendor = PCI_VENDOR_ID_UNISYS;
-	virtpcidev->busNo = addparams->bus_no;
-	virtpcidev->deviceNo = addparams->device_no;
+	virtpcidev->bus_no = addparams->bus_no;
+	virtpcidev->device_no = addparams->device_no;
 
 	virtpcidev->queueinfo.chan = addparams->chanptr;
 	virtpcidev->queueinfo.send_int_if_needed = NULL;
@@ -1173,7 +1173,8 @@ static int virtpci_device_serverup(struct device *parentbus,
 		* ever have a bus that contains NO devices, since we
 		* would never even get here in that case.
 		*/
-		fix_vbus_devInfo(&tmpvpcidev->generic_dev, tmpvpcidev->deviceNo,
+		fix_vbus_devInfo(&tmpvpcidev->generic_dev,
+				 tmpvpcidev->device_no,
 				 tmpvpcidev->device, vpcidriver);
 		rc = vpcidriver->resume(tmpvpcidev);
 	}
@@ -1458,7 +1459,8 @@ static ssize_t info_debugfs_read(struct file *file, char __user *buf,
 		if (tmpvpcidev->devtype == VIRTHBA_TYPE) {
 			str_pos += scnprintf(vbuf + str_pos, len - str_pos,
 					"[%d:%d] VHba:%08x:%08x max-config:%d-%d-%d-%d",
-					tmpvpcidev->busNo, tmpvpcidev->deviceNo,
+					tmpvpcidev->bus_no,
+					tmpvpcidev->device_no,
 					tmpvpcidev->scsi.wwnn.wwnn1,
 					tmpvpcidev->scsi.wwnn.wwnn2,
 					tmpvpcidev->scsi.max.max_channel,
@@ -1468,7 +1470,8 @@ static ssize_t info_debugfs_read(struct file *file, char __user *buf,
 		} else {
 			str_pos += scnprintf(vbuf + str_pos, len - str_pos,
 					"[%d:%d] VNic:%02x:%02x:%02x:%02x:%02x:%02x num_rcv_bufs:%d mtu:%d",
-					tmpvpcidev->busNo, tmpvpcidev->deviceNo,
+					tmpvpcidev->bus_no,
+					tmpvpcidev->device_no,
 					tmpvpcidev->net.mac_addr[0],
 					tmpvpcidev->net.mac_addr[1],
 					tmpvpcidev->net.mac_addr[2],
