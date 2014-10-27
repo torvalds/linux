@@ -61,6 +61,8 @@ fail:
 
 void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
+	WARN_ON_ONCE(softirq_count() == 0);
+
 	mac802154_subif_rx(hw, skb);
 }
 EXPORT_SYMBOL(ieee802154_rx);
