@@ -216,7 +216,8 @@ mac802154_wpans_rx(struct ieee802154_local *local, struct sk_buff *skb)
 		kfree_skb(skb);
 }
 
-void mac802154_monitors_rx(struct ieee802154_local *local, struct sk_buff *skb)
+static void
+mac802154_monitors_rx(struct ieee802154_local *local, struct sk_buff *skb)
 {
 	struct sk_buff *skb2;
 	struct ieee802154_sub_if_data *sdata;
