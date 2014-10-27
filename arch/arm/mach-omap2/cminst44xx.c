@@ -26,7 +26,6 @@
 #include "cm1_44xx.h"
 #include "cm2_44xx.h"
 #include "cm44xx.h"
-#include "cminst44xx.h"
 #include "cm-regbits-34xx.h"
 #include "prcm44xx.h"
 #include "prm44xx.h"
@@ -74,6 +73,8 @@ void omap_cm_base_init(void)
 
 /* Private functions */
 
+static u32 omap4_cminst_read_inst_reg(u8 part, u16 inst, u16 idx);
+
 /**
  * _clkctrl_idlest - read a CM_*_CLKCTRL register; mask & shift IDLEST bitfield
  * @part: PRCM partition ID that the CM_CLKCTRL register exists in
@@ -110,10 +111,8 @@ static bool _is_module_ready(u8 part, u16 inst, u16 clkctrl_offs)
 		v == CLKCTRL_IDLEST_INTERFACE_IDLE) ? true : false;
 }
 
-/* Public functions */
-
 /* Read a register in a CM instance */
-u32 omap4_cminst_read_inst_reg(u8 part, u16 inst, u16 idx)
+static u32 omap4_cminst_read_inst_reg(u8 part, u16 inst, u16 idx)
 {
 	BUG_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
 	       part == OMAP4430_INVALID_PRCM_PARTITION ||
@@ -122,7 +121,7 @@ u32 omap4_cminst_read_inst_reg(u8 part, u16 inst, u16 idx)
 }
 
 /* Write into a register in a CM instance */
-void omap4_cminst_write_inst_reg(u32 val, u8 part, u16 inst, u16 idx)
+static void omap4_cminst_write_inst_reg(u32 val, u8 part, u16 inst, u16 idx)
 {
 	BUG_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
 	       part == OMAP4430_INVALID_PRCM_PARTITION ||
@@ -131,8 +130,8 @@ void omap4_cminst_write_inst_reg(u32 val, u8 part, u16 inst, u16 idx)
 }
 
 /* Read-modify-write a register in CM1. Caller must lock */
-u32 omap4_cminst_rmw_inst_reg_bits(u32 mask, u32 bits, u8 part, u16 inst,
-				   s16 idx)
+static u32 omap4_cminst_rmw_inst_reg_bits(u32 mask, u32 bits, u8 part, u16 inst,
+					  s16 idx)
 {
 	u32 v;
 
@@ -144,17 +143,18 @@ u32 omap4_cminst_rmw_inst_reg_bits(u32 mask, u32 bits, u8 part, u16 inst,
 	return v;
 }
 
-u32 omap4_cminst_set_inst_reg_bits(u32 bits, u8 part, u16 inst, s16 idx)
+static u32 omap4_cminst_set_inst_reg_bits(u32 bits, u8 part, u16 inst, s16 idx)
 {
 	return omap4_cminst_rmw_inst_reg_bits(bits, bits, part, inst, idx);
 }
 
-u32 omap4_cminst_clear_inst_reg_bits(u32 bits, u8 part, u16 inst, s16 idx)
+static u32 omap4_cminst_clear_inst_reg_bits(u32 bits, u8 part, u16 inst,
+					    s16 idx)
 {
 	return omap4_cminst_rmw_inst_reg_bits(bits, 0x0, part, inst, idx);
 }
 
-u32 omap4_cminst_read_inst_reg_bits(u8 part, u16 inst, s16 idx, u32 mask)
+static u32 omap4_cminst_read_inst_reg_bits(u8 part, u16 inst, s16 idx, u32 mask)
 {
 	u32 v;
 
