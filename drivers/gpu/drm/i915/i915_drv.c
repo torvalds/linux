@@ -760,14 +760,16 @@ static int i915_drm_resume_early(struct drm_device *dev)
 
 	pci_set_master(dev->pdev);
 
-	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
-		hsw_disable_pc8(dev_priv);
-	else if (IS_VALLEYVIEW(dev_priv))
+	if (IS_VALLEYVIEW(dev_priv))
 		ret = vlv_resume_prepare(dev_priv, false);
 	if (ret)
 		DRM_ERROR("Resume prepare failed: %d,Continuing resume\n", ret);
 
 	intel_uncore_early_sanitize(dev, true);
+
+	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+		hsw_disable_pc8(dev_priv);
+
 	intel_uncore_sanitize(dev);
 	intel_power_domains_init_hw(dev_priv);
 
