@@ -575,7 +575,7 @@ static int mlx4_en_get_qp(struct mlx4_en_priv *priv)
 	struct mlx4_mac_entry *entry;
 	int index = 0;
 	int err = 0;
-	u64 reg_id;
+	u64 reg_id = 0;
 	int *qpn = &priv->base_qpn;
 	u64 mac = mlx4_mac_to_u64(priv->dev->dev_addr);
 
