@@ -73,20 +73,21 @@ static bool intel_eld_uptodate(struct drm_connector *connector,
 {
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 	uint8_t *eld = connector->eld;
-	uint32_t i;
+	uint32_t tmp;
+	int i;
 
-	i = I915_READ(reg_eldv);
-	i &= bits_eldv;
+	tmp = I915_READ(reg_eldv);
+	tmp &= bits_eldv;
 
 	if (!eld[0])
-		return !i;
+		return !tmp;
 
-	if (!i)
+	if (!tmp)
 		return false;
 
-	i = I915_READ(reg_elda);
-	i &= ~bits_elda;
-	I915_WRITE(reg_elda, i);
+	tmp = I915_READ(reg_elda);
+	tmp &= ~bits_elda;
+	I915_WRITE(reg_elda, tmp);
 
 	for (i = 0; i < eld[2]; i++)
 		if (I915_READ(reg_edid) != *((uint32_t *)eld + i))
@@ -102,12 +103,11 @@ static void g4x_write_eld(struct drm_connector *connector,
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 	uint8_t *eld = connector->eld;
 	uint32_t eldv;
-	uint32_t len;
-	uint32_t i;
+	uint32_t tmp;
+	int len, i;
 
-	i = I915_READ(G4X_AUD_VID_DID);
-
-	if (i == INTEL_AUDIO_DEVBLC || i == INTEL_AUDIO_DEVCL)
+	tmp = I915_READ(G4X_AUD_VID_DID);
+	if (tmp == INTEL_AUDIO_DEVBLC || tmp == INTEL_AUDIO_DEVCL)
 		eldv = G4X_ELDV_DEVCL_DEVBLC;
 	else
 		eldv = G4X_ELDV_DEVCTG;
@@ -118,22 +118,22 @@ static void g4x_write_eld(struct drm_connector *connector,
 			       G4X_HDMIW_HDMIEDID))
 		return;
 
-	i = I915_READ(G4X_AUD_CNTL_ST);
-	i &= ~(eldv | G4X_ELD_ADDR);
-	len = (i >> 9) & 0x1f;		/* ELD buffer size */
-	I915_WRITE(G4X_AUD_CNTL_ST, i);
+	tmp = I915_READ(G4X_AUD_CNTL_ST);
+	tmp &= ~(eldv | G4X_ELD_ADDR);
+	len = (tmp >> 9) & 0x1f;		/* ELD buffer size */
+	I915_WRITE(G4X_AUD_CNTL_ST, tmp);
 
 	if (!eld[0])
 		return;
 
-	len = min_t(uint8_t, eld[2], len);
+	len = min_t(int, eld[2], len);
 	DRM_DEBUG_DRIVER("ELD size %d\n", len);
 	for (i = 0; i < len; i++)
 		I915_WRITE(G4X_HDMIW_HDMIEDID, *((uint32_t *)eld + i));
 
-	i = I915_READ(G4X_AUD_CNTL_ST);
-	i |= eldv;
-	I915_WRITE(G4X_AUD_CNTL_ST, i);
+	tmp = I915_READ(G4X_AUD_CNTL_ST);
+	tmp |= eldv;
+	I915_WRITE(G4X_AUD_CNTL_ST, tmp);
 }
 
 static void haswell_write_eld(struct drm_connector *connector,
@@ -144,11 +144,10 @@ static void haswell_write_eld(struct drm_connector *connector,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	uint8_t *eld = connector->eld;
 	uint32_t eldv;
-	uint32_t i;
-	int len;
-	int pipe = to_intel_crtc(crtc)->pipe;
-	int tmp;
-
+	uint32_t tmp;
+	int len, i;
+	enum pipe pipe = to_intel_crtc(crtc)->pipe;
+	enum port port;
 	int hdmiw_hdmiedid = HSW_AUD_EDID_DATA(pipe);
 	int aud_cntl_st = HSW_AUD_DIP_ELD_CTRL(pipe);
 	int aud_config = HSW_AUD_CFG(pipe);
@@ -196,28 +195,27 @@ static void haswell_write_eld(struct drm_connector *connector,
 			       hdmiw_hdmiedid))
 		return;
 
-	i = I915_READ(aud_cntrl_st2);
-	i &= ~eldv;
-	I915_WRITE(aud_cntrl_st2, i);
+	tmp = I915_READ(aud_cntrl_st2);
+	tmp &= ~eldv;
+	I915_WRITE(aud_cntrl_st2, tmp);
 
 	if (!eld[0])
 		return;
 
-	i = I915_READ(aud_cntl_st);
-	i &= ~IBX_ELD_ADDRESS;
-	I915_WRITE(aud_cntl_st, i);
-	i = (i >> 29) & DIP_PORT_SEL_MASK;		/* DIP_Port_Select, 0x1 = PortB */
-	DRM_DEBUG_DRIVER("port num:%d\n", i);
+	tmp = I915_READ(aud_cntl_st);
+	tmp &= ~IBX_ELD_ADDRESS;
+	I915_WRITE(aud_cntl_st, tmp);
+	port = (tmp >> 29) & DIP_PORT_SEL_MASK;		/* DIP_Port_Select, 0x1 = PortB */
+	DRM_DEBUG_DRIVER("port num:%d\n", port);
 
-	len = min_t(uint8_t, eld[2], 21);	/* 84 bytes of hw ELD buffer */
+	len = min_t(int, eld[2], 21);	/* 84 bytes of hw ELD buffer */
 	DRM_DEBUG_DRIVER("ELD size %d\n", len);
 	for (i = 0; i < len; i++)
 		I915_WRITE(hdmiw_hdmiedid, *((uint32_t *)eld + i));
 
-	i = I915_READ(aud_cntrl_st2);
-	i |= eldv;
-	I915_WRITE(aud_cntrl_st2, i);
-
+	tmp = I915_READ(aud_cntrl_st2);
+	tmp |= eldv;
+	I915_WRITE(aud_cntrl_st2, tmp);
 }
 
 static void ironlake_write_eld(struct drm_connector *connector,
@@ -228,13 +226,14 @@ static void ironlake_write_eld(struct drm_connector *connector,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	uint8_t *eld = connector->eld;
 	uint32_t eldv;
-	uint32_t i;
-	int len;
+	uint32_t tmp;
+	int len, i;
 	int hdmiw_hdmiedid;
 	int aud_config;
 	int aud_cntl_st;
 	int aud_cntrl_st2;
-	int pipe = to_intel_crtc(crtc)->pipe;
+	enum pipe pipe = to_intel_crtc(crtc)->pipe;
+	enum port port;
 
 	if (HAS_PCH_IBX(connector->dev)) {
 		hdmiw_hdmiedid = IBX_HDMIW_HDMIEDID(pipe);
@@ -261,22 +260,22 @@ static void ironlake_write_eld(struct drm_connector *connector,
 
 		intel_encoder = intel_attached_encoder(connector);
 		intel_dig_port = enc_to_dig_port(&intel_encoder->base);
-		i = intel_dig_port->port;
+		port = intel_dig_port->port;
 	} else {
-		i = I915_READ(aud_cntl_st);
-		i = (i >> 29) & DIP_PORT_SEL_MASK;
+		tmp = I915_READ(aud_cntl_st);
+		port = (tmp >> 29) & DIP_PORT_SEL_MASK;
 		/* DIP_Port_Select, 0x1 = PortB */
 	}
 
-	if (!i) {
+	if (!port) {
 		DRM_DEBUG_DRIVER("Audio directed to unknown port\n");
 		/* operate blindly on all ports */
 		eldv = IBX_ELD_VALIDB;
 		eldv |= IBX_ELD_VALIDB << 4;
 		eldv |= IBX_ELD_VALIDB << 8;
 	} else {
-		DRM_DEBUG_DRIVER("ELD on port %c\n", port_name(i));
-		eldv = IBX_ELD_VALIDB << ((i - 1) * 4);
+		DRM_DEBUG_DRIVER("ELD on port %c\n", port_name(port));
+		eldv = IBX_ELD_VALIDB << ((port - 1) * 4);
 	}
 
 	if (intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_DISPLAYPORT)) {
@@ -293,25 +292,25 @@ static void ironlake_write_eld(struct drm_connector *connector,
 			       hdmiw_hdmiedid))
 		return;
 
-	i = I915_READ(aud_cntrl_st2);
-	i &= ~eldv;
-	I915_WRITE(aud_cntrl_st2, i);
+	tmp = I915_READ(aud_cntrl_st2);
+	tmp &= ~eldv;
+	I915_WRITE(aud_cntrl_st2, tmp);
 
 	if (!eld[0])
 		return;
 
-	i = I915_READ(aud_cntl_st);
-	i &= ~IBX_ELD_ADDRESS;
-	I915_WRITE(aud_cntl_st, i);
+	tmp = I915_READ(aud_cntl_st);
+	tmp &= ~IBX_ELD_ADDRESS;
+	I915_WRITE(aud_cntl_st, tmp);
 
-	len = min_t(uint8_t, eld[2], 21);	/* 84 bytes of hw ELD buffer */
+	len = min_t(int, eld[2], 21);	/* 84 bytes of hw ELD buffer */
 	DRM_DEBUG_DRIVER("ELD size %d\n", len);
 	for (i = 0; i < len; i++)
 		I915_WRITE(hdmiw_hdmiedid, *((uint32_t *)eld + i));
 
-	i = I915_READ(aud_cntrl_st2);
-	i |= eldv;
-	I915_WRITE(aud_cntrl_st2, i);
+	tmp = I915_READ(aud_cntrl_st2);
+	tmp |= eldv;
+	I915_WRITE(aud_cntrl_st2, tmp);
 }
 
 void intel_write_eld(struct drm_encoder *encoder,
