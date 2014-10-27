@@ -811,7 +811,7 @@ at86rf230_rx(struct at86rf230_local *lp,
 	memcpy(rx_local_buf, data, len);
 	enable_irq(lp->spi->irq);
 
-	skb = alloc_skb(IEEE802154_MTU, GFP_ATOMIC);
+	skb = dev_alloc_skb(IEEE802154_MTU);
 	if (!skb) {
 		dev_vdbg(&lp->spi->dev, "failed to allocate sk_buff\n");
 		return;

@@ -524,7 +524,7 @@ static int cc2520_rx(struct cc2520_private *priv)
 	if (len < 2 || len > IEEE802154_MTU)
 		return -EINVAL;
 
-	skb = alloc_skb(len, GFP_KERNEL);
+	skb = dev_alloc_skb(len);
 	if (!skb)
 		return -ENOMEM;
 

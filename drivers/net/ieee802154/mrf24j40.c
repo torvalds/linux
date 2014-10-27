@@ -544,7 +544,7 @@ static int mrf24j40_handle_rx(struct mrf24j40 *devrec)
 	val |= 4; /* SET RXDECINV */
 	write_short_reg(devrec, REG_BBREG1, val);
 
-	skb = alloc_skb(len, GFP_KERNEL);
+	skb = dev_alloc_skb(len);
 	if (!skb) {
 		ret = -ENOMEM;
 		goto out;
