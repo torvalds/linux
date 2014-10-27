@@ -162,7 +162,7 @@ static inline void send_cleanup_vector(struct irq_cfg *c) { }
 struct irq_data;
 int __ioapic_set_affinity(struct irq_data *, const struct cpumask *,
 			  unsigned int *dest_id);
-extern int IO_APIC_get_PCI_irq_vector(int bus, int devfn, int pin, struct io_apic_irq_attr *irq_attr);
+extern int IO_APIC_get_PCI_irq_vector(int bus, int devfn, int pin);
 extern void setup_ioapic_dest(void);
 
 extern void enable_IO_APIC(void);
