@@ -53,6 +53,7 @@
 #include "cminst44xx.h"
 #include "prm2xxx.h"
 #include "prm3xxx.h"
+#include "prm33xx.h"
 #include "prm44xx.h"
 #include "opp2xxx.h"
 
@@ -566,6 +567,7 @@ void __init am33xx_init_early(void)
 	omap2_set_globals_cm(AM33XX_L4_WK_IO_ADDRESS(AM33XX_PRCM_BASE), NULL);
 	omap3xxx_check_revision();
 	am33xx_check_features();
+	am33xx_prm_init();
 	am33xx_cm_init();
 	am33xx_powerdomains_init();
 	am33xx_clockdomains_init();
