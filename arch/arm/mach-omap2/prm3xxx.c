@@ -30,6 +30,11 @@
 #include "cm3xxx.h"
 #include "cm-regbits-34xx.h"
 
+static void omap3xxx_prm_read_pending_irqs(unsigned long *events);
+static void omap3xxx_prm_ocp_barrier(void);
+static void omap3xxx_prm_save_and_clear_irqen(u32 *saved_mask);
+static void omap3xxx_prm_restore_irqen(u32 *saved_mask);
+
 static const struct omap_prcm_irq omap3_prcm_irqs[] = {
 	OMAP_PRCM_IRQ("wkup",	0,	0),
 	OMAP_PRCM_IRQ("io",	9,	1),
@@ -147,7 +152,7 @@ void omap3xxx_prm_dpll3_reset(void)
  * MPU IRQs, and store the result into the u32 pointed to by @events.
  * No return value.
  */
-void omap3xxx_prm_read_pending_irqs(unsigned long *events)
+static void omap3xxx_prm_read_pending_irqs(unsigned long *events)
 {
 	u32 mask, st;
 
@@ -166,7 +171,7 @@ void omap3xxx_prm_read_pending_irqs(unsigned long *events)
  * block, to avoid race conditions after acknowledging or clearing IRQ
  * bits.  No return value.
  */
-void omap3xxx_prm_ocp_barrier(void)
+static void omap3xxx_prm_ocp_barrier(void)
 {
 	omap2_prm_read_mod_reg(OCP_MOD, OMAP3_PRM_REVISION_OFFSET);
 }
@@ -182,7 +187,7 @@ void omap3xxx_prm_ocp_barrier(void)
  * returning; otherwise, spurious interrupts might occur.  No return
  * value.
  */
-void omap3xxx_prm_save_and_clear_irqen(u32 *saved_mask)
+static void omap3xxx_prm_save_and_clear_irqen(u32 *saved_mask)
 {
 	saved_mask[0] = omap2_prm_read_mod_reg(OCP_MOD,
 					       OMAP3_PRM_IRQENABLE_MPU_OFFSET);
@@ -202,7 +207,7 @@ void omap3xxx_prm_save_and_clear_irqen(u32 *saved_mask)
  * barrier should be needed here; any pending PRM interrupts will fire
  * once the writes reach the PRM.  No return value.
  */
-void omap3xxx_prm_restore_irqen(u32 *saved_mask)
+static void omap3xxx_prm_restore_irqen(u32 *saved_mask)
 {
 	omap2_prm_write_mod_reg(saved_mask[0], OCP_MOD,
 				OMAP3_PRM_IRQENABLE_MPU_OFFSET);

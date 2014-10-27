@@ -152,12 +152,6 @@ static inline void omap3xxx_prm_reconfigure_io_chain(void)
 }
 #endif
 
-/* PRM interrupt-related functions */
-extern void omap3xxx_prm_read_pending_irqs(unsigned long *events);
-extern void omap3xxx_prm_ocp_barrier(void);
-extern void omap3xxx_prm_save_and_clear_irqen(u32 *saved_mask);
-extern void omap3xxx_prm_restore_irqen(u32 *saved_mask);
-
 extern void omap3xxx_prm_dpll3_reset(void);
 
 extern int __init omap3xxx_prm_init(void);
