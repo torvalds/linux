@@ -786,6 +786,7 @@ static int k3_dma_remove(struct platform_device *op)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int k3_dma_suspend(struct device *dev)
 {
 	struct k3_dma_dev *d = dev_get_drvdata(dev);
@@ -815,6 +816,7 @@ static int k3_dma_resume(struct device *dev)
 	k3_dma_enable_dma(d, true);
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(k3_dma_pmops, k3_dma_suspend, k3_dma_resume);
 
