@@ -278,7 +278,7 @@ int scsi_ioctl_block_when_processing_errors(struct scsi_device *sdev, int cmd,
 {
 	if (cmd == SG_SCSI_RESET && ndelay) {
 		if (scsi_host_in_recovery(sdev->host))
-			return -ENODEV;
+			return -EAGAIN;
 	} else {
 		if (!scsi_block_when_processing_errors(sdev))
 			return -ENODEV;
