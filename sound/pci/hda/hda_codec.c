@@ -966,14 +966,12 @@ find_codec_preset(struct hda_codec *codec)
 	mutex_unlock(&preset_mutex);
 
 	if (mod_requested < HDA_MODREQ_MAX_COUNT) {
-		char name[32];
 		if (!mod_requested)
-			snprintf(name, sizeof(name), "snd-hda-codec-id:%08x",
-				 codec->vendor_id);
+			request_module("snd-hda-codec-id:%08x",
+				       codec->vendor_id);
 		else
-			snprintf(name, sizeof(name), "snd-hda-codec-id:%04x*",
-				 (codec->vendor_id >> 16) & 0xffff);
-		request_module(name);
+			request_module("snd-hda-codec-id:%04x*",
+				       (codec->vendor_id >> 16) & 0xffff);
 		mod_requested++;
 		goto again;
 	}
