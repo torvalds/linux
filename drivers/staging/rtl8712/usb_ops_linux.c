@@ -168,7 +168,6 @@ static void usb_write_mem_complete(struct urb *purb)
 void r8712_usb_write_mem(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *wmem)
 {
 	unsigned int pipe;
-	int status;
 	struct _adapter *padapter = (struct _adapter *)pintfhdl->adapter;
 	struct intf_priv *pintfpriv = pintfhdl->pintfpriv;
 	struct io_queue *pio_queue = (struct io_queue *)padapter->pio_queue;
@@ -186,7 +185,7 @@ void r8712_usb_write_mem(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *wmem)
 	usb_fill_bulk_urb(piorw_urb, pusbd, pipe,
 			  wmem, cnt, usb_write_mem_complete,
 			  pio_queue);
-	status = usb_submit_urb(piorw_urb, GFP_ATOMIC);
+	usb_submit_urb(piorw_urb, GFP_ATOMIC);
 	_down_sema(&pintfpriv->io_retevt);
 }
 

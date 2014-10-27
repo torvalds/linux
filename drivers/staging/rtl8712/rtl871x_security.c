@@ -578,7 +578,7 @@ u32 r8712_tkip_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 	u8 ttkey[16];
 	u8 crc[4];
 	struct arc4context mycontext;
-	u32 curfragnum, length, prwskeylen;
+	u32 curfragnum, length;
 
 	u8 *pframe, *payload, *iv, *prwskey;
 	union pn48 txpn;
@@ -600,7 +600,6 @@ u32 r8712_tkip_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 				  &pattrib->ra[0]);
 		if (stainfo != NULL) {
 			prwskey = &stainfo->x_UncstKey.skey[0];
-			prwskeylen = 16;
 			for (curfragnum = 0; curfragnum < pattrib->nr_frags;
 			     curfragnum++) {
 				iv = pframe + pattrib->hdrlen;
@@ -655,7 +654,7 @@ u32 r8712_tkip_decrypt(struct _adapter *padapter, u8 *precvframe)
 	u8 ttkey[16];
 	u8 crc[4];
 	struct arc4context mycontext;
-	u32 length, prwskeylen;
+	u32 length;
 	u8 *pframe, *payload, *iv, *prwskey, idx = 0;
 	union pn48 txpn;
 	struct	sta_info *stainfo;
@@ -683,7 +682,6 @@ u32 r8712_tkip_decrypt(struct _adapter *padapter, u8 *precvframe)
 					return _FAIL;
 			} else
 				prwskey = &stainfo->x_UncstKey.skey[0];
-			prwskeylen = 16;
 			GET_TKIP_PN(iv, txpn);
 			pnl = (u16)(txpn.val);
 			pnh = (u32)(txpn.val >> 16);
@@ -1154,7 +1152,6 @@ u32 r8712_aes_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 {	/* exclude ICV */
 	/* Intermediate Buffers */
 	sint	curfragnum, length;
-	u32	prwskeylen;
 	u8	*pframe, *prwskey;
 	struct	sta_info *stainfo;
 	struct	pkt_attrib  *pattrib = &((struct xmit_frame *)
@@ -1174,7 +1171,6 @@ u32 r8712_aes_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 				  &pattrib->ra[0]);
 		if (stainfo != NULL) {
 			prwskey = &stainfo->x_UncstKey.skey[0];
-			prwskeylen = 16;
 			for (curfragnum = 0; curfragnum < pattrib->nr_frags;
 			     curfragnum++) {
 				if ((curfragnum + 1) == pattrib->nr_frags) {
@@ -1363,7 +1359,6 @@ u32 r8712_aes_decrypt(struct _adapter *padapter, u8 *precvframe)
 {	/* exclude ICV */
 	/* Intermediate Buffers */
 	sint		length;
-	u32	prwskeylen;
 	u8	*pframe, *prwskey, *iv, idx;
 	struct	sta_info *stainfo;
 	struct	rx_pkt_attrib *prxattrib = &((union recv_frame *)
@@ -1387,7 +1382,6 @@ u32 r8712_aes_decrypt(struct _adapter *padapter, u8 *precvframe)
 
 			} else
 				prwskey = &stainfo->x_UncstKey.skey[0];
-			prwskeylen = 16;
 			length = ((union recv_frame *)precvframe)->
 				 u.hdr.len-prxattrib->hdrlen-prxattrib->iv_len;
 			aes_decipher(prwskey, prxattrib->hdrlen, pframe,

@@ -470,7 +470,6 @@ u8 r8712_createbss_cmd(struct _adapter *padapter)
 
 u8 r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 {
-	u8 *auth;
 	uint t_len = 0;
 	struct ndis_wlan_bssid_ex *psecnetwork;
 	struct cmd_obj		*pcmd;
@@ -517,7 +516,6 @@ u8 r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 		return _FAIL;
 	}
 	memcpy(psecnetwork, &pnetwork->network, t_len);
-	auth = &psecuritypriv->authenticator_ie[0];
 	psecuritypriv->authenticator_ie[0] = (unsigned char)
 					     psecnetwork->IELength;
 	if ((psecnetwork->IELength-12) < (256 - 1))

@@ -343,13 +343,9 @@ u8 r8712_set_802_11_authentication_mode(struct _adapter *padapter,
 u8 r8712_set_802_11_add_wep(struct _adapter *padapter,
 			    struct NDIS_802_11_WEP *wep)
 {
-	u8	bdefaultkey;
-	u8	btransmitkey;
 	sint	keyid;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
 
-	bdefaultkey = (wep->KeyIndex & 0x40000000) > 0 ? false : true;
-	btransmitkey = (wep->KeyIndex & 0x80000000) > 0 ? true : false;
 	keyid = wep->KeyIndex & 0x3fffffff;
 	if (keyid >= WEP_KEYS)
 		return false;
