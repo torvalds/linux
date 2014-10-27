@@ -1843,8 +1843,7 @@ void mlx4_en_stop_port(struct net_device *dev, int detach)
 		}
 		local_bh_enable();
 
-		while (test_bit(NAPI_STATE_SCHED, &cq->napi.state))
-			msleep(1);
+		napi_synchronize(&cq->napi);
 		mlx4_en_deactivate_rx_ring(priv, priv->rx_ring[i]);
 		mlx4_en_deactivate_cq(priv, cq);
 
