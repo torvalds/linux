@@ -434,6 +434,7 @@ struct drm_i915_error_state {
 };
 
 struct intel_connector;
+struct intel_encoder;
 struct intel_crtc_config;
 struct intel_plane_config;
 struct intel_crtc;
@@ -483,7 +484,7 @@ struct drm_i915_display_funcs {
 	void (*crtc_disable)(struct drm_crtc *crtc);
 	void (*off)(struct drm_crtc *crtc);
 	void (*write_eld)(struct drm_connector *connector,
-			  struct drm_crtc *crtc,
+			  struct intel_encoder *encoder,
 			  struct drm_display_mode *mode);
 	void (*fdi_link_train)(struct drm_crtc *crtc);
 	void (*init_clock_gating)(struct drm_device *dev);
@@ -2798,7 +2799,6 @@ static inline bool intel_gmbus_is_forced_bit(struct i2c_adapter *adapter)
 extern void intel_i2c_reset(struct drm_device *dev);
 
 /* intel_opregion.c */
-struct intel_encoder;
 #ifdef CONFIG_ACPI
 extern int intel_opregion_setup(struct drm_device *dev);
 extern void intel_opregion_init(struct drm_device *dev);

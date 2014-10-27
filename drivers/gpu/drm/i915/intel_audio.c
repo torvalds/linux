@@ -97,7 +97,7 @@ static bool intel_eld_uptodate(struct drm_connector *connector,
 }
 
 static void g4x_write_eld(struct drm_connector *connector,
-			  struct drm_crtc *crtc,
+			  struct intel_encoder *encoder,
 			  struct drm_display_mode *mode)
 {
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
@@ -137,16 +137,16 @@ static void g4x_write_eld(struct drm_connector *connector,
 }
 
 static void haswell_write_eld(struct drm_connector *connector,
-			      struct drm_crtc *crtc,
+			      struct intel_encoder *encoder,
 			      struct drm_display_mode *mode)
 {
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
 	uint8_t *eld = connector->eld;
 	uint32_t eldv;
 	uint32_t tmp;
 	int len, i;
-	enum pipe pipe = to_intel_crtc(crtc)->pipe;
+	enum pipe pipe = intel_crtc->pipe;
 	enum port port;
 	int hdmiw_hdmiedid = HSW_AUD_EDID_DATA(pipe);
 	int aud_cntl_st = HSW_AUD_DIP_ELD_CTRL(pipe);
@@ -160,7 +160,7 @@ static void haswell_write_eld(struct drm_connector *connector,
 	I915_WRITE(aud_cntrl_st2, tmp);
 	POSTING_READ(aud_cntrl_st2);
 
-	assert_pipe_disabled(dev_priv, to_intel_crtc(crtc)->pipe);
+	assert_pipe_disabled(dev_priv, pipe);
 
 	/* Set ELD valid state */
 	tmp = I915_READ(aud_cntrl_st2);
@@ -219,11 +219,11 @@ static void haswell_write_eld(struct drm_connector *connector,
 }
 
 static void ironlake_write_eld(struct drm_connector *connector,
-			       struct drm_crtc *crtc,
+			       struct intel_encoder *encoder,
 			       struct drm_display_mode *mode)
 {
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
 	uint8_t *eld = connector->eld;
 	uint32_t eldv;
 	uint32_t tmp;
@@ -232,7 +232,7 @@ static void ironlake_write_eld(struct drm_connector *connector,
 	int aud_config;
 	int aud_cntl_st;
 	int aud_cntrl_st2;
-	enum pipe pipe = to_intel_crtc(crtc)->pipe;
+	enum pipe pipe = intel_crtc->pipe;
 	enum port port;
 
 	if (HAS_PCH_IBX(connector->dev)) {
@@ -255,11 +255,9 @@ static void ironlake_write_eld(struct drm_connector *connector,
 	DRM_DEBUG_DRIVER("ELD on pipe %c\n", pipe_name(pipe));
 
 	if (IS_VALLEYVIEW(connector->dev))  {
-		struct intel_encoder *intel_encoder;
 		struct intel_digital_port *intel_dig_port;
 
-		intel_encoder = intel_attached_encoder(connector);
-		intel_dig_port = enc_to_dig_port(&intel_encoder->base);
+		intel_dig_port = enc_to_dig_port(&encoder->base);
 		port = intel_dig_port->port;
 	} else {
 		tmp = I915_READ(aud_cntl_st);
@@ -335,7 +333,7 @@ void intel_write_eld(struct intel_encoder *intel_encoder)
 	connector->eld[6] = drm_av_sync_delay(connector, mode) / 2;
 
 	if (dev_priv->display.write_eld)
-		dev_priv->display.write_eld(connector, encoder->crtc, mode);
+		dev_priv->display.write_eld(connector, intel_encoder, mode);
 }
 
 /**
