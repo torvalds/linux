@@ -570,6 +570,31 @@ static u32 ptys2ethtool_link_modes(u32 eth_proto, enum ethtool_report report)
 	return link_modes;
 }
 
+static u32 ethtool2ptys_link_modes(u32 link_modes, enum ethtool_report report)
+{
+	int i;
+	u32 ptys_modes = 0;
+
+	for (i = 0; i < MLX4_LINK_MODES_SZ; i++) {
+		if (ptys2ethtool_map[i][report] & link_modes)
+			ptys_modes |= 1 << i;
+	}
+	return ptys_modes;
+}
+
+/* Convert actual speed (SPEED_XXX) to ptys link modes */
+static u32 speed2ptys_link_modes(u32 speed)
+{
+	int i;
+	u32 ptys_modes = 0;
+
+	for (i = 0; i < MLX4_LINK_MODES_SZ; i++) {
+		if (ptys2ethtool_map[i][SPEED] == speed)
+			ptys_modes |= 1 << i;
+	}
+	return ptys_modes;
+}
+
 static int ethtool_get_ptys_settings(struct net_device *dev,
 				     struct ethtool_cmd *cmd)
 {
@@ -698,14 +723,89 @@ static int mlx4_en_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	return 0;
 }
 
+/* Calculate PTYS admin according ethtool speed (SPEED_XXX) */
+static __be32 speed_set_ptys_admin(struct mlx4_en_priv *priv, u32 speed,
+				   __be32 proto_cap)
+{
+	__be32 proto_admin = 0;
+
+	if (!speed) { /* Speed = 0 ==> Reset Link modes */
+		proto_admin = proto_cap;
+		en_info(priv, "Speed was set to 0, Reset advertised Link Modes to default (%x)\n",
+			be32_to_cpu(proto_cap));
+	} else {
+		u32 ptys_link_modes = speed2ptys_link_modes(speed);
+
+		proto_admin = cpu_to_be32(ptys_link_modes) & proto_cap;
+		en_info(priv, "Setting Speed to %d\n", speed);
+	}
+	return proto_admin;
+}
+
 static int mlx4_en_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
-	if ((cmd->autoneg == AUTONEG_ENABLE) ||
-	    (ethtool_cmd_speed(cmd) != SPEED_10000) ||
-	    (cmd->duplex != DUPLEX_FULL))
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_ptys_reg ptys_reg;
+	__be32 proto_admin;
+	int ret;
+
+	u32 ptys_adv = ethtool2ptys_link_modes(cmd->advertising, ADVERTISED);
+	int speed = ethtool_cmd_speed(cmd);
+
+	en_dbg(DRV, priv, "Set Speed=%d adv=0x%x autoneg=%d duplex=%d\n",
+	       speed, cmd->advertising, cmd->autoneg, cmd->duplex);
+
+	if (!(priv->mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_ETH_PROT_CTRL) ||
+	    (cmd->autoneg == AUTONEG_ENABLE) || (cmd->duplex == DUPLEX_HALF))
 		return -EINVAL;
 
-	/* Nothing to change */
+	memset(&ptys_reg, 0, sizeof(ptys_reg));
+	ptys_reg.local_port = priv->port;
+	ptys_reg.proto_mask = MLX4_PTYS_EN;
+	ret = mlx4_ACCESS_PTYS_REG(priv->mdev->dev,
+				   MLX4_ACCESS_REG_QUERY, &ptys_reg);
+	if (ret) {
+		en_warn(priv, "Failed to QUERY mlx4_ACCESS_PTYS_REG status(%x)\n",
+			ret);
+		return 0;
+	}
+
+	proto_admin = cpu_to_be32(ptys_adv);
+	if (speed >= 0 && speed != priv->port_state.link_speed)
+		/* If speed was set then speed decides :-) */
+		proto_admin = speed_set_ptys_admin(priv, speed,
+						   ptys_reg.eth_proto_cap);
+
+	proto_admin &= ptys_reg.eth_proto_cap;
+
+	if (proto_admin == ptys_reg.eth_proto_admin)
+		return 0; /* Nothing to change */
+
+	if (!proto_admin) {
+		en_warn(priv, "Not supported link mode(s) requested, check supported link modes.\n");
+		return -EINVAL; /* nothing to change due to bad input */
+	}
+
+	en_dbg(DRV, priv, "mlx4_ACCESS_PTYS_REG SET: ptys_reg.eth_proto_admin = 0x%x\n",
+	       be32_to_cpu(proto_admin));
+
+	ptys_reg.eth_proto_admin = proto_admin;
+	ret = mlx4_ACCESS_PTYS_REG(priv->mdev->dev, MLX4_ACCESS_REG_WRITE,
+				   &ptys_reg);
+	if (ret) {
+		en_warn(priv, "Failed to write mlx4_ACCESS_PTYS_REG eth_proto_admin(0x%x) status(0x%x)",
+			be32_to_cpu(ptys_reg.eth_proto_admin), ret);
+		return ret;
+	}
+
+	en_warn(priv, "Port link mode changed, restarting port...\n");
+	mutex_lock(&priv->mdev->state_lock);
+	if (priv->port_up) {
+		mlx4_en_stop_port(dev, 1);
+		if (mlx4_en_start_port(dev))
+			en_err(priv, "Failed restarting port %d\n", priv->port);
+	}
+	mutex_unlock(&priv->mdev->state_lock);
 	return 0;
 }
 
