@@ -52,11 +52,6 @@ unsigned long ISA_DMA_THRESHOLD;
 unsigned int DMA_MODE_READ;
 unsigned int DMA_MODE_WRITE;
 
-#ifdef CONFIG_VGA_CONSOLE
-unsigned long vgacon_remap_base;
-EXPORT_SYMBOL(vgacon_remap_base);
-#endif
-
 /*
  * These are used in binfmt_elf.c to put aux entries on the stack
  * for each elf executable being started.
