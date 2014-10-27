@@ -173,10 +173,12 @@ static void gfar_init_rxbdp(struct gfar_priv_rx_q *rx_queue, struct rxbd8 *bdp,
 static int gfar_init_bds(struct net_device *ndev)
 {
 	struct gfar_private *priv = netdev_priv(ndev);
+	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	struct gfar_priv_tx_q *tx_queue = NULL;
 	struct gfar_priv_rx_q *rx_queue = NULL;
 	struct txbd8 *txbdp;
 	struct rxbd8 *rxbdp;
+	u32 *rfbptr;
 	int i, j;
 
 	for (i = 0; i < priv->num_tx_queues; i++) {
@@ -201,6 +203,7 @@ static int gfar_init_bds(struct net_device *ndev)
 		txbdp->status |= TXBD_WRAP;
 	}
 
+	rfbptr = &regs->rfbptr0;
 	for (i = 0; i < priv->num_rx_queues; i++) {
 		rx_queue = priv->rx_queue[i];
 		rx_queue->cur_rx = rx_queue->rx_bd_base;
@@ -227,6 +230,8 @@ static int gfar_init_bds(struct net_device *ndev)
 			rxbdp++;
 		}
 
+		rx_queue->rfbptr = rfbptr;
+		rfbptr += 2;
 	}
 
 	return 0;
@@ -336,6 +341,20 @@ static void gfar_init_tx_rx_base(struct gfar_private *priv)
 	}
 }
 
+static void gfar_init_rqprm(struct gfar_private *priv)
+{
+	struct gfar __iomem *regs = priv->gfargrp[0].regs;
+	u32 __iomem *baddr;
+	int i;
+
+	baddr = &regs->rqprm0;
+	for (i = 0; i < priv->num_rx_queues; i++) {
+		gfar_write(baddr, priv->rx_queue[i]->rx_ring_size |
+			   (DEFAULT_RX_LFC_THR << FBTHR_SHIFT));
+		baddr++;
+	}
+}
+
 static void gfar_rx_buff_size_config(struct gfar_private *priv)
 {
 	int frame_size = priv->ndev->mtu + ETH_HLEN + ETH_FCS_LEN;
@@ -395,6 +414,13 @@ static void gfar_mac_rx_config(struct gfar_private *priv)
 
 	if (priv->ndev->features & NETIF_F_HW_VLAN_CTAG_RX)
 		rctrl |= RCTRL_VLEX | RCTRL_PRSDEP_INIT;
+
+	/* Clear the LFC bit */
+	gfar_write(&regs->rctrl, rctrl);
+	/* Init flow control threshold values */
+	gfar_init_rqprm(priv);
+	gfar_write(&regs->ptv, DEFAULT_LFC_PTVVAL);
+	rctrl |= RCTRL_LFC;
 
 	/* Init rctrl based on our settings */
 	gfar_write(&regs->rctrl, rctrl);
@@ -2859,6 +2885,10 @@ int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue, int rx_work_limit)
 		/* Setup the new bdp */
 		gfar_new_rxbdp(rx_queue, bdp, newskb);
 
+		/* Update Last Free RxBD pointer for LFC */
+		if (unlikely(rx_queue->rfbptr && priv->tx_actual_en))
+			gfar_write(rx_queue->rfbptr, (u32)bdp);
+
 		/* Update to the next pointer */
 		bdp = next_bd(bdp, base, rx_queue->rx_ring_size);
 
@@ -3393,6 +3423,9 @@ static noinline void gfar_update_link_state(struct gfar_private *priv)
 {
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	struct phy_device *phydev = priv->phydev;
+	struct gfar_priv_rx_q *rx_queue = NULL;
+	int i;
+	struct rxbd8 *bdp;
 
 	if (unlikely(test_bit(GFAR_RESETTING, &priv->state)))
 		return;
@@ -3401,6 +3434,7 @@ static noinline void gfar_update_link_state(struct gfar_private *priv)
 		u32 tempval1 = gfar_read(&regs->maccfg1);
 		u32 tempval = gfar_read(&regs->maccfg2);
 		u32 ecntrl = gfar_read(&regs->ecntrl);
+		u32 tx_flow_oldval = (tempval & MACCFG1_TX_FLOW);
 
 		if (phydev->duplex != priv->oldduplex) {
 			if (!(phydev->duplex))
@@ -3444,6 +3478,26 @@ static noinline void gfar_update_link_state(struct gfar_private *priv)
 
 		tempval1 &= ~(MACCFG1_TX_FLOW | MACCFG1_RX_FLOW);
 		tempval1 |= gfar_get_flowctrl_cfg(priv);
+
+		/* Turn last free buffer recording on */
+		if ((tempval1 & MACCFG1_TX_FLOW) && !tx_flow_oldval) {
+			for (i = 0; i < priv->num_rx_queues; i++) {
+				rx_queue = priv->rx_queue[i];
+				bdp = rx_queue->cur_rx;
+				/* skip to previous bd */
+				bdp = skip_bd(bdp, rx_queue->rx_ring_size - 1,
+					      rx_queue->rx_bd_base,
+					      rx_queue->rx_ring_size);
+
+				if (rx_queue->rfbptr)
+					gfar_write(rx_queue->rfbptr, (u32)bdp);
+			}
+
+			priv->tx_actual_en = 1;
+		}
+
+		if (unlikely(!(tempval1 & MACCFG1_TX_FLOW) && tx_flow_oldval))
+			priv->tx_actual_en = 0;
 
 		gfar_write(&regs->maccfg1, tempval1);
 		gfar_write(&regs->maccfg2, tempval);
