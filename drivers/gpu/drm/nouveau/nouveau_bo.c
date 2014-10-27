@@ -323,8 +323,8 @@ nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t memtype)
 		goto out;
 	}
 
-	if (nvbo->pin_refcnt++)
-		goto out;
+	if (nvbo->pin_refcnt)
+		goto ref_inc;
 
 	nouveau_bo_placement_set(nvbo, memtype, 0);
 
@@ -341,6 +341,10 @@ nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t memtype)
 			break;
 		}
 	}
+
+ref_inc:
+	nvbo->pin_refcnt++;
+
 out:
 	ttm_bo_unreserve(bo);
 	return ret;
@@ -1183,6 +1187,9 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	struct nouveau_drm_tile *new_tile = NULL;
 	int ret = 0;
+
+	if (nvbo->pin_refcnt)
+		NV_WARN(drm, "Moving pinned object %p!\n", nvbo);
 
 	if (drm->device.info.family < NV_DEVICE_INFO_V0_TESLA) {
 		ret = nouveau_bo_vm_bind(bo, new_mem, &new_tile);
