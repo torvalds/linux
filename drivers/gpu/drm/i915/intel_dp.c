@@ -1324,12 +1324,8 @@ static void intel_dp_prepare(struct intel_encoder *encoder)
 	intel_dp->DP |= DP_VOLTAGE_0_4 | DP_PRE_EMPHASIS_0;
 	intel_dp->DP |= DP_PORT_WIDTH(intel_dp->lane_count);
 
-	if (crtc->config.has_audio) {
-		DRM_DEBUG_DRIVER("Enabling DP audio on pipe %c\n",
-				 pipe_name(crtc->pipe));
+	if (crtc->config.has_audio)
 		intel_dp->DP |= DP_AUDIO_OUTPUT_ENABLE;
-		intel_audio_codec_enable(encoder);
-	}
 
 	/* Split out the IBX/CPU vs CPT settings */
 
@@ -2636,6 +2632,7 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 	uint32_t dp_reg = I915_READ(intel_dp->output_reg);
 
 	if (WARN_ON(dp_reg & DP_PORT_EN))
@@ -2661,6 +2658,12 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 	intel_dp_start_link_train(intel_dp);
 	intel_dp_complete_link_train(intel_dp);
 	intel_dp_stop_link_train(intel_dp);
+
+	if (crtc->config.has_audio) {
+		DRM_DEBUG_DRIVER("Enabling DP audio on pipe %c\n",
+				 pipe_name(crtc->pipe));
+		intel_audio_codec_enable(encoder);
+	}
 }
 
 static void g4x_enable_dp(struct intel_encoder *encoder)
