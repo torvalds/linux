@@ -173,7 +173,7 @@ static bool set_baseband_agc_config(struct adapter *adapt)
 		u32 v1 = array[i];
 		u32 v2 = array[i+1];
 
-		if (v1 < 0xCDCDCDCD){
+		if (v1 < 0xCDCDCDCD) {
 			phy_set_bb_reg(adapt, v1, bMaskDWord, v2);
 			udelay(1);
 		}
