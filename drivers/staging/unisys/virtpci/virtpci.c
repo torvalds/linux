@@ -614,7 +614,8 @@ static void delete_all(void)
 /* deletes all vnics or vhbas
  * returns 0 failure, 1 success,
  */
-static int delete_all_virt(VIRTPCI_DEV_TYPE devtype, struct del_vbus_guestpart *delparams)
+static int delete_all_virt(enum virtpci_dev_type devtype,
+			   struct del_vbus_guestpart *delparams)
 {
 	int i;
 	unsigned char busid[BUS_ID_SIZE];

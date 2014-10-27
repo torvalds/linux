@@ -45,14 +45,14 @@ struct net_adap_info {
 	uuid_le zone_uuid;
 };
 
-typedef enum {
+enum virtpci_dev_type {
 	VIRTHBA_TYPE = 0,
 	VIRTNIC_TYPE = 1,
 	VIRTBUS_TYPE = 6,
-} VIRTPCI_DEV_TYPE;
+};
 
 struct virtpci_dev {
-	VIRTPCI_DEV_TYPE devtype;	/* indicates type of the
+	enum virtpci_dev_type devtype;	/* indicates type of the
 					 * virtual pci device */
 	struct virtpci_driver *mydriver;	/* which driver has allocated
 						 * this device */
