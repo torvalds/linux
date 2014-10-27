@@ -57,6 +57,7 @@ int f2fs_read_inline_data(struct inode *inode, struct page *page)
 	src_addr = inline_data_addr(ipage);
 	dst_addr = kmap_atomic(page);
 	memcpy(dst_addr, src_addr, MAX_INLINE_DATA);
+	flush_dcache_page(page);
 	kunmap_atomic(dst_addr);
 	f2fs_put_page(ipage, 1);
 out:
