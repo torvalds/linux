@@ -172,7 +172,7 @@ static void hsw_audio_codec_disable(struct intel_encoder *encoder)
 
 	/* Invalidate ELD */
 	tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
-	tmp &= ~(AUDIO_ELD_VALID_A << (pipe * 4));
+	tmp &= ~AUDIO_ELD_VALID(pipe);
 	I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
 }
 
@@ -192,8 +192,8 @@ static void hsw_audio_codec_enable(struct drm_connector *connector,
 
 	/* Enable audio presence detect, invalidate ELD */
 	tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
-	tmp |= AUDIO_OUTPUT_ENABLE_A << (pipe * 4);
-	tmp &= ~(AUDIO_ELD_VALID_A << (pipe * 4));
+	tmp |= AUDIO_OUTPUT_ENABLE(pipe);
+	tmp &= ~AUDIO_ELD_VALID(pipe);
 	I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
 
 	/*
@@ -215,7 +215,7 @@ static void hsw_audio_codec_enable(struct drm_connector *connector,
 
 	/* ELD valid */
 	tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
-	tmp |= AUDIO_ELD_VALID_A << (pipe * 4);
+	tmp |= AUDIO_ELD_VALID(pipe);
 	I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
 
 	/* Enable timestamps */
@@ -267,11 +267,10 @@ static void ilk_audio_codec_disable(struct intel_encoder *encoder)
 	I915_WRITE(aud_config, tmp);
 
 	if (WARN_ON(!port)) {
-		eldv = IBX_ELD_VALIDB;
-		eldv |= IBX_ELD_VALIDB << 4;
-		eldv |= IBX_ELD_VALIDB << 8;
+		eldv = IBX_ELD_VALID(PORT_B) | IBX_ELD_VALID(PORT_C) |
+			IBX_ELD_VALID(PORT_D);
 	} else {
-		eldv = IBX_ELD_VALIDB << ((port - 1) * 4);
+		eldv = IBX_ELD_VALID(port);
 	}
 
 	/* Invalidate ELD */
@@ -327,11 +326,10 @@ static void ilk_audio_codec_enable(struct drm_connector *connector,
 	}
 
 	if (WARN_ON(!port)) {
-		eldv = IBX_ELD_VALIDB;
-		eldv |= IBX_ELD_VALIDB << 4;
-		eldv |= IBX_ELD_VALIDB << 8;
+		eldv = IBX_ELD_VALID(PORT_B) | IBX_ELD_VALID(PORT_C) |
+			IBX_ELD_VALID(PORT_D);
 	} else {
-		eldv = IBX_ELD_VALIDB << ((port - 1) * 4);
+		eldv = IBX_ELD_VALID(port);
 	}
 
 	/* Invalidate ELD */

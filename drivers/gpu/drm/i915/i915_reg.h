@@ -6102,8 +6102,8 @@ enum punit_power_well {
 #define   IBX_ELD_ADDRESS_MASK		(0x1f << 5)
 #define   IBX_ELD_ACK			(1 << 4)
 #define IBX_AUD_CNTL_ST2		0xE20C0
-#define   IBX_ELD_VALIDB		(1 << 0)
-#define   IBX_CP_READYB			(1 << 1)
+#define   IBX_CP_READY(port)		((1 << 1) << (((port) - 1) * 4))
+#define   IBX_ELD_VALID(port)		((1 << 0) << (((port) - 1) * 4))
 
 #define _CPT_HDMIW_HDMIEDID_A		0xE5050
 #define _CPT_HDMIW_HDMIEDID_B		0xE5150
@@ -6206,18 +6206,10 @@ enum punit_power_well {
 
 #define HSW_AUD_PIPE_CONV_CFG		0x6507c
 #define HSW_AUD_PIN_ELD_CP_VLD		0x650c0
-#define   AUDIO_INACTIVE_C		(1<<11)
-#define   AUDIO_INACTIVE_B		(1<<7)
-#define   AUDIO_INACTIVE_A		(1<<3)
-#define   AUDIO_OUTPUT_ENABLE_A		(1<<2)
-#define   AUDIO_OUTPUT_ENABLE_B		(1<<6)
-#define   AUDIO_OUTPUT_ENABLE_C		(1<<10)
-#define   AUDIO_ELD_VALID_A		(1<<0)
-#define   AUDIO_ELD_VALID_B		(1<<4)
-#define   AUDIO_ELD_VALID_C		(1<<8)
-#define   AUDIO_CP_READY_A		(1<<1)
-#define   AUDIO_CP_READY_B		(1<<5)
-#define   AUDIO_CP_READY_C		(1<<9)
+#define   AUDIO_INACTIVE(trans)		((1 << 3) << ((trans) * 4))
+#define   AUDIO_OUTPUT_ENABLE(trans)	((1 << 2) << ((trans) * 4))
+#define   AUDIO_CP_READY(trans)		((1 << 1) << ((trans) * 4))
+#define   AUDIO_ELD_VALID(trans)	((1 << 0) << ((trans) * 4))
 
 /* HSW Power Wells */
 #define HSW_PWR_WELL_BIOS			0x45400 /* CTL1 */
