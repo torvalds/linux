@@ -418,8 +418,8 @@ void iwlagn_bt_adjust_rssi_monitor(struct iwl_priv *priv, bool rssi_ena)
 
 static bool iwlagn_bt_traffic_is_sco(struct iwl_bt_uart_msg *uart_msg)
 {
-	return BT_UART_MSG_FRAME3SCOESCO_MSK & uart_msg->frame3 >>
-			BT_UART_MSG_FRAME3SCOESCO_POS;
+	return (BT_UART_MSG_FRAME3SCOESCO_MSK & uart_msg->frame3) >>
+		BT_UART_MSG_FRAME3SCOESCO_POS;
 }
 
 static void iwlagn_bt_traffic_change_work(struct work_struct *work)
