@@ -138,6 +138,8 @@ static int mac802154_parse_frame_start(struct sk_buff *skb,
 	int hlen;
 	struct ieee802154_mac_cb *cb = mac_cb_init(skb);
 
+	skb_reset_mac_header(skb);
+
 	hlen = ieee802154_hdr_pull(skb, hdr);
 	if (hlen < 0)
 		return -EINVAL;
@@ -227,6 +229,7 @@ mac802154_monitors_rx(struct ieee802154_local *local, struct sk_buff *skb)
 	u16 crc = crc_ccitt(0, skb->data, skb->len);
 	u8 *data;
 
+	skb_reset_mac_header(skb);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	skb->pkt_type = PACKET_OTHERHOST;
 	skb->protocol = htons(ETH_P_IEEE802154);
@@ -254,8 +257,6 @@ void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 	struct ieee802154_local *local = hw_to_local(hw);
 
 	WARN_ON_ONCE(softirq_count() == 0);
-
-	skb_reset_mac_header(skb);
 
 	if (!(local->hw.flags & IEEE802154_HW_OMIT_CKSUM)) {
 		u16 crc;
