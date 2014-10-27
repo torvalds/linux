@@ -3099,6 +3099,16 @@ perform_csum_check:
 	 * (see validate_xmit_skb_list() for example)
 	 */
 	segs->prev = tail;
+
+	/* Following permits correct backpressure, for protocols
+	 * using skb_set_owner_w().
+	 * Idea is to tranfert ownership from head_skb to last segment.
+	 */
+	if (head_skb->destructor == sock_wfree) {
+		swap(tail->truesize, head_skb->truesize);
+		swap(tail->destructor, head_skb->destructor);
+		swap(tail->sk, head_skb->sk);
+	}
 	return segs;
 
 err:
