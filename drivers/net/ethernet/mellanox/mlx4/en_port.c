@@ -91,15 +91,24 @@ int mlx4_en_QUERY_PORT(struct mlx4_en_dev *mdev, u8 port)
 	 * already synchronized, no need in locking */
 	state->link_state = !!(qport_context->link_up & MLX4_EN_LINK_UP_MASK);
 	switch (qport_context->link_speed & MLX4_EN_SPEED_MASK) {
+	case MLX4_EN_100M_SPEED:
+		state->link_speed = SPEED_100;
+		break;
 	case MLX4_EN_1G_SPEED:
-		state->link_speed = 1000;
+		state->link_speed = SPEED_1000;
 		break;
 	case MLX4_EN_10G_SPEED_XAUI:
 	case MLX4_EN_10G_SPEED_XFI:
-		state->link_speed = 10000;
+		state->link_speed = SPEED_10000;
+		break;
+	case MLX4_EN_20G_SPEED:
+		state->link_speed = SPEED_20000;
 		break;
 	case MLX4_EN_40G_SPEED:
-		state->link_speed = 40000;
+		state->link_speed = SPEED_40000;
+		break;
+	case MLX4_EN_56G_SPEED:
+		state->link_speed = SPEED_56000;
 		break;
 	default:
 		state->link_speed = -1;
