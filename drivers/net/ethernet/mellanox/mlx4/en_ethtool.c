@@ -982,6 +982,7 @@ static int mlx4_en_get_rxfh(struct net_device *dev, u32 *ring_index, u8 *key)
 	int err = 0;
 
 	rss_rings = priv->prof->rss_rings ?: priv->rx_ring_num;
+	rss_rings = 1 << ilog2(rss_rings);
 
 	while (n--) {
 		ring_index[n] = rss_map->qps[n % rss_rings].qpn -
