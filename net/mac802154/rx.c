@@ -31,6 +31,8 @@
 
 static int mac802154_process_data(struct net_device *dev, struct sk_buff *skb)
 {
+	skb->protocol = htons(ETH_P_IEEE802154);
+
 	return netif_receive_skb(skb);
 }
 
@@ -224,6 +226,8 @@ mac802154_monitors_rx(struct ieee802154_local *local, struct sk_buff *skb)
 	u16 crc = crc_ccitt(0, skb->data, skb->len);
 	u8 *data;
 
+	skb->protocol = htons(ETH_P_IEEE802154);
+
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		if (sdata->type != IEEE802154_DEV_MONITOR ||
@@ -248,7 +252,6 @@ void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 
 	WARN_ON_ONCE(softirq_count() == 0);
 
-	skb->protocol = htons(ETH_P_IEEE802154);
 	skb_reset_mac_header(skb);
 
 	if (!(local->hw.flags & IEEE802154_HW_OMIT_CKSUM)) {
