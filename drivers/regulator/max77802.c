@@ -472,7 +472,7 @@ static struct regulator_ops max77802_buck_dvs_ops = {
 	.enable_mask	= MAX77802_OPMODE_MASK,				\
 }
 
-static struct regulator_desc regulators[] = {
+static const struct regulator_desc regulators[] = {
 	regulator_77802_desc_16_buck(1),
 	regulator_77802_desc_234_buck(2),
 	regulator_77802_desc_234_buck(3),
