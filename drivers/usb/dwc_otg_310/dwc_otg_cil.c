@@ -1394,7 +1394,7 @@ void dwc_otg_core_init(dwc_otg_core_if_t *core_if)
 		DWC_DEBUGPL(DBG_CIL, "Internal DMA Mode\n");
 		/* Old value was DWC_GAHBCFG_INT_DMA_BURST_INCR - done for
 		   Host mode ISOC in issue fix - vahrama */
-		ahbcfg.b.hburstlen = DWC_GAHBCFG_INT_DMA_BURST_INCR16;
+		ahbcfg.b.hburstlen = DWC_GAHBCFG_INT_DMA_BURST_INCR8;
 		core_if->dma_enable = (core_if->core_params->dma_enable != 0);
 		core_if->dma_desc_enable =
 		    (core_if->core_params->dma_desc_enable != 0);
@@ -1714,7 +1714,7 @@ void dwc_otg_core_init_no_reset(dwc_otg_core_if_t *core_if)
 		DWC_DEBUGPL(DBG_CIL, "Internal DMA Mode\n");
 		/* Old value was DWC_GAHBCFG_INT_DMA_BURST_INCR - done for
 		   Host mode ISOC in issue fix - vahrama */
-		ahbcfg.b.hburstlen = DWC_GAHBCFG_INT_DMA_BURST_INCR16;
+		ahbcfg.b.hburstlen = DWC_GAHBCFG_INT_DMA_BURST_INCR8;
 		core_if->dma_enable = (core_if->core_params->dma_enable != 0);
 		core_if->dma_desc_enable =
 		    (core_if->core_params->dma_desc_enable != 0);
@@ -1973,7 +1973,7 @@ void dwc_otg_core_dev_init(dwc_otg_core_if_t *core_if)
 	DWC_MODIFY_REG32(core_if->pcgcctl, pcgcctl.d32, 0);
 	dwc_udelay(10);
 
-	gahbcfg.b.hburstlen = DWC_GAHBCFG_INT_DMA_BURST_INCR16;
+	gahbcfg.b.hburstlen = DWC_GAHBCFG_INT_DMA_BURST_INCR8;
 	DWC_MODIFY_REG32(&global_regs->gahbcfg, 0, gahbcfg.b.hburstlen);
 
 	/* Device configuration register */
