@@ -94,13 +94,69 @@ extern void trace_call_function_single_interrupt(void);
 #define trace_kvm_posted_intr_ipi kvm_posted_intr_ipi
 #endif /* CONFIG_TRACING */
 
+#ifdef CONFIG_IRQ_REMAP
+/* Intel specific interrupt remapping information */
+struct irq_2_iommu {
+	struct intel_iommu *iommu;
+	u16 irte_index;
+	u16 sub_handle;
+	u8  irte_mask;
+};
+
+/* AMD specific interrupt remapping information */
+struct irq_2_irte {
+	u16 devid; /* Device ID for IRTE table */
+	u16 index; /* Index into IRTE table*/
+};
+#endif	/* CONFIG_IRQ_REMAP */
+
+#ifdef	CONFIG_X86_LOCAL_APIC
+struct irq_cfg {
+	cpumask_var_t		domain;
+	cpumask_var_t		old_domain;
+	u8			vector;
+	u8			move_in_progress : 1;
+#ifdef CONFIG_IRQ_REMAP
+	u8			remapped : 1;
+	union {
+		struct irq_2_iommu irq_2_iommu;
+		struct irq_2_irte  irq_2_irte;
+	};
+#endif
+	union {
+#ifdef CONFIG_X86_IO_APIC
+		struct {
+			struct list_head	irq_2_pin;
+		};
+#endif
+	};
+};
+
+extern void setup_vector_irq(int cpu);
+extern int assign_irq_vector(int, struct irq_cfg *, const struct cpumask *);
+#ifdef CONFIG_SMP
+extern void send_cleanup_vector(struct irq_cfg *);
+#else
+static inline void send_cleanup_vector(struct irq_cfg *c) { }
+#endif
+
+struct irq_data;
+int __ioapic_set_affinity(struct irq_data *, const struct cpumask *,
+			  unsigned int *dest_id);
+#endif	/* CONFIG_X86_LOCAL_APIC */
+
+#ifdef CONFIG_X86_IO_APIC
+extern void lock_vector_lock(void);
+extern void unlock_vector_lock(void);
+extern void __setup_vector_irq(int cpu);
+#else
+static inline void lock_vector_lock(void) {}
+static inline void unlock_vector_lock(void) {}
+static inline void __setup_vector_irq(int cpu) {}
+#endif
+
 /* IOAPIC */
-#define IO_APIC_IRQ(x) (((x) >= NR_IRQS_LEGACY) || ((1<<(x)) & io_apic_irqs))
-extern unsigned long io_apic_irqs;
-
-extern void setup_IO_APIC(void);
-extern void disable_IO_APIC(void);
-
+#ifdef CONFIG_X86_IO_APIC
 struct io_apic_irq_attr {
 	int ioapic;
 	int ioapic_pin;
@@ -118,54 +174,17 @@ static inline void set_io_apic_irq_attr(struct io_apic_irq_attr *irq_attr,
 	irq_attr->polarity	= polarity;
 }
 
-/* Intel specific interrupt remapping information */
-struct irq_2_iommu {
-	struct intel_iommu *iommu;
-	u16 irte_index;
-	u16 sub_handle;
-	u8  irte_mask;
-};
-
-/* AMD specific interrupt remapping information */
-struct irq_2_irte {
-	u16 devid; /* Device ID for IRTE table */
-	u16 index; /* Index into IRTE table*/
-};
-
-/*
- * This is performance-critical, we want to do it O(1)
- *
- * Most irqs are mapped 1:1 with pins.
- */
-struct irq_cfg {
-	struct list_head	irq_2_pin;
-	cpumask_var_t		domain;
-	cpumask_var_t		old_domain;
-	u8			vector;
-	u8			move_in_progress : 1;
-#ifdef CONFIG_IRQ_REMAP
-	u8			remapped : 1;
-	union {
-		struct irq_2_iommu irq_2_iommu;
-		struct irq_2_irte  irq_2_irte;
-	};
-#endif
-};
-
-extern int assign_irq_vector(int, struct irq_cfg *, const struct cpumask *);
-#ifdef CONFIG_SMP
-extern void send_cleanup_vector(struct irq_cfg *);
-#else
-static inline void send_cleanup_vector(struct irq_cfg *c) { }
-#endif
-
-struct irq_data;
-int __ioapic_set_affinity(struct irq_data *, const struct cpumask *,
-			  unsigned int *dest_id);
-extern int IO_APIC_get_PCI_irq_vector(int bus, int devfn, int pin);
-extern void setup_ioapic_dest(void);
-
+extern void setup_IO_APIC(void);
 extern void enable_IO_APIC(void);
+extern void disable_IO_APIC(void);
+extern void setup_ioapic_dest(void);
+extern int IO_APIC_get_PCI_irq_vector(int bus, int devfn, int pin);
+
+extern unsigned long io_apic_irqs;
+#define IO_APIC_IRQ(x) (((x) >= NR_IRQS_LEGACY) || ((1 << (x)) & io_apic_irqs))
+#else	/* CONFIG_X86_IO_APIC */
+#define IO_APIC_IRQ(x)	0
+#endif	/* CONFIG_X86_IO_APIC */
 
 /* Statistics */
 extern atomic_t irq_err_count;
@@ -200,17 +219,6 @@ extern void (*__initconst interrupt[FIRST_SYSTEM_VECTOR
 
 typedef int vector_irq_t[NR_VECTORS];
 DECLARE_PER_CPU(vector_irq_t, vector_irq);
-extern void setup_vector_irq(int cpu);
-
-#ifdef CONFIG_X86_IO_APIC
-extern void lock_vector_lock(void);
-extern void unlock_vector_lock(void);
-extern void __setup_vector_irq(int cpu);
-#else
-static inline void lock_vector_lock(void) {}
-static inline void unlock_vector_lock(void) {}
-static inline void __setup_vector_irq(int cpu) {}
-#endif
 
 #endif /* !ASSEMBLY_ */
 
