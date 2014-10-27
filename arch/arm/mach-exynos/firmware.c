@@ -129,11 +129,11 @@ static int exynos_resume(void)
 }
 
 static const struct firmware_ops exynos_firmware_ops = {
-	.do_idle		= exynos_do_idle,
+	.do_idle		= IS_ENABLED(CONFIG_EXYNOS_CPU_SUSPEND) ? exynos_do_idle : NULL,
 	.set_cpu_boot_addr	= exynos_set_cpu_boot_addr,
 	.cpu_boot		= exynos_cpu_boot,
-	.suspend		= exynos_suspend,
-	.resume			= exynos_resume,
+	.suspend		= IS_ENABLED(CONFIG_PM_SLEEP) ? exynos_suspend : NULL,
+	.resume			= IS_ENABLED(CONFIG_EXYNOS_CPU_SUSPEND) ? exynos_resume : NULL,
 };
 
 void __init exynos_firmware_init(void)
