@@ -788,7 +788,7 @@ at86rf230_tx_trac_status(void *context)
 
 static void
 at86rf230_rx(struct at86rf230_local *lp,
-	     const u8 *data, const u8 len)
+	     const u8 *data, const u8 len, const u8 lqi)
 {
 	struct sk_buff *skb;
 	u8 rx_local_buf[AT86RF2XX_MAX_BUF];
@@ -803,11 +803,7 @@ at86rf230_rx(struct at86rf230_local *lp,
 	}
 
 	memcpy(skb_put(skb, len), rx_local_buf, len);
-
-	/* We do not put CRC into the frame */
-	skb_trim(skb, len - 2);
-
-	ieee802154_rx_irqsafe(lp->hw, skb, rx_local_buf[len]);
+	ieee802154_rx_irqsafe(lp->hw, skb, lqi);
 }
 
 static void
@@ -823,7 +819,7 @@ at86rf230_rx_read_frame_complete(void *context)
 		len = IEEE802154_MTU;
 	}
 
-	at86rf230_rx(lp, buf + 2, len);
+	at86rf230_rx(lp, buf + 2, len - 2, buf[2 + len]);
 }
 
 static void
