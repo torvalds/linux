@@ -94,18 +94,20 @@
 
 /* these are outputs from the chip - integrated only
    external chips are via DVO or SDVO output */
-#define INTEL_OUTPUT_UNUSED 0
-#define INTEL_OUTPUT_ANALOG 1
-#define INTEL_OUTPUT_DVO 2
-#define INTEL_OUTPUT_SDVO 3
-#define INTEL_OUTPUT_LVDS 4
-#define INTEL_OUTPUT_TVOUT 5
-#define INTEL_OUTPUT_HDMI 6
-#define INTEL_OUTPUT_DISPLAYPORT 7
-#define INTEL_OUTPUT_EDP 8
-#define INTEL_OUTPUT_DSI 9
-#define INTEL_OUTPUT_UNKNOWN 10
-#define INTEL_OUTPUT_DP_MST 11
+enum intel_output_type {
+	INTEL_OUTPUT_UNUSED = 0,
+	INTEL_OUTPUT_ANALOG = 1,
+	INTEL_OUTPUT_DVO = 2,
+	INTEL_OUTPUT_SDVO = 3,
+	INTEL_OUTPUT_LVDS = 4,
+	INTEL_OUTPUT_TVOUT = 5,
+	INTEL_OUTPUT_HDMI = 6,
+	INTEL_OUTPUT_DISPLAYPORT = 7,
+	INTEL_OUTPUT_EDP = 8,
+	INTEL_OUTPUT_DSI = 9,
+	INTEL_OUTPUT_UNKNOWN = 10,
+	INTEL_OUTPUT_DP_MST = 11,
+};
 
 #define INTEL_DVO_CHIP_NONE 0
 #define INTEL_DVO_CHIP_LVDS 1
@@ -136,7 +138,7 @@ struct intel_encoder {
 	 */
 	struct intel_crtc *new_crtc;
 
-	int type;
+	enum intel_output_type type;
 	unsigned int cloneable;
 	bool connectors_active;
 	void (*hot_plug)(struct intel_encoder *);

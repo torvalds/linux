@@ -2971,6 +2971,8 @@ static int i9xx_pipe_crc_auto_source(struct drm_device *dev, enum pipe pipe,
 				break;
 			}
 			break;
+		default:
+			break;
 		}
 	}
 	drm_modeset_unlock_all(dev);

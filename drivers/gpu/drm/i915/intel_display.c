@@ -6269,6 +6269,8 @@ static int i9xx_crtc_mode_set(struct intel_crtc *crtc,
 		case INTEL_OUTPUT_DSI:
 			is_dsi = true;
 			break;
+		default:
+			break;
 		}
 
 		num_connectors++;
@@ -6597,6 +6599,8 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 			if (enc_to_dig_port(&encoder->base)->port == PORT_A)
 				has_cpu_edp = true;
 			break;
+		default:
+			break;
 		}
 	}
 
@@ -6901,6 +6905,8 @@ static void lpt_init_pch_refclk(struct drm_device *dev)
 		case INTEL_OUTPUT_ANALOG:
 			has_vga = true;
 			break;
+		default:
+			break;
 		}
 	}
 
@@ -6933,6 +6939,8 @@ static int ironlake_get_refclk(struct drm_crtc *crtc)
 		switch (encoder->type) {
 		case INTEL_OUTPUT_LVDS:
 			is_lvds = true;
+			break;
+		default:
 			break;
 		}
 		num_connectors++;
@@ -7187,6 +7195,8 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 		case INTEL_OUTPUT_SDVO:
 		case INTEL_OUTPUT_HDMI:
 			is_sdvo = true;
+			break;
+		default:
 			break;
 		}
 
