@@ -7,6 +7,7 @@ obj-y				+= hw_nmi.o
 
 obj-$(CONFIG_X86_IO_APIC)	+= io_apic.o
 obj-$(CONFIG_PCI_MSI)		+= msi.o
+obj-$(CONFIG_HT_IRQ)		+= htirq.o
 obj-$(CONFIG_SMP)		+= ipi.o
 
 ifeq ($(CONFIG_X86_64),y)
