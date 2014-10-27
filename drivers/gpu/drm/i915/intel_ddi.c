@@ -1186,12 +1186,10 @@ static void intel_enable_ddi(struct intel_encoder *intel_encoder)
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_crtc *crtc = encoder->crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
 	int type = intel_encoder->type;
-	uint32_t tmp;
 
 	if (type == INTEL_OUTPUT_HDMI) {
 		struct intel_digital_port *intel_dig_port =
@@ -1216,11 +1214,7 @@ static void intel_enable_ddi(struct intel_encoder *intel_encoder)
 
 	if (intel_crtc->config.has_audio) {
 		intel_display_power_get(dev_priv, POWER_DOMAIN_AUDIO);
-		intel_write_eld(intel_encoder);
-
-		tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
-		tmp |= ((AUDIO_OUTPUT_ENABLE_A | AUDIO_ELD_VALID_A) << (pipe * 4));
-		I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
+		intel_audio_codec_enable(intel_encoder);
 	}
 }
 
@@ -1229,19 +1223,12 @@ static void intel_disable_ddi(struct intel_encoder *intel_encoder)
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_crtc *crtc = encoder->crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
 	int type = intel_encoder->type;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t tmp;
 
-	/* We can't touch HSW_AUD_PIN_ELD_CP_VLD uncionditionally because this
-	 * register is part of the power well on Haswell. */
 	if (intel_crtc->config.has_audio) {
-		tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
-		tmp &= ~((AUDIO_OUTPUT_ENABLE_A | AUDIO_ELD_VALID_A) <<
-			 (pipe * 4));
-		I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
+		intel_audio_codec_disable(intel_encoder);
 		intel_display_power_put(dev_priv, POWER_DOMAIN_AUDIO);
 	}
 

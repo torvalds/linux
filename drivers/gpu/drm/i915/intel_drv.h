@@ -853,7 +853,8 @@ void intel_fb_obj_flush(struct drm_i915_gem_object *obj, bool retire);
 
 /* intel_audio.c */
 void intel_init_audio(struct drm_device *dev);
-void intel_write_eld(struct intel_encoder *encoder);
+void intel_audio_codec_enable(struct intel_encoder *encoder);
+void intel_audio_codec_disable(struct intel_encoder *encoder);
 
 /* intel_display.c */
 const char *intel_output_name(int output);

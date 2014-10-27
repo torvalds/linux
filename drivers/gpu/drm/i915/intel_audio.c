@@ -96,9 +96,9 @@ static bool intel_eld_uptodate(struct drm_connector *connector,
 	return true;
 }
 
-static void g4x_write_eld(struct drm_connector *connector,
-			  struct intel_encoder *encoder,
-			  struct drm_display_mode *mode)
+static void g4x_audio_codec_enable(struct drm_connector *connector,
+				   struct intel_encoder *encoder,
+				   struct drm_display_mode *mode)
 {
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 	uint8_t *eld = connector->eld;
@@ -136,9 +136,22 @@ static void g4x_write_eld(struct drm_connector *connector,
 	I915_WRITE(G4X_AUD_CNTL_ST, tmp);
 }
 
-static void haswell_write_eld(struct drm_connector *connector,
-			      struct intel_encoder *encoder,
-			      struct drm_display_mode *mode)
+static void hsw_audio_codec_disable(struct intel_encoder *encoder)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc = encoder->base.crtc;
+	enum pipe pipe = to_intel_crtc(crtc)->pipe;
+	uint32_t tmp;
+
+	tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
+	tmp &= ~((AUDIO_OUTPUT_ENABLE_A | AUDIO_ELD_VALID_A) << (pipe * 4));
+	I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
+}
+
+static void hsw_audio_codec_enable(struct drm_connector *connector,
+				   struct intel_encoder *encoder,
+				   struct drm_display_mode *mode)
 {
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
@@ -211,11 +224,16 @@ static void haswell_write_eld(struct drm_connector *connector,
 	tmp = I915_READ(aud_cntrl_st2);
 	tmp |= eldv;
 	I915_WRITE(aud_cntrl_st2, tmp);
+
+	/* XXX: Transitional */
+	tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
+	tmp |= ((AUDIO_OUTPUT_ENABLE_A | AUDIO_ELD_VALID_A) << (pipe * 4));
+	I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
 }
 
-static void ironlake_write_eld(struct drm_connector *connector,
-			       struct intel_encoder *encoder,
-			       struct drm_display_mode *mode)
+static void ilk_audio_codec_enable(struct drm_connector *connector,
+				   struct intel_encoder *encoder,
+				   struct drm_display_mode *mode)
 {
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
@@ -303,7 +321,14 @@ static void ironlake_write_eld(struct drm_connector *connector,
 	I915_WRITE(aud_cntrl_st2, tmp);
 }
 
-void intel_write_eld(struct intel_encoder *intel_encoder)
+/**
+ * intel_audio_codec_enable - Enable the audio codec for HD audio
+ * @intel_encoder: encoder on which to enable audio
+ *
+ * The enable sequences may only be performed after enabling the transcoder and
+ * port, and after completed link training.
+ */
+void intel_audio_codec_enable(struct intel_encoder *intel_encoder)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct intel_crtc *crtc = to_intel_crtc(encoder->crtc);
@@ -329,8 +354,24 @@ void intel_write_eld(struct intel_encoder *intel_encoder)
 
 	connector->eld[6] = drm_av_sync_delay(connector, mode) / 2;
 
-	if (dev_priv->display.write_eld)
-		dev_priv->display.write_eld(connector, intel_encoder, mode);
+	if (dev_priv->display.audio_codec_enable)
+		dev_priv->display.audio_codec_enable(connector, intel_encoder, mode);
+}
+
+/**
+ * intel_audio_codec_disable - Disable the audio codec for HD audio
+ * @encoder: encoder on which to disable audio
+ *
+ * The disable sequences must be performed before disabling the transcoder or
+ * port.
+ */
+void intel_audio_codec_disable(struct intel_encoder *encoder)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->display.audio_codec_disable)
+		dev_priv->display.audio_codec_disable(encoder);
 }
 
 /**
@@ -341,12 +382,14 @@ void intel_init_audio(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (IS_G4X(dev))
-		dev_priv->display.write_eld = g4x_write_eld;
-	else if (IS_VALLEYVIEW(dev))
-		dev_priv->display.write_eld = ironlake_write_eld;
-	else if (IS_HASWELL(dev) || INTEL_INFO(dev)->gen >= 8)
-		dev_priv->display.write_eld = haswell_write_eld;
-	else if (HAS_PCH_SPLIT(dev))
-		dev_priv->display.write_eld = ironlake_write_eld;
+	if (IS_G4X(dev)) {
+		dev_priv->display.audio_codec_enable = g4x_audio_codec_enable;
+	} else if (IS_VALLEYVIEW(dev)) {
+		dev_priv->display.audio_codec_enable = ilk_audio_codec_enable;
+	} else if (IS_HASWELL(dev) || INTEL_INFO(dev)->gen >= 8) {
+		dev_priv->display.audio_codec_enable = hsw_audio_codec_enable;
+		dev_priv->display.audio_codec_disable = hsw_audio_codec_disable;
+	} else if (HAS_PCH_SPLIT(dev)) {
+		dev_priv->display.audio_codec_enable = ilk_audio_codec_enable;
+	}
 }
