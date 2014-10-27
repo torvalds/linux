@@ -2300,6 +2300,8 @@ static int musb_suspend(struct device *dev)
 static int musb_resume(struct device *dev)
 {
 	struct musb	*musb = dev_to_musb(dev);
+	u8		devctl;
+	u8		mask;
 
 	/*
 	 * For static cmos like DaVinci, register values were preserved
@@ -2313,6 +2315,10 @@ static int musb_resume(struct device *dev)
 
 	musb_restore_context(musb);
 
+	devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
+	mask = MUSB_DEVCTL_BDEVICE | MUSB_DEVCTL_FSDEV | MUSB_DEVCTL_LSDEV;
+	if ((devctl & mask) != (musb->context.devctl & mask))
+		musb->port1_status = 0;
 	return 0;
 }
 
