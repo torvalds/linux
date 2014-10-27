@@ -1687,6 +1687,9 @@ static int init_phy(struct net_device *dev)
 	priv->phydev->supported &= (GFAR_SUPPORTED | gigabit_support);
 	priv->phydev->advertising = priv->phydev->supported;
 
+	/* Add support for flow control, but don't advertise it by default */
+	priv->phydev->supported |= (SUPPORTED_Pause | SUPPORTED_Asym_Pause);
+
 	return 0;
 }
 

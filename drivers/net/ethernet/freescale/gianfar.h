@@ -145,9 +145,7 @@ extern const char gfar_driver_version[];
 		| SUPPORTED_Autoneg \
 		| SUPPORTED_MII)
 
-#define GFAR_SUPPORTED_GBIT (SUPPORTED_1000baseT_Full \
-		| SUPPORTED_Pause \
-		| SUPPORTED_Asym_Pause)
+#define GFAR_SUPPORTED_GBIT SUPPORTED_1000baseT_Full
 
 /* TBI register addresses */
 #define MII_TBICON		0x11
