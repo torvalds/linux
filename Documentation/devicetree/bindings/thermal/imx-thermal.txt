@@ -1,7 +1,10 @@
 * Temperature Monitor (TEMPMON) on Freescale i.MX SoCs
 
 Required properties:
-- compatible : "fsl,imx6q-thermal"
+- compatible : "fsl,imx6q-tempmon" for i.MX6Q, "fsl,imx6sx-tempmon" for i.MX6SX.
+  i.MX6SX has two more IRQs than i.MX6Q, one is IRQ_LOW and the other is IRQ_PANIC,
+  when temperature is below than low threshold, IRQ_LOW will be triggered, when temperature
+  is higher than panic threshold, system will auto reboot by SRC module.
 - fsl,tempmon : phandle pointer to system controller that contains TEMPMON
   control registers, e.g. ANATOP on imx6q.
 - fsl,tempmon-data : phandle pointer to fuse controller that contains TEMPMON

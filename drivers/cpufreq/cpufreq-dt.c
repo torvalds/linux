@@ -18,6 +18,7 @@
 #include <linux/cpu.h>
 #include <linux/cpu_cooling.h>
 #include <linux/cpufreq.h>
+#include <linux/cpufreq-dt.h>
 #include <linux/cpumask.h>
 #include <linux/err.h>
 #include <linux/module.h>
@@ -146,8 +147,8 @@ try_again:
 			goto try_again;
 		}
 
-		dev_warn(cpu_dev, "failed to get cpu%d regulator: %ld\n",
-			 cpu, PTR_ERR(cpu_reg));
+		dev_dbg(cpu_dev, "no regulator for cpu%d: %ld\n",
+			cpu, PTR_ERR(cpu_reg));
 	}
 
 	cpu_clk = clk_get(cpu_dev, NULL);
@@ -178,6 +179,7 @@ try_again:
 
 static int cpufreq_init(struct cpufreq_policy *policy)
 {
+	struct cpufreq_dt_platform_data *pd;
 	struct cpufreq_frequency_table *freq_table;
 	struct thermal_cooling_device *cdev;
 	struct device_node *np;
@@ -265,9 +267,18 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	policy->driver_data = priv;
 
 	policy->clk = cpu_clk;
-	ret = cpufreq_generic_init(policy, freq_table, transition_latency);
-	if (ret)
+	ret = cpufreq_table_validate_and_show(policy, freq_table);
+	if (ret) {
+		dev_err(cpu_dev, "%s: invalid frequency table: %d\n", __func__,
+			ret);
 		goto out_cooling_unregister;
+	}
+
+	policy->cpuinfo.transition_latency = transition_latency;
+
+	pd = cpufreq_get_driver_data();
+	if (pd && !pd->independent_clocks)
+		cpumask_setall(policy->cpus);
 
 	of_node_put(np);
 
@@ -334,6 +345,8 @@ static int dt_cpufreq_probe(struct platform_device *pdev)
 	clk_put(cpu_clk);
 	if (!IS_ERR(cpu_reg))
 		regulator_put(cpu_reg);
+
+	dt_cpufreq_driver.driver_data = dev_get_platdata(&pdev->dev);
 
 	ret = cpufreq_register_driver(&dt_cpufreq_driver);
 	if (ret)

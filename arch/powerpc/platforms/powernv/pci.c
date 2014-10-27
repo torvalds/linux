@@ -505,7 +505,7 @@ static bool pnv_pci_cfg_check(struct pci_controller *hose,
 	edev = of_node_to_eeh_dev(dn);
 	if (edev) {
 		if (edev->pe &&
-		    (edev->pe->state & EEH_PE_RESET))
+		    (edev->pe->state & EEH_PE_CFG_BLOCKED))
 			return false;
 
 		if (edev->mode & EEH_DEV_REMOVED)
