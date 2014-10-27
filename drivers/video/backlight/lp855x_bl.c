@@ -268,6 +268,7 @@ static int lp855x_bl_update_status(struct backlight_device *bl)
 
 	} else if (lp->mode == REGISTER_BASED) {
 		u8 val = bl->props.brightness;
+
 		lp855x_write_byte(lp, lp->cfg->reg_brightness, val);
 	}
 
@@ -308,6 +309,7 @@ static ssize_t lp855x_get_chip_id(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct lp855x *lp = dev_get_drvdata(dev);
+
 	return scnprintf(buf, PAGE_SIZE, "%s\n", lp->chipname);
 }
 

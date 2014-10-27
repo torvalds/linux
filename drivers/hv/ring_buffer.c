@@ -361,6 +361,11 @@ int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info,
 	ring_info->ring_buffer->read_index =
 		ring_info->ring_buffer->write_index = 0;
 
+	/*
+	 * Set the feature bit for enabling flow control.
+	 */
+	ring_info->ring_buffer->feature_bits.value = 1;
+
 	ring_info->ring_size = buflen;
 	ring_info->ring_datasize = buflen - sizeof(struct hv_ring_buffer);
 

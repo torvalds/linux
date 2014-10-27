@@ -268,7 +268,8 @@ static int
 sa1100fb_setpalettereg(u_int regno, u_int red, u_int green, u_int blue,
 		       u_int trans, struct fb_info *info)
 {
-	struct sa1100fb_info *fbi = (struct sa1100fb_info *)info;
+	struct sa1100fb_info *fbi =
+		container_of(info, struct sa1100fb_info, fb);
 	u_int val, ret = 1;
 
 	if (regno < fbi->palette_size) {
@@ -289,7 +290,8 @@ static int
 sa1100fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		   u_int trans, struct fb_info *info)
 {
-	struct sa1100fb_info *fbi = (struct sa1100fb_info *)info;
+	struct sa1100fb_info *fbi =
+		container_of(info, struct sa1100fb_info, fb);
 	unsigned int val;
 	int ret = 1;
 
@@ -366,7 +368,8 @@ static inline unsigned int sa1100fb_display_dma_period(struct fb_var_screeninfo 
 static int
 sa1100fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
-	struct sa1100fb_info *fbi = (struct sa1100fb_info *)info;
+	struct sa1100fb_info *fbi =
+		container_of(info, struct sa1100fb_info, fb);
 	int rgbidx;
 
 	if (var->xres < MIN_XRES)
@@ -433,7 +436,8 @@ static void sa1100fb_set_visual(struct sa1100fb_info *fbi, u32 visual)
  */
 static int sa1100fb_set_par(struct fb_info *info)
 {
-	struct sa1100fb_info *fbi = (struct sa1100fb_info *)info;
+	struct sa1100fb_info *fbi =
+		container_of(info, struct sa1100fb_info, fb);
 	struct fb_var_screeninfo *var = &info->var;
 	unsigned long palette_mem_size;
 
@@ -526,7 +530,8 @@ sa1100fb_set_cmap(struct fb_cmap *cmap, int kspc, int con,
  */
 static int sa1100fb_blank(int blank, struct fb_info *info)
 {
-	struct sa1100fb_info *fbi = (struct sa1100fb_info *)info;
+	struct sa1100fb_info *fbi =
+		container_of(info, struct sa1100fb_info, fb);
 	int i;
 
 	dev_dbg(fbi->dev, "sa1100fb_blank: blank=%d\n", blank);
@@ -555,7 +560,8 @@ static int sa1100fb_blank(int blank, struct fb_info *info)
 static int sa1100fb_mmap(struct fb_info *info,
 			 struct vm_area_struct *vma)
 {
-	struct sa1100fb_info *fbi = (struct sa1100fb_info *)info;
+	struct sa1100fb_info *fbi =
+		container_of(info, struct sa1100fb_info, fb);
 	unsigned long off = vma->vm_pgoff << PAGE_SHIFT;
 
 	if (off < info->fix.smem_len) {

@@ -36,7 +36,7 @@
 #include "nouveau_abi16.h"
 
 MODULE_PARM_DESC(vram_pushbuf, "Create DMA push buffers in VRAM");
-static int nouveau_vram_pushbuf;
+int nouveau_vram_pushbuf;
 module_param_named(vram_pushbuf, nouveau_vram_pushbuf, int, 0400);
 
 int
@@ -106,7 +106,7 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 	if (nouveau_vram_pushbuf)
 		target = TTM_PL_FLAG_VRAM;
 
-	ret = nouveau_bo_new(drm->dev, size, 0, target, 0, 0, NULL,
+	ret = nouveau_bo_new(drm->dev, size, 0, target, 0, 0, NULL, NULL,
 			    &chan->push.buffer);
 	if (ret == 0) {
 		ret = nouveau_bo_pin(chan->push.buffer, target);
@@ -400,7 +400,12 @@ nouveau_channel_new(struct nouveau_drm *drm, struct nvif_device *device,
 		    struct nouveau_channel **pchan)
 {
 	struct nouveau_cli *cli = (void *)nvif_client(&device->base);
+	bool super;
 	int ret;
+
+	/* hack until fencenv50 is fixed, and agp access relaxed */
+	super = cli->base.super;
+	cli->base.super = true;
 
 	ret = nouveau_channel_ind(drm, device, handle, arg0, pchan);
 	if (ret) {
@@ -408,7 +413,7 @@ nouveau_channel_new(struct nouveau_drm *drm, struct nvif_device *device,
 		ret = nouveau_channel_dma(drm, device, handle, pchan);
 		if (ret) {
 			NV_PRINTK(debug, cli, "dma channel create, %d\n", ret);
-			return ret;
+			goto done;
 		}
 	}
 
@@ -416,8 +421,9 @@ nouveau_channel_new(struct nouveau_drm *drm, struct nvif_device *device,
 	if (ret) {
 		NV_PRINTK(error, cli, "channel failed to initialise, %d\n", ret);
 		nouveau_channel_del(pchan);
-		return ret;
 	}
 
-	return 0;
+done:
+	cli->base.super = super;
+	return ret;
 }

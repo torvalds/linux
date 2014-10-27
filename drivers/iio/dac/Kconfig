@@ -152,6 +152,14 @@ config MAX517
 	  This driver can also be built as a module.  If so, the module
 	  will be called max517.
 
+config MAX5821
+	tristate "Maxim MAX5821 DAC driver"
+	depends on I2C
+	depends on OF
+	help
+	  Say yes here to build support for Maxim MAX5821
+	  10 bits DAC.
+
 config MCP4725
 	tristate "MCP4725 DAC driver"
 	depends on I2C

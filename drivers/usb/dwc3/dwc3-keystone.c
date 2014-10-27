@@ -189,7 +189,6 @@ static struct platform_driver kdwc3_driver = {
 	.remove		= kdwc3_remove,
 	.driver		= {
 		.name	= "keystone-dwc3",
-		.owner	        = THIS_MODULE,
 		.of_match_table	= kdwc3_of_match,
 	},
 };

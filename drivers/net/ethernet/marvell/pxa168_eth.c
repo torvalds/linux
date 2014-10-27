@@ -22,27 +22,30 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/dma-mapping.h>
-#include <linux/in.h>
-#include <linux/ip.h>
-#include <linux/tcp.h>
-#include <linux/udp.h>
-#include <linux/etherdevice.h>
 #include <linux/bitops.h>
-#include <linux/delay.h>
-#include <linux/ethtool.h>
-#include <linux/platform_device.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/workqueue.h>
 #include <linux/clk.h>
-#include <linux/phy.h>
-#include <linux/io.h>
+#include <linux/delay.h>
+#include <linux/dma-mapping.h>
+#include <linux/etherdevice.h>
+#include <linux/ethtool.h>
+#include <linux/in.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
+#include <linux/ip.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_net.h>
+#include <linux/phy.h>
+#include <linux/platform_device.h>
+#include <linux/pxa168_eth.h>
+#include <linux/tcp.h>
 #include <linux/types.h>
+#include <linux/udp.h>
+#include <linux/workqueue.h>
+
 #include <asm/pgtable.h>
 #include <asm/cacheflush.h>
-#include <linux/pxa168_eth.h>
 
 #define DRIVER_NAME	"pxa168-eth"
 #define DRIVER_VERSION	"0.3"
@@ -58,6 +61,8 @@
 #define PORT_COMMAND		0x0410
 #define PORT_STATUS		0x0418
 #define HTPR			0x0428
+#define MAC_ADDR_LOW		0x0430
+#define MAC_ADDR_HIGH		0x0438
 #define SDMA_CONFIG		0x0440
 #define SDMA_CMD		0x0448
 #define INT_CAUSE		0x0450
@@ -161,7 +166,7 @@
 /* Bit definitions for Port status */
 #define PORT_SPEED_100		(1 << 0)
 #define FULL_DUPLEX		(1 << 1)
-#define FLOW_CONTROL_ENABLED	(1 << 2)
+#define FLOW_CONTROL_DISABLED	(1 << 2)
 #define LINK_UP			(1 << 3)
 
 /* Bit definitions for work to be done */
@@ -191,6 +196,7 @@ struct tx_desc {
 
 struct pxa168_eth_private {
 	int port_num;		/* User Ethernet port number    */
+	int phy_addr;
 
 	int rx_resource_err;	/* Rx ring resource error flag */
 
@@ -296,7 +302,7 @@ static void abort_dma(struct pxa168_eth_private *pep)
 	} while (max_retries-- > 0 && delay <= 0);
 
 	if (max_retries <= 0)
-		printk(KERN_ERR "%s : DMA Stuck\n", __func__);
+		netdev_err(pep->dev, "%s : DMA Stuck\n", __func__);
 }
 
 static int ethernet_phy_get(struct pxa168_eth_private *pep)
@@ -507,9 +513,10 @@ static int add_del_hash_entry(struct pxa168_eth_private *pep,
 
 	if (i == HOP_NUMBER) {
 		if (!del) {
-			printk(KERN_INFO "%s: table section is full, need to "
-					"move to 16kB implementation?\n",
-					 __FILE__);
+			netdev_info(pep->dev,
+				    "%s: table section is full, need to "
+				    "move to 16kB implementation?\n",
+				    __FILE__);
 			return -ENOSPC;
 		} else
 			return 0;
@@ -600,16 +607,42 @@ static void pxa168_eth_set_rx_mode(struct net_device *dev)
 		update_hash_table_mac_address(pep, NULL, ha->addr);
 }
 
+static void pxa168_eth_get_mac_address(struct net_device *dev,
+				       unsigned char *addr)
+{
+	struct pxa168_eth_private *pep = netdev_priv(dev);
+	unsigned int mac_h = rdl(pep, MAC_ADDR_HIGH);
+	unsigned int mac_l = rdl(pep, MAC_ADDR_LOW);
+
+	addr[0] = (mac_h >> 24) & 0xff;
+	addr[1] = (mac_h >> 16) & 0xff;
+	addr[2] = (mac_h >> 8) & 0xff;
+	addr[3] = mac_h & 0xff;
+	addr[4] = (mac_l >> 8) & 0xff;
+	addr[5] = mac_l & 0xff;
+}
+
 static int pxa168_eth_set_mac_address(struct net_device *dev, void *addr)
 {
 	struct sockaddr *sa = addr;
 	struct pxa168_eth_private *pep = netdev_priv(dev);
 	unsigned char oldMac[ETH_ALEN];
+	u32 mac_h, mac_l;
 
 	if (!is_valid_ether_addr(sa->sa_data))
 		return -EADDRNOTAVAIL;
 	memcpy(oldMac, dev->dev_addr, ETH_ALEN);
 	memcpy(dev->dev_addr, sa->sa_data, ETH_ALEN);
+
+	mac_h = dev->dev_addr[0] << 24;
+	mac_h |= dev->dev_addr[1] << 16;
+	mac_h |= dev->dev_addr[2] << 8;
+	mac_h |= dev->dev_addr[3];
+	mac_l = dev->dev_addr[4] << 8;
+	mac_l |= dev->dev_addr[5];
+	wrl(pep, MAC_ADDR_HIGH, mac_h);
+	wrl(pep, MAC_ADDR_LOW, mac_l);
+
 	netif_addr_lock_bh(dev);
 	update_hash_table_mac_address(pep, oldMac, dev->dev_addr);
 	netif_addr_unlock_bh(dev);
@@ -726,7 +759,7 @@ static int txq_reclaim(struct net_device *dev, int force)
 
 		if (cmd_sts & TX_ERROR) {
 			if (net_ratelimit())
-				printk(KERN_ERR "%s: Error in TX\n", dev->name);
+				netdev_err(dev, "Error in TX\n");
 			dev->stats.tx_errors++;
 		}
 		dma_unmap_single(NULL, addr, count, DMA_TO_DEVICE);
@@ -743,8 +776,7 @@ static void pxa168_eth_tx_timeout(struct net_device *dev)
 {
 	struct pxa168_eth_private *pep = netdev_priv(dev);
 
-	printk(KERN_INFO "%s: TX timeout  desc_count %d\n",
-	       dev->name, pep->tx_desc_count);
+	netdev_info(dev, "TX timeout  desc_count %d\n", pep->tx_desc_count);
 
 	schedule_work(&pep->tx_timeout_task);
 }
@@ -814,9 +846,8 @@ static int rxq_process(struct net_device *dev, int budget)
 			if ((cmd_sts & (RX_FIRST_DESC | RX_LAST_DESC)) !=
 			    (RX_FIRST_DESC | RX_LAST_DESC)) {
 				if (net_ratelimit())
-					printk(KERN_ERR
-					       "%s: Rx pkt on multiple desc\n",
-					       dev->name);
+					netdev_err(dev,
+						   "Rx pkt on multiple desc\n");
 			}
 			if (cmd_sts & RX_ERROR)
 				stats->rx_errors++;
@@ -871,7 +902,7 @@ static void handle_link_event(struct pxa168_eth_private *pep)
 	port_status = rdl(pep, PORT_STATUS);
 	if (!(port_status & LINK_UP)) {
 		if (netif_carrier_ok(dev)) {
-			printk(KERN_INFO "%s: link down\n", dev->name);
+			netdev_info(dev, "link down\n");
 			netif_carrier_off(dev);
 			txq_reclaim(dev, 1);
 		}
@@ -883,10 +914,9 @@ static void handle_link_event(struct pxa168_eth_private *pep)
 		speed = 10;
 
 	duplex = (port_status & FULL_DUPLEX) ? 1 : 0;
-	fc = (port_status & FLOW_CONTROL_ENABLED) ? 1 : 0;
-	printk(KERN_INFO "%s: link up, %d Mb/s, %s duplex, "
-	       "flow control %sabled\n", dev->name,
-	       speed, duplex ? "full" : "half", fc ? "en" : "dis");
+	fc = (port_status & FLOW_CONTROL_DISABLED) ? 0 : 1;
+	netdev_info(dev, "link up, %d Mb/s, %s duplex, flow control %sabled\n",
+		    speed, duplex ? "full" : "half", fc ? "en" : "dis");
 	if (!netif_carrier_ok(dev))
 		netif_carrier_on(dev);
 }
@@ -1039,9 +1069,8 @@ static void rxq_deinit(struct net_device *dev)
 		}
 	}
 	if (pep->rx_desc_count)
-		printk(KERN_ERR
-		       "Error in freeing Rx Ring. %d skb's still\n",
-		       pep->rx_desc_count);
+		netdev_err(dev, "Error in freeing Rx Ring. %d skb's still\n",
+			   pep->rx_desc_count);
 	/* Free RX ring */
 	if (pep->p_rx_desc_area)
 		dma_free_coherent(pep->dev->dev.parent, pep->rx_desc_area_size,
@@ -1280,15 +1309,15 @@ static int pxa168_smi_read(struct mii_bus *bus, int phy_addr, int regnum)
 	int val;
 
 	if (smi_wait_ready(pep)) {
-		printk(KERN_WARNING "pxa168_eth: SMI bus busy timeout\n");
+		netdev_warn(pep->dev, "pxa168_eth: SMI bus busy timeout\n");
 		return -ETIMEDOUT;
 	}
 	wrl(pep, SMI, (phy_addr << 16) | (regnum << 21) | SMI_OP_R);
 	/* now wait for the data to be valid */
 	for (i = 0; !((val = rdl(pep, SMI)) & SMI_R_VALID); i++) {
 		if (i == PHY_WAIT_ITERATIONS) {
-			printk(KERN_WARNING
-				"pxa168_eth: SMI bus read not valid\n");
+			netdev_warn(pep->dev,
+				    "pxa168_eth: SMI bus read not valid\n");
 			return -ENODEV;
 		}
 		msleep(10);
@@ -1303,7 +1332,7 @@ static int pxa168_smi_write(struct mii_bus *bus, int phy_addr, int regnum,
 	struct pxa168_eth_private *pep = bus->priv;
 
 	if (smi_wait_ready(pep)) {
-		printk(KERN_WARNING "pxa168_eth: SMI bus busy timeout\n");
+		netdev_warn(pep->dev, "pxa168_eth: SMI bus busy timeout\n");
 		return -ETIMEDOUT;
 	}
 
@@ -1311,7 +1340,7 @@ static int pxa168_smi_write(struct mii_bus *bus, int phy_addr, int regnum,
 	    SMI_OP_W | (value & 0xffff));
 
 	if (smi_wait_ready(pep)) {
-		printk(KERN_ERR "pxa168_eth: SMI bus busy timeout\n");
+		netdev_err(pep->dev, "pxa168_eth: SMI bus busy timeout\n");
 		return -ETIMEDOUT;
 	}
 
@@ -1361,24 +1390,25 @@ static struct phy_device *phy_scan(struct pxa168_eth_private *pep, int phy_addr)
 	return phydev;
 }
 
-static void phy_init(struct pxa168_eth_private *pep, int speed, int duplex)
+static void phy_init(struct pxa168_eth_private *pep)
 {
 	struct phy_device *phy = pep->phy;
 
 	phy_attach(pep->dev, dev_name(&phy->dev), PHY_INTERFACE_MODE_MII);
 
-	if (speed == 0) {
+	if (pep->pd && pep->pd->speed != 0) {
+		phy->autoneg = AUTONEG_DISABLE;
+		phy->advertising = 0;
+		phy->speed = pep->pd->speed;
+		phy->duplex = pep->pd->duplex;
+	} else {
 		phy->autoneg = AUTONEG_ENABLE;
 		phy->speed = 0;
 		phy->duplex = 0;
 		phy->supported &= PHY_BASIC_FEATURES;
 		phy->advertising = phy->supported | ADVERTISED_Autoneg;
-	} else {
-		phy->autoneg = AUTONEG_DISABLE;
-		phy->advertising = 0;
-		phy->speed = speed;
-		phy->duplex = duplex;
 	}
+
 	phy_start_aneg(phy);
 }
 
@@ -1386,11 +1416,13 @@ static int ethernet_phy_setup(struct net_device *dev)
 {
 	struct pxa168_eth_private *pep = netdev_priv(dev);
 
-	if (pep->pd->init)
+	if (pep->pd && pep->pd->init)
 		pep->pd->init();
-	pep->phy = phy_scan(pep, pep->pd->phy_addr & 0x1f);
+
+	pep->phy = phy_scan(pep, pep->phy_addr & 0x1f);
 	if (pep->phy != NULL)
-		phy_init(pep, pep->pd->speed, pep->pd->duplex);
+		phy_init(pep);
+
 	update_hash_table_mac_address(pep, NULL, dev->dev_addr);
 
 	return 0;
@@ -1425,23 +1457,23 @@ static void pxa168_get_drvinfo(struct net_device *dev,
 }
 
 static const struct ethtool_ops pxa168_ethtool_ops = {
-	.get_settings = pxa168_get_settings,
-	.set_settings = pxa168_set_settings,
-	.get_drvinfo = pxa168_get_drvinfo,
-	.get_link = ethtool_op_get_link,
-	.get_ts_info = ethtool_op_get_ts_info,
+	.get_settings	= pxa168_get_settings,
+	.set_settings	= pxa168_set_settings,
+	.get_drvinfo	= pxa168_get_drvinfo,
+	.get_link	= ethtool_op_get_link,
+	.get_ts_info	= ethtool_op_get_ts_info,
 };
 
 static const struct net_device_ops pxa168_eth_netdev_ops = {
-	.ndo_open = pxa168_eth_open,
-	.ndo_stop = pxa168_eth_stop,
-	.ndo_start_xmit = pxa168_eth_start_xmit,
-	.ndo_set_rx_mode = pxa168_eth_set_rx_mode,
-	.ndo_set_mac_address = pxa168_eth_set_mac_address,
-	.ndo_validate_addr = eth_validate_addr,
-	.ndo_do_ioctl = pxa168_eth_do_ioctl,
-	.ndo_change_mtu = pxa168_eth_change_mtu,
-	.ndo_tx_timeout = pxa168_eth_tx_timeout,
+	.ndo_open		= pxa168_eth_open,
+	.ndo_stop		= pxa168_eth_stop,
+	.ndo_start_xmit		= pxa168_eth_start_xmit,
+	.ndo_set_rx_mode	= pxa168_eth_set_rx_mode,
+	.ndo_set_mac_address	= pxa168_eth_set_mac_address,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_do_ioctl		= pxa168_eth_do_ioctl,
+	.ndo_change_mtu		= pxa168_eth_change_mtu,
+	.ndo_tx_timeout		= pxa168_eth_tx_timeout,
 };
 
 static int pxa168_eth_probe(struct platform_device *pdev)
@@ -1450,17 +1482,18 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 	struct net_device *dev = NULL;
 	struct resource *res;
 	struct clk *clk;
+	struct device_node *np;
+	const unsigned char *mac_addr = NULL;
 	int err;
 
 	printk(KERN_NOTICE "PXA168 10/100 Ethernet Driver\n");
 
-	clk = clk_get(&pdev->dev, "MFUCLK");
+	clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(clk)) {
-		printk(KERN_ERR "%s: Fast Ethernet failed to get clock\n",
-			DRIVER_NAME);
+		dev_err(&pdev->dev, "Fast Ethernet failed to get clock\n");
 		return -ENODEV;
 	}
-	clk_enable(clk);
+	clk_prepare_enable(clk);
 
 	dev = alloc_etherdev(sizeof(struct pxa168_eth_private));
 	if (!dev) {
@@ -1477,8 +1510,8 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 		err = -ENODEV;
 		goto err_netdev;
 	}
-	pep->base = ioremap(res->start, resource_size(res));
-	if (pep->base == NULL) {
+	pep->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(pep->base)) {
 		err = -ENOMEM;
 		goto err_netdev;
 	}
@@ -1492,19 +1525,42 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 
 	INIT_WORK(&pep->tx_timeout_task, pxa168_eth_tx_timeout_task);
 
-	printk(KERN_INFO "%s:Using random mac address\n", DRIVER_NAME);
-	eth_hw_addr_random(dev);
+	if (pdev->dev.of_node)
+		mac_addr = of_get_mac_address(pdev->dev.of_node);
+
+	if (mac_addr && is_valid_ether_addr(mac_addr)) {
+		ether_addr_copy(dev->dev_addr, mac_addr);
+	} else {
+		/* try reading the mac address, if set by the bootloader */
+		pxa168_eth_get_mac_address(dev, dev->dev_addr);
+		if (!is_valid_ether_addr(dev->dev_addr)) {
+			dev_info(&pdev->dev, "Using random mac address\n");
+			eth_hw_addr_random(dev);
+		}
+	}
+
+	pep->rx_ring_size = NUM_RX_DESCS;
+	pep->tx_ring_size = NUM_TX_DESCS;
 
 	pep->pd = dev_get_platdata(&pdev->dev);
-	pep->rx_ring_size = NUM_RX_DESCS;
-	if (pep->pd->rx_queue_size)
-		pep->rx_ring_size = pep->pd->rx_queue_size;
+	if (pep->pd) {
+		if (pep->pd->rx_queue_size)
+			pep->rx_ring_size = pep->pd->rx_queue_size;
 
-	pep->tx_ring_size = NUM_TX_DESCS;
-	if (pep->pd->tx_queue_size)
-		pep->tx_ring_size = pep->pd->tx_queue_size;
+		if (pep->pd->tx_queue_size)
+			pep->tx_ring_size = pep->pd->tx_queue_size;
 
-	pep->port_num = pep->pd->port_number;
+		pep->port_num = pep->pd->port_number;
+		pep->phy_addr = pep->pd->phy_addr;
+	} else if (pdev->dev.of_node) {
+		of_property_read_u32(pdev->dev.of_node, "port-id",
+				     &pep->port_num);
+
+		np = of_parse_phandle(pdev->dev.of_node, "phy-handle", 0);
+		if (np)
+			of_property_read_u32(np, "reg", &pep->phy_addr);
+	}
+
 	/* Hardware supports only 3 ports */
 	BUG_ON(pep->port_num > 2);
 	netif_napi_add(dev, &pep->napi, pxa168_rx_poll, pep->rx_ring_size);
@@ -1605,6 +1661,12 @@ static int pxa168_eth_suspend(struct platform_device *pdev, pm_message_t state)
 #define pxa168_eth_suspend NULL
 #endif
 
+static const struct of_device_id pxa168_eth_of_match[] = {
+	{ .compatible = "marvell,pxa168-eth" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, pxa168_eth_of_match);
+
 static struct platform_driver pxa168_eth_driver = {
 	.probe = pxa168_eth_probe,
 	.remove = pxa168_eth_remove,
@@ -1612,8 +1674,9 @@ static struct platform_driver pxa168_eth_driver = {
 	.resume = pxa168_eth_resume,
 	.suspend = pxa168_eth_suspend,
 	.driver = {
-		   .name = DRIVER_NAME,
-		   },
+		.name		= DRIVER_NAME,
+		.of_match_table	= of_match_ptr(pxa168_eth_of_match),
+	},
 };
 
 module_platform_driver(pxa168_eth_driver);

@@ -1,5 +1,5 @@
 /*
- * Silicon Labs Si2157/2158 silicon tuner driver
+ * Silicon Labs Si2147/2157/2158 silicon tuner driver
  *
  * Copyright (C) 2014 Antti Palosaari <crope@iki.fi>
  *
@@ -26,6 +26,7 @@ struct si2157 {
 	struct i2c_client *client;
 	struct dvb_frontend *fe;
 	bool active;
+	bool fw_loaded;
 	bool inversion;
 };
 

@@ -71,35 +71,17 @@ static void vgic_v2_sync_lr_elrsr(struct kvm_vcpu *vcpu, int lr,
 				  struct vgic_lr lr_desc)
 {
 	if (!(lr_desc.state & LR_STATE_MASK))
-		__set_bit(lr, (unsigned long *)vcpu->arch.vgic_cpu.vgic_v2.vgic_elrsr);
+		vcpu->arch.vgic_cpu.vgic_v2.vgic_elrsr |= (1ULL << lr);
 }
 
 static u64 vgic_v2_get_elrsr(const struct kvm_vcpu *vcpu)
 {
-	u64 val;
-
-#if BITS_PER_LONG == 64
-	val  = vcpu->arch.vgic_cpu.vgic_v2.vgic_elrsr[1];
-	val <<= 32;
-	val |= vcpu->arch.vgic_cpu.vgic_v2.vgic_elrsr[0];
-#else
-	val = *(u64 *)vcpu->arch.vgic_cpu.vgic_v2.vgic_elrsr;
-#endif
-	return val;
+	return vcpu->arch.vgic_cpu.vgic_v2.vgic_elrsr;
 }
 
 static u64 vgic_v2_get_eisr(const struct kvm_vcpu *vcpu)
 {
-	u64 val;
-
-#if BITS_PER_LONG == 64
-	val  = vcpu->arch.vgic_cpu.vgic_v2.vgic_eisr[1];
-	val <<= 32;
-	val |= vcpu->arch.vgic_cpu.vgic_v2.vgic_eisr[0];
-#else
-	val = *(u64 *)vcpu->arch.vgic_cpu.vgic_v2.vgic_eisr;
-#endif
-	return val;
+	return vcpu->arch.vgic_cpu.vgic_v2.vgic_eisr;
 }
 
 static u32 vgic_v2_get_interrupt_status(const struct kvm_vcpu *vcpu)

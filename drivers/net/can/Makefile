@@ -17,6 +17,7 @@ obj-y				+= softing/
 obj-$(CONFIG_CAN_SJA1000)	+= sja1000/
 obj-$(CONFIG_CAN_MSCAN)		+= mscan/
 obj-$(CONFIG_CAN_C_CAN)		+= c_can/
+obj-$(CONFIG_CAN_M_CAN)		+= m_can/
 obj-$(CONFIG_CAN_CC770)		+= cc770/
 obj-$(CONFIG_CAN_AT91)		+= at91_can.o
 obj-$(CONFIG_CAN_TI_HECC)	+= ti_hecc.o
@@ -28,4 +29,4 @@ obj-$(CONFIG_CAN_GRCAN)		+= grcan.o
 obj-$(CONFIG_CAN_RCAR)		+= rcar_can.o
 obj-$(CONFIG_CAN_XILINXCAN)	+= xilinx_can.o
 
-ccflags-$(CONFIG_CAN_DEBUG_DEVICES) := -DDEBUG
+subdir-ccflags-$(CONFIG_CAN_DEBUG_DEVICES) := -DDEBUG

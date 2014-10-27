@@ -50,7 +50,7 @@ void save_stack_trace(struct stack_trace *trace)
 {
 	unsigned long sp;
 
-	asm("mr %0,1" : "=r" (sp));
+	sp = current_stack_pointer();
 
 	save_context_stack(trace, sp, current, 1);
 }

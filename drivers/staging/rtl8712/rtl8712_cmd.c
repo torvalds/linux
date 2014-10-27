@@ -350,6 +350,7 @@ _next:
 			struct dvobj_priv *pdvobj = (struct dvobj_priv *)
 						    &padapter->dvobjpriv;
 			u8 blnPending = 0;
+
 			pcmdpriv->cmd_issued_cnt++;
 			cmdsz = round_up(pcmd->cmdsz, 8);
 			wr_sz = TXDESC_SIZE + 8 + cmdsz;
@@ -468,7 +469,8 @@ void r8712_event_handle(struct _adapter *padapter, uint *peventbuf)
 	pevt_priv->event_seq++;	/* update evt_seq */
 	if (pevt_priv->event_seq > 127)
 		pevt_priv->event_seq = 0;
-	peventbuf = peventbuf + 2; /* move to event content, 8 bytes alignment */
+	/* move to event content, 8 bytes alignment */
+	peventbuf = peventbuf + 2;
 	event_callback = wlanevents[evt_code].event_callback;
 	if (event_callback)
 		event_callback(padapter, (u8 *)peventbuf);

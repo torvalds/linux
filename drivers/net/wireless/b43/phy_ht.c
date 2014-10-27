@@ -81,80 +81,104 @@ static void b43_radio_2059_channel_setup(struct b43_wldev *dev,
 	udelay(50);
 
 	/* Calibration */
-	b43_radio_mask(dev, 0x2b, ~0x1);
-	b43_radio_mask(dev, 0x2e, ~0x4);
-	b43_radio_set(dev, 0x2e, 0x4);
-	b43_radio_set(dev, 0x2b, 0x1);
+	b43_radio_mask(dev, R2059_RFPLL_MISC_EN, ~0x1);
+	b43_radio_mask(dev, R2059_RFPLL_MISC_CAL_RESETN, ~0x4);
+	b43_radio_set(dev, R2059_RFPLL_MISC_CAL_RESETN, 0x4);
+	b43_radio_set(dev, R2059_RFPLL_MISC_EN, 0x1);
 
 	udelay(300);
+}
+
+/* Calibrate resistors in LPF of PLL? */
+static void b43_radio_2059_rcal(struct b43_wldev *dev)
+{
+	/* Enable */
+	b43_radio_set(dev, R2059_C3 | R2059_RCAL_CONFIG, 0x1);
+	usleep_range(10, 20);
+
+	b43_radio_set(dev, R2059_C3 | 0x0BF, 0x1);
+	b43_radio_maskset(dev, R2059_C3 | 0x19B, 0x3, 0x2);
+
+	/* Start */
+	b43_radio_set(dev, R2059_C3 | R2059_RCAL_CONFIG, 0x2);
+	usleep_range(100, 200);
+
+	/* Stop */
+	b43_radio_mask(dev, R2059_C3 | R2059_RCAL_CONFIG, ~0x2);
+
+	if (!b43_radio_wait_value(dev, R2059_C3 | R2059_RCAL_STATUS, 1, 1, 100,
+				  1000000))
+		b43err(dev->wl, "Radio 0x2059 rcal timeout\n");
+
+	/* Disable */
+	b43_radio_mask(dev, R2059_C3 | R2059_RCAL_CONFIG, ~0x1);
+
+	b43_radio_set(dev, 0xa, 0x60);
+}
+
+/* Calibrate the internal RC oscillator? */
+static void b43_radio_2057_rccal(struct b43_wldev *dev)
+{
+	const u16 radio_values[3][2] = {
+		{ 0x61, 0xE9 }, { 0x69, 0xD5 }, { 0x73, 0x99 },
+	};
+	int i;
+
+	for (i = 0; i < 3; i++) {
+		b43_radio_write(dev, R2059_RCCAL_MASTER, radio_values[i][0]);
+		b43_radio_write(dev, R2059_RCCAL_X1, 0x6E);
+		b43_radio_write(dev, R2059_RCCAL_TRC0, radio_values[i][1]);
+
+		/* Start */
+		b43_radio_write(dev, R2059_RCCAL_START_R1_Q1_P1, 0x55);
+
+		/* Wait */
+		if (!b43_radio_wait_value(dev, R2059_RCCAL_DONE_OSCCAP, 2, 2,
+					  500, 5000000))
+			b43err(dev->wl, "Radio 0x2059 rccal timeout\n");
+
+		/* Stop */
+		b43_radio_write(dev, R2059_RCCAL_START_R1_Q1_P1, 0x15);
+	}
+
+	b43_radio_mask(dev, R2059_RCCAL_MASTER, ~0x1);
+}
+
+static void b43_radio_2059_init_pre(struct b43_wldev *dev)
+{
+	b43_phy_mask(dev, B43_PHY_HT_RF_CTL_CMD, ~B43_PHY_HT_RF_CTL_CMD_CHIP0_PU);
+	b43_phy_set(dev, B43_PHY_HT_RF_CTL_CMD, B43_PHY_HT_RF_CTL_CMD_FORCE);
+	b43_phy_mask(dev, B43_PHY_HT_RF_CTL_CMD, ~B43_PHY_HT_RF_CTL_CMD_FORCE);
+	b43_phy_set(dev, B43_PHY_HT_RF_CTL_CMD, B43_PHY_HT_RF_CTL_CMD_CHIP0_PU);
 }
 
 static void b43_radio_2059_init(struct b43_wldev *dev)
 {
 	const u16 routing[] = { R2059_C1, R2059_C2, R2059_C3 };
-	const u16 radio_values[3][2] = {
-		{ 0x61, 0xE9 }, { 0x69, 0xD5 }, { 0x73, 0x99 },
-	};
-	u16 i, j;
+	int i;
 
-	b43_radio_write(dev, R2059_ALL | 0x51, 0x0070);
-	b43_radio_write(dev, R2059_ALL | 0x5a, 0x0003);
+	/* Prepare (reset?) radio */
+	b43_radio_2059_init_pre(dev);
+
+	r2059_upload_inittabs(dev);
 
 	for (i = 0; i < ARRAY_SIZE(routing); i++)
 		b43_radio_set(dev, routing[i] | 0x146, 0x3);
 
-	b43_radio_set(dev, 0x2e, 0x0078);
-	b43_radio_set(dev, 0xc0, 0x0080);
+	/* Post init starts below */
+
+	b43_radio_set(dev, R2059_RFPLL_MISC_CAL_RESETN, 0x0078);
+	b43_radio_set(dev, R2059_XTAL_CONFIG2, 0x0080);
 	msleep(2);
-	b43_radio_mask(dev, 0x2e, ~0x0078);
-	b43_radio_mask(dev, 0xc0, ~0x0080);
+	b43_radio_mask(dev, R2059_RFPLL_MISC_CAL_RESETN, ~0x0078);
+	b43_radio_mask(dev, R2059_XTAL_CONFIG2, ~0x0080);
 
 	if (1) { /* FIXME */
-		b43_radio_set(dev, R2059_C3 | 0x4, 0x1);
-		udelay(10);
-		b43_radio_set(dev, R2059_C3 | 0x0BF, 0x1);
-		b43_radio_maskset(dev, R2059_C3 | 0x19B, 0x3, 0x2);
-
-		b43_radio_set(dev, R2059_C3 | 0x4, 0x2);
-		udelay(100);
-		b43_radio_mask(dev, R2059_C3 | 0x4, ~0x2);
-
-		for (i = 0; i < 10000; i++) {
-			if (b43_radio_read(dev, R2059_C3 | 0x145) & 1) {
-				i = 0;
-				break;
-			}
-			udelay(100);
-		}
-		if (i)
-			b43err(dev->wl, "radio 0x945 timeout\n");
-
-		b43_radio_mask(dev, R2059_C3 | 0x4, ~0x1);
-		b43_radio_set(dev, 0xa, 0x60);
-
-		for (i = 0; i < 3; i++) {
-			b43_radio_write(dev, 0x17F, radio_values[i][0]);
-			b43_radio_write(dev, 0x13D, 0x6E);
-			b43_radio_write(dev, 0x13E, radio_values[i][1]);
-			b43_radio_write(dev, 0x13C, 0x55);
-
-			for (j = 0; j < 10000; j++) {
-				if (b43_radio_read(dev, 0x140) & 2) {
-					j = 0;
-					break;
-				}
-				udelay(500);
-			}
-			if (j)
-				b43err(dev->wl, "radio 0x140 timeout\n");
-
-			b43_radio_write(dev, 0x13C, 0x15);
-		}
-
-		b43_radio_mask(dev, 0x17F, ~0x1);
+		b43_radio_2059_rcal(dev);
+		b43_radio_2057_rccal(dev);
 	}
 
-	b43_radio_mask(dev, 0x11, ~0x0008);
+	b43_radio_mask(dev, R2059_RFPLL_MASTER, ~0x0008);
 }
 
 /**************************************************
@@ -295,6 +319,26 @@ static void b43_phy_ht_bphy_init(struct b43_wldev *dev)
 		val -= 0x202;
 	}
 	b43_phy_write(dev, B43_PHY_N_BMODE(0x38), 0x668);
+}
+
+static void b43_phy_ht_bphy_reset(struct b43_wldev *dev, bool reset)
+{
+	u16 tmp;
+
+	tmp = b43_read16(dev, B43_MMIO_PSM_PHY_HDR);
+	b43_write16(dev, B43_MMIO_PSM_PHY_HDR,
+		    tmp | B43_PSM_HDR_MAC_PHY_FORCE_CLK);
+
+	/* Put BPHY in or take it out of the reset */
+	if (reset)
+		b43_phy_set(dev, B43_PHY_B_BBCFG,
+			    B43_PHY_B_BBCFG_RSTCCA | B43_PHY_B_BBCFG_RSTRX);
+	else
+		b43_phy_mask(dev, B43_PHY_B_BBCFG,
+			     (u16)~(B43_PHY_B_BBCFG_RSTCCA |
+				    B43_PHY_B_BBCFG_RSTRX));
+
+	b43_write16(dev, B43_MMIO_PSM_PHY_HDR, tmp);
 }
 
 /**************************************************
@@ -704,7 +748,6 @@ static void b43_phy_ht_spur_avoid(struct b43_wldev *dev,
 {
 	struct bcma_device *core = dev->dev->bdev;
 	int spuravoid = 0;
-	u16 tmp;
 
 	/* Check for 13 and 14 is just a guess, we don't have enough logs. */
 	if (new_channel->hw_value == 13 || new_channel->hw_value == 14)
@@ -717,22 +760,9 @@ static void b43_phy_ht_spur_avoid(struct b43_wldev *dev,
 			  B43_BCMA_CLKCTLST_80211_PLL_ST |
 			  B43_BCMA_CLKCTLST_PHY_PLL_ST, false);
 
-	/* Values has been taken from wlc_bmac_switch_macfreq comments */
-	switch (spuravoid) {
-	case 2: /* 126MHz */
-		tmp = 0x2082;
-		break;
-	case 1: /* 123MHz */
-		tmp = 0x5341;
-		break;
-	default: /* 120MHz */
-		tmp = 0x8889;
-	}
+	b43_mac_switch_freq(dev, spuravoid);
 
-	b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_LOW, tmp);
-	b43_write16(dev, B43_MMIO_TSF_CLK_FRAC_HIGH, 0x8);
-
-	/* TODO: reset PLL */
+	b43_wireless_core_phy_pll_reset(dev);
 
 	if (spuravoid)
 		b43_phy_set(dev, B43_PHY_HT_BBCFG, B43_PHY_HT_BBCFG_RSTRX);
@@ -747,13 +777,19 @@ static void b43_phy_ht_channel_setup(struct b43_wldev *dev,
 				const struct b43_phy_ht_channeltab_e_phy *e,
 				struct ieee80211_channel *new_channel)
 {
-	bool old_band_5ghz;
+	if (new_channel->band == IEEE80211_BAND_5GHZ) {
+		/* Switch to 2 GHz for a moment to access B-PHY regs */
+		b43_phy_mask(dev, B43_PHY_HT_BANDCTL, ~B43_PHY_HT_BANDCTL_5GHZ);
 
-	old_band_5ghz = b43_phy_read(dev, B43_PHY_HT_BANDCTL) & 0; /* FIXME */
-	if (new_channel->band == IEEE80211_BAND_5GHZ && !old_band_5ghz) {
-		/* TODO */
-	} else if (new_channel->band == IEEE80211_BAND_2GHZ && old_band_5ghz) {
-		/* TODO */
+		b43_phy_ht_bphy_reset(dev, true);
+
+		/* Switch to 5 GHz */
+		b43_phy_set(dev, B43_PHY_HT_BANDCTL, B43_PHY_HT_BANDCTL_5GHZ);
+	} else {
+		/* Switch to 2 GHz */
+		b43_phy_mask(dev, B43_PHY_HT_BANDCTL, ~B43_PHY_HT_BANDCTL_5GHZ);
+
+		b43_phy_ht_bphy_reset(dev, false);
 	}
 
 	b43_phy_write(dev, B43_PHY_HT_BW1, e->bw1);
@@ -1002,19 +1038,10 @@ static void b43_phy_ht_op_software_rfkill(struct b43_wldev *dev,
 	if (b43_read32(dev, B43_MMIO_MACCTL) & B43_MACCTL_ENABLED)
 		b43err(dev->wl, "MAC not suspended\n");
 
-	/* In the following PHY ops we copy wl's dummy behaviour.
-	 * TODO: Find out if reads (currently hidden in masks/masksets) are
-	 * needed and replace following ops with just writes or w&r.
-	 * Note: B43_PHY_HT_RF_CTL1 register is tricky, wrong operation can
-	 * cause delayed (!) machine lock up. */
 	if (blocked) {
-		b43_phy_mask(dev, B43_PHY_HT_RF_CTL1, 0);
+		b43_phy_mask(dev, B43_PHY_HT_RF_CTL_CMD,
+			     ~B43_PHY_HT_RF_CTL_CMD_CHIP0_PU);
 	} else {
-		b43_phy_mask(dev, B43_PHY_HT_RF_CTL1, 0);
-		b43_phy_maskset(dev, B43_PHY_HT_RF_CTL1, 0, 0x1);
-		b43_phy_mask(dev, B43_PHY_HT_RF_CTL1, 0);
-		b43_phy_maskset(dev, B43_PHY_HT_RF_CTL1, 0, 0x2);
-
 		if (dev->phy.radio_ver == 0x2059)
 			b43_radio_2059_init(dev);
 		else
@@ -1071,22 +1098,10 @@ static unsigned int b43_phy_ht_op_get_default_chan(struct b43_wldev *dev)
  * R/W ops.
  **************************************************/
 
-static u16 b43_phy_ht_op_read(struct b43_wldev *dev, u16 reg)
-{
-	b43_write16(dev, B43_MMIO_PHY_CONTROL, reg);
-	return b43_read16(dev, B43_MMIO_PHY_DATA);
-}
-
-static void b43_phy_ht_op_write(struct b43_wldev *dev, u16 reg, u16 value)
-{
-	b43_write16(dev, B43_MMIO_PHY_CONTROL, reg);
-	b43_write16(dev, B43_MMIO_PHY_DATA, value);
-}
-
 static void b43_phy_ht_op_maskset(struct b43_wldev *dev, u16 reg, u16 mask,
 				 u16 set)
 {
-	b43_write16(dev, B43_MMIO_PHY_CONTROL, reg);
+	b43_write16f(dev, B43_MMIO_PHY_CONTROL, reg);
 	b43_write16(dev, B43_MMIO_PHY_DATA,
 		    (b43_read16(dev, B43_MMIO_PHY_DATA) & mask) | set);
 }
@@ -1096,14 +1111,14 @@ static u16 b43_phy_ht_op_radio_read(struct b43_wldev *dev, u16 reg)
 	/* HT-PHY needs 0x200 for read access */
 	reg |= 0x200;
 
-	b43_write16(dev, B43_MMIO_RADIO24_CONTROL, reg);
+	b43_write16f(dev, B43_MMIO_RADIO24_CONTROL, reg);
 	return b43_read16(dev, B43_MMIO_RADIO24_DATA);
 }
 
 static void b43_phy_ht_op_radio_write(struct b43_wldev *dev, u16 reg,
 				      u16 value)
 {
-	b43_write16(dev, B43_MMIO_RADIO24_CONTROL, reg);
+	b43_write16f(dev, B43_MMIO_RADIO24_CONTROL, reg);
 	b43_write16(dev, B43_MMIO_RADIO24_DATA, value);
 }
 
@@ -1126,8 +1141,6 @@ const struct b43_phy_operations b43_phyops_ht = {
 	.free			= b43_phy_ht_op_free,
 	.prepare_structs	= b43_phy_ht_op_prepare_structs,
 	.init			= b43_phy_ht_op_init,
-	.phy_read		= b43_phy_ht_op_read,
-	.phy_write		= b43_phy_ht_op_write,
 	.phy_maskset		= b43_phy_ht_op_maskset,
 	.radio_read		= b43_phy_ht_op_radio_read,
 	.radio_write		= b43_phy_ht_op_radio_write,

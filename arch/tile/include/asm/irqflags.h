@@ -140,12 +140,12 @@ extern unsigned int debug_smp_processor_id(void);
 
 /*
  * Read the set of maskable interrupts.
- * We avoid the preemption warning here via __this_cpu_ptr since even
+ * We avoid the preemption warning here via raw_cpu_ptr since even
  * if irqs are already enabled, it's harmless to read the wrong cpu's
  * enabled mask.
  */
 #define arch_local_irqs_enabled() \
-	(*__this_cpu_ptr(&interrupts_enabled_mask))
+	(*raw_cpu_ptr(&interrupts_enabled_mask))
 
 /* Re-enable all maskable interrupts. */
 #define arch_local_irq_enable() \

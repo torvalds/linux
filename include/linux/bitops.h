@@ -32,26 +32,6 @@ extern unsigned long __sw_hweight64(__u64 w);
  */
 #include <asm/bitops.h>
 
-/*
- * Provide __deprecated wrappers for the new interface, avoid flag day changes.
- * We need the ugly external functions to break header recursion hell.
- */
-#ifndef smp_mb__before_clear_bit
-static inline void __deprecated smp_mb__before_clear_bit(void)
-{
-	extern void __smp_mb__before_atomic(void);
-	__smp_mb__before_atomic();
-}
-#endif
-
-#ifndef smp_mb__after_clear_bit
-static inline void __deprecated smp_mb__after_clear_bit(void)
-{
-	extern void __smp_mb__after_atomic(void);
-	__smp_mb__after_atomic();
-}
-#endif
-
 #define for_each_set_bit(bit, addr, size) \
 	for ((bit) = find_first_bit((addr), (size));		\
 	     (bit) < (size);					\

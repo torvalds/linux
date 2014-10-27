@@ -224,7 +224,7 @@ static void net_free(struct net *net)
 		return;
 	}
 #endif
-	kfree(net->gen);
+	kfree(rcu_access_pointer(net->gen));
 	kmem_cache_free(net_cachep, net);
 }
 

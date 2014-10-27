@@ -211,6 +211,10 @@ static void __init bcm47xx_register_bcma(void)
 
 	err = bcma_host_soc_register(&bcm47xx_bus.bcma);
 	if (err)
+		panic("Failed to register BCMA bus (err %d)", err);
+
+	err = bcma_host_soc_init(&bcm47xx_bus.bcma);
+	if (err)
 		panic("Failed to initialize BCMA bus (err %d)", err);
 
 	bcm47xx_fill_bcma_boardinfo(&bcm47xx_bus.bcma.bus.boardinfo, NULL);

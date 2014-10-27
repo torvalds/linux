@@ -7,6 +7,8 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
 
+#include <drm/drm_gem.h>
+
 #include <ttm/ttm_bo_driver.h>
 #include <ttm/ttm_page_alloc.h>
 
@@ -99,7 +101,7 @@ struct bochs_bo {
 	struct ttm_placement placement;
 	struct ttm_bo_kmap_obj kmap;
 	struct drm_gem_object gem;
-	u32 placements[3];
+	struct ttm_place placements[3];
 	int pin_count;
 };
 

@@ -283,6 +283,9 @@ static const struct pci_device_id cxgb4_pci_tbl[] = {
 	CH_DEVICE(0x5083, 4),
 	CH_DEVICE(0x5084, 4),
 	CH_DEVICE(0x5085, 4),
+	CH_DEVICE(0x5086, 4),
+	CH_DEVICE(0x5087, 4),
+	CH_DEVICE(0x5088, 4),
 	CH_DEVICE(0x5401, 4),
 	CH_DEVICE(0x5402, 4),
 	CH_DEVICE(0x5403, 4),
@@ -310,6 +313,9 @@ static const struct pci_device_id cxgb4_pci_tbl[] = {
 	CH_DEVICE(0x5483, 4),
 	CH_DEVICE(0x5484, 4),
 	CH_DEVICE(0x5485, 4),
+	CH_DEVICE(0x5486, 4),
+	CH_DEVICE(0x5487, 4),
+	CH_DEVICE(0x5488, 4),
 	{ 0, }
 };
 
@@ -2747,8 +2753,31 @@ static int set_rx_intr_params(struct net_device *dev,
 	return 0;
 }
 
+static int set_adaptive_rx_setting(struct net_device *dev, int adaptive_rx)
+{
+	int i;
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = pi->adapter;
+	struct sge_eth_rxq *q = &adap->sge.ethrxq[pi->first_qset];
+
+	for (i = 0; i < pi->nqsets; i++, q++)
+		q->rspq.adaptive_rx = adaptive_rx;
+
+	return 0;
+}
+
+static int get_adaptive_rx_setting(struct net_device *dev)
+{
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = pi->adapter;
+	struct sge_eth_rxq *q = &adap->sge.ethrxq[pi->first_qset];
+
+	return q->rspq.adaptive_rx;
+}
+
 static int set_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 {
+	set_adaptive_rx_setting(dev, c->use_adaptive_rx_coalesce);
 	return set_rx_intr_params(dev, c->rx_coalesce_usecs,
 				  c->rx_max_coalesced_frames);
 }
@@ -2762,6 +2791,7 @@ static int get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 	c->rx_coalesce_usecs = qtimer_val(adap, rq);
 	c->rx_max_coalesced_frames = (rq->intr_params & QINTR_CNT_EN) ?
 		adap->sge.counter_val[rq->pktcnt_idx] : 0;
+	c->use_adaptive_rx_coalesce = get_adaptive_rx_setting(dev);
 	return 0;
 }
 
@@ -2899,16 +2929,26 @@ static int set_flash(struct net_device *netdev, struct ethtool_flash *ef)
 	int ret;
 	const struct firmware *fw;
 	struct adapter *adap = netdev2adap(netdev);
+	unsigned int mbox = FW_PCIE_FW_MASTER_MASK + 1;
 
 	ef->data[sizeof(ef->data) - 1] = '\0';
 	ret = request_firmware(&fw, ef->data, adap->pdev_dev);
 	if (ret < 0)
 		return ret;
 
-	ret = t4_load_fw(adap, fw->data, fw->size);
+	/* If the adapter has been fully initialized then we'll go ahead and
+	 * try to get the firmware's cooperation in upgrading to the new
+	 * firmware image otherwise we'll try to do the entire job from the
+	 * host ... and we always "force" the operation in this path.
+	 */
+	if (adap->flags & FULL_INIT_DONE)
+		mbox = adap->mbox;
+
+	ret = t4_fw_upgrade(adap, mbox, fw->data, fw->size, 1);
 	release_firmware(fw);
 	if (!ret)
-		dev_info(adap->pdev_dev, "loaded firmware %s\n", ef->data);
+		dev_info(adap->pdev_dev, "loaded firmware %s,"
+			 " reload cxgb4 driver\n", ef->data);
 	return ret;
 }
 
@@ -4329,6 +4369,7 @@ EXPORT_SYMBOL(cxgb4_unregister_uld);
  * success (true) if it belongs otherwise failure (false).
  * Called with rcu_read_lock() held.
  */
+#if IS_ENABLED(CONFIG_IPV6)
 static bool cxgb4_netdev(const struct net_device *netdev)
 {
 	struct adapter *adap;
@@ -4390,7 +4431,6 @@ static int cxgb4_inet6addr_handler(struct notifier_block *this,
 		 * bond. We need to find such different adapters and add clip
 		 * in all of them only once.
 		 */
-		read_lock(&bond->lock);
 		bond_for_each_slave(bond, slave, iter) {
 			if (!first_pdev) {
 				ret = clip_add(slave->dev, ifa, event);
@@ -4404,7 +4444,6 @@ static int cxgb4_inet6addr_handler(struct notifier_block *this,
 				   to_pci_dev(slave->dev->dev.parent))
 					ret = clip_add(slave->dev, ifa, event);
 		}
-		read_unlock(&bond->lock);
 	} else
 		ret = clip_add(ifa->idev->dev, ifa, event);
 
@@ -4452,6 +4491,13 @@ static int update_root_dev_clip(struct net_device *dev)
 		return ret;
 
 	/* Parse all bond and vlan devices layered on top of the physical dev */
+	root_dev = netdev_master_upper_dev_get_rcu(dev);
+	if (root_dev) {
+		ret = update_dev_clip(root_dev, dev);
+		if (ret)
+			return ret;
+	}
+
 	for (i = 0; i < VLAN_N_VID; i++) {
 		root_dev = __vlan_find_dev_deep_rcu(dev, htons(ETH_P_8021Q), i);
 		if (!root_dev)
@@ -4484,6 +4530,7 @@ static void update_clip(const struct adapter *adap)
 	}
 	rcu_read_unlock();
 }
+#endif /* IS_ENABLED(CONFIG_IPV6) */
 
 /**
  *	cxgb_up - enable the adapter
@@ -4530,7 +4577,9 @@ static int cxgb_up(struct adapter *adap)
 	t4_intr_enable(adap);
 	adap->flags |= FULL_INIT_DONE;
 	notify_ulds(adap, CXGB4_STATE_UP);
+#if IS_ENABLED(CONFIG_IPV6)
 	update_clip(adap);
+#endif
  out:
 	return err;
  irq_err:
@@ -6109,7 +6158,7 @@ static pci_ers_result_t eeh_slot_reset(struct pci_dev *pdev)
 	pci_save_state(pdev);
 	pci_cleanup_aer_uncorrect_error_status(pdev);
 
-	if (t4_wait_dev_ready(adap) < 0)
+	if (t4_wait_dev_ready(adap->regs) < 0)
 		return PCI_ERS_RESULT_DISCONNECT;
 	if (t4_fw_hello(adap, adap->fn, adap->fn, MASTER_MUST, NULL) < 0)
 		return PCI_ERS_RESULT_DISCONNECT;
@@ -6502,6 +6551,10 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_disable_device;
 	}
 
+	err = t4_wait_dev_ready(regs);
+	if (err < 0)
+		goto out_unmap_bar0;
+
 	/* We control everything through one PF */
 	func = SOURCEPF_GET(readl(regs + PL_WHOAMI));
 	if (func != ent->driver_data) {
@@ -6820,14 +6873,18 @@ static int __init cxgb4_init_module(void)
 	if (ret < 0)
 		debugfs_remove(cxgb4_debugfs_root);
 
+#if IS_ENABLED(CONFIG_IPV6)
 	register_inet6addr_notifier(&cxgb4_inet6addr_notifier);
+#endif
 
 	return ret;
 }
 
 static void __exit cxgb4_cleanup_module(void)
 {
+#if IS_ENABLED(CONFIG_IPV6)
 	unregister_inet6addr_notifier(&cxgb4_inet6addr_notifier);
+#endif
 	pci_unregister_driver(&cxgb4_driver);
 	debugfs_remove(cxgb4_debugfs_root);  /* NULL ok */
 }

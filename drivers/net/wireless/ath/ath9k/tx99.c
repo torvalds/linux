@@ -54,6 +54,12 @@ static struct sk_buff *ath9k_build_tx99_skb(struct ath_softc *sc)
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_tx_info *tx_info;
 	struct sk_buff *skb;
+	struct ath_vif *avp;
+
+	if (!sc->tx99_vif)
+		return NULL;
+
+	avp = (struct ath_vif *)sc->tx99_vif->drv_priv;
 
 	skb = alloc_skb(len, GFP_KERNEL);
 	if (!skb)
@@ -71,7 +77,7 @@ static struct sk_buff *ath9k_build_tx99_skb(struct ath_softc *sc)
 	memcpy(hdr->addr2, hw->wiphy->perm_addr, ETH_ALEN);
 	memcpy(hdr->addr3, hw->wiphy->perm_addr, ETH_ALEN);
 
-	hdr->seq_ctrl |= cpu_to_le16(sc->tx.seq_no);
+	hdr->seq_ctrl |= cpu_to_le16(avp->seq_no);
 
 	tx_info = IEEE80211_SKB_CB(skb);
 	memset(tx_info, 0, sizeof(*tx_info));
@@ -174,7 +180,7 @@ static ssize_t write_file_tx99(struct file *file, const char __user *user_buf,
 	ssize_t len;
 	int r;
 
-	if (sc->nvifs > 1)
+	if (sc->cur_chan->nvifs > 1)
 		return -EOPNOTSUPP;
 
 	len = min(count, sizeof(buf) - 1);

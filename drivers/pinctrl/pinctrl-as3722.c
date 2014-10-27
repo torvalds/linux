@@ -230,7 +230,7 @@ static int as3722_pinctrl_get_func_groups(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int as3722_pinctrl_enable(struct pinctrl_dev *pctldev, unsigned function,
+static int as3722_pinctrl_set(struct pinctrl_dev *pctldev, unsigned function,
 		unsigned group)
 {
 	struct as3722_pctrl_info *as_pci = pinctrl_dev_get_drvdata(pctldev);
@@ -327,7 +327,7 @@ static const struct pinmux_ops as3722_pinmux_ops = {
 	.get_functions_count	= as3722_pinctrl_get_funcs_count,
 	.get_function_name	= as3722_pinctrl_get_func_name,
 	.get_function_groups	= as3722_pinctrl_get_func_groups,
-	.enable			= as3722_pinctrl_enable,
+	.set_mux		= as3722_pinctrl_set,
 	.gpio_request_enable	= as3722_pinctrl_gpio_request_enable,
 	.gpio_set_direction	= as3722_pinctrl_gpio_set_direction,
 };

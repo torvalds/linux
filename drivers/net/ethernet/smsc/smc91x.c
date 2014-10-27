@@ -1967,9 +1967,6 @@ static int smc_probe(struct net_device *dev, void __iomem *ioaddr,
 	}
 	dev->irq = irq_canonicalize(dev->irq);
 
-	/* Fill in the fields of the device structure with ethernet values. */
-	ether_setup(dev);
-
 	dev->watchdog_timeo = msecs_to_jiffies(watchdog);
 	dev->netdev_ops = &smc_netdev_ops;
 	dev->ethtool_ops = &smc_ethtool_ops;

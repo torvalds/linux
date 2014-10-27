@@ -33,7 +33,7 @@ nv40_fb_tile_comp(struct nouveau_fb *pfb, int i, u32 size, u32 flags,
 	u32 tiles = DIV_ROUND_UP(size, 0x80);
 	u32 tags  = round_up(tiles / pfb->ram->parts, 0x100);
 	if ( (flags & 2) &&
-	    !nouveau_mm_head(&pfb->tags, 1, tags, tags, 1, &tile->tag)) {
+	    !nouveau_mm_head(&pfb->tags, 0, 1, tags, tags, 1, &tile->tag)) {
 		tile->zcomp  = 0x28000000; /* Z24S8_SPLIT_GRAD */
 		tile->zcomp |= ((tile->tag->offset           ) >> 8);
 		tile->zcomp |= ((tile->tag->offset + tags - 1) >> 8) << 13;

@@ -99,6 +99,9 @@ Examples:
 
  pgset "clone_skb 1"     sets the number of copies of the same packet
  pgset "clone_skb 0"     use single SKB for all transmits
+ pgset "burst 8"         uses xmit_more API to queue 8 copies of the same
+                         packet and update HW tx queue tail pointer once.
+                         "burst 1" is the default
  pgset "pkt_size 9014"   sets packet size to 9014
  pgset "frags 5"         packet will consist of 5 fragments
  pgset "count 200000"    sets number of packets to send, set to zero

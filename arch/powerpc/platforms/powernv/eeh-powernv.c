@@ -169,6 +169,26 @@ static int powernv_eeh_dev_probe(struct pci_dev *dev, void *flag)
 	}
 
 	/*
+	 * If the PE contains any one of following adapters, the
+	 * PCI config space can't be accessed when dumping EEH log.
+	 * Otherwise, we will run into fenced PHB caused by shortage
+	 * of outbound credits in the adapter. The PCI config access
+	 * should be blocked until PE reset. MMIO access is dropped
+	 * by hardware certainly. In order to drop PCI config requests,
+	 * one more flag (EEH_PE_CFG_RESTRICTED) is introduced, which
+	 * will be checked in the backend for PE state retrival. If
+	 * the PE becomes frozen for the first time and the flag has
+	 * been set for the PE, we will set EEH_PE_CFG_BLOCKED for
+	 * that PE to block its config space.
+	 *
+	 * Broadcom Austin 4-ports NICs (14e4:1657)
+	 * Broadcom Shiner 2-ports 10G NICs (14e4:168e)
+	 */
+	if ((dev->vendor == PCI_VENDOR_ID_BROADCOM && dev->device == 0x1657) ||
+	    (dev->vendor == PCI_VENDOR_ID_BROADCOM && dev->device == 0x168e))
+		edev->pe->state |= EEH_PE_CFG_RESTRICTED;
+
+	/*
 	 * Cache the PE primary bus, which can't be fetched when
 	 * full hotplug is in progress. In that case, all child
 	 * PCI devices of the PE are expected to be removed prior
@@ -359,6 +379,64 @@ static int powernv_eeh_configure_bridge(struct eeh_pe *pe)
 }
 
 /**
+ * powernv_pe_err_inject - Inject specified error to the indicated PE
+ * @pe: the indicated PE
+ * @type: error type
+ * @func: specific error type
+ * @addr: address
+ * @mask: address mask
+ *
+ * The routine is called to inject specified error, which is
+ * determined by @type and @func, to the indicated PE for
+ * testing purpose.
+ */
+static int powernv_eeh_err_inject(struct eeh_pe *pe, int type, int func,
+				  unsigned long addr, unsigned long mask)
+{
+	struct pci_controller *hose = pe->phb;
+	struct pnv_phb *phb = hose->private_data;
+	int ret = -EEXIST;
+
+	if (phb->eeh_ops && phb->eeh_ops->err_inject)
+		ret = phb->eeh_ops->err_inject(pe, type, func, addr, mask);
+
+	return ret;
+}
+
+static inline bool powernv_eeh_cfg_blocked(struct device_node *dn)
+{
+	struct eeh_dev *edev = of_node_to_eeh_dev(dn);
+
+	if (!edev || !edev->pe)
+		return false;
+
+	if (edev->pe->state & EEH_PE_CFG_BLOCKED)
+		return true;
+
+	return false;
+}
+
+static int powernv_eeh_read_config(struct device_node *dn,
+				   int where, int size, u32 *val)
+{
+	if (powernv_eeh_cfg_blocked(dn)) {
+		*val = 0xFFFFFFFF;
+		return PCIBIOS_SET_FAILED;
+	}
+
+	return pnv_pci_cfg_read(dn, where, size, val);
+}
+
+static int powernv_eeh_write_config(struct device_node *dn,
+				    int where, int size, u32 val)
+{
+	if (powernv_eeh_cfg_blocked(dn))
+		return PCIBIOS_SET_FAILED;
+
+	return pnv_pci_cfg_write(dn, where, size, val);
+}
+
+/**
  * powernv_eeh_next_error - Retrieve next EEH error to handle
  * @pe: Affected PE
  *
@@ -414,8 +492,9 @@ static struct eeh_ops powernv_eeh_ops = {
 	.wait_state             = powernv_eeh_wait_state,
 	.get_log                = powernv_eeh_get_log,
 	.configure_bridge       = powernv_eeh_configure_bridge,
-	.read_config            = pnv_pci_cfg_read,
-	.write_config           = pnv_pci_cfg_write,
+	.err_inject		= powernv_eeh_err_inject,
+	.read_config            = powernv_eeh_read_config,
+	.write_config           = powernv_eeh_write_config,
 	.next_error		= powernv_eeh_next_error,
 	.restore_config		= powernv_eeh_restore_config
 };

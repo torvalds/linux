@@ -37,9 +37,9 @@ static const char i40e_driver_string[] =
 
 #define DRV_KERN "-k"
 
-#define DRV_VERSION_MAJOR 0
-#define DRV_VERSION_MINOR 4
-#define DRV_VERSION_BUILD 21
+#define DRV_VERSION_MAJOR 1
+#define DRV_VERSION_MINOR 0
+#define DRV_VERSION_BUILD 11
 #define DRV_VERSION __stringify(DRV_VERSION_MAJOR) "." \
 	     __stringify(DRV_VERSION_MINOR) "." \
 	     __stringify(DRV_VERSION_BUILD)    DRV_KERN
@@ -1239,8 +1239,11 @@ struct i40e_mac_filter *i40e_put_mac_in_vlan(struct i40e_vsi *vsi, u8 *macaddr,
  * i40e_rm_default_mac_filter - Remove the default MAC filter set by NVM
  * @vsi: the PF Main VSI - inappropriate for any other VSI
  * @macaddr: the MAC address
+ *
+ * Some older firmware configurations set up a default promiscuous VLAN
+ * filter that needs to be removed.
  **/
-static void i40e_rm_default_mac_filter(struct i40e_vsi *vsi, u8 *macaddr)
+static int i40e_rm_default_mac_filter(struct i40e_vsi *vsi, u8 *macaddr)
 {
 	struct i40e_aqc_remove_macvlan_element_data element;
 	struct i40e_pf *pf = vsi->back;
@@ -1248,15 +1251,18 @@ static void i40e_rm_default_mac_filter(struct i40e_vsi *vsi, u8 *macaddr)
 
 	/* Only appropriate for the PF main VSI */
 	if (vsi->type != I40E_VSI_MAIN)
-		return;
+		return -EINVAL;
 
+	memset(&element, 0, sizeof(element));
 	ether_addr_copy(element.mac_addr, macaddr);
 	element.vlan_tag = 0;
 	element.flags = I40E_AQC_MACVLAN_DEL_PERFECT_MATCH |
 			I40E_AQC_MACVLAN_DEL_IGNORE_VLAN;
 	aq_ret = i40e_aq_remove_macvlan(&pf->hw, vsi->seid, &element, 1, NULL);
 	if (aq_ret)
-		dev_err(&pf->pdev->dev, "Could not remove default MAC-VLAN\n");
+		return -ENOENT;
+
+	return 0;
 }
 
 /**
@@ -1385,17 +1391,29 @@ static int i40e_set_mac(struct net_device *netdev, void *p)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
+	struct i40e_pf *pf = vsi->back;
+	struct i40e_hw *hw = &pf->hw;
 	struct sockaddr *addr = p;
 	struct i40e_mac_filter *f;
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	netdev_info(netdev, "set mac address=%pM\n", addr->sa_data);
+	if (ether_addr_equal(netdev->dev_addr, addr->sa_data)) {
+		netdev_info(netdev, "already using mac address %pM\n",
+			    addr->sa_data);
+		return 0;
+	}
 
 	if (test_bit(__I40E_DOWN, &vsi->back->state) ||
 	    test_bit(__I40E_RESET_RECOVERY_PENDING, &vsi->back->state))
 		return -EADDRNOTAVAIL;
+
+	if (ether_addr_equal(hw->mac.addr, addr->sa_data))
+		netdev_info(netdev, "returning to hw mac address %pM\n",
+			    hw->mac.addr);
+	else
+		netdev_info(netdev, "set new mac address %pM\n", addr->sa_data);
 
 	if (vsi->type == I40E_VSI_MAIN) {
 		i40e_status ret;
@@ -1410,25 +1428,34 @@ static int i40e_set_mac(struct net_device *netdev, void *p)
 		}
 	}
 
-	f = i40e_find_mac(vsi, addr->sa_data, false, true);
-	if (!f) {
-		/* In order to be sure to not drop any packets, add the
-		 * new address first then delete the old one.
-		 */
-		f = i40e_add_filter(vsi, addr->sa_data, I40E_VLAN_ANY,
-				    false, false);
-		if (!f)
-			return -ENOMEM;
+	if (ether_addr_equal(netdev->dev_addr, hw->mac.addr)) {
+		struct i40e_aqc_remove_macvlan_element_data element;
 
-		i40e_sync_vsi_filters(vsi);
+		memset(&element, 0, sizeof(element));
+		ether_addr_copy(element.mac_addr, netdev->dev_addr);
+		element.flags = I40E_AQC_MACVLAN_DEL_PERFECT_MATCH;
+		i40e_aq_remove_macvlan(&pf->hw, vsi->seid, &element, 1, NULL);
+	} else {
 		i40e_del_filter(vsi, netdev->dev_addr, I40E_VLAN_ANY,
 				false, false);
-		i40e_sync_vsi_filters(vsi);
 	}
 
-	f->is_laa = true;
-	if (!ether_addr_equal(netdev->dev_addr, addr->sa_data))
-		ether_addr_copy(netdev->dev_addr, addr->sa_data);
+	if (ether_addr_equal(addr->sa_data, hw->mac.addr)) {
+		struct i40e_aqc_add_macvlan_element_data element;
+
+		memset(&element, 0, sizeof(element));
+		ether_addr_copy(element.mac_addr, hw->mac.addr);
+		element.flags = cpu_to_le16(I40E_AQC_MACVLAN_ADD_PERFECT_MATCH);
+		i40e_aq_add_macvlan(&pf->hw, vsi->seid, &element, 1, NULL);
+	} else {
+		f = i40e_add_filter(vsi, addr->sa_data, I40E_VLAN_ANY,
+				    false, false);
+		if (f)
+			f->is_laa = true;
+	}
+
+	i40e_sync_vsi_filters(vsi);
+	ether_addr_copy(netdev->dev_addr, addr->sa_data);
 
 	return 0;
 }
@@ -1796,9 +1823,8 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 		kfree(add_list);
 		add_list = NULL;
 
-		if (add_happened && (!aq_ret)) {
-			/* do nothing */;
-		} else if (add_happened && (aq_ret)) {
+		if (add_happened && aq_ret &&
+		    pf->hw.aq.asq_last_status != I40E_AQ_RC_EINVAL) {
 			dev_info(&pf->pdev->dev,
 				 "add filter failed, err %d, aq_err %d\n",
 				 aq_ret, pf->hw.aq.asq_last_status);
@@ -4480,11 +4506,26 @@ static int i40e_up_complete(struct i40e_vsi *vsi)
 		netif_carrier_on(vsi->netdev);
 	} else if (vsi->netdev) {
 		i40e_print_link_message(vsi, false);
+		/* need to check for qualified module here*/
+		if ((pf->hw.phy.link_info.link_info &
+			I40E_AQ_MEDIA_AVAILABLE) &&
+		    (!(pf->hw.phy.link_info.an_info &
+			I40E_AQ_QUALIFIED_MODULE)))
+			netdev_err(vsi->netdev,
+				   "the driver failed to link because an unqualified module was detected.");
 	}
 
 	/* replay FDIR SB filters */
-	if (vsi->type == I40E_VSI_FDIR)
+	if (vsi->type == I40E_VSI_FDIR) {
+		/* reset fd counters */
+		pf->fd_add_err = pf->fd_atr_cnt = 0;
+		if (pf->fd_tcp_rule > 0) {
+			pf->flags &= ~I40E_FLAG_FD_ATR_ENABLED;
+			dev_info(&pf->pdev->dev, "Forcing ATR off, sideband rules for TCP/IPv4 exist\n");
+			pf->fd_tcp_rule = 0;
+		}
 		i40e_fdir_filter_restore(vsi);
+	}
 	i40e_service_event_schedule(pf);
 
 	return 0;
@@ -5125,6 +5166,7 @@ int i40e_get_current_fd_count(struct i40e_pf *pf)
 		      I40E_PFQF_FDSTAT_BEST_CNT_SHIFT);
 	return fcnt_prog;
 }
+
 /**
  * i40e_fdir_check_and_reenable - Function to reenabe FD ATR or SB if disabled
  * @pf: board private structure
@@ -5133,15 +5175,17 @@ void i40e_fdir_check_and_reenable(struct i40e_pf *pf)
 {
 	u32 fcnt_prog, fcnt_avail;
 
+	if (test_bit(__I40E_FD_FLUSH_REQUESTED, &pf->state))
+		return;
+
 	/* Check if, FD SB or ATR was auto disabled and if there is enough room
 	 * to re-enable
 	 */
-	if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
-	    (pf->flags & I40E_FLAG_FD_SB_ENABLED))
-		return;
 	fcnt_prog = i40e_get_cur_guaranteed_fd_count(pf);
 	fcnt_avail = pf->fdir_pf_filter_count;
-	if (fcnt_prog < (fcnt_avail - I40E_FDIR_BUFFER_HEAD_ROOM)) {
+	if ((fcnt_prog < (fcnt_avail - I40E_FDIR_BUFFER_HEAD_ROOM)) ||
+	    (pf->fd_add_err == 0) ||
+	    (i40e_get_current_atr_cnt(pf) < pf->fd_atr_cnt)) {
 		if ((pf->flags & I40E_FLAG_FD_SB_ENABLED) &&
 		    (pf->auto_disable_flags & I40E_FLAG_FD_SB_ENABLED)) {
 			pf->auto_disable_flags &= ~I40E_FLAG_FD_SB_ENABLED;
@@ -5158,23 +5202,84 @@ void i40e_fdir_check_and_reenable(struct i40e_pf *pf)
 	}
 }
 
+#define I40E_MIN_FD_FLUSH_INTERVAL 10
+/**
+ * i40e_fdir_flush_and_replay - Function to flush all FD filters and replay SB
+ * @pf: board private structure
+ **/
+static void i40e_fdir_flush_and_replay(struct i40e_pf *pf)
+{
+	int flush_wait_retry = 50;
+	int reg;
+
+	if (time_after(jiffies, pf->fd_flush_timestamp +
+				(I40E_MIN_FD_FLUSH_INTERVAL * HZ))) {
+		set_bit(__I40E_FD_FLUSH_REQUESTED, &pf->state);
+		pf->fd_flush_timestamp = jiffies;
+		pf->auto_disable_flags |= I40E_FLAG_FD_SB_ENABLED;
+		pf->flags &= ~I40E_FLAG_FD_ATR_ENABLED;
+		/* flush all filters */
+		wr32(&pf->hw, I40E_PFQF_CTL_1,
+		     I40E_PFQF_CTL_1_CLEARFDTABLE_MASK);
+		i40e_flush(&pf->hw);
+		pf->fd_flush_cnt++;
+		pf->fd_add_err = 0;
+		do {
+			/* Check FD flush status every 5-6msec */
+			usleep_range(5000, 6000);
+			reg = rd32(&pf->hw, I40E_PFQF_CTL_1);
+			if (!(reg & I40E_PFQF_CTL_1_CLEARFDTABLE_MASK))
+				break;
+		} while (flush_wait_retry--);
+		if (reg & I40E_PFQF_CTL_1_CLEARFDTABLE_MASK) {
+			dev_warn(&pf->pdev->dev, "FD table did not flush, needs more time\n");
+		} else {
+			/* replay sideband filters */
+			i40e_fdir_filter_restore(pf->vsi[pf->lan_vsi]);
+
+			pf->flags |= I40E_FLAG_FD_ATR_ENABLED;
+			pf->auto_disable_flags &= ~I40E_FLAG_FD_ATR_ENABLED;
+			pf->auto_disable_flags &= ~I40E_FLAG_FD_SB_ENABLED;
+			clear_bit(__I40E_FD_FLUSH_REQUESTED, &pf->state);
+			dev_info(&pf->pdev->dev, "FD Filter table flushed and FD-SB replayed.\n");
+		}
+	}
+}
+
+/**
+ * i40e_get_current_atr_count - Get the count of total FD ATR filters programmed
+ * @pf: board private structure
+ **/
+int i40e_get_current_atr_cnt(struct i40e_pf *pf)
+{
+	return i40e_get_current_fd_count(pf) - pf->fdir_pf_active_filters;
+}
+
+/* We can see up to 256 filter programming desc in transit if the filters are
+ * being applied really fast; before we see the first
+ * filter miss error on Rx queue 0. Accumulating enough error messages before
+ * reacting will make sure we don't cause flush too often.
+ */
+#define I40E_MAX_FD_PROGRAM_ERROR 256
+
 /**
  * i40e_fdir_reinit_subtask - Worker thread to reinit FDIR filter table
  * @pf: board private structure
  **/
 static void i40e_fdir_reinit_subtask(struct i40e_pf *pf)
 {
-	if (!(pf->flags & I40E_FLAG_FDIR_REQUIRES_REINIT))
-		return;
 
 	/* if interface is down do nothing */
 	if (test_bit(__I40E_DOWN, &pf->state))
 		return;
+
+	if ((pf->fd_add_err >= I40E_MAX_FD_PROGRAM_ERROR) &&
+	    (i40e_get_current_atr_cnt(pf) >= pf->fd_atr_cnt) &&
+	    (i40e_get_current_atr_cnt(pf) > pf->fdir_pf_filter_count))
+		i40e_fdir_flush_and_replay(pf);
+
 	i40e_fdir_check_and_reenable(pf);
 
-	if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
-	    (pf->flags & I40E_FLAG_FD_SB_ENABLED))
-		pf->flags &= ~I40E_FLAG_FDIR_REQUIRES_REINIT;
 }
 
 /**
@@ -5184,7 +5289,7 @@ static void i40e_fdir_reinit_subtask(struct i40e_pf *pf)
  **/
 static void i40e_vsi_link_event(struct i40e_vsi *vsi, bool link_up)
 {
-	if (!vsi)
+	if (!vsi || test_bit(__I40E_DOWN, &vsi->state))
 		return;
 
 	switch (vsi->type) {
@@ -5420,6 +5525,13 @@ static void i40e_handle_link_event(struct i40e_pf *pf,
 	memcpy(&pf->hw.phy.link_info_old, hw_link_info,
 	       sizeof(pf->hw.phy.link_info_old));
 
+	/* check for unqualified module, if link is down */
+	if ((status->link_info & I40E_AQ_MEDIA_AVAILABLE) &&
+	    (!(status->an_info & I40E_AQ_QUALIFIED_MODULE)) &&
+	    (!(status->link_info & I40E_AQ_LINK_UP)))
+		dev_err(&pf->pdev->dev,
+			"The driver failed to link because an unqualified module was detected.\n");
+
 	/* update link status */
 	hw_link_info->phy_type = (enum i40e_aq_phy_type)status->phy_type;
 	hw_link_info->link_speed = (enum i40e_aq_link_speed)status->link_speed;
@@ -5455,6 +5567,10 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 	u16 opcode;
 	u32 oldval;
 	u32 val;
+
+	/* Do not run clean AQ when PF reset fails */
+	if (test_bit(__I40E_RESET_FAILED, &pf->state))
+		return;
 
 	/* check for error indications */
 	val = rd32(&pf->hw, pf->hw.aq.arq.len);
@@ -5861,19 +5977,20 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 	ret = i40e_pf_reset(hw);
 	if (ret) {
 		dev_info(&pf->pdev->dev, "PF reset failed, %d\n", ret);
-		goto end_core_reset;
+		set_bit(__I40E_RESET_FAILED, &pf->state);
+		goto clear_recovery;
 	}
 	pf->pfr_count++;
 
 	if (test_bit(__I40E_DOWN, &pf->state))
-		goto end_core_reset;
+		goto clear_recovery;
 	dev_dbg(&pf->pdev->dev, "Rebuilding internal switch\n");
 
 	/* rebuild the basics for the AdminQ, HMC, and initial HW switch */
 	ret = i40e_init_adminq(&pf->hw);
 	if (ret) {
 		dev_info(&pf->pdev->dev, "Rebuild AdminQ failed, %d\n", ret);
-		goto end_core_reset;
+		goto clear_recovery;
 	}
 
 	/* re-verify the eeprom if we just had an EMP reset */
@@ -5991,6 +6108,8 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 	i40e_send_version(pf);
 
 end_core_reset:
+	clear_bit(__I40E_RESET_FAILED, &pf->state);
+clear_recovery:
 	clear_bit(__I40E_RESET_RECOVERY_PENDING, &pf->state);
 }
 
@@ -6036,9 +6155,9 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
 				I40E_GL_MDET_TX_EVENT_SHIFT;
 		u8 queue = (reg & I40E_GL_MDET_TX_QUEUE_MASK) >>
 				I40E_GL_MDET_TX_QUEUE_SHIFT;
-		dev_info(&pf->pdev->dev,
-			 "Malicious Driver Detection event 0x%02x on TX queue %d pf number 0x%02x vf number 0x%02x\n",
-			 event, queue, pf_num, vf_num);
+		if (netif_msg_tx_err(pf))
+			dev_info(&pf->pdev->dev, "Malicious Driver Detection event 0x%02x on TX queue %d pf number 0x%02x vf number 0x%02x\n",
+				 event, queue, pf_num, vf_num);
 		wr32(hw, I40E_GL_MDET_TX, 0xffffffff);
 		mdd_detected = true;
 	}
@@ -6050,9 +6169,9 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
 				I40E_GL_MDET_RX_EVENT_SHIFT;
 		u8 queue = (reg & I40E_GL_MDET_RX_QUEUE_MASK) >>
 				I40E_GL_MDET_RX_QUEUE_SHIFT;
-		dev_info(&pf->pdev->dev,
-			 "Malicious Driver Detection event 0x%02x on RX queue %d of function 0x%02x\n",
-			 event, queue, func);
+		if (netif_msg_rx_err(pf))
+			dev_info(&pf->pdev->dev, "Malicious Driver Detection event 0x%02x on RX queue %d of function 0x%02x\n",
+				 event, queue, func);
 		wr32(hw, I40E_GL_MDET_RX, 0xffffffff);
 		mdd_detected = true;
 	}
@@ -6061,17 +6180,13 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
 		reg = rd32(hw, I40E_PF_MDET_TX);
 		if (reg & I40E_PF_MDET_TX_VALID_MASK) {
 			wr32(hw, I40E_PF_MDET_TX, 0xFFFF);
-			dev_info(&pf->pdev->dev,
-				 "MDD TX event is for this function 0x%08x, requesting PF reset.\n",
-				 reg);
+			dev_info(&pf->pdev->dev, "TX driver issue detected, PF reset issued\n");
 			pf_mdd_detected = true;
 		}
 		reg = rd32(hw, I40E_PF_MDET_RX);
 		if (reg & I40E_PF_MDET_RX_VALID_MASK) {
 			wr32(hw, I40E_PF_MDET_RX, 0xFFFF);
-			dev_info(&pf->pdev->dev,
-				 "MDD RX event is for this function 0x%08x, requesting PF reset.\n",
-				 reg);
+			dev_info(&pf->pdev->dev, "RX driver issue detected, PF reset issued\n");
 			pf_mdd_detected = true;
 		}
 		/* Queue belongs to the PF, initiate a reset */
@@ -6088,14 +6203,16 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
 		if (reg & I40E_VP_MDET_TX_VALID_MASK) {
 			wr32(hw, I40E_VP_MDET_TX(i), 0xFFFF);
 			vf->num_mdd_events++;
-			dev_info(&pf->pdev->dev, "MDD TX event on VF %d\n", i);
+			dev_info(&pf->pdev->dev, "TX driver issue detected on VF %d\n",
+				 i);
 		}
 
 		reg = rd32(hw, I40E_VP_MDET_RX(i));
 		if (reg & I40E_VP_MDET_RX_VALID_MASK) {
 			wr32(hw, I40E_VP_MDET_RX(i), 0xFFFF);
 			vf->num_mdd_events++;
-			dev_info(&pf->pdev->dev, "MDD RX event on VF %d\n", i);
+			dev_info(&pf->pdev->dev, "RX driver issue detected on VF %d\n",
+				 i);
 		}
 
 		if (vf->num_mdd_events > I40E_DEFAULT_NUM_MDD_EVENTS_ALLOWED) {
@@ -7086,6 +7203,11 @@ bool i40e_set_ntuple(struct i40e_pf *pf, netdev_features_t features)
 		}
 		pf->flags &= ~I40E_FLAG_FD_SB_ENABLED;
 		pf->auto_disable_flags &= ~I40E_FLAG_FD_SB_ENABLED;
+		/* reset fd counters */
+		pf->fd_add_err = pf->fd_atr_cnt = pf->fd_tcp_rule = 0;
+		pf->fdir_pf_active_filters = 0;
+		pf->flags |= I40E_FLAG_FD_ATR_ENABLED;
+		dev_info(&pf->pdev->dev, "ATR re-enabled.\n");
 		/* if ATR was auto disabled it can be re-enabled. */
 		if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
 		    (pf->auto_disable_flags & I40E_FLAG_FD_ATR_ENABLED))
@@ -7352,7 +7474,7 @@ static const struct net_device_ops i40e_netdev_ops = {
 	.ndo_set_vf_rate	= i40e_ndo_set_vf_bw,
 	.ndo_get_vf_config	= i40e_ndo_get_vf_config,
 	.ndo_set_vf_link_state	= i40e_ndo_set_vf_link_state,
-	.ndo_set_vf_spoofchk	= i40e_ndo_set_vf_spoofck,
+	.ndo_set_vf_spoofchk	= i40e_ndo_set_vf_spoofchk,
 #ifdef CONFIG_I40E_VXLAN
 	.ndo_add_vxlan_port	= i40e_add_vxlan_port,
 	.ndo_del_vxlan_port	= i40e_del_vxlan_port,
@@ -7421,14 +7543,14 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 	if (vsi->type == I40E_VSI_MAIN) {
 		SET_NETDEV_DEV(netdev, &pf->pdev->dev);
 		ether_addr_copy(mac_addr, hw->mac.perm_addr);
-		/* The following two steps are necessary to prevent reception
-		 * of tagged packets - by default the NVM loads a MAC-VLAN
-		 * filter that will accept any tagged packet.  This is to
-		 * prevent that during normal operations until a specific
-		 * VLAN tag filter has been set.
+		/* The following steps are necessary to prevent reception
+		 * of tagged packets - some older NVM configurations load a
+		 * default a MAC-VLAN filter that accepts any tagged packet
+		 * which must be replaced by a normal filter.
 		 */
-		i40e_rm_default_mac_filter(vsi, mac_addr);
-		i40e_add_filter(vsi, mac_addr, I40E_VLAN_ANY, false, true);
+		if (!i40e_rm_default_mac_filter(vsi, mac_addr))
+			i40e_add_filter(vsi, mac_addr,
+					I40E_VLAN_ANY, false, true);
 	} else {
 		/* relate the VSI_VMDQ name to the VSI_MAIN name */
 		snprintf(netdev->name, IFNAMSIZ, "%sv%%d",
@@ -7644,7 +7766,22 @@ static int i40e_add_vsi(struct i40e_vsi *vsi)
 		f_count++;
 
 		if (f->is_laa && vsi->type == I40E_VSI_MAIN) {
-			i40e_aq_mac_address_write(&vsi->back->hw,
+			struct i40e_aqc_remove_macvlan_element_data element;
+
+			memset(&element, 0, sizeof(element));
+			ether_addr_copy(element.mac_addr, f->macaddr);
+			element.flags = I40E_AQC_MACVLAN_DEL_PERFECT_MATCH;
+			ret = i40e_aq_remove_macvlan(hw, vsi->seid,
+						     &element, 1, NULL);
+			if (ret) {
+				/* some older FW has a different default */
+				element.flags |=
+					       I40E_AQC_MACVLAN_DEL_IGNORE_VLAN;
+				i40e_aq_remove_macvlan(hw, vsi->seid,
+						       &element, 1, NULL);
+			}
+
+			i40e_aq_mac_address_write(hw,
 						  I40E_AQC_WRITE_TYPE_LAA_WOL,
 						  f->macaddr, NULL);
 		}

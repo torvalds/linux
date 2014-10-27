@@ -29,6 +29,7 @@ enum nv_clk_src {
 	nv_clk_src_mdiv,
 
 	nv_clk_src_core,
+	nv_clk_src_core_intm,
 	nv_clk_src_shader,
 
 	nv_clk_src_mem,

@@ -37,6 +37,7 @@ unsigned long amba_system_id;
 static DEFINE_SPINLOCK(leon_irq_lock);
 
 static unsigned long leon3_gptimer_idx; /* Timer Index (0..6) within Timer Core */
+static unsigned long leon3_gptimer_ackmask; /* For clearing pending bit */
 unsigned long leon3_gptimer_irq; /* interrupt controller irq number */
 unsigned int sparc_leon_eirq;
 #define LEON_IMASK(cpu) (&leon3_irqctrl_regs->mask[cpu])
@@ -260,11 +261,19 @@ void leon_update_virq_handling(unsigned int virq,
 
 static u32 leon_cycles_offset(void)
 {
-	u32 rld, val, off;
+	u32 rld, val, ctrl, off;
+
 	rld = LEON3_BYPASS_LOAD_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx].rld);
 	val = LEON3_BYPASS_LOAD_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx].val);
-	off = rld - val;
-	return rld - val;
+	ctrl = LEON3_BYPASS_LOAD_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx].ctrl);
+	if (LEON3_GPTIMER_CTRL_ISPENDING(ctrl)) {
+		val = LEON3_BYPASS_LOAD_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx].val);
+		off = 2 * rld - val;
+	} else {
+		off = rld - val;
+	}
+
+	return off;
 }
 
 #ifdef CONFIG_SMP
@@ -302,6 +311,7 @@ void __init leon_init_timers(void)
 	int ampopts;
 	int err;
 	u32 config;
+	u32 ctrl;
 
 	sparc_config.get_cycles_offset = leon_cycles_offset;
 	sparc_config.cs_period = 1000000 / HZ;
@@ -373,6 +383,16 @@ void __init leon_init_timers(void)
 
 	if (!(leon3_gptimer_regs && leon3_irqctrl_regs && leon3_gptimer_irq))
 		goto bad;
+
+	ctrl = LEON3_BYPASS_LOAD_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx].ctrl);
+	LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx].ctrl,
+			      ctrl | LEON3_GPTIMER_CTRL_PENDING);
+	ctrl = LEON3_BYPASS_LOAD_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx].ctrl);
+
+	if ((ctrl & LEON3_GPTIMER_CTRL_PENDING) != 0)
+		leon3_gptimer_ackmask = ~LEON3_GPTIMER_CTRL_PENDING;
+	else
+		leon3_gptimer_ackmask = ~0;
 
 	LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx].val, 0);
 	LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx].rld,
@@ -452,6 +472,11 @@ bad:
 
 static void leon_clear_clock_irq(void)
 {
+	u32 ctrl;
+
+	ctrl = LEON3_BYPASS_LOAD_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx].ctrl);
+	LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx].ctrl,
+			      ctrl & leon3_gptimer_ackmask);
 }
 
 static void leon_load_profile_irq(int cpu, unsigned int limit)

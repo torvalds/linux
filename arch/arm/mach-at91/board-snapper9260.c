@@ -154,6 +154,8 @@ static void __init snapper9260_add_device_nand(void)
 
 static void __init snapper9260_board_init(void)
 {
+	at91_register_devices();
+
 	at91_add_device_i2c(snapper9260_i2c_devices,
 			    ARRAY_SIZE(snapper9260_i2c_devices));
 
@@ -178,7 +180,7 @@ static void __init snapper9260_board_init(void)
 }
 
 MACHINE_START(SNAPPER_9260, "Bluewater Systems Snapper 9260/9G20 module")
-	.init_time	= at91sam926x_pit_init,
+	.init_time	= at91_init_time,
 	.map_io		= at91_map_io,
 	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= snapper9260_init_early,

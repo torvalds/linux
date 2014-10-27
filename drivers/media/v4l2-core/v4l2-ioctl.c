@@ -562,7 +562,7 @@ static void v4l_print_ext_controls(const void *arg, bool write_only)
 	pr_cont("class=0x%x, count=%d, error_idx=%d",
 			p->ctrl_class, p->count, p->error_idx);
 	for (i = 0; i < p->count; i++) {
-		if (p->controls[i].size)
+		if (!p->controls[i].size)
 			pr_cont(", id/val=0x%x/0x%x",
 				p->controls[i].id, p->controls[i].value);
 		else
@@ -1153,9 +1153,9 @@ static int v4l_g_fmt(const struct v4l2_ioctl_ops *ops,
 	switch (p->type) {
 	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY: {
-		struct v4l2_clip *clips = p->fmt.win.clips;
+		struct v4l2_clip __user *clips = p->fmt.win.clips;
 		u32 clipcount = p->fmt.win.clipcount;
-		void *bitmap = p->fmt.win.bitmap;
+		void __user *bitmap = p->fmt.win.bitmap;
 
 		memset(&p->fmt, 0, sizeof(p->fmt));
 		p->fmt.win.clips = clips;

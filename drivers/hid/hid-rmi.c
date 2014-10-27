@@ -320,10 +320,7 @@ static int rmi_f11_input_event(struct hid_device *hdev, u8 irq, u8 *data,
 	int offset;
 	int i;
 
-	if (size < hdata->f11.report_size)
-		return 0;
-
-	if (!(irq & hdata->f11.irq_mask))
+	if (!(irq & hdata->f11.irq_mask) || size <= 0)
 		return 0;
 
 	offset = (hdata->max_fingers >> 2) + 1;
@@ -332,9 +329,19 @@ static int rmi_f11_input_event(struct hid_device *hdev, u8 irq, u8 *data,
 		int fs_bit_position = (i & 0x3) << 1;
 		int finger_state = (data[fs_byte_position] >> fs_bit_position) &
 					0x03;
+		int position = offset + 5 * i;
 
-		rmi_f11_process_touch(hdata, i, finger_state,
-				&data[offset + 5 * i]);
+		if (position + 5 > size) {
+			/* partial report, go on with what we received */
+			printk_once(KERN_WARNING
+				"%s %s: Detected incomplete finger report. Finger reports may occasionally get dropped on this platform.\n",
+				 dev_driver_string(&hdev->dev),
+				 dev_name(&hdev->dev));
+			hid_dbg(hdev, "Incomplete finger report\n");
+			break;
+		}
+
+		rmi_f11_process_touch(hdata, i, finger_state, &data[position]);
 	}
 	input_mt_sync_frame(hdata->input);
 	input_sync(hdata->input);
@@ -351,6 +358,11 @@ static int rmi_f30_input_event(struct hid_device *hdev, u8 irq, u8 *data,
 
 	if (!(irq & hdata->f30.irq_mask))
 		return 0;
+
+	if (size < (int)hdata->f30.report_size) {
+		hid_warn(hdev, "Click Button pressed, but the click data is missing\n");
+		return 0;
+	}
 
 	for (i = 0; i < hdata->gpio_led_count; i++) {
 		if (test_bit(i, &hdata->button_mask)) {
@@ -412,9 +424,29 @@ static int rmi_read_data_event(struct hid_device *hdev, u8 *data, int size)
 	return 1;
 }
 
+static int rmi_check_sanity(struct hid_device *hdev, u8 *data, int size)
+{
+	int valid_size = size;
+	/*
+	 * On the Dell XPS 13 9333, the bus sometimes get confused and fills
+	 * the report with a sentinel value "ff". Synaptics told us that such
+	 * behavior does not comes from the touchpad itself, so we filter out
+	 * such reports here.
+	 */
+
+	while ((data[valid_size - 1] == 0xff) && valid_size > 0)
+		valid_size--;
+
+	return valid_size;
+}
+
 static int rmi_raw_event(struct hid_device *hdev,
 		struct hid_report *report, u8 *data, int size)
 {
+	size = rmi_check_sanity(hdev, data, size);
+	if (size < 2)
+		return 0;
+
 	switch (data[0]) {
 	case RMI_READ_DATA_REPORT_ID:
 		return rmi_read_data_event(hdev, data, size);

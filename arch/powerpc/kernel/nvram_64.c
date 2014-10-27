@@ -567,7 +567,7 @@ static int __init nvram_init(void)
   	return rc;
 }
 
-void __exit nvram_cleanup(void)
+static void __exit nvram_cleanup(void)
 {
         misc_deregister( &nvram_dev );
 }

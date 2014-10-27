@@ -959,7 +959,7 @@ struct inode *udf_find_metadata_inode_efe(struct super_block *sb,
 	addr.logicalBlockNum = meta_file_loc;
 	addr.partitionReferenceNum = partition_num;
 
-	metadata_fe = udf_iget(sb, &addr);
+	metadata_fe = udf_iget_special(sb, &addr);
 
 	if (IS_ERR(metadata_fe)) {
 		udf_warn(sb, "metadata inode efe not found\n");
@@ -1020,7 +1020,7 @@ static int udf_load_metadata_files(struct super_block *sb, int partition)
 		udf_debug("Bitmap file location: block = %d part = %d\n",
 			  addr.logicalBlockNum, addr.partitionReferenceNum);
 
-		fe = udf_iget(sb, &addr);
+		fe = udf_iget_special(sb, &addr);
 		if (IS_ERR(fe)) {
 			if (sb->s_flags & MS_RDONLY)
 				udf_warn(sb, "bitmap inode efe not found but it's ok since the disc is mounted read-only\n");
@@ -1119,7 +1119,7 @@ static int udf_fill_partdesc_info(struct super_block *sb,
 		};
 		struct inode *inode;
 
-		inode = udf_iget(sb, &loc);
+		inode = udf_iget_special(sb, &loc);
 		if (IS_ERR(inode)) {
 			udf_debug("cannot load unallocSpaceTable (part %d)\n",
 				  p_index);
@@ -1154,7 +1154,7 @@ static int udf_fill_partdesc_info(struct super_block *sb,
 		};
 		struct inode *inode;
 
-		inode = udf_iget(sb, &loc);
+		inode = udf_iget_special(sb, &loc);
 		if (IS_ERR(inode)) {
 			udf_debug("cannot load freedSpaceTable (part %d)\n",
 				  p_index);
@@ -1198,7 +1198,7 @@ static void udf_find_vat_block(struct super_block *sb, int p_index,
 	     vat_block >= map->s_partition_root &&
 	     vat_block >= start_block - 3; vat_block--) {
 		ino.logicalBlockNum = vat_block - map->s_partition_root;
-		inode = udf_iget(sb, &ino);
+		inode = udf_iget_special(sb, &ino);
 		if (!IS_ERR(inode)) {
 			sbi->s_vat_inode = inode;
 			break;

@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2013 Emulex
+ * Copyright (C) 2005 - 2014 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -275,6 +275,19 @@ bool is_link_state_evt(u32 trailer)
 		  ASYNC_EVENT_CODE_LINK_STATE);
 }
 
+static bool is_iscsi_evt(u32 trailer)
+{
+	return ((trailer >> ASYNC_TRAILER_EVENT_CODE_SHIFT) &
+		  ASYNC_TRAILER_EVENT_CODE_MASK) ==
+		  ASYNC_EVENT_CODE_ISCSI;
+}
+
+static int iscsi_evt_type(u32 trailer)
+{
+	return (trailer >> ASYNC_TRAILER_EVENT_TYPE_SHIFT) &
+		 ASYNC_TRAILER_EVENT_TYPE_MASK;
+}
+
 static inline bool be_mcc_compl_is_new(struct be_mcc_compl *compl)
 {
 	if (compl->flags != 0) {
@@ -438,7 +451,7 @@ void beiscsi_async_link_state_process(struct beiscsi_hba *phba,
 	} else if ((evt->port_link_status & ASYNC_EVENT_LINK_UP) ||
 		    ((evt->port_link_status & ASYNC_EVENT_LOGICAL) &&
 		     (evt->port_fault == BEISCSI_PHY_LINK_FAULT_NONE))) {
-		phba->state = BE_ADAPTER_LINK_UP;
+		phba->state = BE_ADAPTER_LINK_UP | BE_ADAPTER_CHECK_BOOT;
 
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_INIT,
@@ -461,7 +474,28 @@ int beiscsi_process_mcc(struct beiscsi_hba *phba)
 				/* Interpret compl as a async link evt */
 				beiscsi_async_link_state_process(phba,
 				   (struct be_async_event_link_state *) compl);
-			else
+			else if (is_iscsi_evt(compl->flags)) {
+				switch (iscsi_evt_type(compl->flags)) {
+				case ASYNC_EVENT_NEW_ISCSI_TGT_DISC:
+				case ASYNC_EVENT_NEW_ISCSI_CONN:
+				case ASYNC_EVENT_NEW_TCP_CONN:
+					phba->state |= BE_ADAPTER_CHECK_BOOT;
+					beiscsi_log(phba, KERN_ERR,
+						    BEISCSI_LOG_CONFIG |
+						    BEISCSI_LOG_MBOX,
+						    "BC_%d : Async iscsi Event,"
+						    " flags handled = 0x%08x\n",
+						    compl->flags);
+					break;
+				default:
+					beiscsi_log(phba, KERN_ERR,
+						    BEISCSI_LOG_CONFIG |
+						    BEISCSI_LOG_MBOX,
+						    "BC_%d : Unsupported Async"
+						    " Event, flags = 0x%08x\n",
+						    compl->flags);
+				}
+			} else
 				beiscsi_log(phba, KERN_ERR,
 					    BEISCSI_LOG_CONFIG |
 					    BEISCSI_LOG_MBOX,

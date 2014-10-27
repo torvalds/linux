@@ -479,7 +479,7 @@ void arch_irq_work_raise(void)
 
 #endif /* CONFIG_IRQ_WORK */
 
-void __timer_interrupt(void)
+static void __timer_interrupt(void)
 {
 	struct pt_regs *regs = get_irq_regs();
 	u64 *next_tb = &__get_cpu_var(decrementers_next_tb);
@@ -643,7 +643,7 @@ static int __init get_freq(char *name, int cells, unsigned long *val)
 	return found;
 }
 
-void start_cpu_decrementer(void)
+static void start_cpu_decrementer(void)
 {
 #if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
 	/* Clear any pending timer interrupts */
@@ -1024,6 +1024,7 @@ void to_tm(int tim, struct rtc_time * tm)
 	 */
 	GregorianDay(tm);
 }
+EXPORT_SYMBOL(to_tm);
 
 /*
  * Divide a 128-bit dividend by a 32-bit divisor, leaving a 128 bit

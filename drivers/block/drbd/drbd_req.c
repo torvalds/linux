@@ -1645,6 +1645,6 @@ void request_timer_fn(unsigned long data)
 		? oldest_submit_jif + dt : now + et;
 	nt = time_before(ent, dt) ? ent : dt;
 out:
-	spin_unlock_irq(&connection->resource->req_lock);
+	spin_unlock_irq(&device->resource->req_lock);
 	mod_timer(&device->request_timer, nt);
 }

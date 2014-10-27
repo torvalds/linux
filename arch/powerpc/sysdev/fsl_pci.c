@@ -522,7 +522,8 @@ int fsl_add_bridge(struct platform_device *pdev, int is_primary)
 	} else {
 		/* For PCI read PROG to identify controller mode */
 		early_read_config_byte(hose, 0, 0, PCI_CLASS_PROG, &progif);
-		if ((progif & 1) == 1)
+		if ((progif & 1) &&
+		    !of_property_read_bool(dev, "fsl,pci-agent-force-enum"))
 			goto no_bridge;
 	}
 

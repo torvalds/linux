@@ -18,6 +18,11 @@
 
 / {
 	model = "bq Aquaris5";
+	compatible = "mundoreader,bq-aquaris5", "mediatek,mt6589";
+
+	chosen {
+		bootargs = "earlyprintk";
+	};
 
 	memory {
 		reg = <0x80000000 0x40000000>;

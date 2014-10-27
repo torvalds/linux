@@ -40,12 +40,12 @@ struct modes_unit {
 	int mode_size;
 };
 static struct modes_unit ieee80211_modes[] = {
-	{"a",1},
-	{"b",1},
-	{"g",1},
-	{"?",1},
-	{"N-24G",5},
-	{"N-5G",4},
+	{"a", 1},
+	{"b", 1},
+	{"g", 1},
+	{"?", 1},
+	{"N-24G", 5},
+	{"N-5G", 4},
 };
 
 #define iwe_stream_add_event_rsl iwe_stream_add_event

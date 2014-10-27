@@ -18,9 +18,9 @@
 #include <asm/system_misc.h>
 
 #include <plat/map-base.h>
-#include <mach/regs-clock.h>
 
 #include "common.h"
+#include "regs-clock.h"
 
 static int __init s5pv210_fdt_map_sys(unsigned long node, const char *uname,
 					int depth, void *data)

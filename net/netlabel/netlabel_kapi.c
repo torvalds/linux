@@ -246,7 +246,6 @@ int netlbl_cfg_unlbl_static_add(struct net *net,
  * @addr: IP address in network byte order (struct in[6]_addr)
  * @mask: address mask in network byte order (struct in[6]_addr)
  * @family: address family
- * @secid: LSM secid value for the entry
  * @audit_info: NetLabel audit information
  *
  * Description:

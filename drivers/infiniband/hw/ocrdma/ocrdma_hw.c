@@ -348,11 +348,6 @@ static void *ocrdma_init_emb_mqe(u8 opcode, u32 cmd_len)
 	return mqe;
 }
 
-static void *ocrdma_alloc_mqe(void)
-{
-	return kzalloc(sizeof(struct ocrdma_mqe), GFP_KERNEL);
-}
-
 static void ocrdma_free_q(struct ocrdma_dev *dev, struct ocrdma_queue_info *q)
 {
 	dma_free_coherent(&dev->nic_info.pdev->dev, q->size, q->va, q->dma);
@@ -566,8 +561,8 @@ static int ocrdma_mbx_create_mq(struct ocrdma_dev *dev,
 	cmd->cqid_pages |= (cq->id << OCRDMA_CREATE_MQ_CQ_ID_SHIFT);
 	cmd->async_cqid_valid = OCRDMA_CREATE_MQ_ASYNC_CQ_VALID;
 
-	cmd->async_event_bitmap = Bit(OCRDMA_ASYNC_GRP5_EVE_CODE);
-	cmd->async_event_bitmap |= Bit(OCRDMA_ASYNC_RDMA_EVE_CODE);
+	cmd->async_event_bitmap = BIT(OCRDMA_ASYNC_GRP5_EVE_CODE);
+	cmd->async_event_bitmap |= BIT(OCRDMA_ASYNC_RDMA_EVE_CODE);
 
 	cmd->async_cqid_ringsize = cq->id;
 	cmd->async_cqid_ringsize |= (ocrdma_encoded_q_len(mq->len) <<
@@ -1189,10 +1184,10 @@ int ocrdma_mbx_rdma_stats(struct ocrdma_dev *dev, bool reset)
 {
 	struct ocrdma_rdma_stats_req *req = dev->stats_mem.va;
 	struct ocrdma_mqe *mqe = &dev->stats_mem.mqe;
-	struct ocrdma_rdma_stats_resp *old_stats = NULL;
+	struct ocrdma_rdma_stats_resp *old_stats;
 	int status;
 
-	old_stats = kzalloc(sizeof(*old_stats), GFP_KERNEL);
+	old_stats = kmalloc(sizeof(*old_stats), GFP_KERNEL);
 	if (old_stats == NULL)
 		return -ENOMEM;
 
@@ -1235,10 +1230,9 @@ static int ocrdma_mbx_get_ctrl_attribs(struct ocrdma_dev *dev)
 	struct ocrdma_get_ctrl_attribs_rsp *ctrl_attr_rsp;
 	struct mgmt_hba_attribs *hba_attribs;
 
-	mqe = ocrdma_alloc_mqe();
+	mqe = kzalloc(sizeof(struct ocrdma_mqe), GFP_KERNEL);
 	if (!mqe)
 		return status;
-	memset(mqe, 0, sizeof(*mqe));
 
 	dma.size = sizeof(struct ocrdma_get_ctrl_attribs_rsp);
 	dma.va	 = dma_alloc_coherent(&dev->nic_info.pdev->dev,
@@ -2279,7 +2273,8 @@ mbx_err:
 
 static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 				struct ocrdma_modify_qp *cmd,
-				struct ib_qp_attr *attrs)
+				struct ib_qp_attr *attrs,
+				int attr_mask)
 {
 	int status;
 	struct ib_ah_attr *ah_attr = &attrs->ah_attr;
@@ -2319,8 +2314,8 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 	ocrdma_cpu_to_le32(&cmd->params.dgid[0], sizeof(cmd->params.dgid));
 	ocrdma_cpu_to_le32(&cmd->params.sgid[0], sizeof(cmd->params.sgid));
 	cmd->params.vlan_dmac_b4_to_b5 = mac_addr[4] | (mac_addr[5] << 8);
-	vlan_id = ah_attr->vlan_id;
-	if (vlan_id && (vlan_id < 0x1000)) {
+	if (attr_mask & IB_QP_VID) {
+		vlan_id = attrs->vlan_id;
 		cmd->params.vlan_dmac_b4_to_b5 |=
 		    vlan_id << OCRDMA_QP_PARAMS_VLAN_SHIFT;
 		cmd->flags |= OCRDMA_QP_PARA_VLAN_EN_VALID;
@@ -2347,7 +2342,7 @@ static int ocrdma_set_qp_params(struct ocrdma_qp *qp,
 		cmd->flags |= OCRDMA_QP_PARA_QKEY_VALID;
 	}
 	if (attr_mask & IB_QP_AV) {
-		status = ocrdma_set_av_params(qp, cmd, attrs);
+		status = ocrdma_set_av_params(qp, cmd, attrs, attr_mask);
 		if (status)
 			return status;
 	} else if (qp->qp_type == IB_QPT_GSI || qp->qp_type == IB_QPT_UD) {

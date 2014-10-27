@@ -721,13 +721,23 @@ static inline u16 exts_chan_to_edata(int ch)
 }
 
 static int decode_evnt(struct dp83640_private *dp83640,
-		       void *data, u16 ests)
+		       void *data, int len, u16 ests)
 {
 	struct phy_txts *phy_txts;
 	struct ptp_clock_event event;
 	int i, parsed;
 	int words = (ests >> EVNT_TS_LEN_SHIFT) & EVNT_TS_LEN_MASK;
 	u16 ext_status = 0;
+
+	/* calculate length of the event timestamp status message */
+	if (ests & MULT_EVNT)
+		parsed = (words + 2) * sizeof(u16);
+	else
+		parsed = (words + 1) * sizeof(u16);
+
+	/* check if enough data is available */
+	if (len < parsed)
+		return len;
 
 	if (ests & MULT_EVNT) {
 		ext_status = *(u16 *) data;
@@ -747,10 +757,7 @@ static int decode_evnt(struct dp83640_private *dp83640,
 		dp83640->edata.ns_lo = phy_txts->ns_lo;
 	}
 
-	if (ext_status) {
-		parsed = words + 2;
-	} else {
-		parsed = words + 1;
+	if (!ext_status) {
 		i = ((ests >> EVNT_NUM_SHIFT) & EVNT_NUM_MASK) - EXT_EVENT;
 		ext_status = exts_chan_to_edata(i);
 	}
@@ -768,7 +775,7 @@ static int decode_evnt(struct dp83640_private *dp83640,
 		}
 	}
 
-	return parsed * sizeof(u16);
+	return parsed;
 }
 
 static int match(struct sk_buff *skb, unsigned int type, struct rxts *rxts)
@@ -905,9 +912,9 @@ static void decode_status_frame(struct dp83640_private *dp83640,
 			decode_txts(dp83640, phy_txts);
 			size = sizeof(*phy_txts);
 
-		} else if (PSF_EVNT == type && len >= sizeof(*phy_txts)) {
+		} else if (PSF_EVNT == type) {
 
-			size = decode_evnt(dp83640, ptr, ests);
+			size = decode_evnt(dp83640, ptr, len, ests);
 
 		} else {
 			size = 0;
@@ -1129,7 +1136,6 @@ static void dp83640_remove(struct phy_device *phydev)
 	struct dp83640_clock *clock;
 	struct list_head *this, *next;
 	struct dp83640_private *tmp, *dp83640 = phydev->priv;
-	struct sk_buff *skb;
 
 	if (phydev->addr == BROADCAST_ADDR)
 		return;
@@ -1137,11 +1143,8 @@ static void dp83640_remove(struct phy_device *phydev)
 	enable_status_frames(phydev, false);
 	cancel_work_sync(&dp83640->ts_work);
 
-	while ((skb = skb_dequeue(&dp83640->rx_queue)) != NULL)
-		kfree_skb(skb);
-
-	while ((skb = skb_dequeue(&dp83640->tx_queue)) != NULL)
-		skb_complete_tx_timestamp(skb, NULL);
+	skb_queue_purge(&dp83640->rx_queue);
+	skb_queue_purge(&dp83640->tx_queue);
 
 	clock = dp83640_clock_get(dp83640->clock);
 
@@ -1398,7 +1401,7 @@ static void dp83640_txtstamp(struct phy_device *phydev,
 
 	case HWTSTAMP_TX_ONESTEP_SYNC:
 		if (is_sync(skb, type)) {
-			skb_complete_tx_timestamp(skb, NULL);
+			kfree_skb(skb);
 			return;
 		}
 		/* fall through */
@@ -1409,7 +1412,7 @@ static void dp83640_txtstamp(struct phy_device *phydev,
 
 	case HWTSTAMP_TX_OFF:
 	default:
-		skb_complete_tx_timestamp(skb, NULL);
+		kfree_skb(skb);
 		break;
 	}
 }

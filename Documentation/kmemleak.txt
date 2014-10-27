@@ -122,7 +122,7 @@ Then as usual to get your report with:
 Freeing kmemleak internal objects
 ---------------------------------
 
-To allow access to previosuly found memory leaks after kmemleak has been
+To allow access to previously found memory leaks after kmemleak has been
 disabled by the user or due to an fatal error, internal kmemleak objects
 won't be freed when kmemleak is disabled, and those objects may occupy
 a large part of physical memory.

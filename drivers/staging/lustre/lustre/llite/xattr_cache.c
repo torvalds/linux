@@ -128,13 +128,13 @@ static int ll_xattr_cache_add(struct list_head *cache,
 
 	xattr->xe_namelen = strlen(xattr_name) + 1;
 
-	OBD_ALLOC(xattr->xe_name, xattr->xe_namelen);
+	xattr->xe_name = kzalloc(xattr->xe_namelen, GFP_NOFS);
 	if (!xattr->xe_name) {
 		CDEBUG(D_CACHE, "failed to alloc xattr name %u\n",
 		       xattr->xe_namelen);
 		goto err_name;
 	}
-	OBD_ALLOC(xattr->xe_value, xattr_val_len);
+	xattr->xe_value = kzalloc(xattr_val_len, GFP_NOFS);
 	if (!xattr->xe_value) {
 		CDEBUG(D_CACHE, "failed to alloc xattr value %d\n",
 		       xattr_val_len);
@@ -365,18 +365,20 @@ static int ll_xattr_cache_refill(struct inode *inode, struct lookup_intent *oit)
 
 	rc = ll_xattr_find_get_lock(inode, oit, &req);
 	if (rc)
-		GOTO(out_no_unlock, rc);
+		goto out_no_unlock;
 
 	/* Do we have the data at this point? */
 	if (ll_xattr_cache_valid(lli)) {
 		ll_stats_ops_tally(sbi, LPROC_LL_GETXATTR_HITS, 1);
-		GOTO(out_maybe_drop, rc = 0);
+		rc = 0;
+		goto out_maybe_drop;
 	}
 
 	/* Matched but no cache? Cancelled on error by a parallel refill. */
 	if (unlikely(req == NULL)) {
 		CDEBUG(D_CACHE, "cancelled by a parallel getxattr\n");
-		GOTO(out_maybe_drop, rc = -EIO);
+		rc = -EIO;
+		goto out_maybe_drop;
 	}
 
 	if (oit->d.lustre.it_status < 0) {
@@ -386,13 +388,14 @@ static int ll_xattr_cache_refill(struct inode *inode, struct lookup_intent *oit)
 		/* xattr data is so large that we don't want to cache it */
 		if (rc == -ERANGE)
 			rc = -EAGAIN;
-		GOTO(out_destroy, rc);
+		goto out_destroy;
 	}
 
 	body = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
 	if (body == NULL) {
 		CERROR("no MDT BODY in the refill xattr reply\n");
-		GOTO(out_destroy, rc = -EPROTO);
+		rc = -EPROTO;
+		goto out_destroy;
 	}
 	/* do not need swab xattr data */
 	xdata = req_capsule_server_sized_get(&req->rq_pill, &RMF_EADATA,
@@ -403,7 +406,8 @@ static int ll_xattr_cache_refill(struct inode *inode, struct lookup_intent *oit)
 					      body->max_mdsize * sizeof(__u32));
 	if (xdata == NULL || xval == NULL || xsizes == NULL) {
 		CERROR("wrong setxattr reply\n");
-		GOTO(out_destroy, rc = -EPROTO);
+		rc = -EPROTO;
+		goto out_destroy;
 	}
 
 	xtail = xdata + body->eadatasize;
@@ -435,7 +439,7 @@ static int ll_xattr_cache_refill(struct inode *inode, struct lookup_intent *oit)
 		}
 		if (rc < 0) {
 			ll_xattr_cache_destroy_locked(lli);
-			GOTO(out_destroy, rc);
+			goto out_destroy;
 		}
 		xdata += strlen(xdata) + 1;
 		xval  += *xsizes;
@@ -447,7 +451,7 @@ static int ll_xattr_cache_refill(struct inode *inode, struct lookup_intent *oit)
 
 	ll_set_lock_data(sbi->ll_md_exp, inode, oit, NULL);
 
-	GOTO(out_maybe_drop, rc);
+	goto out_maybe_drop;
 out_maybe_drop:
 
 		ll_intent_drop_lock(oit);
@@ -528,7 +532,7 @@ int ll_xattr_cache_get(struct inode *inode,
 					 size ? buffer : NULL, size);
 	}
 
-	GOTO(out, rc);
+	goto out;
 out:
 	up_read(&lli->lli_xattrs_list_rwsem);
 

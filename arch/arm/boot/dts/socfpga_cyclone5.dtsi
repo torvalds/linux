@@ -16,6 +16,8 @@
  */
 
 /dts-v1/;
+/* First 4KB has trampoline code for secondary cores. */
+/memreserve/ 0x00000000 0x0001000;
 #include "socfpga.dtsi"
 
 / {
@@ -28,15 +30,12 @@
 			};
 		};
 
-		dwmmc0@ff704000 {
+		mmc0: dwmmc0@ff704000 {
 			num-slots = <1>;
-			supports-highspeed;
 			broken-cd;
-
-			slot@0 {
-				reg = <0>;
-				bus-width = <4>;
-			};
+			bus-width = <4>;
+			cap-mmc-highspeed;
+			cap-sd-highspeed;
 		};
 
 		ethernet@ff702000 {

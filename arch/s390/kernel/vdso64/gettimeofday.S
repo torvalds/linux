@@ -28,8 +28,8 @@ __kernel_gettimeofday:
 	lg	%r4,__VDSO_UPD_COUNT(%r5)	/* load update counter */
 	tmll	%r4,0x0001			/* pending update ? loop */
 	jnz	0b
-	stck	48(%r15)			/* Store TOD clock */
-	lg	%r1,48(%r15)
+	stcke	48(%r15)			/* Store TOD clock */
+	lg	%r1,49(%r15)
 	sg	%r1,__VDSO_XTIME_STAMP(%r5)	/* TOD - cycle_last */
 	msgf	%r1,__VDSO_TK_MULT(%r5)		/*  * tk->mult */
 	alg	%r1,__VDSO_XTIME_NSEC(%r5)	/*  + tk->xtime_nsec */

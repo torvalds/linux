@@ -671,7 +671,7 @@ static void pcl816_reset(struct comedi_device *dev)
 
 static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct pcl816_board *board = comedi_board(dev);
+	const struct pcl816_board *board = dev->board_ptr;
 	struct pcl816_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;

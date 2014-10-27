@@ -34,6 +34,9 @@ obj-$(CONFIG_ARCH_BCM2835)	+= board_bcm2835.o
 # BCM5301X
 obj-$(CONFIG_ARCH_BCM_5301X)	+= bcm_5301x.o
 
+# BCM63XXx
+obj-$(CONFIG_ARCH_BCM_63XX)	:= bcm63xx.o
+
 ifeq ($(CONFIG_ARCH_BRCMSTB),y)
 obj-y				+= brcmstb.o
 endif

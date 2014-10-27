@@ -836,8 +836,9 @@ static int ahash_update_ctx(struct ahash_request *req)
 					   edesc->sec4_sg + sec4_sg_src_index,
 					   chained);
 			if (*next_buflen) {
-				sg_copy_part(next_buf, req->src, to_hash -
-					     *buflen, req->nbytes);
+				scatterwalk_map_and_copy(next_buf, req->src,
+							 to_hash - *buflen,
+							 *next_buflen, 0);
 				state->current_buf = !state->current_buf;
 			}
 		} else {
@@ -878,7 +879,8 @@ static int ahash_update_ctx(struct ahash_request *req)
 			kfree(edesc);
 		}
 	} else if (*next_buflen) {
-		sg_copy(buf + *buflen, req->src, req->nbytes);
+		scatterwalk_map_and_copy(buf + *buflen, req->src, 0,
+					 req->nbytes, 0);
 		*buflen = *next_buflen;
 		*next_buflen = last_buflen;
 	}
@@ -1262,8 +1264,9 @@ static int ahash_update_no_ctx(struct ahash_request *req)
 		src_map_to_sec4_sg(jrdev, req->src, src_nents,
 				   edesc->sec4_sg + 1, chained);
 		if (*next_buflen) {
-			sg_copy_part(next_buf, req->src, to_hash - *buflen,
-				    req->nbytes);
+			scatterwalk_map_and_copy(next_buf, req->src,
+						 to_hash - *buflen,
+						 *next_buflen, 0);
 			state->current_buf = !state->current_buf;
 		}
 
@@ -1304,7 +1307,8 @@ static int ahash_update_no_ctx(struct ahash_request *req)
 			kfree(edesc);
 		}
 	} else if (*next_buflen) {
-		sg_copy(buf + *buflen, req->src, req->nbytes);
+		scatterwalk_map_and_copy(buf + *buflen, req->src, 0,
+					 req->nbytes, 0);
 		*buflen = *next_buflen;
 		*next_buflen = 0;
 	}
@@ -1413,9 +1417,9 @@ static int ahash_update_first(struct ahash_request *req)
 	struct device *jrdev = ctx->jrdev;
 	gfp_t flags = (req->base.flags & (CRYPTO_TFM_REQ_MAY_BACKLOG |
 		       CRYPTO_TFM_REQ_MAY_SLEEP)) ? GFP_KERNEL : GFP_ATOMIC;
-	u8 *next_buf = state->buf_0 + state->current_buf *
-		       CAAM_MAX_HASH_BLOCK_SIZE;
-	int *next_buflen = &state->buflen_0 + state->current_buf;
+	u8 *next_buf = state->current_buf ? state->buf_1 : state->buf_0;
+	int *next_buflen = state->current_buf ?
+		&state->buflen_1 : &state->buflen_0;
 	int to_hash;
 	u32 *sh_desc = ctx->sh_desc_update_first, *desc;
 	dma_addr_t ptr = ctx->sh_desc_update_first_dma;
@@ -1476,7 +1480,8 @@ static int ahash_update_first(struct ahash_request *req)
 		}
 
 		if (*next_buflen)
-			sg_copy_part(next_buf, req->src, to_hash, req->nbytes);
+			scatterwalk_map_and_copy(next_buf, req->src, to_hash,
+						 *next_buflen, 0);
 
 		sh_len = desc_len(sh_desc);
 		desc = edesc->hw_desc;
@@ -1511,7 +1516,8 @@ static int ahash_update_first(struct ahash_request *req)
 		state->update = ahash_update_no_ctx;
 		state->finup = ahash_finup_no_ctx;
 		state->final = ahash_final_no_ctx;
-		sg_copy(next_buf, req->src, req->nbytes);
+		scatterwalk_map_and_copy(next_buf, req->src, 0,
+					 req->nbytes, 0);
 	}
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "next buf@"__stringify(__LINE__)": ",

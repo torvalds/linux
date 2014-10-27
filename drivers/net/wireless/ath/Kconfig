@@ -25,6 +25,14 @@ config ATH_DEBUG
 	  Say Y, if you want to debug atheros wireless drivers.
 	  Right now only ath9k makes use of this.
 
+config ATH_TRACEPOINTS
+       bool "Atheros wireless tracing"
+       depends on ATH_DEBUG
+       depends on EVENT_TRACING
+       ---help---
+         This option enables tracepoints for atheros wireless drivers.
+	 Currently, ath9k makes use of this facility.
+
 config ATH_REG_DYNAMIC_USER_REG_HINTS
 	bool "Atheros dynamic user regulatory hints"
 	depends on CFG80211_CERTIFICATION_ONUS

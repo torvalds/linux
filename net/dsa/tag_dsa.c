@@ -10,13 +10,12 @@
 
 #include <linux/etherdevice.h>
 #include <linux/list.h>
-#include <linux/netdevice.h>
 #include <linux/slab.h>
 #include "dsa_priv.h"
 
 #define DSA_HLEN	4
 
-netdev_tx_t dsa_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t dsa_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	u8 *dsa_header;
@@ -186,7 +185,7 @@ out:
 	return 0;
 }
 
-struct packet_type dsa_packet_type __read_mostly = {
-	.type	= cpu_to_be16(ETH_P_DSA),
-	.func	= dsa_rcv,
+const struct dsa_device_ops dsa_netdev_ops = {
+	.xmit	= dsa_xmit,
+	.rcv	= dsa_rcv,
 };

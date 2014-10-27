@@ -10,16 +10,16 @@ git clone https://github.com/freedreno/envytools.git
 The rules-ng-ng source files this header was generated from are:
 - /home/robclark/src/freedreno/envytools/rnndb/msm.xml                 (    647 bytes, from 2013-11-30 14:45:35)
 - /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml (   1453 bytes, from 2013-03-31 16:51:27)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp4.xml            (  17996 bytes, from 2013-12-01 19:10:31)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp_common.xml      (   1615 bytes, from 2013-11-30 15:00:52)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp5.xml            (  22517 bytes, from 2014-06-25 12:55:02)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp4.xml            (  20457 bytes, from 2014-08-01 12:22:48)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp_common.xml      (   1615 bytes, from 2014-07-17 15:34:33)
+- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp5.xml            (  22517 bytes, from 2014-07-17 15:34:33)
 - /home/robclark/src/freedreno/envytools/rnndb/dsi/dsi.xml             (  11712 bytes, from 2013-08-17 17:13:43)
 - /home/robclark/src/freedreno/envytools/rnndb/dsi/sfpb.xml            (    344 bytes, from 2013-08-11 19:26:32)
-- /home/robclark/src/freedreno/envytools/rnndb/dsi/mmss_cc.xml         (   1544 bytes, from 2013-08-16 19:17:05)
+- /home/robclark/src/freedreno/envytools/rnndb/dsi/mmss_cc.xml         (   1686 bytes, from 2014-08-01 12:23:53)
 - /home/robclark/src/freedreno/envytools/rnndb/hdmi/qfprom.xml         (    600 bytes, from 2013-07-05 19:21:12)
-- /home/robclark/src/freedreno/envytools/rnndb/hdmi/hdmi.xml           (  23613 bytes, from 2014-06-25 12:53:44)
+- /home/robclark/src/freedreno/envytools/rnndb/hdmi/hdmi.xml           (  23613 bytes, from 2014-07-17 15:33:30)
 
-Copyright (C) 2013 by the following authors:
+Copyright (C) 2013-2014 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
 
 Permission is hereby granted, free of charge, to any person obtaining
@@ -870,6 +870,101 @@ static inline uint32_t MDP4_LCDC_UNDERFLOW_CLR_COLOR(uint32_t val)
 #define MDP4_LCDC_CTRL_POLARITY_HSYNC_LOW			0x00000001
 #define MDP4_LCDC_CTRL_POLARITY_VSYNC_LOW			0x00000002
 #define MDP4_LCDC_CTRL_POLARITY_DATA_EN_LOW			0x00000004
+
+#define REG_MDP4_LCDC_LVDS_INTF_CTL				0x000c2000
+#define MDP4_LCDC_LVDS_INTF_CTL_MODE_SEL			0x00000004
+#define MDP4_LCDC_LVDS_INTF_CTL_RGB_OUT				0x00000008
+#define MDP4_LCDC_LVDS_INTF_CTL_CH_SWAP				0x00000010
+#define MDP4_LCDC_LVDS_INTF_CTL_CH1_RES_BIT			0x00000020
+#define MDP4_LCDC_LVDS_INTF_CTL_CH2_RES_BIT			0x00000040
+#define MDP4_LCDC_LVDS_INTF_CTL_ENABLE				0x00000080
+#define MDP4_LCDC_LVDS_INTF_CTL_CH1_DATA_LANE0_EN		0x00000100
+#define MDP4_LCDC_LVDS_INTF_CTL_CH1_DATA_LANE1_EN		0x00000200
+#define MDP4_LCDC_LVDS_INTF_CTL_CH1_DATA_LANE2_EN		0x00000400
+#define MDP4_LCDC_LVDS_INTF_CTL_CH1_DATA_LANE3_EN		0x00000800
+#define MDP4_LCDC_LVDS_INTF_CTL_CH2_DATA_LANE0_EN		0x00001000
+#define MDP4_LCDC_LVDS_INTF_CTL_CH2_DATA_LANE1_EN		0x00002000
+#define MDP4_LCDC_LVDS_INTF_CTL_CH2_DATA_LANE2_EN		0x00004000
+#define MDP4_LCDC_LVDS_INTF_CTL_CH2_DATA_LANE3_EN		0x00008000
+#define MDP4_LCDC_LVDS_INTF_CTL_CH1_CLK_LANE_EN			0x00010000
+#define MDP4_LCDC_LVDS_INTF_CTL_CH2_CLK_LANE_EN			0x00020000
+
+static inline uint32_t REG_MDP4_LCDC_LVDS_MUX_CTL(uint32_t i0) { return 0x000c2014 + 0x8*i0; }
+
+static inline uint32_t REG_MDP4_LCDC_LVDS_MUX_CTL_3_TO_0(uint32_t i0) { return 0x000c2014 + 0x8*i0; }
+#define MDP4_LCDC_LVDS_MUX_CTL_3_TO_0_BIT0__MASK		0x000000ff
+#define MDP4_LCDC_LVDS_MUX_CTL_3_TO_0_BIT0__SHIFT		0
+static inline uint32_t MDP4_LCDC_LVDS_MUX_CTL_3_TO_0_BIT0(uint32_t val)
+{
+	return ((val) << MDP4_LCDC_LVDS_MUX_CTL_3_TO_0_BIT0__SHIFT) & MDP4_LCDC_LVDS_MUX_CTL_3_TO_0_BIT0__MASK;
+}
+#define MDP4_LCDC_LVDS_MUX_CTL_3_TO_0_BIT1__MASK		0x0000ff00
+#define MDP4_LCDC_LVDS_MUX_CTL_3_TO_0_BIT1__SHIFT		8
+static inline uint32_t MDP4_LCDC_LVDS_MUX_CTL_3_TO_0_BIT1(uint32_t val)
+{
+	return ((val) << MDP4_LCDC_LVDS_MUX_CTL_3_TO_0_BIT1__SHIFT) & MDP4_LCDC_LVDS_MUX_CTL_3_TO_0_BIT1__MASK;
+}
+#define MDP4_LCDC_LVDS_MUX_CTL_3_TO_0_BIT2__MASK		0x00ff0000
+#define MDP4_LCDC_LVDS_MUX_CTL_3_TO_0_BIT2__SHIFT		16
+static inline uint32_t MDP4_LCDC_LVDS_MUX_CTL_3_TO_0_BIT2(uint32_t val)
+{
+	return ((val) << MDP4_LCDC_LVDS_MUX_CTL_3_TO_0_BIT2__SHIFT) & MDP4_LCDC_LVDS_MUX_CTL_3_TO_0_BIT2__MASK;
+}
+#define MDP4_LCDC_LVDS_MUX_CTL_3_TO_0_BIT3__MASK		0xff000000
+#define MDP4_LCDC_LVDS_MUX_CTL_3_TO_0_BIT3__SHIFT		24
+static inline uint32_t MDP4_LCDC_LVDS_MUX_CTL_3_TO_0_BIT3(uint32_t val)
+{
+	return ((val) << MDP4_LCDC_LVDS_MUX_CTL_3_TO_0_BIT3__SHIFT) & MDP4_LCDC_LVDS_MUX_CTL_3_TO_0_BIT3__MASK;
+}
+
+static inline uint32_t REG_MDP4_LCDC_LVDS_MUX_CTL_6_TO_4(uint32_t i0) { return 0x000c2018 + 0x8*i0; }
+#define MDP4_LCDC_LVDS_MUX_CTL_6_TO_4_BIT4__MASK		0x000000ff
+#define MDP4_LCDC_LVDS_MUX_CTL_6_TO_4_BIT4__SHIFT		0
+static inline uint32_t MDP4_LCDC_LVDS_MUX_CTL_6_TO_4_BIT4(uint32_t val)
+{
+	return ((val) << MDP4_LCDC_LVDS_MUX_CTL_6_TO_4_BIT4__SHIFT) & MDP4_LCDC_LVDS_MUX_CTL_6_TO_4_BIT4__MASK;
+}
+#define MDP4_LCDC_LVDS_MUX_CTL_6_TO_4_BIT5__MASK		0x0000ff00
+#define MDP4_LCDC_LVDS_MUX_CTL_6_TO_4_BIT5__SHIFT		8
+static inline uint32_t MDP4_LCDC_LVDS_MUX_CTL_6_TO_4_BIT5(uint32_t val)
+{
+	return ((val) << MDP4_LCDC_LVDS_MUX_CTL_6_TO_4_BIT5__SHIFT) & MDP4_LCDC_LVDS_MUX_CTL_6_TO_4_BIT5__MASK;
+}
+#define MDP4_LCDC_LVDS_MUX_CTL_6_TO_4_BIT6__MASK		0x00ff0000
+#define MDP4_LCDC_LVDS_MUX_CTL_6_TO_4_BIT6__SHIFT		16
+static inline uint32_t MDP4_LCDC_LVDS_MUX_CTL_6_TO_4_BIT6(uint32_t val)
+{
+	return ((val) << MDP4_LCDC_LVDS_MUX_CTL_6_TO_4_BIT6__SHIFT) & MDP4_LCDC_LVDS_MUX_CTL_6_TO_4_BIT6__MASK;
+}
+
+#define REG_MDP4_LCDC_LVDS_PHY_RESET				0x000c2034
+
+#define REG_MDP4_LVDS_PHY_PLL_CTRL_0				0x000c3000
+
+#define REG_MDP4_LVDS_PHY_PLL_CTRL_1				0x000c3004
+
+#define REG_MDP4_LVDS_PHY_PLL_CTRL_2				0x000c3008
+
+#define REG_MDP4_LVDS_PHY_PLL_CTRL_3				0x000c300c
+
+#define REG_MDP4_LVDS_PHY_PLL_CTRL_5				0x000c3014
+
+#define REG_MDP4_LVDS_PHY_PLL_CTRL_6				0x000c3018
+
+#define REG_MDP4_LVDS_PHY_PLL_CTRL_7				0x000c301c
+
+#define REG_MDP4_LVDS_PHY_PLL_CTRL_8				0x000c3020
+
+#define REG_MDP4_LVDS_PHY_PLL_CTRL_9				0x000c3024
+
+#define REG_MDP4_LVDS_PHY_PLL_LOCKED				0x000c3080
+
+#define REG_MDP4_LVDS_PHY_CFG2					0x000c3108
+
+#define REG_MDP4_LVDS_PHY_CFG0					0x000c3100
+#define MDP4_LVDS_PHY_CFG0_SERIALIZATION_ENBLE			0x00000010
+#define MDP4_LVDS_PHY_CFG0_CHANNEL0				0x00000040
+#define MDP4_LVDS_PHY_CFG0_CHANNEL1				0x00000080
 
 #define REG_MDP4_DTV						0x000d0000
 

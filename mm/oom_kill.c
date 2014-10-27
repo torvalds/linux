@@ -404,6 +404,23 @@ static void dump_header(struct task_struct *p, gfp_t gfp_mask, int order,
 		dump_tasks(memcg, nodemask);
 }
 
+/*
+ * Number of OOM killer invocations (including memcg OOM killer).
+ * Primarily used by PM freezer to check for potential races with
+ * OOM killed frozen task.
+ */
+static atomic_t oom_kills = ATOMIC_INIT(0);
+
+int oom_kills_count(void)
+{
+	return atomic_read(&oom_kills);
+}
+
+void note_oom_kill(void)
+{
+	atomic_inc(&oom_kills);
+}
+
 #define K(x) ((x) << (PAGE_SHIFT-10))
 /*
  * Must be called while holding a reference to p, which will be released upon
@@ -565,7 +582,7 @@ bool oom_zonelist_trylock(struct zonelist *zonelist, gfp_t gfp_mask)
 
 	spin_lock(&zone_scan_lock);
 	for_each_zone_zonelist(zone, z, zonelist, gfp_zone(gfp_mask))
-		if (zone_is_oom_locked(zone)) {
+		if (test_bit(ZONE_OOM_LOCKED, &zone->flags)) {
 			ret = false;
 			goto out;
 		}
@@ -575,7 +592,7 @@ bool oom_zonelist_trylock(struct zonelist *zonelist, gfp_t gfp_mask)
 	 * call to oom_zonelist_trylock() doesn't succeed when it shouldn't.
 	 */
 	for_each_zone_zonelist(zone, z, zonelist, gfp_zone(gfp_mask))
-		zone_set_flag(zone, ZONE_OOM_LOCKED);
+		set_bit(ZONE_OOM_LOCKED, &zone->flags);
 
 out:
 	spin_unlock(&zone_scan_lock);
@@ -594,7 +611,7 @@ void oom_zonelist_unlock(struct zonelist *zonelist, gfp_t gfp_mask)
 
 	spin_lock(&zone_scan_lock);
 	for_each_zone_zonelist(zone, z, zonelist, gfp_zone(gfp_mask))
-		zone_clear_flag(zone, ZONE_OOM_LOCKED);
+		clear_bit(ZONE_OOM_LOCKED, &zone->flags);
 	spin_unlock(&zone_scan_lock);
 }
 

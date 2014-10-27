@@ -25,10 +25,26 @@
 	};
 };
 
+&pcie0clk {
+	status = "ok";
+};
+
+&pcie0 {
+	status = "ok";
+};
+
 &serial0 {
 	status = "ok";
 };
 
 &menet {
+	status = "ok";
+};
+
+&sgenet0 {
+	status = "ok";
+};
+
+&xgenet {
 	status = "ok";
 };

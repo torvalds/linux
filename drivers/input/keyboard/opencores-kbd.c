@@ -18,7 +18,6 @@
 
 struct opencores_kbd {
 	struct input_dev *input;
-	struct resource *addr_res;
 	void __iomem *addr;
 	int irq;
 	unsigned short keycodes[128];
@@ -56,35 +55,25 @@ static int opencores_kbd_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	opencores_kbd = kzalloc(sizeof(*opencores_kbd), GFP_KERNEL);
-	input = input_allocate_device();
-	if (!opencores_kbd || !input) {
-		dev_err(&pdev->dev, "failed to allocate device structures\n");
-		error = -ENOMEM;
-		goto err_free_mem;
-	}
+	opencores_kbd = devm_kzalloc(&pdev->dev, sizeof(*opencores_kbd),
+				     GFP_KERNEL);
+	if (!opencores_kbd)
+		return -ENOMEM;
 
-	opencores_kbd->addr_res = res;
-	res = request_mem_region(res->start, resource_size(res), pdev->name);
-	if (!res) {
-		dev_err(&pdev->dev, "failed to request I/O memory\n");
-		error = -EBUSY;
-		goto err_free_mem;
-	}
-
-	opencores_kbd->addr = ioremap(res->start, resource_size(res));
-	if (!opencores_kbd->addr) {
-		dev_err(&pdev->dev, "failed to remap I/O memory\n");
-		error = -ENXIO;
-		goto err_rel_mem;
+	input = devm_input_allocate_device(&pdev->dev);
+	if (!input) {
+		dev_err(&pdev->dev, "failed to allocate input device\n");
+		return -ENOMEM;
 	}
 
 	opencores_kbd->input = input;
-	opencores_kbd->irq = irq;
+
+	opencores_kbd->addr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(opencores_kbd->addr))
+		error = PTR_ERR(opencores_kbd->addr);
 
 	input->name = pdev->name;
 	input->phys = "opencores-kbd/input0";
-	input->dev.parent = &pdev->dev;
 
 	input_set_drvdata(input, opencores_kbd);
 
@@ -109,54 +98,27 @@ static int opencores_kbd_probe(struct platform_device *pdev)
 	}
 	__clear_bit(KEY_RESERVED, input->keybit);
 
-	error = request_irq(irq, &opencores_kbd_isr,
-			    IRQF_TRIGGER_RISING, pdev->name, opencores_kbd);
+	error = devm_request_irq(&pdev->dev, irq, &opencores_kbd_isr,
+				 IRQF_TRIGGER_RISING,
+				 pdev->name, opencores_kbd);
 	if (error) {
 		dev_err(&pdev->dev, "unable to claim irq %d\n", irq);
-		goto err_unmap_mem;
+		return error;
 	}
 
 	error = input_register_device(input);
 	if (error) {
 		dev_err(&pdev->dev, "unable to register input device\n");
-		goto err_free_irq;
+		return error;
 	}
 
 	platform_set_drvdata(pdev, opencores_kbd);
-
-	return 0;
-
- err_free_irq:
-	free_irq(irq, opencores_kbd);
- err_unmap_mem:
-	iounmap(opencores_kbd->addr);
- err_rel_mem:
-	release_mem_region(res->start, resource_size(res));
- err_free_mem:
-	input_free_device(input);
-	kfree(opencores_kbd);
-
-	return error;
-}
-
-static int opencores_kbd_remove(struct platform_device *pdev)
-{
-	struct opencores_kbd *opencores_kbd = platform_get_drvdata(pdev);
-
-	free_irq(opencores_kbd->irq, opencores_kbd);
-
-	iounmap(opencores_kbd->addr);
-	release_mem_region(opencores_kbd->addr_res->start,
-		resource_size(opencores_kbd->addr_res));
-	input_unregister_device(opencores_kbd->input);
-	kfree(opencores_kbd);
 
 	return 0;
 }
 
 static struct platform_driver opencores_kbd_device_driver = {
 	.probe    = opencores_kbd_probe,
-	.remove   = opencores_kbd_remove,
 	.driver   = {
 		.name = "opencores-kbd",
 	},

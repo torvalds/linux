@@ -237,7 +237,7 @@ static int bcma_hcd_probe(struct bcma_device *dev)
 	bcma_hcd_init_chip(dev);
 
 	/* In AI chips EHCI is addrspace 0, OHCI is 1 */
-	ohci_addr = dev->addr1;
+	ohci_addr = dev->addr_s[0];
 	if ((chipinfo->id == 0x5357 || chipinfo->id == 0x4749)
 	    && chipinfo->rev == 0)
 		ohci_addr = 0x18009000;

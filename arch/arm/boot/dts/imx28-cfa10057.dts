@@ -78,10 +78,10 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&lcdif_18bit_pins_cfa10057
 					     &lcdif_pins_cfa10057>;
-				display = <&display>;
+				display = <&display0>;
 				status = "okay";
 
-				display: display {
+				display0: display0 {
 					bits-per-pixel = <32>;
 					bus-width = <18>;
 

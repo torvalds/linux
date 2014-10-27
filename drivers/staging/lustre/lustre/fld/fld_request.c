@@ -53,7 +53,6 @@
 #include "../include/lprocfs_status.h"
 
 #include "../include/dt_object.h"
-#include "../include/md_object.h"
 #include "../include/lustre_req_layout.h"
 #include "../include/lustre_fld.h"
 #include "../include/lustre_mdc.h"
@@ -110,15 +109,14 @@ static void fld_exit_request(struct client_obd *cli)
 	client_obd_list_unlock(&cli->cl_loi_list_lock);
 }
 
-static int fld_rrb_hash(struct lu_client_fld *fld,
-			seqno_t seq)
+static int fld_rrb_hash(struct lu_client_fld *fld, u64 seq)
 {
 	LASSERT(fld->lcf_count > 0);
 	return do_div(seq, fld->lcf_count);
 }
 
 static struct lu_fld_target *
-fld_rrb_scan(struct lu_client_fld *fld, seqno_t seq)
+fld_rrb_scan(struct lu_client_fld *fld, u64 seq)
 {
 	struct lu_fld_target *target;
 	int hash;
@@ -173,7 +171,7 @@ struct lu_fld_hash fld_hash[] = {
 };
 
 static struct lu_fld_target *
-fld_client_get_target(struct lu_client_fld *fld, seqno_t seq)
+fld_client_get_target(struct lu_client_fld *fld, u64 seq)
 {
 	struct lu_fld_target *target;
 
@@ -294,7 +292,7 @@ static int fld_client_proc_init(struct lu_client_fld *fld)
 	if (rc) {
 		CERROR("%s: Can't init FLD proc, rc %d\n",
 		       fld->lcf_name, rc);
-		GOTO(out_cleanup, rc);
+		goto out_cleanup;
 	}
 
 	return 0;
@@ -364,12 +362,12 @@ int fld_client_init(struct lu_client_fld *fld,
 	if (IS_ERR(fld->lcf_cache)) {
 		rc = PTR_ERR(fld->lcf_cache);
 		fld->lcf_cache = NULL;
-		GOTO(out, rc);
+		goto out;
 	}
 
 	rc = fld_client_proc_init(fld);
 	if (rc)
-		GOTO(out, rc);
+		goto out;
 out:
 	if (rc)
 		fld_client_fini(fld);
@@ -428,6 +426,7 @@ int fld_client_rpc(struct obd_export *exp,
 
 	ptlrpc_request_set_replen(req);
 	req->rq_request_portal = FLD_REQUEST_PORTAL;
+	req->rq_reply_portal = MDC_REPLY_PORTAL;
 	ptlrpc_at_set_req_timeout(req);
 
 	if (fld_op == FLD_LOOKUP &&
@@ -442,18 +441,20 @@ int fld_client_rpc(struct obd_export *exp,
 	if (fld_op != FLD_LOOKUP)
 		mdc_put_rpc_lock(exp->exp_obd->u.cli.cl_rpc_lock, NULL);
 	if (rc)
-		GOTO(out_req, rc);
+		goto out_req;
 
 	prange = req_capsule_server_get(&req->rq_pill, &RMF_FLD_MDFLD);
-	if (prange == NULL)
-		GOTO(out_req, rc = -EFAULT);
+	if (prange == NULL) {
+		rc = -EFAULT;
+		goto out_req;
+	}
 	*range = *prange;
 out_req:
 	ptlrpc_req_finished(req);
 	return rc;
 }
 
-int fld_client_lookup(struct lu_client_fld *fld, seqno_t seq, mdsno_t *mds,
+int fld_client_lookup(struct lu_client_fld *fld, u64 seq, u32 *mds,
 		      __u32 flags, const struct lu_env *env)
 {
 	struct lu_seq_range res = { 0 };

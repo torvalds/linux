@@ -834,7 +834,7 @@ static int stmmac_init_phy(struct net_device *dev)
 	/* Stop Advertising 1000BASE Capability if interface is not GMII */
 	if ((interface == PHY_INTERFACE_MODE_MII) ||
 	    (interface == PHY_INTERFACE_MODE_RMII) ||
-		(max_speed < 1000 &&  max_speed > 0))
+		(max_speed < 1000 && max_speed > 0))
 		phydev->advertising &= ~(SUPPORTED_1000baseT_Half |
 					 SUPPORTED_1000baseT_Full);
 
@@ -2764,8 +2764,6 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 	priv = netdev_priv(ndev);
 	priv->device = device;
 	priv->dev = ndev;
-
-	ether_setup(ndev);
 
 	stmmac_set_ethtool_ops(ndev);
 	priv->pause = pause;

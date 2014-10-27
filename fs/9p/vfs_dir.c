@@ -116,7 +116,7 @@ static int v9fs_dir_readdir(struct file *file, struct dir_context *ctx)
 	int reclen = 0;
 	struct p9_rdir *rdir;
 
-	p9_debug(P9_DEBUG_VFS, "name %s\n", file->f_path.dentry->d_name.name);
+	p9_debug(P9_DEBUG_VFS, "name %pD\n", file);
 	fid = file->private_data;
 
 	buflen = fid->clnt->msize - P9_IOHDRSZ;
@@ -172,7 +172,7 @@ static int v9fs_dir_readdir_dotl(struct file *file, struct dir_context *ctx)
 	struct p9_rdir *rdir;
 	struct p9_dirent curdirent;
 
-	p9_debug(P9_DEBUG_VFS, "name %s\n", file->f_path.dentry->d_name.name);
+	p9_debug(P9_DEBUG_VFS, "name %pD\n", file);
 	fid = file->private_data;
 
 	buflen = fid->clnt->msize - P9_READDIRHDRSZ;

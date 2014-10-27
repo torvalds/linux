@@ -318,20 +318,10 @@ xfs_trans_read_buf_map(
 			XFS_BUF_READ(bp);
 			bp->b_ops = ops;
 
-			/*
-			 * XXX(hch): clean up the error handling here to be less
-			 * of a mess..
-			 */
-			if (XFS_FORCED_SHUTDOWN(mp)) {
-				trace_xfs_bdstrat_shut(bp, _RET_IP_);
-				xfs_bioerror_relse(bp);
-			} else {
-				xfs_buf_iorequest(bp);
-			}
-
-			error = xfs_buf_iowait(bp);
+			error = xfs_buf_submit_wait(bp);
 			if (error) {
-				xfs_buf_ioerror_alert(bp, __func__);
+				if (!XFS_FORCED_SHUTDOWN(mp))
+					xfs_buf_ioerror_alert(bp, __func__);
 				xfs_buf_relse(bp);
 				/*
 				 * We can gracefully recover from most read

@@ -163,6 +163,19 @@ do {							\
 	(ctx)->idx++;					\
 } while (0)
 
+/*
+ * Similar to emit_instr but it must be used when we need to emit
+ * 32-bit or 64-bit instructions
+ */
+#define emit_long_instr(ctx, func, ...)			\
+do {							\
+	if ((ctx)->target != NULL) {			\
+		u32 *p = &(ctx)->target[ctx->idx];	\
+		UASM_i_##func(&p, ##__VA_ARGS__);	\
+	}						\
+	(ctx)->idx++;					\
+} while (0)
+
 /* Determine if immediate is within the 16-bit signed range */
 static inline bool is_range16(s32 imm)
 {
@@ -216,13 +229,6 @@ static inline void emit_ori(unsigned int dst, unsigned src, u32 imm,
 	} else {
 		emit_instr(ctx, ori, dst, src, imm);
 	}
-}
-
-
-static inline void emit_daddu(unsigned int dst, unsigned int src1,
-			      unsigned int src2, struct jit_ctx *ctx)
-{
-	emit_instr(ctx, daddu, dst, src1, src2);
 }
 
 static inline void emit_daddiu(unsigned int dst, unsigned int src,
@@ -283,11 +289,7 @@ static inline void emit_xori(ptr dst, ptr src, u32 imm, struct jit_ctx *ctx)
 
 static inline void emit_stack_offset(int offset, struct jit_ctx *ctx)
 {
-	if (config_enabled(CONFIG_64BIT))
-		emit_instr(ctx, daddiu, r_sp, r_sp, offset);
-	else
-		emit_instr(ctx, addiu, r_sp, r_sp, offset);
-
+	emit_long_instr(ctx, ADDIU, r_sp, r_sp, offset);
 }
 
 static inline void emit_subu(unsigned int dst, unsigned int src1,
@@ -365,10 +367,7 @@ static inline void emit_store_stack_reg(ptr reg, ptr base,
 					unsigned int offset,
 					struct jit_ctx *ctx)
 {
-	if (config_enabled(CONFIG_64BIT))
-		emit_instr(ctx, sd, reg, offset, base);
-	else
-		emit_instr(ctx, sw, reg, offset, base);
+	emit_long_instr(ctx, SW, reg, offset, base);
 }
 
 static inline void emit_store(ptr reg, ptr base, unsigned int offset,
@@ -381,10 +380,7 @@ static inline void emit_load_stack_reg(ptr reg, ptr base,
 				       unsigned int offset,
 				       struct jit_ctx *ctx)
 {
-	if (config_enabled(CONFIG_64BIT))
-		emit_instr(ctx, ld, reg, offset, base);
-	else
-		emit_instr(ctx, lw, reg, offset, base);
+	emit_long_instr(ctx, LW, reg, offset, base);
 }
 
 static inline void emit_load(unsigned int reg, unsigned int base,
@@ -458,10 +454,7 @@ static inline void emit_load_ptr(unsigned int dst, unsigned int src,
 				     int imm, struct jit_ctx *ctx)
 {
 	/* src contains the base addr of the 32/64-pointer */
-	if (config_enabled(CONFIG_64BIT))
-		emit_instr(ctx, ld, dst, imm, src);
-	else
-		emit_instr(ctx, lw, dst, imm, src);
+	emit_long_instr(ctx, LW, dst, imm, src);
 }
 
 /* load a function pointer to register */
@@ -483,10 +476,7 @@ static inline void emit_load_func(unsigned int reg, ptr imm,
 /* Move to real MIPS register */
 static inline void emit_reg_move(ptr dst, ptr src, struct jit_ctx *ctx)
 {
-	if (config_enabled(CONFIG_64BIT))
-		emit_daddu(dst, src, r_zero, ctx);
-	else
-		emit_addu(dst, src, r_zero, ctx);
+	emit_long_instr(ctx, ADDU, dst, src, r_zero);
 }
 
 /* Move to JIT (32-bit) register */
@@ -623,10 +613,7 @@ static void save_bpf_jit_regs(struct jit_ctx *ctx, unsigned offset)
 	if (ctx->flags & SEEN_MEM) {
 		if (real_off % (RSIZE * 2))
 			real_off += RSIZE;
-		if (config_enabled(CONFIG_64BIT))
-			emit_daddiu(r_M, r_sp, real_off, ctx);
-		else
-			emit_addiu(r_M, r_sp, real_off, ctx);
+		emit_long_instr(ctx, ADDIU, r_M, r_sp, real_off);
 	}
 }
 
@@ -765,27 +752,6 @@ static u64 jit_get_skb_w(struct sk_buff *skb, unsigned offset)
 	return (u64)err << 32 | ntohl(ret);
 }
 
-#ifdef __BIG_ENDIAN_BITFIELD
-#define PKT_TYPE_MAX	(7 << 5)
-#else
-#define PKT_TYPE_MAX	7
-#endif
-static int pkt_type_offset(void)
-{
-	struct sk_buff skb_probe = {
-		.pkt_type = ~0,
-	};
-	u8 *ct = (u8 *)&skb_probe;
-	unsigned int off;
-
-	for (off = 0; off < sizeof(struct sk_buff); off++) {
-		if (ct[off] == PKT_TYPE_MAX)
-			return off;
-	}
-	pr_err_once("Please fix pkt_type_offset(), as pkt_type couldn't be found\n");
-	return -1;
-}
-
 static int build_body(struct jit_ctx *ctx)
 {
 	void *load_func[] = {jit_get_skb_b, jit_get_skb_h, jit_get_skb_w};
@@ -793,7 +759,6 @@ static int build_body(struct jit_ctx *ctx)
 	const struct sock_filter *inst;
 	unsigned int i, off, load_order, condt;
 	u32 k, b_off __maybe_unused;
-	int tmp;
 
 	for (i = 0; i < prog->len; i++) {
 		u16 code;
@@ -1263,7 +1228,7 @@ jmp_cmp:
 			emit_half_load(r_A, r_skb, off, ctx);
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
 			/* This needs little endian fixup */
-			if (cpu_has_mips_r2) {
+			if (cpu_has_wsbh) {
 				/* R2 and later have the wsbh instruction */
 				emit_wsbh(r_A, r_A, ctx);
 			} else {
@@ -1333,11 +1298,7 @@ jmp_cmp:
 		case BPF_ANC | SKF_AD_PKTTYPE:
 			ctx->flags |= SEEN_SKB;
 
-			tmp = off = pkt_type_offset();
-
-			if (tmp < 0)
-				return -1;
-			emit_load_byte(r_tmp, r_skb, off, ctx);
+			emit_load_byte(r_tmp, r_skb, PKT_TYPE_OFFSET(), ctx);
 			/* Keep only the last 3 bits */
 			emit_andi(r_A, r_tmp, PKT_TYPE_MAX, ctx);
 #ifdef __BIG_ENDIAN_BITFIELD
@@ -1418,7 +1379,7 @@ void bpf_jit_compile(struct bpf_prog *fp)
 		bpf_jit_dump(fp->len, alloc_size, 2, ctx.target);
 
 	fp->bpf_func = (void *)ctx.target;
-	fp->jited = 1;
+	fp->jited = true;
 
 out:
 	kfree(ctx.offsets);
@@ -1428,5 +1389,6 @@ void bpf_jit_free(struct bpf_prog *fp)
 {
 	if (fp->jited)
 		module_free(NULL, fp->bpf_func);
-	kfree(fp);
+
+	bpf_prog_unlock_free(fp);
 }

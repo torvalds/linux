@@ -86,30 +86,6 @@ static void apci2032_int_stop(struct comedi_device *dev,
 	outl(0x0, dev->iobase + APCI2032_INT_CTRL_REG);
 }
 
-static bool apci2032_int_start(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       unsigned char enabled_isns)
-{
-	struct apci2032_int_private *subpriv = s->private;
-	struct comedi_cmd *cmd = &s->async->cmd;
-	bool do_event;
-
-	subpriv->enabled_isns = enabled_isns;
-	subpriv->stop_count = cmd->stop_arg;
-	if (cmd->stop_src == TRIG_COUNT && subpriv->stop_count == 0) {
-		/* An empty acquisition! */
-		s->async->events |= COMEDI_CB_EOA;
-		subpriv->active = false;
-		do_event = true;
-	} else {
-		subpriv->active = true;
-		outl(enabled_isns, dev->iobase + APCI2032_INT_CTRL_REG);
-		do_event = false;
-	}
-
-	return do_event;
-}
-
 static int apci2032_int_cmdtest(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_cmd *cmd)
@@ -141,16 +117,17 @@ static int apci2032_int_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
 	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
-	if (cmd->stop_src == TRIG_NONE)
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
 		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
 
-	/* step 4: ignored */
+	/* Step 4: fix up any arguments */
 
-	if (err)
-		return 4;
+	/* Step 5: check channel list if it exists */
 
 	return 0;
 }
@@ -163,18 +140,19 @@ static int apci2032_int_cmd(struct comedi_device *dev,
 	unsigned char enabled_isns;
 	unsigned int n;
 	unsigned long flags;
-	bool do_event;
 
 	enabled_isns = 0;
 	for (n = 0; n < cmd->chanlist_len; n++)
 		enabled_isns |= 1 << CR_CHAN(cmd->chanlist[n]);
 
 	spin_lock_irqsave(&subpriv->spinlock, flags);
-	do_event = apci2032_int_start(dev, s, enabled_isns);
-	spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
-	if (do_event)
-		comedi_event(dev, s);
+	subpriv->enabled_isns = enabled_isns;
+	subpriv->stop_count = cmd->stop_arg;
+	subpriv->active = true;
+	outl(enabled_isns, dev->iobase + APCI2032_INT_CTRL_REG);
+
+	spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
 	return 0;
 }
@@ -339,11 +317,9 @@ static void apci2032_detach(struct comedi_device *dev)
 {
 	if (dev->iobase)
 		apci2032_reset(dev);
-	if (dev->irq)
-		free_irq(dev->irq, dev);
+	comedi_pci_detach(dev);
 	if (dev->read_subdev)
 		kfree(dev->read_subdev->private);
-	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver apci2032_driver = {

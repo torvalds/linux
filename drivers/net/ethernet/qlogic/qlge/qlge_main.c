@@ -1922,7 +1922,7 @@ static struct sk_buff *ql_build_rx_skb(struct ql_adapter *qdev,
 			sbq_desc->p.skb = NULL;
 			skb_reserve(skb, NET_IP_ALIGN);
 		}
-		while (length > 0) {
+		do {
 			lbq_desc = ql_get_curr_lchunk(qdev, rx_ring);
 			size = (length < rx_ring->lbq_buf_size) ? length :
 				rx_ring->lbq_buf_size;
@@ -1939,7 +1939,7 @@ static struct sk_buff *ql_build_rx_skb(struct ql_adapter *qdev,
 			skb->truesize += size;
 			length -= size;
 			i++;
-		}
+		} while (length > 0);
 		ql_update_mac_hdr_len(qdev, ib_mac_rsp, lbq_desc->p.pg_chunk.va,
 				      &hlen);
 		__pskb_pull_tail(skb, hlen);

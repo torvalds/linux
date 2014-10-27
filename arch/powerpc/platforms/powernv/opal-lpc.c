@@ -191,6 +191,7 @@ static ssize_t lpc_debug_read(struct file *filp, char __user *ubuf,
 {
 	struct lpc_debugfs_entry *lpc = filp->private_data;
 	u32 data, pos, len, todo;
+	__be32 bedata;
 	int rc;
 
 	if (!access_ok(VERIFY_WRITE, ubuf, count))
@@ -213,9 +214,10 @@ static ssize_t lpc_debug_read(struct file *filp, char __user *ubuf,
 				len = 2;
 		}
 		rc = opal_lpc_read(opal_lpc_chip_id, lpc->lpc_type, pos,
-				   &data, len);
+				   &bedata, len);
 		if (rc)
 			return -ENXIO;
+		data = be32_to_cpu(bedata);
 		switch(len) {
 		case 4:
 			rc = __put_user((u32)data, (u32 __user *)ubuf);

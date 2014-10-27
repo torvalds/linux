@@ -21,7 +21,6 @@
 #include <linux/swap.h>
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
-#include "time.h"
 #include "kmem.h"
 #include "xfs_message.h"
 

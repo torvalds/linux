@@ -196,8 +196,10 @@ int lustre_posix_acl_xattr_filter(posix_acl_xattr_header *header, int size,
 		case ACL_GROUP_OBJ:
 		case ACL_MASK:
 		case ACL_OTHER:
-			if (id != ACL_UNDEFINED_ID)
-				GOTO(_out, rc = -EIO);
+			if (id != ACL_UNDEFINED_ID) {
+				rc = -EIO;
+				goto _out;
+			}
 
 			memcpy(&new->a_entries[j++], &header->a_entries[i],
 			       sizeof(posix_acl_xattr_entry));
@@ -215,7 +217,8 @@ int lustre_posix_acl_xattr_filter(posix_acl_xattr_header *header, int size,
 				       sizeof(posix_acl_xattr_entry));
 			break;
 		default:
-			GOTO(_out, rc = -EIO);
+			rc = -EIO;
+			goto _out;
 		}
 	}
 
@@ -318,8 +321,10 @@ int lustre_acl_xattr_merge2posix(posix_acl_xattr_header *posix_header, int size,
 			case ACL_USER_OBJ:
 			case ACL_GROUP_OBJ:
 			case ACL_OTHER:
-				if (ae.e_id != ACL_UNDEFINED_ID)
-					GOTO(_out, rc = -EIO);
+				if (ae.e_id != ACL_UNDEFINED_ID) {
+					rc = -EIO;
+					goto _out;
+				}
 
 				if (ae.e_stat != ES_DEL) {
 					new->a_entries[j].e_tag =
@@ -336,7 +341,8 @@ int lustre_acl_xattr_merge2posix(posix_acl_xattr_header *posix_header, int size,
 				if (ae.e_stat == ES_DEL)
 					break;
 			default:
-				GOTO(_out, rc = -EIO);
+				rc = -EIO;
+				goto _out;
 			}
 		}
 	} else {
@@ -437,8 +443,10 @@ lustre_acl_xattr_merge2ext(posix_acl_xattr_header *posix_header, int size,
 		case ACL_GROUP_OBJ:
 		case ACL_MASK:
 		case ACL_OTHER:
-			if (pae.e_id != ACL_UNDEFINED_ID)
-				GOTO(out, rc = -EIO);
+			if (pae.e_id != ACL_UNDEFINED_ID) {
+				rc = -EIO;
+				goto out;
+		}
 		case ACL_USER:
 			/* ignore "nobody" entry. */
 			if (pae.e_id == NOBODY_UID)
@@ -501,7 +509,8 @@ lustre_acl_xattr_merge2ext(posix_acl_xattr_header *posix_header, int size,
 			}
 			break;
 		default:
-			GOTO(out, rc = -EIO);
+			rc = -EIO;
+			goto out;
 		}
 	}
 

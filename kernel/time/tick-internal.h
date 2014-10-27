@@ -99,6 +99,13 @@ static inline int tick_broadcast_oneshot_active(void) { return 0; }
 static inline bool tick_broadcast_oneshot_available(void) { return false; }
 #endif /* !TICK_ONESHOT */
 
+/* NO_HZ_FULL internal */
+#ifdef CONFIG_NO_HZ_FULL
+extern void tick_nohz_init(void);
+# else
+static inline void tick_nohz_init(void) { }
+#endif
+
 /*
  * Broadcasting support
  */

@@ -103,10 +103,8 @@ static int dwc3_pci_probe(struct pci_dev *pci,
 	struct device		*dev = &pci->dev;
 
 	glue = devm_kzalloc(dev, sizeof(*glue), GFP_KERNEL);
-	if (!glue) {
-		dev_err(dev, "not enough memory\n");
+	if (!glue)
 		return -ENOMEM;
-	}
 
 	glue->dev = dev;
 

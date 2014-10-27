@@ -26,6 +26,7 @@
 #include <linux/of.h>
 #include <linux/of_iommu.h>
 #include <linux/of_irq.h>
+#include <linux/of_platform.h>
 
 #include <asm/cacheflush.h>
 
@@ -892,19 +893,11 @@ static struct omap_iommu *omap_iommu_attach(const char *name, u32 *iopgd)
 		goto err_enable;
 	flush_iotlb_all(obj);
 
-	if (!try_module_get(obj->owner)) {
-		err = -ENODEV;
-		goto err_module;
-	}
-
 	spin_unlock(&obj->iommu_lock);
 
 	dev_dbg(obj->dev, "%s: %s\n", __func__, obj->name);
 	return obj;
 
-err_module:
-	if (obj->refcount == 1)
-		iommu_disable(obj);
 err_enable:
 	obj->refcount--;
 	spin_unlock(&obj->iommu_lock);
@@ -924,8 +917,6 @@ static void omap_iommu_detach(struct omap_iommu *obj)
 
 	if (--obj->refcount == 0)
 		iommu_disable(obj);
-
-	module_put(obj->owner);
 
 	obj->iopgd = NULL;
 
@@ -1006,7 +997,7 @@ static int omap_iommu_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id omap_iommu_of_match[] = {
+static const struct of_device_id omap_iommu_of_match[] = {
 	{ .compatible = "ti,omap2-iommu" },
 	{ .compatible = "ti,omap4-iommu" },
 	{ .compatible = "ti,dra7-iommu"	},
@@ -1090,6 +1081,11 @@ omap_iommu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	struct omap_iommu *oiommu;
 	struct omap_iommu_arch_data *arch_data = dev->archdata.iommu;
 	int ret = 0;
+
+	if (!arch_data || !arch_data->name) {
+		dev_err(dev, "device doesn't have an associated iommu\n");
+		return -EINVAL;
+	}
 
 	spin_lock(&omap_domain->lock);
 
@@ -1239,6 +1235,7 @@ static int omap_iommu_add_device(struct device *dev)
 {
 	struct omap_iommu_arch_data *arch_data;
 	struct device_node *np;
+	struct platform_device *pdev;
 
 	/*
 	 * Allocate the archdata iommu structure for DT-based devices.
@@ -1253,13 +1250,19 @@ static int omap_iommu_add_device(struct device *dev)
 	if (!np)
 		return 0;
 
+	pdev = of_find_device_by_node(np);
+	if (WARN_ON(!pdev)) {
+		of_node_put(np);
+		return -EINVAL;
+	}
+
 	arch_data = kzalloc(sizeof(*arch_data), GFP_KERNEL);
 	if (!arch_data) {
 		of_node_put(np);
 		return -ENOMEM;
 	}
 
-	arch_data->name = kstrdup(dev_name(dev), GFP_KERNEL);
+	arch_data->name = kstrdup(dev_name(&pdev->dev), GFP_KERNEL);
 	dev->archdata.iommu = arch_data;
 
 	of_node_put(np);

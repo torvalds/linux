@@ -70,6 +70,7 @@ static int imx_pd_connector_get_modes(struct drm_connector *connector)
 
 	if (imxpd->mode_valid) {
 		struct drm_display_mode *mode = drm_mode_create(connector->dev);
+
 		if (!mode)
 			return -EINVAL;
 		drm_mode_copy(mode, &imxpd->mode);
@@ -80,6 +81,7 @@ static int imx_pd_connector_get_modes(struct drm_connector *connector)
 
 	if (np) {
 		struct drm_display_mode *mode = drm_mode_create(connector->dev);
+
 		if (!mode)
 			return -EINVAL;
 		of_get_drm_display_mode(np, &imxpd->mode, OF_USE_NATIVE_MODE);
@@ -226,7 +228,8 @@ static int imx_pd_bind(struct device *dev, struct device *master, void *data)
 		else if (!strcmp(fmt, "bgr666"))
 			imxpd->interface_pix_fmt = V4L2_PIX_FMT_BGR666;
 		else if (!strcmp(fmt, "lvds666"))
-			imxpd->interface_pix_fmt = v4l2_fourcc('L', 'V', 'D', '6');
+			imxpd->interface_pix_fmt =
+					v4l2_fourcc('L', 'V', 'D', '6');
 	}
 
 	panel_node = of_parse_phandle(np, "fsl,panel", 0);

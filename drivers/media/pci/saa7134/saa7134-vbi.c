@@ -43,7 +43,7 @@ MODULE_PARM_DESC(vbibufs,"number of vbi buffers, range 2-32");
 
 /* ------------------------------------------------------------------ */
 
-#define VBI_LINE_COUNT     16
+#define VBI_LINE_COUNT     17
 #define VBI_LINE_LENGTH  2048
 #define VBI_SCALE       0x200
 

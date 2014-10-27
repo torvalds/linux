@@ -202,7 +202,7 @@ acpi_status acpi_hw_clear_gpe(struct acpi_gpe_event_info * gpe_event_info)
 
 acpi_status
 acpi_hw_get_gpe_status(struct acpi_gpe_event_info * gpe_event_info,
-		       acpi_event_status * event_status)
+		       acpi_event_status *event_status)
 {
 	u32 in_byte;
 	u32 register_bit;
@@ -214,6 +214,13 @@ acpi_hw_get_gpe_status(struct acpi_gpe_event_info * gpe_event_info,
 
 	if (!event_status) {
 		return (AE_BAD_PARAMETER);
+	}
+
+	/* GPE currently handled? */
+
+	if ((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) !=
+	    ACPI_GPE_DISPATCH_NONE) {
+		local_event_status |= ACPI_EVENT_FLAG_HAS_HANDLER;
 	}
 
 	/* Get the info block for the entire GPE register */
@@ -396,11 +403,11 @@ acpi_hw_enable_wakeup_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 	/* Examine each GPE Register within the block */
 
 	for (i = 0; i < gpe_block->register_count; i++) {
-		if (!gpe_block->register_info[i].enable_for_wake) {
-			continue;
-		}
 
-		/* Enable all "wake" GPEs in this register */
+		/*
+		 * Enable all "wake" GPEs in this register and disable the
+		 * remaining ones.
+		 */
 
 		status =
 		    acpi_hw_write(gpe_block->register_info[i].enable_for_wake,

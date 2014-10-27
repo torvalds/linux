@@ -223,7 +223,7 @@ bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
 		 * See if pvid is set on this port.  That tells us which
 		 * vlan untagged or priority-tagged traffic belongs to.
 		 */
-		if (pvid == VLAN_N_VID)
+		if (!pvid)
 			goto drop;
 
 		/* PVID is set on this port.  Any untagged or priority-tagged
@@ -292,7 +292,7 @@ bool br_should_learn(struct net_bridge_port *p, struct sk_buff *skb, u16 *vid)
 
 	if (!*vid) {
 		*vid = br_get_pvid(v);
-		if (*vid == VLAN_N_VID)
+		if (!*vid)
 			return false;
 
 		return true;
@@ -499,9 +499,141 @@ err_filt:
 	goto unlock;
 }
 
-void br_vlan_init(struct net_bridge *br)
+static bool vlan_default_pvid(struct net_port_vlans *pv, u16 vid)
+{
+	return pv && vid == pv->pvid && test_bit(vid, pv->untagged_bitmap);
+}
+
+static void br_vlan_disable_default_pvid(struct net_bridge *br)
+{
+	struct net_bridge_port *p;
+	u16 pvid = br->default_pvid;
+
+	/* Disable default_pvid on all ports where it is still
+	 * configured.
+	 */
+	if (vlan_default_pvid(br_get_vlan_info(br), pvid))
+		br_vlan_delete(br, pvid);
+
+	list_for_each_entry(p, &br->port_list, list) {
+		if (vlan_default_pvid(nbp_get_vlan_info(p), pvid))
+			nbp_vlan_delete(p, pvid);
+	}
+
+	br->default_pvid = 0;
+}
+
+static int __br_vlan_set_default_pvid(struct net_bridge *br, u16 pvid)
+{
+	struct net_bridge_port *p;
+	u16 old_pvid;
+	int err = 0;
+	unsigned long *changed;
+
+	changed = kcalloc(BITS_TO_LONGS(BR_MAX_PORTS), sizeof(unsigned long),
+			  GFP_KERNEL);
+	if (!changed)
+		return -ENOMEM;
+
+	old_pvid = br->default_pvid;
+
+	/* Update default_pvid config only if we do not conflict with
+	 * user configuration.
+	 */
+	if ((!old_pvid || vlan_default_pvid(br_get_vlan_info(br), old_pvid)) &&
+	    !br_vlan_find(br, pvid)) {
+		err = br_vlan_add(br, pvid,
+				  BRIDGE_VLAN_INFO_PVID |
+				  BRIDGE_VLAN_INFO_UNTAGGED);
+		if (err)
+			goto out;
+		br_vlan_delete(br, old_pvid);
+		set_bit(0, changed);
+	}
+
+	list_for_each_entry(p, &br->port_list, list) {
+		/* Update default_pvid config only if we do not conflict with
+		 * user configuration.
+		 */
+		if ((old_pvid &&
+		     !vlan_default_pvid(nbp_get_vlan_info(p), old_pvid)) ||
+		    nbp_vlan_find(p, pvid))
+			continue;
+
+		err = nbp_vlan_add(p, pvid,
+				   BRIDGE_VLAN_INFO_PVID |
+				   BRIDGE_VLAN_INFO_UNTAGGED);
+		if (err)
+			goto err_port;
+		nbp_vlan_delete(p, old_pvid);
+		set_bit(p->port_no, changed);
+	}
+
+	br->default_pvid = pvid;
+
+out:
+	kfree(changed);
+	return err;
+
+err_port:
+	list_for_each_entry_continue_reverse(p, &br->port_list, list) {
+		if (!test_bit(p->port_no, changed))
+			continue;
+
+		if (old_pvid)
+			nbp_vlan_add(p, old_pvid,
+				     BRIDGE_VLAN_INFO_PVID |
+				     BRIDGE_VLAN_INFO_UNTAGGED);
+		nbp_vlan_delete(p, pvid);
+	}
+
+	if (test_bit(0, changed)) {
+		if (old_pvid)
+			br_vlan_add(br, old_pvid,
+				    BRIDGE_VLAN_INFO_PVID |
+				    BRIDGE_VLAN_INFO_UNTAGGED);
+		br_vlan_delete(br, pvid);
+	}
+	goto out;
+}
+
+int br_vlan_set_default_pvid(struct net_bridge *br, unsigned long val)
+{
+	u16 pvid = val;
+	int err = 0;
+
+	if (val >= VLAN_VID_MASK)
+		return -EINVAL;
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	if (pvid == br->default_pvid)
+		goto unlock;
+
+	/* Only allow default pvid change when filtering is disabled */
+	if (br->vlan_enabled) {
+		pr_info_once("Please disable vlan filtering to change default_pvid\n");
+		err = -EPERM;
+		goto unlock;
+	}
+
+	if (!pvid)
+		br_vlan_disable_default_pvid(br);
+	else
+		err = __br_vlan_set_default_pvid(br, pvid);
+
+unlock:
+	rtnl_unlock();
+	return err;
+}
+
+int br_vlan_init(struct net_bridge *br)
 {
 	br->vlan_proto = htons(ETH_P_8021Q);
+	br->default_pvid = 1;
+	return br_vlan_add(br, 1,
+			   BRIDGE_VLAN_INFO_PVID | BRIDGE_VLAN_INFO_UNTAGGED);
 }
 
 /* Must be protected by RTNL.
@@ -592,4 +724,13 @@ bool nbp_vlan_find(struct net_bridge_port *port, u16 vid)
 out:
 	rcu_read_unlock();
 	return found;
+}
+
+int nbp_vlan_init(struct net_bridge_port *p)
+{
+	return p->br->default_pvid ?
+			nbp_vlan_add(p, p->br->default_pvid,
+				     BRIDGE_VLAN_INFO_PVID |
+				     BRIDGE_VLAN_INFO_UNTAGGED) :
+			0;
 }

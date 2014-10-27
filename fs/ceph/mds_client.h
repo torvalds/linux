@@ -202,9 +202,7 @@ struct ceph_mds_request {
 	bool r_direct_is_hash;  /* true if r_direct_hash is valid */
 
 	/* data payload is used for xattr ops */
-	struct page **r_pages;
-	int r_num_pages;
-	int r_data_len;
+	struct ceph_pagelist *r_pagelist;
 
 	/* what caps shall we drop? */
 	int r_inode_drop, r_inode_unless;
@@ -331,6 +329,8 @@ ceph_get_mds_session(struct ceph_mds_session *s)
 	atomic_inc(&s->s_ref);
 	return s;
 }
+
+extern const char *ceph_session_state_name(int s);
 
 extern void ceph_put_mds_session(struct ceph_mds_session *s);
 

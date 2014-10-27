@@ -26,13 +26,13 @@ static inline void set_my_cpu_offset(unsigned long off)
 static inline unsigned long __my_cpu_offset(void)
 {
 	unsigned long off;
-	register unsigned long *sp asm ("sp");
 
 	/*
 	 * We want to allow caching the value, so avoid using volatile and
 	 * instead use a fake stack read to hazard against barrier().
 	 */
-	asm("mrs %0, tpidr_el1" : "=r" (off) : "Q" (*sp));
+	asm("mrs %0, tpidr_el1" : "=r" (off) :
+		"Q" (*(const unsigned long *)current_stack_pointer));
 
 	return off;
 }

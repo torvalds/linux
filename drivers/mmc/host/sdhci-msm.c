@@ -46,24 +46,6 @@
 #define CMUX_SHIFT_PHASE_SHIFT	24
 #define CMUX_SHIFT_PHASE_MASK	(7 << CMUX_SHIFT_PHASE_SHIFT)
 
-static const u32 tuning_block_64[] = {
-	0x00ff0fff, 0xccc3ccff, 0xffcc3cc3, 0xeffefffe,
-	0xddffdfff, 0xfbfffbff, 0xff7fffbf, 0xefbdf777,
-	0xf0fff0ff, 0x3cccfc0f, 0xcfcc33cc, 0xeeffefff,
-	0xfdfffdff, 0xffbfffdf, 0xfff7ffbb, 0xde7b7ff7
-};
-
-static const u32 tuning_block_128[] = {
-	0xff00ffff, 0x0000ffff, 0xccccffff, 0xcccc33cc,
-	0xcc3333cc, 0xffffcccc, 0xffffeeff, 0xffeeeeff,
-	0xffddffff, 0xddddffff, 0xbbffffff, 0xbbffffff,
-	0xffffffbb, 0xffffff77, 0x77ff7777, 0xffeeddbb,
-	0x00ffffff, 0x00ffffff, 0xccffff00, 0xcc33cccc,
-	0x3333cccc, 0xffcccccc, 0xffeeffff, 0xeeeeffff,
-	0xddffffff, 0xddffffff, 0xffffffdd, 0xffffffbb,
-	0xffffbbbb, 0xffff77ff, 0xff7777ff, 0xeeddbb77
-};
-
 struct sdhci_msm_host {
 	struct platform_device *pdev;
 	void __iomem *core_mem;	/* MSM SDCC mapped address */
@@ -358,8 +340,8 @@ static int sdhci_msm_execute_tuning(struct sdhci_host *host, u32 opcode)
 {
 	int tuning_seq_cnt = 3;
 	u8 phase, *data_buf, tuned_phases[16], tuned_phase_cnt = 0;
-	const u32 *tuning_block_pattern = tuning_block_64;
-	int size = sizeof(tuning_block_64);	/* Pattern size in bytes */
+	const u8 *tuning_block_pattern = tuning_blk_pattern_4bit;
+	int size = sizeof(tuning_blk_pattern_4bit);
 	int rc;
 	struct mmc_host *mmc = host->mmc;
 	struct mmc_ios ios = host->mmc->ios;
@@ -375,8 +357,8 @@ static int sdhci_msm_execute_tuning(struct sdhci_host *host, u32 opcode)
 
 	if ((opcode == MMC_SEND_TUNING_BLOCK_HS200) &&
 	    (mmc->ios.bus_width == MMC_BUS_WIDTH_8)) {
-		tuning_block_pattern = tuning_block_128;
-		size = sizeof(tuning_block_128);
+		tuning_block_pattern = tuning_blk_pattern_8bit;
+		size = sizeof(tuning_blk_pattern_8bit);
 	}
 
 	data_buf = kmalloc(size, GFP_KERNEL);
@@ -610,7 +592,6 @@ static struct platform_driver sdhci_msm_driver = {
 	.remove = sdhci_msm_remove,
 	.driver = {
 		   .name = "sdhci_msm",
-		   .owner = THIS_MODULE,
 		   .of_match_table = sdhci_msm_dt_match,
 	},
 };

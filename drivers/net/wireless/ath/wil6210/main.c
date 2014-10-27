@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -20,10 +20,26 @@
 
 #include "wil6210.h"
 #include "txrx.h"
+#include "wmi.h"
 
-static bool no_fw_recovery;
+#define WAIT_FOR_DISCONNECT_TIMEOUT_MS 2000
+#define WAIT_FOR_DISCONNECT_INTERVAL_MS 10
+
+bool no_fw_recovery;
 module_param(no_fw_recovery, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(no_fw_recovery, " disable FW error recovery");
+MODULE_PARM_DESC(no_fw_recovery, " disable automatic FW error recovery");
+
+static bool no_fw_load = true;
+module_param(no_fw_load, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(no_fw_load, " do not download FW, use one in on-card flash.");
+
+static unsigned int itr_trsh = WIL6210_ITR_TRSH_DEFAULT;
+
+module_param(itr_trsh, uint, S_IRUGO);
+MODULE_PARM_DESC(itr_trsh, " Interrupt moderation threshold, usecs.");
+
+#define RST_DELAY (20) /* msec, for loop in @wil_target_reset */
+#define RST_COUNT (1 + 1000/RST_DELAY) /* round up to be above 1 sec total */
 
 /*
  * Due to a hardware issue,
@@ -64,6 +80,7 @@ static void wil_disconnect_cid(struct wil6210_priv *wil, int cid)
 	struct net_device *ndev = wil_to_ndev(wil);
 	struct wireless_dev *wdev = wil->wdev;
 	struct wil_sta_info *sta = &wil->sta[cid];
+
 	wil_dbg_misc(wil, "%s(CID %d, status %d)\n", __func__, cid,
 		     sta->status);
 
@@ -83,9 +100,16 @@ static void wil_disconnect_cid(struct wil6210_priv *wil, int cid)
 	}
 
 	for (i = 0; i < WIL_STA_TID_NUM; i++) {
-		struct wil_tid_ampdu_rx *r = sta->tid_rx[i];
+		struct wil_tid_ampdu_rx *r;
+		unsigned long flags;
+
+		spin_lock_irqsave(&sta->tid_rx_lock, flags);
+
+		r = sta->tid_rx[i];
 		sta->tid_rx[i] = NULL;
 		wil_tid_ampdu_rx_free(wil, r);
+
+		spin_unlock_irqrestore(&sta->tid_rx_lock, flags);
 	}
 	for (i = 0; i < ARRAY_SIZE(wil->vring_tx); i++) {
 		if (wil->vring2cid_tid[i][0] == cid)
@@ -167,16 +191,37 @@ static void wil_scan_timer_fn(ulong x)
 	schedule_work(&wil->fw_error_worker);
 }
 
+static int wil_wait_for_recovery(struct wil6210_priv *wil)
+{
+	if (wait_event_interruptible(wil->wq, wil->recovery_state !=
+				     fw_recovery_pending)) {
+		wil_err(wil, "Interrupt, canceling recovery\n");
+		return -ERESTARTSYS;
+	}
+	if (wil->recovery_state != fw_recovery_running) {
+		wil_info(wil, "Recovery cancelled\n");
+		return -EINTR;
+	}
+	wil_info(wil, "Proceed with recovery\n");
+	return 0;
+}
+
+void wil_set_recovery_state(struct wil6210_priv *wil, int state)
+{
+	wil_dbg_misc(wil, "%s(%d -> %d)\n", __func__,
+		     wil->recovery_state, state);
+
+	wil->recovery_state = state;
+	wake_up_interruptible(&wil->wq);
+}
+
 static void wil_fw_error_worker(struct work_struct *work)
 {
-	struct wil6210_priv *wil = container_of(work,
-			struct wil6210_priv, fw_error_worker);
+	struct wil6210_priv *wil = container_of(work, struct wil6210_priv,
+						fw_error_worker);
 	struct wireless_dev *wdev = wil->wdev;
 
 	wil_dbg_misc(wil, "fw error worker\n");
-
-	if (no_fw_recovery)
-		return;
 
 	/* increment @recovery_count if less then WIL6210_FW_RECOVERY_TO
 	 * passed since last recovery attempt
@@ -200,12 +245,15 @@ static void wil_fw_error_worker(struct work_struct *work)
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_MONITOR:
-		wil_info(wil, "fw error recovery started (try %d)...\n",
+		wil_info(wil, "fw error recovery requested (try %d)...\n",
 			 wil->recovery_count);
-		wil_reset(wil);
+		if (!no_fw_recovery)
+			wil->recovery_state = fw_recovery_running;
+		if (0 != wil_wait_for_recovery(wil))
+			break;
 
-		/* need to re-allocate Rx ring after reset */
-		wil_rx_init(wil);
+		__wil_down(wil);
+		__wil_up(wil);
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_P2P_GO:
@@ -220,6 +268,7 @@ static void wil_fw_error_worker(struct work_struct *work)
 static int wil_find_free_vring(struct wil6210_priv *wil)
 {
 	int i;
+
 	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
 		if (!wil->vring_tx[i].va)
 			return i;
@@ -254,14 +303,19 @@ static void wil_connect_worker(struct work_struct *work)
 
 int wil_priv_init(struct wil6210_priv *wil)
 {
+	uint i;
+
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	memset(wil->sta, 0, sizeof(wil->sta));
+	for (i = 0; i < WIL6210_MAX_CID; i++)
+		spin_lock_init(&wil->sta[i].tid_rx_lock);
 
 	mutex_init(&wil->mutex);
 	mutex_init(&wil->wmi_mutex);
 
 	init_completion(&wil->wmi_ready);
+	init_completion(&wil->wmi_call);
 
 	wil->pending_connect_cid = -1;
 	setup_timer(&wil->connect_timer, wil_connect_timer_fn, (ulong)wil);
@@ -274,6 +328,7 @@ int wil_priv_init(struct wil6210_priv *wil)
 
 	INIT_LIST_HEAD(&wil->pending_wmi_ev);
 	spin_lock_init(&wil->wmi_ev_lock);
+	init_waitqueue_head(&wil->wq);
 
 	wil->wmi_wq = create_singlethread_workqueue(WIL_NAME"_wmi");
 	if (!wil->wmi_wq)
@@ -286,18 +341,24 @@ int wil_priv_init(struct wil6210_priv *wil)
 	}
 
 	wil->last_fw_recovery = jiffies;
+	wil->itr_trsh = itr_trsh;
 
 	return 0;
 }
 
 void wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid)
 {
+	wil_dbg_misc(wil, "%s()\n", __func__);
+
 	del_timer_sync(&wil->connect_timer);
 	_wil6210_disconnect(wil, bssid);
 }
 
 void wil_priv_deinit(struct wil6210_priv *wil)
 {
+	wil_dbg_misc(wil, "%s()\n", __func__);
+
+	wil_set_recovery_state(wil, fw_recovery_idle);
 	del_timer_sync(&wil->scan_timer);
 	cancel_work_sync(&wil->disconnect_worker);
 	cancel_work_sync(&wil->fw_error_worker);
@@ -309,7 +370,29 @@ void wil_priv_deinit(struct wil6210_priv *wil)
 	destroy_workqueue(wil->wmi_wq);
 }
 
-static void wil_target_reset(struct wil6210_priv *wil)
+/* target operations */
+/* register read */
+#define R(a) ioread32(wil->csr + HOSTADDR(a))
+/* register write. wmb() to make sure it is completed */
+#define W(a, v) do { iowrite32(v, wil->csr + HOSTADDR(a)); wmb(); } while (0)
+/* register set = read, OR, write */
+#define S(a, v) W(a, R(a) | v)
+/* register clear = read, AND with inverted, write */
+#define C(a, v) W(a, R(a) & ~v)
+
+static inline void wil_halt_cpu(struct wil6210_priv *wil)
+{
+	W(RGF_USER_USER_CPU_0, BIT_USER_USER_CPU_MAN_RST);
+	W(RGF_USER_MAC_CPU_0,  BIT_USER_MAC_CPU_MAN_RST);
+}
+
+static inline void wil_release_cpu(struct wil6210_priv *wil)
+{
+	/* Start CPU */
+	W(RGF_USER_USER_CPU_0, 1);
+}
+
+static int wil_target_reset(struct wil6210_priv *wil)
 {
 	int delay = 0;
 	u32 hw_state;
@@ -318,57 +401,41 @@ static void wil_target_reset(struct wil6210_priv *wil)
 
 	wil_dbg_misc(wil, "Resetting \"%s\"...\n", wil->board->name);
 
-	/* register read */
-#define R(a) ioread32(wil->csr + HOSTADDR(a))
-	/* register write */
-#define W(a, v) iowrite32(v, wil->csr + HOSTADDR(a))
-	/* register set = read, OR, write */
-#define S(a, v) W(a, R(a) | v)
-	/* register clear = read, AND with inverted, write */
-#define C(a, v) W(a, R(a) & ~v)
-
 	wil->hw_version = R(RGF_USER_FW_REV_ID);
 	rev_id = wil->hw_version & 0xff;
 
 	/* Clear MAC link up */
 	S(RGF_HP_CTRL, BIT(15));
-	/* hpal_perst_from_pad_src_n_mask */
-	S(RGF_USER_CLKS_CTL_SW_RST_MASK_0, BIT(6));
-	/* car_perst_rst_src_n_mask */
-	S(RGF_USER_CLKS_CTL_SW_RST_MASK_0, BIT(7));
-	wmb(); /* order is important here */
+	S(RGF_USER_CLKS_CTL_SW_RST_MASK_0, BIT_HPAL_PERST_FROM_PAD);
+	S(RGF_USER_CLKS_CTL_SW_RST_MASK_0, BIT_CAR_PERST_RST);
+
+	wil_halt_cpu(wil);
+	C(RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_CAR_AHB_SW_SEL); /* 40 MHz */
 
 	if (is_sparrow) {
 		W(RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_0, 0x3ff81f);
-		wmb(); /* order is important here */
+		W(RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_1, 0xf);
 	}
-
-	W(RGF_USER_MAC_CPU_0,  BIT(1)); /* mac_cpu_man_rst */
-	W(RGF_USER_USER_CPU_0, BIT(1)); /* user_cpu_man_rst */
-	wmb(); /* order is important here */
 
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0xFE000000);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_1, 0x0000003F);
-	W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, is_sparrow ? 0x000000B0 : 0x00000170);
-	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0xFFE7FC00);
-	wmb(); /* order is important here */
+	W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, is_sparrow ? 0x000000f0 : 0x00000170);
+	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0xFFE7FE00);
 
 	if (is_sparrow) {
 		W(RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_0, 0x0);
-		wmb(); /* order is important here */
+		W(RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_1, 0x0);
 	}
 
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_1, 0);
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0);
-	wmb(); /* order is important here */
 
 	if (is_sparrow) {
 		W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0x00000003);
 		/* reset A2 PCIE AHB */
 		W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0x00008000);
-
 	} else {
 		W(RGF_USER_CLKS_CTL_SW_RST_VEC_3, 0x00000001);
 		if (rev_id == 1) {
@@ -378,21 +445,19 @@ static void wil_target_reset(struct wil6210_priv *wil)
 			W(RGF_PCIE_LOS_COUNTER_CTL, BIT(6) | BIT(8));
 			W(RGF_USER_CLKS_CTL_SW_RST_VEC_2, 0x00008000);
 		}
-
 	}
 
 	/* TODO: check order here!!! Erez code is different */
 	W(RGF_USER_CLKS_CTL_SW_RST_VEC_0, 0);
-	wmb(); /* order is important here */
 
-	/* wait until device ready */
+	/* wait until device ready. typical time is 200..250 msec */
 	do {
-		msleep(1);
+		msleep(RST_DELAY);
 		hw_state = R(RGF_USER_HW_MACHINE_STATE);
-		if (delay++ > 100) {
+		if (delay++ > RST_COUNT) {
 			wil_err(wil, "Reset not completed, hw_state 0x%08x\n",
 				hw_state);
-			return;
+			return -ETIME;
 		}
 	} while (hw_state != HW_MACHINE_BOOT_DONE);
 
@@ -401,15 +466,35 @@ static void wil_target_reset(struct wil6210_priv *wil)
 		W(RGF_PCIE_LOS_COUNTER_CTL, BIT(8));
 
 	C(RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_RST_PWGD);
-	wmb(); /* order is important here */
 
-	wil_dbg_misc(wil, "Reset completed in %d ms\n", delay);
+	wil_dbg_misc(wil, "Reset completed in %d ms\n", delay * RST_DELAY);
+	return 0;
+}
+
+/**
+ * wil_set_itr_trsh: - apply interrupt coalescing params
+ */
+void wil_set_itr_trsh(struct wil6210_priv *wil)
+{
+	/* disable, use usec resolution */
+	W(RGF_DMA_ITR_CNT_CRL, BIT_DMA_ITR_CNT_CRL_EXT_TICK);
+
+	/* disable interrupt moderation for monitor
+	 * to get better timestamp precision
+	 */
+	if (wil->wdev->iftype == NL80211_IFTYPE_MONITOR)
+		return;
+
+	wil_info(wil, "set ITR_TRSH = %d usec\n", wil->itr_trsh);
+	W(RGF_DMA_ITR_CNT_TRSH, wil->itr_trsh);
+	W(RGF_DMA_ITR_CNT_CRL, BIT_DMA_ITR_CNT_CRL_EN |
+	  BIT_DMA_ITR_CNT_CRL_EXT_TICK); /* start it */
+}
 
 #undef R
 #undef W
 #undef S
 #undef C
-}
 
 void wil_mbox_ring_le2cpus(struct wil6210_mbox_ring *r)
 {
@@ -424,6 +509,7 @@ static int wil_wait_for_fw_ready(struct wil6210_priv *wil)
 {
 	ulong to = msecs_to_jiffies(1000);
 	ulong left = wait_for_completion_timeout(&wil->wmi_ready, to);
+
 	if (0 == left) {
 		wil_err(wil, "Firmware not ready\n");
 		return -ETIME;
@@ -443,15 +529,15 @@ int wil_reset(struct wil6210_priv *wil)
 {
 	int rc;
 
+	wil_dbg_misc(wil, "%s()\n", __func__);
+
 	WARN_ON(!mutex_is_locked(&wil->mutex));
+	WARN_ON(test_bit(wil_status_napi_en, &wil->status));
 
 	cancel_work_sync(&wil->disconnect_worker);
 	wil6210_disconnect(wil, NULL);
 
 	wil->status = 0; /* prevent NAPI from being scheduled */
-	if (test_bit(wil_status_napi_en, &wil->status)) {
-		napi_synchronize(&wil->napi_rx);
-	}
 
 	if (wil->scan_request) {
 		wil_dbg_misc(wil, "Abort scan_request 0x%p\n",
@@ -461,24 +547,50 @@ int wil_reset(struct wil6210_priv *wil)
 		wil->scan_request = NULL;
 	}
 
-	wil6210_disable_irq(wil);
+	wil_mask_irq(wil);
 
 	wmi_event_flush(wil);
 
 	flush_workqueue(wil->wmi_wq_conn);
 	flush_workqueue(wil->wmi_wq);
 
-	/* TODO: put MAC in reset */
-	wil_target_reset(wil);
-
+	rc = wil_target_reset(wil);
 	wil_rx_fini(wil);
+	if (rc)
+		return rc;
+
+	if (!no_fw_load) {
+		wil_info(wil, "Use firmware <%s>\n", WIL_FW_NAME);
+		wil_halt_cpu(wil);
+		/* Loading f/w from the file */
+		rc = wil_request_firmware(wil, WIL_FW_NAME);
+		if (rc)
+			return rc;
+
+		/* clear any interrupts which on-card-firmware may have set */
+		wil6210_clear_irq(wil);
+		{ /* CAF_ICR - clear and mask */
+			u32 a = HOSTADDR(RGF_CAF_ICR) +
+				offsetof(struct RGF_ICR, ICR);
+			u32 m = HOSTADDR(RGF_CAF_ICR) +
+				offsetof(struct RGF_ICR, IMV);
+			u32 icr = ioread32(wil->csr + a);
+
+			iowrite32(icr, wil->csr + a); /* W1C */
+			iowrite32(~0, wil->csr + m);
+			wmb(); /* wait for completion */
+		}
+		wil_release_cpu(wil);
+	} else {
+		wil_info(wil, "Use firmware from on-card flash\n");
+	}
 
 	/* init after reset */
 	wil->pending_connect_cid = -1;
 	reinit_completion(&wil->wmi_ready);
+	reinit_completion(&wil->wmi_call);
 
-	/* TODO: release MAC reset */
-	wil6210_enable_irq(wil);
+	wil_unmask_irq(wil);
 
 	/* we just started MAC, wait for FW ready */
 	rc = wil_wait_for_fw_ready(wil);
@@ -489,6 +601,7 @@ int wil_reset(struct wil6210_priv *wil)
 void wil_fw_error_recovery(struct wil6210_priv *wil)
 {
 	wil_dbg_misc(wil, "starting fw error recovery\n");
+	wil->recovery_state = fw_recovery_pending;
 	schedule_work(&wil->fw_error_worker);
 }
 
@@ -514,7 +627,7 @@ void wil_link_off(struct wil6210_priv *wil)
 	netif_carrier_off(ndev);
 }
 
-static int __wil_up(struct wil6210_priv *wil)
+int __wil_up(struct wil6210_priv *wil)
 {
 	struct net_device *ndev = wil_to_ndev(wil);
 	struct wireless_dev *wdev = wil->wdev;
@@ -560,10 +673,14 @@ static int __wil_up(struct wil6210_priv *wil)
 	/* MAC address - pre-requisite for other commands */
 	wmi_set_mac_address(wil, ndev->dev_addr);
 
-
+	wil_dbg_misc(wil, "NAPI enable\n");
 	napi_enable(&wil->napi_rx);
 	napi_enable(&wil->napi_tx);
 	set_bit(wil_status_napi_en, &wil->status);
+
+	if (wil->platform_ops.bus_request)
+		wil->platform_ops.bus_request(wil->platform_handle,
+					      WIL_MAX_BUS_REQUEST_KBPS);
 
 	return 0;
 }
@@ -572,6 +689,8 @@ int wil_up(struct wil6210_priv *wil)
 {
 	int rc;
 
+	wil_dbg_misc(wil, "%s()\n", __func__);
+
 	mutex_lock(&wil->mutex);
 	rc = __wil_up(wil);
 	mutex_unlock(&wil->mutex);
@@ -579,13 +698,23 @@ int wil_up(struct wil6210_priv *wil)
 	return rc;
 }
 
-static int __wil_down(struct wil6210_priv *wil)
+int __wil_down(struct wil6210_priv *wil)
 {
+	int iter = WAIT_FOR_DISCONNECT_TIMEOUT_MS /
+			WAIT_FOR_DISCONNECT_INTERVAL_MS;
+
 	WARN_ON(!mutex_is_locked(&wil->mutex));
 
-	clear_bit(wil_status_napi_en, &wil->status);
-	napi_disable(&wil->napi_rx);
-	napi_disable(&wil->napi_tx);
+	if (wil->platform_ops.bus_request)
+		wil->platform_ops.bus_request(wil->platform_handle, 0);
+
+	wil_disable_irq(wil);
+	if (test_and_clear_bit(wil_status_napi_en, &wil->status)) {
+		napi_disable(&wil->napi_rx);
+		napi_disable(&wil->napi_tx);
+		wil_dbg_misc(wil, "NAPI disable\n");
+	}
+	wil_enable_irq(wil);
 
 	if (wil->scan_request) {
 		wil_dbg_misc(wil, "Abort scan_request 0x%p\n",
@@ -595,7 +724,24 @@ static int __wil_down(struct wil6210_priv *wil)
 		wil->scan_request = NULL;
 	}
 
-	wil6210_disconnect(wil, NULL);
+	if (test_bit(wil_status_fwconnected, &wil->status) ||
+	    test_bit(wil_status_fwconnecting, &wil->status))
+		wmi_send(wil, WMI_DISCONNECT_CMDID, NULL, 0);
+
+	/* make sure wil is idle (not connected) */
+	mutex_unlock(&wil->mutex);
+	while (iter--) {
+		int idle = !test_bit(wil_status_fwconnected, &wil->status) &&
+			   !test_bit(wil_status_fwconnecting, &wil->status);
+		if (idle)
+			break;
+		msleep(WAIT_FOR_DISCONNECT_INTERVAL_MS);
+	}
+	mutex_lock(&wil->mutex);
+
+	if (!iter)
+		wil_err(wil, "timeout waiting for idle FW/HW\n");
+
 	wil_rx_fini(wil);
 
 	return 0;
@@ -605,6 +751,9 @@ int wil_down(struct wil6210_priv *wil)
 {
 	int rc;
 
+	wil_dbg_misc(wil, "%s()\n", __func__);
+
+	wil_set_recovery_state(wil, fw_recovery_idle);
 	mutex_lock(&wil->mutex);
 	rc = __wil_down(wil);
 	mutex_unlock(&wil->mutex);

@@ -430,7 +430,7 @@ static void r8a66597_ep_setting(struct r8a66597 *r8a66597,
 	ep->pipenum = pipenum;
 	ep->ep.maxpacket = usb_endpoint_maxp(desc);
 	r8a66597->pipenum2ep[pipenum] = ep;
-	r8a66597->epaddr2ep[desc->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK]
+	r8a66597->epaddr2ep[usb_endpoint_num(desc)]
 		= ep;
 	INIT_LIST_HEAD(&ep->queue);
 }
@@ -464,7 +464,7 @@ static int alloc_pipe_config(struct r8a66597_ep *ep,
 	if (ep->pipenum)	/* already allocated pipe  */
 		return 0;
 
-	switch (desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) {
+	switch (usb_endpoint_type(desc)) {
 	case USB_ENDPOINT_XFER_BULK:
 		if (r8a66597->bulk >= R8A66597_MAX_NUM_BULK) {
 			if (r8a66597->isochronous >= R8A66597_MAX_NUM_ISOC) {
@@ -509,7 +509,7 @@ static int alloc_pipe_config(struct r8a66597_ep *ep,
 	}
 	ep->type = info.type;
 
-	info.epnum = desc->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK;
+	info.epnum = usb_endpoint_num(desc);
 	info.maxpacket = usb_endpoint_maxp(desc);
 	info.interval = desc->bInterval;
 	if (desc->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
@@ -925,7 +925,7 @@ __acquires(r8a66597->lock)
 		sudmac_free_channel(ep->r8a66597, ep, req);
 
 	spin_unlock(&ep->r8a66597->lock);
-	req->req.complete(&ep->ep, &req->req);
+	usb_gadget_giveback_request(&ep->ep, &req->req);
 	spin_lock(&ep->r8a66597->lock);
 
 	if (restart) {
@@ -1846,10 +1846,8 @@ static int r8a66597_sudmac_ioremap(struct r8a66597 *r8a66597,
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "sudmac");
 	r8a66597->sudmac_reg = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(r8a66597->sudmac_reg)) {
-		dev_err(&pdev->dev, "ioremap error(sudmac).\n");
+	if (IS_ERR(r8a66597->sudmac_reg))
 		return PTR_ERR(r8a66597->sudmac_reg);
-	}
 
 	return 0;
 }

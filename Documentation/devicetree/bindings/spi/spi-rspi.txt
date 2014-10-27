@@ -11,7 +11,10 @@ Required properties:
 		        - "renesas,rspi-sh7757" (SH)
 			- "renesas,rspi-r7s72100" (RZ/A1H)
 			- "renesas,qspi-r8a7790" (R-Car H2)
-			- "renesas,qspi-r8a7791" (R-Car M2)
+			- "renesas,qspi-r8a7791" (R-Car M2-W)
+			- "renesas,qspi-r8a7792" (R-Car V2H)
+			- "renesas,qspi-r8a7793" (R-Car M2-N)
+			- "renesas,qspi-r8a7794" (R-Car E2)
 - reg              : Address start and address range size of the device
 - interrupts       : A list of interrupt-specifiers, one for each entry in
 		     interrupt-names.
@@ -30,6 +33,9 @@ Required properties:
 
 Optional properties:
 - clocks           : Must contain a reference to the functional clock.
+- dmas             : Must contain a list of two references to DMA specifiers,
+		     one for transmission, and one for reception.
+- dma-names        : Must contain a list of two DMA names, "tx" and "rx".
 
 Pinctrl properties might be needed, too.  See
 Documentation/devicetree/bindings/pinctrl/renesas,*.
@@ -58,4 +64,6 @@ Examples:
 		num-cs = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		dmas = <&dmac0 0x17>, <&dmac0 0x18>;
+		dma-names = "tx", "rx";
 	};

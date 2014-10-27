@@ -101,7 +101,7 @@ void __weak arc_platform_smp_wait_to_boot(int cpu)
 
 const char *arc_platform_smp_cpuinfo(void)
 {
-	return plat_smp_ops.info;
+	return plat_smp_ops.info ? : "";
 }
 
 /*

@@ -4019,6 +4019,7 @@ static int bnx2x_setup_rss(struct bnx2x *bp,
 	struct bnx2x_raw_obj *r = &o->raw;
 	struct eth_rss_update_ramrod_data *data =
 		(struct eth_rss_update_ramrod_data *)(r->rdata);
+	u16 caps = 0;
 	u8 rss_mode = 0;
 	int rc;
 
@@ -4042,28 +4043,34 @@ static int bnx2x_setup_rss(struct bnx2x *bp,
 
 	/* RSS capabilities */
 	if (test_bit(BNX2X_RSS_IPV4, &p->rss_flags))
-		data->capabilities |=
-			ETH_RSS_UPDATE_RAMROD_DATA_IPV4_CAPABILITY;
+		caps |= ETH_RSS_UPDATE_RAMROD_DATA_IPV4_CAPABILITY;
 
 	if (test_bit(BNX2X_RSS_IPV4_TCP, &p->rss_flags))
-		data->capabilities |=
-			ETH_RSS_UPDATE_RAMROD_DATA_IPV4_TCP_CAPABILITY;
+		caps |= ETH_RSS_UPDATE_RAMROD_DATA_IPV4_TCP_CAPABILITY;
 
 	if (test_bit(BNX2X_RSS_IPV4_UDP, &p->rss_flags))
-		data->capabilities |=
-			ETH_RSS_UPDATE_RAMROD_DATA_IPV4_UDP_CAPABILITY;
+		caps |= ETH_RSS_UPDATE_RAMROD_DATA_IPV4_UDP_CAPABILITY;
 
 	if (test_bit(BNX2X_RSS_IPV6, &p->rss_flags))
-		data->capabilities |=
-			ETH_RSS_UPDATE_RAMROD_DATA_IPV6_CAPABILITY;
+		caps |= ETH_RSS_UPDATE_RAMROD_DATA_IPV6_CAPABILITY;
 
 	if (test_bit(BNX2X_RSS_IPV6_TCP, &p->rss_flags))
-		data->capabilities |=
-			ETH_RSS_UPDATE_RAMROD_DATA_IPV6_TCP_CAPABILITY;
+		caps |= ETH_RSS_UPDATE_RAMROD_DATA_IPV6_TCP_CAPABILITY;
 
 	if (test_bit(BNX2X_RSS_IPV6_UDP, &p->rss_flags))
-		data->capabilities |=
-			ETH_RSS_UPDATE_RAMROD_DATA_IPV6_UDP_CAPABILITY;
+		caps |= ETH_RSS_UPDATE_RAMROD_DATA_IPV6_UDP_CAPABILITY;
+
+	if (test_bit(BNX2X_RSS_GRE_INNER_HDRS, &p->rss_flags))
+		caps |= ETH_RSS_UPDATE_RAMROD_DATA_GRE_INNER_HDRS_CAPABILITY;
+
+	/* RSS keys */
+	if (test_bit(BNX2X_RSS_SET_SRCH, &p->rss_flags)) {
+		memcpy(&data->rss_key[0], &p->rss_key[0],
+		       sizeof(data->rss_key));
+		caps |= ETH_RSS_UPDATE_RAMROD_DATA_UPDATE_RSS_KEY;
+	}
+
+	data->capabilities = cpu_to_le16(caps);
 
 	/* Hashing mask */
 	data->rss_result_mask = p->rss_result_mask;
@@ -4083,13 +4090,6 @@ static int bnx2x_setup_rss(struct bnx2x *bp,
 	/* Print the indirection table */
 	if (netif_msg_ifup(bp))
 		bnx2x_debug_print_ind_table(bp, p);
-
-	/* RSS keys */
-	if (test_bit(BNX2X_RSS_SET_SRCH, &p->rss_flags)) {
-		memcpy(&data->rss_key[0], &p->rss_key[0],
-		       sizeof(data->rss_key));
-		data->capabilities |= ETH_RSS_UPDATE_RAMROD_DATA_UPDATE_RSS_KEY;
-	}
 
 	/* No need for an explicit memory barrier here as long as we
 	 * ensure the ordering of writing to the SPQ element
@@ -4336,6 +4336,8 @@ static void bnx2x_q_fill_init_general_data(struct bnx2x *bp,
 		test_bit(BNX2X_Q_FLG_FCOE, flags) ?
 		LLFC_TRAFFIC_TYPE_FCOE : LLFC_TRAFFIC_TYPE_NW;
 
+	gen_data->fp_hsi_ver = ETH_FP_HSI_VERSION;
+
 	DP(BNX2X_MSG_SP, "flags: active %d, cos %d, stats en %d\n",
 	   gen_data->activate_flg, gen_data->cos, gen_data->statistics_en_flg);
 }
@@ -4357,12 +4359,13 @@ static void bnx2x_q_fill_init_tx_data(struct bnx2x_queue_sp_obj *o,
 		test_bit(BNX2X_Q_FLG_ANTI_SPOOF, flags);
 	tx_data->force_default_pri_flg =
 		test_bit(BNX2X_Q_FLG_FORCE_DEFAULT_PRI, flags);
-
+	tx_data->refuse_outband_vlan_flg =
+		test_bit(BNX2X_Q_FLG_REFUSE_OUTBAND_VLAN, flags);
 	tx_data->tunnel_lso_inc_ip_id =
 		test_bit(BNX2X_Q_FLG_TUN_INC_INNER_IP_ID, flags);
 	tx_data->tunnel_non_lso_pcsum_location =
-		test_bit(BNX2X_Q_FLG_PCSUM_ON_PKT, flags) ? PCSUM_ON_PKT :
-								  PCSUM_ON_BD;
+		test_bit(BNX2X_Q_FLG_PCSUM_ON_PKT, flags) ? CSUM_ON_PKT :
+							    CSUM_ON_BD;
 
 	tx_data->tx_status_block_id = params->fw_sb_id;
 	tx_data->tx_sb_index_number = params->sb_cq_index;
@@ -4722,6 +4725,12 @@ static void bnx2x_q_fill_update_data(struct bnx2x *bp,
 	data->tx_switching_change_flg =
 		test_bit(BNX2X_Q_UPDATE_TX_SWITCHING_CHNG,
 			 &params->update_flags);
+
+	/* PTP */
+	data->handle_ptp_pkts_flg =
+		test_bit(BNX2X_Q_UPDATE_PTP_PKTS, &params->update_flags);
+	data->handle_ptp_pkts_change_flg =
+		test_bit(BNX2X_Q_UPDATE_PTP_PKTS_CHNG, &params->update_flags);
 }
 
 static inline int bnx2x_q_send_update(struct bnx2x *bp,
@@ -5376,6 +5385,10 @@ static int bnx2x_func_chk_transition(struct bnx2x *bp,
 			 (!test_bit(BNX2X_F_CMD_STOP, &o->pending)))
 			next_state = BNX2X_F_STATE_STARTED;
 
+		else if ((cmd == BNX2X_F_CMD_SET_TIMESYNC) &&
+			 (!test_bit(BNX2X_F_CMD_STOP, &o->pending)))
+			next_state = BNX2X_F_STATE_STARTED;
+
 		else if (cmd == BNX2X_F_CMD_TX_STOP)
 			next_state = BNX2X_F_STATE_TX_STOPPED;
 
@@ -5383,6 +5396,10 @@ static int bnx2x_func_chk_transition(struct bnx2x *bp,
 	case BNX2X_F_STATE_TX_STOPPED:
 		if ((cmd == BNX2X_F_CMD_SWITCH_UPDATE) &&
 		    (!test_bit(BNX2X_F_CMD_STOP, &o->pending)))
+			next_state = BNX2X_F_STATE_TX_STOPPED;
+
+		else if ((cmd == BNX2X_F_CMD_SET_TIMESYNC) &&
+			 (!test_bit(BNX2X_F_CMD_STOP, &o->pending)))
 			next_state = BNX2X_F_STATE_TX_STOPPED;
 
 		else if (cmd == BNX2X_F_CMD_TX_START)
@@ -5652,9 +5669,27 @@ static inline int bnx2x_func_send_start(struct bnx2x *bp,
 	rdata->sd_vlan_tag	= cpu_to_le16(start_params->sd_vlan_tag);
 	rdata->path_id		= BP_PATH(bp);
 	rdata->network_cos_mode	= start_params->network_cos_mode;
-	rdata->gre_tunnel_mode	= start_params->gre_tunnel_mode;
-	rdata->gre_tunnel_rss	= start_params->gre_tunnel_rss;
+	rdata->tunnel_mode	= start_params->tunnel_mode;
+	rdata->gre_tunnel_type	= start_params->gre_tunnel_type;
+	rdata->inner_gre_rss_en = start_params->inner_gre_rss_en;
+	rdata->vxlan_dst_port	= cpu_to_le16(4789);
+	rdata->sd_accept_mf_clss_fail = start_params->class_fail;
+	if (start_params->class_fail_ethtype) {
+		rdata->sd_accept_mf_clss_fail_match_ethtype = 1;
+		rdata->sd_accept_mf_clss_fail_ethtype =
+			cpu_to_le16(start_params->class_fail_ethtype);
+	}
 
+	rdata->sd_vlan_force_pri_flg = start_params->sd_vlan_force_pri;
+	rdata->sd_vlan_force_pri_val = start_params->sd_vlan_force_pri_val;
+	if (start_params->sd_vlan_eth_type)
+		rdata->sd_vlan_eth_type =
+			cpu_to_le16(start_params->sd_vlan_eth_type);
+	else
+		rdata->sd_vlan_eth_type =
+			cpu_to_le16(0x8100);
+
+	rdata->no_added_tags = start_params->no_added_tags;
 	/* No need for an explicit memory barrier here as long we would
 	 * need to ensure the ordering of writing to the SPQ element
 	 * and updating of the SPQ producer which involves a memory
@@ -5680,8 +5715,52 @@ static inline int bnx2x_func_send_switch_update(struct bnx2x *bp,
 	memset(rdata, 0, sizeof(*rdata));
 
 	/* Fill the ramrod data with provided parameters */
-	rdata->tx_switch_suspend_change_flg = 1;
-	rdata->tx_switch_suspend = switch_update_params->suspend;
+	if (test_bit(BNX2X_F_UPDATE_TX_SWITCH_SUSPEND_CHNG,
+		     &switch_update_params->changes)) {
+		rdata->tx_switch_suspend_change_flg = 1;
+		rdata->tx_switch_suspend =
+			test_bit(BNX2X_F_UPDATE_TX_SWITCH_SUSPEND,
+				 &switch_update_params->changes);
+	}
+
+	if (test_bit(BNX2X_F_UPDATE_SD_VLAN_TAG_CHNG,
+		     &switch_update_params->changes)) {
+		rdata->sd_vlan_tag_change_flg = 1;
+		rdata->sd_vlan_tag =
+			cpu_to_le16(switch_update_params->vlan);
+	}
+
+	if (test_bit(BNX2X_F_UPDATE_SD_VLAN_ETH_TYPE_CHNG,
+		     &switch_update_params->changes)) {
+		rdata->sd_vlan_eth_type_change_flg = 1;
+		rdata->sd_vlan_eth_type =
+			cpu_to_le16(switch_update_params->vlan_eth_type);
+	}
+
+	if (test_bit(BNX2X_F_UPDATE_VLAN_FORCE_PRIO_CHNG,
+		     &switch_update_params->changes)) {
+		rdata->sd_vlan_force_pri_change_flg = 1;
+		if (test_bit(BNX2X_F_UPDATE_VLAN_FORCE_PRIO_FLAG,
+			     &switch_update_params->changes))
+			rdata->sd_vlan_force_pri_flg = 1;
+		rdata->sd_vlan_force_pri_flg =
+			switch_update_params->vlan_force_prio;
+	}
+
+	if (test_bit(BNX2X_F_UPDATE_TUNNEL_CFG_CHNG,
+		     &switch_update_params->changes)) {
+		rdata->update_tunn_cfg_flg = 1;
+		if (test_bit(BNX2X_F_UPDATE_TUNNEL_CLSS_EN,
+			     &switch_update_params->changes))
+			rdata->tunn_clss_en = 1;
+		if (test_bit(BNX2X_F_UPDATE_TUNNEL_INNER_GRE_RSS_EN,
+			     &switch_update_params->changes))
+			rdata->inner_gre_rss_en = 1;
+		rdata->tunnel_mode = switch_update_params->tunnel_mode;
+		rdata->gre_tunnel_type = switch_update_params->gre_tunnel_type;
+		rdata->vxlan_dst_port = cpu_to_le16(4789);
+	}
+
 	rdata->echo = SWITCH_UPDATE;
 
 	/* No need for an explicit memory barrier here as long as we
@@ -5817,6 +5896,42 @@ static inline int bnx2x_func_send_tx_start(struct bnx2x *bp,
 			     U64_LO(data_mapping), NONE_CONNECTION_TYPE);
 }
 
+static inline
+int bnx2x_func_send_set_timesync(struct bnx2x *bp,
+				 struct bnx2x_func_state_params *params)
+{
+	struct bnx2x_func_sp_obj *o = params->f_obj;
+	struct set_timesync_ramrod_data *rdata =
+		(struct set_timesync_ramrod_data *)o->rdata;
+	dma_addr_t data_mapping = o->rdata_mapping;
+	struct bnx2x_func_set_timesync_params *set_timesync_params =
+		&params->params.set_timesync;
+
+	memset(rdata, 0, sizeof(*rdata));
+
+	/* Fill the ramrod data with provided parameters */
+	rdata->drift_adjust_cmd = set_timesync_params->drift_adjust_cmd;
+	rdata->offset_cmd = set_timesync_params->offset_cmd;
+	rdata->add_sub_drift_adjust_value =
+		set_timesync_params->add_sub_drift_adjust_value;
+	rdata->drift_adjust_value = set_timesync_params->drift_adjust_value;
+	rdata->drift_adjust_period = set_timesync_params->drift_adjust_period;
+	rdata->offset_delta.lo =
+		cpu_to_le32(U64_LO(set_timesync_params->offset_delta));
+	rdata->offset_delta.hi =
+		cpu_to_le32(U64_HI(set_timesync_params->offset_delta));
+
+	DP(BNX2X_MSG_SP, "Set timesync command params: drift_cmd = %d, offset_cmd = %d, add_sub_drift = %d, drift_val = %d, drift_period = %d, offset_lo = %d, offset_hi = %d\n",
+	   rdata->drift_adjust_cmd, rdata->offset_cmd,
+	   rdata->add_sub_drift_adjust_value, rdata->drift_adjust_value,
+	   rdata->drift_adjust_period, rdata->offset_delta.lo,
+	   rdata->offset_delta.hi);
+
+	return bnx2x_sp_post(bp, RAMROD_CMD_ID_COMMON_SET_TIMESYNC, 0,
+			     U64_HI(data_mapping),
+			     U64_LO(data_mapping), NONE_CONNECTION_TYPE);
+}
+
 static int bnx2x_func_send_cmd(struct bnx2x *bp,
 			       struct bnx2x_func_state_params *params)
 {
@@ -5839,6 +5954,8 @@ static int bnx2x_func_send_cmd(struct bnx2x *bp,
 		return bnx2x_func_send_tx_start(bp, params);
 	case BNX2X_F_CMD_SWITCH_UPDATE:
 		return bnx2x_func_send_switch_update(bp, params);
+	case BNX2X_F_CMD_SET_TIMESYNC:
+		return bnx2x_func_send_set_timesync(bp, params);
 	default:
 		BNX2X_ERR("Unknown command: %d\n", params->cmd);
 		return -EINVAL;

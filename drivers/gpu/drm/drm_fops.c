@@ -39,10 +39,10 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include "drm_legacy.h"
+#include "drm_internal.h"
 
 /* from BKL pushdown */
 DEFINE_MUTEX(drm_global_mutex);
-EXPORT_SYMBOL(drm_global_mutex);
 
 static int drm_open_helper(struct file *filp, struct drm_minor *minor);
 
@@ -171,7 +171,7 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 	init_waitqueue_head(&priv->event_wait);
 	priv->event_space = 4096; /* set aside 4k for event buffer */
 
-	if (dev->driver->driver_features & DRIVER_GEM)
+	if (drm_core_check_feature(dev, DRIVER_GEM))
 		drm_gem_open(dev, priv);
 
 	if (drm_core_check_feature(dev, DRIVER_PRIME))
@@ -256,7 +256,7 @@ out_close:
 out_prime_destroy:
 	if (drm_core_check_feature(dev, DRIVER_PRIME))
 		drm_prime_destroy_file_private(&priv->prime);
-	if (dev->driver->driver_features & DRIVER_GEM)
+	if (drm_core_check_feature(dev, DRIVER_GEM))
 		drm_gem_release(dev, priv);
 	put_pid(priv->pid);
 	kfree(priv);
@@ -268,11 +268,11 @@ static void drm_master_release(struct drm_device *dev, struct file *filp)
 {
 	struct drm_file *file_priv = filp->private_data;
 
-	if (drm_i_have_hw_lock(dev, file_priv)) {
+	if (drm_legacy_i_have_hw_lock(dev, file_priv)) {
 		DRM_DEBUG("File %p released, freeing lock for context %d\n",
 			  filp, _DRM_LOCKING_CONTEXT(file_priv->master->lock.hw_lock->lock));
-		drm_lock_free(&file_priv->master->lock,
-			      _DRM_LOCKING_CONTEXT(file_priv->master->lock.hw_lock->lock));
+		drm_legacy_lock_free(&file_priv->master->lock,
+				     _DRM_LOCKING_CONTEXT(file_priv->master->lock.hw_lock->lock));
 	}
 }
 
@@ -330,8 +330,6 @@ static void drm_legacy_dev_reinit(struct drm_device *dev)
  */
 int drm_lastclose(struct drm_device * dev)
 {
-	struct drm_vma_entry *vma, *vma_temp;
-
 	DRM_DEBUG("\n");
 
 	if (dev->driver->lastclose)
@@ -346,13 +344,7 @@ int drm_lastclose(struct drm_device * dev)
 	drm_agp_clear(dev);
 
 	drm_legacy_sg_cleanup(dev);
-
-	/* Clear vma list (only built for debugging) */
-	list_for_each_entry_safe(vma, vma_temp, &dev->vmalist, head) {
-		list_del(&vma->head);
-		kfree(vma);
-	}
-
+	drm_legacy_vma_flush(dev);
 	drm_legacy_dma_takedown(dev);
 
 	mutex_unlock(&dev->struct_mutex);
@@ -412,14 +404,14 @@ int drm_release(struct inode *inode, struct file *filp)
 		drm_master_release(dev, filp);
 
 	if (drm_core_check_feature(dev, DRIVER_HAVE_DMA))
-		drm_core_reclaim_buffers(dev, file_priv);
+		drm_legacy_reclaim_buffers(dev, file_priv);
 
 	drm_events_release(file_priv);
 
-	if (dev->driver->driver_features & DRIVER_MODESET)
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		drm_fb_release(file_priv);
 
-	if (dev->driver->driver_features & DRIVER_GEM)
+	if (drm_core_check_feature(dev, DRIVER_GEM))
 		drm_gem_release(dev, file_priv);
 
 	drm_legacy_ctxbitmap_flush(dev, file_priv);
@@ -463,6 +455,8 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	if (drm_core_check_feature(dev, DRIVER_PRIME))
 		drm_prime_destroy_file_private(&file_priv->prime);
+
+	WARN_ON(!list_empty(&file_priv->event_list));
 
 	put_pid(file_priv->pid);
 	kfree(file_priv);

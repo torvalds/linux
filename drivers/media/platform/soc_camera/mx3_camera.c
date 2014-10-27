@@ -415,10 +415,8 @@ static void mx3_stop_streaming(struct vb2_queue *q)
 	struct mx3_camera_buffer *buf, *tmp;
 	unsigned long flags;
 
-	if (ichan) {
-		struct dma_chan *chan = &ichan->dma_chan;
-		chan->device->device_control(chan, DMA_PAUSE, 0);
-	}
+	if (ichan)
+		dmaengine_pause(&ichan->dma_chan);
 
 	spin_lock_irqsave(&mx3_cam->lock, flags);
 

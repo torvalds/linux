@@ -118,6 +118,7 @@ static int dwc2_core_reset(struct dwc2_hsotg *hsotg)
 {
 	u32 greset;
 	int count = 0;
+	u32 gusbcfg;
 
 	dev_vdbg(hsotg->dev, "%s()\n", __func__);
 
@@ -147,6 +148,23 @@ static int dwc2_core_reset(struct dwc2_hsotg *hsotg)
 			return -EBUSY;
 		}
 	} while (greset & GRSTCTL_CSFTRST);
+
+	if (hsotg->dr_mode == USB_DR_MODE_HOST) {
+		gusbcfg = readl(hsotg->regs + GUSBCFG);
+		gusbcfg &= ~GUSBCFG_FORCEDEVMODE;
+		gusbcfg |= GUSBCFG_FORCEHOSTMODE;
+		writel(gusbcfg, hsotg->regs + GUSBCFG);
+	} else if (hsotg->dr_mode == USB_DR_MODE_PERIPHERAL) {
+		gusbcfg = readl(hsotg->regs + GUSBCFG);
+		gusbcfg &= ~GUSBCFG_FORCEHOSTMODE;
+		gusbcfg |= GUSBCFG_FORCEDEVMODE;
+		writel(gusbcfg, hsotg->regs + GUSBCFG);
+	} else if (hsotg->dr_mode == USB_DR_MODE_OTG) {
+		gusbcfg = readl(hsotg->regs + GUSBCFG);
+		gusbcfg &= ~GUSBCFG_FORCEHOSTMODE;
+		gusbcfg &= ~GUSBCFG_FORCEDEVMODE;
+		writel(gusbcfg, hsotg->regs + GUSBCFG);
+	}
 
 	/*
 	 * NOTE: This long sleep is _very_ important, otherwise the core will
@@ -2674,23 +2692,23 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	hwcfg2 = readl(hsotg->regs + GHWCFG2);
 	hwcfg3 = readl(hsotg->regs + GHWCFG3);
 	hwcfg4 = readl(hsotg->regs + GHWCFG4);
-	gnptxfsiz = readl(hsotg->regs + GNPTXFSIZ);
 	grxfsiz = readl(hsotg->regs + GRXFSIZ);
 
 	dev_dbg(hsotg->dev, "hwcfg1=%08x\n", hwcfg1);
 	dev_dbg(hsotg->dev, "hwcfg2=%08x\n", hwcfg2);
 	dev_dbg(hsotg->dev, "hwcfg3=%08x\n", hwcfg3);
 	dev_dbg(hsotg->dev, "hwcfg4=%08x\n", hwcfg4);
-	dev_dbg(hsotg->dev, "gnptxfsiz=%08x\n", gnptxfsiz);
 	dev_dbg(hsotg->dev, "grxfsiz=%08x\n", grxfsiz);
 
-	/* Force host mode to get HPTXFSIZ exact power on value */
+	/* Force host mode to get HPTXFSIZ / GNPTXFSIZ exact power on value */
 	gusbcfg = readl(hsotg->regs + GUSBCFG);
 	gusbcfg |= GUSBCFG_FORCEHOSTMODE;
 	writel(gusbcfg, hsotg->regs + GUSBCFG);
 	usleep_range(100000, 150000);
 
+	gnptxfsiz = readl(hsotg->regs + GNPTXFSIZ);
 	hptxfsiz = readl(hsotg->regs + HPTXFSIZ);
+	dev_dbg(hsotg->dev, "gnptxfsiz=%08x\n", gnptxfsiz);
 	dev_dbg(hsotg->dev, "hptxfsiz=%08x\n", hptxfsiz);
 	gusbcfg = readl(hsotg->regs + GUSBCFG);
 	gusbcfg &= ~GUSBCFG_FORCEHOSTMODE;
@@ -2725,6 +2743,13 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	width = (hwcfg3 & GHWCFG3_XFER_SIZE_CNTR_WIDTH_MASK) >>
 		GHWCFG3_XFER_SIZE_CNTR_WIDTH_SHIFT;
 	hw->max_transfer_size = (1 << (width + 11)) - 1;
+	/*
+	 * Clip max_transfer_size to 65535. dwc2_hc_setup_align_buf() allocates
+	 * coherent buffers with this size, and if it's too large we can
+	 * exhaust the coherent DMA pool.
+	 */
+	if (hw->max_transfer_size > 65535)
+		hw->max_transfer_size = 65535;
 	width = (hwcfg3 & GHWCFG3_PACKET_SIZE_CNTR_WIDTH_MASK) >>
 		GHWCFG3_PACKET_SIZE_CNTR_WIDTH_SHIFT;
 	hw->max_packet_count = (1 << (width + 4)) - 1;

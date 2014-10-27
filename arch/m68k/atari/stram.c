@@ -21,6 +21,7 @@
 #include <linux/mount.h>
 #include <linux/blkdev.h>
 #include <linux/module.h>
+#include <linux/ioport.h>
 
 #include <asm/setup.h>
 #include <asm/machdep.h>
