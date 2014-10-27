@@ -142,8 +142,8 @@ struct drm_framebuffer_funcs {
 	int (*create_handle)(struct drm_framebuffer *fb,
 			     struct drm_file *file_priv,
 			     unsigned int *handle);
-	/**
-	 * Optinal callback for the dirty fb ioctl.
+	/*
+	 * Optional callback for the dirty fb ioctl.
 	 *
 	 * Userspace can notify the driver via this callback
 	 * that a area of the framebuffer has changed and should
@@ -226,7 +226,7 @@ struct drm_plane;
 struct drm_bridge;
 
 /**
- * drm_crtc_funcs - control CRTCs for a given device
+ * struct drm_crtc_funcs - control CRTCs for a given device
  * @save: save CRTC state
  * @restore: restore CRTC state
  * @reset: reset CRTC after state has been invalidated (e.g. resume)
@@ -290,7 +290,7 @@ struct drm_crtc_funcs {
 };
 
 /**
- * drm_crtc - central CRTC control structure
+ * struct drm_crtc - central CRTC control structure
  * @dev: parent DRM device
  * @head: list management
  * @mutex: per-CRTC locking
@@ -322,7 +322,7 @@ struct drm_crtc {
 	struct device_node *port;
 	struct list_head head;
 
-	/**
+	/*
 	 * crtc mutex
 	 *
 	 * This provides a read lock for the overall crtc state (mode, dpms
@@ -377,7 +377,7 @@ struct drm_crtc {
 
 
 /**
- * drm_connector_funcs - control connectors on a given device
+ * struct drm_connector_funcs - control connectors on a given device
  * @dpms: set power state (see drm_crtc_funcs above)
  * @save: save connector state
  * @restore: restore connector state
@@ -414,7 +414,7 @@ struct drm_connector_funcs {
 };
 
 /**
- * drm_encoder_funcs - encoder controls
+ * struct drm_encoder_funcs - encoder controls
  * @reset: reset state (e.g. at init or resume time)
  * @destroy: cleanup and free associated data
  *
@@ -428,7 +428,7 @@ struct drm_encoder_funcs {
 #define DRM_CONNECTOR_MAX_ENCODER 3
 
 /**
- * drm_encoder - central DRM encoder structure
+ * struct drm_encoder - central DRM encoder structure
  * @dev: parent DRM device
  * @head: list management
  * @base: base KMS object
@@ -472,7 +472,7 @@ struct drm_encoder {
 #define MAX_ELD_BYTES	128
 
 /**
- * drm_connector - central DRM connector control structure
+ * struct drm_connector - central DRM connector control structure
  * @dev: parent DRM device
  * @kdev: kernel device for sysfs attributes
  * @attr: sysfs attributes
@@ -566,7 +566,7 @@ struct drm_connector {
 };
 
 /**
- * drm_plane_funcs - driver plane control functions
+ * struct drm_plane_funcs - driver plane control functions
  * @update_plane: update the plane configuration
  * @disable_plane: shut down the plane
  * @destroy: clean up plane resources
@@ -594,7 +594,7 @@ enum drm_plane_type {
 };
 
 /**
- * drm_plane - central DRM plane control structure
+ * struct drm_plane - central DRM plane control structure
  * @dev: DRM device this plane belongs to
  * @head: for list management
  * @base: base mode object
@@ -632,7 +632,7 @@ struct drm_plane {
 };
 
 /**
- * drm_bridge_funcs - drm_bridge control functions
+ * struct drm_bridge_funcs - drm_bridge control functions
  * @mode_fixup: Try to fixup (or reject entirely) proposed mode for this bridge
  * @disable: Called right before encoder prepare, disables the bridge
  * @post_disable: Called right after encoder prepare, for lockstepped disable
@@ -656,7 +656,7 @@ struct drm_bridge_funcs {
 };
 
 /**
- * drm_bridge - central DRM bridge control structure
+ * struct drm_bridge - central DRM bridge control structure
  * @dev: DRM device this bridge belongs to
  * @head: list management
  * @base: base mode object
@@ -674,7 +674,7 @@ struct drm_bridge {
 };
 
 /**
- * drm_mode_set - new values for a CRTC config change
+ * struct drm_mode_set - new values for a CRTC config change
  * @head: list management
  * @fb: framebuffer to use for new config
  * @crtc: CRTC whose configuration we're about to change
