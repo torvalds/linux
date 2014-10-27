@@ -694,7 +694,11 @@ int cxgb4_dcb_enabled(const struct net_device *dev)
 #ifdef CONFIG_CHELSIO_T4_DCB
 	struct port_info *pi = netdev_priv(dev);
 
-	return pi->dcb.state == CXGB4_DCB_STATE_FW_ALLSYNCED;
+	if (!pi->dcb.enabled)
+		return 0;
+
+	return ((pi->dcb.state == CXGB4_DCB_STATE_FW_ALLSYNCED) ||
+		(pi->dcb.state == CXGB4_DCB_STATE_HOST));
 #else
 	return 0;
 #endif
