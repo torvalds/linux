@@ -848,6 +848,11 @@ void intel_frontbuffer_flip(struct drm_device *dev,
 void intel_fb_obj_flush(struct drm_i915_gem_object *obj, bool retire);
 
 
+/* intel_audio.c */
+void intel_init_audio(struct drm_device *dev);
+void intel_write_eld(struct drm_encoder *encoder,
+		     struct drm_display_mode *mode);
+
 /* intel_display.c */
 const char *intel_output_name(int output);
 bool intel_has_pending_fb_unpin(struct drm_device *dev);
@@ -873,6 +878,7 @@ int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 enum transcoder intel_pipe_to_cpu_transcoder(struct drm_i915_private *dev_priv,
 					     enum pipe pipe);
+bool intel_pipe_has_type(struct intel_crtc *crtc, int type);
 static inline void
 intel_wait_for_vblank(struct drm_device *dev, int pipe)
 {
@@ -924,8 +930,6 @@ void assert_fdi_rx_pll(struct drm_i915_private *dev_priv,
 void assert_pipe(struct drm_i915_private *dev_priv, enum pipe pipe, bool state);
 #define assert_pipe_enabled(d, p) assert_pipe(d, p, true)
 #define assert_pipe_disabled(d, p) assert_pipe(d, p, false)
-void intel_write_eld(struct drm_encoder *encoder,
-		     struct drm_display_mode *mode);
 unsigned long intel_gen4_compute_page_offset(int *x, int *y,
 					     unsigned int tiling_mode,
 					     unsigned int bpp,
