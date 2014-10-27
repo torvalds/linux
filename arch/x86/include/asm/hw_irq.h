@@ -153,7 +153,11 @@ struct irq_cfg {
 };
 
 extern int assign_irq_vector(int, struct irq_cfg *, const struct cpumask *);
+#ifdef CONFIG_SMP
 extern void send_cleanup_vector(struct irq_cfg *);
+#else
+static inline void send_cleanup_vector(struct irq_cfg *c) { }
+#endif
 
 struct irq_data;
 int __ioapic_set_affinity(struct irq_data *, const struct cpumask *,
