@@ -274,8 +274,14 @@ static void gb_operation_gbuf_complete(struct gbuf *gbuf)
 			header = operation->response_payload;
 		else
 			header = NULL;
-		id = header ? (int)header->id : -1;
-		type = header ? (int)header->type : -1;
+
+		if (header) {
+			id = le16_to_cpu(header->id);
+			type = header->type;
+		} else {
+			id = -1;
+			type = -1;
+		}
 
 		gb_connection_err(operation->connection,
 			"operation %d type %d gbuf error %d",
@@ -292,8 +298,9 @@ static void gb_operation_gbuf_complete(struct gbuf *gbuf)
  * initialize it here (it'll be overwritten by the incoming
  * message).
  */
-struct gbuf *gb_operation_gbuf_create(struct gb_operation *operation,
-					u8 type, size_t size, bool data_out)
+static struct gbuf *gb_operation_gbuf_create(struct gb_operation *operation,
+					     u8 type, size_t size,
+					     bool data_out)
 {
 	struct gb_connection *connection = operation->connection;
 	struct gb_operation_msg_hdr *header;
