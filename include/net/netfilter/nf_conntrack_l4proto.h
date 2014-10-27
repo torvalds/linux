@@ -60,7 +60,7 @@ struct nf_conntrack_l4proto {
 			   const struct nf_conntrack_tuple *);
 
 	/* Print out the private part of the conntrack. */
-	int (*print_conntrack)(struct seq_file *s, struct nf_conn *);
+	void (*print_conntrack)(struct seq_file *s, struct nf_conn *);
 
 	/* Return the array of timeouts for this protocol. */
 	unsigned int *(*get_timeouts)(struct net *net);
