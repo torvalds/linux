@@ -94,7 +94,7 @@ static void ct_seq_stop(struct seq_file *s, void *v)
 }
 
 #ifdef CONFIG_NF_CONNTRACK_SECMARK
-static int ct_show_secctx(struct seq_file *s, const struct nf_conn *ct)
+static void ct_show_secctx(struct seq_file *s, const struct nf_conn *ct)
 {
 	int ret;
 	u32 len;
@@ -102,17 +102,15 @@ static int ct_show_secctx(struct seq_file *s, const struct nf_conn *ct)
 
 	ret = security_secid_to_secctx(ct->secmark, &secctx, &len);
 	if (ret)
-		return 0;
+		return;
 
-	ret = seq_printf(s, "secctx=%s ", secctx);
+	seq_printf(s, "secctx=%s ", secctx);
 
 	security_release_secctx(secctx, len);
-	return ret;
 }
 #else
-static inline int ct_show_secctx(struct seq_file *s, const struct nf_conn *ct)
+static inline void ct_show_secctx(struct seq_file *s, const struct nf_conn *ct)
 {
-	return 0;
 }
 #endif
 
@@ -141,11 +139,10 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	NF_CT_ASSERT(l4proto);
 
 	ret = -ENOSPC;
-	if (seq_printf(s, "%-8s %u %ld ",
-		      l4proto->name, nf_ct_protonum(ct),
-		      timer_pending(&ct->timeout)
-		      ? (long)(ct->timeout.expires - jiffies)/HZ : 0) != 0)
-		goto release;
+	seq_printf(s, "%-8s %u %ld ",
+		   l4proto->name, nf_ct_protonum(ct),
+		   timer_pending(&ct->timeout)
+		   ? (long)(ct->timeout.expires - jiffies)/HZ : 0);
 
 	if (l4proto->print_conntrack)
 		l4proto->print_conntrack(s, ct);
@@ -163,8 +160,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 		goto release;
 
 	if (!(test_bit(IPS_SEEN_REPLY_BIT, &ct->status)))
-		if (seq_printf(s, "[UNREPLIED] "))
-			goto release;
+		seq_printf(s, "[UNREPLIED] ");
 
 	print_tuple(s, &ct->tuplehash[IP_CT_DIR_REPLY].tuple,
 		    l3proto, l4proto);
@@ -176,19 +172,19 @@ static int ct_seq_show(struct seq_file *s, void *v)
 		goto release;
 
 	if (test_bit(IPS_ASSURED_BIT, &ct->status))
-		if (seq_printf(s, "[ASSURED] "))
-			goto release;
+		seq_printf(s, "[ASSURED] ");
 
 #ifdef CONFIG_NF_CONNTRACK_MARK
-	if (seq_printf(s, "mark=%u ", ct->mark))
-		goto release;
+	seq_printf(s, "mark=%u ", ct->mark);
 #endif
 
-	if (ct_show_secctx(s, ct))
+	ct_show_secctx(s, ct);
+
+	seq_printf(s, "use=%u\n", atomic_read(&ct->ct_general.use));
+
+	if (seq_has_overflowed(s))
 		goto release;
 
-	if (seq_printf(s, "use=%u\n", atomic_read(&ct->ct_general.use)))
-		goto release;
 	ret = 0;
 release:
 	nf_ct_put(ct);
