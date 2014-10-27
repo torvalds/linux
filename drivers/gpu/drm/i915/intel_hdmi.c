@@ -802,8 +802,12 @@ static void intel_disable_hdmi(struct intel_encoder *encoder)
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 	u32 temp;
 	u32 enable_bits = SDVO_ENABLE | SDVO_AUDIO_ENABLE;
+
+	if (crtc->config.has_audio)
+		intel_audio_codec_disable(encoder);
 
 	temp = I915_READ(intel_hdmi->hdmi_reg);
 

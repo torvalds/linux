@@ -209,6 +209,56 @@ static void hsw_audio_codec_enable(struct drm_connector *connector,
 	I915_WRITE(HSW_AUD_CFG(pipe), tmp);
 }
 
+static void ilk_audio_codec_disable(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
+	struct intel_digital_port *intel_dig_port =
+		enc_to_dig_port(&encoder->base);
+	enum port port = intel_dig_port->port;
+	enum pipe pipe = intel_crtc->pipe;
+	uint32_t tmp, eldv;
+	int aud_config;
+	int aud_cntrl_st2;
+
+	DRM_DEBUG_KMS("Disable audio codec on port %c, pipe %c\n",
+		      port_name(port), pipe_name(pipe));
+
+	if (HAS_PCH_IBX(dev_priv->dev)) {
+		aud_config = IBX_AUD_CFG(pipe);
+		aud_cntrl_st2 = IBX_AUD_CNTL_ST2;
+	} else if (IS_VALLEYVIEW(dev_priv)) {
+		aud_config = VLV_AUD_CFG(pipe);
+		aud_cntrl_st2 = VLV_AUD_CNTL_ST2;
+	} else {
+		aud_config = CPT_AUD_CFG(pipe);
+		aud_cntrl_st2 = CPT_AUD_CNTRL_ST2;
+	}
+
+	/* Disable timestamps */
+	tmp = I915_READ(aud_config);
+	tmp &= ~AUD_CONFIG_N_VALUE_INDEX;
+	tmp |= AUD_CONFIG_N_PROG_ENABLE;
+	tmp &= ~AUD_CONFIG_UPPER_N_MASK;
+	tmp &= ~AUD_CONFIG_LOWER_N_MASK;
+	if (intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_DISPLAYPORT))
+		tmp |= AUD_CONFIG_N_VALUE_INDEX;
+	I915_WRITE(aud_config, tmp);
+
+	if (WARN_ON(!port)) {
+		eldv = IBX_ELD_VALIDB;
+		eldv |= IBX_ELD_VALIDB << 4;
+		eldv |= IBX_ELD_VALIDB << 8;
+	} else {
+		eldv = IBX_ELD_VALIDB << ((port - 1) * 4);
+	}
+
+	/* Invalidate ELD */
+	tmp = I915_READ(aud_cntrl_st2);
+	tmp &= ~eldv;
+	I915_WRITE(aud_cntrl_st2, tmp);
+}
+
 static void ilk_audio_codec_enable(struct drm_connector *connector,
 				   struct intel_encoder *encoder,
 				   struct drm_display_mode *mode)
@@ -360,10 +410,12 @@ void intel_init_audio(struct drm_device *dev)
 		dev_priv->display.audio_codec_enable = g4x_audio_codec_enable;
 	} else if (IS_VALLEYVIEW(dev)) {
 		dev_priv->display.audio_codec_enable = ilk_audio_codec_enable;
+		dev_priv->display.audio_codec_disable = ilk_audio_codec_disable;
 	} else if (IS_HASWELL(dev) || INTEL_INFO(dev)->gen >= 8) {
 		dev_priv->display.audio_codec_enable = hsw_audio_codec_enable;
 		dev_priv->display.audio_codec_disable = hsw_audio_codec_disable;
 	} else if (HAS_PCH_SPLIT(dev)) {
 		dev_priv->display.audio_codec_enable = ilk_audio_codec_enable;
+		dev_priv->display.audio_codec_disable = ilk_audio_codec_disable;
 	}
 }

@@ -2454,6 +2454,10 @@ static void intel_disable_dp(struct intel_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	struct drm_device *dev = encoder->base.dev;
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
+
+	if (crtc->config.has_audio)
+		intel_audio_codec_disable(encoder);
 
 	/* Make sure the panel is off before trying to change the mode. But also
 	 * ensure that we have vdd while we switch off the panel. */
