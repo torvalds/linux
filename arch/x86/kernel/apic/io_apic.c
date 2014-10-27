@@ -2252,7 +2252,7 @@ static unsigned int startup_ioapic_irq(struct irq_data *data)
 	return was_pending;
 }
 
-static int ioapic_retrigger_irq(struct irq_data *data)
+static int apic_retrigger_irq(struct irq_data *data)
 {
 	struct irq_cfg *cfg = data->chip_data;
 	unsigned long flags;
@@ -2407,8 +2407,8 @@ static void __target_IO_APIC_irq(unsigned int irq, unsigned int dest, struct irq
  * ->cpu_mask_to_apicid of that in dest_id, or returns -1 and
  * leaves data->affinity untouched.
  */
-int __ioapic_set_affinity(struct irq_data *data, const struct cpumask *mask,
-			  unsigned int *dest_id)
+int apic_set_affinity(struct irq_data *data, const struct cpumask *mask,
+		      unsigned int *dest_id)
 {
 	struct irq_cfg *cfg = data->chip_data;
 	unsigned int irq = data->irq;
@@ -2449,7 +2449,7 @@ int native_ioapic_set_affinity(struct irq_data *data,
 		return -EPERM;
 
 	raw_spin_lock_irqsave(&ioapic_lock, flags);
-	ret = __ioapic_set_affinity(data, mask, &dest);
+	ret = apic_set_affinity(data, mask, &dest);
 	if (!ret) {
 		/* Only the high 8 bits are valid. */
 		dest = SET_APIC_LOGICAL_ID(dest);
@@ -2460,7 +2460,7 @@ int native_ioapic_set_affinity(struct irq_data *data,
 	return ret;
 }
 
-static void ack_apic_edge(struct irq_data *data)
+static void apic_ack_edge(struct irq_data *data)
 {
 	irq_complete_move(data->chip_data);
 	irq_move_irq(data);
@@ -2549,7 +2549,7 @@ static inline void ioapic_irqd_unmask(struct irq_data *data,
 }
 #endif
 
-static void ack_apic_level(struct irq_data *data)
+static void ack_ioapic_level(struct irq_data *data)
 {
 	struct irq_cfg *cfg = data->chip_data;
 	int i, irq = data->irq;
@@ -2621,10 +2621,10 @@ static struct irq_chip ioapic_chip __read_mostly = {
 	.irq_startup		= startup_ioapic_irq,
 	.irq_mask		= mask_ioapic_irq,
 	.irq_unmask		= unmask_ioapic_irq,
-	.irq_ack		= ack_apic_edge,
-	.irq_eoi		= ack_apic_level,
+	.irq_ack		= apic_ack_edge,
+	.irq_eoi		= ack_ioapic_level,
 	.irq_set_affinity	= native_ioapic_set_affinity,
-	.irq_retrigger		= ioapic_retrigger_irq,
+	.irq_retrigger		= apic_retrigger_irq,
 	.flags			= IRQCHIP_SKIP_SET_WAKE,
 };
 
@@ -3159,7 +3159,7 @@ msi_set_affinity(struct irq_data *data, const struct cpumask *mask, bool force)
 	unsigned int dest;
 	int ret;
 
-	ret = __ioapic_set_affinity(data, mask, &dest);
+	ret = apic_set_affinity(data, mask, &dest);
 	if (ret)
 		return ret;
 
@@ -3183,9 +3183,9 @@ static struct irq_chip msi_chip = {
 	.name			= "PCI-MSI",
 	.irq_unmask		= pci_msi_unmask_irq,
 	.irq_mask		= pci_msi_mask_irq,
-	.irq_ack		= ack_apic_edge,
+	.irq_ack		= apic_ack_edge,
 	.irq_set_affinity	= msi_set_affinity,
-	.irq_retrigger		= ioapic_retrigger_irq,
+	.irq_retrigger		= apic_retrigger_irq,
 	.flags			= IRQCHIP_SKIP_SET_WAKE,
 };
 
@@ -3261,7 +3261,7 @@ dmar_msi_set_affinity(struct irq_data *data, const struct cpumask *mask,
 	struct msi_msg msg;
 	int ret;
 
-	ret = __ioapic_set_affinity(data, mask, &dest);
+	ret = apic_set_affinity(data, mask, &dest);
 	if (ret)
 		return ret;
 
@@ -3282,9 +3282,9 @@ static struct irq_chip dmar_msi_type = {
 	.name			= "DMAR_MSI",
 	.irq_unmask		= dmar_msi_unmask,
 	.irq_mask		= dmar_msi_mask,
-	.irq_ack		= ack_apic_edge,
+	.irq_ack		= apic_ack_edge,
 	.irq_set_affinity	= dmar_msi_set_affinity,
-	.irq_retrigger		= ioapic_retrigger_irq,
+	.irq_retrigger		= apic_retrigger_irq,
 	.flags			= IRQCHIP_SKIP_SET_WAKE,
 };
 
@@ -3313,7 +3313,7 @@ static int hpet_msi_set_affinity(struct irq_data *data,
 	unsigned int dest;
 	int ret;
 
-	ret = __ioapic_set_affinity(data, mask, &dest);
+	ret = apic_set_affinity(data, mask, &dest);
 	if (ret)
 		return ret;
 
@@ -3333,9 +3333,9 @@ static struct irq_chip hpet_msi_type = {
 	.name = "HPET_MSI",
 	.irq_unmask = hpet_msi_unmask,
 	.irq_mask = hpet_msi_mask,
-	.irq_ack = ack_apic_edge,
+	.irq_ack = apic_ack_edge,
 	.irq_set_affinity = hpet_msi_set_affinity,
-	.irq_retrigger = ioapic_retrigger_irq,
+	.irq_retrigger = apic_retrigger_irq,
 	.flags = IRQCHIP_SKIP_SET_WAKE,
 };
 
@@ -3385,7 +3385,7 @@ ht_set_affinity(struct irq_data *data, const struct cpumask *mask, bool force)
 	unsigned int dest;
 	int ret;
 
-	ret = __ioapic_set_affinity(data, mask, &dest);
+	ret = apic_set_affinity(data, mask, &dest);
 	if (ret)
 		return ret;
 
@@ -3397,9 +3397,9 @@ static struct irq_chip ht_irq_chip = {
 	.name			= "PCI-HT",
 	.irq_mask		= mask_ht_irq,
 	.irq_unmask		= unmask_ht_irq,
-	.irq_ack		= ack_apic_edge,
+	.irq_ack		= apic_ack_edge,
 	.irq_set_affinity	= ht_set_affinity,
-	.irq_retrigger		= ioapic_retrigger_irq,
+	.irq_retrigger		= apic_retrigger_irq,
 	.flags			= IRQCHIP_SKIP_SET_WAKE,
 };
 

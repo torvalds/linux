@@ -141,8 +141,8 @@ static inline void send_cleanup_vector(struct irq_cfg *c) { }
 #endif
 
 struct irq_data;
-int __ioapic_set_affinity(struct irq_data *, const struct cpumask *,
-			  unsigned int *dest_id);
+int apic_set_affinity(struct irq_data *, const struct cpumask *,
+		      unsigned int *dest_id);
 #endif	/* CONFIG_X86_LOCAL_APIC */
 
 #ifdef CONFIG_X86_IO_APIC
