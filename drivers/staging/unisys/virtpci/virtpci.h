@@ -42,7 +42,7 @@ struct net_adap_info {
 	u8 mac_addr[MAX_MACADDR_LEN];
 	int num_rcv_bufs;
 	unsigned mtu;
-	uuid_le zoneGuid;
+	uuid_le zone_uuid;
 };
 
 typedef enum {

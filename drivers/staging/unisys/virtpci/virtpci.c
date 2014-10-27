@@ -363,7 +363,7 @@ static int add_vhba(struct add_virt_guestpart *addparams)
 				chanptr)->vnic.num_rcv_bufs);		\
 		net.mtu = readl(&((struct spar_io_channel_protocol __iomem *) \
 				  chanptr)->vnic.mtu);			\
-		memcpy_fromio(&net.zoneGuid, \
+		memcpy_fromio(&net.zone_uuid, \
 			      &((struct spar_io_channel_protocol __iomem *)\
 				chanptr)->vnic.zone_uuid,		\
 			      sizeof(uuid_le));				\
@@ -395,7 +395,7 @@ add_vnic(struct add_virt_guestpart *addparams)
 	LOGINF("Adding vnic macaddr:%02x:%02x:%02x:%02x:%02x:%02x rcvbufs:%d mtu:%d chanptr:%p%pUL\n",
 	     net.mac_addr[0], net.mac_addr[1], net.mac_addr[2], net.mac_addr[3],
 	     net.mac_addr[4], net.mac_addr[5], net.num_rcv_bufs, net.mtu,
-	     addparams->chanptr, &net.zoneGuid);
+	     addparams->chanptr, &net.zone_uuid);
 	i = virtpci_device_add(vbus, VIRTNIC_TYPE, addparams, NULL, &net);
 	if (i) {
 		LOGINF("Added vnic macaddr:%02x:%02x:%02x:%02x:%02x:%02x\n",
