@@ -551,7 +551,7 @@ static int gb_gpio_set_debounce_operation(struct gb_gpio_controller *gb_gpio_con
 		return -ENOMEM;
 	request = operation->request_payload;
 	request->which = which;
-	request->usec = le16_to_cpu(debounce_usec);
+	request->usec = cpu_to_le16(debounce_usec);
 
 	/* Synchronous operation--no callback */
 	ret = gb_operation_request_send(operation, NULL);
@@ -566,9 +566,9 @@ static int gb_gpio_set_debounce_operation(struct gb_gpio_controller *gb_gpio_con
 			response->status);
 		ret = -EIO;
 	} else {
-		gb_gpio_controller->lines[which].debounce_usec = request->usec;
-printk("%s: debounce of %u is now %hu usec\n", __func__,
-	which, gb_gpio_controller->lines[which].debounce_usec);
+		gb_gpio_controller->lines[which].debounce_usec = le16_to_cpu(request->usec);
+		printk("%s: debounce of %u is now %hu usec\n", __func__, which,
+			gb_gpio_controller->lines[which].debounce_usec);
 	}
 out:
 	gb_operation_destroy(operation);
@@ -709,7 +709,7 @@ static void gb_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 	return;	/* XXX */
 }
 
-int gb_gpio_controller_setup(struct gb_gpio_controller *gb_gpio_controller)
+static int gb_gpio_controller_setup(struct gb_gpio_controller *gb_gpio_controller)
 {
 	u32 line_count;
 	size_t size;
