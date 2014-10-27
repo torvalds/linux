@@ -313,10 +313,11 @@ static void ironlake_write_eld(struct drm_connector *connector,
 	I915_WRITE(aud_cntrl_st2, tmp);
 }
 
-void intel_write_eld(struct drm_encoder *encoder,
-		     struct drm_display_mode *mode)
+void intel_write_eld(struct intel_encoder *intel_encoder)
 {
-	struct drm_crtc *crtc = encoder->crtc;
+	struct drm_encoder *encoder = &intel_encoder->base;
+	struct intel_crtc *crtc = to_intel_crtc(encoder->crtc);
+	struct drm_display_mode *mode = &crtc->config.adjusted_mode;
 	struct drm_connector *connector;
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -334,7 +335,7 @@ void intel_write_eld(struct drm_encoder *encoder,
 	connector->eld[6] = drm_av_sync_delay(connector, mode) / 2;
 
 	if (dev_priv->display.write_eld)
-		dev_priv->display.write_eld(connector, crtc, mode);
+		dev_priv->display.write_eld(connector, encoder->crtc, mode);
 }
 
 /**

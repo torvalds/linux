@@ -666,7 +666,7 @@ static void intel_hdmi_prepare(struct intel_encoder *encoder)
 		DRM_DEBUG_DRIVER("Enabling HDMI audio on pipe %c\n",
 				 pipe_name(crtc->pipe));
 		hdmi_val |= SDVO_AUDIO_ENABLE;
-		intel_write_eld(&encoder->base, adjusted_mode);
+		intel_write_eld(encoder);
 	}
 
 	if (HAS_PCH_CPT(dev))
