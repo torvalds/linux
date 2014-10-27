@@ -72,9 +72,10 @@ int cm_split_idlest_reg(void __iomem *idlest_reg, s16 *prcm_inst,
 }
 
 /**
- * cm_wait_module_ready - wait for a module to leave idle or standby
+ * omap_cm_wait_module_ready - wait for a module to leave idle or standby
+ * @part: PRCM partition
  * @prcm_mod: PRCM module offset
- * @idlest_id: CM_IDLESTx register ID (i.e., x = 1, 2, 3)
+ * @idlest_reg: CM_IDLESTx register
  * @idlest_shift: shift of the bit in the CM_IDLEST* register to check
  *
  * Wait for the PRCM to indicate that the module identified by
@@ -83,7 +84,8 @@ int cm_split_idlest_reg(void __iomem *idlest_reg, s16 *prcm_inst,
  * no per-SoC wait_module_ready() function pointer has been registered
  * or if the idlest register is unknown on the SoC.
  */
-int cm_wait_module_ready(s16 prcm_mod, u8 idlest_id, u8 idlest_shift)
+int omap_cm_wait_module_ready(u8 part, s16 prcm_mod, u16 idlest_reg,
+			      u8 idlest_shift)
 {
 	if (!cm_ll_data->wait_module_ready) {
 		WARN_ONCE(1, "cm: %s: no low-level function defined\n",
@@ -91,7 +93,8 @@ int cm_wait_module_ready(s16 prcm_mod, u8 idlest_id, u8 idlest_shift)
 		return -EINVAL;
 	}
 
-	return cm_ll_data->wait_module_ready(prcm_mod, idlest_id, idlest_shift);
+	return cm_ll_data->wait_module_ready(part, prcm_mod, idlest_reg,
+					     idlest_shift);
 }
 
 /**

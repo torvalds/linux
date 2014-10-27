@@ -2946,9 +2946,9 @@ static int _omap2xxx_3xxx_wait_target_ready(struct omap_hwmod *oh)
 
 	/* XXX check module SIDLEMODE, hardreset status, enabled clocks */
 
-	return omap2xxx_cm_wait_module_ready(oh->prcm.omap2.module_offs,
-					     oh->prcm.omap2.idlest_reg_id,
-					     oh->prcm.omap2.idlest_idle_bit);
+	return omap_cm_wait_module_ready(0, oh->prcm.omap2.module_offs,
+					 oh->prcm.omap2.idlest_reg_id,
+					 oh->prcm.omap2.idlest_idle_bit);
 }
 
 /**
@@ -2973,9 +2973,9 @@ static int _omap4_wait_target_ready(struct omap_hwmod *oh)
 
 	/* XXX check module SIDLEMODE, hardreset status */
 
-	return omap4_cminst_wait_module_ready(oh->clkdm->prcm_partition,
-					      oh->clkdm->cm_inst,
-					      oh->prcm.omap4.clkctrl_offs);
+	return omap_cm_wait_module_ready(oh->clkdm->prcm_partition,
+					 oh->clkdm->cm_inst,
+					 oh->prcm.omap4.clkctrl_offs, 0);
 }
 
 /**
@@ -3000,8 +3000,8 @@ static int _am33xx_wait_target_ready(struct omap_hwmod *oh)
 
 	/* XXX check module SIDLEMODE, hardreset status */
 
-	return am33xx_cm_wait_module_ready(oh->clkdm->cm_inst,
-					      oh->prcm.omap4.clkctrl_offs);
+	return omap_cm_wait_module_ready(0, oh->clkdm->cm_inst,
+					 oh->prcm.omap4.clkctrl_offs, 0);
 }
 
 /**

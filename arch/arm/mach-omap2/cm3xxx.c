@@ -79,6 +79,7 @@ void omap3xxx_cm_clkdm_force_wakeup(s16 module, u32 mask)
 
 /**
  * omap3xxx_cm_wait_module_ready - wait for a module to leave idle or standby
+ * @part: PRCM partition, ignored for OMAP3
  * @prcm_mod: PRCM module offset
  * @idlest_id: CM_IDLESTx register ID (i.e., x = 1, 2, 3)
  * @idlest_shift: shift of the bit in the CM_IDLEST* register to check
@@ -87,7 +88,8 @@ void omap3xxx_cm_clkdm_force_wakeup(s16 module, u32 mask)
  * (@prcm_mod, @idlest_id, @idlest_shift) is clocked.  Return 0 upon
  * success or -EBUSY if the module doesn't enable in time.
  */
-int omap3xxx_cm_wait_module_ready(s16 prcm_mod, u8 idlest_id, u8 idlest_shift)
+static int omap3xxx_cm_wait_module_ready(u8 part, s16 prcm_mod, u16 idlest_id,
+					 u8 idlest_shift)
 {
 	int ena = 0, i = 0;
 	u8 cm_idlest_reg;

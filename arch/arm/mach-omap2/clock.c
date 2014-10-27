@@ -171,7 +171,8 @@ static void _omap2_module_wait_ready(struct clk_hw_omap *clk)
 		_wait_idlest_generic(clk, idlest_reg, (1 << idlest_bit),
 				     idlest_val, __clk_get_name(clk->hw.clk));
 	} else {
-		cm_wait_module_ready(prcm_mod, idlest_reg_id, idlest_bit);
+		omap_cm_wait_module_ready(0, prcm_mod, idlest_reg_id,
+					  idlest_bit);
 	};
 }
 

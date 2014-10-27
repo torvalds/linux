@@ -226,15 +226,18 @@ void am33xx_cm_clkdm_force_wakeup(u16 inst, u16 cdoffs)
 
 /**
  * am33xx_cm_wait_module_ready - wait for a module to be in 'func' state
+ * @part: PRCM partition, ignored for AM33xx
  * @inst: CM instance register offset (*_INST macro)
  * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
+ * @bit_shift: bit shift for the register, ignored for AM33xx
  *
  * Wait for the module IDLEST to be functional. If the idle state is in any
  * the non functional state (trans, idle or disabled), module and thus the
  * sysconfig cannot be accessed and will probably lead to an "imprecise
  * external abort"
  */
-int am33xx_cm_wait_module_ready(u16 inst, u16 clkctrl_offs)
+static int am33xx_cm_wait_module_ready(u8 part, s16 inst, u16 clkctrl_offs,
+				       u8 bit_shift)
 {
 	int i = 0;
 
@@ -359,7 +362,9 @@ struct clkdm_ops am33xx_clkdm_operations = {
 	.clkdm_clk_disable	= am33xx_clkdm_clk_disable,
 };
 
-static struct cm_ll_data am33xx_cm_ll_data;
+static struct cm_ll_data am33xx_cm_ll_data = {
+	.wait_module_ready	= &am33xx_cm_wait_module_ready,
+};
 
 int __init am33xx_cm_init(void)
 {

@@ -266,13 +266,15 @@ void omap4_cminst_clkdm_force_sleep(u8 part, u16 inst, u16 cdoffs)
  * @part: PRCM partition ID that the CM_CLKCTRL register exists in
  * @inst: CM instance register offset (*_INST macro)
  * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
+ * @bit_shift: bit shift for the register, ignored for OMAP4+
  *
  * Wait for the module IDLEST to be functional. If the idle state is in any
  * the non functional state (trans, idle or disabled), module and thus the
  * sysconfig cannot be accessed and will probably lead to an "imprecise
  * external abort"
  */
-int omap4_cminst_wait_module_ready(u8 part, u16 inst, u16 clkctrl_offs)
+static int omap4_cminst_wait_module_ready(u8 part, s16 inst, u16 clkctrl_offs,
+					  u8 bit_shift)
 {
 	int i = 0;
 
@@ -506,7 +508,9 @@ struct clkdm_ops am43xx_clkdm_operations = {
 	.clkdm_clk_disable	= omap4_clkdm_clk_disable,
 };
 
-static struct cm_ll_data omap4xxx_cm_ll_data;
+static struct cm_ll_data omap4xxx_cm_ll_data = {
+	.wait_module_ready	= &omap4_cminst_wait_module_ready,
+};
 
 int __init omap4_cm_init(void)
 {

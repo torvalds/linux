@@ -150,7 +150,7 @@ static int _omap2xxx_apll_enable(u8 enable_bit, u8 status_bit)
 	v |= m;
 	omap2_cm_write_mod_reg(v, PLL_MOD, CM_CLKEN);
 
-	omap2xxx_cm_wait_module_ready(PLL_MOD, 1, status_bit);
+	omap2xxx_cm_wait_module_ready(0, PLL_MOD, 1, status_bit);
 
 	/*
 	 * REVISIT: Should we return an error code if
@@ -238,6 +238,7 @@ int omap2xxx_cm_split_idlest_reg(void __iomem *idlest_reg, s16 *prcm_inst,
 
 /**
  * omap2xxx_cm_wait_module_ready - wait for a module to leave idle or standby
+ * @part: PRCM partition, ignored for OMAP2
  * @prcm_mod: PRCM module offset
  * @idlest_id: CM_IDLESTx register ID (i.e., x = 1, 2, 3)
  * @idlest_shift: shift of the bit in the CM_IDLEST* register to check
@@ -246,7 +247,8 @@ int omap2xxx_cm_split_idlest_reg(void __iomem *idlest_reg, s16 *prcm_inst,
  * (@prcm_mod, @idlest_id, @idlest_shift) is clocked.  Return 0 upon
  * success or -EBUSY if the module doesn't enable in time.
  */
-int omap2xxx_cm_wait_module_ready(s16 prcm_mod, u8 idlest_id, u8 idlest_shift)
+int omap2xxx_cm_wait_module_ready(u8 part, s16 prcm_mod, u16 idlest_id,
+				  u8 idlest_shift)
 {
 	int ena = 0, i = 0;
 	u8 cm_idlest_reg;
