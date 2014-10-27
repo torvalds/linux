@@ -224,6 +224,8 @@ static int submit_gbuf(struct gbuf *gbuf, gfp_t gfp_mask)
 	if (!urb)
 		return -ENOMEM;
 
+	gbuf->hcd_data = urb;
+
 	usb_fill_bulk_urb(urb, udev,
 			  usb_sndbulkpipe(udev, es1->cport_out_endpoint),
 			  buffer, gbuf->transfer_buffer_length + 1,
@@ -232,12 +234,24 @@ static int submit_gbuf(struct gbuf *gbuf, gfp_t gfp_mask)
 	return retval;
 }
 
+static int abort_gbuf(struct gbuf *gbuf)
+{
+	struct urb *urb = gbuf->hcd_data;
+
+	if (!urb)
+		return -EINVAL;
+
+	usb_kill_urb(urb);
+	return 0;
+}
+
 static struct greybus_host_driver es1_driver = {
 	.hd_priv_size		= sizeof(struct es1_ap_dev),
 	.alloc_gbuf_data	= alloc_gbuf_data,
 	.free_gbuf_data		= free_gbuf_data,
 	.submit_svc		= submit_svc,
 	.submit_gbuf		= submit_gbuf,
+	.abort_gbuf		= abort_gbuf,
 };
 
 /* Common function to report consistent warnings based on URB status */
@@ -387,6 +401,7 @@ static void cport_out_callback(struct urb *urb)
 
 	/* Record whether the transfer was successful */
 	gbuf->status = check_urb_status(urb);
+	gbuf->hcd_data = NULL;
 
 	/*
 	 * See if this was an urb in our pool, if so mark it "free", otherwise
