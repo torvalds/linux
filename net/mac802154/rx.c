@@ -242,10 +242,11 @@ mac802154_monitors_rx(struct ieee802154_local *local, struct sk_buff *skb)
 	rcu_read_unlock();
 }
 
-static void
-mac802154_subif_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
+void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
 	struct ieee802154_local *local = hw_to_local(hw);
+
+	WARN_ON_ONCE(softirq_count() == 0);
 
 	skb->protocol = htons(ETH_P_IEEE802154);
 	skb_reset_mac_header(skb);
@@ -272,13 +273,6 @@ mac802154_subif_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 
 fail:
 	kfree_skb(skb);
-}
-
-void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
-{
-	WARN_ON_ONCE(softirq_count() == 0);
-
-	mac802154_subif_rx(hw, skb);
 }
 EXPORT_SYMBOL(ieee802154_rx);
 
