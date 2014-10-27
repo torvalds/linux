@@ -47,7 +47,7 @@
 #include <net/xfrm.h>
 #endif
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  *	Parsing tlv encoded headers.
