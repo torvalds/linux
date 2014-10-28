@@ -923,7 +923,7 @@ static void __exit snd_usb_audio_cleanup(void)
 	switch_dev_unregister(&sUsbaudio_Switch.sUsbaudio_Playback);
 }
 
-module_init(snd_usb_audio_init);
+/*module_init(snd_usb_audio_init);*/
 /* use late initcall_sync instead of module_init,
  * make sure that usbaudio probe after board codec.
  * added by zxg@rock-chips.com
