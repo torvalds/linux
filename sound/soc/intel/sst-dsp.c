@@ -352,6 +352,7 @@ struct sst_dsp *sst_dsp_new(struct device *dev,
 	INIT_LIST_HEAD(&sst->free_block_list);
 	INIT_LIST_HEAD(&sst->module_list);
 	INIT_LIST_HEAD(&sst->fw_list);
+	INIT_LIST_HEAD(&sst->scratch_block_list);
 
 	/* Initialise SST Audio DSP */
 	if (sst->ops->init) {
@@ -365,6 +366,10 @@ struct sst_dsp *sst_dsp_new(struct device *dev,
 		sst_dev->thread, IRQF_SHARED, "AudioDSP", sst);
 	if (err)
 		goto irq_err;
+
+	err = sst_dma_new(sst);
+	if (err)
+		dev_warn(dev, "sst_dma_new failed %d\n", err);
 
 	return sst;
 
@@ -381,6 +386,9 @@ void sst_dsp_free(struct sst_dsp *sst)
 	free_irq(sst->irq, sst);
 	if (sst->ops->free)
 		sst->ops->free(sst);
+
+	if (sst->dma)
+		sst_dma_free(sst->dma);
 }
 EXPORT_SYMBOL_GPL(sst_dsp_free);
 

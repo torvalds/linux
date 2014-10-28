@@ -40,6 +40,7 @@ struct sst_hsw_stream;
 struct sst_hsw_log_stream;
 struct sst_pdata;
 struct sst_module;
+struct sst_module_runtime;
 extern struct sst_ops haswell_ops;
 
 /* Stream Allocate Path ID */
@@ -432,8 +433,7 @@ int sst_hsw_stream_set_map_config(struct sst_hsw *hsw,
 int sst_hsw_stream_set_style(struct sst_hsw *hsw, struct sst_hsw_stream *stream,
 	enum sst_hsw_interleaving style);
 int sst_hsw_stream_set_module_info(struct sst_hsw *hsw,
-	struct sst_hsw_stream *stream, enum sst_hsw_module_id module_id,
-	u32 entry_point);
+	struct sst_hsw_stream *stream, struct sst_module_runtime *runtime);
 int sst_hsw_stream_set_pmemory_info(struct sst_hsw *hsw,
 	struct sst_hsw_stream *stream, u32 offset, u32 size);
 int sst_hsw_stream_set_smemory_info(struct sst_hsw *hsw,
@@ -486,7 +486,10 @@ int sst_hsw_dx_get_state(struct sst_hsw *hsw, u32 item,
 int sst_hsw_dsp_init(struct device *dev, struct sst_pdata *pdata);
 void sst_hsw_dsp_free(struct device *dev, struct sst_pdata *pdata);
 struct sst_dsp *sst_hsw_get_dsp(struct sst_hsw *hsw);
-void sst_hsw_set_scratch_module(struct sst_hsw *hsw,
-	struct sst_module *scratch);
+
+/* runtime module management */
+struct sst_module_runtime *sst_hsw_runtime_module_create(struct sst_hsw *hsw,
+	int mod_id, int offset);
+void sst_hsw_runtime_module_free(struct sst_module_runtime *runtime);
 
 #endif
