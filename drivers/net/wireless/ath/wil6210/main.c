@@ -267,9 +267,12 @@ static void wil_fw_error_worker(struct work_struct *work)
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_P2P_GO:
+		wil_info(wil, "No recovery for AP-like interface\n");
 		/* recovery in these modes is done by upper layers */
 		break;
 	default:
+		wil_err(wil, "No recovery - unknown interface type %d\n",
+			wdev->iftype);
 		break;
 	}
 	mutex_unlock(&wil->mutex);
