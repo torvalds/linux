@@ -5131,6 +5131,7 @@ enum punit_power_well {
 /* GEN8 chicken */
 #define HDC_CHICKEN0				0x7300
 #define  HDC_FORCE_NON_COHERENT			(1<<4)
+#define  HDC_DONOT_FETCH_MEM_WHEN_MASKED	(1<<11)
 #define  HDC_FENCE_DEST_SLM_DISABLE		(1<<14)
 
 /* WaCatErrorRejectionIssue */

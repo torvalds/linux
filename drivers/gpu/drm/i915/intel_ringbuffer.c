@@ -793,6 +793,16 @@ static int chv_init_workarounds(struct intel_engine_cs *ring)
 			  PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE |
 			  STALL_DOP_GATING_DISABLE);
 
+	/* Use Force Non-Coherent whenever executing a 3D context. This is a
+	 * workaround for a possible hang in the unlikely event a TLB
+	 * invalidation occurs during a PSD flush.
+	 */
+	/* WaForceEnableNonCoherent:chv */
+	/* WaHdcDisableFetchWhenMasked:chv */
+	WA_SET_BIT_MASKED(HDC_CHICKEN0,
+			  HDC_FORCE_NON_COHERENT |
+			  HDC_DONOT_FETCH_MEM_WHEN_MASKED);
+
 	return 0;
 }
 
