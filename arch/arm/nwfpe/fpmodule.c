@@ -98,8 +98,8 @@ static int __init fpe_init(void)
 		return 0;
 
 	/* Display title, version and copyright information. */
-	printk(KERN_WARNING "NetWinder Floating Point Emulator V0.97 ("
-	       NWFPE_BITS " precision)\n");
+	pr_info("NetWinder Floating Point Emulator V0.97 ("
+	        NWFPE_BITS " precision)\n");
 
 	thread_register_notifier(&nwfpe_notifier_block);
 
