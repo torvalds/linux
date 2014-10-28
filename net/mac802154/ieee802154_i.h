@@ -140,11 +140,6 @@ void mac802154_dev_set_pan_id(struct net_device *dev, __le16 val);
 void mac802154_dev_set_page_channel(struct net_device *dev, u8 page, u8 chan);
 u8 mac802154_dev_get_dsn(const struct net_device *dev);
 
-int mac802154_set_mac_params(struct net_device *dev,
-			     const struct ieee802154_mac_params *params);
-void mac802154_get_mac_params(struct net_device *dev,
-			      struct ieee802154_mac_params *params);
-
 int mac802154_get_params(struct net_device *dev,
 			 struct ieee802154_llsec_params *params);
 int mac802154_set_params(struct net_device *dev,

@@ -82,6 +82,28 @@ static struct wpan_phy *mac802154_get_phy(const struct net_device *dev)
 	return to_phy(get_device(&sdata->local->phy->dev));
 }
 
+static int mac802154_set_mac_params(struct net_device *dev,
+				    const struct ieee802154_mac_params *params)
+{
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+
+	mutex_lock(&sdata->local->iflist_mtx);
+	sdata->mac_params = *params;
+	mutex_unlock(&sdata->local->iflist_mtx);
+
+	return 0;
+}
+
+static void mac802154_get_mac_params(struct net_device *dev,
+				     struct ieee802154_mac_params *params)
+{
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+
+	mutex_lock(&sdata->local->iflist_mtx);
+	*params = sdata->mac_params;
+	mutex_unlock(&sdata->local->iflist_mtx);
+}
+
 static struct ieee802154_llsec_ops mac802154_llsec_ops = {
 	.get_params = mac802154_get_params,
 	.set_params = mac802154_set_params,
