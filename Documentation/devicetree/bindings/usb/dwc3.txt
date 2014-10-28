@@ -18,6 +18,7 @@ Optional properties:
 	Only really useful for FPGA builds.
  - snps,has-lpm-erratum: true when DWC3 was configured with LPM Erratum enabled
  - snps,lpm-nyet-threshold: LPM NYET threshold
+ - snps,u2exit_lfps_quirk: set if we want to enable u2exit lfps quirk
 
 This is usually a subnode to DWC3 glue to which it is connected.
 

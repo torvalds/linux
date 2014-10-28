@@ -473,6 +473,9 @@ static int dwc3_core_init(struct dwc3 *dwc)
 	else
 		reg &= ~DWC3_GCTL_DISSCRAMBLE;
 
+	if (dwc->u2exit_lfps_quirk)
+		reg |= DWC3_GCTL_U2EXIT_LFPS;
+
 	/*
 	 * WORKAROUND: DWC3 revisions <1.90a have a bug
 	 * where the device can fail to connect at SuperSpeed
@@ -729,6 +732,8 @@ static int dwc3_probe(struct platform_device *pdev)
 
 		dwc->disable_scramble_quirk = of_property_read_bool(node,
 				"snps,disable_scramble_quirk");
+		dwc->u2exit_lfps_quirk = of_property_read_bool(node,
+				"snps,u2exit_lfps_quirk");
 	} else if (pdata) {
 		dwc->maximum_speed = pdata->maximum_speed;
 		dwc->has_lpm_erratum = pdata->has_lpm_erratum;
@@ -739,6 +744,7 @@ static int dwc3_probe(struct platform_device *pdev)
 		dwc->dr_mode = pdata->dr_mode;
 
 		dwc->disable_scramble_quirk = pdata->disable_scramble_quirk;
+		dwc->u2exit_lfps_quirk = pdata->u2exit_lfps_quirk;
 	}
 
 	/* default to superspeed if no maximum_speed passed */

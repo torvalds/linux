@@ -29,4 +29,5 @@ struct dwc3_platform_data {
 
 	unsigned disable_scramble_quirk:1;
 	unsigned has_lpm_erratum:1;
+	unsigned u2exit_lfps_quirk:1;
 };
