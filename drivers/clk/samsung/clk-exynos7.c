@@ -486,6 +486,8 @@ static struct samsung_gate_clock peric0_gate_clks[] __initdata = {
 		ENABLE_PCLK_PERIC0, 14, 0, 0),
 	GATE(PCLK_UART0, "pclk_uart0", "mout_aclk_peric0_66_user",
 		ENABLE_PCLK_PERIC0, 16, 0, 0),
+	GATE(PCLK_ADCIF, "pclk_adcif", "mout_aclk_peric0_66_user",
+		ENABLE_PCLK_PERIC0, 20, 0, 0),
 	GATE(PCLK_PWM, "pclk_pwm", "mout_aclk_peric0_66_user",
 		ENABLE_PCLK_PERIC0, 21, 0, 0),
 

@@ -55,7 +55,8 @@
 #define PCLK_HSI2C11			9
 #define PCLK_PWM			10
 #define SCLK_PWM			11
-#define PERIC0_NR_CLK			12
+#define PCLK_ADCIF			12
+#define PERIC0_NR_CLK			13
 
 /* PERIC1 */
 #define PCLK_UART1			1
