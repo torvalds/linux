@@ -26,7 +26,7 @@
 #include "fwil_types.h"
 #include "btcoex.h"
 #include "p2p.h"
-#include "wl_cfg80211.h"
+#include "cfg80211.h"
 
 /* T1 start SCO/eSCO priority suppression */
 #define BRCMF_BTCOEX_OPPR_WIN_TIME   2000

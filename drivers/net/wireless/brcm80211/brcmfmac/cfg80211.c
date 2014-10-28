@@ -32,7 +32,7 @@
 #include "fwil_types.h"
 #include "p2p.h"
 #include "btcoex.h"
-#include "wl_cfg80211.h"
+#include "cfg80211.h"
 #include "feature.h"
 #include "fwil.h"
 #include "proto.h"
@@ -5657,7 +5657,8 @@ enum nl80211_iftype brcmf_cfg80211_get_iftype(struct brcmf_if *ifp)
 	return wdev->iftype;
 }
 
-bool brcmf_get_vif_state_any(struct brcmf_cfg80211_info *cfg, unsigned long state)
+bool brcmf_get_vif_state_any(struct brcmf_cfg80211_info *cfg,
+			     unsigned long state)
 {
 	struct brcmf_cfg80211_vif *vif;
 

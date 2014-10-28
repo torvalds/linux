@@ -26,7 +26,7 @@
 #include "fwil.h"
 #include "fwil_types.h"
 #include "p2p.h"
-#include "wl_cfg80211.h"
+#include "cfg80211.h"
 
 /* parameters used for p2p escan */
 #define P2PAPI_SCAN_NPROBES 1
