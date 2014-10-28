@@ -12,22 +12,40 @@
 
 #include <linux/device.h>
 
+/*
+ * We need some arbitrary non-zero value to be programmed to the BAR1 register
+ * of PCI host controller to enable DMA. The same value should be used as the
+ * offset to calculate the physical address of DMA buffer for PCI devices.
+ */
+#define AR2315_PCI_HOST_SDRAM_BASEADDR	0x20000000
+
+static inline dma_addr_t ath25_dev_offset(struct device *dev)
+{
+#ifdef CONFIG_PCI
+	extern struct bus_type pci_bus_type;
+
+	if (dev && dev->bus == &pci_bus_type)
+		return AR2315_PCI_HOST_SDRAM_BASEADDR;
+#endif
+	return 0;
+}
+
 static inline dma_addr_t
 plat_map_dma_mem(struct device *dev, void *addr, size_t size)
 {
-	return virt_to_phys(addr);
+	return virt_to_phys(addr) + ath25_dev_offset(dev);
 }
 
 static inline dma_addr_t
 plat_map_dma_mem_page(struct device *dev, struct page *page)
 {
-	return page_to_phys(page);
+	return page_to_phys(page) + ath25_dev_offset(dev);
 }
 
 static inline unsigned long
 plat_dma_addr_to_phys(struct device *dev, dma_addr_t dma_addr)
 {
-	return dma_addr;
+	return dma_addr - ath25_dev_offset(dev);
 }
 
 static inline void

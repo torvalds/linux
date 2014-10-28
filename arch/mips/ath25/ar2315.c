@@ -19,6 +19,7 @@
 #include <linux/bitops.h>
 #include <linux/irqdomain.h>
 #include <linux/interrupt.h>
+#include <linux/platform_device.h>
 #include <linux/reboot.h>
 #include <asm/bootinfo.h>
 #include <asm/reboot.h>
@@ -133,6 +134,10 @@ static void ar2315_irq_dispatch(void)
 
 	if (pending & CAUSEF_IP3)
 		do_IRQ(AR2315_IRQ_WLAN0);
+#ifdef CONFIG_PCI_AR2315
+	else if (pending & CAUSEF_IP5)
+		do_IRQ(AR2315_IRQ_LCBUS_PCI);
+#endif
 	else if (pending & CAUSEF_IP2)
 		do_IRQ(AR2315_IRQ_MISC);
 	else if (pending & CAUSEF_IP7)
@@ -296,10 +301,62 @@ void __init ar2315_plat_mem_setup(void)
 	_machine_restart = ar2315_restart;
 }
 
+#ifdef CONFIG_PCI_AR2315
+static struct resource ar2315_pci_res[] = {
+	{
+		.name = "ar2315-pci-ctrl",
+		.flags = IORESOURCE_MEM,
+		.start = AR2315_PCI_BASE,
+		.end = AR2315_PCI_BASE + AR2315_PCI_SIZE - 1,
+	},
+	{
+		.name = "ar2315-pci-ext",
+		.flags = IORESOURCE_MEM,
+		.start = AR2315_PCI_EXT_BASE,
+		.end = AR2315_PCI_EXT_BASE + AR2315_PCI_EXT_SIZE - 1,
+	},
+	{
+		.name = "ar2315-pci",
+		.flags = IORESOURCE_IRQ,
+		.start = AR2315_IRQ_LCBUS_PCI,
+		.end = AR2315_IRQ_LCBUS_PCI,
+	},
+};
+#endif
+
 void __init ar2315_arch_init(void)
 {
 	unsigned irq = irq_create_mapping(ar2315_misc_irq_domain,
 					  AR2315_MISC_IRQ_UART0);
 
 	ath25_serial_setup(AR2315_UART0_BASE, irq, ar2315_apb_frequency());
+
+#ifdef CONFIG_PCI_AR2315
+	if (ath25_soc == ATH25_SOC_AR2315) {
+		/* Reset PCI DMA logic */
+		ar2315_rst_reg_mask(AR2315_RESET, 0, AR2315_RESET_PCIDMA);
+		msleep(20);
+		ar2315_rst_reg_mask(AR2315_RESET, AR2315_RESET_PCIDMA, 0);
+		msleep(20);
+
+		/* Configure endians */
+		ar2315_rst_reg_mask(AR2315_ENDIAN_CTL, 0, AR2315_CONFIG_PCIAHB |
+				    AR2315_CONFIG_PCIAHB_BRIDGE);
+
+		/* Configure as PCI host with DMA */
+		ar2315_rst_reg_write(AR2315_PCICLK, AR2315_PCICLK_PLLC_CLKM |
+				  (AR2315_PCICLK_IN_FREQ_DIV_6 <<
+				   AR2315_PCICLK_DIV_S));
+		ar2315_rst_reg_mask(AR2315_AHB_ARB_CTL, 0, AR2315_ARB_PCI);
+		ar2315_rst_reg_mask(AR2315_IF_CTL, AR2315_IF_PCI_CLK_MASK |
+				    AR2315_IF_MASK, AR2315_IF_PCI |
+				    AR2315_IF_PCI_HOST | AR2315_IF_PCI_INTR |
+				    (AR2315_IF_PCI_CLK_OUTPUT_CLK <<
+				     AR2315_IF_PCI_CLK_SHIFT));
+
+		platform_device_register_simple("ar2315-pci", -1,
+						ar2315_pci_res,
+						ARRAY_SIZE(ar2315_pci_res));
+	}
+#endif
 }
