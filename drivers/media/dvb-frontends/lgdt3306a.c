@@ -14,11 +14,6 @@
  *    but WITHOUT ANY WARRANTY; without even the implied warranty of
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <asm/div64.h>
@@ -1455,6 +1450,7 @@ static u32 lgdt3306a_calculate_snr_x100(struct lgdt3306a_state *state)
 
 static enum lgdt3306a_lock_status lgdt3306a_vsb_lock_poll(struct lgdt3306a_state *state)
 {
+	int ret;
 	u8 cnt = 0;
 	u8 packet_error;
 	u32 snr;
