@@ -23,28 +23,41 @@
  * this a kernel-internal data format.
  */
 / { __local_fixups__ {
-	fixup = "/testcase-data/testcase-device2:interrupt-parent:0",
-		"/testcase-data/testcase-device1:interrupt-parent:0",
-		"/testcase-data/interrupts/interrupts-extended0:interrupts-extended:60",
-		"/testcase-data/interrupts/interrupts-extended0:interrupts-extended:52",
-		"/testcase-data/interrupts/interrupts-extended0:interrupts-extended:44",
-		"/testcase-data/interrupts/interrupts-extended0:interrupts-extended:36",
-		"/testcase-data/interrupts/interrupts-extended0:interrupts-extended:24",
-		"/testcase-data/interrupts/interrupts-extended0:interrupts-extended:8",
-		"/testcase-data/interrupts/interrupts-extended0:interrupts-extended:0",
-		"/testcase-data/interrupts/interrupts1:interrupt-parent:0",
-		"/testcase-data/interrupts/interrupts0:interrupt-parent:0",
-		"/testcase-data/interrupts/intmap1:interrupt-map:12",
-		"/testcase-data/interrupts/intmap0:interrupt-map:52",
-		"/testcase-data/interrupts/intmap0:interrupt-map:36",
-		"/testcase-data/interrupts/intmap0:interrupt-map:16",
-		"/testcase-data/interrupts/intmap0:interrupt-map:4",
-		"/testcase-data/phandle-tests/consumer-a:phandle-list-bad-args:12",
-		"/testcase-data/phandle-tests/consumer-a:phandle-list-bad-args:0",
-		"/testcase-data/phandle-tests/consumer-a:phandle-list:56",
-		"/testcase-data/phandle-tests/consumer-a:phandle-list:52",
-		"/testcase-data/phandle-tests/consumer-a:phandle-list:40",
-		"/testcase-data/phandle-tests/consumer-a:phandle-list:24",
-		"/testcase-data/phandle-tests/consumer-a:phandle-list:8",
-		"/testcase-data/phandle-tests/consumer-a:phandle-list:0";
+	testcase-data {
+		phandle-tests {
+			consumer-a {
+				phandle-list = <0x00000000 0x00000008
+						0x00000018 0x00000028
+						0x00000034 0x00000038>;
+				phandle-list-bad-args = <0x00000000 0x0000000c>;
+			};
+		};
+		interrupts {
+			intmap0 {
+				interrupt-map = <0x00000004 0x00000010
+						 0x00000024 0x00000034>;
+			};
+			intmap1 {
+				interrupt-map = <0x0000000c>;
+			};
+			interrupts0 {
+				interrupt-parent = <0x00000000>;
+			};
+			interrupts1 {
+				interrupt-parent = <0x00000000>;
+			};
+			interrupts-extended0 {
+				interrupts-extended = <0x00000000 0x00000008
+						       0x00000018 0x00000024
+						       0x0000002c 0x00000034
+						       0x0000003c>;
+			};
+		};
+		testcase-device1 {
+			interrupt-parent = <0x00000000>;
+		};
+		testcase-device2 {
+			interrupt-parent = <0x00000000>;
+		};
+	};
 }; };
