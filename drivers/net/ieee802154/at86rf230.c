@@ -1214,7 +1214,7 @@ at86rf230_set_frame_retries(struct ieee802154_hw *hw, s8 retries)
 	return rc;
 }
 
-static struct ieee802154_ops at86rf230_ops = {
+static const struct ieee802154_ops at86rf230_ops = {
 	.owner = THIS_MODULE,
 	.xmit_async = at86rf230_xmit,
 	.ed = at86rf230_ed,

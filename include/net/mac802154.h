@@ -197,7 +197,7 @@ struct ieee802154_ops {
 
 /* Basic interface to register ieee802154 hwice */
 struct ieee802154_hw *
-ieee802154_alloc_hw(size_t priv_data_len, struct ieee802154_ops *ops);
+ieee802154_alloc_hw(size_t priv_data_len, const struct ieee802154_ops *ops);
 void ieee802154_free_hw(struct ieee802154_hw *hw);
 int ieee802154_register_hw(struct ieee802154_hw *hw);
 void ieee802154_unregister_hw(struct ieee802154_hw *hw);

@@ -129,7 +129,7 @@ fakelb_hw_stop(struct ieee802154_hw *hw) {
 	spin_unlock(&priv->lock);
 }
 
-static struct ieee802154_ops fakelb_ops = {
+static const struct ieee802154_ops fakelb_ops = {
 	.owner = THIS_MODULE,
 	.xmit_sync = fakelb_hw_xmit,
 	.ed = fakelb_hw_ed,

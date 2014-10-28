@@ -28,7 +28,7 @@
 /* mac802154 device private data */
 struct ieee802154_local {
 	struct ieee802154_hw hw;
-	struct ieee802154_ops *ops;
+	const struct ieee802154_ops *ops;
 
 	/* ieee802154 phy */
 	struct wpan_phy *phy;

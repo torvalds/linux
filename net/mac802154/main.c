@@ -187,7 +187,7 @@ static void ieee802154_tasklet_handler(unsigned long data)
 }
 
 struct ieee802154_hw *
-ieee802154_alloc_hw(size_t priv_data_len, struct ieee802154_ops *ops)
+ieee802154_alloc_hw(size_t priv_data_len, const struct ieee802154_ops *ops)
 {
 	struct wpan_phy *phy;
 	struct ieee802154_local *local;

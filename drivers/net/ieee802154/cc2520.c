@@ -631,7 +631,7 @@ cc2520_filter(struct ieee802154_hw *hw,
 	return 0;
 }
 
-static struct ieee802154_ops cc2520_ops = {
+static const struct ieee802154_ops cc2520_ops = {
 	.owner = THIS_MODULE,
 	.start = cc2520_start,
 	.stop = cc2520_stop,

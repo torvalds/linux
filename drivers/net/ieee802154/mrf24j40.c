@@ -579,7 +579,7 @@ out:
 	return ret;
 }
 
-static struct ieee802154_ops mrf24j40_ops = {
+static const struct ieee802154_ops mrf24j40_ops = {
 	.owner = THIS_MODULE,
 	.xmit_sync = mrf24j40_tx,
 	.ed = mrf24j40_ed,
