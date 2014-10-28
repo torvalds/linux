@@ -316,7 +316,7 @@ static int usb6fire_fw_fpga_upload(
 
 	while (c != end) {
 		for (i = 0; c != end && i < FPGA_BUFSIZE; i++, c++)
-			buffer[i] = byte_rev_table[(u8) *c];
+			buffer[i] = bitrev8((u8)*c);
 
 		ret = usb6fire_fw_fpga_write(device, buffer, i);
 		if (ret < 0) {
