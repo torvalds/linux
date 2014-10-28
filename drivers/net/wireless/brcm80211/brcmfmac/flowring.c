@@ -19,7 +19,7 @@
 #include <linux/etherdevice.h>
 #include <brcmu_utils.h>
 
-#include "dhd.h"
+#include "core.h"
 #include "debug.h"
 #include "bus.h"
 #include "proto.h"

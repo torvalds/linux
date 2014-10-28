@@ -20,7 +20,7 @@
 #include <brcmu_wifi.h>
 #include <brcmu_utils.h>
 #include <defs.h>
-#include <dhd.h>
+#include "core.h"
 #include "debug.h"
 #include "fwil.h"
 #include "fwil_types.h"

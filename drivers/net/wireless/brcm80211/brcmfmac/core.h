@@ -18,8 +18,8 @@
  * Common types *
  */
 
-#ifndef _BRCMF_H_
-#define _BRCMF_H_
+#ifndef BRCMFMAC_CORE_H
+#define BRCMFMAC_CORE_H
 
 #include "fweh.h"
 
@@ -186,4 +186,4 @@ void brcmf_netif_rx(struct brcmf_if *ifp, struct sk_buff *skb);
 /* Sets dongle media info (drv_version, mac address). */
 int brcmf_c_preinit_dcmds(struct brcmf_if *ifp);
 
-#endif				/* _BRCMF_H_ */
+#endif /* BRCMFMAC_CORE_H */

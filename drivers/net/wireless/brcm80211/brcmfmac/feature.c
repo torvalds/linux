@@ -17,7 +17,7 @@
 #include <linux/netdevice.h>
 
 #include <brcm_hw_ids.h>
-#include "dhd.h"
+#include "core.h"
 #include "bus.h"
 #include "debug.h"
 #include "fwil.h"

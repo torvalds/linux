@@ -26,7 +26,7 @@
 #include <brcmu_utils.h>
 #include <defs.h>
 #include <brcmu_wifi.h>
-#include "dhd.h"
+#include "core.h"
 #include "debug.h"
 #include "tracepoint.h"
 #include "fwil_types.h"

@@ -31,7 +31,7 @@ brcmfmac-objs += \
 		p2p.o \
 		proto.o \
 		common.o \
-		dhd_linux.o \
+		core.o \
 		firmware.o \
 		feature.o \
 		btcoex.o \
