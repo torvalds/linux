@@ -69,7 +69,7 @@ static int ttm_bo_man_get_node(struct ttm_mem_type_manager *man,
 		return -ENOMEM;
 
 	if (place->flags & TTM_PL_FLAG_TOPDOWN) {
-		sflags |= DRM_MM_SEARCH_BELOW;
+		sflags = DRM_MM_SEARCH_BELOW;
 		aflags = DRM_MM_CREATE_TOP;
 	}
 
