@@ -120,6 +120,9 @@ static int rk_read_raw(struct iio_dev *indio_dev,
 
 	INIT_COMPLETION(info->completion);
 
+	clk_enable(info->clk);
+	clk_enable(info->pclk);
+
         /* Select the channel to be used and Trigger conversion */
         writel_relaxed(0x08, info->regs + ADC_DELAY_PU_SOC);
 	writel_relaxed(ADC_CTRL_POWER_UP|ADC_CTRL_CH(chan->channel)|ADC_CTRL_IRQ_ENABLE, info->regs + ADC_CTRL);
@@ -136,6 +139,9 @@ static int rk_read_raw(struct iio_dev *indio_dev,
 		writel_relaxed(0, info->regs + ADC_DELAY_PU_SOC);
 		ret = -ETIMEDOUT;
 	}
+
+	clk_disable(info->clk);
+	clk_disable(info->pclk);
 
 	mutex_unlock(&indio_dev->mlock);
 
@@ -166,7 +172,13 @@ static int rk_adc_reg_access(struct iio_dev *indio_dev,
 	if (readval == NULL)
 		return -EINVAL;
 
+	clk_enable(info->clk);
+	clk_enable(info->pclk);
+
 	*readval = readl_relaxed(info->regs + reg);
+
+	clk_disable(info->clk);
+	clk_disable(info->pclk);
 
 	return 0;
 }
@@ -255,7 +267,7 @@ static int rk_adc_probe(struct platform_device *pdev)
 	    ret = PTR_ERR(info->pclk);
 	    goto err_iio;
 	}
-	clk_prepare_enable(info->pclk);
+	clk_prepare(info->pclk);
 	
 	info->clk = devm_clk_get(&pdev->dev, "saradc");
 	if (IS_ERR(info->clk)) {
@@ -274,7 +286,7 @@ static int rk_adc_probe(struct platform_device *pdev)
 	    dev_err(&pdev->dev, "failed to set adc clk\n");
 	    goto err_pclk;
 	}
-	clk_prepare_enable(info->clk);
+	clk_prepare(info->clk);
 
     //device register
 	indio_dev->name = dev_name(&pdev->dev);
@@ -310,10 +322,10 @@ err_iio_dev:
 	iio_device_unregister(indio_dev);
 	
 err_clk:
-	clk_disable_unprepare(info->clk);
+	clk_unprepare(info->clk);
 
 err_pclk:
-	clk_disable_unprepare(info->pclk);
+	clk_unprepare(info->pclk);
 	
 err_iio:
 	iio_device_free(indio_dev);
@@ -327,8 +339,8 @@ static int rk_adc_remove(struct platform_device *pdev)
 
 	device_for_each_child(&pdev->dev, NULL,
 				rk_adc_remove_devices);
-	clk_disable_unprepare(info->clk);
-	clk_disable_unprepare(info->pclk);
+	clk_unprepare(info->clk);
+	clk_unprepare(info->pclk);
 	iio_device_unregister(indio_dev);
 	free_irq(info->irq, info);
 	iio_device_free(indio_dev);
