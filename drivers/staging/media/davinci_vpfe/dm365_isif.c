@@ -1602,6 +1602,7 @@ isif_pad_get_crop(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 
 	if (crop->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_rect *rect;
+
 		rect = v4l2_subdev_get_try_crop(fh, ISIF_PAD_SINK);
 		memcpy(&crop->rect, rect, sizeof(*rect));
 	} else {
