@@ -197,7 +197,8 @@ static void unmap_range(struct kvm *kvm, pgd_t *pgdp,
 	pgd = pgdp + pgd_index(addr);
 	do {
 		next = kvm_pgd_addr_end(addr, end);
-		unmap_puds(kvm, pgd, addr, next);
+		if (!pgd_none(*pgd))
+			unmap_puds(kvm, pgd, addr, next);
 	} while (pgd++, addr = next, addr != end);
 }
 
