@@ -29,11 +29,7 @@
 #define BEQUIET
 
 static int isofs_hashi(const struct dentry *parent, struct qstr *qstr);
-static int isofs_hash(const struct dentry *parent, struct qstr *qstr);
 static int isofs_dentry_cmpi(const struct dentry *parent,
-		const struct dentry *dentry,
-		unsigned int len, const char *str, const struct qstr *name);
-static int isofs_dentry_cmp(const struct dentry *parent,
 		const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name);
 
@@ -134,10 +130,6 @@ static const struct super_operations isofs_sops = {
 
 
 static const struct dentry_operations isofs_dentry_ops[] = {
-	{
-		.d_hash		= isofs_hash,
-		.d_compare	= isofs_dentry_cmp,
-	},
 	{
 		.d_hash		= isofs_hashi,
 		.d_compare	= isofs_dentry_cmpi,
@@ -258,22 +250,9 @@ static int isofs_dentry_cmp_common(
 }
 
 static int
-isofs_hash(const struct dentry *dentry, struct qstr *qstr)
-{
-	return isofs_hash_common(qstr, 0);
-}
-
-static int
 isofs_hashi(const struct dentry *dentry, struct qstr *qstr)
 {
 	return isofs_hashi_common(qstr, 0);
-}
-
-static int
-isofs_dentry_cmp(const struct dentry *parent, const struct dentry *dentry,
-		unsigned int len, const char *str, const struct qstr *name)
-{
-	return isofs_dentry_cmp_common(len, str, name, 0, 0);
 }
 
 static int
@@ -930,7 +909,8 @@ root_found:
 	if (opt.check == 'r')
 		table++;
 
-	s->s_d_op = &isofs_dentry_ops[table];
+	if (table)
+		s->s_d_op = &isofs_dentry_ops[table - 1];
 
 	/* get the root dentry */
 	s->s_root = d_make_root(inode);
