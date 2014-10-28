@@ -3949,6 +3949,7 @@ static struct brcmf_bus_ops brcmf_sdio_bus_ops = {
 	.txctl = brcmf_sdio_bus_txctl,
 	.rxctl = brcmf_sdio_bus_rxctl,
 	.gettxq = brcmf_sdio_bus_gettxq,
+	.wowl_config = brcmf_sdio_wowl_config
 };
 
 static void brcmf_sdio_firmware_callback(struct device *dev,

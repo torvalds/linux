@@ -186,6 +186,7 @@ struct brcmf_sdio_dev {
 	struct sg_table sgtable;
 	char fw_name[BRCMF_FW_PATH_LEN + BRCMF_FW_NAME_LEN];
 	char nvram_name[BRCMF_FW_PATH_LEN + BRCMF_FW_NAME_LEN];
+	bool wowl_enabled;
 };
 
 /* sdio core registers */
@@ -334,5 +335,6 @@ void brcmf_sdio_remove(struct brcmf_sdio *bus);
 void brcmf_sdio_isr(struct brcmf_sdio *bus);
 
 void brcmf_sdio_wd_timer(struct brcmf_sdio *bus, uint wdtick);
+void brcmf_sdio_wowl_config(struct device *dev, bool enabled);
 
 #endif				/* _BRCM_SDH_H_ */
