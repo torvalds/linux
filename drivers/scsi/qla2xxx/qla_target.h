@@ -1001,11 +1001,11 @@ struct qla_tgt_prm {
 	struct qla_tgt *tgt;
 	void *pkt;
 	struct scatterlist *sg;	/* cmd data buffer SG vector */
+	unsigned char *sense_buffer;
 	int seg_cnt;
 	int req_cnt;
 	uint16_t rq_result;
 	uint16_t scsi_status;
-	unsigned char *sense_buffer;
 	int sense_buffer_len;
 	int residual;
 	int add_status_pkt;
@@ -1033,10 +1033,6 @@ struct qla_tgt_srr_ctio {
 
 
 extern struct qla_tgt_data qla_target;
-/*
- * Internal function prototypes
- */
-void qlt_disable_vha(struct scsi_qla_host *);
 
 /*
  * Function prototypes for qla_target.c logic used by qla2xxx LLD code.
@@ -1049,8 +1045,6 @@ extern void qlt_lport_deregister(struct scsi_qla_host *);
 extern void qlt_unreg_sess(struct qla_tgt_sess *);
 extern void qlt_fc_port_added(struct scsi_qla_host *, fc_port_t *);
 extern void qlt_fc_port_deleted(struct scsi_qla_host *, fc_port_t *);
-extern void qlt_set_mode(struct scsi_qla_host *ha);
-extern void qlt_clear_mode(struct scsi_qla_host *ha);
 extern int __init qlt_init(void);
 extern void qlt_exit(void);
 extern void qlt_update_vp_map(struct scsi_qla_host *, int);
@@ -1083,13 +1077,9 @@ static inline void qla_reverse_ini_mode(struct scsi_qla_host *ha)
 /*
  * Exported symbols from qla_target.c LLD logic used by qla2xxx code..
  */
-extern void qlt_24xx_atio_pkt_all_vps(struct scsi_qla_host *,
-	struct atio_from_isp *);
 extern void qlt_response_pkt_all_vps(struct scsi_qla_host *, response_t *);
 extern int qlt_rdy_to_xfer(struct qla_tgt_cmd *);
 extern int qlt_xmit_response(struct qla_tgt_cmd *, int, uint8_t);
-extern int qlt_rdy_to_xfer_dif(struct qla_tgt_cmd *);
-extern int qlt_xmit_response_dif(struct qla_tgt_cmd *, int, uint8_t);
 extern void qlt_xmit_tm_rsp(struct qla_tgt_mgmt_cmd *);
 extern void qlt_free_mcmd(struct qla_tgt_mgmt_cmd *);
 extern void qlt_free_cmd(struct qla_tgt_cmd *cmd);

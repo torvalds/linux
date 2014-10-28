@@ -83,6 +83,7 @@ config PWM_BFIN
 config PWM_CLPS711X
 	tristate "CLPS711X PWM support"
 	depends on ARCH_CLPS711X || COMPILE_TEST
+	depends on HAS_IOMEM
 	help
 	  Generic PWM framework driver for Cirrus Logic CLPS711X.
 
@@ -101,6 +102,7 @@ config PWM_EP93XX
 config PWM_FSL_FTM
 	tristate "Freescale FlexTimer Module (FTM) PWM support"
 	depends on OF
+	select REGMAP_MMIO
 	help
 	  Generic FTM PWM framework driver for Freescale VF610 and
 	  Layerscape LS-1 SoCs.
@@ -149,13 +151,31 @@ config PWM_LPC32XX
 
 config PWM_LPSS
 	tristate "Intel LPSS PWM support"
-	depends on ACPI
+	depends on X86
 	help
 	  Generic PWM framework driver for Intel Low Power Subsystem PWM
 	  controller.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-lpss.
+
+config PWM_LPSS_PCI
+	tristate "Intel LPSS PWM PCI driver"
+	depends on PWM_LPSS && PCI
+	help
+	  The PCI driver for Intel Low Power Subsystem PWM controller.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-lpss-pci.
+
+config PWM_LPSS_PLATFORM
+	tristate "Intel LPSS PWM platform driver"
+	depends on PWM_LPSS && ACPI
+	help
+	  The platform driver for Intel Low Power Subsystem PWM controller.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-lpss-platform.
 
 config PWM_MXS
 	tristate "Freescale MXS PWM support"

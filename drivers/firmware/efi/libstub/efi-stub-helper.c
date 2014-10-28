@@ -15,7 +15,22 @@
 
 #include "efistub.h"
 
+/*
+ * Some firmware implementations have problems reading files in one go.
+ * A read chunk size of 1MB seems to work for most platforms.
+ *
+ * Unfortunately, reading files in chunks triggers *other* bugs on some
+ * platforms, so we provide a way to disable this workaround, which can
+ * be done by passing "efi=nochunk" on the EFI boot stub command line.
+ *
+ * If you experience issues with initrd images being corrupt it's worth
+ * trying efi=nochunk, but chunking is enabled by default because there
+ * are far more machines that require the workaround than those that
+ * break with it enabled.
+ */
 #define EFI_READ_CHUNK_SIZE	(1024 * 1024)
+
+static unsigned long __chunk_size = EFI_READ_CHUNK_SIZE;
 
 struct file_info {
 	efi_file_handle_t *handle;
@@ -281,6 +296,49 @@ void efi_free(efi_system_table_t *sys_table_arg, unsigned long size,
 	efi_call_early(free_pages, addr, nr_pages);
 }
 
+/*
+ * Parse the ASCII string 'cmdline' for EFI options, denoted by the efi=
+ * option, e.g. efi=nochunk.
+ *
+ * It should be noted that efi= is parsed in two very different
+ * environments, first in the early boot environment of the EFI boot
+ * stub, and subsequently during the kernel boot.
+ */
+efi_status_t efi_parse_options(char *cmdline)
+{
+	char *str;
+
+	/*
+	 * If no EFI parameters were specified on the cmdline we've got
+	 * nothing to do.
+	 */
+	str = strstr(cmdline, "efi=");
+	if (!str)
+		return EFI_SUCCESS;
+
+	/* Skip ahead to first argument */
+	str += strlen("efi=");
+
+	/*
+	 * Remember, because efi= is also used by the kernel we need to
+	 * skip over arguments we don't understand.
+	 */
+	while (*str) {
+		if (!strncmp(str, "nochunk", 7)) {
+			str += strlen("nochunk");
+			__chunk_size = -1UL;
+		}
+
+		/* Group words together, delimited by "," */
+		while (*str && *str != ',')
+			str++;
+
+		if (*str == ',')
+			str++;
+	}
+
+	return EFI_SUCCESS;
+}
 
 /*
  * Check the cmdline for a LILO-style file= arguments.
@@ -423,8 +481,8 @@ efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
 			size = files[j].size;
 			while (size) {
 				unsigned long chunksize;
-				if (size > EFI_READ_CHUNK_SIZE)
-					chunksize = EFI_READ_CHUNK_SIZE;
+				if (size > __chunk_size)
+					chunksize = __chunk_size;
 				else
 					chunksize = size;
 

@@ -17,7 +17,7 @@ User addresses have bits 63:48 set to 0 while the kernel addresses have
 the same bits set to 1. TTBRx selection is given by bit 63 of the
 virtual address. The swapper_pg_dir contains only kernel (global)
 mappings while the user pgd contains only user (non-global) mappings.
-The swapper_pgd_dir address is written to TTBR1 and never written to
+The swapper_pg_dir address is written to TTBR1 and never written to
 TTBR0.
 
 

@@ -528,13 +528,13 @@ int eeh_pe_reset_and_recover(struct eeh_pe *pe)
 	eeh_pe_dev_traverse(pe, eeh_report_error, &result);
 
 	/* Issue reset */
-	eeh_pe_state_mark(pe, EEH_PE_RESET);
+	eeh_pe_state_mark(pe, EEH_PE_CFG_BLOCKED);
 	ret = eeh_reset_pe(pe);
 	if (ret) {
-		eeh_pe_state_clear(pe, EEH_PE_RECOVERING | EEH_PE_RESET);
+		eeh_pe_state_clear(pe, EEH_PE_RECOVERING | EEH_PE_CFG_BLOCKED);
 		return ret;
 	}
-	eeh_pe_state_clear(pe, EEH_PE_RESET);
+	eeh_pe_state_clear(pe, EEH_PE_CFG_BLOCKED);
 
 	/* Unfreeze the PE */
 	ret = eeh_clear_pe_frozen_state(pe, true);
@@ -601,10 +601,10 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus)
 	 * config accesses. So we prefer to block them. However, controlled
 	 * PCI config accesses initiated from EEH itself are allowed.
 	 */
-	eeh_pe_state_mark(pe, EEH_PE_RESET);
+	eeh_pe_state_mark(pe, EEH_PE_CFG_BLOCKED);
 	rc = eeh_reset_pe(pe);
 	if (rc) {
-		eeh_pe_state_clear(pe, EEH_PE_RESET);
+		eeh_pe_state_clear(pe, EEH_PE_CFG_BLOCKED);
 		return rc;
 	}
 
@@ -613,7 +613,7 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus)
 	/* Restore PE */
 	eeh_ops->configure_bridge(pe);
 	eeh_pe_restore_bars(pe);
-	eeh_pe_state_clear(pe, EEH_PE_RESET);
+	eeh_pe_state_clear(pe, EEH_PE_CFG_BLOCKED);
 
 	/* Clear frozen state */
 	rc = eeh_clear_pe_frozen_state(pe, false);

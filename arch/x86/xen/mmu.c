@@ -1217,10 +1217,13 @@ static void __init xen_pagetable_p2m_copy(void)
 static void __init xen_pagetable_init(void)
 {
 	paging_init();
-	xen_setup_shared_info();
 #ifdef CONFIG_X86_64
 	xen_pagetable_p2m_copy();
 #endif
+	/* Allocate and initialize top and mid mfn levels for p2m structure */
+	xen_build_mfn_list_list();
+
+	xen_setup_shared_info();
 	xen_post_allocator_init();
 }
 static void xen_write_cr2(unsigned long cr2)
