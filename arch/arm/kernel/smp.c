@@ -387,9 +387,6 @@ asmlinkage void secondary_start_kernel(void)
 
 void __init smp_cpus_done(unsigned int max_cpus)
 {
-	pr_info("SMP: Total of %d processors activated.\n",
-		num_online_cpus());
-
 	hyp_mode_check();
 }
 
