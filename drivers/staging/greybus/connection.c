@@ -290,6 +290,8 @@ int gb_connection_init(struct gb_connection *connection)
 		break;
 	}
 
+	ret = connection->handler->connection_init(connection);
+
 	if (ret)
 		connection->state = GB_CONNECTION_STATE_ERROR;
 
