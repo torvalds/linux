@@ -57,6 +57,9 @@
 #define DRIVER_DESC		"Intel Graphics"
 #define DRIVER_DATE		"20141024"
 
+#undef WARN_ON
+#define WARN_ON(x)		WARN(x, "WARN_ON(" #x ")")
+
 enum pipe {
 	INVALID_PIPE = -1,
 	PIPE_A = 0,
