@@ -22,6 +22,8 @@ Optional properties:
  - snps,u2ss_inp3_quirk: set if we enable P3 OK for U2/SS Inactive quirk
  - snps,req_p1p2p3_quirk: when set, the core will always request for
 			P1/P2/P3 transition sequence.
+ - snps,del_p1p2p3_quirk: when set core will delay P1/P2/P3 until a certain
+			amount of 8B10B errors occur.
 
 This is usually a subnode to DWC3 glue to which it is connected.
 
