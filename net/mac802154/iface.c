@@ -409,7 +409,6 @@ void mac802154_wpan_setup(struct net_device *dev)
 	dev->tx_queue_len	= 300;
 	dev->type		= ARPHRD_IEEE802154;
 	dev->flags		= IFF_NOARP | IFF_BROADCAST;
-	dev->watchdog_timeo	= 0;
 
 	dev->destructor		= mac802154_wpan_free;
 	dev->netdev_ops		= &mac802154_wpan_ops;
@@ -419,7 +418,6 @@ void mac802154_wpan_setup(struct net_device *dev)
 	sdata->type = IEEE802154_DEV_WPAN;
 
 	sdata->chan = MAC802154_CHAN_NONE;
-	sdata->page = 0;
 
 	spin_lock_init(&sdata->mib_lock);
 	mutex_init(&sdata->sec_mtx);
@@ -444,14 +442,11 @@ void mac802154_monitor_setup(struct net_device *dev)
 {
 	struct ieee802154_sub_if_data *sdata;
 
-	dev->addr_len		= 0;
-	dev->hard_header_len	= 0;
 	dev->needed_tailroom	= 2; /* room for FCS */
 	dev->mtu		= IEEE802154_MTU;
 	dev->tx_queue_len	= 10;
 	dev->type		= ARPHRD_IEEE802154_MONITOR;
 	dev->flags		= IFF_NOARP | IFF_BROADCAST;
-	dev->watchdog_timeo	= 0;
 
 	dev->destructor		= free_netdev;
 	dev->netdev_ops		= &mac802154_monitor_ops;
@@ -461,5 +456,4 @@ void mac802154_monitor_setup(struct net_device *dev)
 	sdata->type = IEEE802154_DEV_MONITOR;
 
 	sdata->chan = MAC802154_CHAN_NONE; /* not initialized */
-	sdata->page = 0;
 }
