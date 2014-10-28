@@ -16,6 +16,9 @@
 #include <asm/bootinfo.h>
 #include <asm/time.h>
 
+#include "devices.h"
+#include "ar5312.h"
+
 static void ath25_halt(void)
 {
 	local_irq_disable();
@@ -27,6 +30,9 @@ void __init plat_mem_setup(void)
 	_machine_halt = ath25_halt;
 	pm_power_off = ath25_halt;
 
+	if (is_ar5312())
+		ar5312_plat_mem_setup();
+
 	/* Disable data watchpoints */
 	write_c0_watchlo0(0);
 }
@@ -37,6 +43,8 @@ asmlinkage void plat_irq_dispatch(void)
 
 void __init plat_time_init(void)
 {
+	if (is_ar5312())
+		ar5312_plat_time_init();
 }
 
 unsigned int __cpuinit get_c0_compare_int(void)

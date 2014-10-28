@@ -9,3 +9,5 @@
 #
 
 obj-y += board.o prom.o devices.o
+
+obj-$(CONFIG_SOC_AR5312) += ar5312.o
