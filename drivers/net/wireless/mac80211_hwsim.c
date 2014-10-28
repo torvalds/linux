@@ -1987,7 +1987,7 @@ static int mac80211_hwsim_create_radio(int channels, const char *reg_alpha2,
 	if (err != 0) {
 		printk(KERN_DEBUG "mac80211_hwsim: device_bind_driver failed (%d)\n",
 		       err);
-		goto failed_hw;
+		goto failed_bind;
 	}
 
 	skb_queue_head_init(&data->pending);
@@ -2183,6 +2183,8 @@ static int mac80211_hwsim_create_radio(int channels, const char *reg_alpha2,
 	return idx;
 
 failed_hw:
+	device_release_driver(data->dev);
+failed_bind:
 	device_unregister(data->dev);
 failed_drvdata:
 	ieee80211_free_hw(hw);
