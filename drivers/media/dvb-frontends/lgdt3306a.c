@@ -1518,11 +1518,10 @@ static int lgdt3306a_read_status(struct dvb_frontend *fe, fe_status_t *status)
 
 	if (fe->ops.tuner_ops.get_rf_strength) {
 		ret = fe->ops.tuner_ops.get_rf_strength(fe, &strength);
-		if (ret == 0) {
+		if (ret == 0)
 			dbg_info("strength=%d\n", strength);
-		} else {
+		else
 			dbg_info("fe->ops.tuner_ops.get_rf_strength() failed\n");
-		}
 	}
 
 	*status = 0;
