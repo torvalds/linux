@@ -246,6 +246,28 @@ void __init ar5312_init_devices(void)
 		ath25_soc = ATH25_SOC_AR5312;
 
 	platform_device_register(&ar5312_physmap_flash);
+
+	switch (ath25_soc) {
+	case ATH25_SOC_AR5312:
+		if (!ath25_board.radio)
+			return;
+
+		if (!(config->flags & BD_WLAN0))
+			break;
+
+		ath25_add_wmac(0, AR5312_WLAN0_BASE, AR5312_IRQ_WLAN0);
+		break;
+	case ATH25_SOC_AR2312:
+	case ATH25_SOC_AR2313:
+		if (!ath25_board.radio)
+			return;
+		break;
+	default:
+		break;
+	}
+
+	if (config->flags & BD_WLAN1)
+		ath25_add_wmac(1, AR5312_WLAN1_BASE, AR5312_IRQ_WLAN1);
 }
 
 static void ar5312_restart(char *command)

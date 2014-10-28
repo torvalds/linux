@@ -171,6 +171,8 @@ void __init ar2315_init_devices(void)
 {
 	/* Find board configuration */
 	ath25_find_config(AR2315_SPI_READ_BASE, AR2315_SPI_READ_SIZE);
+
+	ath25_add_wmac(0, AR2315_WLAN0_BASE, AR2315_IRQ_WLAN0);
 }
 
 static void ar2315_restart(char *command)

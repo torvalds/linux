@@ -28,6 +28,7 @@ extern void (*ath25_irq_dispatch)(void);
 
 int ath25_find_config(phys_addr_t offset, unsigned long size);
 void ath25_serial_setup(u32 mapbase, int irq, unsigned int uartclk);
+int ath25_add_wmac(int nr, u32 base, int irq);
 
 static inline bool is_ar2315(void)
 {
