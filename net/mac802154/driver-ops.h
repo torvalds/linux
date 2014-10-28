@@ -30,6 +30,7 @@ static inline int drv_start(struct ieee802154_local *local)
 	might_sleep();
 
 	local->started = true;
+	smp_mb();
 
 	return local->ops->start(&local->hw);
 }
@@ -39,6 +40,12 @@ static inline void drv_stop(struct ieee802154_local *local)
 	might_sleep();
 
 	local->ops->stop(&local->hw);
+
+	/* sync away all work on the tasklet before clearing started */
+	tasklet_disable(&local->tasklet);
+	tasklet_enable(&local->tasklet);
+
+	barrier();
 
 	local->started = false;
 }
