@@ -119,7 +119,6 @@ static int mlx4_en_alloc_frags(struct mlx4_en_priv *priv,
 
 out:
 	while (i--) {
-		frag_info = &priv->frag_info[i];
 		if (page_alloc[i].page != ring_alloc[i].page) {
 			dma_unmap_page(priv->ddev, page_alloc[i].dma,
 				page_alloc[i].page_size, PCI_DMA_FROMDEVICE);

@@ -139,7 +139,9 @@ static void dump_dev_cap_flags2(struct mlx4_dev *dev, u64 flags)
 		[10] = "TCP/IP offloads/flow-steering for VXLAN support",
 		[11] = "MAD DEMUX (Secure-Host) support",
 		[12] = "Large cache line (>64B) CQE stride support",
-		[13] = "Large cache line (>64B) EQE stride support"
+		[13] = "Large cache line (>64B) EQE stride support",
+		[14] = "Ethernet protocol control support",
+		[15] = "Ethernet Backplane autoneg support"
 	};
 	int i;
 
@@ -560,6 +562,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_FLOW_STEERING_RANGE_EN_OFFSET	0x76
 #define QUERY_DEV_CAP_FLOW_STEERING_MAX_QP_OFFSET	0x77
 #define QUERY_DEV_CAP_CQ_EQ_CACHE_LINE_STRIDE	0x7a
+#define QUERY_DEV_CAP_ETH_PROT_CTRL_OFFSET	0x7a
 #define QUERY_DEV_CAP_RDMARC_ENTRY_SZ_OFFSET	0x80
 #define QUERY_DEV_CAP_QPC_ENTRY_SZ_OFFSET	0x82
 #define QUERY_DEV_CAP_AUX_ENTRY_SZ_OFFSET	0x84
@@ -573,6 +576,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_BMME_FLAGS_OFFSET		0x94
 #define QUERY_DEV_CAP_RSVD_LKEY_OFFSET		0x98
 #define QUERY_DEV_CAP_MAX_ICM_SZ_OFFSET		0xa0
+#define QUERY_DEV_CAP_ETH_BACKPL_OFFSET		0x9c
 #define QUERY_DEV_CAP_FW_REASSIGN_MAC		0x9d
 #define QUERY_DEV_CAP_VXLAN			0x9e
 #define QUERY_DEV_CAP_MAD_DEMUX_OFFSET		0xb0
@@ -737,15 +741,19 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	MLX4_GET(size, outbox, QUERY_DEV_CAP_MAX_DESC_SZ_RQ_OFFSET);
 	dev_cap->max_rq_desc_sz = size;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_CQ_EQ_CACHE_LINE_STRIDE);
+	if (field & (1 << 5))
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_ETH_PROT_CTRL;
 	if (field & (1 << 6))
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_CQE_STRIDE;
 	if (field & (1 << 7))
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_EQE_STRIDE;
-
 	MLX4_GET(dev_cap->bmme_flags, outbox,
 		 QUERY_DEV_CAP_BMME_FLAGS_OFFSET);
 	MLX4_GET(dev_cap->reserved_lkey, outbox,
 		 QUERY_DEV_CAP_RSVD_LKEY_OFFSET);
+	MLX4_GET(field32, outbox, QUERY_DEV_CAP_ETH_BACKPL_OFFSET);
+	if (field32 & (1 << 0))
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_ETH_BACKPL_AN_REP;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_FW_REASSIGN_MAC);
 	if (field & 1<<6)
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_REASSIGN_MAC_EN;
@@ -2144,3 +2152,114 @@ out:
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return err;
 }
+
+/* Access Reg commands */
+enum mlx4_access_reg_masks {
+	MLX4_ACCESS_REG_STATUS_MASK = 0x7f,
+	MLX4_ACCESS_REG_METHOD_MASK = 0x7f,
+	MLX4_ACCESS_REG_LEN_MASK = 0x7ff
+};
+
+struct mlx4_access_reg {
+	__be16 constant1;
+	u8 status;
+	u8 resrvd1;
+	__be16 reg_id;
+	u8 method;
+	u8 constant2;
+	__be32 resrvd2[2];
+	__be16 len_const;
+	__be16 resrvd3;
+#define MLX4_ACCESS_REG_HEADER_SIZE (20)
+	u8 reg_data[MLX4_MAILBOX_SIZE-MLX4_ACCESS_REG_HEADER_SIZE];
+} __attribute__((__packed__));
+
+/**
+ * mlx4_ACCESS_REG - Generic access reg command.
+ * @dev: mlx4_dev.
+ * @reg_id: register ID to access.
+ * @method: Access method Read/Write.
+ * @reg_len: register length to Read/Write in bytes.
+ * @reg_data: reg_data pointer to Read/Write From/To.
+ *
+ * Access ConnectX registers FW command.
+ * Returns 0 on success and copies outbox mlx4_access_reg data
+ * field into reg_data or a negative error code.
+ */
+static int mlx4_ACCESS_REG(struct mlx4_dev *dev, u16 reg_id,
+			   enum mlx4_access_reg_method method,
+			   u16 reg_len, void *reg_data)
+{
+	struct mlx4_cmd_mailbox *inbox, *outbox;
+	struct mlx4_access_reg *inbuf, *outbuf;
+	int err;
+
+	inbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(inbox))
+		return PTR_ERR(inbox);
+
+	outbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(outbox)) {
+		mlx4_free_cmd_mailbox(dev, inbox);
+		return PTR_ERR(outbox);
+	}
+
+	inbuf = inbox->buf;
+	outbuf = outbox->buf;
+
+	inbuf->constant1 = cpu_to_be16(0x1<<11 | 0x4);
+	inbuf->constant2 = 0x1;
+	inbuf->reg_id = cpu_to_be16(reg_id);
+	inbuf->method = method & MLX4_ACCESS_REG_METHOD_MASK;
+
+	reg_len = min(reg_len, (u16)(sizeof(inbuf->reg_data)));
+	inbuf->len_const =
+		cpu_to_be16(((reg_len/4 + 1) & MLX4_ACCESS_REG_LEN_MASK) |
+			    ((0x3) << 12));
+
+	memcpy(inbuf->reg_data, reg_data, reg_len);
+	err = mlx4_cmd_box(dev, inbox->dma, outbox->dma, 0, 0,
+			   MLX4_CMD_ACCESS_REG, MLX4_CMD_TIME_CLASS_C,
+			   MLX4_CMD_NATIVE);
+	if (err)
+		goto out;
+
+	if (outbuf->status & MLX4_ACCESS_REG_STATUS_MASK) {
+		err = outbuf->status & MLX4_ACCESS_REG_STATUS_MASK;
+		mlx4_err(dev,
+			 "MLX4_CMD_ACCESS_REG(%x) returned REG status (%x)\n",
+			 reg_id, err);
+		goto out;
+	}
+
+	memcpy(reg_data, outbuf->reg_data, reg_len);
+out:
+	mlx4_free_cmd_mailbox(dev, inbox);
+	mlx4_free_cmd_mailbox(dev, outbox);
+	return err;
+}
+
+/* ConnectX registers IDs */
+enum mlx4_reg_id {
+	MLX4_REG_ID_PTYS = 0x5004,
+};
+
+/**
+ * mlx4_ACCESS_PTYS_REG - Access PTYs (Port Type and Speed)
+ * register
+ * @dev: mlx4_dev.
+ * @method: Access method Read/Write.
+ * @ptys_reg: PTYS register data pointer.
+ *
+ * Access ConnectX PTYS register, to Read/Write Port Type/Speed
+ * configuration
+ * Returns 0 on success or a negative error code.
+ */
+int mlx4_ACCESS_PTYS_REG(struct mlx4_dev *dev,
+			 enum mlx4_access_reg_method method,
+			 struct mlx4_ptys_reg *ptys_reg)
+{
+	return mlx4_ACCESS_REG(dev, MLX4_REG_ID_PTYS,
+			       method, sizeof(*ptys_reg), ptys_reg);
+}
+EXPORT_SYMBOL_GPL(mlx4_ACCESS_PTYS_REG);
