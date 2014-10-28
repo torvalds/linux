@@ -5364,12 +5364,11 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 
 	if (is_edp(intel_dp)) {
 		pps_lock(intel_dp);
-		if (IS_VALLEYVIEW(dev)) {
+		intel_dp_init_panel_power_timestamps(intel_dp);
+		if (IS_VALLEYVIEW(dev))
 			vlv_initial_power_sequencer_setup(intel_dp);
-		} else {
-			intel_dp_init_panel_power_timestamps(intel_dp);
+		else
 			intel_dp_init_panel_power_sequencer(dev, intel_dp);
-		}
 		pps_unlock(intel_dp);
 	}
 
