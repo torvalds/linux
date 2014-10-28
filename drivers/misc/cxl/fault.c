@@ -21,20 +21,30 @@
 
 #include "cxl.h"
 
-static struct cxl_sste* find_free_sste(struct cxl_sste *primary_group,
-				       unsigned int *lru)
+/* This finds a free SSTE for the given SLB */
+static struct cxl_sste* find_free_sste(struct cxl_context *ctx,
+				       struct copro_slb *slb)
 {
+	struct cxl_sste *primary, *sste;
+	unsigned int mask = (ctx->sst_size >> 7) - 1; /* SSTP0[SegTableSize] */
 	unsigned int entry;
-	struct cxl_sste *sste, *group = primary_group;
+	unsigned int hash;
 
-	for (entry = 0; entry < 8; entry++) {
-		sste = group + entry;
+	if (slb->vsid & SLB_VSID_B_1T)
+		hash = (slb->esid >> SID_SHIFT_1T) & mask;
+	else /* 256M */
+		hash = (slb->esid >> SID_SHIFT) & mask;
+
+	primary = ctx->sstp + (hash << 3);
+
+	for (entry = 0, sste = primary; entry < 8; entry++, sste++) {
 		if (!(be64_to_cpu(sste->esid_data) & SLB_ESID_V))
 			return sste;
 	}
+
 	/* Nothing free, select an entry to cast out */
-	sste = primary_group + *lru;
-	*lru = (*lru + 1) & 0x7;
+	sste = primary + ctx->sst_lru;
+	ctx->sst_lru = (ctx->sst_lru + 1) & 0x7;
 
 	return sste;
 }
@@ -42,19 +52,11 @@ static struct cxl_sste* find_free_sste(struct cxl_sste *primary_group,
 static void cxl_load_segment(struct cxl_context *ctx, struct copro_slb *slb)
 {
 	/* mask is the group index, we search primary and secondary here. */
-	unsigned int mask = (ctx->sst_size >> 7)-1; /* SSTP0[SegTableSize] */
 	struct cxl_sste *sste;
-	unsigned int hash;
 	unsigned long flags;
 
-
-	if (slb->vsid & SLB_VSID_B_1T)
-		hash = (slb->esid >> SID_SHIFT_1T) & mask;
-	else /* 256M */
-		hash = (slb->esid >> SID_SHIFT) & mask;
-
 	spin_lock_irqsave(&ctx->sste_lock, flags);
-	sste = find_free_sste(ctx->sstp + (hash << 3), &ctx->sst_lru);
+	sste = find_free_sste(ctx, slb);
 
 	pr_devel("CXL Populating SST[%li]: %#llx %#llx\n",
 			sste - ctx->sstp, slb->vsid, slb->esid);
