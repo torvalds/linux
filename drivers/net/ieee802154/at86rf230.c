@@ -54,7 +54,7 @@ struct at86rf2xx_chip_data {
 	u16 t_tx_timeout;
 	int rssi_base_val;
 
-	int (*set_channel)(struct at86rf230_local *, int, int);
+	int (*set_channel)(struct at86rf230_local *, u8, u8);
 	int (*get_desense_steps)(struct at86rf230_local *, s32);
 };
 
@@ -1012,13 +1012,13 @@ at86rf230_stop(struct ieee802154_hw *hw)
 }
 
 static int
-at86rf23x_set_channel(struct at86rf230_local *lp, int page, int channel)
+at86rf23x_set_channel(struct at86rf230_local *lp, u8 page, u8 channel)
 {
 	return at86rf230_write_subreg(lp, SR_CHANNEL, channel);
 }
 
 static int
-at86rf212_set_channel(struct at86rf230_local *lp, int page, int channel)
+at86rf212_set_channel(struct at86rf230_local *lp, u8 page, u8 channel)
 {
 	int rc;
 
@@ -1043,7 +1043,7 @@ at86rf212_set_channel(struct at86rf230_local *lp, int page, int channel)
 }
 
 static int
-at86rf230_channel(struct ieee802154_hw *hw, int page, int channel)
+at86rf230_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 {
 	struct at86rf230_local *lp = hw->priv;
 	int rc;

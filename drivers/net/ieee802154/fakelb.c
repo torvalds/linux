@@ -55,7 +55,7 @@ fakelb_hw_ed(struct ieee802154_hw *hw, u8 *level)
 }
 
 static int
-fakelb_hw_channel(struct ieee802154_hw *hw, int page, int channel)
+fakelb_hw_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 {
 	pr_debug("set channel to %d\n", channel);
 
