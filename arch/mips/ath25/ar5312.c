@@ -158,6 +158,45 @@ void __init ar5312_arch_init_irq(void)
 	ar5312_misc_irq_domain = domain;
 }
 
+static void __init ar5312_flash_init(void)
+{
+	void __iomem *flashctl_base;
+	u32 ctl;
+
+	flashctl_base = ioremap_nocache(AR5312_FLASHCTL_BASE,
+					AR5312_FLASHCTL_SIZE);
+
+	/*
+	 * Configure flash bank 0.
+	 * Assume 8M window size. Flash will be aliased if it's smaller
+	 */
+	ctl = __raw_readl(flashctl_base + AR5312_FLASHCTL0);
+	ctl &= AR5312_FLASHCTL_MW;
+	ctl |= AR5312_FLASHCTL_E | AR5312_FLASHCTL_AC_8M | AR5312_FLASHCTL_RBLE;
+	ctl |= 0x01 << AR5312_FLASHCTL_IDCY_S;
+	ctl |= 0x07 << AR5312_FLASHCTL_WST1_S;
+	ctl |= 0x07 << AR5312_FLASHCTL_WST2_S;
+	__raw_writel(ctl, flashctl_base + AR5312_FLASHCTL0);
+
+	/* Disable other flash banks */
+	ctl = __raw_readl(flashctl_base + AR5312_FLASHCTL1);
+	ctl &= ~(AR5312_FLASHCTL_E | AR5312_FLASHCTL_AC);
+	__raw_writel(ctl, flashctl_base + AR5312_FLASHCTL1);
+	ctl = __raw_readl(flashctl_base + AR5312_FLASHCTL2);
+	ctl &= ~(AR5312_FLASHCTL_E | AR5312_FLASHCTL_AC);
+	__raw_writel(ctl, flashctl_base + AR5312_FLASHCTL2);
+
+	iounmap(flashctl_base);
+}
+
+void __init ar5312_init_devices(void)
+{
+	ar5312_flash_init();
+
+	/* Locate board/radio config data */
+	ath25_find_config(AR5312_FLASH_BASE, AR5312_FLASH_SIZE);
+}
+
 static void ar5312_restart(char *command)
 {
 	/* reset the system */

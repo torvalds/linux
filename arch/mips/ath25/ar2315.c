@@ -160,6 +160,12 @@ void __init ar2315_arch_init_irq(void)
 	ar2315_misc_irq_domain = domain;
 }
 
+void __init ar2315_init_devices(void)
+{
+	/* Find board configuration */
+	ath25_find_config(AR2315_SPI_READ_BASE, AR2315_SPI_READ_SIZE);
+}
+
 static void ar2315_restart(char *command)
 {
 	void (*mips_reset_vec)(void) = (void *)0xbfc00000;

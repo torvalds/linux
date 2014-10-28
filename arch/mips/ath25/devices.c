@@ -3,9 +3,12 @@
 #include <linux/serial_8250.h>
 #include <asm/bootinfo.h>
 
+#include <ath25_platform.h>
 #include "devices.h"
 #include "ar5312.h"
 #include "ar2315.h"
+
+struct ar231x_board_config ath25_board;
 
 const char *get_system_type(void)
 {
@@ -27,6 +30,18 @@ void __init ath25_serial_setup(u32 mapbase, int irq, unsigned int uartclk)
 
 	early_serial_setup(&s);
 }
+
+static int __init ath25_register_devices(void)
+{
+	if (is_ar5312())
+		ar5312_init_devices();
+	else
+		ar2315_init_devices();
+
+	return 0;
+}
+
+device_initcall(ath25_register_devices);
 
 static int __init ath25_arch_init(void)
 {
