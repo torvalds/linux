@@ -176,7 +176,7 @@ static unsigned int num_clusters_in_group(struct super_block *sb,
 }
 
 /* Initializes an uninitialized block bitmap */
-static void ext4_init_block_bitmap(struct super_block *sb,
+static int ext4_init_block_bitmap(struct super_block *sb,
 				   struct buffer_head *bh,
 				   ext4_group_t block_group,
 				   struct ext4_group_desc *gdp)
@@ -192,7 +192,6 @@ static void ext4_init_block_bitmap(struct super_block *sb,
 	/* If checksum is bad mark all blocks used to prevent allocation
 	 * essentially implementing a per-group read-only flag. */
 	if (!ext4_group_desc_csum_verify(sb, block_group, gdp)) {
-		ext4_error(sb, "Checksum bad for group %u", block_group);
 		grp = ext4_get_group_info(sb, block_group);
 		if (!EXT4_MB_GRP_BBITMAP_CORRUPT(grp))
 			percpu_counter_sub(&sbi->s_freeclusters_counter,
@@ -205,7 +204,7 @@ static void ext4_init_block_bitmap(struct super_block *sb,
 					   count);
 		}
 		set_bit(EXT4_GROUP_INFO_IBITMAP_CORRUPT_BIT, &grp->bb_state);
-		return;
+		return -EIO;
 	}
 	memset(bh->b_data, 0, sb->s_blocksize);
 
@@ -243,6 +242,7 @@ static void ext4_init_block_bitmap(struct super_block *sb,
 			     sb->s_blocksize * 8, bh->b_data);
 	ext4_block_bitmap_csum_set(sb, block_group, gdp, bh);
 	ext4_group_desc_csum_set(sb, block_group, gdp);
+	return 0;
 }
 
 /* Return the number of free blocks in a block group.  It is used when
@@ -438,11 +438,15 @@ ext4_read_block_bitmap_nowait(struct super_block *sb, ext4_group_t block_group)
 	}
 	ext4_lock_group(sb, block_group);
 	if (desc->bg_flags & cpu_to_le16(EXT4_BG_BLOCK_UNINIT)) {
-		ext4_init_block_bitmap(sb, bh, block_group, desc);
+		int err;
+
+		err = ext4_init_block_bitmap(sb, bh, block_group, desc);
 		set_bitmap_uptodate(bh);
 		set_buffer_uptodate(bh);
 		ext4_unlock_group(sb, block_group);
 		unlock_buffer(bh);
+		if (err)
+			ext4_error(sb, "Checksum bad for grp %u", block_group);
 		return bh;
 	}
 	ext4_unlock_group(sb, block_group);
@@ -636,8 +640,7 @@ ext4_fsblk_t ext4_new_meta_blocks(handle_t *handle, struct inode *inode,
 	 * Account for the allocated meta blocks.  We will never
 	 * fail EDQUOT for metdata, but we do account for it.
 	 */
-	if (!(*errp) &&
-	    ext4_test_inode_state(inode, EXT4_STATE_DELALLOC_RESERVED)) {
+	if (!(*errp) && (flags & EXT4_MB_DELALLOC_RESERVED)) {
 		spin_lock(&EXT4_I(inode)->i_block_reservation_lock);
 		spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
 		dquot_alloc_block_nofail(inode,

@@ -16,8 +16,6 @@
 #ifndef _ASM_THREAD_INFO_H
 #define _ASM_THREAD_INFO_H
 
-#ifdef __KERNEL__
-
 #include <asm/page.h>
 
 #ifdef CONFIG_16KSTACKS
@@ -113,7 +111,5 @@ static inline __attribute_const__ struct thread_info *current_thread_info(void)
  * SYSCALL_TRACE is anways seperately/unconditionally tested right after a
  * syscall, so all that reamins to be tested is _TIF_WORK_MASK
  */
-
-#endif /* __KERNEL__ */
 
 #endif /* _ASM_THREAD_INFO_H */

@@ -144,8 +144,12 @@
 
 /* Data-processing (2 source) */
 /* Rd = Rn OP Rm */
-#define A64_UDIV(sf, Rd, Rn, Rm) aarch64_insn_gen_data2(Rd, Rn, Rm, \
-	A64_VARIANT(sf), AARCH64_INSN_DATA2_UDIV)
+#define A64_DATA2(sf, Rd, Rn, Rm, type) aarch64_insn_gen_data2(Rd, Rn, Rm, \
+	A64_VARIANT(sf), AARCH64_INSN_DATA2_##type)
+#define A64_UDIV(sf, Rd, Rn, Rm) A64_DATA2(sf, Rd, Rn, Rm, UDIV)
+#define A64_LSLV(sf, Rd, Rn, Rm) A64_DATA2(sf, Rd, Rn, Rm, LSLV)
+#define A64_LSRV(sf, Rd, Rn, Rm) A64_DATA2(sf, Rd, Rn, Rm, LSRV)
+#define A64_ASRV(sf, Rd, Rn, Rm) A64_DATA2(sf, Rd, Rn, Rm, ASRV)
 
 /* Data-processing (3 source) */
 /* Rd = Ra + Rn * Rm */

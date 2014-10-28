@@ -781,16 +781,15 @@ static int snd_pcm_action_group(struct action_ops *ops,
 {
 	struct snd_pcm_substream *s = NULL;
 	struct snd_pcm_substream *s1;
-	int res = 0;
+	int res = 0, depth = 1;
 
 	snd_pcm_group_for_each_entry(s, substream) {
 		if (do_lock && s != substream) {
 			if (s->pcm->nonatomic)
-				mutex_lock_nested(&s->self_group.mutex,
-						  SINGLE_DEPTH_NESTING);
+				mutex_lock_nested(&s->self_group.mutex, depth);
 			else
-				spin_lock_nested(&s->self_group.lock,
-						 SINGLE_DEPTH_NESTING);
+				spin_lock_nested(&s->self_group.lock, depth);
+			depth++;
 		}
 		res = ops->pre_action(s, state);
 		if (res < 0)
@@ -906,8 +905,7 @@ static int snd_pcm_action_lock_mutex(struct action_ops *ops,
 	down_read(&snd_pcm_link_rwsem);
 	if (snd_pcm_stream_linked(substream)) {
 		mutex_lock(&substream->group->mutex);
-		mutex_lock_nested(&substream->self_group.mutex,
-				  SINGLE_DEPTH_NESTING);
+		mutex_lock(&substream->self_group.mutex);
 		res = snd_pcm_action_group(ops, substream, state, 1);
 		mutex_unlock(&substream->self_group.mutex);
 		mutex_unlock(&substream->group->mutex);
@@ -3311,7 +3309,7 @@ static const struct vm_operations_struct snd_pcm_vm_ops_data_fault = {
 
 #ifndef ARCH_HAS_DMA_MMAP_COHERENT
 /* This should be defined / handled globally! */
-#ifdef CONFIG_ARM
+#if defined(CONFIG_ARM) || defined(CONFIG_ARM64)
 #define ARCH_HAS_DMA_MMAP_COHERENT
 #endif
 #endif

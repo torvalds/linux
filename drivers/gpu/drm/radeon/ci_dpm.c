@@ -24,6 +24,7 @@
 #include <linux/firmware.h>
 #include "drmP.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "radeon_ucode.h"
 #include "cikd.h"
 #include "r600_dpm.h"

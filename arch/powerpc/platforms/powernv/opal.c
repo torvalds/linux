@@ -194,6 +194,27 @@ static int __init opal_register_exception_handlers(void)
 	 * fwnmi area at 0x7000 to provide the glue space to OPAL
 	 */
 	glue = 0x7000;
+
+	/*
+	 * Check if we are running on newer firmware that exports
+	 * OPAL_HANDLE_HMI token. If yes, then don't ask OPAL to patch
+	 * the HMI interrupt and we catch it directly in Linux.
+	 *
+	 * For older firmware (i.e currently released POWER8 System Firmware
+	 * as of today <= SV810_087), we fallback to old behavior and let OPAL
+	 * patch the HMI vector and handle it inside OPAL firmware.
+	 *
+	 * For newer firmware (in development/yet to be released) we will
+	 * start catching/handling HMI directly in Linux.
+	 */
+	if (!opal_check_token(OPAL_HANDLE_HMI)) {
+		pr_info("opal: Old firmware detected, OPAL handles HMIs.\n");
+		opal_register_exception_handler(
+				OPAL_HYPERVISOR_MAINTENANCE_HANDLER,
+				0, glue);
+		glue += 128;
+	}
+
 	opal_register_exception_handler(OPAL_SOFTPATCH_HANDLER, 0, glue);
 #endif
 
