@@ -4641,7 +4641,7 @@ find_idlest_cpu(struct sched_group *group, struct task_struct *p, int this_cpu)
 				latest_idle_timestamp = rq->idle_stamp;
 				shallowest_idle_cpu = i;
 			}
-		} else {
+		} else if (shallowest_idle_cpu == -1) {
 			load = weighted_cpuload(i);
 			if (load < min_load || (load == min_load && i == this_cpu)) {
 				min_load = load;
