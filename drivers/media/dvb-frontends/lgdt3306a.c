@@ -1461,64 +1461,52 @@ static enum lgdt3306a_lock_status lgdt3306a_vsb_lock_poll(struct lgdt3306a_state
 	u8 packet_error;
 	u32 snr;
 
-	while (1) {
+	for (cnt = 0; cnt < 10; cnt++) {
 		if (lgdt3306a_sync_lock_poll(state) == LG3306_UNLOCK) {
 			dbg_info("no sync lock!\n");
 			return LG3306_UNLOCK;
-		} else {
-			msleep(20);
-			ret = lgdt3306a_pre_monitoring(state);
-			if (ret)
-				return LG3306_UNLOCK;
-
-			packet_error = lgdt3306a_get_packet_error(state);
-			snr = lgdt3306a_calculate_snr_x100(state);
-			dbg_info("cnt=%d errors=%d snr=%d\n",
-			       cnt, packet_error, snr);
-
-			if ((snr < 1500) || (packet_error >= 0xff))
-				cnt++;
-			else
-				return LG3306_LOCK;
-
-			if (cnt >= 10) {
-				dbg_info("not locked!\n");
-				return LG3306_UNLOCK;
-			}
 		}
+
+		msleep(20);
+		ret = lgdt3306a_pre_monitoring(state);
+		if (ret)
+			break;
+
+		packet_error = lgdt3306a_get_packet_error(state);
+		snr = lgdt3306a_calculate_snr_x100(state);
+		dbg_info("cnt=%d errors=%d snr=%d\n", cnt, packet_error, snr);
+
+		if ((snr >= 1500) && (packet_error < 0xff))
+			return LG3306_LOCK;
 	}
+
+	dbg_info("not locked!\n");
 	return LG3306_UNLOCK;
 }
 
 static enum lgdt3306a_lock_status lgdt3306a_qam_lock_poll(struct lgdt3306a_state *state)
 {
-	u8 cnt = 0;
+	u8 cnt;
 	u8 packet_error;
 	u32	snr;
 
-	while (1) {
+	for (cnt = 0; cnt < 10; cnt++) {
 		if (lgdt3306a_fec_lock_poll(state) == LG3306_UNLOCK) {
 			dbg_info("no fec lock!\n");
 			return LG3306_UNLOCK;
-		} else {
-			msleep(20);
-
-			packet_error = lgdt3306a_get_packet_error(state);
-			snr = lgdt3306a_calculate_snr_x100(state);
-			dbg_info("cnt=%d errors=%d snr=%d\n",
-			       cnt, packet_error, snr);
-
-			if ((snr < 1500) || (packet_error >= 0xff))
-				cnt++;
-			else
-				return LG3306_LOCK;
-
-			if (cnt >= 10) {
-				dbg_info("not locked!\n");
-				return LG3306_UNLOCK;
-			}
 		}
+
+		msleep(20);
+
+		packet_error = lgdt3306a_get_packet_error(state);
+		snr = lgdt3306a_calculate_snr_x100(state);
+		dbg_info("cnt=%d errors=%d snr=%d\n", cnt, packet_error, snr);
+
+		if ((snr >= 1500) && (packet_error < 0xff))
+			return LG3306_LOCK;
 	}
+
+	dbg_info("not locked!\n");
 	return LG3306_UNLOCK;
 }
 
