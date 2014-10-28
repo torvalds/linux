@@ -24,6 +24,8 @@
 #include <asm/reboot.h>
 #include <asm/time.h>
 
+#include <ath25_platform.h>
+
 #include "devices.h"
 #include "ar2315.h"
 #include "ar2315_regs.h"
@@ -249,6 +251,7 @@ void __init ar2315_plat_mem_setup(void)
 {
 	void __iomem *sdram_base;
 	u32 memsize, memcfg;
+	u32 devid;
 	u32 config;
 
 	/* Detect memory size */
@@ -263,6 +266,25 @@ void __init ar2315_plat_mem_setup(void)
 	iounmap(sdram_base);
 
 	ar2315_rst_base = ioremap_nocache(AR2315_RST_BASE, AR2315_RST_SIZE);
+
+	/* Detect the hardware based on the device ID */
+	devid = ar2315_rst_reg_read(AR2315_SREV) & AR2315_REV_CHIP;
+	switch (devid) {
+	case 0x91:	/* Need to check */
+		ath25_soc = ATH25_SOC_AR2318;
+		break;
+	case 0x90:
+		ath25_soc = ATH25_SOC_AR2317;
+		break;
+	case 0x87:
+		ath25_soc = ATH25_SOC_AR2316;
+		break;
+	case 0x86:
+	default:
+		ath25_soc = ATH25_SOC_AR2315;
+		break;
+	}
+	ath25_board.devid = devid;
 
 	/* Clear any lingering AHB errors */
 	config = read_c0_config();

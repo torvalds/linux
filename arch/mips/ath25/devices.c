@@ -9,10 +9,25 @@
 #include "ar2315.h"
 
 struct ar231x_board_config ath25_board;
+enum ath25_soc_type ath25_soc = ATH25_SOC_UNKNOWN;
+
+static const char * const soc_type_strings[] = {
+	[ATH25_SOC_AR5312] = "Atheros AR5312",
+	[ATH25_SOC_AR2312] = "Atheros AR2312",
+	[ATH25_SOC_AR2313] = "Atheros AR2313",
+	[ATH25_SOC_AR2315] = "Atheros AR2315",
+	[ATH25_SOC_AR2316] = "Atheros AR2316",
+	[ATH25_SOC_AR2317] = "Atheros AR2317",
+	[ATH25_SOC_AR2318] = "Atheros AR2318",
+	[ATH25_SOC_UNKNOWN] = "Atheros (unknown)",
+};
 
 const char *get_system_type(void)
 {
-	return "Atheros (unknown)";
+	if ((ath25_soc >= ARRAY_SIZE(soc_type_strings)) ||
+	    !soc_type_strings[ath25_soc])
+		return soc_type_strings[ATH25_SOC_UNKNOWN];
+	return soc_type_strings[ath25_soc];
 }
 
 void __init ath25_serial_setup(u32 mapbase, int irq, unsigned int uartclk)

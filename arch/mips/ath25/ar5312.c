@@ -24,6 +24,8 @@
 #include <asm/reboot.h>
 #include <asm/time.h>
 
+#include <ath25_platform.h>
+
 #include "devices.h"
 #include "ar5312.h"
 #include "ar5312_regs.h"
@@ -191,10 +193,25 @@ static void __init ar5312_flash_init(void)
 
 void __init ar5312_init_devices(void)
 {
+	struct ath25_boarddata *config;
+
 	ar5312_flash_init();
 
 	/* Locate board/radio config data */
 	ath25_find_config(AR5312_FLASH_BASE, AR5312_FLASH_SIZE);
+	config = ath25_board.config;
+
+	/* AR2313 has CPU minor rev. 10 */
+	if ((current_cpu_data.processor_id & 0xff) == 0x0a)
+		ath25_soc = ATH25_SOC_AR2313;
+
+	/* AR2312 shares the same Silicon ID as AR5312 */
+	else if (config->flags & BD_ISCASPER)
+		ath25_soc = ATH25_SOC_AR2312;
+
+	/* Everything else is probably AR5312 or compatible */
+	else
+		ath25_soc = ATH25_SOC_AR5312;
 }
 
 static void ar5312_restart(char *command)
@@ -282,6 +299,7 @@ void __init ar5312_plat_mem_setup(void)
 {
 	void __iomem *sdram_base;
 	u32 memsize, memcfg, bank0_ac, bank1_ac;
+	u32 devid;
 
 	/* Detect memory size */
 	sdram_base = ioremap_nocache(AR5312_SDRAMCTL_BASE,
@@ -296,6 +314,11 @@ void __init ar5312_plat_mem_setup(void)
 	iounmap(sdram_base);
 
 	ar5312_rst_base = ioremap_nocache(AR5312_RST_BASE, AR5312_RST_SIZE);
+
+	devid = ar5312_rst_reg_read(AR5312_REV);
+	devid >>= AR5312_REV_WMAC_MIN_S;
+	devid &= AR5312_REV_CHIP;
+	ath25_board.devid = (u16)devid;
 
 	/* Clear any lingering AHB errors */
 	ar5312_rst_reg_read(AR5312_PROCADDR);

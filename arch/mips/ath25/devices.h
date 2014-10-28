@@ -7,6 +7,22 @@
 
 #define ATH25_IRQ_CPU_CLOCK	(MIPS_CPU_IRQ_BASE + 7)	/* C0_CAUSE: 0x8000 */
 
+enum ath25_soc_type {
+	/* handled by ar5312.c */
+	ATH25_SOC_AR2312,
+	ATH25_SOC_AR2313,
+	ATH25_SOC_AR5312,
+
+	/* handled by ar2315.c */
+	ATH25_SOC_AR2315,
+	ATH25_SOC_AR2316,
+	ATH25_SOC_AR2317,
+	ATH25_SOC_AR2318,
+
+	ATH25_SOC_UNKNOWN
+};
+
+extern enum ath25_soc_type ath25_soc;
 extern struct ar231x_board_config ath25_board;
 extern void (*ath25_irq_dispatch)(void);
 
