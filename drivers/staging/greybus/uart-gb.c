@@ -51,11 +51,6 @@ struct gb_tty {
 	struct mutex mutex;
 };
 
-static const struct greybus_module_id id_table[] = {
-	{ GREYBUS_DEVICE(0x45, 0x45) },	/* make shit up */
-	{ },	/* terminating NULL entry */
-};
-
 static struct tty_driver *gb_tty_driver;
 static DEFINE_IDR(tty_minors);
 static DEFINE_MUTEX(table_lock);

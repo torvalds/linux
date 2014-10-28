@@ -19,11 +19,6 @@ struct gb_sdio_host {
 	// FIXME - some lock?
 };
 
-static const struct greybus_module_id id_table[] = {
-	{ GREYBUS_DEVICE(0x43, 0x43) },	/* make shit up */
-	{ },	/* terminating NULL entry */
-};
-
 static void gb_sd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 {
 	// FIXME - do something here...

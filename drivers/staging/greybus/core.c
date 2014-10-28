@@ -119,11 +119,6 @@ void greybus_deregister(struct greybus_driver *driver)
 EXPORT_SYMBOL_GPL(greybus_deregister);
 
 
-static const struct greybus_module_id fake_greybus_module_id = {
-	GREYBUS_DEVICE(0x42, 0x42)
-};
-
-
 /**
  * gb_add_module
  *

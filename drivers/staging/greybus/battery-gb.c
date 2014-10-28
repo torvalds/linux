@@ -92,11 +92,6 @@ struct gb_battery_voltage_request {
 };
 
 
-static const struct greybus_module_id id_table[] = {
-	{ GREYBUS_DEVICE(0x42, 0x42) },	/* make shit up */
-	{ },	/* terminating NULL entry */
-};
-
 static int battery_operation(struct gb_battery *gb, int type,
 			     void *response, int response_size)
 {
