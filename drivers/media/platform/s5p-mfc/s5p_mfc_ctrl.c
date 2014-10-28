@@ -129,7 +129,7 @@ int s5p_mfc_release_firmware(struct s5p_mfc_dev *dev)
 	return 0;
 }
 
-int s5p_mfc_bus_reset(struct s5p_mfc_dev *dev)
+static int s5p_mfc_bus_reset(struct s5p_mfc_dev *dev)
 {
 	unsigned int status;
 	unsigned long timeout;
