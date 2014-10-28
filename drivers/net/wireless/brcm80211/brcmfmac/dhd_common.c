@@ -201,21 +201,6 @@ done:
 	return err;
 }
 
-#ifdef CONFIG_BRCM_TRACING
-void __brcmf_err(const char *func, const char *fmt, ...)
-{
-	struct va_format vaf = {
-		.fmt = fmt,
-	};
-	va_list args;
-
-	va_start(args, fmt);
-	vaf.va = &args;
-	pr_err("%s: %pV", func, &vaf);
-	trace_brcmf_err(func, &vaf);
-	va_end(args);
-}
-#endif
 #if defined(CONFIG_BRCM_TRACING) || defined(CONFIG_BRCMDBG)
 void __brcmf_dbg(u32 level, const char *func, const char *fmt, ...)
 {
