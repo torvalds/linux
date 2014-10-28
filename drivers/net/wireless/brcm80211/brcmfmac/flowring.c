@@ -21,7 +21,7 @@
 
 #include "dhd.h"
 #include "debug.h"
-#include "dhd_bus.h"
+#include "bus.h"
 #include "proto.h"
 #include "flowring.h"
 #include "msgbuf.h"

@@ -23,8 +23,7 @@
 #include <brcmu_utils.h>
 #include <brcm_hw_ids.h>
 #include <brcmu_wifi.h>
-#include <dhd_bus.h>
-
+#include "bus.h"
 #include "debug.h"
 #include "firmware.h"
 #include "usb.h"

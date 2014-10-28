@@ -30,7 +30,7 @@
 #include "msgbuf.h"
 #include "commonring.h"
 #include "flowring.h"
-#include "dhd_bus.h"
+#include "bus.h"
 #include "tracepoint.h"
 
 

@@ -31,7 +31,7 @@
 #include <brcm_hw_ids.h>
 
 #include "debug.h"
-#include "dhd_bus.h"
+#include "bus.h"
 #include "commonring.h"
 #include "msgbuf.h"
 #include "pcie.h"

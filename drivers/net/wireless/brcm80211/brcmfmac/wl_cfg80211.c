@@ -37,7 +37,7 @@
 #include "fwil.h"
 #include "proto.h"
 #include "vendor.h"
-#include "dhd_bus.h"
+#include "bus.h"
 
 #define BRCMF_SCAN_IE_LEN_MAX		2048
 #define BRCMF_PNO_VERSION		2

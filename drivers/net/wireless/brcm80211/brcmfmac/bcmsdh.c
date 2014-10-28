@@ -41,7 +41,7 @@
 #include <chipcommon.h>
 #include <soc.h>
 #include "chip.h"
-#include "dhd_bus.h"
+#include "bus.h"
 #include "debug.h"
 #include "sdio_host.h"
 #include "of.h"

@@ -28,7 +28,7 @@
 #include <brcmu_wifi.h>
 #include "dhd.h"
 #include "debug.h"
-#include "dhd_bus.h"
+#include "bus.h"
 #include "fwil.h"
 #include "fwil_types.h"
 #include "fweh.h"

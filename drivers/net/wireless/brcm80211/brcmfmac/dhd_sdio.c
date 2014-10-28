@@ -96,7 +96,7 @@ struct rte_console {
 #endif				/* DEBUG */
 #include <chipcommon.h>
 
-#include "dhd_bus.h"
+#include "bus.h"
 #include "debug.h"
 #include "tracepoint.h"
 

@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _BRCMF_BUS_H_
-#define _BRCMF_BUS_H_
+#ifndef BRCMFMAC_BUS_H
+#define BRCMFMAC_BUS_H
 
 #include "debug.h"
 
@@ -227,8 +227,7 @@ void brcmf_txflowblock(struct device *dev, bool state);
 void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success);
 
 int brcmf_bus_start(struct device *dev);
-s32 brcmf_iovar_data_set(struct device *dev, char *name, void *data,
-				u32 len);
+s32 brcmf_iovar_data_set(struct device *dev, char *name, void *data, u32 len);
 void brcmf_bus_add_txhdrlen(struct device *dev, uint len);
 
 #ifdef CONFIG_BRCMFMAC_SDIO
@@ -241,4 +240,4 @@ void brcmf_usb_exit(void);
 void brcmf_usb_register(void);
 #endif
 
-#endif				/* _BRCMF_BUS_H_ */
+#endif /* BRCMFMAC_BUS_H */

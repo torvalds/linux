@@ -18,7 +18,7 @@
 
 #include <brcm_hw_ids.h>
 #include "dhd.h"
-#include "dhd_bus.h"
+#include "bus.h"
 #include "debug.h"
 #include "fwil.h"
 #include "feature.h"

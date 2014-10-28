@@ -21,7 +21,7 @@
 
 #include <brcmu_wifi.h>
 #include "dhd.h"
-#include "dhd_bus.h"
+#include "bus.h"
 #include "debug.h"
 #include "proto.h"
 #include "bcdc.h"
