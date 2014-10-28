@@ -146,7 +146,6 @@ evict_again:
 			atomic_inc(&fq->refcnt);
 			spin_unlock(&hb->chain_lock);
 			del_timer_sync(&fq->timer);
-			WARN_ON(atomic_read(&fq->refcnt) != 1);
 			inet_frag_put(fq, f);
 			goto evict_again;
 		}
