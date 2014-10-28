@@ -73,6 +73,14 @@ static struct virtio_device_id id_table[] = {
 };
 
 static unsigned int features[] = {
+#ifdef __LITTLE_ENDIAN
+	/*
+	 * Gallium command stream send by virgl is native endian.
+	 * Because of that we only support little endian guests on
+	 * little endian hosts.
+	 */
+	VIRTIO_GPU_F_VIRGL,
+#endif
 };
 static struct virtio_driver virtio_gpu_driver = {
 	.feature_table = features,
@@ -114,6 +122,8 @@ static struct drm_driver driver = {
 	.set_busid = drm_virtio_set_busid,
 	.load = virtio_gpu_driver_load,
 	.unload = virtio_gpu_driver_unload,
+	.open = virtio_gpu_driver_open,
+	.postclose = virtio_gpu_driver_postclose,
 
 	.dumb_create = virtio_gpu_mode_dumb_create,
 	.dumb_map_offset = virtio_gpu_mode_dumb_mmap,
@@ -125,7 +135,12 @@ static struct drm_driver driver = {
 #endif
 
 	.gem_free_object = virtio_gpu_gem_free_object,
+	.gem_open_object = virtio_gpu_gem_object_open,
+	.gem_close_object = virtio_gpu_gem_object_close,
 	.fops = &virtio_gpu_driver_fops,
+
+	.ioctls = virtio_gpu_ioctls,
+	.num_ioctls = DRM_VIRTIO_NUM_IOCTLS,
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
