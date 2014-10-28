@@ -12885,6 +12885,9 @@ static struct intel_quirk intel_quirks[] = {
 	/* Acer C720 Chromebook (Core i3 4005U) */
 	{ 0x0a16, 0x1025, 0x0a11, quirk_backlight_present },
 
+	/* Apple Macbook 2,1 (Core 2 T7400) */
+	{ 0x27a2, 0x8086, 0x7270, quirk_backlight_present },
+
 	/* Toshiba CB35 Chromebook (Celeron 2955U) */
 	{ 0x0a06, 0x1179, 0x0a88, quirk_backlight_present },
 
