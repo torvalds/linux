@@ -390,7 +390,7 @@ static const struct tty_operations gb_ops = {
 };
 
 
-int gb_uart_connection_init(struct gb_connection *connection)
+static int gb_uart_connection_init(struct gb_connection *connection)
 {
 	struct gb_tty *gb_tty;
 	struct device *tty_dev;
@@ -444,7 +444,7 @@ error:
 	return retval;
 }
 
-void gb_uart_connection_exit(struct gb_connection *connection)
+static void gb_uart_connection_exit(struct gb_connection *connection)
 {
 	struct gb_tty *gb_tty = connection->private;
 	struct tty_struct *tty;
