@@ -522,7 +522,7 @@
 				/*PD_BUS*/
 				<&aclk_bus>, <&clk_gates0 3>,
 				<&hclk_bus>, <&pclk_bus>,
-				<&clk_gates13 8>, <&clk_crypto>,
+				<&clk_gates13 8>,
 				<&clk_gates0 7>,
 
 				/*TIMER*/
@@ -546,11 +546,8 @@
 				<&clk_gates10 12>,/*aclk_dma1*/
 				<&clk_gates10 13>,/*aclk_strc_sys*/
 				<&clk_gates10 4>,/*aclk_intmem*/
-				<&clk_gates11 6>,/*aclk_crypto*/
-				<&clk_gates11 8>,/*aclk_ccp*/
 
 				/*hclk_bus*/
-				<&clk_gates11 7>,/*hclk_crypto*/
 				<&clk_gates10 9>,/*hclk_rom*/
 
 				/*pclk_bus*/
