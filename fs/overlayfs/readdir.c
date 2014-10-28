@@ -454,12 +454,13 @@ static int ovl_dir_fsync(struct file *file, loff_t start, loff_t end,
 	if (!od->is_upper && ovl_path_type(dentry) == OVL_PATH_MERGE) {
 		struct inode *inode = file_inode(file);
 
-		realfile = od->upperfile;
+		realfile =lockless_dereference(od->upperfile);
 		if (!realfile) {
 			struct path upperpath;
 
 			ovl_path_upper(dentry, &upperpath);
 			realfile = ovl_path_open(&upperpath, O_RDONLY);
+			smp_mb__before_spinlock();
 			mutex_lock(&inode->i_mutex);
 			if (!od->upperfile) {
 				if (IS_ERR(realfile)) {
