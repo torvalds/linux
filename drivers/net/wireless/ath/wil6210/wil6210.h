@@ -117,6 +117,8 @@ struct RGF_ICR {
 	#define BIT_USER_USER_ICR_SW_INT_2	BIT(18)
 #define RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_0	(0x880c18)
 #define RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_1	(0x880c2c)
+#define RGF_USER_SPARROW_M_4			(0x880c50) /* Sparrow */
+	#define BIT_SPARROW_M_4_SEL_SLEEP_OR_REF	BIT(2)
 
 #define RGF_DMA_EP_TX_ICR		(0x881bb4) /* struct RGF_ICR */
 	#define BIT_DMA_EP_TX_ICR_TX_DONE	BIT(0)
@@ -152,6 +154,10 @@ struct RGF_ICR {
 #define RGF_MAC_MTRL_COUNTER_0		(0x886aa8)
 
 #define RGF_CAF_ICR			(0x88946c) /* struct RGF_ICR */
+#define RGF_CAF_OSC_CONTROL		(0x88afa4)
+	#define BIT_CAF_OSC_XTAL_EN		BIT(0)
+#define RGF_CAF_PLL_LOCK_STATUS		(0x88afec)
+	#define BIT_CAF_OSC_DIG_XTAL_STABLE	BIT(0)
 
 /* popular locations */
 #define HOST_MBOX   HOSTADDR(RGF_USER_USER_SCRATCH_PAD)

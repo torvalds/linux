@@ -400,7 +400,7 @@ static inline void wil_release_cpu(struct wil6210_priv *wil)
 static int wil_target_reset(struct wil6210_priv *wil)
 {
 	int delay = 0;
-	u32 hw_state;
+	u32 x;
 	u32 rev_id;
 	bool is_sparrow = (wil->board->board == WIL_BOARD_SPARROW);
 
@@ -415,9 +415,22 @@ static int wil_target_reset(struct wil6210_priv *wil)
 	S(RGF_USER_CLKS_CTL_SW_RST_MASK_0, BIT_CAR_PERST_RST);
 
 	wil_halt_cpu(wil);
-	C(RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_CAR_AHB_SW_SEL); /* 40 MHz */
 
 	if (is_sparrow) {
+		S(RGF_CAF_OSC_CONTROL, BIT_CAF_OSC_XTAL_EN);
+		/* XTAL stabilization should take about 3ms */
+		usleep_range(5000, 7000);
+		x = R(RGF_CAF_PLL_LOCK_STATUS);
+		if (!(x & BIT_CAF_OSC_DIG_XTAL_STABLE)) {
+			wil_err(wil, "Xtal stabilization timeout\n"
+				"RGF_CAF_PLL_LOCK_STATUS = 0x%08x\n", x);
+			return -ETIME;
+		}
+		/* switch 10k to XTAL*/
+		C(RGF_USER_SPARROW_M_4, BIT_SPARROW_M_4_SEL_SLEEP_OR_REF);
+		/* 40 MHz */
+		C(RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_CAR_AHB_SW_SEL);
+
 		W(RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_0, 0x3ff81f);
 		W(RGF_USER_CLKS_CTL_EXT_SW_RST_VEC_1, 0xf);
 	}
@@ -458,13 +471,13 @@ static int wil_target_reset(struct wil6210_priv *wil)
 	/* wait until device ready. typical time is 200..250 msec */
 	do {
 		msleep(RST_DELAY);
-		hw_state = R(RGF_USER_HW_MACHINE_STATE);
+		x = R(RGF_USER_HW_MACHINE_STATE);
 		if (delay++ > RST_COUNT) {
 			wil_err(wil, "Reset not completed, hw_state 0x%08x\n",
-				hw_state);
+				x);
 			return -ETIME;
 		}
-	} while (hw_state != HW_MACHINE_BOOT_DONE);
+	} while (x != HW_MACHINE_BOOT_DONE);
 
 	/* TODO: Erez check rev_id != 1 */
 	if (!is_sparrow && (rev_id != 1))
