@@ -22,7 +22,7 @@
 
 #include <defs.h>
 #include "debug.h"
-#include "sdio_host.h"
+#include "sdio.h"
 
 void brcmf_of_probe(struct brcmf_sdio_dev *sdiodev)
 {

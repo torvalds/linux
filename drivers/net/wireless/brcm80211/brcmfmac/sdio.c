@@ -40,7 +40,7 @@
 #include <brcmu_utils.h>
 #include <brcm_hw_ids.h>
 #include <soc.h>
-#include "sdio_host.h"
+#include "sdio.h"
 #include "chip.h"
 #include "firmware.h"
 
@@ -4076,7 +4076,7 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 
 	/* platform specific configuration:
 	 *   alignments must be at least 4 bytes for ADMA
-         */
+	 */
 	bus->head_align = ALIGNMENT;
 	bus->sgentry_align = ALIGNMENT;
 	if (sdiodev->pdata) {

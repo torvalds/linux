@@ -43,7 +43,7 @@
 #include "chip.h"
 #include "bus.h"
 #include "debug.h"
-#include "sdio_host.h"
+#include "sdio.h"
 #include "of.h"
 
 #define SDIOH_API_ACCESS_RETRY_LIMIT	2

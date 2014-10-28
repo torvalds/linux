@@ -43,7 +43,7 @@ brcmfmac-$(CONFIG_BRCMFMAC_PROTO_MSGBUF) += \
 		flowring.o \
 		msgbuf.o
 brcmfmac-$(CONFIG_BRCMFMAC_SDIO) += \
-		dhd_sdio.o \
+		sdio.o \
 		bcmsdh.o
 brcmfmac-$(CONFIG_BRCMFMAC_USB) += \
 		usb.o

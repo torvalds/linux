@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef	_BRCM_SDH_H_
-#define	_BRCM_SDH_H_
+#ifndef	BRCMFMAC_SDIO_H
+#define	BRCMFMAC_SDIO_H
 
 #include <linux/skbuff.h>
 #include <linux/firmware.h>
@@ -337,4 +337,4 @@ void brcmf_sdio_isr(struct brcmf_sdio *bus);
 void brcmf_sdio_wd_timer(struct brcmf_sdio *bus, uint wdtick);
 void brcmf_sdio_wowl_config(struct device *dev, bool enabled);
 
-#endif				/* _BRCM_SDH_H_ */
+#endif /* BRCMFMAC_SDIO_H */
