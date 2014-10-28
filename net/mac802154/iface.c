@@ -156,7 +156,7 @@ static int mac802154_slave_open(struct net_device *dev)
 		mutex_lock(&sdata->local->iflist_mtx);
 		list_for_each_entry(subif, &sdata->local->interfaces, list) {
 			if (subif != sdata && subif->type == sdata->type &&
-			    subif->running) {
+			    ieee802154_sdata_running(subif)) {
 				mutex_unlock(&sdata->local->iflist_mtx);
 				return -EBUSY;
 			}
@@ -164,9 +164,7 @@ static int mac802154_slave_open(struct net_device *dev)
 		mutex_unlock(&sdata->local->iflist_mtx);
 	}
 
-	mutex_lock(&sdata->local->iflist_mtx);
-	sdata->running = true;
-	mutex_unlock(&sdata->local->iflist_mtx);
+	set_bit(SDATA_STATE_RUNNING, &sdata->state);
 
 	if (local->open_count++ == 0) {
 		res = drv_start(local);
@@ -178,6 +176,8 @@ static int mac802154_slave_open(struct net_device *dev)
 	netif_start_queue(dev);
 	return 0;
 err:
+	/* might already be clear but that doesn't matter */
+	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
 	sdata->local->open_count--;
 
 	return res;
@@ -253,9 +253,7 @@ static int mac802154_slave_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	mutex_lock(&sdata->local->iflist_mtx);
-	sdata->running = false;
-	mutex_unlock(&sdata->local->iflist_mtx);
+	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
 
 	if (!--local->open_count)
 		drv_stop(local);

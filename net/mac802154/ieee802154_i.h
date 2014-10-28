@@ -67,6 +67,10 @@ enum {
 	IEEE802154_RX_MSG        = 1,
 };
 
+enum ieee802154_sdata_state_bits {
+	SDATA_STATE_RUNNING,
+};
+
 /* Slave interface definition.
  *
  * Slaves represent typical network interfaces available from userspace.
@@ -80,7 +84,7 @@ struct ieee802154_sub_if_data {
 	struct net_device *dev;
 
 	int type;
-	bool running;
+	unsigned long state;
 
 	spinlock_t mib_lock;
 
@@ -118,6 +122,12 @@ static inline struct ieee802154_sub_if_data *
 IEEE802154_DEV_TO_SUB_IF(const struct net_device *dev)
 {
 	return netdev_priv(dev);
+}
+
+static inline bool
+ieee802154_sdata_running(struct ieee802154_sub_if_data *sdata)
+{
+	return test_bit(SDATA_STATE_RUNNING, &sdata->state);
 }
 
 extern struct ieee802154_reduced_mlme_ops mac802154_mlme_reduced;
