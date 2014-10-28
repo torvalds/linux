@@ -60,6 +60,8 @@
 
 	soc {
 		uart0: serial@07000000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart0_pins_a>;
 			status = "okay";
 		};
 	};
