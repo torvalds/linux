@@ -336,7 +336,7 @@ config SND_SOC_CS42L51
 	tristate
 
 config SND_SOC_CS42L51_I2C
-	tristate
+	tristate "Cirrus Logic CS42L51 CODEC (I2C)"
 	select SND_SOC_CS42L51
 
 config SND_SOC_CS42L52
