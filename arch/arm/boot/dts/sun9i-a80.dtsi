@@ -337,6 +337,22 @@
 			clocks = <&osc24M>;
 		};
 
+		pio: pinctrl@06000800 {
+			compatible = "allwinner,sun9i-a80-pinctrl";
+			reg = <0x06000800 0x400>;
+			interrupts = <0 11 4>,
+				     <0 15 4>,
+				     <0 16 4>,
+				     <0 17 4>,
+				     <0 120 4>;
+			clocks = <&apb0_gates 5>;
+			gpio-controller;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			#size-cells = <0>;
+			#gpio-cells = <3>;
+		};
+
 		uart0: serial@07000000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x07000000 0x400>;
