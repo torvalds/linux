@@ -24,11 +24,6 @@
 #include "feature.h"
 
 /*
- * firmware error code received if iovar is unsupported.
- */
-#define EBRCMF_FEAT_UNSUPPORTED		23
-
-/*
  * expand feature list to array of feature strings.
  */
 #define BRCMF_FEAT_DEF(_f) \
