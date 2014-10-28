@@ -47,7 +47,7 @@ mac802154_netdev_register(struct wpan_phy *phy, struct net_device *dev)
 	SET_NETDEV_DEV(dev, &local->phy->dev);
 
 	mutex_lock(&local->iflist_mtx);
-	if (!local->running) {
+	if (!local->started) {
 		mutex_unlock(&local->iflist_mtx);
 		return -ENODEV;
 	}
@@ -238,7 +238,7 @@ int ieee802154_register_hw(struct ieee802154_hw *hw)
 	rtnl_lock();
 
 	mutex_lock(&local->iflist_mtx);
-	local->running = MAC802154_DEVICE_RUN;
+	local->started = MAC802154_DEVICE_RUN;
 	mutex_unlock(&local->iflist_mtx);
 
 	rtnl_unlock();
@@ -264,7 +264,7 @@ void ieee802154_unregister_hw(struct ieee802154_hw *hw)
 	rtnl_lock();
 
 	mutex_lock(&local->iflist_mtx);
-	local->running = MAC802154_DEVICE_STOPPED;
+	local->started = MAC802154_DEVICE_STOPPED;
 	mutex_unlock(&local->iflist_mtx);
 
 	list_for_each_entry_safe(sdata, next, &local->interfaces, list) {

@@ -54,7 +54,7 @@ struct ieee802154_local {
 	 * This flag should be modified under slaves_mtx and RTNL, so you can
 	 * read them using any of protection methods.
 	 */
-	bool running;
+	bool started;
 
 	struct tasklet_struct tasklet;
 	struct sk_buff_head skb_queue;
