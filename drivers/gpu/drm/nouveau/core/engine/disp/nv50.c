@@ -88,12 +88,14 @@ nv50_disp_chan_uevent_fini(struct nvkm_event *event, int type, int index)
 {
 	struct nv50_disp_priv *priv = container_of(event, typeof(*priv), uevent);
 	nv_mask(priv, 0x610028, 0x00000001 << index, 0x00000000 << index);
+	nv_wr32(priv, 0x610020, 0x00000001 << index);
 }
 
 static void
 nv50_disp_chan_uevent_init(struct nvkm_event *event, int types, int index)
 {
 	struct nv50_disp_priv *priv = container_of(event, typeof(*priv), uevent);
+	nv_wr32(priv, 0x610020, 0x00000001 << index);
 	nv_mask(priv, 0x610028, 0x00000001 << index, 0x00000001 << index);
 }
 
