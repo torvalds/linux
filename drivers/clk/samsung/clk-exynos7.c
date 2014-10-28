@@ -29,7 +29,9 @@
 #define AUD_PLL_CON0		0x0140
 #define MUX_SEL_TOPC0		0x0200
 #define MUX_SEL_TOPC1		0x0204
+#define MUX_SEL_TOPC2		0x0208
 #define MUX_SEL_TOPC3		0x020C
+#define DIV_TOPC0		0x0600
 #define DIV_TOPC1		0x0604
 #define DIV_TOPC3		0x060C
 
@@ -78,7 +80,9 @@ static unsigned long topc_clk_regs[] __initdata = {
 	AUD_PLL_CON0,
 	MUX_SEL_TOPC0,
 	MUX_SEL_TOPC1,
+	MUX_SEL_TOPC2,
 	MUX_SEL_TOPC3,
+	DIV_TOPC0,
 	DIV_TOPC1,
 	DIV_TOPC3,
 };
@@ -101,10 +105,15 @@ static struct samsung_mux_clock topc_mux_clks[] __initdata = {
 	MUX(0, "mout_sclk_bus0_pll_out", mout_sclk_bus0_pll_out_p,
 		MUX_SEL_TOPC1, 16, 1),
 
+	MUX(0, "mout_aclk_ccore_133", mout_topc_group2,	MUX_SEL_TOPC2, 4, 2),
+
 	MUX(0, "mout_aclk_peris_66", mout_topc_group2, MUX_SEL_TOPC3, 24, 2),
 };
 
 static struct samsung_div_clock topc_div_clks[] __initdata = {
+	DIV(DOUT_ACLK_CCORE_133, "dout_aclk_ccore_133", "mout_aclk_ccore_133",
+		DIV_TOPC0, 4, 4),
+
 	DIV(DOUT_ACLK_PERIS, "dout_aclk_peris_66", "mout_aclk_peris_66",
 		DIV_TOPC1, 24, 4),
 
@@ -392,6 +401,51 @@ static void __init exynos7_clk_top1_init(struct device_node *np)
 
 CLK_OF_DECLARE(exynos7_clk_top1, "samsung,exynos7-clock-top1",
 	exynos7_clk_top1_init);
+
+/* Register Offset definitions for CMU_CCORE (0x105B0000) */
+#define MUX_SEL_CCORE			0x0200
+#define DIV_CCORE			0x0600
+#define ENABLE_ACLK_CCORE0		0x0800
+#define ENABLE_ACLK_CCORE1		0x0804
+#define ENABLE_PCLK_CCORE		0x0900
+
+/*
+ * List of parent clocks for Muxes in CMU_CCORE
+ */
+PNAME(mout_aclk_ccore_133_p)	= { "fin_pll", "dout_aclk_ccore_133" };
+
+static unsigned long ccore_clk_regs[] __initdata = {
+	MUX_SEL_CCORE,
+	ENABLE_PCLK_CCORE,
+};
+
+static struct samsung_mux_clock ccore_mux_clks[] __initdata = {
+	MUX(0, "mout_aclk_ccore_133_user", mout_aclk_ccore_133_p,
+		MUX_SEL_CCORE, 1, 1),
+};
+
+static struct samsung_gate_clock ccore_gate_clks[] __initdata = {
+	GATE(PCLK_RTC, "pclk_rtc", "mout_aclk_ccore_133_user",
+		ENABLE_PCLK_CCORE, 8, 0, 0),
+};
+
+static struct samsung_cmu_info ccore_cmu_info __initdata = {
+	.mux_clks		= ccore_mux_clks,
+	.nr_mux_clks		= ARRAY_SIZE(ccore_mux_clks),
+	.gate_clks		= ccore_gate_clks,
+	.nr_gate_clks		= ARRAY_SIZE(ccore_gate_clks),
+	.nr_clk_ids		= CCORE_NR_CLK,
+	.clk_regs		= ccore_clk_regs,
+	.nr_clk_regs		= ARRAY_SIZE(ccore_clk_regs),
+};
+
+static void __init exynos7_clk_ccore_init(struct device_node *np)
+{
+	samsung_cmu_register_one(np, &ccore_cmu_info);
+}
+
+CLK_OF_DECLARE(exynos7_clk_ccore, "samsung,exynos7-clock-ccore",
+	exynos7_clk_ccore_init);
 
 /* Register Offset definitions for CMU_PERIC0 (0x13610000) */
 #define MUX_SEL_PERIC0			0x0200

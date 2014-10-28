@@ -28,6 +28,7 @@ Required Properties for Clock Controller:
 	- "samsung,exynos7-clock-topc"
 	- "samsung,exynos7-clock-top0"
 	- "samsung,exynos7-clock-top1"
+	- "samsung,exynos7-clock-ccore"
 	- "samsung,exynos7-clock-peric0"
 	- "samsung,exynos7-clock-peric1"
 	- "samsung,exynos7-clock-peris"
@@ -59,6 +60,10 @@ Input clocks for top1 clock controller:
 	- dout_sclk_bus1_pll
 	- dout_sclk_cc_pll
 	- dout_sclk_mfc_pll
+
+Input clocks for ccore clock controller:
+	- fin_pll
+	- dout_aclk_ccore_133
 
 Input clocks for peric0 clock controller:
 	- fin_pll

@@ -16,7 +16,8 @@
 #define DOUT_SCLK_BUS1_PLL		3
 #define DOUT_SCLK_CC_PLL		4
 #define DOUT_SCLK_MFC_PLL		5
-#define TOPC_NR_CLK			6
+#define DOUT_ACLK_CCORE_133		6
+#define TOPC_NR_CLK			7
 
 /* TOP0 */
 #define DOUT_ACLK_PERIC1		1
@@ -37,6 +38,10 @@
 #define CLK_SCLK_MMC1			7
 #define CLK_SCLK_MMC0			8
 #define TOP1_NR_CLK			9
+
+/* CCORE */
+#define PCLK_RTC			1
+#define CCORE_NR_CLK			2
 
 /* PERIC0 */
 #define PCLK_UART0			1
