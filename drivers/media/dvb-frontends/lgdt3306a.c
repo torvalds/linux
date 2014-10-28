@@ -67,16 +67,17 @@ struct lgdt3306a_state {
 	u32 snr;
 };
 
-/* -----------------------------------------------
- LG3306A Register Usage
-   (LG does not really name the registers, so this code does not either)
- 0000 -> 00FF Common control and status
- 1000 -> 10FF Synchronizer control and status
- 1F00 -> 1FFF Smart Antenna control and status
- 2100 -> 21FF VSB Equalizer control and status
- 2800 -> 28FF QAM Equalizer control and status
- 3000 -> 30FF FEC control and status
- ---------------------------------------------- */
+/*
+ * LG3306A Register Usage
+ *  (LG does not really name the registers, so this code does not either)
+ *
+ * 0000 -> 00FF Common control and status
+ * 1000 -> 10FF Synchronizer control and status
+ * 1F00 -> 1FFF Smart Antenna control and status
+ * 2100 -> 21FF VSB Equalizer control and status
+ * 2800 -> 28FF QAM Equalizer control and status
+ * 3000 -> 30FF FEC control and status
+ */
 
 enum lgdt3306a_lock_status {
 	LG3306_UNLOCK       = 0x00,
@@ -1431,7 +1432,7 @@ static const u32 valx_x10[] = {
 	10,  11,  13,  15,  17,  20,  25,  33,  41,  50,  59,  73,  87,  100
 };
 static const u32 log10x_x1000[] = {
-	0,  41, 114, 176, 230, 301, 398, 518, 613, 699, 771, 863, 939, 1000
+	0,   41, 114, 176, 230, 301, 398, 518, 613, 699, 771, 863, 939, 1000
 };
 
 static u32 log10_x1000(u32 x)
@@ -2113,9 +2114,6 @@ static struct dvb_frontend_ops lgdt3306a_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name = "LG Electronics LGDT3306A VSB/QAM Frontend",
-#if 0
-		.type               = FE_ATSC,
-#endif
 		.frequency_min      = 54000000,
 		.frequency_max      = 858000000,
 		.frequency_stepsize = 62500,
@@ -2144,9 +2142,3 @@ MODULE_DESCRIPTION("LG Electronics LGDT3306A ATSC/QAM-B Demodulator Driver");
 MODULE_AUTHOR("Fred Richter <frichter@hauppauge.com>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.2");
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */
