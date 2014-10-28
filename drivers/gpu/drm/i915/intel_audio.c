@@ -181,13 +181,10 @@ static void haswell_write_eld(struct drm_connector *connector,
 
 	eldv = AUDIO_ELD_VALID_A << (pipe * 4);
 
-	if (intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_DISPLAYPORT)) {
-		DRM_DEBUG_DRIVER("ELD: DisplayPort detected\n");
-		eld[5] |= (1 << 2);	/* Conn_Type, 0x1 = DisplayPort */
+	if (intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_DISPLAYPORT))
 		I915_WRITE(aud_config, AUD_CONFIG_N_VALUE_INDEX); /* 0x1 = DP */
-	} else {
+	else
 		I915_WRITE(aud_config, audio_config_hdmi_pixel_clock(mode));
-	}
 
 	if (intel_eld_uptodate(connector,
 			       aud_cntrl_st2, eldv,
@@ -276,13 +273,10 @@ static void ironlake_write_eld(struct drm_connector *connector,
 		eldv = IBX_ELD_VALIDB << ((port - 1) * 4);
 	}
 
-	if (intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_DISPLAYPORT)) {
-		DRM_DEBUG_DRIVER("ELD: DisplayPort detected\n");
-		eld[5] |= (1 << 2);	/* Conn_Type, 0x1 = DisplayPort */
+	if (intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_DISPLAYPORT))
 		I915_WRITE(aud_config, AUD_CONFIG_N_VALUE_INDEX); /* 0x1 = DP */
-	} else {
+	else
 		I915_WRITE(aud_config, audio_config_hdmi_pixel_clock(mode));
-	}
 
 	if (intel_eld_uptodate(connector,
 			       aud_cntrl_st2, eldv,
@@ -329,6 +323,11 @@ void intel_write_eld(struct intel_encoder *intel_encoder)
 			 connector->name,
 			 connector->encoder->base.id,
 			 connector->encoder->name);
+
+	/* ELD Conn_Type */
+	connector->eld[5] &= ~(3 << 2);
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT))
+		connector->eld[5] |= (1 << 2);
 
 	connector->eld[6] = drm_av_sync_delay(connector, mode) / 2;
 
