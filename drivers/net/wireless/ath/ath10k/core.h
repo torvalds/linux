@@ -386,6 +386,11 @@ enum ath10k_dev_flags {
 	/* Indicates that ath10k device is during CAC phase of DFS */
 	ATH10K_CAC_RUNNING,
 	ATH10K_FLAG_CORE_REGISTERED,
+
+	/* Device has crashed and needs to restart. This indicates any pending
+	 * waiters should immediately cancel instead of waiting for a time out.
+	 */
+	ATH10K_FLAG_CRASH_FLUSH,
 };
 
 enum ath10k_cal_mode {

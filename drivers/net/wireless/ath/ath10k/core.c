@@ -744,6 +744,25 @@ static void ath10k_core_restart(struct work_struct *work)
 {
 	struct ath10k *ar = container_of(work, struct ath10k, restart_work);
 
+	set_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags);
+
+	/* Place a barrier to make sure the compiler doesn't reorder
+	 * CRASH_FLUSH and calling other functions.
+	 */
+	barrier();
+
+	ieee80211_stop_queues(ar->hw);
+	ath10k_drain_tx(ar);
+	complete_all(&ar->scan.started);
+	complete_all(&ar->scan.completed);
+	complete_all(&ar->scan.on_channel);
+	complete_all(&ar->offchan_tx_completed);
+	complete_all(&ar->install_key_done);
+	complete_all(&ar->vdev_setup_done);
+	wake_up(&ar->htt.empty_tx_wq);
+	wake_up(&ar->wmi.tx_credits_wq);
+	wake_up(&ar->peer_mapping_wq);
+
 	mutex_lock(&ar->conf_mutex);
 
 	switch (ar->state) {
@@ -780,6 +799,8 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode)
 	int status;
 
 	lockdep_assert_held(&ar->conf_mutex);
+
+	clear_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags);
 
 	ath10k_bmi_start(ar);
 
@@ -1185,6 +1206,8 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 
 	INIT_LIST_HEAD(&ar->peers);
 	init_waitqueue_head(&ar->peer_mapping_wq);
+	init_waitqueue_head(&ar->htt.empty_tx_wq);
+	init_waitqueue_head(&ar->wmi.tx_credits_wq);
 
 	init_completion(&ar->offchan_tx_completed);
 	INIT_WORK(&ar->offchan_tx_work, ath10k_offchan_tx_work);

@@ -779,6 +779,10 @@ int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id)
 		ath10k_wmi_tx_beacons_nowait(ar);
 
 		ret = ath10k_wmi_cmd_send_nowait(ar, skb, cmd_id);
+
+		if (ret && test_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags))
+			ret = -ESHUTDOWN;
+
 		(ret != -EAGAIN);
 	}), 3*HZ);
 
@@ -4398,7 +4402,6 @@ int ath10k_wmi_attach(struct ath10k *ar)
 
 	init_completion(&ar->wmi.service_ready);
 	init_completion(&ar->wmi.unified_ready);
-	init_waitqueue_head(&ar->wmi.tx_credits_wq);
 
 	return 0;
 }
