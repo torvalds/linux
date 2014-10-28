@@ -918,6 +918,10 @@ void assert_shared_dpll(struct drm_i915_private *dev_priv,
 struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc);
 void intel_put_shared_dpll(struct intel_crtc *crtc);
 
+void vlv_force_pll_on(struct drm_device *dev, enum pipe pipe,
+		      const struct dpll *dpll);
+void vlv_force_pll_off(struct drm_device *dev, enum pipe pipe);
+
 /* modesetting asserts */
 void assert_panel_unlocked(struct drm_i915_private *dev_priv,
 			   enum pipe pipe);
