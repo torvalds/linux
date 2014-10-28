@@ -409,30 +409,3 @@ struct gb_connection_handler gb_battery_connection_handler = {
 	.connection_init	= gb_battery_connection_init,
 	.connection_exit	= gb_battery_connection_exit,
 };
-
-void gb_battery_disconnect(struct gb_module *gmod)
-{
-#if 0
-	struct gb_battery *gb;
-
-	gb = gmod->gb_battery;
-	if (!gb)
-		return;
-
-	power_supply_unregister(&gb->bat);
-
-	kfree(gb);
-#endif
-}
-
-#if 0
-static struct greybus_driver battery_gb_driver = {
-	.probe =	gb_battery_probe,
-	.disconnect =	gb_battery_disconnect,
-	.id_table =	id_table,
-};
-
-module_greybus_driver(battery_gb_driver);
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Greg Kroah-Hartman <gregkh@linuxfoundation.org>");
-#endif
