@@ -16,6 +16,8 @@ Optional properties:
  - tx-fifo-resize: determines if the FIFO *has* to be reallocated.
  - snps,disable_scramble_quirk: true when SW should disable data scrambling.
 	Only really useful for FPGA builds.
+ - snps,has-lpm-erratum: true when DWC3 was configured with LPM Erratum enabled
+ - snps,lpm-nyet-threshold: LPM NYET threshold
 
 This is usually a subnode to DWC3 glue to which it is connected.
 
