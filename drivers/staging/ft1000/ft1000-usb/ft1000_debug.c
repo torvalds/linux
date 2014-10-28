@@ -540,17 +540,14 @@ static long ft1000_ioctl(struct file *file, unsigned int command,
             /* DEBUG("FT1000:ft1000_ioctl: IOCTL_FT1000_SET_DPRAM called\n");*/
 
 
-            if (ft1000_flarion_cnt == 0) {
+            if (ft1000_flarion_cnt == 0)
                 return -EBADF;
-            }
 
-            if (ft1000dev->DrvMsgPend) {
+            if (ft1000dev->DrvMsgPend)
                 return -ENOTTY;
-            }
 
-            if (ft1000dev->fProvComplete == 0) {
+            if (ft1000dev->fProvComplete == 0)
                 return -EACCES;
-            }
 
             ft1000dev->fAppMsgPend = 1;
 
@@ -677,9 +674,8 @@ static long ft1000_ioctl(struct file *file, unsigned int command,
 
             /* DEBUG("FT1000:ft1000_ioctl: IOCTL_FT1000_GET_DPRAM called\n"); */
 
-            if (ft1000_flarion_cnt == 0) {
+            if (ft1000_flarion_cnt == 0)
                 return -EBADF;
-            }
 
             /* Search for matching file object */
             for (i=0; i<MAX_NUM_APP; i++) {
