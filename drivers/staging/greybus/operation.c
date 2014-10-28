@@ -363,7 +363,7 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 	operation = kmem_cache_zalloc(gb_operation_cache, gfp_flags);
 	if (!operation)
 		return NULL;
-	operation->connection = connection;		/* XXX refcount? */
+	operation->connection = connection;
 
 	operation->request = gb_operation_gbuf_create(operation, type,
 							request_size,

@@ -13,6 +13,7 @@
 #include "greybus.h"
 
 struct gb_sdio_host {
+	struct gb_connection *connection;
 	struct mmc_host	*mmc;
 	struct mmc_request *mrq;
 	// FIXME - some lock?
@@ -45,13 +46,12 @@ static const struct mmc_host_ops gb_sd_ops = {
 	.get_ro		= gb_sd_get_ro,
 };
 
-int gb_sdio_probe(struct gb_module *gmod,
-		  const struct greybus_module_id *id)
+static int gb_sdio_connection_init(struct gb_connection *connection)
 {
 	struct mmc_host *mmc;
 	struct gb_sdio_host *host;
 
-	mmc = mmc_alloc_host(sizeof(struct gb_sdio_host), &gmod->dev);
+	mmc = mmc_alloc_host(sizeof(struct gb_sdio_host), &connection->dev);
 	if (!mmc)
 		return -ENOMEM;
 
@@ -60,36 +60,29 @@ int gb_sdio_probe(struct gb_module *gmod,
 
 	mmc->ops = &gb_sd_ops;
 	// FIXME - set up size limits we can handle.
+	// FIXME - register the host controller.
 
-	// gmod->gb_sdio_host = host;
+	host->connection = connection;
+	connection->private = host;
 	return 0;
 }
 
-void gb_sdio_disconnect(struct gb_module *gmod)
+static void gb_sdio_connection_exit(struct gb_connection *connection)
 {
-#if 0
 	struct mmc_host *mmc;
 	struct gb_sdio_host *host;
 
-	host = gmod->gb_sdio_host;
+	host = connection->private;
 	if (!host)
 		return;
 
 	mmc = host->mmc;
 	mmc_remove_host(mmc);
 	mmc_free_host(mmc);
-#endif
+	connection->private = NULL;
 }
 
-#if 0
-static struct greybus_driver sd_gb_driver = {
-	.probe =	gb_sdio_probe,
-	.disconnect =	gb_sdio_disconnect,
-	.id_table =	id_table,
+struct gb_connection_handler gb_sdio_connection_handler = {
+	.connection_init	= gb_sdio_connection_init,
+	.connection_exit	= gb_sdio_connection_exit,
 };
-
-module_greybus_driver(sd_gb_driver);
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Greybus SD/MMC Host driver");
-MODULE_AUTHOR("Greg Kroah-Hartman <gregkh@linuxfoundation.org>");
-#endif

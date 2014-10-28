@@ -35,7 +35,7 @@
 
 struct gb_tty {
 	struct tty_port port;
-	struct gb_module *gmod;
+	struct gb_connection *connection;
 	u16 cport_id;
 	unsigned int minor;
 	unsigned char clocal;
@@ -59,6 +59,10 @@ static const struct greybus_module_id id_table[] = {
 static struct tty_driver *gb_tty_driver;
 static DEFINE_IDR(tty_minors);
 static DEFINE_MUTEX(table_lock);
+static atomic_t reference_count = ATOMIC_INIT(0);
+
+static int gb_tty_init(void);
+static void gb_tty_exit(void);
 
 static struct gb_tty *get_gb_by_minor(unsigned minor)
 {
@@ -386,13 +390,21 @@ static const struct tty_operations gb_ops = {
 };
 
 
-int gb_tty_probe(struct gb_module *gmod,
-		 const struct greybus_module_id *id)
+static int gb_uart_connection_init(struct gb_connection *connection)
 {
 	struct gb_tty *gb_tty;
 	struct device *tty_dev;
 	int retval;
 	int minor;
+
+	/* First time here, initialize the tty structures */
+	if (atomic_inc_return(&reference_count) == 1) {
+		retval = gb_tty_init();
+		if (retval) {
+			atomic_dec(&reference_count);
+			return retval;
+		}
+	}
 
 	gb_tty = kzalloc(sizeof(*gb_tty), GFP_KERNEL);
 	if (!gb_tty)
@@ -401,14 +413,14 @@ int gb_tty_probe(struct gb_module *gmod,
 	minor = alloc_minor(gb_tty);
 	if (minor < 0) {
 		if (minor == -ENOSPC) {
-			dev_err(&gmod->dev, "no more free minor numbers\n");
+			dev_err(&connection->dev, "no more free minor numbers\n");
 			return -ENODEV;
 		}
 		return minor;
 	}
 
 	gb_tty->minor = minor;
-	gb_tty->gmod = gmod;
+	gb_tty->connection = connection;
 	spin_lock_init(&gb_tty->write_lock);
 	spin_lock_init(&gb_tty->read_lock);
 	init_waitqueue_head(&gb_tty->wioctl);
@@ -416,10 +428,10 @@ int gb_tty_probe(struct gb_module *gmod,
 
 	/* FIXME - allocate gb buffers */
 
-	gmod->gb_tty = gb_tty;
+	connection->private = gb_tty;
 
 	tty_dev = tty_port_register_device(&gb_tty->port, gb_tty_driver, minor,
-					   &gmod->dev);
+					   &connection->dev);
 	if (IS_ERR(tty_dev)) {
 		retval = PTR_ERR(tty_dev);
 		goto error;
@@ -427,14 +439,14 @@ int gb_tty_probe(struct gb_module *gmod,
 
 	return 0;
 error:
-	gmod->gb_tty = NULL;
+	connection->private = NULL;
 	release_minor(gb_tty);
 	return retval;
 }
 
-void gb_tty_disconnect(struct gb_module *gmod)
+static void gb_uart_connection_exit(struct gb_connection *connection)
 {
-	struct gb_tty *gb_tty = gmod->gb_tty;
+	struct gb_tty *gb_tty = connection->private;
 	struct tty_struct *tty;
 
 	if (!gb_tty)
@@ -444,7 +456,7 @@ void gb_tty_disconnect(struct gb_module *gmod)
 	gb_tty->disconnected = true;
 
 	wake_up_all(&gb_tty->wioctl);
-	gmod->gb_tty = NULL;
+	connection->private = NULL;
 	mutex_unlock(&gb_tty->mutex);
 
 	tty = tty_port_tty_get(&gb_tty->port);
@@ -461,17 +473,13 @@ void gb_tty_disconnect(struct gb_module *gmod)
 	tty_port_put(&gb_tty->port);
 
 	kfree(gb_tty);
+
+	/* If last device is gone, tear down the tty structures */
+	if (atomic_dec_return(&reference_count) == 0)
+		gb_tty_exit();
 }
 
-#if 0
-static struct greybus_driver tty_gb_driver = {
-	.probe =	gb_tty_probe,
-	.disconnect =	gb_tty_disconnect,
-	.id_table =	id_table,
-};
-#endif
-
-int __init gb_tty_init(void)
+static int gb_tty_init(void)
 {
 	int retval = 0;
 
@@ -499,40 +507,25 @@ int __init gb_tty_init(void)
 		goto fail_put_gb_tty;
 	}
 
-#if 0
-	retval = greybus_register(&tty_gb_driver);
-	if (retval) {
-		pr_err("Can not register greybus driver.\n");
-		goto fail_unregister_gb_tty;
-	}
-#endif
-
 	return 0;
 
-/* fail_unregister_gb_tty: */
-	tty_unregister_driver(gb_tty_driver);
 fail_put_gb_tty:
 	put_tty_driver(gb_tty_driver);
 fail_unregister_dev:
 	return retval;
 }
 
-void __exit gb_tty_exit(void)
+static void gb_tty_exit(void)
 {
 	int major = MAJOR(gb_tty_driver->major);
 	int minor = gb_tty_driver->minor_start;
 
-#if 0
-	greybus_deregister(&tty_gb_driver);
-#endif
 	tty_unregister_driver(gb_tty_driver);
 	put_tty_driver(gb_tty_driver);
 	unregister_chrdev_region(MKDEV(major, minor), GB_NUM_MINORS);
 }
 
-#if 0
-module_init(gb_tty_init);
-module_exit(gb_tty_exit);
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Greg Kroah-Hartman <gregkh@linuxfoundation.org>");
-#endif
+struct gb_connection_handler gb_uart_connection_handler = {
+	.connection_init	= gb_uart_connection_init,
+	.connection_exit	= gb_uart_connection_exit,
+};

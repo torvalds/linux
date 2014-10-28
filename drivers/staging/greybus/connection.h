@@ -21,6 +21,15 @@ enum gb_connection_state {
 	GB_CONNECTION_STATE_DESTROYING	= 4,
 };
 
+struct gb_connection;
+typedef int (*gb_connection_init_t)(struct gb_connection *);
+typedef void (*gb_connection_exit_t)(struct gb_connection *);
+
+struct gb_connection_handler {
+	gb_connection_init_t	connection_init;
+	gb_connection_exit_t	connection_exit;
+};
+
 struct gb_connection {
 	struct greybus_host_device	*hd;
 	struct gb_interface		*interface;
@@ -36,6 +45,8 @@ struct gb_connection {
 	struct list_head		operations;
 	struct rb_root			pending;	/* awaiting reponse */
 	atomic_t			op_cycle;
+
+	struct gb_connection_handler	*handler;
 
 	void				*private;
 };

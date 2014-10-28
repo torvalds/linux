@@ -359,7 +359,7 @@ static enum power_supply_property battery_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 };
 
-int gb_battery_device_init(struct gb_connection *connection)
+static int gb_battery_connection_init(struct gb_connection *connection)
 {
 	struct gb_battery *gb;
 	struct power_supply *b;
@@ -369,7 +369,7 @@ int gb_battery_device_init(struct gb_connection *connection)
 	if (!gb)
 		return -ENOMEM;
 
-	gb->connection = connection;	// FIXME refcount!
+	gb->connection = connection;
 	connection->private = gb;
 
 	/* Check the version */
@@ -397,7 +397,7 @@ int gb_battery_device_init(struct gb_connection *connection)
 	return 0;
 }
 
-void gb_battery_device_exit(struct gb_connection *connection)
+static void gb_battery_connection_exit(struct gb_connection *connection)
 {
 	struct gb_battery *gb = connection->private;
 
@@ -405,29 +405,7 @@ void gb_battery_device_exit(struct gb_connection *connection)
 	kfree(gb);
 }
 
-void gb_battery_disconnect(struct gb_module *gmod)
-{
-#if 0
-	struct gb_battery *gb;
-
-	gb = gmod->gb_battery;
-	if (!gb)
-		return;
-
-	power_supply_unregister(&gb->bat);
-
-	kfree(gb);
-#endif
-}
-
-#if 0
-static struct greybus_driver battery_gb_driver = {
-	.probe =	gb_battery_probe,
-	.disconnect =	gb_battery_disconnect,
-	.id_table =	id_table,
+struct gb_connection_handler gb_battery_connection_handler = {
+	.connection_init	= gb_battery_connection_init,
+	.connection_exit	= gb_battery_connection_exit,
 };
-
-module_greybus_driver(battery_gb_driver);
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Greg Kroah-Hartman <gregkh@linuxfoundation.org>");
-#endif

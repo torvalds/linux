@@ -29,7 +29,6 @@ struct gb_gpio_controller {
 	struct gb_gpio_line	*lines;
 
 	struct gpio_chip	chip;
-	struct gpio_chip	*gpio;
 };
 #define gpio_chip_to_gb_gpio_controller(chip) \
 	container_of(chip, struct gb_gpio_controller, chip)
@@ -733,7 +732,7 @@ static int gb_gpio_controller_setup(struct gb_gpio_controller *gb_gpio_controlle
 	return ret;
 }
 
-int gb_gpio_controller_init(struct gb_connection *connection)
+static int gb_gpio_connection_init(struct gb_connection *connection)
 {
 	struct gb_gpio_controller *gb_gpio_controller;
 	struct gpio_chip *gpio;
@@ -781,7 +780,7 @@ out_err:
 	return ret;
 }
 
-void gb_gpio_controller_exit(struct gb_connection *connection)
+static void gb_gpio_connection_exit(struct gb_connection *connection)
 {
 	struct gb_gpio_controller *gb_gpio_controller = connection->private;
 
@@ -792,6 +791,11 @@ void gb_gpio_controller_exit(struct gb_connection *connection)
 	/* kref_put(gb_gpio_controller->connection) */
 	kfree(gb_gpio_controller);
 }
+
+struct gb_connection_handler gb_gpio_connection_handler = {
+	.connection_init	= gb_gpio_connection_init,
+	.connection_exit	= gb_gpio_connection_exit,
+};
 
 #if 0
 MODULE_LICENSE("GPL");

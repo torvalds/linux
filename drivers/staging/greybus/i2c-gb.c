@@ -22,7 +22,7 @@ struct gb_i2c_device {
 	u16			timeout_msec;
 	u8			retries;
 
-	struct i2c_adapter	*adapter;
+	struct i2c_adapter	adapter;
 };
 
 /* Version of the Greybus i2c protocol we support */
@@ -466,10 +466,10 @@ static int gb_i2c_device_setup(struct gb_i2c_device *gb_i2c_dev)
 	return gb_i2c_timeout_operation(gb_i2c_dev, GB_I2C_TIMEOUT_DEFAULT);
 }
 
-int gb_i2c_device_init(struct gb_connection *connection)
+static int gb_i2c_connection_init(struct gb_connection *connection)
 {
 	struct gb_i2c_device *gb_i2c_dev;
-	struct i2c_adapter *adapter = NULL;
+	struct i2c_adapter *adapter;
 	int ret;
 
 	gb_i2c_dev = kzalloc(sizeof(*gb_i2c_dev), GFP_KERNEL);
@@ -482,13 +482,8 @@ int gb_i2c_device_init(struct gb_connection *connection)
 	if (ret)
 		goto out_err;
 
-	/* Looks good; allocate and set up our i2c adapter */
-	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
-	if (!adapter) {
-		ret = -ENOMEM;
-		goto out_err;
-	}
-
+	/* Looks good; up our i2c adapter */
+	adapter = &gb_i2c_dev->adapter;
 	adapter->owner = THIS_MODULE;
 	adapter->class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	adapter->algo = &gb_i2c_algorithm;
@@ -504,27 +499,29 @@ int gb_i2c_device_init(struct gb_connection *connection)
 	if (ret)
 		goto out_err;
 
-	gb_i2c_dev->adapter = adapter;
 	connection->private = gb_i2c_dev;
 
 	return 0;
 out_err:
-	kfree(adapter);
 	/* kref_put(gb_i2c_dev->connection) */
 	kfree(gb_i2c_dev);
 
 	return ret;
 }
 
-void gb_i2c_device_exit(struct gb_connection *connection)
+static void gb_i2c_connection_exit(struct gb_connection *connection)
 {
 	struct gb_i2c_device *gb_i2c_dev = connection->private;
 
-	i2c_del_adapter(gb_i2c_dev->adapter);
-	kfree(gb_i2c_dev->adapter);
+	i2c_del_adapter(&gb_i2c_dev->adapter);
 	/* kref_put(gb_i2c_dev->connection) */
 	kfree(gb_i2c_dev);
 }
+
+struct gb_connection_handler gb_i2c_connection_handler = {
+	.connection_init	= gb_i2c_connection_init,
+	.connection_exit	= gb_i2c_connection_exit,
+};
 
 #if 0
 module_greybus_driver(i2c_gb_driver);
