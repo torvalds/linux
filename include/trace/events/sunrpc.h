@@ -7,6 +7,7 @@
 #include <linux/sunrpc/sched.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/svc.h>
+#include <linux/sunrpc/xprtsock.h>
 #include <net/tcp_states.h>
 #include <linux/net.h>
 #include <linux/tracepoint.h>
@@ -326,7 +327,7 @@ DECLARE_EVENT_CLASS(rpc_xprt_event,
 		__assign_str(port, xprt->address_strings[RPC_DISPLAY_PORT]);
 	),
 
-	TP_printk("peer=%s/%s xid=0x%x status=%d", __get_str(addr),
+	TP_printk("peer=[%s]:%s xid=0x%x status=%d", __get_str(addr),
 			__get_str(port), be32_to_cpu(__entry->xid),
 			__entry->status)
 );
@@ -368,6 +369,47 @@ TRACE_EVENT(xs_tcp_data_ready,
 
 	TP_printk("peer=[%s]:%s err=%d total=%u", __get_str(addr),
 			__get_str(port), __entry->err, __entry->total)
+);
+
+#define rpc_show_sock_xprt_flags(flags) \
+	__print_flags(flags, "|", \
+		{ TCP_RCV_LAST_FRAG, "TCP_RCV_LAST_FRAG" }, \
+		{ TCP_RCV_COPY_FRAGHDR, "TCP_RCV_COPY_FRAGHDR" }, \
+		{ TCP_RCV_COPY_XID, "TCP_RCV_COPY_XID" }, \
+		{ TCP_RCV_COPY_DATA, "TCP_RCV_COPY_DATA" }, \
+		{ TCP_RCV_READ_CALLDIR, "TCP_RCV_READ_CALLDIR" }, \
+		{ TCP_RCV_COPY_CALLDIR, "TCP_RCV_COPY_CALLDIR" }, \
+		{ TCP_RPC_REPLY, "TCP_RPC_REPLY" })
+
+TRACE_EVENT(xs_tcp_data_recv,
+	TP_PROTO(struct sock_xprt *xs),
+
+	TP_ARGS(xs),
+
+	TP_STRUCT__entry(
+		__string(addr, xs->xprt.address_strings[RPC_DISPLAY_ADDR])
+		__string(port, xs->xprt.address_strings[RPC_DISPLAY_PORT])
+		__field(__be32, xid)
+		__field(unsigned long, flags)
+		__field(unsigned long, copied)
+		__field(unsigned int, reclen)
+		__field(unsigned long, offset)
+	),
+
+	TP_fast_assign(
+		__assign_str(addr, xs->xprt.address_strings[RPC_DISPLAY_ADDR]);
+		__assign_str(port, xs->xprt.address_strings[RPC_DISPLAY_PORT]);
+		__entry->xid = xs->tcp_xid;
+		__entry->flags = xs->tcp_flags;
+		__entry->copied = xs->tcp_copied;
+		__entry->reclen = xs->tcp_reclen;
+		__entry->offset = xs->tcp_offset;
+	),
+
+	TP_printk("peer=[%s]:%s xid=0x%x flags=%s copied=%lu reclen=%u offset=%lu",
+			__get_str(addr), __get_str(port), be32_to_cpu(__entry->xid),
+			rpc_show_sock_xprt_flags(__entry->flags),
+			__entry->copied, __entry->reclen, __entry->offset)
 );
 
 TRACE_EVENT(svc_recv,
