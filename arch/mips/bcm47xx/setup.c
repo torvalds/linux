@@ -156,15 +156,14 @@ static void __init bcm47xx_register_bcma(void)
 	err = bcma_host_soc_register(&bcm47xx_bus.bcma);
 	if (err)
 		panic("Failed to register BCMA bus (err %d)", err);
-
-	err = bcma_host_soc_init(&bcm47xx_bus.bcma);
-	if (err)
-		panic("Failed to initialize BCMA bus (err %d)", err);
-
-	bcm47xx_fill_bcma_boardinfo(&bcm47xx_bus.bcma.bus.boardinfo, NULL);
 }
 #endif
 
+/*
+ * Memory setup is done in the early part of MIPS's arch_mem_init. It's supposed
+ * to detect memory and record it with add_memory_region.
+ * Any extra initializaion performed here must not use kmalloc or bootmem.
+ */
 void __init plat_mem_setup(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
@@ -193,6 +192,28 @@ void __init plat_mem_setup(void)
 	_machine_restart = bcm47xx_machine_restart;
 	_machine_halt = bcm47xx_machine_halt;
 	pm_power_off = bcm47xx_machine_halt;
+}
+
+/*
+ * This finishes bus initialization doing things that were not possible without
+ * kmalloc. Make sure to call it late enough (after mm_init).
+ */
+void __init bcm47xx_bus_setup(void)
+{
+#ifdef CONFIG_BCM47XX_BCMA
+	if (bcm47xx_bus_type == BCM47XX_BUS_TYPE_BCMA) {
+		int err;
+
+		err = bcma_host_soc_init(&bcm47xx_bus.bcma);
+		if (err)
+			panic("Failed to initialize BCMA bus (err %d)", err);
+
+		bcm47xx_fill_bcma_boardinfo(&bcm47xx_bus.bcma.bus.boardinfo,
+					    NULL);
+	}
+#endif
+
+	/* With bus initialized we can access NVRAM and detect the board */
 	bcm47xx_board_detect();
 	mips_set_machine_name(bcm47xx_board_get_name());
 }
