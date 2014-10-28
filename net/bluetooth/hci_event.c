@@ -1045,7 +1045,7 @@ static void hci_cc_le_set_adv_enable(struct hci_dev *hdev, struct sk_buff *skb)
 
 	hci_dev_lock(hdev);
 
-	/* If we're doing connection initation as peripheral. Set a
+	/* If we're doing connection initiation as peripheral. Set a
 	 * timeout in case something goes wrong.
 	 */
 	if (*sent) {
