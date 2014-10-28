@@ -327,6 +327,9 @@
 #include "dwc_otg_core_if.h"
 #include "dwc_otg_pcd_if.h"
 #include "dwc_otg_hcd_if.h"
+#include "dwc_otg_regs.h"
+#include "dwc_otg_cil.h"
+#include "usbdev_rk.h"
 
 /*
  * MACROs for defining sysfs attribute
@@ -1075,6 +1078,85 @@ DEVICE_ATTR(sleep_status, S_IRUGO | S_IWUSR, sleepstatus_show,
 
 #endif /* CONFIG_USB_DWC_OTG_LPM_ENABLE */
 
+static int test_sq(dwc_otg_core_if_t *core_if)
+{
+	hprt0_data_t hprt0 = { .d32 = 0 };
+	dctl_data_t dctl = { .d32 = 0 };
+	dsts_data_t dsts = { .d32 = 0 };
+
+	/**
+	* Step.1 check current mode
+	* Step.2 check connection
+	* Step.3 enter test packet mode
+	*/
+
+	if (dwc_otg_is_host_mode(core_if)) {
+		DWC_PRINTF("Host Mode\n");
+		hprt0.d32 = DWC_READ_REG32(core_if->host_if->hprt0);
+
+		if (hprt0.b.prtena && !hprt0.b.prtsusp &&
+		    hprt0.b.prtspd == DWC_HPRT0_PRTSPD_HIGH_SPEED) {
+			hprt0.d32 = 0;
+			hprt0.b.prttstctl = 0x4;
+			DWC_WRITE_REG32(core_if->host_if->hprt0, hprt0.d32);
+			DWC_PRINTF("Start packet test\n");
+			return 0;
+
+		} else
+			DWC_PRINTF("Invalid connect status HPRT0 = 0x%08x\n",
+				   hprt0.d32);
+	} else {
+		DWC_PRINTF("Device Mode\n");
+		dsts.d32 = DWC_READ_REG32(&core_if->dev_if->dev_global_regs->dsts);
+
+		if (!dsts.b.suspsts &&
+		    dsts.b.enumspd == DWC_DSTS_ENUMSPD_HS_PHY_30MHZ_OR_60MHZ) {
+			dctl.b.tstctl = 0x4;
+			DWC_WRITE_REG32(&core_if->dev_if->dev_global_regs->dctl,
+					dctl.d32);
+			DWC_PRINTF("Start packet test\n");
+			return 0;
+
+		} else
+			DWC_PRINTF("Invalid connect status DSTS = 0x%08x\n",
+				   dsts.d32);
+	}
+
+	return -1;
+
+}
+
+/**
+* Show the usage of usb controler test_sq attribute.
+*/
+static ssize_t test_sq_show(struct device *_dev,
+				struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf,
+	"USAGE : echo anything to \"test\" to start test packet pattern\n");
+}
+
+static ssize_t test_sq_store(struct device *_dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+
+{
+	dwc_otg_device_t *otg_dev = _dev->platform_data;
+	struct dwc_otg_platform_data *pldata = otg_dev->pldata;
+
+	if (pldata->phy_status == USB_PHY_SUSPEND) {
+		DWC_PRINTF("Invalid status : SUSPEND\n");
+		return -EBUSY;
+	}
+
+	if (test_sq(otg_dev->core_if))
+		return -EBUSY;
+	else
+		return count;
+}
+
+DEVICE_ATTR(test_sq, S_IWUSR | S_IRUSR, test_sq_show, test_sq_store);
+
 /**@}*/
 
 /**
@@ -1118,6 +1200,7 @@ void dwc_otg_attr_create(struct platform_device *dev)
 	error = device_create_file(&dev->dev, &dev_attr_besl_reject);
 	error = device_create_file(&dev->dev, &dev_attr_hird_thres);
 #endif
+	error = device_create_file(&dev->dev, &dev_attr_test_sq);
 }
 
 /**
@@ -1159,4 +1242,5 @@ void dwc_otg_attr_remove(struct platform_device *dev)
 	device_remove_file(&dev->dev, &dev_attr_besl_reject);
 	device_remove_file(&dev->dev, &dev_attr_hird_thres);
 #endif
+	device_remove_file(&dev->dev, &dev_attr_test_sq);
 }
