@@ -36,25 +36,25 @@ static struct cmd_hdl wlancmds[] = {
 	GEN_MLME_EXT_HANDLER(0, NULL)
 	GEN_MLME_EXT_HANDLER(0, NULL)
 	GEN_MLME_EXT_HANDLER(0, NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct wlan_bssid_ex), join_cmd_hdl23a) /*14*/
-	GEN_MLME_EXT_HANDLER(sizeof (struct disconnect_parm), disconnect_hdl23a)
-	GEN_MLME_EXT_HANDLER(sizeof (struct wlan_bssid_ex), createbss_hdl23a)
-	GEN_MLME_EXT_HANDLER(sizeof (struct setopmode_parm), setopmode_hdl23a)
-	GEN_MLME_EXT_HANDLER(sizeof (struct sitesurvey_parm), sitesurvey_cmd_hdl23a) /*18*/
-	GEN_MLME_EXT_HANDLER(sizeof (struct setauth_parm), setauth_hdl23a)
-	GEN_MLME_EXT_HANDLER(sizeof (struct setkey_parm), setkey_hdl23a) /*20*/
-	GEN_MLME_EXT_HANDLER(sizeof (struct set_stakey_parm), set_stakey_hdl23a)
-	GEN_MLME_EXT_HANDLER(sizeof (struct set_assocsta_parm), NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct del_assocsta_parm), NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct setstapwrstate_parm), NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct setbasicrate_parm), NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct getbasicrate_parm), NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct setdatarate_parm), NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct getdatarate_parm), NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct setphyinfo_parm), NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct getphyinfo_parm), NULL)  /*30*/
-	GEN_MLME_EXT_HANDLER(sizeof (struct setphy_parm), NULL)
-	GEN_MLME_EXT_HANDLER(sizeof (struct getphy_parm), NULL)
+	GEN_MLME_EXT_HANDLER(sizeof(struct wlan_bssid_ex), join_cmd_hdl23a) /*14*/
+	GEN_MLME_EXT_HANDLER(sizeof(struct disconnect_parm), disconnect_hdl23a)
+	GEN_MLME_EXT_HANDLER(sizeof(struct wlan_bssid_ex), createbss_hdl23a)
+	GEN_MLME_EXT_HANDLER(sizeof(struct setopmode_parm), setopmode_hdl23a)
+	GEN_MLME_EXT_HANDLER(sizeof(struct sitesurvey_parm), sitesurvey_cmd_hdl23a) /*18*/
+	GEN_MLME_EXT_HANDLER(sizeof(struct setauth_parm), setauth_hdl23a)
+	GEN_MLME_EXT_HANDLER(sizeof(struct setkey_parm), setkey_hdl23a) /*20*/
+	GEN_MLME_EXT_HANDLER(sizeof(struct set_stakey_parm), set_stakey_hdl23a)
+	GEN_MLME_EXT_HANDLER(sizeof(struct set_assocsta_parm), NULL)
+	GEN_MLME_EXT_HANDLER(sizeof(struct del_assocsta_parm), NULL)
+	GEN_MLME_EXT_HANDLER(sizeof(struct setstapwrstate_parm), NULL)
+	GEN_MLME_EXT_HANDLER(sizeof(struct setbasicrate_parm), NULL)
+	GEN_MLME_EXT_HANDLER(sizeof(struct getbasicrate_parm), NULL)
+	GEN_MLME_EXT_HANDLER(sizeof(struct setdatarate_parm), NULL)
+	GEN_MLME_EXT_HANDLER(sizeof(struct getdatarate_parm), NULL)
+	GEN_MLME_EXT_HANDLER(sizeof(struct setphyinfo_parm), NULL)
+	GEN_MLME_EXT_HANDLER(sizeof(struct getphyinfo_parm), NULL)  /*30*/
+	GEN_MLME_EXT_HANDLER(sizeof(struct setphy_parm), NULL)
+	GEN_MLME_EXT_HANDLER(sizeof(struct getphy_parm), NULL)
 	GEN_MLME_EXT_HANDLER(0, NULL)
 	GEN_MLME_EXT_HANDLER(0, NULL)
 	GEN_MLME_EXT_HANDLER(0, NULL)
