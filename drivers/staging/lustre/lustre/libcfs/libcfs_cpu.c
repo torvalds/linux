@@ -38,7 +38,7 @@
 #include "../../include/linux/libcfs/libcfs.h"
 
 /** Global CPU partition table */
-struct cfs_cpt_table   *cfs_cpt_table __read_mostly = NULL;
+struct cfs_cpt_table   *cfs_cpt_table __read_mostly;
 EXPORT_SYMBOL(cfs_cpt_table);
 
 #ifndef HAVE_LIBCFS_CPT
