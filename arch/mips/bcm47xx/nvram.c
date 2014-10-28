@@ -121,48 +121,10 @@ int bcm47xx_nvram_init_from_mem(u32 base, u32 lim)
 	return err;
 }
 
-#ifdef CONFIG_BCM47XX_BCMA
-static int nvram_init_bcma(void)
-{
-	struct bcma_drv_cc *cc = &bcm47xx_bus.bcma.bus.drv_cc;
-	u32 base;
-	u32 lim;
-
-#ifdef CONFIG_BCMA_NFLASH
-	if (cc->nflash.boot) {
-		base = BCMA_SOC_FLASH1;
-		lim = BCMA_SOC_FLASH1_SZ;
-	} else
-#endif
-	if (cc->pflash.present) {
-		base = cc->pflash.window;
-		lim = cc->pflash.window_size;
-#ifdef CONFIG_BCMA_SFLASH
-	} else if (cc->sflash.present) {
-		base = cc->sflash.window;
-		lim = cc->sflash.size;
-#endif
-	} else {
-		pr_err("Couldn't find supported flash memory\n");
-		return -ENXIO;
-	}
-
-	return bcm47xx_nvram_init_from_mem(base, lim);
-}
-#endif
-
 static int nvram_init(void)
 {
-	switch (bcm47xx_bus_type) {
-#ifdef CONFIG_BCM47XX_SSB
-	case BCM47XX_BUS_TYPE_SSB:
-		break;
-#endif
-#ifdef CONFIG_BCM47XX_BCMA
-	case BCM47XX_BUS_TYPE_BCMA:
-		return nvram_init_bcma();
-#endif
-	}
+	/* TODO: Look for MTD "nvram" partition */
+
 	return -ENXIO;
 }
 
