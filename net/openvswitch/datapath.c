@@ -131,6 +131,7 @@ int lockdep_ovsl_is_held(void)
 	else
 		return 1;
 }
+EXPORT_SYMBOL(lockdep_ovsl_is_held);
 #endif
 
 static struct vport *new_vport(const struct vport_parms *);
