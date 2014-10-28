@@ -1442,6 +1442,9 @@ static void ath10k_pci_bmi_recv_data(struct ath10k_ce_pipe *ce_state)
 					  &nbytes, &transfer_id, &flags))
 		return;
 
+	if (WARN_ON_ONCE(!xfer))
+		return;
+
 	if (!xfer->wait_for_resp) {
 		ath10k_warn(ar, "unexpected: BMI data received; ignoring\n");
 		return;

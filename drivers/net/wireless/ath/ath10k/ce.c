@@ -558,6 +558,7 @@ int ath10k_ce_revoke_recv_next(struct ath10k_ce_pipe *ce_state,
 
 		/* sanity */
 		dest_ring->per_transfer_context[sw_index] = NULL;
+		desc->nbytes = 0;
 
 		/* Update sw_index */
 		sw_index = CE_RING_IDX_INCR(nentries_mask, sw_index);
@@ -835,6 +836,9 @@ static int ath10k_ce_init_src_ring(struct ath10k *ar,
 
 	nentries = roundup_pow_of_two(attr->src_nentries);
 
+	memset(src_ring->base_addr_owner_space, 0,
+	       nentries * sizeof(struct ce_desc));
+
 	src_ring->sw_index = ath10k_ce_src_ring_read_index_get(ar, ctrl_addr);
 	src_ring->sw_index &= src_ring->nentries_mask;
 	src_ring->hw_index = src_ring->sw_index;
@@ -868,6 +872,9 @@ static int ath10k_ce_init_dest_ring(struct ath10k *ar,
 	u32 nentries, ctrl_addr = ath10k_ce_base_address(ce_id);
 
 	nentries = roundup_pow_of_two(attr->dest_nentries);
+
+	memset(dest_ring->base_addr_owner_space, 0,
+	       nentries * sizeof(struct ce_desc));
 
 	dest_ring->sw_index = ath10k_ce_dest_ring_read_index_get(ar, ctrl_addr);
 	dest_ring->sw_index &= dest_ring->nentries_mask;
