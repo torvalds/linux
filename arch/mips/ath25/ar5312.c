@@ -16,6 +16,9 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/bitops.h>
+#include <linux/irqdomain.h>
+#include <linux/interrupt.h>
 #include <linux/reboot.h>
 #include <asm/bootinfo.h>
 #include <asm/reboot.h>
@@ -26,6 +29,7 @@
 #include "ar5312_regs.h"
 
 static void __iomem *ar5312_rst_base;
+static struct irq_domain *ar5312_misc_irq_domain;
 
 static inline u32 ar5312_rst_reg_read(u32 reg)
 {
@@ -44,6 +48,114 @@ static inline void ar5312_rst_reg_mask(u32 reg, u32 mask, u32 val)
 	ret &= ~mask;
 	ret |= val;
 	ar5312_rst_reg_write(reg, ret);
+}
+
+static irqreturn_t ar5312_ahb_err_handler(int cpl, void *dev_id)
+{
+	u32 proc1 = ar5312_rst_reg_read(AR5312_PROC1);
+	u32 proc_addr = ar5312_rst_reg_read(AR5312_PROCADDR); /* clears error */
+	u32 dma1 = ar5312_rst_reg_read(AR5312_DMA1);
+	u32 dma_addr = ar5312_rst_reg_read(AR5312_DMAADDR);   /* clears error */
+
+	pr_emerg("AHB interrupt: PROCADDR=0x%8.8x PROC1=0x%8.8x DMAADDR=0x%8.8x DMA1=0x%8.8x\n",
+		 proc_addr, proc1, dma_addr, dma1);
+
+	machine_restart("AHB error"); /* Catastrophic failure */
+	return IRQ_HANDLED;
+}
+
+static struct irqaction ar5312_ahb_err_interrupt  = {
+	.handler = ar5312_ahb_err_handler,
+	.name    = "ar5312-ahb-error",
+};
+
+static void ar5312_misc_irq_handler(unsigned irq, struct irq_desc *desc)
+{
+	u32 pending = ar5312_rst_reg_read(AR5312_ISR) &
+		      ar5312_rst_reg_read(AR5312_IMR);
+	unsigned nr, misc_irq = 0;
+
+	if (pending) {
+		struct irq_domain *domain = irq_get_handler_data(irq);
+
+		nr = __ffs(pending);
+		misc_irq = irq_find_mapping(domain, nr);
+	}
+
+	if (misc_irq) {
+		generic_handle_irq(misc_irq);
+		if (nr == AR5312_MISC_IRQ_TIMER)
+			ar5312_rst_reg_read(AR5312_TIMER);
+	} else {
+		spurious_interrupt();
+	}
+}
+
+/* Enable the specified AR5312_MISC_IRQ interrupt */
+static void ar5312_misc_irq_unmask(struct irq_data *d)
+{
+	ar5312_rst_reg_mask(AR5312_IMR, 0, BIT(d->hwirq));
+}
+
+/* Disable the specified AR5312_MISC_IRQ interrupt */
+static void ar5312_misc_irq_mask(struct irq_data *d)
+{
+	ar5312_rst_reg_mask(AR5312_IMR, BIT(d->hwirq), 0);
+	ar5312_rst_reg_read(AR5312_IMR); /* flush write buffer */
+}
+
+static struct irq_chip ar5312_misc_irq_chip = {
+	.name		= "ar5312-misc",
+	.irq_unmask	= ar5312_misc_irq_unmask,
+	.irq_mask	= ar5312_misc_irq_mask,
+};
+
+static int ar5312_misc_irq_map(struct irq_domain *d, unsigned irq,
+			       irq_hw_number_t hw)
+{
+	irq_set_chip_and_handler(irq, &ar5312_misc_irq_chip, handle_level_irq);
+	return 0;
+}
+
+static struct irq_domain_ops ar5312_misc_irq_domain_ops = {
+	.map = ar5312_misc_irq_map,
+};
+
+static void ar5312_irq_dispatch(void)
+{
+	u32 pending = read_c0_status() & read_c0_cause();
+
+	if (pending & CAUSEF_IP2)
+		do_IRQ(AR5312_IRQ_WLAN0);
+	else if (pending & CAUSEF_IP5)
+		do_IRQ(AR5312_IRQ_WLAN1);
+	else if (pending & CAUSEF_IP6)
+		do_IRQ(AR5312_IRQ_MISC);
+	else if (pending & CAUSEF_IP7)
+		do_IRQ(ATH25_IRQ_CPU_CLOCK);
+	else
+		spurious_interrupt();
+}
+
+void __init ar5312_arch_init_irq(void)
+{
+	struct irq_domain *domain;
+	unsigned irq;
+
+	ath25_irq_dispatch = ar5312_irq_dispatch;
+
+	domain = irq_domain_add_linear(NULL, AR5312_MISC_IRQ_COUNT,
+				       &ar5312_misc_irq_domain_ops, NULL);
+	if (!domain)
+		panic("Failed to add IRQ domain");
+
+	irq = irq_create_mapping(domain, AR5312_MISC_IRQ_AHB_PROC);
+	setup_irq(irq, &ar5312_ahb_err_interrupt);
+
+	irq_set_chained_handler(AR5312_IRQ_MISC, ar5312_misc_irq_handler);
+	irq_set_handler_data(AR5312_IRQ_MISC, domain);
+
+	ar5312_misc_irq_domain = domain;
 }
 
 static void ar5312_restart(char *command)

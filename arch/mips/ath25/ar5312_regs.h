@@ -12,6 +12,29 @@
 #define __ASM_MACH_ATH25_AR5312_REGS_H
 
 /*
+ * IRQs
+ */
+#define AR5312_IRQ_WLAN0	(MIPS_CPU_IRQ_BASE + 2)	/* C0_CAUSE: 0x0400 */
+#define AR5312_IRQ_ENET0	(MIPS_CPU_IRQ_BASE + 3)	/* C0_CAUSE: 0x0800 */
+#define AR5312_IRQ_ENET1	(MIPS_CPU_IRQ_BASE + 4)	/* C0_CAUSE: 0x1000 */
+#define AR5312_IRQ_WLAN1	(MIPS_CPU_IRQ_BASE + 5)	/* C0_CAUSE: 0x2000 */
+#define AR5312_IRQ_MISC		(MIPS_CPU_IRQ_BASE + 6)	/* C0_CAUSE: 0x4000 */
+
+/*
+ * Miscellaneous interrupts, which share IP6.
+ */
+#define AR5312_MISC_IRQ_TIMER		0
+#define AR5312_MISC_IRQ_AHB_PROC	1
+#define AR5312_MISC_IRQ_AHB_DMA		2
+#define AR5312_MISC_IRQ_GPIO		3
+#define AR5312_MISC_IRQ_UART0		4
+#define AR5312_MISC_IRQ_UART0_DMA	5
+#define AR5312_MISC_IRQ_WATCHDOG	6
+#define AR5312_MISC_IRQ_LOCAL		7
+#define AR5312_MISC_IRQ_SPI		8
+#define AR5312_MISC_IRQ_COUNT		9
+
+/*
  * Address Map
  *
  * The AR5312 supports 2 enet MACS, even though many reference boards only

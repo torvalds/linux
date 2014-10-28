@@ -5,6 +5,10 @@
 
 #define ATH25_REG_MS(_val, _field)	(((_val) & _field##_M) >> _field##_S)
 
+#define ATH25_IRQ_CPU_CLOCK	(MIPS_CPU_IRQ_BASE + 7)	/* C0_CAUSE: 0x8000 */
+
+extern void (*ath25_irq_dispatch)(void);
+
 static inline bool is_ar2315(void)
 {
 	return (current_cpu_data.cputype == CPU_4KEC);

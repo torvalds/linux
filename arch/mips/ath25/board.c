@@ -20,6 +20,8 @@
 #include "ar5312.h"
 #include "ar2315.h"
 
+void (*ath25_irq_dispatch)(void);
+
 static void ath25_halt(void)
 {
 	local_irq_disable();
@@ -42,6 +44,7 @@ void __init plat_mem_setup(void)
 
 asmlinkage void plat_irq_dispatch(void)
 {
+	ath25_irq_dispatch();
 }
 
 void __init plat_time_init(void)
@@ -61,4 +64,10 @@ void __init arch_init_irq(void)
 {
 	clear_c0_status(ST0_IM);
 	mips_cpu_irq_init();
+
+	/* Initialize interrupt controllers */
+	if (is_ar5312())
+		ar5312_arch_init_irq();
+	else
+		ar2315_arch_init_irq();
 }

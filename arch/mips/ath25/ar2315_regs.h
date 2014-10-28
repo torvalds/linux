@@ -15,6 +15,29 @@
 #define __ASM_MACH_ATH25_AR2315_REGS_H
 
 /*
+ * IRQs
+ */
+#define AR2315_IRQ_MISC		(MIPS_CPU_IRQ_BASE + 2)	/* C0_CAUSE: 0x0400 */
+#define AR2315_IRQ_WLAN0	(MIPS_CPU_IRQ_BASE + 3)	/* C0_CAUSE: 0x0800 */
+#define AR2315_IRQ_ENET0	(MIPS_CPU_IRQ_BASE + 4)	/* C0_CAUSE: 0x1000 */
+#define AR2315_IRQ_LCBUS_PCI	(MIPS_CPU_IRQ_BASE + 5)	/* C0_CAUSE: 0x2000 */
+#define AR2315_IRQ_WLAN0_POLL	(MIPS_CPU_IRQ_BASE + 6)	/* C0_CAUSE: 0x4000 */
+
+/*
+ * Miscellaneous interrupts, which share IP2.
+ */
+#define AR2315_MISC_IRQ_UART0		0
+#define AR2315_MISC_IRQ_I2C_RSVD	1
+#define AR2315_MISC_IRQ_SPI		2
+#define AR2315_MISC_IRQ_AHB		3
+#define AR2315_MISC_IRQ_APB		4
+#define AR2315_MISC_IRQ_TIMER		5
+#define AR2315_MISC_IRQ_GPIO		6
+#define AR2315_MISC_IRQ_WATCHDOG	7
+#define AR2315_MISC_IRQ_IR_RSVD		8
+#define AR2315_MISC_IRQ_COUNT		9
+
+/*
  * Address map
  */
 #define AR2315_SPI_READ_BASE	0x08000000	/* SPI flash */
