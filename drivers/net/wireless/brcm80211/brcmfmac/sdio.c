@@ -2763,6 +2763,48 @@ static struct pktq *brcmf_sdio_bus_gettxq(struct device *dev)
 	return &bus->txq;
 }
 
+static bool brcmf_sdio_prec_enq(struct pktq *q, struct sk_buff *pkt, int prec)
+{
+	struct sk_buff *p;
+	int eprec = -1;		/* precedence to evict from */
+
+	/* Fast case, precedence queue is not full and we are also not
+	 * exceeding total queue length
+	 */
+	if (!pktq_pfull(q, prec) && !pktq_full(q)) {
+		brcmu_pktq_penq(q, prec, pkt);
+		return true;
+	}
+
+	/* Determine precedence from which to evict packet, if any */
+	if (pktq_pfull(q, prec)) {
+		eprec = prec;
+	} else if (pktq_full(q)) {
+		p = brcmu_pktq_peek_tail(q, &eprec);
+		if (eprec > prec)
+			return false;
+	}
+
+	/* Evict if needed */
+	if (eprec >= 0) {
+		/* Detect queueing to unconfigured precedence */
+		if (eprec == prec)
+			return false;	/* refuse newer (incoming) packet */
+		/* Evict packet according to discard policy */
+		p = brcmu_pktq_pdeq_tail(q, eprec);
+		if (p == NULL)
+			brcmf_err("brcmu_pktq_pdeq_tail() failed\n");
+		brcmu_pkt_buf_free_skb(p);
+	}
+
+	/* Enqueue */
+	p = brcmu_pktq_penq(q, prec, pkt);
+	if (p == NULL)
+		brcmf_err("brcmu_pktq_penq() failed\n");
+
+	return p != NULL;
+}
+
 static int brcmf_sdio_bus_txdata(struct device *dev, struct sk_buff *pkt)
 {
 	int ret = -EBADE;
@@ -2788,7 +2830,7 @@ static int brcmf_sdio_bus_txdata(struct device *dev, struct sk_buff *pkt)
 	spin_lock_bh(&bus->txq_lock);
 	/* reset bus_flags in packet cb */
 	*(u16 *)(pkt->cb) = 0;
-	if (!brcmf_c_prec_enq(bus->sdiodev->dev, &bus->txq, pkt, prec)) {
+	if (!brcmf_sdio_prec_enq(&bus->txq, pkt, prec)) {
 		skb_pull(pkt, bus->tx_hdrlen);
 		brcmf_err("out of bus->txq !!!\n");
 		ret = -ENOSR;
@@ -2798,7 +2840,7 @@ static int brcmf_sdio_bus_txdata(struct device *dev, struct sk_buff *pkt)
 
 	if (pktq_len(&bus->txq) >= TXHI) {
 		bus->txoff = true;
-		brcmf_txflowblock(bus->sdiodev->dev, true);
+		brcmf_txflowblock(dev, true);
 	}
 	spin_unlock_bh(&bus->txq_lock);
 

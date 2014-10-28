@@ -83,7 +83,6 @@ struct brcmf_pub {
 	/* Internal brcmf items */
 	uint hdrlen;		/* Total BRCMF header length (proto + bus) */
 	uint rxsz;		/* Rx buffer size bus module should use */
-	u8 wme_dp;		/* wme discard priority */
 
 	/* Dongle media info */
 	char fwver[BRCMF_DRIVER_FIRMWARE_VERSION_LEN];
