@@ -194,6 +194,7 @@ void rockchip_tsadc_auto_ht_work(struct work_struct *work)
 //	printk("%s,line=%d\n", __func__,__LINE__);
 
 	mutex_lock(&tsadc_mutex);
+	clk_enable(g_dev->pclk);
 
 	val = tsadc_readl(TSADC_INT_PD);
 	tsadc_writel(val &(~ (1 <<8) ), TSADC_INT_PD);
@@ -203,6 +204,8 @@ void rockchip_tsadc_auto_ht_work(struct work_struct *work)
 		printk("rockchip tsadc is over temp . %s,line=%d\n", __func__,__LINE__);
 		pm_power_off();					//power_off
 	}
+
+	clk_disable(g_dev->pclk);
 	mutex_unlock(&tsadc_mutex);
 }
 
@@ -271,14 +274,10 @@ static void rockchip_tsadc_auto_mode_set(int chn, int int_temp,
 		return;
 	
 	mutex_lock(&tsadc_mutex);
-	
 	clk_enable(g_dev->pclk);
-	clk_enable(g_dev->clk);
-	
-	msleep(10);
+
 	tsadc_writel(0, TSADC_AUTO_CON);
 	tsadc_writel(1 << (4+chn), TSADC_AUTO_CON);
-	msleep(10);
 	if ((tsadc_readl(TSADC_AUTO_CON) & TSADC_AUTO_STAS_BUSY_MASK) != TSADC_AUTO_STAS_BUSY) {
 		rockchip_tsadc_set_cmpn_int_vale(chn,int_temp);
 		rockchip_tsadc_set_cmpn_shut_vale(chn,shut_temp),
@@ -294,11 +293,11 @@ static void rockchip_tsadc_auto_mode_set(int chn, int int_temp,
 		rockchip_tsadc_set_auto_int_en(chn,int_en,shut_en);	
 	}
 
-	msleep(10);
-
 	ret = tsadc_readl(TSADC_AUTO_CON);
 	tsadc_writel(ret | (1 <<0) , TSADC_AUTO_CON);
 	
+	usleep_range(10000, 11000);
+	clk_disable(g_dev->pclk);
 	mutex_unlock(&tsadc_mutex);
 		
 }
@@ -347,6 +346,7 @@ static void rockchip_tsadc_get(int chn, int *temp, int *code)
 
 	mutex_unlock(&tsadc_mutex);
 #else
+	clk_enable(g_dev->pclk);
 	*code = tsadc_readl((TSADC_DATA0 + chn*4)) & TSADC_DATA_MASK;
 	for (i = 0; i < ARRAY_SIZE(table) - 1; i++) {
 		if ((*code) <= table[i].code && (*code) > table[i + 1].code)
@@ -354,6 +354,7 @@ static void rockchip_tsadc_get(int chn, int *temp, int *code)
 			- table[i].temp) * (table[i].code - (*code))
 			/ (table[i].code - table[i + 1].code);
 	}
+	clk_disable(g_dev->pclk);
 #endif
 }
 
@@ -463,7 +464,7 @@ int rockchip_hwmon_init(struct rockchip_temp *data)
 	    ret = PTR_ERR(rockchip_tsadc_data->pclk);
 	    return -EPERM;
 	}
-	clk_prepare_enable(rockchip_tsadc_data->pclk);
+	clk_prepare(rockchip_tsadc_data->pclk);
 
 	platform_set_drvdata(data->pdev, rockchip_tsadc_data);
 	g_dev = rockchip_tsadc_data;
