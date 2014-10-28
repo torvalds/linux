@@ -38,6 +38,35 @@ static unsigned int itr_trsh = WIL6210_ITR_TRSH_DEFAULT;
 module_param(itr_trsh, uint, S_IRUGO);
 MODULE_PARM_DESC(itr_trsh, " Interrupt moderation threshold, usecs.");
 
+/* We allow allocation of more than 1 page buffers to support large packets.
+ * It is suboptimal behavior performance wise in case MTU above page size.
+ */
+unsigned int mtu_max = TXRX_BUF_LEN_DEFAULT - ETH_HLEN;
+static int mtu_max_set(const char *val, const struct kernel_param *kp)
+{
+	int ret;
+
+	/* sets mtu_max directly. no need to restore it in case of
+	 * illegal value since we assume this will fail insmod
+	 */
+	ret = param_set_uint(val, kp);
+	if (ret)
+		return ret;
+
+	if (mtu_max < 68 || mtu_max > IEEE80211_MAX_DATA_LEN_DMG)
+		ret = -EINVAL;
+
+	return ret;
+}
+
+static struct kernel_param_ops mtu_max_ops = {
+	.set = mtu_max_set,
+	.get = param_get_uint,
+};
+
+module_param_cb(mtu_max, &mtu_max_ops, &mtu_max, S_IRUGO);
+MODULE_PARM_DESC(mtu_max, " Max MTU value.");
+
 #define RST_DELAY (20) /* msec, for loop in @wil_target_reset */
 #define RST_COUNT (1 + 1000/RST_DELAY) /* round up to be above 1 sec total */
 

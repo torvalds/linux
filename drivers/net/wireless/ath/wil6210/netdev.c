@@ -41,7 +41,7 @@ static int wil_change_mtu(struct net_device *ndev, int new_mtu)
 {
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
 
-	if (new_mtu < 68 || new_mtu > (TX_BUF_LEN - ETH_HLEN)) {
+	if (new_mtu < 68 || new_mtu > mtu_max) {
 		wil_err(wil, "invalid MTU %d\n", new_mtu);
 		return -EINVAL;
 	}

@@ -24,6 +24,7 @@
 #include "wil_platform.h"
 
 extern bool no_fw_recovery;
+extern unsigned int mtu_max;
 
 #define WIL_NAME "wil6210"
 #define WIL_FW_NAME "wil6210.fw"
