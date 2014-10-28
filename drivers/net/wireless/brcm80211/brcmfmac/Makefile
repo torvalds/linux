@@ -30,7 +30,7 @@ brcmfmac-objs += \
 		fwsignal.o \
 		p2p.o \
 		proto.o \
-		dhd_common.o \
+		common.o \
 		dhd_linux.o \
 		firmware.o \
 		feature.o \

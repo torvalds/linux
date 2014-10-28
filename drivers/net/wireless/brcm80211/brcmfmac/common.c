@@ -52,9 +52,9 @@ bool brcmf_c_prec_enq(struct device *dev, struct pktq *q,
 	}
 
 	/* Determine precedence from which to evict packet, if any */
-	if (pktq_pfull(q, prec))
+	if (pktq_pfull(q, prec)) {
 		eprec = prec;
-	else if (pktq_full(q)) {
+	} else if (pktq_full(q)) {
 		p = brcmu_pktq_peek_tail(q, &eprec);
 		if (eprec > prec)
 			return false;
