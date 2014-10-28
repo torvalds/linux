@@ -153,6 +153,7 @@ gb_module_interface_init(struct gb_module *gmod, u8 interface_id, u8 device_id)
 			interface_id);
 		return -ENOENT;
 	}
+	interface->device_id = device_id;
 
 	ret = svc_set_route_send(interface, gmod->hd);
 	if (ret) {
