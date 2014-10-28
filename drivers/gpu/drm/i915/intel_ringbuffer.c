@@ -795,14 +795,6 @@ static int chv_init_workarounds(struct intel_engine_cs *ring)
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
 		  STALL_DOP_GATING_DISABLE);
 
-	/* WaDisableDopClockGating:chv (pre-production hw) */
-	WA_SET_BIT_MASKED(GEN7_ROW_CHICKEN2,
-		  DOP_CLOCK_GATING_DISABLE);
-
-	/* WaDisableSamplerPowerBypass:chv (pre-production hw) */
-	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3,
-		  GEN8_SAMPLER_POWER_BYPASS_DIS);
-
 	return 0;
 }
 

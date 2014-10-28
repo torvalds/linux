@@ -6958,18 +6958,6 @@ static void cherryview_init_clock_gating(struct drm_device *dev)
 	/* WaDisableSDEUnitClockGating:chv */
 	I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
 		   GEN8_SDEUNIT_CLOCK_GATE_DISABLE);
-
-	/* WaDisableGunitClockGating:chv (pre-production hw) */
-	I915_WRITE(VLV_GUNIT_CLOCK_GATE, I915_READ(VLV_GUNIT_CLOCK_GATE) |
-		   GINT_DIS);
-
-	/* WaDisableFfDopClockGating:chv (pre-production hw) */
-	I915_WRITE(GEN6_RC_SLEEP_PSMI_CONTROL,
-		   _MASKED_BIT_ENABLE(GEN8_FF_DOP_CLOCK_GATE_DISABLE));
-
-	/* WaDisableDopClockGating:chv (pre-production hw) */
-	I915_WRITE(GEN6_UCGCTL1, I915_READ(GEN6_UCGCTL1) |
-		   GEN6_EU_TCUNIT_CLOCK_GATE_DISABLE);
 }
 
 static void g4x_init_clock_gating(struct drm_device *dev)
