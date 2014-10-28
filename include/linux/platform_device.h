@@ -240,10 +240,12 @@ static void __exit __platform_driver##_exit(void) \
 } \
 module_exit(__platform_driver##_exit);
 
-extern struct platform_device *platform_create_bundle(
+#define platform_create_bundle(driver, probe, res, n_res, data, size) \
+	__platform_create_bundle(driver, probe, res, n_res, data, size, THIS_MODULE)
+extern struct platform_device *__platform_create_bundle(
 	struct platform_driver *driver, int (*probe)(struct platform_device *),
 	struct resource *res, unsigned int n_res,
-	const void *data, size_t size);
+	const void *data, size_t size, struct module *module);
 
 /* early platform driver interface */
 struct early_platform_driver {
