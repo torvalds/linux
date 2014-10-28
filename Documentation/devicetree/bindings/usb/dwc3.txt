@@ -24,6 +24,8 @@ Optional properties:
 			P1/P2/P3 transition sequence.
  - snps,del_p1p2p3_quirk: when set core will delay P1/P2/P3 until a certain
 			amount of 8B10B errors occur.
+ - snps,del_phy_power_chg_quirk: when set core will delay PHY power change
+			from P0 to P1/P2/P3.
 
 This is usually a subnode to DWC3 glue to which it is connected.
 

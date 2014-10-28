@@ -33,4 +33,5 @@ struct dwc3_platform_data {
 	unsigned u2ss_inp3_quirk:1;
 	unsigned req_p1p2p3_quirk:1;
 	unsigned del_p1p2p3_quirk:1;
+	unsigned del_phy_power_chg_quirk:1;
 };
