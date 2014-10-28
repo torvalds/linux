@@ -1196,64 +1196,74 @@ static int ath10k_pci_hif_start(struct ath10k *ar)
 	return 0;
 }
 
-static void ath10k_pci_rx_pipe_cleanup(struct ath10k_pci_pipe *pipe_info)
+static void ath10k_pci_rx_pipe_cleanup(struct ath10k_pci_pipe *pci_pipe)
 {
 	struct ath10k *ar;
-	struct ath10k_pci *ar_pci;
-	struct ath10k_ce_pipe *ce_hdl;
-	u32 buf_sz;
-	struct sk_buff *netbuf;
-	u32 ce_data;
+	struct ath10k_ce_pipe *ce_pipe;
+	struct ath10k_ce_ring *ce_ring;
+	struct sk_buff *skb;
+	int i;
 
-	buf_sz = pipe_info->buf_sz;
+	ar = pci_pipe->hif_ce_state;
+	ce_pipe = pci_pipe->ce_hdl;
+	ce_ring = ce_pipe->dest_ring;
 
-	/* Unused Copy Engine */
-	if (buf_sz == 0)
+	if (!ce_ring)
 		return;
 
-	ar = pipe_info->hif_ce_state;
-	ar_pci = ath10k_pci_priv(ar);
-	ce_hdl = pipe_info->ce_hdl;
+	if (!pci_pipe->buf_sz)
+		return;
 
-	while (ath10k_ce_revoke_recv_next(ce_hdl, (void **)&netbuf,
-					  &ce_data) == 0) {
-		dma_unmap_single(ar->dev, ATH10K_SKB_CB(netbuf)->paddr,
-				 netbuf->len + skb_tailroom(netbuf),
+	for (i = 0; i < ce_ring->nentries; i++) {
+		skb = ce_ring->per_transfer_context[i];
+		if (!skb)
+			continue;
+
+		ce_ring->per_transfer_context[i] = NULL;
+
+		dma_unmap_single(ar->dev, ATH10K_SKB_CB(skb)->paddr,
+				 skb->len + skb_tailroom(skb),
 				 DMA_FROM_DEVICE);
-		dev_kfree_skb_any(netbuf);
+		dev_kfree_skb_any(skb);
 	}
 }
 
-static void ath10k_pci_tx_pipe_cleanup(struct ath10k_pci_pipe *pipe_info)
+static void ath10k_pci_tx_pipe_cleanup(struct ath10k_pci_pipe *pci_pipe)
 {
 	struct ath10k *ar;
 	struct ath10k_pci *ar_pci;
-	struct ath10k_ce_pipe *ce_hdl;
-	struct sk_buff *netbuf;
-	u32 ce_data;
-	unsigned int nbytes;
+	struct ath10k_ce_pipe *ce_pipe;
+	struct ath10k_ce_ring *ce_ring;
+	struct ce_desc *ce_desc;
+	struct sk_buff *skb;
 	unsigned int id;
-	u32 buf_sz;
+	int i;
 
-	buf_sz = pipe_info->buf_sz;
+	ar = pci_pipe->hif_ce_state;
+	ar_pci = ath10k_pci_priv(ar);
+	ce_pipe = pci_pipe->ce_hdl;
+	ce_ring = ce_pipe->src_ring;
 
-	/* Unused Copy Engine */
-	if (buf_sz == 0)
+	if (!ce_ring)
 		return;
 
-	ar = pipe_info->hif_ce_state;
-	ar_pci = ath10k_pci_priv(ar);
-	ce_hdl = pipe_info->ce_hdl;
+	if (!pci_pipe->buf_sz)
+		return;
 
-	while (ath10k_ce_cancel_send_next(ce_hdl, (void **)&netbuf,
-					  &ce_data, &nbytes, &id) == 0) {
-		/* no need to call tx completion for NULL pointers */
-		if (!netbuf)
+	ce_desc = ce_ring->shadow_base;
+	if (WARN_ON(!ce_desc))
+		return;
+
+	for (i = 0; i < ce_ring->nentries; i++) {
+		skb = ce_ring->per_transfer_context[i];
+		if (!skb)
 			continue;
 
-		ar_pci->msg_callbacks_current.tx_completion(ar,
-							    netbuf,
-							    id);
+		ce_ring->per_transfer_context[i] = NULL;
+		id = MS(__le16_to_cpu(ce_desc[i].flags),
+			CE_DESC_FLAGS_META_DATA);
+
+		ar_pci->msg_callbacks_current.tx_completion(ar, skb, id);
 	}
 }
 
