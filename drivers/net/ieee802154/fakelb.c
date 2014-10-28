@@ -47,7 +47,6 @@ struct fakelb_priv {
 static int
 fakelb_hw_ed(struct ieee802154_hw *hw, u8 *level)
 {
-	might_sleep();
 	BUG_ON(!level);
 	*level = 0xbe;
 
@@ -59,7 +58,6 @@ fakelb_hw_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 {
 	pr_debug("set channel to %d\n", channel);
 
-	might_sleep();
 	hw->phy->current_page = page;
 	hw->phy->current_channel = channel;
 
@@ -84,8 +82,6 @@ fakelb_hw_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
 	struct fakelb_dev_priv *priv = hw->priv;
 	struct fakelb_priv *fake = priv->fake;
-
-	might_sleep();
 
 	read_lock_bh(&fake->lock);
 	if (priv->list.next == priv->list.prev) {

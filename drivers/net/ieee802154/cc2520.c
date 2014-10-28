@@ -574,7 +574,6 @@ cc2520_set_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 	struct cc2520_private *priv = hw->priv;
 	int ret;
 
-	might_sleep();
 	dev_dbg(&priv->spi->dev, "trying to set channel\n");
 
 	BUG_ON(page != 0);
