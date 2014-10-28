@@ -28,8 +28,9 @@
 struct input_dev;
 
 /**
- * Jack types which can be reported.  These values are used as a
- * bitmask.
+ * enum snd_jack_types: Jack types which can be reported
+ *
+ * These values are used as a bitmask.
  *
  * Note that this must be kept in sync with the lookup table in
  * sound/core/jack.c.
