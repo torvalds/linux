@@ -1457,42 +1457,28 @@ imx_verify_port(struct uart_port *port, struct serial_struct *ser)
 #if defined(CONFIG_CONSOLE_POLL)
 static int imx_poll_get_char(struct uart_port *port)
 {
-	if (!(readl(port->membase + USR2) & USR2_RDR))
+	if (!(readl_relaxed(port->membase + USR2) & USR2_RDR))
 		return NO_POLL_CHAR;
 
-	return readl(port->membase + URXD0) & URXD_RX_DATA;
+	return readl_relaxed(port->membase + URXD0) & URXD_RX_DATA;
 }
 
 static void imx_poll_put_char(struct uart_port *port, unsigned char c)
 {
-	struct imx_port_ucrs old_ucr;
 	unsigned int status;
-
-	/* save control registers */
-	imx_port_ucrs_save(port, &old_ucr);
-
-	/* disable interrupts */
-	writel(UCR1_UARTEN, port->membase + UCR1);
-	writel(old_ucr.ucr2 & ~(UCR2_ATEN | UCR2_RTSEN | UCR2_ESCI),
-	       port->membase + UCR2);
-	writel(old_ucr.ucr3 & ~(UCR3_DCD | UCR3_RI | UCR3_DTREN),
-	       port->membase + UCR3);
 
 	/* drain */
 	do {
-		status = readl(port->membase + USR1);
+		status = readl_relaxed(port->membase + USR1);
 	} while (~status & USR1_TRDY);
 
 	/* write */
-	writel(c, port->membase + URTX0);
+	writel_relaxed(c, port->membase + URTX0);
 
 	/* flush */
 	do {
-		status = readl(port->membase + USR2);
+		status = readl_relaxed(port->membase + USR2);
 	} while (~status & USR2_TXDC);
-
-	/* restore control registers */
-	imx_port_ucrs_restore(port, &old_ucr);
 }
 #endif
 
