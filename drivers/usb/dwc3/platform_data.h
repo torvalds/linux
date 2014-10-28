@@ -35,4 +35,5 @@ struct dwc3_platform_data {
 	unsigned del_p1p2p3_quirk:1;
 	unsigned del_phy_power_chg_quirk:1;
 	unsigned lfps_filter_quirk:1;
+	unsigned rx_detect_poll_quirk:1;
 };

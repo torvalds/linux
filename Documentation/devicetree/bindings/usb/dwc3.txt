@@ -27,6 +27,8 @@ Optional properties:
  - snps,del_phy_power_chg_quirk: when set core will delay PHY power change
 			from P0 to P1/P2/P3.
  - snps,lfps_filter_quirk: when set core will filter LFPS reception.
+ - snps,rx_detect_poll_quirk: when set core will disable a 400us delay to start
+			Polling LFPS after RX.Detect.
 
 This is usually a subnode to DWC3 glue to which it is connected.
 
