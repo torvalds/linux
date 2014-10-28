@@ -1391,7 +1391,7 @@ static void ar9003_hw_set_radar_conf(struct ath_hw *ah)
 	conf->fir_power = -28;
 	conf->radar_rssi = 0;
 	conf->pulse_height = 10;
-	conf->pulse_rssi = 24;
+	conf->pulse_rssi = 15;
 	conf->pulse_inband = 8;
 	conf->pulse_maxlen = 255;
 	conf->pulse_inband_step = 12;
