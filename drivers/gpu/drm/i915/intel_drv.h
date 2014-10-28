@@ -399,9 +399,17 @@ struct intel_pipe_wm {
 	bool sprites_scaled;
 };
 
+enum intel_mmio_flip_status {
+	INTEL_MMIO_FLIP_IDLE = 0,
+	INTEL_MMIO_FLIP_WAIT_RING,
+	INTEL_MMIO_FLIP_WORK_SCHEDULED,
+};
+
 struct intel_mmio_flip {
 	u32 seqno;
 	u32 ring_id;
+	enum intel_mmio_flip_status status;
+	struct work_struct work;
 };
 
 struct intel_crtc {
@@ -1167,7 +1175,9 @@ int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
 int intel_sprite_get_colorkey(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
-
+bool intel_pipe_update_start(struct intel_crtc *crtc,
+			     uint32_t *start_vbl_count);
+void intel_pipe_update_end(struct intel_crtc *crtc, u32 start_vbl_count);
 
 /* intel_tv.c */
 void intel_tv_init(struct drm_device *dev);

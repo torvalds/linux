@@ -9401,10 +9401,14 @@ static void intel_do_mmio_flip(struct intel_crtc *intel_crtc)
 	struct intel_framebuffer *intel_fb =
 		to_intel_framebuffer(intel_crtc->base.primary->fb);
 	struct drm_i915_gem_object *obj = intel_fb->obj;
+	bool atomic_update;
+	u32 start_vbl_count;
 	u32 dspcntr;
 	u32 reg;
 
 	intel_mark_page_flip_active(intel_crtc);
+
+	atomic_update = intel_pipe_update_start(intel_crtc, &start_vbl_count);
 
 	reg = DSPCNTR(intel_crtc->plane);
 	dspcntr = I915_READ(reg);
@@ -9419,6 +9423,21 @@ static void intel_do_mmio_flip(struct intel_crtc *intel_crtc)
 	I915_WRITE(DSPSURF(intel_crtc->plane),
 		   intel_crtc->unpin_work->gtt_offset);
 	POSTING_READ(DSPSURF(intel_crtc->plane));
+
+	if (atomic_update)
+		intel_pipe_update_end(intel_crtc, start_vbl_count);
+
+	spin_lock_irq(&dev_priv->mmio_flip_lock);
+	intel_crtc->mmio_flip.status = INTEL_MMIO_FLIP_IDLE;
+	spin_unlock_irq(&dev_priv->mmio_flip_lock);
+}
+
+static void intel_mmio_flip_work_func(struct work_struct *work)
+{
+	struct intel_crtc *intel_crtc =
+		container_of(work, struct intel_crtc, mmio_flip.work);
+
+	intel_do_mmio_flip(intel_crtc);
 }
 
 static int intel_postpone_flip(struct drm_i915_gem_object *obj)
@@ -9461,15 +9480,15 @@ void intel_notify_mmio_flip(struct intel_engine_cs *ring)
 		struct intel_mmio_flip *mmio_flip;
 
 		mmio_flip = &intel_crtc->mmio_flip;
-		if (mmio_flip->seqno == 0)
+		if (mmio_flip->status != INTEL_MMIO_FLIP_WAIT_RING)
 			continue;
 
 		if (ring->id != mmio_flip->ring_id)
 			continue;
 
 		if (i915_seqno_passed(seqno, mmio_flip->seqno)) {
-			intel_do_mmio_flip(intel_crtc);
-			mmio_flip->seqno = 0;
+			schedule_work(&intel_crtc->mmio_flip.work);
+			mmio_flip->status = INTEL_MMIO_FLIP_WORK_SCHEDULED;
 			ring->irq_put(ring);
 		}
 	}
@@ -9487,7 +9506,7 @@ static int intel_queue_mmio_flip(struct drm_device *dev,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int ret;
 
-	if (WARN_ON(intel_crtc->mmio_flip.seqno))
+	if (WARN_ON(intel_crtc->mmio_flip.status != INTEL_MMIO_FLIP_IDLE))
 		return -EBUSY;
 
 	ret = intel_postpone_flip(obj);
@@ -9499,6 +9518,7 @@ static int intel_queue_mmio_flip(struct drm_device *dev,
 	}
 
 	spin_lock_irq(&dev_priv->mmio_flip_lock);
+	intel_crtc->mmio_flip.status = INTEL_MMIO_FLIP_WAIT_RING;
 	intel_crtc->mmio_flip.seqno = obj->last_write_seqno;
 	intel_crtc->mmio_flip.ring_id = obj->ring->id;
 	spin_unlock_irq(&dev_priv->mmio_flip_lock);
@@ -11982,6 +12002,8 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	       dev_priv->plane_to_crtc_mapping[intel_crtc->plane] != NULL);
 	dev_priv->plane_to_crtc_mapping[intel_crtc->plane] = &intel_crtc->base;
 	dev_priv->pipe_to_crtc_mapping[intel_crtc->pipe] = &intel_crtc->base;
+
+	INIT_WORK(&intel_crtc->mmio_flip.work, intel_mmio_flip_work_func);
 
 	drm_crtc_helper_add(&intel_crtc->base, &intel_helper_funcs);
 
