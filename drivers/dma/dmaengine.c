@@ -479,6 +479,39 @@ static void dma_channel_rebalance(void)
 		}
 }
 
+int dma_get_slave_caps(struct dma_chan *chan, struct dma_slave_caps *caps)
+{
+	struct dma_device *device;
+
+	if (!chan || !caps)
+		return -EINVAL;
+
+	device = chan->device;
+
+	/* check if the channel supports slave transactions */
+	if (!test_bit(DMA_SLAVE, device->cap_mask.bits))
+		return -ENXIO;
+
+	/*
+	 * Check whether it reports it uses the generic slave
+	 * capabilities, if not, that means it doesn't support any
+	 * kind of slave capabilities reporting.
+	 */
+	if (!device->directions)
+		return -ENXIO;
+
+	caps->src_addr_widths = device->src_addr_widths;
+	caps->dst_addr_widths = device->dst_addr_widths;
+	caps->directions = device->directions;
+	caps->residue_granularity = device->residue_granularity;
+
+	caps->cmd_pause = !!device->device_pause;
+	caps->cmd_terminate = !!device->device_terminate_all;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dma_get_slave_caps);
+
 static struct dma_chan *private_candidate(const dma_cap_mask_t *mask,
 					  struct dma_device *dev,
 					  dma_filter_fn fn, void *fn_param)
