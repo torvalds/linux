@@ -3128,9 +3128,12 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 		}
 	}
 	eld[5] |= sad_count << 4;
-	eld[2] = (20 + mnl + sad_count * 3 + 3) / 4;
 
-	DRM_DEBUG_KMS("ELD size %d, SAD count %d\n", (int)eld[2], sad_count);
+	eld[DRM_ELD_BASELINE_ELD_LEN] =
+		DIV_ROUND_UP(drm_eld_calc_baseline_block_size(eld), 4);
+
+	DRM_DEBUG_KMS("ELD size %d, SAD count %d\n",
+		      drm_eld_size(eld), sad_count);
 }
 EXPORT_SYMBOL(drm_edid_to_eld);
 

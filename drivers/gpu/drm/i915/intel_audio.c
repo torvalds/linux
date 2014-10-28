@@ -107,7 +107,7 @@ static bool intel_eld_uptodate(struct drm_connector *connector,
 	tmp &= ~bits_elda;
 	I915_WRITE(reg_elda, tmp);
 
-	for (i = 0; i < eld[2]; i++)
+	for (i = 0; i < drm_eld_size(eld) / 4; i++)
 		if (I915_READ(reg_edid) != *((uint32_t *)eld + i))
 			return false;
 
@@ -162,7 +162,7 @@ static void g4x_audio_codec_enable(struct drm_connector *connector,
 	len = (tmp >> 9) & 0x1f;		/* ELD buffer size */
 	I915_WRITE(G4X_AUD_CNTL_ST, tmp);
 
-	len = min_t(int, eld[2], len);
+	len = min(drm_eld_size(eld) / 4, len);
 	DRM_DEBUG_DRIVER("ELD size %d\n", len);
 	for (i = 0; i < len; i++)
 		I915_WRITE(G4X_HDMIW_HDMIEDID, *((uint32_t *)eld + i));
@@ -209,7 +209,7 @@ static void hsw_audio_codec_enable(struct drm_connector *connector,
 	int len, i;
 
 	DRM_DEBUG_KMS("Enable audio codec on pipe %c, %u bytes ELD\n",
-		      pipe_name(pipe), eld[2]);
+		      pipe_name(pipe), drm_eld_size(eld));
 
 	/* Enable audio presence detect, invalidate ELD */
 	tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
@@ -230,8 +230,8 @@ static void hsw_audio_codec_enable(struct drm_connector *connector,
 	I915_WRITE(HSW_AUD_DIP_ELD_CTRL(pipe), tmp);
 
 	/* Up to 84 bytes of hw ELD buffer */
-	len = min_t(int, eld[2], 21);
-	for (i = 0; i < len; i++)
+	len = min(drm_eld_size(eld), 84);
+	for (i = 0; i < len / 4; i++)
 		I915_WRITE(HSW_AUD_EDID_DATA(pipe), *((uint32_t *)eld + i));
 
 	/* ELD valid */
@@ -320,7 +320,7 @@ static void ilk_audio_codec_enable(struct drm_connector *connector,
 	int aud_cntrl_st2;
 
 	DRM_DEBUG_KMS("Enable audio codec on port %c, pipe %c, %u bytes ELD\n",
-		      port_name(port), pipe_name(pipe), eld[2]);
+		      port_name(port), pipe_name(pipe), drm_eld_size(eld));
 
 	/*
 	 * FIXME: We're supposed to wait for vblank here, but we have vblanks
@@ -364,8 +364,8 @@ static void ilk_audio_codec_enable(struct drm_connector *connector,
 	I915_WRITE(aud_cntl_st, tmp);
 
 	/* Up to 84 bytes of hw ELD buffer */
-	len = min_t(int, eld[2], 21);
-	for (i = 0; i < len; i++)
+	len = min(drm_eld_size(eld), 84);
+	for (i = 0; i < len / 4; i++)
 		I915_WRITE(hdmiw_hdmiedid, *((uint32_t *)eld + i));
 
 	/* ELD valid */

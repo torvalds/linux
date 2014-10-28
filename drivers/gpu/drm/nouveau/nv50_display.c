@@ -1681,7 +1681,8 @@ nv50_audio_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode)
 	drm_edid_to_eld(&nv_connector->base, nv_connector->edid);
 	memcpy(args.data, nv_connector->base.eld, sizeof(args.data));
 
-	nvif_mthd(disp->disp, 0, &args, sizeof(args.base) + args.data[2] * 4);
+	nvif_mthd(disp->disp, 0, &args,
+		  sizeof(args.base) + drm_eld_size(args.data));
 }
 
 static void
