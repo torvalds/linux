@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _BRCMF_DBG_H_
-#define _BRCMF_DBG_H_
+#ifndef BRCMFMAC_DEBUG_H
+#define BRCMFMAC_DEBUG_H
 
 /* message levels */
 #define BRCMF_TRACE_VAL		0x00000002
@@ -133,4 +133,4 @@ int brcmf_debugfs_add_entry(struct brcmf_pub *drvr, const char *fn,
 }
 #endif
 
-#endif				/* _BRCMF_DBG_H_ */
+#endif /* BRCMFMAC_DEBUG_H */

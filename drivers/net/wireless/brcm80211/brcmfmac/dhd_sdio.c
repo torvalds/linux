@@ -97,7 +97,7 @@ struct rte_console {
 #include <chipcommon.h>
 
 #include "dhd_bus.h"
-#include "dhd_dbg.h"
+#include "debug.h"
 #include "tracepoint.h"
 
 #define TXQLEN		2048	/* bulk tx queue length */

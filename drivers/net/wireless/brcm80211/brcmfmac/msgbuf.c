@@ -25,7 +25,7 @@
 #include <brcmu_wifi.h>
 
 #include "dhd.h"
-#include "dhd_dbg.h"
+#include "debug.h"
 #include "proto.h"
 #include "msgbuf.h"
 #include "commonring.h"

@@ -24,7 +24,7 @@
 
 #include "dhd.h"
 #include "dhd_bus.h"
-#include "dhd_dbg.h"
+#include "debug.h"
 #include "fwil_types.h"
 #include "p2p.h"
 #include "wl_cfg80211.h"

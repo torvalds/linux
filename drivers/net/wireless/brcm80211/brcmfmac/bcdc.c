@@ -28,7 +28,7 @@
 #include "dhd.h"
 #include "dhd_bus.h"
 #include "fwsignal.h"
-#include "dhd_dbg.h"
+#include "debug.h"
 #include "tracepoint.h"
 #include "proto.h"
 #include "bcdc.h"

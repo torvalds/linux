@@ -50,7 +50,7 @@ brcmfmac-$(CONFIG_BRCMFMAC_USB) += \
 brcmfmac-$(CONFIG_BRCMFMAC_PCIE) += \
 		pcie.o
 brcmfmac-$(CONFIG_BRCMDBG) += \
-		dhd_dbg.o
+		debug.o
 brcmfmac-$(CONFIG_BRCM_TRACING) += \
 		tracepoint.o
 brcmfmac-$(CONFIG_OF) += \

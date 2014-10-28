@@ -21,7 +21,7 @@
 #include <brcmu_utils.h>
 #include "dhd.h"
 #include "dhd_bus.h"
-#include "dhd_dbg.h"
+#include "debug.h"
 
 static struct dentry *root_folder;
 

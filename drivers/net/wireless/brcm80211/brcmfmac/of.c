@@ -21,7 +21,7 @@
 #include <linux/mmc/sdio_func.h>
 
 #include <defs.h>
-#include "dhd_dbg.h"
+#include "debug.h"
 #include "sdio_host.h"
 
 void brcmf_of_probe(struct brcmf_sdio_dev *sdiodev)

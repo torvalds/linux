@@ -24,8 +24,8 @@
 #include <brcm_hw_ids.h>
 #include <brcmu_wifi.h>
 #include <dhd_bus.h>
-#include <dhd_dbg.h>
 
+#include "debug.h"
 #include "firmware.h"
 #include "usb.h"
 

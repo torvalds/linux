@@ -22,7 +22,7 @@
 #include "fwil_types.h"
 #include "dhd.h"
 #include "p2p.h"
-#include "dhd_dbg.h"
+#include "debug.h"
 #include "wl_cfg80211.h"
 #include "vendor.h"
 #include "fwil.h"

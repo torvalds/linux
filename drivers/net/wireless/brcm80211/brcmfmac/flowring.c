@@ -20,7 +20,7 @@
 #include <brcmu_utils.h>
 
 #include "dhd.h"
-#include "dhd_dbg.h"
+#include "debug.h"
 #include "dhd_bus.h"
 #include "proto.h"
 #include "flowring.h"

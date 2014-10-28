@@ -27,7 +27,7 @@
 #include <defs.h>
 #include <brcmu_wifi.h>
 #include "dhd.h"
-#include "dhd_dbg.h"
+#include "debug.h"
 #include "tracepoint.h"
 #include "fwil_types.h"
 #include "p2p.h"

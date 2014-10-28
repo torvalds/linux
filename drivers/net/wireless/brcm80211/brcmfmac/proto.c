@@ -22,7 +22,7 @@
 #include <brcmu_wifi.h>
 #include "dhd.h"
 #include "dhd_bus.h"
-#include "dhd_dbg.h"
+#include "debug.h"
 #include "proto.h"
 #include "bcdc.h"
 #include "msgbuf.h"

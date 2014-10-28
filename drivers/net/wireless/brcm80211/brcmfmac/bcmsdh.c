@@ -42,7 +42,7 @@
 #include <soc.h>
 #include "chip.h"
 #include "dhd_bus.h"
-#include "dhd_dbg.h"
+#include "debug.h"
 #include "sdio_host.h"
 #include "of.h"
 

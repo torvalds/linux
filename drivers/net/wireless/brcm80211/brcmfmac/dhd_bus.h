@@ -17,7 +17,7 @@
 #ifndef _BRCMF_BUS_H_
 #define _BRCMF_BUS_H_
 
-#include "dhd_dbg.h"
+#include "debug.h"
 
 /* IDs of the 6 default common rings of msgbuf protocol */
 #define BRCMF_H2D_MSGRING_CONTROL_SUBMIT	0
