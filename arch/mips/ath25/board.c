@@ -18,6 +18,7 @@
 
 #include "devices.h"
 #include "ar5312.h"
+#include "ar2315.h"
 
 static void ath25_halt(void)
 {
@@ -32,6 +33,8 @@ void __init plat_mem_setup(void)
 
 	if (is_ar5312())
 		ar5312_plat_mem_setup();
+	else
+		ar2315_plat_mem_setup();
 
 	/* Disable data watchpoints */
 	write_c0_watchlo0(0);
@@ -45,6 +48,8 @@ void __init plat_time_init(void)
 {
 	if (is_ar5312())
 		ar5312_plat_time_init();
+	else
+		ar2315_plat_time_init();
 }
 
 unsigned int __cpuinit get_c0_compare_int(void)
