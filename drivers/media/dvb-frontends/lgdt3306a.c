@@ -1125,10 +1125,9 @@ static enum lgdt3306a_modulation lgdt3306a_check_oper_mode(struct lgdt3306a_stat
 		if (val & 0x01) {
 			dbg_info("QAM256\n");
 			return LG3306_QAM256;
-		} else {
-			dbg_info("QAM64\n");
-			return LG3306_QAM64;
 		}
+		dbg_info("QAM64\n");
+		return LG3306_QAM64;
 	}
 err:
 	pr_warn("UNKNOWN\n");
@@ -1399,14 +1398,15 @@ static u32 log10_x1000(u32 x)
 	if (x <= 0)
 		return -1000000; /* signal error */
 
+	if (x == 10)
+		return 0; /* log(1)=0 */
+
 	if (x < 10) {
 		while (x < 10) {
 			x = x * 10;
 			log_val--;
 		}
-	} else if (x == 10) {
-		return 0; /* log(1)=0 */
-	} else {
+	} else {	/* x > 10 */
 		while (x >= 100) {
 			x = x / 10;
 			log_val++;
