@@ -1421,6 +1421,8 @@ int rc_register_device(struct rc_dev *dev)
 
 	if (dev->change_protocol) {
 		u64 rc_type = (1 << rc_map->rc_type);
+		if (dev->driver_type == RC_DRIVER_IR_RAW)
+			rc_type |= RC_BIT_LIRC;
 		rc = dev->change_protocol(dev, &rc_type);
 		if (rc < 0)
 			goto out_raw;
