@@ -14,6 +14,8 @@ Optional properties:
  - phys: from the *Generic PHY* bindings
  - phy-names: from the *Generic PHY* bindings
  - tx-fifo-resize: determines if the FIFO *has* to be reallocated.
+ - snps,disable_scramble_quirk: true when SW should disable data scrambling.
+	Only really useful for FPGA builds.
 
 This is usually a subnode to DWC3 glue to which it is connected.
 
