@@ -28,6 +28,7 @@
 #include <net/cfg802154.h>
 
 #include "ieee802154_i.h"
+#include "driver-ops.h"
 
 /* IEEE 802.15.4 transceivers can sleep during the xmit session, so process
  * packets through the workqueue.
@@ -55,7 +56,7 @@ static void ieee802154_xmit_worker(struct work_struct *work)
 	if (!netif_running(dev))
 		goto err_tx;
 
-	res = local->ops->xmit_sync(&local->hw, skb);
+	res = drv_xmit_sync(local, skb);
 	if (res)
 		goto err_tx;
 
@@ -96,7 +97,7 @@ ieee802154_tx(struct ieee802154_local *local, struct sk_buff *skb)
 
 	/* async is priority, otherwise sync is fallback */
 	if (local->ops->xmit_async) {
-		ret = local->ops->xmit_async(&local->hw, skb);
+		ret = drv_xmit_async(local, skb);
 		if (ret) {
 			ieee802154_wake_queue(&local->hw);
 			goto err_tx;

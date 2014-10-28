@@ -24,6 +24,7 @@
 #include <net/cfg802154.h>
 
 #include "ieee802154_i.h"
+#include "driver-ops.h"
 
 struct phy_chan_notify_work {
 	struct work_struct work;
@@ -170,7 +171,7 @@ static void phy_chan_notify(struct work_struct *work)
 	int res;
 
 	mutex_lock(&sdata->local->phy->pib_lock);
-	res = local->ops->set_channel(&local->hw, sdata->page, sdata->chan);
+	res = drv_set_channel(local, sdata->page, sdata->chan);
 	if (res) {
 		pr_debug("set_channel failed\n");
 	} else {

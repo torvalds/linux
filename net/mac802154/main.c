@@ -28,6 +28,7 @@
 #include <net/cfg802154.h>
 
 #include "ieee802154_i.h"
+#include "driver-ops.h"
 
 static int
 mac802154_netdev_register(struct wpan_phy *phy, struct net_device *dev)
@@ -124,28 +125,28 @@ static int mac802154_set_txpower(struct wpan_phy *phy, int db)
 {
 	struct ieee802154_local *local = wpan_phy_priv(phy);
 
-	return local->ops->set_txpower(&local->hw, db);
+	return drv_set_tx_power(local, db);
 }
 
 static int mac802154_set_lbt(struct wpan_phy *phy, bool on)
 {
 	struct ieee802154_local *local = wpan_phy_priv(phy);
 
-	return local->ops->set_lbt(&local->hw, on);
+	return drv_set_lbt_mode(local, on);
 }
 
 static int mac802154_set_cca_mode(struct wpan_phy *phy, u8 mode)
 {
 	struct ieee802154_local *local = wpan_phy_priv(phy);
 
-	return local->ops->set_cca_mode(&local->hw, mode);
+	return drv_set_cca_mode(local, mode);
 }
 
 static int mac802154_set_cca_ed_level(struct wpan_phy *phy, s32 level)
 {
 	struct ieee802154_local *local = wpan_phy_priv(phy);
 
-	return local->ops->set_cca_ed_level(&local->hw, level);
+	return drv_set_cca_ed_level(local, level);
 }
 
 static int mac802154_set_csma_params(struct wpan_phy *phy, u8 min_be,
@@ -153,14 +154,14 @@ static int mac802154_set_csma_params(struct wpan_phy *phy, u8 min_be,
 {
 	struct ieee802154_local *local = wpan_phy_priv(phy);
 
-	return local->ops->set_csma_params(&local->hw, min_be, max_be, retries);
+	return drv_set_csma_params(local, min_be, max_be, retries);
 }
 
 static int mac802154_set_frame_retries(struct wpan_phy *phy, s8 retries)
 {
 	struct ieee802154_local *local = wpan_phy_priv(phy);
 
-	return local->ops->set_frame_retries(&local->hw, retries);
+	return drv_set_max_frame_retries(local, retries);
 }
 
 static void ieee802154_tasklet_handler(unsigned long data)

@@ -30,6 +30,7 @@
 #include <net/cfg802154.h>
 
 #include "ieee802154_i.h"
+#include "driver-ops.h"
 
 static int mac802154_wpan_update_llsec(struct net_device *dev)
 {
@@ -168,7 +169,7 @@ static int mac802154_slave_open(struct net_device *dev)
 	mutex_unlock(&sdata->local->iflist_mtx);
 
 	if (local->open_count++ == 0) {
-		res = local->ops->start(&local->hw);
+		res = drv_start(local);
 		WARN_ON(res);
 		if (res)
 			goto err;
@@ -186,6 +187,7 @@ static int mac802154_wpan_open(struct net_device *dev)
 {
 	int rc;
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+	struct ieee802154_local *local = sdata->local;
 	struct wpan_phy *phy = sdata->local->phy;
 
 	rc = mac802154_slave_open(dev);
@@ -195,40 +197,41 @@ static int mac802154_wpan_open(struct net_device *dev)
 	mutex_lock(&phy->pib_lock);
 
 	if (phy->set_txpower) {
-		rc = phy->set_txpower(phy, sdata->mac_params.transmit_power);
+		rc = drv_set_tx_power(local, sdata->mac_params.transmit_power);
 		if (rc < 0)
 			goto out;
 	}
 
 	if (phy->set_lbt) {
-		rc = phy->set_lbt(phy, sdata->mac_params.lbt);
+		rc = drv_set_lbt_mode(local, sdata->mac_params.lbt);
 		if (rc < 0)
 			goto out;
 	}
 
 	if (phy->set_cca_mode) {
-		rc = phy->set_cca_mode(phy, sdata->mac_params.cca_mode);
+		rc = drv_set_cca_mode(local, sdata->mac_params.cca_mode);
 		if (rc < 0)
 			goto out;
 	}
 
 	if (phy->set_cca_ed_level) {
-		rc = phy->set_cca_ed_level(phy, sdata->mac_params.cca_ed_level);
+		rc = drv_set_cca_ed_level(local,
+					  sdata->mac_params.cca_ed_level);
 		if (rc < 0)
 			goto out;
 	}
 
 	if (phy->set_csma_params) {
-		rc = phy->set_csma_params(phy, sdata->mac_params.min_be,
-					  sdata->mac_params.max_be,
-					  sdata->mac_params.csma_retries);
+		rc = drv_set_csma_params(local, sdata->mac_params.min_be,
+					 sdata->mac_params.max_be,
+					 sdata->mac_params.csma_retries);
 		if (rc < 0)
 			goto out;
 	}
 
 	if (phy->set_frame_retries) {
-		rc = phy->set_frame_retries(phy,
-					    sdata->mac_params.frame_retries);
+		rc = drv_set_max_frame_retries(local,
+					       sdata->mac_params.frame_retries);
 		if (rc < 0)
 			goto out;
 	}
@@ -255,7 +258,7 @@ static int mac802154_slave_close(struct net_device *dev)
 	mutex_unlock(&sdata->local->iflist_mtx);
 
 	if (!--local->open_count)
-		local->ops->stop(&local->hw);
+		drv_stop(local);
 
 	return 0;
 }
