@@ -6,6 +6,7 @@
 
 #include <linux/sunrpc/sched.h>
 #include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/svc.h>
 #include <net/tcp_states.h>
 #include <linux/net.h>
 #include <linux/tracepoint.h>
@@ -305,6 +306,60 @@ DEFINE_RPC_SOCKET_EVENT_DONE(rpc_socket_error);
 DEFINE_RPC_SOCKET_EVENT_DONE(rpc_socket_reset_connection);
 DEFINE_RPC_SOCKET_EVENT(rpc_socket_close);
 DEFINE_RPC_SOCKET_EVENT(rpc_socket_shutdown);
+
+TRACE_EVENT(svc_recv,
+	TP_PROTO(struct svc_rqst *rqst, int status),
+
+	TP_ARGS(rqst, status),
+
+	TP_STRUCT__entry(
+		__field(struct sockaddr *, addr)
+		__field(__be32, xid)
+		__field(int, status)
+	),
+
+	TP_fast_assign(
+		__entry->addr = (struct sockaddr *)&rqst->rq_addr;
+		__entry->xid = status > 0 ? rqst->rq_xid : 0;
+		__entry->status = status;
+	),
+
+	TP_printk("addr=%pIScp xid=0x%x status=%d", __entry->addr,
+			be32_to_cpu(__entry->xid), __entry->status)
+);
+
+DECLARE_EVENT_CLASS(svc_rqst_status,
+
+	TP_PROTO(struct svc_rqst *rqst, int status),
+
+	TP_ARGS(rqst, status),
+
+	TP_STRUCT__entry(
+		__field(struct sockaddr *, addr)
+		__field(__be32, xid)
+		__field(int, dropme)
+		__field(int, status)
+	),
+
+	TP_fast_assign(
+		__entry->addr = (struct sockaddr *)&rqst->rq_addr;
+		__entry->xid = rqst->rq_xid;
+		__entry->dropme = (int)rqst->rq_dropme;
+		__entry->status = status;
+	),
+
+	TP_printk("addr=%pIScp rq_xid=0x%x dropme=%d status=%d",
+		__entry->addr, be32_to_cpu(__entry->xid), __entry->dropme,
+		__entry->status)
+);
+
+DEFINE_EVENT(svc_rqst_status, svc_process,
+	TP_PROTO(struct svc_rqst *rqst, int status),
+	TP_ARGS(rqst, status));
+
+DEFINE_EVENT(svc_rqst_status, svc_send,
+	TP_PROTO(struct svc_rqst *rqst, int status),
+	TP_ARGS(rqst, status));
 
 #endif /* _TRACE_SUNRPC_H */
 
