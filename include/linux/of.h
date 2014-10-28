@@ -327,6 +327,7 @@ struct of_prop_reconfig {
 extern int of_reconfig_notifier_register(struct notifier_block *);
 extern int of_reconfig_notifier_unregister(struct notifier_block *);
 extern int of_reconfig_notify(unsigned long, void *);
+extern int of_reconfig_get_state_change(unsigned long action, void *arg);
 
 extern int of_attach_node(struct device_node *);
 extern int of_detach_node(struct device_node *);
@@ -885,6 +886,12 @@ struct of_changeset_entry {
  */
 struct of_changeset {
 	struct list_head entries;
+};
+
+enum of_reconfig_change {
+	OF_RECONFIG_NO_CHANGE = 0,
+	OF_RECONFIG_CHANGE_ADD,
+	OF_RECONFIG_CHANGE_REMOVE,
 };
 
 #ifdef CONFIG_OF_DYNAMIC

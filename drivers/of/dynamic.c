@@ -85,6 +85,102 @@ int of_reconfig_notify(unsigned long action, void *p)
 	return notifier_to_errno(rc);
 }
 
+/*
+ * of_reconfig_get_state_change()	- Returns new state of device
+ * @action	- action of the of notifier
+ * @arg		- argument of the of notifier
+ *
+ * Returns the new state of a device based on the notifier used.
+ * Returns 0 on device going from enabled to disabled, 1 on device
+ * going from disabled to enabled and -1 on no change.
+ */
+int of_reconfig_get_state_change(unsigned long action, void *arg)
+{
+	struct device_node *dn;
+	struct property *prop, *old_prop;
+	struct of_prop_reconfig *pr;
+	int is_status, status_state, old_status_state, prev_state, new_state;
+
+	/* figure out if a device should be created or destroyed */
+	dn = NULL;
+	prop = old_prop = NULL;
+	switch (action) {
+	case OF_RECONFIG_ATTACH_NODE:
+	case OF_RECONFIG_DETACH_NODE:
+		dn = arg;
+		prop = of_find_property(dn, "status", NULL);
+		break;
+	case OF_RECONFIG_ADD_PROPERTY:
+	case OF_RECONFIG_REMOVE_PROPERTY:
+		pr = arg;
+		dn = pr->dn;
+		prop = pr->prop;
+		break;
+	case OF_RECONFIG_UPDATE_PROPERTY:
+		pr = arg;
+		dn = pr->dn;
+		prop = pr->prop;
+		old_prop = pr->old_prop;
+		break;
+	default:
+		return OF_RECONFIG_NO_CHANGE;
+	}
+
+	is_status = 0;
+	status_state = -1;
+	old_status_state = -1;
+	prev_state = -1;
+	new_state = -1;
+
+	if (prop && !strcmp(prop->name, "status")) {
+		is_status = 1;
+		status_state = !strcmp(prop->value, "okay") ||
+			       !strcmp(prop->value, "ok");
+		if (old_prop)
+			old_status_state = !strcmp(old_prop->value, "okay") ||
+					   !strcmp(old_prop->value, "ok");
+	}
+
+	switch (action) {
+	case OF_RECONFIG_ATTACH_NODE:
+		prev_state = 0;
+		/* -1 & 0 status either missing or okay */
+		new_state = status_state != 0;
+		break;
+	case OF_RECONFIG_DETACH_NODE:
+		/* -1 & 0 status either missing or okay */
+		prev_state = status_state != 0;
+		new_state = 0;
+		break;
+	case OF_RECONFIG_ADD_PROPERTY:
+		if (is_status) {
+			/* no status property -> enabled (legacy) */
+			prev_state = 1;
+			new_state = status_state;
+		}
+		break;
+	case OF_RECONFIG_REMOVE_PROPERTY:
+		if (is_status) {
+			prev_state = status_state;
+			/* no status property -> enabled (legacy) */
+			new_state = 1;
+		}
+		break;
+	case OF_RECONFIG_UPDATE_PROPERTY:
+		if (is_status) {
+			prev_state = old_status_state != 0;
+			new_state = status_state != 0;
+		}
+		break;
+	}
+
+	if (prev_state == new_state)
+		return OF_RECONFIG_NO_CHANGE;
+
+	return new_state ? OF_RECONFIG_CHANGE_ADD : OF_RECONFIG_CHANGE_REMOVE;
+}
+EXPORT_SYMBOL_GPL(of_reconfig_get_state_change);
+
 int of_property_notify(int action, struct device_node *np,
 		       struct property *prop, struct property *oldprop)
 {
