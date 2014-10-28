@@ -250,6 +250,7 @@
 			};
 
 			audio_controller: audio-controller@30000 {
+				#sound-dai-cells = <1>;
 				compatible = "marvell,armada370-audio";
 				reg = <0x30000 0x4000>;
 				interrupts = <93>;
