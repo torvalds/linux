@@ -303,8 +303,8 @@ static const __le64 iwl_ci_mask[][3] = {
 };
 
 static const __le32 iwl_bt_mprio_lut[BT_COEX_MULTI_PRIO_LUT_SIZE] = {
-	cpu_to_le32(0x28412201),
-	cpu_to_le32(0x11118451),
+	cpu_to_le32(0x2e402280),
+	cpu_to_le32(0x7711a751),
 };
 
 struct corunning_block_luts {
