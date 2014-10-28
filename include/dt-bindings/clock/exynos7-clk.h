@@ -53,7 +53,9 @@
 #define PCLK_HSI2C9			7
 #define PCLK_HSI2C10			8
 #define PCLK_HSI2C11			9
-#define PERIC0_NR_CLK			10
+#define PCLK_PWM			10
+#define SCLK_PWM			11
+#define PERIC0_NR_CLK			12
 
 /* PERIC1 */
 #define PCLK_UART1			1
@@ -72,7 +74,10 @@
 /* PERIS */
 #define PCLK_CHIPID			1
 #define SCLK_CHIPID			2
-#define PERIS_NR_CLK			3
+#define PCLK_WDT			3
+#define PCLK_TMU			4
+#define SCLK_TMU			5
+#define PERIS_NR_CLK			6
 
 /* FSYS0 */
 #define ACLK_MMC2			1

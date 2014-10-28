@@ -486,9 +486,12 @@ static struct samsung_gate_clock peric0_gate_clks[] __initdata = {
 		ENABLE_PCLK_PERIC0, 14, 0, 0),
 	GATE(PCLK_UART0, "pclk_uart0", "mout_aclk_peric0_66_user",
 		ENABLE_PCLK_PERIC0, 16, 0, 0),
+	GATE(PCLK_PWM, "pclk_pwm", "mout_aclk_peric0_66_user",
+		ENABLE_PCLK_PERIC0, 21, 0, 0),
 
 	GATE(SCLK_UART0, "sclk_uart0_user", "mout_sclk_uart0_user",
 		ENABLE_SCLK_PERIC0, 16, 0, 0),
+	GATE(SCLK_PWM, "sclk_pwm", "fin_pll", ENABLE_SCLK_PERIC0, 21, 0, 0),
 };
 
 static struct samsung_cmu_info peric0_cmu_info __initdata = {
@@ -586,7 +589,9 @@ CLK_OF_DECLARE(exynos7_clk_peric1, "samsung,exynos7-clock-peric1",
 
 /* Register Offset definitions for CMU_PERIS (0x10040000) */
 #define MUX_SEL_PERIS			0x0200
+#define ENABLE_PCLK_PERIS		0x0900
 #define ENABLE_PCLK_PERIS_SECURE_CHIPID	0x0910
+#define ENABLE_SCLK_PERIS		0x0A00
 #define ENABLE_SCLK_PERIS_SECURE_CHIPID	0x0A10
 
 /* List of parent clocks for Muxes in CMU_PERIS */
@@ -594,7 +599,9 @@ PNAME(mout_aclk_peris_66_p) = { "fin_pll", "dout_aclk_peris_66" };
 
 static unsigned long peris_clk_regs[] __initdata = {
 	MUX_SEL_PERIS,
+	ENABLE_PCLK_PERIS,
 	ENABLE_PCLK_PERIS_SECURE_CHIPID,
+	ENABLE_SCLK_PERIS,
 	ENABLE_SCLK_PERIS_SECURE_CHIPID,
 };
 
@@ -604,10 +611,17 @@ static struct samsung_mux_clock peris_mux_clks[] __initdata = {
 };
 
 static struct samsung_gate_clock peris_gate_clks[] __initdata = {
+	GATE(PCLK_WDT, "pclk_wdt", "mout_aclk_peris_66_user",
+		ENABLE_PCLK_PERIS, 6, 0, 0),
+	GATE(PCLK_TMU, "pclk_tmu_apbif", "mout_aclk_peris_66_user",
+		ENABLE_PCLK_PERIS, 10, 0, 0),
+
 	GATE(PCLK_CHIPID, "pclk_chipid", "mout_aclk_peris_66_user",
 		ENABLE_PCLK_PERIS_SECURE_CHIPID, 0, 0, 0),
 	GATE(SCLK_CHIPID, "sclk_chipid", "fin_pll",
 		ENABLE_SCLK_PERIS_SECURE_CHIPID, 0, 0, 0),
+
+	GATE(SCLK_TMU, "sclk_tmu", "fin_pll", ENABLE_SCLK_PERIS, 10, 0, 0),
 };
 
 static struct samsung_cmu_info peris_cmu_info __initdata = {
