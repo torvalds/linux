@@ -307,6 +307,69 @@ DEFINE_RPC_SOCKET_EVENT_DONE(rpc_socket_reset_connection);
 DEFINE_RPC_SOCKET_EVENT(rpc_socket_close);
 DEFINE_RPC_SOCKET_EVENT(rpc_socket_shutdown);
 
+DECLARE_EVENT_CLASS(rpc_xprt_event,
+	TP_PROTO(struct rpc_xprt *xprt, __be32 xid, int status),
+
+	TP_ARGS(xprt, xid, status),
+
+	TP_STRUCT__entry(
+		__field(__be32, xid)
+		__field(int, status)
+		__string(addr, xprt->address_strings[RPC_DISPLAY_ADDR])
+		__string(port, xprt->address_strings[RPC_DISPLAY_PORT])
+	),
+
+	TP_fast_assign(
+		__entry->xid = xid;
+		__entry->status = status;
+		__assign_str(addr, xprt->address_strings[RPC_DISPLAY_ADDR]);
+		__assign_str(port, xprt->address_strings[RPC_DISPLAY_PORT]);
+	),
+
+	TP_printk("peer=%s/%s xid=0x%x status=%d", __get_str(addr),
+			__get_str(port), be32_to_cpu(__entry->xid),
+			__entry->status)
+);
+
+DEFINE_EVENT(rpc_xprt_event, xprt_lookup_rqst,
+	TP_PROTO(struct rpc_xprt *xprt, __be32 xid, int status),
+	TP_ARGS(xprt, xid, status));
+
+DEFINE_EVENT(rpc_xprt_event, xprt_transmit,
+	TP_PROTO(struct rpc_xprt *xprt, __be32 xid, int status),
+	TP_ARGS(xprt, xid, status));
+
+DEFINE_EVENT(rpc_xprt_event, xprt_complete_rqst,
+	TP_PROTO(struct rpc_xprt *xprt, __be32 xid, int status),
+	TP_ARGS(xprt, xid, status));
+
+TRACE_EVENT(xs_tcp_data_ready,
+	TP_PROTO(struct rpc_xprt *xprt, int err, unsigned int total),
+
+	TP_ARGS(xprt, err, total),
+
+	TP_STRUCT__entry(
+		__field(int, err)
+		__field(unsigned int, total)
+		__string(addr, xprt ? xprt->address_strings[RPC_DISPLAY_ADDR] :
+				"(null)")
+		__string(port, xprt ? xprt->address_strings[RPC_DISPLAY_PORT] :
+				"(null)")
+	),
+
+	TP_fast_assign(
+		__entry->err = err;
+		__entry->total = total;
+		__assign_str(addr, xprt ?
+			xprt->address_strings[RPC_DISPLAY_ADDR] : "(null)");
+		__assign_str(port, xprt ?
+			xprt->address_strings[RPC_DISPLAY_PORT] : "(null)");
+	),
+
+	TP_printk("peer=[%s]:%s err=%d total=%u", __get_str(addr),
+			__get_str(port), __entry->err, __entry->total)
+);
+
 TRACE_EVENT(svc_recv,
 	TP_PROTO(struct svc_rqst *rqst, int status),
 

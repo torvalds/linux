@@ -1454,12 +1454,15 @@ static void xs_tcp_data_ready(struct sock *sk)
 	struct rpc_xprt *xprt;
 	read_descriptor_t rd_desc;
 	int read;
+	unsigned long total = 0;
 
 	dprintk("RPC:       xs_tcp_data_ready...\n");
 
 	read_lock_bh(&sk->sk_callback_lock);
-	if (!(xprt = xprt_from_sock(sk)))
+	if (!(xprt = xprt_from_sock(sk))) {
+		read = 0;
 		goto out;
+	}
 	/* Any data means we had a useful conversation, so
 	 * the we don't need to delay the next reconnect
 	 */
@@ -1471,8 +1474,11 @@ static void xs_tcp_data_ready(struct sock *sk)
 	do {
 		rd_desc.count = 65536;
 		read = tcp_read_sock(sk, &rd_desc, xs_tcp_data_recv);
+		if (read > 0)
+			total += read;
 	} while (read > 0);
 out:
+	trace_xs_tcp_data_ready(xprt, read, total);
 	read_unlock_bh(&sk->sk_callback_lock);
 }
 
