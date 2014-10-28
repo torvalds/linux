@@ -824,7 +824,7 @@ static int message_stats_create(struct mapped_device *md,
 		return 1;
 
 	id = dm_stats_create(dm_get_stats(md), start, end, step, program_id, aux_data,
-			     dm_internal_suspend, dm_internal_resume, md);
+			     dm_internal_suspend_fast, dm_internal_resume_fast, md);
 	if (id < 0)
 		return id;
 

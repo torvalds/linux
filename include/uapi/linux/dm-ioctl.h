@@ -352,4 +352,9 @@ enum {
  */
 #define DM_DEFERRED_REMOVE		(1 << 17) /* In/Out */
 
+/*
+ * If set, the device is suspended internally.
+ */
+#define DM_INTERNAL_SUSPEND_FLAG	(1 << 18) /* Out */
+
 #endif				/* _LINUX_DM_IOCTL_H */
