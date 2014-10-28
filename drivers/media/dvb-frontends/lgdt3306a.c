@@ -1662,7 +1662,7 @@ static void lgdt3306a_release(struct dvb_frontend *fe)
 static struct dvb_frontend_ops lgdt3306a_ops;
 
 struct dvb_frontend *lgdt3306a_attach(const struct lgdt3306a_config *config,
-				     struct i2c_adapter *i2c_adap)
+				      struct i2c_adapter *i2c_adap)
 {
 	struct lgdt3306a_state *state = NULL;
 	int ret;

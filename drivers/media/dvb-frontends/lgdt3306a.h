@@ -63,15 +63,13 @@ struct lgdt3306a_config {
 	int  xtalMHz;
 };
 
-#if defined(CONFIG_DVB_LGDT3306A) || (defined(CONFIG_DVB_LGDT3306A_MODULE) && \
-				     defined(MODULE))
-extern
+#if IS_ENABLED(CONFIG_DVB_LGDT3306A)
 struct dvb_frontend *lgdt3306a_attach(const struct lgdt3306a_config *config,
-				     struct i2c_adapter *i2c_adap);
+				      struct i2c_adapter *i2c_adap);
 #else
 static inline
 struct dvb_frontend *lgdt3306a_attach(const struct lgdt3306a_config *config,
-				     struct i2c_adapter *i2c_adap)
+				      struct i2c_adapter *i2c_adap)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
