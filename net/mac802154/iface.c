@@ -166,19 +166,19 @@ static int mac802154_slave_open(struct net_device *dev)
 
 	set_bit(SDATA_STATE_RUNNING, &sdata->state);
 
-	if (local->open_count++ == 0) {
+	if (!local->open_count) {
 		res = drv_start(local);
 		WARN_ON(res);
 		if (res)
 			goto err;
 	}
 
+	local->open_count++;
 	netif_start_queue(dev);
 	return 0;
 err:
 	/* might already be clear but that doesn't matter */
 	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
-	sdata->local->open_count--;
 
 	return res;
 }
@@ -252,10 +252,11 @@ static int mac802154_slave_close(struct net_device *dev)
 	ASSERT_RTNL();
 
 	netif_stop_queue(dev);
+	local->open_count--;
 
 	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
 
-	if (!--local->open_count)
+	if (!local->open_count)
 		drv_stop(local);
 
 	return 0;
