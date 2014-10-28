@@ -1338,14 +1338,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	intel_power_domains_init_hw(dev_priv);
 
-	/*
-	 * We enable some interrupt sources in our postinstall hooks, so mark
-	 * interrupts as enabled _before_ actually enabling them to avoid
-	 * special cases in our ordering checks.
-	 */
-	dev_priv->pm._irqs_disabled = false;
-
-	ret = drm_irq_install(dev, dev->pdev->irq);
+	ret = intel_irq_install(dev_priv);
 	if (ret)
 		goto cleanup_gem_stolen;
 
@@ -1370,7 +1363,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 		goto cleanup_gem;
 
 	/* Only enable hotplug handling once the fbdev is fully set up. */
-	intel_hpd_init(dev);
+	intel_hpd_init(dev_priv);
 
 	/*
 	 * Some ports require correctly set-up hpd registers for detection to
@@ -1534,7 +1527,7 @@ static void intel_device_info_runtime_init(struct drm_device *dev)
 
 	info = (struct intel_device_info *)&dev_priv->info;
 
-	if (IS_VALLEYVIEW(dev))
+	if (IS_VALLEYVIEW(dev) || INTEL_INFO(dev)->gen == 9)
 		for_each_pipe(dev_priv, pipe)
 			info->num_sprites[pipe] = 2;
 	else
@@ -1614,7 +1607,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	spin_lock_init(&dev_priv->irq_lock);
 	spin_lock_init(&dev_priv->gpu_error.lock);
-	spin_lock_init(&dev_priv->backlight_lock);
+	mutex_init(&dev_priv->backlight_lock);
 	spin_lock_init(&dev_priv->uncore.lock);
 	spin_lock_init(&dev_priv->mm.object_stat_lock);
 	spin_lock_init(&dev_priv->mmio_flip_lock);
@@ -1740,7 +1733,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto out_freewq;
 	}
 
-	intel_irq_init(dev);
+	intel_irq_init(dev_priv);
 	intel_uncore_sanitize(dev);
 
 	/* Try to make sure MCHBAR is enabled before poking at it */
@@ -1798,12 +1791,12 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (IS_GEN5(dev))
 		intel_gpu_ips_init(dev_priv);
 
-	intel_init_runtime_pm(dev_priv);
+	intel_runtime_pm_enable(dev_priv);
 
 	return 0;
 
 out_power_well:
-	intel_power_domains_remove(dev_priv);
+	intel_power_domains_fini(dev_priv);
 	drm_vblank_cleanup(dev);
 out_gem_unload:
 	WARN_ON(unregister_oom_notifier(&dev_priv->mm.oom_notifier));
@@ -1846,15 +1839,9 @@ int i915_driver_unload(struct drm_device *dev)
 		return ret;
 	}
 
-	intel_fini_runtime_pm(dev_priv);
+	intel_power_domains_fini(dev_priv);
 
 	intel_gpu_ips_teardown();
-
-	/* The i915.ko module is still not prepared to be loaded when
-	 * the power well is not enabled, so just enable it in case
-	 * we're going to unload/reload. */
-	intel_display_set_init_power(dev_priv, true);
-	intel_power_domains_remove(dev_priv);
 
 	i915_teardown_sysfs(dev);
 

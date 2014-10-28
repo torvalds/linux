@@ -34,6 +34,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_dp_mst_helper.h>
+#include <drm/drm_rect.h>
 
 #define DIV_ROUND_CLOSEST_ULL(ll, d)	\
 ({ unsigned long long _tmp = (ll)+(d)/2; do_div(_tmp, d); _tmp; })
@@ -239,6 +240,17 @@ typedef struct dpll {
 	int	m;
 	int	p;
 } intel_clock_t;
+
+struct intel_plane_state {
+	struct drm_crtc *crtc;
+	struct drm_framebuffer *fb;
+	struct drm_rect src;
+	struct drm_rect dst;
+	struct drm_rect clip;
+	struct drm_rect orig_src;
+	struct drm_rect orig_dst;
+	bool visible;
+};
 
 struct intel_plane_config {
 	bool tiled;
@@ -734,6 +746,14 @@ hdmi_to_dig_port(struct intel_hdmi *intel_hdmi)
 	return container_of(intel_hdmi, struct intel_digital_port, hdmi);
 }
 
+/*
+ * Returns the number of planes for this pipe, ie the number of sprites + 1
+ * (primary plane). This doesn't count the cursor plane then.
+ */
+static inline unsigned int intel_num_planes(struct intel_crtc *crtc)
+{
+	return INTEL_INFO(crtc->base.dev)->num_sprites[crtc->pipe] + 1;
+}
 
 /* i915_irq.c */
 bool intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
@@ -747,15 +767,15 @@ void gen6_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void gen6_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void gen8_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void gen8_disable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
-void intel_runtime_pm_disable_interrupts(struct drm_device *dev);
-void intel_runtime_pm_restore_interrupts(struct drm_device *dev);
+void intel_runtime_pm_disable_interrupts(struct drm_i915_private *dev_priv);
+void intel_runtime_pm_enable_interrupts(struct drm_i915_private *dev_priv);
 static inline bool intel_irqs_enabled(struct drm_i915_private *dev_priv)
 {
 	/*
 	 * We only use drm_irq_uninstall() at unload and VT switch, so
 	 * this is the only thing we need to check.
 	 */
-	return !dev_priv->pm._irqs_disabled;
+	return dev_priv->pm.irqs_enabled;
 }
 
 int intel_get_crtc_scanline(struct intel_crtc *crtc);
@@ -792,11 +812,7 @@ void intel_ddi_clock_get(struct intel_encoder *encoder,
 			 struct intel_crtc_config *pipe_config);
 void intel_ddi_set_vc_payload_alloc(struct drm_crtc *crtc, bool state);
 
-/* intel_display.c */
-const char *intel_output_name(int output);
-bool intel_has_pending_fb_unpin(struct drm_device *dev);
-int intel_pch_rawclk(struct drm_device *dev);
-void intel_mark_busy(struct drm_device *dev);
+/* intel_frontbuffer.c */
 void intel_fb_obj_invalidate(struct drm_i915_gem_object *obj,
 			     struct intel_engine_cs *ring);
 void intel_frontbuffer_flip_prepare(struct drm_device *dev,
@@ -806,7 +822,7 @@ void intel_frontbuffer_flip_complete(struct drm_device *dev,
 void intel_frontbuffer_flush(struct drm_device *dev,
 			     unsigned frontbuffer_bits);
 /**
- * intel_frontbuffer_flip - prepare frontbuffer flip
+ * intel_frontbuffer_flip - synchronous frontbuffer flip
  * @dev: DRM device
  * @frontbuffer_bits: frontbuffer plane tracking bits
  *
@@ -824,6 +840,13 @@ void intel_frontbuffer_flip(struct drm_device *dev,
 }
 
 void intel_fb_obj_flush(struct drm_i915_gem_object *obj, bool retire);
+
+
+/* intel_display.c */
+const char *intel_output_name(int output);
+bool intel_has_pending_fb_unpin(struct drm_device *dev);
+int intel_pch_rawclk(struct drm_device *dev);
+void intel_mark_busy(struct drm_device *dev);
 void intel_mark_idle(struct drm_device *dev);
 void intel_crtc_restore_mode(struct drm_crtc *crtc);
 void intel_crtc_control(struct drm_crtc *crtc, bool enable);
@@ -844,7 +867,11 @@ int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 enum transcoder intel_pipe_to_cpu_transcoder(struct drm_i915_private *dev_priv,
 					     enum pipe pipe);
-void intel_wait_for_vblank(struct drm_device *dev, int pipe);
+static inline void
+intel_wait_for_vblank(struct drm_device *dev, int pipe)
+{
+	drm_wait_one_vblank(dev, pipe);
+}
 int ironlake_get_lanes_required(int target_clock, int link_bw, int bpp);
 void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
 			 struct intel_digital_port *dport);
@@ -878,6 +905,8 @@ struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc);
 void intel_put_shared_dpll(struct intel_crtc *crtc);
 
 /* modesetting asserts */
+void assert_panel_unlocked(struct drm_i915_private *dev_priv,
+			   enum pipe pipe);
 void assert_pll(struct drm_i915_private *dev_priv,
 		enum pipe pipe, bool state);
 #define assert_pll_enabled(d, p) assert_pll(d, p, true)
@@ -908,7 +937,6 @@ ironlake_check_encoder_dotclock(const struct intel_crtc_config *pipe_config,
 bool intel_crtc_active(struct drm_crtc *crtc);
 void hsw_enable_ips(struct intel_crtc *crtc);
 void hsw_disable_ips(struct intel_crtc *crtc);
-void intel_display_set_init_power(struct drm_i915_private *dev, bool enable);
 enum intel_display_power_domain
 intel_display_port_power_domain(struct intel_encoder *intel_encoder);
 void intel_mode_from_pipe_config(struct drm_display_mode *mode,
@@ -1055,6 +1083,28 @@ extern struct drm_display_mode *intel_find_panel_downclock(
 				struct drm_display_mode *fixed_mode,
 				struct drm_connector *connector);
 
+/* intel_runtime_pm.c */
+int intel_power_domains_init(struct drm_i915_private *);
+void intel_power_domains_fini(struct drm_i915_private *);
+void intel_power_domains_init_hw(struct drm_i915_private *dev_priv);
+void intel_runtime_pm_enable(struct drm_i915_private *dev_priv);
+
+bool intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
+				    enum intel_display_power_domain domain);
+bool __intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
+				      enum intel_display_power_domain domain);
+void intel_display_power_get(struct drm_i915_private *dev_priv,
+			     enum intel_display_power_domain domain);
+void intel_display_power_put(struct drm_i915_private *dev_priv,
+			     enum intel_display_power_domain domain);
+void intel_aux_display_runtime_get(struct drm_i915_private *dev_priv);
+void intel_aux_display_runtime_put(struct drm_i915_private *dev_priv);
+void intel_runtime_pm_get(struct drm_i915_private *dev_priv);
+void intel_runtime_pm_get_noresume(struct drm_i915_private *dev_priv);
+void intel_runtime_pm_put(struct drm_i915_private *dev_priv);
+
+void intel_display_set_init_power(struct drm_i915_private *dev, bool enable);
+
 /* intel_pm.c */
 void intel_init_clock_gating(struct drm_device *dev);
 void intel_suspend_hw(struct drm_device *dev);
@@ -1072,17 +1122,6 @@ bool intel_fbc_enabled(struct drm_device *dev);
 void intel_update_fbc(struct drm_device *dev);
 void intel_gpu_ips_init(struct drm_i915_private *dev_priv);
 void intel_gpu_ips_teardown(void);
-int intel_power_domains_init(struct drm_i915_private *);
-void intel_power_domains_remove(struct drm_i915_private *);
-bool intel_display_power_enabled(struct drm_i915_private *dev_priv,
-				 enum intel_display_power_domain domain);
-bool intel_display_power_enabled_unlocked(struct drm_i915_private *dev_priv,
-					  enum intel_display_power_domain domain);
-void intel_display_power_get(struct drm_i915_private *dev_priv,
-			     enum intel_display_power_domain domain);
-void intel_display_power_put(struct drm_i915_private *dev_priv,
-			     enum intel_display_power_domain domain);
-void intel_power_domains_init_hw(struct drm_i915_private *dev_priv);
 void intel_init_gt_powersave(struct drm_device *dev);
 void intel_cleanup_gt_powersave(struct drm_device *dev);
 void intel_enable_gt_powersave(struct drm_device *dev);
@@ -1093,13 +1132,6 @@ void ironlake_teardown_rc6(struct drm_device *dev);
 void gen6_update_ring_freq(struct drm_device *dev);
 void gen6_rps_idle(struct drm_i915_private *dev_priv);
 void gen6_rps_boost(struct drm_i915_private *dev_priv);
-void intel_aux_display_runtime_get(struct drm_i915_private *dev_priv);
-void intel_aux_display_runtime_put(struct drm_i915_private *dev_priv);
-void intel_runtime_pm_get(struct drm_i915_private *dev_priv);
-void intel_runtime_pm_get_noresume(struct drm_i915_private *dev_priv);
-void intel_runtime_pm_put(struct drm_i915_private *dev_priv);
-void intel_init_runtime_pm(struct drm_i915_private *dev_priv);
-void intel_fini_runtime_pm(struct drm_i915_private *dev_priv);
 void ilk_wm_get_hw_state(struct drm_device *dev);
 
 

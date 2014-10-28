@@ -35,13 +35,21 @@ static void chv_setup_private_ppat(struct drm_i915_private *dev_priv);
 
 static int sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
 {
-	if (enable_ppgtt == 0 || !HAS_ALIASING_PPGTT(dev))
+	bool has_aliasing_ppgtt;
+	bool has_full_ppgtt;
+
+	has_aliasing_ppgtt = INTEL_INFO(dev)->gen >= 6;
+	has_full_ppgtt = INTEL_INFO(dev)->gen >= 7;
+	if (IS_GEN8(dev))
+		has_full_ppgtt = false; /* XXX why? */
+
+	if (enable_ppgtt == 0 || !has_aliasing_ppgtt)
 		return 0;
 
 	if (enable_ppgtt == 1)
 		return 1;
 
-	if (enable_ppgtt == 2 && HAS_PPGTT(dev))
+	if (enable_ppgtt == 2 && has_full_ppgtt)
 		return 2;
 
 #ifdef CONFIG_INTEL_IOMMU
@@ -59,7 +67,7 @@ static int sanitize_enable_ppgtt(struct drm_device *dev, int enable_ppgtt)
 		return 0;
 	}
 
-	return HAS_ALIASING_PPGTT(dev) ? 1 : 0;
+	return has_aliasing_ppgtt ? 1 : 0;
 }
 
 
@@ -1092,7 +1100,7 @@ static int __hw_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt)
 
 	if (INTEL_INFO(dev)->gen < 8)
 		return gen6_ppgtt_init(ppgtt);
-	else if (IS_GEN8(dev))
+	else if (IS_GEN8(dev) || IS_GEN9(dev))
 		return gen8_ppgtt_init(ppgtt, dev_priv->gtt.base.total);
 	else
 		BUG();
@@ -1764,7 +1772,6 @@ static int setup_scratch_page(struct drm_device *dev)
 	page = alloc_page(GFP_KERNEL | GFP_DMA32 | __GFP_ZERO);
 	if (page == NULL)
 		return -ENOMEM;
-	get_page(page);
 	set_pages_uc(page, 1);
 
 #ifdef CONFIG_INTEL_IOMMU
@@ -1789,7 +1796,6 @@ static void teardown_scratch_page(struct drm_device *dev)
 	set_pages_wb(page, 1);
 	pci_unmap_page(dev->pdev, dev_priv->gtt.base.scratch.addr,
 		       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-	put_page(page);
 	__free_page(page);
 }
 
@@ -1857,6 +1863,18 @@ static size_t chv_get_stolen_size(u16 gmch_ctrl)
 		return (gmch_ctrl - 0x11 + 2) << 22;
 	else
 		return (gmch_ctrl - 0x17 + 9) << 22;
+}
+
+static size_t gen9_get_stolen_size(u16 gen9_gmch_ctl)
+{
+	gen9_gmch_ctl >>= BDW_GMCH_GMS_SHIFT;
+	gen9_gmch_ctl &= BDW_GMCH_GMS_MASK;
+
+	if (gen9_gmch_ctl < 0xf0)
+		return gen9_gmch_ctl << 25; /* 32 MB units */
+	else
+		/* 4MB increments starting at 0xf0 for 4MB */
+		return (gen9_gmch_ctl - 0xf0 + 1) << 22;
 }
 
 static int ggtt_probe_common(struct drm_device *dev,
@@ -1955,7 +1973,10 @@ static int gen8_gmch_probe(struct drm_device *dev,
 
 	pci_read_config_word(dev->pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
 
-	if (IS_CHERRYVIEW(dev)) {
+	if (INTEL_INFO(dev)->gen >= 9) {
+		*stolen = gen9_get_stolen_size(snb_gmch_ctl);
+		gtt_size = gen8_get_total_gtt_size(snb_gmch_ctl);
+	} else if (IS_CHERRYVIEW(dev)) {
 		*stolen = chv_get_stolen_size(snb_gmch_ctl);
 		gtt_size = chv_get_total_gtt_size(snb_gmch_ctl);
 	} else {
@@ -2127,6 +2148,7 @@ static struct i915_vma *__i915_gem_vma_create(struct drm_i915_gem_object *obj,
 	vma->obj = obj;
 
 	switch (INTEL_INFO(vm->dev)->gen) {
+	case 9:
 	case 8:
 	case 7:
 	case 6:

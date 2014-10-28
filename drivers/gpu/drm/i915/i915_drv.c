@@ -356,6 +356,19 @@ static const struct intel_device_info intel_cherryview_info = {
 	CURSOR_OFFSETS,
 };
 
+static const struct intel_device_info intel_skylake_info = {
+	.is_preliminary = 1,
+	.is_skylake = 1,
+	.gen = 9, .num_pipes = 3,
+	.need_gfx_hws = 1, .has_hotplug = 1,
+	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
+	.has_llc = 1,
+	.has_ddi = 1,
+	.has_fbc = 1,
+	GEN_DEFAULT_PIPEOFFSETS,
+	IVB_CURSOR_OFFSETS,
+};
+
 /*
  * Make sure any device matches here are from most specific to most
  * general.  For example, since the Quanta match is based on the subsystem
@@ -392,7 +405,8 @@ static const struct intel_device_info intel_cherryview_info = {
 	INTEL_BDW_GT12D_IDS(&intel_broadwell_d_info),	\
 	INTEL_BDW_GT3M_IDS(&intel_broadwell_gt3m_info),	\
 	INTEL_BDW_GT3D_IDS(&intel_broadwell_gt3d_info), \
-	INTEL_CHV_IDS(&intel_cherryview_info)
+	INTEL_CHV_IDS(&intel_cherryview_info),	\
+	INTEL_SKL_IDS(&intel_skylake_info)
 
 static const struct pci_device_id pciidlist[] = {		/* aka */
 	INTEL_PCI_IDS,
@@ -460,6 +474,16 @@ void intel_detect_pch(struct drm_device *dev)
 				dev_priv->pch_type = PCH_LPT;
 				DRM_DEBUG_KMS("Found LynxPoint LP PCH\n");
 				WARN_ON(!IS_HASWELL(dev));
+				WARN_ON(!IS_ULT(dev));
+			} else if (id == INTEL_PCH_SPT_DEVICE_ID_TYPE) {
+				dev_priv->pch_type = PCH_SPT;
+				DRM_DEBUG_KMS("Found SunrisePoint PCH\n");
+				WARN_ON(!IS_SKYLAKE(dev));
+				WARN_ON(IS_ULT(dev));
+			} else if (id == INTEL_PCH_SPT_LP_DEVICE_ID_TYPE) {
+				dev_priv->pch_type = PCH_SPT;
+				DRM_DEBUG_KMS("Found SunrisePoint LP PCH\n");
+				WARN_ON(!IS_SKYLAKE(dev));
 				WARN_ON(!IS_ULT(dev));
 			} else
 				continue;
@@ -575,14 +599,14 @@ static int i915_drm_freeze(struct drm_device *dev)
 
 		flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 
-		intel_runtime_pm_disable_interrupts(dev);
+		intel_runtime_pm_disable_interrupts(dev_priv);
 		intel_hpd_cancel_work(dev_priv);
 
 		intel_suspend_encoders(dev_priv);
 
 		intel_suspend_gt_powersave(dev);
 
-		intel_modeset_suspend_hw(dev);
+		intel_suspend_hw(dev);
 	}
 
 	i915_gem_suspend_gtt_mappings(dev);
@@ -680,16 +704,16 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 		}
 		mutex_unlock(&dev->struct_mutex);
 
-		intel_runtime_pm_restore_interrupts(dev);
+		/* We need working interrupts for modeset enabling ... */
+		intel_runtime_pm_enable_interrupts(dev_priv);
 
 		intel_modeset_init_hw(dev);
 
 		{
-			unsigned long irqflags;
-			spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+			spin_lock_irq(&dev_priv->irq_lock);
 			if (dev_priv->display.hpd_irq_setup)
 				dev_priv->display.hpd_irq_setup(dev);
-			spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+			spin_unlock_irq(&dev_priv->irq_lock);
 		}
 
 		intel_dp_mst_resume(dev);
@@ -703,7 +727,7 @@ static int __i915_drm_thaw(struct drm_device *dev, bool restore_gtt_mappings)
 		 * bother with the tiny race here where we might loose hotplug
 		 * notifications.
 		 * */
-		intel_hpd_init(dev);
+		intel_hpd_init(dev_priv);
 		/* Config may have changed between suspend and resume */
 		drm_helper_hpd_irq_event(dev);
 	}
@@ -819,6 +843,9 @@ int i915_reset(struct drm_device *dev)
 			ret = 0;
 		}
 	}
+
+	if (i915_stop_ring_allow_warn(dev_priv))
+		pr_notice("drm/i915: Resetting chip after gpu hang\n");
 
 	if (ret) {
 		DRM_ERROR("Failed to reset chip: %i\n", ret);
@@ -1446,12 +1473,12 @@ static int intel_runtime_suspend(struct device *device)
 	 * intel_mark_idle().
 	 */
 	cancel_work_sync(&dev_priv->rps.work);
-	intel_runtime_pm_disable_interrupts(dev);
+	intel_runtime_pm_disable_interrupts(dev_priv);
 
 	ret = intel_suspend_complete(dev_priv);
 	if (ret) {
 		DRM_ERROR("Runtime suspend failed, disabling it (%d)\n", ret);
-		intel_runtime_pm_restore_interrupts(dev);
+		intel_runtime_pm_enable_interrupts(dev_priv);
 
 		return ret;
 	}
@@ -1511,7 +1538,7 @@ static int intel_runtime_resume(struct device *device)
 	i915_gem_init_swizzling(dev);
 	gen6_update_ring_freq(dev);
 
-	intel_runtime_pm_restore_interrupts(dev);
+	intel_runtime_pm_enable_interrupts(dev_priv);
 	intel_reset_gt_powersave(dev);
 
 	if (ret)

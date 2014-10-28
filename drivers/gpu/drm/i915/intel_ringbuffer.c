@@ -729,8 +729,12 @@ static int bdw_init_workarounds(struct intel_engine_cs *ring)
 	 * workaround for for a possible hang in the unlikely event a TLB
 	 * invalidation occurs during a PSD flush.
 	 */
+	/* WaDisableFenceDestinationToSLM:bdw (GT3 pre-production) */
 	intel_ring_emit_wa(ring, HDC_CHICKEN0,
-			   _MASKED_BIT_ENABLE(HDC_FORCE_NON_COHERENT));
+			   _MASKED_BIT_ENABLE(HDC_FORCE_NON_COHERENT |
+					      (IS_BDW_GT3(dev) ?
+					       HDC_FENCE_DEST_SLM_DISABLE : 0)
+				   ));
 
 	/* Wa4x4STCOptimizationDisable:bdw */
 	intel_ring_emit_wa(ring, CACHE_MODE_1,
@@ -812,7 +816,7 @@ static int init_render_ring(struct intel_engine_cs *ring)
 	 *
 	 * WaDisableAsyncFlipPerfMode:snb,ivb,hsw,vlv,bdw,chv
 	 */
-	if (INTEL_INFO(dev)->gen >= 6)
+	if (INTEL_INFO(dev)->gen >= 6 && INTEL_INFO(dev)->gen < 9)
 		I915_WRITE(MI_MODE, _MASKED_BIT_ENABLE(ASYNC_FLIP_PERF_DISABLE));
 
 	/* Required for the hardware to program scanline values for waiting */
@@ -1186,7 +1190,7 @@ gen5_ring_get_irq(struct intel_engine_cs *ring)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long flags;
 
-	if (!dev->irq_enabled)
+	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
 		return false;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
@@ -1217,7 +1221,7 @@ i9xx_ring_get_irq(struct intel_engine_cs *ring)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long flags;
 
-	if (!dev->irq_enabled)
+	if (!intel_irqs_enabled(dev_priv))
 		return false;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
@@ -1254,7 +1258,7 @@ i8xx_ring_get_irq(struct intel_engine_cs *ring)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long flags;
 
-	if (!dev->irq_enabled)
+	if (!intel_irqs_enabled(dev_priv))
 		return false;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
@@ -1388,8 +1392,8 @@ gen6_ring_get_irq(struct intel_engine_cs *ring)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long flags;
 
-	if (!dev->irq_enabled)
-	       return false;
+	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
+		return false;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
 	if (ring->irq_refcount++ == 0) {
@@ -1431,7 +1435,7 @@ hsw_vebox_get_irq(struct intel_engine_cs *ring)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long flags;
 
-	if (!dev->irq_enabled)
+	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
 		return false;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
@@ -1451,9 +1455,6 @@ hsw_vebox_put_irq(struct intel_engine_cs *ring)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long flags;
 
-	if (!dev->irq_enabled)
-		return;
-
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
 	if (--ring->irq_refcount == 0) {
 		I915_WRITE_IMR(ring, ~0);
@@ -1469,7 +1470,7 @@ gen8_ring_get_irq(struct intel_engine_cs *ring)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long flags;
 
-	if (!dev->irq_enabled)
+	if (WARN_ON(!intel_irqs_enabled(dev_priv)))
 		return false;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
@@ -2229,6 +2230,7 @@ static int gen6_ring_flush(struct intel_engine_cs *ring,
 			   u32 invalidate, u32 flush)
 {
 	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t cmd;
 	int ret;
 
@@ -2259,8 +2261,12 @@ static int gen6_ring_flush(struct intel_engine_cs *ring,
 	}
 	intel_ring_advance(ring);
 
-	if (IS_GEN7(dev) && !invalidate && flush)
-		return gen7_ring_fbc_flush(ring, FBC_REND_CACHE_CLEAN);
+	if (!invalidate && flush) {
+		if (IS_GEN7(dev))
+			return gen7_ring_fbc_flush(ring, FBC_REND_CACHE_CLEAN);
+		else if (IS_BROADWELL(dev))
+			dev_priv->fbc.need_sw_cache_clean = true;
+	}
 
 	return 0;
 }

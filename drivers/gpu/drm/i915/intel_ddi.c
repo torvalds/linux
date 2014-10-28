@@ -95,8 +95,8 @@ static const struct ddi_buf_trans bdw_ddi_translations_dp[] = {
 	{ 0x00BEFFFF, 0x00140006 },
 	{ 0x80B2CFFF, 0x001B0002 },
 	{ 0x00FFFFFF, 0x000E000A },
-	{ 0x00D75FFF, 0x00180004 },
-	{ 0x80CB2FFF, 0x001B0002 },
+	{ 0x00DB6FFF, 0x00160005 },
+	{ 0x80C71FFF, 0x001A0002 },
 	{ 0x00F7DFFF, 0x00180004 },
 	{ 0x80D75FFF, 0x001B0002 },
 };
@@ -125,6 +125,32 @@ static const struct ddi_buf_trans bdw_ddi_translations_hdmi[] = {
 	{ 0x00FFFFFF, 0x00140006 },	/* 7:	800	800	0	*/
 	{ 0x80E79FFF, 0x001B0002 },	/* 8:	800	1000	2	*/
 	{ 0x80FFFFFF, 0x001B0002 },	/* 9:	1000	1000	0	*/
+};
+
+static const struct ddi_buf_trans skl_ddi_translations_dp[] = {
+	{ 0x00000018, 0x000000a0 },
+	{ 0x00004014, 0x00000098 },
+	{ 0x00006012, 0x00000088 },
+	{ 0x00008010, 0x00000080 },
+	{ 0x00000018, 0x00000098 },
+	{ 0x00004014, 0x00000088 },
+	{ 0x00006012, 0x00000080 },
+	{ 0x00000018, 0x00000088 },
+	{ 0x00004014, 0x00000080 },
+};
+
+static const struct ddi_buf_trans skl_ddi_translations_hdmi[] = {
+					/* Idx	NT mV   T mV    db  */
+	{ 0x00000018, 0x000000a0 },	/* 0:	400	400	0   */
+	{ 0x00004014, 0x00000098 },	/* 1:	400	600	3.5 */
+	{ 0x00006012, 0x00000088 },	/* 2:	400	800	6   */
+	{ 0x00000018, 0x0000003c },	/* 3:	450	450	0   */
+	{ 0x00000018, 0x00000098 },	/* 4:	600	600	0   */
+	{ 0x00003015, 0x00000088 },	/* 5:	600	800	2.5 */
+	{ 0x00005013, 0x00000080 },	/* 6:	600	1000	4.5 */
+	{ 0x00000018, 0x00000088 },	/* 7:	800	800	0   */
+	{ 0x00000096, 0x00000080 },	/* 8:	800	1000	2   */
+	{ 0x00000018, 0x00000080 },	/* 9:	1200	1200	0   */
 };
 
 enum port intel_ddi_get_encoder_port(struct intel_encoder *intel_encoder)
@@ -169,7 +195,14 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 	const struct ddi_buf_trans *ddi_translations_hdmi;
 	const struct ddi_buf_trans *ddi_translations;
 
-	if (IS_BROADWELL(dev)) {
+	if (IS_SKYLAKE(dev)) {
+		ddi_translations_fdi = NULL;
+		ddi_translations_dp = skl_ddi_translations_dp;
+		ddi_translations_edp = skl_ddi_translations_dp;
+		ddi_translations_hdmi = skl_ddi_translations_hdmi;
+		n_hdmi_entries = ARRAY_SIZE(skl_ddi_translations_hdmi);
+		hdmi_800mV_0dB = 7;
+	} else if (IS_BROADWELL(dev)) {
 		ddi_translations_fdi = bdw_ddi_translations_fdi;
 		ddi_translations_dp = bdw_ddi_translations_dp;
 		ddi_translations_edp = bdw_ddi_translations_edp;
@@ -208,7 +241,10 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port)
 			ddi_translations = ddi_translations_dp;
 		break;
 	case PORT_E:
-		ddi_translations = ddi_translations_fdi;
+		if (ddi_translations_fdi)
+			ddi_translations = ddi_translations_fdi;
+		else
+			ddi_translations = ddi_translations_dp;
 		break;
 	default:
 		BUG();
@@ -962,7 +998,7 @@ bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector)
 	uint32_t tmp;
 
 	power_domain = intel_display_port_power_domain(intel_encoder);
-	if (!intel_display_power_enabled(dev_priv, power_domain))
+	if (!intel_display_power_is_enabled(dev_priv, power_domain))
 		return false;
 
 	if (!intel_encoder->get_hw_state(intel_encoder, &pipe))
@@ -1008,7 +1044,7 @@ bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
 	int i;
 
 	power_domain = intel_display_port_power_domain(encoder);
-	if (!intel_display_power_enabled(dev_priv, power_domain))
+	if (!intel_display_power_is_enabled(dev_priv, power_domain))
 		return false;
 
 	tmp = I915_READ(DDI_BUF_CTL(port));
@@ -1296,7 +1332,7 @@ static bool hsw_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 {
 	uint32_t val;
 
-	if (!intel_display_power_enabled(dev_priv, POWER_DOMAIN_PLLS))
+	if (!intel_display_power_is_enabled(dev_priv, POWER_DOMAIN_PLLS))
 		return false;
 
 	val = I915_READ(WRPLL_CTL(pll->id));
@@ -1486,7 +1522,7 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 		break;
 	}
 
-	if (intel_display_power_enabled(dev_priv, POWER_DOMAIN_AUDIO)) {
+	if (intel_display_power_is_enabled(dev_priv, POWER_DOMAIN_AUDIO)) {
 		temp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
 		if (temp & (AUDIO_OUTPUT_ENABLE_A << (intel_crtc->pipe * 4)))
 			pipe_config->has_audio = true;

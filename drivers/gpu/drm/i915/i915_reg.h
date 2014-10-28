@@ -26,8 +26,8 @@
 #define _I915_REG_H_
 
 #define _PIPE(pipe, a, b) ((a) + (pipe)*((b)-(a)))
+#define _PLANE(plane, a, b) _PIPE(plane, a, b)
 #define _TRANSCODER(tran, a, b) ((a) + (tran)*((b)-(a)))
-
 #define _PORT(port, a, b) ((a) + (port)*((b)-(a)))
 #define _PIPE3(pipe, a, b, c) ((pipe) == PIPE_A ? (a) : \
 			       (pipe) == PIPE_B ? (b) : (c))
@@ -796,6 +796,8 @@ enum punit_power_well {
 #define _VLV_PCS_DW0_CH1		0x8400
 #define   DPIO_PCS_TX_LANE2_RESET	(1<<16)
 #define   DPIO_PCS_TX_LANE1_RESET	(1<<7)
+#define   DPIO_LEFT_TXFIFO_RST_MASTER2	(1<<4)
+#define   DPIO_RIGHT_TXFIFO_RST_MASTER2	(1<<3)
 #define VLV_PCS_DW0(ch) _PORT(ch, _VLV_PCS_DW0_CH0, _VLV_PCS_DW0_CH1)
 
 #define _VLV_PCS01_DW0_CH0		0x200
@@ -836,12 +838,31 @@ enum punit_power_well {
 
 #define _VLV_PCS_DW9_CH0		0x8224
 #define _VLV_PCS_DW9_CH1		0x8424
+#define   DPIO_PCS_TX2MARGIN_MASK	(0x7<<13)
+#define   DPIO_PCS_TX2MARGIN_000	(0<<13)
+#define   DPIO_PCS_TX2MARGIN_101	(1<<13)
+#define   DPIO_PCS_TX1MARGIN_MASK	(0x7<<10)
+#define   DPIO_PCS_TX1MARGIN_000	(0<<10)
+#define   DPIO_PCS_TX1MARGIN_101	(1<<10)
 #define	VLV_PCS_DW9(ch) _PORT(ch, _VLV_PCS_DW9_CH0, _VLV_PCS_DW9_CH1)
+
+#define _VLV_PCS01_DW9_CH0		0x224
+#define _VLV_PCS23_DW9_CH0		0x424
+#define _VLV_PCS01_DW9_CH1		0x2624
+#define _VLV_PCS23_DW9_CH1		0x2824
+#define VLV_PCS01_DW9(ch) _PORT(ch, _VLV_PCS01_DW9_CH0, _VLV_PCS01_DW9_CH1)
+#define VLV_PCS23_DW9(ch) _PORT(ch, _VLV_PCS23_DW9_CH0, _VLV_PCS23_DW9_CH1)
 
 #define _CHV_PCS_DW10_CH0		0x8228
 #define _CHV_PCS_DW10_CH1		0x8428
 #define   DPIO_PCS_SWING_CALC_TX0_TX2	(1<<30)
 #define   DPIO_PCS_SWING_CALC_TX1_TX3	(1<<31)
+#define   DPIO_PCS_TX2DEEMP_MASK	(0xf<<24)
+#define   DPIO_PCS_TX2DEEMP_9P5		(0<<24)
+#define   DPIO_PCS_TX2DEEMP_6P0		(2<<24)
+#define   DPIO_PCS_TX1DEEMP_MASK	(0xf<<16)
+#define   DPIO_PCS_TX1DEEMP_9P5		(0<<16)
+#define   DPIO_PCS_TX1DEEMP_6P0		(2<<16)
 #define CHV_PCS_DW10(ch) _PORT(ch, _CHV_PCS_DW10_CH0, _CHV_PCS_DW10_CH1)
 
 #define _VLV_PCS01_DW10_CH0		0x0228
@@ -853,7 +874,17 @@ enum punit_power_well {
 
 #define _VLV_PCS_DW11_CH0		0x822c
 #define _VLV_PCS_DW11_CH1		0x842c
+#define   DPIO_LANEDESKEW_STRAP_OVRD	(1<<3)
+#define   DPIO_LEFT_TXFIFO_RST_MASTER	(1<<1)
+#define   DPIO_RIGHT_TXFIFO_RST_MASTER	(1<<0)
 #define VLV_PCS_DW11(ch) _PORT(ch, _VLV_PCS_DW11_CH0, _VLV_PCS_DW11_CH1)
+
+#define _VLV_PCS01_DW11_CH0		0x022c
+#define _VLV_PCS23_DW11_CH0		0x042c
+#define _VLV_PCS01_DW11_CH1		0x262c
+#define _VLV_PCS23_DW11_CH1		0x282c
+#define VLV_PCS01_DW11(ch) _PORT(ch, _VLV_PCS01_DW0_CH0, _VLV_PCS01_DW0_CH1)
+#define VLV_PCS23_DW11(ch) _PORT(ch, _VLV_PCS23_DW0_CH0, _VLV_PCS23_DW0_CH1)
 
 #define _VLV_PCS_DW12_CH0		0x8230
 #define _VLV_PCS_DW12_CH1		0x8430
@@ -2506,9 +2537,7 @@ enum punit_power_well {
 
 #define EDP_PSR_AUX_CTL(dev)			(EDP_PSR_BASE(dev) + 0x10)
 #define EDP_PSR_AUX_DATA1(dev)			(EDP_PSR_BASE(dev) + 0x14)
-#define   EDP_PSR_DPCD_COMMAND		0x80060000
 #define EDP_PSR_AUX_DATA2(dev)			(EDP_PSR_BASE(dev) + 0x18)
-#define   EDP_PSR_DPCD_NORMAL_OPERATION	(1<<24)
 #define EDP_PSR_AUX_DATA3(dev)			(EDP_PSR_BASE(dev) + 0x1c)
 #define EDP_PSR_AUX_DATA4(dev)			(EDP_PSR_BASE(dev) + 0x20)
 #define EDP_PSR_AUX_DATA5(dev)			(EDP_PSR_BASE(dev) + 0x24)
@@ -3645,6 +3674,7 @@ enum punit_power_well {
 #define   DP_AUX_CH_CTL_PRECHARGE_TEST	    (1 << 11)
 #define   DP_AUX_CH_CTL_BIT_CLOCK_2X_MASK    (0x7ff)
 #define   DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT   0
+#define   DP_AUX_CH_CTL_SYNC_PULSE_SKL(c)   ((c) - 1)
 
 /*
  * Computing GMCH M and N values for the Display Port link
@@ -4510,6 +4540,143 @@ enum punit_power_well {
 #define SPCONSTALPHA(pipe, plane) _PIPE(pipe * 2 + plane, _SPACONSTALPHA, _SPBCONSTALPHA)
 #define SPGAMC(pipe, plane) _PIPE(pipe * 2 + plane, _SPAGAMC, _SPBGAMC)
 
+/* Skylake plane registers */
+
+#define _PLANE_CTL_1_A				0x70180
+#define _PLANE_CTL_2_A				0x70280
+#define _PLANE_CTL_3_A				0x70380
+#define   PLANE_CTL_ENABLE			(1 << 31)
+#define   PLANE_CTL_PIPE_GAMMA_ENABLE		(1 << 30)
+#define   PLANE_CTL_FORMAT_MASK			(0xf << 24)
+#define   PLANE_CTL_FORMAT_YUV422		(  0 << 24)
+#define   PLANE_CTL_FORMAT_NV12			(  1 << 24)
+#define   PLANE_CTL_FORMAT_XRGB_2101010		(  2 << 24)
+#define   PLANE_CTL_FORMAT_XRGB_8888		(  4 << 24)
+#define   PLANE_CTL_FORMAT_XRGB_16161616F	(  6 << 24)
+#define   PLANE_CTL_FORMAT_AYUV			(  8 << 24)
+#define   PLANE_CTL_FORMAT_INDEXED		( 12 << 24)
+#define   PLANE_CTL_FORMAT_RGB_565		( 14 << 24)
+#define   PLANE_CTL_PIPE_CSC_ENABLE		(1 << 23)
+#define   PLANE_CTL_KEY_ENABLE_MASK		(0x3 << 21)
+#define   PLANE_CTL_KEY_ENABLE_SOURCE		(  1 << 21)
+#define   PLANE_CTL_KEY_ENABLE_DESTINATION	(  2 << 21)
+#define   PLANE_CTL_ORDER_BGRX			(0 << 20)
+#define   PLANE_CTL_ORDER_RGBX			(1 << 20)
+#define   PLANE_CTL_YUV422_ORDER_MASK		(0x3 << 16)
+#define   PLANE_CTL_YUV422_YUYV			(  0 << 16)
+#define   PLANE_CTL_YUV422_UYVY			(  1 << 16)
+#define   PLANE_CTL_YUV422_YVYU			(  2 << 16)
+#define   PLANE_CTL_YUV422_VYUY			(  3 << 16)
+#define   PLANE_CTL_DECOMPRESSION_ENABLE	(1 << 15)
+#define   PLANE_CTL_TRICKLE_FEED_DISABLE	(1 << 14)
+#define   PLANE_CTL_PLANE_GAMMA_DISABLE		(1 << 13)
+#define   PLANE_CTL_TILED_MASK			(0x7 << 10)
+#define   PLANE_CTL_TILED_LINEAR		(  0 << 10)
+#define   PLANE_CTL_TILED_X			(  1 << 10)
+#define   PLANE_CTL_TILED_Y			(  4 << 10)
+#define   PLANE_CTL_TILED_YF			(  5 << 10)
+#define   PLANE_CTL_ALPHA_MASK			(0x3 << 4)
+#define   PLANE_CTL_ALPHA_DISABLE		(  0 << 4)
+#define   PLANE_CTL_ALPHA_SW_PREMULTIPLY	(  2 << 4)
+#define   PLANE_CTL_ALPHA_HW_PREMULTIPLY	(  3 << 4)
+#define _PLANE_STRIDE_1_A			0x70188
+#define _PLANE_STRIDE_2_A			0x70288
+#define _PLANE_STRIDE_3_A			0x70388
+#define _PLANE_POS_1_A				0x7018c
+#define _PLANE_POS_2_A				0x7028c
+#define _PLANE_POS_3_A				0x7038c
+#define _PLANE_SIZE_1_A				0x70190
+#define _PLANE_SIZE_2_A				0x70290
+#define _PLANE_SIZE_3_A				0x70390
+#define _PLANE_SURF_1_A				0x7019c
+#define _PLANE_SURF_2_A				0x7029c
+#define _PLANE_SURF_3_A				0x7039c
+#define _PLANE_OFFSET_1_A			0x701a4
+#define _PLANE_OFFSET_2_A			0x702a4
+#define _PLANE_OFFSET_3_A			0x703a4
+#define _PLANE_KEYVAL_1_A			0x70194
+#define _PLANE_KEYVAL_2_A			0x70294
+#define _PLANE_KEYMSK_1_A			0x70198
+#define _PLANE_KEYMSK_2_A			0x70298
+#define _PLANE_KEYMAX_1_A			0x701a0
+#define _PLANE_KEYMAX_2_A			0x702a0
+
+#define _PLANE_CTL_1_B				0x71180
+#define _PLANE_CTL_2_B				0x71280
+#define _PLANE_CTL_3_B				0x71380
+#define _PLANE_CTL_1(pipe)	_PIPE(pipe, _PLANE_CTL_1_A, _PLANE_CTL_1_B)
+#define _PLANE_CTL_2(pipe)	_PIPE(pipe, _PLANE_CTL_2_A, _PLANE_CTL_2_B)
+#define _PLANE_CTL_3(pipe)	_PIPE(pipe, _PLANE_CTL_3_A, _PLANE_CTL_3_B)
+#define PLANE_CTL(pipe, plane)	\
+	_PLANE(plane, _PLANE_CTL_1(pipe), _PLANE_CTL_2(pipe))
+
+#define _PLANE_STRIDE_1_B			0x71188
+#define _PLANE_STRIDE_2_B			0x71288
+#define _PLANE_STRIDE_3_B			0x71388
+#define _PLANE_STRIDE_1(pipe)	\
+	_PIPE(pipe, _PLANE_STRIDE_1_A, _PLANE_STRIDE_1_B)
+#define _PLANE_STRIDE_2(pipe)	\
+	_PIPE(pipe, _PLANE_STRIDE_2_A, _PLANE_STRIDE_2_B)
+#define _PLANE_STRIDE_3(pipe)	\
+	_PIPE(pipe, _PLANE_STRIDE_3_A, _PLANE_STRIDE_3_B)
+#define PLANE_STRIDE(pipe, plane)	\
+	_PLANE(plane, _PLANE_STRIDE_1(pipe), _PLANE_STRIDE_2(pipe))
+
+#define _PLANE_POS_1_B				0x7118c
+#define _PLANE_POS_2_B				0x7128c
+#define _PLANE_POS_3_B				0x7138c
+#define _PLANE_POS_1(pipe)	_PIPE(pipe, _PLANE_POS_1_A, _PLANE_POS_1_B)
+#define _PLANE_POS_2(pipe)	_PIPE(pipe, _PLANE_POS_2_A, _PLANE_POS_2_B)
+#define _PLANE_POS_3(pipe)	_PIPE(pipe, _PLANE_POS_3_A, _PLANE_POS_3_B)
+#define PLANE_POS(pipe, plane)	\
+	_PLANE(plane, _PLANE_POS_1(pipe), _PLANE_POS_2(pipe))
+
+#define _PLANE_SIZE_1_B				0x71190
+#define _PLANE_SIZE_2_B				0x71290
+#define _PLANE_SIZE_3_B				0x71390
+#define _PLANE_SIZE_1(pipe)	_PIPE(pipe, _PLANE_SIZE_1_A, _PLANE_SIZE_1_B)
+#define _PLANE_SIZE_2(pipe)	_PIPE(pipe, _PLANE_SIZE_2_A, _PLANE_SIZE_2_B)
+#define _PLANE_SIZE_3(pipe)	_PIPE(pipe, _PLANE_SIZE_3_A, _PLANE_SIZE_3_B)
+#define PLANE_SIZE(pipe, plane)	\
+	_PLANE(plane, _PLANE_SIZE_1(pipe), _PLANE_SIZE_2(pipe))
+
+#define _PLANE_SURF_1_B				0x7119c
+#define _PLANE_SURF_2_B				0x7129c
+#define _PLANE_SURF_3_B				0x7139c
+#define _PLANE_SURF_1(pipe)	_PIPE(pipe, _PLANE_SURF_1_A, _PLANE_SURF_1_B)
+#define _PLANE_SURF_2(pipe)	_PIPE(pipe, _PLANE_SURF_2_A, _PLANE_SURF_2_B)
+#define _PLANE_SURF_3(pipe)	_PIPE(pipe, _PLANE_SURF_3_A, _PLANE_SURF_3_B)
+#define PLANE_SURF(pipe, plane)	\
+	_PLANE(plane, _PLANE_SURF_1(pipe), _PLANE_SURF_2(pipe))
+
+#define _PLANE_OFFSET_1_B			0x711a4
+#define _PLANE_OFFSET_2_B			0x712a4
+#define _PLANE_OFFSET_1(pipe) _PIPE(pipe, _PLANE_OFFSET_1_A, _PLANE_OFFSET_1_B)
+#define _PLANE_OFFSET_2(pipe) _PIPE(pipe, _PLANE_OFFSET_2_A, _PLANE_OFFSET_2_B)
+#define PLANE_OFFSET(pipe, plane)	\
+	_PLANE(plane, _PLANE_OFFSET_1(pipe), _PLANE_OFFSET_2(pipe))
+
+#define _PLANE_KEYVAL_1_B			0x71194
+#define _PLANE_KEYVAL_2_B			0x71294
+#define _PLANE_KEYVAL_1(pipe) _PIPE(pipe, _PLANE_KEYVAL_1_A, _PLANE_KEYVAL_1_B)
+#define _PLANE_KEYVAL_2(pipe) _PIPE(pipe, _PLANE_KEYVAL_2_A, _PLANE_KEYVAL_2_B)
+#define PLANE_KEYVAL(pipe, plane)	\
+	_PLANE(plane, _PLANE_KEYVAL_1(pipe), _PLANE_KEYVAL_2(pipe))
+
+#define _PLANE_KEYMSK_1_B			0x71198
+#define _PLANE_KEYMSK_2_B			0x71298
+#define _PLANE_KEYMSK_1(pipe) _PIPE(pipe, _PLANE_KEYMSK_1_A, _PLANE_KEYMSK_1_B)
+#define _PLANE_KEYMSK_2(pipe) _PIPE(pipe, _PLANE_KEYMSK_2_A, _PLANE_KEYMSK_2_B)
+#define PLANE_KEYMSK(pipe, plane)	\
+	_PLANE(plane, _PLANE_KEYMSK_1(pipe), _PLANE_KEYMSK_2(pipe))
+
+#define _PLANE_KEYMAX_1_B			0x711a0
+#define _PLANE_KEYMAX_2_B			0x712a0
+#define _PLANE_KEYMAX_1(pipe) _PIPE(pipe, _PLANE_KEYMAX_1_A, _PLANE_KEYMAX_1_B)
+#define _PLANE_KEYMAX_2(pipe) _PIPE(pipe, _PLANE_KEYMAX_2_A, _PLANE_KEYMAX_2_B)
+#define PLANE_KEYMAX(pipe, plane)	\
+	_PLANE(plane, _PLANE_KEYMAX_1(pipe), _PLANE_KEYMAX_2(pipe))
+
 /* VBIOS regs */
 #define VGACNTRL		0x71400
 # define VGA_DISP_DISABLE			(1 << 31)
@@ -4746,10 +4913,23 @@ enum punit_power_well {
 #define  GEN8_PIPE_SCAN_LINE_EVENT	(1 << 2)
 #define  GEN8_PIPE_VSYNC		(1 << 1)
 #define  GEN8_PIPE_VBLANK		(1 << 0)
+#define  GEN9_PIPE_CURSOR_FAULT		(1 << 11)
+#define  GEN9_PIPE_PLANE3_FAULT		(1 << 9)
+#define  GEN9_PIPE_PLANE2_FAULT		(1 << 8)
+#define  GEN9_PIPE_PLANE1_FAULT		(1 << 7)
+#define  GEN9_PIPE_PLANE3_FLIP_DONE	(1 << 5)
+#define  GEN9_PIPE_PLANE2_FLIP_DONE	(1 << 4)
+#define  GEN9_PIPE_PLANE1_FLIP_DONE	(1 << 3)
+#define  GEN9_PIPE_PLANE_FLIP_DONE(p)	(1 << (3 + p))
 #define GEN8_DE_PIPE_IRQ_FAULT_ERRORS \
 	(GEN8_PIPE_CURSOR_FAULT | \
 	 GEN8_PIPE_SPRITE_FAULT | \
 	 GEN8_PIPE_PRIMARY_FAULT)
+#define GEN9_DE_PIPE_IRQ_FAULT_ERRORS \
+	(GEN9_PIPE_CURSOR_FAULT | \
+	 GEN9_PIPE_PLANE3_FAULT | \
+	 GEN9_PIPE_PLANE2_FAULT | \
+	 GEN9_PIPE_PLANE1_FAULT)
 
 #define GEN8_DE_PORT_ISR 0x44440
 #define GEN8_DE_PORT_IMR 0x44444
@@ -4839,6 +5019,7 @@ enum punit_power_well {
 /* GEN8 chicken */
 #define HDC_CHICKEN0				0x7300
 #define  HDC_FORCE_NON_COHERENT			(1<<4)
+#define  HDC_FENCE_DEST_SLM_DISABLE		(1<<14)
 
 /* WaCatErrorRejectionIssue */
 #define GEN7_SQ_CHICKEN_MBCUNIT_CONFIG		0x9030
@@ -5750,6 +5931,9 @@ enum punit_power_well {
 #define   GEN7_MAX_PS_THREAD_DEP		(8<<12)
 #define   GEN7_SINGLE_SUBSCAN_DISPATCH_ENABLE	(1<<10)
 #define   GEN7_PSD_SINGLE_PORT_DISPATCH_ENABLE	(1<<3)
+
+#define GEN9_HALF_SLICE_CHICKEN5	0xe188
+#define   GEN9_DG_MIRROR_FIX_ENABLE	(1<<5)
 
 #define GEN8_ROW_CHICKEN		0xe4f0
 #define   PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE	(1<<8)

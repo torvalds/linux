@@ -225,7 +225,7 @@ intel_dp_mode_valid(struct drm_connector *connector,
 }
 
 static uint32_t
-pack_aux(uint8_t *src, int src_bytes)
+pack_aux(const uint8_t *src, int src_bytes)
 {
 	int	i;
 	uint32_t v = 0;
@@ -661,6 +661,16 @@ static uint32_t vlv_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 	return index ? 0 : 100;
 }
 
+static uint32_t skl_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
+{
+	/*
+	 * SKL doesn't need us to program the AUX clock divider (Hardware will
+	 * derive the clock from CDCLK automatically). We still implement the
+	 * get_aux_clock_divider vfunc to plug-in into the existing code.
+	 */
+	return index ? 0 : 1;
+}
+
 static uint32_t i9xx_get_aux_send_ctl(struct intel_dp *intel_dp,
 				      bool has_aux_irq,
 				      int send_bytes,
@@ -691,9 +701,24 @@ static uint32_t i9xx_get_aux_send_ctl(struct intel_dp *intel_dp,
 	       (aux_clock_divider << DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT);
 }
 
+static uint32_t skl_get_aux_send_ctl(struct intel_dp *intel_dp,
+				      bool has_aux_irq,
+				      int send_bytes,
+				      uint32_t unused)
+{
+	return DP_AUX_CH_CTL_SEND_BUSY |
+	       DP_AUX_CH_CTL_DONE |
+	       (has_aux_irq ? DP_AUX_CH_CTL_INTERRUPT : 0) |
+	       DP_AUX_CH_CTL_TIME_OUT_ERROR |
+	       DP_AUX_CH_CTL_TIME_OUT_1600us |
+	       DP_AUX_CH_CTL_RECEIVE_ERROR |
+	       (send_bytes << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
+	       DP_AUX_CH_CTL_SYNC_PULSE_SKL(32);
+}
+
 static int
 intel_dp_aux_ch(struct intel_dp *intel_dp,
-		uint8_t *send, int send_bytes,
+		const uint8_t *send, int send_bytes,
 		uint8_t *recv, int recv_size)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
@@ -925,7 +950,16 @@ intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
 		BUG();
 	}
 
-	if (!HAS_DDI(dev))
+	/*
+	 * The AUX_CTL register is usually DP_CTL + 0x10.
+	 *
+	 * On Haswell and Broadwell though:
+	 *   - Both port A DDI_BUF_CTL and DDI_AUX_CTL are on the CPU
+	 *   - Port B/C/D AUX channels are on the PCH, DDI_BUF_CTL on the CPU
+	 *
+	 * Skylake moves AUX_CTL back next to DDI_BUF_CTL, on the CPU.
+	 */
+	if (!IS_HASWELL(dev) && !IS_BROADWELL(dev))
 		intel_dp->aux_ch_ctl_reg = intel_dp->output_reg + 0x10;
 
 	intel_dp->aux.name = name;
@@ -1819,7 +1853,7 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 	u32 tmp;
 
 	power_domain = intel_display_port_power_domain(encoder);
-	if (!intel_display_power_enabled(dev_priv, power_domain))
+	if (!intel_display_power_is_enabled(dev_priv, power_domain))
 		return false;
 
 	tmp = I915_READ(intel_dp->output_reg);
@@ -1995,10 +2029,8 @@ static void intel_edp_psr_write_vsc(struct intel_dp *intel_dp,
 	POSTING_READ(ctl_reg);
 }
 
-static void intel_edp_psr_setup(struct intel_dp *intel_dp)
+static void intel_edp_psr_setup_vsc(struct intel_dp *intel_dp)
 {
-	struct drm_device *dev = intel_dp_to_dev(intel_dp);
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct edp_vsc_psr psr_vsc;
 
 	/* Prepare VSC packet as per EDP 1.3 spec, Table 3.10 */
@@ -2008,10 +2040,6 @@ static void intel_edp_psr_setup(struct intel_dp *intel_dp)
 	psr_vsc.sdp_header.HB2 = 0x2;
 	psr_vsc.sdp_header.HB3 = 0x8;
 	intel_edp_psr_write_vsc(intel_dp, &psr_vsc);
-
-	/* Avoid continuous PSR exit by masking memup and hpd */
-	I915_WRITE(EDP_PSR_DEBUG_CTL(dev), EDP_PSR_DEBUG_MASK_MEMUP |
-		   EDP_PSR_DEBUG_MASK_HPD | EDP_PSR_DEBUG_MASK_LPSP);
 }
 
 static void intel_edp_psr_enable_sink(struct intel_dp *intel_dp)
@@ -2021,8 +2049,17 @@ static void intel_edp_psr_enable_sink(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t aux_clock_divider;
 	int precharge = 0x3;
-	int msg_size = 5;       /* Header(4) + Message(1) */
 	bool only_standby = false;
+	static const uint8_t aux_msg[] = {
+		[0] = DP_AUX_NATIVE_WRITE << 4,
+		[1] = DP_SET_POWER >> 8,
+		[2] = DP_SET_POWER & 0xff,
+		[3] = 1 - 1,
+		[4] = DP_SET_POWER_D0,
+	};
+	int i;
+
+	BUILD_BUG_ON(sizeof(aux_msg) > 20);
 
 	aux_clock_divider = intel_dp->get_aux_clock_divider(intel_dp, 0);
 
@@ -2038,11 +2075,13 @@ static void intel_edp_psr_enable_sink(struct intel_dp *intel_dp)
 				   DP_PSR_ENABLE | DP_PSR_MAIN_LINK_ACTIVE);
 
 	/* Setup AUX registers */
-	I915_WRITE(EDP_PSR_AUX_DATA1(dev), EDP_PSR_DPCD_COMMAND);
-	I915_WRITE(EDP_PSR_AUX_DATA2(dev), EDP_PSR_DPCD_NORMAL_OPERATION);
+	for (i = 0; i < sizeof(aux_msg); i += 4)
+		I915_WRITE(EDP_PSR_AUX_DATA1(dev) + i,
+			   pack_aux(&aux_msg[i], sizeof(aux_msg) - i));
+
 	I915_WRITE(EDP_PSR_AUX_CTL(dev),
 		   DP_AUX_CH_CTL_TIME_OUT_400us |
-		   (msg_size << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
+		   (sizeof(aux_msg) << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
 		   (precharge << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT) |
 		   (aux_clock_divider << DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT));
 }
@@ -2131,10 +2170,7 @@ static void intel_edp_psr_do_enable(struct intel_dp *intel_dp)
 	WARN_ON(dev_priv->psr.active);
 	lockdep_assert_held(&dev_priv->psr.lock);
 
-	/* Enable PSR on the panel */
-	intel_edp_psr_enable_sink(intel_dp);
-
-	/* Enable PSR on the host */
+	/* Enable/Re-enable PSR on the host */
 	intel_edp_psr_enable_source(intel_dp);
 
 	dev_priv->psr.active = true;
@@ -2158,17 +2194,25 @@ void intel_edp_psr_enable(struct intel_dp *intel_dp)
 	mutex_lock(&dev_priv->psr.lock);
 	if (dev_priv->psr.enabled) {
 		DRM_DEBUG_KMS("PSR already in use\n");
-		mutex_unlock(&dev_priv->psr.lock);
-		return;
+		goto unlock;
 	}
+
+	if (!intel_edp_psr_match_conditions(intel_dp))
+		goto unlock;
 
 	dev_priv->psr.busy_frontbuffer_bits = 0;
 
-	/* Setup PSR once */
-	intel_edp_psr_setup(intel_dp);
+	intel_edp_psr_setup_vsc(intel_dp);
 
-	if (intel_edp_psr_match_conditions(intel_dp))
-		dev_priv->psr.enabled = intel_dp;
+	/* Avoid continuous PSR exit by masking memup and hpd */
+	I915_WRITE(EDP_PSR_DEBUG_CTL(dev), EDP_PSR_DEBUG_MASK_MEMUP |
+		   EDP_PSR_DEBUG_MASK_HPD | EDP_PSR_DEBUG_MASK_LPSP);
+
+	/* Enable PSR on the panel */
+	intel_edp_psr_enable_sink(intel_dp);
+
+	dev_priv->psr.enabled = intel_dp;
+unlock:
 	mutex_unlock(&dev_priv->psr.lock);
 }
 
@@ -2208,6 +2252,17 @@ static void intel_edp_psr_work(struct work_struct *work)
 	struct drm_i915_private *dev_priv =
 		container_of(work, typeof(*dev_priv), psr.work.work);
 	struct intel_dp *intel_dp = dev_priv->psr.enabled;
+
+	/* We have to make sure PSR is ready for re-enable
+	 * otherwise it keeps disabled until next full enable/disable cycle.
+	 * PSR might take some time to get fully disabled
+	 * and be ready for re-enable.
+	 */
+	if (wait_for((I915_READ(EDP_PSR_STATUS_CTL(dev_priv->dev)) &
+		      EDP_PSR_STATUS_STATE_MASK) == 0, 50)) {
+		DRM_ERROR("Timed out waiting for PSR Idle for re-enable\n");
+		return;
+	}
 
 	mutex_lock(&dev_priv->psr.lock);
 	intel_dp = dev_priv->psr.enabled;
@@ -2680,6 +2735,15 @@ static void chv_pre_enable_dp(struct intel_encoder *encoder)
 
 	mutex_lock(&dev_priv->dpio_lock);
 
+	/* allow hardware to manage TX FIFO reset source */
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW11(ch));
+	val &= ~DPIO_LANEDESKEW_STRAP_OVRD;
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW11(ch), val);
+
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW11(ch));
+	val &= ~DPIO_LANEDESKEW_STRAP_OVRD;
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW11(ch), val);
+
 	/* Deassert soft data lane reset*/
 	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW1(ch));
 	val |= CHV_PCS_REQ_SOFTRESET_EN;
@@ -2836,7 +2900,9 @@ intel_dp_voltage_max(struct intel_dp *intel_dp)
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	enum port port = dp_to_dig_port(intel_dp)->port;
 
-	if (IS_VALLEYVIEW(dev))
+	if (INTEL_INFO(dev)->gen >= 9)
+		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
+	else if (IS_VALLEYVIEW(dev))
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_3;
 	else if (IS_GEN7(dev) && port == PORT_A)
 		return DP_TRAIN_VOLTAGE_SWING_LEVEL_2;
@@ -2852,7 +2918,18 @@ intel_dp_pre_emphasis_max(struct intel_dp *intel_dp, uint8_t voltage_swing)
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	enum port port = dp_to_dig_port(intel_dp)->port;
 
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
+	if (INTEL_INFO(dev)->gen >= 9) {
+		switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
+			return DP_TRAIN_PRE_EMPH_LEVEL_3;
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_1:
+			return DP_TRAIN_PRE_EMPH_LEVEL_2;
+		case DP_TRAIN_VOLTAGE_SWING_LEVEL_2:
+			return DP_TRAIN_PRE_EMPH_LEVEL_1;
+		default:
+			return DP_TRAIN_PRE_EMPH_LEVEL_0;
+		}
+	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
 		case DP_TRAIN_VOLTAGE_SWING_LEVEL_0:
 			return DP_TRAIN_PRE_EMPH_LEVEL_3;
@@ -3088,11 +3165,25 @@ static uint32_t intel_chv_signal_levels(struct intel_dp *intel_dp)
 	/* Clear calc init */
 	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW10(ch));
 	val &= ~(DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3);
+	val &= ~(DPIO_PCS_TX1DEEMP_MASK | DPIO_PCS_TX2DEEMP_MASK);
+	val |= DPIO_PCS_TX1DEEMP_9P5 | DPIO_PCS_TX2DEEMP_9P5;
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW10(ch), val);
 
 	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW10(ch));
 	val &= ~(DPIO_PCS_SWING_CALC_TX0_TX2 | DPIO_PCS_SWING_CALC_TX1_TX3);
+	val &= ~(DPIO_PCS_TX1DEEMP_MASK | DPIO_PCS_TX2DEEMP_MASK);
+	val |= DPIO_PCS_TX1DEEMP_9P5 | DPIO_PCS_TX2DEEMP_9P5;
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW10(ch), val);
+
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW9(ch));
+	val &= ~(DPIO_PCS_TX1MARGIN_MASK | DPIO_PCS_TX2MARGIN_MASK);
+	val |= DPIO_PCS_TX1MARGIN_000 | DPIO_PCS_TX2MARGIN_000;
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW9(ch), val);
+
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW9(ch));
+	val &= ~(DPIO_PCS_TX1MARGIN_MASK | DPIO_PCS_TX2MARGIN_MASK);
+	val |= DPIO_PCS_TX1MARGIN_000 | DPIO_PCS_TX2MARGIN_000;
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW9(ch), val);
 
 	/* Program swing deemph */
 	for (i = 0; i < 4; i++) {
@@ -3334,7 +3425,7 @@ intel_dp_set_signal_levels(struct intel_dp *intel_dp, uint32_t *DP)
 	uint32_t signal_levels, mask;
 	uint8_t train_set = intel_dp->train_set[0];
 
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
+	if (IS_HASWELL(dev) || IS_BROADWELL(dev) || INTEL_INFO(dev)->gen >= 9) {
 		signal_levels = intel_hsw_signal_levels(train_set);
 		mask = DDI_BUF_EMP_MASK;
 	} else if (IS_CHERRYVIEW(dev)) {
@@ -3801,26 +3892,48 @@ int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc)
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct intel_crtc *intel_crtc =
 		to_intel_crtc(intel_dig_port->base.base.crtc);
-	u8 buf[1];
+	u8 buf;
+	int test_crc_count;
+	int attempts = 6;
 
-	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK_MISC, buf) < 0)
+	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK_MISC, &buf) < 0)
 		return -EIO;
 
-	if (!(buf[0] & DP_TEST_CRC_SUPPORTED))
+	if (!(buf & DP_TEST_CRC_SUPPORTED))
 		return -ENOTTY;
 
-	if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_SINK,
-			       DP_TEST_SINK_START) < 0)
+	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK, &buf) < 0)
 		return -EIO;
 
-	/* Wait 2 vblanks to be sure we will have the correct CRC value */
-	intel_wait_for_vblank(dev, intel_crtc->pipe);
-	intel_wait_for_vblank(dev, intel_crtc->pipe);
+	if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_SINK,
+				buf | DP_TEST_SINK_START) < 0)
+		return -EIO;
+
+	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK_MISC, &buf) < 0)
+		return -EIO;
+	test_crc_count = buf & DP_TEST_COUNT_MASK;
+
+	do {
+		if (drm_dp_dpcd_readb(&intel_dp->aux,
+				      DP_TEST_SINK_MISC, &buf) < 0)
+			return -EIO;
+		intel_wait_for_vblank(dev, intel_crtc->pipe);
+	} while (--attempts && (buf & DP_TEST_COUNT_MASK) == test_crc_count);
+
+	if (attempts == 0) {
+		DRM_ERROR("Panel is unable to calculate CRC after 6 vblanks\n");
+		return -EIO;
+	}
 
 	if (drm_dp_dpcd_read(&intel_dp->aux, DP_TEST_CRC_R_CR, crc, 6) < 0)
 		return -EIO;
 
-	drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_SINK, 0);
+	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK, &buf) < 0)
+		return -EIO;
+	if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_SINK,
+			       buf & ~DP_TEST_SINK_START) < 0)
+		return -EIO;
+
 	return 0;
 }
 
@@ -5057,7 +5170,9 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	intel_dp->pps_pipe = INVALID_PIPE;
 
 	/* intel_dp vfuncs */
-	if (IS_VALLEYVIEW(dev))
+	if (INTEL_INFO(dev)->gen >= 9)
+		intel_dp->get_aux_clock_divider = skl_get_aux_clock_divider;
+	else if (IS_VALLEYVIEW(dev))
 		intel_dp->get_aux_clock_divider = vlv_get_aux_clock_divider;
 	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		intel_dp->get_aux_clock_divider = hsw_get_aux_clock_divider;
@@ -5066,7 +5181,10 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	else
 		intel_dp->get_aux_clock_divider = i9xx_get_aux_clock_divider;
 
-	intel_dp->get_aux_send_ctl = i9xx_get_aux_send_ctl;
+	if (INTEL_INFO(dev)->gen >= 9)
+		intel_dp->get_aux_send_ctl = skl_get_aux_send_ctl;
+	else
+		intel_dp->get_aux_send_ctl = i9xx_get_aux_send_ctl;
 
 	/* Preserve the current hw state. */
 	intel_dp->DP = I915_READ(intel_dp->output_reg);

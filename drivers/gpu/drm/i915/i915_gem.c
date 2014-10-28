@@ -1945,7 +1945,14 @@ unsigned long
 i915_gem_shrink(struct drm_i915_private *dev_priv,
 		long target, unsigned flags)
 {
-	const bool purgeable_only = flags & I915_SHRINK_PURGEABLE;
+	const struct {
+		struct list_head *list;
+		unsigned int bit;
+	} phases[] = {
+		{ &dev_priv->mm.unbound_list, I915_SHRINK_UNBOUND },
+		{ &dev_priv->mm.bound_list, I915_SHRINK_BOUND },
+		{ NULL, 0 },
+	}, *phase;
 	unsigned long count = 0;
 
 	/*
@@ -1967,48 +1974,30 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 	 * dev->struct_mutex and so we won't ever be able to observe an
 	 * object on the bound_list with a reference count equals 0.
 	 */
-	if (flags & I915_SHRINK_UNBOUND) {
+	for (phase = phases; phase->list; phase++) {
 		struct list_head still_in_list;
 
-		INIT_LIST_HEAD(&still_in_list);
-		while (count < target && !list_empty(&dev_priv->mm.unbound_list)) {
-			struct drm_i915_gem_object *obj;
-
-			obj = list_first_entry(&dev_priv->mm.unbound_list,
-					       typeof(*obj), global_list);
-			list_move_tail(&obj->global_list, &still_in_list);
-
-			if (!i915_gem_object_is_purgeable(obj) && purgeable_only)
-				continue;
-
-			drm_gem_object_reference(&obj->base);
-
-			if (i915_gem_object_put_pages(obj) == 0)
-				count += obj->base.size >> PAGE_SHIFT;
-
-			drm_gem_object_unreference(&obj->base);
-		}
-		list_splice(&still_in_list, &dev_priv->mm.unbound_list);
-	}
-
-	if (flags & I915_SHRINK_BOUND) {
-		struct list_head still_in_list;
+		if ((flags & phase->bit) == 0)
+			continue;
 
 		INIT_LIST_HEAD(&still_in_list);
-		while (count < target && !list_empty(&dev_priv->mm.bound_list)) {
+		while (count < target && !list_empty(phase->list)) {
 			struct drm_i915_gem_object *obj;
 			struct i915_vma *vma, *v;
 
-			obj = list_first_entry(&dev_priv->mm.bound_list,
+			obj = list_first_entry(phase->list,
 					       typeof(*obj), global_list);
 			list_move_tail(&obj->global_list, &still_in_list);
 
-			if (!i915_gem_object_is_purgeable(obj) && purgeable_only)
+			if (flags & I915_SHRINK_PURGEABLE &&
+			    !i915_gem_object_is_purgeable(obj))
 				continue;
 
 			drm_gem_object_reference(&obj->base);
 
-			list_for_each_entry_safe(vma, v, &obj->vma_list, vma_link)
+			/* For the unbound phase, this should be a no-op! */
+			list_for_each_entry_safe(vma, v,
+						 &obj->vma_list, vma_link)
 				if (i915_vma_unbind(vma))
 					break;
 
@@ -2017,7 +2006,7 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 
 			drm_gem_object_unreference(&obj->base);
 		}
-		list_splice(&still_in_list, &dev_priv->mm.bound_list);
+		list_splice(&still_in_list, phase->list);
 	}
 
 	return count;
@@ -3166,6 +3155,7 @@ static void i915_gem_write_fence(struct drm_device *dev, int reg,
 	     obj->stride, obj->tiling_mode);
 
 	switch (INTEL_INFO(dev)->gen) {
+	case 9:
 	case 8:
 	case 7:
 	case 6:
@@ -3384,46 +3374,6 @@ static bool i915_gem_valid_gtt_space(struct i915_vma *vma,
 	return true;
 }
 
-static void i915_gem_verify_gtt(struct drm_device *dev)
-{
-#if WATCH_GTT
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj;
-	int err = 0;
-
-	list_for_each_entry(obj, &dev_priv->mm.gtt_list, global_list) {
-		if (obj->gtt_space == NULL) {
-			printk(KERN_ERR "object found on GTT list with no space reserved\n");
-			err++;
-			continue;
-		}
-
-		if (obj->cache_level != obj->gtt_space->color) {
-			printk(KERN_ERR "object reserved space [%08lx, %08lx] with wrong color, cache_level=%x, color=%lx\n",
-			       i915_gem_obj_ggtt_offset(obj),
-			       i915_gem_obj_ggtt_offset(obj) + i915_gem_obj_ggtt_size(obj),
-			       obj->cache_level,
-			       obj->gtt_space->color);
-			err++;
-			continue;
-		}
-
-		if (!i915_gem_valid_gtt_space(dev,
-					      obj->gtt_space,
-					      obj->cache_level)) {
-			printk(KERN_ERR "invalid GTT space found at [%08lx, %08lx] - color=%x\n",
-			       i915_gem_obj_ggtt_offset(obj),
-			       i915_gem_obj_ggtt_offset(obj) + i915_gem_obj_ggtt_size(obj),
-			       obj->cache_level);
-			err++;
-			continue;
-		}
-	}
-
-	WARN_ON(err);
-#endif
-}
-
 /**
  * Finds free space in the GTT aperture and binds the object there.
  */
@@ -3532,7 +3482,6 @@ search_free:
 	vma->bind_vma(vma, obj->cache_level,
 		      flags & (PIN_MAPPABLE | PIN_GLOBAL) ? GLOBAL_BIND : 0);
 
-	i915_gem_verify_gtt(dev);
 	return vma;
 
 err_remove_node:
@@ -3769,7 +3718,6 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 						    old_write_domain);
 	}
 
-	i915_gem_verify_gtt(dev);
 	return 0;
 }
 
@@ -5119,6 +5067,15 @@ int i915_gem_open(struct drm_device *dev, struct drm_file *file)
 	return ret;
 }
 
+/**
+ * i915_gem_track_fb - update frontbuffer tracking
+ * old: current GEM buffer for the frontbuffer slots
+ * new: new GEM buffer for the frontbuffer slots
+ * frontbuffer_bits: bitmask of frontbuffer slots
+ *
+ * This updates the frontbuffer tracking bits @frontbuffer_bits by clearing them
+ * from @old and setting them in @new. Both @old and @new can be NULL.
+ */
 void i915_gem_track_fb(struct drm_i915_gem_object *old,
 		       struct drm_i915_gem_object *new,
 		       unsigned frontbuffer_bits)
