@@ -522,9 +522,3 @@ struct gb_connection_handler gb_i2c_connection_handler = {
 	.connection_init	= gb_i2c_connection_init,
 	.connection_exit	= gb_i2c_connection_exit,
 };
-
-#if 0
-module_greybus_driver(i2c_gb_driver);
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Greg Kroah-Hartman <gregkh@linuxfoundation.org>");
-#endif

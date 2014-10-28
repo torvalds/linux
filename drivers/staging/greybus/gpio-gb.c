@@ -796,9 +796,3 @@ struct gb_connection_handler gb_gpio_connection_handler = {
 	.connection_init	= gb_gpio_connection_init,
 	.connection_exit	= gb_gpio_connection_exit,
 };
-
-#if 0
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Greybus GPIO driver");
-MODULE_AUTHOR("Greg Kroah-Hartman <gregkh@linuxfoundation.org>");
-#endif
