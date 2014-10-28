@@ -418,6 +418,31 @@ static void cport_out_callback(struct urb *urb)
 
 	/* If urb is not NULL, then we need to free this urb */
 	usb_free_urb(urb);
+
+	/*
+	 * Yes, you are right, we aren't telling anyone that the urb finished.
+	 * "That's crazy!  How does this all even work?" you might be saying.
+	 * The "magic" is the idea that greybus works on the "operation" level,
+	 * not the "send a buffer" level.  All operations are "round-trip" with
+	 * a response from the device that the operation finished, or it will
+	 * time out.  Because of that, we don't care that this urb finished, or
+	 * failed, or did anything else, as higher levels of the protocol stack
+	 * will handle completions and timeouts and the rest.
+	 *
+	 * This protocol is "needed" due to some hardware restrictions on the
+	 * current generation of Unipro controllers.  Think about it for a
+	 * minute, this is a USB driver, talking to a Unipro bridge, impediance
+	 * mismatch is huge, yet the Unipro controller are even more
+	 * underpowered than this little USB controller.  We rely on the round
+	 * trip to keep stalls in the Unipro controllers from happening so that
+	 * we can keep data flowing properly, no matter how slow it might be.
+	 *
+	 * Once again, a wonderful bus protocol cut down in its prime by a naive
+	 * controller chip.  We dream of the day we have a "real" HCD for
+	 * Unipro.  Until then, we suck it up and make the hardware work, as
+	 * that's the job of the firmware and kernel.
+	 * </rant>
+	 */
 }
 
 /*
