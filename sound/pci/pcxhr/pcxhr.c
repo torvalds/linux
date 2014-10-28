@@ -711,8 +711,9 @@ static void pcxhr_start_linked_stream(struct pcxhr_mgr *mgr)
 	int playback_mask = 0;
 
 #ifdef CONFIG_SND_DEBUG_VERBOSE
-	struct timeval my_tv1, my_tv2;
-	do_gettimeofday(&my_tv1);
+	ktime_t start_time, stop_time, diff_time;
+
+	start_time = ktime_get();
 #endif
 	mutex_lock(&mgr->setup_mutex);
 
@@ -823,9 +824,10 @@ static void pcxhr_start_linked_stream(struct pcxhr_mgr *mgr)
 	mutex_unlock(&mgr->setup_mutex);
 
 #ifdef CONFIG_SND_DEBUG_VERBOSE
-	do_gettimeofday(&my_tv2);
+	stop_time = ktime_get();
+	diff_time = ktime_sub(stop_time, start_time);
 	dev_dbg(&mgr->pci->dev, "***TRIGGER START*** TIME = %ld (err = %x)\n",
-		    (long)(my_tv2.tv_usec - my_tv1.tv_usec), err);
+		    (long)(ktime_to_ns(diff_time)), err);
 #endif
 }
 
