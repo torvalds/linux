@@ -664,20 +664,6 @@ int ieee802154_set_macparams(struct sk_buff *skb, struct genl_info *info)
 
 	phy = ops->get_phy(dev);
 
-	if ((!phy->set_lbt && info->attrs[IEEE802154_ATTR_LBT_ENABLED]) ||
-	    (!phy->set_cca_mode && info->attrs[IEEE802154_ATTR_CCA_MODE]) ||
-	    (!phy->set_cca_ed_level &&
-	     info->attrs[IEEE802154_ATTR_CCA_ED_LEVEL]) ||
-	    (!phy->set_csma_params &&
-	     (info->attrs[IEEE802154_ATTR_CSMA_RETRIES] ||
-	      info->attrs[IEEE802154_ATTR_CSMA_MIN_BE] ||
-	      info->attrs[IEEE802154_ATTR_CSMA_MAX_BE])) ||
-	    (!phy->set_frame_retries &&
-	     info->attrs[IEEE802154_ATTR_FRAME_RETRIES])) {
-		rc = -EOPNOTSUPP;
-		goto out_phy;
-	}
-
 	ops->get_mac_params(dev, &params);
 
 	if (info->attrs[IEEE802154_ATTR_TXPOWER])
@@ -708,10 +694,9 @@ int ieee802154_set_macparams(struct sk_buff *skb, struct genl_info *info)
 
 	wpan_phy_put(phy);
 	dev_put(dev);
-	return rc;
 
-out_phy:
-	wpan_phy_put(phy);
+	return 0;
+
 out:
 	dev_put(dev);
 	return rc;

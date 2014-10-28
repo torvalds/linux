@@ -196,32 +196,32 @@ static int mac802154_wpan_open(struct net_device *dev)
 
 	mutex_lock(&phy->pib_lock);
 
-	if (phy->set_txpower) {
+	if (local->hw.flags & IEEE802154_HW_TXPOWER) {
 		rc = drv_set_tx_power(local, sdata->mac_params.transmit_power);
 		if (rc < 0)
 			goto out;
 	}
 
-	if (phy->set_lbt) {
+	if (local->hw.flags & IEEE802154_HW_LBT) {
 		rc = drv_set_lbt_mode(local, sdata->mac_params.lbt);
 		if (rc < 0)
 			goto out;
 	}
 
-	if (phy->set_cca_mode) {
+	if (local->hw.flags & IEEE802154_HW_CCA_MODE) {
 		rc = drv_set_cca_mode(local, sdata->mac_params.cca_mode);
 		if (rc < 0)
 			goto out;
 	}
 
-	if (phy->set_cca_ed_level) {
+	if (local->hw.flags & IEEE802154_HW_CCA_ED_LEVEL) {
 		rc = drv_set_cca_ed_level(local,
 					  sdata->mac_params.cca_ed_level);
 		if (rc < 0)
 			goto out;
 	}
 
-	if (phy->set_csma_params) {
+	if (local->hw.flags & IEEE802154_HW_CSMA_PARAMS) {
 		rc = drv_set_csma_params(local, sdata->mac_params.min_be,
 					 sdata->mac_params.max_be,
 					 sdata->mac_params.csma_retries);
@@ -229,7 +229,7 @@ static int mac802154_wpan_open(struct net_device *dev)
 			goto out;
 	}
 
-	if (phy->set_frame_retries) {
+	if (local->hw.flags & IEEE802154_HW_FRAME_RETRIES) {
 		rc = drv_set_max_frame_retries(local,
 					       sdata->mac_params.frame_retries);
 		if (rc < 0)

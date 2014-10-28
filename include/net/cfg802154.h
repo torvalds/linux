@@ -57,14 +57,6 @@ struct wpan_phy {
 					const char *name, int type);
 	void (*del_iface)(struct wpan_phy *phy, struct net_device *dev);
 
-	int (*set_txpower)(struct wpan_phy *phy, int db);
-	int (*set_lbt)(struct wpan_phy *phy, bool on);
-	int (*set_cca_mode)(struct wpan_phy *phy, u8 cca_mode);
-	int (*set_cca_ed_level)(struct wpan_phy *phy, int level);
-	int (*set_csma_params)(struct wpan_phy *phy, u8 min_be, u8 max_be,
-			       u8 retries);
-	int (*set_frame_retries)(struct wpan_phy *phy, s8 retries);
-
 	char priv[0] __aligned(NETDEV_ALIGN);
 };
 
