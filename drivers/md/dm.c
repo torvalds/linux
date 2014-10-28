@@ -2332,7 +2332,7 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
 
 	merge_is_optional = dm_table_merge_is_optional(t);
 
-	old_map = md->map;
+	old_map = rcu_dereference(md->map);
 	rcu_assign_pointer(md->map, t);
 	md->immutable_target_type = dm_table_get_immutable_target_type(t);
 
@@ -2351,7 +2351,7 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
  */
 static struct dm_table *__unbind(struct mapped_device *md)
 {
-	struct dm_table *map = md->map;
+	struct dm_table *map = rcu_dereference(md->map);
 
 	if (!map)
 		return NULL;
@@ -2745,7 +2745,7 @@ int dm_suspend(struct mapped_device *md, unsigned suspend_flags)
 		goto out_unlock;
 	}
 
-	map = md->map;
+	map = rcu_dereference(md->map);
 
 	/*
 	 * DMF_NOFLUSH_SUSPENDING must be set before presuspend.
@@ -2839,7 +2839,7 @@ int dm_resume(struct mapped_device *md)
 	if (!dm_suspended_md(md))
 		goto out;
 
-	map = md->map;
+	map = rcu_dereference(md->map);
 	if (!map || !dm_table_get_size(map))
 		goto out;
 
