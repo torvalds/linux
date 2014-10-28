@@ -267,3 +267,11 @@ void __init ar2315_plat_mem_setup(void)
 
 	_machine_restart = ar2315_restart;
 }
+
+void __init ar2315_arch_init(void)
+{
+	unsigned irq = irq_create_mapping(ar2315_misc_irq_domain,
+					  AR2315_MISC_IRQ_UART0);
+
+	ath25_serial_setup(AR2315_UART0_BASE, irq, ar2315_apb_frequency());
+}

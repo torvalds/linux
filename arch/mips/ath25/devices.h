@@ -9,6 +9,8 @@
 
 extern void (*ath25_irq_dispatch)(void);
 
+void ath25_serial_setup(u32 mapbase, int irq, unsigned int uartclk);
+
 static inline bool is_ar2315(void)
 {
 	return (current_cpu_data.cputype == CPU_4KEC);

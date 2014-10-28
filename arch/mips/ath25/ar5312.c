@@ -265,3 +265,11 @@ void __init ar5312_plat_mem_setup(void)
 
 	_machine_restart = ar5312_restart;
 }
+
+void __init ar5312_arch_init(void)
+{
+	unsigned irq = irq_create_mapping(ar5312_misc_irq_domain,
+					  AR5312_MISC_IRQ_UART0);
+
+	ath25_serial_setup(AR5312_UART0_BASE, irq, ar5312_sys_frequency());
+}
