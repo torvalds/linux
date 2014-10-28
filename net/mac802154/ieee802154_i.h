@@ -50,18 +50,11 @@ struct ieee802154_local {
 	 */
 	struct workqueue_struct	*workqueue;
 
-	/* SoftMAC device is registered and running. One can add subinterfaces.
-	 * This flag should be modified under slaves_mtx and RTNL, so you can
-	 * read them using any of protection methods.
-	 */
 	bool started;
 
 	struct tasklet_struct tasklet;
 	struct sk_buff_head skb_queue;
 };
-
-#define	MAC802154_DEVICE_STOPPED	0x00
-#define MAC802154_DEVICE_RUN		0x01
 
 enum {
 	IEEE802154_RX_MSG        = 1,

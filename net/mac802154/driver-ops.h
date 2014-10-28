@@ -29,6 +29,8 @@ static inline int drv_start(struct ieee802154_local *local)
 {
 	might_sleep();
 
+	local->started = true;
+
 	return local->ops->start(&local->hw);
 }
 
@@ -37,6 +39,8 @@ static inline void drv_stop(struct ieee802154_local *local)
 	might_sleep();
 
 	local->ops->stop(&local->hw);
+
+	local->started = false;
 }
 
 static inline int drv_set_channel(struct ieee802154_local *local,
