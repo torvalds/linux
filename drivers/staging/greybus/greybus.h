@@ -151,7 +151,6 @@ struct gbuf {
 
 struct gb_i2c_device;
 struct gb_gpio_device;
-struct gb_sdio_host;
 struct gb_tty;
 struct gb_usb_device;
 struct gb_battery;
@@ -270,6 +269,7 @@ extern struct gb_connection_handler gb_i2c_connection_handler;
 extern struct gb_connection_handler gb_gpio_connection_handler;
 extern struct gb_connection_handler gb_battery_connection_handler;
 extern struct gb_connection_handler gb_uart_connection_handler;
+extern struct gb_connection_handler gb_sdio_connection_handler;
 
 int gb_uart_device_init(struct gb_connection *connection);
 void gb_uart_device_exit(struct gb_connection *connection);
