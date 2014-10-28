@@ -427,7 +427,7 @@ xfs_bulkstat(
 
 			error = xfs_bulkstat_grab_ichunk(cur, agino, &icount, &r);
 			if (error)
-				break;
+				goto del_cursor;
 			if (icount) {
 				irbp->ir_startino = r.ir_startino;
 				irbp->ir_freecount = r.ir_freecount;
@@ -442,7 +442,7 @@ xfs_bulkstat(
 			error = xfs_inobt_lookup(cur, 0, XFS_LOOKUP_GE, &tmp);
 		}
 		if (error)
-			break;
+			goto del_cursor;
 
 		/*
 		 * Loop through inode btree records in this ag,
@@ -454,7 +454,7 @@ xfs_bulkstat(
 			error = xfs_inobt_get_rec(cur, &r, &i);
 			if (error || i == 0) {
 				end_of_ag = 1;
-				break;
+				goto del_cursor;
 			}
 
 			/*
@@ -476,13 +476,17 @@ xfs_bulkstat(
 			error = xfs_btree_increment(cur, 0, &tmp);
 			cond_resched();
 		}
+
 		/*
-		 * Drop the btree buffers and the agi buffer.
-		 * We can't hold any of the locks these represent
-		 * when calling iget.
+		 * Drop the btree buffers and the agi buffer as we can't hold any
+		 * of the locks these represent when calling iget. If there is a
+		 * pending error, then we are done.
 		 */
+del_cursor:
 		xfs_btree_del_cursor(cur, XFS_BTREE_NOERROR);
 		xfs_buf_relse(agbp);
+		if (error)
+			break;
 		/*
 		 * Now format all the good inodes into the user's buffer.
 		 */
