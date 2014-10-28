@@ -1641,7 +1641,7 @@ static int do_cmdtest_ioctl(struct comedi_device *dev,
 
 */
 
-static int do_lock_ioctl(struct comedi_device *dev, unsigned int arg,
+static int do_lock_ioctl(struct comedi_device *dev, unsigned long arg,
 			 void *file)
 {
 	int ret = 0;
@@ -1678,7 +1678,7 @@ static int do_lock_ioctl(struct comedi_device *dev, unsigned int arg,
 	This function isn't protected by the semaphore, since
 	we already own the lock.
 */
-static int do_unlock_ioctl(struct comedi_device *dev, unsigned int arg,
+static int do_unlock_ioctl(struct comedi_device *dev, unsigned long arg,
 			   void *file)
 {
 	struct comedi_subdevice *s;
@@ -1713,7 +1713,7 @@ static int do_unlock_ioctl(struct comedi_device *dev, unsigned int arg,
 		nothing
 
 */
-static int do_cancel_ioctl(struct comedi_device *dev, unsigned int arg,
+static int do_cancel_ioctl(struct comedi_device *dev, unsigned long arg,
 			   void *file)
 {
 	struct comedi_subdevice *s;
@@ -1750,7 +1750,7 @@ static int do_cancel_ioctl(struct comedi_device *dev, unsigned int arg,
 		nothing
 
 */
-static int do_poll_ioctl(struct comedi_device *dev, unsigned int arg,
+static int do_poll_ioctl(struct comedi_device *dev, unsigned long arg,
 			 void *file)
 {
 	struct comedi_subdevice *s;
