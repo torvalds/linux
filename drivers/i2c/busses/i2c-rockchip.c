@@ -330,9 +330,9 @@ static void rockchip_i2c_set_clk(struct rockchip_i2c *i2c, unsigned long scl_rat
 static void rockchip_i2c_init_hw(struct rockchip_i2c *i2c, unsigned long scl_rate)
 {
 	i2c->scl_rate = 0;
-//	clk_prepare_enable(i2c->clk);
+	clk_enable(i2c->clk);
 	rockchip_i2c_set_clk(i2c, scl_rate);
-//	clk_disable_unprepare(i2c->clk);
+	clk_disable(i2c->clk);
 }
 
 /* returns TRUE if we this is the last byte in the current message */
@@ -738,7 +738,7 @@ static int rockchip_i2c_xfer(struct i2c_adapter *adap,
 	struct rockchip_i2c *i2c = i2c_get_adapdata(adap);
 	unsigned long scl_rate = i2c->scl_rate;
 
-//	clk_prepare_enable(i2c->clk);
+	clk_enable(i2c->clk);
 	if (i2c->check_idle) {
 		int state, retry = 10;
 		while (retry--) {
@@ -776,7 +776,7 @@ static int rockchip_i2c_xfer(struct i2c_adapter *adap,
 	ret = rockchip_i2c_doxfer(i2c, msgs, num);
 	i2c_dbg(i2c->dev, "i2c transfer stop: addr: 0x%04x, state: %d, ret: %d\n", msgs[0].addr, ret, i2c->state);
 
-//	clk_disable_unprepare(i2c->clk);
+	clk_disable(i2c->clk);
 	return (ret < 0) ? ret : num;
 }
 
@@ -907,7 +907,12 @@ static int rockchip_i2c_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	clk_prepare_enable(i2c->clk); // FIXME: enable i2c clock temporarily
+	ret = clk_prepare(i2c->clk);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Could not prepare clock\n");
+		return ret;
+	}
+
 	i2c->i2c_rate = clk_get_rate(i2c->clk);
 
 	rockchip_i2c_init_hw(i2c, 100 * 1000);
@@ -928,6 +933,7 @@ static int rockchip_i2c_remove(struct platform_device *pdev)
 	struct rockchip_i2c *i2c = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&i2c->adap);
+	clk_unprepare(i2c->clk);
 
 	return 0;
 }
