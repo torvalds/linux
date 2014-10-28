@@ -20,6 +20,8 @@ Optional properties:
  - snps,lpm-nyet-threshold: LPM NYET threshold
  - snps,u2exit_lfps_quirk: set if we want to enable u2exit lfps quirk
  - snps,u2ss_inp3_quirk: set if we enable P3 OK for U2/SS Inactive quirk
+ - snps,req_p1p2p3_quirk: when set, the core will always request for
+			P1/P2/P3 transition sequence.
 
 This is usually a subnode to DWC3 glue to which it is connected.
 
