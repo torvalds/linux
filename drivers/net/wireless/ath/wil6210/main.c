@@ -223,6 +223,11 @@ static void wil_fw_error_worker(struct work_struct *work)
 
 	wil_dbg_misc(wil, "fw error worker\n");
 
+	if (!netif_running(wil_to_ndev(wil))) {
+		wil_info(wil, "No recovery - interface is down\n");
+		return;
+	}
+
 	/* increment @recovery_count if less then WIL6210_FW_RECOVERY_TO
 	 * passed since last recovery attempt
 	 */
