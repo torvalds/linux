@@ -90,6 +90,13 @@ static inline int is_dma_buf_file(struct file *file)
 	return file->f_op == &dma_buf_fops;
 }
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+int dma_buf_is_dma_buf(struct file *file)
+{
+	return is_dma_buf_file(file);
+}
+#endif
+
 /**
  * dma_buf_export_named - Creates a new dma_buf, and associates an anon file
  * with this buffer, so it can be exported.
