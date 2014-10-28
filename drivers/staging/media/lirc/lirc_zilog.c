@@ -199,7 +199,7 @@ static void release_ir_device(struct kref *ref)
 		lirc_unregister_driver(ir->l.minor);
 		ir->l.minor = MAX_IRCTL_DEVICES;
 	}
-	if (ir->rbuf.fifo_initialized)
+	if (kfifo_initialized(&ir->rbuf.fifo))
 		lirc_buffer_free(&ir->rbuf);
 	list_del(&ir->list);
 	kfree(ir);

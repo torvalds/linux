@@ -29,14 +29,13 @@ struct lirc_buffer {
 	/* Using chunks instead of bytes pretends to simplify boundary checking
 	 * And should allow for some performance fine tunning later */
 	struct kfifo fifo;
-	u8 fifo_initialized;
 };
 
 static inline void lirc_buffer_clear(struct lirc_buffer *buf)
 {
 	unsigned long flags;
 
-	if (buf->fifo_initialized) {
+	if (kfifo_initialized(&buf->fifo)) {
 		spin_lock_irqsave(&buf->fifo_lock, flags);
 		kfifo_reset(&buf->fifo);
 		spin_unlock_irqrestore(&buf->fifo_lock, flags);
@@ -56,17 +55,14 @@ static inline int lirc_buffer_init(struct lirc_buffer *buf,
 	buf->chunk_size = chunk_size;
 	buf->size = size;
 	ret = kfifo_alloc(&buf->fifo, size * chunk_size, GFP_KERNEL);
-	if (ret == 0)
-		buf->fifo_initialized = 1;
 
 	return ret;
 }
 
 static inline void lirc_buffer_free(struct lirc_buffer *buf)
 {
-	if (buf->fifo_initialized) {
+	if (kfifo_initialized(&buf->fifo)) {
 		kfifo_free(&buf->fifo);
-		buf->fifo_initialized = 0;
 	} else
 		WARN(1, "calling %s on an uninitialized lirc_buffer\n",
 		     __func__);
