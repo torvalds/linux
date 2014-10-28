@@ -486,7 +486,7 @@ struct tally_counter {
 	__le64	rx_broadcast;
 	__le32	rx_multicast;
 	__le16	tx_aborted;
-	__le16	tx_underun;
+	__le16	tx_underrun;
 };
 
 struct rx_desc {
@@ -3420,7 +3420,7 @@ static void rtl8152_get_ethtool_stats(struct net_device *dev,
 	data[9] = le64_to_cpu(tally.rx_broadcast);
 	data[10] = le32_to_cpu(tally.rx_multicast);
 	data[11] = le16_to_cpu(tally.tx_aborted);
-	data[12] = le16_to_cpu(tally.tx_underun);
+	data[12] = le16_to_cpu(tally.tx_underrun);
 }
 
 static void rtl8152_get_strings(struct net_device *dev, u32 stringset, u8 *data)
