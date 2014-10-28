@@ -19,6 +19,8 @@
 #include <linux/bitops.h>
 #include <linux/irqdomain.h>
 #include <linux/interrupt.h>
+#include <linux/platform_device.h>
+#include <linux/mtd/physmap.h>
 #include <linux/reboot.h>
 #include <asm/bootinfo.h>
 #include <asm/reboot.h>
@@ -160,6 +162,24 @@ void __init ar5312_arch_init_irq(void)
 	ar5312_misc_irq_domain = domain;
 }
 
+static struct physmap_flash_data ar5312_flash_data = {
+	.width = 2,
+};
+
+static struct resource ar5312_flash_resource = {
+	.start = AR5312_FLASH_BASE,
+	.end = AR5312_FLASH_BASE + AR5312_FLASH_SIZE - 1,
+	.flags = IORESOURCE_MEM,
+};
+
+static struct platform_device ar5312_physmap_flash = {
+	.name = "physmap-flash",
+	.id = 0,
+	.dev.platform_data = &ar5312_flash_data,
+	.resource = &ar5312_flash_resource,
+	.num_resources = 1,
+};
+
 static void __init ar5312_flash_init(void)
 {
 	void __iomem *flashctl_base;
@@ -168,12 +188,24 @@ static void __init ar5312_flash_init(void)
 	flashctl_base = ioremap_nocache(AR5312_FLASHCTL_BASE,
 					AR5312_FLASHCTL_SIZE);
 
+	ctl = __raw_readl(flashctl_base + AR5312_FLASHCTL0);
+	ctl &= AR5312_FLASHCTL_MW;
+
+	/* fixup flash width */
+	switch (ctl) {
+	case AR5312_FLASHCTL_MW16:
+		ar5312_flash_data.width = 2;
+		break;
+	case AR5312_FLASHCTL_MW8:
+	default:
+		ar5312_flash_data.width = 1;
+		break;
+	}
+
 	/*
 	 * Configure flash bank 0.
 	 * Assume 8M window size. Flash will be aliased if it's smaller
 	 */
-	ctl = __raw_readl(flashctl_base + AR5312_FLASHCTL0);
-	ctl &= AR5312_FLASHCTL_MW;
 	ctl |= AR5312_FLASHCTL_E | AR5312_FLASHCTL_AC_8M | AR5312_FLASHCTL_RBLE;
 	ctl |= 0x01 << AR5312_FLASHCTL_IDCY_S;
 	ctl |= 0x07 << AR5312_FLASHCTL_WST1_S;
@@ -212,6 +244,8 @@ void __init ar5312_init_devices(void)
 	/* Everything else is probably AR5312 or compatible */
 	else
 		ath25_soc = ATH25_SOC_AR5312;
+
+	platform_device_register(&ar5312_physmap_flash);
 }
 
 static void ar5312_restart(char *command)
