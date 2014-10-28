@@ -60,6 +60,22 @@ static int usecs_to_scanlines(const struct drm_display_mode *mode, int usecs)
 	return DIV_ROUND_UP(usecs * mode->crtc_clock, 1000 * mode->crtc_htotal);
 }
 
+/**
+ * intel_pipe_update_start() - start update of a set of display registers
+ * @crtc: the crtc of which the registers are going to be updated
+ * @start_vbl_count: vblank counter return pointer used for error checking
+ *
+ * Mark the start of an update to pipe registers that should be updated
+ * atomically regarding vblank. If the next vblank will happens within
+ * the next 100 us, this function waits until the vblank passes.
+ *
+ * After a successful call to this function, interrupts will be disabled
+ * until a subsequent call to intel_pipe_update_end(). That is done to
+ * avoid random delays. The value written to @start_vbl_count should be
+ * supplied to intel_pipe_update_end() for error checking.
+ *
+ * Return: true if the call was successful
+ */
 static bool intel_pipe_update_start(struct intel_crtc *crtc, uint32_t *start_vbl_count)
 {
 	struct drm_device *dev = crtc->base.dev;
@@ -126,6 +142,15 @@ static bool intel_pipe_update_start(struct intel_crtc *crtc, uint32_t *start_vbl
 	return true;
 }
 
+/**
+ * intel_pipe_update_end() - end update of a set of display registers
+ * @crtc: the crtc of which the registers were updated
+ * @start_vbl_count: start vblank counter (used for error checking)
+ *
+ * Mark the end of an update started with intel_pipe_update_start(). This
+ * re-enables interrupts and verifies the update was actually completed
+ * before a vblank using the value of @start_vbl_count.
+ */
 static void intel_pipe_update_end(struct intel_crtc *crtc, u32 start_vbl_count)
 {
 	struct drm_device *dev = crtc->base.dev;
