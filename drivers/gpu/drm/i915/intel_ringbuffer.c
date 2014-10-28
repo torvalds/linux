@@ -788,12 +788,10 @@ static int chv_init_workarounds(struct intel_engine_cs *ring)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	/* WaDisablePartialInstShootdown:chv */
-	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
-		  PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE);
-
 	/* WaDisableThreadStallDopClockGating:chv */
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
-		  STALL_DOP_GATING_DISABLE);
+			  PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE |
+			  STALL_DOP_GATING_DISABLE);
 
 	return 0;
 }
