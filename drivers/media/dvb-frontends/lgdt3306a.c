@@ -1386,11 +1386,15 @@ static u8 lgdt3306a_get_packet_error(struct lgdt3306a_state *state)
 	return val;
 }
 
+static const u32 valx_x10[] = {
+	10,  11,  13,  15,  17,  20,  25,  33,  41,  50,  59,  73,  87,  100
+};
+static const u32 log10x_x1000[] = {
+	0,  41, 114, 176, 230, 301, 398, 518, 613, 699, 771, 863, 939, 1000
+};
+
 static u32 log10_x1000(u32 x)
 {
-	static u32 valx_x10[]     = {  10,  11,  13,  15,  17,  20,  25,  33,  41,  50,  59,  73,  87,  100 };
-	static u32 log10x_x1000[] = {   0,  41, 114, 176, 230, 301, 398, 518, 613, 699, 771, 863, 939, 1000 };
-	static u32 nelems = sizeof(valx_x10)/sizeof(valx_x10[0]);
 	u32 diff_val, step_val, step_log10;
 	u32 log_val = 0;
 	u32 i;
@@ -1418,11 +1422,11 @@ static u32 log10_x1000(u32 x)
 		return log_val;	/* don't need to interpolate */
 
 	/* find our place on the log curve */
-	for (i = 1; i < nelems; i++) {
+	for (i = 1; i < ARRAY_SIZE(valx_x10); i++) {
 		if (valx_x10[i] >= x)
 			break;
 	}
-	if (i == nelems)
+	if (i == ARRAY_SIZE(valx_x10))
 		return log_val + log10x_x1000[i - 1];
 
 	diff_val   = x - valx_x10[i-1];
