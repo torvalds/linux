@@ -417,8 +417,6 @@ void mac802154_wpan_setup(struct net_device *dev)
 	sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	sdata->type = IEEE802154_DEV_WPAN;
 
-	sdata->chan = MAC802154_CHAN_NONE;
-
 	spin_lock_init(&sdata->mib_lock);
 	mutex_init(&sdata->sec_mtx);
 
@@ -454,6 +452,4 @@ void mac802154_monitor_setup(struct net_device *dev)
 
 	sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	sdata->type = IEEE802154_DEV_MONITOR;
-
-	sdata->chan = MAC802154_CHAN_NONE; /* not initialized */
 }

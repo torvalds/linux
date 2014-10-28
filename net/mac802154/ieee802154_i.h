@@ -85,9 +85,6 @@ struct ieee802154_sub_if_data {
 	__le16 short_addr;
 	__le64 extended_addr;
 
-	u8 chan;
-	u8 page;
-
 	struct ieee802154_mac_params mac_params;
 
 	/* MAC BSN field */
