@@ -3332,9 +3332,10 @@ static void dw_mci_init_pinctrl(struct dw_mci *host)
                         dev_warn(host->dev, "%s: No udbg pinctrl found!\n",
                                         mmc_hostname(host->mmc));
                 } else {
-                        if (pinctrl_select_state(host->pinctrl, host->pins_udbg) < 0)
-                                dev_err(host->dev, "%s: Udbg pinctrl setting failed!\n",
-                                        mmc_hostname(host->mmc));
+                        if (!dw_mci_get_cd(host->mmc))
+				if (pinctrl_select_state(host->pinctrl, host->pins_udbg) < 0)
+					dev_err(host->dev, "%s: Udbg pinctrl setting failed!\n",
+						mmc_hostname(host->mmc));
                 }
         }
 }
