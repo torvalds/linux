@@ -8,7 +8,7 @@
 // Confidence: High
 // Copyright: (C) 2014 Himangi Saraogi.  GPLv2.
 // Comments:
-// Options: --no-includes, --include-headers
+// Options: --no-includes --include-headers
 
 virtual patch
 virtual context
