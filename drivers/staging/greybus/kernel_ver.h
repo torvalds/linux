@@ -48,4 +48,19 @@ static inline void gb_gpiochip_remove(struct gpio_chip *chip)
 }
 #endif
 
+/*
+ * ATTRIBUTE_GROUPS showed up in 3.11-rc2, but we need to build on 3.10, so add
+ * it here.
+ */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,11,0)
+#define ATTRIBUTE_GROUPS(name)					\
+static const struct attribute_group name##_group = {		\
+	.attrs = name##_attrs,					\
+};								\
+static const struct attribute_group *name##_groups[] = {	\
+	&name##_group,						\
+	NULL,							\
+}
+#endif
+
 #endif	/* __GREYBUS_KERNEL_VER_H */
