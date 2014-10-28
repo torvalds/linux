@@ -74,7 +74,8 @@ void wil_memcpy_toio_32(volatile void __iomem *dst, const void *src,
 		__raw_writel(*s++, d++);
 }
 
-static void wil_disconnect_cid(struct wil6210_priv *wil, int cid)
+static void wil_disconnect_cid(struct wil6210_priv *wil, int cid,
+			       bool from_event)
 {
 	uint i;
 	struct net_device *ndev = wil_to_ndev(wil);
@@ -86,7 +87,10 @@ static void wil_disconnect_cid(struct wil6210_priv *wil, int cid)
 
 	sta->data_port_open = false;
 	if (sta->status != wil_sta_unused) {
-		wmi_disconnect_sta(wil, sta->addr, WLAN_REASON_DEAUTH_LEAVING);
+		if (!from_event)
+			wmi_disconnect_sta(wil, sta->addr,
+					   WLAN_REASON_DEAUTH_LEAVING);
+
 		switch (wdev->iftype) {
 		case NL80211_IFTYPE_AP:
 		case NL80211_IFTYPE_P2P_GO:
@@ -118,7 +122,8 @@ static void wil_disconnect_cid(struct wil6210_priv *wil, int cid)
 	memset(&sta->stats, 0, sizeof(sta->stats));
 }
 
-static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid)
+static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
+				bool from_event)
 {
 	int cid = -ENOENT;
 	struct net_device *ndev = wil_to_ndev(wil);
@@ -133,10 +138,10 @@ static void _wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid)
 	}
 
 	if (cid >= 0) /* disconnect 1 peer */
-		wil_disconnect_cid(wil, cid);
+		wil_disconnect_cid(wil, cid, from_event);
 	else /* disconnect all */
 		for (cid = 0; cid < WIL6210_MAX_CID; cid++)
-			wil_disconnect_cid(wil, cid);
+			wil_disconnect_cid(wil, cid, from_event);
 
 	/* link state */
 	switch (wdev->iftype) {
@@ -166,7 +171,7 @@ static void wil_disconnect_worker(struct work_struct *work)
 			struct wil6210_priv, disconnect_worker);
 
 	mutex_lock(&wil->mutex);
-	_wil6210_disconnect(wil, NULL);
+	_wil6210_disconnect(wil, NULL, false);
 	mutex_unlock(&wil->mutex);
 }
 
@@ -351,12 +356,22 @@ int wil_priv_init(struct wil6210_priv *wil)
 	return 0;
 }
 
-void wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid)
+/**
+ * wil6210_disconnect - disconnect one connection
+ * @wil: driver context
+ * @bssid: peer to disconnect, NULL to disconnect all
+ * @from_event: whether is invoked from FW event handler
+ *
+ * Disconnect and release associated resources. If invoked not from the
+ * FW event handler, issue WMI command(s) to trigger MAC disconnect.
+ */
+void wil6210_disconnect(struct wil6210_priv *wil, const u8 *bssid,
+			bool from_event)
 {
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
 	del_timer_sync(&wil->connect_timer);
-	_wil6210_disconnect(wil, bssid);
+	_wil6210_disconnect(wil, bssid, from_event);
 }
 
 void wil_priv_deinit(struct wil6210_priv *wil)
@@ -368,7 +383,7 @@ void wil_priv_deinit(struct wil6210_priv *wil)
 	cancel_work_sync(&wil->disconnect_worker);
 	cancel_work_sync(&wil->fw_error_worker);
 	mutex_lock(&wil->mutex);
-	wil6210_disconnect(wil, NULL);
+	wil6210_disconnect(wil, NULL, false);
 	mutex_unlock(&wil->mutex);
 	wmi_event_flush(wil);
 	destroy_workqueue(wil->wmi_wq_conn);
@@ -553,7 +568,7 @@ int wil_reset(struct wil6210_priv *wil)
 	WARN_ON(test_bit(wil_status_napi_en, &wil->status));
 
 	cancel_work_sync(&wil->disconnect_worker);
-	wil6210_disconnect(wil, NULL);
+	wil6210_disconnect(wil, NULL, false);
 
 	wil->status = 0; /* prevent NAPI from being scheduled */
 
