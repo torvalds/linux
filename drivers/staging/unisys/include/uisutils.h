@@ -179,11 +179,14 @@ struct chaninfo {
 	set_current_state(TASK_INTERRUPTIBLE); \
 	schedule_timeout(msecs_to_jiffies(x)); \
 }
+
 #define UIS_THREAD_WAIT_USEC(x) { \
 	set_current_state(TASK_INTERRUPTIBLE); \
 	schedule_timeout(usecs_to_jiffies(x)); \
 }
+
 #define UIS_THREAD_WAIT UIS_THREAD_WAIT_MSEC(5)
+
 #define UIS_THREAD_WAIT_SEC(x) { \
 	set_current_state(TASK_INTERRUPTIBLE); \
 	schedule_timeout((x)*HZ); \
