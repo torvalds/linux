@@ -86,12 +86,12 @@ extern void nwfpe_enter(void);
 static int __init fpe_init(void)
 {
 	if (sizeof(FPA11) > sizeof(union fp_state)) {
-		printk(KERN_ERR "nwfpe: bad structure size\n");
+		pr_err("nwfpe: bad structure size\n");
 		return -EINVAL;
 	}
 
 	if (sizeof(FPREG) != 12) {
-		printk(KERN_ERR "nwfpe: bad register size\n");
+		pr_err("nwfpe: bad register size\n");
 		return -EINVAL;
 	}
 	if (fpe_type[0] && strcmp(fpe_type, "nwfpe"))

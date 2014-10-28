@@ -126,12 +126,12 @@ void machine_crash_shutdown(struct pt_regs *regs)
 		msecs--;
 	}
 	if (atomic_read(&waiting_for_crash_ipi) > 0)
-		printk(KERN_WARNING "Non-crashing CPUs did not react to IPI\n");
+		pr_warn("Non-crashing CPUs did not react to IPI\n");
 
 	crash_save_cpu(regs, smp_processor_id());
 	machine_kexec_mask_interrupts();
 
-	printk(KERN_INFO "Loading crashdump kernel...\n");
+	pr_info("Loading crashdump kernel...\n");
 }
 
 /*
@@ -177,7 +177,7 @@ void machine_kexec(struct kimage *image)
 	reboot_entry_phys = (unsigned long)reboot_entry +
 		(reboot_code_buffer_phys - (unsigned long)reboot_code_buffer);
 
-	printk(KERN_INFO "Bye!\n");
+	pr_info("Bye!\n");
 
 	if (kexec_reinit)
 		kexec_reinit();

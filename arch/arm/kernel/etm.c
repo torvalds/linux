@@ -213,7 +213,7 @@ static void etm_dump(void)
 	int length;
 
 	if (!t->etb_regs) {
-		printk(KERN_INFO "No tracing hardware found\n");
+		pr_info("No tracing hardware found\n");
 		return;
 	}
 
@@ -229,11 +229,11 @@ static void etm_dump(void)
 
 	etb_writel(t, first, ETBR_READADDR);
 
-	printk(KERN_INFO "Trace buffer contents length: %d\n", length);
-	printk(KERN_INFO "--- ETB buffer begin ---\n");
+	pr_info("Trace buffer contents length: %d\n", length);
+	pr_info("--- ETB buffer begin ---\n");
 	for (; length; length--)
 		printk("%08x", cpu_to_be32(etb_readl(t, ETBR_READMEM)));
-	printk(KERN_INFO "\n--- ETB buffer end ---\n");
+	pr_info("\n--- ETB buffer end ---\n");
 
 	/* deassert the overflow bit */
 	etb_writel(t, 1, ETBR_CTRL);
@@ -633,14 +633,14 @@ static int __init etm_init(void)
 
 	retval = amba_driver_register(&etb_driver);
 	if (retval) {
-		printk(KERN_ERR "Failed to register etb\n");
+		pr_err("Failed to register etb\n");
 		return retval;
 	}
 
 	retval = amba_driver_register(&etm_driver);
 	if (retval) {
 		amba_driver_unregister(&etb_driver);
-		printk(KERN_ERR "Failed to probe etm\n");
+		pr_err("Failed to probe etm\n");
 		return retval;
 	}
 
