@@ -1385,6 +1385,9 @@ static void solo_enc_free(struct solo_enc_dev *solo_enc)
 	if (solo_enc == NULL)
 		return;
 
+	pci_free_consistent(solo_enc->solo_dev->pdev,
+			sizeof(struct solo_p2m_desc) * solo_enc->desc_nelts,
+			solo_enc->desc_items, solo_enc->desc_dma);
 	video_unregister_device(solo_enc->vfd);
 	v4l2_ctrl_handler_free(&solo_enc->hdl);
 	kfree(solo_enc);
