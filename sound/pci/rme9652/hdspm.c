@@ -1257,14 +1257,13 @@ static int hdspm_rate_multiplier(struct hdspm *hdspm, int rate)
 /* check for external sample rate, returns the sample rate in Hz*/
 static int hdspm_external_sample_rate(struct hdspm *hdspm)
 {
-	unsigned int status, status2, timecode;
+	unsigned int status, status2;
 	int syncref, rate = 0, rate_bits;
 
 	switch (hdspm->io_type) {
 	case AES32:
 		status2 = hdspm_read(hdspm, HDSPM_statusRegister2);
 		status = hdspm_read(hdspm, HDSPM_statusRegister);
-		timecode = hdspm_read(hdspm, HDSPM_timecodeRegister);
 
 		syncref = hdspm_autosync_ref(hdspm);
 		switch (syncref) {
@@ -4862,18 +4861,15 @@ snd_hdspm_proc_read_madi(struct snd_info_entry *entry,
 			 struct snd_info_buffer *buffer)
 {
 	struct hdspm *hdspm = entry->private_data;
-	unsigned int status, status2, control, freq;
+	unsigned int status, status2;
 
 	char *pref_sync_ref;
 	char *autosync_ref;
 	char *system_clock_mode;
-	char *insel;
 	int x, x2;
 
 	status = hdspm_read(hdspm, HDSPM_statusRegister);
 	status2 = hdspm_read(hdspm, HDSPM_statusRegister2);
-	control = hdspm->control_register;
-	freq = hdspm_read(hdspm, HDSPM_timecodeRegister);
 
 	snd_iprintf(buffer, "%s (Card #%d) Rev.%x Status2first3bits: %x\n",
 			hdspm->card_name, hdspm->card->number + 1,
@@ -4935,17 +4931,6 @@ snd_hdspm_proc_read_madi(struct snd_info_entry *entry,
 
 	snd_iprintf(buffer, "Line out: %s\n",
 		(hdspm->control_register & HDSPM_LineOut) ? "on " : "off");
-
-	switch (hdspm->control_register & HDSPM_InputMask) {
-	case HDSPM_InputOptical:
-		insel = "Optical";
-		break;
-	case HDSPM_InputCoaxial:
-		insel = "Coaxial";
-		break;
-	default:
-		insel = "Unknown";
-	}
 
 	snd_iprintf(buffer,
 		"ClearTrackMarker = %s, Transmit in %s Channel Mode, "
@@ -5191,14 +5176,12 @@ snd_hdspm_proc_read_raydat(struct snd_info_entry *entry,
 			 struct snd_info_buffer *buffer)
 {
 	struct hdspm *hdspm = entry->private_data;
-	unsigned int status1, status2, status3, control, i;
+	unsigned int status1, status2, status3, i;
 	unsigned int lock, sync;
 
 	status1 = hdspm_read(hdspm, HDSPM_RD_STATUS_1); /* s1 */
 	status2 = hdspm_read(hdspm, HDSPM_RD_STATUS_2); /* freq */
 	status3 = hdspm_read(hdspm, HDSPM_RD_STATUS_3); /* s2 */
-
-	control = hdspm->control_register;
 
 	snd_iprintf(buffer, "STATUS1: 0x%08x\n", status1);
 	snd_iprintf(buffer, "STATUS2: 0x%08x\n", status2);
