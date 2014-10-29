@@ -54,6 +54,7 @@ struct msm_port {
 	unsigned int		imr;
 	int			is_uartdm;
 	unsigned int		old_snap_state;
+	bool			break_detected;
 };
 
 static inline void wait_for_xmitr(struct uart_port *port)
@@ -126,23 +127,38 @@ static void handle_rx_dm(struct uart_port *port, unsigned int misr)
 
 	while (count > 0) {
 		unsigned char buf[4];
+		int sysrq, r_count, i;
 
 		sr = msm_read(port, UART_SR);
 		if ((sr & UART_SR_RX_READY) == 0) {
 			msm_port->old_snap_state -= count;
 			break;
 		}
-		ioread32_rep(port->membase + UARTDM_RF, buf, 1);
-		if (sr & UART_SR_RX_BREAK) {
-			port->icount.brk++;
-			if (uart_handle_break(port))
-				continue;
-		} else if (sr & UART_SR_PAR_FRAME_ERR)
-			port->icount.frame++;
 
-		/* TODO: handle sysrq */
-		tty_insert_flip_string(tport, buf, min(count, 4));
-		count -= 4;
+		ioread32_rep(port->membase + UARTDM_RF, buf, 1);
+		r_count = min_t(int, count, sizeof(buf));
+
+		for (i = 0; i < r_count; i++) {
+			char flag = TTY_NORMAL;
+
+			if (msm_port->break_detected && buf[i] == 0) {
+				port->icount.brk++;
+				flag = TTY_BREAK;
+				msm_port->break_detected = false;
+				if (uart_handle_break(port))
+					continue;
+			}
+
+			if (!(port->read_status_mask & UART_SR_RX_BREAK))
+				flag = TTY_NORMAL;
+
+			spin_unlock(&port->lock);
+			sysrq = uart_handle_sysrq_char(port, buf[i]);
+			spin_lock(&port->lock);
+			if (!sysrq)
+				tty_insert_flip_char(tport, buf[i], flag);
+		}
+		count -= r_count;
 	}
 
 	spin_unlock(&port->lock);
@@ -290,6 +306,11 @@ static irqreturn_t msm_irq(int irq, void *dev_id)
 	spin_lock(&port->lock);
 	misr = msm_read(port, UART_MISR);
 	msm_write(port, 0, UART_IMR); /* disable interrupt */
+
+	if (misr & UART_IMR_RXBREAK_START) {
+		msm_port->break_detected = true;
+		msm_write(port, UART_CR_CMD_RESET_RXBREAK_START, UART_CR);
+	}
 
 	if (misr & (UART_IMR_RXLEV | UART_IMR_RXSTALE)) {
 		if (msm_port->is_uartdm)
@@ -496,7 +517,7 @@ static int msm_startup(struct uart_port *port)
 
 	/* turn on RX and CTS interrupts */
 	msm_port->imr = UART_IMR_RXLEV | UART_IMR_RXSTALE |
-			UART_IMR_CURRENT_CTS;
+			UART_IMR_CURRENT_CTS | UART_IMR_RXBREAK_START;
 
 	if (msm_port->is_uartdm) {
 		msm_write(port, 0xFFFFFF, UARTDM_DMRX);
