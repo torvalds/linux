@@ -470,6 +470,8 @@ struct dsa_switch_driver mv88e6123_61_65_switch_driver = {
 #ifdef CONFIG_NET_DSA_HWMON
 	.get_temp		= mv88e6123_61_65_get_temp,
 #endif
+	.get_regs_len		= mv88e6xxx_get_regs_len,
+	.get_regs		= mv88e6xxx_get_regs,
 };
 
 MODULE_ALIAS("platform:mv88e6123");
