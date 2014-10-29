@@ -35,7 +35,6 @@
 #define __WMGR_H__
 
 #include "ttype.h"
-#include "80211mgr.h"
 #include "80211hdr.h"
 #include "card.h"
 

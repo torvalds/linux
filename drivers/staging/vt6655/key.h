@@ -33,7 +33,6 @@
 #include <net/mac80211.h>
 
 #include "ttype.h"
-#include "80211mgr.h"
 
 /*---------------------  Export Definitions -------------------------*/
 #define MAX_GROUP_KEY       4

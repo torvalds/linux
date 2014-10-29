@@ -642,7 +642,6 @@ struct vnt_private {
 	unsigned char abyCountryCode[3];
 	/* for 802.11h DFS */
 	unsigned int	uNumOfMeasureEIDs;
-	PWLAN_IE_MEASURE_REQ    pCurrMeasureEID;
 	bool bMeasureInProgress;
 	unsigned char byOrgChannel;
 	unsigned char byOrgRCR;
