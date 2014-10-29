@@ -1904,7 +1904,7 @@ static void mos7840_change_port_settings(struct tty_struct *tty,
 
 	if (mos7840_port->read_urb_busy == false) {
 		mos7840_port->read_urb_busy = true;
-		status = usb_submit_urb(mos7840_port->read_urb, GFP_ATOMIC);
+		status = usb_submit_urb(mos7840_port->read_urb, GFP_KERNEL);
 		if (status) {
 			dev_dbg(&port->dev, "usb_submit_urb(read bulk) failed, status = %d\n",
 			    status);
@@ -1968,7 +1968,7 @@ static void mos7840_set_termios(struct tty_struct *tty,
 
 	if (mos7840_port->read_urb_busy == false) {
 		mos7840_port->read_urb_busy = true;
-		status = usb_submit_urb(mos7840_port->read_urb, GFP_ATOMIC);
+		status = usb_submit_urb(mos7840_port->read_urb, GFP_KERNEL);
 		if (status) {
 			dev_dbg(&port->dev, "usb_submit_urb(read bulk) failed, status = %d\n",
 			    status);
