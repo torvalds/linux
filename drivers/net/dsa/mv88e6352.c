@@ -73,6 +73,8 @@ static char *mv88e6352_probe(struct device *host_dev, int sw_addr)
 
 	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), 0x03);
 	if (ret >= 0) {
+		if ((ret & 0xfff0) == 0x1760)
+			return "Marvell 88E6176";
 		if (ret == 0x3521)
 			return "Marvell 88E6352 (A0)";
 		if (ret == 0x3522)
