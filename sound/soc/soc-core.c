@@ -884,7 +884,7 @@ static struct snd_soc_dai *snd_soc_find_dai(
 	list_for_each_entry(component, &component_list, list) {
 		if (dlc->of_node && component->dev->of_node != dlc->of_node)
 			continue;
-		if (dlc->name && strcmp(dev_name(component->dev), dlc->name))
+		if (dlc->name && strcmp(component->name, dlc->name))
 			continue;
 		list_for_each_entry(dai, &component->dai_list, list) {
 			if (dlc->dai_name && strcmp(dai->name, dlc->dai_name))
