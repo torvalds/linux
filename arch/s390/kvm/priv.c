@@ -762,8 +762,8 @@ int kvm_s390_handle_lctl(struct kvm_vcpu *vcpu)
 {
 	int reg1 = (vcpu->arch.sie_block->ipa & 0x00f0) >> 4;
 	int reg3 = vcpu->arch.sie_block->ipa & 0x000f;
-	u32 val = 0;
-	int reg, rc;
+	int reg, rc, nr_regs;
+	u32 ctl_array[16];
 	u64 ga;
 
 	vcpu->stat.instruction_lctl++;
@@ -779,14 +779,15 @@ int kvm_s390_handle_lctl(struct kvm_vcpu *vcpu)
 	VCPU_EVENT(vcpu, 5, "lctl r1:%x, r3:%x, addr:%llx", reg1, reg3, ga);
 	trace_kvm_s390_handle_lctl(vcpu, 0, reg1, reg3, ga);
 
+	nr_regs = ((reg3 - reg1) & 0xf) + 1;
+	rc = read_guest(vcpu, ga, ctl_array, nr_regs * sizeof(u32));
+	if (rc)
+		return kvm_s390_inject_prog_cond(vcpu, rc);
 	reg = reg1;
+	nr_regs = 0;
 	do {
-		rc = read_guest(vcpu, ga, &val, sizeof(val));
-		if (rc)
-			return kvm_s390_inject_prog_cond(vcpu, rc);
 		vcpu->arch.sie_block->gcr[reg] &= 0xffffffff00000000ul;
-		vcpu->arch.sie_block->gcr[reg] |= val;
-		ga += 4;
+		vcpu->arch.sie_block->gcr[reg] |= ctl_array[nr_regs++];
 		if (reg == reg3)
 			break;
 		reg = (reg + 1) % 16;
@@ -799,9 +800,9 @@ int kvm_s390_handle_stctl(struct kvm_vcpu *vcpu)
 {
 	int reg1 = (vcpu->arch.sie_block->ipa & 0x00f0) >> 4;
 	int reg3 = vcpu->arch.sie_block->ipa & 0x000f;
+	int reg, rc, nr_regs;
+	u32 ctl_array[16];
 	u64 ga;
-	u32 val;
-	int reg, rc;
 
 	vcpu->stat.instruction_stctl++;
 
@@ -817,26 +818,24 @@ int kvm_s390_handle_stctl(struct kvm_vcpu *vcpu)
 	trace_kvm_s390_handle_stctl(vcpu, 0, reg1, reg3, ga);
 
 	reg = reg1;
+	nr_regs = 0;
 	do {
-		val = vcpu->arch.sie_block->gcr[reg] &  0x00000000fffffffful;
-		rc = write_guest(vcpu, ga, &val, sizeof(val));
-		if (rc)
-			return kvm_s390_inject_prog_cond(vcpu, rc);
-		ga += 4;
+		ctl_array[nr_regs++] = vcpu->arch.sie_block->gcr[reg];
 		if (reg == reg3)
 			break;
 		reg = (reg + 1) % 16;
 	} while (1);
-
-	return 0;
+	rc = write_guest(vcpu, ga, ctl_array, nr_regs * sizeof(u32));
+	return rc ? kvm_s390_inject_prog_cond(vcpu, rc) : 0;
 }
 
 static int handle_lctlg(struct kvm_vcpu *vcpu)
 {
 	int reg1 = (vcpu->arch.sie_block->ipa & 0x00f0) >> 4;
 	int reg3 = vcpu->arch.sie_block->ipa & 0x000f;
-	u64 ga, val;
-	int reg, rc;
+	int reg, rc, nr_regs;
+	u64 ctl_array[16];
+	u64 ga;
 
 	vcpu->stat.instruction_lctlg++;
 
@@ -848,17 +847,17 @@ static int handle_lctlg(struct kvm_vcpu *vcpu)
 	if (ga & 7)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
-	reg = reg1;
-
 	VCPU_EVENT(vcpu, 5, "lctlg r1:%x, r3:%x, addr:%llx", reg1, reg3, ga);
 	trace_kvm_s390_handle_lctl(vcpu, 1, reg1, reg3, ga);
 
+	nr_regs = ((reg3 - reg1) & 0xf) + 1;
+	rc = read_guest(vcpu, ga, ctl_array, nr_regs * sizeof(u64));
+	if (rc)
+		return kvm_s390_inject_prog_cond(vcpu, rc);
+	reg = reg1;
+	nr_regs = 0;
 	do {
-		rc = read_guest(vcpu, ga, &val, sizeof(val));
-		if (rc)
-			return kvm_s390_inject_prog_cond(vcpu, rc);
-		vcpu->arch.sie_block->gcr[reg] = val;
-		ga += 8;
+		vcpu->arch.sie_block->gcr[reg] = ctl_array[nr_regs++];
 		if (reg == reg3)
 			break;
 		reg = (reg + 1) % 16;
@@ -871,8 +870,9 @@ static int handle_stctg(struct kvm_vcpu *vcpu)
 {
 	int reg1 = (vcpu->arch.sie_block->ipa & 0x00f0) >> 4;
 	int reg3 = vcpu->arch.sie_block->ipa & 0x000f;
-	u64 ga, val;
-	int reg, rc;
+	int reg, rc, nr_regs;
+	u64 ctl_array[16];
+	u64 ga;
 
 	vcpu->stat.instruction_stctg++;
 
@@ -884,23 +884,19 @@ static int handle_stctg(struct kvm_vcpu *vcpu)
 	if (ga & 7)
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
-	reg = reg1;
-
 	VCPU_EVENT(vcpu, 5, "stctg r1:%x, r3:%x, addr:%llx", reg1, reg3, ga);
 	trace_kvm_s390_handle_stctl(vcpu, 1, reg1, reg3, ga);
 
+	reg = reg1;
+	nr_regs = 0;
 	do {
-		val = vcpu->arch.sie_block->gcr[reg];
-		rc = write_guest(vcpu, ga, &val, sizeof(val));
-		if (rc)
-			return kvm_s390_inject_prog_cond(vcpu, rc);
-		ga += 8;
+		ctl_array[nr_regs++] = vcpu->arch.sie_block->gcr[reg];
 		if (reg == reg3)
 			break;
 		reg = (reg + 1) % 16;
 	} while (1);
-
-	return 0;
+	rc = write_guest(vcpu, ga, ctl_array, nr_regs * sizeof(u64));
+	return rc ? kvm_s390_inject_prog_cond(vcpu, rc) : 0;
 }
 
 static const intercept_handler_t eb_handlers[256] = {
