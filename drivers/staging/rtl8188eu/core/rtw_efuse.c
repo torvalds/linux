@@ -322,7 +322,6 @@ void efuse_ReadEFuse(struct adapter *Adapter, u8 efuseType, u16 _offset, u16 _si
 		iol_read_efuse(Adapter, 0, _offset, _size_byte, pbuf);
 		iol_mode_enable(Adapter, 0);
 	}
-	return;
 }
 
 /* Do not support BT */
