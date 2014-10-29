@@ -186,6 +186,8 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 
 	retval = device_add(&connection->dev);
 	if (retval) {
+		gb_connection_hd_cport_id_free(connection);
+		/* kref_put(connection->hd); */
 		kfree(connection);
 		return NULL;
 	}
