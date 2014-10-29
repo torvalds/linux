@@ -61,11 +61,6 @@ static void f2fs_write_end_io(struct bio *bio, int err)
 		dec_page_count(sbi, F2FS_WRITEBACK);
 	}
 
-	if (sbi->wait_io) {
-		complete(sbi->wait_io);
-		sbi->wait_io = NULL;
-	}
-
 	if (!get_pages(sbi, F2FS_WRITEBACK) &&
 			!list_empty(&sbi->cp_wait.task_list))
 		wake_up(&sbi->cp_wait);
@@ -95,34 +90,18 @@ static struct bio *__bio_alloc(struct f2fs_sb_info *sbi, block_t blk_addr,
 static void __submit_merged_bio(struct f2fs_bio_info *io)
 {
 	struct f2fs_io_info *fio = &io->fio;
-	int rw;
 
 	if (!io->bio)
 		return;
 
-	rw = fio->rw;
+	if (is_read_io(fio->rw))
+		trace_f2fs_submit_read_bio(io->sbi->sb, fio->rw,
+							fio->type, io->bio);
+	else
+		trace_f2fs_submit_write_bio(io->sbi->sb, fio->rw,
+							fio->type, io->bio);
 
-	if (is_read_io(rw)) {
-		trace_f2fs_submit_read_bio(io->sbi->sb, rw,
-						fio->type, io->bio);
-		submit_bio(rw, io->bio);
-	} else {
-		trace_f2fs_submit_write_bio(io->sbi->sb, rw,
-						fio->type, io->bio);
-		/*
-		 * META_FLUSH is only from the checkpoint procedure, and we
-		 * should wait this metadata bio for FS consistency.
-		 */
-		if (fio->type == META_FLUSH) {
-			DECLARE_COMPLETION_ONSTACK(wait);
-			io->sbi->wait_io = &wait;
-			submit_bio(rw, io->bio);
-			wait_for_completion(&wait);
-		} else {
-			submit_bio(rw, io->bio);
-		}
-	}
-
+	submit_bio(fio->rw, io->bio);
 	io->bio = NULL;
 }
 
