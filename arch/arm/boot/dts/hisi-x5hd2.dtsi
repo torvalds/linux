@@ -486,5 +486,65 @@
 			clocks = <&clock HIX5HD2_FIXED_24M>;
 			hisilicon,power-syscon = <&sysctrl>;
 		};
+
+		i2c0: i2c@b10000 {
+			compatible = "hisilicon,hix5hd2-i2c";
+			reg = <0xb10000 0x1000>;
+			interrupts = <0 38 4>;
+			clocks = <&clock HIX5HD2_I2C0_RST>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c1: i2c@b11000 {
+			compatible = "hisilicon,hix5hd2-i2c";
+			reg = <0xb11000 0x1000>;
+			interrupts = <0 39 4>;
+			clocks = <&clock HIX5HD2_I2C1_RST>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c2: i2c@b12000 {
+			compatible = "hisilicon,hix5hd2-i2c";
+			reg = <0xb12000 0x1000>;
+			interrupts = <0 40 4>;
+			clocks = <&clock HIX5HD2_I2C2_RST>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c3: i2c@b13000 {
+			compatible = "hisilicon,hix5hd2-i2c";
+			reg = <0xb13000 0x1000>;
+			interrupts = <0 41 4>;
+			clocks = <&clock HIX5HD2_I2C3_RST>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c4: i2c@b16000 {
+			compatible = "hisilicon,hix5hd2-i2c";
+			reg = <0xb16000 0x1000>;
+			interrupts = <0 43 4>;
+			clocks = <&clock HIX5HD2_I2C4_RST>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c5: i2c@b17000 {
+			compatible = "hisilicon,hix5hd2-i2c";
+			reg = <0xb17000 0x1000>;
+			interrupts = <0 44 4>;
+			clocks = <&clock HIX5HD2_I2C5_RST>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
 	};
 };
