@@ -36,6 +36,9 @@ struct sst_ops {
 	/* DSP core boot / reset */
 	void (*boot)(struct sst_dsp *);
 	void (*reset)(struct sst_dsp *);
+	int (*wake)(struct sst_dsp *);
+	void (*sleep)(struct sst_dsp *);
+	void (*stall)(struct sst_dsp *);
 
 	/* Shim IO */
 	void (*write)(void __iomem *addr, u32 offset, u32 value);

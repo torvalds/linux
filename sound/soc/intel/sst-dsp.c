@@ -245,6 +245,29 @@ int sst_dsp_boot(struct sst_dsp *sst)
 }
 EXPORT_SYMBOL_GPL(sst_dsp_boot);
 
+int sst_dsp_wake(struct sst_dsp *sst)
+{
+	if (sst->ops->wake)
+		return sst->ops->wake(sst);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(sst_dsp_wake);
+
+void sst_dsp_sleep(struct sst_dsp *sst)
+{
+	if (sst->ops->sleep)
+		sst->ops->sleep(sst);
+}
+EXPORT_SYMBOL_GPL(sst_dsp_sleep);
+
+void sst_dsp_stall(struct sst_dsp *sst)
+{
+	if (sst->ops->stall)
+		sst->ops->stall(sst);
+}
+EXPORT_SYMBOL_GPL(sst_dsp_stall);
+
 void sst_dsp_ipc_msg_tx(struct sst_dsp *dsp, u32 msg)
 {
 	sst_dsp_shim_write_unlocked(dsp, SST_IPCX, msg | SST_IPCX_BUSY);
