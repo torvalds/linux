@@ -118,37 +118,7 @@
  */
 #define CB_MAX_TX_ABORT_RETRY   3
 
-#ifdef __BIG_ENDIAN
-
 /* WMAC definition FIFO Control */
-#define FIFOCTL_AUTO_FB_1   0x0010
-#define FIFOCTL_AUTO_FB_0   0x0008
-#define FIFOCTL_GRPACK      0x0004
-#define FIFOCTL_11GA        0x0003
-#define FIFOCTL_11GB        0x0002
-#define FIFOCTL_11B         0x0001
-#define FIFOCTL_11A         0x0000
-#define FIFOCTL_RTS         0x8000
-#define FIFOCTL_ISDMA0      0x4000
-#define FIFOCTL_GENINT      0x2000
-#define FIFOCTL_TMOEN       0x1000
-#define FIFOCTL_LRETRY      0x0800
-#define FIFOCTL_CRCDIS      0x0400
-#define FIFOCTL_NEEDACK     0x0200
-#define FIFOCTL_LHEAD       0x0100
-
-/* WMAC definition Frag Control */
-#define FRAGCTL_AES         0x0003
-#define FRAGCTL_TKIP        0x0002
-#define FRAGCTL_LEGACY      0x0001
-#define FRAGCTL_NONENCRYPT  0x0000
-#define FRAGCTL_ENDFRAG     0x0300
-#define FRAGCTL_MIDFRAG     0x0200
-#define FRAGCTL_STAFRAG     0x0100
-#define FRAGCTL_NONFRAG     0x0000
-
-#else
-
 #define FIFOCTL_AUTO_FB_1   0x1000
 #define FIFOCTL_AUTO_FB_0   0x0800
 #define FIFOCTL_GRPACK      0x0400
@@ -174,8 +144,6 @@
 #define FRAGCTL_MIDFRAG     0x0002
 #define FRAGCTL_STAFRAG     0x0001
 #define FRAGCTL_NONFRAG     0x0000
-
-#endif
 
 #define TYPE_TXDMA0     0
 #define TYPE_AC0DMA     1
