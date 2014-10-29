@@ -75,6 +75,7 @@ EXPORT_SYMBOL(nf_log_unset);
 int nf_log_register(u_int8_t pf, struct nf_logger *logger)
 {
 	int i;
+	int ret = 0;
 
 	if (pf >= ARRAY_SIZE(init_net.nf.nf_loggers))
 		return -EINVAL;
@@ -82,16 +83,25 @@ int nf_log_register(u_int8_t pf, struct nf_logger *logger)
 	mutex_lock(&nf_log_mutex);
 
 	if (pf == NFPROTO_UNSPEC) {
+		for (i = NFPROTO_UNSPEC; i < NFPROTO_NUMPROTO; i++) {
+			if (rcu_access_pointer(loggers[i][logger->type])) {
+				ret = -EEXIST;
+				goto unlock;
+			}
+		}
 		for (i = NFPROTO_UNSPEC; i < NFPROTO_NUMPROTO; i++)
 			rcu_assign_pointer(loggers[i][logger->type], logger);
 	} else {
-		/* register at end of list to honor first register win */
+		if (rcu_access_pointer(loggers[pf][logger->type])) {
+			ret = -EEXIST;
+			goto unlock;
+		}
 		rcu_assign_pointer(loggers[pf][logger->type], logger);
 	}
 
+unlock:
 	mutex_unlock(&nf_log_mutex);
-
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(nf_log_register);
 
