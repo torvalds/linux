@@ -393,7 +393,13 @@
 		sysctrl: system-controller@00000000 {
 			compatible = "hisilicon,sysctrl", "syscon";
 			reg = <0x00000000 0x1000>;
-			reboot-offset = <0x4>;
+		};
+
+		reboot {
+			compatible = "syscon-reboot";
+			regmap = <&sysctrl>;
+			offset = <0x4>;
+			mask = <0xdeadbeef>;
 		};
 
 		cpuctrl@00a22000 {
