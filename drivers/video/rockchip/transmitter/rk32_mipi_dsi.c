@@ -1357,25 +1357,23 @@ reg_proc_write_exit:
 	return count;
 }
 
-int reg_proc_read(struct file *file, char __user *buff, size_t count,
-					loff_t *offp)
+int reg_proc_read(struct seq_file *s, void *v)
 {
 	int i = 0;
 	u32 val = 0;
-
+	struct dsi *dsi = s->private;
+	
 	for (i = VERSION; i < (VERSION + (0xdc << 16)); i += 4<<16) {
-		val = rk32_dsi_get_bits(dsi0, i);
-		MIPI_TRACE("%04x: %08x\n", i>>16, val);
-		msleep(1);
+		val = rk32_dsi_get_bits(dsi, i);
+		seq_printf(s, "%04x: %08x\n", i>>16, val);
 	}
-
-	MIPI_TRACE("\n");
-	return -1;
-}
-
-int reg_proc_open(struct inode *inode, struct file *file)
-{
 	return 0;
+}
+static int reg_proc_open(struct inode *inode, struct file *file)
+{
+	struct dsi *dsi = inode->i_private;
+
+	return single_open(file, reg_proc_read, dsi);
 }
 
 int reg_proc_close(struct inode *inode, struct file *file)
@@ -1388,7 +1386,7 @@ struct file_operations reg_proc_fops = {
 	.open = reg_proc_open,
 	.release = reg_proc_close,
 	.write = reg_proc_write,
-	.read = reg_proc_read,
+	.read = seq_read,
 };
 
 int reg_proc_write1(struct file *file, const char __user *buff, size_t count, loff_t *offp)
@@ -1488,27 +1486,6 @@ reg_proc_write_exit:
 	return count;
 }
 
-int reg_proc_read1(struct file *file, char __user *buff, size_t count,
-					loff_t *offp)
-{
-	int i = 0;
-	u32 val = 0;
-
-	for (i = VERSION; i < (VERSION + (0xdc<<16)); i += 4<<16) {
-		val = rk32_dsi_get_bits(dsi1, i);
-		MIPI_TRACE("%04x: %08x\n", i>>16, val);
-		msleep(1);
-	}
-
-	MIPI_TRACE("\n");
-	return -1;
-}
-
-int reg_proc_open1(struct inode *inode, struct file *file)
-{
-	return 0;
-}
-
 int reg_proc_close1(struct inode *inode, struct file *file)
 {
 	return 0;
@@ -1516,10 +1493,10 @@ int reg_proc_close1(struct inode *inode, struct file *file)
 
 struct file_operations reg_proc_fops1 = {
 	.owner = THIS_MODULE,
-	.open = reg_proc_open1,
+	.open = reg_proc_open,
 	.release = reg_proc_close1,
 	.write = reg_proc_write1,
-	.read = reg_proc_read1,
+	.read = seq_read,
 };
 #endif
 #if 0/* def CONFIG_MIPI_DSI_LINUX */
