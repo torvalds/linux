@@ -73,8 +73,7 @@ PSvEnablePowerSaving(
 )
 {
 	struct vnt_private *pDevice = hDeviceContext;
-	PSMgmtObject    pMgmt = pDevice->pMgmt;
-	unsigned short wAID = pMgmt->wCurrAID | BIT14 | BIT15;
+	u16 wAID = pDevice->current_aid | BIT(14) | BIT(15);
 
 	// set period of power up before TBTT
 	VNSvOutPortW(pDevice->PortOffset + MAC_REG_PWBT, C_PWBT);
@@ -83,7 +82,9 @@ PSvEnablePowerSaving(
 		VNSvOutPortW(pDevice->PortOffset + MAC_REG_AIDATIM, wAID);
 	} else {
 		// set ATIM Window
+#if 0 /* TODO atim window */
 		MACvWriteATIMW(pDevice->PortOffset, pMgmt->wCurrATIMWindow);
+#endif
 	}
 	// Set AutoSleep
 	MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCFG, PSCFG_AUTOSLEEP);
@@ -95,21 +96,14 @@ PSvEnablePowerSaving(
 		MACvRegBitsOff(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_ALBCN);
 		// first time set listen next beacon
 		MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_LNBCN);
-		pMgmt->wCountToWakeUp = wListenInterval;
 	} else {
 		// always listen beacon
 		MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_ALBCN);
-		pMgmt->wCountToWakeUp = 0;
 	}
 
 	// enable power saving hw function
 	MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_PSEN);
 	pDevice->bEnablePSMode = true;
-
-	/* We don't send null pkt in ad hoc mode since beacon will handle this. */
-	if (pDevice->op_mode != NL80211_IFTYPE_ADHOC &&
-	    pDevice->op_mode == NL80211_IFTYPE_STATION)
-		PSbSendNullPacket(pDevice);
 
 	pDevice->bPWBitOn = true;
 	pr_debug("PS:Power Saving Mode Enable...\n");
@@ -142,9 +136,6 @@ PSvDisablePowerSaving(
 	MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_ALBCN);
 
 	pDevice->bEnablePSMode = false;
-
-	if (pDevice->op_mode == NL80211_IFTYPE_STATION)
-		PSbSendNullPacket(pDevice);
 
 	pDevice->bPWBitOn = false;
 }
