@@ -1228,6 +1228,8 @@ static void das16_detach(struct comedi_device *dev)
 	int i;
 
 	if (devpriv) {
+		if (devpriv->timer.data)
+			del_timer_sync(&devpriv->timer);
 		if (dev->iobase)
 			das16_reset(dev);
 
