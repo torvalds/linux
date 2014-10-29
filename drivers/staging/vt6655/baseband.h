@@ -103,12 +103,12 @@ void BBvExitDeepSleep(void __iomem *dwIoBase, unsigned char byLocalID);
 
 void
 TimerSQ3CallBack(
-	void *hDeviceContext
+	unsigned long
 );
 
 void
 TimerState1CallBack(
-	void *hDeviceContext
+	unsigned long
 );
 
 void BBvAntennaDiversity(struct vnt_private *pDevice,

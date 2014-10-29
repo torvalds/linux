@@ -72,6 +72,5 @@
 
 /*---------------------  Export Types  ------------------------------*/
 #define timer_expire(timer, next_tick)   mod_timer(&timer, RUN_AT(next_tick))
-typedef void (*TimerFunction)(unsigned long);
 
 #endif // __WMGR_H__

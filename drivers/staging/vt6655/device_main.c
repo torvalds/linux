@@ -625,17 +625,17 @@ static void device_init_diversity_timer(struct vnt_private *pDevice)
 {
 	init_timer(&pDevice->TimerSQ3Tmax1);
 	pDevice->TimerSQ3Tmax1.data = (unsigned long) pDevice;
-	pDevice->TimerSQ3Tmax1.function = (TimerFunction)TimerSQ3CallBack;
+	pDevice->TimerSQ3Tmax1.function = TimerSQ3CallBack;
 	pDevice->TimerSQ3Tmax1.expires = RUN_AT(HZ);
 
 	init_timer(&pDevice->TimerSQ3Tmax2);
 	pDevice->TimerSQ3Tmax2.data = (unsigned long) pDevice;
-	pDevice->TimerSQ3Tmax2.function = (TimerFunction)TimerSQ3CallBack;
+	pDevice->TimerSQ3Tmax2.function = TimerSQ3CallBack;
 	pDevice->TimerSQ3Tmax2.expires = RUN_AT(HZ);
 
 	init_timer(&pDevice->TimerSQ3Tmax3);
 	pDevice->TimerSQ3Tmax3.data = (unsigned long) pDevice;
-	pDevice->TimerSQ3Tmax3.function = (TimerFunction)TimerState1CallBack;
+	pDevice->TimerSQ3Tmax3.function = TimerState1CallBack;
 	pDevice->TimerSQ3Tmax3.expires = RUN_AT(HZ);
 }
 
