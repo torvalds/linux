@@ -1132,7 +1132,6 @@ s_vGenerateTxParameter(
 	unsigned short wCurrentRate
 )
 {
-	unsigned int cbMACHdLen = WLAN_HDR_ADDR3_LEN; //24
 	unsigned short wFifoCtl;
 	bool bDisCRC = false;
 	unsigned char byFBOption = AUTO_FB_NONE;
@@ -1149,9 +1148,6 @@ s_vGenerateTxParameter(
 		byFBOption = AUTO_FB_0;
 	else if (wFifoCtl & FIFOCTL_AUTO_FB_1)
 		byFBOption = AUTO_FB_1;
-
-	if (pDevice->bLongHeader)
-		cbMACHdLen = WLAN_HDR_ADDR3_LEN + 6;
 
 	if (!pvRrvTime)
 		return;
