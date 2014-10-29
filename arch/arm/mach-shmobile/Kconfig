@@ -203,13 +203,6 @@ config MACH_MARZEN
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	select USE_OF
 
-config MACH_LAGER
-	bool "Lager board"
-	depends on ARCH_R8A7790
-	select USE_OF
-	select MICREL_PHY if SH_ETH
-	select SND_SOC_AK4642 if SND_SIMPLE_CARD
-
 config MACH_KZM9G
 	bool "KZM-A9-GT board"
 	depends on ARCH_SH73A0
