@@ -38,6 +38,7 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_plane_helper.h>
 #include <drm/drm_edid.h>
 
 MODULE_AUTHOR("David Airlie, Jesse Barnes");
@@ -888,3 +889,112 @@ void drm_helper_resume_force_mode(struct drm_device *dev)
 	drm_modeset_unlock_all(dev);
 }
 EXPORT_SYMBOL(drm_helper_resume_force_mode);
+
+/**
+ * drm_helper_crtc_mode_set - mode_set implementation for atomic plane helpers
+ * @crtc: DRM CRTC
+ * @mode: DRM display mode which userspace requested
+ * @adjusted_mode: DRM display mode adjusted by ->mode_fixup callbacks
+ * @x: x offset of the CRTC scanout area on the underlying framebuffer
+ * @y: y offset of the CRTC scanout area on the underlying framebuffer
+ * @old_fb: previous framebuffer
+ *
+ * This function implements a callback useable as the ->mode_set callback
+ * required by the crtc helpers. Besides the atomic plane helper functions for
+ * the primary plane the driver must also provide the ->mode_set_nofb callback
+ * to set up the crtc.
+ *
+ * This is a transitional helper useful for converting drivers to the atomic
+ * interfaces.
+ */
+int drm_helper_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
+			     struct drm_display_mode *adjusted_mode, int x, int y,
+			     struct drm_framebuffer *old_fb)
+{
+	struct drm_crtc_state *crtc_state;
+	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+	int ret;
+
+	if (crtc->funcs->atomic_duplicate_state)
+		crtc_state = crtc->funcs->atomic_duplicate_state(crtc);
+	else if (crtc->state)
+		crtc_state = kmemdup(crtc->state, sizeof(*crtc_state),
+				     GFP_KERNEL);
+	else
+		crtc_state = kzalloc(sizeof(*crtc_state), GFP_KERNEL);
+	if (!crtc_state)
+		return -ENOMEM;
+
+	crtc_state->enable = true;
+	crtc_state->planes_changed = true;
+	drm_mode_copy(&crtc_state->mode, mode);
+	drm_mode_copy(&crtc_state->adjusted_mode, adjusted_mode);
+
+	if (crtc_funcs->atomic_check) {
+		ret = crtc_funcs->atomic_check(crtc, crtc_state);
+		if (ret) {
+			kfree(crtc_state);
+
+			return ret;
+		}
+	}
+
+	swap(crtc->state, crtc_state);
+
+	crtc_funcs->mode_set_nofb(crtc);
+
+	if (crtc_state) {
+		if (crtc->funcs->atomic_destroy_state)
+			crtc->funcs->atomic_destroy_state(crtc, crtc_state);
+		else
+			kfree(crtc_state);
+	}
+
+	return drm_helper_crtc_mode_set_base(crtc, x, y, old_fb);
+}
+EXPORT_SYMBOL(drm_helper_crtc_mode_set);
+
+/**
+ * drm_helper_crtc_mode_set_base - mode_set_base implementation for atomic plane helpers
+ * @crtc: DRM CRTC
+ * @x: x offset of the CRTC scanout area on the underlying framebuffer
+ * @y: y offset of the CRTC scanout area on the underlying framebuffer
+ * @old_fb: previous framebuffer
+ *
+ * This function implements a callback useable as the ->mode_set_base used
+ * required by the crtc helpers. The driver must provide the atomic plane helper
+ * functions for the primary plane.
+ *
+ * This is a transitional helper useful for converting drivers to the atomic
+ * interfaces.
+ */
+int drm_helper_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
+				  struct drm_framebuffer *old_fb)
+{
+	struct drm_plane_state *plane_state;
+	struct drm_plane *plane = crtc->primary;
+
+	if (plane->funcs->atomic_duplicate_state)
+		plane_state = plane->funcs->atomic_duplicate_state(plane);
+	else if (plane->state)
+		plane_state = kmemdup(plane->state, sizeof(*plane_state),
+				      GFP_KERNEL);
+	else
+		plane_state = kzalloc(sizeof(*plane_state), GFP_KERNEL);
+	if (!plane_state)
+		return -ENOMEM;
+
+	plane_state->crtc = crtc;
+	plane_state->fb = crtc->primary->fb;
+	plane_state->crtc_x = 0;
+	plane_state->crtc_y = 0;
+	plane_state->crtc_h = crtc->mode.vdisplay;
+	plane_state->crtc_w = crtc->mode.hdisplay;
+	plane_state->src_x = x << 16;
+	plane_state->src_y = y << 16;
+	plane_state->src_h = crtc->mode.vdisplay << 16;
+	plane_state->src_w = crtc->mode.hdisplay << 16;
+
+	return drm_plane_helper_commit(plane, plane_state, old_fb);
+}
+EXPORT_SYMBOL(drm_helper_crtc_mode_set_base);

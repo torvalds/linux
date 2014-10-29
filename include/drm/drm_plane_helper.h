@@ -103,4 +103,8 @@ int drm_plane_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
 			    uint32_t src_w, uint32_t src_h);
 int drm_plane_helper_disable(struct drm_plane *plane);
 
+/* For use by drm_crtc_helper.c */
+int drm_plane_helper_commit(struct drm_plane *plane,
+			    struct drm_plane_state *plane_state,
+			    struct drm_framebuffer *old_fb);
 #endif

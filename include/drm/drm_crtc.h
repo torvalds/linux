@@ -230,6 +230,7 @@ struct drm_atomic_state;
  * struct drm_crtc_state - mutable CRTC state
  * @enable: whether the CRTC should be enabled, gates all other state
  * @planes_changed: for use by helpers and drivers when computing state updates
+ * @adjusted_mode: for use by helpers and drivers to compute adjusted mode timings
  * @mode: current mode timings
  * @event: optional pointer to a DRM event to signal upon completion of the
  * 	state update
@@ -240,6 +241,9 @@ struct drm_crtc_state {
 
 	/* computed state bits used by helpers and drivers */
 	bool planes_changed : 1;
+
+	/* adjusted_mode: for use by helpers and drivers */
+	struct drm_display_mode adjusted_mode;
 
 	struct drm_display_mode mode;
 

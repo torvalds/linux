@@ -370,9 +370,9 @@ int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 }
 EXPORT_SYMBOL(drm_crtc_init);
 
-static int
-plane_commit(struct drm_plane *plane, struct drm_plane_state *plane_state,
-	     struct drm_framebuffer *old_fb)
+int drm_plane_helper_commit(struct drm_plane *plane,
+			    struct drm_plane_state *plane_state,
+			    struct drm_framebuffer *old_fb)
 {
 	struct drm_plane_helper_funcs *plane_funcs;
 	struct drm_crtc *crtc[2];
@@ -497,7 +497,7 @@ int drm_plane_helper_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	plane_state->src_h = src_h;
 	plane_state->src_w = src_w;
 
-	return plane_commit(plane, plane_state, plane->fb);
+	return drm_plane_helper_commit(plane, plane_state, plane->fb);
 }
 EXPORT_SYMBOL(drm_plane_helper_update);
 
@@ -536,6 +536,6 @@ int drm_plane_helper_disable(struct drm_plane *plane)
 	plane_state->crtc = NULL;
 	plane_state->fb = NULL;
 
-	return plane_commit(plane, plane_state, plane->fb);
+	return drm_plane_helper_commit(plane, plane_state, plane->fb);
 }
 EXPORT_SYMBOL(drm_plane_helper_disable);
