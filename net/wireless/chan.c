@@ -115,7 +115,7 @@ bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
 EXPORT_SYMBOL(cfg80211_chandef_valid);
 
 static void chandef_primary_freqs(const struct cfg80211_chan_def *c,
-				  int *pri40, int *pri80)
+				  u32 *pri40, u32 *pri80)
 {
 	int tmp;
 
