@@ -3266,8 +3266,6 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 	/* Enable the chip specified capabilities */
 	priv->flags = priv->sOpts.flags | (pChip_info->flags & 0xff000000UL);
 	priv->tx_80211 = device_dma0_tx_80211;
-	priv->sMgmtObj.pAdapter = (void *)priv;
-	priv->pMgmt = &(priv->sMgmtObj);
 
 	wiphy = priv->hw->wiphy;
 
