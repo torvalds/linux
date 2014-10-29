@@ -189,40 +189,6 @@ struct vnt_tx_short_buf_head {
 	__le16 time_stamp_off;
 } __packed;
 
-void
-vGenerateMACHeader(
-	struct vnt_private *,
-	unsigned char *pbyBufferAddr,
-	unsigned short wDuration,
-	PSEthernetHeader psEthHeader,
-	bool bNeedEncrypt,
-	unsigned short wFragType,
-	unsigned int uDMAIdx,
-	unsigned int uFragIdx
-);
-
-unsigned int
-cbGetFragCount(
-	struct vnt_private *,
-	PSKeyItem        pTransmitKey,
-	unsigned int	cbFrameBodySize,
-	PSEthernetHeader psEthHeader
-);
-
-void
-vGenerateFIFOHeader(struct vnt_private *, unsigned char byPktTyp,
-		    unsigned char *pbyTxBufferAddr, bool bNeedEncrypt,
-		    unsigned int cbPayloadSize, unsigned int uDMAIdx,
-		    PSTxDesc pHeadTD, PSEthernetHeader psEthHeader,
-		    unsigned char *pPacket, PSKeyItem pTransmitKey,
-		    unsigned int uNodeIndex, unsigned int *puMACfragNum,
-		    unsigned int *pcbHeaderSize);
-
-void vDMA0_tx_80211(struct vnt_private *, struct sk_buff *skb,
-		    unsigned char *pbMPDU, unsigned int cbMPDULen);
-CMD_STATUS csMgmt_xmit(struct vnt_private *, PSTxMgmtPacket pPacket);
-CMD_STATUS csBeacon_xmit(struct vnt_private *, PSTxMgmtPacket pPacket);
-
 int vnt_generate_fifo_header(struct vnt_private *, u32,
 			     PSTxDesc head_td, struct sk_buff *);
 int vnt_beacon_make(struct vnt_private *, struct ieee80211_vif *);

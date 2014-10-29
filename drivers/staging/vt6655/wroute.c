@@ -66,12 +66,11 @@ bool ROUTEbRelay(struct vnt_private *pDevice, unsigned char *pbySkbData,
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	PSTxDesc        pHeadTD, pLastTD;
 	unsigned int cbFrameBodySize;
-	unsigned int uMACfragNum;
+	unsigned int uMACfragNum = 0;
 	unsigned char byPktType;
 	bool bNeedEncryption = false;
 	SKeyItem        STempKey;
 	PSKeyItem       pTransmitKey = NULL;
-	unsigned int cbHeaderSize;
 	unsigned int ii;
 	unsigned char *pbyBSSID;
 
@@ -120,9 +119,6 @@ bool ROUTEbRelay(struct vnt_private *pDevice, unsigned char *pbySkbData,
 		}
 	}
 
-	uMACfragNum = cbGetFragCount(pDevice, pTransmitKey,
-				     cbFrameBodySize, &pDevice->sTxEthHeader);
-
 	if (uMACfragNum > AVAIL_TD(pDevice, TYPE_AC0DMA))
 		return false;
 
@@ -151,12 +147,6 @@ bool ROUTEbRelay(struct vnt_private *pDevice, unsigned char *pbySkbData,
 
 	if (pDevice->wCurrentRate <= RATE_11M)
 		byPktType = PK_TYPE_11B;
-
-	vGenerateFIFOHeader(pDevice, byPktType, pDevice->pbyTmpBuff,
-			    bNeedEncryption, cbFrameBodySize, TYPE_AC0DMA,
-			    pHeadTD, &pDevice->sTxEthHeader, pbySkbData,
-			    pTransmitKey, uNodeIndex, &uMACfragNum,
-			    &cbHeaderSize);
 
 	if (MACbIsRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_PS)) {
 		/* Disable PS */

@@ -135,7 +135,5 @@ bool IEEE11hbMSRRepTx(void *pMgmtHandle)
 
 	pTxPacket->cbMPDULen = uLength;
 	pTxPacket->cbPayloadLen = uLength - WLAN_HDR_ADDR3_LEN;
-	if (csMgmt_xmit(pMgmt->pAdapter, pTxPacket) != CMD_STATUS_PENDING)
-		return false;
 	return true;
 }
