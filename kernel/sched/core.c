@@ -7301,7 +7301,7 @@ void __might_sleep(const char *file, int line, int preempt_offset)
 	 * since we will exit with TASK_RUNNING make sure we enter with it,
 	 * otherwise we will destroy state.
 	 */
-	if (WARN(current->state != TASK_RUNNING,
+	if (WARN_ONCE(current->state != TASK_RUNNING,
 			"do not call blocking ops when !TASK_RUNNING; "
 			"state=%lx set at [<%p>] %pS\n",
 			current->state,
