@@ -216,29 +216,6 @@ typedef enum _NDIS_802_11_STATUS_TYPE {
 	Ndis802_11StatusTypeMax    /* defined as an upper bound */
 } NDIS_802_11_STATUS_TYPE, *PNDIS_802_11_STATUS_TYPE;
 
-/* Added new types for PMKID Candidate lists. */
-struct pmkid_candidate {
-	NDIS_802_11_MAC_ADDRESS BSSID;
-	unsigned long Flags;
-};
-
-typedef struct _BSSID_INFO {
-	NDIS_802_11_MAC_ADDRESS BSSID;
-	NDIS_802_11_PMKID_VALUE PMKID;
-} BSSID_INFO, *PBSSID_INFO;
-
-typedef struct tagSPMKID {
-	unsigned long Length;
-	unsigned long BSSIDInfoCount;
-	BSSID_INFO BSSIDInfo[MAX_BSSIDINFO_4_PMKID];
-} SPMKID, *PSPMKID;
-
-typedef struct tagSPMKIDCandidateEvent {
-	NDIS_802_11_STATUS_TYPE     StatusType;
-	unsigned long Version;       /* Version of the structure */
-	unsigned long NumCandidates; /* No. of pmkid candidates */
-	struct pmkid_candidate CandidateList[MAX_PMKIDLIST];
-} SPMKIDCandidateEvent, *PSPMKIDCandidateEvent;
 
 /* 802.11h related */
 #define MAX_QUIET_COUNT     8
@@ -667,9 +644,6 @@ struct vnt_private {
 	unsigned char abySNAP_RFC1042[ETH_ALEN];
 	unsigned char abySNAP_Bridgetunnel[ETH_ALEN];
 	unsigned char abyEEPROM[EEP_MAX_CONTEXT_SIZE]; /* unsigned long alignment */
-	/* Pre-Authentication & PMK cache */
-	SPMKID                  gsPMKID;
-	SPMKIDCandidateEvent    gsPMKIDCandidate;
 
 	/* for 802.11h */
 	bool b11hEnable;

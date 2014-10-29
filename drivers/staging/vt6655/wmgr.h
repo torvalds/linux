@@ -78,39 +78,4 @@
 #define timer_expire(timer, next_tick)   mod_timer(&timer, RUN_AT(next_tick))
 typedef void (*TimerFunction)(unsigned long);
 
-//+++ NDIS related
-
-typedef unsigned char NDIS_802_11_MAC_ADDRESS[6];
-typedef struct _NDIS_802_11_AI_REQFI {
-	unsigned short Capabilities;
-	unsigned short ListenInterval;
-	NDIS_802_11_MAC_ADDRESS  CurrentAPAddress;
-} NDIS_802_11_AI_REQFI, *PNDIS_802_11_AI_REQFI;
-
-typedef struct _NDIS_802_11_AI_RESFI {
-	unsigned short Capabilities;
-	unsigned short StatusCode;
-	unsigned short AssociationId;
-} NDIS_802_11_AI_RESFI, *PNDIS_802_11_AI_RESFI;
-
-typedef struct _NDIS_802_11_ASSOCIATION_INFORMATION {
-	unsigned long Length;
-	unsigned short          AvailableRequestFixedIEs;
-	NDIS_802_11_AI_REQFI    RequestFixedIEs;
-	unsigned long RequestIELength;
-	unsigned long OffsetRequestIEs;
-	unsigned short          AvailableResponseFixedIEs;
-	NDIS_802_11_AI_RESFI    ResponseFixedIEs;
-	unsigned long ResponseIELength;
-	unsigned long OffsetResponseIEs;
-} NDIS_802_11_ASSOCIATION_INFORMATION, *PNDIS_802_11_ASSOCIATION_INFORMATION;
-
-typedef struct tagSAssocInfo {
-	NDIS_802_11_ASSOCIATION_INFORMATION     AssocInfo;
-	unsigned char abyIEs[WLAN_BEACON_FR_MAXLEN+WLAN_BEACON_FR_MAXLEN];
-	// store ReqIEs set by OID_802_11_ASSOCIATION_INFORMATION
-	unsigned long RequestIELength;
-	unsigned char abyReqIEs[WLAN_BEACON_FR_MAXLEN];
-} SAssocInfo, *PSAssocInfo;
-
 #endif // __WMGR_H__
