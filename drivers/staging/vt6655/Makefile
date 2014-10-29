@@ -25,7 +25,6 @@ vt6655_stage-y +=	device_main.o \
 	rf.o \
 	wpa2.o \
 	aes_ccmp.o \
-	vntwifi.o \
-	IEEE11h.o
+	vntwifi.o
 
 obj-$(CONFIG_VT6655) +=	vt6655_stage.o
