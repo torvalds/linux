@@ -2040,6 +2040,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance)
 			if (pDevice->vif &&
 			    pDevice->op_mode != NL80211_IFTYPE_ADHOC) {
 				if (pDevice->bUpdateBBVGA &&
+				    !(pDevice->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL) &&
 				    pDevice->vif->bss_conf.assoc &&
 				    pDevice->uCurrRSSI) {
 					long            ldBm;
