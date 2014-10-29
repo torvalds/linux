@@ -1505,14 +1505,36 @@ static struct gpio_desc *acpi_find_gpio(struct device *dev, const char *con_id,
 					unsigned int idx,
 					enum gpio_lookup_flags *flags)
 {
+	static const char * const suffixes[] = { "gpios", "gpio" };
+	struct acpi_device *adev = ACPI_COMPANION(dev);
 	struct acpi_gpio_info info;
 	struct gpio_desc *desc;
+	char propname[32];
+	int i;
 
-	desc = acpi_get_gpiod_by_index(dev, idx, &info);
-	if (IS_ERR(desc))
-		return desc;
+	/* Try first from _DSD */
+	for (i = 0; i < ARRAY_SIZE(suffixes); i++) {
+		if (con_id && strcmp(con_id, "gpios")) {
+			snprintf(propname, sizeof(propname), "%s-%s",
+				 con_id, suffixes[i]);
+		} else {
+			snprintf(propname, sizeof(propname), "%s",
+				 suffixes[i]);
+		}
 
-	if (info.gpioint && info.active_low)
+		desc = acpi_get_gpiod_by_index(adev, propname, idx, &info);
+		if (!IS_ERR(desc) || (PTR_ERR(desc) == -EPROBE_DEFER))
+			break;
+	}
+
+	/* Then from plain _CRS GPIOs */
+	if (IS_ERR(desc)) {
+		desc = acpi_get_gpiod_by_index(adev, NULL, idx, &info);
+		if (IS_ERR(desc))
+			return desc;
+	}
+
+	if (info.active_low)
 		*flags |= GPIO_ACTIVE_LOW;
 
 	return desc;

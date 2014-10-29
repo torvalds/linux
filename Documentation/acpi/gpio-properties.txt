@@ -1,0 +1,52 @@
+_DSD Device Properties Related to GPIO
+--------------------------------------
+
+With the release of ACPI 5.1 and the _DSD configuration objecte names
+can finally be given to GPIOs (and other things as well) returned by
+_CRS.  Previously, we were only able to use an integer index to find
+the corresponding GPIO, which is pretty error prone (it depends on
+the _CRS output ordering, for example).
+
+With _DSD we can now query GPIOs using a name instead of an integer
+index, like the ASL example below shows:
+
+  // Bluetooth device with reset and shutdown GPIOs
+  Device (BTH)
+  {
+      Name (_HID, ...)
+
+      Name (_CRS, ResourceTemplate ()
+      {
+          GpioIo (Exclusive, PullUp, 0, 0, IoRestrictionInputOnly,
+                  "\\_SB.GPO0", 0, ResourceConsumer) {15}
+          GpioIo (Exclusive, PullUp, 0, 0, IoRestrictionInputOnly,
+                  "\\_SB.GPO0", 0, ResourceConsumer) {27, 31}
+      })
+
+      Name (_DSD, Package ()
+      {
+          ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+          Package ()
+	  {
+              Package () {"reset-gpio", Package() {^BTH, 1, 1, 0 }},
+              Package () {"shutdown-gpio", Package() {^BTH, 0, 0, 0 }},
+          }
+      })
+  }
+
+The format of the supported GPIO property is:
+
+  Package () { "name", Package () { ref, index, pin, active_low }}
+
+  ref - The device that has _CRS containing GpioIo()/GpioInt() resources,
+        typically this is the device itself (BTH in our case).
+  index - Index of the GpioIo()/GpioInt() resource in _CRS starting from zero.
+  pin - Pin in the GpioIo()/GpioInt() resource. Typically this is zero.
+  active_low - If 1 the GPIO is marked as active_low.
+
+Since ACPI GpioIo() resource does not have a field saying whether it is
+active low or high, the "active_low" argument can be used here.  Setting
+it to 1 marks the GPIO as active low.
+
+In our Bluetooth example the "reset-gpio" refers to the second GpioIo()
+resource, second pin in that resource with the GPIO number of 31.
