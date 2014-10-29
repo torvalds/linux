@@ -168,8 +168,8 @@ static int __init hangcheck_init(void)
 	printk("Hangcheck: starting hangcheck timer %s (tick is %d seconds, margin is %d seconds).\n",
 	       VERSION_STR, hangcheck_tick, hangcheck_margin);
 	hangcheck_tsc_margin =
-		(unsigned long long)(hangcheck_margin + hangcheck_tick);
-	hangcheck_tsc_margin *= (unsigned long long)TIMER_FREQ;
+		(unsigned long long)hangcheck_margin + hangcheck_tick;
+	hangcheck_tsc_margin *= TIMER_FREQ;
 
 	hangcheck_tsc = ktime_get_ns();
 	mod_timer(&hangcheck_ticktock, jiffies + (hangcheck_tick*HZ));
