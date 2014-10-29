@@ -1313,10 +1313,6 @@ static void device_error(struct vnt_private *pDevice, unsigned short status)
 	if (status & ISR_FETALERR) {
 		dev_err(&pDevice->pcid->dev, "Hardware fatal error\n");
 
-		netif_stop_queue(pDevice->dev);
-		del_timer(&pDevice->sTimerCommand);
-		del_timer(&(pDevice->pMgmt->sTimerSecondCallback));
-		pDevice->bCmdRunning = false;
 		MACbShutdown(pDevice->PortOffset);
 		return;
 	}
