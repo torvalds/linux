@@ -293,8 +293,8 @@ int seq_buf_putmem_hex(struct seq_buf *s, const void *mem,
  */
 int seq_buf_path(struct seq_buf *s, const struct path *path, const char *esc)
 {
-	char *buf = s->buffer + s->len;
-	size_t size = seq_buf_buffer_left(s);
+	char *buf;
+	size_t size = seq_buf_get_buf(s, &buf);
 	int res = -1;
 
 	WARN_ON(s->size == 0);
@@ -307,8 +307,7 @@ int seq_buf_path(struct seq_buf *s, const struct path *path, const char *esc)
 				res = end - buf;
 		}
 	}
-	if (res > 0)
-		s->len += res;
+	seq_buf_commit(s, res);
 
 	return res;
 }
