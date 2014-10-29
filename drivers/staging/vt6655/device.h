@@ -507,7 +507,6 @@ struct vnt_private {
 	bool bEnablePSMode;
 	unsigned short wListenInterval;
 	bool bPWBitOn;
-	WMAC_POWER_MODE         ePSMode;
 
 	/* GPIO Radio Control */
 	unsigned char byRadioCtl;

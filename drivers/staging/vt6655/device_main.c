@@ -344,7 +344,6 @@ device_set_options(struct vnt_private *pDevice)
 	pDevice->wMaxTransmitMSDULifetime = DEFAULT_MSDU_LIFETIME;
 	pDevice->byShortPreamble = (pDevice->sOpts.flags & DEVICE_FLAGS_PREAMBLE_TYPE) ? 1 : 0;
 	pDevice->byOpMode = (pDevice->sOpts.flags & DEVICE_FLAGS_OP_MODE) ? 1 : 0;
-	pDevice->ePSMode = (pDevice->sOpts.flags & DEVICE_FLAGS_PS_MODE) ? 1 : 0;
 	pDevice->b11hEnable = (pDevice->sOpts.flags & DEVICE_FLAGS_80211h_MODE) ? 1 : 0;
 	pDevice->bDiversityRegCtlON = (pDevice->sOpts.flags & DEVICE_FLAGS_DiversityANT) ? 1 : 0;
 	pDevice->uConnectionRate = pDevice->sOpts.data_rate;
@@ -359,7 +358,6 @@ device_set_options(struct vnt_private *pDevice)
 
 	pr_debug(" uChannel= %d\n", (int)pDevice->uChannel);
 	pr_debug(" byOpMode= %d\n", (int)pDevice->byOpMode);
-	pr_debug(" ePSMode= %d\n", (int)pDevice->ePSMode);
 	pr_debug(" wRTSThreshold= %d\n", (int)pDevice->wRTSThreshold);
 	pr_debug(" byShortRetryLimit= %d\n", (int)pDevice->byShortRetryLimit);
 	pr_debug(" byLongRetryLimit= %d\n", (int)pDevice->byLongRetryLimit);

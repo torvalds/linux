@@ -39,7 +39,6 @@
 #include "80211hdr.h"
 #include "wcmd.h"
 #include "bssdb.h"
-#include "vntwifi.h"
 #include "card.h"
 
 /*---------------------  Export Definitions -------------------------*/
@@ -189,7 +188,6 @@ typedef struct tagSMgmtObject {
 	unsigned char abyMACAddr[WLAN_ADDR_LEN];
 
 	// Configuration Mode
-	WMAC_CONFIG_MODE        eConfigMode; // MAC pre-configed mode
 	CARD_PHY_TYPE           eCurrentPHYMode;
 	CARD_PHY_TYPE           eConfigPHYMode;
 
@@ -245,8 +243,6 @@ typedef struct tagSMgmtObject {
 	unsigned char abyScanBSSID[WLAN_BSSID_LEN];
 
 	// Privacy
-	WMAC_AUTHENTICATION_MODE eAuthenMode;
-	WMAC_ENCRYPTION_MODE    eEncryptionMode;
 	bool bShareKeyAlgorithm;
 	unsigned char abyChallenge[WLAN_CHALLENGE_LEN];
 	bool bPrivacyInvoked;
@@ -258,7 +254,6 @@ typedef struct tagSMgmtObject {
 	unsigned char byDTIMPeriod;
 
 	// Power saving state vars
-	WMAC_POWER_MODE         ePSMode;
 	unsigned short wListenInterval;
 	unsigned short wCountToWakeUp;
 	bool bInTIMWake;
