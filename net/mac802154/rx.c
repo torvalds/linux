@@ -240,12 +240,13 @@ ieee802154_monitors_rx(struct ieee802154_local *local, struct sk_buff *skb)
 			continue;
 
 		skb2 = skb_clone(skb, GFP_ATOMIC);
-		skb2->dev = sdata->dev;
+		if (skb2) {
+			skb2->dev = sdata->dev;
+			ieee802154_deliver_skb(skb2);
 
-		ieee802154_deliver_skb(skb2);
-
-		sdata->dev->stats.rx_packets++;
-		sdata->dev->stats.rx_bytes += skb->len;
+			sdata->dev->stats.rx_packets++;
+			sdata->dev->stats.rx_bytes += skb->len;
+		}
 	}
 }
 
