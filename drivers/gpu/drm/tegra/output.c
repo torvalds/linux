@@ -157,10 +157,12 @@ static bool tegra_encoder_mode_fixup(struct drm_encoder *encoder,
 
 static void tegra_encoder_prepare(struct drm_encoder *encoder)
 {
+	tegra_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
 }
 
 static void tegra_encoder_commit(struct drm_encoder *encoder)
 {
+	tegra_encoder_dpms(encoder, DRM_MODE_DPMS_ON);
 }
 
 static void tegra_encoder_mode_set(struct drm_encoder *encoder,
