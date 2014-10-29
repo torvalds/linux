@@ -239,7 +239,6 @@ ieee802154_monitors_rx(struct ieee802154_local *local, struct sk_buff *skb)
 
 		skb2 = skb_clone(skb, GFP_ATOMIC);
 		skb2->dev = sdata->dev;
-		skb2->pkt_type = PACKET_HOST;
 
 		netif_rx_ni(skb2);
 	}
