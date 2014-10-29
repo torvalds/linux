@@ -723,8 +723,6 @@ vCommandTimer(
 				} else {
 					pDevice->bMoreData = true;
 				}
-				if (!device_dma0_xmit(pDevice, skb, 0))
-					pr_debug("Multicast ps tx fail\n");
 
 				pMgmt->sNodeDBTable[0].wEnQueueCnt--;
 			}
@@ -746,8 +744,6 @@ vCommandTimer(
 					} else {
 						pDevice->bMoreData = true;
 					}
-					if (!device_dma0_xmit(pDevice, skb, ii))
-						pr_debug("sta ps tx fail\n");
 
 					pMgmt->sNodeDBTable[ii].wEnQueueCnt--;
 					// check if sta ps enabled, and wait next pspoll.
