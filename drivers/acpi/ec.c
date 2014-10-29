@@ -334,13 +334,13 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec,
 	pr_debug("***** Command(%s) started *****\n",
 		 acpi_ec_cmd_string(t->command));
 	start_transaction(ec);
-	spin_unlock_irqrestore(&ec->lock, tmp);
-	ret = ec_poll(ec);
-	spin_lock_irqsave(&ec->lock, tmp);
 	if (ec->curr->command == ACPI_EC_COMMAND_QUERY) {
 		clear_bit(EC_FLAGS_QUERY_PENDING, &ec->flags);
 		pr_debug("***** Event stopped *****\n");
 	}
+	spin_unlock_irqrestore(&ec->lock, tmp);
+	ret = ec_poll(ec);
+	spin_lock_irqsave(&ec->lock, tmp);
 	pr_debug("***** Command(%s) stopped *****\n",
 		 acpi_ec_cmd_string(t->command));
 	ec->curr = NULL;
