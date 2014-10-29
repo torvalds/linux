@@ -2891,6 +2891,9 @@ static int rtl8152_open(struct net_device *netdev)
 	if (res)
 		goto out;
 
+	/* set speed to 0 to avoid autoresume try to submit rx */
+	tp->speed = 0;
+
 	res = usb_autopm_get_interface(tp->intf);
 	if (res < 0) {
 		free_all_mem(tp);
@@ -2904,6 +2907,8 @@ static int rtl8152_open(struct net_device *netdev)
 		clear_bit(WORK_ENABLE, &tp->flags);
 		usb_kill_urb(tp->intr_urb);
 		cancel_delayed_work_sync(&tp->schedule);
+
+		/* disable the tx/rx, if the workqueue has enabled them. */
 		if (tp->speed & LINK_STATUS)
 			tp->rtl_ops.disable(tp);
 	}
