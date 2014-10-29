@@ -10,7 +10,6 @@ vt6655_stage-y +=	device_main.o \
 	wctl.o \
 	80211mgr.o \
 	wcmd.o \
-	wmgr.o \
 	bssdb.o \
 	rxtx.o \
 	dpc.o \

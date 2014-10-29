@@ -244,37 +244,10 @@ s_MgrMakeProbeRequest(
 )
 {
 	PSTxMgmtPacket      pTxPacket = NULL;
-	WLAN_FR_PROBEREQ    sFrame;
 
 	pTxPacket = (PSTxMgmtPacket)pMgmt->pbyMgmtPacketPool;
 	memset(pTxPacket, 0, sizeof(STxMgmtPacket) + WLAN_PROBEREQ_FR_MAXLEN);
 	pTxPacket->p80211Header = (PUWLAN_80211HDR)((unsigned char *)pTxPacket + sizeof(STxMgmtPacket));
-	sFrame.pBuf = (unsigned char *)pTxPacket->p80211Header;
-	sFrame.len = WLAN_PROBEREQ_FR_MAXLEN;
-	vMgrEncodeProbeRequest(&sFrame);
-	sFrame.pHdr->sA3.wFrameCtl = cpu_to_le16(
-		(
-			WLAN_SET_FC_FTYPE(WLAN_TYPE_MGR) |
-			WLAN_SET_FC_FSTYPE(WLAN_FSTYPE_PROBEREQ)
-));
-	memcpy(sFrame.pHdr->sA3.abyAddr1, pScanBSSID, WLAN_ADDR_LEN);
-	memcpy(sFrame.pHdr->sA3.abyAddr2, pMgmt->abyMACAddr, WLAN_ADDR_LEN);
-	memcpy(sFrame.pHdr->sA3.abyAddr3, pScanBSSID, WLAN_BSSID_LEN);
-	// Copy the SSID, pSSID->len=0 indicate broadcast SSID
-	sFrame.pSSID = (PWLAN_IE_SSID)(sFrame.pBuf + sFrame.len);
-	sFrame.len += pSSID->len + WLAN_IEHDR_LEN;
-	memcpy(sFrame.pSSID, pSSID, pSSID->len + WLAN_IEHDR_LEN);
-	sFrame.pSuppRates = (PWLAN_IE_SUPP_RATES)(sFrame.pBuf + sFrame.len);
-	sFrame.len += pCurrRates->len + WLAN_IEHDR_LEN;
-	memcpy(sFrame.pSuppRates, pCurrRates, pCurrRates->len + WLAN_IEHDR_LEN);
-	// Copy the extension rate set
-	if (pDevice->eCurrentPHYType == PHY_TYPE_11G) {
-		sFrame.pExtSuppRates = (PWLAN_IE_SUPP_RATES)(sFrame.pBuf + sFrame.len);
-		sFrame.len += pCurrExtSuppRates->len + WLAN_IEHDR_LEN;
-		memcpy(sFrame.pExtSuppRates, pCurrExtSuppRates, pCurrExtSuppRates->len + WLAN_IEHDR_LEN);
-	}
-	pTxPacket->cbMPDULen = sFrame.len;
-	pTxPacket->cbPayloadLen = sFrame.len - WLAN_HDR_ADDR3_LEN;
 
 	return pTxPacket;
 }
@@ -304,7 +277,6 @@ vCommandTimer(
 	PSMgmtObject    pMgmt = pDevice->pMgmt;
 	PWLAN_IE_SSID   pItemSSID;
 	PWLAN_IE_SSID   pItemSSIDCurr;
-	CMD_STATUS      Status;
 	unsigned int ii;
 	unsigned char byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
 	struct sk_buff  *skb;
@@ -456,7 +428,6 @@ vCommandTimer(
 		} else {
 			pr_debug("Send Disassociation Packet..\n");
 			// reason = 8 : disassoc because sta has left
-			vMgrDisassocBeginSta((void *)pDevice, pMgmt, pMgmt->abyCurrBSSID, (8), &Status);
 			pDevice->bLinkPass = false;
 			// unlock command busy
 			pItemSSID = (PWLAN_IE_SSID)pMgmt->abyCurrSSID;
@@ -530,24 +501,12 @@ vCommandTimer(
 		PSvDisablePowerSaving((void *)pDevice);
 		BSSvClearNodeDBTable(pDevice, 0);
 
-		vMgrJoinBSSBegin((void *)pDevice, &Status);
 		// if Infra mode
 		if ((pMgmt->eCurrMode == WMAC_MODE_ESS_STA) && (pMgmt->eCurrState == WMAC_STATE_JOINTED)) {
 			// Call mgr to begin the deauthentication
 			// reason = (3) because sta has left ESS
-			if (pMgmt->eCurrState >= WMAC_STATE_AUTH)
-				vMgrDeAuthenBeginSta((void *)pDevice, pMgmt, pMgmt->abyCurrBSSID, (3), &Status);
 
 			// Call mgr to begin the authentication
-			vMgrAuthenBeginSta((void *)pDevice, pMgmt, &Status);
-			if (Status == CMD_STATUS_SUCCESS) {
-				pDevice->byLinkWaitCount = 0;
-				pDevice->eCommandState = WLAN_AUTHENTICATE_WAIT;
-				vCommandTimerWait((void *)pDevice, AUTHENTICATE_TIMEOUT);
-				spin_unlock_irq(&pDevice->lock);
-				pr_debug(" Set eCommandState = WLAN_AUTHENTICATE_WAIT\n");
-				return;
-			}
 		}
 		// if Adhoc mode
 		else if (pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) {
@@ -562,9 +521,6 @@ vCommandTimer(
 				bClearBSSID_SCAN(pDevice);
 			} else {
 				// start own IBSS
-				vMgrCreateOwnIBSS((void *)pDevice, &Status);
-				if (Status != CMD_STATUS_SUCCESS)
-					pr_debug(" WLAN_CMD_IBSS_CREATE fail !\n");
 
 				BSSvAddMulticastNode(pDevice);
 			}
@@ -574,9 +530,6 @@ vCommandTimer(
 			if (pMgmt->eConfigMode == WMAC_CONFIG_IBSS_STA ||
 			    pMgmt->eConfigMode == WMAC_CONFIG_AUTO) {
 				// start own IBSS
-				vMgrCreateOwnIBSS((void *)pDevice, &Status);
-				if (Status != CMD_STATUS_SUCCESS)
-					pr_debug(" WLAN_CMD_IBSS_CREATE fail !\n");
 
 				BSSvAddMulticastNode(pDevice);
 				if (netif_queue_stopped(pDevice->dev))
@@ -607,15 +560,6 @@ vCommandTimer(
 			// Call mgr to begin the association
 			pDevice->byLinkWaitCount = 0;
 			pr_debug("eCurrState == WMAC_STATE_AUTH\n");
-			vMgrAssocBeginSta((void *)pDevice, pMgmt, &Status);
-			if (Status == CMD_STATUS_SUCCESS) {
-				pDevice->byLinkWaitCount = 0;
-				pr_debug("eCommandState = WLAN_ASSOCIATE_WAIT\n");
-				pDevice->eCommandState = WLAN_ASSOCIATE_WAIT;
-				vCommandTimerWait((void *)pDevice, ASSOCIATE_TIMEOUT);
-				spin_unlock_irq(&pDevice->lock);
-				return;
-			}
 		}
 
 		else if (pMgmt->eCurrState < WMAC_STATE_AUTHPENDING) {
@@ -693,10 +637,6 @@ vCommandTimer(
 			pDevice->uAssocCount = 0;
 			pMgmt->eCurrState = WMAC_STATE_IDLE;
 			pDevice->bFixRate = false;
-
-			vMgrCreateOwnIBSS((void *)pDevice, &Status);
-			if (Status != CMD_STATUS_SUCCESS)
-				pr_debug(" vMgrCreateOwnIBSS fail !\n");
 
 			// alway turn off unicast bit
 			MACvRegBitsOff(pDevice->PortOffset, MAC_REG_RCR, RCR_UNICAST);

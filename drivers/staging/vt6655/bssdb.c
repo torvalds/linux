@@ -443,7 +443,6 @@ BSSbInsertToBSSList(
 		}
 		if (bIs802_1x && (pSSID->len == ((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->len) &&
 		    (!memcmp(pSSID->abySSID, ((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySSID, pSSID->len))) {
-			bAdd_PMKID_Candidate((void *)pDevice, pBSSList->abyBSSID, &pBSSList->sRSNCapObj);
 
 			if (pDevice->bLinkPass && (pMgmt->eCurrState == WMAC_STATE_ASSOC)) {
 				if (KeybGetTransmitKey(&(pDevice->sKey), pDevice->abyBSSID, PAIRWISE_KEY, &pTransmitKey) ||
