@@ -196,6 +196,12 @@ static int mac802154_wpan_open(struct net_device *dev)
 
 	mutex_lock(&phy->pib_lock);
 
+	if (local->hw.flags & IEEE802154_HW_PROMISCUOUS) {
+		rc = drv_set_promiscuous_mode(local, sdata->promisuous_mode);
+		if (rc < 0)
+			goto out;
+	}
+
 	if (local->hw.flags & IEEE802154_HW_TXPOWER) {
 		rc = drv_set_tx_power(local, sdata->mac_params.transmit_power);
 		if (rc < 0)
@@ -382,7 +388,7 @@ static const struct net_device_ops mac802154_wpan_ops = {
 };
 
 static const struct net_device_ops mac802154_monitor_ops = {
-	.ndo_open		= mac802154_slave_open,
+	.ndo_open		= mac802154_wpan_open,
 	.ndo_stop		= mac802154_slave_close,
 	.ndo_start_xmit		= ieee802154_monitor_start_xmit,
 };
@@ -434,6 +440,8 @@ void mac802154_wpan_setup(struct net_device *dev)
 	sdata->pan_id = cpu_to_le16(IEEE802154_PANID_BROADCAST);
 	sdata->short_addr = cpu_to_le16(IEEE802154_ADDR_BROADCAST);
 
+	sdata->promisuous_mode = false;
+
 	mac802154_llsec_init(&sdata->sec);
 }
 
@@ -453,4 +461,6 @@ void mac802154_monitor_setup(struct net_device *dev)
 
 	sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	sdata->type = IEEE802154_DEV_MONITOR;
+
+	sdata->promisuous_mode = true;
 }
