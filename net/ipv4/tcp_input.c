@@ -5866,7 +5866,7 @@ static inline void pr_drop_req(struct request_sock *req, __u16 port, int family)
  * If we receive a SYN packet with these bits set, it means a
  * network is playing bad games with TOS bits. In order to
  * avoid possible false congestion notifications, we disable
- * TCP ECN negociation.
+ * TCP ECN negotiation.
  *
  * Exception: tcp_ca wants ECN. This is required for DCTCP
  * congestion control; it requires setting ECT on all packets,

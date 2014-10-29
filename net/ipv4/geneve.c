@@ -104,7 +104,7 @@ static void geneve_build_header(struct genevehdr *geneveh,
 	memcpy(geneveh->options, options, options_len);
 }
 
-/* Transmit a fully formated Geneve frame.
+/* Transmit a fully formatted Geneve frame.
  *
  * When calling this function. The skb->data should point
  * to the geneve header which is fully formed.
