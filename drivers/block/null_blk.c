@@ -313,15 +313,15 @@ static void null_request_fn(struct request_queue *q)
 	}
 }
 
-static int null_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *rq,
-		bool last)
+static int null_queue_rq(struct blk_mq_hw_ctx *hctx,
+			 const struct blk_mq_queue_data *bd)
 {
-	struct nullb_cmd *cmd = blk_mq_rq_to_pdu(rq);
+	struct nullb_cmd *cmd = blk_mq_rq_to_pdu(bd->rq);
 
-	cmd->rq = rq;
+	cmd->rq = bd->rq;
 	cmd->nq = hctx->driver_data;
 
-	blk_mq_start_request(rq);
+	blk_mq_start_request(bd->rq);
 
 	null_handle_cmd(cmd);
 	return BLK_MQ_RQ_QUEUE_OK;

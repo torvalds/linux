@@ -680,6 +680,8 @@ static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
 	struct request_queue *q = hctx->queue;
 	struct request *rq;
 	LIST_HEAD(rq_list);
+	LIST_HEAD(driver_list);
+	struct list_head *dptr;
 	int queued;
 
 	WARN_ON(!cpumask_test_cpu(raw_smp_processor_id(), hctx->cpumask));
@@ -706,16 +708,27 @@ static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
 	}
 
 	/*
+	 * Start off with dptr being NULL, so we start the first request
+	 * immediately, even if we have more pending.
+	 */
+	dptr = NULL;
+
+	/*
 	 * Now process all the entries, sending them to the driver.
 	 */
 	queued = 0;
 	while (!list_empty(&rq_list)) {
+		struct blk_mq_queue_data bd;
 		int ret;
 
 		rq = list_first_entry(&rq_list, struct request, queuelist);
 		list_del_init(&rq->queuelist);
 
-		ret = q->mq_ops->queue_rq(hctx, rq, list_empty(&rq_list));
+		bd.rq = rq;
+		bd.list = dptr;
+		bd.last = list_empty(&rq_list);
+
+		ret = q->mq_ops->queue_rq(hctx, &bd);
 		switch (ret) {
 		case BLK_MQ_RQ_QUEUE_OK:
 			queued++;
@@ -734,6 +747,13 @@ static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
 
 		if (ret == BLK_MQ_RQ_QUEUE_BUSY)
 			break;
+
+		/*
+		 * We've done the first request. If we have more than 1
+		 * left in the list, set dptr to defer issue.
+		 */
+		if (!dptr && rq_list.next != rq_list.prev)
+			dptr = &driver_list;
 	}
 
 	if (!queued)
@@ -1153,6 +1173,11 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	}
 
 	if (is_sync) {
+		struct blk_mq_queue_data bd = {
+			.rq = rq,
+			.list = NULL,
+			.last = 1
+		};
 		int ret;
 
 		blk_mq_bio_to_request(rq, bio);
@@ -1162,7 +1187,7 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		 * error (busy), just add it to our list as we previously
 		 * would have done
 		 */
-		ret = q->mq_ops->queue_rq(data.hctx, rq, true);
+		ret = q->mq_ops->queue_rq(data.hctx, &bd);
 		if (ret == BLK_MQ_RQ_QUEUE_OK)
 			goto done;
 		else {

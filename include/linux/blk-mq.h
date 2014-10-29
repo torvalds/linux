@@ -79,7 +79,13 @@ struct blk_mq_tag_set {
 	struct list_head	tag_list;
 };
 
-typedef int (queue_rq_fn)(struct blk_mq_hw_ctx *, struct request *, bool);
+struct blk_mq_queue_data {
+	struct request *rq;
+	struct list_head *list;
+	bool last;
+};
+
+typedef int (queue_rq_fn)(struct blk_mq_hw_ctx *, const struct blk_mq_queue_data *);
 typedef struct blk_mq_hw_ctx *(map_queue_fn)(struct request_queue *, const int);
 typedef enum blk_eh_timer_return (timeout_fn)(struct request *, bool);
 typedef int (init_hctx_fn)(struct blk_mq_hw_ctx *, void *, unsigned int);
