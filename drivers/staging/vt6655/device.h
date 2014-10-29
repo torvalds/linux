@@ -323,6 +323,7 @@ struct vnt_private {
 	/* mac80211 */
 	struct ieee80211_hw *hw;
 	struct ieee80211_vif *vif;
+	unsigned long key_entry_inuse;
 /* netdev */
 	struct net_device *dev;
 

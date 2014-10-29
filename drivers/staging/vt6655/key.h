@@ -30,6 +30,8 @@
 #ifndef __KEY_H__
 #define __KEY_H__
 
+#include <net/mac80211.h>
+
 #include "ttype.h"
 #include "tether.h"
 #include "80211mgr.h"
@@ -52,6 +54,14 @@
 #define KEY_CTL_TKIP        0x02
 #define KEY_CTL_CCMP        0x03
 #define KEY_CTL_INVALID     0xFF
+
+#define VNT_KEY_DEFAULTKEY	0x1
+#define VNT_KEY_GROUP_ADDRESS	0x2
+#define VNT_KEY_ALLGROUP	0x4
+#define VNT_KEY_GROUP		0x40
+#define VNT_KEY_PAIRWISE	0x00
+#define VNT_KEY_ONFLY		0x8000
+#define VNT_KEY_ONFLY_ALL	0x4000
 
 typedef struct tagSKeyItem {
 	bool bKeyValid;
@@ -172,5 +182,12 @@ bool KeybSetAllGroupKey(
 	void __iomem *dwIoBase,
 	unsigned char byLocalID
 );
+
+struct vnt_private;
+
+int vnt_key_init_table(struct vnt_private *);
+
+int vnt_set_keys(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
+		 struct ieee80211_vif *vif, struct ieee80211_key_conf *key);
 
 #endif // __KEY_H__
