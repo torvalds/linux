@@ -1796,6 +1796,23 @@ static struct rockchip_pin_ctrl *rockchip_pinctrl_get_soc_data(
 	return ctrl;
 }
 
+static int __maybe_unused rockchip_pinctrl_suspend(struct device *dev)
+{
+	struct rockchip_pinctrl *info = dev_get_drvdata(dev);
+
+	return pinctrl_force_sleep(info->pctl_dev);
+}
+
+static int __maybe_unused rockchip_pinctrl_resume(struct device *dev)
+{
+	struct rockchip_pinctrl *info = dev_get_drvdata(dev);
+
+	return pinctrl_force_default(info->pctl_dev);
+}
+
+static SIMPLE_DEV_PM_OPS(rockchip_pinctrl_dev_pm_ops, rockchip_pinctrl_suspend,
+			 rockchip_pinctrl_resume);
+
 static int rockchip_pinctrl_probe(struct platform_device *pdev)
 {
 	struct rockchip_pinctrl *info;
@@ -2009,6 +2026,7 @@ static struct platform_driver rockchip_pinctrl_driver = {
 	.driver = {
 		.name	= "rockchip-pinctrl",
 		.owner	= THIS_MODULE,
+		.pm = &rockchip_pinctrl_dev_pm_ops,
 		.of_match_table = rockchip_pinctrl_dt_match,
 	},
 };
