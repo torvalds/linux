@@ -2424,7 +2424,6 @@ out:
 static int hwsim_cloned_frame_received_nl(struct sk_buff *skb_2,
 					  struct genl_info *info)
 {
-
 	struct mac80211_hwsim_data *data2;
 	struct ieee80211_rx_status rx_status;
 	const u8 *dst;
