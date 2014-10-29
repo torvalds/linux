@@ -230,7 +230,7 @@ struct intel_dpll_hw_state {
 };
 
 struct intel_shared_dpll {
-	int refcount; /* count of number of CRTCs sharing this PLL */
+	unsigned crtc_mask; /* mask of CRTCs sharing this PLL */
 	int active; /* count of number of active CRTCs (i.e. DPMS on) */
 	bool on; /* is the PLL actually active? Disabled during modeset */
 	const char *name;
