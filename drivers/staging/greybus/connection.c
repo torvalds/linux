@@ -169,9 +169,8 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 	}
 
 	hd = interface->gmod->hd;
-	connection->hd = hd;			/* XXX refcount? */
+	connection->hd = hd;
 	if (!gb_connection_hd_cport_id_alloc(connection)) {
-		/* kref_put(connection->hd); */
 		gb_protocol_put(connection);
 		kfree(connection);
 		return NULL;
@@ -193,9 +192,8 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 	retval = device_add(&connection->dev);
 	if (retval) {
 		gb_connection_hd_cport_id_free(connection);
-		/* kref_put(connection->hd); */
 		gb_protocol_put(connection);
-		kfree(connection);
+		put_device(&connection->dev);
 		return NULL;
 	}
 
