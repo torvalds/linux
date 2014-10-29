@@ -327,21 +327,14 @@ PSbIsNextTBTTWakeUp(
 )
 {
 	struct vnt_private *pDevice = hDeviceContext;
-	PSMgmtObject        pMgmt = pDevice->pMgmt;
+	struct ieee80211_hw *hw = pDevice->hw;
+	struct ieee80211_conf *conf = &hw->conf;
 	bool bWakeUp = false;
 
-	if (pMgmt->wListenInterval >= 2) {
-		if (pMgmt->wCountToWakeUp == 0)
-			pMgmt->wCountToWakeUp = pMgmt->wListenInterval;
-
-		pMgmt->wCountToWakeUp--;
-
-		if (pMgmt->wCountToWakeUp == 1) {
-			// Turn on wake up to listen next beacon
-			MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_LNBCN);
-			bWakeUp = true;
-		}
-
+	if (conf->listen_interval == 1) {
+		/* Turn on wake up to listen next beacon */
+		MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_LNBCN);
+		bWakeUp = true;
 	}
 
 	return bWakeUp;
