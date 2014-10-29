@@ -26,7 +26,7 @@
  */
 static bool seq_buf_can_fit(struct seq_buf *s, size_t len)
 {
-	return s->len + len < s->size;
+	return s->len + len <= s->size;
 }
 
 /**
@@ -110,8 +110,11 @@ int seq_buf_bitmask(struct seq_buf *s, const unsigned long *maskp,
 	WARN_ON(s->size == 0);
 
 	/*
-	 * The last byte of the buffer is used to determine if we
-	 * overflowed or not.
+	 * Note, because bitmap_scnprintf() only returns the number of bytes
+	 * written and not the number that would be written, we use the last
+	 * byte of the buffer to let us know if we overflowed. There's a small
+	 * chance that the bitmap could have fit exactly inside the buffer, but
+	 * it's not that critical if that does happen.
 	 */
 	if (len > 1) {
 		ret = bitmap_scnprintf(s->buffer + s->len, len, maskp, nmaskbits);

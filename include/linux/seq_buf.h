@@ -43,13 +43,13 @@ seq_buf_init(struct seq_buf *s, unsigned char *buf, unsigned int size)
 static inline bool
 seq_buf_has_overflowed(struct seq_buf *s)
 {
-	return s->len == s->size;
+	return s->len > s->size;
 }
 
 static inline void
 seq_buf_set_overflow(struct seq_buf *s)
 {
-	s->len = s->size;
+	s->len = s->size + 1;
 }
 
 /*
@@ -61,7 +61,7 @@ seq_buf_buffer_left(struct seq_buf *s)
 	if (seq_buf_has_overflowed(s))
 		return 0;
 
-	return (s->size - 1) - s->len;
+	return s->size - s->len;
 }
 
 /* How much buffer was written? */
