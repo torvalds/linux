@@ -244,7 +244,7 @@ static int kobil_open(struct tty_struct *tty, struct usb_serial_port *port)
 	    priv->device_type == KOBIL_ADAPTER_B_PRODUCT_ID ||
 	    priv->device_type == KOBIL_KAAN_SIM_PRODUCT_ID) {
 		/* start reading (Adapter B 'cause PNP string) */
-		result = usb_submit_urb(port->interrupt_in_urb, GFP_ATOMIC);
+		result = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 		dev_dbg(dev, "%s - Send read URB returns: %i\n", __func__, result);
 	}
 
