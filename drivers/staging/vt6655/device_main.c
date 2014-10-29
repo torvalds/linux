@@ -809,12 +809,11 @@ static const struct net_device_ops device_netdev_ops = {
 
 static void device_print_info(struct vnt_private *pDevice)
 {
-	struct net_device *dev = pDevice->dev;
+	dev_info(&pDevice->pcid->dev, "%s\n", get_chip_name(pDevice->chip_id));
 
-	pr_info("%s: %s\n", dev->name, get_chip_name(pDevice->chip_id));
-	pr_info("%s: MAC=%pM IO=0x%lx Mem=0x%lx IRQ=%d\n",
-		dev->name, dev->dev_addr, (unsigned long)pDevice->ioaddr,
-		(unsigned long)pDevice->PortOffset, pDevice->dev->irq);
+	dev_info(&pDevice->pcid->dev, "MAC=%pM IO=0x%lx Mem=0x%lx IRQ=%d\n",
+		 pDevice->abyCurrentNetAddr, (unsigned long)pDevice->ioaddr,
+		 (unsigned long)pDevice->PortOffset, pDevice->pcid->irq);
 }
 
 static void vt6655_init_info(struct pci_dev *pcid,
