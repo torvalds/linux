@@ -581,11 +581,11 @@ config SND_SOC_TLV320AIC23
 	tristate
 
 config SND_SOC_TLV320AIC23_I2C
-	tristate
+	tristate "Texas Instruments TLV320AIC23 audio CODEC - I2C"
 	select SND_SOC_TLV320AIC23
 
 config SND_SOC_TLV320AIC23_SPI
-	tristate
+	tristate "Texas Instruments TLV320AIC23 audio CODEC - SPI"
 	select SND_SOC_TLV320AIC23
 
 config SND_SOC_TLV320AIC26
