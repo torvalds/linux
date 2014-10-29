@@ -183,31 +183,24 @@ static void mcasp_start_rx(struct davinci_mcasp *mcasp)
 
 static void mcasp_start_tx(struct davinci_mcasp *mcasp)
 {
-	u8 offset = 0, i;
 	u32 cnt;
 
+	/* Start clocks */
 	mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLX_REG, TXHCLKRST);
 	mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLX_REG, TXCLKRST);
+	/* Activate serializer(s) */
 	mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLX_REG, TXSERCLR);
-	mcasp_set_reg(mcasp, DAVINCI_MCASP_TXBUF_REG, 0);
 
-	mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLX_REG, TXSMRST);
-	mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLX_REG, TXFSRST);
-	mcasp_set_reg(mcasp, DAVINCI_MCASP_TXBUF_REG, 0);
-	for (i = 0; i < mcasp->num_serializer; i++) {
-		if (mcasp->serial_dir[i] == TX_MODE) {
-			offset = i;
-			break;
-		}
-	}
-
-	/* wait for TX ready */
+	/* wait for XDATA to be cleared */
 	cnt = 0;
-	while (!(mcasp_get_reg(mcasp, DAVINCI_MCASP_XRSRCTL_REG(offset)) &
-		 TXSTATE) && (cnt < 100000))
+	while (!(mcasp_get_reg(mcasp, DAVINCI_MCASP_TXSTAT_REG) &
+		 ~XRDATA) && (cnt < 100000))
 		cnt++;
 
-	mcasp_set_reg(mcasp, DAVINCI_MCASP_TXBUF_REG, 0);
+	/* Release TX state machine */
+	mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLX_REG, TXSMRST);
+	/* Release Frame Sync generator */
+	mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLX_REG, TXFSRST);
 }
 
 static void davinci_mcasp_start(struct davinci_mcasp *mcasp, int stream)

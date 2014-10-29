@@ -253,6 +253,12 @@
 #define TXFSRST		BIT(12)	/* Frame Sync Generator Reset */
 
 /*
+ * DAVINCI_MCASP_TXSTAT_REG - Transmitter Status Register Bits
+ * DAVINCI_MCASP_RXSTAT_REG - Receiver Status Register Bits
+ */
+#define XRDATA		BIT(5) /* Transmit/Receive data ready */
+
+/*
  * DAVINCI_MCASP_AMUTE_REG -  Mute Control Register Bits
  */
 #define MUTENA(val)	(val)
