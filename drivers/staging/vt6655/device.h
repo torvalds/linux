@@ -750,6 +750,4 @@ bool device_dma0_xmit(struct vnt_private *pDevice,
 		      struct sk_buff *skb, unsigned int uNodeIndex);
 bool device_alloc_frag_buf(struct vnt_private *pDevice,
 			   PSDeFragControlBlock pDeF);
-int Config_FileOperation(struct vnt_private *pDevice,
-			 bool fwrite, unsigned char *Parameter);
 #endif
