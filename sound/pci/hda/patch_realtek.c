@@ -291,18 +291,14 @@ static void alc880_unsol_event(struct hda_codec *codec, unsigned int res)
 /* additional initialization for ALC888 variants */
 static void alc888_coef_init(struct hda_codec *codec)
 {
-	if (alc_get_coef0(codec) == 0x20)
-		/* alc888S-VC */
-		alc_write_coef_idx(codec, 7, 0x830);
-	 else
-		 /* alc888-VB */
-		alc_write_coef_idx(codec, 7, 0x3030);
-}
-
-/* additional initialization for ALC889 variants */
-static void alc889_coef_init(struct hda_codec *codec)
-{
-	alc_update_coef_idx(codec, 7, 0, 0x2010);
+	switch (alc_get_coef0(codec) & 0x00f0) {
+	/* alc888-VA */
+	case 0x00:
+	/* alc888-VB */
+	case 0x10:
+		alc_update_coef_idx(codec, 7, 0, 0x2030); /* Turn EAPD to High */
+		break;
+	}
 }
 
 /* turn on/off EAPD control (only if available) */
@@ -359,25 +355,15 @@ static void alc_auto_init_amp(struct hda_codec *codec, int type)
 		case 0x10ec0260:
 			alc_update_coefex_idx(codec, 0x1a, 7, 0, 0x2010);
 			break;
-		case 0x10ec0262:
 		case 0x10ec0880:
 		case 0x10ec0882:
 		case 0x10ec0883:
 		case 0x10ec0885:
-		case 0x10ec0887:
-		/*case 0x10ec0889:*/ /* this causes an SPDIF problem */
-		case 0x10ec0900:
-			alc889_coef_init(codec);
+			alc_update_coef_idx(codec, 7, 0, 0x2030);
 			break;
 		case 0x10ec0888:
 			alc888_coef_init(codec);
 			break;
-#if 0 /* XXX: This may cause the silent output on speaker on some machines */
-		case 0x10ec0267:
-		case 0x10ec0268:
-			alc_update_coef_idx(codec, 7, 0, 0x3000);
-			break;
-#endif /* XXX */
 		}
 		break;
 	}
@@ -1710,7 +1696,7 @@ static void alc889_fixup_coef(struct hda_codec *codec,
 {
 	if (action != HDA_FIXUP_ACT_INIT)
 		return;
-	alc889_coef_init(codec);
+	alc_update_coef_idx(codec, 7, 0, 0x2030);
 }
 
 /* toggle speaker-output according to the hp-jack state */
