@@ -173,6 +173,14 @@ struct vnt_cts_fb {
 	u16 reserved2;
 } __packed;
 
+struct vnt_tx_fifo_head {
+	u8 tx_key[WLAN_KEY_LEN_CCMP];
+	__le16 fifo_ctl;
+	__le16 time_stamp;
+	__le16 frag_ctl;
+	__le16 current_rate;
+} __packed;
+
 struct vnt_tx_short_buf_head {
 	__le16 fifo_ctl;
 	u16 time_stamp;
@@ -214,5 +222,11 @@ void vDMA0_tx_80211(struct vnt_private *, struct sk_buff *skb,
 		    unsigned char *pbMPDU, unsigned int cbMPDULen);
 CMD_STATUS csMgmt_xmit(struct vnt_private *, PSTxMgmtPacket pPacket);
 CMD_STATUS csBeacon_xmit(struct vnt_private *, PSTxMgmtPacket pPacket);
+
+int vnt_generate_fifo_header(struct vnt_private *, u32,
+			     PSTxDesc head_td, struct sk_buff *);
+int vnt_beacon_make(struct vnt_private *, struct ieee80211_vif *);
+int vnt_beacon_enable(struct vnt_private *, struct ieee80211_vif *,
+		      struct ieee80211_bss_conf *);
 
 #endif // __RXTX_H__

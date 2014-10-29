@@ -287,6 +287,7 @@ typedef struct tagTDES1 {
 STDES1;
 
 typedef struct tagDEVICE_TD_INFO {
+	void *mic_hdr;
 	struct sk_buff *skb;
 	unsigned char *buf;
 	dma_addr_t          skb_dma;
