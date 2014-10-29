@@ -1174,8 +1174,8 @@ static void __init l2c310_of_parse(const struct device_node *np,
 		*aux_mask &= ~L2X0_AUX_CTRL_ASSOC_MASK;
 		break;
 	default:
-		pr_err("PL310 OF: cache setting yield illegal associativity\n");
-		pr_err("PL310 OF: %d calculated, only 8 and 16 legal\n", assoc);
+		pr_err("L2C-310 OF cache associativity %d invalid, only 8 or 16 permitted\n",
+		       assoc);
 		break;
 	}
 }
