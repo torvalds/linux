@@ -139,6 +139,14 @@ struct dsa_switch {
 	 */
 	struct device		*master_dev;
 
+#ifdef CONFIG_NET_DSA_HWMON
+	/*
+	 * Hardware monitoring information
+	 */
+	char			hwmon_name[IFNAMSIZ + 8];
+	struct device		*hwmon_dev;
+#endif
+
 	/*
 	 * Slave mii_bus and devices for the individual ports.
 	 */
@@ -242,6 +250,14 @@ struct dsa_switch_driver {
 			   struct ethtool_eee *e);
 	int	(*get_eee)(struct dsa_switch *ds, int port,
 			   struct ethtool_eee *e);
+
+#ifdef CONFIG_NET_DSA_HWMON
+	/* Hardware monitoring */
+	int	(*get_temp)(struct dsa_switch *ds, int *temp);
+	int	(*get_temp_limit)(struct dsa_switch *ds, int *temp);
+	int	(*set_temp_limit)(struct dsa_switch *ds, int temp);
+	int	(*get_temp_alarm)(struct dsa_switch *ds, bool *alarm);
+#endif
 };
 
 void register_switch_driver(struct dsa_switch_driver *type);
