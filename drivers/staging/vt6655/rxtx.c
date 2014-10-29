@@ -138,9 +138,8 @@ static unsigned int
 s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
 		  unsigned char *pbyTxBufferAddr, unsigned int cbFrameBodySize,
 		  unsigned int uDMAIdx, PSTxDesc pHeadTD,
-		  PSEthernetHeader psEthHeader, unsigned char *pPacket,
-		  bool bNeedEncrypt, PSKeyItem pTransmitKey,
-		  unsigned int uNodeIndex, unsigned int *puMACfragNum);
+		  unsigned char *pPacket, unsigned int uNodeIndex,
+		  unsigned int *puMACfragNum);
 
 static
 __le16
@@ -1041,9 +1040,8 @@ static unsigned int
 s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
 		  unsigned char *pbyTxBufferAddr, unsigned int cbFrameBodySize,
 		  unsigned int uDMAIdx, PSTxDesc pHeadTD,
-		  PSEthernetHeader psEthHeader, unsigned char *pPacket,
-		  bool bNeedEncrypt, PSKeyItem pTransmitKey,
-		  unsigned int is_pspoll, unsigned int *puMACfragNum)
+		  unsigned char *pPacket, unsigned int is_pspoll,
+		  unsigned int *puMACfragNum)
 {
 	PDEVICE_TD_INFO td_info = pHeadTD->pTDInfo;
 	struct sk_buff *skb = td_info->skb;
@@ -1413,8 +1411,8 @@ int vnt_generate_fifo_header(struct vnt_private *priv, u32 dma_idx,
 	tx_buffer_head->frag_ctl |= cpu_to_le16(FRAGCTL_NONFRAG);
 
 	s_cbFillTxBufHead(priv, pkt_type, (u8 *)tx_buffer_head, skb->len,
-			  dma_idx, head_td, NULL, (u8 *)skb->data,
-			  false, NULL, is_pspoll, &frag);
+			  dma_idx, head_td, (u8 *)skb->data,
+			  is_pspoll, &frag);
 
 	if (info->control.hw_key) {
 		tx_key = info->control.hw_key;
