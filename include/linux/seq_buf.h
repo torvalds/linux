@@ -22,13 +22,18 @@ struct seq_buf {
 	loff_t			readpos;
 };
 
+static inline void seq_buf_clear(struct seq_buf *s)
+{
+	s->len = 0;
+	s->readpos = 0;
+}
+
 static inline void
 seq_buf_init(struct seq_buf *s, unsigned char *buf, unsigned int size)
 {
 	s->buffer = buf;
 	s->size = size;
-	s->len = 0;
-	s->readpos = 0;
+	seq_buf_clear(s);
 }
 
 /*
