@@ -241,6 +241,9 @@ ieee802154_monitors_rx(struct ieee802154_local *local, struct sk_buff *skb)
 		skb2->dev = sdata->dev;
 
 		ieee802154_deliver_skb(skb2);
+
+		sdata->dev->stats.rx_packets++;
+		sdata->dev->stats.rx_bytes += skb->len;
 	}
 }
 
