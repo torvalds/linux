@@ -33,7 +33,6 @@
 #include "ttype.h"
 #include "80211mgr.h"
 #include "card.h"
-#include "wpa2.h"
 
 /*---------------------  Export Definitions -------------------------*/
 #define RATE_1M         0

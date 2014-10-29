@@ -57,7 +57,6 @@
 #include "80211mgr.h"
 #include "80211hdr.h"
 #include "device.h"
-#include "wpa.h"
 
 /*---------------------  Static Definitions -------------------------*/
 
@@ -171,9 +170,6 @@ vMgrDecodeBeacon(
 			break;
 		case WLAN_EID_RSN_WPA:
 			if (pFrame->pRSNWPA == NULL) {
-				if (WPAb_Is_RSN((PWLAN_IE_RSN_EXT)pItem) == true)
-					pFrame->pRSNWPA =
-						       (PWLAN_IE_RSN_EXT)pItem;
 			}
 			break;
 
@@ -389,9 +385,6 @@ vMgrDecodeAssocRequest(
 			break;
 		case WLAN_EID_RSN_WPA:
 			if (pFrame->pRSNWPA == NULL) {
-				if (WPAb_Is_RSN((PWLAN_IE_RSN_EXT)pItem) == true)
-					pFrame->pRSNWPA =
-						       (PWLAN_IE_RSN_EXT)pItem;
 			}
 			break;
 		case WLAN_EID_EXTSUPP_RATES:
@@ -574,9 +567,6 @@ vMgrDecodeReassocRequest(
 			break;
 		case WLAN_EID_RSN_WPA:
 			if (pFrame->pRSNWPA == NULL) {
-				if (WPAb_Is_RSN((PWLAN_IE_RSN_EXT)pItem) == true)
-					pFrame->pRSNWPA =
-						       (PWLAN_IE_RSN_EXT)pItem;
 			}
 			break;
 
@@ -767,9 +757,6 @@ vMgrDecodeProbeResponse(
 			break;
 		case WLAN_EID_RSN_WPA:
 			if (pFrame->pRSNWPA == NULL) {
-				if (WPAb_Is_RSN((PWLAN_IE_RSN_EXT)pItem) == true)
-					pFrame->pRSNWPA =
-						       (PWLAN_IE_RSN_EXT)pItem;
 			}
 			break;
 		case WLAN_EID_ERP:

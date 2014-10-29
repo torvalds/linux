@@ -557,13 +557,6 @@ VNTWIFIbSetPMKIDCache(
 	void *pPMKIDInfo
 )
 {
-	PSMgmtObject    pMgmt = (PSMgmtObject) pMgmtObject;
-
-	if (ulCount > MAX_PMKID_CACHE)
-		return false;
-
-	pMgmt->gsPMKIDCache.BSSIDInfoCount = ulCount;
-	memcpy(pMgmt->gsPMKIDCache.BSSIDInfo, pPMKIDInfo, (ulCount*sizeof(PMKIDInfo)));
 	return true;
 }
 

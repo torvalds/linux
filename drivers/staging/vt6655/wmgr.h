@@ -39,7 +39,6 @@
 #include "80211hdr.h"
 #include "wcmd.h"
 #include "bssdb.h"
-#include "wpa2.h"
 #include "vntwifi.h"
 #include "card.h"
 
@@ -291,7 +290,6 @@ typedef struct tagSMgmtObject {
 	KnownNodeDB             sNodeDBTable[MAX_NODE_NUM + 1];
 
 	// WPA2 PMKID Cache
-	SPMKIDCache             gsPMKIDCache;
 	bool bRoaming;
 
 	// rate fall back vars
