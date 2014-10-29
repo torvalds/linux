@@ -806,31 +806,20 @@ static bool device_get_pci_info(struct vnt_private *pDevice,
 
 static void device_free_info(struct vnt_private *pDevice)
 {
-	struct net_device *dev = pDevice->dev;
+	if (!pDevice)
+		return;
 
-	ASSERT(pDevice);
-//2008-0714-01<Add>by chester
-	device_release_WPADEV(pDevice);
-
-//2008-07-21-01<Add>by MikeLiu
-//unregister wpadev
-	if (wpa_set_wpadev(pDevice, 0) != 0)
-		pr_err("unregister wpadev fail?\n");
-
-#ifdef HOSTAP
-	if (dev)
-		vt6655_hostap_set_hostapd(pDevice, 0, 0);
-#endif
-	if (dev)
-		unregister_netdev(dev);
+	if (pDevice->mac_hw)
+		ieee80211_unregister_hw(pDevice->hw);
 
 	if (pDevice->PortOffset)
 		iounmap(pDevice->PortOffset);
 
 	if (pDevice->pcid)
 		pci_release_regions(pDevice->pcid);
-	if (dev)
-		free_netdev(dev);
+
+	if (pDevice->hw)
+		ieee80211_free_hw(pDevice->hw);
 }
 
 static bool device_init_rings(struct vnt_private *pDevice)
