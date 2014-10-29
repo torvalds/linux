@@ -417,7 +417,8 @@ EXPORT_SYMBOL_GPL(pvclock_gtod_unregister_notifier);
  */
 static inline void tk_update_ktime_data(struct timekeeper *tk)
 {
-	s64 nsec;
+	u64 seconds;
+	u32 nsec;
 
 	/*
 	 * The xtime based monotonic readout is:
@@ -426,13 +427,22 @@ static inline void tk_update_ktime_data(struct timekeeper *tk)
 	 *	nsec = base_mono + now();
 	 * ==> base_mono = (xtime_sec + wtm_sec) * 1e9 + wtm_nsec
 	 */
-	nsec = (s64)(tk->xtime_sec + tk->wall_to_monotonic.tv_sec);
-	nsec *= NSEC_PER_SEC;
-	nsec += tk->wall_to_monotonic.tv_nsec;
-	tk->tkr.base_mono = ns_to_ktime(nsec);
+	seconds = (u64)(tk->xtime_sec + tk->wall_to_monotonic.tv_sec);
+	nsec = (u32) tk->wall_to_monotonic.tv_nsec;
+	tk->tkr.base_mono = ns_to_ktime(seconds * NSEC_PER_SEC + nsec);
 
 	/* Update the monotonic raw base */
 	tk->base_raw = timespec64_to_ktime(tk->raw_time);
+
+	/*
+	 * The sum of the nanoseconds portions of xtime and
+	 * wall_to_monotonic can be greater/equal one second. Take
+	 * this into account before updating tk->ktime_sec.
+	 */
+	nsec += (u32)(tk->tkr.xtime_nsec >> tk->tkr.shift);
+	if (nsec >= NSEC_PER_SEC)
+		seconds++;
+	tk->ktime_sec = seconds;
 }
 
 /* must hold timekeeper_lock */
@@ -647,6 +657,24 @@ void ktime_get_ts64(struct timespec64 *ts)
 	timespec64_add_ns(ts, nsec + tomono.tv_nsec);
 }
 EXPORT_SYMBOL_GPL(ktime_get_ts64);
+
+/**
+ * ktime_get_seconds - Get the seconds portion of CLOCK_MONOTONIC
+ *
+ * Returns the seconds portion of CLOCK_MONOTONIC with a single non
+ * serialized read. tk->ktime_sec is of type 'unsigned long' so this
+ * works on both 32 and 64 bit systems. On 32 bit systems the readout
+ * covers ~136 years of uptime which should be enough to prevent
+ * premature wrap arounds.
+ */
+time64_t ktime_get_seconds(void)
+{
+	struct timekeeper *tk = &tk_core.timekeeper;
+
+	WARN_ON(timekeeping_suspended);
+	return tk->ktime_sec;
+}
+EXPORT_SYMBOL_GPL(ktime_get_seconds);
 
 #ifdef CONFIG_NTP_PPS
 
