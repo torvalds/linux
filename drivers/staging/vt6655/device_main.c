@@ -66,7 +66,6 @@
 #include "iocmd.h"
 #include "tcrc.h"
 #include "rxtx.h"
-#include "wroute.h"
 #include "bssdb.h"
 #include "dpc.h"
 #include "rf.h"

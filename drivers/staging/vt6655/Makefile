@@ -21,7 +21,6 @@ vt6655_stage-y +=	device_main.o \
 	key.o \
 	tkip.o \
 	michael.o \
-	wroute.o \
 	rf.o \
 	wpa2.o \
 	aes_ccmp.o \
