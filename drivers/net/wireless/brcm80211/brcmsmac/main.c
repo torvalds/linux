@@ -3081,7 +3081,7 @@ static bool brcms_c_ps_allowed(struct brcms_c_info *wlc)
 static void brcms_c_statsupd(struct brcms_c_info *wlc)
 {
 	int i;
-	struct macstat macstats;
+	struct macstat *macstats;
 #ifdef DEBUG
 	u16 delta;
 	u16 rxf0ovfl;
@@ -3092,31 +3092,31 @@ static void brcms_c_statsupd(struct brcms_c_info *wlc)
 	if (!wlc->pub->up)
 		return;
 
+	macstats = wlc->core->macstat_snapshot;
+
 #ifdef DEBUG
 	/* save last rx fifo 0 overflow count */
-	rxf0ovfl = wlc->core->macstat_snapshot->rxf0ovfl;
+	rxf0ovfl = macstats->rxf0ovfl;
 
 	/* save last tx fifo  underflow count */
 	for (i = 0; i < NFIFO; i++)
-		txfunfl[i] = wlc->core->macstat_snapshot->txfunfl[i];
+		txfunfl[i] = macstats->txfunfl[i];
 #endif				/* DEBUG */
 
 	/* Read mac stats from contiguous shared memory */
-	brcms_b_copyfrom_objmem(wlc->hw, M_UCODE_MACSTAT, &macstats,
-				sizeof(struct macstat), OBJADDR_SHM_SEL);
+	brcms_b_copyfrom_objmem(wlc->hw, M_UCODE_MACSTAT, macstats,
+				sizeof(*macstats), OBJADDR_SHM_SEL);
 
 #ifdef DEBUG
 	/* check for rx fifo 0 overflow */
-	delta = (u16) (wlc->core->macstat_snapshot->rxf0ovfl - rxf0ovfl);
+	delta = (u16)(macstats->rxf0ovfl - rxf0ovfl);
 	if (delta)
 		brcms_err(wlc->hw->d11core, "wl%d: %u rx fifo 0 overflows!\n",
 			  wlc->pub->unit, delta);
 
 	/* check for tx fifo underflows */
 	for (i = 0; i < NFIFO; i++) {
-		delta =
-		    (u16) (wlc->core->macstat_snapshot->txfunfl[i] -
-			      txfunfl[i]);
+		delta = macstats->txfunfl[i] - txfunfl[i];
 		if (delta)
 			brcms_err(wlc->hw->d11core,
 				  "wl%d: %u tx fifo %d underflows!\n",
