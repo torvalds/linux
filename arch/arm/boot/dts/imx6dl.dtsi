@@ -13,6 +13,10 @@
 #include "imx6qdl.dtsi"
 
 / {
+	aliases {
+		i2c3 = &i2c4;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
