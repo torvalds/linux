@@ -20,6 +20,16 @@
 #include "hda_auto_parser.h"
 #include "hda_jack.h"
 
+/**
+ * is_jack_detectable - Check whether the given pin is jack-detectable
+ * @codec: the HDA codec
+ * @nid: pin NID
+ *
+ * Check whether the given pin is capable to report the jack detection.
+ * The jack detection might not work by various reasons, e.g. the jack
+ * detection is prohibited in the codec level, the pin config has
+ * AC_DEFCFG_MISC_NO_PRESENCE bit, no unsol support, etc.
+ */
 bool is_jack_detectable(struct hda_codec *codec, hda_nid_t nid)
 {
 	if (codec->no_jack_detect)
@@ -268,6 +278,14 @@ snd_hda_jack_detect_enable_callback(struct hda_codec *codec, hda_nid_t nid,
 }
 EXPORT_SYMBOL_GPL(snd_hda_jack_detect_enable_callback);
 
+/**
+ * snd_hda_jack_detect_enable - Enable the jack detection on the given pin
+ * @codec: the HDA codec
+ * @nid: pin NID to enable jack detection
+ *
+ * Enable the jack detection with the default callback.  Returns zero if
+ * successful or a negative error code.
+ */
 int snd_hda_jack_detect_enable(struct hda_codec *codec, hda_nid_t nid)
 {
 	return PTR_ERR_OR_ZERO(snd_hda_jack_detect_enable_callback(codec, nid, NULL));
@@ -410,6 +428,15 @@ static int __snd_hda_jack_add_kctl(struct hda_codec *codec, hda_nid_t nid,
 	return 0;
 }
 
+/**
+ * snd_hda_jack_add_kctl - Add a jack kctl for the given pin
+ * @codec: the HDA codec
+ * @nid: pin NID
+ * @name: the name string for the jack ctl
+ * @idx: the ctl index for the jack ctl
+ *
+ * This is a simple helper calling __snd_hda_jack_add_kctl().
+ */
 int snd_hda_jack_add_kctl(struct hda_codec *codec, hda_nid_t nid,
 			  const char *name, int idx)
 {
@@ -552,6 +579,11 @@ static void call_jack_callback(struct hda_codec *codec,
 	}
 }
 
+/**
+ * snd_hda_jack_unsol_event - Handle an unsolicited event
+ * @codec: the HDA codec
+ * @res: the unsolicited event data
+ */
 void snd_hda_jack_unsol_event(struct hda_codec *codec, unsigned int res)
 {
 	struct hda_jack_tbl *event;
@@ -567,6 +599,13 @@ void snd_hda_jack_unsol_event(struct hda_codec *codec, unsigned int res)
 }
 EXPORT_SYMBOL_GPL(snd_hda_jack_unsol_event);
 
+/**
+ * snd_hda_jack_poll_all - Poll all jacks
+ * @codec: the HDA codec
+ *
+ * Poll all detectable jacks with dirty flag, update the status, call
+ * callbacks and call snd_hda_jack_report_sync() if any changes are found.
+ */
 void snd_hda_jack_poll_all(struct hda_codec *codec)
 {
 	struct hda_jack_tbl *jack = codec->jacktbl.list;

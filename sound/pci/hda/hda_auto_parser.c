@@ -441,6 +441,13 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_GPL(snd_hda_parse_pin_defcfg);
 
+/**
+ * snd_hda_get_input_pin_attr - Get the input pin attribute from pin config
+ * @def_conf: pin configuration value
+ *
+ * Guess the input pin attribute (INPUT_PIN_ATTR_XXX) from the given
+ * default pin configuration value.
+ */
 int snd_hda_get_input_pin_attr(unsigned int def_conf)
 {
 	unsigned int loc = get_defcfg_location(def_conf);
@@ -473,7 +480,6 @@ EXPORT_SYMBOL_GPL(snd_hda_get_input_pin_attr);
  * for mic and line-in pins, and set an appropriate prefix like "Front",
  * "Rear", "Internal".
  */
-
 static const char *hda_get_input_pin_label(struct hda_codec *codec,
 					   const struct auto_pin_cfg_item *item,
 					   hda_nid_t pin, bool check_location)
@@ -761,6 +767,14 @@ int snd_hda_get_pin_label(struct hda_codec *codec, hda_nid_t nid,
 }
 EXPORT_SYMBOL_GPL(snd_hda_get_pin_label);
 
+/**
+ * snd_hda_add_verbs - Add verbs to the init list
+ * @codec: the HDA codec
+ * @list: zero-terminated verb list to add
+ *
+ * Append the given verb list to the execution list.  The verbs will be
+ * performed at init and resume time via snd_hda_apply_verbs().
+ */
 int snd_hda_add_verbs(struct hda_codec *codec,
 		      const struct hda_verb *list)
 {
@@ -773,6 +787,10 @@ int snd_hda_add_verbs(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_GPL(snd_hda_add_verbs);
 
+/**
+ * snd_hda_apply_verbs - Execute the init verb lists
+ * @codec: the HDA codec
+ */
 void snd_hda_apply_verbs(struct hda_codec *codec)
 {
 	int i;
@@ -783,6 +801,11 @@ void snd_hda_apply_verbs(struct hda_codec *codec)
 }
 EXPORT_SYMBOL_GPL(snd_hda_apply_verbs);
 
+/**
+ * snd_hda_apply_pincfgs - Set each pin config in the given list
+ * @codec: the HDA codec
+ * @cfg: NULL-terminated pin config table
+ */
 void snd_hda_apply_pincfgs(struct hda_codec *codec,
 			   const struct hda_pintbl *cfg)
 {
@@ -850,6 +873,11 @@ static void apply_fixup(struct hda_codec *codec, int id, int action, int depth)
 	}
 }
 
+/**
+ * snd_hda_apply_fixup - Apply the fixup chain with the given action
+ * @codec: the HDA codec
+ * @action: fixup action (HDA_FIXUP_ACT_XXX)
+ */
 void snd_hda_apply_fixup(struct hda_codec *codec, int action)
 {
 	if (codec->fixup_list)
@@ -868,6 +896,12 @@ static bool pin_config_match(struct hda_codec *codec,
 	return true;
 }
 
+/**
+ * snd_hda_pick_pin_fixup - Pick up a fixup matching with the pin quirk list
+ * @codec: the HDA codec
+ * @pin_quirk: zero-terminated pin quirk list
+ * @fixlist: the fixup list
+ */
 void snd_hda_pick_pin_fixup(struct hda_codec *codec,
 			    const struct snd_hda_pin_quirk *pin_quirk,
 			    const struct hda_fixup *fixlist)
@@ -894,6 +928,21 @@ void snd_hda_pick_pin_fixup(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_GPL(snd_hda_pick_pin_fixup);
 
+/**
+ * snd_hda_pick_fixup - Pick up a fixup matching with PCI/codec SSID or model string
+ * @codec: the HDA codec
+ * @models: NULL-terminated model string list
+ * @quirk: zero-terminated PCI/codec SSID quirk list
+ * @fixlist: the fixup list
+ *
+ * Pick up a fixup entry matching with the given model string or SSID.
+ * If a fixup was already set beforehand, the function doesn't do anything.
+ * When a special model string "nofixup" is given, also no fixup is applied.
+ *
+ * The function tries to find the matching model name at first, if given.
+ * If nothing matched, try to look up the PCI SSID.
+ * If still nothing matched, try to look up the codec SSID.
+ */
 void snd_hda_pick_fixup(struct hda_codec *codec,
 			const struct hda_model_fixup *models,
 			const struct snd_pci_quirk *quirk,
