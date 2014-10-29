@@ -267,6 +267,31 @@ do {									\
 	__wait_event(wq, condition);					\
 } while (0)
 
+#define __wait_event_freezable(wq, condition)				\
+	___wait_event(wq, condition, TASK_INTERRUPTIBLE, 0, 0,		\
+			    schedule(); try_to_freeze())
+
+/**
+ * wait_event - sleep (or freeze) until a condition gets true
+ * @wq: the waitqueue to wait on
+ * @condition: a C expression for the event to wait for
+ *
+ * The process is put to sleep (TASK_INTERRUPTIBLE -- so as not to contribute
+ * to system load) until the @condition evaluates to true. The
+ * @condition is checked each time the waitqueue @wq is woken up.
+ *
+ * wake_up() has to be called after changing any variable that could
+ * change the result of the wait condition.
+ */
+#define wait_event_freezable(wq, condition)				\
+({									\
+	int __ret = 0;							\
+	might_sleep();							\
+	if (!(condition))						\
+		__ret = __wait_event_freezable(wq, condition);		\
+	__ret;								\
+})
+
 #define __wait_event_timeout(wq, condition, timeout)			\
 	___wait_event(wq, ___wait_cond_timeout(condition),		\
 		      TASK_UNINTERRUPTIBLE, 0, timeout,			\
@@ -297,6 +322,24 @@ do {									\
 	might_sleep();							\
 	if (!___wait_cond_timeout(condition))				\
 		__ret = __wait_event_timeout(wq, condition, timeout);	\
+	__ret;								\
+})
+
+#define __wait_event_freezable_timeout(wq, condition, timeout)		\
+	___wait_event(wq, ___wait_cond_timeout(condition),		\
+		      TASK_INTERRUPTIBLE, 0, timeout,			\
+		      __ret = schedule_timeout(__ret); try_to_freeze())
+
+/*
+ * like wait_event_timeout() -- except it uses TASK_INTERRUPTIBLE to avoid
+ * increasing load and is freezable.
+ */
+#define wait_event_freezable_timeout(wq, condition, timeout)		\
+({									\
+	long __ret = timeout;						\
+	might_sleep();							\
+	if (!___wait_cond_timeout(condition))				\
+		__ret = __wait_event_freezable_timeout(wq, condition, timeout);	\
 	__ret;								\
 })
 
@@ -476,6 +519,20 @@ do {									\
 	might_sleep();							\
 	if (!(condition))						\
 		__ret = __wait_event_interruptible_exclusive(wq, condition);\
+	__ret;								\
+})
+
+
+#define __wait_event_freezable_exclusive(wq, condition)			\
+	___wait_event(wq, condition, TASK_INTERRUPTIBLE, 1, 0,		\
+			schedule(); try_to_freeze())
+
+#define wait_event_freezable_exclusive(wq, condition)			\
+({									\
+	int __ret = 0;							\
+	might_sleep();							\
+	if (!(condition))						\
+		__ret = __wait_event_freezable_exclusive(wq, condition);\
 	__ret;								\
 })
 
