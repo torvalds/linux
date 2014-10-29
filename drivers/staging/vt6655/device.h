@@ -137,6 +137,8 @@
 #define RUN_AT(x)                       (jiffies+(x))
 #endif
 
+#define MAKE_BEACON_RESERVED	10  /* (us) */
+
 /* DMA related */
 #define RESERV_AC0DMA                   4
 

@@ -54,8 +54,6 @@
 
 #define DEFAULT_MGN_LIFETIME            8    // ms
 
-#define MAKE_BEACON_RESERVED            10  //(us)
-
 #define TIM_MULTICAST_MASK           0x01
 #define TIM_BITMAPOFFSET_MASK        0xFE
 #define DEFAULT_DTIM_PERIOD             1
