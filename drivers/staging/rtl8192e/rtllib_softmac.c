@@ -193,7 +193,7 @@ MgntQuery_TxRateExcludeCCKRates(struct rtllib_device *ieee)
 	return QueryRate;
 }
 
-u8 MgntQuery_MgntFrameTxRate(struct rtllib_device *ieee)
+static u8 MgntQuery_MgntFrameTxRate(struct rtllib_device *ieee)
 {
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 	u8 rate;
