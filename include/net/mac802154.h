@@ -73,8 +73,8 @@ struct ieee802154_hw {
  * however, so you are advised to review these flags carefully.
  */
 
-/* Indicates that receiver omits FCS and xmitter will add FCS on it's own. */
-#define IEEE802154_HW_OMIT_CKSUM	0x00000001
+/* Indicates that xmitter will add FCS on it's own. */
+#define IEEE802154_HW_TX_OMIT_CKSUM	0x00000001
 /* Indicates that receiver will autorespond with ACK frames. */
 #define IEEE802154_HW_AACK		0x00000002
 /* Indicates that transceiver will support transmit power setting. */
@@ -94,6 +94,12 @@ struct ieee802154_hw {
 #define IEEE802154_HW_AFILT		0x00000100
 /* Indicates that transceiver will support promiscuous mode setting. */
 #define IEEE802154_HW_PROMISCUOUS	0x00000200
+/* Indicates that receiver omits FCS. */
+#define IEEE802154_HW_RX_OMIT_CKSUM	0x00000400
+
+/* Indicates that receiver omits FCS and xmitter will add FCS on it's own. */
+#define IEEE802154_HW_OMIT_CKSUM	(IEEE802154_HW_TX_OMIT_CKSUM | \
+					 IEEE802154_HW_RX_OMIT_CKSUM)
 
 /* This groups the most common CSMA support fields into one. */
 #define IEEE802154_HW_CSMA		(IEEE802154_HW_CCA_MODE | \

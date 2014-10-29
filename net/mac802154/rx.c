@@ -255,7 +255,7 @@ void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 
 	WARN_ON_ONCE(softirq_count() == 0);
 
-	if (!(local->hw.flags & IEEE802154_HW_OMIT_CKSUM)) {
+	if (!(local->hw.flags & IEEE802154_HW_RX_OMIT_CKSUM)) {
 		u16 crc;
 
 		if (skb->len < 2) {
