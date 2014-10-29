@@ -580,10 +580,15 @@ static ssize_t buspower_store(struct device *_dev,
 			      struct device_attribute *attr,
 			      const char *buf, size_t count)
 {
-
 	dwc_otg_device_t *otg_dev = _dev->platform_data;
+	struct dwc_otg_platform_data *pldata = otg_dev->pldata;
 	uint32_t on = simple_strtoul(buf, NULL, 16);
+
+	if (on != 0 && on != 1)
+		return -EINVAL;
+
 	dwc_otg_set_prtpower(otg_dev->core_if, on);
+	pldata->power_enable(on);
 	return count;
 }
 

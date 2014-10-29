@@ -337,7 +337,8 @@ static void usb20host_power_enable(int enable)
 {
 	if (0 == enable) {
 		/* disable host_drv power */
-		/* do not disable power in default */
+		if (gpio_is_valid(control_usb->host_gpios->gpio))
+			gpio_set_value(control_usb->host_gpios->gpio, 0);
 	} else if (1 == enable) {
 		/* enable host_drv power */
 		if (gpio_is_valid(control_usb->host_gpios->gpio))
