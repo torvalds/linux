@@ -16,10 +16,10 @@
  * @readpos:	The next position to read in the buffer.
  */
 struct seq_buf {
-	unsigned char		*buffer;
-	unsigned int		size;
-	unsigned int		len;
-	unsigned int		readpos;
+	char			*buffer;
+	size_t			size;
+	size_t			len;
+	loff_t			readpos;
 };
 
 static inline void
