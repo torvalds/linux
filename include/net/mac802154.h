@@ -90,6 +90,8 @@ struct ieee802154_hw {
 #define IEEE802154_HW_CSMA_PARAMS	0x00000040
 /* Indicates that transceiver will support ARET frame retries setting. */
 #define IEEE802154_HW_FRAME_RETRIES	0x00000080
+/* Indicates that transceiver will support hardware address filter setting. */
+#define IEEE802154_HW_AFILT		0x00000100
 
 /* This groups the most common CSMA support fields into one. */
 #define IEEE802154_HW_CSMA		(IEEE802154_HW_CCA_MODE | \
