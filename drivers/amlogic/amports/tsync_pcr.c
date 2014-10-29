@@ -67,13 +67,13 @@ typedef enum {
 // The const 
 
 static u32 tsync_pcr_discontinue_threshold = (TIME_UNIT90K * 1.5);
-static u32 tsync_pcr_ref_latency = 30000;				//TIME_UNIT90K/3
+static u32 tsync_pcr_ref_latency = 27000;				//TIME_UNIT90K*0.3
 
 // use for pcr valid mode
-static u32 tsync_pcr_max_cache_time = TIME_UNIT90K*2;				//TIME_UNIT90K*2;
-static u32 tsync_pcr_up_cache_time = TIME_UNIT90K*1.5;				//TIME_UNIT90K*1.5;
-static u32 tsync_pcr_down_cache_time = TIME_UNIT90K*1.2;			//TIME_UNIT90K*1.2;
-static u32 tsync_pcr_min_cache_time = TIME_UNIT90K*0.8;			//TIME_UNIT90K*0.8;
+static u32 tsync_pcr_max_cache_time = TIME_UNIT90K*2.5;				//TIME_UNIT90K*2.5;
+static u32 tsync_pcr_up_cache_time = TIME_UNIT90K*1.9;				//TIME_UNIT90K*1.9;
+static u32 tsync_pcr_down_cache_time = TIME_UNIT90K*1.4;			//TIME_UNIT90K*1.4;
+static u32 tsync_pcr_min_cache_time = TIME_UNIT90K*1;			//TIME_UNIT90K*0.8;
 
 
 // use for pcr invalid mode
@@ -81,6 +81,10 @@ static u32 tsync_pcr_max_delay_time = TIME_UNIT90K*3;				//TIME_UNIT90K*3;
 static u32 tsync_pcr_up_delay_time = TIME_UNIT90K*2;				//TIME_UNIT90K*2;
 static u32 tsync_pcr_down_delay_time = TIME_UNIT90K*1.5;			//TIME_UNIT90K*1.5;
 static u32 tsync_pcr_min_delay_time = TIME_UNIT90K*1;				//TIME_UNIT90K*0.8;
+
+
+static u32 tsync_pcr_first_video_frame_pts = 0;				
+static u32 tsync_pcr_first_audio_frame_pts = 0;				
 
 // ------------------------------------------------------------------
 // The variate
@@ -130,22 +134,38 @@ void tsync_pcr_avevent_locked(avevent_t event, u32 param)
     case VIDEO_START:        
         if (tsync_pcr_vstart_flag == 0) {
             //play_mode=PLAY_MODE_NORMAL;
-            printk("video start! init system time param=%x cur_pcr=%x\n",param,timestamp_pcrscr_get());
+            tsync_pcr_first_video_frame_pts = param;
+            printk("video start! param=%x cur_pcr=%x\n",param,timestamp_pcrscr_get());
         }
-/*
-        if(tsync_pcr_vstart_flag == 0 && tsync_pcr_inited_flag == 0){		
-		u32 ref_pcr=param - VIDEO_HOLD_THRESHOLD;		// to wait 3 second
-		u32 tsdemux_pcr = tsdemux_pcrscr_get();
-		timestamp_pcrscr_set(ref_pcr);						
 
-		tsync_pcr_tsdemux_startpcr = tsdemux_pcr;
-		tsync_pcr_system_startpcr = ref_pcr;
-		printk("video start! init system time param=%x ref_pcr= %x  \n",param,ref_pcr);
+        if(tsync_pcr_inited_flag == 0){	
+        	u32 first_pcr =0;	
+    		u32 first_vpts = 0;
+		u32 diff = 0;	
+		u32 ref_pcr = 0;
+
+		ref_pcr=param-tsync_pcr_ref_latency;		
+		timestamp_pcrscr_set(ref_pcr);						
+		tsync_pcr_inited_flag=1;
+		printk("[tsync_pcr] init system time  use video pts. param=%x ref_pcr= %x \n",param,ref_pcr);
 
         	if (!tsync_pcr_vpause_flag) {
             		timestamp_pcrscr_enable(1);
         	}
-        }*/
+
+        	first_pcr =tsdemux_first_pcrscr_get();	
+    		first_vpts = timestamp_firstvpts_get();
+		diff = abs(first_vpts-first_pcr);	
+		if(diff<tsync_pcr_max_cache_time && first_vpts>first_pcr){		
+			tsync_pcr_usepcr=1;
+			printk("[tsync_pcr] Use the pcr adjust mode. first_vpts =%x first_pcr = %x \n", first_vpts, first_pcr);
+		}
+		else{		
+			tsync_pcr_usepcr=0;
+			printk("[tsync_pcr] Use the video cache time adjust mode. first_vpts =%x first_pcr = %x \n", first_vpts, first_pcr);
+		}
+        	
+        }
         tsync_pcr_vstart_flag=1;
 	 break;
 
@@ -162,6 +182,7 @@ void tsync_pcr_avevent_locked(avevent_t event, u32 param)
 	 tsync_pcr_discontinue_point=0;
 	 tsync_pcr_discontinue_local_point=0;
 	 tsync_pcr_discontinue_waited=0;
+	tsync_pcr_first_video_frame_pts=0;
 
 	 tsync_pcr_tsdemux_startpcr = 0;
 	 tsync_pcr_system_startpcr = 0;
@@ -204,9 +225,10 @@ void tsync_pcr_avevent_locked(avevent_t event, u32 param)
         break;
 
     case AUDIO_START:		
-	 timestamp_apts_set(param);
+	timestamp_apts_set(param);
         timestamp_apts_enable(1);
         timestamp_apts_start(1);
+	tsync_pcr_first_audio_frame_pts=param;
 
         tsync_pcr_astart_flag=1;
         tsync_pcr_apause_flag=0;
@@ -225,6 +247,7 @@ void tsync_pcr_avevent_locked(avevent_t event, u32 param)
         timestamp_apts_start(0);
         tsync_pcr_astart_flag=0;
         tsync_pcr_apause_flag=0;
+        tsync_pcr_first_audio_frame_pts=0;
         printk("audio stop!   \n");
         break;
 
@@ -318,11 +341,14 @@ static unsigned long tsync_pcr_check(void)
 	tsync_pcr_last_tsdemuxpcr=tsdemux_pcr;
     }
 
+#if 0	
     abuf_level= stbuf_level(get_buf_by_type(BUF_TYPE_AUDIO));
     abuf_size= stbuf_size(get_buf_by_type(BUF_TYPE_AUDIO));
     vbuf_level= stbuf_level(get_buf_by_type(BUF_TYPE_VIDEO));
     vbuf_size= stbuf_size(get_buf_by_type(BUF_TYPE_VIDEO));
-    if(tsync_pcr_inited_flag == 0){
+
+    // The inited processing
+    if(tsync_pcr_inited_flag == 0){	
 	// check the video and audio stream buffer, to check to start
 	u32 first_pcr =tsdemux_first_pcrscr_get();	
     	u32 first_vpts = timestamp_firstvpts_get();
@@ -331,13 +357,20 @@ static unsigned long tsync_pcr_check(void)
 	u8 ref_pcr_valid=0;
 
 	if(tsync_pcr_usepcr==1){
-		if(first_pcr != 0){
+		if(first_pcr != 0 && first_vpts != 0){
 			// pcr is valid, use 
-			ref_pcr = first_pcr - tsync_pcr_ref_latency;
-			ref_pcr_valid=1;
-			printk("[tsync_pcr_check]Inited use pcr mode.ref_pcr=%x first_pcr=%x first_vpts=%x first_apts=%x \n",ref_pcr,first_pcr,first_vpts,first_apts);
+			u32 diff = abs(first_vpts-first_pcr);
+			if(diff<270000 && first_vpts>first_pcr){
+				ref_pcr = tsdemux_pcr - tsync_pcr_ref_latency;
+				ref_pcr_valid=1;
+				printk("[tsync_pcr_check]Inited use pcr mode.ref_pcr=%x tsdemux_pcr=%x first_pcr=%x first_vpts=%x first_apts=%x \n",ref_pcr,tsdemux_pcr,first_pcr,first_vpts,first_apts);
+			}
+			else{
+				tsync_pcr_usepcr = 0;
+				printk("[tsync_pcr_check]unvalid pcr use other mode.first_pcr=%x first_vpts=%x first_apts=%x \n",first_pcr,first_vpts,first_apts);
+			}
 		}else{
-			if(first_vpts!=0||first_apts!=0){
+			if(first_vpts!=0 && first_pcr == 0){
 				tsync_pcr_usepcr=0;
 				printk("[tsync_pcr_check]can't read valid pcr, use other mode. read_cnt=%d \n",tsync_pcr_read_cnt);
 			}
@@ -349,7 +382,7 @@ static unsigned long tsync_pcr_check(void)
 		if(tsync_pcr_astart_flag==1&&tsync_pcr_vstart_flag==1&&first_vpts!=0&&first_apts!=0&&vbuf_level>=START_VIDEO_LEVEL){
 			if(first_vpts <= first_apts){
 				//play_mode=PLAY_MODE_FORCE_SLOW;
-				ref_pcr = first_vpts;
+				ref_pcr = first_vpts - tsync_pcr_ref_latency;
 				printk("[tsync_pcr_check]Inited use video pts and slow play.ref_pcr=%x first_pcr=%x first_vpts=%x first_apts=%x \n",ref_pcr,first_pcr,first_vpts,first_apts);				
 			}
 			else{
@@ -390,7 +423,7 @@ static unsigned long tsync_pcr_check(void)
 	}else{
 		return res;
 	}
-    }    
+    }
 
     if(tsync_pcr_usepcr==0){
     	if(!tsync_pcr_vpause_flag){
@@ -409,6 +442,16 @@ static unsigned long tsync_pcr_check(void)
 		play_mode=PLAY_MODE_FORCE_SLOW;
     	}
     }
+#else
+     if(tsync_pcr_inited_flag == 0){
+	return res;
+     }
+
+    abuf_level= stbuf_level(get_buf_by_type(BUF_TYPE_AUDIO));
+    abuf_size= stbuf_size(get_buf_by_type(BUF_TYPE_AUDIO));
+    vbuf_level= stbuf_level(get_buf_by_type(BUF_TYPE_VIDEO));
+    vbuf_size= stbuf_size(get_buf_by_type(BUF_TYPE_VIDEO));
+#endif
 
     if((vbuf_level * 5 > vbuf_size * 4 || abuf_level * 5 > abuf_size * 4) && play_mode != PLAY_MODE_FORCE_SPEED){
 	// the video stream buffer will happen overflow
@@ -419,7 +462,6 @@ static unsigned long tsync_pcr_check(void)
     	printk("[tsync_pcr_check]Buffer will overflow and speed play. new_pcr=%x vlevel=%x vsize=%x alevel=%x asize=%x play_mode=%d\n",
     		new_pcr,vbuf_level,vbuf_size,abuf_level,abuf_size, play_mode);
     }
- 
     
     if(play_mode == PLAY_MODE_FORCE_SLOW){
     	/*if((vbuf_level * 50 > vbuf_size && abuf_level * 50 > abuf_size)||			
@@ -456,7 +498,7 @@ static unsigned long tsync_pcr_check(void)
     if((play_mode != PLAY_MODE_FORCE_SLOW) && (play_mode != PLAY_MODE_FORCE_SPEED) && (tsync_pcr_usepcr==1)){
 	// use the pcr to adjust
 	//u32 ref_pcr=tsdemux_pcr-calculation_vcached_delayed();
-	int64_t ref_pcr=(int64_t)tsdemux_pcr- (int64_t)tsync_pcr_ref_latency;
+	int64_t ref_pcr=(int64_t)tsdemux_pcr;//(int64_t)tsdemux_pcr- (int64_t)tsync_pcr_ref_latency;
 	int64_t cur_pcr=(int64_t)timestamp_pcrscr_get();
 	int64_t diff=abs(ref_pcr - cur_pcr);
 	
