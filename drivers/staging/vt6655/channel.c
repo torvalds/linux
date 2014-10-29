@@ -665,16 +665,6 @@ bool set_channel(void *pDeviceHandler, unsigned int uConnectionChannel)
 	if (pDevice->byCurrentCh == uConnectionChannel)
 		return bResult;
 
-	if (!sChannelTbl[uConnectionChannel].bValid)
-		return false;
-
-	if ((uConnectionChannel > CB_MAX_CHANNEL_24G) &&
-	    (pDevice->eCurrentPHYType != PHY_TYPE_11A)) {
-		CARDbSetPhyParameter(pDevice, PHY_TYPE_11A, 0, 0, NULL, NULL);
-	} else if ((uConnectionChannel <= CB_MAX_CHANNEL_24G) &&
-		   (pDevice->eCurrentPHYType == PHY_TYPE_11A)) {
-		CARDbSetPhyParameter(pDevice, PHY_TYPE_11G, 0, 0, NULL, NULL);
-	}
 	/* clear NAV */
 	MACvRegBitsOn(pDevice->PortOffset, MAC_REG_MACCR, MACCR_CLRNAV);
 
@@ -702,7 +692,7 @@ bool set_channel(void *pDeviceHandler, unsigned int uConnectionChannel)
 		MACvSelectPage0(pDevice->PortOffset);
 	}
 
-	if (pDevice->eCurrentPHYType == PHY_TYPE_11B)
+	if (pDevice->byBBType == BB_TYPE_11B)
 		RFbSetPower(pDevice, RATE_1M, pDevice->byCurrentCh);
 	else
 		RFbSetPower(pDevice, RATE_6M, pDevice->byCurrentCh);
