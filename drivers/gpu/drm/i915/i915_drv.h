@@ -284,7 +284,6 @@ void intel_link_compute_m_n(int bpp, int nlanes,
 #define DRIVER_PATCHLEVEL	0
 
 #define WATCH_LISTS	0
-#define WATCH_GTT	0
 
 struct opregion_header;
 struct opregion_acpi;
