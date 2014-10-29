@@ -154,6 +154,13 @@ static bool mcasp_is_synchronous(struct davinci_mcasp *mcasp)
 
 static void mcasp_start_rx(struct davinci_mcasp *mcasp)
 {
+	if (mcasp->rxnumevt) {	/* enable FIFO */
+		u32 reg = mcasp->fifo_base + MCASP_RFIFOCTL_OFFSET;
+
+		mcasp_clr_bits(mcasp, reg, FIFO_ENABLE);
+		mcasp_set_bits(mcasp, reg, FIFO_ENABLE);
+	}
+
 	/* Start clocks */
 	mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLR_REG, RXHCLKRST);
 	mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLR_REG, RXCLKRST);
@@ -181,6 +188,13 @@ static void mcasp_start_tx(struct davinci_mcasp *mcasp)
 {
 	u32 cnt;
 
+	if (mcasp->txnumevt) {	/* enable FIFO */
+		u32 reg = mcasp->fifo_base + MCASP_WFIFOCTL_OFFSET;
+
+		mcasp_clr_bits(mcasp, reg, FIFO_ENABLE);
+		mcasp_set_bits(mcasp, reg, FIFO_ENABLE);
+	}
+
 	/* Start clocks */
 	mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLX_REG, TXHCLKRST);
 	mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLX_REG, TXCLKRST);
@@ -201,25 +215,12 @@ static void mcasp_start_tx(struct davinci_mcasp *mcasp)
 
 static void davinci_mcasp_start(struct davinci_mcasp *mcasp, int stream)
 {
-	u32 reg;
-
 	mcasp->streams++;
 
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (mcasp->txnumevt) {	/* enable FIFO */
-			reg = mcasp->fifo_base + MCASP_WFIFOCTL_OFFSET;
-			mcasp_clr_bits(mcasp, reg, FIFO_ENABLE);
-			mcasp_set_bits(mcasp, reg, FIFO_ENABLE);
-		}
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
 		mcasp_start_tx(mcasp);
-	} else {
-		if (mcasp->rxnumevt) {	/* enable FIFO */
-			reg = mcasp->fifo_base + MCASP_RFIFOCTL_OFFSET;
-			mcasp_clr_bits(mcasp, reg, FIFO_ENABLE);
-			mcasp_set_bits(mcasp, reg, FIFO_ENABLE);
-		}
+	else
 		mcasp_start_rx(mcasp);
-	}
 }
 
 static void mcasp_stop_rx(struct davinci_mcasp *mcasp)
