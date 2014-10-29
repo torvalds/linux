@@ -28,7 +28,21 @@
 struct input_dev;
 
 /**
- * enum snd_jack_types: Jack types which can be reported
+ * enum snd_jack_types - Jack types which can be reported
+ * @SND_JACK_HEADPHONE: Headphone
+ * @SND_JACK_MICROPHONE: Microphone
+ * @SND_JACK_HEADSET: Headset
+ * @SND_JACK_LINEOUT: Line out
+ * @SND_JACK_MECHANICAL: Mechanical switch
+ * @SND_JACK_VIDEOOUT: Video out
+ * @SND_JACK_AVOUT: AV (Audio Video) out
+ * @SND_JACK_LINEIN:  Line in
+ * @SND_JACK_BTN_0: Button 0
+ * @SND_JACK_BTN_1: Button 1
+ * @SND_JACK_BTN_2: Button 2
+ * @SND_JACK_BTN_3: Button 3
+ * @SND_JACK_BTN_4: Button 4
+ * @SND_JACK_BTN_5: Button 5
  *
  * These values are used as a bitmask.
  *
