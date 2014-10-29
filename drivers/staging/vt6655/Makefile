@@ -14,14 +14,11 @@ vt6655_stage-y +=	device_main.o \
 	power.o \
 	srom.o \
 	mib.o \
-	rc4.o \
 	tether.o \
 	tcrc.o \
 	key.o \
-	tkip.o \
 	michael.o \
 	rf.o \
-	aes_ccmp.o \
 	vntwifi.o
 
 obj-$(CONFIG_VT6655) +=	vt6655_stage.o
