@@ -595,11 +595,14 @@ static void das16_timer_interrupt(unsigned long arg)
 {
 	struct comedi_device *dev = (struct comedi_device *)arg;
 	struct das16_private_struct *devpriv = dev->private;
+	unsigned long flags;
 
 	das16_interrupt(dev);
 
+	spin_lock_irqsave(&dev->spinlock, flags);
 	if (devpriv->timer_running)
 		mod_timer(&devpriv->timer, jiffies + timer_period());
+	spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
 static int das16_ai_check_chanlist(struct comedi_device *dev,
@@ -816,7 +819,8 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 	enable_dma(devpriv->dma_chan);
 	release_dma_lock(flags);
 
-	/*  set up interrupt */
+	/*  set up timer */
+	spin_lock_irqsave(&dev->spinlock, flags);
 	devpriv->timer_running = 1;
 	devpriv->timer.expires = jiffies + timer_period();
 	add_timer(&devpriv->timer);
@@ -825,6 +829,7 @@ static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (devpriv->can_burst)
 		outb(0, dev->iobase + DAS1600_CONV_REG);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	return 0;
 }
