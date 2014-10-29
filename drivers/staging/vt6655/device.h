@@ -147,16 +147,6 @@
 
 #define	NUM				64
 
-#define PRIVATE_Message                 0
-
-/*---------------------  Export Types  ------------------------------*/
-
-#define PRINT_K(p, args...)		\
-do {					\
-	if (PRIVATE_Message)		\
-		printk(p, ##args);	\
-} while (0)
-
 /* 0:11A 1:11B 2:11G */
 typedef enum _VIA_BB_TYPE
 {
@@ -174,57 +164,6 @@ typedef enum _VIA_PKT_TYPE
 	PK_TYPE_11GA
 } VIA_PKT_TYPE, *PVIA_PKT_TYPE;
 
-typedef enum __device_msg_level {
-	MSG_LEVEL_ERR = 0,	/* Errors that will cause abnormal operation. */
-	MSG_LEVEL_NOTICE = 1,	/* Some errors need users to be notified. */
-	MSG_LEVEL_INFO = 2,	/* Normal message. */
-	MSG_LEVEL_VERBOSE = 3,	/* Will report all trival errors. */
-	MSG_LEVEL_DEBUG = 4	/* Only for debug purpose. */
-} DEVICE_MSG_LEVEL, *PDEVICE_MSG_LEVEL;
-
-/* NDIS related */
-#define MAX_BSSIDINFO_4_PMKID   16
-#define MAX_PMKIDLIST           5
-/* Flags for PMKID Candidate list structure */
-#define NDIS_802_11_PMKID_CANDIDATE_PREAUTH_ENABLED	0x01
-
-/* PMKID Structures */
-typedef unsigned char NDIS_802_11_PMKID_VALUE[16];
-
-typedef enum _NDIS_802_11_WEP_STATUS {
-	Ndis802_11WEPEnabled,
-	Ndis802_11Encryption1Enabled = Ndis802_11WEPEnabled,
-	Ndis802_11WEPDisabled,
-	Ndis802_11EncryptionDisabled = Ndis802_11WEPDisabled,
-	Ndis802_11WEPKeyAbsent,
-	Ndis802_11Encryption1KeyAbsent = Ndis802_11WEPKeyAbsent,
-	Ndis802_11WEPNotSupported,
-	Ndis802_11EncryptionNotSupported = Ndis802_11WEPNotSupported,
-	Ndis802_11Encryption2Enabled,
-	Ndis802_11Encryption2KeyAbsent,
-	Ndis802_11Encryption3Enabled,
-	Ndis802_11Encryption3KeyAbsent
-} NDIS_802_11_WEP_STATUS, *PNDIS_802_11_WEP_STATUS,
-	NDIS_802_11_ENCRYPTION_STATUS, *PNDIS_802_11_ENCRYPTION_STATUS;
-
-typedef enum _NDIS_802_11_STATUS_TYPE {
-	Ndis802_11StatusType_Authentication,
-	Ndis802_11StatusType_MediaStreamMode,
-	Ndis802_11StatusType_PMKID_CandidateList,
-	Ndis802_11StatusTypeMax    /* defined as an upper bound */
-} NDIS_802_11_STATUS_TYPE, *PNDIS_802_11_STATUS_TYPE;
-
-
-/* 802.11h related */
-#define MAX_QUIET_COUNT     8
-
-typedef struct tagSQuietControl {
-	bool bEnable;
-	unsigned long dwStartTime;
-	unsigned char byPeriod;
-	unsigned short wDuration;
-} SQuietControl, *PSQuietControl;
-
 typedef struct __chip_info_tbl {
 	CHIP_TYPE   chip_id;
 	char *name;
@@ -237,20 +176,6 @@ typedef enum {
 	OWNED_BY_HOST = 0,
 	OWNED_BY_NIC = 1
 } DEVICE_OWNER_TYPE, *PDEVICE_OWNER_TYPE;
-
-/* The receive duplicate detection cache entry */
-typedef struct tagSCacheEntry {
-	unsigned short wFmSequence;
-	unsigned char abyAddr2[ETH_ALEN];
-} SCacheEntry, *PSCacheEntry;
-
-typedef struct tagSCache {
-/* The receive cache is updated circularly. The next entry to be written is
- * indexed by the "InPtr".
- */
-	unsigned int uInPtr;         /* Place to use next */
-	SCacheEntry     asCacheEntry[DUPLICATE_RX_CACHE_LENGTH];
-} SCache, *PSCache;
 
 #define CB_MAX_RX_FRAG                 64
 /* DeFragment Control Block, used for collecting fragments prior to reassembly */
@@ -361,7 +286,6 @@ struct vnt_private {
 	volatile PSRxDesc           aRD0Ring;
 	volatile PSRxDesc           aRD1Ring;
 	volatile PSRxDesc           pCurrRD[TYPE_MAXRD];
-	SCache                      sDupRxCache;
 
 	SDeFragControlBlock         sRxDFCB[CB_MAX_RX_FRAG];
 	unsigned int	cbDFCB;
