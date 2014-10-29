@@ -2786,9 +2786,11 @@ TimerSQ3CallBack(
 )
 {
 	struct vnt_private *pDevice = hDeviceContext;
+	unsigned long flags;
 
 	pr_debug("TimerSQ3CallBack...\n");
-	spin_lock_irq(&pDevice->lock);
+
+	spin_lock_irqsave(&pDevice->lock, flags);
 
 	pr_debug("3.[%08x][%08x], %d\n",
 		 (int)pDevice->ulRatio_State0, (int)pDevice->ulRatio_State1,
@@ -2803,7 +2805,7 @@ TimerSQ3CallBack(
 	add_timer(&pDevice->TimerSQ3Tmax3);
 	add_timer(&pDevice->TimerSQ3Tmax2);
 
-	spin_unlock_irq(&pDevice->lock);
+	spin_unlock_irqrestore(&pDevice->lock, flags);
 }
 
 /*+
@@ -2830,10 +2832,12 @@ TimerState1CallBack(
 )
 {
 	struct vnt_private *pDevice = hDeviceContext;
+	unsigned long flags;
 
 	pr_debug("TimerState1CallBack...\n");
 
-	spin_lock_irq(&pDevice->lock);
+	spin_lock_irqsave(&pDevice->lock, flags);
+
 	if (pDevice->uDiversityCnt < pDevice->ulDiversityMValue/100) {
 		s_vChangeAntenna(pDevice);
 		pDevice->TimerSQ3Tmax3.expires =  RUN_AT(pDevice->byTMax3 * HZ);
@@ -2864,5 +2868,6 @@ TimerState1CallBack(
 	}
 	pDevice->byAntennaState = 0;
 	BBvClearAntDivSQ3Value(pDevice);
-	spin_unlock_irq(&pDevice->lock);
+
+	spin_unlock_irqrestore(&pDevice->lock, flags);
 }
