@@ -2980,6 +2980,11 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 
 			CARDvSetFirstNextTBTT(priv->PortOffset,
 					      conf->beacon_int);
+		} else {
+			VNSvOutPortB(priv->PortOffset + MAC_REG_TFTCTL,
+				     TFTCTL_TSFCNTRST);
+			VNSvOutPortB(priv->PortOffset + MAC_REG_TFTCTL,
+				     TFTCTL_TSFCNTREN);
 		}
 	}
 }
