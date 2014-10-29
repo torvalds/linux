@@ -818,7 +818,15 @@ static int iommu_bus_init(struct bus_type *bus, const struct iommu_ops *ops)
 		kfree(nb);
 		return err;
 	}
-	return bus_for_each_dev(bus, NULL, &cb, add_iommu_group);
+
+	err = bus_for_each_dev(bus, NULL, &cb, add_iommu_group);
+	if (err) {
+		bus_unregister_notifier(bus, nb);
+		kfree(nb);
+		return err;
+	}
+
+	return 0;
 }
 
 /**
@@ -836,13 +844,19 @@ static int iommu_bus_init(struct bus_type *bus, const struct iommu_ops *ops)
  */
 int bus_set_iommu(struct bus_type *bus, const struct iommu_ops *ops)
 {
+	int err;
+
 	if (bus->iommu_ops != NULL)
 		return -EBUSY;
 
 	bus->iommu_ops = ops;
 
 	/* Do IOMMU specific setup for this bus-type */
-	return iommu_bus_init(bus, ops);
+	err = iommu_bus_init(bus, ops);
+	if (err)
+		bus->iommu_ops = NULL;
+
+	return err;
 }
 EXPORT_SYMBOL_GPL(bus_set_iommu);
 
