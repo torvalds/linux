@@ -240,7 +240,7 @@ ieee802154_monitors_rx(struct ieee802154_local *local, struct sk_buff *skb)
 		skb2 = skb_clone(skb, GFP_ATOMIC);
 		skb2->dev = sdata->dev;
 
-		netif_rx_ni(skb2);
+		ieee802154_deliver_skb(skb2);
 	}
 }
 
