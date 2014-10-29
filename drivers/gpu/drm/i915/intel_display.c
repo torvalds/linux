@@ -408,7 +408,7 @@ static void vlv_clock(int refclk, intel_clock_t *clock)
 /**
  * Returns whether any output on the specified pipe is of the specified type
  */
-bool intel_pipe_has_type(struct intel_crtc *crtc, int type)
+bool intel_pipe_has_type(struct intel_crtc *crtc, enum intel_output_type type)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct intel_encoder *encoder;
