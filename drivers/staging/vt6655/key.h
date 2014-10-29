@@ -33,7 +33,6 @@
 #include <net/mac80211.h>
 
 #include "ttype.h"
-#include "tether.h"
 #include "80211mgr.h"
 
 /*---------------------  Export Definitions -------------------------*/

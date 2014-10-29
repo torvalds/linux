@@ -31,7 +31,6 @@
 #define __BASEBAND_H__
 
 #include "ttype.h"
-#include "tether.h"
 #include "device.h"
 
 /*

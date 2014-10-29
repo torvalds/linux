@@ -69,7 +69,6 @@
  */
 
 #include "tmacro.h"
-#include "tether.h"
 #include "mac.h"
 
 unsigned short TxRate_iwconfig;//2008-5-8 <add> by chester

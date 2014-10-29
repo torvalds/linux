@@ -35,7 +35,6 @@
 #include <linux/mm.h>
 #include "linux/ieee80211.h"
 #include "ttype.h"
-#include "tether.h"
 
 #define B_OWNED_BY_CHIP     1
 #define B_OWNED_BY_HOST     0

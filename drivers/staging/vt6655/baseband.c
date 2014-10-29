@@ -50,7 +50,6 @@
  */
 
 #include "tmacro.h"
-#include "tether.h"
 #include "mac.h"
 #include "baseband.h"
 #include "srom.h"

@@ -50,7 +50,6 @@
 
 #include "device.h"
 #include "rxtx.h"
-#include "tether.h"
 #include "card.h"
 #include "mac.h"
 #include "baseband.h"

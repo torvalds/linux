@@ -69,7 +69,6 @@
 #include "device_cfg.h"
 #include "ttype.h"
 #include "80211hdr.h"
-#include "tether.h"
 #include "wmgr.h"
 #include "mib.h"
 #include "srom.h"
@@ -633,8 +632,6 @@ struct vnt_private {
 	unsigned long uNumSQ3[MAX_RATE];
 	unsigned short wAntDiversityMaxRate;
 
-	SEthernetHeader         sTxEthHeader;
-	SEthernetHeader         sRxEthHeader;
 	unsigned char abyBroadcastAddr[ETH_ALEN];
 	unsigned char abySNAP_RFC1042[ETH_ALEN];
 	unsigned char abySNAP_Bridgetunnel[ETH_ALEN];

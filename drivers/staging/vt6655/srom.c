@@ -44,7 +44,6 @@
 
 #include "upc.h"
 #include "tmacro.h"
-#include "tether.h"
 #include "mac.h"
 #include "srom.h"
 

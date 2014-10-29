@@ -30,7 +30,6 @@
 #define __MIB_H__
 
 #include "ttype.h"
-#include "tether.h"
 #include "desc.h"
 
 //
