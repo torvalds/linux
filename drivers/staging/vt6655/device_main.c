@@ -406,6 +406,7 @@ device_set_options(struct vnt_private *pDevice)
 
 static void device_init_registers(struct vnt_private *pDevice)
 {
+	unsigned long flags;
 	unsigned int ii;
 	unsigned char byValue;
 	unsigned char byValue1;
@@ -439,11 +440,11 @@ static void device_init_registers(struct vnt_private *pDevice)
 	/* Get Local ID */
 	VNSvInPortB(pDevice->PortOffset + MAC_REG_LOCALID, &pDevice->byLocalID);
 
-	spin_lock_irq(&pDevice->lock);
+	spin_lock_irqsave(&pDevice->lock, flags);
 
 	SROMvReadAllContents(pDevice->PortOffset, pDevice->abyEEPROM);
 
-	spin_unlock_irq(&pDevice->lock);
+	spin_unlock_irqrestore(&pDevice->lock, flags);
 
 	/* Get Channel range */
 	pDevice->byMinChannel = 1;
