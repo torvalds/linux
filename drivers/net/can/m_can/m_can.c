@@ -296,6 +296,7 @@ static inline void m_can_config_endisable(const struct m_can_priv *priv,
 	if (enable) {
 		/* enable m_can configuration */
 		m_can_write(priv, M_CAN_CCCR, cccr | CCCR_INIT);
+		udelay(5);
 		/* CCCR.CCE can only be set/reset while CCCR.INIT = '1' */
 		m_can_write(priv, M_CAN_CCCR, cccr | CCCR_INIT | CCCR_CCE);
 	} else {
