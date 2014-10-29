@@ -10882,13 +10882,6 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 		crtc->primary->fb = fb;
 		crtc->x = x;
 		crtc->y = y;
-
-		if (dev_priv->display.crtc_mode_set) {
-			ret = dev_priv->display.crtc_mode_set(intel_crtc,
-							      x, y, fb);
-			if (ret)
-				goto done;
-		}
 	}
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
