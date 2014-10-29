@@ -1312,7 +1312,7 @@ int intel_ddi_get_cdclk_freq(struct drm_i915_private *dev_priv)
 static void hsw_ddi_pll_enable(struct drm_i915_private *dev_priv,
 			       struct intel_shared_dpll *pll)
 {
-	I915_WRITE(WRPLL_CTL(pll->id), pll->hw_state.wrpll);
+	I915_WRITE(WRPLL_CTL(pll->id), pll->config.hw_state.wrpll);
 	POSTING_READ(WRPLL_CTL(pll->id));
 	udelay(20);
 }
