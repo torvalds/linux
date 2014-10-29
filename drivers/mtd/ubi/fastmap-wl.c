@@ -21,6 +21,7 @@
 static void update_fastmap_work_fn(struct work_struct *wrk)
 {
 	struct ubi_device *ubi = container_of(wrk, struct ubi_device, fm_work);
+
 	ubi_update_fastmap(ubi);
 	spin_lock(&ubi->wl_lock);
 	ubi->fm_work_scheduled = 0;
