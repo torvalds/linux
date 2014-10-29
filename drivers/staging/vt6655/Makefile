@@ -17,7 +17,6 @@ vt6655_stage-y +=	device_main.o \
 	tether.o \
 	tcrc.o \
 	key.o \
-	rf.o \
-	vntwifi.o
+	rf.o
 
 obj-$(CONFIG_VT6655) +=	vt6655_stage.o
