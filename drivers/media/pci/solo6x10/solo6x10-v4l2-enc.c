@@ -770,12 +770,8 @@ static void solo_ring_stop(struct solo_dev *solo_dev)
 static int solo_enc_start_streaming(struct vb2_queue *q, unsigned int count)
 {
 	struct solo_enc_dev *solo_enc = vb2_get_drv_priv(q);
-	int ret;
 
-	ret = solo_enc_on(solo_enc);
-	if (ret)
-		return ret;
-	return solo_ring_start(solo_enc->solo_dev);
+	return solo_enc_on(solo_enc);
 }
 
 static void solo_enc_stop_streaming(struct vb2_queue *q)
@@ -794,7 +790,6 @@ static void solo_enc_stop_streaming(struct vb2_queue *q)
 		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
 	}
 	spin_unlock_irqrestore(&solo_enc->av_lock, flags);
-	solo_ring_stop(solo_enc->solo_dev);
 }
 
 static struct vb2_ops solo_enc_video_qops = {
@@ -1432,12 +1427,14 @@ int solo_enc_v4l2_init(struct solo_dev *solo_dev, unsigned nr)
 		 solo_dev->v4l2_enc[0]->vfd->num,
 		 solo_dev->v4l2_enc[solo_dev->nr_chans - 1]->vfd->num);
 
-	return 0;
+	return solo_ring_start(solo_dev);
 }
 
 void solo_enc_v4l2_exit(struct solo_dev *solo_dev)
 {
 	int i;
+
+	solo_ring_stop(solo_dev);
 
 	for (i = 0; i < solo_dev->nr_chans; i++)
 		solo_enc_free(solo_dev->v4l2_enc[i]);
