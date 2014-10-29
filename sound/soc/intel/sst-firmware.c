@@ -169,7 +169,7 @@ err:
 	return ret;
 }
 
-struct dw_dma_platform_data dw_pdata = {
+static struct dw_dma_platform_data dw_pdata = {
 	.is_private = 1,
 	.chan_allocation_order = CHAN_ALLOCATION_ASCENDING,
 	.chan_priority = CHAN_PRIORITY_ASCENDING,
