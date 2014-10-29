@@ -55,7 +55,6 @@
 #include "bssdb.h"
 #include "mac.h"
 #include "baseband.h"
-#include "tcrc.h"
 #include "wctl.h"
 #include "rf.h"
 

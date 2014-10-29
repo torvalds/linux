@@ -14,7 +14,6 @@ vt6655_stage-y +=	device_main.o \
 	power.o \
 	srom.o \
 	mib.o \
-	tcrc.o \
 	key.o \
 	rf.o
 
