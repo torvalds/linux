@@ -2025,19 +2025,13 @@ s_vMgrRxBeacon(
 				pMgmt->bInTIMWake = true;
 				// send out ps-poll packet
 
-				if (pMgmt->bInTIM)
-					PSvSendPSPOLL(pDevice);
 
 			} else {
 				pMgmt->bInTIMWake = false;
 				pr_debug("BCN: Not In TIM..\n");
 				if (!pDevice->bPWBitOn) {
 					pr_debug("BCN: Send Null Packet\n");
-					if (PSbSendNullPacket(pDevice))
-						pDevice->bPWBitOn = true;
 				}
-				if (PSbConsiderPowerDown(pDevice, false, false))
-					pr_debug("BCN: Power down now...\n");
 			}
 
 		}

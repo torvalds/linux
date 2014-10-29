@@ -646,7 +646,6 @@ vCommandTimer(
 			bClearBSSID_SCAN(pDevice);
 			if (pDevice->byFOETuning) {
 				BBvSetFOE(pDevice->PortOffset);
-				PSbSendNullPacket(pDevice);
 			}
 			if (netif_queue_stopped(pDevice->dev))
 				netif_wake_queue(pDevice->dev);
@@ -1009,7 +1008,6 @@ BSSvSecondTxData(
 	if ((pDevice->bLinkPass && (pMgmt->eAuthenMode < WMAC_AUTH_WPA)) ||
 	    pDevice->fWPA_Authened) {   /* wpa linking */
 		pDevice->fTxDataInSleep = true;
-		PSbSendNullPacket(pDevice);	/* send null packet */
 		pDevice->fTxDataInSleep = false;
 	}
 

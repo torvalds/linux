@@ -33,13 +33,6 @@
 #define     PS_FAST_INTERVAL         1         // Fast power saving listen interval
 #define     PS_MAX_INTERVAL          4         // MAX power saving listen interval
 
-bool
-PSbConsiderPowerDown(
-	void *hDeviceContext,
-	bool bCheckRxDMA,
-	bool bCheckCountToWakeUp
-);
-
 void
 PSvDisablePowerSaving(
 	void *hDeviceContext
@@ -51,15 +44,6 @@ PSvEnablePowerSaving(
 	unsigned short wListenInterval
 );
 
-void
-PSvSendPSPOLL(
-	void *hDeviceContext
-);
-
-bool
-PSbSendNullPacket(
-	void *hDeviceContext
-);
 
 bool
 PSbIsNextTBTTWakeUp(
