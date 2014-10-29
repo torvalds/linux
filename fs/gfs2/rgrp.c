@@ -2251,6 +2251,9 @@ static void gfs2_adjust_reservation(struct gfs2_inode *ip,
 			trace_gfs2_rs(rs, TRACE_RS_CLAIM);
 			if (rs->rs_free && !ret)
 				goto out;
+			/* We used up our block reservation, so we should
+			   reserve more blocks next time. */
+			atomic_add(RGRP_RSRV_ADDBLKS, &rs->rs_sizehint);
 		}
 		__rs_deltree(rs);
 	}

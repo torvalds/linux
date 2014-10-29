@@ -20,6 +20,7 @@
  */
 #define RGRP_RSRV_MINBYTES 8
 #define RGRP_RSRV_MINBLKS ((u32)(RGRP_RSRV_MINBYTES * GFS2_NBBY))
+#define RGRP_RSRV_ADDBLKS 64
 
 struct gfs2_rgrpd;
 struct gfs2_sbd;
