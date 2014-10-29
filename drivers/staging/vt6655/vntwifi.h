@@ -35,20 +35,6 @@
 #include "card.h"
 
 /*---------------------  Export Definitions -------------------------*/
-#define RATE_1M         0
-#define RATE_2M         1
-#define RATE_5M         2
-#define RATE_11M        3
-#define RATE_6M         4
-#define RATE_9M         5
-#define RATE_12M        6
-#define RATE_18M        7
-#define RATE_24M        8
-#define RATE_36M        9
-#define RATE_48M       10
-#define RATE_54M       11
-#define RATE_AUTO      12
-#define MAX_RATE       12
 
 // key CipherSuite
 #define KEY_CTL_WEP         0x00
