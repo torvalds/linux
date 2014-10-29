@@ -1,52 +1,38 @@
 /*
+ * Copyright (c) 2012-2014 Andy Lutomirski <luto@amacapital.net>
+ *
+ * Based on the original implementation which is:
  *  Copyright (C) 2001 Andrea Arcangeli <andrea@suse.de> SuSE
  *  Copyright 2003 Andi Kleen, SuSE Labs.
  *
- *  [ NOTE: this mechanism is now deprecated in favor of the vDSO. ]
+ *  Parts of the original code have been moved to arch/x86/vdso/vma.c
  *
- *  Thanks to hpa@transmeta.com for some useful hint.
- *  Special thanks to Ingo Molnar for his early experience with
- *  a different vsyscall implementation for Linux/IA32 and for the name.
+ * This file implements vsyscall emulation.  vsyscalls are a legacy ABI:
+ * Userspace can request certain kernel services by calling fixed
+ * addresses.  This concept is problematic:
  *
- *  vsyscall 1 is located at -10Mbyte, vsyscall 2 is located
- *  at virtual address -10Mbyte+1024bytes etc... There are at max 4
- *  vsyscalls. One vsyscall can reserve more than 1 slot to avoid
- *  jumping out of line if necessary. We cannot add more with this
- *  mechanism because older kernels won't return -ENOSYS.
+ * - It interferes with ASLR.
+ * - It's awkward to write code that lives in kernel addresses but is
+ *   callable by userspace at fixed addresses.
+ * - The whole concept is impossible for 32-bit compat userspace.
+ * - UML cannot easily virtualize a vsyscall.
  *
- *  Note: the concept clashes with user mode linux.  UML users should
- *  use the vDSO.
+ * As of mid-2014, I believe that there is no new userspace code that
+ * will use a vsyscall if the vDSO is present.  I hope that there will
+ * soon be no new userspace code that will ever use a vsyscall.
+ *
+ * The code in this file emulates vsyscalls when notified of a page
+ * fault to a vsyscall address.
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
-#include <linux/time.h>
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/timer.h>
-#include <linux/seqlock.h>
-#include <linux/jiffies.h>
-#include <linux/sysctl.h>
-#include <linux/topology.h>
-#include <linux/timekeeper_internal.h>
-#include <linux/getcpu.h>
-#include <linux/cpu.h>
-#include <linux/smp.h>
-#include <linux/notifier.h>
 #include <linux/syscalls.h>
 #include <linux/ratelimit.h>
 
 #include <asm/vsyscall.h>
-#include <asm/pgtable.h>
-#include <asm/compat.h>
-#include <asm/page.h>
 #include <asm/unistd.h>
 #include <asm/fixmap.h>
-#include <asm/errno.h>
-#include <asm/io.h>
-#include <asm/segment.h>
-#include <asm/desc.h>
-#include <asm/topology.h>
 #include <asm/traps.h>
 
 #define CREATE_TRACE_POINTS
