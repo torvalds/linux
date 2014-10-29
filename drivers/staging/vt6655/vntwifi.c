@@ -488,8 +488,6 @@ VNTWIFIvUpdateNodeTxCounter(
 
 	if ((pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) ||
 	    (pMgmt->eCurrMode == WMAC_MODE_ESS_AP)) {
-		if (BSSDBbIsSTAInNodeDB(pMgmt, pbyDestAddress, &uNodeIndex) == false)
-			return;
 	}
 
 	pMgmt->sNodeDBTable[uNodeIndex].uTxAttempts++;
@@ -516,7 +514,6 @@ VNTWIFIvGetTxRate(
 )
 {
 	PSMgmtObject        pMgmt = (PSMgmtObject)pMgmtHandle;
-	unsigned int uNodeIndex = 0;
 	unsigned short wTxDataRate = RATE_1M;
 	unsigned char byACKRate = RATE_1M;
 	unsigned char byCCKBasicRate = RATE_1M;
@@ -527,19 +524,6 @@ VNTWIFIvGetTxRate(
 	if ((pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) ||
 	    (pMgmt->eCurrMode == WMAC_MODE_ESS_AP)) {
 		/* Adhoc Tx rate decided from node DB */
-		if (BSSDBbIsSTAInNodeDB(pMgmt, pbyDestAddress, &uNodeIndex)) {
-			wTxDataRate = (pMgmt->sNodeDBTable[uNodeIndex].wTxDataRate);
-			pSupportRateIEs = (PWLAN_IE_SUPP_RATES) (pMgmt->sNodeDBTable[uNodeIndex].abyCurrSuppRates);
-			pExtSupportRateIEs = (PWLAN_IE_SUPP_RATES) (pMgmt->sNodeDBTable[uNodeIndex].abyCurrExtSuppRates);
-		} else {
-			if (pMgmt->eCurrentPHYMode != PHY_TYPE_11A)
-				wTxDataRate = RATE_2M;
-			else
-				wTxDataRate = RATE_24M;
-
-			pSupportRateIEs = (PWLAN_IE_SUPP_RATES) pMgmt->abyCurrSuppRates;
-			pExtSupportRateIEs = (PWLAN_IE_SUPP_RATES) pMgmt->abyCurrExtSuppRates;
-		}
 	} else { /* Infrastructure: rate decided from AP Node, index = 0 */
 
 		wTxDataRate = (pMgmt->sNodeDBTable[0].wTxDataRate);
