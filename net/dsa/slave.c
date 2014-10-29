@@ -271,6 +271,44 @@ static u32 dsa_slave_get_link(struct net_device *dev)
 	return -EOPNOTSUPP;
 }
 
+static int dsa_slave_get_eeprom_len(struct net_device *dev)
+{
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_switch *ds = p->parent;
+
+	if (ds->pd->eeprom_len)
+		return ds->pd->eeprom_len;
+
+	if (ds->drv->get_eeprom_len)
+		return ds->drv->get_eeprom_len(ds);
+
+	return 0;
+}
+
+static int dsa_slave_get_eeprom(struct net_device *dev,
+				struct ethtool_eeprom *eeprom, u8 *data)
+{
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_switch *ds = p->parent;
+
+	if (ds->drv->get_eeprom)
+		return ds->drv->get_eeprom(ds, eeprom, data);
+
+	return -EOPNOTSUPP;
+}
+
+static int dsa_slave_set_eeprom(struct net_device *dev,
+				struct ethtool_eeprom *eeprom, u8 *data)
+{
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_switch *ds = p->parent;
+
+	if (ds->drv->set_eeprom)
+		return ds->drv->set_eeprom(ds, eeprom, data);
+
+	return -EOPNOTSUPP;
+}
+
 static void dsa_slave_get_strings(struct net_device *dev,
 				  uint32_t stringset, uint8_t *data)
 {
@@ -387,6 +425,9 @@ static const struct ethtool_ops dsa_slave_ethtool_ops = {
 	.get_drvinfo		= dsa_slave_get_drvinfo,
 	.nway_reset		= dsa_slave_nway_reset,
 	.get_link		= dsa_slave_get_link,
+	.get_eeprom_len		= dsa_slave_get_eeprom_len,
+	.get_eeprom		= dsa_slave_get_eeprom,
+	.set_eeprom		= dsa_slave_set_eeprom,
 	.get_strings		= dsa_slave_get_strings,
 	.get_ethtool_stats	= dsa_slave_get_ethtool_stats,
 	.get_sset_count		= dsa_slave_get_sset_count,

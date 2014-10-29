@@ -38,6 +38,9 @@ struct dsa_chip_data {
 	struct device	*host_dev;
 	int		sw_addr;
 
+	/* set to size of eeprom if supported by the switch */
+	int		eeprom_len;
+
 	/* Device tree node pointer for this specific switch chip
 	 * used during switch setup in case additional properties
 	 * and resources needs to be used
@@ -258,6 +261,13 @@ struct dsa_switch_driver {
 	int	(*set_temp_limit)(struct dsa_switch *ds, int temp);
 	int	(*get_temp_alarm)(struct dsa_switch *ds, bool *alarm);
 #endif
+
+	/* EEPROM access */
+	int	(*get_eeprom_len)(struct dsa_switch *ds);
+	int	(*get_eeprom)(struct dsa_switch *ds,
+			      struct ethtool_eeprom *eeprom, u8 *data);
+	int	(*set_eeprom)(struct dsa_switch *ds,
+			      struct ethtool_eeprom *eeprom, u8 *data);
 };
 
 void register_switch_driver(struct dsa_switch_driver *type);

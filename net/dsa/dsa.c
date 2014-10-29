@@ -575,6 +575,7 @@ static int dsa_of_probe(struct platform_device *pdev)
 	const char *port_name;
 	int chip_index, port_index;
 	const unsigned int *sw_addr, *port_reg;
+	u32 eeprom_len;
 	int ret;
 
 	mdio = of_parse_phandle(np, "dsa,mii-bus", 0);
@@ -625,6 +626,9 @@ static int dsa_of_probe(struct platform_device *pdev)
 		cd->sw_addr = be32_to_cpup(sw_addr);
 		if (cd->sw_addr > PHY_MAX_ADDR)
 			continue;
+
+		if (!of_property_read_u32(np, "eeprom-length", &eeprom_len))
+			cd->eeprom_len = eeprom_len;
 
 		for_each_available_child_of_node(child, port) {
 			port_reg = of_get_property(port, "reg", NULL);
