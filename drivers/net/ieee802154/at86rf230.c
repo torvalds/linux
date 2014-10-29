@@ -819,7 +819,7 @@ at86rf230_rx_read_frame_complete(void *context)
 		len = IEEE802154_MTU;
 	}
 
-	at86rf230_rx(lp, buf + 2, len - 2, buf[2 + len]);
+	at86rf230_rx(lp, buf + 2, len, buf[2 + len]);
 }
 
 static void
@@ -1414,7 +1414,7 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 	}
 
 	lp->hw->extra_tx_headroom = 0;
-	lp->hw->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AACK |
+	lp->hw->flags = IEEE802154_HW_TX_OMIT_CKSUM | IEEE802154_HW_AACK |
 			IEEE802154_HW_TXPOWER | IEEE802154_HW_ARET |
 			IEEE802154_HW_AFILT | IEEE802154_HW_PROMISCUOUS;
 
