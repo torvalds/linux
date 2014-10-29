@@ -31,7 +31,6 @@
 
 #include "ttype.h"
 #include "device.h"
-#include "wcmd.h"
 
 /*---------------------  Export Definitions -------------------------*/
 

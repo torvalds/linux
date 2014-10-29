@@ -61,7 +61,6 @@
 #include "tether.h"
 #include "wmgr.h"
 #include "power.h"
-#include "wcmd.h"
 #include "iocmd.h"
 #include "rxtx.h"
 #include "bssdb.h"
