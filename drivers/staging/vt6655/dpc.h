@@ -39,4 +39,6 @@ device_receive_frame(
 	PSRxDesc pCurrRD
 );
 
+bool vnt_receive_frame(struct vnt_private *priv, PSRxDesc curr_rd);
+
 #endif /* __RXTX_H__ */

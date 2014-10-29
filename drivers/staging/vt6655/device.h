@@ -56,6 +56,7 @@
 #include <linux/reboot.h>
 #include <linux/ethtool.h>
 /* Include Wireless Extension definition and check version - Jean II */
+#include <net/mac80211.h>
 #include <linux/wireless.h>
 #include <net/iw_handler.h>	/* New driver API */
 
@@ -319,7 +320,9 @@ typedef struct __device_opt {
 
 struct vnt_private {
 	struct pci_dev *pcid;
-
+	/* mac80211 */
+	struct ieee80211_hw *hw;
+	struct ieee80211_vif *vif;
 /* netdev */
 	struct net_device *dev;
 
@@ -378,6 +381,7 @@ struct vnt_private {
 	u32                         flags;
 
 	u32                         rx_buf_sz;
+	u8 rx_rate;
 	int                         multicast_limit;
 
 	pid_t			MLMEThr_pid;
