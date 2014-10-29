@@ -79,7 +79,7 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 	struct sk_buff *skb = NULL;
 	 struct rtllib_hdr_3addr *BAReq = NULL;
 	u8 *tag = NULL;
-	u16 tmp = 0;
+	__le16 tmp = 0;
 	u16 len = ieee->tx_headroom + 9;
 
 	RTLLIB_DEBUG(RTLLIB_DL_TRACE | RTLLIB_DL_BA, "========>%s(), frame(%d)"
@@ -143,7 +143,7 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 	struct sk_buff *skb = NULL;
 	 struct rtllib_hdr_3addr *Delba = NULL;
 	u8 *tag = NULL;
-	u16 tmp = 0;
+	__le16 tmp = 0;
 	u16 len = 6 + ieee->tx_headroom;
 
 	if (net_ratelimit())
