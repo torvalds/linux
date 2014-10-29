@@ -2116,7 +2116,7 @@ bool BBbVT3253Init(struct vnt_private *pDevice)
 				bResult &= BBbWriteEmbedded(dwIoBase, byVT3253B0_AGC4_RFMD2959[ii][0], byVT3253B0_AGC4_RFMD2959[ii][1]);
 
 			VNSvOutPortD(dwIoBase + MAC_REG_ITRTMSET, 0x23);
-			MACvRegBitsOn(dwIoBase, MAC_REG_PAPEDELAY, BIT0);
+			MACvRegBitsOn(dwIoBase, MAC_REG_PAPEDELAY, BIT(0));
 		}
 		pDevice->abyBBVGA[0] = 0x18;
 		pDevice->abyBBVGA[1] = 0x0A;
@@ -2149,7 +2149,7 @@ bool BBbVT3253Init(struct vnt_private *pDevice)
 			bResult &= BBbWriteEmbedded(dwIoBase, byVT3253B0_AGC[ii][0], byVT3253B0_AGC[ii][1]);
 
 		VNSvOutPortB(dwIoBase + MAC_REG_ITRTMSET, 0x23);
-		MACvRegBitsOn(dwIoBase, MAC_REG_PAPEDELAY, BIT0);
+		MACvRegBitsOn(dwIoBase, MAC_REG_PAPEDELAY, BIT(0));
 
 		pDevice->abyBBVGA[0] = 0x14;
 		pDevice->abyBBVGA[1] = 0x0A;
@@ -2455,7 +2455,7 @@ BBvPowerSaveModeON(void __iomem *dwIoBase)
 	unsigned char byOrgData;
 
 	BBbReadEmbedded(dwIoBase, 0x0D, &byOrgData);
-	byOrgData |= BIT0;
+	byOrgData |= BIT(0);
 	BBbWriteEmbedded(dwIoBase, 0x0D, byOrgData);
 }
 
@@ -2477,7 +2477,7 @@ BBvPowerSaveModeOFF(void __iomem *dwIoBase)
 	unsigned char byOrgData;
 
 	BBbReadEmbedded(dwIoBase, 0x0D, &byOrgData);
-	byOrgData &= ~(BIT0);
+	byOrgData &= ~(BIT(0));
 	BBbWriteEmbedded(dwIoBase, 0x0D, byOrgData);
 }
 
