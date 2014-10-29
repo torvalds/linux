@@ -70,7 +70,6 @@
 #include "bssdb.h"
 #include "hostap.h"
 #include "wpactl.h"
-#include "ioctl.h"
 #include "dpc.h"
 #include "datarate.h"
 #include "rf.h"
