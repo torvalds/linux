@@ -593,7 +593,7 @@ static void ips_disable_gpu_turbo(struct ips_driver *ips)
 		return;
 
 	if (!ips->gpu_turbo_disable())
-		dev_err(&ips->dev->dev, "failed to disable graphis turbo\n");
+		dev_err(&ips->dev->dev, "failed to disable graphics turbo\n");
 	else
 		ips->__gpu_turbo_on = false;
 }
