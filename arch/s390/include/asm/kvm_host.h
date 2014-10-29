@@ -226,10 +226,17 @@ struct kvm_vcpu_stat {
 	u32 instruction_sigp_sense_running;
 	u32 instruction_sigp_external_call;
 	u32 instruction_sigp_emergency;
+	u32 instruction_sigp_cond_emergency;
+	u32 instruction_sigp_start;
 	u32 instruction_sigp_stop;
+	u32 instruction_sigp_stop_store_status;
+	u32 instruction_sigp_store_status;
 	u32 instruction_sigp_arch;
 	u32 instruction_sigp_prefix;
 	u32 instruction_sigp_restart;
+	u32 instruction_sigp_init_cpu_reset;
+	u32 instruction_sigp_cpu_reset;
+	u32 instruction_sigp_unknown;
 	u32 diagnose_10;
 	u32 diagnose_44;
 	u32 diagnose_9c;
@@ -434,6 +441,8 @@ struct kvm_arch{
 	int user_cpu_state_ctrl;
 	struct s390_io_adapter *adapters[MAX_S390_IO_ADAPTERS];
 	wait_queue_head_t ipte_wq;
+	int ipte_lock_count;
+	struct mutex ipte_mutex;
 	spinlock_t start_stop_lock;
 	struct kvm_s390_crypto crypto;
 };

@@ -270,7 +270,7 @@ static int __must_check __deliver_prog_irq(struct kvm_vcpu *vcpu,
 		break;
 	case PGM_MONITOR:
 		rc = put_guest_lc(vcpu, pgm_info->mon_class_nr,
-				  (u64 *)__LC_MON_CLASS_NR);
+				  (u16 *)__LC_MON_CLASS_NR);
 		rc |= put_guest_lc(vcpu, pgm_info->mon_code,
 				   (u64 *)__LC_MON_CODE);
 		break;

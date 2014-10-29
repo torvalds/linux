@@ -10,6 +10,7 @@
 #define SIGP_RESTART		      6
 #define SIGP_STOP_AND_STORE_STATUS    9
 #define SIGP_INITIAL_CPU_RESET	     11
+#define SIGP_CPU_RESET		     12
 #define SIGP_SET_PREFIX		     13
 #define SIGP_STORE_STATUS_AT_ADDRESS 14
 #define SIGP_SET_ARCHITECTURE	     18

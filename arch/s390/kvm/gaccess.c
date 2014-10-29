@@ -207,8 +207,6 @@ union raddress {
 	unsigned long pfra : 52; /* Page-Frame Real Address */
 };
 
-static int ipte_lock_count;
-static DEFINE_MUTEX(ipte_mutex);
 
 int ipte_lock_held(struct kvm_vcpu *vcpu)
 {
@@ -216,16 +214,16 @@ int ipte_lock_held(struct kvm_vcpu *vcpu)
 
 	if (vcpu->arch.sie_block->eca & 1)
 		return ic->kh != 0;
-	return ipte_lock_count != 0;
+	return vcpu->kvm->arch.ipte_lock_count != 0;
 }
 
 static void ipte_lock_simple(struct kvm_vcpu *vcpu)
 {
 	union ipte_control old, new, *ic;
 
-	mutex_lock(&ipte_mutex);
-	ipte_lock_count++;
-	if (ipte_lock_count > 1)
+	mutex_lock(&vcpu->kvm->arch.ipte_mutex);
+	vcpu->kvm->arch.ipte_lock_count++;
+	if (vcpu->kvm->arch.ipte_lock_count > 1)
 		goto out;
 	ic = &vcpu->kvm->arch.sca->ipte_control;
 	do {
@@ -238,16 +236,16 @@ static void ipte_lock_simple(struct kvm_vcpu *vcpu)
 		new.k = 1;
 	} while (cmpxchg(&ic->val, old.val, new.val) != old.val);
 out:
-	mutex_unlock(&ipte_mutex);
+	mutex_unlock(&vcpu->kvm->arch.ipte_mutex);
 }
 
 static void ipte_unlock_simple(struct kvm_vcpu *vcpu)
 {
 	union ipte_control old, new, *ic;
 
-	mutex_lock(&ipte_mutex);
-	ipte_lock_count--;
-	if (ipte_lock_count)
+	mutex_lock(&vcpu->kvm->arch.ipte_mutex);
+	vcpu->kvm->arch.ipte_lock_count--;
+	if (vcpu->kvm->arch.ipte_lock_count)
 		goto out;
 	ic = &vcpu->kvm->arch.sca->ipte_control;
 	do {
@@ -256,7 +254,7 @@ static void ipte_unlock_simple(struct kvm_vcpu *vcpu)
 	} while (cmpxchg(&ic->val, old.val, new.val) != old.val);
 	wake_up(&vcpu->kvm->arch.ipte_wq);
 out:
-	mutex_unlock(&ipte_mutex);
+	mutex_unlock(&vcpu->kvm->arch.ipte_mutex);
 }
 
 static void ipte_lock_siif(struct kvm_vcpu *vcpu)

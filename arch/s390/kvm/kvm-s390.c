@@ -81,10 +81,17 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "instruction_sigp_sense_running", VCPU_STAT(instruction_sigp_sense_running) },
 	{ "instruction_sigp_external_call", VCPU_STAT(instruction_sigp_external_call) },
 	{ "instruction_sigp_emergency", VCPU_STAT(instruction_sigp_emergency) },
+	{ "instruction_sigp_cond_emergency", VCPU_STAT(instruction_sigp_cond_emergency) },
+	{ "instruction_sigp_start", VCPU_STAT(instruction_sigp_start) },
 	{ "instruction_sigp_stop", VCPU_STAT(instruction_sigp_stop) },
+	{ "instruction_sigp_stop_store_status", VCPU_STAT(instruction_sigp_stop_store_status) },
+	{ "instruction_sigp_store_status", VCPU_STAT(instruction_sigp_store_status) },
 	{ "instruction_sigp_set_arch", VCPU_STAT(instruction_sigp_arch) },
 	{ "instruction_sigp_set_prefix", VCPU_STAT(instruction_sigp_prefix) },
 	{ "instruction_sigp_restart", VCPU_STAT(instruction_sigp_restart) },
+	{ "instruction_sigp_cpu_reset", VCPU_STAT(instruction_sigp_cpu_reset) },
+	{ "instruction_sigp_init_cpu_reset", VCPU_STAT(instruction_sigp_init_cpu_reset) },
+	{ "instruction_sigp_unknown", VCPU_STAT(instruction_sigp_unknown) },
 	{ "diagnose_10", VCPU_STAT(diagnose_10) },
 	{ "diagnose_44", VCPU_STAT(diagnose_44) },
 	{ "diagnose_9c", VCPU_STAT(diagnose_9c) },
@@ -453,6 +460,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	spin_lock_init(&kvm->arch.float_int.lock);
 	INIT_LIST_HEAD(&kvm->arch.float_int.list);
 	init_waitqueue_head(&kvm->arch.ipte_wq);
+	mutex_init(&kvm->arch.ipte_mutex);
 
 	debug_register_view(kvm->arch.dbf, &debug_sprintf_view);
 	VM_EVENT(kvm, 3, "%s", "vm created");
