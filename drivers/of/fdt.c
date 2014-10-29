@@ -992,15 +992,12 @@ bool __init early_init_dt_verify(void *params)
 	if (!params)
 		return false;
 
+	/* check device tree validity */
+	if (fdt_check_header(params))
+		return false;
+
 	/* Setup flat device-tree pointer */
 	initial_boot_params = params;
-
-	/* check device tree validity */
-	if (fdt_check_header(params)) {
-		initial_boot_params = NULL;
-		return false;
-	}
-
 	return true;
 }
 
