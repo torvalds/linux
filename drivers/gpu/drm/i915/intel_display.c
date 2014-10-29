@@ -7975,9 +7975,7 @@ static void haswell_modeset_global_resources(struct drm_device *dev)
 	modeset_update_crtc_power_domains(dev);
 }
 
-static int haswell_crtc_mode_set(struct intel_crtc *crtc,
-				 int x, int y,
-				 struct drm_framebuffer *fb)
+static int haswell_crtc_compute_clock(struct intel_crtc *crtc)
 {
 	if (!intel_ddi_pll_select(crtc))
 		return -EINVAL;
@@ -12468,7 +12466,8 @@ static void intel_init_display(struct drm_device *dev)
 	if (HAS_DDI(dev)) {
 		dev_priv->display.get_pipe_config = haswell_get_pipe_config;
 		dev_priv->display.get_plane_config = ironlake_get_plane_config;
-		dev_priv->display.crtc_mode_set = haswell_crtc_mode_set;
+		dev_priv->display.crtc_compute_clock =
+			haswell_crtc_compute_clock;
 		dev_priv->display.crtc_enable = haswell_crtc_enable;
 		dev_priv->display.crtc_disable = haswell_crtc_disable;
 		dev_priv->display.off = ironlake_crtc_off;
