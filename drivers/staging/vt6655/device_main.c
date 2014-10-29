@@ -3320,6 +3320,8 @@ int vnt_init(struct vnt_private *priv)
 {
 	SET_IEEE80211_PERM_ADDR(priv->hw, priv->abyCurrentNetAddr);
 
+	vnt_init_bands(priv);
+
 	if (ieee80211_register_hw(priv->hw))
 		return -ENODEV;
 

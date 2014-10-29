@@ -33,6 +33,8 @@ typedef struct tagSChannelTblElement {
 	unsigned char byMAP;
 } SChannelTblElement, *PSChannelTblElement;
 
+void vnt_init_bands(struct vnt_private *);
+
 bool is_channel_valid(unsigned int CountryCode);
 void init_channel_table(void *pDeviceHandler);
 unsigned char get_channel_mapping(void *pDeviceHandler, unsigned char byChannelNumber, CARD_PHY_TYPE ePhyType);
