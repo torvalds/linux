@@ -68,7 +68,7 @@
 
 #include "device_cfg.h"
 #include "ttype.h"
-#include "wmgr.h"
+#include "card.h"
 #include "mib.h"
 #include "srom.h"
 #include "desc.h"

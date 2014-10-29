@@ -58,7 +58,6 @@
 #include "channel.h"
 #include "baseband.h"
 #include "mac.h"
-#include "wmgr.h"
 #include "power.h"
 #include "rxtx.h"
 #include "dpc.h"
