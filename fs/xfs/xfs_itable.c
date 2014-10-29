@@ -474,6 +474,10 @@ xfs_bulkstat(
 			 */
 			agino = r.ir_startino + XFS_INODES_PER_CHUNK;
 			error = xfs_btree_increment(cur, 0, &tmp);
+			if (error) {
+				end_of_ag = 1;
+				goto del_cursor;
+			}
 			cond_resched();
 		}
 
