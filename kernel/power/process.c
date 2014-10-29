@@ -18,6 +18,7 @@
 #include <linux/workqueue.h>
 #include <linux/kmod.h>
 #include <trace/events/power.h>
+#include <linux/wakeup_reason.h>
 
 /* 
  * Timeout for stopping processes
@@ -34,6 +35,7 @@ static int try_to_freeze_tasks(bool user_only)
 	unsigned int elapsed_msecs;
 	bool wakeup = false;
 	int sleep_usecs = USEC_PER_MSEC;
+	char suspend_abort[MAX_SUSPEND_ABORT_LEN];
 
 	start = ktime_get_boottime();
 
@@ -63,6 +65,9 @@ static int try_to_freeze_tasks(bool user_only)
 			break;
 
 		if (pm_wakeup_pending()) {
+			pm_get_active_wakeup_sources(suspend_abort,
+				MAX_SUSPEND_ABORT_LEN);
+			log_suspend_abort_reason(suspend_abort);
 			wakeup = true;
 			break;
 		}
