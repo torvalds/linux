@@ -326,7 +326,6 @@ EXPORT_SYMBOL_GPL(trace_seq_putmem_hex);
 int trace_seq_path(struct trace_seq *s, const struct path *path)
 {
 	unsigned int save_len = s->seq.len;
-	int ret;
 
 	if (s->full)
 		return 0;
@@ -338,7 +337,7 @@ int trace_seq_path(struct trace_seq *s, const struct path *path)
 		return 0;
 	}
 
-	ret = seq_buf_path(&s->seq, path);
+	seq_buf_path(&s->seq, path, "\n");
 
 	if (unlikely(seq_buf_has_overflowed(&s->seq))) {
 		s->seq.len = save_len;
@@ -346,7 +345,7 @@ int trace_seq_path(struct trace_seq *s, const struct path *path)
 		return 0;
 	}
 
-	return ret;
+	return 1;
 }
 EXPORT_SYMBOL_GPL(trace_seq_path);
 

@@ -272,28 +272,32 @@ int seq_buf_putmem_hex(struct seq_buf *s, const void *mem,
  * seq_buf_path - copy a path into the sequence buffer
  * @s: seq_buf descriptor
  * @path: path to write into the sequence buffer.
+ * @esc: set of characters to escape in the output
  *
  * Write a path name into the sequence buffer.
  *
- * Returns zero on success, -1 on overflow
+ * Returns the number of written bytes on success, -1 on overflow
  */
-int seq_buf_path(struct seq_buf *s, const struct path *path)
+int seq_buf_path(struct seq_buf *s, const struct path *path, const char *esc)
 {
-	unsigned int len = seq_buf_buffer_left(s);
-	unsigned char *p;
+	char *buf = s->buffer + s->len;
+	size_t size = seq_buf_buffer_left(s);
+	int res = -1;
 
 	WARN_ON(s->size == 0);
 
-	p = d_path(path, s->buffer + s->len, len);
-	if (!IS_ERR(p)) {
-		p = mangle_path(s->buffer + s->len, p, "\n");
-		if (p) {
-			s->len = p - s->buffer;
-			return 0;
+	if (size) {
+		char *p = d_path(path, buf, size);
+		if (!IS_ERR(p)) {
+			char *end = mangle_path(buf, p, esc);
+			if (end)
+				res = end - buf;
 		}
 	}
-	seq_buf_set_overflow(s);
-	return -1;
+	if (res > 0)
+		s->len += res;
+
+	return res;
 }
 
 /**
