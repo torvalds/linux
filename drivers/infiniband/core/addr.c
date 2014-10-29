@@ -176,8 +176,8 @@ static void set_timeout(unsigned long time)
 	unsigned long delay;
 
 	delay = time - jiffies;
-	if ((long)delay <= 0)
-		delay = 1;
+	if ((long)delay < 0)
+		delay = 0;
 
 	mod_delayed_work(addr_wq, &work, delay);
 }
