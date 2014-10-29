@@ -23,6 +23,7 @@
 
 #define SST_HSW_NO_CHANNELS		2
 #define SST_HSW_MAX_DX_REGIONS		14
+#define SST_HSW_DX_CONTEXT_SIZE        (640 * 1024)
 
 #define SST_HSW_FW_LOG_CONFIG_DWORDS	12
 #define SST_HSW_GLOBAL_LOG		15
@@ -491,5 +492,11 @@ struct sst_dsp *sst_hsw_get_dsp(struct sst_hsw *hsw);
 struct sst_module_runtime *sst_hsw_runtime_module_create(struct sst_hsw *hsw,
 	int mod_id, int offset);
 void sst_hsw_runtime_module_free(struct sst_module_runtime *runtime);
+
+/* PM */
+int sst_hsw_dsp_runtime_resume(struct sst_hsw *hsw);
+int sst_hsw_dsp_runtime_suspend(struct sst_hsw *hsw);
+int sst_hsw_dsp_load(struct sst_hsw *hsw);
+int sst_hsw_dsp_runtime_sleep(struct sst_hsw *hsw);
 
 #endif
