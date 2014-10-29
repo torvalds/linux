@@ -1478,7 +1478,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	device = adm_ctx.device;
 	mutex_lock(&adm_ctx.resource->adm_mutex);
 	peer_device = first_peer_device(device);
-	connection = peer_device ? peer_device->connection : NULL;
+	connection = peer_device->connection;
 	conn_reconfig_start(connection);
 
 	/* if you want to reconfigure, please tear down first */
