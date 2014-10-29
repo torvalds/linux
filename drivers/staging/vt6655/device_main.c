@@ -68,7 +68,6 @@
 #include "rxtx.h"
 #include "wroute.h"
 #include "bssdb.h"
-#include "wpactl.h"
 #include "dpc.h"
 #include "datarate.h"
 #include "rf.h"
