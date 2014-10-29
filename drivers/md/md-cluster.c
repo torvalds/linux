@@ -12,11 +12,13 @@
 #include <linux/module.h>
 #include <linux/dlm.h>
 #include <linux/sched.h>
+#include <linux/raid/md_p.h>
 #include "md.h"
 #include "bitmap.h"
 #include "md-cluster.h"
 
 #define LVB_SIZE	64
+#define NEW_DEV_TIMEOUT 5000
 
 struct dlm_lock_resource {
 	dlm_lockspace_t *ls;
@@ -56,19 +58,25 @@ struct md_cluster_info {
 	struct dlm_lock_resource *ack_lockres;
 	struct dlm_lock_resource *message_lockres;
 	struct dlm_lock_resource *token_lockres;
+	struct dlm_lock_resource *no_new_dev_lockres;
 	struct md_thread *recv_thread;
+	struct completion newdisk_completion;
 };
 
 enum msg_type {
 	METADATA_UPDATED = 0,
 	RESYNCING,
+	NEWDISK,
 };
 
 struct cluster_msg {
 	int type;
 	int slot;
+	/* TODO: Unionize this for smaller footprint */
 	sector_t low;
 	sector_t high;
+	char uuid[16];
+	int raid_slot;
 };
 
 static void sync_ast(void *arg)
@@ -358,13 +366,41 @@ static void process_suspend_info(struct md_cluster_info *cinfo,
 	spin_unlock_irq(&cinfo->suspend_lock);
 }
 
+static void process_add_new_disk(struct mddev *mddev, struct cluster_msg *cmsg)
+{
+	char disk_uuid[64];
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+	char event_name[] = "EVENT=ADD_DEVICE";
+	char raid_slot[16];
+	char *envp[] = {event_name, disk_uuid, raid_slot, NULL};
+	int len;
+
+	len = snprintf(disk_uuid, 64, "DEVICE_UUID=");
+	pretty_uuid(disk_uuid + len, cmsg->uuid);
+	snprintf(raid_slot, 16, "RAID_DISK=%d", cmsg->raid_slot);
+	pr_info("%s:%d Sending kobject change with %s and %s\n", __func__, __LINE__, disk_uuid, raid_slot);
+	init_completion(&cinfo->newdisk_completion);
+	kobject_uevent_env(&disk_to_dev(mddev->gendisk)->kobj, KOBJ_CHANGE, envp);
+	wait_for_completion_timeout(&cinfo->newdisk_completion,
+			NEW_DEV_TIMEOUT);
+}
+
+
+static void process_metadata_update(struct mddev *mddev, struct cluster_msg *msg)
+{
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+
+	md_reload_sb(mddev);
+	dlm_lock_sync(cinfo->no_new_dev_lockres, DLM_LOCK_CR);
+}
+
 static void process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 {
 	switch (msg->type) {
 	case METADATA_UPDATED:
 		pr_info("%s: %d Received message: METADATA_UPDATE from %d\n",
 			__func__, __LINE__, msg->slot);
-		md_reload_sb(mddev);
+		process_metadata_update(mddev, msg);
 		break;
 	case RESYNCING:
 		pr_info("%s: %d Received message: RESYNCING from %d\n",
@@ -372,6 +408,10 @@ static void process_recvd_msg(struct mddev *mddev, struct cluster_msg *msg)
 		process_suspend_info(mddev->cluster_info, msg->slot,
 				msg->low, msg->high);
 		break;
+	case NEWDISK:
+		pr_info("%s: %d Received message: NEWDISK from %d\n",
+			__func__, __LINE__, msg->slot);
+		process_add_new_disk(mddev, msg);
 	};
 }
 
@@ -593,10 +633,18 @@ static int join(struct mddev *mddev, int nodes)
 	cinfo->ack_lockres = lockres_init(mddev, "ack", ack_bast, 0);
 	if (!cinfo->ack_lockres)
 		goto err;
+	cinfo->no_new_dev_lockres = lockres_init(mddev, "no-new-dev", NULL, 0);
+	if (!cinfo->no_new_dev_lockres)
+		goto err;
+
 	/* get sync CR lock on ACK. */
 	if (dlm_lock_sync(cinfo->ack_lockres, DLM_LOCK_CR))
 		pr_err("md-cluster: failed to get a sync CR lock on ACK!(%d)\n",
 				ret);
+	/* get sync CR lock on no-new-dev. */
+	if (dlm_lock_sync(cinfo->no_new_dev_lockres, DLM_LOCK_CR))
+		pr_err("md-cluster: failed to get a sync CR lock on no-new-dev!(%d)\n", ret);
+
 
 	pr_info("md-cluster: Joined cluster %s slot %d\n", str, cinfo->slot_number);
 	snprintf(str, 64, "bitmap%04d", cinfo->slot_number - 1);
@@ -621,6 +669,7 @@ err:
 	lockres_free(cinfo->message_lockres);
 	lockres_free(cinfo->token_lockres);
 	lockres_free(cinfo->ack_lockres);
+	lockres_free(cinfo->no_new_dev_lockres);
 	lockres_free(cinfo->bitmap_lockres);
 	lockres_free(cinfo->sb_lock);
 	if (cinfo->lockspace)
@@ -642,6 +691,7 @@ static int leave(struct mddev *mddev)
 	lockres_free(cinfo->message_lockres);
 	lockres_free(cinfo->token_lockres);
 	lockres_free(cinfo->ack_lockres);
+	lockres_free(cinfo->no_new_dev_lockres);
 	lockres_free(cinfo->sb_lock);
 	lockres_free(cinfo->bitmap_lockres);
 	dlm_release_lockspace(cinfo->lockspace, 2);
@@ -742,6 +792,55 @@ out:
 	return ret;
 }
 
+static int add_new_disk_start(struct mddev *mddev, struct md_rdev *rdev)
+{
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+	struct cluster_msg cmsg;
+	int ret = 0;
+	struct mdp_superblock_1 *sb = page_address(rdev->sb_page);
+	char *uuid = sb->device_uuid;
+
+	memset(&cmsg, 0, sizeof(cmsg));
+	cmsg.type = cpu_to_le32(NEWDISK);
+	memcpy(cmsg.uuid, uuid, 16);
+	cmsg.raid_slot = rdev->desc_nr;
+	lock_comm(cinfo);
+	ret = __sendmsg(cinfo, &cmsg);
+	if (ret)
+		return ret;
+	cinfo->no_new_dev_lockres->flags |= DLM_LKF_NOQUEUE;
+	ret = dlm_lock_sync(cinfo->no_new_dev_lockres, DLM_LOCK_EX);
+	cinfo->no_new_dev_lockres->flags &= ~DLM_LKF_NOQUEUE;
+	/* Some node does not "see" the device */
+	if (ret == -EAGAIN)
+		ret = -ENOENT;
+	else
+		dlm_lock_sync(cinfo->no_new_dev_lockres, DLM_LOCK_CR);
+	return ret;
+}
+
+static int add_new_disk_finish(struct mddev *mddev)
+{
+	struct cluster_msg cmsg;
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+	int ret;
+	/* Write sb and inform others */
+	md_update_sb(mddev, 1);
+	cmsg.type = METADATA_UPDATED;
+	ret = __sendmsg(cinfo, &cmsg);
+	unlock_comm(cinfo);
+	return ret;
+}
+
+static void new_disk_ack(struct mddev *mddev, bool ack)
+{
+	struct md_cluster_info *cinfo = mddev->cluster_info;
+
+	if (ack)
+		dlm_unlock_sync(cinfo->no_new_dev_lockres);
+	complete(&cinfo->newdisk_completion);
+}
+
 static struct md_cluster_operations cluster_ops = {
 	.join   = join,
 	.leave  = leave,
@@ -753,6 +852,9 @@ static struct md_cluster_operations cluster_ops = {
 	.metadata_update_finish = metadata_update_finish,
 	.metadata_update_cancel = metadata_update_cancel,
 	.area_resyncing = area_resyncing,
+	.add_new_disk_start = add_new_disk_start,
+	.add_new_disk_finish = add_new_disk_finish,
+	.new_disk_ack = new_disk_ack,
 };
 
 static int __init cluster_init(void)
