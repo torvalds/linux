@@ -3207,7 +3207,7 @@ static int rtl8152_suspend(struct usb_interface *intf, pm_message_t message)
 		netif_device_detach(netdev);
 	}
 
-	if (netif_running(netdev)) {
+	if (netif_running(netdev) && test_bit(WORK_ENABLE, &tp->flags)) {
 		clear_bit(WORK_ENABLE, &tp->flags);
 		usb_kill_urb(tp->intr_urb);
 		tasklet_disable(&tp->tl);
