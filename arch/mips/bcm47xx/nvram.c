@@ -13,12 +13,10 @@
 
 #include <linux/types.h>
 #include <linux/module.h>
-#include <linux/ssb/ssb.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <asm/addrspace.h>
+#include <linux/mtd/mtd.h>
 #include <bcm47xx_nvram.h>
-#include <asm/mach-bcm47xx/bcm47xx.h>
 
 static char nvram_buf[NVRAM_SPACE];
 static const u32 nvram_sizes[] = {0x8000, 0xF000, 0x10000};
@@ -123,7 +121,43 @@ int bcm47xx_nvram_init_from_mem(u32 base, u32 lim)
 
 static int nvram_init(void)
 {
-	/* TODO: Look for MTD "nvram" partition */
+#ifdef CONFIG_MTD
+	struct mtd_info *mtd;
+	struct nvram_header header;
+	size_t bytes_read;
+	int err, i;
+
+	mtd = get_mtd_device_nm("nvram");
+	if (IS_ERR(mtd))
+		return -ENODEV;
+
+	for (i = 0; i < ARRAY_SIZE(nvram_sizes); i++) {
+		loff_t from = mtd->size - nvram_sizes[i];
+
+		if (from < 0)
+			continue;
+
+		err = mtd_read(mtd, from, sizeof(header), &bytes_read,
+			       (uint8_t *)&header);
+		if (!err && header.magic == NVRAM_HEADER) {
+			u8 *dst = (uint8_t *)nvram_buf;
+			size_t len = header.len;
+
+			if (header.len > NVRAM_SPACE) {
+				pr_err("nvram on flash (%i bytes) is bigger than the reserved space in memory, will just copy the first %i bytes\n",
+				       header.len, NVRAM_SPACE);
+				len = NVRAM_SPACE;
+			}
+
+			err = mtd_read(mtd, from, len, &bytes_read, dst);
+			if (err)
+				return err;
+			memset(dst + bytes_read, 0x0, NVRAM_SPACE - bytes_read);
+
+			return 0;
+		}
+	}
+#endif
 
 	return -ENXIO;
 }
