@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/crc-ccitt.h>
+#include <asm/unaligned.h>
 
 #include <net/mac802154.h>
 #include <net/ieee802154_netdev.h>
@@ -225,8 +226,6 @@ ieee802154_monitors_rx(struct ieee802154_local *local, struct sk_buff *skb)
 {
 	struct sk_buff *skb2;
 	struct ieee802154_sub_if_data *sdata;
-	u16 crc = crc_ccitt(0, skb->data, skb->len);
-	u8 *data;
 
 	skb_reset_mac_header(skb);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -241,9 +240,6 @@ ieee802154_monitors_rx(struct ieee802154_local *local, struct sk_buff *skb)
 		skb2 = skb_clone(skb, GFP_ATOMIC);
 		skb2->dev = sdata->dev;
 		skb2->pkt_type = PACKET_HOST;
-		data = skb_put(skb2, 2);
-		data[0] = crc & 0xff;
-		data[1] = crc >> 8;
 
 		netif_rx_ni(skb2);
 	}
@@ -255,32 +251,26 @@ void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 
 	WARN_ON_ONCE(softirq_count() == 0);
 
-	if (!(local->hw.flags & IEEE802154_HW_RX_OMIT_CKSUM)) {
-		u16 crc;
+	/* TODO: When a transceiver omits the checksum here, we
+	 * add an own calculated one. This is currently an ugly
+	 * solution because the monitor needs a crc here.
+	 */
+	if (local->hw.flags & IEEE802154_HW_RX_OMIT_CKSUM) {
+		u16 crc = crc_ccitt(0, skb->data, skb->len);
 
-		if (skb->len < 2) {
-			pr_debug("got invalid frame\n");
-			goto fail;
-		}
-		crc = crc_ccitt(0, skb->data, skb->len);
-		if (crc) {
-			pr_debug("CRC mismatch\n");
-			goto fail;
-		}
-		skb_trim(skb, skb->len - 2); /* CRC */
+		put_unaligned_le16(crc, skb_put(skb, 2));
 	}
 
 	rcu_read_lock();
 
 	ieee802154_monitors_rx(local, skb);
+
+	/* remove crc */
+	skb_trim(skb, skb->len - 2);
+
 	__ieee802154_rx_handle_packet(local, skb);
 
 	rcu_read_unlock();
-
-	return;
-
-fail:
-	kfree_skb(skb);
 }
 EXPORT_SYMBOL(ieee802154_rx);
 
