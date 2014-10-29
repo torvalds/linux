@@ -1375,9 +1375,9 @@ static const struct file_operations lcd_fops = {
 };
 
 static struct miscdevice lcd_dev = {
-	LCD_MINOR,
-	"lcd",
-	&lcd_fops
+	.minor	= LCD_MINOR,
+	.name	= "lcd",
+	.fops	= &lcd_fops,
 };
 
 /* public function usable from the kernel for any purpose */
@@ -1652,9 +1652,9 @@ static const struct file_operations keypad_fops = {
 };
 
 static struct miscdevice keypad_dev = {
-	KEYPAD_MINOR,
-	"keypad",
-	&keypad_fops
+	.minor	= KEYPAD_MINOR,
+	.name	= "keypad",
+	.fops	= &keypad_fops,
 };
 
 static void keypad_send_key(const char *string, int max_len)
