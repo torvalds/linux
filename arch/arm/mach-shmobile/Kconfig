@@ -74,11 +74,6 @@ config ARCH_R8A7794
 
 comment "Renesas ARM SoCs Board Type"
 
-config MACH_LAGER
-	bool "Lager board"
-	depends on ARCH_R8A7790
-	select MICREL_PHY if SH_ETH
-
 config MACH_MARZEN
 	bool "MARZEN board"
 	depends on ARCH_R8A7779
