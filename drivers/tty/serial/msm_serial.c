@@ -174,6 +174,7 @@ static void handle_rx(struct uart_port *port)
 	while ((sr = msm_read(port, UART_SR)) & UART_SR_RX_READY) {
 		unsigned int c;
 		char flag = TTY_NORMAL;
+		int sysrq;
 
 		c = msm_read(port, UART_RF);
 
@@ -195,7 +196,10 @@ static void handle_rx(struct uart_port *port)
 		else if (sr & UART_SR_PAR_FRAME_ERR)
 			flag = TTY_FRAME;
 
-		if (!uart_handle_sysrq_char(port, c))
+		spin_unlock(&port->lock);
+		sysrq = uart_handle_sysrq_char(port, c);
+		spin_lock(&port->lock);
+		if (!sysrq)
 			tty_insert_flip_char(tport, c, flag);
 	}
 
