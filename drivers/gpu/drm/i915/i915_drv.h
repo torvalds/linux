@@ -236,6 +236,8 @@ struct intel_shared_dpll_config {
 
 struct intel_shared_dpll {
 	struct intel_shared_dpll_config config;
+	struct intel_shared_dpll_config *new_config;
+
 	int active; /* count of number of active CRTCs (i.e. DPMS on) */
 	bool on; /* is the PLL actually active? Disabled during modeset */
 	const char *name;
@@ -484,6 +486,7 @@ struct drm_i915_display_funcs {
 				struct intel_crtc_config *);
 	void (*get_plane_config)(struct intel_crtc *,
 				 struct intel_plane_config *);
+	int (*crtc_compute_clock)(struct intel_crtc *crtc);
 	int (*crtc_mode_set)(struct intel_crtc *crtc,
 			     int x, int y,
 			     struct drm_framebuffer *old_fb);

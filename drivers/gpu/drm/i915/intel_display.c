@@ -3863,14 +3863,8 @@ void intel_put_shared_dpll(struct intel_crtc *crtc)
 struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
-	struct intel_shared_dpll *pll = intel_crtc_to_shared_dpll(crtc);
+	struct intel_shared_dpll *pll;
 	enum intel_dpll_id i;
-
-	if (pll) {
-		DRM_DEBUG_KMS("CRTC:%d dropping existing %s\n",
-			      crtc->base.base.id, pll->name);
-		intel_put_shared_dpll(crtc);
-	}
 
 	if (HAS_PCH_IBX(dev_priv->dev)) {
 		/* Ironlake PCH has a fixed PLL->PCH pipe mapping. */
@@ -3880,7 +3874,7 @@ struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc)
 		DRM_DEBUG_KMS("CRTC:%d using pre-allocated %s\n",
 			      crtc->base.base.id, pll->name);
 
-		WARN_ON(pll->config.crtc_mask);
+		WARN_ON(pll->new_config->crtc_mask);
 
 		goto found;
 	}
@@ -3889,17 +3883,16 @@ struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc)
 		pll = &dev_priv->shared_dplls[i];
 
 		/* Only want to check enabled timings first */
-		if (pll->config.crtc_mask == 0)
+		if (pll->new_config->crtc_mask == 0)
 			continue;
 
-		if (memcmp(&crtc->config.dpll_hw_state,
-			   &pll->config.hw_state,
-			   sizeof(pll->config.hw_state)) == 0) {
-			DRM_DEBUG_KMS("CRTC:%d sharing existing %s "
-				      "(crtc_mask 0x%08x, active %d)\n",
+		if (memcmp(&crtc->new_config->dpll_hw_state,
+			   &pll->new_config->hw_state,
+			   sizeof(pll->new_config->hw_state)) == 0) {
+			DRM_DEBUG_KMS("CRTC:%d sharing existing %s (crtc mask 0x%08x, ative %d)\n",
 				      crtc->base.base.id, pll->name,
-				      pll->config.crtc_mask, pll->active);
-
+				      pll->new_config->crtc_mask,
+				      pll->active);
 			goto found;
 		}
 	}
@@ -3907,7 +3900,7 @@ struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc)
 	/* Ok no matching timings, maybe there's a free one? */
 	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
 		pll = &dev_priv->shared_dplls[i];
-		if (pll->config.crtc_mask == 0) {
+		if (pll->new_config->crtc_mask == 0) {
 			DRM_DEBUG_KMS("CRTC:%d allocated %s\n",
 				      crtc->base.base.id, pll->name);
 			goto found;
@@ -3917,16 +3910,83 @@ struct intel_shared_dpll *intel_get_shared_dpll(struct intel_crtc *crtc)
 	return NULL;
 
 found:
-	if (pll->config.crtc_mask == 0)
-		pll->config.hw_state = crtc->config.dpll_hw_state;
+	if (pll->new_config->crtc_mask == 0)
+		pll->new_config->hw_state = crtc->new_config->dpll_hw_state;
 
-	crtc->config.shared_dpll = i;
+	crtc->new_config->shared_dpll = i;
 	DRM_DEBUG_DRIVER("using %s for pipe %c\n", pll->name,
 			 pipe_name(crtc->pipe));
 
-	pll->config.crtc_mask |= 1 << crtc->pipe;
+	pll->new_config->crtc_mask |= 1 << crtc->pipe;
 
 	return pll;
+}
+
+/**
+ * intel_shared_dpll_start_config - start a new PLL staged config
+ * @dev_priv: DRM device
+ * @clear_pipes: mask of pipes that will have their PLLs freed
+ *
+ * Starts a new PLL staged config, copying the current config but
+ * releasing the references of pipes specified in clear_pipes.
+ */
+static int intel_shared_dpll_start_config(struct drm_i915_private *dev_priv,
+					  unsigned clear_pipes)
+{
+	struct intel_shared_dpll *pll;
+	enum intel_dpll_id i;
+
+	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
+		pll = &dev_priv->shared_dplls[i];
+
+		pll->new_config = kmemdup(&pll->config, sizeof pll->config,
+					  GFP_KERNEL);
+		if (!pll->new_config)
+			goto cleanup;
+
+		pll->new_config->crtc_mask &= ~clear_pipes;
+	}
+
+	return 0;
+
+cleanup:
+	while (--i >= 0) {
+		pll = &dev_priv->shared_dplls[i];
+		pll->new_config = NULL;
+	}
+
+	return -ENOMEM;
+}
+
+static void intel_shared_dpll_commit(struct drm_i915_private *dev_priv)
+{
+	struct intel_shared_dpll *pll;
+	enum intel_dpll_id i;
+
+	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
+		pll = &dev_priv->shared_dplls[i];
+
+		WARN_ON(pll->new_config == &pll->config);
+
+		pll->config = *pll->new_config;
+		kfree(pll->new_config);
+		pll->new_config = NULL;
+	}
+}
+
+static void intel_shared_dpll_abort_config(struct drm_i915_private *dev_priv)
+{
+	struct intel_shared_dpll *pll;
+	enum intel_dpll_id i;
+
+	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
+		pll = &dev_priv->shared_dplls[i];
+
+		WARN_ON(pll->new_config == &pll->config);
+
+		kfree(pll->new_config);
+		pll->new_config = NULL;
+	}
 }
 
 static void cpt_verify_modeset(struct drm_device *dev, int pipe)
@@ -5420,11 +5480,11 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 				     struct intel_crtc_config *pipe_config)
 {
 	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
 
 	/* FIXME should check pixel clock limits on all platforms */
 	if (INTEL_INFO(dev)->gen < 4) {
-		struct drm_i915_private *dev_priv = dev->dev_private;
 		int clock_limit =
 			dev_priv->display.get_display_clock_speed(dev);
 
@@ -5474,10 +5534,11 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 		hsw_compute_ips_config(crtc, pipe_config);
 
 	/*
-	 * XXX: PCH/WRPLL clock sharing is done in ->mode_set, so make sure the
-	 * old clock survives for now.
+	 * XXX: PCH/WRPLL clock sharing is done in ->mode_set if ->compute_clock is not
+	 * set, so make sure the old clock survives for now.
 	 */
-	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev) || HAS_DDI(dev))
+	if (dev_priv->display.crtc_compute_clock == NULL &&
+            (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev) || HAS_DDI(dev)))
 		pipe_config->shared_dpll = crtc->config.shared_dpll;
 
 	if (pipe_config->has_pch_encoder)
@@ -7404,6 +7465,9 @@ static int ironlake_crtc_mode_set(struct intel_crtc *crtc,
 			crtc->new_config->dpll_hw_state.fp1 = fp2;
 		else
 			crtc->new_config->dpll_hw_state.fp1 = fp;
+
+		if (intel_crtc_to_shared_dpll(crtc))
+			intel_put_shared_dpll(crtc);
 
 		pll = intel_get_shared_dpll(crtc);
 		if (pll == NULL) {
@@ -10749,6 +10813,22 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 		prepare_pipes &= ~disable_pipes;
 	}
 
+	if (dev_priv->display.crtc_compute_clock) {
+		unsigned clear_pipes = modeset_pipes | disable_pipes;
+
+		ret = intel_shared_dpll_start_config(dev_priv, clear_pipes);
+		if (ret)
+			goto done;
+
+		for_each_intel_crtc_masked(dev, modeset_pipes, intel_crtc) {
+			ret = dev_priv->display.crtc_compute_clock(intel_crtc);
+			if (ret) {
+				intel_shared_dpll_abort_config(dev_priv);
+				goto done;
+			}
+		}
+	}
+
 	for_each_intel_crtc_masked(dev, disable_pipes, intel_crtc)
 		intel_crtc_disable(&intel_crtc->base);
 
@@ -10775,6 +10855,9 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 		drm_calc_timestamping_constants(crtc,
 						&pipe_config->adjusted_mode);
 	}
+
+	if (dev_priv->display.crtc_compute_clock)
+		intel_shared_dpll_commit(dev_priv);
 
 	/* Only after disabling all output pipelines that will be changed can we
 	 * update the the output configuration. */
@@ -10810,9 +10893,12 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 		crtc->x = x;
 		crtc->y = y;
 
-		ret = dev_priv->display.crtc_mode_set(intel_crtc, x, y, fb);
-		if (ret)
-			goto done;
+		if (dev_priv->display.crtc_mode_set) {
+			ret = dev_priv->display.crtc_mode_set(intel_crtc,
+							      x, y, fb);
+			if (ret)
+				goto done;
+		}
 	}
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
