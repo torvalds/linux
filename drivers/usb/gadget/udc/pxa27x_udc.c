@@ -2400,11 +2400,13 @@ static struct pxa_udc memory = {
 	}
 };
 
+#if defined(CONFIG_OF)
 static struct of_device_id udc_pxa_dt_ids[] = {
 	{ .compatible = "marvell,pxa270-udc" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, udc_pxa_dt_ids);
+#endif
 
 /**
  * pxa_udc_probe - probes the udc device
