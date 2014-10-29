@@ -86,91 +86,16 @@ void CARDvUpdateNextTBTT(void __iomem *dwIoBase, u64 qwTSF, unsigned short wBeac
 bool CARDbGetCurrentTSF(void __iomem *dwIoBase, u64 *pqwCurrTSF);
 u64 CARDqGetNextTBTT(u64 qwTSF, unsigned short wBeaconInterval);
 u64 CARDqGetTSFOffset(unsigned char byRxRate, u64 qwTSF1, u64 qwTSF2);
-bool CARDbSetTxPower(struct vnt_private *, unsigned long ulTxPower);
 unsigned char CARDbyGetPktType(struct vnt_private *);
 void CARDvSafeResetTx(struct vnt_private *);
 void CARDvSafeResetRx(struct vnt_private *);
 bool CARDbRadioPowerOff(struct vnt_private *);
 bool CARDbRadioPowerOn(struct vnt_private *);
-bool CARDbIsShortPreamble(struct vnt_private *);
-bool CARDbIsShorSlotTime(struct vnt_private *);
 bool CARDbSetPhyParameter(struct vnt_private *, CARD_PHY_TYPE ePHYType,
 			  unsigned short wCapInfo, unsigned char byERPField,
 			  void *pvSupportRateIEs, void *pvExtSupportRateIEs);
 bool CARDbUpdateTSF(struct vnt_private *, unsigned char byRxRate,
 		    u64 qwBSSTimestamp, u64 qwLocalTSF);
-bool CARDbStopTxPacket(struct vnt_private *, CARD_PKT_TYPE ePktType);
-bool CARDbStartTxPacket(struct vnt_private *, CARD_PKT_TYPE ePktType);
 bool CARDbSetBeaconPeriod(struct vnt_private *, unsigned short wBeaconInterval);
-bool CARDbSetBSSID(struct vnt_private *,
-		   unsigned char *pbyBSSID, enum nl80211_iftype);
-
-bool CARDbPowerDown(struct vnt_private *);
-
-bool CARDbSetTxDataRate(struct vnt_private *, unsigned short wDataRate);
-
-bool CARDbRemoveKey(struct vnt_private *, unsigned char *pbyBSSID);
-
-bool
-CARDbAdd_PMKID_Candidate(
-	struct vnt_private *,
-	unsigned char *pbyBSSID,
-	bool bRSNCapExist,
-	unsigned short wRSNCap
-);
-
-void *
-CARDpGetCurrentAddress(
-	struct vnt_private *
-);
-
-bool
-CARDbStartMeasure(
-	struct vnt_private *,
-	void *pvMeasureEIDs,
-	unsigned int uNumOfMeasureEIDs
-);
-
-bool
-CARDbChannelSwitch(
-	struct vnt_private *,
-	unsigned char byMode,
-	unsigned char byNewChannel,
-	unsigned char byCount
-);
-
-bool
-CARDbSetQuiet(
-	struct vnt_private *,
-	bool bResetQuiet,
-	unsigned char byQuietCount,
-	unsigned char byQuietPeriod,
-	unsigned short wQuietDuration,
-	unsigned short wQuietOffset
-);
-
-bool
-CARDbStartQuiet(
-	struct vnt_private *
-);
-
-void
-CARDvSetPowerConstraint(
-	struct vnt_private *,
-	unsigned char byChannel,
-	char byPower
-);
-
-void
-CARDvGetPowerCapability(
-	struct vnt_private *,
-	unsigned char *pbyMinPower,
-	unsigned char *pbyMaxPower
-);
-
-char
-CARDbyGetTransmitPower(
-	struct vnt_private *
-);
 
 #endif /* __CARD_H__ */
