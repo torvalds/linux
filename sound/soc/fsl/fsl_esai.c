@@ -780,7 +780,8 @@ static int stop_lock_stream(struct snd_pcm_substream *substream)
 {
 	if (substream) {
 		snd_pcm_stream_lock_irq(substream);
-		if (substream->runtime->status->state == SNDRV_PCM_STATE_RUNNING)
+		if (substream->runtime->status->state == SNDRV_PCM_STATE_RUNNING
+			&& substream->ops)
 			substream->ops->trigger(substream, SNDRV_PCM_TRIGGER_STOP);
 	}
 	return 0;
@@ -789,7 +790,8 @@ static int stop_lock_stream(struct snd_pcm_substream *substream)
 static int start_unlock_stream(struct snd_pcm_substream *substream)
 {
 	if (substream) {
-		if (substream->runtime->status->state == SNDRV_PCM_STATE_RUNNING)
+		if (substream->runtime->status->state == SNDRV_PCM_STATE_RUNNING
+			&& substream->ops)
 			substream->ops->trigger(substream, SNDRV_PCM_TRIGGER_START);
 		snd_pcm_stream_unlock_irq(substream);
 	}
