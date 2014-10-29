@@ -17,7 +17,6 @@ vt6655_stage-y +=	device_main.o \
 	tether.o \
 	tcrc.o \
 	key.o \
-	michael.o \
 	rf.o \
 	vntwifi.o
 
