@@ -39,7 +39,8 @@ struct gb_connection {
 
 	struct rb_node			hd_node;
 	struct list_head		interface_links;
-	enum greybus_protocol		protocol;
+	u8				protocol_id;
+
 	enum gb_connection_state	state;
 
 	struct list_head		operations;
@@ -53,7 +54,7 @@ struct gb_connection {
 #define to_gb_connection(d) container_of(d, struct gb_connection, dev)
 
 struct gb_connection *gb_connection_create(struct gb_interface *interface,
-				u16 cport_id, enum greybus_protocol protocol);
+				u16 cport_id, u8 protocol_id);
 void gb_connection_destroy(struct gb_connection *connection);
 
 int gb_connection_init(struct gb_connection *connection);

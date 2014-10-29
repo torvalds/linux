@@ -98,13 +98,13 @@ struct greybus_descriptor_interface {
 /*
  * A CPort descriptor indicates the id of the interface within the
  * module it's associated with, along with the CPort id used to
- * address the CPort.  The protocol defines the format of messages
+ * address the CPort.  The protocol id defines the format of messages
  * exchanged using the CPort.
  */
 struct greybus_descriptor_cport {
 	__u8	interface;
 	__le16	id;
-	__u8	protocol;	/* enum greybus_protocol */
+	__u8	protocol_id;	/* enum greybus_protocol */
 };
 
 /*

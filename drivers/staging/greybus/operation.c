@@ -200,21 +200,21 @@ static gb_operation_recv_handler gb_operation_recv_handlers[] = {
 
 static void gb_operation_request_handle(struct gb_operation *operation)
 {
-	u8 protocol = operation->connection->protocol;
+	u8 protocol_id = operation->connection->protocol_id;
 
 	/* Subtract one from array size to stay within u8 range */
-	if (protocol <= (u8)(ARRAY_SIZE(gb_operation_recv_handlers) - 1)) {
+	if (protocol_id <= (u8)(ARRAY_SIZE(gb_operation_recv_handlers) - 1)) {
 		gb_operation_recv_handler handler;
 
-		handler = gb_operation_recv_handlers[protocol];
+		handler = gb_operation_recv_handlers[protocol_id];
 		if (handler) {
 			handler(operation);	/* Handle the request */
 			return;
 		}
 	}
 
-	gb_connection_err(operation->connection, "unrecognized protocol %u\n",
-		(unsigned int)protocol);
+	gb_connection_err(operation->connection,
+		"unrecognized protocol id %hhu\n", protocol_id);
 	operation->result = GB_OP_PROTOCOL_BAD;
 	gb_operation_complete(operation);
 }

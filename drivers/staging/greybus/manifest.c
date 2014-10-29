@@ -181,7 +181,7 @@ static u32 gb_manifest_parse_cports(struct gb_interface *interface)
 	while (true) {
 		struct manifest_desc *descriptor;
 		struct greybus_descriptor_cport *desc_cport;
-		enum greybus_protocol protocol;
+		u8 protocol_id;
 		u16 cport_id;
 		bool found;
 
@@ -200,9 +200,9 @@ static u32 gb_manifest_parse_cports(struct gb_interface *interface)
 			break;
 
 		/* Found one.  Set up its function structure */
-		protocol = (enum greybus_protocol)desc_cport->protocol;
+		protocol_id = desc_cport->protocol_id;
 		cport_id = le16_to_cpu(desc_cport->id);
-		if (!gb_connection_create(interface, cport_id, protocol))
+		if (!gb_connection_create(interface, cport_id, protocol_id))
 			return 0;	/* Error */
 
 		count++;

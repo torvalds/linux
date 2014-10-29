@@ -111,18 +111,18 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(state);
 
-static ssize_t protocol_show(struct device *dev, struct device_attribute *attr,
-			     char *buf)
+static ssize_t
+protocol_id_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct gb_connection *connection = to_gb_connection(dev);
 
-	return sprintf(buf, "%d", connection->protocol);
+	return sprintf(buf, "%d", connection->protocol_id);
 }
-static DEVICE_ATTR_RO(protocol);
+static DEVICE_ATTR_RO(protocol_id);
 
 static struct attribute *connection_attrs[] = {
 	&dev_attr_state.attr,
-	&dev_attr_protocol.attr,
+	&dev_attr_protocol_id.attr,
 	NULL,
 };
 
@@ -152,7 +152,7 @@ static struct device_type greybus_connection_type = {
  * pointer otherwise.
  */
 struct gb_connection *gb_connection_create(struct gb_interface *interface,
-				u16 cport_id, enum greybus_protocol protocol)
+				u16 cport_id, u8 protocol_id)
 {
 	struct gb_connection *connection;
 	struct greybus_host_device *hd;
@@ -172,7 +172,7 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 
 	connection->interface = interface;
 	connection->interface_cport_id = cport_id;
-	connection->protocol = protocol;
+	connection->protocol_id = protocol_id;
 	connection->state = GB_CONNECTION_STATE_DISABLED;
 
 	connection->dev.parent = &interface->dev;
@@ -267,7 +267,7 @@ int gb_connection_init(struct gb_connection *connection)
 
 	/* Need to enable the connection to initialize it */
 	connection->state = GB_CONNECTION_STATE_ENABLED;
-	switch (connection->protocol) {
+	switch (connection->protocol_id) {
 	case GREYBUS_PROTOCOL_I2C:
 		connection->handler = &gb_i2c_connection_handler;
 		break;
@@ -286,8 +286,8 @@ int gb_connection_init(struct gb_connection *connection)
 	case GREYBUS_PROTOCOL_LED:
 	case GREYBUS_PROTOCOL_VENDOR:
 	default:
-		gb_connection_err(connection, "unimplemented protocol %u",
-			(u32)connection->protocol);
+		gb_connection_err(connection, "unimplemented protocol %hhu",
+			connection->protocol_id);
 		ret = -ENXIO;
 		break;
 	}
