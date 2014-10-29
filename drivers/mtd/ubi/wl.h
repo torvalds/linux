@@ -13,6 +13,9 @@ static inline void ubi_fastmap_init(struct ubi_device *ubi, int *count)
 	*count += (ubi->fm_size / ubi->leb_size) * 2;
 	INIT_WORK(&ubi->fm_work, update_fastmap_work_fn);
 }
+static struct ubi_wl_entry *may_reserve_for_fm(struct ubi_device *ubi,
+					       struct ubi_wl_entry *e,
+					       struct rb_root *root);
 #else /* !CONFIG_MTD_UBI_FASTMAP */
 static struct ubi_wl_entry *get_peb_for_wl(struct ubi_device *ubi);
 static inline int is_fm_block(struct ubi_device *ubi, int pnum)
@@ -21,5 +24,10 @@ static inline int is_fm_block(struct ubi_device *ubi, int pnum)
 }
 static inline void ubi_fastmap_close(struct ubi_device *ubi) { }
 static inline void ubi_fastmap_init(struct ubi_device *ubi, int *count) { }
+static struct ubi_wl_entry *may_reserve_for_fm(struct ubi_device *ubi,
+					       struct ubi_wl_entry *e,
+					       struct rb_root *root) {
+	return e;
+}
 #endif /* CONFIG_MTD_UBI_FASTMAP */
 #endif /* UBI_WL_H */

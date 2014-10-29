@@ -359,3 +359,22 @@ static void ubi_fastmap_close(struct ubi_device *ubi)
 	}
 	kfree(ubi->fm);
 }
+
+/**
+ * may_reserve_for_fm - tests whether a PEB shall be reserved for fastmap.
+ * See find_mean_wl_entry()
+ *
+ * @ubi: UBI device description object
+ * @e: physical eraseblock to return
+ * @root: RB tree to test against.
+ */
+static struct ubi_wl_entry *may_reserve_for_fm(struct ubi_device *ubi,
+					   struct ubi_wl_entry *e,
+					   struct rb_root *root) {
+	if (e && !ubi->fm_disabled && !ubi->fm &&
+	    e->pnum < UBI_FM_MAX_START)
+		e = rb_entry(rb_next(root->rb_node),
+			     struct ubi_wl_entry, u.rb);
+
+	return e;
+}
