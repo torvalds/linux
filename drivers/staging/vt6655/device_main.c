@@ -412,7 +412,6 @@ static void device_init_registers(struct vnt_private *pDevice)
 	unsigned char byCCKPwrdBm = 0;
 	unsigned char byOFDMPwrdBm = 0;
 	int zonetype = 0;
-	PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
 
 	MACbShutdown(pDevice->PortOffset);
 	BBvSoftwareReset(pDevice->PortOffset);
@@ -616,8 +615,6 @@ static void device_init_registers(struct vnt_private *pDevice)
 					   (unsigned char)(ii + EEP_OFS_OFDMA_PWR_dBm));
 	}
 
-	init_channel_table((void *)pDevice);
-
 	if (pDevice->byLocalID > REV_ID_VT3253_B1) {
 		MACvSelectPage1(pDevice->PortOffset);
 
@@ -652,18 +649,12 @@ static void device_init_registers(struct vnt_private *pDevice)
 	BBvSetRxAntennaMode(pDevice->PortOffset, pDevice->byRxAntennaMode);
 	BBvSetTxAntennaMode(pDevice->PortOffset, pDevice->byTxAntennaMode);
 
-	pDevice->byCurrentCh = 0;
-
 	/* Set BB and packet type at the same time. */
 	/* Set Short Slot Time, xIFS, and RSPINF. */
 	if (pDevice->uConnectionRate == RATE_AUTO)
 		pDevice->wCurrentRate = RATE_54M;
 	else
 		pDevice->wCurrentRate = (unsigned short)pDevice->uConnectionRate;
-
-	/* default G Mode */
-	VNTWIFIbConfigPhyMode(pDevice->pMgmt, PHY_TYPE_11G);
-	VNTWIFIbConfigPhyMode(pDevice->pMgmt, PHY_TYPE_AUTO);
 
 	pDevice->bRadioOff = false;
 
@@ -685,8 +676,6 @@ static void device_init_registers(struct vnt_private *pDevice)
 	if (pDevice->bHWRadioOff || pDevice->bRadioControlOff)
 		CARDbRadioPowerOff(pDevice);
 
-	pMgmt->eScanType = WMAC_SCAN_PASSIVE;
-
 	/* get Permanent network address */
 	SROMvReadEtherAddress(pDevice->PortOffset, pDevice->abyCurrentNetAddr);
 	pr_debug("Network address = %pM\n", pDevice->abyCurrentNetAddr);
@@ -699,16 +688,12 @@ static void device_init_registers(struct vnt_private *pDevice)
 	if (pDevice->byLocalID <= REV_ID_VT3253_A1)
 		MACvRegBitsOn(pDevice->PortOffset, MAC_REG_RCR, RCR_WPAERR);
 
-	pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
-
 	/* Turn On Rx DMA */
 	MACvReceive0(pDevice->PortOffset);
 	MACvReceive1(pDevice->PortOffset);
 
 	/* start the adapter */
 	MACvStart(pDevice->PortOffset);
-
-	netif_stop_queue(pDevice->dev);
 }
 
 static void device_init_diversity_timer(struct vnt_private *pDevice)
