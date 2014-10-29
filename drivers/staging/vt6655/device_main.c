@@ -71,7 +71,6 @@
 #include "hostap.h"
 #include "wpactl.h"
 #include "ioctl.h"
-#include "iwctl.h"
 #include "dpc.h"
 #include "datarate.h"
 #include "rf.h"
