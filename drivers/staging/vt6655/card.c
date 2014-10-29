@@ -1457,7 +1457,7 @@ static unsigned short CARDwGetCCKControlRate(struct vnt_private *pDevice,
 	unsigned int ui = (unsigned int) wRateIdx;
 
 	while (ui > RATE_1M) {
-		if (pDevice->wBasicRate & ((unsigned short)1 << ui))
+		if (pDevice->basic_rates & ((u32)0x1 << ui))
 			return (unsigned short)ui;
 
 		ui--;
@@ -1482,7 +1482,7 @@ static unsigned short CARDwGetOFDMControlRate(struct vnt_private *pDevice,
 {
 	unsigned int ui = (unsigned int) wRateIdx;
 
-	pr_debug("BASIC RATE: %X\n", pDevice->wBasicRate);
+	pr_debug("BASIC RATE: %X\n", pDevice->basic_rates);
 
 	if (!CARDbIsOFDMinBasicRate((void *)pDevice)) {
 		pr_debug("CARDwGetOFDMControlRate:(NO OFDM) %d\n", wRateIdx);
@@ -1491,7 +1491,7 @@ static unsigned short CARDwGetOFDMControlRate(struct vnt_private *pDevice,
 		return wRateIdx;
 	}
 	while (ui > RATE_11M) {
-		if (pDevice->wBasicRate & ((unsigned short)1 << ui)) {
+		if (pDevice->basic_rates & ((u32)0x1 << ui)) {
 			pr_debug("CARDwGetOFDMControlRate : %d\n", ui);
 			return (unsigned short)ui;
 		}
