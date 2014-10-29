@@ -16,6 +16,7 @@
  */
 
 #include "drm_flip_work.h"
+#include <drm/drm_plane_helper.h>
 
 #include "tilcdc_drv.h"
 #include "tilcdc_regs.h"

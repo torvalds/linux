@@ -25,6 +25,7 @@
 #define DRM_PLANE_HELPER_H
 
 #include <drm/drm_rect.h>
+#include <drm/drm_crtc.h>
 
 /*
  * Drivers that don't allow primary plane scaling may pass this macro in place
@@ -41,6 +42,10 @@
  * Helper functions to assist with creation and handling of CRTC primary
  * planes.
  */
+
+extern int drm_crtc_init(struct drm_device *dev,
+			 struct drm_crtc *crtc,
+			 const struct drm_crtc_funcs *funcs);
 
 extern int drm_plane_helper_check_update(struct drm_plane *plane,
 					 struct drm_crtc *crtc,

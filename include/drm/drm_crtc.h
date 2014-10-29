@@ -880,9 +880,6 @@ extern int drm_crtc_init_with_planes(struct drm_device *dev,
 				     struct drm_plane *primary,
 				     struct drm_plane *cursor,
 				     const struct drm_crtc_funcs *funcs);
-extern int drm_crtc_init(struct drm_device *dev,
-			 struct drm_crtc *crtc,
-			 const struct drm_crtc_funcs *funcs);
 extern void drm_crtc_cleanup(struct drm_crtc *crtc);
 extern unsigned int drm_crtc_index(struct drm_crtc *crtc);
 
