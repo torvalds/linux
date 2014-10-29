@@ -324,6 +324,7 @@ struct vnt_private {
 	struct ieee80211_hw *hw;
 	struct ieee80211_vif *vif;
 	unsigned long key_entry_inuse;
+	u16 current_aid;
 /* netdev */
 	struct net_device *dev;
 

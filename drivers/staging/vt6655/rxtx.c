@@ -169,7 +169,8 @@ s_uFillDataHead(
 	unsigned int cbLastFragmentSize,
 	unsigned int uMACfragNum,
 	unsigned char byFBOption,
-	unsigned short wCurrentRate
+	unsigned short wCurrentRate,
+	bool is_pspoll
 );
 
 /*---------------------  Export Variables  --------------------------*/
@@ -674,7 +675,8 @@ s_uFillDataHead(
 	unsigned int cbLastFragmentSize,
 	unsigned int uMACfragNum,
 	unsigned char byFBOption,
-	unsigned short wCurrentRate
+	unsigned short wCurrentRate,
+	bool is_pspoll
 )
 {
 
@@ -693,15 +695,24 @@ s_uFillDataHead(
 					  pDevice->byTopCCKBasicRate,
 					  PK_TYPE_11B, &buf->b);
 
-			/* Get Duration and TimeStamp */
-			buf->duration_a = cpu_to_le16((u16)s_uGetDataDuration(pDevice, DATADUR_A, cbFrameLength,
-									      byPktType, wCurrentRate, bNeedAck, uFragIdx,
-									      cbLastFragmentSize, uMACfragNum,
-									      byFBOption));
-			buf->duration_b = cpu_to_le16((u16)s_uGetDataDuration(pDevice, DATADUR_B, cbFrameLength,
-									      PK_TYPE_11B, pDevice->byTopCCKBasicRate,
-									      bNeedAck, uFragIdx, cbLastFragmentSize,
-									      uMACfragNum, byFBOption));
+			if (is_pspoll) {
+				__le16 dur = cpu_to_le16(pDevice->current_aid | BIT(14) | BIT(15));
+
+				buf->duration_a = dur;
+				buf->duration_b = dur;
+			} else {
+				/* Get Duration and TimeStamp */
+				buf->duration_a =
+					cpu_to_le16((u16)s_uGetDataDuration(pDevice, DATADUR_A, cbFrameLength,
+									    byPktType, wCurrentRate, bNeedAck, uFragIdx,
+									    cbLastFragmentSize, uMACfragNum,
+									    byFBOption));
+				buf->duration_b =
+					cpu_to_le16((u16)s_uGetDataDuration(pDevice, DATADUR_B, cbFrameLength,
+									    PK_TYPE_11B, pDevice->byTopCCKBasicRate,
+									    bNeedAck, uFragIdx, cbLastFragmentSize,
+									    uMACfragNum, byFBOption));
+			}
 
 			buf->time_stamp_off_a = vnt_time_stamp_off(pDevice, wCurrentRate);
 			buf->time_stamp_off_b = vnt_time_stamp_off(pDevice, pDevice->byTopCCKBasicRate);
@@ -755,11 +766,18 @@ s_uFillDataHead(
 			vnt_get_phy_field(pDevice, cbFrameLength, wCurrentRate,
 					  byPktType, &buf->ab);
 
-			/* Get Duration and TimeStampOff */
-			buf->duration = cpu_to_le16((u16)s_uGetDataDuration(pDevice, DATADUR_A, cbFrameLength, byPktType,
+			if (is_pspoll) {
+				__le16 dur = cpu_to_le16(pDevice->current_aid | BIT(14) | BIT(15));
+
+				buf->duration = dur;
+			} else {
+				/* Get Duration and TimeStampOff */
+				buf->duration =
+					cpu_to_le16((u16)s_uGetDataDuration(pDevice, DATADUR_A, cbFrameLength, byPktType,
 									    wCurrentRate, bNeedAck, uFragIdx,
 									    cbLastFragmentSize, uMACfragNum,
 									    byFBOption));
+			}
 
 			buf->time_stamp_off = vnt_time_stamp_off(pDevice, wCurrentRate);
 			return buf->duration;
@@ -769,16 +787,26 @@ s_uFillDataHead(
 		/* Get SignalField, ServiceField & Length */
 		vnt_get_phy_field(pDevice, cbFrameLength, wCurrentRate,
 				  byPktType, &buf->ab);
-		/* Get Duration and TimeStampOff */
-		buf->duration = cpu_to_le16((u16)s_uGetDataDuration(pDevice, DATADUR_B, cbFrameLength, byPktType,
+
+		if (is_pspoll) {
+			__le16 dur = cpu_to_le16(pDevice->current_aid | BIT(14) | BIT(15));
+
+			buf->duration = dur;
+		} else {
+			/* Get Duration and TimeStampOff */
+			buf->duration =
+				cpu_to_le16((u16)s_uGetDataDuration(pDevice, DATADUR_B, cbFrameLength, byPktType,
 								    wCurrentRate, bNeedAck, uFragIdx,
 								    cbLastFragmentSize, uMACfragNum,
 								    byFBOption));
+		}
+
 		buf->time_stamp_off = vnt_time_stamp_off(pDevice, wCurrentRate);
 		return buf->duration;
 	}
 	return 0;
 }
+
 
 static
 void
@@ -1346,7 +1374,7 @@ s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
 			       cbFrameSize, bNeedACK, uDMAIdx, hdr, pDevice->wCurrentRate);
 	/* Fill DataHead */
 	uDuration = s_uFillDataHead(pDevice, byPktType, pvTxDataHd, cbFrameSize, uDMAIdx, bNeedACK,
-				    0, 0, uMACfragNum, byFBOption, pDevice->wCurrentRate);
+				    0, 0, uMACfragNum, byFBOption, pDevice->wCurrentRate, is_pspoll);
 
 	hdr->duration_id = uDuration;
 
@@ -1750,7 +1778,7 @@ CMD_STATUS csMgmt_xmit(struct vnt_private *pDevice, PSTxMgmtPacket pPacket)
 
 	//Fill DataHead
 	uDuration = s_uFillDataHead(pDevice, byPktType, pvTxDataHd, cbFrameSize, TYPE_TXDMA0, bNeedACK,
-				    0, 0, 1, AUTO_FB_NONE, wCurrentRate);
+				    0, 0, 1, AUTO_FB_NONE, wCurrentRate, false);
 
 	pMACHeader = (PS802_11Header) (pbyTxBufferAddr + cbHeaderSize);
 
@@ -2245,7 +2273,7 @@ void vDMA0_tx_80211(struct vnt_private *pDevice, struct sk_buff *skb,
 
 	//Fill DataHead
 	uDuration = s_uFillDataHead(pDevice, byPktType, pvTxDataHd, cbFrameSize, TYPE_TXDMA0, bNeedACK,
-				    0, 0, 1, AUTO_FB_NONE, wCurrentRate);
+				    0, 0, 1, AUTO_FB_NONE, wCurrentRate, false);
 
 	pMACHeader = (PS802_11Header) (pbyTxBufferAddr + cbHeaderSize);
 
