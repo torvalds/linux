@@ -99,8 +99,8 @@ static unsigned int max77686_get_opmode_shift(int id)
 	}
 }
 
-/* Some BUCKS supports Normal[ON/OFF] mode during suspend */
-static int max77686_buck_set_suspend_disable(struct regulator_dev *rdev)
+/* Some BUCKs and LDOs supports Normal[ON/OFF] mode during suspend */
+static int max77686_set_suspend_disable(struct regulator_dev *rdev)
 {
 	unsigned int val, shift;
 	struct max77686_data *max77686 = rdev_get_drvdata(rdev);
@@ -195,6 +195,9 @@ static int max77686_enable(struct regulator_dev *rdev)
 
 	shift = max77686_get_opmode_shift(id);
 
+	if (max77686->opmode[id] == MAX77686_OFF_PWRREQ)
+		max77686->opmode[id] = MAX77686_NORMAL;
+
 	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
 				  rdev->desc->enable_mask,
 				  max77686->opmode[id] << shift);
@@ -247,6 +250,7 @@ static struct regulator_ops max77686_ldo_ops = {
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
 	.set_suspend_mode	= max77686_ldo_set_suspend_mode,
+	.set_suspend_disable	= max77686_set_suspend_disable,
 };
 
 static struct regulator_ops max77686_buck1_ops = {
@@ -258,7 +262,7 @@ static struct regulator_ops max77686_buck1_ops = {
 	.get_voltage_sel	= regulator_get_voltage_sel_regmap,
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
-	.set_suspend_disable	= max77686_buck_set_suspend_disable,
+	.set_suspend_disable	= max77686_set_suspend_disable,
 };
 
 static struct regulator_ops max77686_buck_dvs_ops = {
@@ -271,7 +275,7 @@ static struct regulator_ops max77686_buck_dvs_ops = {
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
 	.set_ramp_delay		= max77686_set_ramp_delay,
-	.set_suspend_disable	= max77686_buck_set_suspend_disable,
+	.set_suspend_disable	= max77686_set_suspend_disable,
 };
 
 #define regulator_desc_ldo(num)		{				\
