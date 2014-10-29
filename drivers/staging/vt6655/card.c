@@ -198,124 +198,6 @@ s_vCalculateOFDMRParameter(
 	}
 }
 
-/*
- * Description: Set RSPINF
- *
- * Parameters:
- *  In:
- *      pDevice             - The adapter to be set
- *  Out:
- *      none
- *
- * Return Value: None.
- */
-static
-void
-s_vSetRSPINF(struct vnt_private *pDevice, CARD_PHY_TYPE ePHYType,
-	     void *pvSupportRateIEs, void *pvExtSupportRateIEs)
-{
-	union vnt_phy_field_swap phy;
-	unsigned char byTxRate = 0, byRsvTime = 0;    /* For OFDM */
-
-	/* Set to Page1 */
-	MACvSelectPage1(pDevice->PortOffset);
-
-	/* RSPINF_b_1 */
-	vnt_get_phy_field(pDevice,
-			  14,
-			  VNTWIFIbyGetACKTxRate(RATE_1M, pvSupportRateIEs, pvExtSupportRateIEs),
-			  PK_TYPE_11B,
-			  &phy.field_read);
-
-	 /* swap over to get correct write order */
-	swap(phy.swap[0], phy.swap[1]);
-
-	VNSvOutPortD(pDevice->PortOffset + MAC_REG_RSPINF_B_1, phy.field_write);
-
-	/* RSPINF_b_2 */
-	vnt_get_phy_field(pDevice, 14,
-			  VNTWIFIbyGetACKTxRate(RATE_2M, pvSupportRateIEs, pvExtSupportRateIEs),
-			  PK_TYPE_11B, &phy.field_read);
-
-	swap(phy.swap[0], phy.swap[1]);
-
-	VNSvOutPortD(pDevice->PortOffset + MAC_REG_RSPINF_B_2, phy.field_write);
-
-	/* RSPINF_b_5 */
-	vnt_get_phy_field(pDevice, 14,
-			  VNTWIFIbyGetACKTxRate(RATE_5M, pvSupportRateIEs, pvExtSupportRateIEs),
-			  PK_TYPE_11B, &phy.field_read);
-
-	swap(phy.swap[0], phy.swap[1]);
-
-	VNSvOutPortD(pDevice->PortOffset + MAC_REG_RSPINF_B_5, phy.field_write);
-
-	/* RSPINF_b_11 */
-	vnt_get_phy_field(pDevice, 14,
-			  VNTWIFIbyGetACKTxRate(RATE_11M, pvSupportRateIEs, pvExtSupportRateIEs),
-			  PK_TYPE_11B, &phy.field_read);
-
-	swap(phy.swap[0], phy.swap[1]);
-
-	VNSvOutPortD(pDevice->PortOffset + MAC_REG_RSPINF_B_11, phy.field_write);
-
-	/* RSPINF_a_6 */
-	s_vCalculateOFDMRParameter(RATE_6M,
-				   ePHYType,
-				   &byTxRate,
-				   &byRsvTime);
-	VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_6, MAKEWORD(byTxRate, byRsvTime));
-	/* RSPINF_a_9 */
-	s_vCalculateOFDMRParameter(RATE_9M,
-				   ePHYType,
-				   &byTxRate,
-				   &byRsvTime);
-	VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_9, MAKEWORD(byTxRate, byRsvTime));
-	/* RSPINF_a_12 */
-	s_vCalculateOFDMRParameter(RATE_12M,
-				   ePHYType,
-				   &byTxRate,
-				   &byRsvTime);
-	VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_12, MAKEWORD(byTxRate, byRsvTime));
-	/* RSPINF_a_18 */
-	s_vCalculateOFDMRParameter(RATE_18M,
-				   ePHYType,
-				   &byTxRate,
-				   &byRsvTime);
-	VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_18, MAKEWORD(byTxRate, byRsvTime));
-	/* RSPINF_a_24 */
-	s_vCalculateOFDMRParameter(RATE_24M,
-				   ePHYType,
-				   &byTxRate,
-				   &byRsvTime);
-	VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_24, MAKEWORD(byTxRate, byRsvTime));
-	/* RSPINF_a_36 */
-	s_vCalculateOFDMRParameter(
-		VNTWIFIbyGetACKTxRate(RATE_36M, pvSupportRateIEs, pvExtSupportRateIEs),
-		ePHYType,
-		&byTxRate,
-		&byRsvTime);
-	VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_36, MAKEWORD(byTxRate, byRsvTime));
-	/* RSPINF_a_48 */
-	s_vCalculateOFDMRParameter(
-		VNTWIFIbyGetACKTxRate(RATE_48M, pvSupportRateIEs, pvExtSupportRateIEs),
-		ePHYType,
-		&byTxRate,
-		&byRsvTime);
-	VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_48, MAKEWORD(byTxRate, byRsvTime));
-	/* RSPINF_a_54 */
-	s_vCalculateOFDMRParameter(
-		VNTWIFIbyGetACKTxRate(RATE_54M, pvSupportRateIEs, pvExtSupportRateIEs),
-		ePHYType,
-		&byTxRate,
-		&byRsvTime);
-	VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_54, MAKEWORD(byTxRate, byRsvTime));
-	/* RSPINF_a_72 */
-	VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_72, MAKEWORD(byTxRate, byRsvTime));
-	/* Set to Page0 */
-	MACvSelectPage0(pDevice->PortOffset);
-}
-
 /*---------------------  Export Functions  --------------------------*/
 
 /*
@@ -504,7 +386,7 @@ bool CARDbSetPhyParameter(struct vnt_private *pDevice, CARD_PHY_TYPE ePHYType,
 		VNSvOutPortB(pDevice->PortOffset + MAC_REG_CWMAXMIN0, pDevice->byCWMaxMin);
 	}
 
-	s_vSetRSPINF(pDevice, ePHYType, NULL, NULL);
+	CARDvSetRSPINF(pDevice, ePHYType);
 
 	return true;
 }
