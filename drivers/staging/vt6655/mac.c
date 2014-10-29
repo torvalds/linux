@@ -1526,7 +1526,7 @@ void MACvSetDefaultKeyEntry(void __iomem *dwIoBase, unsigned int uKeyLen,
 		VNSvOutPortW(dwIoBase + MAC_REG_MISCFFCTL, MISCFFCTL_WRITE);
 	}
 	dwData = *pdwKey;
-	if (uKeyLen == WLAN_WEP104_KEYLEN)
+	if (uKeyLen == WLAN_KEY_LEN_WEP40)
 		dwData |= 0x80000000;
 
 	VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, wOffset+3);
