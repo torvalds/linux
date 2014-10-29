@@ -459,6 +459,27 @@ intel_ddi_get_crtc_encoder(struct drm_crtc *crtc)
 	return ret;
 }
 
+static struct intel_encoder *
+intel_ddi_get_crtc_new_encoder(struct intel_crtc *crtc)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct intel_encoder *intel_encoder, *ret = NULL;
+	int num_encoders = 0;
+
+	for_each_intel_encoder(dev, intel_encoder) {
+		if (intel_encoder->new_crtc == crtc) {
+			ret = intel_encoder;
+			num_encoders++;
+		}
+	}
+
+	WARN(num_encoders != 1, "%d encoders on crtc for pipe %c\n", num_encoders,
+	     pipe_name(crtc->pipe));
+
+	BUG_ON(ret == NULL);
+	return ret;
+}
+
 #define LC_FREQ 2700
 #define LC_FREQ_2K U64_C(LC_FREQ * 2000)
 
@@ -792,7 +813,7 @@ hsw_ddi_pll_select(struct intel_crtc *intel_crtc,
 		      WRPLL_DIVIDER_REFERENCE(r2) | WRPLL_DIVIDER_FEEDBACK(n2) |
 		      WRPLL_DIVIDER_POST(p);
 
-		intel_crtc->config.dpll_hw_state.wrpll = val;
+		intel_crtc->new_config->dpll_hw_state.wrpll = val;
 
 		pll = intel_get_shared_dpll(intel_crtc);
 		if (pll == NULL) {
@@ -801,7 +822,7 @@ hsw_ddi_pll_select(struct intel_crtc *intel_crtc,
 			return false;
 		}
 
-		intel_crtc->config.ddi_pll_sel = PORT_CLK_SEL_WRPLL(pll->id);
+		intel_crtc->new_config->ddi_pll_sel = PORT_CLK_SEL_WRPLL(pll->id);
 	}
 
 	return true;
@@ -817,9 +838,9 @@ hsw_ddi_pll_select(struct intel_crtc *intel_crtc,
  */
 bool intel_ddi_pll_select(struct intel_crtc *intel_crtc)
 {
-	struct drm_crtc *crtc = &intel_crtc->base;
-	struct intel_encoder *intel_encoder = intel_ddi_get_crtc_encoder(crtc);
-	int clock = intel_crtc->config.port_clock;
+	struct intel_encoder *intel_encoder =
+		intel_ddi_get_crtc_new_encoder(intel_crtc);
+	int clock = intel_crtc->new_config->port_clock;
 
 	intel_put_shared_dpll(intel_crtc);
 
