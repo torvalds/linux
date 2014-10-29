@@ -88,36 +88,4 @@ typedef enum tagCMD_STATE {
 	WLAN_CMD_IDLE
 } CMD_STATE, *PCMD_STATE;
 
-void
-vResetCommandTimer(
-	void *hDeviceContext
-);
-
-void
-vCommandTimer(
-	void *hDeviceContext
-);
-
-bool bClearBSSID_SCAN(
-	void *hDeviceContext
-);
-
-bool
-bScheduleCommand(
-	void *hDeviceContext,
-	CMD_CODE    eCommand,
-	unsigned char *pbyItem0
-);
-
-void
-vCommandTimerWait(
-	void *hDeviceContext,
-	unsigned int MSecond
-);
-
-void
-BSSvSecondTxData(
-	void *hDeviceContext
-);
-
 #endif //__WCMD_H__

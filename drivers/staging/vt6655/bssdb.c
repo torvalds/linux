@@ -1092,7 +1092,6 @@ BSSvSecondCallBack(
 			if ((pMgmt->sNodeDBTable[0].uInActiveCount >= (LOST_BEACON_COUNT/2)) &&
 			    (pDevice->byBBVGACurrent != pDevice->abyBBVGA[0])) {
 				pDevice->byBBVGANew = pDevice->abyBBVGA[0];
-				bScheduleCommand((void *)pDevice, WLAN_CMD_CHANGE_BBSENSITIVITY, NULL);
 			}
 
 			if (pMgmt->sNodeDBTable[0].uInActiveCount >= LOST_BEACON_COUNT) {
@@ -1151,8 +1150,6 @@ BSSvSecondCallBack(
 				pr_debug("Roaming ...\n");
 				BSSvClearBSSList((void *)pDevice, pDevice->bLinkPass);
 				pMgmt->eScanType = WMAC_SCAN_ACTIVE;
-				bScheduleCommand((void *)pDevice, WLAN_CMD_BSSID_SCAN, pMgmt->abyDesireSSID);
-				bScheduleCommand((void *)pDevice, WLAN_CMD_SSID, pMgmt->abyDesireSSID);
 				pDevice->uAutoReConnectTime = 0;
 			}
 		}
@@ -1166,8 +1163,6 @@ BSSvSecondCallBack(
 			} else {
 				pr_info("Adhoc re-scanning ...\n");
 				pMgmt->eScanType = WMAC_SCAN_ACTIVE;
-				bScheduleCommand((void *)pDevice, WLAN_CMD_BSSID_SCAN, NULL);
-				bScheduleCommand((void *)pDevice, WLAN_CMD_SSID, NULL);
 				pDevice->uAutoReConnectTime = 0;
 			}
 		}
@@ -1430,8 +1425,6 @@ void s_vCheckSensitivity(
 				}
 				if (pDevice->byBBVGANew != pDevice->byBBVGACurrent) {
 					pDevice->uBBVGADiffCount++;
-					if (pDevice->uBBVGADiffCount >= BB_VGA_CHANGE_THRESHOLD)
-						bScheduleCommand((void *)pDevice, WLAN_CMD_CHANGE_BBSENSITIVITY, NULL);
 				} else {
 					pDevice->uBBVGADiffCount = 0;
 				}
