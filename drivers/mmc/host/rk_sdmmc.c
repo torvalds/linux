@@ -3766,8 +3766,9 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 static void dw_mci_dealwith_timeout(struct dw_mci *host)
 {
         u32 regs;
-	u32 sdio_int;
+        u32 sdio_int;
 
+        dev_err(host->dev, "host->state = 0x%x\n", host->state);
         switch(host->state){
                 case STATE_IDLE:
                         break;
@@ -3777,8 +3778,9 @@ static void dw_mci_dealwith_timeout(struct dw_mci *host)
 		        mci_writel(host, RINTSTS, SDMMC_INT_DRTO);  // clear interrupt
                         set_bit(EVENT_DATA_COMPLETE, &host->pending_events);
                         host->state = STATE_DATA_BUSY;
-	                if (!dw_mci_ctrl_all_reset(host)) {
-                                return ;
+                        if (!dw_mci_ctrl_all_reset(host)) {
+	                        dev_err(host->dev, "dto: ctrl_all_reset failed!\n");
+	                        return ;
                         }
 
                         /* NO requirement to reclaim slave chn using external dmac */
