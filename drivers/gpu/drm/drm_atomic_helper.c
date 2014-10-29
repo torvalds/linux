@@ -30,6 +30,7 @@
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_atomic_helper.h>
+#include <linux/fence.h>
 
 static void
 drm_atomic_helper_plane_changed(struct drm_atomic_state *state,
@@ -712,6 +713,26 @@ void drm_atomic_helper_commit_post_planes(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_atomic_helper_commit_post_planes);
 
+static void wait_for_fences(struct drm_device *dev,
+			    struct drm_atomic_state *state)
+{
+	int nplanes = dev->mode_config.num_total_plane;
+	int i;
+
+	for (i = 0; i < nplanes; i++) {
+		struct drm_plane *plane = state->planes[i];
+
+		if (!plane || !plane->state->fence)
+			continue;
+
+		WARN_ON(!plane->state->fb);
+
+		fence_wait(plane->state->fence, false);
+		fence_put(plane->state->fence);
+		plane->state->fence = NULL;
+	}
+}
+
 static void
 wait_for_vblanks(struct drm_device *dev, struct drm_atomic_state *old_state)
 {
@@ -808,6 +829,8 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 	 * composition of the next frame right after having submitted the
 	 * current layout.
 	 */
+
+	wait_for_fences(dev, state);
 
 	drm_atomic_helper_commit_pre_planes(dev, state);
 

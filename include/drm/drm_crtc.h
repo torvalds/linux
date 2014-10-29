@@ -42,6 +42,7 @@ struct drm_object_properties;
 struct drm_file;
 struct drm_clip_rect;
 struct device_node;
+struct fence;
 
 #define DRM_MODE_OBJECT_CRTC 0xcccccccc
 #define DRM_MODE_OBJECT_CONNECTOR 0xc0c0c0c0
@@ -658,6 +659,7 @@ struct drm_connector {
  * struct drm_plane_state - mutable plane state
  * @crtc: currently bound CRTC, NULL if disabled
  * @fb: currently bound framebuffer
+ * @fence: optional fence to wait for before scanning out @fb
  * @crtc_x: left position of visible portion of plane on crtc
  * @crtc_y: upper position of visible portion of plane on crtc
  * @crtc_w: width of visible portion of plane on crtc
@@ -673,6 +675,7 @@ struct drm_connector {
 struct drm_plane_state {
 	struct drm_crtc *crtc;
 	struct drm_framebuffer *fb;
+	struct fence *fence;
 
 	/* Signed dest location allows it to be partially off screen */
 	int32_t crtc_x, crtc_y;
