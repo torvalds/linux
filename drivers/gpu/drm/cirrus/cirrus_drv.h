@@ -210,6 +210,9 @@ int cirrus_framebuffer_init(struct drm_device *dev,
 			    struct drm_mode_fb_cmd2 *mode_cmd,
 			    struct drm_gem_object *obj);
 
+bool cirrus_check_framebuffer(struct cirrus_device *cdev, int width, int height,
+			      int bpp, int pitch);
+
 				/* cirrus_display.c */
 int cirrus_modeset_init(struct cirrus_device *cdev);
 void cirrus_modeset_fini(struct cirrus_device *cdev);
