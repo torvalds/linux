@@ -64,7 +64,6 @@
 #include "rxtx.h"
 #include "dpc.h"
 #include "rf.h"
-#include "iowpa.h"
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
