@@ -94,7 +94,10 @@ struct ieee802154_hw {
 /* This groups the most common CSMA support fields into one. */
 #define IEEE802154_HW_CSMA		(IEEE802154_HW_CCA_MODE | \
 					 IEEE802154_HW_CCA_ED_LEVEL | \
-					 IEEE802154_HW_CSMA_PARAMS | \
+					 IEEE802154_HW_CSMA_PARAMS)
+
+/* This groups the most common ARET support fields into one. */
+#define IEEE802154_HW_ARET		(IEEE802154_HW_CSMA | \
 					 IEEE802154_HW_FRAME_RETRIES)
 
 /* struct ieee802154_ops - callbacks from mac802154 to the driver
