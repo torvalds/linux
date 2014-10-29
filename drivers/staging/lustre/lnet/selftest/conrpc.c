@@ -88,7 +88,7 @@ lstcon_rpc_done(srpc_client_rpc_t *rpc)
 	spin_unlock(&rpc->crpc_lock);
 }
 
-int
+static int
 lstcon_rpc_init(lstcon_node_t *nd, int service, unsigned feats,
 		int bulk_npg, int bulk_len, int embedded, lstcon_rpc_t *crpc)
 {
@@ -113,7 +113,7 @@ lstcon_rpc_init(lstcon_node_t *nd, int service, unsigned feats,
 	return 0;
 }
 
-int
+static int
 lstcon_rpc_prep(lstcon_node_t *nd, int service, unsigned feats,
 		int bulk_npg, int bulk_len, lstcon_rpc_t **crpcpp)
 {
@@ -182,7 +182,7 @@ lstcon_rpc_put(lstcon_rpc_t *crpc)
 	atomic_dec(&console_session.ses_rpc_counter);
 }
 
-void
+static void
 lstcon_rpc_post(lstcon_rpc_t *crpc)
 {
 	lstcon_rpc_trans_t *trans = crpc->crp_trans;
@@ -383,7 +383,7 @@ lstcon_rpc_trans_postwait(lstcon_rpc_trans_t *trans, int timeout)
 	return rc;
 }
 
-int
+static int
 lstcon_rpc_get_reply(lstcon_rpc_t *crpc, srpc_msg_t **msgpp)
 {
 	lstcon_node_t	*nd  = crpc->crp_node;
@@ -718,7 +718,7 @@ lstcon_next_id(int idx, int nkiov, lnet_kiov_t *kiov)
 	return &pid[idx % SFW_ID_PER_PAGE];
 }
 
-int
+static int
 lstcon_dstnodes_prep(lstcon_group_t *grp, int idx,
 		     int dist, int span, int nkiov, lnet_kiov_t *kiov)
 {
@@ -772,7 +772,7 @@ lstcon_dstnodes_prep(lstcon_group_t *grp, int idx,
 	return 0;
 }
 
-int
+static int
 lstcon_pingrpc_prep(lst_test_ping_param_t *param, srpc_test_reqst_t *req)
 {
 	test_ping_req_t *prq = &req->tsr_u.ping;
@@ -783,7 +783,7 @@ lstcon_pingrpc_prep(lst_test_ping_param_t *param, srpc_test_reqst_t *req)
 	return 0;
 }
 
-int
+static int
 lstcon_bulkrpc_v0_prep(lst_test_bulk_param_t *param, srpc_test_reqst_t *req)
 {
 	test_bulk_req_t *brq = &req->tsr_u.bulk_v0;
@@ -795,7 +795,7 @@ lstcon_bulkrpc_v0_prep(lst_test_bulk_param_t *param, srpc_test_reqst_t *req)
 	return 0;
 }
 
-int
+static int
 lstcon_bulkrpc_v1_prep(lst_test_bulk_param_t *param, srpc_test_reqst_t *req)
 {
 	test_bulk_req_v1_t *brq = &req->tsr_u.bulk_v1;
@@ -915,7 +915,7 @@ lstcon_testrpc_prep(lstcon_node_t *nd, int transop, unsigned feats,
 	return rc;
 }
 
-int
+static int
 lstcon_sesnew_stat_reply(lstcon_rpc_trans_t *trans,
 			 lstcon_node_t *nd, srpc_msg_t *reply)
 {
@@ -1162,7 +1162,7 @@ lstcon_rpc_trans_ndlist(struct list_head *ndlist,
 	return rc;
 }
 
-void
+static void
 lstcon_rpc_pinger(void *arg)
 {
 	stt_timer_t	*ptimer = (stt_timer_t *)arg;

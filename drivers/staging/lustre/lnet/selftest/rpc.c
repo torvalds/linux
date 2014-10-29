@@ -87,7 +87,7 @@ void srpc_set_counters (const srpc_counters_t *cnt)
 	spin_unlock(&srpc_data.rpc_glock);
 }
 
-int
+static int
 srpc_add_bulk_page(srpc_bulk_t *bk, struct page *pg, int i, int nob)
 {
 	nob = min(nob, (int)PAGE_CACHE_SIZE);
@@ -170,7 +170,7 @@ srpc_next_id (void)
 	return id;
 }
 
-void
+static void
 srpc_init_server_rpc(struct srpc_server_rpc *rpc,
 		     struct srpc_service_cd *scd,
 		     struct srpc_buffer *buffer)
@@ -351,7 +351,7 @@ srpc_remove_service (srpc_service_t *sv)
 	return 0;
 }
 
-int
+static int
 srpc_post_passive_rdma(int portal, int local, __u64 matchbits, void *buf,
 		       int len, int options, lnet_process_id_t peer,
 		       lnet_handle_md_t *mdh, srpc_event_t *ev)
@@ -391,7 +391,7 @@ srpc_post_passive_rdma(int portal, int local, __u64 matchbits, void *buf,
 	return 0;
 }
 
-int
+static int
 srpc_post_active_rdma(int portal, __u64 matchbits, void *buf, int len,
 		      int options, lnet_process_id_t peer, lnet_nid_t self,
 		      lnet_handle_md_t *mdh, srpc_event_t *ev)
@@ -443,7 +443,7 @@ srpc_post_active_rdma(int portal, __u64 matchbits, void *buf, int len,
 	return 0;
 }
 
-int
+static int
 srpc_post_active_rqtbuf(lnet_process_id_t peer, int service, void *buf,
 			int len, lnet_handle_md_t *mdh, srpc_event_t *ev)
 {
@@ -452,7 +452,7 @@ srpc_post_active_rqtbuf(lnet_process_id_t peer, int service, void *buf,
 				     LNET_NID_ANY, mdh, ev);
 }
 
-int
+static int
 srpc_post_passive_rqtbuf(int service, int local, void *buf, int len,
 			 lnet_handle_md_t *mdh, srpc_event_t *ev)
 {
@@ -466,7 +466,7 @@ srpc_post_passive_rqtbuf(int service, int local, void *buf, int len,
 				      LNET_MD_OP_PUT, any, mdh, ev);
 }
 
-int
+static int
 srpc_service_post_buffer(struct srpc_service_cd *scd, struct srpc_buffer *buf)
 {
 	struct srpc_service	*sv = scd->scd_svc;
@@ -697,7 +697,7 @@ srpc_finish_service(struct srpc_service *sv)
 }
 
 /* called with sv->sv_lock held */
-void
+static void
 srpc_service_recycle_buffer(struct srpc_service_cd *scd, srpc_buffer_t *buf)
 {
 	if (!scd->scd_svc->sv_shuttingdown && scd->scd_buf_adjust >= 0) {
@@ -787,7 +787,7 @@ srpc_shutdown_service(srpc_service_t *sv)
 	}
 }
 
-int
+static int
 srpc_send_request (srpc_client_rpc_t *rpc)
 {
 	srpc_event_t *ev = &rpc->crpc_reqstev;
@@ -807,7 +807,7 @@ srpc_send_request (srpc_client_rpc_t *rpc)
 	return rc;
 }
 
-int
+static int
 srpc_prepare_reply (srpc_client_rpc_t *rpc)
 {
 	srpc_event_t *ev = &rpc->crpc_replyev;
@@ -831,7 +831,7 @@ srpc_prepare_reply (srpc_client_rpc_t *rpc)
 	return rc;
 }
 
-int
+static int
 srpc_prepare_bulk (srpc_client_rpc_t *rpc)
 {
 	srpc_bulk_t  *bk = &rpc->crpc_bulk;
@@ -863,7 +863,7 @@ srpc_prepare_bulk (srpc_client_rpc_t *rpc)
 	return rc;
 }
 
-int
+static int
 srpc_do_bulk (srpc_server_rpc_t *rpc)
 {
 	srpc_event_t  *ev = &rpc->srpc_ev;
@@ -891,7 +891,7 @@ srpc_do_bulk (srpc_server_rpc_t *rpc)
 }
 
 /* only called from srpc_handle_rpc */
-void
+static void
 srpc_server_rpc_done(srpc_server_rpc_t *rpc, int status)
 {
 	struct srpc_service_cd	*scd = rpc->srpc_scd;
@@ -1066,7 +1066,7 @@ srpc_handle_rpc(swi_workitem_t *wi)
 	return 0;
 }
 
-void
+static void
 srpc_client_rpc_expired (void *data)
 {
 	srpc_client_rpc_t *rpc = data;
@@ -1108,7 +1108,7 @@ srpc_add_client_rpc_timer (srpc_client_rpc_t *rpc)
  *
  * Upon exit the RPC expiry timer is not queued and the handler is not
  * running on any CPU. */
-void
+static void
 srpc_del_client_rpc_timer (srpc_client_rpc_t *rpc)
 {
 	/* timer not planted or already exploded */
@@ -1129,7 +1129,7 @@ srpc_del_client_rpc_timer (srpc_client_rpc_t *rpc)
 	}
 }
 
-void
+static void
 srpc_client_rpc_done (srpc_client_rpc_t *rpc, int status)
 {
 	swi_workitem_t *wi = &rpc->crpc_wi;
@@ -1393,7 +1393,7 @@ srpc_send_reply(struct srpc_server_rpc *rpc)
 }
 
 /* when in kernel always called with LNET_LOCK() held, and in thread context */
-void
+static void
 srpc_lnet_ev_handler(lnet_event_t *ev)
 {
 	struct srpc_service_cd	*scd;

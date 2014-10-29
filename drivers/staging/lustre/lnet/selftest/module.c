@@ -55,7 +55,7 @@ static int lst_init_step = LST_INIT_NONE;
 struct cfs_wi_sched *lst_sched_serial;
 struct cfs_wi_sched **lst_sched_test;
 
-void
+static void
 lnet_selftest_fini(void)
 {
 	int	i;
@@ -101,7 +101,7 @@ lnet_selftest_structure_assertion(void)
 	CLASSERT(sizeof(srpc_stat_reqst_t) == 28);
 }
 
-int
+static int
 lnet_selftest_init(void)
 {
 	int	nscheds;
