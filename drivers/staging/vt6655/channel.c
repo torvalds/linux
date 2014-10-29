@@ -21,7 +21,6 @@
  */
 
 #include "baseband.h"
-#include "country.h"
 #include "channel.h"
 #include "device.h"
 #include "rf.h"
