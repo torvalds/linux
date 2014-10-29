@@ -1649,6 +1649,27 @@ static uint32_t get_lr_context_size(struct intel_engine_cs *ring)
 	return ret;
 }
 
+static int lrc_setup_hardware_status_page(struct intel_engine_cs *ring,
+		struct drm_i915_gem_object *default_ctx_obj)
+{
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+
+	/* The status page is offset 0 from the default context object
+	 * in LRC mode. */
+	ring->status_page.gfx_addr = i915_gem_obj_ggtt_offset(default_ctx_obj);
+	ring->status_page.page_addr =
+			kmap(sg_page(default_ctx_obj->pages->sgl));
+	if (ring->status_page.page_addr == NULL)
+		return -ENOMEM;
+	ring->status_page.obj = default_ctx_obj;
+
+	I915_WRITE(RING_HWS_PGA(ring->mmio_base),
+			(u32)ring->status_page.gfx_addr);
+	POSTING_READ(RING_HWS_PGA(ring->mmio_base));
+
+	return 0;
+}
+
 /**
  * intel_lr_context_deferred_create() - create the LRC specific bits of a context
  * @ctx: LR context to create.
@@ -1734,14 +1755,11 @@ int intel_lr_context_deferred_create(struct intel_context *ctx,
 	ctx->engine[ring->id].state = ctx_obj;
 
 	if (ctx == ring->default_context) {
-		/* The status page is offset 0 from the default context object
-		 * in LRC mode. */
-		ring->status_page.gfx_addr = i915_gem_obj_ggtt_offset(ctx_obj);
-		ring->status_page.page_addr =
-				kmap(sg_page(ctx_obj->pages->sgl));
-		if (ring->status_page.page_addr == NULL)
-			return -ENOMEM;
-		ring->status_page.obj = ctx_obj;
+		ret = lrc_setup_hardware_status_page(ring, ctx_obj);
+		if (ret) {
+			DRM_ERROR("Failed to setup hardware status page\n");
+			goto error;
+		}
 	}
 
 	if (ring->id == RCS && !ctx->rcs_initialized) {
