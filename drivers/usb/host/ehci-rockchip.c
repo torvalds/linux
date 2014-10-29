@@ -289,6 +289,41 @@ static ssize_t debug_show(struct device *_dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(debug_ehci, S_IRUGO, debug_show, NULL);
 
+static int test_sq(struct ehci_hcd *ehci)
+{
+	u32 portc = readl(&ehci->regs->port_status);
+
+	if ((portc & PORT_PE) && !(portc & PORT_SUSPEND)) {
+		portc &= ~PORT_RWC_BITS;
+		portc |= PORT_TEST_PKT;
+		writel(portc, &ehci->regs->port_status);
+		EHCI_PRINT("Start packet test\n");
+		return 0;
+
+	} else
+		EHCI_PRINT("Invalid connect status PORTC = 0x%08x\n", portc);
+
+	return -1;
+}
+
+static ssize_t test_sq_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+
+{
+	struct rkehci_platform_data *pldata = dev->platform_data;
+	struct ehci_hcd *ehci = hcd_to_ehci(dev_get_drvdata(dev));
+
+	if (pldata->phy_status == USB_PHY_SUSPEND) {
+		EHCI_PRINT("Invalid status : SUSPEND\n");
+		return -EBUSY;
+	}
+
+	return (test_sq(ehci)) ? -EBUSY : count;
+}
+
+static DEVICE_ATTR(test_sq, S_IWUSR, NULL, test_sq_store);
+
 static struct of_device_id rk_ehci_of_match[] = {
 	{
 	 .compatible = "rockchip,rk3288_rk_ehci_host",
@@ -307,7 +342,6 @@ static int ehci_rk_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rkehci_platform_data *pldata;
 	int ret;
-	int retval = 0;
 	static u64 usb_dmamask = 0xffffffffUL;
 	struct device_node *node = pdev->dev.of_node;
 	struct rkehci_pdata_id *p;
@@ -335,8 +369,10 @@ static int ehci_rk_probe(struct platform_device *pdev)
 
 	dev->dma_mask = &usb_dmamask;
 
-	retval = device_create_file(dev, &dev_attr_ehci_power);
-	retval = device_create_file(dev, &dev_attr_debug_ehci);
+	device_create_file(dev, &dev_attr_ehci_power);
+	device_create_file(dev, &dev_attr_debug_ehci);
+	device_create_file(dev, &dev_attr_test_sq);
+
 	hcd =
 	    usb_create_hcd(&rk_ehci_hc_driver, &pdev->dev,
 			   dev_name(&pdev->dev));
@@ -446,6 +482,11 @@ put_hcd:
 static int ehci_rk_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
+	struct device *dev = &pdev->dev;
+
+	device_remove_file(dev, &dev_attr_ehci_power);
+	device_remove_file(dev, &dev_attr_debug_ehci);
+	device_remove_file(dev, &dev_attr_test_sq);
 
 	usb_put_hcd(hcd);
 
