@@ -426,11 +426,6 @@ struct vnt_private {
 	/* 802.11 counter */
 	SDot11Counters              s802_11Counter;
 
-	/* 802.11 management */
-	PSMgmtObject                pMgmt;
-	SMgmtObject                 sMgmtObj;
-
-	/* 802.11 MAC specific */
 	unsigned int	uCurrRSSI;
 	unsigned char byCurrSQ;
 
