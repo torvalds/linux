@@ -30,8 +30,6 @@
 #ifndef __SROM_H__
 #define __SROM_H__
 
-#include "ttype.h"
-
 /*---------------------  Export Definitions -------------------------*/
 
 #define EEP_MAX_CONTEXT_SIZE    256

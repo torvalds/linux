@@ -30,7 +30,6 @@
 #define __UPC_H__
 
 #include "device.h"
-#include "ttype.h"
 
 /*---------------------  Export Definitions -------------------------*/
 

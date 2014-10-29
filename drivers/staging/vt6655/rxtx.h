@@ -29,7 +29,6 @@
 #ifndef __RXTX_H__
 #define __RXTX_H__
 
-#include "ttype.h"
 #include "device.h"
 
 #define DEFAULT_MSDU_LIFETIME_RES_64us	8000 /* 64us */

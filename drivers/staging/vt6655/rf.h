@@ -30,7 +30,6 @@
 #ifndef __RF_H__
 #define __RF_H__
 
-#include "ttype.h"
 #include "device.h"
 
 /*---------------------  Export Definitions -------------------------*/

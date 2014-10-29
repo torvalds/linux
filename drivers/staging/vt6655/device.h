@@ -67,7 +67,6 @@
 /* device specific */
 
 #include "device_cfg.h"
-#include "ttype.h"
 #include "card.h"
 #include "mib.h"
 #include "srom.h"

@@ -32,8 +32,6 @@
 
 #include <net/mac80211.h>
 
-#include "ttype.h"
-
 /*---------------------  Export Definitions -------------------------*/
 #define MAX_GROUP_KEY       4
 #define MAX_KEY_TABLE       11

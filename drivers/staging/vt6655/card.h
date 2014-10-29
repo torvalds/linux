@@ -29,7 +29,6 @@
 #ifndef __CARD_H__
 #define __CARD_H__
 
-#include "ttype.h"
 #include <linux/types.h>
 #include <linux/nl80211.h>
 
