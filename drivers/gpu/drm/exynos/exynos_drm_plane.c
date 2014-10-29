@@ -76,6 +76,7 @@ int exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 			  uint32_t src_w, uint32_t src_h)
 {
 	struct exynos_plane *exynos_plane = to_exynos_plane(plane);
+	struct exynos_drm_manager *manager = to_exynos_crtc(crtc)->manager;
 	struct exynos_drm_overlay *overlay = &exynos_plane->overlay;
 	unsigned int actual_w;
 	unsigned int actual_h;
@@ -141,7 +142,8 @@ int exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	plane->crtc = crtc;
 
-	exynos_drm_crtc_plane_mode_set(crtc, overlay);
+	if (manager->ops->win_mode_set)
+		manager->ops->win_mode_set(manager, overlay);
 
 	return 0;
 }
@@ -150,26 +152,35 @@ void exynos_plane_commit(struct drm_plane *plane)
 {
 	struct exynos_plane *exynos_plane = to_exynos_plane(plane);
 	struct exynos_drm_overlay *overlay = &exynos_plane->overlay;
+	struct exynos_drm_manager *manager = to_exynos_crtc(plane->crtc)->manager;
 
-	exynos_drm_crtc_plane_commit(plane->crtc, overlay->zpos);
+	if (manager->ops->win_commit)
+		manager->ops->win_commit(manager, overlay->zpos);
 }
 
 void exynos_plane_dpms(struct drm_plane *plane, int mode)
 {
 	struct exynos_plane *exynos_plane = to_exynos_plane(plane);
 	struct exynos_drm_overlay *overlay = &exynos_plane->overlay;
+	struct exynos_drm_manager *manager;
 
 	if (mode == DRM_MODE_DPMS_ON) {
 		if (exynos_plane->enabled)
 			return;
 
-		exynos_drm_crtc_plane_enable(plane->crtc, overlay->zpos);
+		manager = to_exynos_crtc(plane->crtc)->manager;
+		if (manager->ops->win_enable)
+			manager->ops->win_enable(manager, overlay->zpos);
+
 		exynos_plane->enabled = true;
 	} else {
 		if (!exynos_plane->enabled)
 			return;
 
-		exynos_drm_crtc_plane_disable(plane->crtc, overlay->zpos);
+		manager = to_exynos_crtc(plane->crtc)->manager;
+		if (manager->ops->win_disable)
+			manager->ops->win_disable(manager, overlay->zpos);
+
 		exynos_plane->enabled = false;
 	}
 }

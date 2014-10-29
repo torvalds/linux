@@ -410,39 +410,6 @@ void exynos_drm_crtc_finish_pageflip(struct drm_device *dev, int pipe)
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 
-void exynos_drm_crtc_plane_mode_set(struct drm_crtc *crtc,
-			struct exynos_drm_overlay *overlay)
-{
-	struct exynos_drm_manager *manager = to_exynos_crtc(crtc)->manager;
-
-	if (manager->ops->win_mode_set)
-		manager->ops->win_mode_set(manager, overlay);
-}
-
-void exynos_drm_crtc_plane_commit(struct drm_crtc *crtc, int zpos)
-{
-	struct exynos_drm_manager *manager = to_exynos_crtc(crtc)->manager;
-
-	if (manager->ops->win_commit)
-		manager->ops->win_commit(manager, zpos);
-}
-
-void exynos_drm_crtc_plane_enable(struct drm_crtc *crtc, int zpos)
-{
-	struct exynos_drm_manager *manager = to_exynos_crtc(crtc)->manager;
-
-	if (manager->ops->win_enable)
-		manager->ops->win_enable(manager, zpos);
-}
-
-void exynos_drm_crtc_plane_disable(struct drm_crtc *crtc, int zpos)
-{
-	struct exynos_drm_manager *manager = to_exynos_crtc(crtc)->manager;
-
-	if (manager->ops->win_disable)
-		manager->ops->win_disable(manager, zpos);
-}
-
 void exynos_drm_crtc_complete_scanout(struct drm_framebuffer *fb)
 {
 	struct exynos_drm_manager *manager;
