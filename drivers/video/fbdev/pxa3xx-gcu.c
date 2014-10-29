@@ -373,15 +373,6 @@ static inline struct pxa3xx_gcu_priv *to_pxa3xx_gcu_priv(struct file *file)
 	return container_of(dev, struct pxa3xx_gcu_priv, misc_dev);
 }
 
-/*
- * provide an empty .open callback, so the core sets file->private_data
- * for us.
- */
-static int pxa3xx_gcu_open(struct inode *inode, struct file *file)
-{
-	return 0;
-}
-
 static ssize_t
 pxa3xx_gcu_write(struct file *file, const char *buff,
 		 size_t count, loff_t *offp)
@@ -580,7 +571,6 @@ pxa3xx_gcu_free_buffers(struct device *dev,
 
 static const struct file_operations pxa3xx_gcu_miscdev_fops = {
 	.owner =		THIS_MODULE,
-	.open =			pxa3xx_gcu_open,
 	.write =		pxa3xx_gcu_write,
 	.unlocked_ioctl =	pxa3xx_gcu_ioctl,
 	.mmap =			pxa3xx_gcu_mmap,
