@@ -17,8 +17,8 @@
  * Make sure that the compiler is new enough. We want a compiler that
  * is known to work with the "Q" assembler constraint.
  */
-#if __GNUC__ < 3 || (__GNUC__ == 3 && __GNUC_MINOR__ < 3)
-#error Your compiler is too old; please use version 3.3.3 or newer
+#if __GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 3)
+#error Your compiler is too old; please use version 4.3 or newer
 #endif
 
 int main(void)
