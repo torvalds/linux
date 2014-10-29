@@ -481,11 +481,23 @@ static int m_can_handle_lec_err(struct net_device *dev,
 	return 1;
 }
 
+static int __m_can_get_berr_counter(const struct net_device *dev,
+				    struct can_berr_counter *bec)
+{
+	struct m_can_priv *priv = netdev_priv(dev);
+	unsigned int ecr;
+
+	ecr = m_can_read(priv, M_CAN_ECR);
+	bec->rxerr = (ecr & ECR_REC_MASK) >> ECR_REC_SHIFT;
+	bec->txerr = ecr & ECR_TEC_MASK;
+
+	return 0;
+}
+
 static int m_can_get_berr_counter(const struct net_device *dev,
 				  struct can_berr_counter *bec)
 {
 	struct m_can_priv *priv = netdev_priv(dev);
-	unsigned int ecr;
 	int err;
 
 	err = clk_prepare_enable(priv->hclk);
@@ -498,9 +510,7 @@ static int m_can_get_berr_counter(const struct net_device *dev,
 		return err;
 	}
 
-	ecr = m_can_read(priv, M_CAN_ECR);
-	bec->rxerr = (ecr & ECR_REC_MASK) >> ECR_REC_SHIFT;
-	bec->txerr = ecr & ECR_TEC_MASK;
+	__m_can_get_berr_counter(dev, bec);
 
 	clk_disable_unprepare(priv->cclk);
 	clk_disable_unprepare(priv->hclk);
@@ -544,7 +554,7 @@ static int m_can_handle_state_change(struct net_device *dev,
 	if (unlikely(!skb))
 		return 0;
 
-	m_can_get_berr_counter(dev, &bec);
+	__m_can_get_berr_counter(dev, &bec);
 
 	switch (new_state) {
 	case CAN_STATE_ERROR_ACTIVE:
