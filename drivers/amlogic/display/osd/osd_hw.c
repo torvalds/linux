@@ -68,9 +68,10 @@ static int  g_vf_height;
 static int  g_rotation_width;
 static int  g_rotation_height;
 
-static int osd_h_filter_mode = 7;
-static int osd_v_filter_mode = 7;
-
+static int osd_h_filter_mode = 1;
+static int osd_v_filter_mode = 1;
+static int use_h_filter_mode = -1;
+static int use_v_filter_mode = -1;
 static unsigned int osd_filter_coefs_bicubic_sharp[] = {
     0x01fa008c, 0x01fa0100, 0xff7f0200, 0xfe7f0300,
     0xfd7e0500, 0xfc7e0600, 0xfb7d0800, 0xfb7c0900,
