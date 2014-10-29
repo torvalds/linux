@@ -464,8 +464,12 @@ EXPORT_SYMBOL_GPL(snd_hda_get_input_pin_attr);
 
 /**
  * hda_get_input_pin_label - Give a label for the given input pin
+ * @codec: the HDA codec
+ * @item: ping config item to refer
+ * @pin: the pin NID
+ * @check_location: flag to add the jack location prefix
  *
- * When check_location is true, the function checks the pin location
+ * When @check_location is true, the function checks the pin location
  * for mic and line-in pins, and set an appropriate prefix like "Front",
  * "Rear", "Internal".
  */
@@ -550,6 +554,9 @@ static int check_mic_location_need(struct hda_codec *codec,
 
 /**
  * hda_get_autocfg_input_label - Get a label for the given input
+ * @codec: the HDA codec
+ * @cfg: the parsed pin configuration
+ * @input: the input index number
  *
  * Get a label for the given input pin defined by the autocfg item.
  * Unlike hda_get_input_pin_label(), this function checks all inputs
@@ -677,6 +684,12 @@ static int fill_audio_out_name(struct hda_codec *codec, hda_nid_t nid,
 
 /**
  * snd_hda_get_pin_label - Get a label for the given I/O pin
+ * @codec: the HDA codec
+ * @nid: pin NID
+ * @cfg: the parsed pin configuration
+ * @label: the string buffer to store
+ * @maxlen: the max length of string buffer (including termination)
+ * @indexp: the pointer to return the index number (for multiple ctls)
  *
  * Get a label for the given pin.  This function works for both input and
  * output pins.  When @cfg is given as non-NULL, the function tries to get
