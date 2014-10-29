@@ -1428,7 +1428,7 @@ static noinline int check_can_nocow(struct inode *inode, loff_t pos,
 	u64 num_bytes;
 	int ret;
 
-	ret = btrfs_start_nocow_write(root);
+	ret = btrfs_start_write_no_snapshoting(root);
 	if (!ret)
 		return -ENOSPC;
 
@@ -1451,7 +1451,7 @@ static noinline int check_can_nocow(struct inode *inode, loff_t pos,
 	ret = can_nocow_extent(inode, lockstart, &num_bytes, NULL, NULL, NULL);
 	if (ret <= 0) {
 		ret = 0;
-		btrfs_end_nocow_write(root);
+		btrfs_end_write_no_snapshoting(root);
 	} else {
 		*write_bytes = min_t(size_t, *write_bytes ,
 				     num_bytes - pos + lockstart);
@@ -1543,7 +1543,7 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 				btrfs_free_reserved_data_space(inode,
 							       reserve_bytes);
 			else
-				btrfs_end_nocow_write(root);
+				btrfs_end_write_no_snapshoting(root);
 			break;
 		}
 
@@ -1632,7 +1632,7 @@ again:
 
 		release_bytes = 0;
 		if (only_release_metadata)
-			btrfs_end_nocow_write(root);
+			btrfs_end_write_no_snapshoting(root);
 
 		if (only_release_metadata && copied > 0) {
 			u64 lockstart = round_down(pos, root->sectorsize);
@@ -1661,7 +1661,7 @@ again:
 
 	if (release_bytes) {
 		if (only_release_metadata) {
-			btrfs_end_nocow_write(root);
+			btrfs_end_write_no_snapshoting(root);
 			btrfs_delalloc_release_metadata(inode, release_bytes);
 		} else {
 			btrfs_delalloc_release_space(inode, release_bytes);
