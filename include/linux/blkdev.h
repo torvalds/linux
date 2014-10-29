@@ -1583,13 +1583,13 @@ static inline bool blk_integrity_merge_rq(struct request_queue *rq,
 					  struct request *r1,
 					  struct request *r2)
 {
-	return 0;
+	return true;
 }
 static inline bool blk_integrity_merge_bio(struct request_queue *rq,
 					   struct request *r,
 					   struct bio *b)
 {
-	return 0;
+	return true;
 }
 static inline bool blk_integrity_is_initialized(struct gendisk *g)
 {
