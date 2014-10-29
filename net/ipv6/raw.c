@@ -548,7 +548,8 @@ static int rawv6_push_pending_frames(struct sock *sk, struct flowi6 *fl6,
 	if (!rp->checksum)
 		goto send;
 
-	if ((skb = skb_peek(&sk->sk_write_queue)) == NULL)
+	skb = skb_peek(&sk->sk_write_queue);
+	if (!skb)
 		goto out;
 
 	offset = rp->offset;
