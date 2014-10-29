@@ -1383,7 +1383,7 @@ static const struct file_operations lowpan_control_fops = {
 
 static void disconnect_devices(void)
 {
-	struct lowpan_dev *entry, *new_dev;
+	struct lowpan_dev *entry, *tmp, *new_dev;
 	struct list_head devices;
 
 	INIT_LIST_HEAD(&devices);
@@ -1408,7 +1408,7 @@ static void disconnect_devices(void)
 
 	rcu_read_unlock();
 
-	list_for_each_entry(entry, &devices, list) {
+	list_for_each_entry_safe(entry, tmp, &devices, list) {
 		ifdown(entry->netdev);
 		BT_DBG("Unregistering netdev %s %p",
 		       entry->netdev->name, entry->netdev);
