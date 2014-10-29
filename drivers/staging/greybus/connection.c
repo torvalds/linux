@@ -116,7 +116,7 @@ protocol_id_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct gb_connection *connection = to_gb_connection(dev);
 
-	return sprintf(buf, "%d", connection->protocol_id);
+	return sprintf(buf, "%d", connection->protocol->id);
 }
 static DEVICE_ATTR_RO(protocol_id);
 
@@ -162,17 +162,23 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 	if (!connection)
 		return NULL;
 
+	INIT_LIST_HEAD(&connection->protocol_links);
+	if (!gb_protocol_get(connection, protocol_id)) {
+		kfree(connection);
+		return NULL;
+	}
+
 	hd = interface->gmod->hd;
 	connection->hd = hd;			/* XXX refcount? */
 	if (!gb_connection_hd_cport_id_alloc(connection)) {
 		/* kref_put(connection->hd); */
+		gb_protocol_put(connection);
 		kfree(connection);
 		return NULL;
 	}
 
 	connection->interface = interface;
 	connection->interface_cport_id = cport_id;
-	connection->protocol_id = protocol_id;
 	connection->state = GB_CONNECTION_STATE_DISABLED;
 
 	connection->dev.parent = &interface->dev;
@@ -188,6 +194,7 @@ struct gb_connection *gb_connection_create(struct gb_interface *interface,
 	if (retval) {
 		gb_connection_hd_cport_id_free(connection);
 		/* kref_put(connection->hd); */
+		gb_protocol_put(connection);
 		kfree(connection);
 		return NULL;
 	}
@@ -228,6 +235,8 @@ void gb_connection_destroy(struct gb_connection *connection)
 	spin_unlock_irq(&gb_connections_lock);
 
 	gb_connection_hd_cport_id_free(connection);
+	/* kref_put(connection->hd); */
+	gb_protocol_put(connection);
 
 	device_del(&connection->dev);
 }
@@ -267,7 +276,7 @@ int gb_connection_init(struct gb_connection *connection)
 
 	/* Need to enable the connection to initialize it */
 	connection->state = GB_CONNECTION_STATE_ENABLED;
-	switch (connection->protocol_id) {
+	switch (connection->protocol->id) {
 	case GREYBUS_PROTOCOL_I2C:
 		connection->handler = &gb_i2c_connection_handler;
 		break;
@@ -287,7 +296,7 @@ int gb_connection_init(struct gb_connection *connection)
 	case GREYBUS_PROTOCOL_VENDOR:
 	default:
 		gb_connection_err(connection, "unimplemented protocol %hhu",
-			connection->protocol_id);
+			connection->protocol->id);
 		ret = -ENXIO;
 		break;
 	}

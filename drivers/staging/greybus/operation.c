@@ -200,7 +200,7 @@ static gb_operation_recv_handler gb_operation_recv_handlers[] = {
 
 static void gb_operation_request_handle(struct gb_operation *operation)
 {
-	u8 protocol_id = operation->connection->protocol_id;
+	u8 protocol_id = operation->connection->protocol->id;
 
 	/* Subtract one from array size to stay within u8 range */
 	if (protocol_id <= (u8)(ARRAY_SIZE(gb_operation_recv_handlers) - 1)) {

@@ -7,6 +7,7 @@ greybus-y :=	core.o		\
 		module.o	\
 		interface.o	\
 		connection.o	\
+		protocol.o	\
 		operation.o	\
 		i2c-gb.o	\
 		gpio-gb.o	\

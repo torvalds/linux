@@ -39,7 +39,9 @@ struct gb_connection {
 
 	struct rb_node			hd_node;
 	struct list_head		interface_links;
-	u8				protocol_id;
+
+	struct gb_protocol		*protocol;
+	struct list_head		protocol_links;
 
 	enum gb_connection_state	state;
 

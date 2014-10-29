@@ -26,6 +26,7 @@
 #include "module.h"
 #include "interface.h"
 #include "connection.h"
+#include "protocol.h"
 #include "operation.h"
 
 
