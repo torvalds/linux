@@ -28,7 +28,6 @@
 #include <net/cfg802154.h>
 
 #include "ieee802154_i.h"
-#include "driver-ops.h"
 
 static int
 mac802154_netdev_register(struct wpan_phy *phy, struct net_device *dev)
