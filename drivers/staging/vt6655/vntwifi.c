@@ -36,7 +36,6 @@
 #include "country.h"
 #include "device.h"
 #include "wmgr.h"
-#include "datarate.h"
 
 /*---------------------  Static Definitions -------------------------*/
 
@@ -210,7 +209,6 @@ VNTWIFIbyGetMaxSupportRate(
 
 	if (pSupportRateIEs) {
 		for (ii = 0; ii < pSupportRateIEs->len; ii++) {
-			bySupportRate = DATARATEbyGetRateIdx(pSupportRateIEs->abyRates[ii]);
 			if (bySupportRate > byMaxSupportRate)
 				byMaxSupportRate = bySupportRate;
 
@@ -218,7 +216,6 @@ VNTWIFIbyGetMaxSupportRate(
 	}
 	if (pExtSupportRateIEs) {
 		for (ii = 0; ii < pExtSupportRateIEs->len; ii++) {
-			bySupportRate = DATARATEbyGetRateIdx(pExtSupportRateIEs->abyRates[ii]);
 			if (bySupportRate > byMaxSupportRate)
 				byMaxSupportRate = bySupportRate;
 
@@ -252,7 +249,6 @@ VNTWIFIbyGetACKTxRate(
 )
 {
 	unsigned char byMaxAckRate;
-	unsigned char byBasicRate;
 	unsigned int ii;
 
 	if (byRxDataRate <= RATE_11M) {
@@ -264,22 +260,12 @@ VNTWIFIbyGetACKTxRate(
 	if (pSupportRateIEs) {
 		for (ii = 0; ii < pSupportRateIEs->len; ii++) {
 			if (pSupportRateIEs->abyRates[ii] & 0x80) {
-				byBasicRate = DATARATEbyGetRateIdx(pSupportRateIEs->abyRates[ii]);
-				if ((byBasicRate <= byRxDataRate) &&
-				    (byBasicRate > byMaxAckRate))  {
-					byMaxAckRate = byBasicRate;
-				}
 			}
 		}
 	}
 	if (pExtSupportRateIEs) {
 		for (ii = 0; ii < pExtSupportRateIEs->len; ii++) {
 			if (pExtSupportRateIEs->abyRates[ii] & 0x80) {
-				byBasicRate = DATARATEbyGetRateIdx(pExtSupportRateIEs->abyRates[ii]);
-				if ((byBasicRate <= byRxDataRate) &&
-				    (byBasicRate > byMaxAckRate))  {
-					byMaxAckRate = byBasicRate;
-				}
 			}
 		}
 	}

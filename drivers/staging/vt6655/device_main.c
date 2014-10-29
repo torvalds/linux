@@ -69,7 +69,6 @@
 #include "wroute.h"
 #include "bssdb.h"
 #include "dpc.h"
-#include "datarate.h"
 #include "rf.h"
 #include "iowpa.h"
 #include <linux/delay.h>

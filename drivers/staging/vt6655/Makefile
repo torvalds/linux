@@ -12,7 +12,6 @@ vt6655_stage-y +=	device_main.o \
 	rxtx.o \
 	dpc.o \
 	power.o \
-	datarate.o \
 	srom.o \
 	mib.o \
 	rc4.o \
