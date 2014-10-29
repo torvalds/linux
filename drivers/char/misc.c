@@ -142,8 +142,8 @@ static int misc_open(struct inode * inode, struct file * file)
 
 	err = 0;
 	replace_fops(file, new_fops);
+	file->private_data = c;
 	if (file->f_op->open) {
-		file->private_data = c;
 		err = file->f_op->open(inode,file);
 	}
 fail:
