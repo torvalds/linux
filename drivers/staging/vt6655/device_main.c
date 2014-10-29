@@ -63,7 +63,6 @@
 #include "power.h"
 #include "iocmd.h"
 #include "rxtx.h"
-#include "bssdb.h"
 #include "dpc.h"
 #include "rf.h"
 #include "iowpa.h"

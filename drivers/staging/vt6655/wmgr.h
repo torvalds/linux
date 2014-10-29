@@ -37,7 +37,6 @@
 #include "ttype.h"
 #include "80211mgr.h"
 #include "80211hdr.h"
-#include "bssdb.h"
 #include "card.h"
 
 /*---------------------  Export Definitions -------------------------*/
