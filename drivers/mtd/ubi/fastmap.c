@@ -1385,7 +1385,7 @@ int ubi_update_fastmap(struct ubi_device *ubi)
 
 			ret = -ENOSPC;
 			goto err;
-		} else if (!tmp_e && old_fm) {
+		} else if (!tmp_e && old_fm && old_fm->e[i]) {
 			ret = erase_block(ubi, old_fm->e[i]->pnum);
 			if (ret < 0) {
 				int j;
@@ -1401,9 +1401,17 @@ int ubi_update_fastmap(struct ubi_device *ubi)
 		} else {
 			new_fm->e[i] = tmp_e;
 
-			if (old_fm)
+			if (old_fm && old_fm->e[i])
 				ubi_wl_put_fm_peb(ubi, old_fm->e[i], i,
 						  old_fm->to_be_tortured[i]);
+		}
+	}
+
+	/* Old fastmap is larger than the new one */
+	if (old_fm && new_fm->used_blocks < old_fm->used_blocks) {
+		for (i = new_fm->used_blocks; i < old_fm->used_blocks; i++) {
+			ubi_wl_put_fm_peb(ubi, old_fm->e[i], i,
+					  old_fm->to_be_tortured[i]);
 		}
 	}
 
