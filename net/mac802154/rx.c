@@ -248,6 +248,7 @@ ieee802154_monitors_rx(struct ieee802154_local *local, struct sk_buff *skb)
 void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
 	struct ieee802154_local *local = hw_to_local(hw);
+	u16 crc;
 
 	WARN_ON_ONCE(softirq_count() == 0);
 
@@ -256,8 +257,7 @@ void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 	 * solution because the monitor needs a crc here.
 	 */
 	if (local->hw.flags & IEEE802154_HW_RX_OMIT_CKSUM) {
-		u16 crc = crc_ccitt(0, skb->data, skb->len);
-
+		crc = crc_ccitt(0, skb->data, skb->len);
 		put_unaligned_le16(crc, skb_put(skb, 2));
 	}
 
@@ -265,6 +265,17 @@ void ieee802154_rx(struct ieee802154_hw *hw, struct sk_buff *skb)
 
 	ieee802154_monitors_rx(local, skb);
 
+	/* Check if transceiver doesn't validate the checksum.
+	 * If not we validate the checksum here.
+	 */
+	if (local->hw.flags & IEEE802154_HW_RX_DROP_BAD_CKSUM) {
+		crc = crc_ccitt(0, skb->data, skb->len);
+		if (crc) {
+			rcu_read_unlock();
+			kfree_skb(skb);
+			return;
+		}
+	}
 	/* remove crc */
 	skb_trim(skb, skb->len - 2);
 

@@ -96,6 +96,8 @@ struct ieee802154_hw {
 #define IEEE802154_HW_PROMISCUOUS	0x00000200
 /* Indicates that receiver omits FCS. */
 #define IEEE802154_HW_RX_OMIT_CKSUM	0x00000400
+/* Indicates that receiver will not filter frames with bad checksum. */
+#define IEEE802154_HW_RX_DROP_BAD_CKSUM	0x00000800
 
 /* Indicates that receiver omits FCS and xmitter will add FCS on it's own. */
 #define IEEE802154_HW_OMIT_CKSUM	(IEEE802154_HW_TX_OMIT_CKSUM | \
