@@ -539,7 +539,6 @@ struct vnt_private {
 	bool bTransmitKey;
 	NDIS_802_11_WEP_STATUS  eOldEncryptionStatus;
 
-	SKeyManagement          sKey;
 	unsigned long dwIVCounter;
 
 	u64 qwPacketNumber; /* For CCMP and TKIP as TSC(6 bytes) */
