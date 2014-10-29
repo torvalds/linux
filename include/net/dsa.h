@@ -268,6 +268,13 @@ struct dsa_switch_driver {
 			      struct ethtool_eeprom *eeprom, u8 *data);
 	int	(*set_eeprom)(struct dsa_switch *ds,
 			      struct ethtool_eeprom *eeprom, u8 *data);
+
+	/*
+	 * Register access.
+	 */
+	int	(*get_regs_len)(struct dsa_switch *ds, int port);
+	void	(*get_regs)(struct dsa_switch *ds, int port,
+			    struct ethtool_regs *regs, void *p);
 };
 
 void register_switch_driver(struct dsa_switch_driver *type);
