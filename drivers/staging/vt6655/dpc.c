@@ -50,7 +50,6 @@
 #include "tcrc.h"
 #include "wctl.h"
 #include "wroute.h"
-#include "hostap.h"
 #include "rf.h"
 #include "iowpa.h"
 #include "aes_ccmp.h"
