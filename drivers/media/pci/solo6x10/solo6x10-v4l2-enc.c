@@ -703,9 +703,7 @@ static int solo_ring_thread(void *data)
 
 		if (timeout == -ERESTARTSYS || kthread_should_stop())
 			break;
-		solo_irq_off(solo_dev, SOLO_IRQ_ENCODER);
 		solo_handle_ring(solo_dev);
-		solo_irq_on(solo_dev, SOLO_IRQ_ENCODER);
 		try_to_freeze();
 	}
 
