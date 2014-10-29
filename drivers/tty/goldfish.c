@@ -155,7 +155,7 @@ static struct tty_driver *goldfish_tty_console_device(struct console *c,
 
 static int goldfish_tty_console_setup(struct console *co, char *options)
 {
-	if ((unsigned)co->index > goldfish_tty_line_count)
+	if ((unsigned)co->index >= goldfish_tty_line_count)
 		return -ENODEV;
 	if (!goldfish_ttys[co->index].base)
 		return -ENODEV;
