@@ -292,6 +292,8 @@ struct thin_c {
 
 	struct pool *pool;
 	struct dm_thin_device *td;
+	struct mapped_device *thin_md;
+
 	bool requeue_mode:1;
 	spinlock_t lock;
 	struct list_head deferred_cells;
@@ -3113,18 +3115,47 @@ static int pool_preresume(struct dm_target *ti)
 	return 0;
 }
 
+static void pool_suspend_active_thins(struct pool *pool)
+{
+	struct thin_c *tc;
+
+	/* Suspend all active thin devices */
+	tc = get_first_thin(pool);
+	while (tc) {
+		dm_internal_suspend_noflush(tc->thin_md);
+		tc = get_next_thin(pool, tc);
+	}
+}
+
+static void pool_resume_active_thins(struct pool *pool)
+{
+	struct thin_c *tc;
+
+	/* Resume all active thin devices */
+	tc = get_first_thin(pool);
+	while (tc) {
+		dm_internal_resume(tc->thin_md);
+		tc = get_next_thin(pool, tc);
+	}
+}
+
 static void pool_resume(struct dm_target *ti)
 {
 	struct pool_c *pt = ti->private;
 	struct pool *pool = pt->pool;
 	unsigned long flags;
 
+	/*
+	 * Must requeue active_thins' bios and then resume
+	 * active_thins _before_ clearing 'suspend' flag.
+	 */
+	requeue_bios(pool);
+	pool_resume_active_thins(pool);
+
 	spin_lock_irqsave(&pool->lock, flags);
 	pool->low_water_triggered = false;
 	pool->suspended = false;
 	spin_unlock_irqrestore(&pool->lock, flags);
-
-	requeue_bios(pool);
 
 	do_waker(&pool->waker.work);
 }
@@ -3138,6 +3169,8 @@ static void pool_presuspend(struct dm_target *ti)
 	spin_lock_irqsave(&pool->lock, flags);
 	pool->suspended = true;
 	spin_unlock_irqrestore(&pool->lock, flags);
+
+	pool_suspend_active_thins(pool);
 }
 
 static void pool_presuspend_undo(struct dm_target *ti)
@@ -3145,6 +3178,8 @@ static void pool_presuspend_undo(struct dm_target *ti)
 	struct pool_c *pt = ti->private;
 	struct pool *pool = pt->pool;
 	unsigned long flags;
+
+	pool_resume_active_thins(pool);
 
 	spin_lock_irqsave(&pool->lock, flags);
 	pool->suspended = false;
@@ -3703,6 +3738,7 @@ static int thin_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		r = -ENOMEM;
 		goto out_unlock;
 	}
+	tc->thin_md = dm_table_get_md(ti->table);
 	spin_lock_init(&tc->lock);
 	INIT_LIST_HEAD(&tc->deferred_cells);
 	bio_list_init(&tc->deferred_bio_list);
