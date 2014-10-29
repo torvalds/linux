@@ -485,17 +485,33 @@ void mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds,
 	for (i = 0; i < nr_stats; i++) {
 		struct mv88e6xxx_hw_stat *s = stats + i;
 		u32 low;
-		u32 high;
+		u32 high = 0;
 
+		if (s->reg >= 0x100) {
+			int ret;
+
+			ret = mv88e6xxx_reg_read(ds, REG_PORT(port),
+						 s->reg - 0x100);
+			if (ret < 0)
+				goto error;
+			low = ret;
+			if (s->sizeof_stat == 4) {
+				ret = mv88e6xxx_reg_read(ds, REG_PORT(port),
+							 s->reg - 0x100 + 1);
+				if (ret < 0)
+					goto error;
+				high = ret;
+			}
+			data[i] = (((u64)high) << 16) | low;
+			continue;
+		}
 		mv88e6xxx_stats_read(ds, s->reg, &low);
 		if (s->sizeof_stat == 8)
 			mv88e6xxx_stats_read(ds, s->reg + 1, &high);
-		else
-			high = 0;
 
 		data[i] = (((u64)high) << 32) | low;
 	}
-
+error:
 	mutex_unlock(&ps->stats_mutex);
 }
 

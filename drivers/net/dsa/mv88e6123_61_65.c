@@ -433,6 +433,9 @@ static struct mv88e6xxx_hw_stat mv88e6123_61_65_hw_stats[] = {
 	{ "hist_256_511bytes", 4, 0x0b, },
 	{ "hist_512_1023bytes", 4, 0x0c, },
 	{ "hist_1024_max_bytes", 4, 0x0d, },
+	{ "sw_in_discards", 4, 0x110, },
+	{ "sw_in_filtered", 2, 0x112, },
+	{ "sw_out_filtered", 2, 0x113, },
 };
 
 static void
