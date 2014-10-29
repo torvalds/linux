@@ -148,15 +148,6 @@ s_vGenerateTxParameter(
 	unsigned short wCurrentRate
 );
 
-static void s_vFillFragParameter(
-	struct vnt_private *pDevice,
-	unsigned char *pbyBuffer,
-	unsigned int	uTxType,
-	void *pvtdCurr,
-	unsigned short wFragType,
-	unsigned int	cbReqCount
-);
-
 static unsigned int
 s_cbFillTxBufHead(struct vnt_private *pDevice, unsigned char byPktType,
 		  unsigned char *pbyTxBufferAddr, unsigned int cbFrameBodySize,
@@ -1255,44 +1246,6 @@ s_vGenerateTxParameter(
 			buf->rrv_time = vnt_rxtx_rsvtime_le16(pDevice, PK_TYPE_11B, cbFrameSize, wCurrentRate, bNeedACK);
 		}
 	}
-}
-
-static
-void
-s_vFillFragParameter(
-	struct vnt_private *pDevice,
-	unsigned char *pbyBuffer,
-	unsigned int uTxType,
-	void *pvtdCurr,
-	unsigned short wFragType,
-	unsigned int cbReqCount
-)
-{
-	PSTxBufHead pTxBufHead = (PSTxBufHead) pbyBuffer;
-
-	if (uTxType == TYPE_SYNCDMA) {
-		PSTxSyncDesc ptdCurr = (PSTxSyncDesc)pvtdCurr;
-
-		//Set FIFOCtl & TimeStamp in TxSyncDesc
-		ptdCurr->m_wFIFOCtl = pTxBufHead->wFIFOCtl;
-		ptdCurr->m_wTimeStamp = pTxBufHead->wTimeStamp;
-		//Set TSR1 & ReqCount in TxDescHead
-		ptdCurr->m_td1TD1.wReqCount = cpu_to_le16((unsigned short)(cbReqCount));
-		if (wFragType == FRAGCTL_ENDFRAG) //Last Fragmentation
-			ptdCurr->m_td1TD1.byTCR |= (TCR_STP | TCR_EDP | EDMSDU);
-		else
-			ptdCurr->m_td1TD1.byTCR |= (TCR_STP | TCR_EDP);
-	} else {
-		PSTxDesc ptdCurr = (PSTxDesc)pvtdCurr;
-		//Set TSR1 & ReqCount in TxDescHead
-		ptdCurr->m_td1TD1.wReqCount = cpu_to_le16((unsigned short)(cbReqCount));
-		if (wFragType == FRAGCTL_ENDFRAG) //Last Fragmentation
-			ptdCurr->m_td1TD1.byTCR |= (TCR_STP | TCR_EDP | EDMSDU);
-		else
-			ptdCurr->m_td1TD1.byTCR |= (TCR_STP | TCR_EDP);
-	}
-
-	pTxBufHead->wFragCtl |= (unsigned short)wFragType;//0x0001; //0000 0000 0000 0001
 }
 
 static unsigned int
