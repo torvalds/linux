@@ -43,6 +43,11 @@ struct mv88e6xxx_priv_state {
 	 */
 	struct mutex	phy_mutex;
 
+	/* This mutex serializes eeprom access for chips with
+	 * eeprom support.
+	 */
+	struct mutex eeprom_mutex;
+
 	int		id; /* switch product id */
 };
 
