@@ -2002,7 +2002,7 @@ static int ft1000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static irqreturn_t ft1000_interrupt(int irq, void *dev_id)
 {
-	struct net_device *dev = (struct net_device *)dev_id;
+	struct net_device *dev = dev_id;
 	struct ft1000_info *info = netdev_priv(dev);
 	u16 tempword;
 	u16 inttype;
