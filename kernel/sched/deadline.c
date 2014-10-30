@@ -1637,7 +1637,6 @@ static void switched_from_dl(struct rq *rq, struct task_struct *p)
 
 	__dl_clear_params(p);
 
-#ifdef CONFIG_SMP
 	/*
 	 * Since this might be the only -deadline task on the rq,
 	 * this is the right place to try to pull some other one
@@ -1648,7 +1647,6 @@ static void switched_from_dl(struct rq *rq, struct task_struct *p)
 
 	if (pull_dl_task(rq))
 		resched_curr(rq);
-#endif
 }
 
 /*
