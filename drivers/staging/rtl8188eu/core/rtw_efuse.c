@@ -637,10 +637,9 @@ static bool hal_EfusePgPacketWrite2ByteHeader(struct adapter *pAdapter, u8 efuse
 			if ((tmp_header & 0x0F) == 0x0F) {	/* word_en PG fail */
 				if (repeatcnt++ > EFUSE_REPEAT_THRESHOLD_) {
 					return false;
-				} else {
-					efuse_addr++;
-					continue;
 				}
+				efuse_addr++;
+				continue;
 			} else if (pg_header != tmp_header) {	/* offset PG fail */
 				struct pgpkt	fixPkt;
 				fixPkt.offset = ((pg_header_temp & 0xE0) >> 5) | ((tmp_header & 0xF0) >> 1);
@@ -707,14 +706,13 @@ static bool hal_EfusePgPacketWriteData(struct adapter *pAdapter, u8 efuseType, u
 	if (badworden == 0x0F) {
 		/*  write ok */
 		return true;
-	} else {
-		/* reorganize other pg packet */
-		PgWriteSuccess = Efuse_PgPacketWrite(pAdapter, pTargetPkt->offset, badworden, pTargetPkt->data);
-		if (!PgWriteSuccess)
-			return false;
-		else
-			return true;
 	}
+	/* reorganize other pg packet */
+	PgWriteSuccess = Efuse_PgPacketWrite(pAdapter, pTargetPkt->offset, badworden, pTargetPkt->data);
+	if (!PgWriteSuccess)
+		return false;
+	else
+		return true;
 }
 
 static bool
