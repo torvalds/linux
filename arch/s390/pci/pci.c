@@ -473,7 +473,8 @@ static void zpci_map_resources(struct zpci_dev *zdev)
 		len = pci_resource_len(pdev, i);
 		if (!len)
 			continue;
-		pdev->resource[i].start = (resource_size_t) pci_iomap(pdev, i, 0);
+		pdev->resource[i].start =
+			(resource_size_t __force) pci_iomap(pdev, i, 0);
 		pdev->resource[i].end = pdev->resource[i].start + len - 1;
 	}
 }
@@ -488,7 +489,8 @@ static void zpci_unmap_resources(struct zpci_dev *zdev)
 		len = pci_resource_len(pdev, i);
 		if (!len)
 			continue;
-		pci_iounmap(pdev, (void *) pdev->resource[i].start);
+		pci_iounmap(pdev, (void __iomem __force *)
+			    pdev->resource[i].start);
 	}
 }
 
