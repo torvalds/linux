@@ -262,7 +262,7 @@ static int stac9766_codec_resume(struct snd_soc_codec *codec)
 	/* give the codec an AC97 warm reset to start the link */
 reset:
 	if (reset > 5) {
-		printk(KERN_ERR "stac9766 failed to resume");
+		dev_err(codec->dev, "Failed to resume\n");
 		return -EIO;
 	}
 	codec->ac97->bus->ops->warm_reset(codec->ac97);
@@ -338,7 +338,7 @@ static int stac9766_codec_probe(struct snd_soc_codec *codec)
 	stac9766_reset(codec, 0);
 	ret = stac9766_reset(codec, 1);
 	if (ret < 0) {
-		printk(KERN_ERR "Failed to reset STAC9766: AC97 link error\n");
+		dev_err(codec->dev, "Failed to reset: AC97 link error\n");
 		goto codec_err;
 	}
 
