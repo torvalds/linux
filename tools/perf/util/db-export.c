@@ -208,6 +208,15 @@ static int db_ids_from_al(struct db_export *dbe, struct addr_location *al,
 	return 0;
 }
 
+int db_export__branch_type(struct db_export *dbe, u32 branch_type,
+			   const char *name)
+{
+	if (dbe->export_branch_type)
+		return dbe->export_branch_type(dbe, branch_type, name);
+
+	return 0;
+}
+
 int db_export__sample(struct db_export *dbe, union perf_event *event,
 		      struct perf_sample *sample, struct perf_evsel *evsel,
 		      struct thread *thread, struct addr_location *al)
@@ -267,4 +276,43 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 		return dbe->export_sample(dbe, &es);
 
 	return 0;
+}
+
+static struct {
+	u32 branch_type;
+	const char *name;
+} branch_types[] = {
+	{0, "no branch"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL, "call"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_RETURN, "return"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CONDITIONAL, "conditional jump"},
+	{PERF_IP_FLAG_BRANCH, "unconditional jump"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL | PERF_IP_FLAG_INTERRUPT,
+	 "software interrupt"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_RETURN | PERF_IP_FLAG_INTERRUPT,
+	 "return from interrupt"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL | PERF_IP_FLAG_SYSCALLRET,
+	 "system call"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_RETURN | PERF_IP_FLAG_SYSCALLRET,
+	 "return from system call"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_ASYNC, "asynchronous branch"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL | PERF_IP_FLAG_ASYNC |
+	 PERF_IP_FLAG_INTERRUPT, "hardware interrupt"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_TX_ABORT, "transaction abort"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_TRACE_BEGIN, "trace begin"},
+	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_TRACE_END, "trace end"},
+	{0, NULL}
+};
+
+int db_export__branch_types(struct db_export *dbe)
+{
+	int i, err = 0;
+
+	for (i = 0; branch_types[i].name ; i++) {
+		err = db_export__branch_type(dbe, branch_types[i].branch_type,
+					     branch_types[i].name);
+		if (err)
+			break;
+	}
+	return err;
 }

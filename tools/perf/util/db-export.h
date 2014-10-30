@@ -54,6 +54,8 @@ struct db_export {
 			  struct machine *machine);
 	int (*export_symbol)(struct db_export *dbe, struct symbol *sym,
 			     struct dso *dso);
+	int (*export_branch_type)(struct db_export *dbe, u32 branch_type,
+				  const char *name);
 	int (*export_sample)(struct db_export *dbe, struct export_sample *es);
 	u64 evsel_last_db_id;
 	u64 machine_last_db_id;
@@ -79,8 +81,12 @@ int db_export__dso(struct db_export *dbe, struct dso *dso,
 		   struct machine *machine);
 int db_export__symbol(struct db_export *dbe, struct symbol *sym,
 		      struct dso *dso);
+int db_export__branch_type(struct db_export *dbe, u32 branch_type,
+			   const char *name);
 int db_export__sample(struct db_export *dbe, union perf_event *event,
 		      struct perf_sample *sample, struct perf_evsel *evsel,
 		      struct thread *thread, struct addr_location *al);
+
+int db_export__branch_types(struct db_export *dbe);
 
 #endif
