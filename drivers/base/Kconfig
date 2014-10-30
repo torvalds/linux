@@ -171,8 +171,8 @@ config WANT_DEV_COREDUMP
 	  Drivers should "select" this option if they desire to use the
 	  device coredump mechanism.
 
-config ENABLE_DEV_COREDUMP
-	bool "Enable device coredump" if EXPERT
+config ALLOW_DEV_COREDUMP
+	bool "Allow device coredump" if EXPERT
 	default y
 	help
 	  This option controls if the device coredump mechanism is available or
@@ -187,7 +187,7 @@ config ENABLE_DEV_COREDUMP
 config DEV_COREDUMP
 	bool
 	default y if WANT_DEV_COREDUMP
-	depends on ENABLE_DEV_COREDUMP
+	depends on ALLOW_DEV_COREDUMP
 
 config DEBUG_DRIVER
 	bool "Driver Core verbose debug messages"
