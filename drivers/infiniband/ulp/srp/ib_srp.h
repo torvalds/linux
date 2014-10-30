@@ -130,7 +130,11 @@ struct srp_request {
 	short			index;
 };
 
-struct srp_target_port {
+/**
+ * struct srp_rdma_ch
+ * @comp_vector: Completion vector used by this RDMA channel.
+ */
+struct srp_rdma_ch {
 	/* These are RW in the hot path, and commonly used together */
 	struct list_head	free_tx;
 	struct list_head	free_reqs;
@@ -138,13 +142,48 @@ struct srp_target_port {
 	s32			req_lim;
 
 	/* These are read-only in the hot path */
-	struct ib_cq	       *send_cq ____cacheline_aligned_in_smp;
+	struct srp_target_port *target ____cacheline_aligned_in_smp;
+	struct ib_cq	       *send_cq;
 	struct ib_cq	       *recv_cq;
 	struct ib_qp	       *qp;
 	union {
 		struct ib_fmr_pool     *fmr_pool;
 		struct srp_fr_pool     *fr_pool;
 	};
+
+	/* Everything above this point is used in the hot path of
+	 * command processing. Try to keep them packed into cachelines.
+	 */
+
+	struct completion	done;
+	int			status;
+
+	struct ib_sa_path_rec	path;
+	struct ib_sa_query     *path_query;
+	int			path_query_id;
+
+	struct ib_cm_id	       *cm_id;
+	struct srp_iu	      **tx_ring;
+	struct srp_iu	      **rx_ring;
+	struct srp_request     *req_ring;
+	int			max_ti_iu_len;
+	int			comp_vector;
+
+	struct completion	tsk_mgmt_done;
+	u8			tsk_mgmt_status;
+};
+
+/**
+ * struct srp_target_port
+ * @comp_vector: Completion vector used by the first RDMA channel created for
+ *   this target port.
+ */
+struct srp_target_port {
+	/* read and written in the hot path */
+	spinlock_t		lock;
+
+	struct srp_rdma_ch	ch;
+	/* read only in the hot path */
 	u32			lkey;
 	u32			rkey;
 	enum srp_target_state	state;
@@ -153,10 +192,7 @@ struct srp_target_port {
 	unsigned int		indirect_size;
 	bool			allow_ext_sg;
 
-	/* Everything above this point is used in the hot path of
-	 * command processing. Try to keep them packed into cachelines.
-	 */
-
+	/* other member variables */
 	union ib_gid		sgid;
 	__be64			id_ext;
 	__be64			ioc_guid;
@@ -176,33 +212,17 @@ struct srp_target_port {
 
 	union ib_gid		orig_dgid;
 	__be16			pkey;
-	struct ib_sa_path_rec	path;
-	struct ib_sa_query     *path_query;
-	int			path_query_id;
 
 	u32			rq_tmo_jiffies;
 	bool			connected;
 
-	struct ib_cm_id	       *cm_id;
-
-	int			max_ti_iu_len;
-
 	int			zero_req_lim;
-
-	struct srp_iu	       **tx_ring;
-	struct srp_iu	       **rx_ring;
-	struct srp_request	*req_ring;
 
 	struct work_struct	tl_err_work;
 	struct work_struct	remove_work;
 
 	struct list_head	list;
-	struct completion	done;
-	int			status;
 	bool			qp_in_error;
-
-	struct completion	tsk_mgmt_done;
-	u8			tsk_mgmt_status;
 };
 
 struct srp_iu {
