@@ -30,6 +30,7 @@
 #define MBUS_WRITE_REQUEST_SIZE_128	(BIT(2) << 16)
 #define MBUS_READ_REQUEST_SIZE_128	(BIT(2) << 19)
 
+#define BG2_PHY_BASE		0x080
 #define BG2Q_PHY_BASE		0x200
 
 /* register 0x01 */
@@ -222,7 +223,10 @@ static int phy_berlin_sata_probe(struct platform_device *pdev)
 	if (!priv->phys)
 		return -ENOMEM;
 
-	priv->phy_base = BG2Q_PHY_BASE;
+	if (of_device_is_compatible(dev->of_node, "marvell,berlin2-sata-phy"))
+		priv->phy_base = BG2_PHY_BASE;
+	else
+		priv->phy_base = BG2Q_PHY_BASE;
 
 	dev_set_drvdata(dev, priv);
 	spin_lock_init(&priv->lock);
@@ -271,6 +275,7 @@ static int phy_berlin_sata_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id phy_berlin_sata_of_match[] = {
+	{ .compatible = "marvell,berlin2-sata-phy" },
 	{ .compatible = "marvell,berlin2q-sata-phy" },
 	{ },
 };
