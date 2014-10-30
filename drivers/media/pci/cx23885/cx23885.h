@@ -95,6 +95,7 @@
 #define CX23885_BOARD_DVBSKY_T9580             45
 #define CX23885_BOARD_DVBSKY_T980C             46
 #define CX23885_BOARD_DVBSKY_S950C             47
+#define CX23885_BOARD_TT_CT2_4500_CI           48
 
 #define GPIO_0 0x00000001
 #define GPIO_1 0x00000002

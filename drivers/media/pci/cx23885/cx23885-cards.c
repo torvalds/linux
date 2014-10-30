@@ -688,6 +688,10 @@ struct cx23885_board cx23885_boards[] = {
 		.name		= "DVBSky S950C",
 		.portb		= CX23885_MPEG_DVB,
 	},
+	[CX23885_BOARD_TT_CT2_4500_CI] = {
+		.name		= "Technotrend TT-budget CT2-4500 CI",
+		.portb		= CX23885_MPEG_DVB,
+	},
 };
 const unsigned int cx23885_bcount = ARRAY_SIZE(cx23885_boards);
 
@@ -955,6 +959,10 @@ struct cx23885_subid cx23885_subids[] = {
 		.subvendor = 0x4254,
 		.subdevice = 0x950c,
 		.card      = CX23885_BOARD_DVBSKY_S950C,
+	}, {
+		.subvendor = 0x13c2,
+		.subdevice = 0x3013,
+		.card      = CX23885_BOARD_TT_CT2_4500_CI,
 	},
 };
 const unsigned int cx23885_idcount = ARRAY_SIZE(cx23885_subids);
@@ -1559,6 +1567,7 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		break;
 	case CX23885_BOARD_DVBSKY_T980C:
 	case CX23885_BOARD_DVBSKY_S950C:
+	case CX23885_BOARD_TT_CT2_4500_CI:
 		/*
 		 * GPIO-0 INTA from CiMax, input
 		 * GPIO-1 reset CiMax, output, high active
@@ -1671,6 +1680,7 @@ int cx23885_ir_init(struct cx23885_dev *dev)
 	case CX23885_BOARD_DVBSKY_T9580:
 	case CX23885_BOARD_DVBSKY_T980C:
 	case CX23885_BOARD_DVBSKY_S950C:
+	case CX23885_BOARD_TT_CT2_4500_CI:
 		if (!enable_885_ir)
 			break;
 		dev->sd_ir = cx23885_find_hw(dev, CX23885_HW_AV_CORE);
@@ -1720,6 +1730,7 @@ void cx23885_ir_fini(struct cx23885_dev *dev)
 	case CX23885_BOARD_DVBSKY_T9580:
 	case CX23885_BOARD_DVBSKY_T980C:
 	case CX23885_BOARD_DVBSKY_S950C:
+	case CX23885_BOARD_TT_CT2_4500_CI:
 		cx23885_irq_remove(dev, PCI_MSK_AV_CORE);
 		/* sd_ir is a duplicate pointer to the AV Core, just clear it */
 		dev->sd_ir = NULL;
@@ -1770,6 +1781,7 @@ void cx23885_ir_pci_int_enable(struct cx23885_dev *dev)
 	case CX23885_BOARD_DVBSKY_T9580:
 	case CX23885_BOARD_DVBSKY_T980C:
 	case CX23885_BOARD_DVBSKY_S950C:
+	case CX23885_BOARD_TT_CT2_4500_CI:
 		if (dev->sd_ir)
 			cx23885_irq_add_enable(dev, PCI_MSK_AV_CORE);
 		break;
@@ -1875,6 +1887,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_PROF_8000:
 	case CX23885_BOARD_DVBSKY_T980C:
 	case CX23885_BOARD_DVBSKY_S950C:
+	case CX23885_BOARD_TT_CT2_4500_CI:
 		ts1->gen_ctrl_val  = 0x5; /* Parallel */
 		ts1->ts_clk_en_val = 0x1; /* Enable TS_CLK */
 		ts1->src_sel_val   = CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO;
@@ -1995,6 +2008,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_DVBSKY_T9580:
 	case CX23885_BOARD_DVBSKY_T980C:
 	case CX23885_BOARD_DVBSKY_S950C:
+	case CX23885_BOARD_TT_CT2_4500_CI:
 		dev->sd_cx25840 = v4l2_i2c_new_subdev(&dev->v4l2_dev,
 				&dev->i2c_bus[2].i2c_adap,
 				"cx25840", 0x88 >> 1, NULL);
