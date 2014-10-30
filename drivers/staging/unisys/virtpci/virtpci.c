@@ -1502,7 +1502,6 @@ static int __init virtpci_mod_init(void)
 {
 	int ret;
 
-
 	if (!unisys_spar_platform)
 		return -ENODEV;
 
