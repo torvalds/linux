@@ -1216,9 +1216,6 @@ static int wm9713_soc_probe(struct snd_soc_codec *codec)
 	reg = ac97_read(codec, AC97_CD) & 0x7fff;
 	ac97_write(codec, AC97_CD, reg);
 
-	snd_soc_add_codec_controls(codec, wm9713_snd_ac97_controls,
-				ARRAY_SIZE(wm9713_snd_ac97_controls));
-
 	return 0;
 
 reset_err:
@@ -1248,6 +1245,9 @@ static struct snd_soc_codec_driver soc_codec_dev_wm9713 = {
 	.reg_word_size = sizeof(u16),
 	.reg_cache_step = 2,
 	.reg_cache_default = wm9713_reg,
+
+	.controls = wm9713_snd_ac97_controls,
+	.num_controls = ARRAY_SIZE(wm9713_snd_ac97_controls),
 	.dapm_widgets = wm9713_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(wm9713_dapm_widgets),
 	.dapm_routes = wm9713_audio_map,
