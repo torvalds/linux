@@ -2210,6 +2210,10 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 		retval = -EACCES;
 		goto out;
 	}
+	if (async->cmd.flags & CMDF_WRITE) {
+		retval = -EINVAL;
+		goto out;
+	}
 
 	add_wait_queue(&async->wait_head, &wait);
 	while (nbytes > 0 && !retval) {
@@ -2247,6 +2251,10 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 			}
 			if (s->busy != file) {
 				retval = -EACCES;
+				break;
+			}
+			if (async->cmd.flags & CMDF_WRITE) {
+				retval = -EINVAL;
 				break;
 			}
 			continue;
