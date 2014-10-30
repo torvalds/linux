@@ -1266,7 +1266,7 @@ void i915_check_and_clear_faults(struct drm_device *dev)
 		fault_reg = I915_READ(RING_FAULT_REG(ring));
 		if (fault_reg & RING_FAULT_VALID) {
 			DRM_DEBUG_DRIVER("Unexpected fault\n"
-					 "\tAddr: 0x%08lx\\n"
+					 "\tAddr: 0x%08lx\n"
 					 "\tAddress space: %s\n"
 					 "\tSource ID: %d\n"
 					 "\tType: %d\n",
