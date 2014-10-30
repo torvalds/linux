@@ -833,9 +833,6 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	unsigned int scan_ticks;
 	int err = 0;
 
-	/* Only rounding flags are implemented */
-	cmd->flags &= CMDF_ROUND_NEAREST | CMDF_ROUND_UP | CMDF_ROUND_DOWN;
-
 	/* Round the timer arguments */
 	ai_round_cmd_args(dev, s, cmd, &init_ticks, &scan_ticks, &chan_ticks);
 
