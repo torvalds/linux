@@ -944,7 +944,7 @@ static void neo_tasklet(unsigned long data)
  */
 static irqreturn_t neo_intr(int irq, void *voidbrd)
 {
-	struct dgnc_board *brd = (struct dgnc_board *) voidbrd;
+	struct dgnc_board *brd = voidbrd;
 	struct channel_t *ch;
 	int port = 0;
 	int type = 0;

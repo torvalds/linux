@@ -792,7 +792,7 @@ static void cls_tasklet(unsigned long data)
  */
 static irqreturn_t cls_intr(int irq, void *voidbrd)
 {
-	struct dgnc_board *brd = (struct dgnc_board *) voidbrd;
+	struct dgnc_board *brd = voidbrd;
 	uint i = 0;
 	unsigned char poll_reg;
 	unsigned long flags;
