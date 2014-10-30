@@ -2075,6 +2075,10 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 		retval = -EACCES;
 		goto out;
 	}
+	if (!(async->cmd.flags & CMDF_WRITE)) {
+		retval = -EINVAL;
+		goto out;
+	}
 
 	add_wait_queue(&async->wait_head, &wait);
 	on_wait_queue = true;
@@ -2144,6 +2148,10 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 				break;
 			if (s->busy != file) {
 				retval = -EACCES;
+				break;
+			}
+			if (!(async->cmd.flags & CMDF_WRITE)) {
+				retval = -EINVAL;
 				break;
 			}
 			continue;
