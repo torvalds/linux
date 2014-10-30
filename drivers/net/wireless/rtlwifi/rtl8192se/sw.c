@@ -209,8 +209,8 @@ static int rtl92s_init_sw_vars(struct ieee80211_hw *hw)
 	if (!rtlpriv->rtlhal.pfirmware)
 		return 1;
 
-	rtlpriv->max_fw_size = RTL8190_MAX_RAW_FIRMWARE_CODE_SIZE;
-
+	rtlpriv->max_fw_size = RTL8190_MAX_FIRMWARE_CODE_SIZE*2 +
+			       sizeof(struct fw_hdr);
 	pr_info("Driver for Realtek RTL8192SE/RTL8191SE\n"
 		"Loading firmware %s\n", rtlpriv->cfg->fw_name);
 	/* request fw */
