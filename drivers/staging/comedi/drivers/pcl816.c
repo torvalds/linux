@@ -509,7 +509,6 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	udelay(1);
 
 	devpriv->ai_act_scan = 0;
-	s->async->cur_chan = 0;
 	devpriv->ai_cmd_running = 1;
 	devpriv->ai_poll_ptr = 0;
 	devpriv->ai_cmd_canceled = 0;

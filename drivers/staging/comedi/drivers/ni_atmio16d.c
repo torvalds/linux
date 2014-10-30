@@ -300,7 +300,6 @@ static int atmio16d_ai_cmd(struct comedi_device *dev,
 	 * It is still uber-experimental */
 
 	reset_counters(dev);
-	s->async->cur_chan = 0;
 
 	/* check if scanning multiple channels */
 	if (cmd->chanlist_len < 2) {

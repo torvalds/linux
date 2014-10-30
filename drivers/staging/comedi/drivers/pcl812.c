@@ -809,7 +809,6 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	devpriv->ai_act_scan = 0;
 	devpriv->ai_poll_ptr = 0;
-	s->async->cur_chan = 0;
 
 	/*  don't we want wake up every scan? */
 	if (cmd->flags & CMDF_WAKE_EOS) {

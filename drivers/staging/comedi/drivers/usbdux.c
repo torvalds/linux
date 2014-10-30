@@ -698,9 +698,6 @@ static int usbdux_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (devpriv->ai_cmd_running)
 		goto ai_cmd_exit;
 
-	/* set current channel of the running acquisition to zero */
-	s->async->cur_chan = 0;
-
 	devpriv->dux_commands[1] = len;
 	for (i = 0; i < len; ++i) {
 		unsigned int chan = CR_CHAN(cmd->chanlist[i]);
@@ -995,9 +992,6 @@ static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (devpriv->ao_cmd_running)
 		goto ao_cmd_exit;
-
-	/* set current channel of the running acquisition to zero */
-	s->async->cur_chan = 0;
 
 	/* we count in steps of 1ms (125us) */
 	/* 125us mode not used yet */

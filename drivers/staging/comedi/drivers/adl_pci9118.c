@@ -575,7 +575,6 @@ static int pci9118_ai_cancel(struct comedi_device *dev,
 
 	devpriv->ai_act_scan = 0;
 	devpriv->ai_act_dmapos = 0;
-	s->async->cur_chan = 0;
 	s->async->inttrig = NULL;
 	devpriv->ai_neverending = 0;
 	devpriv->dma_actbuf = 0;
@@ -1120,7 +1119,6 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	devpriv->ai_act_scan = 0;
 	devpriv->ai_act_dmapos = 0;
-	s->async->cur_chan = 0;
 
 	if (devpriv->usedma) {
 		Compute_and_setup_dma(dev, s);

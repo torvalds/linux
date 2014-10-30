@@ -689,8 +689,6 @@ static int usbduxsigma_ai_cmd(struct comedi_device *dev,
 
 	down(&devpriv->sem);
 
-	/* set current channel of the running acquisition to zero */
-	s->async->cur_chan = 0;
 	for (i = 0; i < len; i++) {
 		unsigned int chan  = CR_CHAN(cmd->chanlist[i]);
 
@@ -987,9 +985,6 @@ static int usbduxsigma_ao_cmd(struct comedi_device *dev,
 	int ret;
 
 	down(&devpriv->sem);
-
-	/* set current channel of the running acquisition to zero */
-	s->async->cur_chan = 0;
 
 	devpriv->ao_counter = devpriv->ao_timer;
 

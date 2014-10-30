@@ -479,8 +479,6 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 		up(&devpriv->sem);
 		return -EBUSY;
 	}
-	/* set current channel of the running acquisition to zero */
-	s->async->cur_chan = 0;
 
 	/*
 	 * ignore the first buffers from the device if there
