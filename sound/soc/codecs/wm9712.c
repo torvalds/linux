@@ -595,7 +595,7 @@ static int wm9712_reset(struct snd_soc_codec *codec, int try_warm)
 	return 0;
 
 err:
-	printk(KERN_ERR "WM9712 AC97 reset failed\n");
+	dev_err(codec->dev, "Failed to reset: AC97 link error\n");
 	return -EIO;
 }
 
@@ -611,10 +611,8 @@ static int wm9712_soc_resume(struct snd_soc_codec *codec)
 	u16 *cache = codec->reg_cache;
 
 	ret = wm9712_reset(codec, 1);
-	if (ret < 0) {
-		printk(KERN_ERR "could not reset AC97 codec\n");
+	if (ret < 0)
 		return ret;
-	}
 
 	wm9712_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
@@ -637,15 +635,13 @@ static int wm9712_soc_probe(struct snd_soc_codec *codec)
 
 	ret = snd_soc_new_ac97_codec(codec, soc_ac97_ops, 0);
 	if (ret < 0) {
-		printk(KERN_ERR "wm9712: failed to register AC97 codec\n");
+		dev_err(codec->dev, "Failed to register AC97 codec\n");
 		return ret;
 	}
 
 	ret = wm9712_reset(codec, 0);
-	if (ret < 0) {
-		printk(KERN_ERR "Failed to reset WM9712: AC97 link error\n");
+	if (ret < 0)
 		goto reset_err;
-	}
 
 	/* set alc mux to none */
 	ac97_write(codec, AC97_VIDEO, ac97_read(codec, AC97_VIDEO) | 0x3000);
