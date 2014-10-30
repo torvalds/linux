@@ -860,8 +860,11 @@ static struct ceph_msg *create_session_open_msg(struct ceph_mds_client *mdsc, u6
 	/*
 	 * Serialize client metadata into waiting buffer space, using
 	 * the format that userspace expects for map<string, string>
+	 *
+	 * ClientSession messages with metadata are v2
 	 */
-	msg->hdr.version = 2;  /* ClientSession messages with metadata are v2 */
+	msg->hdr.version = cpu_to_le16(2);
+	msg->hdr.compat_version = cpu_to_le16(1);
 
 	/* The write pointer, following the session_head structure */
 	p = msg->front.iov_base + sizeof(*h);
@@ -1872,7 +1875,7 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 		goto out_free2;
 	}
 
-	msg->hdr.version = 2;
+	msg->hdr.version = cpu_to_le16(2);
 	msg->hdr.tid = cpu_to_le64(req->r_tid);
 
 	head = msg->front.iov_base;
