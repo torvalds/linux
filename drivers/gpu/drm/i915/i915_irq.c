@@ -3625,33 +3625,9 @@ static void cherryview_irq_uninstall(struct drm_device *dev)
 	I915_WRITE(GEN8_MASTER_IRQ, 0);
 	POSTING_READ(GEN8_MASTER_IRQ);
 
-#define GEN8_IRQ_FINI_NDX(type, which)				\
-do {								\
-	I915_WRITE(GEN8_##type##_IMR(which), 0xffffffff);	\
-	I915_WRITE(GEN8_##type##_IER(which), 0);		\
-	I915_WRITE(GEN8_##type##_IIR(which), 0xffffffff);	\
-	POSTING_READ(GEN8_##type##_IIR(which));			\
-	I915_WRITE(GEN8_##type##_IIR(which), 0xffffffff);	\
-} while (0)
+	gen8_gt_irq_reset(dev_priv);
 
-#define GEN8_IRQ_FINI(type)				\
-do {							\
-	I915_WRITE(GEN8_##type##_IMR, 0xffffffff);	\
-	I915_WRITE(GEN8_##type##_IER, 0);		\
-	I915_WRITE(GEN8_##type##_IIR, 0xffffffff);	\
-	POSTING_READ(GEN8_##type##_IIR);		\
-	I915_WRITE(GEN8_##type##_IIR, 0xffffffff);	\
-} while (0)
-
-	GEN8_IRQ_FINI_NDX(GT, 0);
-	GEN8_IRQ_FINI_NDX(GT, 1);
-	GEN8_IRQ_FINI_NDX(GT, 2);
-	GEN8_IRQ_FINI_NDX(GT, 3);
-
-	GEN8_IRQ_FINI(PCU);
-
-#undef GEN8_IRQ_FINI
-#undef GEN8_IRQ_FINI_NDX
+	GEN5_IRQ_RESET(GEN8_PCU_);
 
 	I915_WRITE(PORT_HOTPLUG_EN, 0);
 	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
