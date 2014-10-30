@@ -730,7 +730,7 @@ void oz_hcd_pd_reset(void *hpd, void *hport)
 {
 	/* Cleanup the current configuration and report reset to the core.
 	 */
-	struct oz_port *port = (struct oz_port *)hport;
+	struct oz_port *port = hport;
 	struct oz_hcd *ozhcd = port->ozhcd;
 
 	oz_dbg(ON, "PD Reset\n");
@@ -749,7 +749,7 @@ void oz_hcd_pd_reset(void *hpd, void *hport)
 void oz_hcd_get_desc_cnf(void *hport, u8 req_id, int status, const u8 *desc,
 			int length, int offset, int total_size)
 {
-	struct oz_port *port = (struct oz_port *)hport;
+	struct oz_port *port = hport;
 	struct urb *urb;
 	int err = 0;
 
@@ -889,7 +889,7 @@ static void oz_hcd_complete_set_interface(struct oz_port *port, struct urb *urb,
 void oz_hcd_control_cnf(void *hport, u8 req_id, u8 rcode, const u8 *data,
 	int data_len)
 {
-	struct oz_port *port = (struct oz_port *)hport;
+	struct oz_port *port = hport;
 	struct urb *urb;
 	struct usb_ctrlrequest *setup;
 	struct usb_hcd *hcd = port->ozhcd->hcd;
@@ -1036,7 +1036,7 @@ static inline int oz_usb_get_frame_number(void)
 int oz_hcd_heartbeat(void *hport)
 {
 	int rc = 0;
-	struct oz_port *port = (struct oz_port *)hport;
+	struct oz_port *port = hport;
 	struct oz_hcd *ozhcd = port->ozhcd;
 	struct oz_urb_link *urbl, *n;
 	LIST_HEAD(xfr_list);
