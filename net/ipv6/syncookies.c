@@ -171,8 +171,11 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 	if (!sysctl_tcp_syncookies || !th->ack || th->rst)
 		goto out;
 
-	if (tcp_synq_no_recent_overflow(sk) ||
-		(mss = __cookie_v6_check(ipv6_hdr(skb), th, cookie)) == 0) {
+	if (tcp_synq_no_recent_overflow(sk))
+		goto out;
+
+	mss = __cookie_v6_check(ipv6_hdr(skb), th, cookie);
+	if (mss == 0) {
 		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_SYNCOOKIESFAILED);
 		goto out;
 	}
