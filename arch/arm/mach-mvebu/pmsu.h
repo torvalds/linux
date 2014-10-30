@@ -19,4 +19,5 @@ int mvebu_setup_boot_addr_wa(unsigned int crypto_eng_target,
 void mvebu_v7_pmsu_idle_exit(void);
 
 int armada_370_xp_pmsu_idle_enter(unsigned long deepidle);
+int armada_38x_do_cpu_suspend(unsigned long deepidle);
 #endif	/* __MACH_370_XP_PMSU_H */
