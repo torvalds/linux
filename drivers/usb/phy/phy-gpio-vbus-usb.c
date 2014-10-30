@@ -121,7 +121,7 @@ static void gpio_vbus_work(struct work_struct *work)
 
 	if (vbus) {
 		status = USB_EVENT_VBUS;
-		gpio_vbus->phy.state = OTG_STATE_B_PERIPHERAL;
+		gpio_vbus->phy.otg->state = OTG_STATE_B_PERIPHERAL;
 		gpio_vbus->phy.last_event = status;
 		usb_gadget_vbus_connect(gpio_vbus->phy.otg->gadget);
 
@@ -143,7 +143,7 @@ static void gpio_vbus_work(struct work_struct *work)
 
 		usb_gadget_vbus_disconnect(gpio_vbus->phy.otg->gadget);
 		status = USB_EVENT_NONE;
-		gpio_vbus->phy.state = OTG_STATE_B_IDLE;
+		gpio_vbus->phy.otg->state = OTG_STATE_B_IDLE;
 		gpio_vbus->phy.last_event = status;
 
 		atomic_notifier_call_chain(&gpio_vbus->phy.notifier,
@@ -196,7 +196,7 @@ static int gpio_vbus_set_peripheral(struct usb_otg *otg,
 		set_vbus_draw(gpio_vbus, 0);
 
 		usb_gadget_vbus_disconnect(otg->gadget);
-		otg->phy->state = OTG_STATE_UNDEFINED;
+		otg->state = OTG_STATE_UNDEFINED;
 
 		otg->gadget = NULL;
 		return 0;
@@ -218,7 +218,7 @@ static int gpio_vbus_set_power(struct usb_phy *phy, unsigned mA)
 
 	gpio_vbus = container_of(phy, struct gpio_vbus_data, phy);
 
-	if (phy->state == OTG_STATE_B_PERIPHERAL)
+	if (phy->otg->state == OTG_STATE_B_PERIPHERAL)
 		set_vbus_draw(gpio_vbus, mA);
 	return 0;
 }
@@ -269,8 +269,8 @@ static int gpio_vbus_probe(struct platform_device *pdev)
 	gpio_vbus->phy.dev = gpio_vbus->dev;
 	gpio_vbus->phy.set_power = gpio_vbus_set_power;
 	gpio_vbus->phy.set_suspend = gpio_vbus_set_suspend;
-	gpio_vbus->phy.state = OTG_STATE_UNDEFINED;
 
+	gpio_vbus->phy.otg->state = OTG_STATE_UNDEFINED;
 	gpio_vbus->phy.otg->phy = &gpio_vbus->phy;
 	gpio_vbus->phy.otg->set_peripheral = gpio_vbus_set_peripheral;
 

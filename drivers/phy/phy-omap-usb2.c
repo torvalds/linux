@@ -80,11 +80,9 @@ static int omap_usb_start_srp(struct usb_otg *otg)
 
 static int omap_usb_set_host(struct usb_otg *otg, struct usb_bus *host)
 {
-	struct usb_phy	*phy = otg->phy;
-
 	otg->host = host;
 	if (!host)
-		phy->state = OTG_STATE_UNDEFINED;
+		otg->state = OTG_STATE_UNDEFINED;
 
 	return 0;
 }
@@ -92,11 +90,9 @@ static int omap_usb_set_host(struct usb_otg *otg, struct usb_bus *host)
 static int omap_usb_set_peripheral(struct usb_otg *otg,
 		struct usb_gadget *gadget)
 {
-	struct usb_phy	*phy = otg->phy;
-
 	otg->gadget = gadget;
 	if (!gadget)
-		phy->state = OTG_STATE_UNDEFINED;
+		otg->state = OTG_STATE_UNDEFINED;
 
 	return 0;
 }

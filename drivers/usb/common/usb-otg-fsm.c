@@ -124,10 +124,10 @@ static void otg_leave_state(struct otg_fsm *fsm, enum usb_otg_state old_state)
 static int otg_set_state(struct otg_fsm *fsm, enum usb_otg_state new_state)
 {
 	state_changed = 1;
-	if (fsm->otg->phy->state == new_state)
+	if (fsm->otg->state == new_state)
 		return 0;
 	VDBG("Set state: %s\n", usb_otg_state_string(new_state));
-	otg_leave_state(fsm, fsm->otg->phy->state);
+	otg_leave_state(fsm, fsm->otg->state);
 	switch (new_state) {
 	case OTG_STATE_B_IDLE:
 		otg_drv_vbus(fsm, 0);
@@ -236,7 +236,7 @@ static int otg_set_state(struct otg_fsm *fsm, enum usb_otg_state new_state)
 		break;
 	}
 
-	fsm->otg->phy->state = new_state;
+	fsm->otg->state = new_state;
 	return 0;
 }
 
@@ -247,7 +247,7 @@ int otg_statemachine(struct otg_fsm *fsm)
 
 	mutex_lock(&fsm->lock);
 
-	state = fsm->otg->phy->state;
+	state = fsm->otg->state;
 	state_changed = 0;
 	/* State machine state change judgement */
 

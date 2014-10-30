@@ -18,6 +18,8 @@ struct usb_otg {
 	struct usb_bus		*host;
 	struct usb_gadget	*gadget;
 
+	enum usb_otg_state	state;
+
 	/* bind/unbind the host controller */
 	int	(*set_host)(struct usb_otg *otg, struct usb_bus *host);
 
