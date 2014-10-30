@@ -56,7 +56,7 @@ static char *state_string[] = {
 
 static int mv_otg_set_vbus(struct usb_otg *otg, bool on)
 {
-	struct mv_otg *mvotg = container_of(otg->phy, struct mv_otg, phy);
+	struct mv_otg *mvotg = container_of(otg->usb_phy, struct mv_otg, phy);
 	if (mvotg->pdata->set_vbus == NULL)
 		return -ENODEV;
 
@@ -716,8 +716,8 @@ static int mv_otg_probe(struct platform_device *pdev)
 	mvotg->phy.otg = otg;
 	mvotg->phy.label = driver_name;
 
-	otg->phy = &mvotg->phy;
 	otg->state = OTG_STATE_UNDEFINED;
+	otg->usb_phy = &mvotg->phy;
 	otg->set_host = mv_otg_set_host;
 	otg->set_peripheral = mv_otg_set_peripheral;
 	otg->set_vbus = mv_otg_set_vbus;

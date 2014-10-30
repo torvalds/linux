@@ -499,7 +499,8 @@ int fsl_otg_start_host(struct otg_fsm *fsm, int on)
 {
 	struct usb_otg *otg = fsm->otg;
 	struct device *dev;
-	struct fsl_otg *otg_dev = container_of(otg->phy, struct fsl_otg, phy);
+	struct fsl_otg *otg_dev =
+		container_of(otg->usb_phy, struct fsl_otg, phy);
 	u32 retval = 0;
 
 	if (!otg->host)
@@ -594,7 +595,7 @@ static int fsl_otg_set_host(struct usb_otg *otg, struct usb_bus *host)
 	if (!otg)
 		return -ENODEV;
 
-	otg_dev = container_of(otg->phy, struct fsl_otg, phy);
+	otg_dev = container_of(otg->usb_phy, struct fsl_otg, phy);
 	if (otg_dev != fsl_otg_dev)
 		return -ENODEV;
 
@@ -644,7 +645,7 @@ static int fsl_otg_set_peripheral(struct usb_otg *otg,
 	if (!otg)
 		return -ENODEV;
 
-	otg_dev = container_of(otg->phy, struct fsl_otg, phy);
+	otg_dev = container_of(otg->usb_phy, struct fsl_otg, phy);
 	VDBG("otg_dev 0x%x\n", (int)otg_dev);
 	VDBG("fsl_otg_dev 0x%x\n", (int)fsl_otg_dev);
 	if (otg_dev != fsl_otg_dev)
@@ -717,7 +718,7 @@ static int fsl_otg_start_srp(struct usb_otg *otg)
 	if (!otg || otg.state != OTG_STATE_B_IDLE)
 		return -ENODEV;
 
-	otg_dev = container_of(otg->phy, struct fsl_otg, phy);
+	otg_dev = container_of(otg->usb_phy, struct fsl_otg, phy);
 	if (otg_dev != fsl_otg_dev)
 		return -ENODEV;
 
@@ -735,7 +736,7 @@ static int fsl_otg_start_hnp(struct usb_otg *otg)
 	if (!otg)
 		return -ENODEV;
 
-	otg_dev = container_of(otg->phy, struct fsl_otg, phy);
+	otg_dev = container_of(otg->usb_phy, struct fsl_otg, phy);
 	if (otg_dev != fsl_otg_dev)
 		return -ENODEV;
 
@@ -857,7 +858,7 @@ static int fsl_otg_conf(struct platform_device *pdev)
 	fsl_otg_tc->phy.dev = &pdev->dev;
 	fsl_otg_tc->phy.set_power = fsl_otg_set_power;
 
-	fsl_otg_tc->phy.otg->phy = &fsl_otg_tc->phy;
+	fsl_otg_tc->phy.otg->usb_phy = &fsl_otg_tc->phy;
 	fsl_otg_tc->phy.otg->set_host = fsl_otg_set_host;
 	fsl_otg_tc->phy.otg->set_peripheral = fsl_otg_set_peripheral;
 	fsl_otg_tc->phy.otg->start_hnp = fsl_otg_start_hnp;

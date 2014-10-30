@@ -1056,7 +1056,7 @@ static int ab8500_usb_set_peripheral(struct usb_otg *otg,
 	if (!otg)
 		return -ENODEV;
 
-	ab = phy_to_ab(otg->phy);
+	ab = phy_to_ab(otg->usb_phy);
 
 	ab->phy.otg->gadget = gadget;
 
@@ -1080,7 +1080,7 @@ static int ab8500_usb_set_host(struct usb_otg *otg, struct usb_bus *host)
 	if (!otg)
 		return -ENODEV;
 
-	ab = phy_to_ab(otg->phy);
+	ab = phy_to_ab(otg->usb_phy);
 
 	ab->phy.otg->host = host;
 
@@ -1382,7 +1382,7 @@ static int ab8500_usb_probe(struct platform_device *pdev)
 	ab->phy.set_power	= ab8500_usb_set_power;
 	ab->phy.otg->state	= OTG_STATE_UNDEFINED;
 
-	otg->phy		= &ab->phy;
+	otg->usb_phy		= &ab->phy;
 	otg->set_host		= ab8500_usb_set_host;
 	otg->set_peripheral	= ab8500_usb_set_peripheral;
 

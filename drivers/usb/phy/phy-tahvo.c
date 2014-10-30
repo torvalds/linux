@@ -196,7 +196,8 @@ static int tahvo_usb_set_suspend(struct usb_phy *dev, int suspend)
 
 static int tahvo_usb_set_host(struct usb_otg *otg, struct usb_bus *host)
 {
-	struct tahvo_usb *tu = container_of(otg->phy, struct tahvo_usb, phy);
+	struct tahvo_usb *tu = container_of(otg->usb_phy, struct tahvo_usb,
+					    phy);
 
 	dev_dbg(&tu->pt_dev->dev, "%s %p\n", __func__, host);
 
@@ -225,7 +226,8 @@ static int tahvo_usb_set_host(struct usb_otg *otg, struct usb_bus *host)
 static int tahvo_usb_set_peripheral(struct usb_otg *otg,
 				    struct usb_gadget *gadget)
 {
-	struct tahvo_usb *tu = container_of(otg->phy, struct tahvo_usb, phy);
+	struct tahvo_usb *tu = container_of(otg->usb_phy, struct tahvo_usb,
+					    phy);
 
 	dev_dbg(&tu->pt_dev->dev, "%s %p\n", __func__, gadget);
 
@@ -383,7 +385,7 @@ static int tahvo_usb_probe(struct platform_device *pdev)
 	tu->phy.label = DRIVER_NAME;
 	tu->phy.set_suspend = tahvo_usb_set_suspend;
 
-	tu->phy.otg->phy = &tu->phy;
+	tu->phy.otg->usb_phy = &tu->phy;
 	tu->phy.otg->set_host = tahvo_usb_set_host;
 	tu->phy.otg->set_peripheral = tahvo_usb_set_peripheral;
 

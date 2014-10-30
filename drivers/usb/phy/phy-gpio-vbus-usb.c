@@ -180,7 +180,7 @@ static int gpio_vbus_set_peripheral(struct usb_otg *otg,
 	struct platform_device *pdev;
 	int gpio;
 
-	gpio_vbus = container_of(otg->phy, struct gpio_vbus_data, phy);
+	gpio_vbus = container_of(otg->usb_phy, struct gpio_vbus_data, phy);
 	pdev = to_platform_device(gpio_vbus->dev);
 	pdata = dev_get_platdata(gpio_vbus->dev);
 	gpio = pdata->gpio_pullup;
@@ -271,7 +271,7 @@ static int gpio_vbus_probe(struct platform_device *pdev)
 	gpio_vbus->phy.set_suspend = gpio_vbus_set_suspend;
 
 	gpio_vbus->phy.otg->state = OTG_STATE_UNDEFINED;
-	gpio_vbus->phy.otg->phy = &gpio_vbus->phy;
+	gpio_vbus->phy.otg->usb_phy = &gpio_vbus->phy;
 	gpio_vbus->phy.otg->set_peripheral = gpio_vbus_set_peripheral;
 
 	err = devm_gpio_request(&pdev->dev, gpio, "vbus_detect");

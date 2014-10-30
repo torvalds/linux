@@ -788,7 +788,7 @@ int ci_hdrc_otg_fsm_init(struct ci_hdrc *ci)
 		return -ENOMEM;
 	}
 
-	otg->phy = ci->transceiver;
+	otg->usb_phy = ci->transceiver;
 	otg->gadget = &ci->gadget;
 	ci->fsm.otg = otg;
 	ci->transceiver->otg = ci->fsm.otg;

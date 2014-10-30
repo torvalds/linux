@@ -228,7 +228,7 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop,
 	nop->phy.type		= type;
 
 	nop->phy.otg->state		= OTG_STATE_UNDEFINED;
-	nop->phy.otg->phy		= &nop->phy;
+	nop->phy.otg->usb_phy		= &nop->phy;
 	nop->phy.otg->set_host		= nop_set_host;
 	nop->phy.otg->set_peripheral	= nop_set_peripheral;
 

@@ -1275,7 +1275,7 @@ static int isp1301_otg_enable(struct isp1301 *isp)
 static int
 isp1301_set_host(struct usb_otg *otg, struct usb_bus *host)
 {
-	struct isp1301	*isp = container_of(otg->phy, struct isp1301, phy);
+	struct isp1301	*isp = container_of(otg->usb_phy, struct isp1301, phy);
 
 	if (isp != the_transceiver)
 		return -ENODEV;
@@ -1331,7 +1331,7 @@ isp1301_set_host(struct usb_otg *otg, struct usb_bus *host)
 static int
 isp1301_set_peripheral(struct usb_otg *otg, struct usb_gadget *gadget)
 {
-	struct isp1301	*isp = container_of(otg->phy, struct isp1301, phy);
+	struct isp1301	*isp = container_of(otg->usb_phy, struct isp1301, phy);
 
 	if (isp != the_transceiver)
 		return -ENODEV;
@@ -1411,7 +1411,7 @@ isp1301_set_power(struct usb_phy *dev, unsigned mA)
 static int
 isp1301_start_srp(struct usb_otg *otg)
 {
-	struct isp1301	*isp = container_of(otg->phy, struct isp1301, phy);
+	struct isp1301	*isp = container_of(otg->usb_phy, struct isp1301, phy);
 	u32		otg_ctrl;
 
 	if (isp != the_transceiver || isp->phy.otg->state != OTG_STATE_B_IDLE)
@@ -1438,7 +1438,7 @@ static int
 isp1301_start_hnp(struct usb_otg *otg)
 {
 #ifdef	CONFIG_USB_OTG
-	struct isp1301	*isp = container_of(otg->phy, struct isp1301, phy);
+	struct isp1301	*isp = container_of(otg->usb_phy, struct isp1301, phy);
 	u32 l;
 
 	if (isp != the_transceiver)
@@ -1583,7 +1583,7 @@ isp1301_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 	isp->phy.label = DRIVER_NAME;
 	isp->phy.set_power = isp1301_set_power,
 
-	isp->phy.otg->phy = &isp->phy;
+	isp->phy.otg->usb_phy = &isp->phy;
 	isp->phy.otg->set_host = isp1301_set_host,
 	isp->phy.otg->set_peripheral = isp1301_set_peripheral,
 	isp->phy.otg->start_srp = isp1301_start_srp,
