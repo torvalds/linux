@@ -1927,7 +1927,9 @@ int sst_hsw_dsp_runtime_resume(struct sst_hsw *hsw)
 	ret = wait_event_timeout(hsw->boot_wait, hsw->boot_complete,
 		msecs_to_jiffies(IPC_BOOT_MSECS));
 	if (ret == 0) {
-		dev_err(hsw->dev, "error: audio DSP boot timeout\n");
+		dev_err(hsw->dev, "error: audio DSP boot timeout IPCD 0x%x IPCX 0x%x\n",
+			sst_dsp_shim_read_unlocked(hsw->dsp, SST_IPCD),
+			sst_dsp_shim_read_unlocked(hsw->dsp, SST_IPCX));
 		return -EIO;
 	}
 
@@ -2038,7 +2040,9 @@ int sst_hsw_dsp_init(struct device *dev, struct sst_pdata *pdata)
 		msecs_to_jiffies(IPC_BOOT_MSECS));
 	if (ret == 0) {
 		ret = -EIO;
-		dev_err(hsw->dev, "error: ADSP boot timeout\n");
+		dev_err(hsw->dev, "error: audio DSP boot timeout IPCD 0x%x IPCX 0x%x\n",
+			sst_dsp_shim_read_unlocked(hsw->dsp, SST_IPCD),
+			sst_dsp_shim_read_unlocked(hsw->dsp, SST_IPCX));
 		goto boot_err;
 	}
 
