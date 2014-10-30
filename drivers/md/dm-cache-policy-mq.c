@@ -865,7 +865,8 @@ static int map(struct mq_policy *mq, dm_oblock_t oblock,
 	if (e && in_cache(mq, e))
 		r = cache_entry_found(mq, e, result);
 
-	else if (iot_pattern(&mq->tracker) == PATTERN_SEQUENTIAL)
+	else if (mq->tracker.thresholds[PATTERN_SEQUENTIAL] &&
+		 iot_pattern(&mq->tracker) == PATTERN_SEQUENTIAL)
 		result->op = POLICY_MISS;
 
 	else if (e)
@@ -1290,7 +1291,7 @@ bad_pre_cache_init:
 
 static struct dm_cache_policy_type mq_policy_type = {
 	.name = "mq",
-	.version = {1, 2, 0},
+	.version = {1, 3, 0},
 	.hint_size = 4,
 	.owner = THIS_MODULE,
 	.create = mq_create
@@ -1298,7 +1299,7 @@ static struct dm_cache_policy_type mq_policy_type = {
 
 static struct dm_cache_policy_type default_policy_type = {
 	.name = "default",
-	.version = {1, 2, 0},
+	.version = {1, 3, 0},
 	.hint_size = 4,
 	.owner = THIS_MODULE,
 	.create = mq_create,
