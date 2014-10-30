@@ -371,7 +371,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 		restorer = (unsigned long) ka->sa.sa_restorer | PSW_ADDR_AMODE;
 	} else {
 		/* Signal frame without vector registers are short ! */
-		__u16 __user *svc = (void *) frame + frame_size - 2;
+		__u16 __user *svc = (void __user *) frame + frame_size - 2;
 		if (__put_user(S390_SYSCALL_OPCODE | __NR_sigreturn, svc))
 			return -EFAULT;
 		restorer = (unsigned long) svc | PSW_ADDR_AMODE;

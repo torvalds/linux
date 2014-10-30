@@ -434,7 +434,7 @@ static int setup_frame32(struct ksignal *ksig, sigset_t *set,
 			ksig->ka.sa.sa_restorer | PSW32_ADDR_AMODE;
 	} else {
 		/* Signal frames without vectors registers are short ! */
-		__u16 __user *svc = (void *) frame + frame_size - 2;
+		__u16 __user *svc = (void __user *) frame + frame_size - 2;
 		if (__put_user(S390_SYSCALL_OPCODE | __NR_sigreturn, svc))
 			return -EFAULT;
 		restorer = (unsigned long __force) svc | PSW32_ADDR_AMODE;
