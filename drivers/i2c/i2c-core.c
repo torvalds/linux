@@ -665,6 +665,9 @@ static int i2c_device_remove(struct device *dev)
 		status = driver->remove(client);
 	}
 
+	if (dev->of_node)
+		irq_dispose_mapping(client->irq);
+
 	dev_pm_domain_detach(&client->dev, true);
 	return status;
 }
