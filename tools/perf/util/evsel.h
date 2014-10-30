@@ -36,6 +36,9 @@ struct perf_sample_id {
 	struct hlist_node 	node;
 	u64		 	id;
 	struct perf_evsel	*evsel;
+	int			idx;
+	int			cpu;
+	pid_t			tid;
 
 	/* Holds total ID period value for PERF_SAMPLE_READ processing. */
 	u64			period;
@@ -54,6 +57,7 @@ struct cgroup_sel;
  * @is_pos: the position (counting backwards) of the event id (PERF_SAMPLE_ID or
  *          PERF_SAMPLE_IDENTIFIER) in a non-sample event i.e. if sample_id_all
  *          is used there is an id sample appended to non-sample events
+ * @priv:   And what is in its containing unnamed union are tool specific
  */
 struct perf_evsel {
 	struct list_head	node;
@@ -73,6 +77,7 @@ struct perf_evsel {
 	union {
 		void		*priv;
 		off_t		id_offset;
+		u64		db_id;
 	};
 	struct cgroup_sel	*cgrp;
 	void			*handler;

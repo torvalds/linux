@@ -413,7 +413,7 @@ int perf_evlist__alloc_pollfd(struct perf_evlist *evlist)
 	int nfds = 0;
 	struct perf_evsel *evsel;
 
-	list_for_each_entry(evsel, &evlist->entries, node) {
+	evlist__for_each(evlist, evsel) {
 		if (evsel->system_wide)
 			nfds += nr_cpus;
 		else
@@ -525,6 +525,22 @@ static int perf_evlist__id_add_fd(struct perf_evlist *evlist,
  add:
 	perf_evlist__id_add(evlist, evsel, cpu, thread, id);
 	return 0;
+}
+
+static void perf_evlist__set_sid_idx(struct perf_evlist *evlist,
+				     struct perf_evsel *evsel, int idx, int cpu,
+				     int thread)
+{
+	struct perf_sample_id *sid = SID(evsel, cpu, thread);
+	sid->idx = idx;
+	if (evlist->cpus && cpu >= 0)
+		sid->cpu = evlist->cpus->map[cpu];
+	else
+		sid->cpu = -1;
+	if (!evsel->system_wide && evlist->threads && thread >= 0)
+		sid->tid = evlist->threads->map[thread];
+	else
+		sid->tid = -1;
 }
 
 struct perf_sample_id *perf_evlist__id2sid(struct perf_evlist *evlist, u64 id)
@@ -805,9 +821,13 @@ static int perf_evlist__mmap_per_evsel(struct perf_evlist *evlist, int idx,
 			return -1;
 		}
 
-		if ((evsel->attr.read_format & PERF_FORMAT_ID) &&
-		    perf_evlist__id_add_fd(evlist, evsel, cpu, thread, fd) < 0)
-			return -1;
+		if (evsel->attr.read_format & PERF_FORMAT_ID) {
+			if (perf_evlist__id_add_fd(evlist, evsel, cpu, thread,
+						   fd) < 0)
+				return -1;
+			perf_evlist__set_sid_idx(evlist, evsel, idx, cpu,
+						 thread);
+		}
 	}
 
 	return 0;

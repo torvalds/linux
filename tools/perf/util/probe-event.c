@@ -1910,21 +1910,21 @@ static int show_perf_probe_event(struct perf_probe_event *pev,
 	if (ret < 0)
 		return ret;
 
-	printf("  %-20s (on %s", buf, place);
+	pr_info("  %-20s (on %s", buf, place);
 	if (module)
-		printf(" in %s", module);
+		pr_info(" in %s", module);
 
 	if (pev->nargs > 0) {
-		printf(" with");
+		pr_info(" with");
 		for (i = 0; i < pev->nargs; i++) {
 			ret = synthesize_perf_probe_arg(&pev->args[i],
 							buf, 128);
 			if (ret < 0)
 				break;
-			printf(" %s", buf);
+			pr_info(" %s", buf);
 		}
 	}
-	printf(")\n");
+	pr_info(")\n");
 	free(place);
 	return ret;
 }
@@ -2124,7 +2124,7 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 	}
 
 	ret = 0;
-	printf("Added new event%s\n", (ntevs > 1) ? "s:" : ":");
+	pr_info("Added new event%s\n", (ntevs > 1) ? "s:" : ":");
 	for (i = 0; i < ntevs; i++) {
 		tev = &tevs[i];
 		if (pev->event)
@@ -2179,8 +2179,8 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 
 	if (ret >= 0) {
 		/* Show how to use the event. */
-		printf("\nYou can now use it in all perf tools, such as:\n\n");
-		printf("\tperf record -e %s:%s -aR sleep 1\n\n", tev->group,
+		pr_info("\nYou can now use it in all perf tools, such as:\n\n");
+		pr_info("\tperf record -e %s:%s -aR sleep 1\n\n", tev->group,
 			 tev->event);
 	}
 
@@ -2444,7 +2444,7 @@ static int __del_trace_probe_event(int fd, struct str_node *ent)
 		goto error;
 	}
 
-	printf("Removed event: %s\n", ent->s);
+	pr_info("Removed event: %s\n", ent->s);
 	return 0;
 error:
 	pr_warning("Failed to delete event: %s\n",

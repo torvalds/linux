@@ -127,6 +127,7 @@ struct dso {
 	const char	 *long_name;
 	u16		 long_name_len;
 	u16		 short_name_len;
+	void		*dwfl;			/* DWARF debug info */
 
 	/* dso data file */
 	struct {
@@ -137,6 +138,11 @@ struct dso {
 		size_t		 file_size;
 		struct list_head open_entry;
 	} data;
+
+	union { /* Tool specific area */
+		void	 *priv;
+		u64	 db_id;
+	};
 
 	char		 name[0];
 };
