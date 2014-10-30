@@ -3335,24 +3335,27 @@ static void valleyview_display_irqs_install(struct drm_i915_private *dev_priv)
 {
 	u32 pipestat_mask;
 	u32 iir_mask;
+	enum pipe pipe;
 
 	pipestat_mask = PIPESTAT_INT_STATUS_MASK |
 			PIPE_FIFO_UNDERRUN_STATUS;
 
-	I915_WRITE(PIPESTAT(PIPE_A), pipestat_mask);
-	I915_WRITE(PIPESTAT(PIPE_B), pipestat_mask);
+	for_each_pipe(dev_priv, pipe)
+		I915_WRITE(PIPESTAT(pipe), pipestat_mask);
 	POSTING_READ(PIPESTAT(PIPE_A));
 
 	pipestat_mask = PLANE_FLIP_DONE_INT_STATUS_VLV |
 			PIPE_CRC_DONE_INTERRUPT_STATUS;
 
-	i915_enable_pipestat(dev_priv, PIPE_A, pipestat_mask |
-					       PIPE_GMBUS_INTERRUPT_STATUS);
-	i915_enable_pipestat(dev_priv, PIPE_B, pipestat_mask);
+	i915_enable_pipestat(dev_priv, PIPE_A, PIPE_GMBUS_INTERRUPT_STATUS);
+	for_each_pipe(dev_priv, pipe)
+		      i915_enable_pipestat(dev_priv, pipe, pipestat_mask);
 
 	iir_mask = I915_DISPLAY_PORT_INTERRUPT |
 		   I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
 		   I915_DISPLAY_PIPE_B_EVENT_INTERRUPT;
+	if (IS_CHERRYVIEW(dev_priv))
+		iir_mask |= I915_DISPLAY_PIPE_C_EVENT_INTERRUPT;
 	dev_priv->irq_mask &= ~iir_mask;
 
 	I915_WRITE(VLV_IIR, iir_mask);
@@ -3366,10 +3369,13 @@ static void valleyview_display_irqs_uninstall(struct drm_i915_private *dev_priv)
 {
 	u32 pipestat_mask;
 	u32 iir_mask;
+	enum pipe pipe;
 
 	iir_mask = I915_DISPLAY_PORT_INTERRUPT |
 		   I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
 		   I915_DISPLAY_PIPE_B_EVENT_INTERRUPT;
+	if (IS_CHERRYVIEW(dev_priv))
+		iir_mask |= I915_DISPLAY_PIPE_C_EVENT_INTERRUPT;
 
 	dev_priv->irq_mask |= iir_mask;
 	I915_WRITE(VLV_IMR, dev_priv->irq_mask);
@@ -3381,14 +3387,15 @@ static void valleyview_display_irqs_uninstall(struct drm_i915_private *dev_priv)
 	pipestat_mask = PLANE_FLIP_DONE_INT_STATUS_VLV |
 			PIPE_CRC_DONE_INTERRUPT_STATUS;
 
-	i915_disable_pipestat(dev_priv, PIPE_A, pipestat_mask |
-					        PIPE_GMBUS_INTERRUPT_STATUS);
-	i915_disable_pipestat(dev_priv, PIPE_B, pipestat_mask);
+	i915_disable_pipestat(dev_priv, PIPE_A, PIPE_GMBUS_INTERRUPT_STATUS);
+	for_each_pipe(dev_priv, pipe)
+		i915_disable_pipestat(dev_priv, pipe, pipestat_mask);
 
 	pipestat_mask = PIPESTAT_INT_STATUS_MASK |
 			PIPE_FIFO_UNDERRUN_STATUS;
-	I915_WRITE(PIPESTAT(PIPE_A), pipestat_mask);
-	I915_WRITE(PIPESTAT(PIPE_B), pipestat_mask);
+
+	for_each_pipe(dev_priv, pipe)
+		I915_WRITE(PIPESTAT(pipe), pipestat_mask);
 	POSTING_READ(PIPESTAT(PIPE_A));
 }
 
