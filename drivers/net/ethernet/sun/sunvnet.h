@@ -61,6 +61,7 @@ struct vnet_port {
 	u32			napi_stop_idx;
 	bool			napi_resume;
 	int			rx_event;
+	u16			q_index;
 };
 
 static inline struct vnet_port *to_vnet_port(struct vio_driver_state *vio)
@@ -102,6 +103,7 @@ struct vnet {
 	struct list_head	list;
 	u64			local_mac;
 
+	int			nports;
 };
 
 #endif /* _SUNVNET_H */
