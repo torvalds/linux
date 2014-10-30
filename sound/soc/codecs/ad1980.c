@@ -30,8 +30,6 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 
-#include "ad1980.h"
-
 /*
  * AD1980 register cache
  */
