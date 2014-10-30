@@ -149,7 +149,7 @@ static int block_list_prepare(struct sst_dsp *dsp,
 	/* enable each block so that's it'e ready for data */
 	list_for_each_entry(block, block_list, module_list) {
 
-		if (block->ops && block->ops->enable) {
+		if (block->ops && block->ops->enable && !block->users) {
 			ret = block->ops->enable(block);
 			if (ret < 0) {
 				dev_err(dsp->dev,
