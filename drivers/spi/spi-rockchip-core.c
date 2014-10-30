@@ -428,7 +428,7 @@ static void giveback(struct dw_spi *dws)
 	dws->cur_chip = NULL;
 	spi_finalize_current_message(dws->master);
 	
-	DBG_SPI("%s:line=%d,tx_left=%d\n",__func__,__LINE__, (dws->tx_end - dws->tx) / dws->n_bytes);
+	DBG_SPI("%s:line=%d,tx_left=%ld\n",__func__,__LINE__, (long)(dws->tx_end - dws->tx) / dws->n_bytes);
 }
 
 
@@ -540,7 +540,7 @@ static irqreturn_t dw_spi_irq(int irq, void *dev_id)
 /* Must be called inside pump_transfers() */
 static void poll_transfer(struct dw_spi *dws)
 {	
-	DBG_SPI("%s:len=%d\n",__func__, dws->len);
+	DBG_SPI("%s:len=%ld\n",__func__, (long)dws->len);
 	
 	do {
 		dw_writer(dws);
@@ -645,7 +645,7 @@ static void pump_transfers(unsigned long data)
 			chip->clk_div = clk_div;
 		}
 	}
-	DBG_SPI("%s:len=%d,clk_div=%d,speed_hz=%d\n",__func__,dws->len,chip->clk_div,chip->speed_hz);
+	DBG_SPI("%s:len=%ld,clk_div=%d,speed_hz=%d\n",__func__, (long)dws->len,chip->clk_div,chip->speed_hz);
 	if (transfer->bits_per_word) {
 		bits = transfer->bits_per_word;
 
