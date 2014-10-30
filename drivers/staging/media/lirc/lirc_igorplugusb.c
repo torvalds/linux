@@ -282,7 +282,7 @@ static void send_fragment(struct igorplug *ir, struct lirc_buffer *buf,
 static int igorplugusb_remote_poll(void *data, struct lirc_buffer *buf)
 {
 	int ret;
-	struct igorplug *ir = (struct igorplug *)data;
+	struct igorplug *ir = data;
 
 	if (!ir || !ir->usbdev)  /* Has the device been removed? */
 		return -ENODEV;

@@ -488,7 +488,7 @@ static int ir_open(void *data)
 	/* prevent races with disconnect */
 	mutex_lock(&disconnect_lock);
 
-	context = (struct sasem_context *) data;
+	context = data;
 
 	mutex_lock(&context->ctx_lock);
 
@@ -530,7 +530,7 @@ static void ir_close(void *data)
 {
 	struct sasem_context *context;
 
-	context = (struct sasem_context *)data;
+	context = data;
 	if (!context) {
 		pr_err("%s: no context for device\n", __func__);
 		return;

@@ -495,7 +495,7 @@ static int ir_open(void *data)
 	/* prevent races with disconnect */
 	mutex_lock(&driver_lock);
 
-	context = (struct imon_context *)data;
+	context = data;
 
 	/* initial IR protocol decode variables */
 	context->rx.count = 0;
@@ -516,7 +516,7 @@ static void ir_close(void *data)
 {
 	struct imon_context *context;
 
-	context = (struct imon_context *)data;
+	context = data;
 	if (!context) {
 		pr_err("%s: no context for device\n", __func__);
 		return;
