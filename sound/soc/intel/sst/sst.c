@@ -230,6 +230,20 @@ static void sst_init_locks(struct intel_sst_drv *ctx)
 	spin_lock_init(&ctx->block_lock);
 }
 
+int sst_alloc_drv_context(struct intel_sst_drv **ctx,
+		struct device *dev, unsigned int dev_id)
+{
+	*ctx = devm_kzalloc(dev, sizeof(struct intel_sst_drv), GFP_KERNEL);
+	if (!(*ctx))
+		return -ENOMEM;
+
+	(*ctx)->dev = dev;
+	(*ctx)->dev_id = dev_id;
+
+	return 0;
+}
+
+
 /*
 * intel_sst_probe - PCI probe function
 *
@@ -247,12 +261,11 @@ static int intel_sst_probe(struct pci_dev *pci,
 	int ddr_base;
 
 	dev_dbg(&pci->dev, "Probe for DID %x\n", pci->device);
-	sst_drv_ctx = devm_kzalloc(&pci->dev, sizeof(*sst_drv_ctx), GFP_KERNEL);
-	if (!sst_drv_ctx)
-		return -ENOMEM;
 
-	sst_drv_ctx->dev = &pci->dev;
-	sst_drv_ctx->dev_id = pci->device;
+	ret = sst_alloc_drv_context(&sst_drv_ctx, &pci->dev, pci->device);
+	if (ret < 0)
+		return ret;
+
 	if (!sst_pdata)
 		return -EINVAL;
 
