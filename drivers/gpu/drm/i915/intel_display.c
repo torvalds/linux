@@ -2194,11 +2194,13 @@ static int intel_align_height(struct drm_device *dev, int height, bool tiled)
 }
 
 int
-intel_pin_and_fence_fb_obj(struct drm_device *dev,
-			   struct drm_i915_gem_object *obj,
+intel_pin_and_fence_fb_obj(struct drm_plane *plane,
+			   struct drm_framebuffer *fb,
 			   struct intel_engine_cs *pipelined)
 {
+	struct drm_device *dev = fb->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	u32 alignment;
 	int ret;
 
@@ -2897,7 +2899,6 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum pipe pipe = intel_crtc->pipe;
 	struct drm_framebuffer *old_fb = crtc->primary->fb;
-	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct drm_i915_gem_object *old_obj = intel_fb_obj(old_fb);
 	int ret;
 
@@ -2920,9 +2921,9 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	}
 
 	mutex_lock(&dev->struct_mutex);
-	ret = intel_pin_and_fence_fb_obj(dev, obj, NULL);
+	ret = intel_pin_and_fence_fb_obj(crtc->primary, fb, NULL);
 	if (ret == 0)
-		i915_gem_track_fb(old_obj, obj,
+		i915_gem_track_fb(old_obj, intel_fb_obj(fb),
 				  INTEL_FRONTBUFFER_PRIMARY(pipe));
 	mutex_unlock(&dev->struct_mutex);
 	if (ret != 0) {
@@ -9689,7 +9690,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		ring = &dev_priv->ring[RCS];
 	}
 
-	ret = intel_pin_and_fence_fb_obj(dev, obj, ring);
+	ret = intel_pin_and_fence_fb_obj(crtc->primary, fb, ring);
 	if (ret)
 		goto cleanup_pending;
 
@@ -10857,9 +10858,7 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 		struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 
 		mutex_lock(&dev->struct_mutex);
-		ret = intel_pin_and_fence_fb_obj(dev,
-						 obj,
-						 NULL);
+		ret = intel_pin_and_fence_fb_obj(crtc->primary, fb, NULL);
 		if (ret != 0) {
 			DRM_ERROR("pin & fence failed\n");
 			mutex_unlock(&dev->struct_mutex);
@@ -11525,7 +11524,7 @@ intel_prepare_primary_plane(struct drm_plane *plane,
 
 	if (old_obj != obj) {
 		mutex_lock(&dev->struct_mutex);
-		ret = intel_pin_and_fence_fb_obj(dev, obj, NULL);
+		ret = intel_pin_and_fence_fb_obj(plane, fb, NULL);
 		if (ret == 0)
 			i915_gem_track_fb(old_obj, obj,
 					  INTEL_FRONTBUFFER_PRIMARY(pipe));
@@ -13293,7 +13292,9 @@ void intel_modeset_gem_init(struct drm_device *dev)
 		if (obj == NULL)
 			continue;
 
-		if (intel_pin_and_fence_fb_obj(dev, obj, NULL)) {
+		if (intel_pin_and_fence_fb_obj(c->primary,
+					       c->primary->fb,
+					       NULL)) {
 			DRM_ERROR("failed to pin boot fb on pipe %d\n",
 				  to_intel_crtc(c)->pipe);
 			drm_framebuffer_unreference(c->primary->fb);

@@ -1256,7 +1256,7 @@ intel_prepare_sprite_plane(struct drm_plane *plane,
 		 * the sprite planes only require 128KiB alignment and 32 PTE
 		 * padding.
 		 */
-		ret = intel_pin_and_fence_fb_obj(dev, obj, NULL);
+		ret = intel_pin_and_fence_fb_obj(plane, fb, NULL);
 		if (ret == 0)
 			i915_gem_track_fb(old_obj, obj,
 					  INTEL_FRONTBUFFER_SPRITE(pipe));
