@@ -18,7 +18,7 @@
 	.section	".text"
 
 #ifdef CONFIG_TRACEPOINTS
-#ifdef CONFIG_JUMP_LABEL
+#ifdef HAVE_JUMP_LABEL
 #define OPAL_BRANCH(LABEL)					\
 	ARCH_STATIC_BRANCH(LABEL, opal_tracepoint_key)
 #else
