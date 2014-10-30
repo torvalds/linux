@@ -684,9 +684,6 @@ static u32 iwl_nvm_get_regdom_bw_flags(const u8 *nvm_chan,
 	if (!(nvm_flags & NVM_CHANNEL_160MHZ))
 		flags |= NL80211_RRF_NO_160MHZ;
 
-	if (!(nvm_flags & NVM_CHANNEL_IBSS))
-		flags |= NL80211_RRF_NO_IR;
-
 	if (!(nvm_flags & NVM_CHANNEL_ACTIVE))
 		flags |= NL80211_RRF_NO_IR;
 
@@ -784,11 +781,10 @@ iwl_parse_nvm_mcc_info(struct device *dev, int num_of_ch, __le32 *channels,
 		prev_center_freq = center_freq;
 
 		IWL_DEBUG_DEV(dev, IWL_DL_LAR,
-			      "Ch. %d [%sGHz] %s%s%s%s%s%s%s%s%s%s(0x%02x): Ad-Hoc %ssupported\n",
+			      "Ch. %d [%sGHz] %s%s%s%s%s%s%s%s%s(0x%02x): Ad-Hoc %ssupported\n",
 			      center_freq,
 			      band == IEEE80211_BAND_5GHZ ? "5.2" : "2.4",
 			      CHECK_AND_PRINT_I(VALID),
-			      CHECK_AND_PRINT_I(IBSS),
 			      CHECK_AND_PRINT_I(ACTIVE),
 			      CHECK_AND_PRINT_I(RADAR),
 			      CHECK_AND_PRINT_I(WIDE),
@@ -798,7 +794,7 @@ iwl_parse_nvm_mcc_info(struct device *dev, int num_of_ch, __le32 *channels,
 			      CHECK_AND_PRINT_I(INDOOR_ONLY),
 			      CHECK_AND_PRINT_I(GO_CONCURRENT),
 			      ch_flags,
-			      ((ch_flags & NVM_CHANNEL_IBSS) &&
+			      ((ch_flags & NVM_CHANNEL_ACTIVE) &&
 			       !(ch_flags & NVM_CHANNEL_RADAR))
 					 ? "" : "not ");
 	}
