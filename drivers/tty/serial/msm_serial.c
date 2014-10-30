@@ -427,9 +427,6 @@ static int msm_set_baud_rate(struct uart_port *port, unsigned int baud)
 
 	entry = msm_find_best_baud(port, baud);
 
-	if (msm_port->is_uartdm)
-		msm_write(port, UART_CR_CMD_RESET_RX, UART_CR);
-
 	msm_write(port, entry->code, UART_CSR);
 
 	/* RX stale watermark */
@@ -445,6 +442,18 @@ static int msm_set_baud_rate(struct uart_port *port, unsigned int baud)
 
 	/* set TX watermark */
 	msm_write(port, 10, UART_TFWR);
+
+	msm_write(port, UART_CR_CMD_PROTECTION_EN, UART_CR);
+	msm_reset(port);
+
+	/* Enable RX and TX */
+	msm_write(port, UART_CR_TX_ENABLE | UART_CR_RX_ENABLE, UART_CR);
+
+	/* turn on RX and CTS interrupts */
+	msm_port->imr = UART_IMR_RXLEV | UART_IMR_RXSTALE |
+			UART_IMR_CURRENT_CTS | UART_IMR_RXBREAK_START;
+
+	msm_write(port, msm_port->imr, UART_IMR);
 
 	if (msm_port->is_uartdm) {
 		msm_write(port, UART_CR_CMD_RESET_STALE_INT, UART_CR);
@@ -492,40 +501,6 @@ static int msm_startup(struct uart_port *port)
 	data |= UART_MR1_AUTO_RFR_LEVEL1 & (rfr_level << 2);
 	data |= UART_MR1_AUTO_RFR_LEVEL0 & rfr_level;
 	msm_write(port, data, UART_MR1);
-
-	/* make sure that RXSTALE count is non-zero */
-	data = msm_read(port, UART_IPR);
-	if (unlikely(!data)) {
-		data |= UART_IPR_RXSTALE_LAST;
-		data |= UART_IPR_STALE_LSB;
-		msm_write(port, data, UART_IPR);
-	}
-
-	data = 0;
-	if (!port->cons || (port->cons && !(port->cons->flags & CON_ENABLED))) {
-		msm_write(port, UART_CR_CMD_PROTECTION_EN, UART_CR);
-		msm_reset(port);
-		data = UART_CR_TX_ENABLE;
-	}
-
-	data |= UART_CR_RX_ENABLE;
-	msm_write(port, data, UART_CR);	/* enable TX & RX */
-
-	/* Make sure IPR is not 0 to start with*/
-	if (msm_port->is_uartdm)
-		msm_write(port, UART_IPR_STALE_LSB, UART_IPR);
-
-	/* turn on RX and CTS interrupts */
-	msm_port->imr = UART_IMR_RXLEV | UART_IMR_RXSTALE |
-			UART_IMR_CURRENT_CTS | UART_IMR_RXBREAK_START;
-
-	if (msm_port->is_uartdm) {
-		msm_write(port, 0xFFFFFF, UARTDM_DMRX);
-		msm_write(port, UART_CR_CMD_RESET_STALE_INT, UART_CR);
-		msm_write(port, UART_CR_CMD_STALE_EVENT_ENABLE, UART_CR);
-	}
-
-	msm_write(port, msm_port->imr, UART_IMR);
 	return 0;
 }
 
