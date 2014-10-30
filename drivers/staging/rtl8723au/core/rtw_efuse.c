@@ -176,7 +176,7 @@ EFUSE_GetEfuseDefinition23a(struct rtw_adapter *pAdapter, u8 efuseType,
 
 	switch (type) {
 	case TYPE_EFUSE_MAX_SECTION:
-		pMax_section = (u8 *) pOut;
+		pMax_section = pOut;
 
 		if (efuseType == EFUSE_WIFI)
 			*pMax_section = EFUSE_MAX_SECTION_8723A;
@@ -185,7 +185,7 @@ EFUSE_GetEfuseDefinition23a(struct rtw_adapter *pAdapter, u8 efuseType,
 		break;
 
 	case TYPE_EFUSE_REAL_CONTENT_LEN:
-		pu2Tmp = (u16 *) pOut;
+		pu2Tmp = pOut;
 
 		if (efuseType == EFUSE_WIFI)
 			*pu2Tmp = EFUSE_REAL_CONTENT_LEN_8723A;
@@ -194,7 +194,7 @@ EFUSE_GetEfuseDefinition23a(struct rtw_adapter *pAdapter, u8 efuseType,
 		break;
 
 	case TYPE_AVAILABLE_EFUSE_BYTES_BANK:
-		pu2Tmp = (u16 *) pOut;
+		pu2Tmp = pOut;
 
 		if (efuseType == EFUSE_WIFI)
 			*pu2Tmp = (EFUSE_REAL_CONTENT_LEN_8723A -
@@ -205,7 +205,7 @@ EFUSE_GetEfuseDefinition23a(struct rtw_adapter *pAdapter, u8 efuseType,
 		break;
 
 	case TYPE_AVAILABLE_EFUSE_BYTES_TOTAL:
-		pu2Tmp = (u16 *) pOut;
+		pu2Tmp = pOut;
 
 		if (efuseType == EFUSE_WIFI)
 			*pu2Tmp = (EFUSE_REAL_CONTENT_LEN_8723A -
@@ -216,7 +216,7 @@ EFUSE_GetEfuseDefinition23a(struct rtw_adapter *pAdapter, u8 efuseType,
 		break;
 
 	case TYPE_EFUSE_MAP_LEN:
-		pu2Tmp = (u16 *) pOut;
+		pu2Tmp = pOut;
 
 		if (efuseType == EFUSE_WIFI)
 			*pu2Tmp = EFUSE_MAP_LEN_8723A;
@@ -225,7 +225,7 @@ EFUSE_GetEfuseDefinition23a(struct rtw_adapter *pAdapter, u8 efuseType,
 		break;
 
 	case TYPE_EFUSE_PROTECT_BYTES_BANK:
-		pu1Tmp = (u8 *) pOut;
+		pu1Tmp = pOut;
 
 		if (efuseType == EFUSE_WIFI)
 			*pu1Tmp = EFUSE_OOB_PROTECT_BYTES;
@@ -234,7 +234,7 @@ EFUSE_GetEfuseDefinition23a(struct rtw_adapter *pAdapter, u8 efuseType,
 		break;
 
 	case TYPE_EFUSE_CONTENT_LEN_BANK:
-		pu2Tmp = (u16 *) pOut;
+		pu2Tmp = pOut;
 
 		if (efuseType == EFUSE_WIFI)
 			*pu2Tmp = EFUSE_REAL_CONTENT_LEN_8723A;
@@ -243,7 +243,7 @@ EFUSE_GetEfuseDefinition23a(struct rtw_adapter *pAdapter, u8 efuseType,
 		break;
 
 	default:
-		pu1Tmp = (u8 *) pOut;
+		pu1Tmp = pOut;
 		*pu1Tmp = 0;
 		break;
 	}
