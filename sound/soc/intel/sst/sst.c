@@ -364,6 +364,21 @@ static int intel_sst_probe(struct pci_dev *pci,
 
 
 	sst_set_fw_state_locked(sst_drv_ctx, SST_RESET);
+	snprintf(sst_drv_ctx->firmware_name, sizeof(sst_drv_ctx->firmware_name),
+			"%s%04x%s", "fw_sst_",
+			sst_drv_ctx->dev_id, ".bin");
+	dev_dbg(sst_drv_ctx->dev,
+		"Requesting FW %s now...\n", sst_drv_ctx->firmware_name);
+	ret = request_firmware_nowait(THIS_MODULE, 1,
+			sst_drv_ctx->firmware_name, sst_drv_ctx->dev,
+			GFP_KERNEL, sst_drv_ctx, sst_firmware_load_cb);
+
+	if (ret) {
+		dev_err(sst_drv_ctx->dev,
+			"Firmware load failed with error: %d\n", ret);
+		goto do_release_regions;
+	}
+
 	sst_drv_ctx->irq_num = pci->irq;
 	/* Register the ISR */
 	ret = devm_request_threaded_irq(&pci->dev, pci->irq,
