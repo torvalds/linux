@@ -250,17 +250,42 @@ static irqreturn_t hsw_irq(int irq, void *context)
 static void hsw_set_dsp_D3(struct sst_dsp *sst)
 {
 	u32 val;
+	u32 reg;
 
-	/* switch off audio PLL, DRAM & IRAM blocks */
+	/* Disable core clock gating (VDRTCTL2.DCLCGE = 0) */
+	reg = readl(sst->addr.pci_cfg + SST_VDRTCTL2);
+	reg &= ~(SST_VDRTCL2_DCLCGE | SST_VDRTCL2_DTCGE);
+	writel(reg, sst->addr.pci_cfg + SST_VDRTCTL2);
+
+	/* enable power gating and switch off DRAM & IRAM blocks */
 	val = readl(sst->addr.pci_cfg + SST_VDRTCTL0);
-	val |= SST_VDRTCL0_APLLSE_MASK | SST_VDRTCL0_DSRAMPGE_MASK |
+	val |= SST_VDRTCL0_DSRAMPGE_MASK |
 		SST_VDRTCL0_ISRAMPGE_MASK;
+	val &= ~(SST_VDRTCL0_D3PGD | SST_VDRTCL0_D3SRAMPGD);
 	writel(val, sst->addr.pci_cfg + SST_VDRTCTL0);
 
-	/* Set D3 state */
+	/* switch off audio PLL */
+	val = readl(sst->addr.pci_cfg + SST_VDRTCTL2);
+	val |= SST_VDRTCL2_APLLSE_MASK;
+	writel(val, sst->addr.pci_cfg + SST_VDRTCTL2);
+
+	/* disable MCLK(clkctl.smos = 0) */
+	sst_dsp_shim_update_bits_unlocked(sst, SST_CLKCTL,
+		SST_CLKCTL_MASK, 0);
+
+	/* Set D3 state, delay 50 us */
 	val = readl(sst->addr.pci_cfg + SST_PMCS);
 	val |= SST_PMCS_PS_MASK;
 	writel(val, sst->addr.pci_cfg + SST_PMCS);
+	udelay(50);
+
+	/* Enable core clock gating (VDRTCTL2.DCLCGE = 1), delay 50 us */
+	reg = readl(sst->addr.pci_cfg + SST_VDRTCTL2);
+	reg |= SST_VDRTCL2_DCLCGE | SST_VDRTCL2_DTCGE;
+	writel(reg, sst->addr.pci_cfg + SST_VDRTCTL2);
+
+	udelay(50);
+
 }
 
 static void hsw_reset(struct sst_dsp *sst)
@@ -283,6 +308,16 @@ static int hsw_set_dsp_D0(struct sst_dsp *sst)
 	int tries = 10;
 	u32 reg;
 
+	/* Disable core clock gating (VDRTCTL2.DCLCGE = 0) */
+	reg = readl(sst->addr.pci_cfg + SST_VDRTCTL2);
+	reg &= ~(SST_VDRTCL2_DCLCGE | SST_VDRTCL2_DTCGE);
+	writel(reg, sst->addr.pci_cfg + SST_VDRTCTL2);
+
+	/* Disable D3PG (VDRTCTL0.D3PGD = 1) */
+	reg = readl(sst->addr.pci_cfg + SST_VDRTCTL0);
+	reg |= SST_VDRTCL0_D3PGD;
+	writel(reg, sst->addr.pci_cfg + SST_VDRTCTL0);
+
 	/* Set D0 state */
 	reg = readl(sst->addr.pci_cfg + SST_PMCS);
 	reg &= ~SST_PMCS_PS_MASK;
@@ -300,14 +335,6 @@ static int hsw_set_dsp_D0(struct sst_dsp *sst)
 	return -ENODEV;
 
 finish:
-	hsw_reset(sst);
-
-	/* switch on audio PLL, DRAM & IRAM blocks */
-	reg = readl(sst->addr.pci_cfg + SST_VDRTCTL0);
-	reg &= ~(SST_VDRTCL0_APLLSE_MASK | SST_VDRTCL0_DSRAMPGE_MASK |
-		SST_VDRTCL0_ISRAMPGE_MASK);
-	writel(reg, sst->addr.pci_cfg + SST_VDRTCTL0);
-
 	/* select SSP1 19.2MHz base clock, SSP clock 0, turn off Low Power Clock */
 	sst_dsp_shim_update_bits_unlocked(sst, SST_CSR,
 		SST_CSR_S1IOCS | SST_CSR_SBCS1 | SST_CSR_LPCS, 0x0);
@@ -321,6 +348,28 @@ finish:
 	sst_dsp_shim_update_bits_unlocked(sst, SST_CLKCTL,
 		SST_CLKCTL_MASK | SST_CLKCTL_DCPLCG | SST_CLKCTL_SCOE0,
 		SST_CLKCTL_MASK | SST_CLKCTL_DCPLCG | SST_CLKCTL_SCOE0);
+
+	/* Stall and reset core, set CSR */
+	hsw_reset(sst);
+
+	/* Enable core clock gating (VDRTCTL2.DCLCGE = 1), delay 50 us */
+	reg = readl(sst->addr.pci_cfg + SST_VDRTCTL2);
+	reg |= SST_VDRTCL2_DCLCGE | SST_VDRTCL2_DTCGE;
+	writel(reg, sst->addr.pci_cfg + SST_VDRTCTL2);
+
+	udelay(50);
+
+	/* switch on audio PLL */
+	reg = readl(sst->addr.pci_cfg + SST_VDRTCTL2);
+	reg &= ~SST_VDRTCL2_APLLSE_MASK;
+	writel(reg, sst->addr.pci_cfg + SST_VDRTCTL2);
+
+	/* set default power gating control, enable power gating control for all blocks. that is,
+	can't be accessed, please enable each block before accessing. */
+	reg = readl(sst->addr.pci_cfg + SST_VDRTCTL0);
+	reg |= SST_VDRTCL0_DSRAMPGE_MASK | SST_VDRTCL0_ISRAMPGE_MASK;
+	writel(reg, sst->addr.pci_cfg + SST_VDRTCTL0);
+
 
 	/* disable DMA finish function for SSP0 & SSP1 */
 	sst_dsp_shim_update_bits_unlocked(sst, SST_CSR2, SST_CSR2_SDFD_SSP1,
@@ -342,9 +391,6 @@ finish:
 	sst_dsp_shim_write(sst, SST_IPCD, 0x0);
 	sst_dsp_shim_write(sst, 0x80, 0x6);
 	sst_dsp_shim_write(sst, 0xe0, 0x300a);
-
-	/* disable all clock gating */
-	writel(0x0, sst->addr.pci_cfg + SST_VDRTCTL2);
 
 	return 0;
 }
@@ -497,12 +543,24 @@ static int hsw_block_enable(struct sst_mem_block *block)
 	dev_dbg(block->dsp->dev, " enabled block %d:%d at offset 0x%x\n",
 		block->type, block->index, block->offset);
 
+	/* Disable core clock gating (VDRTCTL2.DCLCGE = 0) */
+	val = readl(sst->addr.pci_cfg + SST_VDRTCTL2);
+	val &= ~SST_VDRTCL2_DCLCGE;
+	writel(val, sst->addr.pci_cfg + SST_VDRTCTL2);
+
 	val = readl(sst->addr.pci_cfg + SST_VDRTCTL0);
 	bit = hsw_block_get_bit(block);
 	writel(val & ~bit, sst->addr.pci_cfg + SST_VDRTCTL0);
 
 	/* wait 18 DSP clock ticks */
 	udelay(10);
+
+	/* Enable core clock gating (VDRTCTL2.DCLCGE = 1), delay 50 us */
+	val = readl(sst->addr.pci_cfg + SST_VDRTCTL2);
+	val |= SST_VDRTCL2_DCLCGE;
+	writel(val, sst->addr.pci_cfg + SST_VDRTCTL2);
+
+	udelay(50);
 
 	/*add a dummy read before the SRAM block is written, otherwise the writing may miss bytes sometimes.*/
 	sst_mem_block_dummy_read(block);
@@ -521,9 +579,25 @@ static int hsw_block_disable(struct sst_mem_block *block)
 	dev_dbg(block->dsp->dev, " disabled block %d:%d at offset 0x%x\n",
 		block->type, block->index, block->offset);
 
+	/* Disable core clock gating (VDRTCTL2.DCLCGE = 0) */
+	val = readl(sst->addr.pci_cfg + SST_VDRTCTL2);
+	val &= ~SST_VDRTCL2_DCLCGE;
+	writel(val, sst->addr.pci_cfg + SST_VDRTCTL2);
+
+
 	val = readl(sst->addr.pci_cfg + SST_VDRTCTL0);
 	bit = hsw_block_get_bit(block);
 	writel(val | bit, sst->addr.pci_cfg + SST_VDRTCTL0);
+
+	/* wait 18 DSP clock ticks */
+	udelay(10);
+
+	/* Enable core clock gating (VDRTCTL2.DCLCGE = 1), delay 50 us */
+	val = readl(sst->addr.pci_cfg + SST_VDRTCTL2);
+	val |= SST_VDRTCL2_DCLCGE;
+	writel(val, sst->addr.pci_cfg + SST_VDRTCTL2);
+
+	udelay(50);
 
 	return 0;
 }
