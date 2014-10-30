@@ -60,6 +60,9 @@ static struct acm *acm_table[ACM_TTY_MINORS];
 
 static DEFINE_MUTEX(acm_table_lock);
 
+static void acm_tty_set_termios(struct tty_struct *tty,
+				struct ktermios *termios_old);
+
 /*
  * acm_table accessors
  */
@@ -553,6 +556,8 @@ static int acm_port_activate(struct tty_port *port, struct tty_struct *tty)
 			"%s - usb_submit_urb(ctrl irq) failed\n", __func__);
 		goto error_submit_urb;
 	}
+
+	acm_tty_set_termios(tty, NULL);
 
 	/*
 	 * Unthrottle device in case the TTY was closed while throttled.
