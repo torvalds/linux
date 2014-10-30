@@ -3105,10 +3105,22 @@ static void ironlake_irq_reset(struct drm_device *dev)
 	ibx_irq_reset(dev);
 }
 
+static void vlv_display_irq_reset(struct drm_i915_private *dev_priv)
+{
+	enum pipe pipe;
+
+	I915_WRITE(PORT_HOTPLUG_EN, 0);
+	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
+
+	for_each_pipe(dev_priv, pipe)
+		I915_WRITE(PIPESTAT(pipe), 0xffff);
+
+	GEN5_IRQ_RESET(VLV_);
+}
+
 static void valleyview_irq_preinstall(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int pipe;
 
 	/* VLV magic */
 	I915_WRITE(VLV_IMR, 0);
@@ -3124,12 +3136,7 @@ static void valleyview_irq_preinstall(struct drm_device *dev)
 
 	I915_WRITE(DPINVGTT, DPINVGTT_STATUS_MASK);
 
-	I915_WRITE(PORT_HOTPLUG_EN, 0);
-	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
-	for_each_pipe(dev_priv, pipe)
-		I915_WRITE(PIPESTAT(pipe), 0xffff);
-
-	GEN5_IRQ_RESET(VLV_);
+	vlv_display_irq_reset(dev_priv);
 }
 
 static void gen8_gt_irq_reset(struct drm_i915_private *dev_priv)
@@ -3177,7 +3184,6 @@ void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv)
 static void cherryview_irq_preinstall(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int pipe;
 
 	I915_WRITE(GEN8_MASTER_IRQ, 0);
 	POSTING_READ(GEN8_MASTER_IRQ);
@@ -3188,13 +3194,7 @@ static void cherryview_irq_preinstall(struct drm_device *dev)
 
 	I915_WRITE(DPINVGTT, DPINVGTT_STATUS_MASK_CHV);
 
-	I915_WRITE(PORT_HOTPLUG_EN, 0);
-	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
-
-	for_each_pipe(dev_priv, pipe)
-		I915_WRITE(PIPESTAT(pipe), 0xffff);
-
-	GEN5_IRQ_RESET(VLV_);
+	vlv_display_irq_reset(dev_priv);
 }
 
 static void ibx_hpd_irq_setup(struct drm_device *dev)
@@ -3588,7 +3588,6 @@ static void gen8_irq_uninstall(struct drm_device *dev)
 static void valleyview_irq_uninstall(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int pipe;
 
 	if (!dev_priv)
 		return;
@@ -3597,12 +3596,7 @@ static void valleyview_irq_uninstall(struct drm_device *dev)
 
 	gen5_gt_irq_reset(dev);
 
-	for_each_pipe(dev_priv, pipe)
-		I915_WRITE(PIPESTAT(pipe), 0xffff);
-
 	I915_WRITE(HWSTAM, 0xffffffff);
-	I915_WRITE(PORT_HOTPLUG_EN, 0);
-	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
 
 	/* Interrupt setup is already guaranteed to be single-threaded, this is
 	 * just to make the assert_spin_locked check happy. */
@@ -3611,9 +3605,9 @@ static void valleyview_irq_uninstall(struct drm_device *dev)
 		valleyview_display_irqs_uninstall(dev_priv);
 	spin_unlock_irq(&dev_priv->irq_lock);
 
-	dev_priv->irq_mask = 0;
+	vlv_display_irq_reset(dev_priv);
 
-	GEN5_IRQ_RESET(VLV_);
+	dev_priv->irq_mask = 0;
 }
 
 static void cherryview_irq_uninstall(struct drm_device *dev)
