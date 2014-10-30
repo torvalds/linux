@@ -158,6 +158,12 @@ struct rs_tx_column {
 	allow_column_func_t checks[MAX_COLUMN_CHECKS];
 };
 
+static bool rs_ant_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
+			 struct iwl_scale_tbl_info *tbl)
+{
+	return iwl_mvm_bt_coex_is_ant_avail(mvm, tbl->rate.ant);
+}
+
 static bool rs_mimo_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			  struct iwl_scale_tbl_info *tbl)
 {
@@ -218,6 +224,9 @@ static const struct rs_tx_column rs_tx_columns[] = {
 			RS_COLUMN_INVALID,
 			RS_COLUMN_INVALID,
 		},
+		.checks = {
+			rs_ant_allow,
+		},
 	},
 	[RS_COLUMN_LEGACY_ANT_B] = {
 		.mode = RS_LEGACY,
@@ -230,6 +239,9 @@ static const struct rs_tx_column rs_tx_columns[] = {
 			RS_COLUMN_INVALID,
 			RS_COLUMN_INVALID,
 			RS_COLUMN_INVALID,
+		},
+		.checks = {
+			rs_ant_allow,
 		},
 	},
 	[RS_COLUMN_SISO_ANT_A] = {
@@ -246,6 +258,7 @@ static const struct rs_tx_column rs_tx_columns[] = {
 		},
 		.checks = {
 			rs_siso_allow,
+			rs_ant_allow,
 		},
 	},
 	[RS_COLUMN_SISO_ANT_B] = {
@@ -262,6 +275,7 @@ static const struct rs_tx_column rs_tx_columns[] = {
 		},
 		.checks = {
 			rs_siso_allow,
+			rs_ant_allow,
 		},
 	},
 	[RS_COLUMN_SISO_ANT_A_SGI] = {
@@ -279,6 +293,7 @@ static const struct rs_tx_column rs_tx_columns[] = {
 		},
 		.checks = {
 			rs_siso_allow,
+			rs_ant_allow,
 			rs_sgi_allow,
 		},
 	},
@@ -297,6 +312,7 @@ static const struct rs_tx_column rs_tx_columns[] = {
 		},
 		.checks = {
 			rs_siso_allow,
+			rs_ant_allow,
 			rs_sgi_allow,
 		},
 	},
