@@ -256,7 +256,7 @@ static int add_vbus(struct add_vbus_guestpart *addparams)
 	int ret;
 	struct device *vbus;
 
-	vbus = kzalloc(sizeof(struct device), GFP_ATOMIC);
+	vbus = kzalloc(sizeof(*vbus), GFP_ATOMIC);
 
 	POSTCODE_LINUX_2(VPCI_CREATE_ENTRY_PC, POSTCODE_SEVERITY_INFO);
 	if (!vbus)
@@ -922,7 +922,7 @@ static int virtpci_device_add(struct device *parentbus, int devtype,
 	}
 
 	/* add a Virtual Device */
-	virtpcidev = kzalloc(sizeof(struct virtpci_dev), GFP_ATOMIC);
+	virtpcidev = kzalloc(sizeof(*virtpcidev), GFP_ATOMIC);
 	if (virtpcidev == NULL) {
 		LOGERR("can't add device - malloc FALLED\n");
 		POSTCODE_LINUX_2(MALLOC_FAILURE_PC, POSTCODE_SEVERITY_ERR);
