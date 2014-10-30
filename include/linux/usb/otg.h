@@ -9,11 +9,14 @@
 #ifndef __LINUX_USB_OTG_H
 #define __LINUX_USB_OTG_H
 
+#include <linux/phy/phy.h>
 #include <linux/usb/phy.h>
 
 struct usb_otg {
 	u8			default_a;
 
+	struct phy		*phy;
+	/* old usb_phy interface */
 	struct usb_phy		*usb_phy;
 	struct usb_bus		*host;
 	struct usb_gadget	*gadget;
