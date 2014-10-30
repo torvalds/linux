@@ -797,7 +797,13 @@ static void vh264_set_params(void)
 
         if (((num_units_in_tick * 120) >= time_scale && (!sync_outside)) && num_units_in_tick && time_scale) {
             if (use_idr_framerate || !frame_dur || !duration_from_pts_done || vh264_running) {
-            	frame_dur = div_u64(96000ULL * 2 * num_units_in_tick, time_scale);
+                u32 frame_dur_es = div_u64(96000ULL * 2 * num_units_in_tick, time_scale);
+
+                // hack to avoid use ES frame duration when it's half of the rate from system info
+                // sometimes the encoder is given a wrong frame rate but the system side infomation is more reliable
+                if ((frame_dur * 2) != frame_dur_es) {
+                    frame_dur = frame_dur_es;
+                }
             }
         }
     }
