@@ -39,7 +39,6 @@
 #include <asm/suspend.h>
 #include <asm/tlbflush.h>
 #include "common.h"
-#include "armada-370-xp.h"
 
 
 #define PMSU_BASE_OFFSET    0x100

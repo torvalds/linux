@@ -33,7 +33,6 @@
 #include <asm/smp_plat.h>
 #include <asm/cacheflush.h>
 #include <asm/mach/map.h>
-#include "armada-370-xp.h"
 #include "coherency.h"
 #include "mvebu-soc-id.h"
 
