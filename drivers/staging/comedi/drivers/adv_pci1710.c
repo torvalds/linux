@@ -1210,7 +1210,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 	if (this_board->n_dichan) {
 		s = &dev->subdevices[subdev];
 		s->type = COMEDI_SUBD_DI;
-		s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON;
+		s->subdev_flags = SDF_READABLE;
 		s->n_chan = this_board->n_dichan;
 		s->maxdata = 1;
 		s->len_chanlist = this_board->n_dichan;
@@ -1222,7 +1222,7 @@ static int pci1710_auto_attach(struct comedi_device *dev,
 	if (this_board->n_dochan) {
 		s = &dev->subdevices[subdev];
 		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
+		s->subdev_flags = SDF_WRITABLE;
 		s->n_chan = this_board->n_dochan;
 		s->maxdata = 1;
 		s->len_chanlist = this_board->n_dochan;

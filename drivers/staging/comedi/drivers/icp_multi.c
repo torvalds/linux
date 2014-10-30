@@ -521,7 +521,7 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[4];
 	s->type = COMEDI_SUBD_COUNTER;
-	s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
+	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = 4;
 	s->maxdata = 0xffff;
 	s->len_chanlist = 4;

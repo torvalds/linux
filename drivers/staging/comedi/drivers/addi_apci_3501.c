@@ -392,7 +392,7 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 	/* Initialize the timer/watchdog subdevice */
 	s = &dev->subdevices[3];
 	s->type = COMEDI_SUBD_TIMER;
-	s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
+	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = 1;
 	s->maxdata = 0;
 	s->len_chanlist = 1;

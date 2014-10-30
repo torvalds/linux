@@ -930,7 +930,7 @@ static int pci1760_attach(struct comedi_device *dev)
 
 	s = &dev->subdevices[0];
 	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON;
+	s->subdev_flags = SDF_READABLE;
 	s->n_chan = 8;
 	s->maxdata = 1;
 	s->len_chanlist = 8;
@@ -939,7 +939,7 @@ static int pci1760_attach(struct comedi_device *dev)
 
 	s = &dev->subdevices[1];
 	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
+	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = 8;
 	s->maxdata = 1;
 	s->len_chanlist = 8;
@@ -978,7 +978,7 @@ static int pci_dio_add_di(struct comedi_device *dev,
 	const struct dio_boardtype *this_board = dev->board_ptr;
 
 	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON | d->specflags;
+	s->subdev_flags = SDF_READABLE | d->specflags;
 	if (d->chans > 16)
 		s->subdev_flags |= SDF_LSAMPL;
 	s->n_chan = d->chans;
@@ -1008,7 +1008,7 @@ static int pci_dio_add_do(struct comedi_device *dev,
 	const struct dio_boardtype *this_board = dev->board_ptr;
 
 	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
+	s->subdev_flags = SDF_WRITABLE;
 	if (d->chans > 16)
 		s->subdev_flags |= SDF_LSAMPL;
 	s->n_chan = d->chans;
