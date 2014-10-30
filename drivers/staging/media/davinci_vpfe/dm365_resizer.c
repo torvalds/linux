@@ -149,7 +149,7 @@ configure_resizer_out_params(struct vpfe_resizer_device *resizer, int index,
 		param->rsz_en[index] = DISABLE;
 		return;
 	}
-	output = (struct vpfe_rsz_output_spec *)output_spec;
+	output = output_spec;
 	param->rsz_en[index] = ENABLE;
 	if (partial) {
 		param->rsz_rsc_param[index].h_flip = output->h_flip;
@@ -1218,12 +1218,12 @@ static long resizer_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 
 	switch (cmd) {
 	case VIDIOC_VPFE_RSZ_S_CONFIG:
-		user_config = (struct vpfe_rsz_config *)arg;
+		user_config = arg;
 		ret = resizer_set_configuration(resizer, user_config);
 		break;
 
 	case VIDIOC_VPFE_RSZ_G_CONFIG:
-		user_config = (struct vpfe_rsz_config *)arg;
+		user_config = arg;
 		if (!user_config->config) {
 			dev_err(dev, "error in VIDIOC_VPFE_RSZ_G_CONFIG\n");
 			return -EINVAL;

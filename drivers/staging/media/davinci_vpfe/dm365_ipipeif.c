@@ -421,7 +421,7 @@ static int
 ipipeif_get_config(struct v4l2_subdev *sd, void __user *arg)
 {
 	struct vpfe_ipipeif_device *ipipeif = v4l2_get_subdevdata(sd);
-	struct ipipeif_params *config = (struct ipipeif_params *)arg;
+	struct ipipeif_params *config = arg;
 	struct device *dev = ipipeif->subdev.v4l2_dev->dev;
 
 	if (!arg) {
@@ -462,7 +462,7 @@ ipipeif_get_config(struct v4l2_subdev *sd, void __user *arg)
 static long ipipeif_ioctl(struct v4l2_subdev *sd,
 			  unsigned int cmd, void *arg)
 {
-	struct ipipeif_params *config = (struct ipipeif_params *)arg;
+	struct ipipeif_params *config = arg;
 	int ret = -ENOIOCTLCMD;
 
 	switch (cmd) {
