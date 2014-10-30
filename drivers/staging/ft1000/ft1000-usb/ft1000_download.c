@@ -653,7 +653,7 @@ int scram_dnldr(struct ft1000_usb *ft1000dev, void *pFileStart,
 
 	state = STATE_START_DWNLD;
 
-	file_hdr = (struct dsp_file_hdr *)pFileStart;
+	file_hdr = pFileStart;
 
 	ft1000_write_register(ft1000dev, 0x800, FT1000_REG_MAG_WATERMARK);
 
