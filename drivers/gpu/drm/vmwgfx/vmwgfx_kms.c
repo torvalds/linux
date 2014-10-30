@@ -187,7 +187,7 @@ int vmw_du_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 	 * can do this since the caller in the drm core doesn't check anything
 	 * which is protected by any looks.
 	 */
-	drm_modeset_unlock(&crtc->mutex);
+	drm_modeset_unlock_crtc(crtc);
 	drm_modeset_lock_all(dev_priv->dev);
 
 	/* A lot of the code assumes this */
@@ -252,7 +252,7 @@ int vmw_du_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 	ret = 0;
 out:
 	drm_modeset_unlock_all(dev_priv->dev);
-	drm_modeset_lock(&crtc->mutex, NULL);
+	drm_modeset_lock_crtc(crtc);
 
 	return ret;
 }
@@ -273,7 +273,7 @@ int vmw_du_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	 * can do this since the caller in the drm core doesn't check anything
 	 * which is protected by any looks.
 	 */
-	drm_modeset_unlock(&crtc->mutex);
+	drm_modeset_unlock_crtc(crtc);
 	drm_modeset_lock_all(dev_priv->dev);
 
 	vmw_cursor_update_position(dev_priv, shown,
@@ -281,7 +281,7 @@ int vmw_du_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 				   du->cursor_y + du->hotspot_y);
 
 	drm_modeset_unlock_all(dev_priv->dev);
-	drm_modeset_lock(&crtc->mutex, NULL);
+	drm_modeset_lock_crtc(crtc);
 
 	return 0;
 }
