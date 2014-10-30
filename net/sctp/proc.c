@@ -417,7 +417,7 @@ static void *sctp_remaddr_seq_start(struct seq_file *seq, loff_t *pos)
 
 	if (*pos == 0)
 		seq_printf(seq, "ADDR ASSOC_ID HB_ACT RTO MAX_PATH_RTX "
-				"REM_ADDR_RTX  START\n");
+				"REM_ADDR_RTX START STATE\n");
 
 	return (void *)pos;
 }
@@ -497,7 +497,13 @@ static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
 			 * currently implemented, but we can record it with a
 			 * jiffies marker in a subsequent patch
 			 */
-			seq_printf(seq, "0");
+			seq_printf(seq, "0 ");
+
+			/*
+			 * The current state of this destination. I.e.
+			 * SCTP_ACTIVE, SCTP_INACTIVE, ...
+			 */
+			seq_printf(seq, "%d", tsp->state);
 
 			seq_printf(seq, "\n");
 		}
