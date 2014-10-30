@@ -64,6 +64,7 @@
 #include <linux/of.h>
 #include <linux/phy.h>
 #include <linux/regulator/consumer.h>
+#include <linux/usb/ehci_def.h>
 
 #include "ci.h"
 #include "udc.h"
@@ -412,7 +413,17 @@ static int ci_usb_phy_init(struct ci_hdrc *ci)
  */
 void ci_platform_configure(struct ci_hdrc *ci)
 {
-	if (ci->platdata->flags & CI_HDRC_DISABLE_STREAMING)
+	bool is_device_mode, is_host_mode;
+
+	is_device_mode = hw_read(ci, OP_USBMODE, USBMODE_CM) == USBMODE_CM_DC;
+	is_host_mode = hw_read(ci, OP_USBMODE, USBMODE_CM) == USBMODE_CM_HC;
+
+	if (is_device_mode &&
+		(ci->platdata->flags & CI_HDRC_DISABLE_DEVICE_STREAMING))
+		hw_write(ci, OP_USBMODE, USBMODE_CI_SDIS, USBMODE_CI_SDIS);
+
+	if (is_host_mode &&
+		(ci->platdata->flags & CI_HDRC_DISABLE_HOST_STREAMING))
 		hw_write(ci, OP_USBMODE, USBMODE_CI_SDIS, USBMODE_CI_SDIS);
 
 	if (ci->platdata->flags & CI_HDRC_FORCE_FULLSPEED) {
