@@ -897,10 +897,13 @@ static void virtpci_bus_release(struct device *dev)
 /* Adapter functions                                 */
 /*****************************************************/
 
+/* scsi is expected to be NULL for VNIC add
+ * net is expected to be NULL for VHBA add
+ */
 static int virtpci_device_add(struct device *parentbus, int devtype,
 			      struct add_virt_guestpart *addparams,
-			      struct scsi_adap_info *scsi, /* NULL for VNIC add */
-			      struct net_adap_info *net	/* NULL for VHBA add */)
+			      struct scsi_adap_info *scsi,
+			      struct net_adap_info *net)
 {
 	struct virtpci_dev *virtpcidev = NULL;
 	struct virtpci_dev *tmpvpcidev = NULL, *prev;
