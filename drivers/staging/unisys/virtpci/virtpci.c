@@ -110,7 +110,7 @@ static int virtpci_device_probe(struct device *dev);
 static int virtpci_device_remove(struct device *dev);
 
 static ssize_t info_debugfs_read(struct file *file, char __user *buf,
-			      size_t len, loff_t *offset);
+				 size_t len, loff_t *offset);
 
 static const struct file_operations debugfs_info_fops = {
 	.read = info_debugfs_read,
@@ -392,9 +392,9 @@ add_vnic(struct add_virt_guestpart *addparams)
 	GET_BUS_DEV(addparams->bus_no);
 
 	LOGINF("Adding vnic macaddr:%02x:%02x:%02x:%02x:%02x:%02x rcvbufs:%d mtu:%d chanptr:%p%pUL\n",
-	     net.mac_addr[0], net.mac_addr[1], net.mac_addr[2], net.mac_addr[3],
-	     net.mac_addr[4], net.mac_addr[5], net.num_rcv_bufs, net.mtu,
-	     addparams->chanptr, &net.zone_uuid);
+	       net.mac_addr[0], net.mac_addr[1], net.mac_addr[2],
+	       net.mac_addr[3], net.mac_addr[4], net.mac_addr[5],
+	       net.num_rcv_bufs, net.mtu, addparams->chanptr, &net.zone_uuid);
 	i = virtpci_device_add(vbus, VIRTNIC_TYPE, addparams, NULL, &net);
 	if (i) {
 		LOGINF("Added vnic macaddr:%02x:%02x:%02x:%02x:%02x:%02x\n",
@@ -624,7 +624,7 @@ static int delete_all_virt(enum virtpci_dev_type devtype,
 
 	if ((devtype != VIRTHBA_TYPE) && (devtype != VIRTNIC_TYPE)) {
 		LOGERR("**** FAILED to delete all devices; devtype:%d not vhba:%d or vnic:%d\n",
-		     devtype, VIRTHBA_TYPE, VIRTNIC_TYPE);
+		       devtype, VIRTHBA_TYPE, VIRTNIC_TYPE);
 		return 0;
 	}
 
@@ -694,7 +694,7 @@ virtpci_match_device(const struct pci_device_id *ids,
 {
 	while (ids->vendor || ids->subvendor || ids->class_mask) {
 		DBGINF("ids->vendor:%x dev->vendor:%x ids->device:%x dev->device:%x\n",
-		     ids->vendor, dev->vendor, ids->device, dev->device);
+		       ids->vendor, dev->vendor, ids->device, dev->device);
 
 		if ((ids->vendor == dev->vendor) &&
 		    (ids->device == dev->device))
@@ -793,9 +793,9 @@ static void fix_vbus_devInfo(struct device *dev, int devNo, int devType,
 		break;
 	}
 	bus_device_info_init(&devInfo, stype,
-			   virtpcidrv->name,
-			   virtpcidrv->version,
-			   virtpcidrv->vertag);
+			     virtpcidrv->name,
+			     virtpcidrv->version,
+			     virtpcidrv->vertag);
 	write_vbus_devInfo(pChan, &devInfo, devNo);
 
 	/* Re-write bus+chipset info, because it is possible that this
@@ -916,7 +916,7 @@ static int virtpci_device_add(struct device *parentbus, int devtype,
 
 	if ((devtype != VIRTHBA_TYPE) && (devtype != VIRTNIC_TYPE)) {
 		LOGERR("**** FAILED to add device; devtype:%d not vhba:%d or vnic:%d\n",
-		     devtype, VIRTHBA_TYPE, VIRTNIC_TYPE);
+		       devtype, VIRTHBA_TYPE, VIRTNIC_TYPE);
 		POSTCODE_LINUX_3(VPCI_CREATE_FAILURE_PC, devtype,
 				 POSTCODE_SEVERITY_ERR);
 		return 0;
@@ -1427,7 +1427,7 @@ static int print_vbus(struct device *vbus, void *data)
 }
 
 static ssize_t info_debugfs_read(struct file *file, char __user *buf,
-			      size_t len, loff_t *offset)
+				 size_t len, loff_t *offset)
 {
 	ssize_t bytes_read = 0;
 	int str_pos = 0;
@@ -1519,7 +1519,7 @@ static int __init virtpci_mod_init(void)
 	}
 	DBGINF("bus_register successful\n");
 	bus_device_info_init(&Bus_DriverInfo, "clientbus", "virtpci",
-			   VERSION, NULL);
+			     VERSION, NULL);
 
 	/* create a root bus used to parent all the virtpci buses. */
 	ret = device_register(&virtpci_rootbus_device);
@@ -1542,11 +1542,11 @@ static int __init virtpci_mod_init(void)
 	}
 
 	LOGINF("successfully registered virtpci_ctrlchan_func (0x%p) as callback.\n",
-	     (void *)&virtpci_ctrlchan_func);
+	       (void *)&virtpci_ctrlchan_func);
 	/* create debugfs directory and info file inside. */
 	virtpci_debugfs_dir = debugfs_create_dir("virtpci", NULL);
 	debugfs_create_file("info", S_IRUSR, virtpci_debugfs_dir,
-			NULL, &debugfs_info_fops);
+			    NULL, &debugfs_info_fops);
 	LOGINF("Leaving\n");
 	POSTCODE_LINUX_2(VPCI_CREATE_EXIT_PC, POSTCODE_SEVERITY_INFO);
 	return 0;
