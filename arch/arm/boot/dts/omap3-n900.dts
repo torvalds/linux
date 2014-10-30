@@ -612,18 +612,16 @@
 };
 
 &gpmc {
-	ranges = <0 0 0x04000000 0x10000000>; /* 256MB */
 	ranges = <0 0 0x01000000 0x01000000>,	/* 16 MB for OneNAND */
 		 <1 0 0x02000000 0x01000000>;	/* 16 MB for smc91c96 */
 	pinctrl-names = "default";
 	pinctrl-0 = <&gpmc_pins>;
 
-	/* gpio-irq for dma: 65 */
-
+	/* sys_ndmareq1 could be used by the driver, not as gpio65 though */
 	onenand@0,0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		reg = <0 0 0x10000000>;
+		reg = <0 0 0x20000>;	/* CS0, offset 0, IO size 128K */
 
 		gpmc,sync-read;
 		gpmc,sync-write;

@@ -5,7 +5,7 @@
 #include "omap-gpmc-smsc911x.dtsi"
 
 &gpmc {
-	ranges = <3 0 0x10000000 0x00000400>,
+	ranges = <3 0 0x10000000 0x1000000>,	/* CS3: 16MB for UART */
 		 <7 0 0x2c000000 0x01000000>;
 
 	/*
@@ -15,7 +15,7 @@
 	 */
 	uart@3,0 {
 		compatible = "ns16550a";
-		reg = <3 0 0x100>;
+		reg = <3 0 8>;	/* CS3, offset 0, IO size 8 */
 		bank-width = <2>;
 		reg-shift = <1>;
 		reg-io-width = <1>;
