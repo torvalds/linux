@@ -3541,34 +3541,8 @@ static int gen8_irq_postinstall(struct drm_device *dev)
 static int cherryview_irq_postinstall(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 enable_mask = I915_DISPLAY_PORT_INTERRUPT |
-		I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
-		I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
-		I915_DISPLAY_PIPE_C_EVENT_INTERRUPT;
-	u32 pipestat_enable = PLANE_FLIP_DONE_INT_STATUS_VLV |
-		PIPE_CRC_DONE_INTERRUPT_STATUS;
-	int pipe;
 
-	/*
-	 * Leave vblank interrupts masked initially.  enable/disable will
-	 * toggle them based on usage.
-	 */
-	dev_priv->irq_mask = ~enable_mask;
-
-	for_each_pipe(dev_priv, pipe)
-		I915_WRITE(PIPESTAT(pipe), 0xffff);
-
-	spin_lock_irq(&dev_priv->irq_lock);
-	i915_enable_pipestat(dev_priv, PIPE_A, PIPE_GMBUS_INTERRUPT_STATUS);
-	for_each_pipe(dev_priv, pipe)
-		i915_enable_pipestat(dev_priv, pipe, pipestat_enable);
-	spin_unlock_irq(&dev_priv->irq_lock);
-
-	I915_WRITE(VLV_IIR, 0xffffffff);
-	I915_WRITE(VLV_IIR, 0xffffffff);
-	I915_WRITE(VLV_IER, enable_mask);
-	I915_WRITE(VLV_IMR, dev_priv->irq_mask);
-	POSTING_READ(VLV_IMR);
+	vlv_display_irq_postinstall(dev_priv);
 
 	gen8_gt_irq_postinstall(dev_priv);
 
@@ -3621,7 +3595,6 @@ static void valleyview_irq_uninstall(struct drm_device *dev)
 static void cherryview_irq_uninstall(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int pipe;
 
 	if (!dev_priv)
 		return;
@@ -3633,13 +3606,7 @@ static void cherryview_irq_uninstall(struct drm_device *dev)
 
 	GEN5_IRQ_RESET(GEN8_PCU_);
 
-	I915_WRITE(PORT_HOTPLUG_EN, 0);
-	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
-
-	for_each_pipe(dev_priv, pipe)
-		I915_WRITE(PIPESTAT(pipe), 0xffff);
-
-	GEN5_IRQ_RESET(VLV_);
+	vlv_display_irq_uninstall(dev_priv);
 }
 
 static void ironlake_irq_uninstall(struct drm_device *dev)
