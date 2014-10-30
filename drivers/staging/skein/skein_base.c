@@ -124,8 +124,6 @@ int skein_256_init_ext(struct skein_256_ctx *ctx, size_t hash_bit_len,
 	/* tree hash config info (or SKEIN_CFG_TREE_INFO_SEQUENTIAL) */
 	cfg.w[2] = skein_swap64(tree_info);
 
-	skein_show_key(256, &ctx->h, key, key_bytes);
-
 	/* compute the initial chaining values from config block */
 	skein_256_process_block(ctx, cfg.b, 1, SKEIN_CFG_STR_LEN);
 
@@ -232,8 +230,6 @@ int skein_256_final(struct skein_256_ctx *ctx, u8 *hash_val)
 		/* "output" the ctr mode bytes */
 		skein_put64_lsb_first(hash_val+i*SKEIN_256_BLOCK_BYTES, ctx->x,
 				      n);
-		skein_show_final(256, &ctx->h, n,
-				 hash_val+i*SKEIN_256_BLOCK_BYTES);
 		/* restore the counter mode key for next time */
 		memcpy(ctx->x, x, sizeof(x));
 	}
@@ -353,8 +349,6 @@ int skein_512_init_ext(struct skein_512_ctx *ctx, size_t hash_bit_len,
 	/* tree hash config info (or SKEIN_CFG_TREE_INFO_SEQUENTIAL) */
 	cfg.w[2] = skein_swap64(tree_info);
 
-	skein_show_key(512, &ctx->h, key, key_bytes);
-
 	/* compute the initial chaining values from config block */
 	skein_512_process_block(ctx, cfg.b, 1, SKEIN_CFG_STR_LEN);
 
@@ -461,8 +455,6 @@ int skein_512_final(struct skein_512_ctx *ctx, u8 *hash_val)
 		/* "output" the ctr mode bytes */
 		skein_put64_lsb_first(hash_val+i*SKEIN_512_BLOCK_BYTES, ctx->x,
 				      n);
-		skein_show_final(512, &ctx->h, n,
-				 hash_val+i*SKEIN_512_BLOCK_BYTES);
 		/* restore the counter mode key for next time */
 		memcpy(ctx->x, x, sizeof(x));
 	}
@@ -577,8 +569,6 @@ int skein_1024_init_ext(struct skein_1024_ctx *ctx, size_t hash_bit_len,
 	/* tree hash config info (or SKEIN_CFG_TREE_INFO_SEQUENTIAL) */
 	cfg.w[2] = skein_swap64(tree_info);
 
-	skein_show_key(1024, &ctx->h, key, key_bytes);
-
 	/* compute the initial chaining values from config block */
 	skein_1024_process_block(ctx, cfg.b, 1, SKEIN_CFG_STR_LEN);
 
@@ -685,8 +675,6 @@ int skein_1024_final(struct skein_1024_ctx *ctx, u8 *hash_val)
 		/* "output" the ctr mode bytes */
 		skein_put64_lsb_first(hash_val+i*SKEIN_1024_BLOCK_BYTES, ctx->x,
 				      n);
-		skein_show_final(1024, &ctx->h, n,
-				 hash_val+i*SKEIN_1024_BLOCK_BYTES);
 		/* restore the counter mode key for next time */
 		memcpy(ctx->x, x, sizeof(x));
 	}
@@ -794,8 +782,6 @@ int skein_256_output(struct skein_256_ctx *ctx, u8 *hash_val)
 		/* "output" the ctr mode bytes */
 		skein_put64_lsb_first(hash_val+i*SKEIN_256_BLOCK_BYTES, ctx->x,
 				      n);
-		skein_show_final(256, &ctx->h, n,
-				 hash_val+i*SKEIN_256_BLOCK_BYTES);
 		/* restore the counter mode key for next time */
 		memcpy(ctx->x, x, sizeof(x));
 	}
@@ -833,8 +819,6 @@ int skein_512_output(struct skein_512_ctx *ctx, u8 *hash_val)
 		/* "output" the ctr mode bytes */
 		skein_put64_lsb_first(hash_val+i*SKEIN_512_BLOCK_BYTES, ctx->x,
 				      n);
-		skein_show_final(256, &ctx->h, n,
-				 hash_val+i*SKEIN_512_BLOCK_BYTES);
 		/* restore the counter mode key for next time */
 		memcpy(ctx->x, x, sizeof(x));
 	}
@@ -872,8 +856,6 @@ int skein_1024_output(struct skein_1024_ctx *ctx, u8 *hash_val)
 		/* "output" the ctr mode bytes */
 		skein_put64_lsb_first(hash_val+i*SKEIN_1024_BLOCK_BYTES, ctx->x,
 				      n);
-		skein_show_final(256, &ctx->h, n,
-				 hash_val+i*SKEIN_1024_BLOCK_BYTES);
 		/* restore the counter mode key for next time */
 		memcpy(ctx->x, x, sizeof(x));
 	}

@@ -15,10 +15,6 @@
 **
 ** The "default" note explains what happens when the switch is not defined.
 **
-**  SKEIN_DEBUG            -- make callouts from inside Skein code
-**                            to examine/display intermediate values.
-**                            [default: no callouts (no overhead)]
-**
 **  SKEIN_ERR_CHECK        -- how error checking is handled inside Skein
 **                            code. If not defined, most error checking
 **                            is disabled (for performance). Otherwise,
@@ -278,19 +274,6 @@ int skein_1024_output(struct skein_1024_ctx *ctx, u8 *hash_val);
 #define skein_set_tree_level(hdr, height) { \
 		(hdr).tweak[1] |= SKEIN_T1_TREE_LEVEL(height); \
 	}
-
-/*****************************************************************
-** "Internal" Skein definitions for debugging and error checking
-******************************************************************/
-#ifdef SKEIN_DEBUG             /* examine/display intermediate values? */
-#include "skein_debug.h"
-#else                           /* default is no callouts */
-#define skein_show_block(bits, ctx, x, blk_ptr, w_ptr, ks_event_ptr, ks_odd_ptr)
-#define skein_show_round(bits, ctx, r, x)
-#define skein_show_r_ptr(bits, ctx, r, x_ptr)
-#define skein_show_final(bits, ctx, cnt, out_ptr)
-#define skein_show_key(bits, ctx, key, key_bytes)
-#endif
 
 /* ignore all asserts, for performance */
 #define skein_assert_ret(x, ret_code)

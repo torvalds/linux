@@ -70,7 +70,6 @@ do {                                         \
 #define R256(p0, p1, p2, p3, ROT, r_num) /* fully unrolled */ \
 do {                                                          \
 	ROUND256(p0, p1, p2, p3, ROT, r_num);                 \
-	skein_show_r_ptr(BLK_BITS, &ctx->h, r_num, X_ptr);    \
 } while (0)
 
 #define I256(R)                                                           \
@@ -80,14 +79,12 @@ do {                                                                      \
 	X1   += ks[((R) + 2) % 5] + ts[((R) + 1) % 3];                    \
 	X2   += ks[((R) + 3) % 5] + ts[((R) + 2) % 3];                    \
 	X3   += ks[((R) + 4) % 5] + (R) + 1;                              \
-	skein_show_r_ptr(BLK_BITS, &ctx->h, SKEIN_RND_KEY_INJECT, X_ptr); \
 } while (0)
 #else
 /* looping version */
 #define R256(p0, p1, p2, p3, ROT, r_num) \
 do { \
 	ROUND256(p0, p1, p2, p3, ROT, r_num); \
-	skein_show_r_ptr(BLK_BITS, &ctx->h, 4 * (r - 1) + r_num, X_ptr); \
 } while (0)
 
 #define I256(R) \
@@ -100,7 +97,6 @@ do { \
 	/* rotate key schedule */                                         \
 	ks[r + (R) + 4] = ks[r + (R) - 1];                                \
 	ts[r + (R) + 2] = ts[r + (R) - 1];                                \
-	skein_show_r_ptr(BLK_BITS, &ctx->h, SKEIN_RND_KEY_INJECT, X_ptr); \
 } while (0)
 #endif
 #define R256_8_ROUNDS(R)                                 \
@@ -160,8 +156,7 @@ do {                                                         \
 #if SKEIN_UNROLL_512 == 0
 #define R512(p0, p1, p2, p3, p4, p5, p6, p7, ROT, r_num) /* unrolled */ \
 do {                                                                    \
-	ROUND512(p0, p1, p2, p3, p4, p5, p6, p7, ROT, r_num)            \
-	skein_show_r_ptr(BLK_BITS, &ctx->h, r_num, X_ptr);              \
+	ROUND512(p0, p1, p2, p3, p4, p5, p6, p7, ROT, r_num);           \
 } while (0)
 
 #define I512(R)                                                           \
@@ -175,14 +170,12 @@ do {                                                                      \
 	X5   += ks[((R) + 6) % 9] + ts[((R) + 1) % 3];                    \
 	X6   += ks[((R) + 7) % 9] + ts[((R) + 2) % 3];                    \
 	X7   += ks[((R) + 8) % 9] + (R) + 1;                              \
-	skein_show_r_ptr(BLK_BITS, &ctx->h, SKEIN_RND_KEY_INJECT, X_ptr); \
 } while (0)
 
 #else /* looping version */
 #define R512(p0, p1, p2, p3, p4, p5, p6, p7, ROT, r_num)                 \
 do {                                                                     \
 	ROUND512(p0, p1, p2, p3, p4, p5, p6, p7, ROT, r_num);            \
-	skein_show_r_ptr(BLK_BITS, &ctx->h, 4 * (r - 1) + r_num, X_ptr); \
 } while (0)
 
 #define I512(R)                                                           \
@@ -199,7 +192,6 @@ do {                                                                      \
 	/* rotate key schedule */                                         \
 	ks[r + (R) + 8] = ks[r + (R) - 1];                                \
 	ts[r + (R) + 2] = ts[r + (R) - 1];                                \
-	skein_show_r_ptr(BLK_BITS, &ctx->h, SKEIN_RND_KEY_INJECT, X_ptr); \
 } while (0)
 #endif /* end of looped code definitions */
 #define R512_8_ROUNDS(R)  /* do 8 full rounds */                      \
@@ -274,7 +266,6 @@ do {                                                                          \
 do {                                                                          \
 	ROUND1024(p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, pA, pB, pC, pD, pE, \
 		  pF, ROT, rn);                                               \
-	skein_show_r_ptr(BLK_BITS, &ctx->h, rn, X_ptr);                       \
 } while (0)
 
 #define I1024(R)                                                          \
@@ -296,7 +287,6 @@ do {                                                                      \
 	X13 += ks[((R) + 14) % 17] + ts[((R) + 1) % 3];                   \
 	X14 += ks[((R) + 15) % 17] + ts[((R) + 2) % 3];                   \
 	X15 += ks[((R) + 16) % 17] + (R) + 1;                             \
-	skein_show_r_ptr(BLK_BITS, &ctx->h, SKEIN_RND_KEY_INJECT, X_ptr); \
 } while (0)
 #else /* looping version */
 #define R1024(p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, pA, pB, pC, pD, pE, pF, \
@@ -304,7 +294,6 @@ do {                                                                      \
 do {                                                                          \
 	ROUND1024(p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, pA, pB, pC, pD, pE, \
 		  pF, ROT, rn);                                               \
-	skein_show_r_ptr(BLK_BITS, &ctx->h, 4 * (r - 1) + rn, X_ptr);         \
 } while (0)
 
 #define I1024(R)                                                           \
@@ -329,7 +318,6 @@ do {                                                                       \
 	/* rotate key schedule */                                          \
 	ks[r + (R) + 16] = ks[r + (R) - 1];                                \
 	ts[r + (R) + 2] = ts[r + (R) - 1];                                 \
-	skein_show_r_ptr(BLK_BITSi, &ctx->h, SKEIN_RND_KEY_INJECT, X_ptr); \
 } while (0)
 
 #endif
@@ -413,17 +401,12 @@ void skein_256_process_block(struct skein_256_ctx *ctx, const u8 *blk_ptr,
 		/* get input block in little-endian format */
 		skein_get64_lsb_first(w, blk_ptr, WCNT);
 		debug_save_tweak(ctx);
-		skein_show_block(BLK_BITS, &ctx->h, ctx->x, blk_ptr, w, ks, ts);
 
 		/* do the first full key injection */
 		X0 = w[0] + ks[0];
 		X1 = w[1] + ks[1] + ts[0];
 		X2 = w[2] + ks[2] + ts[1];
 		X3 = w[3] + ks[3];
-
-		/* show starting state values */
-		skein_show_r_ptr(BLK_BITS, &ctx->h, SKEIN_RND_KEY_INITIAL,
-				 x_ptr);
 
 		blk_ptr += SKEIN_256_BLOCK_BYTES;
 
@@ -480,8 +463,6 @@ void skein_256_process_block(struct skein_256_ctx *ctx, const u8 *blk_ptr,
 		ctx->x[1] = X1 ^ w[1];
 		ctx->x[2] = X2 ^ w[2];
 		ctx->x[3] = X3 ^ w[3];
-
-		skein_show_round(BLK_BITS, &ctx->h, SKEIN_RND_FEED_FWD, ctx->x);
 
 		ts[1] &= ~SKEIN_T1_FLAG_FIRST;
 	} while (--blk_cnt);
@@ -558,7 +539,6 @@ void skein_512_process_block(struct skein_512_ctx *ctx, const u8 *blk_ptr,
 		/* get input block in little-endian format */
 		skein_get64_lsb_first(w, blk_ptr, WCNT);
 		debug_save_tweak(ctx);
-		skein_show_block(BLK_BITS, &ctx->h, ctx->x, blk_ptr, w, ks, ts);
 
 		/* do the first full key injection */
 		X0 = w[0] + ks[0];
@@ -572,8 +552,6 @@ void skein_512_process_block(struct skein_512_ctx *ctx, const u8 *blk_ptr,
 
 		blk_ptr += SKEIN_512_BLOCK_BYTES;
 
-		skein_show_r_ptr(BLK_BITS, &ctx->h, SKEIN_RND_KEY_INITIAL,
-				 X_ptr);
 		/* run the rounds */
 		for (r = 1;
 			r < (SKEIN_UNROLL_512 ? 2 * RCNT : 2);
@@ -634,7 +612,6 @@ void skein_512_process_block(struct skein_512_ctx *ctx, const u8 *blk_ptr,
 		ctx->x[5] = X5 ^ w[5];
 		ctx->x[6] = X6 ^ w[6];
 		ctx->x[7] = X7 ^ w[7];
-		skein_show_round(BLK_BITS, &ctx->h, SKEIN_RND_FEED_FWD, ctx->x);
 
 		ts[1] &= ~SKEIN_T1_FLAG_FIRST;
 	} while (--blk_cnt);
@@ -674,26 +651,6 @@ void skein_1024_process_block(struct skein_1024_ctx *ctx, const u8 *blk_ptr,
 	u64  X00, X01, X02, X03, X04, X05, X06, X07,
 	     X08, X09, X10, X11, X12, X13, X14, X15;
 	u64  w[WCNT]; /* local copy of input block */
-#ifdef SKEIN_DEBUG
-	const u64 *X_ptr[16]; /* use for debugging (help cc put Xn in regs) */
-
-	X_ptr[0] = &X00;
-	X_ptr[1] = &X01;
-	X_ptr[2] = &X02;
-	X_ptr[3] = &X03;
-	X_ptr[4] = &X04;
-	X_ptr[5] = &X05;
-	X_ptr[6] = &X06;
-	X_ptr[7] = &X07;
-	X_ptr[8] = &X08;
-	X_ptr[9] = &X09;
-	X_ptr[10] = &X10;
-	X_ptr[11] = &X11;
-	X_ptr[12] = &X12;
-	X_ptr[13] = &X13;
-	X_ptr[14] = &X14;
-	X_ptr[15] = &X15;
-#endif
 
 	skein_assert(blk_cnt != 0); /* never call with blk_cnt == 0! */
 	ts[0] = ctx->h.tweak[0];
@@ -732,7 +689,6 @@ void skein_1024_process_block(struct skein_1024_ctx *ctx, const u8 *blk_ptr,
 		/* get input block in little-endian format */
 		skein_get64_lsb_first(w, blk_ptr, WCNT);
 		debug_save_tweak(ctx);
-		skein_show_block(BLK_BITS, &ctx->h, ctx->x, blk_ptr, w, ks, ts);
 
 		/* do the first full key injection */
 		X00 = w[0] + ks[0];
@@ -751,9 +707,6 @@ void skein_1024_process_block(struct skein_1024_ctx *ctx, const u8 *blk_ptr,
 		X13 = w[13] + ks[13] + ts[0];
 		X14 = w[14] + ks[14] + ts[1];
 		X15 = w[15] + ks[15];
-
-		skein_show_r_ptr(BLK_BITS, &ctx->h, SKEIN_RND_KEY_INITIAL,
-				 X_ptr);
 
 		for (r = 1;
 			r < (SKEIN_UNROLL_1024 ? 2 * RCNT : 2);
@@ -820,8 +773,6 @@ void skein_1024_process_block(struct skein_1024_ctx *ctx, const u8 *blk_ptr,
 		ctx->x[13] = X13 ^ w[13];
 		ctx->x[14] = X14 ^ w[14];
 		ctx->x[15] = X15 ^ w[15];
-
-		skein_show_round(BLK_BITS, &ctx->h, SKEIN_RND_FEED_FWD, ctx->x);
 
 		ts[1] &= ~SKEIN_T1_FLAG_FIRST;
 		blk_ptr += SKEIN_1024_BLOCK_BYTES;
