@@ -206,6 +206,22 @@ void sst_process_pending_msg(struct work_struct *work)
 	ctx->ops->post_message(ctx, NULL, false);
 }
 
+static int sst_workqueue_init(struct intel_sst_drv *ctx)
+{
+	INIT_LIST_HEAD(&ctx->memcpy_list);
+	INIT_LIST_HEAD(&ctx->rx_list);
+	INIT_LIST_HEAD(&ctx->ipc_dispatch_list);
+	INIT_LIST_HEAD(&ctx->block_list);
+	INIT_WORK(&ctx->ipc_post_msg_wq, sst_process_pending_msg);
+	init_waitqueue_head(&ctx->wait_queue);
+
+	ctx->post_msg_wq =
+		create_singlethread_workqueue("sst_post_msg_wq");
+	if (!ctx->post_msg_wq)
+		return -EBUSY;
+	return 0;
+}
+
 /*
 * intel_sst_probe - PCI probe function
 *
@@ -254,23 +270,12 @@ static int intel_sst_probe(struct pci_dev *pci,
 	sst_drv_ctx->use_dma = 0;
 	sst_drv_ctx->use_lli = 0;
 
-	INIT_LIST_HEAD(&sst_drv_ctx->memcpy_list);
-	INIT_LIST_HEAD(&sst_drv_ctx->ipc_dispatch_list);
-	INIT_LIST_HEAD(&sst_drv_ctx->block_list);
-	INIT_LIST_HEAD(&sst_drv_ctx->rx_list);
-
-	sst_drv_ctx->post_msg_wq =
-		create_singlethread_workqueue("sst_post_msg_wq");
-	if (!sst_drv_ctx->post_msg_wq) {
-		ret = -EINVAL;
-		goto do_free_drv_ctx;
-	}
-	INIT_WORK(&sst_drv_ctx->ipc_post_msg_wq, sst_process_pending_msg);
-	init_waitqueue_head(&sst_drv_ctx->wait_queue);
-
 	spin_lock_init(&sst_drv_ctx->ipc_spin_lock);
 	spin_lock_init(&sst_drv_ctx->block_lock);
 	spin_lock_init(&sst_drv_ctx->rx_msg_lock);
+
+	if (sst_workqueue_init(sst_drv_ctx))
+		return -EINVAL;
 
 	dev_info(sst_drv_ctx->dev, "Got drv data max stream %d\n",
 				sst_drv_ctx->info.max_streams);
@@ -414,7 +419,6 @@ do_release_regions:
 	pci_release_regions(pci);
 do_free_mem:
 	destroy_workqueue(sst_drv_ctx->post_msg_wq);
-do_free_drv_ctx:
 	dev_err(sst_drv_ctx->dev, "Probe failed with %d\n", ret);
 	return ret;
 }
