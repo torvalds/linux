@@ -2675,7 +2675,7 @@ static void alc269_shutup(struct hda_codec *codec)
 
 static struct coef_fw alc282_coefs[] = {
 	WRITE_COEF(0x03, 0x0002), /* Power Down Control */
-	WRITE_COEF(0x05, 0x0700), /* FIFO and filter clock */
+	UPDATE_COEF(0x05, 0xff3f, 0x0700), /* FIFO and filter clock */
 	WRITE_COEF(0x07, 0x0200), /* DMIC control */
 	UPDATE_COEF(0x06, 0x00f0, 0), /* Analog clock */
 	UPDATE_COEF(0x08, 0xfffc, 0x0c2c), /* JD */
@@ -2786,7 +2786,7 @@ static void alc282_shutup(struct hda_codec *codec)
 
 static struct coef_fw alc283_coefs[] = {
 	WRITE_COEF(0x03, 0x0002), /* Power Down Control */
-	WRITE_COEF(0x05, 0x0700), /* FIFO and filter clock */
+	UPDATE_COEF(0x05, 0xff3f, 0x0700), /* FIFO and filter clock */
 	WRITE_COEF(0x07, 0x0200), /* DMIC control */
 	UPDATE_COEF(0x06, 0x00f0, 0), /* Analog clock */
 	UPDATE_COEF(0x08, 0xfffc, 0x0c2c), /* JD */
@@ -2817,6 +2817,7 @@ static struct coef_fw alc283_coefs[] = {
 	UPDATE_COEF(0x40, 0xf800, 0x9800), /* Class D DC enable */
 	UPDATE_COEF(0x42, 0xf000, 0x2000), /* DC offset */
 	WRITE_COEF(0x37, 0xfc06), /* Class D amp control */
+	UPDATE_COEF(0x1b, 0x8000, 0), /* HP JD control */
 	{}
 };
 
@@ -5922,6 +5923,7 @@ static const struct snd_pci_quirk alc662_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1028, 0x0626, "Dell", ALC668_FIXUP_DELL_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1028, 0x0696, "Dell", ALC668_FIXUP_DELL_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x1028, 0x0698, "Dell", ALC668_FIXUP_DELL_MIC_NO_PRESENCE),
+	SND_PCI_QUIRK(0x1028, 0x069f, "Dell", ALC668_FIXUP_DELL_MIC_NO_PRESENCE),
 	SND_PCI_QUIRK(0x103c, 0x1632, "HP RP5800", ALC662_FIXUP_HP_RP5800),
 	SND_PCI_QUIRK(0x1043, 0x11cd, "Asus N550", ALC662_FIXUP_BASS_1A),
 	SND_PCI_QUIRK(0x1043, 0x1477, "ASUS N56VZ", ALC662_FIXUP_BASS_MODE4_CHMAP),
