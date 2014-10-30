@@ -206,11 +206,13 @@ out:
 
 static inline void apic_set_spiv(struct kvm_lapic *apic, u32 val)
 {
-	u32 prev = kvm_apic_get_reg(apic, APIC_SPIV);
+	bool enabled = val & APIC_SPIV_APIC_ENABLED;
 
 	apic_set_reg(apic, APIC_SPIV, val);
-	if ((prev ^ val) & APIC_SPIV_APIC_ENABLED) {
-		if (val & APIC_SPIV_APIC_ENABLED) {
+
+	if (enabled != apic->sw_enabled) {
+		apic->sw_enabled = enabled;
+		if (enabled) {
 			static_key_slow_dec_deferred(&apic_sw_disabled);
 			recalculate_apic_map(apic->vcpu->kvm);
 		} else
@@ -1357,7 +1359,7 @@ void kvm_free_lapic(struct kvm_vcpu *vcpu)
 	if (!(vcpu->arch.apic_base & MSR_IA32_APICBASE_ENABLE))
 		static_key_slow_dec_deferred(&apic_hw_disabled);
 
-	if (!(kvm_apic_get_reg(apic, APIC_SPIV) & APIC_SPIV_APIC_ENABLED))
+	if (!apic->sw_enabled)
 		static_key_slow_dec_deferred(&apic_sw_disabled);
 
 	if (apic->regs)

@@ -22,6 +22,7 @@ struct kvm_lapic {
 	struct kvm_timer lapic_timer;
 	u32 divide_count;
 	struct kvm_vcpu *vcpu;
+	bool sw_enabled;
 	bool irr_pending;
 	/* Number of bits set in ISR. */
 	s16 isr_count;
