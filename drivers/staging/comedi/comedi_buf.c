@@ -484,12 +484,16 @@ unsigned int comedi_buf_write_samples(struct comedi_subdevice *s,
 	unsigned int max_samples;
 	unsigned int nbytes;
 
-	/* make sure there is enought room in the buffer for all the samples */
+	/*
+	 * Make sure there is enough room in the buffer for all the samples.
+	 * If not, clamp the nsamples to the number that will fit, flag the
+	 * buffer overrun and add the samples that fit.
+	 */
 	max_samples = comedi_buf_write_n_available(s) / bytes_per_sample(s);
 	if (nsamples > max_samples) {
 		dev_warn(s->device->class_dev, "buffer overrun\n");
 		s->async->events |= COMEDI_CB_OVERFLOW;
-		return 0;
+		nsamples = max_samples;
 	}
 
 	if (nsamples == 0)
