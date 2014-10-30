@@ -24,7 +24,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <crypto/hash.h>
-#include <crypto/hash_info.h>
+
 #include "ima.h"
 
 struct ahash_completion {

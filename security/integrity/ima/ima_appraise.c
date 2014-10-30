@@ -15,7 +15,6 @@
 #include <linux/magic.h>
 #include <linux/ima.h>
 #include <linux/evm.h>
-#include <crypto/hash_info.h>
 
 #include "ima.h"
 
@@ -130,36 +129,40 @@ static void ima_cache_flags(struct integrity_iint_cache *iint, int func)
 	}
 }
 
-void ima_get_hash_algo(struct evm_ima_xattr_data *xattr_value, int xattr_len,
-		       struct ima_digest_data *hash)
+enum hash_algo ima_get_hash_algo(struct evm_ima_xattr_data *xattr_value,
+				 int xattr_len)
 {
 	struct signature_v2_hdr *sig;
 
 	if (!xattr_value || xattr_len < 2)
-		return;
+		/* return default hash algo */
+		return ima_hash_algo;
 
 	switch (xattr_value->type) {
 	case EVM_IMA_XATTR_DIGSIG:
 		sig = (typeof(sig))xattr_value;
 		if (sig->version != 2 || xattr_len <= sizeof(*sig))
-			return;
-		hash->algo = sig->hash_algo;
+			return ima_hash_algo;
+		return sig->hash_algo;
 		break;
 	case IMA_XATTR_DIGEST_NG:
-		hash->algo = xattr_value->digest[0];
+		return xattr_value->digest[0];
 		break;
 	case IMA_XATTR_DIGEST:
 		/* this is for backward compatibility */
 		if (xattr_len == 21) {
 			unsigned int zero = 0;
 			if (!memcmp(&xattr_value->digest[16], &zero, 4))
-				hash->algo = HASH_ALGO_MD5;
+				return HASH_ALGO_MD5;
 			else
-				hash->algo = HASH_ALGO_SHA1;
+				return HASH_ALGO_SHA1;
 		} else if (xattr_len == 17)
-			hash->algo = HASH_ALGO_MD5;
+			return HASH_ALGO_MD5;
 		break;
 	}
+
+	/* return default hash algo */
+	return ima_hash_algo;
 }
 
 int ima_read_xattr(struct dentry *dentry,
@@ -296,7 +299,7 @@ void ima_update_xattr(struct integrity_iint_cache *iint, struct file *file)
 	if (iint->flags & IMA_DIGSIG)
 		return;
 
-	rc = ima_collect_measurement(iint, file, NULL, NULL);
+	rc = ima_collect_measurement(iint, file, ima_hash_algo);
 	if (rc < 0)
 		return;
 

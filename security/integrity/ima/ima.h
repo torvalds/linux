@@ -23,6 +23,7 @@
 #include <linux/hash.h>
 #include <linux/tpm.h>
 #include <linux/audit.h>
+#include <crypto/hash_info.h>
 
 #include "../integrity.h"
 
@@ -140,9 +141,7 @@ static inline unsigned long ima_hash_key(u8 *digest)
 int ima_get_action(struct inode *inode, int mask, int function);
 int ima_must_measure(struct inode *inode, int mask, int function);
 int ima_collect_measurement(struct integrity_iint_cache *iint,
-			    struct file *file,
-			    struct evm_ima_xattr_data **xattr_value,
-			    int *xattr_len);
+			    struct file *file, enum hash_algo algo);
 void ima_store_measurement(struct integrity_iint_cache *iint, struct file *file,
 			   const unsigned char *filename,
 			   struct evm_ima_xattr_data *xattr_value,
@@ -188,8 +187,8 @@ int ima_must_appraise(struct inode *inode, int mask, enum ima_hooks func);
 void ima_update_xattr(struct integrity_iint_cache *iint, struct file *file);
 enum integrity_status ima_get_cache_status(struct integrity_iint_cache *iint,
 					   int func);
-void ima_get_hash_algo(struct evm_ima_xattr_data *xattr_value, int xattr_len,
-		       struct ima_digest_data *hash);
+enum hash_algo ima_get_hash_algo(struct evm_ima_xattr_data *xattr_value,
+				 int xattr_len);
 int ima_read_xattr(struct dentry *dentry,
 		   struct evm_ima_xattr_data **xattr_value);
 
@@ -221,10 +220,10 @@ static inline enum integrity_status ima_get_cache_status(struct integrity_iint_c
 	return INTEGRITY_UNKNOWN;
 }
 
-static inline void ima_get_hash_algo(struct evm_ima_xattr_data *xattr_value,
-				     int xattr_len,
-				     struct ima_digest_data *hash)
+static inline enum hash_algo
+ima_get_hash_algo(struct evm_ima_xattr_data *xattr_value, int xattr_len)
 {
+	return ima_hash_algo;
 }
 
 static inline int ima_read_xattr(struct dentry *dentry,

@@ -24,7 +24,6 @@
 #include <linux/slab.h>
 #include <linux/xattr.h>
 #include <linux/ima.h>
-#include <crypto/hash_info.h>
 
 #include "ima.h"
 
@@ -163,9 +162,10 @@ static int process_measurement(struct file *file, int mask, int function,
 	char *pathbuf = NULL;
 	const char *pathname = NULL;
 	int rc = -ENOMEM, action, must_appraise;
-	struct evm_ima_xattr_data *xattr_value = NULL, **xattr_ptr = NULL;
+	struct evm_ima_xattr_data *xattr_value = NULL;
 	int xattr_len = 0;
 	bool violation_check;
+	enum hash_algo hash_algo;
 
 	if (!ima_policy_flag || !S_ISREG(inode->i_mode))
 		return 0;
@@ -221,9 +221,12 @@ static int process_measurement(struct file *file, int mask, int function,
 	template_desc = ima_template_desc_current();
 	if ((action & IMA_APPRAISE_SUBMASK) ||
 		    strcmp(template_desc->name, IMA_TEMPLATE_IMA_NAME) != 0)
-		xattr_ptr = &xattr_value;
+		/* read 'security.ima' */
+		xattr_len = ima_read_xattr(file->f_path.dentry, &xattr_value);
 
-	rc = ima_collect_measurement(iint, file, xattr_ptr, &xattr_len);
+	hash_algo = ima_get_hash_algo(xattr_value, xattr_len);
+
+	rc = ima_collect_measurement(iint, file, hash_algo);
 	if (rc != 0) {
 		if (file->f_flags & O_DIRECT)
 			rc = (iint->flags & IMA_PERMIT_DIRECTIO) ? 0 : -EACCES;

@@ -18,7 +18,7 @@
 #include <linux/fs.h>
 #include <linux/xattr.h>
 #include <linux/evm.h>
-#include <crypto/hash_info.h>
+
 #include "ima.h"
 
 /*
@@ -188,9 +188,7 @@ int ima_get_action(struct inode *inode, int mask, int function)
  * Return 0 on success, error code otherwise
  */
 int ima_collect_measurement(struct integrity_iint_cache *iint,
-			    struct file *file,
-			    struct evm_ima_xattr_data **xattr_value,
-			    int *xattr_len)
+			    struct file *file, enum hash_algo algo)
 {
 	const char *audit_cause = "failed";
 	struct inode *inode = file_inode(file);
@@ -201,9 +199,6 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 		char digest[IMA_MAX_DIGEST_SIZE];
 	} hash;
 
-	if (xattr_value)
-		*xattr_len = ima_read_xattr(file->f_path.dentry, xattr_value);
-
 	if (!(iint->flags & IMA_COLLECTED)) {
 		u64 i_version = file_inode(file)->i_version;
 
@@ -213,11 +208,7 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 			goto out;
 		}
 
-		/* use default hash algorithm */
-		hash.hdr.algo = ima_hash_algo;
-
-		if (xattr_value)
-			ima_get_hash_algo(*xattr_value, *xattr_len, &hash.hdr);
+		hash.hdr.algo = algo;
 
 		result = ima_calc_file_hash(file, &hash.hdr);
 		if (!result) {
