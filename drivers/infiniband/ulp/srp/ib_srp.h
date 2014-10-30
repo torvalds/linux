@@ -157,6 +157,7 @@ struct srp_target_port {
 	 * command processing. Try to keep them packed into cachelines.
 	 */
 
+	union ib_gid		sgid;
 	__be64			id_ext;
 	__be64			ioc_guid;
 	__be64			service_id;
@@ -173,8 +174,9 @@ struct srp_target_port {
 	int			comp_vector;
 	int			tl_retry_count;
 
+	union ib_gid		orig_dgid;
+	__be16			pkey;
 	struct ib_sa_path_rec	path;
-	__be16			orig_dgid[8];
 	struct ib_sa_query     *path_query;
 	int			path_query_id;
 
