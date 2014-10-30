@@ -706,6 +706,7 @@ static int sst_platform_probe(struct platform_device *pdev)
 	pdata->pdev_strm_map = dpcm_strm_map;
 	pdata->strm_map_size = ARRAY_SIZE(dpcm_strm_map);
 	drv->pdata = pdata;
+	drv->pdev = pdev;
 	mutex_init(&drv->lock);
 	dev_set_drvdata(&pdev->dev, drv);
 
