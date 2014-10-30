@@ -9,9 +9,13 @@
 #ifndef PROC_H
 #define PROC_H
 
+#include <stdint.h>
+
 class Buffer;
 class DynBuf;
 
-bool readProc(Buffer *const buffer, bool sendMaps, DynBuf *const printb, DynBuf *const b1, DynBuf *const b2, DynBuf *const b3);
+bool readProcComms(const uint64_t currTime, Buffer *const buffer, DynBuf *const printb, DynBuf *const b1, DynBuf *const b2);
+bool readProcMaps(const uint64_t currTime, Buffer *const buffer, DynBuf *const printb, DynBuf *const b);
+bool readKallsyms(const uint64_t currTime, Buffer *const buffer, const bool *const isDone);
 
 #endif // PROC_H

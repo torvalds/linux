@@ -6,8 +6,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef	__CAPTURED_XML_H__
-#define	__CAPTURED_XML_H__
+#ifndef __CAPTURED_XML_H__
+#define __CAPTURED_XML_H__
 
 #include "mxml/mxml.h"
 

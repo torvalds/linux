@@ -34,51 +34,30 @@ static const char COUNTER[] = "ARM_Mali-V500_cnt";
 static const char EVENT[] = "ARM_Mali-V500_evn";
 static const char ACTIVITY[] = "ARM_Mali-V500_act";
 
-class MaliVideoCounter {
+class MaliVideoCounter : public DriverCounter {
 public:
-	MaliVideoCounter(MaliVideoCounter *next, const char *name, const MaliVideoCounterType type, const int id) : mNext(next), mName(name), mType(type), mId(id), mKey(getEventKey()), mEnabled(false) {
+	MaliVideoCounter(DriverCounter *next, const char *name, const MaliVideoCounterType type, const int id) : DriverCounter(next, name), mType(type), mId(id) {
 	}
 
 	~MaliVideoCounter() {
-		delete mName;
 	}
 
-	MaliVideoCounter *getNext() const { return mNext; }
-	const char *getName() const { return mName; }
 	MaliVideoCounterType getType() const { return mType; }
 	int getId() const { return mId; }
-	int getKey() const { return mKey; }
-	bool isEnabled() const { return mEnabled; }
-	void setEnabled(const bool enabled) { mEnabled = enabled; }
 
 private:
-	MaliVideoCounter *const mNext;
-	const char *const mName;
 	const MaliVideoCounterType mType;
 	// Mali Video id
 	const int mId;
-	// Streamline key
-	const int mKey;
-	bool mEnabled;
 };
 
-MaliVideoDriver::MaliVideoDriver() : mCounters(NULL), mActivityCount(0) {
+MaliVideoDriver::MaliVideoDriver() {
 }
 
 MaliVideoDriver::~MaliVideoDriver() {
-	while (mCounters != NULL) {
-		MaliVideoCounter *counter = mCounters;
-		mCounters = counter->getNext();
-		delete counter;
-	}
 }
 
-void MaliVideoDriver::setup(mxml_node_t *const xml) {
-	// hwmon does not currently work with perf
-	if (gSessionData->perf.isSetup()) {
-		return;
-	}
-
+void MaliVideoDriver::readEvents(mxml_node_t *const xml) {
 	mxml_node_t *node = xml;
 	while (true) {
 		node = mxmlFindElement(node, xml, "event", NULL, NULL, MXML_DESCEND);
@@ -90,62 +69,15 @@ void MaliVideoDriver::setup(mxml_node_t *const xml) {
 			// Ignore
 		} else if (strncmp(counter, COUNTER, sizeof(COUNTER) - 1) == 0) {
 			const int i = strtol(counter + sizeof(COUNTER) - 1, NULL, 10);
-			mCounters = new MaliVideoCounter(mCounters, strdup(counter), MVCT_COUNTER, i);
+			setCounters(new MaliVideoCounter(getCounters(), strdup(counter), MVCT_COUNTER, i));
 		} else if (strncmp(counter, EVENT, sizeof(EVENT) - 1) == 0) {
 			const int i = strtol(counter + sizeof(EVENT) - 1, NULL, 10);
-			mCounters = new MaliVideoCounter(mCounters, strdup(counter), MVCT_EVENT, i);
-		} else if (strcmp(counter, ACTIVITY) == 0) {
-			mCounters = new MaliVideoCounter(mCounters, strdup(ACTIVITY), MVCT_ACTIVITY, 0);
-			mActivityCount = 0;
-			while (true) {
-				char buf[32];
-				snprintf(buf, sizeof(buf), "activity%i", mActivityCount + 1);
-				if (mxmlElementGetAttr(node, buf) == NULL) {
-					break;
-				}
-				++mActivityCount;
-			}
+			setCounters(new MaliVideoCounter(getCounters(), strdup(counter), MVCT_EVENT, i));
+		} else if (strncmp(counter, ACTIVITY, sizeof(ACTIVITY) - 1) == 0) {
+			const int i = strtol(counter + sizeof(ACTIVITY) - 1, NULL, 10);
+			setCounters(new MaliVideoCounter(getCounters(), strdup(counter), MVCT_ACTIVITY, i));
 		}
 	}
-}
-
-MaliVideoCounter *MaliVideoDriver::findCounter(const Counter &counter) const {
-	for (MaliVideoCounter *maliVideoCounter = mCounters; maliVideoCounter != NULL; maliVideoCounter = maliVideoCounter->getNext()) {
-		if (strcmp(maliVideoCounter->getName(), counter.getType()) == 0) {
-			return maliVideoCounter;
-		}
-	}
-
-	return NULL;
-}
-
-bool MaliVideoDriver::claimCounter(const Counter &counter) const {
-	return findCounter(counter) != NULL;
-}
-
-bool MaliVideoDriver::countersEnabled() const {
-	for (MaliVideoCounter * counter = mCounters; counter != NULL; counter = counter->getNext()) {
-		if (counter->isEnabled()) {
-			return true;
-		}
-	}
-	return false;
-}
-
-void MaliVideoDriver::resetCounters() {
-	for (MaliVideoCounter * counter = mCounters; counter != NULL; counter = counter->getNext()) {
-		counter->setEnabled(false);
-	}
-}
-
-void MaliVideoDriver::setupCounter(Counter &counter) {
-	MaliVideoCounter *const maliVideoCounter = findCounter(counter);
-	if (maliVideoCounter == NULL) {
-		counter.setEnabled(false);
-		return;
-	}
-	maliVideoCounter->setEnabled(true);
-	counter.setKey(maliVideoCounter->getKey());
 }
 
 int MaliVideoDriver::writeCounters(mxml_node_t *root) const {
@@ -153,30 +85,37 @@ int MaliVideoDriver::writeCounters(mxml_node_t *root) const {
 		return 0;
 	}
 
-	int count = 0;
-	for (MaliVideoCounter * counter = mCounters; counter != NULL; counter = counter->getNext()) {
-		mxml_node_t *node = mxmlNewElement(root, "counter");
-		mxmlElementSetAttr(node, "name", counter->getName());
-		++count;
-	}
-
-	return count;
+	return super::writeCounters(root);
 }
 
 void MaliVideoDriver::marshalEnable(const MaliVideoCounterType type, char *const buf, const size_t bufsize, int &pos) {
 	// size
 	int numEnabled = 0;
-	for (MaliVideoCounter * counter = mCounters; counter != NULL; counter = counter->getNext()) {
+	for (MaliVideoCounter *counter = static_cast<MaliVideoCounter *>(getCounters()); counter != NULL; counter = static_cast<MaliVideoCounter *>(counter->getNext())) {
 		if (counter->isEnabled() && (counter->getType() == type)) {
 			++numEnabled;
 		}
 	}
 	Buffer::packInt(buf, bufsize, pos, numEnabled*sizeof(uint32_t));
-	for (MaliVideoCounter * counter = mCounters; counter != NULL; counter = counter->getNext()) {
+	for (MaliVideoCounter *counter = static_cast<MaliVideoCounter *>(getCounters()); counter != NULL; counter = static_cast<MaliVideoCounter *>(counter->getNext())) {
 		if (counter->isEnabled() && (counter->getType() == type)) {
 			Buffer::packInt(buf, bufsize, pos, counter->getId());
 		}
 	}
+}
+
+static bool writeAll(const int mveUds, const char *const buf, const int pos) {
+	int written = 0;
+	while (written < pos) {
+		size_t bytes = ::write(mveUds, buf + written, pos - written);
+		if (bytes <= 0) {
+			logg->logMessage("%s(%s:%i): write failed", __FUNCTION__, __FILE__, __LINE__);
+			return false;
+		}
+		written += bytes;
+	}
+
+	return true;
 }
 
 bool MaliVideoDriver::start(const int mveUds) {
@@ -225,29 +164,28 @@ bool MaliVideoDriver::start(const int mveUds) {
 	buf[pos++] = 'e';
 	marshalEnable(MVCT_EVENT, buf, sizeof(buf), pos);
 
-	/*
 	// code - MVE_INSTR_ENABLE_ACTIVITIES
 	buf[pos++] = 'C';
 	buf[pos++] = 'F';
 	buf[pos++] = 'G';
 	buf[pos++] = 'a';
-	// size
-	Buffer::packInt(buf, sizeof(buf), pos, mActivityCount*sizeof(uint32_t));
-	for (int i = 0; i < mActivityCount; ++i) {
-		// activity_id
-		Buffer::packInt(buf, sizeof(buf), pos, i);
-	}
-	*/
+	marshalEnable(MVCT_ACTIVITY, buf, sizeof(buf), pos);
 
-	int written = 0;
-	while (written < pos) {
-		size_t bytes = ::write(mveUds, buf + written, pos - written);
-		if (bytes <= 0) {
-			logg->logMessage("%s(%s:%i): write failed", __FUNCTION__, __FILE__, __LINE__);
-			return false;
-		}
-		written += bytes;
-	}
+	return writeAll(mveUds, buf, pos);
+}
 
-	return true;
+void MaliVideoDriver::stop(const int mveUds) {
+	char buf[8];
+	int pos = 0;
+
+	// code - MVE_INSTR_STOP
+	buf[pos++] = 'S';
+	buf[pos++] = 'T';
+	buf[pos++] = 'O';
+	buf[pos++] = 'P';
+	marshalEnable(MVCT_COUNTER, buf, sizeof(buf), pos);
+
+	writeAll(mveUds, buf, pos);
+
+	close(mveUds);
 }

@@ -39,25 +39,26 @@ public:
 	void commit(const uint64_t time);
 	void check(const uint64_t time);
 
-	void frame();
-
 	// Summary messages
-	void summary(const int64_t timestamp, const int64_t uptime, const int64_t monotonicDelta, const char *const uname);
-	void coreName(const int core, const int cpuid, const char *const name);
+	void summary(const uint64_t currTime, const int64_t timestamp, const int64_t uptime, const int64_t monotonicDelta, const char *const uname);
+	void coreName(const uint64_t currTime, const int core, const int cpuid, const char *const name);
 
 	// Block Counter messages
 	bool eventHeader(uint64_t curr_time);
 	bool eventTid(int tid);
-	void event(int32_t key, int32_t value);
-	void event64(int64_t key, int64_t value);
+	void event(int key, int32_t value);
+	void event64(int key, int64_t value);
 
 	// Perf Attrs messages
-	void pea(const struct perf_event_attr *const pea, int key);
-	void keys(const int count, const __u64 *const ids, const int *const keys);
-	void keysOld(const int keyCount, const int *const keys, const int bytes, const char *const buf);
-	void format(const int length, const char *const format);
-	void maps(const int pid, const int tid, const char *const maps);
-	void comm(const int pid, const int tid, const char *const image, const char *const comm);
+	void pea(const uint64_t currTime, const struct perf_event_attr *const pea, int key);
+	void keys(const uint64_t currTime, const int count, const __u64 *const ids, const int *const keys);
+	void keysOld(const uint64_t currTime, const int keyCount, const int *const keys, const int bytes, const char *const buf);
+	void format(const uint64_t currTime, const int length, const char *const format);
+	void maps(const uint64_t currTime, const int pid, const int tid, const char *const maps);
+	void comm(const uint64_t currTime, const int pid, const int tid, const char *const image, const char *const comm);
+	void onlineCPU(const uint64_t currTime, const uint64_t time, const int cpu);
+	void offlineCPU(const uint64_t currTime, const uint64_t time, const int cpu);
+	void kallsyms(const uint64_t currTime, const char *const kallsyms);
 
 	void setDone();
 	bool isDone() const;
@@ -67,6 +68,7 @@ public:
 	void advanceWrite(int bytes) { mWritePos = (mWritePos + bytes) & /*mask*/(mSize - 1); }
 	static void packInt(char *const buf, const int size, int &writePos, int32_t x);
 	void packInt(int32_t x);
+	static void packInt64(char *const buf, const int size, int &writePos, int64_t x);
 	void packInt64(int64_t x);
 	void writeBytes(const void *const data, size_t count);
 	void writeString(const char *const str);
@@ -79,20 +81,22 @@ public:
 	}
 
 private:
+	void frame();
 	bool commitReady() const;
 	bool checkSpace(int bytes);
 
-	const int32_t mCore;
-	const int32_t mBufType;
+	char *const mBuf;
+	sem_t *const mReaderSem;
+	uint64_t mCommitTime;
+	sem_t mWriterSem;
 	const int mSize;
 	int mReadPos;
 	int mWritePos;
 	int mCommitPos;
 	bool mAvailable;
 	bool mIsDone;
-	char *const mBuf;
-	uint64_t mCommitTime;
-	sem_t *const mReaderSem;
+	const int32_t mCore;
+	const int32_t mBufType;
 
 	// Intentionally unimplemented
 	Buffer(const Buffer &);
