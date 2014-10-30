@@ -991,7 +991,7 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 	if (s->busy != file)
 		return -EACCES;
 
-	if (bi.bytes_read && (s->subdev_flags & SDF_CMD_READ)) {
+	if (bi.bytes_read && !(async->cmd.flags & CMDF_WRITE)) {
 		bi.bytes_read = comedi_buf_read_alloc(s, bi.bytes_read);
 		comedi_buf_read_free(s, bi.bytes_read);
 
@@ -1001,7 +1001,7 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 		}
 	}
 
-	if (bi.bytes_written && (s->subdev_flags & SDF_CMD_WRITE)) {
+	if (bi.bytes_written && (async->cmd.flags & CMDF_WRITE)) {
 		bi.bytes_written =
 		    comedi_buf_write_alloc(s, bi.bytes_written);
 		comedi_buf_write_free(s, bi.bytes_written);
