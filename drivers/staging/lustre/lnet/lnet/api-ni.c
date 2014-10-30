@@ -37,6 +37,7 @@
 #define DEBUG_SUBSYSTEM S_LNET
 #include "../../include/linux/lnet/lib-lnet.h"
 #include <linux/log2.h>
+#include <linux/ktime.h>
 
 #define D_LNI D_CONSOLE
 
@@ -417,17 +418,9 @@ static __u64
 lnet_create_interface_cookie(void)
 {
 	/* NB the interface cookie in wire handles guards against delayed
-	 * replies and ACKs appearing valid after reboot. Initialisation time,
-	 * even if it's only implemented to millisecond resolution is probably
-	 * easily good enough. */
-	struct timeval tv;
-	__u64	  cookie;
-
-	do_gettimeofday(&tv);
-	cookie = tv.tv_sec;
-	cookie *= 1000000;
-	cookie += tv.tv_usec;
-	return cookie;
+	 * replies and ACKs appearing valid after reboot.
+	 */
+	return ktime_get_ns();
 }
 
 static char *
