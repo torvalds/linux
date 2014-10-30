@@ -77,6 +77,10 @@ static struct hda_vendor_id hda_vendor_ids[] = {
 static DEFINE_MUTEX(preset_mutex);
 static LIST_HEAD(hda_preset_tables);
 
+/**
+ * snd_hda_add_codec_preset - Add a codec preset to the chain
+ * @preset: codec preset table to add
+ */
 int snd_hda_add_codec_preset(struct hda_codec_preset_list *preset)
 {
 	mutex_lock(&preset_mutex);
@@ -86,6 +90,10 @@ int snd_hda_add_codec_preset(struct hda_codec_preset_list *preset)
 }
 EXPORT_SYMBOL_GPL(snd_hda_add_codec_preset);
 
+/**
+ * snd_hda_delete_codec_preset - Delete a codec preset from the chain
+ * @preset: codec preset table to delete
+ */
 int snd_hda_delete_codec_preset(struct hda_codec_preset_list *preset)
 {
 	mutex_lock(&preset_mutex);
@@ -416,7 +424,6 @@ static int read_and_add_raw_conns(struct hda_codec *codec, hda_nid_t nid)
  * snd_hda_get_conn_list - get connection list
  * @codec: the HDA codec
  * @nid: NID to parse
- * @len: number of connection list entries
  * @listp: the pointer to store NID list
  *
  * Parses the connection list of the given widget and stores the pointer
@@ -1188,7 +1195,16 @@ unsigned int snd_hda_codec_get_pincfg(struct hda_codec *codec, hda_nid_t nid)
 }
 EXPORT_SYMBOL_GPL(snd_hda_codec_get_pincfg);
 
-/* remember the current pinctl target value */
+/**
+ * snd_hda_codec_set_pin_target - remember the current pinctl target value
+ * @codec: the HDA codec
+ * @nid: pin NID
+ * @val: assigned pinctl value
+ *
+ * This function stores the given value to a pinctl target value in the
+ * pincfg table.  This isn't always as same as the actually written value
+ * but can be referred at any time via snd_hda_codec_get_pin_target().
+ */
 int snd_hda_codec_set_pin_target(struct hda_codec *codec, hda_nid_t nid,
 				 unsigned int val)
 {
@@ -1202,7 +1218,11 @@ int snd_hda_codec_set_pin_target(struct hda_codec *codec, hda_nid_t nid,
 }
 EXPORT_SYMBOL_GPL(snd_hda_codec_set_pin_target);
 
-/* return the current pinctl target value */
+/**
+ * snd_hda_codec_get_pin_target - return the current pinctl target value
+ * @codec: the HDA codec
+ * @nid: pin NID
+ */
 int snd_hda_codec_get_pin_target(struct hda_codec *codec, hda_nid_t nid)
 {
 	struct hda_pincfg *pin;
@@ -1574,6 +1594,13 @@ int snd_hda_codec_new(struct hda_bus *bus,
 }
 EXPORT_SYMBOL_GPL(snd_hda_codec_new);
 
+/**
+ * snd_hda_codec_update_widgets - Refresh widget caps and pin defaults
+ * @codec: the HDA codec
+ *
+ * Forcibly refresh the all widget caps and the init pin configurations of
+ * the given codec.
+ */
 int snd_hda_codec_update_widgets(struct hda_codec *codec)
 {
 	hda_nid_t fg;
@@ -2004,6 +2031,7 @@ EXPORT_SYMBOL_GPL(query_amp_caps);
  * @codec: the HD-audio codec
  * @nid: the NID to query
  * @dir: either #HDA_INPUT or #HDA_OUTPUT
+ * @bits: bit mask to check the result
  *
  * Check whether the widget has the given amp capability for the direction.
  */
@@ -2023,7 +2051,7 @@ EXPORT_SYMBOL_GPL(snd_hda_check_amp_caps);
  * snd_hda_override_amp_caps - Override the AMP capabilities
  * @codec: the CODEC to clean up
  * @nid: the NID to clean up
- * @direction: either #HDA_INPUT or #HDA_OUTPUT
+ * @dir: either #HDA_INPUT or #HDA_OUTPUT
  * @caps: the capability bits to set
  *
  * Override the cached AMP caps bits value by the given one.
@@ -2239,7 +2267,17 @@ int snd_hda_codec_amp_stereo(struct hda_codec *codec, hda_nid_t nid,
 }
 EXPORT_SYMBOL_GPL(snd_hda_codec_amp_stereo);
 
-/* Works like snd_hda_codec_amp_update() but it writes the value only at
+/**
+ * snd_hda_codec_amp_init - initialize the AMP value
+ * @codec: the HDA codec
+ * @nid: NID to read the AMP value
+ * @ch: channel (left=0 or right=1)
+ * @dir: #HDA_INPUT or #HDA_OUTPUT
+ * @idx: the index value (only for input direction)
+ * @mask: bit mask to set
+ * @val: the bits value to set
+ *
+ * Works like snd_hda_codec_amp_update() but it writes the value only at
  * the first access.  If the amp was already initialized / updated beforehand,
  * this does nothing.
  */
@@ -2250,6 +2288,17 @@ int snd_hda_codec_amp_init(struct hda_codec *codec, hda_nid_t nid, int ch,
 }
 EXPORT_SYMBOL_GPL(snd_hda_codec_amp_init);
 
+/**
+ * snd_hda_codec_amp_init_stereo - initialize the stereo AMP value
+ * @codec: the HDA codec
+ * @nid: NID to read the AMP value
+ * @dir: #HDA_INPUT or #HDA_OUTPUT
+ * @idx: the index value (only for input direction)
+ * @mask: bit mask to set
+ * @val: the bits value to set
+ *
+ * Call snd_hda_codec_amp_init() for both stereo channels.
+ */
 int snd_hda_codec_amp_init_stereo(struct hda_codec *codec, hda_nid_t nid,
 				  int dir, int idx, int mask, int val)
 {
@@ -2320,6 +2369,8 @@ static u32 get_amp_max_value(struct hda_codec *codec, hda_nid_t nid, int dir,
 
 /**
  * snd_hda_mixer_amp_volume_info - Info callback for a standard AMP mixer
+ * @kcontrol: referred ctl element
+ * @uinfo: pointer to get/store the data
  *
  * The control element is supposed to have the private_value field
  * set up via HDA_COMPOSE_AMP_VAL*() or related macros.
@@ -2381,6 +2432,8 @@ update_amp_value(struct hda_codec *codec, hda_nid_t nid,
 
 /**
  * snd_hda_mixer_amp_volume_get - Get callback for a standard AMP mixer volume
+ * @kcontrol: ctl element
+ * @ucontrol: pointer to get/store the data
  *
  * The control element is supposed to have the private_value field
  * set up via HDA_COMPOSE_AMP_VAL*() or related macros.
@@ -2406,6 +2459,8 @@ EXPORT_SYMBOL_GPL(snd_hda_mixer_amp_volume_get);
 
 /**
  * snd_hda_mixer_amp_volume_put - Put callback for a standard AMP mixer volume
+ * @kcontrol: ctl element
+ * @ucontrol: pointer to get/store the data
  *
  * The control element is supposed to have the private_value field
  * set up via HDA_COMPOSE_AMP_VAL*() or related macros.
@@ -2436,6 +2491,10 @@ EXPORT_SYMBOL_GPL(snd_hda_mixer_amp_volume_put);
 
 /**
  * snd_hda_mixer_amp_volume_put - TLV callback for a standard AMP mixer volume
+ * @kcontrol: ctl element
+ * @op_flag: operation flag
+ * @size: byte size of input TLV
+ * @_tlv: TLV data
  *
  * The control element is supposed to have the private_value field
  * set up via HDA_COMPOSE_AMP_VAL*() or related macros.
@@ -2634,7 +2693,10 @@ void snd_hda_ctls_clear(struct hda_codec *codec)
 	snd_array_free(&codec->nids);
 }
 
-/* pseudo device locking
+/**
+ * snd_hda_lock_devices - pseudo device locking
+ * @bus: the BUS
+ *
  * toggle card->shutdown to allow/disallow the device access (as a hack)
  */
 int snd_hda_lock_devices(struct hda_bus *bus)
@@ -2671,6 +2733,10 @@ int snd_hda_lock_devices(struct hda_bus *bus)
 }
 EXPORT_SYMBOL_GPL(snd_hda_lock_devices);
 
+/**
+ * snd_hda_unlock_devices - pseudo device unlocking
+ * @bus: the BUS
+ */
 void snd_hda_unlock_devices(struct hda_bus *bus)
 {
 	struct snd_card *card = bus->card;
@@ -2857,7 +2923,7 @@ static int add_slave(struct hda_codec *codec,
 }
 
 /**
- * snd_hda_add_vmaster - create a virtual master control and add slaves
+ * __snd_hda_add_vmaster - create a virtual master control and add slaves
  * @codec: HD-audio codec
  * @name: vmaster control name
  * @tlv: TLV data (optional)
@@ -2960,10 +3026,15 @@ static struct snd_kcontrol_new vmaster_mute_mode = {
 	.put = vmaster_mute_mode_put,
 };
 
-/*
- * Add a mute-LED hook with the given vmaster switch kctl
- * "Mute-LED Mode" control is automatically created and associated with
- * the given hook.
+/**
+ * snd_hda_add_vmaster_hook - Add a vmaster hook for mute-LED
+ * @codec: the HDA codec
+ * @hook: the vmaster hook object
+ * @expose_enum_ctl: flag to create an enum ctl
+ *
+ * Add a mute-LED hook with the given vmaster switch kctl.
+ * When @expose_enum_ctl is set, "Mute-LED Mode" control is automatically
+ * created and associated with the given hook.
  */
 int snd_hda_add_vmaster_hook(struct hda_codec *codec,
 			     struct hda_vmaster_mute_hook *hook,
@@ -2985,9 +3056,12 @@ int snd_hda_add_vmaster_hook(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_GPL(snd_hda_add_vmaster_hook);
 
-/*
- * Call the hook with the current value for synchronization
- * Should be called in init callback
+/**
+ * snd_hda_sync_vmaster_hook - Sync vmaster hook
+ * @hook: the vmaster hook
+ *
+ * Call the hook with the current value for synchronization.
+ * Should be called in init callback.
  */
 void snd_hda_sync_vmaster_hook(struct hda_vmaster_mute_hook *hook)
 {
@@ -3012,6 +3086,8 @@ EXPORT_SYMBOL_GPL(snd_hda_sync_vmaster_hook);
 
 /**
  * snd_hda_mixer_amp_switch_info - Info callback for a standard AMP mixer switch
+ * @kcontrol: referred ctl element
+ * @uinfo: pointer to get/store the data
  *
  * The control element is supposed to have the private_value field
  * set up via HDA_COMPOSE_AMP_VAL*() or related macros.
@@ -3031,6 +3107,8 @@ EXPORT_SYMBOL_GPL(snd_hda_mixer_amp_switch_info);
 
 /**
  * snd_hda_mixer_amp_switch_get - Get callback for a standard AMP mixer switch
+ * @kcontrol: ctl element
+ * @ucontrol: pointer to get/store the data
  *
  * The control element is supposed to have the private_value field
  * set up via HDA_COMPOSE_AMP_VAL*() or related macros.
@@ -3057,6 +3135,8 @@ EXPORT_SYMBOL_GPL(snd_hda_mixer_amp_switch_get);
 
 /**
  * snd_hda_mixer_amp_switch_put - Put callback for a standard AMP mixer switch
+ * @kcontrol: ctl element
+ * @ucontrol: pointer to get/store the data
  *
  * The control element is supposed to have the private_value field
  * set up via HDA_COMPOSE_AMP_VAL*() or related macros.
@@ -3100,6 +3180,8 @@ EXPORT_SYMBOL_GPL(snd_hda_mixer_amp_switch_put);
 
 /**
  * snd_hda_mixer_bind_switch_get - Get callback for a bound volume control
+ * @kcontrol: ctl element
+ * @ucontrol: pointer to get/store the data
  *
  * The control element is supposed to have the private_value field
  * set up via HDA_BIND_MUTE*() macros.
@@ -3123,6 +3205,8 @@ EXPORT_SYMBOL_GPL(snd_hda_mixer_bind_switch_get);
 
 /**
  * snd_hda_mixer_bind_switch_put - Put callback for a bound volume control
+ * @kcontrol: ctl element
+ * @ucontrol: pointer to get/store the data
  *
  * The control element is supposed to have the private_value field
  * set up via HDA_BIND_MUTE*() macros.
@@ -3153,6 +3237,8 @@ EXPORT_SYMBOL_GPL(snd_hda_mixer_bind_switch_put);
 
 /**
  * snd_hda_mixer_bind_ctls_info - Info callback for a generic bound control
+ * @kcontrol: referred ctl element
+ * @uinfo: pointer to get/store the data
  *
  * The control element is supposed to have the private_value field
  * set up via HDA_BIND_VOL() or HDA_BIND_SW() macros.
@@ -3176,6 +3262,8 @@ EXPORT_SYMBOL_GPL(snd_hda_mixer_bind_ctls_info);
 
 /**
  * snd_hda_mixer_bind_ctls_get - Get callback for a generic bound control
+ * @kcontrol: ctl element
+ * @ucontrol: pointer to get/store the data
  *
  * The control element is supposed to have the private_value field
  * set up via HDA_BIND_VOL() or HDA_BIND_SW() macros.
@@ -3199,6 +3287,8 @@ EXPORT_SYMBOL_GPL(snd_hda_mixer_bind_ctls_get);
 
 /**
  * snd_hda_mixer_bind_ctls_put - Put callback for a generic bound control
+ * @kcontrol: ctl element
+ * @ucontrol: pointer to get/store the data
  *
  * The control element is supposed to have the private_value field
  * set up via HDA_BIND_VOL() or HDA_BIND_SW() macros.
@@ -3228,6 +3318,10 @@ EXPORT_SYMBOL_GPL(snd_hda_mixer_bind_ctls_put);
 
 /**
  * snd_hda_mixer_bind_tlv - TLV callback for a generic bound control
+ * @kcontrol: ctl element
+ * @op_flag: operation flag
+ * @size: byte size of input TLV
+ * @tlv: TLV data
  *
  * The control element is supposed to have the private_value field
  * set up via HDA_BIND_VOL() macro.
@@ -3569,7 +3663,11 @@ int snd_hda_create_dig_out_ctls(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_GPL(snd_hda_create_dig_out_ctls);
 
-/* get the hda_spdif_out entry from the given NID
+/**
+ * snd_hda_spdif_out_of_nid - get the hda_spdif_out entry from the given NID
+ * @codec: the HDA codec
+ * @nid: widget NID
+ *
  * call within spdif_mutex lock
  */
 struct hda_spdif_out *snd_hda_spdif_out_of_nid(struct hda_codec *codec,
@@ -3586,6 +3684,13 @@ struct hda_spdif_out *snd_hda_spdif_out_of_nid(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_GPL(snd_hda_spdif_out_of_nid);
 
+/**
+ * snd_hda_spdif_ctls_unassign - Unassign the given SPDIF ctl
+ * @codec: the HDA codec
+ * @idx: the SPDIF ctl index
+ *
+ * Unassign the widget from the given SPDIF control.
+ */
 void snd_hda_spdif_ctls_unassign(struct hda_codec *codec, int idx)
 {
 	struct hda_spdif_out *spdif;
@@ -3597,6 +3702,14 @@ void snd_hda_spdif_ctls_unassign(struct hda_codec *codec, int idx)
 }
 EXPORT_SYMBOL_GPL(snd_hda_spdif_ctls_unassign);
 
+/**
+ * snd_hda_spdif_ctls_assign - Assign the SPDIF controls to the given NID
+ * @codec: the HDA codec
+ * @idx: the SPDIF ctl idx
+ * @nid: widget NID
+ *
+ * Assign the widget to the SPDIF control with the given index.
+ */
 void snd_hda_spdif_ctls_assign(struct hda_codec *codec, int idx, hda_nid_t nid)
 {
 	struct hda_spdif_out *spdif;
@@ -3916,6 +4029,16 @@ void snd_hda_codec_flush_cache(struct hda_codec *codec)
 }
 EXPORT_SYMBOL_GPL(snd_hda_codec_flush_cache);
 
+/**
+ * snd_hda_codec_set_power_to_all - Set the power state to all widgets
+ * @codec: the HDA codec
+ * @fg: function group (not used now)
+ * @power_state: the power state to set (AC_PWRST_*)
+ *
+ * Set the given power state to all widgets that have the power control.
+ * If the codec has power_filter set, it evaluates the power state and
+ * filter out if it's unchanged as D3.
+ */
 void snd_hda_codec_set_power_to_all(struct hda_codec *codec, hda_nid_t fg,
 				    unsigned int power_state)
 {
@@ -3980,7 +4103,15 @@ static unsigned int hda_sync_power_state(struct hda_codec *codec,
 	return state;
 }
 
-/* don't power down the widget if it controls eapd and EAPD_BTLENABLE is set */
+/**
+ * snd_hda_codec_eapd_power_filter - A power filter callback for EAPD
+ * @codec: the HDA codec
+ * @nid: widget NID
+ * @power_state: power state to evalue
+ *
+ * Don't power down the widget if it controls eapd and EAPD_BTLENABLE is set.
+ * This can be used a codec power_filter callback.
+ */
 unsigned int snd_hda_codec_eapd_power_filter(struct hda_codec *codec,
 					     hda_nid_t nid,
 					     unsigned int power_state)
@@ -4305,6 +4436,7 @@ static struct hda_rate_tbl rate_bits[] = {
  * @channels: the number of channels
  * @format: the PCM format (SNDRV_PCM_FORMAT_XXX)
  * @maxbps: the max. bps
+ * @spdif_ctls: HD-audio SPDIF status bits (0 if irrelevant)
  *
  * Calculate the format bitset from the given rate, channels and th PCM format.
  *
@@ -4640,6 +4772,17 @@ static int set_pcm_default_values(struct hda_codec *codec,
 /*
  * codec prepare/cleanup entries
  */
+/**
+ * snd_hda_codec_prepare - Prepare a stream
+ * @codec: the HDA codec
+ * @hinfo: PCM information
+ * @stream: stream tag to assign
+ * @format: format id to assign
+ * @substream: PCM substream to assign
+ *
+ * Calls the prepare callback set by the codec with the given arguments.
+ * Clean up the inactive streams when successful.
+ */
 int snd_hda_codec_prepare(struct hda_codec *codec,
 			  struct hda_pcm_stream *hinfo,
 			  unsigned int stream,
@@ -4656,6 +4799,14 @@ int snd_hda_codec_prepare(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_GPL(snd_hda_codec_prepare);
 
+/**
+ * snd_hda_codec_cleanup - Prepare a stream
+ * @codec: the HDA codec
+ * @hinfo: PCM information
+ * @substream: PCM substream
+ *
+ * Calls the cleanup callback set by the codec with the given arguments.
+ */
 void snd_hda_codec_cleanup(struct hda_codec *codec,
 			   struct hda_pcm_stream *hinfo,
 			   struct snd_pcm_substream *substream)
@@ -4980,6 +5131,7 @@ static void __snd_hda_power_down(struct hda_codec *codec)
  * snd_hda_power_save - Power-up/down/sync the codec
  * @codec: HD-audio codec
  * @delta: the counter delta to change
+ * @d3wait: sync for D3 transition complete
  *
  * Change the power-up counter via @delta, and power up or down the hardware
  * appropriately.  For the power-down, queue to the delayed action.
@@ -5055,6 +5207,10 @@ EXPORT_SYMBOL_GPL(snd_hda_check_amp_list_power);
 
 /**
  * snd_hda_ch_mode_info - Info callback helper for the channel mode enum
+ * @codec: the HDA codec
+ * @uinfo: pointer to get/store the data
+ * @chmode: channel mode array
+ * @num_chmodes: channel mode array size
  */
 int snd_hda_ch_mode_info(struct hda_codec *codec,
 			 struct snd_ctl_elem_info *uinfo,
@@ -5074,6 +5230,11 @@ EXPORT_SYMBOL_GPL(snd_hda_ch_mode_info);
 
 /**
  * snd_hda_ch_mode_get - Get callback helper for the channel mode enum
+ * @codec: the HDA codec
+ * @ucontrol: pointer to get/store the data
+ * @chmode: channel mode array
+ * @num_chmodes: channel mode array size
+ * @max_channels: max number of channels
  */
 int snd_hda_ch_mode_get(struct hda_codec *codec,
 			struct snd_ctl_elem_value *ucontrol,
@@ -5095,6 +5256,11 @@ EXPORT_SYMBOL_GPL(snd_hda_ch_mode_get);
 
 /**
  * snd_hda_ch_mode_put - Put callback helper for the channel mode enum
+ * @codec: the HDA codec
+ * @ucontrol: pointer to get/store the data
+ * @chmode: channel mode array
+ * @num_chmodes: channel mode array size
+ * @max_channelsp: pointer to store the max channels
  */
 int snd_hda_ch_mode_put(struct hda_codec *codec,
 			struct snd_ctl_elem_value *ucontrol,
@@ -5123,6 +5289,8 @@ EXPORT_SYMBOL_GPL(snd_hda_ch_mode_put);
 
 /**
  * snd_hda_input_mux_info_info - Info callback helper for the input-mux enum
+ * @imux: imux helper object
+ * @uinfo: pointer to get/store the data
  */
 int snd_hda_input_mux_info(const struct hda_input_mux *imux,
 			   struct snd_ctl_elem_info *uinfo)
@@ -5144,6 +5312,11 @@ EXPORT_SYMBOL_GPL(snd_hda_input_mux_info);
 
 /**
  * snd_hda_input_mux_info_put - Put callback helper for the input-mux enum
+ * @codec: the HDA codec
+ * @imux: imux helper object
+ * @ucontrol: pointer to get/store the data
+ * @nid: input mux NID
+ * @cur_val: pointer to get/store the current imux value
  */
 int snd_hda_input_mux_put(struct hda_codec *codec,
 			  const struct hda_input_mux *imux,
@@ -5168,7 +5341,13 @@ int snd_hda_input_mux_put(struct hda_codec *codec,
 EXPORT_SYMBOL_GPL(snd_hda_input_mux_put);
 
 
-/*
+/**
+ * snd_hda_enum_helper_info - Helper for simple enum ctls
+ * @kcontrol: ctl element
+ * @uinfo: pointer to get/store the data
+ * @num_items: number of enum items
+ * @texts: enum item string array
+ *
  * process kcontrol info callback of a simple string enum array
  * when @num_items is 0 or @texts is NULL, assume a boolean enum array
  */
@@ -5257,6 +5436,8 @@ EXPORT_SYMBOL_GPL(snd_hda_bus_reboot_notify);
 
 /**
  * snd_hda_multi_out_dig_open - open the digital out in the exclusive mode
+ * @codec: the HDA codec
+ * @mout: hda_multi_out object
  */
 int snd_hda_multi_out_dig_open(struct hda_codec *codec,
 			       struct hda_multi_out *mout)
@@ -5273,6 +5454,11 @@ EXPORT_SYMBOL_GPL(snd_hda_multi_out_dig_open);
 
 /**
  * snd_hda_multi_out_dig_prepare - prepare the digital out stream
+ * @codec: the HDA codec
+ * @mout: hda_multi_out object
+ * @stream_tag: stream tag to assign
+ * @format: format id to assign
+ * @substream: PCM substream to assign
  */
 int snd_hda_multi_out_dig_prepare(struct hda_codec *codec,
 				  struct hda_multi_out *mout,
@@ -5289,6 +5475,8 @@ EXPORT_SYMBOL_GPL(snd_hda_multi_out_dig_prepare);
 
 /**
  * snd_hda_multi_out_dig_cleanup - clean-up the digital out stream
+ * @codec: the HDA codec
+ * @mout: hda_multi_out object
  */
 int snd_hda_multi_out_dig_cleanup(struct hda_codec *codec,
 				  struct hda_multi_out *mout)
@@ -5302,6 +5490,8 @@ EXPORT_SYMBOL_GPL(snd_hda_multi_out_dig_cleanup);
 
 /**
  * snd_hda_multi_out_dig_close - release the digital out stream
+ * @codec: the HDA codec
+ * @mout: hda_multi_out object
  */
 int snd_hda_multi_out_dig_close(struct hda_codec *codec,
 				struct hda_multi_out *mout)
@@ -5315,6 +5505,10 @@ EXPORT_SYMBOL_GPL(snd_hda_multi_out_dig_close);
 
 /**
  * snd_hda_multi_out_analog_open - open analog outputs
+ * @codec: the HDA codec
+ * @mout: hda_multi_out object
+ * @substream: PCM substream to assign
+ * @hinfo: PCM information to assign
  *
  * Open analog outputs and set up the hw-constraints.
  * If the digital outputs can be opened as slave, open the digital
@@ -5365,6 +5559,11 @@ EXPORT_SYMBOL_GPL(snd_hda_multi_out_analog_open);
 
 /**
  * snd_hda_multi_out_analog_prepare - Preapre the analog outputs.
+ * @codec: the HDA codec
+ * @mout: hda_multi_out object
+ * @stream_tag: stream tag to assign
+ * @format: format id to assign
+ * @substream: PCM substream to assign
  *
  * Set up the i/o for analog out.
  * When the digital out is available, copy the front out to digital out, too.
@@ -5442,6 +5641,8 @@ EXPORT_SYMBOL_GPL(snd_hda_multi_out_analog_prepare);
 
 /**
  * snd_hda_multi_out_analog_cleanup - clean up the setting for analog out
+ * @codec: the HDA codec
+ * @mout: hda_multi_out object
  */
 int snd_hda_multi_out_analog_cleanup(struct hda_codec *codec,
 				     struct hda_multi_out *mout)
@@ -5473,6 +5674,8 @@ EXPORT_SYMBOL_GPL(snd_hda_multi_out_analog_cleanup);
 
 /**
  * snd_hda_get_default_vref - Get the default (mic) VREF pin bits
+ * @codec: the HDA codec
+ * @pin: referred pin NID
  *
  * Guess the suitable VREF pin bits to be set as the pin-control value.
  * Note: the function doesn't set the AC_PINCTL_IN_EN bit.
@@ -5498,7 +5701,12 @@ unsigned int snd_hda_get_default_vref(struct hda_codec *codec, hda_nid_t pin)
 }
 EXPORT_SYMBOL_GPL(snd_hda_get_default_vref);
 
-/* correct the pin ctl value for matching with the pin cap */
+/**
+ * snd_hda_correct_pin_ctl - correct the pin ctl value for matching with the pin cap
+ * @codec: the HDA codec
+ * @pin: referred pin NID
+ * @val: pin ctl value to audit
+ */
 unsigned int snd_hda_correct_pin_ctl(struct hda_codec *codec,
 				     hda_nid_t pin, unsigned int val)
 {
@@ -5549,6 +5757,19 @@ unsigned int snd_hda_correct_pin_ctl(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_GPL(snd_hda_correct_pin_ctl);
 
+/**
+ * _snd_hda_pin_ctl - Helper to set pin ctl value
+ * @codec: the HDA codec
+ * @pin: referred pin NID
+ * @val: pin control value to set
+ * @cached: access over codec pinctl cache or direct write
+ *
+ * This function is a helper to set a pin ctl value more safely.
+ * It corrects the pin ctl value via snd_hda_correct_pin_ctl(), stores the
+ * value in pin target array via snd_hda_codec_set_pin_target(), then
+ * actually writes the value via either snd_hda_codec_update_cache() or
+ * snd_hda_codec_write() depending on @cached flag.
+ */
 int _snd_hda_set_pin_ctl(struct hda_codec *codec, hda_nid_t pin,
 			 unsigned int val, bool cached)
 {
@@ -5565,6 +5786,11 @@ EXPORT_SYMBOL_GPL(_snd_hda_set_pin_ctl);
 
 /**
  * snd_hda_add_imux_item - Add an item to input_mux
+ * @codec: the HDA codec
+ * @imux: imux helper object
+ * @label: the name of imux item to assign
+ * @index: index number of imux item to assign
+ * @type_idx: pointer to store the resultant label index
  *
  * When the same label is used already in the existing items, the number
  * suffix is appended to the label.  This label index number is stored
