@@ -91,7 +91,7 @@ struct sk_buff *tipc_msg_create(uint user, uint type, uint hdr_sz,
  * @*headbuf: in:  NULL for first frag, otherwise value returned from prev call
  *            out: set when successful non-complete reassembly, otherwise NULL
  * @*buf:     in:  the buffer to append. Always defined
- *            out: head buf after sucessful complete reassembly, otherwise NULL
+ *            out: head buf after successful complete reassembly, otherwise NULL
  * Returns 1 when reassembly complete, otherwise 0
  */
 int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf)
@@ -311,7 +311,7 @@ bool tipc_msg_bundle(struct sk_buff *bbuf, struct sk_buff *buf, u32 mtu)
  * @mtu:  max allowable size for the bundle buffer, inclusive header
  * @dnode: destination node for message. (Not always present in header)
  * Replaces buffer if successful
- * Returns true if sucess, otherwise false
+ * Returns true if success, otherwise false
  */
 bool tipc_msg_make_bundle(struct sk_buff **buf, u32 mtu, u32 dnode)
 {
