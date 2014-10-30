@@ -18,6 +18,7 @@ ifneq ($(ANDROID_64),)
   FLAGARG := EXTRA_CFLAGS+=-fno-pic
 else
   ARCHARG := ARCH=arm
+  FLAGARG := EXTRA_CFLAGS+=-fno-pic
 endif
 ARGS := $(KDIRARG) $(ARCHARG) $(FLAGARG)
 
