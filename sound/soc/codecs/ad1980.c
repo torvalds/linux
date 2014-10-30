@@ -259,9 +259,6 @@ static int ad1980_soc_probe(struct snd_soc_codec *codec)
 	ext_status = ac97_read(codec, AC97_EXTENDED_STATUS);
 	ac97_write(codec, AC97_EXTENDED_STATUS, ext_status&~0x3800);
 
-	snd_soc_add_codec_controls(codec, ad1980_snd_ac97_controls,
-				ARRAY_SIZE(ad1980_snd_ac97_controls));
-
 	return 0;
 
 reset_err:
@@ -285,6 +282,8 @@ static struct snd_soc_codec_driver soc_codec_dev_ad1980 = {
 	.write = ac97_write,
 	.read = ac97_read,
 
+	.controls = ad1980_snd_ac97_controls,
+	.num_controls = ARRAY_SIZE(ad1980_snd_ac97_controls),
 	.dapm_widgets = ad1980_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(ad1980_dapm_widgets),
 	.dapm_routes = ad1980_dapm_routes,
