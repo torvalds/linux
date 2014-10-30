@@ -1134,7 +1134,8 @@ static int rtw_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 		struct iw_scan_req *req = (struct iw_scan_req *)extra;
 
 		if (wrqu->data.flags & IW_SCAN_THIS_ESSID) {
-			int len = min((int)req->essid_len, IW_ESSID_MAX_SIZE);
+			int len = min_t(int, req->essid_len,
+					IW_ESSID_MAX_SIZE);
 
 			memcpy(ssid[0].Ssid, req->essid, len);
 			ssid[0].SsidLength = len;
