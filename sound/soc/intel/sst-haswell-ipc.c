@@ -1711,7 +1711,7 @@ void sst_hsw_runtime_module_free(struct sst_module_runtime *runtime)
 	sst_module_runtime_free(runtime);
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 static int sst_hsw_dx_state_dump(struct sst_hsw *hsw)
 {
 	struct sst_dsp *sst = hsw->dsp;

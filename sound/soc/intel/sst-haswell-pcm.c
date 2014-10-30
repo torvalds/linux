@@ -1058,6 +1058,12 @@ static int hsw_pcm_runtime_resume(struct device *dev)
 	return ret;
 }
 
+#else
+#define hsw_pcm_runtime_idle		NULL
+#define hsw_pcm_runtime_suspend		NULL
+#define hsw_pcm_runtime_resume		NULL
+#endif
+
 static void hsw_pcm_complete(struct device *dev)
 {
 	struct hsw_priv_data *pdata = dev_get_drvdata(dev);
@@ -1152,14 +1158,6 @@ static int hsw_pcm_prepare(struct device *dev)
 
 	return 0;
 }
-
-#else
-#define hsw_pcm_runtime_idle		NULL
-#define hsw_pcm_runtime_suspend		NULL
-#define hsw_pcm_runtime_resume		NULL
-#define hsw_pcm_runtime_complete	NULL
-#define hsw_pcm_runtime_prepare		NULL
-#endif
 
 static const struct dev_pm_ops hsw_pcm_pm = {
 	.runtime_idle = hsw_pcm_runtime_idle,
