@@ -1191,17 +1191,11 @@ static int wm9713_soc_resume(struct snd_soc_codec *codec)
 
 static int wm9713_soc_probe(struct snd_soc_codec *codec)
 {
-	struct wm9713_priv *wm9713;
 	int ret = 0, reg;
-
-	wm9713 = kzalloc(sizeof(struct wm9713_priv), GFP_KERNEL);
-	if (wm9713 == NULL)
-		return -ENOMEM;
-	snd_soc_codec_set_drvdata(codec, wm9713);
 
 	ret = snd_soc_new_ac97_codec(codec, soc_ac97_ops, 0);
 	if (ret < 0)
-		goto codec_err;
+		return ret;
 
 	/* do a cold reset for the controller and then try
 	 * a warm reset followed by an optional cold reset for codec */
@@ -1220,16 +1214,12 @@ static int wm9713_soc_probe(struct snd_soc_codec *codec)
 
 reset_err:
 	snd_soc_free_ac97_codec(codec);
-codec_err:
-	kfree(wm9713);
 	return ret;
 }
 
 static int wm9713_soc_remove(struct snd_soc_codec *codec)
 {
-	struct wm9713_priv *wm9713 = snd_soc_codec_get_drvdata(codec);
 	snd_soc_free_ac97_codec(codec);
-	kfree(wm9713);
 	return 0;
 }
 
@@ -1256,6 +1246,14 @@ static struct snd_soc_codec_driver soc_codec_dev_wm9713 = {
 
 static int wm9713_probe(struct platform_device *pdev)
 {
+	struct wm9713_priv *wm9713;
+
+	wm9713 = devm_kzalloc(&pdev->dev, sizeof(*wm9713), GFP_KERNEL);
+	if (wm9713 == NULL)
+		return -ENOMEM;
+
+	platform_set_drvdata(pdev, wm9713);
+
 	return snd_soc_register_codec(&pdev->dev,
 			&soc_codec_dev_wm9713, wm9713_dai, ARRAY_SIZE(wm9713_dai));
 }
