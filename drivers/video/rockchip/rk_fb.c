@@ -1770,6 +1770,25 @@ static void rk_fb_update_win(struct rk_lcdc_driver *dev_drv,
                                                 reg_win_data->reg_area_data[i].ysize *
                                                 cur_screen->mode.yres /
                                                 primary_screen.mode.yres;
+
+					/* recalc display size if set hdmi scaler when at ONE_DUAL mode */
+					if (inf->disp_mode == ONE_DUAL && hdmi_switch_complete) {
+						if (cur_screen->xsize > 0 &&
+						    cur_screen->xsize <= cur_screen->mode.xres) {
+							win->area[i].xpos =
+								((cur_screen->mode.xres - cur_screen->xsize) >> 1) +
+								cur_screen->xsize * win->area[i].xpos / cur_screen->mode.xres;
+							win->area[i].xsize =
+								win->area[i].xsize * cur_screen->xsize / cur_screen->mode.xres;
+						}
+						if (cur_screen->ysize > 0 && cur_screen->ysize <= cur_screen->mode.yres) {
+							win->area[i].ypos =
+								((cur_screen->mode.yres - cur_screen->ysize) >> 1) +
+								cur_screen->ysize * win->area[i].ypos / cur_screen->mode.yres;
+							win->area[i].ysize =
+								win->area[i].ysize * cur_screen->ysize / cur_screen->mode.yres;
+						}
+					}
                                 }
 				win->area[i].xact =
 				    reg_win_data->reg_area_data[i].xact;
@@ -2245,6 +2264,13 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 			}
 		}
 	}
+
+	/* record buffer information for rk_fb_disp_scale to prevent fence timeout
+	 * because rk_fb_disp_scale will call function info->fbops->fb_set_par(info);
+	 */
+	fix->smem_start = reg_win_data->reg_area_data[0].smem_start;
+	info->var.yoffset = yoffset;
+	info->var.xoffset = xoffset;
 	return 0;
 }
 
