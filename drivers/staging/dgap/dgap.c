@@ -1167,7 +1167,7 @@ schedule_poller:
  */
 static irqreturn_t dgap_intr(int irq, void *voidbrd)
 {
-	struct board_t *brd = (struct board_t *) voidbrd;
+	struct board_t *brd = voidbrd;
 
 	if (!brd)
 		return IRQ_NONE;
