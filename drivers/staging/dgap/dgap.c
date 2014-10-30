@@ -7028,7 +7028,7 @@ static char *dgap_sindex(char *string, char *group)
 	char *ptr;
 
 	if (!string || !group)
-		return (char *) NULL;
+		return NULL;
 
 	if (*group == '^') {
 		group++;
@@ -7049,7 +7049,7 @@ static char *dgap_sindex(char *string, char *group)
 		}
 	}
 
-	return (char *) NULL;
+	return NULL;
 }
 
 /*
