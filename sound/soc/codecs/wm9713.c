@@ -689,7 +689,8 @@ struct _pll_div {
  * to allow rounding later */
 #define FIXED_PLL_SIZE ((1 << 22) * 10)
 
-static void pll_factors(struct _pll_div *pll_div, unsigned int source)
+static void pll_factors(struct snd_soc_codec *codec,
+	struct _pll_div *pll_div, unsigned int source)
 {
 	u64 Kpart;
 	unsigned int K, Ndiv, Nmod, target;
@@ -724,7 +725,7 @@ static void pll_factors(struct _pll_div *pll_div, unsigned int source)
 
 	Ndiv = target / source;
 	if ((Ndiv < 5) || (Ndiv > 12))
-		printk(KERN_WARNING
+		dev_warn(codec->dev,
 			"WM9713 PLL N value %u out of recommended range!\n",
 			Ndiv);
 
@@ -768,7 +769,7 @@ static int wm9713_set_pll(struct snd_soc_codec *codec,
 		return 0;
 	}
 
-	pll_factors(&pll_div, freq_in);
+	pll_factors(codec, &pll_div, freq_in);
 
 	if (pll_div.k == 0) {
 		reg = (pll_div.n << 12) | (pll_div.lf << 11) |
@@ -1104,8 +1105,11 @@ int wm9713_reset(struct snd_soc_codec *codec, int try_warm)
 	soc_ac97_ops->reset(codec->ac97);
 	if (soc_ac97_ops->warm_reset)
 		soc_ac97_ops->warm_reset(codec->ac97);
-	if (ac97_read(codec, 0) != wm9713_reg[0])
+	if (ac97_read(codec, 0) != wm9713_reg[0]) {
+		dev_err(codec->dev, "Failed to reset: AC97 link error\n");
 		return -EIO;
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(wm9713_reset);
@@ -1163,10 +1167,8 @@ static int wm9713_soc_resume(struct snd_soc_codec *codec)
 	u16 *cache = codec->reg_cache;
 
 	ret = wm9713_reset(codec, 1);
-	if (ret < 0) {
-		printk(KERN_ERR "could not reset AC97 codec\n");
+	if (ret < 0)
 		return ret;
-	}
 
 	wm9713_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
@@ -1205,10 +1207,8 @@ static int wm9713_soc_probe(struct snd_soc_codec *codec)
 	 * a warm reset followed by an optional cold reset for codec */
 	wm9713_reset(codec, 0);
 	ret = wm9713_reset(codec, 1);
-	if (ret < 0) {
-		printk(KERN_ERR "Failed to reset WM9713: AC97 link error\n");
+	if (ret < 0)
 		goto reset_err;
-	}
 
 	wm9713_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
