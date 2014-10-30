@@ -320,9 +320,9 @@ static struct rockchip_clk_branch common_clk_branches[] __initdata = {
 	COMPOSITE(0, "hsadc_src", mux_pll_src_gpll_cpll_p, 0,
 			RK2928_CLKSEL_CON(22), 0, 1, MFLAGS, 8, 8, DFLAGS,
 			RK2928_CLKGATE_CON(2), 6, GFLAGS),
-	COMPOSITE_FRAC(0, "hsadc_frac", "hsadc_src",
+	COMPOSITE_FRAC(0, "hsadc_frac", "hsadc_src", 0,
 			RK2928_CLKSEL_CON(23), 0,
-			RK2928_CLKGATE_CON(2), 7, 0, GFLAGS),
+			RK2928_CLKGATE_CON(2), 7, GFLAGS),
 	MUX(SCLK_HSADC, "sclk_hsadc", mux_sclk_hsadc_p, 0,
 			RK2928_CLKSEL_CON(22), 4, 2, MFLAGS),
 
