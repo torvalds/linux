@@ -3868,7 +3868,7 @@ static int setup_subdevices(struct comedi_device *dev)
 	if (thisboard->layout == LAYOUT_64XX) {
 		s = &dev->subdevices[3];
 		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
+		s->subdev_flags = SDF_WRITABLE;
 		s->n_chan = 4;
 		s->maxdata = 1;
 		s->range_table = &range_digital;

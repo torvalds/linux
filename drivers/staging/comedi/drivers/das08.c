@@ -507,7 +507,7 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 	/* do */
 	if (thisboard->do_nchan) {
 		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
+		s->subdev_flags = SDF_WRITABLE;
 		s->n_chan = thisboard->do_nchan;
 		s->maxdata = 1;
 		s->range_table = &range_digital;
