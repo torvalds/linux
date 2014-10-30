@@ -3128,11 +3128,8 @@ static void valleyview_irq_preinstall(struct drm_device *dev)
 	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
 	for_each_pipe(dev_priv, pipe)
 		I915_WRITE(PIPESTAT(pipe), 0xffff);
-	I915_WRITE(VLV_IMR, 0xffffffff);
-	I915_WRITE(VLV_IER, 0x0);
-	I915_WRITE(VLV_IIR, 0xffffffff);
-	I915_WRITE(VLV_IIR, 0xffffffff);
-	POSTING_READ(VLV_IIR);
+
+	GEN5_IRQ_RESET(VLV_);
 }
 
 static void gen8_gt_irq_reset(struct drm_i915_private *dev_priv)
@@ -3197,11 +3194,7 @@ static void cherryview_irq_preinstall(struct drm_device *dev)
 	for_each_pipe(dev_priv, pipe)
 		I915_WRITE(PIPESTAT(pipe), 0xffff);
 
-	I915_WRITE(VLV_IMR, 0xffffffff);
-	I915_WRITE(VLV_IER, 0x0);
-	I915_WRITE(VLV_IIR, 0xffffffff);
-	I915_WRITE(VLV_IIR, 0xffffffff);
-	POSTING_READ(VLV_IIR);
+	GEN5_IRQ_RESET(VLV_);
 }
 
 static void ibx_hpd_irq_setup(struct drm_device *dev)
@@ -3611,11 +3604,7 @@ static void valleyview_irq_uninstall(struct drm_device *dev)
 
 	dev_priv->irq_mask = 0;
 
-	I915_WRITE(VLV_IMR, 0xffffffff);
-	I915_WRITE(VLV_IER, 0x0);
-	I915_WRITE(VLV_IIR, 0xffffffff);
-	I915_WRITE(VLV_IIR, 0xffffffff);
-	POSTING_READ(VLV_IIR);
+	GEN5_IRQ_RESET(VLV_);
 }
 
 static void cherryview_irq_uninstall(struct drm_device *dev)
@@ -3639,11 +3628,7 @@ static void cherryview_irq_uninstall(struct drm_device *dev)
 	for_each_pipe(dev_priv, pipe)
 		I915_WRITE(PIPESTAT(pipe), 0xffff);
 
-	I915_WRITE(VLV_IMR, 0xffffffff);
-	I915_WRITE(VLV_IER, 0x0);
-	I915_WRITE(VLV_IIR, 0xffffffff);
-	I915_WRITE(VLV_IIR, 0xffffffff);
-	POSTING_READ(VLV_IIR);
+	GEN5_IRQ_RESET(VLV_);
 }
 
 static void ironlake_irq_uninstall(struct drm_device *dev)
