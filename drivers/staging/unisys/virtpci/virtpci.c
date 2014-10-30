@@ -847,8 +847,9 @@ static int virtpci_device_probe(struct device *dev)
 			virtpcidev->mydriver = virtpcidrv;
 			POSTCODE_LINUX_2(VPCI_PROBE_EXIT_PC,
 					 POSTCODE_SEVERITY_INFO);
-		} else
+		} else {
 			put_device(dev);
+		}
 	}
 	POSTCODE_LINUX_2(VPCI_PROBE_FAILURE_PC, POSTCODE_SEVERITY_ERR);
 	return error;		/* -ENODEV for probe failure */
@@ -992,9 +993,9 @@ static int virtpci_device_add(struct device *parentbus, int devtype,
 	}
 
 	/* add it at the head */
-	if (!VpcidevListHead)
+	if (!VpcidevListHead) {
 		VpcidevListHead = virtpcidev;
-	else {
+	} else {
 		/* insert virtpcidev at the head of our linked list of
 		 * vpcidevs
 		 */
