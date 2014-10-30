@@ -548,10 +548,11 @@ struct hppfs_dirent {
 	struct dentry *dentry;
 };
 
-static int hppfs_filldir(void *d, const char *name, int size,
+static int hppfs_filldir(struct dir_context *ctx, const char *name, int size,
 			 loff_t offset, u64 inode, unsigned int type)
 {
-	struct hppfs_dirent *dirent = d;
+	struct hppfs_dirent *dirent =
+		container_of(ctx, struct hppfs_dirent, ctx);
 
 	if (file_removed(dirent->dentry, name))
 		return 0;

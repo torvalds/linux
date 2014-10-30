@@ -26,7 +26,7 @@ static int afs_readdir(struct file *file, struct dir_context *ctx);
 static int afs_d_revalidate(struct dentry *dentry, unsigned int flags);
 static int afs_d_delete(const struct dentry *dentry);
 static void afs_d_release(struct dentry *dentry);
-static int afs_lookup_filldir(void *_cookie, const char *name, int nlen,
+static int afs_lookup_filldir(struct dir_context *ctx, const char *name, int nlen,
 				  loff_t fpos, u64 ino, unsigned dtype);
 static int afs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		      bool excl);
@@ -391,10 +391,11 @@ static int afs_readdir(struct file *file, struct dir_context *ctx)
  * - if afs_dir_iterate_block() spots this function, it'll pass the FID
  *   uniquifier through dtype
  */
-static int afs_lookup_filldir(void *_cookie, const char *name, int nlen,
-			      loff_t fpos, u64 ino, unsigned dtype)
+static int afs_lookup_filldir(struct dir_context *ctx, const char *name,
+			      int nlen, loff_t fpos, u64 ino, unsigned dtype)
 {
-	struct afs_lookup_cookie *cookie = _cookie;
+	struct afs_lookup_cookie *cookie =
+		container_of(ctx, struct afs_lookup_cookie, ctx);
 
 	_enter("{%s,%u},%s,%u,,%llu,%u",
 	       cookie->name.name, cookie->name.len, name, nlen,

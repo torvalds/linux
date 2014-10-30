@@ -188,10 +188,11 @@ struct reiserfs_dentry_buf {
 };
 
 static int
-fill_with_dentries(void *buf, const char *name, int namelen, loff_t offset,
-		    u64 ino, unsigned int d_type)
+fill_with_dentries(struct dir_context *ctx, const char *name, int namelen,
+		   loff_t offset, u64 ino, unsigned int d_type)
 {
-	struct reiserfs_dentry_buf *dbuf = buf;
+	struct reiserfs_dentry_buf *dbuf =
+		container_of(ctx, struct reiserfs_dentry_buf, ctx);
 	struct dentry *dentry;
 
 	WARN_ON_ONCE(!mutex_is_locked(&dbuf->xadir->d_inode->i_mutex));
@@ -824,10 +825,12 @@ struct listxattr_buf {
 	struct dentry *dentry;
 };
 
-static int listxattr_filler(void *buf, const char *name, int namelen,
-			    loff_t offset, u64 ino, unsigned int d_type)
+static int listxattr_filler(struct dir_context *ctx, const char *name,
+			    int namelen, loff_t offset, u64 ino,
+			    unsigned int d_type)
 {
-	struct listxattr_buf *b = (struct listxattr_buf *)buf;
+	struct listxattr_buf *b =
+		container_of(ctx, struct listxattr_buf, ctx);
 	size_t size;
 
 	if (name[0] != '.' ||

@@ -2073,10 +2073,12 @@ struct ocfs2_empty_dir_priv {
 	unsigned seen_other;
 	unsigned dx_dir;
 };
-static int ocfs2_empty_dir_filldir(void *priv, const char *name, int name_len,
-				   loff_t pos, u64 ino, unsigned type)
+static int ocfs2_empty_dir_filldir(struct dir_context *ctx, const char *name,
+				   int name_len, loff_t pos, u64 ino,
+				   unsigned type)
 {
-	struct ocfs2_empty_dir_priv *p = priv;
+	struct ocfs2_empty_dir_priv *p =
+		container_of(ctx, struct ocfs2_empty_dir_priv, ctx);
 
 	/*
 	 * Check the positions of "." and ".." records to be sure

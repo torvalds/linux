@@ -245,10 +245,11 @@ struct nfs4_dir_ctx {
 };
 
 static int
-nfsd4_build_namelist(void *arg, const char *name, int namlen,
+nfsd4_build_namelist(struct dir_context *__ctx, const char *name, int namlen,
 		loff_t offset, u64 ino, unsigned int d_type)
 {
-	struct nfs4_dir_ctx *ctx = arg;
+	struct nfs4_dir_ctx *ctx =
+		container_of(__ctx, struct nfs4_dir_ctx, ctx);
 	struct name_list *entry;
 
 	if (namlen != HEXDIR_LEN - 1)
