@@ -942,7 +942,6 @@ int _snd_pcm_lib_alloc_vmalloc_buffer(struct snd_pcm_substream *substream,
 int snd_pcm_lib_free_vmalloc_buffer(struct snd_pcm_substream *substream);
 struct page *snd_pcm_lib_get_vmalloc_page(struct snd_pcm_substream *substream,
 					  unsigned long offset);
-#if 0 /* for kernel-doc */
 /**
  * snd_pcm_lib_alloc_vmalloc_buffer - allocate virtual DMA buffer
  * @substream: the substream to allocate the buffer to
@@ -955,8 +954,13 @@ struct page *snd_pcm_lib_get_vmalloc_page(struct snd_pcm_substream *substream,
  * Return: 1 if the buffer was changed, 0 if not changed, or a negative error
  * code.
  */
-static int snd_pcm_lib_alloc_vmalloc_buffer
-			(struct snd_pcm_substream *substream, size_t size);
+static inline int snd_pcm_lib_alloc_vmalloc_buffer
+			(struct snd_pcm_substream *substream, size_t size)
+{
+	return _snd_pcm_lib_alloc_vmalloc_buffer(substream, size,
+						 GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO);
+}
+
 /**
  * snd_pcm_lib_alloc_vmalloc_32_buffer - allocate 32-bit-addressable buffer
  * @substream: the substream to allocate the buffer to
@@ -968,15 +972,12 @@ static int snd_pcm_lib_alloc_vmalloc_buffer
  * Return: 1 if the buffer was changed, 0 if not changed, or a negative error
  * code.
  */
-static int snd_pcm_lib_alloc_vmalloc_32_buffer
-			(struct snd_pcm_substream *substream, size_t size);
-#endif
-#define snd_pcm_lib_alloc_vmalloc_buffer(subs, size) \
-	_snd_pcm_lib_alloc_vmalloc_buffer \
-			(subs, size, GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO)
-#define snd_pcm_lib_alloc_vmalloc_32_buffer(subs, size) \
-	_snd_pcm_lib_alloc_vmalloc_buffer \
-			(subs, size, GFP_KERNEL | GFP_DMA32 | __GFP_ZERO)
+static inline int snd_pcm_lib_alloc_vmalloc_32_buffer
+			(struct snd_pcm_substream *substream, size_t size)
+{
+	return _snd_pcm_lib_alloc_vmalloc_buffer(substream, size,
+						 GFP_KERNEL | GFP_DMA32 | __GFP_ZERO);
+}
 
 #define snd_pcm_get_dma_buf(substream) ((substream)->runtime->dma_buffer_p)
 
