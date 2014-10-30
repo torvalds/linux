@@ -18,6 +18,19 @@
 #include <linux/mtd/mtd.h>
 #include <bcm47xx_nvram.h>
 
+#define NVRAM_MAGIC		0x48534C46	/* 'FLSH' */
+#define NVRAM_SPACE		0x8000
+
+#define FLASH_MIN		0x00020000	/* Minimum flash size */
+
+struct nvram_header {
+	u32 magic;
+	u32 len;
+	u32 crc_ver_init;	/* 0:7 crc, 8:15 ver, 16:31 sdram_init */
+	u32 config_refresh;	/* 0:15 sdram_config, 16:31 sdram_refresh */
+	u32 config_ncdl;	/* ncdl values for memc */
+};
+
 static char nvram_buf[NVRAM_SPACE];
 static const u32 nvram_sizes[] = {0x8000, 0xF000, 0x10000};
 
@@ -28,7 +41,7 @@ static u32 find_nvram_size(void __iomem *end)
 
 	for (i = 0; i < ARRAY_SIZE(nvram_sizes); i++) {
 		header = (struct nvram_header *)(end - nvram_sizes[i]);
-		if (header->magic == NVRAM_HEADER)
+		if (header->magic == NVRAM_MAGIC)
 			return nvram_sizes[i];
 	}
 
@@ -63,13 +76,13 @@ static int nvram_find_and_copy(void __iomem *iobase, u32 lim)
 
 	/* Try embedded NVRAM at 4 KB and 1 KB as last resorts */
 	header = (struct nvram_header *)(iobase + 4096);
-	if (header->magic == NVRAM_HEADER) {
+	if (header->magic == NVRAM_MAGIC) {
 		size = NVRAM_SPACE;
 		goto found;
 	}
 
 	header = (struct nvram_header *)(iobase + 1024);
-	if (header->magic == NVRAM_HEADER) {
+	if (header->magic == NVRAM_MAGIC) {
 		size = NVRAM_SPACE;
 		goto found;
 	}
@@ -139,7 +152,7 @@ static int nvram_init(void)
 
 		err = mtd_read(mtd, from, sizeof(header), &bytes_read,
 			       (uint8_t *)&header);
-		if (!err && header.magic == NVRAM_HEADER) {
+		if (!err && header.magic == NVRAM_MAGIC) {
 			u8 *dst = (uint8_t *)nvram_buf;
 			size_t len = header.len;
 
@@ -162,7 +175,7 @@ static int nvram_init(void)
 	return -ENXIO;
 }
 
-int bcm47xx_nvram_getenv(char *name, char *val, size_t val_len)
+int bcm47xx_nvram_getenv(const char *name, char *val, size_t val_len)
 {
 	char *var, *value, *end, *eq;
 	int err;
