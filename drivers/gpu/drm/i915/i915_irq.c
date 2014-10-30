@@ -3425,10 +3425,8 @@ void valleyview_disable_display_irqs(struct drm_i915_private *dev_priv)
 		valleyview_display_irqs_uninstall(dev_priv);
 }
 
-static int valleyview_irq_postinstall(struct drm_device *dev)
+static void vlv_display_irq_postinstall(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
 	dev_priv->irq_mask = ~0;
 
 	I915_WRITE(PORT_HOTPLUG_EN, 0);
@@ -3449,6 +3447,13 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 
 	I915_WRITE(VLV_IIR, 0xffffffff);
 	I915_WRITE(VLV_IIR, 0xffffffff);
+}
+
+static int valleyview_irq_postinstall(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	vlv_display_irq_postinstall(dev_priv);
 
 	gen5_gt_irq_postinstall(dev);
 
