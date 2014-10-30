@@ -163,16 +163,11 @@ static int sst_open_pcm_stream(struct device *dev,
 	if (!str_param)
 		return -EINVAL;
 
-	retval = pm_runtime_get_sync(ctx->dev);
-	if (retval < 0)
-		return retval;
 	retval = sst_get_stream(ctx, str_param);
-	if (retval > 0) {
+	if (retval > 0)
 		ctx->stream_cnt++;
-	} else {
+	else
 		dev_err(ctx->dev, "sst_get_stream returned err %d\n", retval);
-		sst_pm_runtime_put(ctx);
-	}
 
 	return retval;
 }
@@ -212,7 +207,8 @@ put:
 	stream->period_elapsed = NULL;
 	ctx->stream_cnt--;
 
-	sst_pm_runtime_put(ctx);
+	if (retval)
+		dev_err(ctx->dev, "free stream returned err %d\n", retval);
 
 	dev_dbg(ctx->dev, "Exit\n");
 	return 0;
