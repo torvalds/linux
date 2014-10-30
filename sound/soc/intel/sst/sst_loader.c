@@ -344,12 +344,9 @@ void sst_firmware_load_cb(const struct firmware *fw, void *context)
 static int sst_request_fw(struct intel_sst_drv *sst)
 {
 	int retval = 0;
-	char name[20];
 	const struct firmware *fw;
 
-	dev_dbg(sst->dev, "Requesting FW %s now...\n", name);
-
-	retval = request_firmware(&fw, name, sst->dev);
+	retval = request_firmware(&fw, sst->firmware_name, sst->dev);
 	if (fw == NULL) {
 		dev_err(sst->dev, "fw is returning as null\n");
 		return -EINVAL;
