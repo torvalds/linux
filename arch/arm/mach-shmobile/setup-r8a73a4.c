@@ -176,17 +176,12 @@ static struct resource cmt1_resources[] = {
 	DEFINE_RES_IRQ(gic_spi(120)),
 };
 
-#define r8a7790_register_cmt(idx)					\
+#define r8a73a4_register_cmt(idx)					\
 	platform_device_register_resndata(NULL, "sh-cmt-48-gen2",	\
 					  idx, cmt##idx##_resources,	\
 					  ARRAY_SIZE(cmt##idx##_resources), \
 					  &cmt##idx##_platform_data,	\
 					  sizeof(struct sh_timer_config))
-
-void __init r8a73a4_add_dt_devices(void)
-{
-	r8a7790_register_cmt(1);
-}
 
 /* DMA */
 static const struct sh_dmae_slave_config dma_slaves[] = {
@@ -278,7 +273,7 @@ static struct resource dma_resources[] = {
 
 void __init r8a73a4_add_standard_devices(void)
 {
-	r8a73a4_add_dt_devices();
+	r8a73a4_register_cmt(1);
 	r8a73a4_register_scif(0);
 	r8a73a4_register_scif(1);
 	r8a73a4_register_scif(2);
