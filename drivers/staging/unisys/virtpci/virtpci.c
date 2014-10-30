@@ -696,8 +696,8 @@ virtpci_match_device(const struct pci_device_id *ids,
 		DBGINF("ids->vendor:%x dev->vendor:%x ids->device:%x dev->device:%x\n",
 		     ids->vendor, dev->vendor, ids->device, dev->device);
 
-		if ((ids->vendor == dev->vendor)
-		    && (ids->device == dev->device))
+		if ((ids->vendor == dev->vendor) &&
+		    (ids->device == dev->device))
 			return ids;
 
 		ids++;
