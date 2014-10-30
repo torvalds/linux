@@ -2237,9 +2237,6 @@ static int ni_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	if ((cmd->flags & CMDF_WRITE))
-		cmd->flags &= ~CMDF_WRITE;
-
 	err |= cfc_check_trigger_src(&cmd->start_src,
 					TRIG_NOW | TRIG_INT | TRIG_EXT);
 	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
@@ -3271,9 +3268,6 @@ static int ni_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned int tmp;
 
 	/* Step 1 : check if triggers are trivially valid */
-
-	if ((cmd->flags & CMDF_WRITE) == 0)
-		cmd->flags |= CMDF_WRITE;
 
 	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_INT | TRIG_EXT);
 	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
