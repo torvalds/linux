@@ -799,15 +799,19 @@ struct sk_buff_fclones {
  *	@skb: buffer
  *
  * Returns true is skb is a fast clone, and its clone is not freed.
+ * Some drivers call skb_orphan() in their ndo_start_xmit(),
+ * so we also check that this didnt happen.
  */
-static inline bool skb_fclone_busy(const struct sk_buff *skb)
+static inline bool skb_fclone_busy(const struct sock *sk,
+				   const struct sk_buff *skb)
 {
 	const struct sk_buff_fclones *fclones;
 
 	fclones = container_of(skb, struct sk_buff_fclones, skb1);
 
 	return skb->fclone == SKB_FCLONE_ORIG &&
-	       fclones->skb2.fclone == SKB_FCLONE_CLONE;
+	       fclones->skb2.fclone == SKB_FCLONE_CLONE &&
+	       fclones->skb2.sk == sk;
 }
 
 static inline struct sk_buff *alloc_skb_fclone(unsigned int size,
