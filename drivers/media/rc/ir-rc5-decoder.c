@@ -53,7 +53,7 @@ static int ir_rc5_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	u32 scancode;
 	enum rc_type protocol;
 
-	if (!(dev->enabled_protocols & (RC_BIT_RC5 | RC_BIT_RC5X)))
+	if (!(dev->enabled_protocols & (RC_BIT_RC5 | RC_BIT_RC5X | RC_BIT_RC5_SZ)))
 		return 0;
 
 	if (!is_timing_event(ev)) {
