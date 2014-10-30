@@ -200,7 +200,7 @@ static int write_vbus_chpInfo(struct spar_vbus_channel_protocol *chan,
 		LOGERR("vbus channel not used, because chp_info_offset == 0");
 		return -1;
 	}
-	memcpy(((u8 *) (chan)) + off, info, sizeof(*info));
+	memcpy(((u8 *)(chan)) + off, info, sizeof(*info));
 	return 0;
 }
 
@@ -219,7 +219,7 @@ static int write_vbus_busInfo(struct spar_vbus_channel_protocol *chan,
 		LOGERR("vbus channel not used, because bus_info_offset == 0");
 		return -1;
 	}
-	memcpy(((u8 *) (chan)) + off, info, sizeof(*info));
+	memcpy(((u8 *)(chan)) + off, info, sizeof(*info));
 	return 0;
 }
 
@@ -244,7 +244,7 @@ write_vbus_devInfo(struct spar_vbus_channel_protocol *chan,
 		LOGERR("vbus channel not used, because dev_info_offset == 0");
 		return -1;
 	}
-	memcpy(((u8 *) (chan)) + off, info, sizeof(*info));
+	memcpy(((u8 *)(chan)) + off, info, sizeof(*info));
 	return 0;
 }
 
@@ -325,7 +325,7 @@ static int add_vhba(struct add_virt_guestpart *addparams)
 
 	POSTCODE_LINUX_2(VPCI_CREATE_ENTRY_PC, POSTCODE_SEVERITY_INFO);
 	if (!WAIT_FOR_IO_CHANNEL
-	    ((struct spar_io_channel_protocol __iomem *) addparams->chanptr)) {
+	    ((struct spar_io_channel_protocol __iomem *)addparams->chanptr)) {
 		LOGERR("Timed out.  Channel not ready\n");
 		POSTCODE_LINUX_2(VPCI_CREATE_FAILURE_PC, POSTCODE_SEVERITY_ERR);
 		return 0;
@@ -355,16 +355,16 @@ static int add_vhba(struct add_virt_guestpart *addparams)
 #define GET_NETADAPINFO_FROM_CHANPTR(chanptr) {				\
 		memcpy_fromio(net.mac_addr,				\
 		       ((struct spar_io_channel_protocol __iomem *)	\
-			chanptr)->vnic.macaddr,				\
+		       chanptr)->vnic.macaddr,				\
 		       MAX_MACADDR_LEN);				\
 		net.num_rcv_bufs =					\
 			readl(&((struct spar_io_channel_protocol __iomem *)\
-				chanptr)->vnic.num_rcv_bufs);		\
+			      chanptr)->vnic.num_rcv_bufs);		\
 		net.mtu = readl(&((struct spar_io_channel_protocol __iomem *) \
-				  chanptr)->vnic.mtu);			\
+				chanptr)->vnic.mtu);			\
 		memcpy_fromio(&net.zone_uuid, \
 			      &((struct spar_io_channel_protocol __iomem *)\
-				chanptr)->vnic.zone_uuid,		\
+			      chanptr)->vnic.zone_uuid,		\
 			      sizeof(uuid_le));				\
 }
 
@@ -381,7 +381,7 @@ add_vnic(struct add_virt_guestpart *addparams)
 
 	POSTCODE_LINUX_2(VPCI_CREATE_ENTRY_PC, POSTCODE_SEVERITY_INFO);
 	if (!WAIT_FOR_IO_CHANNEL
-	    ((struct spar_io_channel_protocol __iomem *) addparams->chanptr)) {
+	    ((struct spar_io_channel_protocol __iomem *)addparams->chanptr)) {
 		LOGERR("Timed out, channel not ready\n");
 		POSTCODE_LINUX_2(VPCI_CREATE_FAILURE_PC, POSTCODE_SEVERITY_ERR);
 		return 0;
@@ -431,7 +431,7 @@ delete_vbus_device(struct device *vbus, void *data)
 	int checkforroot = (data != NULL);
 	struct device *pDev = &virtpci_rootbus_device;
 
-	if ((checkforroot) && match_busid(vbus, (void *) BUS_ID(pDev))) {
+	if ((checkforroot) && match_busid(vbus, (void *)BUS_ID(pDev))) {
 		/* skip it - don't delete root bus */
 		LOGINF("skipping root bus\n");
 		return 0;	/* pretend no error */
@@ -606,7 +606,7 @@ static void delete_all(void)
 
 	/* now delete each vbus */
 	if (bus_for_each_dev
-	    (&virtpci_bus_type, NULL, (void *) 1, delete_vbus_device))
+	    (&virtpci_bus_type, NULL, (void *)1, delete_vbus_device))
 		LOGERR("delete of all vbus failed\n");
 }
 
@@ -1447,7 +1447,7 @@ static ssize_t info_debugfs_read(struct file *file, char __user *buf,
 	printparam.buf = vbuf;
 	printparam.len = &len;
 	if (bus_for_each_dev(&virtpci_bus_type, NULL,
-			     (void *) &printparam, print_vbus))
+			     (void *)&printparam, print_vbus))
 		LOGERR("Failed to find bus\n");
 
 	str_pos += scnprintf(vbuf + str_pos, len - str_pos,
@@ -1532,7 +1532,7 @@ static int __init virtpci_mod_init(void)
 	}
 	DBGINF("device_register successful ret:%x\n", ret);
 
-	if (!uisctrl_register_req_handler(2, (void *) &virtpci_ctrlchan_func,
+	if (!uisctrl_register_req_handler(2, (void *)&virtpci_ctrlchan_func,
 					  &Chipset_DriverInfo)) {
 		LOGERR("uisctrl_register_req_handler ****FAILED.\n");
 		POSTCODE_LINUX_2(VPCI_CREATE_FAILURE_PC, POSTCODE_SEVERITY_ERR);
@@ -1542,7 +1542,7 @@ static int __init virtpci_mod_init(void)
 	}
 
 	LOGINF("successfully registered virtpci_ctrlchan_func (0x%p) as callback.\n",
-	     (void *) &virtpci_ctrlchan_func);
+	     (void *)&virtpci_ctrlchan_func);
 	/* create debugfs directory and info file inside. */
 	virtpci_debugfs_dir = debugfs_create_dir("virtpci", NULL);
 	debugfs_create_file("info", S_IRUSR, virtpci_debugfs_dir,
