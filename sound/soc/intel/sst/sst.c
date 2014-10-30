@@ -332,6 +332,92 @@ void sst_context_cleanup(struct intel_sst_drv *ctx)
 	ctx = NULL;
 }
 
+void sst_configure_runtime_pm(struct intel_sst_drv *ctx)
+{
+	pm_runtime_set_autosuspend_delay(ctx->dev, SST_SUSPEND_DELAY);
+	pm_runtime_use_autosuspend(ctx->dev);
+	pm_runtime_allow(ctx->dev);
+	pm_runtime_put_noidle(ctx->dev);
+}
+
+static int sst_platform_get_resources(struct intel_sst_drv *ctx)
+{
+	int ddr_base, ret = 0;
+	struct pci_dev *pci = ctx->pci;
+	ret = pci_request_regions(pci, SST_DRV_NAME);
+	if (ret)
+		return ret;
+
+	/* map registers */
+	/* DDR base */
+	if (ctx->dev_id == SST_MRFLD_PCI_ID) {
+		ctx->ddr_base = pci_resource_start(pci, 0);
+		/* check that the relocated IMR base matches with FW Binary */
+		ddr_base = relocate_imr_addr_mrfld(ctx->ddr_base);
+		if (!ctx->pdata->lib_info) {
+			dev_err(ctx->dev, "lib_info pointer NULL\n");
+			ret = -EINVAL;
+			goto do_release_regions;
+		}
+		if (ddr_base != ctx->pdata->lib_info->mod_base) {
+			dev_err(ctx->dev,
+					"FW LSP DDR BASE does not match with IFWI\n");
+			ret = -EINVAL;
+			goto do_release_regions;
+		}
+		ctx->ddr_end = pci_resource_end(pci, 0);
+
+		ctx->ddr = pcim_iomap(pci, 0,
+					pci_resource_len(pci, 0));
+		if (!ctx->ddr) {
+			ret = -EINVAL;
+			goto do_release_regions;
+		}
+		dev_dbg(ctx->dev, "sst: DDR Ptr %p\n", ctx->ddr);
+	} else {
+		ctx->ddr = NULL;
+	}
+	/* SHIM */
+	ctx->shim_phy_add = pci_resource_start(pci, 1);
+	ctx->shim = pcim_iomap(pci, 1, pci_resource_len(pci, 1));
+	if (!ctx->shim) {
+		ret = -EINVAL;
+		goto do_release_regions;
+	}
+	dev_dbg(ctx->dev, "SST Shim Ptr %p\n", ctx->shim);
+
+	/* Shared SRAM */
+	ctx->mailbox_add = pci_resource_start(pci, 2);
+	ctx->mailbox = pcim_iomap(pci, 2, pci_resource_len(pci, 2));
+	if (!ctx->mailbox) {
+		ret = -EINVAL;
+		goto do_release_regions;
+	}
+	dev_dbg(ctx->dev, "SRAM Ptr %p\n", ctx->mailbox);
+
+	/* IRAM */
+	ctx->iram_end = pci_resource_end(pci, 3);
+	ctx->iram_base = pci_resource_start(pci, 3);
+	ctx->iram = pcim_iomap(pci, 3, pci_resource_len(pci, 3));
+	if (!ctx->iram) {
+		ret = -EINVAL;
+		goto do_release_regions;
+	}
+	dev_dbg(ctx->dev, "IRAM Ptr %p\n", ctx->iram);
+
+	/* DRAM */
+	ctx->dram_end = pci_resource_end(pci, 4);
+	ctx->dram_base = pci_resource_start(pci, 4);
+	ctx->dram = pcim_iomap(pci, 4, pci_resource_len(pci, 4));
+	if (!ctx->dram) {
+		ret = -EINVAL;
+		goto do_release_regions;
+	}
+	dev_dbg(ctx->dev, "DRAM Ptr %p\n", ctx->dram);
+do_release_regions:
+	pci_release_regions(pci);
+	return 0;
+}
 /*
 * intel_sst_probe - PCI probe function
 *
@@ -345,7 +431,6 @@ static int intel_sst_probe(struct pci_dev *pci,
 	int ret = 0;
 	struct intel_sst_drv *sst_drv_ctx;
 	struct sst_platform_info *sst_pdata = pci->dev.platform_data;
-	int ddr_base;
 
 	dev_dbg(&pci->dev, "Probe for DID %x\n", pci->device);
 
@@ -354,6 +439,7 @@ static int intel_sst_probe(struct pci_dev *pci,
 		return ret;
 
 	sst_drv_ctx->pdata = sst_pdata;
+	sst_drv_ctx->irq_num = pci->irq;
 
 	ret = sst_context_init(sst_drv_ctx);
 	if (ret < 0)
@@ -365,81 +451,13 @@ static int intel_sst_probe(struct pci_dev *pci,
 	if (ret) {
 		dev_err(sst_drv_ctx->dev,
 			"device can't be enabled. Returned err: %d\n", ret);
-		goto do_free_mem;
+		goto do_destroy_wq;
 	}
 	sst_drv_ctx->pci = pci_dev_get(pci);
-	ret = pci_request_regions(pci, SST_DRV_NAME);
-	if (ret)
-		goto do_free_mem;
 
-	/* map registers */
-	/* DDR base */
-	if (sst_drv_ctx->dev_id == SST_MRFLD_PCI_ID) {
-		sst_drv_ctx->ddr_base = pci_resource_start(pci, 0);
-		/* check that the relocated IMR base matches with FW Binary */
-		ddr_base = relocate_imr_addr_mrfld(sst_drv_ctx->ddr_base);
-		if (!sst_drv_ctx->pdata->lib_info) {
-			dev_err(sst_drv_ctx->dev, "lib_info pointer NULL\n");
-			ret = -EINVAL;
-			goto do_release_regions;
-		}
-		if (ddr_base != sst_drv_ctx->pdata->lib_info->mod_base) {
-			dev_err(sst_drv_ctx->dev,
-					"FW LSP DDR BASE does not match with IFWI\n");
-			ret = -EINVAL;
-			goto do_release_regions;
-		}
-		sst_drv_ctx->ddr_end = pci_resource_end(pci, 0);
-
-		sst_drv_ctx->ddr = pcim_iomap(pci, 0,
-					pci_resource_len(pci, 0));
-		if (!sst_drv_ctx->ddr) {
-			ret = -EINVAL;
-			goto do_release_regions;
-		}
-		dev_dbg(sst_drv_ctx->dev, "sst: DDR Ptr %p\n", sst_drv_ctx->ddr);
-	} else {
-		sst_drv_ctx->ddr = NULL;
-	}
-
-	/* SHIM */
-	sst_drv_ctx->shim_phy_add = pci_resource_start(pci, 1);
-	sst_drv_ctx->shim = pcim_iomap(pci, 1, pci_resource_len(pci, 1));
-	if (!sst_drv_ctx->shim) {
-		ret = -EINVAL;
-		goto do_release_regions;
-	}
-	dev_dbg(sst_drv_ctx->dev, "SST Shim Ptr %p\n", sst_drv_ctx->shim);
-
-	/* Shared SRAM */
-	sst_drv_ctx->mailbox_add = pci_resource_start(pci, 2);
-	sst_drv_ctx->mailbox = pcim_iomap(pci, 2, pci_resource_len(pci, 2));
-	if (!sst_drv_ctx->mailbox) {
-		ret = -EINVAL;
-		goto do_release_regions;
-	}
-	dev_dbg(sst_drv_ctx->dev, "SRAM Ptr %p\n", sst_drv_ctx->mailbox);
-
-	/* IRAM */
-	sst_drv_ctx->iram_end = pci_resource_end(pci, 3);
-	sst_drv_ctx->iram_base = pci_resource_start(pci, 3);
-	sst_drv_ctx->iram = pcim_iomap(pci, 3, pci_resource_len(pci, 3));
-	if (!sst_drv_ctx->iram) {
-		ret = -EINVAL;
-		goto do_release_regions;
-	}
-	dev_dbg(sst_drv_ctx->dev, "IRAM Ptr %p\n", sst_drv_ctx->iram);
-
-	/* DRAM */
-	sst_drv_ctx->dram_end = pci_resource_end(pci, 4);
-	sst_drv_ctx->dram_base = pci_resource_start(pci, 4);
-	sst_drv_ctx->dram = pcim_iomap(pci, 4, pci_resource_len(pci, 4));
-	if (!sst_drv_ctx->dram) {
-		ret = -EINVAL;
-		goto do_release_regions;
-	}
-	dev_dbg(sst_drv_ctx->dev, "DRAM Ptr %p\n", sst_drv_ctx->dram);
-
+	ret = sst_platform_get_resources(sst_drv_ctx);
+	if (ret < 0)
+		goto do_destroy_wq;
 
 	sst_set_fw_state_locked(sst_drv_ctx, SST_RESET);
 	snprintf(sst_drv_ctx->firmware_name, sizeof(sst_drv_ctx->firmware_name),
@@ -457,20 +475,16 @@ static int intel_sst_probe(struct pci_dev *pci,
 		goto do_release_regions;
 	}
 
-	sst_drv_ctx->irq_num = pci->irq;
 
 	pci_set_drvdata(pci, sst_drv_ctx);
-	pm_runtime_set_autosuspend_delay(sst_drv_ctx->dev, SST_SUSPEND_DELAY);
-	pm_runtime_use_autosuspend(sst_drv_ctx->dev);
-	pm_runtime_allow(sst_drv_ctx->dev);
-	pm_runtime_put_noidle(sst_drv_ctx->dev);
+	sst_configure_runtime_pm(sst_drv_ctx);
 	sst_register(sst_drv_ctx->dev);
 
 	return ret;
 
 do_release_regions:
 	pci_release_regions(pci);
-do_free_mem:
+do_destroy_wq:
 	destroy_workqueue(sst_drv_ctx->post_msg_wq);
 do_free_drv_ctx:
 	dev_err(sst_drv_ctx->dev, "Probe failed with %d\n", ret);
