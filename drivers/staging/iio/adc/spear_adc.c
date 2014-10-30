@@ -226,7 +226,7 @@ static const struct iio_chan_spec spear_adc_iio_channels[] = {
 
 static irqreturn_t spear_adc_isr(int irq, void *dev_id)
 {
-	struct spear_adc_state *st = (struct spear_adc_state *)dev_id;
+	struct spear_adc_state *st = dev_id;
 
 	/* Read value to clear IRQ */
 	st->value = spear_adc_get_average(st);
