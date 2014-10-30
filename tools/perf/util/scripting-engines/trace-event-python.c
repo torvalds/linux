@@ -37,6 +37,7 @@
 #include "../comm.h"
 #include "../machine.h"
 #include "../db-export.h"
+#include "../thread-stack.h"
 #include "../trace-event.h"
 #include "../machine.h"
 
@@ -68,6 +69,8 @@ struct tables {
 	PyObject		*symbol_handler;
 	PyObject		*branch_type_handler;
 	PyObject		*sample_handler;
+	PyObject		*call_path_handler;
+	PyObject		*call_return_handler;
 	bool			db_export_mode;
 };
 
@@ -720,6 +723,64 @@ static int python_export_sample(struct db_export *dbe,
 	return 0;
 }
 
+static int python_export_call_path(struct db_export *dbe, struct call_path *cp)
+{
+	struct tables *tables = container_of(dbe, struct tables, dbe);
+	PyObject *t;
+	u64 parent_db_id, sym_db_id;
+
+	parent_db_id = cp->parent ? cp->parent->db_id : 0;
+	sym_db_id = cp->sym ? *(u64 *)symbol__priv(cp->sym) : 0;
+
+	t = tuple_new(4);
+
+	tuple_set_u64(t, 0, cp->db_id);
+	tuple_set_u64(t, 1, parent_db_id);
+	tuple_set_u64(t, 2, sym_db_id);
+	tuple_set_u64(t, 3, cp->ip);
+
+	call_object(tables->call_path_handler, t, "call_path_table");
+
+	Py_DECREF(t);
+
+	return 0;
+}
+
+static int python_export_call_return(struct db_export *dbe,
+				     struct call_return *cr)
+{
+	struct tables *tables = container_of(dbe, struct tables, dbe);
+	u64 comm_db_id = cr->comm ? cr->comm->db_id : 0;
+	PyObject *t;
+
+	t = tuple_new(11);
+
+	tuple_set_u64(t, 0, cr->db_id);
+	tuple_set_u64(t, 1, cr->thread->db_id);
+	tuple_set_u64(t, 2, comm_db_id);
+	tuple_set_u64(t, 3, cr->cp->db_id);
+	tuple_set_u64(t, 4, cr->call_time);
+	tuple_set_u64(t, 5, cr->return_time);
+	tuple_set_u64(t, 6, cr->branch_count);
+	tuple_set_u64(t, 7, cr->call_ref);
+	tuple_set_u64(t, 8, cr->return_ref);
+	tuple_set_u64(t, 9, cr->cp->parent->db_id);
+	tuple_set_s32(t, 10, cr->flags);
+
+	call_object(tables->call_return_handler, t, "call_return_table");
+
+	Py_DECREF(t);
+
+	return 0;
+}
+
+static int python_process_call_return(struct call_return *cr, void *data)
+{
+	struct db_export *dbe = data;
+
+	return db_export__call_return(dbe, cr);
+}
+
 static void python_process_general_event(struct perf_sample *sample,
 					 struct perf_evsel *evsel,
 					 struct thread *thread,
@@ -852,7 +913,9 @@ error:
 static void set_table_handlers(struct tables *tables)
 {
 	const char *perf_db_export_mode = "perf_db_export_mode";
-	PyObject *db_export_mode;
+	const char *perf_db_export_calls = "perf_db_export_calls";
+	PyObject *db_export_mode, *db_export_calls;
+	bool export_calls = false;
 	int ret;
 
 	memset(tables, 0, sizeof(struct tables));
@@ -869,6 +932,23 @@ static void set_table_handlers(struct tables *tables)
 	if (!ret)
 		return;
 
+	tables->dbe.crp = NULL;
+	db_export_calls = PyDict_GetItemString(main_dict, perf_db_export_calls);
+	if (db_export_calls) {
+		ret = PyObject_IsTrue(db_export_calls);
+		if (ret == -1)
+			handler_call_die(perf_db_export_calls);
+		export_calls = !!ret;
+	}
+
+	if (export_calls) {
+		tables->dbe.crp =
+			call_return_processor__new(python_process_call_return,
+						   &tables->dbe);
+		if (!tables->dbe.crp)
+			Py_FatalError("failed to create calls processor");
+	}
+
 	tables->db_export_mode = true;
 	/*
 	 * Reserve per symbol space for symbol->db_id via symbol__priv()
@@ -884,6 +964,8 @@ static void set_table_handlers(struct tables *tables)
 	SET_TABLE_HANDLER(symbol);
 	SET_TABLE_HANDLER(branch_type);
 	SET_TABLE_HANDLER(sample);
+	SET_TABLE_HANDLER(call_path);
+	SET_TABLE_HANDLER(call_return);
 }
 
 /*

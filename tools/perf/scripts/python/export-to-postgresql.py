@@ -40,10 +40,12 @@ sys.path.append(os.environ['PERF_EXEC_PATH'] + \
 #from Core import *
 
 perf_db_export_mode = True
+perf_db_export_calls = False
 
 def usage():
-	print >> sys.stderr, "Usage is: export-to-postgresql.py <database name> [<columns>]"
+	print >> sys.stderr, "Usage is: export-to-postgresql.py <database name> [<columns>] [<calls>]"
 	print >> sys.stderr, "where:	columns		'all' or 'branches'"
+	print >> sys.stderr, "		calls		'calls' => create calls table"
 	raise Exception("Too few arguments")
 
 if (len(sys.argv) < 2):
@@ -60,6 +62,12 @@ if columns not in ("all", "branches"):
 	usage()
 
 branches = (columns == "branches")
+
+if (len(sys.argv) >= 4):
+	if (sys.argv[3] == "calls"):
+		perf_db_export_calls = True
+	else:
+		usage()
 
 output_dir_name = os.getcwd() + "/" + dbname + "-perf-data"
 os.mkdir(output_dir_name)
@@ -170,6 +178,25 @@ else:
 		'branch_type	integer,'
 		'in_tx		boolean)')
 
+if perf_db_export_calls:
+	do_query(query, 'CREATE TABLE call_paths ('
+		'id		bigint		NOT NULL,'
+		'parent_id	bigint,'
+		'symbol_id	bigint,'
+		'ip		bigint)')
+	do_query(query, 'CREATE TABLE calls ('
+		'id		bigint		NOT NULL,'
+		'thread_id	bigint,'
+		'comm_id	bigint,'
+		'call_path_id	bigint,'
+		'call_time	bigint,'
+		'return_time	bigint,'
+		'branch_count	bigint,'
+		'call_id	bigint,'
+		'return_id	bigint,'
+		'parent_call_path_id	bigint,'
+		'flags		integer)')
+
 do_query(query, 'CREATE VIEW samples_view AS '
 	'SELECT '
 		'id,'
@@ -246,6 +273,9 @@ dso_file		= open_output_file("dso_table.bin")
 symbol_file		= open_output_file("symbol_table.bin")
 branch_type_file	= open_output_file("branch_type_table.bin")
 sample_file		= open_output_file("sample_table.bin")
+if perf_db_export_calls:
+	call_path_file		= open_output_file("call_path_table.bin")
+	call_file		= open_output_file("call_table.bin")
 
 def trace_begin():
 	print datetime.datetime.today(), "Writing to intermediate files..."
@@ -256,6 +286,9 @@ def trace_begin():
 	comm_table(0, "unknown")
 	dso_table(0, 0, "unknown", "unknown", "")
 	symbol_table(0, 0, 0, 0, 0, "unknown")
+	sample_table(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	if perf_db_export_calls:
+		call_path_table(0, 0, 0, 0)
 
 unhandled_count = 0
 
@@ -270,6 +303,9 @@ def trace_end():
 	copy_output_file(symbol_file,		"symbols")
 	copy_output_file(branch_type_file,	"branch_types")
 	copy_output_file(sample_file,		"samples")
+	if perf_db_export_calls:
+		copy_output_file(call_path_file,	"call_paths")
+		copy_output_file(call_file,		"calls")
 
 	print datetime.datetime.today(), "Removing intermediate files..."
 	remove_output_file(evsel_file)
@@ -281,6 +317,9 @@ def trace_end():
 	remove_output_file(symbol_file)
 	remove_output_file(branch_type_file)
 	remove_output_file(sample_file)
+	if perf_db_export_calls:
+		remove_output_file(call_path_file)
+		remove_output_file(call_file)
 	os.rmdir(output_dir_name)
 	print datetime.datetime.today(), "Adding primary keys"
 	do_query(query, 'ALTER TABLE selected_events ADD PRIMARY KEY (id)')
@@ -292,6 +331,9 @@ def trace_end():
 	do_query(query, 'ALTER TABLE symbols         ADD PRIMARY KEY (id)')
 	do_query(query, 'ALTER TABLE branch_types    ADD PRIMARY KEY (id)')
 	do_query(query, 'ALTER TABLE samples         ADD PRIMARY KEY (id)')
+	if perf_db_export_calls:
+		do_query(query, 'ALTER TABLE call_paths      ADD PRIMARY KEY (id)')
+		do_query(query, 'ALTER TABLE calls           ADD PRIMARY KEY (id)')
 
 	print datetime.datetime.today(), "Adding foreign keys"
 	do_query(query, 'ALTER TABLE threads '
@@ -313,6 +355,18 @@ def trace_end():
 					'ADD CONSTRAINT symbolfk   FOREIGN KEY (symbol_id)    REFERENCES symbols    (id),'
 					'ADD CONSTRAINT todsofk    FOREIGN KEY (to_dso_id)    REFERENCES dsos       (id),'
 					'ADD CONSTRAINT tosymbolfk FOREIGN KEY (to_symbol_id) REFERENCES symbols    (id)')
+	if perf_db_export_calls:
+		do_query(query, 'ALTER TABLE call_paths '
+					'ADD CONSTRAINT parentfk    FOREIGN KEY (parent_id)    REFERENCES call_paths (id),'
+					'ADD CONSTRAINT symbolfk    FOREIGN KEY (symbol_id)    REFERENCES symbols    (id)')
+		do_query(query, 'ALTER TABLE calls '
+					'ADD CONSTRAINT threadfk    FOREIGN KEY (thread_id)    REFERENCES threads    (id),'
+					'ADD CONSTRAINT commfk      FOREIGN KEY (comm_id)      REFERENCES comms      (id),'
+					'ADD CONSTRAINT call_pathfk FOREIGN KEY (call_path_id) REFERENCES call_paths (id),'
+					'ADD CONSTRAINT callfk      FOREIGN KEY (call_id)      REFERENCES samples    (id),'
+					'ADD CONSTRAINT returnfk    FOREIGN KEY (return_id)    REFERENCES samples    (id),'
+					'ADD CONSTRAINT parent_call_pathfk FOREIGN KEY (parent_call_path_id) REFERENCES call_paths (id)')
+		do_query(query, 'CREATE INDEX pcpid_idx ON calls (parent_call_path_id)')
 
 	if (unhandled_count):
 		print datetime.datetime.today(), "Warning: ", unhandled_count, " unhandled events"
@@ -378,3 +432,13 @@ def sample_table(sample_id, evsel_id, machine_id, thread_id, comm_id, dso_id, sy
 	else:
 		value = struct.pack("!hiqiqiqiqiqiqiqiqiqiqiiiqiqiqiqiqiqiqiqiiiB", 21, 8, sample_id, 8, evsel_id, 8, machine_id, 8, thread_id, 8, comm_id, 8, dso_id, 8, symbol_id, 8, sym_offset, 8, ip, 8, time, 4, cpu, 8, to_dso_id, 8, to_symbol_id, 8, to_sym_offset, 8, to_ip, 8, period, 8, weight, 8, transaction, 8, data_src, 4, branch_type, 1, in_tx)
 	sample_file.write(value)
+
+def call_path_table(cp_id, parent_id, symbol_id, ip, *x):
+	fmt = "!hiqiqiqiq"
+	value = struct.pack(fmt, 4, 8, cp_id, 8, parent_id, 8, symbol_id, 8, ip)
+	call_path_file.write(value)
+
+def call_return_table(cr_id, thread_id, comm_id, call_path_id, call_time, return_time, branch_count, call_id, return_id, parent_call_path_id, flags, *x):
+	fmt = "!hiqiqiqiqiqiqiqiqiqiqii"
+	value = struct.pack(fmt, 11, 8, cr_id, 8, thread_id, 8, comm_id, 8, call_path_id, 8, call_time, 8, return_time, 8, branch_count, 8, call_id, 8, return_id, 8, parent_call_path_id, 4, flags)
+	call_file.write(value)
