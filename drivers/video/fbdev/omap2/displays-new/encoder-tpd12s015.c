@@ -461,6 +461,7 @@ static struct platform_driver tpd_driver = {
 		.name	= "tpd12s015",
 		.owner	= THIS_MODULE,
 		.of_match_table = tpd_of_match,
+		.suppress_bind_attrs = true,
 	},
 };
 
