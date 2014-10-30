@@ -407,6 +407,11 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 			PPC_LHZ_OFFS(r_A, r_skb, offsetof(struct sk_buff,
 							  queue_mapping));
 			break;
+		case BPF_ANC | SKF_AD_PKTTYPE:
+			PPC_LBZ_OFFS(r_A, r_skb, PKT_TYPE_OFFSET());
+			PPC_ANDI(r_A, r_A, PKT_TYPE_MAX);
+			PPC_SRWI(r_A, r_A, 5);
+			break;
 		case BPF_ANC | SKF_AD_CPU:
 #ifdef CONFIG_SMP
 			/*
