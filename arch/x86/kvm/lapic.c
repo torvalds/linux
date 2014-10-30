@@ -244,21 +244,17 @@ static inline int apic_lvt_vector(struct kvm_lapic *apic, int lvt_type)
 
 static inline int apic_lvtt_oneshot(struct kvm_lapic *apic)
 {
-	return ((kvm_apic_get_reg(apic, APIC_LVTT) &
-		apic->lapic_timer.timer_mode_mask) == APIC_LVT_TIMER_ONESHOT);
+	return apic->lapic_timer.timer_mode == APIC_LVT_TIMER_ONESHOT;
 }
 
 static inline int apic_lvtt_period(struct kvm_lapic *apic)
 {
-	return ((kvm_apic_get_reg(apic, APIC_LVTT) &
-		apic->lapic_timer.timer_mode_mask) == APIC_LVT_TIMER_PERIODIC);
+	return apic->lapic_timer.timer_mode == APIC_LVT_TIMER_PERIODIC;
 }
 
 static inline int apic_lvtt_tscdeadline(struct kvm_lapic *apic)
 {
-	return ((kvm_apic_get_reg(apic, APIC_LVTT) &
-		apic->lapic_timer.timer_mode_mask) ==
-			APIC_LVT_TIMER_TSCDEADLINE);
+	return apic->lapic_timer.timer_mode == APIC_LVT_TIMER_TSCDEADLINE;
 }
 
 static inline int apic_lvt_nmi_mode(u32 lvt_val)

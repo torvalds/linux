@@ -121,11 +121,11 @@ static inline int kvm_apic_hw_enabled(struct kvm_lapic *apic)
 
 extern struct static_key_deferred apic_sw_disabled;
 
-static inline int kvm_apic_sw_enabled(struct kvm_lapic *apic)
+static inline bool kvm_apic_sw_enabled(struct kvm_lapic *apic)
 {
 	if (static_key_false(&apic_sw_disabled.key))
-		return kvm_apic_get_reg(apic, APIC_SPIV) & APIC_SPIV_APIC_ENABLED;
-	return APIC_SPIV_APIC_ENABLED;
+		return apic->sw_enabled;
+	return true;
 }
 
 static inline bool kvm_apic_present(struct kvm_vcpu *vcpu)
