@@ -1111,6 +1111,10 @@ static int srp_rport_reconnect(struct srp_rport *rport)
 	int i, ret;
 
 	srp_disconnect_target(target);
+
+	if (target->state == SRP_TARGET_SCANNING)
+		return -ENODEV;
+
 	/*
 	 * Now get a new local CM ID so that we avoid confusing the target in
 	 * case things are really fouled up. Doing so also ensures that all CM
@@ -2585,11 +2589,23 @@ static struct scsi_host_template srp_template = {
 	.shost_attrs			= srp_host_attrs
 };
 
+static int srp_sdev_count(struct Scsi_Host *host)
+{
+	struct scsi_device *sdev;
+	int c = 0;
+
+	shost_for_each_device(sdev, host)
+		c++;
+
+	return c;
+}
+
 static int srp_add_target(struct srp_host *host, struct srp_target_port *target)
 {
 	struct srp_rport_identifiers ids;
 	struct srp_rport *rport;
 
+	target->state = SRP_TARGET_SCANNING;
 	sprintf(target->target_name, "SRP.T10:%016llX",
 		 (unsigned long long) be64_to_cpu(target->id_ext));
 
@@ -2612,11 +2628,26 @@ static int srp_add_target(struct srp_host *host, struct srp_target_port *target)
 	list_add_tail(&target->list, &host->target_list);
 	spin_unlock(&host->target_lock);
 
-	target->state = SRP_TARGET_LIVE;
-
 	scsi_scan_target(&target->scsi_host->shost_gendev,
 			 0, target->scsi_id, SCAN_WILD_CARD, 0);
 
+	if (!target->connected || target->qp_in_error) {
+		shost_printk(KERN_INFO, target->scsi_host,
+			     PFX "SCSI scan failed - removing SCSI host\n");
+		srp_queue_remove_work(target);
+		goto out;
+	}
+
+	pr_debug(PFX "%s: SCSI scan succeeded - detected %d LUNs\n",
+		 dev_name(&target->scsi_host->shost_gendev),
+		 srp_sdev_count(target->scsi_host));
+
+	spin_lock_irq(&target->lock);
+	if (target->state == SRP_TARGET_SCANNING)
+		target->state = SRP_TARGET_LIVE;
+	spin_unlock_irq(&target->lock);
+
+out:
 	return 0;
 }
 
@@ -2960,6 +2991,12 @@ static ssize_t srp_create_target(struct device *dev,
 	target->tl_retry_count	= 7;
 	target->queue_size	= SRP_DEFAULT_QUEUE_SIZE;
 
+	/*
+	 * Avoid that the SCSI host can be removed by srp_remove_target()
+	 * before this function returns.
+	 */
+	scsi_host_get(target->scsi_host);
+
 	mutex_lock(&host->add_target_mutex);
 
 	ret = srp_parse_options(buf, target);
@@ -3022,18 +3059,23 @@ static ssize_t srp_create_target(struct device *dev,
 	if (ret)
 		goto err_disconnect;
 
-	shost_printk(KERN_DEBUG, target->scsi_host, PFX
-		     "new target: id_ext %016llx ioc_guid %016llx pkey %04x service_id %016llx sgid %pI6 dgid %pI6\n",
-		     be64_to_cpu(target->id_ext),
-		     be64_to_cpu(target->ioc_guid),
-		     be16_to_cpu(target->path.pkey),
-		     be64_to_cpu(target->service_id),
-		     target->path.sgid.raw, target->path.dgid.raw);
+	if (target->state != SRP_TARGET_REMOVED) {
+		shost_printk(KERN_DEBUG, target->scsi_host, PFX
+			     "new target: id_ext %016llx ioc_guid %016llx pkey %04x service_id %016llx sgid %pI6 dgid %pI6\n",
+			     be64_to_cpu(target->id_ext),
+			     be64_to_cpu(target->ioc_guid),
+			     be16_to_cpu(target->path.pkey),
+			     be64_to_cpu(target->service_id),
+			     target->path.sgid.raw, target->orig_dgid);
+	}
 
 	ret = count;
 
 out:
 	mutex_unlock(&host->add_target_mutex);
+
+	scsi_host_put(target->scsi_host);
+
 	return ret;
 
 err_disconnect:
