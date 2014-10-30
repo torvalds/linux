@@ -1427,7 +1427,7 @@ NCR_700_start_command(struct scsi_cmnd *SCp)
 	if((hostdata->tag_negotiated & (1<<scmd_id(SCp)))
 	   && (slot->tag != SCSI_NO_TAG && SCp->cmnd[0] != REQUEST_SENSE &&
 	       slot->flags != NCR_700_FLAG_AUTOSENSE)) {
-		count += scsi_populate_tag_msg(SCp, &hostdata->msgout[count]);
+		count += spi_populate_tag_msg(&hostdata->msgout[count], SCp);
 	}
 
 	if(hostdata->fast &&

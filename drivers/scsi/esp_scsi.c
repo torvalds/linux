@@ -663,7 +663,7 @@ static struct esp_cmd_entry *find_and_prep_issuable_command(struct esp *esp)
 			return ent;
 		}
 
-		if (!scsi_populate_tag_msg(cmd, &ent->tag[0])) {
+		if (!spi_populate_tag_msg(&ent->tag[0], cmd)) {
 			ent->tag[0] = 0;
 			ent->tag[1] = 0;
 		}

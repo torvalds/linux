@@ -1643,19 +1643,9 @@ static int ibmvfc_queuecommand_lck(struct scsi_cmnd *cmnd,
 	int_to_scsilun(cmnd->device->lun, &vfc_cmd->iu.lun);
 	memcpy(vfc_cmd->iu.cdb, cmnd->cmnd, cmnd->cmd_len);
 
-	if (scsi_populate_tag_msg(cmnd, tag)) {
-		vfc_cmd->task_tag = cpu_to_be64(tag[1]);
-		switch (tag[0]) {
-		case MSG_SIMPLE_TAG:
-			vfc_cmd->iu.pri_task_attr = IBMVFC_SIMPLE_TASK;
-			break;
-		case MSG_HEAD_TAG:
-			vfc_cmd->iu.pri_task_attr = IBMVFC_HEAD_OF_QUEUE;
-			break;
-		case MSG_ORDERED_TAG:
-			vfc_cmd->iu.pri_task_attr = IBMVFC_ORDERED_TASK;
-			break;
-		};
+	if (cmnd->flags & SCMD_TAGGED) {
+		vfc_cmd->task_tag = cpu_to_be64(cmnd->tag);
+		vfc_cmd->iu.pri_task_attr = IBMVFC_SIMPLE_TASK;
 	}
 
 	if (likely(!(rc = ibmvfc_map_sg_data(cmnd, evt, vfc_cmd, vhost->dev))))

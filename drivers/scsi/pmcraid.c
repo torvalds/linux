@@ -3169,36 +3169,6 @@ static int pmcraid_eh_host_reset_handler(struct scsi_cmnd *scmd)
 }
 
 /**
- * pmcraid_task_attributes - Translate SPI Q-Tags to task attributes
- * @scsi_cmd:   scsi command struct
- *
- * Return value
- *	  number of tags or 0 if the task is not tagged
- */
-static u8 pmcraid_task_attributes(struct scsi_cmnd *scsi_cmd)
-{
-	char tag[2];
-	u8 rc = 0;
-
-	if (scsi_populate_tag_msg(scsi_cmd, tag)) {
-		switch (tag[0]) {
-		case MSG_SIMPLE_TAG:
-			rc = TASK_TAG_SIMPLE;
-			break;
-		case MSG_HEAD_TAG:
-			rc = TASK_TAG_QUEUE_HEAD;
-			break;
-		case MSG_ORDERED_TAG:
-			rc = TASK_TAG_ORDERED;
-			break;
-		};
-	}
-
-	return rc;
-}
-
-
-/**
  * pmcraid_init_ioadls - initializes IOADL related fields in IOARCB
  * @cmd: pmcraid command struct
  * @sgcount: count of scatter-gather elements
@@ -3553,7 +3523,9 @@ static int pmcraid_queuecommand_lck(
 		}
 
 		ioarcb->request_flags0 |= NO_LINK_DESCS;
-		ioarcb->request_flags1 |= pmcraid_task_attributes(scsi_cmd);
+
+		if (scsi_cmd->flags & SCMD_TAGGED)
+			ioarcb->request_flags1 |= TASK_TAG_SIMPLE;
 
 		if (RES_IS_GSCSI(res->cfg_entry))
 			ioarcb->request_flags1 |= DELAY_AFTER_RESET;

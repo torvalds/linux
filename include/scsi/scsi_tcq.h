@@ -80,27 +80,6 @@ static inline void scsi_deactivate_tcq(struct scsi_device *sdev, int depth)
 	scsi_adjust_queue_depth(sdev, 0, depth);
 }
 
-/**
- * scsi_populate_tag_msg - place a tag message in a buffer
- * @SCpnt:	pointer to the Scsi_Cmnd for the tag
- * @msg:	pointer to the area to place the tag
- *
- * Notes:
- *	designed to create the correct type of tag message for the 
- *	particular request.  Returns the size of the tag message.
- *	May return 0 if TCQ is disabled for this device.
- **/
-static inline int scsi_populate_tag_msg(struct scsi_cmnd *cmd, char *msg)
-{
-        if (cmd->flags & SCMD_TAGGED) {
-		*msg++ = MSG_SIMPLE_TAG;
-        	*msg++ = cmd->request->tag;
-        	return 2;
-	}
-
-	return 0;
-}
-
 static inline struct scsi_cmnd *scsi_mq_find_tag(struct Scsi_Host *shost,
 						 int unique_tag)
 {

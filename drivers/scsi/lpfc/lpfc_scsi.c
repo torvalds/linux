@@ -4266,7 +4266,6 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 	IOCB_t *iocb_cmd = &lpfc_cmd->cur_iocbq.iocb;
 	struct lpfc_iocbq *piocbq = &(lpfc_cmd->cur_iocbq);
 	int datadir = scsi_cmnd->sc_data_direction;
-	char tag[2];
 	uint8_t *ptr;
 	bool sli4;
 	uint32_t fcpdl;
@@ -4288,20 +4287,7 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 		memset(ptr, 0, (LPFC_FCP_CDB_LEN - scsi_cmnd->cmd_len));
 	}
 
-	if (scsi_populate_tag_msg(scsi_cmnd, tag)) {
-		switch (tag[0]) {
-		case HEAD_OF_QUEUE_TAG:
-			fcp_cmnd->fcpCntl1 = HEAD_OF_Q;
-			break;
-		case ORDERED_QUEUE_TAG:
-			fcp_cmnd->fcpCntl1 = ORDERED_Q;
-			break;
-		default:
-			fcp_cmnd->fcpCntl1 = SIMPLE_Q;
-			break;
-		}
-	} else
-		fcp_cmnd->fcpCntl1 = SIMPLE_Q;
+	fcp_cmnd->fcpCntl1 = SIMPLE_Q;
 
 	sli4 = (phba->sli_rev == LPFC_SLI_REV4);
 	piocbq->iocb.un.fcpi.fcpi_XRdy = 0;

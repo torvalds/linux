@@ -325,13 +325,11 @@ static inline int fnic_queue_wq_copy_desc(struct fnic *fnic,
 	struct fc_rport_libfc_priv *rp = rport->dd_data;
 	struct host_sg_desc *desc;
 	struct misc_stats *misc_stats = &fnic->fnic_stats.misc_stats;
-	u8 pri_tag = 0;
 	unsigned int i;
 	unsigned long intr_flags;
 	int flags;
 	u8 exch_flags;
 	struct scsi_lun fc_lun;
-	char msg[2];
 
 	if (sg_count) {
 		/* For each SGE, create a device desc entry */
@@ -356,12 +354,6 @@ static inline int fnic_queue_wq_copy_desc(struct fnic *fnic,
 					      PCI_DMA_FROMDEVICE);
 
 	int_to_scsilun(sc->device->lun, &fc_lun);
-
-	pri_tag = FCPIO_ICMND_PTA_SIMPLE;
-	msg[0] = MSG_SIMPLE_TAG;
-	scsi_populate_tag_msg(sc, msg);
-	if (msg[0] == MSG_ORDERED_TAG)
-		pri_tag = FCPIO_ICMND_PTA_ORDERED;
 
 	/* Enqueue the descriptor in the Copy WQ */
 	spin_lock_irqsave(&fnic->wq_copy_lock[0], intr_flags);
@@ -394,7 +386,8 @@ static inline int fnic_queue_wq_copy_desc(struct fnic *fnic,
 					 io_req->sgl_list_pa,
 					 io_req->sense_buf_pa,
 					 0, /* scsi cmd ref, always 0 */
-					 pri_tag, /* scsi pri and tag */
+					 FCPIO_ICMND_PTA_SIMPLE,
+					 	/* scsi pri and tag */
 					 flags,	/* command flags */
 					 sc->cmnd, sc->cmd_len,
 					 scsi_bufflen(sc),

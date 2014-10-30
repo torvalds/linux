@@ -3086,7 +3086,6 @@ qlafx00_start_scsi(srb_t *sp)
 	struct cmd_type_7_fx00 *cmd_pkt;
 	struct cmd_type_7_fx00 lcmd_pkt;
 	struct scsi_lun llun;
-	char		tag[2];
 
 	/* Setup device pointers. */
 	ret = 0;
@@ -3156,18 +3155,6 @@ qlafx00_start_scsi(srb_t *sp)
 	int_to_scsilun(cmd->device->lun, &llun);
 	host_to_adap((uint8_t *)&llun, (uint8_t *)&lcmd_pkt.lun,
 	    sizeof(lcmd_pkt.lun));
-
-	/* Update tagged queuing modifier -- default is TSK_SIMPLE (0). */
-	if (scsi_populate_tag_msg(cmd, tag)) {
-		switch (tag[0]) {
-		case HEAD_OF_QUEUE_TAG:
-			lcmd_pkt.task = TSK_HEAD_OF_QUEUE;
-			break;
-		case ORDERED_QUEUE_TAG:
-			lcmd_pkt.task = TSK_ORDERED;
-			break;
-		}
-	}
 
 	/* Load SCSI command packet. */
 	host_to_adap(cmd->cmnd, lcmd_pkt.fcp_cdb, sizeof(lcmd_pkt.fcp_cdb));

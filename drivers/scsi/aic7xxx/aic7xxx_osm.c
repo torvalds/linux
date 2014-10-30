@@ -1501,15 +1501,7 @@ ahc_linux_run_command(struct ahc_softc *ahc, struct ahc_linux_device *dev,
 	}
 
 	if ((dev->flags & (AHC_DEV_Q_TAGGED|AHC_DEV_Q_BASIC)) != 0) {
-		int	msg_bytes;
-		uint8_t tag_msgs[2];
-		
-		msg_bytes = scsi_populate_tag_msg(cmd, tag_msgs);
-		if (msg_bytes && tag_msgs[0] != MSG_SIMPLE_TASK) {
-			hscb->control |= tag_msgs[0];
-			if (tag_msgs[0] == MSG_ORDERED_TASK)
-				dev->commands_since_idle_or_otag = 0;
-		} else if (dev->commands_since_idle_or_otag == AHC_OTAG_THRESH
+		if (dev->commands_since_idle_or_otag == AHC_OTAG_THRESH
 				&& (dev->flags & AHC_DEV_Q_TAGGED) != 0) {
 			hscb->control |= MSG_ORDERED_TASK;
 			dev->commands_since_idle_or_otag = 0;

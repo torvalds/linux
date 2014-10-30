@@ -5659,35 +5659,6 @@ static int ipr_build_ioadl(struct ipr_ioa_cfg *ioa_cfg,
 }
 
 /**
- * ipr_get_task_attributes - Translate SPI Q-Tag to task attributes
- * @scsi_cmd:	scsi command struct
- *
- * Return value:
- * 	task attributes
- **/
-static u8 ipr_get_task_attributes(struct scsi_cmnd *scsi_cmd)
-{
-	u8 tag[2];
-	u8 rc = IPR_FLAGS_LO_UNTAGGED_TASK;
-
-	if (scsi_populate_tag_msg(scsi_cmd, tag)) {
-		switch (tag[0]) {
-		case MSG_SIMPLE_TAG:
-			rc = IPR_FLAGS_LO_SIMPLE_TASK;
-			break;
-		case MSG_HEAD_TAG:
-			rc = IPR_FLAGS_LO_HEAD_OF_Q_TASK;
-			break;
-		case MSG_ORDERED_TAG:
-			rc = IPR_FLAGS_LO_ORDERED_TASK;
-			break;
-		};
-	}
-
-	return rc;
-}
-
-/**
  * ipr_erp_done - Process completion of ERP for a device
  * @ipr_cmd:		ipr command struct
  *
@@ -6222,7 +6193,10 @@ static int ipr_queuecommand(struct Scsi_Host *shost,
 			ioarcb->cmd_pkt.flags_lo |= IPR_FLAGS_LO_DELAY_AFTER_RST;
 		}
 		ioarcb->cmd_pkt.flags_lo |= IPR_FLAGS_LO_ALIGNED_BFR;
-		ioarcb->cmd_pkt.flags_lo |= ipr_get_task_attributes(scsi_cmd);
+		if (scsi_cmd->flags & SCMD_TAGGED)
+			ioarcb->cmd_pkt.flags_lo |= IPR_FLAGS_LO_SIMPLE_TASK;
+		else
+			ioarcb->cmd_pkt.flags_lo |= IPR_FLAGS_LO_UNTAGGED_TASK;
 	}
 
 	if (scsi_cmd->cmnd[0] >= 0xC0 &&

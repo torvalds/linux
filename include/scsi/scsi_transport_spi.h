@@ -157,5 +157,6 @@ int spi_populate_width_msg(unsigned char *msg, int width);
 int spi_populate_sync_msg(unsigned char *msg, int period, int offset);
 int spi_populate_ppr_msg(unsigned char *msg, int period, int offset, int width,
 		int options);
+int spi_populate_tag_msg(unsigned char *msg, struct scsi_cmnd *cmd);
 
 #endif /* SCSI_TRANSPORT_SPI_H */

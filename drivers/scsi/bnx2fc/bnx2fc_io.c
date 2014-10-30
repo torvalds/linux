@@ -1725,7 +1725,6 @@ void bnx2fc_build_fcp_cmnd(struct bnx2fc_cmd *io_req,
 				  struct fcp_cmnd *fcp_cmnd)
 {
 	struct scsi_cmnd *sc_cmd = io_req->sc_cmd;
-	char tag[2];
 
 	memset(fcp_cmnd, 0, sizeof(struct fcp_cmnd));
 
@@ -1739,21 +1738,10 @@ void bnx2fc_build_fcp_cmnd(struct bnx2fc_cmd *io_req,
 	fcp_cmnd->fc_tm_flags = io_req->mp_req.tm_flags;
 	fcp_cmnd->fc_flags = io_req->io_req_flags;
 
-	if (scsi_populate_tag_msg(sc_cmd, tag)) {
-		switch (tag[0]) {
-		case HEAD_OF_QUEUE_TAG:
-			fcp_cmnd->fc_pri_ta = FCP_PTA_HEADQ;
-			break;
-		case ORDERED_QUEUE_TAG:
-			fcp_cmnd->fc_pri_ta = FCP_PTA_ORDERED;
-			break;
-		default:
-			fcp_cmnd->fc_pri_ta = FCP_PTA_SIMPLE;
-			break;
-		}
-	} else {
+	if (sc_cmd->flags & SCMD_TAGGED)
+		fcp_cmnd->fc_pri_ta = FCP_PTA_SIMPLE;
+	else
 		fcp_cmnd->fc_pri_ta = 0;
-	}
 }
 
 static void bnx2fc_parse_fcp_rsp(struct bnx2fc_cmd *io_req,
