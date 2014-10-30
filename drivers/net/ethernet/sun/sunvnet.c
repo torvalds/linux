@@ -760,6 +760,7 @@ static int vnet_poll(struct napi_struct *napi, int budget)
 
 	if (processed < budget) {
 		napi_complete(napi);
+		port->rx_event &= ~LDC_EVENT_DATA_READY;
 		vio_set_intr(vio->vdev->rx_ino, HV_INTR_ENABLED);
 	}
 	return processed;
