@@ -342,9 +342,6 @@ static int stac9766_codec_probe(struct snd_soc_codec *codec)
 		goto codec_err;
 	}
 
-	snd_soc_add_codec_controls(codec, stac9766_snd_ac97_controls,
-			     ARRAY_SIZE(stac9766_snd_ac97_controls));
-
 	return 0;
 
 codec_err:
@@ -359,6 +356,8 @@ static int stac9766_codec_remove(struct snd_soc_codec *codec)
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_stac9766 = {
+	.controls = stac9766_snd_ac97_controls,
+	.num_controls = ARRAY_SIZE(stac9766_snd_ac97_controls),
 	.write = stac9766_ac97_write,
 	.read = stac9766_ac97_read,
 	.set_bias_level = stac9766_set_bias_level,
