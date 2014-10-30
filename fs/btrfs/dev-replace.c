@@ -577,15 +577,11 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	list_add(&tgt_device->dev_alloc_list, &fs_info->fs_devices->alloc_list);
 	fs_info->fs_devices->rw_devices++;
 
-	/* replace the sysfs entry */
-	btrfs_kobj_rm_device(fs_info, src_device);
-	btrfs_kobj_add_device(fs_info, tgt_device);
-
 	btrfs_dev_replace_unlock(dev_replace);
 
 	btrfs_rm_dev_replace_blocked(fs_info);
 
-	btrfs_rm_dev_replace_srcdev(fs_info, src_device);
+	btrfs_rm_dev_replace_remove_srcdev(fs_info, src_device);
 
 	btrfs_rm_dev_replace_unblocked(fs_info);
 
@@ -599,6 +595,11 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 	mutex_unlock(&root->fs_info->chunk_mutex);
 	mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
 	mutex_unlock(&uuid_mutex);
+
+	/* replace the sysfs entry */
+	btrfs_kobj_rm_device(fs_info, src_device);
+	btrfs_kobj_add_device(fs_info, tgt_device);
+	btrfs_rm_dev_replace_free_srcdev(fs_info, src_device);
 
 	/* write back the superblocks */
 	trans = btrfs_start_transaction(root, 0);

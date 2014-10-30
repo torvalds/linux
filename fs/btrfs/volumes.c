@@ -1800,8 +1800,8 @@ error_undo:
 	goto error_brelse;
 }
 
-void btrfs_rm_dev_replace_srcdev(struct btrfs_fs_info *fs_info,
-				 struct btrfs_device *srcdev)
+void btrfs_rm_dev_replace_remove_srcdev(struct btrfs_fs_info *fs_info,
+					struct btrfs_device *srcdev)
 {
 	struct btrfs_fs_devices *fs_devices;
 
@@ -1829,6 +1829,12 @@ void btrfs_rm_dev_replace_srcdev(struct btrfs_fs_info *fs_info,
 
 	if (srcdev->bdev)
 		fs_devices->open_devices--;
+}
+
+void btrfs_rm_dev_replace_free_srcdev(struct btrfs_fs_info *fs_info,
+				      struct btrfs_device *srcdev)
+{
+	struct btrfs_fs_devices *fs_devices = srcdev->fs_devices;
 
 	call_rcu(&srcdev->rcu, free_device);
 
