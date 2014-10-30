@@ -2017,6 +2017,7 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 	if (s && s->async) {
 		poll_wait(file, &s->async->wait_head, wait);
 		if (!s->busy || !comedi_is_subdevice_running(s) ||
+		    (s->async->cmd.flags & CMDF_WRITE) ||
 		    comedi_buf_read_n_available(s) > 0)
 			mask |= POLLIN | POLLRDNORM;
 	}
@@ -2028,6 +2029,7 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 		poll_wait(file, &s->async->wait_head, wait);
 		comedi_buf_write_alloc(s, s->async->prealloc_bufsz);
 		if (!s->busy || !comedi_is_subdevice_running(s) ||
+		    !(s->async->cmd.flags & CMDF_WRITE) ||
 		    comedi_buf_write_n_allocated(s) >= bps)
 			mask |= POLLOUT | POLLWRNORM;
 	}
