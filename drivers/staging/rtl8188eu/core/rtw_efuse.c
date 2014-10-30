@@ -106,13 +106,13 @@ efuse_phymap_to_logical(u8 *phymap, u16 _offset, u16 _size_byte, u8  *pbuf)
 	efuseTbl = kzalloc(EFUSE_MAP_LEN_88E, GFP_KERNEL);
 	if (efuseTbl == NULL) {
 		DBG_88E("%s: alloc efuseTbl fail!\n", __func__);
-		goto exit;
+		return;
 	}
 
 	eFuseWord = (u16 **)rtw_malloc2d(EFUSE_MAX_SECTION_88E, EFUSE_MAX_WORD_UNIT, sizeof(u16));
 	if (eFuseWord == NULL) {
 		DBG_88E("%s: alloc eFuseWord fail!\n", __func__);
-		goto exit;
+		goto eFuseWord_failed;
 	}
 
 	/*  0. Refresh efuse init map as all oxFF. */
@@ -210,10 +210,10 @@ efuse_phymap_to_logical(u8 *phymap, u16 _offset, u16 _size_byte, u8  *pbuf)
 	/*  */
 
 exit:
-	kfree(efuseTbl);
+	kfree(eFuseWord);
 
-	if (eFuseWord)
-		kfree(eFuseWord);
+eFuseWord_failed:
+	kfree(efuseTbl);
 }
 
 static void efuse_read_phymap_from_txpktbuf(
