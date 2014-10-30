@@ -154,8 +154,7 @@ int nf_logger_find_get(int pf, enum nf_log_type type)
 	struct nf_logger *logger;
 	int ret = -ENOENT;
 
-	logger = loggers[pf][type];
-	if (logger == NULL)
+	if (rcu_access_pointer(loggers[pf][type]) == NULL)
 		request_module("nf-logger-%u-%u", pf, type);
 
 	rcu_read_lock();
