@@ -25,6 +25,9 @@ struct comm;
 struct dso;
 struct perf_sample;
 struct addr_location;
+struct call_return_processor;
+struct call_path;
+struct call_return;
 
 struct export_sample {
 	union perf_event	*event;
@@ -57,6 +60,10 @@ struct db_export {
 	int (*export_branch_type)(struct db_export *dbe, u32 branch_type,
 				  const char *name);
 	int (*export_sample)(struct db_export *dbe, struct export_sample *es);
+	int (*export_call_path)(struct db_export *dbe, struct call_path *cp);
+	int (*export_call_return)(struct db_export *dbe,
+				  struct call_return *cr);
+	struct call_return_processor *crp;
 	u64 evsel_last_db_id;
 	u64 machine_last_db_id;
 	u64 thread_last_db_id;
@@ -65,6 +72,8 @@ struct db_export {
 	u64 dso_last_db_id;
 	u64 symbol_last_db_id;
 	u64 sample_last_db_id;
+	u64 call_path_last_db_id;
+	u64 call_return_last_db_id;
 };
 
 int db_export__init(struct db_export *dbe);
@@ -88,5 +97,8 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 		      struct thread *thread, struct addr_location *al);
 
 int db_export__branch_types(struct db_export *dbe);
+
+int db_export__call_path(struct db_export *dbe, struct call_path *cp);
+int db_export__call_return(struct db_export *dbe, struct call_return *cr);
 
 #endif

@@ -21,6 +21,7 @@
 #include "comm.h"
 #include "symbol.h"
 #include "event.h"
+#include "thread-stack.h"
 #include "db-export.h"
 
 int db_export__init(struct db_export *dbe)
@@ -29,8 +30,10 @@ int db_export__init(struct db_export *dbe)
 	return 0;
 }
 
-void db_export__exit(struct db_export *dbe __maybe_unused)
+void db_export__exit(struct db_export *dbe)
 {
+	call_return_processor__free(dbe->crp);
+	dbe->crp = NULL;
 }
 
 int db_export__evsel(struct db_export *dbe, struct perf_evsel *evsel)
@@ -270,6 +273,13 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 				     &es.addr_sym_db_id, &es.addr_offset);
 		if (err)
 			return err;
+		if (dbe->crp) {
+			err = thread_stack__process(thread, comm, sample, al,
+						    &addr_al, es.db_id,
+						    dbe->crp);
+			if (err)
+				return err;
+		}
 	}
 
 	if (dbe->export_sample)
@@ -315,4 +325,44 @@ int db_export__branch_types(struct db_export *dbe)
 			break;
 	}
 	return err;
+}
+
+int db_export__call_path(struct db_export *dbe, struct call_path *cp)
+{
+	int err;
+
+	if (cp->db_id)
+		return 0;
+
+	if (cp->parent) {
+		err = db_export__call_path(dbe, cp->parent);
+		if (err)
+			return err;
+	}
+
+	cp->db_id = ++dbe->call_path_last_db_id;
+
+	if (dbe->export_call_path)
+		return dbe->export_call_path(dbe, cp);
+
+	return 0;
+}
+
+int db_export__call_return(struct db_export *dbe, struct call_return *cr)
+{
+	int err;
+
+	if (cr->db_id)
+		return 0;
+
+	err = db_export__call_path(dbe, cr->cp);
+	if (err)
+		return err;
+
+	cr->db_id = ++dbe->call_return_last_db_id;
+
+	if (dbe->export_call_return)
+		return dbe->export_call_return(dbe, cr);
+
+	return 0;
 }
