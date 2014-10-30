@@ -4,6 +4,7 @@
 #include <string.h>
 #include "session.h"
 #include "thread.h"
+#include "thread-stack.h"
 #include "util.h"
 #include "debug.h"
 #include "comm.h"
@@ -65,6 +66,8 @@ err_thread:
 void thread__delete(struct thread *thread)
 {
 	struct comm *comm, *tmp;
+
+	thread_stack__free(thread);
 
 	if (thread->mg) {
 		map_groups__put(thread->mg);
