@@ -117,6 +117,7 @@ struct compress_sst_ops {
 	int (*get_codec_caps)(struct snd_compr_codec_caps *codec);
 	int (*set_metadata)(struct device *dev,	unsigned int str_id,
 			struct snd_compr_metadata *mdata);
+	int (*power)(struct device *dev, bool state);
 };
 
 struct sst_ops {
