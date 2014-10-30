@@ -209,7 +209,8 @@ static int ad1980_reset(struct snd_soc_codec *codec, int try_warm)
 			return 0;
 	} while (retry_cnt++ < 10);
 
-	printk(KERN_ERR "AD1980 AC97 reset failed\n");
+	dev_err(codec->dev, "Failed to reset: AC97 link error\n");
+
 	return -EIO;
 }
 
@@ -219,19 +220,15 @@ static int ad1980_soc_probe(struct snd_soc_codec *codec)
 	u16 vendor_id2;
 	u16 ext_status;
 
-	printk(KERN_INFO "AD1980 SoC Audio Codec\n");
-
 	ret = snd_soc_new_ac97_codec(codec, soc_ac97_ops, 0);
 	if (ret < 0) {
-		printk(KERN_ERR "ad1980: failed to register AC97 codec\n");
+		dev_err(codec->dev, "Failed to register AC97 codec\n");
 		return ret;
 	}
 
 	ret = ad1980_reset(codec, 0);
-	if (ret < 0) {
-		printk(KERN_ERR "Failed to reset AD1980: AC97 link error\n");
+	if (ret < 0)
 		goto reset_err;
-	}
 
 	/* Read out vendor ID to make sure it is ad1980 */
 	if (ac97_read(codec, AC97_VENDOR_ID1) != 0x4144) {
@@ -246,9 +243,8 @@ static int ad1980_soc_probe(struct snd_soc_codec *codec)
 			ret = -ENODEV;
 			goto reset_err;
 		} else {
-			printk(KERN_WARNING "ad1980: "
-				"Found AD1981 - only 2/2 IN/OUT Channels "
-				"supported\n");
+			dev_warn(codec->dev,
+				"Found AD1981 - only 2/2 IN/OUT Channels supported\n");
 		}
 	}
 
