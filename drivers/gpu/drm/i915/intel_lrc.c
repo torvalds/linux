@@ -356,9 +356,9 @@ static int execlists_ctx_write_tail(struct drm_i915_gem_object *ctx_obj, u32 tai
 	return 0;
 }
 
-static int execlists_submit_context(struct intel_engine_cs *ring,
-				    struct intel_context *to0, u32 tail0,
-				    struct intel_context *to1, u32 tail1)
+static void execlists_submit_contexts(struct intel_engine_cs *ring,
+				      struct intel_context *to0, u32 tail0,
+				      struct intel_context *to1, u32 tail1)
 {
 	struct drm_i915_gem_object *ctx_obj0;
 	struct drm_i915_gem_object *ctx_obj1 = NULL;
@@ -378,8 +378,6 @@ static int execlists_submit_context(struct intel_engine_cs *ring,
 	}
 
 	execlists_elsp_write(ring, ctx_obj0, ctx_obj1);
-
-	return 0;
 }
 
 static void execlists_context_unqueue(struct intel_engine_cs *ring)
@@ -413,9 +411,9 @@ static void execlists_context_unqueue(struct intel_engine_cs *ring)
 
 	WARN_ON(req1 && req1->elsp_submitted);
 
-	WARN_ON(execlists_submit_context(ring, req0->ctx, req0->tail,
-					 req1 ? req1->ctx : NULL,
-					 req1 ? req1->tail : 0));
+	execlists_submit_contexts(ring, req0->ctx, req0->tail,
+				  req1 ? req1->ctx : NULL,
+				  req1 ? req1->tail : 0);
 
 	req0->elsp_submitted++;
 	if (req1)
