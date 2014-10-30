@@ -3588,6 +3588,8 @@ static void valleyview_irq_uninstall(struct drm_device *dev)
 
 	I915_WRITE(VLV_MASTER_IER, 0);
 
+	gen5_gt_irq_reset(dev);
+
 	for_each_pipe(dev_priv, pipe)
 		I915_WRITE(PIPESTAT(pipe), 0xffff);
 
