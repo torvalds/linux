@@ -1395,13 +1395,9 @@ static int intel_runtime_suspend(struct device *device)
 	i915_gem_release_all_mmaps(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
 
-	/*
-	 * rps.work can't be rearmed here, since we get here only after making
-	 * sure the GPU is idle and the RPS freq is set to the minimum. See
-	 * intel_mark_idle().
-	 */
-	cancel_work_sync(&dev_priv->rps.work);
+	flush_delayed_work(&dev_priv->rps.delayed_resume_work);
 	intel_runtime_pm_disable_interrupts(dev_priv);
+	intel_suspend_gt_powersave(dev);
 
 	ret = intel_suspend_complete(dev_priv);
 	if (ret) {
@@ -1473,7 +1469,7 @@ static int intel_runtime_resume(struct device *device)
 	gen6_update_ring_freq(dev);
 
 	intel_runtime_pm_enable_interrupts(dev_priv);
-	intel_reset_gt_powersave(dev);
+	intel_enable_gt_powersave(dev);
 
 	if (ret)
 		DRM_ERROR("Runtime resume failed, disabling it (%d)\n", ret);
