@@ -3188,8 +3188,6 @@ static void cherryview_irq_preinstall(struct drm_device *dev)
 
 	GEN5_IRQ_RESET(GEN8_PCU_);
 
-	POSTING_READ(GEN8_PCU_IIR);
-
 	I915_WRITE(DPINVGTT, DPINVGTT_STATUS_MASK_CHV);
 
 	I915_WRITE(PORT_HOTPLUG_EN, 0);
