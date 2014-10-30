@@ -771,7 +771,6 @@ static int fw_load(struct IR_tx *tx)
 	/* Parse the file */
 	tx_data = vmalloc(sizeof(*tx_data));
 	if (tx_data == NULL) {
-		dev_err(tx->ir->l.dev, "out of memory\n");
 		release_firmware(fw_entry);
 		ret = -ENOMEM;
 		goto out;
@@ -781,7 +780,6 @@ static int fw_load(struct IR_tx *tx)
 	/* Copy the data so hotplug doesn't get confused and timeout */
 	tx_data->datap = vmalloc(fw_entry->size);
 	if (tx_data->datap == NULL) {
-		dev_err(tx->ir->l.dev, "out of memory\n");
 		release_firmware(fw_entry);
 		vfree(tx_data);
 		ret = -ENOMEM;
