@@ -841,18 +841,59 @@ static inline const struct snd_interval *hw_param_interval_c(const struct snd_pc
 	return &params->intervals[var - SNDRV_PCM_HW_PARAM_FIRST_INTERVAL];
 }
 
-#define params_channels(p) \
-	(hw_param_interval_c((p), SNDRV_PCM_HW_PARAM_CHANNELS)->min)
-#define params_rate(p) \
-	(hw_param_interval_c((p), SNDRV_PCM_HW_PARAM_RATE)->min)
-#define params_period_size(p) \
-	(hw_param_interval_c((p), SNDRV_PCM_HW_PARAM_PERIOD_SIZE)->min)
-#define params_periods(p) \
-	(hw_param_interval_c((p), SNDRV_PCM_HW_PARAM_PERIODS)->min)
-#define params_buffer_size(p) \
-	(hw_param_interval_c((p), SNDRV_PCM_HW_PARAM_BUFFER_SIZE)->min)
-#define params_buffer_bytes(p) \
-	(hw_param_interval_c((p), SNDRV_PCM_HW_PARAM_BUFFER_BYTES)->min)
+/**
+ * params_channels - Get the number of channels from the hw params
+ * @p: hw params
+ */
+static inline unsigned int params_channels(const struct snd_pcm_hw_params *p)
+{
+	return hw_param_interval_c(p, SNDRV_PCM_HW_PARAM_CHANNELS)->min;
+}
+
+/**
+ * params_channels - Get the sample rate from the hw params
+ * @p: hw params
+ */
+static inline unsigned int params_rate(const struct snd_pcm_hw_params *p)
+{
+	return hw_param_interval_c(p, SNDRV_PCM_HW_PARAM_RATE)->min;
+}
+
+/**
+ * params_channels - Get the period size (in frames) from the hw params
+ * @p: hw params
+ */
+static inline unsigned int params_period_size(const struct snd_pcm_hw_params *p)
+{
+	return hw_param_interval_c(p, SNDRV_PCM_HW_PARAM_PERIOD_SIZE)->min;
+}
+
+/**
+ * params_channels - Get the number of periods from the hw params
+ * @p: hw params
+ */
+static inline unsigned int params_periods(const struct snd_pcm_hw_params *p)
+{
+	return hw_param_interval_c(p, SNDRV_PCM_HW_PARAM_PERIODS)->min;
+}
+
+/**
+ * params_channels - Get the buffer size (in frames) from the hw params
+ * @p: hw params
+ */
+static inline unsigned int params_buffer_size(const struct snd_pcm_hw_params *p)
+{
+	return hw_param_interval_c(p, SNDRV_PCM_HW_PARAM_BUFFER_SIZE)->min;
+}
+
+/**
+ * params_channels - Get the buffer size (in bytes) from the hw params
+ * @p: hw params
+ */
+static inline unsigned int params_buffer_bytes(const struct snd_pcm_hw_params *p)
+{
+	return hw_param_interval_c(p, SNDRV_PCM_HW_PARAM_BUFFER_BYTES)->min;
+}
 
 int snd_interval_refine(struct snd_interval *i, const struct snd_interval *v);
 void snd_interval_mul(const struct snd_interval *a, const struct snd_interval *b, struct snd_interval *c);
