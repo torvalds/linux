@@ -175,7 +175,6 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 	u64 l64, sz64, mask64;
 	u16 orig_cmd;
 	struct pci_bus_region region, inverted_region;
-	bool bar_too_big = false, bar_too_high = false, bar_invalid = false;
 
 	mask = type ? PCI_ROM_ADDRESS_MASK : ~0;
 
@@ -201,8 +200,8 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 	 * memory BAR or a ROM, bit 0 must be clear; if it's an io BAR, bit
 	 * 1 must be clear.
 	 */
-	if (!sz || sz == 0xffffffff)
-		goto fail;
+	if (sz == 0xffffffff)
+		sz = 0;
 
 	/*
 	 * I don't know how l can have all bits set.  Copied from old code.
@@ -215,26 +214,22 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 		res->flags = decode_bar(dev, l);
 		res->flags |= IORESOURCE_SIZEALIGN;
 		if (res->flags & IORESOURCE_IO) {
-			l &= PCI_BASE_ADDRESS_IO_MASK;
-			sz &= PCI_BASE_ADDRESS_IO_MASK;
-			mask = PCI_BASE_ADDRESS_IO_MASK & (u32) IO_SPACE_LIMIT;
+			l64 = l & PCI_BASE_ADDRESS_IO_MASK;
+			sz64 = sz & PCI_BASE_ADDRESS_IO_MASK;
+			mask64 = PCI_BASE_ADDRESS_IO_MASK & (u32)IO_SPACE_LIMIT;
 		} else {
-			l &= PCI_BASE_ADDRESS_MEM_MASK;
-			sz &= PCI_BASE_ADDRESS_MEM_MASK;
-			mask = (u32)PCI_BASE_ADDRESS_MEM_MASK;
+			l64 = l & PCI_BASE_ADDRESS_MEM_MASK;
+			sz64 = sz & PCI_BASE_ADDRESS_MEM_MASK;
+			mask64 = (u32)PCI_BASE_ADDRESS_MEM_MASK;
 		}
 	} else {
 		res->flags |= (l & IORESOURCE_ROM_ENABLE);
-		l &= PCI_ROM_ADDRESS_MASK;
-		sz &= PCI_ROM_ADDRESS_MASK;
-		mask = (u32)PCI_ROM_ADDRESS_MASK;
+		l64 = l & PCI_ROM_ADDRESS_MASK;
+		sz64 = sz & PCI_ROM_ADDRESS_MASK;
+		mask64 = (u32)PCI_ROM_ADDRESS_MASK;
 	}
 
 	if (res->flags & IORESOURCE_MEM_64) {
-		l64 = l;
-		sz64 = sz;
-		mask64 = mask | (u64)~0 << 32;
-
 		pci_read_config_dword(dev, pos + 4, &l);
 		pci_write_config_dword(dev, pos + 4, ~0);
 		pci_read_config_dword(dev, pos + 4, &sz);
@@ -242,18 +237,27 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 
 		l64 |= ((u64)l << 32);
 		sz64 |= ((u64)sz << 32);
+		mask64 |= ((u64)~0 << 32);
+	}
 
-		sz64 = pci_size(l64, sz64, mask64);
+	if (!dev->mmio_always_on && (orig_cmd & PCI_COMMAND_DECODE_ENABLE))
+		pci_write_config_word(dev, PCI_COMMAND, orig_cmd);
 
-		if (!sz64)
-			goto fail;
+	if (!sz64)
+		goto fail;
 
+	sz64 = pci_size(l64, sz64, mask64);
+	if (!sz64)
+		goto fail;
+
+	if (res->flags & IORESOURCE_MEM_64) {
 		if ((sizeof(dma_addr_t) < 8 || sizeof(resource_size_t) < 8) &&
 		    sz64 > 0x100000000ULL) {
 			res->flags |= IORESOURCE_UNSET | IORESOURCE_DISABLED;
 			res->start = 0;
 			res->end = 0;
-			bar_too_big = true;
+			dev_err(&dev->dev, "reg 0x%x: can't handle BAR larger than 4GB (size %#010llx)\n",
+				pos, (unsigned long long)sz64);
 			goto out;
 		}
 
@@ -262,21 +266,14 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 			res->flags |= IORESOURCE_UNSET;
 			res->start = 0;
 			res->end = sz64;
-			bar_too_high = true;
+			dev_info(&dev->dev, "reg 0x%x: can't handle BAR above 4GB (bus address %#010llx)\n",
+				 pos, (unsigned long long)l64);
 			goto out;
-		} else {
-			region.start = l64;
-			region.end = l64 + sz64;
 		}
-	} else {
-		sz = pci_size(l, sz, mask);
-
-		if (!sz)
-			goto fail;
-
-		region.start = l;
-		region.end = l + sz;
 	}
+
+	region.start = l64;
+	region.end = l64 + sz64;
 
 	pcibios_bus_to_resource(dev->bus, res, &region);
 	pcibios_resource_to_bus(dev->bus, &inverted_region, res);
@@ -296,7 +293,8 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 		res->flags |= IORESOURCE_UNSET;
 		res->start = 0;
 		res->end = region.end - region.start;
-		bar_invalid = true;
+		dev_info(&dev->dev, "reg 0x%x: initial BAR value %#010llx invalid\n",
+			 pos, (unsigned long long)region.start);
 	}
 
 	goto out;
@@ -305,19 +303,6 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 fail:
 	res->flags = 0;
 out:
-	if (!dev->mmio_always_on &&
-	    (orig_cmd & PCI_COMMAND_DECODE_ENABLE))
-		pci_write_config_word(dev, PCI_COMMAND, orig_cmd);
-
-	if (bar_too_big)
-		dev_err(&dev->dev, "reg 0x%x: can't handle BAR larger than 4GB (size %#010llx)\n",
-			pos, (unsigned long long) sz64);
-	if (bar_too_high)
-		dev_info(&dev->dev, "reg 0x%x: can't handle BAR above 4G (bus address %#010llx)\n",
-			 pos, (unsigned long long) l64);
-	if (bar_invalid)
-		dev_info(&dev->dev, "reg 0x%x: initial BAR value %#010llx invalid\n",
-			 pos, (unsigned long long) region.start);
 	if (res->flags)
 		dev_printk(KERN_DEBUG, &dev->dev, "reg 0x%x: %pR\n", pos, res);
 
