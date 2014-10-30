@@ -3122,7 +3122,7 @@ static void valleyview_irq_preinstall(struct drm_device *dev)
 
 	gen5_gt_irq_reset(dev);
 
-	I915_WRITE(DPINVGTT, 0xff);
+	I915_WRITE(DPINVGTT, DPINVGTT_STATUS_MASK);
 
 	I915_WRITE(PORT_HOTPLUG_EN, 0);
 	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
