@@ -347,9 +347,6 @@ static int wm9705_soc_probe(struct snd_soc_codec *codec)
 	if (ret)
 		goto reset_err;
 
-	snd_soc_add_codec_controls(codec, wm9705_snd_ac97_controls,
-				ARRAY_SIZE(wm9705_snd_ac97_controls));
-
 	return 0;
 
 reset_err:
@@ -374,6 +371,9 @@ static struct snd_soc_codec_driver soc_codec_dev_wm9705 = {
 	.reg_word_size = sizeof(u16),
 	.reg_cache_step = 2,
 	.reg_cache_default = wm9705_reg,
+
+	.controls = wm9705_snd_ac97_controls,
+	.num_controls = ARRAY_SIZE(wm9705_snd_ac97_controls),
 	.dapm_widgets = wm9705_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(wm9705_dapm_widgets),
 	.dapm_routes = wm9705_audio_map,
