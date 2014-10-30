@@ -120,7 +120,7 @@ static int cpu_pmu_request_irq(struct arm_pmu *cpu_pmu, irq_handler_t handler)
 
 	irqs = min(pmu_device->num_resources, num_possible_cpus());
 	if (irqs < 1) {
-		printk_once("perf/ARM: No irqs for PMU defined, sampling events not supported\n");
+		pr_warn_once("perf/ARM: No irqs for PMU defined, sampling events not supported\n");
 		return 0;
 	}
 
