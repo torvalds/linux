@@ -50,6 +50,7 @@ struct driver_private {
 	struct module_kobject *mkobj;
 	struct device_driver *driver;
 };
+
 #define to_driver(obj) container_of(obj, struct driver_private, kobj)
 
 /* bus_id went away in 2.6.30 - the size was 20 bytes, so we'll define
