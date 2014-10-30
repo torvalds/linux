@@ -423,7 +423,7 @@ static int waveform_attach(struct comedi_device *dev,
 	dev->write_subdev = s;
 	/* analog output subdevice (loopback) */
 	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND;
+	s->subdev_flags = SDF_WRITABLE | SDF_GROUND;
 	s->n_chan = N_CHANS;
 	s->maxdata = 0xffff;
 	s->range_table = &waveform_ai_ranges;

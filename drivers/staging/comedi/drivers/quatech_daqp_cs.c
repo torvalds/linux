@@ -734,7 +734,7 @@ static int daqp_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[1];
 	s->type		= COMEDI_SUBD_AO;
-	s->subdev_flags	= SDF_WRITEABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 2;
 	s->maxdata	= 0x0fff;
 	s->range_table	= &range_bipolar5;
@@ -754,7 +754,7 @@ static int daqp_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[3];
 	s->type		= COMEDI_SUBD_DO;
-	s->subdev_flags	= SDF_WRITEABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 1;
 	s->maxdata	= 1;
 	s->insn_bits	= daqp_do_insn_bits;

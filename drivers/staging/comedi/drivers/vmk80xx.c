@@ -797,7 +797,7 @@ static int vmk80xx_init_subdevices(struct comedi_device *dev)
 	/* Analog output subdevice */
 	s = &dev->subdevices[1];
 	s->type		= COMEDI_SUBD_AO;
-	s->subdev_flags	= SDF_WRITEABLE | SDF_GROUND;
+	s->subdev_flags	= SDF_WRITABLE | SDF_GROUND;
 	s->n_chan	= boardinfo->ao_nchans;
 	s->maxdata	= 0x00ff;
 	s->range_table	= boardinfo->range;
@@ -819,7 +819,7 @@ static int vmk80xx_init_subdevices(struct comedi_device *dev)
 	/* Digital output subdevice */
 	s = &dev->subdevices[3];
 	s->type		= COMEDI_SUBD_DO;
-	s->subdev_flags	= SDF_WRITEABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 8;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
@@ -834,7 +834,7 @@ static int vmk80xx_init_subdevices(struct comedi_device *dev)
 	s->insn_read	= vmk80xx_cnt_insn_read;
 	s->insn_config	= vmk80xx_cnt_insn_config;
 	if (devpriv->model == VMK8055_MODEL) {
-		s->subdev_flags	|= SDF_WRITEABLE;
+		s->subdev_flags	|= SDF_WRITABLE;
 		s->insn_write	= vmk80xx_cnt_insn_write;
 	}
 
@@ -842,7 +842,7 @@ static int vmk80xx_init_subdevices(struct comedi_device *dev)
 	if (devpriv->model == VMK8061_MODEL) {
 		s = &dev->subdevices[5];
 		s->type		= COMEDI_SUBD_PWM;
-		s->subdev_flags	= SDF_READABLE | SDF_WRITEABLE;
+		s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
 		s->n_chan	= boardinfo->pwm_nchans;
 		s->maxdata	= boardinfo->pwm_maxdata;
 		s->insn_read	= vmk80xx_pwm_insn_read;

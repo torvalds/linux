@@ -192,7 +192,7 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	s = &dev->subdevices[1];
 	if (this_board->has_ao) {
 		s->type		= COMEDI_SUBD_AO;
-		s->subdev_flags	= SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
+		s->subdev_flags	= SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
 		s->n_chan	= 8;
 		s->maxdata	= 0x3fff;
 		s->range_table	= &range_bipolar10;
@@ -218,7 +218,7 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	/* Digital Output subdevice */
 	s = &dev->subdevices[3];
 	s->type		= COMEDI_SUBD_DO;
-	s->subdev_flags	= SDF_WRITEABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 4;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
@@ -227,7 +227,7 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	/* Timer subdevice */
 	s = &dev->subdevices[4];
 	s->type		= COMEDI_SUBD_TIMER;
-	s->subdev_flags	= SDF_WRITEABLE | SDF_READABLE;
+	s->subdev_flags	= SDF_WRITABLE | SDF_READABLE;
 	s->n_chan	= 1;
 	s->maxdata	= 0x00ffffff;
 	s->insn_write	= apci3120_write_insn_timer;

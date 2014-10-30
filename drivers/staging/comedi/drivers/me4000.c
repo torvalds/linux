@@ -1421,7 +1421,7 @@ static int me4000_auto_attach(struct comedi_device *dev,
 
 	if (thisboard->ao_nchan) {
 		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITEABLE | SDF_COMMON | SDF_GROUND;
+		s->subdev_flags = SDF_WRITABLE | SDF_COMMON | SDF_GROUND;
 		s->n_chan = thisboard->ao_nchan;
 		s->maxdata = 0xFFFF;	/*  16 bit DAC */
 		s->range_table = &range_bipolar10;

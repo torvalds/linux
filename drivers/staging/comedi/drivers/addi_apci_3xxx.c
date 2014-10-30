@@ -849,7 +849,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 	if (board->has_ao) {
 		s = &dev->subdevices[subdev];
 		s->type		= COMEDI_SUBD_AO;
-		s->subdev_flags	= SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
+		s->subdev_flags	= SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
 		s->n_chan	= 4;
 		s->maxdata	= 0x0fff;
 		s->range_table	= &apci3xxx_ao_range;
@@ -880,7 +880,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 	if (board->has_dig_out) {
 		s = &dev->subdevices[subdev];
 		s->type		= COMEDI_SUBD_DO;
-		s->subdev_flags	= SDF_WRITEABLE;
+		s->subdev_flags	= SDF_WRITABLE;
 		s->n_chan	= 4;
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
@@ -893,7 +893,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 	if (board->has_ttl_io) {
 		s = &dev->subdevices[subdev];
 		s->type		= COMEDI_SUBD_DIO;
-		s->subdev_flags	= SDF_READABLE | SDF_WRITEABLE;
+		s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
 		s->n_chan	= 24;
 		s->maxdata	= 1;
 		s->io_bits	= 0xff;	/* channels 0-7 are always outputs */

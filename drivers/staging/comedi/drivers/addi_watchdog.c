@@ -134,7 +134,7 @@ int addi_watchdog_init(struct comedi_subdevice *s, unsigned long iobase)
 	spriv->iobase = iobase;
 
 	s->type		= COMEDI_SUBD_TIMER;
-	s->subdev_flags	= SDF_WRITEABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 1;
 	s->maxdata	= 0xff;
 	s->insn_config	= addi_watchdog_insn_config;

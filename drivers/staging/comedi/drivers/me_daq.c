@@ -511,7 +511,7 @@ static int me_auto_attach(struct comedi_device *dev,
 	s = &dev->subdevices[1];
 	if (board->has_ao) {
 		s->type		= COMEDI_SUBD_AO;
-		s->subdev_flags	= SDF_WRITEABLE | SDF_COMMON;
+		s->subdev_flags	= SDF_WRITABLE | SDF_COMMON;
 		s->n_chan	= 4;
 		s->maxdata	= 0x0fff;
 		s->len_chanlist	= 4;
@@ -528,7 +528,7 @@ static int me_auto_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[2];
 	s->type		= COMEDI_SUBD_DIO;
-	s->subdev_flags	= SDF_READABLE | SDF_WRITEABLE;
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
 	s->n_chan	= 32;
 	s->maxdata	= 1;
 	s->len_chanlist	= 32;

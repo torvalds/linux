@@ -140,7 +140,7 @@ static int apci16xx_auto_attach(struct comedi_device *dev,
 	for (i = 0; i < n_subdevs; i++) {
 		s = &dev->subdevices[i];
 		s->type		= COMEDI_SUBD_DIO;
-		s->subdev_flags	= SDF_WRITEABLE | SDF_READABLE;
+		s->subdev_flags	= SDF_WRITABLE | SDF_READABLE;
 		s->n_chan	= ((i * 32) < board->n_chan) ? 32 : last;
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;

@@ -497,7 +497,7 @@ static int das6402_attach(struct comedi_device *dev,
 	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
 	s->type		= COMEDI_SUBD_AO;
-	s->subdev_flags	= SDF_WRITEABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 2;
 	s->maxdata	= board->maxdata;
 	s->range_table	= &das6402_ao_ranges;
@@ -520,7 +520,7 @@ static int das6402_attach(struct comedi_device *dev,
 	/* Digital Input subdevice */
 	s = &dev->subdevices[3];
 	s->type		= COMEDI_SUBD_DO;
-	s->subdev_flags	= SDF_WRITEABLE;
+	s->subdev_flags	= SDF_WRITABLE;
 	s->n_chan	= 8;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;

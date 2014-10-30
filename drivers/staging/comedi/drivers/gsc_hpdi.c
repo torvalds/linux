@@ -689,7 +689,7 @@ static int gsc_hpdi_auto_attach(struct comedi_device *dev,
 	s = &dev->subdevices[0];
 	dev->read_subdev = s;
 	s->type		= COMEDI_SUBD_DIO;
-	s->subdev_flags	= SDF_READABLE | SDF_WRITEABLE | SDF_LSAMPL |
+	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE | SDF_LSAMPL |
 			  SDF_CMD_READ;
 	s->n_chan	= 32;
 	s->len_chanlist	= 32;
