@@ -91,7 +91,7 @@ static void gator_events_l2c310_stop(void)
 	writel(0, l2c310_base + L2X0_EVENT_CNT_CTRL);
 }
 
-static int gator_events_l2c310_read(int **buffer)
+static int gator_events_l2c310_read(int **buffer, bool sched_switch)
 {
 	static const unsigned long l2x0_event_cntx_val[L2C310_COUNTERS_NUM] = {
 		L2X0_EVENT_CNT0_VAL,
@@ -149,8 +149,8 @@ static void __iomem *gator_events_l2c310_probe(void)
 		0xa0412000,
 #endif
 #if defined(CONFIG_ARCH_VEXPRESS)
-		0x1e00a000, // A9x4 core tile (HBI-0191)
-		0x2c0f0000, // New memory map tiles
+		0x1e00a000, /* A9x4 core tile (HBI-0191) */
+		0x2c0f0000, /* New memory map tiles */
 #endif
 	};
 	int i;

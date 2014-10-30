@@ -40,7 +40,7 @@ int DynBuf::resize(const size_t minCapacity) {
 bool DynBuf::read(const char *const path) {
 	int result = false;
 
-	const int fd = open(path, O_RDONLY);
+	const int fd = open(path, O_RDONLY | O_CLOEXEC);
 	if (fd < 0) {
 		logg->logMessage("%s(%s:%i): open failed", __FUNCTION__, __FILE__, __LINE__);
 		return false;

@@ -13,7 +13,7 @@
 #include <linux/time.h>
 #include <linux/math64.h>
 #include <linux/slab.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 #ifdef MALI_DIR_MIDGARD
 /* New DDK Directory structure with kernel/drivers/gpu/arm/midgard*/
@@ -28,13 +28,13 @@
 /*
  * Check that the MALI_SUPPORT define is set to one of the allowable device codes.
  */
-#if (MALI_SUPPORT != MALI_T6xx)
-#error MALI_SUPPORT set to an invalid device code: expecting MALI_T6xx
+#if (MALI_SUPPORT != MALI_MIDGARD)
+#error MALI_SUPPORT set to an invalid device code: expecting MALI_MIDGARD
 #endif
 
-static const char mali_name[] = "Mali-T6xx";
+static const char mali_name[] = "Midgard";
 
-/* Counters for Mali-T6xx:
+/* Counters for Mali-Midgard:
  *
  *  - Timeline events
  *    They are tracepoints, but instead of reporting a number they report a START/STOP event.
@@ -49,7 +49,7 @@ static const char mali_name[] = "Mali-T6xx";
  */
 
 /* Timeline (start/stop) activity */
-static const char *timeline_event_names[] = {
+static const char *const timeline_event_names[] = {
 	"PM_SHADER_0",
 	"PM_SHADER_1",
 	"PM_SHADER_2",
@@ -88,7 +88,7 @@ enum {
 #define NUM_PM_SHADER (8)
 
 /* Software Counters */
-static const char *software_counter_names[] = {
+static const char *const software_counter_names[] = {
 	"MMU_PAGE_FAULT_0",
 	"MMU_PAGE_FAULT_1",
 	"MMU_PAGE_FAULT_2",
@@ -103,7 +103,7 @@ enum {
 };
 
 /* Software Counters */
-static const char *accumulators_names[] = {
+static const char *const accumulators_names[] = {
 	"TOTAL_ALLOC_PAGES"
 };
 
@@ -123,17 +123,18 @@ enum {
 /*
  * gatorfs variables for counter enable state
  */
-static mali_counter counters[NUMBER_OF_EVENTS];
+static struct mali_counter counters[NUMBER_OF_EVENTS];
 static unsigned long filmstrip_event;
 
 /* An array used to return the data we recorded
  * as key,value pairs hence the *2
  */
-static unsigned long counter_dump[NUMBER_OF_EVENTS * 2];
+static int counter_dump[NUMBER_OF_EVENTS * 2];
 
 /*
- * Array holding counter start times (in ns) for each counter.  A zero here
- * indicates that the activity monitored by this counter is not running.
+ * Array holding counter start times (in ns) for each counter. A zero
+ * here indicates that the activity monitored by this counter is not
+ * running.
  */
 static struct timespec timeline_event_starttime[NUMBER_OF_TIMELINE_EVENTS];
 
@@ -156,6 +157,7 @@ static struct timespec prev_timestamp;
 static inline long get_duration_us(const struct timespec *start, const struct timespec *end)
 {
 	long event_duration_us = (end->tv_nsec - start->tv_nsec) / 1000;
+
 	event_duration_us += (end->tv_sec - start->tv_sec) * 1000000;
 
 	return event_duration_us;
@@ -172,9 +174,8 @@ static void record_timeline_event(unsigned int timeline_index, unsigned int type
 		getnstimeofday(&event_timestamp);
 
 		/* Remember the start time if the activity is not already started */
-		if (event_start->tv_sec == 0) {
+		if (event_start->tv_sec == 0)
 			*event_start = event_timestamp;	/* Structure copy */
-		}
 		break;
 
 	case ACTIVITY_STOP:
@@ -208,9 +209,9 @@ GATOR_DEFINE_PROBE(mali_pm_status, TP_PROTO(unsigned int event_id, unsigned long
 #define L2_PRESENT_LO           0x120	/* (RO) Level 2 cache present bitmap, low word */
 #define BIT_AT(value, pos) ((value >> pos) & 1)
 
-	static unsigned long long previous_shader_bitmask = 0;
-	static unsigned long long previous_tiler_bitmask = 0;
-	static unsigned long long previous_l2_bitmask = 0;
+	static unsigned long long previous_shader_bitmask;
+	static unsigned long long previous_tiler_bitmask;
+	static unsigned long long previous_l2_bitmask;
 
 	switch (event_id) {
 	case SHADER_PRESENT_LO:
@@ -219,9 +220,8 @@ GATOR_DEFINE_PROBE(mali_pm_status, TP_PROTO(unsigned int event_id, unsigned long
 			int pos;
 
 			for (pos = 0; pos < NUM_PM_SHADER; ++pos) {
-				if (BIT_AT(changed_bitmask, pos)) {
+				if (BIT_AT(changed_bitmask, pos))
 					record_timeline_event(PM_SHADER_0 + pos, BIT_AT(value, pos) ? ACTIVITY_START : ACTIVITY_STOP);
-				}
 			}
 
 			previous_shader_bitmask = value;
@@ -232,9 +232,8 @@ GATOR_DEFINE_PROBE(mali_pm_status, TP_PROTO(unsigned int event_id, unsigned long
 		{
 			unsigned long long changed = previous_tiler_bitmask ^ value;
 
-			if (BIT_AT(changed, 0)) {
+			if (BIT_AT(changed, 0))
 				record_timeline_event(PM_TILER_0, BIT_AT(value, 0) ? ACTIVITY_START : ACTIVITY_STOP);
-			}
 
 			previous_tiler_bitmask = value;
 			break;
@@ -244,12 +243,10 @@ GATOR_DEFINE_PROBE(mali_pm_status, TP_PROTO(unsigned int event_id, unsigned long
 		{
 			unsigned long long changed = previous_l2_bitmask ^ value;
 
-			if (BIT_AT(changed, 0)) {
+			if (BIT_AT(changed, 0))
 				record_timeline_event(PM_L2_0, BIT_AT(value, 0) ? ACTIVITY_START : ACTIVITY_STOP);
-			}
-			if (BIT_AT(changed, 4)) {
+			if (BIT_AT(changed, 4))
 				record_timeline_event(PM_L2_1, BIT_AT(value, 4) ? ACTIVITY_START : ACTIVITY_STOP);
-			}
 
 			previous_l2_bitmask = value;
 			break;
@@ -297,31 +294,27 @@ static int create_files(struct super_block *sb, struct dentry *root)
 	mali_profiling_control_type *mali_control;
 
 	for (event = FIRST_TIMELINE_EVENT; event < FIRST_TIMELINE_EVENT + NUMBER_OF_TIMELINE_EVENTS; event++) {
-		if (gator_mali_create_file_system(mali_name, timeline_event_names[counter_index], sb, root, &counters[event], NULL) != 0) {
+		if (gator_mali_create_file_system(mali_name, timeline_event_names[counter_index], sb, root, &counters[event], NULL) != 0)
 			return -1;
-		}
 		counter_index++;
 	}
 	counter_index = 0;
 	for (event = FIRST_SOFTWARE_COUNTER; event < FIRST_SOFTWARE_COUNTER + NUMBER_OF_SOFTWARE_COUNTERS; event++) {
-		if (gator_mali_create_file_system(mali_name, software_counter_names[counter_index], sb, root, &counters[event], NULL) != 0) {
+		if (gator_mali_create_file_system(mali_name, software_counter_names[counter_index], sb, root, &counters[event], NULL) != 0)
 			return -1;
-		}
 		counter_index++;
 	}
 	counter_index = 0;
 	for (event = FIRST_ACCUMULATOR; event < FIRST_ACCUMULATOR + NUMBER_OF_ACCUMULATORS; event++) {
-		if (gator_mali_create_file_system(mali_name, accumulators_names[counter_index], sb, root, &counters[event], NULL) != 0) {
+		if (gator_mali_create_file_system(mali_name, accumulators_names[counter_index], sb, root, &counters[event], NULL) != 0)
 			return -1;
-		}
 		counter_index++;
 	}
 
 	mali_control = symbol_get(_mali_profiling_control);
 	if (mali_control) {
-		if (gator_mali_create_file_system(mali_name, "Filmstrip_cnt0", sb, root, &counters[FILMSTRIP], &filmstrip_event) != 0) {
+		if (gator_mali_create_file_system(mali_name, "Filmstrip_cnt0", sb, root, &counters[FILMSTRIP], &filmstrip_event) != 0)
 			return -1;
-		}
 		symbol_put(_mali_profiling_control);
 	}
 
@@ -331,36 +324,36 @@ static int create_files(struct super_block *sb, struct dentry *root)
 static int register_tracepoints(void)
 {
 	if (GATOR_REGISTER_TRACE(mali_pm_status)) {
-		pr_debug("gator: Mali-T6xx: mali_pm_status tracepoint failed to activate\n");
+		pr_debug("gator: Mali-Midgard: mali_pm_status tracepoint failed to activate\n");
 		return 0;
 	}
 
 	if (GATOR_REGISTER_TRACE(mali_page_fault_insert_pages)) {
-		pr_debug("gator: Mali-T6xx: mali_page_fault_insert_pages tracepoint failed to activate\n");
+		pr_debug("gator: Mali-Midgard: mali_page_fault_insert_pages tracepoint failed to activate\n");
 		return 0;
 	}
 
 	if (GATOR_REGISTER_TRACE(mali_mmu_as_in_use)) {
-		pr_debug("gator: Mali-T6xx: mali_mmu_as_in_use tracepoint failed to activate\n");
+		pr_debug("gator: Mali-Midgard: mali_mmu_as_in_use tracepoint failed to activate\n");
 		return 0;
 	}
 
 	if (GATOR_REGISTER_TRACE(mali_mmu_as_released)) {
-		pr_debug("gator: Mali-T6xx: mali_mmu_as_released tracepoint failed to activate\n");
+		pr_debug("gator: Mali-Midgard: mali_mmu_as_released tracepoint failed to activate\n");
 		return 0;
 	}
 
 	if (GATOR_REGISTER_TRACE(mali_total_alloc_pages_change)) {
-		pr_debug("gator: Mali-T6xx: mali_total_alloc_pages_change tracepoint failed to activate\n");
+		pr_debug("gator: Mali-Midgard: mali_total_alloc_pages_change tracepoint failed to activate\n");
 		return 0;
 	}
 
-	pr_debug("gator: Mali-T6xx: start\n");
-	pr_debug("gator: Mali-T6xx: mali_pm_status probe is at %p\n", &probe_mali_pm_status);
-	pr_debug("gator: Mali-T6xx: mali_page_fault_insert_pages probe is at %p\n", &probe_mali_page_fault_insert_pages);
-	pr_debug("gator: Mali-T6xx: mali_mmu_as_in_use probe is at %p\n", &probe_mali_mmu_as_in_use);
-	pr_debug("gator: Mali-T6xx: mali_mmu_as_released probe is at %p\n", &probe_mali_mmu_as_released);
-	pr_debug("gator: Mali-T6xx: mali_total_alloc_pages_change probe is at %p\n", &probe_mali_total_alloc_pages_change);
+	pr_debug("gator: Mali-Midgard: start\n");
+	pr_debug("gator: Mali-Midgard: mali_pm_status probe is at %p\n", &probe_mali_pm_status);
+	pr_debug("gator: Mali-Midgard: mali_page_fault_insert_pages probe is at %p\n", &probe_mali_page_fault_insert_pages);
+	pr_debug("gator: Mali-Midgard: mali_mmu_as_in_use probe is at %p\n", &probe_mali_mmu_as_in_use);
+	pr_debug("gator: Mali-Midgard: mali_mmu_as_released probe is at %p\n", &probe_mali_mmu_as_released);
+	pr_debug("gator: Mali-Midgard: mali_total_alloc_pages_change probe is at %p\n", &probe_mali_total_alloc_pages_change);
 
 	return 1;
 }
@@ -376,18 +369,15 @@ static int start(void)
 		timeline_data[cnt] = 0;
 	}
 
-	for (cnt = 0; cnt < NUMBER_OF_SOFTWARE_COUNTERS; cnt++) {
+	for (cnt = 0; cnt < NUMBER_OF_SOFTWARE_COUNTERS; cnt++)
 		sw_counter_data[cnt] = 0;
-	}
 
-	for (cnt = 0; cnt < NUMBER_OF_ACCUMULATORS; cnt++) {
+	for (cnt = 0; cnt < NUMBER_OF_ACCUMULATORS; cnt++)
 		accumulators_data[cnt] = 0;
-	}
 
 	/* Register tracepoints */
-	if (register_tracepoints() == 0) {
+	if (register_tracepoints() == 0)
 		return -1;
-	}
 
 	/* Generic control interface for Mali DDK. */
 	mali_control = symbol_get(_mali_profiling_control);
@@ -410,7 +400,7 @@ static int start(void)
 
 		symbol_put(_mali_profiling_control);
 	} else {
-		printk("gator: mali online _mali_profiling_control symbol not found\n");
+		pr_err("gator: mali online _mali_profiling_control symbol not found\n");
 	}
 
 	/*
@@ -427,26 +417,26 @@ static void stop(void)
 {
 	mali_profiling_control_type *mali_control;
 
-	pr_debug("gator: Mali-T6xx: stop\n");
+	pr_debug("gator: Mali-Midgard: stop\n");
 
 	/*
 	 * It is safe to unregister traces even if they were not successfully
 	 * registered, so no need to check.
 	 */
 	GATOR_UNREGISTER_TRACE(mali_pm_status);
-	pr_debug("gator: Mali-T6xx: mali_pm_status tracepoint deactivated\n");
+	pr_debug("gator: Mali-Midgard: mali_pm_status tracepoint deactivated\n");
 
 	GATOR_UNREGISTER_TRACE(mali_page_fault_insert_pages);
-	pr_debug("gator: Mali-T6xx: mali_page_fault_insert_pages tracepoint deactivated\n");
+	pr_debug("gator: Mali-Midgard: mali_page_fault_insert_pages tracepoint deactivated\n");
 
 	GATOR_UNREGISTER_TRACE(mali_mmu_as_in_use);
-	pr_debug("gator: Mali-T6xx: mali_mmu_as_in_use tracepoint deactivated\n");
+	pr_debug("gator: Mali-Midgard: mali_mmu_as_in_use tracepoint deactivated\n");
 
 	GATOR_UNREGISTER_TRACE(mali_mmu_as_released);
-	pr_debug("gator: Mali-T6xx: mali_mmu_as_released tracepoint deactivated\n");
+	pr_debug("gator: Mali-Midgard: mali_mmu_as_released tracepoint deactivated\n");
 
 	GATOR_UNREGISTER_TRACE(mali_total_alloc_pages_change);
-	pr_debug("gator: Mali-T6xx: mali_total_alloc_pages_change tracepoint deactivated\n");
+	pr_debug("gator: Mali-Midgard: mali_total_alloc_pages_change tracepoint deactivated\n");
 
 	/* Generic control interface for Mali DDK. */
 	mali_control = symbol_get(_mali_profiling_control);
@@ -457,20 +447,19 @@ static void stop(void)
 
 		symbol_put(_mali_profiling_control);
 	} else {
-		printk("gator: mali offline _mali_profiling_control symbol not found\n");
+		pr_err("gator: mali offline _mali_profiling_control symbol not found\n");
 	}
 }
 
-static int read(int **buffer)
+static int read(int **buffer, bool sched_switch)
 {
 	int cnt;
 	int len = 0;
 	long sample_interval_us = 0;
 	struct timespec read_timestamp;
 
-	if (!on_primary_core()) {
+	if (!on_primary_core())
 		return 0;
-	}
 
 	/* Get the start of this sample period. */
 	getnstimeofday(&read_timestamp);
@@ -479,9 +468,8 @@ static int read(int **buffer)
 	 * Calculate the sample interval if the previous sample time is valid.
 	 * We use tv_sec since it will not be 0.
 	 */
-	if (prev_timestamp.tv_sec != 0) {
+	if (prev_timestamp.tv_sec != 0)
 		sample_interval_us = get_duration_us(&prev_timestamp, &read_timestamp);
-	}
 
 	/* Structure copy. Update the previous timestamp. */
 	prev_timestamp = read_timestamp;
@@ -490,15 +478,19 @@ static int read(int **buffer)
 	 * Report the timeline counters (ACTIVITY_START/STOP)
 	 */
 	for (cnt = FIRST_TIMELINE_EVENT; cnt < (FIRST_TIMELINE_EVENT + NUMBER_OF_TIMELINE_EVENTS); cnt++) {
-		mali_counter *counter = &counters[cnt];
+		struct mali_counter *counter = &counters[cnt];
+
 		if (counter->enabled) {
 			const int index = cnt - FIRST_TIMELINE_EVENT;
 			unsigned int value;
 
-			/* If the activity is still running, reset its start time to the start of this sample period
-			 * to correct the count.  Add the time up to the end of the sample onto the count. */
+			/* If the activity is still running, reset its start time to the
+			 * start of this sample period to correct the count. Add the
+			 * time up to the end of the sample onto the count.
+			 */
 			if (timeline_event_starttime[index].tv_sec != 0) {
 				const long event_duration = get_duration_us(&timeline_event_starttime[index], &read_timestamp);
+
 				timeline_data[index] += event_duration;
 				timeline_event_starttime[index] = read_timestamp;	/* Activity is still running. */
 			}
@@ -507,7 +499,7 @@ static int read(int **buffer)
 				/* Convert the counter to a percent-of-sample value */
 				value = (timeline_data[index] * 100) / sample_interval_us;
 			} else {
-				pr_debug("gator: Mali-T6xx: setting value to zero\n");
+				pr_debug("gator: Mali-Midgard: setting value to zero\n");
 				value = 0;
 			}
 
@@ -521,9 +513,11 @@ static int read(int **buffer)
 
 	/* Report the software counters */
 	for (cnt = FIRST_SOFTWARE_COUNTER; cnt < (FIRST_SOFTWARE_COUNTER + NUMBER_OF_SOFTWARE_COUNTERS); cnt++) {
-		const mali_counter *counter = &counters[cnt];
+		const struct mali_counter *counter = &counters[cnt];
+
 		if (counter->enabled) {
 			const int index = cnt - FIRST_SOFTWARE_COUNTER;
+
 			counter_dump[len++] = counter->key;
 			counter_dump[len++] = sw_counter_data[index];
 			/* Set the value to zero for the next time */
@@ -533,9 +527,11 @@ static int read(int **buffer)
 
 	/* Report the accumulators */
 	for (cnt = FIRST_ACCUMULATOR; cnt < (FIRST_ACCUMULATOR + NUMBER_OF_ACCUMULATORS); cnt++) {
-		const mali_counter *counter = &counters[cnt];
+		const struct mali_counter *counter = &counters[cnt];
+
 		if (counter->enabled) {
 			const int index = cnt - FIRST_ACCUMULATOR;
+
 			counter_dump[len++] = counter->key;
 			counter_dump[len++] = accumulators_data[index];
 			/* Do not zero the accumulator */
@@ -543,25 +539,24 @@ static int read(int **buffer)
 	}
 
 	/* Update the buffer */
-	if (buffer) {
-		*buffer = (int *)counter_dump;
-	}
+	if (buffer)
+		*buffer = counter_dump;
 
 	return len;
 }
 
-static struct gator_interface gator_events_mali_t6xx_interface = {
+static struct gator_interface gator_events_mali_midgard_interface = {
 	.create_files = create_files,
 	.start = start,
 	.stop = stop,
 	.read = read
 };
 
-extern int gator_events_mali_t6xx_init(void)
+extern int gator_events_mali_midgard_init(void)
 {
-	pr_debug("gator: Mali-T6xx: sw_counters init\n");
+	pr_debug("gator: Mali-Midgard: sw_counters init\n");
 
 	gator_mali_initialise_counters(counters, NUMBER_OF_EVENTS);
 
-	return gator_events_install(&gator_events_mali_t6xx_interface);
+	return gator_events_install(&gator_events_mali_midgard_interface);
 }

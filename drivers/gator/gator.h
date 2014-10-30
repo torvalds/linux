@@ -14,13 +14,13 @@
 #include <linux/mm.h>
 #include <linux/list.h>
 
-#define GATOR_PERF_SUPPORT		LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0)
-#define GATOR_PERF_PMU_SUPPORT  GATOR_PERF_SUPPORT && defined(CONFIG_PERF_EVENTS) && (!(defined(__arm__) || defined(__aarch64__)) || defined(CONFIG_HW_PERF_EVENTS))
+#define GATOR_PERF_SUPPORT      (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0))
+#define GATOR_PERF_PMU_SUPPORT  (GATOR_PERF_SUPPORT && defined(CONFIG_PERF_EVENTS) && (!(defined(__arm__) || defined(__aarch64__)) || defined(CONFIG_HW_PERF_EVENTS)))
 #define GATOR_NO_PERF_SUPPORT   (!(GATOR_PERF_SUPPORT))
-#define GATOR_CPU_FREQ_SUPPORT  (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 38)) && defined(CONFIG_CPU_FREQ)
+#define GATOR_CPU_FREQ_SUPPORT  ((LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 38)) && defined(CONFIG_CPU_FREQ))
 #define GATOR_IKS_SUPPORT       defined(CONFIG_BL_SWITCHER)
 
-// cpu ids
+/* cpu ids */
 #define ARM1136     0xb36
 #define ARM1156     0xb56
 #define ARM1176     0xb76
@@ -29,7 +29,6 @@
 #define CORTEX_A7   0xc07
 #define CORTEX_A8   0xc08
 #define CORTEX_A9   0xc09
-#define CORTEX_A12  0xc0d
 #define CORTEX_A15  0xc0f
 #define CORTEX_A17  0xc0e
 #define SCORPION    0x00f
@@ -42,20 +41,20 @@
 #define AARCH64     0xd0f
 #define OTHER       0xfff
 
-// gpu enums
+/* gpu enums */
 #define MALI_4xx     1
-#define MALI_T6xx    2
+#define MALI_MIDGARD 2
 
 #define MAXSIZE_CORE_NAME 32
 
 struct gator_cpu {
 	const int cpuid;
-	// Human readable name
+	/* Human readable name */
 	const char core_name[MAXSIZE_CORE_NAME];
-	// gatorfs event and Perf PMU name
-	const char * const pmnc_name;
-	// compatible from Documentation/devicetree/bindings/arm/cpus.txt
-	const char * const dt_name;
+	/* gatorfs event and Perf PMU name */
+	const char *const pmnc_name;
+	/* compatible from Documentation/devicetree/bindings/arm/cpus.txt */
+	const char *const dt_name;
 	const int pmnc_counters;
 };
 
@@ -98,7 +97,7 @@ int gatorfs_create_ro_ulong(struct super_block *sb, struct dentry *root,
 		extern struct tracepoint *gator_tracepoint_##probe_name; \
 		static void probe_##probe_name(void *data, PARAMS(proto))
 #	define GATOR_REGISTER_TRACE(probe_name) \
-		tracepoint_probe_register(gator_tracepoint_##probe_name, probe_##probe_name, NULL)
+		((gator_tracepoint_##probe_name == NULL) || tracepoint_probe_register(gator_tracepoint_##probe_name, probe_##probe_name, NULL))
 #	define GATOR_UNREGISTER_TRACE(probe_name) \
 		tracepoint_probe_unregister(gator_tracepoint_##probe_name, probe_##probe_name, NULL)
 #endif
@@ -107,15 +106,19 @@ int gatorfs_create_ro_ulong(struct super_block *sb, struct dentry *root,
  * Events
  ******************************************************************************/
 struct gator_interface {
-	void (*shutdown)(void);	// Complementary function to init
+	/* Complementary function to init */
+	void (*shutdown)(void);
 	int (*create_files)(struct super_block *sb, struct dentry *root);
 	int (*start)(void);
-	void (*stop)(void);		// Complementary function to start
+	/* Complementary function to start */
+	void (*stop)(void);
 	int (*online)(int **buffer, bool migrate);
 	int (*offline)(int **buffer, bool migrate);
-	void (*online_dispatch)(int cpu, bool migrate);	// called in process context but may not be running on core 'cpu'
-	void (*offline_dispatch)(int cpu, bool migrate);	// called in process context but may not be running on core 'cpu'
-	int (*read)(int **buffer);
+	/* called in process context but may not be running on core 'cpu' */
+	void (*online_dispatch)(int cpu, bool migrate);
+	/* called in process context but may not be running on core 'cpu' */
+	void (*offline_dispatch)(int cpu, bool migrate);
+	int (*read)(int **buffer, bool sched_switch);
 	int (*read64)(long long **buffer);
 	int (*read_proc)(long long **buffer, struct task_struct *);
 	struct list_head list;
@@ -146,4 +149,4 @@ int pcpu_to_lcpu(const int pcpu);
 #define get_logical_cpu() smp_processor_id()
 #define on_primary_core() (get_logical_cpu() == 0)
 
-#endif // GATOR_H_
+#endif /* GATOR_H_ */

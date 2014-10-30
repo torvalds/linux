@@ -6,8 +6,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef	__STREAMLINE_SETUP_H__
-#define	__STREAMLINE_SETUP_H__
+#ifndef __STREAMLINE_SETUP_H__
+#define __STREAMLINE_SETUP_H__
 
 #include <stdint.h>
 #include <string.h>

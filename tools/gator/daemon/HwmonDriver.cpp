@@ -6,24 +6,33 @@
  * published by the Free Software Foundation.
  */
 
-#include "Hwmon.h"
+#include "HwmonDriver.h"
 
 #include "libsensors/sensors.h"
 
-#include "Buffer.h"
-#include "Counter.h"
 #include "Logging.h"
-#include "SessionData.h"
 
-class HwmonCounter {
+// feature->type to input map
+static sensors_subfeature_type getInput(const sensors_feature_type type) {
+	switch (type) {
+	case SENSORS_FEATURE_IN: return SENSORS_SUBFEATURE_IN_INPUT;
+	case SENSORS_FEATURE_FAN: return SENSORS_SUBFEATURE_FAN_INPUT;
+	case SENSORS_FEATURE_TEMP: return SENSORS_SUBFEATURE_TEMP_INPUT;
+	case SENSORS_FEATURE_POWER: return SENSORS_SUBFEATURE_POWER_INPUT;
+	case SENSORS_FEATURE_ENERGY: return SENSORS_SUBFEATURE_ENERGY_INPUT;
+	case SENSORS_FEATURE_CURR: return SENSORS_SUBFEATURE_CURR_INPUT;
+	case SENSORS_FEATURE_HUMIDITY: return SENSORS_SUBFEATURE_HUMIDITY_INPUT;
+	default:
+		logg->logError(__FILE__, __LINE__, "Unsupported hwmon feature %i", type);
+		handleException();
+	}
+};
+
+class HwmonCounter : public DriverCounter {
 public:
-	HwmonCounter(HwmonCounter *next, const sensors_chip_name *chip, const sensors_feature *feature);
+	HwmonCounter(DriverCounter *next, char *const name, const sensors_chip_name *chip, const sensors_feature *feature);
 	~HwmonCounter();
 
-	HwmonCounter *getNext() const { return next; }
-	int getKey() const { return key; }
-	bool isEnabled() const { return enabled; }
-	const char *getName() const { return name; }
 	const char *getLabel() const { return label; }
 	const char *getTitle() const { return title; }
 	bool isDuplicate() const { return duplicate; }
@@ -32,63 +41,34 @@ public:
 	const char *getUnit() const { return unit; }
 	int getModifier() const { return modifier; }
 
-	void setEnabled(const bool enabled) {
-		this->enabled = enabled;
-		// canRead will clear enabled if the counter is not readable
-		canRead();
-	}
-
-	double read();
-	bool canRead();
+	int64_t read();
 
 private:
 	void init(const sensors_chip_name *chip, const sensors_feature *feature);
 
-	HwmonCounter *const next;
-	const int key;
-	int polled : 1,
-		readable : 1,
-		enabled : 1,
-		monotonic: 1,
-		duplicate : 1;
-
 	const sensors_chip_name *chip;
 	const sensors_feature *feature;
-
-	char *name;
 	char *label;
 	const char *title;
 	const char *display;
 	const char *counter_class;
 	const char *unit;
-	int modifier;
 	double previous_value;
-
-	sensors_subfeature_type input;
+	int modifier;
+	int monotonic: 1,
+		duplicate : 1;
 
 	// Intentionally unimplemented
 	HwmonCounter(const HwmonCounter &);
 	HwmonCounter &operator=(const HwmonCounter &);
 };
 
-HwmonCounter::HwmonCounter(HwmonCounter *next, const sensors_chip_name *chip, const sensors_feature *feature) : next(next), key(getEventKey()), polled(false), readable(false), enabled(false), duplicate(false), chip(chip), feature(feature) {
-
-	int len = sensors_snprintf_chip_name(NULL, 0, chip) + 1;
-	char *chip_name = new char[len];
-	sensors_snprintf_chip_name(chip_name, len, chip);
-
-	len = snprintf(NULL, 0, "hwmon_%s_%d", chip_name, feature->number) + 1;
-	name = new char[len];
-	snprintf(name, len, "hwmon_%s_%d", chip_name, feature->number);
-
-	delete [] chip_name;
-
+HwmonCounter::HwmonCounter(DriverCounter *next, char *const name, const sensors_chip_name *chip, const sensors_feature *feature) : DriverCounter(next, name), chip(chip), feature(feature), duplicate(false) {
 	label = sensors_get_label(chip, feature);
 
 	switch (feature->type) {
 	case SENSORS_FEATURE_IN:
 		title = "Voltage";
-		input = SENSORS_SUBFEATURE_IN_INPUT;
 		display = "maximum";
 		counter_class = "absolute";
 		unit = "V";
@@ -97,7 +77,6 @@ HwmonCounter::HwmonCounter(HwmonCounter *next, const sensors_chip_name *chip, co
 		break;
 	case SENSORS_FEATURE_FAN:
 		title = "Fan";
-		input = SENSORS_SUBFEATURE_FAN_INPUT;
 		display = "average";
 		counter_class = "absolute";
 		unit = "RPM";
@@ -106,7 +85,6 @@ HwmonCounter::HwmonCounter(HwmonCounter *next, const sensors_chip_name *chip, co
 		break;
 	case SENSORS_FEATURE_TEMP:
 		title = "Temperature";
-		input = SENSORS_SUBFEATURE_TEMP_INPUT;
 		display = "maximum";
 		counter_class = "absolute";
 		unit = "°C";
@@ -115,7 +93,6 @@ HwmonCounter::HwmonCounter(HwmonCounter *next, const sensors_chip_name *chip, co
 		break;
 	case SENSORS_FEATURE_POWER:
 		title = "Power";
-		input = SENSORS_SUBFEATURE_POWER_INPUT;
 		display = "maximum";
 		counter_class = "absolute";
 		unit = "W";
@@ -124,7 +101,6 @@ HwmonCounter::HwmonCounter(HwmonCounter *next, const sensors_chip_name *chip, co
 		break;
 	case SENSORS_FEATURE_ENERGY:
 		title = "Energy";
-		input = SENSORS_SUBFEATURE_ENERGY_INPUT;
 		display = "accumulate";
 		counter_class = "delta";
 		unit = "J";
@@ -133,7 +109,6 @@ HwmonCounter::HwmonCounter(HwmonCounter *next, const sensors_chip_name *chip, co
 		break;
 	case SENSORS_FEATURE_CURR:
 		title = "Current";
-		input = SENSORS_SUBFEATURE_CURR_INPUT;
 		display = "maximum";
 		counter_class = "absolute";
 		unit = "A";
@@ -142,7 +117,6 @@ HwmonCounter::HwmonCounter(HwmonCounter *next, const sensors_chip_name *chip, co
 		break;
 	case SENSORS_FEATURE_HUMIDITY:
 		title = "Humidity";
-		input = SENSORS_SUBFEATURE_HUMIDITY_INPUT;
 		display = "average";
 		counter_class = "absolute";
 		unit = "%";
@@ -154,7 +128,7 @@ HwmonCounter::HwmonCounter(HwmonCounter *next, const sensors_chip_name *chip, co
 		handleException();
 	}
 
-	for (HwmonCounter * counter = next; counter != NULL; counter = counter->getNext()) {
+	for (HwmonCounter * counter = static_cast<HwmonCounter *>(next); counter != NULL; counter = static_cast<HwmonCounter *>(counter->getNext())) {
 		if (strcmp(label, counter->getLabel()) == 0 && strcmp(title, counter->getTitle()) == 0) {
 			duplicate = true;
 			counter->duplicate = true;
@@ -165,16 +139,15 @@ HwmonCounter::HwmonCounter(HwmonCounter *next, const sensors_chip_name *chip, co
 
 HwmonCounter::~HwmonCounter() {
 	free((void *)label);
-	delete [] name;
 }
 
-double HwmonCounter::read() {
+int64_t HwmonCounter::read() {
 	double value;
 	double result;
 	const sensors_subfeature *subfeature;
 
-	// Keep in sync with canRead
-	subfeature = sensors_get_subfeature(chip, feature, input);
+	// Keep in sync with the read check in HwmonDriver::readEvents
+	subfeature = sensors_get_subfeature(chip, feature, getInput(feature->type));
 	if (!subfeature) {
 		logg->logError(__FILE__, __LINE__, "No input value for hwmon sensor %s", label);
 		handleException();
@@ -191,46 +164,14 @@ double HwmonCounter::read() {
 	return result;
 }
 
-bool HwmonCounter::canRead() {
-	if (!polled) {
-		double value;
-		const sensors_subfeature *subfeature;
-		bool result = true;
-
-		subfeature = sensors_get_subfeature(chip, feature, input);
-		if (!subfeature) {
-			result = false;
-		} else {
-			result = sensors_get_value(chip, subfeature->number, &value) == 0;
-		}
-
-		polled = true;
-		readable = result;
-	}
-
-	enabled &= readable;
-
-	return readable;
+HwmonDriver::HwmonDriver() {
 }
 
-Hwmon::Hwmon() : counters(NULL) {
-}
-
-Hwmon::~Hwmon() {
-	while (counters != NULL) {
-		HwmonCounter * counter = counters;
-		counters = counter->getNext();
-		delete counter;
-	}
+HwmonDriver::~HwmonDriver() {
 	sensors_cleanup();
 }
 
-void Hwmon::setup() {
-	// hwmon does not currently work with perf
-	if (gSessionData->perf.isSetup()) {
-		return;
-	}
-
+void HwmonDriver::readEvents(mxml_node_t *const) {
 	int err = sensors_init(NULL);
 	if (err) {
 		logg->logMessage("Failed to initialize libsensors! (%d)", err);
@@ -244,73 +185,34 @@ void Hwmon::setup() {
 		int feature_nr = 0;
 		const sensors_feature *feature;
 		while ((feature = sensors_get_features(chip, &feature_nr))) {
-			counters = new HwmonCounter(counters, chip, feature);
+			// Keep in sync with HwmonCounter::read
+			// Can this counter be read?
+			double value;
+			const sensors_subfeature *const subfeature = sensors_get_subfeature(chip, feature, getInput(feature->type));
+			if ((subfeature == NULL) || (sensors_get_value(chip, subfeature->number, &value) != 0)) {
+				continue;
+			}
+
+			// Get the name of the counter
+			int len = sensors_snprintf_chip_name(NULL, 0, chip) + 1;
+			char *chip_name = new char[len];
+			sensors_snprintf_chip_name(chip_name, len, chip);
+			len = snprintf(NULL, 0, "hwmon_%s_%d_%d", chip_name, chip_nr, feature->number) + 1;
+			char *const name = new char[len];
+			snprintf(name, len, "hwmon_%s_%d_%d", chip_name, chip_nr, feature->number);
+			delete [] chip_name;
+
+			setCounters(new HwmonCounter(getCounters(), name, chip, feature));
 		}
 	}
 }
 
-HwmonCounter *Hwmon::findCounter(const Counter &counter) const {
-	for (HwmonCounter * hwmonCounter = counters; hwmonCounter != NULL; hwmonCounter = hwmonCounter->getNext()) {
-		if (hwmonCounter->canRead() && strcmp(hwmonCounter->getName(), counter.getType()) == 0) {
-			return hwmonCounter;
-		}
-	}
-
-	return NULL;
-}
-
-bool Hwmon::claimCounter(const Counter &counter) const {
-	return findCounter(counter) != NULL;
-}
-
-bool Hwmon::countersEnabled() const {
-	for (HwmonCounter * counter = counters; counter != NULL; counter = counter->getNext()) {
-		if (counter->isEnabled()) {
-			return true;
-		}
-	}
-	return false;
-}
-
-void Hwmon::resetCounters() {
-	for (HwmonCounter * counter = counters; counter != NULL; counter = counter->getNext()) {
-		counter->setEnabled(false);
-	}
-}
-
-void Hwmon::setupCounter(Counter &counter) {
-	HwmonCounter *const hwmonCounter = findCounter(counter);
-	if (hwmonCounter == NULL) {
-		counter.setEnabled(false);
-		return;
-	}
-	hwmonCounter->setEnabled(true);
-	counter.setKey(hwmonCounter->getKey());
-}
-
-int Hwmon::writeCounters(mxml_node_t *root) const {
-	int count = 0;
-	for (HwmonCounter * counter = counters; counter != NULL; counter = counter->getNext()) {
-		if (!counter->canRead()) {
-			continue;
-		}
-		mxml_node_t *node = mxmlNewElement(root, "counter");
-		mxmlElementSetAttr(node, "name", counter->getName());
-		++count;
-	}
-
-	return count;
-}
-
-void Hwmon::writeEvents(mxml_node_t *root) const {
+void HwmonDriver::writeEvents(mxml_node_t *root) const {
 	root = mxmlNewElement(root, "category");
 	mxmlElementSetAttr(root, "name", "hwmon");
 
 	char buf[1024];
-	for (HwmonCounter * counter = counters; counter != NULL; counter = counter->getNext()) {
-		if (!counter->canRead()) {
-			continue;
-		}
+	for (HwmonCounter *counter = static_cast<HwmonCounter *>(getCounters()); counter != NULL; counter = static_cast<HwmonCounter *>(counter->getNext())) {
 		mxml_node_t *node = mxmlNewElement(root, "event");
 		mxmlElementSetAttr(node, "counter", counter->getName());
 		mxmlElementSetAttr(node, "title", counter->getTitle());
@@ -333,20 +235,11 @@ void Hwmon::writeEvents(mxml_node_t *root) const {
 	}
 }
 
-void Hwmon::start() {
-	for (HwmonCounter * counter = counters; counter != NULL; counter = counter->getNext()) {
+void HwmonDriver::start() {
+	for (DriverCounter *counter = getCounters(); counter != NULL; counter = counter->getNext()) {
 		if (!counter->isEnabled()) {
 			continue;
 		}
 		counter->read();
-	}
-}
-
-void Hwmon::read(Buffer * const buffer) {
-	for (HwmonCounter * counter = counters; counter != NULL; counter = counter->getNext()) {
-		if (!counter->isEnabled()) {
-			continue;
-		}
-		buffer->event(counter->getKey(), counter->read());
 	}
 }

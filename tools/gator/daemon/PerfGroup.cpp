@@ -9,6 +9,7 @@
 #include "PerfGroup.h"
 
 #include <errno.h>
+#include <fcntl.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/syscall.h>
@@ -33,10 +34,19 @@
 	/* have a sampling interrupt happen when we cross the wakeup_watermark boundary */ \
 	pea.watermark = 1; \
 	/* Be conservative in flush size as only one buffer set is monitored */ \
-	pea.wakeup_watermark = 3 * BUF_SIZE / 4
+	pea.wakeup_watermark = BUF_SIZE / 2
 
 static int sys_perf_event_open(struct perf_event_attr *const attr, const pid_t pid, const int cpu, const int group_fd, const unsigned long flags) {
-	return syscall(__NR_perf_event_open, attr, pid, cpu, group_fd, flags);
+	int fd = syscall(__NR_perf_event_open, attr, pid, cpu, group_fd, flags);
+	if (fd < 0) {
+		return -1;
+	}
+	int fdf = fcntl(fd, F_GETFD);
+	if ((fdf == -1) || (fcntl(fd, F_SETFD, fdf | FD_CLOEXEC) != 0)) {
+		close(fd);
+		return -1;
+	}
+	return fd;
 }
 
 PerfGroup::PerfGroup(PerfBuffer *const pb) : mPb(pb) {
@@ -54,7 +64,7 @@ PerfGroup::~PerfGroup() {
 	}
 }
 
-bool PerfGroup::add(Buffer *const buffer, const int key, const __u32 type, const __u64 config, const __u64 sample, const __u64 sampleType, const int flags) {
+bool PerfGroup::add(const uint64_t currTime, Buffer *const buffer, const int key, const __u32 type, const __u64 config, const __u64 sample, const __u64 sampleType, const int flags) {
 	int i;
 	for (i = 0; i < ARRAY_LENGTH(mKeys); ++i) {
 		if (mKeys[i] < 0) {
@@ -82,12 +92,12 @@ bool PerfGroup::add(Buffer *const buffer, const int key, const __u32 type, const
 
 	mKeys[i] = key;
 
-	buffer->pea(&mAttrs[i], key);
+	buffer->pea(currTime, &mAttrs[i], key);
 
 	return true;
 }
 
-bool PerfGroup::prepareCPU(const int cpu) {
+int PerfGroup::prepareCPU(const int cpu, Monitor *const monitor) {
 	logg->logMessage("%s(%s:%i): Onlining cpu %i", __FUNCTION__, __FILE__, __LINE__, cpu);
 
 	for (int i = 0; i < ARRAY_LENGTH(mKeys); ++i) {
@@ -102,26 +112,35 @@ bool PerfGroup::prepareCPU(const int cpu) {
 		const int offset = i * gSessionData->mCores;
 		if (mFds[cpu + offset] >= 0) {
 			logg->logMessage("%s(%s:%i): cpu already online or not correctly cleaned up", __FUNCTION__, __FILE__, __LINE__);
-			return false;
+			return PG_FAILURE;
 		}
 
 		logg->logMessage("%s(%s:%i): perf_event_open cpu: %i type: %lli config: %lli sample: %lli sample_type: 0x%llx pinned: %i mmap: %i comm: %i freq: %i task: %i sample_id_all: %i", __FUNCTION__, __FILE__, __LINE__, cpu, (long long)mAttrs[i].type, (long long)mAttrs[i].config, (long long)mAttrs[i].sample_period, (long long)mAttrs[i].sample_type, mAttrs[i].pinned, mAttrs[i].mmap, mAttrs[i].comm, mAttrs[i].freq, mAttrs[i].task, mAttrs[i].sample_id_all);
 		mFds[cpu + offset] = sys_perf_event_open(&mAttrs[i], -1, cpu, i == 0 ? -1 : mFds[cpu], i == 0 ? 0 : PERF_FLAG_FD_OUTPUT);
 		if (mFds[cpu + offset] < 0) {
 			logg->logMessage("%s(%s:%i): failed %s", __FUNCTION__, __FILE__, __LINE__, strerror(errno));
+			if (errno == ENODEV) {
+				return PG_CPU_OFFLINE;
+			}
 			continue;
 		}
 
-		if (!mPb->useFd(cpu, mFds[cpu + offset], mFds[cpu])) {
+		if (!mPb->useFd(cpu, mFds[cpu + offset])) {
 			logg->logMessage("%s(%s:%i): PerfBuffer::useFd failed", __FUNCTION__, __FILE__, __LINE__);
-			return false;
+			return PG_FAILURE;
+		}
+
+
+		if (!monitor->add(mFds[cpu + offset])) {
+		  logg->logMessage("%s(%s:%i): Monitor::add failed", __FUNCTION__, __FILE__, __LINE__);
+		  return PG_FAILURE;
 		}
 	}
 
-	return true;
+	return PG_SUCCESS;
 }
 
-int PerfGroup::onlineCPU(const int cpu, const bool start, Buffer *const buffer, Monitor *const monitor) {
+int PerfGroup::onlineCPU(const uint64_t currTime, const int cpu, const bool start, Buffer *const buffer) {
 	__u64 ids[ARRAY_LENGTH(mKeys)];
 	int coreKeys[ARRAY_LENGTH(mKeys)];
 	int idCount = 0;
@@ -137,36 +156,35 @@ int PerfGroup::onlineCPU(const int cpu, const bool start, Buffer *const buffer, 
 				// Workaround for running 32-bit gatord on 64-bit systems, kernel patch in the works
 				ioctl(fd, (PERF_EVENT_IOC_ID & ~IOCSIZE_MASK) | (8 << _IOC_SIZESHIFT), &ids[idCount]) != 0) {
 			logg->logMessage("%s(%s:%i): ioctl failed", __FUNCTION__, __FILE__, __LINE__);
-			return false;
+			return 0;
 		}
 		++idCount;
 	}
 
-	if (!monitor->add(mFds[cpu])) {
-		logg->logMessage("%s(%s:%i): Monitor::add failed", __FUNCTION__, __FILE__, __LINE__);
-		return false;
-	}
-
 	if (!gSessionData->perf.getLegacySupport()) {
-		buffer->keys(idCount, ids, coreKeys);
+		buffer->keys(currTime, idCount, ids, coreKeys);
 	} else {
 		char buf[1024];
 		ssize_t bytes = read(mFds[cpu], buf, sizeof(buf));
 		if (bytes < 0) {
 			logg->logMessage("read failed");
-			return false;
+			return 0;
 		}
-		buffer->keysOld(idCount, coreKeys, bytes, buf);
+		buffer->keysOld(currTime, idCount, coreKeys, bytes, buf);
 	}
 
 	if (start) {
 		for (int i = 0; i < ARRAY_LENGTH(mKeys); ++i) {
 			int offset = i * gSessionData->mCores + cpu;
-			if (mFds[offset] >= 0 && ioctl(mFds[offset], PERF_EVENT_IOC_ENABLE) < 0) {
+			if (mFds[offset] >= 0 && ioctl(mFds[offset], PERF_EVENT_IOC_ENABLE, 0) < 0) {
 				logg->logMessage("%s(%s:%i): ioctl failed", __FUNCTION__, __FILE__, __LINE__);
-				return false;
+				return 0;
 			}
 		}
+	}
+
+	if (idCount == 0) {
+		logg->logMessage("%s(%s:%i): no events came online", __FUNCTION__, __FILE__, __LINE__);
 	}
 
 	return idCount;
@@ -177,7 +195,7 @@ bool PerfGroup::offlineCPU(const int cpu) {
 
 	for (int i = 0; i < ARRAY_LENGTH(mKeys); ++i) {
 		int offset = i * gSessionData->mCores + cpu;
-		if (mFds[offset] >= 0 && ioctl(mFds[offset], PERF_EVENT_IOC_DISABLE) < 0) {
+		if (mFds[offset] >= 0 && ioctl(mFds[offset], PERF_EVENT_IOC_DISABLE, 0) < 0) {
 			logg->logMessage("%s(%s:%i): ioctl failed", __FUNCTION__, __FILE__, __LINE__);
 			return false;
 		}
@@ -203,7 +221,7 @@ bool PerfGroup::offlineCPU(const int cpu) {
 
 bool PerfGroup::start() {
 	for (int pos = 0; pos < ARRAY_LENGTH(mFds); ++pos) {
-		if (mFds[pos] >= 0 && ioctl(mFds[pos], PERF_EVENT_IOC_ENABLE) < 0) {
+		if (mFds[pos] >= 0 && ioctl(mFds[pos], PERF_EVENT_IOC_ENABLE, 0) < 0) {
 			logg->logMessage("%s(%s:%i): ioctl failed", __FUNCTION__, __FILE__, __LINE__);
 			goto fail;
 		}
@@ -220,7 +238,7 @@ bool PerfGroup::start() {
 void PerfGroup::stop() {
 	for (int pos = ARRAY_LENGTH(mFds) - 1; pos >= 0; --pos) {
 		if (mFds[pos] >= 0) {
-			ioctl(mFds[pos], PERF_EVENT_IOC_DISABLE);
+			ioctl(mFds[pos], PERF_EVENT_IOC_DISABLE, 0);
 		}
 	}
 }

@@ -19,16 +19,15 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "CCNDriver.h"
 #include "Child.h"
 #include "EventsXML.h"
-#include "KMod.h"
 #include "Logging.h"
 #include "Monitor.h"
 #include "OlySocket.h"
 #include "OlyUtility.h"
 #include "SessionData.h"
-
-#define DEBUG false
+#include "Setup.h"
 
 extern Child* child;
 static int shutdownFilesystem();
@@ -40,8 +39,9 @@ static bool driverRunningAtStart = false;
 static bool driverMountedAtStart = false;
 
 struct cmdline_t {
+	char *module;
 	int port;
-	char* module;
+	bool update;
 };
 
 #define DEFAULT_PORT 8080
@@ -105,7 +105,6 @@ static void child_exit(int) {
 	}
 }
 
-static const int UDP_ANS_PORT = 30000;
 static const int UDP_REQ_PORT = 30001;
 
 typedef struct {
@@ -125,11 +124,10 @@ static const char DST_REQ[] = { 'D', 'S', 'T', '_', 'R', 'E', 'Q', ' ', 0, 0, 0,
 
 class UdpListener {
 public:
-	UdpListener() : mDstAns(), mReq(-1), mAns(-1) {}
+	UdpListener() : mDstAns(), mReq(-1) {}
 
 	void setup(int port) {
 		mReq = udpPort(UDP_REQ_PORT);
-		mAns = udpPort(UDP_ANS_PORT);
 
 		// Format the answer buffer
 		memset(&mDstAns, 0, sizeof(mDstAns));
@@ -161,16 +159,13 @@ public:
 			logg->logError(__FILE__, __LINE__, "recvfrom failed");
 			handleException();
 		} else if ((read == 12) && (memcmp(buf, DST_REQ, sizeof(DST_REQ)) == 0)) {
-			if (sendto(mAns, &mDstAns, sizeof(mDstAns), 0, (struct sockaddr *)&sockaddr, addrlen) != sizeof(mDstAns)) {
-				logg->logError(__FILE__, __LINE__, "sendto failed");
-				handleException();
-			}
+			// Don't care if sendto fails - gatord shouldn't exit because of it and Streamline will retry
+			sendto(mReq, &mDstAns, sizeof(mDstAns), 0, (struct sockaddr *)&sockaddr, addrlen);
 		}
 	}
 
 	void close() {
 		::close(mReq);
-		::close(mAns);
 	}
 
 private:
@@ -180,10 +175,10 @@ private:
 		int on;
 		int family = AF_INET6;
 
-		s = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+		s = socket_cloexec(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
 		if (s == -1) {
 			family = AF_INET;
-			s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+			s = socket_cloexec(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 			if (s == -1) {
 				logg->logError(__FILE__, __LINE__, "socket failed");
 				handleException();
@@ -210,7 +205,6 @@ private:
 
 	RVIConfigureInfo mDstAns;
 	int mReq;
-	int mAns;
 };
 
 static UdpListener udpListener;
@@ -233,7 +227,7 @@ static int mountGatorFS() {
 
 static bool init_module (const char * const location) {
 	bool ret(false);
-	const int fd = open(location, O_RDONLY);
+	const int fd = open(location, O_RDONLY | O_CLOEXEC);
 	if (fd >= 0) {
 		struct stat st;
 		if (fstat(fd, &st) == 0) {
@@ -332,10 +326,26 @@ static int shutdownFilesystem() {
 	return 0; // success
 }
 
+static const char OPTSTRING[] = "hvudap:s:c:e:m:o:";
+
+static bool hasDebugFlag(int argc, char** argv) {
+	int c;
+
+	optind = 1;
+	while ((c = getopt(argc, argv, OPTSTRING)) != -1) {
+		if (c == 'd') {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 static struct cmdline_t parseCommandLine(int argc, char** argv) {
 	struct cmdline_t cmdline;
 	cmdline.port = DEFAULT_PORT;
 	cmdline.module = NULL;
+	cmdline.update = false;
 	char version_string[256]; // arbitrary length to hold the version information
 	int c;
 
@@ -346,10 +356,14 @@ static struct cmdline_t parseCommandLine(int argc, char** argv) {
 		snprintf(version_string, sizeof(version_string), "Streamline gatord development version %d", PROTOCOL_VERSION);
 	}
 
-	while ((c = getopt(argc, argv, "hvp:s:c:e:m:o:")) != -1) {
-		switch(c) {
+	optind = 1;
+	while ((c = getopt(argc, argv, OPTSTRING)) != -1) {
+		switch (c) {
 			case 'c':
 				gSessionData->mConfigurationXMLPath = optarg;
+				break;
+			case 'd':
+				// Already handled
 				break;
 			case 'e':
 				gSessionData->mEventsXMLPath = optarg;
@@ -366,6 +380,12 @@ static struct cmdline_t parseCommandLine(int argc, char** argv) {
 			case 'o':
 				gSessionData->mTargetPath = optarg;
 				break;
+			case 'u':
+				cmdline.update = true;
+				break;
+			case 'a':
+				gSessionData->mAllowCommands = true;
+				break;
 			case 'h':
 			case '?':
 				logg->logError(__FILE__, __LINE__,
@@ -375,9 +395,11 @@ static struct cmdline_t parseCommandLine(int argc, char** argv) {
 					"-h              this help page\n"
 					"-m module       path and filename of gator.ko\n"
 					"-p port_number  port upon which the server listens; default is 8080\n"
-					"-s session_xml  path and filename of a session xml used for local capture\n"
+					"-s session_xml  path and filename of a session.xml used for local capture\n"
 					"-o apc_dir      path and name of the output for a local capture\n"
 					"-v              version information\n"
+					"-d              enable debug messages\n"
+					"-a              allow the user user to provide a command to run at the start of a capture"
 					, version_string);
 				handleException();
 				break;
@@ -407,7 +429,7 @@ static struct cmdline_t parseCommandLine(int argc, char** argv) {
 	return cmdline;
 }
 
-void handleClient() {
+static void handleClient() {
 	OlySocket client(sock->acceptConnection());
 
 	int pid = fork();
@@ -452,12 +474,15 @@ int main(int argc, char** argv) {
 	//   e.g. it may not be the group leader when launched as 'sudo gatord'
 	setsid();
 
-	logg = new Logging(DEBUG);  // Set up global thread-safe logging
-	gSessionData = new SessionData(); // Global data class
-	util = new OlyUtility();	// Set up global utility class
+  // Set up global thread-safe logging
+	logg = new Logging(hasDebugFlag(argc, argv));
+	// Global data class
+	gSessionData = new SessionData();
+	// Set up global utility class
+	util = new OlyUtility();
 
 	// Initialize drivers
-	new KMod();
+	new CCNDriver();
 
 	prctl(PR_SET_NAME, (unsigned long)&"gatord-main", 0, 0, 0);
 	pthread_mutex_init(&numSessions_mutex, NULL);
@@ -473,6 +498,10 @@ int main(int argc, char** argv) {
 
 	// Parse the command line parameters
 	struct cmdline_t cmdline = parseCommandLine(argc, argv);
+
+	if (cmdline.update) {
+		return update(argv[0]);
+	}
 
 	// Verify root permissions
 	uid_t euid = geteuid();
@@ -490,17 +519,18 @@ int main(int argc, char** argv) {
 				       "  >>> gator.ko should be co-located with gatord in the same directory\n"
 				       "  >>> OR insmod gator.ko prior to launching gatord\n"
 				       "  >>> OR specify the location of gator.ko on the command line\n"
-				       "  >>> OR run Linux 3.4 or later with perf (CONFIG_PERF_EVENTS and CONFIG_HW_PERF_EVENTS) and tracing (CONFIG_TRACING) support to collect data via userspace only");
+				       "  >>> OR run Linux 3.4 or later with perf (CONFIG_PERF_EVENTS and CONFIG_HW_PERF_EVENTS) and tracing (CONFIG_TRACING and CONFIG_CONTEXT_SWITCH_TRACER) support to collect data via userspace only");
 			handleException();
 		}
 	}
 
-	gSessionData->hwmon.setup();
 	{
 		EventsXML eventsXML;
 		mxml_node_t *xml = eventsXML.getTree();
-		gSessionData->fsDriver.setup(xml);
-		gSessionData->maliVideo.setup(xml);
+		// Initialize all drivers
+		for (Driver *driver = Driver::getHead(); driver != NULL; driver = driver->getNext()) {
+			driver->readEvents(xml);
+		}
 		mxmlDelete(xml);
 	}
 
@@ -517,9 +547,14 @@ int main(int argc, char** argv) {
 		child->run();
 		delete child;
 	} else {
+		gSessionData->annotateListener.setup();
 		sock = new OlyServerSocket(cmdline.port);
 		udpListener.setup(cmdline.port);
-		if (!monitor.init() || !monitor.add(sock->getFd()) || !monitor.add(udpListener.getReq())) {
+		if (!monitor.init() ||
+				!monitor.add(sock->getFd()) ||
+				!monitor.add(udpListener.getReq()) ||
+				!monitor.add(gSessionData->annotateListener.getFd()) ||
+				false) {
 			logg->logError(__FILE__, __LINE__, "Monitor setup failed");
 			handleException();
 		}
@@ -537,6 +572,8 @@ int main(int argc, char** argv) {
 					handleClient();
 				} else if (events[i].data.fd == udpListener.getReq()) {
 					udpListener.handle();
+				} else if (events[i].data.fd == gSessionData->annotateListener.getFd()) {
+					gSessionData->annotateListener.handle();
 				}
 			}
 		}

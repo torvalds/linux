@@ -1,9 +1,9 @@
 /*
- * "$Id: mxml-node.c 436 2011-01-22 01:02:05Z mike $"
+ * "$Id: mxml-node.c 451 2014-01-04 21:50:06Z msweet $"
  *
  * Node support code for Mini-XML, a small XML-like file parsing library.
  *
- * Copyright 2003-2011 by Michael R Sweet.
+ * Copyright 2003-2014 by Michael R Sweet.
  *
  * These coded instructions, statements, and computer programs are the
  * property of Michael R Sweet and are protected by Federal copyright
@@ -11,26 +11,7 @@
  * which should have been included with this file.  If this file is
  * missing or damaged, see the license at:
  *
- *     http://www.minixml.org/
- *
- * Contents:
- *
- *   mxmlAdd()         - Add a node to a tree.
- *   mxmlDelete()      - Delete a node and all of its children.
- *   mxmlGetRefCount() - Get the current reference (use) count for a node.
- *   mxmlNewCDATA()    - Create a new CDATA node.
- *   mxmlNewCustom()   - Create a new custom data node.
- *   mxmlNewElement()  - Create a new element node.
- *   mxmlNewInteger()  - Create a new integer node.
- *   mxmlNewOpaque()   - Create a new opaque string.
- *   mxmlNewReal()     - Create a new real number node.
- *   mxmlNewText()     - Create a new text fragment node.
- *   mxmlNewTextf()    - Create a new formatted text fragment node.
- *   mxmlRemove()      - Remove a node from its parent.
- *   mxmlNewXML()      - Create a new XML document tree.
- *   mxmlRelease()     - Release a node.
- *   mxmlRetain()      - Retain a node.
- *   mxml_new()        - Create a new node.
+ *     http://www.msweet.org/projects.php/Mini-XML
  */
 
 /*
@@ -529,7 +510,7 @@ mxmlNewReal(mxml_node_t *parent,	/* I - Parent node or MXML_NO_PARENT */
  * list. The constant MXML_NO_PARENT can be used to specify that the new
  * text node has no parent. The whitespace parameter is used to specify
  * whether leading whitespace is present before the node. The text
- * string must be nul-terminated and is copied into the new node.  
+ * string must be nul-terminated and is copied into the new node.
  */
 
 mxml_node_t *				/* O - New node */
@@ -573,7 +554,7 @@ mxmlNewText(mxml_node_t *parent,	/* I - Parent node or MXML_NO_PARENT */
  * list. The constant MXML_NO_PARENT can be used to specify that the new
  * text node has no parent. The whitespace parameter is used to specify
  * whether leading whitespace is present before the node. The format
- * string must be nul-terminated and is formatted into the new node.  
+ * string must be nul-terminated and is formatted into the new node.
  */
 
 mxml_node_t *				/* O - New node */
@@ -803,5 +784,5 @@ mxml_new(mxml_node_t *parent,		/* I - Parent node */
 
 
 /*
- * End of "$Id: mxml-node.c 436 2011-01-22 01:02:05Z mike $".
+ * End of "$Id: mxml-node.c 451 2014-01-04 21:50:06Z msweet $".
  */

@@ -1,9 +1,9 @@
 /*
- * "$Id: mxml-private.c 422 2010-11-07 22:55:11Z mike $"
+ * "$Id: mxml-private.c 451 2014-01-04 21:50:06Z msweet $"
  *
  * Private functions for Mini-XML, a small XML-like file parsing library.
  *
- * Copyright 2003-2010 by Michael R Sweet.
+ * Copyright 2003-2014 by Michael R Sweet.
  *
  * These coded instructions, statements, and computer programs are the
  * property of Michael R Sweet and are protected by Federal copyright
@@ -11,15 +11,7 @@
  * which should have been included with this file.  If this file is
  * missing or damaged, see the license at:
  *
- *     http://www.minixml.org/
- *
- * Contents:
- *
- *   mxml_error()      - Display an error message.
- *   mxml_integer_cb() - Default callback for integer values.
- *   mxml_opaque_cb()  - Default callback for opaque values.
- *   mxml_real_cb()    - Default callback for real number values.
- *   _mxml_global()    - Get global data.
+ *     http://www.msweet.org/projects.php/Mini-XML
  */
 
 /*
@@ -238,7 +230,7 @@ static DWORD _mxml_tls_index;		/* Index for global storage */
 /*
  * 'DllMain()' - Main entry for library.
  */
- 
+
 BOOL WINAPI				/* O - Success/failure */
 DllMain(HINSTANCE hinst,		/* I - DLL module handle */
         DWORD     reason,		/* I - Reason */
@@ -250,28 +242,28 @@ DllMain(HINSTANCE hinst,		/* I - DLL module handle */
   (void)hinst;
   (void)reserved;
 
-  switch (reason) 
-  { 
+  switch (reason)
+  {
     case DLL_PROCESS_ATTACH :		/* Called on library initialization */
-        if ((_mxml_tls_index = TlsAlloc()) == TLS_OUT_OF_INDEXES) 
-          return (FALSE); 
-        break; 
+        if ((_mxml_tls_index = TlsAlloc()) == TLS_OUT_OF_INDEXES)
+          return (FALSE);
+        break;
 
     case DLL_THREAD_DETACH :		/* Called when a thread terminates */
         if ((global = (_mxml_global_t *)TlsGetValue(_mxml_tls_index)) != NULL)
           free(global);
-        break; 
+        break;
 
     case DLL_PROCESS_DETACH :		/* Called when library is unloaded */
         if ((global = (_mxml_global_t *)TlsGetValue(_mxml_tls_index)) != NULL)
           free(global);
 
-        TlsFree(_mxml_tls_index); 
-        break; 
+        TlsFree(_mxml_tls_index);
+        break;
 
-    default: 
-        break; 
-  } 
+    default:
+        break;
+  }
 
   return (TRUE);
 }
@@ -295,7 +287,7 @@ _mxml_global(void)
     global->entity_cbs[0]  = _mxml_entity_cb;
     global->wrap           = 72;
 
-    TlsSetValue(_mxml_tls_index, (LPVOID)global); 
+    TlsSetValue(_mxml_tls_index, (LPVOID)global);
   }
 
   return (global);
@@ -327,5 +319,5 @@ _mxml_global(void)
 
 
 /*
- * End of "$Id: mxml-private.c 422 2010-11-07 22:55:11Z mike $".
+ * End of "$Id: mxml-private.c 451 2014-01-04 21:50:06Z msweet $".
  */

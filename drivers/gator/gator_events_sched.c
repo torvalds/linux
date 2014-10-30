@@ -26,8 +26,9 @@ GATOR_DEFINE_PROBE(sched_switch, TP_PROTO(struct task_struct *prev, struct task_
 {
 	unsigned long flags;
 
-	// disable interrupts to synchronize with gator_events_sched_read()
-	// spinlocks not needed since percpu buffers are used
+	/* disable interrupts to synchronize with gator_events_sched_read()
+	 * spinlocks not needed since percpu buffers are used
+	 */
 	local_irq_save(flags);
 	per_cpu(schedCnt, get_physical_cpu())[SCHED_SWITCH]++;
 	local_irq_restore(flags);
@@ -39,9 +40,8 @@ static int gator_events_sched_create_files(struct super_block *sb, struct dentry
 
 	/* switch */
 	dir = gatorfs_mkdir(sb, root, "Linux_sched_switch");
-	if (!dir) {
+	if (!dir)
 		return -1;
-	}
 	gatorfs_create_ulong(sb, dir, "enabled", &sched_switch_enabled);
 	gatorfs_create_ro_ulong(sb, dir, "key", &sched_switch_key);
 
@@ -50,7 +50,7 @@ static int gator_events_sched_create_files(struct super_block *sb, struct dentry
 
 static int gator_events_sched_start(void)
 {
-	// register tracepoints
+	/* register tracepoints */
 	if (sched_switch_enabled)
 		if (GATOR_REGISTER_TRACE(sched_switch))
 			goto sched_switch_exit;
@@ -58,7 +58,7 @@ static int gator_events_sched_start(void)
 
 	return 0;
 
-	// unregister tracepoints on error
+	/* unregister tracepoints on error */
 sched_switch_exit:
 	pr_err("gator: scheduler event tracepoints failed to activate, please verify that tracepoints are enabled in the linux kernel\n");
 
@@ -74,7 +74,7 @@ static void gator_events_sched_stop(void)
 	sched_switch_enabled = 0;
 }
 
-static int gator_events_sched_read(int **buffer)
+static int gator_events_sched_read(int **buffer, bool sched_switch)
 {
 	unsigned long flags;
 	int len, value;

@@ -1,16 +1,17 @@
   <category name="Linux">
     <event counter="Linux_irq_softirq" title="Interrupts" name="SoftIRQ" per_cpu="yes" description="Linux SoftIRQ taken"/>
     <event counter="Linux_irq_irq" title="Interrupts" name="IRQ" per_cpu="yes" description="Linux IRQ taken"/>
-    <event counter="Linux_block_rq_wr" title="Disk IO" name="Write" units="B" description="Disk IO Bytes Written"/>
-    <event counter="Linux_block_rq_rd" title="Disk IO" name="Read" units="B" description="Disk IO Bytes Read"/>
+    <event counter="Linux_block_rq_wr" title="Disk I/O" name="Write" units="B" description="Disk I/O Bytes Written"/>
+    <event counter="Linux_block_rq_rd" title="Disk I/O" name="Read" units="B" description="Disk I/O Bytes Read"/>
     <event counter="Linux_net_rx" title="Network" name="Receive" units="B" description="Receive network traffic, including effect from Streamline"/>
     <event counter="Linux_net_tx" title="Network" name="Transmit" units="B" description="Transmit network traffic, including effect from Streamline"/>
     <event counter="Linux_sched_switch" title="Scheduler" name="Switch" per_cpu="yes" description="Context switch events"/>
     <event counter="Linux_meminfo_memused" title="Memory" name="Used" class="absolute" units="B" proc="yes" description="Total used memory size. Note: a process' used memory includes shared memory that may be counted more than once (equivalent to RES from top). Kernel threads are not filterable."/>
+    <event counter="Linux_meminfo_memused2" title="Memory" name="Used" class="absolute" units="B" description="Total used memory size"/>
     <event counter="Linux_meminfo_memfree" title="Memory" name="Free" class="absolute" display="minimum" units="B" description="Available memory size"/>
     <event counter="Linux_meminfo_bufferram" title="Memory" name="Buffer" class="absolute" units="B" description="Memory used by OS disk buffers"/>
     <event counter="Linux_power_cpu_freq" title="Clock" name="Frequency" per_cpu="yes" class="absolute" units="Hz" series_composition="overlay" average_cores="yes" description="Frequency setting of the CPU"/>
-    <event counter="Linux_power_cpu_idle" title="Idle" name="State" per_cpu="yes" class="absolute" description="CPU Idle State + 1, set the Sample Rate to None to prevent the hrtimer from interrupting the system"/>
-    <event counter="Linux_cpu_wait_contention" title="CPU Contention" name="Wait" per_cpu="no" class="activity" derived="yes" rendering_type="bar" average_selection="yes" percentage="yes" modifier="10000" color="0x003c96fb" description="Thread waiting on contended resource"/>
-    <event counter="Linux_cpu_wait_io" title="CPU I/O" name="Wait" per_cpu="no" class="activity" derived="yes" rendering_type="bar" average_selection="yes" percentage="yes" modifier="10000" color="0x00b30000" description="Thread waiting on I/O resource"/>
+    <event counter="Linux_cpu_wait_contention" title="CPU Contention" name="Wait" per_cpu="no" class="activity" derived="yes" rendering_type="bar" average_selection="yes" percentage="yes" modifier="10000" color="0x003c96fb" description="One or more threads are runnable but waiting due to CPU contention"/>
+    <event counter="Linux_cpu_wait_io" title="CPU I/O" name="Wait" per_cpu="no" class="activity" derived="yes" rendering_type="bar" average_selection="yes" percentage="yes" modifier="10000" color="0x00b30000" description="One or more threads are blocked on an I/O resource"/>
+    <event counter="Linux_power_cpu" title="CPU Status" name="Activity" class="activity" activity1="Off" activity_color1="0x0000ff00" activity2="WFI" activity_color2="0x000000ff" rendering_type="bar" average_selection="yes" average_cores="yes" percentage="yes" description="CPU Status"/>
   </category>

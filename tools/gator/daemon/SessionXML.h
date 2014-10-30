@@ -14,12 +14,13 @@
 struct ImageLinkList;
 
 struct ConfigParameters {
-	char buffer_mode[64];	// buffer mode, "streaming", "low", "normal", "high" defines oneshot and buffer size
-	char sample_rate[64];	// capture mode, "high", "normal", or "low"
-	int duration;		// length of profile in seconds
-	bool call_stack_unwinding;	// whether stack unwinding is performed
+	// buffer mode, "streaming", "low", "normal", "high" defines oneshot and buffer size
+	char buffer_mode[64];
+	// capture mode, "high", "normal", or "low"
+	char sample_rate[64];
+	// whether stack unwinding is performed
+	bool call_stack_unwinding;
 	int live_rate;
-	struct ImageLinkList *images;	// linked list of image strings
 };
 
 class SessionXML {
@@ -30,7 +31,6 @@ public:
 	ConfigParameters parameters;
 private:
 	const char *mSessionXML;
-	const char *mPath;
 	void sessionTag(mxml_node_t *tree, mxml_node_t *node);
 	void sessionImage(mxml_node_t *node);
 

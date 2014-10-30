@@ -15,10 +15,10 @@
 #include <ws2tcpip.h>
 #else
 #include <netinet/in.h>
-#include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
 #include <netdb.h>
+#include <fcntl.h>
 #endif
 
 #include "Logging.h"
@@ -31,6 +31,48 @@
 #define CLOSE_SOCKET(x) close(x)
 #define SHUTDOWN_RX_TX SHUT_RDWR
 #endif
+
+int socket_cloexec(int domain, int type, int protocol) {
+#ifdef SOCK_CLOEXEC
+  return socket(domain, type | SOCK_CLOEXEC, protocol);
+#else
+  int sock = socket(domain, type, protocol);
+#ifdef FD_CLOEXEC
+  if (sock < 0) {
+    return -1;
+  }
+  int fdf = fcntl(sock, F_GETFD);
+  if ((fdf == -1) || (fcntl(sock, F_SETFD, fdf | FD_CLOEXEC) != 0)) {
+    close(sock);
+    return -1;
+  }
+#endif
+  return sock;
+#endif
+}
+
+int accept_cloexec(int sockfd, struct sockaddr *addr, socklen_t *addrlen) {
+  int sock;
+#ifdef SOCK_CLOEXEC
+  sock = accept4(sockfd, addr, addrlen, SOCK_CLOEXEC);
+  if (sock >= 0) {
+    return sock;
+  }
+  // accept4 with SOCK_CLOEXEC may not work on all kernels, so fallback
+#endif
+  sock = accept(sockfd, addr, addrlen);
+#ifdef FD_CLOEXEC
+  if (sock < 0) {
+    return -1;
+  }
+  int fdf = fcntl(sock, F_GETFD);
+  if ((fdf == -1) || (fcntl(sock, F_SETFD, fdf | FD_CLOEXEC) != 0)) {
+    close(sock);
+    return -1;
+  }
+#endif
+  return sock;
+}
 
 OlyServerSocket::OlyServerSocket(int port) {
 #ifdef WIN32
@@ -57,7 +99,7 @@ OlySocket::OlySocket(int socketID) : mSocketID(socketID) {
 
 OlyServerSocket::OlyServerSocket(const char* path, const size_t pathSize) {
   // Create socket
-  mFDServer = socket(PF_UNIX, SOCK_STREAM, 0);
+  mFDServer = socket_cloexec(PF_UNIX, SOCK_STREAM, 0);
   if (mFDServer < 0) {
     logg->logError(__FILE__, __LINE__, "Error creating server socket");
     handleException();
@@ -84,7 +126,7 @@ OlyServerSocket::OlyServerSocket(const char* path, const size_t pathSize) {
 }
 
 int OlySocket::connect(const char* path, const size_t pathSize) {
-  int fd = socket(PF_UNIX, SOCK_STREAM, 0);
+  int fd = socket_cloexec(PF_UNIX, SOCK_STREAM, 0);
   if (fd < 0) {
     return -1;
   }
@@ -143,10 +185,10 @@ void OlyServerSocket::createServerSocket(int port) {
   int family = AF_INET6;
 
   // Create socket
-  mFDServer = socket(PF_INET6, SOCK_STREAM, IPPROTO_TCP);
+  mFDServer = socket_cloexec(PF_INET6, SOCK_STREAM, IPPROTO_TCP);
   if (mFDServer < 0) {
     family = AF_INET;
-    mFDServer = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+    mFDServer = socket_cloexec(PF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (mFDServer < 0) {
       logg->logError(__FILE__, __LINE__, "Error creating server socket");
       handleException();
@@ -190,7 +232,7 @@ int OlyServerSocket::acceptConnection() {
   }
 
   // Accept a connection, note that this call blocks until a client connects
-  socketID = accept(mFDServer, NULL, NULL);
+  socketID = accept_cloexec(mFDServer, NULL, NULL);
   if (socketID < 0) {
     logg->logError(__FILE__, __LINE__, "Socket acceptance failed");
     handleException();

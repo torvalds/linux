@@ -14,43 +14,34 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "Buffer.h"
-#include "Counter.h"
 #include "DriverSource.h"
 #include "Logging.h"
-#include "SessionData.h"
 
-class FSCounter {
+class FSCounter : public DriverCounter {
 public:
-	FSCounter(FSCounter *next, char *name, const char *regex);
+	FSCounter(DriverCounter *next, char *name, char *path, const char *regex);
 	~FSCounter();
 
-	FSCounter *getNext() const { return next; }
-	int getKey() const { return key; }
-	bool isEnabled() const { return enabled; }
-	void setEnabled(const bool enabled) { this->enabled = enabled; }
-	const char *getName() const { return name; }
+	const char *getPath() const { return mPath; }
+
 	int64_t read();
 
 private:
-	FSCounter *const next;
-	regex_t reg;
-	char *name;
-	const int key;
-	int enabled : 1,
-		useRegex : 1;
+	char *const mPath;
+	regex_t mReg;
+	bool mUseRegex;
 
 	// Intentionally unimplemented
 	FSCounter(const FSCounter &);
 	FSCounter &operator=(const FSCounter &);
 };
 
-FSCounter::FSCounter(FSCounter *next, char *name, const char *regex) : next(next), name(name), key(getEventKey()), enabled(false), useRegex(regex != NULL) {
-	if (useRegex) {
-		int result = regcomp(&reg, regex, REG_EXTENDED);
+FSCounter::FSCounter(DriverCounter *next, char *name, char *path, const char *regex) : DriverCounter(next, name), mPath(path), mUseRegex(regex != NULL) {
+	if (mUseRegex) {
+		int result = regcomp(&mReg, regex, REG_EXTENDED);
 		if (result != 0) {
 			char buf[128];
-			regerror(result, &reg, buf, sizeof(buf));
+			regerror(result, &mReg, buf, sizeof(buf));
 			logg->logError(__FILE__, __LINE__, "Invalid regex '%s': %s", regex, buf);
 			handleException();
 		}
@@ -58,18 +49,18 @@ FSCounter::FSCounter(FSCounter *next, char *name, const char *regex) : next(next
 }
 
 FSCounter::~FSCounter() {
-	free(name);
-	if (useRegex) {
-		regfree(&reg);
+	free(mPath);
+	if (mUseRegex) {
+		regfree(&mReg);
 	}
 }
 
 int64_t FSCounter::read() {
 	int64_t value;
-	if (useRegex) {
+	if (mUseRegex) {
 		char buf[4096];
 		size_t pos = 0;
-		const int fd = open(name, O_RDONLY);
+		const int fd = open(mPath, O_RDONLY | O_CLOEXEC);
 		if (fd < 0) {
 			goto fail;
 		}
@@ -86,53 +77,43 @@ int64_t FSCounter::read() {
 		buf[pos] = '\0';
 
 		regmatch_t match[2];
-		int result = regexec(&reg, buf, 2, match, 0);
+		int result = regexec(&mReg, buf, 2, match, 0);
 		if (result != 0) {
-			regerror(result, &reg, buf, sizeof(buf));
-			logg->logError(__FILE__, __LINE__, "Parsing %s failed: %s", name, buf);
+			regerror(result, &mReg, buf, sizeof(buf));
+			logg->logError(__FILE__, __LINE__, "Parsing %s failed: %s", mPath, buf);
 			handleException();
 		}
 
 		if (match[1].rm_so < 0) {
-			logg->logError(__FILE__, __LINE__, "Parsing %s failed", name);
+			logg->logError(__FILE__, __LINE__, "Parsing %s failed", mPath);
 			handleException();
 		}
-		char *endptr;
+
 		errno = 0;
-		value = strtoll(buf + match[1].rm_so, &endptr, 0);
+		value = strtoll(buf + match[1].rm_so, NULL, 0);
 		if (errno != 0) {
-			logg->logError(__FILE__, __LINE__, "Parsing %s failed: %s", name, strerror(errno));
+			logg->logError(__FILE__, __LINE__, "Parsing %s failed: %s", mPath, strerror(errno));
 			handleException();
 		}
 	} else {
-		if (DriverSource::readInt64Driver(name, &value) != 0) {
+		if (DriverSource::readInt64Driver(mPath, &value) != 0) {
 			goto fail;
 		}
 	}
 	return value;
 
  fail:
-	logg->logError(__FILE__, __LINE__, "Unable to read %s", name);
+	logg->logError(__FILE__, __LINE__, "Unable to read %s", mPath);
 	handleException();
 }
 
-FSDriver::FSDriver() : counters(NULL) {
+FSDriver::FSDriver() {
 }
 
 FSDriver::~FSDriver() {
-	while (counters != NULL) {
-		FSCounter * counter = counters;
-		counters = counter->getNext();
-		delete counter;
-	}
 }
 
-void FSDriver::setup(mxml_node_t *const xml) {
-	// fs driver does not currently work with perf
-	if (gSessionData->perf.isSetup()) {
-		return;
-	}
-
+void FSDriver::readEvents(mxml_node_t *const xml) {
 	mxml_node_t *node = xml;
 	while (true) {
 		node = mxmlFindElement(node, xml, "event", NULL, NULL, MXML_DESCEND);
@@ -140,56 +121,33 @@ void FSDriver::setup(mxml_node_t *const xml) {
 			break;
 		}
 		const char *counter = mxmlElementGetAttr(node, "counter");
-		if ((counter != NULL) && (counter[0] == '/')) {
-			const char *regex = mxmlElementGetAttr(node, "regex");
-			counters = new FSCounter(counters, strdup(counter), regex);
+		if (counter == NULL) {
+			continue;
 		}
-	}
-}
 
-FSCounter *FSDriver::findCounter(const Counter &counter) const {
-	for (FSCounter * fsCounter = counters; fsCounter != NULL; fsCounter = fsCounter->getNext()) {
-		if (strcmp(fsCounter->getName(), counter.getType()) == 0) {
-			return fsCounter;
+		if (counter[0] == '/') {
+			logg->logError(__FILE__, __LINE__, "Old style filesystem counter (%s) detected, please create a new unique counter value and move the filename into the path attribute, see events-Filesystem.xml for examples", counter);
+			handleException();
 		}
-	}
 
-	return NULL;
-}
-
-bool FSDriver::claimCounter(const Counter &counter) const {
-	return findCounter(counter) != NULL;
-}
-
-bool FSDriver::countersEnabled() const {
-	for (FSCounter *counter = counters; counter != NULL; counter = counter->getNext()) {
-		if (counter->isEnabled()) {
-			return true;
+		if (strncmp(counter, "filesystem_", 11) != 0) {
+			continue;
 		}
-	}
-	return false;
-}
 
-void FSDriver::resetCounters() {
-	for (FSCounter * counter = counters; counter != NULL; counter = counter->getNext()) {
-		counter->setEnabled(false);
+		const char *path = mxmlElementGetAttr(node, "path");
+		if (path == NULL) {
+			logg->logError(__FILE__, __LINE__, "The filesystem counter %s is missing the required path attribute", counter);
+			handleException();
+		}
+		const char *regex = mxmlElementGetAttr(node, "regex");
+		setCounters(new FSCounter(getCounters(), strdup(counter), strdup(path), regex));
 	}
-}
-
-void FSDriver::setupCounter(Counter &counter) {
-	FSCounter *const fsCounter = findCounter(counter);
-	if (fsCounter == NULL) {
-		counter.setEnabled(false);
-		return;
-	}
-	fsCounter->setEnabled(true);
-	counter.setKey(fsCounter->getKey());
 }
 
 int FSDriver::writeCounters(mxml_node_t *root) const {
 	int count = 0;
-	for (FSCounter * counter = counters; counter != NULL; counter = counter->getNext()) {
-		if (access(counter->getName(), R_OK) == 0) {
+	for (FSCounter *counter = static_cast<FSCounter *>(getCounters()); counter != NULL; counter = static_cast<FSCounter *>(counter->getNext())) {
+		if (access(counter->getPath(), R_OK) == 0) {
 			mxml_node_t *node = mxmlNewElement(root, "counter");
 			mxmlElementSetAttr(node, "name", counter->getName());
 			++count;
@@ -197,16 +155,4 @@ int FSDriver::writeCounters(mxml_node_t *root) const {
 	}
 
 	return count;
-}
-
-void FSDriver::start() {
-}
-
-void FSDriver::read(Buffer * const buffer) {
-	for (FSCounter * counter = counters; counter != NULL; counter = counter->getNext()) {
-		if (!counter->isEnabled()) {
-			continue;
-		}
-		buffer->event(counter->getKey(), counter->read());
-	}
 }

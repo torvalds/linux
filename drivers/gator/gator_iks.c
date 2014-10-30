@@ -16,7 +16,7 @@
 
 static bool map_cpuids;
 static int mpidr_cpuids[NR_CPUS];
-static const struct gator_cpu * mpidr_cpus[NR_CPUS];
+static const struct gator_cpu *mpidr_cpus[NR_CPUS];
 static int __lcpu_to_pcpu[NR_CPUS];
 
 static const struct gator_cpu *gator_find_cpu_by_dt_name(const char *const name)
@@ -25,9 +25,9 @@ static const struct gator_cpu *gator_find_cpu_by_dt_name(const char *const name)
 
 	for (i = 0; gator_cpus[i].cpuid != 0; ++i) {
 		const struct gator_cpu *const gator_cpu = &gator_cpus[i];
-		if (gator_cpu->dt_name != NULL && strcmp(gator_cpu->dt_name, name) == 0) {
+
+		if (gator_cpu->dt_name != NULL && strcmp(gator_cpu->dt_name, name) == 0)
 			return gator_cpu;
-		}
 	}
 
 	return NULL;
@@ -41,7 +41,7 @@ static void calc_first_cluster_size(void)
 	struct device_node *cn = NULL;
 	int mpidr_cpuids_count = 0;
 
-	// Zero is a valid cpuid, so initialize the array to 0xff's
+	/* Zero is a valid cpuid, so initialize the array to 0xff's */
 	memset(&mpidr_cpuids, 0xff, sizeof(mpidr_cpuids));
 	memset(&mpidr_cpus, 0, sizeof(mpidr_cpus));
 
@@ -70,10 +70,10 @@ static void calc_first_cluster_size(void)
 static int linearize_mpidr(int mpidr)
 {
 	int i;
+
 	for (i = 0; i < nr_cpu_ids; ++i) {
-		if (mpidr_cpuids[i] == mpidr) {
+		if (mpidr_cpuids[i] == mpidr)
 			return i;
-		}
 	}
 
 	BUG();
@@ -113,6 +113,7 @@ static void gator_update_cpu_mapping(u32 cpu_hwid)
 {
 	int lcpu = smp_processor_id();
 	int pcpu = linearize_mpidr(cpu_hwid & MPIDR_HWID_BITMASK);
+
 	BUG_ON(lcpu >= nr_cpu_ids || lcpu < 0);
 	BUG_ON(pcpu >= nr_cpu_ids || pcpu < 0);
 	__lcpu_to_pcpu[lcpu] = pcpu;
@@ -132,7 +133,7 @@ GATOR_DEFINE_PROBE(cpu_migrate_finish, TP_PROTO(u64 timestamp, u32 cpu_hwid))
 
 	gator_update_cpu_mapping(cpu_hwid);
 
-	// get_physical_cpu must be called after gator_update_cpu_mapping
+	/* get_physical_cpu must be called after gator_update_cpu_mapping */
 	cpu = get_physical_cpu();
 	gator_timer_online_dispatch(cpu, true);
 	gator_timer_online((void *)1);
@@ -146,12 +147,11 @@ GATOR_DEFINE_PROBE(cpu_migrate_current, TP_PROTO(u64 timestamp, u32 cpu_hwid))
 static void gator_send_iks_core_names(void)
 {
 	int cpu;
-	// Send the cpu names
+	/* Send the cpu names */
 	preempt_disable();
 	for (cpu = 0; cpu < nr_cpu_ids; ++cpu) {
-		if (mpidr_cpus[cpu] != NULL) {
+		if (mpidr_cpus[cpu] != NULL)
 			gator_send_core_name(cpu, mpidr_cpus[cpu]->cpuid);
-		}
 	}
 	preempt_enable();
 }
@@ -170,7 +170,7 @@ static int gator_migrate_start(void)
 	if (retval == 0)
 		retval = GATOR_REGISTER_TRACE(cpu_migrate_current);
 	if (retval == 0) {
-		// Initialize the logical to physical cpu mapping
+		/* Initialize the logical to physical cpu mapping */
 		memset(&__lcpu_to_pcpu, 0xff, sizeof(__lcpu_to_pcpu));
 		bL_switcher_trace_trigger();
 	}

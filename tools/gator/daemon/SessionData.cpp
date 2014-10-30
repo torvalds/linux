@@ -8,15 +8,31 @@
 
 #include "SessionData.h"
 
+#include <fcntl.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <unistd.h>
 
-#include "SessionXML.h"
+#include "CPUFreqDriver.h"
+#include "DiskIODriver.h"
+#include "FSDriver.h"
+#include "HwmonDriver.h"
 #include "Logging.h"
+#include "MemInfoDriver.h"
+#include "NetDriver.h"
+#include "SessionXML.h"
+
+#define CORE_NAME_UNKNOWN "unknown"
 
 SessionData* gSessionData = NULL;
 
 SessionData::SessionData() {
+	usDrivers[0] = new HwmonDriver();
+	usDrivers[1] = new FSDriver();
+	usDrivers[2] = new MemInfoDriver();
+	usDrivers[3] = new NetDriver();
+	usDrivers[4] = new CPUFreqDriver();
+	usDrivers[5] = new DiskIODriver();
 	initialize();
 }
 
@@ -29,6 +45,7 @@ void SessionData::initialize() {
 	mLocalCapture = false;
 	mOneShot = false;
 	mSentSummary = false;
+	mAllowCommands = false;
 	const size_t cpuIdSize = sizeof(int)*NR_CPUS;
 	// Share mCpuIds across all instances of gatord
 	mCpuIds = (int *)mmap(NULL, cpuIdSize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
@@ -37,15 +54,22 @@ void SessionData::initialize() {
 		handleException();
 	}
 	memset(mCpuIds, -1, cpuIdSize);
+	strcpy(mCoreName, CORE_NAME_UNKNOWN);
+	readModel();
 	readCpuInfo();
+	mImages = NULL;
 	mConfigurationXMLPath = NULL;
 	mSessionXMLPath = NULL;
 	mEventsXMLPath = NULL;
 	mTargetPath = NULL;
 	mAPCDir = NULL;
+	mCaptureWorkingDir = NULL;
+	mCaptureCommand = NULL;
+	mCaptureUser = NULL;
 	mSampleRate = 0;
 	mLiveRate = 0;
 	mDuration = 0;
+	mMonotonicStarted = -1;
 	mBacktraceDepth = 0;
 	mTotalBufferSize = 0;
 	// sysconf(_SC_NPROCESSORS_CONF) is unreliable on 2.6 Android, get the value from the kernel module
@@ -71,7 +95,6 @@ void SessionData::parseSessionXML(char* xmlString) {
 		handleException();
 	}
 	mBacktraceDepth = session.parameters.call_stack_unwinding == true ? 128 : 0;
-	mDuration = session.parameters.duration;
 
 	// Determine buffer size (in MB) based on buffer mode
 	mOneShot = true;
@@ -89,21 +112,38 @@ void SessionData::parseSessionXML(char* xmlString) {
 		handleException();
 	}
 
-	mImages = session.parameters.images;
 	// Convert milli- to nanoseconds
 	mLiveRate = session.parameters.live_rate * (int64_t)1000000;
 	if (mLiveRate > 0 && mLocalCapture) {
 		logg->logMessage("Local capture is not compatable with live, disabling live");
 		mLiveRate = 0;
 	}
+
+	if (!mAllowCommands && (mCaptureCommand != NULL)) {
+		logg->logError(__FILE__, __LINE__, "Running a command during a capture is not currently allowed. Please restart gatord with the -a flag.");
+		handleException();
+	}
+}
+
+void SessionData::readModel() {
+	FILE *fh = fopen("/proc/device-tree/model", "rb");
+	if (fh == NULL) {
+		return;
+	}
+
+	char buf[256];
+	if (fgets(buf, sizeof(buf), fh) != NULL) {
+		strcpy(mCoreName, buf);
+	}
+
+	fclose(fh);
 }
 
 void SessionData::readCpuInfo() {
 	char temp[256]; // arbitrarily large amount
-	strcpy(mCoreName, "unknown");
 	mMaxCpuId = -1;
 
-	FILE* f = fopen("/proc/cpuinfo", "r");
+	FILE *f = fopen("/proc/cpuinfo", "r");
 	if (f == NULL) {
 		logg->logMessage("Error opening /proc/cpuinfo\n"
 			"The core name in the captured xml file will be 'unknown'.");
@@ -122,7 +162,8 @@ void SessionData::readCpuInfo() {
 		}
 
 		if (len > 0) {
-			temp[len - 1] = '\0';	// Replace the line feed with a null
+			// Replace the line feed with a null
+			temp[len - 1] = '\0';
 		}
 
 		const bool foundHardware = strstr(temp, "Hardware") != 0;
@@ -137,7 +178,7 @@ void SessionData::readCpuInfo() {
 			}
 			position += 2;
 
-			if (foundHardware) {
+			if (foundHardware && (strcmp(mCoreName, CORE_NAME_UNKNOWN) == 0)) {
 				strncpy(mCoreName, position, sizeof(mCoreName));
 				mCoreName[sizeof(mCoreName) - 1] = 0; // strncpy does not guarantee a null-terminated string
 				foundCoreName = true;
@@ -171,10 +212,6 @@ void SessionData::readCpuInfo() {
 
 uint64_t getTime() {
 	struct timespec ts;
-#ifndef CLOCK_MONOTONIC_RAW
-	// Android doesn't have this defined but it was added in Linux 2.6.28
-#define CLOCK_MONOTONIC_RAW 4
-#endif
 	if (clock_gettime(CLOCK_MONOTONIC_RAW, &ts) != 0) {
 		logg->logError(__FILE__, __LINE__, "Failed to get uptime");
 		handleException();
@@ -185,10 +222,40 @@ uint64_t getTime() {
 int getEventKey() {
 	// key 0 is reserved as a timestamp
 	// key 1 is reserved as the marker for thread specific counters
+	// key 2 is reserved as the marker for core
 	// Odd keys are assigned by the driver, even keys by the daemon
-	static int key = 2;
+	static int key = 4;
 
 	const int ret = key;
 	key += 2;
 	return ret;
+}
+
+int pipe_cloexec(int pipefd[2]) {
+	if (pipe(pipefd) != 0) {
+		return -1;
+	}
+
+	int fdf;
+	if (((fdf = fcntl(pipefd[0], F_GETFD)) == -1) || (fcntl(pipefd[0], F_SETFD, fdf | FD_CLOEXEC) != 0) ||
+			((fdf = fcntl(pipefd[1], F_GETFD)) == -1) || (fcntl(pipefd[1], F_SETFD, fdf | FD_CLOEXEC) != 0)) {
+		close(pipefd[0]);
+		close(pipefd[1]);
+		return -1;
+	}
+	return 0;
+}
+
+FILE *fopen_cloexec(const char *path, const char *mode) {
+	FILE *fh = fopen(path, mode);
+	if (fh == NULL) {
+		return NULL;
+	}
+	int fd = fileno(fh);
+	int fdf = fcntl(fd, F_GETFD);
+	if ((fdf == -1) || (fcntl(fd, F_SETFD, fdf | FD_CLOEXEC) != 0)) {
+		fclose(fh);
+		return NULL;
+	}
+	return fh;
 }

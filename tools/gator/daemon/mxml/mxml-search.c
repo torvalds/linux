@@ -1,10 +1,10 @@
 /*
- * "$Id: mxml-search.c 427 2011-01-03 02:03:29Z mike $"
+ * "$Id: mxml-search.c 451 2014-01-04 21:50:06Z msweet $"
  *
  * Search/navigation functions for Mini-XML, a small XML-like file
  * parsing library.
  *
- * Copyright 2003-2010 by Michael R Sweet.
+ * Copyright 2003-2014 by Michael R Sweet.
  *
  * These coded instructions, statements, and computer programs are the
  * property of Michael R Sweet and are protected by Federal copyright
@@ -12,14 +12,7 @@
  * which should have been included with this file.  If this file is
  * missing or damaged, see the license at:
  *
- *     http://www.minixml.org/
- *
- * Contents:
- *
- *   mxmlFindElement() - Find the named element.
- *   mxmlFindValue()   - Find a value with the given path.
- *   mxmlWalkNext()    - Walk to the next logical node in the tree.
- *   mxmlWalkPrev()    - Walk to the previous logical node in the tree.
+ *     http://www.msweet.org/projects.php/Mini-XML
  */
 
 /*
@@ -126,7 +119,7 @@ mxmlFindElement(mxml_node_t *node,	/* I - Current node */
  *
  * The first child node of the found node is returned if the given node has
  * children and the first child is a value node.
- * 
+ *
  * @since Mini-XML 2.7@
  */
 
@@ -283,5 +276,5 @@ mxmlWalkPrev(mxml_node_t *node,		/* I - Current node */
 
 
 /*
- * End of "$Id: mxml-search.c 427 2011-01-03 02:03:29Z mike $".
+ * End of "$Id: mxml-search.c 451 2014-01-04 21:50:06Z msweet $".
  */

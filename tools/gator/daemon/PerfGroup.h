@@ -9,6 +9,8 @@
 #ifndef PERF_GROUP
 #define PERF_GROUP
 
+#include <stdint.h>
+
 // Use a snapshot of perf_event.h as it may be more recent than what is on the target and if not newer features won't be supported anyways
 #include "k/perf_event.h"
 
@@ -27,16 +29,22 @@ enum PerfGroupFlags {
 	PERF_GROUP_PER_CPU       = 1 << 5,
 };
 
+enum {
+	PG_SUCCESS = 0,
+	PG_FAILURE,
+	PG_CPU_OFFLINE,
+};
+
 class PerfGroup {
 public:
 	PerfGroup(PerfBuffer *const pb);
 	~PerfGroup();
 
-	bool add(Buffer *const buffer, const int key, const __u32 type, const __u64 config, const __u64 sample, const __u64 sampleType, const int flags);
+	bool add(const uint64_t currTime, Buffer *const buffer, const int key, const __u32 type, const __u64 config, const __u64 sample, const __u64 sampleType, const int flags);
 	// Safe to call concurrently
-	bool prepareCPU(const int cpu);
+	int prepareCPU(const int cpu, Monitor *const monitor);
 	// Not safe to call concurrently. Returns the number of events enabled
-	int onlineCPU(const int cpu, const bool start, Buffer *const buffer, Monitor *const monitor);
+	int onlineCPU(const uint64_t currTime, const int cpu, const bool start, Buffer *const buffer);
 	bool offlineCPU(int cpu);
 	bool start();
 	void stop();

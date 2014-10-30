@@ -6,6 +6,7 @@
  * published by the Free Software Foundation.
  */
 
+// Define to get format macros from inttypes.h
 #define __STDC_FORMAT_MACROS
 
 #include "DriverSource.h"
@@ -93,19 +94,19 @@ bool DriverSource::prepare() {
 }
 
 void DriverSource::bootstrapThread() {
-	prctl(PR_SET_NAME, (unsigned long)&"gatord-bootstrap", 0, 0, 0);
+	prctl(PR_SET_NAME, (unsigned long)&"gatord-proc", 0, 0, 0);
 
 	DynBuf printb;
 	DynBuf b1;
 	DynBuf b2;
-	DynBuf b3;
+	const uint64_t currTime = getTime();
 
-	if (!readProc(mBuffer, false, &printb, &b1, &b2, &b3)) {
-		logg->logMessage("%s(%s:%i): readProc failed", __FUNCTION__, __FILE__, __LINE__);
+	if (!readProcComms(currTime, mBuffer, &printb, &b1, &b2)) {
+		logg->logError(__FILE__, __LINE__, "readProcComms failed");
 		handleException();
 	}
 
-	mBuffer->commit(1);
+	mBuffer->commit(currTime);
 	mBuffer->setDone();
 }
 
@@ -128,7 +129,7 @@ void DriverSource::run() {
 	}
 
 	// open the buffer which calls userspace_buffer_open() in the driver
-	mBufferFD = open("/dev/gator/buffer", O_RDONLY);
+	mBufferFD = open("/dev/gator/buffer", O_RDONLY | O_CLOEXEC);
 	if (mBufferFD < 0) {
 		logg->logError(__FILE__, __LINE__, "The gator driver did not set up properly. Please view the linux console or dmesg log for more information on the failure.");
 		handleException();
@@ -232,7 +233,7 @@ void DriverSource::write(Sender *sender) {
 
 int DriverSource::readIntDriver(const char *fullpath, int *value) {
 	char data[40]; // Sufficiently large to hold any integer
-	const int fd = open(fullpath, O_RDONLY);
+	const int fd = open(fullpath, O_RDONLY | O_CLOEXEC);
 	if (fd < 0) {
 		return -1;
 	}
@@ -257,7 +258,7 @@ int DriverSource::readIntDriver(const char *fullpath, int *value) {
 
 int DriverSource::readInt64Driver(const char *fullpath, int64_t *value) {
 	char data[40]; // Sufficiently large to hold any integer
-	const int fd = open(fullpath, O_RDONLY);
+	const int fd = open(fullpath, O_RDONLY | O_CLOEXEC);
 	if (fd < 0) {
 		return -1;
 	}
@@ -281,7 +282,7 @@ int DriverSource::readInt64Driver(const char *fullpath, int64_t *value) {
 }
 
 int DriverSource::writeDriver(const char *fullpath, const char *data) {
-	int fd = open(fullpath, O_WRONLY);
+	int fd = open(fullpath, O_WRONLY | O_CLOEXEC);
 	if (fd < 0) {
 		return -1;
 	}
