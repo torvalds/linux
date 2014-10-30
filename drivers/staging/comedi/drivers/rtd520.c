@@ -379,7 +379,6 @@ struct rtd_private {
 	long ai_count;		/* total transfer size (samples) */
 	int xfer_count;		/* # to transfer data. 0->1/2FIFO */
 	int flags;		/* flag event modes */
-	DECLARE_BITMAP(chan_is_bipolar, RTD_MAX_CHANLIST);
 	unsigned fifosz;
 };
 
@@ -438,7 +437,6 @@ static unsigned short rtd_convert_chan_gain(struct comedi_device *dev,
 					    unsigned int chanspec, int index)
 {
 	const struct rtd_boardinfo *board = dev->board_ptr;
-	struct rtd_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(chanspec);
 	unsigned int range = CR_RANGE(chanspec);
 	unsigned int aref = CR_AREF(chanspec);
@@ -451,17 +449,14 @@ static unsigned short rtd_convert_chan_gain(struct comedi_device *dev,
 		/* +-5 range */
 		r |= 0x000;
 		r |= (range & 0x7) << 4;
-		__set_bit(index, devpriv->chan_is_bipolar);
 	} else if (range < board->range_uni10) {
 		/* +-10 range */
 		r |= 0x100;
 		r |= ((range - board->range_bip10) & 0x7) << 4;
-		__set_bit(index, devpriv->chan_is_bipolar);
 	} else {
 		/* +10 range */
 		r |= 0x200;
 		r |= ((range - board->range_uni10) & 0x7) << 4;
-		__clear_bit(index, devpriv->chan_is_bipolar);
 	}
 
 	switch (aref) {
@@ -561,6 +556,7 @@ static int rtd_ai_rinsn(struct comedi_device *dev,
 			unsigned int *data)
 {
 	struct rtd_private *devpriv = dev->private;
+	unsigned int range = CR_RANGE(insn->chanspec);
 	int ret;
 	int n;
 
@@ -586,9 +582,11 @@ static int rtd_ai_rinsn(struct comedi_device *dev,
 		/* read data */
 		d = readw(devpriv->las1 + LAS1_ADC_FIFO);
 		d = d >> 3;	/* low 3 bits are marker lines */
-		if (test_bit(0, devpriv->chan_is_bipolar))
-			/* convert to comedi unsigned data */
+
+		/* convert bipolar data to comedi unsigned data */
+		if (comedi_range_is_bipolar(s, range))
 			d = comedi_offset_munge(s, d);
+
 		data[n] = d & s->maxdata;
 	}
 
@@ -611,6 +609,7 @@ static int ai_read_n(struct comedi_device *dev, struct comedi_subdevice *s,
 	int ii;
 
 	for (ii = 0; ii < count; ii++) {
+		unsigned int range = CR_RANGE(cmd->chanlist[async->cur_chan]);
 		unsigned short d;
 
 		if (0 == devpriv->ai_count) {	/* done */
@@ -620,8 +619,9 @@ static int ai_read_n(struct comedi_device *dev, struct comedi_subdevice *s,
 
 		d = readw(devpriv->las1 + LAS1_ADC_FIFO);
 		d = d >> 3;	/* low 3 bits are marker lines */
-		if (test_bit(async->cur_chan, devpriv->chan_is_bipolar))
-			/* convert to comedi unsigned data */
+
+		/* convert bipolar data to comedi unsigned data */
+		if (comedi_range_is_bipolar(s, range))
 			d = comedi_offset_munge(s, d);
 		d &= s->maxdata;
 
