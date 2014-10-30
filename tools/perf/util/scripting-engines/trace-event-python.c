@@ -66,6 +66,7 @@ struct tables {
 	PyObject		*comm_thread_handler;
 	PyObject		*dso_handler;
 	PyObject		*symbol_handler;
+	PyObject		*branch_type_handler;
 	PyObject		*sample_handler;
 	bool			db_export_mode;
 };
@@ -664,13 +665,31 @@ static int python_export_symbol(struct db_export *dbe, struct symbol *sym,
 	return 0;
 }
 
+static int python_export_branch_type(struct db_export *dbe, u32 branch_type,
+				     const char *name)
+{
+	struct tables *tables = container_of(dbe, struct tables, dbe);
+	PyObject *t;
+
+	t = tuple_new(2);
+
+	tuple_set_s32(t, 0, branch_type);
+	tuple_set_string(t, 1, name);
+
+	call_object(tables->branch_type_handler, t, "branch_type_table");
+
+	Py_DECREF(t);
+
+	return 0;
+}
+
 static int python_export_sample(struct db_export *dbe,
 				struct export_sample *es)
 {
 	struct tables *tables = container_of(dbe, struct tables, dbe);
 	PyObject *t;
 
-	t = tuple_new(19);
+	t = tuple_new(21);
 
 	tuple_set_u64(t, 0, es->db_id);
 	tuple_set_u64(t, 1, es->evsel->db_id);
@@ -691,6 +710,8 @@ static int python_export_sample(struct db_export *dbe,
 	tuple_set_u64(t, 16, es->sample->weight);
 	tuple_set_u64(t, 17, es->sample->transaction);
 	tuple_set_u64(t, 18, es->sample->data_src);
+	tuple_set_s32(t, 19, es->sample->flags & PERF_BRANCH_MASK);
+	tuple_set_s32(t, 20, !!(es->sample->flags & PERF_IP_FLAG_IN_TX));
 
 	call_object(tables->sample_handler, t, "sample_table");
 
@@ -861,6 +882,7 @@ static void set_table_handlers(struct tables *tables)
 	SET_TABLE_HANDLER(comm_thread);
 	SET_TABLE_HANDLER(dso);
 	SET_TABLE_HANDLER(symbol);
+	SET_TABLE_HANDLER(branch_type);
 	SET_TABLE_HANDLER(sample);
 }
 
@@ -909,6 +931,12 @@ static int python_start_script(const char *script, int argc, const char **argv)
 	free(command_line);
 
 	set_table_handlers(tables);
+
+	if (tables->db_export_mode) {
+		err = db_export__branch_types(&tables->dbe);
+		if (err)
+			goto error;
+	}
 
 	return err;
 error:

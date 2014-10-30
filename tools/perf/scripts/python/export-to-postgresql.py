@@ -123,6 +123,10 @@ do_query(query, 'CREATE TABLE symbols ('
 		'sym_end	bigint,'
 		'binding	integer,'
 		'name		varchar(2048))')
+do_query(query, 'CREATE TABLE branch_types ('
+		'id		integer		NOT NULL,'
+		'name		varchar(80))')
+
 if branches:
 	do_query(query, 'CREATE TABLE samples ('
 		'id		bigint		NOT NULL,'
@@ -139,7 +143,9 @@ if branches:
 		'to_dso_id	bigint,'
 		'to_symbol_id	bigint,'
 		'to_sym_offset	bigint,'
-		'to_ip		bigint)')
+		'to_ip		bigint,'
+		'branch_type	integer,'
+		'in_tx		boolean)')
 else:
 	do_query(query, 'CREATE TABLE samples ('
 		'id		bigint		NOT NULL,'
@@ -160,7 +166,9 @@ else:
 		'period		bigint,'
 		'weight		bigint,'
 		'transaction	bigint,'
-		'data_src	bigint)')
+		'data_src	bigint,'
+		'branch_type	integer,'
+		'in_tx		boolean)')
 
 do_query(query, 'CREATE VIEW samples_view AS '
 	'SELECT '
@@ -178,7 +186,9 @@ do_query(query, 'CREATE VIEW samples_view AS '
 		'to_hex(to_ip) AS to_ip_hex,'
 		'(SELECT name FROM symbols WHERE id = to_symbol_id) AS to_symbol,'
 		'to_sym_offset,'
-		'(SELECT short_name FROM dsos WHERE id = to_dso_id) AS to_dso_short_name'
+		'(SELECT short_name FROM dsos WHERE id = to_dso_id) AS to_dso_short_name,'
+		'(SELECT name FROM branch_types WHERE id = branch_type) AS branch_type_name,'
+		'in_tx'
 	' FROM samples')
 
 
@@ -234,6 +244,7 @@ comm_file		= open_output_file("comm_table.bin")
 comm_thread_file	= open_output_file("comm_thread_table.bin")
 dso_file		= open_output_file("dso_table.bin")
 symbol_file		= open_output_file("symbol_table.bin")
+branch_type_file	= open_output_file("branch_type_table.bin")
 sample_file		= open_output_file("sample_table.bin")
 
 def trace_begin():
@@ -257,6 +268,7 @@ def trace_end():
 	copy_output_file(comm_thread_file,	"comm_threads")
 	copy_output_file(dso_file,		"dsos")
 	copy_output_file(symbol_file,		"symbols")
+	copy_output_file(branch_type_file,	"branch_types")
 	copy_output_file(sample_file,		"samples")
 
 	print datetime.datetime.today(), "Removing intermediate files..."
@@ -267,6 +279,7 @@ def trace_end():
 	remove_output_file(comm_thread_file)
 	remove_output_file(dso_file)
 	remove_output_file(symbol_file)
+	remove_output_file(branch_type_file)
 	remove_output_file(sample_file)
 	os.rmdir(output_dir_name)
 	print datetime.datetime.today(), "Adding primary keys"
@@ -277,6 +290,7 @@ def trace_end():
 	do_query(query, 'ALTER TABLE comm_threads    ADD PRIMARY KEY (id)')
 	do_query(query, 'ALTER TABLE dsos            ADD PRIMARY KEY (id)')
 	do_query(query, 'ALTER TABLE symbols         ADD PRIMARY KEY (id)')
+	do_query(query, 'ALTER TABLE branch_types    ADD PRIMARY KEY (id)')
 	do_query(query, 'ALTER TABLE samples         ADD PRIMARY KEY (id)')
 
 	print datetime.datetime.today(), "Adding foreign keys"
@@ -352,9 +366,15 @@ def symbol_table(symbol_id, dso_id, sym_start, sym_end, binding, symbol_name, *x
 	value = struct.pack(fmt, 6, 8, symbol_id, 8, dso_id, 8, sym_start, 8, sym_end, 4, binding, n, symbol_name)
 	symbol_file.write(value)
 
-def sample_table(sample_id, evsel_id, machine_id, thread_id, comm_id, dso_id, symbol_id, sym_offset, ip, time, cpu, to_dso_id, to_symbol_id, to_sym_offset, to_ip, period, weight, transaction, data_src, *x):
+def branch_type_table(branch_type, name, *x):
+	n = len(name)
+	fmt = "!hiii" + str(n) + "s"
+	value = struct.pack(fmt, 2, 4, branch_type, n, name)
+	branch_type_file.write(value)
+
+def sample_table(sample_id, evsel_id, machine_id, thread_id, comm_id, dso_id, symbol_id, sym_offset, ip, time, cpu, to_dso_id, to_symbol_id, to_sym_offset, to_ip, period, weight, transaction, data_src, branch_type, in_tx, *x):
 	if branches:
-		value = struct.pack("!hiqiqiqiqiqiqiqiqiqiqiiiqiqiqiq", 15, 8, sample_id, 8, evsel_id, 8, machine_id, 8, thread_id, 8, comm_id, 8, dso_id, 8, symbol_id, 8, sym_offset, 8, ip, 8, time, 4, cpu, 8, to_dso_id, 8, to_symbol_id, 8, to_sym_offset, 8, to_ip)
+		value = struct.pack("!hiqiqiqiqiqiqiqiqiqiqiiiqiqiqiqiiiB", 17, 8, sample_id, 8, evsel_id, 8, machine_id, 8, thread_id, 8, comm_id, 8, dso_id, 8, symbol_id, 8, sym_offset, 8, ip, 8, time, 4, cpu, 8, to_dso_id, 8, to_symbol_id, 8, to_sym_offset, 8, to_ip, 4, branch_type, 1, in_tx)
 	else:
-		value = struct.pack("!hiqiqiqiqiqiqiqiqiqiqiiiqiqiqiqiqiqiqiq", 19, 8, sample_id, 8, evsel_id, 8, machine_id, 8, thread_id, 8, comm_id, 8, dso_id, 8, symbol_id, 8, sym_offset, 8, ip, 8, time, 4, cpu, 8, to_dso_id, 8, to_symbol_id, 8, to_sym_offset, 8, to_ip, 8, period, 8, weight, 8, transaction, 8, data_src)
+		value = struct.pack("!hiqiqiqiqiqiqiqiqiqiqiiiqiqiqiqiqiqiqiqiiiB", 21, 8, sample_id, 8, evsel_id, 8, machine_id, 8, thread_id, 8, comm_id, 8, dso_id, 8, symbol_id, 8, sym_offset, 8, ip, 8, time, 4, cpu, 8, to_dso_id, 8, to_symbol_id, 8, to_sym_offset, 8, to_ip, 8, period, 8, weight, 8, transaction, 8, data_src, 4, branch_type, 1, in_tx)
 	sample_file.write(value)
