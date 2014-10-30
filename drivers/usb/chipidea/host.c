@@ -59,8 +59,11 @@ static int host_start(struct ci_hdrc *ci)
 	hcd->has_tt = 1;
 
 	hcd->power_budget = ci->platdata->power_budget;
-	hcd->usb_phy = ci->usb_phy;
 	hcd->tpl_support = ci->platdata->tpl_support;
+	if (ci->phy)
+		hcd->phy = ci->phy;
+	else
+		hcd->usb_phy = ci->usb_phy;
 
 	ehci = hcd_to_ehci(hcd);
 	ehci->caps = ci->hw_bank.cap;

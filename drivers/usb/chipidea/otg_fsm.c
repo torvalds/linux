@@ -779,7 +779,11 @@ int ci_hdrc_otg_fsm_init(struct ci_hdrc *ci)
 {
 	int retval = 0;
 
-	ci->otg.usb_phy = ci->usb_phy;
+	if (ci->phy)
+		ci->otg.phy = ci->phy;
+	else
+		ci->otg.usb_phy = ci->usb_phy;
+
 	ci->otg.gadget = &ci->gadget;
 	ci->fsm.otg = &ci->otg;
 	ci->fsm.power_up = 1;

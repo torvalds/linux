@@ -47,6 +47,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/idr.h>
@@ -299,6 +300,49 @@ static void hw_phymode_configure(struct ci_hdrc *ci)
 }
 
 /**
+ * _ci_usb_phy_init: initialize phy taking in account both phy and usb_phy
+ * interfaces
+ * @ci: the controller
+ *
+ * This function returns an error code if the phy failed to init
+ */
+static int _ci_usb_phy_init(struct ci_hdrc *ci)
+{
+	int ret;
+
+	if (ci->phy) {
+		ret = phy_init(ci->phy);
+		if (ret)
+			return ret;
+
+		ret = phy_power_on(ci->phy);
+		if (ret) {
+			phy_exit(ci->phy);
+			return ret;
+		}
+	} else {
+		ret = usb_phy_init(ci->usb_phy);
+	}
+
+	return ret;
+}
+
+/**
+ * _ci_usb_phy_exit: deinitialize phy taking in account both phy and usb_phy
+ * interfaces
+ * @ci: the controller
+ */
+static void ci_usb_phy_exit(struct ci_hdrc *ci)
+{
+	if (ci->phy) {
+		phy_power_off(ci->phy);
+		phy_exit(ci->phy);
+	} else {
+		usb_phy_shutdown(ci->usb_phy);
+	}
+}
+
+/**
  * ci_usb_phy_init: initialize phy according to different phy type
  * @ci: the controller
  *
@@ -312,7 +356,7 @@ static int ci_usb_phy_init(struct ci_hdrc *ci)
 	case USBPHY_INTERFACE_MODE_UTMI:
 	case USBPHY_INTERFACE_MODE_UTMIW:
 	case USBPHY_INTERFACE_MODE_HSIC:
-		ret = usb_phy_init(ci->usb_phy);
+		ret = _ci_usb_phy_init(ci);
 		if (ret)
 			return ret;
 		hw_phymode_configure(ci);
@@ -320,12 +364,12 @@ static int ci_usb_phy_init(struct ci_hdrc *ci)
 	case USBPHY_INTERFACE_MODE_ULPI:
 	case USBPHY_INTERFACE_MODE_SERIAL:
 		hw_phymode_configure(ci);
-		ret = usb_phy_init(ci->usb_phy);
+		ret = _ci_usb_phy_init(ci);
 		if (ret)
 			return ret;
 		break;
 	default:
-		ret = usb_phy_init(ci->usb_phy);
+		ret = _ci_usb_phy_init(ci);
 	}
 
 	return ret;
@@ -605,23 +649,26 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (ci->platdata->usb_phy)
+	if (ci->platdata->phy) {
+		ci->phy = ci->platdata->phy;
+	} else if (ci->platdata->usb_phy) {
 		ci->usb_phy = ci->platdata->usb_phy;
-	else
+	} else {
+		ci->phy = devm_phy_get(dev, "usb-phy");
 		ci->usb_phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
 
-	if (IS_ERR(ci->usb_phy)) {
-		ret = PTR_ERR(ci->usb_phy);
-		/*
-		 * if -ENXIO is returned, it means PHY layer wasn't
-		 * enabled, so it makes no sense to return -EPROBE_DEFER
-		 * in that case, since no PHY driver will ever probe.
-		 */
-		if (ret == -ENXIO)
-			return ret;
+		/* if both generic PHY and USB PHY layers aren't enabled */
+		if (PTR_ERR(ci->phy) == -ENOSYS &&
+				PTR_ERR(ci->usb_phy) == -ENXIO)
+			return -ENXIO;
 
-		dev_err(dev, "no usb2 phy configured\n");
-		return -EPROBE_DEFER;
+		if (IS_ERR(ci->phy) && IS_ERR(ci->usb_phy))
+			return -EPROBE_DEFER;
+
+		if (IS_ERR(ci->phy))
+			ci->phy = NULL;
+		else if (IS_ERR(ci->usb_phy))
+			ci->usb_phy = NULL;
 	}
 
 	ret = ci_usb_phy_init(ci);
@@ -728,7 +775,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 stop:
 	ci_role_destroy(ci);
 deinit_phy:
-	usb_phy_shutdown(ci->usb_phy);
+	ci_usb_phy_exit(ci);
 
 	return ret;
 }
@@ -741,7 +788,7 @@ static int ci_hdrc_remove(struct platform_device *pdev)
 	free_irq(ci->irq, ci);
 	ci_role_destroy(ci);
 	ci_hdrc_enter_lpm(ci, true);
-	usb_phy_shutdown(ci->usb_phy);
+	ci_usb_phy_exit(ci);
 
 	return 0;
 }

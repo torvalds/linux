@@ -13,6 +13,8 @@ struct ci_hdrc_platform_data {
 	/* offset of the capability registers */
 	uintptr_t	 capoffset;
 	unsigned	 power_budget;
+	struct phy	*phy;
+	/* old usb_phy interface */
 	struct usb_phy	*usb_phy;
 	enum usb_phy_interface phy_mode;
 	unsigned long	 flags;
