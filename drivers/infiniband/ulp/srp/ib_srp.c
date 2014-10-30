@@ -555,6 +555,11 @@ static void srp_free_target_ib(struct srp_target_port *target)
 	struct srp_device *dev = target->srp_host->srp_dev;
 	int i;
 
+	if (target->cm_id) {
+		ib_destroy_cm_id(target->cm_id);
+		target->cm_id = NULL;
+	}
+
 	if (dev->use_fast_reg) {
 		if (target->fr_pool)
 			srp_destroy_fr_pool(target->fr_pool);
@@ -868,7 +873,6 @@ static void srp_remove_target(struct srp_target_port *target)
 	scsi_remove_host(target->scsi_host);
 	srp_stop_rport_timers(target->rport);
 	srp_disconnect_target(target);
-	ib_destroy_cm_id(target->cm_id);
 	srp_free_target_ib(target);
 	cancel_work_sync(&target->tl_err_work);
 	srp_rport_put(target->rport);
@@ -3021,7 +3025,7 @@ static ssize_t srp_create_target(struct device *dev,
 	if (ret) {
 		shost_printk(KERN_ERR, target->scsi_host,
 			     PFX "Connection failed\n");
-		goto err_cm_id;
+		goto err_free_ib;
 	}
 
 	ret = srp_add_target(host, target);
@@ -3044,9 +3048,6 @@ out:
 
 err_disconnect:
 	srp_disconnect_target(target);
-
-err_cm_id:
-	ib_destroy_cm_id(target->cm_id);
 
 err_free_ib:
 	srp_free_target_ib(target);
