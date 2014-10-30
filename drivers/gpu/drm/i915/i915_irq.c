@@ -126,16 +126,16 @@ static const u32 hpd_status_i915[] = { /* i915 and valleyview are the same */
 
 #define GEN8_IRQ_INIT_NDX(type, which, imr_val, ier_val) do { \
 	GEN5_ASSERT_IIR_IS_ZERO(GEN8_##type##_IIR(which)); \
-	I915_WRITE(GEN8_##type##_IMR(which), (imr_val)); \
 	I915_WRITE(GEN8_##type##_IER(which), (ier_val)); \
-	POSTING_READ(GEN8_##type##_IER(which)); \
+	I915_WRITE(GEN8_##type##_IMR(which), (imr_val)); \
+	POSTING_READ(GEN8_##type##_IMR(which)); \
 } while (0)
 
 #define GEN5_IRQ_INIT(type, imr_val, ier_val) do { \
 	GEN5_ASSERT_IIR_IS_ZERO(type##IIR); \
-	I915_WRITE(type##IMR, (imr_val)); \
 	I915_WRITE(type##IER, (ier_val)); \
-	POSTING_READ(type##IER); \
+	I915_WRITE(type##IMR, (imr_val)); \
+	POSTING_READ(type##IMR); \
 } while (0)
 
 /* For display hotplug interrupt */
