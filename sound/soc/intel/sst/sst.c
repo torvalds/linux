@@ -222,6 +222,14 @@ static int sst_workqueue_init(struct intel_sst_drv *ctx)
 	return 0;
 }
 
+static void sst_init_locks(struct intel_sst_drv *ctx)
+{
+	mutex_init(&ctx->sst_lock);
+	spin_lock_init(&ctx->rx_msg_lock);
+	spin_lock_init(&ctx->ipc_spin_lock);
+	spin_lock_init(&ctx->block_lock);
+}
+
 /*
 * intel_sst_probe - PCI probe function
 *
@@ -259,7 +267,7 @@ static int intel_sst_probe(struct pci_dev *pci,
 		return -EINVAL;
 
 	ops = sst_drv_ctx->ops;
-	mutex_init(&sst_drv_ctx->sst_lock);
+	sst_init_locks(sst_drv_ctx);
 
 	/* pvt_id 0 reserved for async messages */
 	sst_drv_ctx->pvt_id = 1;
@@ -269,10 +277,6 @@ static int intel_sst_probe(struct pci_dev *pci,
 	/* we use memcpy, so set to 0 */
 	sst_drv_ctx->use_dma = 0;
 	sst_drv_ctx->use_lli = 0;
-
-	spin_lock_init(&sst_drv_ctx->ipc_spin_lock);
-	spin_lock_init(&sst_drv_ctx->block_lock);
-	spin_lock_init(&sst_drv_ctx->rx_msg_lock);
 
 	if (sst_workqueue_init(sst_drv_ctx))
 		return -EINVAL;
