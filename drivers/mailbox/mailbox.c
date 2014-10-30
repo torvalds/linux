@@ -28,6 +28,8 @@
 static LIST_HEAD(mbox_cons);
 static DEFINE_MUTEX(con_mutex);
 
+static void poll_txdone(unsigned long data);
+
 static int add_to_rbuf(struct mbox_chan *chan, void *mssg)
 {
 	int idx;
@@ -60,7 +62,7 @@ static void msg_submit(struct mbox_chan *chan)
 	unsigned count, idx;
 	unsigned long flags;
 	void *data;
-	int err;
+	int err = -EBUSY;
 
 	spin_lock_irqsave(&chan->lock, flags);
 
@@ -84,6 +86,9 @@ static void msg_submit(struct mbox_chan *chan)
 	}
 exit:
 	spin_unlock_irqrestore(&chan->lock, flags);
+
+	if (!err && chan->txdone_method == TXDONE_BY_POLL)
+		poll_txdone((unsigned long)chan->mbox);
 }
 
 static void tx_tick(struct mbox_chan *chan, int r)
@@ -117,10 +122,11 @@ static void poll_txdone(unsigned long data)
 		struct mbox_chan *chan = &mbox->chans[i];
 
 		if (chan->active_req && chan->cl) {
-			resched = true;
 			txdone = chan->mbox->ops->last_tx_done(chan);
 			if (txdone)
 				tx_tick(chan, 0);
+			else
+				resched = true;
 		}
 	}
 
@@ -251,9 +257,6 @@ int mbox_send_message(struct mbox_chan *chan, void *mssg)
 	}
 
 	msg_submit(chan);
-
-	if (chan->txdone_method	== TXDONE_BY_POLL)
-		poll_txdone((unsigned long)chan->mbox);
 
 	if (chan->cl->tx_block && chan->active_req) {
 		unsigned long wait;
