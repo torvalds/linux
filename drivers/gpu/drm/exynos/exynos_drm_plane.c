@@ -190,7 +190,6 @@ exynos_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		return ret;
 
 	exynos_plane_commit(plane);
-	exynos_plane_dpms(plane, DRM_MODE_DPMS_ON);
 
 	return 0;
 }
