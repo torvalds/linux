@@ -191,7 +191,7 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 		 * receive the key. When wpa_supplicant has roamed
 		 * using FT, it attempts to set the key before
 		 * association has completed, this rejects that attempt
-		 * so it will set the key again after assocation.
+		 * so it will set the key again after association.
 		 *
 		 * TODO: accept the key if we have a station entry and
 		 *       add it to the device after the station.

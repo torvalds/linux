@@ -131,7 +131,7 @@ enum ieee80211_bss_corrupt_data_flags {
  *
  * These are bss flags that are attached to a bss in the
  * @valid_data field of &struct ieee80211_bss.  They show which parts
- * of the data structure were recieved as a result of an un-corrupted
+ * of the data structure were received as a result of an un-corrupted
  * beacon/probe response.
  */
 enum ieee80211_bss_valid_data_flags {

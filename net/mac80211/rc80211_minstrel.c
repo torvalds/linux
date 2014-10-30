@@ -191,7 +191,7 @@ minstrel_update_stats(struct minstrel_priv *mp, struct minstrel_sta_info *mi)
 		 * (1) if any success probabilitiy >= 95%, out of those rates
 		 * choose the maximum throughput rate as max_prob_rate
 		 * (2) if all success probabilities < 95%, the rate with
-		 * highest success probability is choosen as max_prob_rate */
+		 * highest success probability is chosen as max_prob_rate */
 		if (mrs->probability >= MINSTREL_FRAC(95, 100)) {
 			if (mrs->cur_tp >= mi->r[tmp_prob_rate].stats.cur_tp)
 				tmp_prob_rate = i;

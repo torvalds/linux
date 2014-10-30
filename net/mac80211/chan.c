@@ -1634,7 +1634,7 @@ int ieee80211_vif_change_bandwidth(struct ieee80211_sub_if_data *sdata,
 		}
 		break;
 	case IEEE80211_CHANCTX_WILL_BE_REPLACED:
-		/* TODO: Perhaps the bandwith change could be treated as a
+		/* TODO: Perhaps the bandwidth change could be treated as a
 		 * reservation itself? */
 		ret = -EBUSY;
 		goto out;
