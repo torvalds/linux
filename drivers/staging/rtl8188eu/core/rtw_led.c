@@ -28,7 +28,7 @@
 /*  */
 void BlinkTimerCallback(void *data)
 {
-	struct LED_871x *pLed = (struct LED_871x *)data;
+	struct LED_871x *pLed = data;
 	struct adapter *padapter = pLed->padapter;
 
 	if ((padapter->bSurpriseRemoved) || (padapter->bDriverStopped))

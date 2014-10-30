@@ -284,7 +284,7 @@ exit:
 
 static void pwr_state_check_handler(void *FunctionContext)
 {
-	struct adapter *padapter = (struct adapter *)FunctionContext;
+	struct adapter *padapter = FunctionContext;
 	rtw_ps_cmd(padapter);
 }
 

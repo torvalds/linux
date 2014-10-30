@@ -1362,7 +1362,7 @@ void rtw_cpwm_event_callback(struct adapter *padapter, u8 *pbuf)
 */
 void _rtw_join_timeout_handler (void *function_context)
 {
-	struct adapter *adapter = (struct adapter *)function_context;
+	struct adapter *adapter = function_context;
 	struct	mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	int do_join_r;
 
@@ -1404,7 +1404,7 @@ void _rtw_join_timeout_handler (void *function_context)
 */
 void rtw_scan_timeout_handler (void *function_context)
 {
-	struct adapter *adapter = (struct adapter *)function_context;
+	struct adapter *adapter = function_context;
 	struct	mlme_priv *pmlmepriv = &adapter->mlmepriv;
 
 	DBG_88E(FUNC_ADPT_FMT" fw_state=%x\n", FUNC_ADPT_ARG(adapter), get_fwstate(pmlmepriv));

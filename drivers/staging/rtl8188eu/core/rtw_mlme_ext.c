@@ -4835,7 +4835,7 @@ void linked_status_chk(struct adapter *padapter)
 
 void survey_timer_hdl(void *function_context)
 {
-	struct adapter *padapter = (struct adapter *)function_context;
+	struct adapter *padapter = function_context;
 	struct cmd_obj	*ph2c;
 	struct sitesurvey_parm	*psurveyPara;
 	struct cmd_priv					*pcmdpriv = &padapter->cmdpriv;
@@ -4912,7 +4912,7 @@ void link_timer_hdl(void *function_context)
 
 void addba_timer_hdl(void *function_context)
 {
-	struct sta_info *psta = (struct sta_info *)function_context;
+	struct sta_info *psta = function_context;
 	struct ht_priv	*phtpriv;
 
 	if (!psta)
