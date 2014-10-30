@@ -1988,8 +1988,10 @@ static void aml_sdhc_set_clk_rate(struct mmc_host *mmc, unsigned int clk_ios)
 
     /*0: dont set it, 1:div2, 2:div3, 3:div4...*/
     clk_div = clk_rate / clk_ios - !(clk_rate%clk_ios);
+#if !defined(CONFIG_MACH_MESON8B_ODROIDC)
     if (!(clk_div & 0x01)) // if even number, turn it to an odd one
         clk_div++;
+#endif
 
     aml_sdhc_clk_switch(pdata, clk_div, clk_src_sel);
     pdata->clkc = readl(host->base+SDHC_CLKC);
