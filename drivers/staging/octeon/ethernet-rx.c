@@ -286,6 +286,7 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 			did_work_request = 1;
 		}
 
+#ifndef CONFIG_RPS
 		if (rx_count == 0) {
 			/*
 			 * First time through, see if there is enough
@@ -300,6 +301,7 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 			if (backlog > budget * cores_in_use && napi != NULL)
 				cvm_oct_enable_one_cpu();
 		}
+#endif
 		rx_count++;
 
 		skb_in_hw = USE_SKBUFFS_IN_HW && work->word2.s.bufs == 1;
