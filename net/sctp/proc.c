@@ -490,14 +490,14 @@ static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
 			 * Note: We don't have a way to tally this at the moment
 			 * so lets just leave it as zero for the moment
 			 */
-			seq_printf(seq, "0 ");
+			seq_puts(seq, "0 ");
 
 			/*
 			 * remote address start time (START).  This is also not
 			 * currently implemented, but we can record it with a
 			 * jiffies marker in a subsequent patch
 			 */
-			seq_printf(seq, "0 ");
+			seq_puts(seq, "0 ");
 
 			/*
 			 * The current state of this destination. I.e.
