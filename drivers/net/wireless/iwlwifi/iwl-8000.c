@@ -82,7 +82,8 @@
 #define IWL8000_TX_POWER_VERSION	0xffff /* meaningless */
 
 #define IWL8000_FW_PRE "iwlwifi-8000"
-#define IWL8000_MODULE_FIRMWARE(api) IWL8000_FW_PRE __stringify(api) ".ucode"
+#define IWL8000_MODULE_FIRMWARE(api) \
+	IWL8000_FW_PRE "-" __stringify(api) ".ucode"
 
 #define NVM_HW_SECTION_NUM_FAMILY_8000		10
 #define DEFAULT_NVM_FILE_FAMILY_8000		"iwl_nvm_8000.bin"
@@ -103,6 +104,7 @@ static const struct iwl_base_params iwl8000_base_params = {
 };
 
 static const struct iwl_ht_params iwl8000_ht_params = {
+	.stbc = true,
 	.ldpc = true,
 	.ht40_bands = BIT(IEEE80211_BAND_2GHZ) | BIT(IEEE80211_BAND_5GHZ),
 };

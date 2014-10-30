@@ -197,8 +197,7 @@ static void iwl_mvm_mac_tsf_id_iter(void *_data, u8 *mac,
 /*
  * Get the mask of the queues used by the vif
  */
-u32 iwl_mvm_mac_get_queues_mask(struct iwl_mvm *mvm,
-				struct ieee80211_vif *vif)
+u32 iwl_mvm_mac_get_queues_mask(struct ieee80211_vif *vif)
 {
 	u32 qmask = 0, ac;
 
@@ -227,7 +226,7 @@ static void iwl_mvm_mac_iface_iterator(void *_data, u8 *mac,
 	}
 
 	/* Mark the queues used by the vif */
-	data->used_hw_queues |= iwl_mvm_mac_get_queues_mask(data->mvm, vif);
+	data->used_hw_queues |= iwl_mvm_mac_get_queues_mask(vif);
 
 	/* Mark MAC IDs as used by clearing the available bit, and
 	 * (below) mark TSFs as used if their existing use is not

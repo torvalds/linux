@@ -227,7 +227,6 @@ struct fw_desc {
 
 struct fw_img {
 	struct fw_desc sec[IWL_UCODE_SECTION_MAX];
-	bool is_secure;
 	bool is_dual_cpus;
 };
 

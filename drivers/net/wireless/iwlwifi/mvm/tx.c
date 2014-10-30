@@ -175,14 +175,10 @@ static void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm,
 
 	/*
 	 * for data packets, rate info comes from the table inside the fw. This
-	 * table is controlled by LINK_QUALITY commands. Exclude ctrl port
-	 * frames like EAPOLs which should be treated as mgmt frames. This
-	 * avoids them being sent initially in high rates which increases the
-	 * chances for completion of the 4-Way handshake.
+	 * table is controlled by LINK_QUALITY commands
 	 */
 
-	if (ieee80211_is_data(fc) && sta &&
-	    !(info->control.flags & IEEE80211_TX_CTRL_PORT_CTRL_PROTO)) {
+	if (ieee80211_is_data(fc) && sta) {
 		tx_cmd->initial_rate_index = 0;
 		tx_cmd->tx_flags |= cpu_to_le32(TX_CMD_FLG_STA_RATE);
 		return;
@@ -193,8 +189,10 @@ static void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm,
 
 	/* HT rate doesn't make sense for a non data frame */
 	WARN_ONCE(info->control.rates[0].flags & IEEE80211_TX_RC_MCS,
-		  "Got an HT rate for a non data frame 0x%x\n",
-		  info->control.rates[0].flags);
+		  "Got an HT rate (flags:0x%x/mcs:%d) for a non data frame (fc:0x%x)\n",
+		  info->control.rates[0].flags,
+		  info->control.rates[0].idx,
+		  le16_to_cpu(fc));
 
 	rate_idx = info->control.rates[0].idx;
 	/* if the rate isn't a well known legacy rate, take the lowest one */
