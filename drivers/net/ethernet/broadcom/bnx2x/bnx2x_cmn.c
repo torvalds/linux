@@ -1139,7 +1139,7 @@ static irqreturn_t bnx2x_msix_fp_int(int irq, void *fp_cookie)
 		prefetch(fp->txdata_ptr[cos]->tx_cons_sb);
 
 	prefetch(&fp->sb_running_index[SM_RX_ID]);
-	napi_schedule(&bnx2x_fp(bp, fp->index, napi));
+	napi_schedule_irqoff(&bnx2x_fp(bp, fp->index, napi));
 
 	return IRQ_HANDLED;
 }
