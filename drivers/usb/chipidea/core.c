@@ -312,7 +312,7 @@ static int ci_usb_phy_init(struct ci_hdrc *ci)
 	case USBPHY_INTERFACE_MODE_UTMI:
 	case USBPHY_INTERFACE_MODE_UTMIW:
 	case USBPHY_INTERFACE_MODE_HSIC:
-		ret = usb_phy_init(ci->transceiver);
+		ret = usb_phy_init(ci->usb_phy);
 		if (ret)
 			return ret;
 		hw_phymode_configure(ci);
@@ -320,12 +320,12 @@ static int ci_usb_phy_init(struct ci_hdrc *ci)
 	case USBPHY_INTERFACE_MODE_ULPI:
 	case USBPHY_INTERFACE_MODE_SERIAL:
 		hw_phymode_configure(ci);
-		ret = usb_phy_init(ci->transceiver);
+		ret = usb_phy_init(ci->usb_phy);
 		if (ret)
 			return ret;
 		break;
 	default:
-		ret = usb_phy_init(ci->transceiver);
+		ret = usb_phy_init(ci->usb_phy);
 	}
 
 	return ret;
@@ -605,13 +605,13 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (ci->platdata->phy)
-		ci->transceiver = ci->platdata->phy;
+	if (ci->platdata->usb_phy)
+		ci->usb_phy = ci->platdata->usb_phy;
 	else
-		ci->transceiver = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
+		ci->usb_phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
 
-	if (IS_ERR(ci->transceiver)) {
-		ret = PTR_ERR(ci->transceiver);
+	if (IS_ERR(ci->usb_phy)) {
+		ret = PTR_ERR(ci->usb_phy);
 		/*
 		 * if -ENXIO is returned, it means PHY layer wasn't
 		 * enabled, so it makes no sense to return -EPROBE_DEFER
@@ -728,7 +728,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 stop:
 	ci_role_destroy(ci);
 deinit_phy:
-	usb_phy_shutdown(ci->transceiver);
+	usb_phy_shutdown(ci->usb_phy);
 
 	return ret;
 }
@@ -741,7 +741,7 @@ static int ci_hdrc_remove(struct platform_device *pdev)
 	free_irq(ci->irq, ci);
 	ci_role_destroy(ci);
 	ci_hdrc_enter_lpm(ci, true);
-	usb_phy_shutdown(ci->transceiver);
+	usb_phy_shutdown(ci->usb_phy);
 
 	return 0;
 }
