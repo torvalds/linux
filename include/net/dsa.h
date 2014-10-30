@@ -38,6 +38,9 @@ struct dsa_chip_data {
 	struct device	*host_dev;
 	int		sw_addr;
 
+	/* set to size of eeprom if supported by the switch */
+	int		eeprom_len;
+
 	/* Device tree node pointer for this specific switch chip
 	 * used during switch setup in case additional properties
 	 * and resources needs to be used
@@ -138,6 +141,14 @@ struct dsa_switch {
 	 * Reference to host device to use.
 	 */
 	struct device		*master_dev;
+
+#ifdef CONFIG_NET_DSA_HWMON
+	/*
+	 * Hardware monitoring information
+	 */
+	char			hwmon_name[IFNAMSIZ + 8];
+	struct device		*hwmon_dev;
+#endif
 
 	/*
 	 * Slave mii_bus and devices for the individual ports.
@@ -242,6 +253,28 @@ struct dsa_switch_driver {
 			   struct ethtool_eee *e);
 	int	(*get_eee)(struct dsa_switch *ds, int port,
 			   struct ethtool_eee *e);
+
+#ifdef CONFIG_NET_DSA_HWMON
+	/* Hardware monitoring */
+	int	(*get_temp)(struct dsa_switch *ds, int *temp);
+	int	(*get_temp_limit)(struct dsa_switch *ds, int *temp);
+	int	(*set_temp_limit)(struct dsa_switch *ds, int temp);
+	int	(*get_temp_alarm)(struct dsa_switch *ds, bool *alarm);
+#endif
+
+	/* EEPROM access */
+	int	(*get_eeprom_len)(struct dsa_switch *ds);
+	int	(*get_eeprom)(struct dsa_switch *ds,
+			      struct ethtool_eeprom *eeprom, u8 *data);
+	int	(*set_eeprom)(struct dsa_switch *ds,
+			      struct ethtool_eeprom *eeprom, u8 *data);
+
+	/*
+	 * Register access.
+	 */
+	int	(*get_regs_len)(struct dsa_switch *ds, int port);
+	void	(*get_regs)(struct dsa_switch *ds, int port,
+			    struct ethtool_regs *regs, void *p);
 };
 
 void register_switch_driver(struct dsa_switch_driver *type);

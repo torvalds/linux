@@ -1,5 +1,9 @@
 /*
- * net/dsa/mv88e6123_61_65.c - Marvell 88e6123/6161/6165 switch chip support
+ * net/dsa/mv88e6352.c - Marvell 88e6352 switch chip support
+ *
+ * Copyright (c) 2014 Guenter Roeck
+ *
+ * Derived from mv88e6123_61_65.c
  * Copyright (c) 2008-2009 Marvell Semiconductor
  *
  * This program is free software; you can redistribute it and/or modify
@@ -13,11 +17,68 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
+#include <linux/platform_device.h>
 #include <linux/phy.h>
 #include <net/dsa.h>
 #include "mv88e6xxx.h"
 
-static char *mv88e6123_61_65_probe(struct device *host_dev, int sw_addr)
+static int mv88e6352_wait(struct dsa_switch *ds, int reg, u16 mask)
+{
+	unsigned long timeout = jiffies + HZ / 10;
+
+	while (time_before(jiffies, timeout)) {
+		int ret;
+
+		ret = REG_READ(REG_GLOBAL2, reg);
+		if (ret < 0)
+			return ret;
+
+		if (!(ret & mask))
+			return 0;
+
+		usleep_range(1000, 2000);
+	}
+	return -ETIMEDOUT;
+}
+
+static inline int mv88e6352_phy_wait(struct dsa_switch *ds)
+{
+	return mv88e6352_wait(ds, 0x18, 0x8000);
+}
+
+static inline int mv88e6352_eeprom_load_wait(struct dsa_switch *ds)
+{
+	return mv88e6352_wait(ds, 0x14, 0x0800);
+}
+
+static inline int mv88e6352_eeprom_busy_wait(struct dsa_switch *ds)
+{
+	return mv88e6352_wait(ds, 0x14, 0x8000);
+}
+
+static int __mv88e6352_phy_read(struct dsa_switch *ds, int addr, int regnum)
+{
+	int ret;
+
+	REG_WRITE(REG_GLOBAL2, 0x18, 0x9800 | (addr << 5) | regnum);
+
+	ret = mv88e6352_phy_wait(ds);
+	if (ret < 0)
+		return ret;
+
+	return REG_READ(REG_GLOBAL2, 0x19);
+}
+
+static int __mv88e6352_phy_write(struct dsa_switch *ds, int addr, int regnum,
+				 u16 val)
+{
+	REG_WRITE(REG_GLOBAL2, 0x19, val);
+	REG_WRITE(REG_GLOBAL2, 0x18, 0x9400 | (addr << 5) | regnum);
+
+	return mv88e6352_phy_wait(ds);
+}
+
+static char *mv88e6352_probe(struct device *host_dev, int sw_addr)
 {
 	struct mii_bus *bus = dsa_host_dev_to_mii_bus(host_dev);
 	int ret;
@@ -27,39 +88,27 @@ static char *mv88e6123_61_65_probe(struct device *host_dev, int sw_addr)
 
 	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), 0x03);
 	if (ret >= 0) {
-		if (ret == 0x1212)
-			return "Marvell 88E6123 (A1)";
-		if (ret == 0x1213)
-			return "Marvell 88E6123 (A2)";
-		if ((ret & 0xfff0) == 0x1210)
-			return "Marvell 88E6123";
-
-		if (ret == 0x1612)
-			return "Marvell 88E6161 (A1)";
-		if (ret == 0x1613)
-			return "Marvell 88E6161 (A2)";
-		if ((ret & 0xfff0) == 0x1610)
-			return "Marvell 88E6161";
-
-		if (ret == 0x1652)
-			return "Marvell 88E6165 (A1)";
-		if (ret == 0x1653)
-			return "Marvell 88e6165 (A2)";
-		if ((ret & 0xfff0) == 0x1650)
-			return "Marvell 88E6165";
+		if ((ret & 0xfff0) == 0x1760)
+			return "Marvell 88E6176";
+		if (ret == 0x3521)
+			return "Marvell 88E6352 (A0)";
+		if (ret == 0x3522)
+			return "Marvell 88E6352 (A1)";
+		if ((ret & 0xfff0) == 0x3520)
+			return "Marvell 88E6352";
 	}
 
 	return NULL;
 }
 
-static int mv88e6123_61_65_switch_reset(struct dsa_switch *ds)
+static int mv88e6352_switch_reset(struct dsa_switch *ds)
 {
-	int i;
-	int ret;
 	unsigned long timeout;
+	int ret;
+	int i;
 
 	/* Set all ports to the disabled state. */
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < 7; i++) {
 		ret = REG_READ(REG_PORT(i), 0x04);
 		REG_WRITE(REG_PORT(i), 0x04, ret & 0xfffc);
 	}
@@ -67,16 +116,18 @@ static int mv88e6123_61_65_switch_reset(struct dsa_switch *ds)
 	/* Wait for transmit queues to drain. */
 	usleep_range(2000, 4000);
 
-	/* Reset the switch. */
-	REG_WRITE(REG_GLOBAL, 0x04, 0xc400);
+	/* Reset the switch. Keep PPU active (bit 14, undocumented).
+	 * The PPU needs to be active to support indirect phy register
+	 * accesses through global registers 0x18 and 0x19.
+	 */
+	REG_WRITE(REG_GLOBAL, 0x04, 0xc000);
 
 	/* Wait up to one second for reset to complete. */
 	timeout = jiffies + 1 * HZ;
 	while (time_before(jiffies, timeout)) {
 		ret = REG_READ(REG_GLOBAL, 0x00);
-		if ((ret & 0xc800) == 0xc800)
+		if ((ret & 0x8800) == 0x8800)
 			break;
-
 		usleep_range(1000, 2000);
 	}
 	if (time_after(jiffies, timeout))
@@ -85,16 +136,15 @@ static int mv88e6123_61_65_switch_reset(struct dsa_switch *ds)
 	return 0;
 }
 
-static int mv88e6123_61_65_setup_global(struct dsa_switch *ds)
+static int mv88e6352_setup_global(struct dsa_switch *ds)
 {
 	int ret;
 	int i;
 
-	/* Disable the PHY polling unit (since there won't be any
-	 * external PHYs to poll), don't discard packets with
-	 * excessive collisions, and mask all interrupt sources.
+	/* Discard packets with excessive collisions,
+	 * mask all interrupt sources, enable PPU (bit 14, undocumented).
 	 */
-	REG_WRITE(REG_GLOBAL, 0x04, 0x0000);
+	REG_WRITE(REG_GLOBAL, 0x04, 0x6000);
 
 	/* Set the default address aging time to 5 minutes, and
 	 * enable address learn messages to be sent to all message
@@ -139,9 +189,8 @@ static int mv88e6123_61_65_setup_global(struct dsa_switch *ds)
 
 	/* Program the DSA routing table. */
 	for (i = 0; i < 32; i++) {
-		int nexthop;
+		int nexthop = 0x1f;
 
-		nexthop = 0x1f;
 		if (i != ds->index && i < ds->dst->pd->nr_chips)
 			nexthop = ds->pd->rtable[i] & 0x1f;
 
@@ -150,7 +199,7 @@ static int mv88e6123_61_65_setup_global(struct dsa_switch *ds)
 
 	/* Clear all trunk masks. */
 	for (i = 0; i < 8; i++)
-		REG_WRITE(REG_GLOBAL2, 0x07, 0x8000 | (i << 12) | 0xff);
+		REG_WRITE(REG_GLOBAL2, 0x07, 0x8000 | (i << 12) | 0x7f);
 
 	/* Clear all trunk mappings. */
 	for (i = 0; i < 16; i++)
@@ -159,7 +208,7 @@ static int mv88e6123_61_65_setup_global(struct dsa_switch *ds)
 	/* Disable ingress rate limiting by resetting all ingress
 	 * rate limit registers to their initial state.
 	 */
-	for (i = 0; i < 6; i++)
+	for (i = 0; i < 7; i++)
 		REG_WRITE(REG_GLOBAL2, 0x09, 0x9000 | (i << 8));
 
 	/* Initialise cross-chip port VLAN table to reset defaults. */
@@ -174,7 +223,7 @@ static int mv88e6123_61_65_setup_global(struct dsa_switch *ds)
 	return 0;
 }
 
-static int mv88e6123_61_65_setup_port(struct dsa_switch *ds, int p)
+static int mv88e6352_setup_port(struct dsa_switch *ds, int p)
 {
 	int addr = REG_PORT(p);
 	u16 val;
@@ -293,74 +342,124 @@ static int mv88e6123_61_65_setup_port(struct dsa_switch *ds, int p)
 
 #ifdef CONFIG_NET_DSA_HWMON
 
-static int  mv88e6123_61_65_get_temp(struct dsa_switch *ds, int *temp)
+static int mv88e6352_phy_page_read(struct dsa_switch *ds,
+				   int port, int page, int reg)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int ret;
-	int val;
-
-	*temp = 0;
 
 	mutex_lock(&ps->phy_mutex);
-
-	ret = mv88e6xxx_phy_write(ds, 0x0, 0x16, 0x6);
+	ret = __mv88e6352_phy_write(ds, port, 0x16, page);
 	if (ret < 0)
 		goto error;
-
-	/* Enable temperature sensor */
-	ret = mv88e6xxx_phy_read(ds, 0x0, 0x1a);
-	if (ret < 0)
-		goto error;
-
-	ret = mv88e6xxx_phy_write(ds, 0x0, 0x1a, ret | (1 << 5));
-	if (ret < 0)
-		goto error;
-
-	/* Wait for temperature to stabilize */
-	usleep_range(10000, 12000);
-
-	val = mv88e6xxx_phy_read(ds, 0x0, 0x1a);
-	if (val < 0) {
-		ret = val;
-		goto error;
-	}
-
-	/* Disable temperature sensor */
-	ret = mv88e6xxx_phy_write(ds, 0x0, 0x1a, ret & ~(1 << 5));
-	if (ret < 0)
-		goto error;
-
-	*temp = ((val & 0x1f) - 5) * 5;
-
+	ret = __mv88e6352_phy_read(ds, port, reg);
 error:
-	mv88e6xxx_phy_write(ds, 0x0, 0x16, 0x0);
+	__mv88e6352_phy_write(ds, port, 0x16, 0x0);
 	mutex_unlock(&ps->phy_mutex);
 	return ret;
 }
-#endif /* CONFIG_NET_DSA_HWMON */
 
-static int mv88e6123_61_65_setup(struct dsa_switch *ds)
+static int mv88e6352_phy_page_write(struct dsa_switch *ds,
+				    int port, int page, int reg, int val)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	int i;
 	int ret;
+
+	mutex_lock(&ps->phy_mutex);
+	ret = __mv88e6352_phy_write(ds, port, 0x16, page);
+	if (ret < 0)
+		goto error;
+
+	ret = __mv88e6352_phy_write(ds, port, reg, val);
+error:
+	__mv88e6352_phy_write(ds, port, 0x16, 0x0);
+	mutex_unlock(&ps->phy_mutex);
+	return ret;
+}
+
+static int mv88e6352_get_temp(struct dsa_switch *ds, int *temp)
+{
+	int ret;
+
+	*temp = 0;
+
+	ret = mv88e6352_phy_page_read(ds, 0, 6, 27);
+	if (ret < 0)
+		return ret;
+
+	*temp = (ret & 0xff) - 25;
+
+	return 0;
+}
+
+static int mv88e6352_get_temp_limit(struct dsa_switch *ds, int *temp)
+{
+	int ret;
+
+	*temp = 0;
+
+	ret = mv88e6352_phy_page_read(ds, 0, 6, 26);
+	if (ret < 0)
+		return ret;
+
+	*temp = (((ret >> 8) & 0x1f) * 5) - 25;
+
+	return 0;
+}
+
+static int mv88e6352_set_temp_limit(struct dsa_switch *ds, int temp)
+{
+	int ret;
+
+	ret = mv88e6352_phy_page_read(ds, 0, 6, 26);
+	if (ret < 0)
+		return ret;
+	temp = clamp_val(DIV_ROUND_CLOSEST(temp, 5) + 5, 0, 0x1f);
+	return mv88e6352_phy_page_write(ds, 0, 6, 26,
+					(ret & 0xe0ff) | (temp << 8));
+}
+
+static int mv88e6352_get_temp_alarm(struct dsa_switch *ds, bool *alarm)
+{
+	int ret;
+
+	*alarm = false;
+
+	ret = mv88e6352_phy_page_read(ds, 0, 6, 26);
+	if (ret < 0)
+		return ret;
+
+	*alarm = !!(ret & 0x40);
+
+	return 0;
+}
+#endif /* CONFIG_NET_DSA_HWMON */
+
+static int mv88e6352_setup(struct dsa_switch *ds)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	int ret;
+	int i;
 
 	mutex_init(&ps->smi_mutex);
 	mutex_init(&ps->stats_mutex);
 	mutex_init(&ps->phy_mutex);
+	mutex_init(&ps->eeprom_mutex);
 
-	ret = mv88e6123_61_65_switch_reset(ds);
+	ps->id = REG_READ(REG_PORT(0), 0x03) & 0xfff0;
+
+	ret = mv88e6352_switch_reset(ds);
 	if (ret < 0)
 		return ret;
 
 	/* @@@ initialise vtu and atu */
 
-	ret = mv88e6123_61_65_setup_global(ds);
+	ret = mv88e6352_setup_global(ds);
 	if (ret < 0)
 		return ret;
 
-	for (i = 0; i < 6; i++) {
-		ret = mv88e6123_61_65_setup_port(ds, i);
+	for (i = 0; i < 7; i++) {
+		ret = mv88e6352_setup_port(ds, i);
 		if (ret < 0)
 			return ret;
 	}
@@ -368,41 +467,48 @@ static int mv88e6123_61_65_setup(struct dsa_switch *ds)
 	return 0;
 }
 
-static int mv88e6123_61_65_port_to_phy_addr(int port)
+static int mv88e6352_port_to_phy_addr(int port)
 {
 	if (port >= 0 && port <= 4)
 		return port;
-	return -1;
+	return -EINVAL;
 }
 
 static int
-mv88e6123_61_65_phy_read(struct dsa_switch *ds, int port, int regnum)
+mv88e6352_phy_read(struct dsa_switch *ds, int port, int regnum)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	int addr = mv88e6123_61_65_port_to_phy_addr(port);
+	int addr = mv88e6352_port_to_phy_addr(port);
 	int ret;
 
+	if (addr < 0)
+		return addr;
+
 	mutex_lock(&ps->phy_mutex);
-	ret = mv88e6xxx_phy_read(ds, addr, regnum);
+	ret = __mv88e6352_phy_read(ds, addr, regnum);
 	mutex_unlock(&ps->phy_mutex);
+
 	return ret;
 }
 
 static int
-mv88e6123_61_65_phy_write(struct dsa_switch *ds,
-			      int port, int regnum, u16 val)
+mv88e6352_phy_write(struct dsa_switch *ds, int port, int regnum, u16 val)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	int addr = mv88e6123_61_65_port_to_phy_addr(port);
+	int addr = mv88e6352_port_to_phy_addr(port);
 	int ret;
 
+	if (addr < 0)
+		return addr;
+
 	mutex_lock(&ps->phy_mutex);
-	ret = mv88e6xxx_phy_write(ds, addr, regnum, val);
+	ret = __mv88e6352_phy_write(ds, addr, regnum, val);
 	mutex_unlock(&ps->phy_mutex);
+
 	return ret;
 }
 
-static struct mv88e6xxx_hw_stat mv88e6123_61_65_hw_stats[] = {
+static struct mv88e6xxx_hw_stat mv88e6352_hw_stats[] = {
 	{ "in_good_octets", 8, 0x00, },
 	{ "in_bad_octets", 4, 0x02, },
 	{ "in_unicast", 4, 0x04, },
@@ -438,45 +544,245 @@ static struct mv88e6xxx_hw_stat mv88e6123_61_65_hw_stats[] = {
 	{ "sw_out_filtered", 2, 0x113, },
 };
 
-static void
-mv88e6123_61_65_get_strings(struct dsa_switch *ds, int port, uint8_t *data)
+static int mv88e6352_read_eeprom_word(struct dsa_switch *ds, int addr)
 {
-	mv88e6xxx_get_strings(ds, ARRAY_SIZE(mv88e6123_61_65_hw_stats),
-			      mv88e6123_61_65_hw_stats, port, data);
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	int ret;
+
+	mutex_lock(&ps->eeprom_mutex);
+
+	ret = mv88e6xxx_reg_write(ds, REG_GLOBAL2, 0x14,
+				  0xc000 | (addr & 0xff));
+	if (ret < 0)
+		goto error;
+
+	ret = mv88e6352_eeprom_busy_wait(ds);
+	if (ret < 0)
+		goto error;
+
+	ret = mv88e6xxx_reg_read(ds, REG_GLOBAL2, 0x15);
+error:
+	mutex_unlock(&ps->eeprom_mutex);
+	return ret;
+}
+
+static int mv88e6352_get_eeprom(struct dsa_switch *ds,
+				struct ethtool_eeprom *eeprom, u8 *data)
+{
+	int offset;
+	int len;
+	int ret;
+
+	offset = eeprom->offset;
+	len = eeprom->len;
+	eeprom->len = 0;
+
+	eeprom->magic = 0xc3ec4951;
+
+	ret = mv88e6352_eeprom_load_wait(ds);
+	if (ret < 0)
+		return ret;
+
+	if (offset & 1) {
+		int word;
+
+		word = mv88e6352_read_eeprom_word(ds, offset >> 1);
+		if (word < 0)
+			return word;
+
+		*data++ = (word >> 8) & 0xff;
+
+		offset++;
+		len--;
+		eeprom->len++;
+	}
+
+	while (len >= 2) {
+		int word;
+
+		word = mv88e6352_read_eeprom_word(ds, offset >> 1);
+		if (word < 0)
+			return word;
+
+		*data++ = word & 0xff;
+		*data++ = (word >> 8) & 0xff;
+
+		offset += 2;
+		len -= 2;
+		eeprom->len += 2;
+	}
+
+	if (len) {
+		int word;
+
+		word = mv88e6352_read_eeprom_word(ds, offset >> 1);
+		if (word < 0)
+			return word;
+
+		*data++ = word & 0xff;
+
+		offset++;
+		len--;
+		eeprom->len++;
+	}
+
+	return 0;
+}
+
+static int mv88e6352_eeprom_is_readonly(struct dsa_switch *ds)
+{
+	int ret;
+
+	ret = mv88e6xxx_reg_read(ds, REG_GLOBAL2, 0x14);
+	if (ret < 0)
+		return ret;
+
+	if (!(ret & 0x0400))
+		return -EROFS;
+
+	return 0;
+}
+
+static int mv88e6352_write_eeprom_word(struct dsa_switch *ds, int addr,
+				       u16 data)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	int ret;
+
+	mutex_lock(&ps->eeprom_mutex);
+
+	ret = mv88e6xxx_reg_write(ds, REG_GLOBAL2, 0x15, data);
+	if (ret < 0)
+		goto error;
+
+	ret = mv88e6xxx_reg_write(ds, REG_GLOBAL2, 0x14,
+				  0xb000 | (addr & 0xff));
+	if (ret < 0)
+		goto error;
+
+	ret = mv88e6352_eeprom_busy_wait(ds);
+error:
+	mutex_unlock(&ps->eeprom_mutex);
+	return ret;
+}
+
+static int mv88e6352_set_eeprom(struct dsa_switch *ds,
+				struct ethtool_eeprom *eeprom, u8 *data)
+{
+	int offset;
+	int ret;
+	int len;
+
+	if (eeprom->magic != 0xc3ec4951)
+		return -EINVAL;
+
+	ret = mv88e6352_eeprom_is_readonly(ds);
+	if (ret)
+		return ret;
+
+	offset = eeprom->offset;
+	len = eeprom->len;
+	eeprom->len = 0;
+
+	ret = mv88e6352_eeprom_load_wait(ds);
+	if (ret < 0)
+		return ret;
+
+	if (offset & 1) {
+		int word;
+
+		word = mv88e6352_read_eeprom_word(ds, offset >> 1);
+		if (word < 0)
+			return word;
+
+		word = (*data++ << 8) | (word & 0xff);
+
+		ret = mv88e6352_write_eeprom_word(ds, offset >> 1, word);
+		if (ret < 0)
+			return ret;
+
+		offset++;
+		len--;
+		eeprom->len++;
+	}
+
+	while (len >= 2) {
+		int word;
+
+		word = *data++;
+		word |= *data++ << 8;
+
+		ret = mv88e6352_write_eeprom_word(ds, offset >> 1, word);
+		if (ret < 0)
+			return ret;
+
+		offset += 2;
+		len -= 2;
+		eeprom->len += 2;
+	}
+
+	if (len) {
+		int word;
+
+		word = mv88e6352_read_eeprom_word(ds, offset >> 1);
+		if (word < 0)
+			return word;
+
+		word = (word & 0xff00) | *data++;
+
+		ret = mv88e6352_write_eeprom_word(ds, offset >> 1, word);
+		if (ret < 0)
+			return ret;
+
+		offset++;
+		len--;
+		eeprom->len++;
+	}
+
+	return 0;
 }
 
 static void
-mv88e6123_61_65_get_ethtool_stats(struct dsa_switch *ds,
-				  int port, uint64_t *data)
+mv88e6352_get_strings(struct dsa_switch *ds, int port, uint8_t *data)
 {
-	mv88e6xxx_get_ethtool_stats(ds, ARRAY_SIZE(mv88e6123_61_65_hw_stats),
-				    mv88e6123_61_65_hw_stats, port, data);
+	mv88e6xxx_get_strings(ds, ARRAY_SIZE(mv88e6352_hw_stats),
+			      mv88e6352_hw_stats, port, data);
 }
 
-static int mv88e6123_61_65_get_sset_count(struct dsa_switch *ds)
+static void
+mv88e6352_get_ethtool_stats(struct dsa_switch *ds, int port, uint64_t *data)
 {
-	return ARRAY_SIZE(mv88e6123_61_65_hw_stats);
+	mv88e6xxx_get_ethtool_stats(ds, ARRAY_SIZE(mv88e6352_hw_stats),
+				    mv88e6352_hw_stats, port, data);
 }
 
-struct dsa_switch_driver mv88e6123_61_65_switch_driver = {
+static int mv88e6352_get_sset_count(struct dsa_switch *ds)
+{
+	return ARRAY_SIZE(mv88e6352_hw_stats);
+}
+
+struct dsa_switch_driver mv88e6352_switch_driver = {
 	.tag_protocol		= DSA_TAG_PROTO_EDSA,
 	.priv_size		= sizeof(struct mv88e6xxx_priv_state),
-	.probe			= mv88e6123_61_65_probe,
-	.setup			= mv88e6123_61_65_setup,
+	.probe			= mv88e6352_probe,
+	.setup			= mv88e6352_setup,
 	.set_addr		= mv88e6xxx_set_addr_indirect,
-	.phy_read		= mv88e6123_61_65_phy_read,
-	.phy_write		= mv88e6123_61_65_phy_write,
+	.phy_read		= mv88e6352_phy_read,
+	.phy_write		= mv88e6352_phy_write,
 	.poll_link		= mv88e6xxx_poll_link,
-	.get_strings		= mv88e6123_61_65_get_strings,
-	.get_ethtool_stats	= mv88e6123_61_65_get_ethtool_stats,
-	.get_sset_count		= mv88e6123_61_65_get_sset_count,
+	.get_strings		= mv88e6352_get_strings,
+	.get_ethtool_stats	= mv88e6352_get_ethtool_stats,
+	.get_sset_count		= mv88e6352_get_sset_count,
 #ifdef CONFIG_NET_DSA_HWMON
-	.get_temp		= mv88e6123_61_65_get_temp,
+	.get_temp		= mv88e6352_get_temp,
+	.get_temp_limit		= mv88e6352_get_temp_limit,
+	.set_temp_limit		= mv88e6352_set_temp_limit,
+	.get_temp_alarm		= mv88e6352_get_temp_alarm,
 #endif
+	.get_eeprom		= mv88e6352_get_eeprom,
+	.set_eeprom		= mv88e6352_set_eeprom,
 	.get_regs_len		= mv88e6xxx_get_regs_len,
 	.get_regs		= mv88e6xxx_get_regs,
 };
 
-MODULE_ALIAS("platform:mv88e6123");
-MODULE_ALIAS("platform:mv88e6161");
-MODULE_ALIAS("platform:mv88e6165");
+MODULE_ALIAS("platform:mv88e6352");
