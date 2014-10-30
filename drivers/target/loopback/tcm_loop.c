@@ -135,18 +135,6 @@ static int tcm_loop_change_queue_depth(
 	return sdev->queue_depth;
 }
 
-/*
- * Locate the SAM Task Attr from struct scsi_cmnd *
- */
-static int tcm_loop_sam_attr(struct scsi_cmnd *sc, int tag)
-{
-	if (sc->device->tagged_supported &&
-	    sc->device->ordered_tags && tag >= 0)
-		return MSG_ORDERED_TAG;
-
-	return MSG_SIMPLE_TAG;
-}
-
 static void tcm_loop_submission_work(struct work_struct *work)
 {
 	struct tcm_loop_cmd *tl_cmd =
@@ -205,7 +193,7 @@ static void tcm_loop_submission_work(struct work_struct *work)
 
 	rc = target_submit_cmd_map_sgls(se_cmd, tl_nexus->se_sess, sc->cmnd,
 			&tl_cmd->tl_sense_buf[0], tl_cmd->sc->device->lun,
-			transfer_length, tcm_loop_sam_attr(sc, tl_cmd->sc_cmd_tag),
+			transfer_length, MSG_SIMPLE_TAG,
 			sc->sc_data_direction, 0,
 			scsi_sglist(sc), scsi_sg_count(sc),
 			sgl_bidi, sgl_bidi_count,

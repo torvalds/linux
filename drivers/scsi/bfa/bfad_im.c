@@ -868,14 +868,9 @@ bfad_ramp_up_qdepth(struct bfad_itnim_s *itnim, struct scsi_device *sdev)
 			if (bfa_lun_queue_depth > tmp_sdev->queue_depth) {
 				if (tmp_sdev->id != sdev->id)
 					continue;
-				if (tmp_sdev->ordered_tags)
-					scsi_adjust_queue_depth(tmp_sdev,
-						MSG_ORDERED_TAG,
-						tmp_sdev->queue_depth + 1);
-				else
-					scsi_adjust_queue_depth(tmp_sdev,
-						MSG_SIMPLE_TAG,
-						tmp_sdev->queue_depth + 1);
+				scsi_adjust_queue_depth(tmp_sdev,
+					MSG_SIMPLE_TAG,
+					tmp_sdev->queue_depth + 1);
 
 				itnim->last_ramp_up_time = jiffies;
 			}

@@ -526,9 +526,9 @@ static int pvscsi_change_queue_depth(struct scsi_device *sdev,
 
 	if (sdev->inquiry_len > 7)
 		sdev_printk(KERN_INFO, sdev,
-			    "qdepth(%d), tagged(%d), simple(%d), ordered(%d), scsi_level(%d), cmd_que(%d)\n",
+			    "qdepth(%d), tagged(%d), simple(%d), scsi_level(%d), cmd_que(%d)\n",
 			    sdev->queue_depth, sdev->tagged_supported,
-			    sdev->simple_tags, sdev->ordered_tags,
+			    sdev->simple_tags,
 			    sdev->scsi_level, (sdev->inquiry[7] & 2) >> 1);
 	return sdev->queue_depth;
 }

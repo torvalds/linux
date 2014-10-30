@@ -789,19 +789,13 @@ void scsi_adjust_queue_depth(struct scsi_device *sdev, int tagged, int tags)
 	sdev->queue_depth = tags;
 	switch (tagged) {
 		case 0:
-			sdev->ordered_tags = 0;
 			sdev->simple_tags = 0;
 			break;
 		case MSG_ORDERED_TAG:
-			sdev->ordered_tags = 1;
-			sdev->simple_tags = 1;
-			break;
 		case MSG_SIMPLE_TAG:
-			sdev->ordered_tags = 0;
 			sdev->simple_tags = 1;
 			break;
 		default:
-			sdev->ordered_tags = 0;
 			sdev->simple_tags = 0;
 			sdev_printk(KERN_WARNING, sdev,
 				    "scsi_adjust_queue_depth, bad queue type, "
@@ -857,11 +851,8 @@ int scsi_track_queue_full(struct scsi_device *sdev, int depth)
 		scsi_adjust_queue_depth(sdev, 0, sdev->host->cmd_per_lun);
 		return -1;
 	}
-	
-	if (sdev->ordered_tags)
-		scsi_adjust_queue_depth(sdev, MSG_ORDERED_TAG, depth);
-	else
-		scsi_adjust_queue_depth(sdev, MSG_SIMPLE_TAG, depth);
+
+	scsi_adjust_queue_depth(sdev, MSG_SIMPLE_TAG, depth);
 	return depth;
 }
 EXPORT_SYMBOL(scsi_track_queue_full);

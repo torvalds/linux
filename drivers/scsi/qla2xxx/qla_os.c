@@ -1442,10 +1442,7 @@ static void qla2x00_adjust_sdev_qdepth_up(struct scsi_device *sdev, int qdepth)
 	if (req->max_q_depth <= sdev->queue_depth || req->max_q_depth < qdepth)
 		return;
 
-	if (sdev->ordered_tags)
-		scsi_adjust_queue_depth(sdev, MSG_ORDERED_TAG, qdepth);
-	else
-		scsi_adjust_queue_depth(sdev, MSG_SIMPLE_TAG, qdepth);
+	scsi_adjust_queue_depth(sdev, MSG_SIMPLE_TAG, qdepth);
 
 	ql_dbg(ql_dbg_io, vha, 0x302a,
 	    "Queue depth adjusted-up to %d for nexus=%ld:%d:%llu.\n",

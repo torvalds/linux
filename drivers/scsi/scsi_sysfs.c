@@ -727,9 +727,7 @@ show_queue_type_field(struct device *dev, struct device_attribute *attr,
 	struct scsi_device *sdev = to_scsi_device(dev);
 	const char *name = "none";
 
-	if (sdev->ordered_tags)
-		name = "ordered";
-	else if (sdev->simple_tags)
+	if (sdev->simple_tags)
 		name = "simple";
 
 	return snprintf(buf, 20, "%s\n", name);
@@ -747,9 +745,12 @@ store_queue_type_field(struct device *dev, struct device_attribute *attr,
 	if (!sdev->tagged_supported || !sht->change_queue_type)
 		return -EINVAL;
 
-	if (strncmp(buf, "ordered", 7) == 0)
-		tag_type = MSG_ORDERED_TAG;
-	else if (strncmp(buf, "simple", 6) == 0)
+	/*
+	 * We're never issueing order tags these days, but allow the value
+	 * for backwards compatibility.
+	 */
+	if (strncmp(buf, "ordered", 7) == 0 ||
+	    strncmp(buf, "simple", 6) == 0)
 		tag_type = MSG_SIMPLE_TAG;
 	else if (strncmp(buf, "none", 4) != 0)
 		return -EINVAL;

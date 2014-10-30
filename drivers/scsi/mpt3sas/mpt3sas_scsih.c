@@ -1114,9 +1114,9 @@ _scsih_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
 
 	if (sdev->inquiry_len > 7)
 		sdev_printk(KERN_INFO, sdev, "qdepth(%d), tagged(%d), " \
-		"simple(%d), ordered(%d), scsi_level(%d), cmd_que(%d)\n",
+		"simple(%d), scsi_level(%d), cmd_que(%d)\n",
 		sdev->queue_depth, sdev->tagged_supported, sdev->simple_tags,
-		sdev->ordered_tags, sdev->scsi_level,
+		sdev->scsi_level,
 		(sdev->inquiry[7] & 2) >> 1);
 
 	return sdev->queue_depth;
@@ -3563,16 +3563,7 @@ _scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
 		mpi_control = MPI2_SCSIIO_CONTROL_NODATATRANSFER;
 
 	/* set tags */
-	if (!(sas_device_priv_data->flags & MPT_DEVICE_FLAGS_INIT)) {
-		if (scmd->device->tagged_supported) {
-			if (scmd->device->ordered_tags)
-				mpi_control |= MPI2_SCSIIO_CONTROL_ORDEREDQ;
-			else
-				mpi_control |= MPI2_SCSIIO_CONTROL_SIMPLEQ;
-		} else
-			mpi_control |= MPI2_SCSIIO_CONTROL_SIMPLEQ;
-	} else
-		mpi_control |= MPI2_SCSIIO_CONTROL_SIMPLEQ;
+	mpi_control |= MPI2_SCSIIO_CONTROL_SIMPLEQ;
 
 	if ((sas_device_priv_data->flags & MPT_DEVICE_TLR_ON) &&
 	    scmd->cmd_len != 32)

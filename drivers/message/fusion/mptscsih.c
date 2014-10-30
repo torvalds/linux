@@ -2400,9 +2400,8 @@ mptscsih_slave_configure(struct scsi_device *sdev)
 	mptscsih_change_queue_depth(sdev, MPT_SCSI_CMD_PER_DEV_HIGH,
 				    SCSI_QDEPTH_DEFAULT);
 	dsprintk(ioc, printk(MYIOC_s_DEBUG_FMT
-		"tagged %d, simple %d, ordered %d\n",
-		ioc->name,sdev->tagged_supported, sdev->simple_tags,
-		sdev->ordered_tags));
+		"tagged %d, simple %d\n",
+		ioc->name,sdev->tagged_supported, sdev->simple_tags));
 
 	blk_queue_dma_alignment (sdev->request_queue, 512 - 1);
 
