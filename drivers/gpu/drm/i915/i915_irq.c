@@ -3444,9 +3444,6 @@ static void vlv_display_irq_postinstall(struct drm_i915_private *dev_priv)
 	if (dev_priv->display_irqs_enabled)
 		valleyview_display_irqs_install(dev_priv);
 	spin_unlock_irq(&dev_priv->irq_lock);
-
-	I915_WRITE(VLV_IIR, 0xffffffff);
-	I915_WRITE(VLV_IIR, 0xffffffff);
 }
 
 static int valleyview_irq_postinstall(struct drm_device *dev)
