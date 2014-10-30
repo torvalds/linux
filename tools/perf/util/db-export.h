@@ -17,6 +17,7 @@
 #define __PERF_DB_EXPORT_H
 
 #include <linux/types.h>
+#include <linux/list.h>
 
 struct perf_evsel;
 struct machine;
@@ -74,9 +75,11 @@ struct db_export {
 	u64 sample_last_db_id;
 	u64 call_path_last_db_id;
 	u64 call_return_last_db_id;
+	struct list_head deferred;
 };
 
 int db_export__init(struct db_export *dbe);
+int db_export__flush(struct db_export *dbe);
 void db_export__exit(struct db_export *dbe);
 int db_export__evsel(struct db_export *dbe, struct perf_evsel *evsel);
 int db_export__machine(struct db_export *dbe, struct machine *machine);

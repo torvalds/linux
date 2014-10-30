@@ -1030,7 +1030,9 @@ error:
 
 static int python_flush_script(void)
 {
-	return 0;
+	struct tables *tables = &tables_global;
+
+	return db_export__flush(&tables->dbe);
 }
 
 /*

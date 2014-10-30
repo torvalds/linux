@@ -21,17 +21,74 @@
 #include "comm.h"
 #include "symbol.h"
 #include "event.h"
+#include "util.h"
 #include "thread-stack.h"
 #include "db-export.h"
+
+struct deferred_export {
+	struct list_head node;
+	struct comm *comm;
+};
+
+static int db_export__deferred(struct db_export *dbe)
+{
+	struct deferred_export *de;
+	int err;
+
+	while (!list_empty(&dbe->deferred)) {
+		de = list_entry(dbe->deferred.next, struct deferred_export,
+				node);
+		err = dbe->export_comm(dbe, de->comm);
+		list_del(&de->node);
+		free(de);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static void db_export__free_deferred(struct db_export *dbe)
+{
+	struct deferred_export *de;
+
+	while (!list_empty(&dbe->deferred)) {
+		de = list_entry(dbe->deferred.next, struct deferred_export,
+				node);
+		list_del(&de->node);
+		free(de);
+	}
+}
+
+static int db_export__defer_comm(struct db_export *dbe, struct comm *comm)
+{
+	struct deferred_export *de;
+
+	de = zalloc(sizeof(struct deferred_export));
+	if (!de)
+		return -ENOMEM;
+
+	de->comm = comm;
+	list_add_tail(&de->node, &dbe->deferred);
+
+	return 0;
+}
 
 int db_export__init(struct db_export *dbe)
 {
 	memset(dbe, 0, sizeof(struct db_export));
+	INIT_LIST_HEAD(&dbe->deferred);
 	return 0;
+}
+
+int db_export__flush(struct db_export *dbe)
+{
+	return db_export__deferred(dbe);
 }
 
 void db_export__exit(struct db_export *dbe)
 {
+	db_export__free_deferred(dbe);
 	call_return_processor__free(dbe->crp);
 	dbe->crp = NULL;
 }
@@ -115,7 +172,10 @@ int db_export__comm(struct db_export *dbe, struct comm *comm,
 	comm->db_id = ++dbe->comm_last_db_id;
 
 	if (dbe->export_comm) {
-		err = dbe->export_comm(dbe, comm);
+		if (main_thread->comm_set)
+			err = dbe->export_comm(dbe, comm);
+		else
+			err = db_export__defer_comm(dbe, comm);
 		if (err)
 			return err;
 	}
