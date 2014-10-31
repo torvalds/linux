@@ -32,6 +32,7 @@ Optional properties:
  - snps,tx_de_emphasis_quirk: when set core will set Tx de-emphasis value.
  - snps,tx_de_emphasis: the value driven to the PHY is controlled by the
 			LTSSM during USB3 Compliance mode.
+ - snps,dis_u3_susphy_quirk: when set core will disable USB3 suspend phy.
 
 This is usually a subnode to DWC3 glue to which it is connected.
 
