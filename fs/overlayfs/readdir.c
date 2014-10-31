@@ -93,6 +93,7 @@ static struct ovl_cache_entry *ovl_cache_entry_new(const char *name, int len,
 		p->type = d_type;
 		p->ino = ino;
 		p->is_whiteout = false;
+		p->is_cursor = false;
 	}
 
 	return p;
