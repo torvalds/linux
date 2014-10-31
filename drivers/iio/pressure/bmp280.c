@@ -176,15 +176,15 @@ static int bmp280_read_compensation_press(struct bmp280_data *data,
 		return ret;
 	}
 
-	comp->dig_p1 = (s16) le16_to_cpu(buf[0]);
-	comp->dig_p2 = (u16) le16_to_cpu(buf[1]);
-	comp->dig_p3 = (u16) le16_to_cpu(buf[2]);
-	comp->dig_p4 = (u16) le16_to_cpu(buf[3]);
-	comp->dig_p5 = (u16) le16_to_cpu(buf[4]);
-	comp->dig_p6 = (u16) le16_to_cpu(buf[5]);
-	comp->dig_p7 = (u16) le16_to_cpu(buf[6]);
-	comp->dig_p8 = (u16) le16_to_cpu(buf[7]);
-	comp->dig_p9 = (u16) le16_to_cpu(buf[8]);
+	comp->dig_p1 = (u16) le16_to_cpu(buf[0]);
+	comp->dig_p2 = (s16) le16_to_cpu(buf[1]);
+	comp->dig_p3 = (s16) le16_to_cpu(buf[2]);
+	comp->dig_p4 = (s16) le16_to_cpu(buf[3]);
+	comp->dig_p5 = (s16) le16_to_cpu(buf[4]);
+	comp->dig_p6 = (s16) le16_to_cpu(buf[5]);
+	comp->dig_p7 = (s16) le16_to_cpu(buf[6]);
+	comp->dig_p8 = (s16) le16_to_cpu(buf[7]);
+	comp->dig_p9 = (s16) le16_to_cpu(buf[8]);
 
 	return 0;
 }
@@ -309,10 +309,10 @@ static int bmp280_read_press(struct bmp280_data *data,
 	adc_press = be32_to_cpu(tmp) >> 12;
 	comp_press = bmp280_compensate_press(data, &comp, adc_press);
 
-	*val = comp_press / 256000;
-	*val2 = comp_press * 1000000 / 256000;
+	*val = comp_press;
+	*val2 = 256000;
 
-	return IIO_VAL_INT_PLUS_MICRO;
+	return IIO_VAL_FRACTIONAL;
 }
 
 static int bmp280_read_raw(struct iio_dev *indio_dev,
