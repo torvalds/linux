@@ -452,7 +452,7 @@ static void pci9111_ai_munge(struct comedi_device *dev,
 	unsigned int maxdata = s->maxdata;
 	unsigned int invert = (maxdata + 1) >> 1;
 	unsigned int shift = (maxdata == 0xffff) ? 0 : 4;
-	unsigned int num_samples = num_bytes / sizeof(short);
+	unsigned int num_samples = comedi_bytes_to_samples(s, num_bytes);
 	unsigned int i;
 
 	for (i = 0; i < num_samples; i++)
@@ -501,7 +501,7 @@ static void pci9111_handle_fifo_half_full(struct comedi_device *dev,
 				if (to_read > samples - pos)
 					to_read = samples - pos;
 
-				total += to_read * sizeof(short);
+				total += comedi_samples_to_bytes(s, to_read);
 			}
 
 			pos += to_read;
@@ -513,7 +513,7 @@ static void pci9111_handle_fifo_half_full(struct comedi_device *dev,
 		}
 	}
 
-	devpriv->stop_counter -= total / sizeof(short);
+	devpriv->stop_counter -= comedi_bytes_to_samples(s, total);
 }
 
 static irqreturn_t pci9111_interrupt(int irq, void *p_device)
