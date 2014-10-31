@@ -273,8 +273,8 @@ typedef void (*SPARREPORTEVENT_COMPLETE_FUNC) (struct controlvm_message *msg,
 void visorchipset_device_pause_response(ulong bus_no, ulong dev_no,
 					int response);
 
-BOOL visorchipset_get_bus_info(ulong busNo,
-			       struct visorchipset_bus_info *busInfo);
+BOOL visorchipset_get_bus_info(ulong bus_no,
+			       struct visorchipset_bus_info *bus_info);
 BOOL visorchipset_get_device_info(ulong busNo, ulong devNo,
 				  struct visorchipset_device_info *devInfo);
 BOOL visorchipset_get_switch_info(ulong switchNo,

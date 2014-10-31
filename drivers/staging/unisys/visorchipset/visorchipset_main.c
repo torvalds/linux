@@ -2202,15 +2202,15 @@ device_resume_response(ulong busNo, ulong devNo, int response)
 }
 
 BOOL
-visorchipset_get_bus_info(ulong busNo, struct visorchipset_bus_info *busInfo)
+visorchipset_get_bus_info(ulong bus_no, struct visorchipset_bus_info *bus_info)
 {
-	void *p = findbus(&BusInfoList, busNo);
+	void *p = findbus(&BusInfoList, bus_no);
 
 	if (!p) {
-		LOGERR("(%lu) failed", busNo);
+		LOGERR("(%lu) failed", bus_no);
 		return FALSE;
 	}
-	memcpy(busInfo, p, sizeof(struct visorchipset_bus_info));
+	memcpy(bus_info, p, sizeof(struct visorchipset_bus_info));
 	return TRUE;
 }
 EXPORT_SYMBOL_GPL(visorchipset_get_bus_info);
