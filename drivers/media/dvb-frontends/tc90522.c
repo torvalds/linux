@@ -361,7 +361,7 @@ static int tc90522t_get_frontend(struct dvb_frontend *fe)
 		u8 v;
 
 		c->isdbt_partial_reception = val[0] & 0x01;
-		c->isdbt_sb_mode = (val[0] & 0xc0) == 0x01;
+		c->isdbt_sb_mode = (val[0] & 0xc0) == 0x40;
 
 		/* layer A */
 		v = (val[2] & 0x78) >> 3;
