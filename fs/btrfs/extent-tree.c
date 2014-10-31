@@ -3504,6 +3504,7 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 	found->chunk_alloc = 0;
 	found->flush = 0;
 	init_waitqueue_head(&found->wait);
+	INIT_LIST_HEAD(&found->ro_bgs);
 
 	ret = kobject_init_and_add(&found->kobj, &space_info_ktype,
 				    info->space_info_kobj, "%s",
@@ -8511,6 +8512,7 @@ static int set_block_group_ro(struct btrfs_block_group_cache *cache, int force)
 	    min_allocable_bytes <= sinfo->total_bytes) {
 		sinfo->bytes_readonly += num_bytes;
 		cache->ro = 1;
+		list_add_tail(&cache->ro_list, &sinfo->ro_bgs);
 		ret = 0;
 	}
 out:
@@ -8565,15 +8567,20 @@ int btrfs_force_chunk_alloc(struct btrfs_trans_handle *trans,
 
 /*
  * helper to account the unused space of all the readonly block group in the
- * list. takes mirrors into account.
+ * space_info. takes mirrors into account.
  */
-static u64 __btrfs_get_ro_block_group_free_space(struct list_head *groups_list)
+u64 btrfs_account_ro_block_groups_free_space(struct btrfs_space_info *sinfo)
 {
 	struct btrfs_block_group_cache *block_group;
 	u64 free_bytes = 0;
 	int factor;
 
-	list_for_each_entry(block_group, groups_list, list) {
+	/* It's df, we don't care if it's racey */
+	if (list_empty(&sinfo->ro_bgs))
+		return 0;
+
+	spin_lock(&sinfo->lock);
+	list_for_each_entry(block_group, &sinfo->ro_bgs, ro_list) {
 		spin_lock(&block_group->lock);
 
 		if (!block_group->ro) {
@@ -8594,26 +8601,6 @@ static u64 __btrfs_get_ro_block_group_free_space(struct list_head *groups_list)
 
 		spin_unlock(&block_group->lock);
 	}
-
-	return free_bytes;
-}
-
-/*
- * helper to account the unused space of all the readonly block group in the
- * space_info. takes mirrors into account.
- */
-u64 btrfs_account_ro_block_groups_free_space(struct btrfs_space_info *sinfo)
-{
-	int i;
-	u64 free_bytes = 0;
-
-	spin_lock(&sinfo->lock);
-
-	for (i = 0; i < BTRFS_NR_RAID_TYPES; i++)
-		if (!list_empty(&sinfo->block_groups[i]))
-			free_bytes += __btrfs_get_ro_block_group_free_space(
-						&sinfo->block_groups[i]);
-
 	spin_unlock(&sinfo->lock);
 
 	return free_bytes;
@@ -8633,6 +8620,7 @@ void btrfs_set_block_group_rw(struct btrfs_root *root,
 		    cache->bytes_super - btrfs_block_group_used(&cache->item);
 	sinfo->bytes_readonly -= num_bytes;
 	cache->ro = 0;
+	list_del_init(&cache->ro_list);
 	spin_unlock(&cache->lock);
 	spin_unlock(&sinfo->lock);
 }
@@ -9002,6 +8990,7 @@ btrfs_create_block_group_cache(struct btrfs_root *root, u64 start, u64 size)
 	INIT_LIST_HEAD(&cache->list);
 	INIT_LIST_HEAD(&cache->cluster_list);
 	INIT_LIST_HEAD(&cache->bg_list);
+	INIT_LIST_HEAD(&cache->ro_list);
 	btrfs_init_free_space_ctl(cache);
 
 	return cache;
@@ -9411,6 +9400,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	 * are still on the list after taking the semaphore
 	 */
 	list_del_init(&block_group->list);
+	list_del_init(&block_group->ro_list);
 	if (list_empty(&block_group->space_info->block_groups[index])) {
 		kobj = block_group->space_info->block_group_kobjs[index];
 		block_group->space_info->block_group_kobjs[index] = NULL;

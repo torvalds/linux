@@ -1170,6 +1170,7 @@ struct btrfs_space_info {
 	struct percpu_counter total_bytes_pinned;
 
 	struct list_head list;
+	struct list_head ro_bgs;
 
 	struct rw_semaphore groups_sem;
 	/* for block groups in our same type */
@@ -1305,6 +1306,9 @@ struct btrfs_block_group_cache {
 
 	/* For delayed block group creation or deletion of empty block groups */
 	struct list_head bg_list;
+
+	/* For read-only block groups */
+	struct list_head ro_list;
 };
 
 /* delayed seq elem */
