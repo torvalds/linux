@@ -53,7 +53,6 @@ static void __init imx51_dt_init(void)
 {
 	struct platform_device_info devinfo = { .name = "cpufreq-dt", };
 
-	mxc_arch_reset_init_dt();
 	imx51_ipu_mipi_setup();
 	imx_src_init();
 
@@ -78,5 +77,4 @@ DT_MACHINE_START(IMX51_DT, "Freescale i.MX51 (Device Tree Support)")
 	.init_machine	= imx51_dt_init,
 	.init_late	= imx51_init_late,
 	.dt_compat	= imx51_dt_board_compat,
-	.restart	= mxc_restart,
 MACHINE_END
