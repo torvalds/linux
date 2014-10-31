@@ -1040,7 +1040,7 @@ static int v4l_g_priority(const struct v4l2_ioctl_ops *ops,
 	if (ops->vidioc_g_priority)
 		return ops->vidioc_g_priority(file, fh, arg);
 	vfd = video_devdata(file);
-	*p = v4l2_prio_max(&vfd->v4l2_dev->prio);
+	*p = v4l2_prio_max(vfd->prio);
 	return 0;
 }
 
@@ -1055,7 +1055,7 @@ static int v4l_s_priority(const struct v4l2_ioctl_ops *ops,
 		return ops->vidioc_s_priority(file, fh, *p);
 	vfd = video_devdata(file);
 	vfh = file->private_data;
-	return v4l2_prio_change(&vfd->v4l2_dev->prio, &vfh->prio, *p);
+	return v4l2_prio_change(vfd->prio, &vfh->prio, *p);
 }
 
 static int v4l_enuminput(const struct v4l2_ioctl_ops *ops,
