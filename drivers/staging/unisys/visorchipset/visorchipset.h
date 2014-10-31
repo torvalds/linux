@@ -178,25 +178,24 @@ struct visorchipset_switch_info {
 /** Attributes for a particular Supervisor external port, which is connected
  *  to a specific switch.
  */
-typedef struct {
-	u32 switchNo;
-	u32 externalPortNo;
+struct visorchipset_externalport_info {
+	u32 switch_no;
+	u32 external_port_no;
 	struct visorchipset_state state;
-	uuid_le networkZoneGuid;
-	int pdPort;
+	uuid_le network_zone_uuid;
+	int pd_port;
 	u8 *ip;
-	u8 *ipNetmask;
-	u8 *ipBroadcast;
-	u8 *ipNetwork;
-	u8 *ipGateway;
-	u8 *ipDNS;
-	u64 Reserved1;
-	u32 Reserved2;		/* control_vm_id */
+	u8 *ip_netmask;
+	u8 *ip_broadcast;
+	u8 *ip_network;
+	u8 *ip_gateway;
+	u8 *ip_dns;
+	u64 reserved1;
+	u32 reserved2;		/* control_vm_id */
 	struct device dev;
 	BOOL dev_exists;
-	struct controlvm_message_header pendingMsgHdr;
-
-} VISORCHIPSET_EXTERNALPORT_INFO;
+	struct controlvm_message_header pending_msg_hdr;
+};
 
 /** Attributes for a particular Supervisor internal port, which is how a
  *  device connects to a particular switch.
@@ -278,7 +277,7 @@ BOOL visorchipset_get_device_info(ulong busNo, ulong devNo,
 BOOL visorchipset_get_switch_info(ulong switchNo,
 				  struct visorchipset_switch_info *switchInfo);
 BOOL visorchipset_get_externalport_info(ulong switchNo, ulong externalPortNo,
-					VISORCHIPSET_EXTERNALPORT_INFO
+					struct visorchipset_externalport_info
 					*externalPortInfo);
 BOOL visorchipset_set_bus_context(ulong busNo, void *context);
 BOOL visorchipset_set_device_context(ulong busNo, ulong devNo, void *context);
