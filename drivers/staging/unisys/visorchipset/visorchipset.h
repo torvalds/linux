@@ -200,18 +200,18 @@ struct visorchipset_externalport_info {
 /** Attributes for a particular Supervisor internal port, which is how a
  *  device connects to a particular switch.
  */
-typedef struct {
-	u32 switchNo;
-	u32 internalPortNo;
+struct visorchipset_internalport_info {
+	u32 switch_no;
+	u32 internal_port_no;
 	struct visorchipset_state state;
-	u32 busNo;		/* valid only when state.attached == 1 */
-	u32 devNo;		/* valid only when state.attached == 1 */
-	u64 Reserved1;
-	u32 Reserved2;		/* CONTROLVM_ID */
-	struct controlvm_message_header pendingMsgHdr;
-	MYPROCOBJECT *procObject;
+	u32 bus_no;		/* valid only when state.attached == 1 */
+	u32 dev_no;		/* valid only when state.attached == 1 */
+	u64 reserved1;
+	u32 reserved2;		/* CONTROLVM_ID */
+	struct controlvm_message_header pending_msg_hdr;
+	MYPROCOBJECT *proc_object;
 
-} VISORCHIPSET_INTERNALPORT_INFO;
+};
 
 /*  These functions will be called from within visorchipset when certain
  *  events happen.  (The implementation of these functions is outside of
