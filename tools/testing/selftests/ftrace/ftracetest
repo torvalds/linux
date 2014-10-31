@@ -82,7 +82,7 @@ parse_opts() { # opts
 }
 
 # Parameters
-DEBUGFS_DIR=`grep debugfs /proc/mounts | cut -f2 -d' '`
+DEBUGFS_DIR=`grep debugfs /proc/mounts | cut -f2 -d' ' | head -1`
 TRACING_DIR=$DEBUGFS_DIR/tracing
 TOP_DIR=`absdir $0`
 TEST_DIR=$TOP_DIR/test.d
