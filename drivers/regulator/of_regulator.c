@@ -19,7 +19,7 @@
 
 #include "internal.h"
 
-const char *const regulator_states[PM_SUSPEND_MAX + 1] = {
+static const char *const regulator_states[PM_SUSPEND_MAX + 1] = {
 	[PM_SUSPEND_MEM]	= "regulator-state-mem",
 	[PM_SUSPEND_MAX]	= "regulator-state-disk",
 };
