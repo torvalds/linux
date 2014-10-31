@@ -34,7 +34,7 @@ static int irqcount;
 static bool suspend_abort;
 static char abort_reason[MAX_SUSPEND_ABORT_LEN];
 static struct kobject *wakeup_reason;
-static spinlock_t resume_reason_lock;
+static DEFINE_SPINLOCK(resume_reason_lock);
 
 static ssize_t last_resume_reason_show(struct kobject *kobj, struct kobj_attribute *attr,
 		char *buf)
@@ -95,6 +95,21 @@ void log_wakeup_reason(int irq)
 	spin_unlock(&resume_reason_lock);
 }
 
+int check_wakeup_reason(int irq)
+{
+	int irq_no;
+	int ret = false;
+
+	spin_lock(&resume_reason_lock);
+	for (irq_no = 0; irq_no < irqcount; irq_no++)
+		if (irq_list[irq_no] == irq) {
+			ret = true;
+			break;
+	}
+	spin_unlock(&resume_reason_lock);
+	return ret;
+}
+
 void log_suspend_abort_reason(const char *fmt, ...)
 {
 	va_list args;
@@ -141,7 +156,7 @@ static struct notifier_block wakeup_reason_pm_notifier_block = {
 int __init wakeup_reason_init(void)
 {
 	int retval;
-	spin_lock_init(&resume_reason_lock);
+
 	retval = register_pm_notifier(&wakeup_reason_pm_notifier_block);
 	if (retval)
 		printk(KERN_WARNING "[%s] failed to register PM notifier %d\n",
