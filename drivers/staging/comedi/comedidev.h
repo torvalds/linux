@@ -603,32 +603,6 @@ void comedi_pci_driver_unregister(struct comedi_driver *, struct pci_driver *);
 	module_driver(__comedi_driver, comedi_pci_driver_register, \
 			comedi_pci_driver_unregister, &(__pci_driver))
 
-#else
-
-/*
- * Some of the comedi mixed ISA/PCI drivers call the PCI specific
- * functions. Provide some dummy functions if CONFIG_COMEDI_PCI_DRIVERS
- * is not enabled.
- */
-
-static inline struct pci_dev *comedi_to_pci_dev(struct comedi_device *dev)
-{
-	return NULL;
-}
-
-static inline int comedi_pci_enable(struct comedi_device *dev)
-{
-	return -ENOSYS;
-}
-
-static inline void comedi_pci_disable(struct comedi_device *dev)
-{
-}
-
-static inline void comedi_pci_detach(struct comedi_device *dev)
-{
-}
-
 #endif /* CONFIG_COMEDI_PCI_DRIVERS */
 
 #ifdef CONFIG_COMEDI_PCMCIA_DRIVERS
