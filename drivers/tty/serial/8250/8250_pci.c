@@ -757,6 +757,8 @@ pci_ni8430_setup(struct serial_private *priv,
 	offset += idx * board->uart_offset;
 
 	p = pci_ioremap_bar(dev, bar);
+	if (!p)
+		return -ENOMEM;
 
 	/* enable the transceiver */
 	writeb(readb(p + offset + NI8430_PORTCON) | NI8430_PORTCON_TXVR_ENABLE,
