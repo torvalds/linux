@@ -275,8 +275,8 @@ void visorchipset_device_pause_response(ulong bus_no, ulong dev_no,
 
 BOOL visorchipset_get_bus_info(ulong bus_no,
 			       struct visorchipset_bus_info *bus_info);
-BOOL visorchipset_get_device_info(ulong busNo, ulong devNo,
-				  struct visorchipset_device_info *devInfo);
+BOOL visorchipset_get_device_info(ulong bus_no, ulong dev_no,
+				  struct visorchipset_device_info *dev_info);
 BOOL visorchipset_get_switch_info(ulong switchNo,
 				  struct visorchipset_switch_info *switchInfo);
 BOOL visorchipset_get_externalport_info(ulong switchNo, ulong externalPortNo,
