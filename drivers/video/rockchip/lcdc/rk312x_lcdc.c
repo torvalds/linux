@@ -1173,7 +1173,7 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			break;
 		}
 		if (lcdc_dev->soc_type == VOP_RK312X) {
-			switch (screen->face) {
+			switch (dev_drv->screen0->face) {
 			case OUT_P565:
 				face = OUT_P565;
 				mask = m_DITHER_DOWN_EN |
