@@ -37,7 +37,7 @@ static irqreturn_t altera_ps2_rxint(int irq, void *dev_id)
 {
 	struct ps2if *ps2if = dev_id;
 	unsigned int status;
-	int handled = IRQ_NONE;
+	irqreturn_t handled = IRQ_NONE;
 
 	while ((status = readl(ps2if->base)) & 0xffff0000) {
 		serio_interrupt(ps2if->io, status & 0xff, 0);
