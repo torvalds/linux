@@ -2216,12 +2216,12 @@ visorchipset_get_bus_info(ulong bus_no, struct visorchipset_bus_info *bus_info)
 EXPORT_SYMBOL_GPL(visorchipset_get_bus_info);
 
 BOOL
-visorchipset_set_bus_context(ulong busNo, void *context)
+visorchipset_set_bus_context(ulong bus_no, void *context)
 {
-	struct visorchipset_bus_info *p = findbus(&BusInfoList, busNo);
+	struct visorchipset_bus_info *p = findbus(&BusInfoList, bus_no);
 
 	if (!p) {
-		LOGERR("(%lu) failed", busNo);
+		LOGERR("(%lu) failed", bus_no);
 		return FALSE;
 	}
 	p->bus_driver_context = context;
