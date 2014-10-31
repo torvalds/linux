@@ -1740,11 +1740,21 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 	int ret = 0;
 	u32 *key_jump_cmd;
 	u32 *desc;
+	u32 ctx1_iv_off = 0;
+	const bool ctr_mode = ((ctx->class1_alg_type & OP_ALG_AAI_MASK) ==
+			       OP_ALG_AAI_CTR_MOD128);
 
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "key in @"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, key, keylen, 1);
 #endif
+	/*
+	 * AES-CTR needs to load IV in CONTEXT1 reg
+	 * at an offset of 128bits (16bytes)
+	 * CONTEXT1[255:128] = IV
+	 */
+	if (ctr_mode)
+		ctx1_iv_off = 16;
 
 	memcpy(ctx->key, key, keylen);
 	ctx->key_dma = dma_map_single(jrdev, ctx->key, keylen,
@@ -1770,8 +1780,8 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 	set_jump_tgt_here(desc, key_jump_cmd);
 
 	/* Load iv */
-	append_cmd(desc, CMD_SEQ_LOAD | LDST_SRCDST_BYTE_CONTEXT |
-		   LDST_CLASS_1_CCB | tfm->ivsize);
+	append_seq_load(desc, tfm->ivsize, LDST_SRCDST_BYTE_CONTEXT |
+			LDST_CLASS_1_CCB | (ctx1_iv_off << LDST_OFFSET_SHIFT));
 
 	/* Load operation */
 	append_operation(desc, ctx->class1_alg_type |
@@ -1809,11 +1819,15 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 	set_jump_tgt_here(desc, key_jump_cmd);
 
 	/* load IV */
-	append_cmd(desc, CMD_SEQ_LOAD | LDST_SRCDST_BYTE_CONTEXT |
-		   LDST_CLASS_1_CCB | tfm->ivsize);
+	append_seq_load(desc, tfm->ivsize, LDST_SRCDST_BYTE_CONTEXT |
+			LDST_CLASS_1_CCB | (ctx1_iv_off << LDST_OFFSET_SHIFT));
 
 	/* Choose operation */
-	append_dec_op1(desc, ctx->class1_alg_type);
+	if (ctr_mode)
+		append_operation(desc, ctx->class1_alg_type |
+				 OP_ALG_AS_INITFINAL | OP_ALG_DECRYPT);
+	else
+		append_dec_op1(desc, ctx->class1_alg_type);
 
 	/* Perform operation */
 	ablkcipher_append_src_dst(desc);
@@ -3533,6 +3547,22 @@ static struct caam_alg_template driver_algs[] = {
 			.ivsize = DES_BLOCK_SIZE,
 			},
 		.class1_alg_type = OP_ALG_ALGSEL_DES | OP_ALG_AAI_CBC,
+	},
+	{
+		.name = "ctr(aes)",
+		.driver_name = "ctr-aes-caam",
+		.blocksize = 1,
+		.type = CRYPTO_ALG_TYPE_ABLKCIPHER,
+		.template_ablkcipher = {
+			.setkey = ablkcipher_setkey,
+			.encrypt = ablkcipher_encrypt,
+			.decrypt = ablkcipher_decrypt,
+			.geniv = "chainiv",
+			.min_keysize = AES_MIN_KEY_SIZE,
+			.max_keysize = AES_MAX_KEY_SIZE,
+			.ivsize = AES_BLOCK_SIZE,
+			},
+		.class1_alg_type = OP_ALG_ALGSEL_AES | OP_ALG_AAI_CTR_MOD128,
 	}
 };
 
