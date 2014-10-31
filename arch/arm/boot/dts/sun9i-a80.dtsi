@@ -365,6 +365,13 @@
 				allwinner,drive = <0>;
 				allwinner,pull = <0>;
 			};
+
+			uart4_pins_a: uart4@0 {
+				allwinner,pins = "PG12", "PG13", "PG14", "PG15";
+				allwinner,function = "uart4";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
 		};
 
 		uart0: serial@07000000 {
