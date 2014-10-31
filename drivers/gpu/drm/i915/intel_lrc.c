@@ -1214,10 +1214,12 @@ static int gen8_emit_request(struct intel_ringbuffer *ringbuf)
  */
 void intel_logical_ring_cleanup(struct intel_engine_cs *ring)
 {
-	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	struct drm_i915_private *dev_priv;
 
 	if (!intel_ring_initialized(ring))
 		return;
+
+	dev_priv = ring->dev->dev_private;
 
 	intel_logical_ring_stop(ring);
 	WARN_ON((I915_READ_MODE(ring) & MODE_IDLE) == 0);
