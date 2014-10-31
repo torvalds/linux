@@ -239,7 +239,7 @@ static void device_create_response(ulong busNo, ulong devNo, int response);
 static void device_destroy_response(ulong busNo, ulong devNo, int response);
 static void device_resume_response(ulong busNo, ulong devNo, int response);
 
-static VISORCHIPSET_BUSDEV_RESPONDERS BusDev_Responders = {
+static struct visorchipset_busdev_responders BusDev_Responders = {
 	.bus_create = bus_create_response,
 	.bus_destroy = bus_destroy_response,
 	.device_create = device_create_response,
@@ -591,7 +591,7 @@ clear_chipset_events(void)
 void
 visorchipset_register_busdev_server(
 			struct visorchipset_busdev_notifiers *notifiers,
-			VISORCHIPSET_BUSDEV_RESPONDERS *responders,
+			struct visorchipset_busdev_responders *responders,
 			struct ultra_vbus_deviceinfo *driverInfo)
 {
 	down(&NotifierLock);
@@ -616,7 +616,7 @@ EXPORT_SYMBOL_GPL(visorchipset_register_busdev_server);
 void
 visorchipset_register_busdev_client(
 			struct visorchipset_busdev_notifiers *notifiers,
-			VISORCHIPSET_BUSDEV_RESPONDERS *responders,
+			struct visorchipset_busdev_responders *responders,
 			struct ultra_vbus_deviceinfo *driverInfo)
 {
 	down(&NotifierLock);
@@ -991,7 +991,7 @@ bus_epilog(u32 busNo,
 	}
 	if (notified)
 		/* The callback function just called above is responsible
-		 * for calling the appropriate VISORCHIPSET_BUSDEV_RESPONDERS
+		 * for calling the appropriate visorchipset_busdev_responders
 		 * function, which will call bus_responder()
 		 */
 		;
@@ -1090,7 +1090,7 @@ device_epilog(u32 busNo, u32 devNo, struct spar_segment_state state, u32 cmd,
 	}
 	if (notified)
 		/* The callback function just called above is responsible
-		 * for calling the appropriate VISORCHIPSET_BUSDEV_RESPONDERS
+		 * for calling the appropriate visorchipset_busdev_responders
 		 * function, which will call device_responder()
 		 */
 		;

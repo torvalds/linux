@@ -234,14 +234,14 @@ struct visorchipset_busdev_notifiers {
  *       0 = it worked
  *      -1 = it failed
  */
-typedef struct {
-	void (*bus_create)(ulong busNo, int response);
-	void (*bus_destroy)(ulong busNo, int response);
-	void (*device_create)(ulong busNo, ulong devNo, int response);
-	void (*device_destroy)(ulong busNo, ulong devNo, int response);
-	void (*device_pause)(ulong busNo, ulong devNo, int response);
-	void (*device_resume)(ulong busNo, ulong devNo, int response);
-} VISORCHIPSET_BUSDEV_RESPONDERS;
+struct visorchipset_busdev_responders {
+	void (*bus_create)(ulong bus_no, int response);
+	void (*bus_destroy)(ulong bus_no, int response);
+	void (*device_create)(ulong bus_no, ulong dev_no, int response);
+	void (*device_destroy)(ulong bus_no, ulong dev_no, int response);
+	void (*device_pause)(ulong bus_no, ulong dev_no, int response);
+	void (*device_resume)(ulong bus_no, ulong dev_no, int response);
+};
 
 /** Register functions (in the bus driver) to get called by visorchipset
  *  whenever a bus or device appears for which this service partition is
@@ -252,7 +252,7 @@ typedef struct {
 void
 visorchipset_register_busdev_client(
 			struct visorchipset_busdev_notifiers *notifiers,
-			VISORCHIPSET_BUSDEV_RESPONDERS *responders,
+			struct visorchipset_busdev_responders *responders,
 			struct ultra_vbus_deviceinfo *driverInfo);
 
 /** Register functions (in the bus driver) to get called by visorchipset
@@ -264,7 +264,7 @@ visorchipset_register_busdev_client(
 void
 visorchipset_register_busdev_server(
 			struct visorchipset_busdev_notifiers *notifiers,
-			VISORCHIPSET_BUSDEV_RESPONDERS *responders,
+			struct visorchipset_busdev_responders *responders,
 			struct ultra_vbus_deviceinfo *driverInfo);
 
 typedef void (*SPARREPORTEVENT_COMPLETE_FUNC) (struct controlvm_message *msg,
