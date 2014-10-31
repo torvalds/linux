@@ -2184,11 +2184,11 @@ device_destroy_response(ulong busNo, ulong devNo, int response)
 }
 
 void
-visorchipset_device_pause_response(ulong busNo, ulong devNo, int response)
+visorchipset_device_pause_response(ulong bus_no, ulong dev_no, int response)
 {
 
 	device_changestate_responder(CONTROLVM_DEVICE_CHANGESTATE,
-				     busNo, devNo, response,
+				     bus_no, dev_no, response,
 				     segment_state_standby);
 }
 EXPORT_SYMBOL_GPL(visorchipset_device_pause_response);

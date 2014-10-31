@@ -270,7 +270,8 @@ visorchipset_register_busdev_server(
 typedef void (*SPARREPORTEVENT_COMPLETE_FUNC) (struct controlvm_message *msg,
 					       int status);
 
-void visorchipset_device_pause_response(ulong busNo, ulong devNo, int response);
+void visorchipset_device_pause_response(ulong bus_no, ulong dev_no,
+					int response);
 
 BOOL visorchipset_get_bus_info(ulong busNo,
 			       struct visorchipset_bus_info *busInfo);
