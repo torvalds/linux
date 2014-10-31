@@ -37,7 +37,6 @@
 #define wait_for(COND, MS) _wait_for(COND, MS)
 
 struct drm_device;
-struct exynos_drm_overlay;
 struct drm_connector;
 
 /* This enumerates device type. */
