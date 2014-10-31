@@ -2558,11 +2558,10 @@ static void mvneta_adjust_link(struct net_device *ndev)
 				MVNETA_GMAC_FORCE_LINK_DOWN);
 			mvreg_write(pp, MVNETA_GMAC_AUTONEG_CONFIG, val);
 			mvneta_port_up(pp);
-			netdev_info(pp->dev, "link up\n");
 		} else {
 			mvneta_port_down(pp);
-			netdev_info(pp->dev, "link down\n");
 		}
+		phy_print_status(phydev);
 	}
 }
 
