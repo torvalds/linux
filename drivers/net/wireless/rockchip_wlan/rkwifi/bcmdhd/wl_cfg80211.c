@@ -10858,8 +10858,8 @@ static s32 __wl_cfg80211_down(struct wl_priv *wl)
 	DNGL_FUNC(dhd_cfg80211_down, (wl));
 	wl_flush_eq(wl);
 	wl_link_down(wl);
-	if (wl->p2p_supported)
-		wl_cfgp2p_down(wl);
+	//if (wl->p2p_supported)
+	//	wl_cfgp2p_down(wl);
 	dhd_monitor_uninit();
 
 	return err;
