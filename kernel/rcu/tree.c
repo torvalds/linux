@@ -2227,6 +2227,46 @@ static void rcu_cleanup_dying_cpu(struct rcu_state *rsp)
 }
 
 /*
+ * All CPUs for the specified rcu_node structure have gone offline,
+ * and all tasks that were preempted within an RCU read-side critical
+ * section while running on one of those CPUs have since exited their RCU
+ * read-side critical section.  Some other CPU is reporting this fact with
+ * the specified rcu_node structure's ->lock held and interrupts disabled.
+ * This function therefore goes up the tree of rcu_node structures,
+ * clearing the corresponding bits in the ->qsmaskinit fields.  Note that
+ * the leaf rcu_node structure's ->qsmaskinit field has already been
+ * updated
+ *
+ * This function does check that the specified rcu_node structure has
+ * all CPUs offline and no blocked tasks, so it is OK to invoke it
+ * prematurely.  That said, invoking it after the fact will cost you
+ * a needless lock acquisition.  So once it has done its work, don't
+ * invoke it again.
+ */
+static void rcu_cleanup_dead_rnp(struct rcu_node *rnp_leaf)
+{
+	long mask;
+	struct rcu_node *rnp = rnp_leaf;
+
+	if (rnp->qsmaskinit || rcu_preempt_has_tasks(rnp))
+		return;
+	for (;;) {
+		mask = rnp->grpmask;
+		rnp = rnp->parent;
+		if (!rnp)
+			break;
+		raw_spin_lock(&rnp->lock); /* irqs already disabled. */
+		smp_mb__after_unlock_lock(); /* GP memory ordering. */
+		rnp->qsmaskinit &= ~mask;
+		if (rnp->qsmaskinit) {
+			raw_spin_unlock(&rnp->lock); /* irqs remain disabled. */
+			return;
+		}
+		raw_spin_unlock(&rnp->lock); /* irqs remain disabled. */
+	}
+}
+
+/*
  * The CPU has been completely removed, and some other CPU is reporting
  * this fact from process context.  Do the remainder of the cleanup,
  * including orphaning the outgoing CPU's RCU callbacks, and also
@@ -2236,7 +2276,6 @@ static void rcu_cleanup_dying_cpu(struct rcu_state *rsp)
 static void rcu_cleanup_dead_cpu(int cpu, struct rcu_state *rsp)
 {
 	unsigned long flags;
-	unsigned long mask;
 	int need_report = 0;
 	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
 	struct rcu_node *rnp = rdp->mynode;  /* Outgoing CPU's rdp & rnp. */
@@ -2252,24 +2291,14 @@ static void rcu_cleanup_dead_cpu(int cpu, struct rcu_state *rsp)
 	rcu_send_cbs_to_orphanage(cpu, rsp, rnp, rdp);
 	rcu_adopt_orphan_cbs(rsp, flags);
 
-	/* Remove the outgoing CPU from the masks in the rcu_node hierarchy. */
-	mask = rdp->grpmask;	/* rnp->grplo is constant. */
-	do {
-		raw_spin_lock(&rnp->lock);	/* irqs already disabled. */
-		smp_mb__after_unlock_lock();
-		rnp->qsmaskinit &= ~mask;
-		if (rnp->qsmaskinit != 0) {
-			if (rnp != rdp->mynode)
-				raw_spin_unlock(&rnp->lock); /* irqs remain disabled. */
-			break;
-		}
-		if (rnp == rdp->mynode)
-			need_report = rcu_preempt_offline_tasks(rsp, rnp, rdp);
-		else
-			raw_spin_unlock(&rnp->lock); /* irqs remain disabled. */
-		mask = rnp->grpmask;
-		rnp = rnp->parent;
-	} while (rnp != NULL);
+	/* Remove outgoing CPU from mask in the leaf rcu_node structure. */
+	raw_spin_lock(&rnp->lock);	/* irqs already disabled. */
+	smp_mb__after_unlock_lock();	/* Enforce GP memory-order guarantee. */
+	rnp->qsmaskinit &= ~rdp->grpmask;
+	if (rnp->qsmaskinit == 0) {
+		need_report = rcu_preempt_offline_tasks(rsp, rnp, rdp);
+		rcu_cleanup_dead_rnp(rnp);
+	}
 
 	/*
 	 * We still hold the leaf rcu_node structure lock here, and
