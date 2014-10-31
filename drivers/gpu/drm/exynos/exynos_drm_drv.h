@@ -15,6 +15,7 @@
 #ifndef _EXYNOS_DRM_DRV_H_
 #define _EXYNOS_DRM_DRV_H_
 
+#include <drm/drmP.h>
 #include <linux/module.h>
 
 #define MAX_CRTC	3
@@ -35,9 +36,6 @@
 })
 
 #define wait_for(COND, MS) _wait_for(COND, MS)
-
-struct drm_device;
-struct drm_connector;
 
 /* This enumerates device type. */
 enum exynos_drm_device_type {
