@@ -289,17 +289,4 @@ void *visorchipset_cache_alloc(struct kmem_cache *pool,
 void visorchipset_cache_free(struct kmem_cache *pool, void *p,
 			     char *fn, int ln);
 
-#if defined(TRANSMITFILE_DEBUG) || defined(DEBUG)
-#define DBG_GETFILE_PAYLOAD(msg, controlvm_header)      \
-	LOGINF(msg,                                     \
-	       (ulong)controlvm_header.PayloadVmOffset, \
-	       (ulong)controlvm_header.PayloadMaxBytes)
-#define DBG_GETFILE(fmt, ...)  LOGINF(fmt, ##__VA_ARGS__)
-#define DBG_PUTFILE(fmt, ...)  LOGINF(fmt, ##__VA_ARGS__)
-#else
-#define DBG_GETFILE_PAYLOAD(msg, controlvm_header)
-#define DBG_GETFILE(fmt, ...)
-#define DBG_PUTFILE(fmt, ...)
-#endif
-
 #endif
