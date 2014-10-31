@@ -685,8 +685,7 @@ static void
 ncp_read_volume_list(struct file *file, struct dir_context *ctx,
 			struct ncp_cache_control *ctl)
 {
-	struct dentry *dentry = file->f_path.dentry;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct ncp_server *server = NCP_SERVER(inode);
 	struct ncp_volume_info info;
 	struct ncp_entry_info entry;
@@ -721,8 +720,7 @@ static void
 ncp_do_readdir(struct file *file, struct dir_context *ctx,
 						struct ncp_cache_control *ctl)
 {
-	struct dentry *dentry = file->f_path.dentry;
-	struct inode *dir = dentry->d_inode;
+	struct inode *dir = file_inode(file);
 	struct ncp_server *server = NCP_SERVER(dir);
 	struct nw_search_sequence seq;
 	struct ncp_entry_info entry;
