@@ -147,12 +147,12 @@ struct visorchipset_bus_info {
 };
 
 static inline struct visorchipset_bus_info *
-findbus(struct list_head *list, u32 busNo)
+findbus(struct list_head *list, u32 bus_no)
 {
 	struct visorchipset_bus_info *p;
 
 	list_for_each_entry(p, list, entry) {
-		if (p->bus_no == busNo)
+		if (p->bus_no == bus_no)
 			return p;
 	}
 	return NULL;
