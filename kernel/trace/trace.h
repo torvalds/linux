@@ -569,15 +569,6 @@ void trace_init_global_iter(struct trace_iterator *iter);
 
 void tracing_iter_reset(struct trace_iterator *iter, int cpu);
 
-void tracing_sched_switch_trace(struct trace_array *tr,
-				struct task_struct *prev,
-				struct task_struct *next,
-				unsigned long flags, int pc);
-
-void tracing_sched_wakeup_trace(struct trace_array *tr,
-				struct task_struct *wakee,
-				struct task_struct *cur,
-				unsigned long flags, int pc);
 void trace_function(struct trace_array *tr,
 		    unsigned long ip,
 		    unsigned long parent_ip,
