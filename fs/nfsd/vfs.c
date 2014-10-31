@@ -930,7 +930,6 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 				unsigned long *cnt, int *stablep)
 {
 	struct svc_export	*exp;
-	struct dentry		*dentry;
 	struct inode		*inode;
 	mm_segment_t		oldfs;
 	__be32			err = 0;
@@ -949,8 +948,7 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 		 */
 		current->flags |= PF_LESS_THROTTLE;
 
-	dentry = file->f_path.dentry;
-	inode = dentry->d_inode;
+	inode = file_inode(file);
 	exp   = fhp->fh_export;
 
 	use_wgather = (rqstp->rq_vers == 2) && EX_WGATHER(exp);
