@@ -59,9 +59,22 @@
 	};
 
 	soc {
+		pio: pinctrl@06000800 {
+			i2c3_pins_a: i2c3@0 {
+				/* Enable internal pull-up */
+				allwinner,pull = <1>;
+			};
+		};
+
 		uart0: serial@07000000 {
 			pinctrl-names = "default";
 			pinctrl-0 = <&uart0_pins_a>;
+			status = "okay";
+		};
+
+		i2c3: i2c@07003400 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c3_pins_a>;
 			status = "okay";
 		};
 	};
