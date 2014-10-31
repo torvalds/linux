@@ -14,7 +14,7 @@
 // Driver for the gator kernel module
 class KMod : public Driver {
 public:
-	KMod() {}
+	KMod() : mIsMaliCapture(false) {}
 	~KMod() {}
 
 	bool claimCounter(const Counter &counter) const;
@@ -22,6 +22,11 @@ public:
 	void setupCounter(Counter &counter);
 
 	int writeCounters(mxml_node_t *root) const;
+
+	bool isMaliCapture() const { return mIsMaliCapture; }
+
+private:
+	bool mIsMaliCapture;
 };
 
 #endif // KMOD_H

@@ -11,11 +11,8 @@
 CC = $(CROSS_COMPILE)gcc
 CXX = $(CROSS_COMPILE)g++
 
-# -mthumb-interwork is required for interworking to ARM or Thumb stdlibc
-CPPFLAGS += -mthumb-interwork
-
 ifeq ($(SOFTFLOAT),1)
-	CPPFLAGS += -marm -march=armv4t -mfloat-abi=soft
+	CPPFLAGS += -marm -mthumb-interwork -march=armv4t -mfloat-abi=soft
 	LDFLAGS += -marm -march=armv4t -mfloat-abi=soft
 endif
 ifneq ($(SYSROOT),)

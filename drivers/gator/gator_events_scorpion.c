@@ -8,13 +8,13 @@
 
 #include "gator.h"
 
-// gator_events_perf_pmu.c is used if perf is supported
+/* gator_events_perf_pmu.c is used if perf is supported */
 #if GATOR_NO_PERF_SUPPORT
 
 static const char *pmnc_name;
 static int pmnc_counters;
 
-// Per-CPU PMNC: config reg
+/* Per-CPU PMNC: config reg */
 #define PMNC_E		(1 << 0)	/* Enable all counters */
 #define PMNC_P		(1 << 1)	/* Reset all counters */
 #define PMNC_C		(1 << 2)	/* Cycle counter reset */
@@ -23,7 +23,7 @@ static int pmnc_counters;
 #define PMNC_DP		(1 << 5)	/* Disable CCNT if non-invasive debug */
 #define	PMNC_MASK	0x3f	/* Mask for writable bits */
 
-// ccnt reg
+/* ccnt reg */
 #define CCNT_REG	(1 << 31)
 
 #define CCNT		0
@@ -243,6 +243,7 @@ static inline void scorpion_pmnc_write(u32 val)
 static inline u32 scorpion_pmnc_read(void)
 {
 	u32 val;
+
 	asm volatile("mrc p15, 0, %0, c9, c12, 0" : "=r" (val));
 	return val;
 }
@@ -250,6 +251,7 @@ static inline u32 scorpion_pmnc_read(void)
 static inline u32 scorpion_ccnt_read(void)
 {
 	u32 val;
+
 	asm volatile("mrc p15, 0, %0, c9, c13, 0" : "=r" (val));
 	return val;
 }
@@ -257,6 +259,7 @@ static inline u32 scorpion_ccnt_read(void)
 static inline u32 scorpion_cntn_read(void)
 {
 	u32 val;
+
 	asm volatile("mrc p15, 0, %0, c9, c13, 2" : "=r" (val));
 	return val;
 }
@@ -317,6 +320,7 @@ static inline int scorpion_pmnc_select_counter(unsigned int cnt)
 static u32 scorpion_read_lpm0(void)
 {
 	u32 val;
+
 	asm volatile("mrc p15, 0, %0, c15, c0, 0" : "=r" (val));
 	return val;
 }
@@ -329,6 +333,7 @@ static void scorpion_write_lpm0(u32 val)
 static u32 scorpion_read_lpm1(void)
 {
 	u32 val;
+
 	asm volatile("mrc p15, 1, %0, c15, c0, 0" : "=r" (val));
 	return val;
 }
@@ -341,6 +346,7 @@ static void scorpion_write_lpm1(u32 val)
 static u32 scorpion_read_lpm2(void)
 {
 	u32 val;
+
 	asm volatile("mrc p15, 2, %0, c15, c0, 0" : "=r" (val));
 	return val;
 }
@@ -353,6 +359,7 @@ static void scorpion_write_lpm2(u32 val)
 static u32 scorpion_read_l2lpm(void)
 {
 	u32 val;
+
 	asm volatile("mrc p15, 3, %0, c15, c2, 0" : "=r" (val));
 	return val;
 }
@@ -365,6 +372,7 @@ static void scorpion_write_l2lpm(u32 val)
 static u32 scorpion_read_vlpm(void)
 {
 	u32 val;
+
 	asm volatile("mrc p10, 7, %0, c11, c0, 0" : "=r" (val));
 	return val;
 }
@@ -375,7 +383,7 @@ static void scorpion_write_vlpm(u32 val)
 }
 
 struct scorpion_access_funcs {
-	u32(*read)(void);
+	u32 (*read)(void);
 	void (*write)(u32);
 };
 
@@ -420,17 +428,17 @@ static u32 scorpion_get_columnmask(u32 setval)
 {
 	if (setval & COLMN0MASK)
 		return 0xffffff00;
-	else if (setval & COLMN1MASK)
+	if (setval & COLMN1MASK)
 		return 0xffff00ff;
-	else if (setval & COLMN2MASK)
+	if (setval & COLMN2MASK)
 		return 0xff00ffff;
-	else
-		return 0x80ffffff;
+	return 0x80ffffff;
 }
 
 static void scorpion_evt_setup(u32 gr, u32 setval)
 {
 	u32 val;
+
 	if (gr == 4)
 		scorpion_pre_vlpm();
 	val = scorpion_get_columnmask(setval) & scor_func[gr].read();
@@ -443,6 +451,7 @@ static void scorpion_evt_setup(u32 gr, u32 setval)
 static int get_scorpion_evtinfo(unsigned int evt_type, struct scorp_evt *evtinfo)
 {
 	u32 idx;
+
 	if ((evt_type < 0x4c) || (evt_type >= MSM_MAX_EVT))
 		return 0;
 	idx = evt_type - 0x4c;
@@ -463,7 +472,7 @@ static inline void scorpion_pmnc_write_evtsel(unsigned int cnt, u32 val)
 		} else {
 			u32 zero = 0;
 			struct scorp_evt evtinfo;
-			// extract evtinfo.grp and evtinfo.tevt_type_act from val
+			/* extract evtinfo.grp and evtinfo.tevt_type_act from val */
 			if (get_scorpion_evtinfo(val, &evtinfo) == 0)
 				return;
 			asm volatile("mcr p15, 0, %0, c9, c13, 1" : : "r" (evtinfo.evt_type_act));
@@ -505,20 +514,18 @@ static int gator_events_scorpion_create_files(struct super_block *sb, struct den
 
 	for (i = 0; i < pmnc_counters; i++) {
 		char buf[40];
-		if (i == 0) {
-			snprintf(buf, sizeof buf, "%s_ccnt", pmnc_name);
-		} else {
-			snprintf(buf, sizeof buf, "%s_cnt%d", pmnc_name, i - 1);
-		}
+
+		if (i == 0)
+			snprintf(buf, sizeof(buf), "%s_ccnt", pmnc_name);
+		else
+			snprintf(buf, sizeof(buf), "%s_cnt%d", pmnc_name, i - 1);
 		dir = gatorfs_mkdir(sb, root, buf);
-		if (!dir) {
+		if (!dir)
 			return -1;
-		}
 		gatorfs_create_ulong(sb, dir, "enabled", &pmnc_enabled[i]);
 		gatorfs_create_ro_ulong(sb, dir, "key", &pmnc_key[i]);
-		if (i > 0) {
+		if (i > 0)
 			gatorfs_create_ulong(sb, dir, "event", &pmnc_event[i]);
-		}
 	}
 
 	return 0;
@@ -528,9 +535,8 @@ static int gator_events_scorpion_online(int **buffer, bool migrate)
 {
 	unsigned int cnt, len = 0, cpu = smp_processor_id();
 
-	if (scorpion_pmnc_read() & PMNC_E) {
+	if (scorpion_pmnc_read() & PMNC_E)
 		scorpion_pmnc_write(scorpion_pmnc_read() & ~PMNC_E);
-	}
 
 	/* Initialize & Reset PMNC: C bit and P bit */
 	scorpion_pmnc_write(PMNC_P | PMNC_C);
@@ -541,33 +547,32 @@ static int gator_events_scorpion_online(int **buffer, bool migrate)
 		if (!pmnc_enabled[cnt])
 			continue;
 
-		// disable counter
+		/* disable counter */
 		scorpion_pmnc_disable_counter(cnt);
 
 		event = pmnc_event[cnt] & 255;
 
-		// Set event (if destined for PMNx counters), We don't need to set the event if it's a cycle count
+		/* Set event (if destined for PMNx counters), We don't need to set the event if it's a cycle count */
 		if (cnt != CCNT)
 			scorpion_pmnc_write_evtsel(cnt, event);
 
-		// reset counter
+		/* reset counter */
 		scorpion_pmnc_reset_counter(cnt);
 
-		// Enable counter, do not enable interrupt for this counter
+		/* Enable counter, do not enable interrupt for this counter */
 		scorpion_pmnc_enable_counter(cnt);
 	}
 
-	// enable
+	/* enable */
 	scorpion_pmnc_write(scorpion_pmnc_read() | PMNC_E);
 
-	// read the counters and toss the invalid data, return zero instead
+	/* read the counters and toss the invalid data, return zero instead */
 	for (cnt = 0; cnt < pmnc_counters; cnt++) {
 		if (pmnc_enabled[cnt]) {
-			if (cnt == CCNT) {
+			if (cnt == CCNT)
 				scorpion_ccnt_read();
-			} else if (scorpion_pmnc_select_counter(cnt) == cnt) {
+			else if (scorpion_pmnc_select_counter(cnt) == cnt)
 				scorpion_cntn_read();
-			}
 			scorpion_pmnc_reset_counter(cnt);
 
 			per_cpu(perfCnt, cpu)[len++] = pmnc_key[cnt];
@@ -597,26 +602,25 @@ static void gator_events_scorpion_stop(void)
 	}
 }
 
-static int gator_events_scorpion_read(int **buffer)
+static int gator_events_scorpion_read(int **buffer, bool sched_switch)
 {
 	int cnt, len = 0;
 	int cpu = smp_processor_id();
 
-	// a context switch may occur before the online hotplug event, thus need to check that the pmu is enabled
-	if (!(scorpion_pmnc_read() & PMNC_E)) {
+	/* a context switch may occur before the online hotplug event, thus need to check that the pmu is enabled */
+	if (!(scorpion_pmnc_read() & PMNC_E))
 		return 0;
-	}
 
 	for (cnt = 0; cnt < pmnc_counters; cnt++) {
 		if (pmnc_enabled[cnt]) {
 			int value;
-			if (cnt == CCNT) {
+
+			if (cnt == CCNT)
 				value = scorpion_ccnt_read();
-			} else if (scorpion_pmnc_select_counter(cnt) == cnt) {
+			else if (scorpion_pmnc_select_counter(cnt) == cnt)
 				value = scorpion_cntn_read();
-			} else {
+			else
 				value = 0;
-			}
 			scorpion_pmnc_reset_counter(cnt);
 
 			per_cpu(perfCnt, cpu)[len++] = pmnc_key[cnt];
@@ -655,7 +659,8 @@ int gator_events_scorpion_init(void)
 		return -1;
 	}
 
-	pmnc_counters++;	// CNT[n] + CCNT
+	/* CNT[n] + CCNT */
+	pmnc_counters++;
 
 	for (cnt = CCNT; cnt < CNTMAX; cnt++) {
 		pmnc_enabled[cnt] = 0;

@@ -1,6 +1,6 @@
-  <counter_set name="ARMv7_Cortex_A12_cnt" count="6"/>
-  <category name="Cortex-A12" counter_set="ARMv7_Cortex_A12_cnt" per_cpu="yes" supports_event_based_sampling="yes">
-    <event counter="ARMv7_Cortex_A12_ccnt" event="0xff" title="Clock" name="Cycles" display="hertz" units="Hz" average_selection="yes" average_cores="yes" description="The number of core clock cycles"/>
+  <counter_set name="ARMv7_Cortex_A17_cnt" count="6"/>
+  <category name="Cortex-A17" counter_set="ARMv7_Cortex_A17_cnt" per_cpu="yes" supports_event_based_sampling="yes">
+    <event counter="ARMv7_Cortex_A17_ccnt" event="0xff" title="Clock" name="Cycles" display="hertz" units="Hz" average_selection="yes" average_cores="yes" description="The number of core clock cycles"/>
     <event event="0x01" title="Cache" name="Instruction refill" description="Instruction fetch that causes a refill of at least the level of instruction or unified cache closest to the processor"/>
     <event event="0x02" title="Cache" name="Inst TLB refill" description="Instruction fetch that causes a TLB refill of at least the level of TLB closest to the processor"/>
     <event event="0x03" title="Cache" name="Data refill" description="Memory Read or Write operation that causes a refill of at least the level of data or unified cache closest to the processor"/>
@@ -62,7 +62,7 @@
     <event event="0xc2" title="Cache" name="4 Ways Read" description="Number of set of 4 ways read in the instruction cache - Tag RAM"/>
     <event event="0xc3" title="Cache" name="Ways Read" description="Number of ways read in the instruction cache - Data RAM"/>
     <event event="0xc4" title="Cache" name="BATC Read" description="Number of ways read in the instruction BTAC RAM"/>
-    <event event="0xca" title="Memory" name="Snoop" description="Data snooped from other processor. This event counts memory-read operations that read data from another processor within the local Cortex-A12 cluster, rather than accessing the L2 cache or issuing an external read. It increments on each transaction, rather than on each beat of data"/>
+    <event event="0xca" title="Memory" name="Snoop" description="Data snooped from other processor. This event counts memory-read operations that read data from another processor within the local Cortex-A17 cluster, rather than accessing the L2 cache or issuing an external read. It increments on each transaction, rather than on each beat of data"/>
     <event event="0xd3" title="Slots" name="Load-Store Unit" description="Duration during which all slots in the Load-Store Unit are busy"/>
     <event event="0xd8" title="Slots" name="Load-Store Issue Queue" description="Duration during which all slots in the Load-Store Issue queue are busy"/>
     <event event="0xd9" title="Slots" name="Data Processing Issue Queue" description="Duration during which all slots in the Data Processing issue queue are busy"/>

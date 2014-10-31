@@ -24,16 +24,16 @@
   <configuration counter="ARMv7_Cortex_A9_cnt2" event="0x07"/>
   <configuration counter="ARMv7_Cortex_A9_cnt3" event="0x03"/>
   <configuration counter="ARMv7_Cortex_A9_cnt4" event="0x04"/>
-  <configuration counter="ARMv7_Cortex_A12_ccnt" event="0xff"/>
-  <configuration counter="ARMv7_Cortex_A12_cnt0" event="0x08"/>
-  <configuration counter="ARMv7_Cortex_A12_cnt1" event="0x16"/>
-  <configuration counter="ARMv7_Cortex_A12_cnt2" event="0x10"/>
-  <configuration counter="ARMv7_Cortex_A12_cnt3" event="0x19"/>
   <configuration counter="ARMv7_Cortex_A15_ccnt" event="0xff"/>
   <configuration counter="ARMv7_Cortex_A15_cnt0" event="0x8"/>
   <configuration counter="ARMv7_Cortex_A15_cnt1" event="0x16"/>
   <configuration counter="ARMv7_Cortex_A15_cnt2" event="0x10"/>
   <configuration counter="ARMv7_Cortex_A15_cnt3" event="0x19"/>
+  <configuration counter="ARMv7_Cortex_A17_ccnt" event="0xff"/>
+  <configuration counter="ARMv7_Cortex_A17_cnt0" event="0x08"/>
+  <configuration counter="ARMv7_Cortex_A17_cnt1" event="0x16"/>
+  <configuration counter="ARMv7_Cortex_A17_cnt2" event="0x10"/>
+  <configuration counter="ARMv7_Cortex_A17_cnt3" event="0x19"/>
   <configuration counter="ARM_Cortex-A53_ccnt" event="0x11"/>
   <configuration counter="ARM_Cortex-A53_cnt0" event="0x8"/>
   <configuration counter="ARM_Cortex-A53_cnt1" event="0x16"/>
@@ -56,12 +56,29 @@
   <configuration counter="Linux_block_rq_wr"/>
   <configuration counter="Linux_block_rq_rd"/>
   <configuration counter="Linux_meminfo_memused"/>
+  <configuration counter="Linux_meminfo_memused2"/>
   <configuration counter="Linux_meminfo_memfree"/>
   <configuration counter="Linux_power_cpu_freq"/>
   <configuration counter="ARM_Mali-4xx_fragment"/>
   <configuration counter="ARM_Mali-4xx_vertex"/>
-  <configuration counter="ARM_Mali-T6xx_fragment" cores="1"/>
-  <configuration counter="ARM_Mali-T6xx_vertex" cores="1"/>
-  <configuration counter="ARM_Mali-T6xx_opencl" cores="1"/>
+  <configuration counter="ARM_Mali-Midgard_fragment" cores="1"/>
+  <configuration counter="ARM_Mali-Midgard_vertex" cores="1"/>
+  <configuration counter="ARM_Mali-Midgard_opencl" cores="1"/>
+  <configuration counter="ARM_Mali-T60x_GPU_ACTIVE"/>
+  <configuration counter="ARM_Mali-T60x_JS0_ACTIVE"/>
+  <configuration counter="ARM_Mali-T60x_JS1_ACTIVE"/>
+  <configuration counter="ARM_Mali-T60x_JS2_ACTIVE"/>
+  <configuration counter="ARM_Mali-T62x_GPU_ACTIVE"/>
+  <configuration counter="ARM_Mali-T62x_JS0_ACTIVE"/>
+  <configuration counter="ARM_Mali-T62x_JS1_ACTIVE"/>
+  <configuration counter="ARM_Mali-T62x_JS2_ACTIVE"/>
+  <configuration counter="ARM_Mali-T72x_GPU_ACTIVE"/>
+  <configuration counter="ARM_Mali-T72x_JS0_ACTIVE"/>
+  <configuration counter="ARM_Mali-T72x_JS1_ACTIVE"/>
+  <configuration counter="ARM_Mali-T72x_JS2_ACTIVE"/>
+  <configuration counter="ARM_Mali-T76x_GPU_ACTIVE"/>
+  <configuration counter="ARM_Mali-T76x_JS0_ACTIVE"/>
+  <configuration counter="ARM_Mali-T76x_JS1_ACTIVE"/>
+  <configuration counter="ARM_Mali-T76x_JS2_ACTIVE"/>
   <configuration counter="L2C-310_cnt0" event="0x1"/>
 </configurations>

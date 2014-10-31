@@ -6,8 +6,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef	__LOGGING_H__
-#define	__LOGGING_H__
+#ifndef __LOGGING_H__
+#define __LOGGING_H__
 
 #include <pthread.h>
 
@@ -23,10 +23,10 @@ public:
 	char* getLastMessage() {return mLogBuf;}
 
 private:
-	char	mErrBuf[4096]; // Arbitrarily large buffer to hold a string
-	char	mLogBuf[4096]; // Arbitrarily large buffer to hold a string
-	bool	mDebug;
-	pthread_mutex_t	mLoggingMutex;
+	char mErrBuf[4096]; // Arbitrarily large buffer to hold a string
+	char mLogBuf[4096]; // Arbitrarily large buffer to hold a string
+	bool mDebug;
+	pthread_mutex_t mLoggingMutex;
 };
 
 extern Logging* logg;

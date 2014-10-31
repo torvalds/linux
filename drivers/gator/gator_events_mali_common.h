@@ -16,7 +16,7 @@
 #include <linux/time.h>
 #include <linux/math64.h>
 #include <linux/slab.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 /* Ensure that MALI_SUPPORT has been defined to something. */
 #ifndef MALI_SUPPORT
@@ -30,21 +30,20 @@
 /*
  * Runtime state information for a counter.
  */
-typedef struct {
-	// 'key' (a unique id set by gatord and returned by gator.ko)
+struct mali_counter {
+	/* 'key' (a unique id set by gatord and returned by gator.ko) */
 	unsigned long key;
-	// counter enable state
+	/* counter enable state */
 	unsigned long enabled;
-	// for activity counters, the number of cores, otherwise -1
+	/* for activity counters, the number of cores, otherwise -1 */
 	unsigned long cores;
-} mali_counter;
+};
 
 /*
  * Mali-4xx
  */
 typedef int mali_profiling_set_event_type(unsigned int, int);
 typedef void mali_profiling_control_type(unsigned int, unsigned int);
-typedef void mali_profiling_get_counters_type(unsigned int *, unsigned int *, unsigned int *, unsigned int *);
 
 /*
  * Driver entry points for functions called directly by gator.
@@ -65,7 +64,7 @@ extern void _mali_profiling_get_counters(unsigned int *, unsigned int *, unsigne
  *
  * @return 0 if entry point was created, non-zero if not.
  */
-extern int gator_mali_create_file_system(const char *mali_name, const char *event_name, struct super_block *sb, struct dentry *root, mali_counter *counter, unsigned long *event);
+extern int gator_mali_create_file_system(const char *mali_name, const char *event_name, struct super_block *sb, struct dentry *root, struct mali_counter *counter, unsigned long *event);
 
 /**
  * Initializes the counter array.
@@ -73,6 +72,6 @@ extern int gator_mali_create_file_system(const char *mali_name, const char *even
  * @param keys The array of counters
  * @param n_counters The number of entries in each of the arrays.
  */
-extern void gator_mali_initialise_counters(mali_counter counters[], unsigned int n_counters);
+extern void gator_mali_initialise_counters(struct mali_counter counters[], unsigned int n_counters);
 
 #endif /* GATOR_EVENTS_MALI_COMMON_H  */

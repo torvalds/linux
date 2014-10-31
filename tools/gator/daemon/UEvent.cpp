@@ -15,6 +15,7 @@
 #include <linux/netlink.h>
 
 #include "Logging.h"
+#include "OlySocket.h"
 
 static const char EMPTY[] = "";
 static const char ACTION[] = "ACTION=";
@@ -31,7 +32,7 @@ UEvent::~UEvent() {
 }
 
 bool UEvent::init() {
-	mFd = socket(PF_NETLINK, SOCK_RAW, NETLINK_KOBJECT_UEVENT);
+	mFd = socket_cloexec(PF_NETLINK, SOCK_RAW, NETLINK_KOBJECT_UEVENT);
 	if (mFd < 0) {
 		logg->logMessage("%s(%s:%i): socket failed", __FUNCTION__, __FILE__, __LINE__);
 		return false;

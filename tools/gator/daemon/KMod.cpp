@@ -16,6 +16,7 @@
 #include "Counter.h"
 #include "DriverSource.h"
 #include "Logging.h"
+#include "SessionData.h"
 
 // Claim all the counters in /dev/gator/events
 bool KMod::claimCounter(const Counter &counter) const {
@@ -46,10 +47,18 @@ void KMod::resetCounters() {
 	}
 }
 
+static const char ARM_MALI_MIDGARD[] = "ARM_Mali-Midgard_";
+static const char ARM_MALI_T[] = "ARM_Mali-T";
+
 void KMod::setupCounter(Counter &counter) {
 	char base[128];
 	char text[128];
 	snprintf(base, sizeof(base), "/dev/gator/events/%s", counter.getType());
+
+	if ((strncmp(counter.getType(), ARM_MALI_MIDGARD, sizeof(ARM_MALI_MIDGARD) - 1) == 0 ||
+	     strncmp(counter.getType(), ARM_MALI_T, sizeof(ARM_MALI_T) - 1) == 0)) {
+		mIsMaliCapture = true;
+	}
 
 	snprintf(text, sizeof(text), "%s/enabled", base);
 	int enabled = true;

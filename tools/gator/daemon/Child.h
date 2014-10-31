@@ -6,8 +6,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef	__CHILD_H__
-#define	__CHILD_H__
+#ifndef __CHILD_H__
+#define __CHILD_H__
 
 class OlySocket;
 

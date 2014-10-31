@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define gatorfs_MAGIC 0x24051020
 #define TMPBUFSIZE 50
@@ -43,6 +43,7 @@ static ssize_t gatorfs_ulong_to_user(unsigned long val, char __user *buf, size_t
 {
 	char tmpbuf[TMPBUFSIZE];
 	size_t maxlen = snprintf(tmpbuf, TMPBUFSIZE, "%lu\n", val);
+
 	if (maxlen > TMPBUFSIZE)
 		maxlen = TMPBUFSIZE;
 	return simple_read_from_buffer(buf, count, offset, tmpbuf, maxlen);
@@ -52,6 +53,7 @@ static ssize_t gatorfs_u64_to_user(u64 val, char __user *buf, size_t count, loff
 {
 	char tmpbuf[TMPBUFSIZE];
 	size_t maxlen = snprintf(tmpbuf, TMPBUFSIZE, "%llu\n", val);
+
 	if (maxlen > TMPBUFSIZE)
 		maxlen = TMPBUFSIZE;
 	return simple_read_from_buffer(buf, count, offset, tmpbuf, maxlen);
@@ -104,12 +106,14 @@ static int gatorfs_u64_from_user(u64 *val, char const __user *buf, size_t count)
 static ssize_t ulong_read_file(struct file *file, char __user *buf, size_t count, loff_t *offset)
 {
 	unsigned long *val = file->private_data;
+
 	return gatorfs_ulong_to_user(*val, buf, count, offset);
 }
 
 static ssize_t u64_read_file(struct file *file, char __user *buf, size_t count, loff_t *offset)
 {
 	u64 *val = file->private_data;
+
 	return gatorfs_u64_to_user(*val, buf, count, offset);
 }
 
@@ -231,7 +235,7 @@ int gatorfs_create_ro_ulong(struct super_block *sb, struct dentry *root,
 }
 
 static int gatorfs_create_ro_u64(struct super_block *sb, struct dentry *root,
-				 char const *name, u64 * val)
+				 char const *name, u64 *val)
 {
 	struct dentry *d =
 	    __gatorfs_create_file(sb, root, name, &u64_ro_fops, 0444);
@@ -245,6 +249,7 @@ static int gatorfs_create_ro_u64(struct super_block *sb, struct dentry *root,
 static ssize_t atomic_read_file(struct file *file, char __user *buf, size_t count, loff_t *offset)
 {
 	atomic_t *val = file->private_data;
+
 	return gatorfs_ulong_to_user(atomic_read(val), buf, count, offset);
 }
 

@@ -14,17 +14,16 @@ gator-y :=	gator_main.o \
 		gator_events_net.o \
 		gator_events_perf_pmu.o \
 		gator_events_sched.o \
-		gator_events_threads.o \
 
 # Convert the old GATOR_WITH_MALI_SUPPORT to the new kernel flags
 ifneq ($(GATOR_WITH_MALI_SUPPORT),)
   CONFIG_GATOR_WITH_MALI_SUPPORT := y
-  ifeq ($(GATOR_WITH_MALI_SUPPORT),MALI_T6xx)
+  ifeq ($(GATOR_WITH_MALI_SUPPORT),MALI_MIDGARD)
     CONFIG_GATOR_MALI_4XXMP := n
-    CONFIG_GATOR_MALI_T6XX := y
+    CONFIG_GATOR_MALI_MIDGARD := y
   else
     CONFIG_GATOR_MALI_4XXMP := y
-    CONFIG_GATOR_MALI_T6XX := n
+    CONFIG_GATOR_MALI_MIDGARD := n
   endif
   EXTRA_CFLAGS += -DMALI_SUPPORT=$(GATOR_WITH_MALI_SUPPORT)
   ifneq ($(GATOR_MALI_INTERFACE_STYLE),)
@@ -33,10 +32,10 @@ ifneq ($(GATOR_WITH_MALI_SUPPORT),)
 endif
 
 ifeq ($(CONFIG_GATOR_WITH_MALI_SUPPORT),y)
-  ifeq ($(CONFIG_GATOR_MALI_T6XX),y)
-    gator-y +=	gator_events_mali_t6xx.o \
-		gator_events_mali_t6xx_hw.o
-    include $(src)/mali_t6xx.mk
+  ifeq ($(CONFIG_GATOR_MALI_MIDGARD),y)
+    gator-y +=	gator_events_mali_midgard.o \
+		gator_events_mali_midgard_hw.o
+    include $(src)/mali_midgard.mk
   else
     gator-y +=	gator_events_mali_4xx.o
   endif
@@ -46,7 +45,7 @@ ifeq ($(CONFIG_GATOR_WITH_MALI_SUPPORT),y)
     ccflags-y += -I$(CONFIG_GATOR_MALI_PATH)
   endif
   ccflags-$(CONFIG_GATOR_MALI_4XXMP) += -DMALI_SUPPORT=MALI_4xx
-  ccflags-$(CONFIG_GATOR_MALI_T6XX) += -DMALI_SUPPORT=MALI_T6xx
+  ccflags-$(CONFIG_GATOR_MALI_MIDGARD) += -DMALI_SUPPORT=MALI_MIDGARD
 endif
 
 # GATOR_TEST controls whether to include (=1) or exclude (=0) test code.
@@ -54,16 +53,15 @@ GATOR_TEST ?= 0
 EXTRA_CFLAGS +=	-DGATOR_TEST=$(GATOR_TEST)
 
 # Should the original or new block_rq_complete API be used?
-OLD_BLOCK_RQ_COMPLETE := $(shell grep -A3 block_rq_complete include/trace/events/block.h | grep nr_bytes > /dev/null; echo $$?)
+OLD_BLOCK_RQ_COMPLETE := $(shell grep -A3 block_rq_complete $(srctree)/include/trace/events/block.h | grep nr_bytes -q; echo $$?)
 EXTRA_CFLAGS += -DOLD_BLOCK_RQ_COMPLETE=$(OLD_BLOCK_RQ_COMPLETE)
 
 gator-$(CONFIG_ARM) +=	gator_events_armv6.o \
 			gator_events_armv7.o \
-			gator_events_ccn-504.o \
 			gator_events_l2c-310.o \
 			gator_events_scorpion.o
 
-gator-$(CONFIG_ARM64) +=	gator_events_ccn-504.o
+gator-$(CONFIG_ARM64) +=
 
 else
 
