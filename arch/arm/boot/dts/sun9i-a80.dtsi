@@ -352,6 +352,13 @@
 			#size-cells = <0>;
 			#gpio-cells = <3>;
 
+			i2c3_pins_a: i2c3@0 {
+				allwinner,pins = "PG10", "PG11";
+				allwinner,function = "i2c3";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
 			uart0_pins_a: uart0@0 {
 				allwinner,pins = "PH12", "PH13";
 				allwinner,function = "uart0";
