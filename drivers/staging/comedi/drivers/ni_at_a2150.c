@@ -168,7 +168,6 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 	struct comedi_cmd *cmd;
 	unsigned int max_points, num_points, residue, leftover;
 	unsigned short dpnt;
-	static const int sample_size = sizeof(devpriv->dma_buffer[0]);
 
 	if (!dev->attached) {
 		dev_err(dev->class_dev, "premature interrupt\n");
@@ -206,12 +205,12 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 	clear_dma_ff(devpriv->dma);
 
 	/*  figure out how many points to read */
-	max_points = devpriv->dma_transfer_size / sample_size;
+	max_points = comedi_bytes_to_samples(s, devpriv->dma_transfer_size);
 	/* residue is the number of points left to be done on the dma
 	 * transfer.  It should always be zero at this point unless
 	 * the stop_src is set to external triggering.
 	 */
-	residue = get_dma_residue(devpriv->dma) / sample_size;
+	residue = comedi_bytes_to_samples(s, get_dma_residue(devpriv->dma));
 	num_points = max_points - residue;
 	if (devpriv->count < num_points && cmd->stop_src == TRIG_COUNT)
 		num_points = devpriv->count;
@@ -219,7 +218,8 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 	/*  figure out how many points will be stored next time */
 	leftover = 0;
 	if (cmd->stop_src == TRIG_NONE) {
-		leftover = devpriv->dma_transfer_size / sample_size;
+		leftover = comedi_bytes_to_samples(s,
+						   devpriv->dma_transfer_size);
 	} else if (devpriv->count > max_points) {
 		leftover = devpriv->count - max_points;
 		if (leftover > max_points)
@@ -248,7 +248,8 @@ static irqreturn_t a2150_interrupt(int irq, void *d)
 	/*  re-enable  dma */
 	if (leftover) {
 		set_dma_addr(devpriv->dma, virt_to_bus(devpriv->dma_buffer));
-		set_dma_count(devpriv->dma, leftover * sample_size);
+		set_dma_count(devpriv->dma,
+			      comedi_samples_to_bytes(s, leftover));
 		enable_dma(devpriv->dma);
 	}
 	release_dma_lock(flags);
