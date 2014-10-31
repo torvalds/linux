@@ -1167,19 +1167,20 @@ static int ni_ao_fifo_half_empty(struct comedi_device *dev,
 				 struct comedi_subdevice *s)
 {
 	const struct ni_board_struct *board = dev->board_ptr;
-	int n;
+	unsigned int nbytes;
+	unsigned int nsamples;
 
-	n = comedi_buf_read_n_available(s);
-	if (n == 0) {
+	nbytes = comedi_buf_read_n_available(s);
+	if (nbytes == 0) {
 		s->async->events |= COMEDI_CB_OVERFLOW;
 		return 0;
 	}
 
-	n /= sizeof(short);
-	if (n > board->ao_fifo_depth / 2)
-		n = board->ao_fifo_depth / 2;
+	nsamples = comedi_bytes_to_samples(s, nbytes);
+	if (nsamples > board->ao_fifo_depth / 2)
+		nsamples = board->ao_fifo_depth / 2;
 
-	ni_ao_fifo_load(dev, s, n);
+	ni_ao_fifo_load(dev, s, nsamples);
 
 	return 1;
 }
@@ -1189,7 +1190,8 @@ static int ni_ao_prep_fifo(struct comedi_device *dev,
 {
 	const struct ni_board_struct *board = dev->board_ptr;
 	struct ni_private *devpriv = dev->private;
-	int n;
+	unsigned int nbytes;
+	unsigned int nsamples;
 
 	/* reset fifo */
 	ni_stc_writew(dev, 1, DAC_FIFO_Clear);
@@ -1197,17 +1199,17 @@ static int ni_ao_prep_fifo(struct comedi_device *dev,
 		ni_ao_win_outl(dev, 0x6, AO_FIFO_Offset_Load_611x);
 
 	/* load some data */
-	n = comedi_buf_read_n_available(s);
-	if (n == 0)
+	nbytes = comedi_buf_read_n_available(s);
+	if (nbytes == 0)
 		return 0;
 
-	n /= sizeof(short);
-	if (n > board->ao_fifo_depth)
-		n = board->ao_fifo_depth;
+	nsamples = comedi_bytes_to_samples(s, nbytes);
+	if (nsamples > board->ao_fifo_depth)
+		nsamples = board->ao_fifo_depth;
 
-	ni_ao_fifo_load(dev, s, n);
+	ni_ao_fifo_load(dev, s, nsamples);
 
-	return n;
+	return nsamples;
 }
 
 static void ni_ai_fifo_read(struct comedi_device *dev,
@@ -2951,12 +2953,15 @@ static int ni_ao_insn_config(struct comedi_device *dev,
 {
 	const struct ni_board_struct *board = dev->board_ptr;
 	struct ni_private *devpriv = dev->private;
+	unsigned int nbytes;
 
 	switch (data[0]) {
 	case INSN_CONFIG_GET_HARDWARE_BUFFER_SIZE:
 		switch (data[1]) {
 		case COMEDI_OUTPUT:
-			data[2] = 1 + board->ao_fifo_depth * sizeof(short);
+			nbytes = comedi_samples_to_bytes(s,
+							 board->ao_fifo_depth);
+			data[2] = 1 + nbytes;
 			if (devpriv->mite)
 				data[2] += devpriv->mite->fifo_size;
 			break;
