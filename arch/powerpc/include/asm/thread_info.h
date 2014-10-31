@@ -71,13 +71,12 @@ struct thread_info {
 #define THREAD_SIZE_ORDER	(THREAD_SHIFT - PAGE_SHIFT)
 
 /* how to get the thread information struct from C */
+register unsigned long __current_r1 asm("r1");
 static inline struct thread_info *current_thread_info(void)
 {
-	register unsigned long sp asm("r1");
-
 	/* gcc4, at least, is smart enough to turn this into a single
 	 * rlwinm for ppc32 and clrrdi for ppc64 */
-	return (struct thread_info *)(sp & ~(THREAD_SIZE-1));
+	return (struct thread_info *)(__current_r1 & ~(THREAD_SIZE-1));
 }
 
 #endif /* __ASSEMBLY__ */
