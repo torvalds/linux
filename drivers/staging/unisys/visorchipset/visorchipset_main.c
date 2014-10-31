@@ -1131,15 +1131,16 @@ bus_create(struct controlvm_message *inmsg)
 	POSTCODE_LINUX_3(BUS_CREATE_ENTRY_PC, busNo, POSTCODE_SEVERITY_INFO);
 
 	if (inmsg->hdr.flags.test_message == 1)
-		pBusInfo->chanInfo.addrType = ADDRTYPE_LOCALTEST;
+		pBusInfo->chanInfo.addr_type = ADDRTYPE_LOCALTEST;
 	else
-		pBusInfo->chanInfo.addrType = ADDRTYPE_LOCALPHYSICAL;
+		pBusInfo->chanInfo.addr_type = ADDRTYPE_LOCALPHYSICAL;
 
 	pBusInfo->flags.server = inmsg->hdr.flags.server;
-	pBusInfo->chanInfo.channelAddr = cmd->create_bus.channel_addr;
-	pBusInfo->chanInfo.nChannelBytes = cmd->create_bus.channel_bytes;
-	pBusInfo->chanInfo.channelTypeGuid = cmd->create_bus.bus_data_type_uuid;
-	pBusInfo->chanInfo.channelInstGuid = cmd->create_bus.bus_inst_uuid;
+	pBusInfo->chanInfo.channel_addr = cmd->create_bus.channel_addr;
+	pBusInfo->chanInfo.n_channel_bytes = cmd->create_bus.channel_bytes;
+	pBusInfo->chanInfo.channel_type_uuid =
+			cmd->create_bus.bus_data_type_uuid;
+	pBusInfo->chanInfo.channel_inst_uuid = cmd->create_bus.bus_inst_uuid;
 
 	list_add(&pBusInfo->entry, &BusInfoList);
 
@@ -1281,19 +1282,20 @@ my_device_create(struct controlvm_message *inmsg)
 			 POSTCODE_SEVERITY_INFO);
 
 	if (inmsg->hdr.flags.test_message == 1)
-		pDevInfo->chanInfo.addrType = ADDRTYPE_LOCALTEST;
+		pDevInfo->chanInfo.addr_type = ADDRTYPE_LOCALTEST;
 	else
-		pDevInfo->chanInfo.addrType = ADDRTYPE_LOCALPHYSICAL;
-	pDevInfo->chanInfo.channelAddr = cmd->create_device.channel_addr;
-	pDevInfo->chanInfo.nChannelBytes = cmd->create_device.channel_bytes;
-	pDevInfo->chanInfo.channelTypeGuid = cmd->create_device.data_type_uuid;
+		pDevInfo->chanInfo.addr_type = ADDRTYPE_LOCALPHYSICAL;
+	pDevInfo->chanInfo.channel_addr = cmd->create_device.channel_addr;
+	pDevInfo->chanInfo.n_channel_bytes = cmd->create_device.channel_bytes;
+	pDevInfo->chanInfo.channel_type_uuid =
+			cmd->create_device.data_type_uuid;
 	pDevInfo->chanInfo.intr = cmd->create_device.intr;
 	list_add(&pDevInfo->entry, &DevInfoList);
 	POSTCODE_LINUX_4(DEVICE_CREATE_EXIT_PC, devNo, busNo,
 			 POSTCODE_SEVERITY_INFO);
 Away:
 	/* get the bus and devNo for DiagPool channel */
-	if (is_diagpool_channel(pDevInfo->chanInfo.channelTypeGuid)) {
+	if (is_diagpool_channel(pDevInfo->chanInfo.channel_type_uuid)) {
 		g_diagpoolBusNo = busNo;
 		g_diagpoolDevNo = devNo;
 		LOGINF("CONTROLVM_DEVICE_CREATE for DiagPool channel: busNo=%lu, devNo=%lu",
@@ -1302,7 +1304,7 @@ Away:
 	device_epilog(busNo, devNo, segment_state_running,
 		      CONTROLVM_DEVICE_CREATE, &inmsg->hdr, rc,
 		      inmsg->hdr.flags.response_expected == 1,
-		      FOR_VISORBUS(pDevInfo->chanInfo.channelTypeGuid));
+		      FOR_VISORBUS(pDevInfo->chanInfo.channel_type_uuid));
 }
 
 static void
@@ -1336,7 +1338,8 @@ Away:
 		device_epilog(busNo, devNo, state, CONTROLVM_DEVICE_CHANGESTATE,
 			      &inmsg->hdr, rc,
 			      inmsg->hdr.flags.response_expected == 1,
-			      FOR_VISORBUS(pDevInfo->chanInfo.channelTypeGuid));
+			      FOR_VISORBUS(
+					pDevInfo->chanInfo.channel_type_uuid));
 }
 
 static void
@@ -1366,7 +1369,8 @@ Away:
 		device_epilog(busNo, devNo, segment_state_running,
 			      CONTROLVM_DEVICE_DESTROY, &inmsg->hdr, rc,
 			      inmsg->hdr.flags.response_expected == 1,
-			      FOR_VISORBUS(pDevInfo->chanInfo.channelTypeGuid));
+			      FOR_VISORBUS(
+					pDevInfo->chanInfo.channel_type_uuid));
 }
 
 /* When provided with the physical address of the controlvm channel
@@ -1932,7 +1936,7 @@ static HOSTADDRESS controlvm_get_channel_address(void)
 static void
 controlvm_periodic_work(struct work_struct *work)
 {
-	VISORCHIPSET_CHANNEL_INFO chanInfo;
+	struct visorchipset_channel_info chanInfo;
 	struct controlvm_message inmsg;
 	BOOL gotACommand = FALSE;
 	BOOL handle_command_failed = FALSE;
@@ -1947,7 +1951,7 @@ controlvm_periodic_work(struct work_struct *work)
 	if (visorchipset_clientregwait && !clientregistered)
 		goto Away;
 
-	memset(&chanInfo, 0, sizeof(VISORCHIPSET_CHANNEL_INFO));
+	memset(&chanInfo, 0, sizeof(struct visorchipset_channel_info));
 
 	Poll_Count++;
 	if (Poll_Count >= 250)
