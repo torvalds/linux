@@ -96,8 +96,8 @@ struct mmp_clk_mix {
 extern const struct clk_ops mmp_clk_mix_ops;
 extern struct clk *mmp_clk_register_mix(struct device *dev,
 					const char *name,
-					u8 num_parents,
 					const char **parent_names,
+					u8 num_parents,
 					unsigned long flags,
 					struct mmp_clk_mix_config *config,
 					spinlock_t *lock);
@@ -132,4 +132,108 @@ extern struct clk *mmp_clk_register_apbc(const char *name,
 extern struct clk *mmp_clk_register_apmu(const char *name,
 		const char *parent_name, void __iomem *base, u32 enable_mask,
 		spinlock_t *lock);
+
+struct mmp_clk_unit {
+	unsigned int nr_clks;
+	struct clk **clk_table;
+	struct clk_onecell_data clk_data;
+};
+
+struct mmp_param_fixed_rate_clk {
+	unsigned int id;
+	char *name;
+	const char *parent_name;
+	unsigned long flags;
+	unsigned long fixed_rate;
+};
+void mmp_register_fixed_rate_clks(struct mmp_clk_unit *unit,
+				struct mmp_param_fixed_rate_clk *clks,
+				int size);
+
+struct mmp_param_fixed_factor_clk {
+	unsigned int id;
+	char *name;
+	const char *parent_name;
+	unsigned long mult;
+	unsigned long div;
+	unsigned long flags;
+};
+void mmp_register_fixed_factor_clks(struct mmp_clk_unit *unit,
+				struct mmp_param_fixed_factor_clk *clks,
+				int size);
+
+struct mmp_param_general_gate_clk {
+	unsigned int id;
+	const char *name;
+	const char *parent_name;
+	unsigned long flags;
+	unsigned long offset;
+	u8 bit_idx;
+	u8 gate_flags;
+	spinlock_t *lock;
+};
+void mmp_register_general_gate_clks(struct mmp_clk_unit *unit,
+				struct mmp_param_general_gate_clk *clks,
+				void __iomem *base, int size);
+
+struct mmp_param_gate_clk {
+	unsigned int id;
+	char *name;
+	const char *parent_name;
+	unsigned long flags;
+	unsigned long offset;
+	u32 mask;
+	u32 val_enable;
+	u32 val_disable;
+	unsigned int gate_flags;
+	spinlock_t *lock;
+};
+void mmp_register_gate_clks(struct mmp_clk_unit *unit,
+			struct mmp_param_gate_clk *clks,
+			void __iomem *base, int size);
+
+struct mmp_param_mux_clk {
+	unsigned int id;
+	char *name;
+	const char **parent_name;
+	u8 num_parents;
+	unsigned long flags;
+	unsigned long offset;
+	u8 shift;
+	u8 width;
+	u8 mux_flags;
+	spinlock_t *lock;
+};
+void mmp_register_mux_clks(struct mmp_clk_unit *unit,
+			struct mmp_param_mux_clk *clks,
+			void __iomem *base, int size);
+
+struct mmp_param_div_clk {
+	unsigned int id;
+	char *name;
+	const char *parent_name;
+	unsigned long flags;
+	unsigned long offset;
+	u8 shift;
+	u8 width;
+	u8 div_flags;
+	spinlock_t *lock;
+};
+void mmp_register_div_clks(struct mmp_clk_unit *unit,
+			struct mmp_param_div_clk *clks,
+			void __iomem *base, int size);
+
+#define DEFINE_MIX_REG_INFO(w_d, s_d, w_m, s_m, fc)	\
+{							\
+	.width_div = (w_d),				\
+	.shift_div = (s_d),				\
+	.width_mux = (w_m),				\
+	.shift_mux = (s_m),				\
+	.bit_fc = (fc),					\
+}
+
+void mmp_clk_init(struct device_node *np, struct mmp_clk_unit *unit,
+		int nr_clks);
+void mmp_clk_add(struct mmp_clk_unit *unit, unsigned int id,
+		struct clk *clk);
 #endif
