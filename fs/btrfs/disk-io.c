@@ -3839,12 +3839,12 @@ static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info,
 	 */
 	if (!IS_ALIGNED(btrfs_super_root(sb), 4096))
 		printk(KERN_WARNING "BTRFS: tree_root block unaligned: %llu\n",
-				sb->root);
+				btrfs_super_root(sb));
 	if (!IS_ALIGNED(btrfs_super_chunk_root(sb), 4096))
-		printk(KERN_WARNING "BTRFS: tree_root block unaligned: %llu\n",
-				sb->chunk_root);
+		printk(KERN_WARNING "BTRFS: chunk_root block unaligned: %llu\n",
+				btrfs_super_chunk_root(sb));
 	if (!IS_ALIGNED(btrfs_super_log_root(sb), 4096))
-		printk(KERN_WARNING "BTRFS: tree_root block unaligned: %llu\n",
+		printk(KERN_WARNING "BTRFS: log_root block unaligned: %llu\n",
 				btrfs_super_log_root(sb));
 
 	if (memcmp(fs_info->fsid, sb->dev_item.fsid, BTRFS_UUID_SIZE) != 0) {
