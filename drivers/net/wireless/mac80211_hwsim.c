@@ -508,6 +508,9 @@ static const struct nla_policy hwsim_genl_policy[HWSIM_ATTR_MAX + 1] = {
 	[HWSIM_ATTR_REG_STRICT_REG] = { .type = NLA_FLAG },
 	[HWSIM_ATTR_SUPPORT_P2P_DEVICE] = { .type = NLA_FLAG },
 	[HWSIM_ATTR_DESTROY_RADIO_ON_CLOSE] = { .type = NLA_FLAG },
+	[HWSIM_ATTR_RADIO_NAME] = { .type = NLA_STRING },
+	[HWSIM_ATTR_NO_VIF] = { .type = NLA_FLAG },
+	[HWSIM_ATTR_FREQ] = { .type = NLA_U32 },
 };
 
 static void mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
