@@ -282,8 +282,6 @@ BOOL visorchipset_set_device_context(ulong bus_no, ulong dev_no, void *context);
 int visorchipset_chipset_ready(void);
 int visorchipset_chipset_selftest(void);
 int visorchipset_chipset_notready(void);
-void visorchipset_controlvm_respond_reportEvent(struct controlvm_message *msg,
-						void *payload);
 void visorchipset_save_message(struct controlvm_message *msg,
 			       enum crash_obj_type type);
 void *visorchipset_cache_alloc(struct kmem_cache *pool,
