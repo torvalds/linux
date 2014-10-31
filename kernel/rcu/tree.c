@@ -2289,14 +2289,14 @@ static void rcu_cleanup_dead_cpu(int cpu, struct rcu_state *rsp)
 	/* Orphan the dead CPU's callbacks, and adopt them if appropriate. */
 	rcu_send_cbs_to_orphanage(cpu, rsp, rnp, rdp);
 	rcu_adopt_orphan_cbs(rsp, flags);
+	raw_spin_unlock_irqrestore(&rsp->orphan_lock, flags);
 
 	/* Remove outgoing CPU from mask in the leaf rcu_node structure. */
-	raw_spin_lock(&rnp->lock);	/* irqs already disabled. */
+	raw_spin_lock_irqsave(&rnp->lock, flags);
 	smp_mb__after_unlock_lock();	/* Enforce GP memory-order guarantee. */
 	rnp->qsmaskinit &= ~rdp->grpmask;
 	if (rnp->qsmaskinit == 0 && !rcu_preempt_has_tasks(rnp))
 		rcu_cleanup_dead_rnp(rnp);
-	raw_spin_unlock(&rsp->orphan_lock); /* irqs remain disabled. */
 	raw_spin_unlock_irqrestore(&rnp->lock, flags);
 	WARN_ONCE(rdp->qlen != 0 || rdp->nxtlist != NULL,
 		  "rcu_cleanup_dead_cpu: Callbacks on offline CPU %d: qlen=%lu, nxtlist=%p\n",
