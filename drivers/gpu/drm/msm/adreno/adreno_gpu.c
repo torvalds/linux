@@ -319,6 +319,12 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	DBG("fast_rate=%u, slow_rate=%u, bus_freq=%u",
 			gpu->fast_rate, gpu->slow_rate, gpu->bus_freq);
 
+	ret = msm_gpu_init(drm, pdev, &adreno_gpu->base, &funcs->base,
+			adreno_gpu->info->name, "kgsl_3d0_reg_memory", "kgsl_3d0_irq",
+			RB_SIZE);
+	if (ret)
+		return ret;
+
 	ret = request_firmware(&adreno_gpu->pm4, adreno_gpu->info->pm4fw, drm->dev);
 	if (ret) {
 		dev_err(drm->dev, "failed to load %s PM4 firmware: %d\n",
@@ -332,12 +338,6 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 				adreno_gpu->info->pfpfw, ret);
 		return ret;
 	}
-
-	ret = msm_gpu_init(drm, pdev, &adreno_gpu->base, &funcs->base,
-			adreno_gpu->info->name, "kgsl_3d0_reg_memory", "kgsl_3d0_irq",
-			RB_SIZE);
-	if (ret)
-		return ret;
 
 	mmu = gpu->mmu;
 	if (mmu) {
