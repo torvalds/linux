@@ -2348,16 +2348,11 @@ ksocknal_base_shutdown(void)
 static __u64
 ksocknal_new_incarnation (void)
 {
-	struct timeval tv;
 
 	/* The incarnation number is the time this module loaded and it
-	 * identifies this particular instance of the socknal.  Hopefully
-	 * we won't be able to reboot more frequently than 1MHz for the
-	 * foreseeable future :) */
-
-	do_gettimeofday(&tv);
-
-	return (((__u64)tv.tv_sec) * 1000000) + tv.tv_usec;
+	 * identifies this particular instance of the socknal.
+	 */
+	return ktime_get_ns();
 }
 
 static int
