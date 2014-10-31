@@ -2245,13 +2245,13 @@ visorchipset_get_device_info(ulong bus_no, ulong dev_no,
 EXPORT_SYMBOL_GPL(visorchipset_get_device_info);
 
 BOOL
-visorchipset_set_device_context(ulong busNo, ulong devNo, void *context)
+visorchipset_set_device_context(ulong bus_no, ulong dev_no, void *context)
 {
 	struct visorchipset_device_info *p =
-			finddevice(&DevInfoList, busNo, devNo);
+			finddevice(&DevInfoList, bus_no, dev_no);
 
 	if (!p) {
-		LOGERR("(%lu,%lu) failed", busNo, devNo);
+		LOGERR("(%lu,%lu) failed", bus_no, dev_no);
 		return FALSE;
 	}
 	p->bus_driver_context = context;

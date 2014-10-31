@@ -278,7 +278,7 @@ BOOL visorchipset_get_bus_info(ulong bus_no,
 BOOL visorchipset_get_device_info(ulong bus_no, ulong dev_no,
 				  struct visorchipset_device_info *dev_info);
 BOOL visorchipset_set_bus_context(ulong bus_no, void *context);
-BOOL visorchipset_set_device_context(ulong busNo, ulong devNo, void *context);
+BOOL visorchipset_set_device_context(ulong bus_no, ulong dev_no, void *context);
 int visorchipset_chipset_ready(void);
 int visorchipset_chipset_selftest(void);
 int visorchipset_chipset_notready(void);
