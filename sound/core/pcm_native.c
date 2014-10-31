@@ -900,27 +900,6 @@ static int snd_pcm_action_single(struct action_ops *ops,
 	return res;
 }
 
-/* call in mutex-protected context */
-static int snd_pcm_action_mutex(struct action_ops *ops,
-				struct snd_pcm_substream *substream,
-				int state)
-{
-	int res;
-
-	if (snd_pcm_stream_linked(substream)) {
-		if (!mutex_trylock(&substream->group->mutex)) {
-			mutex_unlock(&substream->self_group.mutex);
-			mutex_lock(&substream->group->mutex);
-			mutex_lock(&substream->self_group.mutex);
-		}
-		res = snd_pcm_action_group(ops, substream, state, 1);
-		mutex_unlock(&substream->group->mutex);
-	} else {
-		res = snd_pcm_action_single(ops, substream, state);
-	}
-	return res;
-}
-
 /*
  *  Note: call with stream lock
  */
@@ -930,10 +909,18 @@ static int snd_pcm_action(struct action_ops *ops,
 {
 	int res;
 
-	if (substream->pcm->nonatomic)
-		return snd_pcm_action_mutex(ops, substream, state);
+	if (!snd_pcm_stream_linked(substream))
+		return snd_pcm_action_single(ops, substream, state);
 
-	if (snd_pcm_stream_linked(substream)) {
+	if (substream->pcm->nonatomic) {
+		if (!mutex_trylock(&substream->group->mutex)) {
+			mutex_unlock(&substream->self_group.mutex);
+			mutex_lock(&substream->group->mutex);
+			mutex_lock(&substream->self_group.mutex);
+		}
+		res = snd_pcm_action_group(ops, substream, state, 1);
+		mutex_unlock(&substream->group->mutex);
+	} else {
 		if (!spin_trylock(&substream->group->lock)) {
 			spin_unlock(&substream->self_group.lock);
 			spin_lock(&substream->group->lock);
@@ -941,8 +928,6 @@ static int snd_pcm_action(struct action_ops *ops,
 		}
 		res = snd_pcm_action_group(ops, substream, state, 1);
 		spin_unlock(&substream->group->lock);
-	} else {
-		res = snd_pcm_action_single(ops, substream, state);
 	}
 	return res;
 }
