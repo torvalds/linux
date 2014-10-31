@@ -64,6 +64,13 @@
 				/* Enable internal pull-up */
 				allwinner,pull = <1>;
 			};
+
+			led_pins_optimus: led-pins@0 {
+				allwinner,pins = "PH0", "PH1";
+				allwinner,function = "gpio_out";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
 		};
 
 		uart0: serial@07000000 {
@@ -76,6 +83,26 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&i2c3_pins_a>;
 			status = "okay";
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&led_pins_optimus>;
+
+		/* The LED names match those found on the board */
+
+		led2 {
+			label = "optimus:led2:usr";
+			gpios = <&pio 7 1 0>;
+		};
+
+		/* led3 is on PM15, in R_PIO */
+
+		led4 {
+			label = "optimus:led4:usr";
+			gpios = <&pio 7 0 0>;
 		};
 	};
 };
