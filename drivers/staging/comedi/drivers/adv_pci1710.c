@@ -823,7 +823,8 @@ static void pci1710_handle_fifo(struct comedi_device *dev,
 	const struct boardtype *this_board = dev->board_ptr;
 	struct pci1710_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	int m, samplesinbuf;
+	unsigned int nsamples;
+	unsigned int m;
 
 	m = inw(dev->iobase + PCI171x_STATUS);
 	if (!(m & Status_FH)) {
@@ -840,16 +841,16 @@ static void pci1710_handle_fifo(struct comedi_device *dev,
 		return;
 	}
 
-	samplesinbuf = this_board->fifo_half_size;
-	if (samplesinbuf * sizeof(short) >= s->async->prealloc_bufsz) {
-		m = s->async->prealloc_bufsz / sizeof(short);
+	nsamples = this_board->fifo_half_size;
+	if (comedi_samples_to_bytes(s, nsamples) >= s->async->prealloc_bufsz) {
+		m = comedi_bytes_to_samples(s, s->async->prealloc_bufsz);
 		if (move_block_from_fifo(dev, s, m, 0))
 			return;
-		samplesinbuf -= m;
+		nsamples -= m;
 	}
 
-	if (samplesinbuf) {
-		if (move_block_from_fifo(dev, s, samplesinbuf, 1))
+	if (nsamples) {
+		if (move_block_from_fifo(dev, s, nsamples, 1))
 			return;
 	}
 
