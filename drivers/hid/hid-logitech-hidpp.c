@@ -200,13 +200,15 @@ static int hidpp_send_fap_command_sync(struct hidpp_device *hidpp,
 	u8 feat_index, u8 funcindex_clientid, u8 *params, int param_count,
 	struct hidpp_report *response)
 {
-	struct hidpp_report *message = kzalloc(sizeof(struct hidpp_report),
-			GFP_KERNEL);
+	struct hidpp_report *message;
 	int ret;
 
 	if (param_count > sizeof(message->fap.params))
 		return -EINVAL;
 
+	message = kzalloc(sizeof(struct hidpp_report), GFP_KERNEL);
+	if (!message)
+		return -ENOMEM;
 	message->report_id = REPORT_ID_HIDPP_LONG;
 	message->fap.feature_index = feat_index;
 	message->fap.funcindex_clientid = funcindex_clientid;
@@ -221,8 +223,7 @@ static int hidpp_send_rap_command_sync(struct hidpp_device *hidpp_dev,
 	u8 report_id, u8 sub_id, u8 reg_address, u8 *params, int param_count,
 	struct hidpp_report *response)
 {
-	struct hidpp_report *message = kzalloc(sizeof(struct hidpp_report),
-			GFP_KERNEL);
+	struct hidpp_report *message;
 	int ret;
 
 	if ((report_id != REPORT_ID_HIDPP_SHORT) &&
@@ -232,6 +233,9 @@ static int hidpp_send_rap_command_sync(struct hidpp_device *hidpp_dev,
 	if (param_count > sizeof(message->rap.params))
 		return -EINVAL;
 
+	message = kzalloc(sizeof(struct hidpp_report), GFP_KERNEL);
+	if (!message)
+		return -ENOMEM;
 	message->report_id = report_id;
 	message->rap.sub_id = sub_id;
 	message->rap.reg_address = reg_address;
