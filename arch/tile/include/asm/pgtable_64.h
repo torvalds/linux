@@ -86,7 +86,7 @@ static inline int pud_huge_page(pud_t pud)
 }
 
 #define pmd_ERROR(e) \
-	pr_err("%s:%d: bad pmd 0x%016llx.\n", __FILE__, __LINE__, pmd_val(e))
+	pr_err("%s:%d: bad pmd 0x%016llx\n", __FILE__, __LINE__, pmd_val(e))
 
 static inline void pud_clear(pud_t *pudp)
 {

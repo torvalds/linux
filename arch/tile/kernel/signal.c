@@ -337,7 +337,6 @@ static void dump_mem(void __user *address)
 	int i, j, k;
 	int found_readable_mem = 0;
 
-	pr_err("\n");
 	if (!access_ok(VERIFY_READ, address, 1)) {
 		pr_err("Not dumping at address 0x%lx (kernel address)\n",
 		       (unsigned long)address);
@@ -359,7 +358,7 @@ static void dump_mem(void __user *address)
 			       (unsigned long)address);
 			found_readable_mem = 1;
 		}
-		j = sprintf(line, REGFMT":", (unsigned long)addr);
+		j = sprintf(line, REGFMT ":", (unsigned long)addr);
 		for (k = 0; k < bytes_per_line; ++k)
 			j += sprintf(&line[j], " %02x", buf[k]);
 		pr_err("%s\n", line);
@@ -403,8 +402,7 @@ void trace_unhandled_signal(const char *type, struct pt_regs *regs,
 		case SIGFPE:
 		case SIGSEGV:
 		case SIGBUS:
-			pr_err("User crash: signal %d,"
-			       " trap %ld, address 0x%lx\n",
+			pr_err("User crash: signal %d, trap %ld, address 0x%lx\n",
 			       sig, regs->faultnum, address);
 			show_regs(regs);
 			dump_mem((void __user *)address);

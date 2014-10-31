@@ -46,9 +46,9 @@ static int __init setup_unaligned_fixup(char *str)
 		return 0;
 
 	pr_info("Fixups for unaligned data accesses are %s\n",
-	       unaligned_fixup >= 0 ?
-	       (unaligned_fixup ? "enabled" : "disabled") :
-	       "completely disabled");
+		unaligned_fixup >= 0 ?
+		(unaligned_fixup ? "enabled" : "disabled") :
+		"completely disabled");
 	return 1;
 }
 __setup("unaligned_fixup=", setup_unaligned_fixup);
@@ -305,8 +305,8 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 	case INT_ILL:
 		if (copy_from_user(&instr, (void __user *)regs->pc,
 				   sizeof(instr))) {
-			pr_err("Unreadable instruction for INT_ILL:"
-			       " %#lx\n", regs->pc);
+			pr_err("Unreadable instruction for INT_ILL: %#lx\n",
+			       regs->pc);
 			do_exit(SIGKILL);
 			return;
 		}
