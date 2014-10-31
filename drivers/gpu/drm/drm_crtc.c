@@ -3417,6 +3417,10 @@ void drm_fb_release(struct drm_file *priv)
  * object with drm_object_attach_property. The returned property object must be
  * freed with drm_property_destroy.
  *
+ * Note that the DRM core keeps a per-device list of properties and that, if
+ * drm_mode_config_cleanup() is called, it will destroy all properties created
+ * by the driver.
+ *
  * Returns:
  * A pointer to the newly created property on success, NULL on failure.
  */
