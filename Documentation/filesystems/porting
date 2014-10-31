@@ -467,3 +467,7 @@ in your dentry operations instead.
 [mandatory]
 	d_materialise_unique() is gone; d_splice_alias() does everything you
 	need now.  Remember that they have opposite orders of arguments ;-/
+--
+[mandatory]
+	f_dentry is gone; use f_path.dentry, or, better yet, see if you can avoid
+	it entirely.
