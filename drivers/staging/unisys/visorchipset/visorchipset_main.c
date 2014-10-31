@@ -617,7 +617,7 @@ void
 visorchipset_register_busdev_client(
 			struct visorchipset_busdev_notifiers *notifiers,
 			struct visorchipset_busdev_responders *responders,
-			struct ultra_vbus_deviceinfo *driverInfo)
+			struct ultra_vbus_deviceinfo *driver_info)
 {
 	down(&NotifierLock);
 	if (notifiers == NULL) {
@@ -630,9 +630,9 @@ visorchipset_register_busdev_client(
 	}
 	if (responders)
 		*responders = BusDev_Responders;
-	if (driverInfo)
-		bus_device_info_init(driverInfo, "chipset(bolts)", "visorchipset",
-				   VERSION, NULL);
+	if (driver_info)
+		bus_device_info_init(driver_info, "chipset(bolts)",
+				     "visorchipset", VERSION, NULL);
 	up(&NotifierLock);
 }
 EXPORT_SYMBOL_GPL(visorchipset_register_busdev_client);

@@ -253,7 +253,7 @@ void
 visorchipset_register_busdev_client(
 			struct visorchipset_busdev_notifiers *notifiers,
 			struct visorchipset_busdev_responders *responders,
-			struct ultra_vbus_deviceinfo *driverInfo);
+			struct ultra_vbus_deviceinfo *driver_info);
 
 /** Register functions (in the bus driver) to get called by visorchipset
  *  whenever a bus or device appears for which this service partition is
