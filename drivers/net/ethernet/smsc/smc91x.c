@@ -2243,9 +2243,10 @@ static int smc_drv_probe(struct platform_device *pdev)
 	const struct of_device_id *match = NULL;
 	struct smc_local *lp;
 	struct net_device *ndev;
-	struct resource *res, *ires;
+	struct resource *res;
 	unsigned int __iomem *addr;
 	unsigned long irq_flags = SMC_IRQ_FLAGS;
+	unsigned long irq_resflags;
 	int ret;
 
 	ndev = alloc_etherdev(sizeof(struct smc_local));
@@ -2337,16 +2338,19 @@ static int smc_drv_probe(struct platform_device *pdev)
 		goto out_free_netdev;
 	}
 
-	ires = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!ires) {
+	ndev->irq = platform_get_irq(pdev, 0);
+	if (ndev->irq <= 0) {
 		ret = -ENODEV;
 		goto out_release_io;
 	}
-
-	ndev->irq = ires->start;
-
-	if (irq_flags == -1 || ires->flags & IRQF_TRIGGER_MASK)
-		irq_flags = ires->flags & IRQF_TRIGGER_MASK;
+	/*
+	 * If this platform does not specify any special irqflags, or if
+	 * the resource supplies a trigger, override the irqflags with
+	 * the trigger flags from the resource.
+	 */
+	irq_resflags = irqd_get_trigger_type(irq_get_irq_data(ndev->irq));
+	if (irq_flags == -1 || irq_resflags & IRQF_TRIGGER_MASK)
+		irq_flags = irq_resflags & IRQF_TRIGGER_MASK;
 
 	ret = smc_request_attrib(pdev, ndev);
 	if (ret)
