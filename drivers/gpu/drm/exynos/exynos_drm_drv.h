@@ -23,6 +23,9 @@
 #define MAX_FB_BUFFER	4
 #define DEFAULT_ZPOS	-1
 
+#define to_exynos_crtc(x)	container_of(x, struct exynos_drm_crtc,\
+				drm_crtc)
+
 /* This enumerates device type. */
 enum exynos_drm_device_type {
 	EXYNOS_DEVICE_TYPE_NONE,

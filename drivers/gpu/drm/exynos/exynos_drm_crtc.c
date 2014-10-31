@@ -20,9 +20,6 @@
 #include "exynos_drm_encoder.h"
 #include "exynos_drm_plane.h"
 
-#define to_exynos_crtc(x)	container_of(x, struct exynos_drm_crtc,\
-				drm_crtc)
-
 enum exynos_crtc_mode {
 	CRTC_MODE_NORMAL,	/* normal mode */
 	CRTC_MODE_BLANK,	/* The private plane of crtc is blank */
