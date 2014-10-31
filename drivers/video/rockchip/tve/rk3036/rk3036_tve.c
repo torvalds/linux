@@ -418,6 +418,7 @@ static int rk3036_tve_probe(struct platform_device *pdev)
 	rk_display_device_enable(rk3036_tve->ddev);
 
 	fb_register_client(&tve_fb_notifier);
+	cvbsformat = -1;
 	dev_info(&pdev->dev, "%s tv encoder probe ok\n", match->compatible);
 	return 0;
 }
