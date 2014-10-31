@@ -16,7 +16,7 @@
 #include "OlySocket.h"
 #include "Source.h"
 
-// Unix domain socket counters from external sources like graphics drivers
+// Counters from external sources like graphics drivers and annotations
 class ExternalSource : public Source {
 public:
 	ExternalSource(sem_t *senderSem);
@@ -30,15 +30,19 @@ public:
 	void write(Sender *sender);
 
 private:
-	void waitFor(const uint64_t currTime, const int bytes);
+	void waitFor(const int bytes);
 	void configureConnection(const int fd, const char *const handshake, size_t size);
+	bool connectMali();
 	bool connectMve();
 
 	sem_t mBufferSem;
 	Buffer mBuffer;
 	Monitor mMonitor;
 	OlyServerSocket mMveStartupUds;
+	OlyServerSocket mMaliStartupUds;
+	OlyServerSocket mAnnotate;
 	int mInterruptFd;
+	int mMaliUds;
 	int mMveUds;
 
 	// Intentionally unimplemented

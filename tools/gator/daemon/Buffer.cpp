@@ -15,12 +15,15 @@
 #define mask (mSize - 1)
 
 enum {
-	CODE_PEA      = 1,
-	CODE_KEYS     = 2,
-	CODE_FORMAT   = 3,
-	CODE_MAPS     = 4,
-	CODE_COMM     = 5,
-	CODE_KEYS_OLD = 6,
+	CODE_PEA         = 1,
+	CODE_KEYS        = 2,
+	CODE_FORMAT      = 3,
+	CODE_MAPS        = 4,
+	CODE_COMM        = 5,
+	CODE_KEYS_OLD    = 6,
+	CODE_ONLINE_CPU  = 7,
+	CODE_OFFLINE_CPU = 8,
+	CODE_KALLSYMS    = 9,
 };
 
 // Summary Frame Messages
@@ -42,16 +45,18 @@ enum {
 	/* Add another character so the length isn't 0x0a bytes */ \
 	"5"
 
-Buffer::Buffer(const int32_t core, const int32_t buftype, const int size, sem_t *const readerSem) : mCore(core), mBufType(buftype), mSize(size), mReadPos(0), mWritePos(0), mCommitPos(0), mAvailable(true), mIsDone(false), mBuf(new char[mSize]), mCommitTime(gSessionData->mLiveRate), mReaderSem(readerSem) {
+Buffer::Buffer(const int32_t core, const int32_t buftype, const int size, sem_t *const readerSem) : mBuf(new char[size]), mReaderSem(readerSem), mCommitTime(gSessionData->mLiveRate), mSize(size), mReadPos(0), mWritePos(0), mCommitPos(0), mAvailable(true), mIsDone(false), mCore(core), mBufType(buftype) {
 	if ((mSize & mask) != 0) {
 		logg->logError(__FILE__, __LINE__, "Buffer size is not a power of 2");
 		handleException();
 	}
+	sem_init(&mWriterSem, 0, 0);
 	frame();
 }
 
 Buffer::~Buffer() {
 	delete [] mBuf;
+	sem_destroy(&mWriterSem);
 }
 
 void Buffer::write(Sender *const sender) {
@@ -59,14 +64,18 @@ void Buffer::write(Sender *const sender) {
 		return;
 	}
 
+	// commit and read are updated by the writer, only read them once
+	int commitPos = mCommitPos;
+	int readPos = mReadPos;
+
 	// determine the size of two halves
-	int length1 = mCommitPos - mReadPos;
-	char *buffer1 = mBuf + mReadPos;
+	int length1 = commitPos - readPos;
+	char *buffer1 = mBuf + readPos;
 	int length2 = 0;
 	char *buffer2 = mBuf;
 	if (length1 < 0) {
-		length1 = mSize - mReadPos;
-		length2 = mCommitPos;
+		length1 = mSize - readPos;
+		length2 = commitPos;
 	}
 
 	logg->logMessage("Sending data length1: %i length2: %i", length1, length2);
@@ -81,7 +90,10 @@ void Buffer::write(Sender *const sender) {
 		sender->writeData(buffer2, length2, RESPONSE_APC_DATA);
 	}
 
-	mReadPos = mCommitPos;
+	mReadPos = commitPos;
+
+	// send a notification that space is available
+	sem_post(&mWriterSem);
 }
 
 bool Buffer::commitReady() const {
@@ -193,7 +205,7 @@ void Buffer::packInt(int32_t x) {
 	packInt(mBuf, mSize, mWritePos, x);
 }
 
-void Buffer::packInt64(int64_t x) {
+void Buffer::packInt64(char *const buf, const int size, int &writePos, int64_t x) {
 	int packedBytes = 0;
 	int more = true;
 	while (more) {
@@ -207,11 +219,15 @@ void Buffer::packInt64(int64_t x) {
 			b |= 0x80;
 		}
 
-		mBuf[(mWritePos + packedBytes) & mask] = b;
+		buf[(writePos + packedBytes) & /*mask*/(size - 1)] = b;
 		packedBytes++;
 	}
 
-	mWritePos = (mWritePos + packedBytes) & mask;
+	writePos = (writePos + packedBytes) & /*mask*/(size - 1);
+}
+
+void Buffer::packInt64(int64_t x) {
+	packInt64(mBuf, mSize, mWritePos, x);
 }
 
 void Buffer::writeBytes(const void *const data, size_t count) {
@@ -236,10 +252,12 @@ void Buffer::frame() {
 	// Reserve space for the length
 	mWritePos += sizeof(int32_t);
 	packInt(mBufType);
-	packInt(mCore);
+	if ((mBufType == FRAME_BLOCK_COUNTER) || (mBufType == FRAME_PERF_ATTRS) || (mBufType == FRAME_PERF)) {
+		packInt(mCore);
+	}
 }
 
-void Buffer::summary(const int64_t timestamp, const int64_t uptime, const int64_t monotonicDelta, const char *const uname) {
+void Buffer::summary(const uint64_t currTime, const int64_t timestamp, const int64_t uptime, const int64_t monotonicDelta, const char *const uname) {
 	packInt(MESSAGE_SUMMARY);
 	writeString(NEWLINE_CANARY);
 	packInt64(timestamp);
@@ -248,23 +266,24 @@ void Buffer::summary(const int64_t timestamp, const int64_t uptime, const int64_
 	writeString("uname");
 	writeString(uname);
 	writeString("");
-	check(1);
+	check(currTime);
 }
 
-void Buffer::coreName(const int core, const int cpuid, const char *const name) {
+void Buffer::coreName(const uint64_t currTime, const int core, const int cpuid, const char *const name) {
 	if (checkSpace(3 * MAXSIZE_PACK32 + 0x100)) {
 		packInt(MESSAGE_CORE_NAME);
 		packInt(core);
 		packInt(cpuid);
 		writeString(name);
 	}
-	check(1);
+	check(currTime);
 }
 
 bool Buffer::eventHeader(const uint64_t curr_time) {
 	bool retval = false;
 	if (checkSpace(MAXSIZE_PACK32 + MAXSIZE_PACK64)) {
-		packInt(0);	// key of zero indicates a timestamp
+		// key of zero indicates a timestamp
+		packInt(0);
 		packInt64(curr_time);
 		retval = true;
 	}
@@ -275,7 +294,8 @@ bool Buffer::eventHeader(const uint64_t curr_time) {
 bool Buffer::eventTid(const int tid) {
 	bool retval = false;
 	if (checkSpace(2 * MAXSIZE_PACK32)) {
-		packInt(1);	// key of 1 indicates a tid
+		// key of 1 indicates a tid
+		packInt(1);
 		packInt(tid);
 		retval = true;
 	}
@@ -283,102 +303,119 @@ bool Buffer::eventTid(const int tid) {
 	return retval;
 }
 
-void Buffer::event(const int32_t key, const int32_t value) {
+void Buffer::event(const int key, const int32_t value) {
 	if (checkSpace(2 * MAXSIZE_PACK32)) {
 		packInt(key);
 		packInt(value);
 	}
 }
 
-void Buffer::event64(const int64_t key, const int64_t value) {
-	if (checkSpace(2 * MAXSIZE_PACK64)) {
-		packInt64(key);
+void Buffer::event64(const int key, const int64_t value) {
+	if (checkSpace(MAXSIZE_PACK64 + MAXSIZE_PACK32)) {
+		packInt(key);
 		packInt64(value);
 	}
 }
 
-void Buffer::pea(const struct perf_event_attr *const pea, int key) {
-	if (checkSpace(2 * MAXSIZE_PACK32 + pea->size)) {
-		packInt(CODE_PEA);
-		writeBytes(pea, pea->size);
-		packInt(key);
-	} else {
-		logg->logError(__FILE__, __LINE__, "Ran out of buffer space for perf attrs");
-		handleException();
+void Buffer::pea(const uint64_t currTime, const struct perf_event_attr *const pea, int key) {
+	while (!checkSpace(2 * MAXSIZE_PACK32 + pea->size)) {
+		sem_wait(&mWriterSem);
 	}
-	// Don't know the real perf time so use 1 as it will work for now
-	check(1);
+	packInt(CODE_PEA);
+	writeBytes(pea, pea->size);
+	packInt(key);
+	check(currTime);
 }
 
-void Buffer::keys(const int count, const __u64 *const ids, const int *const keys) {
-	if (checkSpace(2 * MAXSIZE_PACK32 + count * (MAXSIZE_PACK32 + MAXSIZE_PACK64))) {
-		packInt(CODE_KEYS);
-		packInt(count);
-		for (int i = 0; i < count; ++i) {
-			packInt64(ids[i]);
-			packInt(keys[i]);
-		}
-	} else {
-		logg->logError(__FILE__, __LINE__, "Ran out of buffer space for perf attrs");
-		handleException();
+void Buffer::keys(const uint64_t currTime, const int count, const __u64 *const ids, const int *const keys) {
+	while (!checkSpace(2 * MAXSIZE_PACK32 + count * (MAXSIZE_PACK32 + MAXSIZE_PACK64))) {
+		sem_wait(&mWriterSem);
 	}
-	check(1);
+	packInt(CODE_KEYS);
+	packInt(count);
+	for (int i = 0; i < count; ++i) {
+		packInt64(ids[i]);
+		packInt(keys[i]);
+	}
+	check(currTime);
 }
 
-void Buffer::keysOld(const int keyCount, const int *const keys, const int bytes, const char *const buf) {
-	if (checkSpace((2 + keyCount) * MAXSIZE_PACK32 + bytes)) {
-		packInt(CODE_KEYS_OLD);
-		packInt(keyCount);
-		for (int i = 0; i < keyCount; ++i) {
-			packInt(keys[i]);
-		}
-		writeBytes(buf, bytes);
-	} else {
-		logg->logError(__FILE__, __LINE__, "Ran out of buffer space for perf attrs");
-		handleException();
+void Buffer::keysOld(const uint64_t currTime, const int keyCount, const int *const keys, const int bytes, const char *const buf) {
+	while (!checkSpace((2 + keyCount) * MAXSIZE_PACK32 + bytes)) {
+		sem_wait(&mWriterSem);
 	}
-	check(1);
+	packInt(CODE_KEYS_OLD);
+	packInt(keyCount);
+	for (int i = 0; i < keyCount; ++i) {
+		packInt(keys[i]);
+	}
+	writeBytes(buf, bytes);
+	check(currTime);
 }
 
-void Buffer::format(const int length, const char *const format) {
-	if (checkSpace(MAXSIZE_PACK32 + length + 1)) {
-		packInt(CODE_FORMAT);
-		writeBytes(format, length + 1);
-	} else {
-		logg->logError(__FILE__, __LINE__, "Ran out of buffer space for perf attrs");
-		handleException();
+void Buffer::format(const uint64_t currTime, const int length, const char *const format) {
+	while (!checkSpace(MAXSIZE_PACK32 + length + 1)) {
+		sem_wait(&mWriterSem);
 	}
-	check(1);
+	packInt(CODE_FORMAT);
+	writeBytes(format, length + 1);
+	check(currTime);
 }
 
-void Buffer::maps(const int pid, const int tid, const char *const maps) {
+void Buffer::maps(const uint64_t currTime, const int pid, const int tid, const char *const maps) {
 	const int mapsLen = strlen(maps) + 1;
-	if (checkSpace(3 * MAXSIZE_PACK32 + mapsLen)) {
-		packInt(CODE_MAPS);
-		packInt(pid);
-		packInt(tid);
-		writeBytes(maps, mapsLen);
-	} else {
-		logg->logError(__FILE__, __LINE__, "Ran out of buffer space for perf attrs");
-		handleException();
+	while (!checkSpace(3 * MAXSIZE_PACK32 + mapsLen)) {
+		sem_wait(&mWriterSem);
 	}
-	check(1);
+	packInt(CODE_MAPS);
+	packInt(pid);
+	packInt(tid);
+	writeBytes(maps, mapsLen);
+	check(currTime);
 }
 
-void Buffer::comm(const int pid, const int tid, const char *const image, const char *const comm) {
+void Buffer::comm(const uint64_t currTime, const int pid, const int tid, const char *const image, const char *const comm) {
 	const int imageLen = strlen(image) + 1;
 	const int commLen = strlen(comm) + 1;
-	if (checkSpace(3 * MAXSIZE_PACK32 + imageLen + commLen)) {
-		packInt(CODE_COMM);
-		packInt(pid);
-		packInt(tid);
-		writeBytes(image, imageLen);
-		writeBytes(comm, commLen);
-	} else {
-		logg->logError(__FILE__, __LINE__, "Ran out of buffer space for perf attrs");
-		handleException();
+	while (!checkSpace(3 * MAXSIZE_PACK32 + imageLen + commLen)) {
+		sem_wait(&mWriterSem);
 	}
-	check(1);
+	packInt(CODE_COMM);
+	packInt(pid);
+	packInt(tid);
+	writeBytes(image, imageLen);
+	writeBytes(comm, commLen);
+	check(currTime);
+}
+
+void Buffer::onlineCPU(const uint64_t currTime, const uint64_t time, const int cpu) {
+	while (!checkSpace(MAXSIZE_PACK32 + MAXSIZE_PACK64)) {
+		sem_wait(&mWriterSem);
+	}
+	packInt(CODE_ONLINE_CPU);
+	packInt64(time);
+	packInt(cpu);
+	check(currTime);
+}
+
+void Buffer::offlineCPU(const uint64_t currTime, const uint64_t time, const int cpu) {
+	while (!checkSpace(MAXSIZE_PACK32 + MAXSIZE_PACK64)) {
+		sem_wait(&mWriterSem);
+	}
+	packInt(CODE_OFFLINE_CPU);
+	packInt64(time);
+	packInt(cpu);
+	check(currTime);
+}
+
+void Buffer::kallsyms(const uint64_t currTime, const char *const kallsyms) {
+	const int kallsymsLen = strlen(kallsyms) + 1;
+	while (!checkSpace(3 * MAXSIZE_PACK32 + kallsymsLen)) {
+		sem_wait(&mWriterSem);
+	}
+	packInt(CODE_KALLSYMS);
+	writeBytes(kallsyms, kallsymsLen);
+	check(currTime);
 }
 
 void Buffer::setDone() {

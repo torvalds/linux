@@ -9,6 +9,8 @@
 #ifndef PERFDRIVER_H
 #define PERFDRIVER_H
 
+#include <stdint.h>
+
 #include "Driver.h"
 
 // If debugfs is not mounted at /sys/kernel/debug, update DEBUGFS_PATH
@@ -16,13 +18,13 @@
 #define EVENTS_PATH DEBUGFS_PATH "/tracing/events"
 
 #define SCHED_SWITCH "sched/sched_switch"
+#define CPU_IDLE "power/cpu_idle"
 
 class Buffer;
 class DynBuf;
-class PerfCounter;
 class PerfGroup;
 
-class PerfDriver : public Driver {
+class PerfDriver : public SimpleDriver {
 public:
 	PerfDriver();
 	~PerfDriver();
@@ -31,24 +33,19 @@ public:
 
 	bool setup();
 	bool summary(Buffer *const buffer);
+	void coreName(const uint32_t startTime, Buffer *const buffer, const int cpu);
 	bool isSetup() const { return mIsSetup; }
 
-	bool claimCounter(const Counter &counter) const;
-	void resetCounters();
 	void setupCounter(Counter &counter);
 
-	int writeCounters(mxml_node_t *root) const;
-
-	bool enable(PerfGroup *const group, Buffer *const buffer) const;
+	bool enable(const uint64_t currTime, PerfGroup *const group, Buffer *const buffer) const;
 
 	static long long getTracepointId(const char *const name, DynBuf *const printb);
 
 private:
-	PerfCounter *findCounter(const Counter &counter) const;
 	void addCpuCounters(const char *const counterName, const int type, const int numCounters);
 	void addUncoreCounters(const char *const counterName, const int type, const int numCounters);
 
-	PerfCounter *mCounters;
 	bool mIsSetup;
 	bool mLegacySupport;
 

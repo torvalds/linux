@@ -1,0 +1,46 @@
+  <category name="Mali-Midgard Software Counters" per_cpu="no">
+    <event counter="ARM_Mali-Midgard_TOTAL_ALLOC_PAGES" title="Mali Total Alloc Pages" name="Total number of allocated pages" description="Mali total number of allocated pages."/>
+  </category>
+  <category name="Mali-Midgard PM Shader" per_cpu="no">
+    <event counter="ARM_Mali-Midgard_PM_SHADER_0" class="absolute" display="average" average_selection="yes" percentage="yes" title="Mali PM Shader" name="PM Shader Core 0" description="Mali PM Shader: PM Shader Core 0."/>
+    <event counter="ARM_Mali-Midgard_PM_SHADER_1" class="absolute" display="average" average_selection="yes" percentage="yes" title="Mali PM Shader" name="PM Shader Core 1" description="Mali PM Shader: PM Shader Core 1."/>
+    <event counter="ARM_Mali-Midgard_PM_SHADER_2" class="absolute" display="average" average_selection="yes" percentage="yes" title="Mali PM Shader" name="PM Shader Core 2" description="Mali PM Shader: PM Shader Core 2."/>
+    <event counter="ARM_Mali-Midgard_PM_SHADER_3" class="absolute" display="average" average_selection="yes" percentage="yes" title="Mali PM Shader" name="PM Shader Core 3" description="Mali PM Shader: PM Shader Core 3."/>
+    <event counter="ARM_Mali-Midgard_PM_SHADER_4" class="absolute" display="average" average_selection="yes" percentage="yes" title="Mali PM Shader" name="PM Shader Core 4" description="Mali PM Shader: PM Shader Core 4."/>
+    <event counter="ARM_Mali-Midgard_PM_SHADER_5" class="absolute" display="average" average_selection="yes" percentage="yes" title="Mali PM Shader" name="PM Shader Core 5" description="Mali PM Shader: PM Shader Core 5."/>
+    <event counter="ARM_Mali-Midgard_PM_SHADER_6" class="absolute" display="average" average_selection="yes" percentage="yes" title="Mali PM Shader" name="PM Shader Core 6" description="Mali PM Shader: PM Shader Core 6."/>
+    <event counter="ARM_Mali-Midgard_PM_SHADER_7" class="absolute" display="average" average_selection="yes" percentage="yes" title="Mali PM Shader" name="PM Shader Core 7" description="Mali PM Shader: PM Shader Core 7."/>
+  </category>
+  <category name="Mali-Midgard PM Tiler" per_cpu="no">
+    <event counter="ARM_Mali-Midgard_PM_TILER_0" display="average" average_selection="yes" percentage="yes" title="Mali PM Tiler" name="PM Tiler Core 0" description="Mali PM Tiler: PM Tiler Core 0."/>
+  </category>
+  <category name="Mali-Midgard PM L2" per_cpu="no">
+    <event counter="ARM_Mali-Midgard_PM_L2_0" display="average" average_selection="yes" percentage="yes" title="Mali PM L2" name="PM L2 Core 0" description="Mali PM L2: PM L2 Core 0."/>
+    <event counter="ARM_Mali-Midgard_PM_L2_1" display="average" average_selection="yes" percentage="yes" title="Mali PM L2" name="PM L2 Core 1" description="Mali PM L2: PM L2 Core 1."/>
+  </category>
+  <category name="Mali-Midgard MMU Address Space" per_cpu="no">
+    <event counter="ARM_Mali-Midgard_MMU_AS_0" display="average" average_selection="yes" percentage="yes" title="Mali MMU Address Space" name="MMU Address Space 0" description="Mali MMU Address Space 0 usage."/>
+    <event counter="ARM_Mali-Midgard_MMU_AS_1" display="average" average_selection="yes" percentage="yes" title="Mali MMU Address Space" name="MMU Address Space 1" description="Mali MMU Address Space 1 usage."/>
+    <event counter="ARM_Mali-Midgard_MMU_AS_2" display="average" average_selection="yes" percentage="yes" title="Mali MMU Address Space" name="MMU Address Space 2" description="Mali MMU Address Space 2 usage."/>
+    <event counter="ARM_Mali-Midgard_MMU_AS_3" display="average" average_selection="yes" percentage="yes" title="Mali MMU Address Space" name="MMU Address Space 3" description="Mali MMU Address Space 3 usage."/>
+  </category>
+  <category name="Mali-Midgard MMU Page Fault" per_cpu="no">
+    <event counter="ARM_Mali-Midgard_MMU_PAGE_FAULT_0" title="Mali MMU Page Fault Add. Space" name="Mali MMU Page Fault Add. Space 0" description="Reports the number of newly allocated pages after a MMU page fault in address space 0."/>
+    <event counter="ARM_Mali-Midgard_MMU_PAGE_FAULT_1" title="Mali MMU Page Fault Add. Space" name="Mali MMU Page Fault Add. Space 1" description="Reports the number of newly allocated pages after a MMU page fault in address space 1."/>
+    <event counter="ARM_Mali-Midgard_MMU_PAGE_FAULT_2" title="Mali MMU Page Fault Add. Space" name="Mali MMU Page Fault Add. Space 2" description="Reports the number of newly allocated pages after a MMU page fault in address space 2."/>
+    <event counter="ARM_Mali-Midgard_MMU_PAGE_FAULT_3" title="Mali MMU Page Fault Add. Space" name="Mali MMU Page Fault Add. Space 3" description="Reports the number of newly allocated pages after a MMU page fault in address space 3."/>
+  </category>
+  <counter_set name="ARM_Mali-Midgard_Filmstrip_cnt" count="1"/>
+  <category name="Mali-Midgard Filmstrip" counter_set="ARM_Mali-Midgard_Filmstrip_cnt" per_cpu="no">
+    <option_set name="fs">
+      <option event_delta="0x3c" name="1:60" description="captures every 60th frame"/>
+      <option event_delta="0x1e" name="1:30" description="captures every 30th frame"/>
+      <option event_delta="0xa" name="1:10" description="captures every 10th frame"/>
+    </option_set>
+    <event event="0x0400" option_set="fs" title="ARM Mali-Midgard" name="Filmstrip" description="Scaled framebuffer"/>
+  </category>
+  <category name="Mali-Midgard Activity" per_cpu="no">
+    <event counter="ARM_Mali-Midgard_fragment" title="GPU Fragment" name="Activity" class="activity" activity1="Activity" activity_color1="0x00006fcc" rendering_type="bar" average_selection="yes" percentage="yes" cores="1" description="GPU Job Slot 0 Activity"/>
+    <event counter="ARM_Mali-Midgard_vertex" title="GPU Vertex-Tiling-Compute" name="Activity" class="activity" activity1="Activity" activity_color1="0x00eda000" rendering_type="bar" average_selection="yes" percentage="yes" cores="1" description="GPU Job Slot 1 Activity"/>
+    <event counter="ARM_Mali-Midgard_opencl" title="GPU Vertex-Compute" name="Activity" class="activity" activity1="Activity" activity_color1="0x00ef022f" rendering_type="bar" average_selection="yes" percentage="yes" cores="1" description="GPU Job Slot 2 Activity"/>
+  </category>

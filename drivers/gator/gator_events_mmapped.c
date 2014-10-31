@@ -103,7 +103,7 @@ static int mmapped_simulate(int counter, int delta_in_us)
 	switch (counter) {
 	case 0:		/* sort-of-sine */
 		{
-			static int t = 0;
+			static int t;
 			int x;
 
 			t += delta_in_us;
@@ -140,7 +140,7 @@ static int mmapped_simulate(int counter, int delta_in_us)
 		break;
 	case 2:		/* PWM signal */
 		{
-			static int dc, x, t = 0;
+			static int dc, x, t;
 
 			t += delta_in_us;
 			if (t > 1000000)
@@ -157,7 +157,7 @@ static int mmapped_simulate(int counter, int delta_in_us)
 	return result;
 }
 
-static int gator_events_mmapped_read(int **buffer)
+static int gator_events_mmapped_read(int **buffer, bool sched_switch)
 {
 	int i;
 	int len = 0;

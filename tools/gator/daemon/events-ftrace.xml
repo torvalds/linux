@@ -1,0 +1,7 @@
+  <category name="Ftrace">
+    <!-- counter attribute must start with ftrace_ and be unique -->
+    <!-- regex item in () is the value shown -->
+    <!--
+    <event counter="ftrace_trace_marker_numbers" title="ftrace" name="trace_marker" class="absolute" regex="([0-9]+)" description="Numbers written to /sys/kernel/debug/tracing/trace_marker, ex: echo 42 > /sys/kernel/debug/tracing/trace_marker"/>
+    -->
+  </category>

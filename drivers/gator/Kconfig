@@ -24,8 +24,8 @@ config GATOR_MALI_4XXMP
 	bool "Mali-400MP or Mali-450MP"
 	select GATOR_WITH_MALI_SUPPORT
 
-config GATOR_MALI_T6XX
-	bool "Mali-T604 or Mali-T658"
+config GATOR_MALI_MIDGARD
+	bool "Mali-T60x, Mali-T62x, Mali-T72x or Mali-T76x"
 	select GATOR_WITH_MALI_SUPPORT
 
 endchoice

@@ -1,0 +1,91 @@
+  <category name="Mali-Midgard Job Manager" per_cpu="no">
+    <event counter="ARM_Mali-Midgard_GPU_ACTIVE" title="Mali Job Manager Cycles" name="GPU cycles" description="Number of cycles the GPU was active"/>
+    <event counter="ARM_Mali-Midgard_IRQ_ACTIVE" title="Mali Job Manager Cycles" name="IRQ cycles" description="Number of cycles the GPU had a pending interrupt"/>
+    <event counter="ARM_Mali-Midgard_JS0_ACTIVE" title="Mali Job Manager Cycles" name="JS0 cycles" description="Number of cycles JS0 (fragment) was active"/>
+    <event counter="ARM_Mali-Midgard_JS1_ACTIVE" title="Mali Job Manager Cycles" name="JS1 cycles" description="Number of cycles JS1 (vertex/tiler/compute) was active"/>
+    <event counter="ARM_Mali-Midgard_JS2_ACTIVE" title="Mali Job Manager Cycles" name="JS2 cycles" description="Number of cycles JS2 (vertex/compute) was active"/>
+    <event counter="ARM_Mali-Midgard_JS0_JOBS" title="Mali Job Manager Work" name="JS0 jobs" description="Number of Jobs (fragment) completed in JS0"/>
+    <event counter="ARM_Mali-Midgard_JS0_TASKS" title="Mali Job Manager Work" name="JS0 tasks" description="Number of Tasks completed in JS0"/>
+    <event counter="ARM_Mali-Midgard_JS1_JOBS" title="Mali Job Manager Work" name="JS1 jobs" description="Number of Jobs (vertex/tiler/compute) completed in JS1"/>
+    <event counter="ARM_Mali-Midgard_JS1_TASKS" title="Mali Job Manager Work" name="JS1 tasks" description="Number of Tasks completed in JS1"/>
+    <event counter="ARM_Mali-Midgard_JS2_TASKS" title="Mali Job Manager Work" name="JS2 tasks" description="Number of Tasks completed in JS2"/>
+    <event counter="ARM_Mali-Midgard_JS2_JOBS" title="Mali Job Manager Work" name="JS2 jobs" description="Number of Jobs (vertex/compute) completed in JS2"/>
+  </category>
+  <category name="Mali-Midgard Tiler" per_cpu="no">
+    <event counter="ARM_Mali-Midgard_POLYGONS" title="Mali Tiler Primitives" name="Polygons" description="Number of polygons processed"/>
+    <event counter="ARM_Mali-Midgard_QUADS" title="Mali Tiler Primitives" name="Quads" description="Number of quads processed"/>
+    <event counter="ARM_Mali-Midgard_TRIANGLES" title="Mali Tiler Primitives" name="Triangles" description="Number of triangles processed"/>
+    <event counter="ARM_Mali-Midgard_LINES" title="Mali Tiler Primitives" name="Lines" description="Number of lines processed"/>
+    <event counter="ARM_Mali-Midgard_POINTS" title="Mali Tiler Primitives" name="Points" description="Number of points processed"/>
+    <event counter="ARM_Mali-Midgard_FRONT_FACING" title="Mali Tiler Culling" name="Front facing prims" description="Number of front facing primitives"/>
+    <event counter="ARM_Mali-Midgard_BACK_FACING" title="Mali Tiler Culling" name="Back facing prims" description="Number of back facing primitives"/>
+    <event counter="ARM_Mali-Midgard_PRIM_VISIBLE" title="Mali Tiler Culling" name="Visible prims" description="Number of visible primitives"/>
+    <event counter="ARM_Mali-Midgard_PRIM_CULLED" title="Mali Tiler Culling" name="Culled prims" description="Number of culled primitives"/>
+    <event counter="ARM_Mali-Midgard_PRIM_CLIPPED" title="Mali Tiler Culling" name="Clipped prims" description="Number of clipped primitives"/>
+    <event counter="ARM_Mali-Midgard_LEVEL0" title="Mali Tiler Hierarchy" name="L0 prims" description="Number of primitives in hierarchy level 0"/>
+    <event counter="ARM_Mali-Midgard_LEVEL1" title="Mali Tiler Hierarchy" name="L1 prims" description="Number of primitives in hierarchy level 1"/>
+    <event counter="ARM_Mali-Midgard_LEVEL2" title="Mali Tiler Hierarchy" name="L2 prims" description="Number of primitives in hierarchy level 2"/>
+    <event counter="ARM_Mali-Midgard_LEVEL3" title="Mali Tiler Hierarchy" name="L3 prims" description="Number of primitives in hierarchy level 3"/>
+    <event counter="ARM_Mali-Midgard_LEVEL4" title="Mali Tiler Hierarchy" name="L4 prims" description="Number of primitives in hierarchy level 4"/>
+    <event counter="ARM_Mali-Midgard_LEVEL5" title="Mali Tiler Hierarchy" name="L5 prims" description="Number of primitives in hierarchy level 5"/>
+    <event counter="ARM_Mali-Midgard_LEVEL6" title="Mali Tiler Hierarchy" name="L6 prims" description="Number of primitives in hierarchy level 6"/>
+    <event counter="ARM_Mali-Midgard_LEVEL7" title="Mali Tiler Hierarchy" name="L7 prims" description="Number of primitives in hierarchy level 7"/>
+    <event counter="ARM_Mali-Midgard_COMMAND_1" title="Mali Tiler Commands" name="Prims in 1 command" description="Number of primitives producing 1 command"/>
+    <event counter="ARM_Mali-Midgard_COMMAND_2" title="Mali Tiler Commands" name="Prims in 2 command" description="Number of primitives producing 2 commands"/>
+    <event counter="ARM_Mali-Midgard_COMMAND_3" title="Mali Tiler Commands" name="Prims in 3 command" description="Number of primitives producing 3 commands"/>
+    <event counter="ARM_Mali-Midgard_COMMAND_4" title="Mali Tiler Commands" name="Prims in 4 command" description="Number of primitives producing 4 commands"/>
+    <event counter="ARM_Mali-Midgard_COMMAND_4_7" title="Mali Tiler Commands" name="Prims in 4-7 commands" description="Number of primitives producing 4-7 commands"/>
+    <event counter="ARM_Mali-Midgard_COMMAND_5_7" title="Mali Tiler Commands" name="Prims in 5-7 commands" description="Number of primitives producing 5-7 commands"/>
+    <event counter="ARM_Mali-Midgard_COMMAND_8_15" title="Mali Tiler Commands" name="Prims in 8-15 commands" description="Number of primitives producing 8-15 commands"/>
+    <event counter="ARM_Mali-Midgard_COMMAND_16_63" title="Mali Tiler Commands" name="Prims in 16-63 commands" description="Number of primitives producing 16-63 commands"/>
+    <event counter="ARM_Mali-Midgard_COMMAND_64" title="Mali Tiler Commands" name="Prims in &gt;= 64 commands" description="Number of primitives producing &gt;= 64 commands"/>
+  </category>
+  <category name="Mali-Midgard Shader Core" per_cpu="no">
+    <event counter="ARM_Mali-Midgard_TRIPIPE_ACTIVE" title="Mali Core Cycles" name="Tripipe cycles" description="Number of cycles the Tripipe was active"/>
+    <event counter="ARM_Mali-Midgard_FRAG_ACTIVE" title="Mali Core Cycles" name="Fragment cycles" description="Number of cycles fragment processing was active"/>
+    <event counter="ARM_Mali-Midgard_COMPUTE_ACTIVE" title="Mali Core Cycles" name="Compute cycles" description="Number of cycles vertex\compute processing was active"/>
+    <event counter="ARM_Mali-Midgard_FRAG_CYCLE_NO_TILE" title="Mali Core Cycles" name="Fragment cycles waiting for tile" description="Number of cycles spent waiting for a physical tile buffer"/>
+    <event counter="ARM_Mali-Midgard_FRAG_THREADS" title="Mali Core Threads" name="Fragment threads" description="Number of fragment threads started"/>
+    <event counter="ARM_Mali-Midgard_FRAG_DUMMY_THREADS" title="Mali Core Threads" name="Dummy fragment threads" description="Number of dummy fragment threads started"/>
+    <event counter="ARM_Mali-Midgard_FRAG_QUADS_LZS_TEST" title="Mali Core Threads" name="Frag threads doing late ZS" description="Number of threads doing late ZS test"/>
+    <event counter="ARM_Mali-Midgard_FRAG_QUADS_LZS_KILLED" title="Mali Core Threads" name="Frag threads killed late ZS" description="Number of threads killed by late ZS test"/>
+    <event counter="ARM_Mali-Midgard_FRAG_THREADS_LZS_TEST" title="Mali Core Threads" name="Frag threads doing late ZS" description="Number of threads doing late ZS test"/>
+    <event counter="ARM_Mali-Midgard_FRAG_THREADS_LZS_KILLED" title="Mali Core Threads" name="Frag threads killed late ZS" description="Number of threads killed by late ZS test"/>
+    <event counter="ARM_Mali-Midgard_COMPUTE_TASKS" title="Mali Compute Threads" name="Compute tasks" description="Number of compute tasks"/>
+    <event counter="ARM_Mali-Midgard_COMPUTE_THREADS" title="Mali Compute Threads" name="Compute threads started" description="Number of compute threads started"/>
+    <event counter="ARM_Mali-Midgard_COMPUTE_CYCLES_DESC" title="Mali Compute Threads" name="Compute cycles awaiting descriptors" description="Number of compute cycles spent waiting for descriptors"/>
+    <event counter="ARM_Mali-Midgard_FRAG_PRIMATIVES" title="Mali Fragment Primitives" name="Primitives loaded" description="Number of primitives loaded from tiler"/>
+    <event counter="ARM_Mali-Midgard_FRAG_PRIMATIVES_DROPPED" title="Mali Fragment Primitives" name="Primitives dropped" description="Number of primitives dropped because out of tile"/>
+    <event counter="ARM_Mali-Midgard_FRAG_PRIMITIVES" title="Mali Fragment Primitives" name="Primitives loaded" description="Number of primitives loaded from tiler"/>
+    <event counter="ARM_Mali-Midgard_FRAG_PRIMITIVES_DROPPED" title="Mali Fragment Primitives" name="Primitives dropped" description="Number of primitives dropped because out of tile"/>
+    <event counter="ARM_Mali-Midgard_FRAG_QUADS_RAST" title="Mali Fragment Quads" name="Quads rasterized" description="Number of quads rasterized"/>
+    <event counter="ARM_Mali-Midgard_FRAG_QUADS_EZS_TEST" title="Mali Fragment Quads" name="Quads doing early ZS" description="Number of quads doing early ZS test"/>
+    <event counter="ARM_Mali-Midgard_FRAG_QUADS_EZS_KILLED" title="Mali Fragment Quads" name="Quads killed early Z" description="Number of quads killed by early ZS test"/>
+    <event counter="ARM_Mali-Midgard_FRAG_NUM_TILES" title="Mali Fragment Tasks" name="Tiles rendered" description="Number of tiles rendered"/>
+    <event counter="ARM_Mali-Midgard_FRAG_TRANS_ELIM" title="Mali Fragment Tasks" name="Tile writes killed by TE" description="Number of tile writes skipped by transaction elimination"/>
+    <event counter="ARM_Mali-Midgard_ARITH_WORDS" title="Mali Arithmetic Pipe" name="A instructions" description="Number of instructions completed by the the A-pipe (normalized per pipeline)"/>
+    <event counter="ARM_Mali-Midgard_LS_WORDS" title="Mali Load/Store Pipe" name="LS instructions" description="Number of instructions completed by the LS-pipe"/>
+    <event counter="ARM_Mali-Midgard_LS_ISSUES" title="Mali Load/Store Pipe" name="LS instruction issues" description="Number of instructions issued to the LS-pipe, including restarts"/>
+    <event counter="ARM_Mali-Midgard_TEX_WORDS" title="Mali Texture Pipe" name="T instructions" description="Number of instructions completed by the T-pipe"/>
+    <event counter="ARM_Mali-Midgard_TEX_THREADS" title="Mali Texture Pipe" name="T instruction issues" description="Number of instructions issused to the T-pipe, including restarts"/>
+    <event counter="ARM_Mali-Midgard_TEX_RECIRC_FMISS" title="Mali Texture Pipe" name="Cache misses" description="Number of instructions in the T-pipe, recirculated due to cache miss"/>
+    <event counter="ARM_Mali-Midgard_LSC_READ_HITS" title="Mali Load/Store Cache" name="Read hits" description="Number of read hits in the Load/Store cache"/>
+    <event counter="ARM_Mali-Midgard_LSC_READ_MISSES" title="Mali Load/Store Cache" name="Read misses" description="Number of read misses in the Load/Store cache"/>
+    <event counter="ARM_Mali-Midgard_LSC_WRITE_HITS" title="Mali Load/Store Cache" name="Write hits" description="Number of write hits in the Load/Store cache"/>
+    <event counter="ARM_Mali-Midgard_LSC_WRITE_MISSES" title="Mali Load/Store Cache" name="Write misses" description="Number of write misses in the Load/Store cache"/>
+    <event counter="ARM_Mali-Midgard_LSC_ATOMIC_HITS" title="Mali Load/Store Cache" name="Atomic hits" description="Number of atomic hits in the Load/Store cache"/>
+    <event counter="ARM_Mali-Midgard_LSC_ATOMIC_MISSES" title="Mali Load/Store Cache" name="Atomic misses" description="Number of atomic misses in the Load/Store cache"/>
+    <event counter="ARM_Mali-Midgard_LSC_LINE_FETCHES" title="Mali Load/Store Cache" name="Line fetches" description="Number of line fetches in the Load/Store cache"/>
+    <event counter="ARM_Mali-Midgard_LSC_DIRTY_LINE" title="Mali Load/Store Cache" name="Dirty line evictions" description="Number of dirty line evictions in the Load/Store cache"/>
+    <event counter="ARM_Mali-Midgard_LSC_SNOOPS" title="Mali Load/Store Cache" name="Snoops in to LSC" description="Number of coherent memory snoops in to the Load/Store cache"/>
+  </category>
+  <category name="Mali-Midgard L2 and MMU" per_cpu="no">
+    <event counter="ARM_Mali-Midgard_L2_WRITE_BEATS" title="Mali L2 Cache" name="External write beats" description="Number of external bus write beats"/>
+    <event counter="ARM_Mali-Midgard_L2_READ_BEATS" title="Mali L2 Cache" name="External read beats" description="Number of external bus read beats"/>
+    <event counter="ARM_Mali-Midgard_L2_READ_SNOOP" title="Mali L2 Cache" name="Read snoops" description="Number of read transaction snoops"/>
+    <event counter="ARM_Mali-Midgard_L2_READ_HIT" title="Mali L2 Cache" name="L2 read hits" description="Number of reads hitting in the L2 cache"/>
+    <event counter="ARM_Mali-Midgard_L2_WRITE_SNOOP" title="Mali L2 Cache" name="Write snoops" description="Number of write transaction snoops"/>
+    <event counter="ARM_Mali-Midgard_L2_WRITE_HIT" title="Mali L2 Cache" name="L2 write hits" description="Number of writes hitting in the L2 cache"/>
+    <event counter="ARM_Mali-Midgard_L2_EXT_AR_STALL" title="Mali L2 Cache" name="External bus stalls (AR)" description="Number of cycles a valid read address (AR) is stalled by the external interconnect"/>
+    <event counter="ARM_Mali-Midgard_L2_EXT_W_STALL" title="Mali L2 Cache" name="External bus stalls (W)" description="Number of cycles a valid write data (W channel) is stalled by the external interconnect"/>
+  </category>
