@@ -130,6 +130,7 @@ extern void audit_putname(struct filename *name);
 #define AUDIT_INODE_HIDDEN	2	/* audit record should be hidden */
 extern void __audit_inode(struct filename *name, const struct dentry *dentry,
 				unsigned int flags);
+extern void __audit_file(const struct file *);
 extern void __audit_inode_child(const struct inode *parent,
 				const struct dentry *dentry,
 				const unsigned char type);
@@ -182,6 +183,11 @@ static inline void audit_inode(struct filename *name,
 			flags |= AUDIT_INODE_PARENT;
 		__audit_inode(name, dentry, flags);
 	}
+}
+static inline void audit_file(struct file *file)
+{
+	if (unlikely(!audit_dummy_context()))
+		__audit_file(file);
 }
 static inline void audit_inode_parent_hidden(struct filename *name,
 						const struct dentry *dentry)
@@ -357,6 +363,9 @@ static inline void audit_inode(struct filename *name,
 				const struct dentry *dentry,
 				unsigned int parent)
 { }
+static inline void audit_file(struct file *file)
+{
+}
 static inline void audit_inode_parent_hidden(struct filename *name,
 				const struct dentry *dentry)
 { }

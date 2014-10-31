@@ -1897,6 +1897,11 @@ out:
 	audit_copy_inode(n, dentry, inode);
 }
 
+void __audit_file(const struct file *file)
+{
+	__audit_inode(NULL, file->f_path.dentry, 0);
+}
+
 /**
  * __audit_inode_child - collect inode info for created/removed objects
  * @parent: inode of dentry parent
