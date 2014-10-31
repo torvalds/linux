@@ -863,8 +863,9 @@ static void das16_ai_munge(struct comedi_device *dev,
 			   unsigned int num_bytes,
 			   unsigned int start_chan_index)
 {
-	unsigned int i, num_samples = num_bytes / sizeof(short);
 	unsigned short *data = array;
+	unsigned int num_samples = comedi_bytes_to_samples(s, num_bytes);
+	unsigned int i;
 
 	for (i = 0; i < num_samples; i++) {
 		data[i] = le16_to_cpu(data[i]);
