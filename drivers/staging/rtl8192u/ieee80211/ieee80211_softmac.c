@@ -804,12 +804,11 @@ static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 	*(tag++) = ieee->current_network.channel;
 
 	if(atim_len){
-	u16 val16;
 		*(tag++) = MFIE_TYPE_IBSS_SET;
 		*(tag++) = 2;
-		//*((u16*)(tag)) = cpu_to_le16(ieee->current_network.atim_window);
-		 val16 = cpu_to_le16(ieee->current_network.atim_window);
-		memcpy((u8 *)tag, (u8 *)&val16, 2);
+
+		put_unaligned_le16(ieee->current_network.atim_window,
+				   (u8 *)tag);
 		tag+=2;
 	}
 
