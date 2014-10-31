@@ -74,7 +74,7 @@ static void altera_ps2_close(struct serio *io)
 {
 	struct ps2if *ps2if = io->port_data;
 
-	writel(0, ps2if->base); /* disable rx irq */
+	writel(0, ps2if->base + 4); /* disable rx irq */
 }
 
 /*
