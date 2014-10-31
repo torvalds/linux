@@ -215,6 +215,36 @@ struct exynos_drm_manager {
 	struct exynos_drm_manager_ops *ops;
 };
 
+enum exynos_crtc_mode {
+	CRTC_MODE_NORMAL,	/* normal mode */
+	CRTC_MODE_BLANK,	/* The private plane of crtc is blank */
+};
+
+/*
+ * Exynos specific crtc structure.
+ *
+ * @drm_crtc: crtc object.
+ * @manager: the manager associated with this crtc
+ * @pipe: a crtc index created at load() with a new crtc object creation
+ *	and the crtc object would be set to private->crtc array
+ *	to get a crtc object corresponding to this pipe from private->crtc
+ *	array when irq interrupt occurred. the reason of using this pipe is that
+ *	drm framework doesn't support multiple irq yet.
+ *	we can refer to the crtc to current hardware interrupt occurred through
+ *	this pipe value.
+ * @dpms: store the crtc dpms value
+ * @mode: store the crtc mode value
+ */
+struct exynos_drm_crtc {
+	struct drm_crtc			drm_crtc;
+	struct exynos_drm_manager	*manager;
+	unsigned int			pipe;
+	unsigned int			dpms;
+	enum exynos_crtc_mode		mode;
+	wait_queue_head_t		pending_flip_queue;
+	atomic_t			pending_flip;
+};
+
 struct exynos_drm_g2d_private {
 	struct device		*dev;
 	struct list_head	inuse_cmdlist;
