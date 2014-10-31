@@ -31,14 +31,14 @@
 /** Describes the state from the perspective of which controlvm messages have
  *  been received for a bus or device.
  */
-typedef struct {
+struct visorchipset_state {
 	u32 created:1;
 	u32 attached:1;
 	u32 configured:1;
 	u32 running:1;
 	/* Add new fields above. */
 	/* Remaining bits in this 32-bit word are unused. */
-} VISORCHIPSET_STATE;
+};
 
 typedef enum {
 	/** address is guest physical, but outside of the physical memory
@@ -80,7 +80,7 @@ typedef struct {
 	u32 busNo;
 	u32 devNo;
 	uuid_le devInstGuid;
-	VISORCHIPSET_STATE state;
+	struct visorchipset_state state;
 	VISORCHIPSET_CHANNEL_INFO chanInfo;
 	u32 Reserved1;		/* control_vm_id */
 	u64 Reserved2;
@@ -125,7 +125,7 @@ static inline void delbusdevices(struct list_head *list, u32 busNo)
 typedef struct {
 	struct list_head entry;
 	u32 busNo;
-	VISORCHIPSET_STATE state;
+	struct visorchipset_state state;
 	VISORCHIPSET_CHANNEL_INFO chanInfo;
 	uuid_le partitionGuid;
 	u64 partitionHandle;
@@ -162,7 +162,7 @@ findbus(struct list_head *list, u32 busNo)
  */
 typedef struct {
 	u32 switchNo;
-	VISORCHIPSET_STATE state;
+	struct visorchipset_state state;
 	uuid_le switchTypeGuid;
 	u8 *authService1;
 	u8 *authService2;
@@ -182,7 +182,7 @@ typedef struct {
 typedef struct {
 	u32 switchNo;
 	u32 externalPortNo;
-	VISORCHIPSET_STATE state;
+	struct visorchipset_state state;
 	uuid_le networkZoneGuid;
 	int pdPort;
 	u8 *ip;
@@ -205,7 +205,7 @@ typedef struct {
 typedef struct {
 	u32 switchNo;
 	u32 internalPortNo;
-	VISORCHIPSET_STATE state;
+	struct visorchipset_state state;
 	u32 busNo;		/* valid only when state.attached == 1 */
 	u32 devNo;		/* valid only when state.attached == 1 */
 	u64 Reserved1;
