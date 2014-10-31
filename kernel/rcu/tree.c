@@ -2329,6 +2329,10 @@ static void rcu_cleanup_dying_cpu(struct rcu_state *rsp)
 {
 }
 
+static void __maybe_unused rcu_cleanup_dead_rnp(struct rcu_node *rnp_leaf)
+{
+}
+
 static void rcu_cleanup_dead_cpu(int cpu, struct rcu_state *rsp)
 {
 }
