@@ -29,6 +29,7 @@ struct mmp_clk_factor {
 	struct mmp_clk_factor_masks	*masks;
 	struct mmp_clk_factor_tbl	*ftbl;
 	unsigned int		ftbl_cnt;
+	spinlock_t *lock;
 };
 
 static long clk_factor_round_rate(struct clk_hw *hw, unsigned long drate,
@@ -86,6 +87,7 @@ static int clk_factor_set_rate(struct clk_hw *hw, unsigned long drate,
 	int i;
 	unsigned long val;
 	unsigned long prev_rate, rate = 0;
+	unsigned long flags = 0;
 
 	for (i = 0; i < factor->ftbl_cnt; i++) {
 		prev_rate = rate;
@@ -97,6 +99,9 @@ static int clk_factor_set_rate(struct clk_hw *hw, unsigned long drate,
 	if (i > 0)
 		i--;
 
+	if (factor->lock)
+		spin_lock_irqsave(factor->lock, flags);
+
 	val = readl_relaxed(factor->base);
 
 	val &= ~(masks->num_mask << masks->num_shift);
@@ -106,6 +111,9 @@ static int clk_factor_set_rate(struct clk_hw *hw, unsigned long drate,
 	val |= (factor->ftbl[i].den & masks->den_mask) << masks->den_shift;
 
 	writel_relaxed(val, factor->base);
+
+	if (factor->lock)
+		spin_unlock_irqrestore(factor->lock, flags);
 
 	return 0;
 }
@@ -120,7 +128,7 @@ struct clk *mmp_clk_register_factor(const char *name, const char *parent_name,
 		unsigned long flags, void __iomem *base,
 		struct mmp_clk_factor_masks *masks,
 		struct mmp_clk_factor_tbl *ftbl,
-		unsigned int ftbl_cnt)
+		unsigned int ftbl_cnt, spinlock_t *lock)
 {
 	struct mmp_clk_factor *factor;
 	struct clk_init_data init;
@@ -143,6 +151,7 @@ struct clk *mmp_clk_register_factor(const char *name, const char *parent_name,
 	factor->ftbl = ftbl;
 	factor->ftbl_cnt = ftbl_cnt;
 	factor->hw.init = &init;
+	factor->lock = lock;
 
 	init.name = name;
 	init.ops = &clk_factor_ops;

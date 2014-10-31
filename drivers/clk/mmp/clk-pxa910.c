@@ -163,7 +163,7 @@ void __init pxa910_clk_init(void)
 	uart_pll =  mmp_clk_register_factor("uart_pll", "pll1_4", 0,
 				mpmu_base + MPMU_UART_PLL,
 				&uart_factor_masks, uart_factor_tbl,
-				ARRAY_SIZE(uart_factor_tbl));
+				ARRAY_SIZE(uart_factor_tbl), &clk_lock);
 	clk_set_rate(uart_pll, 14745600);
 	clk_register_clkdev(uart_pll, "uart_pll", NULL);
 
