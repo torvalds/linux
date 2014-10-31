@@ -526,7 +526,7 @@ void rtw_init_pwrctrl_priv(struct adapter *padapter)
 
 	pwrctrlpriv->LpsIdleCount = 0;
 	if (padapter->registrypriv.mp_mode == 1)
-		pwrctrlpriv->power_mgnt = PS_MODE_ACTIVE ;
+		pwrctrlpriv->power_mgnt = PS_MODE_ACTIVE;
 	else
 		pwrctrlpriv->power_mgnt = padapter->registrypriv.power_mgnt;/*  PS_MODE_MIN; */
 	pwrctrlpriv->bLeisurePs = (PS_MODE_ACTIVE != pwrctrlpriv->power_mgnt) ? true : false;
