@@ -558,8 +558,6 @@ void comedi_driver_unregister(struct comedi_driver *);
 	module_driver(__comedi_driver, comedi_driver_register, \
 			comedi_driver_unregister)
 
-#ifdef CONFIG_COMEDI_PCI_DRIVERS
-
 /* comedi_pci.c - comedi PCI driver specific functions */
 
 /*
@@ -603,10 +601,6 @@ void comedi_pci_driver_unregister(struct comedi_driver *, struct pci_driver *);
 	module_driver(__comedi_driver, comedi_pci_driver_register, \
 			comedi_pci_driver_unregister, &(__pci_driver))
 
-#endif /* CONFIG_COMEDI_PCI_DRIVERS */
-
-#ifdef CONFIG_COMEDI_PCMCIA_DRIVERS
-
 /* comedi_pcmcia.c - comedi PCMCIA driver specific functions */
 
 struct pcmcia_driver;
@@ -640,10 +634,6 @@ void comedi_pcmcia_driver_unregister(struct comedi_driver *,
 	module_driver(__comedi_driver, comedi_pcmcia_driver_register, \
 			comedi_pcmcia_driver_unregister, &(__pcmcia_driver))
 
-#endif /* CONFIG_COMEDI_PCMCIA_DRIVERS */
-
-#ifdef CONFIG_COMEDI_USB_DRIVERS
-
 /* comedi_usb.c - comedi USB driver specific functions */
 
 struct usb_driver;
@@ -672,7 +662,5 @@ void comedi_usb_driver_unregister(struct comedi_driver *, struct usb_driver *);
 #define module_comedi_usb_driver(__comedi_driver, __usb_driver) \
 	module_driver(__comedi_driver, comedi_usb_driver_register, \
 			comedi_usb_driver_unregister, &(__usb_driver))
-
-#endif /* CONFIG_COMEDI_USB_DRIVERS */
 
 #endif /* _COMEDIDEV_H */
