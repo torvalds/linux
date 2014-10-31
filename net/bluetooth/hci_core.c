@@ -1147,12 +1147,14 @@ struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
 
 	hdev->req_status = HCI_REQ_PEND;
 
-	err = hci_req_run(&req, hci_req_sync_complete);
-	if (err < 0)
-		return ERR_PTR(err);
-
 	add_wait_queue(&hdev->req_wait_q, &wait);
 	set_current_state(TASK_INTERRUPTIBLE);
+
+	err = hci_req_run(&req, hci_req_sync_complete);
+	if (err < 0) {
+		remove_wait_queue(&hdev->req_wait_q, &wait);
+		return ERR_PTR(err);
+	}
 
 	schedule_timeout(timeout);
 
@@ -1211,9 +1213,14 @@ static int __hci_req_sync(struct hci_dev *hdev,
 
 	func(&req, opt);
 
+	add_wait_queue(&hdev->req_wait_q, &wait);
+	set_current_state(TASK_INTERRUPTIBLE);
+
 	err = hci_req_run(&req, hci_req_sync_complete);
 	if (err < 0) {
 		hdev->req_status = 0;
+
+		remove_wait_queue(&hdev->req_wait_q, &wait);
 
 		/* ENODATA means the HCI request command queue is empty.
 		 * This can happen when a request with conditionals doesn't
@@ -1225,9 +1232,6 @@ static int __hci_req_sync(struct hci_dev *hdev,
 
 		return err;
 	}
-
-	add_wait_queue(&hdev->req_wait_q, &wait);
-	set_current_state(TASK_INTERRUPTIBLE);
 
 	schedule_timeout(timeout);
 
