@@ -114,28 +114,25 @@ s/390 z/Architecture
 
 16-17 16-17   Address Space Control
 
-	      00 Primary Space Mode when DAT on
-	      The linux kernel currently runs in this mode, CR1 is affiliated with 
-              this mode & points to the primary segment table origin etc.
+	      00 Primary Space Mode:
+	      The register CR1 contains the primary address-space control ele-
+	      ment (PASCE), which points to the primary space region/segment
+	      table origin.
 
-	      01 Access register mode this mode is used in functions to 
-	      copy data between kernel & user space.
+	      01 Access register mode
 
-	      10 Secondary space mode not used in linux however CR7 the
-	      register affiliated with this mode is & this & normally
-	      CR13=CR7 to allow us to copy data between kernel & user space.
-	      We do this as follows:
-	      We set ar2 to 0 to designate its
-	      affiliated gpr ( gpr2 )to point to primary=kernel space.
-	      We set ar4 to 1 to designate its
-	      affiliated gpr ( gpr4 ) to point to secondary=home=user space
-	      & then essentially do a memcopy(gpr2,gpr4,size) to
-	      copy data between the address spaces, the reason we use home space for the
-	      kernel & don't keep secondary space free is that code will not run in 
-	      secondary space.
+	      10 Secondary Space Mode:
+	      The register CR7 contains the secondary address-space control
+	      element (SASCE), which points to the secondary space region or
+	      segment table origin.
 
-	      11 Home Space Mode all user programs run in this mode.
-	      it is affiliated with CR13.
+	      11 Home Space Mode:
+	      The register CR13 contains the home space address-space control
+	      element (HASCE), which points to the home space region/segment
+	      table origin.
+
+	      See "Address Spaces on Linux for s/390 & z/Architecture" below
+	      for more information about address space usage in Linux.
 
 18-19 18-19   Condition codes (CC)
 
@@ -249,9 +246,9 @@ currently 4TB of physical memory currently on z/Architecture.
 Address Spaces on Linux for s/390 & z/Architecture
 ==================================================
 
-Our addressing scheme is as follows
+Our addressing scheme is basically as follows:
 
-
+				   Primary Space	       Home Space
 Himem 0x7fffffff 2GB on s/390    *****************          ****************
 currently 0x3ffffffffff (2^42)-1 *  User Stack   *          *              *
 on z/Architecture.		 *****************          *              *
@@ -264,9 +261,46 @@ on z/Architecture.		 *****************          *              *
             			 *   Sections    *          *              *
 0x00000000                       *****************          ****************
 
-This also means that we need to look at the PSW problem state bit
-or the addressing mode to decide whether we are looking at
-user or kernel space.
+This also means that we need to look at the PSW problem state bit and the
+addressing mode to decide whether we are looking at user or kernel space.
+
+User space runs in primary address mode (or access register mode within
+the vdso code).
+
+The kernel usually also runs in home space mode, however when accessing
+user space the kernel switches to primary or secondary address mode if
+the mvcos instruction is not available or if a compare-and-swap (futex)
+instruction on a user space address is performed.
+
+When also looking at the ASCE control registers, this means:
+
+User space:
+- runs in primary or access register mode
+- cr1 contains the user asce
+- cr7 contains the user asce
+- cr13 contains the kernel asce
+
+Kernel space:
+- runs in home space mode
+- cr1 contains the user or kernel asce
+  -> the kernel asce is loaded when a uaccess requires primary or
+     secondary address mode
+- cr7 contains the user or kernel asce, (changed with set_fs())
+- cr13 contains the kernel asce
+
+In case of uaccess the kernel changes to:
+- primary space mode in case of a uaccess (copy_to_user) and uses
+  e.g. the mvcp instruction to access user space. However the kernel
+  will stay in home space mode if the mvcos instruction is available
+- secondary space mode in case of futex atomic operations, so that the
+  instructions come from primary address space and data from secondary
+  space
+
+In case of KVM, the kernel runs in home space mode, but cr1 gets switched
+to contain the gmap asce before the SIE instruction gets executed. When
+the SIE instruction is finished, cr1 will be switched back to contain the
+user asce.
+
 
 Virtual Addresses on s/390 & z/Architecture
 ===========================================
