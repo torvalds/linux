@@ -172,6 +172,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_TDLS_IDLE_TIMEOUT  (PROPRIETARY_TLV_BASE_ID + 194)
 #define TLV_TYPE_SCAN_CHANNEL_GAP   (PROPRIETARY_TLV_BASE_ID + 197)
 #define TLV_TYPE_API_REV            (PROPRIETARY_TLV_BASE_ID + 199)
+#define TLV_TYPE_CHANNEL_STATS      (PROPRIETARY_TLV_BASE_ID + 198)
 
 #define MWIFIEX_TX_DATA_BUF_SIZE_2K        2048
 
@@ -611,6 +612,16 @@ struct uap_rxpd {
 	u8 reserved1;
 };
 
+struct mwifiex_fw_chan_stats {
+	u8 chan_num;
+	u8 bandcfg;
+	u8 flags;
+	s8 noise;
+	__le16 total_bss;
+	__le16 cca_scan_dur;
+	__le16 cca_busy_dur;
+} __packed;
+
 enum mwifiex_chan_scan_mode_bitmasks {
 	MWIFIEX_PASSIVE_SCAN = BIT(0),
 	MWIFIEX_DISABLE_CHAN_FILT = BIT(1),
@@ -658,6 +669,11 @@ struct mwifiex_ie_types_scan_chan_gap {
 	struct mwifiex_ie_types_header header;
 	/* time gap in TUs to be used between two consecutive channels scan */
 	__le16 chan_gap;
+} __packed;
+
+struct mwifiex_ietypes_chanstats {
+	struct mwifiex_ie_types_header header;
+	struct mwifiex_fw_chan_stats chanstats[0];
 } __packed;
 
 struct mwifiex_ie_types_wildcard_ssid_params {

@@ -185,4 +185,14 @@ struct mwifiex_arp_eth_header {
 	u8 ar_tha[ETH_ALEN];
 	u8 ar_tip[4];
 } __packed;
+
+struct mwifiex_chan_stats {
+	u8 chan_num;
+	u8 bandcfg;
+	u8 flags;
+	s8 noise;
+	u16 total_bss;
+	u16 cca_scan_dur;
+	u16 cca_busy_dur;
+} __packed;
 #endif /* !_MWIFIEX_DECL_H_ */

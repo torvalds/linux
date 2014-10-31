@@ -844,6 +844,9 @@ struct mwifiex_adapter {
 	u8 curr_mem_idx;
 	bool scan_chan_gap_enabled;
 	struct sk_buff_head rx_data_q;
+	struct mwifiex_chan_stats *chan_stats;
+	u32 num_in_chan_stats;
+	int survey_idx;
 };
 
 int mwifiex_init_lock_list(struct mwifiex_adapter *adapter);
@@ -1030,7 +1033,8 @@ void mwifiex_set_11ac_ba_params(struct mwifiex_private *priv);
 int mwifiex_cmd_802_11_scan_ext(struct mwifiex_private *priv,
 				struct host_cmd_ds_command *cmd,
 				void *data_buf);
-int mwifiex_ret_802_11_scan_ext(struct mwifiex_private *priv);
+int mwifiex_ret_802_11_scan_ext(struct mwifiex_private *priv,
+				struct host_cmd_ds_command *resp);
 int mwifiex_handle_event_ext_scan_report(struct mwifiex_private *priv,
 					 void *buf);
 

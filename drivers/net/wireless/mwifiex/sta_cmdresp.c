@@ -983,7 +983,7 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		adapter->curr_cmd->wait_q_enabled = false;
 		break;
 	case HostCmd_CMD_802_11_SCAN_EXT:
-		ret = mwifiex_ret_802_11_scan_ext(priv);
+		ret = mwifiex_ret_802_11_scan_ext(priv, resp);
 		adapter->curr_cmd->wait_q_enabled = false;
 		break;
 	case HostCmd_CMD_802_11_BG_SCAN_QUERY:
