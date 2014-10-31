@@ -274,7 +274,7 @@ struct gpio_led_platform_data {
 #define GPIO_LED_NO_BLINK_LOW	0	/* No blink GPIO state low */
 #define GPIO_LED_NO_BLINK_HIGH	1	/* No blink GPIO state high */
 #define GPIO_LED_BLINK		2	/* Please, blink */
-	int		(*gpio_blink_set)(unsigned gpio, int state,
+	int		(*gpio_blink_set)(struct gpio_desc *desc, int state,
 					unsigned long *delay_on,
 					unsigned long *delay_off);
 };

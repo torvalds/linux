@@ -28,7 +28,7 @@ struct gpio_led_data {
 	u8 new_level;
 	u8 can_sleep;
 	u8 blinking;
-	int (*platform_gpio_blink_set)(unsigned gpio, int state,
+	int (*platform_gpio_blink_set)(struct gpio_desc *desc, int state,
 			unsigned long *delay_on, unsigned long *delay_off);
 };
 
@@ -38,13 +38,8 @@ static void gpio_led_work(struct work_struct *work)
 		container_of(work, struct gpio_led_data, work);
 
 	if (led_dat->blinking) {
-		int gpio = desc_to_gpio(led_dat->gpiod);
-		int level = led_dat->new_level;
-
-		if (gpiod_is_active_low(led_dat->gpiod))
-			level = !level;
-
-		led_dat->platform_gpio_blink_set(gpio, level, NULL, NULL);
+		led_dat->platform_gpio_blink_set(led_dat->gpiod,
+					led_dat->new_level, NULL, NULL);
 		led_dat->blinking = 0;
 	} else
 		gpiod_set_value_cansleep(led_dat->gpiod, led_dat->new_level);
@@ -71,13 +66,8 @@ static void gpio_led_set(struct led_classdev *led_cdev,
 		schedule_work(&led_dat->work);
 	} else {
 		if (led_dat->blinking) {
-			int gpio = desc_to_gpio(led_dat->gpiod);
-
-			if (gpiod_is_active_low(led_dat->gpiod))
-				level = !level;
-
-			led_dat->platform_gpio_blink_set(gpio, level, NULL,
-							 NULL);
+			led_dat->platform_gpio_blink_set(led_dat->gpiod, level,
+							 NULL, NULL);
 			led_dat->blinking = 0;
 		} else
 			gpiod_set_value(led_dat->gpiod, level);
@@ -89,20 +79,25 @@ static int gpio_blink_set(struct led_classdev *led_cdev,
 {
 	struct gpio_led_data *led_dat =
 		container_of(led_cdev, struct gpio_led_data, cdev);
-	int gpio = desc_to_gpio(led_dat->gpiod);
 
 	led_dat->blinking = 1;
-	return led_dat->platform_gpio_blink_set(gpio, GPIO_LED_BLINK,
+	return led_dat->platform_gpio_blink_set(led_dat->gpiod, GPIO_LED_BLINK,
 						delay_on, delay_off);
 }
 
 static int create_gpio_led(const struct gpio_led *template,
 	struct gpio_led_data *led_dat, struct device *parent,
-	int (*blink_set)(unsigned, int, unsigned long *, unsigned long *))
+	int (*blink_set)(struct gpio_desc *, int, unsigned long *,
+			 unsigned long *))
 {
 	int ret, state;
 
 	if (!template->gpiod) {
+		/*
+		 * This is the legacy code path for platform code that
+		 * still uses GPIO numbers. Ultimately we would like to get
+		 * rid of this block completely.
+		 */
 		unsigned long flags = 0;
 
 		/* skip leds that aren't available */
