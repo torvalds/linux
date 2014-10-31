@@ -2276,7 +2276,6 @@ static void rcu_cleanup_dead_rnp(struct rcu_node *rnp_leaf)
 static void rcu_cleanup_dead_cpu(int cpu, struct rcu_state *rsp)
 {
 	unsigned long flags;
-	int need_report = 0;
 	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
 	struct rcu_node *rnp = rdp->mynode;  /* Outgoing CPU's rdp & rnp. */
 
@@ -2295,25 +2294,10 @@ static void rcu_cleanup_dead_cpu(int cpu, struct rcu_state *rsp)
 	raw_spin_lock(&rnp->lock);	/* irqs already disabled. */
 	smp_mb__after_unlock_lock();	/* Enforce GP memory-order guarantee. */
 	rnp->qsmaskinit &= ~rdp->grpmask;
-	if (rnp->qsmaskinit == 0) {
-		need_report = rcu_preempt_offline_tasks(rsp, rnp, rdp);
+	if (rnp->qsmaskinit == 0 && !rcu_preempt_has_tasks(rnp))
 		rcu_cleanup_dead_rnp(rnp);
-	}
-
-	/*
-	 * We still hold the leaf rcu_node structure lock here, and
-	 * irqs are still disabled.  The reason for this subterfuge is
-	 * because invoking rcu_report_unblock_qs_rnp() with ->orphan_lock
-	 * held leads to deadlock.
-	 */
 	raw_spin_unlock(&rsp->orphan_lock); /* irqs remain disabled. */
-	rnp = rdp->mynode;
-	if (need_report & RCU_OFL_TASKS_NORM_GP)
-		rcu_report_unblock_qs_rnp(rnp, flags);
-	else
-		raw_spin_unlock_irqrestore(&rnp->lock, flags);
-	if (need_report & RCU_OFL_TASKS_EXP_GP)
-		rcu_report_exp_rnp(rsp, rnp, true);
+	raw_spin_unlock_irqrestore(&rnp->lock, flags);
 	WARN_ONCE(rdp->qlen != 0 || rdp->nxtlist != NULL,
 		  "rcu_cleanup_dead_cpu: Callbacks on offline CPU %d: qlen=%lu, nxtlist=%p\n",
 		  cpu, rdp->qlen, rdp->nxtlist);

@@ -103,6 +103,8 @@ RCU_STATE_INITIALIZER(rcu_preempt, 'p', call_rcu);
 static struct rcu_state *rcu_state_p = &rcu_preempt_state;
 
 static int rcu_preempted_readers_exp(struct rcu_node *rnp);
+static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp,
+			       bool wake);
 
 /*
  * Tell them what RCU they are running.
@@ -545,92 +547,6 @@ static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp)
 
 #ifdef CONFIG_HOTPLUG_CPU
 
-/*
- * Handle tasklist migration for case in which all CPUs covered by the
- * specified rcu_node have gone offline.  Move them up to the root
- * rcu_node.  The reason for not just moving them to the immediate
- * parent is to remove the need for rcu_read_unlock_special() to
- * make more than two attempts to acquire the target rcu_node's lock.
- * Returns true if there were tasks blocking the current RCU grace
- * period.
- *
- * Returns 1 if there was previously a task blocking the current grace
- * period on the specified rcu_node structure.
- *
- * The caller must hold rnp->lock with irqs disabled.
- */
-static int rcu_preempt_offline_tasks(struct rcu_state *rsp,
-				     struct rcu_node *rnp,
-				     struct rcu_data *rdp)
-{
-	struct list_head *lp;
-	struct list_head *lp_root;
-	int retval = 0;
-	struct rcu_node *rnp_root = rcu_get_root(rsp);
-	struct task_struct *t;
-
-	if (rnp == rnp_root) {
-		WARN_ONCE(1, "Last CPU thought to be offlined?");
-		return 0;  /* Shouldn't happen: at least one CPU online. */
-	}
-
-	/* If we are on an internal node, complain bitterly. */
-	WARN_ON_ONCE(rnp != rdp->mynode);
-
-	/*
-	 * Move tasks up to root rcu_node.  Don't try to get fancy for
-	 * this corner-case operation -- just put this node's tasks
-	 * at the head of the root node's list, and update the root node's
-	 * ->gp_tasks and ->exp_tasks pointers to those of this node's,
-	 * if non-NULL.  This might result in waiting for more tasks than
-	 * absolutely necessary, but this is a good performance/complexity
-	 * tradeoff.
-	 */
-	if (rcu_preempt_blocked_readers_cgp(rnp) && rnp->qsmask == 0)
-		retval |= RCU_OFL_TASKS_NORM_GP;
-	if (rcu_preempted_readers_exp(rnp))
-		retval |= RCU_OFL_TASKS_EXP_GP;
-	lp = &rnp->blkd_tasks;
-	lp_root = &rnp_root->blkd_tasks;
-	while (!list_empty(lp)) {
-		t = list_entry(lp->next, typeof(*t), rcu_node_entry);
-		raw_spin_lock(&rnp_root->lock); /* irqs already disabled */
-		smp_mb__after_unlock_lock();
-		list_del(&t->rcu_node_entry);
-		t->rcu_blocked_node = rnp_root;
-		list_add(&t->rcu_node_entry, lp_root);
-		if (&t->rcu_node_entry == rnp->gp_tasks)
-			rnp_root->gp_tasks = rnp->gp_tasks;
-		if (&t->rcu_node_entry == rnp->exp_tasks)
-			rnp_root->exp_tasks = rnp->exp_tasks;
-#ifdef CONFIG_RCU_BOOST
-		if (&t->rcu_node_entry == rnp->boost_tasks)
-			rnp_root->boost_tasks = rnp->boost_tasks;
-#endif /* #ifdef CONFIG_RCU_BOOST */
-		raw_spin_unlock(&rnp_root->lock); /* irqs still disabled */
-	}
-
-	rnp->gp_tasks = NULL;
-	rnp->exp_tasks = NULL;
-#ifdef CONFIG_RCU_BOOST
-	rnp->boost_tasks = NULL;
-	/*
-	 * In case root is being boosted and leaf was not.  Make sure
-	 * that we boost the tasks blocking the current grace period
-	 * in this case.
-	 */
-	raw_spin_lock(&rnp_root->lock); /* irqs already disabled */
-	smp_mb__after_unlock_lock();
-	if (rnp_root->boost_tasks != NULL &&
-	    rnp_root->boost_tasks != rnp_root->gp_tasks &&
-	    rnp_root->boost_tasks != rnp_root->exp_tasks)
-		rnp_root->boost_tasks = rnp_root->gp_tasks;
-	raw_spin_unlock(&rnp_root->lock); /* irqs still disabled */
-#endif /* #ifdef CONFIG_RCU_BOOST */
-
-	return retval;
-}
-
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
 
 /*
@@ -979,13 +895,6 @@ static int rcu_preempt_blocked_readers_cgp(struct rcu_node *rnp)
 
 #ifdef CONFIG_HOTPLUG_CPU
 
-/* Because preemptible RCU does not exist, no quieting of tasks. */
-static void rcu_report_unblock_qs_rnp(struct rcu_node *rnp, unsigned long flags)
-	__releases(rnp->lock)
-{
-	raw_spin_unlock_irqrestore(&rnp->lock, flags);
-}
-
 /*
  * Because there is no preemptible RCU, there can be no readers blocked.
  */
@@ -1023,23 +932,6 @@ static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp)
 	WARN_ON_ONCE(rnp->qsmask);
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-
-/*
- * Because preemptible RCU does not exist, it never needs to migrate
- * tasks that were blocked within RCU read-side critical sections, and
- * such non-existent tasks cannot possibly have been blocking the current
- * grace period.
- */
-static int rcu_preempt_offline_tasks(struct rcu_state *rsp,
-				     struct rcu_node *rnp,
-				     struct rcu_data *rdp)
-{
-	return 0;
-}
-
-#endif /* #ifdef CONFIG_HOTPLUG_CPU */
-
 /*
  * Because preemptible RCU does not exist, it never has any callbacks
  * to check.
@@ -1057,20 +949,6 @@ void synchronize_rcu_expedited(void)
 	synchronize_sched_expedited();
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu_expedited);
-
-#ifdef CONFIG_HOTPLUG_CPU
-
-/*
- * Because preemptible RCU does not exist, there is never any need to
- * report on tasks preempted in RCU read-side critical sections during
- * expedited RCU grace periods.
- */
-static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp,
-			       bool wake)
-{
-}
-
-#endif /* #ifdef CONFIG_HOTPLUG_CPU */
 
 /*
  * Because preemptible RCU does not exist, rcu_barrier() is just
