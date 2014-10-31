@@ -104,6 +104,7 @@ dtb-$(CONFIG_MACH_KIRKWOOD) += kirkwood-b3.dtb \
 	kirkwood-d2net.dtb \
 	kirkwood-db-88f6281.dtb \
 	kirkwood-db-88f6282.dtb \
+	kirkwood-dir665.dtb \
 	kirkwood-dns320.dtb \
 	kirkwood-dns325.dtb \
 	kirkwood-dockstar.dtb \
