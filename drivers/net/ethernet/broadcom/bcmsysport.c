@@ -1175,6 +1175,13 @@ static void bcm_sysport_fini_tx_ring(struct bcm_sysport_priv *priv,
 	if (!(reg & TDMA_DISABLED))
 		netdev_warn(priv->netdev, "TDMA not stopped!\n");
 
+	/* ring->cbs is the last part in bcm_sysport_init_tx_ring which could
+	 * fail, so by checking this pointer we know whether the TX ring was
+	 * fully initialized or not.
+	 */
+	if (!ring->cbs)
+		return;
+
 	napi_disable(&ring->napi);
 	netif_napi_del(&ring->napi);
 
