@@ -43,7 +43,7 @@
 #include "rk_pcm.h"
 
 #undef  DEBUG_SPDIF
-#define DEBUG_SPDIF 1
+#define DEBUG_SPDIF 0
 
 #if DEBUG_SPDIF
 #define RK_SPDIF_DBG(x...) pr_info("rk_spdif:"x)
