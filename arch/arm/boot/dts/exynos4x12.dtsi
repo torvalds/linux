@@ -225,7 +225,7 @@
 				 <&clock CLK_DIV_ISP0>,<&clock CLK_DIV_ISP1>,
 				 <&clock CLK_DIV_MCUISP0>,
 				 <&clock CLK_DIV_MCUISP1>,
-				 <&clock CLK_SCLK_UART_ISP>,
+				 <&clock CLK_UART_ISP_SCLK>,
 				 <&clock CLK_ACLK200>, <&clock CLK_DIV_ACLK200>,
 				 <&clock CLK_ACLK400_MCUISP>,
 				 <&clock CLK_DIV_ACLK400_MCUISP>;
