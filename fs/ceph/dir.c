@@ -123,7 +123,7 @@ static int __dcache_readdir(struct file *file,  struct dir_context *ctx,
 			    u32 shared_gen)
 {
 	struct ceph_file_info *fi = file->private_data;
-	struct dentry *parent = file->f_dentry;
+	struct dentry *parent = file->f_path.dentry;
 	struct inode *dir = parent->d_inode;
 	struct list_head *p;
 	struct dentry *dentry, *last;
@@ -274,7 +274,7 @@ static int ceph_readdir(struct file *file, struct dir_context *ctx)
 		off = 1;
 	}
 	if (ctx->pos == 1) {
-		ino_t ino = parent_ino(file->f_dentry);
+		ino_t ino = parent_ino(file->f_path.dentry);
 		dout("readdir off 1 -> '..'\n");
 		if (!dir_emit(ctx, "..", 2,
 			    ceph_translate_ino(inode->i_sb, ino),
@@ -337,7 +337,7 @@ more:
 		}
 		req->r_inode = inode;
 		ihold(inode);
-		req->r_dentry = dget(file->f_dentry);
+		req->r_dentry = dget(file->f_path.dentry);
 		/* hints to request -> mds selection code */
 		req->r_direct_mode = USE_AUTH_MDS;
 		req->r_direct_hash = ceph_frag_value(frag);

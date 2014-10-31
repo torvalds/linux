@@ -211,7 +211,7 @@ int ceph_open(struct inode *inode, struct file *file)
 
 	req->r_num_caps = 1;
 	if (flags & O_CREAT)
-		parent_inode = ceph_get_dentry_parent_inode(file->f_dentry);
+		parent_inode = ceph_get_dentry_parent_inode(file->f_path.dentry);
 	err = ceph_mdsc_do_request(mdsc, parent_inode, req);
 	iput(parent_inode);
 	if (!err)

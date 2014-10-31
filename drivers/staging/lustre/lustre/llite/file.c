@@ -2092,7 +2092,7 @@ putgl:
 	rc = 0;
 	if (llss->ia2.ia_valid != 0) {
 		mutex_lock(&llss->inode1->i_mutex);
-		rc = ll_setattr(file1->f_dentry, &llss->ia2);
+		rc = ll_setattr(file1->f_path.dentry, &llss->ia2);
 		mutex_unlock(&llss->inode1->i_mutex);
 	}
 
@@ -2100,7 +2100,7 @@ putgl:
 		int rc1;
 
 		mutex_lock(&llss->inode2->i_mutex);
-		rc1 = ll_setattr(file2->f_dentry, &llss->ia1);
+		rc1 = ll_setattr(file2->f_path.dentry, &llss->ia1);
 		mutex_unlock(&llss->inode2->i_mutex);
 		if (rc == 0)
 			rc = rc1;
@@ -2185,7 +2185,7 @@ static int ll_hsm_import(struct inode *inode, struct file *file,
 
 	mutex_lock(&inode->i_mutex);
 
-	rc = ll_setattr_raw(file->f_dentry, attr, true);
+	rc = ll_setattr_raw(file->f_path.dentry, attr, true);
 	if (rc == -ENODATA)
 		rc = 0;
 
@@ -2621,12 +2621,6 @@ int cl_sync_file_range(struct inode *inode, loff_t start, loff_t end,
 
 	return result;
 }
-
-/*
- * When dentry is provided (the 'else' case), *file->f_dentry may be
- * null and dentry must be used directly rather than pulled from
- * *file->f_dentry as is done otherwise.
- */
 
 int ll_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {

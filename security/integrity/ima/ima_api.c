@@ -196,7 +196,7 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 {
 	const char *audit_cause = "failed";
 	struct inode *inode = file_inode(file);
-	const char *filename = file->f_dentry->d_name.name;
+	const char *filename = file->f_path.dentry->d_name.name;
 	int result = 0;
 	struct {
 		struct ima_digest_data hdr;
@@ -204,7 +204,7 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 	} hash;
 
 	if (xattr_value)
-		*xattr_len = ima_read_xattr(file->f_dentry, xattr_value);
+		*xattr_len = ima_read_xattr(file->f_path.dentry, xattr_value);
 
 	if (!(iint->flags & IMA_COLLECTED)) {
 		u64 i_version = file_inode(file)->i_version;

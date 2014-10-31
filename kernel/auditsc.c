@@ -2373,7 +2373,7 @@ int __audit_log_bprm_fcaps(struct linux_binprm *bprm,
 	ax->d.next = context->aux;
 	context->aux = (void *)ax;
 
-	dentry = dget(bprm->file->f_dentry);
+	dentry = dget(bprm->file->f_path.dentry);
 	get_vfs_caps_from_disk(dentry, &vcaps);
 	dput(dentry);
 

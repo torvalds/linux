@@ -1011,7 +1011,7 @@ static ssize_t
 lpfc_debugfs_dif_err_read(struct file *file, char __user *buf,
 	size_t nbytes, loff_t *ppos)
 {
-	struct dentry *dent = file->f_dentry;
+	struct dentry *dent = file->f_path.dentry;
 	struct lpfc_hba *phba = file->private_data;
 	char cbuf[32];
 	uint64_t tmp = 0;
@@ -1052,7 +1052,7 @@ static ssize_t
 lpfc_debugfs_dif_err_write(struct file *file, const char __user *buf,
 	size_t nbytes, loff_t *ppos)
 {
-	struct dentry *dent = file->f_dentry;
+	struct dentry *dent = file->f_path.dentry;
 	struct lpfc_hba *phba = file->private_data;
 	char dstbuf[32];
 	uint64_t tmp = 0;
