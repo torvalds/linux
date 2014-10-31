@@ -3128,10 +3128,6 @@ static void valleyview_irq_preinstall(struct drm_device *dev)
 	I915_WRITE(RING_IMR(GEN6_BSD_RING_BASE), 0);
 	I915_WRITE(RING_IMR(BLT_RING_BASE), 0);
 
-	/* and GT */
-	I915_WRITE(GTIIR, I915_READ(GTIIR));
-	I915_WRITE(GTIIR, I915_READ(GTIIR));
-
 	gen5_gt_irq_reset(dev);
 
 	I915_WRITE(DPINVGTT, DPINVGTT_STATUS_MASK);
