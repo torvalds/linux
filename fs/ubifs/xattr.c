@@ -575,3 +575,81 @@ out_free:
 	kfree(xent);
 	return err;
 }
+
+static size_t security_listxattr(struct dentry *d, char *list, size_t list_size,
+				 const char *name, size_t name_len, int flags)
+{
+	const int prefix_len = XATTR_SECURITY_PREFIX_LEN;
+	const size_t total_len = prefix_len + name_len + 1;
+
+	if (list && total_len <= list_size) {
+		memcpy(list, XATTR_SECURITY_PREFIX, prefix_len);
+		memcpy(list + prefix_len, name, name_len);
+		list[prefix_len + name_len] = '\0';
+	}
+
+	return total_len;
+}
+
+static int security_getxattr(struct dentry *d, const char *name, void *buffer,
+		      size_t size, int flags)
+{
+	return ubifs_getxattr(d, name, buffer, size);
+}
+
+static int security_setxattr(struct dentry *d, const char *name,
+			     const void *value, size_t size, int flags,
+			     int handler_flags)
+{
+	return ubifs_setxattr(d, name, value, size, flags);
+}
+
+static const struct xattr_handler ubifs_xattr_security_handler = {
+	.prefix = XATTR_SECURITY_PREFIX,
+	.list   = security_listxattr,
+	.get    = security_getxattr,
+	.set    = security_setxattr,
+};
+
+const struct xattr_handler *ubifs_xattr_handlers[] = {
+	&ubifs_xattr_security_handler,
+	NULL,
+};
+
+static int init_xattrs(struct inode *inode, const struct xattr *xattr_array,
+		      void *fs_info)
+{
+	const struct xattr *xattr;
+	char *name;
+	int err = 0;
+
+	for (xattr = xattr_array; xattr->name != NULL; xattr++) {
+		name = kmalloc(XATTR_SECURITY_PREFIX_LEN +
+			       strlen(xattr->name) + 1, GFP_NOFS);
+		if (!name) {
+			err = -ENOMEM;
+			break;
+		}
+		strcpy(name, XATTR_SECURITY_PREFIX);
+		strcpy(name + XATTR_SECURITY_PREFIX_LEN, xattr->name);
+		err = setxattr(inode, name, xattr->value, xattr->value_len, 0);
+		kfree(name);
+		if (err < 0)
+			break;
+	}
+
+	return err;
+}
+
+int ubifs_init_security(struct inode *dentry, struct inode *inode,
+			const struct qstr *qstr)
+{
+	int err;
+
+	mutex_lock(&inode->i_mutex);
+	err = security_inode_init_security(inode, dentry, qstr,
+					   &init_xattrs, 0);
+	mutex_unlock(&inode->i_mutex);
+
+	return err;
+}
