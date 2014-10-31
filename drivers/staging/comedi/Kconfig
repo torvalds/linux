@@ -1076,10 +1076,13 @@ config COMEDI_NI_TIOCMD
 endif # COMEDI_PCI_DRIVERS
 
 menuconfig COMEDI_PCMCIA_DRIVERS
-	bool "Comedi PCMCIA drivers"
+	tristate "Comedi PCMCIA drivers"
 	depends on PCMCIA
 	---help---
 	  Enable support for comedi PCMCIA drivers.
+
+	  To compile this support as a module, choose M here: the module will
+	  be called comedi_pcmcia.
 
 if COMEDI_PCMCIA_DRIVERS
 
