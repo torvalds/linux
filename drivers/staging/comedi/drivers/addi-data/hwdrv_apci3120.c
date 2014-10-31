@@ -947,7 +947,9 @@ static int apci3120_cyclic_ai(int mode,
 		/* If DMA Enabled */
 		struct apci3120_dmabuf *dmabuf0 = &devpriv->dmabuf[0];
 		struct apci3120_dmabuf *dmabuf1 = &devpriv->dmabuf[1];
-		unsigned int scan_bytes = cmd->scan_end_arg * sizeof(short);
+		unsigned int scan_bytes;
+
+		scan_bytes = comedi_samples_to_bytes(s, cmd->scan_end_arg);
 
 		devpriv->b_InterruptMode = APCI3120_DMA_MODE;
 
