@@ -348,6 +348,7 @@ int __init save_microcode_in_initrd_amd(void)
 {
 	unsigned long cont;
 	enum ucode_state ret;
+	u8 *cont_va;
 	u32 eax;
 
 	if (!container)
@@ -355,13 +356,15 @@ int __init save_microcode_in_initrd_amd(void)
 
 #ifdef CONFIG_X86_32
 	get_bsp_sig();
-	cont = (unsigned long)container;
+	cont	= (unsigned long)container;
+	cont_va = __va(container);
 #else
 	/*
 	 * We need the physical address of the container for both bitness since
 	 * boot_params.hdr.ramdisk_image is a physical address.
 	 */
-	cont = __pa(container);
+	cont    = __pa(container);
+	cont_va = container;
 #endif
 
 	/*
@@ -372,6 +375,8 @@ int __init save_microcode_in_initrd_amd(void)
 	if (relocated_ramdisk)
 		container = (u8 *)(__va(relocated_ramdisk) +
 			     (cont - boot_params.hdr.ramdisk_image));
+	else
+		container = cont_va;
 
 	if (ucode_new_rev)
 		pr_info("microcode: updated early to new patch_level=0x%08x\n",
