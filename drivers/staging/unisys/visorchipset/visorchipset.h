@@ -277,11 +277,6 @@ BOOL visorchipset_get_bus_info(ulong bus_no,
 			       struct visorchipset_bus_info *bus_info);
 BOOL visorchipset_get_device_info(ulong bus_no, ulong dev_no,
 				  struct visorchipset_device_info *dev_info);
-BOOL visorchipset_get_switch_info(ulong switchNo,
-				  struct visorchipset_switch_info *switchInfo);
-BOOL visorchipset_get_externalport_info(ulong switchNo, ulong externalPortNo,
-					struct visorchipset_externalport_info
-					*externalPortInfo);
 BOOL visorchipset_set_bus_context(ulong busNo, void *context);
 BOOL visorchipset_set_device_context(ulong busNo, ulong devNo, void *context);
 int visorchipset_chipset_ready(void);
