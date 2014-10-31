@@ -1130,9 +1130,9 @@ bus_create(struct controlvm_message *inmsg)
 	POSTCODE_LINUX_3(BUS_CREATE_ENTRY_PC, busNo, POSTCODE_SEVERITY_INFO);
 
 	if (inmsg->hdr.flags.test_message == 1)
-		pBusInfo->chanInfo.addrType = ADDRTYPE_localTest;
+		pBusInfo->chanInfo.addrType = ADDRTYPE_LOCALTEST;
 	else
-		pBusInfo->chanInfo.addrType = ADDRTYPE_localPhysical;
+		pBusInfo->chanInfo.addrType = ADDRTYPE_LOCALPHYSICAL;
 
 	pBusInfo->flags.server = inmsg->hdr.flags.server;
 	pBusInfo->chanInfo.channelAddr = cmd->create_bus.channel_addr;
@@ -1280,9 +1280,9 @@ my_device_create(struct controlvm_message *inmsg)
 			 POSTCODE_SEVERITY_INFO);
 
 	if (inmsg->hdr.flags.test_message == 1)
-		pDevInfo->chanInfo.addrType = ADDRTYPE_localTest;
+		pDevInfo->chanInfo.addrType = ADDRTYPE_LOCALTEST;
 	else
-		pDevInfo->chanInfo.addrType = ADDRTYPE_localPhysical;
+		pDevInfo->chanInfo.addrType = ADDRTYPE_LOCALPHYSICAL;
 	pDevInfo->chanInfo.channelAddr = cmd->create_device.channel_addr;
 	pDevInfo->chanInfo.nChannelBytes = cmd->create_device.channel_bytes;
 	pDevInfo->chanInfo.channelTypeGuid = cmd->create_device.data_type_uuid;

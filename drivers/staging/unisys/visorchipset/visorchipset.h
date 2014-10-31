@@ -40,18 +40,18 @@ struct visorchipset_state {
 	/* Remaining bits in this 32-bit word are unused. */
 };
 
-typedef enum {
+enum visorchipset_addresstype {
 	/** address is guest physical, but outside of the physical memory
 	 *  region that is controlled by the running OS (this is the normal
 	 *  address type for Supervisor channels)
 	 */
-	ADDRTYPE_localPhysical,
+	ADDRTYPE_LOCALPHYSICAL,
 
 	/** address is guest physical, and withIN the confines of the
 	 *  physical memory controlled by the running OS.
 	 */
-	ADDRTYPE_localTest,
-} VISORCHIPSET_ADDRESSTYPE;
+	ADDRTYPE_LOCALTEST,
+};
 
 typedef enum {
 	CRASH_dev,
@@ -61,7 +61,7 @@ typedef enum {
 /** Attributes for a particular Supervisor channel.
  */
 typedef struct {
-	VISORCHIPSET_ADDRESSTYPE addrType;
+	enum visorchipset_addresstype addrType;
 	HOSTADDRESS channelAddr;
 	struct irq_info intr;
 	u64 nChannelBytes;
