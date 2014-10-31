@@ -29,6 +29,9 @@ Optional properties:
  - snps,lfps_filter_quirk: when set core will filter LFPS reception.
  - snps,rx_detect_poll_quirk: when set core will disable a 400us delay to start
 			Polling LFPS after RX.Detect.
+ - snps,tx_de_emphasis_quirk: when set core will set Tx de-emphasis value.
+ - snps,tx_de_emphasis: the value driven to the PHY is controlled by the
+			LTSSM during USB3 Compliance mode.
 
 This is usually a subnode to DWC3 glue to which it is connected.
 
