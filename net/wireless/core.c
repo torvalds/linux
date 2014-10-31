@@ -869,7 +869,19 @@ void __cfg80211_leave(struct cfg80211_registered_device *rdev,
 	case NL80211_IFTYPE_P2P_GO:
 		__cfg80211_stop_ap(rdev, dev, true);
 		break;
-	default:
+	case NL80211_IFTYPE_WDS:
+		/* must be handled by mac80211/driver, has no APIs */
+		break;
+	case NL80211_IFTYPE_P2P_DEVICE:
+		/* cannot happen, has no netdev */
+		break;
+	case NL80211_IFTYPE_AP_VLAN:
+	case NL80211_IFTYPE_MONITOR:
+		/* nothing to do */
+		break;
+	case NL80211_IFTYPE_UNSPECIFIED:
+	case NUM_NL80211_IFTYPES:
+		/* invalid */
 		break;
 	}
 }

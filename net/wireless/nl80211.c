@@ -884,7 +884,11 @@ static int nl80211_key_allowed(struct wireless_dev *wdev)
 		if (!wdev->current_bss)
 			return -ENOLINK;
 		break;
-	default:
+	case NL80211_IFTYPE_UNSPECIFIED:
+	case NL80211_IFTYPE_MONITOR:
+	case NL80211_IFTYPE_P2P_DEVICE:
+	case NL80211_IFTYPE_WDS:
+	case NUM_NL80211_IFTYPES:
 		return -EINVAL;
 	}
 
