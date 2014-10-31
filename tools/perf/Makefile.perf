@@ -66,6 +66,9 @@ include config/utilities.mak
 #
 # Define NO_PERF_READ_VDSOX32 if you do not want to build perf-read-vdsox32
 # for reading the x32 mode 32-bit compatibility VDSO in 64-bit mode
+#
+# Define NO_ZLIB if you do not want to support compressed kernel modules
+
 
 ifeq ($(srctree),)
 srctree := $(patsubst %/,%,$(dir $(shell pwd)))
@@ -582,6 +585,10 @@ endif
 
 ifndef NO_LIBNUMA
   BUILTIN_OBJS += $(OUTPUT)bench/numa.o
+endif
+
+ifndef NO_ZLIB
+  LIB_OBJS += $(OUTPUT)util/zlib.o
 endif
 
 ifdef ASCIIDOC8

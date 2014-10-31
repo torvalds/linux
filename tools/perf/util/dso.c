@@ -141,18 +141,14 @@ int dso__read_binary_type_filename(const struct dso *dso,
 	return ret;
 }
 
-static int decompress_dummy(const char *input __maybe_unused,
-			    int output __maybe_unused)
-{
-	return -1;
-}
-
 static const struct {
 	const char *fmt;
 	int (*decompress)(const char *input, int output);
 } compressions[] = {
-	{ "gz", decompress_dummy },
-	{ NULL, },
+#ifdef HAVE_ZLIB_SUPPORT
+	{ "gz", gzip_decompress_to_file },
+#endif
+	{ NULL, NULL },
 };
 
 bool is_supported_compression(const char *ext)
