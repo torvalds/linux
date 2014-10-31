@@ -483,8 +483,6 @@ static void move_block_from_dma(struct comedi_device *dev,
 	num_samples = defragment_dma_buffer(dev, s, dma_buffer, num_samples);
 	devpriv->ai_act_scan +=
 	    (s->async->cur_chan + num_samples) / cmd->scan_end_arg;
-	s->async->cur_chan += num_samples;
-	s->async->cur_chan %= cmd->scan_end_arg;
 
 	comedi_buf_write_samples(s, dma_buffer, num_samples);
 }
@@ -612,10 +610,8 @@ static void interrupt_pci9118_ai_onesample(struct comedi_device *dev,
 	sampl = inl(dev->iobase + PCI9118_AI_FIFO_REG);
 
 	comedi_buf_write_samples(s, &sampl, 1);
-	s->async->cur_chan++;
-	if (s->async->cur_chan >= cmd->scan_end_arg) {
-							/* one scan done */
-		s->async->cur_chan %= cmd->scan_end_arg;
+
+	if (s->async->cur_chan == 0) {
 		devpriv->ai_act_scan++;
 		if (!devpriv->ai_neverending) {
 			/* all data sampled? */

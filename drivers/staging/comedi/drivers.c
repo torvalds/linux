@@ -341,7 +341,14 @@ void comedi_inc_scan_progress(struct comedi_subdevice *s,
 			      unsigned int num_bytes)
 {
 	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int scan_length = comedi_bytes_per_scan(s);
+
+	/* track the 'cur_chan' for non-SDF_PACKED subdevices */
+	if (!(s->subdev_flags & SDF_PACKED)) {
+		async->cur_chan += comedi_bytes_to_samples(s, num_bytes);
+		async->cur_chan %= cmd->chanlist_len;
+	}
 
 	async->scan_progress += num_bytes;
 	if (async->scan_progress >= scan_length) {

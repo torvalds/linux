@@ -1125,14 +1125,10 @@ static void ni_ao_fifo_load(struct comedi_device *dev,
 			    struct comedi_subdevice *s, int n)
 {
 	struct ni_private *devpriv = dev->private;
-	struct comedi_async *async = s->async;
-	struct comedi_cmd *cmd = &async->cmd;
-	int chan;
 	int i;
 	unsigned short d;
 	u32 packed_data;
 
-	chan = async->cur_chan;
 	for (i = 0; i < n; i++) {
 		comedi_buf_read_samples(s, &d, 1);
 
@@ -1141,7 +1137,6 @@ static void ni_ao_fifo_load(struct comedi_device *dev,
 			/* 6711 only has 16 bit wide ao fifo */
 			if (!devpriv->is_6711) {
 				comedi_buf_read_samples(s, &d, 1);
-				chan++;
 				i++;
 				packed_data |= (d << 16) & 0xffff0000;
 			}
@@ -1149,10 +1144,7 @@ static void ni_ao_fifo_load(struct comedi_device *dev,
 		} else {
 			ni_writew(dev, d, DAC_FIFO_Data);
 		}
-		chan++;
-		chan %= cmd->chanlist_len;
 	}
-	async->cur_chan = chan;
 }
 
 /*

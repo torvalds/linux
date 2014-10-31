@@ -843,12 +843,8 @@ static bool pcl812_ai_next_chan(struct comedi_device *dev,
 	struct pcl812_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	s->async->cur_chan++;
-	if (s->async->cur_chan >= cmd->chanlist_len) {
-		s->async->cur_chan = 0;
+	if (s->async->cur_chan == 0)
 		devpriv->ai_act_scan++;
-		s->async->events |= COMEDI_CB_EOS;
-	}
 
 	if (cmd->stop_src == TRIG_COUNT &&
 	    devpriv->ai_act_scan >= cmd->stop_arg) {
@@ -864,6 +860,7 @@ static void pcl812_handle_eoc(struct comedi_device *dev,
 			      struct comedi_subdevice *s)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned int chan = s->async->cur_chan;
 	unsigned int next_chan;
 	unsigned short val;
 
@@ -877,10 +874,8 @@ static void pcl812_handle_eoc(struct comedi_device *dev,
 	comedi_buf_write_samples(s, &val, 1);
 
 	/* Set up next channel. Added by abbotti 2010-01-20, but untested. */
-	next_chan = s->async->cur_chan + 1;
-	if (next_chan >= cmd->chanlist_len)
-		next_chan = 0;
-	if (cmd->chanlist[s->async->cur_chan] != cmd->chanlist[next_chan])
+	next_chan = s->async->cur_chan;
+	if (cmd->chanlist[chan] != cmd->chanlist[next_chan])
 		pcl812_ai_set_chan_range(dev, cmd->chanlist[next_chan], 0);
 
 	pcl812_ai_next_chan(dev, s);

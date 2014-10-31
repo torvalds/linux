@@ -289,12 +289,8 @@ static bool pcl816_ai_next_chan(struct comedi_device *dev,
 	struct pcl816_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	s->async->cur_chan++;
-	if (s->async->cur_chan >= cmd->chanlist_len) {
-		s->async->cur_chan = 0;
+	if (s->async->cur_chan == 0)
 		devpriv->ai_act_scan++;
-		s->async->events |= COMEDI_CB_EOS;
-	}
 
 	if (cmd->stop_src == TRIG_COUNT &&
 	    devpriv->ai_act_scan >= cmd->stop_arg) {
