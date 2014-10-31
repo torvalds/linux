@@ -992,6 +992,52 @@ mwifiex_cfg80211_dump_station(struct wiphy *wiphy, struct net_device *dev,
 	return mwifiex_dump_station_info(priv, sinfo);
 }
 
+static int
+mwifiex_cfg80211_dump_survey(struct wiphy *wiphy, struct net_device *dev,
+			     int idx, struct survey_info *survey)
+{
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+	struct mwifiex_chan_stats *pchan_stats = priv->adapter->chan_stats;
+	enum ieee80211_band band;
+
+	dev_dbg(priv->adapter->dev, "dump_survey idx=%d\n", idx);
+
+	memset(survey, 0, sizeof(struct survey_info));
+
+	if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) &&
+	    priv->media_connected && idx == 0) {
+			u8 curr_bss_band = priv->curr_bss_params.band;
+			u32 chan = priv->curr_bss_params.bss_descriptor.channel;
+
+			band = mwifiex_band_to_radio_type(curr_bss_band);
+			survey->channel = ieee80211_get_channel(wiphy,
+				ieee80211_channel_to_frequency(chan, band));
+
+			if (priv->bcn_nf_last) {
+				survey->filled = SURVEY_INFO_NOISE_DBM;
+				survey->noise = priv->bcn_nf_last;
+			}
+			return 0;
+	}
+
+	if (idx >= priv->adapter->num_in_chan_stats)
+		return -ENOENT;
+
+	if (!pchan_stats[idx].cca_scan_dur)
+		return 0;
+
+	band = pchan_stats[idx].bandcfg;
+	survey->channel = ieee80211_get_channel(wiphy,
+	    ieee80211_channel_to_frequency(pchan_stats[idx].chan_num, band));
+	survey->filled = SURVEY_INFO_NOISE_DBM |
+		SURVEY_INFO_CHANNEL_TIME | SURVEY_INFO_CHANNEL_TIME_BUSY;
+	survey->noise = pchan_stats[idx].noise;
+	survey->channel_time = pchan_stats[idx].cca_scan_dur;
+	survey->channel_time_busy = pchan_stats[idx].cca_busy_dur;
+
+	return 0;
+}
+
 /* Supported rates to be advertised to the cfg80211 */
 static struct ieee80211_rate mwifiex_rates[] = {
 	{.bitrate = 10, .hw_value = 2, },
@@ -2779,6 +2825,7 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.disconnect = mwifiex_cfg80211_disconnect,
 	.get_station = mwifiex_cfg80211_get_station,
 	.dump_station = mwifiex_cfg80211_dump_station,
+	.dump_survey = mwifiex_cfg80211_dump_survey,
 	.set_wiphy_params = mwifiex_cfg80211_set_wiphy_params,
 	.join_ibss = mwifiex_cfg80211_join_ibss,
 	.leave_ibss = mwifiex_cfg80211_leave_ibss,
