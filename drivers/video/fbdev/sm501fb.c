@@ -1988,6 +1988,7 @@ static int sm501fb_probe(struct platform_device *pdev)
 	if (info->fb[HEAD_PANEL] == NULL &&
 	    info->fb[HEAD_CRT] == NULL) {
 		dev_err(dev, "no framebuffers found\n");
+		ret = -ENODEV;
 		goto err_alloc;
 	}
 
