@@ -414,21 +414,13 @@ struct phy *of_phy_simple_xlate(struct device *dev, struct of_phandle_args
 {
 	struct phy *phy;
 	struct class_dev_iter iter;
-	struct device_node *node = dev->of_node;
-	struct device_node *child;
 
 	class_dev_iter_init(&iter, phy_class, NULL, NULL);
 	while ((dev = class_dev_iter_next(&iter))) {
 		phy = to_phy(dev);
-		if (node != phy->dev.of_node) {
-			for_each_child_of_node(node, child) {
-				if (child == phy->dev.of_node)
-					goto phy_found;
-			}
+		if (args->np != phy->dev.of_node)
 			continue;
-		}
 
-phy_found:
 		class_dev_iter_exit(&iter);
 		return phy;
 	}
