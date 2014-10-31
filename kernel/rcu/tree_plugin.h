@@ -313,8 +313,8 @@ static struct list_head *rcu_next_node_entry(struct task_struct *t,
  */
 void rcu_read_unlock_special(struct task_struct *t)
 {
-	int empty;
 	int empty_exp;
+	int empty_norm;
 	int empty_exp_now;
 	unsigned long flags;
 	struct list_head *np;
@@ -367,7 +367,7 @@ void rcu_read_unlock_special(struct task_struct *t)
 				break;
 			raw_spin_unlock(&rnp->lock); /* irqs remain disabled. */
 		}
-		empty = !rcu_preempt_blocked_readers_cgp(rnp);
+		empty_norm = !rcu_preempt_blocked_readers_cgp(rnp);
 		empty_exp = !rcu_preempted_readers_exp(rnp);
 		smp_mb(); /* ensure expedited fastpath sees end of RCU c-s. */
 		np = rcu_next_node_entry(t, rnp);
@@ -393,7 +393,7 @@ void rcu_read_unlock_special(struct task_struct *t)
 		 * so we must take a snapshot of the expedited state.
 		 */
 		empty_exp_now = !rcu_preempted_readers_exp(rnp);
-		if (!empty && !rcu_preempt_blocked_readers_cgp(rnp)) {
+		if (!empty_norm && !rcu_preempt_blocked_readers_cgp(rnp)) {
 			trace_rcu_quiescent_state_report(TPS("preempt_rcu"),
 							 rnp->gpnum,
 							 0, rnp->qsmask,
