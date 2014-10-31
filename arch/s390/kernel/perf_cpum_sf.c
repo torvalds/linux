@@ -1411,11 +1411,6 @@ static void cpumsf_pmu_del(struct perf_event *event, int flags)
 	perf_pmu_enable(event->pmu);
 }
 
-static int cpumsf_pmu_event_idx(struct perf_event *event)
-{
-	return event->hw.idx;
-}
-
 CPUMF_EVENT_ATTR(SF, SF_CYCLES_BASIC, PERF_EVENT_CPUM_SF);
 CPUMF_EVENT_ATTR(SF, SF_CYCLES_BASIC_DIAG, PERF_EVENT_CPUM_SF_DIAG);
 
@@ -1458,7 +1453,6 @@ static struct pmu cpumf_sampling = {
 	.stop	      = cpumsf_pmu_stop,
 	.read	      = cpumsf_pmu_read,
 
-	.event_idx    = cpumsf_pmu_event_idx,
 	.attr_groups  = cpumsf_pmu_attr_groups,
 };
 

@@ -246,11 +246,6 @@ static int h_gpci_event_init(struct perf_event *event)
 	return 0;
 }
 
-static int h_gpci_event_idx(struct perf_event *event)
-{
-	return 0;
-}
-
 static struct pmu h_gpci_pmu = {
 	.task_ctx_nr = perf_invalid_context,
 
@@ -262,7 +257,6 @@ static struct pmu h_gpci_pmu = {
 	.start       = h_gpci_event_start,
 	.stop        = h_gpci_event_stop,
 	.read        = h_gpci_event_update,
-	.event_idx   = h_gpci_event_idx,
 };
 
 static int hv_gpci_init(void)
