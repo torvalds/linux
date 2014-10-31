@@ -3871,6 +3871,21 @@ static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info,
 		printk(KERN_WARNING "BTRFS: log_root block unaligned: %llu\n",
 				btrfs_super_log_root(sb));
 
+	/*
+	 * Check the lower bound, the alignment and other constraints are
+	 * checked later.
+	 */
+	if (btrfs_super_nodesize(sb) < 4096) {
+		printk(KERN_ERR "BTRFS: nodesize too small: %u < 4096\n",
+				btrfs_super_nodesize(sb));
+		ret = -EINVAL;
+	}
+	if (btrfs_super_sectorsize(sb) < 4096) {
+		printk(KERN_ERR "BTRFS: sectorsize too small: %u < 4096\n",
+				btrfs_super_sectorsize(sb));
+		ret = -EINVAL;
+	}
+
 	if (memcmp(fs_info->fsid, sb->dev_item.fsid, BTRFS_UUID_SIZE) != 0) {
 		printk(KERN_ERR "BTRFS: dev_item UUID does not match fsid: %pU != %pU\n",
 				fs_info->fsid, sb->dev_item.fsid);
@@ -3884,6 +3899,10 @@ static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info,
 	if (btrfs_super_num_devices(sb) > (1UL << 31))
 		printk(KERN_WARNING "BTRFS: suspicious number of devices: %llu\n",
 				btrfs_super_num_devices(sb));
+	if (btrfs_super_num_devices(sb) == 0) {
+		printk(KERN_ERR "BTRFS: number of devices is 0\n");
+		ret = -EINVAL;
+	}
 
 	if (btrfs_super_bytenr(sb) != BTRFS_SUPER_INFO_OFFSET) {
 		printk(KERN_ERR "BTRFS: super offset mismatch %llu != %u\n",
