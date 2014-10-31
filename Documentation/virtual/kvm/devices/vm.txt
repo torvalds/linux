@@ -24,3 +24,17 @@ Returns: 0
 
 Clear the CMMA status for all guest pages, so any pages the guest marked
 as unused are again used any may not be reclaimed by the host.
+
+1.3. ATTRIBUTE KVM_S390_VM_MEM_LIMIT_SIZE
+Parameters: in attr->addr the address for the new limit of guest memory
+Returns: -EFAULT if the given address is not accessible
+         -EINVAL if the virtual machine is of type UCONTROL
+         -E2BIG if the given guest memory is to big for that machine
+         -EBUSY if a vcpu is already defined
+         -ENOMEM if not enough memory is available for a new shadow guest mapping
+          0 otherwise
+
+Allows userspace to query the actual limit and set a new limit for
+the maximum guest memory size. The limit will be rounded up to
+2048 MB, 4096 GB, 8192 TB respectively, as this limit is governed by
+the number of page table levels.

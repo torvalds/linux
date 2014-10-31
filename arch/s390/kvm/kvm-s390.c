@@ -261,7 +261,24 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 	return r;
 }
 
-static int kvm_s390_mem_control(struct kvm *kvm, struct kvm_device_attr *attr)
+static int kvm_s390_get_mem_control(struct kvm *kvm, struct kvm_device_attr *attr)
+{
+	int ret;
+
+	switch (attr->attr) {
+	case KVM_S390_VM_MEM_LIMIT_SIZE:
+		ret = 0;
+		if (put_user(kvm->arch.gmap->asce_end, (u64 __user *)attr->addr))
+			ret = -EFAULT;
+		break;
+	default:
+		ret = -ENXIO;
+		break;
+	}
+	return ret;
+}
+
+static int kvm_s390_set_mem_control(struct kvm *kvm, struct kvm_device_attr *attr)
 {
 	int ret;
 	unsigned int idx;
@@ -283,6 +300,36 @@ static int kvm_s390_mem_control(struct kvm *kvm, struct kvm_device_attr *attr)
 		mutex_unlock(&kvm->lock);
 		ret = 0;
 		break;
+	case KVM_S390_VM_MEM_LIMIT_SIZE: {
+		unsigned long new_limit;
+
+		if (kvm_is_ucontrol(kvm))
+			return -EINVAL;
+
+		if (get_user(new_limit, (u64 __user *)attr->addr))
+			return -EFAULT;
+
+		if (new_limit > kvm->arch.gmap->asce_end)
+			return -E2BIG;
+
+		ret = -EBUSY;
+		mutex_lock(&kvm->lock);
+		if (atomic_read(&kvm->online_vcpus) == 0) {
+			/* gmap_alloc will round the limit up */
+			struct gmap *new = gmap_alloc(current->mm, new_limit);
+
+			if (!new) {
+				ret = -ENOMEM;
+			} else {
+				gmap_free(kvm->arch.gmap);
+				new->private = kvm;
+				kvm->arch.gmap = new;
+				ret = 0;
+			}
+		}
+		mutex_unlock(&kvm->lock);
+		break;
+	}
 	default:
 		ret = -ENXIO;
 		break;
@@ -296,7 +343,7 @@ static int kvm_s390_vm_set_attr(struct kvm *kvm, struct kvm_device_attr *attr)
 
 	switch (attr->group) {
 	case KVM_S390_VM_MEM_CTRL:
-		ret = kvm_s390_mem_control(kvm, attr);
+		ret = kvm_s390_set_mem_control(kvm, attr);
 		break;
 	default:
 		ret = -ENXIO;
@@ -308,7 +355,18 @@ static int kvm_s390_vm_set_attr(struct kvm *kvm, struct kvm_device_attr *attr)
 
 static int kvm_s390_vm_get_attr(struct kvm *kvm, struct kvm_device_attr *attr)
 {
-	return -ENXIO;
+	int ret;
+
+	switch (attr->group) {
+	case KVM_S390_VM_MEM_CTRL:
+		ret = kvm_s390_get_mem_control(kvm, attr);
+		break;
+	default:
+		ret = -ENXIO;
+		break;
+	}
+
+	return ret;
 }
 
 static int kvm_s390_vm_has_attr(struct kvm *kvm, struct kvm_device_attr *attr)
@@ -320,6 +378,7 @@ static int kvm_s390_vm_has_attr(struct kvm *kvm, struct kvm_device_attr *attr)
 		switch (attr->attr) {
 		case KVM_S390_VM_MEM_ENABLE_CMMA:
 		case KVM_S390_VM_MEM_CLR_CMMA:
+		case KVM_S390_VM_MEM_LIMIT_SIZE:
 			ret = 0;
 			break;
 		default:
