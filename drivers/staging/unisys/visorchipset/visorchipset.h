@@ -92,13 +92,13 @@ struct visorchipset_device_info {
 
 };
 
-static inline struct visorchipset_device_info *
-finddevice(struct list_head *list, u32 busNo, u32 devNo)
+static inline struct visorchipset_device_info *finddevice(
+		struct list_head *list, u32 bus_no, u32 dev_no)
 {
 	struct visorchipset_device_info *p;
 
 	list_for_each_entry(p, list, entry) {
-		if (p->bus_no == busNo && p->dev_no == devNo)
+		if (p->bus_no == bus_no && p->dev_no == dev_no)
 			return p;
 	}
 	return NULL;
