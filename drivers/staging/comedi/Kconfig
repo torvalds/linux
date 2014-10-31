@@ -564,10 +564,13 @@ config COMEDI_S526
 endif # COMEDI_ISA_DRIVERS
 
 menuconfig COMEDI_PCI_DRIVERS
-	bool "Comedi PCI drivers"
+	tristate "Comedi PCI drivers"
 	depends on PCI
 	---help---
 	  Enable support for comedi PCI drivers.
+
+	  To compile this support as a module, choose M here: the module will
+	  be called comedi_pci.
 
 if COMEDI_PCI_DRIVERS
 
