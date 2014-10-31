@@ -218,6 +218,10 @@ static char *snd_pcm_format_names[] = {
 	FORMAT(DSD_U32_LE),
 };
 
+/**
+ * snd_pcm_format_name - Return a name string for the given PCM format
+ * @format: PCM format
+ */
 const char *snd_pcm_format_name(snd_pcm_format_t format)
 {
 	if ((__force unsigned int)format >= ARRAY_SIZE(snd_pcm_format_names))
@@ -707,7 +711,6 @@ int snd_pcm_new_stream(struct snd_pcm *pcm, int stream, int substream_count)
 	}
 	return 0;
 }				
-
 EXPORT_SYMBOL(snd_pcm_new_stream);
 
 static int _snd_pcm_new(struct snd_card *card, const char *id, int device,
@@ -1155,6 +1158,15 @@ static int snd_pcm_dev_disconnect(struct snd_device *device)
 	return 0;
 }
 
+/**
+ * snd_pcm_notify - Add/remove the notify list
+ * @notify: PCM notify list
+ * @nfree: 0 = register, 1 = unregister
+ *
+ * This adds the given notifier to the global list so that the callback is
+ * called for each registered PCM devices.  This exists only for PCM OSS
+ * emulation, so far.
+ */
 int snd_pcm_notify(struct snd_pcm_notify *notify, int nfree)
 {
 	struct snd_pcm *pcm;
@@ -1177,7 +1189,6 @@ int snd_pcm_notify(struct snd_pcm_notify *notify, int nfree)
 	mutex_unlock(&register_mutex);
 	return 0;
 }
-
 EXPORT_SYMBOL(snd_pcm_notify);
 
 #ifdef CONFIG_PROC_FS

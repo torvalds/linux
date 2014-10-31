@@ -438,17 +438,6 @@ int snd_card_disconnect(struct snd_card *card)
 
 EXPORT_SYMBOL(snd_card_disconnect);
 
-/**
- *  snd_card_free - frees given soundcard structure
- *  @card: soundcard structure
- *
- *  This function releases the soundcard structure and the all assigned
- *  devices automatically.  That is, you don't have to release the devices
- *  by yourself.
- *
- *  Return: Zero. Frees all associated devices and frees the control
- *  interface associated to given soundcard.
- */
 static int snd_card_do_free(struct snd_card *card)
 {
 #if IS_ENABLED(CONFIG_SND_MIXER_OSS)
@@ -469,6 +458,15 @@ static int snd_card_do_free(struct snd_card *card)
 	return 0;
 }
 
+/**
+ * snd_card_free_when_closed - Disconnect the card, free it later eventually
+ * @card: soundcard structure
+ *
+ * Unlike snd_card_free(), this function doesn't try to release the card
+ * resource immediately, but tries to disconnect at first.  When the card
+ * is still in use, the function returns before freeing the resources.
+ * The card resources will be freed when the refcount gets to zero.
+ */
 int snd_card_free_when_closed(struct snd_card *card)
 {
 	int ret = snd_card_disconnect(card);
@@ -479,6 +477,19 @@ int snd_card_free_when_closed(struct snd_card *card)
 }
 EXPORT_SYMBOL(snd_card_free_when_closed);
 
+/**
+ * snd_card_free - frees given soundcard structure
+ * @card: soundcard structure
+ *
+ * This function releases the soundcard structure and the all assigned
+ * devices automatically.  That is, you don't have to release the devices
+ * by yourself.
+ *
+ * This function waits until the all resources are properly released.
+ *
+ * Return: Zero. Frees all associated devices and frees the control
+ * interface associated to given soundcard.
+ */
 int snd_card_free(struct snd_card *card)
 {
 	struct completion released;
