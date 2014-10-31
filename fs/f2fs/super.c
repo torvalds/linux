@@ -54,6 +54,7 @@ enum {
 	Opt_inline_dentry,
 	Opt_flush_merge,
 	Opt_nobarrier,
+	Opt_fastboot,
 	Opt_err,
 };
 
@@ -73,6 +74,7 @@ static match_table_t f2fs_tokens = {
 	{Opt_inline_dentry, "inline_dentry"},
 	{Opt_flush_merge, "flush_merge"},
 	{Opt_nobarrier, "nobarrier"},
+	{Opt_fastboot, "fastboot"},
 	{Opt_err, NULL},
 };
 
@@ -351,6 +353,9 @@ static int parse_options(struct super_block *sb, char *options)
 		case Opt_nobarrier:
 			set_opt(sbi, NOBARRIER);
 			break;
+		case Opt_fastboot:
+			set_opt(sbi, FASTBOOT);
+			break;
 		default:
 			f2fs_msg(sb, KERN_ERR,
 				"Unrecognized mount option \"%s\" or missing value",
@@ -479,9 +484,9 @@ int f2fs_sync_fs(struct super_block *sb, int sync)
 	trace_f2fs_sync_fs(sb, sync);
 
 	if (sync) {
-		struct cp_control cpc = {
-			.reason = CP_SYNC,
-		};
+		struct cp_control cpc;
+
+		cpc.reason = test_opt(sbi, FASTBOOT) ? CP_UMOUNT : CP_SYNC;
 		mutex_lock(&sbi->gc_mutex);
 		write_checkpoint(sbi, &cpc);
 		mutex_unlock(&sbi->gc_mutex);
@@ -574,6 +579,8 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",flush_merge");
 	if (test_opt(sbi, NOBARRIER))
 		seq_puts(seq, ",nobarrier");
+	if (test_opt(sbi, FASTBOOT))
+		seq_puts(seq, ",fastboot");
 	seq_printf(seq, ",active_logs=%u", sbi->active_logs);
 
 	return 0;

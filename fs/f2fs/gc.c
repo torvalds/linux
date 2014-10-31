@@ -695,9 +695,9 @@ int f2fs_gc(struct f2fs_sb_info *sbi)
 	int gc_type = BG_GC;
 	int nfree = 0;
 	int ret = -1;
-	struct cp_control cpc = {
-		.reason = CP_SYNC,
-	};
+	struct cp_control cpc;
+
+	cpc.reason = test_opt(sbi, FASTBOOT) ? CP_UMOUNT : CP_SYNC;
 
 	INIT_LIST_HEAD(&ilist);
 gc_more:

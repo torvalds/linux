@@ -130,6 +130,8 @@ static inline bool need_do_checkpoint(struct inode *inode)
 		need_cp = true;
 	else if (F2FS_I(inode)->xattr_ver == cur_cp_version(F2FS_CKPT(sbi)))
 		need_cp = true;
+	else if (test_opt(sbi, FASTBOOT))
+		need_cp = true;
 
 	return need_cp;
 }
