@@ -947,28 +947,6 @@ static int snd_pcm_action(struct action_ops *ops,
 	return res;
 }
 
-static int snd_pcm_action_lock_mutex(struct action_ops *ops,
-				     struct snd_pcm_substream *substream,
-				     int state)
-{
-	int res;
-
-	down_read(&snd_pcm_link_rwsem);
-	if (snd_pcm_stream_linked(substream)) {
-		mutex_lock(&substream->group->mutex);
-		mutex_lock(&substream->self_group.mutex);
-		res = snd_pcm_action_group(ops, substream, state, 1);
-		mutex_unlock(&substream->self_group.mutex);
-		mutex_unlock(&substream->group->mutex);
-	} else {
-		mutex_lock(&substream->self_group.mutex);
-		res = snd_pcm_action_single(ops, substream, state);
-		mutex_unlock(&substream->self_group.mutex);
-	}
-	up_read(&snd_pcm_link_rwsem);
-	return res;
-}
-
 /*
  *  Note: don't use any locks before
  */
@@ -978,22 +956,9 @@ static int snd_pcm_action_lock_irq(struct action_ops *ops,
 {
 	int res;
 
-	if (substream->pcm->nonatomic)
-		return snd_pcm_action_lock_mutex(ops, substream, state);
-
-	read_lock_irq(&snd_pcm_link_rwlock);
-	if (snd_pcm_stream_linked(substream)) {
-		spin_lock(&substream->group->lock);
-		spin_lock(&substream->self_group.lock);
-		res = snd_pcm_action_group(ops, substream, state, 1);
-		spin_unlock(&substream->self_group.lock);
-		spin_unlock(&substream->group->lock);
-	} else {
-		spin_lock(&substream->self_group.lock);
-		res = snd_pcm_action_single(ops, substream, state);
-		spin_unlock(&substream->self_group.lock);
-	}
-	read_unlock_irq(&snd_pcm_link_rwlock);
+	snd_pcm_stream_lock_irq(substream);
+	res = snd_pcm_action(ops, substream, state);
+	snd_pcm_stream_unlock_irq(substream);
 	return res;
 }
 
