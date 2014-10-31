@@ -1409,7 +1409,8 @@ static bool states_equal(struct verifier_state *old, struct verifier_state *cur)
 		if (memcmp(&old->regs[i], &cur->regs[i],
 			   sizeof(old->regs[0])) != 0) {
 			if (old->regs[i].type == NOT_INIT ||
-			    old->regs[i].type == UNKNOWN_VALUE)
+			    (old->regs[i].type == UNKNOWN_VALUE &&
+			     cur->regs[i].type != NOT_INIT))
 				continue;
 			return false;
 		}

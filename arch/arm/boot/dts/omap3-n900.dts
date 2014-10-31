@@ -668,6 +668,8 @@
 		bank-width = <2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&ethernet_pins>;
+		power-gpios = <&gpio3 22 GPIO_ACTIVE_HIGH>;	/* gpio86 */
+		reset-gpios = <&gpio6 4 GPIO_ACTIVE_HIGH>;	/* gpio164 */
 		gpmc,device-width = <2>;
 		gpmc,sync-clk-ps = <0>;
 		gpmc,cs-on-ns = <0>;

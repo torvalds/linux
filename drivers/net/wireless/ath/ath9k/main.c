@@ -1162,6 +1162,9 @@ static void ath9k_assign_hw_queues(struct ieee80211_hw *hw,
 {
 	int i;
 
+	if (!ath9k_is_chanctx_enabled())
+		return;
+
 	for (i = 0; i < IEEE80211_NUM_ACS; i++)
 		vif->hw_queue[i] = i;
 
