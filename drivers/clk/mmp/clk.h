@@ -103,6 +103,27 @@ extern struct clk *mmp_clk_register_mix(struct device *dev,
 					spinlock_t *lock);
 
 
+/* Clock type "gate". MMP private gate */
+#define MMP_CLK_GATE_NEED_DELAY		BIT(0)
+
+struct mmp_clk_gate {
+	struct clk_hw hw;
+	void __iomem *reg;
+	u32 mask;
+	u32 val_enable;
+	u32 val_disable;
+	unsigned int flags;
+	spinlock_t *lock;
+};
+
+extern const struct clk_ops mmp_clk_gate_ops;
+extern struct clk *mmp_clk_register_gate(struct device *dev, const char *name,
+			const char *parent_name, unsigned long flags,
+			void __iomem *reg, u32 mask, u32 val_enable,
+			u32 val_disable, unsigned int gate_flags,
+			spinlock_t *lock);
+
+
 extern struct clk *mmp_clk_register_pll2(const char *name,
 		const char *parent_name, unsigned long flags);
 extern struct clk *mmp_clk_register_apbc(const char *name,
