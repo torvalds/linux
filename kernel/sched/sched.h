@@ -709,6 +709,13 @@ extern bool find_numa_distance(int distance);
 #endif
 
 #ifdef CONFIG_NUMA_BALANCING
+/* The regions in numa_faults array from task_struct */
+enum numa_faults_stats {
+	NUMA_MEM = 0,
+	NUMA_CPU,
+	NUMA_MEMBUF,
+	NUMA_CPUBUF
+};
 extern void sched_setnuma(struct task_struct *p, int node);
 extern int migrate_task_to(struct task_struct *p, int cpu);
 extern int migrate_swap(struct task_struct *, struct task_struct *);

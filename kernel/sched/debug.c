@@ -535,8 +535,8 @@ static void sched_show_numa(struct task_struct *p, struct seq_file *m)
 			unsigned long nr_faults = -1;
 			int cpu_current, home_node;
 
-			if (p->numa_faults_memory)
-				nr_faults = p->numa_faults_memory[2*node + i];
+			if (p->numa_faults)
+				nr_faults = p->numa_faults[2*node + i];
 
 			cpu_current = !i ? (task_node(p) == node) :
 				(pol && node_isset(node, pol->v.nodes));
