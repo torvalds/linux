@@ -230,8 +230,8 @@ static void parahotplug_process_list(void);
 /* Manages the info for a CONTROLVM_DUMP_CAPTURESTATE /
  * CONTROLVM_REPORTEVENT.
  */
-static VISORCHIPSET_BUSDEV_NOTIFIERS BusDev_Server_Notifiers;
-static VISORCHIPSET_BUSDEV_NOTIFIERS BusDev_Client_Notifiers;
+static struct visorchipset_busdev_notifiers BusDev_Server_Notifiers;
+static struct visorchipset_busdev_notifiers BusDev_Client_Notifiers;
 
 static void bus_create_response(ulong busNo, int response);
 static void bus_destroy_response(ulong busNo, int response);
@@ -589,9 +589,10 @@ clear_chipset_events(void)
 }
 
 void
-visorchipset_register_busdev_server(VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers,
-				    VISORCHIPSET_BUSDEV_RESPONDERS *responders,
-				    struct ultra_vbus_deviceinfo *driverInfo)
+visorchipset_register_busdev_server(
+			struct visorchipset_busdev_notifiers *notifiers,
+			VISORCHIPSET_BUSDEV_RESPONDERS *responders,
+			struct ultra_vbus_deviceinfo *driverInfo)
 {
 	down(&NotifierLock);
 	if (notifiers == NULL) {
@@ -613,9 +614,10 @@ visorchipset_register_busdev_server(VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers,
 EXPORT_SYMBOL_GPL(visorchipset_register_busdev_server);
 
 void
-visorchipset_register_busdev_client(VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers,
-				    VISORCHIPSET_BUSDEV_RESPONDERS *responders,
-				    struct ultra_vbus_deviceinfo *driverInfo)
+visorchipset_register_busdev_client(
+			struct visorchipset_busdev_notifiers *notifiers,
+			VISORCHIPSET_BUSDEV_RESPONDERS *responders,
+			struct ultra_vbus_deviceinfo *driverInfo)
 {
 	down(&NotifierLock);
 	if (notifiers == NULL) {
@@ -1003,7 +1005,7 @@ device_epilog(u32 busNo, u32 devNo, struct spar_segment_state state, u32 cmd,
 	      struct controlvm_message_header *msgHdr, int response,
 	      BOOL needResponse, BOOL for_visorbus)
 {
-	VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers = NULL;
+	struct visorchipset_busdev_notifiers *notifiers = NULL;
 	BOOL notified = FALSE;
 
 	struct visorchipset_device_info *pDevInfo =

@@ -217,16 +217,16 @@ struct visorchipset_internalport_info {
  *  events happen.  (The implementation of these functions is outside of
  *  visorchipset.)
  */
-typedef struct {
-	void (*bus_create)(ulong busNo);
-	void (*bus_destroy)(ulong busNo);
-	void (*device_create)(ulong busNo, ulong devNo);
-	void (*device_destroy)(ulong busNo, ulong devNo);
-	void (*device_pause)(ulong busNo, ulong devNo);
-	void (*device_resume)(ulong busNo, ulong devNo);
-	int (*get_channel_info)(uuid_le typeGuid, ulong *minSize,
-				 ulong *maxSize);
-} VISORCHIPSET_BUSDEV_NOTIFIERS;
+struct visorchipset_busdev_notifiers {
+	void (*bus_create)(ulong bus_no);
+	void (*bus_destroy)(ulong bus_no);
+	void (*device_create)(ulong bus_no, ulong dev_no);
+	void (*device_destroy)(ulong bus_no, ulong dev_no);
+	void (*device_pause)(ulong bus_no, ulong dev_no);
+	void (*device_resume)(ulong bus_no, ulong dev_no);
+	int (*get_channel_info)(uuid_le type_uuid, ulong *min_size,
+				ulong *max_size);
+};
 
 /*  These functions live inside visorchipset, and will be called to indicate
  *  responses to specific events (by code outside of visorchipset).
@@ -250,9 +250,10 @@ typedef struct {
  *  responses.
  */
 void
-visorchipset_register_busdev_client(VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers,
-				    VISORCHIPSET_BUSDEV_RESPONDERS *responders,
-				    struct ultra_vbus_deviceinfo *driverInfo);
+visorchipset_register_busdev_client(
+			struct visorchipset_busdev_notifiers *notifiers,
+			VISORCHIPSET_BUSDEV_RESPONDERS *responders,
+			struct ultra_vbus_deviceinfo *driverInfo);
 
 /** Register functions (in the bus driver) to get called by visorchipset
  *  whenever a bus or device appears for which this service partition is
@@ -261,9 +262,10 @@ visorchipset_register_busdev_client(VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers,
  *  responses.
  */
 void
-visorchipset_register_busdev_server(VISORCHIPSET_BUSDEV_NOTIFIERS *notifiers,
-				    VISORCHIPSET_BUSDEV_RESPONDERS *responders,
-				    struct ultra_vbus_deviceinfo *driverInfo);
+visorchipset_register_busdev_server(
+			struct visorchipset_busdev_notifiers *notifiers,
+			VISORCHIPSET_BUSDEV_RESPONDERS *responders,
+			struct ultra_vbus_deviceinfo *driverInfo);
 
 typedef void (*SPARREPORTEVENT_COMPLETE_FUNC) (struct controlvm_message *msg,
 					       int status);
