@@ -967,8 +967,11 @@ again:
 					need_check = false;
 					list_add_tail(&edge->list[UPPER],
 						      &list);
-				} else
+				} else {
+					if (upper->checked)
+						need_check = true;
 					INIT_LIST_HEAD(&edge->list[UPPER]);
+				}
 			} else {
 				upper = rb_entry(rb_node, struct backref_node,
 						 rb_node);
