@@ -491,7 +491,6 @@ struct pci230_private {
 	spinlock_t ao_stop_spinlock;	/* Spin lock for stopping AO command */
 	unsigned long daqio;		/* PCI230's DAQ I/O space */
 	unsigned int ai_scan_count;	/* Number of AI scans remaining */
-	unsigned int ai_scan_pos;	/* Current position within AI scan */
 	unsigned int ao_scan_count;	/* Number of AO scans remaining.  */
 	int intr_cpuid;			/* ID of CPU running ISR */
 	unsigned short hwver;		/* Hardware version (for '+' models) */
@@ -1748,13 +1747,13 @@ static void pci230_ai_update_fifo_trigger_level(struct comedi_device *dev,
 	unsigned short adccon;
 
 	if (cmd->flags & CMDF_WAKE_EOS)
-		wake = scanlen - devpriv->ai_scan_pos;
+		wake = scanlen - s->async->cur_chan;
 	else if (cmd->stop_src != TRIG_COUNT ||
 		 devpriv->ai_scan_count >= PCI230_ADC_FIFOLEVEL_HALFFULL ||
 		 scanlen >= PCI230_ADC_FIFOLEVEL_HALFFULL)
 		wake = PCI230_ADC_FIFOLEVEL_HALFFULL;
 	else
-		wake = devpriv->ai_scan_count * scanlen - devpriv->ai_scan_pos;
+		wake = devpriv->ai_scan_count * scanlen - s->async->cur_chan;
 	if (wake >= PCI230_ADC_FIFOLEVEL_HALFFULL) {
 		triglev = PCI230_ADC_INT_FIFO_HALF;
 	} else if (wake > 1 && devpriv->hwver > 0) {
@@ -2064,7 +2063,7 @@ static void pci230_handle_ai(struct comedi_device *dev,
 		   scanlen > PCI230_ADC_FIFOLEVEL_HALFFULL) {
 		todo = PCI230_ADC_FIFOLEVEL_HALFFULL;
 	} else {
-		todo = devpriv->ai_scan_count * scanlen - devpriv->ai_scan_pos;
+		todo = devpriv->ai_scan_count * scanlen - async->cur_chan;
 		if (todo > PCI230_ADC_FIFOLEVEL_HALFFULL)
 			todo = PCI230_ADC_FIFOLEVEL_HALFFULL;
 	}
@@ -2105,13 +2104,8 @@ static void pci230_handle_ai(struct comedi_device *dev,
 		comedi_buf_write_samples(s, &val, 1);
 
 		fifoamount--;
-		devpriv->ai_scan_pos++;
-		if (devpriv->ai_scan_pos == scanlen) {
-			/* End of scan. */
-			devpriv->ai_scan_pos = 0;
+		if (async->cur_chan == 0)
 			devpriv->ai_scan_count--;
-			async->events |= COMEDI_CB_EOS;
-		}
 	}
 	if (cmd->stop_src == TRIG_COUNT && devpriv->ai_scan_count == 0) {
 		/* End of acquisition. */
@@ -2158,7 +2152,6 @@ static int pci230_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		return -EBUSY;
 
 	devpriv->ai_scan_count = cmd->stop_arg;
-	devpriv->ai_scan_pos = 0;	/* Position within scan. */
 
 	/*
 	 * Steps:
