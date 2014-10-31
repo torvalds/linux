@@ -2923,14 +2923,14 @@ static unsigned int cb_pcidas64_ao_fill_buffer(struct comedi_device *dev,
 {
 	struct pcidas64_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int nsamples = max_bytes / bytes_per_sample(s);
+	unsigned int nsamples = comedi_bytes_to_samples(s, max_bytes);
 	unsigned int actual_bytes;
 
 	if (cmd->stop_src == TRIG_COUNT && devpriv->ao_count < nsamples)
 		nsamples = devpriv->ao_count;
 
 	actual_bytes = comedi_buf_read_samples(s, dest, nsamples);
-	nsamples = actual_bytes / bytes_per_sample(s);
+	nsamples = comedi_bytes_to_samples(s, actual_bytes);
 	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->ao_count -= nsamples;
 
@@ -2954,7 +2954,7 @@ static unsigned int load_ao_dma_buffer(struct comedi_device *dev,
 	if (nsamples == 0)
 		return 0;
 
-	nbytes = nsamples * bytes_per_sample(s);
+	nbytes = comedi_samples_to_bytes(s, nsamples);
 	devpriv->ao_dma_desc[buffer_index].transfer_size = cpu_to_le32(nbytes);
 	/* set end of chain bit so we catch underruns */
 	next_bits = le32_to_cpu(devpriv->ao_dma_desc[buffer_index].next);

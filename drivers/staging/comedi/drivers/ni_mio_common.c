@@ -1618,12 +1618,12 @@ static void ni_ai_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct ni_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
-	unsigned int length = num_bytes / bytes_per_sample(s);
+	unsigned int nsamples = comedi_bytes_to_samples(s, num_bytes);
 	unsigned short *array = data;
 	unsigned int *larray = data;
 	unsigned int i;
 
-	for (i = 0; i < length; i++) {
+	for (i = 0; i < nsamples; i++) {
 #ifdef PCIDMA
 		if (s->subdev_flags & SDF_LSAMPL)
 			larray[i] = le32_to_cpu(larray[i]);
@@ -2732,11 +2732,11 @@ static void ni_ao_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 			unsigned int chan_index)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int length = num_bytes / bytes_per_sample(s);
+	unsigned int nsamples = comedi_bytes_to_samples(s, num_bytes);
 	unsigned short *array = data;
 	unsigned int i;
 
-	for (i = 0; i < length; i++) {
+	for (i = 0; i < nsamples; i++) {
 		unsigned int range = CR_RANGE(cmd->chanlist[chan_index]);
 		unsigned short val = array[i];
 

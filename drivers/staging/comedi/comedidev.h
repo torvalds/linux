@@ -427,12 +427,6 @@ static inline unsigned int comedi_bytes_per_sample(struct comedi_subdevice *s)
 	return s->subdev_flags & SDF_LSAMPL ? sizeof(int) : sizeof(short);
 }
 
-/* to be removed */
-static inline unsigned int bytes_per_sample(struct comedi_subdevice *s)
-{
-	return comedi_bytes_per_sample(s);
-}
-
 /**
  * comedi_sample_shift - determine log2 of subdevice sample size
  * @s:		comedi_subdevice struct

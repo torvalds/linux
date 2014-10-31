@@ -2024,7 +2024,7 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 
 	s = comedi_write_subdevice(dev, minor);
 	if (s && s->async) {
-		unsigned int bps = bytes_per_sample(s);
+		unsigned int bps = comedi_bytes_per_sample(s);
 
 		poll_wait(file, &s->async->wait_head, wait);
 		comedi_buf_write_alloc(s, s->async->prealloc_bufsz);

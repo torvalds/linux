@@ -1146,7 +1146,7 @@ static void cb_pcidas_ao_load_fifo(struct comedi_device *dev,
 		nsamples = devpriv->ao_count;
 
 	nbytes = comedi_buf_read_samples(s, devpriv->ao_buffer, nsamples);
-	nsamples = nbytes / bytes_per_sample(s);
+	nsamples = comedi_bytes_to_samples(s, nbytes);
 	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->ao_count -= nsamples;
 

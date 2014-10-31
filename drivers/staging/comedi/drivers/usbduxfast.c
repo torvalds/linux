@@ -248,9 +248,9 @@ static void usbduxfast_ai_handle_urb(struct comedi_device *dev,
 	if (devpriv->ignore) {
 		devpriv->ignore--;
 	} else {
-		unsigned int nbytes = urb->actual_length;
-		unsigned int nsamples = nbytes / bytes_per_sample(s);
+		unsigned int nsamples;
 
+		nsamples = comedi_bytes_to_samples(s, urb->actual_length);
 		if (cmd->stop_src == TRIG_COUNT) {
 			if (devpriv->ai_sample_count < nsamples) {
 				nsamples = devpriv->ai_sample_count;

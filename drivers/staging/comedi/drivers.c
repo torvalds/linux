@@ -316,14 +316,14 @@ unsigned int comedi_bytes_per_scan(struct comedi_subdevice *s)
 	case COMEDI_SUBD_DI:
 	case COMEDI_SUBD_DO:
 	case COMEDI_SUBD_DIO:
-		bits_per_sample = 8 * bytes_per_sample(s);
+		bits_per_sample = 8 * comedi_bytes_per_sample(s);
 		num_samples = DIV_ROUND_UP(cmd->chanlist_len, bits_per_sample);
 		break;
 	default:
 		num_samples = cmd->chanlist_len;
 		break;
 	}
-	return num_samples * bytes_per_sample(s);
+	return comedi_samples_to_bytes(s, num_samples);
 }
 EXPORT_SYMBOL_GPL(comedi_bytes_per_scan);
 

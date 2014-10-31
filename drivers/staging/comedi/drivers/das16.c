@@ -584,7 +584,7 @@ static void das16_interrupt(struct comedi_device *dev)
 
 	spin_unlock_irqrestore(&dev->spinlock, spin_flags);
 
-	nsamples = num_bytes / bytes_per_sample(s);
+	nsamples = comedi_bytes_to_samples(s, num_bytes);
 	comedi_buf_write_samples(s, devpriv->dma_buffer[buffer_index],
 				 nsamples);
 
