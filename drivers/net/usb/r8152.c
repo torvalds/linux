@@ -1162,6 +1162,9 @@ static void intr_callback(struct urb *urb)
 	case -ESHUTDOWN:
 		netif_device_detach(tp->netdev);
 	case -ENOENT:
+	case -EPROTO:
+		netif_info(tp, intr, tp->netdev,
+			   "Stop submitting intr, status %d\n", status);
 		return;
 	case -EOVERFLOW:
 		netif_info(tp, intr, tp->netdev, "intr status -EOVERFLOW\n");
