@@ -542,11 +542,11 @@ testUnicode(void)
 static void
 busInfo_clear(void *v)
 {
-	VISORCHIPSET_BUS_INFO *p = (VISORCHIPSET_BUS_INFO *) (v);
+	struct visorchipset_bus_info *p = (struct visorchipset_bus_info *) (v);
 
-	if (p->procObject) {
-		visor_proc_DestroyObject(p->procObject);
-		p->procObject = NULL;
+	if (p->proc_object) {
+		visor_proc_DestroyObject(p->proc_object);
+		p->proc_object = NULL;
 	}
 	kfree(p->name);
 	p->name = NULL;
@@ -555,7 +555,7 @@ busInfo_clear(void *v)
 	p->description = NULL;
 
 	p->state.created = 0;
-	memset(p, 0, sizeof(VISORCHIPSET_BUS_INFO));
+	memset(p, 0, sizeof(struct visorchipset_bus_info));
 }
 
 static void
@@ -638,7 +638,7 @@ EXPORT_SYMBOL_GPL(visorchipset_register_busdev_client);
 static void
 cleanup_controlvm_structures(void)
 {
-	VISORCHIPSET_BUS_INFO *bi, *tmp_bi;
+	struct visorchipset_bus_info *bi, *tmp_bi;
 	struct visorchipset_device_info *di, *tmp_di;
 
 	list_for_each_entry_safe(bi, tmp_bi, &BusInfoList, entry) {
@@ -825,7 +825,7 @@ EXPORT_SYMBOL_GPL(visorchipset_save_message);
 static void
 bus_responder(enum controlvm_id cmdId, ulong busNo, int response)
 {
-	VISORCHIPSET_BUS_INFO *p = NULL;
+	struct visorchipset_bus_info *p = NULL;
 	BOOL need_clear = FALSE;
 
 	p = findbus(&BusInfoList, busNo);
@@ -845,16 +845,16 @@ bus_responder(enum controlvm_id cmdId, ulong busNo, int response)
 			need_clear = TRUE;
 	}
 
-	if (p->pendingMsgHdr.id == CONTROLVM_INVALID) {
+	if (p->pending_msg_hdr.id == CONTROLVM_INVALID) {
 		LOGERR("bus_responder no pending msg");
 		return;		/* no controlvm response needed */
 	}
-	if (p->pendingMsgHdr.id != (u32) cmdId) {
-		LOGERR("expected=%d, found=%d", cmdId, p->pendingMsgHdr.id);
+	if (p->pending_msg_hdr.id != (u32) cmdId) {
+		LOGERR("expected=%d, found=%d", cmdId, p->pending_msg_hdr.id);
 		return;
 	}
-	controlvm_respond(&p->pendingMsgHdr, response);
-	p->pendingMsgHdr.id = CONTROLVM_INVALID;
+	controlvm_respond(&p->pending_msg_hdr, response);
+	p->pending_msg_hdr.id = CONTROLVM_INVALID;
 	if (need_clear) {
 		busInfo_clear(p);
 		delbusdevices(&DevInfoList, busNo);
@@ -938,17 +938,17 @@ bus_epilog(u32 busNo,
 {
 	BOOL notified = FALSE;
 
-	VISORCHIPSET_BUS_INFO *pBusInfo = findbus(&BusInfoList, busNo);
+	struct visorchipset_bus_info *pBusInfo = findbus(&BusInfoList, busNo);
 
 	if (!pBusInfo) {
 		LOGERR("HUH? bad busNo=%d", busNo);
 		return;
 	}
 	if (needResponse) {
-		memcpy(&pBusInfo->pendingMsgHdr, msgHdr,
+		memcpy(&pBusInfo->pending_msg_hdr, msgHdr,
 		       sizeof(struct controlvm_message_header));
 	} else
-		pBusInfo->pendingMsgHdr.id = CONTROLVM_INVALID;
+		pBusInfo->pending_msg_hdr.id = CONTROLVM_INVALID;
 
 	down(&NotifierLock);
 	if (response == CONTROLVM_RESP_SUCCESS) {
@@ -1103,7 +1103,7 @@ bus_create(struct controlvm_message *inmsg)
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	ulong busNo = cmd->create_bus.bus_no;
 	int rc = CONTROLVM_RESP_SUCCESS;
-	VISORCHIPSET_BUS_INFO *pBusInfo = NULL;
+	struct visorchipset_bus_info *pBusInfo = NULL;
 
 
 	pBusInfo = findbus(&BusInfoList, busNo);
@@ -1115,7 +1115,7 @@ bus_create(struct controlvm_message *inmsg)
 		rc = -CONTROLVM_RESP_ERROR_ALREADY_DONE;
 		goto Away;
 	}
-	pBusInfo = kzalloc(sizeof(VISORCHIPSET_BUS_INFO), GFP_KERNEL);
+	pBusInfo = kzalloc(sizeof(struct visorchipset_bus_info), GFP_KERNEL);
 	if (pBusInfo == NULL) {
 		LOGERR("CONTROLVM_BUS_CREATE Failed: bus %lu kzalloc failed",
 		       busNo);
@@ -1126,22 +1126,22 @@ bus_create(struct controlvm_message *inmsg)
 	}
 
 	INIT_LIST_HEAD(&pBusInfo->entry);
-	pBusInfo->busNo = busNo;
-	pBusInfo->devNo = cmd->create_bus.dev_count;
+	pBusInfo->bus_no = busNo;
+	pBusInfo->dev_no = cmd->create_bus.dev_count;
 
 	POSTCODE_LINUX_3(BUS_CREATE_ENTRY_PC, busNo, POSTCODE_SEVERITY_INFO);
 
 	if (inmsg->hdr.flags.test_message == 1)
-		pBusInfo->chanInfo.addr_type = ADDRTYPE_LOCALTEST;
+		pBusInfo->chan_info.addr_type = ADDRTYPE_LOCALTEST;
 	else
-		pBusInfo->chanInfo.addr_type = ADDRTYPE_LOCALPHYSICAL;
+		pBusInfo->chan_info.addr_type = ADDRTYPE_LOCALPHYSICAL;
 
 	pBusInfo->flags.server = inmsg->hdr.flags.server;
-	pBusInfo->chanInfo.channel_addr = cmd->create_bus.channel_addr;
-	pBusInfo->chanInfo.n_channel_bytes = cmd->create_bus.channel_bytes;
-	pBusInfo->chanInfo.channel_type_uuid =
+	pBusInfo->chan_info.channel_addr = cmd->create_bus.channel_addr;
+	pBusInfo->chan_info.n_channel_bytes = cmd->create_bus.channel_bytes;
+	pBusInfo->chan_info.channel_type_uuid =
 			cmd->create_bus.bus_data_type_uuid;
-	pBusInfo->chanInfo.channel_inst_uuid = cmd->create_bus.bus_inst_uuid;
+	pBusInfo->chan_info.channel_inst_uuid = cmd->create_bus.bus_inst_uuid;
 
 	list_add(&pBusInfo->entry, &BusInfoList);
 
@@ -1157,7 +1157,7 @@ bus_destroy(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	ulong busNo = cmd->destroy_bus.bus_no;
-	VISORCHIPSET_BUS_INFO *pBusInfo;
+	struct visorchipset_bus_info *pBusInfo;
 	int rc = CONTROLVM_RESP_SUCCESS;
 
 	pBusInfo = findbus(&BusInfoList, busNo);
@@ -1183,7 +1183,7 @@ bus_configure(struct controlvm_message *inmsg, PARSER_CONTEXT *parser_ctx)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	ulong busNo = cmd->configure_bus.bus_no;
-	VISORCHIPSET_BUS_INFO *pBusInfo = NULL;
+	struct visorchipset_bus_info *pBusInfo = NULL;
 	int rc = CONTROLVM_RESP_SUCCESS;
 	char s[99];
 
@@ -1208,21 +1208,21 @@ bus_configure(struct controlvm_message *inmsg, PARSER_CONTEXT *parser_ctx)
 		goto Away;
 	}
 	/* TBD - add this check to other commands also... */
-	if (pBusInfo->pendingMsgHdr.id != CONTROLVM_INVALID) {
+	if (pBusInfo->pending_msg_hdr.id != CONTROLVM_INVALID) {
 		LOGERR("CONTROLVM_BUS_CONFIGURE Failed: bus %lu MsgId=%u outstanding",
-		     busNo, (uint) pBusInfo->pendingMsgHdr.id);
+		     busNo, (uint) pBusInfo->pending_msg_hdr.id);
 		POSTCODE_LINUX_3(BUS_CONFIGURE_FAILURE_PC, busNo,
 				 POSTCODE_SEVERITY_ERR);
 		rc = -CONTROLVM_RESP_ERROR_MESSAGE_ID_INVALID_FOR_CLIENT;
 		goto Away;
 	}
 
-	pBusInfo->partitionHandle = cmd->configure_bus.guest_handle;
-	pBusInfo->partitionGuid = parser_id_get(parser_ctx);
+	pBusInfo->partition_handle = cmd->configure_bus.guest_handle;
+	pBusInfo->partition_uuid = parser_id_get(parser_ctx);
 	parser_param_start(parser_ctx, PARSERSTRING_NAME);
 	pBusInfo->name = parser_string_get(parser_ctx);
 
-	visorchannel_uuid_id(&pBusInfo->partitionGuid, s);
+	visorchannel_uuid_id(&pBusInfo->partition_uuid, s);
 	POSTCODE_LINUX_3(BUS_CONFIGURE_EXIT_PC, busNo, POSTCODE_SEVERITY_INFO);
 Away:
 	bus_epilog(busNo, CONTROLVM_BUS_CONFIGURE, &inmsg->hdr,
@@ -1236,7 +1236,7 @@ my_device_create(struct controlvm_message *inmsg)
 	ulong busNo = cmd->create_device.bus_no;
 	ulong devNo = cmd->create_device.dev_no;
 	struct visorchipset_device_info *pDevInfo = NULL;
-	VISORCHIPSET_BUS_INFO *pBusInfo = NULL;
+	struct visorchipset_bus_info *pBusInfo = NULL;
 	int rc = CONTROLVM_RESP_SUCCESS;
 
 	pDevInfo = finddevice(&DevInfoList, busNo, devNo);
@@ -2200,7 +2200,7 @@ device_resume_response(ulong busNo, ulong devNo, int response)
 }
 
 BOOL
-visorchipset_get_bus_info(ulong busNo, VISORCHIPSET_BUS_INFO *busInfo)
+visorchipset_get_bus_info(ulong busNo, struct visorchipset_bus_info *busInfo)
 {
 	void *p = findbus(&BusInfoList, busNo);
 
@@ -2208,7 +2208,7 @@ visorchipset_get_bus_info(ulong busNo, VISORCHIPSET_BUS_INFO *busInfo)
 		LOGERR("(%lu) failed", busNo);
 		return FALSE;
 	}
-	memcpy(busInfo, p, sizeof(VISORCHIPSET_BUS_INFO));
+	memcpy(busInfo, p, sizeof(struct visorchipset_bus_info));
 	return TRUE;
 }
 EXPORT_SYMBOL_GPL(visorchipset_get_bus_info);
@@ -2216,7 +2216,7 @@ EXPORT_SYMBOL_GPL(visorchipset_get_bus_info);
 BOOL
 visorchipset_set_bus_context(ulong busNo, void *context)
 {
-	VISORCHIPSET_BUS_INFO *p = findbus(&BusInfoList, busNo);
+	struct visorchipset_bus_info *p = findbus(&BusInfoList, busNo);
 
 	if (!p) {
 		LOGERR("(%lu) failed", busNo);
