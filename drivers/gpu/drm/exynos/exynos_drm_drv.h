@@ -110,6 +110,7 @@ struct exynos_drm_overlay {
  * Exynos DRM Display Structure.
  *	- this structure is common to analog tv, digital tv and lcd panel.
  *
+ * @create_connector: initialize and register a new connector
  * @remove: cleans up the display for removal
  * @mode_fixup: fix mode data comparing to hw specific display mode.
  * @mode_set: convert drm_display_mode to hw specific display mode and
@@ -262,8 +263,6 @@ struct exynos_drm_private {
  * @dev: pointer to device object for subdrv device driver.
  * @drm_dev: pointer to drm_device and this pointer would be set
  *	when sub driver calls exynos_drm_subdrv_register().
- * @manager: subdrv has its own manager to control a hardware appropriately
- *     and we can access a hardware drawing on this manager.
  * @probe: this callback would be called by exynos drm driver after
  *     subdrv is registered to it.
  * @remove: this callback is used to release resources created
