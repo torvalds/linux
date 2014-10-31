@@ -455,7 +455,7 @@ static void hdmi_dma_data_copy(struct snd_pcm_substream *substream,
 	if (runtime->access != SNDRV_PCM_ACCESS_MMAP_INTERLEAVED)
 		return;
 
-	appl_bytes = frames_to_bytes(runtime, runtime->status->hw_ptr);
+	appl_bytes =  runtime->status->hw_ptr * (runtime->frame_bits / 8);
 	if (type == 'p')
 		appl_bytes += 2 * priv->period_bytes;
 	offset = appl_bytes % priv->buffer_bytes;
