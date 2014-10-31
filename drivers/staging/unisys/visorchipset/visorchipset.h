@@ -160,21 +160,20 @@ findbus(struct list_head *list, u32 bus_no)
 
 /** Attributes for a particular Supervisor switch.
  */
-typedef struct {
-	u32 switchNo;
+struct visorchipset_switch_info {
+	u32 switch_no;
 	struct visorchipset_state state;
-	uuid_le switchTypeGuid;
-	u8 *authService1;
-	u8 *authService2;
-	u8 *authService3;
-	u8 *securityContext;
-	u64 Reserved;
-	u32 Reserved2;		/* control_vm_id */
+	uuid_le switch_type_uuid;
+	u8 *authservice1;
+	u8 *authservice2;
+	u8 *authservice3;
+	u8 *security_context;
+	u64 reserved;
+	u32 reserved2;		/* control_vm_id */
 	struct device dev;
 	BOOL dev_exists;
-	struct controlvm_message_header pendingMsgHdr;
-
-} VISORCHIPSET_SWITCH_INFO;
+	struct controlvm_message_header pending_msg_hdr;
+};
 
 /** Attributes for a particular Supervisor external port, which is connected
  *  to a specific switch.
@@ -277,7 +276,7 @@ BOOL visorchipset_get_bus_info(ulong busNo,
 BOOL visorchipset_get_device_info(ulong busNo, ulong devNo,
 				  struct visorchipset_device_info *devInfo);
 BOOL visorchipset_get_switch_info(ulong switchNo,
-				  VISORCHIPSET_SWITCH_INFO *switchInfo);
+				  struct visorchipset_switch_info *switchInfo);
 BOOL visorchipset_get_externalport_info(ulong switchNo, ulong externalPortNo,
 					VISORCHIPSET_EXTERNALPORT_INFO
 					*externalPortInfo);
