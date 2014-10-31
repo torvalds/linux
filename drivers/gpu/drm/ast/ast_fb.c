@@ -345,7 +345,20 @@ int ast_fbdev_init(struct drm_device *dev)
 	/* disable all the possible outputs/crtcs before entering KMS mode */
 	drm_helper_disable_unused_functions(dev);
 
+	/*
+	 * This chip is LE only (some versions support HW swappers but not
+	 * the latest and the driver doesn't anyway).
+	 *
+	 * I tried using the "foreign endian" fb flag but it appears to be
+	 * busted, so instead, default to endian-neutral 8bpp for BE.
+	 *
+	 * (and it's faster !)
+	 */
+#if defined(__BIG_ENDIAN)
+	ret = drm_fb_helper_initial_config(&afbdev->helper, 8);
+#else
 	ret = drm_fb_helper_initial_config(&afbdev->helper, 32);
+#endif
 	if (ret)
 		goto fini;
 
