@@ -727,8 +727,12 @@ static int rk312x_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 		lcdc_cfg_done(lcdc_dev);
 		while(lcdc_readl(lcdc_dev, SYS_CTRL) & (m_WIN0_EN | m_WIN1_EN));
 	}*/
-	if ((dev_drv->ops->open_bcsh) && (dev_drv->output_color == COLOR_YCBCR))
-		dev_drv->ops->open_bcsh(dev_drv, 1);
+	if ((dev_drv->ops->open_bcsh) && (dev_drv->output_color == COLOR_YCBCR)) {
+		if(support_uboot_display())
+			dev_drv->bcsh_init_status = 1;
+		else
+			dev_drv->ops->open_bcsh(dev_drv, 1);
+	}
 	lcdc_dev->pre_init = true;
 
 	return 0;
@@ -1998,7 +2002,10 @@ static int rk312x_lcdc_open_bcsh(struct rk_lcdc_driver *dev_drv, bool open)
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
 	u32 mask, val;
-
+	if(dev_drv->bcsh_init_status && open) {
+		dev_drv->bcsh_init_status = 0;
+		return 0;
+	}
 	spin_lock(&lcdc_dev->reg_lock);
 	if (lcdc_dev->clk_on) {
 		rk312x_lcdc_select_bcsh(dev_drv,  lcdc_dev);

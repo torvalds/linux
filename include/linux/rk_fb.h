@@ -593,6 +593,7 @@ struct rk_lcdc_driver {
 	struct rk_lcdc_bcsh bcsh;
 	int *hwc_lut;
 	int uboot_logo;
+	int bcsh_init_status;
 };
 
 struct rk_fb_par {
