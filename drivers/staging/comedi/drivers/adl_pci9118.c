@@ -586,8 +586,9 @@ static void pci9118_ai_munge(struct comedi_device *dev,
 			     unsigned int start_chan_index)
 {
 	struct pci9118_private *devpriv = dev->private;
-	unsigned int i, num_samples = num_bytes / sizeof(short);
 	unsigned short *array = data;
+	unsigned int num_samples = comedi_bytes_to_samples(s, num_bytes);
+	unsigned int i;
 
 	for (i = 0; i < num_samples; i++) {
 		if (devpriv->usedma)
