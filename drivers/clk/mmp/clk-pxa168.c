@@ -47,7 +47,7 @@
 
 static DEFINE_SPINLOCK(clk_lock);
 
-static struct clk_factor_masks uart_factor_masks = {
+static struct mmp_clk_factor_masks uart_factor_masks = {
 	.factor = 2,
 	.num_mask = 0x1fff,
 	.den_mask = 0x1fff,
@@ -55,7 +55,7 @@ static struct clk_factor_masks uart_factor_masks = {
 	.den_shift = 0,
 };
 
-static struct clk_factor_tbl uart_factor_tbl[] = {
+static struct mmp_clk_factor_tbl uart_factor_tbl[] = {
 	{.num = 8125, .den = 1536},	/*14.745MHZ */
 };
 

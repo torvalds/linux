@@ -22,19 +22,19 @@
  * numerator/denominator = Fin / (Fout * factor)
  */
 
-#define to_clk_factor(hw) container_of(hw, struct clk_factor, hw)
-struct clk_factor {
+#define to_clk_factor(hw) container_of(hw, struct mmp_clk_factor, hw)
+struct mmp_clk_factor {
 	struct clk_hw		hw;
 	void __iomem		*base;
-	struct clk_factor_masks	*masks;
-	struct clk_factor_tbl	*ftbl;
+	struct mmp_clk_factor_masks	*masks;
+	struct mmp_clk_factor_tbl	*ftbl;
 	unsigned int		ftbl_cnt;
 };
 
 static long clk_factor_round_rate(struct clk_hw *hw, unsigned long drate,
 		unsigned long *prate)
 {
-	struct clk_factor *factor = to_clk_factor(hw);
+	struct mmp_clk_factor *factor = to_clk_factor(hw);
 	unsigned long rate = 0, prev_rate;
 	int i;
 
@@ -58,8 +58,8 @@ static long clk_factor_round_rate(struct clk_hw *hw, unsigned long drate,
 static unsigned long clk_factor_recalc_rate(struct clk_hw *hw,
 		unsigned long parent_rate)
 {
-	struct clk_factor *factor = to_clk_factor(hw);
-	struct clk_factor_masks *masks = factor->masks;
+	struct mmp_clk_factor *factor = to_clk_factor(hw);
+	struct mmp_clk_factor_masks *masks = factor->masks;
 	unsigned int val, num, den;
 
 	val = readl_relaxed(factor->base);
@@ -81,8 +81,8 @@ static unsigned long clk_factor_recalc_rate(struct clk_hw *hw,
 static int clk_factor_set_rate(struct clk_hw *hw, unsigned long drate,
 				unsigned long prate)
 {
-	struct clk_factor *factor = to_clk_factor(hw);
-	struct clk_factor_masks *masks = factor->masks;
+	struct mmp_clk_factor *factor = to_clk_factor(hw);
+	struct mmp_clk_factor_masks *masks = factor->masks;
 	int i;
 	unsigned long val;
 	unsigned long prev_rate, rate = 0;
@@ -118,10 +118,11 @@ static struct clk_ops clk_factor_ops = {
 
 struct clk *mmp_clk_register_factor(const char *name, const char *parent_name,
 		unsigned long flags, void __iomem *base,
-		struct clk_factor_masks *masks, struct clk_factor_tbl *ftbl,
+		struct mmp_clk_factor_masks *masks,
+		struct mmp_clk_factor_tbl *ftbl,
 		unsigned int ftbl_cnt)
 {
-	struct clk_factor *factor;
+	struct mmp_clk_factor *factor;
 	struct clk_init_data init;
 	struct clk *clk;
 

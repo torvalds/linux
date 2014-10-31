@@ -7,7 +7,7 @@
 #define APBC_NO_BUS_CTRL	BIT(0)
 #define APBC_POWER_CTRL		BIT(1)
 
-struct clk_factor_masks {
+struct mmp_clk_factor_masks {
 	unsigned int	factor;
 	unsigned int	num_mask;
 	unsigned int	den_mask;
@@ -15,7 +15,7 @@ struct clk_factor_masks {
 	unsigned int	den_shift;
 };
 
-struct clk_factor_tbl {
+struct mmp_clk_factor_tbl {
 	unsigned int num;
 	unsigned int den;
 };
@@ -30,6 +30,6 @@ extern struct clk *mmp_clk_register_apmu(const char *name,
 		spinlock_t *lock);
 extern struct clk *mmp_clk_register_factor(const char *name,
 		const char *parent_name, unsigned long flags,
-		void __iomem *base, struct clk_factor_masks *masks,
-		struct clk_factor_tbl *ftbl, unsigned int ftbl_cnt);
+		void __iomem *base, struct mmp_clk_factor_masks *masks,
+		struct mmp_clk_factor_tbl *ftbl, unsigned int ftbl_cnt);
 #endif
