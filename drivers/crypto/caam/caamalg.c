@@ -1735,14 +1735,19 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 			     const u8 *key, unsigned int keylen)
 {
 	struct caam_ctx *ctx = crypto_ablkcipher_ctx(ablkcipher);
-	struct ablkcipher_tfm *tfm = &ablkcipher->base.crt_ablkcipher;
+	struct ablkcipher_tfm *crt = &ablkcipher->base.crt_ablkcipher;
+	struct crypto_tfm *tfm = crypto_ablkcipher_tfm(ablkcipher);
+	const char *alg_name = crypto_tfm_alg_name(tfm);
 	struct device *jrdev = ctx->jrdev;
 	int ret = 0;
 	u32 *key_jump_cmd;
 	u32 *desc;
+	u32 *nonce;
 	u32 ctx1_iv_off = 0;
 	const bool ctr_mode = ((ctx->class1_alg_type & OP_ALG_AAI_MASK) ==
 			       OP_ALG_AAI_CTR_MOD128);
+	const bool is_rfc3686 = (ctr_mode &&
+				 (strstr(alg_name, "rfc3686") != NULL));
 
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "key in @"__stringify(__LINE__)": ",
@@ -1756,6 +1761,16 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 	if (ctr_mode)
 		ctx1_iv_off = 16;
 
+	/*
+	 * RFC3686 specific:
+	 *	| CONTEXT1[255:128] = {NONCE, IV, COUNTER}
+	 *	| *key = {KEY, NONCE}
+	 */
+	if (is_rfc3686) {
+		ctx1_iv_off = 16 + CTR_RFC3686_NONCE_SIZE;
+		keylen -= CTR_RFC3686_NONCE_SIZE;
+	}
+
 	memcpy(ctx->key, key, keylen);
 	ctx->key_dma = dma_map_single(jrdev, ctx->key, keylen,
 				      DMA_TO_DEVICE);
@@ -1767,7 +1782,7 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 
 	/* ablkcipher_encrypt shared descriptor */
 	desc = ctx->sh_desc_enc;
-	init_sh_desc(desc, HDR_SHARE_SERIAL);
+	init_sh_desc(desc, HDR_SHARE_SERIAL | HDR_SAVECTX);
 	/* Skip if already shared */
 	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 				   JUMP_COND_SHRD);
@@ -1777,11 +1792,31 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 			  ctx->enckeylen, CLASS_1 |
 			  KEY_DEST_CLASS_REG);
 
+	/* Load nonce into CONTEXT1 reg */
+	if (is_rfc3686) {
+		nonce = (u32 *)(key + keylen);
+		append_load_imm_u32(desc, *nonce, LDST_CLASS_IND_CCB |
+				    LDST_SRCDST_BYTE_OUTFIFO | LDST_IMM);
+		append_move(desc, MOVE_WAITCOMP |
+			    MOVE_SRC_OUTFIFO |
+			    MOVE_DEST_CLASS1CTX |
+			    (16 << MOVE_OFFSET_SHIFT) |
+			    (CTR_RFC3686_NONCE_SIZE << MOVE_LEN_SHIFT));
+	}
+
 	set_jump_tgt_here(desc, key_jump_cmd);
 
 	/* Load iv */
-	append_seq_load(desc, tfm->ivsize, LDST_SRCDST_BYTE_CONTEXT |
+	append_seq_load(desc, crt->ivsize, LDST_SRCDST_BYTE_CONTEXT |
 			LDST_CLASS_1_CCB | (ctx1_iv_off << LDST_OFFSET_SHIFT));
+
+	/* Load counter into CONTEXT1 reg */
+	if (is_rfc3686)
+		append_load_imm_u32(desc, be32_to_cpu(1), LDST_IMM |
+				    LDST_CLASS_1_CCB |
+				    LDST_SRCDST_BYTE_CONTEXT |
+				    ((ctx1_iv_off + CTR_RFC3686_IV_SIZE) <<
+				     LDST_OFFSET_SHIFT));
 
 	/* Load operation */
 	append_operation(desc, ctx->class1_alg_type |
@@ -1806,7 +1841,7 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 	/* ablkcipher_decrypt shared descriptor */
 	desc = ctx->sh_desc_dec;
 
-	init_sh_desc(desc, HDR_SHARE_SERIAL);
+	init_sh_desc(desc, HDR_SHARE_SERIAL | HDR_SAVECTX);
 	/* Skip if already shared */
 	key_jump_cmd = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 				   JUMP_COND_SHRD);
@@ -1816,11 +1851,31 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 			  ctx->enckeylen, CLASS_1 |
 			  KEY_DEST_CLASS_REG);
 
+	/* Load nonce into CONTEXT1 reg */
+	if (is_rfc3686) {
+		nonce = (u32 *)(key + keylen);
+		append_load_imm_u32(desc, *nonce, LDST_CLASS_IND_CCB |
+				    LDST_SRCDST_BYTE_OUTFIFO | LDST_IMM);
+		append_move(desc, MOVE_WAITCOMP |
+			    MOVE_SRC_OUTFIFO |
+			    MOVE_DEST_CLASS1CTX |
+			    (16 << MOVE_OFFSET_SHIFT) |
+			    (CTR_RFC3686_NONCE_SIZE << MOVE_LEN_SHIFT));
+	}
+
 	set_jump_tgt_here(desc, key_jump_cmd);
 
 	/* load IV */
-	append_seq_load(desc, tfm->ivsize, LDST_SRCDST_BYTE_CONTEXT |
+	append_seq_load(desc, crt->ivsize, LDST_SRCDST_BYTE_CONTEXT |
 			LDST_CLASS_1_CCB | (ctx1_iv_off << LDST_OFFSET_SHIFT));
+
+	/* Load counter into CONTEXT1 reg */
+	if (is_rfc3686)
+		append_load_imm_u32(desc, be32_to_cpu(1), LDST_IMM |
+				    LDST_CLASS_1_CCB |
+				    LDST_SRCDST_BYTE_CONTEXT |
+				    ((ctx1_iv_off + CTR_RFC3686_IV_SIZE) <<
+				     LDST_OFFSET_SHIFT));
 
 	/* Choose operation */
 	if (ctr_mode)
@@ -3561,6 +3616,24 @@ static struct caam_alg_template driver_algs[] = {
 			.min_keysize = AES_MIN_KEY_SIZE,
 			.max_keysize = AES_MAX_KEY_SIZE,
 			.ivsize = AES_BLOCK_SIZE,
+			},
+		.class1_alg_type = OP_ALG_ALGSEL_AES | OP_ALG_AAI_CTR_MOD128,
+	},
+	{
+		.name = "rfc3686(ctr(aes))",
+		.driver_name = "rfc3686-ctr-aes-caam",
+		.blocksize = 1,
+		.type = CRYPTO_ALG_TYPE_ABLKCIPHER,
+		.template_ablkcipher = {
+			.setkey = ablkcipher_setkey,
+			.encrypt = ablkcipher_encrypt,
+			.decrypt = ablkcipher_decrypt,
+			.geniv = "seqiv",
+			.min_keysize = AES_MIN_KEY_SIZE +
+				       CTR_RFC3686_NONCE_SIZE,
+			.max_keysize = AES_MAX_KEY_SIZE +
+				       CTR_RFC3686_NONCE_SIZE,
+			.ivsize = CTR_RFC3686_IV_SIZE,
 			},
 		.class1_alg_type = OP_ALG_ALGSEL_AES | OP_ALG_AAI_CTR_MOD128,
 	}
