@@ -3522,7 +3522,7 @@ static void bond_xmit_slave_id(struct bonding *bond, struct sk_buff *skb, int sl
 		}
 	}
 	/* no slave that can tx has been found */
-	dev_kfree_skb_any(skb);
+	bond_tx_drop(bond->dev, skb);
 }
 
 /**
@@ -3584,7 +3584,7 @@ static int bond_xmit_roundrobin(struct sk_buff *skb, struct net_device *bond_dev
 			slave_id = bond_rr_gen_slave_id(bond);
 			bond_xmit_slave_id(bond, skb, slave_id % slave_cnt);
 		} else {
-			dev_kfree_skb_any(skb);
+			bond_tx_drop(bond_dev, skb);
 		}
 	}
 
@@ -3603,7 +3603,7 @@ static int bond_xmit_activebackup(struct sk_buff *skb, struct net_device *bond_d
 	if (slave)
 		bond_dev_queue_xmit(bond, skb, slave->dev);
 	else
-		dev_kfree_skb_any(skb);
+		bond_tx_drop(bond_dev, skb);
 
 	return NETDEV_TX_OK;
 }
@@ -3747,8 +3747,7 @@ int bond_3ad_xor_xmit(struct sk_buff *skb, struct net_device *dev)
 		slave = slaves->arr[bond_xmit_hash(bond, skb) % count];
 		bond_dev_queue_xmit(bond, skb, slave->dev);
 	} else {
-		dev_kfree_skb_any(skb);
-		atomic_long_inc(&dev->tx_dropped);
+		bond_tx_drop(dev, skb);
 	}
 
 	return NETDEV_TX_OK;
@@ -3778,7 +3777,7 @@ static int bond_xmit_broadcast(struct sk_buff *skb, struct net_device *bond_dev)
 	if (slave && bond_slave_is_up(slave) && slave->link == BOND_LINK_UP)
 		bond_dev_queue_xmit(bond, skb, slave->dev);
 	else
-		dev_kfree_skb_any(skb);
+		bond_tx_drop(bond_dev, skb);
 
 	return NETDEV_TX_OK;
 }
@@ -3858,7 +3857,7 @@ static netdev_tx_t __bond_start_xmit(struct sk_buff *skb, struct net_device *dev
 		/* Should never happen, mode already checked */
 		netdev_err(dev, "Unknown bonding mode %d\n", BOND_MODE(bond));
 		WARN_ON_ONCE(1);
-		dev_kfree_skb_any(skb);
+		bond_tx_drop(dev, skb);
 		return NETDEV_TX_OK;
 	}
 }
@@ -3878,7 +3877,7 @@ static netdev_tx_t bond_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (bond_has_slaves(bond))
 		ret = __bond_start_xmit(skb, dev);
 	else
-		dev_kfree_skb_any(skb);
+		bond_tx_drop(dev, skb);
 	rcu_read_unlock();
 
 	return ret;
