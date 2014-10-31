@@ -760,7 +760,8 @@ static void controlvm_respond_physdev_changestate(
 }
 
 void
-visorchipset_save_message(struct controlvm_message *msg, CRASH_OBJ_TYPE type)
+visorchipset_save_message(struct controlvm_message *msg,
+			  enum crash_obj_type type)
 {
 	u32 localSavedCrashMsgOffset;
 	u16 localSavedCrashMsgCount;
@@ -796,7 +797,7 @@ visorchipset_save_message(struct controlvm_message *msg, CRASH_OBJ_TYPE type)
 		return;
 	}
 
-	if (type == CRASH_bus) {
+	if (type == CRASH_BUS) {
 		if (visorchannel_write(ControlVm_channel,
 				       localSavedCrashMsgOffset,
 				       msg,
