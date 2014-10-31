@@ -113,17 +113,6 @@
 #define SENSOR_PREFIX		"ibm,sensor-"
 #define cel_to_fahr(x)		((x*9/5)+32)
 
-
-/* Globals */
-static struct rtas_sensors sensors;
-static struct device_node *rtas_node = NULL;
-static unsigned long power_on_time = 0; /* Save the time the user set */
-static char progress_led[MAX_LINELENGTH];
-
-static unsigned long rtas_tone_frequency = 1000;
-static unsigned long rtas_tone_volume = 0;
-
-/* ****************STRUCTS******************************************* */
 struct individual_sensor {
 	unsigned int token;
 	unsigned int quant;
@@ -133,6 +122,15 @@ struct rtas_sensors {
         struct individual_sensor sensor[MAX_SENSORS];
 	unsigned int quant;
 };
+
+/* Globals */
+static struct rtas_sensors sensors;
+static struct device_node *rtas_node = NULL;
+static unsigned long power_on_time = 0; /* Save the time the user set */
+static char progress_led[MAX_LINELENGTH];
+
+static unsigned long rtas_tone_frequency = 1000;
+static unsigned long rtas_tone_volume = 0;
 
 /* ****************************************************************** */
 /* Declarations */
