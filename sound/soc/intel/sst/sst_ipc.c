@@ -230,7 +230,7 @@ static void process_fw_init(struct intel_sst_drv *sst_drv_ctx,
 
 	dev_dbg(sst_drv_ctx->dev, "*** FW Init msg came***\n");
 	if (init->result) {
-		sst_drv_ctx->sst_state =  SST_RESET;
+		sst_set_fw_state_locked(sst_drv_ctx, SST_RESET);
 		dev_err(sst_drv_ctx->dev, "FW Init failed, Error %x\n",
 				init->result);
 		retval = init->result;

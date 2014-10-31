@@ -463,15 +463,13 @@ static int intel_sst_runtime_resume(struct device *dev)
 	int ret = 0;
 	struct intel_sst_drv *ctx = dev_get_drvdata(dev);
 
-	mutex_lock(&ctx->sst_lock);
 	if (ctx->sst_state == SST_RESET) {
 		ret = sst_load_fw(ctx);
 		if (ret) {
 			dev_err(dev, "FW download fail %d\n", ret);
-			ctx->sst_state = SST_RESET;
+			sst_set_fw_state_locked(ctx, SST_RESET);
 		}
 	}
-	mutex_unlock(&ctx->sst_lock);
 	return ret;
 }
 
