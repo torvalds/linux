@@ -107,46 +107,6 @@ void context_tracking_user_enter(void)
 }
 NOKPROBE_SYMBOL(context_tracking_user_enter);
 
-#ifdef CONFIG_PREEMPT
-/**
- * preempt_schedule_context - preempt_schedule called by tracing
- *
- * The tracing infrastructure uses preempt_enable_notrace to prevent
- * recursion and tracing preempt enabling caused by the tracing
- * infrastructure itself. But as tracing can happen in areas coming
- * from userspace or just about to enter userspace, a preempt enable
- * can occur before user_exit() is called. This will cause the scheduler
- * to be called when the system is still in usermode.
- *
- * To prevent this, the preempt_enable_notrace will use this function
- * instead of preempt_schedule() to exit user context if needed before
- * calling the scheduler.
- */
-asmlinkage __visible void __sched notrace preempt_schedule_context(void)
-{
-	enum ctx_state prev_ctx;
-
-	if (likely(!preemptible()))
-		return;
-
-	/*
-	 * Need to disable preemption in case user_exit() is traced
-	 * and the tracer calls preempt_enable_notrace() causing
-	 * an infinite recursion.
-	 */
-	preempt_disable_notrace();
-	prev_ctx = exception_enter();
-	preempt_enable_no_resched_notrace();
-
-	preempt_schedule();
-
-	preempt_disable_notrace();
-	exception_exit(prev_ctx);
-	preempt_enable_notrace();
-}
-EXPORT_SYMBOL_GPL(preempt_schedule_context);
-#endif /* CONFIG_PREEMPT */
-
 /**
  * context_tracking_user_exit - Inform the context tracking that the CPU is
  *                              exiting userspace mode and entering the kernel.
