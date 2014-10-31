@@ -11,31 +11,16 @@
 
 #include "Driver.h"
 
-class Buffer;
-class FSCounter;
-
-class FSDriver : public Driver {
+class FSDriver : public PolledDriver {
 public:
 	FSDriver();
 	~FSDriver();
 
-	void setup(mxml_node_t *const xml);
-
-	bool claimCounter(const Counter &counter) const;
-	bool countersEnabled() const;
-	void resetCounters();
-	void setupCounter(Counter &counter);
+	void readEvents(mxml_node_t *const xml);
 
 	int writeCounters(mxml_node_t *root) const;
 
-	void start();
-	void read(Buffer * buffer);
-
 private:
-	FSCounter *findCounter(const Counter &counter) const;
-
-	FSCounter *counters;
-
 	// Intentionally unimplemented
 	FSDriver(const FSDriver &);
 	FSDriver &operator=(const FSDriver &);

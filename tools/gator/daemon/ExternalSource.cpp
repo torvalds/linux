@@ -19,6 +19,9 @@
 static const char MALI_VIDEO[] = "\0mali-video";
 static const char MALI_VIDEO_STARTUP[] = "\0mali-video-startup";
 static const char MALI_VIDEO_V1[] = "MALI_VIDEO 1\n";
+static const char MALI_GRAPHICS[] = "\0mali_thirdparty_server";
+static const char MALI_GRAPHICS_STARTUP[] = "\0mali_thirdparty_client";
+static const char MALI_GRAPHICS_V1[] = "MALI_GRAPHICS 1\n";
 
 static bool setNonblock(const int fd) {
 	int flags;
@@ -37,16 +40,15 @@ static bool setNonblock(const int fd) {
 	return true;
 }
 
-ExternalSource::ExternalSource(sem_t *senderSem) : mBuffer(0, FRAME_EXTERNAL, 128*1024, senderSem), mMonitor(), mMveStartupUds(MALI_VIDEO_STARTUP, sizeof(MALI_VIDEO_STARTUP)), mInterruptFd(-1), mMveUds(-1) {
+ExternalSource::ExternalSource(sem_t *senderSem) : mBuffer(0, FRAME_EXTERNAL, 128*1024, senderSem), mMonitor(), mMveStartupUds(MALI_VIDEO_STARTUP, sizeof(MALI_VIDEO_STARTUP)), mMaliStartupUds(MALI_GRAPHICS_STARTUP, sizeof(MALI_GRAPHICS_STARTUP)), mAnnotate(8083), mInterruptFd(-1), mMaliUds(-1), mMveUds(-1) {
 	sem_init(&mBufferSem, 0, 0);
 }
 
 ExternalSource::~ExternalSource() {
 }
 
-void ExternalSource::waitFor(const uint64_t currTime, const int bytes) {
+void ExternalSource::waitFor(const int bytes) {
 	while (mBuffer.bytesAvailable() <= bytes) {
-		mBuffer.check(currTime);
 		sem_wait(&mBufferSem);
 	}
 }
@@ -63,11 +65,21 @@ void ExternalSource::configureConnection(const int fd, const char *const handsha
 	}
 
 	// Write the handshake to the circular buffer
-	waitFor(1, Buffer::MAXSIZE_PACK32 + 4 + size - 1);
+	waitFor(Buffer::MAXSIZE_PACK32 + size - 1);
 	mBuffer.packInt(fd);
-	mBuffer.writeLEInt((unsigned char *)mBuffer.getWritePos(), size - 1);
-	mBuffer.advanceWrite(4);
 	mBuffer.writeBytes(handshake, size - 1);
+	mBuffer.commit(1);
+}
+
+bool ExternalSource::connectMali() {
+	mMaliUds = OlySocket::connect(MALI_GRAPHICS, sizeof(MALI_GRAPHICS));
+	if (mMaliUds < 0) {
+		return false;
+	}
+
+	configureConnection(mMaliUds, MALI_GRAPHICS_V1, sizeof(MALI_GRAPHICS_V1));
+
+	return true;
 }
 
 bool ExternalSource::connectMve() {
@@ -90,10 +102,15 @@ bool ExternalSource::connectMve() {
 }
 
 bool ExternalSource::prepare() {
-	if (!mMonitor.init() || !setNonblock(mMveStartupUds.getFd()) || !mMonitor.add(mMveStartupUds.getFd())) {
+	if (!mMonitor.init() ||
+			!setNonblock(mMveStartupUds.getFd()) || !mMonitor.add(mMveStartupUds.getFd()) ||
+			!setNonblock(mMaliStartupUds.getFd()) || !mMonitor.add(mMaliStartupUds.getFd()) ||
+			!setNonblock(mAnnotate.getFd()) || !mMonitor.add(mAnnotate.getFd()) ||
+			false) {
 		return false;
 	}
 
+	connectMali();
 	connectMve();
 
 	return true;
@@ -104,7 +121,7 @@ void ExternalSource::run() {
 
 	prctl(PR_SET_NAME, (unsigned long)&"gatord-external", 0, 0, 0);
 
-	if (pipe(pipefd) != 0) {
+	if (pipe_cloexec(pipefd) != 0) {
 		logg->logError(__FILE__, __LINE__, "pipe failed");
 		handleException();
 	}
@@ -114,6 +131,9 @@ void ExternalSource::run() {
 		logg->logError(__FILE__, __LINE__, "Monitor::add failed");
 		handleException();
 	}
+
+	// Notify annotate clients to retry connecting to gatord
+	gSessionData->annotateListener.signal();
 
 	while (gSessionData->mSessionIsActive) {
 		struct epoll_event events[16];
@@ -138,36 +158,60 @@ void ExternalSource::run() {
 					logg->logError(__FILE__, __LINE__, "Unable to configure incoming Mali video connection");
 					handleException();
 				}
+			} else if (fd == mMaliStartupUds.getFd()) {
+				// Mali Graphics says it's alive
+				int client = mMaliStartupUds.acceptConnection();
+				// Don't read from this connection, establish a new connection to Mali Graphics
+				close(client);
+				if (!connectMali()) {
+					logg->logError(__FILE__, __LINE__, "Unable to configure incoming Mali graphics connection");
+					handleException();
+				}
+			} else if (fd == mAnnotate.getFd()) {
+				int client = mAnnotate.acceptConnection();
+				if (!setNonblock(client) || !mMonitor.add(client)) {
+					logg->logError(__FILE__, __LINE__, "Unable to set socket options on incoming annotation connection");
+					handleException();
+				}
 			} else if (fd == pipefd[0]) {
 				// Means interrupt has been called and mSessionIsActive should be reread
 			} else {
-				while (true) {
-					waitFor(currTime, Buffer::MAXSIZE_PACK32 + 4);
-
+				/* This can result in some starvation if there are multiple
+				 * threads which are annotating heavily, but it is not
+				 * recommended that threads annotate that much as it can also
+				 * starve out the gator data.
+				 */
+				while (gSessionData->mSessionIsActive) {
+					// Wait until there is enough room for the fd, two headers and two ints
+					waitFor(7*Buffer::MAXSIZE_PACK32 + 2*sizeof(uint32_t));
 					mBuffer.packInt(fd);
-					char *const bytesPos = mBuffer.getWritePos();
-					mBuffer.advanceWrite(4);
 					const int contiguous = mBuffer.contiguousSpaceAvailable();
 					const int bytes = read(fd, mBuffer.getWritePos(), contiguous);
 					if (bytes < 0) {
 						if (errno == EAGAIN) {
-							// Nothing left to read, and Buffer convention dictates that writePos can't go backwards
-							mBuffer.writeLEInt((unsigned char *)bytesPos, 0);
+							// Nothing left to read
+							mBuffer.commit(currTime);
 							break;
 						}
 						// Something else failed, close the socket
-						mBuffer.writeLEInt((unsigned char *)bytesPos, -1);
+						mBuffer.commit(currTime);
+						mBuffer.packInt(-1);
+						mBuffer.packInt(fd);
+						mBuffer.commit(currTime);
 						close(fd);
 						break;
 					} else if (bytes == 0) {
 						// The other side is closed
-						mBuffer.writeLEInt((unsigned char *)bytesPos, -1);
+						mBuffer.commit(currTime);
+						mBuffer.packInt(-1);
+						mBuffer.packInt(fd);
+						mBuffer.commit(currTime);
 						close(fd);
 						break;
 					}
 
-					mBuffer.writeLEInt((unsigned char *)bytesPos, bytes);
 					mBuffer.advanceWrite(bytes);
+					mBuffer.commit(currTime);
 
 					// Short reads also mean nothing is left to read
 					if (bytes < contiguous) {
@@ -176,12 +220,13 @@ void ExternalSource::run() {
 				}
 			}
 		}
-
-		// Only call mBufferCheck once per iteration
-		mBuffer.check(currTime);
 	}
 
 	mBuffer.setDone();
+
+	if (mMveUds >= 0) {
+		gSessionData->maliVideo.stop(mMveUds);
+	}
 
 	mInterruptFd = -1;
 	close(pipefd[0]);

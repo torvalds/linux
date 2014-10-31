@@ -16,6 +16,8 @@
 #include <linux/workqueue.h>
 #include <trace/events/kmem.h>
 
+#define USE_THREAD defined(CONFIG_PREEMPT_RT_FULL)
+
 enum {
 	MEMINFO_MEMFREE,
 	MEMINFO_MEMUSED,
@@ -48,7 +50,7 @@ static bool meminfo_global_enabled;
 static ulong meminfo_enabled[MEMINFO_TOTAL];
 static ulong meminfo_keys[MEMINFO_TOTAL];
 static long long meminfo_buffer[2 * (MEMINFO_TOTAL + 2)];
-static int meminfo_length = 0;
+static int meminfo_length;
 static bool new_data_avail;
 
 static bool proc_global_enabled;
@@ -56,13 +58,35 @@ static ulong proc_enabled[PROC_COUNT];
 static ulong proc_keys[PROC_COUNT];
 static DEFINE_PER_CPU(long long, proc_buffer[2 * (PROC_COUNT + 3)]);
 
+#if USE_THREAD
+
 static int gator_meminfo_func(void *data);
 static bool gator_meminfo_run;
-// Initialize semaphore unlocked to initialize memory values
+/* Initialize semaphore unlocked to initialize memory values */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 36)
 static DECLARE_MUTEX(gator_meminfo_sem);
 #else
 static DEFINE_SEMAPHORE(gator_meminfo_sem);
+#endif
+
+static void notify(void)
+{
+	up(&gator_meminfo_sem);
+}
+
+#else
+
+static unsigned int mem_event;
+static void wq_sched_handler(struct work_struct *wsptr);
+DECLARE_WORK(work, wq_sched_handler);
+static struct timer_list meminfo_wake_up_timer;
+static void meminfo_wake_up_handler(unsigned long unused_data);
+
+static void notify(void)
+{
+	mem_event++;
+}
+
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 3, 0)
@@ -71,7 +95,7 @@ GATOR_DEFINE_PROBE(mm_page_free_direct, TP_PROTO(struct page *page, unsigned int
 GATOR_DEFINE_PROBE(mm_page_free, TP_PROTO(struct page *page, unsigned int order))
 #endif
 {
-	up(&gator_meminfo_sem);
+	notify();
 }
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 3, 0)
@@ -80,12 +104,12 @@ GATOR_DEFINE_PROBE(mm_pagevec_free, TP_PROTO(struct page *page, int cold))
 GATOR_DEFINE_PROBE(mm_page_free_batched, TP_PROTO(struct page *page, int cold))
 #endif
 {
-	up(&gator_meminfo_sem);
+	notify();
 }
 
 GATOR_DEFINE_PROBE(mm_page_alloc, TP_PROTO(struct page *page, unsigned int order, gfp_t gfp_flags, int migratetype))
 {
-	up(&gator_meminfo_sem);
+	notify();
 }
 
 static int gator_events_meminfo_create_files(struct super_block *sb, struct dentry *root)
@@ -95,18 +119,16 @@ static int gator_events_meminfo_create_files(struct super_block *sb, struct dent
 
 	for (i = 0; i < MEMINFO_TOTAL; i++) {
 		dir = gatorfs_mkdir(sb, root, meminfo_names[i]);
-		if (!dir) {
+		if (!dir)
 			return -1;
-		}
 		gatorfs_create_ulong(sb, dir, "enabled", &meminfo_enabled[i]);
 		gatorfs_create_ro_ulong(sb, dir, "key", &meminfo_keys[i]);
 	}
 
 	for (i = 0; i < PROC_COUNT; ++i) {
 		dir = gatorfs_mkdir(sb, root, proc_names[i]);
-		if (!dir) {
+		if (!dir)
 			return -1;
-		}
 		gatorfs_create_ulong(sb, dir, "enabled", &proc_enabled[i]);
 		gatorfs_create_ro_ulong(sb, dir, "key", &proc_keys[i]);
 	}
@@ -134,9 +156,8 @@ static int gator_events_meminfo_start(void)
 			break;
 		}
 	}
-	if (meminfo_enabled[MEMINFO_MEMUSED]) {
+	if (meminfo_enabled[MEMINFO_MEMUSED])
 		proc_global_enabled = 1;
-	}
 
 	if (meminfo_global_enabled == 0)
 		return 0;
@@ -156,16 +177,22 @@ static int gator_events_meminfo_start(void)
 	if (GATOR_REGISTER_TRACE(mm_page_alloc))
 		goto mm_page_alloc_exit;
 
-	// Start worker thread
+#if USE_THREAD
+	/* Start worker thread */
 	gator_meminfo_run = true;
-	// Since the mutex starts unlocked, memory values will be initialized
+	/* Since the mutex starts unlocked, memory values will be initialized */
 	if (IS_ERR(kthread_run(gator_meminfo_func, NULL, "gator_meminfo")))
 		goto kthread_run_exit;
+#else
+	setup_timer(&meminfo_wake_up_timer, meminfo_wake_up_handler, 0);
+#endif
 
 	return 0;
 
+#if USE_THREAD
 kthread_run_exit:
 	GATOR_UNREGISTER_TRACE(mm_page_alloc);
+#endif
 mm_page_alloc_exit:
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3, 3, 0)
 	GATOR_UNREGISTER_TRACE(mm_pagevec_free);
@@ -194,74 +221,110 @@ static void gator_events_meminfo_stop(void)
 #endif
 		GATOR_UNREGISTER_TRACE(mm_page_alloc);
 
-		// Stop worker thread
+#if USE_THREAD
+		/* Stop worker thread */
 		gator_meminfo_run = false;
 		up(&gator_meminfo_sem);
+#else
+		del_timer_sync(&meminfo_wake_up_timer);
+#endif
 	}
 }
 
-// Must be run in process context as the kernel function si_meminfo() can sleep
-static int gator_meminfo_func(void *data)
+static void do_read(void)
 {
 	struct sysinfo info;
 	int i, len;
 	unsigned long long value;
 
-	for (;;) {
-		if (down_killable(&gator_meminfo_sem)) {
-			break;
-		}
+	meminfo_length = len = 0;
 
-		// Eat up any pending events
-		while (!down_trylock(&gator_meminfo_sem));
-
-		if (!gator_meminfo_run) {
-			break;
-		}
-
-		meminfo_length = len = 0;
-
-		si_meminfo(&info);
-		for (i = 0; i < MEMINFO_TOTAL; i++) {
-			if (meminfo_enabled[i]) {
-				switch (i) {
-				case MEMINFO_MEMFREE:
-					value = info.freeram * PAGE_SIZE;
-					break;
-				case MEMINFO_MEMUSED:
-					// pid -1 means system wide
-					meminfo_buffer[len++] = 1;
-					meminfo_buffer[len++] = -1;
-					// Emit value
-					meminfo_buffer[len++] = meminfo_keys[MEMINFO_MEMUSED];
-					meminfo_buffer[len++] = (info.totalram - info.freeram) * PAGE_SIZE;
-					// Clear pid
-					meminfo_buffer[len++] = 1;
-					meminfo_buffer[len++] = 0;
-					continue;
-				case MEMINFO_BUFFERRAM:
-					value = info.bufferram * PAGE_SIZE;
-					break;
-				default:
-					value = 0;
-					break;
-				}
-				meminfo_buffer[len++] = meminfo_keys[i];
-				meminfo_buffer[len++] = value;
+	si_meminfo(&info);
+	for (i = 0; i < MEMINFO_TOTAL; i++) {
+		if (meminfo_enabled[i]) {
+			switch (i) {
+			case MEMINFO_MEMFREE:
+				value = info.freeram * PAGE_SIZE;
+				break;
+			case MEMINFO_MEMUSED:
+				/* pid -1 means system wide */
+				meminfo_buffer[len++] = 1;
+				meminfo_buffer[len++] = -1;
+				/* Emit value */
+				meminfo_buffer[len++] = meminfo_keys[MEMINFO_MEMUSED];
+				meminfo_buffer[len++] = (info.totalram - info.freeram) * PAGE_SIZE;
+				/* Clear pid */
+				meminfo_buffer[len++] = 1;
+				meminfo_buffer[len++] = 0;
+				continue;
+			case MEMINFO_BUFFERRAM:
+				value = info.bufferram * PAGE_SIZE;
+				break;
+			default:
+				value = 0;
+				break;
 			}
+			meminfo_buffer[len++] = meminfo_keys[i];
+			meminfo_buffer[len++] = value;
 		}
+	}
 
-		meminfo_length = len;
-		new_data_avail = true;
+	meminfo_length = len;
+	new_data_avail = true;
+}
+
+#if USE_THREAD
+
+static int gator_meminfo_func(void *data)
+{
+	for (;;) {
+		if (down_killable(&gator_meminfo_sem))
+			break;
+
+		/* Eat up any pending events */
+		while (!down_trylock(&gator_meminfo_sem))
+			;
+
+		if (!gator_meminfo_run)
+			break;
+
+		do_read();
 	}
 
 	return 0;
 }
 
+#else
+
+/* Must be run in process context as the kernel function si_meminfo() can sleep */
+static void wq_sched_handler(struct work_struct *wsptr)
+{
+	do_read();
+}
+
+static void meminfo_wake_up_handler(unsigned long unused_data)
+{
+	/* had to delay scheduling work as attempting to schedule work during the context switch is illegal in kernel versions 3.5 and greater */
+	schedule_work(&work);
+}
+
+#endif
+
 static int gator_events_meminfo_read(long long **buffer)
 {
+#if !USE_THREAD
+	static unsigned int last_mem_event;
+#endif
+
 	if (!on_primary_core() || !meminfo_global_enabled)
 		return 0;
+
+#if !USE_THREAD
+	if (last_mem_event != mem_event) {
+		last_mem_event = mem_event;
+		mod_timer(&meminfo_wake_up_timer, jiffies + 1);
+	}
+#endif
 
 	if (!new_data_avail)
 		return 0;
@@ -280,6 +343,7 @@ static inline unsigned long gator_get_mm_counter(struct mm_struct *mm, int membe
 {
 #ifdef SPLIT_RSS_COUNTING
 	long val = atomic_long_read(&mm->rss_stat.count[member]);
+
 	if (val < 0)
 		val = 0;
 	return (unsigned long)val;
@@ -306,22 +370,19 @@ static int gator_events_meminfo_read_proc(long long **buffer, struct task_struct
 	int cpu = get_physical_cpu();
 	long long *buf = per_cpu(proc_buffer, cpu);
 
-	if (!proc_global_enabled) {
+	if (!proc_global_enabled)
 		return 0;
-	}
 
-	// Collect the memory stats of the process instead of the thread
-	if (task->group_leader != NULL) {
+	/* Collect the memory stats of the process instead of the thread */
+	if (task->group_leader != NULL)
 		task = task->group_leader;
-	}
 
-	// get_task_mm/mmput is not needed in this context because the task and it's mm are required as part of the sched_switch
+	/* get_task_mm/mmput is not needed in this context because the task and it's mm are required as part of the sched_switch */
 	mm = task->mm;
-	if (mm == NULL) {
+	if (mm == NULL)
 		return 0;
-	}
 
-	// Derived from task_statm in fs/proc/task_mmu.c
+	/* Derived from task_statm in fs/proc/task_mmu.c */
 	if (meminfo_enabled[MEMINFO_MEMUSED] || proc_enabled[PROC_SHARE]) {
 		share = get_mm_counter(mm,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32) && LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 34)
@@ -332,7 +393,7 @@ static int gator_events_meminfo_read_proc(long long **buffer, struct task_struct
 							   );
 	}
 
-	// key of 1 indicates a pid
+	/* key of 1 indicates a pid */
 	buf[len++] = 1;
 	buf[len++] = task->pid;
 
@@ -366,12 +427,12 @@ static int gator_events_meminfo_read_proc(long long **buffer, struct task_struct
 									   MM_ANONPAGES
 #endif
 									   );
-		// Send resident for this pid
+		/* Send resident for this pid */
 		buf[len++] = meminfo_keys[MEMINFO_MEMUSED];
 		buf[len++] = value * PAGE_SIZE;
 	}
 
-	// Clear pid
+	/* Clear pid */
 	buf[len++] = 1;
 	buf[len++] = 0;
 

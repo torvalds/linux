@@ -19,28 +19,23 @@ enum MaliVideoCounterType {
 	MVCT_ACTIVITY,
 };
 
-class MaliVideoDriver : public Driver {
+class MaliVideoDriver : public SimpleDriver {
+private:
+	typedef SimpleDriver super;
+
 public:
 	MaliVideoDriver();
 	~MaliVideoDriver();
 
-	void setup(mxml_node_t *const xml);
-
-	bool claimCounter(const Counter &counter) const;
-	bool countersEnabled() const;
-	void resetCounters();
-	void setupCounter(Counter &counter);
+	void readEvents(mxml_node_t *const root);
 
 	int writeCounters(mxml_node_t *root) const;
 
 	bool start(const int mveUds);
+	void stop(const int mveUds);
 
 private:
-	MaliVideoCounter *findCounter(const Counter &counter) const;
 	void marshalEnable(const MaliVideoCounterType type, char *const buf, const size_t bufsize, int &pos);
-
-	MaliVideoCounter *mCounters;
-	int mActivityCount;
 
 	// Intentionally unimplemented
 	MaliVideoDriver(const MaliVideoDriver &);

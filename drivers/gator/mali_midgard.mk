@@ -1,4 +1,4 @@
-# Defines for Mali-T6xx driver
+# Defines for Mali-Midgard driver
 EXTRA_CFLAGS += -DMALI_USE_UMP=1 \
                 -DMALI_LICENSE_IS_GPL=1 \
                 -DMALI_BASE_TRACK_MEMLEAK=0 \
@@ -21,7 +21,7 @@ OSK_DIR = $(DDK_DIR)/drivers/gpu/arm/midgard/osk
 EXTRA_CFLAGS += -DMALI_DIR_MIDGARD=1
 endif
 
-ifneq ($(wildcard $(DDK_DIR)/drivers/gpu/arm/midgard/mali_dd_gator_api.h),)
+ifneq ($(wildcard $(DDK_DIR)/drivers/gpu/arm/midgard/mali_kbase_gator_api.h),)
 EXTRA_CFLAGS += -DMALI_SIMPLE_API=1
 endif
 

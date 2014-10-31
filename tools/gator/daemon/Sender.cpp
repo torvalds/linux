@@ -65,16 +65,11 @@ void Sender::createDataFile(char* apcDir) {
 
 	mDataFileName = (char*)malloc(strlen(apcDir) + 12);
 	sprintf(mDataFileName, "%s/0000000000", apcDir);
-	mDataFile = fopen(mDataFileName, "wb");
+	mDataFile = fopen_cloexec(mDataFileName, "wb");
 	if (!mDataFile) {
 		logg->logError(__FILE__, __LINE__, "Failed to open binary file: %s", mDataFileName);
 		handleException();
 	}
-}
-
-template<typename T>
-inline T min(const T a, const T b) {
-	return (a < b ? a : b);
 }
 
 void Sender::writeData(const char* data, int length, int type) {

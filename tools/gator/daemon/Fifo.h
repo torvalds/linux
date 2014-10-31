@@ -6,8 +6,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef	__FIFO_H__
-#define	__FIFO_H__
+#ifndef __FIFO_H__
+#define __FIFO_H__
 
 #ifdef WIN32
 #include <windows.h>
@@ -35,10 +35,10 @@ public:
 
 private:
   int mSingleBufferSize, mWrite, mRead, mReadCommit, mRaggedEnd, mWrapThreshold;
-  sem_t	mWaitForSpaceSem;
+  sem_t mWaitForSpaceSem;
   sem_t* mReaderSem;
-  char*	mBuffer;
-  bool	mEnd;
+  char* mBuffer;
+  bool mEnd;
 
   // Intentionally unimplemented
   Fifo(const Fifo &);

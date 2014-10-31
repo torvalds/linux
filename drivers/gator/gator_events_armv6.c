@@ -8,7 +8,7 @@
 
 #include "gator.h"
 
-// gator_events_perf_pmu.c is used if perf is supported
+/* gator_events_perf_pmu.c is used if perf is supported */
 #if GATOR_NO_PERF_SUPPORT
 
 static const char *pmnc_name;
@@ -28,7 +28,7 @@ static const char *pmnc_name;
 #define CCNT 2
 #define CNTMAX	(CCNT+1)
 
-static int pmnc_counters = 0;
+static int pmnc_counters;
 static unsigned long pmnc_enabled[CNTMAX];
 static unsigned long pmnc_event[CNTMAX];
 static unsigned long pmnc_key[CNTMAX];
@@ -45,6 +45,7 @@ static inline void armv6_pmnc_write(u32 val)
 static inline u32 armv6_pmnc_read(void)
 {
 	u32 val;
+
 	asm volatile("mrc p15, 0, %0, c15, c12, 0" : "=r" (val));
 	return val;
 }
@@ -52,6 +53,7 @@ static inline u32 armv6_pmnc_read(void)
 static void armv6_pmnc_reset_counter(unsigned int cnt)
 {
 	u32 val = 0;
+
 	switch (cnt) {
 	case CCNT:
 		asm volatile("mcr p15, 0, %0, c15, c12, 1" : : "r" (val));
@@ -74,20 +76,18 @@ int gator_events_armv6_create_files(struct super_block *sb, struct dentry *root)
 
 	for (i = PMN0; i <= CCNT; i++) {
 		char buf[40];
-		if (i == CCNT) {
-			snprintf(buf, sizeof buf, "ARM_%s_ccnt", pmnc_name);
-		} else {
-			snprintf(buf, sizeof buf, "ARM_%s_cnt%d", pmnc_name, i);
-		}
+
+		if (i == CCNT)
+			snprintf(buf, sizeof(buf), "ARM_%s_ccnt", pmnc_name);
+		else
+			snprintf(buf, sizeof(buf), "ARM_%s_cnt%d", pmnc_name, i);
 		dir = gatorfs_mkdir(sb, root, buf);
-		if (!dir) {
+		if (!dir)
 			return -1;
-		}
 		gatorfs_create_ulong(sb, dir, "enabled", &pmnc_enabled[i]);
 		gatorfs_create_ro_ulong(sb, dir, "key", &pmnc_key[i]);
-		if (i != CCNT) {
+		if (i != CCNT)
 			gatorfs_create_ulong(sb, dir, "event", &pmnc_event[i]);
-		}
 	}
 
 	return 0;
@@ -98,9 +98,8 @@ static int gator_events_armv6_online(int **buffer, bool migrate)
 	unsigned int cnt, len = 0, cpu = smp_processor_id();
 	u32 pmnc;
 
-	if (armv6_pmnc_read() & PMCR_E) {
+	if (armv6_pmnc_read() & PMCR_E)
 		armv6_pmnc_write(armv6_pmnc_read() & ~PMCR_E);
-	}
 
 	/* initialize PMNC, reset overflow, D bit, C bit and P bit. */
 	armv6_pmnc_write(PMCR_OFL_PMN0 | PMCR_OFL_PMN1 | PMCR_OFL_CCNT |
@@ -115,19 +114,18 @@ static int gator_events_armv6_online(int **buffer, bool migrate)
 
 		event = pmnc_event[cnt] & 255;
 
-		// Set event (if destined for PMNx counters)
-		if (cnt == PMN0) {
+		/* Set event (if destined for PMNx counters) */
+		if (cnt == PMN0)
 			pmnc |= event << 20;
-		} else if (cnt == PMN1) {
+		else if (cnt == PMN1)
 			pmnc |= event << 12;
-		}
 
-		// Reset counter
+		/* Reset counter */
 		armv6_pmnc_reset_counter(cnt);
 	}
 	armv6_pmnc_write(pmnc | PMCR_E);
 
-	// return zero values, no need to read as the counters were just reset
+	/* return zero values, no need to read as the counters were just reset */
 	for (cnt = PMN0; cnt <= CCNT; cnt++) {
 		if (pmnc_enabled[cnt]) {
 			per_cpu(perfCnt, cpu)[len++] = pmnc_key[cnt];
@@ -146,9 +144,8 @@ static int gator_events_armv6_offline(int **buffer, bool migrate)
 	unsigned int cnt;
 
 	armv6_pmnc_write(armv6_pmnc_read() & ~PMCR_E);
-	for (cnt = PMN0; cnt <= CCNT; cnt++) {
+	for (cnt = PMN0; cnt <= CCNT; cnt++)
 		armv6_pmnc_reset_counter(cnt);
-	}
 
 	return 0;
 }
@@ -163,19 +160,19 @@ static void gator_events_armv6_stop(void)
 	}
 }
 
-static int gator_events_armv6_read(int **buffer)
+static int gator_events_armv6_read(int **buffer, bool sched_switch)
 {
 	int cnt, len = 0;
 	int cpu = smp_processor_id();
 
-	// a context switch may occur before the online hotplug event, thus need to check that the pmu is enabled
-	if (!(armv6_pmnc_read() & PMCR_E)) {
+	/* a context switch may occur before the online hotplug event, thus need to check that the pmu is enabled */
+	if (!(armv6_pmnc_read() & PMCR_E))
 		return 0;
-	}
 
 	for (cnt = PMN0; cnt <= CCNT; cnt++) {
 		if (pmnc_enabled[cnt]) {
 			u32 value = 0;
+
 			switch (cnt) {
 			case CCNT:
 				asm volatile("mrc p15, 0, %0, c15, c12, 1" : "=r" (value));

@@ -47,7 +47,7 @@ char *EventsXML::getXML() {
 	// Add dynamic events from the drivers
 	mxml_node_t *events = mxmlFindElement(xml, xml, "events", NULL, NULL, MXML_DESCEND);
 	if (!events) {
-		logg->logMessage("Unable to find <events> node in the events.xml");
+		logg->logError(__FILE__, __LINE__, "Unable to find <events> node in the events.xml");
 		handleException();
 	}
 	for (Driver *driver = Driver::getHead(); driver != NULL; driver = driver->getNext()) {

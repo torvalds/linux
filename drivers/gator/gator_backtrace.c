@@ -14,17 +14,17 @@ struct stack_frame_eabi {
 	union {
 		struct {
 			unsigned long fp;
-			// May be the fp in the case of a leaf function or clang
+			/* May be the fp in the case of a leaf function or clang */
 			unsigned long lr;
-			// If lr is really the fp, lr2 is the corresponding lr
+			/* If lr is really the fp, lr2 is the corresponding lr */
 			unsigned long lr2;
 		};
-		// Used to read 32 bit fp/lr from a 64 bit kernel
+		/* Used to read 32 bit fp/lr from a 64 bit kernel */
 		struct {
 			u32 fp_32;
-			// same as lr above
+			/* same as lr above */
 			u32 lr_32;
-			// same as lr2 above
+			/* same as lr2 above */
 			u32 lr2_32;
 		};
 	};
@@ -35,9 +35,8 @@ static void gator_add_trace(int cpu, unsigned long address)
 	off_t offset = 0;
 	unsigned long cookie = get_address_cookie(cpu, current, address & ~1, &offset);
 
-	if (cookie == NO_COOKIE || cookie == UNRESOLVED_COOKIE) {
+	if (cookie == NO_COOKIE || cookie == UNRESOLVED_COOKIE)
 		offset = address;
-	}
 
 	marshal_backtrace(offset & ~1, cookie, 0);
 }
@@ -54,36 +53,34 @@ static void arm_backtrace_eabi(int cpu, struct pt_regs *const regs, unsigned int
 	unsigned long lr = regs->ARM_lr;
 	const int gcc_frame_offset = sizeof(unsigned long);
 #else
-	// Is userspace aarch32 (32 bit)
+	/* Is userspace aarch32 (32 bit) */
 	const bool is_compat = compat_user_mode(regs);
 	unsigned long fp = (is_compat ? regs->regs[11] : regs->regs[29]);
 	unsigned long sp = (is_compat ? regs->compat_sp : regs->sp);
 	unsigned long lr = (is_compat ? regs->compat_lr : regs->regs[30]);
 	const int gcc_frame_offset = (is_compat ? sizeof(u32) : 0);
 #endif
-	// clang frame offset is always zero
+	/* clang frame offset is always zero */
 	int is_user_mode = user_mode(regs);
 
-	// pc (current function) has already been added
+	/* pc (current function) has already been added */
 
-	if (!is_user_mode) {
+	if (!is_user_mode)
 		return;
-	}
 
-	// Add the lr (parent function)
-	// entry preamble may not have executed
+	/* Add the lr (parent function), entry preamble may not have
+	 * executed
+	 */
 	gator_add_trace(cpu, lr);
 
-	// check fp is valid
-	if (fp == 0 || fp < sp) {
+	/* check fp is valid */
+	if (fp == 0 || fp < sp)
 		return;
-	}
 
-	// Get the current stack frame
+	/* Get the current stack frame */
 	curr = (struct stack_frame_eabi *)(fp - gcc_frame_offset);
-	if ((unsigned long)curr & 3) {
+	if ((unsigned long)curr & 3)
 		return;
-	}
 
 	while (depth-- && curr) {
 		if (!access_ok(VERIFY_READ, curr, sizeof(struct stack_frame_eabi)) ||
@@ -95,13 +92,15 @@ static void arm_backtrace_eabi(int cpu, struct pt_regs *const regs, unsigned int
 		lr = (is_compat ? bufcurr.lr_32 : bufcurr.lr);
 
 #define calc_next(reg) ((reg) - gcc_frame_offset)
-		// Returns true if reg is a valid fp
+		/* Returns true if reg is a valid fp */
 #define validate_next(reg, curr) \
 		((reg) != 0 && (calc_next(reg) & 3) == 0 && (unsigned long)(curr) < calc_next(reg))
 
-		// Try lr from the stack as the fp because gcc leaf functions do not push lr
-		// If gcc_frame_offset is non-zero, the lr will also be the clang fp
-		// This assumes code is at a lower address than the stack
+		/* Try lr from the stack as the fp because gcc leaf functions do
+		 * not push lr. If gcc_frame_offset is non-zero, the lr will also
+		 * be the clang fp. This assumes code is at a lower address than
+		 * the stack
+		 */
 		if (validate_next(lr, curr)) {
 			fp = lr;
 			lr = (is_compat ? bufcurr.lr2_32 : bufcurr.lr2);
@@ -109,11 +108,10 @@ static void arm_backtrace_eabi(int cpu, struct pt_regs *const regs, unsigned int
 
 		gator_add_trace(cpu, lr);
 
-		if (!validate_next(fp, curr)) {
+		if (!validate_next(fp, curr))
 			return;
-		}
 
-		// Move to the next stack frame
+		/* Move to the next stack frame */
 		curr = (struct stack_frame_eabi *)calc_next(fp);
 	}
 #endif
@@ -129,6 +127,7 @@ static int report_trace(struct stackframe *frame, void *d)
 #if defined(MODULE)
 		unsigned int cpu = get_physical_cpu();
 		struct module *mod = __module_address(addr);
+
 		if (mod) {
 			cookie = get_cookie(cpu, current, mod->name, false);
 			addr = addr - (unsigned long)mod->module_core;
@@ -142,13 +141,13 @@ static int report_trace(struct stackframe *frame, void *d)
 }
 #endif
 
-// Uncomment the following line to enable kernel stack unwinding within gator, note it can also be defined from the Makefile
-// #define GATOR_KERNEL_STACK_UNWINDING
+/* Uncomment the following line to enable kernel stack unwinding within gator, note it can also be defined from the Makefile */
+/* #define GATOR_KERNEL_STACK_UNWINDING */
 
 #if (defined(__arm__) || defined(__aarch64__)) && !defined(GATOR_KERNEL_STACK_UNWINDING)
-// Disabled by default
+/* Disabled by default */
 MODULE_PARM_DESC(kernel_stack_unwinding, "Allow kernel stack unwinding.");
-static bool kernel_stack_unwinding = 0;
+static bool kernel_stack_unwinding;
 module_param(kernel_stack_unwinding, bool, 0644);
 #endif
 
@@ -161,6 +160,7 @@ static void kernel_backtrace(int cpu, struct pt_regs *const regs)
 	int depth = (kernel_stack_unwinding ? gator_backtrace_depth : 1);
 #endif
 	struct stackframe frame;
+
 	if (depth == 0)
 		depth = 1;
 #if defined(__arm__)
@@ -196,10 +196,10 @@ static void gator_add_sample(int cpu, struct pt_regs *const regs, u64 time)
 	if (in_kernel) {
 		kernel_backtrace(cpu, regs);
 	} else {
-		// Cookie+PC
+		/* Cookie+PC */
 		gator_add_trace(cpu, PC_REG);
 
-		// Backtrace
+		/* Backtrace */
 		if (gator_backtrace_depth)
 			arm_backtrace_eabi(cpu, regs, gator_backtrace_depth);
 	}
