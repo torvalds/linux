@@ -57,7 +57,7 @@ struct usb_mixer_elem_info {
 
 int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
 			 int ignore_error);
-void snd_usb_mixer_disconnect(struct list_head *p);
+void snd_usb_mixer_disconnect(struct usb_mixer_interface *mixer);
 
 void snd_usb_mixer_notify_id(struct usb_mixer_interface *mixer, int unitid);
 

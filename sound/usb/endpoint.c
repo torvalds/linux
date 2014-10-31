@@ -1002,15 +1002,12 @@ void snd_usb_endpoint_release(struct snd_usb_endpoint *ep)
 /**
  * snd_usb_endpoint_free: Free the resources of an snd_usb_endpoint
  *
- * @ep: the list header of the endpoint to free
+ * @ep: the endpoint to free
  *
  * This free all resources of the given ep.
  */
-void snd_usb_endpoint_free(struct list_head *head)
+void snd_usb_endpoint_free(struct snd_usb_endpoint *ep)
 {
-	struct snd_usb_endpoint *ep;
-
-	ep = list_entry(head, struct snd_usb_endpoint, list);
 	kfree(ep);
 }
 
