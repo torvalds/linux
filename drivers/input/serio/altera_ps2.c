@@ -24,9 +24,7 @@
 
 struct ps2if {
 	struct serio *io;
-	struct resource *iomem_res;
 	void __iomem *base;
-	unsigned irq;
 };
 
 /*
@@ -83,15 +81,33 @@ static void altera_ps2_close(struct serio *io)
 static int altera_ps2_probe(struct platform_device *pdev)
 {
 	struct ps2if *ps2if;
+	struct resource *res;
 	struct serio *serio;
 	int error, irq;
 
-	ps2if = kzalloc(sizeof(struct ps2if), GFP_KERNEL);
-	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
-	if (!ps2if || !serio) {
-		error = -ENOMEM;
-		goto err_free_mem;
+	ps2if = devm_kzalloc(&pdev->dev, sizeof(struct ps2if), GFP_KERNEL);
+	if (!ps2if)
+		return -ENOMEM;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	ps2if->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ps2if->base))
+		return PTR_ERR(ps2if->base);
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return -ENXIO;
+
+	error = devm_request_irq(&pdev->dev, irq, altera_ps2_rxint, 0,
+				 pdev->name, ps2if);
+	if (error) {
+		dev_err(&pdev->dev, "could not request IRQ %d\n", irq);
+		return error;
 	}
+
+	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
+	if (!serio)
+		return -ENOMEM;
 
 	serio->id.type		= SERIO_8042;
 	serio->write		= altera_ps2_write;
@@ -103,56 +119,12 @@ static int altera_ps2_probe(struct platform_device *pdev)
 	serio->dev.parent	= &pdev->dev;
 	ps2if->io		= serio;
 
-	ps2if->iomem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (ps2if->iomem_res == NULL) {
-		error = -ENOENT;
-		goto err_free_mem;
-	}
-
-
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		error = -ENXIO;
-		goto err_free_mem;
-	}
-	ps2if->irq = irq;
-
-	if (!request_mem_region(ps2if->iomem_res->start,
-				resource_size(ps2if->iomem_res), pdev->name)) {
-		error = -EBUSY;
-		goto err_free_mem;
-	}
-
-	ps2if->base = ioremap(ps2if->iomem_res->start,
-			      resource_size(ps2if->iomem_res));
-	if (!ps2if->base) {
-		error = -ENOMEM;
-		goto err_free_res;
-	}
-
-	error = request_irq(ps2if->irq, altera_ps2_rxint, 0, pdev->name, ps2if);
-	if (error) {
-		dev_err(&pdev->dev, "could not allocate IRQ %d: %d\n",
-			ps2if->irq, error);
-		goto err_unmap;
-	}
-
-	dev_info(&pdev->dev, "base %p, irq %d\n", ps2if->base, ps2if->irq);
+	dev_info(&pdev->dev, "base %p, irq %d\n", ps2if->base, irq);
 
 	serio_register_port(ps2if->io);
 	platform_set_drvdata(pdev, ps2if);
 
 	return 0;
-
- err_unmap:
-	iounmap(ps2if->base);
- err_free_res:
-	release_mem_region(ps2if->iomem_res->start,
-			   resource_size(ps2if->iomem_res));
- err_free_mem:
-	kfree(ps2if);
-	kfree(serio);
-	return error;
 }
 
 /*
@@ -163,11 +135,6 @@ static int altera_ps2_remove(struct platform_device *pdev)
 	struct ps2if *ps2if = platform_get_drvdata(pdev);
 
 	serio_unregister_port(ps2if->io);
-	free_irq(ps2if->irq, ps2if);
-	iounmap(ps2if->base);
-	release_mem_region(ps2if->iomem_res->start,
-			   resource_size(ps2if->iomem_res));
-	kfree(ps2if);
 
 	return 0;
 }
