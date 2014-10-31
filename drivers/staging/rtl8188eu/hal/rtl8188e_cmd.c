@@ -150,11 +150,9 @@ u8 rtl8188e_set_raid_cmd(struct adapter *adapt, u32 mask)
 	struct hal_data_8188e *haldata = GET_HAL_DATA(adapt);
 
 	if (haldata->fw_ractrl) {
-		__le32 lmask;
 
 		memset(buf, 0, 3);
-		lmask = cpu_to_le32(mask);
-		memcpy(buf, &lmask, 3);
+		put_unaligned_le32(mask, buf);
 
 		FillH2CCmd_88E(adapt, H2C_DM_MACID_CFG, 3, buf);
 	} else {
