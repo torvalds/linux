@@ -678,7 +678,7 @@ static int rcar_vin_setup(struct rcar_vin_priv *priv)
 		vnmc |= VNMC_BPS;
 
 	/* progressive or interlaced mode */
-	interrupts = progressive ? VNIE_FIE | VNIE_EFE : VNIE_EFE;
+	interrupts = progressive ? VNIE_FIE : VNIE_EFE;
 
 	/* ack interrupts */
 	iowrite32(interrupts, priv->base + VNINTS_REG);
