@@ -10,10 +10,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  */
 
 #include <linux/slab.h>
@@ -21,75 +17,10 @@
 #include <linux/module.h>
 #include <linux/device.h>
 
-#include <net/wpan-phy.h>
+#include <net/cfg802154.h>
 
 #include "ieee802154.h"
-
-#define MASTER_SHOW_COMPLEX(name, format_string, args...)		\
-static ssize_t name ## _show(struct device *dev,			\
-			    struct device_attribute *attr, char *buf)	\
-{									\
-	struct wpan_phy *phy = container_of(dev, struct wpan_phy, dev);	\
-	int ret;							\
-									\
-	mutex_lock(&phy->pib_lock);					\
-	ret = snprintf(buf, PAGE_SIZE, format_string "\n", args);	\
-	mutex_unlock(&phy->pib_lock);					\
-	return ret;							\
-}									\
-static DEVICE_ATTR_RO(name);
-
-#define MASTER_SHOW(field, format_string)				\
-	MASTER_SHOW_COMPLEX(field, format_string, phy->field)
-
-MASTER_SHOW(current_channel, "%d");
-MASTER_SHOW(current_page, "%d");
-MASTER_SHOW(transmit_power, "%d +- 1 dB");
-MASTER_SHOW(cca_mode, "%d");
-
-static ssize_t channels_supported_show(struct device *dev,
-				       struct device_attribute *attr,
-				       char *buf)
-{
-	struct wpan_phy *phy = container_of(dev, struct wpan_phy, dev);
-	int ret;
-	int i, len = 0;
-
-	mutex_lock(&phy->pib_lock);
-	for (i = 0; i < 32; i++) {
-		ret = snprintf(buf + len, PAGE_SIZE - len,
-			       "%#09x\n", phy->channels_supported[i]);
-		if (ret < 0)
-			break;
-		len += ret;
-	}
-	mutex_unlock(&phy->pib_lock);
-	return len;
-}
-static DEVICE_ATTR_RO(channels_supported);
-
-static struct attribute *pmib_attrs[] = {
-	&dev_attr_current_channel.attr,
-	&dev_attr_current_page.attr,
-	&dev_attr_channels_supported.attr,
-	&dev_attr_transmit_power.attr,
-	&dev_attr_cca_mode.attr,
-	NULL,
-};
-ATTRIBUTE_GROUPS(pmib);
-
-static void wpan_phy_release(struct device *d)
-{
-	struct wpan_phy *phy = container_of(d, struct wpan_phy, dev);
-
-	kfree(phy);
-}
-
-static struct class wpan_phy_class = {
-	.name = "ieee802154",
-	.dev_release = wpan_phy_release,
-	.dev_groups = pmib_groups,
-};
+#include "sysfs.h"
 
 static DEFINE_MUTEX(wpan_phy_mutex);
 static int wpan_phy_idx;
@@ -201,7 +132,7 @@ static int __init wpan_phy_class_init(void)
 {
 	int rc;
 
-	rc = class_register(&wpan_phy_class);
+	rc = wpan_phy_sysfs_init();
 	if (rc)
 		goto err;
 
@@ -211,7 +142,7 @@ static int __init wpan_phy_class_init(void)
 
 	return 0;
 err_nl:
-	class_unregister(&wpan_phy_class);
+	wpan_phy_sysfs_exit();
 err:
 	return rc;
 }
@@ -220,7 +151,7 @@ subsys_initcall(wpan_phy_class_init);
 static void __exit wpan_phy_class_exit(void)
 {
 	ieee802154_nl_exit();
-	class_unregister(&wpan_phy_class);
+	wpan_phy_sysfs_exit();
 }
 module_exit(wpan_phy_class_exit);
 

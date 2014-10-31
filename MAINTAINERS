@@ -2302,6 +2302,14 @@ F:	security/capability.c
 F:	security/commoncap.c
 F:	kernel/capability.c
 
+CC2520 IEEE-802.15.4 RADIO DRIVER
+M:	Varka Bhadram <varkabhadram@gmail.com>
+L:	linux-wpan@vger.kernel.org
+S:	Maintained
+F:	drivers/net/ieee802154/cc2520.c
+F:	include/linux/spi/cc2520.h
+F:	Documentation/devicetree/bindings/net/ieee802154/cc2520.txt
+
 CELL BROADBAND ENGINE ARCHITECTURE
 M:	Arnd Bergmann <arnd@arndb.de>
 L:	linuxppc-dev@lists.ozlabs.org
@@ -4689,6 +4697,13 @@ S:	Maintained
 F:	net/ieee802154/
 F:	net/mac802154/
 F:	drivers/net/ieee802154/
+F:	include/linux/nl802154.h
+F:	include/linux/ieee802154.h
+F:	include/net/nl802154.h
+F:	include/net/mac802154.h
+F:	include/net/af_ieee802154.h
+F:	include/net/cfg802154.h
+F:	include/net/ieee802154_netdev.h
 F:	Documentation/networking/ieee802154.txt
 
 IGUANAWORKS USB IR TRANSCEIVER

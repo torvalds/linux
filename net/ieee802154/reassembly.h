@@ -4,7 +4,7 @@
 #include <net/inet_frag.h>
 
 struct lowpan_create_arg {
-	__be16 tag;
+	u16 tag;
 	u16 d_size;
 	const struct ieee802154_addr *src;
 	const struct ieee802154_addr *dst;
@@ -15,7 +15,7 @@ struct lowpan_create_arg {
 struct lowpan_frag_queue {
 	struct inet_frag_queue	q;
 
-	__be16			tag;
+	u16			tag;
 	u16			d_size;
 	struct ieee802154_addr	saddr;
 	struct ieee802154_addr	daddr;

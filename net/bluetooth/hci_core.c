@@ -4477,7 +4477,7 @@ int hci_req_run(struct hci_request *req, hci_req_complete_t complete)
 
 	BT_DBG("length %u", skb_queue_len(&req->cmd_q));
 
-	/* If an error occured during request building, remove all HCI
+	/* If an error occurred during request building, remove all HCI
 	 * commands queued on the HCI request queue.
 	 */
 	if (req->err) {
@@ -4546,7 +4546,7 @@ int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen,
 		return -ENOMEM;
 	}
 
-	/* Stand-alone HCI commands must be flaged as
+	/* Stand-alone HCI commands must be flagged as
 	 * single-command requests.
 	 */
 	bt_cb(skb)->req.start = true;
@@ -4566,7 +4566,7 @@ void hci_req_add_ev(struct hci_request *req, u16 opcode, u32 plen,
 
 	BT_DBG("%s opcode 0x%4.4x plen %d", hdev->name, opcode, plen);
 
-	/* If an error occured during request building, there is no point in
+	/* If an error occurred during request building, there is no point in
 	 * queueing the HCI command. We can simply return.
 	 */
 	if (req->err)
@@ -4661,8 +4661,12 @@ static void hci_queue_acl(struct hci_chan *chan, struct sk_buff_head *queue,
 
 		skb_shinfo(skb)->frag_list = NULL;
 
-		/* Queue all fragments atomically */
-		spin_lock(&queue->lock);
+		/* Queue all fragments atomically. We need to use spin_lock_bh
+		 * here because of 6LoWPAN links, as there this function is
+		 * called from softirq and using normal spin lock could cause
+		 * deadlocks.
+		 */
+		spin_lock_bh(&queue->lock);
 
 		__skb_queue_tail(queue, skb);
 
@@ -4679,7 +4683,7 @@ static void hci_queue_acl(struct hci_chan *chan, struct sk_buff_head *queue,
 			__skb_queue_tail(queue, skb);
 		} while (list);
 
-		spin_unlock(&queue->lock);
+		spin_unlock_bh(&queue->lock);
 	}
 }
 
