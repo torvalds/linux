@@ -374,8 +374,9 @@ struct lwp_struct {
 	u8 reserved[128];
 };
 
-struct bndregs_struct {
-	u64 bndregs[8];
+struct bndreg {
+	u64 lower_bound;
+	u64 upper_bound;
 } __packed;
 
 struct bndcsr_struct {
@@ -394,7 +395,7 @@ struct xsave_struct {
 	struct xsave_hdr_struct xsave_hdr;
 	struct ymmh_struct ymmh;
 	struct lwp_struct lwp;
-	struct bndregs_struct bndregs;
+	struct bndreg bndreg[4];
 	struct bndcsr_struct bndcsr;
 	/* new processor state extensions will go here */
 } __attribute__ ((packed, aligned (64)));
