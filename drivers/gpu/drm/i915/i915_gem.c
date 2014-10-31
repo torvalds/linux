@@ -3478,7 +3478,7 @@ search_free:
 
 	trace_i915_vma_bind(vma, flags);
 	vma->bind_vma(vma, obj->cache_level,
-		      flags & (PIN_MAPPABLE | PIN_GLOBAL) ? GLOBAL_BIND : 0);
+		      flags & PIN_GLOBAL ? GLOBAL_BIND : 0);
 
 	return vma;
 
@@ -4054,6 +4054,9 @@ i915_gem_object_pin(struct drm_i915_gem_object *obj,
 		return -ENODEV;
 
 	if (WARN_ON(flags & (PIN_GLOBAL | PIN_MAPPABLE) && !i915_is_ggtt(vm)))
+		return -EINVAL;
+
+	if (WARN_ON((flags & (PIN_MAPPABLE | PIN_GLOBAL)) == PIN_MAPPABLE))
 		return -EINVAL;
 
 	vma = i915_gem_obj_to_vma(obj, vm);
