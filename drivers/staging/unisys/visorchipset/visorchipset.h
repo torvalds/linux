@@ -75,30 +75,30 @@ struct visorchipset_channel_info {
  *  visorchipset_get_client_device_info() or
  *  visorchipset_get_server_device_info().
  */
-typedef struct {
+struct visorchipset_device_info {
 	struct list_head entry;
-	u32 busNo;
-	u32 devNo;
-	uuid_le devInstGuid;
+	u32 bus_no;
+	u32 dev_no;
+	uuid_le dev_inst_uuid;
 	struct visorchipset_state state;
-	struct visorchipset_channel_info chanInfo;
-	u32 Reserved1;		/* control_vm_id */
-	u64 Reserved2;
-	u32 switchNo;		/* when devState.attached==1 */
-	u32 internalPortNo;	/* when devState.attached==1 */
-	struct controlvm_message_header pendingMsgHdr;	/* CONTROLVM_MESSAGE */
+	struct visorchipset_channel_info chan_info;
+	u32 reserved1;		/* control_vm_id */
+	u64 reserved2;
+	u32 switch_no;		/* when devState.attached==1 */
+	u32 internal_port_no;	/* when devState.attached==1 */
+	struct controlvm_message_header pending_msg_hdr;/* CONTROLVM_MESSAGE */
 	/** For private use by the bus driver */
 	void *bus_driver_context;
 
-} VISORCHIPSET_DEVICE_INFO;
+};
 
-static inline VISORCHIPSET_DEVICE_INFO *
+static inline struct visorchipset_device_info *
 finddevice(struct list_head *list, u32 busNo, u32 devNo)
 {
-	VISORCHIPSET_DEVICE_INFO *p;
+	struct visorchipset_device_info *p;
 
 	list_for_each_entry(p, list, entry) {
-		if (p->busNo == busNo && p->devNo == devNo)
+		if (p->bus_no == busNo && p->dev_no == devNo)
 			return p;
 	}
 	return NULL;
@@ -106,10 +106,10 @@ finddevice(struct list_head *list, u32 busNo, u32 devNo)
 
 static inline void delbusdevices(struct list_head *list, u32 busNo)
 {
-	VISORCHIPSET_DEVICE_INFO *p, *tmp;
+	struct visorchipset_device_info *p, *tmp;
 
 	list_for_each_entry_safe(p, tmp, list, entry) {
-		if (p->busNo == busNo) {
+		if (p->bus_no == busNo) {
 			list_del(&p->entry);
 			kfree(p);
 		}
@@ -274,7 +274,7 @@ void visorchipset_device_pause_response(ulong busNo, ulong devNo, int response);
 
 BOOL visorchipset_get_bus_info(ulong busNo, VISORCHIPSET_BUS_INFO *busInfo);
 BOOL visorchipset_get_device_info(ulong busNo, ulong devNo,
-				  VISORCHIPSET_DEVICE_INFO *devInfo);
+				  struct visorchipset_device_info *devInfo);
 BOOL visorchipset_get_switch_info(ulong switchNo,
 				  VISORCHIPSET_SWITCH_INFO *switchInfo);
 BOOL visorchipset_get_externalport_info(ulong switchNo, ulong externalPortNo,
