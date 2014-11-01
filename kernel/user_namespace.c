@@ -841,6 +841,11 @@ static bool new_idmap_permitted(const struct file *file,
 	return false;
 }
 
+static inline struct user_namespace *to_user_ns(struct ns_common *ns)
+{
+	return container_of(ns, struct user_namespace, ns);
+}
+
 static void *userns_get(struct task_struct *task)
 {
 	struct user_namespace *user_ns;
@@ -849,17 +854,17 @@ static void *userns_get(struct task_struct *task)
 	user_ns = get_user_ns(__task_cred(task)->user_ns);
 	rcu_read_unlock();
 
-	return user_ns;
+	return user_ns ? &user_ns->ns : NULL;
 }
 
 static void userns_put(void *ns)
 {
-	put_user_ns(ns);
+	put_user_ns(to_user_ns(ns));
 }
 
 static int userns_install(struct nsproxy *nsproxy, void *ns)
 {
-	struct user_namespace *user_ns = ns;
+	struct user_namespace *user_ns = to_user_ns(ns);
 	struct cred *cred;
 
 	/* Don't allow gaining capabilities by reentering
@@ -890,8 +895,7 @@ static int userns_install(struct nsproxy *nsproxy, void *ns)
 
 static unsigned int userns_inum(void *ns)
 {
-	struct user_namespace *user_ns = ns;
-	return user_ns->ns.inum;
+	return ((struct ns_common *)ns)->inum;
 }
 
 const struct proc_ns_operations userns_operations = {

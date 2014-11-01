@@ -149,6 +149,11 @@ void put_ipc_ns(struct ipc_namespace *ns)
 	}
 }
 
+static inline struct ipc_namespace *to_ipc_ns(struct ns_common *ns)
+{
+	return container_of(ns, struct ipc_namespace, ns);
+}
+
 static void *ipcns_get(struct task_struct *task)
 {
 	struct ipc_namespace *ns = NULL;
@@ -160,17 +165,17 @@ static void *ipcns_get(struct task_struct *task)
 		ns = get_ipc_ns(nsproxy->ipc_ns);
 	task_unlock(task);
 
-	return ns;
+	return ns ? &ns->ns : NULL;
 }
 
 static void ipcns_put(void *ns)
 {
-	return put_ipc_ns(ns);
+	return put_ipc_ns(to_ipc_ns(ns));
 }
 
 static int ipcns_install(struct nsproxy *nsproxy, void *new)
 {
-	struct ipc_namespace *ns = new;
+	struct ipc_namespace *ns = to_ipc_ns(new);
 	if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN) ||
 	    !ns_capable(current_user_ns(), CAP_SYS_ADMIN))
 		return -EPERM;
@@ -184,9 +189,7 @@ static int ipcns_install(struct nsproxy *nsproxy, void *new)
 
 static unsigned int ipcns_inum(void *vp)
 {
-	struct ipc_namespace *ns = vp;
-
-	return ns->ns.inum;
+	return ((struct ns_common *)vp)->inum;
 }
 
 const struct proc_ns_operations ipcns_operations = {

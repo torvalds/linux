@@ -313,6 +313,11 @@ int reboot_pid_ns(struct pid_namespace *pid_ns, int cmd)
 	return 0;
 }
 
+static inline struct pid_namespace *to_pid_ns(struct ns_common *ns)
+{
+	return container_of(ns, struct pid_namespace, ns);
+}
+
 static void *pidns_get(struct task_struct *task)
 {
 	struct pid_namespace *ns;
@@ -323,18 +328,18 @@ static void *pidns_get(struct task_struct *task)
 		get_pid_ns(ns);
 	rcu_read_unlock();
 
-	return ns;
+	return ns ? &ns->ns : NULL;
 }
 
 static void pidns_put(void *ns)
 {
-	put_pid_ns(ns);
+	put_pid_ns(to_pid_ns(ns));
 }
 
 static int pidns_install(struct nsproxy *nsproxy, void *ns)
 {
 	struct pid_namespace *active = task_active_pid_ns(current);
-	struct pid_namespace *ancestor, *new = ns;
+	struct pid_namespace *ancestor, *new = to_pid_ns(ns);
 
 	if (!ns_capable(new->user_ns, CAP_SYS_ADMIN) ||
 	    !ns_capable(current_user_ns(), CAP_SYS_ADMIN))
@@ -364,8 +369,7 @@ static int pidns_install(struct nsproxy *nsproxy, void *ns)
 
 static unsigned int pidns_inum(void *ns)
 {
-	struct pid_namespace *pid_ns = ns;
-	return pid_ns->ns.inum;
+	return ((struct ns_common *)ns)->inum;
 }
 
 const struct proc_ns_operations pidns_operations = {

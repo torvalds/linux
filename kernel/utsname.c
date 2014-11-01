@@ -88,6 +88,11 @@ void free_uts_ns(struct kref *kref)
 	kfree(ns);
 }
 
+static inline struct uts_namespace *to_uts_ns(struct ns_common *ns)
+{
+	return container_of(ns, struct uts_namespace, ns);
+}
+
 static void *utsns_get(struct task_struct *task)
 {
 	struct uts_namespace *ns = NULL;
@@ -101,17 +106,17 @@ static void *utsns_get(struct task_struct *task)
 	}
 	task_unlock(task);
 
-	return ns;
+	return ns ? &ns->ns : NULL;
 }
 
 static void utsns_put(void *ns)
 {
-	put_uts_ns(ns);
+	put_uts_ns(to_uts_ns(ns));
 }
 
 static int utsns_install(struct nsproxy *nsproxy, void *new)
 {
-	struct uts_namespace *ns = new;
+	struct uts_namespace *ns = to_uts_ns(new);
 
 	if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN) ||
 	    !ns_capable(current_user_ns(), CAP_SYS_ADMIN))
@@ -125,9 +130,7 @@ static int utsns_install(struct nsproxy *nsproxy, void *new)
 
 static unsigned int utsns_inum(void *vp)
 {
-	struct uts_namespace *ns = vp;
-
-	return ns->ns.inum;
+	return ((struct ns_common *)vp)->inum;
 }
 
 const struct proc_ns_operations utsns_operations = {
