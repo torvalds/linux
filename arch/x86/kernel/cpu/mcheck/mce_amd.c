@@ -212,7 +212,7 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 	unsigned int cpu = smp_processor_id();
 	u32 low = 0, high = 0, address = 0;
 	unsigned int bank, block;
-	int offset = -1;
+	int offset = -1, new;
 
 	for (bank = 0; bank < mca_cfg.banks; ++bank) {
 		for (block = 0; block < NR_BLOCKS; ++block) {
@@ -247,15 +247,18 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 			b.address		= address;
 			b.interrupt_capable	= lvt_interrupt_supported(bank, high);
 
-			if (b.interrupt_capable) {
-				int new = (high & MASK_LVTOFF_HI) >> 20;
-				offset  = setup_APIC_mce(offset, new);
-			}
+			if (!b.interrupt_capable)
+				goto init;
 
-			mce_threshold_block_init(&b, offset);
+			new	= (high & MASK_LVTOFF_HI) >> 20;
+			offset  = setup_APIC_mce(offset, new);
 
-			if (mce_threshold_vector != amd_threshold_interrupt)
+			if ((offset == new) &&
+			    (mce_threshold_vector != amd_threshold_interrupt))
 				mce_threshold_vector = amd_threshold_interrupt;
+
+init:
+			mce_threshold_block_init(&b, offset);
 		}
 	}
 }
