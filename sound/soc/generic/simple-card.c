@@ -29,7 +29,9 @@ struct simple_card_data {
 	} *dai_props;
 	unsigned int mclk_fs;
 	int gpio_hp_det;
+	int gpio_hp_det_invert;
 	int gpio_mic_det;
+	int gpio_mic_det_invert;
 	struct snd_soc_dai_link dai_link[];	/* dynamically allocated */
 };
 
@@ -148,6 +150,7 @@ static int asoc_simple_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 				      simple_card_hp_jack_pins);
 
 		simple_card_hp_jack_gpio.gpio = priv->gpio_hp_det;
+		simple_card_hp_jack_gpio.invert = priv->gpio_hp_det_invert;
 		snd_soc_jack_add_gpios(&simple_card_hp_jack, 1,
 				       &simple_card_hp_jack_gpio);
 	}
@@ -159,6 +162,7 @@ static int asoc_simple_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 				      ARRAY_SIZE(simple_card_mic_jack_pins),
 				      simple_card_mic_jack_pins);
 		simple_card_mic_jack_gpio.gpio = priv->gpio_mic_det;
+		simple_card_mic_jack_gpio.invert = priv->gpio_mic_det_invert;
 		snd_soc_jack_add_gpios(&simple_card_mic_jack, 1,
 				       &simple_card_mic_jack_gpio);
 	}
@@ -374,6 +378,7 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 				     struct simple_card_data *priv)
 {
 	struct device *dev = simple_priv_to_dev(priv);
+	enum of_gpio_flags flags;
 	u32 val;
 	int ret;
 
@@ -429,13 +434,15 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 			return ret;
 	}
 
-	priv->gpio_hp_det = of_get_named_gpio(node,
-				"simple-audio-card,hp-det-gpio", 0);
+	priv->gpio_hp_det = of_get_named_gpio_flags(node,
+				"simple-audio-card,hp-det-gpio", 0, &flags);
+	priv->gpio_hp_det_invert = !!(flags & OF_GPIO_ACTIVE_LOW);
 	if (priv->gpio_hp_det == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 
-	priv->gpio_mic_det = of_get_named_gpio(node,
-				"simple-audio-card,mic-det-gpio", 0);
+	priv->gpio_mic_det = of_get_named_gpio_flags(node,
+				"simple-audio-card,mic-det-gpio", 0, &flags);
+	priv->gpio_mic_det_invert = !!(flags & OF_GPIO_ACTIVE_LOW);
 	if (priv->gpio_mic_det == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 
