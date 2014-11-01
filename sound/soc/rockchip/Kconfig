@@ -8,4 +8,9 @@ config SND_SOC_ROCKCHIP
 	  select the audio interfaces to support below.
 
 config SND_SOC_ROCKCHIP_I2S
-	tristate
+	tristate "Rockchip I2S Device Driver"
+	depends on CLKDEV_LOOKUP
+	help
+	  Say Y or M if you want to add support for I2S driver for
+	  Rockchip I2S device. The device supports upto maximum of
+	  8 channels each for play and record.
