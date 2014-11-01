@@ -487,6 +487,18 @@ void path_put(const struct path *path)
 }
 EXPORT_SYMBOL(path_put);
 
+struct nameidata {
+	struct path	path;
+	struct qstr	last;
+	struct path	root;
+	struct inode	*inode; /* path.dentry.d_inode */
+	unsigned int	flags;
+	unsigned	seq, m_seq;
+	int		last_type;
+	unsigned	depth;
+	char *saved_names[MAX_NESTED_LINKS + 1];
+};
+
 /*
  * Path walking has 2 modes, rcu-walk and ref-walk (see
  * Documentation/filesystems/path-lookup.txt).  In situations when we can't
@@ -694,6 +706,18 @@ void nd_jump_link(struct nameidata *nd, struct path *path)
 	nd->inode = nd->path.dentry->d_inode;
 	nd->flags |= LOOKUP_JUMPED;
 }
+
+void nd_set_link(struct nameidata *nd, char *path)
+{
+	nd->saved_names[nd->depth] = path;
+}
+EXPORT_SYMBOL(nd_set_link);
+
+char *nd_get_link(struct nameidata *nd)
+{
+	return nd->saved_names[nd->depth];
+}
+EXPORT_SYMBOL(nd_get_link);
 
 static inline void put_link(struct nameidata *nd, struct path *link, void *cookie)
 {
