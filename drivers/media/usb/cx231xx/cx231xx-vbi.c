@@ -69,11 +69,10 @@ static inline void print_err_status(struct cx231xx *dev, int packet, int status)
 		break;
 	}
 	if (packet < 0) {
-		pr_err("URB status %d [%s].\n", status,
-			    errmsg);
+		pr_err("URB status %d [%s].\n", status, errmsg);
 	} else {
 		pr_err("URB packet %d, status %d [%s].\n",
-			    packet, status, errmsg);
+			packet, status, errmsg);
 	}
 }
 
@@ -317,7 +316,7 @@ static void cx231xx_irq_vbi_callback(struct urb *urb)
 		return;
 	default:		/* error */
 		pr_err("urb completition error %d.\n",
-			    urb->status);
+			urb->status);
 		break;
 	}
 
@@ -332,7 +331,7 @@ static void cx231xx_irq_vbi_callback(struct urb *urb)
 	urb->status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (urb->status) {
 		pr_err("urb resubmit failed (error=%i)\n",
-			    urb->status);
+			urb->status);
 	}
 }
 
@@ -344,7 +343,7 @@ void cx231xx_uninit_vbi_isoc(struct cx231xx *dev)
 	struct urb *urb;
 	int i;
 
-	pr_info("called cx231xx_uninit_vbi_isoc\n");
+	pr_debug("called cx231xx_uninit_vbi_isoc\n");
 
 	dev->vbi_mode.bulk_ctl.nfields = -1;
 	for (i = 0; i < dev->vbi_mode.bulk_ctl.num_bufs; i++) {
@@ -393,7 +392,7 @@ int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
 	struct urb *urb;
 	int rc;
 
-	pr_info("called cx231xx_vbi_isoc\n");
+	pr_debug("called cx231xx_vbi_isoc\n");
 
 	/* De-allocates all pending stuff */
 	cx231xx_uninit_vbi_isoc(dev);
@@ -451,9 +450,9 @@ int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
 		dev->vbi_mode.bulk_ctl.transfer_buffer[i] =
 		    kzalloc(sb_size, GFP_KERNEL);
 		if (!dev->vbi_mode.bulk_ctl.transfer_buffer[i]) {
-			pr_err("unable to allocate %i bytes for transfer"
-				    " buffer %i%s\n", sb_size, i,
-				    in_interrupt() ? " while in int" : "");
+			pr_err("unable to allocate %i bytes for transfer buffer %i%s\n",
+				sb_size, i,
+				in_interrupt() ? " while in int" : "");
 			cx231xx_uninit_vbi_isoc(dev);
 			return -ENOMEM;
 		}
@@ -470,8 +469,7 @@ int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
 	for (i = 0; i < dev->vbi_mode.bulk_ctl.num_bufs; i++) {
 		rc = usb_submit_urb(dev->vbi_mode.bulk_ctl.urb[i], GFP_ATOMIC);
 		if (rc) {
-			pr_err("submit of urb %i failed (error=%i)\n", i,
-				    rc);
+			pr_err("submit of urb %i failed (error=%i)\n", i, rc);
 			cx231xx_uninit_vbi_isoc(dev);
 			return rc;
 		}
@@ -522,7 +520,7 @@ static inline void vbi_buffer_filled(struct cx231xx *dev,
 				     struct cx231xx_buffer *buf)
 {
 	/* Advice that buffer was filled */
-	/* pr_info("[%p/%d] wakeup\n", buf, buf->vb.i); */
+	/* pr_debug("[%p/%d] wakeup\n", buf, buf->vb.i); */
 
 	buf->vb.state = VIDEOBUF_DONE;
 	buf->vb.field_count++;

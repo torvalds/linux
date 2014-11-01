@@ -277,7 +277,7 @@ static int cx231xx_init_audio_isoc(struct cx231xx *dev)
 	int i, errCode;
 	int sb_size;
 
-	pr_info("%s: Starting ISO AUDIO transfers\n", __func__);
+	pr_debug("%s: Starting ISO AUDIO transfers\n", __func__);
 
 	if (dev->state & DEV_DISCONNECTED)
 		return -ENODEV;
@@ -338,7 +338,7 @@ static int cx231xx_init_audio_bulk(struct cx231xx *dev)
 	int i, errCode;
 	int sb_size;
 
-	pr_info("%s: Starting BULK AUDIO transfers\n", __func__);
+	pr_debug("%s: Starting BULK AUDIO transfers\n", __func__);
 
 	if (dev->state & DEV_DISCONNECTED)
 		return -ENODEV;
@@ -439,8 +439,7 @@ static int snd_cx231xx_capture_open(struct snd_pcm_substream *substream)
 	dprintk("opening device and trying to acquire exclusive lock\n");
 
 	if (!dev) {
-		pr_err("BUG: cx231xx can't find device struct."
-			       " Can't proceed with open\n");
+		pr_err("BUG: cx231xx can't find device struct. Can't proceed with open\n");
 		return -ENODEV;
 	}
 
@@ -662,8 +661,7 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 		return 0;
 	}
 
-	pr_info("cx231xx-audio.c: probing for cx231xx "
-		     "non standard usbaudio\n");
+	pr_debug("probing for cx231xx non standard usbaudio\n");
 
 	err = snd_card_new(&dev->udev->dev, index[devnr], "Cx231xx Audio",
 			   THIS_MODULE, 0, &card);
@@ -707,14 +705,12 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 			bEndpointAddress;
 
 	adev->num_alt = uif->num_altsetting;
-	pr_info("EndPoint Addr 0x%x, Alternate settings: %i\n",
-		     adev->end_point_addr, adev->num_alt);
+	pr_info("audio EndPoint Addr 0x%x, Alternate settings: %i\n",
+		adev->end_point_addr, adev->num_alt);
 	adev->alt_max_pkt_size = kmalloc(32 * adev->num_alt, GFP_KERNEL);
 
-	if (adev->alt_max_pkt_size == NULL) {
-		pr_err("out of memory!\n");
+	if (adev->alt_max_pkt_size == NULL)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < adev->num_alt; i++) {
 		u16 tmp =
@@ -722,7 +718,7 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 				wMaxPacketSize);
 		adev->alt_max_pkt_size[i] =
 		    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
-		pr_info("Alternate setting %i, max size= %i\n", i,
+		pr_debug("audio alternate setting %i, max size= %i\n", i,
 			     adev->alt_max_pkt_size[i]);
 	}
 

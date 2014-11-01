@@ -703,9 +703,9 @@ int initialize_cx231xx(struct cx231xx *dev)
 			_current_scenario_idx = INDEX_BUSPOWER_DIF_ONLY;
 			break;
 		default:
-			pr_info("bad config in buspower!!!!\n");
-			pr_info("config_info=%x\n",
-				     (config_info & BUSPOWER_MASK));
+			pr_err("bad config in buspower!!!!\n");
+			pr_err("config_info=%x\n",
+				config_info & BUSPOWER_MASK);
 			return 1;
 		}
 	} else {		/* self-power */
@@ -768,9 +768,9 @@ int initialize_cx231xx(struct cx231xx *dev)
 			_current_scenario_idx = INDEX_SELFPOWER_COMPRESSOR;
 			break;
 		default:
-			pr_info("bad senario!!!!!\n");
-			pr_info("config_info=%x\n",
-				     (config_info & SELFPOWER_MASK));
+			pr_err("bad senario!!!!!\n");
+			pr_err("config_info=%x\n",
+				config_info & SELFPOWER_MASK);
 			return -ENODEV;
 		}
 	}

@@ -90,10 +90,10 @@ static unsigned int v4l_debug = 1;
 module_param(v4l_debug, int, 0644);
 MODULE_PARM_DESC(v4l_debug, "enable V4L debug messages");
 
-#define dprintk(level, fmt, arg...)\
-	do { if (v4l_debug >= level) \
-		pr_info("%s: " fmt, \
-		(dev) ? dev->name : "cx231xx[?]", ## arg); \
+#define dprintk(level, fmt, arg...)	\
+	do {				\
+		if (v4l_debug >= level) \
+			printk(KERN_DEBUG pr_fmt(fmt), ## arg); \
 	} while (0)
 
 static struct cx231xx_tvnorm cx231xx_tvnorms[] = {
@@ -1114,15 +1114,15 @@ static int cx231xx_initialize_codec(struct cx231xx *dev)
 	cx231xx_disable656(dev);
 	retval = cx231xx_api_cmd(dev, CX2341X_ENC_PING_FW, 0, 0); /* ping */
 	if (retval < 0) {
-		dprintk(2, "%s() PING OK\n", __func__);
+		dprintk(2, "%s: PING OK\n", __func__);
 		retval = cx231xx_load_firmware(dev);
 		if (retval < 0) {
-			pr_err("%s() f/w load failed\n", __func__);
+			pr_err("%s: f/w load failed\n", __func__);
 			return retval;
 		}
 		retval = cx231xx_find_mailbox(dev);
 		if (retval < 0) {
-			pr_err("%s() mailbox < 0, error\n",
+			pr_err("%s: mailbox < 0, error\n",
 				__func__);
 			return -1;
 		}
@@ -1798,7 +1798,6 @@ static unsigned int mpeg_poll(struct file *file,
 static int mpeg_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct cx231xx_fh *fh = file->private_data;
-	struct cx231xx *dev = fh->dev;
 
 	dprintk(2, "%s()\n", __func__);
 

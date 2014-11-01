@@ -809,7 +809,6 @@ void cx231xx_Setup_AFE_for_LowIF(struct cx231xx *dev);
 void reset_s5h1432_demod(struct cx231xx *dev);
 void cx231xx_dump_HH_reg(struct cx231xx *dev);
 void update_HH_register_after_set_DIF(struct cx231xx *dev);
-void cx231xx_dump_SC_reg(struct cx231xx *dev);
 
 
 
