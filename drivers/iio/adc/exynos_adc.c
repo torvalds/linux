@@ -390,6 +390,35 @@ static const struct exynos_adc_data exynos3250_adc_data = {
 	.start_conv	= exynos_adc_v2_start_conv,
 };
 
+static void exynos_adc_exynos7_init_hw(struct exynos_adc *info)
+{
+	u32 con1, con2;
+
+	if (info->data->needs_adc_phy)
+		regmap_write(info->pmu_map, info->data->phy_offset, 1);
+
+	con1 = ADC_V2_CON1_SOFT_RESET;
+	writel(con1, ADC_V2_CON1(info->regs));
+
+	con2 = readl(ADC_V2_CON2(info->regs));
+	con2 &= ~ADC_V2_CON2_C_TIME(7);
+	con2 |= ADC_V2_CON2_C_TIME(0);
+	writel(con2, ADC_V2_CON2(info->regs));
+
+	/* Enable interrupts */
+	writel(1, ADC_V2_INT_EN(info->regs));
+}
+
+static const struct exynos_adc_data exynos7_adc_data = {
+	.num_channels	= MAX_ADC_V1_CHANNELS,
+	.mask		= ADC_DATX_MASK, /* 12 bit ADC resolution */
+
+	.init_hw	= exynos_adc_exynos7_init_hw,
+	.exit_hw	= exynos_adc_v2_exit_hw,
+	.clear_irq	= exynos_adc_v2_clear_irq,
+	.start_conv	= exynos_adc_v2_start_conv,
+};
+
 static const struct of_device_id exynos_adc_match[] = {
 	{
 		.compatible = "samsung,s3c2410-adc",
@@ -415,6 +444,9 @@ static const struct of_device_id exynos_adc_match[] = {
 	}, {
 		.compatible = "samsung,exynos3250-adc",
 		.data = &exynos3250_adc_data,
+	}, {
+		.compatible = "samsung,exynos7-adc",
+		.data = &exynos7_adc_data,
 	},
 	{},
 };
