@@ -564,7 +564,7 @@ int davinci_set_refclk_rate(unsigned long rate)
 
 	refclk = clk_get(NULL, "ref");
 	if (IS_ERR(refclk)) {
-		pr_err("%s: failed to get reference clock.\n", __func__);
+		pr_err("%s: failed to get reference clock\n", __func__);
 		return PTR_ERR(refclk);
 	}
 
