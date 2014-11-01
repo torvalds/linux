@@ -8,6 +8,11 @@ Required properties:
 
 The cores on the AXI bus are automatically detected by bcma with the
 memory ranges they are using and they get registered afterwards.
+Automatic detection of the IRQ number is not working on
+BCM47xx/BCM53xx ARM SoCs. To assign IRQ numbers to the cores, provide
+them manually through device tree. Use an interrupt-map to specify the
+IRQ used by the devices on the bus. The first address is just an index,
+because we do not have any special register.
 
 The top-level axi bus may contain children representing attached cores
 (devices). This is needed since some hardware details can't be auto
@@ -22,6 +27,22 @@ Example:
 		ranges = <0x00000000 0x18000000 0x00100000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0x000fffff 0xffff>;
+		interrupt-map =
+			/* Ethernet Controller 0 */
+			<0x00024000 0 &gic GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>,
+
+			/* Ethernet Controller 1 */
+			<0x00025000 0 &gic GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
+
+			/* PCIe Controller 0 */
+			<0x00012000 0 &gic GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>,
+			<0x00012000 1 &gic GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>,
+			<0x00012000 2 &gic GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>,
+			<0x00012000 3 &gic GIC_SPI 129 IRQ_TYPE_LEVEL_HIGH>,
+			<0x00012000 4 &gic GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>,
+			<0x00012000 5 &gic GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;
 
 		chipcommon {
 			reg = <0x00000000 0x1000>;
