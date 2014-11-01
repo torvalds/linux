@@ -169,6 +169,28 @@ static void bcma_of_fill_device(struct platform_device *parent,
 }
 #endif /* CONFIG_OF */
 
+unsigned int bcma_core_irq(struct bcma_device *core, int num)
+{
+	struct bcma_bus *bus = core->bus;
+	unsigned int mips_irq;
+
+	switch (bus->hosttype) {
+	case BCMA_HOSTTYPE_PCI:
+		return bus->host_pci->irq;
+	case BCMA_HOSTTYPE_SOC:
+		if (bus->drv_mips.core && num == 0) {
+			mips_irq = bcma_core_mips_irq(core);
+			return mips_irq <= 4 ? mips_irq + 2 : 0;
+		}
+		break;
+	case BCMA_HOSTTYPE_SDIO:
+		return 0;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(bcma_core_irq);
+
 void bcma_prepare_core(struct bcma_bus *bus, struct bcma_device *core)
 {
 	core->dev.release = bcma_release_core_dev;
