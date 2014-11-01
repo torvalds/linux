@@ -992,7 +992,6 @@ void intel_edp_psr_flush(struct drm_device *dev,
 			 unsigned frontbuffer_bits);
 void intel_edp_psr_init(struct drm_device *dev);
 
-int intel_dp_handle_hpd_irq(struct intel_digital_port *digport, bool long_hpd);
 void intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connector);
 void intel_dp_mst_suspend(struct drm_device *dev);
 void intel_dp_mst_resume(struct drm_device *dev);
