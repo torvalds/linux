@@ -57,11 +57,6 @@ union proc_op {
 		struct task_struct *task);
 };
 
-struct proc_ns {
-	struct ns_common *ns;
-	const struct proc_ns_operations *ns_ops;
-};
-
 struct proc_inode {
 	struct pid *pid;
 	int fd;
@@ -69,7 +64,7 @@ struct proc_inode {
 	struct proc_dir_entry *pde;
 	struct ctl_table_header *sysctl;
 	struct ctl_table *sysctl_entry;
-	struct proc_ns ns;
+	const struct proc_ns_operations *ns_ops;
 	struct inode vfs_inode;
 };
 

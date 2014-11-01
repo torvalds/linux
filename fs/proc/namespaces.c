@@ -33,7 +33,7 @@ static const struct proc_ns_operations *ns_entries[] = {
 static void *proc_ns_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	struct inode *inode = dentry->d_inode;
-	const struct proc_ns_operations *ns_ops = PROC_I(inode)->ns.ns_ops;
+	const struct proc_ns_operations *ns_ops = PROC_I(inode)->ns_ops;
 	struct task_struct *task;
 	struct path ns_path;
 	void *error = ERR_PTR(-EACCES);
@@ -54,7 +54,7 @@ static void *proc_ns_follow_link(struct dentry *dentry, struct nameidata *nd)
 static int proc_ns_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 {
 	struct inode *inode = dentry->d_inode;
-	const struct proc_ns_operations *ns_ops = PROC_I(inode)->ns.ns_ops;
+	const struct proc_ns_operations *ns_ops = PROC_I(inode)->ns_ops;
 	struct task_struct *task;
 	char name[50];
 	int res = -EACCES;
@@ -92,7 +92,7 @@ static int proc_ns_instantiate(struct inode *dir,
 	ei = PROC_I(inode);
 	inode->i_mode = S_IFLNK|S_IRWXUGO;
 	inode->i_op = &proc_ns_link_inode_operations;
-	ei->ns.ns_ops = ns_ops;
+	ei->ns_ops = ns_ops;
 
 	d_set_d_op(dentry, &pid_dentry_operations);
 	d_add(dentry, inode);
