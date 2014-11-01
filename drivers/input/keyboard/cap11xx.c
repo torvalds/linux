@@ -45,6 +45,7 @@
 #define CAP11XX_REG_STANDBY_SENSITIVITY	0x42
 #define CAP11XX_REG_STANDBY_THRESH	0x43
 #define CAP11XX_REG_CONFIG2		0x44
+#define CAP11XX_REG_CONFIG2_ALT_POL	BIT(6)
 #define CAP11XX_REG_SENSOR_BASE_CNT(X)	(0x50 + (X))
 #define CAP11XX_REG_SENSOR_CALIB	(0xb1 + (X))
 #define CAP11XX_REG_SENSOR_CALIB_LSB1	0xb9
@@ -261,6 +262,13 @@ static int cap11xx_i2c_probe(struct i2c_client *i2c_client,
 			gain = ilog2(gain32);
 		else
 			dev_err(dev, "Invalid sensor-gain value %d\n", gain32);
+	}
+
+	if (of_property_read_bool(node, "microchip,irq-active-high")) {
+		error = regmap_update_bits(priv->regmap, CAP11XX_REG_CONFIG2,
+					   CAP11XX_REG_CONFIG2_ALT_POL, 0);
+		if (error)
+			return error;
 	}
 
 	/* Provide some useful defaults */
