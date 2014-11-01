@@ -1079,52 +1079,80 @@ int ixgbe_ndo_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 	return ixgbe_set_vf_mac(adapter, vf, mac);
 }
 
+static int ixgbe_enable_port_vlan(struct ixgbe_adapter *adapter, int vf,
+				  u16 vlan, u8 qos)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	int err = 0;
+
+	if (adapter->vfinfo[vf].pf_vlan)
+		err = ixgbe_set_vf_vlan(adapter, false,
+					adapter->vfinfo[vf].pf_vlan,
+					vf);
+	if (err)
+		goto out;
+	ixgbe_set_vmvir(adapter, vlan, qos, vf);
+	ixgbe_set_vmolr(hw, vf, false);
+	if (adapter->vfinfo[vf].spoofchk_enabled)
+		hw->mac.ops.set_vlan_anti_spoofing(hw, true, vf);
+	adapter->vfinfo[vf].vlan_count++;
+	adapter->vfinfo[vf].pf_vlan = vlan;
+	adapter->vfinfo[vf].pf_qos = qos;
+	dev_info(&adapter->pdev->dev,
+		 "Setting VLAN %d, QOS 0x%x on VF %d\n", vlan, qos, vf);
+	if (test_bit(__IXGBE_DOWN, &adapter->state)) {
+		dev_warn(&adapter->pdev->dev,
+			 "The VF VLAN has been set, but the PF device is not up.\n");
+		dev_warn(&adapter->pdev->dev,
+			 "Bring the PF device up before attempting to use the VF device.\n");
+	}
+
+out:
+	return err;
+}
+
+static int ixgbe_disable_port_vlan(struct ixgbe_adapter *adapter, int vf)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	int err;
+
+	err = ixgbe_set_vf_vlan(adapter, false,
+				adapter->vfinfo[vf].pf_vlan, vf);
+	ixgbe_clear_vmvir(adapter, vf);
+	ixgbe_set_vmolr(hw, vf, true);
+	hw->mac.ops.set_vlan_anti_spoofing(hw, false, vf);
+	if (adapter->vfinfo[vf].vlan_count)
+		adapter->vfinfo[vf].vlan_count--;
+	adapter->vfinfo[vf].pf_vlan = 0;
+	adapter->vfinfo[vf].pf_qos = 0;
+
+	return err;
+}
+
 int ixgbe_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos)
 {
 	int err = 0;
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	struct ixgbe_hw *hw = &adapter->hw;
 
 	if ((vf >= adapter->num_vfs) || (vlan > 4095) || (qos > 7))
 		return -EINVAL;
 	if (vlan || qos) {
+		/* Check if there is already a port VLAN set, if so
+		 * we have to delete the old one first before we
+		 * can set the new one.  The usage model had
+		 * previously assumed the user would delete the
+		 * old port VLAN before setting a new one but this
+		 * is not necessarily the case.
+		 */
 		if (adapter->vfinfo[vf].pf_vlan)
-			err = ixgbe_set_vf_vlan(adapter, false,
-						adapter->vfinfo[vf].pf_vlan,
-						vf);
+			err = ixgbe_disable_port_vlan(adapter, vf);
 		if (err)
 			goto out;
-		err = ixgbe_set_vf_vlan(adapter, true, vlan, vf);
-		if (err)
-			goto out;
-		ixgbe_set_vmvir(adapter, vlan, qos, vf);
-		ixgbe_set_vmolr(hw, vf, false);
-		if (adapter->vfinfo[vf].spoofchk_enabled)
-			hw->mac.ops.set_vlan_anti_spoofing(hw, true, vf);
-		adapter->vfinfo[vf].vlan_count++;
-		adapter->vfinfo[vf].pf_vlan = vlan;
-		adapter->vfinfo[vf].pf_qos = qos;
-		dev_info(&adapter->pdev->dev,
-			 "Setting VLAN %d, QOS 0x%x on VF %d\n", vlan, qos, vf);
-		if (test_bit(__IXGBE_DOWN, &adapter->state)) {
-			dev_warn(&adapter->pdev->dev,
-				 "The VF VLAN has been set,"
-				 " but the PF device is not up.\n");
-			dev_warn(&adapter->pdev->dev,
-				 "Bring the PF device up before"
-				 " attempting to use the VF device.\n");
-		}
+		err = ixgbe_enable_port_vlan(adapter, vf, vlan, qos);
 	} else {
-		err = ixgbe_set_vf_vlan(adapter, false,
-					adapter->vfinfo[vf].pf_vlan, vf);
-		ixgbe_clear_vmvir(adapter, vf);
-		ixgbe_set_vmolr(hw, vf, true);
-		hw->mac.ops.set_vlan_anti_spoofing(hw, false, vf);
-		if (adapter->vfinfo[vf].vlan_count)
-			adapter->vfinfo[vf].vlan_count--;
-		adapter->vfinfo[vf].pf_vlan = 0;
-		adapter->vfinfo[vf].pf_qos = 0;
+		err = ixgbe_disable_port_vlan(adapter, vf);
 	}
+
 out:
 	return err;
 }
