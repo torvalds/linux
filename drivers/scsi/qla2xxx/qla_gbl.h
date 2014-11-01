@@ -752,8 +752,6 @@ extern void qla8044_set_idc_dontreset(struct scsi_qla_host *ha);
 extern int qla8044_rd_direct(struct scsi_qla_host *vha, const uint32_t crb_reg);
 extern void qla8044_wr_direct(struct scsi_qla_host *vha,
 			      const uint32_t crb_reg, const uint32_t value);
-extern inline void qla8044_set_qsnt_ready(struct scsi_qla_host *vha);
-extern inline void qla8044_need_reset_handler(struct scsi_qla_host *vha);
 extern int qla8044_device_state_handler(struct scsi_qla_host *vha);
 extern void qla8044_clear_qsnt_ready(struct scsi_qla_host *vha);
 extern void qla8044_clear_drv_active(struct qla_hw_data *);
