@@ -107,6 +107,10 @@ static void of_get_regulation_constraints(struct device_node *np,
 					"regulator-off-in-suspend"))
 			suspend_state->disabled = true;
 
+		if (!of_property_read_u32(suspend_np,
+					"regulator-suspend-microvolt", &pval))
+			suspend_state->uV = pval;
+
 		of_node_put(suspend_np);
 		suspend_state = NULL;
 		suspend_np = NULL;
