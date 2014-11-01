@@ -674,8 +674,7 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 	 */
 	spin_lock(&dev->se_port_lock);
 	list_for_each_entry_safe(port, port_tmp, &dev->dev_sep_list, sep_list) {
-		atomic_inc(&port->sep_tg_pt_ref_cnt);
-		smp_mb__after_atomic();
+		atomic_inc_mb(&port->sep_tg_pt_ref_cnt);
 		spin_unlock(&dev->se_port_lock);
 
 		spin_lock_bh(&port->sep_alua_lock);
@@ -709,8 +708,7 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 			if (strcmp(nacl->initiatorname, nacl_tmp->initiatorname))
 				continue;
 
-			atomic_inc(&deve_tmp->pr_ref_count);
-			smp_mb__after_atomic();
+			atomic_inc_mb(&deve_tmp->pr_ref_count);
 			spin_unlock_bh(&port->sep_alua_lock);
 			/*
 			 * Grab a configfs group dependency that is released
@@ -722,10 +720,8 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 			if (ret < 0) {
 				pr_err("core_scsi3_lunacl_depend"
 						"_item() failed\n");
-				atomic_dec(&port->sep_tg_pt_ref_cnt);
-				smp_mb__after_atomic();
-				atomic_dec(&deve_tmp->pr_ref_count);
-				smp_mb__after_atomic();
+				atomic_dec_mb(&port->sep_tg_pt_ref_cnt);
+				atomic_dec_mb(&deve_tmp->pr_ref_count);
 				goto out;
 			}
 			/*
@@ -739,10 +735,8 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 						nacl_tmp, deve_tmp, NULL,
 						sa_res_key, all_tg_pt, aptpl);
 			if (!pr_reg_atp) {
-				atomic_dec(&port->sep_tg_pt_ref_cnt);
-				smp_mb__after_atomic();
-				atomic_dec(&deve_tmp->pr_ref_count);
-				smp_mb__after_atomic();
+				atomic_dec_mb(&port->sep_tg_pt_ref_cnt);
+				atomic_dec_mb(&deve_tmp->pr_ref_count);
 				core_scsi3_lunacl_undepend_item(deve_tmp);
 				goto out;
 			}
@@ -754,8 +748,7 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 		spin_unlock_bh(&port->sep_alua_lock);
 
 		spin_lock(&dev->se_port_lock);
-		atomic_dec(&port->sep_tg_pt_ref_cnt);
-		smp_mb__after_atomic();
+		atomic_dec_mb(&port->sep_tg_pt_ref_cnt);
 	}
 	spin_unlock(&dev->se_port_lock);
 
@@ -902,6 +895,7 @@ static int __core_scsi3_check_aptpl_registration(
 	spin_lock(&pr_tmpl->aptpl_reg_lock);
 	list_for_each_entry_safe(pr_reg, pr_reg_tmp, &pr_tmpl->aptpl_reg_list,
 				pr_reg_aptpl_list) {
+
 		if (!strcmp(pr_reg->pr_iport, i_port) &&
 		     (pr_reg->pr_res_mapped_lun == deve->mapped_lun) &&
 		    !(strcmp(pr_reg->pr_tport, t_port)) &&
@@ -944,10 +938,10 @@ int core_scsi3_check_aptpl_registration(
 	struct se_device *dev,
 	struct se_portal_group *tpg,
 	struct se_lun *lun,
-	struct se_lun_acl *lun_acl)
+	struct se_node_acl *nacl,
+	u32 mapped_lun)
 {
-	struct se_node_acl *nacl = lun_acl->se_lun_nacl;
-	struct se_dev_entry *deve = nacl->device_list[lun_acl->mapped_lun];
+	struct se_dev_entry *deve = nacl->device_list[mapped_lun];
 
 	if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)
 		return 0;
@@ -1109,8 +1103,7 @@ static struct t10_pr_registration *__core_scsi3_locate_pr_reg(
 				if (dev->dev_attrib.enforce_pr_isids)
 					continue;
 			}
-			atomic_inc(&pr_reg->pr_res_holders);
-			smp_mb__after_atomic();
+			atomic_inc_mb(&pr_reg->pr_res_holders);
 			spin_unlock(&pr_tmpl->registration_lock);
 			return pr_reg;
 		}
@@ -1124,8 +1117,7 @@ static struct t10_pr_registration *__core_scsi3_locate_pr_reg(
 		if (strcmp(isid, pr_reg->pr_reg_isid))
 			continue;
 
-		atomic_inc(&pr_reg->pr_res_holders);
-		smp_mb__after_atomic();
+		atomic_inc_mb(&pr_reg->pr_res_holders);
 		spin_unlock(&pr_tmpl->registration_lock);
 		return pr_reg;
 	}
@@ -1154,8 +1146,7 @@ static struct t10_pr_registration *core_scsi3_locate_pr_reg(
 
 static void core_scsi3_put_pr_reg(struct t10_pr_registration *pr_reg)
 {
-	atomic_dec(&pr_reg->pr_res_holders);
-	smp_mb__after_atomic();
+	atomic_dec_mb(&pr_reg->pr_res_holders);
 }
 
 static int core_scsi3_check_implicit_release(
@@ -1348,8 +1339,7 @@ static void core_scsi3_tpg_undepend_item(struct se_portal_group *tpg)
 	configfs_undepend_item(tpg->se_tpg_tfo->tf_subsys,
 			&tpg->tpg_group.cg_item);
 
-	atomic_dec(&tpg->tpg_pr_ref_count);
-	smp_mb__after_atomic();
+	atomic_dec_mb(&tpg->tpg_pr_ref_count);
 }
 
 static int core_scsi3_nodeacl_depend_item(struct se_node_acl *nacl)
@@ -1368,16 +1358,14 @@ static void core_scsi3_nodeacl_undepend_item(struct se_node_acl *nacl)
 	struct se_portal_group *tpg = nacl->se_tpg;
 
 	if (nacl->dynamic_node_acl) {
-		atomic_dec(&nacl->acl_pr_ref_count);
-		smp_mb__after_atomic();
+		atomic_dec_mb(&nacl->acl_pr_ref_count);
 		return;
 	}
 
 	configfs_undepend_item(tpg->se_tpg_tfo->tf_subsys,
 			&nacl->acl_group.cg_item);
 
-	atomic_dec(&nacl->acl_pr_ref_count);
-	smp_mb__after_atomic();
+	atomic_dec_mb(&nacl->acl_pr_ref_count);
 }
 
 static int core_scsi3_lunacl_depend_item(struct se_dev_entry *se_deve)
@@ -1407,8 +1395,7 @@ static void core_scsi3_lunacl_undepend_item(struct se_dev_entry *se_deve)
 	 * For nacl->dynamic_node_acl=1
 	 */
 	if (!lun_acl) {
-		atomic_dec(&se_deve->pr_ref_count);
-		smp_mb__after_atomic();
+		atomic_dec_mb(&se_deve->pr_ref_count);
 		return;
 	}
 	nacl = lun_acl->se_lun_nacl;
@@ -1417,8 +1404,7 @@ static void core_scsi3_lunacl_undepend_item(struct se_dev_entry *se_deve)
 	configfs_undepend_item(tpg->se_tpg_tfo->tf_subsys,
 			&lun_acl->se_lun_group.cg_item);
 
-	atomic_dec(&se_deve->pr_ref_count);
-	smp_mb__after_atomic();
+	atomic_dec_mb(&se_deve->pr_ref_count);
 }
 
 static sense_reason_t
@@ -1551,15 +1537,13 @@ core_scsi3_decode_spec_i_port(
 			if (!i_str)
 				continue;
 
-			atomic_inc(&tmp_tpg->tpg_pr_ref_count);
-			smp_mb__after_atomic();
+			atomic_inc_mb(&tmp_tpg->tpg_pr_ref_count);
 			spin_unlock(&dev->se_port_lock);
 
 			if (core_scsi3_tpg_depend_item(tmp_tpg)) {
 				pr_err(" core_scsi3_tpg_depend_item()"
 					" for tmp_tpg\n");
-				atomic_dec(&tmp_tpg->tpg_pr_ref_count);
-				smp_mb__after_atomic();
+				atomic_dec_mb(&tmp_tpg->tpg_pr_ref_count);
 				ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 				goto out_unmap;
 			}
@@ -1571,10 +1555,8 @@ core_scsi3_decode_spec_i_port(
 			spin_lock_irq(&tmp_tpg->acl_node_lock);
 			dest_node_acl = __core_tpg_get_initiator_node_acl(
 						tmp_tpg, i_str);
-			if (dest_node_acl) {
-				atomic_inc(&dest_node_acl->acl_pr_ref_count);
-				smp_mb__after_atomic();
-			}
+			if (dest_node_acl)
+				atomic_inc_mb(&dest_node_acl->acl_pr_ref_count);
 			spin_unlock_irq(&tmp_tpg->acl_node_lock);
 
 			if (!dest_node_acl) {
@@ -1586,8 +1568,7 @@ core_scsi3_decode_spec_i_port(
 			if (core_scsi3_nodeacl_depend_item(dest_node_acl)) {
 				pr_err("configfs_depend_item() failed"
 					" for dest_node_acl->acl_group\n");
-				atomic_dec(&dest_node_acl->acl_pr_ref_count);
-				smp_mb__after_atomic();
+				atomic_dec_mb(&dest_node_acl->acl_pr_ref_count);
 				core_scsi3_tpg_undepend_item(tmp_tpg);
 				ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 				goto out_unmap;
@@ -1646,8 +1627,7 @@ core_scsi3_decode_spec_i_port(
 		if (core_scsi3_lunacl_depend_item(dest_se_deve)) {
 			pr_err("core_scsi3_lunacl_depend_item()"
 					" failed\n");
-			atomic_dec(&dest_se_deve->pr_ref_count);
-			smp_mb__after_atomic();
+			atomic_dec_mb(&dest_se_deve->pr_ref_count);
 			core_scsi3_nodeacl_undepend_item(dest_node_acl);
 			core_scsi3_tpg_undepend_item(dest_tpg);
 			ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
@@ -3167,15 +3147,13 @@ core_scsi3_emulate_pro_register_and_move(struct se_cmd *cmd, u64 res_key,
 		if (!dest_tf_ops)
 			continue;
 
-		atomic_inc(&dest_se_tpg->tpg_pr_ref_count);
-		smp_mb__after_atomic();
+		atomic_inc_mb(&dest_se_tpg->tpg_pr_ref_count);
 		spin_unlock(&dev->se_port_lock);
 
 		if (core_scsi3_tpg_depend_item(dest_se_tpg)) {
 			pr_err("core_scsi3_tpg_depend_item() failed"
 				" for dest_se_tpg\n");
-			atomic_dec(&dest_se_tpg->tpg_pr_ref_count);
-			smp_mb__after_atomic();
+			atomic_dec_mb(&dest_se_tpg->tpg_pr_ref_count);
 			ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 			goto out_put_pr_reg;
 		}
@@ -3271,10 +3249,8 @@ after_iport_check:
 	spin_lock_irq(&dest_se_tpg->acl_node_lock);
 	dest_node_acl = __core_tpg_get_initiator_node_acl(dest_se_tpg,
 				initiator_str);
-	if (dest_node_acl) {
-		atomic_inc(&dest_node_acl->acl_pr_ref_count);
-		smp_mb__after_atomic();
-	}
+	if (dest_node_acl)
+		atomic_inc_mb(&dest_node_acl->acl_pr_ref_count);
 	spin_unlock_irq(&dest_se_tpg->acl_node_lock);
 
 	if (!dest_node_acl) {
@@ -3288,8 +3264,7 @@ after_iport_check:
 	if (core_scsi3_nodeacl_depend_item(dest_node_acl)) {
 		pr_err("core_scsi3_nodeacl_depend_item() for"
 			" dest_node_acl\n");
-		atomic_dec(&dest_node_acl->acl_pr_ref_count);
-		smp_mb__after_atomic();
+		atomic_dec_mb(&dest_node_acl->acl_pr_ref_count);
 		dest_node_acl = NULL;
 		ret = TCM_INVALID_PARAMETER_LIST;
 		goto out;
@@ -3313,8 +3288,7 @@ after_iport_check:
 
 	if (core_scsi3_lunacl_depend_item(dest_se_deve)) {
 		pr_err("core_scsi3_lunacl_depend_item() failed\n");
-		atomic_dec(&dest_se_deve->pr_ref_count);
-		smp_mb__after_atomic();
+		atomic_dec_mb(&dest_se_deve->pr_ref_count);
 		dest_se_deve = NULL;
 		ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		goto out;
@@ -3497,6 +3471,7 @@ static unsigned long long core_scsi3_extract_reservation_key(unsigned char *cdb)
 sense_reason_t
 target_scsi3_emulate_pr_out(struct se_cmd *cmd)
 {
+	struct se_device *dev = cmd->se_dev;
 	unsigned char *cdb = &cmd->t_task_cdb[0];
 	unsigned char *buf;
 	u64 res_key, sa_res_key;
@@ -3561,6 +3536,13 @@ target_scsi3_emulate_pr_out(struct se_cmd *cmd)
 		aptpl = (buf[17] & 0x01);
 		unreg = (buf[17] & 0x02);
 	}
+	/*
+	 * If the backend device has been configured to force APTPL metadata
+	 * write-out, go ahead and propigate aptpl=1 down now.
+	 */
+	if (dev->dev_attrib.force_pr_aptpl)
+		aptpl = 1;
+
 	transport_kunmap_data_sg(cmd);
 	buf = NULL;
 
@@ -3803,7 +3785,7 @@ core_scsi3_pri_report_capabilities(struct se_cmd *cmd)
 	if (!buf)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
-	buf[0] = ((add_len << 8) & 0xff);
+	buf[0] = ((add_len >> 8) & 0xff);
 	buf[1] = (add_len & 0xff);
 	buf[2] |= 0x10; /* CRH: Compatible Reservation Hanlding bit. */
 	buf[2] |= 0x08; /* SIP_C: Specify Initiator Ports Capable bit */
@@ -3879,8 +3861,7 @@ core_scsi3_pri_read_full_status(struct se_cmd *cmd)
 		se_tpg = pr_reg->pr_reg_nacl->se_tpg;
 		add_desc_len = 0;
 
-		atomic_inc(&pr_reg->pr_res_holders);
-		smp_mb__after_atomic();
+		atomic_inc_mb(&pr_reg->pr_res_holders);
 		spin_unlock(&pr_tmpl->registration_lock);
 		/*
 		 * Determine expected length of $FABRIC_MOD specific
@@ -3893,8 +3874,7 @@ core_scsi3_pri_read_full_status(struct se_cmd *cmd)
 			pr_warn("SPC-3 PRIN READ_FULL_STATUS ran"
 				" out of buffer: %d\n", cmd->data_length);
 			spin_lock(&pr_tmpl->registration_lock);
-			atomic_dec(&pr_reg->pr_res_holders);
-			smp_mb__after_atomic();
+			atomic_dec_mb(&pr_reg->pr_res_holders);
 			break;
 		}
 		/*
@@ -3955,8 +3935,7 @@ core_scsi3_pri_read_full_status(struct se_cmd *cmd)
 				se_nacl, pr_reg, &format_code, &buf[off+4]);
 
 		spin_lock(&pr_tmpl->registration_lock);
-		atomic_dec(&pr_reg->pr_res_holders);
-		smp_mb__after_atomic();
+		atomic_dec_mb(&pr_reg->pr_res_holders);
 		/*
 		 * Set the ADDITIONAL DESCRIPTOR LENGTH
 		 */

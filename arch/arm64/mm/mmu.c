@@ -297,11 +297,15 @@ static void __init map_mem(void)
 	 * create_mapping requires puds, pmds and ptes to be allocated from
 	 * memory addressable from the initial direct kernel mapping.
 	 *
-	 * The initial direct kernel mapping, located at swapper_pg_dir,
-	 * gives us PUD_SIZE memory starting from PHYS_OFFSET (which must be
-	 * aligned to 2MB as per Documentation/arm64/booting.txt).
+	 * The initial direct kernel mapping, located at swapper_pg_dir, gives
+	 * us PUD_SIZE (4K pages) or PMD_SIZE (64K pages) memory starting from
+	 * PHYS_OFFSET (which must be aligned to 2MB as per
+	 * Documentation/arm64/booting.txt).
 	 */
-	limit = PHYS_OFFSET + PUD_SIZE;
+	if (IS_ENABLED(CONFIG_ARM64_64K_PAGES))
+		limit = PHYS_OFFSET + PMD_SIZE;
+	else
+		limit = PHYS_OFFSET + PUD_SIZE;
 	memblock_set_current_limit(limit);
 
 	/* map all the memory banks */

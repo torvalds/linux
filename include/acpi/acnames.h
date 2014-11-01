@@ -52,6 +52,7 @@
 #define METHOD_NAME__CBA        "_CBA"
 #define METHOD_NAME__CID        "_CID"
 #define METHOD_NAME__CRS        "_CRS"
+#define METHOD_NAME__DDN        "_DDN"
 #define METHOD_NAME__HID        "_HID"
 #define METHOD_NAME__INI        "_INI"
 #define METHOD_NAME__PLD        "_PLD"

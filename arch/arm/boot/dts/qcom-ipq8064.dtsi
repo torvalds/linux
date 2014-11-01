@@ -234,6 +234,39 @@
 			};
 		};
 
+		sata_phy: sata-phy@1b400000 {
+			compatible = "qcom,ipq806x-sata-phy";
+			reg = <0x1b400000 0x200>;
+
+			clocks = <&gcc SATA_PHY_CFG_CLK>;
+			clock-names = "cfg";
+
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+		sata@29000000 {
+			compatible = "qcom,ipq806x-ahci", "generic-ahci";
+			reg = <0x29000000 0x180>;
+
+			interrupts = <0 209 0x0>;
+
+			clocks = <&gcc SFAB_SATA_S_H_CLK>,
+				 <&gcc SATA_H_CLK>,
+				 <&gcc SATA_A_CLK>,
+				 <&gcc SATA_RXOOB_CLK>,
+				 <&gcc SATA_PMALIVE_CLK>;
+			clock-names = "slave_face", "iface", "core",
+					"rxoob", "pmalive";
+
+			assigned-clocks = <&gcc SATA_RXOOB_CLK>, <&gcc SATA_PMALIVE_CLK>;
+			assigned-clock-rates = <100000000>, <100000000>;
+
+			phys = <&sata_phy>;
+			phy-names = "sata-phy";
+			status = "disabled";
+		};
+
 		qcom,ssbi@500000 {
 			compatible = "qcom,ssbi";
 			reg = <0x00500000 0x1000>;

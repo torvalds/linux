@@ -59,8 +59,7 @@ static struct sk_buff *mpls_gso_segment(struct sk_buff *skb,
 	 * above pulled.  It will be re-pushed after returning
 	 * skb_mac_gso_segment(), an indirect caller of this function.
 	 */
-	__skb_push(skb, skb->data - skb_mac_header(skb));
-
+	__skb_pull(skb, skb->data - skb_mac_header(skb));
 out:
 	return segs;
 }

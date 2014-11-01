@@ -1169,6 +1169,9 @@ static void intr_callback(struct urb *urb)
 	case -ESHUTDOWN:
 		netif_device_detach(tp->netdev);
 	case -ENOENT:
+	case -EPROTO:
+		netif_info(tp, intr, tp->netdev,
+			   "Stop submitting intr, status %d\n", status);
 		return;
 	case -EOVERFLOW:
 		netif_info(tp, intr, tp->netdev, "intr status -EOVERFLOW\n");
@@ -2901,6 +2904,9 @@ static int rtl8152_open(struct net_device *netdev)
 	if (res)
 		goto out;
 
+	/* set speed to 0 to avoid autoresume try to submit rx */
+	tp->speed = 0;
+
 	res = usb_autopm_get_interface(tp->intf);
 	if (res < 0) {
 		free_all_mem(tp);
@@ -2914,6 +2920,8 @@ static int rtl8152_open(struct net_device *netdev)
 		clear_bit(WORK_ENABLE, &tp->flags);
 		usb_kill_urb(tp->intr_urb);
 		cancel_delayed_work_sync(&tp->schedule);
+
+		/* disable the tx/rx, if the workqueue has enabled them. */
 		if (tp->speed & LINK_STATUS)
 			tp->rtl_ops.disable(tp);
 	}
@@ -2965,10 +2973,7 @@ static int rtl8152_close(struct net_device *netdev)
 		 * be disable when autoresume occurs, because the
 		 * netif_running() would be false.
 		 */
-		if (test_bit(SELECTIVE_SUSPEND, &tp->flags)) {
-			rtl_runtime_suspend_enable(tp, false);
-			clear_bit(SELECTIVE_SUSPEND, &tp->flags);
-		}
+		rtl_runtime_suspend_enable(tp, false);
 
 		tasklet_disable(&tp->tl);
 		tp->rtl_ops.down(tp);
@@ -3215,7 +3220,7 @@ static int rtl8152_suspend(struct usb_interface *intf, pm_message_t message)
 		netif_device_detach(netdev);
 	}
 
-	if (netif_running(netdev)) {
+	if (netif_running(netdev) && test_bit(WORK_ENABLE, &tp->flags)) {
 		clear_bit(WORK_ENABLE, &tp->flags);
 		usb_kill_urb(tp->intr_urb);
 		tasklet_disable(&tp->tl);
@@ -3263,6 +3268,8 @@ static int rtl8152_resume(struct usb_interface *intf)
 			set_bit(WORK_ENABLE, &tp->flags);
 		}
 		usb_submit_urb(tp->intr_urb, GFP_KERNEL);
+	} else if (test_bit(SELECTIVE_SUSPEND, &tp->flags)) {
+		clear_bit(SELECTIVE_SUSPEND, &tp->flags);
 	}
 
 	mutex_unlock(&tp->control);

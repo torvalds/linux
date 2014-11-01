@@ -2022,7 +2022,7 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 		parp = of_get_property(slave_node, "phy_id", &lenp);
 		if ((parp == NULL) || (lenp != (sizeof(void *) * 2))) {
 			dev_err(&pdev->dev, "Missing slave[%d] phy_id property\n", i);
-			return -EINVAL;
+			goto no_phy_slave;
 		}
 		mdio_node = of_find_node_by_phandle(be32_to_cpup(parp));
 		phyid = be32_to_cpup(parp+1);
@@ -2035,6 +2035,14 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 		snprintf(slave_data->phy_id, sizeof(slave_data->phy_id),
 			 PHY_ID_FMT, mdio->name, phyid);
 
+		slave_data->phy_if = of_get_phy_mode(slave_node);
+		if (slave_data->phy_if < 0) {
+			dev_err(&pdev->dev, "Missing or malformed slave[%d] phy-mode property\n",
+				i);
+			return slave_data->phy_if;
+		}
+
+no_phy_slave:
 		mac_addr = of_get_mac_address(slave_node);
 		if (mac_addr) {
 			memcpy(slave_data->mac_addr, mac_addr, ETH_ALEN);
@@ -2046,14 +2054,6 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 					return ret;
 			}
 		}
-
-		slave_data->phy_if = of_get_phy_mode(slave_node);
-		if (slave_data->phy_if < 0) {
-			dev_err(&pdev->dev, "Missing or malformed slave[%d] phy-mode property\n",
-				i);
-			return slave_data->phy_if;
-		}
-
 		if (data->dual_emac) {
 			if (of_property_read_u32(slave_node, "dual_emac_res_vlan",
 						 &prop)) {

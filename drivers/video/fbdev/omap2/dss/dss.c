@@ -966,6 +966,7 @@ static struct platform_driver omap_dsshw_driver = {
 		.owner  = THIS_MODULE,
 		.pm	= &dss_pm_ops,
 		.of_match_table = dss_of_match,
+		.suppress_bind_attrs = true,
 	},
 };
 

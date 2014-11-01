@@ -734,7 +734,7 @@ static int fsl_esai_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	esai_priv->pdev = pdev;
-	strcpy(esai_priv->name, np->name);
+	strncpy(esai_priv->name, np->name, sizeof(esai_priv->name) - 1);
 
 	/* Get the addresses and IRQ */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

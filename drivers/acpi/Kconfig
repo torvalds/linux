@@ -144,7 +144,7 @@ config ACPI_VIDEO
 
 config ACPI_FAN
 	tristate "Fan"
-	select THERMAL
+	depends on THERMAL
 	default y
 	help
 	  This driver supports ACPI fan devices, allowing user-mode

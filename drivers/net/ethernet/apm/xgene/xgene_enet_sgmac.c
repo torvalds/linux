@@ -124,20 +124,18 @@ static int xgene_enet_ecc_init(struct xgene_enet_pdata *p)
 {
 	struct net_device *ndev = p->ndev;
 	u32 data;
-	int i;
+	int i = 0;
 
 	xgene_enet_wr_diag_csr(p, ENET_CFG_MEM_RAM_SHUTDOWN_ADDR, 0);
-	for (i = 0; i < 10 && data != ~0U ; i++) {
+	do {
 		usleep_range(100, 110);
 		data = xgene_enet_rd_diag_csr(p, ENET_BLOCK_MEM_RDY_ADDR);
-	}
+		if (data == ~0U)
+			return 0;
+	} while (++i < 10);
 
-	if (data != ~0U) {
-		netdev_err(ndev, "Failed to release memory from shutdown\n");
-		return -ENODEV;
-	}
-
-	return 0;
+	netdev_err(ndev, "Failed to release memory from shutdown\n");
+	return -ENODEV;
 }
 
 static void xgene_enet_config_ring_if_assoc(struct xgene_enet_pdata *p)

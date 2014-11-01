@@ -1088,33 +1088,33 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 
 ARM/TEXAS INSTRUMENT KEYSTONE ARCHITECTURE
-M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+M:	Santosh Shilimkar <ssantosh@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-keystone/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ssantosh/linux-keystone.git
 
 ARM/TEXAS INSTRUMENT KEYSTONE CLOCK FRAMEWORK
-M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+M:	Santosh Shilimkar <ssantosh@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	drivers/clk/keystone/
 
 ARM/TEXAS INSTRUMENT KEYSTONE ClOCKSOURCE
-M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+M:	Santosh Shilimkar <ssantosh@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	drivers/clocksource/timer-keystone.c
 
 ARM/TEXAS INSTRUMENT KEYSTONE RESET DRIVER
-M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+M:	Santosh Shilimkar <ssantosh@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	drivers/power/reset/keystone-reset.c
 
 ARM/TEXAS INSTRUMENT AEMIF/EMIF DRIVERS
-M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+M:	Santosh Shilimkar <ssantosh@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	drivers/memory/*emif*
@@ -1749,6 +1749,13 @@ M:	Nicolas Ferre <nicolas.ferre@atmel.com>
 S:	Supported
 F:	drivers/spi/spi-atmel.*
 
+ATMEL SSC DRIVER
+M:	Bo Shen <voice.shen@atmel.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Supported
+F:	drivers/misc/atmel-ssc.c
+F:	include/linux/atmel-ssc.h
+
 ATMEL Timer Counter (TC) AND CLOCKSOURCE DRIVERS
 M:	Nicolas Ferre <nicolas.ferre@atmel.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -2062,17 +2069,14 @@ F:	arch/arm/configs/bcm_defconfig
 F:	drivers/mmc/host/sdhci-bcm-kona.c
 F:	drivers/clocksource/bcm_kona_timer.c
 
-BROADCOM BCM2835 ARM ARCHICTURE
+BROADCOM BCM2835 ARM ARCHITECTURE
 M:	Stephen Warren <swarren@wwwdotorg.org>
 L:	linux-rpi-kernel@lists.infradead.org (moderated for non-subscribers)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/swarren/linux-rpi.git
 S:	Maintained
-F:	arch/arm/mach-bcm/board_bcm2835.c
-F:	arch/arm/boot/dts/bcm2835*
-F:	arch/arm/configs/bcm2835_defconfig
-F:	drivers/*/*bcm2835*
+N:	bcm2835
 
-BROADCOM BCM5301X ARM ARCHICTURE
+BROADCOM BCM5301X ARM ARCHITECTURE
 M:	Hauke Mehrtens <hauke@hauke-m.de>
 L:	linux-arm-kernel@lists.infradead.org
 S:	Maintained
@@ -4604,7 +4608,7 @@ S:	Supported
 F:	drivers/crypto/nx/
 
 IBM Power 842 compression accelerator
-M:	Nathan Fontenot <nfont@linux.vnet.ibm.com>
+M:	Dan Streetman <ddstreet@us.ibm.com>
 S:	Supported
 F:	drivers/crypto/nx/nx-842.c
 F:	include/linux/nx842.h
@@ -5837,6 +5841,14 @@ S:	Maintained
 F:	drivers/net/macvlan.c
 F:	include/linux/if_macvlan.h
 
+MAILBOX API
+M:	Jassi Brar <jassisinghbrar@gmail.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/mailbox/
+F:	include/linux/mailbox_client.h
+F:	include/linux/mailbox_controller.h
+
 MAN-PAGES: MANUAL PAGES FOR LINUX -- Sections 2, 3, 4, 5, and 7
 M:	Michael Kerrisk <mtk.manpages@gmail.com>
 W:	http://www.kernel.org/doc/man-pages
@@ -6692,7 +6704,7 @@ F:	arch/arm/*omap*/usb*
 
 OMAP GPIO DRIVER
 M:	Javier Martinez Canillas <javier@dowhile0.org>
-M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+M:	Santosh Shilimkar <ssantosh@kernel.org>
 M:	Kevin Hilman <khilman@deeprootsystems.com>
 L:	linux-omap@vger.kernel.org
 S:	Maintained
@@ -6830,7 +6842,7 @@ S:	Orphan
 F:	drivers/net/wireless/orinoco/
 
 OSD LIBRARY and FILESYSTEM
-M:	Boaz Harrosh <bharrosh@panasas.com>
+M:	Boaz Harrosh <ooo@electrozaur.com>
 M:	Benny Halevy <bhalevy@primarydata.com>
 L:	osd-dev@open-osd.org
 W:	http://open-osd.org
@@ -6839,6 +6851,13 @@ S:	Maintained
 F:	drivers/scsi/osd/
 F:	include/scsi/osd_*
 F:	fs/exofs/
+
+OVERLAYFS FILESYSTEM
+M:	Miklos Szeredi <miklos@szeredi.hu>
+L:	linux-fsdevel@vger.kernel.org
+S:	Supported
+F:	fs/overlayfs/*
+F:	Documentation/filesystems/overlayfs.txt
 
 P54 WIRELESS DRIVER
 M:	Christian Lamparter <chunkeey@googlemail.com>
@@ -9279,7 +9298,7 @@ F:	drivers/mmc/host/tifm_sd.c
 F:	include/linux/tifm.h
 
 TI KEYSTONE MULTICORE NAVIGATOR DRIVERS
-M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
+M:	Santosh Shilimkar <ssantosh@kernel.org>
 L:	linux-kernel@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained

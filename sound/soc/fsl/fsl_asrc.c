@@ -792,7 +792,7 @@ static int fsl_asrc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	asrc_priv->pdev = pdev;
-	strcpy(asrc_priv->name, np->name);
+	strncpy(asrc_priv->name, np->name, sizeof(asrc_priv->name) - 1);
 
 	/* Get the addresses and IRQ */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

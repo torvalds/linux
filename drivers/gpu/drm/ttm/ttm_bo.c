@@ -709,6 +709,7 @@ out:
 
 static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
 				uint32_t mem_type,
+				const struct ttm_place *place,
 				bool interruptible,
 				bool no_wait_gpu)
 {
@@ -720,8 +721,21 @@ static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
 	spin_lock(&glob->lru_lock);
 	list_for_each_entry(bo, &man->lru, lru) {
 		ret = __ttm_bo_reserve(bo, false, true, false, NULL);
-		if (!ret)
+		if (!ret) {
+			if (place && (place->fpfn || place->lpfn)) {
+				/* Don't evict this BO if it's outside of the
+				 * requested placement range
+				 */
+				if (place->fpfn >= (bo->mem.start + bo->mem.size) ||
+				    (place->lpfn && place->lpfn <= bo->mem.start)) {
+					__ttm_bo_unreserve(bo);
+					ret = -EBUSY;
+					continue;
+				}
+			}
+
 			break;
+		}
 	}
 
 	if (ret) {
@@ -782,7 +796,7 @@ static int ttm_bo_mem_force_space(struct ttm_buffer_object *bo,
 			return ret;
 		if (mem->mm_node)
 			break;
-		ret = ttm_mem_evict_first(bdev, mem_type,
+		ret = ttm_mem_evict_first(bdev, mem_type, place,
 					  interruptible, no_wait_gpu);
 		if (unlikely(ret != 0))
 			return ret;
@@ -994,9 +1008,9 @@ static bool ttm_bo_mem_compat(struct ttm_placement *placement,
 
 	for (i = 0; i < placement->num_placement; i++) {
 		const struct ttm_place *heap = &placement->placement[i];
-		if (mem->mm_node && heap->lpfn != 0 &&
+		if (mem->mm_node &&
 		    (mem->start < heap->fpfn ||
-		     mem->start + mem->num_pages > heap->lpfn))
+		     (heap->lpfn != 0 && (mem->start + mem->num_pages) > heap->lpfn)))
 			continue;
 
 		*new_flags = heap->flags;
@@ -1007,9 +1021,9 @@ static bool ttm_bo_mem_compat(struct ttm_placement *placement,
 
 	for (i = 0; i < placement->num_busy_placement; i++) {
 		const struct ttm_place *heap = &placement->busy_placement[i];
-		if (mem->mm_node && heap->lpfn != 0 &&
+		if (mem->mm_node &&
 		    (mem->start < heap->fpfn ||
-		     mem->start + mem->num_pages > heap->lpfn))
+		     (heap->lpfn != 0 && (mem->start + mem->num_pages) > heap->lpfn)))
 			continue;
 
 		*new_flags = heap->flags;
@@ -1233,7 +1247,7 @@ static int ttm_bo_force_list_clean(struct ttm_bo_device *bdev,
 	spin_lock(&glob->lru_lock);
 	while (!list_empty(&man->lru)) {
 		spin_unlock(&glob->lru_lock);
-		ret = ttm_mem_evict_first(bdev, mem_type, false, false);
+		ret = ttm_mem_evict_first(bdev, mem_type, NULL, false, false);
 		if (ret) {
 			if (allow_errors) {
 				return ret;

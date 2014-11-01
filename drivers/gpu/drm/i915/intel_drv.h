@@ -35,6 +35,9 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_dp_mst_helper.h>
 
+#define DIV_ROUND_CLOSEST_ULL(ll, d)	\
+({ unsigned long long _tmp = (ll)+(d)/2; do_div(_tmp, d); _tmp; })
+
 /**
  * _wait_for - magic (register) wait macro
  *

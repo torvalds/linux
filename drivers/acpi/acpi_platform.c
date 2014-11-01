@@ -16,6 +16,7 @@
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 
 #include "internal.h"
@@ -102,6 +103,7 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
 	pdevinfo.res = resources;
 	pdevinfo.num_res = count;
 	pdevinfo.acpi_node.companion = adev;
+	pdevinfo.dma_mask = DMA_BIT_MASK(32);
 	pdev = platform_device_register_full(&pdevinfo);
 	if (IS_ERR(pdev))
 		dev_err(&adev->dev, "platform device creation failed: %ld\n",
@@ -113,3 +115,4 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
 	kfree(resources);
 	return pdev;
 }
+EXPORT_SYMBOL_GPL(acpi_create_platform_device);
