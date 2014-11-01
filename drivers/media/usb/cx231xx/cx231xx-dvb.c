@@ -19,11 +19,11 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "cx231xx.h"
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
 
-#include "cx231xx.h"
 #include <media/v4l2-common.h>
 #include <media/videobuf-vmalloc.h>
 
@@ -265,7 +265,7 @@ static int start_streaming(struct cx231xx_dvb *dvb)
 	struct cx231xx *dev = dvb->adapter.priv;
 
 	if (dev->USE_ISO) {
-		cx231xx_info("DVB transfer mode is ISO.\n");
+		pr_info("DVB transfer mode is ISO.\n");
 		cx231xx_set_alt_setting(dev, INDEX_TS1, 4);
 		rc = cx231xx_set_mode(dev, CX231XX_DIGITAL_MODE);
 		if (rc < 0)
@@ -276,7 +276,7 @@ static int start_streaming(struct cx231xx_dvb *dvb)
 					dev->ts1_mode.max_pkt_size,
 					dvb_isoc_copy);
 	} else {
-		cx231xx_info("DVB transfer mode is BULK.\n");
+		pr_info("DVB transfer mode is BULK.\n");
 		cx231xx_set_alt_setting(dev, INDEX_TS1, 0);
 		rc = cx231xx_set_mode(dev, CX231XX_DIGITAL_MODE);
 		if (rc < 0)
@@ -430,15 +430,15 @@ int cx231xx_reset_analog_tuner(struct cx231xx *dev)
 
 		if (dops->init != NULL && !dev->xc_fw_load_done) {
 
-			cx231xx_info("Reloading firmware for XC5000\n");
+			pr_info("Reloading firmware for XC5000\n");
 			status = dops->init(dev->dvb->frontend);
 			if (status == 0) {
 				dev->xc_fw_load_done = 1;
-				cx231xx_info
+				pr_info
 				    ("XC5000 firmware download completed\n");
 			} else {
 				dev->xc_fw_load_done = 0;
-				cx231xx_info
+				pr_info
 				    ("XC5000 firmware download failed !!!\n");
 			}
 		}

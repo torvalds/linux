@@ -703,8 +703,8 @@ int initialize_cx231xx(struct cx231xx *dev)
 			_current_scenario_idx = INDEX_BUSPOWER_DIF_ONLY;
 			break;
 		default:
-			cx231xx_info("bad config in buspower!!!!\n");
-			cx231xx_info("config_info=%x\n",
+			pr_info("bad config in buspower!!!!\n");
+			pr_info("config_info=%x\n",
 				     (config_info & BUSPOWER_MASK));
 			return 1;
 		}
@@ -768,8 +768,8 @@ int initialize_cx231xx(struct cx231xx *dev)
 			_current_scenario_idx = INDEX_SELFPOWER_COMPRESSOR;
 			break;
 		default:
-			cx231xx_info("bad senario!!!!!\n");
-			cx231xx_info("config_info=%x\n",
+			pr_info("bad senario!!!!!\n");
+			pr_info("config_info=%x\n",
 				     (config_info & SELFPOWER_MASK));
 			return -ENODEV;
 		}
@@ -781,17 +781,17 @@ int initialize_cx231xx(struct cx231xx *dev)
 		   sizeof(struct pcb_config));
 
 	if (pcb_debug) {
-		cx231xx_info("SC(0x00) register = 0x%x\n", config_info);
-		cx231xx_info("scenario %d\n",
+		pr_info("SC(0x00) register = 0x%x\n", config_info);
+		pr_info("scenario %d\n",
 			    (dev->current_pcb_config.index) + 1);
-		cx231xx_info("type=%x\n", dev->current_pcb_config.type);
-		cx231xx_info("mode=%x\n", dev->current_pcb_config.mode);
-		cx231xx_info("speed=%x\n", dev->current_pcb_config.speed);
-		cx231xx_info("ts1_source=%x\n",
+		pr_info("type=%x\n", dev->current_pcb_config.type);
+		pr_info("mode=%x\n", dev->current_pcb_config.mode);
+		pr_info("speed=%x\n", dev->current_pcb_config.speed);
+		pr_info("ts1_source=%x\n",
 			     dev->current_pcb_config.ts1_source);
-		cx231xx_info("ts2_source=%x\n",
+		pr_info("ts2_source=%x\n",
 			     dev->current_pcb_config.ts2_source);
-		cx231xx_info("analog_source=%x\n",
+		pr_info("analog_source=%x\n",
 			     dev->current_pcb_config.analog_source);
 	}
 

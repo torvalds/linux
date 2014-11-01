@@ -22,6 +22,8 @@
 #ifndef _CX231XX_H
 #define _CX231XX_H
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/videodev2.h>
 #include <linux/types.h>
 #include <linux/ioctl.h>
@@ -980,23 +982,6 @@ void cx231xx_ir_exit(struct cx231xx *dev);
 #define cx231xx_ir_init(dev)	(0)
 #define cx231xx_ir_exit(dev)	(0)
 #endif
-
-
-/* printk macros */
-
-#define cx231xx_err(fmt, arg...) do {\
-	printk(KERN_ERR fmt , ##arg); } while (0)
-
-#define cx231xx_errdev(fmt, arg...) do {\
-	printk(KERN_ERR "%s: "fmt,\
-			dev->name , ##arg); } while (0)
-
-#define cx231xx_info(fmt, arg...) do {\
-	printk(KERN_INFO "%s: "fmt,\
-			dev->name , ##arg); } while (0)
-#define cx231xx_warn(fmt, arg...) do {\
-	printk(KERN_WARNING "%s: "fmt,\
-			dev->name , ##arg); } while (0)
 
 static inline unsigned int norm_maxw(struct cx231xx *dev)
 {

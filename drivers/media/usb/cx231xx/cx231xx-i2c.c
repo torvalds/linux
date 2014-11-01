@@ -20,6 +20,7 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "cx231xx.h"
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/usb.h>
@@ -28,7 +29,6 @@
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
 
-#include "cx231xx.h"
 
 /* ----------------------------------------------------------- */
 
@@ -498,17 +498,17 @@ void cx231xx_do_i2c_scan(struct cx231xx *dev, int i2c_port)
 	memset(&client, 0, sizeof(client));
 	client.adapter = cx231xx_get_i2c_adap(dev, i2c_port);
 
-	cx231xx_info(": Checking for I2C devices on port=%d ..\n", i2c_port);
+	pr_info(": Checking for I2C devices on port=%d ..\n", i2c_port);
 	for (i = 0; i < 128; i++) {
 		client.addr = i;
 		rc = i2c_master_recv(&client, &buf, 0);
 		if (rc < 0)
 			continue;
-		cx231xx_info("%s: i2c scan: found device @ 0x%x  [%s]\n",
+		pr_info("%s: i2c scan: found device @ 0x%x  [%s]\n",
 			     dev->name, i << 1,
 			     i2c_devs[i] ? i2c_devs[i] : "???");
 	}
-	cx231xx_info(": Completed Checking for I2C devices on port=%d.\n",
+	pr_info(": Completed Checking for I2C devices on port=%d.\n",
 		i2c_port);
 }
 
@@ -532,7 +532,7 @@ int cx231xx_i2c_register(struct cx231xx_i2c *bus)
 	i2c_add_adapter(&bus->i2c_adap);
 
 	if (0 != bus->i2c_rc)
-		cx231xx_warn("%s: i2c bus %d register FAILED\n",
+		pr_warn("%s: i2c bus %d register FAILED\n",
 			     dev->name, bus->nr);
 
 	return bus->i2c_rc;
@@ -576,7 +576,7 @@ int cx231xx_i2c_mux_register(struct cx231xx *dev, int mux_no)
 				NULL);
 
 	if (!dev->i2c_mux_adap[mux_no])
-		cx231xx_warn("%s: i2c mux %d register FAILED\n",
+		pr_warn("%s: i2c mux %d register FAILED\n",
 			     dev->name, mux_no);
 
 	return 0;
