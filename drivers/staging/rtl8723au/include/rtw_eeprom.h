@@ -107,12 +107,12 @@ enum rt_customer_id
 };
 
 struct eeprom_priv {
+	u8		mac_addr[6];	/* PermanentAddress */
 	u8		bautoload_fail_flag;
 	u8		bloadfile_fail_flag;
 	u8		bloadmac_fail_flag;
 	/* u8		bempty; */
 	/* u8		sys_config; */
-	u8		mac_addr[6];	/* PermanentAddress */
 	/* u8		config0; */
 	u16		channel_plan;
 	/* u8		country_string[3]; */
