@@ -357,6 +357,7 @@ config USB_EG20T
 
 config USB_GADGET_XILINX
 	tristate "Xilinx USB Driver"
+	depends on HAS_DMA
 	depends on OF || COMPILE_TEST
 	help
 	  USB peripheral controller driver for Xilinx USB2 device.
