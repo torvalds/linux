@@ -2298,8 +2298,6 @@ __printf(3, 4)
 void i915_handle_error(struct drm_device *dev, bool wedged,
 		       const char *fmt, ...);
 
-void gen6_set_pm_mask(struct drm_i915_private *dev_priv, u32 pm_iir,
-							int new_delay);
 extern void intel_irq_init(struct drm_i915_private *dev_priv);
 extern void intel_hpd_init(struct drm_i915_private *dev_priv);
 int intel_irq_install(struct drm_i915_private *dev_priv);
