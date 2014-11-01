@@ -339,6 +339,7 @@ struct net *get_net_ns_by_fd(int fd)
 {
 	struct proc_ns *ei;
 	struct file *file;
+	struct ns_common *ns;
 	struct net *net;
 
 	file = proc_ns_fget(fd);
@@ -346,8 +347,9 @@ struct net *get_net_ns_by_fd(int fd)
 		return ERR_CAST(file);
 
 	ei = get_proc_ns(file_inode(file));
-	if (ei->ns_ops == &netns_operations)
-		net = get_net(container_of(ei->ns, struct net, ns));
+	ns = ei->ns;
+	if (ns->ops == &netns_operations)
+		net = get_net(container_of(ns, struct net, ns));
 	else
 		net = ERR_PTR(-EINVAL);
 
@@ -386,6 +388,9 @@ EXPORT_SYMBOL_GPL(get_net_ns_by_pid);
 
 static __net_init int net_ns_net_init(struct net *net)
 {
+#ifdef CONFIG_NET_NS
+	net->ns.ops = &netns_operations;
+#endif
 	return ns_alloc_inum(&net->ns);
 }
 

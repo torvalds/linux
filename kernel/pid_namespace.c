@@ -108,6 +108,7 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
 	err = ns_alloc_inum(&ns->ns);
 	if (err)
 		goto out_free_map;
+	ns->ns.ops = &pidns_operations;
 
 	kref_init(&ns->kref);
 	ns->level = level;

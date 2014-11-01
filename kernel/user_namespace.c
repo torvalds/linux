@@ -91,6 +91,7 @@ int create_user_ns(struct cred *new)
 		kmem_cache_free(user_ns_cachep, ns);
 		return ret;
 	}
+	ns->ns.ops = &userns_operations;
 
 	atomic_set(&ns->count, 1);
 	/* Leave the new->user_ns reference with the new user namespace. */

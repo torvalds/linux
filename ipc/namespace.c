@@ -31,6 +31,7 @@ static struct ipc_namespace *create_ipc_ns(struct user_namespace *user_ns,
 		kfree(ns);
 		return ERR_PTR(err);
 	}
+	ns->ns.ops = &ipcns_operations;
 
 	atomic_set(&ns->count, 1);
 	err = mq_init_ns(ns);

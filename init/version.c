@@ -36,6 +36,9 @@ struct uts_namespace init_uts_ns = {
 	},
 	.user_ns = &init_user_ns,
 	.ns.inum = PROC_UTS_INIT_INO,
+#ifdef CONFIG_UTS_NS
+	.ns.ops = &utsns_operations,
+#endif
 };
 EXPORT_SYMBOL_GPL(init_uts_ns);
 
