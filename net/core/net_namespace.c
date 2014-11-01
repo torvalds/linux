@@ -386,12 +386,12 @@ EXPORT_SYMBOL_GPL(get_net_ns_by_pid);
 
 static __net_init int net_ns_net_init(struct net *net)
 {
-	return proc_alloc_inum(&net->ns.inum);
+	return ns_alloc_inum(&net->ns);
 }
 
 static __net_exit void net_ns_net_exit(struct net *net)
 {
-	proc_free_inum(net->ns.inum);
+	ns_free_inum(&net->ns);
 }
 
 static struct pernet_operations __net_initdata net_ns_ops = {

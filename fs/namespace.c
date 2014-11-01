@@ -2645,7 +2645,7 @@ dput_out:
 
 static void free_mnt_ns(struct mnt_namespace *ns)
 {
-	proc_free_inum(ns->ns.inum);
+	ns_free_inum(&ns->ns);
 	put_user_ns(ns->user_ns);
 	kfree(ns);
 }
@@ -2667,7 +2667,7 @@ static struct mnt_namespace *alloc_mnt_ns(struct user_namespace *user_ns)
 	new_ns = kmalloc(sizeof(struct mnt_namespace), GFP_KERNEL);
 	if (!new_ns)
 		return ERR_PTR(-ENOMEM);
-	ret = proc_alloc_inum(&new_ns->ns.inum);
+	ret = ns_alloc_inum(&new_ns->ns);
 	if (ret) {
 		kfree(new_ns);
 		return ERR_PTR(ret);

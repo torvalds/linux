@@ -71,4 +71,7 @@ static inline bool proc_ns_inode(struct inode *inode) { return false; }
 
 #endif /* CONFIG_PROC_FS */
 
+#define ns_alloc_inum(ns) proc_alloc_inum(&(ns)->inum)
+#define ns_free_inum(ns) proc_free_inum((ns)->inum)
+
 #endif /* _LINUX_PROC_NS_H */
