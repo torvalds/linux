@@ -2534,34 +2534,38 @@ int cx231xx_initialize_stream_xfer(struct cx231xx *dev, u32 media_type)
 			break;
 
 		case TS1_serial_mode:
-			pr_info("%s: set ts1 registers", __func__);
+			pr_debug("%s: set ts1 registers", __func__);
 
-		if (dev->board.has_417) {
-			pr_info(" MPEG\n");
-			value &= 0xFFFFFFFC;
-			value |= 0x3;
+			if (dev->board.has_417) {
+				pr_debug("%s: MPEG\n", __func__);
+				value &= 0xFFFFFFFC;
+				value |= 0x3;
 
-			status = cx231xx_mode_register(dev, TS_MODE_REG, value);
+				status = cx231xx_mode_register(dev,
+							 TS_MODE_REG, value);
 
-			val[0] = 0x04;
-			val[1] = 0xA3;
-			val[2] = 0x3B;
-			val[3] = 0x00;
-			status = cx231xx_write_ctrl_reg(dev, VRT_SET_REGISTER,
-				 TS1_CFG_REG, val, 4);
+				val[0] = 0x04;
+				val[1] = 0xA3;
+				val[2] = 0x3B;
+				val[3] = 0x00;
+				status = cx231xx_write_ctrl_reg(dev,
+							VRT_SET_REGISTER,
+							TS1_CFG_REG, val, 4);
 
-			val[0] = 0x00;
-			val[1] = 0x08;
-			val[2] = 0x00;
-			val[3] = 0x08;
-			status = cx231xx_write_ctrl_reg(dev, VRT_SET_REGISTER,
-				 TS1_LENGTH_REG, val, 4);
-
-		} else {
-			pr_info(" BDA\n");
-			status = cx231xx_mode_register(dev, TS_MODE_REG, 0x101);
-			status = cx231xx_mode_register(dev, TS1_CFG_REG, 0x010);
-		}
+				val[0] = 0x00;
+				val[1] = 0x08;
+				val[2] = 0x00;
+				val[3] = 0x08;
+				status = cx231xx_write_ctrl_reg(dev,
+							VRT_SET_REGISTER,
+							TS1_LENGTH_REG, val, 4);
+			} else {
+				pr_debug("%s: BDA\n", __func__);
+				status = cx231xx_mode_register(dev,
+							 TS_MODE_REG, 0x101);
+				status = cx231xx_mode_register(dev,
+							TS1_CFG_REG, 0x010);
+			}
 			break;
 
 		case TS1_parallel_mode:
