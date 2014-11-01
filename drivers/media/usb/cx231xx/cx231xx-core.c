@@ -227,7 +227,7 @@ int cx231xx_send_usb_command(struct cx231xx_i2c *i2c_bus,
 
 	/* call common vendor command request */
 	status = cx231xx_send_vendor_cmd(dev, &ven_req);
-	if (status < 0) {
+	if (status < 0 && !dev->i2c_scan_running) {
 		pr_err("%s: failed with status -%d\n",
 			__func__, status);
 	}

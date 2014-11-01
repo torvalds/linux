@@ -496,6 +496,9 @@ void cx231xx_do_i2c_scan(struct cx231xx *dev, int i2c_port)
 	if (!i2c_scan)
 		return;
 
+	/* Don't generate I2C errors during scan */
+	dev->i2c_scan_running = true;
+
 	memset(&client, 0, sizeof(client));
 	client.adapter = cx231xx_get_i2c_adap(dev, i2c_port);
 
@@ -512,6 +515,8 @@ void cx231xx_do_i2c_scan(struct cx231xx *dev, int i2c_port)
 	}
 	pr_info("i2c scan: Completed Checking for I2C devices on port=%d.\n",
 		i2c_port);
+
+	dev->i2c_scan_running = false;
 }
 
 /*

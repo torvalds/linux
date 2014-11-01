@@ -610,6 +610,8 @@ struct cx231xx {
 	unsigned int has_audio_class:1;
 	unsigned int has_alsa_audio:1;
 
+	unsigned int i2c_scan_running:1; /* true only during i2c_scan */
+
 	struct cx231xx_fmt *format;
 
 	struct v4l2_device v4l2_dev;
