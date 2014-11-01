@@ -31,7 +31,7 @@ DEFINE_SPINLOCK(mq_lock);
 struct ipc_namespace init_ipc_ns = {
 	.count		= ATOMIC_INIT(1),
 	.user_ns = &init_user_ns,
-	.proc_inum = PROC_IPC_INIT_INO,
+	.ns.inum = PROC_IPC_INIT_INO,
 };
 
 atomic_t nr_ipc_ns = ATOMIC_INIT(1);

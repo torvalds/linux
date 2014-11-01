@@ -42,7 +42,7 @@ static struct uts_namespace *clone_uts_ns(struct user_namespace *user_ns,
 	if (!ns)
 		return ERR_PTR(-ENOMEM);
 
-	err = proc_alloc_inum(&ns->proc_inum);
+	err = proc_alloc_inum(&ns->ns.inum);
 	if (err) {
 		kfree(ns);
 		return ERR_PTR(err);
@@ -84,7 +84,7 @@ void free_uts_ns(struct kref *kref)
 
 	ns = container_of(kref, struct uts_namespace, kref);
 	put_user_ns(ns->user_ns);
-	proc_free_inum(ns->proc_inum);
+	proc_free_inum(ns->ns.inum);
 	kfree(ns);
 }
 
@@ -127,7 +127,7 @@ static unsigned int utsns_inum(void *vp)
 {
 	struct uts_namespace *ns = vp;
 
-	return ns->proc_inum;
+	return ns->ns.inum;
 }
 
 const struct proc_ns_operations utsns_operations = {

@@ -1,10 +1,11 @@
 #include <linux/mount.h>
 #include <linux/seq_file.h>
 #include <linux/poll.h>
+#include <linux/ns_common.h>
 
 struct mnt_namespace {
 	atomic_t		count;
-	unsigned int		proc_inum;
+	struct ns_common	ns;
 	struct mount *	root;
 	struct list_head	list;
 	struct user_namespace	*user_ns;

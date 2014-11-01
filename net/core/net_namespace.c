@@ -386,12 +386,12 @@ EXPORT_SYMBOL_GPL(get_net_ns_by_pid);
 
 static __net_init int net_ns_net_init(struct net *net)
 {
-	return proc_alloc_inum(&net->proc_inum);
+	return proc_alloc_inum(&net->ns.inum);
 }
 
 static __net_exit void net_ns_net_exit(struct net *net)
 {
-	proc_free_inum(net->proc_inum);
+	proc_free_inum(net->ns.inum);
 }
 
 static struct pernet_operations __net_initdata net_ns_ops = {
@@ -664,7 +664,7 @@ static int netns_install(struct nsproxy *nsproxy, void *ns)
 static unsigned int netns_inum(void *ns)
 {
 	struct net *net = ns;
-	return net->proc_inum;
+	return net->ns.inum;
 }
 
 const struct proc_ns_operations netns_operations = {
