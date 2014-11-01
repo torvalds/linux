@@ -613,6 +613,13 @@ config HID_PICOLCD_CIR
 	---help---
 	  Provide access to PicoLCD's CIR interface via remote control (LIRC).
 
+config HID_PLANTRONICS
+	tristate "Plantronics USB HID Driver"
+	default !EXPERT
+	depends on HID
+	---help---
+	Provides HID support for Plantronics telephony devices.
+
 config HID_PRIMAX
 	tristate "Primax non-fully HID-compliant devices"
 	depends on HID
