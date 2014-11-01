@@ -337,7 +337,6 @@ EXPORT_SYMBOL_GPL(__put_net);
 
 struct net *get_net_ns_by_fd(int fd)
 {
-	struct proc_ns *ei;
 	struct file *file;
 	struct ns_common *ns;
 	struct net *net;
@@ -346,8 +345,7 @@ struct net *get_net_ns_by_fd(int fd)
 	if (IS_ERR(file))
 		return ERR_CAST(file);
 
-	ei = get_proc_ns(file_inode(file));
-	ns = ei->ns;
+	ns = get_proc_ns(file_inode(file));
 	if (ns->ops == &netns_operations)
 		net = get_net(container_of(ns, struct net, ns));
 	else

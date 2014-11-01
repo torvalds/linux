@@ -222,7 +222,6 @@ SYSCALL_DEFINE2(setns, int, fd, int, nstype)
 {
 	struct task_struct *tsk = current;
 	struct nsproxy *new_nsproxy;
-	struct proc_ns *ei;
 	struct file *file;
 	struct ns_common *ns;
 	int err;
@@ -232,8 +231,7 @@ SYSCALL_DEFINE2(setns, int, fd, int, nstype)
 		return PTR_ERR(file);
 
 	err = -EINVAL;
-	ei = get_proc_ns(file_inode(file));
-	ns = ei->ns;
+	ns = get_proc_ns(file_inode(file));
 	if (nstype && (ns->ops->type != nstype))
 		goto out;
 

@@ -57,6 +57,11 @@ union proc_op {
 		struct task_struct *task);
 };
 
+struct proc_ns {
+	struct ns_common *ns;
+	const struct proc_ns_operations *ns_ops;
+};
+
 struct proc_inode {
 	struct pid *pid;
 	int fd;

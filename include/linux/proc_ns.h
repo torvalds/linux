@@ -16,11 +16,6 @@ struct proc_ns_operations {
 	int (*install)(struct nsproxy *nsproxy, struct ns_common *ns);
 };
 
-struct proc_ns {
-	struct ns_common *ns;
-	const struct proc_ns_operations *ns_ops;
-};
-
 extern const struct proc_ns_operations netns_operations;
 extern const struct proc_ns_operations utsns_operations;
 extern const struct proc_ns_operations ipcns_operations;
@@ -44,7 +39,7 @@ enum {
 extern int pid_ns_prepare_proc(struct pid_namespace *ns);
 extern void pid_ns_release_proc(struct pid_namespace *ns);
 extern struct file *proc_ns_fget(int fd);
-extern struct proc_ns *get_proc_ns(struct inode *);
+extern struct ns_common *get_proc_ns(struct inode *);
 extern int proc_alloc_inum(unsigned int *pino);
 extern void proc_free_inum(unsigned int inum);
 extern bool proc_ns_inode(struct inode *inode);
@@ -59,7 +54,7 @@ static inline struct file *proc_ns_fget(int fd)
 	return ERR_PTR(-EINVAL);
 }
 
-static inline struct proc_ns *get_proc_ns(struct inode *inode) { return NULL; }
+static inline struct ns_common *get_proc_ns(struct inode *inode) { return NULL; }
 
 static inline int proc_alloc_inum(unsigned int *inum)
 {
