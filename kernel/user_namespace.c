@@ -846,7 +846,7 @@ static inline struct user_namespace *to_user_ns(struct ns_common *ns)
 	return container_of(ns, struct user_namespace, ns);
 }
 
-static void *userns_get(struct task_struct *task)
+static struct ns_common *userns_get(struct task_struct *task)
 {
 	struct user_namespace *user_ns;
 
@@ -857,12 +857,12 @@ static void *userns_get(struct task_struct *task)
 	return user_ns ? &user_ns->ns : NULL;
 }
 
-static void userns_put(void *ns)
+static void userns_put(struct ns_common *ns)
 {
 	put_user_ns(to_user_ns(ns));
 }
 
-static int userns_install(struct nsproxy *nsproxy, void *ns)
+static int userns_install(struct nsproxy *nsproxy, struct ns_common *ns)
 {
 	struct user_namespace *user_ns = to_user_ns(ns);
 	struct cred *cred;
@@ -893,18 +893,12 @@ static int userns_install(struct nsproxy *nsproxy, void *ns)
 	return commit_creds(cred);
 }
 
-static unsigned int userns_inum(void *ns)
-{
-	return ((struct ns_common *)ns)->inum;
-}
-
 const struct proc_ns_operations userns_operations = {
 	.name		= "user",
 	.type		= CLONE_NEWUSER,
 	.get		= userns_get,
 	.put		= userns_put,
 	.install	= userns_install,
-	.inum		= userns_inum,
 };
 
 static __init int user_namespaces_init(void)

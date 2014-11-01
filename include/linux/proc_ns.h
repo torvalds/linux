@@ -6,18 +6,18 @@
 
 struct pid_namespace;
 struct nsproxy;
+struct ns_common;
 
 struct proc_ns_operations {
 	const char *name;
 	int type;
-	void *(*get)(struct task_struct *task);
-	void (*put)(void *ns);
-	int (*install)(struct nsproxy *nsproxy, void *ns);
-	unsigned int (*inum)(void *ns);
+	struct ns_common *(*get)(struct task_struct *task);
+	void (*put)(struct ns_common *ns);
+	int (*install)(struct nsproxy *nsproxy, struct ns_common *ns);
 };
 
 struct proc_ns {
-	void *ns;
+	struct ns_common *ns;
 	const struct proc_ns_operations *ns_ops;
 };
 

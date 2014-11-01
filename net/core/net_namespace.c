@@ -629,7 +629,7 @@ void unregister_pernet_device(struct pernet_operations *ops)
 EXPORT_SYMBOL_GPL(unregister_pernet_device);
 
 #ifdef CONFIG_NET_NS
-static void *netns_get(struct task_struct *task)
+static struct ns_common *netns_get(struct task_struct *task)
 {
 	struct net *net = NULL;
 	struct nsproxy *nsproxy;
@@ -648,12 +648,12 @@ static inline struct net *to_net_ns(struct ns_common *ns)
 	return container_of(ns, struct net, ns);
 }
 
-static void netns_put(void *ns)
+static void netns_put(struct ns_common *ns)
 {
 	put_net(to_net_ns(ns));
 }
 
-static int netns_install(struct nsproxy *nsproxy, void *ns)
+static int netns_install(struct nsproxy *nsproxy, struct ns_common *ns)
 {
 	struct net *net = to_net_ns(ns);
 
@@ -666,17 +666,11 @@ static int netns_install(struct nsproxy *nsproxy, void *ns)
 	return 0;
 }
 
-static unsigned int netns_inum(void *ns)
-{
-	return ((struct ns_common *)ns)->inum;
-}
-
 const struct proc_ns_operations netns_operations = {
 	.name		= "net",
 	.type		= CLONE_NEWNET,
 	.get		= netns_get,
 	.put		= netns_put,
 	.install	= netns_install,
-	.inum		= netns_inum,
 };
 #endif

@@ -33,7 +33,7 @@ static void proc_evict_inode(struct inode *inode)
 	struct proc_dir_entry *de;
 	struct ctl_table_header *head;
 	const struct proc_ns_operations *ns_ops;
-	void *ns;
+	struct ns_common *ns;
 
 	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);

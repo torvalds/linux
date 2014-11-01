@@ -64,7 +64,7 @@ static struct dentry *proc_ns_get_dentry(struct super_block *sb,
 	struct inode *inode;
 	struct proc_inode *ei;
 	struct qstr qname = { .name = "", };
-	void *ns;
+	struct ns_common *ns;
 
 	ns = ns_ops->get(task);
 	if (!ns)
@@ -76,7 +76,7 @@ static struct dentry *proc_ns_get_dentry(struct super_block *sb,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	inode = iget_locked(sb, ns_ops->inum(ns));
+	inode = iget_locked(sb, ns->inum);
 	if (!inode) {
 		dput(dentry);
 		ns_ops->put(ns);
@@ -144,7 +144,7 @@ static int proc_ns_readlink(struct dentry *dentry, char __user *buffer, int bufl
 	struct proc_inode *ei = PROC_I(inode);
 	const struct proc_ns_operations *ns_ops = ei->ns.ns_ops;
 	struct task_struct *task;
-	void *ns;
+	struct ns_common *ns;
 	char name[50];
 	int res = -EACCES;
 
@@ -160,7 +160,7 @@ static int proc_ns_readlink(struct dentry *dentry, char __user *buffer, int bufl
 	if (!ns)
 		goto out_put_task;
 
-	snprintf(name, sizeof(name), "%s:[%u]", ns_ops->name, ns_ops->inum(ns));
+	snprintf(name, sizeof(name), "%s:[%u]", ns_ops->name, ns->inum);
 	res = readlink_copy(buffer, buflen, name);
 	ns_ops->put(ns);
 out_put_task:
