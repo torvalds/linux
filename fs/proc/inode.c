@@ -32,7 +32,6 @@ static void proc_evict_inode(struct inode *inode)
 {
 	struct proc_dir_entry *de;
 	struct ctl_table_header *head;
-	struct ns_common *ns;
 
 	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
@@ -49,10 +48,6 @@ static void proc_evict_inode(struct inode *inode)
 		RCU_INIT_POINTER(PROC_I(inode)->sysctl, NULL);
 		sysctl_head_put(head);
 	}
-	/* Release any associated namespace */
-	ns = PROC_I(inode)->ns.ns;
-	if (ns && ns->ops)
-		ns->ops->put(ns);
 }
 
 static struct kmem_cache * proc_inode_cachep;
