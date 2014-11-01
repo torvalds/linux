@@ -28,6 +28,8 @@ Optional properties:
 - regulator-state-[mem/disk] node has following common properties:
 	- regulator-on-in-suspend: regulator should be on in suspend state.
 	- regulator-off-in-suspend: regulator should be off in suspend state.
+	- regulator-suspend-microvolt: regulator should be set to this voltage
+	  in suspend.
 
 Deprecated properties:
 - regulator-compatible: If a regulator chip contains multiple
