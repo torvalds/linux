@@ -1620,6 +1620,9 @@ static int __load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 				sizeof(base3), &ctxt->exception);
 		if (ret != X86EMUL_CONTINUE)
 			return ret;
+		if (is_noncanonical_address(get_desc_base(&seg_desc) |
+					     ((u64)base3 << 32)))
+			return emulate_gp(ctxt, 0);
 	}
 load:
 	ctxt->ops->set_segment(ctxt, selector, &seg_desc, base3, seg);
@@ -3339,6 +3342,9 @@ static int em_lgdt_lidt(struct x86_emulate_ctxt *ctxt, bool lgdt)
 			     ctxt->op_bytes);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
+	if (ctxt->mode == X86EMUL_MODE_PROT64 &&
+	    is_noncanonical_address(desc_ptr.address))
+		return emulate_gp(ctxt, 0);
 	if (lgdt)
 		ctxt->ops->set_gdt(ctxt, &desc_ptr);
 	else
