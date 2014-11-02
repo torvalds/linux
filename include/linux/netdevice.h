@@ -2329,10 +2329,7 @@ extern int netdev_flow_limit_table_len;
  * Incoming packets are placed on per-cpu queues
  */
 struct softnet_data {
-	struct Qdisc		*output_queue;
-	struct Qdisc		**output_queue_tailp;
 	struct list_head	poll_list;
-	struct sk_buff		*completion_queue;
 	struct sk_buff_head	process_queue;
 
 	/* stats */
@@ -2340,10 +2337,17 @@ struct softnet_data {
 	unsigned int		time_squeeze;
 	unsigned int		cpu_collision;
 	unsigned int		received_rps;
-
 #ifdef CONFIG_RPS
 	struct softnet_data	*rps_ipi_list;
+#endif
+#ifdef CONFIG_NET_FLOW_LIMIT
+	struct sd_flow_limit __rcu *flow_limit;
+#endif
+	struct Qdisc		*output_queue;
+	struct Qdisc		**output_queue_tailp;
+	struct sk_buff		*completion_queue;
 
+#ifdef CONFIG_RPS
 	/* Elements below can be accessed between CPUs for RPS */
 	struct call_single_data	csd ____cacheline_aligned_in_smp;
 	struct softnet_data	*rps_ipi_next;
@@ -2355,9 +2359,6 @@ struct softnet_data {
 	struct sk_buff_head	input_pkt_queue;
 	struct napi_struct	backlog;
 
-#ifdef CONFIG_NET_FLOW_LIMIT
-	struct sd_flow_limit __rcu *flow_limit;
-#endif
 };
 
 static inline void input_queue_head_incr(struct softnet_data *sd)
