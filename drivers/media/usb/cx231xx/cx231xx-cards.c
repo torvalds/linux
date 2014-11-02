@@ -1216,11 +1216,11 @@ static int cx231xx_init_dev(struct cx231xx *dev, struct usb_device *udev,
 	cx231xx_add_into_devlist(dev);
 
 	if (dev->board.has_417) {
-		printk(KERN_INFO "attach 417 %d\n", dev->model);
+		dev_info(&udev->dev, "attach 417 %d\n", dev->model);
 		if (cx231xx_417_register(dev) < 0) {
-			printk(KERN_ERR
+			dev_err(&udev->dev,
 				"%s() Failed to register 417 on VID_B\n",
-			       __func__);
+				__func__);
 		}
 	}
 
