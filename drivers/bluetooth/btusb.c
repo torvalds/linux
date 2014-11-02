@@ -2035,6 +2035,7 @@ static int btusb_probe(struct usb_interface *intf,
 	if (id->driver_info & BTUSB_BCM_PATCHRAM) {
 		hdev->setup = btusb_setup_bcm_patchram;
 		hdev->set_bdaddr = btusb_set_bdaddr_bcm;
+		set_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks);
 	}
 
 	if (id->driver_info & BTUSB_INTEL) {
