@@ -2824,7 +2824,8 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 	 *
 	 * 1. jmp/call/int to task gate: Check against DPL of the task gate
 	 * 2. Exception/IRQ/iret: No check is performed
-	 * 3. jmp/call to TSS: Check against DPL of the TSS
+	 * 3. jmp/call to TSS/task-gate: No check is performed since the
+	 *    hardware checks it before exiting.
 	 */
 	if (reason == TASK_SWITCH_GATE) {
 		if (idt_index != -1) {
@@ -2841,12 +2842,7 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 			if ((tss_selector & 3) > dpl || ops->cpl(ctxt) > dpl)
 				return emulate_gp(ctxt, (idt_index << 3) | 0x2);
 		}
-	} else if (reason != TASK_SWITCH_IRET) {
-		int dpl = next_tss_desc.dpl;
-		if ((tss_selector & 3) > dpl || ops->cpl(ctxt) > dpl)
-			return emulate_gp(ctxt, tss_selector);
 	}
-
 
 	desc_limit = desc_limit_scaled(&next_tss_desc);
 	if (!next_tss_desc.p ||
