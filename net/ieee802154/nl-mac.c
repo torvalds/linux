@@ -477,7 +477,7 @@ int ieee802154_start_req(struct sk_buff *skb, struct genl_info *info)
 	u8 channel, bcn_ord, sf_ord;
 	u8 page;
 	int pan_coord, blx, coord_realign;
-	int ret = -EOPNOTSUPP;
+	int ret = -EBUSY;
 
 	if (!info->attrs[IEEE802154_ATTR_COORD_PAN_ID] ||
 	    !info->attrs[IEEE802154_ATTR_COORD_SHORT_ADDR] ||
@@ -493,8 +493,14 @@ int ieee802154_start_req(struct sk_buff *skb, struct genl_info *info)
 	dev = ieee802154_nl_get_dev(info);
 	if (!dev)
 		return -ENODEV;
-	if (!ieee802154_mlme_ops(dev)->start_req)
+
+	if (netif_running(dev))
 		goto out;
+
+	if (!ieee802154_mlme_ops(dev)->start_req) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
 
 	addr.mode = IEEE802154_ADDR_SHORT;
 	addr.short_addr = nla_get_shortaddr(
