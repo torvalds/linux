@@ -16,6 +16,7 @@
 #include <net/cfg802154.h>
 
 #include "ieee802154_i.h"
+#include "cfg.h"
 
 static struct net_device *
 ieee802154_add_iface_deprecated(struct wpan_phy *wpan_phy,
