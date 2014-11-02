@@ -1234,7 +1234,7 @@ static void eeepc_input_exit(struct eeepc_laptop *eeepc)
 static void eeepc_input_notify(struct eeepc_laptop *eeepc, int event)
 {
 	if (!eeepc->inputdev)
-		return ;
+		return;
 	if (!sparse_keymap_report_event(eeepc->inputdev, event, 1, true))
 		pr_info("Unknown key %x pressed\n", event);
 }
@@ -1242,6 +1242,7 @@ static void eeepc_input_notify(struct eeepc_laptop *eeepc, int event)
 static void eeepc_acpi_notify(struct acpi_device *device, u32 event)
 {
 	struct eeepc_laptop *eeepc = acpi_driver_data(device);
+	int old_brightness, new_brightness;
 	u16 count;
 
 	if (event > ACPI_MAX_SYS_NOTIFY)
@@ -1252,34 +1253,32 @@ static void eeepc_acpi_notify(struct acpi_device *device, u32 event)
 					count);
 
 	/* Brightness events are special */
-	if (event >= NOTIFY_BRN_MIN && event <= NOTIFY_BRN_MAX) {
-
-		/* Ignore them completely if the acpi video driver is used */
-		if (eeepc->backlight_device != NULL) {
-			int old_brightness, new_brightness;
-
-			/* Update the backlight device. */
-			old_brightness = eeepc_backlight_notify(eeepc);
-
-			/* Convert event to keypress (obsolescent hack) */
-			new_brightness = event - NOTIFY_BRN_MIN;
-
-			if (new_brightness < old_brightness) {
-				event = NOTIFY_BRN_MIN; /* brightness down */
-			} else if (new_brightness > old_brightness) {
-				event = NOTIFY_BRN_MAX; /* brightness up */
-			} else {
-				/*
-				* no change in brightness - already at min/max,
-				* event will be desired value (or else ignored)
-				*/
-			}
-			eeepc_input_notify(eeepc, event);
-		}
-	} else {
-		/* Everything else is a bona-fide keypress event */
+	if (event < NOTIFY_BRN_MIN || event > NOTIFY_BRN_MAX) {
 		eeepc_input_notify(eeepc, event);
+		return;
 	}
+
+	/* Ignore them completely if the acpi video driver is used */
+	if (!eeepc->backlight_device)
+		return;
+
+	/* Update the backlight device. */
+	old_brightness = eeepc_backlight_notify(eeepc);
+
+	/* Convert event to keypress (obsolescent hack) */
+	new_brightness = event - NOTIFY_BRN_MIN;
+
+	if (new_brightness < old_brightness) {
+		event = NOTIFY_BRN_MIN; /* brightness down */
+	} else if (new_brightness > old_brightness) {
+		event = NOTIFY_BRN_MAX; /* brightness up */
+	} else {
+		/*
+		 * no change in brightness - already at min/max,
+		 * event will be desired value (or else ignored)
+		 */
+	}
+	eeepc_input_notify(eeepc, event);
 }
 
 static void eeepc_dmi_check(struct eeepc_laptop *eeepc)
