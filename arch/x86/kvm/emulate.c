@@ -2358,11 +2358,9 @@ static int em_sysenter(struct x86_emulate_ctxt *ctxt)
 	    && !vendor_intel(ctxt))
 		return emulate_ud(ctxt);
 
-	/* XXX sysenter/sysexit have not been tested in 64bit mode.
-	* Therefore, we inject an #UD.
-	*/
+	/* sysenter/sysexit have not been tested in 64bit mode. */
 	if (ctxt->mode == X86EMUL_MODE_PROT64)
-		return emulate_ud(ctxt);
+		return X86EMUL_UNHANDLEABLE;
 
 	setup_syscalls_segments(ctxt, &cs, &ss);
 
