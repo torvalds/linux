@@ -44,21 +44,16 @@
 		};
 	};
 
-	clocks {
-		#address-cells = <1>;
-		#size-cells = <0>;
+	fxosc: fxosc {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24000000>;
+	};
 
-		sxosc {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <32768>;
-		};
-
-		fxosc {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <24000000>;
-		};
+	sxosc: sxosc {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
 	};
 
 	soc {
@@ -358,6 +353,8 @@
 			clks: ccm@4006b000 {
 				compatible = "fsl,vf610-ccm";
 				reg = <0x4006b000 0x1000>;
+				clocks = <&sxosc>, <&fxosc>;
+				clock-names = "sxosc", "fxosc";
 				#clock-cells = <1>;
 			};
 

@@ -22,18 +22,16 @@
 		reg = <0x80000000 0x8000000>;
 	};
 
-	clocks {
-		audio_ext {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <24576000>;
-		};
+	audio_ext: mclk_osc {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24576000>;
+	};
 
-		enet_ext {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <50000000>;
-		};
+	enet_ext: eth_osc {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <50000000>;
 	};
 
 	regulators {
@@ -93,6 +91,11 @@
 	pinctrl-0 = <&pinctrl_adc0_ad5>;
 	vref-supply = <&reg_vcc_3v3_mcu>;
 	status = "okay";
+};
+
+&clks {
+	clocks = <&sxosc>, <&fxosc>, <&enet_ext>, <&audio_ext>;
+	clock-names = "sxosc", "fxosc", "enet_ext", "audio_ext";
 };
 
 &dspi0 {
