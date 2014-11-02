@@ -208,7 +208,8 @@ static inline bool ieee802154_is_valid_extended_addr(const __le64 addr)
 	 * This is currently a workaround because neighbor discovery can't
 	 * deal with short addresses types right now.
 	 */
-	return ((addr != 0x0000000000000000) || (addr != 0xffffffffffffffff));
+	return ((addr != 0x0000000000000000ULL) ||
+		(addr != 0xffffffffffffffffULL));
 }
 
 #endif /* LINUX_IEEE802154_H */
