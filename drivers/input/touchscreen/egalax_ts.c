@@ -239,8 +239,7 @@ static const struct i2c_device_id egalax_ts_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, egalax_ts_id);
 
-#ifdef CONFIG_PM_SLEEP
-static int egalax_ts_suspend(struct device *dev)
+static int __maybe_unused egalax_ts_suspend(struct device *dev)
 {
 	static const u8 suspend_cmd[MAX_I2C_DATA_LEN] = {
 		0x3, 0x6, 0xa, 0x3, 0x36, 0x3f, 0x2, 0, 0, 0
@@ -252,13 +251,12 @@ static int egalax_ts_suspend(struct device *dev)
 	return ret > 0 ? 0 : ret;
 }
 
-static int egalax_ts_resume(struct device *dev)
+static int __maybe_unused egalax_ts_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
 	return egalax_wake_up_device(client);
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(egalax_ts_pm_ops, egalax_ts_suspend, egalax_ts_resume);
 
