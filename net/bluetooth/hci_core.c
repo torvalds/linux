@@ -4248,6 +4248,24 @@ int hci_resume_dev(struct hci_dev *hdev)
 }
 EXPORT_SYMBOL(hci_resume_dev);
 
+/* Reset HCI device */
+int hci_reset_dev(struct hci_dev *hdev)
+{
+	const u8 hw_err[] = { HCI_EV_HARDWARE_ERROR, 0x01, 0x00 };
+	struct sk_buff *skb;
+
+	skb = bt_skb_alloc(3, GFP_ATOMIC);
+	if (!skb)
+		return -ENOMEM;
+
+	bt_cb(skb)->pkt_type = HCI_EVENT_PKT;
+	memcpy(skb_put(skb, 3), hw_err, 3);
+
+	/* Send Hardware Error to upper stack */
+	return hci_recv_frame(hdev, skb);
+}
+EXPORT_SYMBOL(hci_reset_dev);
+
 /* Receive frame from HCI drivers */
 int hci_recv_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
