@@ -18,6 +18,7 @@
 #include <net/cfg802154.h>
 
 #include "core.h"
+#include "sysfs.h"
 
 static inline struct cfg802154_registered_device *
 dev_to_rdev(struct device *dev)
