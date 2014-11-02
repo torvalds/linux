@@ -1,6 +1,6 @@
 config BT_RFCOMM
 	tristate "RFCOMM protocol support"
-	depends on BT
+	depends on BT_BREDR
 	help
 	  RFCOMM provides connection oriented stream transport.  RFCOMM
 	  support is required for Dialup Networking, OBEX and other Bluetooth
