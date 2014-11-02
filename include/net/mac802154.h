@@ -215,12 +215,12 @@ struct ieee802154_ops {
 };
 
 /**
- * ieee802154_netdev_to_extended_addr - convert __be64 u8 pointer to __le64
+ * ieee802154_netdev_to_extended_addr - convert big endian 64 byte void pointer to __le64
  * @dev_addr: big endian address pointer like netdevice dev_addr attribute
  */
-static inline __le64 ieee802154_netdev_to_extended_addr(const u8 *dev_addr)
+static inline __le64 ieee802154_netdev_to_extended_addr(const void *dev_addr)
 {
-	return (__le64)swab64(*((__be64 *)dev_addr));
+	return (__force __le64)swab64p(dev_addr);
 }
 
 /* Basic interface to register ieee802154 hwice */
