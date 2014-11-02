@@ -739,29 +739,13 @@ void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
 void hpte_do_hugepage_flush(struct mm_struct *mm, unsigned long addr,
 			    pmd_t *pmdp, unsigned long old_pmd)
 {
-	int ssize, i;
-	unsigned long s_addr;
-	int max_hpte_count;
-	unsigned int psize, valid;
-	unsigned char *hpte_slot_array;
-	unsigned long hidx, vpn, vsid, hash, shift, slot;
-
-	/*
-	 * Flush all the hptes mapping this hugepage
-	 */
-	s_addr = addr & HPAGE_PMD_MASK;
-	hpte_slot_array = get_hpte_slot_array(pmdp);
-	/*
-	 * IF we try to do a HUGE PTE update after a withdraw is done.
-	 * we will find the below NULL. This happens when we do
-	 * split_huge_page_pmd
-	 */
-	if (!hpte_slot_array)
-		return;
+	int ssize;
+	unsigned int psize;
+	unsigned long vsid;
 
 	/* get the base page size,vsid and segment size */
 #ifdef CONFIG_DEBUG_VM
-	psize = get_slice_psize(mm, s_addr);
+	psize = get_slice_psize(mm, addr);
 	BUG_ON(psize == MMU_PAGE_16M);
 #endif
 	if (old_pmd & _PAGE_COMBO)
@@ -769,46 +753,16 @@ void hpte_do_hugepage_flush(struct mm_struct *mm, unsigned long addr,
 	else
 		psize = MMU_PAGE_64K;
 
-	if (!is_kernel_addr(s_addr)) {
-		ssize = user_segment_size(s_addr);
-		vsid = get_vsid(mm->context.id, s_addr, ssize);
+	if (!is_kernel_addr(addr)) {
+		ssize = user_segment_size(addr);
+		vsid = get_vsid(mm->context.id, addr, ssize);
 		WARN_ON(vsid == 0);
 	} else {
-		vsid = get_kernel_vsid(s_addr, mmu_kernel_ssize);
+		vsid = get_kernel_vsid(addr, mmu_kernel_ssize);
 		ssize = mmu_kernel_ssize;
 	}
 
-	if (ppc_md.hugepage_invalidate)
-		return ppc_md.hugepage_invalidate(vsid, s_addr,
-						  hpte_slot_array,
-						  psize, ssize);
-	/*
-	 * No bluk hpte removal support, invalidate each entry
-	 */
-	shift = mmu_psize_defs[psize].shift;
-	max_hpte_count = HPAGE_PMD_SIZE >> shift;
-	for (i = 0; i < max_hpte_count; i++) {
-		/*
-		 * 8 bits per each hpte entries
-		 * 000| [ secondary group (one bit) | hidx (3 bits) | valid bit]
-		 */
-		valid = hpte_valid(hpte_slot_array, i);
-		if (!valid)
-			continue;
-		hidx =  hpte_hash_index(hpte_slot_array, i);
-
-		/* get the vpn */
-		addr = s_addr + (i * (1ul << shift));
-		vpn = hpt_vpn(addr, vsid, ssize);
-		hash = hpt_hash(vpn, shift, ssize);
-		if (hidx & _PTEIDX_SECONDARY)
-			hash = ~hash;
-
-		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
-		slot += hidx & _PTEIDX_GROUP_IX;
-		ppc_md.hpte_invalidate(slot, vpn, psize,
-				       MMU_PAGE_16M, ssize, 0);
-	}
+	return flush_hash_hugepage(vsid, addr, pmdp, psize, ssize);
 }
 
 static pmd_t pmd_set_protbits(pmd_t pmd, pgprot_t pgprot)
