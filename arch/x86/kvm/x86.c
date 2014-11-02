@@ -353,6 +353,8 @@ static void kvm_multiple_exception(struct kvm_vcpu *vcpu,
 
 	if (!vcpu->arch.exception.pending) {
 	queue:
+		if (has_error && !is_protmode(vcpu))
+			has_error = false;
 		vcpu->arch.exception.pending = true;
 		vcpu->arch.exception.has_error_code = has_error;
 		vcpu->arch.exception.nr = nr;
