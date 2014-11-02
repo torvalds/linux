@@ -4517,8 +4517,7 @@ done_prefixes:
 
 	/* vex-prefix instructions are not implemented */
 	if (ctxt->opcode_len == 1 && (ctxt->b == 0xc5 || ctxt->b == 0xc4) &&
-	    (mode == X86EMUL_MODE_PROT64 ||
-	    (mode >= X86EMUL_MODE_PROT16 && (ctxt->modrm & 0x80)))) {
+	    (mode == X86EMUL_MODE_PROT64 || (ctxt->modrm & 0xc0) == 0xc0)) {
 		ctxt->d = NotImpl;
 	}
 
