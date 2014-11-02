@@ -901,8 +901,11 @@ static ssize_t set_port_type(struct device *dev,
 	struct mlx4_priv *priv = mlx4_priv(mdev);
 	enum mlx4_port_type types[MLX4_MAX_PORTS];
 	enum mlx4_port_type new_types[MLX4_MAX_PORTS];
+	static DEFINE_MUTEX(set_port_type_mutex);
 	int i;
 	int err = 0;
+
+	mutex_lock(&set_port_type_mutex);
 
 	if (!strcmp(buf, "ib\n"))
 		info->tmp_type = MLX4_PORT_TYPE_IB;
@@ -912,7 +915,8 @@ static ssize_t set_port_type(struct device *dev,
 		info->tmp_type = MLX4_PORT_TYPE_AUTO;
 	else {
 		mlx4_err(mdev, "%s is not supported port type\n", buf);
-		return -EINVAL;
+		err = -EINVAL;
+		goto err_out;
 	}
 
 	mlx4_stop_sense(mdev);
@@ -958,6 +962,9 @@ static ssize_t set_port_type(struct device *dev,
 out:
 	mlx4_start_sense(mdev);
 	mutex_unlock(&priv->port_mutex);
+err_out:
+	mutex_unlock(&set_port_type_mutex);
+
 	return err ? err : count;
 }
 
