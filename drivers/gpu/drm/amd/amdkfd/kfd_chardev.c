@@ -123,7 +123,16 @@ static int kfd_open(struct inode *inode, struct file *filep)
 static long kfd_ioctl_get_version(struct file *filep, struct kfd_process *p,
 					void __user *arg)
 {
-	return -ENODEV;
+	struct kfd_ioctl_get_version_args args;
+	int err = 0;
+
+	args.major_version = KFD_IOCTL_MAJOR_VERSION;
+	args.minor_version = KFD_IOCTL_MINOR_VERSION;
+
+	if (copy_to_user(arg, &args, sizeof(args)))
+		err = -EFAULT;
+
+	return err;
 }
 
 static int set_queue_properties_from_user(struct queue_properties *q_properties,
