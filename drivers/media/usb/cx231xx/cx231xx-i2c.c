@@ -471,7 +471,8 @@ static struct i2c_adapter cx231xx_adap_template = {
  * i2c_devs
  * incomplete list of known devices
  */
-static char *i2c_devs[128] = {
+static const char *i2c_devs[128] = {
+	[0x20 >> 1] = "demod",
 	[0x60 >> 1] = "colibri",
 	[0x88 >> 1] = "hammerhead",
 	[0x8e >> 1] = "CIR",
