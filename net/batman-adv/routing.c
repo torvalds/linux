@@ -456,7 +456,7 @@ batadv_find_router(struct batadv_priv *bat_priv,
 	 * the last chosen bonding candidate (next_candidate). If no such
 	 * router is found, use the first candidate found (the previously
 	 * chosen bonding candidate might have been the last one in the list).
-	 * If this can't be found either, return the previously choosen
+	 * If this can't be found either, return the previously chosen
 	 * router - obviously there are no other candidates.
 	 */
 	rcu_read_lock();

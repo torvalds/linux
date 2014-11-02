@@ -2852,7 +2852,7 @@ static void batadv_tt_update_changes(struct batadv_priv *bat_priv,
 /**
  * batadv_is_my_client - check if a client is served by the local node
  * @bat_priv: the bat priv with all the soft interface information
- * @addr: the mac adress of the client to check
+ * @addr: the mac address of the client to check
  * @vid: VLAN identifier
  *
  * Returns true if the client is served by this node, false otherwise.

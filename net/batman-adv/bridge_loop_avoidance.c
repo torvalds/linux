@@ -244,7 +244,7 @@ batadv_bla_del_backbone_claims(struct batadv_bla_backbone_gw *backbone_gw)
 		spin_unlock_bh(list_lock);
 	}
 
-	/* all claims gone, intialize CRC */
+	/* all claims gone, initialize CRC */
 	backbone_gw->crc = BATADV_BLA_CRC_INIT;
 }
 
@@ -1328,7 +1328,7 @@ int batadv_bla_check_bcast_duplist(struct batadv_priv *bat_priv,
 		goto out;
 	}
 	/* not found, add a new entry (overwrite the oldest entry)
-	 * and allow it, its the first occurence.
+	 * and allow it, its the first occurrence.
 	 */
 	curr = (bat_priv->bla.bcast_duplist_curr + BATADV_DUPLIST_SIZE - 1);
 	curr %= BATADV_DUPLIST_SIZE;

@@ -968,7 +968,7 @@ struct batadv_tt_orig_list_entry {
 };
 
 /**
- * struct batadv_tt_change_node - structure for tt changes occured
+ * struct batadv_tt_change_node - structure for tt changes occurred
  * @list: list node for batadv_priv_tt::changes_list
  * @change: holds the actual translation table diff data
  */

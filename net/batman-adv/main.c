@@ -798,7 +798,7 @@ void batadv_tvlv_container_register(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_tvlv_realloc_packet_buff - reallocate packet buffer to accomodate
+ * batadv_tvlv_realloc_packet_buff - reallocate packet buffer to accommodate
  *  requested packet size
  * @packet_buff: packet buffer
  * @packet_buff_len: packet buffer size
