@@ -172,7 +172,7 @@ static void h5_peer_reset(struct hci_uart *hu)
 {
 	struct h5 *h5 = hu->priv;
 	struct sk_buff *skb;
-	const unsigned char hard_err[] = { 0x10, 0x01, 0x00 };
+	const u8 hw_err[] = { HCI_EV_HARDWARE_ERROR, 0x01, 0x00 };
 
 	BT_ERR("Peer device has reset");
 
@@ -192,7 +192,7 @@ static void h5_peer_reset(struct hci_uart *hu)
 		return;
 
 	bt_cb(skb)->pkt_type = HCI_EVENT_PKT;
-	memcpy(skb_put(skb, 3), hard_err, 3);
+	memcpy(skb_put(skb, 3), hw_err, 3);
 
 	/* Send Hardware Error to upper stack */
 	hci_recv_frame(hu->hdev, skb);
