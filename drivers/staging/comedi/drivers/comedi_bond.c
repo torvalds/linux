@@ -61,8 +61,7 @@ struct bonded_device {
 };
 
 struct comedi_bond_private {
-# define MAX_BOARD_NAME 256
-	char name[MAX_BOARD_NAME];
+	char name[256];
 	struct bonded_device **devs;
 	unsigned ndevs;
 	unsigned nchans;
