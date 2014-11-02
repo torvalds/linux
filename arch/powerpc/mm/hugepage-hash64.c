@@ -95,7 +95,7 @@ int __hash_page_thp(unsigned long ea, unsigned long access, unsigned long vsid,
 		 */
 		if ((old_pmd & _PAGE_HASHPTE) && !(old_pmd & _PAGE_COMBO))
 			flush_hash_hugepage(vsid, ea, pmdp, MMU_PAGE_64K,
-					    ssize);
+					    ssize, local);
 	}
 
 	valid = hpte_valid(hpte_slot_array, index);

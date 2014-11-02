@@ -1317,7 +1317,7 @@ void flush_hash_page(unsigned long vpn, real_pte_t pte, int psize, int ssize,
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 void flush_hash_hugepage(unsigned long vsid, unsigned long addr,
-			 pmd_t *pmdp, unsigned int psize, int ssize)
+			 pmd_t *pmdp, unsigned int psize, int ssize, int local)
 {
 	int i, max_hpte_count, valid;
 	unsigned long s_addr;
@@ -1334,9 +1334,11 @@ void flush_hash_hugepage(unsigned long vsid, unsigned long addr,
 	if (!hpte_slot_array)
 		return;
 
-	if (ppc_md.hugepage_invalidate)
-		return ppc_md.hugepage_invalidate(vsid, s_addr, hpte_slot_array,
-						  psize, ssize);
+	if (ppc_md.hugepage_invalidate) {
+		ppc_md.hugepage_invalidate(vsid, s_addr, hpte_slot_array,
+					   psize, ssize, local);
+		goto tm_abort;
+	}
 	/*
 	 * No bluk hpte removal support, invalidate each entry
 	 */
@@ -1362,8 +1364,24 @@ void flush_hash_hugepage(unsigned long vsid, unsigned long addr,
 		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 		slot += hidx & _PTEIDX_GROUP_IX;
 		ppc_md.hpte_invalidate(slot, vpn, psize,
-				       MMU_PAGE_16M, ssize, 0);
+				       MMU_PAGE_16M, ssize, local);
 	}
+tm_abort:
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	/* Transactions are not aborted by tlbiel, only tlbie.
+	 * Without, syncing a page back to a block device w/ PIO could pick up
+	 * transactional data (bad!) so we force an abort here.  Before the
+	 * sync the page will be made read-only, which will flush_hash_page.
+	 * BIG ISSUE here: if the kernel uses a page from userspace without
+	 * unmapping it first, it may see the speculated version.
+	 */
+	if (local && cpu_has_feature(CPU_FTR_TM) &&
+	    current->thread.regs &&
+	    MSR_TM_ACTIVE(current->thread.regs->msr)) {
+		tm_enable();
+		tm_abort(TM_CAUSE_TLBI);
+	}
+#endif
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 

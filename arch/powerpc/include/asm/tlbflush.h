@@ -128,7 +128,8 @@ extern void flush_hash_page(unsigned long vpn, real_pte_t pte, int psize,
 			    int ssize, int local);
 extern void flush_hash_range(unsigned long number, int local);
 extern void flush_hash_hugepage(unsigned long vsid, unsigned long addr,
-				pmd_t *pmdp, unsigned int psize, int ssize);
+				pmd_t *pmdp, unsigned int psize, int ssize,
+				int local);
 
 static inline void local_flush_tlb_mm(struct mm_struct *mm)
 {

@@ -425,7 +425,7 @@ static void native_hpte_invalidate(unsigned long slot, unsigned long vpn,
 static void native_hugepage_invalidate(unsigned long vsid,
 				       unsigned long addr,
 				       unsigned char *hpte_slot_array,
-				       int psize, int ssize)
+				       int psize, int ssize, int local)
 {
 	int i;
 	struct hash_pte *hptep;
@@ -471,7 +471,7 @@ static void native_hugepage_invalidate(unsigned long vsid,
 		 * instruction compares entry_VA in tlb with the VA specified
 		 * here
 		 */
-		tlbie(vpn, psize, actual_psize, ssize, 0);
+		tlbie(vpn, psize, actual_psize, ssize, local);
 	}
 	local_irq_restore(flags);
 }
