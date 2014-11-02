@@ -120,6 +120,17 @@ static unsigned int const clks_init_on[] __initconst = {
 	VF610_CLK_DDR_SEL,
 };
 
+static struct clk * __init vf610_get_fixed_clock(
+				struct device_node *ccm_node, const char *name)
+{
+	struct clk *clk = of_clk_get_by_name(ccm_node, name);
+
+	/* Backward compatibility if device tree is missing clks assignments */
+	if (IS_ERR(clk))
+		clk = imx_obtain_fixed_clock(name, 0);
+	return clk;
+};
+
 static void __init vf610_clocks_init(struct device_node *ccm_node)
 {
 	struct device_node *np;
@@ -130,13 +141,13 @@ static void __init vf610_clocks_init(struct device_node *ccm_node)
 	clk[VF610_CLK_SIRC_32K] = imx_clk_fixed("sirc_32k", 32000);
 	clk[VF610_CLK_FIRC] = imx_clk_fixed("firc", 24000000);
 
-	clk[VF610_CLK_SXOSC] = imx_obtain_fixed_clock("sxosc", 0);
-	clk[VF610_CLK_FXOSC] = imx_obtain_fixed_clock("fxosc", 0);
-	clk[VF610_CLK_AUDIO_EXT] = imx_obtain_fixed_clock("audio_ext", 0);
-	clk[VF610_CLK_ENET_EXT] = imx_obtain_fixed_clock("enet_ext", 0);
+	clk[VF610_CLK_SXOSC] = vf610_get_fixed_clock(ccm_node, "sxosc");
+	clk[VF610_CLK_FXOSC] = vf610_get_fixed_clock(ccm_node, "fxosc");
+	clk[VF610_CLK_AUDIO_EXT] = vf610_get_fixed_clock(ccm_node, "audio_ext");
+	clk[VF610_CLK_ENET_EXT] = vf610_get_fixed_clock(ccm_node, "enet_ext");
 
 	/* Clock source from external clock via LVDs PAD */
-	clk[VF610_CLK_ANACLK1] = imx_obtain_fixed_clock("anaclk1", 0);
+	clk[VF610_CLK_ANACLK1] = vf610_get_fixed_clock(ccm_node, "anaclk1");
 
 	clk[VF610_CLK_FXOSC_HALF] = imx_clk_fixed_factor("fxosc_half", "fxosc", 1, 2);
 
