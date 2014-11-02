@@ -80,12 +80,6 @@ void mac802154_dev_set_short_addr(struct net_device *dev, __le16 val)
 	spin_lock_bh(&sdata->mib_lock);
 	sdata->short_addr = val;
 	spin_unlock_bh(&sdata->mib_lock);
-
-	if ((sdata->local->ops->set_hw_addr_filt) &&
-	    (sdata->local->hw.hw_filt.short_addr != sdata->short_addr)) {
-		sdata->local->hw.hw_filt.short_addr = sdata->short_addr;
-		set_hw_addr_filt(dev, IEEE802154_AFILT_SADDR_CHANGED);
-	}
 }
 
 __le16 mac802154_dev_get_short_addr(const struct net_device *dev)

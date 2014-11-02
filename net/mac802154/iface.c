@@ -208,6 +208,10 @@ static int mac802154_wpan_open(struct net_device *dev)
 		rc = drv_set_extended_addr(local, sdata->extended_addr);
 		if (rc < 0)
 			goto out;
+
+		rc = drv_set_short_addr(local, sdata->short_addr);
+		if (rc < 0)
+			goto out;
 	}
 
 	if (local->hw.flags & IEEE802154_HW_TXPOWER) {
