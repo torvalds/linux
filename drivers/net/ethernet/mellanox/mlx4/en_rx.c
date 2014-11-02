@@ -156,7 +156,7 @@ static int mlx4_en_init_allocator(struct mlx4_en_priv *priv,
 		const struct mlx4_en_frag_info *frag_info = &priv->frag_info[i];
 
 		if (mlx4_alloc_pages(priv, &ring->page_alloc[i],
-				     frag_info, GFP_KERNEL))
+				     frag_info, GFP_KERNEL | __GFP_COLD))
 			goto out;
 	}
 	return 0;
@@ -268,7 +268,7 @@ static int mlx4_en_fill_rx_buffers(struct mlx4_en_priv *priv)
 
 			if (mlx4_en_prepare_rx_desc(priv, ring,
 						    ring->actual_size,
-						    GFP_KERNEL)) {
+						    GFP_KERNEL | __GFP_COLD)) {
 				if (ring->actual_size < MLX4_EN_MIN_RX_SIZE) {
 					en_err(priv, "Failed to allocate enough rx buffers\n");
 					return -ENOMEM;
@@ -635,7 +635,8 @@ static void mlx4_en_refill_rx_buffers(struct mlx4_en_priv *priv,
 	int index = ring->prod & ring->size_mask;
 
 	while ((u32) (ring->prod - ring->cons) < ring->actual_size) {
-		if (mlx4_en_prepare_rx_desc(priv, ring, index, GFP_ATOMIC))
+		if (mlx4_en_prepare_rx_desc(priv, ring, index,
+					    GFP_ATOMIC | __GFP_COLD))
 			break;
 		ring->prod++;
 		index = ring->prod & ring->size_mask;
