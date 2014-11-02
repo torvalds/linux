@@ -225,8 +225,7 @@ static int gp2a_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int gp2a_suspend(struct device *dev)
+static int __maybe_unused gp2a_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct gp2a_data *dt = i2c_get_clientdata(client);
@@ -244,7 +243,7 @@ static int gp2a_suspend(struct device *dev)
 	return retval;
 }
 
-static int gp2a_resume(struct device *dev)
+static int __maybe_unused gp2a_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct gp2a_data *dt = i2c_get_clientdata(client);
@@ -261,7 +260,6 @@ static int gp2a_resume(struct device *dev)
 
 	return retval;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(gp2a_pm, gp2a_suspend, gp2a_resume);
 

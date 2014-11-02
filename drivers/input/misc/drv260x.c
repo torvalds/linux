@@ -639,8 +639,7 @@ static int drv260x_probe(struct i2c_client *client,
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int drv260x_suspend(struct device *dev)
+static int __maybe_unused drv260x_suspend(struct device *dev)
 {
 	struct drv260x_data *haptics = dev_get_drvdata(dev);
 	int ret = 0;
@@ -672,7 +671,7 @@ out:
 	return ret;
 }
 
-static int drv260x_resume(struct device *dev)
+static int __maybe_unused drv260x_resume(struct device *dev)
 {
 	struct drv260x_data *haptics = dev_get_drvdata(dev);
 	int ret = 0;
@@ -702,7 +701,6 @@ out:
 	mutex_unlock(&haptics->input_dev->mutex);
 	return ret;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(drv260x_pm_ops, drv260x_suspend, drv260x_resume);
 
