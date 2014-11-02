@@ -3327,7 +3327,7 @@ static int em_sidt(struct x86_emulate_ctxt *ctxt)
 	return emulate_store_desc_ptr(ctxt, ctxt->ops->get_idt);
 }
 
-static int em_lgdt(struct x86_emulate_ctxt *ctxt)
+static int em_lgdt_lidt(struct x86_emulate_ctxt *ctxt, bool lgdt)
 {
 	struct desc_ptr desc_ptr;
 	int rc;
@@ -3339,10 +3339,18 @@ static int em_lgdt(struct x86_emulate_ctxt *ctxt)
 			     ctxt->op_bytes);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
-	ctxt->ops->set_gdt(ctxt, &desc_ptr);
+	if (lgdt)
+		ctxt->ops->set_gdt(ctxt, &desc_ptr);
+	else
+		ctxt->ops->set_idt(ctxt, &desc_ptr);
 	/* Disable writeback. */
 	ctxt->dst.type = OP_NONE;
 	return X86EMUL_CONTINUE;
+}
+
+static int em_lgdt(struct x86_emulate_ctxt *ctxt)
+{
+	return em_lgdt_lidt(ctxt, true);
 }
 
 static int em_vmmcall(struct x86_emulate_ctxt *ctxt)
@@ -3358,20 +3366,7 @@ static int em_vmmcall(struct x86_emulate_ctxt *ctxt)
 
 static int em_lidt(struct x86_emulate_ctxt *ctxt)
 {
-	struct desc_ptr desc_ptr;
-	int rc;
-
-	if (ctxt->mode == X86EMUL_MODE_PROT64)
-		ctxt->op_bytes = 8;
-	rc = read_descriptor(ctxt, ctxt->src.addr.mem,
-			     &desc_ptr.size, &desc_ptr.address,
-			     ctxt->op_bytes);
-	if (rc != X86EMUL_CONTINUE)
-		return rc;
-	ctxt->ops->set_idt(ctxt, &desc_ptr);
-	/* Disable writeback. */
-	ctxt->dst.type = OP_NONE;
-	return X86EMUL_CONTINUE;
+	return em_lgdt_lidt(ctxt, false);
 }
 
 static int em_smsw(struct x86_emulate_ctxt *ctxt)
