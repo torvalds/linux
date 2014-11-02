@@ -205,6 +205,10 @@ static int mac802154_wpan_open(struct net_device *dev)
 	}
 
 	if (local->hw.flags & IEEE802154_HW_AFILT) {
+		rc = drv_set_pan_id(local, sdata->pan_id);
+		if (rc < 0)
+			goto out;
+
 		rc = drv_set_extended_addr(local, sdata->extended_addr);
 		if (rc < 0)
 			goto out;
