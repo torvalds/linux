@@ -127,28 +127,6 @@ static int mac802154_wpan_mac_addr(struct net_device *dev, void *p)
 	return mac802154_wpan_update_llsec(dev);
 }
 
-int mac802154_set_mac_params(struct net_device *dev,
-			     const struct ieee802154_mac_params *params)
-{
-	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-
-	mutex_lock(&sdata->local->iflist_mtx);
-	sdata->mac_params = *params;
-	mutex_unlock(&sdata->local->iflist_mtx);
-
-	return 0;
-}
-
-void mac802154_get_mac_params(struct net_device *dev,
-			      struct ieee802154_mac_params *params)
-{
-	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-
-	mutex_lock(&sdata->local->iflist_mtx);
-	*params = sdata->mac_params;
-	mutex_unlock(&sdata->local->iflist_mtx);
-}
-
 static int mac802154_slave_open(struct net_device *dev)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
