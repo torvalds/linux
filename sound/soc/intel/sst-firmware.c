@@ -1120,6 +1120,7 @@ int sst_block_alloc_scratch(struct sst_dsp *dsp)
 	ret = block_list_prepare(dsp, &dsp->scratch_block_list);
 	if (ret < 0) {
 		dev_err(dsp->dev, "error: scratch block prepare failed\n");
+		mutex_unlock(&dsp->mutex);
 		return ret;
 	}
 
