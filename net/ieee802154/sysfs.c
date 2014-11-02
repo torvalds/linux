@@ -17,6 +17,15 @@
 
 #include <net/cfg802154.h>
 
+#include "core.h"
+
+static inline struct cfg802154_registered_device *
+dev_to_rdev(struct device *dev)
+{
+	return container_of(dev, struct cfg802154_registered_device,
+			    wpan_phy.dev);
+}
+
 #define MASTER_SHOW_COMPLEX(name, format_string, args...)		\
 static ssize_t name ## _show(struct device *dev,			\
 			    struct device_attribute *attr, char *buf)	\
@@ -60,11 +69,11 @@ static ssize_t channels_supported_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(channels_supported);
 
-static void wpan_phy_release(struct device *d)
+static void wpan_phy_release(struct device *dev)
 {
-	struct wpan_phy *phy = container_of(d, struct wpan_phy, dev);
+	struct cfg802154_registered_device *rdev = dev_to_rdev(dev);
 
-	kfree(phy);
+	cfg802154_dev_free(rdev);
 }
 
 static struct attribute *pmib_attrs[] = {

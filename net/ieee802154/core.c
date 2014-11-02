@@ -21,6 +21,7 @@
 
 #include "ieee802154.h"
 #include "sysfs.h"
+#include "core.h"
 
 static DEFINE_MUTEX(wpan_phy_mutex);
 static int wpan_phy_idx;
@@ -76,31 +77,38 @@ static int wpan_phy_idx_valid(int idx)
 	return idx >= 0;
 }
 
-struct wpan_phy *wpan_phy_alloc(size_t priv_size)
+struct wpan_phy *
+wpan_phy_alloc(const struct cfg802154_ops *ops, size_t priv_size)
 {
-	struct wpan_phy *phy = kzalloc(sizeof(*phy) + priv_size,
-			GFP_KERNEL);
+	struct cfg802154_registered_device *rdev;
+	size_t alloc_size;
 
-	if (!phy)
-		goto out;
+	alloc_size = sizeof(*rdev) + priv_size;
+	rdev = kzalloc(alloc_size, GFP_KERNEL);
+	if (!rdev)
+		return NULL;
+
+	rdev->ops = ops;
+
 	mutex_lock(&wpan_phy_mutex);
-	phy->idx = wpan_phy_idx++;
-	if (unlikely(!wpan_phy_idx_valid(phy->idx))) {
+	rdev->wpan_phy.idx = wpan_phy_idx++;
+	if (unlikely(!wpan_phy_idx_valid(rdev->wpan_phy.idx))) {
 		wpan_phy_idx--;
 		mutex_unlock(&wpan_phy_mutex);
-		kfree(phy);
+		kfree(rdev);
 		goto out;
 	}
 	mutex_unlock(&wpan_phy_mutex);
 
-	mutex_init(&phy->pib_lock);
+	mutex_init(&rdev->wpan_phy.pib_lock);
 
-	device_initialize(&phy->dev);
-	dev_set_name(&phy->dev, "wpan-phy%d", phy->idx);
+	device_initialize(&rdev->wpan_phy.dev);
+	dev_set_name(&rdev->wpan_phy.dev, "wpan-phy%d", rdev->wpan_phy.idx);
 
-	phy->dev.class = &wpan_phy_class;
+	rdev->wpan_phy.dev.class = &wpan_phy_class;
+	rdev->wpan_phy.dev.platform_data = rdev;
 
-	return phy;
+	return &rdev->wpan_phy;
 
 out:
 	return NULL;
@@ -124,6 +132,11 @@ void wpan_phy_free(struct wpan_phy *phy)
 	put_device(&phy->dev);
 }
 EXPORT_SYMBOL(wpan_phy_free);
+
+void cfg802154_dev_free(struct cfg802154_registered_device *rdev)
+{
+	kfree(rdev);
+}
 
 static int __init wpan_phy_class_init(void)
 {
