@@ -112,13 +112,17 @@ static int mac802154_wpan_mac_addr(struct net_device *dev, void *p)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct sockaddr *addr = p;
+	__le64 extended_addr;
 
 	if (netif_running(dev))
 		return -EBUSY;
 
-	/* FIXME: validate addr */
+	extended_addr = ieee802154_netdev_to_extended_addr(addr->sa_data);
+	if (!ieee802154_is_valid_extended_addr(extended_addr))
+		return -EINVAL;
+
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
-	sdata->extended_addr = ieee802154_netdev_to_extended_addr(dev->dev_addr);
+	sdata->extended_addr = extended_addr;
 
 	return mac802154_wpan_update_llsec(dev);
 }
