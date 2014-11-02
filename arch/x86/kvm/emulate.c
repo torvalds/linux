@@ -380,6 +380,15 @@ static int fastop(struct x86_emulate_ctxt *ctxt, void (*fop)(struct fastop *));
 	ON64(FOP2E(op##q, rax, cl)) \
 	FOP_END
 
+/* 2 operand, src and dest are reversed */
+#define FASTOP2R(op, name) \
+	FOP_START(name) \
+	FOP2E(op##b, dl, al) \
+	FOP2E(op##w, dx, ax) \
+	FOP2E(op##l, edx, eax) \
+	ON64(FOP2E(op##q, rdx, rax)) \
+	FOP_END
+
 #define FOP3E(op,  dst, src, src2) \
 	FOP_ALIGN #op " %" #src2 ", %" #src ", %" #dst " \n\t" FOP_RET
 
@@ -912,6 +921,8 @@ FASTOP2W(btr);
 FASTOP2W(btc);
 
 FASTOP2(xadd);
+
+FASTOP2R(cmp, cmp_r);
 
 static u8 test_cc(unsigned int condition, unsigned long flags)
 {
@@ -3993,12 +4004,12 @@ static const struct opcode opcode_table[256] = {
 	I2bv(DstAcc | SrcMem | Mov | MemAbs, em_mov),
 	I2bv(DstMem | SrcAcc | Mov | MemAbs | PageTable, em_mov),
 	I2bv(SrcSI | DstDI | Mov | String, em_mov),
-	F2bv(SrcSI | DstDI | String | NoWrite, em_cmp),
+	F2bv(SrcSI | DstDI | String | NoWrite, em_cmp_r),
 	/* 0xA8 - 0xAF */
 	F2bv(DstAcc | SrcImm | NoWrite, em_test),
 	I2bv(SrcAcc | DstDI | Mov | String, em_mov),
 	I2bv(SrcSI | DstAcc | Mov | String, em_mov),
-	F2bv(SrcAcc | DstDI | String | NoWrite, em_cmp),
+	F2bv(SrcAcc | DstDI | String | NoWrite, em_cmp_r),
 	/* 0xB0 - 0xB7 */
 	X8(I(ByteOp | DstReg | SrcImm | Mov, em_mov)),
 	/* 0xB8 - 0xBF */
