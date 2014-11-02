@@ -1711,7 +1711,7 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_device *dev,
 #define HPD_STORM_DETECT_PERIOD 1000
 #define HPD_STORM_THRESHOLD 5
 
-static int ilk_port_to_hotplug_shift(enum port port)
+static int pch_port_to_hotplug_shift(enum port port)
 {
 	switch (port) {
 	case PORT_A:
@@ -1727,7 +1727,7 @@ static int ilk_port_to_hotplug_shift(enum port port)
 	}
 }
 
-static int g4x_port_to_hotplug_shift(enum port port)
+static int i915_port_to_hotplug_shift(enum port port)
 {
 	switch (port) {
 	case PORT_A:
@@ -1785,12 +1785,12 @@ static inline void intel_hpd_irq_handler(struct drm_device *dev,
 		if (port && dev_priv->hpd_irq_port[port]) {
 			bool long_hpd;
 
-			if (IS_G4X(dev)) {
-				dig_shift = g4x_port_to_hotplug_shift(port);
-				long_hpd = (hotplug_trigger >> dig_shift) & PORTB_HOTPLUG_LONG_DETECT;
-			} else {
-				dig_shift = ilk_port_to_hotplug_shift(port);
+			if (HAS_PCH_SPLIT(dev)) {
+				dig_shift = pch_port_to_hotplug_shift(port);
 				long_hpd = (dig_hotplug_reg >> dig_shift) & PORTB_HOTPLUG_LONG_DETECT;
+			} else {
+				dig_shift = i915_port_to_hotplug_shift(port);
+				long_hpd = (hotplug_trigger >> dig_shift) & PORTB_HOTPLUG_LONG_DETECT;
 			}
 
 			DRM_DEBUG_DRIVER("digital hpd port %c - %s\n",
@@ -3458,12 +3458,13 @@ static void gen8_irq_reset(struct drm_device *dev)
 void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv)
 {
 	unsigned long irqflags;
+	uint32_t extra_ier = GEN8_PIPE_VBLANK | GEN8_PIPE_FIFO_UNDERRUN;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 	GEN8_IRQ_INIT_NDX(DE_PIPE, PIPE_B, dev_priv->de_irq_mask[PIPE_B],
-			  ~dev_priv->de_irq_mask[PIPE_B]);
+			  ~dev_priv->de_irq_mask[PIPE_B] | extra_ier);
 	GEN8_IRQ_INIT_NDX(DE_PIPE, PIPE_C, dev_priv->de_irq_mask[PIPE_C],
-			  ~dev_priv->de_irq_mask[PIPE_C]);
+			  ~dev_priv->de_irq_mask[PIPE_C] | extra_ier);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 

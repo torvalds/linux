@@ -2354,6 +2354,12 @@ int kvm_register_device_ops(struct kvm_device_ops *ops, u32 type)
 	return 0;
 }
 
+void kvm_unregister_device_ops(u32 type)
+{
+	if (kvm_device_ops_table[type] != NULL)
+		kvm_device_ops_table[type] = NULL;
+}
+
 static int kvm_ioctl_create_device(struct kvm *kvm,
 				   struct kvm_create_device *cd)
 {
@@ -3328,5 +3334,6 @@ void kvm_exit(void)
 	kvm_arch_exit();
 	kvm_irqfd_exit();
 	free_cpumask_var(cpus_hardware_enabled);
+	kvm_vfio_ops_exit();
 }
 EXPORT_SYMBOL_GPL(kvm_exit);

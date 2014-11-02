@@ -52,6 +52,17 @@ static inline int32_t div_fp(int32_t x, int32_t y)
 	return div_s64((int64_t)x << FRAC_BITS, y);
 }
 
+static inline int ceiling_fp(int32_t x)
+{
+	int mask, ret;
+
+	ret = fp_toint(x);
+	mask = (1 << FRAC_BITS) - 1;
+	if (x & mask)
+		ret += 1;
+	return ret;
+}
+
 struct sample {
 	int32_t core_pct_busy;
 	u64 aperf;
@@ -64,6 +75,7 @@ struct pstate_data {
 	int	current_pstate;
 	int	min_pstate;
 	int	max_pstate;
+	int	scaling;
 	int	turbo_pstate;
 };
 
@@ -113,6 +125,7 @@ struct pstate_funcs {
 	int (*get_max)(void);
 	int (*get_min)(void);
 	int (*get_turbo)(void);
+	int (*get_scaling)(void);
 	void (*set)(struct cpudata*, int pstate);
 	void (*get_vid)(struct cpudata *);
 };
@@ -138,6 +151,7 @@ struct perf_limits {
 
 static struct perf_limits limits = {
 	.no_turbo = 0,
+	.turbo_disabled = 0,
 	.max_perf_pct = 100,
 	.max_perf = int_tofp(1),
 	.min_perf_pct = 0,
@@ -218,6 +232,18 @@ static inline void intel_pstate_reset_all_pid(void)
 	}
 }
 
+static inline void update_turbo_state(void)
+{
+	u64 misc_en;
+	struct cpudata *cpu;
+
+	cpu = all_cpu_data[0];
+	rdmsrl(MSR_IA32_MISC_ENABLE, misc_en);
+	limits.turbo_disabled =
+		(misc_en & MSR_IA32_MISC_ENABLE_TURBO_DISABLE ||
+		 cpu->pstate.max_pstate == cpu->pstate.turbo_pstate);
+}
+
 /************************** debugfs begin ************************/
 static int pid_param_set(void *data, u64 val)
 {
@@ -274,6 +300,20 @@ static void __init intel_pstate_debug_expose_params(void)
 		return sprintf(buf, "%u\n", limits.object);		\
 	}
 
+static ssize_t show_no_turbo(struct kobject *kobj,
+			     struct attribute *attr, char *buf)
+{
+	ssize_t ret;
+
+	update_turbo_state();
+	if (limits.turbo_disabled)
+		ret = sprintf(buf, "%u\n", limits.turbo_disabled);
+	else
+		ret = sprintf(buf, "%u\n", limits.no_turbo);
+
+	return ret;
+}
+
 static ssize_t store_no_turbo(struct kobject *a, struct attribute *b,
 			      const char *buf, size_t count)
 {
@@ -283,11 +323,14 @@ static ssize_t store_no_turbo(struct kobject *a, struct attribute *b,
 	ret = sscanf(buf, "%u", &input);
 	if (ret != 1)
 		return -EINVAL;
-	limits.no_turbo = clamp_t(int, input, 0 , 1);
+
+	update_turbo_state();
 	if (limits.turbo_disabled) {
 		pr_warn("Turbo disabled by BIOS or unavailable on processor\n");
-		limits.no_turbo = limits.turbo_disabled;
+		return -EPERM;
 	}
+	limits.no_turbo = clamp_t(int, input, 0, 1);
+
 	return count;
 }
 
@@ -323,7 +366,6 @@ static ssize_t store_min_perf_pct(struct kobject *a, struct attribute *b,
 	return count;
 }
 
-show_one(no_turbo, no_turbo);
 show_one(max_perf_pct, max_perf_pct);
 show_one(min_perf_pct, min_perf_pct);
 
@@ -394,7 +436,7 @@ static void byt_set_pstate(struct cpudata *cpudata, int pstate)
 		cpudata->vid.ratio);
 
 	vid_fp = clamp_t(int32_t, vid_fp, cpudata->vid.min, cpudata->vid.max);
-	vid = fp_toint(vid_fp);
+	vid = ceiling_fp(vid_fp);
 
 	if (pstate > cpudata->pstate.max_pstate)
 		vid = cpudata->vid.turbo;
@@ -402,6 +444,22 @@ static void byt_set_pstate(struct cpudata *cpudata, int pstate)
 	val |= vid;
 
 	wrmsrl(MSR_IA32_PERF_CTL, val);
+}
+
+#define BYT_BCLK_FREQS 5
+static int byt_freq_table[BYT_BCLK_FREQS] = { 833, 1000, 1333, 1167, 800};
+
+static int byt_get_scaling(void)
+{
+	u64 value;
+	int i;
+
+	rdmsrl(MSR_FSB_FREQ, value);
+	i = value & 0x3;
+
+	BUG_ON(i > BYT_BCLK_FREQS);
+
+	return byt_freq_table[i] * 100;
 }
 
 static void byt_get_vid(struct cpudata *cpudata)
@@ -449,6 +507,11 @@ static int core_get_turbo_pstate(void)
 	return ret;
 }
 
+static inline int core_get_scaling(void)
+{
+	return 100000;
+}
+
 static void core_set_pstate(struct cpudata *cpudata, int pstate)
 {
 	u64 val;
@@ -473,6 +536,7 @@ static struct cpu_defaults core_params = {
 		.get_max = core_get_max_pstate,
 		.get_min = core_get_min_pstate,
 		.get_turbo = core_get_turbo_pstate,
+		.get_scaling = core_get_scaling,
 		.set = core_set_pstate,
 	},
 };
@@ -491,6 +555,7 @@ static struct cpu_defaults byt_params = {
 		.get_min = byt_get_min_pstate,
 		.get_turbo = byt_get_turbo_pstate,
 		.set = byt_set_pstate,
+		.get_scaling = byt_get_scaling,
 		.get_vid = byt_get_vid,
 	},
 };
@@ -501,7 +566,7 @@ static void intel_pstate_get_min_max(struct cpudata *cpu, int *min, int *max)
 	int max_perf_adj;
 	int min_perf;
 
-	if (limits.no_turbo)
+	if (limits.no_turbo || limits.turbo_disabled)
 		max_perf = cpu->pstate.max_pstate;
 
 	max_perf_adj = fp_toint(mul_fp(int_tofp(max_perf), limits.max_perf));
@@ -516,6 +581,8 @@ static void intel_pstate_set_pstate(struct cpudata *cpu, int pstate)
 {
 	int max_perf, min_perf;
 
+	update_turbo_state();
+
 	intel_pstate_get_min_max(cpu, &min_perf, &max_perf);
 
 	pstate = clamp_t(int, pstate, min_perf, max_perf);
@@ -523,7 +590,7 @@ static void intel_pstate_set_pstate(struct cpudata *cpu, int pstate)
 	if (pstate == cpu->pstate.current_pstate)
 		return;
 
-	trace_cpu_frequency(pstate * 100000, cpu->cpu);
+	trace_cpu_frequency(pstate * cpu->pstate.scaling, cpu->cpu);
 
 	cpu->pstate.current_pstate = pstate;
 
@@ -535,6 +602,7 @@ static void intel_pstate_get_cpu_pstates(struct cpudata *cpu)
 	cpu->pstate.min_pstate = pstate_funcs.get_min();
 	cpu->pstate.max_pstate = pstate_funcs.get_max();
 	cpu->pstate.turbo_pstate = pstate_funcs.get_turbo();
+	cpu->pstate.scaling = pstate_funcs.get_scaling();
 
 	if (pstate_funcs.get_vid)
 		pstate_funcs.get_vid(cpu);
@@ -550,7 +618,9 @@ static inline void intel_pstate_calc_busy(struct cpudata *cpu)
 	core_pct = div64_u64(core_pct, int_tofp(sample->mperf));
 
 	sample->freq = fp_toint(
-		mul_fp(int_tofp(cpu->pstate.max_pstate * 1000), core_pct));
+		mul_fp(int_tofp(
+			cpu->pstate.max_pstate * cpu->pstate.scaling / 100),
+			core_pct));
 
 	sample->core_pct_busy = (int32_t)core_pct;
 }
@@ -671,7 +741,9 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 {
 	struct cpudata *cpu;
 
-	all_cpu_data[cpunum] = kzalloc(sizeof(struct cpudata), GFP_KERNEL);
+	if (!all_cpu_data[cpunum])
+		all_cpu_data[cpunum] = kzalloc(sizeof(struct cpudata),
+					       GFP_KERNEL);
 	if (!all_cpu_data[cpunum])
 		return -ENOMEM;
 
@@ -714,9 +786,10 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 	if (policy->policy == CPUFREQ_POLICY_PERFORMANCE) {
 		limits.min_perf_pct = 100;
 		limits.min_perf = int_tofp(1);
+		limits.max_policy_pct = 100;
 		limits.max_perf_pct = 100;
 		limits.max_perf = int_tofp(1);
-		limits.no_turbo = limits.turbo_disabled;
+		limits.no_turbo = 0;
 		return 0;
 	}
 	limits.min_perf_pct = (policy->min * 100) / policy->cpuinfo.max_freq;
@@ -751,15 +824,12 @@ static void intel_pstate_stop_cpu(struct cpufreq_policy *policy)
 
 	del_timer_sync(&all_cpu_data[cpu_num]->timer);
 	intel_pstate_set_pstate(cpu, cpu->pstate.min_pstate);
-	kfree(all_cpu_data[cpu_num]);
-	all_cpu_data[cpu_num] = NULL;
 }
 
 static int intel_pstate_cpu_init(struct cpufreq_policy *policy)
 {
 	struct cpudata *cpu;
 	int rc;
-	u64 misc_en;
 
 	rc = intel_pstate_init_cpu(policy->cpu);
 	if (rc)
@@ -767,23 +837,18 @@ static int intel_pstate_cpu_init(struct cpufreq_policy *policy)
 
 	cpu = all_cpu_data[policy->cpu];
 
-	rdmsrl(MSR_IA32_MISC_ENABLE, misc_en);
-	if (misc_en & MSR_IA32_MISC_ENABLE_TURBO_DISABLE ||
-	    cpu->pstate.max_pstate == cpu->pstate.turbo_pstate) {
-		limits.turbo_disabled = 1;
-		limits.no_turbo = 1;
-	}
 	if (limits.min_perf_pct == 100 && limits.max_perf_pct == 100)
 		policy->policy = CPUFREQ_POLICY_PERFORMANCE;
 	else
 		policy->policy = CPUFREQ_POLICY_POWERSAVE;
 
-	policy->min = cpu->pstate.min_pstate * 100000;
-	policy->max = cpu->pstate.turbo_pstate * 100000;
+	policy->min = cpu->pstate.min_pstate * cpu->pstate.scaling;
+	policy->max = cpu->pstate.turbo_pstate * cpu->pstate.scaling;
 
 	/* cpuinfo and default policy values */
-	policy->cpuinfo.min_freq = cpu->pstate.min_pstate * 100000;
-	policy->cpuinfo.max_freq = cpu->pstate.turbo_pstate * 100000;
+	policy->cpuinfo.min_freq = cpu->pstate.min_pstate * cpu->pstate.scaling;
+	policy->cpuinfo.max_freq =
+		cpu->pstate.turbo_pstate * cpu->pstate.scaling;
 	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
 	cpumask_set_cpu(policy->cpu, policy->cpus);
 
@@ -841,6 +906,7 @@ static void copy_cpu_funcs(struct pstate_funcs *funcs)
 	pstate_funcs.get_max   = funcs->get_max;
 	pstate_funcs.get_min   = funcs->get_min;
 	pstate_funcs.get_turbo = funcs->get_turbo;
+	pstate_funcs.get_scaling = funcs->get_scaling;
 	pstate_funcs.set       = funcs->set;
 	pstate_funcs.get_vid   = funcs->get_vid;
 }

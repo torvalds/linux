@@ -16,6 +16,7 @@
 #include <linux/time.h>
 
 #include <asm/irq_cpu.h>
+#include <asm/setup.h>
 
 #include <msp_int.h>
 

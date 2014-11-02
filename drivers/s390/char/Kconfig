@@ -105,7 +105,7 @@ config SCLP_ASYNC
 config HMC_DRV
 	def_tristate m
 	prompt "Support for file transfers from HMC drive CD/DVD-ROM"
-	depends on 64BIT
+	depends on S390 && 64BIT
 	select CRC16
 	help
 	  This option enables support for file transfers from a Hardware

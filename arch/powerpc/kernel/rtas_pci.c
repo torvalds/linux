@@ -66,6 +66,11 @@ int rtas_read_config(struct pci_dn *pdn, int where, int size, u32 *val)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	if (!config_access_valid(pdn, where))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
+#ifdef CONFIG_EEH
+	if (pdn->edev && pdn->edev->pe &&
+	    (pdn->edev->pe->state & EEH_PE_CFG_BLOCKED))
+		return PCIBIOS_SET_FAILED;
+#endif
 
 	addr = rtas_config_addr(pdn->busno, pdn->devfn, where);
 	buid = pdn->phb->buid;
@@ -90,9 +95,6 @@ static int rtas_pci_read_config(struct pci_bus *bus,
 	struct device_node *busdn, *dn;
 	struct pci_dn *pdn;
 	bool found = false;
-#ifdef CONFIG_EEH
-	struct eeh_dev *edev;
-#endif
 	int ret;
 
 	/* Search only direct children of the bus */
@@ -109,11 +111,6 @@ static int rtas_pci_read_config(struct pci_bus *bus,
 
 	if (!found)
 		return PCIBIOS_DEVICE_NOT_FOUND;
-#ifdef CONFIG_EEH
-	edev = of_node_to_eeh_dev(dn);
-	if (edev && edev->pe && edev->pe->state & EEH_PE_RESET)
-		return PCIBIOS_DEVICE_NOT_FOUND;
-#endif
 
 	ret = rtas_read_config(pdn, where, size, val);
 	if (*val == EEH_IO_ERROR_VALUE(size) &&
@@ -132,6 +129,11 @@ int rtas_write_config(struct pci_dn *pdn, int where, int size, u32 val)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	if (!config_access_valid(pdn, where))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
+#ifdef CONFIG_EEH
+	if (pdn->edev && pdn->edev->pe &&
+	    (pdn->edev->pe->state & EEH_PE_CFG_BLOCKED))
+		return PCIBIOS_SET_FAILED;
+#endif
 
 	addr = rtas_config_addr(pdn->busno, pdn->devfn, where);
 	buid = pdn->phb->buid;
@@ -155,10 +157,6 @@ static int rtas_pci_write_config(struct pci_bus *bus,
 	struct device_node *busdn, *dn;
 	struct pci_dn *pdn;
 	bool found = false;
-#ifdef CONFIG_EEH
-	struct eeh_dev *edev;
-#endif
-	int ret;
 
 	/* Search only direct children of the bus */
 	busdn = pci_bus_to_OF_node(bus);
@@ -173,14 +171,8 @@ static int rtas_pci_write_config(struct pci_bus *bus,
 
 	if (!found)
 		return PCIBIOS_DEVICE_NOT_FOUND;
-#ifdef CONFIG_EEH
-	edev = of_node_to_eeh_dev(dn);
-	if (edev && edev->pe && (edev->pe->state & EEH_PE_RESET))
-		return PCIBIOS_DEVICE_NOT_FOUND;
-#endif
-	ret = rtas_write_config(pdn, where, size, val);
 
-	return ret;
+	return rtas_write_config(pdn, where, size, val);
 }
 
 static struct pci_ops rtas_pci_ops = {

@@ -8,6 +8,8 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  */
+#define pr_fmt(fmt) "numa: " fmt
+
 #include <linux/threads.h>
 #include <linux/bootmem.h>
 #include <linux/init.h>
@@ -1153,6 +1155,22 @@ static int __init early_numa(char *p)
 }
 early_param("numa", early_numa);
 
+static bool topology_updates_enabled = true;
+
+static int __init early_topology_updates(char *p)
+{
+	if (!p)
+		return 0;
+
+	if (!strcmp(p, "off")) {
+		pr_info("Disabling topology updates\n");
+		topology_updates_enabled = false;
+	}
+
+	return 0;
+}
+early_param("topology_updates", early_topology_updates);
+
 #ifdef CONFIG_MEMORY_HOTPLUG
 /*
  * Find the node associated with a hot added memory section for
@@ -1442,8 +1460,11 @@ static long hcall_vphn(unsigned long cpu, __be32 *associativity)
 	long retbuf[PLPAR_HCALL9_BUFSIZE] = {0};
 	u64 flags = 1;
 	int hwcpu = get_hard_smp_processor_id(cpu);
+	int i;
 
 	rc = plpar_hcall9(H_HOME_NODE_ASSOCIATIVITY, retbuf, flags, hwcpu);
+	for (i = 0; i < 6; i++)
+		retbuf[i] = cpu_to_be64(retbuf[i]);
 	vphn_unpack_associativity(retbuf, associativity);
 
 	return rc;
@@ -1539,6 +1560,9 @@ int arch_update_cpu_topology(void)
 	struct device *dev;
 	int weight, new_nid, i = 0;
 
+	if (!prrn_enabled && !vphn_enabled)
+		return 0;
+
 	weight = cpumask_weight(&cpu_associativity_changes_mask);
 	if (!weight)
 		return 0;
@@ -1590,6 +1614,15 @@ int arch_update_cpu_topology(void)
 				ud->next = &updates[i];
 		}
 		cpu = cpu_last_thread_sibling(cpu);
+	}
+
+	pr_debug("Topology update for the following CPUs:\n");
+	if (cpumask_weight(&updated_cpus)) {
+		for (ud = &updates[0]; ud; ud = ud->next) {
+			pr_debug("cpu %d moving from node %d "
+					  "to %d\n", ud->cpu,
+					  ud->old_nid, ud->new_nid);
+		}
 	}
 
 	/*
@@ -1800,8 +1833,12 @@ static const struct file_operations topology_ops = {
 
 static int topology_update_init(void)
 {
-	start_topology_update();
-	proc_create("powerpc/topology_updates", 0644, NULL, &topology_ops);
+	/* Do not poll for changes if disabled at boot */
+	if (topology_updates_enabled)
+		start_topology_update();
+
+	if (!proc_create("powerpc/topology_updates", 0644, NULL, &topology_ops))
+		return -ENOMEM;
 
 	return 0;
 }

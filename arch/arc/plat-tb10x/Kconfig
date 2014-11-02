@@ -18,7 +18,6 @@
 
 menuconfig ARC_PLAT_TB10X
 	bool "Abilis TB10x"
-	select COMMON_CLK
 	select PINCTRL
 	select PINCTRL_TB10X
 	select PINMUX

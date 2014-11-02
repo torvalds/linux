@@ -5842,6 +5842,14 @@ S:	Maintained
 F:	drivers/net/macvlan.c
 F:	include/linux/if_macvlan.h
 
+MAILBOX API
+M:	Jassi Brar <jassisinghbrar@gmail.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/mailbox/
+F:	include/linux/mailbox_client.h
+F:	include/linux/mailbox_controller.h
+
 MAN-PAGES: MANUAL PAGES FOR LINUX -- Sections 2, 3, 4, 5, and 7
 M:	Michael Kerrisk <mtk.manpages@gmail.com>
 W:	http://www.kernel.org/doc/man-pages
@@ -6830,7 +6838,7 @@ S:	Orphan
 F:	drivers/net/wireless/orinoco/
 
 OSD LIBRARY and FILESYSTEM
-M:	Boaz Harrosh <bharrosh@panasas.com>
+M:	Boaz Harrosh <ooo@electrozaur.com>
 M:	Benny Halevy <bhalevy@primarydata.com>
 L:	osd-dev@open-osd.org
 W:	http://open-osd.org
@@ -6839,6 +6847,13 @@ S:	Maintained
 F:	drivers/scsi/osd/
 F:	include/scsi/osd_*
 F:	fs/exofs/
+
+OVERLAYFS FILESYSTEM
+M:	Miklos Szeredi <miklos@szeredi.hu>
+L:	linux-fsdevel@vger.kernel.org
+S:	Supported
+F:	fs/overlayfs/*
+F:	Documentation/filesystems/overlayfs.txt
 
 P54 WIRELESS DRIVER
 M:	Christian Lamparter <chunkeey@googlemail.com>
