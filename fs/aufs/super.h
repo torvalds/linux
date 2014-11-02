@@ -432,7 +432,7 @@ AuStubVoid(au_sbilist_unlock, void)
 static inline void dbgaufs_si_null(struct au_sbinfo *sbinfo)
 {
 	/*
-	 * This function is a dynamic '__init' fucntion actually,
+	 * This function is a dynamic '__init' function actually,
 	 * so the tiny check for si_rwsem is unnecessary.
 	 */
 	/* AuRwMustWriteLock(&sbinfo->si_rwsem); */
