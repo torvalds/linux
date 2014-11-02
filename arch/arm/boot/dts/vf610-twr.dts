@@ -115,6 +115,10 @@
 	};
 };
 
+&edma0 {
+	status = "okay";
+};
+
 &esdhc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1>;
@@ -286,5 +290,13 @@
 
 &usbh1 {
 	disable-over-current;
+	status = "okay";
+};
+
+&usbphy0 {
+	status = "okay";
+};
+
+&usbphy1 {
 	status = "okay";
 };
