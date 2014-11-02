@@ -499,7 +499,11 @@ static void __init pSeries_setup_arch(void)
 
 	if (firmware_has_feature(FW_FEATURE_SET_MODE)) {
 		long rc;
-		if ((rc = pSeries_enable_reloc_on_exc()) != H_SUCCESS) {
+
+		rc = pSeries_enable_reloc_on_exc();
+		if (rc == H_P2) {
+			pr_info("Relocation on exceptions not supported\n");
+		} else if (rc != H_SUCCESS) {
 			pr_warn("Unable to enable relocation on exceptions: "
 				"%ld\n", rc);
 		}
