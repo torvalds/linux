@@ -135,7 +135,6 @@ ieee802154_subif_start_xmit(struct sk_buff *skb, struct net_device *dev);
 /* MIB callbacks */
 void mac802154_dev_set_short_addr(struct net_device *dev, __le16 val);
 __le16 mac802154_dev_get_short_addr(const struct net_device *dev);
-void mac802154_dev_set_ieee_addr(struct net_device *dev);
 __le16 mac802154_dev_get_pan_id(const struct net_device *dev);
 void mac802154_dev_set_pan_id(struct net_device *dev, __le16 val);
 void mac802154_dev_set_page_channel(struct net_device *dev, u8 page, u8 chan);

@@ -43,7 +43,6 @@ static int mac802154_mlme_start_req(struct net_device *dev,
 
 	mac802154_dev_set_pan_id(dev, addr->pan_id);
 	mac802154_dev_set_short_addr(dev, addr->short_addr);
-	mac802154_dev_set_ieee_addr(dev);
 	mac802154_dev_set_page_channel(dev, page, channel);
 
 	if (ops->llsec) {

@@ -102,20 +102,6 @@ __le16 mac802154_dev_get_short_addr(const struct net_device *dev)
 	return ret;
 }
 
-void mac802154_dev_set_ieee_addr(struct net_device *dev)
-{
-	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-	struct ieee802154_local *local = sdata->local;
-
-	sdata->extended_addr = ieee802154_devaddr_from_raw(dev->dev_addr);
-
-	if (local->ops->set_hw_addr_filt &&
-	    local->hw.hw_filt.ieee_addr != sdata->extended_addr) {
-		local->hw.hw_filt.ieee_addr = sdata->extended_addr;
-		set_hw_addr_filt(dev, IEEE802154_AFILT_IEEEADDR_CHANGED);
-	}
-}
-
 __le16 mac802154_dev_get_pan_id(const struct net_device *dev)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);

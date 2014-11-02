@@ -110,6 +110,7 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 static int mac802154_wpan_mac_addr(struct net_device *dev, void *p)
 {
+	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct sockaddr *addr = p;
 
 	if (netif_running(dev))
@@ -117,7 +118,8 @@ static int mac802154_wpan_mac_addr(struct net_device *dev, void *p)
 
 	/* FIXME: validate addr */
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
-	mac802154_dev_set_ieee_addr(dev);
+	sdata->extended_addr = ieee802154_netdev_to_extended_addr(dev->dev_addr);
+
 	return mac802154_wpan_update_llsec(dev);
 }
 
@@ -198,6 +200,12 @@ static int mac802154_wpan_open(struct net_device *dev)
 
 	if (local->hw.flags & IEEE802154_HW_PROMISCUOUS) {
 		rc = drv_set_promiscuous_mode(local, sdata->promisuous_mode);
+		if (rc < 0)
+			goto out;
+	}
+
+	if (local->hw.flags & IEEE802154_HW_AFILT) {
+		rc = drv_set_extended_addr(local, sdata->extended_addr);
 		if (rc < 0)
 			goto out;
 	}
