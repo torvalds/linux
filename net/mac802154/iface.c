@@ -218,27 +218,8 @@ static int mac802154_wpan_open(struct net_device *dev)
 			goto out;
 	}
 
-	if (local->hw.flags & IEEE802154_HW_TXPOWER) {
-		rc = drv_set_tx_power(local, sdata->mac_params.transmit_power);
-		if (rc < 0)
-			goto out;
-	}
-
 	if (local->hw.flags & IEEE802154_HW_LBT) {
 		rc = drv_set_lbt_mode(local, sdata->mac_params.lbt);
-		if (rc < 0)
-			goto out;
-	}
-
-	if (local->hw.flags & IEEE802154_HW_CCA_MODE) {
-		rc = drv_set_cca_mode(local, sdata->mac_params.cca_mode);
-		if (rc < 0)
-			goto out;
-	}
-
-	if (local->hw.flags & IEEE802154_HW_CCA_ED_LEVEL) {
-		rc = drv_set_cca_ed_level(local,
-					  sdata->mac_params.cca_ed_level);
 		if (rc < 0)
 			goto out;
 	}

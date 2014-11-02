@@ -28,6 +28,7 @@
 #include <net/nl802154.h>
 
 #include "ieee802154_i.h"
+#include "driver-ops.h"
 
 static int mac802154_mlme_start_req(struct net_device *dev,
 				    struct ieee802154_addr *addr,
@@ -85,10 +86,30 @@ static int mac802154_set_mac_params(struct net_device *dev,
 				    const struct ieee802154_mac_params *params)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
+	struct ieee802154_local *local = sdata->local;
+	int ret;
 
 	mutex_lock(&sdata->local->iflist_mtx);
 	sdata->mac_params = *params;
 	mutex_unlock(&sdata->local->iflist_mtx);
+
+	if (local->hw.flags & IEEE802154_HW_TXPOWER) {
+		ret = drv_set_tx_power(local, params->transmit_power);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (local->hw.flags & IEEE802154_HW_CCA_MODE) {
+		ret = drv_set_cca_mode(local, params->cca_mode);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (local->hw.flags & IEEE802154_HW_CCA_ED_LEVEL) {
+		ret = drv_set_cca_ed_level(local, params->cca_ed_level);
+		if (ret < 0)
+			return ret;
+	}
 
 	return 0;
 }
