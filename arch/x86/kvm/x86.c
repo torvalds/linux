@@ -5360,7 +5360,9 @@ restart:
 		kvm_rip_write(vcpu, ctxt->eip);
 		if (r == EMULATE_DONE)
 			kvm_vcpu_check_singlestep(vcpu, rflags, &r);
-		__kvm_set_rflags(vcpu, ctxt->eflags);
+		if (!ctxt->have_exception ||
+		    exception_type(ctxt->exception.vector) == EXCPT_TRAP)
+			__kvm_set_rflags(vcpu, ctxt->eflags);
 
 		/*
 		 * For STI, interrupts are shadowed; so KVM_REQ_EVENT will
