@@ -197,4 +197,18 @@ static inline bool ieee802154_is_valid_psdu_len(const u8 len)
 	return (len >= IEEE802154_MIN_PSDU_LEN && len <= IEEE802154_MTU);
 }
 
+/**
+ * ieee802154_is_valid_psdu_len - check if extended addr is valid
+ * @addr: extended addr to check
+ */
+static inline bool ieee802154_is_valid_extended_addr(const __le64 addr)
+{
+	/* These EUI-64 addresses are reserved by IEEE. 0xffffffffffffffff
+	 * is used internally as extended to short address broadcast mapping.
+	 * This is currently a workaround because neighbor discovery can't
+	 * deal with short addresses types right now.
+	 */
+	return ((addr != 0x0000000000000000) || (addr != 0xffffffffffffffff));
+}
+
 #endif /* LINUX_IEEE802154_H */
