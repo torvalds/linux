@@ -905,8 +905,7 @@ static int cyapa_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int cyapa_suspend(struct device *dev)
+static int __maybe_unused cyapa_suspend(struct device *dev)
 {
 	int ret;
 	u8 power_mode;
@@ -929,7 +928,7 @@ static int cyapa_suspend(struct device *dev)
 	return 0;
 }
 
-static int cyapa_resume(struct device *dev)
+static int __maybe_unused cyapa_resume(struct device *dev)
 {
 	int ret;
 	struct cyapa *cyapa = dev_get_drvdata(dev);
@@ -944,7 +943,6 @@ static int cyapa_resume(struct device *dev)
 	enable_irq(cyapa->irq);
 	return 0;
 }
-#endif /* CONFIG_PM_SLEEP */
 
 static SIMPLE_DEV_PM_OPS(cyapa_pm_ops, cyapa_suspend, cyapa_resume);
 
