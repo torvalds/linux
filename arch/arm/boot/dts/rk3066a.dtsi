@@ -234,6 +234,24 @@
 			bias-disable;
 		};
 
+		emac {
+			emac_xfer: emac-xfer {
+				rockchip,pins = <RK_GPIO1 16 RK_FUNC_2 &pcfg_pull_none>, /* mac_clk */
+						<RK_GPIO1 17 RK_FUNC_2 &pcfg_pull_none>, /* tx_en */
+						<RK_GPIO1 18 RK_FUNC_2 &pcfg_pull_none>, /* txd1 */
+						<RK_GPIO1 19 RK_FUNC_2 &pcfg_pull_none>, /* txd0 */
+						<RK_GPIO1 20 RK_FUNC_2 &pcfg_pull_none>, /* rx_err */
+						<RK_GPIO1 21 RK_FUNC_2 &pcfg_pull_none>, /* crs_dvalid */
+						<RK_GPIO1 22 RK_FUNC_2 &pcfg_pull_none>, /* rxd1 */
+						<RK_GPIO1 23 RK_FUNC_2 &pcfg_pull_none>; /* rxd0 */
+			};
+
+			emac_mdio: emac-mdio {
+				rockchip,pins = <RK_GPIO1 24 RK_FUNC_2 &pcfg_pull_none>, /* mac_md */
+						<RK_GPIO1 25 RK_FUNC_2 &pcfg_pull_none>; /* mac_mdclk */
+			};
+		};
+
 		emmc {
 			emmc_clk: emmc-clk {
 				rockchip,pins = <RK_GPIO3 31 RK_FUNC_2 &pcfg_pull_default>;
@@ -586,4 +604,8 @@
 
 &wdt {
 	compatible = "rockchip,rk3066-wdt", "snps,dw-wdt";
+};
+
+&emac {
+	compatible = "rockchip,rk3066-emac";
 };
