@@ -214,6 +214,15 @@ struct ieee802154_ops {
 						const bool on);
 };
 
+/**
+ * ieee802154_netdev_to_extended_addr - convert __be64 u8 pointer to __le64
+ * @dev_addr: big endian address pointer like netdevice dev_addr attribute
+ */
+static inline __le64 ieee802154_netdev_to_extended_addr(const u8 *dev_addr)
+{
+	return (__le64)swab64(*((__be64 *)dev_addr));
+}
+
 /* Basic interface to register ieee802154 hwice */
 struct ieee802154_hw *
 ieee802154_alloc_hw(size_t priv_data_len, const struct ieee802154_ops *ops);
