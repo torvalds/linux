@@ -167,6 +167,7 @@
 #define NoBigReal   ((u64)1 << 50)  /* No big real mode */
 #define PrivUD      ((u64)1 << 51)  /* #UD instead of #GP on CPL > 0 */
 #define NearBranch  ((u64)1 << 52)  /* Near branches */
+#define No16	    ((u64)1 << 53)  /* No 16 bit operand */
 
 #define DstXacc     (DstAccLo | SrcAccHi | SrcWrite)
 
@@ -4134,7 +4135,7 @@ static const struct opcode twobyte_table[256] = {
 	D(DstReg | SrcMem8 | ModRM | Mov), D(DstReg | SrcMem16 | ModRM | Mov),
 	/* 0xC0 - 0xC7 */
 	F2bv(DstMem | SrcReg | ModRM | SrcWrite | Lock, em_xadd),
-	N, D(DstMem | SrcReg | ModRM | Mov),
+	N, I(DstMem | SrcReg | ModRM | No16 | Mov, em_mov),
 	N, N, N, GD(0, &group9),
 	/* 0xC8 - 0xCF */
 	X8(I(DstReg, em_bswap)),
@@ -4571,7 +4572,8 @@ done_prefixes:
 		return EMULATION_FAILED;
 
 	if (unlikely(ctxt->d &
-	    (NotImpl|Stack|Op3264|Sse|Mmx|Intercept|CheckPerm|NearBranch))) {
+	    (NotImpl|Stack|Op3264|Sse|Mmx|Intercept|CheckPerm|NearBranch|
+	     No16))) {
 		/*
 		 * These are copied unconditionally here, and checked unconditionally
 		 * in x86_emulate_insn.
@@ -4595,6 +4597,9 @@ done_prefixes:
 			else
 				ctxt->op_bytes = 4;
 		}
+
+		if ((ctxt->d & No16) && ctxt->op_bytes == 2)
+			ctxt->op_bytes = 4;
 
 		if (ctxt->d & Sse)
 			ctxt->op_bytes = 16;
@@ -5060,11 +5065,6 @@ twobyte_insn:
 		ctxt->dst.bytes = ctxt->op_bytes;
 		ctxt->dst.val = (ctxt->src.bytes == 1) ? (s8) ctxt->src.val :
 							(s16) ctxt->src.val;
-		break;
-	case 0xc3:		/* movnti */
-		ctxt->dst.bytes = ctxt->op_bytes;
-		ctxt->dst.val = (ctxt->op_bytes == 8) ? (u64) ctxt->src.val :
-							(u32) ctxt->src.val;
 		break;
 	default:
 		goto cannot_emulate;
