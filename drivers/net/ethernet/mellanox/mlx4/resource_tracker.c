@@ -2872,6 +2872,23 @@ out_add:
 	return err;
 }
 
+int mlx4_CONFIG_DEV_wrapper(struct mlx4_dev *dev, int slave,
+			    struct mlx4_vhcr *vhcr,
+			    struct mlx4_cmd_mailbox *inbox,
+			    struct mlx4_cmd_mailbox *outbox,
+			    struct mlx4_cmd_info *cmd)
+{
+	int err;
+	u8 get = vhcr->op_modifier;
+
+	if (get != 1)
+		return -EPERM;
+
+	err = mlx4_DMA_wrapper(dev, slave, vhcr, inbox, outbox, cmd);
+
+	return err;
+}
+
 static int get_containing_mtt(struct mlx4_dev *dev, int slave, int start,
 			      int len, struct res_mtt **res)
 {
