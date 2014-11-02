@@ -2306,6 +2306,7 @@ static int em_syscall(struct x86_emulate_ctxt *ctxt)
 
 		ops->get_msr(ctxt, MSR_SYSCALL_MASK, &msr_data);
 		ctxt->eflags &= ~msr_data;
+		ctxt->eflags |= EFLG_RESERVED_ONE_MASK;
 #endif
 	} else {
 		/* legacy mode */
