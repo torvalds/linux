@@ -1457,6 +1457,10 @@ void kvm_lapic_set_base(struct kvm_vcpu *vcpu, u64 value)
 	apic->base_address = apic->vcpu->arch.apic_base &
 			     MSR_IA32_APICBASE_BASE;
 
+	if ((value & MSR_IA32_APICBASE_ENABLE) &&
+	     apic->base_address != APIC_DEFAULT_PHYS_BASE)
+		pr_warn_once("APIC base relocation is unsupported by KVM");
+
 	/* with FSB delivery interrupt, we can restart APIC functionality */
 	apic_debug("apic base msr is 0x%016" PRIx64 ", and base address is "
 		   "0x%lx.\n", apic->vcpu->arch.apic_base, apic->base_address);
