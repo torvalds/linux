@@ -2220,7 +2220,7 @@ static int mlx4_ACCESS_REG(struct mlx4_dev *dev, u16 reg_id,
 	memcpy(inbuf->reg_data, reg_data, reg_len);
 	err = mlx4_cmd_box(dev, inbox->dma, outbox->dma, 0, 0,
 			   MLX4_CMD_ACCESS_REG, MLX4_CMD_TIME_CLASS_C,
-			   MLX4_CMD_NATIVE);
+			   MLX4_CMD_WRAPPED);
 	if (err)
 		goto out;
 
@@ -2263,3 +2263,31 @@ int mlx4_ACCESS_PTYS_REG(struct mlx4_dev *dev,
 			       method, sizeof(*ptys_reg), ptys_reg);
 }
 EXPORT_SYMBOL_GPL(mlx4_ACCESS_PTYS_REG);
+
+int mlx4_ACCESS_REG_wrapper(struct mlx4_dev *dev, int slave,
+			    struct mlx4_vhcr *vhcr,
+			    struct mlx4_cmd_mailbox *inbox,
+			    struct mlx4_cmd_mailbox *outbox,
+			    struct mlx4_cmd_info *cmd)
+{
+	struct mlx4_access_reg *inbuf = inbox->buf;
+	u8 method = inbuf->method & MLX4_ACCESS_REG_METHOD_MASK;
+	u16 reg_id = be16_to_cpu(inbuf->reg_id);
+
+	if (slave != mlx4_master_func_num(dev) &&
+	    method == MLX4_ACCESS_REG_WRITE)
+		return -EPERM;
+
+	if (reg_id == MLX4_REG_ID_PTYS) {
+		struct mlx4_ptys_reg *ptys_reg =
+			(struct mlx4_ptys_reg *)inbuf->reg_data;
+
+		ptys_reg->local_port =
+			mlx4_slave_convert_port(dev, slave,
+						ptys_reg->local_port);
+	}
+
+	return mlx4_cmd_box(dev, inbox->dma, outbox->dma, vhcr->in_modifier,
+			    0, MLX4_CMD_ACCESS_REG, MLX4_CMD_TIME_CLASS_C,
+			    MLX4_CMD_NATIVE);
+}
