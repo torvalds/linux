@@ -365,8 +365,7 @@ static int build_snap_context(struct ceph_snap_realm *realm)
 	     realm->ino, realm, snapc, snapc->seq,
 	     (unsigned int) snapc->num_snaps);
 
-	if (realm->cached_context)
-		ceph_put_snap_context(realm->cached_context);
+	ceph_put_snap_context(realm->cached_context);
 	realm->cached_context = snapc;
 	return 0;
 
@@ -590,15 +589,13 @@ static void queue_realm_cap_snaps(struct ceph_snap_realm *realm)
 		if (!inode)
 			continue;
 		spin_unlock(&realm->inodes_with_caps_lock);
-		if (lastinode)
-			iput(lastinode);
+		iput(lastinode);
 		lastinode = inode;
 		ceph_queue_cap_snap(ci);
 		spin_lock(&realm->inodes_with_caps_lock);
 	}
 	spin_unlock(&realm->inodes_with_caps_lock);
-	if (lastinode)
-		iput(lastinode);
+	iput(lastinode);
 
 	list_for_each_entry(child, &realm->children, child_item) {
 		dout("queue_realm_cap_snaps %p %llx queue child %p %llx\n",

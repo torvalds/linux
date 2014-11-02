@@ -3405,8 +3405,7 @@ err_rq:
 	if (result)
 		rbd_warn(rbd_dev, "%s %llx at %llx result %d",
 			 obj_op_name(op_type), length, offset, result);
-	if (snapc)
-		ceph_put_snap_context(snapc);
+	ceph_put_snap_context(snapc);
 	blk_end_request_all(rq, result);
 }
 
