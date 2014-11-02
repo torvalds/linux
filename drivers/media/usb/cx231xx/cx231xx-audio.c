@@ -22,7 +22,6 @@
 
 #include "cx231xx.h"
 #include <linux/kernel.h>
-#include <linux/usb.h>
 #include <linux/init.h>
 #include <linux/sound.h>
 #include <linux/spinlock.h>
@@ -182,8 +181,9 @@ static void cx231xx_audio_isocirq(struct urb *urb)
 
 	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status < 0) {
-		pr_err("resubmit of audio urb failed (error=%i)\n",
-			       status);
+		dev_err(&dev->udev->dev,
+			"resubmit of audio urb failed (error=%i)\n",
+			status);
 	}
 	return;
 }
@@ -266,8 +266,9 @@ static void cx231xx_audio_bulkirq(struct urb *urb)
 
 	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status < 0) {
-		pr_err("resubmit of audio urb failed (error=%i)\n",
-			       status);
+		dev_err(&dev->udev->dev,
+			"resubmit of audio urb failed (error=%i)\n",
+			status);
 	}
 	return;
 }
@@ -277,7 +278,8 @@ static int cx231xx_init_audio_isoc(struct cx231xx *dev)
 	int i, errCode;
 	int sb_size;
 
-	pr_debug("%s: Starting ISO AUDIO transfers\n", __func__);
+	dev_dbg(&dev->udev->dev,
+		"%s: Starting ISO AUDIO transfers\n", __func__);
 
 	if (dev->state & DEV_DISCONNECTED)
 		return -ENODEV;
@@ -295,7 +297,7 @@ static int cx231xx_init_audio_isoc(struct cx231xx *dev)
 		memset(dev->adev.transfer_buffer[i], 0x80, sb_size);
 		urb = usb_alloc_urb(CX231XX_ISO_NUM_AUDIO_PACKETS, GFP_ATOMIC);
 		if (!urb) {
-			pr_err("usb_alloc_urb failed!\n");
+			dev_err(&dev->udev->dev, "usb_alloc_urb failed!\n");
 			for (j = 0; j < i; j++) {
 				usb_free_urb(dev->adev.urb[j]);
 				kfree(dev->adev.transfer_buffer[j]);
@@ -338,7 +340,8 @@ static int cx231xx_init_audio_bulk(struct cx231xx *dev)
 	int i, errCode;
 	int sb_size;
 
-	pr_debug("%s: Starting BULK AUDIO transfers\n", __func__);
+	dev_dbg(&dev->udev->dev,
+		"%s: Starting BULK AUDIO transfers\n", __func__);
 
 	if (dev->state & DEV_DISCONNECTED)
 		return -ENODEV;
@@ -356,7 +359,7 @@ static int cx231xx_init_audio_bulk(struct cx231xx *dev)
 		memset(dev->adev.transfer_buffer[i], 0x80, sb_size);
 		urb = usb_alloc_urb(CX231XX_NUM_AUDIO_PACKETS, GFP_ATOMIC);
 		if (!urb) {
-			pr_err("usb_alloc_urb failed!\n");
+			dev_err(&dev->udev->dev, "usb_alloc_urb failed!\n");
 			for (j = 0; j < i; j++) {
 				usb_free_urb(dev->adev.urb[j]);
 				kfree(dev->adev.transfer_buffer[j]);
@@ -439,12 +442,14 @@ static int snd_cx231xx_capture_open(struct snd_pcm_substream *substream)
 	dprintk("opening device and trying to acquire exclusive lock\n");
 
 	if (!dev) {
-		pr_err("BUG: cx231xx can't find device struct. Can't proceed with open\n");
+		dev_err(&dev->udev->dev,
+			"BUG: cx231xx can't find device struct. Can't proceed with open\n");
 		return -ENODEV;
 	}
 
 	if (dev->state & DEV_DISCONNECTED) {
-		pr_err("Can't open. the device was removed.\n");
+		dev_err(&dev->udev->dev,
+			"Can't open. the device was removed.\n");
 		return -ENODEV;
 	}
 
@@ -457,7 +462,8 @@ static int snd_cx231xx_capture_open(struct snd_pcm_substream *substream)
 		ret = cx231xx_set_alt_setting(dev, INDEX_AUDIO, 0);
 	mutex_unlock(&dev->lock);
 	if (ret < 0) {
-		pr_err("failed to set alternate setting !\n");
+		dev_err(&dev->udev->dev,
+			"failed to set alternate setting !\n");
 
 		return ret;
 	}
@@ -493,7 +499,8 @@ static int snd_cx231xx_pcm_close(struct snd_pcm_substream *substream)
 	/* 1 - 48000 samples per sec */
 	ret = cx231xx_set_alt_setting(dev, INDEX_AUDIO, 0);
 	if (ret < 0) {
-		pr_err("failed to set alternate setting !\n");
+		dev_err(&dev->udev->dev,
+			"failed to set alternate setting !\n");
 
 		mutex_unlock(&dev->lock);
 		return ret;
@@ -661,7 +668,8 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 		return 0;
 	}
 
-	pr_debug("probing for cx231xx non standard usbaudio\n");
+	dev_dbg(&dev->udev->dev,
+		"probing for cx231xx non standard usbaudio\n");
 
 	err = snd_card_new(&dev->udev->dev, index[devnr], "Cx231xx Audio",
 			   THIS_MODULE, 0, &card);
@@ -705,7 +713,8 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 			bEndpointAddress;
 
 	adev->num_alt = uif->num_altsetting;
-	pr_info("audio EndPoint Addr 0x%x, Alternate settings: %i\n",
+	dev_info(&dev->udev->dev,
+		"audio EndPoint Addr 0x%x, Alternate settings: %i\n",
 		adev->end_point_addr, adev->num_alt);
 	adev->alt_max_pkt_size = kmalloc(32 * adev->num_alt, GFP_KERNEL);
 
@@ -718,8 +727,9 @@ static int cx231xx_audio_init(struct cx231xx *dev)
 				wMaxPacketSize);
 		adev->alt_max_pkt_size[i] =
 		    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
-		pr_debug("audio alternate setting %i, max size= %i\n", i,
-			     adev->alt_max_pkt_size[i]);
+		dev_dbg(&dev->udev->dev,
+			"audio alternate setting %i, max size= %i\n", i,
+			adev->alt_max_pkt_size[i]);
 	}
 
 	return 0;

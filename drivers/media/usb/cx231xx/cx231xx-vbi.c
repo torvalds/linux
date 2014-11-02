@@ -25,7 +25,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/bitmap.h>
-#include <linux/usb.h>
 #include <linux/i2c.h>
 #include <linux/mm.h>
 #include <linux/mutex.h>
@@ -69,9 +68,11 @@ static inline void print_err_status(struct cx231xx *dev, int packet, int status)
 		break;
 	}
 	if (packet < 0) {
-		pr_err("URB status %d [%s].\n", status, errmsg);
+		dev_err(&dev->udev->dev,
+			"URB status %d [%s].\n", status, errmsg);
 	} else {
-		pr_err("URB packet %d, status %d [%s].\n",
+		dev_err(&dev->udev->dev,
+			"URB packet %d, status %d [%s].\n",
 			packet, status, errmsg);
 	}
 }
@@ -315,8 +316,8 @@ static void cx231xx_irq_vbi_callback(struct urb *urb)
 	case -ESHUTDOWN:
 		return;
 	default:		/* error */
-		pr_err("urb completition error %d.\n",
-			urb->status);
+		dev_err(&dev->udev->dev,
+			"urb completition error %d.\n",	urb->status);
 		break;
 	}
 
@@ -330,7 +331,7 @@ static void cx231xx_irq_vbi_callback(struct urb *urb)
 
 	urb->status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (urb->status) {
-		pr_err("urb resubmit failed (error=%i)\n",
+		dev_err(&dev->udev->dev, "urb resubmit failed (error=%i)\n",
 			urb->status);
 	}
 }
@@ -343,7 +344,7 @@ void cx231xx_uninit_vbi_isoc(struct cx231xx *dev)
 	struct urb *urb;
 	int i;
 
-	pr_debug("called cx231xx_uninit_vbi_isoc\n");
+	dev_dbg(&dev->udev->dev, "called cx231xx_uninit_vbi_isoc\n");
 
 	dev->vbi_mode.bulk_ctl.nfields = -1;
 	for (i = 0; i < dev->vbi_mode.bulk_ctl.num_bufs; i++) {
@@ -392,7 +393,7 @@ int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
 	struct urb *urb;
 	int rc;
 
-	pr_debug("called cx231xx_vbi_isoc\n");
+	dev_dbg(&dev->udev->dev, "called cx231xx_vbi_isoc\n");
 
 	/* De-allocates all pending stuff */
 	cx231xx_uninit_vbi_isoc(dev);
@@ -418,14 +419,16 @@ int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
 	dev->vbi_mode.bulk_ctl.urb = kzalloc(sizeof(void *) * num_bufs,
 					     GFP_KERNEL);
 	if (!dev->vbi_mode.bulk_ctl.urb) {
-		pr_err("cannot alloc memory for usb buffers\n");
+		dev_err(&dev->udev->dev,
+			"cannot alloc memory for usb buffers\n");
 		return -ENOMEM;
 	}
 
 	dev->vbi_mode.bulk_ctl.transfer_buffer =
 	    kzalloc(sizeof(void *) * num_bufs, GFP_KERNEL);
 	if (!dev->vbi_mode.bulk_ctl.transfer_buffer) {
-		pr_err("cannot allocate memory for usbtransfer\n");
+		dev_err(&dev->udev->dev,
+			"cannot allocate memory for usbtransfer\n");
 		kfree(dev->vbi_mode.bulk_ctl.urb);
 		return -ENOMEM;
 	}
@@ -440,7 +443,8 @@ int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
 
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
-			pr_err("cannot alloc bulk_ctl.urb %i\n", i);
+			dev_err(&dev->udev->dev,
+				"cannot alloc bulk_ctl.urb %i\n", i);
 			cx231xx_uninit_vbi_isoc(dev);
 			return -ENOMEM;
 		}
@@ -450,7 +454,8 @@ int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
 		dev->vbi_mode.bulk_ctl.transfer_buffer[i] =
 		    kzalloc(sb_size, GFP_KERNEL);
 		if (!dev->vbi_mode.bulk_ctl.transfer_buffer[i]) {
-			pr_err("unable to allocate %i bytes for transfer buffer %i%s\n",
+			dev_err(&dev->udev->dev,
+				"unable to allocate %i bytes for transfer buffer %i%s\n",
 				sb_size, i,
 				in_interrupt() ? " while in int" : "");
 			cx231xx_uninit_vbi_isoc(dev);
@@ -469,7 +474,8 @@ int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
 	for (i = 0; i < dev->vbi_mode.bulk_ctl.num_bufs; i++) {
 		rc = usb_submit_urb(dev->vbi_mode.bulk_ctl.urb[i], GFP_ATOMIC);
 		if (rc) {
-			pr_err("submit of urb %i failed (error=%i)\n", i, rc);
+			dev_err(&dev->udev->dev,
+				"submit of urb %i failed (error=%i)\n", i, rc);
 			cx231xx_uninit_vbi_isoc(dev);
 			return rc;
 		}
@@ -520,7 +526,7 @@ static inline void vbi_buffer_filled(struct cx231xx *dev,
 				     struct cx231xx_buffer *buf)
 {
 	/* Advice that buffer was filled */
-	/* pr_debug("[%p/%d] wakeup\n", buf, buf->vb.i); */
+	/* dev_dbg(&dev->udev->dev, "[%p/%d] wakeup\n", buf, buf->vb.i); */
 
 	buf->vb.state = VIDEOBUF_DONE;
 	buf->vb.field_count++;
@@ -612,7 +618,7 @@ static inline void get_next_vbi_buf(struct cx231xx_dmaqueue *dma_q,
 	char *outp;
 
 	if (list_empty(&dma_q->active)) {
-		pr_err("No active queue to serve\n");
+		dev_err(&dev->udev->dev, "No active queue to serve\n");
 		dev->vbi_mode.bulk_ctl.buf = NULL;
 		*buf = NULL;
 		return;

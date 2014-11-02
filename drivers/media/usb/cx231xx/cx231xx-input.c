@@ -19,7 +19,6 @@
  */
 
 #include "cx231xx.h"
-#include <linux/usb.h>
 #include <linux/slab.h>
 #include <linux/bitrev.h>
 

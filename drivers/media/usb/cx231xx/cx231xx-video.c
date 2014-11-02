@@ -28,7 +28,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/bitmap.h>
-#include <linux/usb.h>
 #include <linux/i2c.h>
 #include <linux/mm.h>
 #include <linux/mutex.h>
@@ -737,8 +736,9 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 		if (!dev->video_mode.bulk_ctl.num_bufs)
 			urb_init = 1;
 	}
-	/*pr_debug("urb_init=%d dev->video_mode.max_pkt_size=%d\n",
-		urb_init, dev->video_mode.max_pkt_size);*/
+	dev_dbg(&dev->udev->dev,
+		"urb_init=%d dev->video_mode.max_pkt_size=%d\n",
+		urb_init, dev->video_mode.max_pkt_size);
 	if (urb_init) {
 		dev->mode_tv = 0;
 		if (dev->USE_ISO)
@@ -809,7 +809,7 @@ void video_mux(struct cx231xx *dev, int index)
 
 	cx231xx_set_audio_input(dev, dev->ctl_ainput);
 
-	pr_debug("video_mux : %d\n", index);
+	dev_dbg(&dev->udev->dev, "video_mux : %d\n", index);
 
 	/* do mode control overrides if required */
 	cx231xx_do_mode_ctrl_overrides(dev);
@@ -861,7 +861,7 @@ static void res_free(struct cx231xx_fh *fh)
 static int check_dev(struct cx231xx *dev)
 {
 	if (dev->state & DEV_DISCONNECTED) {
-		pr_err("v4l2 ioctl: device not present\n");
+		dev_err(&dev->udev->dev, "v4l2 ioctl: device not present\n");
 		return -ENODEV;
 	}
 	return 0;
@@ -953,12 +953,13 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 		return -EINVAL;
 
 	if (videobuf_queue_is_busy(&fh->vb_vidq)) {
-		pr_err("%s: queue busy\n", __func__);
+		dev_err(&dev->udev->dev, "%s: queue busy\n", __func__);
 		return -EBUSY;
 	}
 
 	if (dev->stream_on && !fh->stream_on) {
-		pr_err("%s: device in use by another fh\n", __func__);
+		dev_err(&dev->udev->dev,
+			"%s: device in use by another fh\n", __func__);
 		return -EBUSY;
 	}
 
@@ -1176,8 +1177,9 @@ int cx231xx_s_frequency(struct file *file, void *priv,
 	int rc;
 	u32 if_frequency = 5400000;
 
-	pr_debug("Enter vidioc_s_frequency()f->frequency=%d;f->type=%d\n",
-		 f->frequency, f->type);
+	dev_dbg(&dev->udev->dev,
+		"Enter vidioc_s_frequency()f->frequency=%d;f->type=%d\n",
+		f->frequency, f->type);
 
 	rc = check_dev(dev);
 	if (rc < 0)
@@ -1212,13 +1214,14 @@ int cx231xx_s_frequency(struct file *file, void *priv,
 		else if (dev->norm & V4L2_STD_SECAM_LC)
 			if_frequency = 1250000;  /*1.25MHz	*/
 
-		pr_debug("if_frequency is set to %d\n", if_frequency);
+		dev_dbg(&dev->udev->dev,
+			"if_frequency is set to %d\n", if_frequency);
 		cx231xx_set_Colibri_For_LowIF(dev, if_frequency, 1, 1);
 
 		update_HH_register_after_set_DIF(dev);
 	}
 
-	pr_debug("Set New FREQUENCY to %d\n", f->frequency);
+	dev_dbg(&dev->udev->dev, "Set New FREQUENCY to %d\n", f->frequency);
 
 	return rc;
 }
@@ -1522,7 +1525,8 @@ static int vidioc_s_fmt_vbi_cap(struct file *file, void *priv,
 	struct cx231xx *dev = fh->dev;
 
 	if (dev->vbi_stream_on && !fh->stream_on) {
-		pr_err("%s device in use by another fh\n", __func__);
+		dev_err(&dev->udev->dev,
+			"%s device in use by another fh\n", __func__);
 		return -EBUSY;
 	}
 	return vidioc_try_fmt_vbi_cap(file, priv, f);
@@ -1641,16 +1645,15 @@ static int cx231xx_v4l2_open(struct file *filp)
 #if 0
 	errCode = cx231xx_set_mode(dev, CX231XX_ANALOG_MODE);
 	if (errCode < 0) {
-		pr_err("Device locked on digital mode. Can't open analog\n");
+		dev_err(&dev->udev->dev,
+			"Device locked on digital mode. Can't open analog\n");
 		return -EBUSY;
 	}
 #endif
 
 	fh = kzalloc(sizeof(struct cx231xx_fh), GFP_KERNEL);
-	if (!fh) {
-		pr_err("cx231xx-video.c: Out of memory?!\n");
+	if (!fh)
 		return -ENOMEM;
-	}
 	if (mutex_lock_interruptible(&dev->lock)) {
 		kfree(fh);
 		return -ERESTARTSYS;
@@ -1734,7 +1737,7 @@ void cx231xx_release_analog_resources(struct cx231xx *dev)
 		dev->radio_dev = NULL;
 	}
 	if (dev->vbi_dev) {
-		pr_info("V4L2 device %s deregistered\n",
+		dev_info(&dev->udev->dev, "V4L2 device %s deregistered\n",
 			video_device_node_name(dev->vbi_dev));
 		if (video_is_registered(dev->vbi_dev))
 			video_unregister_device(dev->vbi_dev);
@@ -1743,7 +1746,7 @@ void cx231xx_release_analog_resources(struct cx231xx *dev)
 		dev->vbi_dev = NULL;
 	}
 	if (dev->vdev) {
-		pr_info("V4L2 device %s deregistered\n",
+		dev_info(&dev->udev->dev, "V4L2 device %s deregistered\n",
 			video_device_node_name(dev->vdev));
 
 		if (dev->board.has_417)
@@ -2078,7 +2081,7 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 {
 	int ret;
 
-	pr_info("v4l2 driver version %s\n", CX231XX_VERSION);
+	dev_info(&dev->udev->dev, "v4l2 driver version %s\n", CX231XX_VERSION);
 
 	/* set default norm */
 	dev->norm = V4L2_STD_PAL;
@@ -2116,7 +2119,7 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 	/* allocate and fill video video_device struct */
 	dev->vdev = cx231xx_vdev_init(dev, &cx231xx_video_template, "video");
 	if (!dev->vdev) {
-		pr_err("cannot allocate video_device.\n");
+		dev_err(&dev->udev->dev, "cannot allocate video_device.\n");
 		return -ENODEV;
 	}
 
@@ -2125,12 +2128,13 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 	ret = video_register_device(dev->vdev, VFL_TYPE_GRABBER,
 				    video_nr[dev->devno]);
 	if (ret) {
-		pr_err("unable to register video device (error=%i).\n",
+		dev_err(&dev->udev->dev,
+			"unable to register video device (error=%i).\n",
 			ret);
 		return ret;
 	}
 
-	pr_info("Registered video device %s [v4l2]\n",
+	dev_info(&dev->udev->dev, "Registered video device %s [v4l2]\n",
 		video_device_node_name(dev->vdev));
 
 	/* Initialize VBI template */
@@ -2141,7 +2145,7 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 	dev->vbi_dev = cx231xx_vdev_init(dev, &cx231xx_vbi_template, "vbi");
 
 	if (!dev->vbi_dev) {
-		pr_err("cannot allocate video_device.\n");
+		dev_err(&dev->udev->dev, "cannot allocate video_device.\n");
 		return -ENODEV;
 	}
 	dev->vbi_dev->ctrl_handler = &dev->ctrl_handler;
@@ -2149,28 +2153,30 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 	ret = video_register_device(dev->vbi_dev, VFL_TYPE_VBI,
 				    vbi_nr[dev->devno]);
 	if (ret < 0) {
-		pr_err("unable to register vbi device\n");
+		dev_err(&dev->udev->dev, "unable to register vbi device\n");
 		return ret;
 	}
 
-	pr_info("Registered VBI device %s\n",
+	dev_info(&dev->udev->dev, "Registered VBI device %s\n",
 		video_device_node_name(dev->vbi_dev));
 
 	if (cx231xx_boards[dev->model].radio.type == CX231XX_RADIO) {
 		dev->radio_dev = cx231xx_vdev_init(dev, &cx231xx_radio_template,
 						   "radio");
 		if (!dev->radio_dev) {
-			pr_err("cannot allocate video_device.\n");
+			dev_err(&dev->udev->dev,
+				"cannot allocate video_device.\n");
 			return -ENODEV;
 		}
 		dev->radio_dev->ctrl_handler = &dev->radio_ctrl_handler;
 		ret = video_register_device(dev->radio_dev, VFL_TYPE_RADIO,
 					    radio_nr[dev->devno]);
 		if (ret < 0) {
-			pr_err("can't register radio device\n");
+			dev_err(&dev->udev->dev,
+				"can't register radio device\n");
 			return ret;
 		}
-		pr_info("Registered radio device as %s\n",
+		dev_info(&dev->udev->dev, "Registered radio device as %s\n",
 			video_device_node_name(dev->radio_dev));
 	}
 

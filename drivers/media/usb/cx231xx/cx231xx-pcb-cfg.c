@@ -703,8 +703,8 @@ int initialize_cx231xx(struct cx231xx *dev)
 			_current_scenario_idx = INDEX_BUSPOWER_DIF_ONLY;
 			break;
 		default:
-			pr_err("bad config in buspower!!!!\n");
-			pr_err("config_info=%x\n",
+			dev_err(&dev->udev->dev,
+				"bad config in buspower!!!!\nconfig_info=%x\n",
 				config_info & BUSPOWER_MASK);
 			return 1;
 		}
@@ -768,8 +768,8 @@ int initialize_cx231xx(struct cx231xx *dev)
 			_current_scenario_idx = INDEX_SELFPOWER_COMPRESSOR;
 			break;
 		default:
-			pr_err("bad senario!!!!!\n");
-			pr_err("config_info=%x\n",
+			dev_err(&dev->udev->dev,
+				"bad senario!!!!!\nconfig_info=%x\n",
 				config_info & SELFPOWER_MASK);
 			return -ENODEV;
 		}
@@ -781,18 +781,29 @@ int initialize_cx231xx(struct cx231xx *dev)
 		   sizeof(struct pcb_config));
 
 	if (pcb_debug) {
-		pr_info("SC(0x00) register = 0x%x\n", config_info);
-		pr_info("scenario %d\n",
-			    (dev->current_pcb_config.index) + 1);
-		pr_info("type=%x\n", dev->current_pcb_config.type);
-		pr_info("mode=%x\n", dev->current_pcb_config.mode);
-		pr_info("speed=%x\n", dev->current_pcb_config.speed);
-		pr_info("ts1_source=%x\n",
-			     dev->current_pcb_config.ts1_source);
-		pr_info("ts2_source=%x\n",
-			     dev->current_pcb_config.ts2_source);
-		pr_info("analog_source=%x\n",
-			     dev->current_pcb_config.analog_source);
+		dev_info(&dev->udev->dev,
+			 "SC(0x00) register = 0x%x\n", config_info);
+		dev_info(&dev->udev->dev,
+			 "scenario %d\n",
+			 (dev->current_pcb_config.index) + 1);
+		dev_info(&dev->udev->dev,
+			"type=%x\n",
+			 dev->current_pcb_config.type);
+		dev_info(&dev->udev->dev,
+			 "mode=%x\n",
+			 dev->current_pcb_config.mode);
+		dev_info(&dev->udev->dev,
+			 "speed=%x\n",
+			 dev->current_pcb_config.speed);
+		dev_info(&dev->udev->dev,
+			 "ts1_source=%x\n",
+			 dev->current_pcb_config.ts1_source);
+		dev_info(&dev->udev->dev,
+			 "ts2_source=%x\n",
+			 dev->current_pcb_config.ts2_source);
+		dev_info(&dev->udev->dev,
+			 "analog_source=%x\n",
+			 dev->current_pcb_config.analog_source);
 	}
 
 	return 0;
