@@ -59,8 +59,7 @@ mac802154_netdev_register(struct wpan_phy *phy, struct net_device *dev)
 	return 0;
 }
 
-static void
-mac802154_del_iface(struct wpan_phy *phy, struct net_device *dev)
+void mac802154_del_iface(struct wpan_phy *phy, struct net_device *dev)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 
@@ -76,7 +75,7 @@ mac802154_del_iface(struct wpan_phy *phy, struct net_device *dev)
 	unregister_netdevice(sdata->dev);
 }
 
-static struct net_device *
+struct net_device *
 mac802154_add_iface(struct wpan_phy *phy, const char *name, int type)
 {
 	struct net_device *dev;
@@ -220,9 +219,6 @@ int ieee802154_register_hw(struct ieee802154_hw *hw)
 	}
 
 	wpan_phy_set_dev(local->phy, local->hw.parent);
-
-	local->phy->add_iface = mac802154_add_iface;
-	local->phy->del_iface = mac802154_del_iface;
 
 	rc = wpan_phy_register(local->phy);
 	if (rc < 0)

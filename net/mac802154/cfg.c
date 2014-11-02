@@ -15,5 +15,22 @@
 
 #include <net/cfg802154.h>
 
+#include "ieee802154_i.h"
+
+static struct net_device *
+ieee802154_add_iface_deprecated(struct wpan_phy *wpan_phy,
+				const char *name, int type)
+{
+	return mac802154_add_iface(wpan_phy, name, type);
+}
+
+static void ieee802154_del_iface_deprecated(struct wpan_phy *wpan_phy,
+					    struct net_device *dev)
+{
+	mac802154_del_iface(wpan_phy, dev);
+}
+
 const struct cfg802154_ops mac802154_config_ops = {
+	.add_virtual_intf_deprecated = ieee802154_add_iface_deprecated,
+	.del_virtual_intf_deprecated = ieee802154_del_iface_deprecated,
 };

@@ -32,6 +32,11 @@
 struct wpan_phy;
 
 struct cfg802154_ops {
+	struct net_device * (*add_virtual_intf_deprecated)(struct wpan_phy *wpan_phy,
+							   const char *name,
+							   int type);
+	void (*del_virtual_intf_deprecated)(struct wpan_phy *wpan_phy,
+					    struct net_device *dev);
 };
 
 struct wpan_phy {
@@ -57,10 +62,6 @@ struct wpan_phy {
 
 	struct device dev;
 	int idx;
-
-	struct net_device *(*add_iface)(struct wpan_phy *phy,
-					const char *name, int type);
-	void (*del_iface)(struct wpan_phy *phy, struct net_device *dev);
 
 	char priv[0] __aligned(NETDEV_ALIGN);
 };
