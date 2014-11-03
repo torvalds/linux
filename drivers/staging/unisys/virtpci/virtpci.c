@@ -756,8 +756,8 @@ static int virtpci_device_resume(struct device *dev)
  * the appropriate slot within the vbus channel of the bus
  * instance.
  */
-static void fix_vbus_devInfo(struct device *dev, int devNo, int devType,
-			     struct virtpci_driver *virtpcidrv)
+static void fix_vbus_dev_info(struct device *dev, int devNo, int devType,
+			      struct virtpci_driver *virtpcidrv)
 {
 	struct device *vbus;
 	void *pChan;
@@ -843,8 +843,8 @@ static int virtpci_device_probe(struct device *dev)
 		 */
 		error = virtpcidrv->probe(virtpcidev, id);
 		if (!error) {
-			fix_vbus_devInfo(dev, virtpcidev->device_no,
-					 virtpcidev->device, virtpcidrv);
+			fix_vbus_dev_info(dev, virtpcidev->device_no,
+					  virtpcidev->device, virtpcidrv);
 			virtpcidev->mydriver = virtpcidrv;
 			POSTCODE_LINUX_2(VPCI_PROBE_EXIT_PC,
 					 POSTCODE_SEVERITY_INFO);
@@ -1177,9 +1177,9 @@ static int virtpci_device_serverup(struct device *parentbus,
 		* ever have a bus that contains NO devices, since we
 		* would never even get here in that case.
 		*/
-		fix_vbus_devInfo(&tmpvpcidev->generic_dev,
-				 tmpvpcidev->device_no,
-				 tmpvpcidev->device, vpcidriver);
+		fix_vbus_dev_info(&tmpvpcidev->generic_dev,
+				  tmpvpcidev->device_no,
+				  tmpvpcidev->device, vpcidriver);
 		rc = vpcidriver->resume(tmpvpcidev);
 	}
 
