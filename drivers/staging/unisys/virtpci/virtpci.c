@@ -149,7 +149,7 @@ static struct kobj_type virtpci_driver_kobj_type = {
 	.sysfs_ops = &virtpci_driver_sysfs_ops,
 };
 
-static struct virtpci_dev *VpcidevListHead;
+static struct virtpci_dev *vpcidev_list_head;
 static DEFINE_RWLOCK(VpcidevListLock);
 
 /* filled in with info about this driver, wrt it servicing client busses */
@@ -590,8 +590,8 @@ static void delete_all(void)
 
 	/* delete the entire vhba/vnic list in one shot */
 	write_lock_irqsave(&VpcidevListLock, flags);
-	tmpvpcidev = VpcidevListHead;
-	VpcidevListHead = NULL;
+	tmpvpcidev = vpcidev_list_head;
+	vpcidev_list_head = NULL;
 	write_unlock_irqrestore(&VpcidevListLock, flags);
 
 	/* delete one vhba/vnic at a time */
@@ -967,7 +967,7 @@ static int virtpci_device_add(struct device *parentbus, int devtype,
 	 * duplicate wwnn/macaddr first
 	 */
 	write_lock_irqsave(&VpcidevListLock, flags);
-	for (tmpvpcidev = VpcidevListHead; tmpvpcidev;
+	for (tmpvpcidev = vpcidev_list_head; tmpvpcidev;
 	     tmpvpcidev = tmpvpcidev->next) {
 		if (devtype == VIRTHBA_TYPE) {
 			if ((tmpvpcidev->scsi.wwnn.wwnn1 == scsi->wwnn.wwnn1) &&
@@ -996,14 +996,14 @@ static int virtpci_device_add(struct device *parentbus, int devtype,
 	}
 
 	/* add it at the head */
-	if (!VpcidevListHead) {
-		VpcidevListHead = virtpcidev;
+	if (!vpcidev_list_head) {
+		vpcidev_list_head = virtpcidev;
 	} else {
 		/* insert virtpcidev at the head of our linked list of
 		 * vpcidevs
 		 */
-		virtpcidev->next = VpcidevListHead;
-		VpcidevListHead = virtpcidev;
+		virtpcidev->next = vpcidev_list_head;
+		vpcidev_list_head = virtpcidev;
 	}
 
 	write_unlock_irqrestore(&VpcidevListLock, flags);
@@ -1041,14 +1041,14 @@ static int virtpci_device_add(struct device *parentbus, int devtype,
 					       CHANNELCLI_DETACHED, NULL);
 		/* remove virtpcidev, the one we just added, from the list */
 		write_lock_irqsave(&VpcidevListLock, flags);
-		for (tmpvpcidev = VpcidevListHead, prev = NULL;
+		for (tmpvpcidev = vpcidev_list_head, prev = NULL;
 		     tmpvpcidev;
 		     prev = tmpvpcidev, tmpvpcidev = tmpvpcidev->next) {
 			if (tmpvpcidev == virtpcidev) {
 				if (prev)
 					prev->next = tmpvpcidev->next;
 				else
-					VpcidevListHead = tmpvpcidev->next;
+					vpcidev_list_head = tmpvpcidev->next;
 				break;
 			}
 		}
@@ -1086,7 +1086,7 @@ static int virtpci_device_serverdown(struct device *parentbus,
 	/* find the vhba or vnic in virtpci device list */
 	write_lock_irqsave(&VpcidevListLock, flags);
 
-	for (tmpvpcidev = VpcidevListHead, prevvpcidev = NULL;
+	for (tmpvpcidev = vpcidev_list_head, prevvpcidev = NULL;
 	     (tmpvpcidev && !found);
 	     prevvpcidev = tmpvpcidev, tmpvpcidev = tmpvpcidev->next) {
 		if (tmpvpcidev->devtype != devtype)
@@ -1145,7 +1145,7 @@ static int virtpci_device_serverup(struct device *parentbus,
 	/* find the vhba or vnic in virtpci device list */
 	write_lock_irqsave(&VpcidevListLock, flags);
 
-	for (tmpvpcidev = VpcidevListHead, prevvpcidev = NULL;
+	for (tmpvpcidev = vpcidev_list_head, prevvpcidev = NULL;
 	     (tmpvpcidev && !found);
 	     prevvpcidev = tmpvpcidev, tmpvpcidev = tmpvpcidev->next) {
 		if (tmpvpcidev->devtype != devtype)
@@ -1224,7 +1224,7 @@ static int virtpci_device_del(struct device *parentbus,
 	* encounter "schedule while atomic"
 	*/
 	write_lock_irqsave(&VpcidevListLock, flags);
-	for (tmpvpcidev = VpcidevListHead, prevvpcidev = NULL; tmpvpcidev;) {
+	for (tmpvpcidev = vpcidev_list_head, prevvpcidev = NULL; tmpvpcidev;) {
 		if (tmpvpcidev->devtype != devtype)
 			DEL_CONTINUE;
 
@@ -1258,7 +1258,7 @@ static int virtpci_device_del(struct device *parentbus,
 			/* not at head */
 			prevvpcidev->next = tmpvpcidev->next;
 		else
-			VpcidevListHead = tmpvpcidev->next;
+			vpcidev_list_head = tmpvpcidev->next;
 
 		/* add it to our deletelist */
 		tmpvpcidev->next = dellist;
@@ -1273,7 +1273,7 @@ static int virtpci_device_del(struct device *parentbus,
 		if (prevvpcidev)
 			tmpvpcidev = prevvpcidev->next;
 		else
-			tmpvpcidev = VpcidevListHead;
+			tmpvpcidev = vpcidev_list_head;
 	}
 	write_unlock_irqrestore(&VpcidevListLock, flags);
 
@@ -1457,7 +1457,7 @@ static ssize_t info_debugfs_read(struct file *file, char __user *buf,
 	str_pos += scnprintf(vbuf + str_pos, len - str_pos,
 			"\n Virtual PCI devices\n");
 	read_lock_irqsave(&VpcidevListLock, flags);
-	tmpvpcidev = VpcidevListHead;
+	tmpvpcidev = vpcidev_list_head;
 	while (tmpvpcidev) {
 		if (tmpvpcidev->devtype == VIRTHBA_TYPE) {
 			str_pos += scnprintf(vbuf + str_pos, len - str_pos,
