@@ -579,6 +579,7 @@ enum nft_exthdr_attributes {
  * @NFT_META_CPU: cpu id through smp_processor_id()
  * @NFT_META_IIFGROUP: packet input interface group
  * @NFT_META_OIFGROUP: packet output interface group
+ * @NFT_META_CGROUP: socket control group (skb->sk->sk_classid)
  */
 enum nft_meta_keys {
 	NFT_META_LEN,
@@ -604,6 +605,7 @@ enum nft_meta_keys {
 	NFT_META_CPU,
 	NFT_META_IIFGROUP,
 	NFT_META_OIFGROUP,
+	NFT_META_CGROUP,
 };
 
 /**
