@@ -186,8 +186,8 @@ int WAIT_FOR_IO_CHANNEL(struct spar_io_channel_protocol __iomem  *chanptr)
 }
 
 /* Write the contents of <info> to the ULTRA_VBUS_CHANNEL_PROTOCOL.ChpInfo. */
-static int write_vbus_chpInfo(struct spar_vbus_channel_protocol *chan,
-			      struct ultra_vbus_deviceinfo *info)
+static int write_vbus_chp_info(struct spar_vbus_channel_protocol *chan,
+			       struct ultra_vbus_deviceinfo *info)
 {
 	int off;
 
@@ -279,8 +279,8 @@ static int add_vbus(struct add_vbus_guestpart *addparams)
 		POSTCODE_LINUX_2(VPCI_CREATE_FAILURE_PC, POSTCODE_SEVERITY_ERR);
 		return 0;
 	}
-	write_vbus_chpInfo(vbus->platform_data /* chanptr */ ,
-			   &chipset_driver_info);
+	write_vbus_chp_info(vbus->platform_data /* chanptr */ ,
+			    &chipset_driver_info);
 	write_vbus_busInfo(vbus->platform_data /* chanptr */ ,
 			   &bus_driver_info);
 	LOGINF("Added vbus %d; device %s created successfully\n",
@@ -802,7 +802,7 @@ static void fix_vbus_devInfo(struct device *dev, int devNo, int devType,
 	/* Re-write bus+chipset info, because it is possible that this
 	* was previously written by our good counterpart, visorbus.
 	*/
-	write_vbus_chpInfo(pChan, &chipset_driver_info);
+	write_vbus_chp_info(pChan, &chipset_driver_info);
 	write_vbus_busInfo(pChan, &bus_driver_info);
 }
 
