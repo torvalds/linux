@@ -105,6 +105,22 @@
 			0x98 (PIN_INPUT_PULLUP | MUX_MODE1) /* gpmc_a22.mmc2_dat7 */
 		>;
 	};
+
+	dcan1_pins_default: dcan1_pins_default {
+		pinctrl-single,pins = <
+			0x3d0   (PIN_OUTPUT | MUX_MODE0) /* dcan1_tx */
+			0x3d4   (MUX_MODE15)		/* dcan1_rx.off */
+			0x418   (PULL_DIS | MUX_MODE1) /* wakeup0.dcan1_rx */
+		>;
+	};
+
+	dcan1_pins_sleep: dcan1_pins_sleep {
+		pinctrl-single,pins = <
+			0x3d0   (MUX_MODE15)	/* dcan1_tx.off */
+			0x3d4   (MUX_MODE15)	/* dcan1_rx.off */
+			0x418   (MUX_MODE15)	/* wakeup0.off */
+		>;
+	};
 };
 
 &i2c1 {
@@ -437,4 +453,11 @@
 	pinctrl-0 = <&davinci_mdio_default>;
 	pinctrl-1 = <&davinci_mdio_sleep>;
 	active_slave = <1>;
+};
+
+&dcan1 {
+	status = "ok";
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&dcan1_pins_default>;
+	pinctrl-1 = <&dcan1_pins_sleep>;
 };
