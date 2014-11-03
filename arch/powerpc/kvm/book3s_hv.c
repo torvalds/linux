@@ -1828,9 +1828,29 @@ static void kvmppc_wait_for_exec(struct kvm_vcpu *vcpu, int wait_state)
  */
 static void kvmppc_vcore_blocked(struct kvmppc_vcore *vc)
 {
+	struct kvm_vcpu *vcpu;
+	int do_sleep = 1;
+
 	DEFINE_WAIT(wait);
 
 	prepare_to_wait(&vc->wq, &wait, TASK_INTERRUPTIBLE);
+
+	/*
+	 * Check one last time for pending exceptions and ceded state after
+	 * we put ourselves on the wait queue
+	 */
+	list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list) {
+		if (vcpu->arch.pending_exceptions || !vcpu->arch.ceded) {
+			do_sleep = 0;
+			break;
+		}
+	}
+
+	if (!do_sleep) {
+		finish_wait(&vc->wq, &wait);
+		return;
+	}
+
 	vc->vcore_state = VCORE_SLEEPING;
 	spin_unlock(&vc->lock);
 	schedule();
