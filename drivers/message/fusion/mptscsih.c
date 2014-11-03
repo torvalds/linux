@@ -2322,7 +2322,6 @@ mptscsih_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
 	VirtTarget 		*vtarget;
 	struct scsi_target 	*starget;
 	int			max_depth;
-	int			tagged;
 	MPT_ADAPTER		*ioc = hd->ioc;
 
 	starget = scsi_target(sdev);
@@ -2347,12 +2346,8 @@ mptscsih_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
 
 	if (qdepth > max_depth)
 		qdepth = max_depth;
-	if (qdepth == 1)
-		tagged = 0;
-	else
-		tagged = MSG_SIMPLE_TAG;
 
-	scsi_adjust_queue_depth(sdev, tagged, qdepth);
+	scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
 	return sdev->queue_depth;
 }
 
