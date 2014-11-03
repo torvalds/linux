@@ -1108,7 +1108,7 @@ static int fimd_probe(struct platform_device *pdev)
 	struct fimd_context *ctx;
 	struct device_node *i80_if_timings;
 	struct resource *res;
-	int ret = -EINVAL;
+	int ret;
 
 	if (!dev->of_node)
 		return -ENODEV;
