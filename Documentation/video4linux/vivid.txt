@@ -221,12 +221,11 @@ ccs_out_mode: specify the allowed video output crop/compose/scaling combination
 		       key, not quality.
 
 multiplanar: select whether each device instance supports multi-planar formats,
-	and thus the V4L2 multi-planar API. By default the first device instance
-	is single-planar, the second multi-planar, and it keeps alternating.
+	and thus the V4L2 multi-planar API. By default device instances are
+	single-planar.
 
 	This module option can override that for each instance. Values are:
 
-		0: use alternating single and multi-planar devices.
 		1: this is a single-planar instance.
 		2: this is a multi-planar instance.
 
@@ -975,9 +974,8 @@ is set, then the alpha component is only used for the color red and set to
 0 otherwise.
 
 The driver has to be configured to support the multiplanar formats. By default
-the first driver instance is single-planar, the second is multi-planar, and it
-keeps alternating. This can be changed by setting the multiplanar module option,
-see section 1 for more details on that option.
+the driver instances are single-planar. This can be changed by setting the
+multiplanar module option, see section 1 for more details on that option.
 
 If the driver instance is using the multiplanar formats/API, then the first
 single planar format (YUYV) and the multiplanar NV16M and NV61M formats the
@@ -1021,7 +1019,7 @@ the output overlay for the video output, turn on video looping and capture
 to see the blended framebuffer overlay that's being written to by the second
 instance. This setup would require the following commands:
 
-	$ sudo modprobe vivid n_devs=2 node_types=0x10101,0x1 multiplanar=1,1
+	$ sudo modprobe vivid n_devs=2 node_types=0x10101,0x1
 	$ v4l2-ctl -d1 --find-fb
 	/dev/fb1 is the framebuffer associated with base address 0x12800000
 	$ sudo v4l2-ctl -d2 --set-fbuf fb=1

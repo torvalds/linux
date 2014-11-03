@@ -100,11 +100,9 @@ MODULE_PARM_DESC(ccs_out_mode, " output crop/compose/scale mode:\n"
 			   "\t\t    bit 0=crop, 1=compose, 2=scale,\n"
 			   "\t\t    -1=user-controlled (default)");
 
-static unsigned multiplanar[VIVID_MAX_DEVS];
+static unsigned multiplanar[VIVID_MAX_DEVS] = { [0 ... (VIVID_MAX_DEVS - 1)] = 1 };
 module_param_array(multiplanar, uint, NULL, 0444);
-MODULE_PARM_DESC(multiplanar, " 0 (default) is alternating single and multiplanar devices,\n"
-			      "\t\t    1 is single planar devices,\n"
-			      "\t\t    2 is multiplanar devices");
+MODULE_PARM_DESC(multiplanar, " 1 (default) creates a single planar device, 2 creates a multiplanar device.");
 
 /* Default: video + vbi-cap (raw and sliced) + radio rx + radio tx + sdr + vbi-out + vid-out */
 static unsigned node_types[VIVID_MAX_DEVS] = { [0 ... (VIVID_MAX_DEVS - 1)] = 0x1d3d };
@@ -669,10 +667,7 @@ static int __init vivid_create_instance(int inst)
 	/* start detecting feature set */
 
 	/* do we use single- or multi-planar? */
-	if (multiplanar[inst] == 0)
-		dev->multiplanar = inst & 1;
-	else
-		dev->multiplanar = multiplanar[inst] > 1;
+	dev->multiplanar = multiplanar[inst] > 1;
 	v4l2_info(&dev->v4l2_dev, "using %splanar format API\n",
 			dev->multiplanar ? "multi" : "single ");
 
