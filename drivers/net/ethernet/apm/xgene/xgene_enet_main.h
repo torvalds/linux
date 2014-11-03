@@ -83,7 +83,7 @@ struct xgene_mac_ops {
 };
 
 struct xgene_port_ops {
-	void (*reset)(struct xgene_enet_pdata *pdata);
+	int (*reset)(struct xgene_enet_pdata *pdata);
 	void (*cle_bypass)(struct xgene_enet_pdata *pdata,
 			   u32 dst_ring_num, u16 bufpool_id);
 	void (*shutdown)(struct xgene_enet_pdata *pdata);

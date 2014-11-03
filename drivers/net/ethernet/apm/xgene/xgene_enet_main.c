@@ -852,7 +852,9 @@ static int xgene_enet_init_hw(struct xgene_enet_pdata *pdata)
 	u16 dst_ring_num;
 	int ret;
 
-	pdata->port_ops->reset(pdata);
+	ret = pdata->port_ops->reset(pdata);
+	if (ret)
+		return ret;
 
 	ret = xgene_enet_create_desc_rings(ndev);
 	if (ret) {
@@ -954,6 +956,7 @@ static int xgene_enet_probe(struct platform_device *pdev)
 
 	return ret;
 err:
+	unregister_netdev(ndev);
 	free_netdev(ndev);
 	return ret;
 }
