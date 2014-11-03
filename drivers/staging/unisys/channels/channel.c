@@ -51,7 +51,7 @@ unsigned char spar_signal_insert(struct channel_header __iomem *ch, u32 queue,
 
 	struct signal_queue_header __iomem *pqhdr =
 	    (struct signal_queue_header __iomem *)
-		((char __iomem *) ch + readq(&ch->ch_space_offset))
+		((char __iomem *)ch + readq(&ch->ch_space_offset))
 		+ queue;
 
 	/* capture current head and tail */
@@ -107,7 +107,7 @@ spar_signal_remove(struct channel_header __iomem *ch, u32 queue, void *sig)
 	void __iomem *psource;
 	unsigned int head, tail;
 	struct signal_queue_header __iomem *pqhdr =
-	    (struct signal_queue_header __iomem *) ((char __iomem *) ch +
+	    (struct signal_queue_header __iomem *)((char __iomem *)ch +
 				    readq(&ch->ch_space_offset)) + queue;
 
 	/* capture current head and tail */
@@ -124,7 +124,7 @@ spar_signal_remove(struct channel_header __iomem *ch, u32 queue, void *sig)
 	tail = (tail + 1) % readl(&pqhdr->max_slots);
 
 	/* copy signal from tail location to the area pointed to by pSignal */
-	psource = (char __iomem *) pqhdr + readq(&pqhdr->sig_base_offset) +
+	psource = (char __iomem *)pqhdr + readq(&pqhdr->sig_base_offset) +
 		(tail * readl(&pqhdr->signal_size));
 	memcpy_fromio(sig, psource, readl(&pqhdr->signal_size));
 
@@ -162,7 +162,7 @@ unsigned int spar_signal_remove_all(struct channel_header *ch, u32 queue,
 	void *psource;
 	unsigned int head, tail, count = 0;
 	struct signal_queue_header *pqhdr =
-	    (struct signal_queue_header *) ((char *) ch +
+	    (struct signal_queue_header *)((char *)ch +
 				    ch->ch_space_offset) + queue;
 
 	/* capture current head and tail */
@@ -181,9 +181,9 @@ unsigned int spar_signal_remove_all(struct channel_header *ch, u32 queue,
 		 * to by pSignal
 		 */
 		psource =
-		    (char *) pqhdr + pqhdr->sig_base_offset +
+		    (char *)pqhdr + pqhdr->sig_base_offset +
 		    (tail * pqhdr->signal_size);
-		memcpy((char *) sig + (pqhdr->signal_size * count),
+		memcpy((char *)sig + (pqhdr->signal_size * count),
 		       psource, pqhdr->signal_size);
 
 		mb(); /* channel synch */
@@ -211,7 +211,7 @@ unsigned char spar_signalqueue_empty(struct channel_header __iomem *ch,
 				     u32 queue)
 {
 	struct signal_queue_header __iomem *pqhdr =
-	    (struct signal_queue_header __iomem *) ((char __iomem *) ch +
+	    (struct signal_queue_header __iomem *)((char __iomem *)ch +
 				    readq(&ch->ch_space_offset)) + queue;
 	return readl(&pqhdr->head) == readl(&pqhdr->tail);
 }
