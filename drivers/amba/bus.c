@@ -336,7 +336,7 @@ int amba_device_add(struct amba_device *dev, struct resource *parent)
 
 		amba_put_disable_pclk(dev);
 
-		if (cid == AMBA_CID)
+		if (cid == AMBA_CID || cid == CORESIGHT_CID)
 			dev->periphid = pid;
 
 		if (!dev->periphid)
