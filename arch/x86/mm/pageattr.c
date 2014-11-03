@@ -1307,7 +1307,7 @@ static int __change_page_attr_set_clr(struct cpa_data *cpa, int checkalias)
 static inline int cache_attr(pgprot_t attr)
 {
 	return pgprot_val(attr) &
-		(_PAGE_PAT | _PAGE_PAT_LARGE | _PAGE_PWT | _PAGE_PCD);
+		(_PAGE_PAT | _PAGE_PWT | _PAGE_PCD);
 }
 
 static int change_page_attr_set_clr(unsigned long *addr, int numpages,
