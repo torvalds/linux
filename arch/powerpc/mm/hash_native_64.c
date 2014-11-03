@@ -294,8 +294,6 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 	DBG_LOW("    update(vpn=%016lx, avpnv=%016lx, group=%lx, newpp=%lx)",
 		vpn, want_v & HPTE_V_AVPN, slot, newpp);
 
-	native_lock_hpte(hptep);
-
 	hpte_v = be64_to_cpu(hptep->v);
 	/*
 	 * We need to invalidate the TLB always because hpte_remove doesn't do
@@ -308,16 +306,24 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 		DBG_LOW(" -> miss\n");
 		ret = -1;
 	} else {
-		DBG_LOW(" -> hit\n");
-		/* Update the HPTE */
-		hptep->r = cpu_to_be64((be64_to_cpu(hptep->r) & ~(HPTE_R_PP | HPTE_R_N)) |
-			(newpp & (HPTE_R_PP | HPTE_R_N | HPTE_R_C)));
+		native_lock_hpte(hptep);
+		/* recheck with locks held */
+		hpte_v = be64_to_cpu(hptep->v);
+		if (unlikely(!HPTE_V_COMPARE(hpte_v, want_v) ||
+			     !(hpte_v & HPTE_V_VALID))) {
+			ret = -1;
+		} else {
+			DBG_LOW(" -> hit\n");
+			/* Update the HPTE */
+			hptep->r = cpu_to_be64((be64_to_cpu(hptep->r) &
+						~(HPTE_R_PP | HPTE_R_N)) |
+					       (newpp & (HPTE_R_PP | HPTE_R_N |
+							 HPTE_R_C)));
+		}
+		native_unlock_hpte(hptep);
 	}
-	native_unlock_hpte(hptep);
-
 	/* Ensure it is out of the tlb too. */
 	tlbie(vpn, bpsize, apsize, ssize, local);
-
 	return ret;
 }
 
