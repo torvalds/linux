@@ -73,7 +73,7 @@ struct max77802_regulator_prv {
 	unsigned int opmode[MAX77802_REG_MAX];
 };
 
-static inline int max77802_map_mode(int mode)
+static inline unsigned int max77802_map_mode(unsigned int mode)
 {
 	return mode == MAX77802_OPMODE_NORMAL ?
 		REGULATOR_MODE_NORMAL : REGULATOR_MODE_STANDBY;
