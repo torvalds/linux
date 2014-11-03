@@ -731,5 +731,14 @@ config CORESIGHT_LINK_AND_SINK_TMC
 	  - ETR) or sink (embedded trace FIFO).  The driver complies with the
 	  generic implementation of the component without special enhancement or
 	  added features.
+
+config CORESIGHT_SINK_TPIU
+	bool "Coresight generic TPIU driver"
+	depends on CORESIGHT_LINKS_AND_SINKS
+	help
+	  This enables support for the Trace Port Interface Unit driver, responsible
+	  for bridging the gap between the on-chip coresight components and a trace
+	  port collection engine, typically connected to an external host for use
+	  case capturing more traces than the on-board coresight memory can handle.
 endif
 endmenu
