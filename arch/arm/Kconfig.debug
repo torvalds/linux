@@ -712,4 +712,24 @@ menuconfig CORESIGHT
 	  a topological view of the CoreSight components based on a DT
 	  specification and configure the right serie of components when a
 	  trace source gets enabled.
+
+if CORESIGHT
+config CORESIGHT_LINKS_AND_SINKS
+	bool "CoreSight Link and Sink drivers"
+	help
+	  This enables support for CoreSight link and sink drivers that are
+	  responsible for transporting and collecting the trace data
+	  respectively.  Link and sinks are dynamically aggregated with a trace
+	  entity at run time to form a complete trace path.
+
+config CORESIGHT_LINK_AND_SINK_TMC
+	bool "Coresight generic TMC driver"
+	depends on CORESIGHT_LINKS_AND_SINKS
+	help
+	  This enables support for the Trace Memory Controller driver.  Depending
+	  on its configuration the device can act as a link (embedded trace router
+	  - ETR) or sink (embedded trace FIFO).  The driver complies with the
+	  generic implementation of the component without special enhancement or
+	  added features.
+endif
 endmenu
