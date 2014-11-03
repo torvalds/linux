@@ -597,6 +597,7 @@ struct cx231xx {
 	char name[30];		/* name (including minor) of the device */
 	int model;		/* index in the device_data struct */
 	int devno;		/* marks the number of this device */
+	struct device *dev;	/* pointer to USB interface's dev */
 
 	struct cx231xx_board board;
 

@@ -855,7 +855,7 @@ int cx231xx_tuner_callback(void *ptr, int component, int command, int arg)
 
 	if (dev->tuner_type == TUNER_XC5000) {
 		if (command == XC5000_TUNER_RESET) {
-			dev_dbg(&dev->udev->dev,
+			dev_dbg(dev->dev,
 				"Tuner CB: RESET: cmd %d : tuner type %d\n",
 				command, dev->tuner_type);
 			cx231xx_set_gpio_value(dev, dev->board.tuner_gpio->bit,
@@ -915,7 +915,7 @@ void cx231xx_pre_card_setup(struct cx231xx *dev)
 
 	cx231xx_set_model(dev);
 
-	dev_info(&dev->udev->dev, "Identified as %s (card=%d)\n",
+	dev_info(dev->dev, "Identified as %s (card=%d)\n",
 		dev->board.name, dev->model);
 
 	/* set the direction for GPIO pins */
@@ -989,7 +989,7 @@ static int read_eeprom(struct cx231xx *dev, struct i2c_client *client,
 	/* start reading at offset 0 */
 	ret = i2c_transfer(client->adapter, &msg_write, 1);
 	if (ret < 0) {
-		dev_err(&dev->udev->dev, "Can't read eeprom\n");
+		dev_err(dev->dev, "Can't read eeprom\n");
 		return ret;
 	}
 
@@ -999,7 +999,7 @@ static int read_eeprom(struct cx231xx *dev, struct i2c_client *client,
 
 		ret = i2c_transfer(client->adapter, &msg_read, 1);
 		if (ret < 0) {
-			dev_err(&dev->udev->dev, "Can't read eeprom\n");
+			dev_err(dev->dev, "Can't read eeprom\n");
 			return ret;
 		}
 		eedata_cur += msg_read.len;
@@ -1007,7 +1007,7 @@ static int read_eeprom(struct cx231xx *dev, struct i2c_client *client,
 	}
 
 	for (i = 0; i + 15 < len; i += 16)
-		dev_dbg(&dev->udev->dev, "i2c eeprom %02x: %*ph\n",
+		dev_dbg(dev->dev, "i2c eeprom %02x: %*ph\n",
 			i, 16, &eedata[i]);
 
 	return 0;
@@ -1028,7 +1028,7 @@ void cx231xx_card_setup(struct cx231xx *dev)
 					cx231xx_get_i2c_adap(dev, I2C_0),
 					"cx25840", 0x88 >> 1, NULL);
 		if (dev->sd_cx25840 == NULL)
-			dev_err(&dev->udev->dev,
+			dev_err(dev->dev,
 				"cx25840 subdev registration failure\n");
 		cx25840_call(dev, core, load_fw);
 
@@ -1043,7 +1043,7 @@ void cx231xx_card_setup(struct cx231xx *dev)
 						    "tuner",
 						    dev->tuner_addr, NULL);
 		if (dev->sd_tuner == NULL)
-			dev_err(&dev->udev->dev,
+			dev_err(dev->dev,
 				"tuner subdev registration failure\n");
 		else
 			cx231xx_config_tuner(dev);
@@ -1150,7 +1150,7 @@ static int cx231xx_init_dev(struct cx231xx *dev, struct usb_device *udev,
 	/* Query cx231xx to find what pcb config it is related to */
 	retval = initialize_cx231xx(dev);
 	if (retval < 0) {
-		dev_err(&udev->dev, "Failed to read PCB config\n");
+		dev_err(dev->dev, "Failed to read PCB config\n");
 		return retval;
 	}
 
@@ -1166,7 +1166,7 @@ static int cx231xx_init_dev(struct cx231xx *dev, struct usb_device *udev,
 
 	retval = cx231xx_config(dev);
 	if (retval) {
-		dev_err(&udev->dev, "error configuring device\n");
+		dev_err(dev->dev, "error configuring device\n");
 		return -ENOMEM;
 	}
 
@@ -1176,7 +1176,7 @@ static int cx231xx_init_dev(struct cx231xx *dev, struct usb_device *udev,
 	/* register i2c bus */
 	retval = cx231xx_dev_init(dev);
 	if (retval) {
-		dev_err(&udev->dev,
+		dev_err(dev->dev,
 			"%s: cx231xx_i2c_register - errCode [%d]!\n",
 			__func__, retval);
 		goto err_dev_init;
@@ -1199,8 +1199,8 @@ static int cx231xx_init_dev(struct cx231xx *dev, struct usb_device *udev,
 
 	retval = cx231xx_config(dev);
 	if (retval) {
-		dev_err(&udev->dev, "%s: cx231xx_config - errCode [%d]!\n",
-			       __func__, retval);
+		dev_err(dev->dev, "%s: cx231xx_config - errCode [%d]!\n",
+			__func__, retval);
 		goto err_dev_init;
 	}
 
@@ -1216,9 +1216,9 @@ static int cx231xx_init_dev(struct cx231xx *dev, struct usb_device *udev,
 	cx231xx_add_into_devlist(dev);
 
 	if (dev->board.has_417) {
-		dev_info(&udev->dev, "attach 417 %d\n", dev->model);
+		dev_info(dev->dev, "attach 417 %d\n", dev->model);
 		if (cx231xx_417_register(dev) < 0) {
-			dev_err(&udev->dev,
+			dev_err(dev->dev,
 				"%s() Failed to register 417 on VID_B\n",
 				__func__);
 		}
@@ -1284,7 +1284,7 @@ static int cx231xx_init_v4l2(struct cx231xx *dev,
 	/* compute alternate max packet sizes for video */
 	idx = dev->current_pcb_config.hs_config_info[0].interface_info.video_index + 1;
 	if (idx >= dev->max_iad_interface_count) {
-		dev_err(&dev->udev->dev,
+		dev_err(dev->dev,
 			"Video PCB interface #%d doesn't exist\n", idx);
 		return -ENODEV;
 	}
@@ -1294,7 +1294,7 @@ static int cx231xx_init_v4l2(struct cx231xx *dev,
 	dev->video_mode.end_point_addr = uif->altsetting[0].endpoint[isoc_pipe].desc.bEndpointAddress;
 	dev->video_mode.num_alt = uif->num_altsetting;
 
-	dev_info(&dev->udev->dev,
+	dev_info(dev->dev,
 		 "video EndPoint Addr 0x%x, Alternate settings: %i\n",
 		 dev->video_mode.end_point_addr,
 		 dev->video_mode.num_alt);
@@ -1306,7 +1306,7 @@ static int cx231xx_init_v4l2(struct cx231xx *dev,
 	for (i = 0; i < dev->video_mode.num_alt; i++) {
 		u16 tmp = le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].desc.wMaxPacketSize);
 		dev->video_mode.alt_max_pkt_size[i] = (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
-		dev_dbg(&dev->udev->dev,
+		dev_dbg(dev->dev,
 			"Alternate setting %i, max size= %i\n", i,
 			dev->video_mode.alt_max_pkt_size[i]);
 	}
@@ -1315,7 +1315,7 @@ static int cx231xx_init_v4l2(struct cx231xx *dev,
 
 	idx = dev->current_pcb_config.hs_config_info[0].interface_info.vanc_index + 1;
 	if (idx >= dev->max_iad_interface_count) {
-		dev_err(&dev->udev->dev,
+		dev_err(dev->dev,
 			"VBI PCB interface #%d doesn't exist\n", idx);
 		return -ENODEV;
 	}
@@ -1326,7 +1326,7 @@ static int cx231xx_init_v4l2(struct cx231xx *dev,
 			bEndpointAddress;
 
 	dev->vbi_mode.num_alt = uif->num_altsetting;
-	dev_info(&dev->udev->dev,
+	dev_info(dev->dev,
 		 "VBI EndPoint Addr 0x%x, Alternate settings: %i\n",
 		 dev->vbi_mode.end_point_addr,
 		 dev->vbi_mode.num_alt);
@@ -1342,7 +1342,7 @@ static int cx231xx_init_v4l2(struct cx231xx *dev,
 				desc.wMaxPacketSize);
 		dev->vbi_mode.alt_max_pkt_size[i] =
 		    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
-		dev_dbg(&dev->udev->dev,
+		dev_dbg(dev->dev,
 			"Alternate setting %i, max size= %i\n", i,
 			dev->vbi_mode.alt_max_pkt_size[i]);
 	}
@@ -1352,7 +1352,7 @@ static int cx231xx_init_v4l2(struct cx231xx *dev,
 	/* compute alternate max packet sizes for sliced CC */
 	idx = dev->current_pcb_config.hs_config_info[0].interface_info.hanc_index + 1;
 	if (idx >= dev->max_iad_interface_count) {
-		dev_err(&dev->udev->dev,
+		dev_err(dev->dev,
 			"Sliced CC PCB interface #%d doesn't exist\n", idx);
 		return -ENODEV;
 	}
@@ -1363,7 +1363,7 @@ static int cx231xx_init_v4l2(struct cx231xx *dev,
 			bEndpointAddress;
 
 	dev->sliced_cc_mode.num_alt = uif->num_altsetting;
-	dev_info(&dev->udev->dev,
+	dev_info(dev->dev,
 		 "sliced CC EndPoint Addr 0x%x, Alternate settings: %i\n",
 		 dev->sliced_cc_mode.end_point_addr,
 		 dev->sliced_cc_mode.num_alt);
@@ -1376,7 +1376,7 @@ static int cx231xx_init_v4l2(struct cx231xx *dev,
 				desc.wMaxPacketSize);
 		dev->sliced_cc_mode.alt_max_pkt_size[i] =
 		    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
-		dev_dbg(&dev->udev->dev,
+		dev_dbg(dev->dev,
 			"Alternate setting %i, max size= %i\n", i,
 			dev->sliced_cc_mode.alt_max_pkt_size[i]);
 	}
@@ -1392,6 +1392,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 			     const struct usb_device_id *id)
 {
 	struct usb_device *udev;
+	struct device *d = &interface->dev;
 	struct usb_interface *uif;
 	struct cx231xx *dev = NULL;
 	int retval = -ENODEV;
@@ -1416,7 +1417,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		nr = find_first_zero_bit(&cx231xx_devused, CX231XX_MAXBOARDS);
 		if (nr >= CX231XX_MAXBOARDS) {
 			/* No free device slots */
-			dev_err(&udev->dev,
+			dev_err(d,
 				"Supports only %i devices.\n",
 				CX231XX_MAXBOARDS);
 			return -ENOMEM;
@@ -1434,6 +1435,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	dev->devno = nr;
 	dev->model = id->driver_info;
 	dev->video_mode.alt = -1;
+	dev->dev = d;
 
 	dev->interface_count++;
 	/* reset gpio dir and value */
@@ -1472,7 +1474,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		speed = "unknown";
 	}
 
-	dev_info(&udev->dev,
+	dev_info(d,
 		 "New device %s %s @ %s Mbps (%04x:%04x) with %d interfaces\n",
 		 udev->manufacturer ? udev->manufacturer : "",
 		 udev->product ? udev->product : "",
@@ -1489,12 +1491,12 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 
 	assoc_desc = udev->actconfig->intf_assoc[0];
 	if (assoc_desc->bFirstInterface != ifnum) {
-		dev_err(&udev->dev, "Not found matching IAD interface\n");
+		dev_err(d, "Not found matching IAD interface\n");
 		retval = -ENODEV;
 		goto err_if;
 	}
 
-	dev_dbg(&udev->dev, "registering interface %d\n", ifnum);
+	dev_dbg(d, "registering interface %d\n", ifnum);
 
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(interface, dev);
@@ -1502,7 +1504,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	/* Create v4l2 device */
 	retval = v4l2_device_register(&interface->dev, &dev->v4l2_dev);
 	if (retval) {
-		dev_err(&udev->dev, "v4l2_device_register failed\n");
+		dev_err(d, "v4l2_device_register failed\n");
 		goto err_v4l2;
 	}
 
@@ -1519,8 +1521,8 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		/* compute alternate max packet sizes for TS1 */
 		idx = dev->current_pcb_config.hs_config_info[0].interface_info.ts1_index + 1;
 		if (idx >= dev->max_iad_interface_count) {
-			dev_err(&udev->dev,
-				"TS1 PCB interface #%d doesn't exist\n", idx);
+			dev_err(d, "TS1 PCB interface #%d doesn't exist\n",
+				idx);
 			retval = -ENODEV;
 			goto err_video_alt;
 		}
@@ -1531,7 +1533,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 				desc.bEndpointAddress;
 
 		dev->ts1_mode.num_alt = uif->num_altsetting;
-		dev_info(&udev->dev,
+		dev_info(d,
 			 "TS EndPoint Addr 0x%x, Alternate settings: %i\n",
 			 dev->ts1_mode.end_point_addr,
 			 dev->ts1_mode.num_alt);
@@ -1548,9 +1550,8 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 						wMaxPacketSize);
 			dev->ts1_mode.alt_max_pkt_size[i] =
 			    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
-			dev_dbg(&udev->dev,
-				"Alternate setting %i, max size= %i\n", i,
-				dev->ts1_mode.alt_max_pkt_size[i]);
+			dev_dbg(d, "Alternate setting %i, max size= %i\n",
+				i, dev->ts1_mode.alt_max_pkt_size[i]);
 		}
 	}
 
@@ -1614,7 +1615,7 @@ static void cx231xx_usb_disconnect(struct usb_interface *interface)
 	wake_up_interruptible_all(&dev->open);
 
 	if (dev->users) {
-		dev_warn(&dev->udev->dev,
+		dev_warn(dev->dev,
 			 "device %s is open! Deregistration and memory deallocation are deferred on close.\n",
 			 video_device_node_name(dev->vdev));
 

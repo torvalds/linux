@@ -507,7 +507,7 @@ void cx231xx_do_i2c_scan(struct cx231xx *dev, int i2c_port)
 		rc = i2c_master_recv(&client, &buf, 0);
 		if (rc < 0)
 			continue;
-		dev_info(&dev->udev->dev,
+		dev_info(dev->dev,
 			 "i2c scan: found device @ port %d addr 0x%x  [%s]\n",
 			 i2c_port,
 			 i << 1,
@@ -528,7 +528,7 @@ int cx231xx_i2c_register(struct cx231xx_i2c *bus)
 	BUG_ON(!dev->cx231xx_send_usb_command);
 
 	bus->i2c_adap = cx231xx_adap_template;
-	bus->i2c_adap.dev.parent = &dev->udev->dev;
+	bus->i2c_adap.dev.parent = dev->dev;
 
 	snprintf(bus->i2c_adap.name, sizeof(bus->i2c_adap.name), "%s-%d", bus->dev->name, bus->nr);
 
@@ -537,7 +537,7 @@ int cx231xx_i2c_register(struct cx231xx_i2c *bus)
 	i2c_add_adapter(&bus->i2c_adap);
 
 	if (0 != bus->i2c_rc)
-		dev_warn(&dev->udev->dev,
+		dev_warn(dev->dev,
 			 "i2c bus %d register FAILED\n", bus->nr);
 
 	return bus->i2c_rc;
@@ -569,7 +569,7 @@ int cx231xx_i2c_mux_register(struct cx231xx *dev, int mux_no)
 {
 	struct i2c_adapter *i2c_parent = &dev->i2c_bus[1].i2c_adap;
 	/* what is the correct mux_dev? */
-	struct device *mux_dev = &dev->udev->dev;
+	struct device *mux_dev = dev->dev;
 
 	dev->i2c_mux_adap[mux_no] = i2c_add_mux_adapter(i2c_parent,
 				mux_dev,
@@ -581,7 +581,7 @@ int cx231xx_i2c_mux_register(struct cx231xx *dev, int mux_no)
 				NULL);
 
 	if (!dev->i2c_mux_adap[mux_no])
-		dev_warn(&dev->udev->dev,
+		dev_warn(dev->dev,
 			 "i2c mux %d register FAILED\n", mux_no);
 
 	return 0;
