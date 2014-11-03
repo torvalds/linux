@@ -60,6 +60,7 @@ config USB_SERIAL_SIMPLE
 		- Suunto ANT+ USB device.
 		- Medtronic CareLink USB device
 		- Fundamental Software dongle.
+		- Google USB serial devices
 		- HP4x calculators
 		- a number of Motorola phones
 		- Novatel Wireless GPS receivers
