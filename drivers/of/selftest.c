@@ -339,8 +339,9 @@ static void __init of_selftest_parse_phandle_with_args(void)
 	selftest(rc == -EINVAL, "expected:%i got:%i\n", -EINVAL, rc);
 }
 
-static void __init of_selftest_property_match_string(void)
+static void __init of_selftest_property_string(void)
 {
+	const char *strings[4];
 	struct device_node *np;
 	int rc;
 
@@ -357,13 +358,66 @@ static void __init of_selftest_property_match_string(void)
 	rc = of_property_match_string(np, "phandle-list-names", "third");
 	selftest(rc == 2, "third expected:0 got:%i\n", rc);
 	rc = of_property_match_string(np, "phandle-list-names", "fourth");
-	selftest(rc == -ENODATA, "unmatched string; rc=%i", rc);
+	selftest(rc == -ENODATA, "unmatched string; rc=%i\n", rc);
 	rc = of_property_match_string(np, "missing-property", "blah");
-	selftest(rc == -EINVAL, "missing property; rc=%i", rc);
+	selftest(rc == -EINVAL, "missing property; rc=%i\n", rc);
 	rc = of_property_match_string(np, "empty-property", "blah");
-	selftest(rc == -ENODATA, "empty property; rc=%i", rc);
+	selftest(rc == -ENODATA, "empty property; rc=%i\n", rc);
 	rc = of_property_match_string(np, "unterminated-string", "blah");
-	selftest(rc == -EILSEQ, "unterminated string; rc=%i", rc);
+	selftest(rc == -EILSEQ, "unterminated string; rc=%i\n", rc);
+
+	/* of_property_count_strings() tests */
+	rc = of_property_count_strings(np, "string-property");
+	selftest(rc == 1, "Incorrect string count; rc=%i\n", rc);
+	rc = of_property_count_strings(np, "phandle-list-names");
+	selftest(rc == 3, "Incorrect string count; rc=%i\n", rc);
+	rc = of_property_count_strings(np, "unterminated-string");
+	selftest(rc == -EILSEQ, "unterminated string; rc=%i\n", rc);
+	rc = of_property_count_strings(np, "unterminated-string-list");
+	selftest(rc == -EILSEQ, "unterminated string array; rc=%i\n", rc);
+
+	/* of_property_read_string_index() tests */
+	rc = of_property_read_string_index(np, "string-property", 0, strings);
+	selftest(rc == 0 && !strcmp(strings[0], "foobar"), "of_property_read_string_index() failure; rc=%i\n", rc);
+	strings[0] = NULL;
+	rc = of_property_read_string_index(np, "string-property", 1, strings);
+	selftest(rc == -ENODATA && strings[0] == NULL, "of_property_read_string_index() failure; rc=%i\n", rc);
+	rc = of_property_read_string_index(np, "phandle-list-names", 0, strings);
+	selftest(rc == 0 && !strcmp(strings[0], "first"), "of_property_read_string_index() failure; rc=%i\n", rc);
+	rc = of_property_read_string_index(np, "phandle-list-names", 1, strings);
+	selftest(rc == 0 && !strcmp(strings[0], "second"), "of_property_read_string_index() failure; rc=%i\n", rc);
+	rc = of_property_read_string_index(np, "phandle-list-names", 2, strings);
+	selftest(rc == 0 && !strcmp(strings[0], "third"), "of_property_read_string_index() failure; rc=%i\n", rc);
+	strings[0] = NULL;
+	rc = of_property_read_string_index(np, "phandle-list-names", 3, strings);
+	selftest(rc == -ENODATA && strings[0] == NULL, "of_property_read_string_index() failure; rc=%i\n", rc);
+	strings[0] = NULL;
+	rc = of_property_read_string_index(np, "unterminated-string", 0, strings);
+	selftest(rc == -EILSEQ && strings[0] == NULL, "of_property_read_string_index() failure; rc=%i\n", rc);
+	rc = of_property_read_string_index(np, "unterminated-string-list", 0, strings);
+	selftest(rc == 0 && !strcmp(strings[0], "first"), "of_property_read_string_index() failure; rc=%i\n", rc);
+	strings[0] = NULL;
+	rc = of_property_read_string_index(np, "unterminated-string-list", 2, strings); /* should fail */
+	selftest(rc == -EILSEQ && strings[0] == NULL, "of_property_read_string_index() failure; rc=%i\n", rc);
+	strings[1] = NULL;
+
+	/* of_property_read_string_array() tests */
+	rc = of_property_read_string_array(np, "string-property", strings, 4);
+	selftest(rc == 1, "Incorrect string count; rc=%i\n", rc);
+	rc = of_property_read_string_array(np, "phandle-list-names", strings, 4);
+	selftest(rc == 3, "Incorrect string count; rc=%i\n", rc);
+	rc = of_property_read_string_array(np, "unterminated-string", strings, 4);
+	selftest(rc == -EILSEQ, "unterminated string; rc=%i\n", rc);
+	/* -- An incorrectly formed string should cause a failure */
+	rc = of_property_read_string_array(np, "unterminated-string-list", strings, 4);
+	selftest(rc == -EILSEQ, "unterminated string array; rc=%i\n", rc);
+	/* -- parsing the correctly formed strings should still work: */
+	strings[2] = NULL;
+	rc = of_property_read_string_array(np, "unterminated-string-list", strings, 2);
+	selftest(rc == 2 && strings[2] == NULL, "of_property_read_string_array() failure; rc=%i\n", rc);
+	strings[1] = NULL;
+	rc = of_property_read_string_array(np, "phandle-list-names", strings, 1);
+	selftest(rc == 1 && strings[1] == NULL, "Overwrote end of string array; rc=%i, str='%s'\n", rc, strings[1]);
 }
 
 #define propcmp(p1, p2) (((p1)->length == (p2)->length) && \
@@ -881,7 +935,7 @@ static int __init of_selftest(void)
 	of_selftest_find_node_by_name();
 	of_selftest_dynamic();
 	of_selftest_parse_phandle_with_args();
-	of_selftest_property_match_string();
+	of_selftest_property_string();
 	of_selftest_property_copy();
 	of_selftest_changeset();
 	of_selftest_parse_interrupts();
