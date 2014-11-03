@@ -639,9 +639,9 @@ static int xgene_enet_create_desc_rings(struct net_device *ndev)
 	struct device *dev = ndev_to_dev(ndev);
 	struct xgene_enet_desc_ring *rx_ring, *tx_ring, *cp_ring;
 	struct xgene_enet_desc_ring *buf_pool = NULL;
-	u8 cpu_bufnum = 0, eth_bufnum = 0;
-	u8 bp_bufnum = 0x20;
-	u16 ring_id, ring_num = 0;
+	u8 cpu_bufnum = 0, eth_bufnum = START_ETH_BUFNUM;
+	u8 bp_bufnum = START_BP_BUFNUM;
+	u16 ring_id, ring_num = START_RING_NUM;
 	int ret;
 
 	/* allocate rx descriptor ring */
