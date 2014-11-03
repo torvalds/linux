@@ -13,3 +13,15 @@ config PINCTRL_BAYTRAIL
 	  so only a small amount is available for gpio use.
 
 	  Requires ACPI device enumeration code to set up a platform device.
+
+config PINCTRL_CHERRYVIEW
+	tristate "Intel Cherryview/Braswell pinctrl and GPIO driver"
+	depends on ACPI
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	help
+	  Cherryview/Braswell pinctrl driver provides an interface that
+	  allows configuring of SoC pins and using them as GPIOs.
