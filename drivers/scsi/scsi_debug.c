@@ -2700,7 +2700,6 @@ static int scsi_debug_slave_configure(struct scsi_device *sdp)
 	devip = devInfoReg(sdp);
 	if (NULL == devip)
 		return 1;	/* no resources, will be marked offline */
-	sdp->tagged_supported = 1;
 	sdp->hostdata = devip;
 	blk_queue_max_segment_size(sdp->request_queue, -1U);
 	if (scsi_debug_no_uld)

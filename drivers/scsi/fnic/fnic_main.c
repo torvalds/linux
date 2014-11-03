@@ -95,8 +95,6 @@ static int fnic_slave_alloc(struct scsi_device *sdev)
 {
 	struct fc_rport *rport = starget_to_rport(scsi_target(sdev));
 
-	sdev->tagged_supported = 1;
-
 	if (!rport || fc_remote_port_chkready(rport))
 		return -ENXIO;
 

@@ -2695,8 +2695,7 @@ static void ufshcd_set_queue_depth(struct scsi_device *sdev)
 
 	dev_dbg(hba->dev, "%s: activate tcq with queue depth %d\n",
 			__func__, lun_qdepth);
-	if (sdev->tagged_supported)
-		scsi_adjust_queue_depth(sdev, lun_qdepth);
+	scsi_adjust_queue_depth(sdev, lun_qdepth);
 }
 
 /*
@@ -2766,7 +2765,6 @@ static int ufshcd_slave_alloc(struct scsi_device *sdev)
 	struct ufs_hba *hba;
 
 	hba = shost_priv(sdev->host);
-	sdev->tagged_supported = 1;
 
 	/* Mode sense(6) is not supported by UFS, so use Mode sense(10) */
 	sdev->use_10_for_ms = 1;
@@ -2806,8 +2804,6 @@ static int ufshcd_change_queue_depth(struct scsi_device *sdev,
 	switch (reason) {
 	case SCSI_QDEPTH_DEFAULT:
 	case SCSI_QDEPTH_RAMP_UP:
-		if (!sdev->tagged_supported)
-			depth = 1;
 		scsi_adjust_queue_depth(sdev, depth);
 		break;
 	case SCSI_QDEPTH_QFULL:

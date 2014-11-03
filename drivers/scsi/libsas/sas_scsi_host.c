@@ -945,7 +945,6 @@ int sas_slave_configure(struct scsi_device *scsi_dev)
 		SAS_DPRINTK("device %llx, LUN %llx doesn't support "
 			    "TCQ\n", SAS_ADDR(dev->sas_addr),
 			    scsi_dev->lun);
-		scsi_dev->tagged_supported = 0;
 		scsi_adjust_queue_depth(scsi_dev, 1);
 	}
 

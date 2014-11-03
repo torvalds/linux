@@ -544,21 +544,11 @@ stex_ss_send_cmd(struct st_hba *hba, struct req_msg *req, u16 tag)
 }
 
 static int
-stex_slave_alloc(struct scsi_device *sdev)
-{
-	/* Cheat: usually extracted from Inquiry data */
-	sdev->tagged_supported = 1;
-
-	return 0;
-}
-
-static int
 stex_slave_config(struct scsi_device *sdev)
 {
 	sdev->use_10_for_rw = 1;
 	sdev->use_10_for_ms = 1;
 	blk_queue_rq_timeout(sdev->request_queue, 60 * HZ);
-	sdev->tagged_supported = 1;
 
 	return 0;
 }
@@ -1380,7 +1370,6 @@ static struct scsi_host_template driver_template = {
 	.proc_name			= DRV_NAME,
 	.bios_param			= stex_biosparam,
 	.queuecommand			= stex_queuecommand,
-	.slave_alloc			= stex_slave_alloc,
 	.slave_configure		= stex_slave_config,
 	.eh_abort_handler		= stex_abort,
 	.eh_host_reset_handler		= stex_reset,
