@@ -127,6 +127,7 @@ int seq_buf_bitmask(struct seq_buf *s, const unsigned long *maskp,
 	return -1;
 }
 
+#ifdef CONFIG_BINARY_PRINTF
 /**
  * seq_buf_bprintf - Write the printf string from binary arguments
  * @s: seq_buf descriptor
@@ -161,6 +162,7 @@ int seq_buf_bprintf(struct seq_buf *s, const char *fmt, const u32 *binary)
 	seq_buf_set_overflow(s);
 	return -1;
 }
+#endif /* CONFIG_BINARY_PRINTF */
 
 /**
  * seq_buf_puts - sequence printing of simple string

@@ -115,8 +115,6 @@ extern __printf(2, 3)
 int seq_buf_printf(struct seq_buf *s, const char *fmt, ...);
 extern __printf(2, 0)
 int seq_buf_vprintf(struct seq_buf *s, const char *fmt, va_list args);
-extern int
-seq_buf_bprintf(struct seq_buf *s, const char *fmt, const u32 *binary);
 extern int seq_buf_print_seq(struct seq_file *m, struct seq_buf *s);
 extern int seq_buf_to_user(struct seq_buf *s, char __user *ubuf,
 			   int cnt);
@@ -129,5 +127,10 @@ extern int seq_buf_path(struct seq_buf *s, const struct path *path, const char *
 
 extern int seq_buf_bitmask(struct seq_buf *s, const unsigned long *maskp,
 			   int nmaskbits);
+
+#ifdef CONFIG_BINARY_PRINTF
+extern int
+seq_buf_bprintf(struct seq_buf *s, const char *fmt, const u32 *binary);
+#endif
 
 #endif /* _LINUX_SEQ_BUF_H */
