@@ -1274,7 +1274,7 @@ struct ieee80211_ht_cap {
 #define		IEEE80211_HT_AMPDU_PARM_DENSITY_SHIFT	2
 
 /*
- * Maximum length of AMPDU that the STA can receive.
+ * Maximum length of AMPDU that the STA can receive in high-throughput (HT).
  * Length = 2 ^ (13 + max_ampdu_length_exp) - 1 (octets)
  */
 enum ieee80211_max_ampdu_length_exp {
@@ -1282,6 +1282,21 @@ enum ieee80211_max_ampdu_length_exp {
 	IEEE80211_HT_MAX_AMPDU_16K = 1,
 	IEEE80211_HT_MAX_AMPDU_32K = 2,
 	IEEE80211_HT_MAX_AMPDU_64K = 3
+};
+
+/*
+ * Maximum length of AMPDU that the STA can receive in VHT.
+ * Length = 2 ^ (13 + max_ampdu_length_exp) - 1 (octets)
+ */
+enum ieee80211_vht_max_ampdu_length_exp {
+	IEEE80211_VHT_MAX_AMPDU_8K = 0,
+	IEEE80211_VHT_MAX_AMPDU_16K = 1,
+	IEEE80211_VHT_MAX_AMPDU_32K = 2,
+	IEEE80211_VHT_MAX_AMPDU_64K = 3,
+	IEEE80211_VHT_MAX_AMPDU_128K = 4,
+	IEEE80211_VHT_MAX_AMPDU_256K = 5,
+	IEEE80211_VHT_MAX_AMPDU_512K = 6,
+	IEEE80211_VHT_MAX_AMPDU_1024K = 7
 };
 
 #define IEEE80211_HT_MAX_AMPDU_FACTOR 13
