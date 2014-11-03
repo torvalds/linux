@@ -468,7 +468,8 @@ static int wait_handshake(struct echoaudio *chip);
 static int send_vector(struct echoaudio *chip, u32 command);
 static int get_firmware(const struct firmware **fw_entry,
 			struct echoaudio *chip, const short fw_index);
-static void free_firmware(const struct firmware *fw_entry);
+static void free_firmware(const struct firmware *fw_entry,
+			  struct echoaudio *chip);
 
 #ifdef ECHOCARD_HAS_MIDI
 static int enable_midi_input(struct echoaudio *chip, char enable);

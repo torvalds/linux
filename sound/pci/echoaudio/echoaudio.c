@@ -69,7 +69,8 @@ static int get_firmware(const struct firmware **fw_entry,
 
 
 
-static void free_firmware(const struct firmware *fw_entry)
+static void free_firmware(const struct firmware *fw_entry,
+			  struct echoaudio *chip)
 {
 #ifdef CONFIG_PM_SLEEP
 	DE_ACT(("firmware not released (kept in cache)\n"));

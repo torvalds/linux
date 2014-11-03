@@ -206,12 +206,12 @@ static int load_asic_generic(struct echoaudio *chip, u32 cmd, short asic)
 	}
 
 	DE_INIT(("ASIC loaded\n"));
-	free_firmware(fw);
+	free_firmware(fw, chip);
 	return 0;
 
 la_error:
 	DE_INIT(("failed on write_dsp\n"));
-	free_firmware(fw);
+	free_firmware(fw, chip);
 	return -EIO;
 }
 
@@ -317,11 +317,11 @@ static int install_resident_loader(struct echoaudio *chip)
 	}
 
 	DE_INIT(("Resident loader successfully installed\n"));
-	free_firmware(fw);
+	free_firmware(fw, chip);
 	return 0;
 
 irl_error:
-	free_firmware(fw);
+	free_firmware(fw, chip);
 	return -EIO;
 }
 
@@ -491,7 +491,7 @@ static int load_firmware(struct echoaudio *chip)
 	if (err < 0)
 		return err;
 	err = load_dsp(chip, (u16 *)fw->data);
-	free_firmware(fw);
+	free_firmware(fw, chip);
 	if (err < 0)
 		return err;
 
