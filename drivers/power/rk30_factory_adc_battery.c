@@ -756,41 +756,50 @@ static int rk30_adc_battery_status_samples(struct rk30_adc_battery_data *bat)
 
 	return charge_level;
 }
+
+static int rk_adc_battery_iio_read_refvol(struct rk30_adc_battery_platform_data *data)
+{
+	struct iio_channel *channel = data->ref_voltage_chan;
+	int val, ret;
+
+	ret = iio_read_channel_raw(channel, &val);
+	if (ret < 0) {
+		pr_err("read channel() error: %d\n", ret);
+		return ret;
+	}
+	return val;
+}
+
+static int get_ref_voltage(struct rk30_adc_battery_data *bat)
+{
+	int data_value;
+	struct regulator *logic;
+	int voltage, ref_voltage;
+
+	logic = regulator_get(NULL, "vdd_arm");
+	voltage = regulator_get_voltage(logic);
+	data_value = rk_adc_battery_iio_read_refvol(bat->pdata);
+	ref_voltage = voltage*1024/data_value/1000;
+
+	return ref_voltage;
+}
 static int rk_adc_voltage(struct rk30_adc_battery_data *bat, int value)
 {
 	int voltage;
-
-	int ref_voltage; //reference_voltage
-	int pullup_res;
-	int pulldown_res;
+	int ref_voltage;
 
 	ref_voltage = bat ->pdata->reference_voltage;
-	pullup_res = bat ->pdata->pull_up_res;
-	pulldown_res = bat ->pdata->pull_down_res;
 
-	if(ref_voltage && pullup_res && pulldown_res){
-#if defined(CONFIG_ARCH_RK2928) || defined(CONFIG_ARCH_RK3026)
-		ref_voltage = adc_get_curr_ref_volt();
-#endif	
-		voltage =  ((value * ref_voltage * (pullup_res + pulldown_res)) / (1024 * pulldown_res));
-		DBG("ref_voltage =%d, voltage=%d \n", ref_voltage,voltage);
+	if (ref_voltage) {
+		if (bat->pdata->auto_calibration == 1)
+			ref_voltage = get_ref_voltage(bat);
+		voltage = (value * ref_voltage * (batt_table[4] + batt_table[5])) / (1024 * batt_table[5]);
+		DBG("ref_voltage =%d, voltage=%d\n", ref_voltage, voltage);
 		
 	}else{
-#if 0
-		if(bat ->capacitytmp < 5)
-			ref_voltage = adc_get_curr_ref_volt();
-		else
-			ref_voltage = adc_get_def_ref_volt();
-#endif
-#if defined(CONFIG_ARCH_RK2928) || defined(CONFIG_ARCH_RK3026)
-		ref_voltage = adc_get_curr_ref_volt();
-		voltage = (value * ref_voltage * (batt_table[4] +batt_table[5])) / (1024 *batt_table[5]); 
-#else
 		voltage = adc_to_voltage(value);
-#endif
 	}
-	
-	DBG("ref_voltage =%d, voltage=%d \n", ref_voltage,voltage);
+	DBG("ref_voltage =%d, voltage=%d\n", ref_voltage, voltage);
 	return voltage;
 
 }
@@ -1358,16 +1367,9 @@ static void rk30_adc_battery_poweron_capacity_check(struct rk30_adc_battery_data
 	}
 	else if (bat ->bat_status != POWER_SUPPLY_STATUS_NOT_CHARGING){
 	//chargeing state
-
-		if( bat  ->pdata->is_reboot_charging == 1)
-			bat ->bat_capacity = (old_capacity < 10) ?(old_capacity+2):old_capacity;
-		else
-			bat ->bat_capacity = (new_capacity > old_capacity) ? new_capacity : old_capacity;
+		bat->bat_capacity = (old_capacity < 10) ? (old_capacity + 2) : old_capacity;
 	}else{
-		if(new_capacity > old_capacity + 50 )
 			bat ->bat_capacity = old_capacity + 5;
-		else
-			bat ->bat_capacity = (new_capacity < old_capacity) ? new_capacity : old_capacity;  //avoid the value of capacity increase 
 		if(bat->bat_capacity == 100)
 			bat->bat_capacity = 99;
 		if(bat->bat_capacity == 0)
@@ -2114,15 +2116,31 @@ rk30_adc_battery_platform_data *data)
 	int ret;
 	int i;
 	size_t size;
-	 struct iio_channel *chan;
 
-	if (!node)
-		return -ENODEV;
+	struct iio_channel *channels;
+	int num = 0;
 
-	chan = iio_channel_get(&pdev->dev, NULL);
-	if (IS_ERR(chan))
-		pr_err("iio_channel_get fail\n");
-	data->chan = chan;
+	channels = iio_channel_get_all(&pdev->dev);
+	if (IS_ERR(channels))
+		pr_err("get adc channels fails\n");
+	while (channels[num].indio_dev)
+		num++;
+	data->chan = &channels[0];
+	if (num > 1)
+		data->ref_voltage_chan = &channels[1];
+	ret = of_property_read_u32(node, "auto_calibration", &value);
+	if (ret < 0) {
+		pr_info("%s:unsupport auto_calibration\n", __func__);
+		value = 0;
+	}
+	data->auto_calibration = value;
+
+	ret = of_property_read_u32(node, "ref_voltage", &value);
+	if (ret < 0) {
+		pr_info("%s:unsupport ref_voltage\n", __func__);
+		value = 0;
+	}
+	data->reference_voltage = value;
 
 	/* determine the number of config info */
 	prop = of_find_property(node, "bat_table", &length);
