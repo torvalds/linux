@@ -1644,8 +1644,20 @@ static int btrfs_calc_avail_data_space(struct btrfs_root *root, u64 *free_bytes)
 	int i = 0, nr_devices;
 	int ret;
 
+	/*
+	 * We aren't under the device list lock, so this is racey-ish, but good
+	 * enough for our purposes.
+	 */
 	nr_devices = fs_info->fs_devices->open_devices;
-	BUG_ON(!nr_devices);
+	if (!nr_devices) {
+		smp_mb();
+		nr_devices = fs_info->fs_devices->open_devices;
+		ASSERT(nr_devices);
+		if (!nr_devices) {
+			*free_bytes = 0;
+			return 0;
+		}
+	}
 
 	devices_info = kmalloc_array(nr_devices, sizeof(*devices_info),
 			       GFP_NOFS);
@@ -1670,10 +1682,16 @@ static int btrfs_calc_avail_data_space(struct btrfs_root *root, u64 *free_bytes)
 	else
 		min_stripe_size = BTRFS_STRIPE_LEN;
 
-	list_for_each_entry(device, &fs_devices->devices, dev_list) {
+	if (fs_info->alloc_start)
+		mutex_lock(&fs_devices->device_list_mutex);
+	rcu_read_lock();
+	list_for_each_entry_rcu(device, &fs_devices->devices, dev_list) {
 		if (!device->in_fs_metadata || !device->bdev ||
 		    device->is_tgtdev_for_dev_replace)
 			continue;
+
+		if (i >= nr_devices)
+			break;
 
 		avail_space = device->total_bytes - device->bytes_used;
 
@@ -1689,24 +1707,32 @@ static int btrfs_calc_avail_data_space(struct btrfs_root *root, u64 *free_bytes)
 		skip_space = 1024 * 1024;
 
 		/* user can set the offset in fs_info->alloc_start. */
-		if (fs_info->alloc_start + BTRFS_STRIPE_LEN <=
-		    device->total_bytes)
+		if (fs_info->alloc_start &&
+		    fs_info->alloc_start + BTRFS_STRIPE_LEN <=
+		    device->total_bytes) {
+			rcu_read_unlock();
 			skip_space = max(fs_info->alloc_start, skip_space);
 
-		/*
-		 * btrfs can not use the free space in [0, skip_space - 1],
-		 * we must subtract it from the total. In order to implement
-		 * it, we account the used space in this range first.
-		 */
-		ret = btrfs_account_dev_extents_size(device, 0, skip_space - 1,
-						     &used_space);
-		if (ret) {
-			kfree(devices_info);
-			return ret;
-		}
+			/*
+			 * btrfs can not use the free space in
+			 * [0, skip_space - 1], we must subtract it from the
+			 * total. In order to implement it, we account the used
+			 * space in this range first.
+			 */
+			ret = btrfs_account_dev_extents_size(device, 0,
+							     skip_space - 1,
+							     &used_space);
+			if (ret) {
+				kfree(devices_info);
+				mutex_unlock(&fs_devices->device_list_mutex);
+				return ret;
+			}
 
-		/* calc the free space in [0, skip_space - 1] */
-		skip_space -= used_space;
+			rcu_read_lock();
+
+			/* calc the free space in [0, skip_space - 1] */
+			skip_space -= used_space;
+		}
 
 		/*
 		 * we can use the free space in [0, skip_space - 1], subtract
@@ -1725,6 +1751,9 @@ static int btrfs_calc_avail_data_space(struct btrfs_root *root, u64 *free_bytes)
 
 		i++;
 	}
+	rcu_read_unlock();
+	if (fs_info->alloc_start)
+		mutex_unlock(&fs_devices->device_list_mutex);
 
 	nr_devices = i;
 
@@ -1787,8 +1816,6 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	 * holding chunk_muext to avoid allocating new chunks, holding
 	 * device_list_mutex to avoid the device being removed
 	 */
-	mutex_lock(&fs_info->fs_devices->device_list_mutex);
-	mutex_lock(&fs_info->chunk_mutex);
 	rcu_read_lock();
 	list_for_each_entry_rcu(found, head, list) {
 		if (found->flags & BTRFS_BLOCK_GROUP_DATA) {
@@ -1826,15 +1853,10 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 	buf->f_bavail = total_free_data;
 	ret = btrfs_calc_avail_data_space(fs_info->tree_root, &total_free_data);
-	if (ret) {
-		mutex_unlock(&fs_info->chunk_mutex);
-		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
+	if (ret)
 		return ret;
-	}
 	buf->f_bavail += div_u64(total_free_data, factor);
 	buf->f_bavail = buf->f_bavail >> bits;
-	mutex_unlock(&fs_info->chunk_mutex);
-	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
 
 	buf->f_type = BTRFS_SUPER_MAGIC;
 	buf->f_bsize = dentry->d_sb->s_blocksize;
