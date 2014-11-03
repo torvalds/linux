@@ -1306,14 +1306,14 @@ static void knav_free_queue_ranges(struct knav_device *kdev)
 static void knav_queue_free_regions(struct knav_device *kdev)
 {
 	struct knav_region *region;
-	struct knav_pool *pool;
+	struct knav_pool *pool, *tmp;
 	unsigned size;
 
 	for (;;) {
 		region = first_region(kdev);
 		if (!region)
 			break;
-		list_for_each_entry(pool, &region->pools, region_inst)
+		list_for_each_entry_safe(pool, tmp, &region->pools, region_inst)
 			knav_pool_destroy(pool);
 
 		size = region->virt_end - region->virt_start;
