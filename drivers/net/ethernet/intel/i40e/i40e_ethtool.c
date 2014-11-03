@@ -1574,7 +1574,6 @@ static int i40e_set_coalesce(struct net_device *netdev,
 		vsi->rx_itr_setting = ec->rx_coalesce_usecs;
 	} else if (ec->rx_coalesce_usecs == 0) {
 		vsi->rx_itr_setting = ec->rx_coalesce_usecs;
-		i40e_irq_dynamic_disable(vsi, vector);
 		if (ec->use_adaptive_rx_coalesce)
 			netif_info(pf, drv, netdev,
 				   "Rx-secs=0, need to disable adaptive-Rx for a complete disable\n");
@@ -1589,7 +1588,6 @@ static int i40e_set_coalesce(struct net_device *netdev,
 		vsi->tx_itr_setting = ec->tx_coalesce_usecs;
 	} else if (ec->tx_coalesce_usecs == 0) {
 		vsi->tx_itr_setting = ec->tx_coalesce_usecs;
-		i40e_irq_dynamic_disable(vsi, vector);
 		if (ec->use_adaptive_tx_coalesce)
 			netif_info(pf, drv, netdev,
 				   "Tx-secs=0, need to disable adaptive-Tx for a complete disable\n");
