@@ -129,12 +129,24 @@ snd_bebob_stream_check_internal_clock(struct snd_bebob *bebob, bool *internal)
 	/* 1.The device has its own operation to switch source of clock */
 	if (clk_spec) {
 		err = clk_spec->get(bebob, &id);
-		if (err < 0)
+		if (err < 0) {
 			dev_err(&bebob->unit->device,
 				"fail to get clock source: %d\n", err);
-		else if (strncmp(clk_spec->labels[id], SND_BEBOB_CLOCK_INTERNAL,
-				 strlen(SND_BEBOB_CLOCK_INTERNAL)) == 0)
+			goto end;
+		}
+
+		if (id >= clk_spec->num) {
+			dev_err(&bebob->unit->device,
+				"clock source %d out of range 0..%d\n",
+				id, clk_spec->num - 1);
+			err = -EIO;
+			goto end;
+		}
+
+		if (strncmp(clk_spec->labels[id], SND_BEBOB_CLOCK_INTERNAL,
+			    strlen(SND_BEBOB_CLOCK_INTERNAL)) == 0)
 			*internal = true;
+
 		goto end;
 	}
 

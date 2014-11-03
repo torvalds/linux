@@ -243,8 +243,9 @@ static bool check_hw_exists(void)
 
 msr_fail:
 	printk(KERN_CONT "Broken PMU hardware detected, using software events only.\n");
-	printk(boot_cpu_has(X86_FEATURE_HYPERVISOR) ? KERN_INFO : KERN_ERR
-	       "Failed to access perfctr msr (MSR %x is %Lx)\n", reg, val_new);
+	printk("%sFailed to access perfctr msr (MSR %x is %Lx)\n",
+		boot_cpu_has(X86_FEATURE_HYPERVISOR) ? KERN_INFO : KERN_ERR,
+		reg, val_new);
 
 	return false;
 }
@@ -443,12 +444,6 @@ int x86_pmu_hw_config(struct perf_event *event)
 
 	if (event->attr.type == PERF_TYPE_RAW)
 		event->hw.config |= event->attr.config & X86_RAW_EVENT_MASK;
-
-	if (event->attr.sample_period && x86_pmu.limit_period) {
-		if (x86_pmu.limit_period(event, event->attr.sample_period) >
-				event->attr.sample_period)
-			return -EINVAL;
-	}
 
 	return x86_setup_perfctr(event);
 }
@@ -986,9 +981,6 @@ int x86_perf_event_set_period(struct perf_event *event)
 
 	if (left > x86_pmu.max_period)
 		left = x86_pmu.max_period;
-
-	if (x86_pmu.limit_period)
-		left = x86_pmu.limit_period(event, left);
 
 	per_cpu(pmc_prev_left[idx], smp_processor_id()) = left;
 

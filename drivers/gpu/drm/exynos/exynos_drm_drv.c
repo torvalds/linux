@@ -87,16 +87,12 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 
 		plane = exynos_plane_init(dev, possible_crtcs,
 					  DRM_PLANE_TYPE_OVERLAY);
-		if (IS_ERR(plane))
-			goto err_mode_config_cleanup;
-	}
+		if (!IS_ERR(plane))
+			continue;
 
-	/* init kms poll for handling hpd */
-	drm_kms_helper_poll_init(dev);
-
-	ret = drm_vblank_init(dev, MAX_CRTC);
-	if (ret)
+		ret = PTR_ERR(plane);
 		goto err_mode_config_cleanup;
+	}
 
 	/* setup possible_clones. */
 	exynos_drm_encoder_setup(dev);
@@ -106,15 +102,16 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	/* Try to bind all sub drivers. */
 	ret = component_bind_all(dev->dev, dev);
 	if (ret)
-		goto err_cleanup_vblank;
+		goto err_mode_config_cleanup;
+
+	ret = drm_vblank_init(dev, dev->mode_config.num_crtc);
+	if (ret)
+		goto err_unbind_all;
 
 	/* Probe non kms sub drivers and virtual display driver. */
 	ret = exynos_drm_device_subdrv_probe(dev);
 	if (ret)
-		goto err_unbind_all;
-
-	/* force connectors detection */
-	drm_helper_hpd_irq_event(dev);
+		goto err_cleanup_vblank;
 
 	/*
 	 * enable drm irq mode.
@@ -133,12 +130,18 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	 */
 	dev->vblank_disable_allowed = true;
 
+	/* init kms poll for handling hpd */
+	drm_kms_helper_poll_init(dev);
+
+	/* force connectors detection */
+	drm_helper_hpd_irq_event(dev);
+
 	return 0;
 
-err_unbind_all:
-	component_unbind_all(dev->dev, dev);
 err_cleanup_vblank:
 	drm_vblank_cleanup(dev);
+err_unbind_all:
+	component_unbind_all(dev->dev, dev);
 err_mode_config_cleanup:
 	drm_mode_config_cleanup(dev);
 	drm_release_iommu_mapping(dev);
@@ -155,8 +158,8 @@ static int exynos_drm_unload(struct drm_device *dev)
 	exynos_drm_fbdev_fini(dev);
 	drm_kms_helper_poll_fini(dev);
 
-	component_unbind_all(dev->dev, dev);
 	drm_vblank_cleanup(dev);
+	component_unbind_all(dev->dev, dev);
 	drm_mode_config_cleanup(dev);
 	drm_release_iommu_mapping(dev);
 
@@ -191,8 +194,12 @@ static int exynos_drm_resume(struct drm_device *dev)
 
 	drm_modeset_lock_all(dev);
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		if (connector->funcs->dpms)
-			connector->funcs->dpms(connector, connector->dpms);
+		if (connector->funcs->dpms) {
+			int dpms = connector->dpms;
+
+			connector->dpms = DRM_MODE_DPMS_OFF;
+			connector->funcs->dpms(connector, dpms);
+		}
 	}
 	drm_modeset_unlock_all(dev);
 

@@ -18,25 +18,10 @@ static int
 isofs_cmp(struct dentry *dentry, const char *compare, int dlen)
 {
 	struct qstr qstr;
-
-	if (!compare)
-		return 1;
-
-	/* check special "." and ".." files */
-	if (dlen == 1) {
-		/* "." */
-		if (compare[0] == 0) {
-			if (!dentry->d_name.len)
-				return 0;
-			compare = ".";
-		} else if (compare[0] == 1) {
-			compare = "..";
-			dlen = 2;
-		}
-	}
-
 	qstr.name = compare;
 	qstr.len = dlen;
+	if (likely(!dentry->d_op))
+		return dentry->d_name.len != dlen || memcmp(dentry->d_name.name, compare, dlen);
 	return dentry->d_op->d_compare(NULL, NULL, dentry->d_name.len, dentry->d_name.name, &qstr);
 }
 
@@ -146,7 +131,8 @@ isofs_find_entry(struct inode *dir, struct dentry *dentry,
 				(!(de->flags[-sbi->s_high_sierra] & 1))) &&
 			(sbi->s_showassoc ||
 				(!(de->flags[-sbi->s_high_sierra] & 4)))) {
-			match = (isofs_cmp(dentry, dpnt, dlen) == 0);
+			if (dpnt && (dlen > 1 || dpnt[0] > 1))
+				match = (isofs_cmp(dentry, dpnt, dlen) == 0);
 		}
 		if (match) {
 			isofs_normalize_block_and_offset(de,

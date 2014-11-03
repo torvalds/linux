@@ -174,8 +174,11 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 			dst->rcv = brcm_netdev_ops.rcv;
 			break;
 #endif
-		default:
+		case DSA_TAG_PROTO_NONE:
 			break;
+		default:
+			ret = -ENOPROTOOPT;
+			goto out;
 		}
 
 		dst->tag_protocol = drv->tag_protocol;

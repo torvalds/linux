@@ -160,7 +160,7 @@ static int trickle_charger_of_init(struct device *dev, struct device_node *node)
 			dev_err(dev, "bq32k: diode and resistor mismatch\n");
 			return -EINVAL;
 		}
-		reg = 0x25;
+		reg = 0x45;
 		break;
 
 	default:

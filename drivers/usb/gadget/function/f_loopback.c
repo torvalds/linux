@@ -253,22 +253,13 @@ static void loopback_complete(struct usb_ep *ep, struct usb_request *req)
 
 	case 0:				/* normal completion? */
 		if (ep == loop->out_ep) {
-			/* loop this OUT packet back IN to the host */
 			req->zero = (req->actual < req->length);
 			req->length = req->actual;
-			status = usb_ep_queue(loop->in_ep, req, GFP_ATOMIC);
-			if (status == 0)
-				return;
-
-			/* "should never get here" */
-			ERROR(cdev, "can't loop %s to %s: %d\n",
-				ep->name, loop->in_ep->name,
-				status);
 		}
 
 		/* queue the buffer for some later OUT packet */
 		req->length = buflen;
-		status = usb_ep_queue(loop->out_ep, req, GFP_ATOMIC);
+		status = usb_ep_queue(ep, req, GFP_ATOMIC);
 		if (status == 0)
 			return;
 
@@ -308,59 +299,65 @@ static inline struct usb_request *lb_alloc_ep_req(struct usb_ep *ep, int len)
 	return alloc_ep_req(ep, len, buflen);
 }
 
-static int
-enable_loopback(struct usb_composite_dev *cdev, struct f_loopback *loop)
+static int enable_endpoint(struct usb_composite_dev *cdev, struct f_loopback *loop,
+		struct usb_ep *ep)
 {
-	int					result = 0;
-	struct usb_ep				*ep;
 	struct usb_request			*req;
 	unsigned				i;
+	int					result;
 
-	/* one endpoint writes data back IN to the host */
-	ep = loop->in_ep;
-	result = config_ep_by_speed(cdev->gadget, &(loop->function), ep);
-	if (result)
-		return result;
-	result = usb_ep_enable(ep);
-	if (result < 0)
-		return result;
-	ep->driver_data = loop;
-
-	/* one endpoint just reads OUT packets */
-	ep = loop->out_ep;
+	/*
+	 * one endpoint writes data back IN to the host while another endpoint
+	 * just reads OUT packets
+	 */
 	result = config_ep_by_speed(cdev->gadget, &(loop->function), ep);
 	if (result)
 		goto fail0;
-
 	result = usb_ep_enable(ep);
-	if (result < 0) {
-fail0:
-		ep = loop->in_ep;
-		usb_ep_disable(ep);
-		ep->driver_data = NULL;
-		return result;
-	}
+	if (result < 0)
+		goto fail0;
 	ep->driver_data = loop;
 
-	/* allocate a bunch of read buffers and queue them all at once.
+	/*
+	 * allocate a bunch of read buffers and queue them all at once.
 	 * we buffer at most 'qlen' transfers; fewer if any need more
 	 * than 'buflen' bytes each.
 	 */
 	for (i = 0; i < qlen && result == 0; i++) {
 		req = lb_alloc_ep_req(ep, 0);
-		if (req) {
-			req->complete = loopback_complete;
-			result = usb_ep_queue(ep, req, GFP_ATOMIC);
-			if (result)
-				ERROR(cdev, "%s queue req --> %d\n",
-						ep->name, result);
-		} else {
-			usb_ep_disable(ep);
-			ep->driver_data = NULL;
-			result = -ENOMEM;
-			goto fail0;
+		if (!req)
+			goto fail1;
+
+		req->complete = loopback_complete;
+		result = usb_ep_queue(ep, req, GFP_ATOMIC);
+		if (result) {
+			ERROR(cdev, "%s queue req --> %d\n",
+					ep->name, result);
+			goto fail1;
 		}
 	}
+
+	return 0;
+
+fail1:
+	usb_ep_disable(ep);
+
+fail0:
+	return result;
+}
+
+static int
+enable_loopback(struct usb_composite_dev *cdev, struct f_loopback *loop)
+{
+	int					result = 0;
+
+	result = enable_endpoint(cdev, loop, loop->in_ep);
+	if (result)
+		return result;
+
+	result = enable_endpoint(cdev, loop, loop->out_ep);
+	if (result)
+		return result;
 
 	DBG(cdev, "%s enabled\n", loop->function.name);
 	return result;

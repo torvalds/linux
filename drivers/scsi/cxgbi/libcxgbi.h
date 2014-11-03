@@ -700,11 +700,6 @@ static inline void cxgbi_set_iscsi_ipv4(struct cxgbi_hba *chba, __be32 ipaddr)
 			chba->ndev->name);
 }
 
-static inline __be32 cxgbi_get_iscsi_ipv4(struct cxgbi_hba *chba)
-{
-	return chba->ipv4addr;
-}
-
 struct cxgbi_device *cxgbi_device_register(unsigned int, unsigned int);
 void cxgbi_device_unregister(struct cxgbi_device *);
 void cxgbi_device_unregister_all(unsigned int flag);

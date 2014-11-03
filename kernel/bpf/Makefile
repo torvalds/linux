@@ -1,5 +1,5 @@
-obj-y := core.o syscall.o verifier.o
-
+obj-y := core.o
+obj-$(CONFIG_BPF_SYSCALL) += syscall.o verifier.o
 ifdef CONFIG_TEST_BPF
-obj-y += test_stub.o
+obj-$(CONFIG_BPF_SYSCALL) += test_stub.o
 endif
