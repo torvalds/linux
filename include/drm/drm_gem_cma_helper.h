@@ -30,6 +30,11 @@ to_drm_gem_cma_obj(struct drm_gem_object *gem_obj)
 void drm_gem_cma_free_object(struct drm_gem_object *gem_obj);
 
 /* create memory region for DRM framebuffer */
+int drm_gem_cma_dumb_create_internal(struct drm_file *file_priv,
+				     struct drm_device *drm,
+				     struct drm_mode_create_dumb *args);
+
+/* create memory region for DRM framebuffer */
 int drm_gem_cma_dumb_create(struct drm_file *file_priv,
 			    struct drm_device *drm,
 			    struct drm_mode_create_dumb *args);
