@@ -27,6 +27,7 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/remoteproc.h>
+#include <linux/mailbox_client.h>
 #include <linux/omap-mailbox.h>
 
 #include <linux/platform_data/remoteproc-omap.h>
@@ -36,20 +37,19 @@
 
 /**
  * struct omap_rproc - omap remote processor state
- * @mbox: omap mailbox handle
- * @nb: notifier block that will be invoked on inbound mailbox messages
+ * @mbox: mailbox channel handle
+ * @client: mailbox client to request the mailbox channel
  * @rproc: rproc handle
  */
 struct omap_rproc {
-	struct omap_mbox *mbox;
-	struct notifier_block nb;
+	struct mbox_chan *mbox;
+	struct mbox_client client;
 	struct rproc *rproc;
 };
 
 /**
  * omap_rproc_mbox_callback() - inbound mailbox message handler
- * @this: notifier block
- * @index: unused
+ * @client: mailbox client pointer used for requesting the mailbox channel
  * @data: mailbox payload
  *
  * This handler is invoked by omap's mailbox driver whenever a mailbox
@@ -61,13 +61,13 @@ struct omap_rproc {
  * that indicates different events. Those values are deliberately very
  * big so they don't coincide with virtqueue indices.
  */
-static int omap_rproc_mbox_callback(struct notifier_block *this,
-					unsigned long index, void *data)
+static void omap_rproc_mbox_callback(struct mbox_client *client, void *data)
 {
-	mbox_msg_t msg = (mbox_msg_t) data;
-	struct omap_rproc *oproc = container_of(this, struct omap_rproc, nb);
+	struct omap_rproc *oproc = container_of(client, struct omap_rproc,
+						client);
 	struct device *dev = oproc->rproc->dev.parent;
 	const char *name = oproc->rproc->name;
+	u32 msg = (u32)data;
 
 	dev_dbg(dev, "mbox msg: 0x%x\n", msg);
 
@@ -84,8 +84,6 @@ static int omap_rproc_mbox_callback(struct notifier_block *this,
 		if (rproc_vq_interrupt(oproc->rproc, msg) == IRQ_NONE)
 			dev_dbg(dev, "no message was found in vqid %d\n", msg);
 	}
-
-	return NOTIFY_DONE;
 }
 
 /* kick a virtqueue */
@@ -96,8 +94,8 @@ static void omap_rproc_kick(struct rproc *rproc, int vqid)
 	int ret;
 
 	/* send the index of the triggered virtqueue in the mailbox payload */
-	ret = omap_mbox_msg_send(oproc->mbox, vqid);
-	if (ret)
+	ret = mbox_send_message(oproc->mbox, (void *)vqid);
+	if (ret < 0)
 		dev_err(dev, "omap_mbox_msg_send failed: %d\n", ret);
 }
 
@@ -115,17 +113,22 @@ static int omap_rproc_start(struct rproc *rproc)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct omap_rproc_pdata *pdata = pdev->dev.platform_data;
 	int ret;
+	struct mbox_client *client = &oproc->client;
 
 	if (pdata->set_bootaddr)
 		pdata->set_bootaddr(rproc->bootaddr);
 
-	oproc->nb.notifier_call = omap_rproc_mbox_callback;
+	client->dev = dev;
+	client->tx_done = NULL;
+	client->rx_callback = omap_rproc_mbox_callback;
+	client->tx_block = false;
+	client->knows_txdone = false;
 
-	/* every omap rproc is assigned a mailbox instance for messaging */
-	oproc->mbox = omap_mbox_get(pdata->mbox_name, &oproc->nb);
+	oproc->mbox = omap_mbox_request_channel(client, pdata->mbox_name);
 	if (IS_ERR(oproc->mbox)) {
-		ret = PTR_ERR(oproc->mbox);
-		dev_err(dev, "omap_mbox_get failed: %d\n", ret);
+		ret = -EBUSY;
+		dev_err(dev, "mbox_request_channel failed: %ld\n",
+			PTR_ERR(oproc->mbox));
 		return ret;
 	}
 
@@ -136,9 +139,9 @@ static int omap_rproc_start(struct rproc *rproc)
 	 * Note that the reply will _not_ arrive immediately: this message
 	 * will wait in the mailbox fifo until the remote processor is booted.
 	 */
-	ret = omap_mbox_msg_send(oproc->mbox, RP_MBOX_ECHO_REQUEST);
-	if (ret) {
-		dev_err(dev, "omap_mbox_get failed: %d\n", ret);
+	ret = mbox_send_message(oproc->mbox, (void *)RP_MBOX_ECHO_REQUEST);
+	if (ret < 0) {
+		dev_err(dev, "mbox_send_message failed: %d\n", ret);
 		goto put_mbox;
 	}
 
@@ -151,7 +154,7 @@ static int omap_rproc_start(struct rproc *rproc)
 	return 0;
 
 put_mbox:
-	omap_mbox_put(oproc->mbox, &oproc->nb);
+	mbox_free_channel(oproc->mbox);
 	return ret;
 }
 
@@ -168,7 +171,7 @@ static int omap_rproc_stop(struct rproc *rproc)
 	if (ret)
 		return ret;
 
-	omap_mbox_put(oproc->mbox, &oproc->nb);
+	mbox_free_channel(oproc->mbox);
 
 	return 0;
 }

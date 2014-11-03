@@ -43,6 +43,9 @@ Required properties:
 			device. The format is dependent on which interrupt
 			controller the OMAP device uses
 - ti,hwmods:		Name of the hwmod associated with the mailbox
+- #mbox-cells:		Common mailbox binding property to identify the number
+			of cells required for the mailbox specifier. Should be
+			1
 - ti,mbox-num-users:	Number of targets (processor devices) that the mailbox
 			device can interrupt
 - ti,mbox-num-fifos:	Number of h/w fifo queues within the mailbox IP block
@@ -72,6 +75,18 @@ data that represent the following:
     Cell #3 (usr_id)  - mailbox user id for identifying the interrupt line
                         associated with generating a tx/rx fifo interrupt.
 
+Mailbox Users:
+==============
+A device needing to communicate with a target processor device should specify
+them using the common mailbox binding properties, "mboxes" and the optional
+"mbox-names" (please see Documentation/devicetree/bindings/mailbox/mailbox.txt
+for details). Each value of the mboxes property should contain a phandle to the
+mailbox controller device node and an args specifier that will be the phandle to
+the intended sub-mailbox child node to be used for communication. The equivalent
+"mbox-names" property value can be used to give a name to the communication channel
+to be used by the client user.
+
+
 Example:
 --------
 
@@ -81,6 +96,7 @@ mailbox: mailbox@4a0f4000 {
 	reg = <0x4a0f4000 0x200>;
 	interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
 	ti,hwmods = "mailbox";
+	#mbox-cells = <1>;
 	ti,mbox-num-users = <3>;
 	ti,mbox-num-fifos = <8>;
 	mbox_ipu: mbox_ipu {
@@ -93,12 +109,19 @@ mailbox: mailbox@4a0f4000 {
 	};
 };
 
+dsp {
+	...
+	mboxes = <&mailbox &mbox_dsp>;
+	...
+};
+
 /* AM33xx */
 mailbox: mailbox@480C8000 {
 	compatible = "ti,omap4-mailbox";
 	reg = <0x480C8000 0x200>;
 	interrupts = <77>;
 	ti,hwmods = "mailbox";
+	#mbox-cells = <1>;
 	ti,mbox-num-users = <4>;
 	ti,mbox-num-fifos = <8>;
 	mbox_wkupm3: wkup_m3 {
