@@ -11,6 +11,7 @@ static const int pat_enabled;
 #endif
 
 extern void pat_init(void);
+void pat_init_cache_modes(void);
 
 extern int reserve_memtype(u64 start, u64 end,
 		enum page_cache_mode req_pcm, enum page_cache_mode *ret_pcm);

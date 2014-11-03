@@ -351,6 +351,10 @@ extern uint8_t __pte2cachemode_tbl[8];
 	((((cb) >> (_PAGE_BIT_PAT - 2)) & 4) |		\
 	 (((cb) >> (_PAGE_BIT_PCD - 1)) & 2) |		\
 	 (((cb) >> _PAGE_BIT_PWT) & 1))
+#define __cm_idx2pte(i)					\
+	((((i) & 4) << (_PAGE_BIT_PAT - 2)) |		\
+	 (((i) & 2) << (_PAGE_BIT_PCD - 1)) |		\
+	 (((i) & 1) << _PAGE_BIT_PWT))
 
 static inline unsigned long cachemode2protval(enum page_cache_mode pcm)
 {

@@ -31,6 +31,7 @@
 #include <asm/io.h>
 
 #include "pat_internal.h"
+#include "mm_internal.h"
 
 #ifdef CONFIG_X86_PAT
 int __read_mostly pat_enabled = 1;
@@ -74,6 +75,52 @@ enum {
 	PAT_WB = 6,		/* Write Back (default) */
 	PAT_UC_MINUS = 7,	/* UC, but can be overriden by MTRR */
 };
+
+#define CM(c) (_PAGE_CACHE_MODE_ ## c)
+
+static enum page_cache_mode pat_get_cache_mode(unsigned pat_val, char *msg)
+{
+	enum page_cache_mode cache;
+	char *cache_mode;
+
+	switch (pat_val) {
+	case PAT_UC:       cache = CM(UC);       cache_mode = "UC  "; break;
+	case PAT_WC:       cache = CM(WC);       cache_mode = "WC  "; break;
+	case PAT_WT:       cache = CM(WT);       cache_mode = "WT  "; break;
+	case PAT_WP:       cache = CM(WP);       cache_mode = "WP  "; break;
+	case PAT_WB:       cache = CM(WB);       cache_mode = "WB  "; break;
+	case PAT_UC_MINUS: cache = CM(UC_MINUS); cache_mode = "UC- "; break;
+	default:           cache = CM(WB);       cache_mode = "WB  "; break;
+	}
+
+	memcpy(msg, cache_mode, 4);
+
+	return cache;
+}
+
+#undef CM
+
+/*
+ * Update the cache mode to pgprot translation tables according to PAT
+ * configuration.
+ * Using lower indices is preferred, so we start with highest index.
+ */
+void pat_init_cache_modes(void)
+{
+	int i;
+	enum page_cache_mode cache;
+	char pat_msg[33];
+	u64 pat;
+
+	rdmsrl(MSR_IA32_CR_PAT, pat);
+	pat_msg[32] = 0;
+	for (i = 7; i >= 0; i--) {
+		cache = pat_get_cache_mode((pat >> (i * 8)) & 7,
+					   pat_msg + 4 * i);
+		update_cache_mode_entry(i, cache);
+	}
+	pr_info("PAT configuration [0-7]: %s\n", pat_msg);
+}
 
 #define PAT(x, y)	((u64)PAT_ ## y << ((x)*8))
 
@@ -124,8 +171,7 @@ void pat_init(void)
 	wrmsrl(MSR_IA32_CR_PAT, pat);
 
 	if (boot_cpu)
-		printk(KERN_INFO "x86 PAT enabled: cpu %d, old 0x%Lx, new 0x%Lx\n",
-		       smp_processor_id(), boot_pat_state, pat);
+		pat_init_cache_modes();
 }
 
 #undef PAT
