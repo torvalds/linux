@@ -153,7 +153,7 @@ static struct virtpci_dev *vpcidev_list_head;
 static DEFINE_RWLOCK(vpcidev_list_lock);
 
 /* filled in with info about this driver, wrt it servicing client busses */
-static struct ultra_vbus_deviceinfo Bus_DriverInfo;
+static struct ultra_vbus_deviceinfo bus_driver_info;
 
 /*****************************************************/
 /* debugfs entries                                   */
@@ -281,7 +281,8 @@ static int add_vbus(struct add_vbus_guestpart *addparams)
 	}
 	write_vbus_chpInfo(vbus->platform_data /* chanptr */ ,
 			   &chipset_driver_info);
-	write_vbus_busInfo(vbus->platform_data /* chanptr */ , &Bus_DriverInfo);
+	write_vbus_busInfo(vbus->platform_data /* chanptr */ ,
+			   &bus_driver_info);
 	LOGINF("Added vbus %d; device %s created successfully\n",
 	       addparams->bus_no, BUS_ID(vbus));
 	POSTCODE_LINUX_2(VPCI_CREATE_EXIT_PC, POSTCODE_SEVERITY_INFO);
@@ -802,7 +803,7 @@ static void fix_vbus_devInfo(struct device *dev, int devNo, int devType,
 	* was previously written by our good counterpart, visorbus.
 	*/
 	write_vbus_chpInfo(pChan, &chipset_driver_info);
-	write_vbus_busInfo(pChan, &Bus_DriverInfo);
+	write_vbus_busInfo(pChan, &bus_driver_info);
 }
 
 /* This function is called to query the existence of a specific device
@@ -1521,7 +1522,7 @@ static int __init virtpci_mod_init(void)
 		return ret;
 	}
 	DBGINF("bus_register successful\n");
-	bus_device_info_init(&Bus_DriverInfo, "clientbus", "virtpci",
+	bus_device_info_init(&bus_driver_info, "clientbus", "virtpci",
 			     VERSION, NULL);
 
 	/* create a root bus used to parent all the virtpci buses. */
