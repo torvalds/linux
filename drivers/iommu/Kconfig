@@ -152,6 +152,18 @@ config OMAP_IOMMU_DEBUG
 
          Say N unless you know you need this.
 
+config ROCKCHIP_IOMMU
+	bool "Rockchip IOMMU Support"
+	depends on ARCH_ROCKCHIP
+	select IOMMU_API
+	select ARM_DMA_USE_IOMMU
+	help
+	  Support for IOMMUs found on Rockchip rk32xx SOCs.
+	  These IOMMUs allow virtualization of the address space used by most
+	  cores within the multimedia subsystem.
+	  Say Y here if you are using a Rockchip SoC that includes an IOMMU
+	  device.
+
 config TEGRA_IOMMU_GART
 	bool "Tegra GART IOMMU Support"
 	depends on ARCH_TEGRA_2x_SOC
