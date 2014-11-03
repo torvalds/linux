@@ -3786,9 +3786,7 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 	intel_fdi_normal_train(crtc);
 
 	/* For PCH DP, enable TRANS_DP_CTL */
-	if (HAS_PCH_CPT(dev) &&
-	    (intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_DISPLAYPORT) ||
-	     intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_EDP))) {
+	if (HAS_PCH_CPT(dev) && intel_crtc->config.has_dp_encoder) {
 		u32 bpc = (I915_READ(PIPECONF(pipe)) & PIPECONF_BPC_MASK) >> 5;
 		reg = TRANS_DP_CTL(pipe);
 		temp = I915_READ(reg);
@@ -5867,8 +5865,7 @@ static void vlv_prepare_pll(struct intel_crtc *crtc,
 		vlv_dpio_write(dev_priv, pipe, VLV_PLL_DW10(pipe),
 				 0x00d0000f);
 
-	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP) ||
-	    intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT)) {
+	if (crtc->config.has_dp_encoder) {
 		/* Use SSC source */
 		if (pipe == PIPE_A)
 			vlv_dpio_write(dev_priv, pipe, VLV_PLL_DW5(pipe),
@@ -6058,7 +6055,7 @@ static void i9xx_update_pll(struct intel_crtc *crtc,
 	if (is_sdvo)
 		dpll |= DPLL_SDVO_HIGH_SPEED;
 
-	if (intel_pipe_will_have_type(crtc, INTEL_OUTPUT_DISPLAYPORT))
+	if (crtc->new_config->has_dp_encoder)
 		dpll |= DPLL_SDVO_HIGH_SPEED;
 
 	/* compute bitmask from p1 value */
