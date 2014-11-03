@@ -451,11 +451,6 @@ struct scsi_host_template {
 	 */
 	unsigned skip_settle_delay:1;
 
-	/*
-	 * True if we are using ordered write support.
-	 */
-	unsigned ordered_tag:1;
-
 	/* True if the controller does not support WRITE SAME */
 	unsigned no_write_same:1;
 
@@ -669,11 +664,6 @@ struct Scsi_Host {
 	 * the spec ;).
 	 */
 	unsigned reverse_ordering:1;
-
-	/*
-	 * Ordered write support
-	 */
-	unsigned ordered_tag:1;
 
 	/* Task mgmt function in progress */
 	unsigned tmf_in_progress:1;
