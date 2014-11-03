@@ -1077,7 +1077,8 @@ static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_add_sta_key_cmd cmd = {};
 	__le16 key_flags;
-	int ret, status;
+	int ret;
+	u32 status;
 	u16 keyidx;
 	int i;
 
@@ -1285,7 +1286,8 @@ int iwl_mvm_remove_sta_key(struct iwl_mvm *mvm,
 	struct iwl_mvm_sta *mvm_sta;
 	struct iwl_mvm_add_sta_key_cmd cmd = {};
 	__le16 key_flags;
-	int ret, status;
+	int ret;
+	u32 status;
 	u8 sta_id;
 
 	lockdep_assert_held(&mvm->mutex);
