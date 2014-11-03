@@ -455,7 +455,9 @@ int io_reserve_memtype(resource_size_t start, resource_size_t end,
 	if (ret)
 		goto out_err;
 
-	if (!is_new_memtype_allowed(start, size, req_type, new_type))
+	if (!is_new_memtype_allowed(start, size,
+				    pgprot2cachemode(__pgprot(req_type)),
+				    pgprot2cachemode(__pgprot(new_type))))
 		goto out_free;
 
 	if (kernel_map_sync_memtype(start, size, new_type) < 0)
@@ -630,7 +632,9 @@ static int reserve_pfn_range(u64 paddr, unsigned long size, pgprot_t *vma_prot,
 
 	if (flags != want_flags) {
 		if (strict_prot ||
-		    !is_new_memtype_allowed(paddr, size, want_flags, flags)) {
+		    !is_new_memtype_allowed(paddr, size,
+				pgprot2cachemode(__pgprot(want_flags)),
+				pgprot2cachemode(__pgprot(flags)))) {
 			free_memtype(paddr, paddr + size);
 			printk(KERN_ERR "%s:%d map pfn expected mapping type %s"
 				" for [mem %#010Lx-%#010Lx], got %s\n",
