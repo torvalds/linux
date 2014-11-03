@@ -33,6 +33,7 @@ static struct stmmac_dma_cfg dma_cfg;
 static void stmmac_default_data(void)
 {
 	memset(&plat_dat, 0, sizeof(struct plat_stmmacenet_data));
+
 	plat_dat.bus_id = 1;
 	plat_dat.phy_addr = 0;
 	plat_dat.interface = PHY_INTERFACE_MODE_GMII;
@@ -47,6 +48,12 @@ static void stmmac_default_data(void)
 	dma_cfg.pbl = 32;
 	dma_cfg.burst_len = DMA_AXI_BLEN_256;
 	plat_dat.dma_cfg = &dma_cfg;
+
+	/* Set default value for multicast hash bins */
+	plat_dat.multicast_filter_bins = HASH_TABLE_SIZE;
+
+	/* Set default value for unicast filter entries */
+	plat_dat.unicast_filter_entries = 1;
 }
 
 /**

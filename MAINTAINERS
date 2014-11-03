@@ -1749,6 +1749,13 @@ M:	Nicolas Ferre <nicolas.ferre@atmel.com>
 S:	Supported
 F:	drivers/spi/spi-atmel.*
 
+ATMEL SSC DRIVER
+M:	Bo Shen <voice.shen@atmel.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Supported
+F:	drivers/misc/atmel-ssc.c
+F:	include/linux/atmel-ssc.h
+
 ATMEL Timer Counter (TC) AND CLOCKSOURCE DRIVERS
 M:	Nicolas Ferre <nicolas.ferre@atmel.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -4298,8 +4305,10 @@ F:	Documentation/blockdev/cpqarray.txt
 F:	drivers/block/cpqarray.*
 
 HEWLETT-PACKARD SMART ARRAY RAID DRIVER (hpsa)
-M:	"Stephen M. Cameron" <scameron@beardog.cce.hp.com>
+M:	Don Brace <don.brace@pmcs.com>
 L:	iss_storagedev@hp.com
+L:	storagedev@pmcs.com
+L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	Documentation/scsi/hpsa.txt
 F:	drivers/scsi/hpsa*.[ch]
@@ -4307,8 +4316,10 @@ F:	include/linux/cciss*.h
 F:	include/uapi/linux/cciss*.h
 
 HEWLETT-PACKARD SMART CISS RAID DRIVER (cciss)
-M:	Mike Miller <mike.miller@hp.com>
+M:	Don Brace <don.brace@pmcs.com>
 L:	iss_storagedev@hp.com
+L:	storagedev@pmcs.com
+L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	Documentation/blockdev/cciss.txt
 F:	drivers/block/cciss*
@@ -4594,7 +4605,7 @@ S:	Supported
 F:	drivers/crypto/nx/
 
 IBM Power 842 compression accelerator
-M:	Nathan Fontenot <nfont@linux.vnet.ibm.com>
+M:	Dan Streetman <ddstreet@us.ibm.com>
 S:	Supported
 F:	drivers/crypto/nx/nx-842.c
 F:	include/linux/nx842.h
@@ -5827,6 +5838,14 @@ S:	Maintained
 F:	drivers/net/macvlan.c
 F:	include/linux/if_macvlan.h
 
+MAILBOX API
+M:	Jassi Brar <jassisinghbrar@gmail.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/mailbox/
+F:	include/linux/mailbox_client.h
+F:	include/linux/mailbox_controller.h
+
 MAN-PAGES: MANUAL PAGES FOR LINUX -- Sections 2, 3, 4, 5, and 7
 M:	Michael Kerrisk <mtk.manpages@gmail.com>
 W:	http://www.kernel.org/doc/man-pages
@@ -6815,7 +6834,7 @@ S:	Orphan
 F:	drivers/net/wireless/orinoco/
 
 OSD LIBRARY and FILESYSTEM
-M:	Boaz Harrosh <bharrosh@panasas.com>
+M:	Boaz Harrosh <ooo@electrozaur.com>
 M:	Benny Halevy <bhalevy@primarydata.com>
 L:	osd-dev@open-osd.org
 W:	http://open-osd.org
@@ -6824,6 +6843,13 @@ S:	Maintained
 F:	drivers/scsi/osd/
 F:	include/scsi/osd_*
 F:	fs/exofs/
+
+OVERLAYFS FILESYSTEM
+M:	Miklos Szeredi <miklos@szeredi.hu>
+L:	linux-fsdevel@vger.kernel.org
+S:	Supported
+F:	fs/overlayfs/*
+F:	Documentation/filesystems/overlayfs.txt
 
 P54 WIRELESS DRIVER
 M:	Christian Lamparter <chunkeey@googlemail.com>
@@ -9577,7 +9603,6 @@ F:     drivers/staging/unisys/
 
 UNIVERSAL FLASH STORAGE HOST CONTROLLER DRIVER
 M:	Vinayak Holikatti <vinholikatti@gmail.com>
-M:	Santosh Y <santoshsy@gmail.com>
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	Documentation/scsi/ufs.txt

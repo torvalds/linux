@@ -158,7 +158,7 @@ cycle_t xen_clocksource_read(void)
 	cycle_t ret;
 
 	preempt_disable_notrace();
-	src = this_cpu_ptr(&xen_vcpu->time);
+	src = &__this_cpu_read(xen_vcpu)->time;
 	ret = pvclock_clocksource_read(src);
 	preempt_enable_notrace();
 	return ret;

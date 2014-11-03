@@ -217,3 +217,4 @@ COMPAT_SYSCALL_WRAP5(renameat2, int, olddfd, const char __user *, oldname, int, 
 COMPAT_SYSCALL_WRAP3(seccomp, unsigned int, op, unsigned int, flags, const char __user *, uargs)
 COMPAT_SYSCALL_WRAP3(getrandom, char __user *, buf, size_t, count, unsigned int, flags)
 COMPAT_SYSCALL_WRAP2(memfd_create, const char __user *, uname, unsigned int, flags)
+COMPAT_SYSCALL_WRAP3(bpf, int, cmd, union bpf_attr *, attr, unsigned int, size);

@@ -1328,10 +1328,10 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 			basechain->stats = stats;
 		} else {
 			stats = netdev_alloc_pcpu_stats(struct nft_stats);
-			if (IS_ERR(stats)) {
+			if (stats == NULL) {
 				module_put(type->owner);
 				kfree(basechain);
-				return PTR_ERR(stats);
+				return -ENOMEM;
 			}
 			rcu_assign_pointer(basechain->stats, stats);
 		}
@@ -3743,6 +3743,20 @@ static const struct nfnetlink_subsystem nf_tables_subsys = {
 	.commit		= nf_tables_commit,
 	.abort		= nf_tables_abort,
 };
+
+int nft_chain_validate_dependency(const struct nft_chain *chain,
+				  enum nft_chain_type type)
+{
+	const struct nft_base_chain *basechain;
+
+	if (chain->flags & NFT_BASE_CHAIN) {
+		basechain = nft_base_chain(chain);
+		if (basechain->type->type != type)
+			return -EOPNOTSUPP;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nft_chain_validate_dependency);
 
 /*
  * Loop detection - walk through the ruleset beginning at the destination chain

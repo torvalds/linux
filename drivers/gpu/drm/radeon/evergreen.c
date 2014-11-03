@@ -3005,7 +3005,7 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	u32 vgt_cache_invalidation;
 	u32 hdp_host_path_cntl, tmp;
 	u32 disabled_rb_mask;
-	int i, j, num_shader_engines, ps_thread_count;
+	int i, j, ps_thread_count;
 
 	switch (rdev->family) {
 	case CHIP_CYPRESS:
@@ -3302,8 +3302,6 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	rdev->config.evergreen.tile_config |= 0 << 8;
 	rdev->config.evergreen.tile_config |=
 		((gb_addr_config & 0x30000000) >> 28) << 12;
-
-	num_shader_engines = (gb_addr_config & NUM_SHADER_ENGINES(3) >> 12) + 1;
 
 	if ((rdev->family >= CHIP_CEDAR) && (rdev->family <= CHIP_HEMLOCK)) {
 		u32 efuse_straps_4;

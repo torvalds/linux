@@ -1481,8 +1481,9 @@ void iscsit_collect_login_stats(
 		if (conn->param_list)
 			intrname = iscsi_find_param_from_key(INITIATORNAME,
 							     conn->param_list);
-		strcpy(ls->last_intr_fail_name,
-		       (intrname ? intrname->value : "Unknown"));
+		strlcpy(ls->last_intr_fail_name,
+		       (intrname ? intrname->value : "Unknown"),
+		       sizeof(ls->last_intr_fail_name));
 
 		ls->last_intr_fail_ip_family = conn->login_family;
 

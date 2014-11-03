@@ -450,7 +450,7 @@ static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error, bo
 	kfree(parser->track);
 	kfree(parser->relocs);
 	kfree(parser->relocs_ptr);
-	kfree(parser->vm_bos);
+	drm_free_large(parser->vm_bos);
 	for (i = 0; i < parser->nchunks; i++)
 		drm_free_large(parser->chunks[i].kdata);
 	kfree(parser->chunks);

@@ -13,7 +13,7 @@
 #define wmb()		asm volatile("lock; addl $0,0(%%esp)" ::: "memory")
 #define rmb()		asm volatile("lock; addl $0,0(%%esp)" ::: "memory")
 #define cpu_relax()	asm volatile("rep; nop" ::: "memory");
-#define CPUINFO_PROC	"model name"
+#define CPUINFO_PROC	{"model name"}
 #ifndef __NR_perf_event_open
 # define __NR_perf_event_open 336
 #endif
@@ -30,7 +30,7 @@
 #define wmb()		asm volatile("sfence" ::: "memory")
 #define rmb()		asm volatile("lfence" ::: "memory")
 #define cpu_relax()	asm volatile("rep; nop" ::: "memory");
-#define CPUINFO_PROC	"model name"
+#define CPUINFO_PROC	{"model name"}
 #ifndef __NR_perf_event_open
 # define __NR_perf_event_open 298
 #endif
@@ -47,14 +47,14 @@
 #define mb()		asm volatile ("sync" ::: "memory")
 #define wmb()		asm volatile ("sync" ::: "memory")
 #define rmb()		asm volatile ("sync" ::: "memory")
-#define CPUINFO_PROC	"cpu"
+#define CPUINFO_PROC	{"cpu"}
 #endif
 
 #ifdef __s390__
 #define mb()		asm volatile("bcr 15,0" ::: "memory")
 #define wmb()		asm volatile("bcr 15,0" ::: "memory")
 #define rmb()		asm volatile("bcr 15,0" ::: "memory")
-#define CPUINFO_PROC	"vendor_id"
+#define CPUINFO_PROC	{"vendor_id"}
 #endif
 
 #ifdef __sh__
@@ -67,14 +67,14 @@
 # define wmb()		asm volatile("" ::: "memory")
 # define rmb()		asm volatile("" ::: "memory")
 #endif
-#define CPUINFO_PROC	"cpu type"
+#define CPUINFO_PROC	{"cpu type"}
 #endif
 
 #ifdef __hppa__
 #define mb()		asm volatile("" ::: "memory")
 #define wmb()		asm volatile("" ::: "memory")
 #define rmb()		asm volatile("" ::: "memory")
-#define CPUINFO_PROC	"cpu"
+#define CPUINFO_PROC	{"cpu"}
 #endif
 
 #ifdef __sparc__
@@ -87,14 +87,14 @@
 #endif
 #define wmb()		asm volatile("":::"memory")
 #define rmb()		asm volatile("":::"memory")
-#define CPUINFO_PROC	"cpu"
+#define CPUINFO_PROC	{"cpu"}
 #endif
 
 #ifdef __alpha__
 #define mb()		asm volatile("mb" ::: "memory")
 #define wmb()		asm volatile("wmb" ::: "memory")
 #define rmb()		asm volatile("mb" ::: "memory")
-#define CPUINFO_PROC	"cpu model"
+#define CPUINFO_PROC	{"cpu model"}
 #endif
 
 #ifdef __ia64__
@@ -102,7 +102,7 @@
 #define wmb()		asm volatile ("mf" ::: "memory")
 #define rmb()		asm volatile ("mf" ::: "memory")
 #define cpu_relax()	asm volatile ("hint @pause" ::: "memory")
-#define CPUINFO_PROC	"model name"
+#define CPUINFO_PROC	{"model name"}
 #endif
 
 #ifdef __arm__
@@ -113,7 +113,7 @@
 #define mb()		((void(*)(void))0xffff0fa0)()
 #define wmb()		((void(*)(void))0xffff0fa0)()
 #define rmb()		((void(*)(void))0xffff0fa0)()
-#define CPUINFO_PROC	"Processor"
+#define CPUINFO_PROC	{"model name", "Processor"}
 #endif
 
 #ifdef __aarch64__
@@ -133,28 +133,28 @@
 				: "memory")
 #define wmb()	mb()
 #define rmb()	mb()
-#define CPUINFO_PROC	"cpu model"
+#define CPUINFO_PROC	{"cpu model"}
 #endif
 
 #ifdef __arc__
 #define mb()		asm volatile("" ::: "memory")
 #define wmb()		asm volatile("" ::: "memory")
 #define rmb()		asm volatile("" ::: "memory")
-#define CPUINFO_PROC	"Processor"
+#define CPUINFO_PROC	{"Processor"}
 #endif
 
 #ifdef __metag__
 #define mb()		asm volatile("" ::: "memory")
 #define wmb()		asm volatile("" ::: "memory")
 #define rmb()		asm volatile("" ::: "memory")
-#define CPUINFO_PROC	"CPU"
+#define CPUINFO_PROC	{"CPU"}
 #endif
 
 #ifdef __xtensa__
 #define mb()		asm volatile("memw" ::: "memory")
 #define wmb()		asm volatile("memw" ::: "memory")
 #define rmb()		asm volatile("" ::: "memory")
-#define CPUINFO_PROC	"core ID"
+#define CPUINFO_PROC	{"core ID"}
 #endif
 
 #ifdef __tile__
@@ -162,7 +162,7 @@
 #define wmb()		asm volatile ("mf" ::: "memory")
 #define rmb()		asm volatile ("mf" ::: "memory")
 #define cpu_relax()	asm volatile ("mfspr zero, PASS" ::: "memory")
-#define CPUINFO_PROC    "model name"
+#define CPUINFO_PROC    {"model name"}
 #endif
 
 #define barrier() asm volatile ("" ::: "memory")

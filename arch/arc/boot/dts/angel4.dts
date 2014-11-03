@@ -24,11 +24,6 @@
 		serial0 = &arcuart0;
 	};
 
-	memory {
-		device_type = "memory";
-		reg = <0x00000000 0x10000000>;	/* 256M */
-	};
-
 	fpga {
 		compatible = "simple-bus";
 		#address-cells = <1>;

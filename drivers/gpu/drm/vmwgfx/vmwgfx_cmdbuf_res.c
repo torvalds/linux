@@ -246,7 +246,8 @@ int vmw_cmdbuf_res_remove(struct vmw_cmdbuf_res_manager *man,
 	struct drm_hash_item *hash;
 	int ret;
 
-	ret = drm_ht_find_item(&man->resources, user_key, &hash);
+	ret = drm_ht_find_item(&man->resources, user_key | (res_type << 24),
+			       &hash);
 	if (likely(ret != 0))
 		return -EINVAL;
 

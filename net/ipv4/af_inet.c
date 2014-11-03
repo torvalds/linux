@@ -1246,7 +1246,7 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 
 	encap = SKB_GSO_CB(skb)->encap_level > 0;
 	if (encap)
-		features = skb->dev->hw_enc_features & netif_skb_features(skb);
+		features &= skb->dev->hw_enc_features;
 	SKB_GSO_CB(skb)->encap_level += ihl;
 
 	skb_reset_transport_header(skb);
