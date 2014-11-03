@@ -810,7 +810,101 @@ void root_func(){
         };
 
 /// ***************************************************************************************
-///     -       Input
+/// -   Audio
+//$$ MODULE="Audio"
+//$$ DEVICE="audio_i2s"
+//$$ L2 PROP_STR = "status"
+    audio_platform{
+        compatible = "amlogic,aml-i2s";
+        dev_name = "aml-i2s.0";
+        status = "okay";
+    };
+
+//$$ DEVICE="audio_i2s_dai"
+//$$ L2 PROP_STR = "status"
+    audio_dai{
+        compatible = "amlogic,aml-i2s-dai";
+        dev_name = "aml-i2s-dai.0";
+        status = "okay";
+    };
+    audio_spdif_dai{
+        compatible = "amlogic,aml-spdif-dai";
+        dev_name = "aml-spdif-dai.0";
+        status = "okay";
+    };
+
+    audio_spdif_codec{
+        compatible = "amlogic,aml-spdif-codec";
+        dev_name = "spdif-dit.0";
+        pinctrl-names = "aml_audio_spdif";
+        pinctrl-0 = <&audio_spdif_pins>;
+        status = "okay";
+    };
+
+//$$ DEVICE="audio_pcm_dai"
+//$$ L2 PROP_STR = "status"
+    audio_pcm_dai{
+        compatible = "amlogic,aml-pcm-dai";
+        dev_name = "aml-pcm-dai.0";
+        status = "okay";
+    };
+
+//$$ DEVICE="audio_pcm"
+//$$ L2 PROP_STR = "status"
+    audio_pcm{
+        compatible = "amlogic,aml-pcm";
+        dev_name = "aml-pcm.0";
+        status = "okay";
+    };
+
+//$$ DEVICE="dummy_codec"
+//$$ L2 PROP_STR = "status"
+    dummy_codec{
+        compatible = "amlogic,aml_dummy_codec";
+        dev_name = "dummy_codec.0";
+        status = "okay";
+    };
+
+    aml_audio_codec{
+        compatible = "amlogic,audio_codec";
+        dummy:dummy{
+          codec_name = "dummy_codec";
+          status = "okay";
+        };
+    };
+
+//$$ DEVICE="aml_m8_sound_card"
+//$$ L2 PROP_STR = "aml,sound_card"
+//$$ L2 PROP_STR = "aml,codec_dai"
+//$$ L2 PROP_STR 6*2 = "aml,audio-routing"
+//$$ L2 PROP_STR = "mute_gpio"
+//$$ L2 PROP_U32 5 = "hp_paraments"
+//$$ L2 PROP_STR = "pinctrl-names"
+//$$ L2 PROP_CHOICE "Audio_pin_0_match" = "pinctrl-0"
+//$$ L2 PROP_STR = "status"
+    aml_m8_sound_card{
+        compatible = "sound_card, aml_snd_m8";
+        aml,sound_card = "AML-M8AUDIO";
+        aml,codec_dai = "AML-M8","dummy_codec";
+        aml,audio-routing-amlm8 =
+            "Ext Spk","LINEOUTL",
+            "Ext Spk","LINEOUTR",
+            "HP","HP_L",
+            "HP","HP_R";
+        aml,audio-routing-dummy=
+            "Ext Spk","LOUTL",
+            "Ext Spk","LOUTR";
+        sleep_time = <130>;
+        mute_gpio = "GPIO_BSD_EN";
+        //mute_inv;
+        hp_paraments = <800 300 0 5 1>;
+        pinctrl-names = "aml_snd_m8";
+        pinctrl-0 = <&audio_pins>;
+        status = "okay";
+    };
+
+/// ***************************************************************************************
+///	-	Input
 //$$ MODULE="Input"
 //$$ DEVICE="saradc"
 //$$ L2 PROP_STR = "status"
@@ -1527,8 +1621,19 @@ void root_func(){
         audio_spdif_pins:audio_pin1{
             amlogic,setmask=<10 0x8>;       /*spdif_out*/
             amlogic,clrmask=<10 0x80002000>;    /*spdif_out*/
-            amlogic,pins ="GPIOAO_13";        /*spdif_out*/
+            amlogic,pins ="GPIOAO_6";        /*spdif_out*/
         };
+
+//$$ MATCH "Audio_pin_0_match" = "&audio_pins"
+//$$ L2 PROP_U32 4 = "amlogic,setmask"
+//$$ L2 PROP_U32 10 = "amlogic,clrmask"
+//$$ L2 PROP_STR 6 = "amlogic,pins"
+        audio_pins:audio_pin{
+            amlogic,setmask=<10 0x78000008>;
+            amlogic,clrmask=<10 0x80002000>;
+            amlogic,pins = "GPIOAO_8","GPIOAO_9","GPIOAO_10","GPIOAO_11";
+        };
+
 //$$ MATCH "Spi_pin_0_match" = "&aml_spi_nor_pins"
 //$$ L2 PROP_U32 2 = "amlogic,setmask"
 //$$ L2 PROP_U32 2 = "amlogic,clrmask"
