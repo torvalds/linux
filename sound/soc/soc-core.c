@@ -592,17 +592,12 @@ int snd_soc_suspend(struct device *dev)
 
 	for (i = 0; i < card->num_rtd; i++) {
 		struct snd_soc_dai *cpu_dai = card->rtd[i].cpu_dai;
-		struct snd_soc_platform *platform = card->rtd[i].platform;
 
 		if (card->rtd[i].dai_link->ignore_suspend)
 			continue;
 
 		if (cpu_dai->driver->suspend && !cpu_dai->driver->ac97_control)
 			cpu_dai->driver->suspend(cpu_dai);
-		if (platform->driver->suspend && !platform->suspended) {
-			platform->driver->suspend(cpu_dai);
-			platform->suspended = 1;
-		}
 	}
 
 	/* close any waiting streams and save state */
@@ -775,17 +770,12 @@ static void soc_resume_deferred(struct work_struct *work)
 
 	for (i = 0; i < card->num_rtd; i++) {
 		struct snd_soc_dai *cpu_dai = card->rtd[i].cpu_dai;
-		struct snd_soc_platform *platform = card->rtd[i].platform;
 
 		if (card->rtd[i].dai_link->ignore_suspend)
 			continue;
 
 		if (cpu_dai->driver->resume && !cpu_dai->driver->ac97_control)
 			cpu_dai->driver->resume(cpu_dai);
-		if (platform->driver->resume && platform->suspended) {
-			platform->driver->resume(cpu_dai);
-			platform->suspended = 0;
-		}
 	}
 
 	if (card->resume_post)

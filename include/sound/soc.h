@@ -857,8 +857,6 @@ struct snd_soc_platform_driver {
 
 	int (*probe)(struct snd_soc_platform *);
 	int (*remove)(struct snd_soc_platform *);
-	int (*suspend)(struct snd_soc_dai *dai);
-	int (*resume)(struct snd_soc_dai *dai);
 	struct snd_soc_component_driver component_driver;
 
 	/* pcm creation and destruction */
@@ -890,8 +888,6 @@ struct snd_soc_dai_link_component {
 struct snd_soc_platform {
 	struct device *dev;
 	const struct snd_soc_platform_driver *driver;
-
-	unsigned int suspended:1; /* platform is suspended */
 
 	struct list_head list;
 
