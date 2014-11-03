@@ -2768,7 +2768,6 @@ static int ufshcd_slave_alloc(struct scsi_device *sdev)
 
 	/* Mode sense(6) is not supported by UFS, so use Mode sense(10) */
 	sdev->use_10_for_ms = 1;
-	scsi_set_tag_type(sdev, MSG_SIMPLE_TAG);
 
 	/* allow SCSI layer to restart the device in case of errors */
 	sdev->allow_restart = 1;
