@@ -1309,7 +1309,6 @@ static int soc_probe_link_dais(struct snd_soc_card *card, int num, int order)
 {
 	struct snd_soc_dai_link *dai_link = &card->dai_link[num];
 	struct snd_soc_pcm_runtime *rtd = &card->rtd[num];
-	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int i, ret;
 
@@ -1317,7 +1316,6 @@ static int soc_probe_link_dais(struct snd_soc_card *card, int num, int order)
 			card->name, num, order);
 
 	/* config components */
-	cpu_dai->platform = platform;
 	cpu_dai->card = card;
 	for (i = 0; i < rtd->num_codecs; i++)
 		rtd->codec_dais[i]->card = card;

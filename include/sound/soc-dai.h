@@ -268,7 +268,6 @@ struct snd_soc_dai {
 	unsigned int sample_bits;
 
 	/* parent platform/codec */
-	struct snd_soc_platform *platform;
 	struct snd_soc_codec *codec;
 	struct snd_soc_component *component;
 
