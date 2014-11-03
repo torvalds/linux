@@ -612,8 +612,7 @@ int omap_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 {
 	union omap_gem_size gsize;
 
-	/* in case someone tries to feed us a completely bogus stride: */
-	args->pitch = align_pitch(args->pitch, args->width, args->bpp);
+	args->pitch = align_pitch(0, args->width, args->bpp);
 	args->size = PAGE_ALIGN(args->pitch * args->height);
 
 	gsize = (union omap_gem_size){
