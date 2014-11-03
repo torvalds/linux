@@ -3343,11 +3343,10 @@ static int __maybe_unused fec_suspend(struct device *dev)
 		netif_device_detach(ndev);
 		netif_tx_unlock_bh(ndev);
 		fec_stop(ndev);
+		fec_enet_clk_enable(ndev, false);
+		pinctrl_pm_select_sleep_state(&fep->pdev->dev);
 	}
 	rtnl_unlock();
-
-	fec_enet_clk_enable(ndev, false);
-	pinctrl_pm_select_sleep_state(&fep->pdev->dev);
 
 	if (fep->reg_phy)
 		regulator_disable(fep->reg_phy);
@@ -3367,13 +3366,14 @@ static int __maybe_unused fec_resume(struct device *dev)
 			return ret;
 	}
 
-	pinctrl_pm_select_default_state(&fep->pdev->dev);
-	ret = fec_enet_clk_enable(ndev, true);
-	if (ret)
-		goto failed_clk;
-
 	rtnl_lock();
 	if (netif_running(ndev)) {
+		pinctrl_pm_select_default_state(&fep->pdev->dev);
+		ret = fec_enet_clk_enable(ndev, true);
+		if (ret) {
+			rtnl_unlock();
+			goto failed_clk;
+		}
 		fec_restart(ndev);
 		netif_tx_lock_bh(ndev);
 		netif_device_attach(ndev);
