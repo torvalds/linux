@@ -498,10 +498,9 @@ static int si2168_init(struct dvb_frontend *fe)
 
 	s->fw_loaded = true;
 
-warm:
 	dev_info(&s->client->dev, "found a '%s' in warm state\n",
 			si2168_ops.info.name);
-
+warm:
 	s->active = true;
 
 	return 0;
