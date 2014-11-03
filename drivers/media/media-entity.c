@@ -297,7 +297,8 @@ __must_check int media_entity_pipeline_start(struct media_entity *entity,
 			dev_dbg(entity->parent->dev,
 				"\"%s\":%u must be connected by an enabled link\n",
 				entity->name,
-				find_first_zero_bit(active, entity->num_pads));
+				(unsigned)find_first_zero_bit(
+					active, entity->num_pads));
 			goto error;
 		}
 	}
