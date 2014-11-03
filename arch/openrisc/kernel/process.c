@@ -226,6 +226,7 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t * fpu)
 
 extern struct thread_info *_switch(struct thread_info *old_ti,
 				   struct thread_info *new_ti);
+extern int lwa_flag;
 
 struct task_struct *__switch_to(struct task_struct *old,
 				struct task_struct *new)
@@ -242,6 +243,8 @@ struct task_struct *__switch_to(struct task_struct *old,
 	 */
 	new_ti = new->stack;
 	old_ti = old->stack;
+
+	lwa_flag = 0;
 
 	current_thread_info_set[smp_processor_id()] = new_ti;
 	last = (_switch(old_ti, new_ti))->task;

@@ -173,6 +173,11 @@ handler:							;\
 	l.j	_ret_from_exception				;\
 	 l.nop
 
+/* clobbers 'reg' */
+#define CLEAR_LWA_FLAG(reg)		\
+	l.movhi	reg,hi(lwa_flag)	;\
+	l.ori	reg,reg,lo(lwa_flag)	;\
+	l.sw	0(reg),r0
 /*
  * NOTE: one should never assume that SPR_EPC, SPR_ESR, SPR_EEAR
  *       contain the same values as when exception we're handling
@@ -193,6 +198,7 @@ EXCEPTION_ENTRY(_tng_kernel_start)
 /* ---[ 0x200: BUS exception ]------------------------------------------- */
 
 EXCEPTION_ENTRY(_bus_fault_handler)
+	CLEAR_LWA_FLAG(r3)
 	/* r4: EA of fault (set by EXCEPTION_HANDLE) */
 	l.jal   do_bus_fault
 	 l.addi  r3,r1,0 /* pt_regs */
@@ -202,11 +208,13 @@ EXCEPTION_ENTRY(_bus_fault_handler)
 
 /* ---[ 0x300: Data Page Fault exception ]------------------------------- */
 EXCEPTION_ENTRY(_dtlb_miss_page_fault_handler)
+	CLEAR_LWA_FLAG(r3)
 	l.and	r5,r5,r0
 	l.j	1f
 	 l.nop
 
 EXCEPTION_ENTRY(_data_page_fault_handler)
+	CLEAR_LWA_FLAG(r3)
 	/* set up parameters for do_page_fault */
 	l.ori	r5,r0,0x300		   // exception vector
 1:
@@ -282,11 +290,13 @@ EXCEPTION_ENTRY(_data_page_fault_handler)
 
 /* ---[ 0x400: Insn Page Fault exception ]------------------------------- */
 EXCEPTION_ENTRY(_itlb_miss_page_fault_handler)
+	CLEAR_LWA_FLAG(r3)
 	l.and	r5,r5,r0
 	l.j	1f
 	 l.nop
 
 EXCEPTION_ENTRY(_insn_page_fault_handler)
+	CLEAR_LWA_FLAG(r3)
 	/* set up parameters for do_page_fault */
 	l.ori	r5,r0,0x400		   // exception vector
 1:
@@ -304,6 +314,7 @@ EXCEPTION_ENTRY(_insn_page_fault_handler)
 /* ---[ 0x500: Timer exception ]----------------------------------------- */
 
 EXCEPTION_ENTRY(_timer_handler)
+	CLEAR_LWA_FLAG(r3)
 	l.jal	timer_interrupt
 	 l.addi r3,r1,0 /* pt_regs */
 
@@ -313,6 +324,7 @@ EXCEPTION_ENTRY(_timer_handler)
 /* ---[ 0x600: Aligment exception ]-------------------------------------- */
 
 EXCEPTION_ENTRY(_alignment_handler)
+	CLEAR_LWA_FLAG(r3)
 	/* r4: EA of fault (set by EXCEPTION_HANDLE) */
 	l.jal   do_unaligned_access
 	 l.addi  r3,r1,0 /* pt_regs */
@@ -509,6 +521,7 @@ EXCEPTION_ENTRY(_external_irq_handler)
 //	l.sw	PT_SR(r1),r4
 1:
 #endif
+	CLEAR_LWA_FLAG(r3)
 	l.addi	r3,r1,0
 	l.movhi	r8,hi(do_IRQ)
 	l.ori	r8,r8,lo(do_IRQ)
@@ -556,8 +569,12 @@ ENTRY(_sys_call_handler)
 	 * they should be clobbered, otherwise
 	 */
 	l.sw    PT_GPR3(r1),r3
-	/* r4 already saved */
-	/* r4 holds the EEAR address of the fault, load the original r4 */
+	/*
+	 * r4 already saved
+	 * r4 holds the EEAR address of the fault, use it as screatch reg and
+	 * then load the original r4
+	 */
+	CLEAR_LWA_FLAG(r4)
 	l.lwz	r4,PT_GPR4(r1)
 	l.sw    PT_GPR5(r1),r5
 	l.sw    PT_GPR6(r1),r6
@@ -776,6 +793,7 @@ UNHANDLED_EXCEPTION(_vector_0xd00,0xd00)
 /* ---[ 0xe00: Trap exception ]------------------------------------------ */
 
 EXCEPTION_ENTRY(_trap_handler)
+	CLEAR_LWA_FLAG(r3)
 	/* r4: EA of fault (set by EXCEPTION_HANDLE) */
 	l.jal   do_trap
 	 l.addi  r3,r1,0 /* pt_regs */
