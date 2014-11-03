@@ -755,12 +755,19 @@ static inline unsigned int intel_num_planes(struct intel_crtc *crtc)
 	return INTEL_INFO(crtc->base.dev)->num_sprites[crtc->pipe] + 1;
 }
 
-/* i915_irq.c */
-bool intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
+/* intel_fifo_underrun.c */
+bool intel_set_cpu_fifo_underrun_reporting(struct drm_i915_private *dev_priv,
 					   enum pipe pipe, bool enable);
-bool intel_set_pch_fifo_underrun_reporting(struct drm_device *dev,
+bool intel_set_pch_fifo_underrun_reporting(struct drm_i915_private *dev_priv,
 					   enum transcoder pch_transcoder,
 					   bool enable);
+void intel_cpu_fifo_underrun_irq_handler(struct drm_i915_private *dev_priv,
+					 enum pipe pipe);
+void intel_pch_fifo_underrun_irq_handler(struct drm_i915_private *dev_priv,
+					 enum transcoder pch_transcoder);
+void i9xx_check_fifo_underruns(struct drm_i915_private *dev_priv);
+
+/* i915_irq.c */
 void gen5_enable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void gen5_disable_gt_irq(struct drm_i915_private *dev_priv, uint32_t mask);
 void gen6_enable_pm_irq(struct drm_i915_private *dev_priv, uint32_t mask);
@@ -779,7 +786,6 @@ static inline bool intel_irqs_enabled(struct drm_i915_private *dev_priv)
 }
 
 int intel_get_crtc_scanline(struct intel_crtc *crtc);
-void i9xx_check_fifo_underruns(struct drm_device *dev);
 void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv);
 
 /* intel_crt.c */

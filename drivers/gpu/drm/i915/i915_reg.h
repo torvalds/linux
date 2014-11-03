@@ -883,8 +883,8 @@ enum punit_power_well {
 #define _VLV_PCS23_DW11_CH0		0x042c
 #define _VLV_PCS01_DW11_CH1		0x262c
 #define _VLV_PCS23_DW11_CH1		0x282c
-#define VLV_PCS01_DW11(ch) _PORT(ch, _VLV_PCS01_DW0_CH0, _VLV_PCS01_DW0_CH1)
-#define VLV_PCS23_DW11(ch) _PORT(ch, _VLV_PCS23_DW0_CH0, _VLV_PCS23_DW0_CH1)
+#define VLV_PCS01_DW11(ch) _PORT(ch, _VLV_PCS01_DW11_CH0, _VLV_PCS01_DW11_CH1)
+#define VLV_PCS23_DW11(ch) _PORT(ch, _VLV_PCS23_DW11_CH0, _VLV_PCS23_DW11_CH1)
 
 #define _VLV_PCS_DW12_CH0		0x8230
 #define _VLV_PCS_DW12_CH1		0x8430
@@ -4054,17 +4054,18 @@ enum punit_power_well {
 #define   DSPFW_PLANEA_WM1_HI_MASK	(1<<0)
 
 /* drain latency register values*/
+#define DRAIN_LATENCY_PRECISION_16	16
 #define DRAIN_LATENCY_PRECISION_32	32
 #define DRAIN_LATENCY_PRECISION_64	64
 #define VLV_DDL(pipe)			(VLV_DISPLAY_BASE + 0x70050 + 4 * (pipe))
-#define DDL_CURSOR_PRECISION_64		(1<<31)
-#define DDL_CURSOR_PRECISION_32		(0<<31)
+#define DDL_CURSOR_PRECISION_HIGH	(1<<31)
+#define DDL_CURSOR_PRECISION_LOW	(0<<31)
 #define DDL_CURSOR_SHIFT		24
-#define DDL_SPRITE_PRECISION_64(sprite)	(1<<(15+8*(sprite)))
-#define DDL_SPRITE_PRECISION_32(sprite)	(0<<(15+8*(sprite)))
+#define DDL_SPRITE_PRECISION_HIGH(sprite)	(1<<(15+8*(sprite)))
+#define DDL_SPRITE_PRECISION_LOW(sprite)	(0<<(15+8*(sprite)))
 #define DDL_SPRITE_SHIFT(sprite)	(8+8*(sprite))
-#define DDL_PLANE_PRECISION_64		(1<<7)
-#define DDL_PLANE_PRECISION_32		(0<<7)
+#define DDL_PLANE_PRECISION_HIGH	(1<<7)
+#define DDL_PLANE_PRECISION_LOW		(0<<7)
 #define DDL_PLANE_SHIFT			0
 #define DRAIN_LATENCY_MASK		0x7f
 
@@ -4207,6 +4208,7 @@ enum punit_power_well {
 #define   MCURSOR_PIPE_A	0x00
 #define   MCURSOR_PIPE_B	(1 << 28)
 #define   MCURSOR_GAMMA_ENABLE  (1 << 26)
+#define   CURSOR_ROTATE_180	(1<<15)
 #define   CURSOR_TRICKLE_FEED_DISABLE	(1 << 14)
 #define _CURABASE		0x70084
 #define _CURAPOS		0x70088
@@ -4579,6 +4581,9 @@ enum punit_power_well {
 #define   PLANE_CTL_ALPHA_DISABLE		(  0 << 4)
 #define   PLANE_CTL_ALPHA_SW_PREMULTIPLY	(  2 << 4)
 #define   PLANE_CTL_ALPHA_HW_PREMULTIPLY	(  3 << 4)
+#define   PLANE_CTL_ROTATE_MASK			0x3
+#define   PLANE_CTL_ROTATE_0			0x0
+#define   PLANE_CTL_ROTATE_180			0x2
 #define _PLANE_STRIDE_1_A			0x70188
 #define _PLANE_STRIDE_2_A			0x70288
 #define _PLANE_STRIDE_3_A			0x70388

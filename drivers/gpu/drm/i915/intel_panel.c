@@ -775,8 +775,9 @@ static void bdw_enable_backlight(struct intel_connector *connector)
 	if (panel->backlight.active_low_pwm)
 		pch_ctl1 |= BLM_PCH_POLARITY;
 
-	/* BDW always uses the pch pwm controls. */
-	pch_ctl1 |= BLM_PCH_OVERRIDE_ENABLE;
+	/* After LPT, override is the default. */
+	if (HAS_PCH_LPT(dev_priv))
+		pch_ctl1 |= BLM_PCH_OVERRIDE_ENABLE;
 
 	I915_WRITE(BLC_PWM_PCH_CTL1, pch_ctl1);
 	POSTING_READ(BLC_PWM_PCH_CTL1);

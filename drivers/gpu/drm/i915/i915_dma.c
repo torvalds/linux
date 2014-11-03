@@ -1275,12 +1275,12 @@ static void i915_switcheroo_set_state(struct pci_dev *pdev, enum vga_switcheroo_
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 		/* i915 resume handler doesn't set to D0 */
 		pci_set_power_state(dev->pdev, PCI_D0);
-		i915_resume(dev);
+		i915_resume_legacy(dev);
 		dev->switch_power_state = DRM_SWITCH_POWER_ON;
 	} else {
 		pr_err("switched off\n");
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
-		i915_suspend(dev, pmm);
+		i915_suspend_legacy(dev, pmm);
 		dev->switch_power_state = DRM_SWITCH_POWER_OFF;
 	}
 }
@@ -1853,8 +1853,12 @@ int i915_driver_unload(struct drm_device *dev)
 
 	acpi_video_unregister();
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		intel_fbdev_fini(dev);
+
+	drm_vblank_cleanup(dev);
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		intel_modeset_cleanup(dev);
 
 		/*
@@ -1894,8 +1898,6 @@ int i915_driver_unload(struct drm_device *dev)
 		if (!I915_NEED_GFX_HWS(dev))
 			i915_free_hws(dev);
 	}
-
-	drm_vblank_cleanup(dev);
 
 	intel_teardown_gmbus(dev);
 	intel_teardown_mchbar(dev);

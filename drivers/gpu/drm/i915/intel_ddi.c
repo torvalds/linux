@@ -1291,7 +1291,7 @@ static int hsw_get_cdclk_freq(struct drm_i915_private *dev_priv)
 		return 450000;
 	else if (freq == LCPLL_CLK_FREQ_450)
 		return 450000;
-	else if (IS_ULT(dev))
+	else if (IS_HSW_ULT(dev))
 		return 337500;
 	else
 		return 540000;

@@ -1345,6 +1345,7 @@ static bool vlv_compute_drain_latency(struct drm_crtc *crtc,
 				      int *prec_mult,
 				      int *drain_latency)
 {
+	struct drm_device *dev = crtc->dev;
 	int entries;
 	int clock = to_intel_crtc(crtc)->config.adjusted_mode.crtc_clock;
 
@@ -1355,8 +1356,12 @@ static bool vlv_compute_drain_latency(struct drm_crtc *crtc,
 		return false;
 
 	entries = DIV_ROUND_UP(clock, 1000) * pixel_size;
-	*prec_mult = (entries > 128) ? DRAIN_LATENCY_PRECISION_64 :
-				       DRAIN_LATENCY_PRECISION_32;
+	if (IS_CHERRYVIEW(dev))
+		*prec_mult = (entries > 128) ? DRAIN_LATENCY_PRECISION_32 :
+					       DRAIN_LATENCY_PRECISION_16;
+	else
+		*prec_mult = (entries > 128) ? DRAIN_LATENCY_PRECISION_64 :
+					       DRAIN_LATENCY_PRECISION_32;
 	*drain_latency = (64 * (*prec_mult) * 4) / entries;
 
 	if (*drain_latency > DRAIN_LATENCY_MASK)
@@ -1375,15 +1380,18 @@ static bool vlv_compute_drain_latency(struct drm_crtc *crtc,
 
 static void vlv_update_drain_latency(struct drm_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pixel_size;
 	int drain_latency;
 	enum pipe pipe = intel_crtc->pipe;
 	int plane_prec, prec_mult, plane_dl;
+	const int high_precision = IS_CHERRYVIEW(dev) ?
+		DRAIN_LATENCY_PRECISION_32 : DRAIN_LATENCY_PRECISION_64;
 
-	plane_dl = I915_READ(VLV_DDL(pipe)) & ~(DDL_PLANE_PRECISION_64 |
-		   DRAIN_LATENCY_MASK | DDL_CURSOR_PRECISION_64 |
+	plane_dl = I915_READ(VLV_DDL(pipe)) & ~(DDL_PLANE_PRECISION_HIGH |
+		   DRAIN_LATENCY_MASK | DDL_CURSOR_PRECISION_HIGH |
 		   (DRAIN_LATENCY_MASK << DDL_CURSOR_SHIFT));
 
 	if (!intel_crtc_active(crtc)) {
@@ -1394,9 +1402,9 @@ static void vlv_update_drain_latency(struct drm_crtc *crtc)
 	/* Primary plane Drain Latency */
 	pixel_size = crtc->primary->fb->bits_per_pixel / 8;	/* BPP */
 	if (vlv_compute_drain_latency(crtc, pixel_size, &prec_mult, &drain_latency)) {
-		plane_prec = (prec_mult == DRAIN_LATENCY_PRECISION_64) ?
-					   DDL_PLANE_PRECISION_64 :
-					   DDL_PLANE_PRECISION_32;
+		plane_prec = (prec_mult == high_precision) ?
+					   DDL_PLANE_PRECISION_HIGH :
+					   DDL_PLANE_PRECISION_LOW;
 		plane_dl |= plane_prec | drain_latency;
 	}
 
@@ -1408,9 +1416,9 @@ static void vlv_update_drain_latency(struct drm_crtc *crtc)
 	/* Program cursor DL only if it is enabled */
 	if (intel_crtc->cursor_base &&
 	    vlv_compute_drain_latency(crtc, pixel_size, &prec_mult, &drain_latency)) {
-		plane_prec = (prec_mult == DRAIN_LATENCY_PRECISION_64) ?
-					   DDL_CURSOR_PRECISION_64 :
-					   DDL_CURSOR_PRECISION_32;
+		plane_prec = (prec_mult == high_precision) ?
+					   DDL_CURSOR_PRECISION_HIGH :
+					   DDL_CURSOR_PRECISION_LOW;
 		plane_dl |= plane_prec | (drain_latency << DDL_CURSOR_SHIFT);
 	}
 
@@ -1578,15 +1586,17 @@ static void valleyview_update_sprite_wm(struct drm_plane *plane,
 	int plane_prec;
 	int sprite_dl;
 	int prec_mult;
+	const int high_precision = IS_CHERRYVIEW(dev) ?
+		DRAIN_LATENCY_PRECISION_32 : DRAIN_LATENCY_PRECISION_64;
 
-	sprite_dl = I915_READ(VLV_DDL(pipe)) & ~(DDL_SPRITE_PRECISION_64(sprite) |
+	sprite_dl = I915_READ(VLV_DDL(pipe)) & ~(DDL_SPRITE_PRECISION_HIGH(sprite) |
 		    (DRAIN_LATENCY_MASK << DDL_SPRITE_SHIFT(sprite)));
 
 	if (enabled && vlv_compute_drain_latency(crtc, pixel_size, &prec_mult,
 						 &drain_latency)) {
-		plane_prec = (prec_mult == DRAIN_LATENCY_PRECISION_64) ?
-					   DDL_SPRITE_PRECISION_64(sprite) :
-					   DDL_SPRITE_PRECISION_32(sprite);
+		plane_prec = (prec_mult == high_precision) ?
+					   DDL_SPRITE_PRECISION_HIGH(sprite) :
+					   DDL_SPRITE_PRECISION_LOW(sprite);
 		sprite_dl |= plane_prec |
 			     (drain_latency << DDL_SPRITE_SHIFT(sprite));
 	}
@@ -3629,10 +3639,15 @@ static void intel_print_rc6_info(struct drm_device *dev, u32 mode)
 		else
 			mode = 0;
 	}
-	DRM_DEBUG_KMS("Enabling RC6 states: RC6 %s, RC6p %s, RC6pp %s\n",
-		      (mode & GEN6_RC_CTL_RC6_ENABLE) ? "on" : "off",
-		      (mode & GEN6_RC_CTL_RC6p_ENABLE) ? "on" : "off",
-		      (mode & GEN6_RC_CTL_RC6pp_ENABLE) ? "on" : "off");
+	if (HAS_RC6p(dev))
+		DRM_DEBUG_KMS("Enabling RC6 states: RC6 %s RC6p %s RC6pp %s\n",
+			      (mode & GEN6_RC_CTL_RC6_ENABLE) ? "on" : "off",
+			      (mode & GEN6_RC_CTL_RC6p_ENABLE) ? "on" : "off",
+			      (mode & GEN6_RC_CTL_RC6pp_ENABLE) ? "on" : "off");
+
+	else
+		DRM_DEBUG_KMS("Enabling RC6 states: RC6 %s\n",
+			      (mode & GEN6_RC_CTL_RC6_ENABLE) ? "on" : "off");
 }
 
 static int sanitize_rc6_option(const struct drm_device *dev, int enable_rc6)
@@ -3649,7 +3664,7 @@ static int sanitize_rc6_option(const struct drm_device *dev, int enable_rc6)
 	if (enable_rc6 >= 0) {
 		int mask;
 
-		if (INTEL_INFO(dev)->gen == 6 || IS_IVYBRIDGE(dev))
+		if (HAS_RC6p(dev))
 			mask = INTEL_RC6_ENABLE | INTEL_RC6p_ENABLE |
 			       INTEL_RC6pp_ENABLE;
 		else
@@ -5648,16 +5663,6 @@ static void broadwell_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(WM3_LP_ILK, 0);
 	I915_WRITE(WM2_LP_ILK, 0);
 	I915_WRITE(WM1_LP_ILK, 0);
-
-	/* FIXME(BDW): Check all the w/a, some might only apply to
-	 * pre-production hw. */
-
-
-	I915_WRITE(GAMTARBMODE, _MASKED_BIT_ENABLE(ARB_MODE_BWGTLB_DISABLE));
-
-	I915_WRITE(_3D_CHICKEN3,
-		   _MASKED_BIT_ENABLE(_3D_CHICKEN_SDE_LIMIT_FIFO_POLY_DEPTH(2)));
-
 
 	/* WaSwitchSolVfFArbitrationPriority:bdw */
 	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) | HSW_ECOCHK_ARB_PRIO_SOL);

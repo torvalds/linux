@@ -775,7 +775,7 @@ static void intel_crt_reset(struct drm_connector *connector)
 		I915_WRITE(crt->adpa_reg, adpa);
 		POSTING_READ(crt->adpa_reg);
 
-		DRM_DEBUG_KMS("pch crt adpa set to 0x%x\n", adpa);
+		DRM_DEBUG_KMS("crt adpa set to 0x%x\n", adpa);
 		crt->force_hotplug_required = 1;
 	}
 
