@@ -29,6 +29,7 @@
 #include <linux/hw_breakpoint.h>
 #include <linux/smp.h>
 #include <linux/cpu_pm.h>
+#include <linux/coresight.h>
 
 #include <asm/cacheflush.h>
 #include <asm/cputype.h>
@@ -36,7 +37,6 @@
 #include <asm/hw_breakpoint.h>
 #include <asm/kdebug.h>
 #include <asm/traps.h>
-#include <asm/hardware/coresight.h>
 
 /* Breakpoint currently in use for each BRP. */
 static DEFINE_PER_CPU(struct perf_event *, bp_on_reg[ARM_MAX_BRP]);
@@ -976,7 +976,7 @@ static void reset_ctrl_regs(void *unused)
 	 * Unconditionally clear the OS lock by writing a value
 	 * other than CS_LAR_KEY to the access register.
 	 */
-	ARM_DBG_WRITE(c1, c0, 4, ~CS_LAR_KEY);
+	ARM_DBG_WRITE(c1, c0, 4, ~CORESIGHT_UNLOCK);
 	isb();
 
 	/*
