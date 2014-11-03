@@ -324,8 +324,8 @@ int exynos_drm_crtc_create(struct exynos_drm_manager *manager)
 		goto err_plane;
 	}
 
-	manager->crtc = &exynos_crtc->drm_crtc;
-	crtc = &exynos_crtc->drm_crtc;
+	manager->crtc = &exynos_crtc->base;
+	crtc = &exynos_crtc->base;
 
 	private->crtc[manager->pipe] = crtc;
 

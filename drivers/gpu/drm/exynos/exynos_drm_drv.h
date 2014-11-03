@@ -23,8 +23,7 @@
 #define MAX_FB_BUFFER	4
 #define DEFAULT_ZPOS	-1
 
-#define to_exynos_crtc(x)	container_of(x, struct exynos_drm_crtc,\
-				drm_crtc)
+#define to_exynos_crtc(x)	container_of(x, struct exynos_drm_crtc, base)
 #define to_exynos_plane(x)	container_of(x, struct exynos_drm_plane, base)
 
 /* This enumerates device type. */
@@ -229,7 +228,7 @@ enum exynos_crtc_mode {
 /*
  * Exynos specific crtc structure.
  *
- * @drm_crtc: crtc object.
+ * @base: crtc object.
  * @manager: the manager associated with this crtc
  * @pipe: a crtc index created at load() with a new crtc object creation
  *	and the crtc object would be set to private->crtc array
@@ -242,7 +241,7 @@ enum exynos_crtc_mode {
  * @mode: store the crtc mode value
  */
 struct exynos_drm_crtc {
-	struct drm_crtc			drm_crtc;
+	struct drm_crtc			base;
 	struct exynos_drm_manager	*manager;
 	unsigned int			pipe;
 	unsigned int			dpms;
