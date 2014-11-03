@@ -38,7 +38,7 @@ struct pin_config_item {
 #define PCONFDUMP(a, b, c, d) { .param = a, .display = b, .format = c, \
 				.has_arg = d }
 
-static struct pin_config_item conf_items[] = {
+static const struct pin_config_item conf_items[] = {
 	PCONFDUMP(PIN_CONFIG_BIAS_DISABLE, "input bias disabled", NULL, false),
 	PCONFDUMP(PIN_CONFIG_BIAS_HIGH_IMPEDANCE, "input bias high impedance", NULL, false),
 	PCONFDUMP(PIN_CONFIG_BIAS_BUS_HOLD, "input bias bus hold", NULL, false),
@@ -159,7 +159,7 @@ struct pinconf_generic_dt_params {
 	u32 default_value;
 };
 
-static struct pinconf_generic_dt_params dt_params[] = {
+static const struct pinconf_generic_dt_params dt_params[] = {
 	{ "bias-disable", PIN_CONFIG_BIAS_DISABLE, 0 },
 	{ "bias-high-impedance", PIN_CONFIG_BIAS_HIGH_IMPEDANCE, 0 },
 	{ "bias-bus-hold", PIN_CONFIG_BIAS_BUS_HOLD, 0 },
@@ -209,7 +209,7 @@ int pinconf_generic_parse_dt_config(struct device_node *np,
 		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(dt_params); i++) {
-		struct pinconf_generic_dt_params *par = &dt_params[i];
+		const struct pinconf_generic_dt_params *par = &dt_params[i];
 		ret = of_property_read_u32(np, par->property, &val);
 
 		/* property not found */
