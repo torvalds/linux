@@ -216,4 +216,4 @@ arguments are described below.
   or 0 to disable debouncing
 
 More in-depth documentation on these parameters can be found in
-<include/linux/pinctrl/pinconfig-generic.h>
+<include/linux/pinctrl/pinconf-generic.h>
