@@ -11,12 +11,14 @@
  */
 
 #include <linux/errno.h>
+#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
 #include <linux/export.h>
 #include <linux/acpi.h>
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
+#include <linux/pinctrl/pinctrl.h>
 
 #include "gpiolib.h"
 
@@ -55,6 +57,58 @@ static int acpi_gpiochip_find(struct gpio_chip *gc, void *data)
 	return ACPI_HANDLE(gc->dev) == data;
 }
 
+#ifdef CONFIG_PINCTRL
+/**
+ * acpi_gpiochip_pin_to_gpio_offset() - translates ACPI GPIO to Linux GPIO
+ * @chip: GPIO chip
+ * @pin: ACPI GPIO pin number from GpioIo/GpioInt resource
+ *
+ * Function takes ACPI GpioIo/GpioInt pin number as a parameter and
+ * translates it to a corresponding offset suitable to be passed to a
+ * GPIO controller driver.
+ *
+ * Typically the returned offset is same as @pin, but if the GPIO
+ * controller uses pin controller and the mapping is not contigous the
+ * offset might be different.
+ */
+static int acpi_gpiochip_pin_to_gpio_offset(struct gpio_chip *chip, int pin)
+{
+	struct gpio_pin_range *pin_range;
+
+	/* If there are no ranges in this chip, use 1:1 mapping */
+	if (list_empty(&chip->pin_ranges))
+		return pin;
+
+	list_for_each_entry(pin_range, &chip->pin_ranges, node) {
+		const struct pinctrl_gpio_range *range = &pin_range->range;
+		int i;
+
+		if (range->pins) {
+			for (i = 0; i < range->npins; i++) {
+				if (range->pins[i] == pin)
+					return range->base + i - chip->base;
+			}
+		} else {
+			if (pin >= range->pin_base &&
+			    pin < range->pin_base + range->npins) {
+				unsigned gpio_base;
+
+				gpio_base = range->base - chip->base;
+				return gpio_base + pin - range->pin_base;
+			}
+		}
+	}
+
+	return -EINVAL;
+}
+#else
+static inline int acpi_gpiochip_pin_to_gpio_offset(struct gpio_chip *chip,
+						   int pin)
+{
+	return pin;
+}
+#endif
+
 /**
  * acpi_get_gpiod() - Translate ACPI GPIO pin to GPIO descriptor usable with GPIO API
  * @path:	ACPI GPIO controller full path name, (e.g. "\\_SB.GPO1")
@@ -69,6 +123,7 @@ static struct gpio_desc *acpi_get_gpiod(char *path, int pin)
 	struct gpio_chip *chip;
 	acpi_handle handle;
 	acpi_status status;
+	int offset;
 
 	status = acpi_get_handle(NULL, path, &handle);
 	if (ACPI_FAILURE(status))
@@ -78,10 +133,11 @@ static struct gpio_desc *acpi_get_gpiod(char *path, int pin)
 	if (!chip)
 		return ERR_PTR(-ENODEV);
 
-	if (pin < 0 || pin > chip->ngpio)
-		return ERR_PTR(-EINVAL);
+	offset = acpi_gpiochip_pin_to_gpio_offset(chip, pin);
+	if (offset < 0)
+		return ERR_PTR(offset);
 
-	return gpiochip_get_desc(chip, pin);
+	return gpiochip_get_desc(chip, offset);
 }
 
 static irqreturn_t acpi_gpio_irq_handler(int irq, void *data)
