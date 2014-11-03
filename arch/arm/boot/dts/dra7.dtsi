@@ -1219,7 +1219,7 @@
 			};
 		};
 
-		omap_dwc3_1@48880000 {
+		omap_dwc3_1: omap_dwc3_1@48880000 {
 			compatible = "ti,dwc3";
 			ti,hwmods = "usb_otg_ss1";
 			reg = <0x48880000 0x10000>;
@@ -1240,7 +1240,7 @@
 			};
 		};
 
-		omap_dwc3_2@488c0000 {
+		omap_dwc3_2: omap_dwc3_2@488c0000 {
 			compatible = "ti,dwc3";
 			ti,hwmods = "usb_otg_ss2";
 			reg = <0x488c0000 0x10000>;
@@ -1262,7 +1262,7 @@
 		};
 
 		/* IRQ for DWC3_3 and DWC3_4 need IRQ crossbar */
-		omap_dwc3_3@48900000 {
+		omap_dwc3_3: omap_dwc3_3@48900000 {
 			compatible = "ti,dwc3";
 			ti,hwmods = "usb_otg_ss3";
 			reg = <0x48900000 0x10000>;

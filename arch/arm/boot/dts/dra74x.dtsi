@@ -46,7 +46,7 @@
 	};
 
 	ocp {
-		omap_dwc3_4@48940000 {
+		omap_dwc3_4: omap_dwc3_4@48940000 {
 			compatible = "ti,dwc3";
 			ti,hwmods = "usb_otg_ss4";
 			reg = <0x48940000 0x10000>;
