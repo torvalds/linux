@@ -264,7 +264,7 @@ static int tegra_bo_alloc(struct drm_device *drm, struct tegra_bo *bo,
 	return 0;
 }
 
-struct tegra_bo *tegra_bo_create(struct drm_device *drm, unsigned int size,
+struct tegra_bo *tegra_bo_create(struct drm_device *drm, size_t size,
 				 unsigned long flags)
 {
 	struct tegra_bo *bo;
@@ -294,9 +294,9 @@ release:
 
 struct tegra_bo *tegra_bo_create_with_handle(struct drm_file *file,
 					     struct drm_device *drm,
-					     unsigned int size,
+					     size_t size,
 					     unsigned long flags,
-					     unsigned int *handle)
+					     u32 *handle)
 {
 	struct tegra_bo *bo;
 	int err;
@@ -415,7 +415,7 @@ int tegra_bo_dumb_create(struct drm_file *file, struct drm_device *drm,
 }
 
 int tegra_bo_dumb_map_offset(struct drm_file *file, struct drm_device *drm,
-			     uint32_t handle, uint64_t *offset)
+			     u32 handle, u64 *offset)
 {
 	struct drm_gem_object *gem;
 	struct tegra_bo *bo;
