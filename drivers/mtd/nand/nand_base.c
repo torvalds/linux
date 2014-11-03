@@ -3261,14 +3261,14 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 				break;
 		}
 	}
-#if 0
+
 	chip->onfi_version = 0;
 	if (!type->name || !type->pagesize) {
 		/* Check is chip is ONFI compliant */
 		if (nand_flash_detect_onfi(mtd, chip, &busw))
 			goto ident_done;
 	}
-#endif
+
 	if (!type->name)
 		return ERR_PTR(-ENODEV);
 
