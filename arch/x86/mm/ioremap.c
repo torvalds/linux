@@ -83,7 +83,6 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
 	const unsigned long unaligned_size = size;
 	struct vm_struct *area;
 	enum page_cache_mode new_pcm;
-	unsigned long new_prot_val;
 	pgprot_t prot;
 	int retval;
 	void __iomem *ret_addr;
@@ -135,13 +134,11 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
 	size = PAGE_ALIGN(last_addr+1) - phys_addr;
 
 	retval = reserve_memtype(phys_addr, (u64)phys_addr + size,
-				 cachemode2protval(pcm), &new_prot_val);
+						pcm, &new_pcm);
 	if (retval) {
 		printk(KERN_ERR "ioremap reserve_memtype failed %d\n", retval);
 		return NULL;
 	}
-
-	new_pcm = pgprot2cachemode(__pgprot(new_prot_val));
 
 	if (pcm != new_pcm) {
 		if (!is_new_memtype_allowed(phys_addr, size, pcm, new_pcm)) {

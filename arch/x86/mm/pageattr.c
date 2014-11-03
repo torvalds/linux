@@ -1451,7 +1451,7 @@ int set_memory_uc(unsigned long addr, int numpages)
 	 * for now UC MINUS. see comments in ioremap_nocache()
 	 */
 	ret = reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
-			    _PAGE_CACHE_UC_MINUS, NULL);
+			      _PAGE_CACHE_MODE_UC_MINUS, NULL);
 	if (ret)
 		goto out_err;
 
@@ -1479,7 +1479,7 @@ static int _set_memory_array(unsigned long *addr, int addrinarray,
 	 */
 	for (i = 0; i < addrinarray; i++) {
 		ret = reserve_memtype(__pa(addr[i]), __pa(addr[i]) + PAGE_SIZE,
-					cachemode2protval(new_type), NULL);
+					new_type, NULL);
 		if (ret)
 			goto out_free;
 	}
@@ -1544,7 +1544,7 @@ int set_memory_wc(unsigned long addr, int numpages)
 		return set_memory_uc(addr, numpages);
 
 	ret = reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
-		_PAGE_CACHE_WC, NULL);
+		_PAGE_CACHE_MODE_WC, NULL);
 	if (ret)
 		goto out_err;
 
@@ -1662,8 +1662,7 @@ static int _set_pages_array(struct page **pages, int addrinarray,
 			continue;
 		start = page_to_pfn(pages[i]) << PAGE_SHIFT;
 		end = start + PAGE_SIZE;
-		if (reserve_memtype(start, end, cachemode2protval(new_type),
-				    NULL))
+		if (reserve_memtype(start, end, new_type, NULL))
 			goto err_out;
 	}
 
