@@ -499,8 +499,8 @@ static int smi_dvbsky_m88ds3103_fe_attach(struct smi_port *port)
 	struct i2c_client *tuner_client;
 	struct i2c_board_info tuner_info;
 	struct m88ts2022_config m88ts2022_config = {
-			.clock = 27000000,
-		};
+		.clock = 27000000,
+	};
 	memset(&tuner_info, 0, sizeof(struct i2c_board_info));
 	i2c = (port->idx == 0) ? &dev->i2c_bus[0] : &dev->i2c_bus[1];
 
@@ -639,7 +639,7 @@ static u32 smi_config_DMA(struct smi_port *port)
 	u64 mem;
 
 	dmaManagement = smi_read(port->DMA_MANAGEMENT);
-    /* Setup Channel-0 */
+	/* Setup Channel-0 */
 	if (port->_dmaInterruptCH0) {
 		totalLength = SMI_TS_DMA_BUF_SIZE;
 		mem = port->dma_addr[0];
