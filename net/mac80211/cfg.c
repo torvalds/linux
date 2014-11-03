@@ -2019,6 +2019,17 @@ static int ieee80211_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 	return ieee80211_ibss_leave(IEEE80211_DEV_TO_SUB_IF(dev));
 }
 
+static int ieee80211_join_ocb(struct wiphy *wiphy, struct net_device *dev,
+			      struct ocb_setup *setup)
+{
+	return ieee80211_ocb_join(IEEE80211_DEV_TO_SUB_IF(dev), setup);
+}
+
+static int ieee80211_leave_ocb(struct wiphy *wiphy, struct net_device *dev)
+{
+	return ieee80211_ocb_leave(IEEE80211_DEV_TO_SUB_IF(dev));
+}
+
 static int ieee80211_set_mcast_rate(struct wiphy *wiphy, struct net_device *dev,
 				    int rate[IEEE80211_NUM_BANDS])
 {
@@ -3693,6 +3704,8 @@ const struct cfg80211_ops mac80211_config_ops = {
 	.join_mesh = ieee80211_join_mesh,
 	.leave_mesh = ieee80211_leave_mesh,
 #endif
+	.join_ocb = ieee80211_join_ocb,
+	.leave_ocb = ieee80211_leave_ocb,
 	.change_bss = ieee80211_change_bss,
 	.set_txq_params = ieee80211_set_txq_params,
 	.set_monitor_channel = ieee80211_set_monitor_channel,
