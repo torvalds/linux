@@ -481,7 +481,6 @@ struct mlx4_en_frag_info {
 	u16 frag_size;
 	u16 frag_prefix_size;
 	u16 frag_stride;
-	u16 frag_align;
 };
 
 #ifdef CONFIG_MLX4_EN_DCB

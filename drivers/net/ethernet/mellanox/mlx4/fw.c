@@ -141,7 +141,8 @@ static void dump_dev_cap_flags2(struct mlx4_dev *dev, u64 flags)
 		[12] = "Large cache line (>64B) CQE stride support",
 		[13] = "Large cache line (>64B) EQE stride support",
 		[14] = "Ethernet protocol control support",
-		[15] = "Ethernet Backplane autoneg support"
+		[15] = "Ethernet Backplane autoneg support",
+		[16] = "CONFIG DEV support"
 	};
 	int i;
 
@@ -574,6 +575,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_MTT_ENTRY_SZ_OFFSET	0x90
 #define QUERY_DEV_CAP_D_MPT_ENTRY_SZ_OFFSET	0x92
 #define QUERY_DEV_CAP_BMME_FLAGS_OFFSET		0x94
+#define QUERY_DEV_CAP_CONFIG_DEV_OFFSET		0x94
 #define QUERY_DEV_CAP_RSVD_LKEY_OFFSET		0x98
 #define QUERY_DEV_CAP_MAX_ICM_SZ_OFFSET		0xa0
 #define QUERY_DEV_CAP_ETH_BACKPL_OFFSET		0x9c
@@ -749,6 +751,9 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_EQE_STRIDE;
 	MLX4_GET(dev_cap->bmme_flags, outbox,
 		 QUERY_DEV_CAP_BMME_FLAGS_OFFSET);
+	MLX4_GET(field, outbox, QUERY_DEV_CAP_CONFIG_DEV_OFFSET);
+	if (field & 0x20)
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_CONFIG_DEV;
 	MLX4_GET(dev_cap->reserved_lkey, outbox,
 		 QUERY_DEV_CAP_RSVD_LKEY_OFFSET);
 	MLX4_GET(field32, outbox, QUERY_DEV_CAP_ETH_BACKPL_OFFSET);
@@ -1849,14 +1854,18 @@ int mlx4_CLOSE_HCA(struct mlx4_dev *dev, int panic)
 
 struct mlx4_config_dev {
 	__be32	update_flags;
-	__be32	rsdv1[3];
+	__be32	rsvd1[3];
 	__be16	vxlan_udp_dport;
 	__be16	rsvd2;
+	__be32	rsvd3[27];
+	__be16	rsvd4;
+	u8	rsvd5;
+	u8	rx_checksum_val;
 };
 
 #define MLX4_VXLAN_UDP_DPORT (1 << 0)
 
-static int mlx4_CONFIG_DEV(struct mlx4_dev *dev, struct mlx4_config_dev *config_dev)
+static int mlx4_CONFIG_DEV_set(struct mlx4_dev *dev, struct mlx4_config_dev *config_dev)
 {
 	int err;
 	struct mlx4_cmd_mailbox *mailbox;
@@ -1874,6 +1883,77 @@ static int mlx4_CONFIG_DEV(struct mlx4_dev *dev, struct mlx4_config_dev *config_
 	return err;
 }
 
+static int mlx4_CONFIG_DEV_get(struct mlx4_dev *dev, struct mlx4_config_dev *config_dev)
+{
+	int err;
+	struct mlx4_cmd_mailbox *mailbox;
+
+	mailbox = mlx4_alloc_cmd_mailbox(dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+
+	err = mlx4_cmd_box(dev, 0, mailbox->dma, 0, 1, MLX4_CMD_CONFIG_DEV,
+			   MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
+
+	if (!err)
+		memcpy(config_dev, mailbox->buf, sizeof(*config_dev));
+
+	mlx4_free_cmd_mailbox(dev, mailbox);
+	return err;
+}
+
+/* Conversion between the HW values and the actual functionality.
+ * The value represented by the array index,
+ * and the functionality determined by the flags.
+ */
+static const u8 config_dev_csum_flags[] = {
+	[0] =	0,
+	[1] =	MLX4_RX_CSUM_MODE_VAL_NON_TCP_UDP,
+	[2] =	MLX4_RX_CSUM_MODE_VAL_NON_TCP_UDP	|
+		MLX4_RX_CSUM_MODE_L4,
+	[3] =	MLX4_RX_CSUM_MODE_L4			|
+		MLX4_RX_CSUM_MODE_IP_OK_IP_NON_TCP_UDP	|
+		MLX4_RX_CSUM_MODE_MULTI_VLAN
+};
+
+int mlx4_config_dev_retrieval(struct mlx4_dev *dev,
+			      struct mlx4_config_dev_params *params)
+{
+	struct mlx4_config_dev config_dev;
+	int err;
+	u8 csum_mask;
+
+#define CONFIG_DEV_RX_CSUM_MODE_MASK			0x7
+#define CONFIG_DEV_RX_CSUM_MODE_PORT1_BIT_OFFSET	0
+#define CONFIG_DEV_RX_CSUM_MODE_PORT2_BIT_OFFSET	4
+
+	if (!(dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_CONFIG_DEV))
+		return -ENOTSUPP;
+
+	err = mlx4_CONFIG_DEV_get(dev, &config_dev);
+	if (err)
+		return err;
+
+	csum_mask = (config_dev.rx_checksum_val >> CONFIG_DEV_RX_CSUM_MODE_PORT1_BIT_OFFSET) &
+			CONFIG_DEV_RX_CSUM_MODE_MASK;
+
+	if (csum_mask >= sizeof(config_dev_csum_flags)/sizeof(config_dev_csum_flags[0]))
+		return -EINVAL;
+	params->rx_csum_flags_port_1 = config_dev_csum_flags[csum_mask];
+
+	csum_mask = (config_dev.rx_checksum_val >> CONFIG_DEV_RX_CSUM_MODE_PORT2_BIT_OFFSET) &
+			CONFIG_DEV_RX_CSUM_MODE_MASK;
+
+	if (csum_mask >= sizeof(config_dev_csum_flags)/sizeof(config_dev_csum_flags[0]))
+		return -EINVAL;
+	params->rx_csum_flags_port_2 = config_dev_csum_flags[csum_mask];
+
+	params->vxlan_udp_dport = be16_to_cpu(config_dev.vxlan_udp_dport);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mlx4_config_dev_retrieval);
+
 int mlx4_config_vxlan_port(struct mlx4_dev *dev, __be16 udp_port)
 {
 	struct mlx4_config_dev config_dev;
@@ -1882,7 +1962,7 @@ int mlx4_config_vxlan_port(struct mlx4_dev *dev, __be16 udp_port)
 	config_dev.update_flags    = cpu_to_be32(MLX4_VXLAN_UDP_DPORT);
 	config_dev.vxlan_udp_dport = udp_port;
 
-	return mlx4_CONFIG_DEV(dev, &config_dev);
+	return mlx4_CONFIG_DEV_set(dev, &config_dev);
 }
 EXPORT_SYMBOL_GPL(mlx4_config_vxlan_port);
 
@@ -2220,7 +2300,7 @@ static int mlx4_ACCESS_REG(struct mlx4_dev *dev, u16 reg_id,
 	memcpy(inbuf->reg_data, reg_data, reg_len);
 	err = mlx4_cmd_box(dev, inbox->dma, outbox->dma, 0, 0,
 			   MLX4_CMD_ACCESS_REG, MLX4_CMD_TIME_CLASS_C,
-			   MLX4_CMD_NATIVE);
+			   MLX4_CMD_WRAPPED);
 	if (err)
 		goto out;
 
@@ -2263,3 +2343,31 @@ int mlx4_ACCESS_PTYS_REG(struct mlx4_dev *dev,
 			       method, sizeof(*ptys_reg), ptys_reg);
 }
 EXPORT_SYMBOL_GPL(mlx4_ACCESS_PTYS_REG);
+
+int mlx4_ACCESS_REG_wrapper(struct mlx4_dev *dev, int slave,
+			    struct mlx4_vhcr *vhcr,
+			    struct mlx4_cmd_mailbox *inbox,
+			    struct mlx4_cmd_mailbox *outbox,
+			    struct mlx4_cmd_info *cmd)
+{
+	struct mlx4_access_reg *inbuf = inbox->buf;
+	u8 method = inbuf->method & MLX4_ACCESS_REG_METHOD_MASK;
+	u16 reg_id = be16_to_cpu(inbuf->reg_id);
+
+	if (slave != mlx4_master_func_num(dev) &&
+	    method == MLX4_ACCESS_REG_WRITE)
+		return -EPERM;
+
+	if (reg_id == MLX4_REG_ID_PTYS) {
+		struct mlx4_ptys_reg *ptys_reg =
+			(struct mlx4_ptys_reg *)inbuf->reg_data;
+
+		ptys_reg->local_port =
+			mlx4_slave_convert_port(dev, slave,
+						ptys_reg->local_port);
+	}
+
+	return mlx4_cmd_box(dev, inbox->dma, outbox->dma, vhcr->in_modifier,
+			    0, MLX4_CMD_ACCESS_REG, MLX4_CMD_TIME_CLASS_C,
+			    MLX4_CMD_NATIVE);
+}

@@ -199,6 +199,33 @@ enum {
 	MLX4_CMD_NATIVE
 };
 
+/*
+ * MLX4_RX_CSUM_MODE_VAL_NON_TCP_UDP -
+ * Receive checksum value is reported in CQE also for non TCP/UDP packets.
+ *
+ * MLX4_RX_CSUM_MODE_L4 -
+ * L4_CSUM bit in CQE, which indicates whether or not L4 checksum
+ * was validated correctly, is supported.
+ *
+ * MLX4_RX_CSUM_MODE_IP_OK_IP_NON_TCP_UDP -
+ * IP_OK CQE's field is supported also for non TCP/UDP IP packets.
+ *
+ * MLX4_RX_CSUM_MODE_MULTI_VLAN -
+ * Receive Checksum offload is supported for packets with more than 2 vlan headers.
+ */
+enum mlx4_rx_csum_mode {
+	MLX4_RX_CSUM_MODE_VAL_NON_TCP_UDP		= 1UL << 0,
+	MLX4_RX_CSUM_MODE_L4				= 1UL << 1,
+	MLX4_RX_CSUM_MODE_IP_OK_IP_NON_TCP_UDP		= 1UL << 2,
+	MLX4_RX_CSUM_MODE_MULTI_VLAN			= 1UL << 3
+};
+
+struct mlx4_config_dev_params {
+	u16	vxlan_udp_dport;
+	u8	rx_csum_flags_port_1;
+	u8	rx_csum_flags_port_2;
+};
+
 struct mlx4_dev;
 
 struct mlx4_cmd_mailbox {
@@ -250,6 +277,8 @@ int mlx4_set_vf_vlan(struct mlx4_dev *dev, int port, int vf, u16 vlan, u8 qos);
 int mlx4_set_vf_spoofchk(struct mlx4_dev *dev, int port, int vf, bool setting);
 int mlx4_get_vf_config(struct mlx4_dev *dev, int port, int vf, struct ifla_vf_info *ivf);
 int mlx4_set_vf_link_state(struct mlx4_dev *dev, int port, int vf, int link_state);
+int mlx4_config_dev_retrieval(struct mlx4_dev *dev,
+			      struct mlx4_config_dev_params *params);
 /*
  * mlx4_get_slave_default_vlan -
  * return true if VST ( default vlan)
