@@ -151,6 +151,14 @@ static int __hidpp_send_report(struct hid_device *hdev,
 	return ret == fields_count ? 0 : -1;
 }
 
+/**
+ * hidpp_send_message_sync() returns 0 in case of success, and something else
+ * in case of a failure.
+ * - If ' something else' is positive, that means that an error has been raised
+ *   by the protocol itself.
+ * - If ' something else' is negative, that means that we had a classic error
+ *   (-ENOMEM, -EPIPE, etc...)
+ */
 static int hidpp_send_message_sync(struct hidpp_device *hidpp,
 	struct hidpp_report *message,
 	struct hidpp_report *response)
@@ -359,8 +367,13 @@ static int hidpp_root_get_protocol_version(struct hidpp_device *hidpp)
 		return 0;
 	}
 
+	if (ret > 0) {
+		hid_err(hidpp->hid_dev, "%s: received protocol error 0x%02x\n",
+			__func__, ret);
+		return -EPROTO;
+	}
 	if (ret)
-		return -ret;
+		return ret;
 
 	hidpp->protocol_major = response.fap.params[0];
 	hidpp->protocol_minor = response.fap.params[1];
@@ -398,8 +411,13 @@ static int hidpp_devicenametype_get_count(struct hidpp_device *hidpp,
 	ret = hidpp_send_fap_command_sync(hidpp, feature_index,
 		CMD_GET_DEVICE_NAME_TYPE_GET_COUNT, NULL, 0, &response);
 
+	if (ret > 0) {
+		hid_err(hidpp->hid_dev, "%s: received protocol error 0x%02x\n",
+			__func__, ret);
+		return -EPROTO;
+	}
 	if (ret)
-		return -ret;
+		return ret;
 
 	*nameLength = response.fap.params[0];
 
@@ -417,8 +435,13 @@ static int hidpp_devicenametype_get_device_name(struct hidpp_device *hidpp,
 		CMD_GET_DEVICE_NAME_TYPE_GET_DEVICE_NAME, &char_index, 1,
 		&response);
 
+	if (ret > 0) {
+		hid_err(hidpp->hid_dev, "%s: received protocol error 0x%02x\n",
+			__func__, ret);
+		return -EPROTO;
+	}
 	if (ret)
-		return -ret;
+		return ret;
 
 	if (response.report_id == REPORT_ID_HIDPP_LONG)
 		count = HIDPP_REPORT_LONG_LENGTH - 4;
@@ -524,8 +547,13 @@ static int hidpp_touchpad_get_raw_info(struct hidpp_device *hidpp,
 	ret = hidpp_send_fap_command_sync(hidpp, feature_index,
 		CMD_TOUCHPAD_GET_RAW_INFO, NULL, 0, &response);
 
+	if (ret > 0) {
+		hid_err(hidpp->hid_dev, "%s: received protocol error 0x%02x\n",
+			__func__, ret);
+		return -EPROTO;
+	}
 	if (ret)
-		return -ret;
+		return ret;
 
 	raw_info->x_size = get_unaligned_be16(&params[0]);
 	raw_info->y_size = get_unaligned_be16(&params[2]);
