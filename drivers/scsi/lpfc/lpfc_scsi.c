@@ -5598,10 +5598,7 @@ lpfc_slave_configure(struct scsi_device *sdev)
 	struct lpfc_vport *vport = (struct lpfc_vport *) sdev->host->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
 
-	if (sdev->tagged_supported)
-		scsi_activate_tcq(sdev, vport->cfg_lun_queue_depth);
-	else
-		scsi_deactivate_tcq(sdev, vport->cfg_lun_queue_depth);
+	scsi_adjust_queue_depth(sdev, 0, vport->cfg_lun_queue_depth);
 
 	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
 		lpfc_sli_handle_fast_ring_event(phba,
@@ -5986,6 +5983,7 @@ struct scsi_host_template lpfc_template = {
 	.vendor_id		= LPFC_NL_VENDOR_ID,
 	.change_queue_depth	= lpfc_change_queue_depth,
 	.change_queue_type	= scsi_change_queue_type,
+	.use_blk_tags		= 1,
 };
 
 struct scsi_host_template lpfc_vport_template = {
@@ -6009,4 +6007,5 @@ struct scsi_host_template lpfc_vport_template = {
 	.max_sectors		= 0xFFFF,
 	.change_queue_depth	= lpfc_change_queue_depth,
 	.change_queue_type	= scsi_change_queue_type,
+	.use_blk_tags		= 1,
 };

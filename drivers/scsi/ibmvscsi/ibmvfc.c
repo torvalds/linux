@@ -2888,11 +2888,11 @@ static int ibmvfc_slave_configure(struct scsi_device *sdev)
 	if (sdev->type == TYPE_DISK)
 		sdev->allow_restart = 1;
 
-	if (sdev->tagged_supported) {
-		scsi_set_tag_type(sdev, MSG_SIMPLE_TAG);
-		scsi_activate_tcq(sdev, sdev->queue_depth);
-	} else
-		scsi_deactivate_tcq(sdev, sdev->queue_depth);
+	if (sdev->tagged_supported)
+		scsi_adjust_queue_depth(sdev, MSG_SIMPLE_TAG,
+				sdev->queue_depth);
+	else
+		scsi_adjust_queue_depth(sdev, 0, sdev->queue_depth);
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	return 0;
 }
@@ -3108,6 +3108,7 @@ static struct scsi_host_template driver_template = {
 	.max_sectors = IBMVFC_MAX_SECTORS,
 	.use_clustering = ENABLE_CLUSTERING,
 	.shost_attrs = ibmvfc_attrs,
+	.use_blk_tags = 1,
 };
 
 /**

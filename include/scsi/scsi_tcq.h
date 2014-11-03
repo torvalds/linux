@@ -45,40 +45,6 @@ static inline void scsi_set_tag_type(struct scsi_device *sdev, int tag)
 		break;
 	}
 }
-/**
- * scsi_activate_tcq - turn on tag command queueing
- * @SDpnt:	device to turn on TCQ for
- * @depth:	queue depth
- *
- * Notes:
- *	Eventually, I hope depth would be the maximum depth
- *	the device could cope with and the real queue depth
- *	would be adjustable from 0 to depth.
- **/
-static inline void scsi_activate_tcq(struct scsi_device *sdev, int depth)
-{
-	if (!sdev->tagged_supported)
-		return;
-
-	if (shost_use_blk_mq(sdev->host))
-		queue_flag_set_unlocked(QUEUE_FLAG_QUEUED, sdev->request_queue);
-	else if (!blk_queue_tagged(sdev->request_queue))
-		blk_queue_init_tags(sdev->request_queue, depth,
-				    sdev->host->bqt);
-
-	scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), depth);
-}
-
-/**
- * scsi_deactivate_tcq - turn off tag command queueing
- * @SDpnt:	device to turn off TCQ for
- **/
-static inline void scsi_deactivate_tcq(struct scsi_device *sdev, int depth)
-{
-	if (blk_queue_tagged(sdev->request_queue))
-		blk_queue_free_tags(sdev->request_queue);
-	scsi_adjust_queue_depth(sdev, 0, depth);
-}
 
 static inline struct scsi_cmnd *scsi_mq_find_tag(struct Scsi_Host *shost,
 						 int unique_tag)

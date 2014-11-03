@@ -407,7 +407,6 @@ static int tcm_loop_slave_alloc(struct scsi_device *sd)
 static int tcm_loop_slave_configure(struct scsi_device *sd)
 {
 	if (sd->tagged_supported) {
-		scsi_activate_tcq(sd, sd->queue_depth);
 		scsi_adjust_queue_depth(sd, MSG_SIMPLE_TAG,
 					sd->host->cmd_per_lun);
 	} else {
@@ -437,6 +436,7 @@ static struct scsi_host_template tcm_loop_driver_template = {
 	.slave_alloc		= tcm_loop_slave_alloc,
 	.slave_configure	= tcm_loop_slave_configure,
 	.module			= THIS_MODULE,
+	.use_blk_tags		= 1,
 };
 
 static int tcm_loop_driver_probe(struct device *dev)

@@ -269,6 +269,7 @@ struct scsi_host_template qla2xxx_driver_template = {
 	.shost_attrs		= qla2x00_host_attrs,
 
 	.supported_mode		= MODE_INITIATOR,
+	.use_blk_tags		= 1,
 };
 
 static struct scsi_transport_template *qla2xxx_transport_template = NULL;
@@ -1404,10 +1405,7 @@ qla2xxx_slave_configure(struct scsi_device *sdev)
 	if (IS_T10_PI_CAPABLE(vha->hw))
 		blk_queue_update_dma_alignment(sdev->request_queue, 0x7);
 
-	if (sdev->tagged_supported)
-		scsi_activate_tcq(sdev, req->max_q_depth);
-	else
-		scsi_deactivate_tcq(sdev, req->max_q_depth);
+	scsi_adjust_queue_depth(sdev, 0, req->max_q_depth);
 	return 0;
 }
 

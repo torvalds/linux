@@ -251,7 +251,6 @@ static int pmcraid_slave_configure(struct scsi_device *scsi_dev)
 
 	if (scsi_dev->tagged_supported &&
 	    (RES_IS_GSCSI(res->cfg_entry) || RES_IS_VSET(res->cfg_entry))) {
-		scsi_activate_tcq(scsi_dev, scsi_dev->queue_depth);
 		scsi_adjust_queue_depth(scsi_dev, MSG_SIMPLE_TAG,
 					scsi_dev->host->cmd_per_lun);
 	} else {
@@ -4295,7 +4294,8 @@ static struct scsi_host_template pmcraid_host_template = {
 	.cmd_per_lun = PMCRAID_MAX_CMD_PER_LUN,
 	.use_clustering = ENABLE_CLUSTERING,
 	.shost_attrs = pmcraid_host_attrs,
-	.proc_name = PMCRAID_DRIVER_NAME
+	.proc_name = PMCRAID_DRIVER_NAME,
+	.use_blk_tags = 1,
 };
 
 /*

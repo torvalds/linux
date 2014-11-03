@@ -864,16 +864,12 @@ EXPORT_SYMBOL(scsi_track_queue_full);
  */
 int scsi_change_queue_type(struct scsi_device *sdev, int tag_type)
 {
-	if (sdev->tagged_supported) {
-		scsi_set_tag_type(sdev, tag_type);
-		if (tag_type)
-			scsi_activate_tcq(sdev, sdev->queue_depth);
-		else
-			scsi_deactivate_tcq(sdev, sdev->queue_depth);
-	} else
-		tag_type = 0;
+	if (!sdev->tagged_supported)
+		return 0;
 
+	scsi_adjust_queue_depth(sdev, tag_type, sdev->queue_depth);
 	return tag_type;
+
 }
 EXPORT_SYMBOL(scsi_change_queue_type);
 

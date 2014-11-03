@@ -2790,6 +2790,7 @@ static struct scsi_host_template bnx2fc_shost_template = {
 	.use_clustering		= ENABLE_CLUSTERING,
 	.sg_tablesize		= BNX2FC_MAX_BDS_PER_CMD,
 	.max_sectors		= 1024,
+	.use_blk_tags		= 1,
 };
 
 static struct libfc_function_template bnx2fc_libfc_fcn_templ = {

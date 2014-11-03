@@ -100,7 +100,7 @@ static int fnic_slave_alloc(struct scsi_device *sdev)
 	if (!rport || fc_remote_port_chkready(rport))
 		return -ENXIO;
 
-	scsi_activate_tcq(sdev, fnic_max_qdepth);
+	scsi_adjust_queue_depth(sdev, 0, fnic_max_qdepth);
 	return 0;
 }
 
@@ -121,6 +121,7 @@ static struct scsi_host_template fnic_host_template = {
 	.sg_tablesize = FNIC_MAX_SG_DESC_CNT,
 	.max_sectors = 0xffff,
 	.shost_attrs = fnic_attrs,
+	.use_blk_tags = 1,
 };
 
 static void

@@ -422,6 +422,11 @@ struct scsi_host_template {
 	unsigned char present;
 
 	/*
+	 * Let the block layer assigns tags to all commands.
+	 */
+	unsigned use_blk_tags:1;
+
+	/*
 	 * This specifies the mode that a LLD supports.
 	 */
 	unsigned supported_mode:2;

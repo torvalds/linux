@@ -549,7 +549,7 @@ stex_slave_alloc(struct scsi_device *sdev)
 	/* Cheat: usually extracted from Inquiry data */
 	sdev->tagged_supported = 1;
 
-	scsi_activate_tcq(sdev, sdev->host->can_queue);
+	scsi_adjust_queue_depth(sdev, 0, sdev->host->can_queue);
 
 	return 0;
 }
@@ -563,12 +563,6 @@ stex_slave_config(struct scsi_device *sdev)
 	sdev->tagged_supported = 1;
 
 	return 0;
-}
-
-static void
-stex_slave_destroy(struct scsi_device *sdev)
-{
-	scsi_deactivate_tcq(sdev, 1);
 }
 
 static int
@@ -1390,10 +1384,10 @@ static struct scsi_host_template driver_template = {
 	.queuecommand			= stex_queuecommand,
 	.slave_alloc			= stex_slave_alloc,
 	.slave_configure		= stex_slave_config,
-	.slave_destroy			= stex_slave_destroy,
 	.eh_abort_handler		= stex_abort,
 	.eh_host_reset_handler		= stex_reset,
 	.this_id			= -1,
+	.use_blk_tags			= 1,
 };
 
 static struct pci_device_id stex_pci_tbl[] = {

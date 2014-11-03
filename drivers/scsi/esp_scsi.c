@@ -2419,10 +2419,9 @@ static int esp_slave_configure(struct scsi_device *dev)
 		queue_depth = dev->host->cmd_per_lun;
 
 	if (goal_tags) {
-		scsi_set_tag_type(dev, MSG_ORDERED_TAG);
-		scsi_activate_tcq(dev, queue_depth);
+		scsi_adjust_queue_depth(dev, MSG_ORDERED_TAG, queue_depth);
 	} else {
-		scsi_deactivate_tcq(dev, queue_depth);
+		scsi_adjust_queue_depth(dev, 0, queue_depth);
 	}
 	tp->flags |= ESP_TGT_DISCONNECT;
 
@@ -2631,6 +2630,7 @@ struct scsi_host_template scsi_esp_template = {
 	.use_clustering		= ENABLE_CLUSTERING,
 	.max_sectors		= 0xffff,
 	.skip_settle_delay	= 1,
+	.use_blk_tags		= 1,
 };
 EXPORT_SYMBOL(scsi_esp_template);
 

@@ -940,15 +940,13 @@ int sas_slave_configure(struct scsi_device *scsi_dev)
 	sas_read_port_mode_page(scsi_dev);
 
 	if (scsi_dev->tagged_supported) {
-		scsi_set_tag_type(scsi_dev, MSG_SIMPLE_TAG);
-		scsi_activate_tcq(scsi_dev, SAS_DEF_QD);
+		scsi_adjust_queue_depth(scsi_dev, MSG_SIMPLE_TAG, SAS_DEF_QD);
 	} else {
 		SAS_DPRINTK("device %llx, LUN %llx doesn't support "
 			    "TCQ\n", SAS_ADDR(dev->sas_addr),
 			    scsi_dev->lun);
 		scsi_dev->tagged_supported = 0;
-		scsi_set_tag_type(scsi_dev, 0);
-		scsi_deactivate_tcq(scsi_dev, 1);
+		scsi_adjust_queue_depth(scsi_dev, 0, 1);
 	}
 
 	scsi_dev->allow_restart = 1;
@@ -991,10 +989,7 @@ int sas_change_queue_type(struct scsi_device *scsi_dev, int qt)
 	if (!scsi_dev->tagged_supported)
 		return 0;
 
-	scsi_deactivate_tcq(scsi_dev, 1);
-
-	scsi_set_tag_type(scsi_dev, qt);
-	scsi_activate_tcq(scsi_dev, scsi_dev->queue_depth);
+	scsi_adjust_queue_depth(scsi_dev, qt, scsi_dev->queue_depth);
 
 	return qt;
 }

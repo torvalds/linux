@@ -2187,7 +2187,7 @@ static int dc390_slave_configure(struct scsi_device *sdev)
 	acb->scan_devices = 0;
 	if (sdev->tagged_supported && (dcb->DevMode & TAG_QUEUEING_)) {
 		dcb->SyncMode |= EN_TAG_QUEUEING;
-		scsi_activate_tcq(sdev, acb->TagMaxNum);
+		scsi_adjust_queue_depth(sdev, 0, acb->TagMaxNum);
 	}
 
 	return 0;
@@ -2209,6 +2209,7 @@ static struct scsi_host_template driver_template = {
 	.cmd_per_lun		= 1,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.max_sectors		= 0x4000, /* 8MiB = 16 * 1024 * 512 */
+	.use_blk_tags		= 1,
 };
 
 /***********************************************************************
