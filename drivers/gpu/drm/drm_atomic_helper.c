@@ -1706,3 +1706,152 @@ backoff:
 	goto retry;
 }
 EXPORT_SYMBOL(drm_atomic_helper_page_flip);
+
+/**
+ * drm_atomic_helper_crtc_reset - default ->reset hook for CRTCs
+ * @crtc: drm CRTC
+ *
+ * Resets the atomic state for @crtc by freeing the state pointer (which might
+ * be NULL, e.g. at driver load time) and allocating a new empty state object.
+ */
+void drm_atomic_helper_crtc_reset(struct drm_crtc *crtc)
+{
+	kfree(crtc->state);
+	crtc->state = kzalloc(sizeof(*crtc->state), GFP_KERNEL);
+}
+EXPORT_SYMBOL(drm_atomic_helper_crtc_reset);
+
+/**
+ * drm_atomic_helper_crtc_duplicate_state - default state duplicate hook
+ * @crtc: drm CRTC
+ *
+ * Default CRTC state duplicate hook for drivers which don't have their own
+ * subclassed CRTC state structure.
+ */
+struct drm_crtc_state *
+drm_atomic_helper_crtc_duplicate_state(struct drm_crtc *crtc)
+{
+	struct drm_crtc_state *state;
+
+	if (WARN_ON(!crtc->state))
+		return NULL;
+
+	state = kmemdup(crtc->state, sizeof(*crtc->state), GFP_KERNEL);
+
+	if (state) {
+		state->mode_changed = false;
+		state->planes_changed = false;
+		state->event = NULL;
+	}
+
+	return state;
+}
+EXPORT_SYMBOL(drm_atomic_helper_crtc_duplicate_state);
+
+/**
+ * drm_atomic_helper_crtc_destroy_state - default state destroy hook
+ * @crtc: drm CRTC
+ * @state: CRTC state object to release
+ *
+ * Default CRTC state destroy hook for drivers which don't have their own
+ * subclassed CRTC state structure.
+ */
+void drm_atomic_helper_crtc_destroy_state(struct drm_crtc *crtc,
+					  struct drm_crtc_state *state)
+{
+	kfree(state);
+}
+EXPORT_SYMBOL(drm_atomic_helper_crtc_destroy_state);
+
+/**
+ * drm_atomic_helper_plane_reset - default ->reset hook for planes
+ * @plane: drm plane
+ *
+ * Resets the atomic state for @plane by freeing the state pointer (which might
+ * be NULL, e.g. at driver load time) and allocating a new empty state object.
+ */
+void drm_atomic_helper_plane_reset(struct drm_plane *plane)
+{
+	kfree(plane->state);
+	plane->state = kzalloc(sizeof(*plane->state), GFP_KERNEL);
+}
+EXPORT_SYMBOL(drm_atomic_helper_plane_reset);
+
+/**
+ * drm_atomic_helper_plane_duplicate_state - default state duplicate hook
+ * @plane: drm plane
+ *
+ * Default plane state duplicate hook for drivers which don't have their own
+ * subclassed plane state structure.
+ */
+struct drm_plane_state *
+drm_atomic_helper_plane_duplicate_state(struct drm_plane *plane)
+{
+	if (WARN_ON(!plane->state))
+		return NULL;
+
+	return kmemdup(plane->state, sizeof(*plane->state), GFP_KERNEL);
+}
+EXPORT_SYMBOL(drm_atomic_helper_plane_duplicate_state);
+
+/**
+ * drm_atomic_helper_plane_destroy_state - default state destroy hook
+ * @plane: drm plane
+ * @state: plane state object to release
+ *
+ * Default plane state destroy hook for drivers which don't have their own
+ * subclassed plane state structure.
+ */
+void drm_atomic_helper_plane_destroy_state(struct drm_plane *plane,
+					  struct drm_plane_state *state)
+{
+	kfree(state);
+}
+EXPORT_SYMBOL(drm_atomic_helper_plane_destroy_state);
+
+/**
+ * drm_atomic_helper_connector_reset - default ->reset hook for connectors
+ * @connector: drm connector
+ *
+ * Resets the atomic state for @connector by freeing the state pointer (which
+ * might be NULL, e.g. at driver load time) and allocating a new empty state
+ * object.
+ */
+void drm_atomic_helper_connector_reset(struct drm_connector *connector)
+{
+	kfree(connector->state);
+	connector->state = kzalloc(sizeof(*connector->state), GFP_KERNEL);
+}
+EXPORT_SYMBOL(drm_atomic_helper_connector_reset);
+
+/**
+ * drm_atomic_helper_connector_duplicate_state - default state duplicate hook
+ * @connector: drm connector
+ *
+ * Default connector state duplicate hook for drivers which don't have their own
+ * subclassed connector state structure.
+ */
+struct drm_connector_state *
+drm_atomic_helper_connector_duplicate_state(struct drm_connector *connector)
+{
+	if (WARN_ON(!connector->state))
+		return NULL;
+
+	return kmemdup(connector->state, sizeof(*connector->state), GFP_KERNEL);
+}
+EXPORT_SYMBOL(drm_atomic_helper_connector_duplicate_state);
+
+/**
+ * drm_atomic_helper_connector_destroy_state - default state destroy hook
+ * @connector: drm connector
+ * @state: connector state object to release
+ *
+ * Default connector state destroy hook for drivers which don't have their own
+ * subclassed connector state structure.
+ */
+void drm_atomic_helper_connector_destroy_state(struct drm_connector *connector,
+					  struct drm_connector_state *state)
+{
+	kfree(state);
+}
+EXPORT_SYMBOL(drm_atomic_helper_connector_destroy_state);
