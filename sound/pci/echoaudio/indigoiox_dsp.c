@@ -35,13 +35,14 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 {
 	int err;
 
-	DE_INIT(("init_hw() - Indigo IOx\n"));
+	dev_dbg(chip->card->dev, "init_hw() - Indigo IOx\n");
 	if (snd_BUG_ON((subdevice_id & 0xfff0) != INDIGO_IOX))
 		return -ENODEV;
 
 	err = init_dsp_comm_page(chip);
 	if (err < 0) {
-		DE_INIT(("init_hw - could not initialize DSP comm page\n"));
+		dev_err(chip->card->dev,
+			"init_hw - could not initialize DSP comm page\n");
 		return err;
 	}
 
@@ -59,7 +60,7 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 		return err;
 	chip->bad_board = FALSE;
 
-	DE_INIT(("init_hw done\n"));
+	dev_dbg(chip->card->dev, "init_hw done\n");
 	return err;
 }
 

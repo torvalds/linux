@@ -61,7 +61,8 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 
 	control_reg |= clock;
 	if (control_reg != old_control_reg) {
-		DE_ACT(("set_sample_rate: %d clock %d\n", rate, clock));
+		dev_dbg(chip->card->dev,
+			"set_sample_rate: %d clock %d\n", rate, clock);
 		chip->comm_page->control_register = cpu_to_le32(control_reg);
 		chip->sample_rate = rate;
 		clear_handshake(chip);
@@ -89,7 +90,8 @@ static int set_vmixer_gain(struct echoaudio *chip, u16 output, u16 pipe,
 	index = output * num_pipes_out(chip) + pipe;
 	chip->comm_page->vmixer[index] = gain;
 
-	DE_ACT(("set_vmixer_gain: pipe %d, out %d = %d\n", pipe, output, gain));
+	dev_dbg(chip->card->dev,
+		"set_vmixer_gain: pipe %d, out %d = %d\n", pipe, output, gain);
 	return 0;
 }
 
