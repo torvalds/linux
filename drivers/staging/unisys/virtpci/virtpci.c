@@ -227,8 +227,8 @@ static int write_vbus_bus_info(struct spar_vbus_channel_protocol *chan,
  * ULTRA_VBUS_CHANNEL_PROTOCOL.DevInfo[<devix>].
  */
 static int
-write_vbus_devInfo(struct spar_vbus_channel_protocol *chan,
-		   struct ultra_vbus_deviceinfo *info, int devix)
+write_vbus_dev_info(struct spar_vbus_channel_protocol *chan,
+		    struct ultra_vbus_deviceinfo *info, int devix)
 {
 	int off;
 
@@ -797,7 +797,7 @@ static void fix_vbus_devInfo(struct device *dev, int devNo, int devType,
 			     virtpcidrv->name,
 			     virtpcidrv->version,
 			     virtpcidrv->vertag);
-	write_vbus_devInfo(pChan, &devInfo, devNo);
+	write_vbus_dev_info(pChan, &devInfo, devNo);
 
 	/* Re-write bus+chipset info, because it is possible that this
 	* was previously written by our good counterpart, visorbus.
