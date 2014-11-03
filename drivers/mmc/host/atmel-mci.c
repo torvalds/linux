@@ -560,6 +560,9 @@ atmci_of_init(struct platform_device *pdev)
 		pdata->slot[slot_id].detect_is_active_high =
 			of_property_read_bool(cnp, "cd-inverted");
 
+		pdata->slot[slot_id].non_removable =
+			of_property_read_bool(cnp, "non-removable");
+
 		pdata->slot[slot_id].wp_pin =
 			of_get_named_gpio(cnp, "wp-gpios", 0);
 	}
@@ -2206,8 +2209,12 @@ static int __init atmci_init_slot(struct atmel_mci *host,
 		}
 	}
 
-	if (!gpio_is_valid(slot->detect_pin))
-		mmc->caps |= MMC_CAP_NEEDS_POLL;
+	if (!gpio_is_valid(slot->detect_pin)) {
+		if (slot_data->non_removable)
+			mmc->caps |= MMC_CAP_NONREMOVABLE;
+		else
+			mmc->caps |= MMC_CAP_NEEDS_POLL;
+	}
 
 	if (gpio_is_valid(slot->wp_pin)) {
 		if (devm_gpio_request(&host->pdev->dev, slot->wp_pin,
