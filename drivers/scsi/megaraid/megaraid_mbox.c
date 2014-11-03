@@ -349,7 +349,7 @@ static int megaraid_change_queue_depth(struct scsi_device *sdev, int qdepth,
 
 	if (qdepth > MBOX_MAX_SCSI_CMDS)
 		qdepth = MBOX_MAX_SCSI_CMDS;
-	scsi_adjust_queue_depth(sdev, 0, qdepth);
+	scsi_adjust_queue_depth(sdev, qdepth);
 	return sdev->queue_depth;
 }
 

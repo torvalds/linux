@@ -522,7 +522,7 @@ static int pvscsi_change_queue_depth(struct scsi_device *sdev,
 		max_depth = 1;
 	if (qdepth > max_depth)
 		qdepth = max_depth;
-	scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
+	scsi_adjust_queue_depth(sdev, qdepth);
 
 	if (sdev->inquiry_len > 7)
 		sdev_printk(KERN_INFO, sdev,

@@ -249,14 +249,11 @@ static int pmcraid_slave_configure(struct scsi_device *scsi_dev)
 				      PMCRAID_VSET_MAX_SECTORS);
 	}
 
-	if (scsi_dev->tagged_supported &&
-	    (RES_IS_GSCSI(res->cfg_entry) || RES_IS_VSET(res->cfg_entry))) {
-		scsi_adjust_queue_depth(scsi_dev, MSG_SIMPLE_TAG,
-					scsi_dev->host->cmd_per_lun);
-	} else {
-		scsi_adjust_queue_depth(scsi_dev, 0,
-					scsi_dev->host->cmd_per_lun);
-	}
+	/*
+	 * We never want to report TCQ support for these types of devices.
+	 */
+	if (!RES_IS_GSCSI(res->cfg_entry) && !RES_IS_VSET(res->cfg_entry))
+		scsi_dev->tagged_supported = 0;
 
 	return 0;
 }
@@ -302,33 +299,10 @@ static int pmcraid_change_queue_depth(struct scsi_device *scsi_dev, int depth,
 	if (depth > PMCRAID_MAX_CMD_PER_LUN)
 		depth = PMCRAID_MAX_CMD_PER_LUN;
 
-	scsi_adjust_queue_depth(scsi_dev, scsi_get_tag_type(scsi_dev), depth);
+	scsi_adjust_queue_depth(scsi_dev, depth);
 
 	return scsi_dev->queue_depth;
 }
-
-/**
- * pmcraid_change_queue_type - Change the device's queue type
- * @scsi_dev: scsi device struct
- * @tag: type of tags to use
- *
- * Return value:
- *	actual queue type set
- */
-static int pmcraid_change_queue_type(struct scsi_device *scsi_dev, int tag)
-{
-	struct pmcraid_resource_entry *res;
-
-	res = (struct pmcraid_resource_entry *)scsi_dev->hostdata;
-	if (res && scsi_dev->tagged_supported &&
-	    (RES_IS_GSCSI(res->cfg_entry) || RES_IS_VSET(res->cfg_entry)))
-	    	tag = scsi_change_queue_type(scsi_dev, tag);
-	else
-		tag = 0;
-
-	return tag;
-}
-
 
 /**
  * pmcraid_init_cmdblk - initializes a command block
@@ -4285,7 +4259,7 @@ static struct scsi_host_template pmcraid_host_template = {
 	.slave_configure = pmcraid_slave_configure,
 	.slave_destroy = pmcraid_slave_destroy,
 	.change_queue_depth = pmcraid_change_queue_depth,
-	.change_queue_type  = pmcraid_change_queue_type,
+	.change_queue_type  = scsi_change_queue_type,
 	.can_queue = PMCRAID_MAX_IO_CMD,
 	.this_id = -1,
 	.sg_tablesize = PMCRAID_MAX_IOADLS,

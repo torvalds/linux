@@ -744,8 +744,6 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 /**
  * scsi_adjust_queue_depth - Let low level drivers change a device's queue depth
  * @sdev: SCSI Device in question
- * @tagged: Do we use tagged queueing (non-0) or do we treat
- *          this device as an untagged device (0)
  * @tags: Number of tags allowed if tagged queueing enabled,
  *        or number of commands the low level driver can
  *        queue up in non-tagged mode (as per cmd_per_lun).
@@ -759,7 +757,7 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
  * 		currently active and whether or not it even has the
  * 		command blocks built yet.
  */
-void scsi_adjust_queue_depth(struct scsi_device *sdev, int tagged, int tags)
+void scsi_adjust_queue_depth(struct scsi_device *sdev, int tags)
 {
 	unsigned long flags;
 
@@ -787,20 +785,6 @@ void scsi_adjust_queue_depth(struct scsi_device *sdev, int tagged, int tags)
 	}
 
 	sdev->queue_depth = tags;
-	switch (tagged) {
-		case 0:
-			sdev->simple_tags = 0;
-			break;
-		case MSG_ORDERED_TAG:
-		case MSG_SIMPLE_TAG:
-			sdev->simple_tags = 1;
-			break;
-		default:
-			sdev->simple_tags = 0;
-			sdev_printk(KERN_WARNING, sdev,
-				    "scsi_adjust_queue_depth, bad queue type, "
-				    "disabled\n");
-	}
  out:
 	spin_unlock_irqrestore(sdev->request_queue->queue_lock, flags);
 }
@@ -848,11 +832,12 @@ int scsi_track_queue_full(struct scsi_device *sdev, int depth)
 		return 0;
 	if (sdev->last_queue_full_depth < 8) {
 		/* Drop back to untagged */
-		scsi_adjust_queue_depth(sdev, 0, sdev->host->cmd_per_lun);
+		scsi_set_tag_type(sdev, 0);
+		scsi_adjust_queue_depth(sdev, sdev->host->cmd_per_lun);
 		return -1;
 	}
 
-	scsi_adjust_queue_depth(sdev, MSG_SIMPLE_TAG, depth);
+	scsi_adjust_queue_depth(sdev, depth);
 	return depth;
 }
 EXPORT_SYMBOL(scsi_track_queue_full);
@@ -867,7 +852,7 @@ int scsi_change_queue_type(struct scsi_device *sdev, int tag_type)
 	if (!sdev->tagged_supported)
 		return 0;
 
-	scsi_adjust_queue_depth(sdev, tag_type, sdev->queue_depth);
+	scsi_set_tag_type(sdev, tag_type);
 	return tag_type;
 
 }

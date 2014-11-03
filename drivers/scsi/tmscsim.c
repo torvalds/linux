@@ -2185,9 +2185,16 @@ static int dc390_slave_configure(struct scsi_device *sdev)
 	struct dc390_dcb *dcb = (struct dc390_dcb *)sdev->hostdata;
 
 	acb->scan_devices = 0;
+
+	/*
+	 * XXX: Note that while this driver used to called scsi_activate_tcq,
+	 * it never actually set a tag type, so emulate the old behavior.
+	 */
+	scsi_set_tag_type(sdev, 0);
+
 	if (sdev->tagged_supported && (dcb->DevMode & TAG_QUEUEING_)) {
 		dcb->SyncMode |= EN_TAG_QUEUEING;
-		scsi_adjust_queue_depth(sdev, 0, acb->TagMaxNum);
+		scsi_adjust_queue_depth(sdev, acb->TagMaxNum);
 	}
 
 	return 0;

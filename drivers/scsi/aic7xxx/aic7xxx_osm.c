@@ -1335,13 +1335,9 @@ ahc_platform_set_tags(struct ahc_softc *ahc, struct scsi_device *sdev,
 	}
 	switch ((dev->flags & (AHC_DEV_Q_BASIC|AHC_DEV_Q_TAGGED))) {
 	case AHC_DEV_Q_BASIC:
-		scsi_adjust_queue_depth(sdev, MSG_SIMPLE_TASK,
-				dev->openings + dev->active);
-		break;
 	case AHC_DEV_Q_TAGGED:
-		scsi_adjust_queue_depth(sdev, MSG_ORDERED_TASK,
+		scsi_adjust_queue_depth(sdev,
 				dev->openings + dev->active);
-		break;
 	default:
 		/*
 		 * We allow the OS to queue 2 untagged transactions to
@@ -1349,7 +1345,7 @@ ahc_platform_set_tags(struct ahc_softc *ahc, struct scsi_device *sdev,
 		 * serially on the controller/device.  This should
 		 * remove some latency.
 		 */
-		scsi_adjust_queue_depth(sdev, 0, 2);
+		scsi_adjust_queue_depth(sdev, 2);
 		break;
 	}
 }

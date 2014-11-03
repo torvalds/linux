@@ -2402,27 +2402,14 @@ static int esp_slave_configure(struct scsi_device *dev)
 {
 	struct esp *esp = shost_priv(dev->host);
 	struct esp_target_data *tp = &esp->target[dev->id];
-	int goal_tags, queue_depth;
-
-	goal_tags = 0;
 
 	if (dev->tagged_supported) {
 		/* XXX make this configurable somehow XXX */
-		goal_tags = ESP_DEFAULT_TAGS;
+		int goal_tags = min(ESP_DEFAULT_TAGS, ESP_MAX_TAG);
 
-		if (goal_tags > ESP_MAX_TAG)
-			goal_tags = ESP_MAX_TAG;
+		scsi_adjust_queue_depth(dev, goal_tags);
 	}
 
-	queue_depth = goal_tags;
-	if (queue_depth < dev->host->cmd_per_lun)
-		queue_depth = dev->host->cmd_per_lun;
-
-	if (goal_tags) {
-		scsi_adjust_queue_depth(dev, MSG_ORDERED_TAG, queue_depth);
-	} else {
-		scsi_adjust_queue_depth(dev, 0, queue_depth);
-	}
 	tp->flags |= ESP_TGT_DISCONNECT;
 
 	if (!spi_initial_dv(dev->sdev_target))

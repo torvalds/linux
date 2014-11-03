@@ -2347,7 +2347,7 @@ mptscsih_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
 	if (qdepth > max_depth)
 		qdepth = max_depth;
 
-	scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
+	scsi_adjust_queue_depth(sdev, qdepth);
 	return sdev->queue_depth;
 }
 

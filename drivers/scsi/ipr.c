@@ -4344,7 +4344,7 @@ static int ipr_change_queue_depth(struct scsi_device *sdev, int qdepth,
 		qdepth = IPR_MAX_CMD_PER_ATA_LUN;
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 
-	scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
+	scsi_adjust_queue_depth(sdev, qdepth);
 	return sdev->queue_depth;
 }
 
@@ -4751,10 +4751,10 @@ static int ipr_slave_configure(struct scsi_device *sdev)
 		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 
 		if (ap) {
-			scsi_adjust_queue_depth(sdev, 0, IPR_MAX_CMD_PER_ATA_LUN);
+			scsi_adjust_queue_depth(sdev, IPR_MAX_CMD_PER_ATA_LUN);
 			ata_sas_slave_configure(sdev, ap);
-		} else
-			scsi_adjust_queue_depth(sdev, 0, sdev->host->cmd_per_lun);
+		}
+
 		if (ioa_cfg->sis64)
 			sdev_printk(KERN_INFO, sdev, "Resource path: %s\n",
 				    ipr_format_res_path(ioa_cfg,

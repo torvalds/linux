@@ -820,9 +820,7 @@ static int sym53c8xx_slave_configure(struct scsi_device *sdev)
 	if (reqtags > SYM_CONF_MAX_TAG)
 		reqtags = SYM_CONF_MAX_TAG;
 	depth_to_use = reqtags ? reqtags : 1;
-	scsi_adjust_queue_depth(sdev,
-				sdev->tagged_supported ? MSG_SIMPLE_TAG : 0,
-				depth_to_use);
+	scsi_adjust_queue_depth(sdev, depth_to_use);
 	lp->s.scdev_depth = depth_to_use;
 	sym_tune_dev_queuing(tp, sdev->lun, reqtags);
 

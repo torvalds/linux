@@ -122,7 +122,7 @@ static int arcmsr_adjust_disk_queue_depth(struct scsi_device *sdev,
 
 	if (queue_depth > ARCMSR_MAX_CMD_PERLUN)
 		queue_depth = ARCMSR_MAX_CMD_PERLUN;
-	scsi_adjust_queue_depth(sdev, MSG_ORDERED_TAG, queue_depth);
+	scsi_adjust_queue_depth(sdev, queue_depth);
 	return queue_depth;
 }
 

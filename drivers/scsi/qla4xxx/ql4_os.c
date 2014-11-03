@@ -9064,7 +9064,7 @@ static int qla4xxx_slave_alloc(struct scsi_device *sdev)
 	if (ql4xmaxqdepth != 0 && ql4xmaxqdepth <= 0xffffU)
 		queue_depth = ql4xmaxqdepth;
 
-	scsi_adjust_queue_depth(sdev, 0, queue_depth);
+	scsi_adjust_queue_depth(sdev, queue_depth);
 	return 0;
 }
 

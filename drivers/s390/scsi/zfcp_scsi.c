@@ -37,13 +37,13 @@ static int zfcp_scsi_change_queue_depth(struct scsi_device *sdev, int depth,
 {
 	switch (reason) {
 	case SCSI_QDEPTH_DEFAULT:
-		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), depth);
+		scsi_adjust_queue_depth(sdev, depth);
 		break;
 	case SCSI_QDEPTH_QFULL:
 		scsi_track_queue_full(sdev, depth);
 		break;
 	case SCSI_QDEPTH_RAMP_UP:
-		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), depth);
+		scsi_adjust_queue_depth(sdev, depth);
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -66,9 +66,7 @@ static void zfcp_scsi_slave_destroy(struct scsi_device *sdev)
 static int zfcp_scsi_slave_configure(struct scsi_device *sdp)
 {
 	if (sdp->tagged_supported)
-		scsi_adjust_queue_depth(sdp, MSG_SIMPLE_TAG, default_depth);
-	else
-		scsi_adjust_queue_depth(sdp, 0, 1);
+		scsi_adjust_queue_depth(sdp, default_depth);
 	return 0;
 }
 

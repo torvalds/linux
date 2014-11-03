@@ -1469,11 +1469,8 @@ ahd_platform_set_tags(struct ahd_softc *ahd, struct scsi_device *sdev,
 
 	switch ((dev->flags & (AHD_DEV_Q_BASIC|AHD_DEV_Q_TAGGED))) {
 	case AHD_DEV_Q_BASIC:
-		scsi_adjust_queue_depth(sdev, MSG_SIMPLE_TASK,
-				dev->openings + dev->active);
-		break;
 	case AHD_DEV_Q_TAGGED:
-		scsi_adjust_queue_depth(sdev, MSG_ORDERED_TASK,
+		scsi_adjust_queue_depth(sdev,
 				dev->openings + dev->active);
 		break;
 	default:
@@ -1483,7 +1480,7 @@ ahd_platform_set_tags(struct ahd_softc *ahd, struct scsi_device *sdev,
 		 * serially on the controller/device.  This should
 		 * remove some latency.
 		 */
-		scsi_adjust_queue_depth(sdev, 0, 1);
+		scsi_adjust_queue_depth(sdev, 1);
 		break;
 	}
 }

@@ -2594,8 +2594,7 @@ static int megasas_change_queue_depth(struct scsi_device *sdev,
 
 	if (queue_depth > sdev->host->can_queue)
 		queue_depth = sdev->host->can_queue;
-	scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev),
-				queue_depth);
+	scsi_adjust_queue_depth(sdev, queue_depth);
 
 	return queue_depth;
 }

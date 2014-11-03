@@ -2160,7 +2160,7 @@ int fc_slave_alloc(struct scsi_device *sdev)
 	if (!rport || fc_remote_port_chkready(rport))
 		return -ENXIO;
 
-	scsi_adjust_queue_depth(sdev, 0, FC_FCP_DFLT_QUEUE_DEPTH);
+	scsi_adjust_queue_depth(sdev, FC_FCP_DFLT_QUEUE_DEPTH);
 	return 0;
 }
 EXPORT_SYMBOL(fc_slave_alloc);
@@ -2175,13 +2175,13 @@ int fc_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
 {
 	switch (reason) {
 	case SCSI_QDEPTH_DEFAULT:
-		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
+		scsi_adjust_queue_depth(sdev, qdepth);
 		break;
 	case SCSI_QDEPTH_QFULL:
 		scsi_track_queue_full(sdev, qdepth);
 		break;
 	case SCSI_QDEPTH_RAMP_UP:
-		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
+		scsi_adjust_queue_depth(sdev, qdepth);
 		break;
 	default:
 		return -EOPNOTSUPP;

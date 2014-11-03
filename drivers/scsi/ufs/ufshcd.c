@@ -2696,7 +2696,7 @@ static void ufshcd_set_queue_depth(struct scsi_device *sdev)
 	dev_dbg(hba->dev, "%s: activate tcq with queue depth %d\n",
 			__func__, lun_qdepth);
 	if (sdev->tagged_supported)
-		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), lun_qdepth);
+		scsi_adjust_queue_depth(sdev, lun_qdepth);
 }
 
 /*
@@ -2808,7 +2808,7 @@ static int ufshcd_change_queue_depth(struct scsi_device *sdev,
 	case SCSI_QDEPTH_RAMP_UP:
 		if (!sdev->tagged_supported)
 			depth = 1;
-		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), depth);
+		scsi_adjust_queue_depth(sdev, depth);
 		break;
 	case SCSI_QDEPTH_QFULL:
 		scsi_track_queue_full(sdev, depth);

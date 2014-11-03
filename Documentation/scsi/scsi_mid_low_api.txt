@@ -271,9 +271,9 @@ init_this_scsi_driver() ----+
                       slave_destroy() ***
 ------------------------------------------------------------
 
-The mid level invokes scsi_adjust_queue_depth() with tagged queuing off and
-"cmd_per_lun" for that host as the queue length. These settings can be
-overridden by a slave_configure() supplied by the LLD.
+The mid level invokes scsi_adjust_queue_depth() with "cmd_per_lun" for that
+host as the queue length. These settings can be overridden by a
+slave_configure() supplied by the LLD.
 
 *** For scsi devices that the mid level tries to scan but do not
     respond, a slave_alloc(), slave_destroy() pair is called.
@@ -438,9 +438,6 @@ int scsi_add_host(struct Scsi_Host *shost, struct device * dev)
 /**
  * scsi_adjust_queue_depth - allow LLD to change queue depth on a SCSI device
  * @sdev:       pointer to SCSI device to change queue depth on
- * @tagged:     0 - no tagged queuing
- *              MSG_SIMPLE_TAG - simple tagged queuing
- *              MSG_ORDERED_TAG - ordered tagged queuing
  * @tags        Number of tags allowed if tagged queuing enabled,
  *              or number of commands the LLD can queue up
  *              in non-tagged mode (as per cmd_per_lun).
@@ -456,8 +453,7 @@ int scsi_add_host(struct Scsi_Host *shost, struct device * dev)
  *      Defined in: drivers/scsi/scsi.c [see source code for more notes]
  *
  **/
-void scsi_adjust_queue_depth(struct scsi_device * sdev, int tagged, 
-                             int tags)
+void scsi_adjust_queue_depth(struct scsi_device *sdev, int tags)
 
 
 /**

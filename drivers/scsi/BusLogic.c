@@ -2327,12 +2327,12 @@ static int blogic_slaveconfig(struct scsi_device *dev)
 		if (qdepth == 0)
 			qdepth = BLOGIC_MAX_AUTO_TAG_DEPTH;
 		adapter->qdepth[tgt_id] = qdepth;
-		scsi_adjust_queue_depth(dev, MSG_SIMPLE_TAG, qdepth);
+		scsi_adjust_queue_depth(dev, qdepth);
 	} else {
 		adapter->tagq_ok &= ~(1 << tgt_id);
 		qdepth = adapter->untag_qdepth;
 		adapter->qdepth[tgt_id] = qdepth;
-		scsi_adjust_queue_depth(dev, 0, qdepth);
+		scsi_adjust_queue_depth(dev, qdepth);
 	}
 	qdepth = 0;
 	for (tgt_id = 0; tgt_id < adapter->maxdev; tgt_id++)

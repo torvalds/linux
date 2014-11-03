@@ -4165,7 +4165,7 @@ static int hpsa_change_queue_depth(struct scsi_device *sdev,
 	else
 		if (qdepth > h->nr_cmds)
 			qdepth = h->nr_cmds;
-	scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
+	scsi_adjust_queue_depth(sdev, qdepth);
 	return sdev->queue_depth;
 }
 

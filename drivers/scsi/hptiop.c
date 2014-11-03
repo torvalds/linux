@@ -1127,7 +1127,7 @@ static int hptiop_adjust_disk_queue_depth(struct scsi_device *sdev,
 
 	if (queue_depth > hba->max_requests)
 		queue_depth = hba->max_requests;
-	scsi_adjust_queue_depth(sdev, MSG_ORDERED_TAG, queue_depth);
+	scsi_adjust_queue_depth(sdev, queue_depth);
 	return queue_depth;
 }
 

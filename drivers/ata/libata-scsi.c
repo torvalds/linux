@@ -1164,7 +1164,7 @@ static int ata_scsi_dev_config(struct scsi_device *sdev,
 
 		depth = min(sdev->host->can_queue, ata_id_queue_depth(dev->id));
 		depth = min(ATA_MAX_QUEUE - 1, depth);
-		scsi_adjust_queue_depth(sdev, MSG_SIMPLE_TAG, depth);
+		scsi_adjust_queue_depth(sdev, depth);
 	}
 
 	blk_queue_flush_queueable(q, false);
@@ -1282,7 +1282,7 @@ int __ata_change_queue_depth(struct ata_port *ap, struct scsi_device *sdev,
 	if (sdev->queue_depth == queue_depth)
 		return -EINVAL;
 
-	scsi_adjust_queue_depth(sdev, MSG_SIMPLE_TAG, queue_depth);
+	scsi_adjust_queue_depth(sdev, queue_depth);
 	return queue_depth;
 }
 

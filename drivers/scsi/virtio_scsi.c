@@ -683,9 +683,7 @@ static int virtscsi_change_queue_depth(struct scsi_device *sdev,
 		break;
 	case SCSI_QDEPTH_RAMP_UP: /* Raise qdepth after BUSY state resolved */
 	case SCSI_QDEPTH_DEFAULT: /* Manual change via sysfs */
-		scsi_adjust_queue_depth(sdev,
-					scsi_get_tag_type(sdev),
-					min(max_depth, qdepth));
+		scsi_adjust_queue_depth(sdev, min(max_depth, qdepth));
 		break;
 	default:
 		return -EOPNOTSUPP;

@@ -320,7 +320,7 @@ lpfc_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
 	case SCSI_QDEPTH_DEFAULT:
 		/* change request from sysfs, fall through */
 	case SCSI_QDEPTH_RAMP_UP:
-		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
+		scsi_adjust_queue_depth(sdev, qdepth);
 		break;
 	case SCSI_QDEPTH_QFULL:
 		if (scsi_track_queue_full(sdev, qdepth) == 0)
@@ -5598,7 +5598,7 @@ lpfc_slave_configure(struct scsi_device *sdev)
 	struct lpfc_vport *vport = (struct lpfc_vport *) sdev->host->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
 
-	scsi_adjust_queue_depth(sdev, 0, vport->cfg_lun_queue_depth);
+	scsi_adjust_queue_depth(sdev, vport->cfg_lun_queue_depth);
 
 	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
 		lpfc_sli_handle_fast_ring_event(phba,

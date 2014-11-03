@@ -1405,7 +1405,7 @@ qla2xxx_slave_configure(struct scsi_device *sdev)
 	if (IS_T10_PI_CAPABLE(vha->hw))
 		blk_queue_update_dma_alignment(sdev->request_queue, 0x7);
 
-	scsi_adjust_queue_depth(sdev, 0, req->max_q_depth);
+	scsi_adjust_queue_depth(sdev, req->max_q_depth);
 	return 0;
 }
 
@@ -1440,7 +1440,7 @@ static void qla2x00_adjust_sdev_qdepth_up(struct scsi_device *sdev, int qdepth)
 	if (req->max_q_depth <= sdev->queue_depth || req->max_q_depth < qdepth)
 		return;
 
-	scsi_adjust_queue_depth(sdev, MSG_SIMPLE_TAG, qdepth);
+	scsi_adjust_queue_depth(sdev, qdepth);
 
 	ql_dbg(ql_dbg_io, vha, 0x302a,
 	    "Queue depth adjusted-up to %d for nexus=%ld:%d:%llu.\n",
@@ -1452,7 +1452,7 @@ qla2x00_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
 {
 	switch (reason) {
 	case SCSI_QDEPTH_DEFAULT:
-		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
+		scsi_adjust_queue_depth(sdev, qdepth);
 		break;
 	case SCSI_QDEPTH_QFULL:
 		qla2x00_handle_queue_full(sdev, qdepth);

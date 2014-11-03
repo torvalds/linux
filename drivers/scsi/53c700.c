@@ -902,8 +902,10 @@ process_message(struct Scsi_Host *host,	struct NCR_700_Host_Parameters *hostdata
 			/* we're done negotiating */
 			NCR_700_set_tag_neg_state(SCp->device, NCR_700_FINISHED_TAG_NEGOTIATION);
 			hostdata->tag_negotiated &= ~(1<<scmd_id(SCp));
+
 			SCp->device->tagged_supported = 0;
-			scsi_adjust_queue_depth(SCp->device, 0, host->cmd_per_lun);
+			scsi_adjust_queue_depth(SCp->device, host->cmd_per_lun);
+			scsi_set_tag_type(SCp->device, 0);
 		} else {
 			shost_printk(KERN_WARNING, host,
 				"(%d:%d) Unexpected REJECT Message %s\n",
@@ -2050,12 +2052,10 @@ NCR_700_slave_configure(struct scsi_device *SDp)
 
 	/* to do here: allocate memory; build a queue_full list */
 	if(SDp->tagged_supported) {
-		scsi_adjust_queue_depth(SDp, MSG_ORDERED_TAG, NCR_700_DEFAULT_TAGS);
+		scsi_adjust_queue_depth(SDp, NCR_700_DEFAULT_TAGS);
 		NCR_700_set_tag_neg_state(SDp, NCR_700_START_TAG_NEGOTIATION);
-	} else {
-		/* initialise to default depth */
-		scsi_adjust_queue_depth(SDp, 0, SDp->host->cmd_per_lun);
 	}
+
 	if(hostdata->fast) {
 		/* Find the correct offset and period via domain validation */
 		if (!spi_initial_dv(SDp->sdev_target))
@@ -2083,7 +2083,7 @@ NCR_700_change_queue_depth(struct scsi_device *SDp, int depth, int reason)
 	if (depth > NCR_700_MAX_TAGS)
 		depth = NCR_700_MAX_TAGS;
 
-	scsi_adjust_queue_depth(SDp, scsi_get_tag_type(SDp), depth);
+	scsi_adjust_queue_depth(SDp, depth);
 	return depth;
 }
 
@@ -2101,15 +2101,16 @@ static int NCR_700_change_queue_type(struct scsi_device *SDp, int tag_type)
 	if (change_tag)
 		scsi_target_quiesce(SDp->sdev_target);
 
+	scsi_set_tag_type(SDp, tag_type);
 	if (!tag_type) {
 		/* shift back to the default unqueued number of commands
 		 * (the user can still raise this) */
-		scsi_adjust_queue_depth(SDp, 0, SDp->host->cmd_per_lun);
+		scsi_adjust_queue_depth(SDp, SDp->host->cmd_per_lun);
 		hostdata->tag_negotiated &= ~(1 << sdev_id(SDp));
 	} else {
 		/* Here, we cleared the negotiation flag above, so this
 		 * will force the driver to renegotiate */
-		scsi_adjust_queue_depth(SDp, tag_type, SDp->queue_depth);
+		scsi_adjust_queue_depth(SDp, SDp->queue_depth);
 		if (change_tag)
 			NCR_700_set_tag_neg_state(SDp, NCR_700_START_TAG_NEGOTIATION);
 	}

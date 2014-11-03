@@ -200,7 +200,7 @@ static int twl_change_queue_depth(struct scsi_device *sdev, int queue_depth,
 
 	if (queue_depth > TW_Q_LENGTH-2)
 		queue_depth = TW_Q_LENGTH-2;
-	scsi_adjust_queue_depth(sdev, MSG_ORDERED_TAG, queue_depth);
+	scsi_adjust_queue_depth(sdev, queue_depth);
 	return queue_depth;
 } /* End twl_change_queue_depth() */
 

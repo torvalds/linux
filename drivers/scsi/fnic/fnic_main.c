@@ -100,7 +100,7 @@ static int fnic_slave_alloc(struct scsi_device *sdev)
 	if (!rport || fc_remote_port_chkready(rport))
 		return -ENXIO;
 
-	scsi_adjust_queue_depth(sdev, 0, fnic_max_qdepth);
+	scsi_adjust_queue_depth(sdev, fnic_max_qdepth);
 	return 0;
 }
 

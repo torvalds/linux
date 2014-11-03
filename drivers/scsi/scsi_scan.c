@@ -292,7 +292,7 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 		blk_queue_init_tags(sdev->request_queue,
 				    sdev->host->cmd_per_lun, shost->bqt);
 	}
-	scsi_adjust_queue_depth(sdev, 0, sdev->host->cmd_per_lun);
+	scsi_adjust_queue_depth(sdev, sdev->host->cmd_per_lun);
 
 	scsi_sysfs_device_initialize(sdev);
 
@@ -880,8 +880,10 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 			(inq_result[3] & 0x0f) == 1 ? " CCS" : "");
 
 	if ((sdev->scsi_level >= SCSI_2) && (inq_result[7] & 2) &&
-	    !(*bflags & BLIST_NOTQ))
+	    !(*bflags & BLIST_NOTQ)) {
 		sdev->tagged_supported = 1;
+		sdev->simple_tags = 1;
+	}
 
 	/*
 	 * Some devices (Texel CD ROM drives) have handshaking problems

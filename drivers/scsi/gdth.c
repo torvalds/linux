@@ -4661,7 +4661,6 @@ static void gdth_flush(gdth_ha_str *ha)
 /* configure lun */
 static int gdth_slave_configure(struct scsi_device *sdev)
 {
-    scsi_adjust_queue_depth(sdev, 0, sdev->host->cmd_per_lun);
     sdev->skip_ms_page_3f = 1;
     sdev->skip_ms_page_8 = 1;
     return 0;

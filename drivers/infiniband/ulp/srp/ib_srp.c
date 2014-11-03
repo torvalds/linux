@@ -2278,7 +2278,7 @@ srp_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
 			max_depth = 1;
 		if (qdepth > max_depth)
 			qdepth = max_depth;
-		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
+		scsi_adjust_queue_depth(sdev, qdepth);
 	} else if (reason == SCSI_QDEPTH_QFULL)
 		scsi_track_queue_full(sdev, qdepth);
 	else

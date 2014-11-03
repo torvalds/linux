@@ -1222,7 +1222,7 @@ _scsih_adjust_queue_depth(struct scsi_device *sdev, int qdepth)
 		max_depth = 1;
 	if (qdepth > max_depth)
 		qdepth = max_depth;
-	scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
+	scsi_adjust_queue_depth(sdev, qdepth);
 }
 
 /**

@@ -2887,12 +2887,6 @@ static int ibmvfc_slave_configure(struct scsi_device *sdev)
 	spin_lock_irqsave(shost->host_lock, flags);
 	if (sdev->type == TYPE_DISK)
 		sdev->allow_restart = 1;
-
-	if (sdev->tagged_supported)
-		scsi_adjust_queue_depth(sdev, MSG_SIMPLE_TAG,
-				sdev->queue_depth);
-	else
-		scsi_adjust_queue_depth(sdev, 0, sdev->queue_depth);
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	return 0;
 }
@@ -2915,7 +2909,7 @@ static int ibmvfc_change_queue_depth(struct scsi_device *sdev, int qdepth,
 	if (qdepth > IBMVFC_MAX_CMDS_PER_LUN)
 		qdepth = IBMVFC_MAX_CMDS_PER_LUN;
 
-	scsi_adjust_queue_depth(sdev, 0, qdepth);
+	scsi_adjust_queue_depth(sdev, qdepth);
 	return sdev->queue_depth;
 }
 

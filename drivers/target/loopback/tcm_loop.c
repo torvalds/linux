@@ -121,13 +121,13 @@ static int tcm_loop_change_queue_depth(
 {
 	switch (reason) {
 	case SCSI_QDEPTH_DEFAULT:
-		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), depth);
+		scsi_adjust_queue_depth(sdev, depth);
 		break;
 	case SCSI_QDEPTH_QFULL:
 		scsi_track_queue_full(sdev, depth);
 		break;
 	case SCSI_QDEPTH_RAMP_UP:
-		scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), depth);
+		scsi_adjust_queue_depth(sdev, depth);
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -404,19 +404,6 @@ static int tcm_loop_slave_alloc(struct scsi_device *sd)
 	return 0;
 }
 
-static int tcm_loop_slave_configure(struct scsi_device *sd)
-{
-	if (sd->tagged_supported) {
-		scsi_adjust_queue_depth(sd, MSG_SIMPLE_TAG,
-					sd->host->cmd_per_lun);
-	} else {
-		scsi_adjust_queue_depth(sd, 0,
-					sd->host->cmd_per_lun);
-	}
-
-	return 0;
-}
-
 static struct scsi_host_template tcm_loop_driver_template = {
 	.show_info		= tcm_loop_show_info,
 	.proc_name		= "tcm_loopback",
@@ -434,7 +421,6 @@ static struct scsi_host_template tcm_loop_driver_template = {
 	.max_sectors		= 0xFFFF,
 	.use_clustering		= DISABLE_CLUSTERING,
 	.slave_alloc		= tcm_loop_slave_alloc,
-	.slave_configure	= tcm_loop_slave_configure,
 	.module			= THIS_MODULE,
 	.use_blk_tags		= 1,
 };
