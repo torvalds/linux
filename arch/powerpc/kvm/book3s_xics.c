@@ -613,10 +613,25 @@ static noinline int kvmppc_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 	 * there might be a previously-rejected interrupt needing
 	 * to be resent.
 	 *
-	 * If the CPPR is less favored, then we might be replacing
-	 * an interrupt, and thus need to possibly reject it as in
-	 *
 	 * ICP state: Check_IPI
+	 *
+	 * If the CPPR is less favored, then we might be replacing
+	 * an interrupt, and thus need to possibly reject it.
+	 *
+	 * ICP State: IPI
+	 *
+	 * Besides rejecting any pending interrupts, we also
+	 * update XISR and pending_pri to mark IPI as pending.
+	 *
+	 * PAPR does not describe this state, but if the MFRR is being
+	 * made less favored than its earlier value, there might be
+	 * a previously-rejected interrupt needing to be resent.
+	 * Ideally, we would want to resend only if
+	 *	prio(pending_interrupt) < mfrr &&
+	 *	prio(pending_interrupt) < cppr
+	 * where pending interrupt is the one that was rejected. But
+	 * we don't have that state, so we simply trigger a resend
+	 * whenever the MFRR is made less favored.
 	 */
 	do {
 		old_state = new_state = ACCESS_ONCE(icp->state);
@@ -629,13 +644,14 @@ static noinline int kvmppc_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 		resend = false;
 		if (mfrr < new_state.cppr) {
 			/* Reject a pending interrupt if not an IPI */
-			if (mfrr <= new_state.pending_pri)
+			if (mfrr <= new_state.pending_pri) {
 				reject = new_state.xisr;
-			new_state.pending_pri = mfrr;
-			new_state.xisr = XICS_IPI;
+				new_state.pending_pri = mfrr;
+				new_state.xisr = XICS_IPI;
+			}
 		}
 
-		if (mfrr > old_state.mfrr && mfrr > new_state.cppr) {
+		if (mfrr > old_state.mfrr) {
 			resend = new_state.need_resend;
 			new_state.need_resend = 0;
 		}
@@ -789,7 +805,7 @@ static noinline int kvmppc_xics_rm_complete(struct kvm_vcpu *vcpu, u32 hcall)
 	if (icp->rm_action & XICS_RM_KICK_VCPU)
 		kvmppc_fast_vcpu_kick(icp->rm_kick_target);
 	if (icp->rm_action & XICS_RM_CHECK_RESEND)
-		icp_check_resend(xics, icp);
+		icp_check_resend(xics, icp->rm_resend_icp);
 	if (icp->rm_action & XICS_RM_REJECT)
 		icp_deliver_irq(xics, icp, icp->rm_reject);
 	if (icp->rm_action & XICS_RM_NOTIFY_EOI)
