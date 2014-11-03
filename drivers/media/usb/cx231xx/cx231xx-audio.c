@@ -439,12 +439,6 @@ static int snd_cx231xx_capture_open(struct snd_pcm_substream *substream)
 	dev_dbg(dev->dev,
 		"opening device and trying to acquire exclusive lock\n");
 
-	if (!dev) {
-		dev_err(dev->dev,
-			"BUG: cx231xx can't find device struct. Can't proceed with open\n");
-		return -ENODEV;
-	}
-
 	if (dev->state & DEV_DISCONNECTED) {
 		dev_err(dev->dev,
 			"Can't open. the device was removed.\n");
