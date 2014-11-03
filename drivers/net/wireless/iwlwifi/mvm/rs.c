@@ -1110,10 +1110,11 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 
 	if (time_after(jiffies,
 		       (unsigned long)(lq_sta->last_tx + RS_IDLE_TIMEOUT))) {
-		int tid;
+		int t;
+
 		IWL_DEBUG_RATE(mvm, "Tx idle for too long. reinit rs\n");
-		for (tid = 0; tid < IWL_MAX_TID_COUNT; tid++)
-			ieee80211_stop_tx_ba_session(sta, tid);
+		for (t = 0; t < IWL_MAX_TID_COUNT; t++)
+			ieee80211_stop_tx_ba_session(sta, t);
 
 		iwl_mvm_rs_rate_init(mvm, sta, info->band, false);
 		return;
