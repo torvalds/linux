@@ -128,6 +128,10 @@ static void imx_pd_encoder_prepare(struct drm_encoder *encoder)
 
 static void imx_pd_encoder_commit(struct drm_encoder *encoder)
 {
+	struct imx_parallel_display *imxpd = enc_to_imxpd(encoder);
+
+	drm_panel_prepare(imxpd->panel);
+	drm_panel_enable(imxpd->panel);
 }
 
 static void imx_pd_encoder_mode_set(struct drm_encoder *encoder,
@@ -138,6 +142,10 @@ static void imx_pd_encoder_mode_set(struct drm_encoder *encoder,
 
 static void imx_pd_encoder_disable(struct drm_encoder *encoder)
 {
+	struct imx_parallel_display *imxpd = enc_to_imxpd(encoder);
+
+	drm_panel_disable(imxpd->panel);
+	drm_panel_unprepare(imxpd->panel);
 }
 
 static struct drm_connector_funcs imx_pd_connector_funcs = {
