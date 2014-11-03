@@ -421,6 +421,9 @@
 		mailbox1: mailbox@4a0f4000 {
 			compatible = "ti,omap4-mailbox";
 			reg = <0x4a0f4000 0x200>;
+			interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mailbox1";
 			ti,mbox-num-users = <3>;
 			ti,mbox-num-fifos = <8>;
@@ -430,6 +433,10 @@
 		mailbox2: mailbox@4883a000 {
 			compatible = "ti,omap4-mailbox";
 			reg = <0x4883a000 0x200>;
+			interrupts = <GIC_SPI 237 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 239 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mailbox2";
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <12>;
@@ -439,6 +446,10 @@
 		mailbox3: mailbox@4883c000 {
 			compatible = "ti,omap4-mailbox";
 			reg = <0x4883c000 0x200>;
+			interrupts = <GIC_SPI 241 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 242 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 243 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 244 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mailbox3";
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <12>;
@@ -448,6 +459,10 @@
 		mailbox4: mailbox@4883e000 {
 			compatible = "ti,omap4-mailbox";
 			reg = <0x4883e000 0x200>;
+			interrupts = <GIC_SPI 245 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 247 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 248 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mailbox4";
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <12>;
@@ -457,6 +472,10 @@
 		mailbox5: mailbox@48840000 {
 			compatible = "ti,omap4-mailbox";
 			reg = <0x48840000 0x200>;
+			interrupts = <GIC_SPI 249 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 250 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 251 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 252 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mailbox5";
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <12>;
@@ -466,6 +485,10 @@
 		mailbox6: mailbox@48842000 {
 			compatible = "ti,omap4-mailbox";
 			reg = <0x48842000 0x200>;
+			interrupts = <GIC_SPI 253 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 254 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 255 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 256 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mailbox6";
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <12>;
@@ -475,6 +498,10 @@
 		mailbox7: mailbox@48844000 {
 			compatible = "ti,omap4-mailbox";
 			reg = <0x48844000 0x200>;
+			interrupts = <GIC_SPI 257 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 258 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 259 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 260 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mailbox7";
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <12>;
@@ -484,6 +511,10 @@
 		mailbox8: mailbox@48846000 {
 			compatible = "ti,omap4-mailbox";
 			reg = <0x48846000 0x200>;
+			interrupts = <GIC_SPI 261 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 262 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 263 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 264 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mailbox8";
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <12>;
@@ -493,6 +524,10 @@
 		mailbox9: mailbox@4885e000 {
 			compatible = "ti,omap4-mailbox";
 			reg = <0x4885e000 0x200>;
+			interrupts = <GIC_SPI 265 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 266 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 267 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 268 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mailbox9";
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <12>;
@@ -502,6 +537,10 @@
 		mailbox10: mailbox@48860000 {
 			compatible = "ti,omap4-mailbox";
 			reg = <0x48860000 0x200>;
+			interrupts = <GIC_SPI 269 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 270 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 271 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 272 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mailbox10";
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <12>;
@@ -511,6 +550,10 @@
 		mailbox11: mailbox@48862000 {
 			compatible = "ti,omap4-mailbox";
 			reg = <0x48862000 0x200>;
+			interrupts = <GIC_SPI 273 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 274 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 275 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 276 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mailbox11";
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <12>;
@@ -520,6 +563,10 @@
 		mailbox12: mailbox@48864000 {
 			compatible = "ti,omap4-mailbox";
 			reg = <0x48864000 0x200>;
+			interrupts = <GIC_SPI 277 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 278 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 279 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 280 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mailbox12";
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <12>;
@@ -529,6 +576,10 @@
 		mailbox13: mailbox@48802000 {
 			compatible = "ti,omap4-mailbox";
 			reg = <0x48802000 0x200>;
+			interrupts = <GIC_SPI 379 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 380 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 381 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 382 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "mailbox13";
 			ti,mbox-num-users = <4>;
 			ti,mbox-num-fifos = <12>;
