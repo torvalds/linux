@@ -274,6 +274,7 @@ enum {
 /* Low Energy links do not have defined link type. Use invented one */
 #define LE_LINK		0x80
 #define AMP_LINK	0x81
+#define INVALID_LINK	0xff
 
 /* LMP features */
 #define LMP_3SLOT	0x01
