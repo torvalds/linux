@@ -9513,10 +9513,18 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 		 */
 		start = block_group->key.objectid;
 		end = start + block_group->key.offset - 1;
-		clear_extent_bits(&fs_info->freed_extents[0], start, end,
+		ret = clear_extent_bits(&fs_info->freed_extents[0], start, end,
 				  EXTENT_DIRTY, GFP_NOFS);
-		clear_extent_bits(&fs_info->freed_extents[1], start, end,
+		if (ret) {
+			btrfs_set_block_group_rw(root, block_group);
+			goto end_trans;
+		}
+		ret = clear_extent_bits(&fs_info->freed_extents[1], start, end,
 				  EXTENT_DIRTY, GFP_NOFS);
+		if (ret) {
+			btrfs_set_block_group_rw(root, block_group);
+			goto end_trans;
+		}
 
 		/* Reset pinned so btrfs_put_block_group doesn't complain */
 		block_group->pinned = 0;
@@ -9527,6 +9535,7 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 		 */
 		ret = btrfs_remove_chunk(trans, root,
 					 block_group->key.objectid);
+end_trans:
 		btrfs_end_transaction(trans, root);
 next:
 		btrfs_put_block_group(block_group);
