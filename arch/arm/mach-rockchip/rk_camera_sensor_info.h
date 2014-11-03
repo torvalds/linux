@@ -8,9 +8,6 @@
 #define RK29_CAM_SENSOR_OV2640 ov2640
 #define RK29_CAM_SENSOR_OV2655 ov2655
 #define RK29_CAM_SENSOR_OV2659 ov2659
-
-#define RK29_CAM_SENSOR_OV2660 ov2660 /*yzm*/
-
 #define RK29_CAM_SENSOR_OV7690 ov7690
 #define RK29_CAM_SENSOR_OV3640 ov3640
 #define RK29_CAM_SENSOR_OV3660 ov3660
@@ -56,10 +53,6 @@
 #define RK29_CAM_SENSOR_NAME_OV2640 "ov2640"
 #define RK29_CAM_SENSOR_NAME_OV2655 "ov2655"
 #define RK29_CAM_SENSOR_NAME_OV2659 "ov2659"
-
-#define RK29_CAM_SENSOR_NAME_OV2660 "ov2660"  /*yzm*/
-
-
 #define RK29_CAM_SENSOR_NAME_OV7690 "ov7690"
 #define RK29_CAM_SENSOR_NAME_OV3640 "ov3640"
 #define RK29_CAM_SENSOR_NAME_OV3660 "ov3660"
@@ -172,9 +165,6 @@
 #define ov2640_I2C_ADDR             0x60
 #define ov2655_I2C_ADDR             0x60
 #define ov2659_I2C_ADDR             0x60
-
-#define ov2660_I2C_ADDR             0x60   /*yzm*/
-
 #define ov7690_I2C_ADDR             0x42
 #define ov3640_I2C_ADDR             0x78
 #define ov3660_I2C_ADDR             0x78
@@ -235,9 +225,6 @@
 #define ov2640_PWRDN_ACTIVE             0x01
 #define ov2655_PWRDN_ACTIVE             0x01
 #define ov2659_PWRDN_ACTIVE             0x01
-
-#define ov2660_PWRDN_ACTIVE             0x01  /*yzm*/
-
 #define ov7690_PWRDN_ACTIVE             0x01
 #define ov3640_PWRDN_ACTIVE             0x01
 #define ov3660_PWRDN_ACTIVE             0x01
@@ -310,9 +297,6 @@
 #define ov2640_PWRSEQ                   sensor_PWRSEQ_DEFAULT
 #define ov2655_PWRSEQ                   sensor_PWRSEQ_DEFAULT
 #define ov2659_PWRSEQ                   sensor_PWRSEQ_DEFAULT
-
-#define ov2660_PWRSEQ                   sensor_PWRSEQ_DEFAULT
-
 #define ov7690_PWRSEQ                   sensor_PWRSEQ_DEFAULT
 #define ov3640_PWRSEQ                   sensor_PWRSEQ_DEFAULT
 #define ov3660_PWRSEQ                   sensor_PWRSEQ_DEFAULT

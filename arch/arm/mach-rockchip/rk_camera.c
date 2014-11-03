@@ -163,7 +163,7 @@ static int	rk_dts_sensor_probe(struct platform_device *pdev)
 		u32	powerdown = INVALID_GPIO,power = INVALID_GPIO,reset = INVALID_GPIO;
 		u32 af = INVALID_GPIO,flash = INVALID_GPIO;
 
-		int pwr_active = 0, rst_active = 0, pwdn_active = 0;
+		int pwr_active = 0, rst_active = 0, pwdn_active = 0,flash_active = 0;
 		int orientation = 0;
 		struct rkcamera_platform_data *new_camera; 
 		
@@ -231,6 +231,9 @@ static int	rk_dts_sensor_probe(struct platform_device *pdev)
 		}
 		if (of_property_read_u32(cp, "rockchip,flash", &flash)) {
 				dprintk("%s:Get %s rockchip,flash failed!\n",__func__, cp->name);				
+		}		
+		if (of_property_read_u32(cp, "flash_active", &flash_active)) {
+				dprintk("%s:Get %s flash_active failed!\n",__func__, cp->name);				
 		}
 		if (of_property_read_u32(cp, "i2c_add", &i2c_add)) {
 			printk("%s:Get %s rockchip,i2c_add failed!\n",__func__, cp->name);				
@@ -261,7 +264,10 @@ static int	rk_dts_sensor_probe(struct platform_device *pdev)
 		new_camera->io.gpio_power = power;
 		new_camera->io.gpio_af = af;
 		new_camera->io.gpio_flash = flash;
-		new_camera->io.gpio_flag = ((pwr_active&0x01)<<RK29_CAM_POWERACTIVE_BITPOS)|((rst_active&0x01)<<RK29_CAM_RESETACTIVE_BITPOS)|((pwdn_active&0x01)<<RK29_CAM_POWERDNACTIVE_BITPOS);
+		new_camera->io.gpio_flag = ((pwr_active&0x01)<<RK29_CAM_POWERACTIVE_BITPOS)
+									|((rst_active&0x01)<<RK29_CAM_RESETACTIVE_BITPOS)
+									|((pwdn_active&0x01)<<RK29_CAM_POWERDNACTIVE_BITPOS)
+									|((flash_active&0x01)<<RK29_CAM_FLASHACTIVE_BITPOS);
 		new_camera->orientation = orientation;
 		new_camera->resolution = resolution;
 		new_camera->mirror = mir;
@@ -523,7 +529,6 @@ static int sensor_flash_default_cb (struct rk29camera_gpio_res *res, int on)
     int ret = 0;    
 
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()/n", __FILE__, __LINE__,__FUNCTION__);
-
 
     if (camera_flash != INVALID_GPIO) {
 		if (camera_io_init & RK29_CAM_FLASHACTIVE_MASK) {

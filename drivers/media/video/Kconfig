@@ -16,4 +16,8 @@ menu "rockchip camera sensor interface driver"
 		depends on ROCKCHIP_CAMERA_SENSOR_INTERFACE
 		default y
 		
+	config RK30_CAMERA_PINGPONG
+		tristate "rk30_camera_pingpong"
+		depends on ROCKCHIP_CAMERA_SENSOR_INTERFACE
+		
 endmenu		
