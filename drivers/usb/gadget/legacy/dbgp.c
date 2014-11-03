@@ -237,7 +237,7 @@ static void dbgp_unbind(struct usb_gadget *gadget)
 static unsigned char tty_line;
 #endif
 
-static int __init dbgp_configure_endpoints(struct usb_gadget *gadget)
+static int dbgp_configure_endpoints(struct usb_gadget *gadget)
 {
 	int stp;
 
@@ -273,19 +273,10 @@ static int __init dbgp_configure_endpoints(struct usb_gadget *gadget)
 
 	dbgp.serial->in->desc = &i_desc;
 	dbgp.serial->out->desc = &o_desc;
-
-	if (gserial_alloc_line(&tty_line)) {
-		stp = 3;
-		goto fail_3;
-	}
-
-	return 0;
-
-fail_3:
-	dbgp.o_ep->driver_data = NULL;
-#else
-	return 0;
 #endif
+
+	return 0;
+
 fail_2:
 	dbgp.i_ep->driver_data = NULL;
 fail_1:
@@ -324,10 +315,17 @@ static int __init dbgp_bind(struct usb_gadget *gadget,
 		err = -ENOMEM;
 		goto fail;
 	}
+
+	if (gserial_alloc_line(&tty_line)) {
+		stp = 4;
+		err = -ENODEV;
+		goto fail;
+	}
 #endif
+
 	err = dbgp_configure_endpoints(gadget);
 	if (err < 0) {
-		stp = 4;
+		stp = 5;
 		goto fail;
 	}
 
@@ -383,6 +381,10 @@ static int dbgp_setup(struct usb_gadget *gadget,
 #ifdef CONFIG_USB_G_DBGP_PRINTK
 		err = dbgp_enable_ep();
 #else
+		err = dbgp_configure_endpoints(gadget);
+		if (err < 0) {
+			goto fail;
+		}
 		err = gserial_connect(dbgp.serial, tty_line);
 #endif
 		if (err < 0)
