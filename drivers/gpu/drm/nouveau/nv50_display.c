@@ -1343,16 +1343,6 @@ static const struct drm_crtc_funcs nv50_crtc_func = {
 	.page_flip = nouveau_crtc_page_flip,
 };
 
-static void
-nv50_cursor_set_pos(struct nouveau_crtc *nv_crtc, int x, int y)
-{
-}
-
-static void
-nv50_cursor_set_offset(struct nouveau_crtc *nv_crtc, uint32_t offset)
-{
-}
-
 static int
 nv50_crtc_create(struct drm_device *dev, int index)
 {
@@ -1371,8 +1361,6 @@ nv50_crtc_create(struct drm_device *dev, int index)
 	head->base.set_color_vibrance = nv50_crtc_set_color_vibrance;
 	head->base.color_vibrance = 50;
 	head->base.vibrant_hue = 0;
-	head->base.cursor.set_offset = nv50_cursor_set_offset;
-	head->base.cursor.set_pos = nv50_cursor_set_pos;
 	for (i = 0; i < 256; i++) {
 		head->base.lut.r[i] = i << 8;
 		head->base.lut.g[i] = i << 8;

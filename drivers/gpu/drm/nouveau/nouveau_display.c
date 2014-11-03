@@ -633,6 +633,8 @@ nouveau_display_resume(struct drm_device *dev, bool runtime)
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 		u32 offset = nv_crtc->cursor.nvbo->bo.offset;
 
+		if (!nv_crtc->cursor.set_offset)
+			continue;
 		nv_crtc->cursor.set_offset(nv_crtc, offset);
 		nv_crtc->cursor.set_pos(nv_crtc, nv_crtc->cursor_saved_x,
 						 nv_crtc->cursor_saved_y);
