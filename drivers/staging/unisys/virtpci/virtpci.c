@@ -430,9 +430,9 @@ static int
 delete_vbus_device(struct device *vbus, void *data)
 {
 	int checkforroot = (data != NULL);
-	struct device *pDev = &virtpci_rootbus_device;
+	struct device *dev = &virtpci_rootbus_device;
 
-	if ((checkforroot) && match_busid(vbus, (void *)BUS_ID(pDev))) {
+	if ((checkforroot) && match_busid(vbus, (void *)BUS_ID(dev))) {
 		/* skip it - don't delete root bus */
 		LOGINF("skipping root bus\n");
 		return 0;	/* pretend no error */
