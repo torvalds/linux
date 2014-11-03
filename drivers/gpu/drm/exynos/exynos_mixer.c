@@ -922,24 +922,24 @@ static void mixer_disable_vblank(struct exynos_drm_manager *mgr)
 }
 
 static void mixer_win_mode_set(struct exynos_drm_manager *mgr,
-			struct exynos_drm_overlay *overlay)
+			struct exynos_drm_plane *plane)
 {
 	struct mixer_context *mixer_ctx = mgr_to_mixer(mgr);
 	struct hdmi_win_data *win_data;
 	int win;
 
-	if (!overlay) {
-		DRM_ERROR("overlay is NULL\n");
+	if (!plane) {
+		DRM_ERROR("plane is NULL\n");
 		return;
 	}
 
 	DRM_DEBUG_KMS("set [%d]x[%d] at (%d,%d) to [%d]x[%d] at (%d,%d)\n",
-				 overlay->fb_width, overlay->fb_height,
-				 overlay->fb_x, overlay->fb_y,
-				 overlay->crtc_width, overlay->crtc_height,
-				 overlay->crtc_x, overlay->crtc_y);
+				 plane->fb_width, plane->fb_height,
+				 plane->fb_x, plane->fb_y,
+				 plane->crtc_width, plane->crtc_height,
+				 plane->crtc_x, plane->crtc_y);
 
-	win = overlay->zpos;
+	win = plane->zpos;
 	if (win == DEFAULT_ZPOS)
 		win = MIXER_DEFAULT_WIN;
 
@@ -950,27 +950,27 @@ static void mixer_win_mode_set(struct exynos_drm_manager *mgr,
 
 	win_data = &mixer_ctx->win_data[win];
 
-	win_data->dma_addr = overlay->dma_addr[0];
-	win_data->chroma_dma_addr = overlay->dma_addr[1];
-	win_data->pixel_format = overlay->pixel_format;
-	win_data->bpp = overlay->bpp;
+	win_data->dma_addr = plane->dma_addr[0];
+	win_data->chroma_dma_addr = plane->dma_addr[1];
+	win_data->pixel_format = plane->pixel_format;
+	win_data->bpp = plane->bpp;
 
-	win_data->crtc_x = overlay->crtc_x;
-	win_data->crtc_y = overlay->crtc_y;
-	win_data->crtc_width = overlay->crtc_width;
-	win_data->crtc_height = overlay->crtc_height;
+	win_data->crtc_x = plane->crtc_x;
+	win_data->crtc_y = plane->crtc_y;
+	win_data->crtc_width = plane->crtc_width;
+	win_data->crtc_height = plane->crtc_height;
 
-	win_data->fb_x = overlay->fb_x;
-	win_data->fb_y = overlay->fb_y;
-	win_data->fb_width = overlay->fb_width;
-	win_data->fb_height = overlay->fb_height;
-	win_data->src_width = overlay->src_width;
-	win_data->src_height = overlay->src_height;
+	win_data->fb_x = plane->fb_x;
+	win_data->fb_y = plane->fb_y;
+	win_data->fb_width = plane->fb_width;
+	win_data->fb_height = plane->fb_height;
+	win_data->src_width = plane->src_width;
+	win_data->src_height = plane->src_height;
 
-	win_data->mode_width = overlay->mode_width;
-	win_data->mode_height = overlay->mode_height;
+	win_data->mode_width = plane->mode_width;
+	win_data->mode_height = plane->mode_height;
 
-	win_data->scan_flags = overlay->scan_flag;
+	win_data->scan_flags = plane->scan_flag;
 }
 
 static void mixer_win_commit(struct exynos_drm_manager *mgr, int zpos)

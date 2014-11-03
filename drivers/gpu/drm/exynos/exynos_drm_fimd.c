@@ -518,44 +518,44 @@ static void fimd_disable_vblank(struct exynos_drm_manager *mgr)
 }
 
 static void fimd_win_mode_set(struct exynos_drm_manager *mgr,
-			struct exynos_drm_overlay *overlay)
+			struct exynos_drm_plane *plane)
 {
 	struct fimd_context *ctx = mgr_to_fimd(mgr);
 	struct fimd_win_data *win_data;
 	int win;
 	unsigned long offset;
 
-	if (!overlay) {
-		DRM_ERROR("overlay is NULL\n");
+	if (!plane) {
+		DRM_ERROR("plane is NULL\n");
 		return;
 	}
 
-	win = overlay->zpos;
+	win = plane->zpos;
 	if (win == DEFAULT_ZPOS)
 		win = ctx->default_win;
 
 	if (win < 0 || win >= WINDOWS_NR)
 		return;
 
-	offset = overlay->fb_x * (overlay->bpp >> 3);
-	offset += overlay->fb_y * overlay->pitch;
+	offset = plane->fb_x * (plane->bpp >> 3);
+	offset += plane->fb_y * plane->pitch;
 
-	DRM_DEBUG_KMS("offset = 0x%lx, pitch = %x\n", offset, overlay->pitch);
+	DRM_DEBUG_KMS("offset = 0x%lx, pitch = %x\n", offset, plane->pitch);
 
 	win_data = &ctx->win_data[win];
 
-	win_data->offset_x = overlay->crtc_x;
-	win_data->offset_y = overlay->crtc_y;
-	win_data->ovl_width = overlay->crtc_width;
-	win_data->ovl_height = overlay->crtc_height;
-	win_data->fb_width = overlay->fb_width;
-	win_data->fb_height = overlay->fb_height;
-	win_data->dma_addr = overlay->dma_addr[0] + offset;
-	win_data->bpp = overlay->bpp;
-	win_data->pixel_format = overlay->pixel_format;
-	win_data->buf_offsize = (overlay->fb_width - overlay->crtc_width) *
-				(overlay->bpp >> 3);
-	win_data->line_size = overlay->crtc_width * (overlay->bpp >> 3);
+	win_data->offset_x = plane->crtc_x;
+	win_data->offset_y = plane->crtc_y;
+	win_data->ovl_width = plane->crtc_width;
+	win_data->ovl_height = plane->crtc_height;
+	win_data->fb_width = plane->fb_width;
+	win_data->fb_height = plane->fb_height;
+	win_data->dma_addr = plane->dma_addr[0] + offset;
+	win_data->bpp = plane->bpp;
+	win_data->pixel_format = plane->pixel_format;
+	win_data->buf_offsize = (plane->fb_width - plane->crtc_width) *
+				(plane->bpp >> 3);
+	win_data->line_size = plane->crtc_width * (plane->bpp >> 3);
 
 	DRM_DEBUG_KMS("offset_x = %d, offset_y = %d\n",
 			win_data->offset_x, win_data->offset_y);
@@ -563,7 +563,7 @@ static void fimd_win_mode_set(struct exynos_drm_manager *mgr,
 			win_data->ovl_width, win_data->ovl_height);
 	DRM_DEBUG_KMS("paddr = 0x%lx\n", (unsigned long)win_data->dma_addr);
 	DRM_DEBUG_KMS("fb_width = %d, crtc_width = %d\n",
-			overlay->fb_width, overlay->crtc_width);
+			plane->fb_width, plane->crtc_width);
 }
 
 static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win)
@@ -623,8 +623,8 @@ static void fimd_win_set_pixfmt(struct fimd_context *ctx, unsigned int win)
 	/*
 	 * In case of exynos, setting dma-burst to 16Word causes permanent
 	 * tearing for very small buffers, e.g. cursor buffer. Burst Mode
-	 * switching which is based on overlay size is not recommended as
-	 * overlay size varies alot towards the end of the screen and rapid
+	 * switching which is based on plane size is not recommended as
+	 * plane size varies alot towards the end of the screen and rapid
 	 * movement causes unstable DMA which results into iommu crash/tear.
 	 */
 

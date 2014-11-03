@@ -25,6 +25,7 @@
 
 #define to_exynos_crtc(x)	container_of(x, struct exynos_drm_crtc,\
 				drm_crtc)
+#define to_exynos_plane(x)	container_of(x, struct exynos_drm_plane, base)
 
 /* This enumerates device type. */
 enum exynos_drm_device_type {
@@ -47,6 +48,7 @@ enum exynos_drm_output_type {
 /*
  * Exynos drm common overlay structure.
  *
+ * @base: plane object
  * @fb_x: offset x on a framebuffer to be displayed.
  *	- the unit is screen coordinates.
  * @fb_y: offset y on a framebuffer to be displayed.
@@ -76,11 +78,14 @@ enum exynos_drm_output_type {
  * @local_path: in case of lcd type, local path mode on or off.
  * @transparency: transparency on or off.
  * @activated: activated or not.
+ * @enabled: enabled or not.
  *
  * this structure is common to exynos SoC and its contents would be copied
  * to hardware specific overlay info.
  */
-struct exynos_drm_overlay {
+
+struct exynos_drm_plane {
+	struct drm_plane base;
 	unsigned int fb_x;
 	unsigned int fb_y;
 	unsigned int fb_width;
@@ -107,6 +112,7 @@ struct exynos_drm_overlay {
 	bool local_path:1;
 	bool transparency:1;
 	bool activated:1;
+	bool enabled:1;
 };
 
 /*
@@ -188,7 +194,7 @@ struct exynos_drm_manager_ops {
 	void (*disable_vblank)(struct exynos_drm_manager *mgr);
 	void (*wait_for_vblank)(struct exynos_drm_manager *mgr);
 	void (*win_mode_set)(struct exynos_drm_manager *mgr,
-				struct exynos_drm_overlay *overlay);
+				struct exynos_drm_plane *plane);
 	void (*win_commit)(struct exynos_drm_manager *mgr, int zpos);
 	void (*win_enable)(struct exynos_drm_manager *mgr, int zpos);
 	void (*win_disable)(struct exynos_drm_manager *mgr, int zpos);
