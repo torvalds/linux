@@ -93,6 +93,7 @@ struct sm_page_descriptor {
 struct caam_drv_private_sm {
 	struct device *parentdev;	/* this ends up as the controller */
 	struct device *smringdev;	/* ring that owns this instance */
+	struct platform_device *sm_pdev;  /* Secure Memory platform device */
 	spinlock_t kslock ____cacheline_aligned;
 
 	/* Default parameters for geometry */
