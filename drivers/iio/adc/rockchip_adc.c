@@ -202,7 +202,7 @@ static const struct iio_chan_spec rk_adc_iio_channels[] = {
 	ADC_CHANNEL(0, "adc0"),
 	ADC_CHANNEL(1, "adc1"),
 	ADC_CHANNEL(2, "adc2"),
-	ADC_CHANNEL(3, "adc3"),
+	ADC_CHANNEL(6, "adc6"),
 };
 
 static int rk_adc_remove_devices(struct device *dev, void *c)
