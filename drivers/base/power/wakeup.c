@@ -659,6 +659,22 @@ void pm_wakeup_event(struct device *dev, unsigned int msec)
 }
 EXPORT_SYMBOL_GPL(pm_wakeup_event);
 
+void pm_get_active_wakeup_sources(char *pending_wakeup_source, size_t max)
+{
+	struct wakeup_source *ws;
+	int len = 0;
+	rcu_read_lock();
+	len += snprintf(pending_wakeup_source, max, "Pending Wakeup Sources: ");
+	list_for_each_entry_rcu(ws, &wakeup_sources, entry) {
+		if (ws->active) {
+			len += snprintf(pending_wakeup_source + len, max,
+				"%s ", ws->name);
+		}
+	}
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL_GPL(pm_get_active_wakeup_sources);
+
 static void print_active_wakeup_sources(void)
 {
 	struct wakeup_source *ws;
