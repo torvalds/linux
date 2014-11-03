@@ -314,6 +314,9 @@ static void tps65090_configure_regulator_config(
 		config->ena_gpio = tps_pdata->gpio;
 		config->ena_gpio_initialized = true;
 		config->ena_gpio_flags = gpio_flag;
+	} else {
+		config->ena_gpio = -EINVAL;
+		config->ena_gpio_initialized = false;
 	}
 }
 
