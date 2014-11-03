@@ -867,7 +867,11 @@ static int af9033_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 	u8 u8tmp, gain_offset, buf[7];
 
 	if (dev->is_af9035) {
-		ret = af9033_rd_reg(dev, 0x80004a, &u8tmp);
+		/* read signal strength of 0-100 scale */
+		ret = af9033_rd_reg(dev, 0x800048, &u8tmp);
+		if (ret < 0)
+			goto err;
+
 		/* scale value to 0x0000-0xffff */
 		*strength = u8tmp * 0xffff / 100;
 	} else {
