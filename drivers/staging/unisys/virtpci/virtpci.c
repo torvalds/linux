@@ -760,8 +760,8 @@ static void fix_vbus_dev_info(struct device *dev, int dev_no, int dev_type,
 			      struct virtpci_driver *virtpcidrv)
 {
 	struct device *vbus;
-	void *pChan;
-	struct ultra_vbus_deviceinfo devInfo;
+	void *chan;
+	struct ultra_vbus_deviceinfo dev_info;
 	const char *stype;
 
 	if (!dev) {
@@ -777,8 +777,8 @@ static void fix_vbus_dev_info(struct device *dev, int dev_no, int dev_type,
 		LOGERR("%s dev has no parent bus", __func__);
 		return;
 	}
-	pChan = vbus->platform_data;
-	if (!pChan) {
+	chan = vbus->platform_data;
+	if (!chan) {
 		LOGERR("%s dev bus has no channel", __func__);
 		return;
 	}
@@ -793,17 +793,17 @@ static void fix_vbus_dev_info(struct device *dev, int dev_no, int dev_type,
 		stype = "unknown";
 		break;
 	}
-	bus_device_info_init(&devInfo, stype,
+	bus_device_info_init(&dev_info, stype,
 			     virtpcidrv->name,
 			     virtpcidrv->version,
 			     virtpcidrv->vertag);
-	write_vbus_dev_info(pChan, &devInfo, dev_no);
+	write_vbus_dev_info(chan, &dev_info, dev_no);
 
 	/* Re-write bus+chipset info, because it is possible that this
 	* was previously written by our good counterpart, visorbus.
 	*/
-	write_vbus_chp_info(pChan, &chipset_driver_info);
-	write_vbus_bus_info(pChan, &bus_driver_info);
+	write_vbus_chp_info(chan, &chipset_driver_info);
+	write_vbus_bus_info(chan, &bus_driver_info);
 }
 
 /* This function is called to query the existence of a specific device
