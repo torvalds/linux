@@ -148,7 +148,7 @@ static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 	/* This covers 14..54 bits of va*/
 	rb = (v & ~0x7fUL) << 16;		/* AVA field */
 
-	rb |= v >> (62 - 8);			/*  B field */
+	rb |= (v >> HPTE_V_SSIZE_SHIFT) << 8;	/*  B field */
 	/*
 	 * AVA in v had cleared lower 23 bits. We need to derive
 	 * that from pteg index
