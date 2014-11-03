@@ -442,25 +442,27 @@ static unsigned long lookup_memtype(u64 paddr)
  * On failure, returns non-zero
  */
 int io_reserve_memtype(resource_size_t start, resource_size_t end,
-			unsigned long *type)
+			enum page_cache_mode *type)
 {
 	resource_size_t size = end - start;
-	unsigned long req_type = *type;
-	unsigned long new_type;
+	enum page_cache_mode req_type = *type;
+	enum page_cache_mode new_type;
+	unsigned long new_prot;
 	int ret;
 
 	WARN_ON_ONCE(iomem_map_sanity_check(start, size));
 
-	ret = reserve_memtype(start, end, req_type, &new_type);
+	ret = reserve_memtype(start, end, cachemode2protval(req_type),
+				&new_prot);
 	if (ret)
 		goto out_err;
 
-	if (!is_new_memtype_allowed(start, size,
-				    pgprot2cachemode(__pgprot(req_type)),
-				    pgprot2cachemode(__pgprot(new_type))))
+	new_type = pgprot2cachemode(__pgprot(new_prot));
+
+	if (!is_new_memtype_allowed(start, size, req_type, new_type))
 		goto out_free;
 
-	if (kernel_map_sync_memtype(start, size, new_type) < 0)
+	if (kernel_map_sync_memtype(start, size, new_prot) < 0)
 		goto out_free;
 
 	*type = new_type;
