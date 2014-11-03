@@ -667,40 +667,30 @@ long kvmppc_h_protect(struct kvm_vcpu *vcpu, unsigned long flags,
 		rev->guest_rpte = r;
 		note_hpte_modification(kvm, rev);
 	}
-	r = (be64_to_cpu(hpte[1]) & ~mask) | bits;
 
 	/* Update HPTE */
 	if (v & HPTE_V_VALID) {
-		rb = compute_tlbie_rb(v, r, pte_index);
-		hpte[0] = cpu_to_be64(v & ~HPTE_V_VALID);
-		do_tlbies(kvm, &rb, 1, global_invalidates(kvm, flags), true);
 		/*
-		 * If the host has this page as readonly but the guest
-		 * wants to make it read/write, reduce the permissions.
-		 * Checking the host permissions involves finding the
-		 * memslot and then the Linux PTE for the page.
+		 * If the page is valid, don't let it transition from
+		 * readonly to writable.  If it should be writable, we'll
+		 * take a trap and let the page fault code sort it out.
 		 */
-		if (hpte_is_writable(r) && kvm->arch.using_mmu_notifiers) {
-			unsigned long psize, gfn, hva;
-			struct kvm_memory_slot *memslot;
-			pgd_t *pgdir = vcpu->arch.pgdir;
-			pte_t pte;
-
-			psize = hpte_page_size(v, r);
-			gfn = ((r & HPTE_R_RPN) & ~(psize - 1)) >> PAGE_SHIFT;
-			memslot = __gfn_to_memslot(kvm_memslots_raw(kvm), gfn);
-			if (memslot) {
-				hva = __gfn_to_hva_memslot(memslot, gfn);
-				pte = lookup_linux_pte_and_update(pgdir, hva,
-								  1, &psize);
-				if (pte_present(pte) && !pte_write(pte))
-					r = hpte_make_readonly(r);
-			}
+		pte = be64_to_cpu(hpte[1]);
+		r = (pte & ~mask) | bits;
+		if (hpte_is_writable(r) && kvm->arch.using_mmu_notifiers &&
+		    !hpte_is_writable(pte))
+			r = hpte_make_readonly(r);
+		/* If the PTE is changing, invalidate it first */
+		if (r != pte) {
+			rb = compute_tlbie_rb(v, r, pte_index);
+			hpte[0] = cpu_to_be64((v & ~HPTE_V_VALID) |
+					      HPTE_V_ABSENT);
+			do_tlbies(kvm, &rb, 1, global_invalidates(kvm, flags),
+				  true);
+			hpte[1] = cpu_to_be64(r);
 		}
 	}
-	hpte[1] = cpu_to_be64(r);
-	eieio();
-	hpte[0] = cpu_to_be64(v & ~HPTE_V_HVLOCK);
+	unlock_hpte(hpte, v & ~HPTE_V_HVLOCK);
 	asm volatile("ptesync" : : : "memory");
 	return H_SUCCESS;
 }
