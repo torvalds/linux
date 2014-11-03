@@ -273,7 +273,7 @@ bool cookie_timestamp_decode(struct tcp_options_received *tcp_opt)
 EXPORT_SYMBOL(cookie_timestamp_decode);
 
 bool cookie_ecn_ok(const struct tcp_options_received *tcp_opt,
-		   const struct net *net)
+		   const struct net *net, const struct dst_entry *dst)
 {
 	bool ecn_ok = tcp_opt->rcv_tsecr & TS_OPT_ECN;
 
@@ -283,7 +283,7 @@ bool cookie_ecn_ok(const struct tcp_options_received *tcp_opt,
 	if (net->ipv4.sysctl_tcp_ecn)
 		return true;
 
-	return false;
+	return dst_feature(dst, RTAX_FEATURE_ECN);
 }
 EXPORT_SYMBOL(cookie_ecn_ok);
 
@@ -387,7 +387,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb)
 				  dst_metric(&rt->dst, RTAX_INITRWND));
 
 	ireq->rcv_wscale  = rcv_wscale;
-	ireq->ecn_ok = cookie_ecn_ok(&tcp_opt, sock_net(sk));
+	ireq->ecn_ok = cookie_ecn_ok(&tcp_opt, sock_net(sk), &rt->dst);
 
 	ret = get_cookie_sock(sk, skb, req, &rt->dst);
 	/* ip_queue_xmit() depends on our flow being setup
