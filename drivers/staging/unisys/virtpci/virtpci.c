@@ -756,7 +756,7 @@ static int virtpci_device_resume(struct device *dev)
  * the appropriate slot within the vbus channel of the bus
  * instance.
  */
-static void fix_vbus_dev_info(struct device *dev, int devNo, int devType,
+static void fix_vbus_dev_info(struct device *dev, int dev_no, int dev_type,
 			      struct virtpci_driver *virtpcidrv)
 {
 	struct device *vbus;
@@ -782,7 +782,7 @@ static void fix_vbus_dev_info(struct device *dev, int devNo, int devType,
 		LOGERR("%s dev bus has no channel", __func__);
 		return;
 	}
-	switch (devType) {
+	switch (dev_type) {
 	case PCI_DEVICE_ID_VIRTHBA:
 		stype = "vHBA";
 		break;
@@ -797,7 +797,7 @@ static void fix_vbus_dev_info(struct device *dev, int devNo, int devType,
 			     virtpcidrv->name,
 			     virtpcidrv->version,
 			     virtpcidrv->vertag);
-	write_vbus_dev_info(pChan, &devInfo, devNo);
+	write_vbus_dev_info(pChan, &devInfo, dev_no);
 
 	/* Re-write bus+chipset info, because it is possible that this
 	* was previously written by our good counterpart, visorbus.
