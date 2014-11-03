@@ -527,12 +527,9 @@ MODULE_PARM_DESC(marvell_enable, "Marvell SATA via AHCI (1 = enabled)");
 static void ahci_pci_save_initial_config(struct pci_dev *pdev,
 					 struct ahci_host_priv *hpriv)
 {
-	unsigned int force_port_map = 0;
-	unsigned int mask_port_map = 0;
-
 	if (pdev->vendor == PCI_VENDOR_ID_JMICRON && pdev->device == 0x2361) {
 		dev_info(&pdev->dev, "JMB361 has only one port\n");
-		force_port_map = 1;
+		hpriv->force_port_map = 1;
 	}
 
 	/*
@@ -542,9 +539,9 @@ static void ahci_pci_save_initial_config(struct pci_dev *pdev,
 	 */
 	if (hpriv->flags & AHCI_HFLAG_MV_PATA) {
 		if (pdev->device == 0x6121)
-			mask_port_map = 0x3;
+			hpriv->mask_port_map = 0x3;
 		else
-			mask_port_map = 0xf;
+			hpriv->mask_port_map = 0xf;
 		dev_info(&pdev->dev,
 			  "Disabling your PATA port. Use the boot option 'ahci.marvell_enable=0' to avoid this.\n");
 	}
