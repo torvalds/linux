@@ -869,6 +869,9 @@ void __cfg80211_leave(struct cfg80211_registered_device *rdev,
 	case NL80211_IFTYPE_P2P_GO:
 		__cfg80211_stop_ap(rdev, dev, true);
 		break;
+	case NL80211_IFTYPE_OCB:
+		__cfg80211_leave_ocb(rdev, dev);
+		break;
 	case NL80211_IFTYPE_WDS:
 		/* must be handled by mac80211/driver, has no APIs */
 		break;

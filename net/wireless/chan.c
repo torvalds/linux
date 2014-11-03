@@ -366,6 +366,7 @@ int cfg80211_chandef_dfs_required(struct wiphy *wiphy,
 
 		break;
 	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_OCB:
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_MONITOR:
 	case NL80211_IFTYPE_AP_VLAN:
@@ -892,6 +893,13 @@ cfg80211_get_chan_state(struct wireless_dev *wdev,
 				*radar_detect |= BIT(wdev->chandef.width);
 		}
 		return;
+	case NL80211_IFTYPE_OCB:
+		if (wdev->chandef.chan) {
+			*chan = wdev->chandef.chan;
+			*chanmode = CHAN_MODE_SHARED;
+			return;
+		}
+		break;
 	case NL80211_IFTYPE_MONITOR:
 	case NL80211_IFTYPE_AP_VLAN:
 	case NL80211_IFTYPE_WDS:
