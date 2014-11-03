@@ -10231,9 +10231,12 @@ static bool intel_crtc_in_use(struct drm_crtc *crtc)
 static void
 intel_modeset_update_state(struct drm_device *dev, unsigned prepare_pipes)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_encoder *intel_encoder;
 	struct intel_crtc *intel_crtc;
 	struct drm_connector *connector;
+
+	intel_shared_dpll_commit(dev_priv);
 
 	for_each_intel_encoder(dev, intel_encoder) {
 		if (!intel_encoder->base.crtc)
@@ -10837,9 +10840,6 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 		drm_calc_timestamping_constants(crtc,
 						&pipe_config->adjusted_mode);
 	}
-
-	if (dev_priv->display.crtc_compute_clock)
-		intel_shared_dpll_commit(dev_priv);
 
 	/* Only after disabling all output pipelines that will be changed can we
 	 * update the the output configuration. */
