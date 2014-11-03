@@ -35,8 +35,6 @@ source "drivers/amlogic/usb/Kconfig"
 #source "drivers/amlogic/cardreader/Kconfig"
 source "drivers/amlogic/mmc/Kconfig"
 source "drivers/amlogic/spi_nor/Kconfig"
-isource "../hardware/amlogic/nand/amlnf/Kconfig"
-isource "../hardware/amlogic/nand/nand/Kconfig"
 
 #
 #	Network devices

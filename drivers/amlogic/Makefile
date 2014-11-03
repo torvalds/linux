@@ -33,12 +33,6 @@ obj-y += usb/
 obj-y += cpufreq/
 obj-$(CONFIG_GPIO_AMLOGIC) += gpio/
 obj-y += pinctrl/
-
-ifneq ($(wildcard $(srctree)/../hardware/amlogic/nand),)
-	obj-$(CONFIG_AML_NEXT_GEN_NAND) += ../../../hardware/amlogic/nand/amlnf/
-	obj-$(CONFIG_AM_NAND) += ../../../hardware/amlogic/nand/nand/
-endif
-
 obj-y += ethernet/
 
 obj-$(CONFIG_AM_CANVAS) += canvas/
