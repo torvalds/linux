@@ -4579,7 +4579,7 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 		vmcs_write32(TPR_THRESHOLD, 0);
 	}
 
-	kvm_vcpu_reload_apic_access_page(vcpu);
+	kvm_make_request(KVM_REQ_APIC_PAGE_RELOAD, vcpu);
 
 	if (vmx_vm_has_apicv(vcpu->kvm))
 		memset(&vmx->pi_desc, 0, sizeof(struct pi_desc));

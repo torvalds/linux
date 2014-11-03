@@ -670,7 +670,6 @@ static int brcmf_sdio_get_fwnames(struct brcmf_chip *ci,
 				  struct brcmf_sdio_dev *sdiodev)
 {
 	int i;
-	uint fw_len, nv_len;
 	char end;
 
 	for (i = 0; i < ARRAY_SIZE(brcmf_fwname_data); i++) {
@@ -684,25 +683,25 @@ static int brcmf_sdio_get_fwnames(struct brcmf_chip *ci,
 		return -ENODEV;
 	}
 
-	fw_len = sizeof(sdiodev->fw_name) - 1;
-	nv_len = sizeof(sdiodev->nvram_name) - 1;
 	/* check if firmware path is provided by module parameter */
 	if (brcmf_firmware_path[0] != '\0') {
-		strncpy(sdiodev->fw_name, brcmf_firmware_path, fw_len);
-		strncpy(sdiodev->nvram_name, brcmf_firmware_path, nv_len);
-		fw_len -= strlen(sdiodev->fw_name);
-		nv_len -= strlen(sdiodev->nvram_name);
+		strlcpy(sdiodev->fw_name, brcmf_firmware_path,
+			sizeof(sdiodev->fw_name));
+		strlcpy(sdiodev->nvram_name, brcmf_firmware_path,
+			sizeof(sdiodev->nvram_name));
 
 		end = brcmf_firmware_path[strlen(brcmf_firmware_path) - 1];
 		if (end != '/') {
-			strncat(sdiodev->fw_name, "/", fw_len);
-			strncat(sdiodev->nvram_name, "/", nv_len);
-			fw_len--;
-			nv_len--;
+			strlcat(sdiodev->fw_name, "/",
+				sizeof(sdiodev->fw_name));
+			strlcat(sdiodev->nvram_name, "/",
+				sizeof(sdiodev->nvram_name));
 		}
 	}
-	strncat(sdiodev->fw_name, brcmf_fwname_data[i].bin, fw_len);
-	strncat(sdiodev->nvram_name, brcmf_fwname_data[i].nv, nv_len);
+	strlcat(sdiodev->fw_name, brcmf_fwname_data[i].bin,
+		sizeof(sdiodev->fw_name));
+	strlcat(sdiodev->nvram_name, brcmf_fwname_data[i].nv,
+		sizeof(sdiodev->nvram_name));
 
 	return 0;
 }

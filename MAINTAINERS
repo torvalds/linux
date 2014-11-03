@@ -4312,8 +4312,10 @@ F:	Documentation/blockdev/cpqarray.txt
 F:	drivers/block/cpqarray.*
 
 HEWLETT-PACKARD SMART ARRAY RAID DRIVER (hpsa)
-M:	"Stephen M. Cameron" <scameron@beardog.cce.hp.com>
+M:	Don Brace <don.brace@pmcs.com>
 L:	iss_storagedev@hp.com
+L:	storagedev@pmcs.com
+L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	Documentation/scsi/hpsa.txt
 F:	drivers/scsi/hpsa*.[ch]
@@ -4321,8 +4323,10 @@ F:	include/linux/cciss*.h
 F:	include/uapi/linux/cciss*.h
 
 HEWLETT-PACKARD SMART CISS RAID DRIVER (cciss)
-M:	Mike Miller <mike.miller@hp.com>
+M:	Don Brace <don.brace@pmcs.com>
 L:	iss_storagedev@hp.com
+L:	storagedev@pmcs.com
+L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	Documentation/blockdev/cciss.txt
 F:	drivers/block/cciss*
@@ -4608,7 +4612,7 @@ S:	Supported
 F:	drivers/crypto/nx/
 
 IBM Power 842 compression accelerator
-M:	Nathan Fontenot <nfont@linux.vnet.ibm.com>
+M:	Dan Streetman <ddstreet@us.ibm.com>
 S:	Supported
 F:	drivers/crypto/nx/nx-842.c
 F:	include/linux/nx842.h
@@ -9606,7 +9610,6 @@ F:     drivers/staging/unisys/
 
 UNIVERSAL FLASH STORAGE HOST CONTROLLER DRIVER
 M:	Vinayak Holikatti <vinholikatti@gmail.com>
-M:	Santosh Y <santoshsy@gmail.com>
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	Documentation/scsi/ufs.txt

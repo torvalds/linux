@@ -3290,8 +3290,11 @@ static void dispc_dump_regs(struct seq_file *s)
 		DUMPREG(i, DISPC_OVL_FIFO_SIZE_STATUS);
 		DUMPREG(i, DISPC_OVL_ROW_INC);
 		DUMPREG(i, DISPC_OVL_PIXEL_INC);
+
 		if (dss_has_feature(FEAT_PRELOAD))
 			DUMPREG(i, DISPC_OVL_PRELOAD);
+		if (dss_has_feature(FEAT_MFLAG))
+			DUMPREG(i, DISPC_OVL_MFLAG_THRESHOLD);
 
 		if (i == OMAP_DSS_GFX) {
 			DUMPREG(i, DISPC_OVL_WINDOW_SKIP);
@@ -3312,10 +3315,6 @@ static void dispc_dump_regs(struct seq_file *s)
 		}
 		if (dss_has_feature(FEAT_ATTR2))
 			DUMPREG(i, DISPC_OVL_ATTRIBUTES2);
-		if (dss_has_feature(FEAT_PRELOAD))
-			DUMPREG(i, DISPC_OVL_PRELOAD);
-		if (dss_has_feature(FEAT_MFLAG))
-			DUMPREG(i, DISPC_OVL_MFLAG_THRESHOLD);
 	}
 
 #undef DISPC_REG
@@ -3843,6 +3842,7 @@ static struct platform_driver omap_dispchw_driver = {
 		.owner  = THIS_MODULE,
 		.pm	= &dispc_pm_ops,
 		.of_match_table = dispc_of_match,
+		.suppress_bind_attrs = true,
 	},
 };
 

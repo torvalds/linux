@@ -374,6 +374,8 @@ static void __mark_pages_wc(struct azx *chip, struct snd_dma_buffer *dmab, bool 
 #ifdef CONFIG_SND_DMA_SGBUF
 	if (dmab->dev.type == SNDRV_DMA_TYPE_DEV_SG) {
 		struct snd_sg_buf *sgbuf = dmab->private_data;
+		if (chip->driver_type == AZX_DRIVER_CMEDIA)
+			return; /* deal with only CORB/RIRB buffers */
 		if (on)
 			set_pages_array_wc(sgbuf->page_table, sgbuf->pages);
 		else
@@ -1769,7 +1771,7 @@ static void pcm_mmap_prepare(struct snd_pcm_substream *substream,
 #ifdef CONFIG_X86
 	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
 	struct azx *chip = apcm->chip;
-	if (!azx_snoop(chip))
+	if (!azx_snoop(chip) && chip->driver_type != AZX_DRIVER_CMEDIA)
 		area->vm_page_prot = pgprot_writecombine(area->vm_page_prot);
 #endif
 }

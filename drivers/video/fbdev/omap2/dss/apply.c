@@ -1132,6 +1132,8 @@ static void dss_mgr_disable_compat(struct omap_overlay_manager *mgr)
 	if (!mp->enabled)
 		goto out;
 
+	wait_pending_extra_info_updates();
+
 	if (!mgr_manual_update(mgr))
 		dispc_mgr_disable_sync(mgr->id);
 

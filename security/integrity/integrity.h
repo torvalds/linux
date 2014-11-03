@@ -61,6 +61,7 @@ enum evm_ima_xattr_type {
 	EVM_XATTR_HMAC,
 	EVM_IMA_XATTR_DIGSIG,
 	IMA_XATTR_DIGEST_NG,
+	IMA_XATTR_LAST
 };
 
 struct evm_ima_xattr_data {

@@ -338,13 +338,9 @@ err_del_component:
 
 int exynos_dpi_remove(struct device *dev)
 {
-	struct drm_encoder *encoder = exynos_dpi_display.encoder;
 	struct exynos_dpi *ctx = exynos_dpi_display.ctx;
 
 	exynos_dpi_dpms(&exynos_dpi_display, DRM_MODE_DPMS_OFF);
-
-	exynos_dpi_connector_destroy(&ctx->connector);
-	encoder->funcs->destroy(encoder);
 
 	if (ctx->panel)
 		drm_panel_detach(ctx->panel);

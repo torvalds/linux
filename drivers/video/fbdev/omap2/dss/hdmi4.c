@@ -781,6 +781,7 @@ static struct platform_driver omapdss_hdmihw_driver = {
 		.owner  = THIS_MODULE,
 		.pm	= &hdmi_pm_ops,
 		.of_match_table = hdmi_of_match,
+		.suppress_bind_attrs = true,
 	},
 };
 

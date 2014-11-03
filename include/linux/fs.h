@@ -639,11 +639,13 @@ static inline int inode_unhashed(struct inode *inode)
  * 2: child/target
  * 3: xattr
  * 4: second non-directory
- * The last is for certain operations (such as rename) which lock two
+ * 5: second parent (when locking independent directories in rename)
+ *
+ * I_MUTEX_NONDIR2 is for certain operations (such as rename) which lock two
  * non-directories at once.
  *
  * The locking order between these classes is
- * parent -> child -> normal -> xattr -> second non-directory
+ * parent[2] -> child -> grandchild -> normal -> xattr -> second non-directory
  */
 enum inode_i_mutex_lock_class
 {
@@ -651,7 +653,8 @@ enum inode_i_mutex_lock_class
 	I_MUTEX_PARENT,
 	I_MUTEX_CHILD,
 	I_MUTEX_XATTR,
-	I_MUTEX_NONDIR2
+	I_MUTEX_NONDIR2,
+	I_MUTEX_PARENT2,
 };
 
 void lock_two_nondirectories(struct inode *, struct inode*);
@@ -2466,6 +2469,7 @@ extern ssize_t new_sync_read(struct file *filp, char __user *buf, size_t len, lo
 extern ssize_t new_sync_write(struct file *filp, const char __user *buf, size_t len, loff_t *ppos);
 
 /* fs/block_dev.c */
+extern ssize_t blkdev_read_iter(struct kiocb *iocb, struct iov_iter *to);
 extern ssize_t blkdev_write_iter(struct kiocb *iocb, struct iov_iter *from);
 extern int blkdev_fsync(struct file *filp, loff_t start, loff_t end,
 			int datasync);

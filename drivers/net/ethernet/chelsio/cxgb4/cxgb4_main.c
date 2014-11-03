@@ -694,7 +694,11 @@ int cxgb4_dcb_enabled(const struct net_device *dev)
 #ifdef CONFIG_CHELSIO_T4_DCB
 	struct port_info *pi = netdev_priv(dev);
 
-	return pi->dcb.state == CXGB4_DCB_STATE_FW_ALLSYNCED;
+	if (!pi->dcb.enabled)
+		return 0;
+
+	return ((pi->dcb.state == CXGB4_DCB_STATE_FW_ALLSYNCED) ||
+		(pi->dcb.state == CXGB4_DCB_STATE_HOST));
 #else
 	return 0;
 #endif
@@ -6610,6 +6614,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	spin_lock_init(&adapter->stats_lock);
 	spin_lock_init(&adapter->tid_release_lock);
+	spin_lock_init(&adapter->win0_lock);
 
 	INIT_WORK(&adapter->tid_release_task, process_tid_release_list);
 	INIT_WORK(&adapter->db_full_task, process_db_full);

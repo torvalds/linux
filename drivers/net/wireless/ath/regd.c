@@ -515,6 +515,7 @@ void ath_reg_notifier_apply(struct wiphy *wiphy,
 	if (!request)
 		return;
 
+	reg->region = request->dfs_region;
 	switch (request->initiator) {
 	case NL80211_REGDOM_SET_BY_CORE:
 		/*
@@ -777,6 +778,19 @@ u32 ath_regd_get_band_ctl(struct ath_regulatory *reg,
 	    (reg->country_code == CTRY_DEFAULT &&
 	     is_wwr_sku(ath_regd_get_eepromRD(reg)))) {
 		return SD_NO_CTL;
+	}
+
+	if (ath_regd_get_eepromRD(reg) == CTRY_DEFAULT) {
+		switch (reg->region) {
+		case NL80211_DFS_FCC:
+			return CTL_FCC;
+		case NL80211_DFS_ETSI:
+			return CTL_ETSI;
+		case NL80211_DFS_JP:
+			return CTL_MKK;
+		default:
+			break;
+		}
 	}
 
 	switch (band) {

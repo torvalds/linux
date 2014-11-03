@@ -417,7 +417,7 @@ static int attach_afu_directed(struct cxl_context *ctx, u64 wed, u64 amr)
 	ctx->elem->haurp = 0; /* disable */
 	ctx->elem->sdr = cpu_to_be64(mfspr(SPRN_SDR1));
 
-	sr = CXL_PSL_SR_An_SC;
+	sr = 0;
 	if (ctx->master)
 		sr |= CXL_PSL_SR_An_MP;
 	if (mfspr(SPRN_LPCR) & LPCR_TC)
@@ -508,7 +508,7 @@ static int attach_dedicated(struct cxl_context *ctx, u64 wed, u64 amr)
 	u64 sr;
 	int rc;
 
-	sr = CXL_PSL_SR_An_SC;
+	sr = 0;
 	set_endian(sr);
 	if (ctx->master)
 		sr |= CXL_PSL_SR_An_MP;

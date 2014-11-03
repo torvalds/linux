@@ -3526,6 +3526,10 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 #ifdef CONFIG_EXT4_FS_POSIX_ACL
 	set_opt(sb, POSIX_ACL);
 #endif
+	/* don't forget to enable journal_csum when metadata_csum is enabled. */
+	if (ext4_has_metadata_csum(sb))
+		set_opt(sb, JOURNAL_CHECKSUM);
+
 	if ((def_mount_opts & EXT4_DEFM_JMODE) == EXT4_DEFM_JMODE_DATA)
 		set_opt(sb, JOURNAL_DATA);
 	else if ((def_mount_opts & EXT4_DEFM_JMODE) == EXT4_DEFM_JMODE_ORDERED)
@@ -3943,7 +3947,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_MMP) &&
 	    !(sb->s_flags & MS_RDONLY))
 		if (ext4_multi_mount_protect(sb, le64_to_cpu(es->s_mmp_block)))
-			goto failed_mount3;
+			goto failed_mount3a;
 
 	/*
 	 * The first inode we look at is the journal inode.  Don't try
@@ -3952,7 +3956,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	if (!test_opt(sb, NOLOAD) &&
 	    EXT4_HAS_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_HAS_JOURNAL)) {
 		if (ext4_load_journal(sb, es, journal_devnum))
-			goto failed_mount3;
+			goto failed_mount3a;
 	} else if (test_opt(sb, NOLOAD) && !(sb->s_flags & MS_RDONLY) &&
 	      EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER)) {
 		ext4_msg(sb, KERN_ERR, "required journal recovery "
@@ -4240,6 +4244,7 @@ failed_mount_wq:
 		jbd2_journal_destroy(sbi->s_journal);
 		sbi->s_journal = NULL;
 	}
+failed_mount3a:
 	ext4_es_unregister_shrinker(sbi);
 failed_mount3:
 	del_timer_sync(&sbi->s_err_report);
@@ -4837,6 +4842,14 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 	 * Allow the "check" option to be passed as a remount option.
 	 */
 	if (!parse_options(data, sb, NULL, &journal_ioprio, 1)) {
+		err = -EINVAL;
+		goto restore_opts;
+	}
+
+	if ((old_opts.s_mount_opt & EXT4_MOUNT_JOURNAL_CHECKSUM) ^
+	    test_opt(sb, JOURNAL_CHECKSUM)) {
+		ext4_msg(sb, KERN_ERR, "changing journal_checksum "
+			 "during remount not supported");
 		err = -EINVAL;
 		goto restore_opts;
 	}
