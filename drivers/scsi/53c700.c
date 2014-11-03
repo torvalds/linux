@@ -1767,7 +1767,7 @@ NCR_700_queuecommand_lck(struct scsi_cmnd *SCp, void (*done)(struct scsi_cmnd *)
 	 */
 	if(NCR_700_get_depth(SCp->device) != 0
 	   && (!(hostdata->tag_negotiated & (1<<scmd_id(SCp)))
-	       || !blk_rq_tagged(SCp->request))) {
+	       || !(SCp->flags & SCMD_TAGGED))) {
 		CDEBUG(KERN_ERR, SCp, "has non zero depth %d\n",
 		       NCR_700_get_depth(SCp->device));
 		return SCSI_MLQUEUE_DEVICE_BUSY;
@@ -1795,7 +1795,7 @@ NCR_700_queuecommand_lck(struct scsi_cmnd *SCp, void (*done)(struct scsi_cmnd *)
 	printk("53c700: scsi%d, command ", SCp->device->host->host_no);
 	scsi_print_command(SCp);
 #endif
-	if(blk_rq_tagged(SCp->request)
+	if ((SCp->flags & SCMD_TAGGED)
 	   && (hostdata->tag_negotiated &(1<<scmd_id(SCp))) == 0
 	   && NCR_700_get_tag_neg_state(SCp->device) == NCR_700_START_TAG_NEGOTIATION) {
 		scmd_printk(KERN_ERR, SCp, "Enabling Tag Command Queuing\n");
@@ -1809,7 +1809,7 @@ NCR_700_queuecommand_lck(struct scsi_cmnd *SCp, void (*done)(struct scsi_cmnd *)
 	 *
 	 * FIXME: This will royally screw up on multiple LUN devices
 	 * */
-	if(!blk_rq_tagged(SCp->request)
+	if (!(SCp->flags & SCMD_TAGGED)
 	   && (hostdata->tag_negotiated &(1<<scmd_id(SCp)))) {
 		scmd_printk(KERN_INFO, SCp, "Disabling Tag Command Queuing\n");
 		hostdata->tag_negotiated &= ~(1<<scmd_id(SCp));

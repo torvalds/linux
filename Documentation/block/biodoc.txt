@@ -827,10 +827,6 @@ but in the event of any barrier requests in the tag queue we need to ensure
 that requests are restarted in the order they were queue. This may happen
 if the driver needs to use blk_queue_invalidate_tags().
 
-Tagging also defines a new request flag, REQ_QUEUED. This is set whenever
-a request is currently tagged. You should not use this flag directly,
-blk_rq_tagged(rq) is the portable way to do so.
-
 3.3 I/O Submission
 
 The routine submit_bio() is used to submit a single io. Higher level i/o

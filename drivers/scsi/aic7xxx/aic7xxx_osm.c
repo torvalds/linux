@@ -1447,7 +1447,7 @@ ahc_linux_run_command(struct ahc_softc *ahc, struct ahc_linux_device *dev,
 	 * we are storing a full busy target *lun*
 	 * table in SCB space.
 	 */
-	if (!blk_rq_tagged(cmd->request)
+	if (!(cmd->flags & SCMD_TAGGED)
 	    && (ahc->features & AHC_SCB_BTT) == 0) {
 		int target_offset;
 

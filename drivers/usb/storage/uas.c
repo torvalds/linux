@@ -181,7 +181,7 @@ static int uas_get_tag(struct scsi_cmnd *cmnd)
 {
 	int tag;
 
-	if (blk_rq_tagged(cmnd->request))
+	if (cmnd->flags & SCMD_TAGGED)
 		tag = cmnd->request->tag + 2;
 	else
 		tag = 1;

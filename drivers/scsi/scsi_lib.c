@@ -1740,7 +1740,7 @@ static void scsi_request_fn(struct request_queue *q)
 		 * we add the dev to the starved list so it eventually gets
 		 * a run when a tag is freed.
 		 */
-		if (blk_queue_tagged(q) && !blk_rq_tagged(req)) {
+		if (blk_queue_tagged(q) && !(req->cmd_flags & REQ_QUEUED)) {
 			spin_lock_irq(shost->host_lock);
 			if (list_empty(&sdev->starved_entry))
 				list_add_tail(&sdev->starved_entry,
@@ -1754,6 +1754,11 @@ static void scsi_request_fn(struct request_queue *q)
 
 		if (!scsi_host_queue_ready(q, shost, sdev))
 			goto host_not_ready;
+	
+		if (sdev->simple_tags)
+			cmd->flags |= SCMD_TAGGED;
+		else
+			cmd->flags &= ~SCMD_TAGGED;
 
 		/*
 		 * Finally, initialize any error handling parameters, and set up
@@ -1908,10 +1913,10 @@ static int scsi_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *req,
 		blk_mq_start_request(req);
 	}
 
-	if (blk_queue_tagged(q))
-		req->cmd_flags |= REQ_QUEUED;
+	if (sdev->simple_tags)
+		cmd->flags |= SCMD_TAGGED;
 	else
-		req->cmd_flags &= ~REQ_QUEUED;
+		cmd->flags &= ~SCMD_TAGGED;
 
 	scsi_init_cmd_errh(cmd);
 	cmd->scsi_done = scsi_mq_done;

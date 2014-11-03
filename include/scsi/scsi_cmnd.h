@@ -53,6 +53,9 @@ struct scsi_pointer {
 	volatile int phase;
 };
 
+/* for scmd->flags */
+#define SCMD_TAGGED		(1 << 0)
+
 struct scsi_cmnd {
 	struct scsi_device *device;
 	struct list_head list;  /* scsi_cmnd participates in queue lists */
@@ -132,6 +135,7 @@ struct scsi_cmnd {
 					 * to be at an address < 16Mb). */
 
 	int result;		/* Status code from lower level driver */
+	int flags;		/* Command flags */
 
 	unsigned char tag;	/* SCSI-II queued command tag */
 };
