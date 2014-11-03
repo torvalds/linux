@@ -361,11 +361,15 @@ static int hidpp_root_get_protocol_version(struct hidpp_device *hidpp)
 			CMD_ROOT_GET_PROTOCOL_VERSION,
 			NULL, 0, &response);
 
-	if (ret == 1) {
+	if (ret == HIDPP_ERROR_INVALID_SUBID) {
 		hidpp->protocol_major = 1;
 		hidpp->protocol_minor = 0;
 		return 0;
 	}
+
+	/* the device might not be connected */
+	if (ret == HIDPP_ERROR_RESOURCE_ERROR)
+		return -EIO;
 
 	if (ret > 0) {
 		hid_err(hidpp->hid_dev, "%s: received protocol error 0x%02x\n",
