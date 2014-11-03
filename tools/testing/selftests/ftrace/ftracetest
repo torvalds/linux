@@ -235,6 +235,9 @@ run_test() { # testfile
   fi
 }
 
+# load in the helper functions
+. $TEST_DIR/functions
+
 # Main loop
 for t in $TEST_CASES; do
   run_test $t
