@@ -21,7 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 
-#define SST_HSW_NO_CHANNELS		2
+#define SST_HSW_NO_CHANNELS		4
 #define SST_HSW_MAX_DX_REGIONS		14
 #define SST_HSW_DX_CONTEXT_SIZE        (640 * 1024)
 
