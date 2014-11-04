@@ -22,6 +22,7 @@
 #include <linux/of_address.h>
 
 #include <asm/cacheflush.h>
+#include <asm/cp15.h>
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
 #include <asm/firmware.h>
@@ -32,6 +33,88 @@
 #include "regs-pmu.h"
 
 extern void exynos4_secondary_startup(void);
+
+/*
+ * Set or clear the USE_DELAYED_RESET_ASSERTION option, set on Exynos4 SoCs
+ * during hot-(un)plugging CPUx.
+ *
+ * The feature can be cleared safely during first boot of secondary CPU.
+ *
+ * Exynos4 SoCs require setting USE_DELAYED_RESET_ASSERTION during powering
+ * down a CPU so the CPU idle clock down feature could properly detect global
+ * idle state when CPUx is off.
+ */
+static void exynos_set_delayed_reset_assertion(u32 core_id, bool enable)
+{
+	if (soc_is_exynos4()) {
+		unsigned int tmp;
+
+		tmp = pmu_raw_readl(EXYNOS_ARM_CORE_OPTION(core_id));
+		if (enable)
+			tmp |= S5P_USE_DELAYED_RESET_ASSERTION;
+		else
+			tmp &= ~(S5P_USE_DELAYED_RESET_ASSERTION);
+		pmu_raw_writel(tmp, EXYNOS_ARM_CORE_OPTION(core_id));
+	}
+}
+
+#ifdef CONFIG_HOTPLUG_CPU
+static inline void cpu_leave_lowpower(u32 core_id)
+{
+	unsigned int v;
+
+	asm volatile(
+	"mrc	p15, 0, %0, c1, c0, 0\n"
+	"	orr	%0, %0, %1\n"
+	"	mcr	p15, 0, %0, c1, c0, 0\n"
+	"	mrc	p15, 0, %0, c1, c0, 1\n"
+	"	orr	%0, %0, %2\n"
+	"	mcr	p15, 0, %0, c1, c0, 1\n"
+	  : "=&r" (v)
+	  : "Ir" (CR_C), "Ir" (0x40)
+	  : "cc");
+
+	 exynos_set_delayed_reset_assertion(core_id, false);
+}
+
+static inline void platform_do_lowpower(unsigned int cpu, int *spurious)
+{
+	u32 mpidr = cpu_logical_map(cpu);
+	u32 core_id = MPIDR_AFFINITY_LEVEL(mpidr, 0);
+
+	for (;;) {
+
+		/* Turn the CPU off on next WFI instruction. */
+		exynos_cpu_power_down(core_id);
+
+		/*
+		 * Exynos4 SoCs require setting
+		 * USE_DELAYED_RESET_ASSERTION so the CPU idle
+		 * clock down feature could properly detect
+		 * global idle state when CPUx is off.
+		 */
+		exynos_set_delayed_reset_assertion(core_id, true);
+
+		wfi();
+
+		if (pen_release == core_id) {
+			/*
+			 * OK, proper wakeup, we're done
+			 */
+			break;
+		}
+
+		/*
+		 * Getting here, means that we have come out of WFI without
+		 * having been woken up - this shouldn't happen
+		 *
+		 * Just note it happening - when we're woken, we can report
+		 * its occurrence.
+		 */
+		(*spurious)++;
+	}
+}
+#endif /* CONFIG_HOTPLUG_CPU */
 
 /**
  * exynos_core_power_down : power down the specified cpu
@@ -237,6 +320,9 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 		udelay(10);
 	}
 
+	/* No harm if this is called during first boot of secondary CPU */
+	exynos_set_delayed_reset_assertion(core_id, false);
+
 	/*
 	 * now the secondary core is starting up let it run its
 	 * calibrations, then wait for it to finish
@@ -317,6 +403,33 @@ static void __init exynos_smp_prepare_cpus(unsigned int max_cpus)
 		}
 	}
 }
+
+#ifdef CONFIG_HOTPLUG_CPU
+/*
+ * platform-specific code to shutdown a CPU
+ *
+ * Called with IRQs disabled
+ */
+static void exynos_cpu_die(unsigned int cpu)
+{
+	int spurious = 0;
+	u32 mpidr = cpu_logical_map(cpu);
+	u32 core_id = MPIDR_AFFINITY_LEVEL(mpidr, 0);
+
+	v7_exit_coherency_flush(louis);
+
+	platform_do_lowpower(cpu, &spurious);
+
+	/*
+	 * bring this CPU back into the world of cache
+	 * coherency, and then restore interrupts
+	 */
+	cpu_leave_lowpower(core_id);
+
+	if (spurious)
+		pr_warn("CPU%u: %u spurious wakeup calls\n", cpu, spurious);
+}
+#endif /* CONFIG_HOTPLUG_CPU */
 
 struct smp_operations exynos_smp_ops __initdata = {
 	.smp_init_cpus		= exynos_smp_init_cpus,
