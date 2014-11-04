@@ -43,6 +43,9 @@ struct mipi_dsi_msg {
 	void *rx_buf;
 };
 
+bool mipi_dsi_packet_format_is_short(u8 type);
+bool mipi_dsi_packet_format_is_long(u8 type);
+
 /**
  * struct mipi_dsi_host_ops - DSI bus operations
  * @attach: attach DSI device to DSI host
