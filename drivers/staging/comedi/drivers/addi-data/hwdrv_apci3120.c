@@ -193,11 +193,33 @@ static int apci3120_ai_cmdtest(struct comedi_device *dev,
 static void apci3120_init_dma(struct comedi_device *dev,
 			      struct apci3120_dmabuf *dmabuf)
 {
+	struct apci3120_private *devpriv = dev->private;
+
+	/* AMCC - enable transfer count and reset A2P FIFO */
+	outl(AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO,
+	     devpriv->amcc + AMCC_OP_REG_AGCSTS);
+
+	/* Add-On - enable transfer count and reset A2P FIFO */
+	apci3120_addon_write(dev, AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO,
+			     AMCC_OP_REG_AGCSTS);
+
+	/* AMCC - enable transfers and reset A2P flags */
+	outl(RESET_A2P_FLAGS | EN_A2P_TRANSFERS,
+	     devpriv->amcc + AMCC_OP_REG_MCSR);
+
 	/* Add-On - DMA start address */
 	apci3120_addon_write(dev, dmabuf->hw, AMCC_OP_REG_AMWAR);
 
 	/* Add-On - Number of acquisitions */
 	apci3120_addon_write(dev, dmabuf->use_size, AMCC_OP_REG_AMWTC);
+
+	/* AMCC - enable write complete (DMA) and set FIFO advance */
+	outl(APCI3120_FIFO_ADVANCE_ON_BYTE_2 | AINT_WRITE_COMPL,
+	     devpriv->amcc + AMCC_OP_REG_INTCSR);
+
+	/* Add-On - enable DMA */
+	outw(APCI3120_ADDON_CTRL_AMWEN_ENA | APCI3120_ADDON_CTRL_A2P_FIFO_ENA,
+	     devpriv->addon + APCI3120_ADDON_CTRL_REG);
 }
 
 static void apci3120_setup_dma(struct comedi_device *dev,
@@ -248,35 +270,7 @@ static void apci3120_setup_dma(struct comedi_device *dev,
 	dmabuf0->use_size = dmalen0;
 	dmabuf1->use_size = dmalen1;
 
-	/* Initialize DMA */
-
-	/* AMCC- enable transfer count and reset A2P FIFO */
-	outl(AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO,
-	     devpriv->amcc + AMCC_OP_REG_AGCSTS);
-
-	/* Add-On - enable transfer count and reset A2P FIFO */
-	apci3120_addon_write(dev, AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO,
-			     AMCC_OP_REG_AGCSTS);
-
-	/* AMCC - enable transfers and reset A2P flags */
-	outl(RESET_A2P_FLAGS | EN_A2P_TRANSFERS,
-	     devpriv->amcc + AMCC_OP_REG_MCSR);
-
 	apci3120_init_dma(dev, dmabuf0);
-
-	/* AMCC- reset A2P flags */
-	outl(RESET_A2P_FLAGS, devpriv->amcc + AMCC_OP_REG_MCSR);
-
-	/* AMCC - enable write complete (DMA) and set FIFO advance */
-	outl(APCI3120_FIFO_ADVANCE_ON_BYTE_2 | AINT_WRITE_COMPL,
-	     devpriv->amcc + AMCC_OP_REG_INTCSR);
-
-	/* Add-On - enable DMA */
-	outw(APCI3120_ADDON_CTRL_AMWEN_ENA | APCI3120_ADDON_CTRL_A2P_FIFO_ENA,
-	     devpriv->addon + APCI3120_ADDON_CTRL_REG);
-
-	/* AMCC- reset A2P flags */
-	outl(RESET_A2P_FLAGS, devpriv->amcc + AMCC_OP_REG_MCSR);
 }
 
 static int apci3120_ai_cmd(struct comedi_device *dev,
@@ -386,33 +380,16 @@ static void apci3120_interrupt_dma(int irq, void *d)
 		return;
 	}
 	samplesinbuf = samplesinbuf >> 1;	/*  number of received samples */
+
 	if (devpriv->b_DmaDoubleBuffer) {
-		/*  switch DMA buffers if is used double buffering */
 		struct apci3120_dmabuf *next_dmabuf;
 
 		next_dmabuf = &devpriv->dmabuf[1 - devpriv->ui_DmaActualBuffer];
 
-		/* AMCC - enable transfer count and reset A2P FIFO */
-		outl(AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO,
-		     devpriv->amcc + AMCC_OP_REG_AGCSTS);
-
-		/* Add-On - enable transfer count and reset A2P FIFO */
-		apci3120_addon_write(dev,
-				     AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO,
-				     AMCC_OP_REG_AGCSTS);
-
+		/* start DMA on next buffer */
 		apci3120_init_dma(dev, next_dmabuf);
-
-		/* Add-On - enable DMA */
-		outw(APCI3120_ADDON_CTRL_AMWEN_ENA |
-		     APCI3120_ADDON_CTRL_A2P_FIFO_ENA,
-		     devpriv->addon + APCI3120_ADDON_CTRL_REG);
-
-		/* AMCC - enable write complete (DMA) and set FIFO advance */
-		outl(APCI3120_FIFO_ADVANCE_ON_BYTE_2 | AINT_WRITE_COMPL,
-		     devpriv->amcc + AMCC_OP_REG_INTCSR);
-
 	}
+
 	if (samplesinbuf) {
 		comedi_buf_write_samples(s, dmabuf->virt, samplesinbuf);
 
@@ -425,34 +402,12 @@ static void apci3120_interrupt_dma(int irq, void *d)
 		return;
 	}
 
-	if (devpriv->b_DmaDoubleBuffer) {	/*  switch dma buffers */
+	if (devpriv->b_DmaDoubleBuffer) {
+		/* switch dma buffers for next interrupt */
 		devpriv->ui_DmaActualBuffer = 1 - devpriv->ui_DmaActualBuffer;
 	} else {
 		/* restart DMA if is not using double buffering */
-
-		/* AMCC - enable transfer count and reset A2P FIFO */
-		outl(AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO,
-		     devpriv->amcc + AMCC_OP_REG_AGCSTS);
-
-		/* Add-On - enable transfer count and reset A2P FIFO */
-		apci3120_addon_write(dev,
-				     AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO,
-				     AMCC_OP_REG_AGCSTS);
-
-		/* AMCC - enable transfers and reset A2P flags */
-		outl(RESET_A2P_FLAGS | EN_A2P_TRANSFERS,
-		     devpriv->amcc + AMCC_OP_REG_MCSR);
-
 		apci3120_init_dma(dev, dmabuf);
-
-		/* Add-On - enable DMA */
-		outw(APCI3120_ADDON_CTRL_AMWEN_ENA |
-		     APCI3120_ADDON_CTRL_A2P_FIFO_ENA,
-		     devpriv->addon + APCI3120_ADDON_CTRL_REG);
-
-		/* AMCC - enable write complete (DMA) and set FIFO advance */
-		outl(APCI3120_FIFO_ADVANCE_ON_BYTE_2 | AINT_WRITE_COMPL,
-		     devpriv->amcc + AMCC_OP_REG_INTCSR);
 	}
 }
 
