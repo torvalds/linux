@@ -2973,6 +2973,426 @@ static bool ilk_disable_lp_wm(struct drm_device *dev)
 	return _ilk_disable_lp_wm(dev_priv, WM_DIRTY_LP_ALL);
 }
 
+static uint32_t skl_pipe_pixel_rate(const struct intel_crtc_config *config)
+{
+	/* TODO: Take into account the scalers once we support them */
+	return config->adjusted_mode.crtc_clock;
+}
+
+/*
+ * The max latency should be 257 (max the punit can code is 255 and we add 2us
+ * for the read latency) and bytes_per_pixel should always be <= 8, so that
+ * should allow pixel_rate up to ~2 GHz which seems sufficient since max
+ * 2xcdclk is 1350 MHz and the pixel rate should never exceed that.
+*/
+static uint32_t skl_wm_method1(uint32_t pixel_rate, uint8_t bytes_per_pixel,
+			       uint32_t latency)
+{
+	uint32_t wm_intermediate_val, ret;
+
+	if (latency == 0)
+		return UINT_MAX;
+
+	wm_intermediate_val = latency * pixel_rate * bytes_per_pixel;
+	ret = DIV_ROUND_UP(wm_intermediate_val, 1000);
+
+	return ret;
+}
+
+static uint32_t skl_wm_method2(uint32_t pixel_rate, uint32_t pipe_htotal,
+			       uint32_t horiz_pixels, uint8_t bytes_per_pixel,
+			       uint32_t latency)
+{
+	uint32_t ret, plane_bytes_per_line, wm_intermediate_val;
+
+	if (latency == 0)
+		return UINT_MAX;
+
+	plane_bytes_per_line = horiz_pixels * bytes_per_pixel;
+	wm_intermediate_val = latency * pixel_rate;
+	ret = DIV_ROUND_UP(wm_intermediate_val, pipe_htotal * 1000) *
+				plane_bytes_per_line;
+
+	return ret;
+}
+
+static void skl_compute_transition_wm(struct drm_crtc *crtc,
+				  struct skl_pipe_wm_parameters *params,
+				  struct skl_pipe_wm *pipe_wm)
+{
+	/*
+	 * For now it is suggested to use the LP0 wm val of corresponding
+	 * plane as transition wm val. This is done while computing results.
+	 */
+	if (!params->active)
+		return;
+}
+
+static uint32_t
+skl_compute_linetime_wm(struct drm_crtc *crtc, struct skl_pipe_wm_parameters *p)
+{
+	if (!intel_crtc_active(crtc))
+		return 0;
+
+	return DIV_ROUND_UP(8 * p->pipe_htotal * 1000, p->pixel_rate);
+
+}
+
+static bool skl_ddb_allocation_changed(const struct skl_ddb_allocation *new_ddb,
+				       const struct intel_crtc *intel_crtc)
+{
+	struct drm_device *dev = intel_crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	const struct skl_ddb_allocation *cur_ddb = &dev_priv->wm.skl_hw.ddb;
+	enum pipe pipe = intel_crtc->pipe;
+
+	if (memcmp(new_ddb->plane[pipe], cur_ddb->plane[pipe],
+		   sizeof(new_ddb->plane[pipe])))
+		return true;
+
+	if (memcmp(&new_ddb->cursor[pipe], &cur_ddb->cursor[pipe],
+		    sizeof(new_ddb->cursor[pipe])))
+		return true;
+
+	return false;
+}
+
+static void skl_compute_wm_global_parameters(struct drm_device *dev,
+					     struct intel_wm_config *config)
+{
+	struct drm_crtc *crtc;
+	struct drm_plane *plane;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
+		config->num_pipes_active += intel_crtc_active(crtc);
+
+	/* FIXME: I don't think we need those two global parameters on SKL */
+	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
+		struct intel_plane *intel_plane = to_intel_plane(plane);
+
+		config->sprites_enabled |= intel_plane->wm.enabled;
+		config->sprites_scaled |= intel_plane->wm.scaled;
+	}
+}
+
+static void skl_compute_wm_pipe_parameters(struct drm_crtc *crtc,
+					   struct skl_pipe_wm_parameters *p)
+{
+	struct drm_device *dev = crtc->dev;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	enum pipe pipe = intel_crtc->pipe;
+	struct drm_plane *plane;
+	int i = 1; /* Index for sprite planes start */
+
+	p->active = intel_crtc_active(crtc);
+	if (p->active) {
+		p->pipe_htotal = intel_crtc->config.adjusted_mode.crtc_htotal;
+		p->pixel_rate = skl_pipe_pixel_rate(&intel_crtc->config);
+
+		/*
+		 * For now, assume primary and cursor planes are always enabled.
+		 */
+		p->plane[0].enabled = true;
+		p->plane[0].bytes_per_pixel =
+			crtc->primary->fb->bits_per_pixel / 8;
+		p->plane[0].horiz_pixels = intel_crtc->config.pipe_src_w;
+		p->plane[0].vert_pixels = intel_crtc->config.pipe_src_h;
+
+		p->cursor.enabled = true;
+		p->cursor.bytes_per_pixel = 4;
+		p->cursor.horiz_pixels = intel_crtc->cursor_width ?
+					 intel_crtc->cursor_width : 64;
+	}
+
+	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
+		struct intel_plane *intel_plane = to_intel_plane(plane);
+
+		if (intel_plane->pipe == pipe)
+			p->plane[i++] = intel_plane->wm;
+	}
+}
+
+static bool skl_compute_plane_wm(struct skl_pipe_wm_parameters *p,
+				   struct intel_plane_wm_parameters *p_params,
+				   uint16_t max_page_buff_alloc,
+				   uint32_t mem_value,
+				   uint16_t *res_blocks, /* out */
+				   uint8_t *res_lines /* out */)
+{
+	uint32_t method1, method2, plane_bytes_per_line;
+	uint32_t result_bytes;
+
+	if (!p->active || !p_params->enabled)
+		return false;
+
+	method1 = skl_wm_method1(p->pixel_rate,
+				 p_params->bytes_per_pixel,
+				 mem_value);
+	method2 = skl_wm_method2(p->pixel_rate,
+				 p->pipe_htotal,
+				 p_params->horiz_pixels,
+				 p_params->bytes_per_pixel,
+				 mem_value);
+
+	plane_bytes_per_line = p_params->horiz_pixels *
+					p_params->bytes_per_pixel;
+
+	/* For now xtile and linear */
+	if (((max_page_buff_alloc * 512) / plane_bytes_per_line) >= 1)
+		result_bytes = min(method1, method2);
+	else
+		result_bytes = method1;
+
+	*res_blocks = DIV_ROUND_UP(result_bytes, 512) + 1;
+	*res_lines = DIV_ROUND_UP(result_bytes, plane_bytes_per_line);
+
+	return true;
+}
+
+static void skl_compute_wm_level(const struct drm_i915_private *dev_priv,
+				 struct skl_ddb_allocation *ddb,
+				 struct skl_pipe_wm_parameters *p,
+				 enum pipe pipe,
+				 int level,
+				 int num_planes,
+				 struct skl_wm_level *result)
+{
+	uint16_t latency = dev_priv->wm.skl_latency[level];
+	uint16_t ddb_blocks;
+	int i;
+
+	for (i = 0; i < num_planes; i++) {
+		ddb_blocks = skl_ddb_entry_size(&ddb->plane[pipe][i]);
+
+		result->plane_en[i] = skl_compute_plane_wm(p, &p->plane[i],
+						ddb_blocks,
+						latency,
+						&result->plane_res_b[i],
+						&result->plane_res_l[i]);
+	}
+
+	ddb_blocks = skl_ddb_entry_size(&ddb->cursor[pipe]);
+	result->cursor_en = skl_compute_plane_wm(p, &p->cursor, ddb_blocks,
+						 latency, &result->cursor_res_b,
+						 &result->cursor_res_l);
+}
+
+static void skl_compute_pipe_wm(struct drm_crtc *crtc,
+				struct skl_ddb_allocation *ddb,
+				struct skl_pipe_wm_parameters *params,
+				struct skl_pipe_wm *pipe_wm)
+{
+	struct drm_device *dev = crtc->dev;
+	const struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int level, max_level = ilk_wm_max_level(dev);
+
+	for (level = 0; level <= max_level; level++) {
+		skl_compute_wm_level(dev_priv, ddb, params, intel_crtc->pipe,
+				     level, intel_num_planes(intel_crtc),
+				     &pipe_wm->wm[level]);
+	}
+	pipe_wm->linetime = skl_compute_linetime_wm(crtc, params);
+
+	skl_compute_transition_wm(crtc, params, pipe_wm);
+}
+
+static void skl_compute_wm_results(struct drm_device *dev,
+				   struct skl_pipe_wm_parameters *p,
+				   struct skl_pipe_wm *p_wm,
+				   struct skl_wm_values *r,
+				   struct intel_crtc *intel_crtc)
+{
+	int level, max_level = ilk_wm_max_level(dev);
+	enum pipe pipe = intel_crtc->pipe;
+
+	for (level = 0; level <= max_level; level++) {
+		uint16_t ddb_blocks;
+		uint32_t temp;
+		int i;
+
+		for (i = 0; i < intel_num_planes(intel_crtc); i++) {
+			temp = 0;
+			ddb_blocks = skl_ddb_entry_size(&r->ddb.plane[pipe][i]);
+
+			if ((p_wm->wm[level].plane_res_b[i] > ddb_blocks) ||
+				(p_wm->wm[level].plane_res_l[i] > 31))
+				p_wm->wm[level].plane_en[i] = false;
+
+			temp |= p_wm->wm[level].plane_res_l[i] <<
+					PLANE_WM_LINES_SHIFT;
+			temp |= p_wm->wm[level].plane_res_b[i];
+			if (p_wm->wm[level].plane_en[i])
+				temp |= PLANE_WM_EN;
+
+			r->plane[pipe][i][level] = temp;
+			/* Use the LP0 WM value for transition WM for now. */
+			if (level == 0)
+				r->plane_trans[pipe][i] = temp;
+		}
+
+		temp = 0;
+		ddb_blocks = skl_ddb_entry_size(&r->ddb.cursor[pipe]);
+
+		if ((p_wm->wm[level].cursor_res_b > ddb_blocks) ||
+			(p_wm->wm[level].cursor_res_l > 31))
+			p_wm->wm[level].cursor_en = false;
+
+		temp |= p_wm->wm[level].cursor_res_l << PLANE_WM_LINES_SHIFT;
+		temp |= p_wm->wm[level].cursor_res_b;
+
+		if (p_wm->wm[level].cursor_en)
+			temp |= PLANE_WM_EN;
+
+		r->cursor[pipe][level] = temp;
+		/* Use the LP0 WM value for transition WM for now. */
+		if (level == 0)
+			r->cursor_trans[pipe] = temp;
+
+	}
+
+	r->wm_linetime[pipe] = p_wm->linetime;
+}
+
+static void skl_write_wm_values(struct drm_i915_private *dev_priv,
+				const struct skl_wm_values *new)
+{
+	struct drm_device *dev = dev_priv->dev;
+	struct intel_crtc *crtc;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
+		int i, level, max_level = ilk_wm_max_level(dev);
+		enum pipe pipe = crtc->pipe;
+
+		if (new->dirty[pipe]) {
+			I915_WRITE(PIPE_WM_LINETIME(pipe),
+					new->wm_linetime[pipe]);
+
+			for (level = 0; level <= max_level; level++) {
+				for (i = 0; i < intel_num_planes(crtc); i++)
+					I915_WRITE(PLANE_WM(pipe, i, level),
+						new->plane[pipe][i][level]);
+				I915_WRITE(CUR_WM(pipe, level),
+					new->cursor[pipe][level]);
+			}
+			for (i = 0; i < intel_num_planes(crtc); i++)
+				I915_WRITE(PLANE_WM_TRANS(pipe, i),
+						new->plane_trans[pipe][i]);
+			I915_WRITE(CUR_WM_TRANS(pipe), new->cursor_trans[pipe]);
+		}
+	}
+
+	dev_priv->wm.skl_hw = *new;
+}
+
+static bool skl_update_pipe_wm(struct drm_crtc *crtc,
+			       struct skl_pipe_wm_parameters *params,
+			       struct intel_wm_config *config,
+			       struct skl_ddb_allocation *ddb, /* out */
+			       struct skl_pipe_wm *pipe_wm /* out */)
+{
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
+	skl_compute_wm_pipe_parameters(crtc, params);
+	skl_compute_pipe_wm(crtc, ddb, params, pipe_wm);
+
+	if (!memcmp(&intel_crtc->wm.skl_active, pipe_wm, sizeof(*pipe_wm)))
+		return false;
+
+	intel_crtc->wm.skl_active = *pipe_wm;
+	return true;
+}
+
+static void skl_update_other_pipe_wm(struct drm_device *dev,
+				     struct drm_crtc *crtc,
+				     struct intel_wm_config *config,
+				     struct skl_wm_values *r)
+{
+	struct intel_crtc *intel_crtc;
+	struct intel_crtc *this_crtc = to_intel_crtc(crtc);
+
+	/*
+	 * If the WM update hasn't changed the allocation for this_crtc (the
+	 * crtc we are currently computing the new WM values for), other
+	 * enabled crtcs will keep the same allocation and we don't need to
+	 * recompute anything for them.
+	 */
+	if (!skl_ddb_allocation_changed(&r->ddb, this_crtc))
+		return;
+
+	/*
+	 * Otherwise, because of this_crtc being freshly enabled/disabled, the
+	 * other active pipes need new DDB allocation and WM values.
+	 */
+	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list,
+				base.head) {
+		struct skl_pipe_wm_parameters params = {};
+		struct skl_pipe_wm pipe_wm = {};
+		bool wm_changed;
+
+		if (this_crtc->pipe == intel_crtc->pipe)
+			continue;
+
+		if (!intel_crtc->active)
+			continue;
+
+		wm_changed = skl_update_pipe_wm(&intel_crtc->base,
+						&params, config,
+						&r->ddb, &pipe_wm);
+
+		/*
+		 * If we end up re-computing the other pipe WM values, it's
+		 * because it was really needed, so we expect the WM values to
+		 * be different.
+		 */
+		WARN_ON(!wm_changed);
+
+		skl_compute_wm_results(dev, &params, &pipe_wm, r, intel_crtc);
+		r->dirty[intel_crtc->pipe] = true;
+	}
+}
+
+static void skl_update_wm(struct drm_crtc *crtc)
+{
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct skl_pipe_wm_parameters params = {};
+	struct skl_wm_values *results = &dev_priv->wm.skl_results;
+	struct skl_pipe_wm pipe_wm = {};
+	struct intel_wm_config config = {};
+
+	memset(results, 0, sizeof(*results));
+
+	skl_compute_wm_global_parameters(dev, &config);
+
+	if (!skl_update_pipe_wm(crtc, &params, &config,
+				&results->ddb, &pipe_wm))
+		return;
+
+	skl_compute_wm_results(dev, &params, &pipe_wm, results, intel_crtc);
+	results->dirty[intel_crtc->pipe] = true;
+
+	skl_update_other_pipe_wm(dev, crtc, &config, results);
+	skl_write_wm_values(dev_priv, results);
+}
+
+static void
+skl_update_sprite_wm(struct drm_plane *plane, struct drm_crtc *crtc,
+		     uint32_t sprite_width, uint32_t sprite_height,
+		     int pixel_size, bool enabled, bool scaled)
+{
+	struct intel_plane *intel_plane = to_intel_plane(plane);
+
+	intel_plane->wm.enabled = enabled;
+	intel_plane->wm.scaled = scaled;
+	intel_plane->wm.horiz_pixels = sprite_width;
+	intel_plane->wm.vert_pixels = sprite_height;
+	intel_plane->wm.bytes_per_pixel = pixel_size;
+
+	skl_update_wm(crtc);
+}
+
 static void ilk_update_wm(struct drm_crtc *crtc)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -6198,6 +6618,8 @@ void intel_init_pm(struct drm_device *dev)
 		skl_setup_wm_latency(dev);
 
 		dev_priv->display.init_clock_gating = gen9_init_clock_gating;
+		dev_priv->display.update_wm = skl_update_wm;
+		dev_priv->display.update_sprite_wm = skl_update_sprite_wm;
 	} else if (HAS_PCH_SPLIT(dev)) {
 		ilk_setup_wm_latency(dev);
 
