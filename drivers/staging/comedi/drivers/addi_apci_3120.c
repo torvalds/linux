@@ -209,6 +209,57 @@ static void apci3120_init_dma(struct comedi_device *dev,
 	     devpriv->addon + APCI3120_ADDON_CTRL_REG);
 }
 
+static void apci3120_setup_dma(struct comedi_device *dev,
+			       struct comedi_subdevice *s)
+{
+	struct apci3120_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
+	struct apci3120_dmabuf *dmabuf0 = &devpriv->dmabuf[0];
+	struct apci3120_dmabuf *dmabuf1 = &devpriv->dmabuf[1];
+	unsigned int dmalen0 = dmabuf0->size;
+	unsigned int dmalen1 = dmabuf1->size;
+	unsigned int scan_bytes;
+
+	scan_bytes = comedi_samples_to_bytes(s, cmd->scan_end_arg);
+
+	if (cmd->stop_src == TRIG_COUNT) {
+		/*
+		 * Must we fill full first buffer? And must we fill
+		 * full second buffer when first is once filled?
+		 */
+		if (dmalen0 > (cmd->stop_arg * scan_bytes))
+			dmalen0 = cmd->stop_arg * scan_bytes;
+		else if (dmalen1 > (cmd->stop_arg * scan_bytes - dmalen0))
+			dmalen1 = cmd->stop_arg * scan_bytes - dmalen0;
+	}
+
+	if (cmd->flags & CMDF_WAKE_EOS) {
+		/* don't we want wake up every scan? */
+		if (dmalen0 > scan_bytes) {
+			dmalen0 = scan_bytes;
+			if (cmd->scan_end_arg & 1)
+				dmalen0 += 2;
+		}
+		if (dmalen1 > scan_bytes) {
+			dmalen1 = scan_bytes;
+			if (cmd->scan_end_arg & 1)
+				dmalen1 -= 2;
+			if (dmalen1 < 4)
+				dmalen1 = 4;
+		}
+	} else {
+		/* isn't output buff smaller that our DMA buff? */
+		if (dmalen0 > s->async->prealloc_bufsz)
+			dmalen0 = s->async->prealloc_bufsz;
+		if (dmalen1 > s->async->prealloc_bufsz)
+			dmalen1 = s->async->prealloc_bufsz;
+	}
+	dmabuf0->use_size = dmalen0;
+	dmabuf1->use_size = dmalen1;
+
+	apci3120_init_dma(dev, dmabuf0);
+}
+
 /*
  * There are three timers on the board. They all use the same base
  * clock with a fixed prescaler for each timer. The base clock used
