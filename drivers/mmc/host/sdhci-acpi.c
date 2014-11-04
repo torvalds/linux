@@ -76,6 +76,7 @@ struct sdhci_acpi_host {
 	const struct sdhci_acpi_slot	*slot;
 	struct platform_device		*pdev;
 	bool				use_runtime_pm;
+	bool				dma_setup;
 };
 
 static inline bool sdhci_acpi_flag(struct sdhci_acpi_host *c, unsigned int flag)
@@ -85,7 +86,29 @@ static inline bool sdhci_acpi_flag(struct sdhci_acpi_host *c, unsigned int flag)
 
 static int sdhci_acpi_enable_dma(struct sdhci_host *host)
 {
-	return 0;
+	struct sdhci_acpi_host *c = sdhci_priv(host);
+	struct device *dev = &c->pdev->dev;
+	int err = -1;
+
+	if (c->dma_setup)
+		return 0;
+
+	if (host->flags & SDHCI_USE_64_BIT_DMA) {
+		if (host->quirks2 & SDHCI_QUIRK2_BROKEN_64_BIT_DMA) {
+			host->flags &= ~SDHCI_USE_64_BIT_DMA;
+		} else {
+			err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
+			if (err)
+				dev_warn(dev, "Failed to set 64-bit DMA mask\n");
+		}
+	}
+
+	if (err)
+		err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
+
+	c->dma_setup = !err;
+
+	return err;
 }
 
 static void sdhci_acpi_int_hw_reset(struct sdhci_host *host)
@@ -303,21 +326,6 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 	if (host->ioaddr == NULL) {
 		err = -ENOMEM;
 		goto err_free;
-	}
-
-	if (!dev->dma_mask) {
-		u64 dma_mask;
-
-		if (sdhci_readl(host, SDHCI_CAPABILITIES) & SDHCI_CAN_64BIT) {
-			/* 64-bit DMA is not supported at present */
-			dma_mask = DMA_BIT_MASK(32);
-		} else {
-			dma_mask = DMA_BIT_MASK(32);
-		}
-
-		err = dma_coerce_mask_and_coherent(dev, dma_mask);
-		if (err)
-			goto err_free;
 	}
 
 	if (c->slot) {
