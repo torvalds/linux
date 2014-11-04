@@ -368,15 +368,8 @@ static void apci3120_setup_dma(struct comedi_device *dev,
 	/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
 }
 
-/*
- * This is used for analog input cyclic acquisition.
- * Performs the command operations.
- * If DMA is configured does DMA initialization otherwise does the
- * acquisition with EOS interrupt.
- */
-static int apci3120_cyclic_ai(int mode,
-			      struct comedi_device *dev,
-			      struct comedi_subdevice *s)
+static int apci3120_ai_cmd(struct comedi_device *dev,
+			   struct comedi_subdevice *s)
 {
 	struct apci3120_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
@@ -399,7 +392,7 @@ static int apci3120_cyclic_ai(int mode,
 	apci3120_set_chanlist(dev, s, cmd->chanlist_len, cmd->chanlist);
 
 	divisor0 = apci3120_ns_to_timer(dev, 0, cmd->convert_arg, cmd->flags);
-	if (mode == 2) {
+	if (cmd->scan_begin_src == TRIG_TIMER) {
 		divisor1 = apci3120_ns_to_timer(dev, 1, cmd->scan_begin_arg,
 						cmd->flags);
 	}
@@ -411,16 +404,13 @@ static int apci3120_cyclic_ai(int mode,
 		devpriv->b_ExttrigEnable = 0;
 	}
 
-	switch (mode) {
-	case 1:
+	if (cmd->scan_begin_src == TRIG_FOLLOW) {
 		/*  init timer0 in mode 2 */
 		apci3120_timer_set_mode(dev, 0, APCI3120_TIMER_MODE2);
 
 		/* Set the conversion time */
 		apci3120_timer_write(dev, 0, divisor0);
-		break;
-
-	case 2:
+	} else {	/* TRIG_TIMER */
 		/*  init timer1 in mode 2 */
 		apci3120_timer_set_mode(dev, 1, APCI3120_TIMER_MODE2);
 
@@ -432,8 +422,6 @@ static int apci3120_cyclic_ai(int mode,
 
 		/* Set the conversion time */
 		apci3120_timer_write(dev, 0, divisor0);
-		break;
-
 	}
 
 	outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
@@ -471,33 +459,14 @@ static int apci3120_cyclic_ai(int mode,
 		}
 	}
 
-	switch (mode) {
-	case 1:
+	if (cmd->scan_begin_src == TRIG_FOLLOW) {
 		apci3120_timer_enable(dev, 0, true);
-		break;
-	case 2:
+	} else {	/* TRIG_TIMER */
 		apci3120_timer_enable(dev, 1, true);
 		apci3120_timer_enable(dev, 0, true);
-		break;
 	}
 
 	return 0;
-
-}
-
-/*
- * Does asynchronous acquisition.
- * Determines the mode 1 or 2.
- */
-static int apci3120_ai_cmd(struct comedi_device *dev,
-			   struct comedi_subdevice *s)
-{
-	struct comedi_cmd *cmd = &s->async->cmd;
-
-	if (cmd->scan_begin_src == TRIG_FOLLOW)
-		return apci3120_cyclic_ai(1, dev, s);
-	/* TRIG_TIMER */
-	return apci3120_cyclic_ai(2, dev, s);
 }
 
 /*
