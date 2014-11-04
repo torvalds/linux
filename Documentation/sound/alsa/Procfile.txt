@@ -133,6 +133,10 @@ card*/pcm*/sub*/sw_params
 card*/pcm*/sub*/prealloc
 	The buffer pre-allocation information.
 
+card*/pcm*/sub*/xrun_injection
+	Triggers an XRUN to the running stream when any value is
+	written to this proc file.  Used for fault injection.
+	This entry is write-only.
 
 AC97 Codec Information
 ----------------------
