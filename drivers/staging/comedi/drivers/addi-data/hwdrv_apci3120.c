@@ -293,7 +293,7 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 	apci3120_timer_set_mode(dev, 0, APCI3120_TIMER_MODE2);
 	apci3120_timer_write(dev, 0, divisor);
 
-	if (devpriv->us_UseDma) {
+	if (devpriv->use_dma) {
 		apci3120_setup_dma(dev, s);
 	} else {
 		devpriv->mode |= APCI3120_MODE_EOS_IRQ_ENA;

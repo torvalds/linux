@@ -129,7 +129,7 @@ struct apci3120_private {
 	unsigned long amcc;
 	unsigned long addon;
 	unsigned int osc_base;
-	unsigned short us_UseDma;
+	unsigned int use_dma:1;
 	unsigned char b_DmaDoubleBuffer;
 	unsigned int ui_DmaActualBuffer;
 	struct apci3120_dmabuf dmabuf[2];
@@ -467,7 +467,7 @@ static void apci3120_dma_alloc(struct comedi_device *dev)
 		dmabuf->size = PAGE_SIZE << order;
 
 		if (i == 0)
-			devpriv->us_UseDma = 1;
+			devpriv->use_dma = 1;
 		if (i == 1)
 			devpriv->b_DmaDoubleBuffer = 1;
 	}
