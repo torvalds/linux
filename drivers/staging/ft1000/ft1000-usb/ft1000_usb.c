@@ -109,8 +109,8 @@ static int ft1000_probe(struct usb_interface *interface,
 
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; i++) {
 		endpoint =
-		    (struct usb_endpoint_descriptor *)&iface_desc->
-		    endpoint[i].desc;
+			(struct usb_endpoint_descriptor *)&iface_desc->
+			endpoint[i].desc;
 		DEBUG("endpoint %d\n", i);
 		DEBUG("bEndpointAddress=%x, bmAttributes=%x\n",
 		      endpoint->bEndpointAddress, endpoint->bmAttributes);
@@ -118,7 +118,7 @@ static int ft1000_probe(struct usb_interface *interface,
 		    && ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
 			USB_ENDPOINT_XFER_BULK)) {
 			ft1000dev->bulk_in_endpointAddr =
-			    endpoint->bEndpointAddress;
+				endpoint->bEndpointAddress;
 			DEBUG("ft1000_probe: in: %d\n",
 			      endpoint->bEndpointAddress);
 		}
@@ -127,7 +127,7 @@ static int ft1000_probe(struct usb_interface *interface,
 		    && ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
 			USB_ENDPOINT_XFER_BULK)) {
 			ft1000dev->bulk_out_endpointAddr =
-			    endpoint->bEndpointAddress;
+				endpoint->bEndpointAddress;
 			DEBUG("ft1000_probe: out: %d\n",
 			      endpoint->bEndpointAddress);
 		}
@@ -172,7 +172,7 @@ static int ft1000_probe(struct usb_interface *interface,
 
 	gPollingfailed = false;
 	ft1000dev->pPollThread =
-	    kthread_run(ft1000_poll_thread, ft1000dev, "ft1000_poll");
+		kthread_run(ft1000_poll_thread, ft1000dev, "ft1000_poll");
 
 	if (IS_ERR(ft1000dev->pPollThread)) {
 		ret = PTR_ERR(ft1000dev->pPollThread);
@@ -218,7 +218,7 @@ static void ft1000_disconnect(struct usb_interface *interface)
 
 	DEBUG("ft1000_disconnect is called\n");
 
-	pft1000info = (struct ft1000_info *) usb_get_intfdata(interface);
+	pft1000info = (struct ft1000_info *)usb_get_intfdata(interface);
 	DEBUG("In disconnect pft1000info=%p\n", pft1000info);
 
 	if (pft1000info) {
@@ -233,7 +233,7 @@ static void ft1000_disconnect(struct usb_interface *interface)
 			ft1000_destroy_dev(ft1000dev->net);
 			unregister_netdev(ft1000dev->net);
 			DEBUG
-			    ("ft1000_disconnect: network device unregistered\n");
+				("ft1000_disconnect: network device unregistered\n");
 			free_netdev(ft1000dev->net);
 
 		}
