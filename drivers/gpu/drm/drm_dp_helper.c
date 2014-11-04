@@ -462,10 +462,12 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 
 		case DP_AUX_I2C_REPLY_NACK:
 			DRM_DEBUG_KMS("I2C nack\n");
+			aux->i2c_nack_count++;
 			return -EREMOTEIO;
 
 		case DP_AUX_I2C_REPLY_DEFER:
 			DRM_DEBUG_KMS("I2C defer\n");
+			aux->i2c_defer_count++;
 			usleep_range(400, 500);
 			continue;
 

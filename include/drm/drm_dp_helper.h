@@ -530,6 +530,7 @@ struct drm_dp_aux {
 	struct mutex hw_mutex;
 	ssize_t (*transfer)(struct drm_dp_aux *aux,
 			    struct drm_dp_aux_msg *msg);
+	unsigned i2c_nack_count, i2c_defer_count;
 };
 
 ssize_t drm_dp_dpcd_read(struct drm_dp_aux *aux, unsigned int offset,
