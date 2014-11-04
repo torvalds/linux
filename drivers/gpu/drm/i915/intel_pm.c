@@ -3119,13 +3119,13 @@ skl_allocate_pipe_ddb(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum pipe pipe = intel_crtc->pipe;
-	struct skl_ddb_entry alloc;
+	struct skl_ddb_entry *alloc = &ddb->pipe[pipe];
 	uint16_t alloc_size, start, cursor_blocks;
 	unsigned int total_data_rate;
 	int plane;
 
-	skl_ddb_get_pipe_allocation_limits(dev, crtc, config, params, &alloc);
-	alloc_size = skl_ddb_entry_size(&alloc);
+	skl_ddb_get_pipe_allocation_limits(dev, crtc, config, params, alloc);
+	alloc_size = skl_ddb_entry_size(alloc);
 	if (alloc_size == 0) {
 		memset(ddb->plane[pipe], 0, sizeof(ddb->plane[pipe]));
 		memset(&ddb->cursor[pipe], 0, sizeof(ddb->cursor[pipe]));
@@ -3133,11 +3133,11 @@ skl_allocate_pipe_ddb(struct drm_crtc *crtc,
 	}
 
 	cursor_blocks = skl_cursor_allocation(config);
-	ddb->cursor[pipe].start = alloc.end - cursor_blocks;
-	ddb->cursor[pipe].end = alloc.end;
+	ddb->cursor[pipe].start = alloc->end - cursor_blocks;
+	ddb->cursor[pipe].end = alloc->end;
 
 	alloc_size -= cursor_blocks;
-	alloc.end -= cursor_blocks;
+	alloc->end -= cursor_blocks;
 
 	/*
 	 * Each active plane get a portion of the remaining space, in
@@ -3147,7 +3147,7 @@ skl_allocate_pipe_ddb(struct drm_crtc *crtc,
 	 */
 	total_data_rate = skl_get_total_relative_data_rate(intel_crtc, params);
 
-	start = alloc.start;
+	start = alloc->start;
 	for (plane = 0; plane < intel_num_planes(intel_crtc); plane++) {
 		const struct intel_plane_wm_parameters *p;
 		unsigned int data_rate;
