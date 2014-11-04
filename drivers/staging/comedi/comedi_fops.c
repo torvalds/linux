@@ -43,6 +43,22 @@
 
 #include "comedi_internal.h"
 
+/**
+ * struct comedi_file - per-file private data for comedi device
+ * @dev: comedi_device struct
+ * @read_subdev: current "read" subdevice
+ * @write_subdev: current "write" subdevice
+ * @last_detach_count: last known detach count
+ * @last_attached: last known attached/detached state
+ */
+struct comedi_file {
+	struct comedi_device *dev;
+	struct comedi_subdevice *read_subdev;
+	struct comedi_subdevice *write_subdev;
+	unsigned int last_detach_count;
+	bool last_attached:1;
+};
+
 #define COMEDI_NUM_MINORS 0x100
 #define COMEDI_NUM_SUBDEVICE_MINORS	\
 	(COMEDI_NUM_MINORS - COMEDI_NUM_BOARD_MINORS)
@@ -237,6 +253,54 @@ comedi_write_subdevice(const struct comedi_device *dev, unsigned int minor)
 			return s;
 	}
 	return dev->write_subdev;
+}
+
+static void comedi_file_reset(struct file *file)
+{
+	struct comedi_file *cfp = file->private_data;
+	struct comedi_device *dev = cfp->dev;
+	struct comedi_subdevice *s, *read_s, *write_s;
+	unsigned int minor = iminor(file_inode(file));
+
+	read_s = dev->read_subdev;
+	write_s = dev->write_subdev;
+	if (minor >= COMEDI_NUM_BOARD_MINORS) {
+		s = comedi_subdevice_from_minor(dev, minor);
+		if (s == NULL || s->subdev_flags & SDF_CMD_READ)
+			read_s = s;
+		if (s == NULL || s->subdev_flags & SDF_CMD_WRITE)
+			write_s = s;
+	}
+	cfp->last_attached = dev->attached;
+	cfp->last_detach_count = dev->detach_count;
+	ACCESS_ONCE(cfp->read_subdev) = read_s;
+	ACCESS_ONCE(cfp->write_subdev) = write_s;
+}
+
+static void comedi_file_check(struct file *file)
+{
+	struct comedi_file *cfp = file->private_data;
+	struct comedi_device *dev = cfp->dev;
+
+	if (cfp->last_attached != dev->attached ||
+	    cfp->last_detach_count != dev->detach_count)
+		comedi_file_reset(file);
+}
+
+static struct comedi_subdevice *comedi_file_read_subdevice(struct file *file)
+{
+	struct comedi_file *cfp = file->private_data;
+
+	comedi_file_check(file);
+	return ACCESS_ONCE(cfp->read_subdev);
+}
+
+static struct comedi_subdevice *comedi_file_write_subdevice(struct file *file)
+{
+	struct comedi_file *cfp = file->private_data;
+
+	comedi_file_check(file);
+	return ACCESS_ONCE(cfp->write_subdev);
 }
 
 static int resize_async_buffer(struct comedi_device *dev,
@@ -776,7 +840,6 @@ static int do_devinfo_ioctl(struct comedi_device *dev,
 			    struct comedi_devinfo __user *arg,
 			    struct file *file)
 {
-	const unsigned minor = iminor(file_inode(file));
 	struct comedi_subdevice *s;
 	struct comedi_devinfo devinfo;
 
@@ -788,13 +851,13 @@ static int do_devinfo_ioctl(struct comedi_device *dev,
 	strlcpy(devinfo.driver_name, dev->driver->driver_name, COMEDI_NAMELEN);
 	strlcpy(devinfo.board_name, dev->board_name, COMEDI_NAMELEN);
 
-	s = comedi_read_subdevice(dev, minor);
+	s = comedi_file_read_subdevice(file);
 	if (s)
 		devinfo.read_subdevice = s->index;
 	else
 		devinfo.read_subdevice = -1;
 
-	s = comedi_write_subdevice(dev, minor);
+	s = comedi_file_write_subdevice(file);
 	if (s)
 		devinfo.write_subdevice = s->index;
 	else
@@ -1787,8 +1850,9 @@ static int do_poll_ioctl(struct comedi_device *dev, unsigned long arg,
 static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 				  unsigned long arg)
 {
-	const unsigned minor = iminor(file_inode(file));
-	struct comedi_device *dev = file->private_data;
+	unsigned minor = iminor(file_inode(file));
+	struct comedi_file *cfp = file->private_data;
+	struct comedi_device *dev = cfp->dev;
 	int rc;
 
 	mutex_lock(&dev->mutex);
@@ -1910,8 +1974,8 @@ static struct vm_operations_struct comedi_vm_ops = {
 
 static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	const unsigned minor = iminor(file_inode(file));
-	struct comedi_device *dev = file->private_data;
+	struct comedi_file *cfp = file->private_data;
+	struct comedi_device *dev = cfp->dev;
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
 	struct comedi_buf_map *bm = NULL;
@@ -1937,9 +2001,9 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 
 	if (vma->vm_flags & VM_WRITE)
-		s = comedi_write_subdevice(dev, minor);
+		s = comedi_file_write_subdevice(file);
 	else
-		s = comedi_read_subdevice(dev, minor);
+		s = comedi_file_read_subdevice(file);
 	if (!s) {
 		retval = -EINVAL;
 		goto done;
@@ -2002,8 +2066,8 @@ done:
 static unsigned int comedi_poll(struct file *file, poll_table *wait)
 {
 	unsigned int mask = 0;
-	const unsigned minor = iminor(file_inode(file));
-	struct comedi_device *dev = file->private_data;
+	struct comedi_file *cfp = file->private_data;
+	struct comedi_device *dev = cfp->dev;
 	struct comedi_subdevice *s;
 
 	mutex_lock(&dev->mutex);
@@ -2013,7 +2077,7 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 		goto done;
 	}
 
-	s = comedi_read_subdevice(dev, minor);
+	s = comedi_file_read_subdevice(file);
 	if (s && s->async) {
 		poll_wait(file, &s->async->wait_head, wait);
 		if (!s->busy || !comedi_is_subdevice_running(s) ||
@@ -2022,7 +2086,7 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 			mask |= POLLIN | POLLRDNORM;
 	}
 
-	s = comedi_write_subdevice(dev, minor);
+	s = comedi_file_write_subdevice(file);
 	if (s && s->async) {
 		unsigned int bps = comedi_bytes_per_sample(s);
 
@@ -2046,8 +2110,8 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 	struct comedi_async *async;
 	int n, m, count = 0, retval = 0;
 	DECLARE_WAITQUEUE(wait, current);
-	const unsigned minor = iminor(file_inode(file));
-	struct comedi_device *dev = file->private_data;
+	struct comedi_file *cfp = file->private_data;
+	struct comedi_device *dev = cfp->dev;
 	bool on_wait_queue = false;
 	bool attach_locked;
 	unsigned int old_detach_count;
@@ -2063,7 +2127,7 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 		goto out;
 	}
 
-	s = comedi_write_subdevice(dev, minor);
+	s = comedi_file_write_subdevice(file);
 	if (!s || !s->async) {
 		retval = -EIO;
 		goto out;
@@ -2115,7 +2179,7 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 				 * meantime!), but check the subdevice pointer
 				 * as well just in case.
 				 */
-				new_s = comedi_write_subdevice(dev, minor);
+				new_s = comedi_file_write_subdevice(file);
 				if (dev->attached &&
 				    old_detach_count == dev->detach_count &&
 				    s == new_s && new_s->async == async)
@@ -2190,8 +2254,8 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 	struct comedi_async *async;
 	int n, m, count = 0, retval = 0;
 	DECLARE_WAITQUEUE(wait, current);
-	const unsigned minor = iminor(file_inode(file));
-	struct comedi_device *dev = file->private_data;
+	struct comedi_file *cfp = file->private_data;
+	struct comedi_device *dev = cfp->dev;
 	unsigned int old_detach_count;
 	bool become_nonbusy = false;
 	bool attach_locked;
@@ -2207,7 +2271,7 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 		goto out;
 	}
 
-	s = comedi_read_subdevice(dev, minor);
+	s = comedi_file_read_subdevice(file);
 	if (!s || !s->async) {
 		retval = -EIO;
 		goto out;
@@ -2304,7 +2368,7 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 		 * meantime!), but check the subdevice pointer as well just in
 		 * case.
 		 */
-		new_s = comedi_read_subdevice(dev, minor);
+		new_s = comedi_file_read_subdevice(file);
 		if (dev->attached && old_detach_count == dev->detach_count &&
 		    s == new_s && new_s->async == async) {
 			if (become_nonbusy || comedi_buf_n_bytes_ready(s) == 0)
@@ -2322,6 +2386,7 @@ out:
 static int comedi_open(struct inode *inode, struct file *file)
 {
 	const unsigned minor = iminor(inode);
+	struct comedi_file *cfp;
 	struct comedi_device *dev = comedi_dev_get_from_minor(minor);
 	int rc;
 
@@ -2329,6 +2394,12 @@ static int comedi_open(struct inode *inode, struct file *file)
 		pr_debug("invalid minor number\n");
 		return -ENODEV;
 	}
+
+	cfp = kzalloc(sizeof(*cfp), GFP_KERNEL);
+	if (!cfp)
+		return -ENOMEM;
+
+	cfp->dev = dev;
 
 	mutex_lock(&dev->mutex);
 	if (!dev->attached && !capable(CAP_NET_ADMIN)) {
@@ -2351,26 +2422,31 @@ static int comedi_open(struct inode *inode, struct file *file)
 	}
 
 	dev->use_count++;
-	file->private_data = dev;
+	file->private_data = cfp;
+	comedi_file_reset(file);
 	rc = 0;
 
 out:
 	mutex_unlock(&dev->mutex);
-	if (rc)
+	if (rc) {
 		comedi_dev_put(dev);
+		kfree(cfp);
+	}
 	return rc;
 }
 
 static int comedi_fasync(int fd, struct file *file, int on)
 {
-	struct comedi_device *dev = file->private_data;
+	struct comedi_file *cfp = file->private_data;
+	struct comedi_device *dev = cfp->dev;
 
 	return fasync_helper(fd, file, on, &dev->async_queue);
 }
 
 static int comedi_close(struct inode *inode, struct file *file)
 {
-	struct comedi_device *dev = file->private_data;
+	struct comedi_file *cfp = file->private_data;
+	struct comedi_device *dev = cfp->dev;
 	struct comedi_subdevice *s = NULL;
 	int i;
 
@@ -2396,6 +2472,7 @@ static int comedi_close(struct inode *inode, struct file *file)
 
 	mutex_unlock(&dev->mutex);
 	comedi_dev_put(dev);
+	kfree(cfp);
 
 	return 0;
 }
