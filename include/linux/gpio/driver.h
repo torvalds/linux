@@ -32,6 +32,7 @@ struct seq_file;
  * @get: returns value for signal "offset"; for output signals this
  *	returns either the value actually sensed, or zero
  * @set: assigns output value for signal "offset"
+ * @set_multiple: assigns output values for multiple signals defined by "mask"
  * @set_debounce: optional hook for setting debounce time for specified gpio in
  *      interrupt triggered gpio chips
  * @to_irq: optional hook supporting non-static gpio_to_irq() mappings;
@@ -89,6 +90,9 @@ struct gpio_chip {
 						unsigned offset);
 	void			(*set)(struct gpio_chip *chip,
 						unsigned offset, int value);
+	void			(*set_multiple)(struct gpio_chip *chip,
+						unsigned long *mask,
+						unsigned long *bits);
 	int			(*set_debounce)(struct gpio_chip *chip,
 						unsigned offset,
 						unsigned debounce);

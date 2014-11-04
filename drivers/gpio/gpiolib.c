@@ -1254,6 +1254,88 @@ static void _gpiod_set_raw_value(struct gpio_desc *desc, bool value)
 		chip->set(chip, gpio_chip_hwgpio(desc), value);
 }
 
+/*
+ * set multiple outputs on the same chip;
+ * use the chip's set_multiple function if available;
+ * otherwise set the outputs sequentially;
+ * @mask: bit mask array; one bit per output; BITS_PER_LONG bits per word
+ *        defines which outputs are to be changed
+ * @bits: bit value array; one bit per output; BITS_PER_LONG bits per word
+ *        defines the values the outputs specified by mask are to be set to
+ */
+static void gpio_chip_set_multiple(struct gpio_chip *chip,
+				   unsigned long *mask, unsigned long *bits)
+{
+	if (chip->set_multiple) {
+		chip->set_multiple(chip, mask, bits);
+	} else {
+		int i;
+		for (i = 0; i < chip->ngpio; i++) {
+			if (mask[BIT_WORD(i)] == 0) {
+				/* no more set bits in this mask word;
+				 * skip ahead to the next word */
+				i = (BIT_WORD(i) + 1) * BITS_PER_LONG - 1;
+				continue;
+			}
+			/* set outputs if the corresponding mask bit is set */
+			if (__test_and_clear_bit(i, mask)) {
+				chip->set(chip, i, test_bit(i, bits));
+			}
+		}
+	}
+}
+
+static void gpiod_set_array_priv(bool raw, bool can_sleep,
+				 unsigned int array_size,
+				 struct gpio_desc **desc_array,
+				 int *value_array)
+{
+	int i = 0;
+
+	while (i < array_size) {
+		struct gpio_chip *chip = desc_array[i]->chip;
+		unsigned long mask[BITS_TO_LONGS(chip->ngpio)];
+		unsigned long bits[BITS_TO_LONGS(chip->ngpio)];
+		int count = 0;
+
+		if (!can_sleep) {
+			WARN_ON(chip->can_sleep);
+		}
+		memset(mask, 0, sizeof(mask));
+		do {
+			struct gpio_desc *desc = desc_array[i];
+			int hwgpio = gpio_chip_hwgpio(desc);
+			int value = value_array[i];
+
+			if (!raw && test_bit(FLAG_ACTIVE_LOW, &desc->flags))
+				value = !value;
+			trace_gpio_value(desc_to_gpio(desc), 0, value);
+			/*
+			 * collect all normal outputs belonging to the same chip
+			 * open drain and open source outputs are set individually
+			 */
+			if (test_bit(FLAG_OPEN_DRAIN, &desc->flags)) {
+				_gpio_set_open_drain_value(desc,value);
+			} else if (test_bit(FLAG_OPEN_SOURCE, &desc->flags)) {
+				_gpio_set_open_source_value(desc, value);
+			} else {
+				__set_bit(hwgpio, mask);
+				if (value) {
+					__set_bit(hwgpio, bits);
+				} else {
+					__clear_bit(hwgpio, bits);
+				}
+				count++;
+			}
+			i++;
+		} while ((i < array_size) && (desc_array[i]->chip == chip));
+		/* push collected bits to outputs */
+		if (count != 0) {
+			gpio_chip_set_multiple(chip, mask, bits);
+		}
+	}
+}
+
 /**
  * gpiod_set_raw_value() - assign a gpio's raw value
  * @desc: gpio whose value will be assigned
@@ -1297,6 +1379,48 @@ void gpiod_set_value(struct gpio_desc *desc, int value)
 	_gpiod_set_raw_value(desc, value);
 }
 EXPORT_SYMBOL_GPL(gpiod_set_value);
+
+/**
+ * gpiod_set_raw_array() - assign values to an array of GPIOs
+ * @array_size: number of elements in the descriptor / value arrays
+ * @desc_array: array of GPIO descriptors whose values will be assigned
+ * @value_array: array of values to assign
+ *
+ * Set the raw values of the GPIOs, i.e. the values of the physical lines
+ * without regard for their ACTIVE_LOW status.
+ *
+ * This function should be called from contexts where we cannot sleep, and will
+ * complain if the GPIO chip functions potentially sleep.
+ */
+void gpiod_set_raw_array(unsigned int array_size,
+			 struct gpio_desc **desc_array, int *value_array)
+{
+	if (!desc_array)
+		return;
+	gpiod_set_array_priv(true, false, array_size, desc_array, value_array);
+}
+EXPORT_SYMBOL_GPL(gpiod_set_raw_array);
+
+/**
+ * gpiod_set_array() - assign values to an array of GPIOs
+ * @array_size: number of elements in the descriptor / value arrays
+ * @desc_array: array of GPIO descriptors whose values will be assigned
+ * @value_array: array of values to assign
+ *
+ * Set the logical values of the GPIOs, i.e. taking their ACTIVE_LOW status
+ * into account.
+ *
+ * This function should be called from contexts where we cannot sleep, and will
+ * complain if the GPIO chip functions potentially sleep.
+ */
+void gpiod_set_array(unsigned int array_size,
+		     struct gpio_desc **desc_array, int *value_array)
+{
+	if (!desc_array)
+		return;
+	gpiod_set_array_priv(false, false, array_size, desc_array, value_array);
+}
+EXPORT_SYMBOL_GPL(gpiod_set_array);
 
 /**
  * gpiod_cansleep() - report whether gpio value access may sleep
@@ -1456,6 +1580,50 @@ void gpiod_set_value_cansleep(struct gpio_desc *desc, int value)
 	_gpiod_set_raw_value(desc, value);
 }
 EXPORT_SYMBOL_GPL(gpiod_set_value_cansleep);
+
+/**
+ * gpiod_set_raw_array_cansleep() - assign values to an array of GPIOs
+ * @array_size: number of elements in the descriptor / value arrays
+ * @desc_array: array of GPIO descriptors whose values will be assigned
+ * @value_array: array of values to assign
+ *
+ * Set the raw values of the GPIOs, i.e. the values of the physical lines
+ * without regard for their ACTIVE_LOW status.
+ *
+ * This function is to be called from contexts that can sleep.
+ */
+void gpiod_set_raw_array_cansleep(unsigned int array_size,
+				  struct gpio_desc **desc_array,
+				  int *value_array)
+{
+	might_sleep_if(extra_checks);
+	if (!desc_array)
+		return;
+	gpiod_set_array_priv(true, true, array_size, desc_array, value_array);
+}
+EXPORT_SYMBOL_GPL(gpiod_set_raw_array_cansleep);
+
+/**
+ * gpiod_set_array_cansleep() - assign values to an array of GPIOs
+ * @array_size: number of elements in the descriptor / value arrays
+ * @desc_array: array of GPIO descriptors whose values will be assigned
+ * @value_array: array of values to assign
+ *
+ * Set the logical values of the GPIOs, i.e. taking their ACTIVE_LOW status
+ * into account.
+ *
+ * This function is to be called from contexts that can sleep.
+ */
+void gpiod_set_array_cansleep(unsigned int array_size,
+			      struct gpio_desc **desc_array,
+			      int *value_array)
+{
+	might_sleep_if(extra_checks);
+	if (!desc_array)
+		return;
+	gpiod_set_array_priv(false, true, array_size, desc_array, value_array);
+}
+EXPORT_SYMBOL_GPL(gpiod_set_array_cansleep);
 
 /**
  * gpiod_add_lookup_table() - register GPIO device consumers
