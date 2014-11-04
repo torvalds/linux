@@ -1387,8 +1387,27 @@ struct ilk_wm_values {
 	enum intel_ddb_partitioning partitioning;
 };
 
+struct skl_ddb_entry {
+	uint16_t start, end;	/* in number of blocks */
+};
+
+static inline uint16_t skl_ddb_entry_size(const struct skl_ddb_entry *entry)
+{
+	/* end not set, clearly no allocation here. start can be 0 though */
+	if (entry->end == 0)
+		return 0;
+
+	return entry->end - entry->start + 1;
+}
+
+struct skl_ddb_allocation {
+	struct skl_ddb_entry plane[I915_MAX_PIPES][I915_MAX_PLANES];
+	struct skl_ddb_entry cursor[I915_MAX_PIPES];
+};
+
 struct skl_wm_values {
 	bool dirty[I915_MAX_PIPES];
+	struct skl_ddb_allocation ddb;
 	uint32_t wm_linetime[I915_MAX_PIPES];
 	uint32_t plane[I915_MAX_PIPES][I915_MAX_PLANES][8];
 	uint32_t cursor[I915_MAX_PIPES][8];
