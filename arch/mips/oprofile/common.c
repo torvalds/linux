@@ -18,6 +18,7 @@
 
 extern struct op_mips_model op_model_mipsxx_ops __weak;
 extern struct op_mips_model op_model_loongson2_ops __weak;
+extern struct op_mips_model op_model_loongson3_ops __weak;
 
 static struct op_mips_model *model;
 
@@ -103,6 +104,9 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 
 	case CPU_LOONGSON2:
 		lmodel = &op_model_loongson2_ops;
+		break;
+	case CPU_LOONGSON3:
+		lmodel = &op_model_loongson3_ops;
 		break;
 	};
 
