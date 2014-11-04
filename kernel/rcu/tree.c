@@ -2513,12 +2513,6 @@ static void force_qs_rnp(struct rcu_state *rsp,
 		}
 		raw_spin_unlock_irqrestore(&rnp->lock, flags);
 	}
-	rnp = rcu_get_root(rsp);
-	if (rnp->qsmask == 0) {
-		raw_spin_lock_irqsave(&rnp->lock, flags);
-		smp_mb__after_unlock_lock();
-		rcu_initiate_boost(rnp, flags); /* releases rnp->lock. */
-	}
 }
 
 /*
