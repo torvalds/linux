@@ -7,8 +7,8 @@ config OF
 menu "Device Tree and Open Firmware support"
 	depends on OF
 
-config OF_SELFTEST
-	bool "Device Tree Runtime self tests"
+config OF_UNITTEST
+	bool "Device Tree runtime unit tests"
 	depends on OF_IRQ && OF_EARLY_FLATTREE
 	select OF_DYNAMIC
 	select OF_RESOLVE
