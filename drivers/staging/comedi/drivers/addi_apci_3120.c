@@ -11,6 +11,7 @@
  * PCI BAR 0 register map (devpriv->amcc)
  * see amcc_s5933.h for register and bit defines
  */
+#define APCI3120_FIFO_ADVANCE_ON_BYTE_2		(1 << 29)
 
 /*
  * PCI BAR 1 register map (dev->iobase)

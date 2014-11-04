@@ -40,12 +40,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
   +----------+-----------+------------------------------------------------+
 */
 
-/*
- * ADDON RELATED ADDITIONS
- */
-/* Constant */
-#define APCI3120_FIFO_ADVANCE_ON_BYTE_2			0x20000000L
-
 #define APCI3120_START			1
 #define APCI3120_STOP			0
 
