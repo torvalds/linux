@@ -42,6 +42,7 @@ static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb,
 				      SKB_GSO_DODGY |
 				      SKB_GSO_UDP_TUNNEL |
 				      SKB_GSO_UDP_TUNNEL_CSUM |
+				      SKB_GSO_TUNNEL_REMCSUM |
 				      SKB_GSO_GRE |
 				      SKB_GSO_GRE_CSUM |
 				      SKB_GSO_IPIP |
