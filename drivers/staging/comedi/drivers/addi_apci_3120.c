@@ -242,6 +242,12 @@ static void apci3120_exttrig_enable(struct comedi_device *dev, bool enable)
 	outw(devpriv->ctrl, dev->iobase + APCI3120_CTRL_REG);
 }
 
+static void apci3120_ai_reset_fifo(struct comedi_device *dev)
+{
+	/* a dummy read of APCI3120_TIMER_MODE_REG resets the ai FIFO */
+	inw(dev->iobase + APCI3120_TIMER_MODE_REG);
+}
+
 #include "addi-data/hwdrv_apci3120.c"
 
 static void apci3120_dma_alloc(struct comedi_device *dev)

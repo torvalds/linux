@@ -84,8 +84,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_RD_STATUS		0x02
 #define APCI3120_RD_FIFO		0x00
 
-#define APCI3120_RESET_FIFO		0x0c
-
 /* nWrMode_Select */
 #define APCI3120_ENABLE_SCAN		0x8
 #define APCI3120_DISABLE_SCAN		(~APCI3120_ENABLE_SCAN)
@@ -261,11 +259,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 		switch (us_TmpValue) {
 
 		case APCI3120_EOC_MODE:
-
-			/*
-			 * Testing the interrupt flag and set the EOC bit Clears the FIFO
-			 */
-			inw(dev->iobase + APCI3120_RESET_FIFO);
+			apci3120_ai_reset_fifo(dev);
 
 			/*  Initialize the sequence array */
 			if (!apci3120_setup_chan_list(dev, s, 1,
@@ -321,16 +315,13 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 				us_TmpValue = inw(dev->iobase + 0);
 				*data = us_TmpValue;
 
-				inw(dev->iobase + APCI3120_RESET_FIFO);
+				apci3120_ai_reset_fifo(dev);
 			}
 
 			break;
 
 		case APCI3120_EOS_MODE:
-
-			inw(dev->iobase + 0);
-			/*  Clears the FIFO */
-			inw(dev->iobase + APCI3120_RESET_FIFO);
+			apci3120_ai_reset_fifo(dev);
 
 			if (!apci3120_setup_chan_list(dev, s,
 					devpriv->ui_AiNbrofChannels,
@@ -430,8 +421,7 @@ static int apci3120_reset(struct comedi_device *dev)
 	devpriv->ctrl = 0;
 	outw(devpriv->ctrl, dev->iobase + APCI3120_CTRL_REG);
 
-	inw(dev->iobase + 0);	/* make a dummy read */
-	inb(dev->iobase + APCI3120_RESET_FIFO);	/*  flush FIFO */
+	apci3120_ai_reset_fifo(dev);
 	inw(dev->iobase + APCI3120_RD_STATUS);	/*  flush A/D status register */
 
 	return 0;
@@ -461,8 +451,8 @@ static int apci3120_cancel(struct comedi_device *dev,
 	/* DISABLE_ALL_INTERRUPT */
 	outb(APCI3120_DISABLE_ALL_INTERRUPT,
 		dev->iobase + APCI3120_WRITE_MODE_SELECT);
-	/* Flush FIFO */
-	inb(dev->iobase + APCI3120_RESET_FIFO);
+
+	apci3120_ai_reset_fifo(dev);
 	inw(dev->iobase + APCI3120_RD_STATUS);
 	devpriv->ui_DmaActualBuffer = 0;
 
@@ -559,9 +549,6 @@ static int apci3120_cyclic_ai(int mode,
 	unsigned int dmalen1 = 0;
 	unsigned int divisor0;
 
-	/* Resets the FIFO */
-	inb(dev->iobase + APCI3120_RESET_FIFO);
-
 	devpriv->ai_running = 1;
 
 	/*  clear software  registers */
@@ -572,10 +559,7 @@ static int apci3120_cyclic_ai(int mode,
 	outl(APCI3120_CLEAR_WRITE_TC_INT,
 	     devpriv->amcc + APCI3120_AMCC_OP_REG_INTCSR);
 
-	/* Resets the FIFO */
-	/* BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver */
-	inb(dev->iobase + APCI3120_RESET_FIFO);
-	/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
+	apci3120_ai_reset_fifo(dev);
 
 	devpriv->ui_DmaActualBuffer = 0;
 
