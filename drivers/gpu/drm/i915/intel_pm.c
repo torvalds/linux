@@ -2286,6 +2286,7 @@ static void intel_read_wm_latency(struct drm_device *dev, uint16_t wm[8])
 	if (IS_GEN9(dev)) {
 		uint32_t val;
 		int ret;
+		int level, max_level = ilk_wm_max_level(dev);
 
 		/* read the first set of memory latencies[0:3] */
 		val = 0; /* data0 to be programmed to 0 for first set */
@@ -2327,6 +2328,21 @@ static void intel_read_wm_latency(struct drm_device *dev, uint16_t wm[8])
 				GEN9_MEM_LATENCY_LEVEL_MASK;
 		wm[7] = (val >> GEN9_MEM_LATENCY_LEVEL_3_7_SHIFT) &
 				GEN9_MEM_LATENCY_LEVEL_MASK;
+
+		/*
+		 * punit doesn't take into account the read latency so we need
+		 * to add 2us to the various latency levels we retrieve from
+		 * the punit.
+		 *   - W0 is a bit special in that it's the only level that
+		 *   can't be disabled if we want to have display working, so
+		 *   we always add 2us there.
+		 *   - For levels >=1, punit returns 0us latency when they are
+		 *   disabled, so we respect that and don't add 2us then
+		 */
+		wm[0] += 2;
+		for (level = 1; level <= max_level; level++)
+			if (wm[level] != 0)
+				wm[level] += 2;
 
 	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		uint64_t sskpd = I915_READ64(MCH_SSKPD);
