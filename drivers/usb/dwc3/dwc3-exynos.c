@@ -20,7 +20,6 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
-#include <linux/platform_data/dwc3-exynos.h>
 #include <linux/dma-mapping.h>
 #include <linux/clk.h>
 #include <linux/usb/otg.h>
@@ -205,13 +204,11 @@ static int dwc3_exynos_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id exynos_dwc3_match[] = {
 	{ .compatible = "samsung,exynos5250-dwusb3" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, exynos_dwc3_match);
-#endif
 
 #ifdef CONFIG_PM_SLEEP
 static int dwc3_exynos_suspend(struct device *dev)
@@ -266,7 +263,7 @@ static struct platform_driver dwc3_exynos_driver = {
 	.remove		= dwc3_exynos_remove,
 	.driver		= {
 		.name	= "exynos-dwc3",
-		.of_match_table = of_match_ptr(exynos_dwc3_match),
+		.of_match_table = exynos_dwc3_match,
 		.pm	= DEV_PM_OPS,
 	},
 };
