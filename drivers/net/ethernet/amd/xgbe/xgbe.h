@@ -142,6 +142,7 @@
 
 #define XGBE_RX_MIN_BUF_SIZE	(ETH_FRAME_LEN + ETH_FCS_LEN + VLAN_HLEN)
 #define XGBE_RX_BUF_ALIGN	64
+#define XGBE_SKB_ALLOC_SIZE	256
 
 #define XGBE_MAX_DMA_CHANNELS	16
 #define XGBE_MAX_QUEUES		16
@@ -240,6 +241,15 @@ struct xgbe_ring_desc {
 	u32 desc3;
 };
 
+/* Page allocation related values */
+struct xgbe_page_alloc {
+	struct page *pages;
+	unsigned int pages_len;
+	unsigned int pages_offset;
+
+	dma_addr_t pages_dma;
+};
+
 /* Structure used to hold information related to the descriptor
  * and the packet associated with the descriptor (always use
  * use the XGBE_GET_DESC_DATA macro to access this data from the ring)
@@ -252,6 +262,12 @@ struct xgbe_ring_data {
 	dma_addr_t skb_dma;		/* DMA address of SKB data */
 	unsigned int skb_dma_len;	/* Length of SKB DMA area */
 	unsigned int tso_header;        /* TSO header indicator */
+
+	struct xgbe_page_alloc rx_pa;	/* Rx buffer page allocation */
+	struct xgbe_page_alloc rx_unmap;
+
+	dma_addr_t rx_dma;		/* DMA address of Rx buffer */
+	unsigned int rx_dma_len;	/* Length of the Rx DMA buffer */
 
 	unsigned short len;		/* Length of received Rx packet */
 
@@ -290,6 +306,9 @@ struct xgbe_ring {
 	 * (always use the XGBE_GET_DESC_DATA macro to access this data)
 	 */
 	struct xgbe_ring_data *rdata;
+
+	/* Page allocation for RX buffers */
+	struct xgbe_page_alloc rx_pa;
 
 	/* Ring index values
 	 *  cur   - Tx: index of descriptor to be used for current transfer
@@ -515,8 +534,8 @@ struct xgbe_desc_if {
 	int (*alloc_ring_resources)(struct xgbe_prv_data *);
 	void (*free_ring_resources)(struct xgbe_prv_data *);
 	int (*map_tx_skb)(struct xgbe_channel *, struct sk_buff *);
-	void (*realloc_skb)(struct xgbe_channel *);
-	void (*unmap_skb)(struct xgbe_prv_data *, struct xgbe_ring_data *);
+	void (*realloc_rx_buffer)(struct xgbe_channel *);
+	void (*unmap_rdata)(struct xgbe_prv_data *, struct xgbe_ring_data *);
 	void (*wrapper_tx_desc_init)(struct xgbe_prv_data *);
 	void (*wrapper_rx_desc_init)(struct xgbe_prv_data *);
 };
@@ -624,7 +643,7 @@ struct xgbe_prv_data {
 	unsigned int rx_riwt;
 	unsigned int rx_frames;
 
-	/* Current MTU */
+	/* Current Rx buffer size */
 	unsigned int rx_buf_size;
 
 	/* Flow control settings */

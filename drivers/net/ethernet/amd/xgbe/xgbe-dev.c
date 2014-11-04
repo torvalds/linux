@@ -880,13 +880,15 @@ static void xgbe_tx_desc_reset(struct xgbe_ring_data *rdata)
 	rdesc->desc1 = 0;
 	rdesc->desc2 = 0;
 	rdesc->desc3 = 0;
+
+	/* Make sure ownership is written to the descriptor */
+	wmb();
 }
 
 static void xgbe_tx_desc_init(struct xgbe_channel *channel)
 {
 	struct xgbe_ring *ring = channel->tx_ring;
 	struct xgbe_ring_data *rdata;
-	struct xgbe_ring_desc *rdesc;
 	int i;
 	int start_index = ring->cur;
 
@@ -895,25 +897,10 @@ static void xgbe_tx_desc_init(struct xgbe_channel *channel)
 	/* Initialze all descriptors */
 	for (i = 0; i < ring->rdesc_count; i++) {
 		rdata = XGBE_GET_DESC_DATA(ring, i);
-		rdesc = rdata->rdesc;
 
-		/* Initialize Tx descriptor
-		 *   Set buffer 1 (lo) address to zero
-		 *   Set buffer 1 (hi) address to zero
-		 *   Reset all other control bits (IC, TTSE, B2L & B1L)
-		 *   Reset all other control bits (OWN, CTXT, FD, LD, CPC, CIC,
-		 *     etc)
-		 */
-		rdesc->desc0 = 0;
-		rdesc->desc1 = 0;
-		rdesc->desc2 = 0;
-		rdesc->desc3 = 0;
+		/* Initialize Tx descriptor */
+		xgbe_tx_desc_reset(rdata);
 	}
-
-	/* Make sure everything is written to the descriptor(s) before
-	 * telling the device about them
-	 */
-	wmb();
 
 	/* Update the total number of Tx descriptors */
 	XGMAC_DMA_IOWRITE(channel, DMA_CH_TDRLR, ring->rdesc_count - 1);
@@ -939,8 +926,8 @@ static void xgbe_rx_desc_reset(struct xgbe_ring_data *rdata)
 	 *   Set buffer 2 (hi) address to zero and set control bits
 	 *     OWN and INTE
 	 */
-	rdesc->desc0 = cpu_to_le32(lower_32_bits(rdata->skb_dma));
-	rdesc->desc1 = cpu_to_le32(upper_32_bits(rdata->skb_dma));
+	rdesc->desc0 = cpu_to_le32(lower_32_bits(rdata->rx_dma));
+	rdesc->desc1 = cpu_to_le32(upper_32_bits(rdata->rx_dma));
 	rdesc->desc2 = 0;
 
 	rdesc->desc3 = 0;
@@ -964,7 +951,6 @@ static void xgbe_rx_desc_init(struct xgbe_channel *channel)
 	struct xgbe_prv_data *pdata = channel->pdata;
 	struct xgbe_ring *ring = channel->rx_ring;
 	struct xgbe_ring_data *rdata;
-	struct xgbe_ring_desc *rdesc;
 	unsigned int start_index = ring->cur;
 	unsigned int rx_coalesce, rx_frames;
 	unsigned int i;
@@ -977,34 +963,16 @@ static void xgbe_rx_desc_init(struct xgbe_channel *channel)
 	/* Initialize all descriptors */
 	for (i = 0; i < ring->rdesc_count; i++) {
 		rdata = XGBE_GET_DESC_DATA(ring, i);
-		rdesc = rdata->rdesc;
 
-		/* Initialize Rx descriptor
-		 *   Set buffer 1 (lo) address to dma address (lo)
-		 *   Set buffer 1 (hi) address to dma address (hi)
-		 *   Set buffer 2 (lo) address to zero
-		 *   Set buffer 2 (hi) address to zero and set control
-		 *     bits OWN and INTE appropriateley
-		 */
-		rdesc->desc0 = cpu_to_le32(lower_32_bits(rdata->skb_dma));
-		rdesc->desc1 = cpu_to_le32(upper_32_bits(rdata->skb_dma));
-		rdesc->desc2 = 0;
-		rdesc->desc3 = 0;
-		XGMAC_SET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, OWN, 1);
-		XGMAC_SET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, INTE, 1);
-		rdata->interrupt = 1;
-		if (rx_coalesce && (!rx_frames || ((i + 1) % rx_frames))) {
-			/* Clear interrupt on completion bit */
-			XGMAC_SET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, INTE,
-					  0);
+		/* Set interrupt on completion bit as appropriate */
+		if (rx_coalesce && (!rx_frames || ((i + 1) % rx_frames)))
 			rdata->interrupt = 0;
-		}
-	}
+		else
+			rdata->interrupt = 1;
 
-	/* Make sure everything is written to the descriptors before
-	 * telling the device about them
-	 */
-	wmb();
+		/* Initialize Rx descriptor */
+		xgbe_rx_desc_reset(rdata);
+	}
 
 	/* Update the total number of Rx descriptors */
 	XGMAC_DMA_IOWRITE(channel, DMA_CH_RDRLR, ring->rdesc_count - 1);
