@@ -130,7 +130,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_DISABLE_TIMER_INT	(~APCI3120_ENABLE_TIMER_INT)
 #define APCI3120_WRITE_MODE_SELECT	0x0e
 
-#define APCI3120_TIMER_STATUS_REGISTER	0x0d
 #define APCI3120_RD_STATUS		0x02
 #define APCI3120_ENABLE_WATCHDOG	0x20
 #define APCI3120_DISABLE_WATCHDOG	(~APCI3120_ENABLE_WATCHDOG)
@@ -691,8 +690,8 @@ static int apci3120_cyclic_ai(int mode,
 			/* Set the scan stop count (not sure about the -2) */
 			apci3120_timer_write(dev, 2, cmd->stop_arg - 2);
 
-			/* (2) Reset FC_TIMER BIT  Clearing timer status register */
-			inb(dev->iobase + APCI3120_TIMER_STATUS_REGISTER);
+			apci3120_clr_timer2_interrupt(dev);
+
 			/*  enable timer counter and disable watch dog */
 			devpriv->b_ModeSelectRegister =
 				(devpriv->
@@ -1067,7 +1066,6 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 	unsigned short int_daq;
 	unsigned int int_amcc, ui_Check, i;
 	unsigned short us_TmpValue;
-	unsigned char b_DummyRead;
 
 	ui_Check = 1;
 
@@ -1087,8 +1085,8 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 		apci3120_exttrig_enable(dev, false);
 		devpriv->b_ExttrigEnable = APCI3120_DISABLE;
 	}
-	/* clear the timer 2 interrupt */
-	inb(dev->iobase + APCI3120_TIMER_STATUS_REGISTER);
+
+	apci3120_clr_timer2_interrupt(dev);
 
 	if (int_amcc & MASTER_ABORT_INT)
 		dev_err(dev->class_dev, "AMCC IRQ - MASTER DMA ABORT!\n");
@@ -1194,8 +1192,7 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 
 		}
 
-		b_DummyRead = inb(dev->iobase + APCI3120_TIMER_STATUS_REGISTER);
-
+		apci3120_clr_timer2_interrupt(dev);
 	}
 
 	if ((int_daq & 0x4) && (devpriv->b_InterruptMode == APCI3120_DMA_MODE)) {
@@ -1205,8 +1202,8 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 			outl(APCI3120_CLEAR_WRITE_TC_INT,
 			     devpriv->amcc + APCI3120_AMCC_OP_REG_INTCSR);
 
-			/* Clears the timer status register */
-			inw(dev->iobase + APCI3120_TIMER_STATUS_REGISTER);
+			apci3120_clr_timer2_interrupt(dev);
+
 			/* do some data transfer */
 			apci3120_interrupt_dma(irq, d);
 		} else {
@@ -1318,9 +1315,8 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 
 	switch (data[0]) {
 	case APCI3120_START:
+		apci3120_clr_timer2_interrupt(dev);
 
-		/*  Reset FC_TIMER BIT */
-		inb(dev->iobase + APCI3120_TIMER_STATUS_REGISTER);
 		if (devpriv->b_Timer2Mode == APCI3120_TIMER) {	/* start timer */
 			/* Enable Timer */
 			devpriv->b_ModeSelectRegister =
@@ -1382,9 +1378,7 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 
 		apci3120_timer_enable(dev, 2, false);
 
-		/*  Reset FC_TIMER BIT */
-		inb(dev->iobase + APCI3120_TIMER_STATUS_REGISTER);
-
+		apci3120_clr_timer2_interrupt(dev);
 		break;
 
 	case 2:		/* write new value to Timer */
@@ -1434,10 +1428,8 @@ static int apci3120_read_insn_timer(struct comedi_device *dev,
 		us_StatusValue = inw(dev->iobase + APCI3120_RD_STATUS);
 		us_StatusValue =
 			((us_StatusValue & APCI3120_FC_TIMER) >> 12) & 1;
-		if (us_StatusValue == 1) {
-			/*  RESET FC_TIMER BIT */
-			inb(dev->iobase + APCI3120_TIMER_STATUS_REGISTER);
-		}
+		if (us_StatusValue == 1)
+			apci3120_clr_timer2_interrupt(dev);
 		data[0] = us_StatusValue;	/*  when data[0] = 1 then the watch dog has rundown */
 	}
 	return insn->n;

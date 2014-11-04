@@ -155,6 +155,12 @@ static unsigned int apci3120_ns_to_timer(struct comedi_device *dev,
 	return divisor;
 }
 
+static void apci3120_clr_timer2_interrupt(struct comedi_device *dev)
+{
+	/* a dummy read of APCI3120_CTR0_REG clears the timer 2 interrupt */
+	inb(dev->iobase + APCI3120_CTR0_REG);
+}
+
 static void apci3120_timer_write(struct comedi_device *dev,
 				 unsigned int timer, unsigned int val)
 {
