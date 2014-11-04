@@ -3536,10 +3536,13 @@ static void skl_write_wm_values(struct drm_i915_private *dev_priv,
  * We need to sequence the re-allocation: C, B, A (and not B, C, A).
  */
 
-static void skl_wm_flush_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
+static void
+skl_wm_flush_pipe(struct drm_i915_private *dev_priv, enum pipe pipe, int pass)
 {
 	struct drm_device *dev = dev_priv->dev;
 	int plane;
+
+	DRM_DEBUG_KMS("flush pipe %c (pass %d)\n", pipe_name(pipe), pass);
 
 	for_each_plane(pipe, plane) {
 		I915_WRITE(PLANE_SURF(pipe, plane),
@@ -3591,7 +3594,7 @@ static void skl_flush_wm_values(struct drm_i915_private *dev_priv,
 		if (!skl_ddb_allocation_included(cur_ddb, new_ddb, pipe))
 			continue;
 
-		skl_wm_flush_pipe(dev_priv, pipe);
+		skl_wm_flush_pipe(dev_priv, pipe, 1);
 		intel_wait_for_vblank(dev, pipe);
 
 		reallocated[pipe] = true;
@@ -3616,7 +3619,7 @@ static void skl_flush_wm_values(struct drm_i915_private *dev_priv,
 
 		if (skl_ddb_entry_size(&new_ddb->pipe[pipe]) <
 		    skl_ddb_entry_size(&cur_ddb->pipe[pipe])) {
-			skl_wm_flush_pipe(dev_priv, pipe);
+			skl_wm_flush_pipe(dev_priv, pipe, 2);
 			intel_wait_for_vblank(dev, pipe);
 		}
 
@@ -3642,7 +3645,7 @@ static void skl_flush_wm_values(struct drm_i915_private *dev_priv,
 		if (reallocated[pipe])
 			continue;
 
-		skl_wm_flush_pipe(dev_priv, pipe);
+		skl_wm_flush_pipe(dev_priv, pipe, 3);
 	}
 }
 
