@@ -373,12 +373,10 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 {
 	struct apci3120_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int divisor1 = 0;
-	unsigned int divisor0;
+	unsigned int divisor;
 
-	/*  clear software  registers */
-	devpriv->timer_mode = 0;
 	devpriv->mode = 0;
+	outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 
 	/* Clear Timer Write TC int */
 	outl(APCI3120_CLEAR_WRITE_TC_INT,
@@ -391,12 +389,6 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 	/* load chanlist for command scan */
 	apci3120_set_chanlist(dev, s, cmd->chanlist_len, cmd->chanlist);
 
-	divisor0 = apci3120_ns_to_timer(dev, 0, cmd->convert_arg, cmd->flags);
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		divisor1 = apci3120_ns_to_timer(dev, 1, cmd->scan_begin_arg,
-						cmd->flags);
-	}
-
 	if (cmd->start_src == TRIG_EXT) {
 		devpriv->b_ExttrigEnable = 1;
 		apci3120_exttrig_enable(dev, true);
@@ -404,27 +396,24 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 		devpriv->b_ExttrigEnable = 0;
 	}
 
-	if (cmd->scan_begin_src == TRIG_FOLLOW) {
-		/*  init timer0 in mode 2 */
-		apci3120_timer_set_mode(dev, 0, APCI3120_TIMER_MODE2);
-
-		/* Set the conversion time */
-		apci3120_timer_write(dev, 0, divisor0);
-	} else {	/* TRIG_TIMER */
-		/*  init timer1 in mode 2 */
+	if (cmd->scan_begin_src == TRIG_TIMER) {
+		/*
+		 * Timer 1 is used in MODE2 (rate generator) to set the
+		 * start time for each scan.
+		 */
+		divisor = apci3120_ns_to_timer(dev, 1, cmd->scan_begin_arg,
+					       cmd->flags);
 		apci3120_timer_set_mode(dev, 1, APCI3120_TIMER_MODE2);
-
-		/* Set the scan begin time */
-		apci3120_timer_write(dev, 1, divisor1);
-
-		/*  init timer0 in mode 2 */
-		apci3120_timer_set_mode(dev, 0, APCI3120_TIMER_MODE2);
-
-		/* Set the conversion time */
-		apci3120_timer_write(dev, 0, divisor0);
+		apci3120_timer_write(dev, 1, divisor);
 	}
 
-	outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
+	/*
+	 * Timer 0 is used in MODE2 (rate generator) to set the conversion
+	 * time for each acquisition.
+	 */
+	divisor = apci3120_ns_to_timer(dev, 0, cmd->convert_arg, cmd->flags);
+	apci3120_timer_set_mode(dev, 0, APCI3120_TIMER_MODE2);
+	apci3120_timer_write(dev, 0, divisor);
 
 	if (devpriv->us_UseDma) {
 		devpriv->b_InterruptMode = APCI3120_DMA_MODE;
@@ -459,12 +448,9 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 		}
 	}
 
-	if (cmd->scan_begin_src == TRIG_FOLLOW) {
-		apci3120_timer_enable(dev, 0, true);
-	} else {	/* TRIG_TIMER */
+	if (cmd->scan_begin_src == TRIG_TIMER)
 		apci3120_timer_enable(dev, 1, true);
-		apci3120_timer_enable(dev, 0, true);
-	}
+	apci3120_timer_enable(dev, 0, true);
 
 	return 0;
 }
