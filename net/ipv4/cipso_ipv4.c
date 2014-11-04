@@ -72,6 +72,7 @@ struct cipso_v4_map_cache_bkt {
 	u32 size;
 	struct list_head list;
 };
+
 struct cipso_v4_map_cache_entry {
 	u32 hash;
 	unsigned char *key;
@@ -82,7 +83,8 @@ struct cipso_v4_map_cache_entry {
 	u32 activity;
 	struct list_head list;
 };
-static struct cipso_v4_map_cache_bkt *cipso_v4_cache = NULL;
+
+static struct cipso_v4_map_cache_bkt *cipso_v4_cache;
 
 /* Restricted bitmap (tag #1) flags */
 int cipso_v4_rbm_optfmt = 0;
