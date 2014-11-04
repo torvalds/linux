@@ -23,37 +23,30 @@
  */
 
 #include <subdev/bios.h>
-#include <subdev/bios/bit.h>
+#include <subdev/bios/M0203.h>
 
 #include "priv.h"
 
 int
 nouveau_fb_bios_memtype(struct nouveau_bios *bios)
 {
-	struct bit_entry M;
-	u8 ramcfg;
+	const u8 ramcfg = (nv_rd32(bios, 0x101000) & 0x0000003c) >> 2;
+	struct nvbios_M0203E M0203E;
+	u8 ver, hdr;
 
-	ramcfg = (nv_rd32(bios, 0x101000) & 0x0000003c) >> 2;
-	if (!bit_entry(bios, 'M', &M) && M.version == 2 && M.length >= 5) {
-		u16 table   = nv_ro16(bios, M.offset + 3);
-		u8  version = nv_ro08(bios, table + 0);
-		u8  header  = nv_ro08(bios, table + 1);
-		u8  record  = nv_ro08(bios, table + 2);
-		u8  entries = nv_ro08(bios, table + 3);
-		if (table && version == 0x10 && ramcfg < entries) {
-			u16 entry = table + header + (ramcfg * record);
-			switch (nv_ro08(bios, entry) & 0x0f) {
-			case 0: return NV_MEM_TYPE_DDR2;
-			case 1: return NV_MEM_TYPE_DDR3;
-			case 2: return NV_MEM_TYPE_GDDR3;
-			case 3: return NV_MEM_TYPE_GDDR5;
-			default:
-				break;
-			}
-
+	if (nvbios_M0203Em(bios, ramcfg, &ver, &hdr, &M0203E)) {
+		switch (M0203E.type) {
+		case M0203E_TYPE_DDR2 : return NV_MEM_TYPE_DDR2;
+		case M0203E_TYPE_DDR3 : return NV_MEM_TYPE_DDR3;
+		case M0203E_TYPE_GDDR3: return NV_MEM_TYPE_GDDR3;
+		case M0203E_TYPE_GDDR5: return NV_MEM_TYPE_GDDR5;
+		default:
+			nv_warn(bios, "M0203E type %02x\n", M0203E.type);
+			return NV_MEM_TYPE_UNKNOWN;
 		}
 	}
 
+	nv_warn(bios, "M0203E not matched!\n");
 	return NV_MEM_TYPE_UNKNOWN;
 }
 
