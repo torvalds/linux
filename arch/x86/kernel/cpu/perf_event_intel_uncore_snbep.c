@@ -486,13 +486,16 @@ static struct attribute_group snbep_uncore_qpi_format_group = {
 	.attrs = snbep_uncore_qpi_formats_attr,
 };
 
-#define SNBEP_UNCORE_MSR_OPS_COMMON_INIT()			\
-	.init_box	= snbep_uncore_msr_init_box,		\
+#define __SNBEP_UNCORE_MSR_OPS_COMMON_INIT()			\
 	.disable_box	= snbep_uncore_msr_disable_box,		\
 	.enable_box	= snbep_uncore_msr_enable_box,		\
 	.disable_event	= snbep_uncore_msr_disable_event,	\
 	.enable_event	= snbep_uncore_msr_enable_event,	\
 	.read_counter	= uncore_msr_read_counter
+
+#define SNBEP_UNCORE_MSR_OPS_COMMON_INIT()			\
+	__SNBEP_UNCORE_MSR_OPS_COMMON_INIT(),			\
+	.init_box	= snbep_uncore_msr_init_box		\
 
 static struct intel_uncore_ops snbep_uncore_msr_ops = {
 	SNBEP_UNCORE_MSR_OPS_COMMON_INIT(),
@@ -1919,6 +1922,30 @@ static struct intel_uncore_type hswep_uncore_cbox = {
 	.format_group		= &hswep_uncore_cbox_format_group,
 };
 
+/*
+ * Write SBOX Initialization register bit by bit to avoid spurious #GPs
+ */
+static void hswep_uncore_sbox_msr_init_box(struct intel_uncore_box *box)
+{
+	unsigned msr = uncore_msr_box_ctl(box);
+
+	if (msr) {
+		u64 init = SNBEP_PMON_BOX_CTL_INT;
+		u64 flags = 0;
+		int i;
+
+		for_each_set_bit(i, (unsigned long *)&init, 64) {
+			flags |= (1ULL << i);
+			wrmsrl(msr, flags);
+		}
+	}
+}
+
+static struct intel_uncore_ops hswep_uncore_sbox_msr_ops = {
+	__SNBEP_UNCORE_MSR_OPS_COMMON_INIT(),
+	.init_box		= hswep_uncore_sbox_msr_init_box
+};
+
 static struct attribute *hswep_uncore_sbox_formats_attr[] = {
 	&format_attr_event.attr,
 	&format_attr_umask.attr,
@@ -1944,7 +1971,7 @@ static struct intel_uncore_type hswep_uncore_sbox = {
 	.event_mask		= HSWEP_S_MSR_PMON_RAW_EVENT_MASK,
 	.box_ctl		= HSWEP_S0_MSR_PMON_BOX_CTL,
 	.msr_offset		= HSWEP_SBOX_MSR_OFFSET,
-	.ops			= &snbep_uncore_msr_ops,
+	.ops			= &hswep_uncore_sbox_msr_ops,
 	.format_group		= &hswep_uncore_sbox_format_group,
 };
 
