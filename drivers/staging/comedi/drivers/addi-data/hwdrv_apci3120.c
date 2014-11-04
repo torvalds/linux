@@ -108,7 +108,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_TIMER_DISABLE		0
 #define APCI3120_TIMER_ENABLE		1
 #define APCI3120_ENABLE_TIMER_INT	0x04
-#define APCI3120_DISABLE_TIMER_INT	(~APCI3120_ENABLE_TIMER_INT)
 #define APCI3120_WRITE_MODE_SELECT	0x0e
 
 #define APCI3120_RD_STATUS		0x02
@@ -1037,7 +1036,7 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 		default:
 
 			/*  disable Timer Interrupt */
-			devpriv->mode &= APCI3120_DISABLE_TIMER_INT;
+			devpriv->mode &= ~APCI3120_ENABLE_TIMER_INT;
 			outb(devpriv->mode,
 			     dev->iobase + APCI3120_WRITE_MODE_SELECT);
 		}
@@ -1093,7 +1092,7 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 	apci3120_timer_enable(dev, 2, false);
 
 	/*  Disable TIMER Interrupt */
-	devpriv->mode &= APCI3120_DISABLE_TIMER_INT &
+	devpriv->mode &= ~APCI3120_ENABLE_TIMER_INT &
 			 ~APCI3120_ENABLE_TIMER_COUNTER;
 
 	/*  Disable Eoc and Eos Interrupts */
@@ -1179,7 +1178,7 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 			/*  save the task structure to pass info to user */
 			devpriv->tsk_Current = current;
 		} else {
-			devpriv->mode &= APCI3120_DISABLE_TIMER_INT;
+			devpriv->mode &= ~APCI3120_ENABLE_TIMER_INT;
 		}
 		outb(devpriv->mode, dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
@@ -1197,7 +1196,7 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 			devpriv->mode &= ~APCI3120_ENABLE_WATCHDOG;
 		}
 		/*  Disable timer interrupt */
-		devpriv->mode &= APCI3120_DISABLE_TIMER_INT;
+		devpriv->mode &= ~APCI3120_ENABLE_TIMER_INT;
 		outb(devpriv->mode, dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
 		apci3120_timer_enable(dev, 2, false);
