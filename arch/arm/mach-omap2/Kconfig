@@ -235,12 +235,6 @@ config MACH_TOUCHBOOK
 	default y
 	select OMAP_PACKAGE_CBB
 
-config MACH_OMAP_3430SDP
-	bool "OMAP 3430 SDP board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBB
-
 config MACH_NOKIA_N810
        bool
 
