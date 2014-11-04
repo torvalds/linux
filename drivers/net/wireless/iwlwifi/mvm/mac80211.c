@@ -254,6 +254,26 @@ static void iwl_mvm_unref_all_except(struct iwl_mvm *mvm,
 	spin_unlock_bh(&mvm->refs_lock);
 }
 
+bool iwl_mvm_ref_taken(struct iwl_mvm *mvm)
+{
+	int i;
+	bool taken = false;
+
+	if (!iwl_mvm_is_d0i3_supported(mvm))
+		return true;
+
+	spin_lock_bh(&mvm->refs_lock);
+	for (i = 0; i < IWL_MVM_REF_COUNT; i++) {
+		if (mvm->refs[i]) {
+			taken = true;
+			break;
+		}
+	}
+	spin_unlock_bh(&mvm->refs_lock);
+
+	return taken;
+}
+
 int iwl_mvm_ref_sync(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref_type)
 {
 	iwl_mvm_ref(mvm, ref_type);

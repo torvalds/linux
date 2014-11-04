@@ -1041,6 +1041,18 @@ static int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 	set_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status);
 	synchronize_net();
 
+	/*
+	 * iwl_mvm_ref_sync takes a reference before checking the flag.
+	 * so by checking there is no held reference we prevent a state
+	 * in which iwl_mvm_ref_sync continues successfully while we
+	 * configure the firmware to enter d0i3
+	 */
+	if (iwl_mvm_ref_taken(mvm)) {
+		IWL_DEBUG_RPM(mvm->trans, "abort d0i3 due to taken ref\n");
+		clear_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status);
+		return 1;
+	}
+
 	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
 						   IEEE80211_IFACE_ITER_NORMAL,
 						   iwl_mvm_enter_d0i3_iterator,
