@@ -195,7 +195,6 @@ static int apci3120_reset(struct comedi_device *dev)
 {
 	struct apci3120_private *devpriv = dev->private;
 
-	devpriv->ai_running = 0;
 	devpriv->b_InterruptMode = APCI3120_EOC_MODE;
 
 	/*  variables used in timer subdevice */
@@ -246,7 +245,6 @@ static int apci3120_cancel(struct comedi_device *dev,
 	inw(dev->iobase + APCI3120_STATUS_REG);
 	devpriv->ui_DmaActualBuffer = 0;
 
-	devpriv->ai_running = 0;
 	devpriv->b_InterruptMode = APCI3120_EOC_MODE;
 
 	return 0;
@@ -337,8 +335,6 @@ static int apci3120_cyclic_ai(int mode,
 	unsigned int dmalen0 = 0;
 	unsigned int dmalen1 = 0;
 	unsigned int divisor0;
-
-	devpriv->ai_running = 1;
 
 	/*  clear software  registers */
 	devpriv->timer_mode = 0;
@@ -775,18 +771,16 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 
 	if ((status & APCI3120_STATUS_EOS_INT) &&
 	    devpriv->b_InterruptMode == APCI3120_EOS_MODE) {
-		if (devpriv->ai_running) {
-			unsigned short val;
-			int i;
+		unsigned short val;
+		int i;
 
-			for (i = 0; i < cmd->chanlist_len; i++) {
-				val = inw(dev->iobase + 0);
-				comedi_buf_write_samples(s, &val, 1);
-			}
-
-			devpriv->mode |= APCI3120_MODE_EOS_IRQ_ENA;
-			outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
+		for (i = 0; i < cmd->chanlist_len; i++) {
+			val = inw(dev->iobase + 0);
+			comedi_buf_write_samples(s, &val, 1);
 		}
+
+		devpriv->mode |= APCI3120_MODE_EOS_IRQ_ENA;
+		outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 	}
 
 	if (status & APCI3120_STATUS_TIMER2_INT) {
@@ -821,21 +815,14 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 
 	if ((status & APCI3120_STATUS_AMCC_INT) &&
 	    devpriv->b_InterruptMode == APCI3120_DMA_MODE) {
-		if (devpriv->ai_running) {
+		/* Clear Timer Write TC int */
+		outl(APCI3120_CLEAR_WRITE_TC_INT,
+			devpriv->amcc + APCI3120_AMCC_OP_REG_INTCSR);
 
-			/* Clear Timer Write TC int */
-			outl(APCI3120_CLEAR_WRITE_TC_INT,
-			     devpriv->amcc + APCI3120_AMCC_OP_REG_INTCSR);
+		apci3120_clr_timer2_interrupt(dev);
 
-			apci3120_clr_timer2_interrupt(dev);
-
-			/* do some data transfer */
-			apci3120_interrupt_dma(irq, d);
-		} else {
-			apci3120_timer_enable(dev, 0, false);
-			apci3120_timer_enable(dev, 1, false);
-		}
-
+		/* do some data transfer */
+		apci3120_interrupt_dma(irq, d);
 	}
 	comedi_handle_events(dev, s);
 
