@@ -119,6 +119,8 @@ void __init prom_init_env(void)
 	}
 
 	loongson_sysconf.nr_cpus = ecpu->nr_cpus;
+	loongson_sysconf.boot_cpu_id = ecpu->cpu_startup_core_id;
+	loongson_sysconf.reserved_cpus_mask = ecpu->reserved_cores_mask;
 	if (ecpu->nr_cpus > NR_CPUS || ecpu->nr_cpus == 0)
 		loongson_sysconf.nr_cpus = NR_CPUS;
 	loongson_sysconf.nr_nodes = (loongson_sysconf.nr_cpus +

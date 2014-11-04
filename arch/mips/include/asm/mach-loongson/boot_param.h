@@ -42,7 +42,8 @@ struct efi_cpuinfo_loongson {
 	u32 processor_id; /* PRID, e.g. 6305, 6306 */
 	u32 cputype;  /* Loongson_3A/3B, etc. */
 	u32 total_node;   /* num of total numa nodes */
-	u32 cpu_startup_core_id; /* Core id */
+	u16 cpu_startup_core_id; /* Boot core id */
+	u16 reserved_cores_mask;
 	u32 cpu_clock_freq; /* cpu_clock */
 	u32 nr_cpus;
 } __packed;
@@ -149,6 +150,8 @@ struct loongson_system_configuration {
 	u32 nr_nodes;
 	int cores_per_node;
 	int cores_per_package;
+	u16 boot_cpu_id;
+	u16 reserved_cpus_mask;
 	enum loongson_cpu_type cputype;
 	u64 ht_control_base;
 	u64 pci_mem_start_addr;
