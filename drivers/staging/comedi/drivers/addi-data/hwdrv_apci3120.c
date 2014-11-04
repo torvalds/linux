@@ -89,7 +89,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_DISABLE_SCAN		(~APCI3120_ENABLE_SCAN)
 #define APCI3120_ENABLE_EOS_INT		0x2
 
-#define APCI3120_DISABLE_EOS_INT	(~APCI3120_ENABLE_EOS_INT)
 #define APCI3120_ENABLE_EOC_INT		0x1
 
 /* status register bits */
@@ -1000,7 +999,7 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 			}
 
 		} else {
-			devpriv->mode &= APCI3120_DISABLE_EOS_INT;
+			devpriv->mode &= ~APCI3120_ENABLE_EOS_INT;
 			outb(devpriv->mode,
 			     dev->iobase + APCI3120_WRITE_MODE_SELECT);
 			devpriv->b_EocEosInterrupt = APCI3120_DISABLE;	/* Default settings */
@@ -1013,7 +1012,7 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 
 		switch (devpriv->b_Timer2Mode) {
 		case APCI3120_COUNTER:
-			devpriv->mode &= APCI3120_DISABLE_EOS_INT;
+			devpriv->mode &= ~APCI3120_ENABLE_EOS_INT;
 			outb(devpriv->mode,
 			     dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
@@ -1095,7 +1094,7 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 			 ~APCI3120_ENABLE_TIMER_COUNTER;
 
 	/*  Disable Eoc and Eos Interrupts */
-	devpriv->mode &= ~APCI3120_ENABLE_EOC_INT & APCI3120_DISABLE_EOS_INT;
+	devpriv->mode &= ~APCI3120_ENABLE_EOC_INT & ~APCI3120_ENABLE_EOS_INT;
 	outb(devpriv->mode, dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
 	if (data[0] == APCI3120_TIMER) {	/* initialize timer */
