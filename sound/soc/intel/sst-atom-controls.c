@@ -1351,7 +1351,7 @@ static int sst_map_modules_to_pipe(struct snd_soc_platform *platform)
 	int ret = 0;
 
 	list_for_each_entry(w, &platform->component.card->widgets, list) {
-		if (platform && is_sst_dapm_widget(w) && (w->priv)) {
+		if (is_sst_dapm_widget(w) && (w->priv)) {
 			struct sst_ids *ids = w->priv;
 
 			dev_dbg(platform->dev, "widget type=%d name=%s\n",
