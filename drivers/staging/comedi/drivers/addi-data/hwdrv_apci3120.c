@@ -1095,7 +1095,8 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 	apci3120_timer_enable(dev, 2, false);
 
 	/*  Disable TIMER Interrupt */
-	devpriv->mode &= APCI3120_DISABLE_TIMER_INT & 0xef;
+	devpriv->mode &= APCI3120_DISABLE_TIMER_INT &
+			 APCI3120_DISABLE_TIMER_COUNTER;
 
 	/*  Disable Eoc and Eos Interrupts */
 	devpriv->mode &= APCI3120_DISABLE_EOC_INT & APCI3120_DISABLE_EOS_INT;
