@@ -23,7 +23,6 @@
 
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/sched.h>
 #include <linux/interrupt.h>
 
 #include "../comedidev.h"
