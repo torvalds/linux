@@ -37,14 +37,4 @@ config STMMAC_PCI
 	  D1215994A VIRTEX FPGA board.
 
 	  If unsure, say N.
-
-config STMMAC_DA
-	bool "STMMAC DMA arbitration scheme"
-	default n
-	---help---
-	  Selecting this option, rx has priority over Tx (only for Giga
-	  Ethernet device).
-	  By default, the DMA arbitration scheme is based on Round-robin
-	  (rx:tx priority is 1:1).
-
 endif
