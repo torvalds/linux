@@ -558,7 +558,7 @@ static int vidi_bind(struct device *dev, struct device *master, void *data)
 
 	vidi_mgr_initialize(&ctx->manager, drm_dev);
 
-	ret = exynos_drm_crtc_create(&ctx->manager);
+	ret = exynos_drm_crtc_create(&ctx->manager, ctx->pipe);
 	if (ret) {
 		DRM_ERROR("failed to create crtc.\n");
 		return ret;

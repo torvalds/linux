@@ -1261,7 +1261,7 @@ static int mixer_bind(struct device *dev, struct device *manager, void *data)
 	if (ret)
 		return ret;
 
-	ret = exynos_drm_crtc_create(&ctx->manager);
+	ret = exynos_drm_crtc_create(&ctx->manager, ctx->pipe);
 	if (ret) {
 		mixer_mgr_remove(&ctx->manager);
 		return ret;

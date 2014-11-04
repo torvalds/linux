@@ -299,7 +299,7 @@ static void exynos_drm_crtc_attach_mode_property(struct drm_crtc *crtc)
 	drm_object_attach_property(&crtc->base, prop, 0);
 }
 
-int exynos_drm_crtc_create(struct exynos_drm_manager *manager)
+int exynos_drm_crtc_create(struct exynos_drm_manager *manager, int pipe)
 {
 	struct exynos_drm_crtc *exynos_crtc;
 	struct drm_plane *plane;
@@ -316,8 +316,8 @@ int exynos_drm_crtc_create(struct exynos_drm_manager *manager)
 
 	exynos_crtc->dpms = DRM_MODE_DPMS_OFF;
 	exynos_crtc->manager = manager;
-	exynos_crtc->pipe = manager->pipe;
-	plane = exynos_plane_init(manager->drm_dev, 1 << manager->pipe,
+	exynos_crtc->pipe = pipe;
+	plane = exynos_plane_init(manager->drm_dev, 1 << pipe,
 				  DRM_PLANE_TYPE_PRIMARY);
 	if (IS_ERR(plane)) {
 		ret = PTR_ERR(plane);
@@ -327,7 +327,7 @@ int exynos_drm_crtc_create(struct exynos_drm_manager *manager)
 	manager->crtc = &exynos_crtc->base;
 	crtc = &exynos_crtc->base;
 
-	private->crtc[manager->pipe] = crtc;
+	private->crtc[pipe] = crtc;
 
 	ret = drm_crtc_init_with_planes(manager->drm_dev, crtc, plane, NULL,
 					&exynos_crtc_funcs);
