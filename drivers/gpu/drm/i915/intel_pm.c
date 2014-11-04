@@ -2271,11 +2271,56 @@ hsw_compute_linetime_wm(struct drm_device *dev, struct drm_crtc *crtc)
 	       PIPE_WM_LINETIME_TIME(linetime);
 }
 
-static void intel_read_wm_latency(struct drm_device *dev, uint16_t wm[5])
+static void intel_read_wm_latency(struct drm_device *dev, uint16_t wm[8])
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
+	if (IS_GEN9(dev)) {
+		uint32_t val;
+		int ret;
+
+		/* read the first set of memory latencies[0:3] */
+		val = 0; /* data0 to be programmed to 0 for first set */
+		mutex_lock(&dev_priv->rps.hw_lock);
+		ret = sandybridge_pcode_read(dev_priv,
+					     GEN9_PCODE_READ_MEM_LATENCY,
+					     &val);
+		mutex_unlock(&dev_priv->rps.hw_lock);
+
+		if (ret) {
+			DRM_ERROR("SKL Mailbox read error = %d\n", ret);
+			return;
+		}
+
+		wm[0] = val & GEN9_MEM_LATENCY_LEVEL_MASK;
+		wm[1] = (val >> GEN9_MEM_LATENCY_LEVEL_1_5_SHIFT) &
+				GEN9_MEM_LATENCY_LEVEL_MASK;
+		wm[2] = (val >> GEN9_MEM_LATENCY_LEVEL_2_6_SHIFT) &
+				GEN9_MEM_LATENCY_LEVEL_MASK;
+		wm[3] = (val >> GEN9_MEM_LATENCY_LEVEL_3_7_SHIFT) &
+				GEN9_MEM_LATENCY_LEVEL_MASK;
+
+		/* read the second set of memory latencies[4:7] */
+		val = 1; /* data0 to be programmed to 1 for second set */
+		mutex_lock(&dev_priv->rps.hw_lock);
+		ret = sandybridge_pcode_read(dev_priv,
+					     GEN9_PCODE_READ_MEM_LATENCY,
+					     &val);
+		mutex_unlock(&dev_priv->rps.hw_lock);
+		if (ret) {
+			DRM_ERROR("SKL Mailbox read error = %d\n", ret);
+			return;
+		}
+
+		wm[4] = val & GEN9_MEM_LATENCY_LEVEL_MASK;
+		wm[5] = (val >> GEN9_MEM_LATENCY_LEVEL_1_5_SHIFT) &
+				GEN9_MEM_LATENCY_LEVEL_MASK;
+		wm[6] = (val >> GEN9_MEM_LATENCY_LEVEL_2_6_SHIFT) &
+				GEN9_MEM_LATENCY_LEVEL_MASK;
+		wm[7] = (val >> GEN9_MEM_LATENCY_LEVEL_3_7_SHIFT) &
+				GEN9_MEM_LATENCY_LEVEL_MASK;
+
+	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		uint64_t sskpd = I915_READ64(MCH_SSKPD);
 
 		wm[0] = (sskpd >> 56) & 0xFF;
@@ -2323,7 +2368,9 @@ static void intel_fixup_cur_wm_latency(struct drm_device *dev, uint16_t wm[5])
 int ilk_wm_max_level(const struct drm_device *dev)
 {
 	/* how many WM levels are we expecting */
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+	if (IS_GEN9(dev))
+		return 7;
+	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		return 4;
 	else if (INTEL_INFO(dev)->gen >= 6)
 		return 3;
@@ -2333,7 +2380,7 @@ int ilk_wm_max_level(const struct drm_device *dev)
 
 static void intel_print_wm_latency(struct drm_device *dev,
 				   const char *name,
-				   const uint16_t wm[5])
+				   const uint16_t wm[8])
 {
 	int level, max_level = ilk_wm_max_level(dev);
 
@@ -2346,8 +2393,13 @@ static void intel_print_wm_latency(struct drm_device *dev,
 			continue;
 		}
 
-		/* WM1+ latency values in 0.5us units */
-		if (level > 0)
+		/*
+		 * - latencies are in us on gen9.
+		 * - before then, WM1+ latency values are in 0.5us units
+		 */
+		if (IS_GEN9(dev))
+			latency *= 10;
+		else if (level > 0)
 			latency *= 5;
 
 		DRM_DEBUG_KMS("%s WM%d latency %u (%u.%u usec)\n",
@@ -2413,6 +2465,14 @@ static void ilk_setup_wm_latency(struct drm_device *dev)
 
 	if (IS_GEN6(dev))
 		snb_wm_latency_quirk(dev);
+}
+
+static void skl_setup_wm_latency(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	intel_read_wm_latency(dev, dev_priv->wm.skl_latency);
+	intel_print_wm_latency(dev, "Gen9 Plane", dev_priv->wm.skl_latency);
 }
 
 static void ilk_compute_wm_parameters(struct drm_crtc *crtc,
@@ -6127,6 +6187,8 @@ void intel_init_pm(struct drm_device *dev)
 
 	/* For FIFO watermark updates */
 	if (IS_GEN9(dev)) {
+		skl_setup_wm_latency(dev);
+
 		dev_priv->display.init_clock_gating = gen9_init_clock_gating;
 	} else if (HAS_PCH_SPLIT(dev)) {
 		ilk_setup_wm_latency(dev);
@@ -6219,6 +6281,8 @@ int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u8 mbox, u32 *val)
 	}
 
 	I915_WRITE(GEN6_PCODE_DATA, *val);
+	if (INTEL_INFO(dev_priv)->gen >= 9)
+		I915_WRITE(GEN9_PCODE_DATA1, 0);
 	I915_WRITE(GEN6_PCODE_MAILBOX, GEN6_PCODE_READY | mbox);
 
 	if (wait_for((I915_READ(GEN6_PCODE_MAILBOX) & GEN6_PCODE_READY) == 0,

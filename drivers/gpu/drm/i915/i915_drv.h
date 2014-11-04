@@ -1678,6 +1678,12 @@ struct drm_i915_private {
 		uint16_t spr_latency[5];
 		/* cursor */
 		uint16_t cur_latency[5];
+		/*
+		 * Raw watermark memory latency values
+		 * for SKL for all 8 levels
+		 * in 1us units.
+		 */
+		uint16_t skl_latency[8];
 
 		/* current hardware state */
 		struct ilk_wm_values hw;
