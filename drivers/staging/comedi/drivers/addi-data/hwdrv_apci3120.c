@@ -71,11 +71,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 /* for transfer count enable bit */
 #define AGCSTS_TC_ENABLE	0x10000000
 
-/* used for test on mixture of BIP/UNI ranges */
-#define APCI3120_BIPOLAR_RANGES		4
-
-#define APCI3120_ADDRESS_RANGE		16
-
 #define APCI3120_DISABLE		0
 #define APCI3120_ENABLE			1
 
@@ -89,14 +84,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_RD_STATUS		0x02
 #define APCI3120_RD_FIFO		0x00
 
-/* ANALOG OUTPUT AND INPUT DEFINE */
-#define APCI3120_UNIPOLAR		0x80
-#define APCI3120_BIPOLAR		0x00
-#define APCI3120_1_GAIN			0x00
-#define APCI3120_2_GAIN			0x10
-#define APCI3120_5_GAIN			0x20
-#define APCI3120_10_GAIN		0x30
-#define APCI3120_SEQ_RAM_ADDRESS	0x06
 #define APCI3120_RESET_FIFO		0x0c
 
 /* nWrMode_Select */
@@ -214,9 +201,7 @@ static int apci3120_setup_chan_list(struct comedi_device *dev,
 				    char check)
 {
 	struct apci3120_private *devpriv = dev->private;
-	unsigned int i;
-	unsigned int gain;
-	unsigned short us_TmpValue;
+	int i;
 
 	/* correct channel and range number check itself comedi/range.c */
 	if (n_chan < 1) {
@@ -233,19 +218,20 @@ static int apci3120_setup_chan_list(struct comedi_device *dev,
 	devpriv->ctrl = APCI3120_CTRL_PR(n_chan - 1) | APCI3120_CTRL_PA(0);
 	outw(devpriv->ctrl, dev->iobase + APCI3120_CTRL_REG);
 
+	/* set chanlist for scan */
 	for (i = 0; i < n_chan; i++) {
-		/*  store range list to card */
-		us_TmpValue = CR_CHAN(chanlist[i]);	/*  get channel number */
+		unsigned int chan = CR_CHAN(chanlist[i]);
+		unsigned int range = CR_RANGE(chanlist[i]);
+		unsigned int val;
 
-		if (CR_RANGE(chanlist[i]) < APCI3120_BIPOLAR_RANGES)
-			us_TmpValue &= ((~APCI3120_UNIPOLAR) & 0xff);	/*  set bipolar */
-		else
-			us_TmpValue |= APCI3120_UNIPOLAR;	/*  enable unipolar */
+		val = APCI3120_CHANLIST_MUX(chan) |
+		      APCI3120_CHANLIST_GAIN(range) |
+		      APCI3120_CHANLIST_INDEX(i);
 
-		gain = CR_RANGE(chanlist[i]);	/*  get gain number */
-		us_TmpValue |= ((gain & 0x03) << 4);	/* <<4 for G0 and G1 bit in RAM */
-		us_TmpValue |= i << 8;	/* To select the RAM LOCATION */
-		outw(us_TmpValue, dev->iobase + APCI3120_SEQ_RAM_ADDRESS);
+		if (comedi_range_is_unipolar(s, range))
+			val |= APCI3120_CHANLIST_UNIPOLAR;
+
+		outw(val, dev->iobase + APCI3120_CHANLIST_REG);
 	}
 	return 1;		/*  we can serve this with scan logic */
 }

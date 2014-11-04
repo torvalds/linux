@@ -22,6 +22,11 @@
 #define APCI3120_CTRL_PA(x)			(((x) & 0xf) << 0)
 #define APCI3120_STATUS_TO_VERSION(x)		(((x) >> 4) & 0xf)
 #define APCI3120_TIMER_REG			0x04
+#define APCI3120_CHANLIST_REG			0x06
+#define APCI3120_CHANLIST_INDEX(x)		(((x) & 0xf) << 8)
+#define APCI3120_CHANLIST_UNIPOLAR		(1 << 7)
+#define APCI3120_CHANLIST_GAIN(x)		(((x) & 0x3) << 4)
+#define APCI3120_CHANLIST_MUX(x)		(((x) & 0xf) << 0)
 #define APCI3120_AO_REG(x)			(0x08 + (((x) / 4) * 2))
 #define APCI3120_AO_MUX(x)			(((x) & 0x3) << 14)
 #define APCI3120_AO_DATA(x)			((x) << 0)
