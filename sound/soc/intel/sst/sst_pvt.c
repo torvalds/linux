@@ -433,6 +433,7 @@ u32 relocate_imr_addr_mrfld(u32 base_addr)
 	base_addr = MRFLD_FW_VIRTUAL_BASE + (base_addr % (512 * 1024 * 1024));
 	return base_addr;
 }
+EXPORT_SYMBOL_GPL(relocate_imr_addr_mrfld);
 
 void sst_add_to_dispatch_list_and_post(struct intel_sst_drv *sst,
 						struct ipc_post *msg)

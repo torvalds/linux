@@ -40,6 +40,7 @@
 #define MRFLD_FW_FEATURE_BASE_OFFSET 0x4
 #define MRFLD_FW_BSS_RESET_BIT 0
 
+extern const struct dev_pm_ops intel_sst_pm;
 enum sst_states {
 	SST_FW_LOADING = 1,
 	SST_FW_RUNNING,
@@ -537,4 +538,9 @@ void sst_fill_header_dsp(struct ipc_dsp_hdr *dsp, int msg,
 int sst_register(struct device *);
 int sst_unregister(struct device *);
 
+int sst_alloc_drv_context(struct intel_sst_drv **ctx,
+		struct device *dev, unsigned int dev_id);
+int sst_context_init(struct intel_sst_drv *ctx);
+void sst_context_cleanup(struct intel_sst_drv *ctx);
+void sst_configure_runtime_pm(struct intel_sst_drv *ctx);
 #endif
