@@ -3051,6 +3051,32 @@ static unsigned int skl_cursor_allocation(const struct intel_wm_config *config)
 	return 8;
 }
 
+static void skl_ddb_entry_init_from_hw(struct skl_ddb_entry *entry, u32 reg)
+{
+	entry->start = reg & 0x3ff;
+	entry->end = (reg >> 16) & 0x3ff;
+}
+
+static void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
+				 struct skl_ddb_allocation *ddb /* out */)
+{
+	struct drm_device *dev = dev_priv->dev;
+	enum pipe pipe;
+	int plane;
+	u32 val;
+
+	for_each_pipe(dev_priv, pipe) {
+		for_each_plane(pipe, plane) {
+			val = I915_READ(PLANE_BUF_CFG(pipe, plane));
+			skl_ddb_entry_init_from_hw(&ddb->plane[pipe][plane],
+						   val);
+		}
+
+		val = I915_READ(CUR_BUF_CFG(pipe));
+		skl_ddb_entry_init_from_hw(&ddb->cursor[pipe], val);
+	}
+}
+
 static unsigned int
 skl_plane_relative_data_rate(const struct intel_plane_wm_parameters *p)
 {
@@ -3749,8 +3775,11 @@ static void skl_pipe_wm_get_hw_state(struct drm_crtc *crtc)
 
 void skl_wm_get_hw_state(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct skl_ddb_allocation *ddb = &dev_priv->wm.skl_hw.ddb;
 	struct drm_crtc *crtc;
 
+	skl_ddb_get_hw_state(dev_priv, ddb);
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
 		skl_pipe_wm_get_hw_state(crtc);
 }
