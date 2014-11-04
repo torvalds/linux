@@ -45,7 +45,7 @@
 #define STMPE_KEYPAD_MAX_ROWS		8
 #define STMPE_KEYPAD_MAX_COLS		8
 #define STMPE_KEYPAD_ROW_SHIFT		3
-#define STMPE_KEYPAD_KEYMAP_SIZE	\
+#define STMPE_KEYPAD_KEYMAP_MAX_SIZE \
 	(STMPE_KEYPAD_MAX_ROWS * STMPE_KEYPAD_MAX_COLS)
 
 /**
@@ -99,16 +99,30 @@ static const struct stmpe_keypad_variant stmpe_keypad_variants[] = {
 	},
 };
 
+/**
+ * struct stmpe_keypad - STMPE keypad state container
+ * @stmpe: pointer to parent STMPE device
+ * @input: spawned input device
+ * @variant: STMPE variant
+ * @debounce_ms: debounce interval, in ms.  Maximum is
+ *		 %STMPE_KEYPAD_MAX_DEBOUNCE.
+ * @scan_count: number of key scanning cycles to confirm key data.
+ *		Maximum is %STMPE_KEYPAD_MAX_SCAN_COUNT.
+ * @no_autorepeat: disable key autorepeat
+ * @rows: bitmask for the rows
+ * @cols: bitmask for the columns
+ * @keymap: the keymap
+ */
 struct stmpe_keypad {
 	struct stmpe *stmpe;
 	struct input_dev *input;
 	const struct stmpe_keypad_variant *variant;
-	const struct stmpe_keypad_platform_data *plat;
-
+	unsigned int debounce_ms;
+	unsigned int scan_count;
+	bool no_autorepeat;
 	unsigned int rows;
 	unsigned int cols;
-
-	unsigned short keymap[STMPE_KEYPAD_KEYMAP_SIZE];
+	unsigned short keymap[STMPE_KEYPAD_KEYMAP_MAX_SIZE];
 };
 
 static int stmpe_keypad_read_data(struct stmpe_keypad *keypad, u8 *data)
@@ -208,15 +222,14 @@ static int stmpe_keypad_altfunc_init(struct stmpe_keypad *keypad)
 
 static int stmpe_keypad_chip_init(struct stmpe_keypad *keypad)
 {
-	const struct stmpe_keypad_platform_data *plat = keypad->plat;
 	const struct stmpe_keypad_variant *variant = keypad->variant;
 	struct stmpe *stmpe = keypad->stmpe;
 	int ret;
 
-	if (plat->debounce_ms > STMPE_KEYPAD_MAX_DEBOUNCE)
+	if (keypad->debounce_ms > STMPE_KEYPAD_MAX_DEBOUNCE)
 		return -EINVAL;
 
-	if (plat->scan_count > STMPE_KEYPAD_MAX_SCAN_COUNT)
+	if (keypad->scan_count > STMPE_KEYPAD_MAX_SCAN_COUNT)
 		return -EINVAL;
 
 	ret = stmpe_enable(stmpe, STMPE_BLOCK_KEYPAD);
@@ -245,7 +258,7 @@ static int stmpe_keypad_chip_init(struct stmpe_keypad *keypad)
 
 	ret = stmpe_set_bits(stmpe, STMPE_KPC_CTRL_MSB,
 			     STMPE_KPC_CTRL_MSB_SCAN_COUNT,
-			     plat->scan_count << 4);
+			     keypad->scan_count << 4);
 	if (ret < 0)
 		return ret;
 
@@ -253,17 +266,18 @@ static int stmpe_keypad_chip_init(struct stmpe_keypad *keypad)
 			      STMPE_KPC_CTRL_LSB_SCAN |
 			      STMPE_KPC_CTRL_LSB_DEBOUNCE,
 			      STMPE_KPC_CTRL_LSB_SCAN |
-			      (plat->debounce_ms << 1));
+			      (keypad->debounce_ms << 1));
 }
 
-static void stmpe_keypad_fill_used_pins(struct stmpe_keypad *keypad)
+static void stmpe_keypad_fill_used_pins(struct stmpe_keypad *keypad,
+					u32 used_rows, u32 used_cols)
 {
 	int row, col;
 
-	for (row = 0; row < STMPE_KEYPAD_MAX_ROWS; row++) {
-		for (col = 0; col < STMPE_KEYPAD_MAX_COLS; col++) {
+	for (row = 0; row < used_rows; row++) {
+		for (col = 0; col < used_cols; col++) {
 			int code = MATRIX_SCAN_CODE(row, col,
-						STMPE_KEYPAD_ROW_SHIFT);
+						    STMPE_KEYPAD_ROW_SHIFT);
 			if (keypad->keymap[code] != KEY_RESERVED) {
 				keypad->rows |= 1 << row;
 				keypad->cols |= 1 << col;
@@ -272,50 +286,16 @@ static void stmpe_keypad_fill_used_pins(struct stmpe_keypad *keypad)
 	}
 }
 
-#ifdef CONFIG_OF
-static const struct stmpe_keypad_platform_data *
-stmpe_keypad_of_probe(struct device *dev)
-{
-	struct device_node *np = dev->of_node;
-	struct stmpe_keypad_platform_data *plat;
-
-	if (!np)
-		return ERR_PTR(-ENODEV);
-
-	plat = devm_kzalloc(dev, sizeof(*plat), GFP_KERNEL);
-	if (!plat)
-		return ERR_PTR(-ENOMEM);
-
-	of_property_read_u32(np, "debounce-interval", &plat->debounce_ms);
-	of_property_read_u32(np, "st,scan-count", &plat->scan_count);
-
-	plat->no_autorepeat = of_property_read_bool(np, "st,no-autorepeat");
-
-	return plat;
-}
-#else
-static inline const struct stmpe_keypad_platform_data *
-stmpe_keypad_of_probe(struct device *dev)
-{
-	return ERR_PTR(-EINVAL);
-}
-#endif
-
 static int stmpe_keypad_probe(struct platform_device *pdev)
 {
 	struct stmpe *stmpe = dev_get_drvdata(pdev->dev.parent);
-	const struct stmpe_keypad_platform_data *plat;
+	struct device_node *np = pdev->dev.of_node;
 	struct stmpe_keypad *keypad;
 	struct input_dev *input;
+	u32 rows;
+	u32 cols;
 	int error;
 	int irq;
-
-	plat = stmpe->pdata->keypad;
-	if (!plat) {
-		plat = stmpe_keypad_of_probe(&pdev->dev);
-		if (IS_ERR(plat))
-			return PTR_ERR(plat);
-	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -326,6 +306,13 @@ static int stmpe_keypad_probe(struct platform_device *pdev)
 	if (!keypad)
 		return -ENOMEM;
 
+	keypad->stmpe = stmpe;
+	keypad->variant = &stmpe_keypad_variants[stmpe->partnum];
+
+	of_property_read_u32(np, "debounce-interval", &keypad->debounce_ms);
+	of_property_read_u32(np, "st,scan-count", &keypad->scan_count);
+	keypad->no_autorepeat = of_property_read_bool(np, "st,no-autorepeat");
+
 	input = devm_input_allocate_device(&pdev->dev);
 	if (!input)
 		return -ENOMEM;
@@ -334,23 +321,22 @@ static int stmpe_keypad_probe(struct platform_device *pdev)
 	input->id.bustype = BUS_I2C;
 	input->dev.parent = &pdev->dev;
 
-	error = matrix_keypad_build_keymap(plat->keymap_data, NULL,
-					   STMPE_KEYPAD_MAX_ROWS,
-					   STMPE_KEYPAD_MAX_COLS,
+	error = matrix_keypad_parse_of_params(&pdev->dev, &rows, &cols);
+	if (error)
+		return error;
+
+	error = matrix_keypad_build_keymap(NULL, NULL, rows, cols,
 					   keypad->keymap, input);
 	if (error)
 		return error;
 
 	input_set_capability(input, EV_MSC, MSC_SCAN);
-	if (!plat->no_autorepeat)
+	if (!keypad->no_autorepeat)
 		__set_bit(EV_REP, input->evbit);
 
-	stmpe_keypad_fill_used_pins(keypad);
+	stmpe_keypad_fill_used_pins(keypad, rows, cols);
 
-	keypad->stmpe = stmpe;
-	keypad->plat = plat;
 	keypad->input = input;
-	keypad->variant = &stmpe_keypad_variants[stmpe->partnum];
 
 	error = stmpe_keypad_chip_init(keypad);
 	if (error < 0)
