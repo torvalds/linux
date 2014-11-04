@@ -207,8 +207,9 @@ BOOL visor_periodic_work_stop(struct periodic_work *pw)
 			 */
 			SLEEPJIFFIES(10);
 			write_lock(&pw->lock);
-		} else
+		} else {
 			pw->want_to_stop = FALSE;
+		}
 	}
 	write_unlock(&pw->lock);
 	return stopped_something;
