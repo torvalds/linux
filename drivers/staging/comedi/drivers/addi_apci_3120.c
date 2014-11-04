@@ -150,6 +150,59 @@ static unsigned int apci3120_ns_to_timer(struct comedi_device *dev,
 	return divisor;
 }
 
+static void apci3120_timer_write(struct comedi_device *dev,
+				 unsigned int timer, unsigned int val)
+{
+	struct apci3120_private *devpriv = dev->private;
+
+	/* write 16-bit value to timer (lower 16-bits of timer 2) */
+	outb(APCI3120_CTR0_DO_BITS(devpriv->do_bits) |
+	     APCI3120_CTR0_TIMER_SEL(timer),
+	     dev->iobase + APCI3120_CTR0_REG);
+	outw(val & 0xffff, dev->iobase + APCI3120_TIMER_REG);
+
+	if (timer == 2) {
+		/* write upper 16-bits to timer 2 */
+		outb(APCI3120_CTR0_DO_BITS(devpriv->do_bits) |
+		     APCI3120_CTR0_TIMER_SEL(timer + 1),
+		     dev->iobase + APCI3120_CTR0_REG);
+		outw((val >> 16) & 0xffff, dev->iobase + APCI3120_TIMER_REG);
+	}
+}
+
+static unsigned int apci3120_timer_read(struct comedi_device *dev,
+					unsigned int timer)
+{
+	struct apci3120_private *devpriv = dev->private;
+	unsigned int val;
+
+	/* read 16-bit value from timer (lower 16-bits of timer 2) */
+	outb(APCI3120_CTR0_DO_BITS(devpriv->do_bits) |
+	     APCI3120_CTR0_TIMER_SEL(timer),
+	     dev->iobase + APCI3120_CTR0_REG);
+	val = inw(dev->iobase + APCI3120_TIMER_REG);
+
+	if (timer == 2) {
+		/* read upper 16-bits from timer 2 */
+		outb(APCI3120_CTR0_DO_BITS(devpriv->do_bits) |
+		     APCI3120_CTR0_TIMER_SEL(timer + 1),
+		     dev->iobase + APCI3120_CTR0_REG);
+		val |= (inw(dev->iobase + APCI3120_TIMER_REG) << 16);
+	}
+
+	return val;
+}
+
+static void apci3120_timer_set_mode(struct comedi_device *dev,
+				    unsigned int timer, unsigned int mode)
+{
+	struct apci3120_private *devpriv = dev->private;
+
+	devpriv->timer_mode &= ~APCI3120_TIMER_MODE_MASK(timer);
+	devpriv->timer_mode |= APCI3120_TIMER_MODE(timer, mode);
+	outb(devpriv->timer_mode, dev->iobase + APCI3120_TIMER_MODE_REG);
+}
+
 #include "addi-data/hwdrv_apci3120.c"
 
 static void apci3120_dma_alloc(struct comedi_device *dev)
