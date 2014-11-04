@@ -167,9 +167,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 #define APCI3120_TIMER2_SELECT_EOS	0xc0
 #define APCI3120_COUNTER		3
-#define APCI3120_DISABLE_ALL_TIMER	(APCI3120_DISABLE_TIMER0 &	\
-					 APCI3120_DISABLE_TIMER1 &	\
-					 APCI3120_DISABLE_TIMER2)
 
 /* ANALOG INPUT RANGE */
 static const struct comedi_lrange range_apci3120_ai = {
@@ -613,16 +610,9 @@ static int apci3120_cancel(struct comedi_device *dev,
 	/* Disable BUS Master PCI */
 	outl(0, devpriv->amcc + AMCC_OP_REG_MCSR);
 
-	/* Disable ext trigger */
-	apci3120_exttrig_disable(dev);
-
+	/* stop all counters and disable external trigger */
 	devpriv->us_OutputRegister = 0;
-	/* stop  counters */
-	outw(devpriv->
-		us_OutputRegister & APCI3120_DISABLE_TIMER0 &
-		APCI3120_DISABLE_TIMER1, dev->iobase + APCI3120_WR_ADDRESS);
-
-	outw(APCI3120_DISABLE_ALL_TIMER, dev->iobase + APCI3120_WR_ADDRESS);
+	outw(devpriv->us_OutputRegister, dev->iobase + APCI3120_WR_ADDRESS);
 
 	/* DISABLE_ALL_INTERRUPT */
 	outb(APCI3120_DISABLE_ALL_INTERRUPT,
@@ -1345,13 +1335,6 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 				b_ModeSelectRegister & APCI3120_DISABLE_EOS_INT;
 			outb(devpriv->b_ModeSelectRegister,
 				dev->iobase + APCI3120_WRITE_MODE_SELECT);
-
-			/*  stop timer 2 */
-			devpriv->us_OutputRegister =
-				devpriv->
-				us_OutputRegister & APCI3120_DISABLE_ALL_TIMER;
-			outw(devpriv->us_OutputRegister,
-				dev->iobase + APCI3120_WR_ADDRESS);
 
 			s->async->events |= COMEDI_CB_EOA;
 			break;
