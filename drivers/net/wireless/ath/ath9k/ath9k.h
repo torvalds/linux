@@ -347,6 +347,7 @@ struct ath_chanctx {
 
 	int flush_timeout;
 	u16 txpower;
+	u16 cur_txpower;
 	bool offchannel;
 	bool stopped;
 	bool active;
@@ -987,7 +988,6 @@ struct ath_softc {
 	u8 gtt_cnt;
 	u32 intrstatus;
 	u16 ps_flags; /* PS_* */
-	u16 curtxpow;
 	bool ps_enabled;
 	bool ps_idle;
 	short nbcnvifs;

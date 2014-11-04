@@ -233,8 +233,9 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 
 	ath9k_calculate_summary_state(sc, sc->cur_chan);
 	ath_startrecv(sc);
-	ath9k_cmn_update_txpow(ah, sc->curtxpow,
-			       sc->cur_chan->txpower, &sc->curtxpow);
+	ath9k_cmn_update_txpow(ah, sc->cur_chan->cur_txpower,
+			       sc->cur_chan->txpower,
+			       &sc->cur_chan->cur_txpower);
 	clear_bit(ATH_OP_HW_RESET, &common->op_flags);
 
 	if (!sc->cur_chan->offchannel && start) {
@@ -1468,8 +1469,9 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
 		ath_dbg(common, CONFIG, "Set power: %d\n", conf->power_level);
 		sc->cur_chan->txpower = 2 * conf->power_level;
-		ath9k_cmn_update_txpow(ah, sc->curtxpow,
-				       sc->cur_chan->txpower, &sc->curtxpow);
+		ath9k_cmn_update_txpow(ah, sc->cur_chan->cur_txpower,
+				       sc->cur_chan->txpower,
+				       &sc->cur_chan->cur_txpower);
 	}
 
 	mutex_unlock(&sc->mutex);
@@ -2591,6 +2593,24 @@ void ath9k_fill_chanctx_ops(void)
 
 #endif
 
+static int ath9k_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			     int *dbm)
+{
+	struct ath_softc *sc = hw->priv;
+	struct ath_vif *avp = (void *)vif->drv_priv;
+
+	mutex_lock(&sc->mutex);
+	if (avp->chanctx)
+		*dbm = avp->chanctx->cur_txpower;
+	else
+		*dbm = sc->cur_chan->cur_txpower;
+	mutex_unlock(&sc->mutex);
+
+	*dbm /= 2;
+
+	return 0;
+}
+
 struct ieee80211_ops ath9k_ops = {
 	.tx 		    = ath9k_tx,
 	.start 		    = ath9k_start,
@@ -2637,4 +2657,5 @@ struct ieee80211_ops ath9k_ops = {
 #endif
 	.sw_scan_start	    = ath9k_sw_scan_start,
 	.sw_scan_complete   = ath9k_sw_scan_complete,
+	.get_txpower        = ath9k_get_txpower,
 };
