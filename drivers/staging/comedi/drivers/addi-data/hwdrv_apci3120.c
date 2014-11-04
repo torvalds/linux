@@ -103,7 +103,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_RD_STATUS		0x02
 #define APCI3120_FC_TIMER		0x1000
 
-#define APCI3120_TIMER2_SELECT_EOS	0xc0
 #define APCI3120_COUNTER		3
 
 static int apci3120_ai_insn_config(struct comedi_device *dev,
@@ -561,14 +560,12 @@ static int apci3120_cyclic_ai(int mode,
 
 			apci3120_clr_timer2_interrupt(dev);
 
-			/*  enable timer counter and disable watch dog */
-			devpriv->mode |= APCI3120_MODE_TIMER2_AS_COUNTER;
-			/*  select EOS clock input for timer 2 */
-			devpriv->mode |= APCI3120_TIMER2_SELECT_EOS;
-			/*  Enable timer2  interrupt */
-			devpriv->mode |= APCI3120_MODE_TIMER2_IRQ_ENA;
+			devpriv->mode |= APCI3120_MODE_TIMER2_AS_COUNTER |
+					 APCI3120_MODE_TIMER2_CLK_EOS |
+					 APCI3120_MODE_TIMER2_IRQ_ENA;
 			outb(devpriv->mode,
 			     dev->iobase + APCI3120_WRITE_MODE_SELECT);
+
 			devpriv->b_Timer2Mode = APCI3120_COUNTER;
 			devpriv->b_Timer2Interrupt = APCI3120_ENABLE;
 		}
