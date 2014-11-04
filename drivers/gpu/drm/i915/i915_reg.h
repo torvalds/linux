@@ -4102,6 +4102,41 @@ enum punit_power_well {
 #define I965_CURSOR_MAX_WM	32
 #define I965_CURSOR_DFT_WM	8
 
+/* Watermark register definitions for SKL */
+#define CUR_WM_A_0		0x70140
+#define CUR_WM_B_0		0x71140
+#define PLANE_WM_1_A_0		0x70240
+#define PLANE_WM_1_B_0		0x71240
+#define PLANE_WM_2_A_0		0x70340
+#define PLANE_WM_2_B_0		0x71340
+#define PLANE_WM_TRANS_1_A_0	0x70268
+#define PLANE_WM_TRANS_1_B_0	0x71268
+#define PLANE_WM_TRANS_2_A_0	0x70368
+#define PLANE_WM_TRANS_2_B_0	0x71368
+#define CUR_WM_TRANS_A_0	0x70168
+#define CUR_WM_TRANS_B_0	0x71168
+#define   PLANE_WM_EN		(1 << 31)
+#define   PLANE_WM_LINES_SHIFT	14
+#define   PLANE_WM_LINES_MASK	0x1f
+#define   PLANE_WM_BLOCKS_MASK	0x3ff
+
+#define CUR_WM_0(pipe) _PIPE(pipe, CUR_WM_A_0, CUR_WM_B_0)
+#define CUR_WM(pipe, level) (CUR_WM_0(pipe) + ((4) * (level)))
+#define CUR_WM_TRANS(pipe) _PIPE(pipe, CUR_WM_TRANS_A_0, CUR_WM_TRANS_B_0)
+
+#define _PLANE_WM_1(pipe) _PIPE(pipe, PLANE_WM_1_A_0, PLANE_WM_1_B_0)
+#define _PLANE_WM_2(pipe) _PIPE(pipe, PLANE_WM_2_A_0, PLANE_WM_2_B_0)
+#define _PLANE_WM_BASE(pipe, plane)	\
+			_PLANE(plane, _PLANE_WM_1(pipe), _PLANE_WM_2(pipe))
+#define PLANE_WM(pipe, plane, level)	\
+			(_PLANE_WM_BASE(pipe, plane) + ((4) * (level)))
+#define _PLANE_WM_TRANS_1(pipe)	\
+			_PIPE(pipe, PLANE_WM_TRANS_1_A_0, PLANE_WM_TRANS_1_B_0)
+#define _PLANE_WM_TRANS_2(pipe)	\
+			_PIPE(pipe, PLANE_WM_TRANS_2_A_0, PLANE_WM_TRANS_2_B_0)
+#define PLANE_WM_TRANS(pipe, plane)	\
+		_PLANE(plane, _PLANE_WM_TRANS_1(pipe), _PLANE_WM_TRANS_2(pipe))
+
 /* define the Watermark register on Ironlake */
 #define WM0_PIPEA_ILK		0x45100
 #define  WM0_PIPE_PLANE_MASK	(0xffff<<16)
