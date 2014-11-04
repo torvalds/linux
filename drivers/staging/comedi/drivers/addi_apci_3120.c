@@ -177,6 +177,38 @@ static void apci3120_addon_write(struct comedi_device *dev,
 	outw((val >> 16) & 0xffff, devpriv->addon + APCI3120_ADDON_DATA_REG);
 }
 
+static void apci3120_init_dma(struct comedi_device *dev,
+			      struct apci3120_dmabuf *dmabuf)
+{
+	struct apci3120_private *devpriv = dev->private;
+
+	/* AMCC - enable transfer count and reset A2P FIFO */
+	outl(AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO,
+	     devpriv->amcc + AMCC_OP_REG_AGCSTS);
+
+	/* Add-On - enable transfer count and reset A2P FIFO */
+	apci3120_addon_write(dev, AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO,
+			     AMCC_OP_REG_AGCSTS);
+
+	/* AMCC - enable transfers and reset A2P flags */
+	outl(RESET_A2P_FLAGS | EN_A2P_TRANSFERS,
+	     devpriv->amcc + AMCC_OP_REG_MCSR);
+
+	/* Add-On - DMA start address */
+	apci3120_addon_write(dev, dmabuf->hw, AMCC_OP_REG_AMWAR);
+
+	/* Add-On - Number of acquisitions */
+	apci3120_addon_write(dev, dmabuf->use_size, AMCC_OP_REG_AMWTC);
+
+	/* AMCC - enable write complete (DMA) and set FIFO advance */
+	outl(APCI3120_FIFO_ADVANCE_ON_BYTE_2 | AINT_WRITE_COMPL,
+	     devpriv->amcc + AMCC_OP_REG_INTCSR);
+
+	/* Add-On - enable DMA */
+	outw(APCI3120_ADDON_CTRL_AMWEN_ENA | APCI3120_ADDON_CTRL_A2P_FIFO_ENA,
+	     devpriv->addon + APCI3120_ADDON_CTRL_REG);
+}
+
 /*
  * There are three timers on the board. They all use the same base
  * clock with a fixed prescaler for each timer. The base clock used
