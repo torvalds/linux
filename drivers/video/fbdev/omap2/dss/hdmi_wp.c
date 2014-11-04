@@ -194,8 +194,12 @@ void hdmi_wp_audio_config_format(struct hdmi_wp_data *wp,
 	DSSDBG("Enter hdmi_wp_audio_config_format\n");
 
 	r = hdmi_read_reg(wp->base, HDMI_WP_AUDIO_CFG);
-	r = FLD_MOD(r, aud_fmt->stereo_channels, 26, 24);
-	r = FLD_MOD(r, aud_fmt->active_chnnls_msk, 23, 16);
+	if (omapdss_get_version() == OMAPDSS_VER_OMAP4430_ES1 ||
+	    omapdss_get_version() == OMAPDSS_VER_OMAP4430_ES2 ||
+	    omapdss_get_version() == OMAPDSS_VER_OMAP4) {
+		r = FLD_MOD(r, aud_fmt->stereo_channels, 26, 24);
+		r = FLD_MOD(r, aud_fmt->active_chnnls_msk, 23, 16);
+	}
 	r = FLD_MOD(r, aud_fmt->en_sig_blk_strt_end, 5, 5);
 	r = FLD_MOD(r, aud_fmt->type, 4, 4);
 	r = FLD_MOD(r, aud_fmt->justification, 3, 3);
