@@ -608,38 +608,3 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 
 	return insn->n;
 }
-
-/*
- * Read the Timer value
- *
- * for Timer: data[0]= Timer constant
- *
- * for watchdog: data[0] = 0 (still running)
- *			 = 1 (run down)
- */
-static int apci3120_read_insn_timer(struct comedi_device *dev,
-				    struct comedi_subdevice *s,
-				    struct comedi_insn *insn,
-				    unsigned int *data)
-{
-	struct apci3120_private *devpriv = dev->private;
-	unsigned int status;
-
-	if ((devpriv->b_Timer2Mode != APCI3120_WATCHDOG)
-		&& (devpriv->b_Timer2Mode != APCI3120_TIMER)) {
-		dev_err(dev->class_dev, "timer2 not configured\n");
-	}
-	if (devpriv->b_Timer2Mode == APCI3120_TIMER) {
-		data[0] = apci3120_timer_read(dev, 2);
-	} else {
-		/* Read watch dog status */
-		status = inw(dev->iobase + APCI3120_STATUS_REG);
-		if (status & APCI3120_STATUS_TIMER2_INT) {
-			apci3120_clr_timer2_interrupt(dev);
-			data[0] = 1;
-		} else {
-			data[0] = 0;
-		}
-	}
-	return insn->n;
-}

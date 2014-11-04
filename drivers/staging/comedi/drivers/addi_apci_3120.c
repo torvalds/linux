@@ -447,6 +447,19 @@ static int apci3120_do_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
+static int apci3120_timer_insn_read(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_insn *insn,
+				    unsigned int *data)
+{
+	int i;
+
+	for (i = 0; i < insn->n; i++)
+		data[i] = apci3120_timer_read(dev, 2);
+
+	return insn->n;
+}
+
 static void apci3120_dma_alloc(struct comedi_device *dev)
 {
 	struct apci3120_private *devpriv = dev->private;
@@ -618,8 +631,8 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	s->n_chan	= 1;
 	s->maxdata	= 0x00ffffff;
 	s->insn_write	= apci3120_write_insn_timer;
-	s->insn_read	= apci3120_read_insn_timer;
 	s->insn_config	= apci3120_config_insn_timer;
+	s->insn_read	= apci3120_timer_insn_read;
 
 	return 0;
 }
