@@ -101,8 +101,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_WRITE_MODE_SELECT	0x0e
 
 #define APCI3120_RD_STATUS		0x02
-#define APCI3120_ENABLE_WATCHDOG	0x20
-#define APCI3120_ENABLE_TIMER_COUNTER	0x10
 #define APCI3120_FC_TIMER		0x1000
 
 #define APCI3120_TIMER2_SELECT_EOS	0xc0
@@ -564,7 +562,7 @@ static int apci3120_cyclic_ai(int mode,
 			apci3120_clr_timer2_interrupt(dev);
 
 			/*  enable timer counter and disable watch dog */
-			devpriv->mode |= APCI3120_ENABLE_TIMER_COUNTER;
+			devpriv->mode |= APCI3120_MODE_TIMER2_AS_COUNTER;
 			/*  select EOS clock input for timer 2 */
 			devpriv->mode |= APCI3120_TIMER2_SELECT_EOS;
 			/*  Enable timer2  interrupt */
@@ -1081,9 +1079,9 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 
 	apci3120_timer_enable(dev, 2, false);
 
-	/*  Disable TIMER Interrupt */
+	/* disable timer 2 interrupt and reset operation mode (timer) */
 	devpriv->mode &= ~APCI3120_MODE_TIMER2_IRQ_ENA &
-			 ~APCI3120_ENABLE_TIMER_COUNTER;
+			 ~APCI3120_MODE_TIMER2_AS_MASK;
 
 	/*  Disable Eoc and Eos Interrupts */
 	devpriv->mode &= ~APCI3120_MODE_EOC_IRQ_ENA &
@@ -1156,10 +1154,11 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 		if (devpriv->b_Timer2Mode == APCI3120_TIMER) {	/* start timer */
 			/* Enable Timer */
 			devpriv->mode &= 0x0b;
+			devpriv->mode |= APCI3120_MODE_TIMER2_AS_TIMER;
 		} else {		/* start watch dog */
 			/* Enable WatchDog */
 			devpriv->mode &= 0x0b;
-			devpriv->mode |= APCI3120_ENABLE_WATCHDOG;
+			devpriv->mode |= APCI3120_MODE_TIMER2_AS_WDOG;
 		}
 
 		/* enable disable interrupt */
@@ -1179,15 +1178,9 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 		break;
 
 	case APCI3120_STOP:
-		if (devpriv->b_Timer2Mode == APCI3120_TIMER) {
-			/* Disable timer */
-			devpriv->mode &= ~APCI3120_ENABLE_TIMER_COUNTER;
-		} else {
-			/* Disable WatchDog */
-			devpriv->mode &= ~APCI3120_ENABLE_WATCHDOG;
-		}
-		/*  Disable timer interrupt */
-		devpriv->mode &= ~APCI3120_MODE_TIMER2_IRQ_ENA;
+		/* disable timer 2 interrupt and reset operation mode (timer) */
+		devpriv->mode &= ~APCI3120_MODE_TIMER2_IRQ_ENA &
+				 ~APCI3120_MODE_TIMER2_AS_MASK;
 		outb(devpriv->mode, dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
 		apci3120_timer_enable(dev, 2, false);

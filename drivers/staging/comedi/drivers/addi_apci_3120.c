@@ -40,6 +40,10 @@
 #define APCI3120_CTR0_REG			0x0d
 #define APCI3120_CTR0_DO_BITS(x)		((x) << 4)
 #define APCI3120_CTR0_TIMER_SEL(x)		((x) << 0)
+#define APCI3120_MODE_TIMER2_AS_TIMER		(0 << 4)
+#define APCI3120_MODE_TIMER2_AS_COUNTER		(1 << 4)
+#define APCI3120_MODE_TIMER2_AS_WDOG		(2 << 4)
+#define APCI3120_MODE_TIMER2_AS_MASK		(3 << 4)  /* sets AS_TIMER */
 #define APCI3120_MODE_SCAN_ENA			(1 << 3)
 #define APCI3120_MODE_TIMER2_IRQ_ENA		(1 << 2)
 #define APCI3120_MODE_EOS_IRQ_ENA		(1 << 1)
