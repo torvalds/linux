@@ -9,7 +9,7 @@
 
 #include "smp.h"
 
-unsigned int ht_irq[] = {1, 3, 4, 5, 6, 7, 8, 12, 14, 15};
+unsigned int ht_irq[] = {0, 1, 3, 4, 5, 6, 7, 8, 12, 14, 15};
 
 static void ht_irqdispatch(void)
 {
