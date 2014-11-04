@@ -247,10 +247,9 @@ static int apci3120_setup_chan_list(struct comedi_device *dev,
 		return 1;
 
 	/* Code  to set the PA and PR...Here it set PA to 0 */
-	devpriv->us_OutputRegister =
-		devpriv->us_OutputRegister & APCI3120_CLEAR_PA_PR;
-	devpriv->us_OutputRegister = ((n_chan - 1) & 0xf) << 8;
-	outw(devpriv->us_OutputRegister, dev->iobase + APCI3120_WR_ADDRESS);
+	devpriv->ctrl &= APCI3120_CLEAR_PA_PR;
+	devpriv->ctrl = ((n_chan - 1) & 0xf) << 8;
+	outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
 
 	for (i = 0; i < n_chan; i++) {
 		/*  store range list to card */
@@ -293,7 +292,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 	/*  Clear software registers */
 	devpriv->timer_mode = 0;
 	devpriv->b_ModeSelectRegister = 0;
-	devpriv->us_OutputRegister = 0;
+	devpriv->ctrl = 0;
 
 	if (insn->unused[0] == 222) {	/*  second insn read */
 		for (i = 0; i < insn->n; i++)
@@ -348,12 +347,9 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 			     dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
 			/*  Sets gate 0 */
-			devpriv->us_OutputRegister =
-				(devpriv->
-				us_OutputRegister & APCI3120_CLEAR_PA_PR) |
-				APCI3120_ENABLE_TIMER0;
-			outw(devpriv->us_OutputRegister,
-			     dev->iobase + APCI3120_WR_ADDRESS);
+			devpriv->ctrl &= APCI3120_CLEAR_PA_PR;
+			devpriv->ctrl |= APCI3120_ENABLE_TIMER0;
+			outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
 
 			/* Set the conversion time */
 			apci3120_timer_write(dev, 0, divisor);
@@ -386,13 +382,9 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 			inw(dev->iobase + APCI3120_RESET_FIFO);
 			/*  clear PA PR  and disable timer 0 */
 
-			devpriv->us_OutputRegister =
-				(devpriv->
-				us_OutputRegister & APCI3120_CLEAR_PA_PR) |
-				APCI3120_DISABLE_TIMER0;
-
-			outw(devpriv->us_OutputRegister,
-			     dev->iobase + APCI3120_WR_ADDRESS);
+			devpriv->ctrl &= APCI3120_CLEAR_PA_PR;
+			devpriv->ctrl |= APCI3120_DISABLE_TIMER0;
+			outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
 
 			if (!apci3120_setup_chan_list(dev, s,
 					devpriv->ui_AiNbrofChannels,
@@ -434,11 +426,8 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 			inw(dev->iobase + APCI3120_RD_STATUS);
 
 			/* Sets gate 0 */
-			devpriv->us_OutputRegister =
-				devpriv->
-				us_OutputRegister | APCI3120_ENABLE_TIMER0;
-			outw(devpriv->us_OutputRegister,
-			     dev->iobase + APCI3120_WR_ADDRESS);
+			devpriv->ctrl |= APCI3120_ENABLE_TIMER0;
+			outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
 
 			/* Start conversion */
 			outw(0, dev->iobase + APCI3120_START_CONVERSION);
@@ -496,8 +485,8 @@ static int apci3120_reset(struct comedi_device *dev)
 		dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
 	/*  Disables all counters, ext trigger and clears PA, PR */
-	devpriv->us_OutputRegister = 0;
-	outw(devpriv->us_OutputRegister, dev->iobase + APCI3120_WR_ADDRESS);
+	devpriv->ctrl = 0;
+	outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
 
 	inw(dev->iobase + 0);	/* make a dummy read */
 	inb(dev->iobase + APCI3120_RESET_FIFO);	/*  flush FIFO */
@@ -515,8 +504,8 @@ static int apci3120_exttrig_enable(struct comedi_device *dev)
 {
 	struct apci3120_private *devpriv = dev->private;
 
-	devpriv->us_OutputRegister |= APCI3120_ENABLE_EXT_TRIGGER;
-	outw(devpriv->us_OutputRegister, dev->iobase + APCI3120_WR_ADDRESS);
+	devpriv->ctrl |= APCI3120_ENABLE_EXT_TRIGGER;
+	outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
 	return 0;
 }
 
@@ -524,8 +513,8 @@ static int apci3120_exttrig_disable(struct comedi_device *dev)
 {
 	struct apci3120_private *devpriv = dev->private;
 
-	devpriv->us_OutputRegister &= ~APCI3120_ENABLE_EXT_TRIGGER;
-	outw(devpriv->us_OutputRegister, dev->iobase + APCI3120_WR_ADDRESS);
+	devpriv->ctrl &= ~APCI3120_ENABLE_EXT_TRIGGER;
+	outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
 	return 0;
 }
 
@@ -547,8 +536,8 @@ static int apci3120_cancel(struct comedi_device *dev,
 	outl(0, devpriv->amcc + AMCC_OP_REG_MCSR);
 
 	/* stop all counters and disable external trigger */
-	devpriv->us_OutputRegister = 0;
-	outw(devpriv->us_OutputRegister, dev->iobase + APCI3120_WR_ADDRESS);
+	devpriv->ctrl = 0;
+	outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
 
 	/* DISABLE_ALL_INTERRUPT */
 	outb(APCI3120_DISABLE_ALL_INTERRUPT,
@@ -658,7 +647,7 @@ static int apci3120_cyclic_ai(int mode,
 
 	/*  clear software  registers */
 	devpriv->timer_mode = 0;
-	devpriv->us_OutputRegister = 0;
+	devpriv->ctrl = 0;
 	devpriv->b_ModeSelectRegister = 0;
 
 	/* Clear Timer Write TC int */
@@ -667,11 +656,10 @@ static int apci3120_cyclic_ai(int mode,
 
 	/* Disables All Timer     */
 	/* Sets PR and PA to 0    */
-	devpriv->us_OutputRegister = devpriv->us_OutputRegister &
-		APCI3120_DISABLE_TIMER0 &
-		APCI3120_DISABLE_TIMER1 & APCI3120_CLEAR_PA_PR;
-
-	outw(devpriv->us_OutputRegister, dev->iobase + APCI3120_WR_ADDRESS);
+	devpriv->ctrl &= APCI3120_DISABLE_TIMER0 &
+			 APCI3120_DISABLE_TIMER1 &
+			 APCI3120_CLEAR_PA_PR;
+	outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
 
 	/* Resets the FIFO */
 	/* BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver */
@@ -744,11 +732,8 @@ static int apci3120_cyclic_ai(int mode,
 			 * configure Timer2 For counting EOS Reset gate 2 of Timer 2 to
 			 * disable it (Set Bit D14 to 0)
 			 */
-			devpriv->us_OutputRegister =
-				devpriv->
-				us_OutputRegister & APCI3120_DISABLE_TIMER2;
-			outw(devpriv->us_OutputRegister,
-				dev->iobase + APCI3120_WR_ADDRESS);
+			devpriv->ctrl &= APCI3120_DISABLE_TIMER2;
+			outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
 
 			/*  DISABLE TIMER intERRUPT */
 			devpriv->b_ModeSelectRegister =
@@ -946,28 +931,21 @@ static int apci3120_cyclic_ai(int mode,
 	if (devpriv->us_UseDma == APCI3120_DISABLE &&
 	    cmd->stop_src == TRIG_COUNT) {
 		/*  set gate 2   to start conversion */
-		devpriv->us_OutputRegister =
-			devpriv->us_OutputRegister | APCI3120_ENABLE_TIMER2;
-		outw(devpriv->us_OutputRegister,
-			dev->iobase + APCI3120_WR_ADDRESS);
+		devpriv->ctrl |= APCI3120_ENABLE_TIMER2;
+		outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
 	}
 
 	switch (mode) {
 	case 1:
 		/*  set gate 0   to start conversion */
-		devpriv->us_OutputRegister =
-			devpriv->us_OutputRegister | APCI3120_ENABLE_TIMER0;
-		outw(devpriv->us_OutputRegister,
-			dev->iobase + APCI3120_WR_ADDRESS);
+		devpriv->ctrl |= APCI3120_ENABLE_TIMER0;
+		outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
 		break;
 	case 2:
 		/*  set  gate 0 and gate 1 */
-		devpriv->us_OutputRegister =
-			devpriv->us_OutputRegister | APCI3120_ENABLE_TIMER1;
-		devpriv->us_OutputRegister =
-			devpriv->us_OutputRegister | APCI3120_ENABLE_TIMER0;
-		outw(devpriv->us_OutputRegister,
-			dev->iobase + APCI3120_WR_ADDRESS);
+		devpriv->ctrl |= APCI3120_ENABLE_TIMER1 |
+				 APCI3120_ENABLE_TIMER0;
+		outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
 		break;
 
 	}
@@ -1301,7 +1279,7 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 		} else {
 			/* Stops the Timer */
 			outw(devpriv->
-				us_OutputRegister & APCI3120_DISABLE_TIMER0 &
+				ctrl & APCI3120_DISABLE_TIMER0 &
 				APCI3120_DISABLE_TIMER1,
 				dev->iobase + APCI3120_WR_ADDRESS);
 		}
@@ -1336,9 +1314,8 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 	divisor = apci3120_ns_to_timer(dev, 2, data[1], CMDF_ROUND_DOWN);
 
 	/* Reset gate 2 of Timer 2 to disable it (Set Bit D14 to 0) */
-	devpriv->us_OutputRegister =
-		devpriv->us_OutputRegister & APCI3120_DISABLE_TIMER2;
-	outw(devpriv->us_OutputRegister, dev->iobase + APCI3120_WR_ADDRESS);
+	devpriv->ctrl &= APCI3120_DISABLE_TIMER2;
+	outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
 
 	/*  Disable TIMER Interrupt */
 	devpriv->b_ModeSelectRegister =
@@ -1449,11 +1426,8 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 
 		if (devpriv->b_Timer2Mode == APCI3120_TIMER) {	/* start timer */
 			/* For Timer mode is  Gate2 must be activated	timer started */
-			devpriv->us_OutputRegister =
-				devpriv->
-				us_OutputRegister | APCI3120_ENABLE_TIMER2;
-			outw(devpriv->us_OutputRegister,
-			     dev->iobase + APCI3120_WR_ADDRESS);
+			devpriv->ctrl |= APCI3120_ENABLE_TIMER2;
+			outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
 		}
 
 		break;
@@ -1482,10 +1456,8 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 		     dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
 		/*  Reset Gate 2 */
-		devpriv->us_OutputRegister =
-			devpriv->us_OutputRegister & APCI3120_DISABLE_TIMER_INT;
-		outw(devpriv->us_OutputRegister,
-		     dev->iobase + APCI3120_WR_ADDRESS);
+		devpriv->ctrl &= APCI3120_DISABLE_TIMER_INT;
+		outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
 
 		/*  Reset FC_TIMER BIT */
 		inb(dev->iobase + APCI3120_TIMER_STATUS_REGISTER);

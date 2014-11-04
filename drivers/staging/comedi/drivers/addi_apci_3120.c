@@ -86,7 +86,7 @@ struct apci3120_private {
 	unsigned char do_bits;
 	unsigned char timer_mode;
 	unsigned char b_ModeSelectRegister;
-	unsigned short us_OutputRegister;
+	unsigned short ctrl;
 	unsigned char b_Timer2Mode;
 	unsigned char b_Timer2Interrupt;
 	unsigned int ai_running:1;
