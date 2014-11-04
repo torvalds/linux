@@ -158,8 +158,15 @@ struct sdhci_host {
 	void *adma_table;	/* ADMA descriptor table */
 	void *align_buffer;	/* Bounce buffer */
 
+	size_t adma_table_sz;	/* ADMA descriptor table size */
+	size_t align_buffer_sz;	/* Bounce buffer size */
+
 	dma_addr_t adma_addr;	/* Mapped ADMA descr. table */
 	dma_addr_t align_addr;	/* Mapped bounce buffer */
+
+	unsigned int desc_sz;	/* ADMA descriptor size */
+	unsigned int align_sz;	/* ADMA alignment */
+	unsigned int align_mask;	/* ADMA alignment mask */
 
 	struct tasklet_struct finish_tasklet;	/* Tasklet structures */
 
