@@ -2270,15 +2270,9 @@ static int mmc_do_hw_reset(struct mmc_host *host, int check)
 
 	/* If the reset has happened, then a status command will fail */
 	if (check) {
-		struct mmc_command cmd = {0};
-		int err;
+		u32 status;
 
-		cmd.opcode = MMC_SEND_STATUS;
-		if (!mmc_host_is_spi(card->host))
-			cmd.arg = card->rca << 16;
-		cmd.flags = MMC_RSP_SPI_R2 | MMC_RSP_R1 | MMC_CMD_AC;
-		err = mmc_wait_for_cmd(card->host, &cmd, 0);
-		if (!err) {
+		if (!mmc_send_status(card, &status)) {
 			mmc_host_clk_release(host);
 			return -ENOSYS;
 		}
