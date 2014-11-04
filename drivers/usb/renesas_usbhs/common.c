@@ -615,7 +615,7 @@ static int usbhs_probe(struct platform_device *pdev)
 	 */
 	ret = usbhs_platform_call(priv, hardware_init, pdev);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "platform prove failed.\n");
+		dev_err(&pdev->dev, "platform init failed.\n");
 		goto probe_end_mod_exit;
 	}
 
