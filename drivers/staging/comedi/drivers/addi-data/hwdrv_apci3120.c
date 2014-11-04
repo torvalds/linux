@@ -404,8 +404,12 @@ static int apci3120_cyclic_ai(int mode,
 						cmd->flags);
 	}
 
-	if (devpriv->b_ExttrigEnable)
+	if (cmd->start_src == TRIG_EXT) {
+		devpriv->b_ExttrigEnable = 1;
 		apci3120_exttrig_enable(dev, true);
+	} else {
+		devpriv->b_ExttrigEnable = 0;
+	}
 
 	switch (mode) {
 	case 1:
@@ -488,13 +492,7 @@ static int apci3120_cyclic_ai(int mode,
 static int apci3120_ai_cmd(struct comedi_device *dev,
 			   struct comedi_subdevice *s)
 {
-	struct apci3120_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-
-	if (cmd->start_src == TRIG_EXT)
-		devpriv->b_ExttrigEnable = 1;
-	else
-		devpriv->b_ExttrigEnable = 0;
 
 	if (cmd->scan_begin_src == TRIG_FOLLOW)
 		return apci3120_cyclic_ai(1, dev, s);
