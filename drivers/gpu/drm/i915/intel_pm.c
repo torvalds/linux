@@ -2285,7 +2285,7 @@ static void intel_read_wm_latency(struct drm_device *dev, uint16_t wm[8])
 
 	if (IS_GEN9(dev)) {
 		uint32_t val;
-		int ret;
+		int ret, i;
 		int level, max_level = ilk_wm_max_level(dev);
 
 		/* read the first set of memory latencies[0:3] */
@@ -2338,12 +2338,22 @@ static void intel_read_wm_latency(struct drm_device *dev, uint16_t wm[8])
 		 *   we always add 2us there.
 		 *   - For levels >=1, punit returns 0us latency when they are
 		 *   disabled, so we respect that and don't add 2us then
+		 *
+		 * Additionally, if a level n (n > 1) has a 0us latency, all
+		 * levels m (m >= n) need to be disabled. We make sure to
+		 * sanitize the values out of the punit to satisfy this
+		 * requirement.
 		 */
 		wm[0] += 2;
 		for (level = 1; level <= max_level; level++)
 			if (wm[level] != 0)
 				wm[level] += 2;
+			else {
+				for (i = level + 1; i <= max_level; i++)
+					wm[i] = 0;
 
+				break;
+			}
 	} else if (IS_HASWELL(dev) || IS_BROADWELL(dev)) {
 		uint64_t sskpd = I915_READ64(MCH_SSKPD);
 
@@ -3285,7 +3295,7 @@ static bool skl_compute_plane_wm(struct skl_pipe_wm_parameters *p,
 	uint32_t method1, method2, plane_bytes_per_line;
 	uint32_t result_bytes;
 
-	if (!p->active || !p_params->enabled)
+	if (mem_value == 0 || !p->active || !p_params->enabled)
 		return false;
 
 	method1 = skl_wm_method1(p->pixel_rate,
