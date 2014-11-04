@@ -75,6 +75,22 @@
 	status = "okay";
 };
 
+&usbmisc0 {
+	status = "okay";
+};
+
+&usbmisc1 {
+	status = "okay";
+};
+
+&usbphy0 {
+	status = "okay";
+};
+
+&usbphy1 {
+	status = "okay";
+};
+
 &iomuxc {
 	vf610-colibri {
 		pinctrl_gpio_ext: gpio_ext {

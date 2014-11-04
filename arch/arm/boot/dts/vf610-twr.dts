@@ -294,6 +294,14 @@
 	status = "okay";
 };
 
+&usbmisc0 {
+	status = "okay";
+};
+
+&usbmisc1 {
+	status = "okay";
+};
+
 &usbphy0 {
 	status = "okay";
 };
