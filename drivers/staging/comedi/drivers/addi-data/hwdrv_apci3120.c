@@ -224,6 +224,153 @@ static int apci3120_ai_cmdtest(struct comedi_device *dev,
 	return 0;
 }
 
+static void apci3120_setup_dma(struct comedi_device *dev,
+			       struct comedi_subdevice *s)
+{
+	struct apci3120_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
+	struct apci3120_dmabuf *dmabuf0 = &devpriv->dmabuf[0];
+	struct apci3120_dmabuf *dmabuf1 = &devpriv->dmabuf[1];
+	unsigned int dmalen0 = dmabuf0->size;
+	unsigned int dmalen1 = dmabuf1->size;
+	unsigned int scan_bytes;
+
+	scan_bytes = comedi_samples_to_bytes(s, cmd->scan_end_arg);
+
+	if (cmd->stop_src == TRIG_COUNT) {
+		/*
+		 * Must we fill full first buffer? And must we fill
+		 * full second buffer when first is once filled?
+		 */
+		if (dmalen0 > (cmd->stop_arg * scan_bytes))
+			dmalen0 = cmd->stop_arg * scan_bytes;
+		else if (dmalen1 > (cmd->stop_arg * scan_bytes - dmalen0))
+			dmalen1 = cmd->stop_arg * scan_bytes - dmalen0;
+	}
+
+	if (cmd->flags & CMDF_WAKE_EOS) {
+		/* don't we want wake up every scan? */
+		if (dmalen0 > scan_bytes) {
+			dmalen0 = scan_bytes;
+			if (cmd->scan_end_arg & 1)
+				dmalen0 += 2;
+		}
+		if (dmalen1 > scan_bytes) {
+			dmalen1 = scan_bytes;
+			if (cmd->scan_end_arg & 1)
+				dmalen1 -= 2;
+			if (dmalen1 < 4)
+				dmalen1 = 4;
+		}
+	} else {
+		/* isn't output buff smaller that our DMA buff? */
+		if (dmalen0 > s->async->prealloc_bufsz)
+			dmalen0 = s->async->prealloc_bufsz;
+		if (dmalen1 > s->async->prealloc_bufsz)
+			dmalen1 = s->async->prealloc_bufsz;
+	}
+	dmabuf0->use_size = dmalen0;
+	dmabuf1->use_size = dmalen1;
+
+	/* Initialize DMA */
+
+	/*
+	 * Set Transfer count enable bit and A2P_fifo reset bit in AGCSTS
+	 * register 1
+	 */
+	outl(AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO,
+	     devpriv->amcc + AMCC_OP_REG_AGCSTS);
+
+	/* changed  since 16 bit interface for add on */
+	/* ENABLE BUS MASTER */
+	outw(APCI3120_ADD_ON_AGCSTS_LOW, devpriv->addon + 0);
+	outw(APCI3120_ENABLE_TRANSFER_ADD_ON_LOW, devpriv->addon + 2);
+
+	outw(APCI3120_ADD_ON_AGCSTS_HIGH, devpriv->addon + 0);
+	outw(APCI3120_ENABLE_TRANSFER_ADD_ON_HIGH, devpriv->addon + 2);
+
+	/*
+	 * TO VERIFIED BEGIN JK 07.05.04: Comparison between WIN32 and Linux
+	 * driver
+	 */
+	outw(0x1000, devpriv->addon + 2);
+	/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
+
+	/* 2 No change */
+	/* A2P FIFO MANAGEMENT */
+	/* A2P fifo reset & transfer control enable */
+	outl(APCI3120_A2P_FIFO_MANAGEMENT,
+	     devpriv->amcc + APCI3120_AMCC_OP_MCSR);
+
+	/*
+	 * 3
+	 * beginning address of dma buf The 32 bit address of dma buffer
+	 * is converted into two 16 bit addresses Can done by using _attach
+	 * and put into into an array array used may be for differnet pages
+	 */
+
+	/* DMA Start Address Low */
+	outw(APCI3120_ADD_ON_MWAR_LOW, devpriv->addon + 0);
+	outw(dmabuf0->hw & 0xffff, devpriv->addon + 2);
+
+	/* DMA Start Address High */
+	outw(APCI3120_ADD_ON_MWAR_HIGH, devpriv->addon + 0);
+	outw((dmabuf0->hw >> 16) & 0xffff, devpriv->addon + 2);
+
+	/*
+	 * 4
+	 * amount of bytes to be transferred set transfer count used ADDON
+	 * MWTC register commented testing
+	 */
+
+	/* Nbr of acquisition LOW */
+	outw(APCI3120_ADD_ON_MWTC_LOW, devpriv->addon + 0);
+	outw(dmabuf0->use_size & 0xffff, devpriv->addon + 2);
+
+	/* Nbr of acquisition HIGH */
+	outw(APCI3120_ADD_ON_MWTC_HIGH, devpriv->addon + 0);
+	outw((dmabuf0->use_size >> 16) & 0xffff, devpriv->addon + 2);
+
+	/*
+	 * 5
+	 * To configure A2P FIFO testing outl(
+	 * FIFO_ADVANCE_ON_BYTE_2, devpriv->amcc + AMCC_OP_REG_INTCSR);
+	 */
+
+	/* A2P FIFO RESET */
+	/*
+	 * TO VERIFY BEGIN JK 07.05.04: Comparison between WIN32 and Linux
+	 * driver
+	 */
+	outl(0x04000000UL, devpriv->amcc + AMCC_OP_REG_MCSR);
+	/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
+
+	/*
+	 * 6
+	 * ENABLE A2P FIFO WRITE AND ENABLE AMWEN AMWEN_ENABLE |
+	 * A2P_FIFO_WRITE_ENABLE (0x01|0x02)=0x03
+	 */
+
+	/*
+	 * 7
+	 * initialise end of dma interrupt AINT_WRITE_COMPL =
+	 * ENABLE_WRITE_TC_INT(ADDI)
+	 */
+	/* A2P FIFO CONFIGURATE, END OF DMA intERRUPT INIT */
+	outl(APCI3120_FIFO_ADVANCE_ON_BYTE_2 | APCI3120_ENABLE_WRITE_TC_INT,
+	     devpriv->amcc + AMCC_OP_REG_INTCSR);
+
+	/* BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver */
+	/* ENABLE A2P FIFO WRITE AND ENABLE AMWEN */
+	outw(3, devpriv->addon + 4);
+	/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
+
+	/* A2P FIFO RESET */
+	/* BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver */
+	outl(0x04000000UL, devpriv->amcc + APCI3120_AMCC_OP_MCSR);
+	/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
+}
+
 /*
  * This is used for analog input cyclic acquisition.
  * Performs the command operations.
@@ -237,8 +384,6 @@ static int apci3120_cyclic_ai(int mode,
 	struct apci3120_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int divisor1 = 0;
-	unsigned int dmalen0 = 0;
-	unsigned int dmalen1 = 0;
 	unsigned int divisor0;
 
 	/*  clear software  registers */
@@ -320,152 +465,8 @@ static int apci3120_cyclic_ai(int mode,
 			devpriv->b_Timer2Interrupt = APCI3120_ENABLE;
 		}
 	} else {
-		/* If DMA Enabled */
-		struct apci3120_dmabuf *dmabuf0 = &devpriv->dmabuf[0];
-		struct apci3120_dmabuf *dmabuf1 = &devpriv->dmabuf[1];
-		unsigned int scan_bytes;
-
-		scan_bytes = comedi_samples_to_bytes(s, cmd->scan_end_arg);
-
 		devpriv->b_InterruptMode = APCI3120_DMA_MODE;
-
-		dmalen0 = dmabuf0->size;
-		dmalen1 = dmabuf1->size;
-
-		if (cmd->stop_src == TRIG_COUNT) {
-			/*
-			 * Must we fill full first buffer? And must we fill
-			 * full second buffer when first is once filled?
-			 */
-			if (dmalen0 > (cmd->stop_arg * scan_bytes)) {
-				dmalen0 = cmd->stop_arg * scan_bytes;
-			} else if (dmalen1 > (cmd->stop_arg * scan_bytes -
-					      dmalen0))
-				dmalen1 = cmd->stop_arg * scan_bytes -
-					  dmalen0;
-		}
-
-		if (cmd->flags & CMDF_WAKE_EOS) {
-			/*  don't we want wake up every scan? */
-			if (dmalen0 > scan_bytes) {
-				dmalen0 = scan_bytes;
-				if (cmd->scan_end_arg & 1)
-					dmalen0 += 2;
-			}
-			if (dmalen1 > scan_bytes) {
-				dmalen1 = scan_bytes;
-				if (cmd->scan_end_arg & 1)
-					dmalen1 -= 2;
-				if (dmalen1 < 4)
-					dmalen1 = 4;
-			}
-		} else {	/*  isn't output buff smaller that our DMA buff? */
-			if (dmalen0 > s->async->prealloc_bufsz)
-				dmalen0 = s->async->prealloc_bufsz;
-			if (dmalen1 > s->async->prealloc_bufsz)
-				dmalen1 = s->async->prealloc_bufsz;
-		}
-		dmabuf0->use_size = dmalen0;
-		dmabuf1->use_size = dmalen1;
-
-		/* Initialize DMA */
-
-		/*
-		 * Set Transfer count enable bit and A2P_fifo reset bit in AGCSTS
-		 * register 1
-		 */
-		outl(AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO,
-		     devpriv->amcc + AMCC_OP_REG_AGCSTS);
-
-		/*  changed  since 16 bit interface for add on */
-		/* ENABLE BUS MASTER */
-		outw(APCI3120_ADD_ON_AGCSTS_LOW, devpriv->addon + 0);
-		outw(APCI3120_ENABLE_TRANSFER_ADD_ON_LOW, devpriv->addon + 2);
-
-		outw(APCI3120_ADD_ON_AGCSTS_HIGH, devpriv->addon + 0);
-		outw(APCI3120_ENABLE_TRANSFER_ADD_ON_HIGH, devpriv->addon + 2);
-
-		/*
-		 * TO VERIFIED BEGIN JK 07.05.04: Comparison between WIN32 and Linux
-		 * driver
-		 */
-		outw(0x1000, devpriv->addon + 2);
-		/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
-
-		/* 2 No change */
-		/* A2P FIFO MANAGEMENT */
-		/* A2P fifo reset & transfer control enable */
-		outl(APCI3120_A2P_FIFO_MANAGEMENT,
-		     devpriv->amcc + APCI3120_AMCC_OP_MCSR);
-
-		/*
-		 * 3
-		 * beginning address of dma buf The 32 bit address of dma buffer
-		 * is converted into two 16 bit addresses Can done by using _attach
-		 * and put into into an array array used may be for differnet pages
-		 */
-
-		/*  DMA Start Address Low */
-		outw(APCI3120_ADD_ON_MWAR_LOW, devpriv->addon + 0);
-		outw(dmabuf0->hw & 0xffff, devpriv->addon + 2);
-
-		/* DMA Start Address High */
-		outw(APCI3120_ADD_ON_MWAR_HIGH, devpriv->addon + 0);
-		outw((dmabuf0->hw >> 16) & 0xffff, devpriv->addon + 2);
-
-		/*
-		 * 4
-		 * amount of bytes to be transferred set transfer count used ADDON
-		 * MWTC register commented testing
-		 */
-
-		/* Nbr of acquisition LOW */
-		outw(APCI3120_ADD_ON_MWTC_LOW, devpriv->addon + 0);
-		outw(dmabuf0->use_size & 0xffff, devpriv->addon + 2);
-
-		/* Nbr of acquisition HIGH */
-		outw(APCI3120_ADD_ON_MWTC_HIGH, devpriv->addon + 0);
-		outw((dmabuf0->use_size >> 16) & 0xffff, devpriv->addon + 2);
-
-		/*
-		 * 5
-		 * To configure A2P FIFO testing outl(
-		 * FIFO_ADVANCE_ON_BYTE_2, devpriv->amcc + AMCC_OP_REG_INTCSR);
-		 */
-
-		/* A2P FIFO RESET */
-		/*
-		 * TO VERIFY BEGIN JK 07.05.04: Comparison between WIN32 and Linux
-		 * driver
-		 */
-		outl(0x04000000UL, devpriv->amcc + AMCC_OP_REG_MCSR);
-		/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
-
-		/*
-		 * 6
-		 * ENABLE A2P FIFO WRITE AND ENABLE AMWEN AMWEN_ENABLE |
-		 * A2P_FIFO_WRITE_ENABLE (0x01|0x02)=0x03
-		 */
-
-		/*
-		 * 7
-		 * initialise end of dma interrupt AINT_WRITE_COMPL =
-		 * ENABLE_WRITE_TC_INT(ADDI)
-		 */
-		/* A2P FIFO CONFIGURATE, END OF DMA intERRUPT INIT */
-		outl((APCI3120_FIFO_ADVANCE_ON_BYTE_2 |
-				APCI3120_ENABLE_WRITE_TC_INT),
-			devpriv->amcc + AMCC_OP_REG_INTCSR);
-
-		/* BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver */
-		/* ENABLE A2P FIFO WRITE AND ENABLE AMWEN */
-		outw(3, devpriv->addon + 4);
-		/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
-
-		/* A2P FIFO RESET */
-		/* BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver */
-		outl(0x04000000UL, devpriv->amcc + APCI3120_AMCC_OP_MCSR);
-		/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
+		apci3120_setup_dma(dev, s);
 	}
 
 	if (devpriv->us_UseDma == APCI3120_DISABLE &&
