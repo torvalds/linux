@@ -293,34 +293,10 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 	apci3120_timer_set_mode(dev, 0, APCI3120_TIMER_MODE2);
 	apci3120_timer_write(dev, 0, divisor);
 
-	if (devpriv->use_dma) {
+	if (devpriv->use_dma)
 		apci3120_setup_dma(dev, s);
-	} else {
+	else
 		devpriv->mode |= APCI3120_MODE_EOS_IRQ_ENA;
-
-		if (cmd->stop_src == TRIG_COUNT) {
-			/*
-			 * Timer 2 is used in MODE0 (hardware retriggerable
-			 * one-shot) to count the number of scans.
-			 *
-			 * NOTE: not sure about the -2 value
-			 */
-			apci3120_timer_set_mode(dev, 2, APCI3120_TIMER_MODE0);
-			apci3120_timer_write(dev, 2, cmd->stop_arg - 2);
-
-			apci3120_clr_timer2_interrupt(dev);
-
-			apci3120_timer_enable(dev, 2, true);
-
-			/* configure Timer 2 For counting EOS */
-			devpriv->mode |= APCI3120_MODE_TIMER2_AS_COUNTER |
-					 APCI3120_MODE_TIMER2_CLK_EOS |
-					 APCI3120_MODE_TIMER2_IRQ_ENA;
-
-			devpriv->b_Timer2Mode = APCI3120_COUNTER;
-			devpriv->b_Timer2Interrupt = 1;
-		}
-	}
 
 	/* set mode to enable acquisition */
 	outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
@@ -343,7 +319,8 @@ static void apci3120_interrupt_dma(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct apci3120_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
-	struct comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
 	struct apci3120_dmabuf *dmabuf;
 	unsigned int samplesinbuf;
 
@@ -373,13 +350,12 @@ static void apci3120_interrupt_dma(int irq, void *d)
 		comedi_buf_write_samples(s, dmabuf->virt, samplesinbuf);
 
 		if (!(cmd->flags & CMDF_WAKE_EOS))
-			s->async->events |= COMEDI_CB_EOS;
+			async->events |= COMEDI_CB_EOS;
 	}
-	if (cmd->stop_src == TRIG_COUNT &&
-	    s->async->scans_done >= cmd->stop_arg) {
-		s->async->events |= COMEDI_CB_EOA;
+
+	if ((async->events & COMEDI_CB_CANCEL_MASK) ||
+	    (cmd->stop_src == TRIG_COUNT && async->scans_done >= cmd->stop_arg))
 		return;
-	}
 
 	if (devpriv->use_double_buffer) {
 		/* switch dma buffers for next interrupt */
@@ -395,7 +371,8 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct apci3120_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
-	struct comedi_cmd *cmd = &s->async->cmd;
+	struct comedi_async *async = s->async;
+	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int status;
 	unsigned int int_amcc;
 
@@ -442,10 +419,6 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 	if (status & APCI3120_STATUS_TIMER2_INT) {
 		switch (devpriv->b_Timer2Mode) {
 		case APCI3120_COUNTER:
-			devpriv->mode &= ~APCI3120_MODE_EOS_IRQ_ENA;
-			outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
-
-			s->async->events |= COMEDI_CB_EOA;
 			break;
 
 		case APCI3120_TIMER:
@@ -478,6 +451,10 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 		/* do some data transfer */
 		apci3120_interrupt_dma(irq, d);
 	}
+
+	if (cmd->stop_src == TRIG_COUNT && async->scans_done >= cmd->stop_arg)
+		async->events |= COMEDI_CB_EOA;
+
 	comedi_handle_events(dev, s);
 
 	return IRQ_HANDLED;
