@@ -43,8 +43,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_START			1
 #define APCI3120_STOP			0
 
-#define APCI3120_RD_FIFO		0x00
-
 /* software trigger dummy register */
 #define APCI3120_START_CONVERSION	0x02
 
@@ -408,7 +406,7 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 		int i;
 
 		for (i = 0; i < cmd->chanlist_len; i++) {
-			val = inw(dev->iobase + 0);
+			val = inw(dev->iobase + APCI3120_AI_FIFO_REG);
 			comedi_buf_write_samples(s, &val, 1);
 		}
 

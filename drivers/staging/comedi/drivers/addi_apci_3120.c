@@ -16,6 +16,7 @@
 /*
  * PCI BAR 1 register map (dev->iobase)
  */
+#define APCI3120_AI_FIFO_REG			0x00
 #define APCI3120_CTRL_REG			0x00
 #define APCI3120_CTRL_EXT_TRIG			(1 << 15)
 #define APCI3120_CTRL_GATE(x)			(1 << (12 + (x)))
@@ -370,7 +371,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 		if (ret)
 			return ret;
 
-		data[i] = inw(dev->iobase + 0);
+		data[i] = inw(dev->iobase + APCI3120_AI_FIFO_REG);
 	}
 
 	return insn->n;
