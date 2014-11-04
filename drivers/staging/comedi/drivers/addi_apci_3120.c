@@ -21,7 +21,16 @@
 #define APCI3120_CTRL_PR(x)			(((x) & 0xf) << 8)
 #define APCI3120_CTRL_PA(x)			(((x) & 0xf) << 0)
 #define APCI3120_STATUS_REG			0x02
+#define APCI3120_STATUS_EOC_INT			(1 << 15)
+#define APCI3120_STATUS_AMCC_INT		(1 << 14)
+#define APCI3120_STATUS_EOS_INT			(1 << 13)
+#define APCI3120_STATUS_TIMER2_INT		(1 << 12)
+#define APCI3120_STATUS_INT_MASK		(0xf << 12)
+#define APCI3120_STATUS_TO_DI_BITS(x)		(((x) >> 8) & 0xf)
 #define APCI3120_STATUS_TO_VERSION(x)		(((x) >> 4) & 0xf)
+#define APCI3120_STATUS_FIFO_FULL		(1 << 2)
+#define APCI3120_STATUS_FIFO_EMPTY		(1 << 1)
+#define APCI3120_STATUS_DA_READY		(1 << 0)
 #define APCI3120_TIMER_REG			0x04
 #define APCI3120_CHANLIST_REG			0x06
 #define APCI3120_CHANLIST_INDEX(x)		(((x) & 0xf) << 8)

@@ -83,10 +83,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 #define APCI3120_RD_FIFO		0x00
 
-/* status register bits */
-#define APCI3120_EOC			0x8000
-#define APCI3120_EOS			0x2000
-
 /* software trigger dummy register */
 #define APCI3120_START_CONVERSION	0x02
 
@@ -97,8 +93,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_WATCHDOG		2
 #define APCI3120_TIMER_DISABLE		0
 #define APCI3120_TIMER_ENABLE		1
-
-#define APCI3120_FC_TIMER		0x1000
 
 #define APCI3120_COUNTER		3
 
@@ -145,7 +139,7 @@ static int apci3120_ai_eoc(struct comedi_device *dev,
 	unsigned int status;
 
 	status = inw(dev->iobase + APCI3120_STATUS_REG);
-	if ((status & APCI3120_EOC) == 0)
+	if ((status & APCI3120_STATUS_EOC_INT) == 0)
 		return 0;
 	return -EBUSY;
 }
@@ -748,20 +742,19 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 	struct apci3120_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned short int_daq;
+	unsigned int status;
 	unsigned int int_amcc;
 
-	int_daq = inw(dev->iobase + APCI3120_STATUS_REG) & 0xf000;
+	status = inw(dev->iobase + APCI3120_STATUS_REG);
 	int_amcc = inl(devpriv->amcc + AMCC_OP_REG_INTCSR);
 
-	if ((!int_daq) && (!(int_amcc & ANY_S593X_INT))) {
+	if (!(status & APCI3120_STATUS_INT_MASK) &&
+	    !(int_amcc & ANY_S593X_INT)) {
 		dev_err(dev->class_dev, "IRQ from unknown source\n");
 		return IRQ_NONE;
 	}
 
 	outl(int_amcc | 0x00ff0000, devpriv->amcc + AMCC_OP_REG_INTCSR);
-
-	int_daq = (int_daq >> 12) & 0xF;
 
 	if (devpriv->b_ExttrigEnable == APCI3120_ENABLE) {
 		apci3120_exttrig_enable(dev, false);
@@ -775,14 +768,13 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 	if (int_amcc & TARGET_ABORT_INT)
 		dev_err(dev->class_dev, "AMCC IRQ - TARGET DMA ABORT!\n");
 
-	/*  Ckeck if EOC interrupt */
-	if (((int_daq & 0x8) == 0) &&
-	    (devpriv->b_InterruptMode == APCI3120_EOC_MODE)) {
+	if ((status & APCI3120_STATUS_EOC_INT) == 0 &&
+	    devpriv->b_InterruptMode == APCI3120_EOC_MODE) {
 		/* nothing to do... EOC mode is not currently used */
 	}
 
-	/*  Check If EOS interrupt */
-	if ((int_daq & 0x2) && (devpriv->b_InterruptMode == APCI3120_EOS_MODE)) {
+	if ((status & APCI3120_STATUS_EOS_INT) &&
+	    devpriv->b_InterruptMode == APCI3120_EOS_MODE) {
 		if (devpriv->ai_running) {
 			unsigned short val;
 			int i;
@@ -797,9 +789,7 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 		}
 	}
 
-	/* Timer2 interrupt */
-	if (int_daq & 0x1) {
-
+	if (status & APCI3120_STATUS_TIMER2_INT) {
 		switch (devpriv->b_Timer2Mode) {
 		case APCI3120_COUNTER:
 			devpriv->mode &= ~APCI3120_MODE_EOS_IRQ_ENA;
@@ -829,7 +819,8 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 		apci3120_clr_timer2_interrupt(dev);
 	}
 
-	if ((int_daq & 0x4) && (devpriv->b_InterruptMode == APCI3120_DMA_MODE)) {
+	if ((status & APCI3120_STATUS_AMCC_INT) &&
+	    devpriv->b_InterruptMode == APCI3120_DMA_MODE) {
 		if (devpriv->ai_running) {
 
 			/* Clear Timer Write TC int */
@@ -1019,7 +1010,7 @@ static int apci3120_read_insn_timer(struct comedi_device *dev,
 				    unsigned int *data)
 {
 	struct apci3120_private *devpriv = dev->private;
-	unsigned short us_StatusValue;
+	unsigned int status;
 
 	if ((devpriv->b_Timer2Mode != APCI3120_WATCHDOG)
 		&& (devpriv->b_Timer2Mode != APCI3120_TIMER)) {
@@ -1027,13 +1018,15 @@ static int apci3120_read_insn_timer(struct comedi_device *dev,
 	}
 	if (devpriv->b_Timer2Mode == APCI3120_TIMER) {
 		data[0] = apci3120_timer_read(dev, 2);
-	} else {			/*  Read watch dog status */
-		us_StatusValue = inw(dev->iobase + APCI3120_STATUS_REG);
-		us_StatusValue =
-			((us_StatusValue & APCI3120_FC_TIMER) >> 12) & 1;
-		if (us_StatusValue == 1)
+	} else {
+		/* Read watch dog status */
+		status = inw(dev->iobase + APCI3120_STATUS_REG);
+		if (status & APCI3120_STATUS_TIMER2_INT) {
 			apci3120_clr_timer2_interrupt(dev);
-		data[0] = us_StatusValue;	/*  when data[0] = 1 then the watch dog has rundown */
+			data[0] = 1;
+		} else {
+			data[0] = 0;
+		}
 	}
 	return insn->n;
 }
@@ -1043,11 +1036,10 @@ static int apci3120_di_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	unsigned int val;
+	unsigned int status;
 
-	/* the input channels are bits 11:8 of the status reg */
-	val = inw(dev->iobase + APCI3120_STATUS_REG);
-	data[1] = (val >> 8) & 0xf;
+	status = inw(dev->iobase + APCI3120_STATUS_REG);
+	data[1] = APCI3120_STATUS_TO_DI_BITS(status);
 
 	return insn->n;
 }
@@ -1078,7 +1070,7 @@ static int apci3120_ao_ready(struct comedi_device *dev,
 	unsigned int status;
 
 	status = inw(dev->iobase + APCI3120_STATUS_REG);
-	if (status & 0x0001)	/* waiting for DA_READY */
+	if (status & APCI3120_STATUS_DA_READY)
 		return 0;
 	return -EBUSY;
 }
