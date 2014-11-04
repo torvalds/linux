@@ -215,6 +215,10 @@ static void ilk_audio_codec_enable(struct drm_connector *connector,
 {
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
+	struct intel_digital_port *intel_dig_port =
+		enc_to_dig_port(&encoder->base);
+	enum port port = intel_dig_port->port;
+	enum pipe pipe = intel_crtc->pipe;
 	uint8_t *eld = connector->eld;
 	uint32_t eldv;
 	uint32_t tmp;
@@ -223,8 +227,16 @@ static void ilk_audio_codec_enable(struct drm_connector *connector,
 	int aud_config;
 	int aud_cntl_st;
 	int aud_cntrl_st2;
-	enum pipe pipe = intel_crtc->pipe;
-	enum port port;
+
+	DRM_DEBUG_KMS("Enable audio codec on port %c, pipe %c, %u bytes ELD\n",
+		      port_name(port), pipe_name(pipe), eld[2]);
+
+	/*
+	 * FIXME: We're supposed to wait for vblank here, but we have vblanks
+	 * disabled during the mode set. The proper fix would be to push the
+	 * rest of the setup into a vblank work item, queued here, but the
+	 * infrastructure is not there yet.
+	 */
 
 	if (HAS_PCH_IBX(connector->dev)) {
 		hdmiw_hdmiedid = IBX_HDMIW_HDMIEDID(pipe);
@@ -243,57 +255,44 @@ static void ilk_audio_codec_enable(struct drm_connector *connector,
 		aud_cntrl_st2 = CPT_AUD_CNTRL_ST2;
 	}
 
-	DRM_DEBUG_DRIVER("ELD on pipe %c\n", pipe_name(pipe));
-
-	if (IS_VALLEYVIEW(connector->dev))  {
-		struct intel_digital_port *intel_dig_port;
-
-		intel_dig_port = enc_to_dig_port(&encoder->base);
-		port = intel_dig_port->port;
-	} else {
-		tmp = I915_READ(aud_cntl_st);
-		port = (tmp >> 29) & DIP_PORT_SEL_MASK;
-		/* DIP_Port_Select, 0x1 = PortB */
-	}
-
-	if (!port) {
-		DRM_DEBUG_DRIVER("Audio directed to unknown port\n");
-		/* operate blindly on all ports */
+	if (WARN_ON(!port)) {
 		eldv = IBX_ELD_VALIDB;
 		eldv |= IBX_ELD_VALIDB << 4;
 		eldv |= IBX_ELD_VALIDB << 8;
 	} else {
-		DRM_DEBUG_DRIVER("ELD on port %c\n", port_name(port));
 		eldv = IBX_ELD_VALIDB << ((port - 1) * 4);
 	}
 
-	if (intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_DISPLAYPORT))
-		I915_WRITE(aud_config, AUD_CONFIG_N_VALUE_INDEX); /* 0x1 = DP */
-	else
-		I915_WRITE(aud_config, audio_config_hdmi_pixel_clock(mode));
-
-	if (intel_eld_uptodate(connector,
-			       aud_cntrl_st2, eldv,
-			       aud_cntl_st, IBX_ELD_ADDRESS_MASK,
-			       hdmiw_hdmiedid))
-		return;
-
+	/* Invalidate ELD */
 	tmp = I915_READ(aud_cntrl_st2);
 	tmp &= ~eldv;
 	I915_WRITE(aud_cntrl_st2, tmp);
 
+	/* Reset ELD write address */
 	tmp = I915_READ(aud_cntl_st);
 	tmp &= ~IBX_ELD_ADDRESS_MASK;
 	I915_WRITE(aud_cntl_st, tmp);
 
-	len = min_t(int, eld[2], 21);	/* 84 bytes of hw ELD buffer */
-	DRM_DEBUG_DRIVER("ELD size %d\n", len);
+	/* Up to 84 bytes of hw ELD buffer */
+	len = min_t(int, eld[2], 21);
 	for (i = 0; i < len; i++)
 		I915_WRITE(hdmiw_hdmiedid, *((uint32_t *)eld + i));
 
+	/* ELD valid */
 	tmp = I915_READ(aud_cntrl_st2);
 	tmp |= eldv;
 	I915_WRITE(aud_cntrl_st2, tmp);
+
+	/* Enable timestamps */
+	tmp = I915_READ(aud_config);
+	tmp &= ~AUD_CONFIG_N_VALUE_INDEX;
+	tmp &= ~AUD_CONFIG_N_PROG_ENABLE;
+	tmp &= ~AUD_CONFIG_PIXEL_CLOCK_HDMI_MASK;
+	if (intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_DISPLAYPORT))
+		tmp |= AUD_CONFIG_N_VALUE_INDEX;
+	else
+		tmp |= audio_config_hdmi_pixel_clock(mode);
+	I915_WRITE(aud_config, tmp);
 }
 
 /**
