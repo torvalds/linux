@@ -522,7 +522,7 @@ static inline int x86_this_cpu_variable_test_bit(int nr,
 #include <asm-generic/percpu.h>
 
 /* We can use this directly for local CPU (faster). */
-DECLARE_PER_CPU(unsigned long, this_cpu_off);
+DECLARE_PER_CPU_READ_MOSTLY(unsigned long, this_cpu_off);
 
 #endif /* !__ASSEMBLY__ */
 
