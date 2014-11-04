@@ -1395,6 +1395,7 @@ static int __map_request(struct ceph_osd_client *osdc,
 	if (req->r_osd) {
 		__cancel_request(req);
 		list_del_init(&req->r_osd_item);
+		list_del_init(&req->r_linger_osd_item);
 		req->r_osd = NULL;
 	}
 
