@@ -456,17 +456,8 @@ static void apci3120_interrupt_dma(struct comedi_device *dev,
 		async->events |= COMEDI_CB_ERROR;
 		return;
 	}
+
 	nsamples = comedi_bytes_to_samples(s, nbytes);
-
-	if (devpriv->use_double_buffer) {
-		struct apci3120_dmabuf *next_dmabuf;
-
-		next_dmabuf = &devpriv->dmabuf[!devpriv->cur_dmabuf];
-
-		/* start DMA on next buffer */
-		apci3120_init_dma(dev, next_dmabuf);
-	}
-
 	if (nsamples) {
 		comedi_buf_write_samples(s, dmabuf->virt, nsamples);
 
@@ -479,10 +470,12 @@ static void apci3120_interrupt_dma(struct comedi_device *dev,
 		return;
 
 	if (devpriv->use_double_buffer) {
-		/* switch dma buffers for next interrupt */
+		/* switch DMA buffers for next interrupt */
 		devpriv->cur_dmabuf = !devpriv->cur_dmabuf;
+		dmabuf = &devpriv->dmabuf[devpriv->cur_dmabuf];
+		apci3120_init_dma(dev, dmabuf);
 	} else {
-		/* restart DMA if is not using double buffering */
+		/* restart DMA if not using double buffering */
 		apci3120_init_dma(dev, dmabuf);
 	}
 }
