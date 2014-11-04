@@ -72,25 +72,16 @@ static void apci3120_addon_write(struct comedi_device *dev,
 	outw((val >> 16) & 0xffff, devpriv->addon + APCI3120_ADDON_DATA_REG);
 }
 
-static int apci3120_reset(struct comedi_device *dev)
+static void apci3120_reset(struct comedi_device *dev)
 {
-	struct apci3120_private *devpriv = dev->private;
-
-	/*  variables used in timer subdevice */
-	devpriv->b_Timer2Mode = 0;
-	devpriv->b_Timer2Interrupt = 0;
-
-	/* Disable all interrupts, watchdog for the anolog output */
-	devpriv->mode = 0;
-	outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
+	/* disable all interrupt sources */
+	outb(0, dev->iobase + APCI3120_MODE_REG);
 
 	/* disable all counters, ext trigger, and reset scan */
-	devpriv->ctrl = 0;
-	outw(devpriv->ctrl, dev->iobase + APCI3120_CTRL_REG);
+	outw(0, dev->iobase + APCI3120_CTRL_REG);
 
+	/* clear interrupt status */
 	inw(dev->iobase + APCI3120_STATUS_REG);
-
-	return 0;
 }
 
 static int apci3120_cancel(struct comedi_device *dev,
