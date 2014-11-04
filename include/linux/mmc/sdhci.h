@@ -155,7 +155,7 @@ struct sdhci_host {
 
 	int sg_count;		/* Mapped sg entries */
 
-	u8 *adma_desc;		/* ADMA descriptor table */
+	u8 *adma_table;		/* ADMA descriptor table */
 	u8 *align_buffer;	/* Bounce buffer */
 
 	dma_addr_t adma_addr;	/* Mapped ADMA descr. table */
