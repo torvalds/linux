@@ -367,6 +367,8 @@
 		reg = <0x20070000 0x1000>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		dmas = <&dmac2 10>, <&dmac2 11>;
+		dma-names = "tx", "rx";
 		status = "disabled";
 	};
 
@@ -378,6 +380,8 @@
 		reg = <0x20074000 0x1000>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		dmas = <&dmac2 12>, <&dmac2 13>;
+		dma-names = "tx", "rx";
 		status = "disabled";
 	};
 };
