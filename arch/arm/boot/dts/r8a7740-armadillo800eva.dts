@@ -25,6 +25,7 @@
 
 	chosen {
 		bootargs = "console=tty0 console=ttySC1,115200 earlyprintk=sh-sci.1,115200 ignore_loglevel root=/dev/nfs ip=dhcp rw";
+		stdout-path = &scifa1;
 	};
 
 	memory {
