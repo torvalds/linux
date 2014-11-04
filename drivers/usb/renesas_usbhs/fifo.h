@@ -74,6 +74,7 @@ int usbhs_fifo_probe(struct usbhs_priv *priv);
 void usbhs_fifo_remove(struct usbhs_priv *priv);
 void usbhs_fifo_init(struct usbhs_priv *priv);
 void usbhs_fifo_quit(struct usbhs_priv *priv);
+void usbhs_fifo_clear_dcp(struct usbhs_pipe *pipe);
 
 /*
  * packet info
