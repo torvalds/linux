@@ -75,7 +75,12 @@ struct msm_drm_private {
 	struct msm_kms *kms;
 
 	/* subordinate devices, if present: */
-	struct platform_device *hdmi_pdev, *gpu_pdev;
+	struct platform_device *gpu_pdev;
+
+	/* possibly this should be in the kms component, but it is
+	 * shared by both mdp4 and mdp5..
+	 */
+	struct hdmi *hdmi;
 
 	/* when we have more than one 'msm_gpu' these need to be an array: */
 	struct msm_gpu *gpu;
@@ -202,7 +207,8 @@ struct drm_framebuffer *msm_framebuffer_create(struct drm_device *dev,
 struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev);
 
 struct hdmi;
-struct hdmi *hdmi_init(struct drm_device *dev, struct drm_encoder *encoder);
+int hdmi_modeset_init(struct hdmi *hdmi, struct drm_device *dev,
+		struct drm_encoder *encoder);
 irqreturn_t hdmi_irq(int irq, void *dev_id);
 void __init hdmi_register(void);
 void __exit hdmi_unregister(void);

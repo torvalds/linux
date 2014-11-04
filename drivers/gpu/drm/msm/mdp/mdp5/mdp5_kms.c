@@ -324,11 +324,12 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	priv->encoders[priv->num_encoders++] = encoder;
 
 	/* Construct bridge/connector for HDMI: */
-	mdp5_kms->hdmi = hdmi_init(dev, encoder);
-	if (IS_ERR(mdp5_kms->hdmi)) {
-		ret = PTR_ERR(mdp5_kms->hdmi);
-		dev_err(dev->dev, "failed to initialize HDMI: %d\n", ret);
-		goto fail;
+	if (priv->hdmi) {
+		ret = hdmi_modeset_init(priv->hdmi, dev, encoder);
+		if (ret) {
+			dev_err(dev->dev, "failed to initialize HDMI: %d\n", ret);
+			goto fail;
+		}
 	}
 
 	return 0;
