@@ -2080,10 +2080,10 @@ static int musb_probe(struct platform_device *pdev)
 	struct resource	*iomem;
 	void __iomem	*base;
 
-	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!iomem || irq <= 0)
+	if (irq <= 0)
 		return -ENODEV;
 
+	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(dev, iomem);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
