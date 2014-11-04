@@ -94,7 +94,7 @@ visor_memregion_create_overlapped(struct memregion *parent, ulong offset,
 
 	memregion->physaddr = parent->physaddr + offset;
 	memregion->nbytes = nbytes;
-	memregion->mapped = ((u8 __iomem *) (parent->mapped)) + offset;
+	memregion->mapped = ((u8 __iomem *)(parent->mapped)) + offset;
 	memregion->requested = FALSE;
 	memregion->overlapped = TRUE;
 	return memregion;
@@ -105,7 +105,7 @@ EXPORT_SYMBOL_GPL(visor_memregion_create_overlapped);
 static BOOL
 mapit(struct memregion *memregion)
 {
-	ulong physaddr = (ulong) (memregion->physaddr);
+	ulong physaddr = (ulong)(memregion->physaddr);
 	ulong nbytes = memregion->nbytes;
 
 	memregion->requested = FALSE;
@@ -130,7 +130,7 @@ unmapit(struct memregion *memregion)
 		memregion->mapped = NULL;
 	}
 	if (memregion->requested) {
-		release_mem_region((ulong) (memregion->physaddr),
+		release_mem_region((ulong)(memregion->physaddr),
 				   memregion->nbytes);
 		memregion->requested = FALSE;
 	}
