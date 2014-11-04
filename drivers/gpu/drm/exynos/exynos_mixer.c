@@ -863,7 +863,7 @@ static int mixer_initialize(struct exynos_drm_manager *mgr,
 	priv = drm_dev->dev_private;
 
 	mgr->drm_dev = mixer_ctx->drm_dev = drm_dev;
-	mgr->pipe = mixer_ctx->pipe = priv->pipe++;
+	mixer_ctx->pipe = priv->pipe++;
 
 	/* acquire resources: regs, irqs, clocks */
 	ret = mixer_resources_init(mixer_ctx);

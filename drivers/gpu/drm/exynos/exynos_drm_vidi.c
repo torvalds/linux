@@ -302,7 +302,7 @@ static int vidi_mgr_initialize(struct exynos_drm_manager *mgr,
 	struct exynos_drm_private *priv = drm_dev->dev_private;
 
 	mgr->drm_dev = ctx->drm_dev = drm_dev;
-	mgr->pipe = ctx->pipe = priv->pipe++;
+	ctx->pipe = priv->pipe++;
 
 	return 0;
 }

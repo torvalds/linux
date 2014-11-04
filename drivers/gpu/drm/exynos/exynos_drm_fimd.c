@@ -299,7 +299,7 @@ static int fimd_mgr_initialize(struct exynos_drm_manager *mgr,
 	priv = drm_dev->dev_private;
 
 	mgr->drm_dev = ctx->drm_dev = drm_dev;
-	mgr->pipe = ctx->pipe = priv->pipe++;
+	ctx->pipe = priv->pipe++;
 
 	/* attach this sub driver to iommu mapping if supported. */
 	if (is_drm_iommu_supported(ctx->drm_dev)) {

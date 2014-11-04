@@ -436,7 +436,7 @@ int exynos_drm_crtc_get_pipe_from_type(struct drm_device *drm_dev,
 
 		exynos_crtc = to_exynos_crtc(crtc);
 		if (exynos_crtc->manager->type == out_type)
-			return exynos_crtc->manager->pipe;
+			return exynos_crtc->pipe;
 	}
 
 	return -EPERM;

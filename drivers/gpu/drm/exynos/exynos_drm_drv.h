@@ -207,7 +207,6 @@ struct exynos_drm_manager_ops {
  * @type: one of EXYNOS_DISPLAY_TYPE_LCD and HDMI.
  * @drm_dev: pointer to the drm device
  * @crtc: crtc object.
- * @pipe: the pipe number for this crtc/manager
  * @ops: pointer to callbacks for exynos drm specific functionality
  * @ctx: A pointer to the manager's implementation specific context
  */
@@ -216,7 +215,6 @@ struct exynos_drm_manager {
 	enum exynos_drm_output_type type;
 	struct drm_device *drm_dev;
 	struct drm_crtc *crtc;
-	int pipe;
 	struct exynos_drm_manager_ops *ops;
 };
 
