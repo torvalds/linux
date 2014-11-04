@@ -251,13 +251,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 			/* Initialize Timer 0 mode 4 */
 			apci3120_timer_set_mode(dev, 0, APCI3120_TIMER_MODE4);
 
-			/*  Reset the scan bit and Disables the  EOS, DMA, EOC interrupt */
-			devpriv->mode &= APCI3120_DISABLE_SCAN;
-
 			if (devpriv->b_EocEosInterrupt == APCI3120_ENABLE) {
-
-				/* Disables the EOS,DMA and enables the EOC interrupt */
-				devpriv->mode &= APCI3120_DISABLE_EOS_INT;
 				devpriv->mode |= APCI3120_ENABLE_EOC_INT;
 				inw(dev->iobase + 0);
 			}
@@ -312,11 +306,8 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 
 			/* If Interrupt function is loaded */
 			if (devpriv->b_EocEosInterrupt == APCI3120_ENABLE) {
-				/* Disables the EOC,DMA and enables the EOS interrupt */
-				devpriv->mode &= APCI3120_DISABLE_EOC_INT;
 				devpriv->mode |= APCI3120_ENABLE_EOS_INT;
 				inw(dev->iobase + 0);
-
 			}
 
 			outb(devpriv->mode,
@@ -563,8 +554,6 @@ static int apci3120_cyclic_ai(int mode,
 
 	}
 
-	/* common for all modes */
-	devpriv->mode &= APCI3120_DISABLE_SCAN;
 	outb(devpriv->mode, dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
 	/*  If DMA is disabled */
@@ -573,17 +562,11 @@ static int apci3120_cyclic_ai(int mode,
 		devpriv->b_InterruptMode = APCI3120_EOS_MODE;
 		devpriv->b_EocEosInterrupt = APCI3120_ENABLE;
 
-		devpriv->mode &= APCI3120_DISABLE_EOC_INT;
 		devpriv->mode |= APCI3120_ENABLE_EOS_INT;
 		outb(devpriv->mode, dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
 		if (cmd->stop_src == TRIG_COUNT) {
 			/* configure Timer2 For counting EOS */
-
-			/*  DISABLE TIMER intERRUPT */
-			devpriv->mode &= APCI3120_DISABLE_TIMER_INT & 0xef;
-			outb(devpriv->mode,
-			     dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
 			/* (1) Init timer 2 in mode 0 and write timer value */
 			apci3120_timer_set_mode(dev, 2, APCI3120_TIMER_MODE0);
@@ -594,7 +577,6 @@ static int apci3120_cyclic_ai(int mode,
 			apci3120_clr_timer2_interrupt(dev);
 
 			/*  enable timer counter and disable watch dog */
-			devpriv->mode &= APCI3120_DISABLE_WATCHDOG;
 			devpriv->mode |= APCI3120_ENABLE_TIMER_COUNTER;
 			/*  select EOS clock input for timer 2 */
 			devpriv->mode |= APCI3120_TIMER2_SELECT_EOS;
@@ -614,11 +596,6 @@ static int apci3120_cyclic_ai(int mode,
 		scan_bytes = comedi_samples_to_bytes(s, cmd->scan_end_arg);
 
 		devpriv->b_InterruptMode = APCI3120_DMA_MODE;
-
-		/* Disables the EOC, EOS interrupt  */
-		devpriv->mode &= APCI3120_DISABLE_EOC_INT &
-				 APCI3120_DISABLE_EOS_INT;
-		outb(devpriv->mode, dev->iobase + APCI3120_WRITE_MODE_SELECT);
 
 		dmalen0 = dmabuf0->size;
 		dmalen1 = dmabuf1->size;
