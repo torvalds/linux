@@ -86,7 +86,7 @@ visor_memregion_create_overlapped(struct memregion *parent, ulong offset,
 		       __func__, offset, nbytes);
 		return NULL;
 	}
-	memregion = kzalloc(sizeof(struct memregion), GFP_KERNEL|__GFP_NORETRY);
+	memregion = kzalloc(sizeof(*memregion), GFP_KERNEL|__GFP_NORETRY);
 	if (memregion == NULL) {
 		ERRDRV("%s allocation failed", __func__);
 		return NULL;
