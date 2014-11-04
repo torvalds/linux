@@ -72,7 +72,7 @@ struct apci3120_private {
 	unsigned char b_DmaDoubleBuffer;
 	unsigned int ui_DmaActualBuffer;
 	struct apci3120_dmabuf dmabuf[2];
-	unsigned char b_DigitalOutputRegister;
+	unsigned char do_bits;
 	unsigned char b_TimerSelectMode;
 	unsigned char b_ModeSelectRegister;
 	unsigned short us_OutputRegister;

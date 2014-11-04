@@ -391,8 +391,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 			     dev->iobase + APCI3120_WR_ADDRESS);
 
 			/*  Select Timer 0 */
-			b_Tmp = ((devpriv->
-					b_DigitalOutputRegister) & 0xF0) |
+			b_Tmp = ((devpriv->do_bits) & 0xF0) |
 				APCI3120_SELECT_TIMER_0_WORD;
 			outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 
@@ -449,8 +448,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 			     dev->iobase + APCI3120_TIMER_CRT1);
 
 			/* Select Timer 0 */
-			b_Tmp = ((devpriv->
-					b_DigitalOutputRegister) & 0xF0) |
+			b_Tmp = ((devpriv->do_bits) & 0xF0) |
 				APCI3120_SELECT_TIMER_0_WORD;
 			outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 
@@ -767,8 +765,7 @@ static int apci3120_cyclic_ai(int mode,
 			dev->iobase + APCI3120_TIMER_CRT1);
 
 		/* Select Timer 0 */
-		b_Tmp = ((devpriv->
-				b_DigitalOutputRegister) & 0xF0) |
+		b_Tmp = ((devpriv->do_bits) & 0xF0) |
 			APCI3120_SELECT_TIMER_0_WORD;
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 		/* Set the conversion time */
@@ -784,8 +781,7 @@ static int apci3120_cyclic_ai(int mode,
 			dev->iobase + APCI3120_TIMER_CRT1);
 
 		/* Select Timer 1 */
-		b_Tmp = ((devpriv->
-				b_DigitalOutputRegister) & 0xF0) |
+		b_Tmp = ((devpriv->do_bits) & 0xF0) |
 			APCI3120_SELECT_TIMER_1_WORD;
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 		/* Set the conversion time */
@@ -799,8 +795,7 @@ static int apci3120_cyclic_ai(int mode,
 			dev->iobase + APCI3120_TIMER_CRT1);
 
 		/* Select Timer 0 */
-		b_Tmp = ((devpriv->
-				b_DigitalOutputRegister) & 0xF0) |
+		b_Tmp = ((devpriv->do_bits) & 0xF0) |
 			APCI3120_SELECT_TIMER_0_WORD;
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 
@@ -859,16 +854,14 @@ static int apci3120_cyclic_ai(int mode,
 				dev->iobase + APCI3120_TIMER_CRT1);
 
 			/* Writing LOW unsigned short */
-			b_Tmp = ((devpriv->
-					b_DigitalOutputRegister) & 0xF0) |
+			b_Tmp = ((devpriv->do_bits) & 0xF0) |
 				APCI3120_SELECT_TIMER_2_LOW_WORD;
 			outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 			outw(ui_TimerValue2 & 0xffff,
 				dev->iobase + APCI3120_TIMER_VALUE);
 
 			/* Writing HIGH unsigned short */
-			b_Tmp = ((devpriv->
-					b_DigitalOutputRegister) & 0xF0) |
+			b_Tmp = ((devpriv->do_bits) & 0xF0) |
 				APCI3120_SELECT_TIMER_2_HIGH_WORD;
 			outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 			outw((ui_TimerValue2 >> 16) & 0xffff,
@@ -1487,15 +1480,13 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 		 */
 
 		/* Writing LOW unsigned short */
-		b_Tmp = ((devpriv->
-				b_DigitalOutputRegister) & 0xF0) |
+		b_Tmp = ((devpriv->do_bits) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_LOW_WORD;
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 		outw(divisor & 0xffff, dev->iobase + APCI3120_TIMER_VALUE);
 
 		/* Writing HIGH unsigned short */
-		b_Tmp = ((devpriv->
-				b_DigitalOutputRegister) & 0xF0) |
+		b_Tmp = ((devpriv->do_bits) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_HIGH_WORD;
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 		outw((divisor >> 16) & 0xffff,
@@ -1521,15 +1512,13 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 		 */
 
 		/* Writing LOW unsigned short */
-		b_Tmp = ((devpriv->
-				b_DigitalOutputRegister) & 0xF0) |
+		b_Tmp = ((devpriv->do_bits) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_LOW_WORD;
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 		outw(divisor & 0xffff, dev->iobase + APCI3120_TIMER_VALUE);
 
 		/* Writing HIGH unsigned short */
-		b_Tmp = ((devpriv->
-				b_DigitalOutputRegister) & 0xF0) |
+		b_Tmp = ((devpriv->do_bits) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_HIGH_WORD;
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 
@@ -1671,16 +1660,14 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 					       CMDF_ROUND_DOWN);
 
 		/* Writing LOW unsigned short */
-		b_Tmp = ((devpriv->
-				b_DigitalOutputRegister) & 0xF0) |
+		b_Tmp = ((devpriv->do_bits) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_LOW_WORD;
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 
 		outw(divisor & 0xffff, dev->iobase + APCI3120_TIMER_VALUE);
 
 		/* Writing HIGH unsigned short */
-		b_Tmp = ((devpriv->
-				b_DigitalOutputRegister) & 0xF0) |
+		b_Tmp = ((devpriv->do_bits) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_HIGH_WORD;
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 
@@ -1719,16 +1706,14 @@ static int apci3120_read_insn_timer(struct comedi_device *dev,
 	if (devpriv->b_Timer2Mode == APCI3120_TIMER) {
 
 		/* Read the LOW unsigned short of Timer 2 register */
-		b_Tmp = ((devpriv->
-				b_DigitalOutputRegister) & 0xF0) |
+		b_Tmp = ((devpriv->do_bits) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_LOW_WORD;
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 
 		us_TmpValue = inw(dev->iobase + APCI3120_TIMER_VALUE);
 
 		/* Read the HIGH unsigned short of Timer 2 register */
-		b_Tmp = ((devpriv->
-				b_DigitalOutputRegister) & 0xF0) |
+		b_Tmp = ((devpriv->do_bits) & 0xF0) |
 			APCI3120_SELECT_TIMER_2_HIGH_WORD;
 		outb(b_Tmp, dev->iobase + APCI3120_TIMER_CRT0);
 
@@ -1774,10 +1759,9 @@ static int apci3120_do_insn_bits(struct comedi_device *dev,
 
 	if (comedi_dio_update_state(s, data)) {
 		/* The do channels are bits 7:4 of the do register */
-		devpriv->b_DigitalOutputRegister = s->state << 4;
+		devpriv->do_bits = s->state << 4;
 
-		outb(devpriv->b_DigitalOutputRegister,
-		     dev->iobase + APCI3120_DIGITAL_OUTPUT);
+		outb(devpriv->do_bits, dev->iobase + APCI3120_DIGITAL_OUTPUT);
 	}
 
 	data[1] = s->state;
