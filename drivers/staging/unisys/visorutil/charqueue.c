@@ -25,7 +25,7 @@
 
 #define IS_EMPTY(charqueue) (charqueue->head == charqueue->tail)
 
-struct CHARQUEUE_Tag {
+struct charqueue {
 	int alloc_size;
 	int nslots;
 	spinlock_t lock;
@@ -33,10 +33,10 @@ struct CHARQUEUE_Tag {
 	unsigned char buf[0];
 };
 
-CHARQUEUE *visor_charqueue_create(ulong nslots)
+struct charqueue *visor_charqueue_create(ulong nslots)
 {
-	int alloc_size = sizeof(CHARQUEUE) + nslots + 1;
-	CHARQUEUE *cq = kmalloc(alloc_size, GFP_KERNEL|__GFP_NORETRY);
+	int alloc_size = sizeof(struct charqueue) + nslots + 1;
+	struct charqueue *cq = kmalloc(alloc_size, GFP_KERNEL|__GFP_NORETRY);
 
 	if (cq == NULL) {
 		ERRDRV("visor_charqueue_create allocation failed (alloc_size=%d)",
@@ -51,7 +51,7 @@ CHARQUEUE *visor_charqueue_create(ulong nslots)
 }
 EXPORT_SYMBOL_GPL(visor_charqueue_create);
 
-void visor_charqueue_enqueue(CHARQUEUE *charqueue, unsigned char c)
+void visor_charqueue_enqueue(struct charqueue *charqueue, unsigned char c)
 {
 	int alloc_slots = charqueue->nslots+1;  /* 1 slot is always empty */
 
@@ -65,7 +65,7 @@ void visor_charqueue_enqueue(CHARQUEUE *charqueue, unsigned char c)
 }
 EXPORT_SYMBOL_GPL(visor_charqueue_enqueue);
 
-BOOL visor_charqueue_is_empty(CHARQUEUE *charqueue)
+BOOL visor_charqueue_is_empty(struct charqueue *charqueue)
 {
 	BOOL b;
 
@@ -76,7 +76,7 @@ BOOL visor_charqueue_is_empty(CHARQUEUE *charqueue)
 }
 EXPORT_SYMBOL_GPL(visor_charqueue_is_empty);
 
-static int charqueue_dequeue_1(CHARQUEUE *charqueue)
+static int charqueue_dequeue_1(struct charqueue *charqueue)
 {
 	int alloc_slots = charqueue->nslots + 1;  /* 1 slot is always empty */
 
@@ -86,7 +86,7 @@ static int charqueue_dequeue_1(CHARQUEUE *charqueue)
 	return charqueue->buf[charqueue->tail];
 }
 
-int charqueue_dequeue(CHARQUEUE *charqueue)
+int charqueue_dequeue(struct charqueue *charqueue)
 {
 	int rc;
 
@@ -96,7 +96,8 @@ int charqueue_dequeue(CHARQUEUE *charqueue)
 	return rc;
 }
 
-int visor_charqueue_dequeue_n(CHARQUEUE *charqueue, unsigned char *buf, int n)
+int visor_charqueue_dequeue_n(struct charqueue *charqueue, unsigned char *buf,
+			      int n)
 {
 	int rc, counter = 0, c;
 
@@ -118,7 +119,7 @@ int visor_charqueue_dequeue_n(CHARQUEUE *charqueue, unsigned char *buf, int n)
 }
 EXPORT_SYMBOL_GPL(visor_charqueue_dequeue_n);
 
-void visor_charqueue_destroy(CHARQUEUE *charqueue)
+void visor_charqueue_destroy(struct charqueue *charqueue)
 {
 	if (charqueue == NULL)
 		return;
