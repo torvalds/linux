@@ -426,16 +426,20 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 		outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
 
 		if (cmd->stop_src == TRIG_COUNT) {
-			/* configure Timer2 For counting EOS */
-
-			/* (1) Init timer 2 in mode 0 and write timer value */
+			/*
+			 * Timer 2 is used in MODE0 (hardware retriggerable
+			 * one-shot) to count the number of scans.
+			 *
+			 * NOTE: not sure about the -2 value
+			 */
 			apci3120_timer_set_mode(dev, 2, APCI3120_TIMER_MODE0);
-
-			/* Set the scan stop count (not sure about the -2) */
 			apci3120_timer_write(dev, 2, cmd->stop_arg - 2);
 
 			apci3120_clr_timer2_interrupt(dev);
 
+			apci3120_timer_enable(dev, 2, true);
+
+			/* configure Timer 2 For counting EOS */
 			devpriv->mode |= APCI3120_MODE_TIMER2_AS_COUNTER |
 					 APCI3120_MODE_TIMER2_CLK_EOS |
 					 APCI3120_MODE_TIMER2_IRQ_ENA;
@@ -443,8 +447,6 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 
 			devpriv->b_Timer2Mode = APCI3120_COUNTER;
 			devpriv->b_Timer2Interrupt = 1;
-
-			apci3120_timer_enable(dev, 2, true);
 		}
 	}
 
