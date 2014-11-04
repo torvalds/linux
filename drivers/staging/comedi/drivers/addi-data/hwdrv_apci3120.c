@@ -125,20 +125,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_TIMER2_SELECT_EOS	0xc0
 #define APCI3120_COUNTER		3
 
-/* ANALOG INPUT RANGE */
-static const struct comedi_lrange range_apci3120_ai = {
-	8, {
-		BIP_RANGE(10),
-		BIP_RANGE(5),
-		BIP_RANGE(2),
-		BIP_RANGE(1),
-		UNI_RANGE(10),
-		UNI_RANGE(5),
-		UNI_RANGE(2),
-		UNI_RANGE(1)
-	}
-};
-
 static int apci3120_ai_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn,

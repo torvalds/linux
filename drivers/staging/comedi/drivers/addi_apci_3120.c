@@ -53,6 +53,19 @@
 #define APCI3120_REVA_OSC_BASE			70	/* 70ns = 14.29MHz */
 #define APCI3120_REVB_OSC_BASE			50	/* 50ns = 20MHz */
 
+static const struct comedi_lrange apci3120_ai_range = {
+	8, {
+		BIP_RANGE(10),
+		BIP_RANGE(5),
+		BIP_RANGE(2),
+		BIP_RANGE(1),
+		UNI_RANGE(10),
+		UNI_RANGE(5),
+		UNI_RANGE(2),
+		UNI_RANGE(1)
+	}
+};
+
 enum apci3120_boardid {
 	BOARD_APCI3120,
 	BOARD_APCI3001,
@@ -355,7 +368,7 @@ static int apci3120_auto_attach(struct comedi_device *dev,
 	s->subdev_flags	= SDF_READABLE | SDF_COMMON | SDF_GROUND | SDF_DIFF;
 	s->n_chan	= 16;
 	s->maxdata	= this_board->ai_is_16bit ? 0xffff : 0x0fff;
-	s->range_table	= &range_apci3120_ai;
+	s->range_table	= &apci3120_ai_range;
 	s->insn_config	= apci3120_ai_insn_config;
 	s->insn_read	= apci3120_ai_insn_read;
 	if (0 /* dev->irq */) {
