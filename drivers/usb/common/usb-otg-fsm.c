@@ -78,6 +78,8 @@ static void otg_leave_state(struct otg_fsm *fsm, enum usb_otg_state old_state)
 		fsm->b_srp_done = 0;
 		break;
 	case OTG_STATE_B_PERIPHERAL:
+		if (fsm->otg->gadget)
+			fsm->otg->gadget->host_request_flag = 0;
 		break;
 	case OTG_STATE_B_WAIT_ACON:
 		otg_del_timer(fsm, B_ASE0_BRST);
@@ -107,6 +109,8 @@ static void otg_leave_state(struct otg_fsm *fsm, enum usb_otg_state old_state)
 	case OTG_STATE_A_PERIPHERAL:
 		otg_del_timer(fsm, A_BIDL_ADIS);
 		fsm->a_bidl_adis_tmout = 0;
+		if (fsm->otg->gadget)
+			fsm->otg->gadget->host_request_flag = 0;
 		break;
 	case OTG_STATE_A_WAIT_VFALL:
 		otg_del_timer(fsm, A_WAIT_VFALL);
