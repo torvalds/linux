@@ -670,6 +670,7 @@ static const struct reg_default wm8997_reg_default[] = {
 	{ 0x00000C23, 0x0000 },    /* R3107  - Misc Pad Ctrl 4 */
 	{ 0x00000C24, 0x0000 },    /* R3108  - Misc Pad Ctrl 5 */
 	{ 0x00000D08, 0xFFFF },    /* R3336  - Interrupt Status 1 Mask */
+	{ 0x00000D09, 0xFFFF },    /* R3337  - Interrupt Status 2 Mask */
 	{ 0x00000D0A, 0xFFFF },    /* R3338  - Interrupt Status 3 Mask */
 	{ 0x00000D0B, 0xFFFF },    /* R3339  - Interrupt Status 4 Mask */
 	{ 0x00000D0C, 0xFEFF },    /* R3340  - Interrupt Status 5 Mask */
@@ -1328,6 +1329,7 @@ static bool wm8997_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_INTERRUPT_STATUS_4:
 	case ARIZONA_INTERRUPT_STATUS_5:
 	case ARIZONA_INTERRUPT_STATUS_1_MASK:
+	case ARIZONA_INTERRUPT_STATUS_2_MASK:
 	case ARIZONA_INTERRUPT_STATUS_3_MASK:
 	case ARIZONA_INTERRUPT_STATUS_4_MASK:
 	case ARIZONA_INTERRUPT_STATUS_5_MASK:
