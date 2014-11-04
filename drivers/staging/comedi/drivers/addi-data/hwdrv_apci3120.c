@@ -472,17 +472,6 @@ static int apci3120_reset(struct comedi_device *dev)
 	return 0;
 }
 
-static void apci3120_exttrig_enable(struct comedi_device *dev, bool enable)
-{
-	struct apci3120_private *devpriv = dev->private;
-
-	if (enable)
-		devpriv->ctrl |= APCI3120_CTRL_EXT_TRIG;
-	else
-		devpriv->ctrl &= ~APCI3120_CTRL_EXT_TRIG;
-	outw(devpriv->ctrl, dev->iobase + APCI3120_CTRL_REG);
-}
-
 static int apci3120_cancel(struct comedi_device *dev,
 			   struct comedi_subdevice *s)
 {

@@ -220,6 +220,17 @@ static void apci3120_timer_enable(struct comedi_device *dev,
 	outw(devpriv->ctrl, dev->iobase + APCI3120_CTRL_REG);
 }
 
+static void apci3120_exttrig_enable(struct comedi_device *dev, bool enable)
+{
+	struct apci3120_private *devpriv = dev->private;
+
+	if (enable)
+		devpriv->ctrl |= APCI3120_CTRL_EXT_TRIG;
+	else
+		devpriv->ctrl &= ~APCI3120_CTRL_EXT_TRIG;
+	outw(devpriv->ctrl, dev->iobase + APCI3120_CTRL_REG);
+}
+
 #include "addi-data/hwdrv_apci3120.c"
 
 static void apci3120_dma_alloc(struct comedi_device *dev)
