@@ -10511,6 +10511,56 @@ intel_pipe_config_compare(struct drm_device *dev,
 	return true;
 }
 
+static void check_wm_state(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct skl_ddb_allocation hw_ddb, *sw_ddb;
+	struct intel_crtc *intel_crtc;
+	int plane;
+
+	if (INTEL_INFO(dev)->gen < 9)
+		return;
+
+	skl_ddb_get_hw_state(dev_priv, &hw_ddb);
+	sw_ddb = &dev_priv->wm.skl_hw.ddb;
+
+	for_each_intel_crtc(dev, intel_crtc) {
+		struct skl_ddb_entry *hw_entry, *sw_entry;
+		const enum pipe pipe = intel_crtc->pipe;
+
+		if (!intel_crtc->active)
+			continue;
+
+		/* planes */
+		for_each_plane(pipe, plane) {
+			hw_entry = &hw_ddb.plane[pipe][plane];
+			sw_entry = &sw_ddb->plane[pipe][plane];
+
+			if (skl_ddb_entry_equal(hw_entry, sw_entry))
+				continue;
+
+			DRM_ERROR("mismatch in DDB state pipe %c plane %d "
+				  "(expected (%u,%u), found (%u,%u))\n",
+				  pipe_name(pipe), plane + 1,
+				  sw_entry->start, sw_entry->end,
+				  hw_entry->start, hw_entry->end);
+		}
+
+		/* cursor */
+		hw_entry = &hw_ddb.cursor[pipe];
+		sw_entry = &sw_ddb->cursor[pipe];
+
+		if (skl_ddb_entry_equal(hw_entry, sw_entry))
+			continue;
+
+		DRM_ERROR("mismatch in DDB state pipe %c cursor "
+			  "(expected (%u,%u), found (%u,%u))\n",
+			  pipe_name(pipe),
+			  sw_entry->start, sw_entry->end,
+			  hw_entry->start, hw_entry->end);
+	}
+}
+
 static void
 check_connector_state(struct drm_device *dev)
 {
@@ -10710,6 +10760,7 @@ check_shared_dpll_state(struct drm_device *dev)
 void
 intel_modeset_check_state(struct drm_device *dev)
 {
+	check_wm_state(dev);
 	check_connector_state(dev);
 	check_encoder_state(dev);
 	check_crtc_state(dev);

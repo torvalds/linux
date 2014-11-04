@@ -3057,8 +3057,8 @@ static void skl_ddb_entry_init_from_hw(struct skl_ddb_entry *entry, u32 reg)
 	entry->end = (reg >> 16) & 0x3ff;
 }
 
-static void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
-				 struct skl_ddb_allocation *ddb /* out */)
+void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
+			  struct skl_ddb_allocation *ddb /* out */)
 {
 	struct drm_device *dev = dev_priv->dev;
 	enum pipe pipe;
