@@ -477,22 +477,15 @@ static int apci3120_reset(struct comedi_device *dev)
 	return 0;
 }
 
-static int apci3120_exttrig_enable(struct comedi_device *dev)
+static void apci3120_exttrig_enable(struct comedi_device *dev, bool enable)
 {
 	struct apci3120_private *devpriv = dev->private;
 
-	devpriv->ctrl |= APCI3120_CTRL_EXT_TRIG;
+	if (enable)
+		devpriv->ctrl |= APCI3120_CTRL_EXT_TRIG;
+	else
+		devpriv->ctrl &= ~APCI3120_CTRL_EXT_TRIG;
 	outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
-	return 0;
-}
-
-static int apci3120_exttrig_disable(struct comedi_device *dev)
-{
-	struct apci3120_private *devpriv = dev->private;
-
-	devpriv->ctrl &= ~APCI3120_CTRL_EXT_TRIG;
-	outw(devpriv->ctrl, dev->iobase + APCI3120_WR_ADDRESS);
-	return 0;
 }
 
 static int apci3120_cancel(struct comedi_device *dev,
@@ -649,7 +642,8 @@ static int apci3120_cyclic_ai(int mode,
 	}
 
 	if (devpriv->b_ExttrigEnable == APCI3120_ENABLE)
-		apci3120_exttrig_enable(dev);	/*  activate EXT trigger */
+		apci3120_exttrig_enable(dev, true);
+
 	switch (mode) {
 	case 1:
 		/*  init timer0 in mode 2 */
@@ -1114,8 +1108,7 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 	int_daq = (int_daq >> 12) & 0xF;
 
 	if (devpriv->b_ExttrigEnable == APCI3120_ENABLE) {
-		/* Disable ext trigger */
-		apci3120_exttrig_disable(dev);
+		apci3120_exttrig_enable(dev, false);
 		devpriv->b_ExttrigEnable = APCI3120_DISABLE;
 	}
 	/* clear the timer 2 interrupt */
