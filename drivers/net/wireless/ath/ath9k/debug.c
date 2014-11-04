@@ -828,13 +828,14 @@ static ssize_t read_file_misc(struct file *file, char __user *user_buf,
 
 	i = 0;
 	ath_for_each_chanctx(sc, ctx) {
-		if (!ctx->assigned || list_empty(&ctx->vifs))
+		if (list_empty(&ctx->vifs))
 			continue;
 		ath9k_calculate_iter_data(sc, ctx, &iter_data);
 
 		len += scnprintf(buf + len, sizeof(buf) - len,
-			"VIF-COUNTS: CTX %i AP: %i STA: %i MESH: %i WDS: %i",
-			i++, iter_data.naps, iter_data.nstations,
+			"VIFS: CTX %i(%i) AP: %i STA: %i MESH: %i WDS: %i",
+			i++, (int)(ctx->assigned), iter_data.naps,
+			iter_data.nstations,
 			iter_data.nmeshes, iter_data.nwds);
 		len += scnprintf(buf + len, sizeof(buf) - len,
 			" ADHOC: %i TOTAL: %hi BEACON-VIF: %hi\n",
