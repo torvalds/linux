@@ -44,28 +44,12 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
  * ADDON RELATED ADDITIONS
  */
 /* Constant */
-#define APCI3120_ENABLE_TRANSFER_ADD_ON			0x12000000
-#define APCI3120_A2P_FIFO_MANAGEMENT			0x04000400L
 #define APCI3120_AMWEN_ENABLE				0x02
 #define APCI3120_A2P_FIFO_WRITE_ENABLE			0x01
 #define APCI3120_FIFO_ADVANCE_ON_BYTE_2			0x20000000L
-#define APCI3120_ENABLE_WRITE_TC_INT			0x00004000L
-#define APCI3120_CLEAR_WRITE_TC_INT			0x00040000L
 #define APCI3120_DISABLE_AMWEN_AND_A2P_FIFO_WRITE	0x0
 #define APCI3120_DISABLE_BUS_MASTER_ADD_ON		0x0
 #define APCI3120_DISABLE_BUS_MASTER_PCI			0x0
-
-/* ADD_ON ::: this needed since apci supports 16 bit interface to add on */
-#define APCI3120_ADD_ON_MWAR		0x24
-#define APCI3120_ADD_ON_AGCSTS		0x3c
-#define APCI3120_ADD_ON_MWTC		0x58
-
-/* AMCC */
-#define APCI3120_AMCC_OP_MCSR		0x3C
-#define APCI3120_AMCC_OP_REG_INTCSR	0x38
-
-/* for transfer count enable bit */
-#define AGCSTS_TC_ENABLE	0x10000000
 
 #define APCI3120_START			1
 #define APCI3120_STOP			0
@@ -128,10 +112,10 @@ static int apci3120_cancel(struct comedi_device *dev,
 	/*  Disable A2P Fifo write and AMWEN signal */
 	outw(0, devpriv->addon + 4);
 
-	/* Disable Bus Master ADD ON */
-	apci3120_addon_write(dev, 0, APCI3120_ADD_ON_AGCSTS);
+	/* Add-On - disable bus master */
+	apci3120_addon_write(dev, 0, AMCC_OP_REG_AGCSTS);
 
-	/* Disable BUS Master PCI */
+	/* AMCC - disable bus master */
 	outl(0, devpriv->amcc + AMCC_OP_REG_MCSR);
 
 	/* disable all counters, ext trigger, and reset scan */
@@ -220,11 +204,11 @@ static int apci3120_ai_cmdtest(struct comedi_device *dev,
 static void apci3120_init_dma(struct comedi_device *dev,
 			      struct apci3120_dmabuf *dmabuf)
 {
-	/* DMA Start Address */
-	apci3120_addon_write(dev, dmabuf->hw, APCI3120_ADD_ON_MWAR);
+	/* Add-On - DMA start address */
+	apci3120_addon_write(dev, dmabuf->hw, AMCC_OP_REG_AMWAR);
 
-	/* Nbr of acquisition */
-	apci3120_addon_write(dev, dmabuf->use_size, APCI3120_ADD_ON_MWTC);
+	/* Add-On - Number of acquisitions */
+	apci3120_addon_write(dev, dmabuf->use_size, AMCC_OP_REG_AMWTC);
 }
 
 static void apci3120_setup_dma(struct comedi_device *dev,
@@ -277,70 +261,32 @@ static void apci3120_setup_dma(struct comedi_device *dev,
 
 	/* Initialize DMA */
 
-	/*
-	 * Set Transfer count enable bit and A2P_fifo reset bit in AGCSTS
-	 * register 1
-	 */
+	/* AMCC- enable transfer count and reset A2P FIFO */
 	outl(AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO,
 	     devpriv->amcc + AMCC_OP_REG_AGCSTS);
 
-	/* ENABLE BUS MASTER */
-	apci3120_addon_write(dev, APCI3120_ENABLE_TRANSFER_ADD_ON,
-			     APCI3120_ADD_ON_AGCSTS);
+	/* Add-On - enable transfer count and reset A2P FIFO */
+	apci3120_addon_write(dev, AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO,
+			     AMCC_OP_REG_AGCSTS);
 
-	/*
-	 * TO VERIFIED BEGIN JK 07.05.04: Comparison between WIN32 and Linux
-	 * driver
-	 */
-	outw(0x1000, devpriv->addon + 2);
-	/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
-
-	/* 2 No change */
-	/* A2P FIFO MANAGEMENT */
-	/* A2P fifo reset & transfer control enable */
-	outl(APCI3120_A2P_FIFO_MANAGEMENT,
-	     devpriv->amcc + APCI3120_AMCC_OP_MCSR);
+	/* AMCC - enable transfers and reset A2P flags */
+	outl(RESET_A2P_FLAGS | EN_A2P_TRANSFERS,
+	     devpriv->amcc + AMCC_OP_REG_MCSR);
 
 	apci3120_init_dma(dev, dmabuf0);
 
-	/*
-	 * 5
-	 * To configure A2P FIFO testing outl(
-	 * FIFO_ADVANCE_ON_BYTE_2, devpriv->amcc + AMCC_OP_REG_INTCSR);
-	 */
+	/* AMCC- reset A2P flags */
+	outl(RESET_A2P_FLAGS, devpriv->amcc + AMCC_OP_REG_MCSR);
 
-	/* A2P FIFO RESET */
-	/*
-	 * TO VERIFY BEGIN JK 07.05.04: Comparison between WIN32 and Linux
-	 * driver
-	 */
-	outl(0x04000000UL, devpriv->amcc + AMCC_OP_REG_MCSR);
-	/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
-
-	/*
-	 * 6
-	 * ENABLE A2P FIFO WRITE AND ENABLE AMWEN AMWEN_ENABLE |
-	 * A2P_FIFO_WRITE_ENABLE (0x01|0x02)=0x03
-	 */
-
-	/*
-	 * 7
-	 * initialise end of dma interrupt AINT_WRITE_COMPL =
-	 * ENABLE_WRITE_TC_INT(ADDI)
-	 */
-	/* A2P FIFO CONFIGURATE, END OF DMA intERRUPT INIT */
-	outl(APCI3120_FIFO_ADVANCE_ON_BYTE_2 | APCI3120_ENABLE_WRITE_TC_INT,
+	/* AMCC - enable write complete (DMA) and set FIFO advance */
+	outl(APCI3120_FIFO_ADVANCE_ON_BYTE_2 | AINT_WRITE_COMPL,
 	     devpriv->amcc + AMCC_OP_REG_INTCSR);
 
-	/* BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver */
 	/* ENABLE A2P FIFO WRITE AND ENABLE AMWEN */
 	outw(3, devpriv->addon + 4);
-	/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
 
-	/* A2P FIFO RESET */
-	/* BEGIN JK 07.05.04: Comparison between WIN32 and Linux driver */
-	outl(0x04000000UL, devpriv->amcc + APCI3120_AMCC_OP_MCSR);
-	/* END JK 07.05.04: Comparison between WIN32 and Linux driver */
+	/* AMCC- reset A2P flags */
+	outl(RESET_A2P_FLAGS, devpriv->amcc + AMCC_OP_REG_MCSR);
 }
 
 static int apci3120_ai_cmd(struct comedi_device *dev,
@@ -354,9 +300,8 @@ static int apci3120_ai_cmd(struct comedi_device *dev,
 	devpriv->mode = APCI3120_MODE_TIMER2_CLK_OSC |
 			APCI3120_MODE_TIMER2_AS_TIMER;
 
-	/* Clear Timer Write TC int */
-	outl(APCI3120_CLEAR_WRITE_TC_INT,
-	     devpriv->amcc + APCI3120_AMCC_OP_REG_INTCSR);
+	/* AMCC- Clear write complete interrupt (DMA) */
+	outl(AINT_WT_COMPLETE, devpriv->amcc + AMCC_OP_REG_INTCSR);
 
 	devpriv->ui_DmaActualBuffer = 0;
 
@@ -438,7 +383,6 @@ static void apci3120_interrupt_dma(int irq, void *d)
 	struct comedi_cmd *cmd = &s->async->cmd;
 	struct apci3120_dmabuf *dmabuf;
 	unsigned int samplesinbuf;
-	unsigned int ui_Tmp;
 
 	dmabuf = &devpriv->dmabuf[devpriv->ui_DmaActualBuffer];
 
@@ -458,11 +402,14 @@ static void apci3120_interrupt_dma(int irq, void *d)
 
 		next_dmabuf = &devpriv->dmabuf[1 - devpriv->ui_DmaActualBuffer];
 
-		ui_Tmp = AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO;
-		outl(ui_Tmp, devpriv->amcc + AMCC_OP_REG_AGCSTS);
+		/* AMCC - enable transfer count and reset A2P FIFO */
+		outl(AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO,
+		     devpriv->amcc + AMCC_OP_REG_AGCSTS);
 
-		apci3120_addon_write(dev, APCI3120_ENABLE_TRANSFER_ADD_ON,
-				     APCI3120_ADD_ON_AGCSTS);
+		/* Add-On - enable transfer count and reset A2P FIFO */
+		apci3120_addon_write(dev,
+				     AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO,
+				     AMCC_OP_REG_AGCSTS);
 
 		apci3120_init_dma(dev, next_dmabuf);
 
@@ -472,9 +419,9 @@ static void apci3120_interrupt_dma(int irq, void *d)
 		 * AMWEN_ENABLE | A2P_FIFO_WRITE_ENABLE (0x01|0x02)=0x03
 		 */
 		outw(3, devpriv->addon + 4);
-		/* initialise end of dma interrupt  AINT_WRITE_COMPL = ENABLE_WRITE_TC_INT(ADDI) */
-		outl(APCI3120_FIFO_ADVANCE_ON_BYTE_2 |
-		     APCI3120_ENABLE_WRITE_TC_INT,
+
+		/* AMCC - enable write complete (DMA) and set FIFO advance */
+		outl(APCI3120_FIFO_ADVANCE_ON_BYTE_2 | AINT_WRITE_COMPL,
 		     devpriv->amcc + AMCC_OP_REG_INTCSR);
 
 	}
@@ -493,20 +440,19 @@ static void apci3120_interrupt_dma(int irq, void *d)
 	if (devpriv->b_DmaDoubleBuffer) {	/*  switch dma buffers */
 		devpriv->ui_DmaActualBuffer = 1 - devpriv->ui_DmaActualBuffer;
 	} else {
-		/*
-		 * restart DMA if is not used double buffering
-		 * ADDED REINITIALISE THE DMA
-		 */
+		/* restart DMA if is not using double buffering */
+
+		/* AMCC - enable transfer count and reset A2P FIFO */
 		outl(AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO,
 		     devpriv->amcc + AMCC_OP_REG_AGCSTS);
 
-		apci3120_addon_write(dev, APCI3120_ENABLE_TRANSFER_ADD_ON,
-				     APCI3120_ADD_ON_AGCSTS);
-		/*
-		 * A2P FIFO MANAGEMENT
-		 * A2P fifo reset & transfer control enable
-		 */
-		outl(APCI3120_A2P_FIFO_MANAGEMENT,
+		/* Add-On - enable transfer count and reset A2P FIFO */
+		apci3120_addon_write(dev,
+				     AGCSTS_TC_ENABLE | AGCSTS_RESET_A2P_FIFO,
+				     AMCC_OP_REG_AGCSTS);
+
+		/* AMCC - enable transfers and reset A2P flags */
+		outl(RESET_A2P_FLAGS | EN_A2P_TRANSFERS,
 		     devpriv->amcc + AMCC_OP_REG_MCSR);
 
 		apci3120_init_dma(dev, dmabuf);
@@ -517,9 +463,9 @@ static void apci3120_interrupt_dma(int irq, void *d)
 		 * AMWEN_ENABLE | A2P_FIFO_WRITE_ENABLE (0x01|0x02)=0x03
 		 */
 		outw(3, devpriv->addon + 4);
-		/* initialise end of dma interrupt  AINT_WRITE_COMPL = ENABLE_WRITE_TC_INT(ADDI) */
-		outl(APCI3120_FIFO_ADVANCE_ON_BYTE_2 |
-		     APCI3120_ENABLE_WRITE_TC_INT,
+
+		/* AMCC - enable write complete (DMA) and set FIFO advance */
+		outl(APCI3120_FIFO_ADVANCE_ON_BYTE_2 | AINT_WRITE_COMPL,
 		     devpriv->amcc + AMCC_OP_REG_INTCSR);
 	}
 }
@@ -542,7 +488,7 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 		return IRQ_NONE;
 	}
 
-	outl(int_amcc | 0x00ff0000, devpriv->amcc + AMCC_OP_REG_INTCSR);
+	outl(int_amcc | AINT_INT_MASK, devpriv->amcc + AMCC_OP_REG_INTCSR);
 
 	if (devpriv->ctrl & APCI3120_CTRL_EXT_TRIG)
 		apci3120_exttrig_enable(dev, false);
@@ -604,9 +550,8 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 	}
 
 	if (status & APCI3120_STATUS_AMCC_INT) {
-		/* Clear Timer Write TC int */
-		outl(APCI3120_CLEAR_WRITE_TC_INT,
-			devpriv->amcc + APCI3120_AMCC_OP_REG_INTCSR);
+		/* AMCC- Clear write complete interrupt (DMA) */
+		outl(AINT_WT_COMPLETE, devpriv->amcc + AMCC_OP_REG_INTCSR);
 
 		apci3120_clr_timer2_interrupt(dev);
 
