@@ -110,43 +110,18 @@ static int apci3120_ai_insn_config(struct comedi_device *dev,
 				   unsigned int *data)
 {
 	struct apci3120_private *devpriv = dev->private;
-	unsigned int i;
 
-	if ((data[0] != APCI3120_EOC_MODE) && (data[0] != APCI3120_EOS_MODE))
+	if (data[0] != APCI3120_EOC_MODE)
 		return -1;
 
 	/*  Check for Conversion time to be added */
 	devpriv->ui_EocEosConversionTime = data[2];
 
-	if (data[0] == APCI3120_EOS_MODE) {
-
-		/* Test the number of the channel */
-		for (i = 0; i < data[3]; i++) {
-
-			if (CR_CHAN(data[4 + i]) >= s->n_chan) {
-				dev_err(dev->class_dev, "bad channel list\n");
-				return -2;
-			}
-		}
-
-		devpriv->b_InterruptMode = APCI3120_EOS_MODE;
-
-		if (data[1])
-			devpriv->b_EocEosInterrupt = APCI3120_ENABLE;
-		else
-			devpriv->b_EocEosInterrupt = APCI3120_DISABLE;
-		/*  Copy channel list and Range List to devpriv */
-		devpriv->ui_AiNbrofChannels = data[3];
-		for (i = 0; i < devpriv->ui_AiNbrofChannels; i++)
-			devpriv->ui_AiChannelList[i] = data[4 + i];
-
-	} else {			/*  EOC */
-		devpriv->b_InterruptMode = APCI3120_EOC_MODE;
-		if (data[1])
-			devpriv->b_EocEosInterrupt = APCI3120_ENABLE;
-		else
-			devpriv->b_EocEosInterrupt = APCI3120_DISABLE;
-	}
+	devpriv->b_InterruptMode = APCI3120_EOC_MODE;
+	if (data[1])
+		devpriv->b_EocEosInterrupt = APCI3120_ENABLE;
+	else
+		devpriv->b_EocEosInterrupt = APCI3120_DISABLE;
 
 	return insn->n;
 }
@@ -186,11 +161,6 @@ static int apci3120_setup_chan_list(struct comedi_device *dev,
 	return 1;		/*  we can serve this with scan logic */
 }
 
-/*
- * Reads analog input in synchronous mode EOC and EOS is selected
- * as per configured if no conversion time is set uses default
- * conversion time 10 microsec.
- */
 static int apci3120_ai_insn_read(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn,
@@ -266,60 +236,6 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 			}
 
 			break;
-
-		case APCI3120_EOS_MODE:
-			apci3120_ai_reset_fifo(dev);
-
-			if (!apci3120_setup_chan_list(dev, s,
-					devpriv->ui_AiNbrofChannels,
-					devpriv->ui_AiChannelList))
-				return -EINVAL;
-
-			/* Initialize Timer 0 mode 2 */
-			apci3120_timer_set_mode(dev, 0, APCI3120_TIMER_MODE2);
-
-			/* Set the conversion time */
-			apci3120_timer_write(dev, 0, divisor);
-
-			/* Set the scan bit */
-			devpriv->mode |= APCI3120_MODE_SCAN_ENA;
-			outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
-
-			/* If Interrupt function is loaded */
-			if (devpriv->b_EocEosInterrupt == APCI3120_ENABLE) {
-				devpriv->mode |= APCI3120_MODE_EOS_IRQ_ENA;
-				inw(dev->iobase + 0);
-			}
-
-			outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
-
-			inw(dev->iobase + APCI3120_RD_STATUS);
-
-			apci3120_timer_enable(dev, 0, true);
-
-			/* Start conversion */
-			outw(0, dev->iobase + APCI3120_START_CONVERSION);
-
-			/* Waiting of end of conversion if interrupt is not installed */
-			if (devpriv->b_EocEosInterrupt == APCI3120_DISABLE) {
-				/* Waiting the end of conversion */
-				do {
-					us_TmpValue = inw(dev->iobase +
-							  APCI3120_RD_STATUS);
-				} while ((us_TmpValue & APCI3120_EOS) !=
-					 APCI3120_EOS);
-
-				for (i = 0; i < devpriv->ui_AiNbrofChannels;
-					i++) {
-					/* Read the result in FIFO and write them in shared memory */
-					us_TmpValue = inw(dev->iobase);
-					data[i] = (unsigned int) us_TmpValue;
-				}
-
-				devpriv->b_InterruptMode = APCI3120_EOC_MODE;	/*  Restore defaults */
-			}
-			break;
-
 		default:
 			dev_err(dev->class_dev, "inputs wrong\n");
 
@@ -908,8 +824,7 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 	struct apci3120_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned short int_daq;
-	unsigned int int_amcc, ui_Check, i;
-	unsigned short us_TmpValue;
+	unsigned int int_amcc, ui_Check;
 
 	ui_Check = 1;
 
@@ -964,21 +879,7 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 				devpriv->mode |= APCI3120_MODE_EOS_IRQ_ENA;
 				outb(devpriv->mode,
 				     dev->iobase + APCI3120_MODE_REG);
-			} else {
-				ui_Check = 0;
-				for (i = 0; i < devpriv->ui_AiNbrofChannels;
-					i++) {
-					us_TmpValue = inw(dev->iobase + 0);
-					devpriv->ui_AiReadData[i] =
-						(unsigned int) us_TmpValue;
-				}
-				devpriv->b_EocEosInterrupt = APCI3120_DISABLE;
-				devpriv->b_InterruptMode = APCI3120_EOC_MODE;
-
-				send_sig(SIGIO, devpriv->tsk_Current, 0);	/*  send signal to the sample */
-
 			}
-
 		} else {
 			devpriv->mode &= ~APCI3120_MODE_EOS_IRQ_ENA;
 			outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
