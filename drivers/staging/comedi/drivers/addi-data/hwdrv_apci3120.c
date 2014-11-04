@@ -115,7 +115,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 #define APCI3120_ENABLE_WATCHDOG	0x20
 #define APCI3120_DISABLE_WATCHDOG	(~APCI3120_ENABLE_WATCHDOG)
 #define APCI3120_ENABLE_TIMER_COUNTER	0x10
-#define APCI3120_DISABLE_TIMER_COUNTER	(~APCI3120_ENABLE_TIMER_COUNTER)
 #define APCI3120_FC_TIMER		0x1000
 
 #define APCI3120_TIMER2_SELECT_EOS	0xc0
@@ -1096,7 +1095,7 @@ static int apci3120_config_insn_timer(struct comedi_device *dev,
 
 	/*  Disable TIMER Interrupt */
 	devpriv->mode &= APCI3120_DISABLE_TIMER_INT &
-			 APCI3120_DISABLE_TIMER_COUNTER;
+			 ~APCI3120_ENABLE_TIMER_COUNTER;
 
 	/*  Disable Eoc and Eos Interrupts */
 	devpriv->mode &= APCI3120_DISABLE_EOC_INT & APCI3120_DISABLE_EOS_INT;
@@ -1193,7 +1192,7 @@ static int apci3120_write_insn_timer(struct comedi_device *dev,
 	case APCI3120_STOP:
 		if (devpriv->b_Timer2Mode == APCI3120_TIMER) {
 			/* Disable timer */
-			devpriv->mode &= APCI3120_DISABLE_TIMER_COUNTER;
+			devpriv->mode &= ~APCI3120_ENABLE_TIMER_COUNTER;
 		} else {
 			/* Disable WatchDog */
 			devpriv->mode &= APCI3120_DISABLE_WATCHDOG;
