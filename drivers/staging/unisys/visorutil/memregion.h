@@ -20,24 +20,24 @@
 
 #include "timskmod.h"
 
-/* MEMREGION is an opaque structure to users.
+/* struct memregion is an opaque structure to users.
  * Fields are declared only in the implementation .c files.
  */
-typedef struct MEMREGION_Tag MEMREGION;
+struct memregion;
 
-MEMREGION *visor_memregion_create(HOSTADDRESS physaddr, ulong nbytes);
-MEMREGION *visor_memregion_create_overlapped(MEMREGION *parent,
-					     ulong offset, ulong nbytes);
-int visor_memregion_resize(MEMREGION *memregion, ulong newsize);
-int visor_memregion_read(MEMREGION *memregion,
-		   ulong offset, void *dest, ulong nbytes);
-int visor_memregion_write(MEMREGION *memregion,
+struct memregion *visor_memregion_create(HOSTADDRESS physaddr, ulong nbytes);
+struct memregion *visor_memregion_create_overlapped(struct memregion *parent,
+						    ulong offset, ulong nbytes);
+int visor_memregion_resize(struct memregion *memregion, ulong newsize);
+int visor_memregion_read(struct memregion *memregion,
+			 ulong offset, void *dest, ulong nbytes);
+int visor_memregion_write(struct memregion *memregion,
 			  ulong offset, void *src, ulong nbytes);
-void visor_memregion_destroy(MEMREGION *memregion);
-HOSTADDRESS visor_memregion_get_physaddr(MEMREGION *memregion);
-ulong visor_memregion_get_nbytes(MEMREGION *memregion);
-void memregion_dump(MEMREGION *memregion, char *s,
+void visor_memregion_destroy(struct memregion *memregion);
+HOSTADDRESS visor_memregion_get_physaddr(struct memregion *memregion);
+ulong visor_memregion_get_nbytes(struct memregion *memregion);
+void memregion_dump(struct memregion *memregion, char *s,
 		    ulong off, ulong len, struct seq_file *seq);
-void __iomem *visor_memregion_get_pointer(MEMREGION *memregion);
+void __iomem *visor_memregion_get_pointer(struct memregion *memregion);
 
 #endif

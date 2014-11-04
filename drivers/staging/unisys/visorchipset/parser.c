@@ -47,7 +47,7 @@ parser_init_guts(u64 addr, u32 bytes, BOOL isLocal,
 	int allocbytes = sizeof(PARSER_CONTEXT) + bytes;
 	PARSER_CONTEXT *rc = NULL;
 	PARSER_CONTEXT *ctx = NULL;
-	MEMREGION *rgn = NULL;
+	struct memregion *rgn = NULL;
 	struct spar_controlvm_parameters_header *phdr = NULL;
 
 	if (tryAgain)
