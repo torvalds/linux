@@ -437,8 +437,6 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 static int apci3120_reset(struct comedi_device *dev)
 {
 	struct apci3120_private *devpriv = dev->private;
-	unsigned int i;
-	unsigned short us_TmpValue;
 
 	devpriv->ai_running = 0;
 	devpriv->b_EocEosInterrupt = APCI3120_DISABLE;
@@ -463,11 +461,6 @@ static int apci3120_reset(struct comedi_device *dev)
 	inb(dev->iobase + APCI3120_RESET_FIFO);	/*  flush FIFO */
 	inw(dev->iobase + APCI3120_RD_STATUS);	/*  flush A/D status register */
 
-	/* code to reset the RAM sequence */
-	for (i = 0; i < 16; i++) {
-		us_TmpValue = i << 8;	/* select the location */
-		outw(us_TmpValue, dev->iobase + APCI3120_SEQ_RAM_ADDRESS);
-	}
 	return 0;
 }
 
