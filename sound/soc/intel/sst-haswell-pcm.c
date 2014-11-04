@@ -868,7 +868,6 @@ static int hsw_pcm_probe(struct snd_soc_platform *platform)
 	dev = platform->dev;
 	dma_dev = pdata->dma_dev;
 
-	priv_data = devm_kzalloc(platform->dev, sizeof(*priv_data), GFP_KERNEL);
 	priv_data->hsw = pdata->dsp;
 	priv_data->dev = platform->dev;
 	priv_data->pm_state = HSW_PM_STATE_D0;
