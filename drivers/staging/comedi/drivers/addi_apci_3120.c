@@ -281,6 +281,44 @@ static void apci3120_ai_reset_fifo(struct comedi_device *dev)
 
 #include "addi-data/hwdrv_apci3120.c"
 
+static int apci3120_ao_ready(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn,
+			     unsigned long context)
+{
+	unsigned int status;
+
+	status = inw(dev->iobase + APCI3120_STATUS_REG);
+	if (status & APCI3120_STATUS_DA_READY)
+		return 0;
+	return -EBUSY;
+}
+
+static int apci3120_ao_insn_write(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn,
+				  unsigned int *data)
+{
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int i;
+
+	for (i = 0; i < insn->n; i++) {
+		unsigned int val = data[i];
+		int ret;
+
+		ret = comedi_timeout(dev, s, insn, apci3120_ao_ready, 0);
+		if (ret)
+			return ret;
+
+		outw(APCI3120_AO_MUX(chan) | APCI3120_AO_DATA(val),
+		     dev->iobase + APCI3120_AO_REG(chan));
+
+		s->readback[chan] = val;
+	}
+
+	return insn->n;
+}
+
 static int apci3120_di_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn,
