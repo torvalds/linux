@@ -3523,7 +3523,7 @@ static const struct file_operations i915_display_crc_ctl_fops = {
 	.write = display_crc_ctl_write
 };
 
-static void wm_latency_show(struct seq_file *m, const uint16_t wm[5])
+static void wm_latency_show(struct seq_file *m, const uint16_t wm[8])
 {
 	struct drm_device *dev = m->private;
 	int num_levels = ilk_wm_max_level(dev) + 1;
@@ -3534,13 +3534,17 @@ static void wm_latency_show(struct seq_file *m, const uint16_t wm[5])
 	for (level = 0; level < num_levels; level++) {
 		unsigned int latency = wm[level];
 
-		/* WM1+ latency values in 0.5us units */
-		if (level > 0)
+		/*
+		 * - WM1+ latency values in 0.5us units
+		 * - latencies are in us on gen9
+		 */
+		if (INTEL_INFO(dev)->gen >= 9)
+			latency *= 10;
+		else if (level > 0)
 			latency *= 5;
 
 		seq_printf(m, "WM%d %u (%u.%u usec)\n",
-			   level, wm[level],
-			   latency / 10, latency % 10);
+			   level, wm[level], latency / 10, latency % 10);
 	}
 
 	drm_modeset_unlock_all(dev);
@@ -3549,8 +3553,15 @@ static void wm_latency_show(struct seq_file *m, const uint16_t wm[5])
 static int pri_wm_latency_show(struct seq_file *m, void *data)
 {
 	struct drm_device *dev = m->private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	const uint16_t *latencies;
 
-	wm_latency_show(m, to_i915(dev)->wm.pri_latency);
+	if (INTEL_INFO(dev)->gen >= 9)
+		latencies = dev_priv->wm.skl_latency;
+	else
+		latencies = to_i915(dev)->wm.pri_latency;
+
+	wm_latency_show(m, latencies);
 
 	return 0;
 }
@@ -3558,8 +3569,15 @@ static int pri_wm_latency_show(struct seq_file *m, void *data)
 static int spr_wm_latency_show(struct seq_file *m, void *data)
 {
 	struct drm_device *dev = m->private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	const uint16_t *latencies;
 
-	wm_latency_show(m, to_i915(dev)->wm.spr_latency);
+	if (INTEL_INFO(dev)->gen >= 9)
+		latencies = dev_priv->wm.skl_latency;
+	else
+		latencies = to_i915(dev)->wm.spr_latency;
+
+	wm_latency_show(m, latencies);
 
 	return 0;
 }
@@ -3567,8 +3585,15 @@ static int spr_wm_latency_show(struct seq_file *m, void *data)
 static int cur_wm_latency_show(struct seq_file *m, void *data)
 {
 	struct drm_device *dev = m->private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	const uint16_t *latencies;
 
-	wm_latency_show(m, to_i915(dev)->wm.cur_latency);
+	if (INTEL_INFO(dev)->gen >= 9)
+		latencies = dev_priv->wm.skl_latency;
+	else
+		latencies = to_i915(dev)->wm.cur_latency;
+
+	wm_latency_show(m, latencies);
 
 	return 0;
 }
@@ -3604,11 +3629,11 @@ static int cur_wm_latency_open(struct inode *inode, struct file *file)
 }
 
 static ssize_t wm_latency_write(struct file *file, const char __user *ubuf,
-				size_t len, loff_t *offp, uint16_t wm[5])
+				size_t len, loff_t *offp, uint16_t wm[8])
 {
 	struct seq_file *m = file->private_data;
 	struct drm_device *dev = m->private;
-	uint16_t new[5] = { 0 };
+	uint16_t new[8] = { 0 };
 	int num_levels = ilk_wm_max_level(dev) + 1;
 	int level;
 	int ret;
@@ -3622,7 +3647,9 @@ static ssize_t wm_latency_write(struct file *file, const char __user *ubuf,
 
 	tmp[len] = '\0';
 
-	ret = sscanf(tmp, "%hu %hu %hu %hu %hu", &new[0], &new[1], &new[2], &new[3], &new[4]);
+	ret = sscanf(tmp, "%hu %hu %hu %hu %hu %hu %hu %hu",
+		     &new[0], &new[1], &new[2], &new[3],
+		     &new[4], &new[5], &new[6], &new[7]);
 	if (ret != num_levels)
 		return -EINVAL;
 
@@ -3642,8 +3669,15 @@ static ssize_t pri_wm_latency_write(struct file *file, const char __user *ubuf,
 {
 	struct seq_file *m = file->private_data;
 	struct drm_device *dev = m->private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint16_t *latencies;
 
-	return wm_latency_write(file, ubuf, len, offp, to_i915(dev)->wm.pri_latency);
+	if (INTEL_INFO(dev)->gen >= 9)
+		latencies = dev_priv->wm.skl_latency;
+	else
+		latencies = to_i915(dev)->wm.pri_latency;
+
+	return wm_latency_write(file, ubuf, len, offp, latencies);
 }
 
 static ssize_t spr_wm_latency_write(struct file *file, const char __user *ubuf,
@@ -3651,8 +3685,15 @@ static ssize_t spr_wm_latency_write(struct file *file, const char __user *ubuf,
 {
 	struct seq_file *m = file->private_data;
 	struct drm_device *dev = m->private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint16_t *latencies;
 
-	return wm_latency_write(file, ubuf, len, offp, to_i915(dev)->wm.spr_latency);
+	if (INTEL_INFO(dev)->gen >= 9)
+		latencies = dev_priv->wm.skl_latency;
+	else
+		latencies = to_i915(dev)->wm.spr_latency;
+
+	return wm_latency_write(file, ubuf, len, offp, latencies);
 }
 
 static ssize_t cur_wm_latency_write(struct file *file, const char __user *ubuf,
@@ -3660,8 +3701,15 @@ static ssize_t cur_wm_latency_write(struct file *file, const char __user *ubuf,
 {
 	struct seq_file *m = file->private_data;
 	struct drm_device *dev = m->private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint16_t *latencies;
 
-	return wm_latency_write(file, ubuf, len, offp, to_i915(dev)->wm.cur_latency);
+	if (INTEL_INFO(dev)->gen >= 9)
+		latencies = dev_priv->wm.skl_latency;
+	else
+		latencies = to_i915(dev)->wm.cur_latency;
+
+	return wm_latency_write(file, ubuf, len, offp, latencies);
 }
 
 static const struct file_operations i915_pri_wm_latency_fops = {
