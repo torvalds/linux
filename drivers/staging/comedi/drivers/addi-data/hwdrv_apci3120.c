@@ -131,66 +131,6 @@ static int apci3120_setup_chan_list(struct comedi_device *dev,
 	return 1;		/*  we can serve this with scan logic */
 }
 
-static int apci3120_ai_eoc(struct comedi_device *dev,
-			   struct comedi_subdevice *s,
-			   struct comedi_insn *insn,
-			   unsigned long context)
-{
-	unsigned int status;
-
-	status = inw(dev->iobase + APCI3120_STATUS_REG);
-	if ((status & APCI3120_STATUS_EOC_INT) == 0)
-		return 0;
-	return -EBUSY;
-}
-
-static int apci3120_ai_insn_read(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn,
-				 unsigned int *data)
-{
-	struct apci3120_private *devpriv = dev->private;
-	unsigned int divisor;
-	int ret;
-	int i;
-
-	/* set mode for A/D conversions by software trigger with timer 0 */
-	devpriv->mode = APCI3120_MODE_TIMER2_CLK_OSC |
-			APCI3120_MODE_TIMER2_AS_TIMER;
-	outb(devpriv->mode, dev->iobase + APCI3120_MODE_REG);
-
-	/* load chanlist for single channel scan */
-	if (!apci3120_setup_chan_list(dev, s, 1, &insn->chanspec))
-		return -EINVAL;
-
-	/*
-	 * Timer 0 is used in MODE4 (software triggered strobe) to set the
-	 * conversion time for each acquisition. Each conversion is triggered
-	 * when the divisor is written to the timer, The conversion is done
-	 * when the EOC bit in the status register is '0'.
-	 */
-	apci3120_timer_set_mode(dev, 0, APCI3120_TIMER_MODE4);
-	apci3120_timer_enable(dev, 0, true);
-
-	/* fixed conversion time of 10 us */
-	divisor = apci3120_ns_to_timer(dev, 0, 10000, CMDF_ROUND_NEAREST);
-
-	apci3120_ai_reset_fifo(dev);
-
-	for (i = 0; i < insn->n; i++) {
-		/* trigger conversion */
-		apci3120_timer_write(dev, 0, divisor);
-
-		ret = comedi_timeout(dev, s, insn, apci3120_ai_eoc, 0);
-		if (ret)
-			return ret;
-
-		data[i] = inw(dev->iobase + 0);
-	}
-
-	return insn->n;
-}
-
 static int apci3120_reset(struct comedi_device *dev)
 {
 	struct apci3120_private *devpriv = dev->private;
