@@ -2030,6 +2030,7 @@ static struct nvme_ns *nvme_alloc_ns(struct nvme_dev *dev, unsigned nsid,
 	if (!ns->queue)
 		goto out_free_ns;
 	ns->queue->queue_flags = QUEUE_FLAG_DEFAULT;
+	queue_flag_clear_unlocked(QUEUE_FLAG_STACKABLE, ns->queue);
 	queue_flag_set_unlocked(QUEUE_FLAG_NOMERGES, ns->queue);
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, ns->queue);
 	queue_flag_clear_unlocked(QUEUE_FLAG_ADD_RANDOM, ns->queue);
