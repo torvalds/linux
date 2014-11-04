@@ -435,7 +435,7 @@ void snd_soc_dapm_auto_nc_pins(struct snd_soc_card *card);
 unsigned int dapm_kcontrol_get_value(const struct snd_kcontrol *kcontrol);
 
 /* Mostly internal - should not normally be used */
-void dapm_mark_io_dirty(struct snd_soc_dapm_context *dapm);
+void dapm_mark_endpoints_dirty(struct snd_soc_card *card);
 
 /* dapm path query */
 int snd_soc_dapm_dai_get_connected_widgets(struct snd_soc_dai *dai, int stream,
@@ -508,9 +508,9 @@ struct snd_soc_dapm_path {
 
 	/* status */
 	u32 connect:1;	/* source and sink widgets are connected */
-	u32 walked:1;	/* path has been walked */
 	u32 walking:1;  /* path is in the process of being walked */
 	u32 weak:1;	/* path ignored for power management */
+	u32 is_supply:1;	/* At least one of the connected widgets is a supply */
 
 	int (*connected)(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink);
@@ -544,11 +544,13 @@ struct snd_soc_dapm_widget {
 	unsigned char active:1;			/* active stream on DAC, ADC's */
 	unsigned char connected:1;		/* connected codec pin */
 	unsigned char new:1;			/* cnew complete */
-	unsigned char ext:1;			/* has external widgets */
 	unsigned char force:1;			/* force state */
 	unsigned char ignore_suspend:1;         /* kept enabled over suspend */
 	unsigned char new_power:1;		/* power from this run */
 	unsigned char power_checked:1;		/* power checked this run */
+	unsigned char is_supply:1;		/* Widget is a supply type widget */
+	unsigned char is_sink:1;		/* Widget is a sink type widget */
+	unsigned char is_source:1;		/* Widget is a source type widget */
 	int subseq;				/* sort within widget type */
 
 	int (*power_check)(struct snd_soc_dapm_widget *w);
@@ -567,6 +569,7 @@ struct snd_soc_dapm_widget {
 	struct list_head sinks;
 
 	/* used during DAPM updates */
+	struct list_head work_list;
 	struct list_head power_list;
 	struct list_head dirty;
 	int inputs;
