@@ -245,8 +245,12 @@ static inline void mipi_dsi_set_drvdata(struct mipi_dsi_device *dsi, void *data)
 	dev_set_drvdata(&dsi->dev, data);
 }
 
-int mipi_dsi_driver_register(struct mipi_dsi_driver *driver);
+int mipi_dsi_driver_register_full(struct mipi_dsi_driver *driver,
+				  struct module *owner);
 void mipi_dsi_driver_unregister(struct mipi_dsi_driver *driver);
+
+#define mipi_dsi_driver_register(driver) \
+	mipi_dsi_driver_register_full(driver, THIS_MODULE)
 
 #define module_mipi_dsi_driver(__mipi_dsi_driver) \
 	module_driver(__mipi_dsi_driver, mipi_dsi_driver_register, \

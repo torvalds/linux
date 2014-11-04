@@ -1052,7 +1052,6 @@ static struct mipi_dsi_driver s6e8aa0_driver = {
 	.remove = s6e8aa0_remove,
 	.driver = {
 		.name = "panel_s6e8aa0",
-		.owner = THIS_MODULE,
 		.of_match_table = s6e8aa0_of_match,
 	},
 };

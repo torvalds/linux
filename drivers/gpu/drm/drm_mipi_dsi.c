@@ -887,14 +887,18 @@ static void mipi_dsi_drv_shutdown(struct device *dev)
 }
 
 /**
- * mipi_dsi_driver_register() - register a driver for DSI devices
+ * mipi_dsi_driver_register_full() - register a driver for DSI devices
  * @drv: DSI driver structure
+ * @owner: owner module
  *
  * Return: 0 on success or a negative error code on failure.
  */
-int mipi_dsi_driver_register(struct mipi_dsi_driver *drv)
+int mipi_dsi_driver_register_full(struct mipi_dsi_driver *drv,
+				  struct module *owner)
 {
 	drv->driver.bus = &mipi_dsi_bus_type;
+	drv->driver.owner = owner;
+
 	if (drv->probe)
 		drv->driver.probe = mipi_dsi_drv_probe;
 	if (drv->remove)
@@ -904,7 +908,7 @@ int mipi_dsi_driver_register(struct mipi_dsi_driver *drv)
 
 	return driver_register(&drv->driver);
 }
-EXPORT_SYMBOL(mipi_dsi_driver_register);
+EXPORT_SYMBOL(mipi_dsi_driver_register_full);
 
 /**
  * mipi_dsi_driver_unregister() - unregister a driver for DSI devices

@@ -966,7 +966,6 @@ static void panel_simple_dsi_shutdown(struct mipi_dsi_device *dsi)
 static struct mipi_dsi_driver panel_simple_dsi_driver = {
 	.driver = {
 		.name = "panel-simple-dsi",
-		.owner = THIS_MODULE,
 		.of_match_table = dsi_of_match,
 	},
 	.probe = panel_simple_dsi_probe,
