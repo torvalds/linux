@@ -303,17 +303,6 @@ static int add_vbus(struct add_vbus_guestpart *addparams)
 		      sizeof(struct vhba_config_max));			\
 	}
 
-/* find bus device with the busid that matches - match_busid matches bus_id */
-#define GET_BUS_DEV(busno) { \
-	sprintf(busid, "vbus%d", busno); \
-	vbus = bus_find_device(&virtpci_bus_type, NULL, \
-			       (void *)busid, match_busid);	\
-	if (!vbus) { \
-		LOGERR("**** FAILED to find vbus %s\n", busid); \
-		return 0; \
-	} \
-}
-
 /* adds a vhba
  * returns 0 failure, 1 success,
  */
@@ -334,7 +323,14 @@ static int add_vhba(struct add_virt_guestpart *addparams)
 
 	GET_SCSIADAPINFO_FROM_CHANPTR(addparams->chanptr);
 
-	GET_BUS_DEV(addparams->bus_no);
+	/* find bus device with the busid that matches match_busid */
+	sprintf(busid, "vbus%d", addparams->bus_no);
+	vbus = bus_find_device(&virtpci_bus_type, NULL,
+			       (void *)busid, match_busid);
+	if (!vbus) {
+		LOGERR("**** FAILED to find vbus %s\n", busid);
+		return 0;
+	}
 
 	LOGINF("Adding vhba wwnn:%x:%x config:%d-%d-%d-%d chanptr:%p\n",
 	       scsi.wwnn.wwnn1, scsi.wwnn.wwnn2,
@@ -390,7 +386,14 @@ add_vnic(struct add_virt_guestpart *addparams)
 
 	GET_NETADAPINFO_FROM_CHANPTR(addparams->chanptr);
 
-	GET_BUS_DEV(addparams->bus_no);
+	/* find bus device with the busid that matches match_busid */
+	sprintf(busid, "vbus%d", addparams->bus_no);
+	vbus = bus_find_device(&virtpci_bus_type, NULL,
+			       (void *)busid, match_busid);
+	if (!vbus) {
+		LOGERR("**** FAILED to find vbus %s\n", busid);
+		return 0;
+	}
 
 	LOGINF("Adding vnic macaddr:%02x:%02x:%02x:%02x:%02x:%02x rcvbufs:%d mtu:%d chanptr:%p%pUL\n",
 	       net.mac_addr[0], net.mac_addr[1], net.mac_addr[2],
@@ -417,7 +420,15 @@ delete_vbus(struct del_vbus_guestpart *delparams)
 	struct device *vbus;
 	unsigned char busid[BUS_ID_SIZE];
 
-	GET_BUS_DEV(delparams->bus_no);
+	/* find bus device with the busid that matches match_busid */
+	sprintf(busid, "vbus%d", delparams->bus_no);
+	vbus = bus_find_device(&virtpci_bus_type, NULL,
+			       (void *)busid, match_busid);
+	if (!vbus) {
+		LOGERR("**** FAILED to find vbus %s\n", busid);
+		return 0;
+	}
+
 	/* ensure that bus has no devices? -- TBD */
 	LOGINF("Deleting %s\n", BUS_ID(vbus));
 	if (delete_vbus_device(vbus, NULL))
@@ -621,7 +632,14 @@ static int delete_all_virt(enum virtpci_dev_type devtype,
 	unsigned char busid[BUS_ID_SIZE];
 	struct device *vbus;
 
-	GET_BUS_DEV(delparams->bus_no);
+	/* find bus device with the busid that matches match_busid */
+	sprintf(busid, "vbus%d", delparams->bus_no);
+	vbus = bus_find_device(&virtpci_bus_type, NULL,
+			       (void *)busid, match_busid);
+	if (!vbus) {
+		LOGERR("**** FAILED to find vbus %s\n", busid);
+		return 0;
+	}
 
 	if ((devtype != VIRTHBA_TYPE) && (devtype != VIRTNIC_TYPE)) {
 		LOGERR("**** FAILED to delete all devices; devtype:%d not vhba:%d or vnic:%d\n",
