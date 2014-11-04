@@ -435,11 +435,10 @@ static void apci3120_set_chanlist(struct comedi_device *dev,
 		devpriv->mode |= APCI3120_MODE_SCAN_ENA;
 }
 
-static void apci3120_interrupt_dma(int irq, void *d)
+static void apci3120_interrupt_dma(struct comedi_device *dev,
+				   struct comedi_subdevice *s)
 {
-	struct comedi_device *dev = d;
 	struct apci3120_private *devpriv = dev->private;
-	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
 	struct apci3120_dmabuf *dmabuf;
@@ -549,7 +548,7 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 		outl(AINT_WT_COMPLETE, devpriv->amcc + AMCC_OP_REG_INTCSR);
 
 		/* do some data transfer */
-		apci3120_interrupt_dma(irq, d);
+		apci3120_interrupt_dma(dev, s);
 	}
 
 	if (cmd->stop_src == TRIG_COUNT && async->scans_done >= cmd->stop_arg)
