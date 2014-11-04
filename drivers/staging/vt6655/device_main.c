@@ -1014,10 +1014,6 @@ static int device_tx_srv(struct vnt_private *pDevice, unsigned int uIdx)
 			}
 			device_free_tx_buf(pDevice, pTD);
 			pDevice->iTDUsed[uIdx]--;
-
-			/* Make sure queue is available */
-			if (AVAIL_TD(pDevice, uIdx))
-				ieee80211_wake_queues(pDevice->hw);
 		}
 	}
 
@@ -1188,6 +1184,14 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance)
 				if (pDevice->vif->bss_conf.enable_beacon)
 					vnt_beacon_make(pDevice, pDevice->vif);
 			}
+		}
+
+		/* If both buffers available wake the queue */
+		if (pDevice->vif) {
+			if (AVAIL_TD(pDevice, TYPE_TXDMA0) &&
+			    AVAIL_TD(pDevice, TYPE_AC0DMA) &&
+			    ieee80211_queue_stopped(pDevice->hw, 0))
+				ieee80211_wake_queues(pDevice->hw);
 		}
 
 		MACvReadISR(pDevice->PortOffset, &pDevice->dwIsr);
