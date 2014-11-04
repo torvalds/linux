@@ -468,6 +468,13 @@ static void sdhci_adma_write_desc(u8 *desc, u32 addr, int len, unsigned cmd)
 	dataddr[0] = cpu_to_le32(addr);
 }
 
+static void sdhci_adma_mark_end(void *desc)
+{
+	u8 *dma_desc = desc;
+
+	dma_desc[0] |= 0x2; /* end */
+}
+
 static int sdhci_adma_table_pre(struct sdhci_host *host,
 	struct mmc_data *data)
 {
@@ -564,7 +571,7 @@ static int sdhci_adma_table_pre(struct sdhci_host *host,
 		*/
 		if (desc != host->adma_table) {
 			desc -= 8;
-			desc[0] |= 0x2; /* end */
+			sdhci_adma_mark_end(desc);
 		}
 	} else {
 		/*
