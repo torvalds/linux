@@ -36,8 +36,7 @@
 int unisys_spar_platform;
 EXPORT_SYMBOL_GPL(unisys_spar_platform);
 
-static __init uint32_t
-visorutil_spar_detect(void)
+static __init uint32_t visorutil_spar_detect(void)
 {
 	unsigned int eax, ebx, ecx, edx;
 
@@ -47,8 +46,9 @@ visorutil_spar_detect(void)
 		return  (ebx == UNISYS_SPAR_ID_EBX) &&
 			(ecx == UNISYS_SPAR_ID_ECX) &&
 			(edx == UNISYS_SPAR_ID_EDX);
-	} else
+	} else {
 		return 0;
+	}
 }
 
 static __init int
