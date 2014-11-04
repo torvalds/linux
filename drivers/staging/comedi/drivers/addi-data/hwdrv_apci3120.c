@@ -86,7 +86,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 /* nWrMode_Select */
 #define APCI3120_ENABLE_SCAN		0x8
-#define APCI3120_DISABLE_SCAN		(~APCI3120_ENABLE_SCAN)
 #define APCI3120_ENABLE_EOS_INT		0x2
 
 #define APCI3120_ENABLE_EOC_INT		0x1
