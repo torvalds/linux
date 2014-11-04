@@ -188,31 +188,18 @@ static int apci3120_ai_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
- * This function will first check channel list is ok or not and then
- * initialize the sequence RAM with the polarity, Gain,Channel number.
- * If the last argument of function "check"is 1 then it only checks
- * the channel list is ok or not.
- */
 static int apci3120_setup_chan_list(struct comedi_device *dev,
 				    struct comedi_subdevice *s,
-				    int n_chan,
-				    unsigned int *chanlist,
-				    char check)
+				    int n_chan, unsigned int *chanlist)
 {
 	struct apci3120_private *devpriv = dev->private;
 	int i;
 
 	/* correct channel and range number check itself comedi/range.c */
 	if (n_chan < 1) {
-		if (!check)
-			dev_err(dev->class_dev,
-				"range/channel list is empty!\n");
+		dev_err(dev->class_dev, "range/channel list is empty!\n");
 		return 0;
 	}
-	/*  All is ok, so we can setup channel/range list */
-	if (check)
-		return 1;
 
 	/* set scan length (PR) and scan start (PA) */
 	devpriv->ctrl = APCI3120_CTRL_PR(n_chan - 1) | APCI3120_CTRL_PA(0);
@@ -282,7 +269,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 
 			/*  Initialize the sequence array */
 			if (!apci3120_setup_chan_list(dev, s, 1,
-					&insn->chanspec, 0))
+					&insn->chanspec))
 				return -EINVAL;
 
 			/* Initialize Timer 0 mode 4 */
@@ -347,7 +334,7 @@ static int apci3120_ai_insn_read(struct comedi_device *dev,
 
 			if (!apci3120_setup_chan_list(dev, s,
 					devpriv->ui_AiNbrofChannels,
-					devpriv->ui_AiChannelList, 0))
+					devpriv->ui_AiChannelList))
 				return -EINVAL;
 
 			/* Initialize Timer 0 mode 2 */
@@ -594,7 +581,7 @@ static int apci3120_cyclic_ai(int mode,
 
 	/* Initializes the sequence array */
 	if (!apci3120_setup_chan_list(dev, s, devpriv->ui_AiNbrofChannels,
-			cmd->chanlist, 0))
+			cmd->chanlist))
 		return -EINVAL;
 
 	divisor0 = apci3120_ns_to_timer(dev, 0, cmd->convert_arg, cmd->flags);
