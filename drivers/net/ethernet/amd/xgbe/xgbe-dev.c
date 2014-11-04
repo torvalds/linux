@@ -1198,7 +1198,7 @@ static void xgbe_config_dcb_pfc(struct xgbe_prv_data *pdata)
 	xgbe_config_flow_control(pdata);
 }
 
-static void xgbe_pre_xmit(struct xgbe_channel *channel)
+static void xgbe_dev_xmit(struct xgbe_channel *channel)
 {
 	struct xgbe_prv_data *pdata = channel->pdata;
 	struct xgbe_ring *ring = channel->tx_ring;
@@ -1211,7 +1211,7 @@ static void xgbe_pre_xmit(struct xgbe_channel *channel)
 	int start_index = ring->cur;
 	int i;
 
-	DBGPR("-->xgbe_pre_xmit\n");
+	DBGPR("-->xgbe_dev_xmit\n");
 
 	csum = XGMAC_GET_BITS(packet->attributes, TX_PACKET_ATTRIBUTES,
 			      CSUM_ENABLE);
@@ -1410,7 +1410,7 @@ static void xgbe_pre_xmit(struct xgbe_channel *channel)
 	      channel->name, start_index & (ring->rdesc_count - 1),
 	      (ring->cur - 1) & (ring->rdesc_count - 1));
 
-	DBGPR("<--xgbe_pre_xmit\n");
+	DBGPR("<--xgbe_dev_xmit\n");
 }
 
 static int xgbe_dev_read(struct xgbe_channel *channel)
@@ -2561,7 +2561,7 @@ void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *hw_if)
 	hw_if->powerup_rx = xgbe_powerup_rx;
 	hw_if->powerdown_rx = xgbe_powerdown_rx;
 
-	hw_if->pre_xmit = xgbe_pre_xmit;
+	hw_if->dev_xmit = xgbe_dev_xmit;
 	hw_if->dev_read = xgbe_dev_read;
 	hw_if->enable_int = xgbe_enable_int;
 	hw_if->disable_int = xgbe_disable_int;

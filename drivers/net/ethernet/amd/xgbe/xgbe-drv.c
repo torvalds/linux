@@ -1343,7 +1343,7 @@ static int xgbe_xmit(struct sk_buff *skb, struct net_device *netdev)
 	xgbe_prep_tx_tstamp(pdata, skb, packet);
 
 	/* Configure required descriptor fields for transmission */
-	hw_if->pre_xmit(channel);
+	hw_if->dev_xmit(channel);
 
 #ifdef XGMAC_ENABLE_TX_PKT_DUMP
 	xgbe_print_pkt(netdev, skb, true);
